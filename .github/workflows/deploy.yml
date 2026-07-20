@@ -1,0 +1,49 @@
+# Build + deploy automat la GitHub Pages.
+# Esential pentru workflow-ul tau: editezi/urci fisiere in GitHub web editor pe Android,
+# iar Actions face build-ul de TypeScript/Vite pe care nu-l poti rula local.
+name: Build & Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: pages-deploy
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      # Copiaza cele 5 modele ML din pachet in build — nu trebuie sa urci .bin-uri in repo
+      - name: Bundle ML models
+        run: |
+          mkdir -p public/models
+          for m in blazeface facemesh iris emotion faceres; do
+            cp node_modules/@vladmandic/human/models/$m.json public/models/
+            cp node_modules/@vladmandic/human/models/$m.bin public/models/
+          done
+      - run: npm run build
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
