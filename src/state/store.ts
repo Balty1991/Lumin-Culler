@@ -1,8 +1,7 @@
 /**
  * state/store.ts
- * Managementul starii (Zustand) — complet separat de componentele UI.
- * Componentele doar citesc starea si apeleaza actiuni; toata logica e aici
- * sau in serviciile din core/.
+ * Managementul starii (Zustand) — separat de UI. Include fluxul de comparare
+ * a seriilor: alegi cea mai buna poza dintr-un grup de cadre similare.
  */
 import { create } from 'zustand';
 import { db, type AnalysisRecord, type PhotoRecord, type KnownPerson } from '../core/db';
@@ -29,7 +28,7 @@ export interface PhotoView {
   capturedAt?: number;
 }
 
-export type FilterKey = 'all' | 'selected' | 'rejected' | 'review' | 'known' | 'strangers' | 'blinks';
+export type FilterKey = 'all' | 'selected' | 'review' | 'rejected' | 'series' | 'blinks';
 
 interface AppState {
   photos: PhotoView[];
@@ -37,14 +36,17 @@ interface AppState {
   progress: ImportProgress | null;
   filter: FilterKey;
   detailId: string | null;
+  compareGroupId: string | null;
   personsOpen: boolean;
   booted: boolean;
 
   boot: () => Promise<void>;
   runImport: (files: File[]) => Promise<void>;
   setStatus: (id: string, status: PhotoRecord['status']) => Promise<void>;
+  keepOnlyInGroup: (groupId: string, keepId: string) => Promise<void>;
   setFilter: (f: FilterKey) => void;
   openDetail: (id: string | null) => void;
+  openCompare: (groupId: string | null) => void;
   stepDetail: (dir: 1 | -1) => void;
   addPerson: (name: string, files: File[]) => Promise<{ ok: boolean; message: string }>;
   removePerson: (id: string) => Promise<void>;
@@ -52,9 +54,10 @@ interface AppState {
   clearAll: () => Promise<void>;
   exportSelection: () => Promise<void>;
   filtered: () => PhotoView[];
+  groupOf: (groupId: string) => PhotoView[];
 }
 
-function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined, groupId?: string): PhotoView {
+function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): PhotoView {
   return {
     id: photo.id,
     fileName: photo.fileName,
@@ -72,9 +75,16 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined, groupI
     personNames: analysis
       ? Array.from(new Set(analysis.faces.map(f => f.personName).filter((n): n is string => !!n)))
       : [],
-    groupId,
+    groupId: photo.groupId,
     capturedAt: photo.capturedAt
   };
+}
+
+async function train(id: string, userDecision: boolean): Promise<void> {
+  const analysis = await db.analyses.get(id);
+  if (!analysis) return;
+  const aiDecision = analysis.aiScore >= 65;
+  await contextEngine.recordCorrection({ photoId: id, analysis, aiDecision, userDecision });
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -83,6 +93,7 @@ export const useStore = create<AppState>((set, get) => ({
   progress: null,
   filter: 'all',
   detailId: null,
+  compareGroupId: null,
   personsOpen: false,
   booted: false,
 
@@ -102,47 +113,48 @@ export const useStore = create<AppState>((set, get) => ({
 
   runImport: async (files: File[]) => {
     set({ progress: { done: 0, total: files.length, fileName: '', phase: 'analiza' } });
-    const added: PhotoView[] = [];
-    const groups = await importFiles(
+    await importFiles(
       files,
       progress => set({ progress: { ...progress } }),
-      item => {
-        added.push(toView(item.photo, item.analysis));
-        set(state => ({ photos: [...state.photos, toView(item.photo, item.analysis)] }));
-      }
+      item => set(state => ({ photos: [...state.photos, toView(item.photo, item.analysis)] }))
     );
-    // aplica groupId + statusurile actualizate dupa gruparea duplicatelor
+    // reincarca statusurile si groupId-urile persistate dupa gruparea seriilor
     const fresh = await db.photos.toArray();
-    const statusById = new Map(fresh.map(p => [p.id, p.status]));
+    const byId = new Map(fresh.map(p => [p.id, p]));
     set(state => ({
       progress: null,
-      photos: state.photos.map(p => ({
-        ...p,
-        groupId: groups.get(p.id) ?? p.groupId,
-        status: statusById.get(p.id) ?? p.status
-      }))
+      photos: state.photos.map(p => {
+        const rec = byId.get(p.id);
+        return rec ? { ...p, status: rec.status, groupId: rec.groupId } : p;
+      })
     }));
   },
 
   setStatus: async (id, status) => {
-    const analysis = await db.analyses.get(id);
-    const photo = await db.photos.get(id);
-    if (!photo) return;
-    const previous = photo.status;
     await db.photos.update(id, { status });
     set(state => ({ photos: state.photos.map(p => (p.id === id ? { ...p, status } : p)) }));
+    if (status === 'selected' || status === 'rejected') await train(id, status === 'selected');
+  },
 
-    // Invatare: orice decizie manuala select/reject antreneaza ContextEngine
-    if (analysis && (status === 'selected' || status === 'rejected')) {
-      const aiDecision = analysis.aiScore >= 65;
-      const userDecision = status === 'selected';
-      await contextEngine.recordCorrection({ photoId: id, analysis, aiDecision, userDecision });
-      void previous;
+  /** Fluxul principal de serie: pastreaza o singura poza, respinge restul grupului. */
+  keepOnlyInGroup: async (groupId, keepId) => {
+    const members = get().photos.filter(p => p.groupId === groupId);
+    for (const m of members) {
+      const status = m.id === keepId ? 'selected' : 'rejected';
+      await db.photos.update(m.id, { status });
+      await train(m.id, m.id === keepId);
     }
+    set(state => ({
+      photos: state.photos.map(p =>
+        p.groupId === groupId ? { ...p, status: p.id === keepId ? 'selected' : 'rejected' } : p
+      ),
+      compareGroupId: null
+    }));
   },
 
   setFilter: f => set({ filter: f }),
   openDetail: id => set({ detailId: id }),
+  openCompare: groupId => set({ compareGroupId: groupId }),
 
   stepDetail: dir => {
     const { detailId } = get();
@@ -173,7 +185,7 @@ export const useStore = create<AppState>((set, get) => ({
     const persons = await db.persons.toArray();
     await analysisPool.setKnownPersons(persons);
     set({ persons });
-    return { ok: true, message: name + ': ' + embeddings.length + ' referinte salvate. Pozele viitoare vor fi recunoscute.' };
+    return { ok: true, message: name + ': ' + embeddings.length + ' referinte salvate.' };
   },
 
   removePerson: async id => {
@@ -186,8 +198,8 @@ export const useStore = create<AppState>((set, get) => ({
   setPersonsOpen: open => set({ personsOpen: open }),
 
   clearAll: async () => {
-    await Promise.all([db.photos.clear(), db.thumbnails.clear(), db.analyses.clear()]);
-    set({ photos: [], detailId: null });
+    await Promise.all([db.photos.clear(), db.thumbnails.clear(), db.previews.clear(), db.analyses.clear()]);
+    set({ photos: [], detailId: null, compareGroupId: null });
   },
 
   exportSelection: async () => {
@@ -210,12 +222,19 @@ export const useStore = create<AppState>((set, get) => ({
     const { photos, filter } = get();
     switch (filter) {
       case 'selected': return photos.filter(p => p.status === 'selected');
-      case 'rejected': return photos.filter(p => p.status === 'rejected');
       case 'review': return photos.filter(p => p.status === 'review');
-      case 'known': return photos.filter(p => p.knownFaceCount > 0);
-      case 'strangers': return photos.filter(p => p.strangerCount > 0);
+      case 'rejected': return photos.filter(p => p.status === 'rejected');
       case 'blinks': return photos.filter(p => p.faceCount > 0 && !p.allEyesOpen);
+      case 'series': {
+        const withGroup = photos.filter(p => p.groupId);
+        return withGroup.sort((a, b) =>
+          a.groupId === b.groupId ? b.aiScore - a.aiScore : (a.groupId! < b.groupId! ? -1 : 1)
+        );
+      }
       default: return photos;
     }
-  }
+  },
+
+  groupOf: groupId =>
+    get().photos.filter(p => p.groupId === groupId).sort((a, b) => b.aiScore - a.aiScore)
 }));
