@@ -2,16 +2,16 @@ import { useEffect, useRef } from 'react';
 import { useStore, type FilterKey } from './state/store';
 import { PhotoCard } from './ui/PhotoCard';
 import { DetailView } from './ui/DetailView';
+import { GroupCompare } from './ui/GroupCompare';
 import { PersonsPanel } from './ui/PersonsPanel';
 
 const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'all', label: 'Toate' },
   { key: 'selected', label: 'Selectate' },
   { key: 'review', label: 'De verificat' },
-  { key: 'rejected', label: 'Respinse' },
-  { key: 'known', label: 'Cu cei dragi' },
-  { key: 'strangers', label: 'Cu straini' },
-  { key: 'blinks', label: 'Ochi inchisi' }
+  { key: 'series', label: 'Serii' },
+  { key: 'blinks', label: 'Ochi inchisi' },
+  { key: 'rejected', label: 'Respinse' }
 ];
 
 export default function App() {
@@ -22,6 +22,7 @@ export default function App() {
   const setFilter = useStore(s => s.setFilter);
   const runImport = useStore(s => s.runImport);
   const openDetail = useStore(s => s.openDetail);
+  const openCompare = useStore(s => s.openCompare);
   const setPersonsOpen = useStore(s => s.setPersonsOpen);
   const exportSelection = useStore(s => s.exportSelection);
   const clearAll = useStore(s => s.clearAll);
@@ -33,7 +34,8 @@ export default function App() {
   const counts = {
     selected: photos.filter(p => p.status === 'selected').length,
     rejected: photos.filter(p => p.status === 'rejected').length,
-    review: photos.filter(p => p.status === 'review').length
+    review: photos.filter(p => p.status === 'review').length,
+    series: new Set(photos.filter(p => p.groupId).map(p => p.groupId)).size
   };
 
   const onFiles = (list: FileList | null) => {
@@ -42,17 +44,23 @@ export default function App() {
     if (fileRef.current) fileRef.current.value = '';
   };
 
+  const onCardOpen = (id: string) => {
+    const photo = photos.find(p => p.id === id);
+    if (filter === 'series' && photo?.groupId) openCompare(photo.groupId);
+    else openDetail(id);
+  };
+
   return (
     <div className="app">
       <header className="topbar">
         <div className="brand">
           <h1>LUMIN<span>CULLER</span></h1>
-          <p className="mono">sortare foto · AI local · nimic nu paraseste dispozitivul</p>
+          <p className="mono">sortare foto · AI local · pozele raman pe dispozitiv</p>
         </div>
         <div className="top-actions">
           <button className="ghost" onClick={() => setPersonsOpen(true)}>★ Persoane</button>
           <button className="ghost" onClick={() => void exportSelection()} disabled={!counts.selected}>
-            Exporta selectia ({counts.selected})
+            Exporta ({counts.selected})
           </button>
         </div>
       </header>
@@ -62,6 +70,7 @@ export default function App() {
         <span className="c-sel">{counts.selected} selectate</span>
         <span className="c-rev">{counts.review} de verificat</span>
         <span className="c-rej">{counts.rejected} respinse</span>
+        {counts.series > 0 && <span>{counts.series} serii</span>}
         {photos.length > 0 && <button className="ghost small" onClick={() => void clearAll()}>Goleste sesiunea</button>}
       </section>
 
@@ -92,14 +101,14 @@ export default function App() {
           <p>Alege pozele (JPEG/PNG/WebP). Analiza ruleaza local, pe fire separate —
           poti incarca si 1000+ fisiere fara ca aplicatia sa se blocheze.</p>
           <button className="select big" onClick={() => fileRef.current?.click()}>Alege fotografiile</button>
-          <p className="hint">Sfat: inroleaza intai persoanele cunoscute (★ Persoane) ca AI-ul
-          sa deosebeasca familia de straini inca de la primul import.</p>
+          <p className="hint">Optional: inroleaza persoanele importante (★ Persoane) ca AI-ul
+          sa le prioritizeze la scorare.</p>
         </div>
       ) : (
         <>
           <div className="grid">
             {filtered.map((p, i) => (
-              <PhotoCard key={p.id} photo={p} index={i} onOpen={openDetail} />
+              <PhotoCard key={p.id} photo={p} index={i} onOpen={onCardOpen} />
             ))}
           </div>
           {filtered.length === 0 && <p className="empty-filter">Nicio poza nu corespunde filtrului curent.</p>}
@@ -117,6 +126,7 @@ export default function App() {
       />
 
       <DetailView />
+      <GroupCompare />
       <PersonsPanel />
     </div>
   );

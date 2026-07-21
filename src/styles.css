@@ -152,3 +152,45 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--review); ou
   .detail-actions { grid-template-columns: 1fr 1fr; }
   .detail-actions .ghost { order: 2; }
 }
+
+/* ── v2.1: preview 100%, comparare serii, finisaje ────────────────────────── */
+
+.detail-inner.wide { max-width: 900px; }
+
+.detail-img { position: relative; cursor: zoom-in; overflow: hidden; border-radius: 6px; background: #101113; }
+.detail-img img { width: 100%; max-height: 62dvh; object-fit: contain; display: block; }
+.detail-img.zoomed { cursor: zoom-out; overflow: auto; max-height: 62dvh; -webkit-overflow-scrolling: touch; }
+.detail-img.zoomed img { width: auto; max-width: none; max-height: none; }
+.zoom-hint {
+  position: absolute; bottom: 8px; right: 10px; font-size: 0.68rem; color: var(--text-dim);
+  background: rgba(16,17,19,0.75); padding: 2px 8px; border-radius: 4px; pointer-events: none;
+}
+.detail-img.zoomed .zoom-hint { position: sticky; float: right; }
+
+.status-tag { font-family: var(--mono); font-size: 0.68rem; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--line); }
+.status-tag.st-selected { color: var(--pick); border-color: var(--pick); }
+.status-tag.st-rejected { color: var(--reject); border-color: var(--reject); }
+.status-tag.st-review { color: var(--review); border-color: var(--review); }
+
+.metric-strip {
+  display: flex; flex-wrap: wrap; gap: 6px 14px; background: var(--panel-2);
+  border-radius: 6px; padding: 9px 12px; color: var(--text-dim); font-size: 0.78rem;
+}
+.metric-strip b { color: var(--text); font-weight: 600; }
+.metric-strip .warn, .metric-strip .warn b { color: var(--reject); }
+
+/* Comparare serie */
+.compare-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.compare-card { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; display: grid; }
+.compare-card.st-selected { border-color: var(--pick); }
+.compare-card.st-rejected { border-color: var(--reject); opacity: 0.55; }
+.compare-img { padding: 0; background: #101113; border: none; cursor: zoom-in; }
+.compare-img img { width: 100%; aspect-ratio: 3/2; object-fit: contain; display: block; }
+.compare-meta { display: flex; justify-content: space-between; gap: 8px; padding: 7px 10px; color: var(--text-dim); font-size: 0.75rem; }
+.compare-meta b { color: var(--text); }
+.compare-actions { display: grid; grid-template-columns: 1fr 2fr; gap: 6px; padding: 0 8px 8px; }
+.small-btn { padding: 8px 10px; font-size: 0.85rem; }
+
+@media (max-width: 620px) {
+  .compare-grid { grid-template-columns: 1fr; }
+}
