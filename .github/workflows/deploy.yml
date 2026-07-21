@@ -1,6 +1,4 @@
 # Build + deploy automat la GitHub Pages.
-# Esential pentru workflow-ul tau: editezi/urci fisiere in GitHub web editor pe Android,
-# iar Actions face build-ul de TypeScript/Vite pe care nu-l poti rula local.
 name: Build & Deploy
 
 on:
@@ -24,9 +22,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
-      - run: npm ci
+          node-version: 22
+      - run: npm install --no-audit --no-fund
       # Copiaza cele 5 modele ML din pachet in build — nu trebuie sa urci .bin-uri in repo
       - name: Bundle ML models
         run: |
