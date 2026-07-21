@@ -1,18 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useStore, type FilterKey } from './state/store';
 import { PhotoCard } from './ui/PhotoCard';
 import { DetailView } from './ui/DetailView';
 import { GroupCompare } from './ui/GroupCompare';
 import { PersonsPanel } from './ui/PersonsPanel';
-
-const FILTERS: { key: FilterKey; label: string }[] = [
-  { key: 'all', label: 'Toate' },
-  { key: 'selected', label: 'Selectate' },
-  { key: 'review', label: 'De verificat' },
-  { key: 'series', label: 'Serii' },
-  { key: 'blinks', label: 'Ochi inchisi' },
-  { key: 'rejected', label: 'Respinse' }
-];
 
 export default function App() {
   const boot = useStore(s => s.boot);
@@ -31,12 +22,23 @@ export default function App() {
 
   useEffect(() => { void boot(); }, [boot]);
 
-  const counts = {
+  const counts = useMemo(() => ({
+    all: photos.length,
     selected: photos.filter(p => p.status === 'selected').length,
-    rejected: photos.filter(p => p.status === 'rejected').length,
     review: photos.filter(p => p.status === 'review').length,
-    series: new Set(photos.filter(p => p.groupId).map(p => p.groupId)).size
-  };
+    rejected: photos.filter(p => p.status === 'rejected').length,
+    series: photos.filter(p => p.groupId).length,
+    blinks: photos.filter(p => p.faceCount > 0 && !p.allEyesOpen).length
+  }), [photos]);
+
+  const FILTERS: { key: FilterKey; label: string; count: number }[] = [
+    { key: 'all', label: 'Toate', count: counts.all },
+    { key: 'selected', label: 'Selectate', count: counts.selected },
+    { key: 'review', label: 'De verificat', count: counts.review },
+    { key: 'series', label: 'Serii', count: counts.series },
+    { key: 'blinks', label: 'Ochi inchisi', count: counts.blinks },
+    { key: 'rejected', label: 'Respinse', count: counts.rejected }
+  ];
 
   const onFiles = (list: FileList | null) => {
     if (!list || !list.length) return;
@@ -50,29 +52,39 @@ export default function App() {
     else openDetail(id);
   };
 
+  const total = Math.max(1, counts.all);
+
   return (
     <div className="app">
       <header className="topbar">
         <div className="brand">
           <h1>LUMIN<span>CULLER</span></h1>
-          <p className="mono">sortare foto · AI local · pozele raman pe dispozitiv</p>
+          <p className="mono">AI local · pozele raman pe dispozitiv</p>
         </div>
         <div className="top-actions">
-          <button className="ghost" onClick={() => setPersonsOpen(true)}>★ Persoane</button>
+          <button className="ghost" onClick={() => setPersonsOpen(true)}>★</button>
           <button className="ghost" onClick={() => void exportSelection()} disabled={!counts.selected}>
             Exporta ({counts.selected})
           </button>
         </div>
       </header>
 
-      <section className="stats mono">
-        <span>{photos.length} poze</span>
-        <span className="c-sel">{counts.selected} selectate</span>
-        <span className="c-rev">{counts.review} de verificat</span>
-        <span className="c-rej">{counts.rejected} respinse</span>
-        {counts.series > 0 && <span>{counts.series} serii</span>}
-        {photos.length > 0 && <button className="ghost small" onClick={() => void clearAll()}>Goleste sesiunea</button>}
-      </section>
+      {photos.length > 0 && (
+        <section className="cullbar" aria-label="Progresul sortarii">
+          <div className="cullbar-track">
+            <span className="seg-sel" style={{ width: `${(counts.selected / total) * 100}%` }} />
+            <span className="seg-rev" style={{ width: `${(counts.review / total) * 100}%` }} />
+            <span className="seg-rej" style={{ width: `${(counts.rejected / total) * 100}%` }} />
+          </div>
+          <div className="cullbar-legend mono">
+            <span><i className="dot sel" /><b>{counts.selected}</b> selectate</span>
+            <span><i className="dot rev" /><b>{counts.review}</b> de verificat</span>
+            <span><i className="dot rej" /><b>{counts.rejected}</b> respinse</span>
+            <span className="spacer" />
+            <button className="ghost small" onClick={() => void clearAll()}>Goleste sesiunea</button>
+          </div>
+        </section>
+      )}
 
       {progress && (
         <div className="progress">
@@ -85,15 +97,17 @@ export default function App() {
         </div>
       )}
 
-      <nav className="filters">
-        {FILTERS.map(f => (
-          <button
-            key={f.key}
-            className={filter === f.key ? 'chip active' : 'chip'}
-            onClick={() => setFilter(f.key)}
-          >{f.label}</button>
-        ))}
-      </nav>
+      {photos.length > 0 && (
+        <nav className="filters">
+          {FILTERS.map(f => (
+            <button
+              key={f.key}
+              className={filter === f.key ? 'chip active' : 'chip'}
+              onClick={() => setFilter(f.key)}
+            >{f.label} <b>{f.count}</b></button>
+          ))}
+        </nav>
+      )}
 
       {photos.length === 0 && !progress ? (
         <div className="empty">
@@ -101,7 +115,7 @@ export default function App() {
           <p>Alege pozele (JPEG/PNG/WebP). Analiza ruleaza local, pe fire separate —
           poti incarca si 1000+ fisiere fara ca aplicatia sa se blocheze.</p>
           <button className="select big" onClick={() => fileRef.current?.click()}>Alege fotografiile</button>
-          <p className="hint">Optional: inroleaza persoanele importante (★ Persoane) ca AI-ul
+          <p className="hint">Optional: inroleaza persoanele importante (★) ca AI-ul
           sa le prioritizeze la scorare.</p>
         </div>
       ) : (
