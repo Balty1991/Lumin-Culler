@@ -1,8 +1,8 @@
 /**
  * core/importPipeline.ts
- * Fluxul complet de import: decodare -> miniatura -> dHash -> analiza ML (worker)
- * -> scor ContextEngine -> persistare IndexedDB -> grupare duplicate.
- * RAM plat: concurenta limitata, bitmap-urile sunt transferate si inchise imediat.
+ * Import: decodare la 2048px -> preview + miniatura + dHash -> analiza ML (worker)
+ * -> scor ContextEngine -> persistare IndexedDB -> grupare serii (persistata).
+ * Preview-ul de 2048px (standard Lightroom) este cel pe care se judeca claritatea.
  */
 import { db, type AnalysisRecord, type PhotoRecord } from './db';
 import { analysisPool } from './workerPool';
@@ -21,7 +21,7 @@ export interface ImportedPhoto {
   prediction: Prediction;
 }
 
-const ANALYSIS_MAX_SIDE = 1024;
+const PREVIEW_MAX_SIDE = 2048;
 const THUMB_SIZE = 512;
 const SELECT_THRESHOLD = 65;
 const REJECT_THRESHOLD = 35;
@@ -30,25 +30,38 @@ const DHASH_DISTANCE = 8;
 async function decode(file: File): Promise<ImageBitmap> {
   try {
     return await createImageBitmap(file, {
-      resizeWidth: ANALYSIS_MAX_SIDE,
-      resizeQuality: 'medium'
+      resizeWidth: PREVIEW_MAX_SIDE,
+      resizeQuality: 'high'
     } as ImageBitmapOptions);
   } catch {
     return await createImageBitmap(file);
   }
 }
 
-function makeThumbAndHash(bitmap: ImageBitmap): { blob: Promise<Blob>; dHash: string; w: number; h: number } {
-  const scale = THUMB_SIZE / Math.max(bitmap.width, bitmap.height);
-  const tw = Math.max(1, Math.round(bitmap.width * Math.min(1, scale)));
-  const th = Math.max(1, Math.round(bitmap.height * Math.min(1, scale)));
+function canvasToJpeg(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
+  return new Promise((resolve, reject) =>
+    canvas.toBlob(b => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/jpeg', quality)
+  );
+}
 
-  const canvas = document.createElement('canvas');
-  canvas.width = tw; canvas.height = th;
-  const ctx = canvas.getContext('2d')!;
-  ctx.drawImage(bitmap, 0, 0, tw, th);
+function makeDerivatives(bitmap: ImageBitmap): {
+  preview: Promise<Blob>; thumb: Promise<Blob>; dHash: string; w: number; h: number;
+} {
+  // Preview la rezolutia decodata (max 2048) — pe acesta se evalueaza claritatea
+  const pc = document.createElement('canvas');
+  pc.width = bitmap.width; pc.height = bitmap.height;
+  pc.getContext('2d')!.drawImage(bitmap, 0, 0);
+  const preview = canvasToJpeg(pc, 0.88);
 
-  // dHash 9x8 pe grayscale — hash perceptual pentru duplicate
+  // Miniatura pentru grila
+  const scale = Math.min(1, THUMB_SIZE / Math.max(bitmap.width, bitmap.height));
+  const tc = document.createElement('canvas');
+  tc.width = Math.max(1, Math.round(bitmap.width * scale));
+  tc.height = Math.max(1, Math.round(bitmap.height * scale));
+  tc.getContext('2d')!.drawImage(bitmap, 0, 0, tc.width, tc.height);
+  const thumb = canvasToJpeg(tc, 0.82);
+
+  // dHash 9x8 pentru serii/duplicate
   const hc = document.createElement('canvas');
   hc.width = 9; hc.height = 8;
   const hctx = hc.getContext('2d', { willReadFrequently: true })!;
@@ -65,10 +78,7 @@ function makeThumbAndHash(bitmap: ImageBitmap): { blob: Promise<Blob>; dHash: st
     }
   }
 
-  const blob = new Promise<Blob>((resolve, reject) =>
-    canvas.toBlob(b => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/jpeg', 0.85)
-  );
-  return { blob, dHash: hash, w: bitmap.width, h: bitmap.height };
+  return { preview, thumb, dHash: hash, w: bitmap.width, h: bitmap.height };
 }
 
 function hammingDistance(a: string, b: string): number {
@@ -80,11 +90,11 @@ function hammingDistance(a: string, b: string): number {
 async function processOne(file: File): Promise<ImportedPhoto> {
   const id = crypto.randomUUID();
   const bitmap = await decode(file);
-  const { blob, dHash, w, h } = makeThumbAndHash(bitmap);
+  const { preview, thumb, dHash, w, h } = makeDerivatives(bitmap);
 
   // Bitmap-ul pleaca in worker (transfer, zero-copy) — de aici nu-l mai atingem
   const analysisPromise = analysisPool.analyze(id, bitmap);
-  const thumbBlob = await blob;
+  const [previewBlob, thumbBlob] = await Promise.all([preview, thumb]);
 
   const analysis = await analysisPromise;
   const prediction = await contextEngine.predict(analysis);
@@ -109,6 +119,7 @@ async function processOne(file: File): Promise<ImportedPhoto> {
   await Promise.all([
     db.photos.put(photo),
     db.thumbnails.put({ photoId: id, blob: thumbBlob }),
+    db.previews.put({ photoId: id, blob: previewBlob }),
     db.analyses.put(analysis)
   ]);
 
@@ -148,8 +159,8 @@ export async function importFiles(
     })
   );
 
-  // Grupare duplicate/serii (dHash): cel mai bun scor din grup ramane propus,
-  // restul trec la "review" ca variante.
+  // Grupare serii/duplicate (dHash), PERSISTATA in DB: cea mai buna ramane propusa,
+  // restul trec la "review" ca variante de comparat.
   onProgress({ done, total: images.length, fileName: '', phase: 'grupare' });
   const groups = new Map<string, string>();
   const assigned = new Set<number>();
@@ -166,10 +177,12 @@ export async function importFiles(
       const best = members.reduce((a, b) => (hashes[a].score >= hashes[b].score ? a : b));
       for (const m of members) {
         groups.set(hashes[m].id, groupId);
+        const patch: Partial<PhotoRecord> = { groupId };
         if (m !== best) {
           const rec = await db.photos.get(hashes[m].id);
-          if (rec && rec.status === 'selected') await db.photos.update(hashes[m].id, { status: 'review' });
+          if (rec && rec.status === 'selected') patch.status = 'review';
         }
+        await db.photos.update(hashes[m].id, patch);
       }
     }
   }

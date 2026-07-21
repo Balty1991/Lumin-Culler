@@ -1,38 +1,44 @@
 /**
  * core/db.ts
  * Persistence layer (IndexedDB via Dexie).
- * All heavy data (thumbnails, embeddings, AI metadata) lives here, NOT in RAM.
+ * All heavy data (thumbnails, previews, embeddings, AI metadata) lives here, NOT in RAM.
  */
 import Dexie, { type Table } from 'dexie';
 
 // ── Domain types ─────────────────────────────────────────────────────────────
 
 export interface PhotoRecord {
-  id: string;               // uuid
+  id: string;
   fileName: string;
-  capturedAt?: number;      // EXIF timestamp (ms)
+  capturedAt?: number;
   importedAt: number;
   width: number;
   height: number;
-  dHash: string;            // perceptual hash for duplicate grouping
+  dHash: string;
+  groupId?: string;         // seria/duplicatele din care face parte
   status: 'pending' | 'selected' | 'rejected' | 'review';
 }
 
 export interface ThumbnailRecord {
   photoId: string;
-  blob: Blob;               // JPEG thumbnail ~512px — never keep full-res in memory
+  blob: Blob;               // JPEG ~512px pentru grila
+}
+
+export interface PreviewRecord {
+  photoId: string;
+  blob: Blob;               // JPEG ~2048px pentru evaluarea claritatii (zoom 100%)
 }
 
 export interface FaceInsight {
-  box: [number, number, number, number];   // x, y, w, h (normalized 0..1)
-  faceScore: number;                        // detector confidence 0..1
-  smile: number;                            // 0..1 (emotion "happy")
-  eyesOpen: { left: number; right: number }; // EAR-derived openness 0..1
+  box: [number, number, number, number];
+  faceScore: number;
+  smile: number;
+  eyesOpen: { left: number; right: number };
   isBlinking: boolean;
-  personId: string | null;                  // matched known person, or null = stranger
+  personId: string | null;
   personName: string | null;
-  similarity: number;                       // cosine similarity to best known match
-  embedding?: number[];                     // 1024-dim descriptor (stored for re-matching)
+  similarity: number;
+  embedding?: number[];
 }
 
 export interface AnalysisRecord {
@@ -43,25 +49,25 @@ export interface AnalysisRecord {
   strangerCount: number;
   bestSmile: number;
   allEyesOpen: boolean;
-  sharpness: number;        // 0..100 (Laplacian variance, computed in worker)
-  exposure: number;         // 0..100
+  sharpness: number;
+  exposure: number;
   sceneType: 'portrait' | 'group' | 'landscape' | 'detail';
-  aiScore: number;          // final score from ContextEngine
+  aiScore: number;
   analyzedAt: number;
 }
 
 export interface KnownPerson {
-  id: string;               // uuid
-  name: string;             // "Ami", "Soția", "Eu"
-  embeddings: number[][];   // multiple reference embeddings per person (enrollment)
+  id: string;
+  name: string;
+  embeddings: number[][];
   updatedAt: number;
 }
 
 export interface ContextModelRecord {
-  contextKey: string;       // e.g. "portrait:known", "landscape", "group:mixed"
+  contextKey: string;
   weights: Record<string, number>;
   bias: number;
-  featureStats: Record<string, { mean: number; m2: number; n: number }>; // Welford
+  featureStats: Record<string, { mean: number; m2: number; n: number }>;
   sampleCount: number;
   updatedAt: number;
 }
@@ -71,8 +77,8 @@ export interface CorrectionRecord {
   photoId: string;
   contextKey: string;
   features: Record<string, number>;
-  aiDecision: boolean;      // AI said "select"
-  userDecision: boolean;    // user said "select"
+  aiDecision: boolean;
+  userDecision: boolean;
   ts: number;
 }
 
@@ -81,6 +87,7 @@ export interface CorrectionRecord {
 export class LuminDB extends Dexie {
   photos!: Table<PhotoRecord, string>;
   thumbnails!: Table<ThumbnailRecord, string>;
+  previews!: Table<PreviewRecord, string>;
   analyses!: Table<AnalysisRecord, string>;
   persons!: Table<KnownPerson, string>;
   contextModels!: Table<ContextModelRecord, string>;
@@ -91,6 +98,15 @@ export class LuminDB extends Dexie {
     this.version(1).stores({
       photos: 'id, capturedAt, status, dHash',
       thumbnails: 'photoId',
+      analyses: 'photoId, sceneType, aiScore',
+      persons: 'id, name',
+      contextModels: 'contextKey',
+      corrections: '++id, contextKey, ts'
+    });
+    this.version(2).stores({
+      photos: 'id, capturedAt, status, dHash, groupId',
+      thumbnails: 'photoId',
+      previews: 'photoId',
       analyses: 'photoId, sceneType, aiScore',
       persons: 'id, name',
       contextModels: 'contextKey',
