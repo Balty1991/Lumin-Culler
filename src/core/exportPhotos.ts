@@ -16,6 +16,7 @@
  */
 import { originalFiles } from './importPipeline';
 import { db } from './db';
+import { getDirectoryPicker, type LocalDirHandle } from './export/directoryPicker';
 
 export interface ExportResult {
   exported: number;
@@ -32,26 +33,6 @@ export interface ExportPhotoInput {
   faceCount: number;
   strangerCount: number;
   sceneType: string;
-}
-
-interface LocalWritable {
-  write(data: Blob): Promise<void>;
-  close(): Promise<void>;
-}
-interface LocalFileHandle {
-  createWritable(): Promise<LocalWritable>;
-}
-interface LocalDirHandle {
-  getFileHandle(name: string, options?: { create?: boolean }): Promise<LocalFileHandle>;
-  getDirectoryHandle(name: string, options?: { create?: boolean }): Promise<LocalDirHandle>;
-}
-interface DirectoryPickerWindow {
-  showDirectoryPicker(options?: { mode?: 'read' | 'readwrite' }): Promise<LocalDirHandle>;
-}
-
-function getDirectoryPicker(): DirectoryPickerWindow['showDirectoryPicker'] | null {
-  const w = window as unknown as Partial<DirectoryPickerWindow>;
-  return typeof w.showDirectoryPicker === 'function' ? w.showDirectoryPicker.bind(w) : null;
 }
 
 // ── Grupare pe foldere: persoane cunoscute (si combinatii), apoi scena ─────

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useStore, type FilterKey } from './state/store';
 import { PhotoCard } from './ui/PhotoCard';
+import { VirtualPhotoGrid } from './ui/VirtualPhotoGrid';
 import { DetailView } from './ui/DetailView';
 import { GroupCompare } from './ui/GroupCompare';
 import { PersonsPanel } from './ui/PersonsPanel';
@@ -10,6 +11,13 @@ import { AnimatedNumber } from './ui/AnimatedNumber';
 import { MenuIcon, PlusIcon, StarIcon, AlertIcon, XIcon } from './ui/icons';
 
 const NOTICE_AUTODISMISS_MS = 7000;
+/**
+ * Sub acest prag, grid-ul simplu (DOM normal) e mai simplu si are animatia
+ * de intrare in cascada; peste, numarul de noduri DOM (+ URL-uri de obiect
+ * pentru miniaturi) devine problema reala, asa ca trecem pe grid virtualizat
+ * (doar randurile vizibile exista in DOM), indiferent cate mii de poze sunt.
+ */
+const VIRTUALIZE_THRESHOLD = 120;
 
 export default function App() {
   const boot = useStore(s => s.boot);
@@ -166,11 +174,15 @@ export default function App() {
         </div>
       ) : (
         <>
-          <div className="grid">
-            {filtered.map((p, i) => (
-              <PhotoCard key={p.id} photo={p} index={i} onOpen={onCardOpen} />
-            ))}
-          </div>
+          {filtered.length > VIRTUALIZE_THRESHOLD ? (
+            <VirtualPhotoGrid photos={filtered} onOpen={onCardOpen} />
+          ) : (
+            <div className="grid">
+              {filtered.map((p, i) => (
+                <PhotoCard key={p.id} photo={p} index={i} onOpen={onCardOpen} />
+              ))}
+            </div>
+          )}
           {filtered.length === 0 && !progress && <p className="empty-filter">Nicio poza nu corespunde filtrului curent.</p>}
           <button className="fab" onClick={() => fileRef.current?.click()} title="Adauga poze"><PlusIcon /></button>
         </>

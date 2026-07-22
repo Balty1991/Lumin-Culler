@@ -21,15 +21,32 @@
   "build": {
     "appId": "com.luminculler.app",
     "productName": "Lumin Culler Pro",
-    "files": ["dist/**/*", "electron/**/*"],
-    "directories": { "output": "release" },
-    "mac": { "category": "public.app-category.photography" },
-    "linux": { "target": ["AppImage"], "category": "Graphics" },
-    "win": { "target": ["nsis"] }
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "mac": {
+      "category": "public.app-category.photography"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Graphics"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    }
   },
   "dependencies": {
     "@capacitor/android": "^8.4.2",
     "@capacitor/core": "^8.4.2",
+    "@tanstack/react-virtual": "^3.14.8",
     "@tauri-apps/api": "^2.11.1",
     "@vladmandic/human": "^3.3.0",
     "comlink": "^4.4.1",

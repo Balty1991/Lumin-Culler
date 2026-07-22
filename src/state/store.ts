@@ -7,6 +7,7 @@ import { create } from 'zustand';
 import { db, type AnalysisRecord, type PhotoRecord, type KnownPerson } from '../core/db';
 import { importFiles, originalFiles, type ImportProgress } from '../core/importPipeline';
 import { exportOriginalFiles } from '../core/exportPhotos';
+import { exportXMPSidecars } from '../core/export/xmpGenerator';
 import { analysisPool } from '../core/workerPool';
 import { contextEngine, deriveContextKey } from '../core/learning/ContextEngine';
 
@@ -70,6 +71,7 @@ interface AppState {
   clearNotice: () => void;
   exportSelection: () => Promise<void>;
   exportManifest: () => Promise<void>;
+  exportXMP: () => Promise<void>;
   filtered: () => PhotoView[];
   groupOf: (groupId: string) => PhotoView[];
 }
@@ -329,6 +331,31 @@ export const useStore = create<AppState>((set, get) => ({
     a.download = 'selectie-lumin-' + new Date().toISOString().slice(0, 10) + '.json';
     a.click();
     URL.revokeObjectURL(url);
+  },
+
+  /**
+   * Exporta sidecar-uri XMP (rating + eticheta de culoare) pentru TOATE pozele
+   * decise (selectate/respinse/de verificat) — nu doar selectia, spre deosebire
+   * de exportSelection. Nu copiaza nicio poza: fisierele .xmp trebuie asezate
+   * langa originalele deja existente pe disc (acelasi nume, alta extensie) ca
+   * Lightroom/Bridge sa le asocieze automat.
+   */
+  exportXMP: async () => {
+    const decided = get().photos.filter(p => p.status !== 'pending');
+    if (!decided.length) { set({ notice: 'Nicio poza cu decizie luata inca — Selecteaza/Respinge cel putin una.' }); return; }
+    try {
+      const result = await exportXMPSidecars(decided.map(p => ({ fileName: p.fileName, status: p.status })));
+      if (result.cancelled) return;
+      const msg = result.exported
+        ? `${result.exported} sidecar-uri XMP exportate` + (
+            result.method === 'folder' ? ' in folderul ales — copiaza-le langa pozele originale ca Lightroom sa le vada.'
+            : ' (descarcari individuale) — muta-le langa pozele originale ca Lightroom sa le vada.'
+          )
+        : 'Niciun sidecar XMP nu a putut fi exportat.';
+      set({ notice: msg });
+    } catch (err) {
+      set({ notice: 'Export XMP esuat: ' + String(err) });
+    }
   },
 
   filtered: () => {

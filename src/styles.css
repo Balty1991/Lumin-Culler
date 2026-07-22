@@ -213,6 +213,17 @@ button:focus-visible, input:focus-visible {
 
 /* ── Grila: contact sheet ── */
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 10px; }
+
+/* ── Grila virtualizata (biblioteci mari) — doar randurile vizibile exista in DOM ── */
+.virtual-grid-scroll {
+  overflow-y: auto; overflow-x: hidden; width: 100%; -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent;
+}
+.virtual-grid-scroll::-webkit-scrollbar { width: 6px; }
+.virtual-grid-scroll::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 8px; }
+.grid.virtual-row { padding-bottom: 10px; }
+/* animatia in cascada nu are sens la scroll (fiecare rand nou ar tot re-anima) — eliminata doar aici */
+.virtual-row .card { animation: none; }
 .card {
   position: relative; padding: 0; background: var(--surface);
   border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden;
