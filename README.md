@@ -21,6 +21,9 @@ lumin-culler-pro/
 ├── package.json
 ├── tsconfig.json
 ├── vite.config.ts
+├── capacitor.config.ts               # packaging Android (Capacitor)
+├── android/                          # proiect nativ Android (generat, vezi mai jos)
+├── src-tauri/                        # packaging Desktop (Tauri) — tauri.conf.json, Cargo.toml
 └── src/
     ├── main.tsx                      # bootstrap React
     ├── App.tsx                       # shell UI (fara logica)
@@ -77,7 +80,15 @@ Orice modificare ulterioara: editezi fisierul in web editor → Commit → Actio
 
 ## Drumul spre Desktop si Mobil
 
-Arhitectura e web-first cu logica separata de UI, deci impachetarea e directa:
-- **Desktop (Tauri)**: `npm i -D @tauri-apps/cli && npx tauri init` — dist/ devine aplicatia.
-- **Android (Capacitor)**: `npm i @capacitor/core @capacitor/android -D @capacitor/cli && npx cap init && npx cap add android`.
-Ambele necesita un mediu de build local/CI; se pot rula tot prin GitHub Actions cand ajungem acolo.
+Arhitectura e web-first cu logica separata de UI, deci impachetarea e deja pregatita in repo:
+- **Desktop (Tauri)**: `src-tauri/` (identifier `com.luminculler.app`).
+  `npm run tauri:dev` porneste Vite + fereastra nativa; `npm run tauri:build`
+  produce instalatorul. Necesita toolchain Rust local sau in CI
+  (`rustup` + `cargo`) — nu e inclus in acest repo.
+- **Android (Capacitor)**: `capacitor.config.ts` + `android/` (appId
+  `com.luminculler.app`). `npm run cap:sync` face build-ul web si sincronizeaza
+  `dist/` in proiectul nativ; `npm run cap:android` deschide Android Studio.
+  Necesita Android SDK local sau in CI.
+
+Fisierele generate de build (`android/app/build`, `android/app/src/main/assets/public`,
+`src-tauri/target`) sunt in `.gitignore` — nu se urca in repo, se regenereaza la fiecare build.
