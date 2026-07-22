@@ -156,13 +156,23 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   runImport: async (files: File[]) => {
-    set({ progress: { done: 0, total: files.length, fileName: '', phase: 'analiza' } });
+    set({ progress: { done: 0, total: files.length, fileName: '', phase: 'incarcare' } });
     let warning: string | undefined;
-    await importFiles(
-      files,
-      progress => { warning = progress.warning; set({ progress: { ...progress } }); },
-      item => set(state => ({ photos: [...state.photos, toView(item.photo, item.analysis)] }))
-    );
+    try {
+      await importFiles(
+        files,
+        progress => { warning = progress.warning; set({ progress: { ...progress } }); },
+        item => set(state => ({ photos: [...state.photos, toView(item.photo, item.analysis)] }))
+      );
+    } catch (err) {
+      // fara asta, o promisiune respinsa (ex. retea slaba la incarcarea modelelor AI)
+      // lasa bara de progres blocata la "0/N" pentru totdeauna, fara nicio eroare vizibila
+      set({
+        progress: null,
+        notice: 'Import esuat: ' + (err instanceof Error ? err.message : String(err)) + ' — incearca din nou.'
+      });
+      return;
+    }
     // reincarca statusurile si groupId-urile persistate dupa gruparea seriilor
     const fresh = await db.photos.toArray();
     const byId = new Map(fresh.map(p => [p.id, p]));

@@ -12,7 +12,7 @@ export interface ImportProgress {
   done: number;
   total: number;
   fileName: string;
-  phase: 'analiza' | 'grupare' | 'finalizat';
+  phase: 'incarcare' | 'analiza' | 'grupare' | 'finalizat';
   /** setat doar pe ultimul apel, daca importul s-a oprit inainte de a termina toate fisierele */
   warning?: string;
 }
@@ -163,6 +163,9 @@ export async function importFiles(
   onProgress: (p: ImportProgress) => void,
   onPhoto: (item: ImportedPhoto) => void
 ): Promise<Map<string, string>> {
+  // faza separata (nu "analiza 0/N"): la primul import, descarca modelele AI
+  // (cateva zeci de MB) — poate dura, si utilizatorul trebuie sa stie de ce.
+  onProgress({ done: 0, total: files.length, fileName: '', phase: 'incarcare' });
   await analysisPool.init();
   await contextEngine.init();
   const persons = await db.persons.toArray();

@@ -125,8 +125,8 @@ export default function App() {
         <div className="progress">
           <div className="progress-bar" style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }} />
           <span className="mono">
-            {progress.phase === 'analiza'
-              ? `Analiza AI ${progress.done}/${progress.total} — ${progress.fileName}`
+            {progress.phase === 'incarcare' ? 'Se incarca modelele AI (prima data poate dura, verifica conexiunea)…'
+              : progress.phase === 'analiza' ? `Analiza AI ${progress.done}/${progress.total} — ${progress.fileName}`
               : progress.phase === 'grupare' ? 'Grupare serii si duplicate…' : 'Finalizat'}
           </span>
         </div>
@@ -160,7 +160,7 @@ export default function App() {
               <PhotoCard key={p.id} photo={p} index={i} onOpen={onCardOpen} />
             ))}
           </div>
-          {filtered.length === 0 && <p className="empty-filter">Nicio poza nu corespunde filtrului curent.</p>}
+          {filtered.length === 0 && !progress && <p className="empty-filter">Nicio poza nu corespunde filtrului curent.</p>}
           <button className="fab" onClick={() => fileRef.current?.click()} title="Adauga poze"><PlusIcon /></button>
         </>
       )}
