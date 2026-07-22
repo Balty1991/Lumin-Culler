@@ -27,6 +27,17 @@ const SELECT_THRESHOLD = 65;
 const REJECT_THRESHOLD = 35;
 const DHASH_DISTANCE = 8;
 
+/**
+ * Fisierele originale raman disponibile doar in memorie, pentru sesiunea
+ * curenta de import — nu sunt persistate in IndexedDB (ar dubla spatiul
+ * ocupat de 1000+ poze originale, unele RAW de zeci de MB). Un File e un
+ * handle lazy catre disc, nu bytes incarcati in RAM, deci pastrarea
+ * referintei e ieftina; abia exportOriginalFiles() ii citeste continutul.
+ * La reload de pagina se pierde — pozele reincarcate din DB nu mai pot fi
+ * exportate in format original decat prin reimport.
+ */
+export const originalFiles = new Map<string, File>();
+
 async function decode(file: File): Promise<ImageBitmap> {
   try {
     return await createImageBitmap(file, {
@@ -89,6 +100,7 @@ function hammingDistance(a: string, b: string): number {
 
 async function processOne(file: File): Promise<ImportedPhoto> {
   const id = crypto.randomUUID();
+  originalFiles.set(id, file);
   const bitmap = await decode(file);
   const { preview, thumb, dHash, w, h } = makeDerivatives(bitmap);
 

@@ -50,6 +50,10 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--review); ou
 .brand h1 span { color: var(--review); font-weight: 300; }
 .brand p { color: var(--text-faint); margin-top: 4px; font-size: 0.72rem; }
 .top-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.export-message {
+  margin: 0 2px 10px; padding: 8px 12px; border-radius: 8px;
+  background: var(--panel, rgba(255,255,255,0.05)); color: var(--text-dim); font-size: 0.78rem;
+}
 
 .ghost {
   color: var(--text); border: 1px solid var(--line); padding: 8px 12px;

@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "Lumin Culler Pro",
+    "slug": "lumin-culler-pro",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": ["assets/www/**/*"],
+    "ios": {
+      "bundleIdentifier": "com.luminculler.app",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.luminculler.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": ["@dr.pogodin/react-native-static-server"]
+  }
+}

@@ -10,7 +10,10 @@ AI real (TensorFlow.js) ruleaza **100% local, in browser** — pozele nu parases
 - **1000+ poze fara blocare**: toata inferenta ruleaza in Web Workers (pool pe N-1 nuclee), imaginile se transfera zero-copy, miniaturile si metadatele stau in IndexedDB, nu in RAM.
 - **Motor de invatare per context**: fiecare decizie manuala (Selecteaza/Respinge) antreneaza un model de regresie logistica online separat pe context (`portrait:known`, `landscape`, `group:mixed`...). Invata preferinte de tipul „portrete dramatice usor subexpuse, dar peisaje luminoase si clare".
 - **Grupare serii/duplicate** (dHash perceptual): din rafale pastreaza propusa doar cea mai buna.
-- **Export selectie**: JSON cu lista fisierelor alese, pentru importul in Lightroom/editor.
+- **Export selectie**: fisierele foto SELECTATE, in formatul original (aceiasi bytes/extensie
+  ca la import) — copiate direct intr-un folder ales (File System Access API) sau descarcate
+  individual pe browsere fara suport pentru API-ul de folder. Optional, si o lista JSON
+  cu numele fisierelor, pentru selectie-dupa-nume in Lightroom.
 
 ## Structura proiectului (ce urci in GitHub)
 
@@ -22,27 +25,30 @@ lumin-culler-pro/
 ├── tsconfig.json
 ├── vite.config.ts
 ├── capacitor.config.ts               # packaging Android (Capacitor)
-├── android/                          # proiect nativ Android (generat, vezi mai jos)
+├── android/                          # proiect nativ Android — Capacitor (generat, vezi mai jos)
 ├── src-tauri/                        # packaging Desktop (Tauri) — tauri.conf.json, Cargo.toml
-└── src/
-    ├── main.tsx                      # bootstrap React
-    ├── App.tsx                       # shell UI (fara logica)
-    ├── styles.css
-    ├── vite-env.d.ts
-    ├── state/
-    │   └── store.ts                  # Zustand — starea, separata de UI
-    ├── core/
-    │   ├── db.ts                     # schema IndexedDB (Dexie)
-    │   ├── workerPool.ts             # pool de Web Workers
-    │   ├── importPipeline.ts         # decodare → analiza → scor → persistare
-    │   └── learning/
-    │       └── ContextEngine.ts      # ML activ: invata din corectii, per context
-    ├── workers/
-    │   └── faceAnalysis.worker.ts    # TF.js: fete, zambete, ochi, recunoastere
-    └── ui/
-        ├── PhotoCard.tsx
-        ├── DetailView.tsx
-        └── PersonsPanel.tsx
+├── electron/                         # packaging Desktop (Electron) — main.cjs, preload.cjs
+├── mobile-rn/                        # alternativa mobil (Expo/React Native + WebView), proiect separat
+├── src/
+│   ├── main.tsx                      # bootstrap React
+│   ├── App.tsx                       # shell UI (fara logica)
+│   ├── styles.css
+│   ├── vite-env.d.ts
+│   ├── state/
+│   │   └── store.ts                  # Zustand — starea, separata de UI
+│   ├── core/
+│   │   ├── db.ts                     # schema IndexedDB (Dexie)
+│   │   ├── workerPool.ts             # pool de Web Workers
+│   │   ├── importPipeline.ts         # decodare → analiza → scor → persistare
+│   │   ├── exportPhotos.ts           # export selectie in format original
+│   │   └── learning/
+│   │       └── ContextEngine.ts      # ML activ: invata din corectii, per context
+│   ├── workers/
+│   │   └── faceAnalysis.worker.ts    # TF.js: fete, zambete, ochi, recunoastere
+│   └── ui/
+│       ├── PhotoCard.tsx
+│       ├── DetailView.tsx
+│       └── PersonsPanel.tsx
 ```
 
 **NU urci:** `node_modules/`, `dist/`, `public/models/` — workflow-ul le genereaza singur la build.
@@ -68,7 +74,8 @@ Orice modificare ulterioara: editezi fisierul in web editor → Commit → Actio
    **galben = de verificat**. Insigne pe carduri: ★ persoana cunoscuta, ? strain, ◑ ochi inchisi, ≡ serie.
 4. **Deschide orice poza** → vezi metricile AI → decide cu **Selecteaza (P)** / **Respinge (X)**;
    pe desktop navighezi cu sagetile. Fiecare decizie antreneaza motorul pentru acel context.
-5. **Exporta selectia** → JSON cu numele fisierelor alese.
+5. **Exporta poze** → fisierele originale ale selectiei (folder ales sau descarcari,
+   dupa suportul browserului). **Lista (JSON)** → doar numele fisierelor.
 
 ## Limitari cunoscute
 
@@ -80,15 +87,29 @@ Orice modificare ulterioara: editezi fisierul in web editor → Commit → Actio
 
 ## Drumul spre Desktop si Mobil
 
-Arhitectura e web-first cu logica separata de UI, deci impachetarea e deja pregatita in repo:
-- **Desktop (Tauri)**: `src-tauri/` (identifier `com.luminculler.app`).
-  `npm run tauri:dev` porneste Vite + fereastra nativa; `npm run tauri:build`
-  produce instalatorul. Necesita toolchain Rust local sau in CI
-  (`rustup` + `cargo`) — nu e inclus in acest repo.
-- **Android (Capacitor)**: `capacitor.config.ts` + `android/` (appId
-  `com.luminculler.app`). `npm run cap:sync` face build-ul web si sincronizeaza
-  `dist/` in proiectul nativ; `npm run cap:android` deschide Android Studio.
-  Necesita Android SDK local sau in CI.
+Arhitectura e web-first cu logica separata de UI, deci impachetarea e deja pregatita in repo,
+cu cate doua variante pentru fiecare platforma:
 
-Fisierele generate de build (`android/app/build`, `android/app/src/main/assets/public`,
-`src-tauri/target`) sunt in `.gitignore` — nu se urca in repo, se regenereaza la fiecare build.
+**Desktop**
+- **Tauri** (`src-tauri/`, identifier `com.luminculler.app`) — instalator mic (~10 MB),
+  foloseste webview-ul de sistem. `npm run tauri:dev` / `npm run tauri:build`.
+  Necesita toolchain Rust (`rustup` + `cargo`) local sau in CI.
+- **Electron** (`electron/main.cjs`, `electron/preload.cjs`) — Chromium propriu, deci
+  comportament identic pe toate SO-urile, dar instalator mai mare (~150 MB).
+  `npm run electron:dev` / `npm run electron:build` (electron-builder,
+  config in `package.json` → `"build"`). Necesita descarcarea binarului Electron
+  (~propriu registry, poate fi blocat de firewall-uri restrictive).
+
+**Mobil**
+- **Capacitor** (`capacitor.config.ts` + `android/`, appId `com.luminculler.app`) —
+  bridge nativ, acces la plugin-uri native ulterior daca e nevoie (camera, fisiere).
+  `npm run cap:sync` (build + sincronizare) / `npm run cap:android` (deschide Android Studio).
+- **React Native / Expo** (`mobile-rn/`, proiect separat cu propriul `package.json`) —
+  WebView peste acelasi build web; nu reimplementeaza pipeline-ul ML nativ
+  (Web Workers/IndexedDB/WebGL nu au echivalent RN). Vezi `mobile-rn/README.md`.
+  `cd mobile-rn && npx expo start`.
+
+Ambele perechi necesita toolchain nativ (Rust / Android SDK / Xcode) local sau in CI —
+niciunul nu e inclus in acest repo. Fisierele generate de build (`android/app/build`,
+`android/app/src/main/assets/public`, `src-tauri/target`, `electron/release` → `release/`,
+`mobile-rn/.expo`, `mobile-rn/android`, `mobile-rn/ios`) sunt in `.gitignore`.

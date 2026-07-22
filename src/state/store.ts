@@ -5,7 +5,8 @@
  */
 import { create } from 'zustand';
 import { db, type AnalysisRecord, type PhotoRecord, type KnownPerson } from '../core/db';
-import { importFiles, type ImportProgress } from '../core/importPipeline';
+import { importFiles, originalFiles, type ImportProgress } from '../core/importPipeline';
+import { exportOriginalFiles } from '../core/exportPhotos';
 import { analysisPool } from '../core/workerPool';
 import { contextEngine, deriveContextKey } from '../core/learning/ContextEngine';
 
@@ -52,7 +53,9 @@ interface AppState {
   removePerson: (id: string) => Promise<void>;
   setPersonsOpen: (open: boolean) => void;
   clearAll: () => Promise<void>;
+  exportMessage: string | null;
   exportSelection: () => Promise<void>;
+  exportManifest: () => Promise<void>;
   filtered: () => PhotoView[];
   groupOf: (groupId: string) => PhotoView[];
 }
@@ -96,6 +99,7 @@ export const useStore = create<AppState>((set, get) => ({
   compareGroupId: null,
   personsOpen: false,
   booted: false,
+  exportMessage: null,
 
   boot: async () => {
     if (get().booted) return;
@@ -199,10 +203,33 @@ export const useStore = create<AppState>((set, get) => ({
 
   clearAll: async () => {
     await Promise.all([db.photos.clear(), db.thumbnails.clear(), db.previews.clear(), db.analyses.clear()]);
+    originalFiles.clear();
     set({ photos: [], detailId: null, compareGroupId: null });
   },
 
+  /** Exporta pozele selectate ca fisiere reale, in formatul original (JPEG/PNG/etc). */
   exportSelection: async () => {
+    const selected = get().photos.filter(p => p.status === 'selected');
+    if (!selected.length) return;
+    try {
+      const result = await exportOriginalFiles(selected.map(p => ({ id: p.id, fileName: p.fileName })));
+      if (result.cancelled) return;
+      const parts = [
+        result.exported
+          ? `${result.exported} poze exportate` + (result.method === 'folder' ? ' in folderul ales.' : ' (descarcari individuale).')
+          : 'Nicio poza nu a putut fi exportata in format original.'
+      ];
+      if (result.missing.length) {
+        parts.push(`${result.missing.length} nu mai erau disponibile (reincarcate din sesiuni anterioare) — reimporta-le pentru export.`);
+      }
+      set({ exportMessage: parts.join(' ') });
+    } catch (err) {
+      set({ exportMessage: 'Export esuat: ' + String(err) });
+    }
+  },
+
+  /** Lista JSON cu numele fisierelor selectate — util pentru selectie-dupa-nume in Lightroom. */
+  exportManifest: async () => {
     const selected = get().photos.filter(p => p.status === 'selected');
     const payload = {
       exportedAt: new Date().toISOString(),

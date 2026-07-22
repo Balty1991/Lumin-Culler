@@ -16,6 +16,8 @@ export default function App() {
   const openCompare = useStore(s => s.openCompare);
   const setPersonsOpen = useStore(s => s.setPersonsOpen);
   const exportSelection = useStore(s => s.exportSelection);
+  const exportManifest = useStore(s => s.exportManifest);
+  const exportMessage = useStore(s => s.exportMessage);
   const clearAll = useStore(s => s.clearAll);
   const filtered = useStore(s => s.filtered());
   const fileRef = useRef<HTMLInputElement>(null);
@@ -63,11 +65,16 @@ export default function App() {
         </div>
         <div className="top-actions">
           <button className="ghost" onClick={() => setPersonsOpen(true)}>★</button>
+          <button className="ghost small" onClick={() => void exportManifest()} disabled={!counts.selected} title="Lista JSON cu numele fisierelor">
+            Lista (JSON)
+          </button>
           <button className="ghost" onClick={() => void exportSelection()} disabled={!counts.selected}>
-            Exporta ({counts.selected})
+            Exporta poze ({counts.selected})
           </button>
         </div>
       </header>
+
+      {exportMessage && <p className="export-message mono">{exportMessage}</p>}
 
       {photos.length > 0 && (
         <section className="cullbar" aria-label="Progresul sortarii">
