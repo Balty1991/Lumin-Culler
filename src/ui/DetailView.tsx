@@ -166,12 +166,25 @@ export function DetailView() {
             <StatTile label="Claritate" value={photo.sharpness} />
             <StatTile label="Expunere" value={photo.exposure} />
             {photo.faceCount > 0 && <StatTile label="Fete" value={photo.faceCount} />}
-            {photo.faceCount > 0 && <StatTile label="Zambet" value={`${Math.round(photo.bestSmile * 100)}%`} />}
             {photo.faceCount > 0 && (
+              // grup (mai multe fete): procent care zambesc, nu doar cea mai buna fata —
+              // altfel un singur zambet mare "ascunde" restul grupului serios/nemultumit
               <StatTile
-                label={photo.allEyesOpen ? 'Ochi OK' : 'Clipire'}
-                value={photo.allEyesOpen ? <CheckIcon /> : <EyeClosedIcon />}
-                warn={!photo.allEyesOpen}
+                label={photo.faceCount > 1 ? 'Zâmbete' : 'Zambet'}
+                value={`${Math.round((photo.faceCount > 1 ? photo.groupSmileRatio ?? photo.bestSmile : photo.bestSmile) * 100)}%`}
+              />
+            )}
+            {photo.faceCount > 0 && (
+              // grup: procent cu ochii deschisi (nu strict "toti sau niciunul") — problema
+              // clasica la poze de grup e mereu cineva care clipeste
+              <StatTile
+                label={photo.faceCount > 1 ? 'Ochi (grup)' : (photo.allEyesOpen ? 'Ochi OK' : 'Clipire')}
+                value={
+                  photo.faceCount > 1
+                    ? `${Math.round((photo.groupEyesOpenRatio ?? (photo.allEyesOpen ? 1 : 0)) * 100)}%`
+                    : (photo.allEyesOpen ? <CheckIcon /> : <EyeClosedIcon />)
+                }
+                warn={photo.faceCount > 1 ? (photo.groupEyesOpenRatio ?? 1) < 1 : !photo.allEyesOpen}
               />
             )}
             {photo.faceCount > 0 && <StatTile label="Treimi" value={`${Math.round(photo.ruleOfThirds * 100)}%`} />}

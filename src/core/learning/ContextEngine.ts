@@ -60,7 +60,17 @@ const PRIOR_WEIGHTS: FeatureVector = {
   faceCount: 0.1,
   // compozitie (regula treimilor, headroom) — bonus modest, nu domina claritatea/expunerea/ochii
   ruleOfThirds: 0.3,
-  headroom: 0.25
+  headroom: 0.25,
+  // scorare de GRUP (toate fetele, nu doar cea mai buna/stricta) — ponderi mai
+  // mici decat allEyesOpen/bestSmile pentru ca la o singura fata sunt identice
+  // cu acestea (redundante); la poze de grup aduc semnal suplimentar real
+  groupEyesOpenRatio: 0.5,
+  groupSmileRatio: 0.4,
+  avgEyeContact: 0.35,
+  avgEngagement: 0.3,
+  highlightClipping: -0.4,
+  shadowClipping: -0.3,
+  horizonLevel: 0.25
 };
 
 /**
@@ -80,7 +90,14 @@ export const FACTOR_LABELS: Record<string, string> = {
   strangerPenalty: 'Străini în cadru',
   faceScore: 'Calitatea feței',
   ruleOfThirds: 'Regula treimilor',
-  headroom: 'Cadraj (headroom)'
+  headroom: 'Cadraj (headroom)',
+  groupEyesOpenRatio: 'Ochi deschiși (grup)',
+  groupSmileRatio: 'Zâmbete (grup)',
+  avgEyeContact: 'Contact vizual',
+  avgEngagement: 'Expresie',
+  highlightClipping: 'Highlights arse',
+  shadowClipping: 'Umbre blocate',
+  horizonLevel: 'Orizont drept'
 };
 
 /** Transforma topFactors dintr-o Prediction in etichete afisabile, filtrand contributiile neglijabile. */
@@ -110,7 +127,19 @@ export function extractFeatures(a: AnalysisRecord): FeatureVector {
     // dinainte de aceasta functie, care nu au deloc campurile — nu 0, ca sa nu
     // le penalizeze artificial fata de pozele care chiar au compozitie proasta
     ruleOfThirds: a.ruleOfThirds ?? 0.5,
-    headroom: a.headroom ?? 0.5
+    headroom: a.headroom ?? 0.5,
+    // scorare de grup — neutru (0.5) cand nu exista fete (feature-ul nu se aplica)
+    groupEyesOpenRatio: a.groupEyesOpenRatio ?? 0.5,
+    groupSmileRatio: a.groupSmileRatio ?? 0.5,
+    avgEyeContact: a.avgEyeContact ?? 0.5,
+    avgEngagement: a.avgEngagement ?? 0.5,
+    // clipping: fara date (inregistrari vechi) = presupunem 0 (fara clipping), nu neutru —
+    // altfel penalizam artificial poze analizate inainte de aceasta functie
+    highlightClipping: a.highlightClipping ?? 0,
+    shadowClipping: a.shadowClipping ?? 0,
+    // orizont: convertit din grade in scor 0..1 (1 = perfect drept); 0.5 neutru
+    // cand nu s-a putut estima (poze cu fete, sau prea putine muchii clare)
+    horizonLevel: a.horizonTiltDeg !== undefined ? Math.max(0, 1 - Math.abs(a.horizonTiltDeg) / 15) : 0.5
   };
 }
 
@@ -233,7 +262,14 @@ export class ContextEngine {
       knownFaceRatio: ['prioritate subiecți cunoscuți', 'indiferent la subiecți'],
       strangerPenalty: ['acceptă străini în cadru', 'evită străinii în cadru'],
       ruleOfThirds: ['compune după regula treimilor', 'preferă subiecte centrate'],
-      headroom: ['spațiu echilibrat deasupra capului', 'tolerează cadraj strâns/lejer']
+      headroom: ['spațiu echilibrat deasupra capului', 'tolerează cadraj strâns/lejer'],
+      groupEyesOpenRatio: ['strict cu ochii închiși la poze de grup', 'tolerează pe cineva cu ochii închiși în grup'],
+      groupSmileRatio: ['prioritate grupuri unde toți zâmbesc', 'indiferent la zâmbetul grupului'],
+      avgEyeContact: ['preferă contact vizual cu camera', 'acceptă priviri în altă parte'],
+      avgEngagement: ['preferă expresii vii, pozitive', 'acceptă expresii neutre/serioase'],
+      highlightClipping: ['evită highlights arse', 'tolerează zone supraexpuse'],
+      shadowClipping: ['evită umbre blocate', 'tolerează zone subexpuse'],
+      horizonLevel: ['preferă orizont perfect drept', 'tolerează orizont ușor înclinat']
     };
     return Array.from(this.models.values())
       .map(model => ({

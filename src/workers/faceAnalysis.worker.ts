@@ -53,6 +53,7 @@ const RIGHT_EYE = { top: 386, bottom: 374, inner: 362, outer: 263 };
 
 const RECOGNITION_THRESHOLD = 0.55; // cosine similarity above this = known person
 const BLINK_EAR_THRESHOLD = 0.18;
+const GROUP_SMILE_THRESHOLD = 0.4; // prag peste care o fata e considerata "zambitoare" pentru rate de grup
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -74,6 +75,49 @@ function eyeOpenness(mesh: number[][], eye: typeof LEFT_EYE): number {
   if (horizontal === 0) return 0;
   const ear = vertical / horizontal;                  // typical open ≈ 0.28–0.35
   return Math.min(1, Math.max(0, (ear - 0.08) / 0.25));
+}
+
+// ── Emotie completa + contact vizual ────────────────────────────────────────
+// Sursa pentru gaze: Human.js calculeaza rotation.gaze.{bearing,strength} din
+// offset-ul irisului fata de centrul ochiului (necesita mesh 478pct, iris
+// activat — vezi HUMAN_CONFIG). Am citit sursa librariei (src/face/angles.ts)
+// ca sa confirm semantica: "strength" = cat de departe e irisul de centru
+// (0 = centrat/priveste direct, mai mare = deviaza), "bearing" = directia
+// devierii. Folosim DOAR magnitudinea (strength + |yaw|/|pitch|), nu directia
+// — elimina riscul unei conventii de semn gresite (stanga/dreapta), singurul
+// motiv pentru care am amanat initial aceasta functie.
+
+/** Extrage toate cele 7 emotii (model FER standard) intr-un rezumat pe 4 axe utile pentru scorare. */
+function extractEmotion(face: FaceResult): { happy: number; surprise: number; neutral: number; negative: number } {
+  const scores = face.emotion ?? [];
+  const get = (name: string) => scores.find(e => e.emotion === name)?.score ?? 0;
+  const negative = get('angry') + get('disgust') + get('sad') + get('fear');
+  return {
+    happy: get('happy'),
+    surprise: get('surprise'),
+    neutral: get('neutral'),
+    negative: Math.min(1, negative)
+  };
+}
+
+/** Scor 0..1 de "expresie pozitiva" (engagement) — neutru (fara nicio emotie dominanta) = 0.5. */
+function engagementScore(emotion: { happy: number; surprise: number; negative: number }): number {
+  return Math.max(0, Math.min(1, 0.5 + 0.5 * emotion.happy + 0.25 * emotion.surprise - 0.5 * emotion.negative));
+}
+
+const EYE_CONTACT_ANGLE_LIMIT = 0.6;  // radiani (~34°) — combinat yaw+pitch peste asta = clar intors
+const EYE_CONTACT_GAZE_LIMIT = 0.3;   // strength peste asta = iris clar deviat de la centrul ochiului
+
+/** Contact vizual estimat 0..1 din pozitia capului + directia irisului. 0.5 (neutru) daca datele lipsesc. */
+function eyeContactScore(face: FaceResult): number {
+  const rotation = face.rotation;
+  if (!rotation) return 0.5;
+  const yaw = Math.abs(rotation.angle?.yaw ?? 0);
+  const pitch = Math.abs(rotation.angle?.pitch ?? 0);
+  const gazeStrength = Math.abs(rotation.gaze?.strength ?? 0);
+  const headScore = Math.max(0, 1 - (yaw + pitch * 0.7) / EYE_CONTACT_ANGLE_LIMIT);
+  const gazeScore = Math.max(0, 1 - gazeStrength / EYE_CONTACT_GAZE_LIMIT);
+  return Math.max(0, Math.min(1, 0.6 * headScore + 0.4 * gazeScore));
 }
 
 /** Laplacian variance sharpness on a downsampled grayscale — 0..100. */
@@ -106,6 +150,72 @@ function exposureScore(img: ImageData): number {
     count++;
   }
   return Math.round(((lum / count) / 255) * 100);
+}
+
+const CLIP_HIGH_LUM = 250; // pe scala 0..255 — aproape complet alb, detaliu pierdut
+const CLIP_LOW_LUM = 5;    // aproape complet negru
+
+/** Fractiune de pixeli cu highlights/shadows "arse" (fara detaliu), 0..1 fiecare. */
+function clippingScores(img: ImageData): { highlight: number; shadow: number } {
+  const { data } = img;
+  let high = 0, low = 0, count = 0;
+  const step = 16; // acelasi esantionaj ca exposureScore, pentru viteza
+  for (let i = 0; i < data.length; i += step) {
+    const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    if (lum >= CLIP_HIGH_LUM) high++;
+    else if (lum <= CLIP_LOW_LUM) low++;
+    count++;
+  }
+  return count ? { highlight: high / count, shadow: low / count } : { highlight: 0, shadow: 0 };
+}
+
+// ── Orizont inclinat (doar poze fara fete — peisaje/scene) ─────────────────
+// Tehnica: gradient Sobel pe fiecare pixel -> unghiul MUCHIEI (nu al
+// gradientului, care e perpendicular pe muchie) -> medie circulara ponderata
+// cu magnitudinea gradientului, dupa dublarea unghiului (elimina ambiguitatea
+// de 180° a unei linii nedirectionate — o muchie la +3° si una la 183° sunt
+// aceeasi linie fizica). Ignoram muchiile aproape verticale (cladiri, copaci,
+// stalpi) inainte de mediere, ca sa nu traga rezultatul spre 90° fara rost —
+// ne intereseaza doar liniile aproape orizontale (orizontul real).
+const HORIZON_MAX_CONSIDER_DEG = 45;
+const HORIZON_MIN_GRADIENT = 18;
+/**
+ * O linie dominanta (orizont real) are un numar de pixeli-muchie proportional
+ * cu LUNGIMEA ei (≈ latimea cadrului), nu cu suprafata totala — o linie
+ * perfect orizontala e o tranzitie ingusta (2-3 randuri), asa ca un prag ca
+ * fractiune din w*h o rateaza tocmai pe ea la rezolutii mai mari (cazul cel
+ * mai simplu posibil, gasit testand: 0° nedetectat desi 8°/-12° au mers).
+ * Prag pe dimensiunea liniara (latimea cadrului) evita asta.
+ */
+const HORIZON_MIN_EDGE_PIXELS_FACTOR = 0.5; // fractiune din latimea cadrului
+
+function detectHorizonTiltDeg(img: ImageData): number | null {
+  const { data, width: w, height: h } = img;
+  const gray = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    gray[i] = 0.299 * data[i * 4] + 0.587 * data[i * 4 + 1] + 0.114 * data[i * 4 + 2];
+  }
+  let sumCos = 0, sumSin = 0, edgeCount = 0;
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const i = y * w + x;
+      const gx = (gray[i - w + 1] + 2 * gray[i + 1] + gray[i + w + 1]) - (gray[i - w - 1] + 2 * gray[i - 1] + gray[i + w - 1]);
+      const gy = (gray[i + w - 1] + 2 * gray[i + w] + gray[i + w + 1]) - (gray[i - w - 1] + 2 * gray[i - w] + gray[i - w + 1]);
+      const mag = Math.hypot(gx, gy);
+      if (mag < HORIZON_MIN_GRADIENT) continue;
+      // unghiul tangentei la muchie = unghiul gradientului + 90°, normalizat la (-90, 90]
+      let edgeDeg = (Math.atan2(gy, gx) * 180) / Math.PI + 90;
+      edgeDeg = ((edgeDeg + 90) % 180 + 180) % 180 - 90;
+      if (Math.abs(edgeDeg) > HORIZON_MAX_CONSIDER_DEG) continue;
+      const rad2 = (edgeDeg * 2 * Math.PI) / 180;
+      sumCos += mag * Math.cos(rad2);
+      sumSin += mag * Math.sin(rad2);
+      edgeCount++;
+    }
+  }
+  if (edgeCount < w * HORIZON_MIN_EDGE_PIXELS_FACTOR) return null;
+  const meanDeg = (Math.atan2(sumSin, sumCos) * 180) / Math.PI / 2;
+  return Math.round(meanDeg * 10) / 10;
 }
 
 function classifyScene(faces: FaceInsight[], w: number, h: number): AnalysisRecord['sceneType'] {
@@ -159,6 +269,15 @@ export class FaceAnalysisService {
   private known: KnownPerson[] = [];
   private backend = 'unknown';
   private analysisCanvas = new OffscreenCanvas(320, 320);
+  /**
+   * analysisCanvas e patrat (320x320) — perfect pentru statistici agregate
+   * (claritate, expunere, clipping) unde distorsiunea de aspect ratio nu
+   * conteaza, dar STRICA unghiurile geometrice: o imagine 1200x800 desenata
+   * intr-un patrat 320x320 se scaleaza diferit pe X (0.267) fata de Y (0.4),
+   * deci orice unghi masurat pe ea (orizont) iese gresit. horizonCanvas
+   * pastreaza raportul de aspect real al cadrului, pentru masuratori corecte.
+   */
+  private horizonCanvas = new OffscreenCanvas(360, 360);
 
   /**
    * Returneaza backend-ul TFJS efectiv activ dupa incarcare (nu doar cel cerut
@@ -208,20 +327,22 @@ export class FaceAnalysisService {
     const mesh = face.mesh as unknown as number[][];
     const left = mesh?.length >= 468 ? eyeOpenness(mesh, LEFT_EYE) : 0.5;
     const right = mesh?.length >= 468 ? eyeOpenness(mesh, RIGHT_EYE) : 0.5;
-    const smile = face.emotion?.find(e => e.emotion === 'happy')?.score ?? 0;
+    const emotion = extractEmotion(face);
     const embedding = (face.embedding as number[]) ?? [];
     const match = embedding.length ? this.matchPerson(embedding) : { id: null, name: null, similarity: 0 };
     const [x, y, w, h] = face.box;
     return {
       box: [x / imgW, y / imgH, w / imgW, h / imgH],
       faceScore: face.faceScore ?? face.score ?? 0,
-      smile: Math.round(smile * 100) / 100,
+      smile: Math.round(emotion.happy * 100) / 100,
       eyesOpen: { left: Math.round(left * 100) / 100, right: Math.round(right * 100) / 100 },
       isBlinking: left < (BLINK_EAR_THRESHOLD / 0.25) || right < (BLINK_EAR_THRESHOLD / 0.25),
       personId: match.id,
       personName: match.name,
       similarity: Math.round(match.similarity * 100) / 100,
-      embedding
+      embedding,
+      emotion,
+      eyeContact: Math.round(eyeContactScore(face) * 100) / 100
     };
   }
 
@@ -239,11 +360,32 @@ export class FaceAnalysisService {
 
     const result = await this.human.detect(bitmap);
     const imgW = bitmap.width, imgH = bitmap.height;
+
+    // orizontul are sens doar cand nu exista subiect uman de compus dupa treimi/headroom
+    // — desenat separat (proportii reale, nu patratul distorsionat de mai sus),
+    // INAINTE de close() cat timp bitmap-ul e inca valid
+    let horizonImg: ImageData | null = null;
+    if (result.face.length === 0) {
+      const HORIZON_MAX_SIDE = 360;
+      const scale = Math.min(1, HORIZON_MAX_SIDE / Math.max(imgW, imgH));
+      const hw = Math.max(1, Math.round(imgW * scale));
+      const hh = Math.max(1, Math.round(imgH * scale));
+      if (this.horizonCanvas.width !== hw || this.horizonCanvas.height !== hh) {
+        this.horizonCanvas.width = hw;
+        this.horizonCanvas.height = hh;
+      }
+      const hctx = this.horizonCanvas.getContext('2d', { willReadFrequently: true })!;
+      hctx.drawImage(bitmap, 0, 0, hw, hh);
+      horizonImg = hctx.getImageData(0, 0, hw, hh);
+    }
+
     bitmap.close(); // free GPU/CPU memory immediately
 
     const faces = result.face.map(f => this.toInsight(f, imgW, imgH));
     const known = faces.filter(f => f.personId !== null);
     const composition = scoreComposition(faces);
+    const clipping = clippingScores(smallImg);
+    const horizonTiltDeg = horizonImg ? detectHorizonTiltDeg(horizonImg) : null;
 
     return {
       photoId,
@@ -258,6 +400,15 @@ export class FaceAnalysisService {
       sceneType: classifyScene(faces, imgW, imgH),
       ruleOfThirds: composition.ruleOfThirds,
       headroom: composition.headroom,
+      groupEyesOpenRatio: faces.length ? faces.filter(f => !f.isBlinking).length / faces.length : undefined,
+      groupSmileRatio: faces.length ? faces.filter(f => f.smile >= GROUP_SMILE_THRESHOLD).length / faces.length : undefined,
+      avgEyeContact: faces.length ? faces.reduce((s, f) => s + (f.eyeContact ?? 0.5), 0) / faces.length : undefined,
+      avgEngagement: faces.length
+        ? faces.reduce((s, f) => s + engagementScore(f.emotion ?? { happy: 0, surprise: 0, negative: 0 }), 0) / faces.length
+        : undefined,
+      highlightClipping: clipping.highlight,
+      shadowClipping: clipping.shadow,
+      ...(horizonTiltDeg !== null ? { horizonTiltDeg } : {}),
       aiScore: 0,            // filled in later by ContextEngine on the main thread
       analyzedAt: Date.now()
     };

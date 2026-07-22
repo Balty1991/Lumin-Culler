@@ -46,6 +46,22 @@ export interface FaceInsight {
   personName: string | null;
   similarity: number;
   embedding?: number[];
+  /**
+   * Vectorul complet de emotie (7 clase, model FER standard) — smile ramane
+   * pastrat separat pentru compatibilitate, dar engagement e derivat din
+   * TOATE emotiile (happy+surprise pozitive, angry/disgust/sad/fear negative),
+   * nu doar zambet. Optional: inregistrarile vechi nu au acest camp.
+   */
+  emotion?: { happy: number; surprise: number; neutral: number; negative: number };
+  /**
+   * Contact vizual estimat (0..1), din unghiul capului (yaw/pitch fata de
+   * camera) + offset-ul irisului fata de centrul ochiului (Human.js
+   * rotation.gaze). Foloseste doar MAGNITUDINEA acestor semnale, nu directia —
+   * nu conteaza daca subiectul se uita stanga sau dreapta, doar CAT de departe
+   * e de a privi direct spre camera. Optional: necesita mesh de 478 puncte
+   * (iris activat) si o fata suficient de mare/clara.
+   */
+  eyeContact?: number;
 }
 
 export interface AnalysisRecord {
@@ -72,6 +88,32 @@ export interface AnalysisRecord {
   headroom?: number;       // spatiul deasupra capului: 0 = fata lipita de margine, 1 = in zona ideala
   /** topFactors din predictia ContextEngine la momentul importului — "de ce" a primit poza acest scor. */
   aiFactors?: { feature: string; contribution: number }[];
+  /**
+   * Scorare de GRUP (toate fetele, nu doar cea mai buna) — problema clasica la
+   * poze cu mai multe persoane: mereu cineva clipeste. 0..1, fractiunea de fete
+   * cu ochii deschisi / care zambesc. Optional: doar cand faceCount > 0.
+   */
+  groupEyesOpenRatio?: number;
+  groupSmileRatio?: number;
+  /** Media contact-vizual (eyeContact) pe toate fetele — 0..1. Optional: doar cand faceCount > 0. */
+  avgEyeContact?: number;
+  /** Media "engagement" (expresie pozitiva vs negativa) pe toate fetele — 0..1. Optional: doar cand faceCount > 0. */
+  avgEngagement?: number;
+  /**
+   * Histograma pe versiunea redusa (320px) deja calculata pentru claritate —
+   * fractiune de pixeli aproape complet alb / aproape complet negru, adica
+   * detaliu pierdut in highlights/shadows. 0 = fara clipping, 1 = tot cadrul.
+   */
+  highlightClipping?: number;
+  shadowClipping?: number;
+  /**
+   * Inclinarea orizontului fata de linia perfect orizontala, in grade (0 =
+   * perfect drept). Calculata din directia dominanta a gradientilor de margine
+   * — doar pentru poze fara fete (unde compozitia geometrica pe fata principala
+   * nu se aplica). Optional: absenta = nu s-a putut estima (prea putine
+   * margini clare, ex. cer uniform).
+   */
+  horizonTiltDeg?: number;
 }
 
 export interface KnownPerson {
