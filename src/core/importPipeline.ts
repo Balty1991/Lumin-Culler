@@ -5,7 +5,7 @@
  * Preview-ul de 2048px (standard Lightroom) este cel pe care se judeca claritatea.
  */
 import { db, type AnalysisRecord, type PhotoRecord } from './db';
-import { analysisPool } from './workerPool';
+import { analysisPool, withTimeout } from './workerPool';
 import { contextEngine, type Prediction } from './learning/ContextEngine';
 
 export interface ImportProgress {
@@ -40,14 +40,17 @@ const DHASH_DISTANCE = 8;
  */
 export const originalFiles = new Map<string, File>();
 
+const DECODE_TIMEOUT_MS = 30000;
+
 async function decode(file: File): Promise<ImageBitmap> {
   try {
-    return await createImageBitmap(file, {
-      resizeWidth: PREVIEW_MAX_SIDE,
-      resizeQuality: 'high'
-    } as ImageBitmapOptions);
+    return await withTimeout(
+      createImageBitmap(file, { resizeWidth: PREVIEW_MAX_SIDE, resizeQuality: 'high' } as ImageBitmapOptions),
+      DECODE_TIMEOUT_MS,
+      'Decodarea a durat prea mult.'
+    );
   } catch {
-    return await createImageBitmap(file);
+    return await withTimeout(createImageBitmap(file), DECODE_TIMEOUT_MS, 'Decodarea a durat prea mult.');
   }
 }
 

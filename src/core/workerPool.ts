@@ -9,11 +9,20 @@ import type { FaceAnalysisAPI } from '../workers/faceAnalysis.worker';
 import type { AnalysisRecord, KnownPerson } from './db';
 
 interface Slot {
+  worker: Worker;
   api: Comlink.Remote<FaceAnalysisAPI>;
   busy: boolean;
 }
 
 const MODEL_INIT_TIMEOUT_MS = 45000;
+/**
+ * O poza problematica (rezolutie extrema, pixeli corupti care duc inferenta
+ * TF.js intr-un caz patologic etc.) poate bloca WORKER-ul la infinit — nu
+ * doar main thread-ul. Fara acest timeout, un singur fisier "prost" inghetat
+ * tot importul pentru totdeauna, exact simptomul raportat: bara de progres
+ * ramane blocata la "N/total" fara sa mai avanseze vreodata.
+ */
+const ANALYZE_TIMEOUT_MS = 40000;
 
 /**
  * human.load() foloseste fetch() fara timeout implicit — pe o retea mobila
@@ -23,7 +32,7 @@ const MODEL_INIT_TIMEOUT_MS = 45000;
  * pe care runImport (state/store.ts) il poate afisa si din care utilizatorul
  * se poate recupera (reincearca), in loc sa ramana blocat.
  */
-function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+export function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(message)), ms);
     promise.then(
@@ -37,6 +46,8 @@ export class AnalysisPool {
   private slots: Slot[] = [];
   private waiters: ((slot: Slot) => void)[] = [];
   private ready = false;
+  private modelBase = '';
+  private knownPersons: KnownPerson[] = [];
   /** Backend TFJS efectiv folosit de worker-ul de referinta (primul initializat). */
   detectedBackend = 'unknown';
 
@@ -47,26 +58,32 @@ export class AnalysisPool {
     return ['webgl', 'humangl', 'webgpu', 'wasm'].includes(this.detectedBackend);
   }
 
+  private async spawnSlot(): Promise<{ slot: Slot; backend: string }> {
+    const worker = new Worker(
+      new URL('../workers/faceAnalysis.worker.ts', import.meta.url),
+      { type: 'module' }
+    );
+    const api = Comlink.wrap<FaceAnalysisAPI>(worker);
+    const backend = await withTimeout(
+      api.init(this.modelBase),
+      MODEL_INIT_TIMEOUT_MS,
+      'Incarcarea modelelor AI a durat prea mult — verifica conexiunea la internet.'
+    );
+    if (this.knownPersons.length) await api.setKnownPersons(this.knownPersons);
+    return { slot: { worker, api, busy: false }, backend };
+  }
+
   async init(): Promise<void> {
     if (this.ready) return;
     this.slots = []; // in caz ca o incercare anterioara a esuat/timeout partial, nu dublam sloturile
     const cores = navigator.hardwareConcurrency || 4;
     const size = Math.max(1, Math.min(4, cores - 1));
-    const modelBase = new URL(`${import.meta.env.BASE_URL}models/`, location.href).href;
+    this.modelBase = new URL(`${import.meta.env.BASE_URL}models/`, location.href).href;
 
     const backends = await Promise.all(
       Array.from({ length: size }, async () => {
-        const worker = new Worker(
-          new URL('../workers/faceAnalysis.worker.ts', import.meta.url),
-          { type: 'module' }
-        );
-        const api = Comlink.wrap<FaceAnalysisAPI>(worker);
-        const backend = await withTimeout(
-          api.init(modelBase),
-          MODEL_INIT_TIMEOUT_MS,
-          'Incarcarea modelelor AI a durat prea mult — verifica conexiunea la internet.'
-        );
-        this.slots.push({ api, busy: false });
+        const { slot, backend } = await this.spawnSlot();
+        this.slots.push(slot);
         return backend;
       })
     );
@@ -75,6 +92,7 @@ export class AnalysisPool {
   }
 
   async setKnownPersons(persons: KnownPerson[]): Promise<void> {
+    this.knownPersons = persons;
     await Promise.all(this.slots.map(s => s.api.setKnownPersons(persons)));
   }
 
@@ -90,11 +108,36 @@ export class AnalysisPool {
     if (next) next(slot);
   }
 
+  /**
+   * Inlocuieste worker-ul unui slot blocat cu unul nou, curat — altfel un
+   * singur fisier problematic ar pierde definitiv acel slot din pool (worker-ul
+   * vechi ramane "busy" pentru totdeauna in mintea noastra, fara sa mai
+   * raspunda niciodata), reducand treptat concurenta pana la zero pe o
+   * biblioteca mare cu mai multe poze problematice.
+   */
+  private async respawnSlot(slot: Slot): Promise<void> {
+    try { slot.worker.terminate(); } catch { /* deja mort, nu conteaza */ }
+    try {
+      const { slot: fresh } = await this.spawnSlot();
+      slot.worker = fresh.worker;
+      slot.api = fresh.api;
+    } catch (err) {
+      console.error('Nu am putut reporni worker-ul dupa timeout:', err);
+    }
+  }
+
   /** Analizează o fotografie. Bitmap-ul e transferat (nu copiat) și închis în worker. */
   async analyze(photoId: string, bitmap: ImageBitmap): Promise<AnalysisRecord> {
     const slot = await this.acquire();
     try {
-      return await slot.api.analyze(photoId, Comlink.transfer(bitmap, [bitmap]));
+      return await withTimeout(
+        slot.api.analyze(photoId, Comlink.transfer(bitmap, [bitmap])),
+        ANALYZE_TIMEOUT_MS,
+        'Analiza acestei fotografii a durat prea mult (posibil fisier problematic) — sarita.'
+      );
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('a durat prea mult')) await this.respawnSlot(slot);
+      throw err;
     } finally {
       this.release(slot);
     }
@@ -104,7 +147,14 @@ export class AnalysisPool {
   async computeEnrollmentEmbedding(bitmap: ImageBitmap): Promise<number[] | null> {
     const slot = await this.acquire();
     try {
-      return await slot.api.computeEnrollmentEmbedding(Comlink.transfer(bitmap, [bitmap]));
+      return await withTimeout(
+        slot.api.computeEnrollmentEmbedding(Comlink.transfer(bitmap, [bitmap])),
+        ANALYZE_TIMEOUT_MS,
+        'Procesarea acestei poze de referinta a durat prea mult.'
+      );
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('a durat prea mult')) await this.respawnSlot(slot);
+      throw err;
     } finally {
       this.release(slot);
     }
