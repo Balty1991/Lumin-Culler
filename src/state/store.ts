@@ -42,6 +42,9 @@ interface AppState {
   menuOpen: boolean;
   insightsOpen: boolean;
   booted: boolean;
+  /** false daca dispozitivul nu a putut incarca WebGL/WASM — analiza continua dar fara fete reale. */
+  aiDegraded: boolean;
+  aiBackend: string;
 
   boot: () => Promise<void>;
   runImport: (files: File[]) => Promise<void>;
@@ -57,7 +60,8 @@ interface AppState {
   setMenuOpen: (open: boolean) => void;
   setInsightsOpen: (open: boolean) => void;
   clearAll: () => Promise<void>;
-  exportMessage: string | null;
+  /** banner general de stare: rezultat export, avertisment de stocare etc. */
+  notice: string | null;
   exportSelection: () => Promise<void>;
   exportManifest: () => Promise<void>;
   filtered: () => PhotoView[];
@@ -101,14 +105,25 @@ async function train(id: string, userDecision: boolean): Promise<void> {
  * tab-urile din fundal ca sa economiseasca RAM). La deselectare, il stergem
  * la loc ca sa nu dublam spatiul ocupat de intregul import.
  */
-async function syncOriginal(id: string, status: PhotoRecord['status']): Promise<void> {
+async function syncOriginal(id: string, status: PhotoRecord['status']): Promise<{ quotaError: boolean }> {
   if (status === 'selected') {
     const file = originalFiles.get(id);
-    if (file) await db.originals.put({ photoId: id, blob: file, fileName: file.name, type: file.type });
+    if (file) {
+      try {
+        await db.originals.put({ photoId: id, blob: file, fileName: file.name, type: file.type });
+      } catch (err) {
+        if (err instanceof DOMException && err.name === 'QuotaExceededError') return { quotaError: true };
+        throw err;
+      }
+    }
   } else {
     await db.originals.delete(id);
   }
+  return { quotaError: false };
 }
+
+const QUOTA_NOTICE = 'Spatiu de stocare plin — fotografia a fost marcata, dar originalul nu a putut fi ' +
+  'salvat pentru export. Elibereaza spatiu (Goleste sesiunea sau exporta ce ai deja) si reincearca.';
 
 export const useStore = create<AppState>((set, get) => ({
   photos: [],
@@ -121,7 +136,9 @@ export const useStore = create<AppState>((set, get) => ({
   menuOpen: false,
   insightsOpen: false,
   booted: false,
-  exportMessage: null,
+  aiDegraded: false,
+  aiBackend: '',
+  notice: null,
 
   boot: async () => {
     if (get().booted) return;
@@ -139,16 +156,21 @@ export const useStore = create<AppState>((set, get) => ({
 
   runImport: async (files: File[]) => {
     set({ progress: { done: 0, total: files.length, fileName: '', phase: 'analiza' } });
+    let warning: string | undefined;
     await importFiles(
       files,
-      progress => set({ progress: { ...progress } }),
+      progress => { warning = progress.warning; set({ progress: { ...progress } }); },
       item => set(state => ({ photos: [...state.photos, toView(item.photo, item.analysis)] }))
     );
     // reincarca statusurile si groupId-urile persistate dupa gruparea seriilor
     const fresh = await db.photos.toArray();
     const byId = new Map(fresh.map(p => [p.id, p]));
+    const aiDegraded = !analysisPool.isAccelerated;
     set(state => ({
       progress: null,
+      notice: warning ?? state.notice,
+      aiDegraded,
+      aiBackend: analysisPool.detectedBackend,
       photos: state.photos.map(p => {
         const rec = byId.get(p.id);
         return rec ? { ...p, status: rec.status, groupId: rec.groupId } : p;
@@ -159,24 +181,28 @@ export const useStore = create<AppState>((set, get) => ({
   setStatus: async (id, status) => {
     await db.photos.update(id, { status });
     set(state => ({ photos: state.photos.map(p => (p.id === id ? { ...p, status } : p)) }));
-    await syncOriginal(id, status);
+    const { quotaError } = await syncOriginal(id, status);
+    if (quotaError) set({ notice: QUOTA_NOTICE });
     if (status === 'selected' || status === 'rejected') await train(id, status === 'selected');
   },
 
   /** Fluxul principal de serie: pastreaza o singura poza, respinge restul grupului. */
   keepOnlyInGroup: async (groupId, keepId) => {
     const members = get().photos.filter(p => p.groupId === groupId);
+    let quotaError = false;
     for (const m of members) {
       const status = m.id === keepId ? 'selected' : 'rejected';
       await db.photos.update(m.id, { status });
-      await syncOriginal(m.id, status);
+      const res = await syncOriginal(m.id, status);
+      if (res.quotaError) quotaError = true;
       await train(m.id, m.id === keepId);
     }
     set(state => ({
       photos: state.photos.map(p =>
         p.groupId === groupId ? { ...p, status: p.id === keepId ? 'selected' : 'rejected' } : p
       ),
-      compareGroupId: null
+      compareGroupId: null,
+      notice: quotaError ? QUOTA_NOTICE : state.notice
     }));
   },
 
@@ -250,9 +276,9 @@ export const useStore = create<AppState>((set, get) => ({
       if (result.missing.length) {
         parts.push(`${result.missing.length} nu mai erau disponibile (importate inainte de ultima actualizare) — reimporta-le pentru export.`);
       }
-      set({ exportMessage: parts.join(' ') });
+      set({ notice: parts.join(' ') });
     } catch (err) {
-      set({ exportMessage: 'Export esuat: ' + String(err) });
+      set({ notice: 'Export esuat: ' + String(err) });
     }
   },
 

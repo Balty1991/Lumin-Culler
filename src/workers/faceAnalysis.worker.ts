@@ -117,19 +117,39 @@ function classifyScene(faces: FaceInsight[], w: number, h: number): AnalysisReco
 
 // ── Service ──────────────────────────────────────────────────────────────────
 
+const ACCELERATED_BACKENDS = ['webgl', 'humangl', 'webgpu', 'wasm'];
+
 export class FaceAnalysisService {
   private human: Human | null = null;
   private known: KnownPerson[] = [];
+  private backend = 'unknown';
   private analysisCanvas = new OffscreenCanvas(320, 320);
 
-  async init(modelBasePath?: string): Promise<void> {
-    if (this.human) return;
+  /**
+   * Returneaza backend-ul TFJS efectiv activ dupa incarcare (nu doar cel cerut
+   * in config). Pe device-uri fara WebGL/WASM functionale, Human cade pe 'cpu'
+   * (sau esueaza total) fara sa arunce — analiza continua dar fara fete reale,
+   * silentios. Apelantul (workerPool -> store) foloseste asta ca sa avertizeze
+   * utilizatorul in loc sa lase scorurile sa para "normale".
+   */
+  async init(modelBasePath?: string): Promise<string> {
+    if (this.human) return this.backend;
     this.human = new Human({
       ...HUMAN_CONFIG,
       ...(modelBasePath ? { modelBasePath } : {})
     });
-    await this.human.load();
-    await this.human.warmup();   // JIT-compile shaders before the first real photo
+    try {
+      await this.human.load();
+      await this.human.warmup();   // JIT-compile shaders before the first real photo
+    } catch (err) {
+      console.error('FaceAnalysisService: model load/warmup failed', err);
+    }
+    this.backend = this.human.tf?.getBackend?.() ?? 'unknown';
+    return this.backend;
+  }
+
+  isAccelerated(): boolean {
+    return ACCELERATED_BACKENDS.includes(this.backend);
   }
 
   /** Enrollment data: reference embeddings for user / Ami / soția, from db.persons. */

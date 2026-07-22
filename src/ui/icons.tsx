@@ -48,3 +48,6 @@ export function TrashIcon(p: SVGProps<SVGSVGElement>) {
 export function CheckIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><path d="M4 12.5l5.5 5.5L20 6" /></svg>;
 }
+export function AlertIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg {...base} {...p}><path d="M12 3.5l9.5 16.5H2.5z" /><line x1="12" y1="9.5" x2="12" y2="14" /><circle cx="12" cy="17" r="0.15" fill="currentColor" /></svg>;
+}

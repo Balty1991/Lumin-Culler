@@ -17,8 +17,15 @@ export class AnalysisPool {
   private slots: Slot[] = [];
   private waiters: ((slot: Slot) => void)[] = [];
   private ready = false;
+  /** Backend TFJS efectiv folosit de worker-ul de referinta (primul initializat). */
+  detectedBackend = 'unknown';
 
   get size(): number { return this.slots.length; }
+
+  /** false = fara accelerare WebGL/WASM — analiza ruleaza dar fara detectie reala de fete. */
+  get isAccelerated(): boolean {
+    return ['webgl', 'humangl', 'webgpu', 'wasm'].includes(this.detectedBackend);
+  }
 
   async init(): Promise<void> {
     if (this.ready) return;
@@ -26,17 +33,19 @@ export class AnalysisPool {
     const size = Math.max(1, Math.min(4, cores - 1));
     const modelBase = new URL(`${import.meta.env.BASE_URL}models/`, location.href).href;
 
-    await Promise.all(
+    const backends = await Promise.all(
       Array.from({ length: size }, async () => {
         const worker = new Worker(
           new URL('../workers/faceAnalysis.worker.ts', import.meta.url),
           { type: 'module' }
         );
         const api = Comlink.wrap<FaceAnalysisAPI>(worker);
-        await api.init(modelBase);
+        const backend = await api.init(modelBase);
         this.slots.push({ api, busy: false });
+        return backend;
       })
     );
+    this.detectedBackend = backends[0] ?? 'unknown';
     this.ready = true;
   }
 

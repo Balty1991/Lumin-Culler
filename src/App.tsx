@@ -7,7 +7,7 @@ import { PersonsPanel } from './ui/PersonsPanel';
 import { MenuDrawer } from './ui/MenuDrawer';
 import { InsightsPanel } from './ui/InsightsPanel';
 import { AnimatedNumber } from './ui/AnimatedNumber';
-import { MenuIcon, PlusIcon, StarIcon } from './ui/icons';
+import { MenuIcon, PlusIcon, StarIcon, AlertIcon } from './ui/icons';
 
 export default function App() {
   const boot = useStore(s => s.boot);
@@ -20,7 +20,9 @@ export default function App() {
   const openCompare = useStore(s => s.openCompare);
   const setMenuOpen = useStore(s => s.setMenuOpen);
   const exportSelection = useStore(s => s.exportSelection);
-  const exportMessage = useStore(s => s.exportMessage);
+  const notice = useStore(s => s.notice);
+  const aiDegraded = useStore(s => s.aiDegraded);
+  const aiBackend = useStore(s => s.aiBackend);
   const clearAll = useStore(s => s.clearAll);
   const filtered = useStore(s => s.filtered());
   const fileRef = useRef<HTMLInputElement>(null);
@@ -76,7 +78,15 @@ export default function App() {
         </div>
       </header>
 
-      {exportMessage && <p className="export-message mono">{exportMessage}</p>}
+      {notice && <p className="notice mono">{notice}</p>}
+
+      {aiDegraded && (
+        <p className="notice warn mono">
+          <AlertIcon className="inline-icon" /> Detectia AI de fete nu ruleaza accelerat pe acest
+          dispozitiv ({aiBackend || 'necunoscut'}) — scorurile folosesc doar claritate si expunere,
+          fara fete/zambet/persoane cunoscute.
+        </p>
+      )}
 
       {photos.length > 0 && (
         <section className="cullbar" aria-label="Progresul sortarii">
