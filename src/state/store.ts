@@ -283,16 +283,26 @@ export const useStore = create<AppState>((set, get) => ({
     set({ photos: [], detailId: null, compareGroupId: null });
   },
 
-  /** Exporta pozele selectate ca fisiere reale, in formatul original (JPEG/PNG/etc). */
+  /** Exporta pozele selectate ca fisiere reale, in formatul original (JPEG/PNG/etc), grupate pe subfoldere. */
   exportSelection: async () => {
     const selected = get().photos.filter(p => p.status === 'selected');
     if (!selected.length) return;
     try {
-      const result = await exportOriginalFiles(selected.map(p => ({ id: p.id, fileName: p.fileName })));
+      const result = await exportOriginalFiles(selected.map(p => ({
+        id: p.id,
+        fileName: p.fileName,
+        personNames: p.personNames,
+        faceCount: p.faceCount,
+        strangerCount: p.strangerCount,
+        sceneType: p.sceneType
+      })));
       if (result.cancelled) return;
       const parts = [
         result.exported
-          ? `${result.exported} poze exportate` + (result.method === 'folder' ? ' in folderul ales.' : ' (descarcari individuale).')
+          ? `${result.exported} poze exportate` + (
+              result.method === 'folder' ? ' in subfoldere (persoane/scenă), în folderul ales.'
+              : ' (descărcări individuale, denumite cu prefix de grup — subfolderele reale depind de suportul browserului).'
+            )
           : 'Nicio poza nu a putut fi exportata in format original.'
       ];
       if (result.missing.length) {
