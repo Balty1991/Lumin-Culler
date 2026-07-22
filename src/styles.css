@@ -389,7 +389,9 @@ button:focus-visible, input:focus-visible {
 .stat-label { font-size: 0.6rem; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.05em; }
 .stat-tile.warn { border-color: rgba(251,113,133,0.45); }
 .stat-tile.warn .stat-value { color: var(--reject); }
-.score-tile { padding: 6px 4px 8px; }
+.score-tile { padding: 6px 4px 8px; width: 100%; cursor: pointer; }
+.score-tile:not(:disabled):hover { border-color: var(--accent); }
+.score-tile:disabled { cursor: default; }
 .score-ring {
   width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
   margin-bottom: 2px; transition: background 0.4s var(--ease);
@@ -399,6 +401,22 @@ button:focus-visible, input:focus-visible {
   display: flex; align-items: center; justify-content: center;
   font-family: var(--mono); font-weight: 700; font-size: 0.82rem;
 }
+
+/* ── Explicabilitate: "de ce acest scor", extins la atingerea inelului de scor ── */
+.factor-row {
+  display: flex; flex-direction: column; gap: 6px; background: var(--surface-2);
+  border: 1px solid var(--line); border-radius: var(--radius); padding: 9px 11px;
+  animation: fadeUp 0.2s var(--ease) both;
+}
+.factor-row-label { color: var(--text-faint); font-size: 0.68rem; display: flex; align-items: center; }
+.factor-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+.factor-tag {
+  font-size: 0.72rem; font-weight: 600; padding: 3px 9px; border-radius: 999px;
+  border: 1px solid transparent;
+}
+.factor-tag.pos { color: var(--pick); background: rgba(74,222,128,0.12); border-color: rgba(74,222,128,0.3); }
+.factor-tag.neg { color: var(--reject); background: rgba(251,113,133,0.12); border-color: rgba(251,113,133,0.3); }
+
 .detail-persons { display: flex; align-items: center; gap: 6px; color: var(--text-dim); font-size: 0.78rem; }
 .ghost.slim { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 12px; font-size: 0.85rem; }
 

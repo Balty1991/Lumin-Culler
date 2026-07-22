@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import { db } from '../core/db';
 import { useStore } from '../state/store';
+import { explainFactors } from '../core/learning/ContextEngine';
 import { AnimatedNumber } from './AnimatedNumber';
 import { vibrate } from './haptics';
-import { XIcon, ChevronLeft, ChevronRight, LayersIcon, StarIcon, CheckIcon, EyeClosedIcon } from './icons';
+import { XIcon, ChevronLeft, ChevronRight, LayersIcon, StarIcon, CheckIcon, EyeClosedIcon, SparkleIcon } from './icons';
 
 const SWIPE_COMMIT = 96;       // px de tras pentru a declansa decizia
 const SWIPE_TAP_TOLERANCE = 6; // sub asta e considerat click (zoom), nu swipe
@@ -44,6 +45,7 @@ export function DetailView() {
   const [src, setSrc] = useState<string | null>(null);
   const [zoomed, setZoomed] = useState(false);
   const [dragX, setDragX] = useState(0);
+  const [showFactors, setShowFactors] = useState(false);
   const draggingRef = useRef(false);
   const movedRef = useRef(false);
   const startXRef = useRef(0);
@@ -53,6 +55,7 @@ export function DetailView() {
   useEffect(() => {
     setZoomed(false);
     setDragX(0);
+    setShowFactors(false);
     if (!detailId) { setSrc(null); return; }
     let url: string | null = null;
     let alive = true;
@@ -155,10 +158,15 @@ export function DetailView() {
         </div>
 
         <div className="stat-grid">
-          <div className="stat-tile score-tile">
+          <button
+            className="stat-tile score-tile"
+            onClick={() => setShowFactors(v => !v)}
+            disabled={photo.aiFactors.length === 0}
+            aria-label="De ce acest scor"
+          >
             <ScoreRing score={photo.aiScore} />
             <span className="stat-label">Scor AI</span>
-          </div>
+          </button>
           <StatTile label="Claritate" value={photo.sharpness} />
           <StatTile label="Expunere" value={photo.exposure} />
           {photo.faceCount > 0 && <StatTile label="Fete" value={photo.faceCount} />}
@@ -170,7 +178,22 @@ export function DetailView() {
               warn={!photo.allEyesOpen}
             />
           )}
+          {photo.faceCount > 0 && <StatTile label="Treimi" value={`${Math.round(photo.ruleOfThirds * 100)}%`} />}
+          {photo.faceCount > 0 && <StatTile label="Cadraj" value={`${Math.round(photo.headroom * 100)}%`} />}
         </div>
+
+        {showFactors && photo.aiFactors.length > 0 && (
+          <div className="factor-row">
+            <span className="factor-row-label mono"><SparkleIcon className="inline-icon" /> De ce acest scor</span>
+            <div className="factor-tags">
+              {explainFactors(photo.aiFactors).map(f => (
+                <span key={f.label} className={f.positive ? 'factor-tag pos' : 'factor-tag neg'}>
+                  {f.positive ? '+' : '−'} {f.label}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         {photo.personNames.length > 0 && (
           <p className="detail-persons mono"><StarIcon className="inline-icon" /> {photo.personNames.join(', ')}</p>

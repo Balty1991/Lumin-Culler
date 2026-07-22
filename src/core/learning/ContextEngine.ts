@@ -57,8 +57,38 @@ const PRIOR_WEIGHTS: FeatureVector = {
   knownFaceRatio: 0.6,
   strangerPenalty: -0.5,
   faceScore: 0.4,
-  faceCount: 0.1
+  faceCount: 0.1,
+  // compozitie (regula treimilor, headroom) — bonus modest, nu domina claritatea/expunerea/ochii
+  ruleOfThirds: 0.3,
+  headroom: 0.25
 };
+
+/**
+ * Nume scurte, lizibile, per feature — folosite pentru explicabilitate PER POZA
+ * ("de ce a primit acest scor", DetailView), diferit de perechile pozitiv/negativ
+ * din summarize() (care descriu directia PONDERII invatate, nu contributia unei
+ * poze anume).
+ */
+export const FACTOR_LABELS: Record<string, string> = {
+  sharpness: 'Claritate',
+  exposureBalance: 'Expunere echilibrată',
+  exposureRaw: 'Nivel de expunere',
+  bestSmile: 'Zâmbet',
+  allEyesOpen: 'Ochi deschiși',
+  faceCount: 'Număr de fețe',
+  knownFaceRatio: 'Persoane cunoscute',
+  strangerPenalty: 'Străini în cadru',
+  faceScore: 'Calitatea feței',
+  ruleOfThirds: 'Regula treimilor',
+  headroom: 'Cadraj (headroom)'
+};
+
+/** Transforma topFactors dintr-o Prediction in etichete afisabile, filtrand contributiile neglijabile. */
+export function explainFactors(topFactors: { feature: string; contribution: number }[]): { label: string; positive: boolean }[] {
+  return topFactors
+    .filter(f => FACTOR_LABELS[f.feature] && Math.abs(f.contribution) > 0.03)
+    .map(f => ({ label: FACTOR_LABELS[f.feature], positive: f.contribution >= 0 }));
+}
 
 // ── Feature extraction ───────────────────────────────────────────────────────
 
@@ -75,7 +105,12 @@ export function extractFeatures(a: AnalysisRecord): FeatureVector {
     strangerPenalty: a.faceCount ? a.strangerCount / a.faceCount : 0,
     faceScore: a.faces.length
       ? a.faces.reduce((s, f) => s + f.faceScore, 0) / a.faces.length
-      : 0
+      : 0,
+    // ?? 0.5 (neutru) pentru poze fara fete si pentru inregistrari mai vechi
+    // dinainte de aceasta functie, care nu au deloc campurile — nu 0, ca sa nu
+    // le penalizeze artificial fata de pozele care chiar au compozitie proasta
+    ruleOfThirds: a.ruleOfThirds ?? 0.5,
+    headroom: a.headroom ?? 0.5
   };
 }
 
@@ -180,26 +215,7 @@ export class ContextEngine {
     ]);
   }
 
-  // ── Explainability (feeds the "ML Weights" panel from the old UI) ─────────
-
-  async describePreferences(contextKey: string): Promise<string[]> {
-    await this.init();
-    const model = this.models.get(contextKey);
-    if (!model || model.sampleCount < COLD_START_SAMPLES) return [];
-    const labels: Record<string, [string, string]> = {
-      sharpness: ['claritate maximă', 'tolerează blur artistic'],
-      exposureRaw: ['imagini luminoase', 'ton dramatic, subexpus'],
-      bestSmile: ['zâmbete largi', 'expresii serioase'],
-      allEyesOpen: ['ochi deschiși obligatoriu', 'acceptă ochi închiși'],
-      knownFaceRatio: ['prioritate subiecți cunoscuți', 'indiferent la subiecți'],
-      strangerPenalty: ['acceptă străini în cadru', 'evită străinii în cadru']
-    };
-    return Object.entries(model.weights)
-      .filter(([k]) => k in labels)
-      .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
-      .slice(0, 4)
-      .map(([k, w]) => `${contextKey}: ${w >= 0 ? labels[k][0] : labels[k][1]} (${w.toFixed(2)})`);
-  }
+  // ── Explainability (feeds the "Preferinte AI" panel in UI) ─────────────────
 
   /** Rezumat lizibil al tuturor contextelor invatate — pentru panoul "Preferinte AI" din UI. */
   async summarize(): Promise<{
@@ -215,7 +231,9 @@ export class ContextEngine {
       bestSmile: ['zâmbete largi', 'expresii serioase'],
       allEyesOpen: ['ochi deschiși obligatoriu', 'acceptă ochi închiși'],
       knownFaceRatio: ['prioritate subiecți cunoscuți', 'indiferent la subiecți'],
-      strangerPenalty: ['acceptă străini în cadru', 'evită străinii în cadru']
+      strangerPenalty: ['acceptă străini în cadru', 'evită străinii în cadru'],
+      ruleOfThirds: ['compune după regula treimilor', 'preferă subiecte centrate'],
+      headroom: ['spațiu echilibrat deasupra capului', 'tolerează cadraj strâns/lejer']
     };
     return Array.from(this.models.values())
       .map(model => ({

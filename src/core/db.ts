@@ -61,6 +61,17 @@ export interface AnalysisRecord {
   sceneType: 'portrait' | 'group' | 'landscape' | 'detail';
   aiScore: number;
   analyzedAt: number;
+  /**
+   * Compozitie, calculata geometric din pozitia subiectului principal (fata
+   * cea mai mare) fata de cadru — 0..1, 1 = aliniere ideala. Optionale: pozele
+   * fara fete nu au subiect detectabil, iar inregistrarile mai vechi (dinainte
+   * de aceasta functie) nu le au deloc — extractFeatures (ContextEngine)
+   * trateaza absenta ca neutru (0.5), nu ca zero.
+   */
+  ruleOfThirds?: number;   // regula treimilor: cat de aproape e centrul fetei de o intersectie de treimi
+  headroom?: number;       // spatiul deasupra capului: 0 = fata lipita de margine, 1 = in zona ideala
+  /** topFactors din predictia ContextEngine la momentul importului — "de ce" a primit poza acest scor. */
+  aiFactors?: { feature: string; contribution: number }[];
 }
 
 export interface KnownPerson {

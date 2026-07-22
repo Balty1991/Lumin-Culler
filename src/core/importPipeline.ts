@@ -125,6 +125,7 @@ async function processOne(file: File): Promise<ImportedPhoto> {
   const analysis = await analysisPromise;
   const prediction = await contextEngine.predict(analysis);
   analysis.aiScore = prediction.score;
+  analysis.aiFactors = prediction.topFactors;
 
   const status: PhotoRecord['status'] =
     prediction.score >= SELECT_THRESHOLD ? 'selected'

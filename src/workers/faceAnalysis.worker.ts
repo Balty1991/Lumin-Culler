@@ -115,6 +115,41 @@ function classifyScene(faces: FaceInsight[], w: number, h: number): AnalysisReco
   return largest > 0.04 ? 'portrait' : 'group';
 }
 
+// ── Compozitie (tehnici clasice de fotografie, calculate geometric) ────────────
+// Sursa: regula treimilor si headroom sunt principii standard de compozitie
+// (vezi ex. digital-photography-school.com/four-rules-of-photographic-composition,
+// photoworkout.com/rule-of-thirds-in-photography) — nu simulari, ci geometrie
+// directa pe cutia fetei principale, deja detectata de model.
+
+const THIRDS_POINTS: [number, number][] = [[1 / 3, 1 / 3], [2 / 3, 1 / 3], [1 / 3, 2 / 3], [2 / 3, 2 / 3]];
+// distanta de la centrul cadrului (compozitia cea mai "sigura"/plictisitoare) la cea mai apropiata intersectie
+const THIRDS_MAX_DIST = Math.hypot(0.5 - 1 / 3, 0.5 - 1 / 3);
+
+/** Cat de aproape e centrul subiectului de o intersectie de treimi — 1 = pe linie, 0 = centrat sau mai rau. */
+function ruleOfThirdsScore(cx: number, cy: number): number {
+  const d = Math.min(...THIRDS_POINTS.map(([tx, ty]) => Math.hypot(cx - tx, cy - ty)));
+  return Math.max(0, Math.min(1, 1 - d / THIRDS_MAX_DIST));
+}
+
+const HEADROOM_IDEAL_MIN = 0.04; // sub asta, capul e prea lipit de marginea de sus
+const HEADROOM_IDEAL_MAX = 0.22; // peste asta, prea mult spatiu gol deasupra
+
+/** topY = distanta normalizata de la marginea de sus a cadrului la varful cutiei fetei. */
+function headroomScore(topY: number): number {
+  if (topY < HEADROOM_IDEAL_MIN) return topY / HEADROOM_IDEAL_MIN;
+  if (topY > HEADROOM_IDEAL_MAX) return Math.max(0, 1 - (topY - HEADROOM_IDEAL_MAX) / (0.5 - HEADROOM_IDEAL_MAX));
+  return 1;
+}
+
+/** Compozitie pe subiectul principal (fata cea mai mare) — neutru (0.5) cand nu exista fete detectate. */
+function scoreComposition(faces: FaceInsight[]): { ruleOfThirds: number; headroom: number } {
+  if (!faces.length) return { ruleOfThirds: 0.5, headroom: 0.5 };
+  const main = faces.reduce((a, b) => (a.box[2] * a.box[3] > b.box[2] * b.box[3] ? a : b));
+  const cx = main.box[0] + main.box[2] / 2;
+  const cy = main.box[1] + main.box[3] / 2;
+  return { ruleOfThirds: ruleOfThirdsScore(cx, cy), headroom: headroomScore(main.box[1]) };
+}
+
 // ── Service ──────────────────────────────────────────────────────────────────
 
 const ACCELERATED_BACKENDS = ['webgl', 'humangl', 'webgpu', 'wasm'];
@@ -208,6 +243,7 @@ export class FaceAnalysisService {
 
     const faces = result.face.map(f => this.toInsight(f, imgW, imgH));
     const known = faces.filter(f => f.personId !== null);
+    const composition = scoreComposition(faces);
 
     return {
       photoId,
@@ -220,6 +256,8 @@ export class FaceAnalysisService {
       sharpness: laplacianSharpness(smallImg),
       exposure: exposureScore(smallImg),
       sceneType: classifyScene(faces, imgW, imgH),
+      ruleOfThirds: composition.ruleOfThirds,
+      headroom: composition.headroom,
       aiScore: 0,            // filled in later by ContextEngine on the main thread
       analyzedAt: Date.now()
     };

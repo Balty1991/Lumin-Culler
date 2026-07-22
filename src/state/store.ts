@@ -24,6 +24,9 @@ export interface PhotoView {
   allEyesOpen: boolean;
   sharpness: number;
   exposure: number;
+  ruleOfThirds: number;
+  headroom: number;
+  aiFactors: { feature: string; contribution: number }[];
   personNames: string[];
   groupId?: string;
   capturedAt?: number;
@@ -84,6 +87,9 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     allEyesOpen: analysis?.allEyesOpen ?? true,
     sharpness: analysis?.sharpness ?? 0,
     exposure: analysis?.exposure ?? 0,
+    ruleOfThirds: analysis?.ruleOfThirds ?? 0.5,
+    headroom: analysis?.headroom ?? 0.5,
+    aiFactors: analysis?.aiFactors ?? [],
     personNames: analysis
       ? Array.from(new Set(analysis.faces.map(f => f.personName).filter((n): n is string => !!n)))
       : [],

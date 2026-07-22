@@ -6,6 +6,9 @@ AI real (TensorFlow.js) ruleaza **100% local, in browser** — pozele nu parases
 ## Ce face
 
 - **Detectie AI reala a fetelor** (BlazeFace + Face Mesh 468 puncte): zambete, ochi deschisi/inchisi (EAR pe landmark-uri), calitatea fetei.
+- **Tehnici de compozitie foto**: regula treimilor si headroom, calculate geometric din pozitia
+  subiectului principal fata de cadru (nu simulate) — intra in scor si se invata per context,
+  la fel ca restul criteriilor.
 - **Recunoastere persoane cunoscute**: inrolezi familia (ex. Ami, sotia) cu cateva poze de referinta; AI-ul separa automat pozele cu cei dragi de cele cu straini (embeddings 1024-dim + similaritate cosinus).
 - **1000+ poze fara blocare**: toata inferenta ruleaza in Web Workers (pool pe N-1 nuclee), imaginile se transfera zero-copy, miniaturile si metadatele stau in IndexedDB, nu in RAM.
 - **Motor de invatare per context**: fiecare decizie manuala (Selecteaza/Respinge) antreneaza un model de regresie logistica online separat pe context (`portrait:known`, `landscape`, `group:mixed`...). Invata preferinte de tipul „portrete dramatice usor subexpuse, dar peisaje luminoase si clare".
