@@ -100,21 +100,14 @@ function hammingDistance(a: string, b: string): number {
   return d;
 }
 
-const QUOTA_SAFETY_MARGIN = 0.92; // oprim importul la 92% din cota de stocare a originii, nu la eroare
-
-/** navigator.storage e indisponibila pe unele browsere vechi — in acel caz nu putem
-    verifica preventiv, continuam si ne bazam doar pe catch-ul QuotaExceededError. */
-async function isStorageNearFull(): Promise<boolean> {
-  if (!navigator.storage?.estimate) return false;
-  try {
-    const { usage, quota } = await navigator.storage.estimate();
-    if (!quota) return false;
-    return (usage ?? 0) / quota >= QUOTA_SAFETY_MARGIN;
-  } catch {
-    return false;
-  }
-}
-
+/**
+ * Nu ne bazam pe navigator.storage.estimate() pentru a opri importul preventiv:
+ * raportarea e nesigura in practica — Brave, de exemplu, ofusca deliberat
+ * usage/quota din motive de anti-fingerprinting, ceea ce a produs opriri false
+ * ("stocare aproape plina") chiar si cu 2 poze mici pe un telefon cu spatiu liber.
+ * Reactionam DOAR la un esec real de scriere (QuotaExceededError), singurul
+ * semnal 100% de incredere — reflecta o eroare reala, nu o estimare.
+ */
 function isQuotaError(err: unknown): boolean {
   return err instanceof DOMException && err.name === 'QuotaExceededError';
 }
@@ -190,20 +183,10 @@ export async function importFiles(
     Array.from({ length: concurrency }, async () => {
       while (true) {
         if (stopReason) break;
-        // index++ e sincron (fara await intre citire si incrementare), deci fiecare
-        // worker concurent primeste un index unic — esential cu putine fisiere si
-        // mai multi workeri, altfel doi workeri pot "sari" peste array simultan
-        // si ajunge unul cu file === undefined (vezi verificarea de cota de mai jos,
-        // care ADAUGA un await inainte de a citi fisierul, deci trebuia sa vina dupa).
         const myIndex = index++;
         if (myIndex >= images.length) break;
         const file = images[myIndex];
 
-        // verificare periodica (nu la fiecare fisier — storage.estimate() nu e gratuit)
-        if (myIndex % 15 === 0 && await isStorageNearFull()) {
-          stopReason = stopMessage(done);
-          break;
-        }
         try {
           const item = await processOne(file);
           hashes.push({ id: item.photo.id, dHash: item.photo.dHash, score: item.analysis.aiScore });
