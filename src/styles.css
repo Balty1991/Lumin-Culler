@@ -334,11 +334,16 @@ button:focus-visible, input:focus-visible {
    nu poza, ca sa nu ajunga statisticile sa domine ecranul in fata fotografiei.
    Butoanele de decizie raman mereu vizibile, in afara zonei derulabile. */
 .detail-inner.fit {
-  height: 94dvh; max-height: 94dvh; overflow: hidden;
+  height: 94dvh; max-height: 94dvh; overflow-y: auto; overflow-x: hidden;
   display: flex; flex-direction: column; gap: 8px;
 }
 .detail-inner.fit > * { flex: 0 0 auto; }
-.detail-inner.fit .detail-img { flex: 0 0 38dvh; min-height: 200px; }
+/* min-height mic — pe un viewport scurt/landscape, 200px fortat impingea
+   butoanele de decizie sub inaltimea containerului; cum acesta avea
+   overflow: hidden, butoanele deveneau inaccesibile (nici scroll). Acum
+   containerul e derulabil ca plasa de siguranta, dar min-height mic
+   inseamna ca de obicei nici nu ajunge sa fie nevoie. */
+.detail-inner.fit .detail-img { flex: 0 0 38dvh; min-height: 120px; }
 .detail-inner.fit .detail-img .swipe-surface img { max-height: none; height: 100%; }
 /* zoomed trebuie sa invinga regula de mai sus (altfel "height: 100%" tine
    imaginea legata de inaltimea containerului si zoom-ul nu mareste nimic —
