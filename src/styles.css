@@ -338,6 +338,10 @@ button:focus-visible, input:focus-visible {
 .detail-inner.fit > * { flex: 0 0 auto; }
 .detail-inner.fit .detail-img { flex: 1 1 auto; min-height: 90px; }
 .detail-inner.fit .detail-img .swipe-surface img { max-height: none; height: 100%; }
+/* zoomed trebuie sa invinga regula de mai sus (altfel "height: 100%" tine
+   imaginea legata de inaltimea containerului si zoom-ul nu mareste nimic —
+   bug real gasit testand: latimea creste usor dar inaltimea ramane blocata) */
+.detail-inner.fit .detail-img.zoomed .swipe-surface img { width: auto; max-width: none; height: auto; max-height: none; }
 .detail-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .detail-head span:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .detail-head .ghost { flex-shrink: 0; }
