@@ -29,6 +29,13 @@ export interface PreviewRecord {
   blob: Blob;               // JPEG ~2048px pentru evaluarea claritatii (zoom 100%)
 }
 
+export interface OriginalRecord {
+  photoId: string;
+  blob: Blob;                // fisierul original, byte-cu-byte (pentru export "format original")
+  fileName: string;
+  type: string;
+}
+
 export interface FaceInsight {
   box: [number, number, number, number];
   faceScore: number;
@@ -88,6 +95,7 @@ export class LuminDB extends Dexie {
   photos!: Table<PhotoRecord, string>;
   thumbnails!: Table<ThumbnailRecord, string>;
   previews!: Table<PreviewRecord, string>;
+  originals!: Table<OriginalRecord, string>;
   analyses!: Table<AnalysisRecord, string>;
   persons!: Table<KnownPerson, string>;
   contextModels!: Table<ContextModelRecord, string>;
@@ -107,6 +115,20 @@ export class LuminDB extends Dexie {
       photos: 'id, capturedAt, status, dHash, groupId',
       thumbnails: 'photoId',
       previews: 'photoId',
+      analyses: 'photoId, sceneType, aiScore',
+      persons: 'id, name',
+      contextModels: 'contextKey',
+      corrections: '++id, contextKey, ts'
+    });
+    // v3: pastram fisierul original doar pentru pozele SELECTATE (nu toate cele
+    // 1000+ importate) — suficient ca exportul "format original" sa supravietuiasca
+    // unui reload de tab (frecvent pe mobil, cand browserul descarca tab-urile
+    // puse in fundal), fara sa dublam spatiul ocupat de intregul import.
+    this.version(3).stores({
+      photos: 'id, capturedAt, status, dHash, groupId',
+      thumbnails: 'photoId',
+      previews: 'photoId',
+      originals: 'photoId',
       analyses: 'photoId, sceneType, aiScore',
       persons: 'id, name',
       contextModels: 'contextKey',

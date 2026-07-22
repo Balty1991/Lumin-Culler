@@ -132,7 +132,13 @@ async function processOne(file: File): Promise<ImportedPhoto> {
     db.photos.put(photo),
     db.thumbnails.put({ photoId: id, blob: thumbBlob }),
     db.previews.put({ photoId: id, blob: previewBlob }),
-    db.analyses.put(analysis)
+    db.analyses.put(analysis),
+    // pastram originalul si pentru auto-selectiile AI (nu doar corectiile
+    // manuale) — altfel exportul s-ar rupe la un reload inainte ca utilizatorul
+    // sa apuce sa atinga poza (vezi syncOriginal in state/store.ts)
+    ...(status === 'selected'
+      ? [db.originals.put({ photoId: id, blob: file, fileName: file.name, type: file.type })]
+      : [])
   ]);
 
   return { photo, analysis, prediction };

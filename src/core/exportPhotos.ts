@@ -15,6 +15,7 @@
  * browserului, nu a aplicatiei).
  */
 import { originalFiles } from './importPipeline';
+import { db } from './db';
 
 export interface ExportResult {
   exported: number;
@@ -68,8 +69,15 @@ export async function exportOriginalFiles(
   const available: { name: string; file: File }[] = [];
   const missing: string[] = [];
   for (const p of photos) {
-    const file = originalFiles.get(p.id);
-    if (file) available.push({ name: p.fileName, file });
+    const inMemory = originalFiles.get(p.id);
+    if (inMemory) {
+      available.push({ name: p.fileName, file: inMemory });
+      continue;
+    }
+    // fallback: fisierul original persistat in IndexedDB (poze selectate,
+    // supravietuieste unui reload de tab — vezi core/db.ts OriginalRecord)
+    const stored = await db.originals.get(p.id);
+    if (stored) available.push({ name: p.fileName, file: new File([stored.blob], stored.fileName, { type: stored.type }) });
     else missing.push(p.fileName);
   }
 

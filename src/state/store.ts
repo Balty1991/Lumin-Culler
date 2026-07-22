@@ -94,6 +94,22 @@ async function train(id: string, userDecision: boolean): Promise<void> {
   await contextEngine.recordCorrection({ photoId: id, analysis, aiDecision, userDecision });
 }
 
+/**
+ * Pastreaza fisierul original in IndexedDB doar cat timp poza e SELECTATA —
+ * altfel exportul "format original" depinde de un File tinut in memorie care
+ * dispare la orice reload de tab (frecvent pe mobil, cand browserul descarca
+ * tab-urile din fundal ca sa economiseasca RAM). La deselectare, il stergem
+ * la loc ca sa nu dublam spatiul ocupat de intregul import.
+ */
+async function syncOriginal(id: string, status: PhotoRecord['status']): Promise<void> {
+  if (status === 'selected') {
+    const file = originalFiles.get(id);
+    if (file) await db.originals.put({ photoId: id, blob: file, fileName: file.name, type: file.type });
+  } else {
+    await db.originals.delete(id);
+  }
+}
+
 export const useStore = create<AppState>((set, get) => ({
   photos: [],
   persons: [],
@@ -143,6 +159,7 @@ export const useStore = create<AppState>((set, get) => ({
   setStatus: async (id, status) => {
     await db.photos.update(id, { status });
     set(state => ({ photos: state.photos.map(p => (p.id === id ? { ...p, status } : p)) }));
+    await syncOriginal(id, status);
     if (status === 'selected' || status === 'rejected') await train(id, status === 'selected');
   },
 
@@ -152,6 +169,7 @@ export const useStore = create<AppState>((set, get) => ({
     for (const m of members) {
       const status = m.id === keepId ? 'selected' : 'rejected';
       await db.photos.update(m.id, { status });
+      await syncOriginal(m.id, status);
       await train(m.id, m.id === keepId);
     }
     set(state => ({
@@ -210,7 +228,9 @@ export const useStore = create<AppState>((set, get) => ({
   setInsightsOpen: open => set({ insightsOpen: open }),
 
   clearAll: async () => {
-    await Promise.all([db.photos.clear(), db.thumbnails.clear(), db.previews.clear(), db.analyses.clear()]);
+    await Promise.all([
+      db.photos.clear(), db.thumbnails.clear(), db.previews.clear(), db.originals.clear(), db.analyses.clear()
+    ]);
     originalFiles.clear();
     set({ photos: [], detailId: null, compareGroupId: null });
   },
@@ -228,7 +248,7 @@ export const useStore = create<AppState>((set, get) => ({
           : 'Nicio poza nu a putut fi exportata in format original.'
       ];
       if (result.missing.length) {
-        parts.push(`${result.missing.length} nu mai erau disponibile (reincarcate din sesiuni anterioare) — reimporta-le pentru export.`);
+        parts.push(`${result.missing.length} nu mai erau disponibile (importate inainte de ultima actualizare) — reimporta-le pentru export.`);
       }
       set({ exportMessage: parts.join(' ') });
     } catch (err) {
