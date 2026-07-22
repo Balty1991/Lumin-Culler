@@ -68,6 +68,17 @@ export default function App() {
     else openDetail(id);
   };
 
+  // fara confirmare, un singur clic accidental sterge ireversibil intreaga
+  // sesiune (posibil 1000+ poze deja evaluate) — cea mai distructiva actiune
+  // din aplicatie, singura fara nicio plasa de siguranta
+  const confirmClearAll = async () => {
+    const ok = window.confirm(
+      `Sigur golești sesiunea? Se șterg ireversibil toate cele ${counts.all} poze din acest browser ` +
+      '(inclusiv cele selectate/exportate). Nu poate fi anulat.'
+    );
+    if (ok) await clearAll();
+  };
+
   const total = Math.max(1, counts.all);
 
   return (
@@ -116,7 +127,7 @@ export default function App() {
             <span><i className="dot rev" /><b><AnimatedNumber value={counts.review} /></b> de verificat</span>
             <span><i className="dot rej" /><b><AnimatedNumber value={counts.rejected} /></b> respinse</span>
             <span className="spacer" />
-            <button className="ghost small" onClick={() => void clearAll()}>Goleste sesiunea</button>
+            <button className="ghost small" onClick={() => void confirmClearAll()}>Goleste sesiunea</button>
           </div>
         </section>
       )}

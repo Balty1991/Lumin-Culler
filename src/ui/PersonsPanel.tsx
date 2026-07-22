@@ -17,6 +17,12 @@ export function PersonsPanel() {
 
   if (!open) return null;
 
+  const confirmRemove = (id: string, personName: string) => {
+    if (window.confirm(`Ștergi "${personName}" din persoanele cunoscute? Va trebui reînrolat(ă) pentru ca AI-ul să o mai recunoască.`)) {
+      void removePerson(id);
+    }
+  };
+
   const submit = async () => {
     const files = Array.from(fileRef.current?.files ?? []);
     if (!name.trim() || !files.length) {
@@ -50,7 +56,7 @@ export function PersonsPanel() {
           {persons.map(p => (
             <li key={p.id}>
               <span><StarIcon className="inline-icon" /> {p.name} <em className="mono">({p.embeddings.length} referinte)</em></span>
-              <button className="ghost icon-btn" onClick={() => void removePerson(p.id)} aria-label={`Sterge ${p.name}`}>
+              <button className="ghost icon-btn" onClick={() => confirmRemove(p.id, p.name)} aria-label={`Sterge ${p.name}`}>
                 <TrashIcon />
               </button>
             </li>
