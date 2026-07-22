@@ -29,12 +29,14 @@ function ScoreRing({ score }: { score: number }) {
 }
 
 /** Vizualizare detaliata pe PREVIEW 2048px (nu miniatura) + zoom 100% pentru
-    evaluarea corecta a claritatii. Layout in flex-coloana, calibrat sa incapa
-    intr-un singur ecran (imaginea se micsoreaza, restul e fix) — nu ar trebui
-    sa fie nevoie de scroll ca sa ajungi la butoanele de decizie.
-    Trage imaginea stanga/dreapta pentru Respinge/Selecteaza (ca la aplicatiile
-    moderne de triaj foto), cu feedback haptic pe Android; click simplu ramane
-    zoom 100%, distinse prin toleranta de miscare (SWIPE_TAP_TOLERANCE). */
+    evaluarea corecta a claritatii. Poza (subiectul principal) primeste o
+    inaltime generoasa fixa; doar zona de informatii (statistici + motive +
+    persoane) e derulabila daca nu incape, ca sa nu ajunga sa domine ecranul
+    in fata fotografiei — butoanele de decizie raman mereu vizibile, in afara
+    zonei derulabile. Trage imaginea stanga/dreapta pentru Respinge/Selecteaza
+    (ca la aplicatiile moderne de triaj foto), cu feedback haptic pe Android;
+    click simplu ramane zoom 100%, distinse prin toleranta de miscare
+    (SWIPE_TAP_TOLERANCE). */
 export function DetailView() {
   const detailId = useStore(s => s.detailId);
   const photos = useStore(s => s.photos);
@@ -155,48 +157,50 @@ export function DetailView() {
           <span className="zoom-hint mono">{zoomed ? '100% — trage pentru a naviga' : 'atinge pentru 100% (Z)'}</span>
         </div>
 
-        <div className="stat-grid">
-          <div className="stat-tile score-tile">
-            <ScoreRing score={photo.aiScore} />
-            <span className="stat-label">Scor AI</span>
-          </div>
-          <StatTile label="Claritate" value={photo.sharpness} />
-          <StatTile label="Expunere" value={photo.exposure} />
-          {photo.faceCount > 0 && <StatTile label="Fete" value={photo.faceCount} />}
-          {photo.faceCount > 0 && <StatTile label="Zambet" value={`${Math.round(photo.bestSmile * 100)}%`} />}
-          {photo.faceCount > 0 && (
-            <StatTile
-              label={photo.allEyesOpen ? 'Ochi OK' : 'Clipire'}
-              value={photo.allEyesOpen ? <CheckIcon /> : <EyeClosedIcon />}
-              warn={!photo.allEyesOpen}
-            />
-          )}
-          {photo.faceCount > 0 && <StatTile label="Treimi" value={`${Math.round(photo.ruleOfThirds * 100)}%`} />}
-          {photo.faceCount > 0 && <StatTile label="Cadraj" value={`${Math.round(photo.headroom * 100)}%`} />}
-        </div>
-
-        {photo.aiFactors.length > 0 && (
-          <div className="factor-row">
-            <span className="factor-row-label mono"><SparkleIcon className="inline-icon" /> De ce acest scor</span>
-            <div className="factor-tags">
-              {explainFactors(photo.aiFactors).map(f => (
-                <span key={f.label} className={f.positive ? 'factor-tag pos' : 'factor-tag neg'}>
-                  {f.positive ? '+' : '−'} {f.label}
-                </span>
-              ))}
+        <div className="detail-scroll">
+          <div className="stat-grid">
+            <div className="stat-tile score-tile">
+              <ScoreRing score={photo.aiScore} />
+              <span className="stat-label">Scor AI</span>
             </div>
+            <StatTile label="Claritate" value={photo.sharpness} />
+            <StatTile label="Expunere" value={photo.exposure} />
+            {photo.faceCount > 0 && <StatTile label="Fete" value={photo.faceCount} />}
+            {photo.faceCount > 0 && <StatTile label="Zambet" value={`${Math.round(photo.bestSmile * 100)}%`} />}
+            {photo.faceCount > 0 && (
+              <StatTile
+                label={photo.allEyesOpen ? 'Ochi OK' : 'Clipire'}
+                value={photo.allEyesOpen ? <CheckIcon /> : <EyeClosedIcon />}
+                warn={!photo.allEyesOpen}
+              />
+            )}
+            {photo.faceCount > 0 && <StatTile label="Treimi" value={`${Math.round(photo.ruleOfThirds * 100)}%`} />}
+            {photo.faceCount > 0 && <StatTile label="Cadraj" value={`${Math.round(photo.headroom * 100)}%`} />}
           </div>
-        )}
 
-        {photo.personNames.length > 0 && (
-          <p className="detail-persons mono"><StarIcon className="inline-icon" /> {photo.personNames.join(', ')}</p>
-        )}
+          {photo.aiFactors.length > 0 && (
+            <div className="factor-row">
+              <span className="factor-row-label mono"><SparkleIcon className="inline-icon" /> De ce acest scor</span>
+              <div className="factor-tags">
+                {explainFactors(photo.aiFactors).map(f => (
+                  <span key={f.label} className={f.positive ? 'factor-tag pos' : 'factor-tag neg'}>
+                    {f.positive ? '+' : '−'} {f.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
-        {photo.groupId && (
-          <button className="ghost slim" onClick={() => { openDetail(null); openCompare(photo.groupId!); }}>
-            <LayersIcon className="inline-icon" /> Compara toata seria
-          </button>
-        )}
+          {photo.personNames.length > 0 && (
+            <p className="detail-persons mono"><StarIcon className="inline-icon" /> {photo.personNames.join(', ')}</p>
+          )}
+
+          {photo.groupId && (
+            <button className="ghost slim" onClick={() => { openDetail(null); openCompare(photo.groupId!); }}>
+              <LayersIcon className="inline-icon" /> Compara toata seria
+            </button>
+          )}
+        </div>
 
         <div className="detail-actions">
           <button className="ghost icon-btn" onClick={() => stepDetail(-1)} aria-label="Fotografia anterioara">
