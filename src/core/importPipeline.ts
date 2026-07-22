@@ -192,6 +192,11 @@ export async function importFiles(
   let failed = 0;
   let stopReason: string | undefined;
   const hashes: { id: string; dHash: string; score: number }[] = [];
+  // Motivele reale (distincte) ale esecurilor — altfel "fisier corupt sau
+  // format neasteptat" e un mesaj generic care nu spune nimic despre CE
+  // anume a esuat (memorie, decodare, worker etc.), imposibil de diagnosticat
+  // de la distanta fara acces la consola browserului utilizatorului.
+  const failureReasons = new Map<string, number>();
 
   const stopMessage = (n: number) =>
     `Spatiu de stocare aproape plin — import oprit la ${n}/${images.length}. ` +
@@ -213,6 +218,8 @@ export async function importFiles(
           if (isQuotaError(err)) { stopReason = stopMessage(done); break; }
           console.error('Analiza a esuat pentru ' + file.name + ':', err);
           failed++;
+          const reason = err instanceof Error ? (err.name + ': ' + err.message) : String(err);
+          failureReasons.set(reason, (failureReasons.get(reason) ?? 0) + 1);
         }
         done++;
         onProgress({ done, total: images.length, fileName: file.name, phase: 'analiza' });
@@ -252,10 +259,18 @@ export async function importFiles(
   // (fisier corupt, format neasteptat, poza cu 0 fete detectabile pe un device
   // fara accelerare etc.) se termina complet in tacere: bara de progres ajunge
   // la 100%, dispare, si utilizatorul ramane cu ecranul gol, fara nicio pista.
+  // Includem motivul real (nume + mesaj eroare) — fara el, "format neasteptat"
+  // e un mesaj generic care nu ajuta la diagnosticare de la distanta.
+  const topReasons = [...failureReasons.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 2)
+    .map(([reason, n]) => `${reason} (x${n})`)
+    .join(' · ');
   const failureWarning = failed > 0
-    ? failed === images.length
-      ? `Niciuna dintre cele ${images.length} poze nu a putut fi procesata (fisier corupt sau format neasteptat).`
-      : `${failed} din ${images.length} poze nu au putut fi procesate (fisier corupt sau format neasteptat) — restul au fost adaugate.`
+    ? (failed === images.length
+        ? `Niciuna dintre cele ${images.length} poze nu a putut fi procesata.`
+        : `${failed} din ${images.length} poze nu au putut fi procesate — restul au fost adaugate.`)
+      + (topReasons ? ` Motiv: ${topReasons}` : '')
     : undefined;
   onProgress({ done, total: images.length, fileName: '', phase: 'finalizat', warning: stopReason ?? failureWarning });
   return groups;
