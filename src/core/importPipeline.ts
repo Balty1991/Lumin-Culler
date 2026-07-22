@@ -112,6 +112,34 @@ function isQuotaError(err: unknown): boolean {
   return err instanceof DOMException && err.name === 'QuotaExceededError';
 }
 
+/**
+ * Verifica formatul REAL al fisierului din primii octeti (magic bytes), nu din
+ * extensie/MIME — unele telefoane (multe Samsung/Xiaomi) salveaza pozele in
+ * HEIC/HEIF dar le expun aplicatiilor cu extensia .jpg si MIME "image/jpeg"
+ * (compatibilitate "falsa"), ceea ce trece de filtrul de format dar pica la
+ * decodare cu "InvalidStateError: source image could not be decoded" —
+ * Chromium pe Android nu decodeaza HEIC in <canvas>. Folosit doar cand
+ * decodarea a esuat deja, ca sa dam un motiv exact, nu o presupunere.
+ */
+async function sniffRealFormat(file: File): Promise<string | null> {
+  try {
+    const buf = await file.slice(0, 16).arrayBuffer();
+    const b = new Uint8Array(buf);
+    if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return null; // JPEG real — nu e asta problema
+    if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return null; // PNG real
+    if (b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50) return null; // WEBP real
+    if (b[4] === 0x66 && b[5] === 0x74 && b[6] === 0x79 && b[7] === 0x70) { // 'ftyp' -> container ISO BMFF
+      const brand = String.fromCharCode(b[8], b[9], b[10], b[11]);
+      if (/^(heic|heix|heim|heis|hevc|hevx|mif1|msf1)$/.test(brand)) return 'HEIC/HEIF';
+      if (/^(avif|avis)$/.test(brand)) return 'AVIF';
+      return 'necunoscut (' + brand + ')';
+    }
+    return 'necunoscut';
+  } catch {
+    return null;
+  }
+}
+
 async function processOne(file: File): Promise<ImportedPhoto> {
   const id = crypto.randomUUID();
   originalFiles.set(id, file);
@@ -218,7 +246,9 @@ export async function importFiles(
           if (isQuotaError(err)) { stopReason = stopMessage(done); break; }
           console.error('Analiza a esuat pentru ' + file.name + ':', err);
           failed++;
-          const reason = err instanceof Error ? (err.name + ': ' + err.message) : String(err);
+          let reason = err instanceof Error ? (err.name + ': ' + err.message) : String(err);
+          const realFormat = await sniffRealFormat(file);
+          if (realFormat) reason += ` [fisier real: ${realFormat}, etichetat "${file.type || file.name}"]`;
           failureReasons.set(reason, (failureReasons.get(reason) ?? 0) + 1);
         }
         done++;
