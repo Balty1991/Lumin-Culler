@@ -201,6 +201,39 @@ export class ContextEngine {
       .map(([k, w]) => `${contextKey}: ${w >= 0 ? labels[k][0] : labels[k][1]} (${w.toFixed(2)})`);
   }
 
+  /** Rezumat lizibil al tuturor contextelor invatate — pentru panoul "Preferinte AI" din UI. */
+  async summarize(): Promise<{
+    contextKey: string;
+    sampleCount: number;
+    confidence: Prediction['confidence'];
+    notes: string[];
+  }[]> {
+    await this.init();
+    const labels: Record<string, [string, string]> = {
+      sharpness: ['claritate maximă', 'tolerează blur artistic'],
+      exposureRaw: ['imagini luminoase', 'ton dramatic, subexpus'],
+      bestSmile: ['zâmbete largi', 'expresii serioase'],
+      allEyesOpen: ['ochi deschiși obligatoriu', 'acceptă ochi închiși'],
+      knownFaceRatio: ['prioritate subiecți cunoscuți', 'indiferent la subiecți'],
+      strangerPenalty: ['acceptă străini în cadru', 'evită străinii în cadru']
+    };
+    return Array.from(this.models.values())
+      .map(model => ({
+        contextKey: model.contextKey,
+        sampleCount: model.sampleCount,
+        confidence:
+          model.sampleCount < COLD_START_SAMPLES ? ('cold' as const)
+          : model.sampleCount < TRAINED_SAMPLES ? ('warming' as const)
+          : ('trained' as const),
+        notes: model.sampleCount < COLD_START_SAMPLES ? [] : Object.entries(model.weights)
+          .filter(([k]) => k in labels)
+          .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+          .slice(0, 4)
+          .map(([k, w]) => w >= 0 ? labels[k][0] : labels[k][1])
+      }))
+      .sort((a, b) => b.sampleCount - a.sampleCount);
+  }
+
   async reset(contextKey?: string): Promise<void> {
     if (contextKey) {
       this.models.delete(contextKey);

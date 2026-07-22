@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { useStore } from '../state/store';
+import { StarIcon, TrashIcon, XIcon } from './icons';
 
 /** Inrolare persoane cunoscute (ex. Ami, sotia): nume + 1-4 poze de referinta. */
 export function PersonsPanel() {
@@ -34,8 +35,10 @@ export function PersonsPanel() {
     <div className="detail" onClick={e => { if (e.target === e.currentTarget) setOpen(false); }}>
       <div className="detail-inner narrow">
         <header className="detail-head">
-          <span>Persoane cunoscute</span>
-          <button className="ghost" onClick={() => setOpen(false)}>Inchide</button>
+          <span><StarIcon className="inline-icon" /> Persoane cunoscute</span>
+          <button className="ghost icon-btn" onClick={() => setOpen(false)} aria-label="Inchide">
+            <XIcon />
+          </button>
         </header>
 
         {persons.length === 0 && (
@@ -46,8 +49,10 @@ export function PersonsPanel() {
         <ul className="persons">
           {persons.map(p => (
             <li key={p.id}>
-              <span>★ {p.name} <em className="mono">({p.embeddings.length} referinte)</em></span>
-              <button className="ghost" onClick={() => void removePerson(p.id)}>Sterge</button>
+              <span><StarIcon className="inline-icon" /> {p.name} <em className="mono">({p.embeddings.length} referinte)</em></span>
+              <button className="ghost icon-btn" onClick={() => void removePerson(p.id)} aria-label={`Sterge ${p.name}`}>
+                <TrashIcon />
+              </button>
             </li>
           ))}
         </ul>

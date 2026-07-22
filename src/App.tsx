@@ -4,6 +4,10 @@ import { PhotoCard } from './ui/PhotoCard';
 import { DetailView } from './ui/DetailView';
 import { GroupCompare } from './ui/GroupCompare';
 import { PersonsPanel } from './ui/PersonsPanel';
+import { MenuDrawer } from './ui/MenuDrawer';
+import { InsightsPanel } from './ui/InsightsPanel';
+import { AnimatedNumber } from './ui/AnimatedNumber';
+import { MenuIcon, PlusIcon, StarIcon } from './ui/icons';
 
 export default function App() {
   const boot = useStore(s => s.boot);
@@ -14,9 +18,8 @@ export default function App() {
   const runImport = useStore(s => s.runImport);
   const openDetail = useStore(s => s.openDetail);
   const openCompare = useStore(s => s.openCompare);
-  const setPersonsOpen = useStore(s => s.setPersonsOpen);
+  const setMenuOpen = useStore(s => s.setMenuOpen);
   const exportSelection = useStore(s => s.exportSelection);
-  const exportManifest = useStore(s => s.exportManifest);
   const exportMessage = useStore(s => s.exportMessage);
   const clearAll = useStore(s => s.clearAll);
   const filtered = useStore(s => s.filtered());
@@ -64,12 +67,11 @@ export default function App() {
           <p className="mono"><i className="live-dot" aria-hidden="true" /> AI local · pozele raman pe dispozitiv</p>
         </div>
         <div className="top-actions">
-          <button className="ghost" onClick={() => setPersonsOpen(true)}>★</button>
-          <button className="ghost small" onClick={() => void exportManifest()} disabled={!counts.selected} title="Lista JSON cu numele fisierelor">
-            Lista (JSON)
-          </button>
           <button className="ghost" onClick={() => void exportSelection()} disabled={!counts.selected}>
             Exporta poze ({counts.selected})
+          </button>
+          <button className="ghost icon-btn" onClick={() => setMenuOpen(true)} aria-label="Meniu">
+            <MenuIcon />
           </button>
         </div>
       </header>
@@ -84,9 +86,9 @@ export default function App() {
             <span className="seg-rej" style={{ width: `${(counts.rejected / total) * 100}%` }} />
           </div>
           <div className="cullbar-legend mono">
-            <span><i className="dot sel" /><b>{counts.selected}</b> selectate</span>
-            <span><i className="dot rev" /><b>{counts.review}</b> de verificat</span>
-            <span><i className="dot rej" /><b>{counts.rejected}</b> respinse</span>
+            <span><i className="dot sel" /><b><AnimatedNumber value={counts.selected} /></b> selectate</span>
+            <span><i className="dot rev" /><b><AnimatedNumber value={counts.review} /></b> de verificat</span>
+            <span><i className="dot rej" /><b><AnimatedNumber value={counts.rejected} /></b> respinse</span>
             <span className="spacer" />
             <button className="ghost small" onClick={() => void clearAll()}>Goleste sesiunea</button>
           </div>
@@ -122,8 +124,8 @@ export default function App() {
           <p>Alege pozele (JPEG/PNG/WebP). Analiza ruleaza local, pe fire separate —
           poti incarca si 1000+ fisiere fara ca aplicatia sa se blocheze.</p>
           <button className="select big" onClick={() => fileRef.current?.click()}>Alege fotografiile</button>
-          <p className="hint">Optional: inroleaza persoanele importante (★) ca AI-ul
-          sa le prioritizeze la scorare.</p>
+          <p className="hint"><StarIcon className="inline-icon" /> Optional: inroleaza persoanele importante din
+          meniu, ca AI-ul sa le prioritizeze la scorare.</p>
         </div>
       ) : (
         <>
@@ -133,7 +135,7 @@ export default function App() {
             ))}
           </div>
           {filtered.length === 0 && <p className="empty-filter">Nicio poza nu corespunde filtrului curent.</p>}
-          <button className="fab" onClick={() => fileRef.current?.click()} title="Adauga poze">+</button>
+          <button className="fab" onClick={() => fileRef.current?.click()} title="Adauga poze"><PlusIcon /></button>
         </>
       )}
 
@@ -149,6 +151,8 @@ export default function App() {
       <DetailView />
       <GroupCompare />
       <PersonsPanel />
+      <InsightsPanel />
+      <MenuDrawer />
     </div>
   );
 }

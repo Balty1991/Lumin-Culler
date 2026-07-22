@@ -47,12 +47,17 @@ body {
   -webkit-font-smoothing: antialiased;
   position: relative;
 }
-/* Lumina ambientala, fixa, foarte discreta — semnatura "futurist" fara sa distraga */
+/* Lumina ambientala, foarte discreta, cu o respiratie lenta — semnatura "futurist" fara sa distraga */
 body::before {
-  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  content: ""; position: fixed; inset: -10% -10%; z-index: -1; pointer-events: none;
   background:
-    radial-gradient(680px 420px at 12% -8%, rgba(34,211,238,0.07), transparent 60%),
-    radial-gradient(620px 480px at 100% 0%, rgba(139,92,246,0.06), transparent 60%);
+    radial-gradient(680px 420px at 12% -8%, rgba(34,211,238,0.08), transparent 60%),
+    radial-gradient(620px 480px at 100% 0%, rgba(139,92,246,0.07), transparent 60%);
+  animation: auroraDrift 22s ease-in-out infinite;
+}
+@keyframes auroraDrift {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-1.5%, 1.5%); }
 }
 .mono { font-family: var(--mono); font-size: 0.82em; letter-spacing: 0.02em; }
 button { font: inherit; cursor: pointer; border: none; border-radius: 6px; background: none; color: inherit; }
@@ -182,13 +187,31 @@ button:focus-visible, input:focus-visible {
 .chip.active b { color: var(--review); }
 
 /* ── Grila: contact sheet ── */
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 10px; animation: fadeUp 0.35s var(--ease) both; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 10px; }
 .card {
   position: relative; padding: 0; background: var(--surface);
   border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden;
   aspect-ratio: 1; display: flex;
   transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease), border-color 0.2s var(--ease);
+  animation: cardIn 0.45s var(--ease) both;
 }
+@keyframes cardIn { from { opacity: 0; transform: translateY(10px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+/* intrare in cascada pentru primele carduri — restul apar fara intarziere ca sa nu para lent la 1000+ poze */
+.grid .card:nth-child(n+1) { animation-delay: 0ms; }
+.grid .card:nth-child(n+2) { animation-delay: 20ms; }
+.grid .card:nth-child(n+3) { animation-delay: 40ms; }
+.grid .card:nth-child(n+4) { animation-delay: 60ms; }
+.grid .card:nth-child(n+5) { animation-delay: 80ms; }
+.grid .card:nth-child(n+6) { animation-delay: 100ms; }
+.grid .card:nth-child(n+7) { animation-delay: 120ms; }
+.grid .card:nth-child(n+8) { animation-delay: 140ms; }
+.grid .card:nth-child(n+9) { animation-delay: 160ms; }
+.grid .card:nth-child(n+10) { animation-delay: 180ms; }
+.grid .card:nth-child(n+11) { animation-delay: 200ms; }
+.grid .card:nth-child(n+12) { animation-delay: 220ms; }
+.grid .card:nth-child(n+18) { animation-delay: 240ms; }
+.grid .card:nth-child(n+24) { animation-delay: 260ms; }
+.grid .card:nth-child(n+32) { animation-delay: 280ms; }
 .card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lift); border-color: var(--line-strong); }
 .card:active { transform: translateY(-1px) scale(0.985); }
 .card img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -200,8 +223,9 @@ button:focus-visible, input:focus-visible {
 @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) {
   .card-loading { animation: none; }
-  .grid, .export-message, .detail, .detail-inner { animation: none !important; }
+  .grid, .export-message, .detail, .detail-inner, .card, .drawer-scrim, .drawer, .live-dot { animation: none !important; }
   .card, .chip, .ghost, .select, .reject { transition: none; }
+  body::before { animation: none; }
 }
 
 /* starea cadrului: contur colorat + linie de glow sus, mai discret decat sigiliul vechi */
@@ -246,6 +270,7 @@ button:focus-visible, input:focus-visible {
 }
 .fab:hover { transform: translateY(-2px) scale(1.04); box-shadow: 0 12px 32px -6px rgba(139,92,246,0.6); }
 .fab:active { transform: scale(0.94); }
+.fab svg { width: 26px; height: 26px; }
 
 /* ── Stare goala ── */
 .empty { text-align: center; padding: 12vh 16px; max-width: 460px; margin: 0 auto; display: grid; gap: 14px; justify-items: center; animation: fadeUp 0.4s var(--ease) both; }
@@ -278,6 +303,15 @@ button:focus-visible, input:focus-visible {
 @keyframes sheetIn { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
 .detail-inner.narrow { max-width: 460px; }
 .detail-inner.wide { max-width: 940px; }
+/* varianta "fit": tot continutul incape intr-un ecran, fara scroll — imaginea
+   e singura care se micsoreaza (flex:1 min-height:0), restul e la dimensiune fixa */
+.detail-inner.fit {
+  height: 94dvh; max-height: 94dvh; overflow: hidden;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.detail-inner.fit > * { flex: 0 0 auto; }
+.detail-inner.fit .detail-img { flex: 1 1 auto; min-height: 90px; }
+.detail-inner.fit .detail-img img { max-height: none; height: 100%; }
 .detail-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .detail-head span:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .detail-head .ghost { flex-shrink: 0; }
@@ -301,12 +335,28 @@ button:focus-visible, input:focus-visible {
 }
 .detail-img.zoomed .zoom-hint { position: sticky; float: right; }
 
-.metric-strip {
-  display: flex; flex-wrap: wrap; gap: 7px 16px; background: var(--surface-2);
-  border: 1px solid var(--line); border-radius: var(--radius); padding: 11px 13px; color: var(--text-dim); font-size: 0.76rem;
+/* ── Stat-tile-uri compacte (panoul de detaliu) — dashboard, nu paragraf de text ── */
+.stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.stat-tile {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 4px;
+  transition: border-color 0.18s var(--ease);
 }
-.metric-strip b { color: var(--text); font-weight: 600; }
-.metric-strip .warn, .metric-strip .warn b { color: var(--reject); }
+.stat-value {
+  font-family: var(--mono); font-size: 1.05rem; font-weight: 700; color: var(--text);
+  display: flex; align-items: center; justify-content: center; min-height: 20px;
+}
+.stat-value svg { width: 18px; height: 18px; }
+.stat-label { font-size: 0.6rem; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.05em; }
+.stat-tile.warn { border-color: rgba(251,113,133,0.45); }
+.stat-tile.warn .stat-value { color: var(--reject); }
+.detail-persons { display: flex; align-items: center; gap: 6px; color: var(--text-dim); font-size: 0.78rem; }
+.ghost.slim { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 12px; font-size: 0.85rem; }
+
+/* ── Butoane doar-iconita + iconite inline in text ── */
+.icon-btn { width: 38px; height: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+.icon-btn svg { width: 18px; height: 18px; }
+.inline-icon { width: 14px; height: 14px; vertical-align: -2px; margin-right: 3px; flex-shrink: 0; }
 
 .detail-actions { display: grid; grid-template-columns: auto 1fr 1fr auto; gap: 8px; }
 .detail-actions > * { min-width: 0; }
@@ -345,14 +395,60 @@ button:focus-visible, input:focus-visible {
 .enroll input[type="text"]:focus { border-color: var(--accent); }
 .enroll input[type="file"] { color: var(--text-dim); }
 
+/* ── Meniu lateral ── */
+.drawer-scrim {
+  position: fixed; inset: 0; z-index: 25; background: rgba(6,7,9,0.6); backdrop-filter: blur(8px);
+  display: flex; justify-content: flex-end;
+  animation: fadeIn 0.2s var(--ease) both;
+}
+.drawer {
+  width: min(320px, 86vw); height: 100%; background: var(--surface);
+  border-left: 1px solid var(--line); padding: 16px 14px calc(16px + env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; gap: 3px; overflow-y: auto;
+  box-shadow: -24px 0 60px -20px rgba(0,0,0,0.6);
+  animation: drawerIn 0.26s var(--ease) both;
+}
+@keyframes drawerIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+.drawer-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 10px; font-weight: 700; letter-spacing: 0.03em; font-size: 1.02rem;
+}
+.drawer-item {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+  padding: 12px 10px; border-radius: var(--radius); color: var(--text);
+  transition: background 0.15s var(--ease);
+}
+.drawer-item:hover { background: var(--surface-2); }
+.drawer-item svg { flex-shrink: 0; color: var(--accent); }
+.drawer-item span { flex: 1; }
+.drawer-count { background: var(--surface-3); color: var(--text-dim); font-size: 0.72rem; padding: 2px 8px; border-radius: 999px; }
+.drawer-sep { height: 1px; background: var(--line); margin: 10px 0; }
+.drawer-about { display: flex; gap: 10px; color: var(--text-faint); font-size: 0.74rem; line-height: 1.5; padding: 0 10px; }
+.drawer-about svg { flex-shrink: 0; margin-top: 2px; }
+
+/* ── Preferinte AI (explicabilitate ContextEngine) ── */
+.insights { list-style: none; display: grid; gap: 8px; padding: 0; }
+.insight {
+  background: var(--surface-2); border: 1px solid var(--line); border-left: 3px solid var(--line-strong);
+  border-radius: var(--radius); padding: 10px 12px;
+}
+.insight.confidence-trained { border-left-color: var(--pick); }
+.insight.confidence-warming { border-left-color: var(--review); }
+.insight.confidence-cold { border-left-color: var(--text-faint); }
+.insight-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px; }
+.insight-head b { font-size: 0.92rem; }
+.confidence-tag { color: var(--text-faint); font-size: 0.68rem; white-space: nowrap; }
+.insight p { color: var(--text-dim); font-size: 0.82rem; }
+
 @media (max-width: 560px) {
   .grid { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 6px; }
   .compare-grid { grid-template-columns: 1fr; }
   .detail-actions { grid-template-columns: 1fr 1fr; }
   .detail-actions .ghost { order: 2; }
   .brand p { display: none; }
-  .top-actions .ghost.small { padding: 4px 8px; font-size: 0.72rem; }
-  /* topbar-ul poate ocupa 2 randuri pe telefoane inguste (3 butoane) — filtrele
+  .detail-inner.fit { height: 96dvh; max-height: 96dvh; }
+  .stat-grid { gap: 5px; }
+  /* topbar-ul poate ocupa 2 randuri pe telefoane foarte inguste — filtrele
      raman in flux normal in loc de sticky, ca sa nu se suprapuna peste antet. */
   .filters { position: static; top: auto; }
 }

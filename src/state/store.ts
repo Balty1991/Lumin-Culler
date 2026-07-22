@@ -39,6 +39,8 @@ interface AppState {
   detailId: string | null;
   compareGroupId: string | null;
   personsOpen: boolean;
+  menuOpen: boolean;
+  insightsOpen: boolean;
   booted: boolean;
 
   boot: () => Promise<void>;
@@ -52,6 +54,8 @@ interface AppState {
   addPerson: (name: string, files: File[]) => Promise<{ ok: boolean; message: string }>;
   removePerson: (id: string) => Promise<void>;
   setPersonsOpen: (open: boolean) => void;
+  setMenuOpen: (open: boolean) => void;
+  setInsightsOpen: (open: boolean) => void;
   clearAll: () => Promise<void>;
   exportMessage: string | null;
   exportSelection: () => Promise<void>;
@@ -98,6 +102,8 @@ export const useStore = create<AppState>((set, get) => ({
   detailId: null,
   compareGroupId: null,
   personsOpen: false,
+  menuOpen: false,
+  insightsOpen: false,
   booted: false,
   exportMessage: null,
 
@@ -200,6 +206,8 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   setPersonsOpen: open => set({ personsOpen: open }),
+  setMenuOpen: open => set({ menuOpen: open }),
+  setInsightsOpen: open => set({ insightsOpen: open }),
 
   clearAll: async () => {
     await Promise.all([db.photos.clear(), db.thumbnails.clear(), db.previews.clear(), db.analyses.clear()]);

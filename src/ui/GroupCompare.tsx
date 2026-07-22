@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { db } from '../core/db';
 import { useStore, type PhotoView } from '../state/store';
+import { XIcon, LayersIcon } from './icons';
 
 /** Compararea unei serii: cadrele similare unul langa altul, la preview 2048px.
     Alegi cadrul pastrat — restul seriei se respinge automat (si antreneaza AI-ul). */
@@ -20,8 +21,10 @@ export function GroupCompare() {
     <div className="detail" onClick={e => { if (e.target === e.currentTarget) openCompare(null); }}>
       <div className="detail-inner wide">
         <header className="detail-head">
-          <span>Serie de {members.length} cadre similare — alege-l pe cel mai bun</span>
-          <button className="ghost" onClick={() => openCompare(null)}>Inchide</button>
+          <span><LayersIcon className="inline-icon" /> Serie de {members.length} cadre similare — alege-l pe cel mai bun</span>
+          <button className="ghost icon-btn" onClick={() => openCompare(null)} aria-label="Inchide">
+            <XIcon />
+          </button>
         </header>
         <div className="compare-grid">
           {members.map(m => (

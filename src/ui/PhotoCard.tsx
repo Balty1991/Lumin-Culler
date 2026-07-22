@@ -1,6 +1,7 @@
 import { useEffect, useState, memo } from 'react';
 import { db } from '../core/db';
 import type { PhotoView } from '../state/store';
+import { StarIcon, UserQuestionIcon, EyeClosedIcon, LayersIcon } from './icons';
 
 /** Card "contact sheet": miniatura din IndexedDB, incarcare lenesa, zero logica. */
 function PhotoCardInner({ photo, index, onOpen }: {
@@ -26,10 +27,10 @@ function PhotoCardInner({ photo, index, onOpen }: {
       <span className="card-strip">
         <b className="score">{photo.aiScore}</b>
         <span className="badges">
-          {photo.personNames.length > 0 && <i title={photo.personNames.join(', ')}>★</i>}
-          {photo.strangerCount > 0 && <i title="Contine straini">?</i>}
-          {photo.faceCount > 0 && !photo.allEyesOpen && <i title="Ochi inchisi">◑</i>}
-          {photo.groupId && <i title="Serie / duplicat">≡</i>}
+          {photo.personNames.length > 0 && <i title={photo.personNames.join(', ')}><StarIcon /></i>}
+          {photo.strangerCount > 0 && <i title="Contine straini"><UserQuestionIcon /></i>}
+          {photo.faceCount > 0 && !photo.allEyesOpen && <i title="Ochi inchisi"><EyeClosedIcon /></i>}
+          {photo.groupId && <i title="Serie / duplicat"><LayersIcon /></i>}
         </span>
       </span>
     </button>
