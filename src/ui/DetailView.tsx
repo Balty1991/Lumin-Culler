@@ -1,8 +1,12 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import { db } from '../core/db';
 import { useStore } from '../state/store';
 import { AnimatedNumber } from './AnimatedNumber';
+import { vibrate } from './haptics';
 import { XIcon, ChevronLeft, ChevronRight, LayersIcon, StarIcon, CheckIcon, EyeClosedIcon } from './icons';
+
+const SWIPE_COMMIT = 96;       // px de tras pentru a declansa decizia
+const SWIPE_TAP_TOLERANCE = 6; // sub asta e considerat click (zoom), nu swipe
 
 function StatTile({ label, value, warn }: { label: string; value: ReactNode; warn?: boolean }) {
   return (
@@ -13,10 +17,23 @@ function StatTile({ label, value, warn }: { label: string; value: ReactNode; war
   );
 }
 
+function ScoreRing({ score }: { score: number }) {
+  const color = score >= 65 ? 'var(--pick)' : score <= 35 ? 'var(--reject)' : 'var(--review)';
+  const deg = Math.max(0, Math.min(360, Math.round((score / 100) * 360)));
+  return (
+    <div className="score-ring" style={{ background: `conic-gradient(${color} ${deg}deg, var(--surface-3) 0)` }}>
+      <span className="score-ring-inner" style={{ color }}><AnimatedNumber value={score} /></span>
+    </div>
+  );
+}
+
 /** Vizualizare detaliata pe PREVIEW 2048px (nu miniatura) + zoom 100% pentru
     evaluarea corecta a claritatii. Layout in flex-coloana, calibrat sa incapa
     intr-un singur ecran (imaginea se micsoreaza, restul e fix) — nu ar trebui
-    sa fie nevoie de scroll ca sa ajungi la butoanele de decizie. */
+    sa fie nevoie de scroll ca sa ajungi la butoanele de decizie.
+    Trage imaginea stanga/dreapta pentru Respinge/Selecteaza (ca la aplicatiile
+    moderne de triaj foto), cu feedback haptic pe Android; click simplu ramane
+    zoom 100%, distinse prin toleranta de miscare (SWIPE_TAP_TOLERANCE). */
 export function DetailView() {
   const detailId = useStore(s => s.detailId);
   const photos = useStore(s => s.photos);
@@ -26,11 +43,16 @@ export function DetailView() {
   const setStatus = useStore(s => s.setStatus);
   const [src, setSrc] = useState<string | null>(null);
   const [zoomed, setZoomed] = useState(false);
+  const [dragX, setDragX] = useState(0);
+  const draggingRef = useRef(false);
+  const movedRef = useRef(false);
+  const startXRef = useRef(0);
 
   const photo = photos.find(p => p.id === detailId) ?? null;
 
   useEffect(() => {
     setZoomed(false);
+    setDragX(0);
     if (!detailId) { setSrc(null); return; }
     let url: string | null = null;
     let alive = true;
@@ -57,6 +79,37 @@ export function DetailView() {
 
   if (!photo) return null;
 
+  const commitSwipe = (status: 'selected' | 'rejected') => {
+    vibrate(status === 'selected' ? 14 : [12, 40, 12]);
+    void setStatus(photo.id, status);
+    setDragX(0);
+  };
+
+  const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
+    if (zoomed) return;
+    draggingRef.current = true;
+    movedRef.current = false;
+    startXRef.current = e.clientX;
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (!draggingRef.current) return;
+    const delta = e.clientX - startXRef.current;
+    if (Math.abs(delta) > SWIPE_TAP_TOLERANCE) movedRef.current = true;
+    setDragX(delta);
+  };
+  const endDrag = () => {
+    if (!draggingRef.current) return;
+    draggingRef.current = false;
+    if (dragX > SWIPE_COMMIT) commitSwipe('selected');
+    else if (dragX < -SWIPE_COMMIT) commitSwipe('rejected');
+    else setDragX(0);
+  };
+  const onImageClick = () => {
+    if (movedRef.current) return; // a fost swipe, nu tap — nu comuta zoom-ul
+    setZoomed(z => !z);
+  };
+
   return (
     <div className="detail" onClick={e => { if (e.target === e.currentTarget) openDetail(null); }}>
       <div className="detail-inner fit">
@@ -72,15 +125,40 @@ export function DetailView() {
 
         <div
           className={zoomed ? 'detail-img zoomed' : 'detail-img'}
-          onClick={() => setZoomed(z => !z)}
-          title={zoomed ? 'Iesi din zoom' : 'Zoom 100%'}
+          onClick={onImageClick}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
+          title={zoomed ? 'Iesi din zoom' : 'Zoom 100% (Z) · trage stanga/dreapta pentru decizie'}
         >
-          {src && <img src={src} alt={photo.fileName} />}
+          <div
+            className="swipe-surface"
+            style={zoomed ? undefined : {
+              transform: `translateX(${dragX}px) rotate(${dragX / 30}deg)`,
+              transition: draggingRef.current ? 'none' : 'transform 0.25s var(--ease)'
+            }}
+          >
+            {src && <img src={src} alt={photo.fileName} />}
+          </div>
+          {!zoomed && dragX > 4 && (
+            <div className="swipe-badge swipe-badge-select" style={{ opacity: Math.min(1, dragX / SWIPE_COMMIT) }}>
+              <CheckIcon /> SELECTEAZA
+            </div>
+          )}
+          {!zoomed && dragX < -4 && (
+            <div className="swipe-badge swipe-badge-reject" style={{ opacity: Math.min(1, -dragX / SWIPE_COMMIT) }}>
+              <XIcon /> RESPINGE
+            </div>
+          )}
           <span className="zoom-hint mono">{zoomed ? '100% — trage pentru a naviga' : 'atinge pentru 100% (Z)'}</span>
         </div>
 
         <div className="stat-grid">
-          <StatTile label="Scor AI" value={<AnimatedNumber value={photo.aiScore} />} />
+          <div className="stat-tile score-tile">
+            <ScoreRing score={photo.aiScore} />
+            <span className="stat-label">Scor AI</span>
+          </div>
           <StatTile label="Claritate" value={photo.sharpness} />
           <StatTile label="Expunere" value={photo.exposure} />
           {photo.faceCount > 0 && <StatTile label="Fete" value={photo.faceCount} />}

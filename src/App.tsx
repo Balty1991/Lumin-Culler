@@ -7,7 +7,9 @@ import { PersonsPanel } from './ui/PersonsPanel';
 import { MenuDrawer } from './ui/MenuDrawer';
 import { InsightsPanel } from './ui/InsightsPanel';
 import { AnimatedNumber } from './ui/AnimatedNumber';
-import { MenuIcon, PlusIcon, StarIcon, AlertIcon } from './ui/icons';
+import { MenuIcon, PlusIcon, StarIcon, AlertIcon, XIcon } from './ui/icons';
+
+const NOTICE_AUTODISMISS_MS = 7000;
 
 export default function App() {
   const boot = useStore(s => s.boot);
@@ -21,6 +23,7 @@ export default function App() {
   const setMenuOpen = useStore(s => s.setMenuOpen);
   const exportSelection = useStore(s => s.exportSelection);
   const notice = useStore(s => s.notice);
+  const clearNotice = useStore(s => s.clearNotice);
   const aiDegraded = useStore(s => s.aiDegraded);
   const aiBackend = useStore(s => s.aiBackend);
   const clearAll = useStore(s => s.clearAll);
@@ -28,6 +31,12 @@ export default function App() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { void boot(); }, [boot]);
+
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => clearNotice(), NOTICE_AUTODISMISS_MS);
+    return () => clearTimeout(t);
+  }, [notice, clearNotice]);
 
   const counts = useMemo(() => ({
     all: photos.length,
@@ -78,7 +87,14 @@ export default function App() {
         </div>
       </header>
 
-      {notice && <p className="notice mono">{notice}</p>}
+      {notice && (
+        <div className="toast mono" role="status">
+          <span>{notice}</span>
+          <button className="toast-close" onClick={() => clearNotice()} aria-label="Inchide">
+            <XIcon />
+          </button>
+        </div>
+      )}
 
       {aiDegraded && (
         <p className="notice warn mono">

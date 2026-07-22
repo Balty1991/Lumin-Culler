@@ -60,8 +60,9 @@ interface AppState {
   setMenuOpen: (open: boolean) => void;
   setInsightsOpen: (open: boolean) => void;
   clearAll: () => Promise<void>;
-  /** banner general de stare: rezultat export, avertisment de stocare etc. */
+  /** toast general de stare: rezultat export, avertisment de stocare etc. */
   notice: string | null;
+  clearNotice: () => void;
   exportSelection: () => Promise<void>;
   exportManifest: () => Promise<void>;
   filtered: () => PhotoView[];
@@ -252,6 +253,7 @@ export const useStore = create<AppState>((set, get) => ({
   setPersonsOpen: open => set({ personsOpen: open }),
   setMenuOpen: open => set({ menuOpen: open }),
   setInsightsOpen: open => set({ insightsOpen: open }),
+  clearNotice: () => set({ notice: null }),
 
   clearAll: async () => {
     await Promise.all([
