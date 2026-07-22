@@ -61,7 +61,7 @@ export default function App() {
       <header className="topbar">
         <div className="brand">
           <h1>LUMIN<span>CULLER</span></h1>
-          <p className="mono">AI local · pozele raman pe dispozitiv</p>
+          <p className="mono"><i className="live-dot" aria-hidden="true" /> AI local · pozele raman pe dispozitiv</p>
         </div>
         <div className="top-actions">
           <button className="ghost" onClick={() => setPersonsOpen(true)}>★</button>
