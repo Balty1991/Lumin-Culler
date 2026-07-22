@@ -45,7 +45,6 @@ export function DetailView() {
   const [src, setSrc] = useState<string | null>(null);
   const [zoomed, setZoomed] = useState(false);
   const [dragX, setDragX] = useState(0);
-  const [showFactors, setShowFactors] = useState(false);
   const draggingRef = useRef(false);
   const movedRef = useRef(false);
   const startXRef = useRef(0);
@@ -55,7 +54,6 @@ export function DetailView() {
   useEffect(() => {
     setZoomed(false);
     setDragX(0);
-    setShowFactors(false);
     if (!detailId) { setSrc(null); return; }
     let url: string | null = null;
     let alive = true;
@@ -158,15 +156,10 @@ export function DetailView() {
         </div>
 
         <div className="stat-grid">
-          <button
-            className="stat-tile score-tile"
-            onClick={() => setShowFactors(v => !v)}
-            disabled={photo.aiFactors.length === 0}
-            aria-label="De ce acest scor"
-          >
+          <div className="stat-tile score-tile">
             <ScoreRing score={photo.aiScore} />
             <span className="stat-label">Scor AI</span>
-          </button>
+          </div>
           <StatTile label="Claritate" value={photo.sharpness} />
           <StatTile label="Expunere" value={photo.exposure} />
           {photo.faceCount > 0 && <StatTile label="Fete" value={photo.faceCount} />}
@@ -182,7 +175,7 @@ export function DetailView() {
           {photo.faceCount > 0 && <StatTile label="Cadraj" value={`${Math.round(photo.headroom * 100)}%`} />}
         </div>
 
-        {showFactors && photo.aiFactors.length > 0 && (
+        {photo.aiFactors.length > 0 && (
           <div className="factor-row">
             <span className="factor-row-label mono"><SparkleIcon className="inline-icon" /> De ce acest scor</span>
             <div className="factor-tags">
