@@ -173,9 +173,23 @@ export async function importFiles(
   await analysisPool.setKnownPersons(persons);
 
   const images = files.filter(f => /image\/(jpeg|png|webp|avif)/.test(f.type) || /\.(jpe?g|png|webp|avif)$/i.test(f.name));
+  // Daca niciun fisier ales nu are un format suportat (ex. HEIC/HEIF de pe iPhone,
+  // sau un director gol), bucla de mai jos nu are ce procesa si totul se termina
+  // instant, fara nicio poza si fara nicio eroare — utilizatorul vede doar ca
+  // "nu s-a intamplat nimic". Semnalam explicit acest caz.
+  if (images.length === 0) {
+    const warning = files.length > 0
+      ? `Niciunul dintre cele ${files.length} fisiere alese nu e intr-un format suportat ` +
+        `(JPEG/PNG/WebP/AVIF). HEIC/HEIF de pe iPhone nu e suportat inca — converteste-le in JPEG.`
+      : undefined;
+    onProgress({ done: 0, total: 0, fileName: '', phase: 'finalizat', warning });
+    return new Map();
+  }
+
   const concurrency = analysisPool.size + 1;
   let done = 0;
   let index = 0;
+  let failed = 0;
   let stopReason: string | undefined;
   const hashes: { id: string; dHash: string; score: number }[] = [];
 
@@ -198,6 +212,7 @@ export async function importFiles(
         } catch (err) {
           if (isQuotaError(err)) { stopReason = stopMessage(done); break; }
           console.error('Analiza a esuat pentru ' + file.name + ':', err);
+          failed++;
         }
         done++;
         onProgress({ done, total: images.length, fileName: file.name, phase: 'analiza' });
@@ -233,6 +248,15 @@ export async function importFiles(
     }
   }
 
-  onProgress({ done, total: images.length, fileName: '', phase: 'finalizat', warning: stopReason });
+  // Fara acest avertisment, un import in care TOATE pozele esueaza la decodare
+  // (fisier corupt, format neasteptat, poza cu 0 fete detectabile pe un device
+  // fara accelerare etc.) se termina complet in tacere: bara de progres ajunge
+  // la 100%, dispare, si utilizatorul ramane cu ecranul gol, fara nicio pista.
+  const failureWarning = failed > 0
+    ? failed === images.length
+      ? `Niciuna dintre cele ${images.length} poze nu a putut fi procesata (fisier corupt sau format neasteptat).`
+      : `${failed} din ${images.length} poze nu au putut fi procesate (fisier corupt sau format neasteptat) — restul au fost adaugate.`
+    : undefined;
+  onProgress({ done, total: images.length, fileName: '', phase: 'finalizat', warning: stopReason ?? failureWarning });
   return groups;
 }
