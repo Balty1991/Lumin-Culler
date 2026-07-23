@@ -33,6 +33,7 @@ export function CommandPalette() {
   const setPersonsOpen = useStore(s => s.setPersonsOpen);
   const setInsightsOpen = useStore(s => s.setInsightsOpen);
   const setBatchOpsOpen = useStore(s => s.setBatchOpsOpen);
+  const setShortcutsOpen = useStore(s => s.setShortcutsOpen);
   const exportSelection = useStore(s => s.exportSelection);
   const exportManifest = useStore(s => s.exportManifest);
   const exportXMP = useStore(s => s.exportXMP);
@@ -64,6 +65,22 @@ export function CommandPalette() {
     return () => clearTimeout(t);
   }, [open]);
 
+  // Escape la nivel de window, NU doar pe input (vezi onInputKeyDown mai jos):
+  // focusul e mutat pe input printr-un setTimeout(10ms) la deschidere, deci
+  // exista o fereastra scurta in care Escape ar ajunge direct la window (fara
+  // sa treaca prin input) daca utilizatorul apasa foarte rapid — fara acest
+  // listener, paleta ar ramane deschisa in acel caz. Workspace/DetailView isi
+  // verifica starea paletteOpen inainte sa actioneze la Escape, asa ca acest
+  // listener suplimentar nu risca sa inchida altceva din greseala.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key === 'Escape') { e.stopPropagation(); setOpen(false); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, setOpen]);
+
   const counts = useMemo(() => ({
     selected: photos.filter(p => p.status === 'selected').length,
     review: photos.filter(p => p.status === 'review').length,
@@ -85,6 +102,7 @@ export function CommandPalette() {
     { id: 'batch', label: 'Operații în masă', hint: 'respinge sub prag / rezolvă serii', run: () => setBatchOpsOpen(true), disabled: !photos.length },
     { id: 'persons', label: 'Persoane cunoscute', run: () => setPersonsOpen(true) },
     { id: 'insights', label: 'Preferințe AI', run: () => setInsightsOpen(true) },
+    { id: 'shortcuts', label: 'Scurtături tastatură', hint: '?', run: () => setShortcutsOpen(true) },
     { id: 'export-selection', label: `Exportă poze selectate (${counts.selected})`, run: () => void exportSelection(), disabled: !counts.selected },
     { id: 'export-xmp', label: 'Exportă etichete Lightroom (XMP)', run: () => void exportXMP(), disabled: !photos.length },
     { id: 'export-manifest', label: 'Exportă listă (JSON)', run: () => void exportManifest(), disabled: !counts.selected },

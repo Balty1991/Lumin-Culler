@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { selectBulkRejectTargets, resolveGroups } from './batchOps';
+import { selectBulkRejectTargets, resolveGroups, selectTopPercent } from './batchOps';
 import type { PhotoView } from './store';
 
 function photo(overrides: Partial<PhotoView>): PhotoView {
@@ -78,5 +78,62 @@ describe('resolveGroups', () => {
     const result = resolveGroups(photos);
     expect(result[0].keepId).toBe('a');
     expect(result[0].rejectIds).toEqual(['b']);
+  });
+});
+
+describe('selectTopPercent', () => {
+  it('keeps the top N% by score, rejects the rest', () => {
+    const photos = [
+      photo({ id: 'a', aiScore: 90 }),
+      photo({ id: 'b', aiScore: 70 }),
+      photo({ id: 'c', aiScore: 50 }),
+      photo({ id: 'd', aiScore: 30 })
+    ];
+    const result = selectTopPercent(photos, 50); // top 2 of 4
+    expect(result.selectIds.sort()).toEqual(['a', 'b']);
+    expect(result.rejectIds.sort()).toEqual(['c', 'd']);
+  });
+
+  it('never touches photos already selected or rejected manually', () => {
+    const photos = [
+      photo({ id: 'a', status: 'selected', aiScore: 10 }),
+      photo({ id: 'b', status: 'rejected', aiScore: 5 }),
+      photo({ id: 'c', status: 'review', aiScore: 60 })
+    ];
+    const result = selectTopPercent(photos, 100);
+    expect(result.selectIds).toEqual(['c']);
+    expect(result.rejectIds).toEqual([]);
+  });
+
+  it('0% rejects everything undecided, keeps nothing', () => {
+    const photos = [photo({ id: 'a', aiScore: 90 }), photo({ id: 'b', aiScore: 10 })];
+    const result = selectTopPercent(photos, 0);
+    expect(result.selectIds).toEqual([]);
+    expect(result.rejectIds.sort()).toEqual(['a', 'b']);
+  });
+
+  it('100% selects everything undecided, rejects nothing', () => {
+    const photos = [photo({ id: 'a', aiScore: 90 }), photo({ id: 'b', aiScore: 10 })];
+    const result = selectTopPercent(photos, 100);
+    expect(result.selectIds.sort()).toEqual(['a', 'b']);
+    expect(result.rejectIds).toEqual([]);
+  });
+
+  it('rounds the keep-count to the nearest whole photo', () => {
+    // 33% of 3 -> round(0.99) = 1 kept, 2 rejected
+    const photos = [
+      photo({ id: 'a', aiScore: 90 }),
+      photo({ id: 'b', aiScore: 80 }),
+      photo({ id: 'c', aiScore: 70 })
+    ];
+    const result = selectTopPercent(photos, 33);
+    expect(result.selectIds).toEqual(['a']);
+    expect(result.rejectIds.sort()).toEqual(['b', 'c']);
+  });
+
+  it('is a no-op when there are no undecided photos', () => {
+    const photos = [photo({ id: 'a', status: 'selected', aiScore: 90 })];
+    const result = selectTopPercent(photos, 50);
+    expect(result).toEqual({ selectIds: [], rejectIds: [] });
   });
 });

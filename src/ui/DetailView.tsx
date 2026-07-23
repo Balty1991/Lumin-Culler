@@ -93,7 +93,14 @@ export function DetailView() {
       else if (e.key === 'p' || e.key === 'P') void setStatus(detailId, 'selected');
       else if (e.key === 'x' || e.key === 'X') void setStatus(detailId, 'rejected');
       else if (e.key === 'z' || e.key === 'Z') setZoomed(z => !z);
-      else if (e.key === 'Escape') openDetail(null);
+      else if (e.key === 'Escape') {
+        // acelasi motiv ca in Workspace.tsx: stopPropagation() dintr-un alt
+        // listener de pe window NU opreste acest listener sa ruleze (doar
+        // propagarea intre elemente diferite) — verificam direct starea.
+        const { paletteOpen, shortcutsOpen } = useStore.getState();
+        if (paletteOpen || shortcutsOpen) return;
+        openDetail(null);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { db } from '../core/db';
 import { useStore } from '../state/store';
-import { ChevronLeft, ChevronRight, XIcon, CheckIcon } from './icons';
+import { ChevronLeft, ChevronRight, XIcon, CheckIcon, InfoIcon, EyeClosedIcon } from './icons';
 
 /**
  * Spatiu de lucru profesional: lupa (imagine mare, centrata) + filmstrip
@@ -20,6 +20,7 @@ export function Workspace() {
   const setStatus = useStore(s => s.setStatus);
   const setWorkspaceMode = useStore(s => s.setWorkspaceMode);
   const [src, setSrc] = useState<string | null>(null);
+  const [showMetrics, setShowMetrics] = useState(false);
   const filmstripRef = useRef<HTMLDivElement>(null);
   // citit din listener-ul de tastatura (inregistrat o singura data, vezi mai
   // jos) — un ref, nu o dependenta de effect, ca sa nu reinregistram
@@ -73,7 +74,17 @@ export function Workspace() {
       else if (e.key === 'ArrowLeft') stepDetail(-1);
       else if ((e.key === 'p' || e.key === 'P') && id) { void setStatus(id, 'selected'); stepDetail(1); }
       else if ((e.key === 'x' || e.key === 'X') && id) { void setStatus(id, 'rejected'); stepDetail(1); }
-      else if (e.key === 'Escape') setWorkspaceMode(false);
+      else if (e.key === 'i' || e.key === 'I') setShowMetrics(v => !v);
+      else if (e.key === 'Escape') {
+        // Paleta/scurtaturile au propriul listener global de Escape (tot pe
+        // window) — stopPropagation() din ele NU opreste alti listeneri de pe
+        // ACELASI target sa ruleze (doar propagarea intre elemente diferite),
+        // asa ca verificam direct starea: daca un panou e deasupra, il lasam
+        // pe el sa se inchida, nu iesim si din Workspace odata cu el.
+        const { paletteOpen, shortcutsOpen } = useStore.getState();
+        if (paletteOpen || shortcutsOpen) return;
+        setWorkspaceMode(false);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -91,7 +102,16 @@ export function Workspace() {
     <div className="workspace">
       <header className="workspace-head">
         <span className="mono">{photo.fileName}</span>
-        <span className="mono workspace-hint">← → navigheaza · P selecteaza · X respinge · Esc iesire</span>
+        <span className="mono workspace-hint">← → navigheaza · P selecteaza · X respinge · I statistici · Esc iesire</span>
+        <button
+          className={showMetrics ? 'ghost icon-btn active' : 'ghost icon-btn'}
+          onClick={() => setShowMetrics(v => !v)}
+          aria-label={showMetrics ? 'Ascunde statisticile pe imagine' : 'Arata statisticile pe imagine'}
+          aria-pressed={showMetrics}
+          title="Statistici pe imagine (I)"
+        >
+          <InfoIcon />
+        </button>
         <button className="ghost icon-btn" onClick={() => setWorkspaceMode(false)} aria-label="Inchide spatiul de lucru">
           <XIcon />
         </button>
@@ -105,6 +125,23 @@ export function Workspace() {
         <span className={`status-tag st-${photo.status} workspace-badge`}>
           {photo.status === 'selected' ? 'SELECTATA' : photo.status === 'rejected' ? 'RESPINSA' : 'DE VERIFICAT'}
         </span>
+        {showMetrics && (
+          <div className="workspace-metrics mono">
+            <span>Scor <b>{photo.aiScore}</b></span>
+            <span>Claritate <b>{photo.sharpness}</b></span>
+            <span>Expunere <b>{photo.exposure}</b></span>
+            {photo.faceCount > 0 && <span>Fete <b>{photo.faceCount}</b></span>}
+            {photo.faceCount > 0 && (
+              <span>Zâmbet <b>{Math.round((photo.faceCount > 1 ? photo.groupSmileRatio ?? photo.bestSmile : photo.bestSmile) * 100)}%</b></span>
+            )}
+            {photo.faceCount > 0 && (
+              <span className={(photo.groupEyesOpenRatio ?? (photo.allEyesOpen ? 1 : 0)) < 1 ? 'warn' : undefined}>
+                {photo.allEyesOpen && (photo.groupEyesOpenRatio ?? 1) >= 1 ? null : <EyeClosedIcon className="inline-icon" />}
+                Ochi <b>{Math.round((photo.groupEyesOpenRatio ?? (photo.allEyesOpen ? 1 : 0)) * 100)}%</b>
+              </span>
+            )}
+          </div>
+        )}
         <button className="ghost icon-btn workspace-nav next" onClick={() => stepDetail(1)} aria-label="Fotografia urmatoare">
           <ChevronRight />
         </button>

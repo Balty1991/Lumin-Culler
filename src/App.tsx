@@ -10,6 +10,7 @@ import { MenuDrawer } from './ui/MenuDrawer';
 import { InsightsPanel } from './ui/InsightsPanel';
 import { BatchOpsPanel } from './ui/BatchOpsPanel';
 import { CommandPalette } from './ui/CommandPalette';
+import { ShortcutsPanel } from './ui/ShortcutsPanel';
 import { AnimatedNumber } from './ui/AnimatedNumber';
 import { MenuIcon, PlusIcon, StarIcon, AlertIcon, XIcon, FocusIcon, UndoIcon, SearchIcon } from './ui/icons';
 
@@ -111,7 +112,7 @@ export default function App() {
 
   const total = Math.max(1, counts.all);
 
-  if (workspaceMode) return <><Workspace /><CommandPalette /></>;
+  if (workspaceMode) return <><Workspace /><CommandPalette /><ShortcutsPanel /></>;
 
   return (
     <div className="app">
@@ -244,6 +245,7 @@ export default function App() {
       <BatchOpsPanel />
       <MenuDrawer />
       <CommandPalette />
+      <ShortcutsPanel />
     </div>
   );
 }

@@ -63,3 +63,16 @@ export function UndoIcon(p: SVGProps<SVGSVGElement>) {
 export function SearchIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><circle cx="10.5" cy="10.5" r="6.5" /><line x1="20" y1="20" x2="15.2" y2="15.2" /></svg>;
 }
+export function KeyboardIcon(p: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base} {...p}>
+      <rect x="2.5" y="6" width="19" height="12" rx="2" />
+      <line x1="6" y1="10" x2="6" y2="10" />
+      <line x1="9.5" y1="10" x2="9.5" y2="10" />
+      <line x1="13" y1="10" x2="13" y2="10" />
+      <line x1="16.5" y1="10" x2="16.5" y2="10" />
+      <line x1="20" y1="10" x2="20" y2="10" />
+      <line x1="7" y1="14.5" x2="17" y2="14.5" />
+    </svg>
+  );
+}

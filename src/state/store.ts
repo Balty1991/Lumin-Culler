@@ -11,7 +11,7 @@ import { exportXMPSidecars } from '../core/export/xmpGenerator';
 import { analysisPool } from '../core/workerPool';
 import { contextEngine, deriveContextKey } from '../core/learning/ContextEngine';
 import { pushHistory, popHistory, MAX_HISTORY, type HistoryEvent } from './history';
-import { selectBulkRejectTargets, resolveGroups } from './batchOps';
+import { selectBulkRejectTargets, resolveGroups, selectTopPercent } from './batchOps';
 
 export interface PhotoView {
   id: string;
@@ -56,6 +56,7 @@ interface AppState {
   workspaceMode: boolean;
   batchOpsOpen: boolean;
   paletteOpen: boolean;
+  shortcutsOpen: boolean;
   booted: boolean;
   /** false daca dispozitivul nu a putut incarca WebGL/WASM — analiza continua dar fara fete reale. */
   aiDegraded: boolean;
@@ -76,6 +77,8 @@ interface AppState {
   bulkRejectBelow: (threshold: number) => Promise<{ affected: number }>;
   /** Rezolva TOATE seriile deodata: cea mai buna poza din fiecare ramane, restul se resping. */
   resolveAllSeries: () => Promise<{ groupsResolved: number }>;
+  /** Auto-Cull: pastreaza cele mai bune X% (dupa scor) din pozele nedecise, respinge restul. */
+  autoCullTopPercent: (percent: number) => Promise<{ selected: number; rejected: number }>;
   setFilter: (f: FilterKey) => void;
   openDetail: (id: string | null) => void;
   openCompare: (groupId: string | null) => void;
@@ -88,6 +91,7 @@ interface AppState {
   setWorkspaceMode: (on: boolean) => void;
   setBatchOpsOpen: (open: boolean) => void;
   setPaletteOpen: (open: boolean) => void;
+  setShortcutsOpen: (open: boolean) => void;
   clearAll: () => Promise<void>;
   /** toast general de stare: rezultat export, avertisment de stocare etc. */
   notice: string | null;
@@ -185,6 +189,7 @@ export const useStore = create<AppState>((set, get) => ({
   workspaceMode: false,
   batchOpsOpen: false,
   paletteOpen: false,
+  shortcutsOpen: false,
   booted: false,
   aiDegraded: false,
   aiBackend: '',
@@ -358,6 +363,35 @@ export const useStore = create<AppState>((set, get) => ({
     return { groupsResolved: resolutions.length };
   },
 
+  /** Ca si celelalte operatii in masa, fara istoric per-poza (confirmare proprie in UI). */
+  autoCullTopPercent: async (percent) => {
+    const { selectIds, rejectIds } = selectTopPercent(get().photos, percent);
+    let quotaError = false;
+    for (const id of selectIds) {
+      await db.photos.update(id, { status: 'selected' });
+      const res = await syncOriginal(id, 'selected');
+      if (res.quotaError) quotaError = true;
+      await train(id, true);
+    }
+    for (const id of rejectIds) {
+      await db.photos.update(id, { status: 'rejected' });
+      const res = await syncOriginal(id, 'rejected');
+      if (res.quotaError) quotaError = true;
+      await train(id, false);
+    }
+    const selectSet = new Set(selectIds);
+    const rejectSet = new Set(rejectIds);
+    set(state => ({
+      photos: state.photos.map(p => {
+        if (selectSet.has(p.id)) return { ...p, status: 'selected' };
+        if (rejectSet.has(p.id)) return { ...p, status: 'rejected' };
+        return p;
+      }),
+      notice: quotaError ? QUOTA_NOTICE : `Auto-Cull: ${selectIds.length} selectate, ${rejectIds.length} respinse.`
+    }));
+    return { selected: selectIds.length, rejected: rejectIds.length };
+  },
+
   setFilter: f => set({ filter: f }),
   openDetail: id => set({ detailId: id }),
   openCompare: groupId => set({ compareGroupId: groupId }),
@@ -407,6 +441,7 @@ export const useStore = create<AppState>((set, get) => ({
   setWorkspaceMode: on => set({ workspaceMode: on, detailId: on ? get().detailId : null }),
   setBatchOpsOpen: open => set({ batchOpsOpen: open }),
   setPaletteOpen: open => set({ paletteOpen: open }),
+  setShortcutsOpen: open => set({ shortcutsOpen: open }),
   clearNotice: () => set({ notice: null }),
 
   clearAll: async () => {

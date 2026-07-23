@@ -561,6 +561,18 @@ button:focus-visible, input:focus-visible {
 .palette-hint { color: var(--text-faint); font-size: 0.72rem; flex-shrink: 0; }
 .palette-empty { color: var(--text-faint); padding: 16px 12px; text-align: center; cursor: default; }
 
+/* ── Scurtaturi de tastatura ── */
+.shortcuts-section { display: grid; gap: 6px; padding: 14px 0; border-top: 1px solid var(--line); }
+.shortcuts-section:first-of-type { border-top: none; padding-top: 0; }
+.shortcuts-section h3 { font-size: 0.9rem; margin: 0; }
+.shortcuts-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.shortcuts-list li { display: flex; align-items: center; gap: 12px; }
+.shortcuts-list kbd {
+  flex-shrink: 0; min-width: 64px; text-align: center; padding: 3px 8px; font-size: 0.76rem;
+  background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 6px; color: var(--text);
+}
+.shortcuts-list span { color: var(--text-dim); font-size: 0.86rem; }
+
 /* ── Preferinte AI (explicabilitate ContextEngine) ── */
 .insights { list-style: none; display: grid; gap: 8px; padding: 0; }
 .insight {
@@ -589,6 +601,14 @@ button:focus-visible, input:focus-visible {
 }
 .workspace-loupe img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: var(--radius); }
 .workspace-badge { position: absolute; top: 24px; right: 24px; background: var(--surface); }
+.workspace-metrics {
+  position: absolute; bottom: 24px; left: 24px; z-index: 2; display: flex; flex-wrap: wrap; gap: 6px 14px;
+  background: rgba(19,21,25,0.82); backdrop-filter: blur(6px); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 10px 14px; font-size: 0.78rem; color: var(--text-dim); max-width: calc(100% - 48px);
+}
+.workspace-metrics b { color: var(--text); }
+.workspace-metrics .warn { color: var(--reject); }
+.workspace-head .icon-btn.active { border-color: var(--accent); background: var(--surface-2); color: var(--accent); }
 .workspace-nav {
   position: absolute; top: 50%; transform: translateY(-50%); z-index: 2;
   background: var(--surface); border: 1px solid var(--line);
