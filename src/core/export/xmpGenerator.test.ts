@@ -1,5 +1,15 @@
-import { describe, expect, it } from 'vitest';
-import { generateXMPSidecar, deriveXmpKeywords } from './xmpGenerator';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { generateXMPSidecar, deriveXmpKeywords, exportXMPSidecars } from './xmpGenerator';
+
+const getDirectoryPicker = vi.fn<() => null>(() => null);
+const downloadZip = vi.fn<(name: string, entries: { path: string; data: Uint8Array }[]) => Promise<void>>(async () => {});
+const downloadBlob = vi.fn<(name: string, blob: Blob) => Promise<void>>(async () => {});
+
+vi.mock('./directoryPicker', () => ({
+  getDirectoryPicker: () => getDirectoryPicker(),
+  downloadZip: (name: string, entries: { path: string; data: Uint8Array }[]) => downloadZip(name, entries),
+  downloadBlob: (name: string, blob: Blob) => downloadBlob(name, blob)
+}));
 
 describe('generateXMPSidecar', () => {
   it('uses the manual star rating when present', () => {
@@ -56,5 +66,33 @@ describe('deriveXmpKeywords', () => {
 
   it('ignores an unrecognized scene semantic', () => {
     expect(deriveXmpKeywords(['Ami'], 'something_unknown')).toEqual(['Ami']);
+  });
+});
+
+describe('exportXMPSidecars (fallback fara File System Access API)', () => {
+  beforeEach(() => {
+    getDirectoryPicker.mockReturnValue(null);
+    downloadZip.mockClear();
+    downloadBlob.mockClear();
+  });
+
+  it('un singur sidecar: descarcare directa, NU zip', async () => {
+    const result = await exportXMPSidecars([{ fileName: 'a.jpg', status: 'selected', rating: 5 }]);
+    expect(result.exported).toBe(1);
+    expect(downloadBlob).toHaveBeenCalledTimes(1);
+    expect(downloadZip).not.toHaveBeenCalled();
+  });
+
+  it('mai multe sidecar-uri: O SINGURA arhiva .zip, nu descarcari secventiale', async () => {
+    const result = await exportXMPSidecars([
+      { fileName: 'a.jpg', status: 'selected', rating: 5 },
+      { fileName: 'b.jpg', status: 'rejected' },
+      { fileName: 'c.jpg', status: 'review', rating: 3 }
+    ]);
+    expect(result.exported).toBe(3);
+    expect(downloadZip).toHaveBeenCalledTimes(1);
+    expect(downloadBlob).not.toHaveBeenCalled();
+    const entries = downloadZip.mock.calls[0][1];
+    expect(entries.map(e => e.path).sort()).toEqual(['a.xmp', 'b.xmp', 'c.xmp']);
   });
 });

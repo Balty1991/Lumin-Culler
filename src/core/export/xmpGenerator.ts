@@ -27,7 +27,7 @@
  * Lightroom fara sa copiezi vreun byte de imagine, nu doar selectia finala.
  */
 import type { PhotoRecord } from '../db';
-import { getDirectoryPicker, writeTextFile, downloadBlob, type LocalDirHandle } from './directoryPicker';
+import { getDirectoryPicker, writeTextFile, downloadBlob, downloadZip, type LocalDirHandle } from './directoryPicker';
 
 export type XmpDecision = Exclude<PhotoRecord['status'], 'pending'>;
 
@@ -106,9 +106,22 @@ export async function exportXMPSidecars(
     return { exported: decided.length, method, cancelled: false };
   }
 
-  for (const p of decided) {
+  // un singur sidecar: descarcare directa
+  if (decided.length === 1) {
+    const p = decided[0];
     const blob = new Blob([generateXMPSidecar(p.status, p.rating, p.keywords)], { type: 'application/rdf+xml' });
     await downloadBlob(xmpFileName(p.fileName), blob);
+    return { exported: 1, method, cancelled: false };
   }
+  // mai multe sidecar-uri: O SINGURA descarcare .zip — vezi downloadZip pentru
+  // motivul (descarcarile multiple secventiale sunt blocate silentios de multe
+  // browsere mobile dupa prima)
+  const encoder = new TextEncoder();
+  const entries = decided.map(p => ({
+    path: xmpFileName(p.fileName),
+    data: encoder.encode(generateXMPSidecar(p.status, p.rating, p.keywords))
+  }));
+  const zipName = `lumin-culler-xmp-${new Date().toISOString().slice(0, 10)}.zip`;
+  await downloadZip(zipName, entries);
   return { exported: decided.length, method, cancelled: false };
 }

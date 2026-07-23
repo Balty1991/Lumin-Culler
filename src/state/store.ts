@@ -799,7 +799,8 @@ export const useStore = create<AppState>((set, get) => ({
         result.exported
           ? `${result.exported} poze exportate` + (
               result.method === 'folder' ? ' in subfoldere (persoane/scenă), în folderul ales.'
-              : ' (descărcări individuale, denumite cu prefix de grup — subfolderele reale depind de suportul browserului).'
+              : result.grouped ? ' intr-o arhiva .zip (subfoldere pe persoane/scenă) — descarcarile multiple separate sunt blocate de multe browsere mobile, o singura arhiva e mereu de incredere.'
+              : ' (descărcare directă).'
             )
           : 'Nicio poza nu a putut fi exportata in format original.'
       ];
@@ -854,7 +855,9 @@ export const useStore = create<AppState>((set, get) => ({
         ? `${result.exported} sidecar-uri XMP exportate` + (
             result.method === 'folder'
               ? ' in folderul ales — copiaza-le langa pozele ORIGINALE (structura de foldere de la import, nu cea grupata pe persoane/scena a exportului de poze) ca Lightroom sa le vada.'
-              : ' (descarcari individuale) — muta-le langa pozele ORIGINALE (nu intr-un folder grupat pe persoane/scena) ca Lightroom sa le vada.'
+              : result.exported === 1
+                ? ' (descarcare directa) — muta-l langa poza ORIGINALA ca Lightroom sa il vada.'
+                : ' intr-o arhiva .zip — dezarhiveaza-le si muta-le langa pozele ORIGINALE (nu intr-un folder grupat pe persoane/scena) ca Lightroom sa le vada.'
           )
         : 'Niciun sidecar XMP nu a putut fi exportat.';
       set({ notice: msg });

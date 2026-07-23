@@ -16,7 +16,7 @@
  */
 import { originalFiles } from './importPipeline';
 import { db } from './db';
-import { getDirectoryPicker, type LocalDirHandle } from './export/directoryPicker';
+import { getDirectoryPicker, downloadZip, type LocalDirHandle } from './export/directoryPicker';
 
 export interface ExportResult {
   exported: number;
@@ -142,6 +142,18 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[]): Promise<E
     return { exported: available.length, missing, method, cancelled: false, grouped: true };
   }
 
-  for (const { name, file, folder } of available) await downloadOne(name, file, folder);
-  return { exported: available.length, missing, method, cancelled: false, grouped: false };
+  // un singur fisier: descarcare directa (nume/extensie originale, fara zip inutil)
+  if (available.length === 1) {
+    const { name, file, folder } = available[0];
+    await downloadOne(name, file, folder);
+    return { exported: 1, missing, method, cancelled: false, grouped: false };
+  }
+  // mai multe fisiere: O SINGURA descarcare .zip — descarcarile multiple secventiale
+  // sunt blocate silentios de multe browsere mobile dupa prima (vezi downloadZip)
+  const entries = await Promise.all(
+    available.map(async ({ name, file, folder }) => ({ path: `${folder}/${name}`, data: new Uint8Array(await file.arrayBuffer()) }))
+  );
+  const zipName = `lumin-culler-export-${new Date().toISOString().slice(0, 10)}.zip`;
+  await downloadZip(zipName, entries);
+  return { exported: available.length, missing, method, cancelled: false, grouped: true };
 }
