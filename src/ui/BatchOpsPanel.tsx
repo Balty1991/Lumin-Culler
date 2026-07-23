@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { selectBulkRejectTargets, resolveGroups, selectTopPercent } from '../state/batchOps';
+import { useModalFocusTrap } from './useModalFocusTrap';
 import { XIcon, LayersIcon, AlertIcon, SparkleIcon, FilterDotIcon } from './icons';
 
 const DEFAULT_THRESHOLD = 35; // acelasi prag ca REJECT_THRESHOLD din importPipeline.ts
@@ -18,6 +19,8 @@ export function BatchOpsPanel() {
   const [threshold, setThreshold] = useState(DEFAULT_THRESHOLD);
   const [cullPercent, setCullPercent] = useState(DEFAULT_CULL_PERCENT);
   const [busy, setBusy] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  useModalFocusTrap(containerRef, open);
 
   const targets = useMemo(() => selectBulkRejectTargets(photos, threshold), [photos, threshold]);
   const groups = useMemo(() => resolveGroups(photos), [photos]);
@@ -62,7 +65,7 @@ export function BatchOpsPanel() {
 
   return (
     <div className="detail" onClick={e => { if (e.target === e.currentTarget) setOpen(false); }}>
-      <div className="detail-inner narrow">
+      <div className="detail-inner narrow" ref={containerRef} role="dialog" aria-modal="true" aria-label="Operatii in masa" tabIndex={-1}>
         <header className="detail-head">
           <span><LayersIcon className="inline-icon" /> Operații în masă</span>
           <button className="ghost icon-btn" onClick={() => setOpen(false)} aria-label="Inchide">

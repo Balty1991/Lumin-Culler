@@ -17,6 +17,13 @@ export interface PhotoRecord {
   dHash: string;
   groupId?: string;         // seria/duplicatele din care face parte
   status: 'pending' | 'selected' | 'rejected' | 'review';
+  /**
+   * Rating 1-5 stele, independent de status (ca in Lightroom: flag-ul
+   * pick/reject si rating-ul sunt axe separate — o poza poate fi Selectata
+   * SI 3 stele, sau De verificat fara nicio stea). Optional/0/absent = fara
+   * rating; nu necesita bump de schema Dexie (camp neindexat, filtrat client-side).
+   */
+  rating?: number;
 }
 
 export interface ThumbnailRecord {

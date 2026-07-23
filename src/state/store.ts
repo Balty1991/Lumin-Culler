@@ -11,7 +11,10 @@ import { exportXMPSidecars } from '../core/export/xmpGenerator';
 import { analysisPool } from '../core/workerPool';
 import { contextEngine, deriveContextKey } from '../core/learning/ContextEngine';
 import { pickBestInGroup } from '../core/groupSelection';
-import { pushHistory, popHistory, MAX_HISTORY, type HistoryEvent } from './history';
+import {
+  pushHistory, popHistory, MAX_HISTORY, type HistoryEvent,
+  pushBatchHistory, popBatchHistory, type BatchHistoryEvent
+} from './history';
 import { selectBulkRejectTargets, resolveGroups, selectTopPercent } from './batchOps';
 import { readStoredTheme, applyTheme, type Theme } from './theme';
 
@@ -19,6 +22,7 @@ export interface PhotoView {
   id: string;
   fileName: string;
   status: PhotoRecord['status'];
+  rating: number;
   aiScore: number;
   sceneType: AnalysisRecord['sceneType'];
   contextKey: string;
@@ -52,6 +56,8 @@ interface AppState {
   persons: KnownPerson[];
   progress: ImportProgress | null;
   filter: FilterKey;
+  /** Filtru suplimentar, combinabil cu `filter` — numele unei persoane cunoscute, sau null (fara filtru). */
+  personFilter: string | null;
   detailId: string | null;
   compareGroupId: string | null;
   personsOpen: boolean;
@@ -73,10 +79,35 @@ interface AppState {
    * cea mai frecventa/predispusa la greseli (un swipe/tap accidental).
    */
   history: HistoryEvent[];
+  /**
+   * Istoric SEPARAT pentru operatiile in masa (Auto-Cull, Respinge sub prag,
+   * Rezolva toate seriile, actiuni pe selectia multipla) — o intrare per lot
+   * intreg, nu una per poza (ar inunda instant `history`, capat la 10).
+   * `undo()` alege automat cea mai recenta dintre `history`/`batchHistory`
+   * dupa timestamp, deci un singur buton/Ctrl+Z acopera ambele.
+   */
+  batchHistory: BatchHistoryEvent[];
+  /**
+   * Selectie in masa in grila — Ctrl/Cmd+Click adauga/scoate o poza, Shift+Click
+   * selecteaza un interval fata de ultima poza atinsa cu Ctrl sau Shift, iar cat
+   * timp exista ceva in selectie, un click simplu continua sa comute selectia
+   * (nu mai deschide DetailView) pana la Deselecteaza/Escape — acelasi tipar ca
+   * Gmail/Google Photos, nu necesita tinerea Ctrl apasat pentru fiecare click.
+   */
+  multiSelectIds: Set<string>;
+  multiSelectAnchor: string | null;
 
   boot: () => Promise<void>;
   runImport: (files: File[]) => Promise<void>;
   setStatus: (id: string, status: PhotoRecord['status']) => Promise<void>;
+  /**
+   * Rating 1-5 stele — axa SEPARATA de status (pick/respins/de verificat),
+   * ca in Lightroom. Click pe aceeasi stea deja setata o sterge (trece la 0).
+   * Nu antreneaza ContextEngine (doar Selecteaza/Respinge fac asta) si nu
+   * intra in istoricul de undo (actiune cu risc scazut, reversibila oricand
+   * cu un nou click).
+   */
+  setRating: (id: string, rating: number) => Promise<void>;
   undo: () => Promise<void>;
   keepOnlyInGroup: (groupId: string, keepId: string) => Promise<void>;
   /**
@@ -93,7 +124,17 @@ interface AppState {
   resolveAllSeries: () => Promise<{ groupsResolved: number }>;
   /** Auto-Cull: pastreaza cele mai bune X% (dupa scor) din pozele nedecise, respinge restul. */
   autoCullTopPercent: (percent: number) => Promise<{ selected: number; rejected: number }>;
+  /** Comuta o singura poza in/din selectia in masa — Ctrl/Cmd+Click sau, cat timp selectia nu e goala, orice click simplu pe card. */
+  toggleMultiSelect: (id: string) => void;
+  /** Selecteaza tot intervalul dintre ultimul anchor si `id`, in ordinea data (lista filtrata curenta) — Shift+Click. */
+  rangeMultiSelect: (id: string, orderedIds: string[]) => void;
+  clearMultiSelect: () => void;
+  /** Aplica un status TUTUROR pozelor din selectia curenta (antreneaza AI-ul per poza, ca setStatus). */
+  bulkSetStatusForSelection: (status: PhotoRecord['status']) => Promise<void>;
+  /** Aplica un rating TUTUROR pozelor din selectia curenta. */
+  bulkSetRatingForSelection: (rating: number) => Promise<void>;
   setFilter: (f: FilterKey) => void;
+  setPersonFilter: (name: string | null) => void;
   openDetail: (id: string | null) => void;
   openCompare: (groupId: string | null) => void;
   stepDetail: (dir: 1 | -1) => void;
@@ -122,6 +163,7 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     id: photo.id,
     fileName: photo.fileName,
     status: photo.status,
+    rating: photo.rating ?? 0,
     aiScore: analysis?.aiScore ?? 0,
     sceneType: analysis?.sceneType ?? 'detail',
     contextKey: analysis ? deriveContextKey(analysis) : 'detail',
@@ -156,6 +198,10 @@ async function train(id: string, userDecision: boolean): Promise<void> {
   if (!analysis) return;
   const aiDecision = analysis.aiScore >= 65;
   await contextEngine.recordCorrection({ photoId: id, analysis, aiDecision, userDecision });
+}
+
+function makeBatchEvent(label: string, changes: { photoId: string; previousStatus: PhotoRecord['status'] }[]): BatchHistoryEvent {
+  return { id: crypto.randomUUID(), label, changes, ts: Date.now() };
 }
 
 /**
@@ -197,6 +243,7 @@ export const useStore = create<AppState>((set, get) => ({
   persons: [],
   progress: null,
   filter: 'all',
+  personFilter: null,
   detailId: null,
   compareGroupId: null,
   personsOpen: false,
@@ -216,6 +263,9 @@ export const useStore = create<AppState>((set, get) => ({
   aiBackend: '',
   notice: null,
   history: [],
+  multiSelectIds: new Set(),
+  multiSelectAnchor: null,
+  batchHistory: [],
 
   boot: async () => {
     if (get().booted) return;
@@ -285,18 +335,47 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
+  setRating: async (id, rating) => {
+    const clamped = Math.max(0, Math.min(5, Math.round(rating)));
+    await db.photos.update(id, { rating: clamped });
+    set(state => ({ photos: state.photos.map(p => (p.id === id ? { ...p, rating: clamped } : p)) }));
+  },
+
   /**
-   * Anuleaza ultima decizie manuala (pana la MAX_HISTORY in urma). Reverta
-   * DOAR statusul pozei (si sincronizarea originalului pentru export) — NU
+   * Anuleaza ultima actiune — fie o decizie manuala unica (P/X), fie o
+   * operatie in masa (Auto-Cull, Respinge sub prag, Rezolva serii, actiune pe
+   * selectie), oricare a fost mai recenta (dupa timestamp). Reverta DOAR
+   * statusul pozei/pozelor (si sincronizarea originalului pentru export) — NU
    * incearca sa "de-antreneze" ContextEngine, care a invatat deja din acea
    * decizie: a inversa curat un pas de gradient online nu e o operatie
    * sigura, iar impactul unui singur pas e oricum mic (regularizare L2 +
-   * normalizare Welford). Undo aici inseamna "arata-mi poza ca inainte",
+   * normalizare Welford). Undo aici inseamna "arata-mi pozele ca inainte",
    * nu "sterge ce a invatat modelul".
    */
   undo: async () => {
-    const { event, rest } = popHistory(get().history);
-    if (!event) { set({ notice: 'Nimic de anulat.' }); return; }
+    const { history, batchHistory } = get();
+    const lastSingleTs = history.length ? history[history.length - 1].ts : -1;
+    const lastBatchTs = batchHistory.length ? batchHistory[batchHistory.length - 1].ts : -1;
+    if (lastSingleTs === -1 && lastBatchTs === -1) { set({ notice: 'Nimic de anulat.' }); return; }
+
+    if (lastBatchTs > lastSingleTs) {
+      const { event, rest } = popBatchHistory(batchHistory);
+      if (!event) return;
+      set({ batchHistory: rest });
+      for (const c of event.changes) {
+        await db.photos.update(c.photoId, { status: c.previousStatus });
+        await syncOriginal(c.photoId, c.previousStatus);
+      }
+      const changed = new Map(event.changes.map(c => [c.photoId, c.previousStatus]));
+      set(state => ({
+        photos: state.photos.map(p => (changed.has(p.id) ? { ...p, status: changed.get(p.id)! } : p))
+      }));
+      set({ notice: `Anulat: „${event.label}" (${event.changes.length} poze).` });
+      return;
+    }
+
+    const { event, rest } = popHistory(history);
+    if (!event) return;
     set({ history: rest });
     await db.photos.update(event.photoId, { status: event.previousStatus });
     set(state => ({
@@ -312,6 +391,7 @@ export const useStore = create<AppState>((set, get) => ({
   /** Fluxul principal de serie: pastreaza o singura poza, respinge restul grupului. */
   keepOnlyInGroup: async (groupId, keepId) => {
     const members = get().photos.filter(p => p.groupId === groupId);
+    const changes = members.map(m => ({ photoId: m.id, previousStatus: m.status }));
     let quotaError = false;
     for (const m of members) {
       const status = m.id === keepId ? 'selected' : 'rejected';
@@ -325,6 +405,7 @@ export const useStore = create<AppState>((set, get) => ({
         p.groupId === groupId ? { ...p, status: p.id === keepId ? 'selected' : 'rejected' } : p
       ),
       compareGroupId: null,
+      batchHistory: pushBatchHistory(state.batchHistory, makeBatchEvent('Rezolva serie', changes)),
       notice: quotaError ? QUOTA_NOTICE : state.notice
     }));
   },
@@ -351,12 +432,14 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   /**
-   * Ca si keepOnlyInGroup, NU genereaza istoric de undo per-poza (ar inunda
-   * stiva de 10 la un lot mare) — actiunea are propria confirmare explicita
-   * in UI (BatchOpsPanel), cu numarul exact afisat inainte de aplicare.
+   * Ca si keepOnlyInGroup, actiunea are propria confirmare explicita in UI
+   * (BatchOpsPanel), cu numarul exact afisat inainte de aplicare — dar acum
+   * e si reversibila dintr-o data cu Ctrl+Z (batchHistory), nu doar protejata
+   * de confirm() la aplicare.
    */
   bulkRejectBelow: async (threshold) => {
     const targets = selectBulkRejectTargets(get().photos, threshold);
+    const changes = targets.map(p => ({ photoId: p.id, previousStatus: p.status }));
     let quotaError = false;
     for (const p of targets) {
       await db.photos.update(p.id, { status: 'rejected' });
@@ -367,6 +450,7 @@ export const useStore = create<AppState>((set, get) => ({
     const ids = new Set(targets.map(p => p.id));
     set(state => ({
       photos: state.photos.map(p => (ids.has(p.id) ? { ...p, status: 'rejected' } : p)),
+      batchHistory: pushBatchHistory(state.batchHistory, makeBatchEvent(`Respinge sub prag (${threshold})`, changes)),
       notice: quotaError ? QUOTA_NOTICE : `${targets.length} poze respinse (scor sub ${threshold}).`
     }));
     return { affected: targets.length };
@@ -374,10 +458,12 @@ export const useStore = create<AppState>((set, get) => ({
 
   resolveAllSeries: async () => {
     const resolutions = resolveGroups(get().photos);
+    const changes: { photoId: string; previousStatus: PhotoRecord['status'] }[] = [];
     let quotaError = false;
     for (const g of resolutions) {
       const current = get().photos.find(p => p.id === g.keepId);
       if (current?.status !== 'selected') {
+        changes.push({ photoId: g.keepId, previousStatus: current?.status ?? 'pending' });
         await db.photos.update(g.keepId, { status: 'selected' });
         const res = await syncOriginal(g.keepId, 'selected');
         if (res.quotaError) quotaError = true;
@@ -386,6 +472,7 @@ export const useStore = create<AppState>((set, get) => ({
       for (const rejectId of g.rejectIds) {
         const rec = get().photos.find(p => p.id === rejectId);
         if (rec?.status === 'rejected') continue; // deja rezolvat, sarim (evita re-antrenare redundanta)
+        changes.push({ photoId: rejectId, previousStatus: rec?.status ?? 'pending' });
         await db.photos.update(rejectId, { status: 'rejected' });
         const res = await syncOriginal(rejectId, 'rejected');
         if (res.quotaError) quotaError = true;
@@ -400,14 +487,17 @@ export const useStore = create<AppState>((set, get) => ({
         if (rejectIds.has(p.id)) return { ...p, status: 'rejected' };
         return p;
       }),
+      batchHistory: pushBatchHistory(state.batchHistory, makeBatchEvent('Rezolva toate seriile', changes)),
       notice: quotaError ? QUOTA_NOTICE : `${resolutions.length} serii rezolvate.`
     }));
     return { groupsResolved: resolutions.length };
   },
 
-  /** Ca si celelalte operatii in masa, fara istoric per-poza (confirmare proprie in UI). */
+  /** Ca si celelalte operatii in masa — reversibila dintr-o data cu Ctrl+Z (batchHistory). */
   autoCullTopPercent: async (percent) => {
     const { selectIds, rejectIds } = selectTopPercent(get().photos, percent);
+    const byId = new Map(get().photos.map(p => [p.id, p.status]));
+    const changes = [...selectIds, ...rejectIds].map(id => ({ photoId: id, previousStatus: byId.get(id) ?? 'pending' as PhotoRecord['status'] }));
     let quotaError = false;
     for (const id of selectIds) {
       await db.photos.update(id, { status: 'selected' });
@@ -424,6 +514,7 @@ export const useStore = create<AppState>((set, get) => ({
     const selectSet = new Set(selectIds);
     const rejectSet = new Set(rejectIds);
     set(state => ({
+      batchHistory: pushBatchHistory(state.batchHistory, makeBatchEvent(`Auto-Cull (${percent}%)`, changes)),
       photos: state.photos.map(p => {
         if (selectSet.has(p.id)) return { ...p, status: 'selected' };
         if (rejectSet.has(p.id)) return { ...p, status: 'rejected' };
@@ -434,7 +525,65 @@ export const useStore = create<AppState>((set, get) => ({
     return { selected: selectIds.length, rejected: rejectIds.length };
   },
 
+  toggleMultiSelect: id => set(state => {
+    const next = new Set(state.multiSelectIds);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return { multiSelectIds: next, multiSelectAnchor: id };
+  }),
+
+  rangeMultiSelect: (id, orderedIds) => set(state => {
+    const anchor = state.multiSelectAnchor;
+    const next = new Set(state.multiSelectIds);
+    if (!anchor) { next.add(id); return { multiSelectIds: next, multiSelectAnchor: id }; }
+    const from = orderedIds.indexOf(anchor);
+    const to = orderedIds.indexOf(id);
+    if (from === -1 || to === -1) { next.add(id); return { multiSelectIds: next, multiSelectAnchor: id }; }
+    const [start, end] = from <= to ? [from, to] : [to, from];
+    for (let i = start; i <= end; i++) next.add(orderedIds[i]);
+    return { multiSelectIds: next, multiSelectAnchor: id };
+  }),
+
+  clearMultiSelect: () => set({ multiSelectIds: new Set(), multiSelectAnchor: null }),
+
+  /** Ca si celelalte operatii in masa — reversibila dintr-o data cu Ctrl+Z (batchHistory). */
+  bulkSetStatusForSelection: async status => {
+    const ids = Array.from(get().multiSelectIds);
+    if (!ids.length) return;
+    const byId = new Map(get().photos.map(p => [p.id, p.status]));
+    const changes = ids.map(id => ({ photoId: id, previousStatus: byId.get(id) ?? 'pending' as PhotoRecord['status'] }));
+    let quotaError = false;
+    for (const id of ids) {
+      await db.photos.update(id, { status });
+      const res = await syncOriginal(id, status);
+      if (res.quotaError) quotaError = true;
+      if (status === 'selected' || status === 'rejected') await train(id, status === 'selected');
+    }
+    const idSet = new Set(ids);
+    set(state => ({
+      photos: state.photos.map(p => (idSet.has(p.id) ? { ...p, status } : p)),
+      multiSelectIds: new Set(),
+      multiSelectAnchor: null,
+      batchHistory: pushBatchHistory(state.batchHistory, makeBatchEvent(`Actiune in masa: ${STATUS_LABELS[status]}`, changes)),
+      notice: quotaError ? QUOTA_NOTICE : `${ids.length} poze ${STATUS_LABELS[status]}.`
+    }));
+  },
+
+  bulkSetRatingForSelection: async rating => {
+    const ids = Array.from(get().multiSelectIds);
+    if (!ids.length) return;
+    const clamped = Math.max(0, Math.min(5, Math.round(rating)));
+    for (const id of ids) await db.photos.update(id, { rating: clamped });
+    const idSet = new Set(ids);
+    set(state => ({
+      photos: state.photos.map(p => (idSet.has(p.id) ? { ...p, rating: clamped } : p)),
+      multiSelectIds: new Set(),
+      multiSelectAnchor: null,
+      notice: `${ids.length} poze cu rating ${clamped > 0 ? clamped + ' stele' : 'sters'}.`
+    }));
+  },
+
   setFilter: f => set({ filter: f }),
+  setPersonFilter: name => set({ personFilter: name }),
   openDetail: id => set({ detailId: id }),
   openCompare: groupId => set({ compareGroupId: groupId }),
 
@@ -557,7 +706,7 @@ export const useStore = create<AppState>((set, get) => ({
     const decided = get().photos.filter(p => p.status !== 'pending');
     if (!decided.length) { set({ notice: 'Nicio poza cu decizie luata inca — Selecteaza/Respinge cel putin una.' }); return; }
     try {
-      const result = await exportXMPSidecars(decided.map(p => ({ fileName: p.fileName, status: p.status })));
+      const result = await exportXMPSidecars(decided.map(p => ({ fileName: p.fileName, status: p.status, rating: p.rating })));
       if (result.cancelled) return;
       const msg = result.exported
         ? `${result.exported} sidecar-uri XMP exportate` + (
@@ -572,20 +721,26 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   filtered: () => {
-    const { photos, filter } = get();
+    const { photos, filter, personFilter } = get();
+    let base: PhotoView[];
     switch (filter) {
-      case 'selected': return photos.filter(p => p.status === 'selected');
-      case 'review': return photos.filter(p => p.status === 'review');
-      case 'rejected': return photos.filter(p => p.status === 'rejected');
-      case 'blinks': return photos.filter(p => p.faceCount > 0 && !p.allEyesOpen);
+      case 'selected': base = photos.filter(p => p.status === 'selected'); break;
+      case 'review': base = photos.filter(p => p.status === 'review'); break;
+      case 'rejected': base = photos.filter(p => p.status === 'rejected'); break;
+      case 'blinks': base = photos.filter(p => p.faceCount > 0 && !p.allEyesOpen); break;
       case 'series': {
         const withGroup = photos.filter(p => p.groupId);
-        return withGroup.sort((a, b) =>
+        base = withGroup.sort((a, b) =>
           a.groupId === b.groupId ? b.aiScore - a.aiScore : (a.groupId! < b.groupId! ? -1 : 1)
         );
+        break;
       }
-      default: return photos;
+      default: base = photos;
     }
+    // filtru dupa persoana cunoscuta — combinabil cu orice alt filtru de mai sus
+    // (ex. "Selectate" + "Ami" = pozele selectate in care apare Ami), nu un
+    // FilterKey fix (persoanele sunt dinamice, inrolate de utilizator)
+    return personFilter ? base.filter(p => p.personNames.includes(personFilter)) : base;
   },
 
   groupOf: groupId =>

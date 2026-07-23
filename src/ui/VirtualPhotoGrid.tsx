@@ -18,7 +18,11 @@ const ROW_HEIGHT_ESTIMATE = 200; // ajustat automat per rand prin measureElement
  * existent (nu o varianta separata), deci pastreaza insigne/status/click identic
  * cu grid-ul normal — singura diferenta e MECANISMUL de randare, nu aspectul.
  */
-export function VirtualPhotoGrid({ photos, onOpen }: { photos: PhotoView[]; onOpen: (id: string) => void }) {
+export function VirtualPhotoGrid({ photos, onOpen, multiSelectIds }: {
+  photos: PhotoView[];
+  onOpen: (id: string, e: React.MouseEvent) => void;
+  multiSelectIds: Set<string>;
+}) {
   const parentRef = useRef<HTMLDivElement>(null);
   const [columns, setColumns] = useState(4);
   const [scrollHeight, setScrollHeight] = useState(600);
@@ -62,7 +66,9 @@ export function VirtualPhotoGrid({ photos, onOpen }: { photos: PhotoView[]; onOp
               {Array.from({ length: columns }, (_, col) => {
                 const index = vRow.index * columns + col;
                 const photo = photos[index];
-                return photo ? <PhotoCard key={photo.id} photo={photo} index={index} onOpen={onOpen} /> : null;
+                return photo
+                  ? <PhotoCard key={photo.id} photo={photo} index={index} onOpen={onOpen} multiSelected={multiSelectIds.has(photo.id)} />
+                  : null;
               })}
             </div>
           </div>

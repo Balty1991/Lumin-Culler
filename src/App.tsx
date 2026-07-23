@@ -13,6 +13,7 @@ import { CommandPalette } from './ui/CommandPalette';
 import { ShortcutsPanel } from './ui/ShortcutsPanel';
 import { AnimatedNumber } from './ui/AnimatedNumber';
 import { Tooltip } from './ui/Tooltip';
+import { StarRating } from './ui/StarRating';
 import { MenuIcon, PlusIcon, StarIcon, AlertIcon, XIcon, FocusIcon, UndoIcon, SearchIcon, ApertureIcon, SparkleIcon, CheckIcon } from './ui/icons';
 
 const NOTICE_AUTODISMISS_MS = 7000;
@@ -39,6 +40,9 @@ export default function App() {
   const progress = useStore(s => s.progress);
   const filter = useStore(s => s.filter);
   const setFilter = useStore(s => s.setFilter);
+  const personFilter = useStore(s => s.personFilter);
+  const setPersonFilter = useStore(s => s.setPersonFilter);
+  const persons = useStore(s => s.persons);
   const runImport = useStore(s => s.runImport);
   const openDetail = useStore(s => s.openDetail);
   const openCompare = useStore(s => s.openCompare);
@@ -53,8 +57,16 @@ export default function App() {
   const workspaceMode = useStore(s => s.workspaceMode);
   const setWorkspaceMode = useStore(s => s.setWorkspaceMode);
   const history = useStore(s => s.history);
+  const batchHistory = useStore(s => s.batchHistory);
+  const undoCount = history.length + batchHistory.length;
   const undo = useStore(s => s.undo);
   const setPaletteOpen = useStore(s => s.setPaletteOpen);
+  const multiSelectIds = useStore(s => s.multiSelectIds);
+  const toggleMultiSelect = useStore(s => s.toggleMultiSelect);
+  const rangeMultiSelect = useStore(s => s.rangeMultiSelect);
+  const clearMultiSelect = useStore(s => s.clearMultiSelect);
+  const bulkSetStatusForSelection = useStore(s => s.bulkSetStatusForSelection);
+  const bulkSetRatingForSelection = useStore(s => s.bulkSetRatingForSelection);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { void boot(); }, [boot]);
@@ -87,6 +99,15 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [undo]);
 
+  // Escape goleste selectia in masa — doar cat timp exista ceva selectat
+  // (altfel ar intra in conflict cu Escape-ul altor panouri/paleta)
+  useEffect(() => {
+    if (!multiSelectIds.size) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') clearMultiSelect(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [multiSelectIds.size, clearMultiSelect]);
+
   const counts = useMemo(() => ({
     all: photos.length,
     selected: photos.filter(p => p.status === 'selected').length,
@@ -111,7 +132,12 @@ export default function App() {
     if (fileRef.current) fileRef.current.value = '';
   };
 
-  const onCardOpen = (id: string) => {
+  const onCardOpen = (id: string, e: React.MouseEvent) => {
+    if (e.shiftKey) { rangeMultiSelect(id, filtered.map(p => p.id)); return; }
+    if (e.ctrlKey || e.metaKey) { toggleMultiSelect(id); return; }
+    // cat timp exista deja ceva in selectie, un click simplu continua sa selecteze
+    // (nu mai deschide DetailView) — evita sa tii Ctrl apasat pentru fiecare card
+    if (multiSelectIds.size > 0) { toggleMultiSelect(id); return; }
     const photo = photos.find(p => p.id === id);
     if (filter === 'series' && photo?.groupId) openCompare(photo.groupId);
     else openDetail(id);
@@ -169,11 +195,11 @@ export default function App() {
               </button>
             </Tooltip>
           )}
-          {history.length > 0 && (
+          {undoCount > 0 && (
             <Tooltip label="Anuleaza ultima decizie" shortcut="Ctrl+Z">
-              <button className="ghost icon-btn" onClick={() => void undo()} aria-label={`Anuleaza ultima decizie (${history.length} disponibile, Ctrl+Z)`}>
+              <button className="ghost icon-btn" onClick={() => void undo()} aria-label={`Anuleaza ultima decizie (${undoCount} disponibile, Ctrl+Z)`}>
                 <UndoIcon />
-                <span className="undo-count mono">{history.length}</span>
+                <span className="undo-count mono">{undoCount}</span>
               </button>
             </Tooltip>
           )}
@@ -244,7 +270,7 @@ export default function App() {
       )}
 
       {progress && (
-        <div className="progress">
+        <div className="progress" role="status" aria-live="polite">
           <div className="progress-bar" style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }} />
           <span className="mono">
             {progress.phase === 'incarcare' ? 'Se incarca modelele AI (prima data poate dura, verifica conexiunea)…'
@@ -263,6 +289,17 @@ export default function App() {
               onClick={() => setFilter(f.key)}
             >{f.label} <b>{f.count}</b></button>
           ))}
+          {persons.length > 0 && (
+            <select
+              className={personFilter ? 'chip person-filter active' : 'chip person-filter'}
+              value={personFilter ?? ''}
+              onChange={e => setPersonFilter(e.target.value || null)}
+              aria-label="Filtreaza dupa persoana cunoscuta"
+            >
+              <option value="">Orice persoana</option>
+              {persons.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+            </select>
+          )}
         </nav>
       )}
 
@@ -303,18 +340,33 @@ export default function App() {
       ) : (
         <>
           {filtered.length > VIRTUALIZE_THRESHOLD ? (
-            <VirtualPhotoGrid photos={filtered} onOpen={onCardOpen} />
+            <VirtualPhotoGrid photos={filtered} onOpen={onCardOpen} multiSelectIds={multiSelectIds} />
           ) : (
             <div className="grid">
               {filtered.map((p, i) => (
-                <PhotoCard key={p.id} photo={p} index={i} onOpen={onCardOpen} />
+                <PhotoCard key={p.id} photo={p} index={i} onOpen={onCardOpen} multiSelected={multiSelectIds.has(p.id)} />
               ))}
             </div>
           )}
           {filtered.length === 0 && !progress && <p className="empty-filter">Nicio poza nu corespunde filtrului curent.</p>}
-          <Tooltip label="Adauga poze" side="left">
-            <button className="fab" onClick={() => fileRef.current?.click()} aria-label="Adauga poze"><PlusIcon /></button>
-          </Tooltip>
+          {multiSelectIds.size > 0 ? (
+            <div className="bulk-bar glass" role="toolbar" aria-label="Actiuni pentru selectia curenta">
+              <span className="bulk-bar-count mono">{multiSelectIds.size} selectate</span>
+              <div className="bulk-bar-actions">
+                <button className="select small-btn" onClick={() => void bulkSetStatusForSelection('selected')}>Selecteaza</button>
+                <button className="ghost small-btn" onClick={() => void bulkSetStatusForSelection('review')}>De verificat</button>
+                <button className="reject small-btn" onClick={() => void bulkSetStatusForSelection('rejected')}>Respinge</button>
+                <StarRating rating={0} onRate={n => void bulkSetRatingForSelection(n)} size="sm" />
+                <button className="ghost icon-btn" onClick={clearMultiSelect} aria-label="Deselecteaza tot">
+                  <XIcon />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <Tooltip label="Adauga poze" side="left">
+              <button className="fab" onClick={() => fileRef.current?.click()} aria-label="Adauga poze"><PlusIcon /></button>
+            </Tooltip>
+          )}
         </>
       )}
 

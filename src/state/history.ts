@@ -25,3 +25,30 @@ export function popHistory(stack: HistoryEvent[]): { event: HistoryEvent | null;
   if (!stack.length) return { event: null, rest: stack };
   return { event: stack[stack.length - 1], rest: stack.slice(0, -1) };
 }
+
+/**
+ * Undo pentru OPERATII IN MASA (Auto-Cull, Respinge sub prag, Rezolva toate
+ * seriile, actiuni pe selectia multipla) — o singura intrare per lot intreg,
+ * nu una per poza afectata (ar inunda instant stiva de 10 a lui HistoryEvent
+ * la un lot de zeci de poze). Doar in memorie (nu persistat in Dexie, spre
+ * deosebire de HistoryRecord) — un lot facut intr-o sesiune anterioara oricum
+ * nu mai are sens sa fie anulat separat de restul deciziilor acelei sesiuni.
+ */
+export interface BatchHistoryEvent {
+  id: string;
+  label: string;
+  changes: { photoId: string; previousStatus: PhotoRecord['status'] }[];
+  ts: number;
+}
+
+export const MAX_BATCH_HISTORY = 5;
+
+export function pushBatchHistory(stack: BatchHistoryEvent[], event: BatchHistoryEvent): BatchHistoryEvent[] {
+  const next = [...stack, event];
+  return next.length > MAX_BATCH_HISTORY ? next.slice(next.length - MAX_BATCH_HISTORY) : next;
+}
+
+export function popBatchHistory(stack: BatchHistoryEvent[]): { event: BatchHistoryEvent | null; rest: BatchHistoryEvent[] } {
+  if (!stack.length) return { event: null, rest: stack };
+  return { event: stack[stack.length - 1], rest: stack.slice(0, -1) };
+}
