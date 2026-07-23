@@ -2,11 +2,10 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNod
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useStore, type FilterKey } from '../state/store';
 import {
-  SearchIcon, FocusIcon, GridIcon, UndoIcon, LayersIcon, StarIcon, SparkleIcon,
+  SearchIcon, FocusIcon, GridIcon, UndoIcon, LayersIcon, UserCheckIcon, SparkleIcon,
   KeyboardIcon, SunIcon, MoonIcon, DownloadIcon, TagIcon, ListIcon, TrashIcon, FilterDotIcon
 } from './icons';
-
-const EASE = [0.16, 1, 0.3, 1] as const;
+import { EASE } from './motion';
 
 type Section = 'Navigare' | 'Editare' | 'Filtre' | 'Persoane & AI' | 'Export' | 'Aplicație';
 
@@ -125,7 +124,7 @@ export function CommandPalette() {
       run: () => setFilter(key),
       disabled: key === filter
     })),
-    { id: 'persons', label: 'Persoane cunoscute', section: 'Persoane & AI', icon: <StarIcon />, run: () => setPersonsOpen(true) },
+    { id: 'persons', label: 'Persoane cunoscute', section: 'Persoane & AI', icon: <UserCheckIcon />, run: () => setPersonsOpen(true) },
     { id: 'insights', label: 'Preferințe AI', section: 'Persoane & AI', icon: <SparkleIcon />, run: () => setInsightsOpen(true) },
     { id: 'export-selection', label: `Exportă poze selectate (${counts.selected})`, section: 'Export', icon: <DownloadIcon />, run: () => void exportSelection(), disabled: !counts.selected },
     { id: 'export-xmp', label: 'Exportă etichete Lightroom (XMP)', section: 'Export', icon: <TagIcon />, run: () => void exportXMP(), disabled: !photos.length },

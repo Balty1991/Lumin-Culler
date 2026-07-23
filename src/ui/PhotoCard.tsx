@@ -1,7 +1,7 @@
 import { useEffect, useState, memo } from 'react';
 import { db } from '../core/db';
 import type { PhotoView } from '../state/store';
-import { StarIcon, UserQuestionIcon, EyeClosedIcon, LayersIcon, CheckIcon, SunIcon } from './icons';
+import { StarIcon, UserQuestionIcon, UserCheckIcon, EyeClosedIcon, LayersIcon, CheckIcon, SunIcon } from './icons';
 
 /** Aceleasi praguri ca SELECT_THRESHOLD/REJECT_THRESHOLD (importPipeline.ts) — culoarea inelului de scor. */
 function scoreColorVar(score: number): string {
@@ -74,7 +74,7 @@ function PhotoCardInner({ photo, index, onOpen, multiSelected }: {
         </span>
         <span className="badges">
           {photo.rating > 0 && <span className="rating-chip"><StarIcon fill="currentColor" />{photo.rating}</span>}
-          {photo.personNames.length > 0 && <i title={photo.personNames.join(', ')}><StarIcon /></i>}
+          {photo.personNames.length > 0 && <i title={photo.personNames.join(', ')}><UserCheckIcon /></i>}
           {photo.strangerCount > 0 && <i title="Contine straini"><UserQuestionIcon /></i>}
           {photo.faceCount > 0 && !photo.allEyesOpen && <i title="Ochi inchisi"><EyeClosedIcon /></i>}
           {photo.groupId && <i title="Serie / duplicat"><LayersIcon /></i>}

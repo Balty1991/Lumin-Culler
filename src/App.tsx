@@ -11,10 +11,11 @@ import { InsightsPanel } from './ui/InsightsPanel';
 import { BatchOpsPanel } from './ui/BatchOpsPanel';
 import { CommandPalette } from './ui/CommandPalette';
 import { ShortcutsPanel } from './ui/ShortcutsPanel';
+import { EmptyFilterState } from './ui/EmptyFilterState';
 import { AnimatedNumber } from './ui/AnimatedNumber';
 import { Tooltip } from './ui/Tooltip';
 import { StarRating } from './ui/StarRating';
-import { MenuIcon, PlusIcon, StarIcon, AlertIcon, XIcon, FocusIcon, UndoIcon, SearchIcon, ApertureIcon, SparkleIcon, CheckIcon } from './ui/icons';
+import { MenuIcon, PlusIcon, UserCheckIcon, AlertIcon, XIcon, FocusIcon, UndoIcon, SearchIcon, ApertureIcon, SparkleIcon, CheckIcon } from './ui/icons';
 
 const NOTICE_AUTODISMISS_MS = 7000;
 
@@ -410,7 +411,7 @@ export default function App() {
           <p>Alege pozele (JPEG/PNG/WebP/RAW — CR2, NEF, ARW, DNG si altele). Analiza ruleaza
           local, pe fire separate — poti incarca si 1000+ fisiere fara ca aplicatia sa se blocheze.</p>
           <button className="btn-accent big" onClick={() => fileRef.current?.click()}>Alege fotografiile</button>
-          <p className="hint"><StarIcon className="inline-icon" /> Optional: inroleaza persoanele importante din
+          <p className="hint"><UserCheckIcon className="inline-icon" /> Optional: inroleaza persoanele importante din
           meniu, ca AI-ul sa le prioritizeze la scorare.</p>
 
           <div className="how-it-works">
@@ -448,7 +449,7 @@ export default function App() {
               ))}
             </div>
           )}
-          {filtered.length === 0 && !progress && <p className="empty-filter">Nicio poza nu corespunde filtrului curent.</p>}
+          {filtered.length === 0 && !progress && <EmptyFilterState />}
           {multiSelectIds.size > 0 ? (
             <div className="bulk-bar glass" role="toolbar" aria-label="Actiuni pentru selectia curenta">
               <span className="bulk-bar-count mono">{multiSelectIds.size} selectate</span>

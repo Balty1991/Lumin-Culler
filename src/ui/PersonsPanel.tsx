@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
-import { StarIcon, TrashIcon, XIcon } from './icons';
+import { UserCheckIcon, TrashIcon, XIcon } from './icons';
 
 /** Inrolare persoane cunoscute (ex. Ami, sotia): nume + 1-4 poze de referinta. */
 export function PersonsPanel() {
@@ -55,7 +55,7 @@ export function PersonsPanel() {
     <div className="detail" onClick={e => { if (e.target === e.currentTarget) setOpen(false); }}>
       <div className="detail-inner narrow" ref={containerRef} role="dialog" aria-modal="true" aria-label="Persoane cunoscute" tabIndex={-1}>
         <header className="detail-head">
-          <span><StarIcon className="inline-icon" /> Persoane cunoscute</span>
+          <span><UserCheckIcon className="inline-icon" /> Persoane cunoscute</span>
           <button className="ghost icon-btn" onClick={() => setOpen(false)} aria-label="Inchide">
             <XIcon />
           </button>
@@ -69,7 +69,7 @@ export function PersonsPanel() {
         <ul className="persons">
           {persons.map(p => (
             <li key={p.id}>
-              <span><StarIcon className="inline-icon" /> {p.name} <em className="mono">({p.embeddings.length} referinte)</em></span>
+              <span><UserCheckIcon className="inline-icon" /> {p.name} <em className="mono">({p.embeddings.length} referinte)</em></span>
               <button className="ghost icon-btn" onClick={() => confirmRemove(p.id, p.name)} aria-label={`Sterge ${p.name}`}>
                 <TrashIcon />
               </button>

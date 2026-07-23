@@ -9,10 +9,10 @@ import { StarRating } from './StarRating';
 import { AnimatedNumber } from './AnimatedNumber';
 import { vibrate } from './haptics';
 import { XIcon, ChevronLeft, ChevronRight, LayersIcon, CheckIcon, EyeClosedIcon, SparkleIcon, ClockIcon, SunIcon } from './icons';
+import { EASE } from './motion';
 
 const SWIPE_COMMIT = 96;       // px de tras pentru a declansa decizia
 const SWIPE_TAP_TOLERANCE = 6; // sub asta e considerat click (zoom), nu swipe
-const EASE = [0.16, 1, 0.3, 1] as const;
 
 type Tab = 'metrics' | 'why' | 'persons' | 'history';
 const TABS: { key: Tab; label: string }[] = [

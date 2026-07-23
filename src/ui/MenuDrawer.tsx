@@ -1,8 +1,7 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useStore } from '../state/store';
-import { StarIcon, SparkleIcon, ListIcon, InfoIcon, XIcon, TagIcon, LayersIcon, KeyboardIcon, SunIcon, MoonIcon, BatteryIcon } from './icons';
-
-const EASE = [0.16, 1, 0.3, 1] as const;
+import { UserCheckIcon, SparkleIcon, ListIcon, InfoIcon, XIcon, TagIcon, LayersIcon, KeyboardIcon, SunIcon, MoonIcon, BatteryIcon } from './icons';
+import { EASE } from './motion';
 
 /** Meniu lateral: persoane, preferinte AI invatate, export lista, despre. */
 export function MenuDrawer() {
@@ -44,7 +43,7 @@ export function MenuDrawer() {
         </header>
 
         <button className="drawer-item" onClick={() => go(() => setPersonsOpen(true))}>
-          <span className="drawer-item-icon"><StarIcon /></span>
+          <span className="drawer-item-icon"><UserCheckIcon /></span>
           <span>Persoane cunoscute</span>
           {persons.length > 0 && <b className="drawer-count mono">{persons.length}</b>}
         </button>
