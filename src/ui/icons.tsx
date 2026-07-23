@@ -36,6 +36,11 @@ export function EyeClosedIcon(p: SVGProps<SVGSVGElement>) {
 export function UserQuestionIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><circle cx="12" cy="8" r="3.4" /><path d="M4.5 20c1.2-4 4.1-6 7.5-6" /><path d="M15.5 15.3c.3-.7 1-1.1 1.9-1.1 1.1 0 1.9.7 1.9 1.7 0 .8-.5 1.2-1.2 1.6-.6.4-1 .7-1 1.4" /><circle cx="17.3" cy="21.2" r="0.15" fill="currentColor" /></svg>;
 }
+/** Silueta unei persoane RECUNOSCUTE (aceeasi forma de baza ca UserQuestionIcon, dar cu bifa
+    in loc de semnul intrebarii) — distinct de StarIcon, rezervat strict pentru rating stele. */
+export function UserCheckIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg {...base} {...p}><circle cx="11" cy="8" r="3.4" /><path d="M3.5 20c1.2-4 3.8-6 7.5-6" /><path d="M15 17.5l2 2 3.5-4" /></svg>;
+}
 export function LayersIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><path d="M12 3l8 4.5-8 4.5-8-4.5z" /><path d="M4 12l8 4.5 8-4.5" /><path d="M4 16.5l8 4.5 8-4.5" /></svg>;
 }

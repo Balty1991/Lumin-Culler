@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { selectBulkRejectTargets, resolveGroups, selectTopPercent } from '../state/batchOps';
 import { useModalFocusTrap } from './useModalFocusTrap';
-import { XIcon, LayersIcon, AlertIcon, SparkleIcon, FilterDotIcon } from './icons';
+import { XIcon, LayersIcon, SparkleIcon, FilterDotIcon } from './icons';
 
 const DEFAULT_THRESHOLD = 35; // acelasi prag ca REJECT_THRESHOLD din importPipeline.ts
 const DEFAULT_CULL_PERCENT = 20;
@@ -119,7 +119,7 @@ export function BatchOpsPanel() {
           </button>
         </div>
 
-        {busy && <p className="hint"><AlertIcon className="inline-icon" /> Se aplică…</p>}
+        {busy && <p className="hint"><SparkleIcon className="inline-icon spin" /> Se aplică…</p>}
       </div>
     </div>
   );

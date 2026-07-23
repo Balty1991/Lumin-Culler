@@ -3,6 +3,7 @@ import { db } from '../core/db';
 import { useStore } from '../state/store';
 import { Tooltip } from './Tooltip';
 import { StarRating } from './StarRating';
+import { EmptyFilterState } from './EmptyFilterState';
 import { ChevronLeft, ChevronRight, XIcon, CheckIcon, InfoIcon, EyeClosedIcon, GridIcon, PlusIcon, MenuIcon, UndoIcon } from './icons';
 
 /**
@@ -128,7 +129,7 @@ export function Workspace() {
     return (
       <div className="workspace">
         <header className="workspace-head">
-          <span className="mono workspace-hint">Nicio poza de afisat in acest filtru.</span>
+          <span className="mono workspace-hint">Ajusteaza filtrul ca sa vezi poze aici.</span>
           {undoCount > 0 && (
             <Tooltip label="Anuleaza ultima decizie" shortcut="Ctrl+Z">
               <button className="ghost icon-btn" onClick={() => void undo()} aria-label={`Anuleaza ultima decizie (${undoCount} disponibile, Ctrl+Z)`}>
@@ -148,7 +149,7 @@ export function Workspace() {
             </button>
           </Tooltip>
         </header>
-        <p className="empty-filter">Nicio poza de afisat in acest filtru.</p>
+        <EmptyFilterState />
         {fileInput}
       </div>
     );

@@ -202,13 +202,16 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
    dintr-un camp separat — coloreaza doar iconita si muchia stanga, mesajul ramane lizibil neutru. ── */
 .toast {
   /* sus, nu jos — jos e ocupat variabil de FAB/bara de actiuni in lot (grila) sau
-     de dock-ul de actiuni al Workspace-ului; sus e liber pe ambele ecrane */
-  position: fixed; left: 50%; top: calc(60px + env(safe-area-inset-top)); z-index: 30;
+     de dock-ul de actiuni al Workspace-ului; sus e liber pe ambele ecrane.
+     z-index cel mai mare din toata aplicatia (peste tooltip 40, peste orice
+     scrim/dialog 20-30) — o notificare (export terminat, cota de stocare,
+     eroare) trebuie sa ramana vizibila indiferent ce panou e deschis deasupra. */
+  position: fixed; left: 50%; top: calc(60px + env(safe-area-inset-top)); z-index: 50;
   transform: translateX(-50%); max-width: min(440px, calc(100vw - 24px));
   display: flex; align-items: flex-start; gap: 10px;
   background: var(--surface-2); border: 1px solid var(--line-strong); border-left: 3px solid var(--text-faint);
   border-radius: var(--radius);
-  padding: 11px 10px 11px 12px; box-shadow: 0 12px 40px -12px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.03);
+  padding: 11px 10px 11px 12px; box-shadow: var(--shadow-lg);
   color: var(--text-dim); font-size: 0.78rem; line-height: 1.4;
   animation: toastIn 0.3s var(--ease) both;
 }
@@ -308,7 +311,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
   display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
 }
 .progress-bar {
-  position: absolute; inset: 0 auto 0 0; transition: width 0.25s;
+  position: absolute; inset: 0 auto 0 0; transition: width var(--duration) var(--ease);
   background: linear-gradient(90deg, rgb(var(--accent-rgb) / 0.55), rgb(var(--accent-2-rgb) / 0.55));
 }
 .progress-bar::after {
@@ -317,6 +320,10 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
   animation: shimmer 1.4s linear infinite;
 }
 @keyframes shimmer { from { transform: translateX(-60px); } to { transform: translateX(220px); } }
+/** Rotatie continua pentru iconite ce marcheaza o operatie in curs (nu o eroare/avertisment —
+    pentru asta ramane AlertIcon) — vezi si exceptia din @media prefers-reduced-motion de mai jos. */
+.spin { animation: spin 0.9s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .progress span { position: relative; color: var(--text); font-weight: 600; }
 .progress-cancel { position: relative; flex-shrink: 0; }
 @media (prefers-reduced-motion: reduce) { .progress-bar, .progress-bar::after { transition: none; animation: none; } }
@@ -428,7 +435,8 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   .card-loading { animation: none; }
   .grid, .notice, .toast, .detail, .detail-inner, .card, .drawer-scrim, .drawer, .live-dot { animation: none !important; }
-  .swipe-surface, .loupe-img { transition: none !important; animation: none !important; }
+  .swipe-surface, .workspace-loupe img { transition: none !important; animation: none !important; }
+  .spin { animation: none !important; }
   .card, .chip, .ghost, .select, .reject, .btn-accent { transition: none; }
   .btn-accent::after, .fab::after { transition: none; display: none; }
 }
@@ -438,7 +446,9 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
   content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; z-index: 2;
   opacity: 0; transition: opacity 0.2s var(--ease);
 }
-.card.st-selected { border-color: rgba(74,222,128,0.55); box-shadow: 0 0 0 1px rgba(74,222,128,0.18); }
+/* selectata: border + bara sus + check-badge (semnal propriu) — border-ul e suficient ca
+   al doilea contur, fara inca un inel de box-shadow suprapus (redundant cu badge-ul) */
+.card.st-selected { border-color: rgba(74,222,128,0.55); }
 .card.st-selected::before { background: linear-gradient(90deg, var(--pick), #86efac); opacity: 1; }
 .card.st-rejected { border-color: var(--line); }
 .card.st-rejected img { opacity: 0.3; filter: grayscale(0.7); }
@@ -550,7 +560,14 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .empty h2 { font-size: 1.9rem; font-weight: 800; letter-spacing: -0.02em; }
 .empty p, .hint { color: var(--text-dim); }
 .hint { font-size: 0.85rem; }
-.empty-filter { text-align: center; color: var(--text-dim); padding: 40px 0; }
+.empty-filter {
+  display: grid; justify-items: center; gap: 12px; text-align: center; color: var(--text-dim);
+  padding: 48px 16px; animation: fadeUp 0.3s var(--ease) both;
+}
+.empty-filter p { margin: 0; }
+.empty-filter-icon {
+  width: 40px; height: 40px; color: var(--text-faint); opacity: 0.8;
+}
 
 /* ── "Cum functioneaza" — strip in 3 pasi, sub CTA-ul de onboarding ── */
 .how-it-works {
@@ -589,9 +606,12 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 .detail-inner {
   width: 100%; max-width: 740px; max-height: 96dvh; overflow-y: auto;
-  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  /* sticla, ca .palette — consecvent cu restul suprafetelor plutitoare, in loc de
+     fundal opac (singurul dialog principal care nu avea deja acest tratament) */
+  background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border); border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); display: grid; gap: 12px;
-  box-shadow: 0 -24px 70px -20px rgba(0,0,0,0.65);
+  box-shadow: var(--shadow-lg);
   animation: sheetIn 0.28s var(--ease) both;
   scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) transparent;
 }
@@ -789,6 +809,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
   padding: 3px; color: var(--line-strong); transition: color var(--micro), transform var(--micro);
 }
 .star-rating-btn:hover { color: var(--review); transform: scale(1.12); }
+.star-rating-btn:active { color: var(--review); transform: scale(0.9); }
 .star-rating-btn[aria-checked="true"] { color: var(--review); }
 .star-rating-md .star-rating-btn svg { width: 22px; height: 22px; }
 .star-rating-sm .star-rating-btn { padding: 1px; }
@@ -813,19 +834,20 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .tooltip-bubble {
   position: absolute; top: calc(100% + 7px); left: 50%; transform: translateX(-50%) translateY(-2px);
   display: flex; align-items: center; gap: 6px; white-space: nowrap; z-index: 40;
-  background: #000; color: #fff; font-size: 0.72rem; font-weight: 600; line-height: 1;
-  padding: 6px 9px; border-radius: 6px; box-shadow: 0 6px 20px -6px rgba(0,0,0,0.5);
+  background: var(--surface-3); color: var(--text); border: 1px solid var(--line-strong);
+  font-size: 0.72rem; font-weight: 600; line-height: 1;
+  padding: 6px 9px; border-radius: 6px; box-shadow: var(--shadow);
   opacity: 0; pointer-events: none; transition: opacity 0.1s ease-in-out, transform 0.1s ease-in-out;
 }
 .tooltip-bubble::before {
   content: ""; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
-  border: 5px solid transparent; border-bottom-color: #000;
+  border: 5px solid transparent; border-bottom-color: var(--surface-3);
 }
 .tooltip-wrap.tooltip-left .tooltip-bubble { left: auto; right: 0; transform: translateY(-2px); }
 .tooltip-wrap.tooltip-left .tooltip-bubble::before { left: auto; right: 12px; transform: none; }
 .tooltip-bubble kbd {
-  font-family: var(--mono); font-size: 0.68rem; background: rgba(255,255,255,0.16);
-  padding: 1px 5px; border-radius: 4px; color: #fff;
+  font-family: var(--mono); font-size: 0.68rem; background: rgb(var(--accent-rgb) / 0.14);
+  padding: 1px 5px; border-radius: 4px; color: var(--text);
 }
 .tooltip-wrap:hover .tooltip-bubble,
 .tooltip-wrap:focus-within .tooltip-bubble {
@@ -921,10 +943,10 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
   display: flex; justify-content: flex-end;
 }
 .drawer {
-  width: min(330px, 86vw); height: 100%; background: var(--surface);
-  border-left: 1px solid var(--line); padding: 16px 14px calc(16px + env(safe-area-inset-bottom));
+  width: min(330px, 86vw); height: 100%; background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur));
+  border-left: 1px solid var(--glass-border); padding: 16px 14px calc(16px + env(safe-area-inset-bottom));
   display: flex; flex-direction: column; gap: 3px; overflow-y: auto;
-  box-shadow: -28px 0 70px -20px rgba(0,0,0,0.6);
+  box-shadow: var(--shadow-lg);
   scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 .drawer::-webkit-scrollbar { width: 6px; }
@@ -1167,4 +1189,15 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
   .workspace-dock { margin: 0 8px calc(8px + env(safe-area-inset-bottom)); }
   .workspace-thumb { width: 80px; height: 80px; }
   .workspace-filmstrip { height: 100px; }
+
+  /* filtrele avansate (cautare + rating minim + interval de data) ajungeau la
+     3-4 randuri de pastile pe un ecran de 375-430px, cu inputul de cautare la
+     latime FIXA de 160px — acum cautarea ocupa un rand intreg (lizibila, usor
+     de atins), iar restul pastilelor se strang mai compact in loc sa pastreze
+     latimea lor "naturala" de desktop. */
+  .filters-advanced { gap: 6px; }
+  .search-field { flex: 1 1 100%; }
+  .search-field input { width: 100%; }
+  .date-field { flex: 1 1 auto; padding: 6px 10px; font-size: 0.78rem; }
+  .chip.rating-filter { flex: 1 1 auto; padding: 7px 10px; }
 }
