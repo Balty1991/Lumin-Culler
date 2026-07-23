@@ -34,6 +34,7 @@
   --accent-2: #8b5cf6;
   --accent-gradient: linear-gradient(135deg, var(--accent), var(--accent-2));
   --accent-rgb: 34 211 238;
+  --accent-2-rgb: 139 92 246;
 
   --pick: #4ade80;
   --pick-deep: #07230f;
@@ -136,11 +137,8 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
   background: linear-gradient(var(--bg) 78%, transparent);
   backdrop-filter: blur(10px);
 }
-.brand h1 {
-  font-size: 1.6rem; font-weight: 800; letter-spacing: 0.1em; line-height: 1;
-  background: var(--accent-gradient); -webkit-background-clip: text; background-clip: text; color: transparent;
-}
-.brand h1 span { font-weight: 300; color: var(--text-dim); -webkit-text-fill-color: var(--text-dim); }
+.brand h1 { font-size: 1.6rem; font-weight: 800; letter-spacing: 0.1em; line-height: 1; color: var(--text); }
+.brand h1 span { font-weight: 300; color: var(--accent); }
 .brand p {
   color: var(--text-faint); margin-top: 5px; font-size: 0.72rem;
   display: flex; align-items: center; gap: 6px;
@@ -235,7 +233,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 }
 .progress-bar {
   position: absolute; inset: 0 auto 0 0; transition: width 0.25s;
-  background: var(--surface-3);
+  background: linear-gradient(90deg, rgb(var(--accent-rgb) / 0.55), rgb(var(--accent-2-rgb) / 0.55));
 }
 .progress-bar::after {
   content: ""; position: absolute; inset: 0; width: 60px;
