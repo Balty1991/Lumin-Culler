@@ -10,6 +10,7 @@ import { exportOriginalFiles } from '../core/exportPhotos';
 import { exportXMPSidecars } from '../core/export/xmpGenerator';
 import { analysisPool } from '../core/workerPool';
 import { contextEngine, deriveContextKey } from '../core/learning/ContextEngine';
+import { pushHistory, popHistory, MAX_HISTORY, type HistoryEvent } from './history';
 
 export interface PhotoView {
   id: string;
@@ -29,6 +30,10 @@ export interface PhotoView {
   headroom: number;
   groupEyesOpenRatio?: number;
   groupSmileRatio?: number;
+  iso?: number;
+  fNumber?: number;
+  exposureTime?: number;
+  focalLength?: number;
   aiFactors: { feature: string; contribution: number }[];
   personNames: string[];
   groupId?: string;
@@ -52,10 +57,17 @@ interface AppState {
   /** false daca dispozitivul nu a putut incarca WebGL/WASM — analiza continua dar fara fete reale. */
   aiDegraded: boolean;
   aiBackend: string;
+  /**
+   * Ultimele decizii manuale (Selecteaza/Respinge), pentru undo — NU include
+   * actiunile de grup (keepOnlyInGroup), scop deliberat restrans la interactia
+   * cea mai frecventa/predispusa la greseli (un swipe/tap accidental).
+   */
+  history: HistoryEvent[];
 
   boot: () => Promise<void>;
   runImport: (files: File[]) => Promise<void>;
   setStatus: (id: string, status: PhotoRecord['status']) => Promise<void>;
+  undo: () => Promise<void>;
   keepOnlyInGroup: (groupId: string, keepId: string) => Promise<void>;
   setFilter: (f: FilterKey) => void;
   openDetail: (id: string | null) => void;
@@ -97,6 +109,10 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     headroom: analysis?.headroom ?? 0.5,
     groupEyesOpenRatio: analysis?.groupEyesOpenRatio,
     groupSmileRatio: analysis?.groupSmileRatio,
+    iso: analysis?.iso,
+    fNumber: analysis?.fNumber,
+    exposureTime: analysis?.exposureTime,
+    focalLength: analysis?.focalLength,
     aiFactors: analysis?.aiFactors ?? [],
     personNames: analysis
       ? Array.from(new Set(analysis.faces.map(f => f.personName).filter((n): n is string => !!n)))
@@ -140,6 +156,13 @@ async function syncOriginal(id: string, status: PhotoRecord['status']): Promise<
 const QUOTA_NOTICE = 'Spatiu de stocare plin — fotografia a fost marcata, dar originalul nu a putut fi ' +
   'salvat pentru export. Elibereaza spatiu (Goleste sesiunea sau exporta ce ai deja) si reincearca.';
 
+const STATUS_LABELS: Record<PhotoRecord['status'], string> = {
+  pending: 'în așteptare',
+  selected: 'selectată',
+  rejected: 'respinsă',
+  review: 'de verificat'
+};
+
 export const useStore = create<AppState>((set, get) => ({
   photos: [],
   persons: [],
@@ -155,19 +178,21 @@ export const useStore = create<AppState>((set, get) => ({
   aiDegraded: false,
   aiBackend: '',
   notice: null,
+  history: [],
 
   boot: async () => {
     if (get().booted) return;
-    const [photos, analyses, persons] = await Promise.all([
+    const [photos, analyses, persons, history] = await Promise.all([
       db.photos.toArray(),
       db.analyses.toArray(),
-      db.persons.toArray()
+      db.persons.toArray(),
+      db.history.orderBy('ts').toArray()
     ]);
     const byId = new Map(analyses.map(a => [a.photoId, a]));
     const views = photos
       .map(p => toView(p, byId.get(p.id)))
       .sort((a, b) => (a.capturedAt ?? 0) - (b.capturedAt ?? 0));
-    set({ photos: views, persons, booted: true });
+    set({ photos: views, persons, history, booted: true });
   },
 
   runImport: async (files: File[]) => {
@@ -205,11 +230,46 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   setStatus: async (id, status) => {
+    const previousStatus = get().photos.find(p => p.id === id)?.status;
     await db.photos.update(id, { status });
     set(state => ({ photos: state.photos.map(p => (p.id === id ? { ...p, status } : p)) }));
     const { quotaError } = await syncOriginal(id, status);
     if (quotaError) set({ notice: QUOTA_NOTICE });
     if (status === 'selected' || status === 'rejected') await train(id, status === 'selected');
+    if (previousStatus && previousStatus !== status) {
+      const event: HistoryEvent = { photoId: id, previousStatus, newStatus: status, ts: Date.now() };
+      set(state => ({ history: pushHistory(state.history, event) }));
+      await db.history.add(event);
+      // pastram doar ultimele MAX_HISTORY si in DB, ca sa nu creasca la nesfarsit
+      const all = await db.history.orderBy('ts').toArray();
+      if (all.length > MAX_HISTORY) {
+        await db.history.bulkDelete(all.slice(0, all.length - MAX_HISTORY).map(r => r.id!));
+      }
+    }
+  },
+
+  /**
+   * Anuleaza ultima decizie manuala (pana la MAX_HISTORY in urma). Reverta
+   * DOAR statusul pozei (si sincronizarea originalului pentru export) — NU
+   * incearca sa "de-antreneze" ContextEngine, care a invatat deja din acea
+   * decizie: a inversa curat un pas de gradient online nu e o operatie
+   * sigura, iar impactul unui singur pas e oricum mic (regularizare L2 +
+   * normalizare Welford). Undo aici inseamna "arata-mi poza ca inainte",
+   * nu "sterge ce a invatat modelul".
+   */
+  undo: async () => {
+    const { event, rest } = popHistory(get().history);
+    if (!event) { set({ notice: 'Nimic de anulat.' }); return; }
+    set({ history: rest });
+    await db.photos.update(event.photoId, { status: event.previousStatus });
+    set(state => ({
+      photos: state.photos.map(p => (p.id === event.photoId ? { ...p, status: event.previousStatus } : p))
+    }));
+    await syncOriginal(event.photoId, event.previousStatus);
+    const lastPersisted = await db.history.orderBy('ts').last();
+    if (lastPersisted?.id !== undefined) await db.history.delete(lastPersisted.id);
+    const fileName = get().photos.find(p => p.id === event.photoId)?.fileName ?? event.photoId;
+    set({ notice: `Anulat: "${fileName}" înapoi la ${STATUS_LABELS[event.previousStatus]}.` });
   },
 
   /** Fluxul principal de serie: pastreaza o singura poza, respinge restul grupului. */
@@ -283,10 +343,11 @@ export const useStore = create<AppState>((set, get) => ({
 
   clearAll: async () => {
     await Promise.all([
-      db.photos.clear(), db.thumbnails.clear(), db.previews.clear(), db.originals.clear(), db.analyses.clear()
+      db.photos.clear(), db.thumbnails.clear(), db.previews.clear(), db.originals.clear(),
+      db.analyses.clear(), db.history.clear()
     ]);
     originalFiles.clear();
-    set({ photos: [], detailId: null, compareGroupId: null });
+    set({ photos: [], detailId: null, compareGroupId: null, history: [] });
   },
 
   /** Exporta pozele selectate ca fisiere reale, in formatul original (JPEG/PNG/etc), grupate pe subfoldere. */

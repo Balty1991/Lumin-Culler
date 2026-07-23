@@ -10,6 +10,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
@@ -58,14 +60,18 @@
   "devDependencies": {
     "@capacitor/cli": "^8.4.2",
     "@tauri-apps/cli": "^2.11.4",
+    "@testing-library/jest-dom": "^7.0.0",
+    "@testing-library/react": "^16.3.2",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
     "concurrently": "^10.0.3",
     "electron": "^43.2.0",
     "electron-builder": "^26.15.3",
+    "jsdom": "^29.1.1",
     "typescript": "^5.5.4",
     "vite": "^5.4.0",
+    "vitest": "^4.1.10",
     "wait-on": "^9.1.0"
   }
 }

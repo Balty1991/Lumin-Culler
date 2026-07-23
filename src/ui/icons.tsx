@@ -57,3 +57,6 @@ export function TagIcon(p: SVGProps<SVGSVGElement>) {
 export function FocusIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><path d="M4 9V6a2 2 0 012-2h3" /><path d="M20 9V6a2 2 0 00-2-2h-3" /><path d="M4 15v3a2 2 0 002 2h3" /><path d="M20 15v3a2 2 0 01-2 2h-3" /><circle cx="12" cy="12" r="3" /></svg>;
 }
+export function UndoIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg {...base} {...p}><path d="M7 8L3.5 11.5 7 15" /><path d="M3.5 11.5H14a5.5 5.5 0 010 11H9" /></svg>;
+}

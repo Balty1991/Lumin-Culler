@@ -114,6 +114,15 @@ export interface AnalysisRecord {
    * margini clare, ex. cer uniform).
    */
   horizonTiltDeg?: number;
+  /**
+   * Metadate EXIF reale, citite direct din octetii fisierului original
+   * (core/exifParser.ts) — createImageBitmap/canvas NU expun deloc EXIF.
+   * Optionale: poze fara EXIF (PNG/WebP, sau JPEG cu metadate sterse).
+   */
+  iso?: number;
+  fNumber?: number;        // f/X (diafragma)
+  exposureTime?: number;   // secunde (1/250 -> 0.004)
+  focalLength?: number;    // mm
 }
 
 export interface KnownPerson {
@@ -142,6 +151,22 @@ export interface CorrectionRecord {
   ts: number;
 }
 
+/**
+ * Istoric de decizii MANUALE (Selecteaza/Respinge), pentru undo — separat de
+ * CorrectionRecord (care alimenteaza ContextEngine si NU e revertit la undo:
+ * a "de-antrena" corect un pas de gradient online nu e o operatie sigura/
+ * curata, iar impactul unui singur pas e oricum mic; undo aici inseamna doar
+ * "arata-mi din nou ce am vazut inainte de decizie", nu "sterge ce a invatat
+ * modelul din ea").
+ */
+export interface HistoryRecord {
+  id?: number;
+  photoId: string;
+  previousStatus: PhotoRecord['status'];
+  newStatus: PhotoRecord['status'];
+  ts: number;
+}
+
 // ── Database ─────────────────────────────────────────────────────────────────
 
 export class LuminDB extends Dexie {
@@ -153,6 +178,7 @@ export class LuminDB extends Dexie {
   persons!: Table<KnownPerson, string>;
   contextModels!: Table<ContextModelRecord, string>;
   corrections!: Table<CorrectionRecord, number>;
+  history!: Table<HistoryRecord, number>;
 
   constructor() {
     super('lumin-culler-v2');
@@ -186,6 +212,19 @@ export class LuminDB extends Dexie {
       persons: 'id, name',
       contextModels: 'contextKey',
       corrections: '++id, contextKey, ts'
+    });
+    // v4: istoric de decizii pentru undo ("Anuleaza ultimele 10 decizii") —
+    // tabela noua, nu doar campuri adaugate, deci necesita bump de versiune.
+    this.version(4).stores({
+      photos: 'id, capturedAt, status, dHash, groupId',
+      thumbnails: 'photoId',
+      previews: 'photoId',
+      originals: 'photoId',
+      analyses: 'photoId, sceneType, aiScore',
+      persons: 'id, name',
+      contextModels: 'contextKey',
+      corrections: '++id, contextKey, ts',
+      history: '++id, ts'
     });
   }
 }

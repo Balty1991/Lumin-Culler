@@ -446,12 +446,18 @@ button:focus-visible, input:focus-visible {
 .factor-tag.pos { color: var(--pick); background: rgba(74,222,128,0.12); border-color: rgba(74,222,128,0.3); }
 .factor-tag.neg { color: var(--reject); background: rgba(251,113,133,0.12); border-color: rgba(251,113,133,0.3); }
 
-.detail-persons { display: flex; align-items: center; gap: 6px; color: var(--text-dim); font-size: 0.74rem; }
+.detail-persons { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; color: var(--text-dim); font-size: 0.74rem; }
+.detail-exif, .detail-exif-sep { color: var(--text-faint); font-size: 0.7rem; }
 .ghost.slim { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 6px 12px; font-size: 0.8rem; }
 
 /* ── Butoane doar-iconita + iconite inline in text ── */
-.icon-btn { width: 38px; height: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+.icon-btn { width: 38px; height: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; position: relative; }
 .icon-btn svg { width: 18px; height: 18px; }
+.undo-count {
+  position: absolute; top: -4px; right: -4px; min-width: 15px; height: 15px; padding: 0 3px;
+  border-radius: 999px; background: var(--accent); color: var(--bg);
+  font-size: 0.62rem; line-height: 15px; text-align: center; font-weight: 700;
+}
 .inline-icon { width: 14px; height: 14px; vertical-align: -2px; margin-right: 3px; flex-shrink: 0; }
 
 .detail-actions { display: grid; grid-template-columns: auto 1fr 1fr auto; gap: 8px; }

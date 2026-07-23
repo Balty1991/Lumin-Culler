@@ -70,7 +70,16 @@ const PRIOR_WEIGHTS: FeatureVector = {
   avgEngagement: 0.3,
   highlightClipping: -0.4,
   shadowClipping: -0.3,
-  horizonLevel: 0.25
+  horizonLevel: 0.25,
+  // EXIF: doar ISO are o directie universala rezonabila (zgomot ↑ = calitate
+  // tehnica ↓, in medie) — modesta, fotografii chiar aleg ISO ridicat cu buna
+  // stiinta (astro, concerte). Diafragma/viteza/focala NU au o directie
+  // universala (context-dependente: portret vrea diafragma deschisa, peisaj
+  // vrea inchisa) — pornesc la 0, invatate DOAR din corectii reale, per context.
+  isoPenalty: -0.15,
+  apertureRaw: 0,
+  shutterSpeedRaw: 0,
+  focalLengthRaw: 0
 };
 
 /**
@@ -97,7 +106,11 @@ export const FACTOR_LABELS: Record<string, string> = {
   avgEngagement: 'Expresie',
   highlightClipping: 'Highlights arse',
   shadowClipping: 'Umbre blocate',
-  horizonLevel: 'Orizont drept'
+  horizonLevel: 'Orizont drept',
+  isoPenalty: 'ISO / zgomot',
+  apertureRaw: 'Diafragmă',
+  shutterSpeedRaw: 'Viteză obturator',
+  focalLengthRaw: 'Distanță focală'
 };
 
 /** Transforma topFactors dintr-o Prediction in etichete afisabile, filtrand contributiile neglijabile. */
@@ -139,7 +152,18 @@ export function extractFeatures(a: AnalysisRecord): FeatureVector {
     shadowClipping: a.shadowClipping ?? 0,
     // orizont: convertit din grade in scor 0..1 (1 = perfect drept); 0.5 neutru
     // cand nu s-a putut estima (poze cu fete, sau prea putine muchii clare)
-    horizonLevel: a.horizonTiltDeg !== undefined ? Math.max(0, 1 - Math.abs(a.horizonTiltDeg) / 15) : 0.5
+    horizonLevel: a.horizonTiltDeg !== undefined ? Math.max(0, 1 - Math.abs(a.horizonTiltDeg) / 15) : 0.5,
+    // EXIF — scale logaritmice (in "stops", cum gandesc fotografii), 0 cand
+    // lipseste (coincide cu "ISO de baza", nu introduce penalizare falsa)
+    isoPenalty: a.iso !== undefined ? Math.min(1, Math.max(0, Math.log2(Math.max(a.iso, 50) / 100) / 6)) : 0,
+    // diafragma/viteza/focala: 0.5 (neutru) cand lipsesc — ponderea de start
+    // e oricum 0, dar 0.5 e mai corect semantic decat 0 daca modelul invata
+    // vreodata o pondere ne-zero (0 ar insemna "extrem", nu "necunoscut")
+    apertureRaw: a.fNumber !== undefined ? Math.min(1, Math.max(0, (a.fNumber - 1) / 21)) : 0.5,
+    shutterSpeedRaw: a.exposureTime && a.exposureTime > 0
+      ? Math.min(1, Math.max(0, Math.log2(Math.max(1 / a.exposureTime, 1)) / 13))
+      : 0.5,
+    focalLengthRaw: a.focalLength !== undefined ? Math.min(1, Math.max(0, Math.log2(Math.max(a.focalLength, 10) / 10) / 8)) : 0.5
   };
 }
 
@@ -269,7 +293,11 @@ export class ContextEngine {
       avgEngagement: ['preferă expresii vii, pozitive', 'acceptă expresii neutre/serioase'],
       highlightClipping: ['evită highlights arse', 'tolerează zone supraexpuse'],
       shadowClipping: ['evită umbre blocate', 'tolerează zone subexpuse'],
-      horizonLevel: ['preferă orizont perfect drept', 'tolerează orizont ușor înclinat']
+      horizonLevel: ['preferă orizont perfect drept', 'tolerează orizont ușor înclinat'],
+      isoPenalty: ['preferă ISO scăzut/curat', 'tolerează ISO ridicat/zgomot'],
+      apertureRaw: ['preferă diafragmă închisă (totul clar)', 'preferă diafragmă deschisă (fundal difuz)'],
+      shutterSpeedRaw: ['preferă viteze lente (blur de mișcare)', 'preferă viteze rapide (îngheață mișcarea)'],
+      focalLengthRaw: ['preferă cadre wide (peisaj/context)', 'preferă cadre tele (portret/apropiere)']
     };
     return Array.from(this.models.values())
       .map(model => ({

@@ -18,6 +18,21 @@ function StatTile({ label, value, warn }: { label: string; value: ReactNode; war
   );
 }
 
+function formatShutter(seconds: number): string {
+  if (seconds >= 1) return `${seconds.toFixed(seconds >= 10 ? 0 : 1)}s`;
+  return `1/${Math.round(1 / seconds)}s`;
+}
+
+/** Linie compacta EXIF (ISO · diafragma · viteza · focala) — string gol daca nu exista deloc metadate. */
+function formatExif(photo: { iso?: number; fNumber?: number; exposureTime?: number; focalLength?: number }): string {
+  const parts: string[] = [];
+  if (photo.iso !== undefined) parts.push(`ISO ${Math.round(photo.iso)}`);
+  if (photo.fNumber !== undefined) parts.push(`f/${photo.fNumber.toFixed(photo.fNumber < 10 ? 1 : 0)}`);
+  if (photo.exposureTime !== undefined && photo.exposureTime > 0) parts.push(formatShutter(photo.exposureTime));
+  if (photo.focalLength !== undefined) parts.push(`${Math.round(photo.focalLength)}mm`);
+  return parts.join(' · ');
+}
+
 function ScoreRing({ score }: { score: number }) {
   const color = score >= 65 ? 'var(--pick)' : score <= 35 ? 'var(--reject)' : 'var(--review)';
   const deg = Math.max(0, Math.min(360, Math.round((score / 100) * 360)));
@@ -204,8 +219,15 @@ export function DetailView() {
             </div>
           )}
 
-          {photo.personNames.length > 0 && (
-            <p className="detail-persons mono"><StarIcon className="inline-icon" /> {photo.personNames.join(', ')}</p>
+          {(photo.personNames.length > 0 || formatExif(photo)) && (
+            // combinate pe un singur rand cand ambele exista — economiseste un
+            // gap+linie intreg fata de doua paragrafe separate, esential pentru
+            // a incapea totul fara scroll in cazul cel mai incarcat
+            <p className="detail-persons mono">
+              {photo.personNames.length > 0 && <><StarIcon className="inline-icon" /> {photo.personNames.join(', ')}</>}
+              {photo.personNames.length > 0 && formatExif(photo) && <span className="detail-exif-sep"> · </span>}
+              {formatExif(photo) && <span className="detail-exif">{formatExif(photo)}</span>}
+            </p>
           )}
 
           {photo.groupId && (

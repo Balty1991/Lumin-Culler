@@ -8,6 +8,7 @@ import { db, type AnalysisRecord, type PhotoRecord } from './db';
 import { analysisPool, withTimeout } from './workerPool';
 import { contextEngine, type Prediction } from './learning/ContextEngine';
 import { groupPhotosByHash } from './hashComparePool';
+import { parseExif } from './exifParser';
 
 export interface ImportProgress {
   done: number;
@@ -28,6 +29,10 @@ const PREVIEW_MAX_SIDE = 2048;
 const THUMB_SIZE = 512;
 const SELECT_THRESHOLD = 65;
 const REJECT_THRESHOLD = 35;
+/** EXIF sta mereu aproape de inceputul fisierului (segment APP1, imediat dupa
+    SOI) — citim doar un prefix, nu tot fisierul, ca sa nu incarcam inutil in
+    memorie poze mari doar pentru cativa octeti de metadate. */
+const EXIF_SNIFF_BYTES = 131072;
 
 /**
  * Fisierele originale raman disponibile doar in memorie, pentru sesiunea
@@ -148,6 +153,20 @@ async function processOne(file: File): Promise<ImportedPhoto> {
   const [previewBlob, thumbBlob] = await Promise.all([preview, thumb]);
 
   const analysis = await analysisPromise;
+
+  // EXIF (ISO/diafragma/timp expunere/focala) — optional, poze fara EXIF
+  // (PNG/WebP sau JPEG cu metadate sterse) nu primesc aceste campuri deloc
+  try {
+    const exifBuf = await file.slice(0, EXIF_SNIFF_BYTES).arrayBuffer();
+    const exif = parseExif(exifBuf);
+    if (exif.iso !== undefined) analysis.iso = exif.iso;
+    if (exif.fNumber !== undefined) analysis.fNumber = exif.fNumber;
+    if (exif.exposureTime !== undefined) analysis.exposureTime = exif.exposureTime;
+    if (exif.focalLength !== undefined) analysis.focalLength = exif.focalLength;
+  } catch (err) {
+    console.error('Citire EXIF esuata pentru ' + file.name + ':', err);
+  }
+
   const prediction = await contextEngine.predict(analysis);
   analysis.aiScore = prediction.score;
   analysis.aiFactors = prediction.topFactors;

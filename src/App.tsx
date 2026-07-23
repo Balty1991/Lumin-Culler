@@ -9,7 +9,7 @@ import { PersonsPanel } from './ui/PersonsPanel';
 import { MenuDrawer } from './ui/MenuDrawer';
 import { InsightsPanel } from './ui/InsightsPanel';
 import { AnimatedNumber } from './ui/AnimatedNumber';
-import { MenuIcon, PlusIcon, StarIcon, AlertIcon, XIcon, FocusIcon } from './ui/icons';
+import { MenuIcon, PlusIcon, StarIcon, AlertIcon, XIcon, FocusIcon, UndoIcon } from './ui/icons';
 
 const NOTICE_AUTODISMISS_MS = 7000;
 /**
@@ -39,6 +39,8 @@ export default function App() {
   const filtered = useStore(s => s.filtered());
   const workspaceMode = useStore(s => s.workspaceMode);
   const setWorkspaceMode = useStore(s => s.setWorkspaceMode);
+  const history = useStore(s => s.history);
+  const undo = useStore(s => s.undo);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { void boot(); }, [boot]);
@@ -48,6 +50,20 @@ export default function App() {
     const t = setTimeout(() => clearNotice(), NOTICE_AUTODISMISS_MS);
     return () => clearTimeout(t);
   }, [notice, clearNotice]);
+
+  // Ctrl/Cmd+Z global — functioneaza indiferent de ecran (grid, Workspace,
+  // DetailView), fara sa intre in conflict cu shortcut-urile lor (Sageti/P/X/Z
+  // fara modificator, deja folosite acolo pentru navigare/zoom).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault();
+        void undo();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [undo]);
 
   const counts = useMemo(() => ({
     all: photos.length,
@@ -102,6 +118,12 @@ export default function App() {
           <p className="mono"><i className="live-dot" aria-hidden="true" /> AI local · pozele raman pe dispozitiv</p>
         </div>
         <div className="top-actions">
+          {history.length > 0 && (
+            <button className="ghost icon-btn" onClick={() => void undo()} aria-label={`Anuleaza ultima decizie (${history.length} disponibile, Ctrl+Z)`} title="Anuleaza (Ctrl+Z)">
+              <UndoIcon />
+              <span className="undo-count mono">{history.length}</span>
+            </button>
+          )}
           {photos.length > 0 && (
             <button className="ghost icon-btn" onClick={() => setWorkspaceMode(true)} aria-label="Spatiu de lucru (lupa + filmstrip)" title="Spatiu de lucru">
               <FocusIcon />
