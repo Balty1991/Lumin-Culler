@@ -189,7 +189,10 @@ export const useStore = create<AppState>((set, get) => ({
   personsOpen: false,
   menuOpen: false,
   insightsOpen: false,
-  workspaceMode: false,
+  // implicit Workspace (lupa + filmstrip) e ecranul principal la pornire —
+  // grila ramane accesibila (buton dedicat), dar nu mai e ce vede utilizatorul
+  // intai; ramane fals doar daca utilizatorul comuta explicit inapoi la grila.
+  workspaceMode: true,
   batchOpsOpen: false,
   paletteOpen: false,
   shortcutsOpen: false,

@@ -32,6 +32,7 @@ export function CommandPalette() {
   const history = useStore(s => s.history);
   const filter = useStore(s => s.filter);
   const setFilter = useStore(s => s.setFilter);
+  const workspaceMode = useStore(s => s.workspaceMode);
   const setWorkspaceMode = useStore(s => s.setWorkspaceMode);
   const setPersonsOpen = useStore(s => s.setPersonsOpen);
   const setInsightsOpen = useStore(s => s.setInsightsOpen);
@@ -103,7 +104,8 @@ export function CommandPalette() {
   };
 
   const commands: Command[] = useMemo(() => [
-    { id: 'workspace', label: 'Deschide spațiul de lucru', hint: 'lupă + filmstrip', run: () => setWorkspaceMode(true), disabled: !photos.length },
+    { id: 'workspace', label: 'Deschide spațiul de lucru', hint: 'lupă + filmstrip', run: () => setWorkspaceMode(true), disabled: !photos.length || workspaceMode },
+    { id: 'grid', label: 'Vezi grila de poze', run: () => setWorkspaceMode(false), disabled: !photos.length || !workspaceMode },
     { id: 'undo', label: 'Anulează ultima decizie', hint: 'Ctrl+Z', run: () => void undo(), disabled: !history.length },
     { id: 'batch', label: 'Operații în masă', hint: 'respinge sub prag / rezolvă serii', run: () => setBatchOpsOpen(true), disabled: !photos.length },
     { id: 'persons', label: 'Persoane cunoscute', run: () => setPersonsOpen(true) },
@@ -121,7 +123,7 @@ export function CommandPalette() {
       disabled: key === filter
     })),
     { id: 'clear-all', label: 'Golește sesiunea', hint: 'ireversibil', run: confirmClearAll, disabled: !photos.length }
-  ], [photos.length, history.length, counts, filter, theme]);
+  ], [photos.length, history.length, counts, filter, theme, workspaceMode]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();

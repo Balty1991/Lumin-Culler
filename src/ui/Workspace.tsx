@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { db } from '../core/db';
 import { useStore } from '../state/store';
 import { Tooltip } from './Tooltip';
-import { ChevronLeft, ChevronRight, XIcon, CheckIcon, InfoIcon, EyeClosedIcon } from './icons';
+import { ChevronLeft, ChevronRight, XIcon, CheckIcon, InfoIcon, EyeClosedIcon, GridIcon, PlusIcon, MenuIcon, UndoIcon } from './icons';
 
 /**
  * Spatiu de lucru profesional: lupa (imagine mare, centrata) + filmstrip
@@ -16,13 +16,19 @@ export function Workspace() {
   const detailId = useStore(s => s.detailId);
   const photos = useStore(s => s.photos);
   const filtered = useStore(s => s.filtered());
+  const progress = useStore(s => s.progress);
+  const history = useStore(s => s.history);
+  const undo = useStore(s => s.undo);
   const openDetail = useStore(s => s.openDetail);
   const stepDetail = useStore(s => s.stepDetail);
   const setStatus = useStore(s => s.setStatus);
   const setWorkspaceMode = useStore(s => s.setWorkspaceMode);
+  const setMenuOpen = useStore(s => s.setMenuOpen);
+  const runImport = useStore(s => s.runImport);
   const [src, setSrc] = useState<string | null>(null);
   const [showMetrics, setShowMetrics] = useState(false);
   const filmstripRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   // citit din listener-ul de tastatura (inregistrat o singura data, vezi mai
   // jos) — un ref, nu o dependenta de effect, ca sa nu reinregistram
   // listener-ul la fiecare navigare (detailId se schimba constant)
@@ -91,10 +97,49 @@ export function Workspace() {
     return () => window.removeEventListener('keydown', onKey);
   }, [stepDetail, setStatus, setWorkspaceMode]);
 
+  const onFiles = (list: FileList | null) => {
+    if (!list || !list.length) return;
+    void runImport(Array.from(list));
+    if (fileRef.current) fileRef.current.value = '';
+  };
+
+  const fileInput = (
+    <input
+      ref={fileRef}
+      type="file"
+      accept="image/jpeg,image/png,image/webp,image/avif,.cr2,.cr3,.nef,.nrw,.arw,.srf,.sr2,.dng,.raf,.orf,.rw2,.pef,.ptx,.srw,.3fr,.erf,.kdc,.dcr,.mrw,.raw,.rwl,.iiq,.x3f"
+      multiple
+      hidden
+      onChange={e => onFiles(e.target.files)}
+    />
+  );
+
   if (!photo) {
     return (
       <div className="workspace">
+        <header className="workspace-head">
+          <span className="mono workspace-hint">Nicio poza de afisat in acest filtru.</span>
+          {history.length > 0 && (
+            <Tooltip label="Anuleaza ultima decizie" shortcut="Ctrl+Z">
+              <button className="ghost icon-btn" onClick={() => void undo()} aria-label={`Anuleaza ultima decizie (${history.length} disponibile, Ctrl+Z)`}>
+                <UndoIcon />
+                <span className="undo-count mono">{history.length}</span>
+              </button>
+            </Tooltip>
+          )}
+          <Tooltip label="Vezi grila" side="left">
+            <button className="ghost icon-btn" onClick={() => setWorkspaceMode(false)} aria-label="Vezi grila de poze">
+              <GridIcon />
+            </button>
+          </Tooltip>
+          <Tooltip label="Meniu" side="left">
+            <button className="ghost icon-btn" onClick={() => setMenuOpen(true)} aria-label="Meniu">
+              <MenuIcon />
+            </button>
+          </Tooltip>
+        </header>
         <p className="empty-filter">Nicio poza de afisat in acest filtru.</p>
+        {fileInput}
       </div>
     );
   }
@@ -103,7 +148,24 @@ export function Workspace() {
     <div className="workspace">
       <header className="workspace-head">
         <span className="mono">{photo.fileName}</span>
-        <span className="mono workspace-hint">← → navigheaza · P selecteaza · X respinge · I statistici · Esc iesire</span>
+        <span className="mono workspace-hint">
+          {progress
+            ? (progress.phase === 'analiza' ? `Analiza AI ${progress.done}/${progress.total}…` : 'Se proceseaza…')
+            : '← → navigheaza · P selecteaza · X respinge · I statistici · Esc iesire'}
+        </span>
+        {history.length > 0 && (
+          <Tooltip label="Anuleaza ultima decizie" shortcut="Ctrl+Z">
+            <button className="ghost icon-btn" onClick={() => void undo()} aria-label={`Anuleaza ultima decizie (${history.length} disponibile, Ctrl+Z)`}>
+              <UndoIcon />
+              <span className="undo-count mono">{history.length}</span>
+            </button>
+          </Tooltip>
+        )}
+        <Tooltip label="Adauga poze">
+          <button className="ghost icon-btn" onClick={() => fileRef.current?.click()} aria-label="Adauga poze">
+            <PlusIcon />
+          </button>
+        </Tooltip>
         <Tooltip label="Statistici pe imagine" shortcut="I">
           <button
             className={showMetrics ? 'ghost icon-btn active' : 'ghost icon-btn'}
@@ -114,9 +176,14 @@ export function Workspace() {
             <InfoIcon />
           </button>
         </Tooltip>
-        <Tooltip label="Inchide" shortcut="Esc" side="left">
-          <button className="ghost icon-btn" onClick={() => setWorkspaceMode(false)} aria-label="Inchide spatiul de lucru">
-            <XIcon />
+        <Tooltip label="Vezi grila" side="left">
+          <button className="ghost icon-btn" onClick={() => setWorkspaceMode(false)} aria-label="Vezi grila de poze">
+            <GridIcon />
+          </button>
+        </Tooltip>
+        <Tooltip label="Meniu" side="left">
+          <button className="ghost icon-btn" onClick={() => setMenuOpen(true)} aria-label="Meniu">
+            <MenuIcon />
           </button>
         </Tooltip>
       </header>
@@ -172,6 +239,7 @@ export function Workspace() {
           </button>
         ))}
       </div>
+      {fileInput}
     </div>
   );
 }

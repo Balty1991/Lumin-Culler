@@ -50,6 +50,14 @@ export default function App() {
 
   useEffect(() => { void boot(); }, [boot]);
 
+  // semnal de import activ, disponibil INDIFERENT de ecranul curent (Workspace
+  // sau grila) — util pentru teste/automatizari care altfel n-ar avea un
+  // singur loc unic sa verifice "importul s-a terminat", de vreme ce bara de
+  // progres detaliata traieste doar in ramura grilei.
+  useEffect(() => {
+    document.body.dataset.importing = progress ? 'true' : 'false';
+  }, [progress]);
+
   useEffect(() => {
     if (!notice) return;
     const t = setTimeout(() => clearNotice(), NOTICE_AUTODISMISS_MS);
@@ -113,7 +121,24 @@ export default function App() {
 
   const total = Math.max(1, counts.all);
 
-  if (workspaceMode) return <><Workspace /><CommandPalette /><ShortcutsPanel /></>;
+  // Workspace e ecranul principal implicit — grila (jos) ramane accesibila
+  // doar cand exista deja poze SI utilizatorul a comutat explicit la ea
+  // (buton dedicat in antetul Workspace-ului); fara poze, ramane onboarding-ul.
+  // Montam si panourile deschise din meniu (Persoane/Preferinte AI/Operatii in
+  // masa) — altfel butonul Meniu din Workspace n-ar avea ce deschide.
+  if (photos.length > 0 && workspaceMode) {
+    return (
+      <>
+        <Workspace />
+        <CommandPalette />
+        <ShortcutsPanel />
+        <MenuDrawer />
+        <PersonsPanel />
+        <InsightsPanel />
+        <BatchOpsPanel />
+      </>
+    );
+  }
 
   return (
     <div className="app">

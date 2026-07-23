@@ -131,12 +131,8 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
   background: linear-gradient(var(--bg) 78%, transparent);
   backdrop-filter: blur(10px);
 }
-.brand h1 {
-  font-size: 1.28rem; font-weight: 800; letter-spacing: 0.15em; line-height: 1;
-  background: linear-gradient(120deg, var(--text) 35%, var(--accent) 82%, var(--accent-2) 110%);
-  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
-}
-.brand h1 span { font-weight: 300; }
+.brand h1 { font-size: 1.28rem; font-weight: 800; letter-spacing: 0.15em; line-height: 1; color: var(--text); }
+.brand h1 span { font-weight: 300; color: var(--text-dim); }
 .brand p {
   color: var(--text-faint); margin-top: 5px; font-size: 0.72rem;
   display: flex; align-items: center; gap: 6px;
@@ -188,7 +184,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
   background: var(--surface); border-radius: var(--radius);
   transition: border-color 0.18s var(--ease), transform 0.18s var(--ease), background 0.18s var(--ease);
 }
-.ghost:hover { border-color: var(--accent); background: var(--surface-2); }
+.ghost:hover { border-color: var(--line-strong); background: var(--surface-2); }
 .ghost:active { transform: scale(0.96); }
 .ghost:disabled { opacity: 0.4; cursor: default; transform: none; }
 .ghost.small { padding: 4px 10px; font-size: 0.78rem; color: var(--text-dim); border-radius: 6px; }
@@ -231,7 +227,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 }
 .progress-bar {
   position: absolute; inset: 0 auto 0 0; transition: width 0.25s;
-  background: linear-gradient(90deg, rgba(34,211,238,0.22), rgba(139,92,246,0.22));
+  background: var(--surface-3);
 }
 .progress-bar::after {
   content: ""; position: absolute; inset: 0; width: 60px;
@@ -239,7 +235,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
   animation: shimmer 1.4s linear infinite;
 }
 @keyframes shimmer { from { transform: translateX(-60px); } to { transform: translateX(220px); } }
-.progress span { position: relative; color: var(--accent); font-weight: 600; }
+.progress span { position: relative; color: var(--text); font-weight: 600; }
 @media (prefers-reduced-motion: reduce) { .progress-bar, .progress-bar::after { transition: none; animation: none; } }
 
 /* ── Filtre cu numaratori, lipite sub antet ── */
@@ -258,10 +254,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 }
 .chip:hover { border-color: var(--line-strong); transform: translateY(-1px); }
 .chip b { font-family: var(--mono); font-weight: 600; font-size: 0.78em; color: var(--text-faint); }
-.chip.active {
-  background: var(--surface-3); color: var(--text); border-color: var(--accent);
-  box-shadow: 0 0 0 1px rgba(34,211,238,0.18), 0 4px 16px -6px rgba(34,211,238,0.35);
-}
+.chip.active { background: var(--surface-3); color: var(--text); border-color: var(--line-strong); }
 .chip.active b { color: var(--review); }
 
 /* ── Grila: contact sheet ── */
@@ -304,7 +297,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .grid .card:nth-child(n+32) { animation-delay: 280ms; }
 .card:hover {
   transform: translateY(-3px); border-color: var(--line-strong);
-  box-shadow: var(--shadow-lift), 0 0 0 1px rgb(var(--accent-rgb) / 0.16);
+  box-shadow: var(--shadow-lift), 0 0 0 1px rgb(255 255 255 / 0.08);
 }
 .card:active { transform: translateY(-1px) scale(0.985); }
 .card img {
@@ -377,12 +370,12 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .fab {
   position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom));
   width: 58px; height: 58px; border-radius: 50%; z-index: 4;
-  background: var(--accent-gradient); color: #06070a; font-size: 1.9rem; font-weight: 700;
+  background: var(--text); color: var(--bg); font-size: 1.9rem; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 8px 26px -6px rgba(34,211,238,0.55);
+  box-shadow: var(--shadow-lg);
   transition: transform 0.18s var(--ease), box-shadow 0.18s var(--ease);
 }
-.fab:hover { transform: translateY(-2px) scale(1.04); box-shadow: 0 12px 32px -6px rgba(139,92,246,0.6); }
+.fab:hover { transform: translateY(-2px) scale(1.04); }
 .fab:active { transform: scale(0.94); }
 .fab svg { width: 26px; height: 26px; }
 
@@ -502,7 +495,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .detail-tab:hover { color: var(--text-dim); }
 .detail-tab.active { background: var(--surface-3); color: var(--text); }
 .detail-tab-count {
-  background: rgb(var(--accent-rgb) / 0.18); color: var(--accent); font-size: 0.62rem;
+  background: var(--surface-3); color: var(--text-dim); font-size: 0.62rem;
   padding: 0 5px; border-radius: 999px; min-width: 14px; text-align: center;
 }
 .detail-person-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
@@ -579,7 +572,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .icon-btn svg { width: 18px; height: 18px; }
 .undo-count {
   position: absolute; top: -4px; right: -4px; min-width: 15px; height: 15px; padding: 0 3px;
-  border-radius: 999px; background: var(--accent); color: var(--bg);
+  border-radius: 999px; background: var(--text); color: var(--bg);
   font-size: 0.62rem; line-height: 15px; text-align: center; font-weight: 700;
 }
 .inline-icon { width: 14px; height: 14px; vertical-align: -2px; margin-right: 3px; flex-shrink: 0; }
@@ -654,7 +647,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .batch-section:first-of-type { border-top: none; padding-top: 0; }
 .batch-section h3 { font-size: 0.9rem; margin: 0; }
 .batch-slider-row { display: flex; align-items: center; gap: 10px; }
-.batch-slider-row input[type="range"] { flex: 1; accent-color: var(--accent); }
+.batch-slider-row input[type="range"] { flex: 1; accent-color: var(--text-dim); }
 .batch-threshold-value { min-width: 28px; text-align: right; color: var(--text-dim); }
 
 /* ── Meniu lateral ── */
@@ -684,7 +677,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
   transition: background 0.15s var(--ease);
 }
 .drawer-item:hover { background: var(--surface-2); }
-.drawer-item svg { flex-shrink: 0; color: var(--accent); }
+.drawer-item svg { flex-shrink: 0; color: var(--text-dim); }
 .drawer-item span { flex: 1; }
 .drawer-count { background: var(--surface-3); color: var(--text-dim); font-size: 0.72rem; padding: 2px 8px; border-radius: 999px; }
 .drawer-sep { height: 1px; background: var(--line); margin: 10px 0; }
@@ -777,7 +770,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 }
 .workspace-metrics b { color: var(--text); }
 .workspace-metrics .warn { color: var(--reject); }
-.workspace-head .icon-btn.active { border-color: var(--accent); background: var(--surface-2); color: var(--accent); }
+.workspace-head .icon-btn.active { border-color: var(--line-strong); background: var(--surface-3); color: var(--text); }
 .workspace-nav {
   position: absolute; top: 50%; transform: translateY(-50%); z-index: 2;
   background: var(--surface); border: 1px solid var(--line);
