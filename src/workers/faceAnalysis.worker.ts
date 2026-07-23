@@ -42,7 +42,10 @@ const HUMAN_CONFIG: Partial<Config> = {
   },
   body: { enabled: false },
   hand: { enabled: false },
-  object: { enabled: false },
+  // CenterNet (COCO-80 clase) — deja parte din pachetul Human, zero model nou de descarcat.
+  // Ruleaza in ACELASI human.detect() ca fetele (nicio trecere de inferenta in plus per poza) —
+  // etichete generale de obiect (caine, masina, tort, barca...) pentru export XMP/filtrare.
+  object: { enabled: true, minConfidence: 0.25, maxDetected: 8 },
   gesture: { enabled: false },
   segmentation: { enabled: false }
 };
@@ -559,8 +562,13 @@ export class FaceAnalysisService {
       // mod economic: mai putina inferenta per poza — iris (gaze/contact vizual)
       // si emotie (zambet/engagement) sunt semnalele cele mai costisitoare dupa
       // detectia de baza; absenta lor e deja tratata "neutru" in tot restul
-      // pipeline-ului (extractFeatures/ContextEngine), nu ca eroare
-      ...(economicMode ? { face: { ...HUMAN_CONFIG.face, iris: { enabled: false }, emotion: { enabled: false } } } : {})
+      // pipeline-ului (extractFeatures/ContextEngine), nu ca eroare. CenterNet
+      // (obiecte) e un model separat de ~4MB incarcat in plus — dezactivat si el,
+      // sceneTags ramane absent (optional, tratat neutru la fel ca restul).
+      ...(economicMode ? {
+        face: { ...HUMAN_CONFIG.face, iris: { enabled: false }, emotion: { enabled: false } },
+        object: { ...HUMAN_CONFIG.object, enabled: false }
+      } : {})
     });
     try {
       await this.human.load();
@@ -673,6 +681,9 @@ export class FaceAnalysisService {
     });
     const sceneType = classifyScene(faces, imgW, imgH);
     const sceneSemantic = deriveSceneSemantic(sceneType, result.face);
+    // set dedupe: CenterNet poate detecta acelasi obiect de mai multe ori (ex. 3 scaune) —
+    // pentru etichete/keywords conteaza TIPUL, nu numarul de instante
+    const sceneTags = result.object.length ? [...new Set(result.object.map(o => o.label))] : undefined;
 
     return {
       photoId,
@@ -707,6 +718,7 @@ export class FaceAnalysisService {
       colorHarmonyScore: color.colorHarmonyScore,
       dominantColors: color.dominantColors,
       sceneSemantic,
+      ...(sceneTags ? { sceneTags } : {}),
       aiScore: 0,            // filled in later by ContextEngine on the main thread
       analyzedAt: Date.now()
     };

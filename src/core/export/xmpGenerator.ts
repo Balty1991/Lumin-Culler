@@ -64,9 +64,10 @@ export function generateXMPSidecar(status: XmpDecision, starRating?: number, key
 }
 
 /** Keywords automate din ce a detectat deja AI-ul — fara input manual, doar reformatarea a ceea ce exista. */
-export function deriveXmpKeywords(personNames: string[], sceneSemantic: string | undefined): string[] {
+export function deriveXmpKeywords(personNames: string[], sceneSemantic: string | undefined, sceneTags?: string[]): string[] {
   const keywords = [...personNames];
   if (sceneSemantic && SCENE_KEYWORD[sceneSemantic]) keywords.push(SCENE_KEYWORD[sceneSemantic]);
+  if (sceneTags?.length) keywords.push(...sceneTags);
   return keywords;
 }
 

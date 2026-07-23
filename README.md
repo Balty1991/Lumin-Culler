@@ -84,7 +84,7 @@ Orice modificare ulterioara: editezi fisierul in web editor → Commit → Actio
 
 - **RAW (.CR3/.NEF/.ARW) nu se decodeaza in browser.** Foloseste JPEG-urile (shooting RAW+JPEG
   sau extrage preview-urile). Suport RAW vine odata cu impachetarea desktop (Tauri + librarie nativa).
-- Prima incarcare descarca ~12 MB de modele ML (apoi sunt in cache).
+- Prima incarcare descarca ~16 MB de modele ML (apoi sunt in cache).
 - Recunoasterea are prag de similaritate 0.55 — daca apar confuzii, adauga mai multe
   poze de referinta per persoana (unghiuri/lumini diferite).
 
