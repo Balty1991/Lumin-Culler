@@ -54,3 +54,6 @@ export function AlertIcon(p: SVGProps<SVGSVGElement>) {
 export function TagIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><path d="M12.6 3H5a2 2 0 00-2 2v7.6c0 .5.2 1 .6 1.4l8.4 8.4c.8.8 2 .8 2.8 0l7-7c.8-.8.8-2 0-2.8L13.4 3.6c-.4-.4-.9-.6-1.4-.6z" /><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" stroke="none" /></svg>;
 }
+export function FocusIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg {...base} {...p}><path d="M4 9V6a2 2 0 012-2h3" /><path d="M20 9V6a2 2 0 00-2-2h-3" /><path d="M4 15v3a2 2 0 002 2h3" /><path d="M20 15v3a2 2 0 01-2 2h-3" /><circle cx="12" cy="12" r="3" /></svg>;
+}

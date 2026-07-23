@@ -3,12 +3,13 @@ import { useStore, type FilterKey } from './state/store';
 import { PhotoCard } from './ui/PhotoCard';
 import { VirtualPhotoGrid } from './ui/VirtualPhotoGrid';
 import { DetailView } from './ui/DetailView';
+import { Workspace } from './ui/Workspace';
 import { GroupCompare } from './ui/GroupCompare';
 import { PersonsPanel } from './ui/PersonsPanel';
 import { MenuDrawer } from './ui/MenuDrawer';
 import { InsightsPanel } from './ui/InsightsPanel';
 import { AnimatedNumber } from './ui/AnimatedNumber';
-import { MenuIcon, PlusIcon, StarIcon, AlertIcon, XIcon } from './ui/icons';
+import { MenuIcon, PlusIcon, StarIcon, AlertIcon, XIcon, FocusIcon } from './ui/icons';
 
 const NOTICE_AUTODISMISS_MS = 7000;
 /**
@@ -36,6 +37,8 @@ export default function App() {
   const aiBackend = useStore(s => s.aiBackend);
   const clearAll = useStore(s => s.clearAll);
   const filtered = useStore(s => s.filtered());
+  const workspaceMode = useStore(s => s.workspaceMode);
+  const setWorkspaceMode = useStore(s => s.setWorkspaceMode);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { void boot(); }, [boot]);
@@ -89,6 +92,8 @@ export default function App() {
 
   const total = Math.max(1, counts.all);
 
+  if (workspaceMode) return <Workspace />;
+
   return (
     <div className="app">
       <header className="topbar">
@@ -97,6 +102,11 @@ export default function App() {
           <p className="mono"><i className="live-dot" aria-hidden="true" /> AI local · pozele raman pe dispozitiv</p>
         </div>
         <div className="top-actions">
+          {photos.length > 0 && (
+            <button className="ghost icon-btn" onClick={() => setWorkspaceMode(true)} aria-label="Spatiu de lucru (lupa + filmstrip)" title="Spatiu de lucru">
+              <FocusIcon />
+            </button>
+          )}
           <button className="ghost" onClick={() => void exportSelection()} disabled={!counts.selected}>
             Exporta poze ({counts.selected})
           </button>

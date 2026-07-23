@@ -7,6 +7,7 @@
 import { db, type AnalysisRecord, type PhotoRecord } from './db';
 import { analysisPool, withTimeout } from './workerPool';
 import { contextEngine, type Prediction } from './learning/ContextEngine';
+import { groupPhotosByHash } from './hashComparePool';
 
 export interface ImportProgress {
   done: number;
@@ -27,7 +28,6 @@ const PREVIEW_MAX_SIDE = 2048;
 const THUMB_SIZE = 512;
 const SELECT_THRESHOLD = 65;
 const REJECT_THRESHOLD = 35;
-const DHASH_DISTANCE = 8;
 
 /**
  * Fisierele originale raman disponibile doar in memorie, pentru sesiunea
@@ -95,12 +95,6 @@ function makeDerivatives(bitmap: ImageBitmap): {
   }
 
   return { preview, thumb, dHash: hash, w: bitmap.width, h: bitmap.height };
-}
-
-function hammingDistance(a: string, b: string): number {
-  let d = 0;
-  for (let i = 0; i < Math.min(a.length, b.length); i++) if (a[i] !== b[i]) d++;
-  return d;
 }
 
 /**
@@ -261,30 +255,24 @@ export async function importFiles(
   );
 
   // Grupare serii/duplicate (dHash), PERSISTATA in DB: cea mai buna ramane propusa,
-  // restul trec la "review" ca variante de comparat.
+  // restul trec la "review" ca variante de comparat. Comparatia O(n^2) ruleaza
+  // intr-un Worker dedicat (hashCompare.worker.ts), procesata in chunk-uri —
+  // pentru 1000+ poze, milioane de comparatii sincrone pe firul principal
+  // blocau vizibil UI-ul in acest punct al importului.
   onProgress({ done, total: images.length, fileName: '', phase: 'grupare' });
   const groups = new Map<string, string>();
-  const assigned = new Set<number>();
-  for (let i = 0; i < hashes.length; i++) {
-    if (assigned.has(i)) continue;
-    const members = [i];
-    for (let j = i + 1; j < hashes.length; j++) {
-      if (!assigned.has(j) && hammingDistance(hashes[i].dHash, hashes[j].dHash) <= DHASH_DISTANCE) {
-        members.push(j); assigned.add(j);
+  const { groups: groupResults } = await groupPhotosByHash(
+    hashes.map(h => ({ id: h.id, hash: h.dHash, score: h.score }))
+  );
+  for (const g of groupResults) {
+    for (const memberId of g.memberIds) {
+      groups.set(memberId, g.groupId);
+      const patch: Partial<PhotoRecord> = { groupId: g.groupId };
+      if (memberId !== g.bestId) {
+        const rec = await db.photos.get(memberId);
+        if (rec && rec.status === 'selected') patch.status = 'review';
       }
-    }
-    if (members.length > 1) {
-      const groupId = 'g-' + hashes[i].id.slice(0, 8);
-      const best = members.reduce((a, b) => (hashes[a].score >= hashes[b].score ? a : b));
-      for (const m of members) {
-        groups.set(hashes[m].id, groupId);
-        const patch: Partial<PhotoRecord> = { groupId };
-        if (m !== best) {
-          const rec = await db.photos.get(hashes[m].id);
-          if (rec && rec.status === 'selected') patch.status = 'review';
-        }
-        await db.photos.update(hashes[m].id, patch);
-      }
+      await db.photos.update(memberId, patch);
     }
   }
 

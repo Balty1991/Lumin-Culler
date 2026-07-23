@@ -47,6 +47,7 @@ interface AppState {
   personsOpen: boolean;
   menuOpen: boolean;
   insightsOpen: boolean;
+  workspaceMode: boolean;
   booted: boolean;
   /** false daca dispozitivul nu a putut incarca WebGL/WASM — analiza continua dar fara fete reale. */
   aiDegraded: boolean;
@@ -65,6 +66,7 @@ interface AppState {
   setPersonsOpen: (open: boolean) => void;
   setMenuOpen: (open: boolean) => void;
   setInsightsOpen: (open: boolean) => void;
+  setWorkspaceMode: (on: boolean) => void;
   clearAll: () => Promise<void>;
   /** toast general de stare: rezultat export, avertisment de stocare etc. */
   notice: string | null;
@@ -148,6 +150,7 @@ export const useStore = create<AppState>((set, get) => ({
   personsOpen: false,
   menuOpen: false,
   insightsOpen: false,
+  workspaceMode: false,
   booted: false,
   aiDegraded: false,
   aiBackend: '',
@@ -275,6 +278,7 @@ export const useStore = create<AppState>((set, get) => ({
   setPersonsOpen: open => set({ personsOpen: open }),
   setMenuOpen: open => set({ menuOpen: open }),
   setInsightsOpen: open => set({ insightsOpen: open }),
+  setWorkspaceMode: on => set({ workspaceMode: on, detailId: on ? get().detailId : null }),
   clearNotice: () => set({ notice: null }),
 
   clearAll: async () => {
