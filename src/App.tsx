@@ -27,12 +27,51 @@ function noticeTone(message: string): 'error' | 'warn' | 'success' {
   return 'success';
 }
 /**
+ * Toast de notificare — extras intr-o componenta separata ca sa poata fi montat
+ * si in ramura Workspace (ecranul implicit), nu doar in cea a grilei: fara asta,
+ * orice notificare (export, cotă de stocare, undo, mod economic etc.) aparuta
+ * cat timp utilizatorul e in Workspace disparea silentios, nemontata nicaieri.
+ */
+function Toast() {
+  const notice = useStore(s => s.notice);
+  const clearNotice = useStore(s => s.clearNotice);
+  if (!notice) return null;
+  const tone = noticeTone(notice);
+  return (
+    <div className={`toast tone-${tone}`} role="status">
+      <span className="toast-icon">
+        {tone === 'error' ? <AlertIcon /> : tone === 'warn' ? <AlertIcon /> : <CheckIcon />}
+      </span>
+      <span className="mono toast-text">{notice}</span>
+      <button className="toast-close" onClick={() => clearNotice()} aria-label="Inchide">
+        <XIcon />
+      </button>
+    </div>
+  );
+}
+
+/**
  * Sub acest prag, grid-ul simplu (DOM normal) e mai simplu si are animatia
  * de intrare in cascada; peste, numarul de noduri DOM (+ URL-uri de obiect
  * pentru miniaturi) devine problema reala, asa ca trecem pe grid virtualizat
  * (doar randurile vizibile exista in DOM), indiferent cate mii de poze sunt.
  */
 const VIRTUALIZE_THRESHOLD = 120;
+
+/** "YYYY-MM-DD" (valoarea unui &lt;input type="date"&gt;, in fusul local) -> epoch ms, la inceputul/sfarsitul zilei. */
+function dateInputToEpoch(value: string, endOfDay: boolean): number | null {
+  if (!value) return null;
+  const [y, m, d] = value.split('-').map(Number);
+  if (!y || !m || !d) return null;
+  return endOfDay ? new Date(y, m - 1, d, 23, 59, 59, 999).getTime() : new Date(y, m - 1, d, 0, 0, 0, 0).getTime();
+}
+
+/** epoch ms -> "YYYY-MM-DD" in fusul local, pentru valoarea unui &lt;input type="date"&gt;. */
+function epochToDateInput(epoch: number | null): string {
+  if (epoch === null) return '';
+  const d = new Date(epoch);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 export default function App() {
   const boot = useStore(s => s.boot);
@@ -43,7 +82,16 @@ export default function App() {
   const personFilter = useStore(s => s.personFilter);
   const setPersonFilter = useStore(s => s.setPersonFilter);
   const persons = useStore(s => s.persons);
+  const searchText = useStore(s => s.searchText);
+  const setSearchText = useStore(s => s.setSearchText);
+  const dateFrom = useStore(s => s.dateFrom);
+  const dateTo = useStore(s => s.dateTo);
+  const setDateRange = useStore(s => s.setDateRange);
+  const minRating = useStore(s => s.minRating);
+  const setMinRating = useStore(s => s.setMinRating);
+  const clearAdvancedFilters = useStore(s => s.clearAdvancedFilters);
   const runImport = useStore(s => s.runImport);
+  const cancelImport = useStore(s => s.cancelImport);
   const openDetail = useStore(s => s.openDetail);
   const openCompare = useStore(s => s.openCompare);
   const setMenuOpen = useStore(s => s.setMenuOpen);
@@ -64,7 +112,8 @@ export default function App() {
   const multiSelectIds = useStore(s => s.multiSelectIds);
   const toggleMultiSelect = useStore(s => s.toggleMultiSelect);
   const rangeMultiSelect = useStore(s => s.rangeMultiSelect);
-  const clearMultiSelect = useStore(s => s.clearMultiSelect);
+  const selectMode = useStore(s => s.selectMode);
+  const setSelectMode = useStore(s => s.setSelectMode);
   const bulkSetStatusForSelection = useStore(s => s.bulkSetStatusForSelection);
   const bulkSetRatingForSelection = useStore(s => s.bulkSetRatingForSelection);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -99,14 +148,15 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [undo]);
 
-  // Escape goleste selectia in masa — doar cat timp exista ceva selectat
-  // (altfel ar intra in conflict cu Escape-ul altor panouri/paleta)
+  // Escape goleste selectia in masa (si iese din mod selectie) — doar cat timp
+  // exista ceva de golit (altfel ar intra in conflict cu Escape-ul altor
+  // panouri/paleta)
   useEffect(() => {
-    if (!multiSelectIds.size) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') clearMultiSelect(); };
+    if (!multiSelectIds.size && !selectMode) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setSelectMode(false); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [multiSelectIds.size, clearMultiSelect]);
+  }, [multiSelectIds.size, selectMode, setSelectMode]);
 
   const counts = useMemo(() => ({
     all: photos.length,
@@ -135,9 +185,11 @@ export default function App() {
   const onCardOpen = (id: string, e: React.MouseEvent) => {
     if (e.shiftKey) { rangeMultiSelect(id, filtered.map(p => p.id)); return; }
     if (e.ctrlKey || e.metaKey) { toggleMultiSelect(id); return; }
-    // cat timp exista deja ceva in selectie, un click simplu continua sa selecteze
-    // (nu mai deschide DetailView) — evita sa tii Ctrl apasat pentru fiecare card
-    if (multiSelectIds.size > 0) { toggleMultiSelect(id); return; }
+    // cat timp exista deja ceva in selectie SAU modul selectie e pornit explicit
+    // (buton dedicat — singura cale de a incepe o selectie pe touch, unde
+    // Ctrl/Shift+Click nu exista), un click/tap simplu continua sa selecteze
+    // in loc sa deschida DetailView
+    if (multiSelectIds.size > 0 || selectMode) { toggleMultiSelect(id); return; }
     const photo = photos.find(p => p.id === id);
     if (filter === 'series' && photo?.groupId) openCompare(photo.groupId);
     else openDetail(id);
@@ -166,6 +218,7 @@ export default function App() {
   if (photos.length > 0 && workspaceMode) {
     return (
       <>
+        <Toast />
         <Workspace />
         <CommandPalette />
         <ShortcutsPanel />
@@ -221,17 +274,7 @@ export default function App() {
         </div>
       </header>
 
-      {notice && (
-        <div className={`toast tone-${noticeTone(notice)}`} role="status">
-          <span className="toast-icon">
-            {noticeTone(notice) === 'error' ? <AlertIcon /> : noticeTone(notice) === 'warn' ? <AlertIcon /> : <CheckIcon />}
-          </span>
-          <span className="mono toast-text">{notice}</span>
-          <button className="toast-close" onClick={() => clearNotice()} aria-label="Inchide">
-            <XIcon />
-          </button>
-        </div>
-      )}
+      <Toast />
 
       {aiDegraded && (
         <p className="notice warn mono">
@@ -277,6 +320,9 @@ export default function App() {
               : progress.phase === 'analiza' ? `Analiza AI ${progress.done}/${progress.total} — ${progress.fileName}`
               : progress.phase === 'grupare' ? 'Grupare serii si duplicate…' : 'Finalizat'}
           </span>
+          {progress.phase === 'analiza' && (
+            <button className="ghost small progress-cancel" onClick={() => cancelImport()}>Anuleaza</button>
+          )}
         </div>
       )}
 
@@ -299,6 +345,60 @@ export default function App() {
               <option value="">Orice persoana</option>
               {persons.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
             </select>
+          )}
+          {multiSelectIds.size === 0 && (
+            <button
+              className={selectMode ? 'chip active select-mode-toggle' : 'chip select-mode-toggle'}
+              onClick={() => setSelectMode(!selectMode)}
+              aria-pressed={selectMode}
+            >
+              <CheckIcon className="inline-icon" aria-hidden="true" /> {selectMode ? 'Mod selectie (activ)' : 'Selecteaza mai multe'}
+            </button>
+          )}
+        </nav>
+      )}
+
+      {photos.length > 0 && (
+        <nav className="filters filters-advanced" aria-label="Filtre avansate">
+          <label className="search-field">
+            <SearchIcon className="inline-icon" aria-hidden="true" />
+            <input
+              type="search"
+              placeholder="Cauta dupa nume fisier…"
+              value={searchText}
+              onChange={e => setSearchText(e.target.value)}
+              aria-label="Cauta poze dupa numele fisierului"
+            />
+          </label>
+          <select
+            className={minRating > 0 ? 'chip rating-filter active' : 'chip rating-filter'}
+            value={minRating}
+            onChange={e => setMinRating(Number(e.target.value))}
+            aria-label="Rating minim"
+          >
+            <option value={0}>Orice rating</option>
+            {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{'★'.repeat(n)}+ </option>)}
+          </select>
+          <label className="date-field">
+            de la
+            <input
+              type="date"
+              value={epochToDateInput(dateFrom)}
+              onChange={e => setDateRange(dateInputToEpoch(e.target.value, false), dateTo)}
+              aria-label="Data capturii — de la"
+            />
+          </label>
+          <label className="date-field">
+            pana la
+            <input
+              type="date"
+              value={epochToDateInput(dateTo)}
+              onChange={e => setDateRange(dateFrom, dateInputToEpoch(e.target.value, true))}
+              aria-label="Data capturii — pana la"
+            />
+          </label>
+          {(searchText || dateFrom !== null || dateTo !== null || minRating > 0) && (
+            <button className="ghost small" onClick={clearAdvancedFilters}>Reseteaza filtrele</button>
           )}
         </nav>
       )}
@@ -357,10 +457,15 @@ export default function App() {
                 <button className="ghost small-btn" onClick={() => void bulkSetStatusForSelection('review')}>De verificat</button>
                 <button className="reject small-btn" onClick={() => void bulkSetStatusForSelection('rejected')}>Respinge</button>
                 <StarRating rating={0} onRate={n => void bulkSetRatingForSelection(n)} size="sm" />
-                <button className="ghost icon-btn" onClick={clearMultiSelect} aria-label="Deselecteaza tot">
+                <button className="ghost icon-btn" onClick={() => setSelectMode(false)} aria-label="Deselecteaza tot si iesi din mod selectie">
                   <XIcon />
                 </button>
               </div>
+            </div>
+          ) : selectMode ? (
+            <div className="bulk-bar glass" role="toolbar" aria-label="Mod selectie activ">
+              <span className="bulk-bar-count mono">Mod selectie — atinge pozele dorite</span>
+              <button className="ghost small-btn" onClick={() => setSelectMode(false)}>Iesi din mod selectie</button>
             </div>
           ) : (
             <Tooltip label="Adauga poze" side="left">

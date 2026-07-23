@@ -1,6 +1,6 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useStore } from '../state/store';
-import { StarIcon, SparkleIcon, ListIcon, InfoIcon, XIcon, TagIcon, LayersIcon, KeyboardIcon, SunIcon, MoonIcon } from './icons';
+import { StarIcon, SparkleIcon, ListIcon, InfoIcon, XIcon, TagIcon, LayersIcon, KeyboardIcon, SunIcon, MoonIcon, BatteryIcon } from './icons';
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -14,6 +14,8 @@ export function MenuDrawer() {
   const setShortcutsOpen = useStore(s => s.setShortcutsOpen);
   const theme = useStore(s => s.theme);
   const setTheme = useStore(s => s.setTheme);
+  const economicMode = useStore(s => s.economicMode);
+  const setEconomicMode = useStore(s => s.setEconomicMode);
   const exportManifest = useStore(s => s.exportManifest);
   const exportXMP = useStore(s => s.exportXMP);
   const persons = useStore(s => s.persons);
@@ -65,6 +67,16 @@ export function MenuDrawer() {
         <button className="drawer-item" onClick={() => go(() => setTheme(theme === 'light' ? 'dark' : 'light'))}>
           <span className="drawer-item-icon">{theme === 'light' ? <SunIcon /> : <MoonIcon />}</span>
           <span>Tema {theme === 'light' ? 'deschisa' : 'intunecata'}</span>
+        </button>
+
+        <button
+          className="drawer-item"
+          onClick={() => go(() => setEconomicMode(!economicMode))}
+          aria-pressed={economicMode}
+          title="Pool de un singur worker + fara iris/emotie — mai putina presiune pe CPU/RAM la import, pe hardware slab."
+        >
+          <span className="drawer-item-icon"><BatteryIcon /></span>
+          <span>Mod economic {economicMode ? '(activ)' : ''}</span>
         </button>
 
         <button className="drawer-item" onClick={() => go(() => void exportManifest())}>

@@ -551,11 +551,16 @@ export class FaceAnalysisService {
    * silentios. Apelantul (workerPool -> store) foloseste asta ca sa avertizeze
    * utilizatorul in loc sa lase scorurile sa para "normale".
    */
-  async init(modelBasePath?: string): Promise<string> {
+  async init(modelBasePath?: string, economicMode?: boolean): Promise<string> {
     if (this.human) return this.backend;
     this.human = new Human({
       ...HUMAN_CONFIG,
-      ...(modelBasePath ? { modelBasePath } : {})
+      ...(modelBasePath ? { modelBasePath } : {}),
+      // mod economic: mai putina inferenta per poza — iris (gaze/contact vizual)
+      // si emotie (zambet/engagement) sunt semnalele cele mai costisitoare dupa
+      // detectia de baza; absenta lor e deja tratata "neutru" in tot restul
+      // pipeline-ului (extractFeatures/ContextEngine), nu ca eroare
+      ...(economicMode ? { face: { ...HUMAN_CONFIG.face, iris: { enabled: false }, emotion: { enabled: false } } } : {})
     });
     try {
       await this.human.load();

@@ -30,6 +30,8 @@ export interface RawExifMeta {
   fNumber?: number;
   exposureTime?: number;
   focalLength?: number;
+  /** Data/ora reala a capturii (din ceasul aparatului), epoch ms — nu data copierii fisierului pe disc. */
+  capturedAt?: number;
 }
 
 export interface RawDecodeResult {
@@ -44,6 +46,9 @@ function metaFromLibRaw(m: Awaited<ReturnType<LibRaw['metadata']>>): RawExifMeta
   if (typeof m.aperture === 'number' && m.aperture > 0) meta.fNumber = m.aperture;
   if (typeof m.shutter === 'number' && m.shutter > 0) meta.exposureTime = m.shutter;
   if (typeof m.focal_len === 'number' && m.focal_len > 0) meta.focalLength = m.focal_len;
+  // ceasuri de aparat nesetate produc uneori epoch 0/negativ — evident invalid, il ignoram
+  const ts = m.timestamp instanceof Date ? m.timestamp.getTime() : NaN;
+  if (Number.isFinite(ts) && ts > 0) meta.capturedAt = ts;
   return meta;
 }
 

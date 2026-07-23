@@ -5,9 +5,10 @@
  */
 import { create } from 'zustand';
 import { db, type AnalysisRecord, type PhotoRecord, type KnownPerson } from '../core/db';
-import { importFiles, originalFiles, type ImportProgress } from '../core/importPipeline';
+import { importFiles, originalFiles, createCancelToken, type ImportProgress, type ImportCancelToken } from '../core/importPipeline';
+import { readEconomicMode, writeEconomicMode } from '../core/performanceSettings';
 import { exportOriginalFiles } from '../core/exportPhotos';
-import { exportXMPSidecars } from '../core/export/xmpGenerator';
+import { exportXMPSidecars, deriveXmpKeywords } from '../core/export/xmpGenerator';
 import { analysisPool } from '../core/workerPool';
 import { contextEngine, deriveContextKey } from '../core/learning/ContextEngine';
 import { pickBestInGroup } from '../core/groupSelection';
@@ -47,6 +48,8 @@ export interface PhotoView {
   capturedAt?: number;
   goldenHourDetected?: boolean;
   dominantColors?: string[];
+  /** Eticheta compusa scena+varsta (ex. "portrait_child") — folosita ca sursa de keywords la exportul XMP. */
+  sceneSemantic?: string;
 }
 
 export type FilterKey = 'all' | 'selected' | 'review' | 'rejected' | 'series' | 'blinks';
@@ -55,9 +58,25 @@ interface AppState {
   photos: PhotoView[];
   persons: KnownPerson[];
   progress: ImportProgress | null;
+  /** Poate anula un import in curs — vezi runImport/cancelImport mai jos. */
+  cancelImport: () => void;
+  /** Mod economic: pool de un singur worker + fara iris/emotie — mai putina presiune pe CPU/RAM, pe hardware slab. */
+  economicMode: boolean;
+  setEconomicMode: (on: boolean) => void;
   filter: FilterKey;
   /** Filtru suplimentar, combinabil cu `filter` — numele unei persoane cunoscute, sau null (fara filtru). */
   personFilter: string | null;
+  /**
+   * Filtre suplimentare, toate combinabile intre ele si cu `filter`/`personFilter` —
+   * utile la biblioteci mari (mii de poze), unde navigarea doar prin status/persoana
+   * nu mai e suficienta ca sa gasesti rapid o poza anume.
+   */
+  searchText: string;
+  /** Interval de data (capturedAt), epoch ms — null = fara limita pe partea respectiva. */
+  dateFrom: number | null;
+  dateTo: number | null;
+  /** Rating minim (1-5), 0 = fara filtru de rating. */
+  minRating: number;
   detailId: string | null;
   compareGroupId: string | null;
   personsOpen: boolean;
@@ -96,6 +115,13 @@ interface AppState {
    */
   multiSelectIds: Set<string>;
   multiSelectAnchor: string | null;
+  /**
+   * "Mod selectie" explicit — comutator vizibil (buton), NU doar starea
+   * implicita de "am ceva selectat deja" (multiSelectIds.size > 0). Necesar
+   * pe touch: Ctrl/Shift+Click nu exista pe telefon/tableta, deci fara acest
+   * comutator prima selectie ar fi imposibil de pornit fara tastatura/mouse.
+   */
+  selectMode: boolean;
 
   boot: () => Promise<void>;
   runImport: (files: File[]) => Promise<void>;
@@ -110,6 +136,12 @@ interface AppState {
   setRating: (id: string, rating: number) => Promise<void>;
   undo: () => Promise<void>;
   keepOnlyInGroup: (groupId: string, keepId: string) => Promise<void>;
+  /**
+   * Generalizarea lui keepOnlyInGroup pentru burst-uri mari (sport/wildlife —
+   * zeci de cadre aproape identice dintr-o secvena de miscare): pastreaza MAI
+   * MULTE cadre bune dintr-o serie, nu doar unul singur, restul se resping.
+   */
+  keepManyInGroup: (groupId: string, keepIds: string[]) => Promise<void>;
   /**
    * Recomandarea AI pentru "cea mai buna" poza dintr-o serie — ierarhie de
    * criterii (claritate > expunere > compozitie > expresii faciale > contact
@@ -129,12 +161,17 @@ interface AppState {
   /** Selecteaza tot intervalul dintre ultimul anchor si `id`, in ordinea data (lista filtrata curenta) — Shift+Click. */
   rangeMultiSelect: (id: string, orderedIds: string[]) => void;
   clearMultiSelect: () => void;
+  setSelectMode: (on: boolean) => void;
   /** Aplica un status TUTUROR pozelor din selectia curenta (antreneaza AI-ul per poza, ca setStatus). */
   bulkSetStatusForSelection: (status: PhotoRecord['status']) => Promise<void>;
   /** Aplica un rating TUTUROR pozelor din selectia curenta. */
   bulkSetRatingForSelection: (rating: number) => Promise<void>;
   setFilter: (f: FilterKey) => void;
   setPersonFilter: (name: string | null) => void;
+  setSearchText: (text: string) => void;
+  setDateRange: (from: number | null, to: number | null) => void;
+  setMinRating: (rating: number) => void;
+  clearAdvancedFilters: () => void;
   openDetail: (id: string | null) => void;
   openCompare: (groupId: string | null) => void;
   stepDetail: (dir: 1 | -1) => void;
@@ -148,6 +185,14 @@ interface AppState {
   setPaletteOpen: (open: boolean) => void;
   setShortcutsOpen: (open: boolean) => void;
   clearAll: () => Promise<void>;
+  /**
+   * "Golește sesiunea" curata doar biblioteca de poze — persoanele inrolate
+   * (nume + embeddings faciale) sunt profiluri durabile, nu date de sesiune,
+   * si supravietuiesc intentionat. Pentru un utilizator care vrea sa nu
+   * ramana NIMIC biometric pe dispozitiv, e nevoie de o actiune separata,
+   * explicita — vezi PersonsPanel.
+   */
+  clearAllIncludingPersons: () => Promise<void>;
   /** toast general de stare: rezultat export, avertisment de stocare etc. */
   notice: string | null;
   clearNotice: () => void;
@@ -157,6 +202,10 @@ interface AppState {
   filtered: () => PhotoView[];
   groupOf: (groupId: string) => PhotoView[];
 }
+
+/** Token-ul importului CURENT (daca vreunul ruleaza) — traieste in afara Zustand
+    fiindca nu are sens sa fie parte din snapshot-ul de stare serializabil. */
+let activeCancelToken: ImportCancelToken | null = null;
 
 function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): PhotoView {
   return {
@@ -189,7 +238,8 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     groupId: photo.groupId,
     capturedAt: photo.capturedAt,
     goldenHourDetected: analysis?.goldenHourDetected,
-    dominantColors: analysis?.dominantColors
+    dominantColors: analysis?.dominantColors,
+    sceneSemantic: analysis?.sceneSemantic
   };
 }
 
@@ -231,6 +281,9 @@ async function syncOriginal(id: string, status: PhotoRecord['status']): Promise<
 const QUOTA_NOTICE = 'Spatiu de stocare plin — fotografia a fost marcata, dar originalul nu a putut fi ' +
   'salvat pentru export. Elibereaza spatiu (Goleste sesiunea sau exporta ce ai deja) si reincearca.';
 
+/** Plafon de referinte faciale per persoana — reinrolarile succesive extind profilul, nu-l lasa sa creasca la nesfarsit. */
+const MAX_PERSON_EMBEDDINGS = 12;
+
 const STATUS_LABELS: Record<PhotoRecord['status'], string> = {
   pending: 'în așteptare',
   selected: 'selectată',
@@ -244,6 +297,10 @@ export const useStore = create<AppState>((set, get) => ({
   progress: null,
   filter: 'all',
   personFilter: null,
+  searchText: '',
+  dateFrom: null,
+  dateTo: null,
+  minRating: 0,
   detailId: null,
   compareGroupId: null,
   personsOpen: false,
@@ -265,7 +322,18 @@ export const useStore = create<AppState>((set, get) => ({
   history: [],
   multiSelectIds: new Set(),
   multiSelectAnchor: null,
+  selectMode: false,
   batchHistory: [],
+  economicMode: readEconomicMode(),
+  setEconomicMode: on => {
+    writeEconomicMode(on);
+    set({
+      economicMode: on,
+      notice: 'Modul economic ' + (on ? 'activat' : 'dezactivat') +
+        ' — se aplica de la urmatorul import (necesita reincarcarea paginii daca ai importat deja poze in aceasta sesiune).'
+    });
+  },
+  cancelImport: () => { if (activeCancelToken) activeCancelToken.cancelled = true; },
 
   boot: async () => {
     if (get().booted) return;
@@ -285,11 +353,14 @@ export const useStore = create<AppState>((set, get) => ({
   runImport: async (files: File[]) => {
     set({ progress: { done: 0, total: files.length, fileName: '', phase: 'incarcare' } });
     let warning: string | undefined;
+    const cancelToken = createCancelToken();
+    activeCancelToken = cancelToken;
     try {
       await importFiles(
         files,
         progress => { warning = progress.warning; set({ progress: { ...progress } }); },
-        item => set(state => ({ photos: [...state.photos, toView(item.photo, item.analysis)] }))
+        item => set(state => ({ photos: [...state.photos, toView(item.photo, item.analysis)] })),
+        cancelToken
       );
     } catch (err) {
       // fara asta, o promisiune respinsa (ex. retea slaba la incarcarea modelelor AI)
@@ -299,6 +370,8 @@ export const useStore = create<AppState>((set, get) => ({
         notice: 'Import esuat: ' + (err instanceof Error ? err.message : String(err)) + ' — incearca din nou.'
       });
       return;
+    } finally {
+      if (activeCancelToken === cancelToken) activeCancelToken = null;
     }
     // reincarca statusurile si groupId-urile persistate dupa gruparea seriilor
     const fresh = await db.photos.toArray();
@@ -406,6 +479,28 @@ export const useStore = create<AppState>((set, get) => ({
       ),
       compareGroupId: null,
       batchHistory: pushBatchHistory(state.batchHistory, makeBatchEvent('Rezolva serie', changes)),
+      notice: quotaError ? QUOTA_NOTICE : state.notice
+    }));
+  },
+
+  keepManyInGroup: async (groupId, keepIds) => {
+    const keepSet = new Set(keepIds);
+    const members = get().photos.filter(p => p.groupId === groupId);
+    const changes = members.map(m => ({ photoId: m.id, previousStatus: m.status }));
+    let quotaError = false;
+    for (const m of members) {
+      const status = keepSet.has(m.id) ? 'selected' : 'rejected';
+      await db.photos.update(m.id, { status });
+      const res = await syncOriginal(m.id, status);
+      if (res.quotaError) quotaError = true;
+      await train(m.id, keepSet.has(m.id));
+    }
+    set(state => ({
+      photos: state.photos.map(p =>
+        p.groupId === groupId ? { ...p, status: keepSet.has(p.id) ? 'selected' : 'rejected' } : p
+      ),
+      compareGroupId: null,
+      batchHistory: pushBatchHistory(state.batchHistory, makeBatchEvent(`Pastreaza ${keepIds.length} din serie`, changes)),
       notice: quotaError ? QUOTA_NOTICE : state.notice
     }));
   },
@@ -544,6 +639,12 @@ export const useStore = create<AppState>((set, get) => ({
   }),
 
   clearMultiSelect: () => set({ multiSelectIds: new Set(), multiSelectAnchor: null }),
+  setSelectMode: on => set(state => ({
+    selectMode: on,
+    // la iesire din mod, golim si selectia — la intrare, pornim de la zero
+    multiSelectIds: on ? state.multiSelectIds : new Set(),
+    multiSelectAnchor: on ? state.multiSelectAnchor : null
+  })),
 
   /** Ca si celelalte operatii in masa — reversibila dintr-o data cu Ctrl+Z (batchHistory). */
   bulkSetStatusForSelection: async status => {
@@ -584,6 +685,10 @@ export const useStore = create<AppState>((set, get) => ({
 
   setFilter: f => set({ filter: f }),
   setPersonFilter: name => set({ personFilter: name }),
+  setSearchText: text => set({ searchText: text }),
+  setDateRange: (from, to) => set({ dateFrom: from, dateTo: to }),
+  setMinRating: rating => set({ minRating: rating }),
+  clearAdvancedFilters: () => set({ searchText: '', dateFrom: null, dateTo: null, minRating: 0 }),
   openDetail: id => set({ detailId: id }),
   openCompare: groupId => set({ compareGroupId: groupId }),
 
@@ -596,6 +701,13 @@ export const useStore = create<AppState>((set, get) => ({
     set({ detailId: next.id });
   },
 
+  /**
+   * Daca exista deja o persoana cu acelasi nume, adauga noile referinte la ea
+   * (nu creeaza un duplicat) — esential pentru subiecti a caror fata se
+   * schimba vizibil in timp (ex. un copil mic): reinrolarea periodica, cu
+   * poze recente, extinde profilul in loc sa-l inlocuiasca sau sa-l fragmenteze
+   * in mai multe "persoane" separate cu acelasi nume.
+   */
   addPerson: async (name, files) => {
     await analysisPool.init();
     const embeddings: number[][] = [];
@@ -611,12 +723,25 @@ export const useStore = create<AppState>((set, get) => ({
     if (!embeddings.length) {
       return { ok: false, message: 'Nicio fata detectata in pozele de referinta. Alege poze clare, frontale.' };
     }
-    const person: KnownPerson = { id: crypto.randomUUID(), name, embeddings, updatedAt: Date.now() };
+    const trimmedName = name.trim();
+    const existing = get().persons.find(p => p.name.trim().toLowerCase() === trimmedName.toLowerCase());
+    let person: KnownPerson;
+    let message: string;
+    if (existing) {
+      // pastram doar cele mai RECENTE MAX_PERSON_EMBEDDINGS referinte — trasaturile
+      // vechi de acum multe luni conteaza mai putin decat cele actuale la recunoastere
+      const merged = [...existing.embeddings, ...embeddings].slice(-MAX_PERSON_EMBEDDINGS);
+      person = { ...existing, embeddings: merged, updatedAt: Date.now() };
+      message = `${trimmedName}: +${embeddings.length} referinte noi adaugate la profilul existent (total ${merged.length}).`;
+    } else {
+      person = { id: crypto.randomUUID(), name: trimmedName, embeddings, updatedAt: Date.now() };
+      message = trimmedName + ': ' + embeddings.length + ' referinte salvate.';
+    }
     await db.persons.put(person);
     const persons = await db.persons.toArray();
     await analysisPool.setKnownPersons(persons);
     set({ persons });
-    return { ok: true, message: name + ': ' + embeddings.length + ' referinte salvate.' };
+    return { ok: true, message };
   },
 
   removePerson: async id => {
@@ -642,6 +767,18 @@ export const useStore = create<AppState>((set, get) => ({
     ]);
     originalFiles.clear();
     set({ photos: [], detailId: null, compareGroupId: null, history: [] });
+  },
+
+  clearAllIncludingPersons: async () => {
+    await Promise.all([
+      db.photos.clear(), db.thumbnails.clear(), db.previews.clear(), db.originals.clear(),
+      db.analyses.clear(), db.history.clear(),
+      db.persons.clear(), db.corrections.clear(),
+      contextEngine.reset()
+    ]);
+    originalFiles.clear();
+    await analysisPool.setKnownPersons([]).catch(() => {});
+    set({ photos: [], persons: [], detailId: null, compareGroupId: null, history: [], batchHistory: [] });
   },
 
   /** Exporta pozele selectate ca fisiere reale, in formatul original (JPEG/PNG/etc), grupate pe subfoldere. */
@@ -706,12 +843,18 @@ export const useStore = create<AppState>((set, get) => ({
     const decided = get().photos.filter(p => p.status !== 'pending');
     if (!decided.length) { set({ notice: 'Nicio poza cu decizie luata inca — Selecteaza/Respinge cel putin una.' }); return; }
     try {
-      const result = await exportXMPSidecars(decided.map(p => ({ fileName: p.fileName, status: p.status, rating: p.rating })));
+      const result = await exportXMPSidecars(decided.map(p => ({
+        fileName: p.fileName,
+        status: p.status,
+        rating: p.rating,
+        keywords: deriveXmpKeywords(p.personNames, p.sceneSemantic)
+      })));
       if (result.cancelled) return;
       const msg = result.exported
         ? `${result.exported} sidecar-uri XMP exportate` + (
-            result.method === 'folder' ? ' in folderul ales — copiaza-le langa pozele originale ca Lightroom sa le vada.'
-            : ' (descarcari individuale) — muta-le langa pozele originale ca Lightroom sa le vada.'
+            result.method === 'folder'
+              ? ' in folderul ales — copiaza-le langa pozele ORIGINALE (structura de foldere de la import, nu cea grupata pe persoane/scena a exportului de poze) ca Lightroom sa le vada.'
+              : ' (descarcari individuale) — muta-le langa pozele ORIGINALE (nu intr-un folder grupat pe persoane/scena) ca Lightroom sa le vada.'
           )
         : 'Niciun sidecar XMP nu a putut fi exportat.';
       set({ notice: msg });
@@ -721,7 +864,7 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   filtered: () => {
-    const { photos, filter, personFilter } = get();
+    const { photos, filter, personFilter, searchText, dateFrom, dateTo, minRating } = get();
     let base: PhotoView[];
     switch (filter) {
       case 'selected': base = photos.filter(p => p.status === 'selected'); break;
@@ -740,7 +883,18 @@ export const useStore = create<AppState>((set, get) => ({
     // filtru dupa persoana cunoscuta — combinabil cu orice alt filtru de mai sus
     // (ex. "Selectate" + "Ami" = pozele selectate in care apare Ami), nu un
     // FilterKey fix (persoanele sunt dinamice, inrolate de utilizator)
-    return personFilter ? base.filter(p => p.personNames.includes(personFilter)) : base;
+    if (personFilter) base = base.filter(p => p.personNames.includes(personFilter));
+    // cautare text dupa numele fisierului — utila la biblioteci mari, unde
+    // stii deja (partial) cum se numeste poza cautata
+    const q = searchText.trim().toLowerCase();
+    if (q) base = base.filter(p => p.fileName.toLowerCase().includes(q));
+    // interval de data (capturedAt) — poze fara data cunoscuta sunt excluse
+    // doar daca s-a cerut explicit un capat de interval (altfel raman vizibile)
+    if (dateFrom !== null) base = base.filter(p => (p.capturedAt ?? 0) >= dateFrom);
+    if (dateTo !== null) base = base.filter(p => (p.capturedAt ?? 0) <= dateTo);
+    // rating minim — 0 = fara filtru
+    if (minRating > 0) base = base.filter(p => p.rating >= minRating);
+    return base;
   },
 
   groupOf: groupId =>

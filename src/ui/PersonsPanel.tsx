@@ -10,6 +10,7 @@ export function PersonsPanel() {
   const persons = useStore(s => s.persons);
   const addPerson = useStore(s => s.addPerson);
   const removePerson = useStore(s => s.removePerson);
+  const clearAllIncludingPersons = useStore(s => s.clearAllIncludingPersons);
 
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
@@ -24,6 +25,16 @@ export function PersonsPanel() {
     if (window.confirm(`Ștergi "${personName}" din persoanele cunoscute? Va trebui reînrolat(ă) pentru ca AI-ul să o mai recunoască.`)) {
       void removePerson(id);
     }
+  };
+
+  const confirmClearEverything = () => {
+    if (!window.confirm(
+      'Sigur ștergi ABSOLUT TOT? Se șterg ireversibil toate pozele, persoanele cunoscute ' +
+      '(amprentele faciale) și tot ce a învățat AI-ul din corecțiile tale. Nu poate fi anulat.'
+    )) return;
+    if (!window.confirm('Ultima confirmare: chiar tot, inclusiv persoanele inrolate?')) return;
+    void clearAllIncludingPersons();
+    setOpen(false);
   };
 
   const submit = async () => {
@@ -75,10 +86,25 @@ export function PersonsPanel() {
             disabled={busy}
           />
           <input ref={fileRef} type="file" accept="image/*" multiple disabled={busy} />
+          <p className="hint">
+            Un nume deja folosit adauga referinte noi la profilul existent (nu creeaza un
+            duplicat) — util pentru reinrolare periodica, ex. un copil ale carui trasaturi se schimba.
+          </p>
           <button className="select" onClick={() => void submit()} disabled={busy}>
             {busy ? 'Se proceseaza…' : 'Inroleaza persoana'}
           </button>
           {message && <p className="hint">{message}</p>}
+        </div>
+
+        <div className="danger-zone">
+          <p className="hint">
+            Toate datele (poze, persoane, model AI) raman 100% locale, pe acest dispozitiv —
+            nimic nu e trimis vreodata pe internet. Pentru stergere completa, inclusiv
+            amprentele faciale ale persoanelor inrolate:
+          </p>
+          <button className="ghost small danger" onClick={confirmClearEverything}>
+            <TrashIcon className="inline-icon" /> Sterge tot, inclusiv persoanele si modelul AI
+          </button>
         </div>
       </div>
     </div>
