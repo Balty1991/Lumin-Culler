@@ -203,7 +203,6 @@ export function Workspace() {
       </header>
 
       <div className="workspace-loupe">
-        <div className="grain-overlay" aria-hidden="true" />
         <button className="ghost icon-btn workspace-nav prev" onClick={() => stepDetail(-1)} aria-label="Fotografia anterioara">
           <ChevronLeft />
         </button>

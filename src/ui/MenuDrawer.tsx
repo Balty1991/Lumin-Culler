@@ -42,6 +42,7 @@ export function MenuDrawer() {
           </button>
         </header>
 
+        <div className="drawer-section-label">Spatiu de lucru</div>
         <button className="drawer-item" onClick={() => go(() => setPersonsOpen(true))}>
           <span className="drawer-item-icon"><UserCheckIcon /></span>
           <span>Persoane cunoscute</span>
@@ -58,11 +59,18 @@ export function MenuDrawer() {
           <span>Operatii in masa</span>
         </button>
 
-        <button className="drawer-item" onClick={() => go(() => setShortcutsOpen(true))}>
-          <span className="drawer-item-icon"><KeyboardIcon /></span>
-          <span>Scurtaturi tastatura</span>
+        <div className="drawer-section-label">Export</div>
+        <button className="drawer-item" onClick={() => go(() => void exportManifest())}>
+          <span className="drawer-item-icon"><ListIcon /></span>
+          <span>Exporta lista (JSON)</span>
         </button>
 
+        <button className="drawer-item" onClick={() => go(() => void exportXMP())}>
+          <span className="drawer-item-icon"><TagIcon /></span>
+          <span>Exporta etichete Lightroom (XMP)</span>
+        </button>
+
+        <div className="drawer-section-label">Setari</div>
         <button className="drawer-item" onClick={() => go(() => setTheme(theme === 'light' ? 'dark' : 'light'))}>
           <span className="drawer-item-icon">{theme === 'light' ? <SunIcon /> : <MoonIcon />}</span>
           <span>Tema {theme === 'light' ? 'deschisa' : 'intunecata'}</span>
@@ -78,14 +86,10 @@ export function MenuDrawer() {
           <span>Mod economic {economicMode ? '(activ)' : ''}</span>
         </button>
 
-        <button className="drawer-item" onClick={() => go(() => void exportManifest())}>
-          <span className="drawer-item-icon"><ListIcon /></span>
-          <span>Exporta lista (JSON)</span>
-        </button>
-
-        <button className="drawer-item" onClick={() => go(() => void exportXMP())}>
-          <span className="drawer-item-icon"><TagIcon /></span>
-          <span>Exporta etichete Lightroom (XMP)</span>
+        <div className="drawer-section-label">Ajutor</div>
+        <button className="drawer-item" onClick={() => go(() => setShortcutsOpen(true))}>
+          <span className="drawer-item-icon"><KeyboardIcon /></span>
+          <span>Scurtaturi tastatura</span>
         </button>
 
         <div className="drawer-sep" />

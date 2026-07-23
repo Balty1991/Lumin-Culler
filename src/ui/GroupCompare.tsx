@@ -117,9 +117,8 @@ function CompareCard({ photo, recommended, onKeep, onReject, onZoom }: {
   }, [photo.id]);
 
   return (
-    <div className={`compare-card st-${photo.status}`}>
+    <div className={recommended ? `compare-card st-${photo.status} recommended` : `compare-card st-${photo.status}`}>
       <button className="compare-img" onClick={onZoom} title="Deschide la 100%">
-        <div className="grain-overlay" aria-hidden="true" />
         {src && <img src={src} alt={photo.fileName} loading="lazy" decoding="async" />}
         {recommended && (
           <span className="compare-recommend-badge">
@@ -128,9 +127,15 @@ function CompareCard({ photo, recommended, onKeep, onReject, onZoom }: {
         )}
       </button>
       <div className="compare-meta mono">
-        <span>Scor <b>{photo.aiScore}</b></span>
-        <span>Claritate <b>{photo.sharpness}</b></span>
-        <span>{photo.faceCount > 0 ? (photo.allEyesOpen ? 'ochi deschisi' : 'CLIPIRE') : '—'}</span>
+        <div className="compare-stat">
+          <span>Scor <b>{photo.aiScore}</b></span>
+          <span className="compare-bar"><span className="compare-bar-fill" style={{ width: `${Math.max(0, Math.min(100, photo.aiScore))}%` }} /></span>
+        </div>
+        <div className="compare-stat">
+          <span>Claritate <b>{photo.sharpness}</b></span>
+          <span className="compare-bar"><span className="compare-bar-fill" style={{ width: `${Math.max(0, Math.min(100, photo.sharpness))}%` }} /></span>
+        </div>
+        <span className="compare-eyes">{photo.faceCount > 0 ? (photo.allEyesOpen ? 'ochi deschisi' : 'CLIPIRE') : '—'}</span>
       </div>
       <div className="compare-actions">
         <button className="reject small-btn" onClick={onReject}>Respinge</button>

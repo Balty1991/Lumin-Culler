@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore, type FilterKey } from './state/store';
 import { PhotoCard } from './ui/PhotoCard';
 import { VirtualPhotoGrid } from './ui/VirtualPhotoGrid';
@@ -15,7 +15,7 @@ import { EmptyFilterState } from './ui/EmptyFilterState';
 import { AnimatedNumber } from './ui/AnimatedNumber';
 import { Tooltip } from './ui/Tooltip';
 import { StarRating } from './ui/StarRating';
-import { MenuIcon, PlusIcon, UserCheckIcon, AlertIcon, XIcon, FocusIcon, UndoIcon, SearchIcon, ApertureIcon, SparkleIcon, CheckIcon } from './ui/icons';
+import { MenuIcon, PlusIcon, UserCheckIcon, AlertIcon, ErrorIcon, XIcon, FocusIcon, UndoIcon, SearchIcon, ApertureIcon, SparkleIcon, CheckIcon, EditIcon } from './ui/icons';
 
 const NOTICE_AUTODISMISS_MS = 7000;
 
@@ -27,6 +27,56 @@ function noticeTone(message: string): 'error' | 'warn' | 'success' {
   if (lower.includes('plin') || lower.includes('aproape')) return 'warn';
   return 'success';
 }
+/**
+ * Eticheta editabila de proiect/sesiune — freelancerii care lucreaza in paralel la mai
+ * multe importuri/clienti se pot pierde intre tab-uri identice ("LUMIN CULLER" peste tot);
+ * o eticheta scurta, persistata local (nu in Dexie, nu ajunge in export), ii ajuta sa
+ * distinga sesiunile din bara de titlu a browserului si vizual in header.
+ */
+function ProjectNameField() {
+  const projectName = useStore(s => s.projectName);
+  const setProjectName = useStore(s => s.setProjectName);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(projectName);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { if (editing) inputRef.current?.select(); }, [editing]);
+
+  const commit = () => {
+    setEditing(false);
+    setProjectName(draft.trim().slice(0, 60));
+  };
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        className="project-name-input mono"
+        value={draft}
+        placeholder="Nume proiect sau client"
+        maxLength={60}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={e => {
+          if (e.key === 'Enter') commit();
+          if (e.key === 'Escape') { setDraft(projectName); setEditing(false); }
+        }}
+      />
+    );
+  }
+
+  return (
+    <button
+      className="project-name-btn mono"
+      onClick={() => { setDraft(projectName); setEditing(true); }}
+      title="Eticheteaza aceasta sesiune (client/proiect) — util cand lucrezi in mai multe tab-uri"
+    >
+      <EditIcon className="inline-icon" />
+      {projectName || 'Nume proiect (optional)'}
+    </button>
+  );
+}
+
 /**
  * Toast de notificare — extras intr-o componenta separata ca sa poata fi montat
  * si in ramura Workspace (ecranul implicit), nu doar in cea a grilei: fara asta,
@@ -41,7 +91,7 @@ function Toast() {
   return (
     <div className={`toast tone-${tone}`} role="status">
       <span className="toast-icon">
-        {tone === 'error' ? <AlertIcon /> : tone === 'warn' ? <AlertIcon /> : <CheckIcon />}
+        {tone === 'error' ? <ErrorIcon /> : tone === 'warn' ? <AlertIcon /> : <CheckIcon />}
       </span>
       <span className="mono toast-text">{notice}</span>
       <button className="toast-close" onClick={() => clearNotice()} aria-label="Inchide">
@@ -239,6 +289,7 @@ export default function App() {
           <div className="brand-text">
             <h1>LUMIN<span>CULLER</span></h1>
             <p className="mono"><i className="live-dot" aria-hidden="true" /> AI local · pozele raman pe dispozitiv</p>
+            <ProjectNameField />
           </div>
         </div>
         <div className="top-actions">

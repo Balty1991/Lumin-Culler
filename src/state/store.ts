@@ -18,6 +18,7 @@ import {
 } from './history';
 import { selectBulkRejectTargets, resolveGroups, selectTopPercent } from './batchOps';
 import { readStoredTheme, applyTheme, type Theme } from './theme';
+import { readStoredProjectName, writeProjectName } from './projectName';
 
 export interface PhotoView {
   id: string;
@@ -88,6 +89,8 @@ interface AppState {
   shortcutsOpen: boolean;
   theme: Theme;
   setTheme: (theme: Theme) => void;
+  projectName: string;
+  setProjectName: (name: string) => void;
   booted: boolean;
   /** false daca dispozitivul nu a putut incarca WebGL/WASM — analiza continua dar fara fete reale. */
   aiDegraded: boolean;
@@ -315,6 +318,8 @@ export const useStore = create<AppState>((set, get) => ({
   shortcutsOpen: false,
   theme: readStoredTheme(),
   setTheme: theme => { applyTheme(theme); set({ theme }); },
+  projectName: readStoredProjectName(),
+  setProjectName: name => { writeProjectName(name); set({ projectName: name }); },
   booted: false,
   aiDegraded: false,
   aiBackend: '',
