@@ -4,6 +4,8 @@ import { db, type AnalysisRecord } from '../core/db';
 import { useStore, type PhotoView } from '../state/store';
 import { explainFactors } from '../core/learning/ContextEngine';
 import { generateExplanation } from '../core/aiExplanationGenerator';
+import { useModalFocusTrap } from './useModalFocusTrap';
+import { StarRating } from './StarRating';
 import { AnimatedNumber } from './AnimatedNumber';
 import { vibrate } from './haptics';
 import { XIcon, ChevronLeft, ChevronRight, LayersIcon, CheckIcon, EyeClosedIcon, SparkleIcon, ClockIcon, SunIcon } from './icons';
@@ -116,6 +118,7 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
   const openCompare = useStore(s => s.openCompare);
   const stepDetail = useStore(s => s.stepDetail);
   const setStatus = useStore(s => s.setStatus);
+  const setRating = useStore(s => s.setRating);
   const [src, setSrc] = useState<string | null>(null);
   const [zoomed, setZoomed] = useState(false);
   const [dragX, setDragX] = useState(0);
@@ -123,6 +126,12 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
   const draggingRef = useRef(false);
   const movedRef = useRef(false);
   const startXRef = useRef(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  // constant true: DetailContent monteaza o singura data cat timp panoul e deschis
+  // (navigarea intre poze cu sagetile NU remonteaza, vezi comentariul de mai jos) —
+  // capcana de focus trebuie sa se activeze o singura data la deschidere, nu la
+  // fiecare schimbare de poza (altfel ar fura focusul vizibil la fiecare sageata)
+  useModalFocusTrap(containerRef, true);
 
   const photoHistory = useMemo(
     () => history.filter(h => h.photoId === photo.id).slice().reverse(),
@@ -153,6 +162,7 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
       else if (e.key === 'p' || e.key === 'P') void setStatus(photo.id, 'selected');
       else if (e.key === 'x' || e.key === 'X') void setStatus(photo.id, 'rejected');
       else if (e.key === 'z' || e.key === 'Z') setZoomed(z => !z);
+      else if (e.key >= '0' && e.key <= '5') void setRating(photo.id, photo.rating === Number(e.key) ? 0 : Number(e.key));
       else if (e.key === 'Escape') {
         // acelasi motiv ca in Workspace.tsx: stopPropagation() dintr-un alt
         // listener de pe window NU opreste acest listener sa ruleze (doar
@@ -164,7 +174,7 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [photo.id, stepDetail, setStatus, openDetail]);
+  }, [photo.id, photo.rating, stepDetail, setStatus, setRating, openDetail]);
 
   const commitSwipe = (status: 'selected' | 'rejected') => {
     vibrate(status === 'selected' ? 14 : [12, 40, 12]);
@@ -206,7 +216,7 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
       transition={{ duration: reduceMotion ? 0 : 0.2, ease: EASE }}
     >
       <motion.div
-        className="detail-inner fit"
+        className="detail-inner fit" ref={containerRef} role="dialog" aria-modal="true" aria-label={`Detalii: ${photo.fileName}`} tabIndex={-1}
         initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 24 }}
         transition={{ duration: reduceMotion ? 0 : 0.28, ease: EASE }}
       >
@@ -251,6 +261,10 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
             </div>
           )}
           <span className="zoom-hint mono">{zoomed ? '100% — trage pentru a naviga' : 'atinge pentru 100% (Z)'}</span>
+        </div>
+
+        <div className="detail-rating-row">
+          <StarRating rating={photo.rating} onRate={n => void setRating(photo.id, n)} />
         </div>
 
         {photo.groupId && (

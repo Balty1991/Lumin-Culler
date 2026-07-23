@@ -11,9 +11,11 @@
  *
  * Campuri XMP folosite — doar cele cu semantica standard, verificabila:
  *  - xmp:Rating: -1 = respinsa (conventia Lightroom pentru flag-ul "Reject"),
- *    0..5 = stele. NU folosim un camp non-standard gen "pick flag" separat
- *    (proprietar/ambiguu intre unelte) — rating + label acopera fluxul uzual
- *    de triaj foto.
+ *    0..5 = stele. Daca poza are un rating manual (1-5, axa separata de
+ *    status — vezi PhotoRecord.rating), acela e scris; altfel cade pe
+ *    conventia veche (5 pentru selectate, 0 pentru de verificat). O poza
+ *    RESPINSA ramane -1 indiferent de rating — flag-ul de respingere are
+ *    intotdeauna prioritate in Lightroom.
  *  - xmp:Label: eticheta de culoare ("Green"/"Red"/"Yellow"), acelasi sistem
  *    de culori din Lightroom.
  * Acopera toate pozele DECISE (selectate/respinse/de verificat), nu doar cele
@@ -28,8 +30,8 @@ export type XmpDecision = Exclude<PhotoRecord['status'], 'pending'>;
 const RATING: Record<XmpDecision, number> = { selected: 5, rejected: -1, review: 0 };
 const LABEL: Record<XmpDecision, string> = { selected: 'Green', rejected: 'Red', review: 'Yellow' };
 
-export function generateXMPSidecar(status: XmpDecision): string {
-  const rating = RATING[status];
+export function generateXMPSidecar(status: XmpDecision, starRating?: number): string {
+  const rating = status === 'rejected' ? RATING.rejected : (starRating && starRating > 0 ? starRating : RATING[status]);
   const label = LABEL[status];
   return `<?xpacket begin="﻿" id="W5M0MpCehiHzreSzNTczkc9d"?>
 <x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Lumin Culler Pro">
@@ -56,9 +58,9 @@ export interface XmpExportResult {
 }
 
 export async function exportXMPSidecars(
-  photos: { fileName: string; status: PhotoRecord['status'] }[]
+  photos: { fileName: string; status: PhotoRecord['status']; rating?: number }[]
 ): Promise<XmpExportResult> {
-  const decided = photos.filter((p): p is { fileName: string; status: XmpDecision } => p.status !== 'pending');
+  const decided = photos.filter((p): p is { fileName: string; status: XmpDecision; rating?: number } => p.status !== 'pending');
   const pickDirectory = getDirectoryPicker();
   const method: XmpExportResult['method'] = pickDirectory ? 'folder' : 'downloads';
 
@@ -73,13 +75,13 @@ export async function exportXMPSidecars(
       throw err;
     }
     for (const p of decided) {
-      await writeTextFile(dir, xmpFileName(p.fileName), generateXMPSidecar(p.status), 'application/rdf+xml');
+      await writeTextFile(dir, xmpFileName(p.fileName), generateXMPSidecar(p.status, p.rating), 'application/rdf+xml');
     }
     return { exported: decided.length, method, cancelled: false };
   }
 
   for (const p of decided) {
-    const blob = new Blob([generateXMPSidecar(p.status)], { type: 'application/rdf+xml' });
+    const blob = new Blob([generateXMPSidecar(p.status, p.rating)], { type: 'application/rdf+xml' });
     await downloadBlob(xmpFileName(p.fileName), blob);
   }
   return { exported: decided.length, method, cancelled: false };

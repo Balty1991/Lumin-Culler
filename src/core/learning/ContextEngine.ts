@@ -318,6 +318,13 @@ export class ContextEngine {
     notes: string[];
     /** aceleasi ponderi de top care alimenteaza `notes`, in forma bruta — pentru grafice (InsightsChart). */
     topWeights: { feature: string; label: string; weight: number }[];
+    /**
+     * TOATE ponderile modelului (nu doar top 4), inclusiv cele aproape zero —
+     * pentru utilizatorii care vor sa vada profilul complet invatat, nu doar
+     * un rezumat. Spre deosebire de topWeights, nu e gatat de COLD_START_SAMPLES:
+     * starea reala (chiar daca e doar prior-ul initial) e mai utila decat gol.
+     */
+    allWeights: { feature: string; label: string; weight: number }[];
   }[]> {
     await this.init();
     const labels: Record<string, [string, string]> = {
@@ -367,7 +374,10 @@ export class ContextEngine {
           notes: model.sampleCount < COLD_START_SAMPLES ? [] : ranked.map(([k, w]) => w >= 0 ? labels[k][0] : labels[k][1]),
           topWeights: model.sampleCount < COLD_START_SAMPLES ? [] : ranked.map(([k, w]) => ({
             feature: k, label: FACTOR_LABELS[k] ?? k, weight: w
-          }))
+          })),
+          allWeights: Object.entries(model.weights)
+            .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+            .map(([k, w]) => ({ feature: k, label: FACTOR_LABELS[k] ?? k, weight: w }))
         };
       })
       .sort((a, b) => b.sampleCount - a.sampleCount);

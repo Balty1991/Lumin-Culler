@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { useStore } from '../state/store';
+import { useModalFocusTrap } from './useModalFocusTrap';
 import { StarIcon, TrashIcon, XIcon } from './icons';
 
 /** Inrolare persoane cunoscute (ex. Ami, sotia): nume + 1-4 poze de referinta. */
@@ -14,6 +15,8 @@ export function PersonsPanel() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  useModalFocusTrap(containerRef, open);
 
   if (!open) return null;
 
@@ -39,7 +42,7 @@ export function PersonsPanel() {
 
   return (
     <div className="detail" onClick={e => { if (e.target === e.currentTarget) setOpen(false); }}>
-      <div className="detail-inner narrow">
+      <div className="detail-inner narrow" ref={containerRef} role="dialog" aria-modal="true" aria-label="Persoane cunoscute" tabIndex={-1}>
         <header className="detail-head">
           <span><StarIcon className="inline-icon" /> Persoane cunoscute</span>
           <button className="ghost icon-btn" onClick={() => setOpen(false)} aria-label="Inchide">

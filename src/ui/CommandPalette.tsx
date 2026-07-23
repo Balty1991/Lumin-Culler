@@ -167,31 +167,42 @@ export function CommandPalette() {
         >
           <motion.div
             className="palette" onClick={e => e.stopPropagation()}
+            role="dialog" aria-modal="true" aria-label="Paleta de comenzi"
             initial={{ opacity: 0, scale: 0.97, y: -8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.98, y: -4 }}
             transition={{ duration: reduceMotion ? 0 : 0.18, ease: EASE }}
           >
             <div className="palette-input-row">
-              <SearchIcon className="inline-icon" />
+              <SearchIcon className="inline-icon" aria-hidden="true" />
               <input
                 ref={inputRef}
                 value={query}
                 onChange={e => { setQuery(e.target.value); setActiveIndex(0); }}
                 onKeyDown={onInputKeyDown}
                 placeholder="Caută o acțiune…"
+                role="combobox"
+                aria-expanded="true"
+                aria-controls="palette-listbox"
+                aria-activedescendant={filtered[activeIndex] ? `palette-option-${filtered[activeIndex].id}` : undefined}
+                aria-autocomplete="list"
+                autoComplete="off"
               />
             </div>
-            <ul className="palette-list">
+            <ul className="palette-list" id="palette-listbox" role="listbox">
               {filtered.map((c, i) => (
-                <li key={c.id}>
+                <li key={c.id} role="presentation">
                   {(i === 0 || filtered[i - 1].section !== c.section) && (
                     <div className="palette-section-label">{c.section}</div>
                   )}
                   <div
+                    id={`palette-option-${c.id}`}
+                    role="option"
+                    aria-selected={i === activeIndex}
+                    aria-disabled={c.disabled}
                     className={`palette-item${i === activeIndex ? ' active' : ''}${c.disabled ? ' disabled' : ''}`}
                     onMouseEnter={() => setActiveIndex(i)}
                     onClick={() => execute(c)}
                   >
-                    <span className="palette-item-icon">{c.icon}</span>
+                    <span className="palette-item-icon" aria-hidden="true">{c.icon}</span>
                     <span className="palette-item-label">{c.label}</span>
                     {c.hint && <span className="palette-hint mono">{c.hint}</span>}
                   </div>

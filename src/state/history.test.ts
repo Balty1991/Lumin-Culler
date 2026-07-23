@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { pushHistory, popHistory, MAX_HISTORY, type HistoryEvent } from './history';
+import {
+  pushHistory, popHistory, MAX_HISTORY, type HistoryEvent,
+  pushBatchHistory, popBatchHistory, MAX_BATCH_HISTORY, type BatchHistoryEvent
+} from './history';
 
 function makeEvent(photoId: string, ts = 0): HistoryEvent {
   return { photoId, previousStatus: 'review', newStatus: 'selected', ts };
@@ -65,5 +68,37 @@ describe('popHistory', () => {
       stack = rest;
     }
     expect(order).toEqual(['c', 'b', 'a']);
+  });
+});
+
+function makeBatchEvent(id: string, ts = 0): BatchHistoryEvent {
+  return { id, label: 'Auto-Cull (20%)', changes: [{ photoId: 'p1', previousStatus: 'review' }], ts };
+}
+
+describe('pushBatchHistory', () => {
+  it('appends to an empty stack', () => {
+    expect(pushBatchHistory([], makeBatchEvent('a'))).toEqual([makeBatchEvent('a')]);
+  });
+
+  it('caps at MAX_BATCH_HISTORY, dropping the oldest entries', () => {
+    let stack: BatchHistoryEvent[] = [];
+    for (let i = 0; i < MAX_BATCH_HISTORY + 3; i++) stack = pushBatchHistory(stack, makeBatchEvent('b' + i));
+    expect(stack).toHaveLength(MAX_BATCH_HISTORY);
+    expect(stack.map(e => e.id)).toEqual(Array.from({ length: MAX_BATCH_HISTORY }, (_, i) => 'b' + (i + 3)));
+  });
+});
+
+describe('popBatchHistory', () => {
+  it('returns null event and the same (empty) stack when empty', () => {
+    const { event, rest } = popBatchHistory([]);
+    expect(event).toBeNull();
+    expect(rest).toEqual([]);
+  });
+
+  it('removes and returns the LAST (most recent) batch', () => {
+    const stack = [makeBatchEvent('a', 1), makeBatchEvent('b', 2)];
+    const { event, rest } = popBatchHistory(stack);
+    expect(event?.id).toBe('b');
+    expect(rest.map(e => e.id)).toEqual(['a']);
   });
 });

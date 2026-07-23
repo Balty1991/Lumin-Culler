@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { db } from '../core/db';
 import { useStore } from '../state/store';
 import { Tooltip } from './Tooltip';
+import { StarRating } from './StarRating';
 import { ChevronLeft, ChevronRight, XIcon, CheckIcon, InfoIcon, EyeClosedIcon, GridIcon, PlusIcon, MenuIcon, UndoIcon } from './icons';
 
 /**
@@ -18,10 +19,13 @@ export function Workspace() {
   const filtered = useStore(s => s.filtered());
   const progress = useStore(s => s.progress);
   const history = useStore(s => s.history);
+  const batchHistory = useStore(s => s.batchHistory);
+  const undoCount = history.length + batchHistory.length;
   const undo = useStore(s => s.undo);
   const openDetail = useStore(s => s.openDetail);
   const stepDetail = useStore(s => s.stepDetail);
   const setStatus = useStore(s => s.setStatus);
+  const setRating = useStore(s => s.setRating);
   const setWorkspaceMode = useStore(s => s.setWorkspaceMode);
   const setMenuOpen = useStore(s => s.setMenuOpen);
   const runImport = useStore(s => s.runImport);
@@ -81,6 +85,11 @@ export function Workspace() {
       else if (e.key === 'ArrowLeft') stepDetail(-1);
       else if ((e.key === 'p' || e.key === 'P') && id) { void setStatus(id, 'selected'); stepDetail(1); }
       else if ((e.key === 'x' || e.key === 'X') && id) { void setStatus(id, 'rejected'); stepDetail(1); }
+      else if (e.key >= '0' && e.key <= '5' && id) {
+        const n = Number(e.key);
+        const current = useStore.getState().photos.find(p => p.id === id)?.rating ?? 0;
+        void setRating(id, current === n ? 0 : n);
+      }
       else if (e.key === 'i' || e.key === 'I') setShowMetrics(v => !v);
       else if (e.key === 'Escape') {
         // Paleta/scurtaturile au propriul listener global de Escape (tot pe
@@ -95,7 +104,7 @@ export function Workspace() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [stepDetail, setStatus, setWorkspaceMode]);
+  }, [stepDetail, setStatus, setRating, setWorkspaceMode]);
 
   const onFiles = (list: FileList | null) => {
     if (!list || !list.length) return;
@@ -119,11 +128,11 @@ export function Workspace() {
       <div className="workspace">
         <header className="workspace-head">
           <span className="mono workspace-hint">Nicio poza de afisat in acest filtru.</span>
-          {history.length > 0 && (
+          {undoCount > 0 && (
             <Tooltip label="Anuleaza ultima decizie" shortcut="Ctrl+Z">
-              <button className="ghost icon-btn" onClick={() => void undo()} aria-label={`Anuleaza ultima decizie (${history.length} disponibile, Ctrl+Z)`}>
+              <button className="ghost icon-btn" onClick={() => void undo()} aria-label={`Anuleaza ultima decizie (${undoCount} disponibile, Ctrl+Z)`}>
                 <UndoIcon />
-                <span className="undo-count mono">{history.length}</span>
+                <span className="undo-count mono">{undoCount}</span>
               </button>
             </Tooltip>
           )}
@@ -148,16 +157,16 @@ export function Workspace() {
     <div className="workspace">
       <header className="workspace-head">
         <span className="mono">{photo.fileName}</span>
-        <span className="mono workspace-hint">
+        <span className="mono workspace-hint" role={progress ? 'status' : undefined} aria-live={progress ? 'polite' : undefined}>
           {progress
             ? (progress.phase === 'analiza' ? `Analiza AI ${progress.done}/${progress.total}…` : 'Se proceseaza…')
             : '← → navigheaza · P selecteaza · X respinge · I statistici · Esc iesire'}
         </span>
-        {history.length > 0 && (
+        {undoCount > 0 && (
           <Tooltip label="Anuleaza ultima decizie" shortcut="Ctrl+Z">
-            <button className="ghost icon-btn" onClick={() => void undo()} aria-label={`Anuleaza ultima decizie (${history.length} disponibile, Ctrl+Z)`}>
+            <button className="ghost icon-btn" onClick={() => void undo()} aria-label={`Anuleaza ultima decizie (${undoCount} disponibile, Ctrl+Z)`}>
               <UndoIcon />
-              <span className="undo-count mono">{history.length}</span>
+              <span className="undo-count mono">{undoCount}</span>
             </button>
           </Tooltip>
         )}
@@ -197,6 +206,9 @@ export function Workspace() {
         <span className={`status-tag st-${photo.status} workspace-badge`}>
           {photo.status === 'selected' ? 'SELECTATA' : photo.status === 'rejected' ? 'RESPINSA' : 'DE VERIFICAT'}
         </span>
+        <div className="workspace-rating glass">
+          <StarRating rating={photo.rating} onRate={n => void setRating(photo.id, n)} />
+        </div>
         {showMetrics && (
           <div className="workspace-metrics mono">
             <span>Scor <b>{photo.aiScore}</b></span>

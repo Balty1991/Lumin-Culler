@@ -1,5 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useStore } from '../state/store';
+import { useModalFocusTrap } from './useModalFocusTrap';
 import { KeyboardIcon } from './icons';
 
 interface Shortcut { keys: string; label: string; }
@@ -20,6 +21,7 @@ const SECTIONS: Section[] = [
       { keys: '← →', label: 'Navigheaza intre poze' },
       { keys: 'P', label: 'Selecteaza poza curenta' },
       { keys: 'X', label: 'Respinge poza curenta' },
+      { keys: '0-5', label: 'Rating cu stele (0 = fara rating)' },
       { keys: 'I', label: 'Arata/ascunde statisticile pe imagine' },
       { keys: 'Esc', label: 'Iesi din spatiul de lucru' }
     ]
@@ -30,6 +32,7 @@ const SECTIONS: Section[] = [
       { keys: '← →', label: 'Poza anterioara / urmatoare' },
       { keys: 'P', label: 'Selecteaza' },
       { keys: 'X', label: 'Respinge' },
+      { keys: '0-5', label: 'Rating cu stele (0 = fara rating)' },
       { keys: 'Z', label: 'Zoom 100%' },
       { keys: 'Esc', label: 'Inchide' }
     ]
@@ -48,6 +51,8 @@ const SECTIONS: Section[] = [
 export function ShortcutsPanel() {
   const open = useStore(s => s.shortcutsOpen);
   const setOpen = useStore(s => s.setShortcutsOpen);
+  const containerRef = useRef<HTMLDivElement>(null);
+  useModalFocusTrap(containerRef, open);
 
   // "?" global — ignora tastarea din campuri text (acelasi gardian ca in
   // Workspace/DetailView), altfel scrierea unui "?" intr-o cautare ar
@@ -77,7 +82,7 @@ export function ShortcutsPanel() {
 
   return (
     <div className="detail" onClick={e => { if (e.target === e.currentTarget) setOpen(false); }}>
-      <div className="detail-inner narrow">
+      <div className="detail-inner narrow" ref={containerRef} role="dialog" aria-modal="true" aria-label="Scurtaturi de tastatura" tabIndex={-1}>
         <header className="detail-head">
           <span><KeyboardIcon className="inline-icon" /> Scurtaturi de tastatura</span>
           <button className="ghost" onClick={() => setOpen(false)}>Inchide</button>

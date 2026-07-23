@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { db } from '../core/db';
 import { useStore, type PhotoView } from '../state/store';
+import { useModalFocusTrap } from './useModalFocusTrap';
 import { XIcon, LayersIcon, SparkleIcon } from './icons';
 
 /** Compararea unei serii: cadrele similare unul langa altul, la preview 2048px.
@@ -14,8 +15,10 @@ export function GroupCompare() {
   const groupOf = useStore(s => s.groupOf);
   const selectBestPhotoInGroup = useStore(s => s.selectBestPhotoInGroup);
   const [recommendedId, setRecommendedId] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const members = groupId ? groupOf(groupId) : [];
+  useModalFocusTrap(containerRef, !!groupId && members.length > 0);
 
   useEffect(() => {
     setRecommendedId(null);
@@ -29,7 +32,7 @@ export function GroupCompare() {
 
   return (
     <div className="detail" onClick={e => { if (e.target === e.currentTarget) openCompare(null); }}>
-      <div className="detail-inner wide">
+      <div className="detail-inner wide" ref={containerRef} role="dialog" aria-modal="true" aria-label="Comparare serie" tabIndex={-1}>
         <header className="detail-head">
           <span><LayersIcon className="inline-icon" /> Serie de {members.length} cadre similare — alege-l pe cel mai bun</span>
           <button className="ghost icon-btn" onClick={() => openCompare(null)} aria-label="Inchide">
