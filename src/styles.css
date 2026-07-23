@@ -886,6 +886,15 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .golden-badge.lg { width: 26px; height: 26px; }
 .golden-badge.lg svg { width: 15px; height: 15px; }
 
+/* etichete de obiect/scena (CenterNet, tab Metrici) — vizual coerent cu .chip, dar
+   necesita font-size proprie (mai mic) fiindca pot fi mai multe pe un rand ingust */
+.scene-tags-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.scene-tag {
+  font-family: var(--mono); font-size: 0.68rem; color: var(--text-dim);
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px;
+  padding: 3px 10px; text-transform: capitalize;
+}
+
 /* ── Rating cu stele (1-5), axa separata de status (pick/respins) ── */
 .star-rating { display: inline-flex; gap: 2px; }
 .star-rating-btn {

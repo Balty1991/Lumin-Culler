@@ -330,6 +330,13 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
                   ))}
                 </div>
               )}
+              {photo.sceneTags && photo.sceneTags.length > 0 && (
+                <div className="scene-tags-row">
+                  {photo.sceneTags.map(t => (
+                    <span key={t} className="scene-tag">{t}</span>
+                  ))}
+                </div>
+              )}
               {exif && <p className="detail-exif mono">{exif}</p>}
             </>
           )}

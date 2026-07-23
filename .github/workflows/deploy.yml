@@ -24,11 +24,13 @@ jobs:
         with:
           node-version: 22
       - run: npm install --no-audit --no-fund
-      # Copiaza cele 5 modele ML din pachet in build — nu trebuie sa urci .bin-uri in repo
+      # Copiaza modelele ML din pachet in build — nu trebuie sa urci .bin-uri in repo.
+      # centernet = detectie de obiecte generale (COCO-80: caine, masina, tort, barca...),
+      # folosita pentru etichete automate/export XMP — acelasi pachet Human, niciun model extern nou.
       - name: Bundle ML models
         run: |
           mkdir -p public/models
-          for m in blazeface facemesh iris emotion faceres; do
+          for m in blazeface facemesh iris emotion faceres centernet; do
             cp node_modules/@vladmandic/human/models/$m.json public/models/
             cp node_modules/@vladmandic/human/models/$m.bin public/models/
           done
