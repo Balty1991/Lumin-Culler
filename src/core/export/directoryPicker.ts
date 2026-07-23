@@ -37,6 +37,13 @@ export async function writeTextFile(dir: LocalDirHandle, name: string, content: 
   await writable.close();
 }
 
+/**
+ * NU revocam URL-ul dupa un delay scurt: pe Android, managerul de descarcari
+ * al SO citeste continutul blob: URL-ului ASINCRON, in fundal — daca revocam
+ * inainte sa termine, transferul pica cu "Eroare de retea" desi codul JS
+ * (fara niciun semnal real de finalizare de la click()) tot raporteaza
+ * succes. Lasam URL-urile sa fie curatate natural la inchiderea paginii.
+ */
 export function downloadBlob(name: string, blob: Blob): Promise<void> {
   return new Promise(resolve => {
     const url = URL.createObjectURL(blob);
@@ -44,6 +51,6 @@ export function downloadBlob(name: string, blob: Blob): Promise<void> {
     a.href = url;
     a.download = name;
     a.click();
-    setTimeout(() => { URL.revokeObjectURL(url); resolve(); }, 250);
+    setTimeout(resolve, 250); // doar spatiere intre descarcari succesive, NU revocare
   });
 }

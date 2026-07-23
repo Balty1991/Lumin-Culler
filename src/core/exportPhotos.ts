@@ -84,6 +84,17 @@ async function copyToDirectory(files: { name: string; file: File; folder: string
  * In ambele cazuri utilizatorul vede gruparea (folder real SAU nume cu
  * prefix), nu e o pierdere daca browserul nu suporta subfoldere.
  */
+/**
+ * NU revocam URL-ul dupa un delay scurt: pe Android, click() pe <a download>
+ * preda descarcarea catre managerul de descarcari al SO, care citeste
+ * continutul blob: URL-ului ASINCRON, in fundal — pentru fisiere originale
+ * mari (poze de cativa MB), acest transfer poate dura mai mult decat orice
+ * timeout scurt "rezonabil". Daca revocam URL-ul inainte sa termine, primim
+ * exact "Eroare de retea" in Descarcari, in timp ce codul JS (care nu are
+ * niciun semnal de finalizare reala de la click()) tot raporteaza succes —
+ * bug real gasit din screenshot-ul utilizatorului. Lasam URL-urile sa fie
+ * curatate natural de browser la inchiderea/reincarcarea paginii.
+ */
 function downloadOne(name: string, file: File, folder: string): Promise<void> {
   return new Promise(resolve => {
     const url = URL.createObjectURL(file);
@@ -91,7 +102,7 @@ function downloadOne(name: string, file: File, folder: string): Promise<void> {
     a.href = url;
     a.download = `${folder}/${name}`;
     a.click();
-    setTimeout(() => { URL.revokeObjectURL(url); resolve(); }, 250);
+    setTimeout(resolve, 250); // doar spatiere intre descarcari succesive, NU revocare
   });
 }
 

@@ -395,7 +395,10 @@ export const useStore = create<AppState>((set, get) => ({
     a.href = url;
     a.download = 'selectie-lumin-' + new Date().toISOString().slice(0, 10) + '.json';
     a.click();
-    URL.revokeObjectURL(url);
+    // NU revocam imediat — pe Android managerul de descarcari citeste blob:
+    // URL-ul asincron, in fundal; o revocare instant poate rupe transferul
+    // cu "Eroare de retea" (bug real gasit la exportul de poze/XMP, acelasi
+    // tipar). Lasam browserul sa curete URL-ul natural la reincarcare.
   },
 
   /**
