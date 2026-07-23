@@ -573,6 +573,17 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .factor-tag.pos { color: var(--pick); background: rgba(74,222,128,0.12); border-color: rgba(74,222,128,0.3); }
 .factor-tag.neg { color: var(--reject); background: rgba(251,113,133,0.12); border-color: rgba(251,113,133,0.3); }
 
+.why-explanation {
+  display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px;
+  animation: fadeUp 0.2s var(--ease) both;
+}
+.why-explanation p {
+  margin: 0; font-size: 0.82rem; line-height: 1.5; color: var(--text-dim);
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 8px 10px;
+}
+.why-explanation p:last-child { color: var(--text); border-color: var(--line-strong); }
+
 .detail-exif { color: var(--text-faint); font-size: 0.7rem; }
 .ghost.slim { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 6px 12px; font-size: 0.8rem; }
 
@@ -627,8 +638,14 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .compare-card:hover { transform: translateY(-2px); }
 .compare-card.st-selected { border-color: rgba(74,222,128,0.6); box-shadow: 0 0 0 1px rgba(74,222,128,0.2); }
 .compare-card.st-rejected { border-color: var(--reject); opacity: 0.5; }
-.compare-img { padding: 0; background: #06070a; cursor: zoom-in; border-radius: 0; }
+.compare-img { padding: 0; background: #06070a; cursor: zoom-in; border-radius: 0; position: relative; }
 .compare-img img { width: 100%; aspect-ratio: 3/2; object-fit: contain; display: block; }
+.compare-recommend-badge {
+  position: absolute; top: 8px; left: 8px; z-index: 2; display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--mono); font-size: 0.62rem; font-weight: 700; letter-spacing: 0.03em;
+  color: #06070a; background: var(--accent-gradient); padding: 4px 9px; border-radius: 999px;
+  box-shadow: 0 4px 16px -4px rgba(0,0,0,0.5);
+}
 .compare-meta { display: flex; justify-content: space-between; gap: 8px; padding: 8px 10px; color: var(--text-dim); font-size: 0.74rem; }
 .compare-meta b { color: var(--text); }
 .compare-actions { display: grid; grid-template-columns: 1fr 2fr; gap: 6px; padding: 0 8px 8px; }
@@ -750,6 +767,15 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .insight-head b { font-size: 0.92rem; }
 .confidence-tag { color: var(--text-faint); font-size: 0.68rem; white-space: nowrap; }
 .insight p { color: var(--text-dim); font-size: 0.82rem; }
+
+.insights-chart { display: grid; gap: 5px; margin-top: 8px; }
+.insights-chart-row { display: grid; grid-template-columns: 84px 1fr 40px; align-items: center; gap: 8px; }
+.insights-chart-label { font-size: 0.68rem; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.insights-chart-track { height: 6px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.insights-chart-bar { height: 100%; border-radius: 999px; transition: width var(--duration) var(--ease); }
+.insights-chart-bar.pos { background: var(--pick); }
+.insights-chart-bar.neg { background: var(--reject); }
+.insights-chart-value { font-size: 0.66rem; color: var(--text-faint); text-align: right; }
 
 /* ── Spatiu de lucru: lupa + filmstrip persistent ── */
 .workspace { height: 100dvh; display: flex; flex-direction: column; background: var(--bg); color: var(--text); }

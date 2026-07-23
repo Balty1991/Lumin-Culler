@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { db } from '../core/db';
+import { db, type AnalysisRecord } from '../core/db';
 import { useStore, type PhotoView } from '../state/store';
 import { explainFactors } from '../core/learning/ContextEngine';
+import { generateExplanation } from '../core/aiExplanationGenerator';
 import { AnimatedNumber } from './AnimatedNumber';
 import { vibrate } from './haptics';
 import { XIcon, ChevronLeft, ChevronRight, LayersIcon, StarIcon, CheckIcon, EyeClosedIcon, SparkleIcon, ClockIcon } from './icons';
@@ -54,6 +55,37 @@ function formatRelativeTime(ts: number): string {
   if (diffH < 24) return `acum ${diffH}h`;
   const diffD = Math.round(diffH / 24);
   return `acum ${diffD}z`;
+}
+
+// acelasi prag ca SELECT_THRESHOLD din core/importPipeline.ts (si train() din state/store.ts) —
+// "ce ar recomanda AI-ul" pentru explicatia narativa de mai jos
+const AI_SELECT_THRESHOLD = 65;
+
+/** Explicatia narativa (paragrafe) pentru scorul AI — incarcata lenes (AnalysisRecord + ContextModelRecord
+    complete nu fac parte din PhotoView), doar cat timp tab-ul "De ce acest scor" e deschis. */
+function WhyExplanation({ photo }: { photo: PhotoView }) {
+  const [paragraphs, setParagraphs] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    setParagraphs(null);
+    void Promise.all([db.analyses.get(photo.id), db.contextModels.get(photo.contextKey)]).then(
+      ([analysis, contextModel]) => {
+        if (!alive || !analysis) return;
+        const aiDecision = photo.aiScore >= AI_SELECT_THRESHOLD;
+        const userDecision = photo.status === 'selected' ? true : photo.status === 'rejected' ? false : null;
+        setParagraphs(generateExplanation(analysis as AnalysisRecord, aiDecision, userDecision, contextModel ?? null));
+      }
+    );
+    return () => { alive = false; };
+  }, [photo.id, photo.contextKey, photo.aiScore, photo.status]);
+
+  if (paragraphs === null) return <p className="hint">Se genereaza explicatia…</p>;
+  return (
+    <div className="why-explanation">
+      {paragraphs.map((p, i) => <p key={i}>{p}</p>)}
+    </div>
+  );
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -280,16 +312,19 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
 
           {tab === 'why' && (
             photo.aiFactors.length > 0 ? (
-              <div className="factor-row">
-                <span className="factor-row-label mono"><SparkleIcon className="inline-icon" /> De ce acest scor</span>
-                <div className="factor-tags">
-                  {explainFactors(photo.aiFactors).map(f => (
-                    <span key={f.label} className={f.positive ? 'factor-tag pos' : 'factor-tag neg'}>
-                      {f.positive ? '+' : '−'} {f.label}
-                    </span>
-                  ))}
+              <>
+                <WhyExplanation photo={photo} />
+                <div className="factor-row">
+                  <span className="factor-row-label mono"><SparkleIcon className="inline-icon" /> Factori pe scurt</span>
+                  <div className="factor-tags">
+                    {explainFactors(photo.aiFactors).map(f => (
+                      <span key={f.label} className={f.positive ? 'factor-tag pos' : 'factor-tag neg'}>
+                        {f.positive ? '+' : '−'} {f.label}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              </>
             ) : (
               <p className="hint">Inca nu exista explicatii de scor pentru aceasta poza.</p>
             )

@@ -10,6 +10,7 @@ import { exportOriginalFiles } from '../core/exportPhotos';
 import { exportXMPSidecars } from '../core/export/xmpGenerator';
 import { analysisPool } from '../core/workerPool';
 import { contextEngine, deriveContextKey } from '../core/learning/ContextEngine';
+import { pickBestInGroup } from '../core/groupSelection';
 import { pushHistory, popHistory, MAX_HISTORY, type HistoryEvent } from './history';
 import { selectBulkRejectTargets, resolveGroups, selectTopPercent } from './batchOps';
 import { readStoredTheme, applyTheme, type Theme } from './theme';
@@ -76,6 +77,14 @@ interface AppState {
   setStatus: (id: string, status: PhotoRecord['status']) => Promise<void>;
   undo: () => Promise<void>;
   keepOnlyInGroup: (groupId: string, keepId: string) => Promise<void>;
+  /**
+   * Recomandarea AI pentru "cea mai buna" poza dintr-o serie — ierarhie de
+   * criterii (claritate > expunere > compozitie > expresii faciale > contact
+   * vizual) pe AnalysisRecord complet, nu doar scorul AI brut (vezi
+   * core/groupSelection.ts). Nu schimba nimic in DB — doar raspunde cu id-ul
+   * recomandat, pentru afisare in UI (GroupCompare).
+   */
+  selectBestPhotoInGroup: (groupId: string) => Promise<string | null>;
   /** Respinge in bloc pozele nedecise (nu selectate/respinse deja) cu scor sub prag. */
   bulkRejectBelow: (threshold: number) => Promise<{ affected: number }>;
   /** Rezolva TOATE seriile deodata: cea mai buna poza din fiecare ramane, restul se resping. */
@@ -313,6 +322,27 @@ export const useStore = create<AppState>((set, get) => ({
       ),
       compareGroupId: null,
       notice: quotaError ? QUOTA_NOTICE : state.notice
+    }));
+  },
+
+  selectBestPhotoInGroup: async groupId => {
+    const members = get().photos.filter(p => p.groupId === groupId);
+    if (!members.length) return null;
+    const analyses = await Promise.all(members.map(m => db.analyses.get(m.id)));
+    return pickBestInGroup(members.map((m, i) => {
+      const a = analyses[i];
+      return {
+        id: m.id,
+        sharpness: a?.sharpness ?? m.sharpness,
+        exposure: a?.exposure ?? m.exposure,
+        compositionScore: a?.compositionScore,
+        faceCount: m.faceCount,
+        bestSmile: m.bestSmile,
+        groupSmileRatio: m.groupSmileRatio,
+        allEyesOpen: m.allEyesOpen,
+        groupEyesOpenRatio: m.groupEyesOpenRatio,
+        avgEyeContact: a?.avgEyeContact
+      };
     }));
   },
 
