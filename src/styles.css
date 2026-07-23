@@ -1,3 +1,10 @@
+/* Font display auto-gazduit (SIL OFL, @fontsource-variable/space-grotesk) —
+   fara CDN extern, consecvent cu restul aplicatiei (modele AI/TFJS sunt si ele
+   servite local). Space Grotesk: geometric, distinctiv, "tech-forward" —
+   inlocuieste fontul de sistem generic DOAR la titluri/brand (vezi --font-display
+   mai jos), textul normal ramane pe --sans pentru performanta si familiaritate. */
+@import '@fontsource-variable/space-grotesk';
+
 /* ── Lumin Culler Pro v3 — "Obsidian Studio" ─────────────────────────────────
    Directie: consola de culling premium, cu identitate proprie — obsidian
    racoros (nu gri plat) pentru sasiu, accent semnatura teal→indigo (inlocuieste
@@ -31,7 +38,10 @@
 
   --accent: #2dd4bf;
   --accent-2: #6366f1;
-  --accent-gradient: linear-gradient(135deg, var(--accent), var(--accent-2));
+  /* 3 opriri (nu doar 2) — un violet intermediar real (#8b5cf6), nu doar
+     interpolarea automata turcoaz->indigo — gradient mai bogat/distinctiv,
+     fara sa abandoneze identitatea turcoaz/violet deja stabilita. */
+  --accent-gradient: linear-gradient(135deg, var(--accent) 0%, #8b5cf6 55%, var(--accent-2) 100%);
   --accent-rgb: 45 212 191;
   --accent-2-rgb: 99 102 241;
 
@@ -47,6 +57,43 @@
 
   --mono: "SF Mono", "Cascadia Code", "JetBrains Mono", Consolas, monospace;
   --sans: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* voce tipografica distincta pentru titluri/brand — vezi @import de mai sus.
+     Textul curent (corp, etichete) ramane pe --sans, neschimbat. */
+  --font-display: "Space Grotesk Variable", var(--sans);
+
+  /* scara de spatiere (baza 4px) — folosita in codul nou de la aceasta runda
+     incolo; valorile hardcodate deja existente NU sunt migrate retroactiv
+     (risc mare de regresie vizuala pe ~150+ locuri, beneficiu mic). */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* scara tipografica — idem, disponibila pentru codul nou */
+  --fs-xs: 0.7rem;
+  --fs-sm: 0.85rem;
+  --fs-base: 1rem;
+  --fs-md: 1.15rem;
+  --fs-lg: 1.4rem;
+  --fs-xl: 1.85rem;
+  --fs-2xl: 2.3rem;
+
+  /* z-index — un singur loc de adevar, in loc de valori magice imprastiate
+     (a produs deja o coliziune reala: toast si palette aveau ambele 30) */
+  --z-decorative: 1;
+  --z-card-badge: 2;
+  --z-fab: 4;
+  --z-sticky-bar: 5;
+  --z-topbar: 6;
+  --z-modal-scrim: 20;
+  --z-drawer-scrim: 25;
+  --z-palette-scrim: 30;
+  --z-tooltip: 40;
+  --z-toast: 50;
 
   /* scara de radius — mai generoasa (mai "tactila") decat v2.5 */
   --radius-sm: 8px;
@@ -109,7 +156,13 @@
     --text-faint: var(--text-dim);
     --line: var(--line-strong);
     --line-strong: var(--text-faint);
+    /* glassmorphism-ul (transparenta + blur) reduce contrastul dintre text si ce se vede
+       prin spate — cine a cerut explicit mai mult contrast la nivel de sistem vrea
+       suprafete solide, nu efecte vizuale peste continut */
+    --glass-bg: var(--surface);
+    --glass-blur: 0px;
   }
+  * { backdrop-filter: none !important; }
   button:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline-width: 3px; }
 }
 
@@ -138,20 +191,12 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
   border-radius: 6px;
 }
 
-/* ── Textura de grain — semnatura vizuala pe zonele foto (loupe/detail-img),
-   discreta (opacitate ~4%), mix-blend overlay: nu se vede ca "zgomot", doar
-   adauga o senzatie de film/darkroom in loc de suprafete digitale perfect plate. */
-.grain-overlay {
-  position: absolute; inset: 0; z-index: 1; pointer-events: none;
-  opacity: 0.045; mix-blend-mode: overlay; border-radius: inherit;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
 
 .app { max-width: 1400px; margin: 0 auto; padding: 0 10px 96px; }
 
 /* ── Antet ── */
 .topbar {
-  position: sticky; top: 0; z-index: 6;
+  position: sticky; top: 0; z-index: var(--z-topbar);
   display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 10px;
   padding: 16px 2px 12px;
   background: linear-gradient(var(--bg) 78%, transparent);
@@ -164,7 +209,8 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
   box-shadow: 0 6px 18px -6px rgb(var(--accent-rgb) / 0.55);
 }
 .brand-text h1 {
-  font-size: 1.5rem; font-weight: 800; letter-spacing: -0.01em; line-height: 1; color: var(--text);
+  font-family: var(--font-display);
+  font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1; color: var(--text);
 }
 .brand-text h1 span {
   font-weight: 800; background: var(--accent-gradient); -webkit-background-clip: text;
@@ -174,6 +220,18 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
   color: var(--text-faint); margin-top: 5px; font-size: 0.72rem;
   display: flex; align-items: center; gap: 6px;
 }
+.project-name-btn {
+  display: flex; align-items: center; gap: 5px; margin-top: 4px;
+  font-size: 0.7rem; color: var(--text-faint); border-radius: 6px; padding: 2px 6px 2px 0;
+  transition: color 0.15s var(--ease);
+}
+.project-name-btn:hover { color: var(--accent); }
+.project-name-btn .inline-icon { width: 12px; height: 12px; opacity: 0.7; }
+.project-name-input {
+  margin-top: 4px; width: 180px; max-width: 44vw; background: var(--surface-2); color: var(--text);
+  border: 1px solid var(--glass-border); border-radius: 6px; padding: 2px 7px; font-size: 0.7rem; outline: none;
+}
+.project-name-input:focus { border-color: var(--accent); }
 .live-dot {
   width: 6px; height: 6px; border-radius: 50%; background: var(--pick); flex-shrink: 0;
   box-shadow: 0 0 0 0 rgba(74,222,128,0.55);
@@ -206,7 +264,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
      z-index cel mai mare din toata aplicatia (peste tooltip 40, peste orice
      scrim/dialog 20-30) — o notificare (export terminat, cota de stocare,
      eroare) trebuie sa ramana vizibila indiferent ce panou e deschis deasupra. */
-  position: fixed; left: 50%; top: calc(60px + env(safe-area-inset-top)); z-index: 50;
+  position: fixed; left: 50%; top: calc(60px + env(safe-area-inset-top)); z-index: var(--z-toast);
   transform: translateX(-50%); max-width: min(440px, calc(100vw - 24px));
   display: flex; align-items: flex-start; gap: 10px;
   background: var(--surface-2); border: 1px solid var(--line-strong); border-left: 3px solid var(--text-faint);
@@ -251,19 +309,14 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 }
 .select { background: var(--pick); color: var(--pick-deep); box-shadow: 0 4px 18px -4px rgba(74,222,128,0.45); }
 .reject { background: var(--reject); color: var(--reject-deep); box-shadow: 0 4px 18px -4px rgba(251,113,133,0.4); }
-/* accent gradient — rezervat pentru actiuni-brand (import/CTA-uri), niciodata pentru decizii pick/reject */
+/* accent gradient — rezervat pentru actiuni-brand (import/CTA-uri), niciodata pentru decizii pick/reject.
+   Feedback la hover: glow-ul se intensifica (umbra mai mare), nu o sclipire animata care matura
+   butonul — mai "increzator"/deliberat, mai putin "efect gratuit" (feedback convergent runda 6). */
 .btn-accent {
-  background: var(--accent-gradient); color: #06070a; position: relative; overflow: hidden;
+  background: var(--accent-gradient); color: #06070a; position: relative;
   box-shadow: 0 4px 18px -4px rgb(var(--accent-rgb) / 0.45);
 }
-/* mica "sclipire" care matura butonul la hover — semnal discret ca e actiunea principala, nu decor gratuit */
-.btn-accent::after {
-  content: ""; position: absolute; inset: 0;
-  background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.4) 50%, transparent 70%);
-  transform: translateX(-120%);
-  transition: transform 0.7s var(--ease);
-}
-.btn-accent:hover::after { transform: translateX(120%); }
+.btn-accent:hover { box-shadow: 0 6px 26px -6px rgb(var(--accent-rgb) / 0.6); }
 .select:hover, .reject:hover, .btn-accent:hover { filter: brightness(1.08); }
 .select:active, .reject:active, .btn-accent:active { transform: scale(0.96); }
 .select.big, .btn-accent.big { padding: 15px 30px; font-size: 1.05rem; }
@@ -330,7 +383,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 
 /* ── Filtre cu numaratori, lipite sub antet ── */
 .filters {
-  position: sticky; top: 46px; z-index: 5;
+  position: sticky; top: 46px; z-index: var(--z-sticky-bar);
   display: flex; gap: 6px; overflow-x: auto; padding: 8px 2px 12px;
   background: linear-gradient(var(--bg) 82%, transparent);
   scrollbar-width: none;
@@ -351,9 +404,20 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
   box-shadow: 0 0 16px -6px rgb(var(--accent-rgb) / 0.45);
 }
 .chip.active b { color: var(--accent); }
-.chip.person-filter { cursor: pointer; font-family: var(--sans); }
+/* select-uri native re-desenate — chrome-ul implicit al browserului (sageata gri,
+   fundal alb pe unele SO) rupea iluzia de produs finit, langa restul UI-ului
+   custom (feedback convergent runda 6, "polish" perceput). */
+.chip.person-filter, .chip.rating-filter {
+  cursor: pointer; font-family: var(--sans);
+  appearance: none; -webkit-appearance: none;
+  padding-right: 30px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23a3a7b3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 8px center; background-size: 16px;
+}
 .chip.person-filter:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.chip.rating-filter { cursor: pointer; font-family: var(--sans); }
+/* select-urile deschid un dropdown NATIV al SO (nu poate fi restilizat din CSS) —
+   dar butonul insusi acum se integreaza vizual cu restul chip-urilor. */
+.chip.person-filter option, .chip.rating-filter option { background: var(--surface-2); color: var(--text); }
 .select-mode-toggle { margin-left: auto; font-family: var(--sans); flex-shrink: 0; }
 
 /* ── Filtre avansate: cautare, rating minim, interval de data — sub filtrele principale, nesticky (evita suprapunerea) ── */
@@ -378,6 +442,17 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 }
 :root[data-theme="light"] .date-field input[type="date"] { color-scheme: light; }
 .date-field input:focus { outline: none; }
+/* iconita calendarului nativa — singura parte a input-ului pe care Chromium
+   o lasa restilizata; o aducem la opacitate/marime consecventa cu restul iconitelor */
+.date-field input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: none; opacity: 0.65; cursor: pointer; padding: 2px; border-radius: 4px;
+  transition: opacity var(--micro), background var(--micro);
+}
+.date-field input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1; background: var(--surface-3);
+}
+:root[data-theme="light"] .date-field input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1) opacity(0.65); }
+:root[data-theme="light"] .date-field input[type="date"]::-webkit-calendar-picker-indicator:hover { filter: invert(1) opacity(1); }
 
 /* ── Grila: contact sheet ── */
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); gap: 12px; }
@@ -437,13 +512,12 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
   .grid, .notice, .toast, .detail, .detail-inner, .card, .drawer-scrim, .drawer, .live-dot { animation: none !important; }
   .swipe-surface, .workspace-loupe img { transition: none !important; animation: none !important; }
   .spin { animation: none !important; }
-  .card, .chip, .ghost, .select, .reject, .btn-accent { transition: none; }
-  .btn-accent::after, .fab::after { transition: none; display: none; }
+  .card, .chip, .ghost, .select, .reject, .btn-accent, .fab { transition: none; }
 }
 
 /* starea cadrului: contur colorat + linie de glow sus, discret */
 .card::before {
-  content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; z-index: 2;
+  content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; z-index: var(--z-card-badge);
   opacity: 0; transition: opacity 0.2s var(--ease);
 }
 /* selectata: border + bara sus + check-badge (semnal propriu) — border-ul e suficient ca
@@ -458,7 +532,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 
 /* check-mark care apare cand poza e selectata — inel care se extinde + iconita, o singura data la aparitie */
 .check-badge {
-  position: absolute; top: 6px; right: 7px; z-index: 2; width: 20px; height: 20px; border-radius: 50%;
+  position: absolute; top: 6px; right: 7px; z-index: var(--z-card-badge); width: 20px; height: 20px; border-radius: 50%;
   background: var(--pick); color: var(--pick-deep); display: flex; align-items: center; justify-content: center;
   box-shadow: 0 0 0 3px rgb(var(--pick-rgb) / 0.25);
   animation: checkPop var(--duration) var(--ease) both;
@@ -481,13 +555,13 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 }
 .card.multi-selected img { filter: brightness(0.75); }
 .multi-select-badge {
-  position: absolute; top: 6px; right: 7px; z-index: 2; width: 20px; height: 20px; border-radius: 50%;
+  position: absolute; top: 6px; right: 7px; z-index: var(--z-card-badge); width: 20px; height: 20px; border-radius: 50%;
   background: var(--accent-gradient); color: #06070a; display: flex; align-items: center; justify-content: center;
   box-shadow: 0 0 0 3px rgb(var(--accent-rgb) / 0.3);
 }
 .multi-select-badge svg { width: 12px; height: 12px; }
 
-.card-top-left { position: absolute; top: 7px; left: 7px; z-index: 2; display: flex; align-items: center; gap: 4px; }
+.card-top-left { position: absolute; top: 7px; left: 7px; z-index: var(--z-card-badge); display: flex; align-items: center; gap: 4px; }
 .frame-no {
   font-family: var(--mono); font-size: 0.62rem; color: var(--text-dim);
   background: rgba(10,11,14,0.72); backdrop-filter: blur(4px); padding: 2px 6px; border-radius: 5px;
@@ -524,7 +598,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 
 /* ── Bara de actiuni in masa — inlocuieste FAB-ul cat timp selectia nu e goala ── */
 .bulk-bar {
-  position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 4;
+  position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: var(--z-fab);
   transform: translateX(-50%); max-width: min(560px, calc(100vw - 24px));
   display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
   padding: 10px 10px 10px 16px; border-radius: var(--radius-lg); box-shadow: var(--shadow-lift);
@@ -534,30 +608,39 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 
 .fab {
   position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom));
-  width: 58px; height: 58px; border-radius: 50%; z-index: 4; overflow: hidden;
+  width: 58px; height: 58px; border-radius: 50%; z-index: var(--z-fab); overflow: hidden;
   background: var(--accent-gradient); color: #06070a; font-size: 1.9rem; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
   box-shadow: var(--shadow-lg), 0 10px 32px -8px rgb(var(--accent-rgb) / 0.55);
   transition: transform 0.18s var(--ease), box-shadow 0.18s var(--ease);
 }
-.fab::after {
-  content: ""; position: absolute; inset: 0;
-  background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.4) 50%, transparent 70%);
-  transform: translateX(-120%);
-  transition: transform 0.7s var(--ease);
-}
-.fab:hover::after { transform: translateX(120%); }
 .fab:hover { transform: translateY(-2px) scale(1.04); box-shadow: var(--shadow-lg), 0 12px 38px -6px rgb(var(--accent-rgb) / 0.65); }
 .fab:active { transform: scale(0.94); }
 .fab svg { width: 26px; height: 26px; position: relative; }
 
 /* ── Stare goala ── */
-.empty { text-align: center; padding: 12vh 16px; max-width: 480px; margin: 0 auto; display: grid; gap: 16px; justify-items: center; animation: fadeUp 0.4s var(--ease) both; }
+.empty { position: relative; isolation: isolate; text-align: center; padding: 12vh 16px; max-width: 480px; margin: 0 auto; display: grid; gap: 16px; justify-items: center; animation: fadeUp 0.4s var(--ease) both; }
+.empty::before {
+  content: ""; position: absolute; top: -12%; left: 50%; transform: translateX(-50%);
+  width: 620px; height: 620px; max-width: 150vw; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(circle at 30% 30%, rgb(var(--accent-rgb) / 0.20), transparent 55%),
+    radial-gradient(circle at 70% 65%, rgb(var(--accent-2-rgb) / 0.16), transparent 55%);
+  filter: blur(60px);
+  animation: auroraDrift 14s ease-in-out infinite alternate;
+}
+@keyframes auroraDrift {
+  from { transform: translateX(-52%) translateY(0) scale(1); }
+  to { transform: translateX(-48%) translateY(-2%) scale(1.06); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .empty::before { animation: none; }
+}
 .empty-mark {
   width: 56px; height: 56px; padding: 13px; border-radius: 16px; background: var(--accent-gradient); color: #06070a;
   box-shadow: 0 10px 30px -8px rgb(var(--accent-rgb) / 0.5);
 }
-.empty h2 { font-size: 1.9rem; font-weight: 800; letter-spacing: -0.02em; }
+.empty h2 { font-family: var(--font-display); font-size: 1.9rem; font-weight: 700; letter-spacing: -0.02em; }
 .empty p, .hint { color: var(--text-dim); }
 .hint { font-size: 0.85rem; }
 .empty-filter {
@@ -594,7 +677,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 
 /* ── Suprapuneri (detaliu / serie / persoane) ── */
 .detail {
-  position: fixed; inset: 0; background: rgba(5,6,8,0.74); z-index: 20;
+  position: fixed; inset: 0; background: rgba(5,6,8,0.74); z-index: var(--z-modal-scrim);
   backdrop-filter: blur(16px) saturate(140%);
   display: flex; align-items: flex-end; justify-content: center;
   animation: fadeIn 0.2s var(--ease) both;
@@ -640,7 +723,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
    overflow: hidden, butoanele deveneau inaccesibile (nici scroll). Acum
    containerul e derulabil ca plasa de siguranta, dar min-height mic
    inseamna ca de obicei nici nu ajunge sa fie nevoie. */
-.detail-inner.fit .detail-img { flex: 0 0 38dvh; min-height: 120px; }
+.detail-inner.fit .detail-img { flex: 0 0 48dvh; min-height: 120px; }
 .detail-inner.fit .detail-img .swipe-surface img { max-height: none; height: 100%; }
 /* zoomed trebuie sa invinga regula de mai sus (altfel "height: 100%" tine
    imaginea legata de inaltimea containerului si zoom-ul nu mareste nimic —
@@ -685,12 +768,12 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .detail-img.zoomed .zoom-hint { position: sticky; float: right; }
 /* overlay gradient jos — subiect "full-bleed", crește lizibilitatea badge-ului/hint-ului fara card opac */
 .detail-img-gradient {
-  position: absolute; inset: auto 0 0 0; height: 40%; z-index: 1; pointer-events: none;
+  position: absolute; inset: auto 0 0 0; height: 40%; z-index: var(--z-decorative); pointer-events: none;
   background: linear-gradient(transparent, rgba(5,6,8,0.78));
 }
 /* status-tag mutat in coltul lupei, ca la Workspace — acelasi tratament glass */
 .detail-img .detail-badge {
-  position: absolute; top: 12px; right: 12px; z-index: 2;
+  position: absolute; top: 12px; right: 12px; z-index: var(--z-card-badge);
   backdrop-filter: blur(6px); box-shadow: 0 4px 16px -4px rgba(0,0,0,0.5);
 }
 
@@ -728,7 +811,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 
 /* ── Badge-uri de swipe (Selecteaza/Respinge) — apar proportional cu distanta trasa ── */
 .swipe-badge {
-  position: absolute; top: 14px; z-index: 2; display: flex; align-items: center; gap: 6px;
+  position: absolute; top: 14px; z-index: var(--z-card-badge); display: flex; align-items: center; gap: 6px;
   padding: 6px 12px; border-radius: 999px; font-weight: 800; font-size: 0.78rem; letter-spacing: 0.04em;
   pointer-events: none; backdrop-filter: blur(6px);
 }
@@ -833,7 +916,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .tooltip-wrap { position: relative; display: inline-flex; }
 .tooltip-bubble {
   position: absolute; top: calc(100% + 7px); left: 50%; transform: translateX(-50%) translateY(-2px);
-  display: flex; align-items: center; gap: 6px; white-space: nowrap; z-index: 40;
+  display: flex; align-items: center; gap: 6px; white-space: nowrap; z-index: var(--z-tooltip);
   background: var(--surface-3); color: var(--text); border: 1px solid var(--line-strong);
   font-size: 0.72rem; font-weight: 600; line-height: 1;
   padding: 6px 9px; border-radius: 6px; box-shadow: var(--shadow);
@@ -882,16 +965,28 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .compare-card:hover { transform: translateY(-2px); }
 .compare-card.st-selected { border-color: rgba(74,222,128,0.6); box-shadow: 0 0 0 1px rgba(74,222,128,0.2); }
 .compare-card.st-rejected { border-color: var(--reject); opacity: 0.5; }
+/* recomandarea AI trebuia sa iasa in evidenta mai mult decat un simplu badge mic —
+   scalare usoara + glow de accent, vizibil chiar si dintr-o privire rapida peste grid */
+.compare-card.recommended {
+  border-color: rgb(var(--accent-rgb) / 0.6); transform: scale(1.02);
+  box-shadow: 0 0 0 1px rgb(var(--accent-rgb) / 0.3), 0 10px 30px -10px rgb(var(--accent-rgb) / 0.45);
+}
+.compare-card.recommended:hover { transform: scale(1.02) translateY(-2px); }
 .compare-img { padding: 0; background: #050608; cursor: zoom-in; border-radius: 0; position: relative; }
 .compare-img img { width: 100%; aspect-ratio: 3/2; object-fit: contain; display: block; }
 .compare-recommend-badge {
-  position: absolute; top: 8px; left: 8px; z-index: 2; display: inline-flex; align-items: center; gap: 4px;
+  position: absolute; top: 8px; left: 8px; z-index: var(--z-card-badge); display: inline-flex; align-items: center; gap: 4px;
   font-family: var(--mono); font-size: 0.62rem; font-weight: 700; letter-spacing: 0.03em;
   color: #06070a; background: var(--accent-gradient); padding: 4px 9px; border-radius: 999px;
   box-shadow: 0 4px 16px -4px rgba(0,0,0,0.5);
 }
-.compare-meta { display: flex; justify-content: space-between; gap: 8px; padding: 8px 10px; color: var(--text-dim); font-size: 0.74rem; }
+.compare-meta { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; color: var(--text-dim); font-size: 0.74rem; }
 .compare-meta b { color: var(--text); }
+.compare-stat { display: flex; align-items: center; gap: 8px; }
+.compare-stat span:first-child { flex-shrink: 0; }
+.compare-bar { flex: 1; height: 4px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.compare-bar-fill { display: block; height: 100%; border-radius: 999px; background: var(--accent-gradient); }
+.compare-eyes { color: var(--text-faint); font-size: 0.7rem; }
 .compare-actions { display: grid; grid-template-columns: 1fr 2fr; gap: 6px; padding: 0 8px 8px; }
 .compare-actions > * { min-width: 0; }
 .small-btn { padding: 8px 10px; font-size: 0.85rem; border-radius: 8px; }
@@ -921,7 +1016,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 
 .batch-section { display: grid; gap: 8px; padding: 16px 0; border-top: 1px solid var(--line); }
 .batch-section:first-of-type { border-top: none; padding-top: 0; }
-.batch-section h3 { font-size: 0.96rem; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 9px; }
+.batch-section h3 { font-family: var(--font-display); font-size: 1rem; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 9px; }
 .batch-section-icon {
   flex-shrink: 0; width: 28px; height: 28px; border-radius: 9px; background: var(--surface-2);
   color: var(--accent); display: flex; align-items: center; justify-content: center;
@@ -939,7 +1034,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 /* animatia de intrare/iesire e controlata de framer-motion (MenuDrawer.tsx) —
    CSS-ul ramane doar cu aspectul static, ca sa nu se bata cu transform-ul JS */
 .drawer-scrim {
-  position: fixed; inset: 0; z-index: 25; background: rgba(5,6,8,0.62); backdrop-filter: blur(9px);
+  position: fixed; inset: 0; z-index: var(--z-drawer-scrim); background: rgba(5,6,8,0.62); backdrop-filter: blur(9px);
   display: flex; justify-content: flex-end;
 }
 .drawer {
@@ -954,7 +1049,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .drawer::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
 .drawer-head {
   display: flex; justify-content: space-between; align-items: center;
-  margin-bottom: 10px; font-weight: 800; letter-spacing: -0.01em; font-size: 1.16rem;
+  margin-bottom: 10px; font-family: var(--font-display); font-weight: 700; letter-spacing: -0.01em; font-size: 1.16rem;
 }
 .drawer-item {
   display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
@@ -973,6 +1068,11 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
    ii invinge width-ul fix si il intinde peste tot randul, impingand eticheta jos */
 .drawer-item span:not(.drawer-item-icon) { flex: 1; }
 .drawer-count { background: var(--surface-3); color: var(--text-dim); font-size: 0.72rem; padding: 2px 8px; border-radius: 999px; }
+.drawer-section-label {
+  padding: 12px 10px 4px; font-size: 0.64rem; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--text-faint);
+}
+.drawer-section-label:first-child { padding-top: 2px; }
 .drawer-sep { height: 1px; background: var(--line); margin: 10px 0; }
 .drawer-about { display: flex; gap: 10px; color: var(--text-faint); font-size: 0.74rem; line-height: 1.5; padding: 0 10px; }
 .drawer-about svg { flex-shrink: 0; margin-top: 2px; }
@@ -980,7 +1080,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 /* ── Paleta de comenzi (Ctrl/Cmd+K) ── */
 /* animatia de intrare/iesire e controlata de framer-motion (CommandPalette.tsx) */
 .palette-scrim {
-  position: fixed; inset: 0; z-index: 30; background: rgba(5,6,8,0.62); backdrop-filter: blur(9px);
+  position: fixed; inset: 0; z-index: var(--z-palette-scrim); background: rgba(5,6,8,0.62); backdrop-filter: blur(9px);
   display: flex; align-items: flex-start; justify-content: center; padding-top: 12vh;
 }
 .palette {
@@ -1027,7 +1127,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 /* ── Scurtaturi de tastatura ── */
 .shortcuts-section { display: grid; gap: 6px; padding: 14px 0; border-top: 1px solid var(--line); }
 .shortcuts-section:first-of-type { border-top: none; padding-top: 0; }
-.shortcuts-section h3 { font-size: 0.96rem; font-weight: 700; margin: 0; }
+.shortcuts-section h3 { font-family: var(--font-display); font-size: 1rem; font-weight: 700; margin: 0; }
 .shortcuts-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .shortcuts-list li { display: flex; align-items: center; gap: 12px; }
 .shortcuts-list kbd {
@@ -1088,15 +1188,15 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 }
 @keyframes loupeIn { from { opacity: 0; transform: scale(0.985); } to { opacity: 1; transform: scale(1); } }
 .workspace-badge {
-  position: absolute; top: 24px; right: 24px; z-index: 2;
+  position: absolute; top: 24px; right: 24px; z-index: var(--z-card-badge);
   backdrop-filter: blur(6px); box-shadow: 0 4px 16px -4px rgba(0,0,0,0.5);
 }
 .workspace-rating {
-  position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 2;
+  position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: var(--z-card-badge);
   padding: 6px 10px; border-radius: 999px; box-shadow: 0 4px 16px -4px rgba(0,0,0,0.5);
 }
 .workspace-metrics {
-  position: absolute; bottom: 24px; left: 24px; z-index: 2; display: flex; flex-wrap: wrap; gap: 6px 14px;
+  position: absolute; bottom: 24px; left: 24px; z-index: var(--z-card-badge); display: flex; flex-wrap: wrap; gap: 6px 14px;
   background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur)); border: 1px solid var(--glass-border);
   border-radius: var(--radius); padding: 10px 14px; font-size: 0.78rem; color: var(--text-dim); max-width: calc(100% - 48px);
 }
@@ -1104,7 +1204,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .workspace-metrics .warn { color: var(--reject); }
 .workspace-head .icon-btn.active { border: 1px solid transparent; background: var(--surface-3); color: var(--accent); box-shadow: 0 0 0 1px rgb(var(--accent-rgb) / 0.3); }
 .workspace-nav {
-  position: absolute; top: 50%; transform: translateY(-50%); z-index: 2;
+  position: absolute; top: 50%; transform: translateY(-50%); z-index: var(--z-card-badge);
   background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur)); border: 1px solid var(--glass-border);
 }
 .workspace-nav.prev { left: 12px; }
@@ -1151,7 +1251,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
   border-radius: var(--radius-lg);
 }
 .error-boundary-card svg { width: 32px; height: 32px; color: var(--review); }
-.error-boundary-card h2 { font-size: 1.1rem; margin: 0; }
+.error-boundary-card h2 { font-family: var(--font-display); font-size: 1.1rem; font-weight: 700; margin: 0; }
 .error-boundary-card p { color: var(--text-dim); font-size: 0.86rem; line-height: 1.5; margin: 0; }
 .error-boundary-card .select { margin-top: 6px; }
 .error-boundary-details { width: 100%; text-align: left; margin-top: 10px; }
@@ -1179,6 +1279,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
   .detail-actions .ghost { order: 2; }
   .brand-text h1 { font-size: 1.24rem; }
   .brand-text p { display: none; }
+  .project-name-btn, .project-name-input { display: none; }
   .brand-mark { width: 30px; height: 30px; padding: 6px; }
   .detail-inner.fit { height: 96dvh; max-height: 96dvh; }
   /* topbar-ul poate ocupa 2 randuri pe telefoane foarte inguste — filtrele

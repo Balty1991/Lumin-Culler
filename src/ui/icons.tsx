@@ -21,6 +21,9 @@ export function ListIcon(p: SVGProps<SVGSVGElement>) {
 export function InfoIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><circle cx="12" cy="12" r="9" /><line x1="12" y1="11" x2="12" y2="16.5" /><circle cx="12" cy="7.6" r="0.9" fill="currentColor" stroke="none" /></svg>;
 }
+export function EditIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg {...base} {...p}><path d="M14.5 4.5l5 5L8 21H3v-5z" /></svg>;
+}
 export function XIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" /></svg>;
 }
@@ -55,6 +58,11 @@ export function CheckIcon(p: SVGProps<SVGSVGElement>) {
 }
 export function AlertIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><path d="M12 3.5l9.5 16.5H2.5z" /><line x1="12" y1="9.5" x2="12" y2="14" /><circle cx="12" cy="17" r="0.15" fill="currentColor" /></svg>;
+}
+/** Distincta de AlertIcon (triunghi de avertizare) — forma octogonala, pentru erori
+    reale, ca semnalul sa nu depinda doar de culoare (rosu vs galben). */
+export function ErrorIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg {...base} {...p}><path d="M8 3h8l5 5v8l-5 5H8l-5-5V8z" /><line x1="12" y1="8" x2="12" y2="13" /><circle cx="12" cy="16" r="0.15" fill="currentColor" /></svg>;
 }
 export function TagIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><path d="M12.6 3H5a2 2 0 00-2 2v7.6c0 .5.2 1 .6 1.4l8.4 8.4c.8.8 2 .8 2.8 0l7-7c.8-.8.8-2 0-2.8L13.4 3.6c-.4-.4-.9-.6-1.4-.6z" /><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" stroke="none" /></svg>;
