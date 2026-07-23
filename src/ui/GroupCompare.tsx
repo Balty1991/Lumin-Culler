@@ -77,6 +77,7 @@ function CompareCard({ photo, recommended, onKeep, onReject, onZoom }: {
   return (
     <div className={`compare-card st-${photo.status}`}>
       <button className="compare-img" onClick={onZoom} title="Deschide la 100%">
+        <div className="grain-overlay" aria-hidden="true" />
         {src && <img src={src} alt={photo.fileName} />}
         {recommended && (
           <span className="compare-recommend-badge">

@@ -4,7 +4,7 @@ import { readStoredTheme, applyTheme } from './theme';
 beforeEach(() => {
   localStorage.clear();
   document.documentElement.removeAttribute('data-theme');
-  document.head.innerHTML = '<meta name="theme-color" content="#08090c" />';
+  document.head.innerHTML = '<meta name="theme-color" content="#0a0b0d" />';
 });
 
 describe('readStoredTheme', () => {
@@ -27,7 +27,7 @@ describe('applyTheme', () => {
   it('sets data-theme="light" and updates theme-color for light', () => {
     applyTheme('light');
     expect(document.documentElement.getAttribute('data-theme')).toBe('light');
-    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe('#f4f4f6');
+    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe('#f5f5f7');
     expect(localStorage.getItem('lumin-theme')).toBe('light');
   });
 
@@ -35,7 +35,7 @@ describe('applyTheme', () => {
     document.documentElement.setAttribute('data-theme', 'light');
     applyTheme('dark');
     expect(document.documentElement.hasAttribute('data-theme')).toBe(false);
-    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe('#08090c');
+    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe('#0a0b0d');
     expect(localStorage.getItem('lumin-theme')).toBe('dark');
   });
 });

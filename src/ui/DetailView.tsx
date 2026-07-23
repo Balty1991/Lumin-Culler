@@ -226,6 +226,7 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
           onPointerCancel={endDrag}
           title={zoomed ? 'Iesi din zoom' : 'Zoom 100% (Z) · trage stanga/dreapta pentru decizie'}
         >
+          <div className="grain-overlay" aria-hidden="true" />
           <div
             className="swipe-surface"
             style={zoomed ? undefined : {

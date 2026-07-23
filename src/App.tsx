@@ -13,7 +13,7 @@ import { CommandPalette } from './ui/CommandPalette';
 import { ShortcutsPanel } from './ui/ShortcutsPanel';
 import { AnimatedNumber } from './ui/AnimatedNumber';
 import { Tooltip } from './ui/Tooltip';
-import { MenuIcon, PlusIcon, StarIcon, AlertIcon, XIcon, FocusIcon, UndoIcon, SearchIcon } from './ui/icons';
+import { MenuIcon, PlusIcon, StarIcon, AlertIcon, XIcon, FocusIcon, UndoIcon, SearchIcon, ApertureIcon } from './ui/icons';
 
 const NOTICE_AUTODISMISS_MS = 7000;
 /**
@@ -144,8 +144,11 @@ export default function App() {
     <div className="app">
       <header className="topbar">
         <div className="brand">
-          <h1>LUMIN<span>CULLER</span></h1>
-          <p className="mono"><i className="live-dot" aria-hidden="true" /> AI local · pozele raman pe dispozitiv</p>
+          <ApertureIcon className="brand-mark" aria-hidden="true" />
+          <div className="brand-text">
+            <h1>LUMIN<span>CULLER</span></h1>
+            <p className="mono"><i className="live-dot" aria-hidden="true" /> AI local · pozele raman pe dispozitiv</p>
+          </div>
         </div>
         <div className="top-actions">
           {photos.length > 0 && (
@@ -206,9 +209,9 @@ export default function App() {
             <span className="seg-rej" style={{ width: `${(counts.rejected / total) * 100}%` }} />
           </div>
           <div className="cullbar-legend mono">
-            <span><i className="dot sel" /><b><AnimatedNumber value={counts.selected} /></b> selectate</span>
-            <span><i className="dot rev" /><b><AnimatedNumber value={counts.review} /></b> de verificat</span>
-            <span><i className="dot rej" /><b><AnimatedNumber value={counts.rejected} /></b> respinse</span>
+            <span className="legend-stat"><i className="dot sel" /><b><AnimatedNumber value={counts.selected} /></b> selectate</span>
+            <span className="legend-stat"><i className="dot rev" /><b><AnimatedNumber value={counts.review} /></b> de verificat</span>
+            <span className="legend-stat"><i className="dot rej" /><b><AnimatedNumber value={counts.rejected} /></b> respinse</span>
             <span className="spacer" />
             <button className="ghost small" onClick={() => void confirmClearAll()}>Goleste sesiunea</button>
           </div>
@@ -240,10 +243,11 @@ export default function App() {
 
       {photos.length === 0 && !progress ? (
         <div className="empty">
+          <ApertureIcon className="empty-mark" aria-hidden="true" />
           <h2>Adauga sedinta foto</h2>
           <p>Alege pozele (JPEG/PNG/WebP/RAW — CR2, NEF, ARW, DNG si altele). Analiza ruleaza
           local, pe fire separate — poti incarca si 1000+ fisiere fara ca aplicatia sa se blocheze.</p>
-          <button className="select big" onClick={() => fileRef.current?.click()}>Alege fotografiile</button>
+          <button className="btn-accent big" onClick={() => fileRef.current?.click()}>Alege fotografiile</button>
           <p className="hint"><StarIcon className="inline-icon" /> Optional: inroleaza persoanele importante din
           meniu, ca AI-ul sa le prioritizeze la scorare.</p>
         </div>

@@ -24,7 +24,7 @@ export function applyTheme(theme: Theme): void {
   else document.documentElement.removeAttribute('data-theme');
 
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute('content', theme === 'light' ? '#f4f4f6' : '#08090c');
+  if (meta) meta.setAttribute('content', theme === 'light' ? '#f5f5f7' : '#0a0b0d');
 
   try { localStorage.setItem(STORAGE_KEY, theme); } catch {
     // stocare indisponibila (mod privat strict etc.) — tema tot se aplica pentru sesiunea curenta
