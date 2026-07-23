@@ -1,5 +1,8 @@
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useStore } from '../state/store';
 import { StarIcon, SparkleIcon, ListIcon, InfoIcon, XIcon, TagIcon, LayersIcon, KeyboardIcon, SunIcon, MoonIcon } from './icons';
+
+const EASE = [0.16, 1, 0.3, 1] as const;
 
 /** Meniu lateral: persoane, preferinte AI invatate, export lista, despre. */
 export function MenuDrawer() {
@@ -14,14 +17,23 @@ export function MenuDrawer() {
   const exportManifest = useStore(s => s.exportManifest);
   const exportXMP = useStore(s => s.exportXMP);
   const persons = useStore(s => s.persons);
-
-  if (!open) return null;
+  const reduceMotion = useReducedMotion();
 
   const go = (action: () => void) => { setOpen(false); action(); };
 
   return (
-    <div className="drawer-scrim" onClick={() => setOpen(false)}>
-      <nav className="drawer" onClick={e => e.stopPropagation()}>
+    <AnimatePresence>
+      {open && (
+    <motion.div
+      className="drawer-scrim" onClick={() => setOpen(false)}
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      transition={{ duration: reduceMotion ? 0 : 0.2, ease: EASE }}
+    >
+      <motion.nav
+        className="drawer" onClick={e => e.stopPropagation()}
+        initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
+        transition={{ duration: reduceMotion ? 0 : 0.26, ease: EASE }}
+      >
         <header className="drawer-head">
           <span>Meniu</span>
           <button className="ghost icon-btn" onClick={() => setOpen(false)} aria-label="Inchide meniul">
@@ -72,7 +84,9 @@ export function MenuDrawer() {
           <p>Analiza AI, recunoasterea persoanelor si motorul de invatare ruleaza integral
           local, in browser — nicio poza nu paraseste dispozitivul.</p>
         </div>
-      </nav>
-    </div>
+      </motion.nav>
+    </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

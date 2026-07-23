@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useStore, type FilterKey } from '../state/store';
 import { SearchIcon } from './icons';
+
+const EASE = [0.16, 1, 0.3, 1] as const;
 
 interface Command {
   id: string;
@@ -45,6 +48,7 @@ export function CommandPalette() {
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const reduceMotion = useReducedMotion();
 
   // deschidere globala cu Ctrl/Cmd+K — inregistrata o singura data (dependente
   // stabile), disponibila indiferent de ecran (grid sau Workspace)
@@ -142,36 +146,46 @@ export function CommandPalette() {
     else if (e.key === 'Escape') { e.stopPropagation(); setOpen(false); }
   };
 
-  if (!open) return null;
-
   return (
-    <div className="palette-scrim" onClick={() => setOpen(false)}>
-      <div className="palette" onClick={e => e.stopPropagation()}>
-        <div className="palette-input-row">
-          <SearchIcon className="inline-icon" />
-          <input
-            ref={inputRef}
-            value={query}
-            onChange={e => { setQuery(e.target.value); setActiveIndex(0); }}
-            onKeyDown={onInputKeyDown}
-            placeholder="Caută o acțiune…"
-          />
-        </div>
-        <ul className="palette-list">
-          {filtered.map((c, i) => (
-            <li
-              key={c.id}
-              className={`${i === activeIndex ? 'active' : ''}${c.disabled ? ' disabled' : ''}`}
-              onMouseEnter={() => setActiveIndex(i)}
-              onClick={() => execute(c)}
-            >
-              <span>{c.label}</span>
-              {c.hint && <span className="palette-hint mono">{c.hint}</span>}
-            </li>
-          ))}
-          {filtered.length === 0 && <li className="palette-empty">Nicio acțiune găsită.</li>}
-        </ul>
-      </div>
-    </div>
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="palette-scrim" onClick={() => setOpen(false)}
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          transition={{ duration: reduceMotion ? 0 : 0.15, ease: EASE }}
+        >
+          <motion.div
+            className="palette" onClick={e => e.stopPropagation()}
+            initial={{ opacity: 0, scale: 0.97, y: -8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.98, y: -4 }}
+            transition={{ duration: reduceMotion ? 0 : 0.18, ease: EASE }}
+          >
+            <div className="palette-input-row">
+              <SearchIcon className="inline-icon" />
+              <input
+                ref={inputRef}
+                value={query}
+                onChange={e => { setQuery(e.target.value); setActiveIndex(0); }}
+                onKeyDown={onInputKeyDown}
+                placeholder="Caută o acțiune…"
+              />
+            </div>
+            <ul className="palette-list">
+              {filtered.map((c, i) => (
+                <li
+                  key={c.id}
+                  className={`${i === activeIndex ? 'active' : ''}${c.disabled ? ' disabled' : ''}`}
+                  onMouseEnter={() => setActiveIndex(i)}
+                  onClick={() => execute(c)}
+                >
+                  <span>{c.label}</span>
+                  {c.hint && <span className="palette-hint mono">{c.hint}</span>}
+                </li>
+              ))}
+              {filtered.length === 0 && <li className="palette-empty">Nicio acțiune găsită.</li>}
+            </ul>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

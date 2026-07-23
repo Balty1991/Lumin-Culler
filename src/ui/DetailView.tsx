@@ -1,13 +1,23 @@
-import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { db } from '../core/db';
-import { useStore } from '../state/store';
+import { useStore, type PhotoView } from '../state/store';
 import { explainFactors } from '../core/learning/ContextEngine';
 import { AnimatedNumber } from './AnimatedNumber';
 import { vibrate } from './haptics';
-import { XIcon, ChevronLeft, ChevronRight, LayersIcon, StarIcon, CheckIcon, EyeClosedIcon, SparkleIcon } from './icons';
+import { XIcon, ChevronLeft, ChevronRight, LayersIcon, StarIcon, CheckIcon, EyeClosedIcon, SparkleIcon, ClockIcon } from './icons';
 
 const SWIPE_COMMIT = 96;       // px de tras pentru a declansa decizia
 const SWIPE_TAP_TOLERANCE = 6; // sub asta e considerat click (zoom), nu swipe
+const EASE = [0.16, 1, 0.3, 1] as const;
+
+type Tab = 'metrics' | 'why' | 'persons' | 'history';
+const TABS: { key: Tab; label: string }[] = [
+  { key: 'metrics', label: 'Metrici' },
+  { key: 'why', label: 'De ce acest scor' },
+  { key: 'persons', label: 'Persoane' },
+  { key: 'history', label: 'Istoric' }
+];
 
 function StatTile({ label, value, warn }: { label: string; value: ReactNode; warn?: boolean }) {
   return (
@@ -33,6 +43,23 @@ function formatExif(photo: { iso?: number; fNumber?: number; exposureTime?: numb
   return parts.join(' · ');
 }
 
+/** Timp relativ scurt, in romana — suficient de precis pentru un istoric de minute/ore, nu o audiere legala. */
+function formatRelativeTime(ts: number): string {
+  const diffSec = Math.max(0, Math.round((Date.now() - ts) / 1000));
+  if (diffSec < 5) return 'chiar acum';
+  if (diffSec < 60) return `acum ${diffSec}s`;
+  const diffMin = Math.round(diffSec / 60);
+  if (diffMin < 60) return `acum ${diffMin} min`;
+  const diffH = Math.round(diffMin / 60);
+  if (diffH < 24) return `acum ${diffH}h`;
+  const diffD = Math.round(diffH / 24);
+  return `acum ${diffD}z`;
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  selected: 'Selectata', rejected: 'Respinsa', review: 'De verificat', pending: 'In asteptare'
+};
+
 function ScoreRing({ score }: { score: number }) {
   const color = score >= 65 ? 'var(--pick)' : score <= 35 ? 'var(--reject)' : 'var(--review)';
   const deg = Math.max(0, Math.min(360, Math.round((score / 100) * 360)));
@@ -43,18 +70,16 @@ function ScoreRing({ score }: { score: number }) {
   );
 }
 
-/** Vizualizare detaliata pe PREVIEW 2048px (nu miniatura) + zoom 100% pentru
-    evaluarea corecta a claritatii. Poza (subiectul principal) primeste o
-    inaltime generoasa fixa; doar zona de informatii (statistici + motive +
-    persoane) e derulabila daca nu incape, ca sa nu ajunga sa domine ecranul
-    in fata fotografiei — butoanele de decizie raman mereu vizibile, in afara
-    zonei derulabile. Trage imaginea stanga/dreapta pentru Respinge/Selecteaza
-    (ca la aplicatiile moderne de triaj foto), cu feedback haptic pe Android;
-    click simplu ramane zoom 100%, distinse prin toleranta de miscare
-    (SWIPE_TAP_TOLERANCE). */
-export function DetailView() {
-  const detailId = useStore(s => s.detailId);
-  const photos = useStore(s => s.photos);
+/**
+ * Randat doar cat timp exista o poza (vezi DetailView mai jos) — separat intr-o
+ * componenta proprie ca sa primeasca `photo` NEnulabil (evita null-checks peste
+ * tot) fara sa strice animatia de iesire: DetailView pastreaza AnimatePresence
+ * montat permanent, doar acest continut apare/dispare condiţionat, iar
+ * navigarea intre poze (sageti) NU remonteaza componenta (fara `key={photo.id}`
+ * — altfel fiecare Sageata ar re-juca intrarea, nu doar Escape/X).
+ */
+function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion: boolean }) {
+  const history = useStore(s => s.history);
   const openDetail = useStore(s => s.openDetail);
   const openCompare = useStore(s => s.openCompare);
   const stepDetail = useStore(s => s.stepDetail);
@@ -62,27 +87,30 @@ export function DetailView() {
   const [src, setSrc] = useState<string | null>(null);
   const [zoomed, setZoomed] = useState(false);
   const [dragX, setDragX] = useState(0);
+  const [tab, setTab] = useState<Tab>('metrics');
   const draggingRef = useRef(false);
   const movedRef = useRef(false);
   const startXRef = useRef(0);
 
-  const photo = photos.find(p => p.id === detailId) ?? null;
+  const photoHistory = useMemo(
+    () => history.filter(h => h.photoId === photo.id).slice().reverse(),
+    [history, photo.id]
+  );
 
   useEffect(() => {
     setZoomed(false);
     setDragX(0);
-    if (!detailId) { setSrc(null); return; }
+    setTab('metrics');
     let url: string | null = null;
     let alive = true;
-    db.previews.get(detailId).then(async p => {
-      const rec = p ?? (await db.thumbnails.get(detailId)); // fallback poze vechi
+    db.previews.get(photo.id).then(async p => {
+      const rec = p ?? (await db.thumbnails.get(photo.id)); // fallback poze vechi
       if (rec && alive) { url = URL.createObjectURL(rec.blob); setSrc(url); }
     });
     return () => { alive = false; if (url) URL.revokeObjectURL(url); };
-  }, [detailId]);
+  }, [photo.id]);
 
   useEffect(() => {
-    if (!detailId) return;
     const onKey = (e: KeyboardEvent) => {
       // ignora tastarea in orice camp text (ex. cautarea din Paleta de comenzi) —
       // vezi acelasi gardian in Workspace.tsx
@@ -90,8 +118,8 @@ export function DetailView() {
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
       if (e.key === 'ArrowRight') stepDetail(1);
       else if (e.key === 'ArrowLeft') stepDetail(-1);
-      else if (e.key === 'p' || e.key === 'P') void setStatus(detailId, 'selected');
-      else if (e.key === 'x' || e.key === 'X') void setStatus(detailId, 'rejected');
+      else if (e.key === 'p' || e.key === 'P') void setStatus(photo.id, 'selected');
+      else if (e.key === 'x' || e.key === 'X') void setStatus(photo.id, 'rejected');
       else if (e.key === 'z' || e.key === 'Z') setZoomed(z => !z);
       else if (e.key === 'Escape') {
         // acelasi motiv ca in Workspace.tsx: stopPropagation() dintr-un alt
@@ -104,9 +132,7 @@ export function DetailView() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [detailId, stepDetail, setStatus, openDetail]);
-
-  if (!photo) return null;
+  }, [photo.id, stepDetail, setStatus, openDetail]);
 
   const commitSwipe = (status: 'selected' | 'rejected') => {
     vibrate(status === 'selected' ? 14 : [12, 40, 12]);
@@ -139,14 +165,21 @@ export function DetailView() {
     setZoomed(z => !z);
   };
 
+  const exif = formatExif(photo);
+
   return (
-    <div className="detail" onClick={e => { if (e.target === e.currentTarget) openDetail(null); }}>
-      <div className="detail-inner fit">
+    <motion.div
+      className="detail detail-motion" onClick={e => { if (e.target === e.currentTarget) openDetail(null); }}
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      transition={{ duration: reduceMotion ? 0 : 0.2, ease: EASE }}
+    >
+      <motion.div
+        className="detail-inner fit"
+        initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 24 }}
+        transition={{ duration: reduceMotion ? 0 : 0.28, ease: EASE }}
+      >
         <header className="detail-head">
           <span className="mono">{photo.fileName}</span>
-          <span className={`status-tag st-${photo.status}`}>
-            {photo.status === 'selected' ? 'SELECTATA' : photo.status === 'rejected' ? 'RESPINSA' : 'DE VERIFICAT'}
-          </span>
           <button className="ghost icon-btn" onClick={() => openDetail(null)} aria-label="Inchide">
             <XIcon />
           </button>
@@ -170,6 +203,10 @@ export function DetailView() {
           >
             {src && <img src={src} alt={photo.fileName} />}
           </div>
+          {!zoomed && <div className="detail-img-gradient" aria-hidden="true" />}
+          <span className={`status-tag st-${photo.status} detail-badge`}>
+            {photo.status === 'selected' ? 'SELECTATA' : photo.status === 'rejected' ? 'RESPINSA' : 'DE VERIFICAT'}
+          </span>
           {!zoomed && dragX > 4 && (
             <div className="swipe-badge swipe-badge-select" style={{ opacity: Math.min(1, dragX / SWIPE_COMMIT) }}>
               <CheckIcon /> SELECTEAZA
@@ -183,68 +220,109 @@ export function DetailView() {
           <span className="zoom-hint mono">{zoomed ? '100% — trage pentru a naviga' : 'atinge pentru 100% (Z)'}</span>
         </div>
 
-        <div className="detail-scroll">
-          <div className="stat-grid">
-            <div className="stat-tile score-tile">
-              <ScoreRing score={photo.aiScore} />
-              <span className="stat-label">Scor AI</span>
-            </div>
-            <StatTile label="Claritate" value={photo.sharpness} />
-            <StatTile label="Expunere" value={photo.exposure} />
-            {photo.faceCount > 0 && <StatTile label="Fete" value={photo.faceCount} />}
-            {photo.faceCount > 0 && (
-              // grup (mai multe fete): procent care zambesc, nu doar cea mai buna fata —
-              // altfel un singur zambet mare "ascunde" restul grupului serios/nemultumit
-              <StatTile
-                label={photo.faceCount > 1 ? 'Zâmbete' : 'Zambet'}
-                value={`${Math.round((photo.faceCount > 1 ? photo.groupSmileRatio ?? photo.bestSmile : photo.bestSmile) * 100)}%`}
-              />
-            )}
-            {photo.faceCount > 0 && (
-              // grup: procent cu ochii deschisi (nu strict "toti sau niciunul") — problema
-              // clasica la poze de grup e mereu cineva care clipeste
-              <StatTile
-                label={photo.faceCount > 1 ? 'Ochi (grup)' : (photo.allEyesOpen ? 'Ochi OK' : 'Clipire')}
-                value={
-                  photo.faceCount > 1
-                    ? `${Math.round((photo.groupEyesOpenRatio ?? (photo.allEyesOpen ? 1 : 0)) * 100)}%`
-                    : (photo.allEyesOpen ? <CheckIcon /> : <EyeClosedIcon />)
-                }
-                warn={photo.faceCount > 1 ? (photo.groupEyesOpenRatio ?? 1) < 1 : !photo.allEyesOpen}
-              />
-            )}
-            {photo.faceCount > 0 && <StatTile label="Treimi" value={`${Math.round(photo.ruleOfThirds * 100)}%`} />}
-            {photo.faceCount > 0 && <StatTile label="Cadraj" value={`${Math.round(photo.headroom * 100)}%`} />}
-          </div>
+        {photo.groupId && (
+          <button className="ghost slim" onClick={() => { openDetail(null); openCompare(photo.groupId!); }}>
+            <LayersIcon className="inline-icon" /> Compara toata seria
+          </button>
+        )}
 
-          {photo.aiFactors.length > 0 && (
-            <div className="factor-row">
-              <span className="factor-row-label mono"><SparkleIcon className="inline-icon" /> De ce acest scor</span>
-              <div className="factor-tags">
-                {explainFactors(photo.aiFactors).map(f => (
-                  <span key={f.label} className={f.positive ? 'factor-tag pos' : 'factor-tag neg'}>
-                    {f.positive ? '+' : '−'} {f.label}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {(photo.personNames.length > 0 || formatExif(photo)) && (
-            // combinate pe un singur rand cand ambele exista — economiseste un
-            // gap+linie intreg fata de doua paragrafe separate, esential pentru
-            // a incapea totul fara scroll in cazul cel mai incarcat
-            <p className="detail-persons mono">
-              {photo.personNames.length > 0 && <><StarIcon className="inline-icon" /> {photo.personNames.join(', ')}</>}
-              {photo.personNames.length > 0 && formatExif(photo) && <span className="detail-exif-sep"> · </span>}
-              {formatExif(photo) && <span className="detail-exif">{formatExif(photo)}</span>}
-            </p>
-          )}
-
-          {photo.groupId && (
-            <button className="ghost slim" onClick={() => { openDetail(null); openCompare(photo.groupId!); }}>
-              <LayersIcon className="inline-icon" /> Compara toata seria
+        <nav className="detail-tabs" role="tablist">
+          {TABS.map(t => (
+            <button
+              key={t.key} role="tab" aria-selected={tab === t.key}
+              className={tab === t.key ? 'detail-tab active' : 'detail-tab'}
+              onClick={() => setTab(t.key)}
+            >
+              {t.label}
+              {t.key === 'history' && photoHistory.length > 0 && <b className="detail-tab-count mono">{photoHistory.length}</b>}
             </button>
+          ))}
+        </nav>
+
+        <div className="detail-scroll">
+          {tab === 'metrics' && (
+            <>
+              <div className="stat-grid">
+                <div className="stat-tile score-tile">
+                  <ScoreRing score={photo.aiScore} />
+                  <span className="stat-label">Scor AI</span>
+                </div>
+                <StatTile label="Claritate" value={photo.sharpness} />
+                <StatTile label="Expunere" value={photo.exposure} />
+                {photo.faceCount > 0 && <StatTile label="Fete" value={photo.faceCount} />}
+                {photo.faceCount > 0 && (
+                  // grup (mai multe fete): procent care zambesc, nu doar cea mai buna fata —
+                  // altfel un singur zambet mare "ascunde" restul grupului serios/nemultumit
+                  <StatTile
+                    label={photo.faceCount > 1 ? 'Zâmbete' : 'Zambet'}
+                    value={`${Math.round((photo.faceCount > 1 ? photo.groupSmileRatio ?? photo.bestSmile : photo.bestSmile) * 100)}%`}
+                  />
+                )}
+                {photo.faceCount > 0 && (
+                  // grup: procent cu ochii deschisi (nu strict "toti sau niciunul") — problema
+                  // clasica la poze de grup e mereu cineva care clipeste
+                  <StatTile
+                    label={photo.faceCount > 1 ? 'Ochi (grup)' : (photo.allEyesOpen ? 'Ochi OK' : 'Clipire')}
+                    value={
+                      photo.faceCount > 1
+                        ? `${Math.round((photo.groupEyesOpenRatio ?? (photo.allEyesOpen ? 1 : 0)) * 100)}%`
+                        : (photo.allEyesOpen ? <CheckIcon /> : <EyeClosedIcon />)
+                    }
+                    warn={photo.faceCount > 1 ? (photo.groupEyesOpenRatio ?? 1) < 1 : !photo.allEyesOpen}
+                  />
+                )}
+                {photo.faceCount > 0 && <StatTile label="Treimi" value={`${Math.round(photo.ruleOfThirds * 100)}%`} />}
+                {photo.faceCount > 0 && <StatTile label="Cadraj" value={`${Math.round(photo.headroom * 100)}%`} />}
+              </div>
+              {exif && <p className="detail-exif mono">{exif}</p>}
+            </>
+          )}
+
+          {tab === 'why' && (
+            photo.aiFactors.length > 0 ? (
+              <div className="factor-row">
+                <span className="factor-row-label mono"><SparkleIcon className="inline-icon" /> De ce acest scor</span>
+                <div className="factor-tags">
+                  {explainFactors(photo.aiFactors).map(f => (
+                    <span key={f.label} className={f.positive ? 'factor-tag pos' : 'factor-tag neg'}>
+                      {f.positive ? '+' : '−'} {f.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className="hint">Inca nu exista explicatii de scor pentru aceasta poza.</p>
+            )
+          )}
+
+          {tab === 'persons' && (
+            photo.personNames.length > 0 ? (
+              <ul className="detail-person-list">
+                {photo.personNames.map(name => (
+                  <li key={name}><StarIcon className="inline-icon" /> {name}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="hint">Nicio persoana cunoscuta recunoscuta in aceasta poza.</p>
+            )
+          )}
+
+          {tab === 'history' && (
+            photoHistory.length > 0 ? (
+              <ul className="detail-history-list">
+                {photoHistory.map((h, i) => (
+                  <li key={h.ts + '-' + i}>
+                    <span className="mono detail-history-time">{formatRelativeTime(h.ts)}</span>
+                    <span>{STATUS_LABEL[h.previousStatus] ?? h.previousStatus} → <b>{STATUS_LABEL[h.newStatus] ?? h.newStatus}</b></span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="hint">
+                <ClockIcon className="inline-icon" /> Nicio decizie manuala recenta pentru aceasta poza — istoricul pastreaza
+                doar ultimele 10 schimbari din toata sesiunea, nu un jurnal complet.
+              </p>
+            )
           )}
         </div>
 
@@ -258,7 +336,20 @@ export function DetailView() {
             <ChevronRight />
           </button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+export function DetailView() {
+  const detailId = useStore(s => s.detailId);
+  const photos = useStore(s => s.photos);
+  const reduceMotion = useReducedMotion();
+  const photo = photos.find(p => p.id === detailId) ?? null;
+
+  return (
+    <AnimatePresence>
+      {photo && <DetailContent photo={photo} reduceMotion={!!reduceMotion} />}
+    </AnimatePresence>
   );
 }

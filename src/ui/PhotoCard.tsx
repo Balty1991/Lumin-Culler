@@ -1,7 +1,7 @@
 import { useEffect, useState, memo } from 'react';
 import { db } from '../core/db';
 import type { PhotoView } from '../state/store';
-import { StarIcon, UserQuestionIcon, EyeClosedIcon, LayersIcon } from './icons';
+import { StarIcon, UserQuestionIcon, EyeClosedIcon, LayersIcon, CheckIcon } from './icons';
 
 /** Card "contact sheet": miniatura din IndexedDB, incarcare lenesa, zero logica. */
 function PhotoCardInner({ photo, index, onOpen }: {
@@ -23,6 +23,9 @@ function PhotoCardInner({ photo, index, onOpen }: {
   return (
     <button className={`card st-${photo.status}`} onClick={() => onOpen(photo.id)}>
       <span className="frame-no">#{String(index + 1).padStart(3, '0')}</span>
+      {photo.status === 'selected' && (
+        <span className="check-badge" aria-hidden="true"><CheckIcon /></span>
+      )}
       {src ? <img src={src} alt={photo.fileName} loading="lazy" /> : <span className="card-loading" />}
       <span className="card-strip">
         <b className="score">{photo.aiScore}</b>

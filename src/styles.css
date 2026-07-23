@@ -28,21 +28,44 @@
   --accent: #22d3ee;
   --accent-2: #8b5cf6;
   --accent-gradient: linear-gradient(135deg, var(--accent), var(--accent-2));
+  --accent-rgb: 34 211 238;
 
   --pick: #4ade80;
   --pick-deep: #07230f;
+  --pick-rgb: 74 222 128;
   --reject: #fb7185;
   --reject-deep: #2b0a11;
+  --reject-rgb: 251 113 133;
   --review: #fbbf24;
   --review-deep: #271b02;
+  --review-rgb: 251 191 36;
 
   --mono: "SF Mono", "Cascadia Code", "JetBrains Mono", Consolas, monospace;
   --sans: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  /* scara de radius — de la chip-uri mici (sm) la foi/modale mari (xl) */
+  --radius-sm: 6px;
   --radius: 12px;
   --radius-lg: 18px;
+  --radius-xl: 24px;
+
+  /* scara de umbre — profunzime consistenta intre carduri/panouri/modale */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+  --shadow: 0 4px 20px -4px rgba(0,0,0,0.4);
+  --shadow-lg: 0 20px 50px -10px rgba(0,0,0,0.6);
+  --shadow-lift: 0 10px 30px -8px rgba(0,0,0,0.55);
+
+  /* miscare — durate/easing consistente pentru framer-motion SI CSS simplu */
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
   --micro: 0.15s ease-in-out;
-  --shadow-lift: 0 10px 30px -8px rgba(0,0,0,0.55);
+  --duration-fast: 0.18s;
+  --duration: 0.28s;
+  --duration-slow: 0.42s;
+
+  /* glassmorphism — suprafete plutitoare (paleta, tooltip, badge peste poza) */
+  --glass-bg: rgba(30,30,30,0.75);
+  --glass-border: rgba(255,255,255,0.08);
+  --glass-blur: 16px;
 }
 
 /* Tema luminoasa: doar "sasiul" aplicatiei (fundal, suprafete, text) se schimba —
@@ -65,7 +88,12 @@
   --scrollbar-thumb-hover: #a3a8b1;
   --skeleton-a: #eef0f3;
   --skeleton-b: #e3e5ea;
+  --shadow-sm: 0 1px 3px rgba(20,20,30,0.08);
+  --shadow: 0 4px 20px -4px rgba(20,20,30,0.12);
+  --shadow-lg: 0 20px 50px -10px rgba(20,20,30,0.18);
   --shadow-lift: 0 10px 30px -8px rgba(20,20,30,0.14);
+  --glass-bg: rgba(255,255,255,0.75);
+  --glass-border: rgba(20,20,30,0.08);
 }
 
 * { box-sizing: border-box; margin: 0; }
@@ -82,6 +110,9 @@ body {
 /* scrollbar-uri subtiri, neutre — Firefox (global) + Webkit (per-container, mai jos) */
 * { scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) transparent; }
 .mono { font-family: var(--mono); font-size: 0.82em; letter-spacing: 0.02em; }
+/* suprafata plutitoare (paleta, badge peste poza, tooltip) — translucid + blur,
+   NU folosit pe zonele unde se judeca poza (acolo ramane opac, vezi mai jos) */
+.glass { background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur)); border: 1px solid var(--glass-border); }
 button { font: inherit; cursor: pointer; border: none; border-radius: 6px; background: none; color: inherit; }
 button, .chip, .card, .compare-img { -webkit-tap-highlight-color: transparent; }
 button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
@@ -271,9 +302,15 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .grid .card:nth-child(n+18) { animation-delay: 240ms; }
 .grid .card:nth-child(n+24) { animation-delay: 260ms; }
 .grid .card:nth-child(n+32) { animation-delay: 280ms; }
-.card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lift); border-color: var(--line-strong); }
+.card:hover {
+  transform: translateY(-3px); border-color: var(--line-strong);
+  box-shadow: var(--shadow-lift), 0 0 0 1px rgb(var(--accent-rgb) / 0.16);
+}
 .card:active { transform: translateY(-1px) scale(0.985); }
-.card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.card img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+  transition: opacity var(--duration) var(--ease), filter var(--duration) var(--ease);
+}
 .card-loading {
   flex: 1; background: var(--skeleton-a);
   animation: skeletonPulse 1.4s ease-in-out infinite;
@@ -299,6 +336,24 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .card.st-rejected::before { background: var(--reject); opacity: 0.65; }
 .card.st-review { border-color: rgba(251,191,36,0.5); box-shadow: 0 0 0 1px rgba(251,191,36,0.14); }
 .card.st-review::before { background: linear-gradient(90deg, var(--review), #fde68a); opacity: 1; }
+
+/* check-mark care apare cand poza e selectata — inel care se extinde + iconita, o singura data la aparitie */
+.check-badge {
+  position: absolute; top: 6px; right: 7px; z-index: 2; width: 20px; height: 20px; border-radius: 50%;
+  background: var(--pick); color: var(--pick-deep); display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 0 3px rgb(var(--pick-rgb) / 0.25);
+  animation: checkPop var(--duration) var(--ease) both;
+}
+.check-badge svg { width: 12px; height: 12px; }
+@keyframes checkPop {
+  from { opacity: 0; transform: scale(0.4); box-shadow: 0 0 0 8px rgb(var(--pick-rgb) / 0); }
+  to { opacity: 1; transform: scale(1); box-shadow: 0 0 0 3px rgb(var(--pick-rgb) / 0.25); }
+}
+/* la scroll intr-un grid virtualizat cardurile se re-monteaza constant — fara asta,
+   animatia "pop" ar reveni de fiecare data cand o poza deja selectata reintra in vizor
+   (acelasi motiv pentru care .virtual-row .card dezactiveaza deja cardIn mai sus) */
+.virtual-row .check-badge { animation: none; }
+@media (prefers-reduced-motion: reduce) { .check-badge { animation: none; } }
 
 .frame-no {
   position: absolute; top: 6px; left: 7px; z-index: 2;
@@ -345,6 +400,10 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
   display: flex; align-items: flex-end; justify-content: center;
   animation: fadeIn 0.2s var(--ease) both;
 }
+/* DetailView foloseste framer-motion pentru intrare/iesire (vezi DetailView.tsx) —
+   dezactivam animatia CSS doar aici, ca sa nu se bata cu transform-ul/opacity-ul JS;
+   celelalte panouri (.detail fara acest modificator) raman pe animatia CSS simpla. */
+.detail.detail-motion { animation: none; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 .detail-inner {
   width: 100%; max-width: 740px; max-height: 96dvh; overflow-y: auto;
@@ -357,6 +416,8 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .detail-inner::-webkit-scrollbar { width: 6px; }
 .detail-inner::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 8px; transition: background var(--micro); }
 .detail-inner::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
+/* .fit e exclusiv DetailView — animatia CSS e inlocuita de framer-motion acolo */
+.detail-inner.fit { animation: none; }
 /* copiii unui grid au implicit min-width:auto (bazat pe continut) — fara asta,
    text lung nefolosit (ex. butoane din compare-grid) impinge sheet-ul peste viewport */
 .detail-inner > * { min-width: 0; }
@@ -420,6 +481,43 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
   background: rgba(8,9,12,0.8); backdrop-filter: blur(4px); padding: 2px 8px; border-radius: 4px; pointer-events: none;
 }
 .detail-img.zoomed .zoom-hint { position: sticky; float: right; }
+/* overlay gradient jos — subiect "full-bleed", crește lizibilitatea badge-ului/hint-ului fara card opac */
+.detail-img-gradient {
+  position: absolute; inset: auto 0 0 0; height: 40%; z-index: 1; pointer-events: none;
+  background: linear-gradient(transparent, rgba(6,7,9,0.75));
+}
+/* status-tag mutat in coltul lupei, ca la Workspace — acelasi tratament glass */
+.detail-img .detail-badge {
+  position: absolute; top: 12px; right: 12px; z-index: 2;
+  backdrop-filter: blur(6px); box-shadow: 0 4px 16px -4px rgba(0,0,0,0.5);
+}
+
+/* ── Tab-uri DetailView: Metrici / De ce acest scor / Persoane / Istoric ── */
+.detail-tabs { display: flex; gap: 2px; background: var(--surface-2); border-radius: var(--radius); padding: 3px; }
+.detail-tab {
+  flex: 1; padding: 7px 4px; border-radius: var(--radius-sm); font-size: 0.76rem; font-weight: 600;
+  color: var(--text-faint); display: flex; align-items: center; justify-content: center; gap: 5px;
+  transition: background var(--micro), color var(--micro);
+}
+.detail-tab:hover { color: var(--text-dim); }
+.detail-tab.active { background: var(--surface-3); color: var(--text); }
+.detail-tab-count {
+  background: rgb(var(--accent-rgb) / 0.18); color: var(--accent); font-size: 0.62rem;
+  padding: 0 5px; border-radius: 999px; min-width: 14px; text-align: center;
+}
+.detail-person-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.detail-person-list li {
+  display: flex; align-items: center; gap: 6px; background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: var(--radius-sm); padding: 8px 10px; font-size: 0.86rem;
+}
+.detail-history-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.detail-history-list li {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-sm);
+  padding: 7px 10px; font-size: 0.82rem; color: var(--text-dim);
+}
+.detail-history-list li b { color: var(--text); }
+.detail-history-time { color: var(--text-faint); font-size: 0.7rem; flex-shrink: 0; }
 
 /* ── Badge-uri de swipe (Selecteaza/Respinge) — apar proportional cu distanta trasa ── */
 .swipe-badge {
@@ -473,8 +571,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .factor-tag.pos { color: var(--pick); background: rgba(74,222,128,0.12); border-color: rgba(74,222,128,0.3); }
 .factor-tag.neg { color: var(--reject); background: rgba(251,113,133,0.12); border-color: rgba(251,113,133,0.3); }
 
-.detail-persons { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; color: var(--text-dim); font-size: 0.74rem; }
-.detail-exif, .detail-exif-sep { color: var(--text-faint); font-size: 0.7rem; }
+.detail-exif { color: var(--text-faint); font-size: 0.7rem; }
 .ghost.slim { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 6px 12px; font-size: 0.8rem; }
 
 /* ── Butoane doar-iconita + iconite inline in text ── */
@@ -561,23 +658,22 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .batch-threshold-value { min-width: 28px; text-align: right; color: var(--text-dim); }
 
 /* ── Meniu lateral ── */
+/* animatia de intrare/iesire e controlata de framer-motion (MenuDrawer.tsx) —
+   CSS-ul ramane doar cu aspectul static, ca sa nu se bata cu transform-ul JS */
 .drawer-scrim {
   position: fixed; inset: 0; z-index: 25; background: rgba(6,7,9,0.6); backdrop-filter: blur(8px);
   display: flex; justify-content: flex-end;
-  animation: fadeIn 0.2s var(--ease) both;
 }
 .drawer {
   width: min(320px, 86vw); height: 100%; background: var(--surface);
   border-left: 1px solid var(--line); padding: 16px 14px calc(16px + env(safe-area-inset-bottom));
   display: flex; flex-direction: column; gap: 3px; overflow-y: auto;
   box-shadow: -24px 0 60px -20px rgba(0,0,0,0.6);
-  animation: drawerIn 0.26s var(--ease) both;
   scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 .drawer::-webkit-scrollbar { width: 6px; }
 .drawer::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 8px; transition: background var(--micro); }
 .drawer::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
-@keyframes drawerIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
 .drawer-head {
   display: flex; justify-content: space-between; align-items: center;
   margin-bottom: 10px; font-weight: 700; letter-spacing: 0.03em; font-size: 1.02rem;
@@ -596,15 +692,15 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .drawer-about svg { flex-shrink: 0; margin-top: 2px; }
 
 /* ── Paleta de comenzi (Ctrl/Cmd+K) ── */
+/* animatia de intrare/iesire e controlata de framer-motion (CommandPalette.tsx) */
 .palette-scrim {
   position: fixed; inset: 0; z-index: 30; background: rgba(6,7,9,0.6); backdrop-filter: blur(8px);
   display: flex; align-items: flex-start; justify-content: center; padding-top: 12vh;
-  animation: fadeIn 0.15s var(--ease) both;
 }
 .palette {
-  width: min(520px, 92vw); max-height: 60vh; background: var(--surface); border: 1px solid var(--line-strong);
-  border-radius: var(--radius-lg); box-shadow: var(--shadow-lift); overflow: hidden;
-  display: flex; flex-direction: column; animation: drawerIn 0.18s var(--ease) both;
+  width: min(520px, 92vw); max-height: 60vh; background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--line-strong); border-radius: var(--radius-lg); box-shadow: var(--shadow-lift); overflow: hidden;
+  display: flex; flex-direction: column;
 }
 .palette-input-row { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
 .palette-input-row svg { color: var(--text-faint); flex-shrink: 0; }
