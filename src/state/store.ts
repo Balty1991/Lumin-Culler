@@ -41,6 +41,8 @@ export interface PhotoView {
   personNames: string[];
   groupId?: string;
   capturedAt?: number;
+  goldenHourDetected?: boolean;
+  dominantColors?: string[];
 }
 
 export type FilterKey = 'all' | 'selected' | 'review' | 'rejected' | 'series' | 'blinks';
@@ -143,7 +145,9 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
       ? Array.from(new Set(analysis.faces.map(f => f.personName).filter((n): n is string => !!n)))
       : [],
     groupId: photo.groupId,
-    capturedAt: photo.capturedAt
+    capturedAt: photo.capturedAt,
+    goldenHourDetected: analysis?.goldenHourDetected,
+    dominantColors: analysis?.dominantColors
   };
 }
 

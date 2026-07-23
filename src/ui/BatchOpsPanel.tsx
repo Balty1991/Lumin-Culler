@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useStore } from '../state/store';
 import { selectBulkRejectTargets, resolveGroups, selectTopPercent } from '../state/batchOps';
-import { XIcon, LayersIcon, AlertIcon } from './icons';
+import { XIcon, LayersIcon, AlertIcon, SparkleIcon, FilterDotIcon } from './icons';
 
 const DEFAULT_THRESHOLD = 35; // acelasi prag ca REJECT_THRESHOLD din importPipeline.ts
 const DEFAULT_CULL_PERCENT = 20;
@@ -71,7 +71,7 @@ export function BatchOpsPanel() {
         </header>
 
         <div className="batch-section">
-          <h3>Auto-Cull: pastreaza doar cele mai bune X%</h3>
+          <h3><span className="batch-section-icon"><SparkleIcon /></span> Auto-Cull: pastreaza doar cele mai bune X%</h3>
           <p className="hint">Trieaza automat toate pozele nedecise dupa scor — restul se resping. Nu atinge pozele deja selectate/respinse manual.</p>
           <div className="batch-slider-row">
             <input
@@ -81,6 +81,10 @@ export function BatchOpsPanel() {
             />
             <span className="mono batch-threshold-value">{cullPercent}%</span>
           </div>
+          <div className="batch-preview mono">
+            <span className="batch-preview-chip pos">{cull.selectIds.length} păstrate</span>
+            <span className="batch-preview-chip neg">{cull.rejectIds.length} respinse</span>
+          </div>
           <button className="select batch-cull-btn" onClick={() => void runAutoCull()} disabled={busy || (!cull.selectIds.length && !cull.rejectIds.length)}>
             {cull.selectIds.length || cull.rejectIds.length
               ? `Pastreaza ${cull.selectIds.length}, respinge ${cull.rejectIds.length}`
@@ -89,7 +93,7 @@ export function BatchOpsPanel() {
         </div>
 
         <div className="batch-section">
-          <h3>Respinge sub un prag de scor</h3>
+          <h3><span className="batch-section-icon"><FilterDotIcon /></span> Respinge sub un prag de scor</h3>
           <p className="hint">Nu atinge pozele deja selectate manual — doar cele „de verificat" sau neatinse.</p>
           <div className="batch-slider-row">
             <input
@@ -105,7 +109,7 @@ export function BatchOpsPanel() {
         </div>
 
         <div className="batch-section">
-          <h3>Rezolvă toate seriile</h3>
+          <h3><span className="batch-section-icon"><LayersIcon /></span> Rezolvă toate seriile</h3>
           <p className="hint">Pentru fiecare serie/duplicat, poza cu scorul cel mai mare rămâne, restul se resping.</p>
           <button className="select batch-resolve-btn" onClick={() => void runResolveSeries()} disabled={busy || !groups.length}>
             {groups.length ? `Rezolvă ${groups.length} serii` : 'Nicio serie găsită'}
