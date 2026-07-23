@@ -1,12 +1,17 @@
-/* ── Lumin Culler Pro v2.4 — consola de culling ─────────────────────────────
-   Directie: unealta profesionala, gri strict neutru (fara nuante de culoare
-   in fundal/suprafete/text) — orice tinta de culoare in jurul pozei ar
-   denatura perceptia de expunere/contrast la triaj, exact ca la Lightroom
-   sau Narrative Select. Accentul (cyan) e rezervat strict pentru inele de
-   focus si stari interactive punctuale — niciodata fundaluri/glow ambiental.
+/* ── Lumin Culler Pro v2.5 — consola de culling ─────────────────────────────
+   Directie: unealta profesionala, fundal/suprafete/text gri neutru — zona
+   unde se JUDECA poza (Workspace/DetailView/compara serii) ramane aproape
+   neagra, fara nicio tinta de culoare in jur, ca sa nu denatureze perceptia
+   de expunere/contrast, exact ca la Lightroom sau Narrative Select.
+   In afara acelei zone insa, accentul (cyan→violet) e identitatea vizuala a
+   aplicatiei: buton principal de import (FAB), filtru activ, tab activ,
+   miniatura activa din filmstrip, titlul aplicatiei — folosit deliberat, nu
+   pe fiecare buton, ca sa ramana un semnal clar de "aici e actiunea
+   principala", nu zgomot decorativ.
    Semantica verde/ambra/rosu (selecteaza/verifica/respinge) ramane
-   principalul limbaj de culoare, ca badge-uri pline, discrete.
-   Miscare: tranzitii scurte (150ms) cu easing consistent, respecta
+   principalul limbaj de culoare pentru DECIZII, ca badge-uri pline, discrete.
+   Profunzime: carduri si panouri plutesc vizibil (umbre, nu doar contururi
+   plate) — miscare: tranzitii scurte (150ms) cu easing consistent, respecta
    prefers-reduced-motion peste tot. */
 
 :root {
@@ -44,10 +49,10 @@
   --sans: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
   /* scara de radius — de la chip-uri mici (sm) la foi/modale mari (xl) */
-  --radius-sm: 6px;
-  --radius: 12px;
-  --radius-lg: 18px;
-  --radius-xl: 24px;
+  --radius-sm: 7px;
+  --radius: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 26px;
 
   /* scara de umbre — profunzime consistenta intre carduri/panouri/modale */
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
@@ -131,8 +136,11 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
   background: linear-gradient(var(--bg) 78%, transparent);
   backdrop-filter: blur(10px);
 }
-.brand h1 { font-size: 1.28rem; font-weight: 800; letter-spacing: 0.15em; line-height: 1; color: var(--text); }
-.brand h1 span { font-weight: 300; color: var(--text-dim); }
+.brand h1 {
+  font-size: 1.6rem; font-weight: 800; letter-spacing: 0.1em; line-height: 1;
+  background: var(--accent-gradient); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.brand h1 span { font-weight: 300; color: var(--text-dim); -webkit-text-fill-color: var(--text-dim); }
 .brand p {
   color: var(--text-faint); margin-top: 5px; font-size: 0.72rem;
   display: flex; align-items: center; gap: 6px;
@@ -254,11 +262,14 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 }
 .chip:hover { border-color: var(--line-strong); transform: translateY(-1px); }
 .chip b { font-family: var(--mono); font-weight: 600; font-size: 0.78em; color: var(--text-faint); }
-.chip.active { background: var(--surface-3); color: var(--text); border-color: var(--line-strong); }
+.chip.active {
+  background: var(--surface-3); color: var(--text); border-color: var(--accent);
+  box-shadow: 0 0 0 1px rgb(var(--accent-rgb) / 0.25), 0 0 16px -6px rgb(var(--accent-rgb) / 0.4);
+}
 .chip.active b { color: var(--review); }
 
 /* ── Grila: contact sheet ── */
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 10px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); gap: 12px; }
 
 /* ── Grila virtualizata (biblioteci mari) — doar randurile vizibile exista in DOM ── */
 .virtual-grid-scroll {
@@ -274,7 +285,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .card {
   position: relative; padding: 0; background: var(--surface);
   border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden;
-  aspect-ratio: 1; display: flex;
+  aspect-ratio: 1; display: flex; box-shadow: var(--shadow-sm);
   transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease), border-color 0.2s var(--ease);
   animation: cardIn 0.45s var(--ease) both;
 }
@@ -296,7 +307,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .grid .card:nth-child(n+24) { animation-delay: 260ms; }
 .grid .card:nth-child(n+32) { animation-delay: 280ms; }
 .card:hover {
-  transform: translateY(-3px); border-color: var(--line-strong);
+  transform: translateY(-4px); border-color: var(--line-strong);
   box-shadow: var(--shadow-lift), 0 0 0 1px rgb(255 255 255 / 0.08);
 }
 .card:active { transform: translateY(-1px) scale(0.985); }
@@ -370,18 +381,18 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .fab {
   position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom));
   width: 58px; height: 58px; border-radius: 50%; z-index: 4;
-  background: var(--text); color: var(--bg); font-size: 1.9rem; font-weight: 700;
+  background: var(--accent-gradient); color: #06070a; font-size: 1.9rem; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-lg), 0 10px 32px -8px rgb(var(--accent-rgb) / 0.55);
   transition: transform 0.18s var(--ease), box-shadow 0.18s var(--ease);
 }
-.fab:hover { transform: translateY(-2px) scale(1.04); }
+.fab:hover { transform: translateY(-2px) scale(1.04); box-shadow: var(--shadow-lg), 0 12px 38px -6px rgb(var(--accent-rgb) / 0.65); }
 .fab:active { transform: scale(0.94); }
 .fab svg { width: 26px; height: 26px; }
 
 /* ── Stare goala ── */
 .empty { text-align: center; padding: 12vh 16px; max-width: 460px; margin: 0 auto; display: grid; gap: 14px; justify-items: center; animation: fadeUp 0.4s var(--ease) both; }
-.empty h2 { font-size: 1.4rem; }
+.empty h2 { font-size: 1.7rem; font-weight: 700; letter-spacing: -0.01em; }
 .empty p, .hint { color: var(--text-dim); }
 .hint { font-size: 0.85rem; }
 .empty-filter { text-align: center; color: var(--text-dim); padding: 40px 0; }
@@ -493,7 +504,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
   transition: background var(--micro), color var(--micro);
 }
 .detail-tab:hover { color: var(--text-dim); }
-.detail-tab.active { background: var(--surface-3); color: var(--text); }
+.detail-tab.active { background: var(--surface-3); color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
 .detail-tab-count {
   background: var(--surface-3); color: var(--text-dim); font-size: 0.62rem;
   padding: 0 5px; border-radius: 999px; min-width: 14px; text-align: center;
@@ -645,7 +656,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 
 .batch-section { display: grid; gap: 8px; padding: 14px 0; border-top: 1px solid var(--line); }
 .batch-section:first-of-type { border-top: none; padding-top: 0; }
-.batch-section h3 { font-size: 0.9rem; margin: 0; }
+.batch-section h3 { font-size: 0.96rem; font-weight: 700; margin: 0; }
 .batch-slider-row { display: flex; align-items: center; gap: 10px; }
 .batch-slider-row input[type="range"] { flex: 1; accent-color: var(--text-dim); }
 .batch-threshold-value { min-width: 28px; text-align: right; color: var(--text-dim); }
@@ -669,7 +680,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .drawer::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
 .drawer-head {
   display: flex; justify-content: space-between; align-items: center;
-  margin-bottom: 10px; font-weight: 700; letter-spacing: 0.03em; font-size: 1.02rem;
+  margin-bottom: 10px; font-weight: 700; letter-spacing: 0.03em; font-size: 1.12rem;
 }
 .drawer-item {
   display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
@@ -711,7 +722,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
   display: flex; justify-content: space-between; align-items: center; gap: 10px;
   padding: 10px 12px; border-radius: var(--radius); cursor: pointer; color: var(--text);
 }
-.palette-list li.active { background: var(--surface-2); }
+.palette-list li.active { background: var(--surface-2); box-shadow: inset 3px 0 0 var(--accent); }
 .palette-list li.disabled { color: var(--text-faint); cursor: default; }
 .palette-hint { color: var(--text-faint); font-size: 0.72rem; flex-shrink: 0; }
 .palette-empty { color: var(--text-faint); padding: 16px 12px; text-align: center; cursor: default; }
@@ -719,7 +730,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 /* ── Scurtaturi de tastatura ── */
 .shortcuts-section { display: grid; gap: 6px; padding: 14px 0; border-top: 1px solid var(--line); }
 .shortcuts-section:first-of-type { border-top: none; padding-top: 0; }
-.shortcuts-section h3 { font-size: 0.9rem; margin: 0; }
+.shortcuts-section h3 { font-size: 0.96rem; font-weight: 700; margin: 0; }
 .shortcuts-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .shortcuts-list li { display: flex; align-items: center; gap: 12px; }
 .shortcuts-list kbd {
@@ -758,7 +769,10 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
      din jur ar denatura perceptia de expunere/contrast a fotografiei */
   background: #06070a;
 }
-.workspace-loupe img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: var(--radius); }
+.workspace-loupe img {
+  max-width: 100%; max-height: 100%; object-fit: contain; border-radius: var(--radius);
+  box-shadow: 0 30px 80px -20px rgba(0,0,0,0.75), 0 0 0 1px rgba(255,255,255,0.06);
+}
 .workspace-badge {
   position: absolute; top: 24px; right: 24px; z-index: 2;
   backdrop-filter: blur(6px); box-shadow: 0 4px 16px -4px rgba(0,0,0,0.5);
@@ -770,7 +784,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 }
 .workspace-metrics b { color: var(--text); }
 .workspace-metrics .warn { color: var(--reject); }
-.workspace-head .icon-btn.active { border-color: var(--line-strong); background: var(--surface-3); color: var(--text); }
+.workspace-head .icon-btn.active { border-color: var(--accent); background: var(--surface-3); color: var(--accent); }
 .workspace-nav {
   position: absolute; top: 50%; transform: translateY(-50%); z-index: 2;
   background: var(--surface); border: 1px solid var(--line);
@@ -780,7 +794,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .workspace-actions { display: flex; gap: 10px; padding: 10px 14px; flex: 0 0 auto; background: var(--surface); }
 .workspace-actions button { flex: 1; }
 .workspace-filmstrip {
-  height: 120px; flex: 0 0 auto; background: var(--surface-2); display: flex; align-items: center;
+  height: 132px; flex: 0 0 auto; background: var(--surface-2); display: flex; align-items: center;
   gap: 8px; padding: 10px; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch;
   border-top: 1px solid var(--line);
   scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) transparent;
@@ -789,14 +803,14 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .workspace-filmstrip::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 8px; transition: background var(--micro); }
 .workspace-filmstrip::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
 .workspace-thumb {
-  width: 100px; height: 100px; flex: 0 0 auto; padding: 0; border-radius: 8px; overflow: hidden;
-  border: 2px solid transparent; background: var(--surface-3); cursor: pointer;
-  transition: border-color var(--micro), opacity var(--micro), transform var(--micro);
+  width: 112px; height: 112px; flex: 0 0 auto; padding: 0; border-radius: 9px; overflow: hidden;
+  border: 2px solid transparent; background: var(--surface-3); cursor: pointer; box-shadow: var(--shadow-sm);
+  transition: border-color var(--micro), opacity var(--micro), transform var(--micro), box-shadow var(--micro);
 }
 .workspace-thumb:hover { border-color: var(--line-strong); transform: translateY(-1px); }
 .workspace-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.workspace-thumb.active { border-color: var(--text); }
-.workspace-thumb.active:hover { border-color: var(--text); }
+.workspace-thumb.active { border-color: var(--accent); box-shadow: 0 0 0 1px rgb(var(--accent-rgb) / 0.3), 0 0 14px -4px rgb(var(--accent-rgb) / 0.5); }
+.workspace-thumb.active:hover { border-color: var(--accent); }
 .workspace-thumb.rejected { opacity: 0.35; }
 
 /* ── Ecran de recuperare la eroare React ── */
@@ -821,16 +835,17 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 }
 
 @media (max-width: 560px) {
-  .grid { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 6px; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(126px, 1fr)); gap: 8px; }
   .compare-grid { grid-template-columns: 1fr; }
   .detail-actions { grid-template-columns: 1fr 1fr; }
   .detail-actions .ghost { order: 2; }
+  .brand h1 { font-size: 1.3rem; }
   .brand p { display: none; }
   .detail-inner.fit { height: 96dvh; max-height: 96dvh; }
   /* topbar-ul poate ocupa 2 randuri pe telefoane foarte inguste — filtrele
      raman in flux normal in loc de sticky, ca sa nu se suprapuna peste antet. */
   .filters { position: static; top: auto; }
   .workspace-hint { display: none; }
-  .workspace-thumb { width: 72px; height: 72px; }
-  .workspace-filmstrip { height: 92px; }
+  .workspace-thumb { width: 84px; height: 84px; }
+  .workspace-filmstrip { height: 104px; }
 }
