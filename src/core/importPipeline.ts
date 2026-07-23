@@ -162,13 +162,15 @@ async function processOne(file: File): Promise<ImportedPhoto> {
 
   const analysis = await analysisPromise;
 
-  // EXIF (ISO/diafragma/timp expunere/focala) — optional, poze fara EXIF
+  // EXIF (ISO/diafragma/timp expunere/focala/data capturii) — optional, poze fara EXIF
   // (PNG/WebP sau JPEG cu metadate sterse) nu primesc aceste campuri deloc
+  let capturedAt: number | undefined;
   if (rawMeta) {
     if (rawMeta.iso !== undefined) analysis.iso = rawMeta.iso;
     if (rawMeta.fNumber !== undefined) analysis.fNumber = rawMeta.fNumber;
     if (rawMeta.exposureTime !== undefined) analysis.exposureTime = rawMeta.exposureTime;
     if (rawMeta.focalLength !== undefined) analysis.focalLength = rawMeta.focalLength;
+    capturedAt = rawMeta.capturedAt;
   } else {
     try {
       const exifBuf = await file.slice(0, EXIF_SNIFF_BYTES).arrayBuffer();
@@ -177,6 +179,7 @@ async function processOne(file: File): Promise<ImportedPhoto> {
       if (exif.fNumber !== undefined) analysis.fNumber = exif.fNumber;
       if (exif.exposureTime !== undefined) analysis.exposureTime = exif.exposureTime;
       if (exif.focalLength !== undefined) analysis.focalLength = exif.focalLength;
+      capturedAt = exif.capturedAt;
     } catch (err) {
       console.error('Citire EXIF esuata pentru ' + file.name + ':', err);
     }
@@ -194,7 +197,11 @@ async function processOne(file: File): Promise<ImportedPhoto> {
   const photo: PhotoRecord = {
     id,
     fileName: file.name,
-    capturedAt: file.lastModified,
+    // preferam data reala a capturii (ceasul aparatului, din EXIF/RAW) — file.lastModified
+    // reflecta adesea momentul COPIERII pe disc (card nou, transfer intre calculatoare,
+    // sincronizare cloud), care poate diferi mult de momentul declansarii, mai ales cu
+    // mai multe aparate/carduri la acelasi eveniment
+    capturedAt: capturedAt ?? file.lastModified,
     importedAt: Date.now(),
     width: w,
     height: h,
@@ -218,10 +225,21 @@ async function processOne(file: File): Promise<ImportedPhoto> {
   return { photo, analysis, prediction };
 }
 
+/**
+ * Token de anulare simplu (mutabil, verificat in bucla de import) — un
+ * AbortController ar fi mai idiomatic, dar bucla e un pool manual de
+ * "workeri" (Promise.all peste N task-uri concurente), nu un singur fetch:
+ * flag-ul mutabil, verificat la fiecare iteratie, e cel mai simplu mod de a
+ * opri toate task-urile concurente in acelasi punct.
+ */
+export interface ImportCancelToken { cancelled: boolean; }
+export function createCancelToken(): ImportCancelToken { return { cancelled: false }; }
+
 export async function importFiles(
   files: File[],
   onProgress: (p: ImportProgress) => void,
-  onPhoto: (item: ImportedPhoto) => void
+  onPhoto: (item: ImportedPhoto) => void,
+  cancelToken?: ImportCancelToken
 ): Promise<Map<string, string>> {
   // faza separata (nu "analiza 0/N"): la primul import, descarca modelele AI
   // (cateva zeci de MB) — poate dura, si utilizatorul trebuie sa stie de ce.
@@ -267,6 +285,7 @@ export async function importFiles(
     Array.from({ length: concurrency }, async () => {
       while (true) {
         if (stopReason) break;
+        if (cancelToken?.cancelled) { stopReason = `Import anulat — ${done}/${images.length} poze procesate pana la anulare.`; break; }
         const myIndex = index++;
         if (myIndex >= images.length) break;
         const file = images[myIndex];

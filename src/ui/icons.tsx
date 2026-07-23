@@ -118,3 +118,12 @@ export function KeyboardIcon(p: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+export function BatteryIcon(p: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base} {...p}>
+      <rect x="2" y="7" width="17" height="10" rx="2" />
+      <line x1="21" y1="10.5" x2="21" y2="13.5" />
+      <path d="M6.5 12h4l-1.5 3" />
+    </svg>
+  );
+}

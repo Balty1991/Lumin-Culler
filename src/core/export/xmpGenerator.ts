@@ -18,6 +18,10 @@
  *    intotdeauna prioritate in Lightroom.
  *  - xmp:Label: eticheta de culoare ("Green"/"Red"/"Yellow"), acelasi sistem
  *    de culori din Lightroom.
+ *  - dc:subject: keywords generate automat din ce a detectat deja AI-ul
+ *    (numele persoanelor cunoscute + tipul de scena) — camp standard Dublin
+ *    Core, citit de Lightroom/Bridge ca "Keywords"/"Subiect", util pentru
+ *    cautare/filtrare ulterioara in acele aplicatii fara munca manuala.
  * Acopera toate pozele DECISE (selectate/respinse/de verificat), nu doar cele
  * selectate — punctul central al exportului XMP e sa duca TOATE deciziile in
  * Lightroom fara sa copiezi vreun byte de imagine, nu doar selectia finala.
@@ -30,20 +34,40 @@ export type XmpDecision = Exclude<PhotoRecord['status'], 'pending'>;
 const RATING: Record<XmpDecision, number> = { selected: 5, rejected: -1, review: 0 };
 const LABEL: Record<XmpDecision, string> = { selected: 'Green', rejected: 'Red', review: 'Yellow' };
 
-export function generateXMPSidecar(status: XmpDecision, starRating?: number): string {
+const SCENE_KEYWORD: Record<string, string> = {
+  portrait: 'Portret', child_portrait: 'Portret copil', group: 'Grup', family_group: 'Grup familie',
+  landscape: 'Peisaj', detail: 'Detaliu'
+};
+
+function xmlEscape(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+export function generateXMPSidecar(status: XmpDecision, starRating?: number, keywords?: string[]): string {
   const rating = status === 'rejected' ? RATING.rejected : (starRating && starRating > 0 ? starRating : RATING[status]);
   const label = LABEL[status];
+  const subject = keywords?.length
+    ? `\n    <dc:subject>\n     <rdf:Bag>\n${keywords.map(k => `      <rdf:li>${xmlEscape(k)}</rdf:li>`).join('\n')}\n     </rdf:Bag>\n    </dc:subject>`
+    : '';
   return `<?xpacket begin="﻿" id="W5M0MpCehiHzreSzNTczkc9d"?>
 <x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Lumin Culler Pro">
  <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
   <rdf:Description rdf:about=""
     xmlns:xmp="http://ns.adobe.com/xap/1.0/"
+    xmlns:dc="http://purl.org/dc/elements/1.1/"
     xmp:Rating="${rating}"
-    xmp:Label="${label}">
+    xmp:Label="${label}">${subject}
   </rdf:Description>
  </rdf:RDF>
 </x:xmpmeta>
 <?xpacket end="w"?>`;
+}
+
+/** Keywords automate din ce a detectat deja AI-ul — fara input manual, doar reformatarea a ceea ce exista. */
+export function deriveXmpKeywords(personNames: string[], sceneSemantic: string | undefined): string[] {
+  const keywords = [...personNames];
+  if (sceneSemantic && SCENE_KEYWORD[sceneSemantic]) keywords.push(SCENE_KEYWORD[sceneSemantic]);
+  return keywords;
 }
 
 function xmpFileName(fileName: string): string {
@@ -58,9 +82,11 @@ export interface XmpExportResult {
 }
 
 export async function exportXMPSidecars(
-  photos: { fileName: string; status: PhotoRecord['status']; rating?: number }[]
+  photos: { fileName: string; status: PhotoRecord['status']; rating?: number; keywords?: string[] }[]
 ): Promise<XmpExportResult> {
-  const decided = photos.filter((p): p is { fileName: string; status: XmpDecision; rating?: number } => p.status !== 'pending');
+  const decided = photos.filter(
+    (p): p is { fileName: string; status: XmpDecision; rating?: number; keywords?: string[] } => p.status !== 'pending'
+  );
   const pickDirectory = getDirectoryPicker();
   const method: XmpExportResult['method'] = pickDirectory ? 'folder' : 'downloads';
 
@@ -75,13 +101,13 @@ export async function exportXMPSidecars(
       throw err;
     }
     for (const p of decided) {
-      await writeTextFile(dir, xmpFileName(p.fileName), generateXMPSidecar(p.status, p.rating), 'application/rdf+xml');
+      await writeTextFile(dir, xmpFileName(p.fileName), generateXMPSidecar(p.status, p.rating, p.keywords), 'application/rdf+xml');
     }
     return { exported: decided.length, method, cancelled: false };
   }
 
   for (const p of decided) {
-    const blob = new Blob([generateXMPSidecar(p.status, p.rating)], { type: 'application/rdf+xml' });
+    const blob = new Blob([generateXMPSidecar(p.status, p.rating, p.keywords)], { type: 'application/rdf+xml' });
     await downloadBlob(xmpFileName(p.fileName), blob);
   }
   return { exported: decided.length, method, cancelled: false };

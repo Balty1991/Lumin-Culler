@@ -14,6 +14,8 @@ export interface ExifData {
   fNumber?: number;      // f/X (diafragma)
   exposureTime?: number; // secunde (ex. 1/250 -> 0.004)
   focalLength?: number;  // mm
+  /** Data/ora REALA a capturii (DateTimeOriginal), epoch ms — nu data importului/copierii fisierului. */
+  capturedAt?: number;
 }
 
 const TAG_EXIF_IFD_POINTER = 0x8769;
@@ -21,9 +23,12 @@ const TAG_ISO = 0x8827;
 const TAG_FNUMBER = 0x829d;
 const TAG_EXPOSURE_TIME = 0x829a;
 const TAG_FOCAL_LENGTH = 0x920a;
+const TAG_DATE_TIME_ORIGINAL = 0x9003;
+const TAG_DATE_TIME = 0x0132; // fallback, in IFD0 (data ultimei modificari, nu a capturii — folosit doar daca DateTimeOriginal lipseste)
 
 const TYPE_SHORT = 3;
 const TYPE_LONG = 4;
+const TYPE_ASCII = 2;
 const TYPE_RATIONAL = 5;
 const TYPE_SRATIONAL = 10;
 
@@ -58,6 +63,31 @@ function readInlineInt(view: DataView, entry: IfdEntry, littleEndian: boolean): 
   return undefined;
 }
 
+/**
+ * ASCII: cele 4 octeti "valoare/offset" contin datele direct DOAR daca incap
+ * (count <= 4, inclusiv terminatorul null) — un timestamp EXIF standard
+ * ("YYYY:MM:DD HH:MM:SS\0", 20 octeti) depaseste mereu asta, deci practic
+ * mereu citim printr-un offset.
+ */
+function readAscii(view: DataView, tiffStart: number, entry: IfdEntry, littleEndian: boolean): string | undefined {
+  if (entry.type !== TYPE_ASCII || entry.count === 0) return undefined;
+  const dataStart = entry.count <= 4 ? entry.valueFieldOffset : tiffStart + view.getUint32(entry.valueFieldOffset, littleEndian);
+  if (dataStart + entry.count > view.byteLength) return undefined;
+  const bytes = new Uint8Array(view.buffer, view.byteOffset + dataStart, entry.count);
+  let str = '';
+  for (const b of bytes) { if (b === 0) break; str += String.fromCharCode(b); }
+  return str;
+}
+
+/** "YYYY:MM:DD HH:MM:SS" (ora locala, fara fus orar in EXIF standard) -> epoch ms, sau undefined daca formatul nu se potriveste. */
+function parseExifDateTime(s: string): number | undefined {
+  const m = /^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/.exec(s);
+  if (!m) return undefined;
+  const [, y, mo, d, h, mi, se] = m.map(Number);
+  const ts = new Date(y, mo - 1, d, h, mi, se).getTime();
+  return Number.isFinite(ts) ? ts : undefined;
+}
+
 /** RATIONAL/SRATIONAL (8 octeti) nu incap inline — cele 4 octeti contin un OFFSET (relativ la tiffStart). */
 function readRational(view: DataView, tiffStart: number, entry: IfdEntry, littleEndian: boolean): number | undefined {
   if (entry.type !== TYPE_RATIONAL && entry.type !== TYPE_SRATIONAL) return undefined;
@@ -79,13 +109,30 @@ function parseTiff(view: DataView, tiffStart: number): ExifData {
   const ifd0Offset = view.getUint32(tiffStart + 4, littleEndian);
 
   const ifd0 = readIFD(view, tiffStart, ifd0Offset, littleEndian);
+  const result: ExifData = {};
+
+  // fallback (data ultimei modificari a fisierului dupa masina aparatului) — suprascris
+  // mai jos de DateTimeOriginal daca acesta exista in ExifIFD (mult mai precis: momentul
+  // exact al declansarii, nu al eventualei procesari ulterioare in aparat)
+  const dateTimeEntry = ifd0.get(TAG_DATE_TIME);
+  if (dateTimeEntry) {
+    const raw = readAscii(view, tiffStart, dateTimeEntry, littleEndian);
+    if (raw) result.capturedAt = parseExifDateTime(raw);
+  }
+
   const exifPointer = ifd0.get(TAG_EXIF_IFD_POINTER);
-  if (!exifPointer) return {};
+  if (!exifPointer) return result;
   const exifIfdOffset = readInlineInt(view, exifPointer, littleEndian);
-  if (exifIfdOffset === undefined) return {};
+  if (exifIfdOffset === undefined) return result;
 
   const exifIfd = readIFD(view, tiffStart, exifIfdOffset, littleEndian);
-  const result: ExifData = {};
+
+  const dateOriginalEntry = exifIfd.get(TAG_DATE_TIME_ORIGINAL);
+  if (dateOriginalEntry) {
+    const raw = readAscii(view, tiffStart, dateOriginalEntry, littleEndian);
+    const parsed = raw ? parseExifDateTime(raw) : undefined;
+    if (parsed !== undefined) result.capturedAt = parsed;
+  }
 
   const isoEntry = exifIfd.get(TAG_ISO);
   if (isoEntry) result.iso = readInlineInt(view, isoEntry, littleEndian);

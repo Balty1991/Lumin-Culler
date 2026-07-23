@@ -72,6 +72,50 @@ function buildJpegWithExif(opts: {
   return new Uint8Array(out).buffer;
 }
 
+/**
+ * Buffer JPEG minim cu un singur tag DateTimeOriginal (ASCII, in ExifIFD) —
+ * separat de buildJpegWithExif ca sa nu complice offset-urile RATIONAL deja
+ * verificate acolo.
+ */
+function buildJpegWithDateOriginal(dateStr: string, littleEndian = true): ArrayBuffer {
+  const le = littleEndian;
+  const strBytes = new TextEncoder().encode(dateStr + '\0');
+  const TIFF_SIZE = 44 + strBytes.length;
+  const tiff = new Uint8Array(TIFF_SIZE);
+  const tv = new DataView(tiff.buffer);
+
+  if (le) { tiff[0] = 0x49; tiff[1] = 0x49; } else { tiff[0] = 0x4d; tiff[1] = 0x4d; }
+  tv.setUint16(2, 0x002a, le);
+  tv.setUint32(4, 8, le); // IFD0 la offset 8
+
+  // IFD0: 1 intrare (ExifIFDPointer -> offset 26)
+  tv.setUint16(8, 1, le);
+  tv.setUint16(10, 0x8769, le);
+  tv.setUint16(12, 4, le); // LONG
+  tv.setUint32(14, 1, le);
+  tv.setUint32(18, 26, le);
+  tv.setUint32(22, 0, le);
+
+  // ExifIFD la offset 26: 1 intrare (DateTimeOriginal, ASCII, offset la 44)
+  tv.setUint16(26, 1, le);
+  tv.setUint16(28, 0x9003, le); // tag
+  tv.setUint16(30, 2, le);      // type ASCII
+  tv.setUint32(32, strBytes.length, le);
+  tv.setUint32(36, 44, le);     // offset catre datele ASCII
+  tv.setUint32(40, 0, le);      // next IFD
+
+  tiff.set(strBytes, 44);
+
+  const app1Data = new Uint8Array(2 + 6 + TIFF_SIZE);
+  const app1View = new DataView(app1Data.buffer);
+  app1View.setUint16(0, app1Data.length, false);
+  app1Data.set([0x45, 0x78, 0x69, 0x66, 0, 0], 2);
+  app1Data.set(tiff, 8);
+
+  const out: number[] = [0xff, 0xd8, 0xff, 0xe1, ...app1Data, 0xff, 0xd9];
+  return new Uint8Array(out).buffer;
+}
+
 describe('parseExif', () => {
   it('extracts ISO, FNumber, ExposureTime, FocalLength (little-endian)', () => {
     const buf = buildJpegWithExif({ iso: 400, fNumber: [28, 10], exposureTime: [1, 250], focalLength: [50, 1] });
@@ -112,5 +156,23 @@ describe('parseExif', () => {
     const data = parseExif(buf);
     expect(data.fNumber).toBeUndefined();
     expect(data.exposureTime).toBeCloseTo(1 / 250);
+  });
+
+  it('extracts DateTimeOriginal (capturedAt) as local time epoch ms', () => {
+    const buf = buildJpegWithDateOriginal('2024:07:15 14:30:00');
+    const data = parseExif(buf);
+    expect(data.capturedAt).toBe(new Date(2024, 6, 15, 14, 30, 0).getTime());
+  });
+
+  it('extracts DateTimeOriginal with big-endian TIFF byte order', () => {
+    const buf = buildJpegWithDateOriginal('2023:01:02 03:04:05', false);
+    const data = parseExif(buf);
+    expect(data.capturedAt).toBe(new Date(2023, 0, 2, 3, 4, 5).getTime());
+  });
+
+  it('returns capturedAt undefined for a malformed date string', () => {
+    const buf = buildJpegWithDateOriginal('not-a-date');
+    const data = parseExif(buf);
+    expect(data.capturedAt).toBeUndefined();
   });
 });

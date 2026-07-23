@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { generateXMPSidecar } from './xmpGenerator';
+import { generateXMPSidecar, deriveXmpKeywords } from './xmpGenerator';
 
 describe('generateXMPSidecar', () => {
   it('uses the manual star rating when present', () => {
@@ -24,5 +24,37 @@ describe('generateXMPSidecar', () => {
   it('always writes the status color label regardless of rating', () => {
     expect(generateXMPSidecar('selected', 2)).toContain('xmp:Label="Green"');
     expect(generateXMPSidecar('rejected', 2)).toContain('xmp:Label="Red"');
+  });
+
+  it('omits dc:subject entirely when there are no keywords', () => {
+    expect(generateXMPSidecar('selected', 3)).not.toContain('dc:subject');
+  });
+
+  it('writes each keyword as an rdf:li inside dc:subject/rdf:Bag', () => {
+    const xmp = generateXMPSidecar('selected', 3, ['Ami', 'Portret copil']);
+    expect(xmp).toContain('<dc:subject>');
+    expect(xmp).toContain('<rdf:li>Ami</rdf:li>');
+    expect(xmp).toContain('<rdf:li>Portret copil</rdf:li>');
+  });
+
+  it('escapes XML-sensitive characters in keywords', () => {
+    const xmp = generateXMPSidecar('selected', 3, ['Tom & Jerry <2>']);
+    expect(xmp).toContain('Tom &amp; Jerry &lt;2&gt;');
+    expect(xmp).not.toContain('Tom & Jerry <2>');
+  });
+});
+
+describe('deriveXmpKeywords', () => {
+  it('includes known person names', () => {
+    expect(deriveXmpKeywords(['Ami', 'Radu'], undefined)).toEqual(['Ami', 'Radu']);
+  });
+
+  it('appends the Romanian scene label when recognized', () => {
+    expect(deriveXmpKeywords([], 'child_portrait')).toEqual(['Portret copil']);
+    expect(deriveXmpKeywords(['Ami'], 'family_group')).toEqual(['Ami', 'Grup familie']);
+  });
+
+  it('ignores an unrecognized scene semantic', () => {
+    expect(deriveXmpKeywords(['Ami'], 'something_unknown')).toEqual(['Ami']);
   });
 });

@@ -18,6 +18,7 @@ export function Workspace() {
   const photos = useStore(s => s.photos);
   const filtered = useStore(s => s.filtered());
   const progress = useStore(s => s.progress);
+  const cancelImport = useStore(s => s.cancelImport);
   const history = useStore(s => s.history);
   const batchHistory = useStore(s => s.batchHistory);
   const undoCount = history.length + batchHistory.length;
@@ -162,6 +163,9 @@ export function Workspace() {
             ? (progress.phase === 'analiza' ? `Analiza AI ${progress.done}/${progress.total}…` : 'Se proceseaza…')
             : '← → navigheaza · P selecteaza · X respinge · I statistici · Esc iesire'}
         </span>
+        {progress?.phase === 'analiza' && (
+          <button className="ghost small-btn" onClick={() => cancelImport()}>Anuleaza</button>
+        )}
         {undoCount > 0 && (
           <Tooltip label="Anuleaza ultima decizie" shortcut="Ctrl+Z">
             <button className="ghost icon-btn" onClick={() => void undo()} aria-label={`Anuleaza ultima decizie (${undoCount} disponibile, Ctrl+Z)`}>

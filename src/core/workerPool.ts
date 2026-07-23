@@ -7,6 +7,7 @@
 import * as Comlink from 'comlink';
 import type { FaceAnalysisAPI } from '../workers/faceAnalysis.worker';
 import type { AnalysisRecord, KnownPerson } from './db';
+import { readEconomicMode } from './performanceSettings';
 
 interface Slot {
   worker: Worker;
@@ -65,7 +66,7 @@ export class AnalysisPool {
     );
     const api = Comlink.wrap<FaceAnalysisAPI>(worker);
     const backend = await withTimeout(
-      api.init(this.modelBase),
+      api.init(this.modelBase, readEconomicMode()),
       MODEL_INIT_TIMEOUT_MS,
       'Incarcarea modelelor AI a durat prea mult — verifica conexiunea la internet.'
     );
@@ -77,7 +78,10 @@ export class AnalysisPool {
     if (this.ready) return;
     this.slots = []; // in caz ca o incercare anterioara a esuat/timeout partial, nu dublam sloturile
     const cores = navigator.hardwareConcurrency || 4;
-    const size = Math.max(1, Math.min(4, cores - 1));
+    // mod economic: un singur worker, in loc de pana la 4 in paralel — mai putina
+    // presiune de RAM (fiecare worker isi incarca propria instanta Human.js/TFJS)
+    // pe hardware slab, cu costul unui import mai lent
+    const size = readEconomicMode() ? 1 : Math.max(1, Math.min(4, cores - 1));
     this.modelBase = new URL(`${import.meta.env.BASE_URL}models/`, location.href).href;
 
     const backends = await Promise.all(

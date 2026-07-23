@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { db } from '../core/db';
 import { useStore, type PhotoView } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
@@ -11,24 +11,42 @@ export function GroupCompare() {
   const openCompare = useStore(s => s.openCompare);
   const openDetail = useStore(s => s.openDetail);
   const keepOnlyInGroup = useStore(s => s.keepOnlyInGroup);
+  const keepManyInGroup = useStore(s => s.keepManyInGroup);
   const setStatus = useStore(s => s.setStatus);
   const groupOf = useStore(s => s.groupOf);
   const selectBestPhotoInGroup = useStore(s => s.selectBestPhotoInGroup);
   const [recommendedId, setRecommendedId] = useState<string | null>(null);
+  const [sortBySharpness, setSortBySharpness] = useState(false);
+  const [topN, setTopN] = useState(3);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const members = groupId ? groupOf(groupId) : [];
+  const rawMembers = groupId ? groupOf(groupId) : [];
+  // burst-uri de sport/wildlife pot avea zeci de cadre aproape identice —
+  // sortarea dupa claritate ajuta sa gasesti rapid cele mai nete, in loc sa
+  // le compari vizual pe toate pe rand
+  const members = useMemo(
+    () => (sortBySharpness ? [...rawMembers].sort((a, b) => b.sharpness - a.sharpness) : rawMembers),
+    [rawMembers, sortBySharpness]
+  );
   useModalFocusTrap(containerRef, !!groupId && members.length > 0);
 
   useEffect(() => {
     setRecommendedId(null);
+    setTopN(Math.min(3, Math.max(1, rawMembers.length)));
     if (!groupId) return;
     let alive = true;
     void selectBestPhotoInGroup(groupId).then(id => { if (alive) setRecommendedId(id); });
     return () => { alive = false; };
-  }, [groupId, selectBestPhotoInGroup]);
+  }, [groupId, selectBestPhotoInGroup, rawMembers.length]);
 
   if (!groupId || members.length === 0) return null;
+
+  const clampedN = Math.min(Math.max(1, topN), members.length - 1 || 1);
+
+  const keepTopN = () => {
+    const bySharpness = [...rawMembers].sort((a, b) => b.sharpness - a.sharpness);
+    void keepManyInGroup(groupId, bySharpness.slice(0, clampedN).map(m => m.id));
+  };
 
   return (
     <div className="detail" onClick={e => { if (e.target === e.currentTarget) openCompare(null); }}>
@@ -39,6 +57,27 @@ export function GroupCompare() {
             <XIcon />
           </button>
         </header>
+        {members.length > 2 && (
+          <div className="compare-toolbar">
+            <button
+              className={sortBySharpness ? 'chip active' : 'chip'}
+              onClick={() => setSortBySharpness(v => !v)}
+            >Sorteaza dupa claritate</button>
+            <span className="compare-topn">
+              Pastreaza primele
+              <input
+                type="number"
+                min={1}
+                max={members.length - 1 || 1}
+                value={clampedN}
+                onChange={e => setTopN(Number(e.target.value))}
+                aria-label="Cate cadre sa pastrezi din serie"
+              />
+              (dupa claritate)
+              <button className="select small-btn" onClick={keepTopN}>Aplica</button>
+            </span>
+          </div>
+        )}
         <div className="compare-grid">
           {members.map(m => (
             <CompareCard
@@ -81,7 +120,7 @@ function CompareCard({ photo, recommended, onKeep, onReject, onZoom }: {
     <div className={`compare-card st-${photo.status}`}>
       <button className="compare-img" onClick={onZoom} title="Deschide la 100%">
         <div className="grain-overlay" aria-hidden="true" />
-        {src && <img src={src} alt={photo.fileName} />}
+        {src && <img src={src} alt={photo.fileName} loading="lazy" decoding="async" />}
         {recommended && (
           <span className="compare-recommend-badge">
             <SparkleIcon className="inline-icon" /> Recomandat AI
