@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { db } from '../core/db';
 import { useStore } from '../state/store';
+import { Tooltip } from './Tooltip';
 import { ChevronLeft, ChevronRight, XIcon, CheckIcon, InfoIcon, EyeClosedIcon } from './icons';
 
 /**
@@ -103,18 +104,21 @@ export function Workspace() {
       <header className="workspace-head">
         <span className="mono">{photo.fileName}</span>
         <span className="mono workspace-hint">← → navigheaza · P selecteaza · X respinge · I statistici · Esc iesire</span>
-        <button
-          className={showMetrics ? 'ghost icon-btn active' : 'ghost icon-btn'}
-          onClick={() => setShowMetrics(v => !v)}
-          aria-label={showMetrics ? 'Ascunde statisticile pe imagine' : 'Arata statisticile pe imagine'}
-          aria-pressed={showMetrics}
-          title="Statistici pe imagine (I)"
-        >
-          <InfoIcon />
-        </button>
-        <button className="ghost icon-btn" onClick={() => setWorkspaceMode(false)} aria-label="Inchide spatiul de lucru">
-          <XIcon />
-        </button>
+        <Tooltip label="Statistici pe imagine" shortcut="I">
+          <button
+            className={showMetrics ? 'ghost icon-btn active' : 'ghost icon-btn'}
+            onClick={() => setShowMetrics(v => !v)}
+            aria-label={showMetrics ? 'Ascunde statisticile pe imagine' : 'Arata statisticile pe imagine'}
+            aria-pressed={showMetrics}
+          >
+            <InfoIcon />
+          </button>
+        </Tooltip>
+        <Tooltip label="Inchide" shortcut="Esc" side="left">
+          <button className="ghost icon-btn" onClick={() => setWorkspaceMode(false)} aria-label="Inchide spatiul de lucru">
+            <XIcon />
+          </button>
+        </Tooltip>
       </header>
 
       <div className="workspace-loupe">

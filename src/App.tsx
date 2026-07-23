@@ -12,6 +12,7 @@ import { BatchOpsPanel } from './ui/BatchOpsPanel';
 import { CommandPalette } from './ui/CommandPalette';
 import { ShortcutsPanel } from './ui/ShortcutsPanel';
 import { AnimatedNumber } from './ui/AnimatedNumber';
+import { Tooltip } from './ui/Tooltip';
 import { MenuIcon, PlusIcon, StarIcon, AlertIcon, XIcon, FocusIcon, UndoIcon, SearchIcon } from './ui/icons';
 
 const NOTICE_AUTODISMISS_MS = 7000;
@@ -123,27 +124,35 @@ export default function App() {
         </div>
         <div className="top-actions">
           {photos.length > 0 && (
-            <button className="ghost icon-btn" onClick={() => setPaletteOpen(true)} aria-label="Paleta de comenzi (Ctrl+K)" title="Paleta de comenzi (Ctrl+K)">
-              <SearchIcon />
-            </button>
+            <Tooltip label="Paleta de comenzi" shortcut="Ctrl+K">
+              <button className="ghost icon-btn" onClick={() => setPaletteOpen(true)} aria-label="Paleta de comenzi (Ctrl+K)">
+                <SearchIcon />
+              </button>
+            </Tooltip>
           )}
           {history.length > 0 && (
-            <button className="ghost icon-btn" onClick={() => void undo()} aria-label={`Anuleaza ultima decizie (${history.length} disponibile, Ctrl+Z)`} title="Anuleaza (Ctrl+Z)">
-              <UndoIcon />
-              <span className="undo-count mono">{history.length}</span>
-            </button>
+            <Tooltip label="Anuleaza ultima decizie" shortcut="Ctrl+Z">
+              <button className="ghost icon-btn" onClick={() => void undo()} aria-label={`Anuleaza ultima decizie (${history.length} disponibile, Ctrl+Z)`}>
+                <UndoIcon />
+                <span className="undo-count mono">{history.length}</span>
+              </button>
+            </Tooltip>
           )}
           {photos.length > 0 && (
-            <button className="ghost icon-btn" onClick={() => setWorkspaceMode(true)} aria-label="Spatiu de lucru (lupa + filmstrip)" title="Spatiu de lucru">
-              <FocusIcon />
-            </button>
+            <Tooltip label="Spatiu de lucru">
+              <button className="ghost icon-btn" onClick={() => setWorkspaceMode(true)} aria-label="Spatiu de lucru (lupa + filmstrip)">
+                <FocusIcon />
+              </button>
+            </Tooltip>
           )}
           <button className="ghost" onClick={() => void exportSelection()} disabled={!counts.selected}>
             Exporta poze ({counts.selected})
           </button>
-          <button className="ghost icon-btn" onClick={() => setMenuOpen(true)} aria-label="Meniu">
-            <MenuIcon />
-          </button>
+          <Tooltip label="Meniu" side="left">
+            <button className="ghost icon-btn" onClick={() => setMenuOpen(true)} aria-label="Meniu">
+              <MenuIcon />
+            </button>
+          </Tooltip>
         </div>
       </header>
 
@@ -225,7 +234,9 @@ export default function App() {
             </div>
           )}
           {filtered.length === 0 && !progress && <p className="empty-filter">Nicio poza nu corespunde filtrului curent.</p>}
-          <button className="fab" onClick={() => fileRef.current?.click()} title="Adauga poze"><PlusIcon /></button>
+          <Tooltip label="Adauga poze" side="left">
+            <button className="fab" onClick={() => fileRef.current?.click()} aria-label="Adauga poze"><PlusIcon /></button>
+          </Tooltip>
         </>
       )}
 

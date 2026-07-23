@@ -1,21 +1,29 @@
-/* ── Lumin Culler Pro v2.3 — consola de culling ─────────────────────────────
-   Directie: unealta profesionala de studio cu identitate futurista — negru
-   aproape pur, accent cyan→violet folosit cu zgarcenie (brand, focus, glow),
-   iar semantica verde/ambra/rosu (selecteaza/verifica/respinge) ramane
-   principalul limbaj de culoare, doar mai vibranta si cu glow subtil.
-   Miscare: tranzitii scurte (150-260ms) cu easing "overshoot" lin, respecta
+/* ── Lumin Culler Pro v2.4 — consola de culling ─────────────────────────────
+   Directie: unealta profesionala, gri strict neutru (fara nuante de culoare
+   in fundal/suprafete/text) — orice tinta de culoare in jurul pozei ar
+   denatura perceptia de expunere/contrast la triaj, exact ca la Lightroom
+   sau Narrative Select. Accentul (cyan) e rezervat strict pentru inele de
+   focus si stari interactive punctuale — niciodata fundaluri/glow ambiental.
+   Semantica verde/ambra/rosu (selecteaza/verifica/respinge) ramane
+   principalul limbaj de culoare, ca badge-uri pline, discrete.
+   Miscare: tranzitii scurte (150ms) cu easing consistent, respecta
    prefers-reduced-motion peste tot. */
 
 :root {
-  --bg: #08090c;
-  --surface: #131519;
-  --surface-2: #1a1d23;
-  --surface-3: #23262e;
-  --line: #24262e;
-  --line-strong: #3a3d48;
-  --text: #f2f1ec;
-  --text-dim: #9997a0;
-  --text-faint: #63626c;
+  --bg: #121212;
+  --surface: #1e1e1e;
+  --surface-2: #242424;
+  --surface-3: #333333;
+  --line: #2c2c2c;
+  --line-strong: #3a3a3a;
+  --text: #e0e0e0;
+  --text-dim: #aaaaaa;
+  --text-faint: #888888;
+
+  --scrollbar-thumb: #3a3a3a;
+  --scrollbar-thumb-hover: #555555;
+  --skeleton-a: #242424;
+  --skeleton-b: #2c2c2c;
 
   --accent: #22d3ee;
   --accent-2: #8b5cf6;
@@ -33,6 +41,7 @@
   --radius: 12px;
   --radius-lg: 18px;
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --micro: 0.15s ease-in-out;
   --shadow-lift: 0 10px 30px -8px rgba(0,0,0,0.55);
 }
 
@@ -52,12 +61,11 @@
   --text: #17181c;
   --text-dim: #55565f;
   --text-faint: #8a8b93;
+  --scrollbar-thumb: #c3c7ce;
+  --scrollbar-thumb-hover: #a3a8b1;
+  --skeleton-a: #eef0f3;
+  --skeleton-b: #e3e5ea;
   --shadow-lift: 0 10px 30px -8px rgba(20,20,30,0.14);
-}
-:root[data-theme="light"] body::before {
-  background:
-    radial-gradient(680px 420px at 12% -8%, rgba(34,211,238,0.10), transparent 60%),
-    radial-gradient(620px 480px at 100% 0%, rgba(139,92,246,0.08), transparent 60%);
 }
 
 * { box-sizing: border-box; margin: 0; }
@@ -71,24 +79,14 @@ body {
   -webkit-font-smoothing: antialiased;
   position: relative;
 }
-/* Lumina ambientala, foarte discreta, cu o respiratie lenta — semnatura "futurist" fara sa distraga */
-body::before {
-  content: ""; position: fixed; inset: -10% -10%; z-index: -1; pointer-events: none;
-  background:
-    radial-gradient(680px 420px at 12% -8%, rgba(34,211,238,0.08), transparent 60%),
-    radial-gradient(620px 480px at 100% 0%, rgba(139,92,246,0.07), transparent 60%);
-  animation: auroraDrift 22s ease-in-out infinite;
-}
-@keyframes auroraDrift {
-  0%, 100% { transform: translate(0, 0); }
-  50% { transform: translate(-1.5%, 1.5%); }
-}
+/* scrollbar-uri subtiri, neutre — Firefox (global) + Webkit (per-container, mai jos) */
+* { scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) transparent; }
 .mono { font-family: var(--mono); font-size: 0.82em; letter-spacing: 0.02em; }
 button { font: inherit; cursor: pointer; border: none; border-radius: 6px; background: none; color: inherit; }
 button, .chip, .card, .compare-img { -webkit-tap-highlight-color: transparent; }
-button:focus-visible, input:focus-visible {
+button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
   outline: 2px solid var(--accent); outline-offset: 2px;
-  box-shadow: 0 0 0 5px rgba(34,211,238,0.14);
+  box-shadow: 0 0 0 4px rgba(34,211,238,0.12);
   border-radius: 6px;
 }
 
@@ -241,10 +239,11 @@ button:focus-visible, input:focus-visible {
 /* ── Grila virtualizata (biblioteci mari) — doar randurile vizibile exista in DOM ── */
 .virtual-grid-scroll {
   overflow-y: auto; overflow-x: hidden; width: 100%; -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent;
+  scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 .virtual-grid-scroll::-webkit-scrollbar { width: 6px; }
-.virtual-grid-scroll::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 8px; }
+.virtual-grid-scroll::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 8px; transition: background var(--micro); }
+.virtual-grid-scroll::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
 .grid.virtual-row { padding-bottom: 10px; }
 /* animatia in cascada nu are sens la scroll (fiecare rand nou ar tot re-anima) — eliminata doar aici */
 .virtual-row .card { animation: none; }
@@ -276,17 +275,16 @@ button:focus-visible, input:focus-visible {
 .card:active { transform: translateY(-1px) scale(0.985); }
 .card img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .card-loading {
-  flex: 1; background: linear-gradient(100deg, var(--surface-2) 40%, var(--surface-3) 50%, var(--surface-2) 60%);
-  background-size: 200% 100%; animation: shimmerBg 1.3s ease-in-out infinite;
+  flex: 1; background: var(--skeleton-a);
+  animation: skeletonPulse 1.4s ease-in-out infinite;
 }
-@keyframes shimmerBg { 0% { background-position: 140% 0; } 100% { background-position: -40% 0; } }
+@keyframes skeletonPulse { 0%, 100% { background-color: var(--skeleton-a); } 50% { background-color: var(--skeleton-b); } }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) {
   .card-loading { animation: none; }
   .grid, .notice, .toast, .detail, .detail-inner, .card, .drawer-scrim, .drawer, .live-dot { animation: none !important; }
   .swipe-surface { transition: none !important; }
   .card, .chip, .ghost, .select, .reject { transition: none; }
-  body::before { animation: none; }
 }
 
 /* starea cadrului: contur colorat + linie de glow sus, mai discret decat sigiliul vechi */
@@ -354,10 +352,11 @@ button:focus-visible, input:focus-visible {
   padding: 14px 14px calc(14px + env(safe-area-inset-bottom)); display: grid; gap: 12px;
   box-shadow: 0 -20px 60px -20px rgba(0,0,0,0.6);
   animation: sheetIn 0.28s var(--ease) both;
-  scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent;
+  scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) transparent;
 }
-.detail-inner::-webkit-scrollbar { width: 8px; }
-.detail-inner::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 8px; }
+.detail-inner::-webkit-scrollbar { width: 6px; }
+.detail-inner::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 8px; transition: background var(--micro); }
+.detail-inner::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
 /* copiii unui grid au implicit min-width:auto (bazat pe continut) — fara asta,
    text lung nefolosit (ex. butoane din compare-grid) impinge sheet-ul peste viewport */
 .detail-inner > * { min-width: 0; }
@@ -387,22 +386,26 @@ button:focus-visible, input:focus-visible {
 .detail-inner.fit .detail-scroll {
   flex: 1 1 auto; min-height: 60px; overflow-y: auto; -webkit-overflow-scrolling: touch;
   display: flex; flex-direction: column; gap: 8px;
-  scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent;
+  scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 .detail-inner.fit .detail-scroll::-webkit-scrollbar { width: 6px; }
-.detail-inner.fit .detail-scroll::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 8px; }
+.detail-inner.fit .detail-scroll::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 8px; transition: background var(--micro); }
+.detail-inner.fit .detail-scroll::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
 .detail-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .detail-head span:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .detail-head .ghost { flex-shrink: 0; }
 
+/* pastile pline, discrete — accent doar din fundal/text, fara contur dur */
 .status-tag {
-  font-family: var(--mono); font-size: 0.66rem; padding: 3px 9px 3px 7px; border-radius: 5px;
-  border: 1px solid var(--line); flex-shrink: 0; display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--mono); font-size: 0.66rem; font-weight: 700; letter-spacing: 0.03em;
+  padding: 4px 10px 4px 8px; border-radius: 999px; border: 1px solid transparent;
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: 5px;
+  transition: background var(--micro), color var(--micro);
 }
-.status-tag::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-.status-tag.st-selected { color: var(--pick); border-color: rgba(74,222,128,0.4); }
-.status-tag.st-rejected { color: var(--reject); border-color: rgba(251,113,133,0.4); }
-.status-tag.st-review { color: var(--review); border-color: rgba(251,191,36,0.4); }
+.status-tag::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.status-tag.st-selected { color: var(--pick); background: rgba(74,222,128,0.14); }
+.status-tag.st-rejected { color: var(--reject); background: rgba(251,113,133,0.14); }
+.status-tag.st-review { color: var(--review); background: rgba(251,191,36,0.14); }
 
 .detail-img {
   position: relative; cursor: zoom-in; overflow: hidden; border-radius: var(--radius);
@@ -484,6 +487,35 @@ button:focus-visible, input:focus-visible {
 }
 .inline-icon { width: 14px; height: 14px; vertical-align: -2px; margin-right: 3px; flex-shrink: 0; }
 
+/* ── Tooltip minimal — aparitie instant la hover/focus, pentru butoane doar-iconita ── */
+.tooltip-wrap { position: relative; display: inline-flex; }
+.tooltip-bubble {
+  position: absolute; top: calc(100% + 7px); left: 50%; transform: translateX(-50%) translateY(-2px);
+  display: flex; align-items: center; gap: 6px; white-space: nowrap; z-index: 40;
+  background: #000; color: #fff; font-size: 0.72rem; font-weight: 600; line-height: 1;
+  padding: 6px 9px; border-radius: 6px; box-shadow: 0 6px 20px -6px rgba(0,0,0,0.5);
+  opacity: 0; pointer-events: none; transition: opacity 0.1s ease-in-out, transform 0.1s ease-in-out;
+}
+.tooltip-bubble::before {
+  content: ""; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+  border: 5px solid transparent; border-bottom-color: #000;
+}
+.tooltip-wrap.tooltip-left .tooltip-bubble { left: auto; right: 0; transform: translateY(-2px); }
+.tooltip-wrap.tooltip-left .tooltip-bubble::before { left: auto; right: 12px; transform: none; }
+.tooltip-bubble kbd {
+  font-family: var(--mono); font-size: 0.68rem; background: rgba(255,255,255,0.16);
+  padding: 1px 5px; border-radius: 4px; color: #fff;
+}
+.tooltip-wrap:hover .tooltip-bubble,
+.tooltip-wrap:focus-within .tooltip-bubble {
+  opacity: 1; transform: translateX(-50%) translateY(0);
+}
+.tooltip-wrap.tooltip-left:hover .tooltip-bubble,
+.tooltip-wrap.tooltip-left:focus-within .tooltip-bubble {
+  transform: translateY(0);
+}
+@media (hover: none) { .tooltip-bubble { display: none; } } /* fara hover pe touch — evita tooltip-uri blocate dupa tap */
+
 .detail-actions { display: grid; grid-template-columns: auto 1fr 1fr auto; gap: 8px; }
 .detail-actions > * { min-width: 0; }
 
@@ -540,7 +572,11 @@ button:focus-visible, input:focus-visible {
   display: flex; flex-direction: column; gap: 3px; overflow-y: auto;
   box-shadow: -24px 0 60px -20px rgba(0,0,0,0.6);
   animation: drawerIn 0.26s var(--ease) both;
+  scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) transparent;
 }
+.drawer::-webkit-scrollbar { width: 6px; }
+.drawer::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 8px; transition: background var(--micro); }
+.drawer::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
 @keyframes drawerIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
 .drawer-head {
   display: flex; justify-content: space-between; align-items: center;
@@ -575,7 +611,13 @@ button:focus-visible, input:focus-visible {
 .palette-input-row input {
   flex: 1; background: none; border: none; outline: none; color: var(--text); font: inherit; font-size: 0.95rem;
 }
-.palette-list { list-style: none; margin: 0; padding: 6px; overflow-y: auto; }
+.palette-list {
+  list-style: none; margin: 0; padding: 6px; overflow-y: auto;
+  scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+.palette-list::-webkit-scrollbar { width: 6px; }
+.palette-list::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 8px; transition: background var(--micro); }
+.palette-list::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
 .palette-list li {
   display: flex; justify-content: space-between; align-items: center; gap: 10px;
   padding: 10px 12px; border-radius: var(--radius); cursor: pointer; color: var(--text);
@@ -628,7 +670,10 @@ button:focus-visible, input:focus-visible {
   background: #06070a;
 }
 .workspace-loupe img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: var(--radius); }
-.workspace-badge { position: absolute; top: 24px; right: 24px; background: var(--surface); }
+.workspace-badge {
+  position: absolute; top: 24px; right: 24px; z-index: 2;
+  backdrop-filter: blur(6px); box-shadow: 0 4px 16px -4px rgba(0,0,0,0.5);
+}
 .workspace-metrics {
   position: absolute; bottom: 24px; left: 24px; z-index: 2; display: flex; flex-wrap: wrap; gap: 6px 14px;
   background: rgba(19,21,25,0.82); backdrop-filter: blur(6px); border: 1px solid var(--line);
@@ -649,14 +694,20 @@ button:focus-visible, input:focus-visible {
   height: 120px; flex: 0 0 auto; background: var(--surface-2); display: flex; align-items: center;
   gap: 8px; padding: 10px; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch;
   border-top: 1px solid var(--line);
+  scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) transparent;
 }
+.workspace-filmstrip::-webkit-scrollbar { height: 6px; }
+.workspace-filmstrip::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 8px; transition: background var(--micro); }
+.workspace-filmstrip::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
 .workspace-thumb {
   width: 100px; height: 100px; flex: 0 0 auto; padding: 0; border-radius: 8px; overflow: hidden;
   border: 2px solid transparent; background: var(--surface-3); cursor: pointer;
-  transition: border-color 0.15s var(--ease), opacity 0.15s var(--ease);
+  transition: border-color var(--micro), opacity var(--micro), transform var(--micro);
 }
+.workspace-thumb:hover { border-color: var(--line-strong); transform: translateY(-1px); }
 .workspace-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .workspace-thumb.active { border-color: var(--text); }
+.workspace-thumb.active:hover { border-color: var(--text); }
 .workspace-thumb.rejected { opacity: 0.35; }
 
 /* ── Ecran de recuperare la eroare React ── */
