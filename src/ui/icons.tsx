@@ -94,6 +94,14 @@ export function GridIcon(p: SVGProps<SVGSVGElement>) {
 export function ClockIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><circle cx="12" cy="12" r="9" /><path d="M12 7v5.5l3.5 2" /></svg>;
 }
+export function ApertureIcon(p: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base} {...p}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 3v5.2M19.8 7.5l-4.5 2.6M19.8 16.5l-4.5-2.6M12 21v-5.2M4.2 16.5l4.5-2.6M4.2 7.5l4.5 2.6" />
+    </svg>
+  );
+}
 export function KeyboardIcon(p: SVGProps<SVGSVGElement>) {
   return (
     <svg {...base} {...p}>

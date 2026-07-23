@@ -42,38 +42,38 @@ export function MenuDrawer() {
         </header>
 
         <button className="drawer-item" onClick={() => go(() => setPersonsOpen(true))}>
-          <StarIcon />
+          <span className="drawer-item-icon"><StarIcon /></span>
           <span>Persoane cunoscute</span>
           {persons.length > 0 && <b className="drawer-count mono">{persons.length}</b>}
         </button>
 
         <button className="drawer-item" onClick={() => go(() => setInsightsOpen(true))}>
-          <SparkleIcon />
+          <span className="drawer-item-icon"><SparkleIcon /></span>
           <span>Preferinte AI</span>
         </button>
 
         <button className="drawer-item" onClick={() => go(() => setBatchOpsOpen(true))}>
-          <LayersIcon />
+          <span className="drawer-item-icon"><LayersIcon /></span>
           <span>Operatii in masa</span>
         </button>
 
         <button className="drawer-item" onClick={() => go(() => setShortcutsOpen(true))}>
-          <KeyboardIcon />
+          <span className="drawer-item-icon"><KeyboardIcon /></span>
           <span>Scurtaturi tastatura</span>
         </button>
 
         <button className="drawer-item" onClick={() => go(() => setTheme(theme === 'light' ? 'dark' : 'light'))}>
-          {theme === 'light' ? <SunIcon /> : <MoonIcon />}
+          <span className="drawer-item-icon">{theme === 'light' ? <SunIcon /> : <MoonIcon />}</span>
           <span>Tema {theme === 'light' ? 'deschisa' : 'intunecata'}</span>
         </button>
 
         <button className="drawer-item" onClick={() => go(() => void exportManifest())}>
-          <ListIcon />
+          <span className="drawer-item-icon"><ListIcon /></span>
           <span>Exporta lista (JSON)</span>
         </button>
 
         <button className="drawer-item" onClick={() => go(() => void exportXMP())}>
-          <TagIcon />
+          <span className="drawer-item-icon"><TagIcon /></span>
           <span>Exporta etichete Lightroom (XMP)</span>
         </button>
 

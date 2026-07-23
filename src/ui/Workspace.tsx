@@ -189,10 +189,11 @@ export function Workspace() {
       </header>
 
       <div className="workspace-loupe">
+        <div className="grain-overlay" aria-hidden="true" />
         <button className="ghost icon-btn workspace-nav prev" onClick={() => stepDetail(-1)} aria-label="Fotografia anterioara">
           <ChevronLeft />
         </button>
-        {src && <img src={src} alt={photo.fileName} />}
+        {src && <img key={detailId} src={src} alt={photo.fileName} />}
         <span className={`status-tag st-${photo.status} workspace-badge`}>
           {photo.status === 'selected' ? 'SELECTATA' : photo.status === 'rejected' ? 'RESPINSA' : 'DE VERIFICAT'}
         </span>
@@ -218,26 +219,28 @@ export function Workspace() {
         </button>
       </div>
 
-      <div className="workspace-actions">
-        <button className="reject" onClick={() => { void setStatus(photo.id, 'rejected'); stepDetail(1); }}>
-          <XIcon className="inline-icon" /> Respinge (X)
-        </button>
-        <button className="select" onClick={() => { void setStatus(photo.id, 'selected'); stepDetail(1); }}>
-          <CheckIcon className="inline-icon" /> Selecteaza (P)
-        </button>
-      </div>
-
-      <div className="workspace-filmstrip" ref={filmstripRef}>
-        {filtered.map(p => (
-          <button
-            key={p.id}
-            className={`workspace-thumb${p.id === detailId ? ' active' : ''}${p.status === 'rejected' ? ' rejected' : ''}`}
-            onClick={() => openDetail(p.id)}
-            title={p.fileName}
-          >
-            <FilmstripThumb photoId={p.id} fileName={p.fileName} />
+      <div className="workspace-dock">
+        <div className="workspace-actions">
+          <button className="reject" onClick={() => { void setStatus(photo.id, 'rejected'); stepDetail(1); }}>
+            <XIcon className="inline-icon" /> Respinge (X)
           </button>
-        ))}
+          <button className="select" onClick={() => { void setStatus(photo.id, 'selected'); stepDetail(1); }}>
+            <CheckIcon className="inline-icon" /> Selecteaza (P)
+          </button>
+        </div>
+
+        <div className="workspace-filmstrip" ref={filmstripRef}>
+          {filtered.map(p => (
+            <button
+              key={p.id}
+              className={`workspace-thumb${p.id === detailId ? ' active' : ''}${p.status === 'rejected' ? ' rejected' : ''}`}
+              onClick={() => openDetail(p.id)}
+              title={p.fileName}
+            >
+              <FilmstripThumb photoId={p.id} fileName={p.fileName} />
+            </button>
+          ))}
+        </div>
       </div>
       {fileInput}
     </div>
