@@ -123,6 +123,35 @@ export interface AnalysisRecord {
   fNumber?: number;        // f/X (diafragma)
   exposureTime?: number;   // secunde (1/250 -> 0.004)
   focalLength?: number;    // mm
+
+  // ── Analiza estetica avansata ──────────────────────────────────────────
+  // Toate calculate geometric/statistic direct din pixeli (Sobel, histograme
+  // HSV, varianta locala) sau din campurile deja detectate (fete, EXIF) —
+  // fara modele ML noi. Optionale: absente pe inregistrari mai vechi,
+  // tratate ca neutre in ContextEngine (extractFeatures), nu ca zero.
+  /** Scor agregat de compozitie (0..1) — combina treimile/headroom (subiect uman)
+   *  sau liniile directoare/simetria/spatiul negativ (scene fara fete). */
+  compositionScore?: number;
+  /** Concentrare puternica a muchiilor pe directii convergente/diagonale dominante. */
+  leadingLinesDetected?: boolean;
+  /** Jumatatea stanga a cadrului e aproape o oglinda a celei drepte (harta de muchii). */
+  symmetryDetected?: boolean;
+  /** Fractiune din cadru cu detaliu local scazut (zone "goale" — cer, perete, fundal uniform), 0..1. */
+  negativeSpaceScore?: number;
+  /** Duritatea luminii, din distributia contrastului local (Sobel): 'hard' = umbre nete/contrast mare. */
+  lightQuality?: 'soft' | 'hard' | 'mixed' | 'unknown';
+  /** Nuanta calda dominanta (portocaliu/auriu) + ora capturii apropiata de rasarit/apus — semnal aproximativ. */
+  goldenHourDetected?: boolean;
+  /** Doar cand exista fete: subiectul principal e mai clar decat fundalul (claritate locala box fata vs. rest). */
+  subjectInFocus?: boolean;
+  /** Diferenta de claritate subiect/fundal, calitativa — 'n/a' cand nu exista subiect uman de comparat. */
+  bokehQuality?: 'good' | 'average' | 'poor' | 'n/a';
+  /** Armonia paletei de culori (0..1) — complementara/analoaga = scor mare, culori dezordonate = scor mic. */
+  colorHarmonyScore?: number;
+  /** Cele mai frecvente 3 culori din cadru (cuantizate), format hex — pentru afisare/paleta. */
+  dominantColors?: string[];
+  /** Eticheta compusa din tipul de scena + varsta estimata a subiectului principal (cand e disponibila). */
+  sceneSemantic?: string;
 }
 
 export interface KnownPerson {

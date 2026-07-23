@@ -8,6 +8,7 @@ import { db, type AnalysisRecord, type PhotoRecord } from './db';
 import { analysisPool, withTimeout } from './workerPool';
 import { contextEngine, type Prediction } from './learning/ContextEngine';
 import { groupPhotosByHash } from './hashComparePool';
+import type { HashInput } from '../workers/hashCompare.worker';
 import { parseExif } from './exifParser';
 import { isRawFile, decodeRawFile, RAW_EXTENSIONS } from './rawDecoder';
 
@@ -251,7 +252,7 @@ export async function importFiles(
   let index = 0;
   let failed = 0;
   let stopReason: string | undefined;
-  const hashes: { id: string; dHash: string; score: number }[] = [];
+  const hashes: HashInput[] = [];
   // Motivele reale (distincte) ale esecurilor — altfel "fisier corupt sau
   // format neasteptat" e un mesaj generic care nu spune nimic despre CE
   // anume a esuat (memorie, decodare, worker etc.), imposibil de diagnosticat
@@ -272,7 +273,20 @@ export async function importFiles(
 
         try {
           const item = await processOne(file);
-          hashes.push({ id: item.photo.id, dHash: item.photo.dHash, score: item.analysis.aiScore });
+          hashes.push({
+            id: item.photo.id,
+            hash: item.photo.dHash,
+            score: item.analysis.aiScore,
+            sharpness: item.analysis.sharpness,
+            exposure: item.analysis.exposure,
+            compositionScore: item.analysis.compositionScore,
+            faceCount: item.analysis.faceCount,
+            bestSmile: item.analysis.bestSmile,
+            groupSmileRatio: item.analysis.groupSmileRatio,
+            allEyesOpen: item.analysis.allEyesOpen,
+            groupEyesOpenRatio: item.analysis.groupEyesOpenRatio,
+            avgEyeContact: item.analysis.avgEyeContact
+          });
           onPhoto(item);
         } catch (err) {
           if (isQuotaError(err)) { stopReason = stopMessage(done); break; }
@@ -296,9 +310,7 @@ export async function importFiles(
   // blocau vizibil UI-ul in acest punct al importului.
   onProgress({ done, total: images.length, fileName: '', phase: 'grupare' });
   const groups = new Map<string, string>();
-  const { groups: groupResults } = await groupPhotosByHash(
-    hashes.map(h => ({ id: h.id, hash: h.dHash, score: h.score }))
-  );
+  const { groups: groupResults } = await groupPhotosByHash(hashes);
   for (const g of groupResults) {
     for (const memberId of g.memberIds) {
       groups.set(memberId, g.groupId);

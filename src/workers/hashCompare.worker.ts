@@ -15,8 +15,17 @@
  * ca analyzeBatch/onProgress), nu prin ascultarea manuala a evenimentelor.
  */
 import * as Comlink from 'comlink';
+import { pickBestInGroup, type GroupCandidate } from '../core/groupSelection';
 
-export interface HashInput {
+/**
+ * `score` (aiScore) ramane pastrat pentru compatibilitate/afisare, dar alegerea
+ * `bestId` foloseste acum ierarhia de criterii din groupSelection.ts (claritate
+ * > expunere > compozitie > expresii faciale > contact vizual) — mai robusta
+ * decat scorul AI brut la "cold start" (model neantrenat, scoruri aproape
+ * identice intre cadre similare). Restul campurilor GroupCandidate sunt
+ * optionale: absente => tratate neutru de pickBestInGroup, exact ca inainte.
+ */
+export interface HashInput extends Partial<Omit<GroupCandidate, 'id'>> {
   id: string;
   hash: string;
   score: number;
@@ -89,9 +98,20 @@ export class HashCompareService {
     for (const bucket of buckets) {
       if (bucket.members.length < 2) continue; // fara grup pentru poze unice
       const groupId = 'g-' + bucket.members[0].id.slice(0, 8);
-      const best = bucket.members.reduce((a, b) => (a.score >= b.score ? a : b));
+      const bestId = pickBestInGroup(bucket.members.map(m => ({
+        id: m.id,
+        sharpness: m.sharpness ?? 0,
+        exposure: m.exposure ?? 50,
+        compositionScore: m.compositionScore,
+        faceCount: m.faceCount ?? 0,
+        bestSmile: m.bestSmile ?? 0,
+        groupSmileRatio: m.groupSmileRatio,
+        allEyesOpen: m.allEyesOpen ?? true,
+        groupEyesOpenRatio: m.groupEyesOpenRatio,
+        avgEyeContact: m.avgEyeContact
+      })));
       for (const m of bucket.members) onUpdate?.({ photoId: m.id, groupId });
-      groups.push({ groupId, memberIds: bucket.members.map(m => m.id), bestId: best.id });
+      groups.push({ groupId, memberIds: bucket.members.map(m => m.id), bestId });
     }
 
     return { groups, totalGroups: groups.length };

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { db } from '../core/db';
 import { useStore, type PhotoView } from '../state/store';
-import { XIcon, LayersIcon } from './icons';
+import { XIcon, LayersIcon, SparkleIcon } from './icons';
 
 /** Compararea unei serii: cadrele similare unul langa altul, la preview 2048px.
     Alegi cadrul pastrat — restul seriei se respinge automat (si antreneaza AI-ul). */
@@ -12,8 +12,18 @@ export function GroupCompare() {
   const keepOnlyInGroup = useStore(s => s.keepOnlyInGroup);
   const setStatus = useStore(s => s.setStatus);
   const groupOf = useStore(s => s.groupOf);
+  const selectBestPhotoInGroup = useStore(s => s.selectBestPhotoInGroup);
+  const [recommendedId, setRecommendedId] = useState<string | null>(null);
 
   const members = groupId ? groupOf(groupId) : [];
+
+  useEffect(() => {
+    setRecommendedId(null);
+    if (!groupId) return;
+    let alive = true;
+    void selectBestPhotoInGroup(groupId).then(id => { if (alive) setRecommendedId(id); });
+    return () => { alive = false; };
+  }, [groupId, selectBestPhotoInGroup]);
 
   if (!groupId || members.length === 0) return null;
 
@@ -31,6 +41,7 @@ export function GroupCompare() {
             <CompareCard
               key={m.id}
               photo={m}
+              recommended={m.id === recommendedId}
               onKeep={() => void keepOnlyInGroup(groupId, m.id)}
               onReject={() => void setStatus(m.id, 'rejected')}
               onZoom={() => { openCompare(null); openDetail(m.id); }}
@@ -44,8 +55,9 @@ export function GroupCompare() {
   );
 }
 
-function CompareCard({ photo, onKeep, onReject, onZoom }: {
+function CompareCard({ photo, recommended, onKeep, onReject, onZoom }: {
   photo: PhotoView;
+  recommended: boolean;
   onKeep: () => void;
   onReject: () => void;
   onZoom: () => void;
@@ -66,6 +78,11 @@ function CompareCard({ photo, onKeep, onReject, onZoom }: {
     <div className={`compare-card st-${photo.status}`}>
       <button className="compare-img" onClick={onZoom} title="Deschide la 100%">
         {src && <img src={src} alt={photo.fileName} />}
+        {recommended && (
+          <span className="compare-recommend-badge">
+            <SparkleIcon className="inline-icon" /> Recomandat AI
+          </span>
+        )}
       </button>
       <div className="compare-meta mono">
         <span>Scor <b>{photo.aiScore}</b></span>

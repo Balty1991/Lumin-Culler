@@ -79,7 +79,24 @@ const PRIOR_WEIGHTS: FeatureVector = {
   isoPenalty: -0.15,
   apertureRaw: 0,
   shutterSpeedRaw: 0,
-  focalLengthRaw: 0
+  focalLengthRaw: 0,
+  // analiza estetica avansata (compozitie extinsa, lumina, culoare) — vezi
+  // core/db.ts (AnalysisRecord) si workers/faceAnalysis.worker.ts pentru cum
+  // sunt calculate. Prioritati modeste: compozitia si focusul subiectului au
+  // un consens fotografic clar (bonus pozitiv rezonabil), pe cand duritatea
+  // luminii si spatiul negativ sunt preferinte pur de stil — pornesc la 0,
+  // invatate DOAR din corectii reale, per context (acelasi tipar ca diafragma/
+  // viteza/focala mai sus).
+  compositionScore: 0.3,
+  leadingLines: 0.15,
+  symmetry: 0.1,
+  negativeSpace: 0,
+  lightHard: 0,
+  lightSoft: 0,
+  goldenHour: 0.2,
+  subjectInFocus: 0.6,
+  bokehQuality: 0.2,
+  colorHarmony: 0.25
 };
 
 /**
@@ -110,7 +127,17 @@ export const FACTOR_LABELS: Record<string, string> = {
   isoPenalty: 'ISO / zgomot',
   apertureRaw: 'Diafragmă',
   shutterSpeedRaw: 'Viteză obturator',
-  focalLengthRaw: 'Distanță focală'
+  focalLengthRaw: 'Distanță focală',
+  compositionScore: 'Compoziție',
+  leadingLines: 'Linii directoare',
+  symmetry: 'Simetrie',
+  negativeSpace: 'Spațiu negativ',
+  lightHard: 'Lumină dură',
+  lightSoft: 'Lumină difuză',
+  goldenHour: 'Ora de aur',
+  subjectInFocus: 'Subiect în focus',
+  bokehQuality: 'Bokeh',
+  colorHarmony: 'Armonie cromatică'
 };
 
 /** Transforma topFactors dintr-o Prediction in etichete afisabile, filtrand contributiile neglijabile. */
@@ -163,7 +190,20 @@ export function extractFeatures(a: AnalysisRecord): FeatureVector {
     shutterSpeedRaw: a.exposureTime && a.exposureTime > 0
       ? Math.min(1, Math.max(0, Math.log2(Math.max(1 / a.exposureTime, 1)) / 13))
       : 0.5,
-    focalLengthRaw: a.focalLength !== undefined ? Math.min(1, Math.max(0, Math.log2(Math.max(a.focalLength, 10) / 10) / 8)) : 0.5
+    focalLengthRaw: a.focalLength !== undefined ? Math.min(1, Math.max(0, Math.log2(Math.max(a.focalLength, 10) / 10) / 8)) : 0.5,
+    // analiza estetica avansata — booleene absente (inregistrari mai vechi) =
+    // neutru (0.5), nu 0/1, ca sa nu penalizeze/favorizeze artificial poze
+    // analizate inainte de aceste campuri (acelasi tipar ca ruleOfThirds/headroom mai sus)
+    compositionScore: a.compositionScore ?? 0.5,
+    leadingLines: a.leadingLinesDetected === undefined ? 0.5 : (a.leadingLinesDetected ? 1 : 0),
+    symmetry: a.symmetryDetected === undefined ? 0.5 : (a.symmetryDetected ? 1 : 0),
+    negativeSpace: a.negativeSpaceScore ?? 0.5,
+    lightHard: a.lightQuality === 'hard' ? 1 : 0,
+    lightSoft: a.lightQuality === 'soft' ? 1 : 0,
+    goldenHour: a.goldenHourDetected ? 1 : 0,
+    subjectInFocus: a.subjectInFocus === undefined ? 0.5 : (a.subjectInFocus ? 1 : 0),
+    bokehQuality: a.bokehQuality === 'good' ? 1 : a.bokehQuality === 'poor' ? 0 : 0.5,
+    colorHarmony: a.colorHarmonyScore ?? 0.5
   };
 }
 
@@ -276,6 +316,8 @@ export class ContextEngine {
     sampleCount: number;
     confidence: Prediction['confidence'];
     notes: string[];
+    /** aceleasi ponderi de top care alimenteaza `notes`, in forma bruta — pentru grafice (InsightsChart). */
+    topWeights: { feature: string; label: string; weight: number }[];
   }[]> {
     await this.init();
     const labels: Record<string, [string, string]> = {
@@ -297,22 +339,37 @@ export class ContextEngine {
       isoPenalty: ['preferă ISO scăzut/curat', 'tolerează ISO ridicat/zgomot'],
       apertureRaw: ['preferă diafragmă închisă (totul clar)', 'preferă diafragmă deschisă (fundal difuz)'],
       shutterSpeedRaw: ['preferă viteze lente (blur de mișcare)', 'preferă viteze rapide (îngheață mișcarea)'],
-      focalLengthRaw: ['preferă cadre wide (peisaj/context)', 'preferă cadre tele (portret/apropiere)']
+      focalLengthRaw: ['preferă cadre wide (peisaj/context)', 'preferă cadre tele (portret/apropiere)'],
+      compositionScore: ['compoziție îngrijită (linii/simetrie/spațiu)', 'tolerează compoziție mai liberă'],
+      leadingLines: ['preferă linii directoare puternice', 'indiferent la liniile directoare'],
+      symmetry: ['preferă cadre simetrice', 'preferă cadre asimetrice/dinamice'],
+      negativeSpace: ['preferă mult spațiu negativ (minimalist)', 'preferă cadre aglomerate/pline'],
+      lightHard: ['preferă lumină dură, contrastantă', 'evită lumina dură'],
+      lightSoft: ['preferă lumină difuză, blândă', 'evită lumina prea plată'],
+      goldenHour: ['preferă cadre din ora de aur', 'indiferent la ora capturii'],
+      subjectInFocus: ['cere subiectul perfect în focus', 'tolerează subiect ușor neclar'],
+      bokehQuality: ['preferă fundal difuz (bokeh)', 'preferă totul clar, fără bokeh'],
+      colorHarmony: ['preferă palete de culori armonioase', 'indiferent la armonia culorilor']
     };
     return Array.from(this.models.values())
-      .map(model => ({
-        contextKey: model.contextKey,
-        sampleCount: model.sampleCount,
-        confidence:
-          model.sampleCount < COLD_START_SAMPLES ? ('cold' as const)
-          : model.sampleCount < TRAINED_SAMPLES ? ('warming' as const)
-          : ('trained' as const),
-        notes: model.sampleCount < COLD_START_SAMPLES ? [] : Object.entries(model.weights)
+      .map(model => {
+        const ranked = Object.entries(model.weights)
           .filter(([k]) => k in labels)
           .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
-          .slice(0, 4)
-          .map(([k, w]) => w >= 0 ? labels[k][0] : labels[k][1])
-      }))
+          .slice(0, 4);
+        return {
+          contextKey: model.contextKey,
+          sampleCount: model.sampleCount,
+          confidence:
+            model.sampleCount < COLD_START_SAMPLES ? ('cold' as const)
+            : model.sampleCount < TRAINED_SAMPLES ? ('warming' as const)
+            : ('trained' as const),
+          notes: model.sampleCount < COLD_START_SAMPLES ? [] : ranked.map(([k, w]) => w >= 0 ? labels[k][0] : labels[k][1]),
+          topWeights: model.sampleCount < COLD_START_SAMPLES ? [] : ranked.map(([k, w]) => ({
+            feature: k, label: FACTOR_LABELS[k] ?? k, weight: w
+          }))
+        };
+      })
       .sort((a, b) => b.sampleCount - a.sampleCount);
   }
 

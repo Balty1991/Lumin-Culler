@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useStore } from '../state/store';
 import { contextEngine } from '../core/learning/ContextEngine';
+import { InsightsChart, type InsightsChartWeight } from './InsightsChart';
 import { SparkleIcon } from './icons';
 
 interface Summary {
@@ -8,6 +9,7 @@ interface Summary {
   sampleCount: number;
   confidence: 'cold' | 'warming' | 'trained';
   notes: string[];
+  topWeights: InsightsChartWeight[];
 }
 
 const SCENE_LABELS: Record<string, string> = { landscape: 'Peisaj', detail: 'Detaliu / obiect' };
@@ -63,7 +65,12 @@ export function InsightsPanel() {
                   <span className="mono confidence-tag">{s.sampleCount} decizii · {CONFIDENCE_LABEL[s.confidence]}</span>
                 </div>
                 {s.notes.length > 0
-                  ? <p>{s.notes.join(' · ')}</p>
+                  ? (
+                    <>
+                      <p>{s.notes.join(' · ')}</p>
+                      <InsightsChart weights={s.topWeights} />
+                    </>
+                  )
                   : <p className="hint">Inca invata — mai sunt necesare cateva decizii pe acest tip de scena.</p>}
               </li>
             ))}
