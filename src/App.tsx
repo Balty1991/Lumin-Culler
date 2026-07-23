@@ -13,9 +13,18 @@ import { CommandPalette } from './ui/CommandPalette';
 import { ShortcutsPanel } from './ui/ShortcutsPanel';
 import { AnimatedNumber } from './ui/AnimatedNumber';
 import { Tooltip } from './ui/Tooltip';
-import { MenuIcon, PlusIcon, StarIcon, AlertIcon, XIcon, FocusIcon, UndoIcon, SearchIcon, ApertureIcon } from './ui/icons';
+import { MenuIcon, PlusIcon, StarIcon, AlertIcon, XIcon, FocusIcon, UndoIcon, SearchIcon, ApertureIcon, SparkleIcon, CheckIcon } from './ui/icons';
 
 const NOTICE_AUTODISMISS_MS = 7000;
+
+/** Clasifica un mesaj de notificare dupa cuvinte-cheie — nu exista un camp de tip in store
+    (notice e doar text), asa ca deducem tonul din continut pentru iconita/culoarea toast-ului. */
+function noticeTone(message: string): 'error' | 'warn' | 'success' {
+  const lower = message.toLowerCase();
+  if (lower.includes('esuat') || lower.includes('eroare')) return 'error';
+  if (lower.includes('plin') || lower.includes('aproape')) return 'warn';
+  return 'success';
+}
 /**
  * Sub acest prag, grid-ul simplu (DOM normal) e mai simplu si are animatia
  * de intrare in cascada; peste, numarul de noduri DOM (+ URL-uri de obiect
@@ -120,6 +129,8 @@ export default function App() {
   };
 
   const total = Math.max(1, counts.all);
+  const decidedPercent = Math.round(((counts.selected + counts.rejected) / total) * 100);
+  const decidedDeg = Math.max(0, Math.min(360, Math.round((decidedPercent / 100) * 360)));
 
   // Workspace e ecranul principal implicit — grila (jos) ramane accesibila
   // doar cand exista deja poze SI utilizatorul a comutat explicit la ea
@@ -185,8 +196,11 @@ export default function App() {
       </header>
 
       {notice && (
-        <div className="toast mono" role="status">
-          <span>{notice}</span>
+        <div className={`toast tone-${noticeTone(notice)}`} role="status">
+          <span className="toast-icon">
+            {noticeTone(notice) === 'error' ? <AlertIcon /> : noticeTone(notice) === 'warn' ? <AlertIcon /> : <CheckIcon />}
+          </span>
+          <span className="mono toast-text">{notice}</span>
           <button className="toast-close" onClick={() => clearNotice()} aria-label="Inchide">
             <XIcon />
           </button>
@@ -203,17 +217,28 @@ export default function App() {
 
       {photos.length > 0 && (
         <section className="cullbar" aria-label="Progresul sortarii">
-          <div className="cullbar-track">
-            <span className="seg-sel" style={{ width: `${(counts.selected / total) * 100}%` }} />
-            <span className="seg-rev" style={{ width: `${(counts.review / total) * 100}%` }} />
-            <span className="seg-rej" style={{ width: `${(counts.rejected / total) * 100}%` }} />
-          </div>
-          <div className="cullbar-legend mono">
-            <span className="legend-stat"><i className="dot sel" /><b><AnimatedNumber value={counts.selected} /></b> selectate</span>
-            <span className="legend-stat"><i className="dot rev" /><b><AnimatedNumber value={counts.review} /></b> de verificat</span>
-            <span className="legend-stat"><i className="dot rej" /><b><AnimatedNumber value={counts.rejected} /></b> respinse</span>
-            <span className="spacer" />
-            <button className="ghost small" onClick={() => void confirmClearAll()}>Goleste sesiunea</button>
+          <div className="cullbar-main">
+            <div
+              className="session-ring"
+              style={{ background: `conic-gradient(var(--accent) ${decidedDeg}deg, var(--surface-3) 0)` }}
+              title={`${decidedPercent}% din poze au o decizie luata`}
+            >
+              <span className="session-ring-inner">{decidedPercent}%</span>
+            </div>
+            <div className="cullbar-body">
+              <div className="cullbar-track">
+                <span className="seg-sel" style={{ width: `${(counts.selected / total) * 100}%` }} />
+                <span className="seg-rev" style={{ width: `${(counts.review / total) * 100}%` }} />
+                <span className="seg-rej" style={{ width: `${(counts.rejected / total) * 100}%` }} />
+              </div>
+              <div className="cullbar-legend mono">
+                <span className="legend-stat"><i className="dot sel" /><b><AnimatedNumber value={counts.selected} /></b> selectate</span>
+                <span className="legend-stat"><i className="dot rev" /><b><AnimatedNumber value={counts.review} /></b> de verificat</span>
+                <span className="legend-stat"><i className="dot rej" /><b><AnimatedNumber value={counts.rejected} /></b> respinse</span>
+                <span className="spacer" />
+                <button className="ghost small" onClick={() => void confirmClearAll()}>Goleste sesiunea</button>
+              </div>
+            </div>
           </div>
         </section>
       )}
@@ -250,6 +275,30 @@ export default function App() {
           <button className="btn-accent big" onClick={() => fileRef.current?.click()}>Alege fotografiile</button>
           <p className="hint"><StarIcon className="inline-icon" /> Optional: inroleaza persoanele importante din
           meniu, ca AI-ul sa le prioritizeze la scorare.</p>
+
+          <div className="how-it-works">
+            <div className="how-step">
+              <span className="how-step-icon"><PlusIcon /></span>
+              <div className="how-step-text">
+                <b>Adauga poze</b>
+                <p>JPEG, PNG, WebP sau RAW — orice sedinta foto, oricat de mare.</p>
+              </div>
+            </div>
+            <div className="how-step">
+              <span className="how-step-icon"><SparkleIcon /></span>
+              <div className="how-step-text">
+                <b>AI analizeaza</b>
+                <p>Claritate, expunere, fete, compozitie — totul local, pe dispozitiv.</p>
+              </div>
+            </div>
+            <div className="how-step">
+              <span className="how-step-icon"><CheckIcon /></span>
+              <div className="how-step-text">
+                <b>Tu decizi</b>
+                <p>Confirma sau corecteaza — motorul invata din alegerile tale.</p>
+              </div>
+            </div>
+          </div>
         </div>
       ) : (
         <>

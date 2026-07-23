@@ -6,7 +6,7 @@ import { explainFactors } from '../core/learning/ContextEngine';
 import { generateExplanation } from '../core/aiExplanationGenerator';
 import { AnimatedNumber } from './AnimatedNumber';
 import { vibrate } from './haptics';
-import { XIcon, ChevronLeft, ChevronRight, LayersIcon, StarIcon, CheckIcon, EyeClosedIcon, SparkleIcon, ClockIcon } from './icons';
+import { XIcon, ChevronLeft, ChevronRight, LayersIcon, CheckIcon, EyeClosedIcon, SparkleIcon, ClockIcon, SunIcon } from './icons';
 
 const SWIPE_COMMIT = 96;       // px de tras pentru a declansa decizia
 const SWIPE_TAP_TOLERANCE = 6; // sub asta e considerat click (zoom), nu swipe
@@ -307,6 +307,16 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
                 {photo.faceCount > 0 && <StatTile label="Treimi" value={`${Math.round(photo.ruleOfThirds * 100)}%`} />}
                 {photo.faceCount > 0 && <StatTile label="Cadraj" value={`${Math.round(photo.headroom * 100)}%`} />}
               </div>
+              {(photo.dominantColors?.length || photo.goldenHourDetected) && (
+                <div className="color-palette-row">
+                  {photo.goldenHourDetected && (
+                    <span className="golden-badge lg" title="Ora de aur"><SunIcon /></span>
+                  )}
+                  {photo.dominantColors?.map(c => (
+                    <span key={c} className="color-swatch" style={{ background: c }} title={c} />
+                  ))}
+                </div>
+              )}
               {exif && <p className="detail-exif mono">{exif}</p>}
             </>
           )}
@@ -335,7 +345,10 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
             photo.personNames.length > 0 ? (
               <ul className="detail-person-list">
                 {photo.personNames.map(name => (
-                  <li key={name}><StarIcon className="inline-icon" /> {name}</li>
+                  <li key={name}>
+                    <span className="person-avatar">{name.charAt(0).toUpperCase()}</span>
+                    {name}
+                  </li>
                 ))}
               </ul>
             ) : (

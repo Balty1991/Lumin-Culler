@@ -1,14 +1,21 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useStore, type FilterKey } from '../state/store';
-import { SearchIcon } from './icons';
+import {
+  SearchIcon, FocusIcon, GridIcon, UndoIcon, LayersIcon, StarIcon, SparkleIcon,
+  KeyboardIcon, SunIcon, MoonIcon, DownloadIcon, TagIcon, ListIcon, TrashIcon, FilterDotIcon
+} from './icons';
 
 const EASE = [0.16, 1, 0.3, 1] as const;
+
+type Section = 'Navigare' | 'Editare' | 'Filtre' | 'Persoane & AI' | 'Export' | 'Aplicație';
 
 interface Command {
   id: string;
   label: string;
   hint?: string;
+  section: Section;
+  icon: ReactNode;
   run: () => void;
   disabled?: boolean;
 }
@@ -104,26 +111,28 @@ export function CommandPalette() {
   };
 
   const commands: Command[] = useMemo(() => [
-    { id: 'workspace', label: 'Deschide spațiul de lucru', hint: 'lupă + filmstrip', run: () => setWorkspaceMode(true), disabled: !photos.length || workspaceMode },
-    { id: 'grid', label: 'Vezi grila de poze', run: () => setWorkspaceMode(false), disabled: !photos.length || !workspaceMode },
-    { id: 'undo', label: 'Anulează ultima decizie', hint: 'Ctrl+Z', run: () => void undo(), disabled: !history.length },
-    { id: 'batch', label: 'Operații în masă', hint: 'respinge sub prag / rezolvă serii', run: () => setBatchOpsOpen(true), disabled: !photos.length },
-    { id: 'persons', label: 'Persoane cunoscute', run: () => setPersonsOpen(true) },
-    { id: 'insights', label: 'Preferințe AI', run: () => setInsightsOpen(true) },
-    { id: 'shortcuts', label: 'Scurtături tastatură', hint: '?', run: () => setShortcutsOpen(true) },
-    { id: 'theme', label: theme === 'light' ? 'Comută la tema întunecată' : 'Comută la tema deschisă', run: () => setTheme(theme === 'light' ? 'dark' : 'light') },
-    { id: 'export-selection', label: `Exportă poze selectate (${counts.selected})`, run: () => void exportSelection(), disabled: !counts.selected },
-    { id: 'export-xmp', label: 'Exportă etichete Lightroom (XMP)', run: () => void exportXMP(), disabled: !photos.length },
-    { id: 'export-manifest', label: 'Exportă listă (JSON)', run: () => void exportManifest(), disabled: !counts.selected },
+    { id: 'workspace', label: 'Deschide spațiul de lucru', hint: 'lupă + filmstrip', section: 'Navigare', icon: <FocusIcon />, run: () => setWorkspaceMode(true), disabled: !photos.length || workspaceMode },
+    { id: 'grid', label: 'Vezi grila de poze', section: 'Navigare', icon: <GridIcon />, run: () => setWorkspaceMode(false), disabled: !photos.length || !workspaceMode },
+    { id: 'undo', label: 'Anulează ultima decizie', hint: 'Ctrl+Z', section: 'Editare', icon: <UndoIcon />, run: () => void undo(), disabled: !history.length },
+    { id: 'batch', label: 'Operații în masă', hint: 'respinge sub prag / rezolvă serii', section: 'Editare', icon: <LayersIcon />, run: () => setBatchOpsOpen(true), disabled: !photos.length },
+    { id: 'clear-all', label: 'Golește sesiunea', hint: 'ireversibil', section: 'Editare', icon: <TrashIcon />, run: confirmClearAll, disabled: !photos.length },
     ...(['all', 'selected', 'review', 'series', 'blinks', 'rejected'] as FilterKey[]).map(key => ({
       id: 'filter-' + key,
       label: `Arată: ${FILTER_LABELS[key]}`,
       hint: String(counts[key]),
+      section: 'Filtre' as Section,
+      icon: <FilterDotIcon />,
       run: () => setFilter(key),
       disabled: key === filter
     })),
-    { id: 'clear-all', label: 'Golește sesiunea', hint: 'ireversibil', run: confirmClearAll, disabled: !photos.length }
-  ], [photos.length, history.length, counts, filter, theme, workspaceMode]);
+    { id: 'persons', label: 'Persoane cunoscute', section: 'Persoane & AI', icon: <StarIcon />, run: () => setPersonsOpen(true) },
+    { id: 'insights', label: 'Preferințe AI', section: 'Persoane & AI', icon: <SparkleIcon />, run: () => setInsightsOpen(true) },
+    { id: 'export-selection', label: `Exportă poze selectate (${counts.selected})`, section: 'Export', icon: <DownloadIcon />, run: () => void exportSelection(), disabled: !counts.selected },
+    { id: 'export-xmp', label: 'Exportă etichete Lightroom (XMP)', section: 'Export', icon: <TagIcon />, run: () => void exportXMP(), disabled: !photos.length },
+    { id: 'export-manifest', label: 'Exportă listă (JSON)', section: 'Export', icon: <ListIcon />, run: () => void exportManifest(), disabled: !counts.selected },
+    { id: 'shortcuts', label: 'Scurtături tastatură', hint: '?', section: 'Aplicație', icon: <KeyboardIcon />, run: () => setShortcutsOpen(true) },
+    { id: 'theme', label: theme === 'light' ? 'Comută la tema întunecată' : 'Comută la tema deschisă', section: 'Aplicație', icon: theme === 'light' ? <MoonIcon /> : <SunIcon />, run: () => setTheme(theme === 'light' ? 'dark' : 'light') }
+  ] as Command[], [photos.length, history.length, counts, filter, theme, workspaceMode]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -173,14 +182,19 @@ export function CommandPalette() {
             </div>
             <ul className="palette-list">
               {filtered.map((c, i) => (
-                <li
-                  key={c.id}
-                  className={`${i === activeIndex ? 'active' : ''}${c.disabled ? ' disabled' : ''}`}
-                  onMouseEnter={() => setActiveIndex(i)}
-                  onClick={() => execute(c)}
-                >
-                  <span>{c.label}</span>
-                  {c.hint && <span className="palette-hint mono">{c.hint}</span>}
+                <li key={c.id}>
+                  {(i === 0 || filtered[i - 1].section !== c.section) && (
+                    <div className="palette-section-label">{c.section}</div>
+                  )}
+                  <div
+                    className={`palette-item${i === activeIndex ? ' active' : ''}${c.disabled ? ' disabled' : ''}`}
+                    onMouseEnter={() => setActiveIndex(i)}
+                    onClick={() => execute(c)}
+                  >
+                    <span className="palette-item-icon">{c.icon}</span>
+                    <span className="palette-item-label">{c.label}</span>
+                    {c.hint && <span className="palette-hint mono">{c.hint}</span>}
+                  </div>
                 </li>
               ))}
               {filtered.length === 0 && <li className="palette-empty">Nicio acțiune găsită.</li>}

@@ -185,16 +185,28 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
   display: flex; align-items: flex-start; gap: 6px;
 }
 
-/* ── Toast: mesaj tranzitoriu (rezultat export, avertisment stocare) — plutitor, cu auto-dismiss ── */
+/* ── Toast: mesaj tranzitoriu (rezultat export, avertisment stocare) — plutitor, cu auto-dismiss.
+   Tonul (succes/avertisment/eroare) e dedus din continutul mesajului (App.tsx: noticeTone), nu
+   dintr-un camp separat — coloreaza doar iconita si muchia stanga, mesajul ramane lizibil neutru. ── */
 .toast {
   position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); z-index: 30;
   transform: translateX(-50%); max-width: min(440px, calc(100vw - 24px));
   display: flex; align-items: flex-start; gap: 10px;
-  background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: var(--radius);
-  padding: 11px 10px 11px 14px; box-shadow: 0 12px 40px -12px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.03);
+  background: var(--surface-2); border: 1px solid var(--line-strong); border-left: 3px solid var(--text-faint);
+  border-radius: var(--radius);
+  padding: 11px 10px 11px 12px; box-shadow: 0 12px 40px -12px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.03);
   color: var(--text-dim); font-size: 0.78rem; line-height: 1.4;
   animation: toastIn 0.3s var(--ease) both;
 }
+.toast.tone-success { border-left-color: var(--pick); }
+.toast.tone-warn { border-left-color: var(--review); }
+.toast.tone-error { border-left-color: var(--reject); }
+.toast-icon { flex-shrink: 0; display: flex; margin-top: 1px; }
+.toast-icon svg { width: 16px; height: 16px; }
+.toast.tone-success .toast-icon { color: var(--pick); }
+.toast.tone-warn .toast-icon { color: var(--review); }
+.toast.tone-error .toast-icon { color: var(--reject); }
+.toast-text { flex: 1; }
 @keyframes toastIn { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
 .toast-close {
   flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%;
@@ -222,15 +234,33 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .reject { background: var(--reject); color: var(--reject-deep); box-shadow: 0 4px 18px -4px rgba(251,113,133,0.4); }
 /* accent gradient — rezervat pentru actiuni-brand (import/CTA-uri), niciodata pentru decizii pick/reject */
 .btn-accent {
-  background: var(--accent-gradient); color: #06070a;
+  background: var(--accent-gradient); color: #06070a; position: relative; overflow: hidden;
   box-shadow: 0 4px 18px -4px rgb(var(--accent-rgb) / 0.45);
 }
+/* mica "sclipire" care matura butonul la hover — semnal discret ca e actiunea principala, nu decor gratuit */
+.btn-accent::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.4) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform 0.7s var(--ease);
+}
+.btn-accent:hover::after { transform: translateX(120%); }
 .select:hover, .reject:hover, .btn-accent:hover { filter: brightness(1.08); }
 .select:active, .reject:active, .btn-accent:active { transform: scale(0.96); }
 .select.big, .btn-accent.big { padding: 15px 30px; font-size: 1.05rem; }
 
 /* ── Bara de cull (semnatura): progresul sesiunii, mereu vizibil ── */
 .cullbar { display: grid; gap: 9px; padding: 2px 2px 10px; }
+.cullbar-main { display: flex; align-items: center; gap: 14px; }
+.cullbar-body { flex: 1; min-width: 0; display: grid; gap: 9px; }
+.session-ring {
+  flex-shrink: 0; width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 14px -4px rgb(var(--accent-rgb) / 0.35);
+}
+.session-ring-inner {
+  width: 37px; height: 37px; border-radius: 50%; background: var(--surface); display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-weight: 700; font-size: 0.72rem; color: var(--text); font-variant-numeric: tabular-nums;
+}
 .cullbar-track {
   display: flex; height: 7px; border-radius: 4px; overflow: hidden; background: var(--surface-2);
   box-shadow: inset 0 0 0 1px var(--line);
@@ -355,6 +385,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
   .grid, .notice, .toast, .detail, .detail-inner, .card, .drawer-scrim, .drawer, .live-dot { animation: none !important; }
   .swipe-surface, .loupe-img { transition: none !important; animation: none !important; }
   .card, .chip, .ghost, .select, .reject, .btn-accent { transition: none; }
+  .btn-accent::after, .fab::after { transition: none; display: none; }
 }
 
 /* starea cadrului: contur colorat + linie de glow sus, discret */
@@ -388,37 +419,54 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .virtual-row .check-badge { animation: none; }
 @media (prefers-reduced-motion: reduce) { .check-badge { animation: none; } }
 
+.card-top-left { position: absolute; top: 7px; left: 7px; z-index: 2; display: flex; align-items: center; gap: 4px; }
 .frame-no {
-  position: absolute; top: 7px; left: 7px; z-index: 2;
   font-family: var(--mono); font-size: 0.62rem; color: var(--text-dim);
   background: rgba(10,11,14,0.72); backdrop-filter: blur(4px); padding: 2px 6px; border-radius: 5px;
   border: 1px solid rgba(255,255,255,0.06);
 }
+.golden-badge {
+  width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #fbbf24, #f97316); color: #2a1400;
+  box-shadow: 0 2px 8px -2px rgba(251,191,36,0.6);
+}
+.golden-badge svg { width: 12px; height: 12px; }
 .card-strip {
   position: absolute; inset: auto 0 0 0; display: flex; justify-content: space-between; align-items: flex-end;
   padding: 16px 7px 7px; background: linear-gradient(transparent, rgba(6,7,9,0.92));
 }
-.score {
-  font-family: var(--mono); font-size: 0.8rem; font-weight: 700; font-variant-numeric: tabular-nums;
-  padding: 2px 8px; border-radius: 5px; background: rgba(8,9,12,0.62); backdrop-filter: blur(4px);
-  border: 1px solid rgba(255,255,255,0.07);
+/* inel de scor mini (aceeasi tehnica ca .score-ring din DetailView, la scara redusa) —
+   conic-gradient colorat continuu dupa scor (pick/review/reject), nu doar o cifra plata */
+.mini-score-ring {
+  width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; box-shadow: 0 2px 8px -2px rgba(0,0,0,0.5);
 }
-.st-selected .score { color: var(--pick); text-shadow: 0 0 10px rgba(74,222,128,0.45); }
-.st-rejected .score { color: var(--text-faint); }
-.st-review .score { color: var(--review); text-shadow: 0 0 10px rgba(251,191,36,0.4); }
+.mini-score-ring-inner {
+  width: 24px; height: 24px; border-radius: 50%; background: rgba(8,9,12,0.78); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.08);
+  font-family: var(--mono); font-weight: 700; font-size: 0.62rem; font-variant-numeric: tabular-nums;
+}
+.card.st-rejected .mini-score-ring { opacity: 0.5; filter: grayscale(0.5); }
 .badges i { font-style: normal; margin-left: 6px; font-size: 0.8rem; color: var(--review); text-shadow: 0 1px 3px rgba(0,0,0,0.7); }
 
 .fab {
   position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom));
-  width: 58px; height: 58px; border-radius: 50%; z-index: 4;
+  width: 58px; height: 58px; border-radius: 50%; z-index: 4; overflow: hidden;
   background: var(--accent-gradient); color: #06070a; font-size: 1.9rem; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
   box-shadow: var(--shadow-lg), 0 10px 32px -8px rgb(var(--accent-rgb) / 0.55);
   transition: transform 0.18s var(--ease), box-shadow 0.18s var(--ease);
 }
+.fab::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.4) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform 0.7s var(--ease);
+}
+.fab:hover::after { transform: translateX(120%); }
 .fab:hover { transform: translateY(-2px) scale(1.04); box-shadow: var(--shadow-lg), 0 12px 38px -6px rgb(var(--accent-rgb) / 0.65); }
 .fab:active { transform: scale(0.94); }
-.fab svg { width: 26px; height: 26px; }
+.fab svg { width: 26px; height: 26px; position: relative; }
 
 /* ── Stare goala ── */
 .empty { text-align: center; padding: 12vh 16px; max-width: 480px; margin: 0 auto; display: grid; gap: 16px; justify-items: center; animation: fadeUp 0.4s var(--ease) both; }
@@ -430,6 +478,29 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .empty p, .hint { color: var(--text-dim); }
 .hint { font-size: 0.85rem; }
 .empty-filter { text-align: center; color: var(--text-dim); padding: 40px 0; }
+
+/* ── "Cum functioneaza" — strip in 3 pasi, sub CTA-ul de onboarding ── */
+.how-it-works {
+  display: grid; grid-template-columns: 1fr; gap: 18px;
+  margin-top: 20px; padding-top: 24px; border-top: 1px solid var(--line); width: 100%;
+}
+@media (min-width: 480px) {
+  .how-it-works { grid-template-columns: repeat(3, 1fr); gap: 14px; }
+}
+/* stacat (1 coloana): rand orizontal, aliniat la stanga — mai usor de citit decat centrat pe un singur item lat.
+   La >=480px (grid pe 3 coloane) devine coloana centrata, tratament clasic de "pas ilustrat". */
+.how-step { display: flex; flex-direction: row; align-items: center; gap: 12px; text-align: left; }
+.how-step-icon {
+  width: 40px; height: 40px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line);
+  color: var(--accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.how-step-text { display: grid; gap: 2px; }
+.how-step b { font-size: 0.88rem; font-weight: 700; }
+.how-step p { font-size: 0.76rem; color: var(--text-faint); line-height: 1.4; margin: 0; }
+@media (min-width: 480px) {
+  .how-step { flex-direction: column; text-align: center; gap: 6px; }
+  .how-step-text { justify-items: center; gap: 2px; }
+}
 
 /* ── Suprapuneri (detaliu / serie / persoane) ── */
 .detail {
@@ -545,8 +616,13 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 }
 .detail-person-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .detail-person-list li {
-  display: flex; align-items: center; gap: 6px; background: var(--surface-2); border: 1px solid var(--line);
-  border-radius: var(--radius-sm); padding: 8px 10px; font-size: 0.86rem;
+  display: flex; align-items: center; gap: 10px; background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 7px 10px 7px 7px; font-size: 0.9rem; font-weight: 600;
+}
+.person-avatar {
+  width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+  background: var(--accent-gradient); color: #06070a; font-weight: 800; font-size: 0.86rem;
+  display: flex; align-items: center; justify-content: center;
 }
 .detail-history-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .detail-history-list li {
@@ -624,6 +700,15 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
   color: var(--text); border-color: var(--line-strong);
   border-left: 3px solid var(--accent); background: var(--surface-3);
 }
+
+/* paleta de culori dominante + "ora de aur" (analiza estetica avansata, tab Metrici) */
+.color-palette-row { display: flex; align-items: center; gap: 6px; }
+.color-swatch {
+  width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
+  border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--line);
+}
+.golden-badge.lg { width: 26px; height: 26px; }
+.golden-badge.lg svg { width: 15px; height: 15px; }
 
 .detail-exif { color: var(--text-faint); font-size: 0.7rem; }
 .ghost.slim { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 6px 12px; font-size: 0.8rem; }
@@ -710,12 +795,21 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .enroll input[type="text"]:focus { border-color: var(--accent); }
 .enroll input[type="file"] { color: var(--text-dim); }
 
-.batch-section { display: grid; gap: 8px; padding: 14px 0; border-top: 1px solid var(--line); }
+.batch-section { display: grid; gap: 8px; padding: 16px 0; border-top: 1px solid var(--line); }
 .batch-section:first-of-type { border-top: none; padding-top: 0; }
-.batch-section h3 { font-size: 0.96rem; font-weight: 700; margin: 0; }
+.batch-section h3 { font-size: 0.96rem; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 9px; }
+.batch-section-icon {
+  flex-shrink: 0; width: 28px; height: 28px; border-radius: 9px; background: var(--surface-2);
+  color: var(--accent); display: flex; align-items: center; justify-content: center;
+}
+.batch-section-icon svg { width: 15px; height: 15px; }
 .batch-slider-row { display: flex; align-items: center; gap: 10px; }
 .batch-slider-row input[type="range"] { flex: 1; accent-color: var(--accent); }
 .batch-threshold-value { min-width: 28px; text-align: right; color: var(--text-dim); }
+.batch-preview { display: flex; gap: 6px; }
+.batch-preview-chip { font-size: 0.72rem; font-weight: 700; padding: 3px 9px; border-radius: 999px; border: 1px solid transparent; }
+.batch-preview-chip.pos { color: var(--pick); background: rgba(74,222,128,0.12); border-color: rgba(74,222,128,0.3); }
+.batch-preview-chip.neg { color: var(--reject); background: rgba(251,113,133,0.12); border-color: rgba(251,113,133,0.3); }
 
 /* ── Meniu lateral ── */
 /* animatia de intrare/iesire e controlata de framer-motion (MenuDrawer.tsx) —
@@ -782,13 +876,28 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .palette-list::-webkit-scrollbar { width: 6px; }
 .palette-list::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 8px; transition: background var(--micro); }
 .palette-list::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
-.palette-list li {
-  display: flex; justify-content: space-between; align-items: center; gap: 10px;
-  padding: 10px 12px; border-radius: var(--radius); cursor: pointer; color: var(--text);
+.palette-section-label {
+  padding: 10px 12px 4px; font-size: 0.64rem; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--text-faint);
 }
-.palette-list li.active { background: var(--surface-2); box-shadow: inset 3px 0 0 var(--accent); }
-.palette-list li.disabled { color: var(--text-faint); cursor: default; }
-.palette-hint { color: var(--text-faint); font-size: 0.72rem; flex-shrink: 0; }
+.palette-item {
+  display: flex; justify-content: flex-start; align-items: center; gap: 10px;
+  padding: 9px 12px; border-radius: var(--radius); cursor: pointer; color: var(--text);
+}
+.palette-item-icon {
+  flex-shrink: 0; width: 26px; height: 26px; border-radius: 8px; background: var(--surface-2);
+  color: var(--text-dim); display: flex; align-items: center; justify-content: center;
+}
+.palette-item-icon svg { width: 14px; height: 14px; }
+.palette-item-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.palette-item.active { background: var(--surface-2); box-shadow: inset 3px 0 0 var(--accent); }
+.palette-item.active .palette-item-icon { background: var(--surface-3); color: var(--accent); }
+.palette-item.disabled { color: var(--text-faint); cursor: default; }
+.palette-item.disabled .palette-item-icon { opacity: 0.5; }
+.palette-hint {
+  color: var(--text-faint); font-size: 0.72rem; flex-shrink: 0;
+  max-width: 38%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .palette-empty { color: var(--text-faint); padding: 16px 12px; text-align: center; cursor: default; }
 
 /* ── Scurtaturi de tastatura ── */
@@ -920,6 +1029,17 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .error-boundary-details pre {
   margin-top: 8px; max-height: 200px; overflow: auto; font-size: 0.68rem; color: var(--text-faint);
   white-space: pre-wrap; word-break: break-word;
+}
+
+/* ── Peste breakpoint-ul mobil: panourile devin dialoguri centrate, cu colturi
+   rotunjite complet — nu foi trase de jos (pattern nativ mobil, fara sens pe
+   ecrane late). Se aplica uniform tuturor panourilor care folosesc .detail/
+   .detail-inner (DetailView, GroupCompare, Persoane, Preferinte AI, Operatii
+   in masa, Scurtaturi) — o singura regula, niciun panou nu trebuie atins individual. ── */
+@media (min-width: 720px) {
+  .detail { align-items: center; padding: 24px; }
+  .detail-inner { border-radius: var(--radius-xl); }
+  .detail-inner.fit { height: min(94dvh, 880px); max-height: min(94dvh, 880px); }
 }
 
 @media (max-width: 560px) {
