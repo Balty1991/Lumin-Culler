@@ -36,6 +36,30 @@
   --shadow-lift: 0 10px 30px -8px rgba(0,0,0,0.55);
 }
 
+/* Tema luminoasa: doar "sasiul" aplicatiei (fundal, suprafete, text) se schimba —
+   zonele unde se JUDECA pozele (Workspace/DetailView/compara serii) raman
+   intentionat aproape negre in ambele teme, ca la orice unealta foto serioasa
+   (Lightroom/Photos): luminozitatea din jur ar denatura perceptia de expunere
+   si contrast a fotografiei. Culorile semantice (selecteaza/verifica/respinge)
+   raman identice — schimbarea sensului lor intre teme ar fi confuz, nu polish. */
+:root[data-theme="light"] {
+  --bg: #f4f4f6;
+  --surface: #ffffff;
+  --surface-2: #eef0f3;
+  --surface-3: #e3e5ea;
+  --line: #dcdfe4;
+  --line-strong: #c3c7ce;
+  --text: #17181c;
+  --text-dim: #55565f;
+  --text-faint: #8a8b93;
+  --shadow-lift: 0 10px 30px -8px rgba(20,20,30,0.14);
+}
+:root[data-theme="light"] body::before {
+  background:
+    radial-gradient(680px 420px at 12% -8%, rgba(34,211,238,0.10), transparent 60%),
+    radial-gradient(620px 480px at 100% 0%, rgba(139,92,246,0.08), transparent 60%);
+}
+
 * { box-sizing: border-box; margin: 0; }
 html, body { height: 100%; }
 body {
@@ -597,7 +621,11 @@ button:focus-visible, input:focus-visible {
 .workspace-hint { flex: 1; text-align: center; color: var(--text-faint); font-size: 0.72rem; }
 .workspace-loupe {
   flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center;
-  position: relative; overflow: hidden; padding: 16px; background: var(--bg);
+  position: relative; overflow: hidden; padding: 16px;
+  /* fix, nu var(--bg) — zona unde se judeca poza ramane aproape neagra in
+     ambele teme (acelasi motiv ca .detail-img/.compare-img), altfel lumina
+     din jur ar denatura perceptia de expunere/contrast a fotografiei */
+  background: #06070a;
 }
 .workspace-loupe img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: var(--radius); }
 .workspace-badge { position: absolute; top: 24px; right: 24px; background: var(--surface); }

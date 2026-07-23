@@ -34,6 +34,8 @@ export function CommandPalette() {
   const setInsightsOpen = useStore(s => s.setInsightsOpen);
   const setBatchOpsOpen = useStore(s => s.setBatchOpsOpen);
   const setShortcutsOpen = useStore(s => s.setShortcutsOpen);
+  const theme = useStore(s => s.theme);
+  const setTheme = useStore(s => s.setTheme);
   const exportSelection = useStore(s => s.exportSelection);
   const exportManifest = useStore(s => s.exportManifest);
   const exportXMP = useStore(s => s.exportXMP);
@@ -103,6 +105,7 @@ export function CommandPalette() {
     { id: 'persons', label: 'Persoane cunoscute', run: () => setPersonsOpen(true) },
     { id: 'insights', label: 'Preferințe AI', run: () => setInsightsOpen(true) },
     { id: 'shortcuts', label: 'Scurtături tastatură', hint: '?', run: () => setShortcutsOpen(true) },
+    { id: 'theme', label: theme === 'light' ? 'Comută la tema întunecată' : 'Comută la tema deschisă', run: () => setTheme(theme === 'light' ? 'dark' : 'light') },
     { id: 'export-selection', label: `Exportă poze selectate (${counts.selected})`, run: () => void exportSelection(), disabled: !counts.selected },
     { id: 'export-xmp', label: 'Exportă etichete Lightroom (XMP)', run: () => void exportXMP(), disabled: !photos.length },
     { id: 'export-manifest', label: 'Exportă listă (JSON)', run: () => void exportManifest(), disabled: !counts.selected },
@@ -114,7 +117,7 @@ export function CommandPalette() {
       disabled: key === filter
     })),
     { id: 'clear-all', label: 'Golește sesiunea', hint: 'ireversibil', run: confirmClearAll, disabled: !photos.length }
-  ], [photos.length, history.length, counts, filter]);
+  ], [photos.length, history.length, counts, filter, theme]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();

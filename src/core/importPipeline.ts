@@ -9,6 +9,7 @@ import { analysisPool, withTimeout } from './workerPool';
 import { contextEngine, type Prediction } from './learning/ContextEngine';
 import { groupPhotosByHash } from './hashComparePool';
 import { parseExif } from './exifParser';
+import { isRawFile, decodeRawFile, RAW_EXTENSIONS } from './rawDecoder';
 
 export interface ImportProgress {
   done: number;
@@ -145,7 +146,13 @@ async function sniffRealFormat(file: File): Promise<string | null> {
 async function processOne(file: File): Promise<ImportedPhoto> {
   const id = crypto.randomUUID();
   originalFiles.set(id, file);
-  const bitmap = await decode(file);
+  const isRaw = isRawFile(file);
+  // RAW (CR2/NEF/ARW/DNG/...) nu se decodeaza cu createImageBitmap — folosim
+  // LibRaw (WASM); metadatele EXIF vin direct din LibRaw (mai fiabil decat
+  // sniff-ul de octeti gandit pentru JPEG, care nu intelege containerul RAW).
+  const { bitmap, rawMeta } = isRaw
+    ? await decodeRawFile(file).then(r => ({ bitmap: r.bitmap, rawMeta: r.meta }))
+    : { bitmap: await decode(file), rawMeta: undefined };
   const { preview, thumb, dHash, w, h } = makeDerivatives(bitmap);
 
   // Bitmap-ul pleaca in worker (transfer, zero-copy) — de aici nu-l mai atingem
@@ -156,15 +163,22 @@ async function processOne(file: File): Promise<ImportedPhoto> {
 
   // EXIF (ISO/diafragma/timp expunere/focala) — optional, poze fara EXIF
   // (PNG/WebP sau JPEG cu metadate sterse) nu primesc aceste campuri deloc
-  try {
-    const exifBuf = await file.slice(0, EXIF_SNIFF_BYTES).arrayBuffer();
-    const exif = parseExif(exifBuf);
-    if (exif.iso !== undefined) analysis.iso = exif.iso;
-    if (exif.fNumber !== undefined) analysis.fNumber = exif.fNumber;
-    if (exif.exposureTime !== undefined) analysis.exposureTime = exif.exposureTime;
-    if (exif.focalLength !== undefined) analysis.focalLength = exif.focalLength;
-  } catch (err) {
-    console.error('Citire EXIF esuata pentru ' + file.name + ':', err);
+  if (rawMeta) {
+    if (rawMeta.iso !== undefined) analysis.iso = rawMeta.iso;
+    if (rawMeta.fNumber !== undefined) analysis.fNumber = rawMeta.fNumber;
+    if (rawMeta.exposureTime !== undefined) analysis.exposureTime = rawMeta.exposureTime;
+    if (rawMeta.focalLength !== undefined) analysis.focalLength = rawMeta.focalLength;
+  } else {
+    try {
+      const exifBuf = await file.slice(0, EXIF_SNIFF_BYTES).arrayBuffer();
+      const exif = parseExif(exifBuf);
+      if (exif.iso !== undefined) analysis.iso = exif.iso;
+      if (exif.fNumber !== undefined) analysis.fNumber = exif.fNumber;
+      if (exif.exposureTime !== undefined) analysis.exposureTime = exif.exposureTime;
+      if (exif.focalLength !== undefined) analysis.focalLength = exif.focalLength;
+    } catch (err) {
+      console.error('Citire EXIF esuata pentru ' + file.name + ':', err);
+    }
   }
 
   const prediction = await contextEngine.predict(analysis);
@@ -216,7 +230,9 @@ export async function importFiles(
   const persons = await db.persons.toArray();
   await analysisPool.setKnownPersons(persons);
 
-  const images = files.filter(f => /image\/(jpeg|png|webp|avif)/.test(f.type) || /\.(jpe?g|png|webp|avif)$/i.test(f.name));
+  const images = files.filter(f =>
+    /image\/(jpeg|png|webp|avif)/.test(f.type) || /\.(jpe?g|png|webp|avif)$/i.test(f.name) || RAW_EXTENSIONS.test(f.name)
+  );
   // Daca niciun fisier ales nu are un format suportat (ex. HEIC/HEIF de pe iPhone,
   // sau un director gol), bucla de mai jos nu are ce procesa si totul se termina
   // instant, fara nicio poza si fara nicio eroare — utilizatorul vede doar ca
@@ -224,7 +240,7 @@ export async function importFiles(
   if (images.length === 0) {
     const warning = files.length > 0
       ? `Niciunul dintre cele ${files.length} fisiere alese nu e intr-un format suportat ` +
-        `(JPEG/PNG/WebP/AVIF). HEIC/HEIF de pe iPhone nu e suportat inca — converteste-le in JPEG.`
+        `(JPEG/PNG/WebP/AVIF/RAW). HEIC/HEIF de pe iPhone nu e suportat inca — converteste-le in JPEG.`
       : undefined;
     onProgress({ done: 0, total: 0, fileName: '', phase: 'finalizat', warning });
     return new Map();

@@ -1,5 +1,5 @@
 import { useStore } from '../state/store';
-import { StarIcon, SparkleIcon, ListIcon, InfoIcon, XIcon, TagIcon, LayersIcon, KeyboardIcon } from './icons';
+import { StarIcon, SparkleIcon, ListIcon, InfoIcon, XIcon, TagIcon, LayersIcon, KeyboardIcon, SunIcon, MoonIcon } from './icons';
 
 /** Meniu lateral: persoane, preferinte AI invatate, export lista, despre. */
 export function MenuDrawer() {
@@ -9,6 +9,8 @@ export function MenuDrawer() {
   const setInsightsOpen = useStore(s => s.setInsightsOpen);
   const setBatchOpsOpen = useStore(s => s.setBatchOpsOpen);
   const setShortcutsOpen = useStore(s => s.setShortcutsOpen);
+  const theme = useStore(s => s.theme);
+  const setTheme = useStore(s => s.setTheme);
   const exportManifest = useStore(s => s.exportManifest);
   const exportXMP = useStore(s => s.exportXMP);
   const persons = useStore(s => s.persons);
@@ -46,6 +48,11 @@ export function MenuDrawer() {
         <button className="drawer-item" onClick={() => go(() => setShortcutsOpen(true))}>
           <KeyboardIcon />
           <span>Scurtaturi tastatura</span>
+        </button>
+
+        <button className="drawer-item" onClick={() => go(() => setTheme(theme === 'light' ? 'dark' : 'light'))}>
+          {theme === 'light' ? <SunIcon /> : <MoonIcon />}
+          <span>Tema {theme === 'light' ? 'deschisa' : 'intunecata'}</span>
         </button>
 
         <button className="drawer-item" onClick={() => go(() => void exportManifest())}>

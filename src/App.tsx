@@ -207,8 +207,8 @@ export default function App() {
       {photos.length === 0 && !progress ? (
         <div className="empty">
           <h2>Adauga sedinta foto</h2>
-          <p>Alege pozele (JPEG/PNG/WebP). Analiza ruleaza local, pe fire separate —
-          poti incarca si 1000+ fisiere fara ca aplicatia sa se blocheze.</p>
+          <p>Alege pozele (JPEG/PNG/WebP/RAW — CR2, NEF, ARW, DNG si altele). Analiza ruleaza
+          local, pe fire separate — poti incarca si 1000+ fisiere fara ca aplicatia sa se blocheze.</p>
           <button className="select big" onClick={() => fileRef.current?.click()}>Alege fotografiile</button>
           <p className="hint"><StarIcon className="inline-icon" /> Optional: inroleaza persoanele importante din
           meniu, ca AI-ul sa le prioritizeze la scorare.</p>
@@ -232,7 +232,7 @@ export default function App() {
       <input
         ref={fileRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/avif"
+        accept="image/jpeg,image/png,image/webp,image/avif,.cr2,.cr3,.nef,.nrw,.arw,.srf,.sr2,.dng,.raf,.orf,.rw2,.pef,.ptx,.srw,.3fr,.erf,.kdc,.dcr,.mrw,.raw,.rwl,.iiq,.x3f"
         multiple
         hidden
         onChange={e => onFiles(e.target.files)}

@@ -12,6 +12,7 @@ import { analysisPool } from '../core/workerPool';
 import { contextEngine, deriveContextKey } from '../core/learning/ContextEngine';
 import { pushHistory, popHistory, MAX_HISTORY, type HistoryEvent } from './history';
 import { selectBulkRejectTargets, resolveGroups, selectTopPercent } from './batchOps';
+import { readStoredTheme, applyTheme, type Theme } from './theme';
 
 export interface PhotoView {
   id: string;
@@ -57,6 +58,8 @@ interface AppState {
   batchOpsOpen: boolean;
   paletteOpen: boolean;
   shortcutsOpen: boolean;
+  theme: Theme;
+  setTheme: (theme: Theme) => void;
   booted: boolean;
   /** false daca dispozitivul nu a putut incarca WebGL/WASM — analiza continua dar fara fete reale. */
   aiDegraded: boolean;
@@ -190,6 +193,8 @@ export const useStore = create<AppState>((set, get) => ({
   batchOpsOpen: false,
   paletteOpen: false,
   shortcutsOpen: false,
+  theme: readStoredTheme(),
+  setTheme: theme => { applyTheme(theme); set({ theme }); },
   booted: false,
   aiDegraded: false,
   aiBackend: '',
