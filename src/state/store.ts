@@ -51,6 +51,8 @@ export interface PhotoView {
   dominantColors?: string[];
   /** Eticheta compusa scena+varsta (ex. "portrait_child") — folosita ca sursa de keywords la exportul XMP. */
   sceneSemantic?: string;
+  /** Etichete generale de obiect/scena (COCO-80, ex. "dog", "cake", "boat") — vezi AnalysisRecord.sceneTags. */
+  sceneTags?: string[];
 }
 
 export type FilterKey = 'all' | 'selected' | 'review' | 'rejected' | 'series' | 'blinks';
@@ -242,7 +244,8 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     capturedAt: photo.capturedAt,
     goldenHourDetected: analysis?.goldenHourDetected,
     dominantColors: analysis?.dominantColors,
-    sceneSemantic: analysis?.sceneSemantic
+    sceneSemantic: analysis?.sceneSemantic,
+    sceneTags: analysis?.sceneTags
   };
 }
 
@@ -853,7 +856,7 @@ export const useStore = create<AppState>((set, get) => ({
         fileName: p.fileName,
         status: p.status,
         rating: p.rating,
-        keywords: deriveXmpKeywords(p.personNames, p.sceneSemantic)
+        keywords: deriveXmpKeywords(p.personNames, p.sceneSemantic, p.sceneTags)
       })));
       if (result.cancelled) return;
       const msg = result.exported

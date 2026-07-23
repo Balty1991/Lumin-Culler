@@ -159,6 +159,14 @@ export interface AnalysisRecord {
   dominantColors?: string[];
   /** Eticheta compusa din tipul de scena + varsta estimata a subiectului principal (cand e disponibila). */
   sceneSemantic?: string;
+  /**
+   * Etichete generale de obiect/scena (ex. "seashore", "golden retriever", "mountain bike"),
+   * dintr-un clasificator ImageNet generic (MobileNetV2) — spre deosebire de sceneSemantic
+   * (derivat din fetele detectate), acestea functioneaza si pe cadre fara oameni. Optionale:
+   * absente daca modelul de clasificare nu s-a putut incarca (degradare graduala, ca
+   * aiDegraded) sau pe inregistrari dinaintea acestei functii.
+   */
+  sceneTags?: string[];
 }
 
 export interface KnownPerson {

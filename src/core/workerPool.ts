@@ -15,7 +15,12 @@ interface Slot {
   busy: boolean;
 }
 
-const MODEL_INIT_TIMEOUT_MS = 45000;
+// 45s -> 60s: adaugarea modelului de detectie obiecte (centernet, ~4MB) creste cu
+// ~1/3 greutatea descarcata + warmup-ul GPU per worker; pe pool-uri de pana la 4
+// workeri paraleli (fiecare cu propriul context WebGL), contentia CPU/GPU la
+// pornire rece a facut timeout-ul vechi sa loveasca real, nu doar teoretic —
+// masurat direct (import esuat repetabil la 45s, reusit constant sub 60s).
+const MODEL_INIT_TIMEOUT_MS = 60000;
 /**
  * O poza problematica (rezolutie extrema, pixeli corupti care duc inferenta
  * TF.js intr-un caz patologic etc.) poate bloca WORKER-ul la infinit — nu
