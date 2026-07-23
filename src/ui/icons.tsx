@@ -60,3 +60,6 @@ export function FocusIcon(p: SVGProps<SVGSVGElement>) {
 export function UndoIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><path d="M7 8L3.5 11.5 7 15" /><path d="M3.5 11.5H14a5.5 5.5 0 010 11H9" /></svg>;
 }
+export function SearchIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg {...base} {...p}><circle cx="10.5" cy="10.5" r="6.5" /><line x1="20" y1="20" x2="15.2" y2="15.2" /></svg>;
+}

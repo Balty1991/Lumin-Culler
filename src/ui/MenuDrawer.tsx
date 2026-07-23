@@ -1,5 +1,5 @@
 import { useStore } from '../state/store';
-import { StarIcon, SparkleIcon, ListIcon, InfoIcon, XIcon, TagIcon } from './icons';
+import { StarIcon, SparkleIcon, ListIcon, InfoIcon, XIcon, TagIcon, LayersIcon } from './icons';
 
 /** Meniu lateral: persoane, preferinte AI invatate, export lista, despre. */
 export function MenuDrawer() {
@@ -7,6 +7,7 @@ export function MenuDrawer() {
   const setOpen = useStore(s => s.setMenuOpen);
   const setPersonsOpen = useStore(s => s.setPersonsOpen);
   const setInsightsOpen = useStore(s => s.setInsightsOpen);
+  const setBatchOpsOpen = useStore(s => s.setBatchOpsOpen);
   const exportManifest = useStore(s => s.exportManifest);
   const exportXMP = useStore(s => s.exportXMP);
   const persons = useStore(s => s.persons);
@@ -34,6 +35,11 @@ export function MenuDrawer() {
         <button className="drawer-item" onClick={() => go(() => setInsightsOpen(true))}>
           <SparkleIcon />
           <span>Preferinte AI</span>
+        </button>
+
+        <button className="drawer-item" onClick={() => go(() => setBatchOpsOpen(true))}>
+          <LayersIcon />
+          <span>Operatii in masa</span>
         </button>
 
         <button className="drawer-item" onClick={() => go(() => void exportManifest())}>

@@ -11,6 +11,7 @@ import { exportXMPSidecars } from '../core/export/xmpGenerator';
 import { analysisPool } from '../core/workerPool';
 import { contextEngine, deriveContextKey } from '../core/learning/ContextEngine';
 import { pushHistory, popHistory, MAX_HISTORY, type HistoryEvent } from './history';
+import { selectBulkRejectTargets, resolveGroups } from './batchOps';
 
 export interface PhotoView {
   id: string;
@@ -53,6 +54,8 @@ interface AppState {
   menuOpen: boolean;
   insightsOpen: boolean;
   workspaceMode: boolean;
+  batchOpsOpen: boolean;
+  paletteOpen: boolean;
   booted: boolean;
   /** false daca dispozitivul nu a putut incarca WebGL/WASM — analiza continua dar fara fete reale. */
   aiDegraded: boolean;
@@ -69,6 +72,10 @@ interface AppState {
   setStatus: (id: string, status: PhotoRecord['status']) => Promise<void>;
   undo: () => Promise<void>;
   keepOnlyInGroup: (groupId: string, keepId: string) => Promise<void>;
+  /** Respinge in bloc pozele nedecise (nu selectate/respinse deja) cu scor sub prag. */
+  bulkRejectBelow: (threshold: number) => Promise<{ affected: number }>;
+  /** Rezolva TOATE seriile deodata: cea mai buna poza din fiecare ramane, restul se resping. */
+  resolveAllSeries: () => Promise<{ groupsResolved: number }>;
   setFilter: (f: FilterKey) => void;
   openDetail: (id: string | null) => void;
   openCompare: (groupId: string | null) => void;
@@ -79,6 +86,8 @@ interface AppState {
   setMenuOpen: (open: boolean) => void;
   setInsightsOpen: (open: boolean) => void;
   setWorkspaceMode: (on: boolean) => void;
+  setBatchOpsOpen: (open: boolean) => void;
+  setPaletteOpen: (open: boolean) => void;
   clearAll: () => Promise<void>;
   /** toast general de stare: rezultat export, avertisment de stocare etc. */
   notice: string | null;
@@ -174,6 +183,8 @@ export const useStore = create<AppState>((set, get) => ({
   menuOpen: false,
   insightsOpen: false,
   workspaceMode: false,
+  batchOpsOpen: false,
+  paletteOpen: false,
   booted: false,
   aiDegraded: false,
   aiBackend: '',
@@ -292,6 +303,61 @@ export const useStore = create<AppState>((set, get) => ({
     }));
   },
 
+  /**
+   * Ca si keepOnlyInGroup, NU genereaza istoric de undo per-poza (ar inunda
+   * stiva de 10 la un lot mare) — actiunea are propria confirmare explicita
+   * in UI (BatchOpsPanel), cu numarul exact afisat inainte de aplicare.
+   */
+  bulkRejectBelow: async (threshold) => {
+    const targets = selectBulkRejectTargets(get().photos, threshold);
+    let quotaError = false;
+    for (const p of targets) {
+      await db.photos.update(p.id, { status: 'rejected' });
+      const res = await syncOriginal(p.id, 'rejected');
+      if (res.quotaError) quotaError = true;
+      await train(p.id, false);
+    }
+    const ids = new Set(targets.map(p => p.id));
+    set(state => ({
+      photos: state.photos.map(p => (ids.has(p.id) ? { ...p, status: 'rejected' } : p)),
+      notice: quotaError ? QUOTA_NOTICE : `${targets.length} poze respinse (scor sub ${threshold}).`
+    }));
+    return { affected: targets.length };
+  },
+
+  resolveAllSeries: async () => {
+    const resolutions = resolveGroups(get().photos);
+    let quotaError = false;
+    for (const g of resolutions) {
+      const current = get().photos.find(p => p.id === g.keepId);
+      if (current?.status !== 'selected') {
+        await db.photos.update(g.keepId, { status: 'selected' });
+        const res = await syncOriginal(g.keepId, 'selected');
+        if (res.quotaError) quotaError = true;
+        await train(g.keepId, true);
+      }
+      for (const rejectId of g.rejectIds) {
+        const rec = get().photos.find(p => p.id === rejectId);
+        if (rec?.status === 'rejected') continue; // deja rezolvat, sarim (evita re-antrenare redundanta)
+        await db.photos.update(rejectId, { status: 'rejected' });
+        const res = await syncOriginal(rejectId, 'rejected');
+        if (res.quotaError) quotaError = true;
+        await train(rejectId, false);
+      }
+    }
+    const keepIds = new Set(resolutions.map(g => g.keepId));
+    const rejectIds = new Set(resolutions.flatMap(g => g.rejectIds));
+    set(state => ({
+      photos: state.photos.map(p => {
+        if (keepIds.has(p.id)) return { ...p, status: 'selected' };
+        if (rejectIds.has(p.id)) return { ...p, status: 'rejected' };
+        return p;
+      }),
+      notice: quotaError ? QUOTA_NOTICE : `${resolutions.length} serii rezolvate.`
+    }));
+    return { groupsResolved: resolutions.length };
+  },
+
   setFilter: f => set({ filter: f }),
   openDetail: id => set({ detailId: id }),
   openCompare: groupId => set({ compareGroupId: groupId }),
@@ -339,6 +405,8 @@ export const useStore = create<AppState>((set, get) => ({
   setMenuOpen: open => set({ menuOpen: open }),
   setInsightsOpen: open => set({ insightsOpen: open }),
   setWorkspaceMode: on => set({ workspaceMode: on, detailId: on ? get().detailId : null }),
+  setBatchOpsOpen: open => set({ batchOpsOpen: open }),
+  setPaletteOpen: open => set({ paletteOpen: open }),
   clearNotice: () => set({ notice: null }),
 
   clearAll: async () => {

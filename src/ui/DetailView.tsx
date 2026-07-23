@@ -84,6 +84,10 @@ export function DetailView() {
   useEffect(() => {
     if (!detailId) return;
     const onKey = (e: KeyboardEvent) => {
+      // ignora tastarea in orice camp text (ex. cautarea din Paleta de comenzi) —
+      // vezi acelasi gardian in Workspace.tsx
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
       if (e.key === 'ArrowRight') stepDetail(1);
       else if (e.key === 'ArrowLeft') stepDetail(-1);
       else if (e.key === 'p' || e.key === 'P') void setStatus(detailId, 'selected');

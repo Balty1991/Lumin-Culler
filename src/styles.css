@@ -497,6 +497,13 @@ button:focus-visible, input:focus-visible {
 .enroll input[type="text"]:focus { border-color: var(--accent); }
 .enroll input[type="file"] { color: var(--text-dim); }
 
+.batch-section { display: grid; gap: 8px; padding: 14px 0; border-top: 1px solid var(--line); }
+.batch-section:first-of-type { border-top: none; padding-top: 0; }
+.batch-section h3 { font-size: 0.9rem; margin: 0; }
+.batch-slider-row { display: flex; align-items: center; gap: 10px; }
+.batch-slider-row input[type="range"] { flex: 1; accent-color: var(--accent); }
+.batch-threshold-value { min-width: 28px; text-align: right; color: var(--text-dim); }
+
 /* ── Meniu lateral ── */
 .drawer-scrim {
   position: fixed; inset: 0; z-index: 25; background: rgba(6,7,9,0.6); backdrop-filter: blur(8px);
@@ -527,6 +534,32 @@ button:focus-visible, input:focus-visible {
 .drawer-sep { height: 1px; background: var(--line); margin: 10px 0; }
 .drawer-about { display: flex; gap: 10px; color: var(--text-faint); font-size: 0.74rem; line-height: 1.5; padding: 0 10px; }
 .drawer-about svg { flex-shrink: 0; margin-top: 2px; }
+
+/* ── Paleta de comenzi (Ctrl/Cmd+K) ── */
+.palette-scrim {
+  position: fixed; inset: 0; z-index: 30; background: rgba(6,7,9,0.6); backdrop-filter: blur(8px);
+  display: flex; align-items: flex-start; justify-content: center; padding-top: 12vh;
+  animation: fadeIn 0.15s var(--ease) both;
+}
+.palette {
+  width: min(520px, 92vw); max-height: 60vh; background: var(--surface); border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-lift); overflow: hidden;
+  display: flex; flex-direction: column; animation: drawerIn 0.18s var(--ease) both;
+}
+.palette-input-row { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.palette-input-row svg { color: var(--text-faint); flex-shrink: 0; }
+.palette-input-row input {
+  flex: 1; background: none; border: none; outline: none; color: var(--text); font: inherit; font-size: 0.95rem;
+}
+.palette-list { list-style: none; margin: 0; padding: 6px; overflow-y: auto; }
+.palette-list li {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: var(--radius); cursor: pointer; color: var(--text);
+}
+.palette-list li.active { background: var(--surface-2); }
+.palette-list li.disabled { color: var(--text-faint); cursor: default; }
+.palette-hint { color: var(--text-faint); font-size: 0.72rem; flex-shrink: 0; }
+.palette-empty { color: var(--text-faint); padding: 16px 12px; text-align: center; cursor: default; }
 
 /* ── Preferinte AI (explicabilitate ContextEngine) ── */
 .insights { list-style: none; display: grid; gap: 8px; padding: 0; }
@@ -577,6 +610,27 @@ button:focus-visible, input:focus-visible {
 .workspace-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .workspace-thumb.active { border-color: var(--text); }
 .workspace-thumb.rejected { opacity: 0.35; }
+
+/* ── Ecran de recuperare la eroare React ── */
+.error-boundary {
+  height: 100dvh; display: flex; align-items: center; justify-content: center;
+  background: var(--bg); color: var(--text); padding: 20px;
+}
+.error-boundary-card {
+  max-width: 440px; display: flex; flex-direction: column; align-items: center; gap: 10px;
+  text-align: center; padding: 28px 24px; background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+.error-boundary-card svg { width: 32px; height: 32px; color: var(--review); }
+.error-boundary-card h2 { font-size: 1.1rem; margin: 0; }
+.error-boundary-card p { color: var(--text-dim); font-size: 0.86rem; line-height: 1.5; margin: 0; }
+.error-boundary-card .select { margin-top: 6px; }
+.error-boundary-details { width: 100%; text-align: left; margin-top: 10px; }
+.error-boundary-details summary { cursor: pointer; color: var(--text-faint); font-size: 0.78rem; }
+.error-boundary-details pre {
+  margin-top: 8px; max-height: 200px; overflow: auto; font-size: 0.68rem; color: var(--text-faint);
+  white-space: pre-wrap; word-break: break-word;
+}
 
 @media (max-width: 560px) {
   .grid { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 6px; }

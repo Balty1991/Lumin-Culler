@@ -8,8 +8,10 @@ import { GroupCompare } from './ui/GroupCompare';
 import { PersonsPanel } from './ui/PersonsPanel';
 import { MenuDrawer } from './ui/MenuDrawer';
 import { InsightsPanel } from './ui/InsightsPanel';
+import { BatchOpsPanel } from './ui/BatchOpsPanel';
+import { CommandPalette } from './ui/CommandPalette';
 import { AnimatedNumber } from './ui/AnimatedNumber';
-import { MenuIcon, PlusIcon, StarIcon, AlertIcon, XIcon, FocusIcon, UndoIcon } from './ui/icons';
+import { MenuIcon, PlusIcon, StarIcon, AlertIcon, XIcon, FocusIcon, UndoIcon, SearchIcon } from './ui/icons';
 
 const NOTICE_AUTODISMISS_MS = 7000;
 /**
@@ -41,6 +43,7 @@ export default function App() {
   const setWorkspaceMode = useStore(s => s.setWorkspaceMode);
   const history = useStore(s => s.history);
   const undo = useStore(s => s.undo);
+  const setPaletteOpen = useStore(s => s.setPaletteOpen);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { void boot(); }, [boot]);
@@ -108,7 +111,7 @@ export default function App() {
 
   const total = Math.max(1, counts.all);
 
-  if (workspaceMode) return <Workspace />;
+  if (workspaceMode) return <><Workspace /><CommandPalette /></>;
 
   return (
     <div className="app">
@@ -118,6 +121,11 @@ export default function App() {
           <p className="mono"><i className="live-dot" aria-hidden="true" /> AI local · pozele raman pe dispozitiv</p>
         </div>
         <div className="top-actions">
+          {photos.length > 0 && (
+            <button className="ghost icon-btn" onClick={() => setPaletteOpen(true)} aria-label="Paleta de comenzi (Ctrl+K)" title="Paleta de comenzi (Ctrl+K)">
+              <SearchIcon />
+            </button>
+          )}
           {history.length > 0 && (
             <button className="ghost icon-btn" onClick={() => void undo()} aria-label={`Anuleaza ultima decizie (${history.length} disponibile, Ctrl+Z)`} title="Anuleaza (Ctrl+Z)">
               <UndoIcon />
@@ -233,7 +241,9 @@ export default function App() {
       <GroupCompare />
       <PersonsPanel />
       <InsightsPanel />
+      <BatchOpsPanel />
       <MenuDrawer />
+      <CommandPalette />
     </div>
   );
 }

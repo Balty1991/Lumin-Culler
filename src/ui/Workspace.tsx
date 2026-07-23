@@ -63,6 +63,11 @@ export function Workspace() {
   // listeneri activi simultan (o apasare misca cursorul de mai multe ori).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // ignora tastarea in orice camp text (ex. cautarea din Paleta de comenzi,
+      // deschisa peste Workspace) — altfel litere ca "p"/"x" ar declansa
+      // selecteaza/respinge in fundal in timp ce utilizatorul scrie o comanda
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
       const id = detailIdRef.current;
       if (e.key === 'ArrowRight') stepDetail(1);
       else if (e.key === 'ArrowLeft') stepDetail(-1);
