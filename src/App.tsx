@@ -31,6 +31,10 @@ const NOTICE_AUTODISMISS_MS = 7000;
 const LONG_PRESS_MS = 500;
 /** Peste aceasta miscare (px), o apasare lunga se anuleaza — degetul incearca sa deruleze/traga, nu sa tina apasat. */
 const TOUCH_MOVE_CANCEL_PX = 10;
+/** Swipe orizontal pe o miniatura (plan "cat mai pro", mobil) — respinge la stanga, selecteaza la dreapta, fara sa deschizi DetailView. */
+const SWIPE_COMMIT_PX = 80;
+/** Peste aceasta deriva verticala, gestul e tratat ca scroll, nu ca swipe orizontal intentionat. */
+const SWIPE_MAX_VERTICAL_PX = 45;
 
 /** Clasifica un mesaj de notificare dupa cuvinte-cheie — nu exista un camp de tip in store
     (notice e doar text), asa ca deducem tonul din continut pentru iconita/culoarea toast-ului. */
@@ -197,6 +201,18 @@ export default function App() {
   const dragSelectRef = useRef<{ originId: string; adding: boolean; visited: Set<string>; dragged: boolean } | null>(null);
   const longPressTimerRef = useRef<number | null>(null);
   const touchOriginRef = useRef<{ x: number; y: number } | null>(null);
+  /**
+   * Swipe pe o miniatura (touch, doar cand NU esti deja in mod selectie-prin-
+   * drag) — stanga respinge, dreapta selecteaza, fara sa deschizi DetailView.
+   * `el` e manipulat DIRECT (style.transform/opacity), nu prin state React,
+   * ca sa nu declanseze un re-render la fiecare pointermove pe o grila
+   * virtualizata cu mii de carduri — acelasi motiv pentru care selectia prin
+   * drag de mai jos citeste DOM-ul direct (document.elementFromPoint) in loc
+   * sa tina o stare React per-card.
+   */
+  const swipeRef = useRef<{ id: string; startX: number; startY: number; lastDx: number; el: HTMLElement | null } | null>(null);
+  /** true intre eliberarea unui swipe comis si urmatorul eveniment `click` — suprima deschiderea DetailView pentru acel tap. */
+  const swipedRef = useRef(false);
   // Auto-hide pentru antet la scroll (plan "Refactorizare UI/UX", GridView) — maximizeaza
   // zona de vizualizare pe mobil. Doua surse de scroll posibile dupa marimea bibliotecii
   // (vezi VIRTUALIZE_THRESHOLD mai jos): fereastra intreaga (grila normala, flux de pagina)
@@ -304,6 +320,10 @@ export default function App() {
   };
 
   const onCardOpen = (id: string, e: React.MouseEvent) => {
+    // un swipe comis a schimbat deja statusul — tap-ul care urmeaza (acelasi
+    // gest touch, click sintetizat de browser) nu trebuie sa mai deschida
+    // DetailView (acelasi tipar ca sheetMovedRef in DetailView.tsx)
+    if (swipedRef.current) { swipedRef.current = false; return; }
     if (e.shiftKey) { rangeMultiSelect(id, filtered.map(p => p.id)); return; }
     if (e.ctrlKey || e.metaKey) { toggleMultiSelect(id); return; }
     // cat timp exista deja ceva in selectie SAU modul selectie e pornit explicit
@@ -340,6 +360,11 @@ export default function App() {
     const dragEligible = selectMode || e.ctrlKey || e.metaKey || multiSelectIds.size > 0;
     if (dragEligible) {
       dragSelectRef.current = { originId: id, adding: !multiSelectIds.has(id), visited: new Set(), dragged: false };
+    } else if (e.pointerType === 'touch') {
+      // swipe-ul are sens doar in navigarea normala (nu si in modul selectie-prin-drag,
+      // unde miscarea peste carduri deja inseamna altceva)
+      const el = (e.target as HTMLElement).closest('.card') as HTMLElement | null;
+      swipeRef.current = { id, startX: e.clientX, startY: e.clientY, lastDx: 0, el };
     }
   };
 
@@ -359,6 +384,27 @@ export default function App() {
           longPressTimerRef.current = null;
         }
       }
+      const swipe = swipeRef.current;
+      if (swipe) {
+        const dx = e.clientX - swipe.startX;
+        const dy = e.clientY - swipe.startY;
+        if (Math.abs(dy) > SWIPE_MAX_VERTICAL_PX) {
+          // deriva verticala prea mare — utilizatorul deruleaza pagina, nu face swipe; abandonam
+          if (swipe.el) { swipe.el.classList.remove('swiping'); swipe.el.style.transform = ''; swipe.el.style.opacity = ''; }
+          swipeRef.current = null;
+        } else {
+          swipe.lastDx = dx;
+          if (Math.abs(dx) > 8) {
+            if (longPressTimerRef.current) { window.clearTimeout(longPressTimerRef.current); longPressTimerRef.current = null; }
+            if (swipe.el) {
+              swipe.el.classList.add('swiping');
+              swipe.el.style.transform = `translateX(${dx}px) rotate(${dx / 24}deg)`;
+              swipe.el.style.opacity = String(Math.max(0.25, 1 - Math.abs(dx) / 260));
+            }
+          }
+        }
+      }
+
       const drag = dragSelectRef.current;
       if (!drag) return;
       const el = (document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null)?.closest('[data-photo-id]');
@@ -378,6 +424,15 @@ export default function App() {
       dragSelectRef.current = null;
       touchOriginRef.current = null;
       if (longPressTimerRef.current) { window.clearTimeout(longPressTimerRef.current); longPressTimerRef.current = null; }
+      const swipe = swipeRef.current;
+      if (swipe) {
+        if (swipe.el) { swipe.el.classList.remove('swiping'); swipe.el.style.transform = ''; swipe.el.style.opacity = ''; }
+        if (Math.abs(swipe.lastDx) > SWIPE_COMMIT_PX) {
+          swipedRef.current = true;
+          void setStatus(swipe.id, swipe.lastDx > 0 ? 'selected' : 'rejected');
+        }
+        swipeRef.current = null;
+      }
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
@@ -387,7 +442,7 @@ export default function App() {
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
     };
-  }, [setMultiSelected]);
+  }, [setMultiSelected, setStatus]);
 
   // fara confirmare, un singur clic accidental sterge ireversibil intreaga
   // sesiune (posibil 1000+ poze deja evaluate) — cea mai distructiva actiune
