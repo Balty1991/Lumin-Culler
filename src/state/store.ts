@@ -224,6 +224,8 @@ interface AppState {
   toggleMultiSelect: (id: string) => void;
   /** Selecteaza tot intervalul dintre ultimul anchor si `id`, in ordinea data (lista filtrata curenta) — Shift+Click. */
   rangeMultiSelect: (id: string, orderedIds: string[]) => void;
+  /** Forteaza o poza in/afara selectiei (spre deosebire de toggleMultiSelect) — folosit la "vopsirea" prin drag peste mai multe carduri. */
+  setMultiSelected: (id: string, on: boolean) => void;
   clearMultiSelect: () => void;
   setSelectMode: (on: boolean) => void;
   /** Aplica un status TUTUROR pozelor din selectia curenta (antreneaza AI-ul per poza, ca setStatus). */
@@ -841,6 +843,13 @@ export const useStore = create<AppState>((set, get) => ({
     if (from === -1 || to === -1) { next.add(id); return { multiSelectIds: next, multiSelectAnchor: id }; }
     const [start, end] = from <= to ? [from, to] : [to, from];
     for (let i = start; i <= end; i++) next.add(orderedIds[i]);
+    return { multiSelectIds: next, multiSelectAnchor: id };
+  }),
+
+  setMultiSelected: (id, on) => set(state => {
+    if (state.multiSelectIds.has(id) === on) return {}; // deja in starea ceruta — evitam un re-render inutil in timpul drag-ului
+    const next = new Set(state.multiSelectIds);
+    if (on) next.add(id); else next.delete(id);
     return { multiSelectIds: next, multiSelectAnchor: id };
   }),
 

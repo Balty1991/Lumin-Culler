@@ -93,6 +93,7 @@
   --z-drawer-scrim: 25;
   --z-palette-scrim: 30;
   --z-tooltip: 40;
+  --z-context-menu: 45;
   --z-toast: 50;
 
   /* scara de radius — mai generoasa (mai "tactila") decat v2.5 */
@@ -627,6 +628,26 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 }
 .bulk-bar-count { color: var(--text); font-weight: 700; white-space: nowrap; }
 .bulk-bar-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+/* ── Meniu contextual pe grila — click-dreapta (desktop) sau apasare lunga (touch) pe un card (plan 3.2.1) ── */
+.context-menu {
+  position: fixed; z-index: var(--z-context-menu); width: 200px; padding: 6px;
+  border-radius: var(--radius); box-shadow: var(--shadow-lift);
+  animation: fadeUp 0.14s var(--ease) both;
+}
+.context-menu-title {
+  padding: 7px 10px 5px; font-size: 0.68rem; color: var(--text-faint);
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.context-menu-item {
+  display: flex; align-items: center; width: 100%; padding: 8px 10px; border-radius: 8px;
+  color: var(--text); font-size: 0.86rem; text-align: left;
+  transition: background 0.14s var(--ease);
+}
+.context-menu-item:hover, .context-menu-item:focus-visible { background: var(--surface-2); outline: none; }
+.context-menu-item .inline-icon { opacity: 0.7; }
+.context-menu-sep { height: 1px; margin: 5px 4px; background: var(--line); }
+.context-menu-rating { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; font-size: 0.8rem; color: var(--text-dim); }
 
 .fab {
   position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom));
