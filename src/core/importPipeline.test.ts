@@ -35,7 +35,18 @@ describe('toHashInput', () => {
       groupSmileRatio: undefined,
       allEyesOpen: true,
       groupEyesOpenRatio: undefined,
-      avgEyeContact: undefined
+      avgEyeContact: undefined,
+      faceEmbeddings: [],
+      colorHarmonyScore: undefined
     });
+  });
+
+  it('extrage embedding-urile fetelor detectate (pentru rafinarea grupurilor in hashCompare.worker) si trece colorHarmonyScore', () => {
+    const faceWithEmbedding = { box: [0, 0, 1, 1] as [number, number, number, number], faceScore: 0.9, smile: 0.5, eyesOpen: { left: 1, right: 1 }, isBlinking: false, personId: null, personName: null, similarity: 0, embedding: [1, 2, 3] };
+    const faceWithoutEmbedding = { ...faceWithEmbedding, embedding: undefined };
+    const input = toHashInput('id-2', 'abc', baseAnalysis({ faces: [faceWithEmbedding, faceWithoutEmbedding], colorHarmonyScore: 0.7 }));
+
+    expect(input.faceEmbeddings).toEqual([[1, 2, 3]]);
+    expect(input.colorHarmonyScore).toBe(0.7);
   });
 });
