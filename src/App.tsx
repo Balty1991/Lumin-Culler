@@ -194,6 +194,28 @@ export default function App() {
   const dragSelectRef = useRef<{ originId: string; adding: boolean; visited: Set<string>; dragged: boolean } | null>(null);
   const longPressTimerRef = useRef<number | null>(null);
   const touchOriginRef = useRef<{ x: number; y: number } | null>(null);
+  // Auto-hide pentru antet la scroll (plan "Refactorizare UI/UX", GridView) — maximizeaza
+  // zona de vizualizare pe mobil. Doua surse de scroll posibile dupa marimea bibliotecii
+  // (vezi VIRTUALIZE_THRESHOLD mai jos): fereastra intreaga (grila normala, flux de pagina)
+  // sau containerul intern al VirtualPhotoGrid (biblioteci mari) — ambele raporteaza aici
+  // prin acelasi handler, ca starea sa fie unica indiferent de sursa.
+  const [headerHidden, setHeaderHidden] = useState(false);
+  const lastScrollYRef = useRef(0);
+  const handleGridScroll = (scrollY: number) => {
+    const last = lastScrollYRef.current;
+    const delta = scrollY - last;
+    if (scrollY < 40) setHeaderHidden(false); // aproape de varf — antetul ramane mereu vizibil
+    else if (delta > 6) setHeaderHidden(true); // scroll in jos
+    else if (delta < -6) setHeaderHidden(false); // scroll in sus
+    lastScrollYRef.current = scrollY;
+  };
+
+  useEffect(() => {
+    const onWindowScroll = () => handleGridScroll(window.scrollY);
+    window.addEventListener('scroll', onWindowScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onWindowScroll);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => { void boot(); }, [boot]);
 
@@ -372,7 +394,6 @@ export default function App() {
 
   const total = Math.max(1, counts.all);
   const decidedPercent = Math.round(((counts.selected + counts.rejected) / total) * 100);
-  const decidedDeg = Math.max(0, Math.min(360, Math.round((decidedPercent / 100) * 360)));
 
   // Workspace e ecranul principal implicit — grila (jos) ramane accesibila
   // doar cand exista deja poze SI utilizatorul a comutat explicit la ea
@@ -453,151 +474,145 @@ export default function App() {
         </p>
       )}
 
-      {photos.length > 0 && (
-        <section className="cullbar" aria-label={tr('app.cullbar.ariaLabel')}>
-          <div className="cullbar-main">
-            <div
-              className="session-ring"
-              style={{ background: `conic-gradient(var(--accent) ${decidedDeg}deg, var(--surface-3) 0)` }}
-              title={tr('app.cullbar.decidedTitle', { percent: decidedPercent })}
-            >
-              <span className="session-ring-inner">{decidedPercent}%</span>
-            </div>
-            <div className="cullbar-body">
-              <div className="cullbar-track">
-                <span className="seg-sel" style={{ width: `${(counts.selected / total) * 100}%` }} />
-                <span className="seg-rev" style={{ width: `${(counts.review / total) * 100}%` }} />
-                <span className="seg-rej" style={{ width: `${(counts.rejected / total) * 100}%` }} />
-              </div>
-              <div className="cullbar-legend mono">
-                <span className="legend-stat"><i className="dot sel" /><b><AnimatedNumber value={counts.selected} /></b> {tr('app.cullbar.selected')}</span>
-                <span className="legend-stat"><i className="dot rev" /><b><AnimatedNumber value={counts.review} /></b> {tr('app.cullbar.review')}</span>
-                <span className="legend-stat"><i className="dot rej" /><b><AnimatedNumber value={counts.rejected} /></b> {tr('app.cullbar.rejected')}</span>
-                <span className="spacer" />
-                <button className="ghost small danger" onClick={() => void confirmClearAll()}>{tr('app.clearSession')}</button>
-              </div>
-            </div>
+      {/* Auto-hide la scroll (plan "Refactorizare UI/UX"): progresul, filtrele si statisticile
+          globale se ascund la scroll in jos si revin la scroll in sus — maximizeaza spatiul
+          de afisare al grilei pe mobil. Topbar-ul (brand + actiuni critice) ramane mereu vizibil. */}
+      <div className={headerHidden ? 'app-collapsible hidden' : 'app-collapsible'}>
+        {photos.length > 0 && (
+          <div className="cullbar-compact mono" aria-label={tr('app.cullbar.ariaLabel')}>
+            <span className="cullbar-compact-stat sel" title={tr('app.cullbar.selected')}>
+              <CheckIcon aria-hidden="true" /><AnimatedNumber value={counts.selected} />
+            </span>
+            <span className="cullbar-compact-stat rev" title={tr('app.cullbar.review')}>
+              <ClockIcon aria-hidden="true" /><AnimatedNumber value={counts.review} />
+            </span>
+            <span className="cullbar-compact-stat rej" title={tr('app.cullbar.rejected')}>
+              <XIcon aria-hidden="true" /><AnimatedNumber value={counts.rejected} />
+            </span>
+            <span className="cullbar-compact-percent" title={tr('app.cullbar.decidedTitle', { percent: decidedPercent })}>{decidedPercent}%</span>
+            <span className="spacer-flex" />
+            <button className="ghost small danger" onClick={() => void confirmClearAll()}>{tr('app.clearSession')}</button>
           </div>
-        </section>
-      )}
+        )}
 
-      {progress && (
-        <div className="progress" role="status" aria-live="polite">
-          <div className="progress-bar" style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }} />
-          <span className="mono">
-            {progress.phase === 'incarcare' ? tr('app.progress.loadingModels')
-              : progress.phase === 'analiza' ? tr('app.progress.analyzing', { done: progress.done, total: progress.total, fileName: progress.fileName })
-              : progress.phase === 'grupare' ? tr('app.progress.grouping') : tr('app.progress.done')}
-          </span>
-          {progress.phase === 'analiza' && (
-            <button className="ghost small progress-cancel" onClick={() => cancelImport()}>{tr('app.progress.cancel')}</button>
-          )}
-        </div>
-      )}
+        {progress && (
+          <div className="progress" role="status" aria-live="polite">
+            <div className="progress-bar" style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }} />
+            <span className="mono">
+              {progress.phase === 'incarcare' ? tr('app.progress.loadingModels')
+                : progress.phase === 'analiza' ? tr('app.progress.analyzing', { done: progress.done, total: progress.total, fileName: progress.fileName })
+                : progress.phase === 'grupare' ? tr('app.progress.grouping') : tr('app.progress.done')}
+            </span>
+            {progress.phase === 'analiza' && (
+              <button className="ghost small progress-cancel" onClick={() => cancelImport()}>{tr('app.progress.cancel')}</button>
+            )}
+          </div>
+        )}
 
-      {photos.length > 0 && (
-        <nav className="filters">
-          {FILTERS.map(f => (
-            <button
-              key={f.key}
-              className={filter === f.key ? 'chip active' : 'chip'}
-              onClick={() => setFilter(f.key)}
-              aria-pressed={filter === f.key}
-            >
-              <span className="chip-icon" aria-hidden="true">{f.icon}</span>
-              {f.label}
-              <b className="chip-count">{f.count}</b>
-            </button>
-          ))}
-          {persons.length > 0 && (
+        {photos.length > 0 && (
+          <nav className="filters">
+            {FILTERS.map(f => (
+              <button
+                key={f.key}
+                className={filter === f.key ? 'chip active' : 'chip'}
+                onClick={() => setFilter(f.key)}
+                aria-pressed={filter === f.key}
+              >
+                <span className="chip-icon" aria-hidden="true">{f.icon}</span>
+                {f.label}
+                <b className="chip-count">{f.count}</b>
+              </button>
+            ))}
+            {persons.length > 0 && (
+              <select
+                className={personFilter ? 'chip person-filter active' : 'chip person-filter'}
+                value={personFilter ?? ''}
+                onChange={e => setPersonFilter(e.target.value || null)}
+                aria-label={tr('app.personFilter.ariaLabel')}
+              >
+                <option value="">{tr('app.personFilter.any')}</option>
+                {persons.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+              </select>
+            )}
+            {multiSelectIds.size === 0 && (
+              <button
+                className={selectMode ? 'chip active select-mode-toggle' : 'chip select-mode-toggle'}
+                onClick={() => setSelectMode(!selectMode)}
+                aria-pressed={selectMode}
+              >
+                <CheckIcon className="inline-icon" aria-hidden="true" /> {selectMode ? tr('app.selectMode.active') : tr('app.selectMode.toggle')}
+              </button>
+            )}
+          </nav>
+        )}
+
+        {photos.length > 0 && (
+          <nav className="filters filters-advanced" aria-label={tr('app.filtersAdvanced.ariaLabel')}>
+            <label className="search-field">
+              <SearchIcon className="inline-icon" aria-hidden="true" />
+              <input
+                type="search"
+                placeholder={tr('app.search.placeholder')}
+                value={searchText}
+                onChange={e => setSearchText(e.target.value)}
+                aria-label={tr('app.search.ariaLabel')}
+              />
+            </label>
             <select
-              className={personFilter ? 'chip person-filter active' : 'chip person-filter'}
-              value={personFilter ?? ''}
-              onChange={e => setPersonFilter(e.target.value || null)}
-              aria-label={tr('app.personFilter.ariaLabel')}
+              className={minRating > 0 ? 'chip rating-filter active' : 'chip rating-filter'}
+              value={minRating}
+              onChange={e => setMinRating(Number(e.target.value))}
+              aria-label={tr('app.ratingFilter.ariaLabel')}
             >
-              <option value="">{tr('app.personFilter.any')}</option>
-              {persons.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+              <option value={0}>{tr('app.ratingFilter.any')}</option>
+              {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{'★'.repeat(n)}+ </option>)}
             </select>
-          )}
-          {multiSelectIds.size === 0 && (
-            <button
-              className={selectMode ? 'chip active select-mode-toggle' : 'chip select-mode-toggle'}
-              onClick={() => setSelectMode(!selectMode)}
-              aria-pressed={selectMode}
-            >
-              <CheckIcon className="inline-icon" aria-hidden="true" /> {selectMode ? tr('app.selectMode.active') : tr('app.selectMode.toggle')}
-            </button>
-          )}
-        </nav>
-      )}
-
-      {photos.length > 0 && (
-        <nav className="filters filters-advanced" aria-label={tr('app.filtersAdvanced.ariaLabel')}>
-          <label className="search-field">
-            <SearchIcon className="inline-icon" aria-hidden="true" />
-            <input
-              type="search"
-              placeholder={tr('app.search.placeholder')}
-              value={searchText}
-              onChange={e => setSearchText(e.target.value)}
-              aria-label={tr('app.search.ariaLabel')}
-            />
-          </label>
-          <select
-            className={minRating > 0 ? 'chip rating-filter active' : 'chip rating-filter'}
-            value={minRating}
-            onChange={e => setMinRating(Number(e.target.value))}
-            aria-label={tr('app.ratingFilter.ariaLabel')}
-          >
-            <option value={0}>{tr('app.ratingFilter.any')}</option>
-            {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{'★'.repeat(n)}+ </option>)}
-          </select>
-          <span className="sort-control" title={filter === 'series' ? tr('app.sort.seriesOverride') : undefined}>
-            <select
-              className="chip sort-key"
-              value={gridSort.key}
-              disabled={filter === 'series'}
-              onChange={e => setGridSort({ key: e.target.value as SortKey, dir: gridSort.dir })}
-              aria-label={tr('app.sort.ariaLabel')}
-            >
-              {(Object.keys(SORT_KEY_LABELS) as SortKey[]).map(key => (
-                <option key={key} value={key}>{tr(`app.sort.key.${key}`)}</option>
-              ))}
-            </select>
-            <button
-              className="chip sort-dir"
-              disabled={filter === 'series'}
-              onClick={() => setGridSort({ key: gridSort.key, dir: gridSort.dir === 'asc' ? 'desc' : 'asc' })}
-              aria-label={gridSort.dir === 'asc' ? tr('app.sort.ascToDesc') : tr('app.sort.descToAsc')}
-              title={gridSort.dir === 'asc' ? tr('app.sort.asc') : tr('app.sort.desc')}
-            >
-              {gridSort.dir === 'asc' ? '↑' : '↓'}
-            </button>
-          </span>
-          <label className="date-field">
-            {tr('app.dateFrom')}
-            <input
-              type="date"
-              value={epochToDateInput(dateFrom)}
-              onChange={e => setDateRange(dateInputToEpoch(e.target.value, false), dateTo)}
-              aria-label={tr('app.dateFrom.ariaLabel')}
-            />
-          </label>
-          <label className="date-field">
-            {tr('app.dateTo')}
-            <input
-              type="date"
-              value={epochToDateInput(dateTo)}
-              onChange={e => setDateRange(dateFrom, dateInputToEpoch(e.target.value, true))}
-              aria-label={tr('app.dateTo.ariaLabel')}
-            />
-          </label>
-          {(searchText || dateFrom !== null || dateTo !== null || minRating > 0) && (
-            <button className="ghost small" onClick={clearAdvancedFilters}>{tr('app.resetFilters')}</button>
-          )}
-        </nav>
-      )}
+            <span className="sort-control" title={filter === 'series' ? tr('app.sort.seriesOverride') : undefined}>
+              <select
+                className="chip sort-key"
+                value={gridSort.key}
+                disabled={filter === 'series'}
+                onChange={e => setGridSort({ key: e.target.value as SortKey, dir: gridSort.dir })}
+                aria-label={tr('app.sort.ariaLabel')}
+              >
+                {(Object.keys(SORT_KEY_LABELS) as SortKey[]).map(key => (
+                  <option key={key} value={key}>{tr(`app.sort.key.${key}`)}</option>
+                ))}
+              </select>
+              <button
+                className="chip sort-dir"
+                disabled={filter === 'series'}
+                onClick={() => setGridSort({ key: gridSort.key, dir: gridSort.dir === 'asc' ? 'desc' : 'asc' })}
+                aria-label={gridSort.dir === 'asc' ? tr('app.sort.ascToDesc') : tr('app.sort.descToAsc')}
+                title={gridSort.dir === 'asc' ? tr('app.sort.asc') : tr('app.sort.desc')}
+              >
+                {gridSort.dir === 'asc' ? '↑' : '↓'}
+              </button>
+            </span>
+            <label className="date-field">
+              {tr('app.dateFrom')}
+              <input
+                type="date"
+                value={epochToDateInput(dateFrom)}
+                onChange={e => setDateRange(dateInputToEpoch(e.target.value, false), dateTo)}
+                aria-label={tr('app.dateFrom.ariaLabel')}
+              />
+            </label>
+            <label className="date-field">
+              {tr('app.dateTo')}
+              <input
+                type="date"
+                value={epochToDateInput(dateTo)}
+                onChange={e => setDateRange(dateFrom, dateInputToEpoch(e.target.value, true))}
+                aria-label={tr('app.dateTo.ariaLabel')}
+              />
+            </label>
+            {(searchText || dateFrom !== null || dateTo !== null || minRating > 0) && (
+              <button className="ghost small" onClick={clearAdvancedFilters}>{tr('app.resetFilters')}</button>
+            )}
+          </nav>
+        )}
+      </div>
 
       {photos.length === 0 && !progress ? (
         <div className="empty">
@@ -637,6 +652,7 @@ export default function App() {
             <VirtualPhotoGrid
               photos={filtered} onOpen={onCardOpen} multiSelectIds={multiSelectIds}
               onCardPointerDown={onCardPointerDown} onContextMenu={onCardContextMenu}
+              onScroll={handleGridScroll}
             />
           ) : (
             <div

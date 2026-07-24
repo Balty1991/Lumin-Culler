@@ -169,6 +169,11 @@ function ScoreRing({ score }: { score: number }) {
  * navigarea intre poze (sageti) NU remonteaza componenta (fara `key={photo.id}`
  * — altfel fiecare Sageata ar re-juca intrarea, nu doar Escape/X).
  */
+/** Praguri de tras (px) pentru gestul vertical de Bottom Sheet — acelasi principiu ca SWIPE_COMMIT orizontal de mai sus. */
+const SHEET_DRAG_COMMIT = 56;
+/** Inaltimea vizibila a manerului cat timp sheet-ul e restrans — trebuie sa fie IDENTICA cu valoarea din CSS (.detail-sheet, translateY collapsed). */
+const SHEET_PEEK_PX = 58;
+
 function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion: boolean }) {
   const history = useStore(s => s.history);
   const openDetail = useStore(s => s.openDetail);
@@ -186,6 +191,18 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
   const movedRef = useRef(false);
   const startXRef = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  // Bottom Sheet (plan "Refactorizare UI/UX"): metricile/tab-urile nu mai stau permanent
+  // pe ecran — traiesc intr-un panou retractabil, deschis explicit (tap pe maner sau swipe up).
+  const [sheetExpanded, setSheetExpanded] = useState(false);
+  const [sheetDragY, setSheetDragY] = useState(0);
+  const sheetDraggingRef = useRef(false);
+  const sheetMovedRef = useRef(false);
+  const sheetStartYRef = useRef(0);
+  // Valoarea "de adevar" pentru decizia de comitere — un ref, nu doar starea `sheetDragY`
+  // (folosita doar pentru stilul inline in timpul tragerii): la un pointerup care vine
+  // imediat dupa ultimul pointermove (fara randare intre ele), closure-ul lui endSheetDrag
+  // ar putea vedea inca vechea valoare din state daca s-ar baza pe ea. Ref-ul e mereu la zi.
+  const sheetDragYRef = useRef(0);
   // constant true: DetailContent monteaza o singura data cat timp panoul e deschis
   // (navigarea intre poze cu sagetile NU remonteaza, vezi comentariul de mai jos) —
   // capcana de focus trebuie sa se activeze o singura data la deschidere, nu la
@@ -201,6 +218,7 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
     setZoomed(false);
     setDragX(0);
     setTab('metrics');
+    setSheetExpanded(false);
     let url: string | null = null;
     let alive = true;
     db.previews.get(photo.id).then(async p => {
@@ -266,93 +284,186 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
     setZoomed(z => !z);
   };
 
+  // Gestul vertical al Bottom Sheet-ului — aceeasi tehnica (tolerance + prag de comitere)
+  // ca swipe-ul orizontal de decizie de mai sus, doar pe axa Y si cu doua directii
+  // valide diferite dupa starea curenta (restrans -> doar in sus, extins -> doar in jos).
+  const onSheetHandlePointerDown = (e: PointerEvent<HTMLButtonElement>) => {
+    sheetDraggingRef.current = true;
+    sheetMovedRef.current = false;
+    sheetStartYRef.current = e.clientY;
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const onSheetHandlePointerMove = (e: PointerEvent<HTMLButtonElement>) => {
+    if (!sheetDraggingRef.current) return;
+    const delta = e.clientY - sheetStartYRef.current;
+    if (Math.abs(delta) > SWIPE_TAP_TOLERANCE) sheetMovedRef.current = true;
+    // restrans: doar tras in sus (delta negativ) deschide; extins: doar tras in jos (delta pozitiv) inchide —
+    // clamp-uim directia opusa la 0 ca sa nu se "intinda" vizual peste pozitia de repaus.
+    const clamped = sheetExpanded ? Math.max(0, delta) : Math.min(0, delta);
+    sheetDragYRef.current = clamped;
+    setSheetDragY(clamped);
+  };
+  const endSheetDrag = () => {
+    if (!sheetDraggingRef.current) return;
+    sheetDraggingRef.current = false;
+    if (!sheetExpanded && sheetDragYRef.current < -SHEET_DRAG_COMMIT) setSheetExpanded(true);
+    else if (sheetExpanded && sheetDragYRef.current > SHEET_DRAG_COMMIT) setSheetExpanded(false);
+    sheetDragYRef.current = 0;
+    setSheetDragY(0);
+  };
+  const onSheetHandleClick = () => {
+    if (sheetMovedRef.current) return; // a fost drag, nu tap — starea deja s-a decis la endSheetDrag
+    setSheetExpanded(v => !v);
+  };
+
   const exif = formatExif(photo);
   const exifRows = extendedExifRows(photo, tr);
   const iptcRowsList = iptcRows(photo, tr);
 
   return (
     <motion.div
-      className="detail detail-motion" onClick={e => { if (e.target === e.currentTarget) openDetail(null); }}
+      className="detail-fullscreen" ref={containerRef} role="dialog" aria-modal="true"
+      aria-label={tr('detail.ariaLabel', { fileName: photo.fileName })} tabIndex={-1}
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       transition={{ duration: reduceMotion ? 0 : 0.2, ease: EASE }}
     >
-      <motion.div
-        className="detail-inner fit" ref={containerRef} role="dialog" aria-modal="true" aria-label={tr('detail.ariaLabel', { fileName: photo.fileName })} tabIndex={-1}
-        initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 24 }}
-        transition={{ duration: reduceMotion ? 0 : 0.28, ease: EASE }}
+      {/* Scena: edge-to-edge, fundal negru, object-fit: contain — subiectul ramane centrul atentiei,
+          nu un card plutitor peste un scrim (plan "Refactorizare UI/UX"). */}
+      <div
+        className={zoomed ? 'detail-stage zoomed' : 'detail-stage'}
+        onClick={onImageClick}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        title={zoomed ? tr('detail.zoom.exit') : tr('detail.zoom.hint')}
+        role="button"
+        tabIndex={0}
+        aria-label={zoomed ? tr('detail.zoom.exit') : tr('detail.zoom.hint')}
+        onKeyDown={e => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setZoomed(z => !z); }
+        }}
       >
-        <header className="detail-head">
-          <span className="mono">{photo.fileName}</span>
-          <button className="ghost icon-btn" onClick={() => openDetail(null)} aria-label={tr('detail.close')}>
-            <XIcon />
-          </button>
-        </header>
-
         <div
-          className={zoomed ? 'detail-img zoomed' : 'detail-img'}
-          onClick={onImageClick}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={endDrag}
-          onPointerCancel={endDrag}
-          title={zoomed ? tr('detail.zoom.exit') : tr('detail.zoom.hint')}
-          role="button"
-          tabIndex={0}
-          aria-label={zoomed ? tr('detail.zoom.exit') : tr('detail.zoom.hint')}
-          onKeyDown={e => {
-            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setZoomed(z => !z); }
+          className="swipe-surface"
+          style={zoomed ? undefined : {
+            transform: `translateX(${dragX}px) rotate(${dragX / 30}deg)`,
+            transition: draggingRef.current ? 'none' : 'transform 0.25s var(--ease)'
           }}
         >
-          <div
-            className="swipe-surface"
-            style={zoomed ? undefined : {
-              transform: `translateX(${dragX}px) rotate(${dragX / 30}deg)`,
-              transition: draggingRef.current ? 'none' : 'transform 0.25s var(--ease)'
-            }}
-          >
-            {src && <img src={src} alt={photo.fileName} />}
-          </div>
-          {!zoomed && <div className="detail-img-gradient" aria-hidden="true" />}
-          <span className={`status-tag st-${photo.status} detail-badge`}>
+          {src && <img src={src} alt={photo.fileName} className="detail-stage-img" />}
+        </div>
+
+        <div className="detail-stage-topbar" onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
+          <button className="detail-overlay-btn" onClick={() => openDetail(null)} aria-label={tr('detail.close')}>
+            <XIcon />
+          </button>
+          <span className="detail-stage-filename mono">{photo.fileName}</span>
+          <span className={`status-tag st-${photo.status}`}>
             {photo.status === 'selected' ? tr('workspace.status.selected') : photo.status === 'rejected' ? tr('workspace.status.rejected') : tr('workspace.status.review')}
           </span>
-          {!zoomed && dragX > 4 && (
-            <div className="swipe-badge swipe-badge-select" style={{ opacity: Math.min(1, dragX / SWIPE_COMMIT) }}>
-              <CheckIcon /> {tr('detail.swipe.select')}
-            </div>
-          )}
-          {!zoomed && dragX < -4 && (
-            <div className="swipe-badge swipe-badge-reject" style={{ opacity: Math.min(1, -dragX / SWIPE_COMMIT) }}>
-              <XIcon /> {tr('detail.swipe.reject')}
-            </div>
-          )}
-          <span className="zoom-hint mono">{zoomed ? tr('detail.zoom.hintZoomed') : tr('detail.zoom.hintCollapsed')}</span>
         </div>
 
-        <div className="detail-rating-row">
-          <StarRating rating={photo.rating} onRate={n => void setRating(photo.id, n)} />
-        </div>
+        {!zoomed && dragX > 4 && (
+          <div className="swipe-badge swipe-badge-select" style={{ opacity: Math.min(1, dragX / SWIPE_COMMIT) }}>
+            <CheckIcon /> {tr('detail.swipe.select')}
+          </div>
+        )}
+        {!zoomed && dragX < -4 && (
+          <div className="swipe-badge swipe-badge-reject" style={{ opacity: Math.min(1, -dragX / SWIPE_COMMIT) }}>
+            <XIcon /> {tr('detail.swipe.reject')}
+          </div>
+        )}
+        <span className="zoom-hint mono">{zoomed ? tr('detail.zoom.hintZoomed') : tr('detail.zoom.hintCollapsed')}</span>
 
-        {photo.groupId && (
-          <button className="ghost slim" onClick={() => { openDetail(null); openCompare(photo.groupId!); }}>
-            <LayersIcon className="inline-icon" /> {tr('detail.compareSeries')}
-          </button>
+        {!zoomed && (
+          <>
+            <button
+              className="detail-nav-btn detail-nav-prev" onPointerDown={e => e.stopPropagation()}
+              onClick={e => { e.stopPropagation(); stepDetail(-1); }} aria-label={tr('workspace.nav.prev')}
+            >
+              <ChevronLeft />
+            </button>
+            <button
+              className="detail-nav-btn detail-nav-next" onPointerDown={e => e.stopPropagation()}
+              onClick={e => { e.stopPropagation(); stepDetail(1); }} aria-label={tr('workspace.nav.next')}
+            >
+              <ChevronRight />
+            </button>
+          </>
         )}
 
-        <nav className="detail-tabs" role="tablist">
-          {TAB_KEYS.map(tabDef => (
+        {/* Butoane flotante flat-design (plan "Refactorizare UI/UX") — inlocuiesc butoanele
+            text masive Selecteaza/Respinge; ascunse cat timp sheet-ul de metrici e extins,
+            ca sa nu se suprapuna peste continutul lui. */}
+        {!zoomed && (
+          <div className={sheetExpanded ? 'detail-fab-row hidden' : 'detail-fab-row'} aria-hidden={sheetExpanded}>
             <button
-              key={tabDef.key} role="tab" aria-selected={tab === tabDef.key}
-              className={tab === tabDef.key ? 'detail-tab active' : 'detail-tab'}
-              onClick={() => setTab(tabDef.key)}
+              className="detail-fab detail-fab-reject" onPointerDown={e => e.stopPropagation()}
+              onClick={e => { e.stopPropagation(); void setStatus(photo.id, 'rejected'); }}
+              aria-label={tr('workspace.action.reject')} tabIndex={sheetExpanded ? -1 : 0}
             >
-              {tr(tabDef.labelKey)}
-              {tabDef.key === 'history' && photoHistory.length > 0 && <b className="detail-tab-count mono">{photoHistory.length}</b>}
+              <XIcon />
             </button>
-          ))}
-        </nav>
+            <button
+              className="detail-fab detail-fab-select" onPointerDown={e => e.stopPropagation()}
+              onClick={e => { e.stopPropagation(); void setStatus(photo.id, 'selected'); }}
+              aria-label={tr('workspace.action.select')} tabIndex={sheetExpanded ? -1 : 0}
+            >
+              <CheckIcon />
+            </button>
+          </div>
+        )}
+      </div>
 
-        <div className="detail-scroll">
+      {/* Bottom Sheet: metrici/tab-uri/rating, ascunse implicit — deschise prin tap pe maner
+          sau gest de swipe up (SHEET_DRAG_COMMIT), animate cu transform translateY + cubic-bezier. */}
+      <div
+        className={sheetExpanded ? 'detail-sheet expanded' : 'detail-sheet'}
+        style={sheetDraggingRef.current ? {
+          transform: `translateY(calc(${sheetExpanded ? '0%' : `100% - ${SHEET_PEEK_PX}px`} + ${sheetDragY}px))`,
+          transition: 'none'
+        } : undefined}
+      >
+        <button
+          className="detail-sheet-handle"
+          onClick={onSheetHandleClick}
+          onPointerDown={onSheetHandlePointerDown}
+          onPointerMove={onSheetHandlePointerMove}
+          onPointerUp={endSheetDrag}
+          onPointerCancel={endSheetDrag}
+          aria-expanded={sheetExpanded}
+          aria-label={sheetExpanded ? tr('detail.sheet.collapse') : tr('detail.sheet.expand')}
+        >
+          <span className="detail-sheet-handle-bar" aria-hidden="true" />
+          <span className="detail-sheet-peek-label mono">{tr('detail.sheet.peekLabel')}</span>
+        </button>
+
+        <div className="detail-sheet-content">
+          <div className="detail-rating-row">
+            <StarRating rating={photo.rating} onRate={n => void setRating(photo.id, n)} />
+          </div>
+
+          {photo.groupId && (
+            <button className="ghost slim" onClick={() => { openDetail(null); openCompare(photo.groupId!); }}>
+              <LayersIcon className="inline-icon" /> {tr('detail.compareSeries')}
+            </button>
+          )}
+
+          <nav className="detail-tabs" role="tablist">
+            {TAB_KEYS.map(tabDef => (
+              <button
+                key={tabDef.key} role="tab" aria-selected={tab === tabDef.key}
+                className={tab === tabDef.key ? 'detail-tab active' : 'detail-tab'}
+                onClick={() => setTab(tabDef.key)}
+              >
+                {tr(tabDef.labelKey)}
+                {tabDef.key === 'history' && photoHistory.length > 0 && <b className="detail-tab-count mono">{photoHistory.length}</b>}
+              </button>
+            ))}
+          </nav>
+
+          <div className="detail-scroll">
           {tab === 'metrics' && (
             <>
               <div className="stat-grid">
@@ -505,18 +616,8 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
             )
           )}
         </div>
-
-        <div className="detail-actions">
-          <button className="ghost icon-btn" onClick={() => stepDetail(-1)} aria-label={tr('workspace.nav.prev')}>
-            <ChevronLeft />
-          </button>
-          <button className="reject" onClick={() => void setStatus(photo.id, 'rejected')}>{tr('workspace.action.reject')}</button>
-          <button className="select" onClick={() => void setStatus(photo.id, 'selected')}>{tr('workspace.action.select')}</button>
-          <button className="ghost icon-btn" onClick={() => stepDetail(1)} aria-label={tr('workspace.nav.next')}>
-            <ChevronRight />
-          </button>
         </div>
-      </motion.div>
+      </div>
     </motion.div>
   );
 }
