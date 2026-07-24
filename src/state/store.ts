@@ -153,6 +153,9 @@ interface AppState {
   monthlyUsage: number;
   statsOpen: boolean;
   setStatsOpen: (open: boolean) => void;
+  /** Contact sheet printabil (plan "cat mai pro") — grila compacta cu toate miniaturile + status/rating, gata de window.print(). */
+  contactSheetOpen: boolean;
+  setContactSheetOpen: (open: boolean) => void;
   filter: FilterKey;
   /** Filtru suplimentar, combinabil cu `filter` — numele unei persoane cunoscute, sau null (fara filtru). */
   personFilter: string | null;
@@ -551,6 +554,8 @@ export const useStore = create<AppState>((set, get) => ({
   monthlyUsage: readMonthlyUsage(),
   statsOpen: false,
   setStatsOpen: open => set({ statsOpen: open }),
+  contactSheetOpen: false,
+  setContactSheetOpen: open => set({ contactSheetOpen: open }),
 
   exportBackup: async () => {
     const data = await buildBackup();
