@@ -48,6 +48,32 @@ function formatExif(photo: { iso?: number; fNumber?: number; exposureTime?: numb
   return parts.join(' · ');
 }
 
+/** "Panou de informatii extins" (plan 3.2.2) — randuri camera/obiectiv/locatie pentru Metrici, dincolo de linia compacta ISO/diafragma/timp/focala de mai sus. */
+function extendedExifRows(photo: {
+  cameraMake?: string; cameraModel?: string; lensModel?: string; focalLength35mm?: number;
+  exposureBias?: number; meteringMode?: string; flashFired?: boolean; whiteBalance?: 'auto' | 'manual';
+  gpsLatitude?: number; gpsLongitude?: number; exifArtist?: string; exifCopyright?: string; exifSoftware?: string;
+}): { label: string; value: string }[] {
+  const rows: { label: string; value: string }[] = [];
+  const camera = [photo.cameraMake, photo.cameraModel].filter(Boolean).join(' ');
+  if (camera) rows.push({ label: 'Aparat', value: camera });
+  if (photo.lensModel) rows.push({ label: 'Obiectiv', value: photo.lensModel });
+  if (photo.focalLength35mm !== undefined) rows.push({ label: 'Focala (echiv. 35mm)', value: `${Math.round(photo.focalLength35mm)}mm` });
+  if (photo.exposureBias !== undefined && photo.exposureBias !== 0) {
+    rows.push({ label: 'Compensare expunere', value: `${photo.exposureBias > 0 ? '+' : ''}${photo.exposureBias.toFixed(1)} EV` });
+  }
+  if (photo.meteringMode) rows.push({ label: 'Masurare', value: photo.meteringMode });
+  if (photo.flashFired !== undefined) rows.push({ label: 'Blitz', value: photo.flashFired ? 'Da' : 'Nu' });
+  if (photo.whiteBalance) rows.push({ label: 'Balans de alb', value: photo.whiteBalance === 'auto' ? 'Automat' : 'Manual' });
+  if (photo.gpsLatitude !== undefined && photo.gpsLongitude !== undefined) {
+    rows.push({ label: 'Locatie GPS', value: `${photo.gpsLatitude.toFixed(5)}, ${photo.gpsLongitude.toFixed(5)}` });
+  }
+  if (photo.exifArtist) rows.push({ label: 'Autor', value: photo.exifArtist });
+  if (photo.exifCopyright) rows.push({ label: 'Copyright', value: photo.exifCopyright });
+  if (photo.exifSoftware) rows.push({ label: 'Software', value: photo.exifSoftware });
+  return rows;
+}
+
 /** Timp relativ scurt, in romana — suficient de precis pentru un istoric de minute/ore, nu o audiere legala. */
 function formatRelativeTime(ts: number): string {
   const diffSec = Math.max(0, Math.round((Date.now() - ts) / 1000));
@@ -210,6 +236,7 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
   };
 
   const exif = formatExif(photo);
+  const exifRows = extendedExifRows(photo);
 
   return (
     <motion.div
@@ -340,6 +367,25 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
                 </div>
               )}
               {exif && <p className="detail-exif mono">{exif}</p>}
+              {exifRows.length > 0 && (
+                <dl className="detail-exif-extended">
+                  {exifRows.map(r => (
+                    <div className="detail-exif-row" key={r.label}>
+                      <dt>{r.label}</dt>
+                      <dd>
+                        {r.label === 'Locatie GPS' && photo.gpsLatitude !== undefined && photo.gpsLongitude !== undefined ? (
+                          <a
+                            href={`https://www.openstreetmap.org/?mlat=${photo.gpsLatitude}&mlon=${photo.gpsLongitude}#map=15/${photo.gpsLatitude}/${photo.gpsLongitude}`}
+                            target="_blank" rel="noreferrer noopener"
+                          >
+                            {r.value}
+                          </a>
+                        ) : r.value}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
               <Histogram src={src} />
               <p className="detail-section-label mono">Harta de focus (albastru = neclar, rosu = clar)</p>
               <FocusMap src={src} />

@@ -32,6 +32,14 @@ export interface RawExifMeta {
   focalLength?: number;
   /** Data/ora reala a capturii (din ceasul aparatului), epoch ms — nu data copierii fisierului pe disc. */
   capturedAt?: number;
+  make?: string;
+  model?: string;
+  lensModel?: string;
+  software?: string;
+  artist?: string;
+  focalLength35mm?: number;
+  gpsLatitude?: number;
+  gpsLongitude?: number;
 }
 
 export interface RawDecodeResult {
@@ -49,6 +57,24 @@ function metaFromLibRaw(m: Awaited<ReturnType<LibRaw['metadata']>>): RawExifMeta
   // ceasuri de aparat nesetate produc uneori epoch 0/negativ — evident invalid, il ignoram
   const ts = m.timestamp instanceof Date ? m.timestamp.getTime() : NaN;
   if (Number.isFinite(ts) && ts > 0) meta.capturedAt = ts;
+
+  if (m.camera_make) meta.make = m.camera_make;
+  if (m.camera_model) meta.model = m.camera_model;
+  if (m.artist) meta.artist = m.artist;
+  if (m.software) meta.software = m.software;
+  if (m.lens?.Lens) meta.lensModel = m.lens.Lens;
+  if (typeof m.lens?.FocalLengthIn35mmFormat === 'number' && m.lens.FocalLengthIn35mmFormat > 0) {
+    meta.focalLength35mm = m.lens.FocalLengthIn35mmFormat;
+  }
+  if (m.gps_data?.gpsparsed) {
+    const { latitude, longitude, latref, longref } = m.gps_data;
+    let lat = latitude[0] + latitude[1] / 60 + latitude[2] / 3600;
+    let lon = longitude[0] + longitude[1] / 60 + longitude[2] / 3600;
+    if (latref === 'S') lat = -lat;
+    if (longref === 'W') lon = -lon;
+    meta.gpsLatitude = lat;
+    meta.gpsLongitude = lon;
+  }
   return meta;
 }
 

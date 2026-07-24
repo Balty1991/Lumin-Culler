@@ -909,6 +909,11 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .star-rating-sm .star-rating-btn svg { width: 14px; height: 14px; }
 
 .detail-exif { color: var(--text-faint); font-size: 0.7rem; }
+.detail-exif-extended { margin: 6px 0 0; font-size: 0.72rem; border-top: 1px solid var(--line); padding-top: 6px; }
+.detail-exif-row { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; }
+.detail-exif-row dt { color: var(--text-faint); }
+.detail-exif-row dd { margin: 0; text-align: right; color: var(--text); }
+.detail-exif-row dd a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 .histogram-canvas { display: block; width: 100%; height: 56px; margin-top: 8px; border-radius: 8px; background: var(--surface-2); }
 .detail-section-label { margin: 10px 0 4px; font-size: 0.64rem; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.05em; }
 .focusmap-canvas { display: block; width: 100%; height: auto; border-radius: 8px; background: var(--surface-2); image-rendering: pixelated; }

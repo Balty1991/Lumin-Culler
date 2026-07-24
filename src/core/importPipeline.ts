@@ -188,6 +188,14 @@ async function processOne(file: File, genre?: string, project?: string): Promise
     if (rawMeta.fNumber !== undefined) analysis.fNumber = rawMeta.fNumber;
     if (rawMeta.exposureTime !== undefined) analysis.exposureTime = rawMeta.exposureTime;
     if (rawMeta.focalLength !== undefined) analysis.focalLength = rawMeta.focalLength;
+    if (rawMeta.make !== undefined) analysis.cameraMake = rawMeta.make;
+    if (rawMeta.model !== undefined) analysis.cameraModel = rawMeta.model;
+    if (rawMeta.lensModel !== undefined) analysis.lensModel = rawMeta.lensModel;
+    if (rawMeta.software !== undefined) analysis.exifSoftware = rawMeta.software;
+    if (rawMeta.artist !== undefined) analysis.exifArtist = rawMeta.artist;
+    if (rawMeta.focalLength35mm !== undefined) analysis.focalLength35mm = rawMeta.focalLength35mm;
+    if (rawMeta.gpsLatitude !== undefined) analysis.gpsLatitude = rawMeta.gpsLatitude;
+    if (rawMeta.gpsLongitude !== undefined) analysis.gpsLongitude = rawMeta.gpsLongitude;
     capturedAt = rawMeta.capturedAt;
   } else {
     try {
@@ -197,6 +205,19 @@ async function processOne(file: File, genre?: string, project?: string): Promise
       if (exif.fNumber !== undefined) analysis.fNumber = exif.fNumber;
       if (exif.exposureTime !== undefined) analysis.exposureTime = exif.exposureTime;
       if (exif.focalLength !== undefined) analysis.focalLength = exif.focalLength;
+      if (exif.make !== undefined) analysis.cameraMake = exif.make;
+      if (exif.model !== undefined) analysis.cameraModel = exif.model;
+      if (exif.lensModel !== undefined) analysis.lensModel = exif.lensModel;
+      if (exif.software !== undefined) analysis.exifSoftware = exif.software;
+      if (exif.artist !== undefined) analysis.exifArtist = exif.artist;
+      if (exif.copyright !== undefined) analysis.exifCopyright = exif.copyright;
+      if (exif.exposureBias !== undefined) analysis.exposureBias = exif.exposureBias;
+      if (exif.meteringMode !== undefined) analysis.meteringMode = exif.meteringMode;
+      if (exif.flashFired !== undefined) analysis.flashFired = exif.flashFired;
+      if (exif.whiteBalance !== undefined) analysis.whiteBalance = exif.whiteBalance;
+      if (exif.focalLength35mm !== undefined) analysis.focalLength35mm = exif.focalLength35mm;
+      if (exif.gpsLatitude !== undefined) analysis.gpsLatitude = exif.gpsLatitude;
+      if (exif.gpsLongitude !== undefined) analysis.gpsLongitude = exif.gpsLongitude;
       capturedAt = exif.capturedAt;
     } catch (err) {
       console.error('Citire EXIF esuata pentru ' + file.name + ':', err);
