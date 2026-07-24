@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { CheckIcon, ClockIcon, XIcon, SearchIcon } from './icons';
 import { StarRating } from './StarRating';
-import type { PhotoRecord } from '../core/db';
+import { COLOR_LABELS, type PhotoRecord, type ColorLabel } from '../core/db';
 import { useStore } from '../state/store';
 import { t } from '../i18n';
 
@@ -12,8 +12,11 @@ interface ContextMenuProps {
   count: number;
   /** Ratingul curent, pentru a preseta stelele — 0 cand actioneaza pe o selectie de mai multe poze (rating-urile pot diferi). */
   rating: number;
+  /** Eticheta de culoare curenta — 'none' cand actioneaza pe o selectie de mai multe poze (etichetele pot diferi). */
+  colorLabel: ColorLabel;
   onSetStatus: (status: PhotoRecord['status']) => void;
   onSetRating: (n: number) => void;
+  onSetColorLabel: (label: ColorLabel) => void;
   /** Absent cand meniul actioneaza pe o selectie de mai multe poze — "deschide detalii" nu are sens pentru mai multe poze deodata. */
   onOpenDetail?: () => void;
   onClose: () => void;
@@ -25,7 +28,7 @@ interface ContextMenuProps {
  * DetailView: decizie (selecteaza/verifica/respinge) + rating, aplicate fie unei
  * singure poze, fie intregii selectii in masa curente (daca poza vizata face parte din ea).
  */
-export function ContextMenu({ x, y, count, rating, onSetStatus, onSetRating, onOpenDetail, onClose }: ContextMenuProps) {
+export function ContextMenu({ x, y, count, rating, colorLabel, onSetStatus, onSetRating, onSetColorLabel, onOpenDetail, onClose }: ContextMenuProps) {
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const ref = useRef<HTMLDivElement>(null);
@@ -68,6 +71,23 @@ export function ContextMenu({ x, y, count, rating, onSetStatus, onSetRating, onO
       <div className="context-menu-rating">
         <span>{tr('contextMenu.rating')}</span>
         <StarRating rating={rating} onRate={n => act(() => onSetRating(n))} size="sm" />
+      </div>
+      <div className="context-menu-sep" />
+      <div className="context-menu-color-labels">
+        <span>{tr('contextMenu.colorLabel')}</span>
+        <div className="color-label-swatches">
+          {COLOR_LABELS.map(c => (
+            <button
+              key={c}
+              type="button"
+              className={colorLabel === c ? `color-label-swatch label-${c} active` : `color-label-swatch label-${c}`}
+              onClick={() => act(() => onSetColorLabel(colorLabel === c ? 'none' : c))}
+              aria-pressed={colorLabel === c}
+              aria-label={tr(`colorLabel.${c}`)}
+              title={tr(`colorLabel.${c}`)}
+            />
+          ))}
+        </div>
       </div>
       {onOpenDetail && (
         <>

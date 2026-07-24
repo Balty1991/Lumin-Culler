@@ -653,6 +653,44 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .context-menu-item .inline-icon { opacity: 0.7; }
 .context-menu-sep { height: 1px; margin: 5px 4px; background: var(--line); }
 .context-menu-rating { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; font-size: 0.8rem; color: var(--text-dim); }
+.context-menu-color-labels { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; font-size: 0.8rem; color: var(--text-dim); }
+
+/* etichete de culoare custom (Lightroom-style), a doua axa de organizare
+   libera fata de status/rating — swatch-uri rotunde, culori mate ca sa se
+   distinga clar de paleta de status (verde/galben/rosu deja folosita pentru
+   selectat/de verificat/respins) prin nuante DIFERITE (rosu-caramiziu, mov). */
+.color-label-swatches { display: flex; gap: 6px; }
+.color-label-swatch {
+  width: 18px; height: 18px; border-radius: 50%; border: 2px solid transparent;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25); transition: transform 0.12s var(--ease), border-color 0.12s var(--ease);
+  padding: 0;
+}
+.color-label-swatch:hover { transform: scale(1.15); }
+.color-label-swatch.active { border-color: var(--text); }
+.color-label-swatch.label-red { background: #c94f4f; }
+.color-label-swatch.label-yellow { background: #c9a227; }
+.color-label-swatch.label-green { background: #4a9d5f; }
+.color-label-swatch.label-blue { background: #4477c4; }
+.color-label-swatch.label-purple { background: #9163c9; }
+.color-label-filter-row { padding: 0 2px; }
+
+/* dunga verticala pe latura stanga a cardului din grid — indica eticheta de
+   culoare fara sa concureze vizual cu badge-urile de status/ora de aur din
+   colturi. Foloseste ::after (NU ::before, deja folosit de .card pentru bara
+   de status de sus — trebuie sa coexiste, un card poate fi SI "de verificat"
+   SI etichetat cu o culoare in acelasi timp). */
+.card.label-red::after,
+.card.label-yellow::after,
+.card.label-green::after,
+.card.label-blue::after,
+.card.label-purple::after {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; z-index: var(--z-card-badge);
+}
+.card.label-red::after { background: #c94f4f; }
+.card.label-yellow::after { background: #c9a227; }
+.card.label-green::after { background: #4a9d5f; }
+.card.label-blue::after { background: #4477c4; }
+.card.label-purple::after { background: #9163c9; }
 
 .fab {
   position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom));

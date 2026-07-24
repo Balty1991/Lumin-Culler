@@ -4,7 +4,7 @@
  * a seriilor: alegi cea mai buna poza dintr-un grup de cadre similare.
  */
 import { create } from 'zustand';
-import { db, type AnalysisRecord, type PhotoRecord, type KnownPerson } from '../core/db';
+import { db, type AnalysisRecord, type PhotoRecord, type KnownPerson, type ColorLabel } from '../core/db';
 import { importFiles, originalFiles, originalHandles, createCancelToken, type ImportProgress, type ImportCancelToken } from '../core/importPipeline';
 import type { FileSystemFileHandleLike } from '../core/filePicker';
 import { readEconomicMode, writeEconomicMode } from '../core/performanceSettings';
@@ -41,6 +41,8 @@ export interface PhotoView {
   fileName: string;
   status: PhotoRecord['status'];
   rating: number;
+  /** Eticheta de culoare (vezi core/db.ts) — absent = fara eticheta ('none'). */
+  colorLabel?: ColorLabel;
   aiScore: number;
   sceneType: AnalysisRecord['sceneType'];
   contextKey: string;
@@ -159,6 +161,9 @@ interface AppState {
   filter: FilterKey;
   /** Filtru suplimentar, combinabil cu `filter` — numele unei persoane cunoscute, sau null (fara filtru). */
   personFilter: string | null;
+  /** Filtru suplimentar dupa eticheta de culoare (vezi core/db.ts ColorLabel), combinabil cu restul. Null = fara filtru. */
+  colorLabelFilter: ColorLabel | null;
+  setColorLabelFilter: (label: ColorLabel | null) => void;
   /** Filtru suplimentar dupa proiectul sub care a fost importata poza (PhotoRecord.project) — vezi ProjectsPanel. */
   projectFilter: string | null;
   setProjectFilter: (project: string | null) => void;
@@ -248,6 +253,7 @@ interface AppState {
    * cu un nou click).
    */
   setRating: (id: string, rating: number) => Promise<void>;
+  setColorLabel: (id: string, label: ColorLabel) => Promise<void>;
   undo: () => Promise<void>;
   keepOnlyInGroup: (groupId: string, keepId: string) => Promise<void>;
   /**
@@ -282,6 +288,7 @@ interface AppState {
   bulkSetStatusForSelection: (status: PhotoRecord['status']) => Promise<void>;
   /** Aplica un rating TUTUROR pozelor din selectia curenta. */
   bulkSetRatingForSelection: (rating: number) => Promise<void>;
+  bulkSetColorLabelForSelection: (label: ColorLabel) => Promise<void>;
   setFilter: (f: FilterKey) => void;
   setPersonFilter: (name: string | null) => void;
   setSearchText: (text: string) => void;
@@ -357,6 +364,7 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     fileName: photo.fileName,
     status: photo.status,
     rating: photo.rating ?? 0,
+    colorLabel: photo.colorLabel,
     aiScore: analysis?.aiScore ?? 0,
     sceneType: analysis?.sceneType ?? 'detail',
     contextKey: analysis ? deriveContextKey(analysis, photo.genre) : 'detail',
@@ -709,6 +717,11 @@ export const useStore = create<AppState>((set, get) => ({
     set(state => ({ photos: state.photos.map(p => (p.id === id ? { ...p, rating: clamped } : p)) }));
   },
 
+  setColorLabel: async (id, label) => {
+    await db.photos.update(id, { colorLabel: label });
+    set(state => ({ photos: state.photos.map(p => (p.id === id ? { ...p, colorLabel: label } : p)) }));
+  },
+
   /**
    * Anuleaza ultima actiune — fie o decizie manuala unica (P/X), fie o
    * operatie in masa (Auto-Cull, Respinge sub prag, Rezolva serii, actiune pe
@@ -995,8 +1008,24 @@ export const useStore = create<AppState>((set, get) => ({
     }));
   },
 
+  bulkSetColorLabelForSelection: async label => {
+    const ids = Array.from(get().multiSelectIds);
+    if (!ids.length) return;
+    for (const id of ids) await db.photos.update(id, { colorLabel: label });
+    const idSet = new Set(ids);
+    const locale = get().locale;
+    set(state => ({
+      photos: state.photos.map(p => (idSet.has(p.id) ? { ...p, colorLabel: label } : p)),
+      multiSelectIds: new Set(),
+      multiSelectAnchor: null,
+      notice: t(locale, 'store.bulkColorLabel.notice', { count: ids.length, label: t(locale, `colorLabel.${label}`) })
+    }));
+  },
+
   setFilter: f => set({ filter: f }),
   setPersonFilter: name => set({ personFilter: name }),
+  colorLabelFilter: null,
+  setColorLabelFilter: label => set({ colorLabelFilter: label }),
   setSearchText: text => set({ searchText: text }),
   setDateRange: (from, to) => set({ dateFrom: from, dateTo: to }),
   setMinRating: rating => set({ minRating: rating }),
@@ -1342,7 +1371,7 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   filtered: () => {
-    const { photos, filter, personFilter, projectFilter, searchText, dateFrom, dateTo, minRating, gridSort } = get();
+    const { photos, filter, personFilter, colorLabelFilter, projectFilter, searchText, dateFrom, dateTo, minRating, gridSort } = get();
     let base: PhotoView[];
     switch (filter) {
       case 'selected': base = photos.filter(p => p.status === 'selected'); break;
@@ -1364,6 +1393,8 @@ export const useStore = create<AppState>((set, get) => ({
     // (ex. "Selectate" + "Ami" = pozele selectate in care apare Ami), nu un
     // FilterKey fix (persoanele sunt dinamice, inrolate de utilizator)
     if (personFilter) base = base.filter(p => p.personNames.includes(personFilter));
+    // filtru dupa eticheta de culoare — combinabil cu restul, la fel ca personFilter
+    if (colorLabelFilter) base = base.filter(p => (p.colorLabel ?? 'none') === colorLabelFilter);
     // filtru dupa proiect — vezi ProjectsPanel (fara proiect ales = grupul "Fara proiect")
     if (projectFilter) {
       base = projectFilter === NO_PROJECT_KEY
