@@ -66,6 +66,7 @@ export function PersonsPanel() {
   const [recognitionStats, setRecognitionStats] = useState<Map<string, PersonRecognitionStats> | null>(null);
   const [clusters, setClusters] = useState<FaceCluster[] | null>(null);
   const [scanningClusters, setScanningClusters] = useState(false);
+  const [fileNames, setFileNames] = useState<string[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   const importRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -149,7 +150,7 @@ export function PersonsPanel() {
     const result = await addPerson(name.trim(), files);
     setMessage(result.message);
     setBusy(false);
-    if (result.ok) { setName(''); if (fileRef.current) fileRef.current.value = ''; }
+    if (result.ok) { setName(''); setFileNames([]); if (fileRef.current) fileRef.current.value = ''; }
   };
 
   return (
@@ -251,7 +252,14 @@ export function PersonsPanel() {
             onChange={e => setName(e.target.value)}
             disabled={busy}
           />
-          <input ref={fileRef} type="file" accept="image/*" multiple disabled={busy} aria-label={tr('persons.filesAriaLabel')} />
+          <input
+            ref={fileRef} type="file" accept="image/*" multiple disabled={busy} hidden
+            aria-label={tr('persons.filesAriaLabel')}
+            onChange={e => setFileNames(Array.from(e.target.files ?? []).map(f => f.name))}
+          />
+          <button type="button" className="ghost small" disabled={busy} onClick={() => fileRef.current?.click()}>
+            <UploadIcon className="inline-icon" /> {fileNames.length > 0 ? tr('persons.filesChosen', { count: fileNames.length }) : tr('persons.chooseFiles')}
+          </button>
           <p className="hint">
             {tr('persons.reenrollHint')}
           </p>
