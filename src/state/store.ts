@@ -7,7 +7,7 @@ import { create } from 'zustand';
 import { db, type AnalysisRecord, type PhotoRecord, type KnownPerson } from '../core/db';
 import { importFiles, originalFiles, createCancelToken, type ImportProgress, type ImportCancelToken } from '../core/importPipeline';
 import { readEconomicMode, writeEconomicMode } from '../core/performanceSettings';
-import { exportOriginalFiles } from '../core/exportPhotos';
+import { exportOriginalFiles, computeGroupPersonUnion } from '../core/exportPhotos';
 import { exportXMPSidecars, deriveXmpKeywords, deriveAiScoreKeyword, deriveSeriesKeyword } from '../core/export/xmpGenerator';
 import { analysisPool } from '../core/workerPool';
 import { contextEngine, deriveContextKey, explainFactors } from '../core/learning/ContextEngine';
@@ -926,13 +926,19 @@ export const useStore = create<AppState>((set, get) => ({
 
   /** Exporta pozele selectate ca fisiere reale, in formatul original (JPEG/PNG/etc), grupate pe subfoldere. */
   exportSelection: async () => {
-    const selected = get().photos.filter(p => p.status === 'selected');
+    const allPhotos = get().photos;
+    const selected = allPhotos.filter(p => p.status === 'selected');
     if (!selected.length) return;
     try {
+      // vezi computeGroupPersonUnion: un cadru dintr-un burst poate rata o
+      // fata pe care alt cadru din ACEEASI serie a recunoscut-o clar —
+      // unim persoanele recunoscute pe toata seria, ca folderul de export
+      // sa reflecte cine e cu-adevarat in poza, nu doar ce a prins acel cadru.
+      const groupUnion = computeGroupPersonUnion(allPhotos);
       const result = await exportOriginalFiles(selected.map(p => ({
         id: p.id,
         fileName: p.fileName,
-        personNames: p.personNames,
+        personNames: p.groupId ? (groupUnion.get(p.groupId) ?? p.personNames) : p.personNames,
         faceCount: p.faceCount,
         strangerCount: p.strangerCount,
         sceneType: p.sceneType
@@ -984,17 +990,23 @@ export const useStore = create<AppState>((set, get) => ({
    * Lightroom/Bridge sa le asocieze automat.
    */
   exportXMP: async () => {
-    const decided = get().photos.filter(p => p.status !== 'pending');
+    const allPhotos = get().photos;
+    const decided = allPhotos.filter(p => p.status !== 'pending');
     if (!decided.length) { set({ notice: 'Nicio poza cu decizie luata inca — Selecteaza/Respinge cel putin una.' }); return; }
     try {
+      // vezi computeGroupPersonUnion (exportPhotos.ts) — acelasi principiu ca la
+      // exportSelection: un cadru din burst poate rata o fata pe care alt cadru
+      // din aceeasi serie a recunoscut-o clar; unim persoanele pe toata seria.
+      const groupUnion = computeGroupPersonUnion(allPhotos);
       const result = await exportXMPSidecars(decided.map(p => {
         const meta = p.project ? getProjectMetadata(p.project) : {};
+        const personNames = p.groupId ? (groupUnion.get(p.groupId) ?? p.personNames) : p.personNames;
         return {
           fileName: p.fileName,
           status: p.status,
           rating: p.rating,
           keywords: [
-            ...deriveXmpKeywords(p.personNames, p.sceneSemantic, p.sceneTags),
+            ...deriveXmpKeywords(personNames, p.sceneSemantic, p.sceneTags),
             deriveAiScoreKeyword(p.aiScore),
             ...(p.groupId ? [deriveSeriesKeyword(p.groupId)] : []),
             ...(meta.client ? [`Client: ${meta.client}`] : []),

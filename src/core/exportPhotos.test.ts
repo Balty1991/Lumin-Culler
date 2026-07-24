@@ -12,7 +12,7 @@ vi.mock('./export/directoryPicker', () => ({
 // originalFiles (Map in memorie) — populam Map-ul direct, deci Dexie/IndexedDB
 // nu e niciodata atins in acest test.
 import { originalFiles } from './importPipeline';
-import { exportOriginalFiles } from './exportPhotos';
+import { exportOriginalFiles, computeGroupPersonUnion } from './exportPhotos';
 
 function fakeFile(name: string): File {
   return new File(['continut-fals'], name, { type: 'image/jpeg' });
@@ -65,5 +65,32 @@ describe('exportOriginalFiles (fallback fara File System Access API)', () => {
     const entries = downloadZip.mock.calls[0][1];
     expect(entries.some(e => e.path === 'Ami/a.jpg')).toBe(true);
     expect(entries.some(e => e.path === 'Peisaje/b.jpg')).toBe(true);
+  });
+});
+
+describe('computeGroupPersonUnion', () => {
+  it('unites person names recognized anywhere in the same burst/series (groupId)', () => {
+    // bug real: cadrul p1 a ratat-o pe Angi (unghi/miscare), dar p2 din ACEEASI
+    // serie a recunoscut-o clar pe amandoua — unirea trebuie sa reflecte asta
+    const union = computeGroupPersonUnion([
+      { groupId: 'g1', personNames: ['Ami'] },
+      { groupId: 'g1', personNames: ['Ami', 'Angi'] },
+      { groupId: 'g1', personNames: ['Angi'] }
+    ]);
+    expect(union.get('g1')?.sort()).toEqual(['Ami', 'Angi']);
+  });
+
+  it('keeps separate groups independent', () => {
+    const union = computeGroupPersonUnion([
+      { groupId: 'g1', personNames: ['Ami'] },
+      { groupId: 'g2', personNames: ['Angi'] }
+    ]);
+    expect(union.get('g1')).toEqual(['Ami']);
+    expect(union.get('g2')).toEqual(['Angi']);
+  });
+
+  it('ignores photos without a groupId (not part of any series)', () => {
+    const union = computeGroupPersonUnion([{ personNames: ['Ami'] }]);
+    expect(union.size).toBe(0);
   });
 });
