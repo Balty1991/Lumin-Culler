@@ -17,7 +17,7 @@ import {
   pushHistory, popHistory, MAX_HISTORY, type HistoryEvent,
   pushBatchHistory, popBatchHistory, type BatchHistoryEvent
 } from './history';
-import { selectBulkRejectTargets, resolveGroups, selectTopPercent, selectHighlights } from './batchOps';
+import { selectBulkRejectTargets, resolveGroups, selectTopPercent, selectHighlights, selectBlinks } from './batchOps';
 import { readStoredTheme, applyTheme, type Theme } from './theme';
 import { readStoredProjectName, writeProjectName } from './projectName';
 import { readStoredGenre, writeStoredGenre } from './genre';
@@ -1343,7 +1343,7 @@ export const useStore = create<AppState>((set, get) => ({
       case 'selected': base = photos.filter(p => p.status === 'selected'); break;
       case 'review': base = photos.filter(p => p.status === 'review'); break;
       case 'rejected': base = photos.filter(p => p.status === 'rejected'); break;
-      case 'blinks': base = photos.filter(p => p.faceCount > 0 && !p.allEyesOpen); break;
+      case 'blinks': base = selectBlinks(photos); break;
       case 'goldenHour': base = photos.filter(p => p.goldenHourDetected); break;
       case 'highlights': base = selectHighlights(photos); break;
       case 'series': {

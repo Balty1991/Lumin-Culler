@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useStore, type FilterKey } from '../state/store';
-import { selectHighlights } from '../state/batchOps';
+import { selectHighlights, selectBlinks } from '../state/batchOps';
 import {
   SearchIcon, FocusIcon, GridIcon, UndoIcon, LayersIcon, UserCheckIcon, SparkleIcon,
   KeyboardIcon, SunIcon, MoonIcon, DownloadIcon, TagIcon, ListIcon, TrashIcon, FilterDotIcon
@@ -97,7 +97,7 @@ export function CommandPalette() {
     review: photos.filter(p => p.status === 'review').length,
     rejected: photos.filter(p => p.status === 'rejected').length,
     series: photos.filter(p => p.groupId).length,
-    blinks: photos.filter(p => p.faceCount > 0 && !p.allEyesOpen).length,
+    blinks: selectBlinks(photos).length,
     goldenHour: photos.filter(p => p.goldenHourDetected).length,
     highlights: selectHighlights(photos).length,
     all: photos.length
