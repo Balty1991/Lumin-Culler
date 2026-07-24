@@ -25,7 +25,7 @@ import { readGridSort, writeGridSort, compareBy, type GridSort } from './gridSor
 import { recordUsage, readMonthlyUsage, FREE_TIER_MONTHLY_LIMIT } from './usage';
 import { getProjectMetadata } from './projectMetadata';
 import { buildPersonProfilesExport, personProfilesFileName, parsePersonProfilesFile } from '../core/personProfileTransfer';
-import { readStoredLocale, writeStoredLocale, type Locale } from '../i18n';
+import { readStoredLocale, writeStoredLocale, t, plural, type Locale } from '../i18n';
 import { buildBackup, backupFileName, parseBackupFile, restoreBackup } from '../core/backupService';
 import { buildClientGalleryHtml } from '../core/export/clientGallery';
 
@@ -398,18 +398,16 @@ async function syncOriginal(id: string, status: PhotoRecord['status']): Promise<
   return { quotaError: false };
 }
 
-const QUOTA_NOTICE = 'Spatiu de stocare plin — fotografia a fost marcata, dar originalul nu a putut fi ' +
-  'salvat pentru export. Elibereaza spatiu (Goleste sesiunea sau exporta ce ai deja) si reincearca.';
+function quotaNotice(locale: Locale): string {
+  return t(locale, 'store.quotaNotice');
+}
 
 /** Plafon de referinte faciale per persoana — reinrolarile succesive extind profilul, nu-l lasa sa creasca la nesfarsit. */
 const MAX_PERSON_EMBEDDINGS = 12;
 
-const STATUS_LABELS: Record<PhotoRecord['status'], string> = {
-  pending: 'în așteptare',
-  selected: 'selectată',
-  rejected: 'respinsă',
-  review: 'de verificat'
-};
+function statusLabel(locale: Locale, status: PhotoRecord['status']): string {
+  return t(locale, `store.statusLabel.${status}`);
+}
 
 export const useStore = create<AppState>((set, get) => ({
   photos: [],
@@ -456,10 +454,11 @@ export const useStore = create<AppState>((set, get) => ({
   setEconomicMode: on => {
     writeEconomicMode(on);
     const applyNow = analysisPool.isReady;
+    const locale = get().locale;
     set({
       economicMode: on,
-      notice: 'Modul economic ' + (on ? 'activat' : 'dezactivat') +
-        (applyNow ? ' — se aplica imediat.' : ' — se aplica de la urmatorul import.')
+      notice: t(locale, on ? 'store.state.activated' : 'store.state.deactivated') +
+        t(locale, applyNow ? 'store.appliesNow' : 'store.appliesNextImport')
     });
     if (applyNow) void analysisPool.resizeForEconomicMode(on);
   },
@@ -483,10 +482,11 @@ export const useStore = create<AppState>((set, get) => ({
     a.download = backupFileName();
     a.click();
     // vezi exportManifest mai sus — nu revocam URL-ul imediat (Android descarca async).
-    set({ notice: `Backup exportat: ${data.persons.length} persoane, ${data.contextModels.length} profiluri AI invatate, ${data.photoDecisions.length} decizii.` });
+    set({ notice: t(get().locale, 'store.backup.exported', { persons: data.persons.length, models: data.contextModels.length, decisions: data.photoDecisions.length }) });
   },
 
   importBackupFile: async (file: File) => {
+    const locale = get().locale;
     try {
       const data = await parseBackupFile(file);
       const result = await restoreBackup(data);
@@ -494,11 +494,13 @@ export const useStore = create<AppState>((set, get) => ({
       set({
         photos: views,
         persons,
-        notice: `Backup restaurat: ${result.personsRestored} persoane, ${result.modelsRestored} profiluri AI` +
-          (result.decisionsTotal > 0 ? `, ${result.decisionsMatched}/${result.decisionsTotal} decizii potrivite cu pozele curente.` : '.')
+        notice: t(locale, 'store.backup.restored', { persons: result.personsRestored, models: result.modelsRestored }) +
+          (result.decisionsTotal > 0
+            ? t(locale, 'store.backup.restored.withDecisions', { matched: result.decisionsMatched, total: result.decisionsTotal })
+            : t(locale, 'store.backup.restored.noDecisions'))
       });
     } catch (err) {
-      set({ notice: 'Restaurare backup esuata: ' + (err instanceof Error ? err.message : String(err)) });
+      set({ notice: t(locale, 'store.backup.restoreFailed', { error: err instanceof Error ? err.message : String(err) }) });
     }
   },
 
@@ -510,14 +512,15 @@ export const useStore = create<AppState>((set, get) => ({
    * galerie "gazduita": fotograful trebuie sa-l trimita el insusi (email, cloud propriu).
    */
   exportClientGallery: async () => {
+    const locale = get().locale;
     const selected = get().photos.filter(p => p.status === 'selected');
-    if (!selected.length) { set({ notice: 'Nicio poza selectata inca — nu ai ce include in galerie.' }); return; }
+    if (!selected.length) { set({ notice: t(locale, 'store.clientGallery.noSelection') }); return; }
     try {
       const thumbnails = await Promise.all(selected.map(p => db.thumbnails.get(p.id)));
       const items = selected
         .map((p, i) => ({ fileName: p.fileName, thumbnail: thumbnails[i]?.blob }))
         .filter((it): it is { fileName: string; thumbnail: Blob } => !!it.thumbnail);
-      const title = get().projectName ? `Galerie foto — ${get().projectName}` : 'Galerie foto — Lumin Culler';
+      const title = get().projectName ? t(locale, 'store.clientGallery.title', { project: get().projectName }) : t(locale, 'store.clientGallery.titleDefault');
       const html = await buildClientGalleryHtml(items, title);
       const blob = new Blob([html], { type: 'text/html' });
       const url = URL.createObjectURL(blob);
@@ -525,9 +528,9 @@ export const useStore = create<AppState>((set, get) => ({
       a.href = url;
       a.download = `lumin-culler-galerie-client-${new Date().toISOString().slice(0, 10)}.html`;
       a.click();
-      set({ notice: `Galerie HTML generata cu ${items.length} poze — trimite fisierul clientului (email, cloud propriu etc.).` });
+      set({ notice: t(locale, 'store.clientGallery.generated', { count: items.length }) });
     } catch (err) {
-      set({ notice: 'Generarea galeriei a esuat: ' + (err instanceof Error ? err.message : String(err)) });
+      set({ notice: t(locale, 'store.clientGallery.failed', { error: err instanceof Error ? err.message : String(err) }) });
     }
   },
 
@@ -564,7 +567,7 @@ export const useStore = create<AppState>((set, get) => ({
       // lasa bara de progres blocata la "0/N" pentru totdeauna, fara nicio eroare vizibila
       set({
         progress: null,
-        notice: 'Import esuat: ' + (err instanceof Error ? err.message : String(err)) + ' — incearca din nou.'
+        notice: t(get().locale, 'store.import.failed', { error: err instanceof Error ? err.message : String(err) })
       });
       return;
     } finally {
@@ -580,8 +583,7 @@ export const useStore = create<AppState>((set, get) => ({
     const monthlyUsage = recordUsage(done);
     const crossedFreeTierLimit = usageBefore < FREE_TIER_MONTHLY_LIMIT && monthlyUsage >= FREE_TIER_MONTHLY_LIMIT;
     const usageNotice = crossedFreeTierLimit
-      ? `Ai procesat ${monthlyUsage} poze luna aceasta, peste pragul orientativ de ${FREE_TIER_MONTHLY_LIMIT} al ` +
-        'nivelului gratuit — aplicatia continua sa functioneze normal, fara nicio limitare.'
+      ? t(get().locale, 'store.import.usageNotice', { count: monthlyUsage, limit: FREE_TIER_MONTHLY_LIMIT })
       : undefined;
     set(state => ({
       progress: null,
@@ -602,7 +604,7 @@ export const useStore = create<AppState>((set, get) => ({
     await db.photos.update(id, { status });
     set(state => ({ photos: state.photos.map(p => (p.id === id ? { ...p, status } : p)) }));
     const { quotaError } = await syncOriginal(id, status);
-    if (quotaError) set({ notice: QUOTA_NOTICE });
+    if (quotaError) set({ notice: quotaNotice(get().locale) });
     if (status === 'selected' || status === 'rejected') await train(id, status === 'selected');
     if (previousStatus && previousStatus !== status) {
       const event: HistoryEvent = { photoId: id, previousStatus, newStatus: status, ts: Date.now() };
@@ -634,10 +636,10 @@ export const useStore = create<AppState>((set, get) => ({
    * nu "sterge ce a invatat modelul".
    */
   undo: async () => {
-    const { history, batchHistory } = get();
+    const { history, batchHistory, locale } = get();
     const lastSingleTs = history.length ? history[history.length - 1].ts : -1;
     const lastBatchTs = batchHistory.length ? batchHistory[batchHistory.length - 1].ts : -1;
-    if (lastSingleTs === -1 && lastBatchTs === -1) { set({ notice: 'Nimic de anulat.' }); return; }
+    if (lastSingleTs === -1 && lastBatchTs === -1) { set({ notice: t(locale, 'store.undo.nothing') }); return; }
 
     if (lastBatchTs > lastSingleTs) {
       const { event, rest } = popBatchHistory(batchHistory);
@@ -651,7 +653,7 @@ export const useStore = create<AppState>((set, get) => ({
       set(state => ({
         photos: state.photos.map(p => (changed.has(p.id) ? { ...p, status: changed.get(p.id)! } : p))
       }));
-      set({ notice: `Anulat: „${event.label}" (${event.changes.length} poze).` });
+      set({ notice: t(locale, 'store.undo.batch', { label: event.label, count: event.changes.length }) });
       return;
     }
 
@@ -666,7 +668,7 @@ export const useStore = create<AppState>((set, get) => ({
     const lastPersisted = await db.history.orderBy('ts').last();
     if (lastPersisted?.id !== undefined) await db.history.delete(lastPersisted.id);
     const fileName = get().photos.find(p => p.id === event.photoId)?.fileName ?? event.photoId;
-    set({ notice: `Anulat: "${fileName}" înapoi la ${STATUS_LABELS[event.previousStatus]}.` });
+    set({ notice: t(locale, 'store.undo.single', { fileName, status: statusLabel(locale, event.previousStatus) }) });
   },
 
   /** Fluxul principal de serie: pastreaza o singura poza, respinge restul grupului. */
@@ -681,13 +683,14 @@ export const useStore = create<AppState>((set, get) => ({
       if (res.quotaError) quotaError = true;
       await train(m.id, m.id === keepId);
     }
+    const locale = get().locale;
     set(state => ({
       photos: state.photos.map(p =>
         p.groupId === groupId ? { ...p, status: p.id === keepId ? 'selected' : 'rejected' } : p
       ),
       compareGroupId: null,
-      batchHistory: pushBatchHistory(state.batchHistory, makeBatchEvent('Rezolva serie', changes)),
-      notice: quotaError ? QUOTA_NOTICE : state.notice
+      batchHistory: pushBatchHistory(state.batchHistory, makeBatchEvent(t(locale, 'store.batchEvent.resolveSeries'), changes)),
+      notice: quotaError ? quotaNotice(locale) : state.notice
     }));
   },
 
@@ -703,13 +706,14 @@ export const useStore = create<AppState>((set, get) => ({
       if (res.quotaError) quotaError = true;
       await train(m.id, keepSet.has(m.id));
     }
+    const locale = get().locale;
     set(state => ({
       photos: state.photos.map(p =>
         p.groupId === groupId ? { ...p, status: keepSet.has(p.id) ? 'selected' : 'rejected' } : p
       ),
       compareGroupId: null,
-      batchHistory: pushBatchHistory(state.batchHistory, makeBatchEvent(`Pastreaza ${keepIds.length} din serie`, changes)),
-      notice: quotaError ? QUOTA_NOTICE : state.notice
+      batchHistory: pushBatchHistory(state.batchHistory, makeBatchEvent(t(locale, 'store.batchEvent.keepManyInSeries', { count: keepIds.length }), changes)),
+      notice: quotaError ? quotaNotice(locale) : state.notice
     }));
   },
 
@@ -751,10 +755,11 @@ export const useStore = create<AppState>((set, get) => ({
       await train(p.id, false);
     }
     const ids = new Set(targets.map(p => p.id));
+    const locale = get().locale;
     set(state => ({
       photos: state.photos.map(p => (ids.has(p.id) ? { ...p, status: 'rejected' } : p)),
-      batchHistory: pushBatchHistory(state.batchHistory, makeBatchEvent(`Respinge sub prag (${threshold})`, changes)),
-      notice: quotaError ? QUOTA_NOTICE : `${targets.length} poze respinse (scor sub ${threshold}).`
+      batchHistory: pushBatchHistory(state.batchHistory, makeBatchEvent(t(locale, 'store.batchEvent.rejectBelowThreshold', { threshold }), changes)),
+      notice: quotaError ? quotaNotice(locale) : t(locale, 'store.bulkReject.notice', { count: targets.length, threshold })
     }));
     return { affected: targets.length };
   },
@@ -784,14 +789,15 @@ export const useStore = create<AppState>((set, get) => ({
     }
     const keepIds = new Set(resolutions.map(g => g.keepId));
     const rejectIds = new Set(resolutions.flatMap(g => g.rejectIds));
+    const locale = get().locale;
     set(state => ({
       photos: state.photos.map(p => {
         if (keepIds.has(p.id)) return { ...p, status: 'selected' };
         if (rejectIds.has(p.id)) return { ...p, status: 'rejected' };
         return p;
       }),
-      batchHistory: pushBatchHistory(state.batchHistory, makeBatchEvent('Rezolva toate seriile', changes)),
-      notice: quotaError ? QUOTA_NOTICE : `${resolutions.length} serii rezolvate.`
+      batchHistory: pushBatchHistory(state.batchHistory, makeBatchEvent(t(locale, 'store.batchEvent.resolveAllSeries'), changes)),
+      notice: quotaError ? quotaNotice(locale) : t(locale, 'store.resolveSeries.notice', { count: resolutions.length })
     }));
     return { groupsResolved: resolutions.length };
   },
@@ -816,14 +822,15 @@ export const useStore = create<AppState>((set, get) => ({
     }
     const selectSet = new Set(selectIds);
     const rejectSet = new Set(rejectIds);
+    const locale = get().locale;
     set(state => ({
-      batchHistory: pushBatchHistory(state.batchHistory, makeBatchEvent(`Auto-Cull (${percent}%)`, changes)),
+      batchHistory: pushBatchHistory(state.batchHistory, makeBatchEvent(t(locale, 'store.batchEvent.autoCull', { percent }), changes)),
       photos: state.photos.map(p => {
         if (selectSet.has(p.id)) return { ...p, status: 'selected' };
         if (rejectSet.has(p.id)) return { ...p, status: 'rejected' };
         return p;
       }),
-      notice: quotaError ? QUOTA_NOTICE : `Auto-Cull: ${selectIds.length} selectate, ${rejectIds.length} respinse.`
+      notice: quotaError ? quotaNotice(locale) : t(locale, 'store.autoCull.notice', { selected: selectIds.length, rejected: rejectIds.length })
     }));
     return { selected: selectIds.length, rejected: rejectIds.length };
   },
@@ -875,12 +882,13 @@ export const useStore = create<AppState>((set, get) => ({
       if (status === 'selected' || status === 'rejected') await train(id, status === 'selected');
     }
     const idSet = new Set(ids);
+    const locale = get().locale;
     set(state => ({
       photos: state.photos.map(p => (idSet.has(p.id) ? { ...p, status } : p)),
       multiSelectIds: new Set(),
       multiSelectAnchor: null,
-      batchHistory: pushBatchHistory(state.batchHistory, makeBatchEvent(`Actiune in masa: ${STATUS_LABELS[status]}`, changes)),
-      notice: quotaError ? QUOTA_NOTICE : `${ids.length} poze ${STATUS_LABELS[status]}.`
+      batchHistory: pushBatchHistory(state.batchHistory, makeBatchEvent(t(locale, 'store.batchEvent.bulkAction', { status: statusLabel(locale, status) }), changes)),
+      notice: quotaError ? quotaNotice(locale) : t(locale, 'store.bulkStatus.notice', { count: ids.length, status: statusLabel(locale, status) })
     }));
   },
 
@@ -890,11 +898,15 @@ export const useStore = create<AppState>((set, get) => ({
     const clamped = Math.max(0, Math.min(5, Math.round(rating)));
     for (const id of ids) await db.photos.update(id, { rating: clamped });
     const idSet = new Set(ids);
+    const locale = get().locale;
     set(state => ({
       photos: state.photos.map(p => (idSet.has(p.id) ? { ...p, rating: clamped } : p)),
       multiSelectIds: new Set(),
       multiSelectAnchor: null,
-      notice: `${ids.length} poze cu rating ${clamped > 0 ? clamped + ' stele' : 'sters'}.`
+      notice: t(locale, 'store.bulkRating.notice', {
+        count: ids.length,
+        rating: clamped > 0 ? t(locale, 'store.bulkRating.stars', { n: clamped }) : t(locale, 'store.bulkRating.cleared')
+      })
     }));
   },
 
@@ -999,10 +1011,12 @@ export const useStore = create<AppState>((set, get) => ({
     a.href = url;
     a.download = personProfilesFileName(selected);
     a.click();
-    set({ notice: `${selected.length} profil${selected.length > 1 ? 'uri' : ''} exportat${selected.length > 1 ? 'e' : ''}.` });
+    const locale = get().locale;
+    set({ notice: t(locale, plural(selected.length, 'store.personProfiles.exported.one', 'store.personProfiles.exported.other'), { count: selected.length }) });
   },
 
   importPersonProfiles: async file => {
+    const locale = get().locale;
     try {
       const data = await parsePersonProfilesFile(file);
       let added = 0, merged = 0;
@@ -1019,9 +1033,9 @@ export const useStore = create<AppState>((set, get) => ({
       }
       const persons = await db.persons.toArray();
       await analysisPool.setKnownPersons(persons).catch(() => {});
-      set({ persons, notice: `Import profiluri: ${added} noi, ${merged} completate cu referinte suplimentare.` });
+      set({ persons, notice: t(locale, 'store.personProfiles.imported', { added, merged }) });
     } catch (err) {
-      set({ notice: 'Import profiluri esuat: ' + (err instanceof Error ? err.message : String(err)) });
+      set({ notice: t(locale, 'store.personProfiles.importFailed', { error: err instanceof Error ? err.message : String(err) }) });
     }
   },
 
@@ -1069,7 +1083,7 @@ export const useStore = create<AppState>((set, get) => ({
     const views = await reloadPhotoViews();
     set({
       persons, photos: views,
-      notice: `${trimmedName}: persoana noua inrolata din ${members.length} detectii, re-etichetata in ${photoIds.length} poze din biblioteca curenta.`
+      notice: t(get().locale, 'store.faceCluster.enrolled', { name: trimmedName, detections: members.length, photos: photoIds.length })
     });
   },
 
@@ -1123,21 +1137,23 @@ export const useStore = create<AppState>((set, get) => ({
         sceneType: p.sceneType
       })));
       if (result.cancelled) return;
+      const locale = get().locale;
       const parts = [
         result.exported
-          ? `${result.exported} poze exportate` + (
-              result.method === 'folder' ? ' in subfoldere (persoane/scenă), în folderul ales.'
-              : result.grouped ? ' intr-o arhiva .zip (subfoldere pe persoane/scenă) — descarcarile multiple separate sunt blocate de multe browsere mobile, o singura arhiva e mereu de incredere.'
-              : ' (descărcare directă).'
+          ? t(locale,
+              result.method === 'folder' ? 'store.exportSelection.exportedFolder'
+              : result.grouped ? 'store.exportSelection.exportedZip'
+              : 'store.exportSelection.exportedDirect',
+              { count: result.exported }
             )
-          : 'Nicio poza nu a putut fi exportata in format original.'
+          : t(locale, 'store.exportSelection.none')
       ];
       if (result.missing.length) {
-        parts.push(`${result.missing.length} nu mai erau disponibile (importate inainte de ultima actualizare) — reimporta-le pentru export.`);
+        parts.push(t(locale, 'store.exportSelection.missing', { count: result.missing.length }));
       }
       set({ notice: parts.join(' ') });
     } catch (err) {
-      set({ notice: 'Export esuat: ' + String(err) });
+      set({ notice: t(get().locale, 'store.exportSelection.failed', { error: String(err) }) });
     }
   },
 
@@ -1171,7 +1187,8 @@ export const useStore = create<AppState>((set, get) => ({
   exportXMP: async () => {
     const allPhotos = get().photos;
     const decided = allPhotos.filter(p => p.status !== 'pending');
-    if (!decided.length) { set({ notice: 'Nicio poza cu decizie luata inca — Selecteaza/Respinge cel putin una.' }); return; }
+    const locale = get().locale;
+    if (!decided.length) { set({ notice: t(locale, 'store.exportXmp.noDecided') }); return; }
     try {
       // vezi computeGroupPersonUnion (exportPhotos.ts) — acelasi principiu ca la
       // exportSelection: un cadru din burst poate rata o fata pe care alt cadru
@@ -1188,9 +1205,9 @@ export const useStore = create<AppState>((set, get) => ({
             ...deriveXmpKeywords(personNames, p.sceneSemantic, p.sceneTags),
             deriveAiScoreKeyword(p.aiScore),
             ...(p.groupId ? [deriveSeriesKeyword(p.groupId)] : []),
-            ...(meta.client ? [`Client: ${meta.client}`] : []),
-            ...(meta.event ? [`Eveniment: ${meta.event}`] : []),
-            ...(meta.location ? [`Locatie: ${meta.location}`] : [])
+            ...(meta.client ? [t(locale, 'store.xmpKeyword.client', { value: meta.client })] : []),
+            ...(meta.event ? [t(locale, 'store.xmpKeyword.event', { value: meta.event })] : []),
+            ...(meta.location ? [t(locale, 'store.xmpKeyword.location', { value: meta.location })] : [])
           ],
           aiScore: p.aiScore,
           aiFactors: explainFactors(p.aiFactors).map(f => `${f.label} (${f.positive ? '+' : '-'})`),
@@ -1202,17 +1219,16 @@ export const useStore = create<AppState>((set, get) => ({
       }));
       if (result.cancelled) return;
       const msg = result.exported
-        ? `${result.exported} sidecar-uri XMP exportate` + (
-            result.method === 'folder'
-              ? ' in folderul ales — copiaza-le langa pozele ORIGINALE (structura de foldere de la import, nu cea grupata pe persoane/scena a exportului de poze) ca Lightroom sa le vada.'
-              : result.exported === 1
-                ? ' (descarcare directa) — muta-l langa poza ORIGINALA ca Lightroom sa il vada.'
-                : ' intr-o arhiva .zip — dezarhiveaza-le si muta-le langa pozele ORIGINALE (nu intr-un folder grupat pe persoane/scena) ca Lightroom sa le vada.'
+        ? t(locale,
+            result.method === 'folder' ? 'store.exportXmp.exportedFolder'
+              : result.exported === 1 ? 'store.exportXmp.exportedSingle'
+              : 'store.exportXmp.exportedZip',
+            { count: result.exported }
           )
-        : 'Niciun sidecar XMP nu a putut fi exportat.';
+        : t(locale, 'store.exportXmp.none');
       set({ notice: msg });
     } catch (err) {
-      set({ notice: 'Export XMP esuat: ' + String(err) });
+      set({ notice: t(locale, 'store.exportXmp.failed', { error: String(err) }) });
     }
   },
 
