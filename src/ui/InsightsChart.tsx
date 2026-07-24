@@ -5,6 +5,9 @@
  * `contextEngine.summarize()[].topWeights`, folosit din InsightsPanel.
  * Verde = factor care creste scorul (pondere pozitiva), rosu = il scade.
  */
+import { useStore } from '../state/store';
+import { t } from '../i18n';
+
 export interface InsightsChartWeight {
   feature: string;
   label: string;
@@ -12,11 +15,12 @@ export interface InsightsChartWeight {
 }
 
 export function InsightsChart({ weights }: { weights: InsightsChartWeight[] }) {
+  const locale = useStore(s => s.locale);
   if (!weights.length) return null;
   const maxAbs = Math.max(...weights.map(w => Math.abs(w.weight)), 0.01);
 
   return (
-    <div className="insights-chart" role="img" aria-label="Ponderile factorilor învățați pentru acest context">
+    <div className="insights-chart" role="img" aria-label={t(locale, 'insightsChart.ariaLabel')}>
       {weights.map(w => {
         const pct = Math.min(100, Math.round((Math.abs(w.weight) / maxAbs) * 100));
         const positive = w.weight >= 0;

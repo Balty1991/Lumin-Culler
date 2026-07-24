@@ -1,4 +1,6 @@
 import { useEffect, useRef } from 'react';
+import { useStore } from '../state/store';
+import { t } from '../i18n';
 
 /** Poza redusa la aceasta dimensiune pentru calculul histogramei — suficient de precis, ieftin de calculat indiferent de rezolutia reala a preview-ului (2048px). */
 const ANALYSIS_SIZE = 160;
@@ -13,6 +15,7 @@ const CHART_H = 72;
  */
 export function Histogram({ src }: { src: string | null }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const locale = useStore(s => s.locale);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -72,5 +75,5 @@ export function Histogram({ src }: { src: string | null }) {
     return () => { cancelled = true; };
   }, [src]);
 
-  return <canvas ref={canvasRef} className="histogram-canvas" width={CHART_W} height={CHART_H} role="img" aria-label="Histograma RGB" />;
+  return <canvas ref={canvasRef} className="histogram-canvas" width={CHART_W} height={CHART_H} role="img" aria-label={t(locale, 'histogram.ariaLabel')} />;
 }

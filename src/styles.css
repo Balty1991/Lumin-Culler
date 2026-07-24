@@ -1175,6 +1175,29 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .stats-tile.pos b { color: var(--pick); }
 .stats-tile.neg b { color: var(--reject); }
 
+/* compozitia bibliotecii (Selectat/De verificat/Respins) — bara stivuita orizontala,
+   parte-din-intreg (vezi StatsPanel.tsx StatusBreakdownBar) */
+.stats-breakdown { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.stats-breakdown-bar {
+  display: flex; gap: 2px; height: 20px; border-radius: 6px; overflow: hidden;
+  background: var(--surface-2);
+}
+.stats-breakdown-segment { height: 100%; transition: width var(--duration) var(--ease); }
+.stats-breakdown-legend { display: flex; flex-wrap: wrap; gap: 10px 14px; }
+.stats-breakdown-legend-item {
+  display: inline-flex; align-items: center; gap: 5px; font-size: 0.72rem; color: var(--text-dim);
+}
+.stats-breakdown-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+/* distributia rating-urilor — bare orizontale, magnitudine = lungime, o singura
+   nuanta (accent, nu paleta de status: rating-ul n-are conotatie pozitiv/negativ) */
+.stats-ratings-chart { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.stats-ratings-row { display: grid; grid-template-columns: 74px 1fr 24px; align-items: center; gap: 8px; }
+.stats-ratings-label { font-size: 0.72rem; color: var(--review); letter-spacing: 1px; }
+.stats-ratings-track { height: 8px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.stats-ratings-fill { height: 100%; border-radius: 999px; background: var(--accent); transition: width var(--duration) var(--ease); }
+.stats-ratings-value { font-size: 0.72rem; color: var(--text-faint); text-align: right; font-variant-numeric: tabular-nums; }
+
 /* ── Meniu lateral ── */
 /* animatia de intrare/iesire e controlata de framer-motion (MenuDrawer.tsx) —
    CSS-ul ramane doar cu aspectul static, ca sa nu se bata cu transform-ul JS */

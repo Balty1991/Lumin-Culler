@@ -1,4 +1,6 @@
 import { useEffect, useRef } from 'react';
+import { useStore } from '../state/store';
+import { t } from '../i18n';
 
 /** Poza redusa la aceasta latime maxima pentru analiza — ieftin de calculat indiferent de rezolutia reala a preview-ului. */
 const ANALYSIS_MAX_SIDE = 240;
@@ -18,6 +20,7 @@ const OUT_MAX_SIDE = 220;
  */
 export function FocusMap({ src }: { src: string | null }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const locale = useStore(s => s.locale);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -95,5 +98,5 @@ export function FocusMap({ src }: { src: string | null }) {
     return () => { cancelled = true; };
   }, [src]);
 
-  return <canvas ref={canvasRef} className="focusmap-canvas" width={OUT_MAX_SIDE} height={OUT_MAX_SIDE} role="img" aria-label="Harta de focus — claritate locala pe zone ale cadrului" />;
+  return <canvas ref={canvasRef} className="focusmap-canvas" width={OUT_MAX_SIDE} height={OUT_MAX_SIDE} role="img" aria-label={t(locale, 'focusMap.ariaLabel')} />;
 }
