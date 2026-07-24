@@ -215,6 +215,8 @@ export const en: Record<TranslationKey, string> = {
 
   'detail.ariaLabel': 'Details: {fileName}',
   'detail.close': 'Close',
+  'confirmDialog.cancel': 'Cancel',
+  'confirmDialog.confirm': 'Confirm',
   'detail.tab.metrics': 'Metrics',
   'detail.tab.why': 'Why this score',
   'detail.tab.persons': 'People',
