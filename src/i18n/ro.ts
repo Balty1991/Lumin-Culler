@@ -141,6 +141,8 @@ export const ro = {
   'app.personFilter.ariaLabel': 'Filtreaza dupa persoana cunoscuta',
   'app.personFilter.any': 'Orice persoana',
   'app.colorLabelFilter.ariaLabel': 'Filtreaza dupa eticheta de culoare',
+  'app.colorLabelFilter.label': 'Eticheta',
+  'app.colorLabelFilter.clear': 'Sterge filtrul',
   'colorLabel.none': 'Fara eticheta',
   'colorLabel.red': 'Rosu',
   'colorLabel.yellow': 'Galben',

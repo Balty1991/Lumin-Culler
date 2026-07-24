@@ -26,7 +26,7 @@ import { selectHighlights, selectBlinks } from './state/batchOps';
 import { CARD_MIN_WIDTH } from './state/gridDensity';
 import { SORT_KEY_LABELS, type SortKey } from './state/gridSort';
 import { pickImportFiles } from './core/filePicker';
-import { COLOR_LABELS } from './core/db';
+import { ColorLabelFilter } from './ui/ColorLabelFilter';
 import { t } from './i18n';
 
 const NOTICE_AUTODISMISS_MS = 7000;
@@ -593,18 +593,7 @@ export default function App() {
                 {persons.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
               </select>
             )}
-            <div className="color-label-swatches color-label-filter-row" role="group" aria-label={tr('app.colorLabelFilter.ariaLabel')}>
-              {COLOR_LABELS.map(c => (
-                <button
-                  key={c}
-                  className={colorLabelFilter === c ? `color-label-swatch label-${c} active` : `color-label-swatch label-${c}`}
-                  onClick={() => setColorLabelFilter(colorLabelFilter === c ? null : c)}
-                  aria-pressed={colorLabelFilter === c}
-                  aria-label={tr(`colorLabel.${c}`)}
-                  title={tr(`colorLabel.${c}`)}
-                />
-              ))}
-            </div>
+            <ColorLabelFilter value={colorLabelFilter} onChange={setColorLabelFilter} />
             {multiSelectIds.size === 0 && (
               <button
                 className={selectMode ? 'chip active select-mode-toggle' : 'chip select-mode-toggle'}

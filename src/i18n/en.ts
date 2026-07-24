@@ -144,6 +144,8 @@ export const en: Record<TranslationKey, string> = {
   'app.personFilter.ariaLabel': 'Filter by known person',
   'app.personFilter.any': 'Any person',
   'app.colorLabelFilter.ariaLabel': 'Filter by color label',
+  'app.colorLabelFilter.label': 'Label',
+  'app.colorLabelFilter.clear': 'Clear filter',
   'colorLabel.none': 'No label',
   'colorLabel.red': 'Red',
   'colorLabel.yellow': 'Yellow',

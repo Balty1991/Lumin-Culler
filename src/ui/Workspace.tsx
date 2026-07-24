@@ -200,12 +200,17 @@ export function Workspace() {
         <button className="ghost icon-btn workspace-nav prev" onClick={() => stepDetail(-1)} aria-label={tr('workspace.nav.prev')}>
           <ChevronLeft />
         </button>
-        {src && <img key={detailId} src={src} alt={photo.fileName} />}
+        {src && <img key={detailId} src={src} alt={photo.fileName} className="detail-stage-img" />}
         <span className={`status-tag st-${photo.status} workspace-badge`}>
           {photo.status === 'selected' ? tr('workspace.status.selected') : photo.status === 'rejected' ? tr('workspace.status.rejected') : tr('workspace.status.review')}
         </span>
-        <div className="workspace-rating glass">
-          <StarRating rating={photo.rating} onRate={n => void setRating(photo.id, n)} />
+        <div className="workspace-fab-row">
+          <button className="detail-fab detail-fab-reject" onClick={() => { void setStatus(photo.id, 'rejected'); stepDetail(1); }} aria-label={tr('workspace.action.reject')}>
+            <XIcon />
+          </button>
+          <button className="detail-fab detail-fab-select" onClick={() => { void setStatus(photo.id, 'selected'); stepDetail(1); }} aria-label={tr('workspace.action.select')}>
+            <CheckIcon />
+          </button>
         </div>
         {showMetrics && (
           <div className="workspace-metrics mono">
@@ -230,13 +235,8 @@ export function Workspace() {
       </div>
 
       <div className="workspace-dock">
-        <div className="workspace-actions">
-          <button className="reject" onClick={() => { void setStatus(photo.id, 'rejected'); stepDetail(1); }}>
-            <XIcon className="inline-icon" /> {tr('workspace.action.reject')}
-          </button>
-          <button className="select" onClick={() => { void setStatus(photo.id, 'selected'); stepDetail(1); }}>
-            <CheckIcon className="inline-icon" /> {tr('workspace.action.select')}
-          </button>
+        <div className="workspace-rating-row">
+          <StarRating rating={photo.rating} onRate={n => void setRating(photo.id, n)} />
         </div>
 
         <div className="workspace-filmstrip" ref={filmstripRef}>
