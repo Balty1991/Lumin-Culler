@@ -21,6 +21,7 @@ import { StarRating } from './ui/StarRating';
 import { MenuIcon, PlusIcon, UserCheckIcon, AlertIcon, ErrorIcon, XIcon, FocusIcon, UndoIcon, SearchIcon, ApertureIcon, SparkleIcon, CheckIcon, EditIcon, GridIcon, ClockIcon, LayersIcon, EyeClosedIcon, SunIcon, DownloadIcon } from './ui/icons';
 import { CARD_MIN_WIDTH } from './state/gridDensity';
 import { SORT_KEY_LABELS, type SortKey } from './state/gridSort';
+import { t } from './i18n';
 
 const NOTICE_AUTODISMISS_MS = 7000;
 /** Apasare lunga pe touch = meniu contextual (echivalentul click-dreapta pe desktop) — plan 3.2.1. */
@@ -45,6 +46,7 @@ function noticeTone(message: string): 'error' | 'warn' | 'success' {
 function ProjectNameField() {
   const projectName = useStore(s => s.projectName);
   const setProjectName = useStore(s => s.setProjectName);
+  const locale = useStore(s => s.locale);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(projectName);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -62,7 +64,7 @@ function ProjectNameField() {
         ref={inputRef}
         className="project-name-input mono"
         value={draft}
-        placeholder="Nume proiect sau client"
+        placeholder={t(locale, 'app.projectName.placeholder')}
         maxLength={60}
         onChange={e => setDraft(e.target.value)}
         onBlur={commit}
@@ -78,10 +80,10 @@ function ProjectNameField() {
     <button
       className="project-name-btn mono"
       onClick={() => { setDraft(projectName); setEditing(true); }}
-      title="Eticheteaza aceasta sesiune (client/proiect) — util cand lucrezi in mai multe tab-uri"
+      title={t(locale, 'app.projectName.title')}
     >
       <EditIcon className="inline-icon" />
-      {projectName || 'Nume proiect (optional)'}
+      {projectName || t(locale, 'app.projectName.empty')}
     </button>
   );
 }
@@ -95,6 +97,7 @@ function ProjectNameField() {
 function Toast() {
   const notice = useStore(s => s.notice);
   const clearNotice = useStore(s => s.clearNotice);
+  const locale = useStore(s => s.locale);
   if (!notice) return null;
   const tone = noticeTone(notice);
   return (
@@ -103,7 +106,7 @@ function Toast() {
         {tone === 'error' ? <ErrorIcon /> : tone === 'warn' ? <AlertIcon /> : <CheckIcon />}
       </span>
       <span className="mono toast-text">{notice}</span>
-      <button className="toast-close" onClick={() => clearNotice()} aria-label="Inchide">
+      <button className="toast-close" onClick={() => clearNotice()} aria-label={t(locale, 'app.toast.close')}>
         <XIcon />
       </button>
     </div>
@@ -182,6 +185,8 @@ export default function App() {
   const gridDensity = useStore(s => s.gridDensity);
   const gridSort = useStore(s => s.gridSort);
   const setGridSort = useStore(s => s.setGridSort);
+  const locale = useStore(s => s.locale);
+  const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const fileRef = useRef<HTMLInputElement>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; photoId: string } | null>(null);
   const dragSelectRef = useRef<{ originId: string; adding: boolean; visited: Set<string>; dragged: boolean } | null>(null);
@@ -239,13 +244,13 @@ export default function App() {
   }), [photos]);
 
   const FILTERS: { key: FilterKey; label: string; count: number; icon: ReactNode }[] = [
-    { key: 'all', label: 'Toate', count: counts.all, icon: <GridIcon /> },
-    { key: 'selected', label: 'Selectate', count: counts.selected, icon: <CheckIcon /> },
-    { key: 'review', label: 'De verificat', count: counts.review, icon: <ClockIcon /> },
-    { key: 'series', label: 'Serii', count: counts.series, icon: <LayersIcon /> },
-    { key: 'blinks', label: 'Ochi inchisi', count: counts.blinks, icon: <EyeClosedIcon /> },
-    { key: 'goldenHour', label: 'Ora de aur', count: counts.goldenHour, icon: <SunIcon /> },
-    { key: 'rejected', label: 'Respinse', count: counts.rejected, icon: <XIcon /> }
+    { key: 'all', label: tr('palette.filter.all'), count: counts.all, icon: <GridIcon /> },
+    { key: 'selected', label: tr('palette.filter.selected'), count: counts.selected, icon: <CheckIcon /> },
+    { key: 'review', label: tr('palette.filter.review'), count: counts.review, icon: <ClockIcon /> },
+    { key: 'series', label: tr('palette.filter.series'), count: counts.series, icon: <LayersIcon /> },
+    { key: 'blinks', label: tr('palette.filter.blinks'), count: counts.blinks, icon: <EyeClosedIcon /> },
+    { key: 'goldenHour', label: tr('palette.filter.goldenHour'), count: counts.goldenHour, icon: <SunIcon /> },
+    { key: 'rejected', label: tr('palette.filter.rejected'), count: counts.rejected, icon: <XIcon /> }
   ];
 
   const onFiles = (list: FileList | null) => {
@@ -344,10 +349,7 @@ export default function App() {
   // sesiune (posibil 1000+ poze deja evaluate) — cea mai distructiva actiune
   // din aplicatie, singura fara nicio plasa de siguranta
   const confirmClearAll = async () => {
-    const ok = window.confirm(
-      `Sigur golești sesiunea? Se șterg ireversibil toate cele ${counts.all} poze din acest browser ` +
-      '(inclusiv cele selectate/exportate). Nu poate fi anulat.'
-    );
+    const ok = window.confirm(tr('app.clearSession.confirm', { count: counts.all }));
     if (ok) await clearAll();
   };
 
@@ -384,29 +386,29 @@ export default function App() {
           <ApertureIcon className="brand-mark" aria-hidden="true" />
           <div className="brand-text">
             <h1>LUMIN<span>CULLER</span></h1>
-            <p className="mono"><i className="live-dot" aria-hidden="true" /> AI local · pozele raman pe dispozitiv</p>
+            <p className="mono"><i className="live-dot" aria-hidden="true" /> {tr('app.tagline')}</p>
             <ProjectNameField />
           </div>
         </div>
         <div className="top-actions">
           {photos.length > 0 && (
-            <Tooltip label="Paleta de comenzi" shortcut="Ctrl+K">
-              <button className="ghost icon-btn" onClick={() => setPaletteOpen(true)} aria-label="Paleta de comenzi (Ctrl+K)">
+            <Tooltip label={tr('app.tooltip.palette')} shortcut="Ctrl+K">
+              <button className="ghost icon-btn" onClick={() => setPaletteOpen(true)} aria-label={`${tr('app.tooltip.palette')} (Ctrl+K)`}>
                 <SearchIcon />
               </button>
             </Tooltip>
           )}
           {undoCount > 0 && (
-            <Tooltip label="Anuleaza ultima decizie" shortcut="Ctrl+Z">
-              <button className="ghost icon-btn" onClick={() => void undo()} aria-label={`Anuleaza ultima decizie (${undoCount} disponibile, Ctrl+Z)`}>
+            <Tooltip label={tr('app.tooltip.undo')} shortcut="Ctrl+Z">
+              <button className="ghost icon-btn" onClick={() => void undo()} aria-label={tr('app.undo.ariaLabel', { count: undoCount })}>
                 <UndoIcon />
                 <span className="undo-count mono">{undoCount}</span>
               </button>
             </Tooltip>
           )}
           {photos.length > 0 && (
-            <Tooltip label="Spatiu de lucru">
-              <button className="ghost icon-btn" onClick={() => setWorkspaceMode(true)} aria-label="Spatiu de lucru (lupa + filmstrip)">
+            <Tooltip label={tr('app.tooltip.workspace')}>
+              <button className="ghost icon-btn" onClick={() => setWorkspaceMode(true)} aria-label={tr('app.workspace.ariaLabel')}>
                 <FocusIcon />
               </button>
             </Tooltip>
@@ -416,10 +418,10 @@ export default function App() {
             onClick={() => void exportSelection()}
             disabled={!counts.selected}
           >
-            <DownloadIcon className="inline-icon" aria-hidden="true" /> Exporta poze ({counts.selected})
+            <DownloadIcon className="inline-icon" aria-hidden="true" /> {tr('app.export', { count: counts.selected })}
           </button>
-          <Tooltip label="Meniu" side="left">
-            <button className="ghost icon-btn" onClick={() => setMenuOpen(true)} aria-label="Meniu">
+          <Tooltip label={tr('app.tooltip.menu')} side="left">
+            <button className="ghost icon-btn" onClick={() => setMenuOpen(true)} aria-label={tr('app.menu.ariaLabel')}>
               <MenuIcon />
             </button>
           </Tooltip>
@@ -430,19 +432,17 @@ export default function App() {
 
       {aiDegraded && (
         <p className="notice warn mono">
-          <AlertIcon className="inline-icon" /> Detectia AI de fete nu ruleaza accelerat pe acest
-          dispozitiv ({aiBackend || 'necunoscut'}) — scorurile folosesc doar claritate si expunere,
-          fara fete/zambet/persoane cunoscute.
+          <AlertIcon className="inline-icon" /> {tr('app.aiDegraded', { backend: aiBackend || tr('app.aiBackend.unknown') })}
         </p>
       )}
 
       {photos.length > 0 && (
-        <section className="cullbar" aria-label="Progresul sortarii">
+        <section className="cullbar" aria-label={tr('app.cullbar.ariaLabel')}>
           <div className="cullbar-main">
             <div
               className="session-ring"
               style={{ background: `conic-gradient(var(--accent) ${decidedDeg}deg, var(--surface-3) 0)` }}
-              title={`${decidedPercent}% din poze au o decizie luata`}
+              title={tr('app.cullbar.decidedTitle', { percent: decidedPercent })}
             >
               <span className="session-ring-inner">{decidedPercent}%</span>
             </div>
@@ -453,11 +453,11 @@ export default function App() {
                 <span className="seg-rej" style={{ width: `${(counts.rejected / total) * 100}%` }} />
               </div>
               <div className="cullbar-legend mono">
-                <span className="legend-stat"><i className="dot sel" /><b><AnimatedNumber value={counts.selected} /></b> selectate</span>
-                <span className="legend-stat"><i className="dot rev" /><b><AnimatedNumber value={counts.review} /></b> de verificat</span>
-                <span className="legend-stat"><i className="dot rej" /><b><AnimatedNumber value={counts.rejected} /></b> respinse</span>
+                <span className="legend-stat"><i className="dot sel" /><b><AnimatedNumber value={counts.selected} /></b> {tr('app.cullbar.selected')}</span>
+                <span className="legend-stat"><i className="dot rev" /><b><AnimatedNumber value={counts.review} /></b> {tr('app.cullbar.review')}</span>
+                <span className="legend-stat"><i className="dot rej" /><b><AnimatedNumber value={counts.rejected} /></b> {tr('app.cullbar.rejected')}</span>
                 <span className="spacer" />
-                <button className="ghost small danger" onClick={() => void confirmClearAll()}>Goleste sesiunea</button>
+                <button className="ghost small danger" onClick={() => void confirmClearAll()}>{tr('app.clearSession')}</button>
               </div>
             </div>
           </div>
@@ -468,12 +468,12 @@ export default function App() {
         <div className="progress" role="status" aria-live="polite">
           <div className="progress-bar" style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }} />
           <span className="mono">
-            {progress.phase === 'incarcare' ? 'Se incarca modelele AI (prima data poate dura, verifica conexiunea)…'
-              : progress.phase === 'analiza' ? `Analiza AI ${progress.done}/${progress.total} — ${progress.fileName}`
-              : progress.phase === 'grupare' ? 'Grupare serii si duplicate…' : 'Finalizat'}
+            {progress.phase === 'incarcare' ? tr('app.progress.loadingModels')
+              : progress.phase === 'analiza' ? tr('app.progress.analyzing', { done: progress.done, total: progress.total, fileName: progress.fileName })
+              : progress.phase === 'grupare' ? tr('app.progress.grouping') : tr('app.progress.done')}
           </span>
           {progress.phase === 'analiza' && (
-            <button className="ghost small progress-cancel" onClick={() => cancelImport()}>Anuleaza</button>
+            <button className="ghost small progress-cancel" onClick={() => cancelImport()}>{tr('app.progress.cancel')}</button>
           )}
         </div>
       )}
@@ -497,9 +497,9 @@ export default function App() {
               className={personFilter ? 'chip person-filter active' : 'chip person-filter'}
               value={personFilter ?? ''}
               onChange={e => setPersonFilter(e.target.value || null)}
-              aria-label="Filtreaza dupa persoana cunoscuta"
+              aria-label={tr('app.personFilter.ariaLabel')}
             >
-              <option value="">Orice persoana</option>
+              <option value="">{tr('app.personFilter.any')}</option>
               {persons.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
             </select>
           )}
@@ -509,75 +509,75 @@ export default function App() {
               onClick={() => setSelectMode(!selectMode)}
               aria-pressed={selectMode}
             >
-              <CheckIcon className="inline-icon" aria-hidden="true" /> {selectMode ? 'Mod selectie (activ)' : 'Selecteaza mai multe'}
+              <CheckIcon className="inline-icon" aria-hidden="true" /> {selectMode ? tr('app.selectMode.active') : tr('app.selectMode.toggle')}
             </button>
           )}
         </nav>
       )}
 
       {photos.length > 0 && (
-        <nav className="filters filters-advanced" aria-label="Filtre avansate">
+        <nav className="filters filters-advanced" aria-label={tr('app.filtersAdvanced.ariaLabel')}>
           <label className="search-field">
             <SearchIcon className="inline-icon" aria-hidden="true" />
             <input
               type="search"
-              placeholder="Cauta dupa nume fisier…"
+              placeholder={tr('app.search.placeholder')}
               value={searchText}
               onChange={e => setSearchText(e.target.value)}
-              aria-label="Cauta poze dupa numele fisierului"
+              aria-label={tr('app.search.ariaLabel')}
             />
           </label>
           <select
             className={minRating > 0 ? 'chip rating-filter active' : 'chip rating-filter'}
             value={minRating}
             onChange={e => setMinRating(Number(e.target.value))}
-            aria-label="Rating minim"
+            aria-label={tr('app.ratingFilter.ariaLabel')}
           >
-            <option value={0}>Orice rating</option>
+            <option value={0}>{tr('app.ratingFilter.any')}</option>
             {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{'★'.repeat(n)}+ </option>)}
           </select>
-          <span className="sort-control" title={filter === 'series' ? 'Filtrul "Serii" foloseste propria ordine (grupate) — sortarea de mai jos e ignorata' : undefined}>
+          <span className="sort-control" title={filter === 'series' ? tr('app.sort.seriesOverride') : undefined}>
             <select
               className="chip sort-key"
               value={gridSort.key}
               disabled={filter === 'series'}
               onChange={e => setGridSort({ key: e.target.value as SortKey, dir: gridSort.dir })}
-              aria-label="Sorteaza grila dupa"
+              aria-label={tr('app.sort.ariaLabel')}
             >
-              {(Object.entries(SORT_KEY_LABELS) as [SortKey, string][]).map(([key, label]) => (
-                <option key={key} value={key}>{label}</option>
+              {(Object.keys(SORT_KEY_LABELS) as SortKey[]).map(key => (
+                <option key={key} value={key}>{tr(`app.sort.key.${key}`)}</option>
               ))}
             </select>
             <button
               className="chip sort-dir"
               disabled={filter === 'series'}
               onClick={() => setGridSort({ key: gridSort.key, dir: gridSort.dir === 'asc' ? 'desc' : 'asc' })}
-              aria-label={gridSort.dir === 'asc' ? 'Ordine crescatoare — comuta pe descrescatoare' : 'Ordine descrescatoare — comuta pe crescatoare'}
-              title={gridSort.dir === 'asc' ? 'Crescator' : 'Descrescator'}
+              aria-label={gridSort.dir === 'asc' ? tr('app.sort.ascToDesc') : tr('app.sort.descToAsc')}
+              title={gridSort.dir === 'asc' ? tr('app.sort.asc') : tr('app.sort.desc')}
             >
               {gridSort.dir === 'asc' ? '↑' : '↓'}
             </button>
           </span>
           <label className="date-field">
-            de la
+            {tr('app.dateFrom')}
             <input
               type="date"
               value={epochToDateInput(dateFrom)}
               onChange={e => setDateRange(dateInputToEpoch(e.target.value, false), dateTo)}
-              aria-label="Data capturii — de la"
+              aria-label={tr('app.dateFrom.ariaLabel')}
             />
           </label>
           <label className="date-field">
-            pana la
+            {tr('app.dateTo')}
             <input
               type="date"
               value={epochToDateInput(dateTo)}
               onChange={e => setDateRange(dateFrom, dateInputToEpoch(e.target.value, true))}
-              aria-label="Data capturii — pana la"
+              aria-label={tr('app.dateTo.ariaLabel')}
             />
           </label>
           {(searchText || dateFrom !== null || dateTo !== null || minRating > 0) && (
-            <button className="ghost small" onClick={clearAdvancedFilters}>Reseteaza filtrele</button>
+            <button className="ghost small" onClick={clearAdvancedFilters}>{tr('app.resetFilters')}</button>
           )}
         </nav>
       )}
@@ -585,33 +585,31 @@ export default function App() {
       {photos.length === 0 && !progress ? (
         <div className="empty">
           <ApertureIcon className="empty-mark" aria-hidden="true" />
-          <h2>Adauga sedinta foto</h2>
-          <p>Alege pozele (JPEG/PNG/WebP/RAW — CR2, NEF, ARW, DNG si altele). Analiza ruleaza
-          local, pe fire separate — poti incarca si 1000+ fisiere fara ca aplicatia sa se blocheze.</p>
-          <button className="btn-accent big" onClick={() => fileRef.current?.click()}>Alege fotografiile</button>
-          <p className="hint"><UserCheckIcon className="inline-icon" /> Optional: inroleaza persoanele importante din
-          meniu, ca AI-ul sa le prioritizeze la scorare.</p>
+          <h2>{tr('app.empty.title')}</h2>
+          <p>{tr('app.empty.description')}</p>
+          <button className="btn-accent big" onClick={() => fileRef.current?.click()}>{tr('app.empty.cta')}</button>
+          <p className="hint"><UserCheckIcon className="inline-icon" /> {tr('app.empty.hint')}</p>
 
           <div className="how-it-works">
             <div className="how-step">
               <span className="how-step-icon"><PlusIcon /></span>
               <div className="how-step-text">
-                <b>Adauga poze</b>
-                <p>JPEG, PNG, WebP sau RAW — orice sedinta foto, oricat de mare.</p>
+                <b>{tr('app.howItWorks.add.title')}</b>
+                <p>{tr('app.howItWorks.add.desc')}</p>
               </div>
             </div>
             <div className="how-step">
               <span className="how-step-icon"><SparkleIcon /></span>
               <div className="how-step-text">
-                <b>AI analizeaza</b>
-                <p>Claritate, expunere, fete, compozitie — totul local, pe dispozitiv.</p>
+                <b>{tr('app.howItWorks.analyze.title')}</b>
+                <p>{tr('app.howItWorks.analyze.desc')}</p>
               </div>
             </div>
             <div className="how-step">
               <span className="how-step-icon"><CheckIcon /></span>
               <div className="how-step-text">
-                <b>Tu decizi</b>
-                <p>Confirma sau corecteaza — motorul invata din alegerile tale.</p>
+                <b>{tr('app.howItWorks.decide.title')}</b>
+                <p>{tr('app.howItWorks.decide.desc')}</p>
               </div>
             </div>
           </div>
@@ -642,26 +640,26 @@ export default function App() {
           )}
           {filtered.length === 0 && !progress && <EmptyFilterState />}
           {multiSelectIds.size > 0 ? (
-            <div className="bulk-bar glass" role="toolbar" aria-label="Actiuni pentru selectia curenta">
-              <span className="bulk-bar-count mono">{multiSelectIds.size} selectate</span>
+            <div className="bulk-bar glass" role="toolbar" aria-label={tr('app.bulkBar.ariaLabel')}>
+              <span className="bulk-bar-count mono">{tr('app.bulkBar.count', { count: multiSelectIds.size })}</span>
               <div className="bulk-bar-actions">
-                <button className="select small-btn" onClick={() => void bulkSetStatusForSelection('selected')}>Selecteaza</button>
-                <button className="ghost small-btn" onClick={() => void bulkSetStatusForSelection('review')}>De verificat</button>
-                <button className="reject small-btn" onClick={() => void bulkSetStatusForSelection('rejected')}>Respinge</button>
+                <button className="select small-btn" onClick={() => void bulkSetStatusForSelection('selected')}>{tr('app.bulkBar.select')}</button>
+                <button className="ghost small-btn" onClick={() => void bulkSetStatusForSelection('review')}>{tr('app.bulkBar.review')}</button>
+                <button className="reject small-btn" onClick={() => void bulkSetStatusForSelection('rejected')}>{tr('app.bulkBar.reject')}</button>
                 <StarRating rating={0} onRate={n => void bulkSetRatingForSelection(n)} size="sm" />
-                <button className="ghost icon-btn" onClick={() => setSelectMode(false)} aria-label="Deselecteaza tot si iesi din mod selectie">
+                <button className="ghost icon-btn" onClick={() => setSelectMode(false)} aria-label={tr('app.bulkBar.exit')}>
                   <XIcon />
                 </button>
               </div>
             </div>
           ) : selectMode ? (
-            <div className="bulk-bar glass" role="toolbar" aria-label="Mod selectie activ">
-              <span className="bulk-bar-count mono">Mod selectie — atinge pozele dorite</span>
-              <button className="ghost small-btn" onClick={() => setSelectMode(false)}>Iesi din mod selectie</button>
+            <div className="bulk-bar glass" role="toolbar" aria-label={tr('app.selectModeBar.ariaLabel')}>
+              <span className="bulk-bar-count mono">{tr('app.selectModeBar.hint')}</span>
+              <button className="ghost small-btn" onClick={() => setSelectMode(false)}>{tr('app.selectModeBar.exit')}</button>
             </div>
           ) : (
-            <Tooltip label="Adauga poze" side="left">
-              <button className="fab" onClick={() => fileRef.current?.click()} aria-label="Adauga poze"><PlusIcon /></button>
+            <Tooltip label={tr('app.addPhotos')} side="left">
+              <button className="fab" onClick={() => fileRef.current?.click()} aria-label={tr('app.addPhotos')}><PlusIcon /></button>
             </Tooltip>
           )}
         </>
