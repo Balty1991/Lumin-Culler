@@ -1257,6 +1257,16 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .stats-ratings-fill { height: 100%; border-radius: 999px; background: var(--accent); transition: width var(--duration) var(--ease); }
 .stats-ratings-value { font-size: 0.72rem; color: var(--text-faint); text-align: right; font-variant-numeric: tabular-nums; }
 
+/* evolutia ratei de acord AI/utilizator — sparkline SVG, linie unica (nu
+   paleta de status: e o singura serie continua, nu un raport parte-din-intreg) */
+.stats-trend-label { margin: 10px 0 4px; }
+.stats-trend { display: grid; gap: 4px; }
+.stats-trend-svg { width: 100%; height: 56px; overflow: visible; }
+.stats-trend-area { fill: rgb(var(--accent-rgb) / 0.14); stroke: none; }
+.stats-trend-line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.stats-trend-dot { fill: var(--accent); }
+.stats-trend-axis { display: flex; justify-content: space-between; }
+
 /* ── Meniu lateral ── */
 /* animatia de intrare/iesire e controlata de framer-motion (MenuDrawer.tsx) —
    CSS-ul ramane doar cu aspectul static, ca sa nu se bata cu transform-ul JS */
