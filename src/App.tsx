@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useStore, type FilterKey } from './state/store';
 import { PhotoCard } from './ui/PhotoCard';
 import { VirtualPhotoGrid } from './ui/VirtualPhotoGrid';
@@ -17,7 +17,7 @@ import { EmptyFilterState } from './ui/EmptyFilterState';
 import { AnimatedNumber } from './ui/AnimatedNumber';
 import { Tooltip } from './ui/Tooltip';
 import { StarRating } from './ui/StarRating';
-import { MenuIcon, PlusIcon, UserCheckIcon, AlertIcon, ErrorIcon, XIcon, FocusIcon, UndoIcon, SearchIcon, ApertureIcon, SparkleIcon, CheckIcon, EditIcon } from './ui/icons';
+import { MenuIcon, PlusIcon, UserCheckIcon, AlertIcon, ErrorIcon, XIcon, FocusIcon, UndoIcon, SearchIcon, ApertureIcon, SparkleIcon, CheckIcon, EditIcon, GridIcon, ClockIcon, LayersIcon, EyeClosedIcon, SunIcon, DownloadIcon } from './ui/icons';
 import { CARD_MIN_WIDTH } from './state/gridDensity';
 import { SORT_KEY_LABELS, type SortKey } from './state/gridSort';
 
@@ -222,16 +222,18 @@ export default function App() {
     review: photos.filter(p => p.status === 'review').length,
     rejected: photos.filter(p => p.status === 'rejected').length,
     series: photos.filter(p => p.groupId).length,
-    blinks: photos.filter(p => p.faceCount > 0 && !p.allEyesOpen).length
+    blinks: photos.filter(p => p.faceCount > 0 && !p.allEyesOpen).length,
+    goldenHour: photos.filter(p => p.goldenHourDetected).length
   }), [photos]);
 
-  const FILTERS: { key: FilterKey; label: string; count: number }[] = [
-    { key: 'all', label: 'Toate', count: counts.all },
-    { key: 'selected', label: 'Selectate', count: counts.selected },
-    { key: 'review', label: 'De verificat', count: counts.review },
-    { key: 'series', label: 'Serii', count: counts.series },
-    { key: 'blinks', label: 'Ochi inchisi', count: counts.blinks },
-    { key: 'rejected', label: 'Respinse', count: counts.rejected }
+  const FILTERS: { key: FilterKey; label: string; count: number; icon: ReactNode }[] = [
+    { key: 'all', label: 'Toate', count: counts.all, icon: <GridIcon /> },
+    { key: 'selected', label: 'Selectate', count: counts.selected, icon: <CheckIcon /> },
+    { key: 'review', label: 'De verificat', count: counts.review, icon: <ClockIcon /> },
+    { key: 'series', label: 'Serii', count: counts.series, icon: <LayersIcon /> },
+    { key: 'blinks', label: 'Ochi inchisi', count: counts.blinks, icon: <EyeClosedIcon /> },
+    { key: 'goldenHour', label: 'Ora de aur', count: counts.goldenHour, icon: <SunIcon /> },
+    { key: 'rejected', label: 'Respinse', count: counts.rejected, icon: <XIcon /> }
   ];
 
   const onFiles = (list: FileList | null) => {
@@ -324,8 +326,12 @@ export default function App() {
               </button>
             </Tooltip>
           )}
-          <button className="ghost" onClick={() => void exportSelection()} disabled={!counts.selected}>
-            Exporta poze ({counts.selected})
+          <button
+            className={counts.selected ? 'btn-accent export-cta' : 'ghost export-cta'}
+            onClick={() => void exportSelection()}
+            disabled={!counts.selected}
+          >
+            <DownloadIcon className="inline-icon" aria-hidden="true" /> Exporta poze ({counts.selected})
           </button>
           <Tooltip label="Meniu" side="left">
             <button className="ghost icon-btn" onClick={() => setMenuOpen(true)} aria-label="Meniu">
@@ -366,7 +372,7 @@ export default function App() {
                 <span className="legend-stat"><i className="dot rev" /><b><AnimatedNumber value={counts.review} /></b> de verificat</span>
                 <span className="legend-stat"><i className="dot rej" /><b><AnimatedNumber value={counts.rejected} /></b> respinse</span>
                 <span className="spacer" />
-                <button className="ghost small" onClick={() => void confirmClearAll()}>Goleste sesiunea</button>
+                <button className="ghost small danger" onClick={() => void confirmClearAll()}>Goleste sesiunea</button>
               </div>
             </div>
           </div>
@@ -394,7 +400,12 @@ export default function App() {
               key={f.key}
               className={filter === f.key ? 'chip active' : 'chip'}
               onClick={() => setFilter(f.key)}
-            >{f.label} <b>{f.count}</b></button>
+              aria-pressed={filter === f.key}
+            >
+              <span className="chip-icon" aria-hidden="true">{f.icon}</span>
+              {f.label}
+              <b className="chip-count">{f.count}</b>
+            </button>
           ))}
           {persons.length > 0 && (
             <select
