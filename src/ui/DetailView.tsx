@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { db, type AnalysisRecord } from '../core/db';
+import { getCachedPreviewUrl } from '../core/previewUrlCache';
 import { useStore, type PhotoView } from '../state/store';
 import { explainFactors } from '../core/learning/ContextEngine';
 import { generateExplanation, generateSuggestions } from '../core/aiExplanationGenerator';
@@ -219,13 +220,9 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
     setDragX(0);
     setTab('metrics');
     setSheetExpanded(false);
-    let url: string | null = null;
     let alive = true;
-    db.previews.get(photo.id).then(async p => {
-      const rec = p ?? (await db.thumbnails.get(photo.id)); // fallback poze vechi
-      if (rec && alive) { url = URL.createObjectURL(rec.blob); setSrc(url); }
-    });
-    return () => { alive = false; if (url) URL.revokeObjectURL(url); };
+    void getCachedPreviewUrl(photo.id).then(url => { if (alive) setSrc(url); });
+    return () => { alive = false; };
   }, [photo.id]);
 
   useEffect(() => {
