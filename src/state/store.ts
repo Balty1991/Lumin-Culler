@@ -17,7 +17,7 @@ import {
   pushHistory, popHistory, MAX_HISTORY, type HistoryEvent,
   pushBatchHistory, popBatchHistory, type BatchHistoryEvent
 } from './history';
-import { selectBulkRejectTargets, resolveGroups, selectTopPercent } from './batchOps';
+import { selectBulkRejectTargets, resolveGroups, selectTopPercent, selectHighlights } from './batchOps';
 import { readStoredTheme, applyTheme, type Theme } from './theme';
 import { readStoredProjectName, writeProjectName } from './projectName';
 import { readStoredGenre, writeStoredGenre } from './genre';
@@ -112,7 +112,7 @@ export interface PhotoView {
   sceneTags?: string[];
 }
 
-export type FilterKey = 'all' | 'selected' | 'review' | 'rejected' | 'series' | 'blinks' | 'goldenHour';
+export type FilterKey = 'all' | 'selected' | 'review' | 'rejected' | 'series' | 'blinks' | 'goldenHour' | 'highlights';
 
 /** Cheie de proiectFilter pentru pozele fara proiect ales — un nume de proiect real nu poate coincide cu acest sentinel (spatii, gol dupa trim). */
 export const NO_PROJECT_KEY = 'no-project';
@@ -1345,6 +1345,7 @@ export const useStore = create<AppState>((set, get) => ({
       case 'rejected': base = photos.filter(p => p.status === 'rejected'); break;
       case 'blinks': base = photos.filter(p => p.faceCount > 0 && !p.allEyesOpen); break;
       case 'goldenHour': base = photos.filter(p => p.goldenHourDetected); break;
+      case 'highlights': base = selectHighlights(photos); break;
       case 'series': {
         const withGroup = photos.filter(p => p.groupId);
         base = withGroup.sort((a, b) =>

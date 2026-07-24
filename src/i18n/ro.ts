@@ -96,6 +96,7 @@ export const ro = {
   'palette.filter.series': 'Serii',
   'palette.filter.blinks': 'Ochi inchisi',
   'palette.filter.goldenHour': 'Ora de aur',
+  'palette.filter.highlights': 'Cele mai bune',
   'palette.cmd.persons': 'Persoane cunoscute',
   'palette.cmd.insights': 'Preferinte AI',
   'palette.cmd.exportSelection': 'Exporta poze selectate ({count})',

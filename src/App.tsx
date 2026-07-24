@@ -19,7 +19,8 @@ import { ConfirmDialog } from './ui/ConfirmDialog';
 import { AnimatedNumber } from './ui/AnimatedNumber';
 import { Tooltip } from './ui/Tooltip';
 import { StarRating } from './ui/StarRating';
-import { MenuIcon, PlusIcon, UserCheckIcon, AlertIcon, ErrorIcon, XIcon, FocusIcon, UndoIcon, SearchIcon, ApertureIcon, SparkleIcon, CheckIcon, EditIcon, GridIcon, ClockIcon, LayersIcon, EyeClosedIcon, SunIcon, DownloadIcon } from './ui/icons';
+import { MenuIcon, PlusIcon, UserCheckIcon, AlertIcon, ErrorIcon, XIcon, FocusIcon, UndoIcon, SearchIcon, ApertureIcon, SparkleIcon, CheckIcon, EditIcon, GridIcon, ClockIcon, LayersIcon, EyeClosedIcon, SunIcon, DownloadIcon, StarIcon } from './ui/icons';
+import { selectHighlights } from './state/batchOps';
 import { CARD_MIN_WIDTH } from './state/gridDensity';
 import { SORT_KEY_LABELS, type SortKey } from './state/gridSort';
 import { pickImportFiles } from './core/filePicker';
@@ -266,7 +267,8 @@ export default function App() {
     rejected: photos.filter(p => p.status === 'rejected').length,
     series: photos.filter(p => p.groupId).length,
     blinks: photos.filter(p => p.faceCount > 0 && !p.allEyesOpen).length,
-    goldenHour: photos.filter(p => p.goldenHourDetected).length
+    goldenHour: photos.filter(p => p.goldenHourDetected).length,
+    highlights: selectHighlights(photos).length
   }), [photos]);
 
   const FILTERS: { key: FilterKey; label: string; count: number; icon: ReactNode }[] = [
@@ -274,6 +276,7 @@ export default function App() {
     { key: 'selected', label: tr('palette.filter.selected'), count: counts.selected, icon: <CheckIcon /> },
     { key: 'review', label: tr('palette.filter.review'), count: counts.review, icon: <ClockIcon /> },
     { key: 'series', label: tr('palette.filter.series'), count: counts.series, icon: <LayersIcon /> },
+    { key: 'highlights', label: tr('palette.filter.highlights'), count: counts.highlights, icon: <StarIcon /> },
     { key: 'blinks', label: tr('palette.filter.blinks'), count: counts.blinks, icon: <EyeClosedIcon /> },
     { key: 'goldenHour', label: tr('palette.filter.goldenHour'), count: counts.goldenHour, icon: <SunIcon /> },
     { key: 'rejected', label: tr('palette.filter.rejected'), count: counts.rejected, icon: <XIcon /> }

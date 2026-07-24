@@ -99,6 +99,7 @@ export const en: Record<TranslationKey, string> = {
   'palette.filter.series': 'Series',
   'palette.filter.blinks': 'Closed eyes',
   'palette.filter.goldenHour': 'Golden hour',
+  'palette.filter.highlights': 'Highlights',
   'palette.cmd.persons': 'Known people',
   'palette.cmd.insights': 'AI preferences',
   'palette.cmd.exportSelection': 'Export selected photos ({count})',

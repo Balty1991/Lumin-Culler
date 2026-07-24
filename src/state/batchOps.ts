@@ -58,3 +58,20 @@ export function selectTopPercent(photos: PhotoView[], percent: number): TopPerce
     rejectIds: sorted.slice(keepCount).map(p => p.id)
   };
 }
+
+/**
+ * "Highlights" (filtru pasiv, NU o actiune ca selectTopPercent): cele mai
+ * bune poze din TOATA biblioteca dupa scorul AI, indiferent de status —
+ * spre deosebire de gruparea pe serii (care alege un singur "cel mai bun"
+ * DOAR in cadrul cadrelor similare dHash), aici comparam absolut toate
+ * pozele intre ele. Util ca instrument de DESCOPERIRE ("care sunt cele mai
+ * tari cadre din tot evenimentul?"), nu de decizie — de-asta include si
+ * pozele deja respinse/selectate, nu doar cele nedecise.
+ * Minim 1 rezultat daca exista macar o poza, indiferent cat de mic e procentul.
+ */
+export function selectHighlights(photos: PhotoView[], percent = 10): PhotoView[] {
+  if (!photos.length) return [];
+  const sorted = [...photos].sort((a, b) => b.aiScore - a.aiScore);
+  const keepCount = Math.min(sorted.length, Math.max(1, Math.round(sorted.length * percent / 100)));
+  return sorted.slice(0, keepCount);
+}
