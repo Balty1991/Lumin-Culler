@@ -21,6 +21,7 @@ import {
 import { selectBulkRejectTargets, resolveGroups, selectTopPercent, selectHighlights, selectBlinks } from './batchOps';
 import { readStoredTheme, applyTheme, type Theme } from './theme';
 import { readStoredProjectName, writeProjectName } from './projectName';
+import { readStoredWatermarkText, writeWatermarkText } from './watermarkText';
 import { readStoredGenre, writeStoredGenre } from './genre';
 import { readGridDensity, writeGridDensity, type GridDensity } from './gridDensity';
 import { readGridSort, writeGridSort, compareBy, type GridSort } from './gridSort';
@@ -211,6 +212,9 @@ interface AppState {
   setLocale: (locale: Locale) => void;
   projectName: string;
   setProjectName: (name: string) => void;
+  /** Text de watermark pentru galeria client (core/export/watermark.ts) — gol = fara watermark, comportament neschimbat. */
+  watermarkText: string;
+  setWatermarkText: (text: string) => void;
   booted: boolean;
   /** false daca dispozitivul nu a putut incarca WebGL/WASM — analiza continua dar fara fete reale. */
   aiDegraded: boolean;
@@ -532,6 +536,8 @@ export const useStore = create<AppState>((set, get) => ({
   setLocale: locale => { writeStoredLocale(locale); applyLocale(locale); set({ locale }); },
   projectName: readStoredProjectName(),
   setProjectName: name => { writeProjectName(name); set({ projectName: name }); },
+  watermarkText: readStoredWatermarkText(),
+  setWatermarkText: text => { writeWatermarkText(text); set({ watermarkText: text }); },
   booted: false,
   aiDegraded: false,
   aiBackend: '',
@@ -617,7 +623,7 @@ export const useStore = create<AppState>((set, get) => ({
         .map((p, i) => ({ fileName: p.fileName, thumbnail: thumbnails[i]?.blob }))
         .filter((it): it is { fileName: string; thumbnail: Blob } => !!it.thumbnail);
       const title = get().projectName ? t(locale, 'store.clientGallery.title', { project: get().projectName }) : t(locale, 'store.clientGallery.titleDefault');
-      const html = await buildClientGalleryHtml(items, title);
+      const html = await buildClientGalleryHtml(items, title, get().watermarkText.trim() || undefined);
       const blob = new Blob([html], { type: 'text/html' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
