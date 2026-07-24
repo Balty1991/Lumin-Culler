@@ -324,41 +324,29 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .export-cta { display: inline-flex; align-items: center; }
 .export-cta .inline-icon { margin-right: 6px; }
 
-/* ── Bara de cull (semnatura): progresul sesiunii, mereu vizibil ── */
-.cullbar { display: grid; gap: 9px; padding: 2px 2px 10px; }
-.cullbar-main { display: flex; align-items: center; gap: 14px; }
-.cullbar-body { flex: 1; min-width: 0; display: grid; gap: 9px; }
-.session-ring {
-  flex-shrink: 0; width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 4px 14px -4px rgb(var(--accent-rgb) / 0.35);
+/* ── Antet auto-hide la scroll (plan "Refactorizare UI/UX") — invelisul comun pentru
+   statistici/progres/filtre, care se colapseaza la scroll in jos si revine la scroll in sus.
+   max-height (nu display:none) ca sa poata fi animat cu tranzitie, fara sa mai masuram
+   inaltimea reala in JS — 400px e generos, acopera orice combinatie de sectiuni de mai jos. */
+.app-collapsible {
+  /* sticky mutat aici de pe .filters (era sticky individual) — cu overflow:hidden pentru
+     colapsare, un descendent sticky s-ar "prinde" de acest container, nu de fereastra */
+  position: sticky; top: 46px; z-index: var(--z-sticky-bar);
+  max-height: 400px; opacity: 1; overflow: hidden;
+  transition: max-height 0.3s var(--ease), opacity 0.2s var(--ease);
 }
-.session-ring-inner {
-  width: 37px; height: 37px; border-radius: 50%; background: var(--surface); display: flex; align-items: center; justify-content: center;
-  font-family: var(--mono); font-weight: 700; font-size: 0.72rem; color: var(--text); font-variant-numeric: tabular-nums;
-}
-.cullbar-track {
-  display: flex; height: 7px; border-radius: 4px; overflow: hidden; background: var(--surface-2);
-  box-shadow: inset 0 0 0 1px var(--line);
-}
-.cullbar-track span { transition: width 0.4s var(--ease); }
-.cullbar-track .seg-sel { background: linear-gradient(90deg, var(--pick), #86efac); }
-.cullbar-track .seg-rev { background: linear-gradient(90deg, var(--review), #fde68a); }
-.cullbar-track .seg-rej { background: var(--reject); opacity: 0.7; }
-.cullbar-legend {
-  display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
-  color: var(--text-dim); font-size: 0.76rem;
-}
-.cullbar-legend b { color: var(--text); font-weight: 700; }
-.legend-stat {
-  display: inline-flex; align-items: center; gap: 7px; background: var(--surface); border: 1px solid var(--line);
-  padding: 5px 11px 5px 9px; border-radius: 999px; transition: border-color 0.18s var(--ease);
-}
-.legend-stat:hover { border-color: var(--line-strong); }
-.dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; }
-.dot.sel { background: var(--pick); box-shadow: 0 0 8px rgba(74,222,128,0.7); }
-.dot.rev { background: var(--review); box-shadow: 0 0 8px rgba(251,191,36,0.7); }
-.dot.rej { background: var(--reject); box-shadow: 0 0 8px rgba(251,113,133,0.6); }
-.cullbar-legend .spacer { flex: 1; }
+.app-collapsible.hidden { max-height: 0; opacity: 0; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { .app-collapsible { transition: none; } }
+
+/* ── Statistici globale condensate: un singur rand, iconite colorate + numere, fara casete ── */
+.cullbar-compact { display: flex; align-items: center; gap: 14px; padding: 6px 2px 10px; font-size: 0.8rem; }
+.cullbar-compact-stat { display: inline-flex; align-items: center; gap: 5px; font-weight: 700; }
+.cullbar-compact-stat svg { width: 15px; height: 15px; }
+.cullbar-compact-stat.sel { color: var(--pick); }
+.cullbar-compact-stat.rev { color: var(--review); }
+.cullbar-compact-stat.rej { color: var(--reject); }
+.cullbar-compact-percent { color: var(--text-faint); font-weight: 600; }
+.spacer-flex { flex: 1; }
 
 /* ── Progres import ── */
 .progress {
@@ -386,7 +374,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
 /* ── Filtre cu numaratori, lipite sub antet ── */
 .filters {
-  position: sticky; top: 46px; z-index: var(--z-sticky-bar);
   display: flex; gap: 6px; overflow-x: auto; padding: 8px 2px 12px;
   background: linear-gradient(var(--bg) 82%, transparent);
   scrollbar-width: none;
@@ -526,7 +513,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) {
   .card-loading { animation: none; }
-  .grid, .notice, .toast, .detail, .detail-inner, .card, .drawer-scrim, .drawer, .live-dot { animation: none !important; }
+  .grid, .notice, .toast, .detail, .detail-inner, .detail-fullscreen, .card, .drawer-scrim, .drawer, .live-dot { animation: none !important; }
   .swipe-surface, .workspace-loupe img { transition: none !important; animation: none !important; }
   .spin { animation: none !important; }
   .card, .chip, .ghost, .select, .reject, .btn-accent, .fab { transition: none; }
@@ -547,18 +534,17 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .card.st-review { border-color: rgba(251,191,36,0.5); box-shadow: 0 0 0 1px rgba(251,191,36,0.14); }
 .card.st-review::before { background: linear-gradient(90deg, var(--review), #fde68a); opacity: 1; }
 
-/* check-mark care apare cand poza e selectata — inel care se extinde + iconita, o singura data la aparitie */
+/* check-mark care apare cand poza e selectata — doar iconita (fara casetsa/cerc opac in spate,
+   plan "Refactorizare UI/UX"), drop-shadow pentru lizibilitate pe orice fundal de miniatura,
+   deschis sau inchis, in loc de un disc plin. */
 .check-badge {
-  position: absolute; top: 6px; right: 7px; z-index: var(--z-card-badge); width: 20px; height: 20px; border-radius: 50%;
-  background: var(--pick); color: var(--pick-deep); display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 0 0 3px rgb(var(--pick-rgb) / 0.25);
+  position: absolute; top: 7px; right: 8px; z-index: var(--z-card-badge); width: 15px; height: 15px;
+  display: flex; align-items: center; justify-content: center; color: var(--pick);
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.7)) drop-shadow(0 0 3px rgba(0,0,0,0.45));
   animation: checkPop var(--duration) var(--ease) both;
 }
-.check-badge svg { width: 12px; height: 12px; }
-@keyframes checkPop {
-  from { opacity: 0; transform: scale(0.4); box-shadow: 0 0 0 8px rgb(var(--pick-rgb) / 0); }
-  to { opacity: 1; transform: scale(1); box-shadow: 0 0 0 3px rgb(var(--pick-rgb) / 0.25); }
-}
+.check-badge svg { width: 15px; height: 15px; }
+@keyframes checkPop { from { opacity: 0; transform: scale(0.5); } to { opacity: 1; transform: scale(1); } }
 /* la scroll intr-un grid virtualizat cardurile se re-monteaza constant — fara asta,
    animatia "pop" ar reveni de fiecare data cand o poza deja selectata reintra in vizor
    (acelasi motiv pentru care .virtual-row .card dezactiveaza deja cardIn mai sus) */
@@ -567,14 +553,14 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
 /* Statusul "de verificat" nu are alt indiciu vizual in afara de culoare (spre deosebire de
    selectat -> check-badge, respins -> desaturare) — o iconita mica inchide golul WCAG 1.4.1
-   (culoarea nu poate fi singurul mijloc de a distinge o stare). Fara animatia checkPop:
-   review e starea IMPLICITA pentru majoritatea pozelor la import, animatia ar fi zgomot vizual. */
+   (culoarea nu poate fi singurul mijloc de a distinge o stare). Acelasi tratament minimal
+   ca .check-badge — doar iconita + drop-shadow, fara disc plin in spate. */
 .review-badge {
-  position: absolute; top: 6px; right: 7px; z-index: var(--z-card-badge); width: 20px; height: 20px; border-radius: 50%;
-  background: var(--review); color: var(--review-deep); display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 0 0 3px rgb(var(--review-rgb) / 0.25);
+  position: absolute; top: 7px; right: 8px; z-index: var(--z-card-badge); width: 15px; height: 15px;
+  display: flex; align-items: center; justify-content: center; color: var(--review);
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.7)) drop-shadow(0 0 3px rgba(0,0,0,0.45));
 }
-.review-badge svg { width: 12px; height: 12px; }
+.review-badge svg { width: 15px; height: 15px; }
 
 /* selectie in masa (Ctrl/Shift+Click) — inel de accent distinct de starea pick/reject/review,
    ca sa nu se confunde vizual "e in selectia curenta" cu "AI-ul a decis ca e buna" */
@@ -755,42 +741,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .detail-inner::-webkit-scrollbar { width: 6px; }
 .detail-inner::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 8px; transition: background var(--micro); }
 .detail-inner::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
-/* .fit e exclusiv DetailView — animatia CSS e inlocuita de framer-motion acolo */
-.detail-inner.fit { animation: none; }
 /* copiii unui grid au implicit min-width:auto (bazat pe continut) — fara asta,
    text lung nefolosit (ex. butoane din compare-grid) impinge sheet-ul peste viewport */
 .detail-inner > * { min-width: 0; }
 @keyframes sheetIn { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
 .detail-inner.narrow { max-width: 460px; }
 .detail-inner.wide { max-width: 940px; }
-/* varianta "fit": poza (subiectul) primeste o cota fixa generoasa din ecran;
-   doar zona de INFO (statistici/motive/persoane) e derulabila daca nu incape —
-   nu poza, ca sa nu ajunga statisticile sa domine ecranul in fata fotografiei.
-   Butoanele de decizie raman mereu vizibile, in afara zonei derulabile. */
-.detail-inner.fit {
-  height: 94dvh; max-height: 94dvh; overflow-y: auto; overflow-x: hidden;
-  display: flex; flex-direction: column; gap: 8px;
-}
-.detail-inner.fit > * { flex: 0 0 auto; }
-/* min-height mic — pe un viewport scurt/landscape, 200px fortat impingea
-   butoanele de decizie sub inaltimea containerului; cum acesta avea
-   overflow: hidden, butoanele deveneau inaccesibile (nici scroll). Acum
-   containerul e derulabil ca plasa de siguranta, dar min-height mic
-   inseamna ca de obicei nici nu ajunge sa fie nevoie. */
-.detail-inner.fit .detail-img { flex: 0 0 48dvh; min-height: 120px; }
-.detail-inner.fit .detail-img .swipe-surface img { max-height: none; height: 100%; }
-/* zoomed trebuie sa invinga regula de mai sus (altfel "height: 100%" tine
-   imaginea legata de inaltimea containerului si zoom-ul nu mareste nimic —
-   bug real gasit testand: latimea creste usor dar inaltimea ramane blocata) */
-.detail-inner.fit .detail-img.zoomed .swipe-surface img { width: auto; max-width: none; height: auto; max-height: none; }
-.detail-inner.fit .detail-scroll {
-  flex: 1 1 auto; min-height: 60px; overflow-y: auto; -webkit-overflow-scrolling: touch;
-  display: flex; flex-direction: column; gap: 8px;
-  scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) transparent;
-}
-.detail-inner.fit .detail-scroll::-webkit-scrollbar { width: 6px; }
-.detail-inner.fit .detail-scroll::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 8px; transition: background var(--micro); }
-.detail-inner.fit .detail-scroll::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
 .detail-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .detail-head span:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 .detail-head .ghost { flex-shrink: 0; }
@@ -807,29 +763,120 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .status-tag.st-rejected { color: var(--reject); background: rgba(251,113,133,0.14); }
 .status-tag.st-review { color: var(--review); background: rgba(251,191,36,0.14); }
 
-.detail-img {
-  position: relative; cursor: zoom-in; overflow: hidden; border-radius: var(--radius-lg);
-  background: #050608; touch-action: pan-y;
+/* ── DetailView "Refactorizare UI/UX": full-screen edge-to-edge + Bottom Sheet ──
+   Fotografia e centrul atentiei — fundal negru, object-fit: contain, fara card
+   plutitor peste un scrim. Metricile/tab-urile traiesc intr-un panou retractabil
+   (vezi .detail-sheet mai jos), nu permanent pe ecran. */
+.detail-fullscreen {
+  position: fixed; inset: 0; z-index: var(--z-modal-scrim); background: #000;
+  display: flex; flex-direction: column; overflow: hidden;
 }
-.swipe-surface { width: 100%; height: 100%; }
-.swipe-surface img { width: 100%; max-height: 64dvh; object-fit: contain; display: block; user-select: none; -webkit-user-drag: none; }
-.detail-img.zoomed { cursor: zoom-out; overflow: auto; max-height: 64dvh; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y; }
-.detail-img.zoomed .swipe-surface img { width: auto; max-width: none; max-height: none; }
+.detail-stage {
+  position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  cursor: zoom-in; background: #000; touch-action: pan-y;
+}
+.detail-stage.zoomed { cursor: zoom-out; overflow: auto; touch-action: pan-x pan-y; -webkit-overflow-scrolling: touch; }
+.swipe-surface { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+.detail-stage-img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; display: block; user-select: none; -webkit-user-drag: none; }
+.detail-stage.zoomed .detail-stage-img { max-width: none; max-height: none; width: auto; height: auto; }
 .zoom-hint {
   position: absolute; bottom: 8px; right: 10px; font-size: 0.66rem; color: var(--text-dim);
   background: rgba(8,9,12,0.8); backdrop-filter: blur(4px); padding: 2px 8px; border-radius: 4px; pointer-events: none;
 }
-.detail-img.zoomed .zoom-hint { position: sticky; float: right; }
-/* overlay gradient jos — subiect "full-bleed", crește lizibilitatea badge-ului/hint-ului fara card opac */
-.detail-img-gradient {
-  position: absolute; inset: auto 0 0 0; height: 40%; z-index: var(--z-decorative); pointer-events: none;
-  background: linear-gradient(transparent, rgba(5,6,8,0.78));
+.detail-stage.zoomed .zoom-hint { position: sticky; float: right; }
+
+/* bara de sus, plutitoare peste imagine — doar Inchide + nume fisier + status, minimalist */
+.detail-stage-topbar {
+  position: absolute; top: 0; left: 0; right: 0; z-index: var(--z-card-badge);
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 12px 26px; padding-top: calc(12px + env(safe-area-inset-top));
+  background: linear-gradient(rgba(0,0,0,0.6), transparent); pointer-events: none;
 }
-/* status-tag mutat in coltul lupei, ca la Workspace — acelasi tratament glass */
-.detail-img .detail-badge {
-  position: absolute; top: 12px; right: 12px; z-index: var(--z-card-badge);
-  backdrop-filter: blur(6px); box-shadow: 0 4px 16px -4px rgba(0,0,0,0.5);
+.detail-stage-topbar > * { pointer-events: auto; }
+.detail-overlay-btn {
+  width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+  background: rgba(20,20,22,0.5); backdrop-filter: blur(6px); color: #fff;
+  display: flex; align-items: center; justify-content: center; transition: background var(--micro);
 }
+.detail-overlay-btn:hover { background: rgba(20,20,22,0.7); }
+.detail-overlay-btn svg { width: 18px; height: 18px; }
+.detail-stage-filename {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: rgba(255,255,255,0.86); font-size: 0.74rem; text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+}
+
+/* sageti prev/next — subtile, plutitoare peste imagine, nu butoane text masive */
+.detail-nav-btn {
+  position: absolute; top: 50%; transform: translateY(-50%); z-index: var(--z-card-badge);
+  width: 38px; height: 38px; border-radius: 50%;
+  background: rgba(20,20,22,0.4); backdrop-filter: blur(6px); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0.65; transition: opacity var(--micro), background var(--micro);
+}
+.detail-nav-btn:hover, .detail-nav-btn:focus-visible { opacity: 1; background: rgba(20,20,22,0.65); }
+.detail-nav-btn svg { width: 18px; height: 18px; }
+.detail-nav-prev { left: 10px; }
+.detail-nav-next { right: 10px; }
+
+/* Butoane flotante flat-design (X/bifa) — inlocuiesc textele masive Selecteaza/Respinge,
+   culori mate temperate, fara gradient, in treimea inferioara a ecranului. */
+.detail-fab-row {
+  /* 58px = SHEET_PEEK_PX (DetailView.tsx) — manerul sheet-ului restrans, +18px respiro */
+  position: absolute; left: 0; right: 0; bottom: 76px; z-index: var(--z-card-badge);
+  display: flex; align-items: center; justify-content: center; gap: 28px;
+  transition: opacity 0.25s var(--ease), transform 0.25s var(--ease);
+}
+.detail-fab-row.hidden { opacity: 0; transform: translateY(14px); pointer-events: none; }
+.detail-fab {
+  width: 58px; height: 58px; border-radius: 50%; border: none;
+  display: flex; align-items: center; justify-content: center; color: #fff;
+  box-shadow: 0 6px 16px -4px rgba(0,0,0,0.5); transition: transform 0.15s var(--ease), filter 0.15s var(--ease);
+}
+.detail-fab:active { transform: scale(0.9); }
+.detail-fab svg { width: 26px; height: 26px; }
+/* culori mate/temperate, intentionat fara gradient (plan "Refactorizare UI/UX", flat design) */
+.detail-fab-reject { background: #E53935; }
+.detail-fab-select { background: #43A047; }
+.detail-fab:hover { filter: brightness(1.08); }
+
+/* ── Bottom Sheet: metrici/tab-uri, ascunse implicit ── */
+.detail-sheet {
+  /* IDENTIC cu SHEET_PEEK_PX din DetailView.tsx — si cu .detail-sheet-handle mai jos,
+     ca manerul vizibil cat timp sheet-ul e restrans sa nu lase continutul de dedesubt
+     sa se vada (bara de rating etc.) peste marginea de sus a benzii restranse. */
+  --sheet-peek: 58px;
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: var(--z-modal-scrim);
+  height: 85dvh; max-height: 85dvh; display: flex; flex-direction: column; overflow: hidden;
+  background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border); border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  box-shadow: var(--shadow-lg);
+  transform: translateY(calc(100% - var(--sheet-peek)));
+  transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.detail-sheet.expanded { transform: translateY(0); }
+.detail-sheet-handle {
+  flex: 0 0 auto; width: 100%; height: var(--sheet-peek); box-sizing: border-box;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+  padding: 0 16px env(safe-area-inset-bottom); background: none; border: none; cursor: grab; touch-action: none;
+}
+.detail-sheet-handle-bar { width: 40px; height: 5px; border-radius: 999px; background: var(--line-strong); }
+.detail-sheet-peek-label {
+  font-size: 0.6rem; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.06em;
+}
+.detail-sheet-content {
+  flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 8px;
+  padding: 0 16px calc(16px + env(safe-area-inset-bottom));
+}
+.detail-sheet-content .detail-scroll {
+  flex: 1 1 auto; min-height: 60px; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  display: flex; flex-direction: column; gap: 8px;
+  scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+.detail-sheet-content .detail-scroll::-webkit-scrollbar { width: 6px; }
+.detail-sheet-content .detail-scroll::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 8px; transition: background var(--micro); }
+.detail-sheet-content .detail-scroll::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
+@media (prefers-reduced-motion: reduce) { .detail-sheet { transition: none; } }
 
 /* ── Tab-uri DetailView: Metrici / De ce acest scor / Persoane / Istoric ── */
 .detail-tabs { display: flex; gap: 2px; background: var(--surface-2); border-radius: var(--radius); padding: 3px; }
@@ -1028,9 +1075,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   transform: translateY(0);
 }
 @media (hover: none) { .tooltip-bubble { display: none; } } /* fara hover pe touch — evita tooltip-uri blocate dupa tap */
-
-.detail-actions { display: grid; grid-template-columns: auto 1fr 1fr auto; gap: 8px; }
-.detail-actions > * { min-width: 0; }
 
 /* ── Comparare serie ── */
 .compare-toolbar {
@@ -1442,22 +1486,20 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 @media (min-width: 720px) {
   .detail { align-items: center; padding: 24px; }
   .detail-inner { border-radius: var(--radius-xl); }
-  .detail-inner.fit { height: min(94dvh, 880px); max-height: min(94dvh, 880px); }
+  .detail-sheet { max-width: 740px; margin: 0 auto; border-radius: var(--radius-xl); }
 }
 
 @media (max-width: 560px) {
   .grid { grid-template-columns: repeat(auto-fill, minmax(var(--card-min-narrow, 126px), 1fr)); gap: 8px; }
   .compare-grid { grid-template-columns: 1fr; }
-  .detail-actions { grid-template-columns: 1fr 1fr; }
-  .detail-actions .ghost { order: 2; }
   .brand-text h1 { font-size: 1.24rem; }
   .brand-text p { display: none; }
   .project-name-btn, .project-name-input { display: none; }
   .brand-mark { width: 30px; height: 30px; padding: 6px; }
-  .detail-inner.fit { height: 96dvh; max-height: 96dvh; }
-  /* topbar-ul poate ocupa 2 randuri pe telefoane foarte inguste — filtrele
-     raman in flux normal in loc de sticky, ca sa nu se suprapuna peste antet. */
-  .filters { position: static; top: auto; }
+  .detail-sheet { height: 88dvh; max-height: 88dvh; }
+  /* topbar-ul poate ocupa 2 randuri pe telefoane foarte inguste — antetul colapsabil
+     ramane in flux normal in loc de sticky, ca sa nu se suprapuna peste antet. */
+  .app-collapsible { position: static; top: auto; }
   .workspace-hint { display: none; }
   .workspace-head { margin: 8px 8px 0; }
   .workspace-dock { margin: 0 8px calc(8px + env(safe-area-inset-bottom)); }

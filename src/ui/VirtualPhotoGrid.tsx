@@ -17,12 +17,16 @@ const ROW_HEIGHT_ESTIMATE = 200; // ajustat automat per rand prin measureElement
  * existent (nu o varianta separata), deci pastreaza insigne/status/click identic
  * cu grid-ul normal — singura diferenta e MECANISMUL de randare, nu aspectul.
  */
-export function VirtualPhotoGrid({ photos, onOpen, multiSelectIds, onCardPointerDown, onContextMenu }: {
+export function VirtualPhotoGrid({ photos, onOpen, multiSelectIds, onCardPointerDown, onContextMenu, onScroll }: {
   photos: PhotoView[];
   onOpen: (id: string, e: React.MouseEvent) => void;
   multiSelectIds: Set<string>;
   onCardPointerDown?: (id: string, e: React.PointerEvent) => void;
   onContextMenu?: (id: string, e: React.MouseEvent) => void;
+  /** Raporteaza scrollTop-ul containerului intern — biblioteci mari (peste VIRTUALIZE_THRESHOLD)
+      au propriul scroll, separat de fereastra, deci auto-hide-ul antetului (App.tsx) trebuie
+      sa asculte aici, nu doar `window.scroll`. */
+  onScroll?: (scrollTop: number) => void;
 }) {
   const parentRef = useRef<HTMLDivElement>(null);
   const density = useStore(s => s.gridDensity);
@@ -55,7 +59,10 @@ export function VirtualPhotoGrid({ photos, onOpen, multiSelectIds, onCardPointer
   });
 
   return (
-    <div ref={parentRef} className="virtual-grid-scroll" style={{ height: scrollHeight }}>
+    <div
+      ref={parentRef} className="virtual-grid-scroll" style={{ height: scrollHeight }}
+      onScroll={onScroll ? e => onScroll(e.currentTarget.scrollTop) : undefined}
+    >
       <div style={{ height: rowVirtualizer.getTotalSize(), position: 'relative', width: '100%' }}>
         {rowVirtualizer.getVirtualItems().map(vRow => (
           <div
