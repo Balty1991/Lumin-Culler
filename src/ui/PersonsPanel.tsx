@@ -5,6 +5,7 @@ import { computePersonRecognitionStats, type PersonRecognitionStats } from '../c
 import { findUnrecognizedFaceClusters, type FaceCluster } from '../core/faceClustering';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { UserCheckIcon, TrashIcon, XIcon, DownloadIcon, UploadIcon, LayersIcon, SparkleIcon } from './icons';
+import { t, plural } from '../i18n';
 
 /** Decupaj patrat in jurul cutiei fetei detectate (box normalizat 0..1), din miniatura deja generata — fara nicio re-decodare. */
 function FaceCropThumb({ photoId, box }: { photoId: string; box: [number, number, number, number] }) {
@@ -53,6 +54,8 @@ export function PersonsPanel() {
   const importPersonProfiles = useStore(s => s.importPersonProfiles);
   const enrollFaceCluster = useStore(s => s.enrollFaceCluster);
   const clearAllIncludingPersons = useStore(s => s.clearAllIncludingPersons);
+  const locale = useStore(s => s.locale);
+  const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
 
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
@@ -87,9 +90,7 @@ export function PersonsPanel() {
   };
 
   const enrollCluster = (cluster: FaceCluster) => {
-    const newName = window.prompt(
-      `Persoana neidentificata apare in ${cluster.members.length} fotografii. Ce nume ii dai?`
-    );
+    const newName = window.prompt(tr('persons.enrollCluster.prompt', { count: cluster.members.length }));
     if (!newName?.trim()) return;
     void enrollFaceCluster(newName, cluster.members).then(() => {
       setClusters(prev => prev?.filter(c => c !== cluster) ?? null);
@@ -105,14 +106,14 @@ export function PersonsPanel() {
   };
 
   const confirmRemove = (id: string, personName: string) => {
-    if (window.confirm(`Ștergi "${personName}" din persoanele cunoscute? Va trebui reînrolat(ă) pentru ca AI-ul să o mai recunoască.`)) {
+    if (window.confirm(tr('persons.confirmRemove', { name: personName }))) {
       void removePerson(id);
     }
   };
 
   const confirmBulkDelete = () => {
     const names = persons.filter(p => selected.has(p.id)).map(p => p.name).join(', ');
-    if (window.confirm(`Ștergi ${selected.size} persoane (${names})? Vor trebui reînrolate pentru ca AI-ul să le mai recunoască.`)) {
+    if (window.confirm(tr('persons.confirmBulkDelete', { count: selected.size, names }))) {
       void removePersons(Array.from(selected)).then(() => setSelected(new Set()));
     }
   };
@@ -121,7 +122,7 @@ export function PersonsPanel() {
     const chosen = persons.filter(p => selected.has(p.id));
     if (chosen.length < 2) return;
     const keepName = window.prompt(
-      `Unești ${chosen.length} profiluri (${chosen.map(p => p.name).join(', ')}) într-unul singur. Ce nume păstrezi?`,
+      tr('persons.mergePrompt', { count: chosen.length, names: chosen.map(p => p.name).join(', ') }),
       chosen[0].name
     );
     if (!keepName?.trim()) return;
@@ -129,11 +130,8 @@ export function PersonsPanel() {
   };
 
   const confirmClearEverything = () => {
-    if (!window.confirm(
-      'Sigur ștergi ABSOLUT TOT? Se șterg ireversibil toate pozele, persoanele cunoscute ' +
-      '(amprentele faciale) și tot ce a învățat AI-ul din corecțiile tale. Nu poate fi anulat.'
-    )) return;
-    if (!window.confirm('Ultima confirmare: chiar tot, inclusiv persoanele inrolate?')) return;
+    if (!window.confirm(tr('persons.confirmClearEverything1'))) return;
+    if (!window.confirm(tr('persons.confirmClearEverything2'))) return;
     void clearAllIncludingPersons();
     setOpen(false);
   };
@@ -141,11 +139,11 @@ export function PersonsPanel() {
   const submit = async () => {
     const files = Array.from(fileRef.current?.files ?? []);
     if (!name.trim() || !files.length) {
-      setMessage('Completeaza numele si alege cel putin o poza de referinta.');
+      setMessage(tr('persons.validation.missingNameOrFiles'));
       return;
     }
     setBusy(true);
-    setMessage('Se calculeaza amprentele faciale…');
+    setMessage(tr('persons.computingEmbeddings'));
     const result = await addPerson(name.trim(), files);
     setMessage(result.message);
     setBusy(false);
@@ -154,17 +152,16 @@ export function PersonsPanel() {
 
   return (
     <div className="detail" onClick={e => { if (e.target === e.currentTarget) setOpen(false); }}>
-      <div className="detail-inner narrow" ref={containerRef} role="dialog" aria-modal="true" aria-label="Persoane cunoscute" tabIndex={-1}>
+      <div className="detail-inner narrow" ref={containerRef} role="dialog" aria-modal="true" aria-label={tr('persons.ariaLabel')} tabIndex={-1}>
         <header className="detail-head">
-          <span><UserCheckIcon className="inline-icon" /> Persoane cunoscute</span>
-          <button className="ghost icon-btn" onClick={() => setOpen(false)} aria-label="Inchide">
+          <span><UserCheckIcon className="inline-icon" /> {tr('persons.ariaLabel')}</span>
+          <button className="ghost icon-btn" onClick={() => setOpen(false)} aria-label={tr('detail.close')}>
             <XIcon />
           </button>
         </header>
 
         {persons.length === 0 && (
-          <p className="hint">Nicio persoana inrolata. Adauga-i pe cei dragi (ex. Ami) cu cateva
-          poze clare, frontale — AI-ul ii va recunoaste si va separa strainii automat.</p>
+          <p className="hint">{tr('persons.empty')}</p>
         )}
 
         <ul className="persons">
@@ -177,17 +174,21 @@ export function PersonsPanel() {
                     type="checkbox"
                     checked={selected.has(p.id)}
                     onChange={() => toggleSelected(p.id)}
-                    aria-label={`Selecteaza ${p.name}`}
+                    aria-label={tr('persons.selectAriaLabel', { name: p.name })}
                   />
                   <span>
                     <UserCheckIcon className="inline-icon" /> {p.name}{' '}
                     <em className="mono">
-                      ({p.embeddings.length} referinte
-                      {stats ? ` · recunoscuta in ${stats.matchCount} ${stats.matchCount === 1 ? 'fata' : 'fete'}, incredere medie ${Math.round(stats.avgSimilarity * 100)}%` : ''})
+                      ({tr('persons.refCount', { count: p.embeddings.length })}
+                      {stats ? tr('persons.statsSuffix', {
+                        count: stats.matchCount,
+                        faceWord: plural(stats.matchCount, tr('persons.faceWord.one'), tr('persons.faceWord.other')),
+                        percent: Math.round(stats.avgSimilarity * 100)
+                      }) : ''})
                     </em>
                   </span>
                 </label>
-                <button className="ghost icon-btn" onClick={() => confirmRemove(p.id, p.name)} aria-label={`Sterge ${p.name}`}>
+                <button className="ghost icon-btn" onClick={() => confirmRemove(p.id, p.name)} aria-label={tr('persons.deleteAriaLabel', { name: p.name })}>
                   <TrashIcon />
                 </button>
               </li>
@@ -197,17 +198,17 @@ export function PersonsPanel() {
 
         {selected.size > 0 && (
           <div className="persons-bulk-actions">
-            <span className="hint">{selected.size} selectate</span>
+            <span className="hint">{tr('persons.selectedCount', { count: selected.size })}</span>
             <button className="ghost small" onClick={() => void exportPersonProfiles(Array.from(selected))}>
-              <DownloadIcon className="inline-icon" /> Exporta selectia
+              <DownloadIcon className="inline-icon" /> {tr('persons.exportSelection')}
             </button>
             {selected.size >= 2 && (
               <button className="ghost small" onClick={runMerge}>
-                <LayersIcon className="inline-icon" /> Uneste in una
+                <LayersIcon className="inline-icon" /> {tr('persons.mergeSelection')}
               </button>
             )}
             <button className="ghost small danger" onClick={confirmBulkDelete}>
-              <TrashIcon className="inline-icon" /> Sterge selectia
+              <TrashIcon className="inline-icon" /> {tr('persons.deleteSelection')}
             </button>
           </div>
         )}
@@ -215,23 +216,23 @@ export function PersonsPanel() {
         <div className="face-suggestions">
           <div className="face-suggestions-head">
             <span className="hint">
-              <SparkleIcon className="inline-icon" /> Sugestii AI: fete neidentificate care apar de mai multe ori in biblioteca curenta.
+              <SparkleIcon className="inline-icon" /> {tr('persons.aiSuggestions')}
             </span>
             <button className="ghost small" onClick={() => void scanForClusters()} disabled={scanningClusters}>
-              {scanningClusters ? 'Se cauta…' : 'Cauta persoane neidentificate'}
+              {scanningClusters ? tr('persons.scanning') : tr('persons.scanForClusters')}
             </button>
           </div>
           {clusters !== null && clusters.length === 0 && (
-            <p className="hint">Nicio fata neidentificata nu apare de cel putin 2 ori in biblioteca curenta.</p>
+            <p className="hint">{tr('persons.noClustersFound')}</p>
           )}
           {clusters && clusters.length > 0 && (
             <ul className="face-cluster-list">
               {clusters.map((c, i) => (
                 <li key={i} className="face-cluster-row">
                   <FaceCropThumb photoId={c.members[0].photoId} box={c.members[0].box} />
-                  <span className="hint">Apare in {c.members.length} poze (ex. {c.members[0].fileName})</span>
+                  <span className="hint">{tr('persons.clusterAppearance', { count: c.members.length, fileName: c.members[0].fileName })}</span>
                   <button className="ghost small" onClick={() => enrollCluster(c)}>
-                    <UserCheckIcon className="inline-icon" /> Inroleaza
+                    <UserCheckIcon className="inline-icon" /> {tr('persons.enrollCluster')}
                   </button>
                 </li>
               ))}
@@ -242,18 +243,17 @@ export function PersonsPanel() {
         <div className="enroll">
           <input
             type="text"
-            placeholder="Nume (ex. Ami)"
+            placeholder={tr('persons.namePlaceholder')}
             value={name}
             onChange={e => setName(e.target.value)}
             disabled={busy}
           />
           <input ref={fileRef} type="file" accept="image/*" multiple disabled={busy} />
           <p className="hint">
-            Un nume deja folosit adauga referinte noi la profilul existent (nu creeaza un
-            duplicat) — util pentru reinrolare periodica, ex. un copil ale carui trasaturi se schimba.
+            {tr('persons.reenrollHint')}
           </p>
           <button className="select" onClick={() => void submit()} disabled={busy}>
-            {busy ? 'Se proceseaza…' : 'Inroleaza persoana'}
+            {busy ? tr('workspace.progress.processing') : tr('persons.enroll')}
           </button>
           {message && <p className="hint">{message}</p>}
         </div>
@@ -261,10 +261,10 @@ export function PersonsPanel() {
         {persons.length > 0 && (
           <div className="persons-transfer">
             <button className="ghost small" onClick={() => void exportPersonProfiles(persons.map(p => p.id))}>
-              <DownloadIcon className="inline-icon" /> Exporta toate profilurile
+              <DownloadIcon className="inline-icon" /> {tr('persons.exportAll')}
             </button>
             <button className="ghost small" onClick={() => importRef.current?.click()}>
-              <UploadIcon className="inline-icon" /> Importa profiluri
+              <UploadIcon className="inline-icon" /> {tr('persons.importProfiles')}
             </button>
             <input
               ref={importRef}
@@ -282,12 +282,10 @@ export function PersonsPanel() {
 
         <div className="danger-zone">
           <p className="hint">
-            Toate datele (poze, persoane, model AI) raman 100% locale, pe acest dispozitiv —
-            nimic nu e trimis vreodata pe internet. Pentru stergere completa, inclusiv
-            amprentele faciale ale persoanelor inrolate:
+            {tr('persons.localDataHint')}
           </p>
           <button className="ghost small danger" onClick={confirmClearEverything}>
-            <TrashIcon className="inline-icon" /> Sterge tot, inclusiv persoanele si modelul AI
+            <TrashIcon className="inline-icon" /> {tr('persons.deleteEverything')}
           </button>
         </div>
       </div>
