@@ -25,6 +25,7 @@ import { selectHighlights, selectBlinks } from './state/batchOps';
 import { CARD_MIN_WIDTH } from './state/gridDensity';
 import { SORT_KEY_LABELS, type SortKey } from './state/gridSort';
 import { pickImportFiles } from './core/filePicker';
+import { COLOR_LABELS } from './core/db';
 import { t } from './i18n';
 
 const NOTICE_AUTODISMISS_MS = 7000;
@@ -153,6 +154,8 @@ export default function App() {
   const setFilter = useStore(s => s.setFilter);
   const personFilter = useStore(s => s.personFilter);
   const setPersonFilter = useStore(s => s.setPersonFilter);
+  const colorLabelFilter = useStore(s => s.colorLabelFilter);
+  const setColorLabelFilter = useStore(s => s.setColorLabelFilter);
   const persons = useStore(s => s.persons);
   const searchText = useStore(s => s.searchText);
   const setSearchText = useStore(s => s.setSearchText);
@@ -190,8 +193,10 @@ export default function App() {
   const setSelectMode = useStore(s => s.setSelectMode);
   const bulkSetStatusForSelection = useStore(s => s.bulkSetStatusForSelection);
   const bulkSetRatingForSelection = useStore(s => s.bulkSetRatingForSelection);
+  const bulkSetColorLabelForSelection = useStore(s => s.bulkSetColorLabelForSelection);
   const setStatus = useStore(s => s.setStatus);
   const setRating = useStore(s => s.setRating);
+  const setColorLabel = useStore(s => s.setColorLabel);
   const gridDensity = useStore(s => s.gridDensity);
   const gridSort = useStore(s => s.gridSort);
   const setGridSort = useStore(s => s.setGridSort);
@@ -597,6 +602,18 @@ export default function App() {
                 {persons.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
               </select>
             )}
+            <div className="color-label-swatches color-label-filter-row" role="group" aria-label={tr('app.colorLabelFilter.ariaLabel')}>
+              {COLOR_LABELS.map(c => (
+                <button
+                  key={c}
+                  className={colorLabelFilter === c ? `color-label-swatch label-${c} active` : `color-label-swatch label-${c}`}
+                  onClick={() => setColorLabelFilter(colorLabelFilter === c ? null : c)}
+                  aria-pressed={colorLabelFilter === c}
+                  aria-label={tr(`colorLabel.${c}`)}
+                  title={tr(`colorLabel.${c}`)}
+                />
+              ))}
+            </div>
             {multiSelectIds.size === 0 && (
               <button
                 className={selectMode ? 'chip active select-mode-toggle' : 'chip select-mode-toggle'}
@@ -792,6 +809,11 @@ export default function App() {
               ? 0
               : photos.find(p => p.id === contextMenu.photoId)?.rating ?? 0
           }
+          colorLabel={
+            multiSelectIds.has(contextMenu.photoId) && multiSelectIds.size > 1
+              ? 'none'
+              : photos.find(p => p.id === contextMenu.photoId)?.colorLabel ?? 'none'
+          }
           onSetStatus={status => {
             const bulk = multiSelectIds.has(contextMenu.photoId) && multiSelectIds.size > 1;
             if (bulk) void bulkSetStatusForSelection(status);
@@ -801,6 +823,11 @@ export default function App() {
             const bulk = multiSelectIds.has(contextMenu.photoId) && multiSelectIds.size > 1;
             if (bulk) void bulkSetRatingForSelection(n);
             else void setRating(contextMenu.photoId, n);
+          }}
+          onSetColorLabel={label => {
+            const bulk = multiSelectIds.has(contextMenu.photoId) && multiSelectIds.size > 1;
+            if (bulk) void bulkSetColorLabelForSelection(label);
+            else void setColorLabel(contextMenu.photoId, label);
           }}
           onOpenDetail={
             multiSelectIds.has(contextMenu.photoId) && multiSelectIds.size > 1

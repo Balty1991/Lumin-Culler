@@ -45,7 +45,19 @@ export interface PhotoRecord {
    * proiect ales; nu necesita bump de schema Dexie (camp neindexat).
    */
   project?: string;
+  /**
+   * Eticheta de culoare (Lightroom-style color label) — a DOUA axa de
+   * organizare libera, independenta de status/rating (ex. "rosu" = de
+   * retusat, "albastru" = trimis clientului deja). Absent sau 'none' = fara
+   * eticheta; nu necesita bump de schema Dexie (camp neindexat, filtrat
+   * client-side, exact ca `rating`/`genre`/`project` de mai sus).
+   */
+  colorLabel?: ColorLabel;
 }
+
+export type ColorLabel = 'none' | 'red' | 'yellow' | 'green' | 'blue' | 'purple';
+/** Toate etichetele asignabile, EXCLUZAND 'none' (care inseamna "fara eticheta", nu o culoare reala) — sursa unica pentru orice UI de asignare/filtrare. */
+export const COLOR_LABELS: Exclude<ColorLabel, 'none'>[] = ['red', 'yellow', 'green', 'blue', 'purple'];
 
 export interface ThumbnailRecord {
   photoId: string;

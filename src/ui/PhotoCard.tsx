@@ -62,9 +62,11 @@ function PhotoCardInner({ photo, index, onOpen, multiSelected, onCardPointerDown
   const ringColor = scoreColorVar(photo.aiScore);
   const ringDeg = Math.max(0, Math.min(360, Math.round((photo.aiScore / 100) * 360)));
 
+  const colorLabelClass = photo.colorLabel && photo.colorLabel !== 'none' ? ` label-${photo.colorLabel}` : '';
+
   return (
     <button
-      className={`card st-${photo.status}${multiSelected ? ' multi-selected' : ''}`}
+      className={`card st-${photo.status}${multiSelected ? ' multi-selected' : ''}${colorLabelClass}`}
       data-photo-id={photo.id}
       onClick={e => onOpen(photo.id, e)}
       onPointerDown={e => onCardPointerDown?.(photo.id, e)}
