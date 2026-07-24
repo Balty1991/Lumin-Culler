@@ -267,6 +267,8 @@ export const en: Record<TranslationKey, string> = {
   'detail.why.loading': 'Generating the explanation…',
   'detail.why.factorsShort': 'Factors in short',
   'detail.why.none': 'No score explanation exists yet for this photo.',
+  'detail.why.suggestions.title': 'Suggestions to improve',
+  'detail.why.suggestions.none': 'Solid frame — no clear improvements to suggest.',
   'detail.persons.none': 'No known person recognized in this photo.',
   'detail.persons.confidenceTitle': 'Similarity to the enrolled profile',
   'detail.history.none': 'No recent manual decision for this photo — the history only keeps the last 10 changes for the whole session, not a complete log.',

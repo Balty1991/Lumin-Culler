@@ -194,3 +194,75 @@ export function generateExplanation(
   ].filter((p): p is string => p !== null);
   return paragraphs;
 }
+
+// ── Sugestii de imbunatatire ─────────────────────────────────────────────────
+// Diferit de paragrafele de mai sus (care descriu STAREA curenta a pozei):
+// sugestiile spun ce s-ar putea corecta in editare sau evita la un cadru
+// similar data viitoare. Maxim 4, in ordinea in care conteaza — defectele
+// tehnice (neclaritate, expunere) nu se mai pot repara in post, asa ca
+// preced sugestiile de compozitie/estetica, care macar uneori se pot ajusta.
+
+const MAX_SUGGESTIONS = 4;
+
+/**
+ * Genereaza sugestii concrete, actionabile, pentru o fotografie — spre
+ * deosebire de generateExplanation (care explica scorul), aceasta functie
+ * raspunde la "ce as putea face diferit". Listă goală = cadru fără defecte
+ * clare de semnalat pe criteriile analizate.
+ */
+export function generateSuggestions(a: AnalysisRecord): string[] {
+  const s: string[] = [];
+
+  if (a.sharpness < 45) {
+    s.push('Verifică stabilizarea sau viteza obturatorului — la un cadru atât de neclar, nicio editare nu recuperează claritatea.');
+  }
+  const exposureDiff = a.exposure - 50;
+  if (exposureDiff < -15) {
+    s.push('Cadrul e subexpus — la reshoot, mărește timpul de expunere, deschide diafragma sau crește ISO.');
+  } else if (exposureDiff > 15) {
+    s.push('Cadrul e supraexpus — la reshoot, scade timpul de expunere sau diafragma pentru mai puțină lumină.');
+  }
+  if ((a.highlightClipping ?? 0) > 0.06) {
+    s.push('Zonele luminoase și-au pierdut detaliul — scade expunerea cu 1/3–2/3 EV la cadre similare.');
+  }
+  if ((a.shadowClipping ?? 0) > 0.06) {
+    s.push('Umbrele sunt blocate fără detaliu — mărește ușor expunerea sau folosește un reflector/blitz de umplere.');
+  }
+  if (a.iso !== undefined && a.iso >= 1600) {
+    s.push(`ISO ${Math.round(a.iso)} — un obiectiv mai luminos sau un trepied ar reduce zgomotul la cadre similare.`);
+  }
+
+  if (a.faceCount > 0) {
+    if ((a.headroom ?? 0.5) < 0.3) {
+      s.push('Prea puțin spațiu deasupra capului — încadrează puțin mai larg data viitoare.');
+    } else if ((a.headroom ?? 0.5) > 0.8) {
+      s.push('Prea mult spațiu gol deasupra capului — apropie-te sau folosește un zoom mai lung.');
+    }
+    if ((a.ruleOfThirds ?? 0.5) < 0.4) {
+      s.push('Subiectul e centrat — mută-l spre o intersecție a treimilor pentru o compoziție mai dinamică.');
+    }
+    const group = a.faceCount > 1;
+    const eyesFrac = group ? (a.groupEyesOpenRatio ?? (a.allEyesOpen ? 1 : 0)) : (a.allEyesOpen ? 1 : 0);
+    if (eyesFrac < 0.999) {
+      s.push(group
+        ? 'Nu toată lumea are ochii deschiși — dacă există alte cadre din aceeași serie, verifică-le pentru o variantă mai bună.'
+        : 'Subiectul are ochii închiși — verifică dacă există un alt cadru din aceeași serie, la câteva sute de ms distanță.');
+    }
+  } else {
+    if (!a.leadingLinesDetected && !a.symmetryDetected) {
+      s.push('Compoziția nu are linii directoare sau simetrie clară — caută un element care să ghideze privirea (drum, gard, umbră, teren).');
+    }
+    if (a.horizonTiltDeg !== undefined && Math.abs(a.horizonTiltDeg) > 2) {
+      s.push(`Orizontul e înclinat cu ${Math.abs(a.horizonTiltDeg).toFixed(1)}° — îndreaptă-l în editare sau folosește nivela aparatului la următorul cadru.`);
+    }
+  }
+
+  if (a.subjectInFocus === false) {
+    s.push('Subiectul principal nu e cel mai clar element din cadru — verifică punctul de focalizare înainte de declanșare.');
+  }
+  if (a.colorHarmonyScore !== undefined && a.colorHarmonyScore < 0.35) {
+    s.push('Paleta de culori e dezordonată — simplific-o în editare sau ajustează saturația selectiv.');
+  }
+
+  return s.slice(0, MAX_SUGGESTIONS);
+}

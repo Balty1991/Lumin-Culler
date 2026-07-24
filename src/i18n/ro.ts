@@ -264,6 +264,8 @@ export const ro = {
   'detail.why.loading': 'Se genereaza explicatia…',
   'detail.why.factorsShort': 'Factori pe scurt',
   'detail.why.none': 'Inca nu exista explicatii de scor pentru aceasta poza.',
+  'detail.why.suggestions.title': 'Sugestii de imbunatatire',
+  'detail.why.suggestions.none': 'Cadru solid — nu am identificat imbunatatiri clare de sugerat.',
   'detail.persons.none': 'Nicio persoana cunoscuta recunoscuta in aceasta poza.',
   'detail.persons.confidenceTitle': 'Similaritate fata de profilul inrolat',
   'detail.history.none': 'Nicio decizie manuala recenta pentru aceasta poza — istoricul pastreaza doar ultimele 10 schimbari din toata sesiunea, nu un jurnal complet.',
