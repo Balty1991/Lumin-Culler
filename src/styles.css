@@ -1122,6 +1122,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .compare-card.recommended:hover { transform: scale(1.02) translateY(-2px); }
 .compare-img { padding: 0; background: #050608; cursor: zoom-in; border-radius: 0; position: relative; overflow: hidden; }
 .compare-img img { width: 100%; aspect-ratio: 3/2; object-fit: contain; display: block; transition: transform 0.15s var(--ease); }
+/* pan sincronizat la zoom > 1x — touch-action: none ca browserul sa nu incerce
+   sa deruleze pagina in timp ce tragi de imagine pe mobil; transitia se
+   dezactiveaza DOAR cat timp tragi efectiv (.panning), ca translate-ul sa
+   urmareasca degetul/mouse-ul instant, nu cu intarziere de 0.15s */
+.compare-img.zoomed { cursor: grab; touch-action: none; }
+.compare-img.zoomed.panning { cursor: grabbing; }
+.compare-img.panning img { transition: none; }
 .compare-recommend-badge {
   position: absolute; top: 8px; left: 8px; z-index: var(--z-card-badge); display: inline-flex; align-items: center; gap: 4px;
   font-family: var(--mono); font-size: 0.62rem; font-weight: 700; letter-spacing: 0.03em;

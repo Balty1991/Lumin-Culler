@@ -6,6 +6,8 @@ import { XIcon, LayersIcon, SparkleIcon, GridIcon } from './icons';
 import { t } from '../i18n';
 
 const ZOOM_LEVELS = [1, 1.5, 2, 3] as const;
+/** Peste aceasta miscare (px), un pointerdown pe imagine e tratat ca "a tras", nu ca un tap simplu — suprima deschiderea la 100%. */
+const PAN_DRAG_THRESHOLD_PX = 4;
 
 /** Blob URL al preview-ului (fallback miniatura) unei poze — extras din CompareCard ca sa fie reutilizat si de vizualizarea de suprapunere. */
 function usePreviewUrl(photoId: string): string | null {
@@ -42,6 +44,49 @@ export function GroupCompare() {
   const [zoomLevel, setZoomLevel] = useState<number>(1);
   const [overlayMode, setOverlayMode] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  /**
+   * Pan sincronizat (plan "cat mai pro" — completeaza zoom-ul deja sincronizat
+   * de mai sus): la zoom > 1x, tragi de ORICE cadru si toate cardurile se
+   * deplaseaza IDENTIC, ca sa inspectezi acelasi detaliu (ochi, expresie) in
+   * toate cadrele simultan, nu doar centrul fix al imaginii. Impartit la
+   * zoomLevel in transform ca o miscare de X pixeli pe ecran sa produca
+   * mereu acelasi deplasament vizual, indiferent de nivelul de zoom curent.
+   */
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const panDragRef = useRef<{ startX: number; startY: number; originX: number; originY: number; moved: boolean } | null>(null);
+  const justPannedRef = useRef(false);
+
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      const drag = panDragRef.current;
+      if (!drag) return;
+      const dx = e.clientX - drag.startX;
+      const dy = e.clientY - drag.startY;
+      if (!drag.moved && Math.hypot(dx, dy) > PAN_DRAG_THRESHOLD_PX) drag.moved = true;
+      setPan({ x: drag.originX + dx, y: drag.originY + dy });
+    };
+    const onUp = () => {
+      if (panDragRef.current?.moved) justPannedRef.current = true;
+      panDragRef.current = null;
+      setIsPanning(false);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+  }, []);
+
+  const onPanPointerDown = (e: React.PointerEvent) => {
+    if (zoomLevel === 1) return;
+    e.preventDefault();
+    panDragRef.current = { startX: e.clientX, startY: e.clientY, originX: pan.x, originY: pan.y, moved: false };
+    setIsPanning(true);
+  };
 
   const rawMembers = groupId ? groupOf(groupId) : [];
   // burst-uri de sport/wildlife pot avea zeci de cadre aproape identice —
@@ -58,6 +103,7 @@ export function GroupCompare() {
     setTopN(Math.min(3, Math.max(1, rawMembers.length)));
     setZoomLevel(1);
     setOverlayMode(false);
+    setPan({ x: 0, y: 0 });
     if (!groupId) return;
     let alive = true;
     void selectBestPhotoInGroup(groupId).then(id => { if (alive) setRecommendedId(id); });
@@ -133,9 +179,15 @@ export function GroupCompare() {
                   photo={m}
                   recommended={m.id === recommendedId}
                   zoomLevel={zoomLevel}
+                  pan={pan}
+                  isPanning={isPanning}
+                  onPanPointerDown={onPanPointerDown}
                   onKeep={() => void keepOnlyInGroup(groupId, m.id)}
                   onReject={() => void setStatus(m.id, 'rejected')}
-                  onZoom={() => { openCompare(null); openDetail(m.id); }}
+                  onZoom={() => {
+                    if (justPannedRef.current) { justPannedRef.current = false; return; }
+                    openCompare(null); openDetail(m.id);
+                  }}
                 />
               ))}
             </div>
@@ -146,10 +198,13 @@ export function GroupCompare() {
   );
 }
 
-function CompareCard({ photo, recommended, zoomLevel, onKeep, onReject, onZoom }: {
+function CompareCard({ photo, recommended, zoomLevel, pan, isPanning, onPanPointerDown, onKeep, onReject, onZoom }: {
   photo: PhotoView;
   recommended: boolean;
   zoomLevel: number;
+  pan: { x: number; y: number };
+  isPanning: boolean;
+  onPanPointerDown: (e: React.PointerEvent) => void;
   onKeep: () => void;
   onReject: () => void;
   onZoom: () => void;
@@ -158,13 +213,22 @@ function CompareCard({ photo, recommended, zoomLevel, onKeep, onReject, onZoom }
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const src = usePreviewUrl(photo.id);
 
+  const imgButtonClass = ['compare-img', zoomLevel !== 1 && 'zoomed', isPanning && 'panning'].filter(Boolean).join(' ');
+
   return (
     <div className={recommended ? `compare-card st-${photo.status} recommended` : `compare-card st-${photo.status}`}>
-      <button className="compare-img" onClick={onZoom} title={tr('compare.card.zoomTitle')}>
+      <button
+        className={imgButtonClass}
+        onClick={onZoom}
+        onPointerDown={onPanPointerDown}
+        title={tr(zoomLevel !== 1 ? 'compare.card.panTitle' : 'compare.card.zoomTitle')}
+      >
         {src && (
           <img
             src={src} alt={photo.fileName} loading="lazy" decoding="async"
-            style={zoomLevel !== 1 ? { transform: `scale(${zoomLevel})`, transformOrigin: 'center' } : undefined}
+            style={zoomLevel !== 1
+              ? { transform: `scale(${zoomLevel}) translate(${pan.x / zoomLevel}px, ${pan.y / zoomLevel}px)`, transformOrigin: 'center' }
+              : undefined}
           />
         )}
         {recommended && (
