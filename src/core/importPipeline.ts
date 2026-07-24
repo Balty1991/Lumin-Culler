@@ -12,6 +12,7 @@ import type { HashInput } from '../workers/hashCompare.worker';
 import { parseExif } from './exifParser';
 import { parseIptc } from './iptcParser';
 import { isRawFile, decodeRawFile, RAW_EXTENSIONS } from './rawDecoder';
+import type { FileSystemFileHandleLike } from './filePicker';
 
 export interface ImportProgress {
   done: number;
@@ -47,6 +48,15 @@ const EXIF_SNIFF_BYTES = 131072;
  * exportate in format original decat prin reimport.
  */
 export const originalFiles = new Map<string, File>();
+
+/**
+ * Cand importul a folosit File System Access API (filePicker.ts), pastram si
+ * handle-ul alaturi de File — spre deosebire de `originalFiles`, acesta
+ * SUPRAVIETUIESTE unui reload (persistat in db.fileHandles la selectie, vezi
+ * syncOriginal in state/store.ts), fara sa dubleze bytes-ii originalului in
+ * IndexedDB. Absent pentru importuri prin <input type="file"> (fallback).
+ */
+export const originalHandles = new Map<string, FileSystemFileHandleLike>();
 
 const DECODE_TIMEOUT_MS = 30000;
 
@@ -163,9 +173,10 @@ export function toHashInput(id: string, dHash: string, a: AnalysisRecord): HashI
   };
 }
 
-async function processOne(file: File, genre?: string, project?: string): Promise<ImportedPhoto> {
+async function processOne(file: File, genre?: string, project?: string, handle?: FileSystemFileHandleLike): Promise<ImportedPhoto> {
   const id = crypto.randomUUID();
   originalFiles.set(id, file);
+  if (handle) originalHandles.set(id, handle);
   const isRaw = isRawFile(file);
   // RAW (CR2/NEF/ARW/DNG/...) nu se decodeaza cu createImageBitmap — folosim
   // LibRaw (WASM); metadatele EXIF vin direct din LibRaw (mai fiabil decat
@@ -271,9 +282,13 @@ async function processOne(file: File, genre?: string, project?: string): Promise
     db.analyses.put(analysis),
     // pastram originalul si pentru auto-selectiile AI (nu doar corectiile
     // manuale) — altfel exportul s-ar rupe la un reload inainte ca utilizatorul
-    // sa apuce sa atinga poza (vezi syncOriginal in state/store.ts)
+    // sa apuce sa atinga poza (vezi syncOriginal in state/store.ts). Preferam
+    // handle-ul (cateva zeci de octeti) fata de o copie completa a blob-ului
+    // cand File System Access API e disponibil (plan 2.3.4).
     ...(status === 'selected'
-      ? [db.originals.put({ photoId: id, blob: file, fileName: file.name, type: file.type })]
+      ? [handle
+          ? db.fileHandles.put({ photoId: id, handle })
+          : db.originals.put({ photoId: id, blob: file, fileName: file.name, type: file.type })]
       : [])
   ]);
 
@@ -298,7 +313,9 @@ export async function importFiles(
   /** Genul fotografic activ (ex. "Nunta", "Portret") — vezi ContextEngine.deriveContextKey. */
   genre?: string,
   /** Numele proiectului/sesiunii active (ProjectNameField) — vezi PhotoRecord.project. */
-  project?: string
+  project?: string,
+  /** Handle-uri File System Access API, aliniate index-cu-index cu `files` (vezi filePicker.ts pickImportFiles). Absent = import prin <input type="file">. */
+  handles?: (FileSystemFileHandleLike | undefined)[]
 ): Promise<Map<string, string>> {
   // faza separata (nu "analiza 0/N"): la primul import, descarca modelele AI
   // (cateva zeci de MB) — poate dura, si utilizatorul trebuie sa stie de ce.
@@ -308,7 +325,11 @@ export async function importFiles(
   const persons = await db.persons.toArray();
   await analysisPool.setKnownPersons(persons);
 
-  const images = files.filter(f =>
+  // pastram fisierul si handle-ul corespunzator impreuna INAINTE de a filtra
+  // dupa format — altfel indexul din `handles` s-ar decala fata de `files`
+  // de indata ce un fisier neacceptat (ex. HEIC) e exclus din mijlocul listei.
+  const pairs = files.map((file, i) => ({ file, handle: handles?.[i] }));
+  const images = pairs.filter(({ file: f }) =>
     /image\/(jpeg|png|webp|avif)/.test(f.type) || /\.(jpe?g|png|webp|avif)$/i.test(f.name) || RAW_EXTENSIONS.test(f.name)
   );
   // Daca niciun fisier ales nu are un format suportat (ex. HEIC/HEIF de pe iPhone,
@@ -347,10 +368,10 @@ export async function importFiles(
         if (cancelToken?.cancelled) { stopReason = `Import anulat — ${done}/${images.length} poze procesate pana la anulare.`; break; }
         const myIndex = index++;
         if (myIndex >= images.length) break;
-        const file = images[myIndex];
+        const { file, handle } = images[myIndex];
 
         try {
-          const item = await processOne(file, genre, project);
+          const item = await processOne(file, genre, project, handle);
           hashes.push(toHashInput(item.photo.id, item.photo.dHash, item.analysis));
           onPhoto(item);
         } catch (err) {

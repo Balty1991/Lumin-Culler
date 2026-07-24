@@ -5,7 +5,8 @@
  */
 import { create } from 'zustand';
 import { db, type AnalysisRecord, type PhotoRecord, type KnownPerson } from '../core/db';
-import { importFiles, originalFiles, createCancelToken, type ImportProgress, type ImportCancelToken } from '../core/importPipeline';
+import { importFiles, originalFiles, originalHandles, createCancelToken, type ImportProgress, type ImportCancelToken } from '../core/importPipeline';
+import type { FileSystemFileHandleLike } from '../core/filePicker';
 import { readEconomicMode, writeEconomicMode } from '../core/performanceSettings';
 import { exportOriginalFiles, computeGroupPersonUnion } from '../core/exportPhotos';
 import { exportXMPSidecars, deriveXmpKeywords, deriveAiScoreKeyword, deriveSeriesKeyword } from '../core/export/xmpGenerator';
@@ -198,7 +199,7 @@ interface AppState {
   selectMode: boolean;
 
   boot: () => Promise<void>;
-  runImport: (files: File[]) => Promise<void>;
+  runImport: (files: File[], handles?: (FileSystemFileHandleLike | undefined)[]) => Promise<void>;
   setStatus: (id: string, status: PhotoRecord['status']) => Promise<void>;
   /**
    * Rating 1-5 stele — axa SEPARATA de status (pick/respins/de verificat),
@@ -394,14 +395,25 @@ function makeBatchEvent(label: string, changes: { photoId: string; previousStatu
 }
 
 /**
- * Pastreaza fisierul original in IndexedDB doar cat timp poza e SELECTATA —
+ * Pastreaza o referinta la fisierul original doar cat timp poza e SELECTATA —
  * altfel exportul "format original" depinde de un File tinut in memorie care
  * dispare la orice reload de tab (frecvent pe mobil, cand browserul descarca
- * tab-urile din fundal ca sa economiseasca RAM). La deselectare, il stergem
- * la loc ca sa nu dublam spatiul ocupat de intregul import.
+ * tab-urile din fundal ca sa economiseasca RAM). La deselectare, o stergem la
+ * loc ca sa nu dublam spatiul ocupat de intregul import.
+ *
+ * Cand importul a folosit File System Access API (plan 2.3.4), preferam
+ * handle-ul (cateva zeci de octeti, in db.fileHandles) fata de o copie
+ * completa a blob-ului (db.originals) — elimina exact riscul de
+ * QuotaExceededError pe care copierea integrala il avea pe biblioteci mari.
  */
 async function syncOriginal(id: string, status: PhotoRecord['status']): Promise<{ quotaError: boolean }> {
   if (status === 'selected') {
+    const handle = originalHandles.get(id);
+    if (handle) {
+      await db.fileHandles.put({ photoId: id, handle });
+      await db.originals.delete(id); // daca exista deja o copie blob dintr-o versiune anterioara, n-o mai dublam
+      return { quotaError: false };
+    }
     const file = originalFiles.get(id);
     if (file) {
       try {
@@ -413,6 +425,7 @@ async function syncOriginal(id: string, status: PhotoRecord['status']): Promise<
     }
   } else {
     await db.originals.delete(id);
+    await db.fileHandles.delete(id);
   }
   return { quotaError: false };
 }
@@ -570,7 +583,7 @@ export const useStore = create<AppState>((set, get) => ({
     set({ photos: views, persons, history, booted: true });
   },
 
-  runImport: async (files: File[]) => {
+  runImport: async (files: File[], handles?: (FileSystemFileHandleLike | undefined)[]) => {
     set({ progress: { done: 0, total: files.length, fileName: '', phase: 'incarcare' } });
     let warning: string | undefined;
     let done = 0;
@@ -584,7 +597,8 @@ export const useStore = create<AppState>((set, get) => ({
         item => set(state => ({ photos: [...state.photos, toView(item.photo, item.analysis)] })),
         cancelToken,
         get().genre,
-        get().projectName
+        get().projectName,
+        handles
       );
     } catch (err) {
       // fara asta, o promisiune respinsa (ex. retea slaba la incarcarea modelelor AI)
@@ -1122,21 +1136,23 @@ export const useStore = create<AppState>((set, get) => ({
 
   clearAll: async () => {
     await Promise.all([
-      db.photos.clear(), db.thumbnails.clear(), db.previews.clear(), db.originals.clear(),
+      db.photos.clear(), db.thumbnails.clear(), db.previews.clear(), db.originals.clear(), db.fileHandles.clear(),
       db.analyses.clear(), db.history.clear()
     ]);
     originalFiles.clear();
+    originalHandles.clear();
     set({ photos: [], detailId: null, compareGroupId: null, history: [] });
   },
 
   clearAllIncludingPersons: async () => {
     await Promise.all([
-      db.photos.clear(), db.thumbnails.clear(), db.previews.clear(), db.originals.clear(),
+      db.photos.clear(), db.thumbnails.clear(), db.previews.clear(), db.originals.clear(), db.fileHandles.clear(),
       db.analyses.clear(), db.history.clear(),
       db.persons.clear(), db.corrections.clear(),
       contextEngine.reset()
     ]);
     originalFiles.clear();
+    originalHandles.clear();
     await analysisPool.setKnownPersons([]).catch(() => {});
     set({ photos: [], persons: [], detailId: null, compareGroupId: null, history: [], batchHistory: [] });
   },

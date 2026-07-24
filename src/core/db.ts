@@ -64,6 +64,19 @@ export interface OriginalRecord {
   type: string;
 }
 
+/**
+ * Referinta usoara catre fisierul original de pe disc (File System Access API),
+ * folosita IN LOC de OriginalRecord.blob cand browserul o suporta — un handle
+ * e cateva zeci de octeti (nu MB/zeci de MB per poza), asa ca nu risca
+ * QuotaExceededError pe importuri mari. FileSystemFileHandle e clonabil
+ * structural in IndexedDB (Chromium); getFile()/permisiunile sunt verificate
+ * la citire (vezi filePicker.ts reacquireFile).
+ */
+export interface FileHandleRecord {
+  photoId: string;
+  handle: import('./filePicker').FileSystemFileHandleLike;
+}
+
 export interface FaceInsight {
   box: [number, number, number, number];
   faceScore: number;
@@ -272,6 +285,7 @@ export class LuminDB extends Dexie {
   thumbnails!: Table<ThumbnailRecord, string>;
   previews!: Table<PreviewRecord, string>;
   originals!: Table<OriginalRecord, string>;
+  fileHandles!: Table<FileHandleRecord, string>;
   analyses!: Table<AnalysisRecord, string>;
   persons!: Table<KnownPerson, string>;
   contextModels!: Table<ContextModelRecord, string>;
@@ -318,6 +332,21 @@ export class LuminDB extends Dexie {
       thumbnails: 'photoId',
       previews: 'photoId',
       originals: 'photoId',
+      analyses: 'photoId, sceneType, aiScore',
+      persons: 'id, name',
+      contextModels: 'contextKey',
+      corrections: '++id, contextKey, ts',
+      history: '++id, ts'
+    });
+    // v5: handle-uri File System Access API pentru fisierele originale (plan
+    // 2.3.4) — tabela noua, separata de `originals` (care ramane blob-ul
+    // complet, fallback pentru browserele fara suport pentru API).
+    this.version(5).stores({
+      photos: 'id, capturedAt, status, dHash, groupId',
+      thumbnails: 'photoId',
+      previews: 'photoId',
+      originals: 'photoId',
+      fileHandles: 'photoId',
       analyses: 'photoId, sceneType, aiScore',
       persons: 'id, name',
       contextModels: 'contextKey',
