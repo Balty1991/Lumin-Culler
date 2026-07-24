@@ -18,6 +18,7 @@ import { originalFiles } from './importPipeline';
 import { db } from './db';
 import { getDirectoryPicker, downloadZip, type LocalDirHandle } from './export/directoryPicker';
 import { reacquireFile } from './filePicker';
+import { buildExportFileName, type RenameContext } from './renameTemplate';
 
 export interface ExportResult {
   exported: number;
@@ -34,6 +35,22 @@ export interface ExportPhotoInput {
   faceCount: number;
   strangerCount: number;
   sceneType: string;
+  /**
+   * Campuri folosite DOAR de redenumirea dupa sablon (renameTemplate mai jos),
+   * absente => token-ul corespunzator devine gol la expansiune. client/event/
+   * location vin per-poza (din state/projectMetadata.ts, dupa p.project — vezi
+   * acelasi tipar la exportXMP) ca sesiunile care amesteca mai multe proiecte
+   * sa fie redenumite corect fiecare cu propriile metadate, nu cu ale primei poze.
+   */
+  capturedAt?: number;
+  client?: string;
+  event?: string;
+  location?: string;
+}
+
+export interface ExportOptions {
+  /** Sablon de redenumire (vezi core/renameTemplate.ts) — gol/absent pastreaza numele original, neschimbat. */
+  renameTemplate?: string;
 }
 
 // ── Grupare pe foldere: persoane cunoscute (si combinatii), apoi scena ─────
@@ -135,14 +152,23 @@ function downloadOne(name: string, file: File, folder: string): Promise<void> {
   });
 }
 
-export async function exportOriginalFiles(photos: ExportPhotoInput[]): Promise<ExportResult> {
+export async function exportOriginalFiles(photos: ExportPhotoInput[], options: ExportOptions = {}): Promise<ExportResult> {
+  const { renameTemplate } = options;
+  let sequence = 0;
+  const nameFor = (p: ExportPhotoInput): string => {
+    sequence += 1;
+    if (!renameTemplate) return p.fileName;
+    const ctx: RenameContext = { client: p.client, event: p.event, location: p.location, capturedAt: p.capturedAt };
+    return buildExportFileName(renameTemplate, ctx, sequence, p.fileName);
+  };
+
   const available: { name: string; file: File; folder: string }[] = [];
   const missing: string[] = [];
   for (const p of photos) {
     const folder = folderLabel(p);
     const inMemory = originalFiles.get(p.id);
     if (inMemory) {
-      available.push({ name: p.fileName, file: inMemory, folder });
+      available.push({ name: nameFor(p), file: inMemory, folder });
       continue;
     }
     // fallback 1: handle File System Access API persistat (poze selectate,
@@ -152,7 +178,7 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[]): Promise<E
     if (storedHandle) {
       try {
         const file = await reacquireFile(storedHandle.handle);
-        available.push({ name: p.fileName, file, folder });
+        available.push({ name: nameFor(p), file, folder });
         continue;
       } catch {
         // permisiune refuzata sau fisierul a fost mutat/sters de pe disc —
@@ -162,7 +188,7 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[]): Promise<E
     // fallback 2: fisierul original persistat in IndexedDB (poze selectate,
     // supravietuieste unui reload de tab — vezi core/db.ts OriginalRecord)
     const stored = await db.originals.get(p.id);
-    if (stored) available.push({ name: p.fileName, file: new File([stored.blob], stored.fileName, { type: stored.type }), folder });
+    if (stored) available.push({ name: nameFor(p), file: new File([stored.blob], stored.fileName, { type: stored.type }), folder });
     else missing.push(p.fileName);
   }
 

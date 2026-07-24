@@ -1204,6 +1204,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .batch-preview-chip { font-size: 0.72rem; font-weight: 700; padding: 3px 9px; border-radius: 999px; border: 1px solid transparent; }
 .batch-preview-chip.pos { color: var(--pick); background: rgba(74,222,128,0.12); border-color: rgba(74,222,128,0.3); }
 .batch-preview-chip.neg { color: var(--reject); background: rgba(251,113,133,0.12); border-color: rgba(251,113,133,0.3); }
+.batch-rename-input {
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius);
+  color: var(--text); padding: 10px 12px; font: inherit; transition: border-color 0.18s var(--ease);
+}
+.batch-rename-input:focus { border-color: var(--accent); }
+.batch-rename-preview { margin: 0; }
 
 .project-meta-form { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
 .project-meta-form input {
