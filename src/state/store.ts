@@ -22,6 +22,7 @@ import { readStoredProjectName, writeProjectName } from './projectName';
 import { readStoredGenre, writeStoredGenre } from './genre';
 import { readGridDensity, writeGridDensity, type GridDensity } from './gridDensity';
 import { recordUsage, readMonthlyUsage, FREE_TIER_MONTHLY_LIMIT } from './usage';
+import { getProjectMetadata } from './projectMetadata';
 import { buildBackup, backupFileName, parseBackupFile, restoreBackup } from '../core/backupService';
 import { buildClientGalleryHtml } from '../core/export/clientGallery';
 
@@ -980,19 +981,28 @@ export const useStore = create<AppState>((set, get) => ({
     const decided = get().photos.filter(p => p.status !== 'pending');
     if (!decided.length) { set({ notice: 'Nicio poza cu decizie luata inca — Selecteaza/Respinge cel putin una.' }); return; }
     try {
-      const result = await exportXMPSidecars(decided.map(p => ({
-        fileName: p.fileName,
-        status: p.status,
-        rating: p.rating,
-        keywords: [
-          ...deriveXmpKeywords(p.personNames, p.sceneSemantic, p.sceneTags),
-          deriveAiScoreKeyword(p.aiScore),
-          ...(p.groupId ? [deriveSeriesKeyword(p.groupId)] : [])
-        ],
-        aiScore: p.aiScore,
-        aiFactors: explainFactors(p.aiFactors).map(f => `${f.label} (${f.positive ? '+' : '-'})`),
-        groupId: p.groupId
-      })));
+      const result = await exportXMPSidecars(decided.map(p => {
+        const meta = p.project ? getProjectMetadata(p.project) : {};
+        return {
+          fileName: p.fileName,
+          status: p.status,
+          rating: p.rating,
+          keywords: [
+            ...deriveXmpKeywords(p.personNames, p.sceneSemantic, p.sceneTags),
+            deriveAiScoreKeyword(p.aiScore),
+            ...(p.groupId ? [deriveSeriesKeyword(p.groupId)] : []),
+            ...(meta.client ? [`Client: ${meta.client}`] : []),
+            ...(meta.event ? [`Eveniment: ${meta.event}`] : []),
+            ...(meta.location ? [`Locatie: ${meta.location}`] : [])
+          ],
+          aiScore: p.aiScore,
+          aiFactors: explainFactors(p.aiFactors).map(f => `${f.label} (${f.positive ? '+' : '-'})`),
+          groupId: p.groupId,
+          client: meta.client,
+          event: meta.event,
+          location: meta.location
+        };
+      }));
       if (result.cancelled) return;
       const msg = result.exported
         ? `${result.exported} sidecar-uri XMP exportate` + (

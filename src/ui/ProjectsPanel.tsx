@@ -1,11 +1,47 @@
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useStore, NO_PROJECT_KEY } from '../state/store';
 import { computeProjectStats } from '../core/stats';
+import { getProjectMetadata, setProjectMetadata, type ProjectMetadata } from '../state/projectMetadata';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { XIcon, LayersIcon, FilterDotIcon } from './icons';
 
 function formatDate(ts?: number): string {
   return ts ? new Date(ts).toLocaleDateString('ro-RO', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+}
+
+/**
+ * Metadate personalizate de proiect (plan 2.3.5): client, tip eveniment, locatie —
+ * salvate per nume de proiect (state/projectMetadata.ts), incluse apoi in exportul
+ * XMP (locatia ca photoshop:Location, camp standard vazut de Lightroom). Editare
+ * inline, fara modal separat — sunt doar 3 campuri text, opuse complexitatii.
+ */
+function ProjectMetaEditor({ project }: { project: string }) {
+  const [meta, setMeta] = useState<ProjectMetadata>(() => getProjectMetadata(project));
+  const [saved, setSaved] = useState(false);
+
+  const save = () => {
+    setProjectMetadata(project, meta);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1500);
+  };
+
+  return (
+    <div className="project-meta-form">
+      <input
+        className="mono" placeholder="Client (ex. Ana & Mihai)"
+        value={meta.client ?? ''} onChange={e => setMeta(m => ({ ...m, client: e.target.value }))}
+      />
+      <input
+        className="mono" placeholder="Eveniment (ex. Nunta)"
+        value={meta.event ?? ''} onChange={e => setMeta(m => ({ ...m, event: e.target.value }))}
+      />
+      <input
+        className="mono" placeholder="Locatie (ex. Brasov)"
+        value={meta.location ?? ''} onChange={e => setMeta(m => ({ ...m, location: e.target.value }))}
+      />
+      <button className="ghost small" onClick={save}>{saved ? 'Salvat' : 'Salveaza metadate'}</button>
+    </div>
+  );
 }
 
 /**
@@ -61,6 +97,7 @@ export function ProjectsPanel() {
                 {formatDate(p.firstCapturedAt)} – {formatDate(p.lastCapturedAt)} ·{' '}
                 {p.selected} selectate · {p.rejected} respinse · {p.review} de verificat
               </p>
+              {p.key !== NO_PROJECT_KEY && <ProjectMetaEditor project={p.key} />}
               <div className="insight-actions">
                 <button
                   className="ghost small"

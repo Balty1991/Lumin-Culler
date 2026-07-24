@@ -1040,6 +1040,12 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .batch-preview-chip.pos { color: var(--pick); background: rgba(74,222,128,0.12); border-color: rgba(74,222,128,0.3); }
 .batch-preview-chip.neg { color: var(--reject); background: rgba(251,113,133,0.12); border-color: rgba(251,113,133,0.3); }
 
+.project-meta-form { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.project-meta-form input {
+  flex: 1 1 120px; min-width: 100px; background: var(--surface-2); color: var(--text);
+  border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; font-size: 0.78rem;
+}
+
 .preset-list { display: flex; flex-direction: column; gap: 4px; margin: 4px 0; }
 .preset-row { display: flex; align-items: center; gap: 6px; }
 .preset-apply { flex: 1; text-align: left; justify-content: flex-start; }

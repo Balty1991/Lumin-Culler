@@ -60,6 +60,16 @@ export interface XmpAiMeta {
   /** etichete lizibile ale factorilor de decizie (explainFactors) — ex. "Claritate (+)", "Ochi inchisi (-)". */
   aiFactors?: string[];
   groupId?: string;
+  /**
+   * Metadate personalizate de proiect (plan 2.3.5, state/projectMetadata.ts).
+   * `location` foloseste photoshop:Location (camp STANDARD, afisat/cautabil
+   * direct in panoul de metadate Lightroom — nu namespace-ul propriu `lc:`) si
+   * `event` foloseste Iptc4xmpExt:Event (extensia standard IPTC). Pentru
+   * `client` nu exista un camp XMP universal recunoscut — ramane in `lc:`.
+   */
+  client?: string;
+  event?: string;
+  location?: string;
 }
 
 export function generateXMPSidecar(status: XmpDecision, starRating?: number, keywords?: string[], ai?: XmpAiMeta): string {
@@ -70,18 +80,25 @@ export function generateXMPSidecar(status: XmpDecision, starRating?: number, key
     : '';
   const aiScoreAttr = ai?.aiScore !== undefined ? `\n    lc:AIScore="${Math.round(ai.aiScore)}"` : '';
   const groupIdAttr = ai?.groupId ? `\n    lc:SeriesId="${xmlEscape(ai.groupId)}"` : '';
+  const clientAttr = ai?.client ? `\n    lc:Client="${xmlEscape(ai.client)}"` : '';
   const aiFactors = ai?.aiFactors?.length
     ? `\n    <lc:AIFactors>\n     <rdf:Bag>\n${ai.aiFactors.map(f => `      <rdf:li>${xmlEscape(f)}</rdf:li>`).join('\n')}\n     </rdf:Bag>\n    </lc:AIFactors>`
     : '';
+  // camp standard, recunoscut de Lightroom (panoul de metadate "Locatie") — nu namespace-ul propriu lc:
+  const location = ai?.location ? `\n    <photoshop:Location>${xmlEscape(ai.location)}</photoshop:Location>` : '';
+  // extensia standard IPTC pentru evenimente
+  const event = ai?.event ? `\n    <Iptc4xmpExt:Event>${xmlEscape(ai.event)}</Iptc4xmpExt:Event>` : '';
   return `<?xpacket begin="﻿" id="W5M0MpCehiHzreSzNTczkc9d"?>
 <x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Lumin Culler Pro">
  <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
   <rdf:Description rdf:about=""
     xmlns:xmp="http://ns.adobe.com/xap/1.0/"
     xmlns:dc="http://purl.org/dc/elements/1.1/"
+    xmlns:photoshop="http://ns.adobe.com/photoshop/1.0/"
+    xmlns:Iptc4xmpExt="http://iptc.org/std/Iptc4xmpExt/2008-02-29/"
     xmlns:lc="https://luminculler.app/xmp/1.0/"
     xmp:Rating="${rating}"
-    xmp:Label="${label}"${aiScoreAttr}${groupIdAttr}>${subject}${aiFactors}
+    xmp:Label="${label}"${aiScoreAttr}${groupIdAttr}${clientAttr}>${subject}${aiFactors}${location}${event}
   </rdf:Description>
  </rdf:RDF>
 </x:xmpmeta>
@@ -131,6 +148,9 @@ export interface XmpPhotoInput {
   aiScore?: number;
   aiFactors?: string[];
   groupId?: string;
+  client?: string;
+  event?: string;
+  location?: string;
 }
 
 export async function exportXMPSidecars(photos: XmpPhotoInput[]): Promise<XmpExportResult> {
@@ -143,7 +163,10 @@ export async function exportXMPSidecars(photos: XmpPhotoInput[]): Promise<XmpExp
   if (!decided.length) return { exported: 0, method, cancelled: false };
 
   const render = (p: XmpPhotoInput & { status: XmpDecision }) =>
-    generateXMPSidecar(p.status, p.rating, p.keywords, { aiScore: p.aiScore, aiFactors: p.aiFactors, groupId: p.groupId });
+    generateXMPSidecar(p.status, p.rating, p.keywords, {
+      aiScore: p.aiScore, aiFactors: p.aiFactors, groupId: p.groupId,
+      client: p.client, event: p.event, location: p.location
+    });
 
   if (pickDirectory) {
     let dir: LocalDirHandle;

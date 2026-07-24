@@ -58,6 +58,17 @@ describe('generateXMPSidecar', () => {
     expect(xmp).not.toContain('lc:AIScore');
     expect(xmp).not.toContain('lc:SeriesId');
     expect(xmp).not.toContain('lc:AIFactors');
+    expect(xmp).not.toContain('photoshop:Location');
+    expect(xmp).not.toContain('Iptc4xmpExt:Event');
+  });
+
+  it('embeds location as the standard photoshop:Location field and event as Iptc4xmpExt:Event', () => {
+    const xmp = generateXMPSidecar('selected', 3, undefined, { location: 'Brasov', event: 'Nunta', client: 'Ana & Mihai' });
+    expect(xmp).toContain('xmlns:photoshop="http://ns.adobe.com/photoshop/1.0/"');
+    expect(xmp).toContain('xmlns:Iptc4xmpExt="http://iptc.org/std/Iptc4xmpExt/2008-02-29/"');
+    expect(xmp).toContain('<photoshop:Location>Brasov</photoshop:Location>');
+    expect(xmp).toContain('<Iptc4xmpExt:Event>Nunta</Iptc4xmpExt:Event>');
+    expect(xmp).toContain('lc:Client="Ana &amp; Mihai"');
   });
 
   it('embeds AI score, series id and decision factors in the lc: namespace when given', () => {
