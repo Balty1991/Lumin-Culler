@@ -6,23 +6,17 @@ import {
   KeyboardIcon, SunIcon, MoonIcon, DownloadIcon, TagIcon, ListIcon, TrashIcon, FilterDotIcon
 } from './icons';
 import { EASE } from './motion';
-
-type Section = 'Navigare' | 'Editare' | 'Filtre' | 'Persoane & AI' | 'Export' | 'Aplicație';
+import { t } from '../i18n';
 
 interface Command {
   id: string;
   label: string;
   hint?: string;
-  section: Section;
+  sectionKey: string;
   icon: ReactNode;
   run: () => void;
   disabled?: boolean;
 }
-
-const FILTER_LABELS: Record<FilterKey, string> = {
-  all: 'Toate', selected: 'Selectate', review: 'De verificat',
-  rejected: 'Respinse', series: 'Serii', blinks: 'Ochi închiși'
-};
 
 /**
  * Cmd/Ctrl+K — paleta de comenzi: cauta si executa orice actiune fara sa
@@ -46,6 +40,7 @@ export function CommandPalette() {
   const setShortcutsOpen = useStore(s => s.setShortcutsOpen);
   const theme = useStore(s => s.theme);
   const setTheme = useStore(s => s.setTheme);
+  const locale = useStore(s => s.locale);
   const exportSelection = useStore(s => s.exportSelection);
   const exportManifest = useStore(s => s.exportManifest);
   const exportXMP = useStore(s => s.exportXMP);
@@ -56,6 +51,7 @@ export function CommandPalette() {
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const reduceMotion = useReducedMotion();
+  const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
 
   // deschidere globala cu Ctrl/Cmd+K — inregistrata o singura data (dependente
   // stabile), disponibila indiferent de ecran (grid sau Workspace)
@@ -74,8 +70,8 @@ export function CommandPalette() {
     if (!open) return;
     setQuery('');
     setActiveIndex(0);
-    const t = setTimeout(() => inputRef.current?.focus(), 10);
-    return () => clearTimeout(t);
+    const focusTimer = setTimeout(() => inputRef.current?.focus(), 10);
+    return () => clearTimeout(focusTimer);
   }, [open]);
 
   // Escape la nivel de window, NU doar pe input (vezi onInputKeyDown mai jos):
@@ -104,34 +100,34 @@ export function CommandPalette() {
   }), [photos]);
 
   const confirmClearAll = () => {
-    if (window.confirm(`Sigur golești sesiunea? Se șterg ireversibil toate cele ${counts.all} poze din acest browser. Nu poate fi anulat.`)) {
+    if (window.confirm(tr('palette.cmd.clearAll.confirm', { count: counts.all }))) {
       void clearAll();
     }
   };
 
   const commands: Command[] = useMemo(() => [
-    { id: 'workspace', label: 'Deschide spațiul de lucru', hint: 'lupă + filmstrip', section: 'Navigare', icon: <FocusIcon />, run: () => setWorkspaceMode(true), disabled: !photos.length || workspaceMode },
-    { id: 'grid', label: 'Vezi grila de poze', section: 'Navigare', icon: <GridIcon />, run: () => setWorkspaceMode(false), disabled: !photos.length || !workspaceMode },
-    { id: 'undo', label: 'Anulează ultima decizie', hint: 'Ctrl+Z', section: 'Editare', icon: <UndoIcon />, run: () => void undo(), disabled: !history.length },
-    { id: 'batch', label: 'Operații în masă', hint: 'respinge sub prag / rezolvă serii', section: 'Editare', icon: <LayersIcon />, run: () => setBatchOpsOpen(true), disabled: !photos.length },
-    { id: 'clear-all', label: 'Golește sesiunea', hint: 'ireversibil', section: 'Editare', icon: <TrashIcon />, run: confirmClearAll, disabled: !photos.length },
+    { id: 'workspace', label: tr('palette.cmd.workspace'), hint: tr('palette.cmd.workspace.hint'), sectionKey: 'palette.section.navigate', icon: <FocusIcon />, run: () => setWorkspaceMode(true), disabled: !photos.length || workspaceMode },
+    { id: 'grid', label: tr('palette.cmd.grid'), sectionKey: 'palette.section.navigate', icon: <GridIcon />, run: () => setWorkspaceMode(false), disabled: !photos.length || !workspaceMode },
+    { id: 'undo', label: tr('palette.cmd.undo'), hint: 'Ctrl+Z', sectionKey: 'palette.section.edit', icon: <UndoIcon />, run: () => void undo(), disabled: !history.length },
+    { id: 'batch', label: tr('palette.cmd.batch'), hint: tr('palette.cmd.batch.hint'), sectionKey: 'palette.section.edit', icon: <LayersIcon />, run: () => setBatchOpsOpen(true), disabled: !photos.length },
+    { id: 'clear-all', label: tr('palette.cmd.clearAll'), hint: tr('palette.cmd.clearAll.hint'), sectionKey: 'palette.section.edit', icon: <TrashIcon />, run: confirmClearAll, disabled: !photos.length },
     ...(['all', 'selected', 'review', 'series', 'blinks', 'rejected'] as FilterKey[]).map(key => ({
       id: 'filter-' + key,
-      label: `Arată: ${FILTER_LABELS[key]}`,
+      label: tr('palette.filter.showLabel', { filter: tr(`palette.filter.${key}`) }),
       hint: String(counts[key]),
-      section: 'Filtre' as Section,
+      sectionKey: 'palette.section.filters',
       icon: <FilterDotIcon />,
       run: () => setFilter(key),
       disabled: key === filter
     })),
-    { id: 'persons', label: 'Persoane cunoscute', section: 'Persoane & AI', icon: <UserCheckIcon />, run: () => setPersonsOpen(true) },
-    { id: 'insights', label: 'Preferințe AI', section: 'Persoane & AI', icon: <SparkleIcon />, run: () => setInsightsOpen(true) },
-    { id: 'export-selection', label: `Exportă poze selectate (${counts.selected})`, section: 'Export', icon: <DownloadIcon />, run: () => void exportSelection(), disabled: !counts.selected },
-    { id: 'export-xmp', label: 'Exportă etichete Lightroom (XMP)', section: 'Export', icon: <TagIcon />, run: () => void exportXMP(), disabled: !photos.length },
-    { id: 'export-manifest', label: 'Exportă listă (JSON)', section: 'Export', icon: <ListIcon />, run: () => void exportManifest(), disabled: !counts.selected },
-    { id: 'shortcuts', label: 'Scurtături tastatură', hint: '?', section: 'Aplicație', icon: <KeyboardIcon />, run: () => setShortcutsOpen(true) },
-    { id: 'theme', label: theme === 'light' ? 'Comută la tema întunecată' : 'Comută la tema deschisă', section: 'Aplicație', icon: theme === 'light' ? <MoonIcon /> : <SunIcon />, run: () => setTheme(theme === 'light' ? 'dark' : 'light') }
-  ] as Command[], [photos.length, history.length, counts, filter, theme, workspaceMode]);
+    { id: 'persons', label: tr('palette.cmd.persons'), sectionKey: 'palette.section.people', icon: <UserCheckIcon />, run: () => setPersonsOpen(true) },
+    { id: 'insights', label: tr('palette.cmd.insights'), sectionKey: 'palette.section.people', icon: <SparkleIcon />, run: () => setInsightsOpen(true) },
+    { id: 'export-selection', label: tr('palette.cmd.exportSelection', { count: counts.selected }), sectionKey: 'palette.section.export', icon: <DownloadIcon />, run: () => void exportSelection(), disabled: !counts.selected },
+    { id: 'export-xmp', label: tr('palette.cmd.exportXmp'), sectionKey: 'palette.section.export', icon: <TagIcon />, run: () => void exportXMP(), disabled: !photos.length },
+    { id: 'export-manifest', label: tr('palette.cmd.exportManifest'), sectionKey: 'palette.section.export', icon: <ListIcon />, run: () => void exportManifest(), disabled: !counts.selected },
+    { id: 'shortcuts', label: tr('palette.cmd.shortcuts'), hint: '?', sectionKey: 'palette.section.app', icon: <KeyboardIcon />, run: () => setShortcutsOpen(true) },
+    { id: 'theme', label: theme === 'light' ? tr('palette.cmd.themeToDark') : tr('palette.cmd.themeToLight'), sectionKey: 'palette.section.app', icon: theme === 'light' ? <MoonIcon /> : <SunIcon />, run: () => setTheme(theme === 'light' ? 'dark' : 'light') }
+  ] as Command[], [photos.length, history.length, counts, filter, theme, workspaceMode, locale]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -166,7 +162,7 @@ export function CommandPalette() {
         >
           <motion.div
             className="palette" onClick={e => e.stopPropagation()}
-            role="dialog" aria-modal="true" aria-label="Paleta de comenzi"
+            role="dialog" aria-modal="true" aria-label={tr('palette.ariaLabel')}
             initial={{ opacity: 0, scale: 0.97, y: -8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.98, y: -4 }}
             transition={{ duration: reduceMotion ? 0 : 0.18, ease: EASE }}
           >
@@ -177,7 +173,7 @@ export function CommandPalette() {
                 value={query}
                 onChange={e => { setQuery(e.target.value); setActiveIndex(0); }}
                 onKeyDown={onInputKeyDown}
-                placeholder="Caută o acțiune…"
+                placeholder={tr('palette.placeholder')}
                 role="combobox"
                 aria-expanded="true"
                 aria-controls="palette-listbox"
@@ -189,8 +185,8 @@ export function CommandPalette() {
             <ul className="palette-list" id="palette-listbox" role="listbox">
               {filtered.map((c, i) => (
                 <li key={c.id} role="presentation">
-                  {(i === 0 || filtered[i - 1].section !== c.section) && (
-                    <div className="palette-section-label">{c.section}</div>
+                  {(i === 0 || filtered[i - 1].sectionKey !== c.sectionKey) && (
+                    <div className="palette-section-label">{tr(c.sectionKey)}</div>
                   )}
                   <div
                     id={`palette-option-${c.id}`}
@@ -207,7 +203,7 @@ export function CommandPalette() {
                   </div>
                 </li>
               ))}
-              {filtered.length === 0 && <li className="palette-empty">Nicio acțiune găsită.</li>}
+              {filtered.length === 0 && <li className="palette-empty">{tr('palette.noResults')}</li>}
             </ul>
           </motion.div>
         </motion.div>

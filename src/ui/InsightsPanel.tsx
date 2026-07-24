@@ -17,10 +17,21 @@ interface Summary {
 const SCENE_LABELS: Record<string, string> = { landscape: 'Peisaj', detail: 'Detaliu / obiect' };
 const SUBJECT_LABELS: Record<string, string> = { known: 'persoane cunoscute', strangers: 'straini', mixed: 'subiecti mixti' };
 
+const SCENE_TYPES = new Set(['portrait', 'group', 'landscape', 'detail']);
+
+/**
+ * contextKey e "[gen:]sceneType[:subiect]" — genul (ContextEngine 2.0, ales liber
+ * de utilizator) e un prefix OPTIONAL, deci nu putem presupune un numar fix de
+ * segmente. Primul segment care NU e unul din cele 4 sceneType cunoscute e
+ * tratat ca gen; altfel (fara gen) primul segment chiar e sceneType-ul.
+ */
 function contextLabel(key: string): string {
-  const [scene, subject] = key.split(':');
+  const parts = key.split(':');
+  const genre = parts.length > 0 && !SCENE_TYPES.has(parts[0]) ? parts.shift() : undefined;
+  const [scene, subject] = parts;
   const sceneLabel = SCENE_LABELS[scene] ?? (scene === 'portrait' ? 'Portret' : scene === 'group' ? 'Grup' : scene);
-  return subject ? `${sceneLabel} · ${SUBJECT_LABELS[subject] ?? subject}` : sceneLabel;
+  const base = subject ? `${sceneLabel} · ${SUBJECT_LABELS[subject] ?? subject}` : sceneLabel;
+  return genre ? `${genre} — ${base}` : base;
 }
 
 const CONFIDENCE_LABEL: Record<Summary['confidence'], string> = {

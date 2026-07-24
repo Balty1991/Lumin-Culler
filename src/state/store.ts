@@ -8,9 +8,9 @@ import { db, type AnalysisRecord, type PhotoRecord, type KnownPerson } from '../
 import { importFiles, originalFiles, createCancelToken, type ImportProgress, type ImportCancelToken } from '../core/importPipeline';
 import { readEconomicMode, writeEconomicMode } from '../core/performanceSettings';
 import { exportOriginalFiles } from '../core/exportPhotos';
-import { exportXMPSidecars, deriveXmpKeywords } from '../core/export/xmpGenerator';
+import { exportXMPSidecars, deriveXmpKeywords, deriveAiScoreKeyword, deriveSeriesKeyword } from '../core/export/xmpGenerator';
 import { analysisPool } from '../core/workerPool';
-import { contextEngine, deriveContextKey } from '../core/learning/ContextEngine';
+import { contextEngine, deriveContextKey, explainFactors } from '../core/learning/ContextEngine';
 import { pickBestInGroup } from '../core/groupSelection';
 import {
   pushHistory, popHistory, MAX_HISTORY, type HistoryEvent,
@@ -19,6 +19,13 @@ import {
 import { selectBulkRejectTargets, resolveGroups, selectTopPercent } from './batchOps';
 import { readStoredTheme, applyTheme, type Theme } from './theme';
 import { readStoredProjectName, writeProjectName } from './projectName';
+import { readStoredGenre, writeStoredGenre } from './genre';
+import { readGridDensity, writeGridDensity, type GridDensity } from './gridDensity';
+import { recordUsage, readMonthlyUsage, FREE_TIER_MONTHLY_LIMIT } from './usage';
+import { getProjectMetadata } from './projectMetadata';
+import { readStoredLocale, writeStoredLocale, type Locale } from '../i18n';
+import { buildBackup, backupFileName, parseBackupFile, restoreBackup } from '../core/backupService';
+import { buildClientGalleryHtml } from '../core/export/clientGallery';
 
 export interface PhotoView {
   id: string;
@@ -47,6 +54,10 @@ export interface PhotoView {
   personNames: string[];
   groupId?: string;
   capturedAt?: number;
+  /** Genul fotografic activ la import ("Nunta", "Portret", ...) — vezi state/genre.ts si ContextEngine.deriveContextKey. */
+  genre?: string;
+  /** Numele proiectului/sesiunii active la import (ProjectNameField) — vezi PhotoRecord.project. */
+  project?: string;
   goldenHourDetected?: boolean;
   dominantColors?: string[];
   /** Eticheta compusa scena+varsta (ex. "portrait_child") — folosita ca sursa de keywords la exportul XMP. */
@@ -57,6 +68,9 @@ export interface PhotoView {
 
 export type FilterKey = 'all' | 'selected' | 'review' | 'rejected' | 'series' | 'blinks';
 
+/** Cheie de proiectFilter pentru pozele fara proiect ales — un nume de proiect real nu poate coincide cu acest sentinel (spatii, gol dupa trim). */
+export const NO_PROJECT_KEY = 'no-project';
+
 interface AppState {
   photos: PhotoView[];
   persons: KnownPerson[];
@@ -66,9 +80,30 @@ interface AppState {
   /** Mod economic: pool de un singur worker + fara iris/emotie — mai putina presiune pe CPU/RAM, pe hardware slab. */
   economicMode: boolean;
   setEconomicMode: (on: boolean) => void;
+  /** Genul fotografic activ pentru urmatorul import ("Nunta", "Portret", ...) — vezi state/genre.ts. */
+  genre: string;
+  setGenre: (genre: string) => void;
+  /** Densitatea grilei (dimensiunea miniaturilor) — persistata local, aplicata atat grilei simple cat si celei virtualizate. */
+  gridDensity: GridDensity;
+  setGridDensity: (density: GridDensity) => void;
+  /** Exporta persoanele cunoscute + modelele AI invatate (fara imagini) intr-un fisier JSON de backup. */
+  exportBackup: () => Promise<void>;
+  /** Restaureaza un backup: persoane + modele AI, plus reaplicarea deciziilor (status/rating) pe pozele curente care se potrivesc (nume fisier + data capturii). */
+  importBackupFile: (file: File) => Promise<void>;
+  /** Viteza ultimului import (poze procesate + durata) — afisata in Statistici; null inainte de primul import al sesiunii. */
+  lastImportStats: { count: number; durationMs: number } | null;
+  /** Contor informativ de poze procesate in luna curenta — vezi state/usage.ts (NU e o limita reala/blocanta). */
+  monthlyUsage: number;
+  statsOpen: boolean;
+  setStatsOpen: (open: boolean) => void;
   filter: FilterKey;
   /** Filtru suplimentar, combinabil cu `filter` — numele unei persoane cunoscute, sau null (fara filtru). */
   personFilter: string | null;
+  /** Filtru suplimentar dupa proiectul sub care a fost importata poza (PhotoRecord.project) — vezi ProjectsPanel. */
+  projectFilter: string | null;
+  setProjectFilter: (project: string | null) => void;
+  projectsOpen: boolean;
+  setProjectsOpen: (open: boolean) => void;
   /**
    * Filtre suplimentare, toate combinabile intre ele si cu `filter`/`personFilter` —
    * utile la biblioteci mari (mii de poze), unde navigarea doar prin status/persoana
@@ -91,6 +126,9 @@ interface AppState {
   shortcutsOpen: boolean;
   theme: Theme;
   setTheme: (theme: Theme) => void;
+  /** Limba interfetei — vezi i18n/index.ts. Migrare treptata: doar unele ecrane citesc asta deocamdata, restul ramane in romana codificata direct. */
+  locale: Locale;
+  setLocale: (locale: Locale) => void;
   projectName: string;
   setProjectName: (name: string) => void;
   booted: boolean;
@@ -204,6 +242,8 @@ interface AppState {
   exportSelection: () => Promise<void>;
   exportManifest: () => Promise<void>;
   exportXMP: () => Promise<void>;
+  /** Genereaza si descarca o galerie HTML statica cu pozele selectate, pentru feedback de la client. */
+  exportClientGallery: () => Promise<void>;
   filtered: () => PhotoView[];
   groupOf: (groupId: string) => PhotoView[];
 }
@@ -220,7 +260,7 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     rating: photo.rating ?? 0,
     aiScore: analysis?.aiScore ?? 0,
     sceneType: analysis?.sceneType ?? 'detail',
-    contextKey: analysis ? deriveContextKey(analysis) : 'detail',
+    contextKey: analysis ? deriveContextKey(analysis, photo.genre) : 'detail',
     faceCount: analysis?.faceCount ?? 0,
     knownFaceCount: analysis?.knownFaceCount ?? 0,
     strangerCount: analysis?.strangerCount ?? 0,
@@ -242,6 +282,8 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
       : [],
     groupId: photo.groupId,
     capturedAt: photo.capturedAt,
+    genre: photo.genre,
+    project: photo.project,
     goldenHourDetected: analysis?.goldenHourDetected,
     dominantColors: analysis?.dominantColors,
     sceneSemantic: analysis?.sceneSemantic,
@@ -249,11 +291,20 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
   };
 }
 
+/** Reconstruieste toate PhotoView-urile direct din Dexie — folosit la boot() si dupa restaurarea unui backup. */
+async function reloadPhotoViews(): Promise<PhotoView[]> {
+  const [photos, analyses] = await Promise.all([db.photos.toArray(), db.analyses.toArray()]);
+  const byId = new Map(analyses.map(a => [a.photoId, a]));
+  return photos
+    .map(p => toView(p, byId.get(p.id)))
+    .sort((a, b) => (a.capturedAt ?? 0) - (b.capturedAt ?? 0));
+}
+
 async function train(id: string, userDecision: boolean): Promise<void> {
-  const analysis = await db.analyses.get(id);
+  const [analysis, photo] = await Promise.all([db.analyses.get(id), db.photos.get(id)]);
   if (!analysis) return;
   const aiDecision = analysis.aiScore >= 65;
-  await contextEngine.recordCorrection({ photoId: id, analysis, aiDecision, userDecision });
+  await contextEngine.recordCorrection({ photoId: id, analysis, aiDecision, userDecision, genre: photo?.genre });
 }
 
 function makeBatchEvent(label: string, changes: { photoId: string; previousStatus: PhotoRecord['status'] }[]): BatchHistoryEvent {
@@ -303,6 +354,10 @@ export const useStore = create<AppState>((set, get) => ({
   progress: null,
   filter: 'all',
   personFilter: null,
+  projectFilter: null,
+  setProjectFilter: project => set({ projectFilter: project }),
+  projectsOpen: false,
+  setProjectsOpen: open => set({ projectsOpen: open }),
   searchText: '',
   dateFrom: null,
   dateTo: null,
@@ -321,6 +376,8 @@ export const useStore = create<AppState>((set, get) => ({
   shortcutsOpen: false,
   theme: readStoredTheme(),
   setTheme: theme => { applyTheme(theme); set({ theme }); },
+  locale: readStoredLocale(),
+  setLocale: locale => { writeStoredLocale(locale); set({ locale }); },
   projectName: readStoredProjectName(),
   setProjectName: name => { writeProjectName(name); set({ projectName: name }); },
   booted: false,
@@ -335,40 +392,107 @@ export const useStore = create<AppState>((set, get) => ({
   economicMode: readEconomicMode(),
   setEconomicMode: on => {
     writeEconomicMode(on);
+    const applyNow = analysisPool.isReady;
     set({
       economicMode: on,
       notice: 'Modul economic ' + (on ? 'activat' : 'dezactivat') +
-        ' — se aplica de la urmatorul import (necesita reincarcarea paginii daca ai importat deja poze in aceasta sesiune).'
+        (applyNow ? ' — se aplica imediat.' : ' — se aplica de la urmatorul import.')
     });
+    if (applyNow) void analysisPool.resizeForEconomicMode(on);
   },
+  genre: readStoredGenre(),
+  setGenre: genre => { writeStoredGenre(genre); set({ genre }); },
+  gridDensity: readGridDensity(),
+  setGridDensity: density => { writeGridDensity(density); set({ gridDensity: density }); },
+  lastImportStats: null,
+  monthlyUsage: readMonthlyUsage(),
+  statsOpen: false,
+  setStatsOpen: open => set({ statsOpen: open }),
+
+  exportBackup: async () => {
+    const data = await buildBackup();
+    const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = backupFileName();
+    a.click();
+    // vezi exportManifest mai sus — nu revocam URL-ul imediat (Android descarca async).
+    set({ notice: `Backup exportat: ${data.persons.length} persoane, ${data.contextModels.length} profiluri AI invatate, ${data.photoDecisions.length} decizii.` });
+  },
+
+  importBackupFile: async (file: File) => {
+    try {
+      const data = await parseBackupFile(file);
+      const result = await restoreBackup(data);
+      const [views, persons] = await Promise.all([reloadPhotoViews(), db.persons.toArray()]);
+      set({
+        photos: views,
+        persons,
+        notice: `Backup restaurat: ${result.personsRestored} persoane, ${result.modelsRestored} profiluri AI` +
+          (result.decisionsTotal > 0 ? `, ${result.decisionsMatched}/${result.decisionsTotal} decizii potrivite cu pozele curente.` : '.')
+      });
+    } catch (err) {
+      set({ notice: 'Restaurare backup esuata: ' + (err instanceof Error ? err.message : String(err)) });
+    }
+  },
+
+  /**
+   * Galerie HTML statica pentru feedback de la client (plan 3.2.3, "Client Review") —
+   * exporta doar pozele SELECTATE (acelasi domeniu ca exportSelection), cu
+   * miniaturile deja generate (nu re-decodeaza originalele). Un singur fisier
+   * .html, autonom, cu marcaj de favorite in browserul clientului — nu e o
+   * galerie "gazduita": fotograful trebuie sa-l trimita el insusi (email, cloud propriu).
+   */
+  exportClientGallery: async () => {
+    const selected = get().photos.filter(p => p.status === 'selected');
+    if (!selected.length) { set({ notice: 'Nicio poza selectata inca — nu ai ce include in galerie.' }); return; }
+    try {
+      const thumbnails = await Promise.all(selected.map(p => db.thumbnails.get(p.id)));
+      const items = selected
+        .map((p, i) => ({ fileName: p.fileName, thumbnail: thumbnails[i]?.blob }))
+        .filter((it): it is { fileName: string; thumbnail: Blob } => !!it.thumbnail);
+      const title = get().projectName ? `Galerie foto — ${get().projectName}` : 'Galerie foto — Lumin Culler';
+      const html = await buildClientGalleryHtml(items, title);
+      const blob = new Blob([html], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `lumin-culler-galerie-client-${new Date().toISOString().slice(0, 10)}.html`;
+      a.click();
+      set({ notice: `Galerie HTML generata cu ${items.length} poze — trimite fisierul clientului (email, cloud propriu etc.).` });
+    } catch (err) {
+      set({ notice: 'Generarea galeriei a esuat: ' + (err instanceof Error ? err.message : String(err)) });
+    }
+  },
+
   cancelImport: () => { if (activeCancelToken) activeCancelToken.cancelled = true; },
 
   boot: async () => {
     if (get().booted) return;
-    const [photos, analyses, persons, history] = await Promise.all([
-      db.photos.toArray(),
-      db.analyses.toArray(),
+    const [views, persons, history] = await Promise.all([
+      reloadPhotoViews(),
       db.persons.toArray(),
       db.history.orderBy('ts').toArray()
     ]);
-    const byId = new Map(analyses.map(a => [a.photoId, a]));
-    const views = photos
-      .map(p => toView(p, byId.get(p.id)))
-      .sort((a, b) => (a.capturedAt ?? 0) - (b.capturedAt ?? 0));
     set({ photos: views, persons, history, booted: true });
   },
 
   runImport: async (files: File[]) => {
     set({ progress: { done: 0, total: files.length, fileName: '', phase: 'incarcare' } });
     let warning: string | undefined;
+    let done = 0;
+    const startedAt = Date.now();
     const cancelToken = createCancelToken();
     activeCancelToken = cancelToken;
     try {
       await importFiles(
         files,
-        progress => { warning = progress.warning; set({ progress: { ...progress } }); },
+        progress => { warning = progress.warning; done = progress.done; set({ progress: { ...progress } }); },
         item => set(state => ({ photos: [...state.photos, toView(item.photo, item.analysis)] })),
-        cancelToken
+        cancelToken,
+        get().genre,
+        get().projectName
       );
     } catch (err) {
       // fara asta, o promisiune respinsa (ex. retea slaba la incarcarea modelelor AI)
@@ -385,11 +509,22 @@ export const useStore = create<AppState>((set, get) => ({
     const fresh = await db.photos.toArray();
     const byId = new Map(fresh.map(p => [p.id, p]));
     const aiDegraded = !analysisPool.isAccelerated;
+    // contor informativ de utilizare lunara (plan 4.2, freemium) — vezi state/usage.ts
+    // pentru de ce NU blocheaza nimic, doar informeaza la prima depasire a pragului
+    const usageBefore = readMonthlyUsage();
+    const monthlyUsage = recordUsage(done);
+    const crossedFreeTierLimit = usageBefore < FREE_TIER_MONTHLY_LIMIT && monthlyUsage >= FREE_TIER_MONTHLY_LIMIT;
+    const usageNotice = crossedFreeTierLimit
+      ? `Ai procesat ${monthlyUsage} poze luna aceasta, peste pragul orientativ de ${FREE_TIER_MONTHLY_LIMIT} al ` +
+        'nivelului gratuit — aplicatia continua sa functioneze normal, fara nicio limitare.'
+      : undefined;
     set(state => ({
       progress: null,
-      notice: warning ?? state.notice,
+      notice: warning ?? usageNotice ?? state.notice,
       aiDegraded,
       aiBackend: analysisPool.detectedBackend,
+      lastImportStats: done > 0 ? { count: done, durationMs: Date.now() - startedAt } : state.lastImportStats,
+      monthlyUsage,
       photos: state.photos.map(p => {
         const rec = byId.get(p.id);
         return rec ? { ...p, status: rec.status, groupId: rec.groupId } : p;
@@ -852,12 +987,28 @@ export const useStore = create<AppState>((set, get) => ({
     const decided = get().photos.filter(p => p.status !== 'pending');
     if (!decided.length) { set({ notice: 'Nicio poza cu decizie luata inca — Selecteaza/Respinge cel putin una.' }); return; }
     try {
-      const result = await exportXMPSidecars(decided.map(p => ({
-        fileName: p.fileName,
-        status: p.status,
-        rating: p.rating,
-        keywords: deriveXmpKeywords(p.personNames, p.sceneSemantic, p.sceneTags)
-      })));
+      const result = await exportXMPSidecars(decided.map(p => {
+        const meta = p.project ? getProjectMetadata(p.project) : {};
+        return {
+          fileName: p.fileName,
+          status: p.status,
+          rating: p.rating,
+          keywords: [
+            ...deriveXmpKeywords(p.personNames, p.sceneSemantic, p.sceneTags),
+            deriveAiScoreKeyword(p.aiScore),
+            ...(p.groupId ? [deriveSeriesKeyword(p.groupId)] : []),
+            ...(meta.client ? [`Client: ${meta.client}`] : []),
+            ...(meta.event ? [`Eveniment: ${meta.event}`] : []),
+            ...(meta.location ? [`Locatie: ${meta.location}`] : [])
+          ],
+          aiScore: p.aiScore,
+          aiFactors: explainFactors(p.aiFactors).map(f => `${f.label} (${f.positive ? '+' : '-'})`),
+          groupId: p.groupId,
+          client: meta.client,
+          event: meta.event,
+          location: meta.location
+        };
+      }));
       if (result.cancelled) return;
       const msg = result.exported
         ? `${result.exported} sidecar-uri XMP exportate` + (
@@ -875,7 +1026,7 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   filtered: () => {
-    const { photos, filter, personFilter, searchText, dateFrom, dateTo, minRating } = get();
+    const { photos, filter, personFilter, projectFilter, searchText, dateFrom, dateTo, minRating } = get();
     let base: PhotoView[];
     switch (filter) {
       case 'selected': base = photos.filter(p => p.status === 'selected'); break;
@@ -895,6 +1046,12 @@ export const useStore = create<AppState>((set, get) => ({
     // (ex. "Selectate" + "Ami" = pozele selectate in care apare Ami), nu un
     // FilterKey fix (persoanele sunt dinamice, inrolate de utilizator)
     if (personFilter) base = base.filter(p => p.personNames.includes(personFilter));
+    // filtru dupa proiect — vezi ProjectsPanel (fara proiect ales = grupul "Fara proiect")
+    if (projectFilter) {
+      base = projectFilter === NO_PROJECT_KEY
+        ? base.filter(p => !p.project)
+        : base.filter(p => p.project === projectFilter);
+    }
     // cautare text dupa numele fisierului — utila la biblioteci mari, unde
     // stii deja (partial) cum se numeste poza cautata
     const q = searchText.trim().toLowerCase();

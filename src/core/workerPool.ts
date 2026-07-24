@@ -64,6 +64,9 @@ export class AnalysisPool {
     return ['webgl', 'humangl', 'webgpu', 'wasm'].includes(this.detectedBackend);
   }
 
+  /** true dupa primul init() reusit — util ca sa stim daca resizeForEconomicMode() are ce redimensiona acum sau doar la urmatorul import. */
+  get isReady(): boolean { return this.ready; }
+
   private async spawnSlot(): Promise<{ slot: Slot; backend: string }> {
     const worker = new Worker(
       new URL('../workers/faceAnalysis.worker.ts', import.meta.url),
@@ -103,6 +106,32 @@ export class AnalysisPool {
   async setKnownPersons(persons: KnownPerson[]): Promise<void> {
     this.knownPersons = persons;
     await Promise.all(this.slots.map(s => s.api.setKnownPersons(persons)));
+  }
+
+  /**
+   * Aplica noul mod economic la pool-ul DEJA pornit, fara reincarcarea paginii —
+   * inainte, comutatorul din meniu doar scria setarea si cerea reload, fiindca
+   * numarul de workeri SI configuratia Human.js (iris/emotie) sunt fixate la
+   * spawn (spawnSlot() citeste readEconomicMode() direct). Nu putem doar sa
+   * adaugam/scoatem workeri (numarul s-ar schimba, dar cei existenti ar ramane
+   * cu iris/emotie din modul VECHI) — inlocuim intreaga flota cu una noua,
+   * corect configurata, si abia apoi terminam workerii vechi (chiar daca sunt
+   * "busy": analiza lor in curs va esua pe timeout, ca orice worker blocat —
+   * importFiles trateaza deja acest caz ca un esec normal per-poza, nu ca o
+   * eroare fatala de import).
+   */
+  async resizeForEconomicMode(economic: boolean): Promise<void> {
+    if (!this.ready) return; // inca nepornit — init() va citi setarea curenta la primul import
+    const cores = navigator.hardwareConcurrency || 4;
+    const targetSize = economic ? 1 : Math.max(1, Math.min(4, cores - 1));
+    const oldSlots = this.slots;
+
+    const spawned = await Promise.all(Array.from({ length: targetSize }, () => this.spawnSlot()));
+    this.slots = spawned.map(s => s.slot);
+    this.detectedBackend = spawned[0]?.backend ?? this.detectedBackend;
+    if (this.knownPersons.length) await Promise.all(this.slots.map(s => s.api.setKnownPersons(this.knownPersons)));
+
+    for (const s of oldSlots) { try { s.worker.terminate(); } catch { /* deja mort, nu conteaza */ } }
   }
 
   private acquire(): Promise<Slot> {

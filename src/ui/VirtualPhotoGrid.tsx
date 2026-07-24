@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { PhotoCard } from './PhotoCard';
-import type { PhotoView } from '../state/store';
+import { useStore, type PhotoView } from '../state/store';
+import { CARD_MIN_WIDTH } from '../state/gridDensity';
 
-/** Praguri identice cu .grid din styles.css (minmax 158px desktop / 112px sub 560px) —
+/** Sub aceasta latime a containerului, folosim latimea minima "narrow" din CARD_MIN_WIDTH —
     coloanele trebuie calculate in JS pentru virtualizare pe randuri, nu doar CSS auto-fill. */
-const CARD_MIN_WIDTH_NARROW = 112;
-const CARD_MIN_WIDTH_WIDE = 158;
 const NARROW_BREAKPOINT = 560;
 const GAP = 10;
 const ROW_HEIGHT_ESTIMATE = 200; // ajustat automat per rand prin measureElement (inaltimi variabile)
@@ -24,6 +23,7 @@ export function VirtualPhotoGrid({ photos, onOpen, multiSelectIds }: {
   multiSelectIds: Set<string>;
 }) {
   const parentRef = useRef<HTMLDivElement>(null);
+  const density = useStore(s => s.gridDensity);
   const [columns, setColumns] = useState(4);
   const [scrollHeight, setScrollHeight] = useState(600);
 
@@ -32,7 +32,7 @@ export function VirtualPhotoGrid({ photos, onOpen, multiSelectIds }: {
     if (!el) return;
     const compute = () => {
       const width = el.clientWidth;
-      const minCard = width <= NARROW_BREAKPOINT ? CARD_MIN_WIDTH_NARROW : CARD_MIN_WIDTH_WIDE;
+      const minCard = width <= NARROW_BREAKPOINT ? CARD_MIN_WIDTH[density].narrow : CARD_MIN_WIDTH[density].wide;
       setColumns(Math.max(1, Math.floor((width + GAP) / (minCard + GAP))));
       const top = el.getBoundingClientRect().top;
       setScrollHeight(Math.max(300, window.innerHeight - top - 8));
@@ -42,7 +42,7 @@ export function VirtualPhotoGrid({ photos, onOpen, multiSelectIds }: {
     ro.observe(el);
     window.addEventListener('resize', compute);
     return () => { ro.disconnect(); window.removeEventListener('resize', compute); };
-  }, [photos.length]);
+  }, [photos.length, density]);
 
   const rowCount = Math.ceil(photos.length / columns);
   const rowVirtualizer = useVirtualizer({

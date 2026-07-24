@@ -24,6 +24,27 @@ export interface PhotoRecord {
    * rating; nu necesita bump de schema Dexie (camp neindexat, filtrat client-side).
    */
   rating?: number;
+  /**
+   * Genul fotografic activ la momentul importului ("Nunta", "Portret", ...),
+   * ales de utilizator inainte de import — vezi state/genre.ts. Prefixeaza
+   * contextKey (ContextEngine.deriveContextKey), astfel incat modelul de
+   * preferinte invatat pentru "Nunta:portrait:known" sa fie complet separat
+   * de "Peisaj:landscape". Pastrat PE POZA (nu doar ca setare globala curenta)
+   * ca schimbarea genului activ ulterior sa nu "mute" retroactiv contextul
+   * unei corectii deja inregistrate. Optional: absent = fara gen ales
+   * (comportament identic cu inainte de aceasta functie); nu necesita bump
+   * de schema Dexie (camp neindexat, filtrat/citit client-side).
+   */
+  genre?: string;
+  /**
+   * Numele proiectului/sesiunii activ la momentul importului (ProjectNameField
+   * din App.tsx, PhotoRecord distinct de `genre` — un proiect ("Nunta Ana & Mihai")
+   * poate contine mai multe genuri, desi de obicei coincid). Pastrat PE POZA, nu
+   * doar ca eticheta curenta, ca "Modulul Proiecte" (plan 3.2.3) sa poata agrega
+   * retroactiv istoricul real de import per proiect. Optional: absent = fara
+   * proiect ales; nu necesita bump de schema Dexie (camp neindexat).
+   */
+  project?: string;
 }
 
 export interface ThumbnailRecord {

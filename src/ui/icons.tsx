@@ -15,6 +15,9 @@ export function SparkleIcon(p: SVGProps<SVGSVGElement>) {
 export function DownloadIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><path d="M12 3v12" /><path d="M7 10l5 5 5-5" /><path d="M4 20h16" /></svg>;
 }
+export function UploadIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg {...base} {...p}><path d="M12 21V9" /><path d="M7 14l5-5 5 5" /><path d="M4 4h16" /></svg>;
+}
 export function ListIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><line x1="9" y1="6" x2="20" y2="6" /><line x1="9" y1="12" x2="20" y2="12" /><line x1="9" y1="18" x2="20" y2="18" /><circle cx="4.5" cy="6" r="1.4" fill="currentColor" stroke="none" /><circle cx="4.5" cy="12" r="1.4" fill="currentColor" stroke="none" /><circle cx="4.5" cy="18" r="1.4" fill="currentColor" stroke="none" /></svg>;
 }
@@ -103,6 +106,18 @@ export function GridIcon(p: SVGProps<SVGSVGElement>) {
       <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.2" />
     </svg>
   );
+}
+export function GlobeIcon(p: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base} {...p}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18" />
+      <path d="M12 3c2.8 2.5 4.2 5.8 4.2 9s-1.4 6.5-4.2 9c-2.8-2.5-4.2-5.8-4.2-9s1.4-6.5 4.2-9z" />
+    </svg>
+  );
+}
+export function BarChartIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg {...base} {...p}><line x1="5" y1="20" x2="5" y2="12" /><line x1="12" y1="20" x2="12" y2="6" /><line x1="19" y1="20" x2="19" y2="15" /></svg>;
 }
 export function ClockIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><circle cx="12" cy="12" r="9" /><path d="M12 7v5.5l3.5 2" /></svg>;
