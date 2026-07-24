@@ -25,7 +25,7 @@ import { readGridSort, writeGridSort, compareBy, type GridSort } from './gridSor
 import { recordUsage, readMonthlyUsage, FREE_TIER_MONTHLY_LIMIT } from './usage';
 import { getProjectMetadata } from './projectMetadata';
 import { buildPersonProfilesExport, personProfilesFileName, parsePersonProfilesFile } from '../core/personProfileTransfer';
-import { readStoredLocale, writeStoredLocale, t, plural, type Locale } from '../i18n';
+import { readStoredLocale, writeStoredLocale, applyLocale, t, plural, type Locale } from '../i18n';
 import { buildBackup, backupFileName, parseBackupFile, restoreBackup } from '../core/backupService';
 import { buildClientGalleryHtml } from '../core/export/clientGallery';
 
@@ -409,6 +409,11 @@ function statusLabel(locale: Locale, status: PhotoRecord['status']): string {
   return t(locale, `store.statusLabel.${status}`);
 }
 
+// index.html porneste static cu lang="ro" — sincronizam imediat cu limba
+// persistata (fara asta, un utilizator care revine cu engleza deja aleasa
+// ar avea temporar/permanent atributul lang gresit pana la primul setLocale).
+applyLocale(readStoredLocale());
+
 export const useStore = create<AppState>((set, get) => ({
   photos: [],
   persons: [],
@@ -438,7 +443,7 @@ export const useStore = create<AppState>((set, get) => ({
   theme: readStoredTheme(),
   setTheme: theme => { applyTheme(theme); set({ theme }); },
   locale: readStoredLocale(),
-  setLocale: locale => { writeStoredLocale(locale); set({ locale }); },
+  setLocale: locale => { writeStoredLocale(locale); applyLocale(locale); set({ locale }); },
   projectName: readStoredProjectName(),
   setProjectName: name => { writeProjectName(name); set({ projectName: name }); },
   booted: false,

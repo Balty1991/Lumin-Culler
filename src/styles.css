@@ -186,7 +186,7 @@ body {
 .glass { background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur)); border: 1px solid var(--glass-border); }
 button { font: inherit; cursor: pointer; border: none; border-radius: 6px; background: none; color: inherit; }
 button, .chip, .card, .compare-img { -webkit-tap-highlight-color: transparent; }
-button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
   outline: 2px solid var(--accent); outline-offset: 2px;
   box-shadow: 0 0 0 4px rgb(var(--accent-rgb) / 0.16);
   border-radius: 6px;
@@ -564,6 +564,17 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
    (acelasi motiv pentru care .virtual-row .card dezactiveaza deja cardIn mai sus) */
 .virtual-row .check-badge { animation: none; }
 @media (prefers-reduced-motion: reduce) { .check-badge { animation: none; } }
+
+/* Statusul "de verificat" nu are alt indiciu vizual in afara de culoare (spre deosebire de
+   selectat -> check-badge, respins -> desaturare) — o iconita mica inchide golul WCAG 1.4.1
+   (culoarea nu poate fi singurul mijloc de a distinge o stare). Fara animatia checkPop:
+   review e starea IMPLICITA pentru majoritatea pozelor la import, animatia ar fi zgomot vizual. */
+.review-badge {
+  position: absolute; top: 6px; right: 7px; z-index: var(--z-card-badge); width: 20px; height: 20px; border-radius: 50%;
+  background: var(--review); color: var(--review-deep); display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 0 3px rgb(var(--review-rgb) / 0.25);
+}
+.review-badge svg { width: 12px; height: 12px; }
 
 /* selectie in masa (Ctrl/Shift+Click) — inel de accent distinct de starea pick/reject/review,
    ca sa nu se confunde vizual "e in selectia curenta" cu "AI-ul a decis ca e buna" */

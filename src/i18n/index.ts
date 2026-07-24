@@ -35,6 +35,13 @@ export function writeStoredLocale(locale: Locale): void {
   }
 }
 
+/** Actualizeaza atributul lang de pe &lt;html&gt; — WCAG 3.1.1 (Language of Page): fara asta,
+    cititoarele de ecran continua sa foloseasca regulile de pronuntie ale limbii initiale
+    (romana, din index.html) chiar si dupa ce interfata a comutat pe engleza. */
+export function applyLocale(locale: Locale): void {
+  document.documentElement.lang = locale;
+}
+
 /** Traduce o cheie in limba data, cu interpolare simpla `{param}` -> valoare. */
 export function t(locale: Locale, key: string, params?: Record<string, string | number>): string {
   let str = DICTS[locale][key] ?? DICTS.ro[key] ?? key;

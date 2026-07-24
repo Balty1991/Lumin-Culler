@@ -175,6 +175,7 @@ export function CommandPalette() {
                 onChange={e => { setQuery(e.target.value); setActiveIndex(0); }}
                 onKeyDown={onInputKeyDown}
                 placeholder={tr('palette.placeholder')}
+                aria-label={tr('palette.placeholder')}
                 role="combobox"
                 aria-expanded="true"
                 aria-controls="palette-listbox"

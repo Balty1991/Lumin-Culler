@@ -115,6 +115,7 @@ export function BatchOpsPanel() {
               type="range" min={0} max={100} step={5} value={cullPercent}
               onChange={e => setCullPercent(Number(e.target.value))}
               disabled={busy}
+              aria-label={tr('batch.autoCull.title')}
             />
             <span className="mono batch-threshold-value">{cullPercent}%</span>
           </div>
@@ -137,6 +138,7 @@ export function BatchOpsPanel() {
               type="range" min={0} max={100} value={threshold}
               onChange={e => setThreshold(Number(e.target.value))}
               disabled={busy}
+              aria-label={tr('batch.rejectBelow.title')}
             />
             <span className="mono batch-threshold-value">{threshold}</span>
           </div>

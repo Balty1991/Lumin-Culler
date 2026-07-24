@@ -244,11 +244,12 @@ export function PersonsPanel() {
           <input
             type="text"
             placeholder={tr('persons.namePlaceholder')}
+            aria-label={tr('persons.namePlaceholder')}
             value={name}
             onChange={e => setName(e.target.value)}
             disabled={busy}
           />
-          <input ref={fileRef} type="file" accept="image/*" multiple disabled={busy} />
+          <input ref={fileRef} type="file" accept="image/*" multiple disabled={busy} aria-label={tr('persons.filesAriaLabel')} />
           <p className="hint">
             {tr('persons.reenrollHint')}
           </p>

@@ -264,6 +264,12 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
           onPointerUp={endDrag}
           onPointerCancel={endDrag}
           title={zoomed ? tr('detail.zoom.exit') : tr('detail.zoom.hint')}
+          role="button"
+          tabIndex={0}
+          aria-label={zoomed ? tr('detail.zoom.exit') : tr('detail.zoom.hint')}
+          onKeyDown={e => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setZoomed(z => !z); }
+          }}
         >
           <div
             className="swipe-surface"
