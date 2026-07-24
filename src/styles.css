@@ -1099,6 +1099,33 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   border-radius: 999px; background: var(--text); color: var(--bg);
   font-size: 0.62rem; line-height: 15px; text-align: center; font-weight: 700;
 }
+
+/* istoric de undo vizibil (plan "cat mai pro") — popover ancorat de butonul de
+   undo, lista actiunilor recente (cea mai noua prima), fiecare cu propriul
+   buton de revert. Pozitionare simpla (absolute, ancorat de wrapper), spre
+   deosebire de .context-menu (fixed, la coordonatele unui click arbitrar) —
+   acest popover e mereu atasat de ACELASI buton. */
+.undo-history-wrap { position: relative; }
+.undo-history-popover {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: var(--z-context-menu);
+  width: 260px; max-height: 320px; overflow-y: auto; padding: 6px;
+  border-radius: var(--radius); box-shadow: var(--shadow-lift);
+  animation: fadeUp 0.14s var(--ease) both;
+}
+.undo-history-title {
+  padding: 7px 10px 5px; font-size: 0.68rem; color: var(--text-faint);
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.undo-history-list { display: flex; flex-direction: column; gap: 2px; }
+.undo-history-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;
+  padding: 8px 10px; border-radius: 8px; color: var(--text); font-size: 0.8rem; text-align: left;
+  transition: background 0.14s var(--ease);
+}
+.undo-history-item:hover, .undo-history-item:focus-visible { background: var(--surface-2); outline: none; }
+.undo-history-item:disabled { opacity: 0.5; cursor: default; }
+.undo-history-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.undo-history-revert { flex-shrink: 0; font-size: 0.65rem; color: var(--text-faint); }
 .inline-icon { width: 14px; height: 14px; vertical-align: -2px; margin-right: 3px; flex-shrink: 0; }
 
 /* ── Tooltip minimal — aparitie instant la hover/focus, pentru butoane doar-iconita ── */

@@ -4,7 +4,8 @@ import { useStore } from '../state/store';
 import { Tooltip } from './Tooltip';
 import { StarRating } from './StarRating';
 import { EmptyFilterState } from './EmptyFilterState';
-import { ChevronLeft, ChevronRight, XIcon, CheckIcon, InfoIcon, EyeClosedIcon, GridIcon, PlusIcon, MenuIcon, UndoIcon } from './icons';
+import { ChevronLeft, ChevronRight, XIcon, CheckIcon, InfoIcon, EyeClosedIcon, GridIcon, PlusIcon, MenuIcon } from './icons';
+import { UndoHistoryButton } from './UndoHistoryButton';
 import { pickImportFiles } from '../core/filePicker';
 import { t } from '../i18n';
 
@@ -22,10 +23,6 @@ export function Workspace() {
   const filtered = useStore(s => s.filtered());
   const progress = useStore(s => s.progress);
   const cancelImport = useStore(s => s.cancelImport);
-  const history = useStore(s => s.history);
-  const batchHistory = useStore(s => s.batchHistory);
-  const undoCount = history.length + batchHistory.length;
-  const undo = useStore(s => s.undo);
   const openDetail = useStore(s => s.openDetail);
   const stepDetail = useStore(s => s.stepDetail);
   const setStatus = useStore(s => s.setStatus);
@@ -144,14 +141,7 @@ export function Workspace() {
       <div className="workspace">
         <header className="workspace-head">
           <span className="mono workspace-hint">{tr('workspace.emptyHint')}</span>
-          {undoCount > 0 && (
-            <Tooltip label={tr('app.tooltip.undo')} shortcut="Ctrl+Z">
-              <button className="ghost icon-btn" onClick={() => void undo()} aria-label={tr('app.undo.ariaLabel', { count: undoCount })}>
-                <UndoIcon />
-                <span className="undo-count mono">{undoCount}</span>
-              </button>
-            </Tooltip>
-          )}
+          <UndoHistoryButton />
           <Tooltip label={tr('workspace.tooltip.grid')} side="left">
             <button className="ghost icon-btn" onClick={() => setWorkspaceMode(false)} aria-label={tr('workspace.grid.ariaLabel')}>
               <GridIcon />
@@ -181,14 +171,7 @@ export function Workspace() {
         {progress?.phase === 'analiza' && (
           <button className="ghost small-btn" onClick={() => cancelImport()}>{tr('app.progress.cancel')}</button>
         )}
-        {undoCount > 0 && (
-          <Tooltip label={tr('app.tooltip.undo')} shortcut="Ctrl+Z">
-            <button className="ghost icon-btn" onClick={() => void undo()} aria-label={tr('app.undo.ariaLabel', { count: undoCount })}>
-              <UndoIcon />
-              <span className="undo-count mono">{undoCount}</span>
-            </button>
-          </Tooltip>
-        )}
+        <UndoHistoryButton />
         <Tooltip label={tr('app.addPhotos')}>
           <button className="ghost icon-btn" onClick={() => void onAddPhotosClick()} aria-label={tr('app.addPhotos')}>
             <PlusIcon />
