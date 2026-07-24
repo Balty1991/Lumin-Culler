@@ -1039,6 +1039,16 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .batch-preview-chip.pos { color: var(--pick); background: rgba(74,222,128,0.12); border-color: rgba(74,222,128,0.3); }
 .batch-preview-chip.neg { color: var(--reject); background: rgba(251,113,133,0.12); border-color: rgba(251,113,133,0.3); }
 
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.stat-tile {
+  display: flex; flex-direction: column; gap: 2px; padding: 10px; border-radius: var(--radius);
+  background: var(--surface-2); border: 1px solid var(--line); text-align: center;
+}
+.stat-tile b { font-size: 1.2rem; font-family: var(--font-display); }
+.stat-tile span { font-size: 0.68rem; color: var(--text-dim); }
+.stat-tile.pos b { color: var(--pick); }
+.stat-tile.neg b { color: var(--reject); }
+
 /* ── Meniu lateral ── */
 /* animatia de intrare/iesire e controlata de framer-motion (MenuDrawer.tsx) —
    CSS-ul ramane doar cu aspectul static, ca sa nu se bata cu transform-ul JS */

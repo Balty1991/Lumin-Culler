@@ -9,6 +9,8 @@ import { PersonsPanel } from './ui/PersonsPanel';
 import { MenuDrawer } from './ui/MenuDrawer';
 import { InsightsPanel } from './ui/InsightsPanel';
 import { BatchOpsPanel } from './ui/BatchOpsPanel';
+import { StatsPanel } from './ui/StatsPanel';
+import { ProjectsPanel } from './ui/ProjectsPanel';
 import { CommandPalette } from './ui/CommandPalette';
 import { ShortcutsPanel } from './ui/ShortcutsPanel';
 import { EmptyFilterState } from './ui/EmptyFilterState';
@@ -279,6 +281,8 @@ export default function App() {
         <PersonsPanel />
         <InsightsPanel />
         <BatchOpsPanel />
+        <StatsPanel />
+        <ProjectsPanel />
       </>
     );
   }
@@ -549,6 +553,8 @@ export default function App() {
       <PersonsPanel />
       <InsightsPanel />
       <BatchOpsPanel />
+      <StatsPanel />
+      <ProjectsPanel />
       <MenuDrawer />
       <CommandPalette />
       <ShortcutsPanel />

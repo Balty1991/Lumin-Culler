@@ -36,6 +36,15 @@ export interface PhotoRecord {
    * de schema Dexie (camp neindexat, filtrat/citit client-side).
    */
   genre?: string;
+  /**
+   * Numele proiectului/sesiunii activ la momentul importului (ProjectNameField
+   * din App.tsx, PhotoRecord distinct de `genre` — un proiect ("Nunta Ana & Mihai")
+   * poate contine mai multe genuri, desi de obicei coincid). Pastrat PE POZA, nu
+   * doar ca eticheta curenta, ca "Modulul Proiecte" (plan 3.2.3) sa poata agrega
+   * retroactiv istoricul real de import per proiect. Optional: absent = fara
+   * proiect ales; nu necesita bump de schema Dexie (camp neindexat).
+   */
+  project?: string;
 }
 
 export interface ThumbnailRecord {

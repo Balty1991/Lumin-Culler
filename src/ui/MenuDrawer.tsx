@@ -3,7 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useStore } from '../state/store';
 import {
   UserCheckIcon, SparkleIcon, ListIcon, InfoIcon, XIcon, TagIcon, LayersIcon, KeyboardIcon,
-  SunIcon, MoonIcon, BatteryIcon, GridIcon, DownloadIcon, UploadIcon
+  SunIcon, MoonIcon, BatteryIcon, GridIcon, DownloadIcon, UploadIcon, BarChartIcon
 } from './icons';
 import { EASE } from './motion';
 import { GENRE_PRESETS } from '../state/genre';
@@ -27,8 +27,11 @@ export function MenuDrawer() {
   const setGridDensity = useStore(s => s.setGridDensity);
   const exportManifest = useStore(s => s.exportManifest);
   const exportXMP = useStore(s => s.exportXMP);
+  const exportClientGallery = useStore(s => s.exportClientGallery);
   const exportBackup = useStore(s => s.exportBackup);
   const importBackupFile = useStore(s => s.importBackupFile);
+  const setStatsOpen = useStore(s => s.setStatsOpen);
+  const setProjectsOpen = useStore(s => s.setProjectsOpen);
   const persons = useStore(s => s.persons);
   const reduceMotion = useReducedMotion();
   const restoreInputRef = useRef<HTMLInputElement>(null);
@@ -72,6 +75,16 @@ export function MenuDrawer() {
           <span>Operatii in masa</span>
         </button>
 
+        <button className="drawer-item" onClick={() => go(() => setStatsOpen(true))}>
+          <span className="drawer-item-icon"><BarChartIcon /></span>
+          <span>Statistici</span>
+        </button>
+
+        <button className="drawer-item" onClick={() => go(() => setProjectsOpen(true))}>
+          <span className="drawer-item-icon"><ListIcon /></span>
+          <span>Proiecte</span>
+        </button>
+
         <label className="drawer-item drawer-item-select" title="Genul fotografic activ pentru urmatorul import — antreneaza un model AI de preferinte SEPARAT per gen (ex. 'Nunta' invata altceva decat 'Peisaj').">
           <span className="drawer-item-icon"><TagIcon /></span>
           <span>Gen fotografic</span>
@@ -94,6 +107,15 @@ export function MenuDrawer() {
         <button className="drawer-item" onClick={() => go(() => void exportXMP())}>
           <span className="drawer-item-icon"><TagIcon /></span>
           <span>Exporta etichete Lightroom (XMP)</span>
+        </button>
+
+        <button
+          className="drawer-item"
+          onClick={() => go(() => void exportClientGallery())}
+          title="Fisier HTML static cu pozele selectate, pentru feedback de la client — trimite-l tu insuti (email, cloud propriu); nu e o galerie web gazduita."
+        >
+          <span className="drawer-item-icon"><UserCheckIcon /></span>
+          <span>Genereaza galerie pentru client (HTML)</span>
         </button>
 
         <div className="drawer-section-label">Backup</div>

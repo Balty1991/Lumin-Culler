@@ -107,6 +107,9 @@ export function GridIcon(p: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+export function BarChartIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg {...base} {...p}><line x1="5" y1="20" x2="5" y2="12" /><line x1="12" y1="20" x2="12" y2="6" /><line x1="19" y1="20" x2="19" y2="15" /></svg>;
+}
 export function ClockIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><circle cx="12" cy="12" r="9" /><path d="M12 7v5.5l3.5 2" /></svg>;
 }

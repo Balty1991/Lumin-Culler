@@ -21,7 +21,9 @@ import { readStoredTheme, applyTheme, type Theme } from './theme';
 import { readStoredProjectName, writeProjectName } from './projectName';
 import { readStoredGenre, writeStoredGenre } from './genre';
 import { readGridDensity, writeGridDensity, type GridDensity } from './gridDensity';
+import { recordUsage, readMonthlyUsage, FREE_TIER_MONTHLY_LIMIT } from './usage';
 import { buildBackup, backupFileName, parseBackupFile, restoreBackup } from '../core/backupService';
+import { buildClientGalleryHtml } from '../core/export/clientGallery';
 
 export interface PhotoView {
   id: string;
@@ -52,6 +54,8 @@ export interface PhotoView {
   capturedAt?: number;
   /** Genul fotografic activ la import ("Nunta", "Portret", ...) — vezi state/genre.ts si ContextEngine.deriveContextKey. */
   genre?: string;
+  /** Numele proiectului/sesiunii active la import (ProjectNameField) — vezi PhotoRecord.project. */
+  project?: string;
   goldenHourDetected?: boolean;
   dominantColors?: string[];
   /** Eticheta compusa scena+varsta (ex. "portrait_child") — folosita ca sursa de keywords la exportul XMP. */
@@ -61,6 +65,9 @@ export interface PhotoView {
 }
 
 export type FilterKey = 'all' | 'selected' | 'review' | 'rejected' | 'series' | 'blinks';
+
+/** Cheie de proiectFilter pentru pozele fara proiect ales — un nume de proiect real nu poate coincide cu acest sentinel (spatii, gol dupa trim). */
+export const NO_PROJECT_KEY = 'no-project';
 
 interface AppState {
   photos: PhotoView[];
@@ -81,9 +88,20 @@ interface AppState {
   exportBackup: () => Promise<void>;
   /** Restaureaza un backup: persoane + modele AI, plus reaplicarea deciziilor (status/rating) pe pozele curente care se potrivesc (nume fisier + data capturii). */
   importBackupFile: (file: File) => Promise<void>;
+  /** Viteza ultimului import (poze procesate + durata) — afisata in Statistici; null inainte de primul import al sesiunii. */
+  lastImportStats: { count: number; durationMs: number } | null;
+  /** Contor informativ de poze procesate in luna curenta — vezi state/usage.ts (NU e o limita reala/blocanta). */
+  monthlyUsage: number;
+  statsOpen: boolean;
+  setStatsOpen: (open: boolean) => void;
   filter: FilterKey;
   /** Filtru suplimentar, combinabil cu `filter` — numele unei persoane cunoscute, sau null (fara filtru). */
   personFilter: string | null;
+  /** Filtru suplimentar dupa proiectul sub care a fost importata poza (PhotoRecord.project) — vezi ProjectsPanel. */
+  projectFilter: string | null;
+  setProjectFilter: (project: string | null) => void;
+  projectsOpen: boolean;
+  setProjectsOpen: (open: boolean) => void;
   /**
    * Filtre suplimentare, toate combinabile intre ele si cu `filter`/`personFilter` —
    * utile la biblioteci mari (mii de poze), unde navigarea doar prin status/persoana
@@ -219,6 +237,8 @@ interface AppState {
   exportSelection: () => Promise<void>;
   exportManifest: () => Promise<void>;
   exportXMP: () => Promise<void>;
+  /** Genereaza si descarca o galerie HTML statica cu pozele selectate, pentru feedback de la client. */
+  exportClientGallery: () => Promise<void>;
   filtered: () => PhotoView[];
   groupOf: (groupId: string) => PhotoView[];
 }
@@ -258,6 +278,7 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     groupId: photo.groupId,
     capturedAt: photo.capturedAt,
     genre: photo.genre,
+    project: photo.project,
     goldenHourDetected: analysis?.goldenHourDetected,
     dominantColors: analysis?.dominantColors,
     sceneSemantic: analysis?.sceneSemantic,
@@ -328,6 +349,10 @@ export const useStore = create<AppState>((set, get) => ({
   progress: null,
   filter: 'all',
   personFilter: null,
+  projectFilter: null,
+  setProjectFilter: project => set({ projectFilter: project }),
+  projectsOpen: false,
+  setProjectsOpen: open => set({ projectsOpen: open }),
   searchText: '',
   dateFrom: null,
   dateTo: null,
@@ -372,6 +397,10 @@ export const useStore = create<AppState>((set, get) => ({
   setGenre: genre => { writeStoredGenre(genre); set({ genre }); },
   gridDensity: readGridDensity(),
   setGridDensity: density => { writeGridDensity(density); set({ gridDensity: density }); },
+  lastImportStats: null,
+  monthlyUsage: readMonthlyUsage(),
+  statsOpen: false,
+  setStatsOpen: open => set({ statsOpen: open }),
 
   exportBackup: async () => {
     const data = await buildBackup();
@@ -400,6 +429,36 @@ export const useStore = create<AppState>((set, get) => ({
       set({ notice: 'Restaurare backup esuata: ' + (err instanceof Error ? err.message : String(err)) });
     }
   },
+
+  /**
+   * Galerie HTML statica pentru feedback de la client (plan 3.2.3, "Client Review") —
+   * exporta doar pozele SELECTATE (acelasi domeniu ca exportSelection), cu
+   * miniaturile deja generate (nu re-decodeaza originalele). Un singur fisier
+   * .html, autonom, cu marcaj de favorite in browserul clientului — nu e o
+   * galerie "gazduita": fotograful trebuie sa-l trimita el insusi (email, cloud propriu).
+   */
+  exportClientGallery: async () => {
+    const selected = get().photos.filter(p => p.status === 'selected');
+    if (!selected.length) { set({ notice: 'Nicio poza selectata inca — nu ai ce include in galerie.' }); return; }
+    try {
+      const thumbnails = await Promise.all(selected.map(p => db.thumbnails.get(p.id)));
+      const items = selected
+        .map((p, i) => ({ fileName: p.fileName, thumbnail: thumbnails[i]?.blob }))
+        .filter((it): it is { fileName: string; thumbnail: Blob } => !!it.thumbnail);
+      const title = get().projectName ? `Galerie foto — ${get().projectName}` : 'Galerie foto — Lumin Culler';
+      const html = await buildClientGalleryHtml(items, title);
+      const blob = new Blob([html], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `lumin-culler-galerie-client-${new Date().toISOString().slice(0, 10)}.html`;
+      a.click();
+      set({ notice: `Galerie HTML generata cu ${items.length} poze — trimite fisierul clientului (email, cloud propriu etc.).` });
+    } catch (err) {
+      set({ notice: 'Generarea galeriei a esuat: ' + (err instanceof Error ? err.message : String(err)) });
+    }
+  },
+
   cancelImport: () => { if (activeCancelToken) activeCancelToken.cancelled = true; },
 
   boot: async () => {
@@ -415,15 +474,18 @@ export const useStore = create<AppState>((set, get) => ({
   runImport: async (files: File[]) => {
     set({ progress: { done: 0, total: files.length, fileName: '', phase: 'incarcare' } });
     let warning: string | undefined;
+    let done = 0;
+    const startedAt = Date.now();
     const cancelToken = createCancelToken();
     activeCancelToken = cancelToken;
     try {
       await importFiles(
         files,
-        progress => { warning = progress.warning; set({ progress: { ...progress } }); },
+        progress => { warning = progress.warning; done = progress.done; set({ progress: { ...progress } }); },
         item => set(state => ({ photos: [...state.photos, toView(item.photo, item.analysis)] })),
         cancelToken,
-        get().genre
+        get().genre,
+        get().projectName
       );
     } catch (err) {
       // fara asta, o promisiune respinsa (ex. retea slaba la incarcarea modelelor AI)
@@ -440,11 +502,22 @@ export const useStore = create<AppState>((set, get) => ({
     const fresh = await db.photos.toArray();
     const byId = new Map(fresh.map(p => [p.id, p]));
     const aiDegraded = !analysisPool.isAccelerated;
+    // contor informativ de utilizare lunara (plan 4.2, freemium) — vezi state/usage.ts
+    // pentru de ce NU blocheaza nimic, doar informeaza la prima depasire a pragului
+    const usageBefore = readMonthlyUsage();
+    const monthlyUsage = recordUsage(done);
+    const crossedFreeTierLimit = usageBefore < FREE_TIER_MONTHLY_LIMIT && monthlyUsage >= FREE_TIER_MONTHLY_LIMIT;
+    const usageNotice = crossedFreeTierLimit
+      ? `Ai procesat ${monthlyUsage} poze luna aceasta, peste pragul orientativ de ${FREE_TIER_MONTHLY_LIMIT} al ` +
+        'nivelului gratuit — aplicatia continua sa functioneze normal, fara nicio limitare.'
+      : undefined;
     set(state => ({
       progress: null,
-      notice: warning ?? state.notice,
+      notice: warning ?? usageNotice ?? state.notice,
       aiDegraded,
       aiBackend: analysisPool.detectedBackend,
+      lastImportStats: done > 0 ? { count: done, durationMs: Date.now() - startedAt } : state.lastImportStats,
+      monthlyUsage,
       photos: state.photos.map(p => {
         const rec = byId.get(p.id);
         return rec ? { ...p, status: rec.status, groupId: rec.groupId } : p;
@@ -937,7 +1010,7 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   filtered: () => {
-    const { photos, filter, personFilter, searchText, dateFrom, dateTo, minRating } = get();
+    const { photos, filter, personFilter, projectFilter, searchText, dateFrom, dateTo, minRating } = get();
     let base: PhotoView[];
     switch (filter) {
       case 'selected': base = photos.filter(p => p.status === 'selected'); break;
@@ -957,6 +1030,12 @@ export const useStore = create<AppState>((set, get) => ({
     // (ex. "Selectate" + "Ami" = pozele selectate in care apare Ami), nu un
     // FilterKey fix (persoanele sunt dinamice, inrolate de utilizator)
     if (personFilter) base = base.filter(p => p.personNames.includes(personFilter));
+    // filtru dupa proiect — vezi ProjectsPanel (fara proiect ales = grupul "Fara proiect")
+    if (projectFilter) {
+      base = projectFilter === NO_PROJECT_KEY
+        ? base.filter(p => !p.project)
+        : base.filter(p => p.project === projectFilter);
+    }
     // cautare text dupa numele fisierului — utila la biblioteci mari, unde
     // stii deja (partial) cum se numeste poza cautata
     const q = searchText.trim().toLowerCase();
