@@ -68,7 +68,41 @@ export const ro = {
   'shortcuts.paletteClose': 'Inchide paleta',
 
   'emptyFilter.message': 'Nicio poza nu corespunde filtrului curent.',
-  'emptyFilter.reset': 'Reseteaza filtrele'
+  'emptyFilter.reset': 'Reseteaza filtrele',
+
+  'palette.ariaLabel': 'Paleta de comenzi',
+  'palette.placeholder': 'Cauta o actiune…',
+  'palette.noResults': 'Nicio actiune gasita.',
+  'palette.section.navigate': 'Navigare',
+  'palette.section.edit': 'Editare',
+  'palette.section.filters': 'Filtre',
+  'palette.section.people': 'Persoane & AI',
+  'palette.section.export': 'Export',
+  'palette.section.app': 'Aplicatie',
+  'palette.cmd.workspace': 'Deschide spatiul de lucru',
+  'palette.cmd.workspace.hint': 'lupa + filmstrip',
+  'palette.cmd.grid': 'Vezi grila de poze',
+  'palette.cmd.undo': 'Anuleaza ultima decizie',
+  'palette.cmd.batch': 'Operatii in masa',
+  'palette.cmd.batch.hint': 'respinge sub prag / rezolva serii',
+  'palette.cmd.clearAll': 'Goleste sesiunea',
+  'palette.cmd.clearAll.hint': 'ireversibil',
+  'palette.cmd.clearAll.confirm': 'Sigur golesti sesiunea? Se sterg ireversibil toate cele {count} poze din acest browser. Nu poate fi anulat.',
+  'palette.filter.showLabel': 'Arata: {filter}',
+  'palette.filter.all': 'Toate',
+  'palette.filter.selected': 'Selectate',
+  'palette.filter.review': 'De verificat',
+  'palette.filter.rejected': 'Respinse',
+  'palette.filter.series': 'Serii',
+  'palette.filter.blinks': 'Ochi inchisi',
+  'palette.cmd.persons': 'Persoane cunoscute',
+  'palette.cmd.insights': 'Preferinte AI',
+  'palette.cmd.exportSelection': 'Exporta poze selectate ({count})',
+  'palette.cmd.exportXmp': 'Exporta etichete Lightroom (XMP)',
+  'palette.cmd.exportManifest': 'Exporta lista (JSON)',
+  'palette.cmd.shortcuts': 'Scurtaturi tastatura',
+  'palette.cmd.themeToDark': 'Comuta la tema intunecata',
+  'palette.cmd.themeToLight': 'Comuta la tema deschisa'
 };
 
 export type TranslationKey = keyof typeof ro;
