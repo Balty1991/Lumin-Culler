@@ -16,6 +16,7 @@
  */
 import * as Comlink from 'comlink';
 import { pickBestInGroup, type GroupCandidate } from '../core/groupSelection';
+import { bkInsert, bkQuery, type BKNode } from '../core/bkTree';
 
 /**
  * `score` (aiScore) ramane pastrat pentru compatibilitate/afisare, dar alegerea
@@ -79,13 +80,26 @@ export class HashCompareService {
     onUpdate?: (update: GroupUpdate) => void
   ): Promise<{ groups: GroupResult[]; totalGroups: number }> {
     const buckets: Bucket[] = [];
+    // indexeaza seed-ul fiecarui bucket (BK-tree, distanta Hamming) — plan 2.3.3
+    // ("algoritmi optimizati... LSH"): media O(n) in loc de O(n * buckets) la
+    // biblioteci mari cu multe serii distincte, dar EXACT (nu aproximativ ca LSH
+    // clasic), asa ca rezultatul de grupare ramane identic cu varianta liniara.
+    let seedTree: BKNode<number> | null = null; // valoare = indexul bucket-ului in `buckets`
 
     for (let start = 0; start < photos.length; start += CHUNK_SIZE) {
       const chunk = photos.slice(start, start + CHUNK_SIZE);
       for (const photo of chunk) {
-        const bucket = buckets.find(b => hammingDistance(photo.hash, b.seedHash) <= SIMILARITY_THRESHOLD);
-        if (bucket) bucket.members.push(photo);
-        else buckets.push({ seedHash: photo.hash, members: [photo] });
+        const candidates = bkQuery(seedTree, photo.hash, SIMILARITY_THRESHOLD, hammingDistance);
+        // primul bucket creat dintre candidati — aceeasi regula de departajare ca
+        // Array.prototype.find de dinainte (scanare in ordinea crearii)
+        const bucketIndex = candidates.length ? Math.min(...candidates) : -1;
+        if (bucketIndex !== -1) {
+          buckets[bucketIndex].members.push(photo);
+        } else {
+          const newIndex = buckets.length;
+          buckets.push({ seedHash: photo.hash, members: [photo] });
+          seedTree = bkInsert(seedTree, photo.hash, newIndex, hammingDistance);
+        }
       }
       // elibereaza firul (al worker-ului) intre chunk-uri — pe un fir dedicat
       // asta nu conteaza pentru main thread-ul aplicatiei (deja neblocat prin
