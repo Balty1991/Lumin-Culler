@@ -373,6 +373,18 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
                 )}
                 {photo.faceCount > 0 && <StatTile label={tr('detail.stat.thirds')} value={`${Math.round(photo.ruleOfThirds * 100)}%`} />}
                 {photo.faceCount > 0 && <StatTile label={tr('detail.stat.headroom')} value={`${Math.round(photo.headroom * 100)}%`} />}
+                {/* Fara subiect uman, treimile/headroom-ul de mai sus n-au sens (calculate pe cutia fetei
+                    principale) — aratam in loc liniile directoare/simetria/spatiul negativ (plan 2.2.3),
+                    deja factorizate in scorul AI dar niciodata afisate separat pana acum. */}
+                {photo.faceCount === 0 && photo.symmetryDetected !== undefined && (
+                  <StatTile label={tr('detail.stat.symmetry')} value={photo.symmetryDetected ? <CheckIcon /> : <XIcon />} />
+                )}
+                {photo.faceCount === 0 && photo.leadingLinesDetected !== undefined && (
+                  <StatTile label={tr('detail.stat.leadingLines')} value={photo.leadingLinesDetected ? <CheckIcon /> : <XIcon />} />
+                )}
+                {photo.faceCount === 0 && photo.negativeSpaceScore !== undefined && (
+                  <StatTile label={tr('detail.stat.negativeSpace')} value={`${Math.round(photo.negativeSpaceScore * 100)}%`} />
+                )}
               </div>
               {(photo.dominantColors?.length || photo.goldenHourDetected) && (
                 <div className="color-palette-row">
