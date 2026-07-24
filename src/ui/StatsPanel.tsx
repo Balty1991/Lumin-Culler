@@ -5,6 +5,7 @@ import { computeLibraryStats, computeAgreementStats, type AgreementStats } from 
 import { FREE_TIER_MONTHLY_LIMIT } from '../state/usage';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { XIcon, SparkleIcon } from './icons';
+import { t } from '../i18n';
 
 function formatDuration(ms: number): string {
   const s = ms / 1000;
@@ -18,6 +19,8 @@ export function StatsPanel() {
   const photos = useStore(s => s.photos);
   const lastImportStats = useStore(s => s.lastImportStats);
   const monthlyUsage = useStore(s => s.monthlyUsage);
+  const locale = useStore(s => s.locale);
+  const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const [agreement, setAgreement] = useState<AgreementStats | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   useModalFocusTrap(containerRef, open);
@@ -37,27 +40,27 @@ export function StatsPanel() {
 
   return (
     <div className="detail" onClick={e => { if (e.target === e.currentTarget) setOpen(false); }}>
-      <div className="detail-inner narrow" ref={containerRef} role="dialog" aria-modal="true" aria-label="Statistici" tabIndex={-1}>
+      <div className="detail-inner narrow" ref={containerRef} role="dialog" aria-modal="true" aria-label={tr('menu.stats')} tabIndex={-1}>
         <header className="detail-head">
-          <span><SparkleIcon className="inline-icon" /> Statistici</span>
-          <button className="ghost icon-btn" onClick={() => setOpen(false)} aria-label="Inchide">
+          <span><SparkleIcon className="inline-icon" /> {tr('menu.stats')}</span>
+          <button className="ghost icon-btn" onClick={() => setOpen(false)} aria-label={tr('detail.close')}>
             <XIcon />
           </button>
         </header>
 
         <div className="batch-section">
-          <h3>Biblioteca curenta</h3>
+          <h3>{tr('stats.library.title')}</h3>
           {stats.total === 0
-            ? <p className="hint">Nicio poza importata inca.</p>
+            ? <p className="hint">{tr('stats.library.empty')}</p>
             : (
               <>
                 <div className="stats-grid mono">
-                  <div className="stats-tile"><b>{stats.total}</b><span>total</span></div>
-                  <div className="stats-tile pos"><b>{stats.selected}</b><span>selectate ({pct(stats.selected)}%)</span></div>
-                  <div className="stats-tile neg"><b>{stats.rejected}</b><span>respinse ({pct(stats.rejected)}%)</span></div>
-                  <div className="stats-tile"><b>{stats.review}</b><span>de verificat ({pct(stats.review)}%)</span></div>
-                  <div className="stats-tile"><b>{stats.seriesCount}</b><span>serii/duplicate</span></div>
-                  <div className="stats-tile"><b>{stats.avgAiScore}</b><span>scor AI mediu</span></div>
+                  <div className="stats-tile"><b>{stats.total}</b><span>{tr('stats.tile.total')}</span></div>
+                  <div className="stats-tile pos"><b>{stats.selected}</b><span>{tr('stats.tile.selected', { percent: pct(stats.selected) })}</span></div>
+                  <div className="stats-tile neg"><b>{stats.rejected}</b><span>{tr('stats.tile.rejected', { percent: pct(stats.rejected) })}</span></div>
+                  <div className="stats-tile"><b>{stats.review}</b><span>{tr('stats.tile.review', { percent: pct(stats.review) })}</span></div>
+                  <div className="stats-tile"><b>{stats.seriesCount}</b><span>{tr('stats.tile.series')}</span></div>
+                  <div className="stats-tile"><b>{stats.avgAiScore}</b><span>{tr('stats.tile.avgScore')}</span></div>
                 </div>
               </>
             )}
@@ -65,7 +68,7 @@ export function StatsPanel() {
 
         {stats.ratingCounts.slice(1).some(n => n > 0) && (
           <div className="batch-section">
-            <h3>Distributia rating-urilor</h3>
+            <h3>{tr('stats.ratings.title')}</h3>
             <div className="stats-grid mono">
               {[1, 2, 3, 4, 5].map(star => (
                 <div key={star} className="stats-tile"><b>{stats.ratingCounts[star]}</b><span>{'★'.repeat(star)}</span></div>
@@ -75,35 +78,35 @@ export function StatsPanel() {
         )}
 
         <div className="batch-section">
-          <h3>Acord AI / decizii manuale</h3>
+          <h3>{tr('stats.agreement.title')}</h3>
           {agreement === null
-            ? <p className="hint">Se incarca…</p>
+            ? <p className="hint">{tr('insights.loading')}</p>
             : agreement.total === 0
-              ? <p className="hint">Inca nicio decizie manuala (Selecteaza/Respinge) inregistrata.</p>
+              ? <p className="hint">{tr('stats.agreement.none')}</p>
               : (
                 <p>
-                  Din {agreement.total} decizii manuale, <b>{Math.round(agreement.agreementRate * 100)}%</b> au
-                  fost de acord cu recomandarea AI de la momentul respectiv — restul au antrenat motorul sa
-                  se ajusteze la preferintele tale.
+                  {tr('stats.agreement.text', { total: agreement.total, rate: Math.round(agreement.agreementRate * 100) })}
                 </p>
               )}
         </div>
 
         {lastImportStats && (
           <div className="batch-section">
-            <h3>Ultimul import</h3>
+            <h3>{tr('stats.lastImport.title')}</h3>
             <p>
-              {lastImportStats.count} poze in {formatDuration(lastImportStats.durationMs)}
-              {' '}({(lastImportStats.count / (lastImportStats.durationMs / 1000)).toFixed(1)} poze/secunda).
+              {tr('stats.lastImport.text', {
+                count: lastImportStats.count,
+                duration: formatDuration(lastImportStats.durationMs),
+                rate: (lastImportStats.count / (lastImportStats.durationMs / 1000)).toFixed(1)
+              })}
             </p>
           </div>
         )}
 
         <div className="batch-section">
-          <h3>Utilizare luna aceasta</h3>
+          <h3>{tr('stats.usage.title')}</h3>
           <p>
-            {monthlyUsage} poze procesate din pragul orientativ de {FREE_TIER_MONTHLY_LIMIT} al nivelului gratuit
-            (plan de monetizare) — <b>doar informativ</b>, nu blocheaza nicio functionalitate.
+            {tr('stats.usage.text', { count: monthlyUsage, limit: FREE_TIER_MONTHLY_LIMIT })} <b>{tr('stats.usage.infoOnly')}</b>{tr('stats.usage.textEnd')}
           </p>
         </div>
       </div>
