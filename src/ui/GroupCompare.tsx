@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { db } from '../core/db';
+import { getCachedPreviewUrl } from '../core/previewUrlCache';
 import { useStore, type PhotoView } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { XIcon, LayersIcon, SparkleIcon, GridIcon } from './icons';
@@ -13,14 +13,10 @@ const PAN_DRAG_THRESHOLD_PX = 4;
 function usePreviewUrl(photoId: string): string | null {
   const [src, setSrc] = useState<string | null>(null);
   useEffect(() => {
-    let url: string | null = null;
     let alive = true;
     setSrc(null);
-    db.previews.get(photoId).then(async p => {
-      const rec = p ?? (await db.thumbnails.get(photoId));
-      if (rec && alive) { url = URL.createObjectURL(rec.blob); setSrc(url); }
-    });
-    return () => { alive = false; if (url) URL.revokeObjectURL(url); };
+    void getCachedPreviewUrl(photoId).then(url => { if (alive) setSrc(url); });
+    return () => { alive = false; };
   }, [photoId]);
   return src;
 }

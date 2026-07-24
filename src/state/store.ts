@@ -5,6 +5,7 @@
  */
 import { create } from 'zustand';
 import { db, type AnalysisRecord, type PhotoRecord, type KnownPerson, type ColorLabel } from '../core/db';
+import { clearPreviewUrlCache } from '../core/previewUrlCache';
 import { importFiles, originalFiles, originalHandles, createCancelToken, type ImportProgress, type ImportCancelToken } from '../core/importPipeline';
 import type { FileSystemFileHandleLike } from '../core/filePicker';
 import { readEconomicMode, writeEconomicMode } from '../core/performanceSettings';
@@ -1232,6 +1233,7 @@ export const useStore = create<AppState>((set, get) => ({
     ]);
     originalFiles.clear();
     originalHandles.clear();
+    clearPreviewUrlCache();
     set({ photos: [], detailId: null, compareGroupId: null, history: [] });
   },
 
@@ -1244,6 +1246,7 @@ export const useStore = create<AppState>((set, get) => ({
     ]);
     originalFiles.clear();
     originalHandles.clear();
+    clearPreviewUrlCache();
     await analysisPool.setKnownPersons([]).catch(() => {});
     set({ photos: [], persons: [], detailId: null, compareGroupId: null, history: [], batchHistory: [] });
   },

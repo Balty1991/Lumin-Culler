@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { db } from '../core/db';
+import { getCachedPreviewUrl } from '../core/previewUrlCache';
 import { useStore } from '../state/store';
 import { Tooltip } from './Tooltip';
 import { StarRating } from './StarRating';
@@ -57,13 +58,9 @@ export function Workspace() {
 
   useEffect(() => {
     if (!detailId) { setSrc(null); return; }
-    let url: string | null = null;
     let alive = true;
-    db.previews.get(detailId).then(async p => {
-      const rec = p ?? (await db.thumbnails.get(detailId));
-      if (rec && alive) { url = URL.createObjectURL(rec.blob); setSrc(url); }
-    });
-    return () => { alive = false; if (url) URL.revokeObjectURL(url); };
+    void getCachedPreviewUrl(detailId).then(url => { if (alive) setSrc(url); });
+    return () => { alive = false; };
   }, [detailId]);
 
   // scroll automat, ca miniatura activa sa ramana vizibila in filmstrip
