@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { selectBulkRejectTargets, resolveGroups, selectTopPercent, selectHighlights } from './batchOps';
+import { selectBulkRejectTargets, resolveGroups, selectTopPercent, selectHighlights, selectBlinks } from './batchOps';
 import type { PhotoView } from './store';
 
 function photo(overrides: Partial<PhotoView>): PhotoView {
@@ -135,6 +135,42 @@ describe('selectTopPercent', () => {
     const photos = [photo({ id: 'a', status: 'selected', aiScore: 90 })];
     const result = selectTopPercent(photos, 50);
     expect(result).toEqual({ selectIds: [], rejectIds: [] });
+  });
+});
+
+describe('selectBlinks', () => {
+  it('flags an isolated photo (no groupId) with closed eyes', () => {
+    const photos = [photo({ id: 'a', faceCount: 1, allEyesOpen: false })];
+    expect(selectBlinks(photos).map(p => p.id)).toEqual(['a']);
+  });
+
+  it('excludes a closed-eyes frame when another frame in the SAME series (same faceCount) has eyes open', () => {
+    const photos = [
+      photo({ id: 'a', groupId: 'g1', faceCount: 2, allEyesOpen: false }),
+      photo({ id: 'b', groupId: 'g1', faceCount: 2, allEyesOpen: true })
+    ];
+    expect(selectBlinks(photos)).toEqual([]);
+  });
+
+  it('still flags a series where NO frame has clean eyes', () => {
+    const photos = [
+      photo({ id: 'a', groupId: 'g1', faceCount: 2, allEyesOpen: false }),
+      photo({ id: 'b', groupId: 'g1', faceCount: 2, allEyesOpen: false })
+    ];
+    expect(selectBlinks(photos).map(p => p.id).sort()).toEqual(['a', 'b']);
+  });
+
+  it('does not treat a clean frame with a DIFFERENT face count as a valid alternative (someone stepped out of frame)', () => {
+    const photos = [
+      photo({ id: 'a', groupId: 'g1', faceCount: 3, allEyesOpen: false }),
+      photo({ id: 'b', groupId: 'g1', faceCount: 1, allEyesOpen: true })
+    ];
+    expect(selectBlinks(photos).map(p => p.id)).toEqual(['a']);
+  });
+
+  it('ignores photos with no detected faces', () => {
+    const photos = [photo({ id: 'a', faceCount: 0, allEyesOpen: false })];
+    expect(selectBlinks(photos)).toEqual([]);
   });
 });
 

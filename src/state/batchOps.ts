@@ -60,6 +60,32 @@ export function selectTopPercent(photos: PhotoView[], percent: number): TopPerce
 }
 
 /**
+ * Filtrul "Ochi inchisi" e un semnal de revizuit manual — dar daca ALT cadru
+ * din ACEEASI serie (acelasi groupId) cu ACELASI numar de fete (proxy pentru
+ * "aceiasi oameni, aceeasi compozitie") are deja toti ochii deschisi, exista
+ * deja o alternativa curata in rafala — pickBestInGroup (groupSelection.ts)
+ * o va alege oricum ca "cel mai bun cadru" al seriei. Fara aceasta consensuare,
+ * fiecare cadru cu ochi inchisi dintr-o rafala normala (ex. 5 poze, 1 clipeste)
+ * aparea in filtru ca "problema", desi seria are deja un cadru bun. Filtrul
+ * arata acum doar cazurile REALE: poze izolate sau serii unde NICIUN cadru
+ * (cu acelasi numar de fete) nu are ochii deschisi.
+ */
+export function selectBlinks(photos: PhotoView[]): PhotoView[] {
+  const cleanGroupFaceCounts = new Map<string, Set<number>>();
+  for (const p of photos) {
+    if (!p.groupId || p.faceCount === 0 || !p.allEyesOpen) continue;
+    const set = cleanGroupFaceCounts.get(p.groupId) ?? new Set<number>();
+    set.add(p.faceCount);
+    cleanGroupFaceCounts.set(p.groupId, set);
+  }
+  return photos.filter(p => {
+    if (p.faceCount === 0 || p.allEyesOpen) return false;
+    if (p.groupId && cleanGroupFaceCounts.get(p.groupId)?.has(p.faceCount)) return false;
+    return true;
+  });
+}
+
+/**
  * "Highlights" (filtru pasiv, NU o actiune ca selectTopPercent): cele mai
  * bune poze din TOATA biblioteca dupa scorul AI, indiferent de status —
  * spre deosebire de gruparea pe serii (care alege un singur "cel mai bun"

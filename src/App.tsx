@@ -20,7 +20,7 @@ import { AnimatedNumber } from './ui/AnimatedNumber';
 import { Tooltip } from './ui/Tooltip';
 import { StarRating } from './ui/StarRating';
 import { MenuIcon, PlusIcon, UserCheckIcon, AlertIcon, ErrorIcon, XIcon, FocusIcon, UndoIcon, SearchIcon, ApertureIcon, SparkleIcon, CheckIcon, EditIcon, GridIcon, ClockIcon, LayersIcon, EyeClosedIcon, SunIcon, DownloadIcon, StarIcon } from './ui/icons';
-import { selectHighlights } from './state/batchOps';
+import { selectHighlights, selectBlinks } from './state/batchOps';
 import { CARD_MIN_WIDTH } from './state/gridDensity';
 import { SORT_KEY_LABELS, type SortKey } from './state/gridSort';
 import { pickImportFiles } from './core/filePicker';
@@ -266,7 +266,7 @@ export default function App() {
     review: photos.filter(p => p.status === 'review').length,
     rejected: photos.filter(p => p.status === 'rejected').length,
     series: photos.filter(p => p.groupId).length,
-    blinks: photos.filter(p => p.faceCount > 0 && !p.allEyesOpen).length,
+    blinks: selectBlinks(photos).length,
     goldenHour: photos.filter(p => p.goldenHourDetected).length,
     highlights: selectHighlights(photos).length
   }), [photos]);
