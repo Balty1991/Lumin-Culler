@@ -17,6 +17,7 @@
 import { originalFiles } from './importPipeline';
 import { db } from './db';
 import { getDirectoryPicker, downloadZip, type LocalDirHandle } from './export/directoryPicker';
+import { reacquireFile } from './filePicker';
 
 export interface ExportResult {
   exported: number;
@@ -144,7 +145,21 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[]): Promise<E
       available.push({ name: p.fileName, file: inMemory, folder });
       continue;
     }
-    // fallback: fisierul original persistat in IndexedDB (poze selectate,
+    // fallback 1: handle File System Access API persistat (poze selectate,
+    // supravietuieste unui reload de tab fara sa dubleze bytes in IndexedDB —
+    // vezi core/db.ts FileHandleRecord / core/filePicker.ts)
+    const storedHandle = await db.fileHandles.get(p.id);
+    if (storedHandle) {
+      try {
+        const file = await reacquireFile(storedHandle.handle);
+        available.push({ name: p.fileName, file, folder });
+        continue;
+      } catch {
+        // permisiune refuzata sau fisierul a fost mutat/sters de pe disc —
+        // cade pe fallback-ul urmator (copia completa, daca exista)
+      }
+    }
+    // fallback 2: fisierul original persistat in IndexedDB (poze selectate,
     // supravietuieste unui reload de tab — vezi core/db.ts OriginalRecord)
     const stored = await db.originals.get(p.id);
     if (stored) available.push({ name: p.fileName, file: new File([stored.blob], stored.fileName, { type: stored.type }), folder });

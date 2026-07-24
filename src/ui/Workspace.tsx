@@ -5,6 +5,7 @@ import { Tooltip } from './Tooltip';
 import { StarRating } from './StarRating';
 import { EmptyFilterState } from './EmptyFilterState';
 import { ChevronLeft, ChevronRight, XIcon, CheckIcon, InfoIcon, EyeClosedIcon, GridIcon, PlusIcon, MenuIcon, UndoIcon } from './icons';
+import { pickImportFiles } from '../core/filePicker';
 import { t } from '../i18n';
 
 /**
@@ -117,6 +118,16 @@ export function Workspace() {
     if (fileRef.current) fileRef.current.value = '';
   };
 
+  /** Vezi App.tsx onAddPhotosClick — acelasi tipar (File System Access API cu fallback la <input>), duplicat aici doar pentru ca Workspace are propriul buton "Adauga poze". */
+  const onAddPhotosClick = async () => {
+    const picked = await pickImportFiles();
+    if (picked) {
+      if (picked.files.length) void runImport(picked.files, picked.handles);
+      return;
+    }
+    fileRef.current?.click();
+  };
+
   const fileInput = (
     <input
       ref={fileRef}
@@ -179,7 +190,7 @@ export function Workspace() {
           </Tooltip>
         )}
         <Tooltip label={tr('app.addPhotos')}>
-          <button className="ghost icon-btn" onClick={() => fileRef.current?.click()} aria-label={tr('app.addPhotos')}>
+          <button className="ghost icon-btn" onClick={() => void onAddPhotosClick()} aria-label={tr('app.addPhotos')}>
             <PlusIcon />
           </button>
         </Tooltip>

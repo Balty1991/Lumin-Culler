@@ -21,6 +21,7 @@ import { StarRating } from './ui/StarRating';
 import { MenuIcon, PlusIcon, UserCheckIcon, AlertIcon, ErrorIcon, XIcon, FocusIcon, UndoIcon, SearchIcon, ApertureIcon, SparkleIcon, CheckIcon, EditIcon, GridIcon, ClockIcon, LayersIcon, EyeClosedIcon, SunIcon, DownloadIcon } from './ui/icons';
 import { CARD_MIN_WIDTH } from './state/gridDensity';
 import { SORT_KEY_LABELS, type SortKey } from './state/gridSort';
+import { pickImportFiles } from './core/filePicker';
 import { t } from './i18n';
 
 const NOTICE_AUTODISMISS_MS = 7000;
@@ -258,6 +259,21 @@ export default function App() {
     if (!list || !list.length) return;
     void runImport(Array.from(list));
     if (fileRef.current) fileRef.current.value = '';
+  };
+
+  /**
+   * Foloseste File System Access API cand e disponibil (Chromium desktop) —
+   * pastreaza handle-uri catre fisierele originale (plan 2.3.4), nu doar
+   * File-uri "moarte" la reload. Fallback: deschide <input type="file"> ca
+   * inainte, pe browsere fara suport (Safari/WebKit, WebView-uri mobile).
+   */
+  const onAddPhotosClick = async () => {
+    const picked = await pickImportFiles();
+    if (picked) {
+      if (picked.files.length) void runImport(picked.files, picked.handles);
+      return;
+    }
+    fileRef.current?.click();
   };
 
   const onCardOpen = (id: string, e: React.MouseEvent) => {
@@ -588,7 +604,7 @@ export default function App() {
           <ApertureIcon className="empty-mark" aria-hidden="true" />
           <h2>{tr('app.empty.title')}</h2>
           <p>{tr('app.empty.description')}</p>
-          <button className="btn-accent big" onClick={() => fileRef.current?.click()}>{tr('app.empty.cta')}</button>
+          <button className="btn-accent big" onClick={() => void onAddPhotosClick()}>{tr('app.empty.cta')}</button>
           <p className="hint"><UserCheckIcon className="inline-icon" /> {tr('app.empty.hint')}</p>
 
           <div className="how-it-works">
@@ -660,7 +676,7 @@ export default function App() {
             </div>
           ) : (
             <Tooltip label={tr('app.addPhotos')} side="left">
-              <button className="fab" onClick={() => fileRef.current?.click()} aria-label={tr('app.addPhotos')}><PlusIcon /></button>
+              <button className="fab" onClick={() => void onAddPhotosClick()} aria-label={tr('app.addPhotos')}><PlusIcon /></button>
             </Tooltip>
           )}
         </>
