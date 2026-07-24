@@ -1,8 +1,9 @@
 import { useMemo, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { selectBulkRejectTargets, resolveGroups, selectTopPercent } from '../state/batchOps';
+import { listCullingPresets, saveCullingPreset, deleteCullingPreset, type CullingPreset } from '../state/cullingPresets';
 import { useModalFocusTrap } from './useModalFocusTrap';
-import { XIcon, LayersIcon, SparkleIcon, FilterDotIcon } from './icons';
+import { XIcon, LayersIcon, SparkleIcon, FilterDotIcon, TrashIcon } from './icons';
 
 const DEFAULT_THRESHOLD = 35; // acelasi prag ca REJECT_THRESHOLD din importPipeline.ts
 const DEFAULT_CULL_PERCENT = 20;
@@ -19,8 +20,24 @@ export function BatchOpsPanel() {
   const [threshold, setThreshold] = useState(DEFAULT_THRESHOLD);
   const [cullPercent, setCullPercent] = useState(DEFAULT_CULL_PERCENT);
   const [busy, setBusy] = useState(false);
+  const [presets, setPresets] = useState<CullingPreset[]>(() => listCullingPresets());
   const containerRef = useRef<HTMLDivElement>(null);
   useModalFocusTrap(containerRef, open);
+
+  const applyPreset = (id: string) => {
+    const preset = presets.find(p => p.id === id);
+    if (!preset) return;
+    setThreshold(preset.rejectThreshold);
+    setCullPercent(preset.cullPercent);
+  };
+
+  const saveCurrentAsPreset = () => {
+    const name = window.prompt('Nume presetare (ex. "Nunta", "Sport"):');
+    if (!name?.trim()) return;
+    setPresets(saveCullingPreset(name, cullPercent, threshold));
+  };
+
+  const removePreset = (id: string) => setPresets(deleteCullingPreset(id));
 
   const targets = useMemo(() => selectBulkRejectTargets(photos, threshold), [photos, threshold]);
   const groups = useMemo(() => resolveGroups(photos), [photos]);
@@ -72,6 +89,28 @@ export function BatchOpsPanel() {
             <XIcon />
           </button>
         </header>
+
+        <div className="batch-section">
+          <h3><span className="batch-section-icon"><FilterDotIcon /></span> Presetari de culling</h3>
+          <p className="hint">Salveaza pragurile curente (Auto-Cull + respinge sub) ca presetare reutilizabila — util cand lucrezi in mai multe genuri (nunti vs. sport).</p>
+          {presets.length > 0 && (
+            <ul className="preset-list">
+              {presets.map(p => (
+                <li key={p.id} className="preset-row">
+                  <button className="ghost small preset-apply" onClick={() => applyPreset(p.id)} disabled={busy}>
+                    <b>{p.name}</b> <span className="mono hint">— top {p.cullPercent}% / sub {p.rejectThreshold}</span>
+                  </button>
+                  <button className="ghost icon-btn small" onClick={() => removePreset(p.id)} aria-label={`Sterge presetarea ${p.name}`}>
+                    <TrashIcon />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <button className="ghost small" onClick={saveCurrentAsPreset} disabled={busy}>
+            Salveaza pragurile curente ca presetare noua
+          </button>
+        </div>
 
         <div className="batch-section">
           <h3><span className="batch-section-icon"><SparkleIcon /></span> Auto-Cull: pastreaza doar cele mai bune X%</h3>

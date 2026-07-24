@@ -1039,6 +1039,10 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .batch-preview-chip.pos { color: var(--pick); background: rgba(74,222,128,0.12); border-color: rgba(74,222,128,0.3); }
 .batch-preview-chip.neg { color: var(--reject); background: rgba(251,113,133,0.12); border-color: rgba(251,113,133,0.3); }
 
+.preset-list { display: flex; flex-direction: column; gap: 4px; margin: 4px 0; }
+.preset-row { display: flex; align-items: center; gap: 6px; }
+.preset-apply { flex: 1; text-align: left; justify-content: flex-start; }
+
 .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
 .stat-tile {
   display: flex; flex-direction: column; gap: 2px; padding: 10px; border-radius: var(--radius);

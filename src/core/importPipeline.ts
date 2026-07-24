@@ -144,6 +144,24 @@ async function sniffRealFormat(file: File): Promise<string | null> {
   }
 }
 
+/** Construieste intrarea folosita de gruparea dupa dHash (hashCompare.worker.ts) din campurile deja calculate de analiza AI. */
+export function toHashInput(id: string, dHash: string, a: AnalysisRecord): HashInput {
+  return {
+    id,
+    hash: dHash,
+    score: a.aiScore,
+    sharpness: a.sharpness,
+    exposure: a.exposure,
+    compositionScore: a.compositionScore,
+    faceCount: a.faceCount,
+    bestSmile: a.bestSmile,
+    groupSmileRatio: a.groupSmileRatio,
+    allEyesOpen: a.allEyesOpen,
+    groupEyesOpenRatio: a.groupEyesOpenRatio,
+    avgEyeContact: a.avgEyeContact
+  };
+}
+
 async function processOne(file: File, genre?: string, project?: string): Promise<ImportedPhoto> {
   const id = crypto.randomUUID();
   originalFiles.set(id, file);
@@ -298,20 +316,7 @@ export async function importFiles(
 
         try {
           const item = await processOne(file, genre, project);
-          hashes.push({
-            id: item.photo.id,
-            hash: item.photo.dHash,
-            score: item.analysis.aiScore,
-            sharpness: item.analysis.sharpness,
-            exposure: item.analysis.exposure,
-            compositionScore: item.analysis.compositionScore,
-            faceCount: item.analysis.faceCount,
-            bestSmile: item.analysis.bestSmile,
-            groupSmileRatio: item.analysis.groupSmileRatio,
-            allEyesOpen: item.analysis.allEyesOpen,
-            groupEyesOpenRatio: item.analysis.groupEyesOpenRatio,
-            avgEyeContact: item.analysis.avgEyeContact
-          });
+          hashes.push(toHashInput(item.photo.id, item.photo.dHash, item.analysis));
           onPhoto(item);
         } catch (err) {
           if (isQuotaError(err)) { stopReason = stopMessage(done); break; }
@@ -335,7 +340,24 @@ export async function importFiles(
   // blocau vizibil UI-ul in acest punct al importului.
   onProgress({ done, total: images.length, fileName: '', phase: 'grupare' });
   const groups = new Map<string, string>();
-  const { groups: groupResults } = await groupPhotosByHash(hashes);
+
+  // Procesare incrementala (plan 2.3.3): comparam si cu poze NEGRUPATE dintr-un
+  // import ANTERIOR (acelasi eveniment, importat in doua sesiuni separate) — fara
+  // asta, un duplicat/serie intre doua importuri distincte nu era niciodata
+  // detectat, doar cele din ACEEASI trecere de import. Pozele deja grupate (dintr-o
+  // serie deja rezolvata) raman intentionat NEATINSE: nu le re-includem, ca sa nu
+  // "relitigam" o decizie deja luata la un import complet nelegat.
+  const currentBatchIds = new Set(hashes.map(h => h.id));
+  const existingUngrouped = await db.photos.filter(p => !p.groupId && !currentBatchIds.has(p.id)).toArray();
+  let existingHashes: HashInput[] = [];
+  if (existingUngrouped.length) {
+    const analyses = await db.analyses.bulkGet(existingUngrouped.map(p => p.id));
+    existingHashes = existingUngrouped
+      .map((p, i) => { const a = analyses[i]; return a ? toHashInput(p.id, p.dHash, a) : null; })
+      .filter((h): h is HashInput => h !== null);
+  }
+
+  const { groups: groupResults } = await groupPhotosByHash([...hashes, ...existingHashes]);
   for (const g of groupResults) {
     for (const memberId of g.memberIds) {
       groups.set(memberId, g.groupId);
