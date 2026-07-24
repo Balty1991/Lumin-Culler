@@ -14,6 +14,7 @@ import { ProjectsPanel } from './ui/ProjectsPanel';
 import { CommandPalette } from './ui/CommandPalette';
 import { ShortcutsPanel } from './ui/ShortcutsPanel';
 import { EmptyFilterState } from './ui/EmptyFilterState';
+import { ContextMenu } from './ui/ContextMenu';
 import { AnimatedNumber } from './ui/AnimatedNumber';
 import { Tooltip } from './ui/Tooltip';
 import { StarRating } from './ui/StarRating';
@@ -22,6 +23,10 @@ import { CARD_MIN_WIDTH } from './state/gridDensity';
 import { SORT_KEY_LABELS, type SortKey } from './state/gridSort';
 
 const NOTICE_AUTODISMISS_MS = 7000;
+/** Apasare lunga pe touch = meniu contextual (echivalentul click-dreapta pe desktop) — plan 3.2.1. */
+const LONG_PRESS_MS = 500;
+/** Peste aceasta miscare (px), o apasare lunga se anuleaza — degetul incearca sa deruleze/traga, nu sa tina apasat. */
+const TOUCH_MOVE_CANCEL_PX = 10;
 
 /** Clasifica un mesaj de notificare dupa cuvinte-cheie — nu exista un camp de tip in store
     (notice e doar text), asa ca deducem tonul din continut pentru iconita/culoarea toast-ului. */
@@ -167,14 +172,21 @@ export default function App() {
   const multiSelectIds = useStore(s => s.multiSelectIds);
   const toggleMultiSelect = useStore(s => s.toggleMultiSelect);
   const rangeMultiSelect = useStore(s => s.rangeMultiSelect);
+  const setMultiSelected = useStore(s => s.setMultiSelected);
   const selectMode = useStore(s => s.selectMode);
   const setSelectMode = useStore(s => s.setSelectMode);
   const bulkSetStatusForSelection = useStore(s => s.bulkSetStatusForSelection);
   const bulkSetRatingForSelection = useStore(s => s.bulkSetRatingForSelection);
+  const setStatus = useStore(s => s.setStatus);
+  const setRating = useStore(s => s.setRating);
   const gridDensity = useStore(s => s.gridDensity);
   const gridSort = useStore(s => s.gridSort);
   const setGridSort = useStore(s => s.setGridSort);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; photoId: string } | null>(null);
+  const dragSelectRef = useRef<{ originId: string; adding: boolean; visited: Set<string>; dragged: boolean } | null>(null);
+  const longPressTimerRef = useRef<number | null>(null);
+  const touchOriginRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => { void boot(); }, [boot]);
 
@@ -249,11 +261,84 @@ export default function App() {
     // (buton dedicat — singura cale de a incepe o selectie pe touch, unde
     // Ctrl/Shift+Click nu exista), un click/tap simplu continua sa selecteze
     // in loc sa deschida DetailView
-    if (multiSelectIds.size > 0 || selectMode) { toggleMultiSelect(id); return; }
+    if (multiSelectIds.size > 0 || selectMode) {
+      // un drag real (a trecut peste alt card) e deja tratat de onCardPointerDown/pointermove
+      // de mai jos — click-ul nativ nu ajunge sa se declanseze in acel caz (mousedown/mouseup
+      // pe elemente diferite), asa ca aici ramane doar cazul unui tap simplu, fara miscare
+      toggleMultiSelect(id);
+      return;
+    }
     const photo = photos.find(p => p.id === id);
     if (filter === 'series' && photo?.groupId) openCompare(photo.groupId);
     else openDetail(id);
   };
+
+  /** Inceputul unei posibile selectii-prin-drag ("vopsire" peste mai multe carduri, plan 3.2.1)
+      si/sau al unei apasari lungi (meniu contextual pe touch) — decizia daca a fost intr-adevar
+      un drag (spre deosebire de un simplu tap) se ia in onPointerMove de mai jos, urmarind daca
+      pointerul ajunge peste un alt card inainte de eliberare. */
+  const onCardPointerDown = (id: string, e: React.PointerEvent) => {
+    if (e.pointerType === 'touch') {
+      touchOriginRef.current = { x: e.clientX, y: e.clientY };
+      const { clientX, clientY } = e;
+      longPressTimerRef.current = window.setTimeout(() => {
+        longPressTimerRef.current = null;
+        touchOriginRef.current = null;
+        dragSelectRef.current = null;
+        setContextMenu({ x: clientX, y: clientY, photoId: id });
+      }, LONG_PRESS_MS);
+    }
+    const dragEligible = selectMode || e.ctrlKey || e.metaKey || multiSelectIds.size > 0;
+    if (dragEligible) {
+      dragSelectRef.current = { originId: id, adding: !multiSelectIds.has(id), visited: new Set(), dragged: false };
+    }
+  };
+
+  const onCardContextMenu = (id: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    dragSelectRef.current = null;
+    setContextMenu({ x: e.clientX, y: e.clientY, photoId: id });
+  };
+
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      if (touchOriginRef.current && longPressTimerRef.current) {
+        const dx = e.clientX - touchOriginRef.current.x;
+        const dy = e.clientY - touchOriginRef.current.y;
+        if (Math.hypot(dx, dy) > TOUCH_MOVE_CANCEL_PX) {
+          window.clearTimeout(longPressTimerRef.current);
+          longPressTimerRef.current = null;
+        }
+      }
+      const drag = dragSelectRef.current;
+      if (!drag) return;
+      const el = (document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null)?.closest('[data-photo-id]');
+      const id = el?.getAttribute('data-photo-id');
+      if (!id) return;
+      if (!drag.dragged) {
+        drag.dragged = true;
+        drag.visited.add(drag.originId);
+        setMultiSelected(drag.originId, drag.adding);
+      }
+      if (!drag.visited.has(id)) {
+        drag.visited.add(id);
+        setMultiSelected(id, drag.adding);
+      }
+    };
+    const onUp = () => {
+      dragSelectRef.current = null;
+      touchOriginRef.current = null;
+      if (longPressTimerRef.current) { window.clearTimeout(longPressTimerRef.current); longPressTimerRef.current = null; }
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+  }, [setMultiSelected]);
 
   // fara confirmare, un singur clic accidental sterge ireversibil intreaga
   // sesiune (posibil 1000+ poze deja evaluate) — cea mai distructiva actiune
@@ -534,7 +619,10 @@ export default function App() {
       ) : (
         <>
           {filtered.length > VIRTUALIZE_THRESHOLD ? (
-            <VirtualPhotoGrid photos={filtered} onOpen={onCardOpen} multiSelectIds={multiSelectIds} />
+            <VirtualPhotoGrid
+              photos={filtered} onOpen={onCardOpen} multiSelectIds={multiSelectIds}
+              onCardPointerDown={onCardPointerDown} onContextMenu={onCardContextMenu}
+            />
           ) : (
             <div
               className="grid"
@@ -544,7 +632,11 @@ export default function App() {
               } as CSSProperties}
             >
               {filtered.map((p, i) => (
-                <PhotoCard key={p.id} photo={p} index={i} onOpen={onCardOpen} multiSelected={multiSelectIds.has(p.id)} />
+                <PhotoCard
+                  key={p.id} photo={p} index={i} onOpen={onCardOpen}
+                  multiSelected={multiSelectIds.has(p.id)}
+                  onCardPointerDown={onCardPointerDown} onContextMenu={onCardContextMenu}
+                />
               ))}
             </div>
           )}
@@ -594,6 +686,34 @@ export default function App() {
       <MenuDrawer />
       <CommandPalette />
       <ShortcutsPanel />
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          count={multiSelectIds.has(contextMenu.photoId) && multiSelectIds.size > 1 ? multiSelectIds.size : 1}
+          rating={
+            multiSelectIds.has(contextMenu.photoId) && multiSelectIds.size > 1
+              ? 0
+              : photos.find(p => p.id === contextMenu.photoId)?.rating ?? 0
+          }
+          onSetStatus={status => {
+            const bulk = multiSelectIds.has(contextMenu.photoId) && multiSelectIds.size > 1;
+            if (bulk) void bulkSetStatusForSelection(status);
+            else void setStatus(contextMenu.photoId, status);
+          }}
+          onSetRating={n => {
+            const bulk = multiSelectIds.has(contextMenu.photoId) && multiSelectIds.size > 1;
+            if (bulk) void bulkSetRatingForSelection(n);
+            else void setRating(contextMenu.photoId, n);
+          }}
+          onOpenDetail={
+            multiSelectIds.has(contextMenu.photoId) && multiSelectIds.size > 1
+              ? undefined
+              : () => openDetail(contextMenu.photoId)
+          }
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </div>
   );
 }

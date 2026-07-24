@@ -17,10 +17,12 @@ const ROW_HEIGHT_ESTIMATE = 200; // ajustat automat per rand prin measureElement
  * existent (nu o varianta separata), deci pastreaza insigne/status/click identic
  * cu grid-ul normal — singura diferenta e MECANISMUL de randare, nu aspectul.
  */
-export function VirtualPhotoGrid({ photos, onOpen, multiSelectIds }: {
+export function VirtualPhotoGrid({ photos, onOpen, multiSelectIds, onCardPointerDown, onContextMenu }: {
   photos: PhotoView[];
   onOpen: (id: string, e: React.MouseEvent) => void;
   multiSelectIds: Set<string>;
+  onCardPointerDown?: (id: string, e: React.PointerEvent) => void;
+  onContextMenu?: (id: string, e: React.MouseEvent) => void;
 }) {
   const parentRef = useRef<HTMLDivElement>(null);
   const density = useStore(s => s.gridDensity);
@@ -67,7 +69,13 @@ export function VirtualPhotoGrid({ photos, onOpen, multiSelectIds }: {
                 const index = vRow.index * columns + col;
                 const photo = photos[index];
                 return photo
-                  ? <PhotoCard key={photo.id} photo={photo} index={index} onOpen={onOpen} multiSelected={multiSelectIds.has(photo.id)} />
+                  ? (
+                    <PhotoCard
+                      key={photo.id} photo={photo} index={index} onOpen={onOpen}
+                      multiSelected={multiSelectIds.has(photo.id)}
+                      onCardPointerDown={onCardPointerDown} onContextMenu={onContextMenu}
+                    />
+                  )
                   : null;
               })}
             </div>

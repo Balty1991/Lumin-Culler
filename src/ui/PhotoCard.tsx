@@ -37,11 +37,15 @@ function cardExifLine(photo: PhotoView): string {
 }
 
 /** Card "contact sheet": miniatura din IndexedDB, incarcare lenesa, zero logica. */
-function PhotoCardInner({ photo, index, onOpen, multiSelected }: {
+function PhotoCardInner({ photo, index, onOpen, multiSelected, onCardPointerDown, onContextMenu }: {
   photo: PhotoView;
   index: number;
   onOpen: (id: string, e: React.MouseEvent) => void;
   multiSelected: boolean;
+  /** Inceputul unei posibile selectii prin drag (plan 3.2.1) — decizia daca a fost chiar drag sau doar un tap simplu se ia la nivelul grilei (App.tsx), nu aici. */
+  onCardPointerDown?: (id: string, e: React.PointerEvent) => void;
+  /** Meniu contextual (click-dreapta / apasare lunga) — pozitionarea si continutul se decid tot la nivelul grilei. */
+  onContextMenu?: (id: string, e: React.MouseEvent) => void;
 }) {
   const [src, setSrc] = useState<string | null>(null);
   const density = useStore(s => s.gridDensity);
@@ -61,7 +65,10 @@ function PhotoCardInner({ photo, index, onOpen, multiSelected }: {
   return (
     <button
       className={`card st-${photo.status}${multiSelected ? ' multi-selected' : ''}`}
+      data-photo-id={photo.id}
       onClick={e => onOpen(photo.id, e)}
+      onPointerDown={e => onCardPointerDown?.(photo.id, e)}
+      onContextMenu={e => onContextMenu?.(photo.id, e)}
       aria-label={describeCard(photo)}
       aria-pressed={multiSelected}
     >
