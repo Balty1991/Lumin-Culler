@@ -28,15 +28,15 @@ function ProjectMetaEditor({ project }: { project: string }) {
   return (
     <div className="project-meta-form">
       <input
-        className="mono" placeholder="Client (ex. Ana & Mihai)"
+        className="mono" placeholder="Client" title="Client (ex. Ana & Mihai)"
         value={meta.client ?? ''} onChange={e => setMeta(m => ({ ...m, client: e.target.value }))}
       />
       <input
-        className="mono" placeholder="Eveniment (ex. Nunta)"
+        className="mono" placeholder="Eveniment" title="Eveniment (ex. Nunta)"
         value={meta.event ?? ''} onChange={e => setMeta(m => ({ ...m, event: e.target.value }))}
       />
       <input
-        className="mono" placeholder="Locatie (ex. Brasov)"
+        className="mono" placeholder="Locatie" title="Locatie (ex. Brasov)"
         value={meta.location ?? ''} onChange={e => setMeta(m => ({ ...m, location: e.target.value }))}
       />
       <button className="ghost small" onClick={save}>{saved ? 'Salvat' : 'Salveaza metadate'}</button>

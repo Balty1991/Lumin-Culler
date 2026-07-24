@@ -7,6 +7,7 @@ import { generateExplanation } from '../core/aiExplanationGenerator';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { StarRating } from './StarRating';
 import { Histogram } from './Histogram';
+import { FocusMap } from './FocusMap';
 import { AnimatedNumber } from './AnimatedNumber';
 import { vibrate } from './haptics';
 import { XIcon, ChevronLeft, ChevronRight, LayersIcon, CheckIcon, EyeClosedIcon, SparkleIcon, ClockIcon, SunIcon } from './icons';
@@ -340,6 +341,8 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
               )}
               {exif && <p className="detail-exif mono">{exif}</p>}
               <Histogram src={src} />
+              <p className="detail-section-label mono">Harta de focus (albastru = neclar, rosu = clar)</p>
+              <FocusMap src={src} />
             </>
           )}
 

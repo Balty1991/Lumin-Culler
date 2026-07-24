@@ -909,6 +909,8 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 
 .detail-exif { color: var(--text-faint); font-size: 0.7rem; }
 .histogram-canvas { display: block; width: 100%; height: 56px; margin-top: 8px; border-radius: 8px; background: var(--surface-2); }
+.detail-section-label { margin: 10px 0 4px; font-size: 0.64rem; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.05em; }
+.focusmap-canvas { display: block; width: 100%; height: auto; border-radius: 8px; background: var(--surface-2); image-rendering: pixelated; }
 .ghost.slim { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 6px 12px; font-size: 0.8rem; }
 .detail-rating-row { display: flex; justify-content: center; }
 
@@ -982,8 +984,8 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
   box-shadow: 0 0 0 1px rgb(var(--accent-rgb) / 0.3), 0 10px 30px -10px rgb(var(--accent-rgb) / 0.45);
 }
 .compare-card.recommended:hover { transform: scale(1.02) translateY(-2px); }
-.compare-img { padding: 0; background: #050608; cursor: zoom-in; border-radius: 0; position: relative; }
-.compare-img img { width: 100%; aspect-ratio: 3/2; object-fit: contain; display: block; }
+.compare-img { padding: 0; background: #050608; cursor: zoom-in; border-radius: 0; position: relative; overflow: hidden; }
+.compare-img img { width: 100%; aspect-ratio: 3/2; object-fit: contain; display: block; transition: transform 0.15s var(--ease); }
 .compare-recommend-badge {
   position: absolute; top: 8px; left: 8px; z-index: var(--z-card-badge); display: inline-flex; align-items: center; gap: 4px;
   font-family: var(--mono); font-size: 0.62rem; font-weight: 700; letter-spacing: 0.03em;
@@ -1000,6 +1002,24 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .compare-actions { display: grid; grid-template-columns: 1fr 2fr; gap: 6px; padding: 0 8px 8px; }
 .compare-actions > * { min-width: 0; }
 .small-btn { padding: 8px 10px; font-size: 0.85rem; border-radius: 8px; }
+
+.compare-zoom-sync { display: inline-flex; align-items: center; gap: 6px; color: var(--text-dim); font-size: 0.78rem; }
+
+/* ── Suprapunere imagini (GroupCompare) ── */
+.overlay-compare { display: flex; flex-direction: column; gap: 10px; }
+.overlay-pickers { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; font-size: 0.78rem; color: var(--text-dim); }
+.overlay-pickers label { display: flex; flex-direction: column; gap: 3px; }
+.overlay-pickers select {
+  background: var(--surface-2); color: var(--text); border: 1px solid var(--line); border-radius: 8px;
+  padding: 6px 9px; font: inherit; max-width: 220px;
+}
+.overlay-stage {
+  position: relative; width: 100%; aspect-ratio: 3/2; background: #050608;
+  border-radius: var(--radius-lg); overflow: hidden;
+}
+.overlay-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.overlay-opacity-row { display: flex; align-items: center; gap: 10px; font-size: 0.78rem; color: var(--text-dim); }
+.overlay-opacity-row input[type="range"] { flex: 1; }
 
 /* ── Persoane ── */
 .persons { list-style: none; display: grid; gap: 6px; padding: 0; }
