@@ -12,16 +12,17 @@ import { AnimatedNumber } from './AnimatedNumber';
 import { vibrate } from './haptics';
 import { XIcon, ChevronLeft, ChevronRight, LayersIcon, CheckIcon, EyeClosedIcon, SparkleIcon, ClockIcon, SunIcon } from './icons';
 import { EASE } from './motion';
+import { t, type Locale } from '../i18n';
 
 const SWIPE_COMMIT = 96;       // px de tras pentru a declansa decizia
 const SWIPE_TAP_TOLERANCE = 6; // sub asta e considerat click (zoom), nu swipe
 
 type Tab = 'metrics' | 'why' | 'persons' | 'history';
-const TABS: { key: Tab; label: string }[] = [
-  { key: 'metrics', label: 'Metrici' },
-  { key: 'why', label: 'De ce acest scor' },
-  { key: 'persons', label: 'Persoane' },
-  { key: 'history', label: 'Istoric' }
+const TAB_KEYS: { key: Tab; labelKey: string }[] = [
+  { key: 'metrics', labelKey: 'detail.tab.metrics' },
+  { key: 'why', labelKey: 'detail.tab.why' },
+  { key: 'persons', labelKey: 'detail.tab.persons' },
+  { key: 'history', labelKey: 'detail.tab.history' }
 ];
 
 function StatTile({ label, value, warn }: { label: string; value: ReactNode; warn?: boolean }) {
@@ -53,38 +54,38 @@ function extendedExifRows(photo: {
   cameraMake?: string; cameraModel?: string; lensModel?: string; focalLength35mm?: number;
   exposureBias?: number; meteringMode?: string; flashFired?: boolean; whiteBalance?: 'auto' | 'manual';
   gpsLatitude?: number; gpsLongitude?: number; exifArtist?: string; exifCopyright?: string; exifSoftware?: string;
-}): { label: string; value: string }[] {
-  const rows: { label: string; value: string }[] = [];
+}, tr: (key: string, params?: Record<string, string | number>) => string): { key: string; label: string; value: string }[] {
+  const rows: { key: string; label: string; value: string }[] = [];
   const camera = [photo.cameraMake, photo.cameraModel].filter(Boolean).join(' ');
-  if (camera) rows.push({ label: 'Aparat', value: camera });
-  if (photo.lensModel) rows.push({ label: 'Obiectiv', value: photo.lensModel });
-  if (photo.focalLength35mm !== undefined) rows.push({ label: 'Focala (echiv. 35mm)', value: `${Math.round(photo.focalLength35mm)}mm` });
+  if (camera) rows.push({ key: 'camera', label: tr('detail.exif.camera'), value: camera });
+  if (photo.lensModel) rows.push({ key: 'lens', label: tr('detail.exif.lens'), value: photo.lensModel });
+  if (photo.focalLength35mm !== undefined) rows.push({ key: 'focalLength35mm', label: tr('detail.exif.focalLength35mm'), value: `${Math.round(photo.focalLength35mm)}mm` });
   if (photo.exposureBias !== undefined && photo.exposureBias !== 0) {
-    rows.push({ label: 'Compensare expunere', value: `${photo.exposureBias > 0 ? '+' : ''}${photo.exposureBias.toFixed(1)} EV` });
+    rows.push({ key: 'exposureBias', label: tr('detail.exif.exposureBias'), value: `${photo.exposureBias > 0 ? '+' : ''}${photo.exposureBias.toFixed(1)} EV` });
   }
-  if (photo.meteringMode) rows.push({ label: 'Masurare', value: photo.meteringMode });
-  if (photo.flashFired !== undefined) rows.push({ label: 'Blitz', value: photo.flashFired ? 'Da' : 'Nu' });
-  if (photo.whiteBalance) rows.push({ label: 'Balans de alb', value: photo.whiteBalance === 'auto' ? 'Automat' : 'Manual' });
+  if (photo.meteringMode) rows.push({ key: 'metering', label: tr('detail.exif.metering'), value: photo.meteringMode });
+  if (photo.flashFired !== undefined) rows.push({ key: 'flash', label: tr('detail.exif.flash'), value: photo.flashFired ? tr('detail.exif.flash.yes') : tr('detail.exif.flash.no') });
+  if (photo.whiteBalance) rows.push({ key: 'whiteBalance', label: tr('detail.exif.whiteBalance'), value: photo.whiteBalance === 'auto' ? tr('detail.exif.whiteBalance.auto') : tr('detail.exif.whiteBalance.manual') });
   if (photo.gpsLatitude !== undefined && photo.gpsLongitude !== undefined) {
-    rows.push({ label: 'Locatie GPS', value: `${photo.gpsLatitude.toFixed(5)}, ${photo.gpsLongitude.toFixed(5)}` });
+    rows.push({ key: 'gps', label: tr('detail.exif.gps'), value: `${photo.gpsLatitude.toFixed(5)}, ${photo.gpsLongitude.toFixed(5)}` });
   }
-  if (photo.exifArtist) rows.push({ label: 'Autor', value: photo.exifArtist });
-  if (photo.exifCopyright) rows.push({ label: 'Copyright', value: photo.exifCopyright });
-  if (photo.exifSoftware) rows.push({ label: 'Software', value: photo.exifSoftware });
+  if (photo.exifArtist) rows.push({ key: 'artist', label: tr('detail.exif.artist'), value: photo.exifArtist });
+  if (photo.exifCopyright) rows.push({ key: 'copyright', label: tr('detail.exif.copyright'), value: photo.exifCopyright });
+  if (photo.exifSoftware) rows.push({ key: 'software', label: tr('detail.exif.software'), value: photo.exifSoftware });
   return rows;
 }
 
-/** Timp relativ scurt, in romana — suficient de precis pentru un istoric de minute/ore, nu o audiere legala. */
-function formatRelativeTime(ts: number): string {
+/** Timp relativ scurt — suficient de precis pentru un istoric de minute/ore, nu o audiere legala. */
+function formatRelativeTime(ts: number, locale: Locale): string {
   const diffSec = Math.max(0, Math.round((Date.now() - ts) / 1000));
-  if (diffSec < 5) return 'chiar acum';
-  if (diffSec < 60) return `acum ${diffSec}s`;
+  if (diffSec < 5) return t(locale, 'detail.relativeTime.now');
+  if (diffSec < 60) return t(locale, 'detail.relativeTime.seconds', { n: diffSec });
   const diffMin = Math.round(diffSec / 60);
-  if (diffMin < 60) return `acum ${diffMin} min`;
+  if (diffMin < 60) return t(locale, 'detail.relativeTime.minutes', { n: diffMin });
   const diffH = Math.round(diffMin / 60);
-  if (diffH < 24) return `acum ${diffH}h`;
+  if (diffH < 24) return t(locale, 'detail.relativeTime.hours', { n: diffH });
   const diffD = Math.round(diffH / 24);
-  return `acum ${diffD}z`;
+  return t(locale, 'detail.relativeTime.days', { n: diffD });
 }
 
 // acelasi prag ca SELECT_THRESHOLD din core/importPipeline.ts (si train() din state/store.ts) —
@@ -94,6 +95,7 @@ const AI_SELECT_THRESHOLD = 65;
 /** Explicatia narativa (paragrafe) pentru scorul AI — incarcata lenes (AnalysisRecord + ContextModelRecord
     complete nu fac parte din PhotoView), doar cat timp tab-ul "De ce acest scor" e deschis. */
 function WhyExplanation({ photo }: { photo: PhotoView }) {
+  const locale = useStore(s => s.locale);
   const [paragraphs, setParagraphs] = useState<string[] | null>(null);
 
   useEffect(() => {
@@ -110,17 +112,13 @@ function WhyExplanation({ photo }: { photo: PhotoView }) {
     return () => { alive = false; };
   }, [photo.id, photo.contextKey, photo.aiScore, photo.status]);
 
-  if (paragraphs === null) return <p className="hint">Se genereaza explicatia…</p>;
+  if (paragraphs === null) return <p className="hint">{t(locale, 'detail.why.loading')}</p>;
   return (
     <div className="why-explanation">
       {paragraphs.map((p, i) => <p key={i}>{p}</p>)}
     </div>
   );
 }
-
-const STATUS_LABEL: Record<string, string> = {
-  selected: 'Selectata', rejected: 'Respinsa', review: 'De verificat', pending: 'In asteptare'
-};
 
 function ScoreRing({ score }: { score: number }) {
   const color = score >= 65 ? 'var(--pick)' : score <= 35 ? 'var(--reject)' : 'var(--review)';
@@ -147,6 +145,8 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
   const stepDetail = useStore(s => s.stepDetail);
   const setStatus = useStore(s => s.setStatus);
   const setRating = useStore(s => s.setRating);
+  const locale = useStore(s => s.locale);
+  const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const [src, setSrc] = useState<string | null>(null);
   const [zoomed, setZoomed] = useState(false);
   const [dragX, setDragX] = useState(0);
@@ -236,7 +236,7 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
   };
 
   const exif = formatExif(photo);
-  const exifRows = extendedExifRows(photo);
+  const exifRows = extendedExifRows(photo, tr);
 
   return (
     <motion.div
@@ -245,13 +245,13 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
       transition={{ duration: reduceMotion ? 0 : 0.2, ease: EASE }}
     >
       <motion.div
-        className="detail-inner fit" ref={containerRef} role="dialog" aria-modal="true" aria-label={`Detalii: ${photo.fileName}`} tabIndex={-1}
+        className="detail-inner fit" ref={containerRef} role="dialog" aria-modal="true" aria-label={tr('detail.ariaLabel', { fileName: photo.fileName })} tabIndex={-1}
         initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 24 }}
         transition={{ duration: reduceMotion ? 0 : 0.28, ease: EASE }}
       >
         <header className="detail-head">
           <span className="mono">{photo.fileName}</span>
-          <button className="ghost icon-btn" onClick={() => openDetail(null)} aria-label="Inchide">
+          <button className="ghost icon-btn" onClick={() => openDetail(null)} aria-label={tr('detail.close')}>
             <XIcon />
           </button>
         </header>
@@ -263,7 +263,7 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
           onPointerMove={onPointerMove}
           onPointerUp={endDrag}
           onPointerCancel={endDrag}
-          title={zoomed ? 'Iesi din zoom' : 'Zoom 100% (Z) · trage stanga/dreapta pentru decizie'}
+          title={zoomed ? tr('detail.zoom.exit') : tr('detail.zoom.hint')}
         >
           <div
             className="swipe-surface"
@@ -276,19 +276,19 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
           </div>
           {!zoomed && <div className="detail-img-gradient" aria-hidden="true" />}
           <span className={`status-tag st-${photo.status} detail-badge`}>
-            {photo.status === 'selected' ? 'SELECTATA' : photo.status === 'rejected' ? 'RESPINSA' : 'DE VERIFICAT'}
+            {photo.status === 'selected' ? tr('workspace.status.selected') : photo.status === 'rejected' ? tr('workspace.status.rejected') : tr('workspace.status.review')}
           </span>
           {!zoomed && dragX > 4 && (
             <div className="swipe-badge swipe-badge-select" style={{ opacity: Math.min(1, dragX / SWIPE_COMMIT) }}>
-              <CheckIcon /> SELECTEAZA
+              <CheckIcon /> {tr('detail.swipe.select')}
             </div>
           )}
           {!zoomed && dragX < -4 && (
             <div className="swipe-badge swipe-badge-reject" style={{ opacity: Math.min(1, -dragX / SWIPE_COMMIT) }}>
-              <XIcon /> RESPINGE
+              <XIcon /> {tr('detail.swipe.reject')}
             </div>
           )}
-          <span className="zoom-hint mono">{zoomed ? '100% — trage pentru a naviga' : 'atinge pentru 100% (Z)'}</span>
+          <span className="zoom-hint mono">{zoomed ? tr('detail.zoom.hintZoomed') : tr('detail.zoom.hintCollapsed')}</span>
         </div>
 
         <div className="detail-rating-row">
@@ -297,19 +297,19 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
 
         {photo.groupId && (
           <button className="ghost slim" onClick={() => { openDetail(null); openCompare(photo.groupId!); }}>
-            <LayersIcon className="inline-icon" /> Compara toata seria
+            <LayersIcon className="inline-icon" /> {tr('detail.compareSeries')}
           </button>
         )}
 
         <nav className="detail-tabs" role="tablist">
-          {TABS.map(t => (
+          {TAB_KEYS.map(tabDef => (
             <button
-              key={t.key} role="tab" aria-selected={tab === t.key}
-              className={tab === t.key ? 'detail-tab active' : 'detail-tab'}
-              onClick={() => setTab(t.key)}
+              key={tabDef.key} role="tab" aria-selected={tab === tabDef.key}
+              className={tab === tabDef.key ? 'detail-tab active' : 'detail-tab'}
+              onClick={() => setTab(tabDef.key)}
             >
-              {t.label}
-              {t.key === 'history' && photoHistory.length > 0 && <b className="detail-tab-count mono">{photoHistory.length}</b>}
+              {tr(tabDef.labelKey)}
+              {tabDef.key === 'history' && photoHistory.length > 0 && <b className="detail-tab-count mono">{photoHistory.length}</b>}
             </button>
           ))}
         </nav>
@@ -320,16 +320,16 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
               <div className="stat-grid">
                 <div className="stat-tile score-tile">
                   <ScoreRing score={photo.aiScore} />
-                  <span className="stat-label">Scor AI</span>
+                  <span className="stat-label">{tr('detail.stat.score')}</span>
                 </div>
-                <StatTile label="Claritate" value={photo.sharpness} />
-                <StatTile label="Expunere" value={photo.exposure} />
-                {photo.faceCount > 0 && <StatTile label="Fete" value={photo.faceCount} />}
+                <StatTile label={tr('detail.stat.sharpness')} value={photo.sharpness} />
+                <StatTile label={tr('detail.stat.exposure')} value={photo.exposure} />
+                {photo.faceCount > 0 && <StatTile label={tr('detail.stat.faces')} value={photo.faceCount} />}
                 {photo.faceCount > 0 && (
                   // grup (mai multe fete): procent care zambesc, nu doar cea mai buna fata —
                   // altfel un singur zambet mare "ascunde" restul grupului serios/nemultumit
                   <StatTile
-                    label={photo.faceCount > 1 ? 'Zâmbete' : 'Zambet'}
+                    label={photo.faceCount > 1 ? tr('detail.stat.smiles') : tr('detail.stat.smile')}
                     value={`${Math.round((photo.faceCount > 1 ? photo.groupSmileRatio ?? photo.bestSmile : photo.bestSmile) * 100)}%`}
                   />
                 )}
@@ -337,7 +337,7 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
                   // grup: procent cu ochii deschisi (nu strict "toti sau niciunul") — problema
                   // clasica la poze de grup e mereu cineva care clipeste
                   <StatTile
-                    label={photo.faceCount > 1 ? 'Ochi (grup)' : (photo.allEyesOpen ? 'Ochi OK' : 'Clipire')}
+                    label={photo.faceCount > 1 ? tr('detail.stat.eyesGroup') : (photo.allEyesOpen ? tr('detail.stat.eyesOk') : tr('detail.stat.blink'))}
                     value={
                       photo.faceCount > 1
                         ? `${Math.round((photo.groupEyesOpenRatio ?? (photo.allEyesOpen ? 1 : 0)) * 100)}%`
@@ -346,13 +346,13 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
                     warn={photo.faceCount > 1 ? (photo.groupEyesOpenRatio ?? 1) < 1 : !photo.allEyesOpen}
                   />
                 )}
-                {photo.faceCount > 0 && <StatTile label="Treimi" value={`${Math.round(photo.ruleOfThirds * 100)}%`} />}
-                {photo.faceCount > 0 && <StatTile label="Cadraj" value={`${Math.round(photo.headroom * 100)}%`} />}
+                {photo.faceCount > 0 && <StatTile label={tr('detail.stat.thirds')} value={`${Math.round(photo.ruleOfThirds * 100)}%`} />}
+                {photo.faceCount > 0 && <StatTile label={tr('detail.stat.headroom')} value={`${Math.round(photo.headroom * 100)}%`} />}
               </div>
               {(photo.dominantColors?.length || photo.goldenHourDetected) && (
                 <div className="color-palette-row">
                   {photo.goldenHourDetected && (
-                    <span className="golden-badge lg" title="Ora de aur"><SunIcon /></span>
+                    <span className="golden-badge lg" title={tr('palette.filter.goldenHour')}><SunIcon /></span>
                   )}
                   {photo.dominantColors?.map(c => (
                     <span key={c} className="color-swatch" style={{ background: c }} title={c} />
@@ -361,8 +361,8 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
               )}
               {photo.sceneTags && photo.sceneTags.length > 0 && (
                 <div className="scene-tags-row">
-                  {photo.sceneTags.map(t => (
-                    <span key={t} className="scene-tag">{t}</span>
+                  {photo.sceneTags.map(tag => (
+                    <span key={tag} className="scene-tag">{tag}</span>
                   ))}
                 </div>
               )}
@@ -370,10 +370,10 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
               {exifRows.length > 0 && (
                 <dl className="detail-exif-extended">
                   {exifRows.map(r => (
-                    <div className="detail-exif-row" key={r.label}>
+                    <div className="detail-exif-row" key={r.key}>
                       <dt>{r.label}</dt>
                       <dd>
-                        {r.label === 'Locatie GPS' && photo.gpsLatitude !== undefined && photo.gpsLongitude !== undefined ? (
+                        {r.key === 'gps' && photo.gpsLatitude !== undefined && photo.gpsLongitude !== undefined ? (
                           <a
                             href={`https://www.openstreetmap.org/?mlat=${photo.gpsLatitude}&mlon=${photo.gpsLongitude}#map=15/${photo.gpsLatitude}/${photo.gpsLongitude}`}
                             target="_blank" rel="noreferrer noopener"
@@ -387,7 +387,7 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
                 </dl>
               )}
               <Histogram src={src} />
-              <p className="detail-section-label mono">Harta de focus (albastru = neclar, rosu = clar)</p>
+              <p className="detail-section-label mono">{tr('detail.focusMapLabel')}</p>
               <FocusMap src={src} />
             </>
           )}
@@ -397,7 +397,7 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
               <>
                 <WhyExplanation photo={photo} />
                 <div className="factor-row">
-                  <span className="factor-row-label mono"><SparkleIcon className="inline-icon" /> Factori pe scurt</span>
+                  <span className="factor-row-label mono"><SparkleIcon className="inline-icon" /> {tr('detail.why.factorsShort')}</span>
                   <div className="factor-tags">
                     {explainFactors(photo.aiFactors).map(f => (
                       <span key={f.label} className={f.positive ? 'factor-tag pos' : 'factor-tag neg'}>
@@ -408,7 +408,7 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
                 </div>
               </>
             ) : (
-              <p className="hint">Inca nu exista explicatii de scor pentru aceasta poza.</p>
+              <p className="hint">{tr('detail.why.none')}</p>
             )
           )}
 
@@ -419,12 +419,12 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
                   <li key={m.name}>
                     <span className="person-avatar">{m.name.charAt(0).toUpperCase()}</span>
                     {m.name}
-                    <span className="mono person-confidence" title="Similaritate fata de profilul inrolat">{Math.round(m.similarity * 100)}%</span>
+                    <span className="mono person-confidence" title={tr('detail.persons.confidenceTitle')}>{Math.round(m.similarity * 100)}%</span>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="hint">Nicio persoana cunoscuta recunoscuta in aceasta poza.</p>
+              <p className="hint">{tr('detail.persons.none')}</p>
             )
           )}
 
@@ -433,27 +433,26 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
               <ul className="detail-history-list">
                 {photoHistory.map((h, i) => (
                   <li key={h.ts + '-' + i}>
-                    <span className="mono detail-history-time">{formatRelativeTime(h.ts)}</span>
-                    <span>{STATUS_LABEL[h.previousStatus] ?? h.previousStatus} → <b>{STATUS_LABEL[h.newStatus] ?? h.newStatus}</b></span>
+                    <span className="mono detail-history-time">{formatRelativeTime(h.ts, locale)}</span>
+                    <span>{tr(`detail.statusLabel.${h.previousStatus}`)} → <b>{tr(`detail.statusLabel.${h.newStatus}`)}</b></span>
                   </li>
                 ))}
               </ul>
             ) : (
               <p className="hint">
-                <ClockIcon className="inline-icon" /> Nicio decizie manuala recenta pentru aceasta poza — istoricul pastreaza
-                doar ultimele 10 schimbari din toata sesiunea, nu un jurnal complet.
+                <ClockIcon className="inline-icon" /> {tr('detail.history.none')}
               </p>
             )
           )}
         </div>
 
         <div className="detail-actions">
-          <button className="ghost icon-btn" onClick={() => stepDetail(-1)} aria-label="Fotografia anterioara">
+          <button className="ghost icon-btn" onClick={() => stepDetail(-1)} aria-label={tr('workspace.nav.prev')}>
             <ChevronLeft />
           </button>
-          <button className="reject" onClick={() => void setStatus(photo.id, 'rejected')}>Respinge (X)</button>
-          <button className="select" onClick={() => void setStatus(photo.id, 'selected')}>Selecteaza (P)</button>
-          <button className="ghost icon-btn" onClick={() => stepDetail(1)} aria-label="Fotografia urmatoare">
+          <button className="reject" onClick={() => void setStatus(photo.id, 'rejected')}>{tr('workspace.action.reject')}</button>
+          <button className="select" onClick={() => void setStatus(photo.id, 'selected')}>{tr('workspace.action.select')}</button>
+          <button className="ghost icon-btn" onClick={() => stepDetail(1)} aria-label={tr('workspace.nav.next')}>
             <ChevronRight />
           </button>
         </div>
