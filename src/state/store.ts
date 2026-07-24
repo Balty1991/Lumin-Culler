@@ -47,6 +47,17 @@ export interface PhotoView {
   exposure: number;
   ruleOfThirds: number;
   headroom: number;
+  /**
+   * Compozitie pentru scene FARA subiect uman (peisaje/detalii) — treimile si
+   * headroom-ul de mai sus n-au sens fara o fata de referinta, asa ca aici
+   * folosim linii directoare/simetrie/spatiu negativ (plan 2.2.3), calculate
+   * geometric in faceAnalysis.worker.ts (detectLeadingLines/detectSymmetry/
+   * negativeSpaceScore), deja factorizate in scorul AI dar niciodata afisate
+   * separat utilizatorului pana acum.
+   */
+  leadingLinesDetected?: boolean;
+  symmetryDetected?: boolean;
+  negativeSpaceScore?: number;
   groupEyesOpenRatio?: number;
   groupSmileRatio?: number;
   iso?: number;
@@ -330,6 +341,9 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     exposure: analysis?.exposure ?? 0,
     ruleOfThirds: analysis?.ruleOfThirds ?? 0.5,
     headroom: analysis?.headroom ?? 0.5,
+    leadingLinesDetected: analysis?.leadingLinesDetected,
+    symmetryDetected: analysis?.symmetryDetected,
+    negativeSpaceScore: analysis?.negativeSpaceScore,
     groupEyesOpenRatio: analysis?.groupEyesOpenRatio,
     groupSmileRatio: analysis?.groupSmileRatio,
     iso: analysis?.iso,
