@@ -31,6 +31,8 @@ export function MenuDrawer() {
   const exportManifest = useStore(s => s.exportManifest);
   const exportXMP = useStore(s => s.exportXMP);
   const exportClientGallery = useStore(s => s.exportClientGallery);
+  const watermarkText = useStore(s => s.watermarkText);
+  const setWatermarkText = useStore(s => s.setWatermarkText);
   const exportBackup = useStore(s => s.exportBackup);
   const importBackupFile = useStore(s => s.importBackupFile);
   const setStatsOpen = useStore(s => s.setStatsOpen);
@@ -127,6 +129,19 @@ export function MenuDrawer() {
           <span className="drawer-item-icon"><UserCheckIcon /></span>
           <span>{tr('menu.exportClientGallery')}</span>
         </button>
+
+        <label className="drawer-item drawer-item-select" title={tr('menu.watermark.title')}>
+          <span className="drawer-item-icon"><TagIcon /></span>
+          <span>{tr('menu.watermark')}</span>
+          <input
+            type="text"
+            className="drawer-text-input mono"
+            placeholder={tr('menu.watermark.placeholder')}
+            value={watermarkText}
+            onChange={e => setWatermarkText(e.target.value)}
+            maxLength={40}
+          />
+        </label>
 
         <div className="drawer-section-label">{tr('menu.section.backup')}</div>
         <button

@@ -1459,6 +1459,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 .drawer-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .drawer-select option { background: var(--surface-2); color: var(--text); }
+.drawer-text-input {
+  flex: none; width: 40%; background: var(--surface-2); color: var(--text);
+  border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; font-size: 0.78rem;
+  cursor: text;
+}
+.drawer-text-input::placeholder { color: var(--text-faint); }
+.drawer-text-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .drawer-section-label {
   padding: 12px 10px 4px; font-size: 0.64rem; font-weight: 700; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--text-faint);

@@ -10,6 +10,8 @@
  * copia si trimite inapoi fotografului — fara niciun schimb de date prin retea.
  */
 
+import { applyWatermark } from './watermark';
+
 export interface ClientGalleryPhoto {
   fileName: string;
   thumbnail: Blob;
@@ -28,13 +30,20 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-export async function buildClientGalleryHtml(photos: ClientGalleryPhoto[], title: string): Promise<string> {
+/**
+ * `watermarkText` optional (setat din meniu, vezi state/watermarkText.ts) — daca
+ * e prezent, fiecare miniatura primeste un watermark text repetat/diagonal
+ * (core/export/watermark.ts) inainte sa fie incorporata, ca clientul sa nu poata
+ * folosi previzualizarile inainte de livrarea finala/plata. Absent = galeria
+ * ramane exact ca inainte (miniaturi neatinse).
+ */
+export async function buildClientGalleryHtml(photos: ClientGalleryPhoto[], title: string, watermarkText?: string): Promise<string> {
   // id unic per export — izoleaza favoritele in localStorage intre mai multe
   // galerii deschise in acelasi browser (ex. clientul primeste doua sesiuni diferite)
   const galleryId = 'lc-' + Math.random().toString(36).slice(2, 10);
   const items = await Promise.all(photos.map(async p => ({
     fileName: p.fileName,
-    dataUri: await blobToDataUri(p.thumbnail)
+    dataUri: await blobToDataUri(watermarkText ? await applyWatermark(p.thumbnail, watermarkText) : p.thumbnail)
   })));
 
   const cards = items.map((it, i) => `

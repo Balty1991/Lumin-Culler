@@ -1,5 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { buildClientGalleryHtml } from './clientGallery';
+
+const applyWatermarkMock = vi.fn<(blob: Blob, text: string) => Promise<Blob>>();
+vi.mock('./watermark', () => ({
+  applyWatermark: (blob: Blob, text: string) => applyWatermarkMock(blob, text)
+}));
 
 describe('buildClientGalleryHtml', () => {
   it('embeds each photo as an inline data: URI, keyed by escaped filename', async () => {
@@ -30,5 +35,28 @@ describe('buildClientGalleryHtml', () => {
     expect(html).not.toMatch(/https?:\/\//);
     expect(html).not.toContain('<link ');
     expect(html).not.toContain('<script src');
+  });
+
+  it('applies a watermark to each thumbnail when watermarkText is provided', async () => {
+    applyWatermarkMock.mockReset();
+    applyWatermarkMock.mockResolvedValue(new Blob(['watermarked-bytes'], { type: 'image/jpeg' }));
+    const html = await buildClientGalleryHtml(
+      [{ fileName: 'a.jpg', thumbnail: new Blob(['original-bytes'], { type: 'image/jpeg' }) }],
+      'Galerie',
+      'Studio Foto X'
+    );
+    expect(applyWatermarkMock).toHaveBeenCalledWith(expect.any(Blob), 'Studio Foto X');
+    expect(html).toContain(Buffer.from('watermarked-bytes').toString('base64'));
+    expect(html).not.toContain(Buffer.from('original-bytes').toString('base64'));
+  });
+
+  it('leaves thumbnails untouched when no watermarkText is given', async () => {
+    applyWatermarkMock.mockReset();
+    const html = await buildClientGalleryHtml(
+      [{ fileName: 'a.jpg', thumbnail: new Blob(['original-bytes'], { type: 'image/jpeg' }) }],
+      'Galerie'
+    );
+    expect(applyWatermarkMock).not.toHaveBeenCalled();
+    expect(html).toContain(Buffer.from('original-bytes').toString('base64'));
   });
 });
