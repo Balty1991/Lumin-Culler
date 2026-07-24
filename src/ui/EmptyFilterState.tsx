@@ -1,5 +1,6 @@
 import { useStore } from '../state/store';
 import { FilterDotIcon } from './icons';
+import { t } from '../i18n';
 
 /**
  * Starea "niciun rezultat pentru filtrul curent" — folosita atat in grila
@@ -18,6 +19,7 @@ export function EmptyFilterState() {
   const setFilter = useStore(s => s.setFilter);
   const setPersonFilter = useStore(s => s.setPersonFilter);
   const clearAdvancedFilters = useStore(s => s.clearAdvancedFilters);
+  const locale = useStore(s => s.locale);
 
   const hasActiveFilter = filter !== 'all' || !!personFilter || !!searchText || dateFrom !== null || dateTo !== null || minRating > 0;
 
@@ -30,9 +32,9 @@ export function EmptyFilterState() {
   return (
     <div className="empty-filter">
       <FilterDotIcon className="empty-filter-icon" aria-hidden="true" />
-      <p>Nicio poza nu corespunde filtrului curent.</p>
+      <p>{t(locale, 'emptyFilter.message')}</p>
       {hasActiveFilter && (
-        <button className="ghost small" onClick={resetAll}>Reseteaza filtrele</button>
+        <button className="ghost small" onClick={resetAll}>{t(locale, 'emptyFilter.reset')}</button>
       )}
     </div>
   );

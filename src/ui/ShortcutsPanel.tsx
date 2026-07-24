@@ -2,47 +2,48 @@ import { useEffect, useRef } from 'react';
 import { useStore } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { KeyboardIcon } from './icons';
+import { t } from '../i18n';
 
-interface Shortcut { keys: string; label: string; }
-interface Section { title: string; shortcuts: Shortcut[]; }
+interface Shortcut { keys: string; labelKey: string; }
+interface Section { titleKey: string; shortcuts: Shortcut[]; }
 
 const SECTIONS: Section[] = [
   {
-    title: 'Global',
+    titleKey: 'shortcuts.section.global',
     shortcuts: [
-      { keys: 'Ctrl/Cmd+K', label: 'Deschide paleta de comenzi' },
-      { keys: 'Ctrl/Cmd+Z', label: 'Anuleaza ultima decizie' },
-      { keys: '?', label: 'Deschide acest ecran de scurtaturi' }
+      { keys: 'Ctrl/Cmd+K', labelKey: 'shortcuts.openPalette' },
+      { keys: 'Ctrl/Cmd+Z', labelKey: 'shortcuts.undo' },
+      { keys: '?', labelKey: 'shortcuts.openShortcuts' }
     ]
   },
   {
-    title: 'Spatiu de lucru (Workspace)',
+    titleKey: 'shortcuts.section.workspace',
     shortcuts: [
-      { keys: '← →', label: 'Navigheaza intre poze' },
-      { keys: 'P', label: 'Selecteaza poza curenta' },
-      { keys: 'X', label: 'Respinge poza curenta' },
-      { keys: '0-5', label: 'Rating cu stele (0 = fara rating)' },
-      { keys: 'I', label: 'Arata/ascunde statisticile pe imagine' },
-      { keys: 'Esc', label: 'Iesi din spatiul de lucru' }
+      { keys: '← →', labelKey: 'shortcuts.navigate' },
+      { keys: 'P', labelKey: 'shortcuts.select' },
+      { keys: 'X', labelKey: 'shortcuts.reject' },
+      { keys: '0-5', labelKey: 'shortcuts.rating' },
+      { keys: 'I', labelKey: 'shortcuts.toggleStats' },
+      { keys: 'Esc', labelKey: 'shortcuts.exitWorkspace' }
     ]
   },
   {
-    title: 'Vizualizare detaliu',
+    titleKey: 'shortcuts.section.detail',
     shortcuts: [
-      { keys: '← →', label: 'Poza anterioara / urmatoare' },
-      { keys: 'P', label: 'Selecteaza' },
-      { keys: 'X', label: 'Respinge' },
-      { keys: '0-5', label: 'Rating cu stele (0 = fara rating)' },
-      { keys: 'Z', label: 'Zoom 100%' },
-      { keys: 'Esc', label: 'Inchide' }
+      { keys: '← →', labelKey: 'shortcuts.prevNext' },
+      { keys: 'P', labelKey: 'shortcuts.selectShort' },
+      { keys: 'X', labelKey: 'shortcuts.rejectShort' },
+      { keys: '0-5', labelKey: 'shortcuts.rating' },
+      { keys: 'Z', labelKey: 'shortcuts.zoom' },
+      { keys: 'Esc', labelKey: 'shortcuts.close2' }
     ]
   },
   {
-    title: 'Paleta de comenzi',
+    titleKey: 'shortcuts.section.palette',
     shortcuts: [
-      { keys: '↑ ↓', label: 'Navigheaza in lista de rezultate' },
-      { keys: 'Enter', label: 'Executa comanda selectata' },
-      { keys: 'Esc', label: 'Inchide paleta' }
+      { keys: '↑ ↓', labelKey: 'shortcuts.paletteNav' },
+      { keys: 'Enter', labelKey: 'shortcuts.paletteRun' },
+      { keys: 'Esc', labelKey: 'shortcuts.paletteClose' }
     ]
   }
 ];
@@ -51,6 +52,7 @@ const SECTIONS: Section[] = [
 export function ShortcutsPanel() {
   const open = useStore(s => s.shortcutsOpen);
   const setOpen = useStore(s => s.setShortcutsOpen);
+  const locale = useStore(s => s.locale);
   const containerRef = useRef<HTMLDivElement>(null);
   useModalFocusTrap(containerRef, open);
 
@@ -82,20 +84,20 @@ export function ShortcutsPanel() {
 
   return (
     <div className="detail" onClick={e => { if (e.target === e.currentTarget) setOpen(false); }}>
-      <div className="detail-inner narrow" ref={containerRef} role="dialog" aria-modal="true" aria-label="Scurtaturi de tastatura" tabIndex={-1}>
+      <div className="detail-inner narrow" ref={containerRef} role="dialog" aria-modal="true" aria-label={t(locale, 'shortcuts.title')} tabIndex={-1}>
         <header className="detail-head">
-          <span><KeyboardIcon className="inline-icon" /> Scurtaturi de tastatura</span>
-          <button className="ghost" onClick={() => setOpen(false)}>Inchide</button>
+          <span><KeyboardIcon className="inline-icon" /> {t(locale, 'shortcuts.title')}</span>
+          <button className="ghost" onClick={() => setOpen(false)}>{t(locale, 'shortcuts.close')}</button>
         </header>
 
         {SECTIONS.map(section => (
-          <div className="shortcuts-section" key={section.title}>
-            <h3>{section.title}</h3>
+          <div className="shortcuts-section" key={section.titleKey}>
+            <h3>{t(locale, section.titleKey)}</h3>
             <ul className="shortcuts-list">
               {section.shortcuts.map(s => (
-                <li key={s.keys + s.label}>
+                <li key={s.keys + s.labelKey}>
                   <kbd className="mono">{s.keys}</kbd>
-                  <span>{s.label}</span>
+                  <span>{t(locale, s.labelKey)}</span>
                 </li>
               ))}
             </ul>

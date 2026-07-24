@@ -23,6 +23,7 @@ import { readStoredGenre, writeStoredGenre } from './genre';
 import { readGridDensity, writeGridDensity, type GridDensity } from './gridDensity';
 import { recordUsage, readMonthlyUsage, FREE_TIER_MONTHLY_LIMIT } from './usage';
 import { getProjectMetadata } from './projectMetadata';
+import { readStoredLocale, writeStoredLocale, type Locale } from '../i18n';
 import { buildBackup, backupFileName, parseBackupFile, restoreBackup } from '../core/backupService';
 import { buildClientGalleryHtml } from '../core/export/clientGallery';
 
@@ -125,6 +126,9 @@ interface AppState {
   shortcutsOpen: boolean;
   theme: Theme;
   setTheme: (theme: Theme) => void;
+  /** Limba interfetei — vezi i18n/index.ts. Migrare treptata: doar unele ecrane citesc asta deocamdata, restul ramane in romana codificata direct. */
+  locale: Locale;
+  setLocale: (locale: Locale) => void;
   projectName: string;
   setProjectName: (name: string) => void;
   booted: boolean;
@@ -372,6 +376,8 @@ export const useStore = create<AppState>((set, get) => ({
   shortcutsOpen: false,
   theme: readStoredTheme(),
   setTheme: theme => { applyTheme(theme); set({ theme }); },
+  locale: readStoredLocale(),
+  setLocale: locale => { writeStoredLocale(locale); set({ locale }); },
   projectName: readStoredProjectName(),
   setProjectName: name => { writeProjectName(name); set({ projectName: name }); },
   booted: false,

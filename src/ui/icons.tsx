@@ -107,6 +107,15 @@ export function GridIcon(p: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+export function GlobeIcon(p: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base} {...p}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18" />
+      <path d="M12 3c2.8 2.5 4.2 5.8 4.2 9s-1.4 6.5-4.2 9c-2.8-2.5-4.2-5.8-4.2-9s1.4-6.5 4.2-9z" />
+    </svg>
+  );
+}
 export function BarChartIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><line x1="5" y1="20" x2="5" y2="12" /><line x1="12" y1="20" x2="12" y2="6" /><line x1="19" y1="20" x2="19" y2="15" /></svg>;
 }
