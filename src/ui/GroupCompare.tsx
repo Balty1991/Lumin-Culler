@@ -3,6 +3,7 @@ import { db } from '../core/db';
 import { useStore, type PhotoView } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { XIcon, LayersIcon, SparkleIcon, GridIcon } from './icons';
+import { t } from '../i18n';
 
 const ZOOM_LEVELS = [1, 1.5, 2, 3] as const;
 
@@ -33,6 +34,8 @@ export function GroupCompare() {
   const setStatus = useStore(s => s.setStatus);
   const groupOf = useStore(s => s.groupOf);
   const selectBestPhotoInGroup = useStore(s => s.selectBestPhotoInGroup);
+  const locale = useStore(s => s.locale);
+  const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const [recommendedId, setRecommendedId] = useState<string | null>(null);
   const [sortBySharpness, setSortBySharpness] = useState(false);
   const [topN, setTopN] = useState(3);
@@ -72,10 +75,10 @@ export function GroupCompare() {
 
   return (
     <div className="detail" onClick={e => { if (e.target === e.currentTarget) openCompare(null); }}>
-      <div className="detail-inner wide" ref={containerRef} role="dialog" aria-modal="true" aria-label="Comparare serie" tabIndex={-1}>
+      <div className="detail-inner wide" ref={containerRef} role="dialog" aria-modal="true" aria-label={tr('compare.ariaLabel')} tabIndex={-1}>
         <header className="detail-head">
-          <span><LayersIcon className="inline-icon" /> Serie de {members.length} cadre similare — alege-l pe cel mai bun</span>
-          <button className="ghost icon-btn" onClick={() => openCompare(null)} aria-label="Inchide">
+          <span><LayersIcon className="inline-icon" /> {tr('compare.title', { count: members.length })}</span>
+          <button className="ghost icon-btn" onClick={() => openCompare(null)} aria-label={tr('detail.close')}>
             <XIcon />
           </button>
         </header>
@@ -84,26 +87,26 @@ export function GroupCompare() {
             <button
               className={sortBySharpness ? 'chip active' : 'chip'}
               onClick={() => setSortBySharpness(v => !v)}
-            >Sorteaza dupa claritate</button>
+            >{tr('compare.sortBySharpness')}</button>
             <span className="compare-topn">
-              Pastreaza primele
+              {tr('compare.keepTop')}
               <input
                 type="number"
                 min={1}
                 max={members.length - 1 || 1}
                 value={clampedN}
                 onChange={e => setTopN(Number(e.target.value))}
-                aria-label="Cate cadre sa pastrezi din serie"
+                aria-label={tr('compare.keepTop.ariaLabel')}
               />
-              (dupa claritate)
-              <button className="select small-btn" onClick={keepTopN}>Aplica</button>
+              {tr('compare.keepTop.bySharpness')}
+              <button className="select small-btn" onClick={keepTopN}>{tr('compare.apply')}</button>
             </span>
           </div>
         )}
 
         <div className="compare-toolbar">
           <span className="compare-zoom-sync mono">
-            Zoom sincronizat
+            {tr('compare.zoomSync')}
             {ZOOM_LEVELS.map(z => (
               <button
                 key={z}
@@ -116,7 +119,7 @@ export function GroupCompare() {
             <button
               className={overlayMode ? 'chip active' : 'chip'}
               onClick={() => setOverlayMode(v => !v)}
-            ><GridIcon className="inline-icon" /> Suprapunere doua cadre</button>
+            ><GridIcon className="inline-icon" /> {tr('compare.overlayToggle')}</button>
           )}
         </div>
 
@@ -137,9 +140,7 @@ export function GroupCompare() {
               ))}
             </div>
           )}
-        <p className="hint">„Pastreaza doar acesta" respinge automat restul seriei si antreneaza
-        motorul cu alegerea ta. Atinge imaginea pentru zoom 100%. Zoom-ul sincronizat mareste
-        toate cadrele in acelasi punct (centru), util pentru comparat detalii fine (ochi, expresii).</p>
+        <p className="hint">{tr('compare.hint')}</p>
       </div>
     </div>
   );
@@ -153,11 +154,13 @@ function CompareCard({ photo, recommended, zoomLevel, onKeep, onReject, onZoom }
   onReject: () => void;
   onZoom: () => void;
 }) {
+  const locale = useStore(s => s.locale);
+  const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const src = usePreviewUrl(photo.id);
 
   return (
     <div className={recommended ? `compare-card st-${photo.status} recommended` : `compare-card st-${photo.status}`}>
-      <button className="compare-img" onClick={onZoom} title="Deschide la 100%">
+      <button className="compare-img" onClick={onZoom} title={tr('compare.card.zoomTitle')}>
         {src && (
           <img
             src={src} alt={photo.fileName} loading="lazy" decoding="async"
@@ -166,24 +169,24 @@ function CompareCard({ photo, recommended, zoomLevel, onKeep, onReject, onZoom }
         )}
         {recommended && (
           <span className="compare-recommend-badge">
-            <SparkleIcon className="inline-icon" /> Recomandat AI
+            <SparkleIcon className="inline-icon" /> {tr('compare.card.recommended')}
           </span>
         )}
       </button>
       <div className="compare-meta mono">
         <div className="compare-stat">
-          <span>Scor <b>{photo.aiScore}</b></span>
+          <span>{tr('detail.stat.score')} <b>{photo.aiScore}</b></span>
           <span className="compare-bar"><span className="compare-bar-fill" style={{ width: `${Math.max(0, Math.min(100, photo.aiScore))}%` }} /></span>
         </div>
         <div className="compare-stat">
-          <span>Claritate <b>{photo.sharpness}</b></span>
+          <span>{tr('detail.stat.sharpness')} <b>{photo.sharpness}</b></span>
           <span className="compare-bar"><span className="compare-bar-fill" style={{ width: `${Math.max(0, Math.min(100, photo.sharpness))}%` }} /></span>
         </div>
-        <span className="compare-eyes">{photo.faceCount > 0 ? (photo.allEyesOpen ? 'ochi deschisi' : 'CLIPIRE') : '—'}</span>
+        <span className="compare-eyes">{photo.faceCount > 0 ? (photo.allEyesOpen ? tr('compare.card.eyesOpen') : tr('compare.card.blink')) : '—'}</span>
       </div>
       <div className="compare-actions">
-        <button className="reject small-btn" onClick={onReject}>Respinge</button>
-        <button className="select small-btn" onClick={onKeep}>Pastreaza doar acesta</button>
+        <button className="reject small-btn" onClick={onReject}>{tr('compare.card.reject')}</button>
+        <button className="select small-btn" onClick={onKeep}>{tr('compare.card.keepOnly')}</button>
       </div>
     </div>
   );
@@ -197,6 +200,8 @@ function CompareCard({ photo, recommended, zoomLevel, onKeep, onReject, onZoom }
  * cadrului, identic intre poze, devine aproape negru).
  */
 function OverlayCompare({ members, defaultAId }: { members: PhotoView[]; defaultAId: string | null }) {
+  const locale = useStore(s => s.locale);
+  const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const [aId, setAId] = useState(defaultAId ?? members[0]?.id ?? null);
   const [bId, setBId] = useState(members.find(m => m.id !== (defaultAId ?? members[0]?.id))?.id ?? members[0]?.id ?? null);
   const [opacity, setOpacity] = useState(50);
@@ -211,19 +216,19 @@ function OverlayCompare({ members, defaultAId }: { members: PhotoView[]; default
     <div className="overlay-compare">
       <div className="overlay-pickers mono">
         <label>
-          Cadrul A
+          {tr('compare.overlay.frameA')}
           <select value={aId ?? ''} onChange={e => setAId(e.target.value)}>
             {members.map(m => <option key={m.id} value={m.id}>{m.fileName}</option>)}
           </select>
         </label>
         <label>
-          Cadrul B (deasupra)
+          {tr('compare.overlay.frameB')}
           <select value={bId ?? ''} onChange={e => setBId(e.target.value)}>
             {members.map(m => <option key={m.id} value={m.id}>{m.fileName}</option>)}
           </select>
         </label>
         <button className={diffMode ? 'chip active' : 'chip'} onClick={() => setDiffMode(v => !v)}>
-          Evidentiaza diferentele
+          {tr('compare.overlay.diffToggle')}
         </button>
       </div>
 
@@ -240,7 +245,7 @@ function OverlayCompare({ members, defaultAId }: { members: PhotoView[]; default
 
       {!diffMode && (
         <label className="overlay-opacity-row mono">
-          Opacitate cadru B
+          {tr('compare.overlay.opacityB')}
           <input type="range" min={0} max={100} value={opacity} onChange={e => setOpacity(Number(e.target.value))} />
           <span>{opacity}%</span>
         </label>
