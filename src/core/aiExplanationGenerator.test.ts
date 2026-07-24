@@ -24,7 +24,7 @@ describe('generateExplanation', () => {
 
   it('mentions cold-start confidence when no context model exists yet', () => {
     const paragraphs = generateExplanation(analysis({}), true, null, null);
-    expect(paragraphs.join(' ')).toMatch(/început/);
+    expect(paragraphs.join(' ')).toMatch(/inceput/);
   });
 
   it('mentions "trained" confidence with a model that has many samples', () => {
@@ -39,7 +39,7 @@ describe('generateExplanation', () => {
 
   it('confirms agreement when AI and user both selected', () => {
     const paragraphs = generateExplanation(analysis({}), true, true, null);
-    expect(paragraphs.join(' ')).toMatch(/confirmat aceeași alegere/);
+    expect(paragraphs.join(' ')).toMatch(/confirmat aceeasi alegere/);
   });
 
   it('adds a subject paragraph only when faces are present', () => {
@@ -86,7 +86,7 @@ describe('generateSuggestions', () => {
     const noFaces = generateSuggestions(analysis({ faceCount: 0 }));
     const withClosedEyes = generateSuggestions(analysis({ faceCount: 1, allEyesOpen: false }));
     expect(noFaces.some(s => s.includes('ochii'))).toBe(false);
-    expect(withClosedEyes.some(s => s.includes('ochii închiși'))).toBe(true);
+    expect(withClosedEyes.some(s => s.includes('ochii inchisi'))).toBe(true);
   });
 
   it('flags missing leading lines/symmetry only for faceless scenes', () => {
@@ -102,5 +102,32 @@ describe('generateSuggestions', () => {
       faceCount: 1, headroom: 0.1, ruleOfThirds: 0.1, allEyesOpen: false
     }));
     expect(suggestions.length).toBeLessThanOrEqual(4);
+  });
+
+  it('generates suggestions in English when locale is "en"', () => {
+    const suggestions = generateSuggestions(analysis({ sharpness: 20 }), 'en');
+    expect(suggestions.some(s => s.toLowerCase().includes('stabilization'))).toBe(true);
+  });
+});
+
+describe('locale support', () => {
+  it('generateExplanation produces English text for locale "en"', () => {
+    const paragraphs = generateExplanation(analysis({}), true, true, null, 'en');
+    expect(paragraphs.join(' ')).toMatch(/clear/);
+    expect(paragraphs.join(' ')).toMatch(/The AI/);
+  });
+
+  it('generateExplanation still defaults to Romanian when locale is omitted', () => {
+    const paragraphs = generateExplanation(analysis({}), true, true, null);
+    expect(paragraphs.join(' ')).toMatch(/Fotografia/);
+  });
+
+  it('English aiFactors paragraph uses English factor labels', () => {
+    const paragraphs = generateExplanation(
+      analysis({ aiFactors: [{ feature: 'sharpness', contribution: 0.9 }] }),
+      true, true, null, 'en'
+    );
+    expect(paragraphs.some(p => p.includes('Sharpness'))).toBe(true);
+    expect(paragraphs.some(p => p.includes('Main factors'))).toBe(true);
   });
 });

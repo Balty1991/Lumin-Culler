@@ -18,6 +18,7 @@
  */
 
 import { db, type AnalysisRecord, type ContextModelRecord } from '../db';
+import { t, type Locale } from '../../i18n';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -105,48 +106,32 @@ const PRIOR_WEIGHTS: FeatureVector = {
  * Nume scurte, lizibile, per feature — folosite pentru explicabilitate PER POZA
  * ("de ce a primit acest scor", DetailView), diferit de perechile pozitiv/negativ
  * din summarize() (care descriu directia PONDERII invatate, nu contributia unei
- * poze anume).
+ * poze anume). Textul efectiv traieste in i18n (chei `factor.*`) — setul de mai
+ * jos doar STIE ce feature-uri au eticheta, ca sa filtram exact ca inainte
+ * (un feature necunoscut ramane cu cheia bruta, nu cu un string "factor.xyz" nebun).
  */
-export const FACTOR_LABELS: Record<string, string> = {
-  sharpness: 'Claritate',
-  exposureBalance: 'Expunere echilibrată',
-  exposureRaw: 'Nivel de expunere',
-  bestSmile: 'Zâmbet',
-  allEyesOpen: 'Ochi deschiși',
-  faceCount: 'Număr de fețe',
-  knownFaceRatio: 'Persoane cunoscute',
-  strangerPenalty: 'Străini în cadru',
-  faceScore: 'Calitatea feței',
-  ruleOfThirds: 'Regula treimilor',
-  headroom: 'Cadraj (headroom)',
-  groupEyesOpenRatio: 'Ochi deschiși (grup)',
-  groupSmileRatio: 'Zâmbete (grup)',
-  avgEyeContact: 'Contact vizual',
-  avgEngagement: 'Expresie',
-  highlightClipping: 'Highlights arse',
-  shadowClipping: 'Umbre blocate',
-  horizonLevel: 'Orizont drept',
-  isoPenalty: 'ISO / zgomot',
-  apertureRaw: 'Diafragmă',
-  shutterSpeedRaw: 'Viteză obturator',
-  focalLengthRaw: 'Distanță focală',
-  compositionScore: 'Compoziție',
-  leadingLines: 'Linii directoare',
-  symmetry: 'Simetrie',
-  negativeSpace: 'Spațiu negativ',
-  lightHard: 'Lumină dură',
-  lightSoft: 'Lumină difuză',
-  goldenHour: 'Ora de aur',
-  subjectInFocus: 'Subiect în focus',
-  bokehQuality: 'Bokeh',
-  colorHarmony: 'Armonie cromatică'
-};
+const FACTOR_FEATURES = new Set([
+  'sharpness', 'exposureBalance', 'exposureRaw', 'bestSmile', 'allEyesOpen', 'faceCount',
+  'knownFaceRatio', 'strangerPenalty', 'faceScore', 'ruleOfThirds', 'headroom',
+  'groupEyesOpenRatio', 'groupSmileRatio', 'avgEyeContact', 'avgEngagement',
+  'highlightClipping', 'shadowClipping', 'horizonLevel', 'isoPenalty', 'apertureRaw',
+  'shutterSpeedRaw', 'focalLengthRaw', 'compositionScore', 'leadingLines', 'symmetry',
+  'negativeSpace', 'lightHard', 'lightSoft', 'goldenHour', 'subjectInFocus',
+  'bokehQuality', 'colorHarmony'
+]);
+
+function factorLabel(locale: Locale, feature: string): string {
+  return FACTOR_FEATURES.has(feature) ? t(locale, `factor.${feature}`) : feature;
+}
 
 /** Transforma topFactors dintr-o Prediction in etichete afisabile, filtrand contributiile neglijabile. */
-export function explainFactors(topFactors: { feature: string; contribution: number }[]): { label: string; positive: boolean }[] {
+export function explainFactors(
+  topFactors: { feature: string; contribution: number }[],
+  locale: Locale = 'ro'
+): { label: string; positive: boolean }[] {
   return topFactors
-    .filter(f => FACTOR_LABELS[f.feature] && Math.abs(f.contribution) > 0.03)
-    .map(f => ({ label: FACTOR_LABELS[f.feature], positive: f.contribution >= 0 }));
+    .filter(f => FACTOR_FEATURES.has(f.feature) && Math.abs(f.contribution) > 0.03)
+    .map(f => ({ label: factorLabel(locale, f.feature), positive: f.contribution >= 0 }));
 }
 
 // ── Feature extraction ───────────────────────────────────────────────────────
@@ -322,8 +307,25 @@ export class ContextEngine {
 
   // ── Explainability (feeds the "Preferinte AI" panel in UI) ─────────────────
 
+  /**
+   * Feature-urile care au o pereche de note de directie in i18n (chei
+   * `insightsPref.<feature>.pos` / `.neg`) — subset din FACTOR_FEATURES:
+   * faceCount si faceScore nu au o "directie de preferinta" naturala de
+   * exprimat (numarul de fete sau calitatea generica a detectiei nu se
+   * traduc intr-un enunt gen "prefera mai multe fete"), asa ca raman
+   * excluse din summarize() exact ca in versiunea originala.
+   */
+  private static readonly PREF_FEATURES = new Set([
+    'sharpness', 'exposureRaw', 'bestSmile', 'allEyesOpen', 'knownFaceRatio', 'strangerPenalty',
+    'ruleOfThirds', 'headroom', 'groupEyesOpenRatio', 'groupSmileRatio', 'avgEyeContact',
+    'avgEngagement', 'highlightClipping', 'shadowClipping', 'horizonLevel', 'isoPenalty',
+    'apertureRaw', 'shutterSpeedRaw', 'focalLengthRaw', 'compositionScore', 'leadingLines',
+    'symmetry', 'negativeSpace', 'lightHard', 'lightSoft', 'goldenHour', 'subjectInFocus',
+    'bokehQuality', 'colorHarmony'
+  ]);
+
   /** Rezumat lizibil al tuturor contextelor invatate — pentru panoul "Preferinte AI" din UI. */
-  async summarize(): Promise<{
+  async summarize(locale: Locale = 'ro'): Promise<{
     contextKey: string;
     sampleCount: number;
     confidence: Prediction['confidence'];
@@ -339,41 +341,11 @@ export class ContextEngine {
     allWeights: { feature: string; label: string; weight: number }[];
   }[]> {
     await this.init();
-    const labels: Record<string, [string, string]> = {
-      sharpness: ['claritate maximă', 'tolerează blur artistic'],
-      exposureRaw: ['imagini luminoase', 'ton dramatic, subexpus'],
-      bestSmile: ['zâmbete largi', 'expresii serioase'],
-      allEyesOpen: ['ochi deschiși obligatoriu', 'acceptă ochi închiși'],
-      knownFaceRatio: ['prioritate subiecți cunoscuți', 'indiferent la subiecți'],
-      strangerPenalty: ['acceptă străini în cadru', 'evită străinii în cadru'],
-      ruleOfThirds: ['compune după regula treimilor', 'preferă subiecte centrate'],
-      headroom: ['spațiu echilibrat deasupra capului', 'tolerează cadraj strâns/lejer'],
-      groupEyesOpenRatio: ['strict cu ochii închiși la poze de grup', 'tolerează pe cineva cu ochii închiși în grup'],
-      groupSmileRatio: ['prioritate grupuri unde toți zâmbesc', 'indiferent la zâmbetul grupului'],
-      avgEyeContact: ['preferă contact vizual cu camera', 'acceptă priviri în altă parte'],
-      avgEngagement: ['preferă expresii vii, pozitive', 'acceptă expresii neutre/serioase'],
-      highlightClipping: ['evită highlights arse', 'tolerează zone supraexpuse'],
-      shadowClipping: ['evită umbre blocate', 'tolerează zone subexpuse'],
-      horizonLevel: ['preferă orizont perfect drept', 'tolerează orizont ușor înclinat'],
-      isoPenalty: ['preferă ISO scăzut/curat', 'tolerează ISO ridicat/zgomot'],
-      apertureRaw: ['preferă diafragmă închisă (totul clar)', 'preferă diafragmă deschisă (fundal difuz)'],
-      shutterSpeedRaw: ['preferă viteze lente (blur de mișcare)', 'preferă viteze rapide (îngheață mișcarea)'],
-      focalLengthRaw: ['preferă cadre wide (peisaj/context)', 'preferă cadre tele (portret/apropiere)'],
-      compositionScore: ['compoziție îngrijită (linii/simetrie/spațiu)', 'tolerează compoziție mai liberă'],
-      leadingLines: ['preferă linii directoare puternice', 'indiferent la liniile directoare'],
-      symmetry: ['preferă cadre simetrice', 'preferă cadre asimetrice/dinamice'],
-      negativeSpace: ['preferă mult spațiu negativ (minimalist)', 'preferă cadre aglomerate/pline'],
-      lightHard: ['preferă lumină dură, contrastantă', 'evită lumina dură'],
-      lightSoft: ['preferă lumină difuză, blândă', 'evită lumina prea plată'],
-      goldenHour: ['preferă cadre din ora de aur', 'indiferent la ora capturii'],
-      subjectInFocus: ['cere subiectul perfect în focus', 'tolerează subiect ușor neclar'],
-      bokehQuality: ['preferă fundal difuz (bokeh)', 'preferă totul clar, fără bokeh'],
-      colorHarmony: ['preferă palete de culori armonioase', 'indiferent la armonia culorilor']
-    };
+    const prefFeatures = ContextEngine.PREF_FEATURES;
     return Array.from(this.models.values())
       .map(model => {
         const ranked = Object.entries(model.weights)
-          .filter(([k]) => k in labels)
+          .filter(([k]) => prefFeatures.has(k))
           .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
           .slice(0, 4);
         return {
@@ -383,13 +355,15 @@ export class ContextEngine {
             model.sampleCount < COLD_START_SAMPLES ? ('cold' as const)
             : model.sampleCount < TRAINED_SAMPLES ? ('warming' as const)
             : ('trained' as const),
-          notes: model.sampleCount < COLD_START_SAMPLES ? [] : ranked.map(([k, w]) => w >= 0 ? labels[k][0] : labels[k][1]),
+          notes: model.sampleCount < COLD_START_SAMPLES ? [] : ranked.map(([k, w]) =>
+            t(locale, `insightsPref.${k}.${w >= 0 ? 'pos' : 'neg'}`)
+          ),
           topWeights: model.sampleCount < COLD_START_SAMPLES ? [] : ranked.map(([k, w]) => ({
-            feature: k, label: FACTOR_LABELS[k] ?? k, weight: w
+            feature: k, label: factorLabel(locale, k), weight: w
           })),
           allWeights: Object.entries(model.weights)
             .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
-            .map(([k, w]) => ({ feature: k, label: FACTOR_LABELS[k] ?? k, weight: w }))
+            .map(([k, w]) => ({ feature: k, label: factorLabel(locale, k), weight: w }))
         };
       })
       .sort((a, b) => b.sampleCount - a.sampleCount);

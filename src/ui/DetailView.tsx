@@ -126,12 +126,12 @@ function WhyExplanation({ photo }: { photo: PhotoView }) {
         if (!alive || !analysis) return;
         const aiDecision = photo.aiScore >= AI_SELECT_THRESHOLD;
         const userDecision = photo.status === 'selected' ? true : photo.status === 'rejected' ? false : null;
-        setParagraphs(generateExplanation(analysis as AnalysisRecord, aiDecision, userDecision, contextModel ?? null));
-        setSuggestions(generateSuggestions(analysis as AnalysisRecord));
+        setParagraphs(generateExplanation(analysis as AnalysisRecord, aiDecision, userDecision, contextModel ?? null, locale));
+        setSuggestions(generateSuggestions(analysis as AnalysisRecord, locale));
       }
     );
     return () => { alive = false; };
-  }, [photo.id, photo.contextKey, photo.aiScore, photo.status]);
+  }, [photo.id, photo.contextKey, photo.aiScore, photo.status, locale]);
 
   if (paragraphs === null) return <p className="hint">{t(locale, 'detail.why.loading')}</p>;
   return (
@@ -459,7 +459,7 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
                 <div className="factor-row">
                   <span className="factor-row-label mono"><SparkleIcon className="inline-icon" /> {tr('detail.why.factorsShort')}</span>
                   <div className="factor-tags">
-                    {explainFactors(photo.aiFactors).map(f => (
+                    {explainFactors(photo.aiFactors, locale).map(f => (
                       <span key={f.label} className={f.positive ? 'factor-tag pos' : 'factor-tag neg'}>
                         {f.positive ? '+' : '−'} {f.label}
                       </span>

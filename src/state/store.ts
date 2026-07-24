@@ -1264,7 +1264,7 @@ export const useStore = create<AppState>((set, get) => ({
             ...(meta.location ? [t(locale, 'store.xmpKeyword.location', { value: meta.location })] : [])
           ],
           aiScore: p.aiScore,
-          aiFactors: explainFactors(p.aiFactors).map(f => `${f.label} (${f.positive ? '+' : '-'})`),
+          aiFactors: explainFactors(p.aiFactors, locale).map(f => `${f.label} (${f.positive ? '+' : '-'})`),
           groupId: p.groupId,
           client: meta.client,
           event: meta.event,
