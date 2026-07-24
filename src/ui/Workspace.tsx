@@ -5,6 +5,7 @@ import { Tooltip } from './Tooltip';
 import { StarRating } from './StarRating';
 import { EmptyFilterState } from './EmptyFilterState';
 import { ChevronLeft, ChevronRight, XIcon, CheckIcon, InfoIcon, EyeClosedIcon, GridIcon, PlusIcon, MenuIcon, UndoIcon } from './icons';
+import { t } from '../i18n';
 
 /**
  * Spatiu de lucru profesional: lupa (imagine mare, centrata) + filmstrip
@@ -31,6 +32,8 @@ export function Workspace() {
   const setWorkspaceMode = useStore(s => s.setWorkspaceMode);
   const setMenuOpen = useStore(s => s.setMenuOpen);
   const runImport = useStore(s => s.runImport);
+  const locale = useStore(s => s.locale);
+  const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const [src, setSrc] = useState<string | null>(null);
   const [showMetrics, setShowMetrics] = useState(false);
   const filmstripRef = useRef<HTMLDivElement>(null);
@@ -129,22 +132,22 @@ export function Workspace() {
     return (
       <div className="workspace">
         <header className="workspace-head">
-          <span className="mono workspace-hint">Ajusteaza filtrul ca sa vezi poze aici.</span>
+          <span className="mono workspace-hint">{tr('workspace.emptyHint')}</span>
           {undoCount > 0 && (
-            <Tooltip label="Anuleaza ultima decizie" shortcut="Ctrl+Z">
-              <button className="ghost icon-btn" onClick={() => void undo()} aria-label={`Anuleaza ultima decizie (${undoCount} disponibile, Ctrl+Z)`}>
+            <Tooltip label={tr('app.tooltip.undo')} shortcut="Ctrl+Z">
+              <button className="ghost icon-btn" onClick={() => void undo()} aria-label={tr('app.undo.ariaLabel', { count: undoCount })}>
                 <UndoIcon />
                 <span className="undo-count mono">{undoCount}</span>
               </button>
             </Tooltip>
           )}
-          <Tooltip label="Vezi grila" side="left">
-            <button className="ghost icon-btn" onClick={() => setWorkspaceMode(false)} aria-label="Vezi grila de poze">
+          <Tooltip label={tr('workspace.tooltip.grid')} side="left">
+            <button className="ghost icon-btn" onClick={() => setWorkspaceMode(false)} aria-label={tr('workspace.grid.ariaLabel')}>
               <GridIcon />
             </button>
           </Tooltip>
-          <Tooltip label="Meniu" side="left">
-            <button className="ghost icon-btn" onClick={() => setMenuOpen(true)} aria-label="Meniu">
+          <Tooltip label={tr('app.tooltip.menu')} side="left">
+            <button className="ghost icon-btn" onClick={() => setMenuOpen(true)} aria-label={tr('app.menu.ariaLabel')}>
               <MenuIcon />
             </button>
           </Tooltip>
@@ -161,76 +164,76 @@ export function Workspace() {
         <span className="mono">{photo.fileName}</span>
         <span className="mono workspace-hint" role={progress ? 'status' : undefined} aria-live={progress ? 'polite' : undefined}>
           {progress
-            ? (progress.phase === 'analiza' ? `Analiza AI ${progress.done}/${progress.total}…` : 'Se proceseaza…')
-            : '← → navigheaza · P selecteaza · X respinge · I statistici · Esc iesire'}
+            ? (progress.phase === 'analiza' ? tr('workspace.progress.analyzing', { done: progress.done, total: progress.total }) : tr('workspace.progress.processing'))
+            : tr('workspace.defaultHint')}
         </span>
         {progress?.phase === 'analiza' && (
-          <button className="ghost small-btn" onClick={() => cancelImport()}>Anuleaza</button>
+          <button className="ghost small-btn" onClick={() => cancelImport()}>{tr('app.progress.cancel')}</button>
         )}
         {undoCount > 0 && (
-          <Tooltip label="Anuleaza ultima decizie" shortcut="Ctrl+Z">
-            <button className="ghost icon-btn" onClick={() => void undo()} aria-label={`Anuleaza ultima decizie (${undoCount} disponibile, Ctrl+Z)`}>
+          <Tooltip label={tr('app.tooltip.undo')} shortcut="Ctrl+Z">
+            <button className="ghost icon-btn" onClick={() => void undo()} aria-label={tr('app.undo.ariaLabel', { count: undoCount })}>
               <UndoIcon />
               <span className="undo-count mono">{undoCount}</span>
             </button>
           </Tooltip>
         )}
-        <Tooltip label="Adauga poze">
-          <button className="ghost icon-btn" onClick={() => fileRef.current?.click()} aria-label="Adauga poze">
+        <Tooltip label={tr('app.addPhotos')}>
+          <button className="ghost icon-btn" onClick={() => fileRef.current?.click()} aria-label={tr('app.addPhotos')}>
             <PlusIcon />
           </button>
         </Tooltip>
-        <Tooltip label="Statistici pe imagine" shortcut="I">
+        <Tooltip label={tr('workspace.tooltip.metrics')} shortcut="I">
           <button
             className={showMetrics ? 'ghost icon-btn active' : 'ghost icon-btn'}
             onClick={() => setShowMetrics(v => !v)}
-            aria-label={showMetrics ? 'Ascunde statisticile pe imagine' : 'Arata statisticile pe imagine'}
+            aria-label={showMetrics ? tr('workspace.metrics.hide') : tr('workspace.metrics.show')}
             aria-pressed={showMetrics}
           >
             <InfoIcon />
           </button>
         </Tooltip>
-        <Tooltip label="Vezi grila" side="left">
-          <button className="ghost icon-btn" onClick={() => setWorkspaceMode(false)} aria-label="Vezi grila de poze">
+        <Tooltip label={tr('workspace.tooltip.grid')} side="left">
+          <button className="ghost icon-btn" onClick={() => setWorkspaceMode(false)} aria-label={tr('workspace.grid.ariaLabel')}>
             <GridIcon />
           </button>
         </Tooltip>
-        <Tooltip label="Meniu" side="left">
-          <button className="ghost icon-btn" onClick={() => setMenuOpen(true)} aria-label="Meniu">
+        <Tooltip label={tr('app.tooltip.menu')} side="left">
+          <button className="ghost icon-btn" onClick={() => setMenuOpen(true)} aria-label={tr('app.menu.ariaLabel')}>
             <MenuIcon />
           </button>
         </Tooltip>
       </header>
 
       <div className="workspace-loupe">
-        <button className="ghost icon-btn workspace-nav prev" onClick={() => stepDetail(-1)} aria-label="Fotografia anterioara">
+        <button className="ghost icon-btn workspace-nav prev" onClick={() => stepDetail(-1)} aria-label={tr('workspace.nav.prev')}>
           <ChevronLeft />
         </button>
         {src && <img key={detailId} src={src} alt={photo.fileName} />}
         <span className={`status-tag st-${photo.status} workspace-badge`}>
-          {photo.status === 'selected' ? 'SELECTATA' : photo.status === 'rejected' ? 'RESPINSA' : 'DE VERIFICAT'}
+          {photo.status === 'selected' ? tr('workspace.status.selected') : photo.status === 'rejected' ? tr('workspace.status.rejected') : tr('workspace.status.review')}
         </span>
         <div className="workspace-rating glass">
           <StarRating rating={photo.rating} onRate={n => void setRating(photo.id, n)} />
         </div>
         {showMetrics && (
           <div className="workspace-metrics mono">
-            <span>Scor <b>{photo.aiScore}</b></span>
-            <span>Claritate <b>{photo.sharpness}</b></span>
-            <span>Expunere <b>{photo.exposure}</b></span>
-            {photo.faceCount > 0 && <span>Fete <b>{photo.faceCount}</b></span>}
+            <span>{tr('workspace.metric.score')} <b>{photo.aiScore}</b></span>
+            <span>{tr('workspace.metric.sharpness')} <b>{photo.sharpness}</b></span>
+            <span>{tr('workspace.metric.exposure')} <b>{photo.exposure}</b></span>
+            {photo.faceCount > 0 && <span>{tr('workspace.metric.faces')} <b>{photo.faceCount}</b></span>}
             {photo.faceCount > 0 && (
-              <span>Zâmbet <b>{Math.round((photo.faceCount > 1 ? photo.groupSmileRatio ?? photo.bestSmile : photo.bestSmile) * 100)}%</b></span>
+              <span>{tr('workspace.metric.smile')} <b>{Math.round((photo.faceCount > 1 ? photo.groupSmileRatio ?? photo.bestSmile : photo.bestSmile) * 100)}%</b></span>
             )}
             {photo.faceCount > 0 && (
               <span className={(photo.groupEyesOpenRatio ?? (photo.allEyesOpen ? 1 : 0)) < 1 ? 'warn' : undefined}>
                 {photo.allEyesOpen && (photo.groupEyesOpenRatio ?? 1) >= 1 ? null : <EyeClosedIcon className="inline-icon" />}
-                Ochi <b>{Math.round((photo.groupEyesOpenRatio ?? (photo.allEyesOpen ? 1 : 0)) * 100)}%</b>
+                {tr('workspace.metric.eyes')} <b>{Math.round((photo.groupEyesOpenRatio ?? (photo.allEyesOpen ? 1 : 0)) * 100)}%</b>
               </span>
             )}
           </div>
         )}
-        <button className="ghost icon-btn workspace-nav next" onClick={() => stepDetail(1)} aria-label="Fotografia urmatoare">
+        <button className="ghost icon-btn workspace-nav next" onClick={() => stepDetail(1)} aria-label={tr('workspace.nav.next')}>
           <ChevronRight />
         </button>
       </div>
@@ -238,10 +241,10 @@ export function Workspace() {
       <div className="workspace-dock">
         <div className="workspace-actions">
           <button className="reject" onClick={() => { void setStatus(photo.id, 'rejected'); stepDetail(1); }}>
-            <XIcon className="inline-icon" /> Respinge (X)
+            <XIcon className="inline-icon" /> {tr('workspace.action.reject')}
           </button>
           <button className="select" onClick={() => { void setStatus(photo.id, 'selected'); stepDetail(1); }}>
-            <CheckIcon className="inline-icon" /> Selecteaza (P)
+            <CheckIcon className="inline-icon" /> {tr('workspace.action.select')}
           </button>
         </div>
 
