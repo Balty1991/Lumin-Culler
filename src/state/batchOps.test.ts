@@ -7,7 +7,7 @@ function photo(overrides: Partial<PhotoView>): PhotoView {
     id: 'p', fileName: 'p.jpg', status: 'review', rating: 0, aiScore: 50, sceneType: 'detail',
     contextKey: 'detail', faceCount: 0, knownFaceCount: 0, strangerCount: 0, bestSmile: 0,
     allEyesOpen: true, sharpness: 50, exposure: 50, ruleOfThirds: 0.5, headroom: 0.5,
-    aiFactors: [], personNames: [],
+    aiFactors: [], personNames: [], personMatches: [],
     ...overrides
   };
 }

@@ -23,6 +23,7 @@ import { readStoredGenre, writeStoredGenre } from './genre';
 import { readGridDensity, writeGridDensity, type GridDensity } from './gridDensity';
 import { recordUsage, readMonthlyUsage, FREE_TIER_MONTHLY_LIMIT } from './usage';
 import { getProjectMetadata } from './projectMetadata';
+import { buildPersonProfilesExport, personProfilesFileName, parsePersonProfilesFile } from '../core/personProfileTransfer';
 import { readStoredLocale, writeStoredLocale, type Locale } from '../i18n';
 import { buildBackup, backupFileName, parseBackupFile, restoreBackup } from '../core/backupService';
 import { buildClientGalleryHtml } from '../core/export/clientGallery';
@@ -52,6 +53,8 @@ export interface PhotoView {
   focalLength?: number;
   aiFactors: { feature: string; contribution: number }[];
   personNames: string[];
+  /** Persoanele cunoscute recunoscute in ACEASTA poza, cu similaritatea (0..1) cea mai buna dintre fetele care le corespund — "confidence score" (plan 3.2.3). */
+  personMatches: { name: string; similarity: number }[];
   groupId?: string;
   capturedAt?: number;
   /** Genul fotografic activ la import ("Nunta", "Portret", ...) — vezi state/genre.ts si ContextEngine.deriveContextKey. */
@@ -220,6 +223,13 @@ interface AppState {
   stepDetail: (dir: 1 | -1) => void;
   addPerson: (name: string, files: File[]) => Promise<{ ok: boolean; message: string }>;
   removePerson: (id: string) => Promise<void>;
+  /** Sterge mai multe persoane deodata (bulk delete, plan 3.2.3 "Gestionare avansata"). */
+  removePersons: (ids: string[]) => Promise<void>;
+  /** Uneste 2+ persoane intr-un singur profil (ex. aceeasi persoana inrolata de doua ori, sub nume diferite) — pastreaza numele dat, uneste referintele faciale. */
+  mergePersons: (ids: string[], keepName: string) => Promise<void>;
+  /** Exporta profilurile alese (nume + referinte faciale) intr-un JSON — distinct de backup-ul general (exportBackup), care exporta TOT. */
+  exportPersonProfiles: (ids: string[]) => Promise<void>;
+  importPersonProfiles: (file: File) => Promise<void>;
   setPersonsOpen: (open: boolean) => void;
   setMenuOpen: (open: boolean) => void;
   setInsightsOpen: (open: boolean) => void;
@@ -252,6 +262,17 @@ interface AppState {
     fiindca nu are sens sa fie parte din snapshot-ul de stare serializabil. */
 let activeCancelToken: ImportCancelToken | null = null;
 
+/** Cea mai buna similaritate per nume recunoscut — o poza poate avea mai multe fete ale aceleiasi persoane (rar, dar posibil geometric). */
+function bestMatchPerName(faces: AnalysisRecord['faces']): { name: string; similarity: number }[] {
+  const best = new Map<string, number>();
+  for (const f of faces) {
+    if (!f.personName) continue;
+    const current = best.get(f.personName);
+    if (current === undefined || f.similarity > current) best.set(f.personName, f.similarity);
+  }
+  return Array.from(best, ([name, similarity]) => ({ name, similarity }));
+}
+
 function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): PhotoView {
   return {
     id: photo.id,
@@ -280,6 +301,7 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     personNames: analysis
       ? Array.from(new Set(analysis.faces.map(f => f.personName).filter((n): n is string => !!n)))
       : [],
+    personMatches: analysis ? bestMatchPerName(analysis.faces) : [],
     groupId: photo.groupId,
     capturedAt: photo.capturedAt,
     genre: photo.genre,
@@ -892,6 +914,65 @@ export const useStore = create<AppState>((set, get) => ({
     const persons = await db.persons.toArray();
     await analysisPool.setKnownPersons(persons).catch(() => {});
     set({ persons });
+  },
+
+  removePersons: async ids => {
+    if (!ids.length) return;
+    await db.persons.bulkDelete(ids);
+    const persons = await db.persons.toArray();
+    await analysisPool.setKnownPersons(persons).catch(() => {});
+    set({ persons });
+  },
+
+  mergePersons: async (ids, keepName) => {
+    const toMerge = get().persons.filter(p => ids.includes(p.id));
+    if (toMerge.length < 2) return;
+    // pastram cele mai RECENTE MAX_PERSON_EMBEDDINGS referinte din toate profilurile unite
+    // (acelasi plafon ca la reinrolare normala, addPerson) — identitatea (id) supravietuitoare
+    // e a primului profil, ca referintele externe (daca ar exista vreodata) sa nu se piarda
+    const merged = toMerge.flatMap(p => p.embeddings).slice(-MAX_PERSON_EMBEDDINGS);
+    const survivor: KnownPerson = { id: toMerge[0].id, name: keepName.trim() || toMerge[0].name, embeddings: merged, updatedAt: Date.now() };
+    await db.persons.put(survivor);
+    await db.persons.bulkDelete(toMerge.slice(1).map(p => p.id));
+    const persons = await db.persons.toArray();
+    await analysisPool.setKnownPersons(persons).catch(() => {});
+    set({ persons });
+  },
+
+  exportPersonProfiles: async ids => {
+    const selected = get().persons.filter(p => ids.includes(p.id));
+    if (!selected.length) return;
+    const data = buildPersonProfilesExport(selected);
+    const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = personProfilesFileName(selected);
+    a.click();
+    set({ notice: `${selected.length} profil${selected.length > 1 ? 'uri' : ''} exportat${selected.length > 1 ? 'e' : ''}.` });
+  },
+
+  importPersonProfiles: async file => {
+    try {
+      const data = await parsePersonProfilesFile(file);
+      let added = 0, merged = 0;
+      for (const incoming of data.persons) {
+        const existing = get().persons.find(p => p.name.trim().toLowerCase() === incoming.name.trim().toLowerCase());
+        if (existing) {
+          const combined = [...existing.embeddings, ...incoming.embeddings].slice(-MAX_PERSON_EMBEDDINGS);
+          await db.persons.put({ ...existing, embeddings: combined, updatedAt: Date.now() });
+          merged++;
+        } else {
+          await db.persons.put({ id: crypto.randomUUID(), name: incoming.name, embeddings: incoming.embeddings, updatedAt: Date.now() });
+          added++;
+        }
+      }
+      const persons = await db.persons.toArray();
+      await analysisPool.setKnownPersons(persons).catch(() => {});
+      set({ persons, notice: `Import profiluri: ${added} noi, ${merged} completate cu referinte suplimentare.` });
+    } catch (err) {
+      set({ notice: 'Import profiluri esuat: ' + (err instanceof Error ? err.message : String(err)) });
+    }
   },
 
   setPersonsOpen: open => set({ personsOpen: open }),

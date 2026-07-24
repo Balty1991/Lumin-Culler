@@ -7,7 +7,7 @@
  * motorul pentru stilul acestui utilizator).
  */
 import type { PhotoView } from '../state/store';
-import type { CorrectionRecord } from './db';
+import type { CorrectionRecord, AnalysisRecord } from './db';
 
 export interface LibraryStats {
   total: number;
@@ -100,4 +100,34 @@ export function computeProjectStats(photos: PhotoView[], noProjectKey: string): 
   return Array.from(byKey.values()).sort((a, b) =>
     a.key === noProjectKey ? 1 : b.key === noProjectKey ? -1 : b.total - a.total
   );
+}
+
+export interface PersonRecognitionStats {
+  /** de cate ori a fost recunoscuta aceasta persoana (fete individuale, nu poze — o poza cu 2 fete ale aceleiasi persoane numara 2). */
+  matchCount: number;
+  /** similaritate cosinus medie (0..1) a acelor potriviri fata de pragul de recunoastere. */
+  avgSimilarity: number;
+}
+
+/**
+ * "Feedback Vizual: confidence score pentru recunoasterea fiecarei persoane"
+ * (plan 3.2.3, PersonsPanel) — agregat din toate fetele deja analizate din
+ * biblioteca curenta (AnalysisRecord.faces[].personId/similarity), nu doar din
+ * pozele de referinta ale inrolarii. O medie scazuta sau un numar mic de
+ * potriviri sugereaza ca profilul ar beneficia de mai multe poze de referinta.
+ */
+export function computePersonRecognitionStats(analyses: AnalysisRecord[]): Map<string, PersonRecognitionStats> {
+  const sums = new Map<string, { count: number; sum: number }>();
+  for (const a of analyses) {
+    for (const f of a.faces) {
+      if (!f.personId) continue;
+      const s = sums.get(f.personId) ?? { count: 0, sum: 0 };
+      s.count++;
+      s.sum += f.similarity;
+      sums.set(f.personId, s);
+    }
+  }
+  const result = new Map<string, PersonRecognitionStats>();
+  for (const [id, s] of sums) result.set(id, { matchCount: s.count, avgSimilarity: s.sum / s.count });
+  return result;
 }
