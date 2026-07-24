@@ -13,6 +13,16 @@ export interface CullingPreset {
   cullPercent: number;
   /** prag "respinge sub": scorul AI sub care o poza nedecisa e propusa spre respingere. */
   rejectThreshold: number;
+  /**
+   * Sablon de redenumire la export (vezi core/renameTemplate.ts) — o presetare
+   * de tip "Nunta" refoloseste probabil acelasi format de nume la fiecare
+   * eveniment nou. Optional: absent pe presetarile mai vechi (dinainte de
+   * acest camp) sau daca utilizatorul n-a completat niciun sablon la salvare —
+   * la aplicare, absenta inseamna "nu schimba sablonul curent".
+   */
+  renameTemplate?: string;
+  /** Genul fotografic (vezi state/genre.ts) tipic asociat acestei presetari. Optional, acelasi motiv ca renameTemplate. */
+  genre?: string;
   createdAt: number;
 }
 
@@ -42,11 +52,21 @@ export function listCullingPresets(): CullingPreset[] {
 }
 
 /** Salveaza sau suprascrie (dupa nume, insensibil la majuscule) o presetare — cel mai recent salvat cu acelasi nume o inlocuieste. */
-export function saveCullingPreset(name: string, cullPercent: number, rejectThreshold: number): CullingPreset[] {
+export function saveCullingPreset(
+  name: string,
+  cullPercent: number,
+  rejectThreshold: number,
+  extra?: { renameTemplate?: string; genre?: string }
+): CullingPreset[] {
   const trimmed = name.trim().slice(0, 40);
   if (!trimmed) return listCullingPresets();
   const existing = readAll().filter(p => p.name.toLowerCase() !== trimmed.toLowerCase());
-  const preset: CullingPreset = { id: crypto.randomUUID(), name: trimmed, cullPercent, rejectThreshold, createdAt: Date.now() };
+  const preset: CullingPreset = {
+    id: crypto.randomUUID(), name: trimmed, cullPercent, rejectThreshold,
+    renameTemplate: extra?.renameTemplate || undefined,
+    genre: extra?.genre || undefined,
+    createdAt: Date.now()
+  };
   const next = [preset, ...existing].slice(0, MAX_PRESETS);
   writeAll(next);
   return listCullingPresets();

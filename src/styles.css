@@ -1273,6 +1273,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .preset-list { display: flex; flex-direction: column; gap: 4px; margin: 4px 0; }
 .preset-row { display: flex; align-items: center; gap: 6px; }
 .preset-apply { flex: 1; text-align: left; justify-content: flex-start; }
+.preset-extra { display: inline-flex; gap: 4px; margin-left: 6px; }
+.preset-extra-chip {
+  display: inline-flex; align-items: center; padding: 1px 6px; border-radius: 999px;
+  background: var(--surface-3); font-size: 0.65rem;
+}
+.preset-extra-chip .inline-icon { width: 11px; height: 11px; }
 
 /* .stats-tile (NU .stat-tile — acela e deja folosit de DetailView, cu alt layout,
    intentionat compact ca sa incapa fara scroll; o clasa noua evita sa-i suprascriem

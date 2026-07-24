@@ -33,4 +33,20 @@ describe('cullingPresets', () => {
     const [{ id }] = saveCullingPreset('Nunta', 30, 40);
     expect(deleteCullingPreset(id)).toEqual([]);
   });
+
+  it('saves an optional renameTemplate/genre alongside the thresholds (session template)', () => {
+    const after = saveCullingPreset('Nunta', 30, 40, { renameTemplate: '{client}_{eveniment}_{secventa}', genre: 'Nunta' });
+    expect(after[0]).toMatchObject({ renameTemplate: '{client}_{eveniment}_{secventa}', genre: 'Nunta' });
+  });
+
+  it('omits renameTemplate/genre entirely when not provided (backward compatible with older presets)', () => {
+    const after = saveCullingPreset('Nunta', 30, 40);
+    expect(after[0].renameTemplate).toBeUndefined();
+    expect(after[0].genre).toBeUndefined();
+  });
+
+  it('treats an empty-string renameTemplate the same as absent', () => {
+    const after = saveCullingPreset('Nunta', 30, 40, { renameTemplate: '' });
+    expect(after[0].renameTemplate).toBeUndefined();
+  });
 });

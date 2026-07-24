@@ -20,6 +20,8 @@ export function BatchOpsPanel() {
   const autoCullTopPercent = useStore(s => s.autoCullTopPercent);
   const renameTemplate = useStore(s => s.renameTemplate);
   const setRenameTemplate = useStore(s => s.setRenameTemplate);
+  const genre = useStore(s => s.genre);
+  const setGenre = useStore(s => s.setGenre);
   const askConfirm = useStore(s => s.askConfirm);
   const askPrompt = useStore(s => s.askPrompt);
   const locale = useStore(s => s.locale);
@@ -32,17 +34,28 @@ export function BatchOpsPanel() {
   const containerRef = useRef<HTMLDivElement>(null);
   useModalFocusTrap(containerRef, open);
 
+  /**
+   * "Sablon de sesiune" (plan "cat mai pro"): o presetare nu mai e doar
+   * pragurile Auto-Cull/Respinge — retine si sablonul de redenumire la
+   * export si genul fotografic tipic asociat (ex. presetarea "Nunta" aplica
+   * automat si genre="Nunta"), ca un fotograf sa nu reregleze manual 3
+   * setari diferite la fiecare sesiune noua de acelasi tip. Campurile absente
+   * (presetari mai vechi, salvate inainte de acest camp) raman neschimbate
+   * la aplicare, nu resetate la gol.
+   */
   const applyPreset = (id: string) => {
     const preset = presets.find(p => p.id === id);
     if (!preset) return;
     setThreshold(preset.rejectThreshold);
     setCullPercent(preset.cullPercent);
+    if (preset.renameTemplate !== undefined) setRenameTemplate(preset.renameTemplate);
+    if (preset.genre !== undefined) setGenre(preset.genre);
   };
 
   const saveCurrentAsPreset = async () => {
     const name = await askPrompt(tr('batch.presets.namePrompt'));
     if (!name?.trim()) return;
-    setPresets(saveCullingPreset(name, cullPercent, threshold));
+    setPresets(saveCullingPreset(name, cullPercent, threshold, { renameTemplate, genre }));
   };
 
   const removePreset = (id: string) => setPresets(deleteCullingPreset(id));
@@ -104,6 +117,12 @@ export function BatchOpsPanel() {
                 <li key={p.id} className="preset-row">
                   <button className="ghost small preset-apply" onClick={() => applyPreset(p.id)} disabled={busy}>
                     <b>{p.name}</b> <span className="mono hint">{tr('batch.presets.row', { cullPercent: p.cullPercent, threshold: p.rejectThreshold })}</span>
+                    {(p.renameTemplate || p.genre) && (
+                      <span className="mono hint preset-extra">
+                        {p.genre && <span className="preset-extra-chip">{p.genre}</span>}
+                        {p.renameTemplate && <span className="preset-extra-chip"><EditIcon className="inline-icon" /></span>}
+                      </span>
+                    )}
                   </button>
                   <button className="ghost icon-btn small" onClick={() => removePreset(p.id)} aria-label={tr('batch.presets.deleteAriaLabel', { name: p.name })}>
                     <TrashIcon />
