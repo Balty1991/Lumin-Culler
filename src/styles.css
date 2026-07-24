@@ -800,6 +800,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
   background: var(--accent-gradient); color: #06070a; font-weight: 800; font-size: 0.86rem;
   display: flex; align-items: center; justify-content: center;
 }
+.person-confidence { margin-left: auto; color: var(--text-dim); font-size: 0.76rem; font-weight: 600; }
 .detail-history-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .detail-history-list li {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
@@ -1030,6 +1031,13 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 }
 .persons li:hover { border-color: var(--line-strong); }
 .persons em { color: var(--text-dim); font-style: normal; }
+.person-select-row { display: flex; align-items: center; gap: 10px; min-width: 0; cursor: pointer; }
+.person-select-row input[type="checkbox"] { flex-shrink: 0; width: 16px; height: 16px; }
+.persons-bulk-actions {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 0;
+  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+}
+.persons-transfer { display: flex; gap: 8px; flex-wrap: wrap; }
 .enroll { display: grid; gap: 10px; }
 .enroll input[type="text"] {
   background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius);

@@ -1,7 +1,9 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../state/store';
+import { db } from '../core/db';
+import { computePersonRecognitionStats, type PersonRecognitionStats } from '../core/stats';
 import { useModalFocusTrap } from './useModalFocusTrap';
-import { UserCheckIcon, TrashIcon, XIcon } from './icons';
+import { UserCheckIcon, TrashIcon, XIcon, DownloadIcon, UploadIcon, LayersIcon } from './icons';
 
 /** Inrolare persoane cunoscute (ex. Ami, sotia): nume + 1-4 poze de referinta. */
 export function PersonsPanel() {
@@ -10,21 +12,61 @@ export function PersonsPanel() {
   const persons = useStore(s => s.persons);
   const addPerson = useStore(s => s.addPerson);
   const removePerson = useStore(s => s.removePerson);
+  const removePersons = useStore(s => s.removePersons);
+  const mergePersons = useStore(s => s.mergePersons);
+  const exportPersonProfiles = useStore(s => s.exportPersonProfiles);
+  const importPersonProfiles = useStore(s => s.importPersonProfiles);
   const clearAllIncludingPersons = useStore(s => s.clearAllIncludingPersons);
 
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [recognitionStats, setRecognitionStats] = useState<Map<string, PersonRecognitionStats> | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const importRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   useModalFocusTrap(containerRef, open);
 
+  useEffect(() => {
+    if (!open) { setSelected(new Set()); setRecognitionStats(null); return; }
+    let alive = true;
+    void db.analyses.toArray().then(rows => { if (alive) setRecognitionStats(computePersonRecognitionStats(rows)); });
+    return () => { alive = false; };
+  }, [open]);
+
   if (!open) return null;
+
+  const toggleSelected = (id: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   const confirmRemove = (id: string, personName: string) => {
     if (window.confirm(`Ștergi "${personName}" din persoanele cunoscute? Va trebui reînrolat(ă) pentru ca AI-ul să o mai recunoască.`)) {
       void removePerson(id);
     }
+  };
+
+  const confirmBulkDelete = () => {
+    const names = persons.filter(p => selected.has(p.id)).map(p => p.name).join(', ');
+    if (window.confirm(`Ștergi ${selected.size} persoane (${names})? Vor trebui reînrolate pentru ca AI-ul să le mai recunoască.`)) {
+      void removePersons(Array.from(selected)).then(() => setSelected(new Set()));
+    }
+  };
+
+  const runMerge = () => {
+    const chosen = persons.filter(p => selected.has(p.id));
+    if (chosen.length < 2) return;
+    const keepName = window.prompt(
+      `Unești ${chosen.length} profiluri (${chosen.map(p => p.name).join(', ')}) într-unul singur. Ce nume păstrezi?`,
+      chosen[0].name
+    );
+    if (!keepName?.trim()) return;
+    void mergePersons(Array.from(selected), keepName).then(() => setSelected(new Set()));
   };
 
   const confirmClearEverything = () => {
@@ -67,15 +109,49 @@ export function PersonsPanel() {
         )}
 
         <ul className="persons">
-          {persons.map(p => (
-            <li key={p.id}>
-              <span><UserCheckIcon className="inline-icon" /> {p.name} <em className="mono">({p.embeddings.length} referinte)</em></span>
-              <button className="ghost icon-btn" onClick={() => confirmRemove(p.id, p.name)} aria-label={`Sterge ${p.name}`}>
-                <TrashIcon />
-              </button>
-            </li>
-          ))}
+          {persons.map(p => {
+            const stats = recognitionStats?.get(p.id);
+            return (
+              <li key={p.id}>
+                <label className="person-select-row">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(p.id)}
+                    onChange={() => toggleSelected(p.id)}
+                    aria-label={`Selecteaza ${p.name}`}
+                  />
+                  <span>
+                    <UserCheckIcon className="inline-icon" /> {p.name}{' '}
+                    <em className="mono">
+                      ({p.embeddings.length} referinte
+                      {stats ? ` · recunoscuta in ${stats.matchCount} ${stats.matchCount === 1 ? 'fata' : 'fete'}, incredere medie ${Math.round(stats.avgSimilarity * 100)}%` : ''})
+                    </em>
+                  </span>
+                </label>
+                <button className="ghost icon-btn" onClick={() => confirmRemove(p.id, p.name)} aria-label={`Sterge ${p.name}`}>
+                  <TrashIcon />
+                </button>
+              </li>
+            );
+          })}
         </ul>
+
+        {selected.size > 0 && (
+          <div className="persons-bulk-actions">
+            <span className="hint">{selected.size} selectate</span>
+            <button className="ghost small" onClick={() => void exportPersonProfiles(Array.from(selected))}>
+              <DownloadIcon className="inline-icon" /> Exporta selectia
+            </button>
+            {selected.size >= 2 && (
+              <button className="ghost small" onClick={runMerge}>
+                <LayersIcon className="inline-icon" /> Uneste in una
+              </button>
+            )}
+            <button className="ghost small danger" onClick={confirmBulkDelete}>
+              <TrashIcon className="inline-icon" /> Sterge selectia
+            </button>
+          </div>
+        )}
 
         <div className="enroll">
           <input
@@ -95,6 +171,28 @@ export function PersonsPanel() {
           </button>
           {message && <p className="hint">{message}</p>}
         </div>
+
+        {persons.length > 0 && (
+          <div className="persons-transfer">
+            <button className="ghost small" onClick={() => void exportPersonProfiles(persons.map(p => p.id))}>
+              <DownloadIcon className="inline-icon" /> Exporta toate profilurile
+            </button>
+            <button className="ghost small" onClick={() => importRef.current?.click()}>
+              <UploadIcon className="inline-icon" /> Importa profiluri
+            </button>
+            <input
+              ref={importRef}
+              type="file"
+              accept="application/json,.json"
+              style={{ display: 'none' }}
+              onChange={e => {
+                const file = e.target.files?.[0];
+                e.target.value = '';
+                if (file) void importPersonProfiles(file);
+              }}
+            />
+          </div>
+        )}
 
         <div className="danger-zone">
           <p className="hint">

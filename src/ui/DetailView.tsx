@@ -367,12 +367,13 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
           )}
 
           {tab === 'persons' && (
-            photo.personNames.length > 0 ? (
+            photo.personMatches.length > 0 ? (
               <ul className="detail-person-list">
-                {photo.personNames.map(name => (
-                  <li key={name}>
-                    <span className="person-avatar">{name.charAt(0).toUpperCase()}</span>
-                    {name}
+                {photo.personMatches.map(m => (
+                  <li key={m.name}>
+                    <span className="person-avatar">{m.name.charAt(0).toUpperCase()}</span>
+                    {m.name}
+                    <span className="mono person-confidence" title="Similaritate fata de profilul inrolat">{Math.round(m.similarity * 100)}%</span>
                   </li>
                 ))}
               </ul>
