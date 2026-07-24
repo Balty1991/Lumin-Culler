@@ -16,6 +16,7 @@ import { ShortcutsPanel } from './ui/ShortcutsPanel';
 import { EmptyFilterState } from './ui/EmptyFilterState';
 import { ContextMenu } from './ui/ContextMenu';
 import { ConfirmDialog } from './ui/ConfirmDialog';
+import { ContactSheet } from './ui/ContactSheet';
 import { AnimatedNumber } from './ui/AnimatedNumber';
 import { Tooltip } from './ui/Tooltip';
 import { StarRating } from './ui/StarRating';
@@ -472,6 +473,7 @@ export default function App() {
         <InsightsPanel />
         <BatchOpsPanel />
         <StatsPanel />
+        <ContactSheet />
         <ProjectsPanel />
         <ConfirmDialog />
       </>
@@ -774,6 +776,7 @@ export default function App() {
       <InsightsPanel />
       <BatchOpsPanel />
       <StatsPanel />
+      <ContactSheet />
       <ProjectsPanel />
       <MenuDrawer />
       <CommandPalette />

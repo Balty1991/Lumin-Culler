@@ -12,6 +12,7 @@ export const ro = {
   'menu.aiPreferences': 'Preferinte AI',
   'menu.batchOps': 'Operatii in masa',
   'menu.stats': 'Statistici',
+  'menu.contactSheet': 'Contact sheet / print',
   'menu.projects': 'Proiecte',
   'menu.genre': 'Gen fotografic',
   'menu.genre.none': 'Fara gen',
@@ -416,6 +417,15 @@ export const ro = {
   'stats.usage.text': '{count} poze procesate din pragul orientativ de {limit} al nivelului gratuit (plan de monetizare) —',
   'stats.usage.infoOnly': 'doar informativ',
   'stats.usage.textEnd': ', nu blocheaza nicio functionalitate.',
+
+  'contactSheet.title': 'Contact sheet ({count} poze)',
+  'contactSheet.print': 'Printeaza',
+  'contactSheet.hint': 'Arata pozele din filtrul curent (acelasi set ca in grila). Apasa "Printeaza" sau Ctrl/Cmd+P — restul aplicatiei nu apare pe pagina tiparita.',
+  'contactSheet.empty': 'Niciun rezultat pentru filtrul curent.',
+  'contactSheet.status.selected': 'Selectata',
+  'contactSheet.status.rejected': 'Respinsa',
+  'contactSheet.status.review': 'De verificat',
+  'contactSheet.status.pending': 'In asteptare',
 
   'projects.meta.client': 'Client',
   'projects.meta.client.title': 'Client (ex. Ana & Mihai)',

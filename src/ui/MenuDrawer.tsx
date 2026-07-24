@@ -3,7 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useStore } from '../state/store';
 import {
   UserCheckIcon, SparkleIcon, ListIcon, InfoIcon, XIcon, TagIcon, LayersIcon, KeyboardIcon,
-  SunIcon, MoonIcon, BatteryIcon, GridIcon, DownloadIcon, UploadIcon, BarChartIcon, GlobeIcon
+  SunIcon, MoonIcon, BatteryIcon, GridIcon, DownloadIcon, UploadIcon, BarChartIcon, GlobeIcon, PrinterIcon
 } from './icons';
 import { EASE } from './motion';
 import { GENRE_PRESETS } from '../state/genre';
@@ -34,6 +34,7 @@ export function MenuDrawer() {
   const exportBackup = useStore(s => s.exportBackup);
   const importBackupFile = useStore(s => s.importBackupFile);
   const setStatsOpen = useStore(s => s.setStatsOpen);
+  const setContactSheetOpen = useStore(s => s.setContactSheetOpen);
   const setProjectsOpen = useStore(s => s.setProjectsOpen);
   const persons = useStore(s => s.persons);
   const reduceMotion = useReducedMotion();
@@ -82,6 +83,11 @@ export function MenuDrawer() {
         <button className="drawer-item" onClick={() => go(() => setStatsOpen(true))}>
           <span className="drawer-item-icon"><BarChartIcon /></span>
           <span>{tr('menu.stats')}</span>
+        </button>
+
+        <button className="drawer-item" onClick={() => go(() => setContactSheetOpen(true))}>
+          <span className="drawer-item-icon"><PrinterIcon /></span>
+          <span>{tr('menu.contactSheet')}</span>
         </button>
 
         <button className="drawer-item" onClick={() => go(() => setProjectsOpen(true))}>

@@ -15,6 +15,7 @@ export const en: Record<TranslationKey, string> = {
   'menu.aiPreferences': 'AI preferences',
   'menu.batchOps': 'Batch operations',
   'menu.stats': 'Statistics',
+  'menu.contactSheet': 'Contact sheet / print',
   'menu.projects': 'Projects',
   'menu.genre': 'Photography genre',
   'menu.genre.none': 'No genre',
@@ -419,6 +420,15 @@ export const en: Record<TranslationKey, string> = {
   'stats.usage.text': '{count} photos processed out of the free tier\'s indicative threshold of {limit} (monetization plan) —',
   'stats.usage.infoOnly': 'informational only',
   'stats.usage.textEnd': ', it doesn\'t block any functionality.',
+
+  'contactSheet.title': 'Contact sheet ({count} photos)',
+  'contactSheet.print': 'Print',
+  'contactSheet.hint': 'Shows the photos from the current filter (same set as the grid). Press "Print" or Ctrl/Cmd+P — the rest of the app won\'t appear on the printed page.',
+  'contactSheet.empty': 'No results for the current filter.',
+  'contactSheet.status.selected': 'Selected',
+  'contactSheet.status.rejected': 'Rejected',
+  'contactSheet.status.review': 'To review',
+  'contactSheet.status.pending': 'Pending',
 
   'projects.meta.client': 'Client',
   'projects.meta.client.title': 'Client (e.g. Ana & Mike)',
