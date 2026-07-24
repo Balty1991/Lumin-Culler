@@ -52,12 +52,12 @@ export function StatsPanel() {
             : (
               <>
                 <div className="stats-grid mono">
-                  <div className="stat-tile"><b>{stats.total}</b><span>total</span></div>
-                  <div className="stat-tile pos"><b>{stats.selected}</b><span>selectate ({pct(stats.selected)}%)</span></div>
-                  <div className="stat-tile neg"><b>{stats.rejected}</b><span>respinse ({pct(stats.rejected)}%)</span></div>
-                  <div className="stat-tile"><b>{stats.review}</b><span>de verificat ({pct(stats.review)}%)</span></div>
-                  <div className="stat-tile"><b>{stats.seriesCount}</b><span>serii/duplicate</span></div>
-                  <div className="stat-tile"><b>{stats.avgAiScore}</b><span>scor AI mediu</span></div>
+                  <div className="stats-tile"><b>{stats.total}</b><span>total</span></div>
+                  <div className="stats-tile pos"><b>{stats.selected}</b><span>selectate ({pct(stats.selected)}%)</span></div>
+                  <div className="stats-tile neg"><b>{stats.rejected}</b><span>respinse ({pct(stats.rejected)}%)</span></div>
+                  <div className="stats-tile"><b>{stats.review}</b><span>de verificat ({pct(stats.review)}%)</span></div>
+                  <div className="stats-tile"><b>{stats.seriesCount}</b><span>serii/duplicate</span></div>
+                  <div className="stats-tile"><b>{stats.avgAiScore}</b><span>scor AI mediu</span></div>
                 </div>
               </>
             )}
@@ -68,7 +68,7 @@ export function StatsPanel() {
             <h3>Distributia rating-urilor</h3>
             <div className="stats-grid mono">
               {[1, 2, 3, 4, 5].map(star => (
-                <div key={star} className="stat-tile"><b>{stats.ratingCounts[star]}</b><span>{'★'.repeat(star)}</span></div>
+                <div key={star} className="stats-tile"><b>{stats.ratingCounts[star]}</b><span>{'★'.repeat(star)}</span></div>
               ))}
             </div>
           </div>

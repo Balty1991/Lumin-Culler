@@ -1043,15 +1043,18 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .preset-row { display: flex; align-items: center; gap: 6px; }
 .preset-apply { flex: 1; text-align: left; justify-content: flex-start; }
 
+/* .stats-tile (NU .stat-tile — acela e deja folosit de DetailView, cu alt layout,
+   intentionat compact ca sa incapa fara scroll; o clasa noua evita sa-i suprascriem
+   padding-ul/border-radius-ul). */
 .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
-.stat-tile {
+.stats-tile {
   display: flex; flex-direction: column; gap: 2px; padding: 10px; border-radius: var(--radius);
   background: var(--surface-2); border: 1px solid var(--line); text-align: center;
 }
-.stat-tile b { font-size: 1.2rem; font-family: var(--font-display); }
-.stat-tile span { font-size: 0.68rem; color: var(--text-dim); }
-.stat-tile.pos b { color: var(--pick); }
-.stat-tile.neg b { color: var(--reject); }
+.stats-tile b { font-size: 1.2rem; font-family: var(--font-display); }
+.stats-tile span { font-size: 0.68rem; color: var(--text-dim); }
+.stats-tile.pos b { color: var(--pick); }
+.stats-tile.neg b { color: var(--reject); }
 
 /* ── Meniu lateral ── */
 /* animatia de intrare/iesire e controlata de framer-motion (MenuDrawer.tsx) —
