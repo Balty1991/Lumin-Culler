@@ -65,6 +65,7 @@ function ProjectNameField() {
         className="project-name-input mono"
         value={draft}
         placeholder={t(locale, 'app.projectName.placeholder')}
+        aria-label={t(locale, 'app.projectName.placeholder')}
         maxLength={60}
         onChange={e => setDraft(e.target.value)}
         onBlur={commit}

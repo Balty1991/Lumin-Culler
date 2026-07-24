@@ -33,14 +33,17 @@ function ProjectMetaEditor({ project }: { project: string }) {
     <div className="project-meta-form">
       <input
         className="mono" placeholder={tr('projects.meta.client')} title={tr('projects.meta.client.title')}
+        aria-label={tr('projects.meta.client.title')}
         value={meta.client ?? ''} onChange={e => setMeta(m => ({ ...m, client: e.target.value }))}
       />
       <input
         className="mono" placeholder={tr('projects.meta.event')} title={tr('projects.meta.event.title')}
+        aria-label={tr('projects.meta.event.title')}
         value={meta.event ?? ''} onChange={e => setMeta(m => ({ ...m, event: e.target.value }))}
       />
       <input
         className="mono" placeholder={tr('projects.meta.location')} title={tr('projects.meta.location.title')}
+        aria-label={tr('projects.meta.location.title')}
         value={meta.location ?? ''} onChange={e => setMeta(m => ({ ...m, location: e.target.value }))}
       />
       <button className="ghost small" onClick={save}>{saved ? tr('projects.meta.saved') : tr('projects.meta.save')}</button>

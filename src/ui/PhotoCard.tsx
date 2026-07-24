@@ -1,7 +1,7 @@
 import { useEffect, useState, memo } from 'react';
 import { db } from '../core/db';
 import { useStore, type PhotoView } from '../state/store';
-import { StarIcon, UserQuestionIcon, UserCheckIcon, EyeClosedIcon, LayersIcon, CheckIcon, SunIcon } from './icons';
+import { StarIcon, UserQuestionIcon, UserCheckIcon, EyeClosedIcon, LayersIcon, CheckIcon, SunIcon, ClockIcon } from './icons';
 
 /** Aceleasi praguri ca SELECT_THRESHOLD/REJECT_THRESHOLD (importPipeline.ts) — culoarea inelului de scor. */
 function scoreColorVar(score: number): string {
@@ -81,6 +81,9 @@ function PhotoCardInner({ photo, index, onOpen, multiSelected, onCardPointerDown
       {multiSelected && <span className="multi-select-badge" aria-hidden="true"><CheckIcon /></span>}
       {!multiSelected && photo.status === 'selected' && (
         <span className="check-badge" aria-hidden="true"><CheckIcon /></span>
+      )}
+      {!multiSelected && photo.status === 'review' && (
+        <span className="review-badge" aria-hidden="true"><ClockIcon /></span>
       )}
       {src ? <img src={src} alt="" aria-hidden="true" loading="lazy" /> : <span className="card-loading" aria-hidden="true" />}
       <span className="card-strip" aria-hidden="true">

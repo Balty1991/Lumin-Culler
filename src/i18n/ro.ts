@@ -306,6 +306,7 @@ export const ro = {
   'persons.clusterAppearance': 'Apare in {count} poze (ex. {fileName})',
   'persons.enrollCluster': 'Inroleaza',
   'persons.namePlaceholder': 'Nume (ex. Ami)',
+  'persons.filesAriaLabel': 'Poze de referinta',
   'persons.reenrollHint': 'Un nume deja folosit adauga referinte noi la profilul existent (nu creeaza un duplicat) — util pentru reinrolare periodica, ex. un copil ale carui trasaturi se schimba.',
   'persons.enroll': 'Inroleaza persoana',
   'persons.exportAll': 'Exporta toate profilurile',
