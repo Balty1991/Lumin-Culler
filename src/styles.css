@@ -479,6 +479,14 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease), border-color 0.2s var(--ease);
   animation: cardIn 0.45s var(--ease) both;
 }
+/* swipe pe miniatura (mobil) — transform/opacity manipulate direct din JS in
+   timpul gestului (fara re-render React), transitia CSS normala e dezactivata
+   cat timp degetul se misca (ar intarzia dupa deget), dar ramane activa la
+   eliberare (clasa dispare) pentru un "spring back"/reset lin */
+.card.swiping { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  .card { transition: none; animation: none; }
+}
 @keyframes cardIn { from { opacity: 0; transform: translateY(10px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
 /* intrare in cascada pentru primele carduri — restul apar fara intarziere ca sa nu para lent la 1000+ poze */
 .grid .card:nth-child(n+1) { animation-delay: 0ms; }
