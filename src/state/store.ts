@@ -51,6 +51,20 @@ export interface PhotoView {
   fNumber?: number;
   exposureTime?: number;
   focalLength?: number;
+  /** "Panou de informatii extins" (plan 3.2.2) — metadate EXIF de camera/obiectiv/locatie. */
+  cameraMake?: string;
+  cameraModel?: string;
+  lensModel?: string;
+  exifSoftware?: string;
+  exifArtist?: string;
+  exifCopyright?: string;
+  exposureBias?: number;
+  meteringMode?: string;
+  flashFired?: boolean;
+  whiteBalance?: 'auto' | 'manual';
+  focalLength35mm?: number;
+  gpsLatitude?: number;
+  gpsLongitude?: number;
   aiFactors: { feature: string; contribution: number }[];
   personNames: string[];
   /** Persoanele cunoscute recunoscute in ACEASTA poza, cu similaritatea (0..1) cea mai buna dintre fetele care le corespund — "confidence score" (plan 3.2.3). */
@@ -305,6 +319,19 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     fNumber: analysis?.fNumber,
     exposureTime: analysis?.exposureTime,
     focalLength: analysis?.focalLength,
+    cameraMake: analysis?.cameraMake,
+    cameraModel: analysis?.cameraModel,
+    lensModel: analysis?.lensModel,
+    exifSoftware: analysis?.exifSoftware,
+    exifArtist: analysis?.exifArtist,
+    exifCopyright: analysis?.exifCopyright,
+    exposureBias: analysis?.exposureBias,
+    meteringMode: analysis?.meteringMode,
+    flashFired: analysis?.flashFired,
+    whiteBalance: analysis?.whiteBalance,
+    focalLength35mm: analysis?.focalLength35mm,
+    gpsLatitude: analysis?.gpsLatitude,
+    gpsLongitude: analysis?.gpsLongitude,
     aiFactors: analysis?.aiFactors ?? [],
     personNames: analysis
       ? Array.from(new Set(analysis.faces.map(f => f.personName).filter((n): n is string => !!n)))

@@ -151,6 +151,24 @@ export interface AnalysisRecord {
   fNumber?: number;        // f/X (diafragma)
   exposureTime?: number;   // secunde (1/250 -> 0.004)
   focalLength?: number;    // mm
+  /**
+   * "Panou de informatii extins" (plan 3.2.2) — restul metadatelor EXIF utile
+   * pentru camera/obiectiv/locatie, dincolo de campurile de mai sus (folosite
+   * direct pentru scorare). Vezi core/exifParser.ts pentru ce anume citesc.
+   */
+  cameraMake?: string;
+  cameraModel?: string;
+  lensModel?: string;
+  exifSoftware?: string;
+  exifArtist?: string;
+  exifCopyright?: string;
+  exposureBias?: number;
+  meteringMode?: string;
+  flashFired?: boolean;
+  whiteBalance?: 'auto' | 'manual';
+  focalLength35mm?: number;
+  gpsLatitude?: number;
+  gpsLongitude?: number;
 
   // ── Analiza estetica avansata ──────────────────────────────────────────
   // Toate calculate geometric/statistic direct din pixeli (Sobel, histograme

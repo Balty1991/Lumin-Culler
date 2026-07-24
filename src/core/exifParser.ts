@@ -16,21 +16,58 @@ export interface ExifData {
   focalLength?: number;  // mm
   /** Data/ora REALA a capturii (DateTimeOriginal), epoch ms — nu data importului/copierii fisierului. */
   capturedAt?: number;
+
+  // ── "Panou de informatii extins" (plan 3.2.2) — info camera/obiectiv/GPS,
+  // dincolo de campurile deja folosite pentru scorare mai sus. Toate optionale:
+  // multe aparate/telefoane nu scriu toate aceste tag-uri.
+  make?: string;           // producator aparat (ex. "Canon")
+  model?: string;          // model aparat (ex. "EOS R6")
+  lensModel?: string;
+  software?: string;       // aplicatia/firmware-ul care a procesat ultima data fisierul
+  artist?: string;
+  copyright?: string;
+  exposureBias?: number;   // in stops (EV), 0 = fara compensare
+  meteringMode?: string;
+  flashFired?: boolean;
+  whiteBalance?: 'auto' | 'manual';
+  focalLength35mm?: number; // echivalent 35mm (util pt. senzori APS-C/MFT, unde focalLength brut e inselator)
+  gpsLatitude?: number;    // grade zecimale, negativ = emisfera sudica
+  gpsLongitude?: number;   // grade zecimale, negativ = vest
 }
 
 const TAG_EXIF_IFD_POINTER = 0x8769;
+const TAG_GPS_IFD_POINTER = 0x8825;
 const TAG_ISO = 0x8827;
 const TAG_FNUMBER = 0x829d;
 const TAG_EXPOSURE_TIME = 0x829a;
 const TAG_FOCAL_LENGTH = 0x920a;
 const TAG_DATE_TIME_ORIGINAL = 0x9003;
 const TAG_DATE_TIME = 0x0132; // fallback, in IFD0 (data ultimei modificari, nu a capturii — folosit doar daca DateTimeOriginal lipseste)
+const TAG_MAKE = 0x010f;
+const TAG_MODEL = 0x0110;
+const TAG_SOFTWARE = 0x0131;
+const TAG_ARTIST = 0x013b;
+const TAG_COPYRIGHT = 0x8298;
+const TAG_LENS_MODEL = 0xa434;
+const TAG_EXPOSURE_BIAS = 0x9204;
+const TAG_METERING_MODE = 0x9207;
+const TAG_FLASH = 0x9209;
+const TAG_WHITE_BALANCE = 0xa403;
+const TAG_FOCAL_LENGTH_35MM = 0xa405;
+const TAG_GPS_LAT_REF = 0x0001;
+const TAG_GPS_LAT = 0x0002;
+const TAG_GPS_LON_REF = 0x0003;
+const TAG_GPS_LON = 0x0004;
 
 const TYPE_SHORT = 3;
 const TYPE_LONG = 4;
 const TYPE_ASCII = 2;
 const TYPE_RATIONAL = 5;
 const TYPE_SRATIONAL = 10;
+
+const METERING_MODES: Record<number, string> = {
+  1: 'Medie', 2: 'Centrata', 3: 'Spot', 4: 'Multi-spot', 5: 'Matriceala/Evaluativa', 6: 'Partiala'
+};
 
 interface IfdEntry {
   type: number;
@@ -100,6 +137,28 @@ function readRational(view: DataView, tiffStart: number, entry: IfdEntry, little
   return numerator / denominator;
 }
 
+/** N RATIONAL-uri (8 octeti fiecare) consecutive, incepand la un offset ABSOLUT (nu relativ la intrarea IFD) — folosit pentru coordonatele GPS (grade/minute/secunde, count=3). */
+function readRationalArrayAt(view: DataView, dataOffset: number, littleEndian: boolean, n: number): number[] {
+  const out: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const off = dataOffset + i * 8;
+    if (off + 8 > view.byteLength) break;
+    const num = view.getUint32(off, littleEndian);
+    const den = view.getUint32(off + 4, littleEndian);
+    out.push(den ? num / den : 0);
+  }
+  return out;
+}
+
+/** GPSLatitude/GPSLongitude: 3 RATIONAL-uri (grade, minute, secunde) -> grade zecimale. */
+function readGpsCoordinate(view: DataView, tiffStart: number, entry: IfdEntry, littleEndian: boolean): number | undefined {
+  if (entry.type !== TYPE_RATIONAL || entry.count !== 3) return undefined;
+  const dataOffset = tiffStart + view.getUint32(entry.valueFieldOffset, littleEndian);
+  const [deg, min, sec] = readRationalArrayAt(view, dataOffset, littleEndian, 3);
+  if (deg === undefined) return undefined;
+  return deg + (min ?? 0) / 60 + (sec ?? 0) / 3600;
+}
+
 function parseTiff(view: DataView, tiffStart: number): ExifData {
   if (tiffStart + 8 > view.byteLength) return {};
   const byteOrderMark = view.getUint16(tiffStart);
@@ -118,6 +177,37 @@ function parseTiff(view: DataView, tiffStart: number): ExifData {
   if (dateTimeEntry) {
     const raw = readAscii(view, tiffStart, dateTimeEntry, littleEndian);
     if (raw) result.capturedAt = parseExifDateTime(raw);
+  }
+
+  const makeEntry = ifd0.get(TAG_MAKE);
+  if (makeEntry) result.make = readAscii(view, tiffStart, makeEntry, littleEndian)?.trim();
+  const modelEntry = ifd0.get(TAG_MODEL);
+  if (modelEntry) result.model = readAscii(view, tiffStart, modelEntry, littleEndian)?.trim();
+  const softwareEntry = ifd0.get(TAG_SOFTWARE);
+  if (softwareEntry) result.software = readAscii(view, tiffStart, softwareEntry, littleEndian)?.trim();
+  const artistEntry = ifd0.get(TAG_ARTIST);
+  if (artistEntry) result.artist = readAscii(view, tiffStart, artistEntry, littleEndian)?.trim();
+  const copyrightEntry = ifd0.get(TAG_COPYRIGHT);
+  if (copyrightEntry) result.copyright = readAscii(view, tiffStart, copyrightEntry, littleEndian)?.trim();
+
+  const gpsPointerEntry = ifd0.get(TAG_GPS_IFD_POINTER);
+  if (gpsPointerEntry) {
+    const gpsIfdOffset = readInlineInt(view, gpsPointerEntry, littleEndian);
+    if (gpsIfdOffset !== undefined) {
+      const gpsIfd = readIFD(view, tiffStart, gpsIfdOffset, littleEndian);
+      const latEntry = gpsIfd.get(TAG_GPS_LAT);
+      const lonEntry = gpsIfd.get(TAG_GPS_LON);
+      let lat = latEntry ? readGpsCoordinate(view, tiffStart, latEntry, littleEndian) : undefined;
+      let lon = lonEntry ? readGpsCoordinate(view, tiffStart, lonEntry, littleEndian) : undefined;
+      const latRefEntry = gpsIfd.get(TAG_GPS_LAT_REF);
+      const lonRefEntry = gpsIfd.get(TAG_GPS_LON_REF);
+      const latRef = latRefEntry ? readAscii(view, tiffStart, latRefEntry, littleEndian) : undefined;
+      const lonRef = lonRefEntry ? readAscii(view, tiffStart, lonRefEntry, littleEndian) : undefined;
+      if (lat !== undefined && latRef === 'S') lat = -lat;
+      if (lon !== undefined && lonRef === 'W') lon = -lon;
+      result.gpsLatitude = lat;
+      result.gpsLongitude = lon;
+    }
   }
 
   const exifPointer = ifd0.get(TAG_EXIF_IFD_POINTER);
@@ -145,6 +235,33 @@ function parseTiff(view: DataView, tiffStart: number): ExifData {
 
   const focalEntry = exifIfd.get(TAG_FOCAL_LENGTH);
   if (focalEntry) result.focalLength = readRational(view, tiffStart, focalEntry, littleEndian);
+
+  const lensModelEntry = exifIfd.get(TAG_LENS_MODEL);
+  if (lensModelEntry) result.lensModel = readAscii(view, tiffStart, lensModelEntry, littleEndian)?.trim();
+
+  const exposureBiasEntry = exifIfd.get(TAG_EXPOSURE_BIAS);
+  if (exposureBiasEntry) result.exposureBias = readRational(view, tiffStart, exposureBiasEntry, littleEndian);
+
+  const meteringEntry = exifIfd.get(TAG_METERING_MODE);
+  if (meteringEntry) {
+    const code = readInlineInt(view, meteringEntry, littleEndian);
+    if (code !== undefined) result.meteringMode = METERING_MODES[code];
+  }
+
+  const flashEntry = exifIfd.get(TAG_FLASH);
+  if (flashEntry) {
+    const code = readInlineInt(view, flashEntry, littleEndian);
+    if (code !== undefined) result.flashFired = (code & 0x1) !== 0;
+  }
+
+  const whiteBalanceEntry = exifIfd.get(TAG_WHITE_BALANCE);
+  if (whiteBalanceEntry) {
+    const code = readInlineInt(view, whiteBalanceEntry, littleEndian);
+    if (code !== undefined) result.whiteBalance = code === 0 ? 'auto' : 'manual';
+  }
+
+  const focal35Entry = exifIfd.get(TAG_FOCAL_LENGTH_35MM);
+  if (focal35Entry) result.focalLength35mm = readInlineInt(view, focal35Entry, littleEndian);
 
   return result;
 }
