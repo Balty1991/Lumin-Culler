@@ -133,7 +133,7 @@ function WhyExplanation({ photo }: { photo: PhotoView }) {
     return () => { alive = false; };
   }, [photo.id, photo.contextKey, photo.aiScore, photo.status, locale]);
 
-  if (paragraphs === null) return <p className="hint">{t(locale, 'detail.why.loading')}</p>;
+  if (paragraphs === null) return <p className="hint"><SparkleIcon className="inline-icon spin" /> {t(locale, 'detail.why.loading')}</p>;
   return (
     <div className="why-explanation">
       {paragraphs.map((p, i) => <p key={i}>{p}</p>)}

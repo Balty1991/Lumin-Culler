@@ -149,7 +149,7 @@ export function StatsPanel() {
         <div className="batch-section">
           <h3>{tr('stats.agreement.title')}</h3>
           {agreement === null
-            ? <p className="hint">{tr('insights.loading')}</p>
+            ? <p className="hint"><SparkleIcon className="inline-icon spin" /> {tr('insights.loading')}</p>
             : agreement.total === 0
               ? <p className="hint">{tr('stats.agreement.none')}</p>
               : (

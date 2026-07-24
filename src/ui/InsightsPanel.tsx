@@ -86,7 +86,7 @@ export function InsightsPanel() {
           </button>
         </header>
 
-        {summary === null && <p className="hint">{tr('insights.loading')}</p>}
+        {summary === null && <p className="hint"><SparkleIcon className="inline-icon spin" /> {tr('insights.loading')}</p>}
 
         {summary && summary.length === 0 && (
           <p className="hint">{tr('insights.empty')}</p>

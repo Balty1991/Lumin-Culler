@@ -221,7 +221,7 @@ export function PersonsPanel() {
               <SparkleIcon className="inline-icon" /> {tr('persons.aiSuggestions')}
             </span>
             <button className="ghost small" onClick={() => void scanForClusters()} disabled={scanningClusters}>
-              {scanningClusters ? tr('persons.scanning') : tr('persons.scanForClusters')}
+              {scanningClusters ? <><SparkleIcon className="inline-icon spin" /> {tr('persons.scanning')}</> : tr('persons.scanForClusters')}
             </button>
           </div>
           {clusters !== null && clusters.length === 0 && (
@@ -256,9 +256,9 @@ export function PersonsPanel() {
             {tr('persons.reenrollHint')}
           </p>
           <button className="select" onClick={() => void submit()} disabled={busy}>
-            {busy ? tr('workspace.progress.processing') : tr('persons.enroll')}
+            {busy ? <><SparkleIcon className="inline-icon spin" /> {tr('workspace.progress.processing')}</> : tr('persons.enroll')}
           </button>
-          {message && <p className="hint">{message}</p>}
+          {message && <p className="hint">{busy && <SparkleIcon className="inline-icon spin" />} {message}</p>}
         </div>
 
         {persons.length > 0 && (
