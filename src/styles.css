@@ -699,6 +699,29 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .color-label-filter-option.active { background: rgb(var(--accent-rgb) / 0.16); color: var(--accent); }
 .color-label-filter-clear { color: var(--text-dim); font-weight: 500; border-top: 1px solid var(--line); margin-top: 2px; padding-top: 8px; }
 
+/* filtru dupa eticheta de scena/obiect (SceneTagFilter.tsx) — aceeasi structura
+   ca filtrul de eticheta de culoare de mai sus (buton compact + meniu portal),
+   dar lista de optiuni e dinamica (derivata din pozele curente), nu un enum fix. */
+.scene-tag-filter { flex-shrink: 0; }
+.scene-tag-filter-trigger { display: inline-flex; align-items: center; text-transform: capitalize; }
+.scene-tag-filter-menu {
+  position: fixed; z-index: 40;
+  display: flex; flex-direction: column; gap: 2px; min-width: 170px; max-width: 240px;
+  max-height: 60vh; overflow-y: auto;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px;
+  padding: 6px; box-shadow: 0 12px 32px -8px rgba(0,0,0,0.5);
+}
+.scene-tag-filter-option {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border-radius: 8px;
+  background: transparent; color: var(--text); font-family: var(--sans); text-transform: capitalize;
+  font-size: 0.85rem; font-weight: 600; text-align: left; white-space: nowrap;
+}
+.scene-tag-filter-option:hover { background: var(--surface-3); }
+.scene-tag-filter-option.active { background: rgb(var(--accent-rgb) / 0.16); color: var(--accent); }
+.scene-tag-filter-count { text-transform: none; font-weight: 700; font-size: 0.7em; color: var(--text-faint); background: var(--surface-3); border-radius: 999px; padding: 1px 7px; }
+.scene-tag-filter-option.active .scene-tag-filter-count { background: rgb(var(--accent-rgb) / 0.18); color: var(--accent); }
+.scene-tag-filter-clear { color: var(--text-dim); font-weight: 500; text-transform: none; border-top: 1px solid var(--line); margin-top: 2px; padding-top: 8px; justify-content: center; }
+
 /* dunga verticala pe latura stanga a cardului din grid — indica eticheta de
    culoare fara sa concureze vizual cu badge-urile de status/ora de aur din
    colturi. Foloseste ::after (NU ::before, deja folosit de .card pentru bara

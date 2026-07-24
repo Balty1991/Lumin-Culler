@@ -27,6 +27,7 @@ import { CARD_MIN_WIDTH } from './state/gridDensity';
 import { SORT_KEY_LABELS, type SortKey } from './state/gridSort';
 import { pickImportFiles } from './core/filePicker';
 import { ColorLabelFilter } from './ui/ColorLabelFilter';
+import { SceneTagFilter } from './ui/SceneTagFilter';
 import { t } from './i18n';
 
 const NOTICE_AUTODISMISS_MS = 7000;
@@ -594,6 +595,7 @@ export default function App() {
               </select>
             )}
             <ColorLabelFilter value={colorLabelFilter} onChange={setColorLabelFilter} />
+            <SceneTagFilter />
             {multiSelectIds.size === 0 && (
               <button
                 className={selectMode ? 'chip active select-mode-toggle' : 'chip select-mode-toggle'}
