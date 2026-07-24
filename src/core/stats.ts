@@ -59,6 +59,39 @@ export function computeAgreementStats(corrections: CorrectionRecord[]): Agreemen
   return { total: corrections.length, agreementRate: agreed / corrections.length };
 }
 
+export interface AgreementTrendPoint {
+  /** indexul bucket-ului (0 = cel mai vechi) — NU o data calendaristica reala, vezi comentariul functiei. */
+  index: number;
+  count: number;
+  agreementRate: number;
+}
+
+/**
+ * Evolutia ratei de acord AI/utilizator, in `bucketCount` bucket-uri EGALE CA
+ * NUMAR de corectii (nu ca interval de timp calendaristic) — la fel de util
+ * daca utilizatorul a facut toate corectiile intr-o singura sesiune de 10
+ * minute sau raspandite pe luni; bucketing pe saptamani calendaristice ar
+ * produce bucket-uri goale in primul caz (foarte comun: majoritatea
+ * utilizatorilor cataloghează un eveniment intr-o singura sedinta).
+ * Necesita minim 2x `bucketCount` corectii ca sa produca un trend cu sens
+ * (sub acest prag, un grafic de "evolutie" ar fi doar zgomot pe date insuficiente
+ * — returneaza array gol, iar UI-ul cade pe rata agregata unica din
+ * computeAgreementStats).
+ */
+export function computeAgreementTrend(corrections: CorrectionRecord[], bucketCount = 6): AgreementTrendPoint[] {
+  if (corrections.length < bucketCount * 2) return [];
+  const sorted = [...corrections].sort((a, b) => a.ts - b.ts);
+  const bucketSize = Math.ceil(sorted.length / bucketCount);
+  const points: AgreementTrendPoint[] = [];
+  for (let i = 0; i < bucketCount; i++) {
+    const chunk = sorted.slice(i * bucketSize, (i + 1) * bucketSize);
+    if (!chunk.length) break;
+    const agreed = chunk.filter(c => c.aiDecision === c.userDecision).length;
+    points.push({ index: i, count: chunk.length, agreementRate: agreed / chunk.length });
+  }
+  return points;
+}
+
 export interface ProjectStats {
   /** cheia de grupare — numele proiectului, sau `noProjectKey` pentru pozele fara proiect ales. */
   key: string;

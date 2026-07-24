@@ -411,6 +411,7 @@ export const en: Record<TranslationKey, string> = {
   'stats.agreement.title': 'AI / manual decision agreement',
   'stats.agreement.none': 'No manual decisions (Select/Reject) recorded yet.',
   'stats.agreement.text': 'Out of {total} manual decisions, {rate}% agreed with the AI\'s recommendation at the time — the rest trained the engine to adjust to your preferences.',
+  'stats.agreement.trend.label': 'Evolution (start -> now)',
   'stats.lastImport.title': 'Last import',
   'stats.lastImport.text': '{count} photos in {duration} ({rate} photos/second).',
   'stats.usage.title': 'This month\'s usage',

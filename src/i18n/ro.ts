@@ -408,6 +408,7 @@ export const ro = {
   'stats.agreement.title': 'Acord AI / decizii manuale',
   'stats.agreement.none': 'Inca nicio decizie manuala (Selecteaza/Respinge) inregistrata.',
   'stats.agreement.text': 'Din {total} decizii manuale, {rate}% au fost de acord cu recomandarea AI de la momentul respectiv — restul au antrenat motorul sa se ajusteze la preferintele tale.',
+  'stats.agreement.trend.label': 'Evolutie (inceput -> acum)',
   'stats.lastImport.title': 'Ultimul import',
   'stats.lastImport.text': '{count} poze in {duration} ({rate} poze/secunda).',
   'stats.usage.title': 'Utilizare luna aceasta',

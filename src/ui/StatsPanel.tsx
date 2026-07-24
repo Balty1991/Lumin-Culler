@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { db } from '../core/db';
-import { computeLibraryStats, computeAgreementStats, type AgreementStats, type LibraryStats } from '../core/stats';
+import { computeLibraryStats, computeAgreementStats, computeAgreementTrend, type AgreementStats, type AgreementTrendPoint, type LibraryStats } from '../core/stats';
 import { FREE_TIER_MONTHLY_LIMIT } from '../state/usage';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { XIcon, SparkleIcon } from './icons';
@@ -87,6 +87,47 @@ function RatingsBarChart({ counts }: { counts: LibraryStats['ratingCounts'] }) {
   );
 }
 
+const TREND_W = 240;
+const TREND_H = 56;
+const TREND_PAD = 6;
+
+/**
+ * Evolutia ratei de acord AI/utilizator (plan "cat mai pro" — trend, nu doar
+ * un numar static). Bucket-urile sunt EGALE CA NUMAR de corectii (vezi
+ * computeAgreementTrend), deci axa X e "inceput -> acum" al secventei de
+ * decizii, NU o axa calendaristica reala — etichetata explicit ca atare, ca
+ * utilizatorul sa nu citeasca gresit distanta orizontala drept timp scurs.
+ * Linie unica (fara paleta de status: rata de acord nu e pozitiv/negativ per
+ * segment, e o singura serie continua), cu puncte marcate pentru citire exacta.
+ */
+function AgreementTrendChart({ points }: { points: AgreementTrendPoint[] }) {
+  const innerW = TREND_W - TREND_PAD * 2;
+  const innerH = TREND_H - TREND_PAD * 2;
+  const stepX = points.length > 1 ? innerW / (points.length - 1) : 0;
+  const coords = points.map((p, i) => ({
+    x: TREND_PAD + i * stepX,
+    y: TREND_PAD + innerH * (1 - p.agreementRate)
+  }));
+  const linePath = coords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`).join(' ');
+  const areaPath = `${linePath} L ${coords[coords.length - 1].x.toFixed(1)} ${TREND_H - TREND_PAD} L ${coords[0].x.toFixed(1)} ${TREND_H - TREND_PAD} Z`;
+  const first = Math.round(points[0].agreementRate * 100);
+  const last = Math.round(points[points.length - 1].agreementRate * 100);
+
+  return (
+    <div className="stats-trend">
+      <svg viewBox={`0 0 ${TREND_W} ${TREND_H}`} className="stats-trend-svg" role="img" aria-label={`${first}% -> ${last}%`}>
+        <path d={areaPath} className="stats-trend-area" />
+        <path d={linePath} className="stats-trend-line" />
+        {coords.map((c, i) => <circle key={i} cx={c.x} cy={c.y} r={2.5} className="stats-trend-dot" />)}
+      </svg>
+      <div className="stats-trend-axis mono hint">
+        <span>{first}%</span>
+        <span>{last}%</span>
+      </div>
+    </div>
+  );
+}
+
 /** Dashboard de performanta si statistici (plan 3.2.3): stare curenta a bibliotecii + rata de acord AI/utilizator. */
 export function StatsPanel() {
   const open = useStore(s => s.statsOpen);
@@ -97,13 +138,18 @@ export function StatsPanel() {
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const [agreement, setAgreement] = useState<AgreementStats | null>(null);
+  const [trend, setTrend] = useState<AgreementTrendPoint[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
   useModalFocusTrap(containerRef, open);
 
   useEffect(() => {
-    if (!open) { setAgreement(null); return; }
+    if (!open) { setAgreement(null); setTrend([]); return; }
     let alive = true;
-    void db.corrections.toArray().then(rows => { if (alive) setAgreement(computeAgreementStats(rows)); });
+    void db.corrections.toArray().then(rows => {
+      if (!alive) return;
+      setAgreement(computeAgreementStats(rows));
+      setTrend(computeAgreementTrend(rows));
+    });
     return () => { alive = false; };
   }, [open]);
 
@@ -153,9 +199,17 @@ export function StatsPanel() {
             : agreement.total === 0
               ? <p className="hint">{tr('stats.agreement.none')}</p>
               : (
-                <p>
-                  {tr('stats.agreement.text', { total: agreement.total, rate: Math.round(agreement.agreementRate * 100) })}
-                </p>
+                <>
+                  <p>
+                    {tr('stats.agreement.text', { total: agreement.total, rate: Math.round(agreement.agreementRate * 100) })}
+                  </p>
+                  {trend.length > 0 && (
+                    <>
+                      <p className="hint stats-trend-label">{tr('stats.agreement.trend.label')}</p>
+                      <AgreementTrendChart points={trend} />
+                    </>
+                  )}
+                </>
               )}
         </div>
 
