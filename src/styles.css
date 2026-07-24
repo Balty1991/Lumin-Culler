@@ -672,7 +672,32 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .color-label-swatch.label-green { background: #4a9d5f; }
 .color-label-swatch.label-blue { background: #4477c4; }
 .color-label-swatch.label-purple { background: #9163c9; }
-.color-label-filter-row { padding: 0 2px; }
+
+/* buton compact de filtrare dupa eticheta (inlocuieste cele 5 bilute mereu
+   vizibile din randul de filtre — aglomerau scroll-ul orizontal pe mobil si
+   n-aveau nicio eticheta text vizibila la atingere, doar un title-tooltip). */
+.color-label-filter { flex-shrink: 0; }
+.color-label-filter-trigger { display: inline-flex; align-items: center; }
+.color-label-filter-trigger .color-label-swatch { pointer-events: none; }
+/* randat printr-un portal in <body> (vezi ColorLabelFilter.tsx) — .filters e
+   orizontal scrollabil si i-ar taia orice copil pozitionat absolut care
+   depaseste marginea verticala a randului, deci meniul foloseste `fixed`
+   cu top/left calculate din pozitia butonului, nu `absolute` in flux normal. */
+.color-label-filter-menu {
+  position: fixed; z-index: 40;
+  display: flex; flex-direction: column; gap: 2px; min-width: 150px;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px;
+  padding: 6px; box-shadow: 0 12px 32px -8px rgba(0,0,0,0.5);
+}
+.color-label-filter-option {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px;
+  background: transparent; color: var(--text); font-family: var(--sans);
+  font-size: 0.85rem; font-weight: 600; text-align: left; white-space: nowrap;
+}
+.color-label-filter-option .color-label-swatch { pointer-events: none; }
+.color-label-filter-option:hover { background: var(--surface-3); }
+.color-label-filter-option.active { background: rgb(var(--accent-rgb) / 0.16); color: var(--accent); }
+.color-label-filter-clear { color: var(--text-dim); font-weight: 500; border-top: 1px solid var(--line); margin-top: 2px; padding-top: 8px; }
 
 /* dunga verticala pe latura stanga a cardului din grid — indica eticheta de
    culoare fara sa concureze vizual cu badge-urile de status/ora de aur din
@@ -1500,18 +1525,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .workspace-head span:first-child { flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 40%; font-weight: 600; }
 .workspace-hint { flex: 1; text-align: center; color: var(--text-faint); font-size: 0.72rem; }
 .workspace-loupe {
+  /* edge-to-edge, fundal negru plat — acelasi limbaj vizual ca .detail-stage
+     din DetailView (nu mai e o "carte" plutitoare cu colturi rotunjite si
+     umbra peste un fundal aproape-negru, ca inainte de unificare). */
   flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center;
-  position: relative; overflow: hidden; padding: 16px;
-  /* fix, nu var(--bg) — zona unde se judeca poza ramane aproape neagra in
-     ambele teme (acelasi motiv ca .detail-img/.compare-img), altfel lumina
-     din jur ar denatura perceptia de expunere/contrast a fotografiei */
-  background:
-    radial-gradient(ellipse at 50% 15%, rgba(255,255,255,0.035), transparent 55%),
-    #050608;
+  position: relative; overflow: hidden; background: #000;
 }
 .workspace-loupe img {
-  max-width: 100%; max-height: 100%; object-fit: contain; border-radius: var(--radius);
-  box-shadow: 0 30px 90px -20px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.06);
   animation: loupeIn 0.32s var(--ease) both;
 }
 @keyframes loupeIn { from { opacity: 0; transform: scale(0.985); } to { opacity: 1; transform: scale(1); } }
@@ -1519,14 +1539,23 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   position: absolute; top: 24px; right: 24px; z-index: var(--z-card-badge);
   backdrop-filter: blur(6px); box-shadow: 0 4px 16px -4px rgba(0,0,0,0.5);
 }
-.workspace-rating {
-  position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: var(--z-card-badge);
-  padding: 6px 10px; border-radius: 999px; box-shadow: 0 4px 16px -4px rgba(0,0,0,0.5);
+/* butoane flotante flat-design in treimea inferioara a imaginii — identice
+   ca stil cu .detail-fab din DetailView (reutilizeaza aceleasi clase),
+   inlocuiesc fostele pastile text Selecteaza/Respinge din dock. */
+.workspace-fab-row {
+  position: absolute; left: 0; right: 0; bottom: 16px; z-index: var(--z-card-badge);
+  display: flex; align-items: center; justify-content: center; gap: 28px;
 }
 .workspace-metrics {
-  position: absolute; bottom: 24px; left: 24px; z-index: var(--z-card-badge); display: flex; flex-wrap: wrap; gap: 6px 14px;
+  /* sus, nu jos — jos e acum ocupat de FAB-urile de decizie (.workspace-fab-row);
+     simetric cu .workspace-badge (top-right), evita orice suprapunere pe ecrane inguste */
+  position: absolute; top: 24px; left: 24px; z-index: var(--z-card-badge); display: flex; flex-wrap: wrap; gap: 6px 14px;
   background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur)); border: 1px solid var(--glass-border);
-  border-radius: var(--radius); padding: 10px 14px; font-size: 0.78rem; color: var(--text-dim); max-width: calc(100% - 48px);
+  border-radius: var(--radius); padding: 10px 14px; font-size: 0.78rem; color: var(--text-dim);
+  /* rezerva loc pentru .workspace-badge (status, top-right) — mai ingust decat
+     inainte (era calc(100% - 48px), aproape toata latimea), preferam sa treaca
+     pe a doua linie (deja flex-wrap) decat sa se atinga de badge */
+  max-width: min(calc(100% - 150px), 340px);
 }
 .workspace-metrics b { color: var(--text); font-variant-numeric: tabular-nums; }
 .workspace-metrics .warn { color: var(--reject); }
@@ -1544,8 +1573,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur)); border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow);
 }
-.workspace-actions { display: flex; gap: 10px; padding: 12px 12px 10px; }
-.workspace-actions button { flex: 1; }
+.workspace-rating-row { display: flex; align-items: center; justify-content: center; padding: 12px 12px 8px; }
 .workspace-filmstrip {
   height: 128px; display: flex; align-items: center;
   gap: 8px; padding: 0 10px 10px; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch;
