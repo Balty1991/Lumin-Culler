@@ -1,7 +1,13 @@
+import { useRef } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useStore } from '../state/store';
-import { UserCheckIcon, SparkleIcon, ListIcon, InfoIcon, XIcon, TagIcon, LayersIcon, KeyboardIcon, SunIcon, MoonIcon, BatteryIcon } from './icons';
+import {
+  UserCheckIcon, SparkleIcon, ListIcon, InfoIcon, XIcon, TagIcon, LayersIcon, KeyboardIcon,
+  SunIcon, MoonIcon, BatteryIcon, GridIcon, DownloadIcon, UploadIcon
+} from './icons';
 import { EASE } from './motion';
+import { GENRE_PRESETS } from '../state/genre';
+import { GRID_DENSITY_LABELS, nextGridDensity } from '../state/gridDensity';
 
 /** Meniu lateral: persoane, preferinte AI invatate, export lista, despre. */
 export function MenuDrawer() {
@@ -15,10 +21,17 @@ export function MenuDrawer() {
   const setTheme = useStore(s => s.setTheme);
   const economicMode = useStore(s => s.economicMode);
   const setEconomicMode = useStore(s => s.setEconomicMode);
+  const genre = useStore(s => s.genre);
+  const setGenre = useStore(s => s.setGenre);
+  const gridDensity = useStore(s => s.gridDensity);
+  const setGridDensity = useStore(s => s.setGridDensity);
   const exportManifest = useStore(s => s.exportManifest);
   const exportXMP = useStore(s => s.exportXMP);
+  const exportBackup = useStore(s => s.exportBackup);
+  const importBackupFile = useStore(s => s.importBackupFile);
   const persons = useStore(s => s.persons);
   const reduceMotion = useReducedMotion();
+  const restoreInputRef = useRef<HTMLInputElement>(null);
 
   const go = (action: () => void) => { setOpen(false); action(); };
 
@@ -59,6 +72,19 @@ export function MenuDrawer() {
           <span>Operatii in masa</span>
         </button>
 
+        <label className="drawer-item drawer-item-select" title="Genul fotografic activ pentru urmatorul import — antreneaza un model AI de preferinte SEPARAT per gen (ex. 'Nunta' invata altceva decat 'Peisaj').">
+          <span className="drawer-item-icon"><TagIcon /></span>
+          <span>Gen fotografic</span>
+          <select
+            className="drawer-select mono"
+            value={genre}
+            onChange={e => setGenre(e.target.value)}
+          >
+            <option value="">Fara gen</option>
+            {GENRE_PRESETS.map(g => <option key={g} value={g}>{g}</option>)}
+          </select>
+        </label>
+
         <div className="drawer-section-label">Export</div>
         <button className="drawer-item" onClick={() => go(() => void exportManifest())}>
           <span className="drawer-item-icon"><ListIcon /></span>
@@ -69,6 +95,35 @@ export function MenuDrawer() {
           <span className="drawer-item-icon"><TagIcon /></span>
           <span>Exporta etichete Lightroom (XMP)</span>
         </button>
+
+        <div className="drawer-section-label">Backup</div>
+        <button
+          className="drawer-item"
+          onClick={() => go(() => void exportBackup())}
+          title="Salveaza persoanele cunoscute si profilurile AI invatate intr-un fisier JSON — nu include pozele in sine."
+        >
+          <span className="drawer-item-icon"><DownloadIcon /></span>
+          <span>Exporta backup (persoane + AI)</span>
+        </button>
+        <button
+          className="drawer-item"
+          onClick={() => { setOpen(false); restoreInputRef.current?.click(); }}
+          title="Restaureaza persoanele/profilurile AI dintr-un backup — deciziile (selectat/respins/rating) se reaplica automat pe pozele curente cu acelasi nume si data a capturii."
+        >
+          <span className="drawer-item-icon"><UploadIcon /></span>
+          <span>Restaureaza din backup</span>
+        </button>
+        <input
+          ref={restoreInputRef}
+          type="file"
+          accept="application/json,.json"
+          style={{ display: 'none' }}
+          onChange={e => {
+            const file = e.target.files?.[0];
+            e.target.value = '';
+            if (file) void importBackupFile(file);
+          }}
+        />
 
         <div className="drawer-section-label">Setari</div>
         <button className="drawer-item" onClick={() => go(() => setTheme(theme === 'light' ? 'dark' : 'light'))}>
@@ -84,6 +139,15 @@ export function MenuDrawer() {
         >
           <span className="drawer-item-icon"><BatteryIcon /></span>
           <span>Mod economic {economicMode ? '(activ)' : ''}</span>
+        </button>
+
+        <button
+          className="drawer-item"
+          onClick={() => setGridDensity(nextGridDensity(gridDensity))}
+          title="Dimensiunea miniaturilor in grila"
+        >
+          <span className="drawer-item-icon"><GridIcon /></span>
+          <span>Densitate grila: {GRID_DENSITY_LABELS[gridDensity]}</span>
         </button>
 
         <div className="drawer-section-label">Ajutor</div>

@@ -36,6 +36,8 @@ export interface CorrectionInput {
   analysis: AnalysisRecord;
   aiDecision: boolean;    // what the AI recommended
   userDecision: boolean;  // what the user actually chose
+  /** Genul fotografic activ pentru aceasta poza (PhotoRecord.genre) — vezi deriveContextKey. */
+  genre?: string;
 }
 
 interface FeatureStat { mean: number; m2: number; n: number }
@@ -207,12 +209,22 @@ export function extractFeatures(a: AnalysisRecord): FeatureVector {
   };
 }
 
-/** Context key: sceneType + subject familiarity. Each key gets its own model. */
-export function deriveContextKey(a: AnalysisRecord): string {
-  if (a.faceCount === 0) return a.sceneType;               // "landscape" | "detail"
-  if (a.strangerCount === 0) return `${a.sceneType}:known`;
-  if (a.knownFaceCount === 0) return `${a.sceneType}:strangers`;
-  return `${a.sceneType}:mixed`;
+/**
+ * Context key: [gen:] + sceneType + subject familiarity. Each key gets its own model.
+ * Genul fotografic (optional, ales de utilizator per import — vezi state/genre.ts si
+ * PhotoRecord.genre) prefixeaza cheia: "Nunta:portrait:known" invata ponderi complet
+ * separate de "Peisaj:landscape" sau de "portrait:known" (fara gen ales). Aceasta e
+ * extensia "ContextEngine 2.0" din planul de dezvoltare — utilizatorii care lucreaza
+ * in mai multe genuri (nunti vs. peisaj) nu mai impart acelasi model per scena.
+ */
+export function deriveContextKey(a: AnalysisRecord, genre?: string): string {
+  const base =
+    a.faceCount === 0 ? a.sceneType               // "landscape" | "detail"
+    : a.strangerCount === 0 ? `${a.sceneType}:known`
+    : a.knownFaceCount === 0 ? `${a.sceneType}:strangers`
+    : `${a.sceneType}:mixed`;
+  const trimmed = genre?.trim();
+  return trimmed ? `${trimmed}:${base}` : base;
 }
 
 // ── Engine ───────────────────────────────────────────────────────────────────
@@ -230,9 +242,9 @@ export class ContextEngine {
 
   // ── Prediction ─────────────────────────────────────────────────────────────
 
-  async predict(analysis: AnalysisRecord): Promise<Prediction> {
+  async predict(analysis: AnalysisRecord, genre?: string): Promise<Prediction> {
     await this.init();
-    const contextKey = deriveContextKey(analysis);
+    const contextKey = deriveContextKey(analysis, genre);
     const model = this.getOrCreateModel(contextKey);
     const features = extractFeatures(analysis);
     const normalized = this.normalize(model, features, /*update=*/ false);
@@ -267,7 +279,7 @@ export class ContextEngine {
    */
   async recordCorrection(input: CorrectionInput): Promise<void> {
     await this.init();
-    const contextKey = deriveContextKey(input.analysis);
+    const contextKey = deriveContextKey(input.analysis, input.genre);
     const model = this.getOrCreateModel(contextKey);
     const features = extractFeatures(input.analysis);
 
@@ -381,6 +393,13 @@ export class ContextEngine {
         };
       })
       .sort((a, b) => b.sampleCount - a.sampleCount);
+  }
+
+  /** Re-citeste modelele din DB, ignorand cache-ul in memorie — necesar dupa ce alt cod (ex. restaurarea unui backup) a scris direct in db.contextModels. */
+  async reload(): Promise<void> {
+    this.models.clear();
+    this.loaded = false;
+    await this.init();
   }
 
   async reset(contextKey?: string): Promise<void> {

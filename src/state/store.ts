@@ -8,9 +8,9 @@ import { db, type AnalysisRecord, type PhotoRecord, type KnownPerson } from '../
 import { importFiles, originalFiles, createCancelToken, type ImportProgress, type ImportCancelToken } from '../core/importPipeline';
 import { readEconomicMode, writeEconomicMode } from '../core/performanceSettings';
 import { exportOriginalFiles } from '../core/exportPhotos';
-import { exportXMPSidecars, deriveXmpKeywords } from '../core/export/xmpGenerator';
+import { exportXMPSidecars, deriveXmpKeywords, deriveAiScoreKeyword, deriveSeriesKeyword } from '../core/export/xmpGenerator';
 import { analysisPool } from '../core/workerPool';
-import { contextEngine, deriveContextKey } from '../core/learning/ContextEngine';
+import { contextEngine, deriveContextKey, explainFactors } from '../core/learning/ContextEngine';
 import { pickBestInGroup } from '../core/groupSelection';
 import {
   pushHistory, popHistory, MAX_HISTORY, type HistoryEvent,
@@ -19,6 +19,9 @@ import {
 import { selectBulkRejectTargets, resolveGroups, selectTopPercent } from './batchOps';
 import { readStoredTheme, applyTheme, type Theme } from './theme';
 import { readStoredProjectName, writeProjectName } from './projectName';
+import { readStoredGenre, writeStoredGenre } from './genre';
+import { readGridDensity, writeGridDensity, type GridDensity } from './gridDensity';
+import { buildBackup, backupFileName, parseBackupFile, restoreBackup } from '../core/backupService';
 
 export interface PhotoView {
   id: string;
@@ -47,6 +50,8 @@ export interface PhotoView {
   personNames: string[];
   groupId?: string;
   capturedAt?: number;
+  /** Genul fotografic activ la import ("Nunta", "Portret", ...) — vezi state/genre.ts si ContextEngine.deriveContextKey. */
+  genre?: string;
   goldenHourDetected?: boolean;
   dominantColors?: string[];
   /** Eticheta compusa scena+varsta (ex. "portrait_child") — folosita ca sursa de keywords la exportul XMP. */
@@ -66,6 +71,16 @@ interface AppState {
   /** Mod economic: pool de un singur worker + fara iris/emotie — mai putina presiune pe CPU/RAM, pe hardware slab. */
   economicMode: boolean;
   setEconomicMode: (on: boolean) => void;
+  /** Genul fotografic activ pentru urmatorul import ("Nunta", "Portret", ...) — vezi state/genre.ts. */
+  genre: string;
+  setGenre: (genre: string) => void;
+  /** Densitatea grilei (dimensiunea miniaturilor) — persistata local, aplicata atat grilei simple cat si celei virtualizate. */
+  gridDensity: GridDensity;
+  setGridDensity: (density: GridDensity) => void;
+  /** Exporta persoanele cunoscute + modelele AI invatate (fara imagini) intr-un fisier JSON de backup. */
+  exportBackup: () => Promise<void>;
+  /** Restaureaza un backup: persoane + modele AI, plus reaplicarea deciziilor (status/rating) pe pozele curente care se potrivesc (nume fisier + data capturii). */
+  importBackupFile: (file: File) => Promise<void>;
   filter: FilterKey;
   /** Filtru suplimentar, combinabil cu `filter` — numele unei persoane cunoscute, sau null (fara filtru). */
   personFilter: string | null;
@@ -220,7 +235,7 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     rating: photo.rating ?? 0,
     aiScore: analysis?.aiScore ?? 0,
     sceneType: analysis?.sceneType ?? 'detail',
-    contextKey: analysis ? deriveContextKey(analysis) : 'detail',
+    contextKey: analysis ? deriveContextKey(analysis, photo.genre) : 'detail',
     faceCount: analysis?.faceCount ?? 0,
     knownFaceCount: analysis?.knownFaceCount ?? 0,
     strangerCount: analysis?.strangerCount ?? 0,
@@ -242,6 +257,7 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
       : [],
     groupId: photo.groupId,
     capturedAt: photo.capturedAt,
+    genre: photo.genre,
     goldenHourDetected: analysis?.goldenHourDetected,
     dominantColors: analysis?.dominantColors,
     sceneSemantic: analysis?.sceneSemantic,
@@ -249,11 +265,20 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
   };
 }
 
+/** Reconstruieste toate PhotoView-urile direct din Dexie — folosit la boot() si dupa restaurarea unui backup. */
+async function reloadPhotoViews(): Promise<PhotoView[]> {
+  const [photos, analyses] = await Promise.all([db.photos.toArray(), db.analyses.toArray()]);
+  const byId = new Map(analyses.map(a => [a.photoId, a]));
+  return photos
+    .map(p => toView(p, byId.get(p.id)))
+    .sort((a, b) => (a.capturedAt ?? 0) - (b.capturedAt ?? 0));
+}
+
 async function train(id: string, userDecision: boolean): Promise<void> {
-  const analysis = await db.analyses.get(id);
+  const [analysis, photo] = await Promise.all([db.analyses.get(id), db.photos.get(id)]);
   if (!analysis) return;
   const aiDecision = analysis.aiScore >= 65;
-  await contextEngine.recordCorrection({ photoId: id, analysis, aiDecision, userDecision });
+  await contextEngine.recordCorrection({ photoId: id, analysis, aiDecision, userDecision, genre: photo?.genre });
 }
 
 function makeBatchEvent(label: string, changes: { photoId: string; previousStatus: PhotoRecord['status'] }[]): BatchHistoryEvent {
@@ -335,26 +360,55 @@ export const useStore = create<AppState>((set, get) => ({
   economicMode: readEconomicMode(),
   setEconomicMode: on => {
     writeEconomicMode(on);
+    const applyNow = analysisPool.isReady;
     set({
       economicMode: on,
       notice: 'Modul economic ' + (on ? 'activat' : 'dezactivat') +
-        ' — se aplica de la urmatorul import (necesita reincarcarea paginii daca ai importat deja poze in aceasta sesiune).'
+        (applyNow ? ' — se aplica imediat.' : ' — se aplica de la urmatorul import.')
     });
+    if (applyNow) void analysisPool.resizeForEconomicMode(on);
+  },
+  genre: readStoredGenre(),
+  setGenre: genre => { writeStoredGenre(genre); set({ genre }); },
+  gridDensity: readGridDensity(),
+  setGridDensity: density => { writeGridDensity(density); set({ gridDensity: density }); },
+
+  exportBackup: async () => {
+    const data = await buildBackup();
+    const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = backupFileName();
+    a.click();
+    // vezi exportManifest mai sus — nu revocam URL-ul imediat (Android descarca async).
+    set({ notice: `Backup exportat: ${data.persons.length} persoane, ${data.contextModels.length} profiluri AI invatate, ${data.photoDecisions.length} decizii.` });
+  },
+
+  importBackupFile: async (file: File) => {
+    try {
+      const data = await parseBackupFile(file);
+      const result = await restoreBackup(data);
+      const [views, persons] = await Promise.all([reloadPhotoViews(), db.persons.toArray()]);
+      set({
+        photos: views,
+        persons,
+        notice: `Backup restaurat: ${result.personsRestored} persoane, ${result.modelsRestored} profiluri AI` +
+          (result.decisionsTotal > 0 ? `, ${result.decisionsMatched}/${result.decisionsTotal} decizii potrivite cu pozele curente.` : '.')
+      });
+    } catch (err) {
+      set({ notice: 'Restaurare backup esuata: ' + (err instanceof Error ? err.message : String(err)) });
+    }
   },
   cancelImport: () => { if (activeCancelToken) activeCancelToken.cancelled = true; },
 
   boot: async () => {
     if (get().booted) return;
-    const [photos, analyses, persons, history] = await Promise.all([
-      db.photos.toArray(),
-      db.analyses.toArray(),
+    const [views, persons, history] = await Promise.all([
+      reloadPhotoViews(),
       db.persons.toArray(),
       db.history.orderBy('ts').toArray()
     ]);
-    const byId = new Map(analyses.map(a => [a.photoId, a]));
-    const views = photos
-      .map(p => toView(p, byId.get(p.id)))
-      .sort((a, b) => (a.capturedAt ?? 0) - (b.capturedAt ?? 0));
     set({ photos: views, persons, history, booted: true });
   },
 
@@ -368,7 +422,8 @@ export const useStore = create<AppState>((set, get) => ({
         files,
         progress => { warning = progress.warning; set({ progress: { ...progress } }); },
         item => set(state => ({ photos: [...state.photos, toView(item.photo, item.analysis)] })),
-        cancelToken
+        cancelToken,
+        get().genre
       );
     } catch (err) {
       // fara asta, o promisiune respinsa (ex. retea slaba la incarcarea modelelor AI)
@@ -856,7 +911,14 @@ export const useStore = create<AppState>((set, get) => ({
         fileName: p.fileName,
         status: p.status,
         rating: p.rating,
-        keywords: deriveXmpKeywords(p.personNames, p.sceneSemantic, p.sceneTags)
+        keywords: [
+          ...deriveXmpKeywords(p.personNames, p.sceneSemantic, p.sceneTags),
+          deriveAiScoreKeyword(p.aiScore),
+          ...(p.groupId ? [deriveSeriesKeyword(p.groupId)] : [])
+        ],
+        aiScore: p.aiScore,
+        aiFactors: explainFactors(p.aiFactors).map(f => `${f.label} (${f.positive ? '+' : '-'})`),
+        groupId: p.groupId
       })));
       if (result.cancelled) return;
       const msg = result.exported

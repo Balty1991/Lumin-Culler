@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { generateXMPSidecar, deriveXmpKeywords, exportXMPSidecars } from './xmpGenerator';
+import { generateXMPSidecar, deriveXmpKeywords, deriveAiScoreKeyword, deriveSeriesKeyword, exportXMPSidecars } from './xmpGenerator';
 
 const getDirectoryPicker = vi.fn<() => null>(() => null);
 const downloadZip = vi.fn<(name: string, entries: { path: string; data: Uint8Array }[]) => Promise<void>>(async () => {});
@@ -51,6 +51,41 @@ describe('generateXMPSidecar', () => {
     const xmp = generateXMPSidecar('selected', 3, ['Tom & Jerry <2>']);
     expect(xmp).toContain('Tom &amp; Jerry &lt;2&gt;');
     expect(xmp).not.toContain('Tom & Jerry <2>');
+  });
+
+  it('omits AI metadata when none is given', () => {
+    const xmp = generateXMPSidecar('selected', 3);
+    expect(xmp).not.toContain('lc:AIScore');
+    expect(xmp).not.toContain('lc:SeriesId');
+    expect(xmp).not.toContain('lc:AIFactors');
+  });
+
+  it('embeds AI score, series id and decision factors in the lc: namespace when given', () => {
+    const xmp = generateXMPSidecar('selected', 3, undefined, {
+      aiScore: 87.4,
+      groupId: 'g-abcdef01',
+      aiFactors: ['Claritate (+)', 'Ochi inchisi (-)']
+    });
+    expect(xmp).toContain('xmlns:lc="https://luminculler.app/xmp/1.0/"');
+    expect(xmp).toContain('lc:AIScore="87"');
+    expect(xmp).toContain('lc:SeriesId="g-abcdef01"');
+    expect(xmp).toContain('<lc:AIFactors>');
+    expect(xmp).toContain('<rdf:li>Claritate (+)</rdf:li>');
+    expect(xmp).toContain('<rdf:li>Ochi inchisi (-)</rdf:li>');
+  });
+});
+
+describe('deriveAiScoreKeyword', () => {
+  it('buckets the raw score into a decile range', () => {
+    expect(deriveAiScoreKeyword(87)).toBe('IA 80-89');
+    expect(deriveAiScoreKeyword(0)).toBe('IA 0-9');
+    expect(deriveAiScoreKeyword(100)).toBe('IA 90-99');
+  });
+});
+
+describe('deriveSeriesKeyword', () => {
+  it('prefixes the group id so it is searchable in Lightroom keywords', () => {
+    expect(deriveSeriesKeyword('g-abcdef01')).toBe('Serie g-abcdef01');
   });
 });
 

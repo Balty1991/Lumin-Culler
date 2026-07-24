@@ -455,7 +455,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 :root[data-theme="light"] .date-field input[type="date"]::-webkit-calendar-picker-indicator:hover { filter: invert(1) opacity(1); }
 
 /* ── Grila: contact sheet ── */
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); gap: 12px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--card-min, 176px), 1fr)); gap: 12px; }
 
 /* ── Grila virtualizata (biblioteci mari) — doar randurile vizibile exista in DOM ── */
 .virtual-grid-scroll {
@@ -1077,6 +1077,11 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
    ii invinge width-ul fix si il intinde peste tot randul, impingand eticheta jos */
 .drawer-item span:not(.drawer-item-icon) { flex: 1; }
 .drawer-count { background: var(--surface-3); color: var(--text-dim); font-size: 0.72rem; padding: 2px 8px; border-radius: 999px; }
+.drawer-item-select { cursor: default; }
+.drawer-select {
+  flex: none; max-width: 40%; background: var(--surface-2); color: var(--text);
+  border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; font-size: 0.78rem;
+}
 .drawer-section-label {
   padding: 12px 10px 4px; font-size: 0.64rem; font-weight: 700; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--text-faint);
@@ -1282,7 +1287,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 }
 
 @media (max-width: 560px) {
-  .grid { grid-template-columns: repeat(auto-fill, minmax(126px, 1fr)); gap: 8px; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(var(--card-min-narrow, 126px), 1fr)); gap: 8px; }
   .compare-grid { grid-template-columns: 1fr; }
   .detail-actions { grid-template-columns: 1fr 1fr; }
   .detail-actions .ghost { order: 2; }

@@ -43,11 +43,35 @@ function xmlEscape(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-export function generateXMPSidecar(status: XmpDecision, starRating?: number, keywords?: string[]): string {
+/**
+ * Extindere export XMP (plan 2.3.5): scorul AI, factorii de decizie si id-ul
+ * de serie/grup, in plus fata de rating/eticheta/keywords. Namespace-ul
+ * `lc:` e propriu aplicatiei (necunoscut de Lightroom/Capture One, care il
+ * ignora fara probleme — un cititor XMP standard nu esueaza pe un namespace
+ * strain) — util pentru scripturi/integrari proprii sau versiuni viitoare
+ * ale pluginurilor Lightroom/Capture One care STIU sa il citeasca. Scorul si
+ * seria sunt insa aduse SI ca dc:subject keywords (vezi deriveXmpKeywords mai
+ * jos), fiindca acelea CHIAR sunt cautabile/filtrabile azi, direct din UI-ul
+ * Lightroom — spre deosebire de un camp XMP arbitrar, pe care Lightroom nu
+ * stie sa-l afiseze/filtreze fara un plugin dedicat.
+ */
+export interface XmpAiMeta {
+  aiScore?: number;
+  /** etichete lizibile ale factorilor de decizie (explainFactors) — ex. "Claritate (+)", "Ochi inchisi (-)". */
+  aiFactors?: string[];
+  groupId?: string;
+}
+
+export function generateXMPSidecar(status: XmpDecision, starRating?: number, keywords?: string[], ai?: XmpAiMeta): string {
   const rating = status === 'rejected' ? RATING.rejected : (starRating && starRating > 0 ? starRating : RATING[status]);
   const label = LABEL[status];
   const subject = keywords?.length
     ? `\n    <dc:subject>\n     <rdf:Bag>\n${keywords.map(k => `      <rdf:li>${xmlEscape(k)}</rdf:li>`).join('\n')}\n     </rdf:Bag>\n    </dc:subject>`
+    : '';
+  const aiScoreAttr = ai?.aiScore !== undefined ? `\n    lc:AIScore="${Math.round(ai.aiScore)}"` : '';
+  const groupIdAttr = ai?.groupId ? `\n    lc:SeriesId="${xmlEscape(ai.groupId)}"` : '';
+  const aiFactors = ai?.aiFactors?.length
+    ? `\n    <lc:AIFactors>\n     <rdf:Bag>\n${ai.aiFactors.map(f => `      <rdf:li>${xmlEscape(f)}</rdf:li>`).join('\n')}\n     </rdf:Bag>\n    </lc:AIFactors>`
     : '';
   return `<?xpacket begin="﻿" id="W5M0MpCehiHzreSzNTczkc9d"?>
 <x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Lumin Culler Pro">
@@ -55,8 +79,9 @@ export function generateXMPSidecar(status: XmpDecision, starRating?: number, key
   <rdf:Description rdf:about=""
     xmlns:xmp="http://ns.adobe.com/xap/1.0/"
     xmlns:dc="http://purl.org/dc/elements/1.1/"
+    xmlns:lc="https://luminculler.app/xmp/1.0/"
     xmp:Rating="${rating}"
-    xmp:Label="${label}">${subject}
+    xmp:Label="${label}"${aiScoreAttr}${groupIdAttr}>${subject}${aiFactors}
   </rdf:Description>
  </rdf:RDF>
 </x:xmpmeta>
@@ -71,6 +96,22 @@ export function deriveXmpKeywords(personNames: string[], sceneSemantic: string |
   return keywords;
 }
 
+/**
+ * Cuantizat pe decile ("IA 80-89"), nu scorul brut — un keyword per scor exact
+ * (ex. "IA 87") ar fragmenta cautarea in Lightroom in sute de etichete unice,
+ * fiecare aparuta la 1-2 poze; pe decile, "IA 80-89" grupeaza util un numar
+ * rezonabil de poze similar de bune, cautabil direct din panoul de Keywords.
+ */
+export function deriveAiScoreKeyword(aiScore: number): string {
+  const bucket = Math.max(0, Math.min(90, Math.floor(aiScore / 10) * 10));
+  return `IA ${bucket}-${bucket + 9}`;
+}
+
+/** Keyword de serie/grup — cauti "Serie g-xxxxxxxx" in Lightroom ca sa gasesti instant restul cadrelor din acelasi burst. */
+export function deriveSeriesKeyword(groupId: string): string {
+  return `Serie ${groupId}`;
+}
+
 function xmpFileName(fileName: string): string {
   const dot = fileName.lastIndexOf('.');
   return (dot > 0 ? fileName.slice(0, dot) : fileName) + '.xmp';
@@ -82,16 +123,27 @@ export interface XmpExportResult {
   cancelled: boolean;
 }
 
-export async function exportXMPSidecars(
-  photos: { fileName: string; status: PhotoRecord['status']; rating?: number; keywords?: string[] }[]
-): Promise<XmpExportResult> {
+export interface XmpPhotoInput {
+  fileName: string;
+  status: PhotoRecord['status'];
+  rating?: number;
+  keywords?: string[];
+  aiScore?: number;
+  aiFactors?: string[];
+  groupId?: string;
+}
+
+export async function exportXMPSidecars(photos: XmpPhotoInput[]): Promise<XmpExportResult> {
   const decided = photos.filter(
-    (p): p is { fileName: string; status: XmpDecision; rating?: number; keywords?: string[] } => p.status !== 'pending'
+    (p): p is XmpPhotoInput & { status: XmpDecision } => p.status !== 'pending'
   );
   const pickDirectory = getDirectoryPicker();
   const method: XmpExportResult['method'] = pickDirectory ? 'folder' : 'downloads';
 
   if (!decided.length) return { exported: 0, method, cancelled: false };
+
+  const render = (p: XmpPhotoInput & { status: XmpDecision }) =>
+    generateXMPSidecar(p.status, p.rating, p.keywords, { aiScore: p.aiScore, aiFactors: p.aiFactors, groupId: p.groupId });
 
   if (pickDirectory) {
     let dir: LocalDirHandle;
@@ -102,7 +154,7 @@ export async function exportXMPSidecars(
       throw err;
     }
     for (const p of decided) {
-      await writeTextFile(dir, xmpFileName(p.fileName), generateXMPSidecar(p.status, p.rating, p.keywords), 'application/rdf+xml');
+      await writeTextFile(dir, xmpFileName(p.fileName), render(p), 'application/rdf+xml');
     }
     return { exported: decided.length, method, cancelled: false };
   }
@@ -110,7 +162,7 @@ export async function exportXMPSidecars(
   // un singur sidecar: descarcare directa
   if (decided.length === 1) {
     const p = decided[0];
-    const blob = new Blob([generateXMPSidecar(p.status, p.rating, p.keywords)], { type: 'application/rdf+xml' });
+    const blob = new Blob([render(p)], { type: 'application/rdf+xml' });
     await downloadBlob(xmpFileName(p.fileName), blob);
     return { exported: 1, method, cancelled: false };
   }
@@ -120,7 +172,7 @@ export async function exportXMPSidecars(
   const encoder = new TextEncoder();
   const entries = decided.map(p => ({
     path: xmpFileName(p.fileName),
-    data: encoder.encode(generateXMPSidecar(p.status, p.rating, p.keywords))
+    data: encoder.encode(render(p))
   }));
   const zipName = `lumin-culler-xmp-${new Date().toISOString().slice(0, 10)}.zip`;
   await downloadZip(zipName, entries);

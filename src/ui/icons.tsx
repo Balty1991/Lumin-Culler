@@ -15,6 +15,9 @@ export function SparkleIcon(p: SVGProps<SVGSVGElement>) {
 export function DownloadIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><path d="M12 3v12" /><path d="M7 10l5 5 5-5" /><path d="M4 20h16" /></svg>;
 }
+export function UploadIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg {...base} {...p}><path d="M12 21V9" /><path d="M7 14l5-5 5 5" /><path d="M4 4h16" /></svg>;
+}
 export function ListIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><line x1="9" y1="6" x2="20" y2="6" /><line x1="9" y1="12" x2="20" y2="12" /><line x1="9" y1="18" x2="20" y2="18" /><circle cx="4.5" cy="6" r="1.4" fill="currentColor" stroke="none" /><circle cx="4.5" cy="12" r="1.4" fill="currentColor" stroke="none" /><circle cx="4.5" cy="18" r="1.4" fill="currentColor" stroke="none" /></svg>;
 }

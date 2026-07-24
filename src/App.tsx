@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useStore, type FilterKey } from './state/store';
 import { PhotoCard } from './ui/PhotoCard';
 import { VirtualPhotoGrid } from './ui/VirtualPhotoGrid';
@@ -16,6 +16,7 @@ import { AnimatedNumber } from './ui/AnimatedNumber';
 import { Tooltip } from './ui/Tooltip';
 import { StarRating } from './ui/StarRating';
 import { MenuIcon, PlusIcon, UserCheckIcon, AlertIcon, ErrorIcon, XIcon, FocusIcon, UndoIcon, SearchIcon, ApertureIcon, SparkleIcon, CheckIcon, EditIcon } from './ui/icons';
+import { CARD_MIN_WIDTH } from './state/gridDensity';
 
 const NOTICE_AUTODISMISS_MS = 7000;
 
@@ -167,6 +168,7 @@ export default function App() {
   const setSelectMode = useStore(s => s.setSelectMode);
   const bulkSetStatusForSelection = useStore(s => s.bulkSetStatusForSelection);
   const bulkSetRatingForSelection = useStore(s => s.bulkSetRatingForSelection);
+  const gridDensity = useStore(s => s.gridDensity);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { void boot(); }, [boot]);
@@ -494,7 +496,13 @@ export default function App() {
           {filtered.length > VIRTUALIZE_THRESHOLD ? (
             <VirtualPhotoGrid photos={filtered} onOpen={onCardOpen} multiSelectIds={multiSelectIds} />
           ) : (
-            <div className="grid">
+            <div
+              className="grid"
+              style={{
+                '--card-min': `${CARD_MIN_WIDTH[gridDensity].wide}px`,
+                '--card-min-narrow': `${CARD_MIN_WIDTH[gridDensity].narrow}px`
+              } as CSSProperties}
+            >
               {filtered.map((p, i) => (
                 <PhotoCard key={p.id} photo={p} index={i} onOpen={onCardOpen} multiSelected={multiSelectIds.has(p.id)} />
               ))}

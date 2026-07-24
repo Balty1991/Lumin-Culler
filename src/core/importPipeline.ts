@@ -144,7 +144,7 @@ async function sniffRealFormat(file: File): Promise<string | null> {
   }
 }
 
-async function processOne(file: File): Promise<ImportedPhoto> {
+async function processOne(file: File, genre?: string): Promise<ImportedPhoto> {
   const id = crypto.randomUUID();
   originalFiles.set(id, file);
   const isRaw = isRawFile(file);
@@ -185,7 +185,7 @@ async function processOne(file: File): Promise<ImportedPhoto> {
     }
   }
 
-  const prediction = await contextEngine.predict(analysis);
+  const prediction = await contextEngine.predict(analysis, genre);
   analysis.aiScore = prediction.score;
   analysis.aiFactors = prediction.topFactors;
 
@@ -206,7 +206,8 @@ async function processOne(file: File): Promise<ImportedPhoto> {
     width: w,
     height: h,
     dHash,
-    status
+    status,
+    ...(genre?.trim() ? { genre: genre.trim() } : {})
   };
 
   await Promise.all([
@@ -239,7 +240,9 @@ export async function importFiles(
   files: File[],
   onProgress: (p: ImportProgress) => void,
   onPhoto: (item: ImportedPhoto) => void,
-  cancelToken?: ImportCancelToken
+  cancelToken?: ImportCancelToken,
+  /** Genul fotografic activ (ex. "Nunta", "Portret") — vezi ContextEngine.deriveContextKey. */
+  genre?: string
 ): Promise<Map<string, string>> {
   // faza separata (nu "analiza 0/N"): la primul import, descarca modelele AI
   // (cateva zeci de MB) — poate dura, si utilizatorul trebuie sa stie de ce.
@@ -291,7 +294,7 @@ export async function importFiles(
         const file = images[myIndex];
 
         try {
-          const item = await processOne(file);
+          const item = await processOne(file, genre);
           hashes.push({
             id: item.photo.id,
             hash: item.photo.dHash,
