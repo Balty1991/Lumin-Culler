@@ -21,6 +21,7 @@ import { readStoredTheme, applyTheme, type Theme } from './theme';
 import { readStoredProjectName, writeProjectName } from './projectName';
 import { readStoredGenre, writeStoredGenre } from './genre';
 import { readGridDensity, writeGridDensity, type GridDensity } from './gridDensity';
+import { readGridSort, writeGridSort, compareBy, type GridSort } from './gridSort';
 import { recordUsage, readMonthlyUsage, FREE_TIER_MONTHLY_LIMIT } from './usage';
 import { getProjectMetadata } from './projectMetadata';
 import { buildPersonProfilesExport, personProfilesFileName, parsePersonProfilesFile } from '../core/personProfileTransfer';
@@ -103,6 +104,9 @@ interface AppState {
   /** Densitatea grilei (dimensiunea miniaturilor) — persistata local, aplicata atat grilei simple cat si celei virtualizate. */
   gridDensity: GridDensity;
   setGridDensity: (density: GridDensity) => void;
+  /** Criteriul de sortare a grilei (plan 3.2.1) — implicit dupa data capturii, ca pana acum. Persistat local. */
+  gridSort: GridSort;
+  setGridSort: (sort: GridSort) => void;
   /** Exporta persoanele cunoscute + modelele AI invatate (fara imagini) intr-un fisier JSON de backup. */
   exportBackup: () => Promise<void>;
   /** Restaureaza un backup: persoane + modele AI, plus reaplicarea deciziilor (status/rating) pe pozele curente care se potrivesc (nume fisier + data capturii). */
@@ -461,6 +465,8 @@ export const useStore = create<AppState>((set, get) => ({
   setGenre: genre => { writeStoredGenre(genre); set({ genre }); },
   gridDensity: readGridDensity(),
   setGridDensity: density => { writeGridDensity(density); set({ gridDensity: density }); },
+  gridSort: readGridSort(),
+  setGridSort: sort => { writeGridSort(sort); set({ gridSort: sort }); },
   lastImportStats: null,
   monthlyUsage: readMonthlyUsage(),
   statsOpen: false,
@@ -1202,7 +1208,7 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   filtered: () => {
-    const { photos, filter, personFilter, projectFilter, searchText, dateFrom, dateTo, minRating } = get();
+    const { photos, filter, personFilter, projectFilter, searchText, dateFrom, dateTo, minRating, gridSort } = get();
     let base: PhotoView[];
     switch (filter) {
       case 'selected': base = photos.filter(p => p.status === 'selected'); break;
@@ -1238,6 +1244,14 @@ export const useStore = create<AppState>((set, get) => ({
     if (dateTo !== null) base = base.filter(p => (p.capturedAt ?? 0) <= dateTo);
     // rating minim — 0 = fara filtru
     if (minRating > 0) base = base.filter(p => p.rating >= minRating);
+    // sortarea utilizatorului (plan 3.2.1) — filtrul "Serii" isi pastreaza propria
+    // ordine (grupate, cea mai buna din fiecare serie prima), altfel gruparea vizuala s-ar sparge
+    if (filter !== 'series') {
+      base = [...base].sort((a, b) => {
+        const cmp = compareBy(gridSort.key, a, b);
+        return gridSort.dir === 'asc' ? cmp : -cmp;
+      });
+    }
     return base;
   },
 

@@ -19,6 +19,7 @@ import { Tooltip } from './ui/Tooltip';
 import { StarRating } from './ui/StarRating';
 import { MenuIcon, PlusIcon, UserCheckIcon, AlertIcon, ErrorIcon, XIcon, FocusIcon, UndoIcon, SearchIcon, ApertureIcon, SparkleIcon, CheckIcon, EditIcon } from './ui/icons';
 import { CARD_MIN_WIDTH } from './state/gridDensity';
+import { SORT_KEY_LABELS, type SortKey } from './state/gridSort';
 
 const NOTICE_AUTODISMISS_MS = 7000;
 
@@ -171,6 +172,8 @@ export default function App() {
   const bulkSetStatusForSelection = useStore(s => s.bulkSetStatusForSelection);
   const bulkSetRatingForSelection = useStore(s => s.bulkSetRatingForSelection);
   const gridDensity = useStore(s => s.gridDensity);
+  const gridSort = useStore(s => s.gridSort);
+  const setGridSort = useStore(s => s.setGridSort);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { void boot(); }, [boot]);
@@ -437,6 +440,28 @@ export default function App() {
             <option value={0}>Orice rating</option>
             {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{'★'.repeat(n)}+ </option>)}
           </select>
+          <span className="sort-control" title={filter === 'series' ? 'Filtrul "Serii" foloseste propria ordine (grupate) — sortarea de mai jos e ignorata' : undefined}>
+            <select
+              className="chip sort-key"
+              value={gridSort.key}
+              disabled={filter === 'series'}
+              onChange={e => setGridSort({ key: e.target.value as SortKey, dir: gridSort.dir })}
+              aria-label="Sorteaza grila dupa"
+            >
+              {(Object.entries(SORT_KEY_LABELS) as [SortKey, string][]).map(([key, label]) => (
+                <option key={key} value={key}>{label}</option>
+              ))}
+            </select>
+            <button
+              className="chip sort-dir"
+              disabled={filter === 'series'}
+              onClick={() => setGridSort({ key: gridSort.key, dir: gridSort.dir === 'asc' ? 'desc' : 'asc' })}
+              aria-label={gridSort.dir === 'asc' ? 'Ordine crescatoare — comuta pe descrescatoare' : 'Ordine descrescatoare — comuta pe crescatoare'}
+              title={gridSort.dir === 'asc' ? 'Crescator' : 'Descrescator'}
+            >
+              {gridSort.dir === 'asc' ? '↑' : '↓'}
+            </button>
+          </span>
           <label className="date-field">
             de la
             <input
