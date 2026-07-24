@@ -20,7 +20,8 @@ import { ContactSheet } from './ui/ContactSheet';
 import { AnimatedNumber } from './ui/AnimatedNumber';
 import { Tooltip } from './ui/Tooltip';
 import { StarRating } from './ui/StarRating';
-import { MenuIcon, PlusIcon, UserCheckIcon, AlertIcon, ErrorIcon, XIcon, FocusIcon, UndoIcon, SearchIcon, ApertureIcon, SparkleIcon, CheckIcon, EditIcon, GridIcon, ClockIcon, LayersIcon, EyeClosedIcon, SunIcon, DownloadIcon, StarIcon } from './ui/icons';
+import { MenuIcon, PlusIcon, UserCheckIcon, AlertIcon, ErrorIcon, XIcon, FocusIcon, SearchIcon, ApertureIcon, SparkleIcon, CheckIcon, EditIcon, GridIcon, ClockIcon, LayersIcon, EyeClosedIcon, SunIcon, DownloadIcon, StarIcon } from './ui/icons';
+import { UndoHistoryButton } from './ui/UndoHistoryButton';
 import { selectHighlights, selectBlinks } from './state/batchOps';
 import { CARD_MIN_WIDTH } from './state/gridDensity';
 import { SORT_KEY_LABELS, type SortKey } from './state/gridSort';
@@ -180,9 +181,6 @@ export default function App() {
   const filtered = useStore(s => s.filtered());
   const workspaceMode = useStore(s => s.workspaceMode);
   const setWorkspaceMode = useStore(s => s.setWorkspaceMode);
-  const history = useStore(s => s.history);
-  const batchHistory = useStore(s => s.batchHistory);
-  const undoCount = history.length + batchHistory.length;
   const undo = useStore(s => s.undo);
   const setPaletteOpen = useStore(s => s.setPaletteOpen);
   const multiSelectIds = useStore(s => s.multiSelectIds);
@@ -504,14 +502,7 @@ export default function App() {
               </button>
             </Tooltip>
           )}
-          {undoCount > 0 && (
-            <Tooltip label={tr('app.tooltip.undo')} shortcut="Ctrl+Z">
-              <button className="ghost icon-btn" onClick={() => void undo()} aria-label={tr('app.undo.ariaLabel', { count: undoCount })}>
-                <UndoIcon />
-                <span className="undo-count mono">{undoCount}</span>
-              </button>
-            </Tooltip>
-          )}
+          <UndoHistoryButton />
           {photos.length > 0 && (
             <Tooltip label={tr('app.tooltip.workspace')}>
               <button className="ghost icon-btn" onClick={() => setWorkspaceMode(true)} aria-label={tr('app.workspace.ariaLabel')}>
