@@ -1,6 +1,6 @@
 import { useEffect, useState, memo } from 'react';
 import { db } from '../core/db';
-import type { PhotoView } from '../state/store';
+import { useStore, type PhotoView } from '../state/store';
 import { StarIcon, UserQuestionIcon, UserCheckIcon, EyeClosedIcon, LayersIcon, CheckIcon, SunIcon } from './icons';
 
 /** Aceleasi praguri ca SELECT_THRESHOLD/REJECT_THRESHOLD (importPipeline.ts) — culoarea inelului de scor. */
@@ -26,6 +26,16 @@ function describeCard(photo: PhotoView): string {
   return `${photo.fileName}, scor AI ${photo.aiScore}, ${STATUS_LABEL_RO[photo.status]}${bits.length ? ', ' + bits.join(', ') : ''}`;
 }
 
+/** Rand compact de metadate camera, afisat doar la densitatea "large" (plan 3.2.1 —
+    densitatea grilei controleaza si cate informatii se vad pe card, nu doar dimensiunea). */
+function cardExifLine(photo: PhotoView): string {
+  const parts: string[] = [];
+  if (photo.cameraModel) parts.push(photo.cameraModel);
+  if (photo.fNumber !== undefined) parts.push(`f/${photo.fNumber.toFixed(photo.fNumber < 10 ? 1 : 0)}`);
+  if (photo.focalLength !== undefined) parts.push(`${Math.round(photo.focalLength)}mm`);
+  return parts.join(' · ');
+}
+
 /** Card "contact sheet": miniatura din IndexedDB, incarcare lenesa, zero logica. */
 function PhotoCardInner({ photo, index, onOpen, multiSelected }: {
   photo: PhotoView;
@@ -34,6 +44,7 @@ function PhotoCardInner({ photo, index, onOpen, multiSelected }: {
   multiSelected: boolean;
 }) {
   const [src, setSrc] = useState<string | null>(null);
+  const density = useStore(s => s.gridDensity);
 
   useEffect(() => {
     let url: string | null = null;
@@ -66,19 +77,26 @@ function PhotoCardInner({ photo, index, onOpen, multiSelected }: {
       )}
       {src ? <img src={src} alt="" aria-hidden="true" loading="lazy" /> : <span className="card-loading" aria-hidden="true" />}
       <span className="card-strip" aria-hidden="true">
-        <span
-          className="mini-score-ring"
-          style={{ background: `conic-gradient(${ringColor} ${ringDeg}deg, rgba(255,255,255,0.14) 0)` }}
-        >
-          <span className="mini-score-ring-inner" style={{ color: ringColor }}>{photo.aiScore}</span>
+        <span className="card-strip-row">
+          <span
+            className="mini-score-ring"
+            style={{ background: `conic-gradient(${ringColor} ${ringDeg}deg, rgba(255,255,255,0.14) 0)` }}
+          >
+            <span className="mini-score-ring-inner" style={{ color: ringColor }}>{photo.aiScore}</span>
+          </span>
+          {density !== 'compact' && (
+            <span className="badges">
+              {photo.rating > 0 && <span className="rating-chip"><StarIcon fill="currentColor" />{photo.rating}</span>}
+              {photo.personNames.length > 0 && <i title={photo.personNames.join(', ')}><UserCheckIcon /></i>}
+              {photo.strangerCount > 0 && <i title="Contine straini"><UserQuestionIcon /></i>}
+              {photo.faceCount > 0 && !photo.allEyesOpen && <i title="Ochi inchisi"><EyeClosedIcon /></i>}
+              {photo.groupId && <i title="Serie / duplicat"><LayersIcon /></i>}
+            </span>
+          )}
         </span>
-        <span className="badges">
-          {photo.rating > 0 && <span className="rating-chip"><StarIcon fill="currentColor" />{photo.rating}</span>}
-          {photo.personNames.length > 0 && <i title={photo.personNames.join(', ')}><UserCheckIcon /></i>}
-          {photo.strangerCount > 0 && <i title="Contine straini"><UserQuestionIcon /></i>}
-          {photo.faceCount > 0 && !photo.allEyesOpen && <i title="Ochi inchisi"><EyeClosedIcon /></i>}
-          {photo.groupId && <i title="Serie / duplicat"><LayersIcon /></i>}
-        </span>
+        {density === 'large' && cardExifLine(photo) && (
+          <span className="card-exif-line mono">{cardExifLine(photo)}</span>
+        )}
       </span>
     </button>
   );
