@@ -4,6 +4,7 @@ import { selectBulkRejectTargets, resolveGroups, selectTopPercent } from '../sta
 import { listCullingPresets, saveCullingPreset, deleteCullingPreset, type CullingPreset } from '../state/cullingPresets';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { XIcon, LayersIcon, SparkleIcon, FilterDotIcon, TrashIcon } from './icons';
+import { t } from '../i18n';
 
 const DEFAULT_THRESHOLD = 35; // acelasi prag ca REJECT_THRESHOLD din importPipeline.ts
 const DEFAULT_CULL_PERCENT = 20;
@@ -16,6 +17,8 @@ export function BatchOpsPanel() {
   const bulkRejectBelow = useStore(s => s.bulkRejectBelow);
   const resolveAllSeries = useStore(s => s.resolveAllSeries);
   const autoCullTopPercent = useStore(s => s.autoCullTopPercent);
+  const locale = useStore(s => s.locale);
+  const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
 
   const [threshold, setThreshold] = useState(DEFAULT_THRESHOLD);
   const [cullPercent, setCullPercent] = useState(DEFAULT_CULL_PERCENT);
@@ -32,7 +35,7 @@ export function BatchOpsPanel() {
   };
 
   const saveCurrentAsPreset = () => {
-    const name = window.prompt('Nume presetare (ex. "Nunta", "Sport"):');
+    const name = window.prompt(tr('batch.presets.namePrompt'));
     if (!name?.trim()) return;
     setPresets(saveCullingPreset(name, cullPercent, threshold));
   };
@@ -47,10 +50,7 @@ export function BatchOpsPanel() {
 
   const runReject = async () => {
     if (!targets.length) return;
-    const ok = window.confirm(
-      `Respingi ${targets.length} poze cu scor sub ${threshold}? Nu afecteaza pozele deja selectate manual. ` +
-      'Poti anula ulterior cate una din istoricul de decizii (Ctrl+Z), nu ca lot intreg.'
-    );
+    const ok = window.confirm(tr('batch.rejectBelow.confirm', { count: targets.length, threshold }));
     if (!ok) return;
     setBusy(true);
     await bulkRejectBelow(threshold);
@@ -59,9 +59,7 @@ export function BatchOpsPanel() {
 
   const runResolveSeries = async () => {
     if (!groups.length) return;
-    const ok = window.confirm(
-      `Rezolvi toate cele ${groups.length} serii deodata? In fiecare, poza cu scorul cel mai mare ramane, restul se resping.`
-    );
+    const ok = window.confirm(tr('batch.resolveSeries.confirm', { count: groups.length }));
     if (!ok) return;
     setBusy(true);
     await resolveAllSeries();
@@ -70,10 +68,7 @@ export function BatchOpsPanel() {
 
   const runAutoCull = async () => {
     if (!cull.selectIds.length && !cull.rejectIds.length) return;
-    const ok = window.confirm(
-      `Auto-Cull: pastrezi cele mai bune ${cullPercent}% din pozele nedecise (${cull.selectIds.length} selectate), ` +
-      `respingi restul (${cull.rejectIds.length})? Nu afecteaza pozele deja selectate/respinse manual.`
-    );
+    const ok = window.confirm(tr('batch.autoCull.confirm', { percent: cullPercent, keep: cull.selectIds.length, reject: cull.rejectIds.length }));
     if (!ok) return;
     setBusy(true);
     await autoCullTopPercent(cullPercent);
@@ -82,25 +77,25 @@ export function BatchOpsPanel() {
 
   return (
     <div className="detail" onClick={e => { if (e.target === e.currentTarget) setOpen(false); }}>
-      <div className="detail-inner narrow" ref={containerRef} role="dialog" aria-modal="true" aria-label="Operatii in masa" tabIndex={-1}>
+      <div className="detail-inner narrow" ref={containerRef} role="dialog" aria-modal="true" aria-label={tr('menu.batchOps')} tabIndex={-1}>
         <header className="detail-head">
-          <span><LayersIcon className="inline-icon" /> Operații în masă</span>
-          <button className="ghost icon-btn" onClick={() => setOpen(false)} aria-label="Inchide">
+          <span><LayersIcon className="inline-icon" /> {tr('menu.batchOps')}</span>
+          <button className="ghost icon-btn" onClick={() => setOpen(false)} aria-label={tr('detail.close')}>
             <XIcon />
           </button>
         </header>
 
         <div className="batch-section">
-          <h3><span className="batch-section-icon"><FilterDotIcon /></span> Presetari de culling</h3>
-          <p className="hint">Salveaza pragurile curente (Auto-Cull + respinge sub) ca presetare reutilizabila — util cand lucrezi in mai multe genuri (nunti vs. sport).</p>
+          <h3><span className="batch-section-icon"><FilterDotIcon /></span> {tr('batch.presets.title')}</h3>
+          <p className="hint">{tr('batch.presets.hint')}</p>
           {presets.length > 0 && (
             <ul className="preset-list">
               {presets.map(p => (
                 <li key={p.id} className="preset-row">
                   <button className="ghost small preset-apply" onClick={() => applyPreset(p.id)} disabled={busy}>
-                    <b>{p.name}</b> <span className="mono hint">— top {p.cullPercent}% / sub {p.rejectThreshold}</span>
+                    <b>{p.name}</b> <span className="mono hint">{tr('batch.presets.row', { cullPercent: p.cullPercent, threshold: p.rejectThreshold })}</span>
                   </button>
-                  <button className="ghost icon-btn small" onClick={() => removePreset(p.id)} aria-label={`Sterge presetarea ${p.name}`}>
+                  <button className="ghost icon-btn small" onClick={() => removePreset(p.id)} aria-label={tr('batch.presets.deleteAriaLabel', { name: p.name })}>
                     <TrashIcon />
                   </button>
                 </li>
@@ -108,13 +103,13 @@ export function BatchOpsPanel() {
             </ul>
           )}
           <button className="ghost small" onClick={saveCurrentAsPreset} disabled={busy}>
-            Salveaza pragurile curente ca presetare noua
+            {tr('batch.presets.saveNew')}
           </button>
         </div>
 
         <div className="batch-section">
-          <h3><span className="batch-section-icon"><SparkleIcon /></span> Auto-Cull: pastreaza doar cele mai bune X%</h3>
-          <p className="hint">Trieaza automat toate pozele nedecise dupa scor — restul se resping. Nu atinge pozele deja selectate/respinse manual.</p>
+          <h3><span className="batch-section-icon"><SparkleIcon /></span> {tr('batch.autoCull.title')}</h3>
+          <p className="hint">{tr('batch.autoCull.hint')}</p>
           <div className="batch-slider-row">
             <input
               type="range" min={0} max={100} step={5} value={cullPercent}
@@ -124,19 +119,19 @@ export function BatchOpsPanel() {
             <span className="mono batch-threshold-value">{cullPercent}%</span>
           </div>
           <div className="batch-preview mono">
-            <span className="batch-preview-chip pos">{cull.selectIds.length} păstrate</span>
-            <span className="batch-preview-chip neg">{cull.rejectIds.length} respinse</span>
+            <span className="batch-preview-chip pos">{tr('batch.autoCull.kept', { count: cull.selectIds.length })}</span>
+            <span className="batch-preview-chip neg">{tr('batch.autoCull.rejected', { count: cull.rejectIds.length })}</span>
           </div>
           <button className="select batch-cull-btn" onClick={() => void runAutoCull()} disabled={busy || (!cull.selectIds.length && !cull.rejectIds.length)}>
             {cull.selectIds.length || cull.rejectIds.length
-              ? `Pastreaza ${cull.selectIds.length}, respinge ${cull.rejectIds.length}`
-              : 'Nicio poza nedecisa'}
+              ? tr('batch.autoCull.apply', { keep: cull.selectIds.length, reject: cull.rejectIds.length })
+              : tr('batch.autoCull.none')}
           </button>
         </div>
 
         <div className="batch-section">
-          <h3><span className="batch-section-icon"><FilterDotIcon /></span> Respinge sub un prag de scor</h3>
-          <p className="hint">Nu atinge pozele deja selectate manual — doar cele „de verificat" sau neatinse.</p>
+          <h3><span className="batch-section-icon"><FilterDotIcon /></span> {tr('batch.rejectBelow.title')}</h3>
+          <p className="hint">{tr('batch.rejectBelow.hint')}</p>
           <div className="batch-slider-row">
             <input
               type="range" min={0} max={100} value={threshold}
@@ -146,19 +141,19 @@ export function BatchOpsPanel() {
             <span className="mono batch-threshold-value">{threshold}</span>
           </div>
           <button className="reject batch-reject-btn" onClick={() => void runReject()} disabled={busy || !targets.length}>
-            {targets.length ? `Respinge ${targets.length} poze` : 'Nicio poza sub acest prag'}
+            {targets.length ? tr('batch.rejectBelow.apply', { count: targets.length }) : tr('batch.rejectBelow.none')}
           </button>
         </div>
 
         <div className="batch-section">
-          <h3><span className="batch-section-icon"><LayersIcon /></span> Rezolvă toate seriile</h3>
-          <p className="hint">Pentru fiecare serie/duplicat, poza cu scorul cel mai mare rămâne, restul se resping.</p>
+          <h3><span className="batch-section-icon"><LayersIcon /></span> {tr('batch.resolveSeries.title')}</h3>
+          <p className="hint">{tr('batch.resolveSeries.hint')}</p>
           <button className="select batch-resolve-btn" onClick={() => void runResolveSeries()} disabled={busy || !groups.length}>
-            {groups.length ? `Rezolvă ${groups.length} serii` : 'Nicio serie găsită'}
+            {groups.length ? tr('batch.resolveSeries.apply', { count: groups.length }) : tr('batch.resolveSeries.none')}
           </button>
         </div>
 
-        {busy && <p className="hint"><SparkleIcon className="inline-icon spin" /> Se aplică…</p>}
+        {busy && <p className="hint"><SparkleIcon className="inline-icon spin" /> {tr('batch.applying')}</p>}
       </div>
     </div>
   );
