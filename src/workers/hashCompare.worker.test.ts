@@ -68,4 +68,66 @@ describe('HashCompareService.groupPhotos', () => {
     expect(new Set(updates.map(u => u.photoId))).toEqual(new Set(['a', 'b']));
     expect(updates[0].groupId).toBe(updates[1].groupId);
   });
+
+  it('desparte un bucket dHash fals-pozitiv cand embedding-urile faciale arata subiecti diferiti', async () => {
+    const service = new HashCompareService();
+    // Toate 4 sunt suficient de apropiate structural (dHash) ca sa cada in
+    // acelasi bucket, dar 'a'/'b' au fata subiectului X, iar 'c'/'d' au fata
+    // subiectului Y (embedding ortogonal) — un fals-pozitiv clasic (aceeasi
+    // compozitie de cadru, oameni diferiti).
+    const faceX = [1, 0, 0, 0];
+    const faceY = [0, 1, 0, 0];
+    const photos: HashInput[] = [
+      { ...photo('a', '0'.repeat(64)), faceEmbeddings: [faceX] },
+      { ...photo('b', '0'.repeat(63) + '1'), faceEmbeddings: [faceX] },
+      { ...photo('c', '0'.repeat(62) + '11'), faceEmbeddings: [faceY] },
+      { ...photo('d', '0'.repeat(61) + '111'), faceEmbeddings: [faceY] }
+    ];
+
+    const { groups, totalGroups } = await service.groupPhotos(photos);
+
+    // doar componenta cea mai mare (aici, ambele sunt marimea 2 — prima gasita
+    // castiga, tie-break identic cu restul algoritmului) devine grup real
+    expect(totalGroups).toBe(1);
+    expect(groups[0].memberIds.sort()).toEqual(['a', 'b']);
+  });
+
+  it('nu desparte un bucket cand fetele detectate se potrivesc (acelasi subiect, unghiuri usor diferite)', async () => {
+    const service = new HashCompareService();
+    const face = [1, 0, 0, 0];
+    const faceSlightlyDifferentAngle = [0.9, 0.436, 0, 0]; // cos similarity ~0.9, peste prag
+    const photos: HashInput[] = [
+      { ...photo('a', '0'.repeat(64)), faceEmbeddings: [face] },
+      { ...photo('b', '0'.repeat(63) + '1'), faceEmbeddings: [faceSlightlyDifferentAngle] }
+    ];
+
+    const { groups, totalGroups } = await service.groupPhotos(photos);
+
+    expect(totalGroups).toBe(1);
+    expect(groups[0].memberIds.sort()).toEqual(['a', 'b']);
+  });
+
+  it('nu desparte un bucket fara fete detectate, chiar daca lipsesc compositionScore/colorHarmonyScore (comportament neschimbat)', async () => {
+    const service = new HashCompareService();
+    const photos: HashInput[] = [photo('a', '0'.repeat(64)), photo('b', '0'.repeat(63) + '1')];
+
+    const { totalGroups } = await service.groupPhotos(photos);
+
+    expect(totalGroups).toBe(1);
+  });
+
+  it('desparte un bucket fara fete cand compozitia SI armonia culorilor diverg puternic', async () => {
+    const service = new HashCompareService();
+    const photos: HashInput[] = [
+      { ...photo('a', '0'.repeat(64)), compositionScore: 0.9, colorHarmonyScore: 0.9 },
+      { ...photo('b', '0'.repeat(63) + '1'), compositionScore: 0.9, colorHarmonyScore: 0.9 },
+      { ...photo('c', '0'.repeat(62) + '11'), compositionScore: 0.1, colorHarmonyScore: 0.1 },
+      { ...photo('d', '0'.repeat(61) + '111'), compositionScore: 0.1, colorHarmonyScore: 0.1 }
+    ];
+
+    const { groups, totalGroups } = await service.groupPhotos(photos);
+
+    expect(totalGroups).toBe(1);
+    expect(groups[0].memberIds.sort()).toEqual(['a', 'b']);
+  });
 });
