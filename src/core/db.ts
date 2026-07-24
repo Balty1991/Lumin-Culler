@@ -170,6 +170,21 @@ export interface AnalysisRecord {
   gpsLatitude?: number;
   gpsLongitude?: number;
 
+  /**
+   * Metadate IPTC-IIM (segment Photoshop APP13, distinct de EXIF/XMP) — vezi
+   * core/iptcParser.ts. Multe fluxuri profesionale (agentii foto, Photo
+   * Mechanic, exporturi Lightroom mai vechi) inca scriu doar IPTC-IIM.
+   */
+  iptcByline?: string;
+  iptcCaption?: string;
+  iptcHeadline?: string;
+  iptcCredit?: string;
+  iptcSource?: string;
+  iptcCopyright?: string;
+  iptcCity?: string;
+  iptcCountry?: string;
+  iptcKeywords?: string[];
+
   // ── Analiza estetica avansata ──────────────────────────────────────────
   // Toate calculate geometric/statistic direct din pixeli (Sobel, histograme
   // HSV, varianta locala) sau din campurile deja detectate (fete, EXIF) —

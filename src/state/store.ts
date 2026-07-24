@@ -66,6 +66,16 @@ export interface PhotoView {
   focalLength35mm?: number;
   gpsLatitude?: number;
   gpsLongitude?: number;
+  /** Metadate IPTC-IIM (segment Photoshop APP13) — vezi core/iptcParser.ts. */
+  iptcByline?: string;
+  iptcCaption?: string;
+  iptcHeadline?: string;
+  iptcCredit?: string;
+  iptcSource?: string;
+  iptcCopyright?: string;
+  iptcCity?: string;
+  iptcCountry?: string;
+  iptcKeywords?: string[];
   aiFactors: { feature: string; contribution: number }[];
   personNames: string[];
   /** Persoanele cunoscute recunoscute in ACEASTA poza, cu similaritatea (0..1) cea mai buna dintre fetele care le corespund — "confidence score" (plan 3.2.3). */
@@ -338,6 +348,15 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     focalLength35mm: analysis?.focalLength35mm,
     gpsLatitude: analysis?.gpsLatitude,
     gpsLongitude: analysis?.gpsLongitude,
+    iptcByline: analysis?.iptcByline,
+    iptcCaption: analysis?.iptcCaption,
+    iptcHeadline: analysis?.iptcHeadline,
+    iptcCredit: analysis?.iptcCredit,
+    iptcSource: analysis?.iptcSource,
+    iptcCopyright: analysis?.iptcCopyright,
+    iptcCity: analysis?.iptcCity,
+    iptcCountry: analysis?.iptcCountry,
+    iptcKeywords: analysis?.iptcKeywords,
     aiFactors: analysis?.aiFactors ?? [],
     personNames: analysis
       ? Array.from(new Set(analysis.faces.map(f => f.personName).filter((n): n is string => !!n)))

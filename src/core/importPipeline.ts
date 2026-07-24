@@ -10,6 +10,7 @@ import { contextEngine, type Prediction } from './learning/ContextEngine';
 import { groupPhotosByHash } from './hashComparePool';
 import type { HashInput } from '../workers/hashCompare.worker';
 import { parseExif } from './exifParser';
+import { parseIptc } from './iptcParser';
 import { isRawFile, decodeRawFile, RAW_EXTENSIONS } from './rawDecoder';
 
 export interface ImportProgress {
@@ -219,6 +220,19 @@ async function processOne(file: File, genre?: string, project?: string): Promise
       if (exif.gpsLatitude !== undefined) analysis.gpsLatitude = exif.gpsLatitude;
       if (exif.gpsLongitude !== undefined) analysis.gpsLongitude = exif.gpsLongitude;
       capturedAt = exif.capturedAt;
+
+      // IPTC-IIM (segment Photoshop APP13, distinct de EXIF) — acelasi prefix deja citit mai sus,
+      // fara o a doua citire de pe disc (semnatura Photoshop e mereu aproape de inceputul fisierului)
+      const iptc = parseIptc(exifBuf);
+      if (iptc.byline !== undefined) analysis.iptcByline = iptc.byline;
+      if (iptc.caption !== undefined) analysis.iptcCaption = iptc.caption;
+      if (iptc.headline !== undefined) analysis.iptcHeadline = iptc.headline;
+      if (iptc.credit !== undefined) analysis.iptcCredit = iptc.credit;
+      if (iptc.source !== undefined) analysis.iptcSource = iptc.source;
+      if (iptc.copyright !== undefined) analysis.iptcCopyright = iptc.copyright;
+      if (iptc.city !== undefined) analysis.iptcCity = iptc.city;
+      if (iptc.country !== undefined) analysis.iptcCountry = iptc.country;
+      if (iptc.keywords !== undefined) analysis.iptcKeywords = iptc.keywords;
     } catch (err) {
       console.error('Citire EXIF esuata pentru ' + file.name + ':', err);
     }

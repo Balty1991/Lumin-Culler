@@ -75,6 +75,24 @@ function extendedExifRows(photo: {
   return rows;
 }
 
+/** Randuri IPTC-IIM (segment Photoshop APP13, distinct de EXIF) — vezi core/iptcParser.ts. */
+function iptcRows(photo: {
+  iptcByline?: string; iptcCaption?: string; iptcHeadline?: string; iptcCredit?: string;
+  iptcSource?: string; iptcCopyright?: string; iptcCity?: string; iptcCountry?: string; iptcKeywords?: string[];
+}, tr: (key: string, params?: Record<string, string | number>) => string): { key: string; label: string; value: string }[] {
+  const rows: { key: string; label: string; value: string }[] = [];
+  if (photo.iptcHeadline) rows.push({ key: 'headline', label: tr('detail.iptc.headline'), value: photo.iptcHeadline });
+  if (photo.iptcCaption) rows.push({ key: 'caption', label: tr('detail.iptc.caption'), value: photo.iptcCaption });
+  if (photo.iptcByline) rows.push({ key: 'byline', label: tr('detail.iptc.byline'), value: photo.iptcByline });
+  if (photo.iptcCredit) rows.push({ key: 'credit', label: tr('detail.iptc.credit'), value: photo.iptcCredit });
+  if (photo.iptcSource) rows.push({ key: 'source', label: tr('detail.iptc.source'), value: photo.iptcSource });
+  const location = [photo.iptcCity, photo.iptcCountry].filter(Boolean).join(', ');
+  if (location) rows.push({ key: 'location', label: tr('detail.iptc.location'), value: location });
+  if (photo.iptcCopyright) rows.push({ key: 'copyright', label: tr('detail.iptc.copyright'), value: photo.iptcCopyright });
+  if (photo.iptcKeywords?.length) rows.push({ key: 'keywords', label: tr('detail.iptc.keywords'), value: photo.iptcKeywords.join(', ') });
+  return rows;
+}
+
 /** Timp relativ scurt — suficient de precis pentru un istoric de minute/ore, nu o audiere legala. */
 function formatRelativeTime(ts: number, locale: Locale): string {
   const diffSec = Math.max(0, Math.round((Date.now() - ts) / 1000));
@@ -237,6 +255,7 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
 
   const exif = formatExif(photo);
   const exifRows = extendedExifRows(photo, tr);
+  const iptcRowsList = iptcRows(photo, tr);
 
   return (
     <motion.div
@@ -388,6 +407,16 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
                           </a>
                         ) : r.value}
                       </dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+              {iptcRowsList.length > 0 && (
+                <dl className="detail-exif-extended">
+                  {iptcRowsList.map(r => (
+                    <div className="detail-exif-row" key={r.key}>
+                      <dt>{r.label}</dt>
+                      <dd>{r.value}</dd>
                     </div>
                   ))}
                 </dl>
