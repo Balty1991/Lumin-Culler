@@ -2,8 +2,43 @@ import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { db } from '../core/db';
 import { computePersonRecognitionStats, type PersonRecognitionStats } from '../core/stats';
+import { findUnrecognizedFaceClusters, type FaceCluster } from '../core/faceClustering';
 import { useModalFocusTrap } from './useModalFocusTrap';
-import { UserCheckIcon, TrashIcon, XIcon, DownloadIcon, UploadIcon, LayersIcon } from './icons';
+import { UserCheckIcon, TrashIcon, XIcon, DownloadIcon, UploadIcon, LayersIcon, SparkleIcon } from './icons';
+
+/** Decupaj patrat in jurul cutiei fetei detectate (box normalizat 0..1), din miniatura deja generata — fara nicio re-decodare. */
+function FaceCropThumb({ photoId, box }: { photoId: string; box: [number, number, number, number] }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    let cancelled = false;
+    let url: string | null = null;
+
+    void db.thumbnails.get(photoId).then(rec => {
+      if (!rec || cancelled) return;
+      const img = new Image();
+      img.onload = () => {
+        if (cancelled) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        const [bx, by, bw, bh] = box;
+        const pad = 0.2; // marja in jurul cutiei, ca fata sa nu fie taiata prea strans
+        const x = Math.max(0, (bx - bw * pad) * img.width);
+        const y = Math.max(0, (by - bh * pad) * img.height);
+        const w = Math.min(img.width - x, bw * (1 + pad * 2) * img.width);
+        const h = Math.min(img.height - y, bh * (1 + pad * 2) * img.height);
+        ctx.drawImage(img, x, y, Math.max(1, w), Math.max(1, h), 0, 0, 56, 56);
+      };
+      url = URL.createObjectURL(rec.blob);
+      img.src = url;
+    });
+    return () => { cancelled = true; if (url) URL.revokeObjectURL(url); };
+  }, [photoId, box]);
+
+  return <canvas ref={canvasRef} className="face-crop-thumb" width={56} height={56} aria-hidden="true" />;
+}
 
 /** Inrolare persoane cunoscute (ex. Ami, sotia): nume + 1-4 poze de referinta. */
 export function PersonsPanel() {
@@ -16,6 +51,7 @@ export function PersonsPanel() {
   const mergePersons = useStore(s => s.mergePersons);
   const exportPersonProfiles = useStore(s => s.exportPersonProfiles);
   const importPersonProfiles = useStore(s => s.importPersonProfiles);
+  const enrollFaceCluster = useStore(s => s.enrollFaceCluster);
   const clearAllIncludingPersons = useStore(s => s.clearAllIncludingPersons);
 
   const [name, setName] = useState('');
@@ -23,19 +59,42 @@ export function PersonsPanel() {
   const [message, setMessage] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [recognitionStats, setRecognitionStats] = useState<Map<string, PersonRecognitionStats> | null>(null);
+  const [clusters, setClusters] = useState<FaceCluster[] | null>(null);
+  const [scanningClusters, setScanningClusters] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const importRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   useModalFocusTrap(containerRef, open);
 
   useEffect(() => {
-    if (!open) { setSelected(new Set()); setRecognitionStats(null); return; }
+    if (!open) { setSelected(new Set()); setRecognitionStats(null); setClusters(null); return; }
     let alive = true;
     void db.analyses.toArray().then(rows => { if (alive) setRecognitionStats(computePersonRecognitionStats(rows)); });
     return () => { alive = false; };
   }, [open]);
 
   if (!open) return null;
+
+  const scanForClusters = async () => {
+    setScanningClusters(true);
+    const [photos, analyses] = await Promise.all([db.photos.toArray(), db.analyses.toArray()]);
+    const byId = new Map(analyses.map(a => [a.photoId, a]));
+    const clusterable = photos
+      .map(p => ({ id: p.id, fileName: p.fileName, faces: byId.get(p.id)?.faces ?? [] }))
+      .filter(p => p.faces.length > 0);
+    setClusters(findUnrecognizedFaceClusters(clusterable).slice(0, 8));
+    setScanningClusters(false);
+  };
+
+  const enrollCluster = (cluster: FaceCluster) => {
+    const newName = window.prompt(
+      `Persoana neidentificata apare in ${cluster.members.length} fotografii. Ce nume ii dai?`
+    );
+    if (!newName?.trim()) return;
+    void enrollFaceCluster(newName, cluster.members).then(() => {
+      setClusters(prev => prev?.filter(c => c !== cluster) ?? null);
+    });
+  };
 
   const toggleSelected = (id: string) => {
     setSelected(prev => {
@@ -152,6 +211,33 @@ export function PersonsPanel() {
             </button>
           </div>
         )}
+
+        <div className="face-suggestions">
+          <div className="face-suggestions-head">
+            <span className="hint">
+              <SparkleIcon className="inline-icon" /> Sugestii AI: fete neidentificate care apar de mai multe ori in biblioteca curenta.
+            </span>
+            <button className="ghost small" onClick={() => void scanForClusters()} disabled={scanningClusters}>
+              {scanningClusters ? 'Se cauta…' : 'Cauta persoane neidentificate'}
+            </button>
+          </div>
+          {clusters !== null && clusters.length === 0 && (
+            <p className="hint">Nicio fata neidentificata nu apare de cel putin 2 ori in biblioteca curenta.</p>
+          )}
+          {clusters && clusters.length > 0 && (
+            <ul className="face-cluster-list">
+              {clusters.map((c, i) => (
+                <li key={i} className="face-cluster-row">
+                  <FaceCropThumb photoId={c.members[0].photoId} box={c.members[0].box} />
+                  <span className="hint">Apare in {c.members.length} poze (ex. {c.members[0].fileName})</span>
+                  <button className="ghost small" onClick={() => enrollCluster(c)}>
+                    <UserCheckIcon className="inline-icon" /> Inroleaza
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
 
         <div className="enroll">
           <input

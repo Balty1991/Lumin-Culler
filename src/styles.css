@@ -1038,6 +1038,16 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
   border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
 }
 .persons-transfer { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.face-suggestions { display: grid; gap: 8px; padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.face-suggestions-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.face-cluster-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.face-cluster-row {
+  display: flex; align-items: center; gap: 10px; background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 6px 10px 6px 6px;
+}
+.face-cluster-row .hint { flex: 1; min-width: 0; }
+.face-crop-thumb { width: 56px; height: 56px; border-radius: 8px; flex-shrink: 0; background: var(--surface-3); object-fit: cover; }
 .enroll { display: grid; gap: 10px; }
 .enroll input[type="text"] {
   background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius);

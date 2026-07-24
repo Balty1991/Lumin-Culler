@@ -230,6 +230,14 @@ interface AppState {
   /** Exporta profilurile alese (nume + referinte faciale) intr-un JSON — distinct de backup-ul general (exportBackup), care exporta TOT. */
   exportPersonProfiles: (ids: string[]) => Promise<void>;
   importPersonProfiles: (file: File) => Promise<void>;
+  /**
+   * Inroleaza o persoana noua direct dintr-un cluster de fete NErecunoscute
+   * sugerat de AI (vezi core/faceClustering.ts) — foloseste embedding-urile
+   * deja calculate (nu cere poze noi de referinta) si re-eticheteaza
+   * RETROACTIV fetele din cluster in analizele deja existente, ca persoana
+   * sa nu mai apara drept "strain" in restul bibliotecii curente.
+   */
+  enrollFaceCluster: (name: string, members: { photoId: string; faceIndex: number; embedding: number[] }[]) => Promise<void>;
   setPersonsOpen: (open: boolean) => void;
   setMenuOpen: (open: boolean) => void;
   setInsightsOpen: (open: boolean) => void;
@@ -973,6 +981,54 @@ export const useStore = create<AppState>((set, get) => ({
     } catch (err) {
       set({ notice: 'Import profiluri esuat: ' + (err instanceof Error ? err.message : String(err)) });
     }
+  },
+
+  enrollFaceCluster: async (name, members) => {
+    const trimmedName = name.trim();
+    if (!trimmedName || !members.length) return;
+    const newEmbeddings = members.map(m => m.embedding);
+    const existing = get().persons.find(p => p.name.trim().toLowerCase() === trimmedName.toLowerCase());
+    const person: KnownPerson = existing
+      ? { ...existing, embeddings: [...existing.embeddings, ...newEmbeddings].slice(-MAX_PERSON_EMBEDDINGS), updatedAt: Date.now() }
+      : { id: crypto.randomUUID(), name: trimmedName, embeddings: newEmbeddings.slice(-MAX_PERSON_EMBEDDINGS), updatedAt: Date.now() };
+    await db.persons.put(person);
+
+    // re-eticheteaza RETROACTIV exact fetele din cluster (identificate prin
+    // faceIndex, stabil - nu prin embedding, care s-ar putea sa nu compare
+    // egal ca referinta intre interogari separate) in analizele deja
+    // existente. NU recalculam scorul AI/statusul deja decis pentru aceste
+    // poze (ar necesita re-rularea ContextEngine si ar putea schimba decizii
+    // deja luate de utilizator) — doar identificarea (nume/numar cunoscuti),
+    // care conteaza pentru afisare si export.
+    const photoIds = Array.from(new Set(members.map(m => m.photoId)));
+    const analyses = await db.analyses.bulkGet(photoIds);
+    for (let i = 0; i < photoIds.length; i++) {
+      const analysis = analyses[i];
+      if (!analysis) continue;
+      const faceIndexes = members.filter(m => m.photoId === photoIds[i]).map(m => m.faceIndex);
+      let changed = false;
+      for (const idx of faceIndexes) {
+        const face = analysis.faces[idx];
+        if (face && !face.personId) {
+          face.personId = person.id;
+          face.personName = person.name;
+          changed = true;
+        }
+      }
+      if (changed) {
+        analysis.knownFaceCount = analysis.faces.filter(f => f.personId).length;
+        analysis.strangerCount = analysis.faces.filter(f => !f.personId).length;
+        await db.analyses.put(analysis);
+      }
+    }
+
+    const persons = await db.persons.toArray();
+    await analysisPool.setKnownPersons(persons).catch(() => {});
+    const views = await reloadPhotoViews();
+    set({
+      persons, photos: views,
+      notice: `${trimmedName}: persoana noua inrolata din ${members.length} detectii, re-etichetata in ${photoIds.length} poze din biblioteca curenta.`
+    });
   },
 
   setPersonsOpen: open => set({ personsOpen: open }),
