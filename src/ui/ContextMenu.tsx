@@ -2,6 +2,8 @@ import { useEffect, useRef } from 'react';
 import { CheckIcon, ClockIcon, XIcon, SearchIcon } from './icons';
 import { StarRating } from './StarRating';
 import type { PhotoRecord } from '../core/db';
+import { useStore } from '../state/store';
+import { t } from '../i18n';
 
 interface ContextMenuProps {
   x: number;
@@ -24,6 +26,8 @@ interface ContextMenuProps {
  * singure poze, fie intregii selectii in masa curente (daca poza vizata face parte din ea).
  */
 export function ContextMenu({ x, y, count, rating, onSetStatus, onSetRating, onOpenDetail, onClose }: ContextMenuProps) {
+  const locale = useStore(s => s.locale);
+  const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -49,27 +53,27 @@ export function ContextMenu({ x, y, count, rating, onSetStatus, onSetRating, onO
   const act = (fn: () => void) => { fn(); onClose(); };
 
   return (
-    <div className="context-menu glass" style={style} ref={ref} role="menu" aria-label="Actiuni rapide">
-      <div className="context-menu-title mono">{count > 1 ? `${count} poze selectate` : 'Actiuni rapide'}</div>
+    <div className="context-menu glass" style={style} ref={ref} role="menu" aria-label={tr('contextMenu.ariaLabel')}>
+      <div className="context-menu-title mono">{count > 1 ? tr('contextMenu.titleSelection', { count }) : tr('contextMenu.title')}</div>
       <button className="context-menu-item" role="menuitem" onClick={() => act(() => onSetStatus('selected'))}>
-        <CheckIcon className="inline-icon" /> Selecteaza
+        <CheckIcon className="inline-icon" /> {tr('contextMenu.select')}
       </button>
       <button className="context-menu-item" role="menuitem" onClick={() => act(() => onSetStatus('review'))}>
-        <ClockIcon className="inline-icon" /> De verificat
+        <ClockIcon className="inline-icon" /> {tr('contextMenu.review')}
       </button>
       <button className="context-menu-item" role="menuitem" onClick={() => act(() => onSetStatus('rejected'))}>
-        <XIcon className="inline-icon" /> Respinge
+        <XIcon className="inline-icon" /> {tr('contextMenu.reject')}
       </button>
       <div className="context-menu-sep" />
       <div className="context-menu-rating">
-        <span>Rating</span>
+        <span>{tr('contextMenu.rating')}</span>
         <StarRating rating={rating} onRate={n => act(() => onSetRating(n))} size="sm" />
       </div>
       {onOpenDetail && (
         <>
           <div className="context-menu-sep" />
           <button className="context-menu-item" role="menuitem" onClick={() => act(onOpenDetail)}>
-            <SearchIcon className="inline-icon" /> Deschide detalii
+            <SearchIcon className="inline-icon" /> {tr('contextMenu.openDetail')}
           </button>
         </>
       )}
