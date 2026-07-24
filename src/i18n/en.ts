@@ -98,6 +98,7 @@ export const en: Record<TranslationKey, string> = {
   'palette.filter.rejected': 'Rejected',
   'palette.filter.series': 'Series',
   'palette.filter.blinks': 'Closed eyes',
+  'palette.filter.goldenHour': 'Golden hour',
   'palette.cmd.persons': 'Known people',
   'palette.cmd.insights': 'AI preferences',
   'palette.cmd.exportSelection': 'Export selected photos ({count})',

@@ -84,7 +84,7 @@ export interface PhotoView {
   sceneTags?: string[];
 }
 
-export type FilterKey = 'all' | 'selected' | 'review' | 'rejected' | 'series' | 'blinks';
+export type FilterKey = 'all' | 'selected' | 'review' | 'rejected' | 'series' | 'blinks' | 'goldenHour';
 
 /** Cheie de proiectFilter pentru pozele fara proiect ales — un nume de proiect real nu poate coincide cu acest sentinel (spatii, gol dupa trim). */
 export const NO_PROJECT_KEY = 'no-project';
@@ -1215,6 +1215,7 @@ export const useStore = create<AppState>((set, get) => ({
       case 'review': base = photos.filter(p => p.status === 'review'); break;
       case 'rejected': base = photos.filter(p => p.status === 'rejected'); break;
       case 'blinks': base = photos.filter(p => p.faceCount > 0 && !p.allEyesOpen); break;
+      case 'goldenHour': base = photos.filter(p => p.goldenHourDetected); break;
       case 'series': {
         const withGroup = photos.filter(p => p.groupId);
         base = withGroup.sort((a, b) =>
