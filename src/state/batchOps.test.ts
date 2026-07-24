@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { selectBulkRejectTargets, resolveGroups, selectTopPercent } from './batchOps';
+import { selectBulkRejectTargets, resolveGroups, selectTopPercent, selectHighlights } from './batchOps';
 import type { PhotoView } from './store';
 
 function photo(overrides: Partial<PhotoView>): PhotoView {
@@ -135,5 +135,34 @@ describe('selectTopPercent', () => {
     const photos = [photo({ id: 'a', status: 'selected', aiScore: 90 })];
     const result = selectTopPercent(photos, 50);
     expect(result).toEqual({ selectIds: [], rejectIds: [] });
+  });
+});
+
+describe('selectHighlights', () => {
+  it('keeps the top N% by score across the WHOLE library, regardless of status', () => {
+    const photos = [
+      photo({ id: 'a', status: 'selected', aiScore: 90 }),
+      photo({ id: 'b', status: 'rejected', aiScore: 70 }),
+      photo({ id: 'c', status: 'review', aiScore: 50 }),
+      photo({ id: 'd', status: 'pending', aiScore: 30 })
+    ];
+    // top 50% of 4 => 2, regardless of their decided/undecided status
+    expect(selectHighlights(photos, 50).map(p => p.id)).toEqual(['a', 'b']);
+  });
+
+  it('returns at least 1 result when any photo exists, even at a tiny percent', () => {
+    const photos = [photo({ id: 'a', aiScore: 10 })];
+    expect(selectHighlights(photos, 1).map(p => p.id)).toEqual(['a']);
+  });
+
+  it('returns an empty array for an empty library', () => {
+    expect(selectHighlights([], 10)).toEqual([]);
+  });
+
+  it('defaults to top 10%', () => {
+    const photos = Array.from({ length: 10 }, (_, i) => photo({ id: `p${i}`, aiScore: 100 - i }));
+    const result = selectHighlights(photos);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('p0');
   });
 });
