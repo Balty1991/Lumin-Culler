@@ -390,6 +390,9 @@ export const ro = {
   'batch.resolveSeries.none': 'Nicio serie gasita',
   'batch.resolveSeries.confirm': 'Rezolvi toate cele {count} serii deodata? In fiecare, poza cu scorul cel mai mare ramane, restul se resping.',
   'batch.applying': 'Se aplica…',
+  'batch.rename.title': 'Redenumire la export',
+  'batch.rename.hint': 'Sablon opt-in pentru "Exporta selectia" — gol pastreaza numele original. Token-uri: {client} {eveniment} {locatie} {data} {secventa} {nume}.',
+  'batch.rename.preview': 'Exemplu: {name}',
 
   'stats.library.title': 'Biblioteca curenta',
   'stats.library.empty': 'Nicio poza importata inca.',

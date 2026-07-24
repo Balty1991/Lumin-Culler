@@ -393,6 +393,9 @@ export const en: Record<TranslationKey, string> = {
   'batch.resolveSeries.none': 'No series found',
   'batch.resolveSeries.confirm': 'Resolve all {count} series at once? In each one, the photo with the highest score stays, the rest get rejected.',
   'batch.applying': 'Applying…',
+  'batch.rename.title': 'Rename on export',
+  'batch.rename.hint': 'Opt-in template for "Export selection" — empty keeps the original name. Tokens: {client} {eveniment} {locatie} {data} {secventa} {nume}.',
+  'batch.rename.preview': 'Example: {name}',
 
   'stats.library.title': 'Current library',
   'stats.library.empty': 'No photos imported yet.',

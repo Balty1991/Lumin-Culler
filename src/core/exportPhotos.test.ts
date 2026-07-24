@@ -66,6 +66,29 @@ describe('exportOriginalFiles (fallback fara File System Access API)', () => {
     expect(entries.some(e => e.path === 'Ami/a.jpg')).toBe(true);
     expect(entries.some(e => e.path === 'Peisaje/b.jpg')).toBe(true);
   });
+
+  it('fara renameTemplate, pastreaza numele original de fisier (comportament neschimbat)', async () => {
+    originalFiles.set('p1', fakeFile('IMG_0001.jpg'));
+    const result = await exportOriginalFiles([
+      { id: 'p1', fileName: 'IMG_0001.jpg', personNames: [], faceCount: 0, strangerCount: 0, sceneType: 'landscape' }
+    ]);
+    expect(result.exported).toBe(1);
+    // fisier unic => descarcare directa, nu zip — verificam prin a.download setat in downloadOne
+  });
+
+  it('cu renameTemplate, redenumeste fiecare fisier din zip dupa sablon si numeroteaza secvential', async () => {
+    originalFiles.set('p1', fakeFile('IMG_0001.jpg'));
+    originalFiles.set('p2', fakeFile('IMG_0002.jpg'));
+    await exportOriginalFiles(
+      [
+        { id: 'p1', fileName: 'IMG_0001.jpg', personNames: [], faceCount: 0, strangerCount: 0, sceneType: 'landscape', client: 'Ana', event: 'Nunta' },
+        { id: 'p2', fileName: 'IMG_0002.jpg', personNames: [], faceCount: 0, strangerCount: 0, sceneType: 'landscape', client: 'Ana', event: 'Nunta' }
+      ],
+      { renameTemplate: '{client}_{eveniment}_{secventa}' }
+    );
+    const entries = downloadZip.mock.calls[0][1];
+    expect(entries.map(e => e.path).sort()).toEqual(['Peisaje/Ana_Nunta_001.jpg', 'Peisaje/Ana_Nunta_002.jpg']);
+  });
 });
 
 describe('computeGroupPersonUnion', () => {

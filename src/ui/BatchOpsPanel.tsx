@@ -2,8 +2,9 @@ import { useMemo, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { selectBulkRejectTargets, resolveGroups, selectTopPercent } from '../state/batchOps';
 import { listCullingPresets, saveCullingPreset, deleteCullingPreset, type CullingPreset } from '../state/cullingPresets';
+import { buildExportFileName } from '../core/renameTemplate';
 import { useModalFocusTrap } from './useModalFocusTrap';
-import { XIcon, LayersIcon, SparkleIcon, FilterDotIcon, TrashIcon } from './icons';
+import { XIcon, LayersIcon, SparkleIcon, FilterDotIcon, TrashIcon, EditIcon } from './icons';
 import { t } from '../i18n';
 
 const DEFAULT_THRESHOLD = 35; // acelasi prag ca REJECT_THRESHOLD din importPipeline.ts
@@ -17,6 +18,8 @@ export function BatchOpsPanel() {
   const bulkRejectBelow = useStore(s => s.bulkRejectBelow);
   const resolveAllSeries = useStore(s => s.resolveAllSeries);
   const autoCullTopPercent = useStore(s => s.autoCullTopPercent);
+  const renameTemplate = useStore(s => s.renameTemplate);
+  const setRenameTemplate = useStore(s => s.setRenameTemplate);
   const askConfirm = useStore(s => s.askConfirm);
   const askPrompt = useStore(s => s.askPrompt);
   const locale = useStore(s => s.locale);
@@ -47,6 +50,11 @@ export function BatchOpsPanel() {
   const targets = useMemo(() => selectBulkRejectTargets(photos, threshold), [photos, threshold]);
   const groups = useMemo(() => resolveGroups(photos), [photos]);
   const cull = useMemo(() => selectTopPercent(photos, cullPercent), [photos, cullPercent]);
+
+  const renamePreview = useMemo(
+    () => buildExportFileName(renameTemplate, { client: 'Ana', event: 'Nunta', capturedAt: Date.now() }, 1, 'IMG_1234.jpg'),
+    [renameTemplate]
+  );
 
   if (!open) return null;
 
@@ -155,6 +163,20 @@ export function BatchOpsPanel() {
           <button className="select batch-resolve-btn" onClick={() => void runResolveSeries()} disabled={busy || !groups.length}>
             {groups.length ? tr('batch.resolveSeries.apply', { count: groups.length }) : tr('batch.resolveSeries.none')}
           </button>
+        </div>
+
+        <div className="batch-section">
+          <h3><span className="batch-section-icon"><EditIcon /></span> {tr('batch.rename.title')}</h3>
+          <p className="hint">{tr('batch.rename.hint')}</p>
+          <input
+            type="text"
+            className="batch-rename-input"
+            value={renameTemplate}
+            onChange={e => setRenameTemplate(e.target.value)}
+            placeholder="{client}_{eveniment}_{data}_{secventa}"
+            aria-label={tr('batch.rename.title')}
+          />
+          <p className="hint mono batch-rename-preview">{tr('batch.rename.preview', { name: renamePreview })}</p>
         </div>
 
         {busy && <p className="hint"><SparkleIcon className="inline-icon spin" /> {tr('batch.applying')}</p>}

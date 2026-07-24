@@ -23,6 +23,7 @@ import { readStoredProjectName, writeProjectName } from './projectName';
 import { readStoredGenre, writeStoredGenre } from './genre';
 import { readGridDensity, writeGridDensity, type GridDensity } from './gridDensity';
 import { readGridSort, writeGridSort, compareBy, type GridSort } from './gridSort';
+import { readStoredRenameTemplate, writeStoredRenameTemplate } from '../core/renameTemplate';
 import { recordUsage, readMonthlyUsage, FREE_TIER_MONTHLY_LIMIT } from './usage';
 import { getProjectMetadata } from './projectMetadata';
 import { buildPersonProfilesExport, personProfilesFileName, parsePersonProfilesFile } from '../core/personProfileTransfer';
@@ -134,6 +135,14 @@ interface AppState {
   /** Criteriul de sortare a grilei (plan 3.2.1) — implicit dupa data capturii, ca pana acum. Persistat local. */
   gridSort: GridSort;
   setGridSort: (sort: GridSort) => void;
+  /**
+   * Sablon de redenumire in masa la export (vezi core/renameTemplate.ts) —
+   * token-uri {client} {eveniment} {locatie} {data} {secventa} {nume}. Gol
+   * (implicit) = pastreaza numele original de fisier, neschimbat. Persistat
+   * local, folosit de exportSelection.
+   */
+  renameTemplate: string;
+  setRenameTemplate: (template: string) => void;
   /** Exporta persoanele cunoscute + modelele AI invatate (fara imagini) intr-un fisier JSON de backup. */
   exportBackup: () => Promise<void>;
   /** Restaureaza un backup: persoane + modele AI, plus reaplicarea deciziilor (status/rating) pe pozele curente care se potrivesc (nume fisier + data capturii). */
@@ -535,6 +544,9 @@ export const useStore = create<AppState>((set, get) => ({
   setGridDensity: density => { writeGridDensity(density); set({ gridDensity: density }); },
   gridSort: readGridSort(),
   setGridSort: sort => { writeGridSort(sort); set({ gridSort: sort }); },
+
+  renameTemplate: readStoredRenameTemplate(),
+  setRenameTemplate: template => { writeStoredRenameTemplate(template); set({ renameTemplate: template }); },
   lastImportStats: null,
   monthlyUsage: readMonthlyUsage(),
   statsOpen: false,
@@ -1213,14 +1225,21 @@ export const useStore = create<AppState>((set, get) => ({
       // unim persoanele recunoscute pe toata seria, ca folderul de export
       // sa reflecte cine e cu-adevarat in poza, nu doar ce a prins acel cadru.
       const groupUnion = computeGroupPersonUnion(allPhotos);
-      const result = await exportOriginalFiles(selected.map(p => ({
-        id: p.id,
-        fileName: p.fileName,
-        personNames: p.groupId ? (groupUnion.get(p.groupId) ?? p.personNames) : p.personNames,
-        faceCount: p.faceCount,
-        strangerCount: p.strangerCount,
-        sceneType: p.sceneType
-      })));
+      const result = await exportOriginalFiles(selected.map(p => {
+        const meta = p.project ? getProjectMetadata(p.project) : {};
+        return {
+          id: p.id,
+          fileName: p.fileName,
+          personNames: p.groupId ? (groupUnion.get(p.groupId) ?? p.personNames) : p.personNames,
+          faceCount: p.faceCount,
+          strangerCount: p.strangerCount,
+          sceneType: p.sceneType,
+          capturedAt: p.capturedAt,
+          client: meta.client,
+          event: meta.event,
+          location: meta.location
+        };
+      }), { renameTemplate: get().renameTemplate });
       if (result.cancelled) return;
       const locale = get().locale;
       const parts = [
