@@ -224,14 +224,27 @@ export default function App() {
   // sau containerul intern al VirtualPhotoGrid (biblioteci mari) — ambele raporteaza aici
   // prin acelasi handler, ca starea sa fie unica indiferent de sursa.
   const [headerHidden, setHeaderHidden] = useState(false);
-  const lastScrollYRef = useRef(0);
+  /**
+   * Ancora scroll-ului de la ULTIMA schimbare de directie (nu ultimul eveniment
+   * de scroll) — un scroll natural (mai ales momentum/inerte pe mobil) produce
+   * evenimente dese cu delta-uri mici care oscileaza in jurul unui prag mic
+   * (ex. +8px, apoi -3px, apoi +5px), desi directia GENERALA e clar in jos.
+   * Compararea cu ultimul eveniment (cum era inainte) facea antetul sa
+   * apara/dispara la fiecare astfel de oscilatie — pâlpâire vizibila la
+   * scroll continuu. Comparand fata de ancora si mutand-o DOAR cand starea
+   * chiar se schimba, o mica oscilatie sub prag nu mai declanseaza nimic.
+   */
+  const scrollAnchorRef = useRef(0);
+  const HEADER_TOGGLE_THRESHOLD_PX = 24;
   const handleGridScroll = (scrollY: number) => {
-    const last = lastScrollYRef.current;
-    const delta = scrollY - last;
-    if (scrollY < 40) setHeaderHidden(false); // aproape de varf — antetul ramane mereu vizibil
-    else if (delta > 6) setHeaderHidden(true); // scroll in jos
-    else if (delta < -6) setHeaderHidden(false); // scroll in sus
-    lastScrollYRef.current = scrollY;
+    if (scrollY < 40) { // aproape de varf — antetul ramane mereu vizibil
+      setHeaderHidden(false);
+      scrollAnchorRef.current = scrollY;
+      return;
+    }
+    const delta = scrollY - scrollAnchorRef.current;
+    if (delta > HEADER_TOGGLE_THRESHOLD_PX) { setHeaderHidden(true); scrollAnchorRef.current = scrollY; }
+    else if (delta < -HEADER_TOGGLE_THRESHOLD_PX) { setHeaderHidden(false); scrollAnchorRef.current = scrollY; }
   };
 
   useEffect(() => {
