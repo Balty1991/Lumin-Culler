@@ -48,6 +48,34 @@ function sanitizeSegment(s: string): string {
   return clean || 'necunoscut';
 }
 
+/**
+ * Corecteaza scaparile de recunoastere DIN ACEEASI SERIE (burst): recunoasterea
+ * faciala ruleaza separat pe fiecare cadru, iar intr-un burst (poze aproape
+ * identice, la cateva sute de ms una de alta) e frecvent ca o fata sa fie
+ * ratata intr-un cadru anume (cap intors, miscare, expresie) desi persoana
+ * e clar prezenta si acolo — un om care se uita la poza o recunoaste instant.
+ * Daca ORICE cadru din acelasi groupId a recunoscut o persoana cu incredere,
+ * o consideram prezenta in TOATE cadrele grupului pentru scopul denumirii
+ * folderului de export — bug real raportat: poze cu ambele persoane vizibile
+ * ajungeau in folderul unei singure persoane, cand acel cadru anume ratase
+ * fata celeilalte. NU modifica scorul AI/metricile afisate, doar gruparea
+ * fizica a fisierelor exportate. Calculata din TOATA biblioteca (nu doar
+ * pozele exportate), ca sa beneficieze de orice cadru din serie care a
+ * recunoscut corect, chiar daca acela nu e printre pozele selectate acum.
+ */
+export function computeGroupPersonUnion(allPhotos: { groupId?: string; personNames: string[] }[]): Map<string, string[]> {
+  const byGroup = new Map<string, Set<string>>();
+  for (const p of allPhotos) {
+    if (!p.groupId) continue;
+    const set = byGroup.get(p.groupId) ?? new Set<string>();
+    for (const n of p.personNames) set.add(n);
+    byGroup.set(p.groupId, set);
+  }
+  const result = new Map<string, string[]>();
+  for (const [groupId, names] of byGroup) result.set(groupId, Array.from(names));
+  return result;
+}
+
 export function folderLabel(p: { personNames: string[]; faceCount: number; strangerCount: number; sceneType: string }): string {
   if (p.personNames.length > 0) {
     const names = [...p.personNames].sort((a, b) => a.localeCompare(b, 'ro'));
