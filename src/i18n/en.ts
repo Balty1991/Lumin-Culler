@@ -351,6 +351,8 @@ export const en: Record<TranslationKey, string> = {
   'persons.enrollCluster': 'Enroll',
   'persons.namePlaceholder': 'Name (e.g. Ami)',
   'persons.filesAriaLabel': 'Reference photos',
+  'persons.chooseFiles': 'Choose photos',
+  'persons.filesChosen': '{count} photos chosen',
   'persons.reenrollHint': 'A name already in use adds new references to the existing profile (it does not create a duplicate) — useful for periodic re-enrollment, e.g. a child whose features are changing.',
   'persons.enroll': 'Enroll person',
   'persons.exportAll': 'Export all profiles',
