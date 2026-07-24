@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useStore } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
-import { KeyboardIcon } from './icons';
+import { KeyboardIcon, XIcon } from './icons';
 import { t } from '../i18n';
 
 interface Shortcut { keys: string; labelKey: string; }
@@ -87,7 +87,9 @@ export function ShortcutsPanel() {
       <div className="detail-inner narrow" ref={containerRef} role="dialog" aria-modal="true" aria-label={t(locale, 'shortcuts.title')} tabIndex={-1}>
         <header className="detail-head">
           <span><KeyboardIcon className="inline-icon" /> {t(locale, 'shortcuts.title')}</span>
-          <button className="ghost" onClick={() => setOpen(false)}>{t(locale, 'shortcuts.close')}</button>
+          <button className="ghost icon-btn" onClick={() => setOpen(false)} aria-label={t(locale, 'shortcuts.close')}>
+            <XIcon />
+          </button>
         </header>
 
         {SECTIONS.map(section => (

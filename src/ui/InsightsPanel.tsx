@@ -3,7 +3,7 @@ import { useStore } from '../state/store';
 import { contextEngine } from '../core/learning/ContextEngine';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { InsightsChart, type InsightsChartWeight } from './InsightsChart';
-import { SparkleIcon, TrashIcon } from './icons';
+import { SparkleIcon, TrashIcon, XIcon } from './icons';
 import { t } from '../i18n';
 
 interface Summary {
@@ -43,6 +43,7 @@ function contextLabel(key: string, tr: (key: string, params?: Record<string, str
 export function InsightsPanel() {
   const open = useStore(s => s.insightsOpen);
   const setOpen = useStore(s => s.setInsightsOpen);
+  const askConfirm = useStore(s => s.askConfirm);
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const [summary, setSummary] = useState<Summary[] | null>(null);
@@ -69,8 +70,8 @@ export function InsightsPanel() {
     });
   };
 
-  const confirmReset = (contextKey: string) => {
-    if (window.confirm(tr('insights.confirmReset', { context: contextLabel(contextKey, tr) }))) {
+  const confirmReset = async (contextKey: string) => {
+    if (await askConfirm(tr('insights.confirmReset', { context: contextLabel(contextKey, tr) }), { danger: true })) {
       void contextEngine.reset(contextKey).then(reload);
     }
   };
@@ -80,7 +81,9 @@ export function InsightsPanel() {
       <div className="detail-inner narrow" ref={containerRef} role="dialog" aria-modal="true" aria-label={tr('menu.aiPreferences')} tabIndex={-1}>
         <header className="detail-head">
           <span><SparkleIcon className="inline-icon" /> {tr('menu.aiPreferences')}</span>
-          <button className="ghost" onClick={() => setOpen(false)}>{tr('detail.close')}</button>
+          <button className="ghost icon-btn" onClick={() => setOpen(false)} aria-label={tr('detail.close')}>
+            <XIcon />
+          </button>
         </header>
 
         {summary === null && <p className="hint">{tr('insights.loading')}</p>}

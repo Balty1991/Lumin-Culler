@@ -54,6 +54,8 @@ export function PersonsPanel() {
   const importPersonProfiles = useStore(s => s.importPersonProfiles);
   const enrollFaceCluster = useStore(s => s.enrollFaceCluster);
   const clearAllIncludingPersons = useStore(s => s.clearAllIncludingPersons);
+  const askConfirm = useStore(s => s.askConfirm);
+  const askPrompt = useStore(s => s.askPrompt);
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
 
@@ -89,8 +91,8 @@ export function PersonsPanel() {
     setScanningClusters(false);
   };
 
-  const enrollCluster = (cluster: FaceCluster) => {
-    const newName = window.prompt(tr('persons.enrollCluster.prompt', { count: cluster.members.length }));
+  const enrollCluster = async (cluster: FaceCluster) => {
+    const newName = await askPrompt(tr('persons.enrollCluster.prompt', { count: cluster.members.length }));
     if (!newName?.trim()) return;
     void enrollFaceCluster(newName, cluster.members).then(() => {
       setClusters(prev => prev?.filter(c => c !== cluster) ?? null);
@@ -105,23 +107,23 @@ export function PersonsPanel() {
     });
   };
 
-  const confirmRemove = (id: string, personName: string) => {
-    if (window.confirm(tr('persons.confirmRemove', { name: personName }))) {
+  const confirmRemove = async (id: string, personName: string) => {
+    if (await askConfirm(tr('persons.confirmRemove', { name: personName }), { danger: true })) {
       void removePerson(id);
     }
   };
 
-  const confirmBulkDelete = () => {
+  const confirmBulkDelete = async () => {
     const names = persons.filter(p => selected.has(p.id)).map(p => p.name).join(', ');
-    if (window.confirm(tr('persons.confirmBulkDelete', { count: selected.size, names }))) {
+    if (await askConfirm(tr('persons.confirmBulkDelete', { count: selected.size, names }), { danger: true })) {
       void removePersons(Array.from(selected)).then(() => setSelected(new Set()));
     }
   };
 
-  const runMerge = () => {
+  const runMerge = async () => {
     const chosen = persons.filter(p => selected.has(p.id));
     if (chosen.length < 2) return;
-    const keepName = window.prompt(
+    const keepName = await askPrompt(
       tr('persons.mergePrompt', { count: chosen.length, names: chosen.map(p => p.name).join(', ') }),
       chosen[0].name
     );
@@ -129,9 +131,9 @@ export function PersonsPanel() {
     void mergePersons(Array.from(selected), keepName).then(() => setSelected(new Set()));
   };
 
-  const confirmClearEverything = () => {
-    if (!window.confirm(tr('persons.confirmClearEverything1'))) return;
-    if (!window.confirm(tr('persons.confirmClearEverything2'))) return;
+  const confirmClearEverything = async () => {
+    if (!(await askConfirm(tr('persons.confirmClearEverything1'), { danger: true }))) return;
+    if (!(await askConfirm(tr('persons.confirmClearEverything2'), { danger: true }))) return;
     void clearAllIncludingPersons();
     setOpen(false);
   };

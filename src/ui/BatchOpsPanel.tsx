@@ -17,6 +17,8 @@ export function BatchOpsPanel() {
   const bulkRejectBelow = useStore(s => s.bulkRejectBelow);
   const resolveAllSeries = useStore(s => s.resolveAllSeries);
   const autoCullTopPercent = useStore(s => s.autoCullTopPercent);
+  const askConfirm = useStore(s => s.askConfirm);
+  const askPrompt = useStore(s => s.askPrompt);
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
 
@@ -34,8 +36,8 @@ export function BatchOpsPanel() {
     setCullPercent(preset.cullPercent);
   };
 
-  const saveCurrentAsPreset = () => {
-    const name = window.prompt(tr('batch.presets.namePrompt'));
+  const saveCurrentAsPreset = async () => {
+    const name = await askPrompt(tr('batch.presets.namePrompt'));
     if (!name?.trim()) return;
     setPresets(saveCullingPreset(name, cullPercent, threshold));
   };
@@ -50,7 +52,7 @@ export function BatchOpsPanel() {
 
   const runReject = async () => {
     if (!targets.length) return;
-    const ok = window.confirm(tr('batch.rejectBelow.confirm', { count: targets.length, threshold }));
+    const ok = await askConfirm(tr('batch.rejectBelow.confirm', { count: targets.length, threshold }), { danger: true });
     if (!ok) return;
     setBusy(true);
     await bulkRejectBelow(threshold);
@@ -59,7 +61,7 @@ export function BatchOpsPanel() {
 
   const runResolveSeries = async () => {
     if (!groups.length) return;
-    const ok = window.confirm(tr('batch.resolveSeries.confirm', { count: groups.length }));
+    const ok = await askConfirm(tr('batch.resolveSeries.confirm', { count: groups.length }), { danger: true });
     if (!ok) return;
     setBusy(true);
     await resolveAllSeries();
@@ -68,7 +70,7 @@ export function BatchOpsPanel() {
 
   const runAutoCull = async () => {
     if (!cull.selectIds.length && !cull.rejectIds.length) return;
-    const ok = window.confirm(tr('batch.autoCull.confirm', { percent: cullPercent, keep: cull.selectIds.length, reject: cull.rejectIds.length }));
+    const ok = await askConfirm(tr('batch.autoCull.confirm', { percent: cullPercent, keep: cull.selectIds.length, reject: cull.rejectIds.length }), { danger: true });
     if (!ok) return;
     setBusy(true);
     await autoCullTopPercent(cullPercent);

@@ -15,6 +15,7 @@ import { CommandPalette } from './ui/CommandPalette';
 import { ShortcutsPanel } from './ui/ShortcutsPanel';
 import { EmptyFilterState } from './ui/EmptyFilterState';
 import { ContextMenu } from './ui/ContextMenu';
+import { ConfirmDialog } from './ui/ConfirmDialog';
 import { AnimatedNumber } from './ui/AnimatedNumber';
 import { Tooltip } from './ui/Tooltip';
 import { StarRating } from './ui/StarRating';
@@ -166,6 +167,7 @@ export default function App() {
   const aiDegraded = useStore(s => s.aiDegraded);
   const aiBackend = useStore(s => s.aiBackend);
   const clearAll = useStore(s => s.clearAll);
+  const askConfirm = useStore(s => s.askConfirm);
   const filtered = useStore(s => s.filtered());
   const workspaceMode = useStore(s => s.workspaceMode);
   const setWorkspaceMode = useStore(s => s.setWorkspaceMode);
@@ -388,7 +390,7 @@ export default function App() {
   // sesiune (posibil 1000+ poze deja evaluate) — cea mai distructiva actiune
   // din aplicatie, singura fara nicio plasa de siguranta
   const confirmClearAll = async () => {
-    const ok = window.confirm(tr('app.clearSession.confirm', { count: counts.all }));
+    const ok = await askConfirm(tr('app.clearSession.confirm', { count: counts.all }), { danger: true });
     if (ok) await clearAll();
   };
 
@@ -413,6 +415,7 @@ export default function App() {
         <BatchOpsPanel />
         <StatsPanel />
         <ProjectsPanel />
+        <ConfirmDialog />
       </>
     );
   }
@@ -717,6 +720,7 @@ export default function App() {
       <MenuDrawer />
       <CommandPalette />
       <ShortcutsPanel />
+      <ConfirmDialog />
       {contextMenu && (
         <ContextMenu
           x={contextMenu.x}

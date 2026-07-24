@@ -30,6 +30,11 @@ import { readStoredLocale, writeStoredLocale, applyLocale, t, plural, type Local
 import { buildBackup, backupFileName, parseBackupFile, restoreBackup } from '../core/backupService';
 import { buildClientGalleryHtml } from '../core/export/clientGallery';
 
+/** Cerere activa de dialog tematizat (vezi askConfirm/askPrompt mai jos) — `resolve` e apelat o singura data, de componenta ConfirmDialog. */
+export type DialogRequest =
+  | { kind: 'confirm'; message: string; confirmLabel?: string; cancelLabel?: string; danger?: boolean; resolve: (value: boolean) => void }
+  | { kind: 'prompt'; message: string; defaultValue?: string; confirmLabel?: string; cancelLabel?: string; resolve: (value: string | null) => void };
+
 export interface PhotoView {
   id: string;
   fileName: string;
@@ -167,6 +172,17 @@ interface AppState {
   batchOpsOpen: boolean;
   paletteOpen: boolean;
   shortcutsOpen: boolean;
+  /**
+   * Dialog de confirmare/prompt TEMATIZAT (plan "cat mai pro") — inlocuieste
+   * window.confirm/window.prompt (popup nativ de browser, nu respecta tema
+   * dark/light si sparge iluzia de aplicatie completa). Un singur request activ
+   * o data; askConfirm/askPrompt intorc o Promise care se rezolva cand
+   * utilizatorul raspunde (buton, Enter, Escape sau click pe fundal).
+   */
+  dialogRequest: DialogRequest | null;
+  askConfirm: (message: string, opts?: { confirmLabel?: string; cancelLabel?: string; danger?: boolean }) => Promise<boolean>;
+  askPrompt: (message: string, defaultValue?: string, opts?: { confirmLabel?: string; cancelLabel?: string }) => Promise<string | null>;
+  resolveDialog: (value: boolean | string | null) => void;
   theme: Theme;
   setTheme: (theme: Theme) => void;
   /** Limba interfetei — vezi i18n/index.ts. Migrare treptata: doar unele ecrane citesc asta deocamdata, restul ramane in romana codificata direct. */
@@ -1142,6 +1158,21 @@ export const useStore = create<AppState>((set, get) => ({
   setPersonsOpen: open => set({ personsOpen: open }),
   setMenuOpen: open => set({ menuOpen: open }),
   setInsightsOpen: open => set({ insightsOpen: open }),
+
+  dialogRequest: null,
+  askConfirm: (message, opts) => new Promise<boolean>(resolve => {
+    set({ dialogRequest: { kind: 'confirm', message, ...opts, resolve } });
+  }),
+  askPrompt: (message, defaultValue, opts) => new Promise<string | null>(resolve => {
+    set({ dialogRequest: { kind: 'prompt', message, defaultValue, ...opts, resolve } });
+  }),
+  resolveDialog: value => {
+    const req = get().dialogRequest;
+    set({ dialogRequest: null });
+    // castul e necesar: `resolve` difera intre 'confirm' (boolean) si 'prompt' (string | null),
+    // dar apelantul (componenta ConfirmDialog) stie deja, din req.kind, ce tip de valoare trimite.
+    (req?.resolve as ((v: boolean | string | null) => void) | undefined)?.(value);
+  },
   setWorkspaceMode: on => set({ workspaceMode: on, detailId: on ? get().detailId : null }),
   setBatchOpsOpen: open => set({ batchOpsOpen: open }),
   setPaletteOpen: open => set({ paletteOpen: open }),

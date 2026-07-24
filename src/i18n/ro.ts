@@ -212,6 +212,8 @@ export const ro = {
 
   'detail.ariaLabel': 'Detalii: {fileName}',
   'detail.close': 'Inchide',
+  'confirmDialog.cancel': 'Renunta',
+  'confirmDialog.confirm': 'Confirma',
   'detail.tab.metrics': 'Metrici',
   'detail.tab.why': 'De ce acest scor',
   'detail.tab.persons': 'Persoane',

@@ -46,6 +46,7 @@ export function CommandPalette() {
   const exportXMP = useStore(s => s.exportXMP);
   const undo = useStore(s => s.undo);
   const clearAll = useStore(s => s.clearAll);
+  const askConfirm = useStore(s => s.askConfirm);
 
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
@@ -100,8 +101,8 @@ export function CommandPalette() {
     all: photos.length
   }), [photos]);
 
-  const confirmClearAll = () => {
-    if (window.confirm(tr('palette.cmd.clearAll.confirm', { count: counts.all }))) {
+  const confirmClearAll = async () => {
+    if (await askConfirm(tr('palette.cmd.clearAll.confirm', { count: counts.all }), { danger: true })) {
       void clearAll();
     }
   };
