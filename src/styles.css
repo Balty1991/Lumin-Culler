@@ -932,6 +932,21 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   border-left: 3px solid var(--accent); background: var(--surface-3);
 }
 
+/* sugestii de imbunatatire — accent auriu (aceeasi paleta ca golden-badge), distinct de
+   verdictul de mai sus (accent brand) ca sa citeasca vizual drept "sfat", nu "concluzie" */
+.why-suggestions {
+  margin-top: 2px; border: 1px solid var(--line); border-left: 3px solid #f59e0b;
+  border-radius: var(--radius); background: var(--surface-2); padding: 9px 11px;
+  animation: fadeUp 0.2s var(--ease) both;
+}
+.why-suggestions-title {
+  display: flex; align-items: center; gap: 5px; margin: 0 0 6px; color: #f59e0b; font-size: 0.62rem;
+}
+.why-suggestions-title svg { width: 13px; height: 13px; }
+.why-suggestions ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+.why-suggestions li { font-size: 0.82rem; line-height: 1.5; color: var(--text-dim); }
+.why-suggestions .hint { margin: 0; }
+
 /* paleta de culori dominante + "ora de aur" (analiza estetica avansata, tab Metrici) */
 .color-palette-row { display: flex; align-items: center; gap: 6px; }
 .color-swatch {

@@ -3,7 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { db, type AnalysisRecord } from '../core/db';
 import { useStore, type PhotoView } from '../state/store';
 import { explainFactors } from '../core/learning/ContextEngine';
-import { generateExplanation } from '../core/aiExplanationGenerator';
+import { generateExplanation, generateSuggestions } from '../core/aiExplanationGenerator';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { StarRating } from './StarRating';
 import { Histogram } from './Histogram';
@@ -115,16 +115,19 @@ const AI_SELECT_THRESHOLD = 65;
 function WhyExplanation({ photo }: { photo: PhotoView }) {
   const locale = useStore(s => s.locale);
   const [paragraphs, setParagraphs] = useState<string[] | null>(null);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
 
   useEffect(() => {
     let alive = true;
     setParagraphs(null);
+    setSuggestions([]);
     void Promise.all([db.analyses.get(photo.id), db.contextModels.get(photo.contextKey)]).then(
       ([analysis, contextModel]) => {
         if (!alive || !analysis) return;
         const aiDecision = photo.aiScore >= AI_SELECT_THRESHOLD;
         const userDecision = photo.status === 'selected' ? true : photo.status === 'rejected' ? false : null;
         setParagraphs(generateExplanation(analysis as AnalysisRecord, aiDecision, userDecision, contextModel ?? null));
+        setSuggestions(generateSuggestions(analysis as AnalysisRecord));
       }
     );
     return () => { alive = false; };
@@ -134,6 +137,16 @@ function WhyExplanation({ photo }: { photo: PhotoView }) {
   return (
     <div className="why-explanation">
       {paragraphs.map((p, i) => <p key={i}>{p}</p>)}
+      <div className="why-suggestions">
+        <h4 className="why-suggestions-title mono"><SparkleIcon className="inline-icon" /> {t(locale, 'detail.why.suggestions.title')}</h4>
+        {suggestions.length > 0 ? (
+          <ul>
+            {suggestions.map((s, i) => <li key={i}>{s}</li>)}
+          </ul>
+        ) : (
+          <p className="hint">{t(locale, 'detail.why.suggestions.none')}</p>
+        )}
+      </div>
     </div>
   );
 }
