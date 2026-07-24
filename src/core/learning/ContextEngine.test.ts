@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deriveContextKey } from './ContextEngine';
+import { deriveContextKey, explainFactors } from './ContextEngine';
 import type { AnalysisRecord } from '../db';
 
 function baseAnalysis(overrides: Partial<AnalysisRecord> = {}): AnalysisRecord {
@@ -39,5 +39,36 @@ describe('deriveContextKey', () => {
   it('treats an empty/whitespace-only genre as "no genre", identical to omitting it', () => {
     expect(deriveContextKey(baseAnalysis(), '')).toBe('landscape');
     expect(deriveContextKey(baseAnalysis(), '   ')).toBe('landscape');
+  });
+});
+
+describe('explainFactors', () => {
+  const factors = [
+    { feature: 'sharpness', contribution: 0.8 },
+    { feature: 'exposureBalance', contribution: -0.4 },
+    { feature: 'unknownFeature', contribution: 0.9 }, // fara eticheta -> exclus, ca inainte
+    { feature: 'allEyesOpen', contribution: 0.01 } // sub pragul de 0.03 -> exclus
+  ];
+
+  it('defaults to Romanian labels when locale is omitted', () => {
+    const result = explainFactors(factors);
+    expect(result).toEqual([
+      { label: 'Claritate', positive: true },
+      { label: 'Expunere echilibrata', positive: false }
+    ]);
+  });
+
+  it('produces English labels when locale is "en"', () => {
+    const result = explainFactors(factors, 'en');
+    expect(result).toEqual([
+      { label: 'Sharpness', positive: true },
+      { label: 'Balanced exposure', positive: false }
+    ]);
+  });
+
+  it('still excludes unlabeled features and negligible contributions regardless of locale', () => {
+    const result = explainFactors(factors, 'en');
+    expect(result.some(f => f.label === 'unknownFeature')).toBe(false);
+    expect(result).toHaveLength(2);
   });
 });

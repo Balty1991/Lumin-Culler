@@ -50,14 +50,14 @@ export function InsightsPanel() {
   const containerRef = useRef<HTMLDivElement>(null);
   useModalFocusTrap(containerRef, open);
 
-  const reload = () => { void contextEngine.summarize().then(s => setSummary(s)); };
+  const reload = () => { void contextEngine.summarize(locale).then(s => setSummary(s)); };
 
   useEffect(() => {
     if (!open) { setSummary(null); setExpanded(new Set()); return; }
     let alive = true;
-    void contextEngine.summarize().then(s => { if (alive) setSummary(s); });
+    void contextEngine.summarize(locale).then(s => { if (alive) setSummary(s); });
     return () => { alive = false; };
-  }, [open]);
+  }, [open, locale]);
 
   if (!open) return null;
 

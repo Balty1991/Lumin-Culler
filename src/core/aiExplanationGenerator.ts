@@ -1,14 +1,19 @@
 /**
  * core/aiExplanationGenerator.ts
  *
- * Genereaza explicatii detaliate, in limba romana, pentru decizia AI despre o
- * fotografie — un rationament pe mai multe axe (tehnic, compozitie, subiect/
- * fete, estetica), plus un verdict care compara decizia AI cu cea a
- * utilizatorului si mentioneaza increderea modelului. Nu introduce calcule
- * noi: interpreteaza in propozitii campurile deja calculate in AnalysisRecord
+ * Genereaza explicatii detaliate pentru decizia AI despre o fotografie — un
+ * rationament pe mai multe axe (tehnic, compozitie, subiect/fete, estetica),
+ * plus un verdict care compara decizia AI cu cea a utilizatorului si
+ * mentioneaza increderea modelului. Nu introduce calcule noi: interpreteaza
+ * in propozitii campurile deja calculate in AnalysisRecord
  * (faceAnalysis.worker.ts) si ponderile invatate de ContextEngine — acelasi
  * rol ca `explainFactors` (tag-uri scurte, pentru UI compact), dar in forma
  * de text continuu, mai apropiat de cum ar explica un fotograf uman.
+ *
+ * Textul traieste in i18n (chei `aiExplain.*` / `aiSuggest.*`) — functiile de
+ * mai jos doar aleg CARE cheie se potriveste, pe baza analizei, si le
+ * interpoleaza/imbina. `locale` are default 'ro' (nu obligatoriu la apel) ca
+ * sa nu schimbe comportamentul apelantilor existenti care nu-l dau explicit.
  *
  * `contextModel` e opt­ional: la "cold start" (inca nu exista model salvat
  * pentru acest tip de scena) nu exista inca niciun ContextModelRecord in DB —
@@ -17,6 +22,7 @@
  */
 import type { AnalysisRecord, ContextModelRecord } from './db';
 import { explainFactors } from './learning/ContextEngine';
+import { t, type Locale } from '../i18n';
 
 const COLD_START_SAMPLES = 8;   // acelasi prag ca in ContextEngine.ts
 const TRAINED_SAMPLES = 40;
@@ -30,141 +36,138 @@ function modelConfidence(model: ContextModelRecord | null): Confidence {
   return 'trained';
 }
 
-function joinNatural(parts: string[]): string {
+function joinNatural(parts: string[], locale: Locale): string {
   if (parts.length === 0) return '';
   if (parts.length === 1) return parts[0];
-  return parts.slice(0, -1).join(', ') + ' și ' + parts[parts.length - 1];
+  return parts.slice(0, -1).join(', ') + t(locale, 'aiExplain.and') + parts[parts.length - 1];
 }
 
 // ── Axa tehnica: claritate, expunere, ISO ───────────────────────────────────
 
-function technicalSentence(a: AnalysisRecord): string {
+function technicalSentence(a: AnalysisRecord, locale: Locale): string {
   const clarity =
-    a.sharpness >= 70 ? 'foarte clară'
-    : a.sharpness >= 45 ? 'suficient de clară'
-    : 'neclară, cu blur vizibil';
+    a.sharpness >= 70 ? t(locale, 'aiExplain.clarity.high')
+    : a.sharpness >= 45 ? t(locale, 'aiExplain.clarity.mid')
+    : t(locale, 'aiExplain.clarity.low');
 
   const exposureDiff = a.exposure - 50;
   const exposure =
-    Math.abs(exposureDiff) <= 10 ? 'o expunere echilibrată'
-    : exposureDiff < -10 ? 'o expunere spre subexpus'
-    : 'o expunere spre supraexpus';
+    Math.abs(exposureDiff) <= 10 ? t(locale, 'aiExplain.exposure.balanced')
+    : exposureDiff < -10 ? t(locale, 'aiExplain.exposure.under')
+    : t(locale, 'aiExplain.exposure.over');
 
   const flaws: string[] = [];
-  if ((a.highlightClipping ?? 0) > 0.06) flaws.push('cu zone arse (highlights fără detaliu)');
-  if ((a.shadowClipping ?? 0) > 0.06) flaws.push('cu umbre blocate fără detaliu');
-  if (a.iso !== undefined && a.iso >= 1600) flaws.push(`cu ISO ${Math.round(a.iso)} (zgomot vizibil probabil)`);
+  if ((a.highlightClipping ?? 0) > 0.06) flaws.push(t(locale, 'aiExplain.flaw.highlights'));
+  if ((a.shadowClipping ?? 0) > 0.06) flaws.push(t(locale, 'aiExplain.flaw.shadows'));
+  if (a.iso !== undefined && a.iso >= 1600) flaws.push(t(locale, 'aiExplain.flaw.highIso', { iso: Math.round(a.iso) }));
 
-  let sentence = `Fotografia este ${clarity}, cu ${exposure}`;
-  sentence += flaws.length ? `, ${joinNatural(flaws)}.` : '.';
-  return sentence;
+  const flawsSuffix = flaws.length ? `, ${joinNatural(flaws, locale)}` : '';
+  return t(locale, 'aiExplain.technical.sentence', { clarity, exposure, flawsSuffix });
 }
 
 // ── Axa compozitie ───────────────────────────────────────────────────────────
 
-function compositionSentence(a: AnalysisRecord): string | null {
+function compositionSentence(a: AnalysisRecord, locale: Locale): string | null {
   const hasFaces = a.faceCount > 0;
   if (hasFaces) {
     if (a.ruleOfThirds === undefined && a.headroom === undefined) return null;
     const thirds = (a.ruleOfThirds ?? 0.5) >= 0.6
-      ? 'subiectul este bine încadrat conform regulii treimilor'
-      : 'subiectul este destul de centrat, fără să urmeze regula treimilor';
+      ? t(locale, 'aiExplain.comp.thirds.good')
+      : t(locale, 'aiExplain.comp.thirds.centered');
     const headroomNote = (a.headroom ?? 0.5) < 0.3
-      ? ', dar spațiul deasupra capului e prea strâns'
+      ? t(locale, 'aiExplain.comp.headroom.tight')
       : (a.headroom ?? 0.5) > 0.8
-        ? ', dar rămâne prea mult spațiu gol deasupra capului'
+        ? t(locale, 'aiExplain.comp.headroom.loose')
         : '';
-    return `Compozițional, ${thirds}${headroomNote}.`;
+    return t(locale, 'aiExplain.comp.faces.sentence', { thirds, headroomNote });
   }
   const notes: string[] = [];
-  if (a.leadingLinesDetected) notes.push('linii directoare vizibile care ghidează privirea');
-  if (a.symmetryDetected) notes.push('o compoziție simetrică');
+  if (a.leadingLinesDetected) notes.push(t(locale, 'aiExplain.comp.leadingLines'));
+  if (a.symmetryDetected) notes.push(t(locale, 'aiExplain.comp.symmetry'));
   if (a.horizonTiltDeg !== undefined && Math.abs(a.horizonTiltDeg) > 2) {
-    notes.push(`orizontul e înclinat cu ${Math.abs(a.horizonTiltDeg).toFixed(1)}°`);
+    notes.push(t(locale, 'aiExplain.comp.horizonTilt', { deg: Math.abs(a.horizonTiltDeg).toFixed(1) }));
   }
   if (!notes.length) return null;
-  return `Compozițional, cadrul are ${joinNatural(notes)}.`;
+  return t(locale, 'aiExplain.comp.scene.sentence', { notes: joinNatural(notes, locale) });
 }
 
 // ── Axa subiect / fete ───────────────────────────────────────────────────────
 
-function subjectSentence(a: AnalysisRecord): string | null {
+function subjectSentence(a: AnalysisRecord, locale: Locale): string | null {
   if (a.faceCount === 0) return null;
   const group = a.faceCount > 1;
   const smileFrac = group ? (a.groupSmileRatio ?? a.bestSmile) : a.bestSmile;
   const eyesFrac = group ? (a.groupEyesOpenRatio ?? (a.allEyesOpen ? 1 : 0)) : (a.allEyesOpen ? 1 : 0);
 
   const smileNote = smileFrac >= 0.6
-    ? (group ? 'majoritatea zâmbesc natural' : 'subiectul zâmbește natural')
-    : smileFrac >= 0.25 ? (group ? 'câțiva zâmbesc' : 'zâmbet ușor')
-    : (group ? 'expresii mai degrabă serioase' : 'expresie serioasă, fără zâmbet');
+    ? t(locale, group ? 'aiExplain.smile.groupHigh' : 'aiExplain.smile.soloHigh')
+    : smileFrac >= 0.25 ? t(locale, group ? 'aiExplain.smile.groupMid' : 'aiExplain.smile.soloMid')
+    : t(locale, group ? 'aiExplain.smile.groupLow' : 'aiExplain.smile.soloLow');
 
   const eyesNote = eyesFrac >= 0.999
-    ? (group ? 'toată lumea are ochii deschiși' : 'are ochii deschiși')
+    ? t(locale, group ? 'aiExplain.eyes.groupAll' : 'aiExplain.eyes.soloOpen')
     : eyesFrac >= 0.6
-      ? 'o persoană din cadru are ochii închiși'
-      : 'mai multe persoane au ochii închiși sau clipesc';
+      ? t(locale, 'aiExplain.eyes.oneClosed')
+      : t(locale, 'aiExplain.eyes.manyClosed');
 
   const parts = [smileNote, eyesNote];
   if (a.avgEyeContact !== undefined) {
-    parts.push(a.avgEyeContact >= 0.6 ? 'contact vizual direct cu camera' : 'privirea nu e ațintită spre cameră');
+    parts.push(t(locale, a.avgEyeContact >= 0.6 ? 'aiExplain.eyeContact.direct' : 'aiExplain.eyeContact.away'));
   }
   if (a.strangerCount > 0 && a.knownFaceCount > 0) {
-    parts.push(`${a.strangerCount} persoană(e) necunoscută(e) alături de cele cunoscute`);
+    parts.push(t(locale, 'aiExplain.strangers', { count: a.strangerCount }));
   }
-  return `${group ? `Cele ${a.faceCount} fețe: ` : 'Subiectul: '}${joinNatural(parts)}.`;
+  const joined = joinNatural(parts, locale);
+  return group
+    ? t(locale, 'aiExplain.subject.group', { count: a.faceCount, parts: joined })
+    : t(locale, 'aiExplain.subject.solo', { parts: joined });
 }
 
 // ── Axa estetica: lumina, culoare, bokeh ────────────────────────────────────
 
-function aestheticSentence(a: AnalysisRecord): string | null {
+function aestheticSentence(a: AnalysisRecord, locale: Locale): string | null {
   const notes: string[] = [];
-  if (a.lightQuality === 'hard') notes.push('lumină dură, cu umbre nete');
-  else if (a.lightQuality === 'soft') notes.push('lumină difuză, plăcută');
-  if (a.goldenHourDetected) notes.push('tonuri calde specifice orei de aur');
+  if (a.lightQuality === 'hard') notes.push(t(locale, 'aiExplain.light.hard'));
+  else if (a.lightQuality === 'soft') notes.push(t(locale, 'aiExplain.light.soft'));
+  if (a.goldenHourDetected) notes.push(t(locale, 'aiExplain.goldenHour'));
   if (a.colorHarmonyScore !== undefined) {
-    if (a.colorHarmonyScore >= 0.7) notes.push('o paletă de culori armonioasă');
-    else if (a.colorHarmonyScore < 0.35) notes.push('culori dezordonate, fără o paletă clară');
+    if (a.colorHarmonyScore >= 0.7) notes.push(t(locale, 'aiExplain.colorHarmony.good'));
+    else if (a.colorHarmonyScore < 0.35) notes.push(t(locale, 'aiExplain.colorHarmony.poor'));
   }
-  if (a.bokehQuality === 'good') notes.push('fundal frumos difuzat (bokeh reușit)');
-  else if (a.subjectInFocus === false) notes.push('subiectul principal nu e cel mai clar element din cadru');
+  if (a.bokehQuality === 'good') notes.push(t(locale, 'aiExplain.bokeh.good'));
+  else if (a.subjectInFocus === false) notes.push(t(locale, 'aiExplain.subjectNotInFocus'));
   if (!notes.length) return null;
-  return `Din punct de vedere estetic: ${joinNatural(notes)}.`;
+  return t(locale, 'aiExplain.aesthetic.sentence', { notes: joinNatural(notes, locale) });
 }
 
 // ── Verdict: decizia AI vs. decizia utilizatorului + increderea modelului ──
 
-const CONFIDENCE_NOTE: Record<Confidence, string> = {
-  cold: 'Modelul e la început pentru acest tip de scenă (sub 8 decizii învățate) — recomandarea se bazează mai ales pe reguli generale de fotografie, nu încă pe preferințele tale.',
-  warming: 'Modelul e în curs de învățare pentru acest tip de scenă — recomandarea combină regulile generale cu ce a observat până acum din alegerile tale.',
-  trained: 'Modelul e antrenat pe acest tip de scenă (peste 40 de decizii învățate) — recomandarea reflectă îndeaproape preferințele tale.'
-};
-
-function verdictSentence(aiDecision: boolean, userDecision: boolean | null, confidence: Confidence): string {
-  const aiVerb = aiDecision ? 'ar păstra' : 'ar respinge';
-  if (userDecision === null) {
-    return `AI-ul ${aiVerb} această fotografie. ${CONFIDENCE_NOTE[confidence]}`;
-  }
-  if (aiDecision === userDecision) {
-    return userDecision
-      ? `AI-ul a recomandat păstrarea acestei fotografii, iar tu ai confirmat aceeași alegere. ${CONFIDENCE_NOTE[confidence]}`
-      : `AI-ul a recomandat respingerea acestei fotografii, iar tu ai fost de acord. ${CONFIDENCE_NOTE[confidence]}`;
-  }
-  return userDecision
-    ? `AI-ul ar fi respins această fotografie, dar tu ai păstrat-o — motorul învață din corecția ta și își va ajusta preferințele pentru acest tip de scenă. ${CONFIDENCE_NOTE[confidence]}`
-    : `AI-ul ar fi păstrat această fotografie, dar tu ai respins-o — motorul învață din corecția ta și își va ajusta preferințele pentru acest tip de scenă. ${CONFIDENCE_NOTE[confidence]}`;
+function confidenceNote(locale: Locale, confidence: Confidence): string {
+  return t(locale, `aiExplain.confidence.${confidence}`);
 }
 
-function factorsSentence(a: AnalysisRecord): string | null {
-  const factors = explainFactors(a.aiFactors ?? []);
+function verdictSentence(aiDecision: boolean, userDecision: boolean | null, confidence: Confidence, locale: Locale): string {
+  const confidenceText = confidenceNote(locale, confidence);
+  const aiVerb = t(locale, aiDecision ? 'aiExplain.verb.keep' : 'aiExplain.verb.reject');
+  if (userDecision === null) {
+    return t(locale, 'aiExplain.verdict.noUser', { verb: aiVerb, confidence: confidenceText });
+  }
+  if (aiDecision === userDecision) {
+    return t(locale, userDecision ? 'aiExplain.verdict.agreeKeep' : 'aiExplain.verdict.agreeReject', { confidence: confidenceText });
+  }
+  return t(locale, userDecision ? 'aiExplain.verdict.disagreeKept' : 'aiExplain.verdict.disagreeRejected', { confidence: confidenceText });
+}
+
+function factorsSentence(a: AnalysisRecord, locale: Locale): string | null {
+  const factors = explainFactors(a.aiFactors ?? [], locale);
   if (!factors.length) return null;
   const positive = factors.filter(f => f.positive).map(f => f.label);
   const negative = factors.filter(f => !f.positive).map(f => f.label);
   const bits: string[] = [];
-  if (positive.length) bits.push(`în favoarea ei: ${joinNatural(positive)}`);
-  if (negative.length) bits.push(`împotriva ei: ${joinNatural(negative)}`);
+  if (positive.length) bits.push(t(locale, 'aiExplain.factors.positive', { list: joinNatural(positive, locale) }));
+  if (negative.length) bits.push(t(locale, 'aiExplain.factors.negative', { list: joinNatural(negative, locale) }));
   if (!bits.length) return null;
-  return `Principalii factori care au cântărit în scor — ${bits.join('; ')}.`;
+  return t(locale, 'aiExplain.factors.sentence', { bits: bits.join('; ') });
 }
 
 /**
@@ -176,21 +179,23 @@ function factorsSentence(a: AnalysisRecord): string | null {
  * @param aiDecision   ce a recomandat AI-ul (aiScore >= prag de selectie)
  * @param userDecision ce a decis efectiv utilizatorul (null = inca nicio decizie manuala)
  * @param contextModel modelul invatat pentru contextul acestei poze (null = inca neantrenat/cold start)
+ * @param locale       limba textului generat (default 'ro', pentru compatibilitate cu apelantii existenti)
  */
 export function generateExplanation(
   analysis: AnalysisRecord,
   aiDecision: boolean,
   userDecision: boolean | null,
-  contextModel: ContextModelRecord | null
+  contextModel: ContextModelRecord | null,
+  locale: Locale = 'ro'
 ): string[] {
   const confidence = modelConfidence(contextModel);
   const paragraphs = [
-    technicalSentence(analysis),
-    compositionSentence(analysis),
-    subjectSentence(analysis),
-    aestheticSentence(analysis),
-    factorsSentence(analysis),
-    verdictSentence(aiDecision, userDecision, confidence)
+    technicalSentence(analysis, locale),
+    compositionSentence(analysis, locale),
+    subjectSentence(analysis, locale),
+    aestheticSentence(analysis, locale),
+    factorsSentence(analysis, locale),
+    verdictSentence(aiDecision, userDecision, confidence, locale)
   ].filter((p): p is string => p !== null);
   return paragraphs;
 }
@@ -210,58 +215,56 @@ const MAX_SUGGESTIONS = 4;
  * raspunde la "ce as putea face diferit". Listă goală = cadru fără defecte
  * clare de semnalat pe criteriile analizate.
  */
-export function generateSuggestions(a: AnalysisRecord): string[] {
+export function generateSuggestions(a: AnalysisRecord, locale: Locale = 'ro'): string[] {
   const s: string[] = [];
 
   if (a.sharpness < 45) {
-    s.push('Verifică stabilizarea sau viteza obturatorului — la un cadru atât de neclar, nicio editare nu recuperează claritatea.');
+    s.push(t(locale, 'aiSuggest.blur'));
   }
   const exposureDiff = a.exposure - 50;
   if (exposureDiff < -15) {
-    s.push('Cadrul e subexpus — la reshoot, mărește timpul de expunere, deschide diafragma sau crește ISO.');
+    s.push(t(locale, 'aiSuggest.underexposed'));
   } else if (exposureDiff > 15) {
-    s.push('Cadrul e supraexpus — la reshoot, scade timpul de expunere sau diafragma pentru mai puțină lumină.');
+    s.push(t(locale, 'aiSuggest.overexposed'));
   }
   if ((a.highlightClipping ?? 0) > 0.06) {
-    s.push('Zonele luminoase și-au pierdut detaliul — scade expunerea cu 1/3–2/3 EV la cadre similare.');
+    s.push(t(locale, 'aiSuggest.highlights'));
   }
   if ((a.shadowClipping ?? 0) > 0.06) {
-    s.push('Umbrele sunt blocate fără detaliu — mărește ușor expunerea sau folosește un reflector/blitz de umplere.');
+    s.push(t(locale, 'aiSuggest.shadows'));
   }
   if (a.iso !== undefined && a.iso >= 1600) {
-    s.push(`ISO ${Math.round(a.iso)} — un obiectiv mai luminos sau un trepied ar reduce zgomotul la cadre similare.`);
+    s.push(t(locale, 'aiSuggest.highIso', { iso: Math.round(a.iso) }));
   }
 
   if (a.faceCount > 0) {
     if ((a.headroom ?? 0.5) < 0.3) {
-      s.push('Prea puțin spațiu deasupra capului — încadrează puțin mai larg data viitoare.');
+      s.push(t(locale, 'aiSuggest.headroomTight'));
     } else if ((a.headroom ?? 0.5) > 0.8) {
-      s.push('Prea mult spațiu gol deasupra capului — apropie-te sau folosește un zoom mai lung.');
+      s.push(t(locale, 'aiSuggest.headroomLoose'));
     }
     if ((a.ruleOfThirds ?? 0.5) < 0.4) {
-      s.push('Subiectul e centrat — mută-l spre o intersecție a treimilor pentru o compoziție mai dinamică.');
+      s.push(t(locale, 'aiSuggest.centered'));
     }
     const group = a.faceCount > 1;
     const eyesFrac = group ? (a.groupEyesOpenRatio ?? (a.allEyesOpen ? 1 : 0)) : (a.allEyesOpen ? 1 : 0);
     if (eyesFrac < 0.999) {
-      s.push(group
-        ? 'Nu toată lumea are ochii deschiși — dacă există alte cadre din aceeași serie, verifică-le pentru o variantă mai bună.'
-        : 'Subiectul are ochii închiși — verifică dacă există un alt cadru din aceeași serie, la câteva sute de ms distanță.');
+      s.push(t(locale, group ? 'aiSuggest.eyesClosedGroup' : 'aiSuggest.eyesClosedSolo'));
     }
   } else {
     if (!a.leadingLinesDetected && !a.symmetryDetected) {
-      s.push('Compoziția nu are linii directoare sau simetrie clară — caută un element care să ghideze privirea (drum, gard, umbră, teren).');
+      s.push(t(locale, 'aiSuggest.noLinesOrSymmetry'));
     }
     if (a.horizonTiltDeg !== undefined && Math.abs(a.horizonTiltDeg) > 2) {
-      s.push(`Orizontul e înclinat cu ${Math.abs(a.horizonTiltDeg).toFixed(1)}° — îndreaptă-l în editare sau folosește nivela aparatului la următorul cadru.`);
+      s.push(t(locale, 'aiSuggest.horizonTilt', { deg: Math.abs(a.horizonTiltDeg).toFixed(1) }));
     }
   }
 
   if (a.subjectInFocus === false) {
-    s.push('Subiectul principal nu e cel mai clar element din cadru — verifică punctul de focalizare înainte de declanșare.');
+    s.push(t(locale, 'aiSuggest.notInFocus'));
   }
   if (a.colorHarmonyScore !== undefined && a.colorHarmonyScore < 0.35) {
-    s.push('Paleta de culori e dezordonată — simplific-o în editare sau ajustează saturația selectiv.');
+    s.push(t(locale, 'aiSuggest.colorHarmony'));
   }
 
   return s.slice(0, MAX_SUGGESTIONS);
