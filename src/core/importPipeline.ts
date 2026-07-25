@@ -31,6 +31,10 @@ export interface ImportedPhoto {
 
 const PREVIEW_MAX_SIDE = 2048;
 const THUMB_SIZE = 512;
+/** Placeholder blurat (LQIP) — latura cea mai lunga in pixeli reali; suficient de mic (cateva
+    sute de octeti ca data: URI) ca sa fie stocat direct pe PhotoRecord, dar destul de detaliat
+    cat sa se recunoasca formele/culorile dominante prin blur, nu doar un gradient generic. */
+const LQIP_SIZE = 24;
 const SELECT_THRESHOLD = 65;
 const REJECT_THRESHOLD = 35;
 /** EXIF sta mereu aproape de inceputul fisierului (segment APP1, imediat dupa
@@ -79,7 +83,7 @@ function canvasToJpeg(canvas: HTMLCanvasElement, quality: number): Promise<Blob>
 }
 
 function makeDerivatives(bitmap: ImageBitmap): {
-  preview: Promise<Blob>; thumb: Promise<Blob>; dHash: string; w: number; h: number;
+  preview: Promise<Blob>; thumb: Promise<Blob>; lqip: string; dHash: string; w: number; h: number;
 } {
   // Preview la rezolutia decodata (max 2048) — pe acesta se evalueaza claritatea
   const pc = document.createElement('canvas');
@@ -94,6 +98,15 @@ function makeDerivatives(bitmap: ImageBitmap): {
   tc.height = Math.max(1, Math.round(bitmap.height * scale));
   tc.getContext('2d')!.drawImage(bitmap, 0, 0, tc.width, tc.height);
   const thumb = canvasToJpeg(tc, 0.82);
+
+  // LQIP: cateva zeci de pixeli, suficient pentru un blur placeholder — generat
+  // sincron (toDataURL, nu toBlob) ca sa fie disponibil imediat, fara alt await.
+  const lqScale = Math.min(1, LQIP_SIZE / Math.max(bitmap.width, bitmap.height));
+  const lc = document.createElement('canvas');
+  lc.width = Math.max(1, Math.round(bitmap.width * lqScale));
+  lc.height = Math.max(1, Math.round(bitmap.height * lqScale));
+  lc.getContext('2d')!.drawImage(bitmap, 0, 0, lc.width, lc.height);
+  const lqip = lc.toDataURL('image/jpeg', 0.5);
 
   // dHash 9x8 pentru serii/duplicate
   const hc = document.createElement('canvas');
@@ -112,7 +125,7 @@ function makeDerivatives(bitmap: ImageBitmap): {
     }
   }
 
-  return { preview, thumb, dHash: hash, w: bitmap.width, h: bitmap.height };
+  return { preview, thumb, lqip, dHash: hash, w: bitmap.width, h: bitmap.height };
 }
 
 /**
@@ -186,7 +199,7 @@ async function processOne(file: File, genre?: string, project?: string, handle?:
   const { bitmap, rawMeta } = isRaw
     ? await decodeRawFile(file).then(r => ({ bitmap: r.bitmap, rawMeta: r.meta }))
     : { bitmap: await decode(file), rawMeta: undefined };
-  const { preview, thumb, dHash, w, h } = makeDerivatives(bitmap);
+  const { preview, thumb, lqip, dHash, w, h } = makeDerivatives(bitmap);
 
   // Bitmap-ul pleaca in worker (transfer, zero-copy) — de aici nu-l mai atingem
   const analysisPromise = analysisPool.analyze(id, bitmap);
@@ -272,6 +285,7 @@ async function processOne(file: File, genre?: string, project?: string, handle?:
     width: w,
     height: h,
     dHash,
+    lqip,
     status,
     ...(genre?.trim() ? { genre: genre.trim() } : {}),
     ...(project?.trim() ? { project: project.trim() } : {})

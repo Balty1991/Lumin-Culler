@@ -87,7 +87,11 @@ function PhotoCardInner({ photo, index, onOpen, multiSelected, onCardPointerDown
       {!multiSelected && photo.status === 'review' && (
         <span className="review-badge" aria-hidden="true"><ClockIcon /></span>
       )}
-      {src ? <img src={src} alt="" aria-hidden="true" loading="lazy" /> : <span className="card-loading" aria-hidden="true" />}
+      <span className="card-media" aria-hidden="true">
+        {photo.lqip && <img className="card-lqip" src={photo.lqip} alt="" />}
+        {src && <img className="card-img-loaded" src={src} alt="" loading="lazy" />}
+        {!src && !photo.lqip && <span className="card-loading" />}
+      </span>
       <span className="card-strip" aria-hidden="true">
         <span className="card-strip-row">
           <span

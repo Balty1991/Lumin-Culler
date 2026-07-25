@@ -119,6 +119,8 @@ export interface PhotoView {
   sceneSemantic?: string;
   /** Etichete generale de obiect/scena (COCO-80, ex. "dog", "cake", "boat") — vezi AnalysisRecord.sceneTags. */
   sceneTags?: string[];
+  /** Placeholder minuscul blurat, disponibil sincron — vezi PhotoRecord.lqip. Absent pe importuri vechi. */
+  lqip?: string;
 }
 
 export type FilterKey = 'all' | 'selected' | 'review' | 'rejected' | 'series' | 'blinks' | 'goldenHour' | 'highlights';
@@ -165,6 +167,9 @@ interface AppState {
   /** Contact sheet printabil (plan "cat mai pro") — grila compacta cu toate miniaturile + status/rating, gata de window.print(). */
   contactSheetOpen: boolean;
   setContactSheetOpen: (open: boolean) => void;
+  /** Prezentare fullscreen cinematica (auto-advance) — pentru aratat pozele clientului pe loc, fara laptop deschis pe grila de lucru. */
+  presentationOpen: boolean;
+  setPresentationOpen: (open: boolean) => void;
   filter: FilterKey;
   /** Filtru suplimentar, combinabil cu `filter` — numele unei persoane cunoscute, sau null (fara filtru). */
   personFilter: string | null;
@@ -385,6 +390,7 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     status: photo.status,
     rating: photo.rating ?? 0,
     colorLabel: photo.colorLabel,
+    lqip: photo.lqip,
     aiScore: analysis?.aiScore ?? 0,
     sceneType: analysis?.sceneType ?? 'detail',
     contextKey: analysis ? deriveContextKey(analysis, photo.genre) : 'detail',
@@ -587,6 +593,8 @@ export const useStore = create<AppState>((set, get) => ({
   setStatsOpen: open => set({ statsOpen: open }),
   contactSheetOpen: false,
   setContactSheetOpen: open => set({ contactSheetOpen: open }),
+  presentationOpen: false,
+  setPresentationOpen: open => set({ presentationOpen: open }),
 
   exportBackup: async () => {
     const data = await buildBackup();

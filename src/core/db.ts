@@ -63,6 +63,15 @@ export interface PhotoRecord {
    */
   captionOverride?: string;
   keywordsOverride?: string[];
+  /**
+   * Placeholder minuscul (JPEG ~16px lat, incarcat direct ca data: URI) generat la
+   * import alaturi de miniatura reala — afisat instant, blurat, cat timp miniatura
+   * din db.thumbnails se incarca asincron (fetch separat, alt "tabel"). Cateva sute
+   * de octeti; stocat direct pe PhotoRecord (nu blob separat) tocmai ca sa fie
+   * disponibil SINCRON din PhotoView, fara alt round-trip async la primul randare.
+   * Optional: absent pe inregistrari importate inainte de aceasta functie.
+   */
+  lqip?: string;
 }
 
 export type ColorLabel = 'none' | 'red' | 'yellow' | 'green' | 'blue' | 'purple';

@@ -155,6 +155,19 @@ export function BatteryIcon(p: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+export function PlayIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg {...base} {...p}><path d="M7 4l13 8-13 8z" /></svg>;
+}
+export function PauseIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg {...base} {...p}><rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" /></svg>;
+}
+export function MaximizeIcon(p: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base} {...p}>
+      <path d="M8 3H4v4" /><path d="M16 3h4v4" /><path d="M8 21H4v-4" /><path d="M16 21h4v-4" />
+    </svg>
+  );
+}
 export function PrinterIcon(p: SVGProps<SVGSVGElement>) {
   return (
     <svg {...base} {...p}>
