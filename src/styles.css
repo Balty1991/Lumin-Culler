@@ -1473,8 +1473,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 .drawer-item-icon svg { width: 17px; height: 17px; }
 /* exclude .drawer-item-icon (tot un <span>) — altfel flex:1 (flex-basis 0%)
-   ii invinge width-ul fix si il intinde peste tot randul, impingand eticheta jos */
-.drawer-item span:not(.drawer-item-icon) { flex: 1; }
+   ii invinge width-ul fix si il intinde peste tot randul, impingand eticheta jos.
+   min-width:0 e obligatoriu aici — fara el, un flex item cu flex:1 tot nu se
+   micsoreaza sub latimea minima "de continut" (auto), calculata din cel mai lung
+   cuvant nedespartibil al etichetei; la texte mai lungi ("Raport de sesiune (.txt)")
+   sau langa un <select> (randul "Gen fotografic"), asta impingea eticheta sa
+   depaseasca marginea dreapta a sertarului in loc sa treaca pe a doua linie. */
+.drawer-item span:not(.drawer-item-icon) { flex: 1; min-width: 0; }
 .drawer-count { background: var(--surface-3); color: var(--text-dim); font-size: 0.72rem; padding: 2px 8px; border-radius: 999px; }
 .drawer-item-select { cursor: default; }
 .drawer-select {

@@ -1,13 +1,15 @@
-import { useRef } from 'react';
+import { useRef, useSyncExternalStore } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useStore } from '../state/store';
 import {
   UserCheckIcon, SparkleIcon, ListIcon, InfoIcon, XIcon, TagIcon, LayersIcon, KeyboardIcon,
-  SunIcon, MoonIcon, BatteryIcon, GridIcon, DownloadIcon, UploadIcon, BarChartIcon, GlobeIcon, PrinterIcon
+  SunIcon, MoonIcon, BatteryIcon, GridIcon, DownloadIcon, UploadIcon, BarChartIcon, GlobeIcon, PrinterIcon,
+  ApertureIcon
 } from './icons';
 import { EASE } from './motion';
 import { GENRE_PRESETS } from '../state/genre';
 import { nextGridDensity } from '../state/gridDensity';
+import { getInstallPromptEvent, subscribeInstallPromptEvent, consumeInstallPromptEvent } from '../core/installPromptEvent';
 import { t } from '../i18n';
 
 /** Meniu lateral: persoane, preferinte AI invatate, export lista, despre. */
@@ -42,9 +44,19 @@ export function MenuDrawer() {
   const persons = useStore(s => s.persons);
   const reduceMotion = useReducedMotion();
   const restoreInputRef = useRef<HTMLInputElement>(null);
+  // Acelasi eveniment beforeinstallprompt ca InstallPrompt.tsx (citit dintr-un modul
+  // comun, nu recaptat aici) — ramane accesibil din Meniu chiar dupa ce bannerul a
+  // fost inchis, ca "nu mai arata asta" sa nu insemne "nu mai pot instala niciodata".
+  const installEvent = useSyncExternalStore(subscribeInstallPromptEvent, getInstallPromptEvent);
 
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const go = (action: () => void) => { setOpen(false); action(); };
+  const installApp = async () => {
+    if (!installEvent) return;
+    await installEvent.prompt();
+    await installEvent.userChoice;
+    consumeInstallPromptEvent();
+  };
 
   return (
     <AnimatePresence>
@@ -65,6 +77,16 @@ export function MenuDrawer() {
             <XIcon />
           </button>
         </header>
+
+        {installEvent && (
+          <>
+            <button className="drawer-item" onClick={() => go(() => void installApp())}>
+              <span className="drawer-item-icon"><ApertureIcon /></span>
+              <span>{tr('app.installPrompt.install')}</span>
+            </button>
+            <div className="drawer-sep" />
+          </>
+        )}
 
         <div className="drawer-section-label">{tr('menu.section.workspace')}</div>
         <button className="drawer-item" onClick={() => go(() => setPersonsOpen(true))}>
