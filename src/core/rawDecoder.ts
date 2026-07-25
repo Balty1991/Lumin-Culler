@@ -114,40 +114,51 @@ export async function decodeRawFile(file: File): Promise<RawDecodeResult> {
   }
 }
 
+function errMsg(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
+}
+
 /**
  * Ultima soluţie cand demosaicing-ul complet esueaza (compresie neacceptata de acest
  * build — vezi imageData() mai jos): folosim orice preview incorporat utilizabil,
  * oricat de mic sau de slaba calitate, in loc sa renuntam total la fisier. Aproape
  * orice RAW de aparat contine un asemenea preview (generat pentru afisarea pe ecranul
  * aparatului), chiar si cand rezolutia completa foloseste o compresie nesuportata.
+ * Returneaza si eroarea (daca a esuat), ca decode() sa poata construi un mesaj final
+ * util pentru diagnosticare de la distanta, in loc sa o inghita tacut.
  */
-async function decodeThumbFallback(thumb: Awaited<ReturnType<LibRaw['thumbnailData']>>): Promise<ImageBitmap | null> {
-  if (!thumb) return null;
+async function decodeThumbFallback(
+  thumb: Awaited<ReturnType<LibRaw['thumbnailData']>>
+): Promise<{ bitmap: ImageBitmap } | { error: string }> {
+  if (!thumb) return { error: 'niciun preview incorporat gasit' };
   try {
     if (thumb.format === 'jpeg') {
       const blob = new Blob([thumb.data as BlobPart], { type: 'image/jpeg' });
-      return await createImageBitmap(blob, { resizeWidth: PREVIEW_MAX_SIDE, resizeQuality: 'high' } as ImageBitmapOptions);
+      const bitmap = await createImageBitmap(blob, { resizeWidth: PREVIEW_MAX_SIDE, resizeQuality: 'high' } as ImageBitmapOptions);
+      return { bitmap };
     }
     if (thumb.format === 'bitmap') {
       // deja RGB8 decodat de LibRaw (nu necesita niciun codec suplimentar) — 3 canale, 8 biti
       const imageData = toImageData(thumb.width, thumb.height, 3, 8, thumb.data);
-      return await bitmapFromImageData(imageData);
+      const bitmap = await bitmapFromImageData(imageData);
+      return { bitmap };
     }
-  } catch {
-    // preview-ul incorporat e si el corupt/necunoscut — nu mai avem alta soluţie
+    return { error: `preview incorporat in format nefolosibil (${thumb.format})` };
+  } catch (e) {
+    return { error: `preview incorporat corupt: ${errMsg(e)}` };
   }
-  return null;
 }
 
 async function decode(raw: LibRaw, file: File): Promise<RawDecodeResult> {
   const bytes = new Uint8Array(await file.arrayBuffer());
   await raw.open(bytes);
 
-  const [metaRaw, thumb] = await Promise.all([
+  const [metaRaw, thumbResult] = await Promise.all([
     raw.metadata().catch(() => undefined),
-    raw.thumbnailData().catch(() => undefined)
+    raw.thumbnailData().then(t => ({ ok: true as const, value: t }), (e: unknown) => ({ ok: false as const, error: errMsg(e) }))
   ]);
   const meta = metaFromLibRaw(metaRaw);
+  const thumb = thumbResult.ok ? thumbResult.value : undefined;
 
   if (thumb && thumb.format === 'jpeg' && thumb.width >= MIN_USABLE_THUMB_WIDTH) {
     const blob = new Blob([thumb.data as BlobPart], { type: 'image/jpeg' });
@@ -162,6 +173,7 @@ async function decode(raw: LibRaw, file: File): Promise<RawDecodeResult> {
   // imageData() poate respinge promisiunea (nu doar returna un rezultat gol) atunci cand
   // demosaicing-ul complet esueaza — de ex. o compresie pe care acest build LibRaw-Wasm
   // nu o poate decoda (compresie lossy specifica producatorului, HE*/high-efficiency etc.)
+  let imageDataError: string | null = null;
   try {
     const image = await raw.imageData();
     if (image) {
@@ -169,12 +181,17 @@ async function decode(raw: LibRaw, file: File): Promise<RawDecodeResult> {
       const bitmap = await bitmapFromImageData(imageData);
       return { bitmap, meta };
     }
-  } catch {
-    // cadem pe preview-ul incorporat mai jos, indiferent de format/dimensiune
+    imageDataError = 'imageData() a returnat un rezultat gol';
+  } catch (e) {
+    imageDataError = errMsg(e);
   }
 
-  const fallbackBitmap = await decodeThumbFallback(thumb);
-  if (fallbackBitmap) return { bitmap: fallbackBitmap, meta };
+  const fallback = await decodeThumbFallback(thumb);
+  if ('bitmap' in fallback) return { bitmap: fallback.bitmap, meta };
 
-  throw new Error('LibRaw nu a putut decodifica imaginea (format neacceptat de acest build).');
+  // Mesajul complet (nu doar o eticheta generica) — esential pentru diagnosticare
+  // de la distanta, fara acces la consola browserului utilizatorului (vezi notice-ul
+  // de import: importPipeline.ts include err.message ca atare in "Motiv: ...").
+  const thumbError = thumbResult.ok ? fallback.error : `thumbnailData() a esuat: ${thumbResult.error}`;
+  throw new Error(`LibRaw nu a putut decodifica imaginea. imageData(): ${imageDataError}. Preview incorporat: ${thumbError}.`);
 }
