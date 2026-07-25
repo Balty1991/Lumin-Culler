@@ -256,6 +256,23 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   display: flex; align-items: flex-start; gap: 6px;
 }
 
+/* ── Banner "Adauga pe ecranul principal" (InstallPrompt.tsx) — fixed, nu in
+   flux normal: apare atat peste grila cat si peste Workspace (ecranul implicit,
+   propriul layout de 100dvh fara loc "in flux" la care sa se ataseze un notice). */
+.install-prompt {
+  position: fixed; left: 8px; right: 8px; top: calc(8px + env(safe-area-inset-top)); z-index: var(--z-toast);
+  max-width: 480px; margin: 0 auto;
+  padding: 9px 10px 9px 13px; border-radius: var(--radius);
+  display: flex; align-items: center; gap: 10px; font-size: 0.78rem; color: var(--text-dim);
+  background: linear-gradient(var(--surface), var(--surface)) padding-box, var(--accent-gradient) border-box;
+  border: 1px solid transparent; box-shadow: var(--shadow-lg);
+  animation: fadeUp 0.3s var(--ease) both;
+}
+.install-prompt-icon { width: 20px; height: 20px; flex-shrink: 0; color: var(--accent); }
+.install-prompt-text { flex: 1; min-width: 0; }
+.install-prompt-install { flex-shrink: 0; font-family: var(--sans); }
+.install-prompt-close { flex-shrink: 0; }
+
 /* ── Toast: mesaj tranzitoriu (rezultat export, avertisment stocare) — plutitor, cu auto-dismiss.
    Tonul (succes/avertisment/eroare) e dedus din continutul mesajului (App.tsx: noticeTone), nu
    dintr-un camp separat — coloreaza doar iconita si muchia stanga, mesajul ramane lizibil neutru. ── */

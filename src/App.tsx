@@ -28,6 +28,7 @@ import { SORT_KEY_LABELS, type SortKey } from './state/gridSort';
 import { pickImportFiles } from './core/filePicker';
 import { ColorLabelFilter } from './ui/ColorLabelFilter';
 import { SceneTagFilter } from './ui/SceneTagFilter';
+import { InstallPrompt } from './ui/InstallPrompt';
 import { t } from './i18n';
 
 const NOTICE_AUTODISMISS_MS = 7000;
@@ -482,6 +483,7 @@ export default function App() {
     return (
       <>
         <Toast />
+        <InstallPrompt />
         <Workspace />
         <CommandPalette />
         <ShortcutsPanel />
@@ -540,6 +542,7 @@ export default function App() {
       </header>
 
       <Toast />
+      <InstallPrompt />
 
       {aiDegraded && (
         <p className="notice warn mono">
