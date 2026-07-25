@@ -1,19 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { useStore } from '../state/store';
 import { readInstallPromptDismissed, writeInstallPromptDismissed } from '../state/installPrompt';
+import { getInstallPromptEvent, subscribeInstallPromptEvent, consumeInstallPromptEvent } from '../core/installPromptEvent';
 import { ApertureIcon, DownloadIcon, XIcon } from './icons';
 import { t } from '../i18n';
-
-/** Evenimentul non-standard `beforeinstallprompt` (Chrome/Edge/Android) — nu e inca in lib.dom.d.ts. */
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
-}
-
-function isStandalone(): boolean {
-  return window.matchMedia('(display-mode: standalone)').matches
-    || (window.navigator as unknown as { standalone?: boolean }).standalone === true;
-}
 
 /**
  * Banner discret "Adauga pe ecranul principal" — aplicatia e deja instalabila
@@ -23,31 +13,18 @@ function isStandalone(): boolean {
  * Edge/Android trimit `beforeinstallprompt` — pe iOS Safari nu exista acest
  * eveniment (instalarea ramane manuala, din meniul de distribuire), asa ca
  * bannerul pur si simplu nu apare acolo, nu incearca sa-l simuleze.
+ *
+ * Evenimentul e citit dintr-un modul comun (core/installPromptEvent.ts), nu
+ * mai e captat local — dupa ce bannerul e inchis (X) ramane totusi o intrare
+ * "Instaleaza aplicatia" in Meniu (MenuDrawer), cat timp evenimentul e
+ * disponibil: un "nu mai arata asta" nu trebuie sa insemne "nu mai pot
+ * instala niciodata din aplicatie".
  */
 export function InstallPrompt() {
   const locale = useStore(s => s.locale);
   const tr = (key: string) => t(locale, key);
-  const [deferredEvent, setDeferredEvent] = useState<BeforeInstallPromptEvent | null>(null);
+  const deferredEvent = useSyncExternalStore(subscribeInstallPromptEvent, getInstallPromptEvent);
   const [dismissed, setDismissed] = useState(readInstallPromptDismissed);
-
-  useEffect(() => {
-    if (isStandalone()) return;
-    const onBeforeInstall = (e: Event) => {
-      e.preventDefault();
-      setDeferredEvent(e as BeforeInstallPromptEvent);
-    };
-    const onInstalled = () => {
-      setDeferredEvent(null);
-      writeInstallPromptDismissed();
-      setDismissed(true);
-    };
-    window.addEventListener('beforeinstallprompt', onBeforeInstall);
-    window.addEventListener('appinstalled', onInstalled);
-    return () => {
-      window.removeEventListener('beforeinstallprompt', onBeforeInstall);
-      window.removeEventListener('appinstalled', onInstalled);
-    };
-  }, []);
 
   if (!deferredEvent || dismissed) return null;
 
@@ -58,7 +35,7 @@ export function InstallPrompt() {
     await deferredEvent.userChoice;
     // indiferent de alegere (acceptat/refuzat), evenimentul e deja "ars" (poate fi
     // folosit o singura data) — ascundem bannerul, nu mai insistam la fiecare vizita
-    setDeferredEvent(null);
+    consumeInstallPromptEvent();
     dismiss();
   };
 
