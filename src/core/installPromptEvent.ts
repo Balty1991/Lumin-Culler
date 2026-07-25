@@ -23,7 +23,7 @@ function notify(): void {
   for (const l of listeners) l();
 }
 
-function isStandalone(): boolean {
+export function isStandalone(): boolean {
   return window.matchMedia('(display-mode: standalone)').matches
     || (window.navigator as unknown as { standalone?: boolean }).standalone === true;
 }
