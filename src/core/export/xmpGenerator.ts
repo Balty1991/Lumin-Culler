@@ -70,6 +70,8 @@ export interface XmpAiMeta {
   client?: string;
   event?: string;
   location?: string;
+  /** Descriere IPTC (originala din fisier sau suprascrisa manual, editare in masa) — dc:description, camp standard citit de Lightroom/Bridge ca "Caption". */
+  caption?: string;
 }
 
 export function generateXMPSidecar(status: XmpDecision, starRating?: number, keywords?: string[], ai?: XmpAiMeta): string {
@@ -77,6 +79,10 @@ export function generateXMPSidecar(status: XmpDecision, starRating?: number, key
   const label = LABEL[status];
   const subject = keywords?.length
     ? `\n    <dc:subject>\n     <rdf:Bag>\n${keywords.map(k => `      <rdf:li>${xmlEscape(k)}</rdf:li>`).join('\n')}\n     </rdf:Bag>\n    </dc:subject>`
+    : '';
+  // dc:description e "Lang Alt" in Dublin Core/XMP (nu text simplu) — camp standard, citit de Lightroom/Bridge ca "Caption".
+  const description = ai?.caption
+    ? `\n    <dc:description>\n     <rdf:Alt>\n      <rdf:li xml:lang="x-default">${xmlEscape(ai.caption)}</rdf:li>\n     </rdf:Alt>\n    </dc:description>`
     : '';
   const aiScoreAttr = ai?.aiScore !== undefined ? `\n    lc:AIScore="${Math.round(ai.aiScore)}"` : '';
   const groupIdAttr = ai?.groupId ? `\n    lc:SeriesId="${xmlEscape(ai.groupId)}"` : '';
@@ -98,7 +104,7 @@ export function generateXMPSidecar(status: XmpDecision, starRating?: number, key
     xmlns:Iptc4xmpExt="http://iptc.org/std/Iptc4xmpExt/2008-02-29/"
     xmlns:lc="https://luminculler.app/xmp/1.0/"
     xmp:Rating="${rating}"
-    xmp:Label="${label}"${aiScoreAttr}${groupIdAttr}${clientAttr}>${subject}${aiFactors}${location}${event}
+    xmp:Label="${label}"${aiScoreAttr}${groupIdAttr}${clientAttr}>${subject}${description}${aiFactors}${location}${event}
   </rdf:Description>
  </rdf:RDF>
 </x:xmpmeta>
@@ -151,6 +157,7 @@ export interface XmpPhotoInput {
   client?: string;
   event?: string;
   location?: string;
+  caption?: string;
 }
 
 export async function exportXMPSidecars(photos: XmpPhotoInput[]): Promise<XmpExportResult> {
@@ -165,7 +172,7 @@ export async function exportXMPSidecars(photos: XmpPhotoInput[]): Promise<XmpExp
   const render = (p: XmpPhotoInput & { status: XmpDecision }) =>
     generateXMPSidecar(p.status, p.rating, p.keywords, {
       aiScore: p.aiScore, aiFactors: p.aiFactors, groupId: p.groupId,
-      client: p.client, event: p.event, location: p.location
+      client: p.client, event: p.event, location: p.location, caption: p.caption
     });
 
   if (pickDirectory) {
