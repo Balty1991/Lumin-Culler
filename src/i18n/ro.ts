@@ -230,6 +230,7 @@ export const ro = {
   'workspace.tooltip.metrics': 'Statistici pe imagine',
   'workspace.metrics.show': 'Arata statisticile pe imagine',
   'workspace.metrics.hide': 'Ascunde statisticile pe imagine',
+  'workspace.metrics.peekLabel': 'Metrici',
   'workspace.nav.prev': 'Fotografia anterioara',
   'workspace.nav.next': 'Fotografia urmatoare',
   'workspace.status.selected': 'SELECTATA',

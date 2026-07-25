@@ -233,6 +233,7 @@ export const en: Record<TranslationKey, string> = {
   'workspace.tooltip.metrics': 'On-image stats',
   'workspace.metrics.show': 'Show on-image stats',
   'workspace.metrics.hide': 'Hide on-image stats',
+  'workspace.metrics.peekLabel': 'Metrics',
   'workspace.nav.prev': 'Previous photo',
   'workspace.nav.next': 'Next photo',
   'workspace.status.selected': 'SELECTED',

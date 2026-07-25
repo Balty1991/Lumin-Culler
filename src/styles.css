@@ -268,16 +268,22 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   pointer-events: none;
 }
 .banner-stack > * { pointer-events: auto; }
+/* pe doua randuri (icon+text+inchidere, apoi butonul de actiune pe latimea
+   intreaga) — NU intr-un singur rand, care depasea latimea ecranului pe
+   telefoane inguste: butonul de actiune (flex-shrink:0, latime fixa) nu se
+   putea micsora, iar randul nu se infasura, asa ca depasea marginea dreapta
+   a ecranului (bug real, raportat cu screenshot). */
 .install-prompt {
   padding: 9px 10px 9px 13px; border-radius: var(--radius);
-  display: flex; align-items: center; gap: 10px; font-size: 0.78rem; color: var(--text-dim);
+  display: flex; flex-direction: column; gap: 8px; font-size: 0.78rem; color: var(--text-dim);
   background: linear-gradient(var(--surface), var(--surface)) padding-box, var(--accent-gradient) border-box;
   border: 1px solid transparent; box-shadow: var(--shadow-lg);
   animation: fadeUp 0.3s var(--ease) both;
 }
+.install-prompt-row { display: flex; align-items: center; gap: 10px; }
 .install-prompt-icon { width: 20px; height: 20px; flex-shrink: 0; color: var(--accent); }
 .install-prompt-text { flex: 1; min-width: 0; }
-.install-prompt-install { flex-shrink: 0; font-family: var(--sans); }
+.install-prompt-install { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; font-family: var(--sans); }
 .install-prompt-close { flex-shrink: 0; }
 
 /* ── Toast: mesaj tranzitoriu (rezultat export, avertisment stocare) — plutitor, cu auto-dismiss.
@@ -1615,19 +1621,24 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   position: absolute; left: 0; right: 0; bottom: 16px; z-index: var(--z-card-badge);
   display: flex; align-items: center; justify-content: center; gap: 28px;
 }
-.workspace-metrics {
-  /* sus, nu jos — jos e acum ocupat de FAB-urile de decizie (.workspace-fab-row);
-     simetric cu .workspace-badge (top-right), evita orice suprapunere pe ecrane inguste */
-  position: absolute; top: 24px; left: 24px; z-index: var(--z-card-badge); display: flex; flex-wrap: wrap; gap: 6px 14px;
-  background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur)); border: 1px solid var(--glass-border);
-  border-radius: var(--radius); padding: 10px 14px; font-size: 0.78rem; color: var(--text-dim);
-  /* rezerva loc pentru .workspace-badge (status, top-right) — mai ingust decat
-     inainte (era calc(100% - 48px), aproape toata latimea), preferam sa treaca
-     pe a doua linie (deja flex-wrap) decat sa se atinga de badge */
-  max-width: min(calc(100% - 150px), 340px);
+/* metricile traiesc in dock (nu mai plutesc peste imagine) — un maner
+   vizibil "METRICI" (acelasi limbaj ca .detail-sheet-handle din DetailView,
+   nu doar o iconita (i) ascunsa in antet) rezolva o reclamatie directa:
+   utilizatorul nu descoperea butonul (i) din antet si credea ca metricile
+   lipsesc complet din Workspace. */
+.workspace-metrics-handle {
+  width: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 8px 0 4px;
 }
-.workspace-metrics b { color: var(--text); font-variant-numeric: tabular-nums; }
-.workspace-metrics .warn { color: var(--reject); }
+.workspace-metrics-handle-bar { width: 36px; height: 4px; border-radius: 999px; background: var(--line-strong); }
+.workspace-metrics-peek-label {
+  font-size: 0.6rem; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.06em;
+}
+.workspace-metrics-panel {
+  display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 0 14px 10px; font-size: 0.78rem; color: var(--text-dim);
+}
+.workspace-metrics-panel b { color: var(--text); font-variant-numeric: tabular-nums; }
+.workspace-metrics-panel .warn { color: var(--reject); }
 .workspace-head .icon-btn.active { border: 1px solid transparent; background: var(--surface-3); color: var(--accent); box-shadow: 0 0 0 1px rgb(var(--accent-rgb) / 0.3); }
 .workspace-nav {
   position: absolute; top: 50%; transform: translateY(-50%); z-index: var(--z-card-badge);

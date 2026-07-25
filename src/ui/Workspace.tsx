@@ -212,8 +212,23 @@ export function Workspace() {
             <CheckIcon />
           </button>
         </div>
+        <button className="ghost icon-btn workspace-nav next" onClick={() => stepDetail(1)} aria-label={tr('workspace.nav.next')}>
+          <ChevronRight />
+        </button>
+      </div>
+
+      <div className="workspace-dock">
+        <button
+          className="workspace-metrics-handle"
+          onClick={() => setShowMetrics(v => !v)}
+          aria-expanded={showMetrics}
+          aria-label={showMetrics ? tr('workspace.metrics.hide') : tr('workspace.metrics.show')}
+        >
+          <span className="workspace-metrics-handle-bar" aria-hidden="true" />
+          <span className="workspace-metrics-peek-label mono">{tr('workspace.metrics.peekLabel')}</span>
+        </button>
         {showMetrics && (
-          <div className="workspace-metrics mono">
+          <div className="workspace-metrics-panel mono">
             <span>{tr('workspace.metric.score')} <b>{photo.aiScore}</b></span>
             <span>{tr('workspace.metric.sharpness')} <b>{photo.sharpness}</b></span>
             <span>{tr('workspace.metric.exposure')} <b>{photo.exposure}</b></span>
@@ -229,12 +244,7 @@ export function Workspace() {
             )}
           </div>
         )}
-        <button className="ghost icon-btn workspace-nav next" onClick={() => stepDetail(1)} aria-label={tr('workspace.nav.next')}>
-          <ChevronRight />
-        </button>
-      </div>
 
-      <div className="workspace-dock">
         <div className="workspace-rating-row">
           <StarRating rating={photo.rating} onRate={n => void setRating(photo.id, n)} />
         </div>
