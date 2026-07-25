@@ -32,6 +32,8 @@ import { buildPersonProfilesExport, personProfilesFileName, parsePersonProfilesF
 import { readStoredLocale, writeStoredLocale, applyLocale, t, plural, type Locale } from '../i18n';
 import { buildBackup, backupFileName, parseBackupFile, restoreBackup } from '../core/backupService';
 import { buildClientGalleryHtml } from '../core/export/clientGallery';
+import { buildSessionReportText } from '../core/export/sessionReport';
+import { computeLibraryStats } from '../core/stats';
 
 /** Cerere activa de dialog tematizat (vezi askConfirm/askPrompt mai jos) — `resolve` e apelat o singura data, de componenta ConfirmDialog. */
 export type DialogRequest =
@@ -41,6 +43,8 @@ export type DialogRequest =
 export interface PhotoView {
   id: string;
   fileName: string;
+  /** Momentul importului in aplicatie (nu data capturii — vezi capturedAt), folosit pentru raportul de sesiune. */
+  importedAt: number;
   status: PhotoRecord['status'];
   rating: number;
   /** Eticheta de culoare (vezi core/db.ts) — absent = fara eticheta ('none'). */
@@ -344,6 +348,8 @@ interface AppState {
   clearNotice: () => void;
   exportSelection: () => Promise<void>;
   exportManifest: () => Promise<void>;
+  /** Sumar text (nr. poze, scor mediu, durata sesiunii) pentru documentare/facturare fata de client. */
+  exportSessionReport: () => Promise<void>;
   exportXMP: () => Promise<void>;
   /** Genereaza si descarca o galerie HTML statica cu pozele selectate, pentru feedback de la client. */
   exportClientGallery: () => Promise<void>;
@@ -370,6 +376,7 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
   return {
     id: photo.id,
     fileName: photo.fileName,
+    importedAt: photo.importedAt,
     status: photo.status,
     rating: photo.rating ?? 0,
     colorLabel: photo.colorLabel,
@@ -1327,6 +1334,21 @@ export const useStore = create<AppState>((set, get) => ({
     // URL-ul asincron, in fundal; o revocare instant poate rupe transferul
     // cu "Eroare de retea" (bug real gasit la exportul de poze/XMP, acelasi
     // tipar). Lasam browserul sa curete URL-ul natural la reincarcare.
+  },
+
+  exportSessionReport: async () => {
+    const photos = get().photos;
+    const stats = computeLibraryStats(photos);
+    const earliestImportedAt = photos.length ? Math.min(...photos.map(p => p.importedAt)) : null;
+    const text = buildSessionReportText({
+      stats, projectName: get().projectName, earliestImportedAt, generatedAt: Date.now()
+    });
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'raport-sesiune-lumin-' + new Date().toISOString().slice(0, 10) + '.txt';
+    a.click();
   },
 
   /**

@@ -19,6 +19,8 @@ export const ro = {
   'menu.genre.title': 'Genul fotografic activ pentru urmatorul import — antreneaza un model AI de preferinte SEPARAT per gen (ex. "Nunta" invata altceva decat "Peisaj").',
   'menu.section.export': 'Export',
   'menu.exportManifest': 'Exporta lista (JSON)',
+  'menu.exportSessionReport': 'Raport de sesiune (.txt)',
+  'menu.exportSessionReport.title': 'Sumar text: numar de poze, scor AI mediu, durata sesiunii — util pentru documentare/facturare fata de client.',
   'menu.exportXmp': 'Exporta etichete Lightroom (XMP)',
   'menu.exportClientGallery': 'Genereaza galerie pentru client (HTML)',
   'menu.exportClientGallery.title': 'Fisier HTML static cu pozele selectate, pentru feedback de la client — trimite-l tu insuti (email, cloud propriu); nu e o galerie web gazduita.',

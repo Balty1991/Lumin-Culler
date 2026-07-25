@@ -22,6 +22,8 @@ export const en: Record<TranslationKey, string> = {
   'menu.genre.title': 'The active genre for the next import — trains a SEPARATE AI preference model per genre (e.g. "Wedding" learns differently than "Landscape").',
   'menu.section.export': 'Export',
   'menu.exportManifest': 'Export list (JSON)',
+  'menu.exportSessionReport': 'Session report (.txt)',
+  'menu.exportSessionReport.title': 'Text summary: photo count, average AI score, session duration — useful for client documentation/invoicing.',
   'menu.exportXmp': 'Export Lightroom tags (XMP)',
   'menu.exportClientGallery': 'Generate client gallery (HTML)',
   'menu.exportClientGallery.title': 'A static HTML file with the selected photos, for client feedback — send it yourself (email, your own cloud); not a hosted web gallery.',
