@@ -30,7 +30,16 @@ export default defineConfig({
       },
       workbox: {
         maximumFileSizeToCacheInBytes: 25 * 1024 * 1024,
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest,json,bin,wasm}']
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest,json,bin,wasm}'],
+        // Fara astea, un service worker nou instalat ramane "waiting" pana se
+        // inchid TOATE tab-urile/instantele deschise ale aplicatiei — pe un PWA
+        // instalat (adaugat pe ecranul principal, ramane rezident) practic nu se
+        // intampla niciodata, deci un utilizator putea ramane blocat pe un build
+        // vechi la nesfarsit. Cu astea + registerSW({ immediate: true }) din
+        // main.tsx, update-ul se aplica automat la urmatoarea reincarcare.
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true
       }
     })
   ],
