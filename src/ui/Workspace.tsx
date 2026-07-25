@@ -4,8 +4,9 @@ import { getCachedPreviewUrl } from '../core/previewUrlCache';
 import { useStore } from '../state/store';
 import { Tooltip } from './Tooltip';
 import { StarRating } from './StarRating';
+import { PhotoInfoTabs } from './PhotoInfoTabs';
 import { EmptyFilterState } from './EmptyFilterState';
-import { ChevronLeft, ChevronRight, XIcon, CheckIcon, InfoIcon, EyeClosedIcon, GridIcon, PlusIcon, MenuIcon } from './icons';
+import { ChevronLeft, ChevronRight, XIcon, CheckIcon, InfoIcon, GridIcon, PlusIcon, MenuIcon } from './icons';
 import { UndoHistoryButton } from './UndoHistoryButton';
 import { pickImportFiles } from '../core/filePicker';
 import { t } from '../i18n';
@@ -228,39 +229,31 @@ export function Workspace() {
           <span className="workspace-metrics-peek-label mono">{tr('workspace.metrics.peekLabel')}</span>
         </button>
         {showMetrics && (
-          <div className="workspace-metrics-panel mono">
-            <span>{tr('workspace.metric.score')} <b>{photo.aiScore}</b></span>
-            <span>{tr('workspace.metric.sharpness')} <b>{photo.sharpness}</b></span>
-            <span>{tr('workspace.metric.exposure')} <b>{photo.exposure}</b></span>
-            {photo.faceCount > 0 && <span>{tr('workspace.metric.faces')} <b>{photo.faceCount}</b></span>}
-            {photo.faceCount > 0 && (
-              <span>{tr('workspace.metric.smile')} <b>{Math.round((photo.faceCount > 1 ? photo.groupSmileRatio ?? photo.bestSmile : photo.bestSmile) * 100)}%</b></span>
-            )}
-            {photo.faceCount > 0 && (
-              <span className={(photo.groupEyesOpenRatio ?? (photo.allEyesOpen ? 1 : 0)) < 1 ? 'warn' : undefined}>
-                {photo.allEyesOpen && (photo.groupEyesOpenRatio ?? 1) >= 1 ? null : <EyeClosedIcon className="inline-icon" />}
-                {tr('workspace.metric.eyes')} <b>{Math.round((photo.groupEyesOpenRatio ?? (photo.allEyesOpen ? 1 : 0)) * 100)}%</b>
-              </span>
-            )}
+          <div className="workspace-metrics-panel">
+            <PhotoInfoTabs photo={photo} src={src} />
           </div>
         )}
 
-        <div className="workspace-rating-row">
-          <StarRating rating={photo.rating} onRate={n => void setRating(photo.id, n)} />
-        </div>
+        {!showMetrics && (
+          <>
+            <div className="workspace-rating-row">
+              <StarRating rating={photo.rating} onRate={n => void setRating(photo.id, n)} />
+            </div>
 
-        <div className="workspace-filmstrip" ref={filmstripRef}>
-          {filtered.map(p => (
-            <button
-              key={p.id}
-              className={`workspace-thumb${p.id === detailId ? ' active' : ''}${p.status === 'rejected' ? ' rejected' : ''}`}
-              onClick={() => openDetail(p.id)}
-              title={p.fileName}
-            >
-              <FilmstripThumb photoId={p.id} fileName={p.fileName} />
-            </button>
-          ))}
-        </div>
+            <div className="workspace-filmstrip" ref={filmstripRef}>
+              {filtered.map(p => (
+                <button
+                  key={p.id}
+                  className={`workspace-thumb${p.id === detailId ? ' active' : ''}${p.status === 'rejected' ? ' rejected' : ''}`}
+                  onClick={() => openDetail(p.id)}
+                  title={p.fileName}
+                >
+                  <FilmstripThumb photoId={p.id} fileName={p.fileName} />
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
       {fileInput}
     </div>
