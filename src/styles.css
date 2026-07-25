@@ -1446,9 +1446,15 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   display: flex; justify-content: flex-end;
 }
 .drawer {
-  width: min(330px, 86vw); height: 100%; background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur));
+  /* min-width:0 e esential: .drawer e el insusi un flex item (in .drawer-scrim, flex),
+     iar fara asta latimea "de continut" a randurilor (icon + eticheta + select/chip)
+     putea invinge width-ul explicit de mai jos si intinde tot sertarul peste marginea
+     ecranului, in loc sa se plafoneze la 330px/86%. Procent (%), nu vw — vw se poate
+     calcula gresit pe mobil cand bara de adrese se ascunde/reapare dinamic; % ramane
+     mereu relativ la .drawer-scrim (position:fixed; inset:0), corect dimensionat. */
+  width: min(330px, 86%); min-width: 0; height: 100%; background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur));
   border-left: 1px solid var(--glass-border); padding: 16px 14px calc(16px + env(safe-area-inset-bottom));
-  display: flex; flex-direction: column; gap: 3px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 3px; overflow-y: auto; overflow-x: hidden; box-sizing: border-box;
   box-shadow: var(--shadow-lg);
   scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) transparent;
 }
@@ -1479,7 +1485,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
    cuvant nedespartibil al etichetei; la texte mai lungi ("Raport de sesiune (.txt)")
    sau langa un <select> (randul "Gen fotografic"), asta impingea eticheta sa
    depaseasca marginea dreapta a sertarului in loc sa treaca pe a doua linie. */
-.drawer-item span:not(.drawer-item-icon) { flex: 1; min-width: 0; }
+.drawer-item span:not(.drawer-item-icon) { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .drawer-count { background: var(--surface-3); color: var(--text-dim); font-size: 0.72rem; padding: 2px 8px; border-radius: 999px; }
 .drawer-item-select { cursor: default; }
 .drawer-select {
