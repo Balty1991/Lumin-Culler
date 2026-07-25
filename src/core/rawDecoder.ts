@@ -114,6 +114,31 @@ export async function decodeRawFile(file: File): Promise<RawDecodeResult> {
   }
 }
 
+/**
+ * Ultima soluţie cand demosaicing-ul complet esueaza (compresie neacceptata de acest
+ * build — vezi imageData() mai jos): folosim orice preview incorporat utilizabil,
+ * oricat de mic sau de slaba calitate, in loc sa renuntam total la fisier. Aproape
+ * orice RAW de aparat contine un asemenea preview (generat pentru afisarea pe ecranul
+ * aparatului), chiar si cand rezolutia completa foloseste o compresie nesuportata.
+ */
+async function decodeThumbFallback(thumb: Awaited<ReturnType<LibRaw['thumbnailData']>>): Promise<ImageBitmap | null> {
+  if (!thumb) return null;
+  try {
+    if (thumb.format === 'jpeg') {
+      const blob = new Blob([thumb.data as BlobPart], { type: 'image/jpeg' });
+      return await createImageBitmap(blob, { resizeWidth: PREVIEW_MAX_SIDE, resizeQuality: 'high' } as ImageBitmapOptions);
+    }
+    if (thumb.format === 'bitmap') {
+      // deja RGB8 decodat de LibRaw (nu necesita niciun codec suplimentar) — 3 canale, 8 biti
+      const imageData = toImageData(thumb.width, thumb.height, 3, 8, thumb.data);
+      return await bitmapFromImageData(imageData);
+    }
+  } catch {
+    // preview-ul incorporat e si el corupt/necunoscut — nu mai avem alta soluţie
+  }
+  return null;
+}
+
 async function decode(raw: LibRaw, file: File): Promise<RawDecodeResult> {
   const bytes = new Uint8Array(await file.arrayBuffer());
   await raw.open(bytes);
@@ -134,9 +159,22 @@ async function decode(raw: LibRaw, file: File): Promise<RawDecodeResult> {
     }
   }
 
-  const image = await raw.imageData();
-  if (!image) throw new Error('LibRaw nu a putut decodifica imaginea (format neacceptat de acest build).');
-  const imageData = toImageData(image.width, image.height, image.colors, image.bits, image.data);
-  const bitmap = await bitmapFromImageData(imageData);
-  return { bitmap, meta };
+  // imageData() poate respinge promisiunea (nu doar returna un rezultat gol) atunci cand
+  // demosaicing-ul complet esueaza — de ex. o compresie pe care acest build LibRaw-Wasm
+  // nu o poate decoda (compresie lossy specifica producatorului, HE*/high-efficiency etc.)
+  try {
+    const image = await raw.imageData();
+    if (image) {
+      const imageData = toImageData(image.width, image.height, image.colors, image.bits, image.data);
+      const bitmap = await bitmapFromImageData(imageData);
+      return { bitmap, meta };
+    }
+  } catch {
+    // cadem pe preview-ul incorporat mai jos, indiferent de format/dimensiune
+  }
+
+  const fallbackBitmap = await decodeThumbFallback(thumb);
+  if (fallbackBitmap) return { bitmap: fallbackBitmap, meta };
+
+  throw new Error('LibRaw nu a putut decodifica imaginea (format neacceptat de acest build).');
 }
