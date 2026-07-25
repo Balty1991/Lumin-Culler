@@ -29,6 +29,8 @@ const HUMAN_CONFIG: Partial<Config> = {
   // Models served locally from /public/models (copied from @vladmandic/human/models)
   // so the app works offline and on GitHub Pages without third-party CDNs.
   modelBasePath: '/models/',
+  // backend e suprascris dinamic in init() (WebGPU cand e disponibil, altfel webgl) —
+  // valoarea de aici e doar fallback-ul implicit daca ceva impiedica acea logica.
   backend: 'webgl',           // human falls back to wasm automatically if unavailable
   cacheSensitivity: 0,        // photos are independent frames — never skip inference
   filter: { enabled: false },
@@ -556,8 +558,7 @@ export class FaceAnalysisService {
    */
   async init(modelBasePath?: string, economicMode?: boolean): Promise<string> {
     if (this.human) return this.backend;
-    this.human = new Human({
-      ...HUMAN_CONFIG,
+    const overrides: Partial<Config> = {
       ...(modelBasePath ? { modelBasePath } : {}),
       // mod economic: mai putina inferenta per poza — iris (gaze/contact vizual)
       // si emotie (zambet/engagement) sunt semnalele cele mai costisitoare dupa
@@ -569,7 +570,24 @@ export class FaceAnalysisService {
         face: { ...HUMAN_CONFIG.face, iris: { enabled: false }, emotion: { enabled: false } },
         object: { ...HUMAN_CONFIG.object, enabled: false }
       } : {})
-    });
+    };
+
+    // WebGPU e semnificativ mai rapid decat WebGL pe device-urile care il suporta
+    // (Chrome/Brave recente pe Android/desktop cu drivere compatibile) — incercam
+    // intai, dar cu o plasa de siguranta: inregistrarea WebGPU poate esua tacut
+    // (adaptor GPU indisponibil/incompatibil), lasand Human blocat pe un backend
+    // neaccelerat fara sa arunce nicio eroare (vezi isAccelerated() mai jos). Daca
+    // se intampla asta, reincarcam o singura data, fortand explicit webgl.
+    const preferWebGpu = typeof navigator !== 'undefined' && 'gpu' in navigator;
+    await this.loadWithBackend({ ...HUMAN_CONFIG, ...overrides, backend: preferWebGpu ? 'webgpu' : 'webgl' });
+    if (preferWebGpu && !this.isAccelerated()) {
+      await this.loadWithBackend({ ...HUMAN_CONFIG, ...overrides, backend: 'webgl' });
+    }
+    return this.backend;
+  }
+
+  private async loadWithBackend(config: Partial<Config>): Promise<void> {
+    this.human = new Human(config);
     try {
       await this.human.load();
       await this.human.warmup();   // JIT-compile shaders before the first real photo
@@ -577,7 +595,6 @@ export class FaceAnalysisService {
       console.error('FaceAnalysisService: model load/warmup failed', err);
     }
     this.backend = this.human.tf?.getBackend?.() ?? 'unknown';
-    return this.backend;
   }
 
   isAccelerated(): boolean {

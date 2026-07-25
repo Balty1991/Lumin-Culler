@@ -248,7 +248,7 @@ export function Workspace() {
                   onClick={() => openDetail(p.id)}
                   title={p.fileName}
                 >
-                  <FilmstripThumb photoId={p.id} fileName={p.fileName} />
+                  <FilmstripThumb photoId={p.id} fileName={p.fileName} lqip={p.lqip} />
                 </button>
               ))}
             </div>
@@ -260,7 +260,7 @@ export function Workspace() {
   );
 }
 
-function FilmstripThumb({ photoId, fileName }: { photoId: string; fileName: string }) {
+function FilmstripThumb({ photoId, fileName, lqip }: { photoId: string; fileName: string; lqip?: string }) {
   const [src, setSrc] = useState<string | null>(null);
   useEffect(() => {
     let url: string | null = null;
@@ -270,5 +270,11 @@ function FilmstripThumb({ photoId, fileName }: { photoId: string; fileName: stri
     });
     return () => { alive = false; if (url) URL.revokeObjectURL(url); };
   }, [photoId]);
-  return src ? <img src={src} alt={fileName} loading="lazy" /> : <span className="card-loading" />;
+  return (
+    <span className="card-media">
+      {lqip && <img className="card-lqip" src={lqip} alt="" />}
+      {src && <img className="card-img-loaded" src={src} alt={fileName} loading="lazy" />}
+      {!src && !lqip && <span className="card-loading" />}
+    </span>
+  );
 }

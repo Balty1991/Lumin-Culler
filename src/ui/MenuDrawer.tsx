@@ -4,7 +4,7 @@ import { useStore } from '../state/store';
 import {
   UserCheckIcon, SparkleIcon, ListIcon, InfoIcon, XIcon, TagIcon, LayersIcon, KeyboardIcon,
   SunIcon, MoonIcon, BatteryIcon, GridIcon, DownloadIcon, UploadIcon, BarChartIcon, GlobeIcon, PrinterIcon,
-  ApertureIcon
+  ApertureIcon, PlayIcon
 } from './icons';
 import { EASE } from './motion';
 import { GENRE_PRESETS } from '../state/genre';
@@ -40,6 +40,7 @@ export function MenuDrawer() {
   const importBackupFile = useStore(s => s.importBackupFile);
   const setStatsOpen = useStore(s => s.setStatsOpen);
   const setContactSheetOpen = useStore(s => s.setContactSheetOpen);
+  const setPresentationOpen = useStore(s => s.setPresentationOpen);
   const setProjectsOpen = useStore(s => s.setProjectsOpen);
   const persons = useStore(s => s.persons);
   const askConfirm = useStore(s => s.askConfirm);
@@ -122,6 +123,11 @@ export function MenuDrawer() {
         <button className="drawer-item" onClick={() => go(() => setContactSheetOpen(true))}>
           <span className="drawer-item-icon"><PrinterIcon /></span>
           <span>{tr('menu.contactSheet')}</span>
+        </button>
+
+        <button className="drawer-item" onClick={() => go(() => setPresentationOpen(true))} title={tr('menu.presentation.title')}>
+          <span className="drawer-item-icon"><PlayIcon /></span>
+          <span>{tr('menu.presentation')}</span>
         </button>
 
         <button className="drawer-item" onClick={() => go(() => setProjectsOpen(true))}>

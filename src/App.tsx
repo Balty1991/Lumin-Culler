@@ -17,6 +17,7 @@ import { EmptyFilterState } from './ui/EmptyFilterState';
 import { ContextMenu } from './ui/ContextMenu';
 import { ConfirmDialog } from './ui/ConfirmDialog';
 import { ContactSheet } from './ui/ContactSheet';
+import { PresentationMode } from './ui/PresentationMode';
 import { AnimatedNumber } from './ui/AnimatedNumber';
 import { Tooltip } from './ui/Tooltip';
 import { StarRating } from './ui/StarRating';
@@ -526,6 +527,7 @@ export default function App() {
         <BatchOpsPanel />
         <StatsPanel />
         <ContactSheet />
+        <PresentationMode />
         <ProjectsPanel />
         <ConfirmDialog />
       </>
@@ -834,6 +836,7 @@ export default function App() {
       <BatchOpsPanel />
       <StatsPanel />
       <ContactSheet />
+      <PresentationMode />
       <ProjectsPanel />
       <MenuDrawer />
       <CommandPalette />

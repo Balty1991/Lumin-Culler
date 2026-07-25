@@ -554,6 +554,17 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   width: 100%; height: 100%; object-fit: cover; display: block;
   transition: opacity var(--duration) var(--ease), filter var(--duration) var(--ease);
 }
+/* container comun pentru lqip + miniatura reala, suprapuse (crossfade fara flash alb) */
+.card-media { position: relative; flex: 1; width: 100%; height: 100%; overflow: hidden; display: block; }
+.card-lqip, .card-img-loaded { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+/* placeholder-ul minuscul generat la import (~24px) intins pe tot cardul, blurat sa ascunda pixelarea */
+.card-lqip { filter: blur(16px) saturate(1.15); transform: scale(1.12); }
+/* miniatura reala apare deasupra lqip-ului, care ramane vizibil dedesubt (fara "pop" pe fundal gol) */
+.card-img-loaded { opacity: 0; animation: cardImgFadeIn 0.35s var(--ease) forwards; }
+@keyframes cardImgFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .card-img-loaded { animation: none; opacity: 1; }
+}
 .card-loading {
   flex: 1; background: var(--skeleton-a);
   animation: skeletonPulse 1.4s ease-in-out infinite;
@@ -1817,4 +1828,78 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .contact-sheet-rating { color: #000 !important; }
   .contact-sheet-thumb { border-color: #ccc; break-inside: avoid; }
   .contact-sheet-item { break-inside: avoid; }
+}
+
+/* ── Prezentare cinematica (fullscreen, auto-advance) ────────────────────
+   Fundal negru opac (nu sticla ca restul panourilor) — pentru vizionare
+   la client, orice transparenta care lasa sa se vada UI-ul din spate ar
+   strica efectul de "cinema". */
+.presentation-scrim {
+  position: fixed; inset: 0; z-index: var(--z-palette-scrim);
+  background: #000; overflow: hidden;
+  animation: fadeIn 0.25s var(--ease) both;
+  cursor: default;
+}
+.presentation-frame {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+}
+.presentation-slide-wrap { position: absolute; inset: 0; }
+.presentation-lqip, .presentation-img {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain;
+  transition: opacity 0.4s var(--ease);
+}
+.presentation-lqip { filter: blur(28px) saturate(1.15); transform: scale(1.15); object-fit: cover; }
+.presentation-empty {
+  position: absolute; inset: 0; display: grid; place-items: center; gap: 12px; justify-items: center;
+  color: var(--text-1, #eee);
+}
+.presentation-controls {
+  position: absolute; inset: 0; pointer-events: none;
+  transition: opacity 0.3s var(--ease);
+}
+.presentation-controls.hidden { opacity: 0; }
+.presentation-controls.hidden .presentation-top-bar,
+.presentation-controls.hidden .presentation-bottom-bar,
+.presentation-controls.hidden .presentation-nav-btn { pointer-events: none; }
+.presentation-controls:not(.hidden) .presentation-top-bar,
+.presentation-controls:not(.hidden) .presentation-bottom-bar,
+.presentation-controls:not(.hidden) .presentation-nav-btn { pointer-events: auto; }
+.presentation-top-bar {
+  position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; gap: 10px;
+  padding: 14px 16px calc(14px + env(safe-area-inset-top));
+  background: linear-gradient(rgba(0,0,0,0.55), transparent);
+  color: #fff;
+}
+.presentation-source { flex: 1; min-width: 0; opacity: 0.7; font-size: 0.72rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.presentation-counter { opacity: 0.85; font-size: 0.78rem; }
+.presentation-top-bar .icon-btn, .presentation-bottom-bar .icon-btn {
+  color: #fff; background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.18);
+}
+.presentation-top-bar .icon-btn:hover, .presentation-bottom-bar .icon-btn:hover { background: rgba(255,255,255,0.2); }
+.presentation-empty .ghost { color: #fff; background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.18); }
+.presentation-nav-btn {
+  position: absolute; top: 50%; transform: translateY(-50%); z-index: 1;
+  width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center;
+  background: rgba(0,0,0,0.35); color: #fff; border: 1px solid rgba(255,255,255,0.18);
+  transition: background var(--micro), transform var(--micro);
+}
+.presentation-nav-btn:hover { background: rgba(0,0,0,0.55); }
+.presentation-nav-prev { left: 14px; }
+.presentation-nav-next { right: 14px; }
+.presentation-bottom-bar {
+  position: absolute; bottom: 0; left: 0; right: 0; display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
+  background: linear-gradient(transparent, rgba(0,0,0,0.6));
+  color: #fff;
+}
+.presentation-filename {
+  flex: 1; min-width: 0; opacity: 0.75; font-size: 0.75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  text-align: right;
+}
+@media (prefers-reduced-motion: reduce) {
+  .presentation-scrim, .presentation-frame, .presentation-img { animation: none !important; transition: none !important; }
+}
+@media (max-width: 640px) {
+  .presentation-nav-btn { width: 38px; height: 38px; }
+  .presentation-filename { display: none; }
 }
