@@ -29,6 +29,7 @@ import { pickImportFiles } from './core/filePicker';
 import { ColorLabelFilter } from './ui/ColorLabelFilter';
 import { SceneTagFilter } from './ui/SceneTagFilter';
 import { InstallPrompt } from './ui/InstallPrompt';
+import { BackupReminder } from './ui/BackupReminder';
 import { t } from './i18n';
 
 const NOTICE_AUTODISMISS_MS = 7000;
@@ -483,7 +484,10 @@ export default function App() {
     return (
       <>
         <Toast />
-        <InstallPrompt />
+        <div className="banner-stack">
+          <InstallPrompt />
+          <BackupReminder />
+        </div>
         <Workspace />
         <CommandPalette />
         <ShortcutsPanel />
@@ -542,7 +546,10 @@ export default function App() {
       </header>
 
       <Toast />
-      <InstallPrompt />
+      <div className="banner-stack">
+        <InstallPrompt />
+        <BackupReminder />
+      </div>
 
       {aiDegraded && (
         <p className="notice warn mono">

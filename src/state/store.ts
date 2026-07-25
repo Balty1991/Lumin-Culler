@@ -31,6 +31,7 @@ import { getProjectMetadata } from './projectMetadata';
 import { buildPersonProfilesExport, personProfilesFileName, parsePersonProfilesFile } from '../core/personProfileTransfer';
 import { readStoredLocale, writeStoredLocale, applyLocale, t, plural, type Locale } from '../i18n';
 import { buildBackup, backupFileName, parseBackupFile, restoreBackup } from '../core/backupService';
+import { writeLastBackupAt } from './backupReminder';
 import { buildClientGalleryHtml } from '../core/export/clientGallery';
 import { buildSessionReportText } from '../core/export/sessionReport';
 import { computeLibraryStats } from '../core/stats';
@@ -591,6 +592,7 @@ export const useStore = create<AppState>((set, get) => ({
     a.download = backupFileName();
     a.click();
     // vezi exportManifest mai sus — nu revocam URL-ul imediat (Android descarca async).
+    writeLastBackupAt(Date.now());
     set({ notice: t(get().locale, 'store.backup.exported', { persons: data.persons.length, models: data.contextModels.length, decisions: data.photoDecisions.length }) });
   },
 
