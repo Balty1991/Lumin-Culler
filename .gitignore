@@ -3,3 +3,8 @@ dist/
 public/models/
 release/
 *.local
+
+# libraw-wasm rebuild vendorizat (vendor/libraw-wasm-patched/README.md) — dist/ de aici
+# e payload-ul compilat al dependentei, nu un artefact de build al PROIECTULUI nostru
+# (cel ignorat de regula "dist/" de mai sus), deci trebuie commis in git.
+!vendor/libraw-wasm-patched/dist/

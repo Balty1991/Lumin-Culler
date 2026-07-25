@@ -1,0 +1,16 @@
+{
+  "name": "libraw-wasm",
+  "version": "1.6.0-libraw0.22.2",
+  "description": "LibRaw WASM bindings — local rebuild pinning LibRaw 0.22.2 (upstream npm package 1.6.0 pins 0.22.1). See vendor/libraw-wasm-patched/README.md.",
+  "main": "dist/index.js",
+  "type": "module",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/*"
+  ],
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ybouane/LibRaw-Wasm.git"
+  }
+}
