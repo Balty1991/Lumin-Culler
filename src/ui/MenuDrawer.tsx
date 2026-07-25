@@ -29,6 +29,7 @@ export function MenuDrawer() {
   const gridDensity = useStore(s => s.gridDensity);
   const setGridDensity = useStore(s => s.setGridDensity);
   const exportManifest = useStore(s => s.exportManifest);
+  const exportSessionReport = useStore(s => s.exportSessionReport);
   const exportXMP = useStore(s => s.exportXMP);
   const exportClientGallery = useStore(s => s.exportClientGallery);
   const watermarkText = useStore(s => s.watermarkText);
@@ -114,6 +115,11 @@ export function MenuDrawer() {
         <button className="drawer-item" onClick={() => go(() => void exportManifest())}>
           <span className="drawer-item-icon"><ListIcon /></span>
           <span>{tr('menu.exportManifest')}</span>
+        </button>
+
+        <button className="drawer-item" onClick={() => go(() => void exportSessionReport())} title={tr('menu.exportSessionReport.title')}>
+          <span className="drawer-item-icon"><BarChartIcon /></span>
+          <span>{tr('menu.exportSessionReport')}</span>
         </button>
 
         <button className="drawer-item" onClick={() => go(() => void exportXMP())}>
