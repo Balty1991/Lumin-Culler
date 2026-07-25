@@ -64,13 +64,15 @@ export function InstallPrompt() {
 
   return (
     <div className="install-prompt" role="status">
-      <ApertureIcon className="install-prompt-icon" aria-hidden="true" />
-      <span className="install-prompt-text mono">{tr('app.installPrompt.text')}</span>
+      <div className="install-prompt-row">
+        <ApertureIcon className="install-prompt-icon" aria-hidden="true" />
+        <span className="install-prompt-text mono">{tr('app.installPrompt.text')}</span>
+        <button className="ghost icon-btn install-prompt-close" onClick={dismiss} aria-label={tr('app.installPrompt.dismiss')}>
+          <XIcon />
+        </button>
+      </div>
       <button className="ghost small install-prompt-install" onClick={() => void install()}>
         <DownloadIcon className="inline-icon" /> {tr('app.installPrompt.install')}
-      </button>
-      <button className="ghost icon-btn install-prompt-close" onClick={dismiss} aria-label={tr('app.installPrompt.dismiss')}>
-        <XIcon />
       </button>
     </div>
   );

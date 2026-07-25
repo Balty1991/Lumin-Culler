@@ -42,13 +42,15 @@ export function BackupReminder() {
 
   return (
     <div className="install-prompt" role="status">
-      <DownloadIcon className="install-prompt-icon" aria-hidden="true" />
-      <span className="install-prompt-text mono">{tr('app.backupReminder.text')}</span>
+      <div className="install-prompt-row">
+        <DownloadIcon className="install-prompt-icon" aria-hidden="true" />
+        <span className="install-prompt-text mono">{tr('app.backupReminder.text')}</span>
+        <button className="ghost icon-btn install-prompt-close" onClick={snooze} aria-label={tr('app.backupReminder.snooze')}>
+          <XIcon />
+        </button>
+      </div>
       <button className="ghost small install-prompt-install" onClick={backupNow}>
         {tr('app.backupReminder.backupNow')}
-      </button>
-      <button className="ghost icon-btn install-prompt-close" onClick={snooze} aria-label={tr('app.backupReminder.snooze')}>
-        <XIcon />
       </button>
     </div>
   );
