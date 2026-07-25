@@ -151,6 +151,18 @@ async function decodeThumbFallback(
 
 async function decode(raw: LibRaw, file: File): Promise<RawDecodeResult> {
   const bytes = new Uint8Array(await file.arrayBuffer());
+  // Semnal clar de fisier trunchiat: pe Android, alegerea unei poze RAW direct din
+  // Google Photos (in loc de galeria locala a telefonului) poate preda browserului
+  // un fisier "doar in cloud" nedescarcat complet — file.size raporteaza dimensiunea
+  // reala, dar bytes-ii cititi efectiv sunt mult mai putini. LibRaw esueaza atunci cu
+  // erori generice ("unexpected end of file"), imposibil de diagnosticat fara asta.
+  if (bytes.length < file.size) {
+    throw new Error(
+      `Fisierul pare incomplet (${bytes.length} din ${file.size} octeti cititi) — probabil a fost ales direct ` +
+      'din Google Photos sau alt serviciu cloud, fara sa fie descarcat complet pe telefon. ' +
+      'Descarca poza in galeria telefonului (stocarea locala) si incearca din nou.'
+    );
+  }
   await raw.open(bytes);
 
   const [metaRaw, thumbResult] = await Promise.all([
