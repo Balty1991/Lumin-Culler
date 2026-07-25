@@ -9,7 +9,7 @@ import {
 import { EASE } from './motion';
 import { GENRE_PRESETS } from '../state/genre';
 import { nextGridDensity } from '../state/gridDensity';
-import { getInstallPromptEvent, subscribeInstallPromptEvent, consumeInstallPromptEvent } from '../core/installPromptEvent';
+import { getInstallPromptEvent, subscribeInstallPromptEvent, consumeInstallPromptEvent, isStandalone } from '../core/installPromptEvent';
 import { t } from '../i18n';
 
 /** Meniu lateral: persoane, preferinte AI invatate, export lista, despre. */
@@ -42,6 +42,7 @@ export function MenuDrawer() {
   const setContactSheetOpen = useStore(s => s.setContactSheetOpen);
   const setProjectsOpen = useStore(s => s.setProjectsOpen);
   const persons = useStore(s => s.persons);
+  const askConfirm = useStore(s => s.askConfirm);
   const reduceMotion = useReducedMotion();
   const restoreInputRef = useRef<HTMLInputElement>(null);
   // Acelasi eveniment beforeinstallprompt ca InstallPrompt.tsx (citit dintr-un modul
@@ -51,11 +52,19 @@ export function MenuDrawer() {
 
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const go = (action: () => void) => { setOpen(false); action(); };
+  // Intrarea din Meniu ramane mereu vizibila (utilizatorul a cerut explicit sa nu
+  // depinda de momentul in care browserul decide sa ofere beforeinstallprompt) — daca
+  // evenimentul chiar exista, il folosim; altfel aratam instructiuni de instalare
+  // manuala (singura optiune reala: nu exista API JS care sa deschida direct
+  // dialogul nativ de instalare fara evenimentul respectiv).
   const installApp = async () => {
-    if (!installEvent) return;
-    await installEvent.prompt();
-    await installEvent.userChoice;
-    consumeInstallPromptEvent();
+    if (installEvent) {
+      await installEvent.prompt();
+      await installEvent.userChoice;
+      consumeInstallPromptEvent();
+    } else {
+      void askConfirm(tr('menu.installApp.manual'), { confirmLabel: tr('menu.installApp.gotIt') });
+    }
   };
 
   return (
@@ -78,11 +87,11 @@ export function MenuDrawer() {
           </button>
         </header>
 
-        {installEvent && (
+        {!isStandalone() && (
           <>
             <button className="drawer-item" onClick={() => go(() => void installApp())}>
               <span className="drawer-item-icon"><ApertureIcon /></span>
-              <span>{tr('app.installPrompt.install')}</span>
+              <span>{tr('menu.installApp')}</span>
             </button>
             <div className="drawer-sep" />
           </>
