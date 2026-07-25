@@ -53,6 +53,16 @@ export interface PhotoRecord {
    * client-side, exact ca `rating`/`genre`/`project` de mai sus).
    */
   colorLabel?: ColorLabel;
+  /**
+   * Suprascriere manuala a descrierii/cuvintelor-cheie IPTC (editare in masa,
+   * plan "modernizare") — precede iptcCaption/iptcKeywords PARSATE din fisier
+   * (AnalysisRecord, vezi core/iptcParser.ts) cand e setata, fara sa le
+   * modifice pe cele originale. Absent = foloseste in continuare valorile
+   * parsate din fisier; nu necesita bump de schema Dexie (camp neindexat,
+   * exact ca `colorLabel`/`rating`/`genre` de mai sus).
+   */
+  captionOverride?: string;
+  keywordsOverride?: string[];
 }
 
 export type ColorLabel = 'none' | 'red' | 'yellow' | 'green' | 'blue' | 'purple';

@@ -302,6 +302,10 @@ interface AppState {
   /** Aplica un rating TUTUROR pozelor din selectia curenta. */
   bulkSetRatingForSelection: (rating: number) => Promise<void>;
   bulkSetColorLabelForSelection: (label: ColorLabel) => Promise<void>;
+  /** Suprascrie descrierea IPTC pe toata selectia curenta (multiSelectIds) — vezi PhotoRecord.captionOverride. */
+  bulkSetCaptionForSelection: (caption: string) => Promise<void>;
+  /** Suprascrie cuvintele-cheie IPTC pe toata selectia curenta — vezi PhotoRecord.keywordsOverride. */
+  bulkSetKeywordsForSelection: (keywords: string[]) => Promise<void>;
   setFilter: (f: FilterKey) => void;
   setPersonFilter: (name: string | null) => void;
   setSearchText: (text: string) => void;
@@ -416,14 +420,15 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     gpsLatitude: analysis?.gpsLatitude,
     gpsLongitude: analysis?.gpsLongitude,
     iptcByline: analysis?.iptcByline,
-    iptcCaption: analysis?.iptcCaption,
+    // suprascrierea manuala (editare in masa) precede valoarea parsata din fisier, fara sa o modifice
+    iptcCaption: photo.captionOverride ?? analysis?.iptcCaption,
     iptcHeadline: analysis?.iptcHeadline,
     iptcCredit: analysis?.iptcCredit,
     iptcSource: analysis?.iptcSource,
     iptcCopyright: analysis?.iptcCopyright,
     iptcCity: analysis?.iptcCity,
     iptcCountry: analysis?.iptcCountry,
-    iptcKeywords: analysis?.iptcKeywords,
+    iptcKeywords: photo.keywordsOverride ?? analysis?.iptcKeywords,
     aiFactors: analysis?.aiFactors ?? [],
     personNames: analysis
       ? Array.from(new Set(analysis.faces.map(f => f.personName).filter((n): n is string => !!n)))
@@ -1041,6 +1046,34 @@ export const useStore = create<AppState>((set, get) => ({
     }));
   },
 
+  bulkSetCaptionForSelection: async caption => {
+    const ids = Array.from(get().multiSelectIds);
+    if (!ids.length) return;
+    for (const id of ids) await db.photos.update(id, { captionOverride: caption });
+    const idSet = new Set(ids);
+    const locale = get().locale;
+    set(state => ({
+      photos: state.photos.map(p => (idSet.has(p.id) ? { ...p, iptcCaption: caption } : p)),
+      multiSelectIds: new Set(),
+      multiSelectAnchor: null,
+      notice: t(locale, 'store.bulkCaption.notice', { count: ids.length })
+    }));
+  },
+
+  bulkSetKeywordsForSelection: async keywords => {
+    const ids = Array.from(get().multiSelectIds);
+    if (!ids.length) return;
+    for (const id of ids) await db.photos.update(id, { keywordsOverride: keywords });
+    const idSet = new Set(ids);
+    const locale = get().locale;
+    set(state => ({
+      photos: state.photos.map(p => (idSet.has(p.id) ? { ...p, iptcKeywords: keywords } : p)),
+      multiSelectIds: new Set(),
+      multiSelectAnchor: null,
+      notice: t(locale, 'store.bulkKeywords.notice', { count: ids.length })
+    }));
+  },
+
   setFilter: f => set({ filter: f }),
   setPersonFilter: name => set({ personFilter: name }),
   colorLabelFilter: null,
@@ -1378,19 +1411,26 @@ export const useStore = create<AppState>((set, get) => ({
           status: p.status,
           rating: p.rating,
           keywords: [
-            ...deriveXmpKeywords(personNames, p.sceneSemantic, p.sceneTags),
-            deriveAiScoreKeyword(p.aiScore),
-            ...(p.groupId ? [deriveSeriesKeyword(p.groupId)] : []),
-            ...(meta.client ? [t(locale, 'store.xmpKeyword.client', { value: meta.client })] : []),
-            ...(meta.event ? [t(locale, 'store.xmpKeyword.event', { value: meta.event })] : []),
-            ...(meta.location ? [t(locale, 'store.xmpKeyword.location', { value: meta.location })] : [])
+            // cuvintele-cheie IPTC reale (parsate din fisier sau suprascrise manual, editare
+            // in masa) trec inaintea celor derivate automat de AI — dedupe cu Set pastreaza
+            // prima aparitie, deci un cuvant-cheie IPTC identic cu unul AI nu se repeta
+            ...new Set([
+              ...(p.iptcKeywords ?? []),
+              ...deriveXmpKeywords(personNames, p.sceneSemantic, p.sceneTags),
+              deriveAiScoreKeyword(p.aiScore),
+              ...(p.groupId ? [deriveSeriesKeyword(p.groupId)] : []),
+              ...(meta.client ? [t(locale, 'store.xmpKeyword.client', { value: meta.client })] : []),
+              ...(meta.event ? [t(locale, 'store.xmpKeyword.event', { value: meta.event })] : []),
+              ...(meta.location ? [t(locale, 'store.xmpKeyword.location', { value: meta.location })] : [])
+            ])
           ],
           aiScore: p.aiScore,
           aiFactors: explainFactors(p.aiFactors, locale).map(f => `${f.label} (${f.positive ? '+' : '-'})`),
           groupId: p.groupId,
           client: meta.client,
           event: meta.event,
-          location: meta.location
+          location: meta.location,
+          caption: p.iptcCaption
         };
       }));
       if (result.cancelled) return;

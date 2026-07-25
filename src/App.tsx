@@ -20,7 +20,7 @@ import { ContactSheet } from './ui/ContactSheet';
 import { AnimatedNumber } from './ui/AnimatedNumber';
 import { Tooltip } from './ui/Tooltip';
 import { StarRating } from './ui/StarRating';
-import { MenuIcon, PlusIcon, UserCheckIcon, AlertIcon, ErrorIcon, XIcon, FocusIcon, SearchIcon, ApertureIcon, SparkleIcon, CheckIcon, EditIcon, GridIcon, ClockIcon, LayersIcon, EyeClosedIcon, SunIcon, DownloadIcon, StarIcon } from './ui/icons';
+import { MenuIcon, PlusIcon, UserCheckIcon, AlertIcon, ErrorIcon, XIcon, FocusIcon, SearchIcon, ApertureIcon, SparkleIcon, CheckIcon, EditIcon, GridIcon, ClockIcon, LayersIcon, EyeClosedIcon, SunIcon, DownloadIcon, StarIcon, TagIcon } from './ui/icons';
 import { UndoHistoryButton } from './ui/UndoHistoryButton';
 import { selectHighlights, selectBlinks } from './state/batchOps';
 import { CARD_MIN_WIDTH } from './state/gridDensity';
@@ -181,6 +181,7 @@ export default function App() {
   const aiBackend = useStore(s => s.aiBackend);
   const clearAll = useStore(s => s.clearAll);
   const askConfirm = useStore(s => s.askConfirm);
+  const askPrompt = useStore(s => s.askPrompt);
   const filtered = useStore(s => s.filtered());
   const workspaceMode = useStore(s => s.workspaceMode);
   const setWorkspaceMode = useStore(s => s.setWorkspaceMode);
@@ -195,6 +196,8 @@ export default function App() {
   const bulkSetStatusForSelection = useStore(s => s.bulkSetStatusForSelection);
   const bulkSetRatingForSelection = useStore(s => s.bulkSetRatingForSelection);
   const bulkSetColorLabelForSelection = useStore(s => s.bulkSetColorLabelForSelection);
+  const bulkSetCaptionForSelection = useStore(s => s.bulkSetCaptionForSelection);
+  const bulkSetKeywordsForSelection = useStore(s => s.bulkSetKeywordsForSelection);
   const setStatus = useStore(s => s.setStatus);
   const setRating = useStore(s => s.setRating);
   const setColorLabel = useStore(s => s.setColorLabel);
@@ -337,6 +340,32 @@ export default function App() {
       return;
     }
     fileRef.current?.click();
+  };
+
+  /**
+   * Editare in masa a descrierii/cuvintelor-cheie IPTC (plan "modernizare") —
+   * pre-completeaza cu valoarea curenta DOAR daca toate pozele din selectie o
+   * au deja identica (altfel un camp gol invita la o valoare noua, nu la
+   * suprascrierea aparent-arbitrara a uneia dintre valorile diferite existente).
+   */
+  const handleBulkCaption = async () => {
+    const selected = photos.filter(p => multiSelectIds.has(p.id));
+    if (!selected.length) return;
+    const first = selected[0].iptcCaption ?? '';
+    const allSame = selected.every(p => (p.iptcCaption ?? '') === first);
+    const value = await askPrompt(tr('app.bulkBar.captionPrompt'), allSame ? first : '');
+    if (value === null) return;
+    void bulkSetCaptionForSelection(value.trim());
+  };
+
+  const handleBulkKeywords = async () => {
+    const selected = photos.filter(p => multiSelectIds.has(p.id));
+    if (!selected.length) return;
+    const first = (selected[0].iptcKeywords ?? []).join(', ');
+    const allSame = selected.every(p => (p.iptcKeywords ?? []).join(', ') === first);
+    const value = await askPrompt(tr('app.bulkBar.keywordsPrompt'), allSame ? first : '');
+    if (value === null) return;
+    void bulkSetKeywordsForSelection(value.split(',').map(k => k.trim()).filter(Boolean));
   };
 
   const onCardOpen = (id: string, e: React.MouseEvent) => {
@@ -765,6 +794,12 @@ export default function App() {
                 <button className="ghost small-btn" onClick={() => void bulkSetStatusForSelection('review')}>{tr('app.bulkBar.review')}</button>
                 <button className="reject small-btn" onClick={() => void bulkSetStatusForSelection('rejected')}>{tr('app.bulkBar.reject')}</button>
                 <StarRating rating={0} onRate={n => void bulkSetRatingForSelection(n)} size="sm" />
+                <button className="ghost icon-btn" onClick={() => void handleBulkCaption()} aria-label={tr('app.bulkBar.caption')} title={tr('app.bulkBar.caption')}>
+                  <EditIcon />
+                </button>
+                <button className="ghost icon-btn" onClick={() => void handleBulkKeywords()} aria-label={tr('app.bulkBar.keywords')} title={tr('app.bulkBar.keywords')}>
+                  <TagIcon />
+                </button>
                 <button className="ghost icon-btn" onClick={() => setSelectMode(false)} aria-label={tr('app.bulkBar.exit')}>
                   <XIcon />
                 </button>

@@ -84,6 +84,24 @@ describe('generateXMPSidecar', () => {
     expect(xmp).toContain('<rdf:li>Claritate (+)</rdf:li>');
     expect(xmp).toContain('<rdf:li>Ochi inchisi (-)</rdf:li>');
   });
+
+  it('omits dc:description entirely when no caption is given', () => {
+    const xmp = generateXMPSidecar('selected', 3);
+    expect(xmp).not.toContain('dc:description');
+  });
+
+  it('writes the caption as a Dublin Core dc:description Lang Alt (x-default), the format Lightroom/Bridge read as "Caption"', () => {
+    const xmp = generateXMPSidecar('selected', 3, undefined, { caption: 'Mireasa la altar' });
+    expect(xmp).toContain('<dc:description>');
+    expect(xmp).toContain('<rdf:Alt>');
+    expect(xmp).toContain('<rdf:li xml:lang="x-default">Mireasa la altar</rdf:li>');
+  });
+
+  it('escapes XML-sensitive characters in the caption', () => {
+    const xmp = generateXMPSidecar('selected', 3, undefined, { caption: 'Tom & Jerry <2>' });
+    expect(xmp).toContain('Tom &amp; Jerry &lt;2&gt;');
+    expect(xmp).not.toContain('Tom & Jerry <2>');
+  });
 });
 
 describe('deriveAiScoreKeyword', () => {
