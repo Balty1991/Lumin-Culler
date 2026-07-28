@@ -367,6 +367,7 @@ interface AppState {
   clearAllIncludingPersons: () => Promise<void>;
   /** toast general de stare: rezultat export, avertisment de stocare etc. */
   notice: string | null;
+  setNotice: (message: string) => void;
   clearNotice: () => void;
   exportSelection: () => Promise<void>;
   exportManifest: () => Promise<void>;
@@ -1321,6 +1322,7 @@ export const useStore = create<AppState>((set, get) => ({
   setBatchOpsOpen: open => set({ batchOpsOpen: open }),
   setPaletteOpen: open => set({ paletteOpen: open }),
   setShortcutsOpen: open => set({ shortcutsOpen: open }),
+  setNotice: message => set({ notice: message }),
   clearNotice: () => set({ notice: null }),
 
   clearAll: async () => {

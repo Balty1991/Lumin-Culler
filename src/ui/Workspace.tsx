@@ -33,6 +33,7 @@ export function Workspace() {
   const setWorkspaceMode = useStore(s => s.setWorkspaceMode);
   const setMenuOpen = useStore(s => s.setMenuOpen);
   const runImport = useStore(s => s.runImport);
+  const setNotice = useStore(s => s.setNotice);
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const [src, setSrc] = useState<string | null>(null);
@@ -109,7 +110,10 @@ export function Workspace() {
   }, [stepDetail, setStatus, setRating, setWorkspaceMode]);
 
   const onFiles = (list: FileList | null) => {
-    if (!list || !list.length) return;
+    // Vezi acelasi comentariu in App.tsx: un FileList gol nu inseamna neaparat
+    // ca utilizatorul n-a ales nimic — unele aplicatii sursa (Fisiere, Drive,
+    // Descarcari) pot returna gol desi a apasat pe poze acolo.
+    if (!list || !list.length) { setNotice(tr('app.import.noneSelected')); return; }
     void runImport(Array.from(list));
     if (fileRef.current) fileRef.current.value = '';
   };
@@ -128,7 +132,7 @@ export function Workspace() {
     <input
       ref={fileRef}
       type="file"
-      accept="image/jpeg,image/png,image/webp,image/avif,.cr2,.cr3,.nef,.nrw,.arw,.srf,.sr2,.dng,.raf,.orf,.rw2,.pef,.ptx,.srw,.3fr,.erf,.kdc,.dcr,.mrw,.raw,.rwl,.iiq,.x3f"
+      accept="image/*,.cr2,.cr3,.nef,.nrw,.arw,.srf,.sr2,.dng,.raf,.orf,.rw2,.pef,.ptx,.srw,.3fr,.erf,.kdc,.dcr,.mrw,.raw,.rwl,.iiq,.x3f"
       multiple
       hidden
       onChange={e => onFiles(e.target.files)}

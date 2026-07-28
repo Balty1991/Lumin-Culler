@@ -172,6 +172,7 @@ export default function App() {
   const setMinRating = useStore(s => s.setMinRating);
   const clearAdvancedFilters = useStore(s => s.clearAdvancedFilters);
   const runImport = useStore(s => s.runImport);
+  const setNotice = useStore(s => s.setNotice);
   const cancelImport = useStore(s => s.cancelImport);
   const openDetail = useStore(s => s.openDetail);
   const openCompare = useStore(s => s.openCompare);
@@ -324,7 +325,12 @@ export default function App() {
   ];
 
   const onFiles = (list: FileList | null) => {
-    if (!list || !list.length) return;
+    // O selectie "goala" nu inseamna neaparat ca utilizatorul nu a ales nimic —
+    // unele aplicatii sursa (Fisiere, Drive, Descarcari) pot returna un FileList
+    // gol desi utilizatorul a apasat pe poze in acel selector (MIME raportat de
+    // furnizorul de documente nu se potriveste cu `accept`-ul cerut de browser).
+    // Fara notificare, asta arata exact ca "nu s-a intamplat nimic" — bug real raportat.
+    if (!list || !list.length) { setNotice(tr('app.import.noneSelected')); return; }
     void runImport(Array.from(list));
     if (fileRef.current) fileRef.current.value = '';
   };
@@ -825,7 +831,7 @@ export default function App() {
       <input
         ref={fileRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/avif,.cr2,.cr3,.nef,.nrw,.arw,.srf,.sr2,.dng,.raf,.orf,.rw2,.pef,.ptx,.srw,.3fr,.erf,.kdc,.dcr,.mrw,.raw,.rwl,.iiq,.x3f"
+        accept="image/*,.cr2,.cr3,.nef,.nrw,.arw,.srf,.sr2,.dng,.raf,.orf,.rw2,.pef,.ptx,.srw,.3fr,.erf,.kdc,.dcr,.mrw,.raw,.rwl,.iiq,.x3f"
         multiple
         hidden
         onChange={e => onFiles(e.target.files)}

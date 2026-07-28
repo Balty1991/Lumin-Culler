@@ -69,6 +69,16 @@ const GROUP_SMILE_THRESHOLD = 0.4; // prag peste care o fata e considerata "zamb
  * definitiv init() (deci intreg pipeline-ul de import) fara acest timeout.
  */
 const WEBGPU_INIT_TIMEOUT_MS = 6000;
+/**
+ * Acelasi tip de plasa de siguranta ca WEBGPU_INIT_TIMEOUT_MS, dar pentru WebGL —
+ * confirmat pe teren (nu doar in sandbox): pe unele telefoane (drivere GPU
+ * restrictive/blocklist-uite de Chromium, ex. raportat pe MIUI/Xiaomi, reprodus
+ * atat in Chrome cat si in Xiaomi Browser pe acelasi device) chiar si WebGL
+ * ramane blocat la infinit in load()/warmup(), nu doar WebGPU. Timeout mai mare
+ * decat cel de WebGPU: warmup-ul GPU real (nu doar detectia unui adaptor lipsa)
+ * poate dura legitim mai mult pe hardware mobil mai slab.
+ */
+const WEBGL_INIT_TIMEOUT_MS = 20000;
 
 function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
   return Promise.race([
@@ -589,47 +599,69 @@ export class FaceAnalysisService {
       } : {})
     };
 
-    // WebGPU e semnificativ mai rapid decat WebGL pe device-urile care il suporta
-    // (Chrome/Brave recente pe Android/desktop cu drivere compatibile) — incercam
-    // intai pe o instanta SEPARATA (nu this.human inca), cu timeout: inregistrarea
-    // WebGPU poate esua tacut SAU ramane blocata la infinit (adaptor GPU indisponibil/
-    // incompatibil, vezi comentariul WEBGPU_INIT_TIMEOUT_MS de mai sus) fara sa arunce
-    // nicio eroare. Daca timeout-ul expira sau backend-ul rezultat tot nu e accelerat,
-    // abandonam instanta respectiva (poate ramane "agatata" in fundal) si incarcam
-    // WebGL curat, exact ca inainte de introducerea WebGPU.
+    // Cascada WebGPU -> WebGL -> CPU, fiecare pe o instanta SEPARATA (nu
+    // this.human inca) si cu timeout, pentru ca inregistrarea unui backend
+    // accelerat poate ramane blocata la infinit fara sa arunce nicio eroare —
+    // confirmat pe teren nu doar pentru WebGPU (adaptor GPU indisponibil), ci
+    // si pentru WebGL (drivere restrictive/blocklist-uite de Chromium pe unele
+    // telefoane, reprodus atat in Chrome cat si in Xiaomi Browser pe acelasi
+    // device, supravietuind unui restart al aplicatiei). Daca un nivel esueaza
+    // sau expira, incercarea respectiva e abandonata (poate ramane "agatata"
+    // in fundal) si trecem la urmatorul, mai putin performant dar mai robust.
     const preferWebGpu = typeof navigator !== 'undefined' && 'gpu' in navigator;
-    if (preferWebGpu) {
-      const webgpuHuman = new Human({ ...HUMAN_CONFIG, ...overrides, backend: 'webgpu' });
-      try {
-        await withTimeout(
-          (async () => { await webgpuHuman.load(); await webgpuHuman.warmup(); })(),
-          WEBGPU_INIT_TIMEOUT_MS,
-          'WebGPU init timeout'
-        );
-        const backend = webgpuHuman.tf?.getBackend?.() ?? 'unknown';
-        if (ACCELERATED_BACKENDS.includes(backend)) {
-          this.human = webgpuHuman;
-          this.backend = backend;
-          return this.backend;
-        }
-      } catch (err) {
-        console.error('FaceAnalysisService: WebGPU init failed/timed out, falling back to WebGL', err);
-      }
+    if (preferWebGpu && await this.tryBackend({ ...HUMAN_CONFIG, ...overrides, backend: 'webgpu' }, WEBGPU_INIT_TIMEOUT_MS)) {
+      return this.backend;
+    }
+    if (await this.tryBackend({ ...HUMAN_CONFIG, ...overrides, backend: 'webgl' }, WEBGL_INIT_TIMEOUT_MS)) {
+      return this.backend;
     }
 
-    await this.loadWithBackend({ ...HUMAN_CONFIG, ...overrides, backend: 'webgl' });
+    // Ultima plasa de siguranta: CPU pur (tfjs-backend-cpu, deja parte din
+    // pachetul Human, fara driver GPU si fara alt fisier/CDN de incarcat) —
+    // mult mai lent, dar nu poate "agata" in acelasi fel ca WebGL/WebGPU, deci
+    // fara timeout aici (exact comportamentul dinainte de introducerea acestei
+    // cascade: daca esueaza total, analiza continua fara fete reale, silentios
+    // — vezi comentariul de la inceputul functiei init()).
+    await this.loadFinalFallback({ ...HUMAN_CONFIG, ...overrides, backend: 'cpu' });
     return this.backend;
   }
 
-  private async loadWithBackend(config: Partial<Config>): Promise<void> {
-    this.human = new Human(config);
+  /**
+   * Incearca un backend cu timeout pe o instanta noua, separata de
+   * `this.human`. Daca esueaza sau expira, NU atinge `this.human`/`this.backend`
+   * (raman libere pentru urmatoarea incercare) — instanta esuata poate ramane
+   * blocata la infinit in fundal, dar nu mai e folosita de restul aplicatiei.
+   */
+  private async tryBackend(config: Partial<Config>, timeoutMs: number): Promise<boolean> {
+    const human = new Human(config);
     try {
-      await this.human.load();
-      await this.human.warmup();   // JIT-compile shaders before the first real photo
+      await withTimeout(
+        (async () => { await human.load(); await human.warmup(); })(),
+        timeoutMs,
+        `${config.backend} init timeout`
+      );
     } catch (err) {
-      console.error('FaceAnalysisService: model load/warmup failed', err);
+      console.error(`FaceAnalysisService: ${config.backend} init failed/timed out, trying next backend`, err);
+      return false;
     }
-    this.backend = this.human.tf?.getBackend?.() ?? 'unknown';
+    const backend = human.tf?.getBackend?.() ?? 'unknown';
+    if (!ACCELERATED_BACKENDS.includes(backend)) return false;
+    this.human = human;
+    this.backend = backend;
+    return true;
+  }
+
+  /** Ultimul nivel al cascadei — fara timeout, comportament identic cu varianta dinaintea introducerii cascadei WebGPU/WebGL/CPU. */
+  private async loadFinalFallback(config: Partial<Config>): Promise<void> {
+    const human = new Human(config);
+    try {
+      await human.load();
+      await human.warmup();   // JIT-compile shaders before the first real photo
+    } catch (err) {
+      console.error('FaceAnalysisService: final fallback (CPU) load/warmup failed', err);
+    }
+    this.human = human;
+    this.backend = human.tf?.getBackend?.() ?? 'unknown';
   }
 
   isAccelerated(): boolean {

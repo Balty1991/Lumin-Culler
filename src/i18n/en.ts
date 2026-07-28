@@ -221,6 +221,7 @@ export const en: Record<TranslationKey, string> = {
   'app.selectModeBar.hint': 'Select mode — tap the photos you want',
   'app.selectModeBar.exit': 'Exit select mode',
   'app.addPhotos': 'Add photos',
+  'app.import.noneSelected': "No photos were loaded from your selection — some apps (Files, Drive, Downloads) can hand files to the browser in a format it rejects at selection time. Try picking photos directly from your Gallery/Photos app, or re-send them to your phone first.",
 
   'contextMenu.ariaLabel': 'Quick actions',
   'contextMenu.title': 'Quick actions',
