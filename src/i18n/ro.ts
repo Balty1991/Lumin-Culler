@@ -218,6 +218,7 @@ export const ro = {
   'app.selectModeBar.hint': 'Mod selectie — atinge pozele dorite',
   'app.selectModeBar.exit': 'Iesi din mod selectie',
   'app.addPhotos': 'Adauga poze',
+  'app.import.noneSelected': 'Nicio poza incarcata din selectia facuta — unele aplicatii (Fisiere, Drive, Descarcari) pot trimite fisierele intr-un format pe care browserul il respinge la selectare. Incearca sa alegi pozele direct din Galerie/Poze, sau retrimite-le pe telefon inainte.',
 
   'contextMenu.ariaLabel': 'Actiuni rapide',
   'contextMenu.title': 'Actiuni rapide',
