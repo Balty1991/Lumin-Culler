@@ -4,7 +4,7 @@ import { useStore } from '../state/store';
 import {
   UserCheckIcon, SparkleIcon, ListIcon, InfoIcon, XIcon, TagIcon, LayersIcon, KeyboardIcon,
   SunIcon, MoonIcon, BatteryIcon, GridIcon, DownloadIcon, UploadIcon, BarChartIcon, GlobeIcon, PrinterIcon,
-  ApertureIcon, PlayIcon
+  ApertureIcon, PlayIcon, EditIcon
 } from './icons';
 import { EASE } from './motion';
 import { GENRE_PRESETS } from '../state/genre';
@@ -36,6 +36,8 @@ export function MenuDrawer() {
   const exportClientGallery = useStore(s => s.exportClientGallery);
   const watermarkText = useStore(s => s.watermarkText);
   const setWatermarkText = useStore(s => s.setWatermarkText);
+  const applyEditsInGallery = useStore(s => s.applyEditsInGallery);
+  const setApplyEditsInGallery = useStore(s => s.setApplyEditsInGallery);
   const exportBackup = useStore(s => s.exportBackup);
   const importBackupFile = useStore(s => s.importBackupFile);
   const setStatsOpen = useStore(s => s.setStatsOpen);
@@ -162,6 +164,16 @@ export function MenuDrawer() {
         <button className="drawer-item" onClick={() => go(() => void exportXMP())}>
           <span className="drawer-item-icon"><TagIcon /></span>
           <span>{tr('menu.exportXmp')}</span>
+        </button>
+
+        <button
+          className="drawer-item"
+          onClick={() => setApplyEditsInGallery(!applyEditsInGallery)}
+          aria-pressed={applyEditsInGallery}
+          title={tr('menu.applyEditsInGallery.title')}
+        >
+          <span className="drawer-item-icon"><EditIcon /></span>
+          <span>{applyEditsInGallery ? tr('menu.applyEditsInGallery.active') : tr('menu.applyEditsInGallery')}</span>
         </button>
 
         <button

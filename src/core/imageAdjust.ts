@@ -87,3 +87,28 @@ export function drawAdjusted(
   }
   ctx.putImageData(imgData, 0, 0);
 }
+
+/**
+ * Randeaza ajustarile pe un blob (ex. miniatura din galeria pentru client) si
+ * intoarce un JPEG nou — folosit doar acolo unde utilizatorul alege EXPLICIT
+ * sa "coaca" editarile intr-un export (nu modifica blob-ul original din
+ * IndexedDB). `blob` neschimbat daca nu exista nicio ajustare reala, ca sa nu
+ * piarda calitate printr-un re-encode inutil.
+ */
+export async function applyAdjustmentsToBlob(blob: Blob, adjustments: EditAdjustments, quality = 0.85): Promise<Blob> {
+  if (isNeutral(adjustments)) return blob;
+  const bitmap = await createImageBitmap(blob);
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return blob;
+    drawAdjusted(ctx, bitmap, canvas.width, canvas.height, adjustments);
+    return await new Promise<Blob>((resolve, reject) =>
+      canvas.toBlob(b => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/jpeg', quality)
+    );
+  } finally {
+    bitmap.close();
+  }
+}
