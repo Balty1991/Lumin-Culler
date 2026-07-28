@@ -5,7 +5,8 @@
  */
 import { create } from 'zustand';
 import { db, type AnalysisRecord, type PhotoRecord, type KnownPerson, type ColorLabel } from '../core/db';
-import { ADJUSTMENT_KEYS, type EditAdjustments } from '../core/imageAdjust';
+import { ADJUSTMENT_KEYS, applyAdjustmentsToBlob, type EditAdjustments } from '../core/imageAdjust';
+import { readApplyEditsInGallery, writeApplyEditsInGallery } from './applyEditsPreference';
 import { clearPreviewUrlCache } from '../core/previewUrlCache';
 import { importFiles, originalFiles, originalHandles, createCancelToken, type ImportProgress, type ImportCancelToken } from '../core/importPipeline';
 import type { FileSystemFileHandleLike } from '../core/filePicker';
@@ -230,6 +231,9 @@ interface AppState {
   /** Text de watermark pentru galeria client (core/export/watermark.ts) — gol = fara watermark, comportament neschimbat. */
   watermarkText: string;
   setWatermarkText: (text: string) => void;
+  /** Coace ajustarile de baza (EditPanel) in miniaturile din galeria pentru client — implicit fals, activata explicit doar cand se doreste (vezi exportClientGallery). */
+  applyEditsInGallery: boolean;
+  setApplyEditsInGallery: (value: boolean) => void;
   booted: boolean;
   /** false daca dispozitivul nu a putut incarca WebGL/WASM — analiza continua dar fara fete reale. */
   aiDegraded: boolean;
@@ -567,6 +571,8 @@ export const useStore = create<AppState>((set, get) => ({
   setProjectName: name => { writeProjectName(name); set({ projectName: name }); },
   watermarkText: readStoredWatermarkText(),
   setWatermarkText: text => { writeWatermarkText(text); set({ watermarkText: text }); },
+  applyEditsInGallery: readApplyEditsInGallery(),
+  setApplyEditsInGallery: value => { writeApplyEditsInGallery(value); set({ applyEditsInGallery: value }); },
   booted: false,
   aiDegraded: false,
   aiBackend: '',
@@ -647,13 +653,21 @@ export const useStore = create<AppState>((set, get) => ({
    */
   exportClientGallery: async () => {
     const locale = get().locale;
+    const applyEdits = get().applyEditsInGallery;
     const selected = get().photos.filter(p => p.status === 'selected');
     if (!selected.length) { set({ notice: t(locale, 'store.clientGallery.noSelection') }); return; }
     try {
       const thumbnails = await Promise.all(selected.map(p => db.thumbnails.get(p.id)));
-      const items = selected
-        .map((p, i) => ({ fileName: p.fileName, thumbnail: thumbnails[i]?.blob }))
-        .filter((it): it is { fileName: string; thumbnail: Blob } => !!it.thumbnail);
+      const items = (await Promise.all(selected.map(async (p, i) => {
+        const raw = thumbnails[i]?.blob;
+        if (!raw) return undefined;
+        // "doar daca se vrea" — implicit galeria arata miniatura neatinsa; coacem
+        // ajustarile de baza (EditPanel) DOAR cand fotograful a activat explicit
+        // acest lucru, ca sa nu surprindem un export cu poze aratand diferit fata
+        // de ce se vede in restul aplicatiei fara sa fie o decizie constienta.
+        const thumbnail = applyEdits && p.edits ? await applyAdjustmentsToBlob(raw, p.edits) : raw;
+        return { fileName: p.fileName, thumbnail };
+      }))).filter((it): it is { fileName: string; thumbnail: Blob } => !!it);
       const title = get().projectName ? t(locale, 'store.clientGallery.title', { project: get().projectName }) : t(locale, 'store.clientGallery.titleDefault');
       const html = await buildClientGalleryHtml(items, title, get().watermarkText.trim() || undefined);
       const blob = new Blob([html], { type: 'text/html' });
