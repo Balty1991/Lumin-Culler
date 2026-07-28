@@ -635,10 +635,22 @@ export const useStore = create<AppState>((set, get) => ({
       set({
         photos: views,
         persons,
+        // restoreBackup() a scris deja setarile in localStorage (daca backup-ul le avea) —
+        // le re-citim aici ca sa reflecte imediat in UI, fara reload de pagina
+        ...(result.settingsRestored ? {
+          gridSort: readGridSort(),
+          gridDensity: readGridDensity(),
+          genre: readStoredGenre(),
+          applyEditsInGallery: readApplyEditsInGallery(),
+          watermarkText: readStoredWatermarkText(),
+          projectName: readStoredProjectName(),
+          renameTemplate: readStoredRenameTemplate()
+        } : {}),
         notice: t(locale, 'store.backup.restored', { persons: result.personsRestored, models: result.modelsRestored }) +
           (result.decisionsTotal > 0
             ? t(locale, 'store.backup.restored.withDecisions', { matched: result.decisionsMatched, total: result.decisionsTotal })
-            : t(locale, 'store.backup.restored.noDecisions'))
+            : t(locale, 'store.backup.restored.noDecisions')) +
+          (result.settingsRestored ? t(locale, 'store.backup.restored.withSettings') : '')
       });
     } catch (err) {
       set({ notice: t(locale, 'store.backup.restoreFailed', { error: err instanceof Error ? err.message : String(err) }) });

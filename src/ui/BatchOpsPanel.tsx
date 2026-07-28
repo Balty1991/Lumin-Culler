@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { selectBulkRejectTargets, resolveGroups, selectTopPercent } from '../state/batchOps';
 import { listCullingPresets, saveCullingPreset, deleteCullingPreset, type CullingPreset } from '../state/cullingPresets';
@@ -33,6 +33,13 @@ export function BatchOpsPanel() {
   const [presets, setPresets] = useState<CullingPreset[]>(() => listCullingPresets());
   const containerRef = useRef<HTMLDivElement>(null);
   useModalFocusTrap(containerRef, open);
+
+  // panoul ramane montat tot timpul (vizibilitate prin CSS) — re-citim presetarile
+  // la fiecare deschidere, ca sa prindem si cele restaurate dintr-un backup
+  // (backupService.ts scrie direct in localStorage, fara sa treaca prin acest state local)
+  useEffect(() => {
+    if (open) setPresets(listCullingPresets());
+  }, [open]);
 
   /**
    * "Sablon de sesiune" (plan "cat mai pro"): o presetare nu mai e doar
