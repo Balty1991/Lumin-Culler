@@ -8,13 +8,19 @@
  * continut intre aplicatii, nu ceva ce putem repara direct din JS — dar putem
  * macar sa nu lasam utilizatorul in tacere totala.
  *
- * Strategie: dupa ce se apeleaza fileRef.current?.click(), asteptam ca tab-ul
- * sa redevina vizibil (utilizatorul s-a intors din selectorul de fisiere), apoi
- * lasam un interval scurt pentru ca `change` sa ajunga normal — daca nu ajunge,
- * aratam un mesaj cu sfat practic (mai putine poze deodata / Galerie in loc de
- * Fisiere), in loc de nimic.
+ * Strategie in doua straturi:
+ * 1. Cand tab-ul redevine vizibil/activ (visibilitychange SAU window focus —
+ *    unele browsere declanseaza doar unul dintre ele), lasam un interval scurt
+ *    pentru ca `change` sa ajunga normal.
+ * 2. Plasa finala: un timer absolut, independent de orice eveniment de
+ *    vizibilitate — confirmat pe teren ca Xiaomi Browser (MIUI) uneori NU
+ *    declanseaza deloc nici visibilitychange, nici focus, la revenirea din
+ *    selectorul de fisiere extern, ceea ce ar face stratul 1 complet inert
+ *    acolo. Durata mult mai mare, ca sa nu deranjeze un utilizator care inca
+ *    rasfoieste/alege poze in acel moment.
  */
 const TIMEOUT_AFTER_VISIBLE_MS = 6000;
+const ABSOLUTE_FALLBACK_MS = 45000;
 
 export interface PickerWatchdog {
   /** Apelat cand fisierele chiar ajung (change s-a declansat normal) — anuleaza avertizarea. */
@@ -23,22 +29,32 @@ export interface PickerWatchdog {
 
 export function armPickerWatchdog(onTimeout: () => void): PickerWatchdog {
   let cancelled = false;
-  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  let fired = false;
+  const timers: ReturnType<typeof setTimeout>[] = [];
 
-  const onVisibilityChange = () => {
-    if (document.visibilityState !== 'visible') return;
-    document.removeEventListener('visibilitychange', onVisibilityChange);
-    timeoutId = setTimeout(() => {
-      if (!cancelled) onTimeout();
-    }, TIMEOUT_AFTER_VISIBLE_MS);
+  const fireOnce = () => {
+    if (cancelled || fired) return;
+    fired = true;
+    onTimeout();
   };
-  document.addEventListener('visibilitychange', onVisibilityChange);
+
+  const onReturnedToPage = () => {
+    if (document.visibilityState !== 'visible') return;
+    document.removeEventListener('visibilitychange', onReturnedToPage);
+    window.removeEventListener('focus', onReturnedToPage);
+    timers.push(setTimeout(fireOnce, TIMEOUT_AFTER_VISIBLE_MS));
+  };
+  document.addEventListener('visibilitychange', onReturnedToPage);
+  window.addEventListener('focus', onReturnedToPage);
+
+  timers.push(setTimeout(fireOnce, ABSOLUTE_FALLBACK_MS));
 
   return {
     cancel: () => {
       cancelled = true;
-      document.removeEventListener('visibilitychange', onVisibilityChange);
-      if (timeoutId) clearTimeout(timeoutId);
+      document.removeEventListener('visibilitychange', onReturnedToPage);
+      window.removeEventListener('focus', onReturnedToPage);
+      for (const t of timers) clearTimeout(t);
     }
   };
 }
