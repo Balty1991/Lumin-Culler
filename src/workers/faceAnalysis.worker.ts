@@ -60,6 +60,23 @@ const RECOGNITION_THRESHOLD = 0.55; // cosine similarity above this = known pers
 const BLINK_EAR_THRESHOLD = 0.18;
 const GROUP_SMILE_THRESHOLD = 0.4; // prag peste care o fata e considerata "zambitoare" pentru rate de grup
 
+/**
+ * Cat asteptam incarcarea/warmup-ul pe WebGPU inainte sa renuntam si sa trecem
+ * fortat la WebGL. `navigator.gpu` poate exista ca obiect fara sa existe un
+ * adaptor GPU real compatibil (Chromium headless, drivere vechi/blocklist-uite,
+ * politici ale browserului) — in acel caz Human/TFJS ramane blocat la infinit
+ * in interiorul load()/warmup(), fara sa arunce nicio eroare, ceea ce ar bloca
+ * definitiv init() (deci intreg pipeline-ul de import) fara acest timeout.
+ */
+const WEBGPU_INIT_TIMEOUT_MS = 6000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(message)), ms))
+  ]);
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function cosineSimilarity(a: number[], b: number[]): number {
@@ -574,15 +591,33 @@ export class FaceAnalysisService {
 
     // WebGPU e semnificativ mai rapid decat WebGL pe device-urile care il suporta
     // (Chrome/Brave recente pe Android/desktop cu drivere compatibile) — incercam
-    // intai, dar cu o plasa de siguranta: inregistrarea WebGPU poate esua tacut
-    // (adaptor GPU indisponibil/incompatibil), lasand Human blocat pe un backend
-    // neaccelerat fara sa arunce nicio eroare (vezi isAccelerated() mai jos). Daca
-    // se intampla asta, reincarcam o singura data, fortand explicit webgl.
+    // intai pe o instanta SEPARATA (nu this.human inca), cu timeout: inregistrarea
+    // WebGPU poate esua tacut SAU ramane blocata la infinit (adaptor GPU indisponibil/
+    // incompatibil, vezi comentariul WEBGPU_INIT_TIMEOUT_MS de mai sus) fara sa arunce
+    // nicio eroare. Daca timeout-ul expira sau backend-ul rezultat tot nu e accelerat,
+    // abandonam instanta respectiva (poate ramane "agatata" in fundal) si incarcam
+    // WebGL curat, exact ca inainte de introducerea WebGPU.
     const preferWebGpu = typeof navigator !== 'undefined' && 'gpu' in navigator;
-    await this.loadWithBackend({ ...HUMAN_CONFIG, ...overrides, backend: preferWebGpu ? 'webgpu' : 'webgl' });
-    if (preferWebGpu && !this.isAccelerated()) {
-      await this.loadWithBackend({ ...HUMAN_CONFIG, ...overrides, backend: 'webgl' });
+    if (preferWebGpu) {
+      const webgpuHuman = new Human({ ...HUMAN_CONFIG, ...overrides, backend: 'webgpu' });
+      try {
+        await withTimeout(
+          (async () => { await webgpuHuman.load(); await webgpuHuman.warmup(); })(),
+          WEBGPU_INIT_TIMEOUT_MS,
+          'WebGPU init timeout'
+        );
+        const backend = webgpuHuman.tf?.getBackend?.() ?? 'unknown';
+        if (ACCELERATED_BACKENDS.includes(backend)) {
+          this.human = webgpuHuman;
+          this.backend = backend;
+          return this.backend;
+        }
+      } catch (err) {
+        console.error('FaceAnalysisService: WebGPU init failed/timed out, falling back to WebGL', err);
+      }
     }
+
+    await this.loadWithBackend({ ...HUMAN_CONFIG, ...overrides, backend: 'webgl' });
     return this.backend;
   }
 

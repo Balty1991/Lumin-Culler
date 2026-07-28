@@ -6,7 +6,7 @@ import { useModalFocusTrap } from './useModalFocusTrap';
 import { StarRating } from './StarRating';
 import { PhotoInfoTabs } from './PhotoInfoTabs';
 import { vibrate } from './haptics';
-import { XIcon, ChevronLeft, ChevronRight, LayersIcon, CheckIcon } from './icons';
+import { XIcon, ChevronLeft, ChevronRight, LayersIcon, CheckIcon, EditIcon } from './icons';
 import { EASE } from './motion';
 import { t } from '../i18n';
 
@@ -29,6 +29,7 @@ const SHEET_PEEK_PX = 58;
 function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion: boolean }) {
   const openDetail = useStore(s => s.openDetail);
   const openCompare = useStore(s => s.openCompare);
+  const openEdit = useStore(s => s.openEdit);
   const stepDetail = useStore(s => s.stepDetail);
   const setStatus = useStore(s => s.setStatus);
   const setRating = useStore(s => s.setRating);
@@ -198,6 +199,9 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
           <span className={`status-tag st-${photo.status}`}>
             {photo.status === 'selected' ? tr('workspace.status.selected') : photo.status === 'rejected' ? tr('workspace.status.rejected') : tr('workspace.status.review')}
           </span>
+          <button className="detail-overlay-btn" onClick={() => openEdit(photo.id)} aria-label={tr('edit.open')} title={tr('edit.open')}>
+            <EditIcon />
+          </button>
         </div>
 
         {!zoomed && dragX > 4 && (

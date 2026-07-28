@@ -480,6 +480,17 @@ export const en: Record<TranslationKey, string> = {
   'presentation.source.selected': 'photos with "selected" status',
   'presentation.source.filtered': 'photos from the current filter',
 
+  'edit.title': 'Basic edit',
+  'edit.open': 'Edit',
+  'edit.reset': 'Reset',
+  'edit.exposure': 'Exposure',
+  'edit.contrast': 'Contrast',
+  'edit.saturation': 'Saturation',
+  'edit.temperature': 'Temperature',
+  'edit.tint': 'Tint',
+  'edit.highlights': 'Highlights',
+  'edit.shadows': 'Shadows',
+
   'projects.meta.client': 'Client',
   'projects.meta.client.title': 'Client (e.g. Ana & Mike)',
   'projects.meta.event': 'Event',

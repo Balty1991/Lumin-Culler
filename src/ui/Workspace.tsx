@@ -6,7 +6,7 @@ import { Tooltip } from './Tooltip';
 import { StarRating } from './StarRating';
 import { PhotoInfoTabs } from './PhotoInfoTabs';
 import { EmptyFilterState } from './EmptyFilterState';
-import { ChevronLeft, ChevronRight, XIcon, CheckIcon, InfoIcon, GridIcon, PlusIcon, MenuIcon } from './icons';
+import { ChevronLeft, ChevronRight, XIcon, CheckIcon, InfoIcon, GridIcon, PlusIcon, MenuIcon, EditIcon } from './icons';
 import { UndoHistoryButton } from './UndoHistoryButton';
 import { pickImportFiles } from '../core/filePicker';
 import { t } from '../i18n';
@@ -26,6 +26,7 @@ export function Workspace() {
   const progress = useStore(s => s.progress);
   const cancelImport = useStore(s => s.cancelImport);
   const openDetail = useStore(s => s.openDetail);
+  const openEdit = useStore(s => s.openEdit);
   const stepDetail = useStore(s => s.stepDetail);
   const setStatus = useStore(s => s.setStatus);
   const setRating = useStore(s => s.setRating);
@@ -183,6 +184,11 @@ export function Workspace() {
             aria-pressed={showMetrics}
           >
             <InfoIcon />
+          </button>
+        </Tooltip>
+        <Tooltip label={tr('edit.open')} side="left">
+          <button className="ghost icon-btn" onClick={() => openEdit(photo.id)} aria-label={tr('edit.open')}>
+            <EditIcon />
           </button>
         </Tooltip>
         <Tooltip label={tr('workspace.tooltip.grid')} side="left">

@@ -4,6 +4,7 @@
  * All heavy data (thumbnails, previews, embeddings, AI metadata) lives here, NOT in RAM.
  */
 import Dexie, { type Table } from 'dexie';
+import type { EditAdjustments } from './imageAdjust';
 
 // ── Domain types ─────────────────────────────────────────────────────────────
 
@@ -72,6 +73,15 @@ export interface PhotoRecord {
    * Optional: absent pe inregistrari importate inainte de aceasta functie.
    */
   lqip?: string;
+  /**
+   * Ajustari de baza non-destructive (expunere/contrast/saturatie/temperatura/
+   * tinta/highlights/shadows) — vezi core/imageAdjust.ts. Absent sau toate
+   * valorile 0 = fara nicio ajustare (fotografia ramane exact ca la import);
+   * nu necesita bump de schema Dexie (camp neindexat, exact ca lqip/colorLabel
+   * de mai sus). Originalul si preview-ul/miniatura stocate NU sunt modificate
+   * niciodata — ajustarile se aplica live, la cerere, pe un canvas separat.
+   */
+  edits?: EditAdjustments;
 }
 
 export type ColorLabel = 'none' | 'red' | 'yellow' | 'green' | 'blue' | 'purple';

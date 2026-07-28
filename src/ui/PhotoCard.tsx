@@ -1,7 +1,8 @@
 import { useEffect, useState, memo } from 'react';
 import { db } from '../core/db';
 import { useStore, type PhotoView } from '../state/store';
-import { StarIcon, UserQuestionIcon, UserCheckIcon, EyeClosedIcon, LayersIcon, CheckIcon, SunIcon, ClockIcon } from './icons';
+import { StarIcon, UserQuestionIcon, UserCheckIcon, EyeClosedIcon, LayersIcon, CheckIcon, SunIcon, ClockIcon, EditIcon } from './icons';
+import { isNeutral } from '../core/imageAdjust';
 
 /** Aceleasi praguri ca SELECT_THRESHOLD/REJECT_THRESHOLD (importPipeline.ts) — culoarea inelului de scor. */
 function scoreColorVar(score: number): string {
@@ -78,6 +79,9 @@ function PhotoCardInner({ photo, index, onOpen, multiSelected, onCardPointerDown
         <span className="frame-no">#{String(index + 1).padStart(3, '0')}</span>
         {photo.goldenHourDetected && (
           <span className="golden-badge" title="Ora de aur"><SunIcon /></span>
+        )}
+        {!isNeutral(photo.edits) && (
+          <span className="edited-badge" title="Editata"><EditIcon /></span>
         )}
       </span>
       {multiSelected && <span className="multi-select-badge" aria-hidden="true"><CheckIcon /></span>}
