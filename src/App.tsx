@@ -18,6 +18,7 @@ import { ContextMenu } from './ui/ContextMenu';
 import { ConfirmDialog } from './ui/ConfirmDialog';
 import { ContactSheet } from './ui/ContactSheet';
 import { PresentationMode } from './ui/PresentationMode';
+import { EditPanel } from './ui/EditPanel';
 import { AnimatedNumber } from './ui/AnimatedNumber';
 import { Tooltip } from './ui/Tooltip';
 import { StarRating } from './ui/StarRating';
@@ -528,6 +529,7 @@ export default function App() {
         <StatsPanel />
         <ContactSheet />
         <PresentationMode />
+        <EditPanel />
         <ProjectsPanel />
         <ConfirmDialog />
       </>
@@ -837,6 +839,7 @@ export default function App() {
       <StatsPanel />
       <ContactSheet />
       <PresentationMode />
+      <EditPanel />
       <ProjectsPanel />
       <MenuDrawer />
       <CommandPalette />

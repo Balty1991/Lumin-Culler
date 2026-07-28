@@ -647,6 +647,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   box-shadow: 0 2px 8px -2px rgba(251,191,36,0.6);
 }
 .golden-badge svg { width: 12px; height: 12px; }
+.edited-badge {
+  width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: rgba(10,11,14,0.72); backdrop-filter: blur(4px); color: var(--accent);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.edited-badge svg { width: 11px; height: 11px; }
 .card-strip {
   position: absolute; inset: auto 0 0 0; display: flex; flex-direction: column; gap: 4px;
   padding: 16px 7px 7px; background: linear-gradient(transparent, rgba(6,7,9,0.92));
@@ -1902,4 +1908,39 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 @media (max-width: 640px) {
   .presentation-nav-btn { width: 38px; height: 38px; }
   .presentation-filename { display: none; }
+}
+
+/* ── Editare de baza (non-destructiv) ────────────────────────────────────
+   Aceeasi structura ca .detail (scrim + panou plutitor), dar layout
+   canvas + sliders alaturat/dedesubt in loc de bottom sheet — utilizatorul
+   compara direct rezultatul live cu sliderele, nu are nevoie de gest de tras. */
+.edit-scrim {
+  position: fixed; inset: 0; z-index: var(--z-palette-scrim);
+  background: rgba(5,6,8,0.82); backdrop-filter: blur(16px) saturate(140%);
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+  animation: fadeIn 0.2s var(--ease) both;
+}
+.edit-modal {
+  width: 100%; max-width: 1080px; max-height: 94dvh; overflow-y: auto;
+  background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border); border-radius: var(--radius-xl);
+  padding: 16px; display: grid; gap: 14px; box-shadow: var(--shadow-lg);
+  animation: sheetIn 0.24s var(--ease) both;
+}
+.edit-body { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(220px, 1fr); gap: 16px; align-items: start; }
+.edit-canvas-wrap {
+  position: relative; background: #000; border-radius: var(--radius-lg); overflow: hidden;
+  display: flex; align-items: center; justify-content: center; min-height: 260px;
+  aspect-ratio: 4 / 3;
+}
+.edit-canvas { width: 100%; height: 100%; object-fit: contain; display: block; }
+.edit-canvas-loading { position: absolute; inset: 0; }
+.edit-sliders { display: grid; gap: 14px; align-content: start; }
+.edit-slider-row { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; }
+.edit-slider-label { font-size: 0.8rem; color: var(--text-dim); }
+.edit-slider-value { font-size: 0.78rem; color: var(--text-faint); text-align: right; min-width: 2.6em; }
+.edit-slider-row input[type="range"] { grid-column: 1 / -1; width: 100%; accent-color: var(--accent); }
+@media (max-width: 760px) {
+  .edit-body { grid-template-columns: 1fr; }
+  .edit-canvas-wrap { aspect-ratio: 16 / 10; }
 }

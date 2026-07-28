@@ -477,6 +477,17 @@ export const ro = {
   'presentation.source.selected': 'poze cu status "selectata"',
   'presentation.source.filtered': 'poze din filtrul curent',
 
+  'edit.title': 'Editare de baza',
+  'edit.open': 'Editeaza',
+  'edit.reset': 'Reseteaza',
+  'edit.exposure': 'Expunere',
+  'edit.contrast': 'Contrast',
+  'edit.saturation': 'Saturatie',
+  'edit.temperature': 'Temperatura',
+  'edit.tint': 'Tinta',
+  'edit.highlights': 'Highlights',
+  'edit.shadows': 'Umbre',
+
   'projects.meta.client': 'Client',
   'projects.meta.client.title': 'Client (ex. Ana & Mihai)',
   'projects.meta.event': 'Eveniment',

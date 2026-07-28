@@ -5,6 +5,7 @@
  */
 import { create } from 'zustand';
 import { db, type AnalysisRecord, type PhotoRecord, type KnownPerson, type ColorLabel } from '../core/db';
+import { ADJUSTMENT_KEYS, type EditAdjustments } from '../core/imageAdjust';
 import { clearPreviewUrlCache } from '../core/previewUrlCache';
 import { importFiles, originalFiles, originalHandles, createCancelToken, type ImportProgress, type ImportCancelToken } from '../core/importPipeline';
 import type { FileSystemFileHandleLike } from '../core/filePicker';
@@ -121,6 +122,8 @@ export interface PhotoView {
   sceneTags?: string[];
   /** Placeholder minuscul blurat, disponibil sincron — vezi PhotoRecord.lqip. Absent pe importuri vechi. */
   lqip?: string;
+  /** Ajustari de baza non-destructive (expunere/contrast/...) — vezi core/imageAdjust.ts si PhotoRecord.edits. Absent = fara ajustari. */
+  edits?: EditAdjustments;
 }
 
 export type FilterKey = 'all' | 'selected' | 'review' | 'rejected' | 'series' | 'blinks' | 'goldenHour' | 'highlights';
@@ -197,6 +200,8 @@ interface AppState {
   minRating: number;
   detailId: string | null;
   compareGroupId: string | null;
+  /** Poza deschisa in EditPanel (modulul de editare de baza) — null = panoul e inchis. */
+  editingPhotoId: string | null;
   personsOpen: boolean;
   menuOpen: boolean;
   insightsOpen: boolean;
@@ -272,6 +277,8 @@ interface AppState {
    */
   setRating: (id: string, rating: number) => Promise<void>;
   setColorLabel: (id: string, label: ColorLabel) => Promise<void>;
+  /** Salveaza ajustarile de baza (EditPanel) — non-destructiv, vezi PhotoRecord.edits. */
+  setEditAdjustments: (id: string, adjustments: EditAdjustments) => Promise<void>;
   undo: () => Promise<void>;
   keepOnlyInGroup: (groupId: string, keepId: string) => Promise<void>;
   /**
@@ -319,6 +326,7 @@ interface AppState {
   clearAdvancedFilters: () => void;
   openDetail: (id: string | null) => void;
   openCompare: (groupId: string | null) => void;
+  openEdit: (id: string | null) => void;
   stepDetail: (dir: 1 | -1) => void;
   addPerson: (name: string, files: File[]) => Promise<{ ok: boolean; message: string }>;
   removePerson: (id: string) => Promise<void>;
@@ -391,6 +399,7 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     rating: photo.rating ?? 0,
     colorLabel: photo.colorLabel,
     lqip: photo.lqip,
+    edits: photo.edits,
     aiScore: analysis?.aiScore ?? 0,
     sceneType: analysis?.sceneType ?? 'detail',
     contextKey: analysis ? deriveContextKey(analysis, photo.genre) : 'detail',
@@ -539,6 +548,7 @@ export const useStore = create<AppState>((set, get) => ({
   minRating: 0,
   detailId: null,
   compareGroupId: null,
+  editingPhotoId: null,
   personsOpen: false,
   menuOpen: false,
   insightsOpen: false,
@@ -752,6 +762,17 @@ export const useStore = create<AppState>((set, get) => ({
   setColorLabel: async (id, label) => {
     await db.photos.update(id, { colorLabel: label });
     set(state => ({ photos: state.photos.map(p => (p.id === id ? { ...p, colorLabel: label } : p)) }));
+  },
+
+  setEditAdjustments: async (id, adjustments) => {
+    const neutral = ADJUSTMENT_KEYS.every(k => adjustments[k] === 0);
+    // absent (nu {toate 0}) pe neutru — coerent cu restul campurilor optionale
+    // (colorLabel 'none', genre absent) si evita sa "poluam" fiecare poza cu un
+    // obiect gol dupa un simplu Reseteaza fara nicio ajustare reala facuta
+    await db.photos.update(id, { edits: neutral ? undefined : adjustments });
+    set(state => ({
+      photos: state.photos.map(p => (p.id === id ? { ...p, edits: neutral ? undefined : adjustments } : p))
+    }));
   },
 
   /**
@@ -1094,6 +1115,7 @@ export const useStore = create<AppState>((set, get) => ({
   clearAdvancedFilters: () => set({ searchText: '', dateFrom: null, dateTo: null, minRating: 0 }),
   openDetail: id => set({ detailId: id }),
   openCompare: groupId => set({ compareGroupId: groupId }),
+  openEdit: id => set({ editingPhotoId: id }),
 
   stepDetail: dir => {
     const { detailId } = get();
@@ -1295,7 +1317,7 @@ export const useStore = create<AppState>((set, get) => ({
     originalFiles.clear();
     originalHandles.clear();
     clearPreviewUrlCache();
-    set({ photos: [], detailId: null, compareGroupId: null, history: [] });
+    set({ photos: [], detailId: null, compareGroupId: null, editingPhotoId: null, history: [] });
   },
 
   clearAllIncludingPersons: async () => {
@@ -1309,7 +1331,7 @@ export const useStore = create<AppState>((set, get) => ({
     originalHandles.clear();
     clearPreviewUrlCache();
     await analysisPool.setKnownPersons([]).catch(() => {});
-    set({ photos: [], persons: [], detailId: null, compareGroupId: null, history: [], batchHistory: [] });
+    set({ photos: [], persons: [], detailId: null, compareGroupId: null, editingPhotoId: null, history: [], batchHistory: [] });
   },
 
   /** Exporta pozele selectate ca fisiere reale, in formatul original (JPEG/PNG/etc), grupate pe subfoldere. */
