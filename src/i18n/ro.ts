@@ -219,6 +219,7 @@ export const ro = {
   'app.selectModeBar.exit': 'Iesi din mod selectie',
   'app.addPhotos': 'Adauga poze',
   'app.import.noneSelected': 'Nicio poza incarcata din selectia facuta — unele aplicatii (Fisiere, Drive, Descarcari) pot trimite fisierele intr-un format pe care browserul il respinge la selectare. Incearca sa alegi pozele direct din Galerie/Poze, sau retrimite-le pe telefon inainte.',
+  'app.import.pickerTimeout': 'Nu s-a intamplat nimic dupa ce ai ales pozele — telefonul poate avea probleme sa trimita mai multe poze mari deodata dintr-o aplicatie ca Fisiere. Incearca sa alegi mai putine poze o data (2-3), sau foloseste aplicatia Galerie/Poze in loc de Fisiere pentru poze multe.',
 
   'contextMenu.ariaLabel': 'Actiuni rapide',
   'contextMenu.title': 'Actiuni rapide',

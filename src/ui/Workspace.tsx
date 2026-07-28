@@ -9,6 +9,7 @@ import { EmptyFilterState } from './EmptyFilterState';
 import { ChevronLeft, ChevronRight, XIcon, CheckIcon, InfoIcon, GridIcon, PlusIcon, MenuIcon, EditIcon } from './icons';
 import { UndoHistoryButton } from './UndoHistoryButton';
 import { pickImportFiles } from '../core/filePicker';
+import { armPickerWatchdog, type PickerWatchdog } from '../core/pickerWatchdog';
 import { t } from '../i18n';
 
 /**
@@ -40,6 +41,7 @@ export function Workspace() {
   const [showMetrics, setShowMetrics] = useState(false);
   const filmstripRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const pickerWatchdogRef = useRef<PickerWatchdog | null>(null);
   // citit din listener-ul de tastatura (inregistrat o singura data, vezi mai
   // jos) — un ref, nu o dependenta de effect, ca sa nu reinregistram
   // listener-ul la fiecare navigare (detailId se schimba constant)
@@ -110,6 +112,7 @@ export function Workspace() {
   }, [stepDetail, setStatus, setRating, setWorkspaceMode]);
 
   const onFiles = (list: FileList | null) => {
+    pickerWatchdogRef.current?.cancel();
     // Vezi acelasi comentariu in App.tsx: un FileList gol nu inseamna neaparat
     // ca utilizatorul n-a ales nimic — unele aplicatii sursa (Fisiere, Drive,
     // Descarcari) pot returna gol desi a apasat pe poze acolo.
@@ -125,6 +128,7 @@ export function Workspace() {
       if (picked.files.length) void runImport(picked.files, picked.handles);
       return;
     }
+    pickerWatchdogRef.current = armPickerWatchdog(() => setNotice(tr('app.import.pickerTimeout')));
     fileRef.current?.click();
   };
 
