@@ -28,6 +28,7 @@ import { selectHighlights, selectBlinks } from './state/batchOps';
 import { CARD_MIN_WIDTH } from './state/gridDensity';
 import { SORT_KEY_LABELS, type SortKey } from './state/gridSort';
 import { pickImportFiles } from './core/filePicker';
+import { armPickerWatchdog, type PickerWatchdog } from './core/pickerWatchdog';
 import { ColorLabelFilter } from './ui/ColorLabelFilter';
 import { SceneTagFilter } from './ui/SceneTagFilter';
 import { InstallPrompt } from './ui/InstallPrompt';
@@ -210,6 +211,7 @@ export default function App() {
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const fileRef = useRef<HTMLInputElement>(null);
+  const pickerWatchdogRef = useRef<PickerWatchdog | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; photoId: string } | null>(null);
   const dragSelectRef = useRef<{ originId: string; adding: boolean; visited: Set<string>; dragged: boolean } | null>(null);
   const longPressTimerRef = useRef<number | null>(null);
@@ -325,6 +327,7 @@ export default function App() {
   ];
 
   const onFiles = (list: FileList | null) => {
+    pickerWatchdogRef.current?.cancel();
     // O selectie "goala" nu inseamna neaparat ca utilizatorul nu a ales nimic —
     // unele aplicatii sursa (Fisiere, Drive, Descarcari) pot returna un FileList
     // gol desi utilizatorul a apasat pe poze in acel selector (MIME raportat de
@@ -347,6 +350,11 @@ export default function App() {
       if (picked.files.length) void runImport(picked.files, picked.handles);
       return;
     }
+    // Plasa de siguranta: pe unele telefoane, alegerea mai multor poze mari
+    // deodata dintr-o aplicatie ca "Fisiere" (nu Galeria) poate face ca `change`
+    // sa nu mai ajunga niciodata (confirmat pe teren) — fara asta, utilizatorul
+    // ramane in tacere totala, fara nicio explicatie. Vezi core/pickerWatchdog.ts.
+    pickerWatchdogRef.current = armPickerWatchdog(() => setNotice(tr('app.import.pickerTimeout')));
     fileRef.current?.click();
   };
 
