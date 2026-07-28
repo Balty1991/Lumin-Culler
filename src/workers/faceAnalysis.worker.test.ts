@@ -68,4 +68,25 @@ describe('FaceAnalysisService.init — cascada WebGPU -> WebGL -> CPU', () => {
 
     expect(backend).toBe('cpu');
   });
+
+  it('cu forcedBackend, foloseste direct backend-ul indicat, fara cascada completa (evita detectie redundanta pe workeri multipli)', async () => {
+    const service = new FaceAnalysisService();
+
+    // 'cpu' rezolva instant in mock — proba ca forcedBackend sare direct la acel
+    // backend, fara sa mai astepte intai timeout-urile WebGPU/WebGL din cascada completa
+    const backend = await service.init(undefined, undefined, 'cpu');
+
+    expect(backend).toBe('cpu');
+  });
+
+  it('cu forcedBackend care esueaza, cade tot pe CPU ca refugiu final', async () => {
+    const service = new FaceAnalysisService();
+
+    const initPromise = service.init(undefined, undefined, 'webgl');
+    // fara timeout scurt dedicat pentru forcedBackend (foloseste WEBGL_INIT_TIMEOUT_MS = 20s)
+    await vi.advanceTimersByTimeAsync(20000);
+    const backend = await initPromise;
+
+    expect(backend).toBe('cpu');
+  });
 });

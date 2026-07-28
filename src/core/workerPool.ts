@@ -15,12 +15,15 @@ interface Slot {
   busy: boolean;
 }
 
-// 45s -> 60s: adaugarea modelului de detectie obiecte (centernet, ~4MB) creste cu
-// ~1/3 greutatea descarcata + warmup-ul GPU per worker; pe pool-uri de pana la 4
-// workeri paraleli (fiecare cu propriul context WebGL), contentia CPU/GPU la
-// pornire rece a facut timeout-ul vechi sa loveasca real, nu doar teoretic —
-// masurat direct (import esuat repetabil la 45s, reusit constant sub 60s).
-const MODEL_INIT_TIMEOUT_MS = 60000;
+// 60s -> 90s: primul worker parcurge acum o cascada WebGPU(6s)->WebGL(20s)->CPU
+// (fara timeout propriu — ultimul refugiu, vezi faceAnalysis.worker.ts) inainte
+// sa se stabileasca definitiv pe un backend; pe hardware slab, warmup-ul complet
+// pe CPU pur (fara acceleratie GPU) pentru intregul set de modele (fata+iris+
+// emotie+centernet) poate depasi singur vechiul timeout de 60s, ceea ce ar
+// respinge acest timeout EXACT cand cascada de mai jos e pe cale sa reuseasca
+// (doar mai incet) — o eroare "Incarcarea a durat prea mult" tocmai atunci cand
+// device-ul aproape terminase legitim.
+const MODEL_INIT_TIMEOUT_MS = 90000;
 /**
  * O poza problematica (rezolutie extrema, pixeli corupti care duc inferenta
  * TF.js intr-un caz patologic etc.) poate bloca WORKER-ul la infinit — nu
@@ -67,14 +70,14 @@ export class AnalysisPool {
   /** true dupa primul init() reusit — util ca sa stim daca resizeForEconomicMode() are ce redimensiona acum sau doar la urmatorul import. */
   get isReady(): boolean { return this.ready; }
 
-  private async spawnSlot(): Promise<{ slot: Slot; backend: string }> {
+  private async spawnSlot(forcedBackend?: string): Promise<{ slot: Slot; backend: string }> {
     const worker = new Worker(
       new URL('../workers/faceAnalysis.worker.ts', import.meta.url),
       { type: 'module' }
     );
     const api = Comlink.wrap<FaceAnalysisAPI>(worker);
     const backend = await withTimeout(
-      api.init(this.modelBase, readEconomicMode()),
+      api.init(this.modelBase, readEconomicMode(), forcedBackend),
       MODEL_INIT_TIMEOUT_MS,
       'Incarcarea modelelor AI a durat prea mult — verifica conexiunea la internet.'
     );
@@ -92,15 +95,27 @@ export class AnalysisPool {
     const size = readEconomicMode() ? 1 : Math.max(1, Math.min(4, cores - 1));
     this.modelBase = new URL(`${import.meta.env.BASE_URL}models/`, location.href).href;
 
-    const backends = await Promise.all(
-      Array.from({ length: size }, async () => {
-        const { slot, backend } = await this.spawnSlot();
-        this.slots.push(slot);
-        return backend;
-      })
-    );
-    this.detectedBackend = backends[0] ?? 'unknown';
+    // Doar PRIMUL worker face detectia completa de backend (WebGPU -> WebGL ->
+    // CPU, cu toate timeout-urile din faceAnalysis.worker.ts) — restul, daca
+    // sunt mai multi, primesc direct backend-ul deja gasit si il incearca pe
+    // acela singur. Fara asta, pana la 4 workeri incercau simultan aceeasi
+    // cascada completa, independent unul de altul: pe telefoane cu hardware
+    // mai slab, presiunea de CPU/memorie a 4 incercari paralele de WebGL/WebGPU
+    // + warmup complet de modele a fost suficienta cat sa intarzie semnificativ
+    // inclusiv propriile timere de siguranta ale fiecarui worker — blocaje
+    // reale raportate de utilizatori (minute intregi pe "Se incarca modelele
+    // AI"), desi fiecare timeout individual e finit.
+    const { slot: firstSlot, backend: firstBackend } = await this.spawnSlot();
+    this.slots.push(firstSlot);
+    this.detectedBackend = firstBackend;
     this.ready = true;
+
+    if (size > 1) {
+      const rest = await Promise.all(
+        Array.from({ length: size - 1 }, () => this.spawnSlot(firstBackend))
+      );
+      this.slots.push(...rest.map(r => r.slot));
+    }
   }
 
   async setKnownPersons(persons: KnownPerson[]): Promise<void> {
@@ -126,7 +141,12 @@ export class AnalysisPool {
     const targetSize = economic ? 1 : Math.max(1, Math.min(4, cores - 1));
     const oldSlots = this.slots;
 
-    const spawned = await Promise.all(Array.from({ length: targetSize }, () => this.spawnSlot()));
+    // La fel ca in init(): backend-ul e deja cunoscut din flota curenta, asa ca
+    // niciunul dintre workerii noi nu mai are nevoie sa repete cascada completa
+    // de detectie — evita exact aceeasi presiune de CPU/memorie descrisa acolo.
+    const spawned = await Promise.all(
+      Array.from({ length: targetSize }, () => this.spawnSlot(this.detectedBackend))
+    );
     this.slots = spawned.map(s => s.slot);
     this.detectedBackend = spawned[0]?.backend ?? this.detectedBackend;
     if (this.knownPersons.length) await Promise.all(this.slots.map(s => s.api.setKnownPersons(this.knownPersons)));
@@ -156,7 +176,7 @@ export class AnalysisPool {
   private async respawnSlot(slot: Slot): Promise<void> {
     try { slot.worker.terminate(); } catch { /* deja mort, nu conteaza */ }
     try {
-      const { slot: fresh } = await this.spawnSlot();
+      const { slot: fresh } = await this.spawnSlot(this.detectedBackend);
       slot.worker = fresh.worker;
       slot.api = fresh.api;
     } catch (err) {

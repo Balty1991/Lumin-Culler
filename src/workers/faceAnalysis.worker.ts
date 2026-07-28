@@ -20,7 +20,7 @@
  */
 
 import * as Comlink from 'comlink';
-import { Human, type Config, type FaceResult } from '@vladmandic/human';
+import { Human, type Config, type FaceResult, type BackendEnum } from '@vladmandic/human';
 import type { AnalysisRecord, FaceInsight, KnownPerson } from '../core/db';
 
 // ── Config ───────────────────────────────────────────────────────────────────
@@ -583,7 +583,18 @@ export class FaceAnalysisService {
    * silentios. Apelantul (workerPool -> store) foloseste asta ca sa avertizeze
    * utilizatorul in loc sa lase scorurile sa para "normale".
    */
-  async init(modelBasePath?: string, economicMode?: boolean): Promise<string> {
+  /**
+   * `forcedBackend` — folosit de pool-ul de workeri (core/workerPool.ts) pentru
+   * a evita ca MAI MULTI workeri sa incerce simultan aceeasi cascada completa
+   * WebGPU->WebGL->CPU: pe telefoane cu hardware mai slab, pana la 4 workeri
+   * facand toti in paralel detectie + warmup GPU independent creeaza destula
+   * presiune de CPU/memorie cat sa intarzie inclusiv propriile timere de
+   * siguranta ale fiecarui worker, ceea ce a produs blocaje reale raportate
+   * de utilizatori (minute intregi pe "Se incarca modelele AI", fara nicio
+   * eroare vizibila) — desi fiecare timeout individual e finit. Doar primul
+   * worker face detectia completa; restul primesc direct backend-ul gasit.
+   */
+  async init(modelBasePath?: string, economicMode?: boolean, forcedBackend?: string): Promise<string> {
     if (this.human) return this.backend;
     const overrides: Partial<Config> = {
       ...(modelBasePath ? { modelBasePath } : {}),
@@ -598,6 +609,15 @@ export class FaceAnalysisService {
         object: { ...HUMAN_CONFIG.object, enabled: false }
       } : {})
     };
+
+    if (forcedBackend) {
+      if (await this.tryBackend({ ...HUMAN_CONFIG, ...overrides, backend: forcedBackend as BackendEnum }, WEBGL_INIT_TIMEOUT_MS)) {
+        return this.backend;
+      }
+      // rar, dar posibil (contentie tranzitorie) — acelasi refugiu final ca mai jos
+      await this.loadFinalFallback({ ...HUMAN_CONFIG, ...overrides, backend: 'cpu' });
+      return this.backend;
+    }
 
     // Cascada WebGPU -> WebGL -> CPU, fiecare pe o instanta SEPARATA (nu
     // this.human inca) si cu timeout, pentru ca inregistrarea unui backend
