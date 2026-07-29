@@ -51,6 +51,21 @@ const MAX_ABS_WEIGHT = 4.0;
 const COLD_START_SAMPLES = 8;
 const TRAINED_SAMPLES = 40;
 
+/**
+ * Model "backbone": antrenat pe FIECARE corectie, indiferent de context —
+ * spre deosebire de modelele per-context (izolate intre ele), acesta acumuleaza
+ * semnal din toate genurile/scenele deodata, deci devine util mult mai repede
+ * (N mare = toate corectiile utilizatorului, nu doar cele dintr-un singur
+ * context). predict() il foloseste ca "memorie" mai ampla pentru contextele
+ * noi/rar intalnite (shrinkage catre backbone cand sampleCount per-context e
+ * mic), in loc sa porneasca mereu doar de la PRIOR_WEIGHTS static — vezi
+ * blendWithGlobal(). Cheia e imposibil de generat de deriveContextKey (care
+ * produce mereu "[gen:]sceneType[:subiect]").
+ */
+const GLOBAL_CONTEXT_KEY = '__global__';
+/** La sampleCount == GLOBAL_BLEND_K, context si backbone au pondere egala (50/50) in predictie. */
+const GLOBAL_BLEND_K = 12;
+
 /** Sensible priors so the engine is useful before any correction exists. */
 const PRIOR_WEIGHTS: FeatureVector = {
   sharpness: 0.9,
@@ -231,15 +246,25 @@ export class ContextEngine {
     await this.init();
     const contextKey = deriveContextKey(analysis, genre);
     const model = this.getOrCreateModel(contextKey);
+    const globalModel = this.getOrCreateModel(GLOBAL_CONTEXT_KEY);
     const features = extractFeatures(analysis);
     const normalized = this.normalize(model, features, /*update=*/ false);
+    const globalNormalized = this.normalize(globalModel, features, /*update=*/ false);
 
-    let z = model.bias;
+    // Shrinkage catre backbone-ul global: cu putine corectii proprii (sampleCount
+    // mic), contextul se bazeaza mai mult pe preferintele generale acumulate din
+    // TOATE corectiile utilizatorului; pe masura ce primeste destule corectii
+    // proprii, converge treptat spre propriile ponderi, mai specifice.
+    const alpha = model.sampleCount / (model.sampleCount + GLOBAL_BLEND_K);
+
+    let z = alpha * model.bias + (1 - alpha) * globalModel.bias;
     const contributions: { feature: string; contribution: number }[] = [];
-    for (const [k, v] of Object.entries(normalized)) {
-      const w = model.weights[k] ?? 0;
-      z += w * v;
-      contributions.push({ feature: k, contribution: w * v });
+    for (const k of Object.keys(normalized)) {
+      const wContext = model.weights[k] ?? 0;
+      const wGlobal = globalModel.weights[k] ?? 0;
+      const contribution = alpha * wContext * normalized[k] + (1 - alpha) * wGlobal * globalNormalized[k];
+      z += contribution;
+      contributions.push({ feature: k, contribution });
     }
     const probability = 1 / (1 + Math.exp(-z));
     contributions.sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution));
@@ -266,8 +291,30 @@ export class ContextEngine {
     await this.init();
     const contextKey = deriveContextKey(input.analysis, input.genre);
     const model = this.getOrCreateModel(contextKey);
+    const globalModel = this.getOrCreateModel(GLOBAL_CONTEXT_KEY);
     const features = extractFeatures(input.analysis);
 
+    this.trainOne(model, features, input);
+    // backbone-ul global invata din FIECARE corectie, indiferent de context —
+    // vezi comentariul de la GLOBAL_CONTEXT_KEY si blending-ul din predict().
+    this.trainOne(globalModel, features, input);
+
+    await Promise.all([
+      db.contextModels.put(model),
+      db.contextModels.put(globalModel),
+      db.corrections.add({
+        photoId: input.photoId,
+        contextKey,
+        features,
+        aiDecision: input.aiDecision,
+        userDecision: input.userDecision,
+        ts: Date.now()
+      })
+    ]);
+  }
+
+  /** Un pas de SGD online (forward + backward + update), aplicat pe orice model — context specific sau backbone-ul global. */
+  private trainOne(model: ContextModelRecord, features: FeatureVector, input: CorrectionInput): void {
     // Update normalization stats FIRST (Welford), then normalize with them.
     const normalized = this.normalize(model, features, /*update=*/ true);
 
@@ -291,18 +338,6 @@ export class ContextEngine {
     model.bias -= lr * error;
     model.sampleCount++;
     model.updatedAt = Date.now();
-
-    await Promise.all([
-      db.contextModels.put(model),
-      db.corrections.add({
-        photoId: input.photoId,
-        contextKey,
-        features,
-        aiDecision: input.aiDecision,
-        userDecision: input.userDecision,
-        ts: Date.now()
-      })
-    ]);
   }
 
   // ── Explainability (feeds the "Preferinte AI" panel in UI) ─────────────────
@@ -343,6 +378,9 @@ export class ContextEngine {
     await this.init();
     const prefFeatures = ContextEngine.PREF_FEATURES;
     return Array.from(this.models.values())
+      // backbone-ul global (GLOBAL_CONTEXT_KEY) nu e un "context" pe care utilizatorul
+      // l-a ales vreodata — e plumbing intern pentru predict(), nu apare in acest panou
+      .filter(model => model.contextKey !== GLOBAL_CONTEXT_KEY)
       .map(model => {
         const ranked = Object.entries(model.weights)
           .filter(([k]) => prefFeatures.has(k))

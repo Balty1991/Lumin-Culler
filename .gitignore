@@ -4,6 +4,12 @@ public/models/
 release/
 *.local
 
+# cheia de semnare Android (Play Store) — NICIODATA in git, vezi
+# android/app/keystore.properties.example pentru cum se genereaza local
+android/app/keystore.properties
+*.jks
+*.keystore
+
 # libraw-wasm rebuild vendorizat (vendor/libraw-wasm-patched/README.md) — dist/ de aici
 # e payload-ul compilat al dependentei, nu un artefact de build al PROIECTULUI nostru
 # (cel ignorat de regula "dist/" de mai sus), deci trebuie commis in git.
