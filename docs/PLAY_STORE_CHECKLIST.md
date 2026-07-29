@@ -47,7 +47,7 @@ Rezultatul (`android/app/build/outputs/bundle/release/app-release.aab`) e fisier
 
 ### 4. Assets grafice pentru fisa Play Store
 - **Feature graphic**: 1024×500 px — gata generat, `public/store/feature-graphic.png` (foloseste iconita si paleta reala a aplicatiei). Verifica-l vizual inainte sa-l urci, il poti regenera/ajusta oricand.
-- **Screenshot-uri telefon**: minim 2 (recomandat 4-8), **din aplicatia reala, cu poze reale incarcate** — astea inca lipsesc, cel mai bine facute de tine (arata mai autentic decat poze demo generice).
+- **Screenshot-uri telefon**: gata 5, in `public/store/screenshots/` — din aplicatia instalata (fara interfata browserului), cu poze fara continut personal. Acopera minimul de 2 cerut de Play Console; poti adauga altele daca vrei sa arati si alte ecrane (Persoane cunoscute, Statistici etc.).
 - Optional: screenshot-uri tableta, video demo.
 
 ### 5. Fisa aplicatiei (Store listing)
