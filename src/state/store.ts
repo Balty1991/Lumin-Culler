@@ -789,9 +789,14 @@ export const useStore = create<AppState>((set, get) => ({
     const usageNotice = crossedFreeTierLimit
       ? t(get().locale, 'store.import.usageNotice', { count: monthlyUsage, limit: FREE_TIER_MONTHLY_LIMIT })
       : undefined;
+    // fara asta, dupa un import reusit fara avertismente, utilizatorul nu primea
+    // NICIO confirmare vizibila ca s-a intamplat ceva — bara de progres disparea
+    // pur si simplu, fara mesaj, indiferent daca importul reusise sau nu; doar
+    // erorile/avertismentele aveau notificare, nu si succesul simplu, comun
+    const doneNotice = done > 0 ? t(get().locale, 'store.import.done', { count: done }) : undefined;
     set(state => ({
       progress: null,
-      notice: warning ?? usageNotice ?? state.notice,
+      notice: warning ?? usageNotice ?? doneNotice ?? state.notice,
       aiDegraded,
       aiBackend: analysisPool.detectedBackend,
       lastImportStats: done > 0 ? { count: done, durationMs: Date.now() - startedAt } : state.lastImportStats,

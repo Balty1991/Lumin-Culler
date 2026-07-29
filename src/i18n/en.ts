@@ -534,6 +534,7 @@ export const en: Record<TranslationKey, string> = {
   'store.clientGallery.title': 'Photo gallery — {project}',
   'store.clientGallery.titleDefault': 'Photo gallery — Lumin Culler',
   'store.clientGallery.subtitle': '{count} photos selected · {date}',
+  'store.import.done': '{count} photos imported successfully.',
   'store.import.failed': 'Import failed: {error} — try again.',
   'store.import.usageNotice': 'You\'ve processed {count} photos this month, above the free tier\'s indicative threshold of {limit} — the app keeps working normally, with no limitation.',
   'store.quotaNotice': 'Storage full — the photo was marked, but the original couldn\'t be saved for export. Free up space (Clear session or export what you already have) and try again.',
