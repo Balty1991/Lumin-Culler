@@ -37,7 +37,11 @@ import { InstallPrompt } from './ui/InstallPrompt';
 import { BackupReminder } from './ui/BackupReminder';
 import { t } from './i18n';
 
-const NOTICE_AUTODISMISS_MS = 7000;
+// 7s a fost prea scurt pentru notificari dupa actiuni care nu schimba nimic
+// vizibil pe ecran (ex. restaurare backup intr-o sesiune goala — nu apar poze
+// noi, doar persoane/model AI/setari in fundal), unde toast-ul e SINGURUL
+// semnal ca ceva s-a intamplat — usor de ratat daca utilizatorul clipeste.
+const NOTICE_AUTODISMISS_MS = 10000;
 /** Apasare lunga pe touch = meniu contextual (echivalentul click-dreapta pe desktop) — plan 3.2.1. */
 const LONG_PRESS_MS = 500;
 /** Peste aceasta miscare (px), o apasare lunga se anuleaza — degetul incearca sa deruleze/traga, nu sa tina apasat. */
