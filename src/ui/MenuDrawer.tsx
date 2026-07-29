@@ -72,6 +72,30 @@ export function MenuDrawer() {
   };
 
   return (
+    <>
+    {/* In afara AnimatePresence: trebuie sa ramana in DOM chiar si dupa ce
+       meniul s-a inchis (si a fost demontat de animatia de exit), altfel
+       evenimentul `change` al selectorului nativ de fisiere — care se
+       intoarce mult dupa cele ~260ms de tranzitie — ajunge pe un element deja
+       scos din arbore si React nu-l mai vede (importul parea ca "nu face nimic"). */}
+    <input
+      ref={restoreInputRef}
+      type="file"
+      accept="application/json,.json"
+      style={{ display: 'none' }}
+      onChange={e => {
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (!file) return;
+        // feedback IMEDIAT, inainte de orice parsare/scriere async — pe unele
+        // telefoane, revenirea din selectorul nativ de fisiere la tab-ul
+        // Chrome poate introduce o intarziere vizibila pana randeaza update-ul
+        // final; fara asta, utilizatorul nu are NICIUN semnal ca apasarea a
+        // avut vreun efect cat timp asteapta rezultatul
+        setNotice(tr('menu.importBackup.processing'));
+        void importBackupFile(file);
+      }}
+    />
     <AnimatePresence>
       {open && (
     <motion.div
@@ -216,24 +240,6 @@ export function MenuDrawer() {
           <span className="drawer-item-icon"><UploadIcon /></span>
           <span>{tr('menu.importBackup')}</span>
         </button>
-        <input
-          ref={restoreInputRef}
-          type="file"
-          accept="application/json,.json"
-          style={{ display: 'none' }}
-          onChange={e => {
-            const file = e.target.files?.[0];
-            e.target.value = '';
-            if (!file) return;
-            // feedback IMEDIAT, inainte de orice parsare/scriere async — pe unele
-            // telefoane, revenirea din selectorul nativ de fisiere la tab-ul
-            // Chrome poate introduce o intarziere vizibila pana randeaza update-ul
-            // final; fara asta, utilizatorul nu are NICIUN semnal ca apasarea a
-            // avut vreun efect cat timp asteapta rezultatul
-            setNotice(tr('menu.importBackup.processing'));
-            void importBackupFile(file);
-          }}
-        />
 
         <div className="drawer-section-label">{tr('menu.section.settings')}</div>
         <button className="drawer-item" onClick={() => go(() => setTheme(theme === 'light' ? 'dark' : 'light'))}>
@@ -285,5 +291,6 @@ export function MenuDrawer() {
     </motion.div>
       )}
     </AnimatePresence>
+    </>
   );
 }
