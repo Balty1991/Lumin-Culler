@@ -1,5 +1,18 @@
 apply plugin: 'com.android.application'
 
+// Semnare de productie (Play Store cere APK/AAB semnat cu o cheie de eliberare
+// stabila — aceeasi cheie la fiecare actualizare, altfel Play Console refuza
+// upload-ul). Citeste din keystore.properties (NECOMIS in git, vezi .gitignore
+// si keystore.properties.example din acest folder) — fara acel fisier, build-ul
+// de release ramane nesemnat (exact comportamentul dinainte de aceasta configurare),
+// ca sa nu stricam fluxul curent de dezvoltare/CI care nu are nevoie de semnare.
+def keystorePropertiesFile = file('keystore.properties')
+def keystoreProperties = new Properties()
+def hasSigningConfig = keystorePropertiesFile.exists()
+if (hasSigningConfig) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace = "com.luminculler.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,10 +29,23 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    if (hasSigningConfig) {
+        signingConfigs {
+            release {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (hasSigningConfig) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }
