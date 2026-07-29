@@ -36,8 +36,15 @@ function escapeHtml(s: string): string {
  * (core/export/watermark.ts) inainte sa fie incorporata, ca clientul sa nu poata
  * folosi previzualizarile inainte de livrarea finala/plata. Absent = galeria
  * ramane exact ca inainte (miniaturi neatinse).
+ *
+ * `subtitle` optional (ex. "24 poze selectate · 29 iulie 2026") — deja tradus
+ * de apelant (store.ts, vezi t()), ca acest modul sa ramana independent de
+ * locale, la fel ca title. Absent = fara linia de subtitlu (comportament
+ * identic cu inainte de acest camp).
  */
-export async function buildClientGalleryHtml(photos: ClientGalleryPhoto[], title: string, watermarkText?: string): Promise<string> {
+export async function buildClientGalleryHtml(
+  photos: ClientGalleryPhoto[], title: string, watermarkText?: string, subtitle?: string
+): Promise<string> {
   // id unic per export — izoleaza favoritele in localStorage intre mai multe
   // galerii deschise in acelasi browser (ex. clientul primeste doua sesiuni diferite)
   const galleryId = 'lc-' + Math.random().toString(36).slice(2, 10);
@@ -64,7 +71,9 @@ export async function buildClientGalleryHtml(photos: ClientGalleryPhoto[], title
   :root { color-scheme: light dark; }
   body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 24px; background: #0b0b0c; color: #f2f2f2; }
   h1 { font-size: 1.3rem; margin: 0 0 4px; }
+  p.subtitle { color: #cfcfd2; margin: 0 0 14px; font-size: 0.95rem; font-weight: 600; }
   p.hint { color: #9a9a9f; margin: 0 0 20px; font-size: 0.9rem; max-width: 640px; }
+  footer.credit { margin-top: 32px; padding-top: 16px; border-top: 1px solid #232326; color: #6c6c72; font-size: 0.75rem; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
   .card { position: relative; display: block; cursor: pointer; border-radius: 10px; overflow: hidden; background: #17171a; border: 2px solid transparent; }
   .card input { position: absolute; opacity: 0; pointer-events: none; }
@@ -80,6 +89,7 @@ export async function buildClientGalleryHtml(photos: ClientGalleryPhoto[], title
 </head>
 <body>
   <h1>${escapeHtml(title)}</h1>
+  ${subtitle ? `<p class="subtitle">${escapeHtml(subtitle)}</p>` : ''}
   <p class="hint">Apasa pe o poza ca sa o marchezi ca favorita (♥). Cand ai terminat, apasa
   „Genereaza lista" si copiaza textul care apare — trimite-l inapoi fotografului (email,
   mesaj etc.). Alegerile tale raman doar in acest browser, nu sunt trimise nicaieri automat.</p>
@@ -90,6 +100,7 @@ export async function buildClientGalleryHtml(photos: ClientGalleryPhoto[], title
   <div class="grid">${cards}
   </div>
   <textarea id="out" readonly style="display:none"></textarea>
+  <footer class="credit">Galerie generata cu Lumin Culler Pro — o aplicatie de sortare foto cu AI, 100% locala.</footer>
 <script>
 (function() {
   var KEY = '${galleryId}-favs';
