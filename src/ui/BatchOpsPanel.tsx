@@ -18,6 +18,7 @@ export function BatchOpsPanel() {
   const bulkRejectBelow = useStore(s => s.bulkRejectBelow);
   const resolveAllSeries = useStore(s => s.resolveAllSeries);
   const autoCullTopPercent = useStore(s => s.autoCullTopPercent);
+  const rescorePhotos = useStore(s => s.rescorePhotos);
   const renameTemplate = useStore(s => s.renameTemplate);
   const setRenameTemplate = useStore(s => s.setRenameTemplate);
   const genre = useStore(s => s.genre);
@@ -105,6 +106,15 @@ export function BatchOpsPanel() {
     setBusy(false);
   };
 
+  const runRescore = async () => {
+    if (!photos.length) return;
+    const ok = await askConfirm(tr('batch.rescore.confirm', { count: photos.length }), { danger: true });
+    if (!ok) return;
+    setBusy(true);
+    await rescorePhotos();
+    setBusy(false);
+  };
+
   return (
     <div className="detail" onClick={e => { if (e.target === e.currentTarget) setOpen(false); }}>
       <div className="detail-inner narrow" ref={containerRef} role="dialog" aria-modal="true" aria-label={tr('menu.batchOps')} tabIndex={-1}>
@@ -188,6 +198,14 @@ export function BatchOpsPanel() {
           <p className="hint">{tr('batch.resolveSeries.hint')}</p>
           <button className="select batch-resolve-btn" onClick={() => void runResolveSeries()} disabled={busy || !groups.length}>
             {groups.length ? tr('batch.resolveSeries.apply', { count: groups.length }) : tr('batch.resolveSeries.none')}
+          </button>
+        </div>
+
+        <div className="batch-section">
+          <h3><span className="batch-section-icon"><SparkleIcon /></span> {tr('batch.rescore.title')}</h3>
+          <p className="hint">{tr('batch.rescore.hint')}</p>
+          <button className="select batch-resolve-btn" onClick={() => void runRescore()} disabled={busy || !photos.length}>
+            {photos.length ? tr('batch.rescore.apply', { count: photos.length }) : tr('batch.rescore.none')}
           </button>
         </div>
 
