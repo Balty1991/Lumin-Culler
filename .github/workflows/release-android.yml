@@ -1,0 +1,72 @@
+# Build + semnare automata a pachetului Android (.aab) pentru Play Store.
+# Separat de deploy.yml (care publica PWA-ul pe GitHub Pages la fiecare push pe
+# main) — acesta ruleaza doar la cerere sau la un tag de versiune, ca sa nu
+# consume minute CI la fiecare commit obisnuit.
+#
+# Cerinte (Settings -> Secrets and variables -> Actions, din acest repo):
+#   ANDROID_KEYSTORE_BASE64   continutul fisierului .jks, codificat base64
+#                             (ex: base64 -w0 lumin-culler-release.jks)
+#   ANDROID_KEYSTORE_PASSWORD parola keystore-ului
+#   ANDROID_KEY_ALIAS         alias-ul cheii (vezi android/app/keystore.properties.example)
+#   ANDROID_KEY_PASSWORD      parola cheii
+#
+# Fara aceste secrete configurate, job-ul esueaza explicit la pasul de decodare
+# (mai bine decat un build "reusit" dar nesemnat, care ar fi respins de Play Console).
+name: Build signed Android release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      # acelasi pas ca in deploy.yml — modelele AI trebuie incluse in pachetul nativ, nu doar in PWA
+      - name: Bundle ML models
+        run: |
+          mkdir -p public/models
+          for m in blazeface facemesh iris emotion faceres centernet; do
+            cp node_modules/@vladmandic/human/models/$m.json public/models/
+            cp node_modules/@vladmandic/human/models/$m.bin public/models/
+          done
+      - run: npm run build
+      - run: npx cap sync android
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Decode keystore
+        run: |
+          if [ -z "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+            echo "::error::Lipseste secretul ANDROID_KEYSTORE_BASE64 — vezi comentariul din acest workflow." >&2
+            exit 1
+          fi
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/release.jks
+      - name: Write keystore.properties
+        run: |
+          cat > android/app/keystore.properties <<PROPS
+          storeFile=../release.jks
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          PROPS
+      - name: Build signed AAB
+        working-directory: android
+        run: ./gradlew bundleRelease
+      - name: Clean up keystore
+        if: always()
+        run: rm -f android/release.jks android/app/keystore.properties
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lumin-culler-release-aab
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          retention-days: 90

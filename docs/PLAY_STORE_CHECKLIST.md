@@ -31,12 +31,19 @@ sau artefacte pe care nu ai voie sa le generezi/tii altundeva decat la tine).
 - Completeaza `android/app/keystore.properties` (copie din `.example`) cu caile/parolele reale — fisierul e deja in `.gitignore`, nu ajunge niciodata in GitHub.
 
 ### 3. Build de productie (.aab)
+
+**Optiunea recomandata — automat prin GitHub Actions** (`.github/workflows/release-android.yml`, deja in repo), fara sa instalezi Android Studio local:
+1. In acest repo, Settings → Secrets and variables → Actions, adauga 4 secrete: `ANDROID_KEYSTORE_BASE64` (rezultatul din `base64 -w0 lumin-culler-release.jks`), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`.
+2. Actions → "Build signed Android release" → Run workflow (sau push un tag `v1.0.0`).
+3. Descarci `.aab`-ul din artifacts-urile rularii (pastrat 90 de zile) si-l urci direct in Play Console.
+
+**Optiunea locala** (daca ai deja Android Studio):
 ```
 npm run build
 npx cap sync android
 cd android && ./gradlew bundleRelease
 ```
-Rezultatul (`android/app/build/outputs/bundle/release/app-release.aab`) e fisierul pe care-l urci in Play Console. Necesita Android SDK/Gradle instalate local (Android Studio e cel mai simplu).
+Rezultatul (`android/app/build/outputs/bundle/release/app-release.aab`) e fisierul pe care-l urci in Play Console.
 
 ### 4. Assets grafice pentru fisa Play Store
 - **Feature graphic**: 1024×500 px (banner afisat in Store).
