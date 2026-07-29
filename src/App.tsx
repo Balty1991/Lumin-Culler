@@ -32,6 +32,7 @@ import { armPickerWatchdog, type PickerWatchdog } from './core/pickerWatchdog';
 import { ColorLabelFilter } from './ui/ColorLabelFilter';
 import { SceneTagFilter } from './ui/SceneTagFilter';
 import { CameraFilter } from './ui/CameraFilter';
+import { useScrollFade } from './ui/useScrollFade';
 import { InstallPrompt } from './ui/InstallPrompt';
 import { BackupReminder } from './ui/BackupReminder';
 import { t } from './i18n';
@@ -247,6 +248,7 @@ export default function App() {
    */
   const scrollAnchorRef = useRef(0);
   const HEADER_TOGGLE_THRESHOLD_PX = 24;
+  const filtersScrollFade = useScrollFade<HTMLElement>();
   const handleGridScroll = (scrollY: number) => {
     if (scrollY < 40) { // aproape de varf — antetul ramane mereu vizibil
       setHeaderHidden(false);
@@ -641,7 +643,10 @@ export default function App() {
         )}
 
         {photos.length > 0 && (
-          <nav className="filters">
+          <nav
+            ref={filtersScrollFade.ref}
+            className={`filters${filtersScrollFade.fadeLeft ? ' fade-left' : ''}${filtersScrollFade.fadeRight ? ' fade-right' : ''}`}
+          >
             {FILTERS.map(f => (
               <button
                 key={f.key}
