@@ -168,6 +168,8 @@ export const en: Record<TranslationKey, string> = {
   'app.sceneTagFilter.ariaLabel': 'Filter by detected object/scene',
   'app.sceneTagFilter.label': 'Scene',
   'app.sceneTagFilter.clear': 'Clear filter',
+  'app.cameraFilter.ariaLabel': 'Filter by camera',
+  'app.cameraFilter.label': 'Camera',
   'colorLabel.none': 'No label',
   'colorLabel.red': 'Red',
   'colorLabel.yellow': 'Yellow',

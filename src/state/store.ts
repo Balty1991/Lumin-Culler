@@ -186,6 +186,9 @@ interface AppState {
   /** Filtru suplimentar dupa proiectul sub care a fost importata poza (PhotoRecord.project) — vezi ProjectsPanel. */
   projectFilter: string | null;
   setProjectFilter: (project: string | null) => void;
+  /** Filtru suplimentar dupa aparatul foto (EXIF cameraModel), combinabil cu restul. Null = fara filtru. */
+  cameraFilter: string | null;
+  setCameraFilter: (camera: string | null) => void;
   projectsOpen: boolean;
   setProjectsOpen: (open: boolean) => void;
   /**
@@ -1137,6 +1140,8 @@ export const useStore = create<AppState>((set, get) => ({
   setColorLabelFilter: label => set({ colorLabelFilter: label }),
   sceneTagFilter: null,
   setSceneTagFilter: tag => set({ sceneTagFilter: tag }),
+  cameraFilter: null,
+  setCameraFilter: camera => set({ cameraFilter: camera }),
   setSearchText: text => set({ searchText: text }),
   setDateRange: (from, to) => set({ dateFrom: from, dateTo: to }),
   setMinRating: rating => set({ minRating: rating }),
@@ -1508,7 +1513,7 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   filtered: () => {
-    const { photos, filter, personFilter, colorLabelFilter, sceneTagFilter, projectFilter, searchText, dateFrom, dateTo, minRating, gridSort } = get();
+    const { photos, filter, personFilter, colorLabelFilter, sceneTagFilter, projectFilter, cameraFilter, searchText, dateFrom, dateTo, minRating, gridSort } = get();
     let base: PhotoView[];
     switch (filter) {
       case 'selected': base = photos.filter(p => p.status === 'selected'); break;
@@ -1534,6 +1539,9 @@ export const useStore = create<AppState>((set, get) => ({
     if (colorLabelFilter) base = base.filter(p => (p.colorLabel ?? 'none') === colorLabelFilter);
     // filtru dupa eticheta de scena/obiect (COCO-80, ex. "dog", "cake") — combinabil cu restul
     if (sceneTagFilter) base = base.filter(p => p.sceneTags?.includes(sceneTagFilter));
+    // filtru dupa aparatul foto (EXIF cameraModel) — util la evenimente filmate cu 2+ aparate
+    // (ex. fotograf principal + secund la o nunta), combinabil cu restul
+    if (cameraFilter) base = base.filter(p => p.cameraModel === cameraFilter);
     // filtru dupa proiect — vezi ProjectsPanel (fara proiect ales = grupul "Fara proiect")
     if (projectFilter) {
       base = projectFilter === NO_PROJECT_KEY

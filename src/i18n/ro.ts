@@ -165,6 +165,8 @@ export const ro = {
   'app.sceneTagFilter.ariaLabel': 'Filtreaza dupa obiect/scena detectata',
   'app.sceneTagFilter.label': 'Scena',
   'app.sceneTagFilter.clear': 'Sterge filtrul',
+  'app.cameraFilter.ariaLabel': 'Filtreaza dupa aparatul foto',
+  'app.cameraFilter.label': 'Aparat',
   'colorLabel.none': 'Fara eticheta',
   'colorLabel.red': 'Rosu',
   'colorLabel.yellow': 'Galben',

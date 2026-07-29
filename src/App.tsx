@@ -31,6 +31,7 @@ import { pickImportFiles } from './core/filePicker';
 import { armPickerWatchdog, type PickerWatchdog } from './core/pickerWatchdog';
 import { ColorLabelFilter } from './ui/ColorLabelFilter';
 import { SceneTagFilter } from './ui/SceneTagFilter';
+import { CameraFilter } from './ui/CameraFilter';
 import { InstallPrompt } from './ui/InstallPrompt';
 import { BackupReminder } from './ui/BackupReminder';
 import { t } from './i18n';
@@ -666,6 +667,7 @@ export default function App() {
             )}
             <ColorLabelFilter value={colorLabelFilter} onChange={setColorLabelFilter} />
             <SceneTagFilter />
+            <CameraFilter />
             {multiSelectIds.size === 0 && (
               <button
                 className={selectMode ? 'chip active select-mode-toggle' : 'chip select-mode-toggle'}
