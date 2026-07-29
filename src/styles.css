@@ -420,6 +420,27 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   scrollbar-width: none;
 }
 .filters::-webkit-scrollbar { display: none; }
+/*
+ * Indicator de scroll orizontal (vezi ui/useScrollFade.ts): estompeaza marginea
+ * DOAR in directia in care chiar exista chip-uri ascunse — apare/dispare in timp
+ * real la scroll, nu e un fade static (ar ramane vizibil si cand nu mai e nimic
+ * de derulat, ceea ce ar induce in eroare). mask-image (nu opacity/gradient pe
+ * background) ca sa functioneze indiferent de continutul din spate (chip-uri
+ * colorate, active etc.) — reduce doar alfa, nu adauga o culoare peste el.
+ */
+.filters.fade-left, .filters.fade-right { -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }
+.filters.fade-left:not(.fade-right) {
+  -webkit-mask-image: linear-gradient(to right, transparent, black 24px);
+  mask-image: linear-gradient(to right, transparent, black 24px);
+}
+.filters.fade-right:not(.fade-left) {
+  -webkit-mask-image: linear-gradient(to left, transparent, black 24px);
+  mask-image: linear-gradient(to left, transparent, black 24px);
+}
+.filters.fade-left.fade-right {
+  -webkit-mask-image: linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent);
+  mask-image: linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent);
+}
 .chip {
   display: inline-flex; align-items: center; gap: 7px;
   background: var(--surface); color: var(--text-dim); border: 1px solid var(--line);
