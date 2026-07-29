@@ -46,13 +46,12 @@ cd android && ./gradlew bundleRelease
 Rezultatul (`android/app/build/outputs/bundle/release/app-release.aab`) e fisierul pe care-l urci in Play Console.
 
 ### 4. Assets grafice pentru fisa Play Store
-- **Feature graphic**: 1024×500 px (banner afisat in Store).
-- **Screenshot-uri telefon**: minim 2 (recomandat 4-8), din aplicatia reala.
+- **Feature graphic**: 1024×500 px — gata generat, `public/store/feature-graphic.png` (foloseste iconita si paleta reala a aplicatiei). Verifica-l vizual inainte sa-l urci, il poti regenera/ajusta oricand.
+- **Screenshot-uri telefon**: minim 2 (recomandat 4-8), **din aplicatia reala, cu poze reale incarcate** — astea inca lipsesc, cel mai bine facute de tine (arata mai autentic decat poze demo generice).
 - Optional: screenshot-uri tableta, video demo.
-- Astea chiar au nevoie de ochiul tau/designer — nu sunt ceva ce ar trebui generat automat pentru o fisa de Store serioasa.
 
 ### 5. Fisa aplicatiei (Store listing)
-- Titlu, descriere scurta (80 caractere) si lunga (4000 caractere) — RO + EN daca vrei piata internationala.
+- Titlu, descriere scurta si lunga (RO + EN) — gata scrise in `docs/PLAY_STORE_LISTING.md`, gata de copiat in Play Console.
 - Categorie: **Fotografie**.
 - Email de contact: foloseste-l pe cel real de business, nu neaparat cel personal.
 - URL politica de confidentialitate: link-ul de mai sus.
