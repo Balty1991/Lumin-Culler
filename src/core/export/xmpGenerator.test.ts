@@ -2,8 +2,8 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { generateXMPSidecar, deriveXmpKeywords, deriveAiScoreKeyword, deriveSeriesKeyword, exportXMPSidecars } from './xmpGenerator';
 
 const getDirectoryPicker = vi.fn<() => null>(() => null);
-const downloadZip = vi.fn<(name: string, entries: { path: string; data: Uint8Array }[]) => Promise<void>>(async () => {});
-const downloadBlob = vi.fn<(name: string, blob: Blob) => Promise<void>>(async () => {});
+const downloadZip = vi.fn<(name: string, entries: { path: string; data: Uint8Array }[]) => Promise<{ cancelled: boolean }>>(async () => ({ cancelled: false }));
+const downloadBlob = vi.fn<(name: string, blob: Blob) => Promise<{ cancelled: boolean }>>(async () => ({ cancelled: false }));
 
 vi.mock('./directoryPicker', () => ({
   getDirectoryPicker: () => getDirectoryPicker(),
@@ -158,5 +158,20 @@ describe('exportXMPSidecars (fallback fara File System Access API)', () => {
     expect(downloadBlob).not.toHaveBeenCalled();
     const entries = downloadZip.mock.calls[0][1];
     expect(entries.map(e => e.path).sort()).toEqual(['a.xmp', 'b.xmp', 'c.xmp']);
+  });
+
+  it('un singur sidecar: raporteaza 0 exportate (nu 1) daca utilizatorul anuleaza dialogul de salvare', async () => {
+    downloadBlob.mockResolvedValueOnce({ cancelled: true });
+    const result = await exportXMPSidecars([{ fileName: 'a.jpg', status: 'selected', rating: 5 }]);
+    expect(result).toEqual({ exported: 0, method: 'downloads', cancelled: true });
+  });
+
+  it('mai multe sidecar-uri: raporteaza 0 exportate daca utilizatorul anuleaza dialogul de salvare al arhivei .zip', async () => {
+    downloadZip.mockResolvedValueOnce({ cancelled: true });
+    const result = await exportXMPSidecars([
+      { fileName: 'a.jpg', status: 'selected', rating: 5 },
+      { fileName: 'b.jpg', status: 'rejected' }
+    ]);
+    expect(result).toEqual({ exported: 0, method: 'downloads', cancelled: true });
   });
 });

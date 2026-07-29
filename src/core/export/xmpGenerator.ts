@@ -193,8 +193,8 @@ export async function exportXMPSidecars(photos: XmpPhotoInput[]): Promise<XmpExp
   if (decided.length === 1) {
     const p = decided[0];
     const blob = new Blob([render(p)], { type: 'application/rdf+xml' });
-    await downloadBlob(xmpFileName(p.fileName), blob);
-    return { exported: 1, method, cancelled: false };
+    const result = await downloadBlob(xmpFileName(p.fileName), blob);
+    return { exported: result.cancelled ? 0 : 1, method, cancelled: result.cancelled };
   }
   // mai multe sidecar-uri: O SINGURA descarcare .zip — vezi downloadZip pentru
   // motivul (descarcarile multiple secventiale sunt blocate silentios de multe
@@ -205,6 +205,6 @@ export async function exportXMPSidecars(photos: XmpPhotoInput[]): Promise<XmpExp
     data: encoder.encode(render(p))
   }));
   const zipName = `lumin-culler-xmp-${new Date().toISOString().slice(0, 10)}.zip`;
-  await downloadZip(zipName, entries);
-  return { exported: decided.length, method, cancelled: false };
+  const result = await downloadZip(zipName, entries);
+  return { exported: result.cancelled ? 0 : decided.length, method, cancelled: result.cancelled };
 }
