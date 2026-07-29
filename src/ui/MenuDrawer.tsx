@@ -40,6 +40,7 @@ export function MenuDrawer() {
   const setApplyEditsInGallery = useStore(s => s.setApplyEditsInGallery);
   const exportBackup = useStore(s => s.exportBackup);
   const importBackupFile = useStore(s => s.importBackupFile);
+  const setNotice = useStore(s => s.setNotice);
   const setStatsOpen = useStore(s => s.setStatsOpen);
   const setContactSheetOpen = useStore(s => s.setContactSheetOpen);
   const setPresentationOpen = useStore(s => s.setPresentationOpen);
@@ -223,7 +224,14 @@ export function MenuDrawer() {
           onChange={e => {
             const file = e.target.files?.[0];
             e.target.value = '';
-            if (file) void importBackupFile(file);
+            if (!file) return;
+            // feedback IMEDIAT, inainte de orice parsare/scriere async — pe unele
+            // telefoane, revenirea din selectorul nativ de fisiere la tab-ul
+            // Chrome poate introduce o intarziere vizibila pana randeaza update-ul
+            // final; fara asta, utilizatorul nu are NICIUN semnal ca apasarea a
+            // avut vreun efect cat timp asteapta rezultatul
+            setNotice(tr('menu.importBackup.processing'));
+            void importBackupFile(file);
           }}
         />
 

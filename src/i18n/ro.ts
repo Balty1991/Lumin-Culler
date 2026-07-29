@@ -37,6 +37,7 @@ export const ro = {
   'menu.exportBackup.title': 'Salveaza persoanele cunoscute, profilurile AI invatate si setarile (sortare, filtrare, presetari, gen) intr-un fisier JSON — nu include pozele in sine. Foloseste acest fisier ca sa muti totul intr-un alt browser (ex. Brave -> Chrome), ca sa nu obtii rezultate diferite de culling intre ele.',
   'menu.importBackup': 'Restaureaza din backup',
   'menu.importBackup.title': 'Restaureaza persoanele/profilurile AI/setarile dintr-un backup — deciziile (selectat/respins/rating) se reaplica automat pe pozele curente cu acelasi nume si data a capturii.',
+  'menu.importBackup.processing': 'Se restaureaza backup-ul...',
   'menu.section.settings': 'Setari',
   'menu.theme.light': 'Tema deschisa',
   'menu.theme.dark': 'Tema intunecata',
