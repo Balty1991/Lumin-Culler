@@ -540,6 +540,35 @@ function statusLabel(locale: Locale, status: PhotoRecord['status']): string {
 // ar avea temporar/permanent atributul lang gresit pana la primul setLocale).
 applyLocale(readStoredLocale());
 
+/**
+ * Memoizare pentru filtered(): fara ea, FIECARE schimbare de stare (chiar una
+ * fara nicio legatura, ex. o litera tastata in campul de watermark) recalcula
+ * integral filtrarea + sortarea pe toata biblioteca — si o facea de mai multe
+ * ori, o data per componenta care apeleaza useStore(s => s.filtered())
+ * (App.tsx, Workspace.tsx, ContactSheet.tsx, PresentationMode.tsx). Pe o
+ * biblioteca de 1000+ poze, asta insemna sute de operatii .filter()/.sort()
+ * inutile pe secunda la o simpla tastare. Cache-ul de mai jos returneaza
+ * ACEEASI referinta de array cand niciuna din dependentele reale nu s-a
+ * schimbat — Zustand foloseste Object.is pe rezultatul selectorului, deci o
+ * referinta identica opreste re-renderul, nu doar recalculul.
+ */
+let filteredCache: {
+  photos: PhotoView[];
+  filter: FilterKey;
+  personFilter: string | null;
+  colorLabelFilter: ColorLabel | null;
+  sceneTagFilter: string | null;
+  cameraFilter: string | null;
+  projectFilter: string | null;
+  searchText: string;
+  dateFrom: number | null;
+  dateTo: number | null;
+  minRating: number;
+  gridSortKey: GridSort['key'];
+  gridSortDir: GridSort['dir'];
+  result: PhotoView[];
+} | null = null;
+
 export const useStore = create<AppState>((set, get) => ({
   photos: [],
   persons: [],
@@ -1514,6 +1543,16 @@ export const useStore = create<AppState>((set, get) => ({
 
   filtered: () => {
     const { photos, filter, personFilter, colorLabelFilter, sceneTagFilter, projectFilter, cameraFilter, searchText, dateFrom, dateTo, minRating, gridSort } = get();
+    const c = filteredCache;
+    if (
+      c && c.photos === photos && c.filter === filter && c.personFilter === personFilter &&
+      c.colorLabelFilter === colorLabelFilter && c.sceneTagFilter === sceneTagFilter &&
+      c.cameraFilter === cameraFilter && c.projectFilter === projectFilter &&
+      c.searchText === searchText && c.dateFrom === dateFrom && c.dateTo === dateTo &&
+      c.minRating === minRating && c.gridSortKey === gridSort.key && c.gridSortDir === gridSort.dir
+    ) {
+      return c.result;
+    }
     let base: PhotoView[];
     switch (filter) {
       case 'selected': base = photos.filter(p => p.status === 'selected'); break;
@@ -1566,6 +1605,11 @@ export const useStore = create<AppState>((set, get) => ({
         return gridSort.dir === 'asc' ? cmp : -cmp;
       });
     }
+    filteredCache = {
+      photos, filter, personFilter, colorLabelFilter, sceneTagFilter, cameraFilter, projectFilter,
+      searchText, dateFrom, dateTo, minRating, gridSortKey: gridSort.key, gridSortDir: gridSort.dir,
+      result: base
+    };
     return base;
   },
 
