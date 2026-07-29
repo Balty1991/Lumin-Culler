@@ -87,17 +87,34 @@ export function selectBlinks(photos: PhotoView[]): PhotoView[] {
 
 /**
  * "Highlights" (filtru pasiv, NU o actiune ca selectTopPercent): cele mai
- * bune poze din TOATA biblioteca dupa scorul AI, indiferent de status —
- * spre deosebire de gruparea pe serii (care alege un singur "cel mai bun"
- * DOAR in cadrul cadrelor similare dHash), aici comparam absolut toate
- * pozele intre ele. Util ca instrument de DESCOPERIRE ("care sunt cele mai
- * tari cadre din tot evenimentul?"), nu de decizie — de-asta include si
- * pozele deja respinse/selectate, nu doar cele nedecise.
+ * bune poze din TOATA biblioteca dupa scorul AI, indiferent de status — util
+ * ca instrument de DESCOPERIRE ("care sunt cele mai tari cadre din tot
+ * evenimentul?"), nu de decizie — de-asta include si pozele deja respinse/
+ * selectate, nu doar cele nedecise.
  * Minim 1 rezultat daca exista macar o poza, indiferent cat de mic e procentul.
+ *
+ * Dedup pe serie INAINTE de a alege top N%: fara asta, o rafala de 20 de
+ * cadre aproape identice, toate cu scor mare (acelasi zambet, aceeasi
+ * expunere — normal, sunt la cateva sutimi de secunda distanta), putea umple
+ * SINGURA tot spatiul de highlights, lasand pe dinafara alte momente bune,
+ * nerepetate, din restul evenimentului — exact opusul scopului de
+ * "descoperire" declarat mai sus. Pastram doar cel mai bun cadru din fiecare
+ * serie (acelasi criteriu ca resolveGroups) ca reprezentant, apoi alegem top
+ * N% din ce ramane — procentul ramane raportat la TOTALUL bibliotecii (nu
+ * doar la candidatii deduplicati), ca "10%" sa insemne tot "10% din poze",
+ * nu "10% din momente unice" (ar da impresia gresita a unui set mult mai mare).
  */
 export function selectHighlights(photos: PhotoView[], percent = 10): PhotoView[] {
   if (!photos.length) return [];
-  const sorted = [...photos].sort((a, b) => b.aiScore - a.aiScore);
-  const keepCount = Math.min(sorted.length, Math.max(1, Math.round(sorted.length * percent / 100)));
+  const bestPerGroup = new Map<string, PhotoView>();
+  const ungrouped: PhotoView[] = [];
+  for (const p of photos) {
+    if (!p.groupId) { ungrouped.push(p); continue; }
+    const current = bestPerGroup.get(p.groupId);
+    if (!current || p.aiScore > current.aiScore) bestPerGroup.set(p.groupId, p);
+  }
+  const candidates = [...bestPerGroup.values(), ...ungrouped];
+  const sorted = candidates.sort((a, b) => b.aiScore - a.aiScore);
+  const keepCount = Math.min(sorted.length, Math.max(1, Math.round(photos.length * percent / 100)));
   return sorted.slice(0, keepCount);
 }
