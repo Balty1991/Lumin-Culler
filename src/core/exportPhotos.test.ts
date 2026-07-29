@@ -1,11 +1,13 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 const getDirectoryPicker = vi.fn<() => null>(() => null);
-const downloadZip = vi.fn<(name: string, entries: { path: string; data: Uint8Array }[]) => Promise<void>>(async () => {});
+const downloadZip = vi.fn<(name: string, entries: { path: string; data: Uint8Array }[]) => Promise<{ cancelled: boolean }>>(async () => ({ cancelled: false }));
+const downloadBlob = vi.fn<(name: string, blob: Blob) => Promise<{ cancelled: boolean }>>(async () => ({ cancelled: false }));
 
 vi.mock('./export/directoryPicker', () => ({
   getDirectoryPicker: () => getDirectoryPicker(),
-  downloadZip: (name: string, entries: { path: string; data: Uint8Array }[]) => downloadZip(name, entries)
+  downloadZip: (name: string, entries: { path: string; data: Uint8Array }[]) => downloadZip(name, entries),
+  downloadBlob: (name: string, blob: Blob) => downloadBlob(name, blob)
 }));
 
 // exportOriginalFiles cade pe db.originals.get() DOAR daca fisierul nu e in
@@ -23,18 +25,43 @@ describe('exportOriginalFiles (fallback fara File System Access API)', () => {
     originalFiles.clear();
     getDirectoryPicker.mockReturnValue(null);
     downloadZip.mockClear();
+    downloadZip.mockResolvedValue({ cancelled: false });
+    downloadBlob.mockClear();
+    downloadBlob.mockResolvedValue({ cancelled: false });
     URL.createObjectURL = vi.fn(() => 'blob:mock-url');
     vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
   });
 
-  it('exporta un singur fisier printr-o descarcare directa, NU printr-un zip', async () => {
+  it('exporta un singur fisier printr-o descarcare directa (downloadBlob), NU printr-un zip', async () => {
     originalFiles.set('p1', fakeFile('a.jpg'));
     const result = await exportOriginalFiles([
       { id: 'p1', fileName: 'a.jpg', personNames: [], faceCount: 0, strangerCount: 0, sceneType: 'landscape' }
     ]);
     expect(result.exported).toBe(1);
     expect(result.grouped).toBe(false);
+    expect(downloadBlob).toHaveBeenCalledTimes(1);
+    expect(downloadBlob.mock.calls[0][0]).toBe('Peisaje/a.jpg');
     expect(downloadZip).not.toHaveBeenCalled();
+  });
+
+  it('raporteaza 0 exportate daca utilizatorul anuleaza dialogul de salvare al fisierului unic', async () => {
+    downloadBlob.mockResolvedValueOnce({ cancelled: true });
+    originalFiles.set('p1', fakeFile('a.jpg'));
+    const result = await exportOriginalFiles([
+      { id: 'p1', fileName: 'a.jpg', personNames: [], faceCount: 0, strangerCount: 0, sceneType: 'landscape' }
+    ]);
+    expect(result).toMatchObject({ exported: 0, cancelled: true, grouped: false });
+  });
+
+  it('raporteaza 0 exportate daca utilizatorul anuleaza dialogul de salvare al arhivei .zip', async () => {
+    downloadZip.mockResolvedValueOnce({ cancelled: true });
+    originalFiles.set('p1', fakeFile('a.jpg'));
+    originalFiles.set('p2', fakeFile('b.jpg'));
+    const result = await exportOriginalFiles([
+      { id: 'p1', fileName: 'a.jpg', personNames: [], faceCount: 0, strangerCount: 0, sceneType: 'landscape' },
+      { id: 'p2', fileName: 'b.jpg', personNames: [], faceCount: 0, strangerCount: 0, sceneType: 'landscape' }
+    ]);
+    expect(result).toMatchObject({ exported: 0, cancelled: true, grouped: false });
   });
 
   it('exporta mai multe fisiere printr-o SINGURA arhiva .zip, nu prin descarcari secventiale', async () => {
@@ -73,7 +100,8 @@ describe('exportOriginalFiles (fallback fara File System Access API)', () => {
       { id: 'p1', fileName: 'IMG_0001.jpg', personNames: [], faceCount: 0, strangerCount: 0, sceneType: 'landscape' }
     ]);
     expect(result.exported).toBe(1);
-    // fisier unic => descarcare directa, nu zip — verificam prin a.download setat in downloadOne
+    // fisier unic => descarcare directa (downloadBlob), nu zip
+    expect(downloadBlob.mock.calls[0][0]).toBe('Peisaje/IMG_0001.jpg');
   });
 
   it('cu renameTemplate, redenumeste fiecare fisier din zip dupa sablon si numeroteaza secvential', async () => {
