@@ -1,5 +1,105 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
-import { downloadZip } from './directoryPicker';
+import { downloadBlob, downloadZip } from './directoryPicker';
+
+/**
+ * showSaveFilePicker nu exista in jsdom (window.showSaveFilePicker e undefined),
+ * deci testele existente mai jos (fara stub) exerseaza deja fallback-ul <a
+ * download> exact ca inainte. Testele din acest describe stub-uiesc explicit
+ * API-ul ca sa acopere calea PRINCIPALA (File System Access), adaugata pentru
+ * bug-ul real raportat: <a download> + click() sintetic ignorat silentios pe
+ * Brave/Android (PWA instalat), fara nicio eroare vizibila.
+ */
+describe('downloadBlob — File System Access API (showSaveFilePicker)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    Reflect.deleteProperty(window, 'showSaveFilePicker');
+  });
+
+  it('foloseste showSaveFilePicker in loc de <a download> cand e disponibil', async () => {
+    const write = vi.fn<(data: Blob) => Promise<void>>(async () => {});
+    const close = vi.fn<() => Promise<void>>(async () => {});
+    const createWritable = vi.fn(async () => ({ write, close }));
+    const showSaveFilePicker = vi.fn(async () => ({ createWritable }));
+    (window as unknown as { showSaveFilePicker: unknown }).showSaveFilePicker = showSaveFilePicker;
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    const blob = new Blob(['continut'], { type: 'application/json' });
+    const result = await downloadBlob('backup.json', blob);
+
+    expect(showSaveFilePicker).toHaveBeenCalledWith({ suggestedName: 'backup.json' });
+    expect(write).toHaveBeenCalledWith(blob);
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(clickSpy).not.toHaveBeenCalled(); // NU trece si prin fallback-ul <a download>
+    expect(result).toEqual({ cancelled: false });
+  });
+
+  it('raporteaza { cancelled: true } cand utilizatorul anuleaza dialogul de salvare (AbortError dupa o interactiune reala), fara sa mai incerce fallback-ul', async () => {
+    // simuleaza timpul real necesar ca omul sa vada dialogul nativ si sa apese
+    // "Anuleaza" — sub acest prag, un AbortError nu poate fi o anulare reala
+    // (vezi testul urmator, care acopera exact acel caz)
+    const showSaveFilePicker = vi.fn(async () => {
+      await new Promise(r => setTimeout(r, 600));
+      throw new DOMException('Anulat', 'AbortError');
+    });
+    (window as unknown as { showSaveFilePicker: unknown }).showSaveFilePicker = showSaveFilePicker;
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    const result = await downloadBlob('backup.json', new Blob(['x']));
+
+    expect(result).toEqual({ cancelled: true });
+    expect(clickSpy).not.toHaveBeenCalled();
+  });
+
+  it('cade pe fallback-ul <a download> daca showSaveFilePicker respinge cu AbortError INSTANT (API detectat dar nefunctional, nu o anulare reala)', async () => {
+    // reprodus direct: intr-un context fara UI capabila sa afiseze dialogul
+    // nativ, showSaveFilePicker respinge cu AbortError imediat — imposibil sa
+    // fie o anulare reala de la utilizator (nu a existat timp sa vada dialogul)
+    const showSaveFilePicker = vi.fn(async () => { throw new DOMException('Anulat', 'AbortError'); });
+    (window as unknown as { showSaveFilePicker: unknown }).showSaveFilePicker = showSaveFilePicker;
+    URL.createObjectURL = vi.fn(() => 'blob:mock-url');
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    const result = await downloadBlob('backup.json', new Blob(['x']));
+
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ cancelled: false });
+  });
+
+  it('cade pe fallback-ul <a download> daca showSaveFilePicker esueaza cu o alta eroare decat anularea', async () => {
+    const showSaveFilePicker = vi.fn(async () => { throw new Error('restrictionat in acest context'); });
+    (window as unknown as { showSaveFilePicker: unknown }).showSaveFilePicker = showSaveFilePicker;
+    URL.createObjectURL = vi.fn(() => 'blob:mock-url');
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    const result = await downloadBlob('backup.json', new Blob(['x']));
+
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ cancelled: false });
+  });
+
+  it('cade pe fallback-ul <a download> daca showSaveFilePicker ramane blocat la nesfarsit (nu rezolva/respinge niciodata)', async () => {
+    vi.useFakeTimers();
+    try {
+      // simuleaza exact ce s-a observat real intr-un context headless/fara UI: promisiunea
+      // nu se rezolva/respinge NICIODATA de la sine — doar timeout-ul absolut ne scoate din ea
+      const showSaveFilePicker = vi.fn(() => new Promise<never>(() => {}));
+      (window as unknown as { showSaveFilePicker: unknown }).showSaveFilePicker = showSaveFilePicker;
+      URL.createObjectURL = vi.fn(() => 'blob:mock-url');
+      const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+      const resultPromise = downloadBlob('backup.json', new Blob(['x']));
+      // 45000ms (acelasi prag ca ABSOLUTE_FALLBACK_MS din pickerWatchdog.ts) pentru race-ul
+      // de timeout, plus cele 250ms ale fallback-ului <a download> care urmeaza dupa el
+      await vi.advanceTimersByTimeAsync(46000);
+      const result = await resultPromise;
+
+      expect(clickSpy).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({ cancelled: false });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
 
 describe('downloadZip', () => {
   afterEach(() => {

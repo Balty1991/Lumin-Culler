@@ -38,6 +38,7 @@ import { readStoredLocale, writeStoredLocale, applyLocale, t, plural, type Local
 import { buildBackup, backupFileName, parseBackupFile, restoreBackup } from '../core/backupService';
 import { writeLastBackupAt } from './backupReminder';
 import { buildClientGalleryHtml } from '../core/export/clientGallery';
+import { downloadBlob } from '../core/export/directoryPicker';
 import { buildSessionReportText } from '../core/export/sessionReport';
 import { computeLibraryStats } from '../core/stats';
 
@@ -663,12 +664,8 @@ export const useStore = create<AppState>((set, get) => ({
   exportBackup: async () => {
     const data = await buildBackup();
     const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = backupFileName();
-    a.click();
-    // vezi exportManifest mai sus — nu revocam URL-ul imediat (Android descarca async).
+    const result = await downloadBlob(backupFileName(), blob);
+    if (result.cancelled) return;
     writeLastBackupAt(Date.now());
     set({ notice: t(get().locale, 'store.backup.exported', { persons: data.persons.length, models: data.contextModels.length, decisions: data.photoDecisions.length }) });
   },
@@ -732,11 +729,8 @@ export const useStore = create<AppState>((set, get) => ({
       const subtitle = t(locale, 'store.clientGallery.subtitle', { count: items.length, date: new Date().toLocaleDateString() });
       const html = await buildClientGalleryHtml(items, title, get().watermarkText.trim() || undefined, subtitle);
       const blob = new Blob([html], { type: 'text/html' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `lumin-culler-galerie-client-${new Date().toISOString().slice(0, 10)}.html`;
-      a.click();
+      const result = await downloadBlob(`lumin-culler-galerie-client-${new Date().toISOString().slice(0, 10)}.html`, blob);
+      if (result.cancelled) return;
       set({ notice: t(locale, 'store.clientGallery.generated', { count: items.length }) });
     } catch (err) {
       set({ notice: t(locale, 'store.clientGallery.failed', { error: err instanceof Error ? err.message : String(err) }) });
@@ -1328,11 +1322,8 @@ export const useStore = create<AppState>((set, get) => ({
     if (!selected.length) return;
     const data = buildPersonProfilesExport(selected);
     const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = personProfilesFileName(selected);
-    a.click();
+    const result = await downloadBlob(personProfilesFileName(selected), blob);
+    if (result.cancelled) return;
     const locale = get().locale;
     set({ notice: t(locale, plural(selected.length, 'store.personProfiles.exported.one', 'store.personProfiles.exported.other'), { count: selected.length }) });
   },
@@ -1515,15 +1506,9 @@ export const useStore = create<AppState>((set, get) => ({
       files: selected.map(p => p.fileName)
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'selectie-lumin-' + new Date().toISOString().slice(0, 10) + '.json';
-    a.click();
-    // NU revocam imediat — pe Android managerul de descarcari citeste blob:
-    // URL-ul asincron, in fundal; o revocare instant poate rupe transferul
-    // cu "Eroare de retea" (bug real gasit la exportul de poze/XMP, acelasi
-    // tipar). Lasam browserul sa curete URL-ul natural la reincarcare.
+    // downloadBlob incearca intai File System Access API (showSaveFilePicker) — vezi
+    // comentariul din core/export/directoryPicker.ts pentru bug-ul real pe care il evita.
+    await downloadBlob('selectie-lumin-' + new Date().toISOString().slice(0, 10) + '.json', blob);
   },
 
   exportSessionReport: async () => {
@@ -1534,11 +1519,7 @@ export const useStore = create<AppState>((set, get) => ({
       stats, projectName: get().projectName, earliestImportedAt, generatedAt: Date.now()
     });
     const blob = new Blob([text], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'raport-sesiune-lumin-' + new Date().toISOString().slice(0, 10) + '.txt';
-    a.click();
+    await downloadBlob('raport-sesiune-lumin-' + new Date().toISOString().slice(0, 10) + '.txt', blob);
   },
 
   /**
