@@ -200,6 +200,7 @@ export const en: Record<TranslationKey, string> = {
   'app.dateTo.ariaLabel': 'Capture date — to',
   'app.resetFilters': 'Reset filters',
   'app.filtersAdvanced.ariaLabel': 'Advanced filters',
+  'app.advancedFilters.toggle': 'Filters',
   'app.empty.title': 'Add a photo session',
   'app.empty.description': 'Choose your photos (JPEG/PNG/WebP/RAW — CR2, NEF, ARW, DNG and others). Analysis runs locally, on separate threads — you can load 1000+ files without the app freezing up.',
   'app.empty.cta': 'Choose photos',

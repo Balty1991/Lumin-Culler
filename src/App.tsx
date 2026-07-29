@@ -26,12 +26,12 @@ import { MenuIcon, PlusIcon, UserCheckIcon, AlertIcon, ErrorIcon, XIcon, FocusIc
 import { UndoHistoryButton } from './ui/UndoHistoryButton';
 import { selectHighlights, selectBlinks } from './state/batchOps';
 import { CARD_MIN_WIDTH } from './state/gridDensity';
-import { SORT_KEY_LABELS, type SortKey } from './state/gridSort';
 import { pickImportFiles } from './core/filePicker';
 import { armPickerWatchdog, type PickerWatchdog } from './core/pickerWatchdog';
 import { ColorLabelFilter } from './ui/ColorLabelFilter';
 import { SceneTagFilter } from './ui/SceneTagFilter';
 import { CameraFilter } from './ui/CameraFilter';
+import { AdvancedFiltersPanel } from './ui/AdvancedFiltersPanel';
 import { useScrollFade } from './ui/useScrollFade';
 import { InstallPrompt } from './ui/InstallPrompt';
 import { BackupReminder } from './ui/BackupReminder';
@@ -144,21 +144,6 @@ function Toast() {
  */
 const VIRTUALIZE_THRESHOLD = 120;
 
-/** "YYYY-MM-DD" (valoarea unui &lt;input type="date"&gt;, in fusul local) -> epoch ms, la inceputul/sfarsitul zilei. */
-function dateInputToEpoch(value: string, endOfDay: boolean): number | null {
-  if (!value) return null;
-  const [y, m, d] = value.split('-').map(Number);
-  if (!y || !m || !d) return null;
-  return endOfDay ? new Date(y, m - 1, d, 23, 59, 59, 999).getTime() : new Date(y, m - 1, d, 0, 0, 0, 0).getTime();
-}
-
-/** epoch ms -> "YYYY-MM-DD" in fusul local, pentru valoarea unui &lt;input type="date"&gt;. */
-function epochToDateInput(epoch: number | null): string {
-  if (epoch === null) return '';
-  const d = new Date(epoch);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
 export default function App() {
   const boot = useStore(s => s.boot);
   const photos = useStore(s => s.photos);
@@ -172,12 +157,6 @@ export default function App() {
   const persons = useStore(s => s.persons);
   const searchText = useStore(s => s.searchText);
   const setSearchText = useStore(s => s.setSearchText);
-  const dateFrom = useStore(s => s.dateFrom);
-  const dateTo = useStore(s => s.dateTo);
-  const setDateRange = useStore(s => s.setDateRange);
-  const minRating = useStore(s => s.minRating);
-  const setMinRating = useStore(s => s.setMinRating);
-  const clearAdvancedFilters = useStore(s => s.clearAdvancedFilters);
   const runImport = useStore(s => s.runImport);
   const setNotice = useStore(s => s.setNotice);
   const cancelImport = useStore(s => s.cancelImport);
@@ -212,8 +191,6 @@ export default function App() {
   const setRating = useStore(s => s.setRating);
   const setColorLabel = useStore(s => s.setColorLabel);
   const gridDensity = useStore(s => s.gridDensity);
-  const gridSort = useStore(s => s.gridSort);
-  const setGridSort = useStore(s => s.setGridSort);
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -616,19 +593,30 @@ export default function App() {
           de afisare al grilei pe mobil. Topbar-ul (brand + actiuni critice) ramane mereu vizibil. */}
       <div className={headerHidden ? 'app-collapsible hidden' : 'app-collapsible'}>
         {photos.length > 0 && (
-          <div className="cullbar-compact mono" aria-label={tr('app.cullbar.ariaLabel')}>
-            <span className="cullbar-compact-stat sel" title={tr('app.cullbar.selected')}>
-              <CheckIcon aria-hidden="true" /><AnimatedNumber value={counts.selected} />
-            </span>
-            <span className="cullbar-compact-stat rev" title={tr('app.cullbar.review')}>
-              <ClockIcon aria-hidden="true" /><AnimatedNumber value={counts.review} />
-            </span>
-            <span className="cullbar-compact-stat rej" title={tr('app.cullbar.rejected')}>
-              <XIcon aria-hidden="true" /><AnimatedNumber value={counts.rejected} />
-            </span>
-            <span className="cullbar-compact-percent" title={tr('app.cullbar.decidedTitle', { percent: decidedPercent })}>{decidedPercent}%</span>
-            <span className="spacer-flex" />
-            <button className="ghost small danger" onClick={() => void confirmClearAll()}>{tr('app.clearSession')}</button>
+          <div className="cullbar-hero" aria-label={tr('app.cullbar.ariaLabel')}>
+            <div
+              className="cullbar-progress"
+              role="img"
+              aria-label={tr('app.cullbar.decidedTitle', { percent: decidedPercent })}
+            >
+              <span className="cullbar-progress-seg sel" style={{ width: `${(counts.selected / (counts.all || 1)) * 100}%` }} />
+              <span className="cullbar-progress-seg rev" style={{ width: `${(counts.review / (counts.all || 1)) * 100}%` }} />
+              <span className="cullbar-progress-seg rej" style={{ width: `${(counts.rejected / (counts.all || 1)) * 100}%` }} />
+            </div>
+            <div className="cullbar-compact mono">
+              <span className="cullbar-compact-stat sel" title={tr('app.cullbar.selected')}>
+                <CheckIcon aria-hidden="true" /><AnimatedNumber value={counts.selected} />
+              </span>
+              <span className="cullbar-compact-stat rev" title={tr('app.cullbar.review')}>
+                <ClockIcon aria-hidden="true" /><AnimatedNumber value={counts.review} />
+              </span>
+              <span className="cullbar-compact-stat rej" title={tr('app.cullbar.rejected')}>
+                <XIcon aria-hidden="true" /><AnimatedNumber value={counts.rejected} />
+              </span>
+              <span className="cullbar-compact-percent" title={tr('app.cullbar.decidedTitle', { percent: decidedPercent })}>{decidedPercent}%</span>
+              <span className="spacer-flex" />
+              <button className="ghost small danger" onClick={() => void confirmClearAll()}>{tr('app.clearSession')}</button>
+            </div>
           </div>
         )}
 
@@ -701,58 +689,7 @@ export default function App() {
                 aria-label={tr('app.search.ariaLabel')}
               />
             </label>
-            <select
-              className={minRating > 0 ? 'chip rating-filter active' : 'chip rating-filter'}
-              value={minRating}
-              onChange={e => setMinRating(Number(e.target.value))}
-              aria-label={tr('app.ratingFilter.ariaLabel')}
-            >
-              <option value={0}>{tr('app.ratingFilter.any')}</option>
-              {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{'★'.repeat(n)}+ </option>)}
-            </select>
-            <span className="sort-control" title={filter === 'series' ? tr('app.sort.seriesOverride') : undefined}>
-              <select
-                className="chip sort-key"
-                value={gridSort.key}
-                disabled={filter === 'series'}
-                onChange={e => setGridSort({ key: e.target.value as SortKey, dir: gridSort.dir })}
-                aria-label={tr('app.sort.ariaLabel')}
-              >
-                {(Object.keys(SORT_KEY_LABELS) as SortKey[]).map(key => (
-                  <option key={key} value={key}>{tr(`app.sort.key.${key}`)}</option>
-                ))}
-              </select>
-              <button
-                className="chip sort-dir"
-                disabled={filter === 'series'}
-                onClick={() => setGridSort({ key: gridSort.key, dir: gridSort.dir === 'asc' ? 'desc' : 'asc' })}
-                aria-label={gridSort.dir === 'asc' ? tr('app.sort.ascToDesc') : tr('app.sort.descToAsc')}
-                title={gridSort.dir === 'asc' ? tr('app.sort.asc') : tr('app.sort.desc')}
-              >
-                {gridSort.dir === 'asc' ? '↑' : '↓'}
-              </button>
-            </span>
-            <label className="date-field">
-              {tr('app.dateFrom')}
-              <input
-                type="date"
-                value={epochToDateInput(dateFrom)}
-                onChange={e => setDateRange(dateInputToEpoch(e.target.value, false), dateTo)}
-                aria-label={tr('app.dateFrom.ariaLabel')}
-              />
-            </label>
-            <label className="date-field">
-              {tr('app.dateTo')}
-              <input
-                type="date"
-                value={epochToDateInput(dateTo)}
-                onChange={e => setDateRange(dateFrom, dateInputToEpoch(e.target.value, true))}
-                aria-label={tr('app.dateTo.ariaLabel')}
-              />
-            </label>
-            {(searchText || dateFrom !== null || dateTo !== null || minRating > 0) && (
-              <button className="ghost small" onClick={clearAdvancedFilters}>{tr('app.resetFilters')}</button>
-            )}
+            <AdvancedFiltersPanel />
           </nav>
         )}
       </div>
