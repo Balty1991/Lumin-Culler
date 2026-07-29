@@ -12,6 +12,9 @@ export function StarIcon(p: SVGProps<SVGSVGElement>) {
 export function SparkleIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><path d="M12 3l1.6 4.9L18.5 9 13.6 10.6 12 15.5 10.4 10.6 5.5 9l4.9-1.1z" /><path d="M19 15l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z" /></svg>;
 }
+export function MoreIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg {...base} {...p}><circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" /><circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none" /></svg>;
+}
 export function DownloadIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><path d="M12 3v12" /><path d="M7 10l5 5 5-5" /><path d="M4 20h16" /></svg>;
 }

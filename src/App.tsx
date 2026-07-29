@@ -28,11 +28,8 @@ import { selectHighlights, selectBlinks } from './state/batchOps';
 import { CARD_MIN_WIDTH } from './state/gridDensity';
 import { pickImportFiles } from './core/filePicker';
 import { armPickerWatchdog, type PickerWatchdog } from './core/pickerWatchdog';
-import { ColorLabelFilter } from './ui/ColorLabelFilter';
-import { SceneTagFilter } from './ui/SceneTagFilter';
-import { CameraFilter } from './ui/CameraFilter';
 import { AdvancedFiltersPanel } from './ui/AdvancedFiltersPanel';
-import { useScrollFade } from './ui/useScrollFade';
+import { MoreFiltersPanel } from './ui/MoreFiltersPanel';
 import { InstallPrompt } from './ui/InstallPrompt';
 import { BackupReminder } from './ui/BackupReminder';
 import { t } from './i18n';
@@ -150,11 +147,6 @@ export default function App() {
   const progress = useStore(s => s.progress);
   const filter = useStore(s => s.filter);
   const setFilter = useStore(s => s.setFilter);
-  const personFilter = useStore(s => s.personFilter);
-  const setPersonFilter = useStore(s => s.setPersonFilter);
-  const colorLabelFilter = useStore(s => s.colorLabelFilter);
-  const setColorLabelFilter = useStore(s => s.setColorLabelFilter);
-  const persons = useStore(s => s.persons);
   const searchText = useStore(s => s.searchText);
   const setSearchText = useStore(s => s.setSearchText);
   const runImport = useStore(s => s.runImport);
@@ -229,7 +221,6 @@ export default function App() {
    */
   const scrollAnchorRef = useRef(0);
   const HEADER_TOGGLE_THRESHOLD_PX = 24;
-  const filtersScrollFade = useScrollFade<HTMLElement>();
   const handleGridScroll = (scrollY: number) => {
     if (scrollY < 40) { // aproape de varf — antetul ramane mereu vizibil
       setHeaderHidden(false);
@@ -538,7 +529,12 @@ export default function App() {
     <div className="app">
       <header className="topbar">
         <div className="brand">
-          <ApertureIcon className="brand-mark" aria-hidden="true" />
+          <span className="brand-mark-wrap">
+            <span className="brand-mark-ring" aria-hidden="true" />
+            <span className="brand-mark">
+              <SparkleIcon aria-hidden="true" />
+            </span>
+          </span>
           <div className="brand-text">
             <h1>LUMIN<span>CULLER</span></h1>
             <p className="mono"><i className="live-dot" aria-hidden="true" /> {tr('app.tagline')}</p>
@@ -592,88 +588,89 @@ export default function App() {
           globale se ascund la scroll in jos si revin la scroll in sus — maximizeaza spatiul
           de afisare al grilei pe mobil. Topbar-ul (brand + actiuni critice) ramane mereu vizibil. */}
       <div className={headerHidden ? 'app-collapsible hidden' : 'app-collapsible'}>
-        {photos.length > 0 && (
-          <div className="cullbar-hero" aria-label={tr('app.cullbar.ariaLabel')}>
-            <div
-              className="cullbar-progress"
-              role="img"
-              aria-label={tr('app.cullbar.decidedTitle', { percent: decidedPercent })}
-            >
-              <span className="cullbar-progress-seg sel" style={{ width: `${(counts.selected / (counts.all || 1)) * 100}%` }} />
-              <span className="cullbar-progress-seg rev" style={{ width: `${(counts.review / (counts.all || 1)) * 100}%` }} />
-              <span className="cullbar-progress-seg rej" style={{ width: `${(counts.rejected / (counts.all || 1)) * 100}%` }} />
+        {photos.length > 0 && (() => {
+          const total = counts.all || 1;
+          const circumference = 2 * Math.PI * 32;
+          const selLen = (counts.selected / total) * circumference;
+          const revLen = (counts.review / total) * circumference;
+          const rejLen = (counts.rejected / total) * circumference;
+          const pending = Math.max(0, counts.all - counts.selected - counts.review - counts.rejected);
+          return (
+            <div className="cullbar-hero" aria-label={tr('app.cullbar.ariaLabel')}>
+              <span className="hud-bracket tl" aria-hidden="true" /><span className="hud-bracket tr" aria-hidden="true" />
+              <span className="hud-bracket bl" aria-hidden="true" /><span className="hud-bracket br" aria-hidden="true" />
+              <div className="hud-row">
+                <div className="gauge" role="img" aria-label={tr('app.cullbar.decidedTitle', { percent: decidedPercent })}>
+                  <svg viewBox="0 0 76 76">
+                    <circle className="gauge-track" cx="38" cy="38" r="32" />
+                    <circle className="gauge-seg sel" cx="38" cy="38" r="32" style={{ strokeDasharray: `${selLen} ${circumference}` }} />
+                    <circle className="gauge-seg rev" cx="38" cy="38" r="32" style={{ strokeDasharray: `${revLen} ${circumference}`, strokeDashoffset: -selLen }} />
+                    <circle className="gauge-seg rej" cx="38" cy="38" r="32" style={{ strokeDasharray: `${rejLen} ${circumference}`, strokeDashoffset: -(selLen + revLen) }} />
+                  </svg>
+                  <div className="gauge-pct">
+                    <b className="mono"><AnimatedNumber value={decidedPercent} />%</b>
+                    <span>{tr('app.cullbar.doneLabel')}</span>
+                  </div>
+                </div>
+                <div className="hud-stats mono">
+                  <span className="hud-stat"><i className="sel" aria-hidden="true" /><b><AnimatedNumber value={counts.selected} /></b><em>{tr('app.cullbar.selected')}</em></span>
+                  <span className="hud-stat"><i className="rev" aria-hidden="true" /><b><AnimatedNumber value={counts.review} /></b><em>{tr('app.cullbar.review')}</em></span>
+                  <span className="hud-stat"><i className="rej" aria-hidden="true" /><b><AnimatedNumber value={counts.rejected} /></b><em>{tr('app.cullbar.rejected')}</em></span>
+                  <span className="hud-stat"><i className="pen" aria-hidden="true" /><b><AnimatedNumber value={pending} /></b><em>{tr('app.cullbar.pending')}</em></span>
+                </div>
+              </div>
+              <button className="hud-clear" onClick={() => void confirmClearAll()}>{tr('app.clearSession')}</button>
             </div>
-            <div className="cullbar-compact mono">
-              <span className="cullbar-compact-stat sel" title={tr('app.cullbar.selected')}>
-                <CheckIcon aria-hidden="true" /><AnimatedNumber value={counts.selected} />
-              </span>
-              <span className="cullbar-compact-stat rev" title={tr('app.cullbar.review')}>
-                <ClockIcon aria-hidden="true" /><AnimatedNumber value={counts.review} />
-              </span>
-              <span className="cullbar-compact-stat rej" title={tr('app.cullbar.rejected')}>
-                <XIcon aria-hidden="true" /><AnimatedNumber value={counts.rejected} />
-              </span>
-              <span className="cullbar-compact-percent" title={tr('app.cullbar.decidedTitle', { percent: decidedPercent })}>{decidedPercent}%</span>
-              <span className="spacer-flex" />
-              <button className="ghost small danger" onClick={() => void confirmClearAll()}>{tr('app.clearSession')}</button>
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {progress && (
-          <div className="progress" role="status" aria-live="polite">
-            <div className="progress-bar" style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }} />
-            <span className="mono">
-              {progress.phase === 'incarcare' ? tr('app.progress.loadingModels')
-                : progress.phase === 'analiza' ? tr('app.progress.analyzing', { done: progress.done, total: progress.total, fileName: progress.fileName })
-                : progress.phase === 'grupare' ? tr('app.progress.grouping') : tr('app.progress.done')}
-            </span>
-            {progress.phase === 'analiza' && (
-              <button className="ghost small progress-cancel" onClick={() => cancelImport()}>{tr('app.progress.cancel')}</button>
-            )}
-          </div>
+          progress.phase === 'incarcare' ? (
+            <div className="ai-boot" role="status" aria-live="polite">
+              <div className="ai-core" aria-hidden="true">
+                <span className="ai-core-halo h2" /><span className="ai-core-halo h3" />
+                <span className="ai-core-ring" />
+                <span className="ai-core-disc"><SparkleIcon /></span>
+              </div>
+              <p className="ai-boot-title">{tr('app.progress.loadingModels')}</p>
+              <div className="ai-boot-shimmer" />
+              <div className="ai-boot-pills mono">
+                <span>{tr('app.progress.pill.faces')}</span>
+                <span>{tr('app.progress.pill.composition')}</span>
+                <span>{tr('app.progress.pill.sharpness')}</span>
+                <span>{tr('app.progress.pill.recognition')}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="progress" role="status" aria-live="polite">
+              <div className="progress-bar" style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }} />
+              <span className="mono">
+                {progress.phase === 'analiza' ? tr('app.progress.analyzing', { done: progress.done, total: progress.total, fileName: progress.fileName })
+                  : progress.phase === 'grupare' ? tr('app.progress.grouping') : tr('app.progress.done')}
+              </span>
+              {progress.phase === 'analiza' && (
+                <button className="ghost small progress-cancel" onClick={() => cancelImport()}>{tr('app.progress.cancel')}</button>
+              )}
+            </div>
+          )
         )}
 
         {photos.length > 0 && (
-          <nav
-            ref={filtersScrollFade.ref}
-            className={`filters${filtersScrollFade.fadeLeft ? ' fade-left' : ''}${filtersScrollFade.fadeRight ? ' fade-right' : ''}`}
-          >
-            {FILTERS.map(f => (
+          <nav className="segstrip" aria-label={tr('app.filtersAdvanced.ariaLabel')}>
+            {FILTERS.filter(f => f.key === 'all' || f.key === 'selected' || f.key === 'review' || f.key === 'rejected').map(f => (
               <button
                 key={f.key}
-                className={filter === f.key ? 'chip active' : 'chip'}
+                className={filter === f.key ? 'seg active' : 'seg'}
                 onClick={() => setFilter(f.key)}
                 aria-pressed={filter === f.key}
+                aria-label={`${f.label} (${f.count})`}
+                title={f.label}
               >
-                <span className="chip-icon" aria-hidden="true">{f.icon}</span>
-                {f.label}
-                <b className="chip-count">{f.count}</b>
+                <span aria-hidden="true">{f.icon}</span>
+                <b>{f.count}</b>
               </button>
             ))}
-            {persons.length > 0 && (
-              <select
-                className={personFilter ? 'chip person-filter active' : 'chip person-filter'}
-                value={personFilter ?? ''}
-                onChange={e => setPersonFilter(e.target.value || null)}
-                aria-label={tr('app.personFilter.ariaLabel')}
-              >
-                <option value="">{tr('app.personFilter.any')}</option>
-                {persons.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
-              </select>
-            )}
-            <ColorLabelFilter value={colorLabelFilter} onChange={setColorLabelFilter} />
-            <SceneTagFilter />
-            <CameraFilter />
-            {multiSelectIds.size === 0 && (
-              <button
-                className={selectMode ? 'chip active select-mode-toggle' : 'chip select-mode-toggle'}
-                onClick={() => setSelectMode(!selectMode)}
-                aria-pressed={selectMode}
-              >
-                <CheckIcon className="inline-icon" aria-hidden="true" /> {selectMode ? tr('app.selectMode.active') : tr('app.selectMode.toggle')}
-              </button>
-            )}
+            <MoreFiltersPanel />
           </nav>
         )}
 
