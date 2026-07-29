@@ -8,7 +8,10 @@ import { db, type AnalysisRecord, type PhotoRecord, type KnownPerson, type Color
 import { ADJUSTMENT_KEYS, applyAdjustmentsToBlob, type EditAdjustments } from '../core/imageAdjust';
 import { readApplyEditsInGallery, writeApplyEditsInGallery } from './applyEditsPreference';
 import { clearPreviewUrlCache } from '../core/previewUrlCache';
-import { importFiles, originalFiles, originalHandles, createCancelToken, type ImportProgress, type ImportCancelToken } from '../core/importPipeline';
+import {
+  importFiles, originalFiles, originalHandles, createCancelToken, SELECT_THRESHOLD, REJECT_THRESHOLD,
+  type ImportProgress, type ImportCancelToken
+} from '../core/importPipeline';
 import type { FileSystemFileHandleLike } from '../core/filePicker';
 import { readEconomicMode, writeEconomicMode } from '../core/performanceSettings';
 import { exportOriginalFiles, computeGroupPersonUnion } from '../core/exportPhotos';
@@ -308,6 +311,18 @@ interface AppState {
   resolveAllSeries: () => Promise<{ groupsResolved: number }>;
   /** Auto-Cull: pastreaza cele mai bune X% (dupa scor) din pozele nedecise, respinge restul. */
   autoCullTopPercent: (percent: number) => Promise<{ selected: number; rejected: number }>;
+  /**
+   * Re-analizeaza scorul AI al TUTUROR pozelor deja importate, cu modelul
+   * ContextEngine CURENT (nu re-decodeaza imaginile — refoloseste analiza deja
+   * calculata). Utila dupa ce modelul s-a antrenat suplimentar sau dupa
+   * restaurarea unui backup cu un model diferit: pozele importate INAINTE de
+   * acel moment raman cu scorul/starea calculate atunci, cu modelul vechi,
+   * pana ruleaza asta explicit. Spre deosebire de celelalte operatii in masa,
+   * poate schimba starea unor poze deja SELECTATE/RESPINSE (nu doar cele
+   * nedecise) — de-asta cere confirmare explicita in UI (BatchOpsPanel) si e
+   * inregistrata in batchHistory pentru undo.
+   */
+  rescorePhotos: () => Promise<{ total: number; changed: number }>;
   /** Comuta o singura poza in/din selectia in masa — Ctrl/Cmd+Click sau, cat timp selectia nu e goala, orice click simplu pe card. */
   toggleMultiSelect: (id: string) => void;
   /** Selecteaza tot intervalul dintre ultimul anchor si `id`, in ordinea data (lista filtrata curenta) — Shift+Click. */
@@ -1044,6 +1059,53 @@ export const useStore = create<AppState>((set, get) => ({
       notice: quotaError ? quotaNotice(locale) : t(locale, 'store.autoCull.notice', { selected: selectIds.length, rejected: rejectIds.length })
     }));
     return { selected: selectIds.length, rejected: rejectIds.length };
+  },
+
+  /**
+   * NU antreneaza ContextEngine (train()) — spre deosebire de celelalte
+   * operatii in masa. Aici noua stare vine DIN modelul curent (newStatus
+   * derivat direct din prediction.score cu acelasi prag ca la import), deci
+   * "aiDecision" din train() ar fi mereu identic cu "userDecision" prin
+   * constructie — un gradient de eroare zero, fara semnal real de invatare,
+   * care ar creste artificial sampleCount si ar polua statisticile de
+   * normalizare Welford cu aceeasi analiza numarata a doua oara.
+   */
+  rescorePhotos: async () => {
+    const locale = get().locale;
+    const photos = get().photos;
+    const changes: { photoId: string; previousStatus: PhotoRecord['status'] }[] = [];
+    const updates = new Map<string, { aiScore: number; aiFactors: { feature: string; contribution: number }[]; status: PhotoRecord['status'] }>();
+    let quotaError = false;
+
+    for (const p of photos) {
+      const [analysis, photoRecord] = await Promise.all([db.analyses.get(p.id), db.photos.get(p.id)]);
+      if (!analysis || !photoRecord) continue;
+      const prediction = await contextEngine.predict(analysis, photoRecord.genre);
+      const newStatus: PhotoRecord['status'] =
+        prediction.score >= SELECT_THRESHOLD ? 'selected'
+        : prediction.score <= REJECT_THRESHOLD ? 'rejected'
+        : 'review';
+      await db.analyses.update(p.id, { aiScore: prediction.score, aiFactors: prediction.topFactors });
+      if (newStatus !== photoRecord.status) {
+        changes.push({ photoId: p.id, previousStatus: photoRecord.status });
+        await db.photos.update(p.id, { status: newStatus });
+        const res = await syncOriginal(p.id, newStatus);
+        if (res.quotaError) quotaError = true;
+      }
+      updates.set(p.id, { aiScore: prediction.score, aiFactors: prediction.topFactors, status: newStatus });
+    }
+
+    set(state => ({
+      photos: state.photos.map(p => {
+        const u = updates.get(p.id);
+        return u ? { ...p, aiScore: u.aiScore, aiFactors: u.aiFactors, status: u.status } : p;
+      }),
+      batchHistory: changes.length
+        ? pushBatchHistory(state.batchHistory, makeBatchEvent(t(locale, 'store.batchEvent.rescore', { count: changes.length }), changes))
+        : state.batchHistory,
+      notice: quotaError ? quotaNotice(locale) : t(locale, 'store.rescore.notice', { total: photos.length, changed: changes.length })
+    }));
+    return { total: photos.length, changed: changes.length };
   },
 
   toggleMultiSelect: id => set(state => {

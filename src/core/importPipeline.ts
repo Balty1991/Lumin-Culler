@@ -35,8 +35,10 @@ const THUMB_SIZE = 512;
     sute de octeti ca data: URI) ca sa fie stocat direct pe PhotoRecord, dar destul de detaliat
     cat sa se recunoasca formele/culorile dominante prin blur, nu doar un gradient generic. */
 const LQIP_SIZE = 24;
-const SELECT_THRESHOLD = 65;
-const REJECT_THRESHOLD = 35;
+/** Exportate (nu doar folosite local) — reutilizate de store.ts (rescorePhotos) ca sa clasifice
+    exact la fel poze deja existente, re-scorate cu un model ContextEngine actualizat. */
+export const SELECT_THRESHOLD = 65;
+export const REJECT_THRESHOLD = 35;
 /** EXIF sta mereu aproape de inceputul fisierului (segment APP1, imediat dupa
     SOI) — citim doar un prefix, nu tot fisierul, ca sa nu incarcam inutil in
     memorie poze mari doar pentru cativa octeti de metadate. */
