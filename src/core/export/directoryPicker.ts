@@ -123,15 +123,20 @@ export async function downloadBlob(name: string, blob: Blob): Promise<{ cancelle
     document.body.appendChild(a);
     a.click();
     a.remove();
-    setTimeout(() => {
-      URL.revokeObjectURL(url);
-      resolve({ cancelled: false });
-    }, 250);
+    // NU revocam URL-ul: pe Android, click() pe <a download> preda descarcarea
+    // catre managerul de descarcari al SO, care citeste continutul blob: URL-ului
+    // ASINCRON, in fundal — pentru fisiere mai mari (poze originale de cativa MB),
+    // acest transfer poate dura mai mult decat orice timeout scurt "rezonabil".
+    // Daca revocam URL-ul inainte sa termine, primim "Eroare de retea" in
+    // Descarcari, desi codul JS (fara niciun semnal real de finalizare de la
+    // click()) tot raporteaza succes — bug real gasit anterior. Lasam URL-urile
+    // sa fie curatate natural de browser la inchiderea/reincarcarea paginii.
+    setTimeout(() => resolve({ cancelled: false }), 250);
   });
 }
 
 /**
- * Descarcarile succesive multiple (downloadBlob/downloadOne intr-o bucla) sunt
+ * Descarcarile succesive multiple (downloadBlob intr-o bucla) sunt
  * BLOCATE SILENTIOS de multe browsere mobile (Chrome/Brave pe Android confirmat) —
  * un singur gest de utilizator (click pe "Exporta") poate declansa direct doar
  * PRIMA descarcare automata; restul dispar fara nicio eroare vizibila. Bug

@@ -16,7 +16,7 @@
  */
 import { originalFiles } from './importPipeline';
 import { db } from './db';
-import { getDirectoryPicker, downloadZip, type LocalDirHandle } from './export/directoryPicker';
+import { getDirectoryPicker, downloadBlob, downloadZip, type LocalDirHandle } from './export/directoryPicker';
 import { reacquireFile } from './filePicker';
 import { buildExportFileName, type RenameContext } from './renameTemplate';
 
@@ -130,28 +130,6 @@ async function copyToDirectory(files: { name: string; file: File; folder: string
  * In ambele cazuri utilizatorul vede gruparea (folder real SAU nume cu
  * prefix), nu e o pierdere daca browserul nu suporta subfoldere.
  */
-/**
- * NU revocam URL-ul dupa un delay scurt: pe Android, click() pe <a download>
- * preda descarcarea catre managerul de descarcari al SO, care citeste
- * continutul blob: URL-ului ASINCRON, in fundal — pentru fisiere originale
- * mari (poze de cativa MB), acest transfer poate dura mai mult decat orice
- * timeout scurt "rezonabil". Daca revocam URL-ul inainte sa termine, primim
- * exact "Eroare de retea" in Descarcari, in timp ce codul JS (care nu are
- * niciun semnal de finalizare reala de la click()) tot raporteaza succes —
- * bug real gasit din screenshot-ul utilizatorului. Lasam URL-urile sa fie
- * curatate natural de browser la inchiderea/reincarcarea paginii.
- */
-function downloadOne(name: string, file: File, folder: string): Promise<void> {
-  return new Promise(resolve => {
-    const url = URL.createObjectURL(file);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${folder}/${name}`;
-    a.click();
-    setTimeout(resolve, 250); // doar spatiere intre descarcari succesive, NU revocare
-  });
-}
-
 export async function exportOriginalFiles(photos: ExportPhotoInput[], options: ExportOptions = {}): Promise<ExportResult> {
   const { renameTemplate } = options;
   let sequence = 0;
@@ -214,8 +192,8 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[], options: E
   // un singur fisier: descarcare directa (nume/extensie originale, fara zip inutil)
   if (available.length === 1) {
     const { name, file, folder } = available[0];
-    await downloadOne(name, file, folder);
-    return { exported: 1, missing, method, cancelled: false, grouped: false };
+    const result = await downloadBlob(`${folder}/${name}`, file);
+    return { exported: result.cancelled ? 0 : 1, missing, method, cancelled: result.cancelled, grouped: false };
   }
   // mai multe fisiere: O SINGURA descarcare .zip — descarcarile multiple secventiale
   // sunt blocate silentios de multe browsere mobile dupa prima (vezi downloadZip)
@@ -223,6 +201,6 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[], options: E
     available.map(async ({ name, file, folder }) => ({ path: `${folder}/${name}`, data: new Uint8Array(await file.arrayBuffer()) }))
   );
   const zipName = `lumin-culler-export-${new Date().toISOString().slice(0, 10)}.zip`;
-  await downloadZip(zipName, entries);
-  return { exported: available.length, missing, method, cancelled: false, grouped: true };
+  const result = await downloadZip(zipName, entries);
+  return { exported: result.cancelled ? 0 : available.length, missing, method, cancelled: result.cancelled, grouped: !result.cancelled };
 }
