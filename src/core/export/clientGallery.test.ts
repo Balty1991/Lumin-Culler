@@ -59,4 +59,30 @@ describe('buildClientGalleryHtml', () => {
     expect(applyWatermarkMock).not.toHaveBeenCalled();
     expect(html).toContain(Buffer.from('original-bytes').toString('base64'));
   });
+
+  it('renders the subtitle line, escaped, when provided', async () => {
+    const html = await buildClientGalleryHtml(
+      [{ fileName: 'a.jpg', thumbnail: new Blob(['x'], { type: 'image/jpeg' }) }],
+      'Galerie',
+      undefined,
+      '12 poze selectate <VIP> & Co'
+    );
+    expect(html).toContain('<p class="subtitle">12 poze selectate &lt;VIP&gt; &amp; Co</p>');
+  });
+
+  it('omits the subtitle paragraph entirely when not provided, exactly as before this field existed', async () => {
+    const html = await buildClientGalleryHtml(
+      [{ fileName: 'a.jpg', thumbnail: new Blob(['x'], { type: 'image/jpeg' }) }],
+      'Galerie'
+    );
+    expect(html).not.toContain('class="subtitle"');
+  });
+
+  it('always includes the app credit footer', async () => {
+    const html = await buildClientGalleryHtml(
+      [{ fileName: 'a.jpg', thumbnail: new Blob(['x'], { type: 'image/jpeg' }) }],
+      'Galerie'
+    );
+    expect(html).toContain('Lumin Culler Pro');
+  });
 });

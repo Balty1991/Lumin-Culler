@@ -682,7 +682,8 @@ export const useStore = create<AppState>((set, get) => ({
         return { fileName: p.fileName, thumbnail };
       }))).filter((it): it is { fileName: string; thumbnail: Blob } => !!it);
       const title = get().projectName ? t(locale, 'store.clientGallery.title', { project: get().projectName }) : t(locale, 'store.clientGallery.titleDefault');
-      const html = await buildClientGalleryHtml(items, title, get().watermarkText.trim() || undefined);
+      const subtitle = t(locale, 'store.clientGallery.subtitle', { count: items.length, date: new Date().toLocaleDateString() });
+      const html = await buildClientGalleryHtml(items, title, get().watermarkText.trim() || undefined, subtitle);
       const blob = new Blob([html], { type: 'text/html' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
