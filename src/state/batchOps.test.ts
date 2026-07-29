@@ -201,4 +201,30 @@ describe('selectHighlights', () => {
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe('p0');
   });
+
+  it('keeps only the best-scored frame per series (groupId), instead of letting one burst fill the whole list', () => {
+    const photos = [
+      // o "rafala" de 5 cadre aproape identice, toate cu scor mare
+      ...Array.from({ length: 5 }, (_, i) => photo({ id: `burst${i}`, groupId: 'g1', aiScore: 95 - i })),
+      // alte 2 momente unice (fara grup), scor ceva mai mic dar reale/diferite
+      photo({ id: 'solo-a', aiScore: 80 }),
+      photo({ id: 'solo-b', aiScore: 75 })
+    ];
+    // top 30% din 7 poze => 2 rezultate — ar trebui sa fie cel mai bun din rafala + solo-a,
+    // NU doua cadre din aceeasi rafala (burst0, burst1), care ar fi castigat pe scor brut
+    const result = selectHighlights(photos, 30);
+    expect(result.map(p => p.id)).toEqual(['burst0', 'solo-a']);
+  });
+
+  it('the percent stays relative to the TOTAL library, not just the deduplicated candidates', () => {
+    // 10 poze, dintre care 8 sunt o singura rafala (deci doar 1 candidat dupa dedup) + 2 solo
+    const photos = [
+      ...Array.from({ length: 8 }, (_, i) => photo({ id: `burst${i}`, groupId: 'g1', aiScore: 90 - i })),
+      photo({ id: 'solo-a', aiScore: 60 }),
+      photo({ id: 'solo-b', aiScore: 55 })
+    ];
+    // top 30% din 10 poze (TOTAL) => 3 — dar exista doar 3 candidati dupa dedup (1 din rafala + 2 solo), deci ii ia pe toti
+    const result = selectHighlights(photos, 30);
+    expect(result.map(p => p.id)).toEqual(['burst0', 'solo-a', 'solo-b']);
+  });
 });
