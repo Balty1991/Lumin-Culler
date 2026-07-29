@@ -152,6 +152,11 @@ function eyeContactScore(face: FaceResult): number {
   return Math.max(0, Math.min(1, 0.6 * headScore + 0.4 * gazeScore));
 }
 
+/** Aceeasi scalare pentru orice varianta Laplaciana (globala sau regionala) -> scor comparabil 0..100. */
+export function varianceToSharpnessScore(variance: number): number {
+  return Math.min(100, Math.round(Math.sqrt(Math.max(0, variance)) * 2.2));
+}
+
 /** Laplacian variance sharpness on a downsampled grayscale — 0..100. */
 function laplacianSharpness(img: ImageData): number {
   const { data, width: w, height: h } = img;
@@ -168,7 +173,27 @@ function laplacianSharpness(img: ImageData): number {
     }
   }
   const variance = sumSq / n - (sum / n) ** 2;
-  return Math.min(100, Math.round(Math.sqrt(variance) * 2.2));
+  return varianceToSharpnessScore(variance);
+}
+
+/**
+ * Claritatea principala ("sharpness", cel mai puternic ponderat criteriu din
+ * ContextEngine — PRIOR_WEIGHTS.sharpness = 0.9) masurata pe TOT cadrul poate
+ * insela sistematic la poze cu subiect uman: un fundal aglomerat/texturat (nu
+ * neclar deloc) poate impinge varianta globala in sus chiar daca fata e usor
+ * neclara, iar un bokeh intentionat (subiect clar, fundal difuz de-adevaratelea)
+ * poate impinge varianta globala in jos, penalizand nedrept exact tehnica pe
+ * care fotograful o cauta. Cand exista fete detectate SI regiunea lor e destul
+ * de mare pentru o masuratoare stabila (subjectVariance >= 0, vezi
+ * regionLaplacianVariance), amestecam 70% claritatea subiectului + 30% cea
+ * globala — subiectul conteaza cel mai mult pentru un fotograf care triaza
+ * portrete, dar pastram si o parte din masura globala (blur de miscare/
+ * tremur de camera afecteaza de obicei tot cadrul, deci tot conteaza).
+ * Fara fete (peisaje/detalii), ramane exact claritatea globala, ca inainte.
+ */
+export function blendSubjectSharpness(subjectScore: number | undefined, globalScore: number): number {
+  if (subjectScore === undefined) return globalScore;
+  return Math.round(0.7 * subjectScore + 0.3 * globalScore);
 }
 
 /** Mean luminance mapped so ~118 → 50; 0..100. */
@@ -435,7 +460,7 @@ function boxesToMask(w: number, h: number, boxes: FaceInsight['box'][]): Uint8Ar
 }
 
 /** Varianta Laplaciana restransa la interiorul sau exteriorul mastii de fete (-1 = regiune prea mica). */
-function regionLaplacianVariance(gray: Float32Array, w: number, h: number, mask: Uint8Array, inside: boolean): number {
+export function regionLaplacianVariance(gray: Float32Array, w: number, h: number, mask: Uint8Array, inside: boolean): number {
   let sum = 0, sumSq = 0, n = 0;
   for (let y = 1; y < h - 1; y++) {
     for (let x = 1; x < w - 1; x++) {
@@ -449,9 +474,15 @@ function regionLaplacianVariance(gray: Float32Array, w: number, h: number, mask:
   return sumSq / n - (sum / n) ** 2;
 }
 
-/** Subiect in focus + calitatea bokeh-ului: claritate locala pe fete vs. restul cadrului. 'n/a' fara fete detectate. */
+/**
+ * Subiect in focus + calitatea bokeh-ului + claritatea subiectului (scor 0..100,
+ * aceeasi scalare ca laplacianSharpness — vezi varianceToSharpnessScore) —
+ * pentru blendSubjectSharpness mai jos. 'n/a'/undefined fara fete detectate SAU
+ * cand regiunea e prea mica pentru o masuratoare stabila (acelasi prag ca
+ * regionLaplacianVariance, n < 20 pixeli).
+ */
 function scoreFocusAndBokeh(gray: Float32Array, w: number, h: number, faces: FaceInsight[]): {
-  subjectInFocus?: boolean; bokehQuality: NonNullable<AnalysisRecord['bokehQuality']>;
+  subjectInFocus?: boolean; bokehQuality: NonNullable<AnalysisRecord['bokehQuality']>; subjectSharpness?: number;
 } {
   if (!faces.length) return { bokehQuality: 'n/a' };
   const mask = boxesToMask(w, h, faces.map(f => f.box));
@@ -465,7 +496,7 @@ function scoreFocusAndBokeh(gray: Float32Array, w: number, h: number, faces: Fac
     : ratio < 0.35 ? 'good'
     : ratio < 0.65 ? 'average'
     : 'poor';
-  return { subjectInFocus, bokehQuality };
+  return { subjectInFocus, bokehQuality, subjectSharpness: varianceToSharpnessScore(subjectVar) };
 }
 
 function rgbToHsv(r: number, g: number, b: number): [number, number, number] {
@@ -797,7 +828,7 @@ export class FaceAnalysisService {
       strangerCount: faces.length - known.length,
       bestSmile: faces.length ? Math.max(...faces.map(f => f.smile)) : 0,
       allEyesOpen: faces.every(f => !f.isBlinking),
-      sharpness: laplacianSharpness(smallImg),
+      sharpness: blendSubjectSharpness(focusBokeh.subjectSharpness, laplacianSharpness(smallImg)),
       exposure,
       sceneType,
       ruleOfThirds: composition.ruleOfThirds,
