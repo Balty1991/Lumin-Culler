@@ -486,11 +486,29 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .chip.sort-dir { width: 30px; padding: 6px 0; text-align: center; font-size: 0.9rem; line-height: 1; }
 .sort-control .chip:disabled { opacity: 0.45; cursor: not-allowed; }
 
-/* ── Filtre avansate: cautare, rating minim, interval de data — sub filtrele principale, nesticky (evita suprapunerea) ── */
-.filters-advanced { position: static; top: auto; padding-top: 0; flex-wrap: wrap; }
+/*
+ * ── Filtre avansate: cautare, rating minim, sortare, interval de data —
+ * sub filtrele principale, nesticky (evita suprapunerea). Grupate intr-un
+ * PANOU propriu (fundal + margine + colturi rotunjite), nu pastile izolate
+ * plutind direct pe fundalul negru al paginii — fara panou, fiecare control
+ * citea ca un element separat, fara nicio relatie vizuala intre ele (feedback
+ * "layout, culori" — greu de scanat dintr-o privire ce apartine de ce).
+ * overflow vizibil + flex-wrap: elementele care nu incap se muta pe randul
+ * urmator, nu se taie/deruleaza (spre deosebire de .filters, randul principal
+ * de mai sus, care ramane strict orizontal cu fade la margini).
+ */
+.filters-advanced {
+  position: static; top: auto; flex-wrap: wrap; overflow: visible;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 10px; margin: 0 2px 10px;
+}
+/* chip-urile din interiorul panoului au nevoie de UN nivel de fundal mai deschis decat
+   panoul insusi (--surface), altfel se confunda vizual cu el (acelasi fundal + aceeasi
+   bordura) — vezi si search-field/date-field mai sus, care folosesc acelasi --surface-2. */
+.filters-advanced .chip:not(.active) { background: var(--surface-2); }
 .search-field {
   display: inline-flex; align-items: center; gap: 7px;
-  background: var(--surface); color: var(--text-dim); border: 1px solid var(--line);
+  background: var(--surface-2); color: var(--text-dim); border: 1px solid var(--line);
   padding: 6px 13px; border-radius: 999px;
 }
 .search-field input {
@@ -499,8 +517,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .search-field input:focus { outline: none; }
 .search-field input::-webkit-search-cancel-button { cursor: pointer; }
 .date-field {
-  display: inline-flex; align-items: center; gap: 7px; font-size: 0.85rem; color: var(--text-dim);
-  background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 6px 13px;
+  display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--text-faint);
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px; padding: 6px 11px;
   white-space: nowrap;
 }
 .date-field input[type="date"] {
