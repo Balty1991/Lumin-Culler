@@ -40,6 +40,7 @@ export const en: Record<TranslationKey, string> = {
   'menu.exportBackup.title': 'Saves known people, learned AI models and settings (sorting, filtering, presets, genre) to a JSON file — does not include the photos themselves. Use this file to move everything to another browser (e.g. Brave -> Chrome), so culling results don\'t differ between them.',
   'menu.importBackup': 'Restore from backup',
   'menu.importBackup.title': 'Restores people/AI models/settings from a backup — decisions (picked/rejected/rating) are automatically re-applied to current photos with the same file name and capture date.',
+  'menu.importBackup.processing': 'Restoring backup...',
   'menu.section.settings': 'Settings',
   'menu.theme.light': 'Light theme',
   'menu.theme.dark': 'Dark theme',
