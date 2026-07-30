@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { useStore, type PhotoView } from './store';
+import { useStore, relabelFaces, selectMergedEmbeddings, type PhotoView } from './store';
+import type { AnalysisRecord, FaceInsight } from '../core/db';
 
 function makePhoto(i: number): PhotoView {
   return {
@@ -95,5 +96,101 @@ describe('setWorkspaceMode', () => {
     useStore.getState().setWorkspaceMode(true);
     useStore.getState().setWorkspaceMode(false);
     expect(useStore.getState().compareGroupId).toBeNull();
+  });
+});
+
+function makeFace(personId: string | null, personName: string | null): FaceInsight {
+  return {
+    box: [0, 0, 0.1, 0.1], faceScore: 0.9, smile: 0.5,
+    eyesOpen: { left: 1, right: 1 }, isBlinking: false,
+    personId, personName, similarity: personId ? 0.8 : 0
+  };
+}
+
+function makeAnalysis(faces: FaceInsight[]): AnalysisRecord {
+  return {
+    photoId: 'p1', faces, faceCount: faces.length,
+    knownFaceCount: faces.filter(f => f.personId).length,
+    strangerCount: faces.filter(f => !f.personId).length,
+    bestSmile: 0.5, allEyesOpen: true, sharpness: 80, exposure: 50,
+    sceneType: 'portrait', aiScore: 50, analyzedAt: 0
+  };
+}
+
+// Bug real gasit de auditul QA: removePerson/removePersons/mergePersons nu
+// atingeau AnalysisRecord.faces[i].personId/personName deloc — pozele deja
+// analizate ramaneau cu identificarea veche (persoana stearsa, sau profilul
+// fragmentat dinainte de unire). relabelFaces e logica RETROACTIVA extrasa
+// din relabelAnalyses (care atinge Dexie), testabila fara IndexedDB reala.
+describe('relabelFaces', () => {
+  it('clears personId/personName for a face whose person was deleted (mapped to null)', () => {
+    const analysis = makeAnalysis([makeFace('person-a', 'Ami'), makeFace(null, null)]);
+    const changed = relabelFaces(analysis, new Map([['person-a', null]]));
+    expect(changed).toBe(true);
+    expect(analysis.faces[0].personId).toBeNull();
+    expect(analysis.faces[0].personName).toBeNull();
+    expect(analysis.knownFaceCount).toBe(0);
+    expect(analysis.strangerCount).toBe(2);
+  });
+
+  it('relabels a face to the merged identity when its old person was absorbed into another', () => {
+    const analysis = makeAnalysis([makeFace('old-id', 'Ami (dublura)')]);
+    const changed = relabelFaces(analysis, new Map([['old-id', { id: 'survivor-id', name: 'Ami' }]]));
+    expect(changed).toBe(true);
+    expect(analysis.faces[0].personId).toBe('survivor-id');
+    expect(analysis.faces[0].personName).toBe('Ami');
+    expect(analysis.knownFaceCount).toBe(1);
+    expect(analysis.strangerCount).toBe(0);
+  });
+
+  it('leaves faces untouched (and reports no change) when no face matches the mapping', () => {
+    const analysis = makeAnalysis([makeFace('unrelated-person', 'Cineva Altcineva')]);
+    const before = JSON.parse(JSON.stringify(analysis.faces));
+    const changed = relabelFaces(analysis, new Map([['person-a', null]]));
+    expect(changed).toBe(false);
+    expect(analysis.faces).toEqual(before);
+  });
+
+  it('never touches strangers (personId already null)', () => {
+    const analysis = makeAnalysis([makeFace(null, null)]);
+    const changed = relabelFaces(analysis, new Map([['person-a', null]]));
+    expect(changed).toBe(false);
+  });
+});
+
+// Bug real gasit de auditul QA: un tail-slice simplu pe concatenare putea
+// sterge 100% din referintele unui profil la unire (ambele deja aproape de
+// plafon) — comentariul vechi pretindea "cele mai recente", dar
+// KnownPerson.embeddings n-are timestamp per-element, deci acea garantie era
+// falsa. selectMergedEmbeddings garanteaza un plafon egal per profil.
+describe('selectMergedEmbeddings', () => {
+  it('keeps a fair, non-zero share from every profile even when both are already near the cap', () => {
+    const profileA = Array.from({ length: 12 }, (_, i) => [i]);
+    const profileB = Array.from({ length: 12 }, (_, i) => [100 + i]);
+    const merged = selectMergedEmbeddings([profileA, profileB], 12);
+    expect(merged.length).toBeLessThanOrEqual(12);
+    expect(merged.some(e => e[0] < 100)).toBe(true);  // profileA a supravietuit partial
+    expect(merged.some(e => e[0] >= 100)).toBe(true); // profileB la fel
+  });
+
+  it('keeps the most recent (tail) entries of each profile, not the oldest', () => {
+    const profileA = [[1], [2], [3], [4]];
+    const profileB = [[10], [20], [30], [40]];
+    const merged = selectMergedEmbeddings([profileA, profileB], 4);
+    // plafon per profil = floor(4/2) = 2 -> ultimele 2 din fiecare
+    expect(merged).toEqual([[3], [4], [30], [40]]);
+  });
+
+  it('never exceeds maxTotal even with many small profiles', () => {
+    const profiles = Array.from({ length: 6 }, (_, i) => [[i]]);
+    const merged = selectMergedEmbeddings(profiles, 5);
+    expect(merged.length).toBeLessThanOrEqual(5);
+  });
+
+  it('returns everything when profiles are smaller than their fair share', () => {
+    const profileA = [[1]];
+    const profileB = [[2], [3]];
+    const merged = selectMergedEmbeddings([profileA, profileB], 12);
+    expect(merged).toEqual([[1], [2], [3]]);
   });
 });

@@ -493,6 +493,67 @@ async function reloadPhotoViews(): Promise<PhotoView[]> {
     .sort((a, b) => (a.capturedAt ?? 0) - (b.capturedAt ?? 0));
 }
 
+/**
+ * Bug real gasit de auditul QA: removePerson/removePersons/mergePersons
+ * atingeau doar db.persons — AnalysisRecord.faces[i].personId/personName e o
+ * fotografie INSTANTANEE, salvata la momentul analizei (faceAnalysis.worker.ts),
+ * si tot ce afiseaza identificarea (grila, export XMP/nume fisier, statistici
+ * de recunoastere din core/stats.ts) citeste DOAR din acea fotografie, nu din
+ * tabelul persons live. Rezultat: dupa stergerea unei persoane, pozele deja
+ * analizate continuau sa arate numele ei; dupa unirea a doua profiluri, pozele
+ * deja etichetate ramaneau cu identitatea veche, fragmentata, in loc de cea
+ * unita — exact acelasi tipar de re-etichetare RETROACTIVA pe care
+ * enrollFaceCluster il face deja corect pentru propriul caz. `mapping` leaga
+ * fiecare id VECHI (sters SAU absorbit intr-o unire) la noua identitate
+ * ({id,name}) sau la null (stergere simpla, straini de-acum). Scaneaza intreg
+ * tabelul analyses (nu doar pozele curent incarcate) — actiune rara, deliberata,
+ * nu un cost care conteaza pe hot path.
+ */
+/**
+ * Muta in-place (fara sa atinga Dexie) faces-urile lui `analysis` care
+ * poarta un personId din `mapping`, spre noua identitate — extrasa separat
+ * de relabelAnalyses ca sa fie testabila unitar fara IndexedDB reala.
+ * Intoarce true daca a schimbat ceva (apelantul stie ce sa scrie inapoi).
+ */
+export function relabelFaces(analysis: AnalysisRecord, mapping: Map<string, { id: string; name: string } | null>): boolean {
+  let changed = false;
+  for (const face of analysis.faces) {
+    if (face.personId && mapping.has(face.personId)) {
+      const target = mapping.get(face.personId) ?? null;
+      face.personId = target?.id ?? null;
+      face.personName = target?.name ?? null;
+      changed = true;
+    }
+  }
+  if (changed) {
+    analysis.knownFaceCount = analysis.faces.filter(f => f.personId).length;
+    analysis.strangerCount = analysis.faces.filter(f => !f.personId).length;
+  }
+  return changed;
+}
+
+async function relabelAnalyses(mapping: Map<string, { id: string; name: string } | null>): Promise<void> {
+  const all = await db.analyses.toArray();
+  const updates = all.filter(analysis => relabelFaces(analysis, mapping));
+  if (updates.length) await db.analyses.bulkPut(updates);
+}
+
+/**
+ * Bug real gasit de auditul QA: o simpla concatenare + tail-slice la
+ * `maxTotal` NU pastreaza "cele mai recente" cum pretindea comentariul vechi
+ * din mergePersons — KnownPerson.embeddings n-are timestamp per-element, deci
+ * acel tail-slice putea sterge 100% din referintele UNUI profil (cel listat
+ * primul) daca celalalt era deja aproape de plafon. Fiecare profil isi
+ * pastreaza insa propria ordine cronologica (addPerson adauga mereu la coada)
+ * — asa ca luam cate un plafon EGAL din coada FIECARUI profil, garantand ca o
+ * unire nu poate elimina complet contributia niciunuia.
+ */
+export function selectMergedEmbeddings(profiles: number[][][], maxTotal: number): number[][] {
+  if (!profiles.length) return [];
+  const perProfileCap = Math.max(1, Math.floor(maxTotal / profiles.length));
+  return profiles.flatMap(p => p.slice(-perProfileCap)).slice(-maxTotal);
+}
+
 async function train(id: string, userDecision: boolean): Promise<void> {
   const [analysis, photo] = await Promise.all([db.analyses.get(id), db.photos.get(id)]);
   if (!analysis) return;
@@ -546,6 +607,15 @@ function quotaNotice(locale: Locale): string {
 
 /** Plafon de referinte faciale per persoana — reinrolarile succesive extind profilul, nu-l lasa sa creasca la nesfarsit. */
 const MAX_PERSON_EMBEDDINGS = 12;
+
+/**
+ * Plafon de fisiere de referinta procesate per apel addPerson. Bug real gasit
+ * de auditul QA: fisierele peste acest plafon erau ignorate complet silentios
+ * — mesajul de succes nu mentiona taierea, iar numaratoarea "N poze alese"
+ * din PersonsPanel.tsx arata numarul TOTAL selectat, nu cel folosit efectiv.
+ * Fix: mesajul de succes de mai jos mentioneaza explicit cate au fost sarite.
+ */
+const MAX_PERSON_REFERENCE_FILES = 4;
 
 function statusLabel(locale: Locale, status: PhotoRecord['status']): string {
   return t(locale, `store.statusLabel.${status}`);
@@ -1259,7 +1329,7 @@ export const useStore = create<AppState>((set, get) => ({
   addPerson: async (name, files) => {
     await analysisPool.init();
     const embeddings: number[][] = [];
-    for (const file of files.slice(0, 4)) {
+    for (const file of files.slice(0, MAX_PERSON_REFERENCE_FILES)) {
       try {
         const bitmap = await createImageBitmap(file, { resizeWidth: 1024 } as ImageBitmapOptions);
         const emb = await analysisPool.computeEnrollmentEmbedding(bitmap);
@@ -1271,6 +1341,8 @@ export const useStore = create<AppState>((set, get) => ({
     if (!embeddings.length) {
       return { ok: false, message: 'Nicio fata detectata in pozele de referinta. Alege poze clare, frontale.' };
     }
+    const skipped = Math.max(0, files.length - MAX_PERSON_REFERENCE_FILES);
+    const skippedSuffix = skipped > 0 ? ` (${skipped} poze ignorate, plafon ${MAX_PERSON_REFERENCE_FILES} per inrolare)` : '';
     const trimmedName = name.trim();
     const existing = get().persons.find(p => p.name.trim().toLowerCase() === trimmedName.toLowerCase());
     let person: KnownPerson;
@@ -1280,10 +1352,10 @@ export const useStore = create<AppState>((set, get) => ({
       // vechi de acum multe luni conteaza mai putin decat cele actuale la recunoastere
       const merged = [...existing.embeddings, ...embeddings].slice(-MAX_PERSON_EMBEDDINGS);
       person = { ...existing, embeddings: merged, updatedAt: Date.now() };
-      message = `${trimmedName}: +${embeddings.length} referinte noi adaugate la profilul existent (total ${merged.length}).`;
+      message = `${trimmedName}: +${embeddings.length} referinte noi adaugate la profilul existent (total ${merged.length}).${skippedSuffix}`;
     } else {
       person = { id: crypto.randomUUID(), name: trimmedName, embeddings, updatedAt: Date.now() };
-      message = trimmedName + ': ' + embeddings.length + ' referinte salvate.';
+      message = trimmedName + ': ' + embeddings.length + ' referinte salvate.' + skippedSuffix;
     }
     await db.persons.put(person);
     const persons = await db.persons.toArray();
@@ -1294,32 +1366,39 @@ export const useStore = create<AppState>((set, get) => ({
 
   removePerson: async id => {
     await db.persons.delete(id);
-    const persons = await db.persons.toArray();
+    await relabelAnalyses(new Map([[id, null]]));
+    const [persons, photos] = await Promise.all([db.persons.toArray(), reloadPhotoViews()]);
     await analysisPool.setKnownPersons(persons).catch(() => {});
-    set({ persons });
+    set({ persons, photos });
   },
 
   removePersons: async ids => {
     if (!ids.length) return;
     await db.persons.bulkDelete(ids);
-    const persons = await db.persons.toArray();
+    await relabelAnalyses(new Map(ids.map(id => [id, null])));
+    const [persons, photos] = await Promise.all([db.persons.toArray(), reloadPhotoViews()]);
     await analysisPool.setKnownPersons(persons).catch(() => {});
-    set({ persons });
+    set({ persons, photos });
   },
 
   mergePersons: async (ids, keepName) => {
     const toMerge = get().persons.filter(p => ids.includes(p.id));
     if (toMerge.length < 2) return;
-    // pastram cele mai RECENTE MAX_PERSON_EMBEDDINGS referinte din toate profilurile unite
-    // (acelasi plafon ca la reinrolare normala, addPerson) — identitatea (id) supravietuitoare
-    // e a primului profil, ca referintele externe (daca ar exista vreodata) sa nu se piarda
-    const merged = toMerge.flatMap(p => p.embeddings).slice(-MAX_PERSON_EMBEDDINGS);
+    // vezi selectMergedEmbeddings mai sus pentru motivul pentru care nu mai e o
+    // simpla concatenare + tail-slice (bug real gasit de auditul QA)
+    const merged = selectMergedEmbeddings(toMerge.map(p => p.embeddings), MAX_PERSON_EMBEDDINGS);
     const survivor: KnownPerson = { id: toMerge[0].id, name: keepName.trim() || toMerge[0].name, embeddings: merged, updatedAt: Date.now() };
     await db.persons.put(survivor);
     await db.persons.bulkDelete(toMerge.slice(1).map(p => p.id));
-    const persons = await db.persons.toArray();
+    // re-eticheteaza RETROACTIV pozele deja analizate: fiecare id unit (inclusiv
+    // id-ul supravietuitor, in caz ca numele s-a schimbat la unire) trece la
+    // identitatea finala — altfel doua profiluri care fragmentau aceeasi
+    // persoana raman fragmentate si pe pozele deja etichetate (vezi comentariul
+    // de la relabelAnalyses).
+    await relabelAnalyses(new Map(toMerge.map(p => [p.id, { id: survivor.id, name: survivor.name }])));
+    const [persons, photos] = await Promise.all([db.persons.toArray(), reloadPhotoViews()]);
     await analysisPool.setKnownPersons(persons).catch(() => {});
-    set({ persons });
+    set({ persons, photos });
   },
 
   exportPersonProfiles: async ids => {
