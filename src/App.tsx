@@ -810,8 +810,9 @@ export default function App() {
           </div>
           <p className="mono empty-tagline"><span className="live-dot" aria-hidden="true" /> {tr('app.empty.badge')}</p>
           <h2>{tr('app.empty.title')}</h2>
-          <p>{tr('app.empty.description')}</p>
+          <p className="empty-lead">{tr('app.empty.description')}</p>
           <button className="btn-accent big" onClick={() => void onAddPhotosClick()}>{tr('app.empty.cta')}</button>
+          <p className="mono empty-formats">{tr('app.empty.formats')}</p>
           <p className="hint"><UserCheckIcon className="inline-icon" /> {tr('app.empty.hint')}</p>
 
           <div className="hud how-it-works-hud">

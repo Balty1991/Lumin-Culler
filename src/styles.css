@@ -970,7 +970,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 /* padding-top mic intentionat (nu 12vh ca inainte) — cerinta directa: intreaga
    pagina de onboarding (nucleu + text + CTA + cei 3 pasi) trebuie sa incapa pe
    un ecran de telefon FARA sa fie nevoie de scroll. */
-.empty { position: relative; isolation: isolate; text-align: center; padding: 3vh 16px 14px; max-width: 480px; margin: 0 auto; display: grid; gap: 11px; justify-items: center; animation: fadeUp 0.4s var(--ease) both; }
+.empty { position: relative; isolation: isolate; text-align: center; padding: 3vh 16px 14px; max-width: 420px; margin: 0 auto; display: grid; gap: 8px; justify-items: center; animation: fadeUp 0.4s var(--ease) both; }
 .empty::before {
   content: ""; position: absolute; top: -12%; left: 50%; transform: translateX(-50%);
   width: 620px; height: 620px; max-width: 150vw; z-index: -1; pointer-events: none;
@@ -1004,9 +1004,22 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   display: inline-flex; align-items: center; gap: 7px; margin: -4px 0 0;
   font-size: 0.72rem; letter-spacing: 0.04em; color: var(--text-faint); text-transform: uppercase;
 }
-.empty h2 { font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; }
-.empty p, .hint { color: var(--text-dim); }
-.hint { font-size: 0.82rem; }
+.empty h2 { font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; margin-top: 2px; }
+/*
+ * Textul lung, tehnic, intr-un singur paragraf ("JPEG/PNG/WebP/RAW — CR2,
+ * NEF, ARW, DNG...") citea greu/obositor (feedback direct) — despartit acum
+ * in doua nivele: o fraza scurta, calda ("empty-lead", ce conteaza pentru
+ * utilizator: incarci pozele, AI-ul ajuta) si o mentiune tehnica mica sub CTA
+ * ("empty-formats", pentru cine chiar vrea sa stie ce formate sunt suportate)
+ * — nu mai concureaza pentru atentie in aceeasi propozitie.
+ */
+.empty-lead { font-size: 0.95rem; line-height: 1.6; color: var(--text-dim); margin-top: 2px; }
+.empty .btn-accent.big { margin-top: 6px; }
+.empty-formats {
+  font-size: 0.66rem; line-height: 1.5; color: var(--text-faint); letter-spacing: 0.02em;
+  max-width: 320px;
+}
+.hint { color: var(--text-dim); font-size: 0.82rem; margin-top: 2px; }
 .empty-filter {
   display: grid; justify-items: center; gap: 12px; text-align: center; color: var(--text-dim);
   padding: 48px 16px; animation: fadeUp 0.3s var(--ease) both;
