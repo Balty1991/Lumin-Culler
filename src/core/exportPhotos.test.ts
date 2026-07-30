@@ -4,11 +4,15 @@ const getDirectoryPicker = vi.fn<() => null>(() => null);
 const downloadZip = vi.fn<(name: string, entries: { path: string; data: Uint8Array }[]) => Promise<{ cancelled: boolean }>>(async () => ({ cancelled: false }));
 const downloadBlob = vi.fn<(name: string, blob: Blob) => Promise<{ cancelled: boolean }>>(async () => ({ cancelled: false }));
 
-vi.mock('./export/directoryPicker', () => ({
-  getDirectoryPicker: () => getDirectoryPicker(),
-  downloadZip: (name: string, entries: { path: string; data: Uint8Array }[]) => downloadZip(name, entries),
-  downloadBlob: (name: string, blob: Blob) => downloadBlob(name, blob)
-}));
+vi.mock('./export/directoryPicker', async importOriginal => {
+  const actual = await importOriginal<typeof import('./export/directoryPicker')>();
+  return {
+    ...actual,
+    getDirectoryPicker: () => getDirectoryPicker(),
+    downloadZip: (name: string, entries: { path: string; data: Uint8Array }[]) => downloadZip(name, entries),
+    downloadBlob: (name: string, blob: Blob) => downloadBlob(name, blob)
+  };
+});
 
 // exportOriginalFiles cade pe db.originals.get() DOAR daca fisierul nu e in
 // originalFiles (Map in memorie) — populam Map-ul direct, deci Dexie/IndexedDB
@@ -102,6 +106,34 @@ describe('exportOriginalFiles (fallback fara File System Access API)', () => {
     expect(result.exported).toBe(1);
     // fisier unic => descarcare directa (downloadBlob), nu zip
     expect(downloadBlob.mock.calls[0][0]).toBe('Peisaje/IMG_0001.jpg');
+  });
+
+  // Bug real gasit de auditul QA: doua poze cu acelasi nume de fisier
+  // (frecvent la import din carduri de memorie diferite ale aceleiasi
+  // camere) se suprascriau silentios una pe alta in zip (aceeasi cheie de
+  // path), iar `exported` raporta numarul initial desi arhiva continea
+  // mai putine fisiere.
+  it('dezambiguizeaza doua poze cu acelasi nume de fisier in acelasi folder de export', async () => {
+    originalFiles.set('p1', fakeFile('IMG_0001.jpg'));
+    originalFiles.set('p2', fakeFile('IMG_0001.jpg'));
+    const result = await exportOriginalFiles([
+      { id: 'p1', fileName: 'IMG_0001.jpg', personNames: [], faceCount: 0, strangerCount: 0, sceneType: 'landscape' },
+      { id: 'p2', fileName: 'IMG_0001.jpg', personNames: [], faceCount: 0, strangerCount: 0, sceneType: 'landscape' }
+    ]);
+    expect(result.exported).toBe(2);
+    const entries = downloadZip.mock.calls[0][1];
+    expect(entries.map(e => e.path).sort()).toEqual(['Peisaje/IMG_0001 (2).jpg', 'Peisaje/IMG_0001.jpg']);
+  });
+
+  it('nu dezambiguizeaza doua poze cu acelasi nume daca ajung in foldere diferite (nicio coliziune reala)', async () => {
+    originalFiles.set('p1', fakeFile('IMG_0001.jpg'));
+    originalFiles.set('p2', fakeFile('IMG_0001.jpg'));
+    await exportOriginalFiles([
+      { id: 'p1', fileName: 'IMG_0001.jpg', personNames: ['Ami'], faceCount: 1, strangerCount: 0, sceneType: 'portrait' },
+      { id: 'p2', fileName: 'IMG_0001.jpg', personNames: [], faceCount: 0, strangerCount: 0, sceneType: 'landscape' }
+    ]);
+    const entries = downloadZip.mock.calls[0][1];
+    expect(entries.map(e => e.path).sort()).toEqual(['Ami/IMG_0001.jpg', 'Peisaje/IMG_0001.jpg']);
   });
 
   it('cu renameTemplate, redenumeste fiecare fisier din zip dupa sablon si numeroteaza secvential', async () => {

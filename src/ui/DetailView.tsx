@@ -74,7 +74,7 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
       // ignora tastarea in orice camp text (ex. cautarea din Paleta de comenzi) —
       // vezi acelasi gardian in Workspace.tsx
       const target = e.target as HTMLElement | null;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)) return;
       if (e.key === 'ArrowRight') stepDetail(1);
       else if (e.key === 'ArrowLeft') stepDetail(-1);
       else if (e.key === 'p' || e.key === 'P') void setStatus(photo.id, 'selected');
@@ -85,8 +85,15 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
         // acelasi motiv ca in Workspace.tsx: stopPropagation() dintr-un alt
         // listener de pe window NU opreste acest listener sa ruleze (doar
         // propagarea intre elemente diferite) — verificam direct starea.
-        const { paletteOpen, shortcutsOpen } = useStore.getState();
-        if (paletteOpen || shortcutsOpen) return;
+        // Bug real gasit de auditul QA: lipseau majoritatea panourilor din
+        // aceasta lista, deci Escape inchidea DetailView pe sub un panou
+        // deschis (ex. Editare de baza) in loc sa-l inchida pe acela.
+        const s = useStore.getState();
+        if (
+          s.paletteOpen || s.shortcutsOpen || s.menuOpen || s.personsOpen || s.insightsOpen ||
+          s.batchOpsOpen || s.statsOpen || s.projectsOpen || s.contactSheetOpen || s.presentationOpen ||
+          s.compareGroupId || s.editingPhotoId || s.dialogRequest
+        ) return;
         openDetail(null);
       }
     };

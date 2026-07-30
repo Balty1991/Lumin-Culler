@@ -5,11 +5,15 @@ const getDirectoryPicker = vi.fn<() => null>(() => null);
 const downloadZip = vi.fn<(name: string, entries: { path: string; data: Uint8Array }[]) => Promise<{ cancelled: boolean }>>(async () => ({ cancelled: false }));
 const downloadBlob = vi.fn<(name: string, blob: Blob) => Promise<{ cancelled: boolean }>>(async () => ({ cancelled: false }));
 
-vi.mock('./directoryPicker', () => ({
-  getDirectoryPicker: () => getDirectoryPicker(),
-  downloadZip: (name: string, entries: { path: string; data: Uint8Array }[]) => downloadZip(name, entries),
-  downloadBlob: (name: string, blob: Blob) => downloadBlob(name, blob)
-}));
+vi.mock('./directoryPicker', async importOriginal => {
+  const actual = await importOriginal<typeof import('./directoryPicker')>();
+  return {
+    ...actual,
+    getDirectoryPicker: () => getDirectoryPicker(),
+    downloadZip: (name: string, entries: { path: string; data: Uint8Array }[]) => downloadZip(name, entries),
+    downloadBlob: (name: string, blob: Blob) => downloadBlob(name, blob)
+  };
+});
 
 describe('generateXMPSidecar', () => {
   it('uses the manual star rating when present', () => {
@@ -158,6 +162,19 @@ describe('exportXMPSidecars (fallback fara File System Access API)', () => {
     expect(downloadBlob).not.toHaveBeenCalled();
     const entries = downloadZip.mock.calls[0][1];
     expect(entries.map(e => e.path).sort()).toEqual(['a.xmp', 'b.xmp', 'c.xmp']);
+  });
+
+  // Bug real gasit de auditul QA: exportul XMP e mereu plat, deci doua poze
+  // cu acelasi nume de fisier (carduri de memorie diferite) generau acelasi
+  // "nume.xmp" si se suprascriau silentios una pe alta in zip.
+  it('dezambiguizeaza doua poze cu acelasi nume de fisier (exportul XMP e mereu plat)', async () => {
+    const result = await exportXMPSidecars([
+      { fileName: 'IMG_0001.jpg', status: 'selected', rating: 5 },
+      { fileName: 'IMG_0001.jpg', status: 'rejected' }
+    ]);
+    expect(result.exported).toBe(2);
+    const entries = downloadZip.mock.calls[0][1];
+    expect(entries.map(e => e.path).sort()).toEqual(['IMG_0001 (2).xmp', 'IMG_0001.xmp']);
   });
 
   it('un singur sidecar: raporteaza 0 exportate (nu 1) daca utilizatorul anuleaza dialogul de salvare', async () => {

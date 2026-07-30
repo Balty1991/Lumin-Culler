@@ -16,7 +16,7 @@
  */
 import { originalFiles } from './importPipeline';
 import { db } from './db';
-import { getDirectoryPicker, downloadBlob, downloadZip, type LocalDirHandle } from './export/directoryPicker';
+import { getDirectoryPicker, downloadBlob, downloadZip, dedupeFileName, type LocalDirHandle } from './export/directoryPicker';
 import { reacquireFile } from './filePicker';
 import { buildExportFileName, type RenameContext } from './renameTemplate';
 
@@ -140,13 +140,24 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[], options: E
     return buildExportFileName(renameTemplate, ctx, sequence, p.fileName);
   };
 
+  // Unicitate per subfolder de destinatie: doua poze cu acelasi nume de
+  // fisier (ex. "IMG_0001.jpg" de pe doua carduri de memorie diferite) NU
+  // trebuie sa se suprascrie silentios una pe alta odata ajunse in acelasi
+  // folder de export — vezi dedupeFileName.
+  const usedNamesByFolder = new Map<string, Set<string>>();
+  const uniqueNameFor = (p: ExportPhotoInput, folder: string): string => {
+    let used = usedNamesByFolder.get(folder);
+    if (!used) { used = new Set<string>(); usedNamesByFolder.set(folder, used); }
+    return dedupeFileName(used, nameFor(p));
+  };
+
   const available: { name: string; file: File; folder: string }[] = [];
   const missing: string[] = [];
   for (const p of photos) {
     const folder = folderLabel(p);
     const inMemory = originalFiles.get(p.id);
     if (inMemory) {
-      available.push({ name: nameFor(p), file: inMemory, folder });
+      available.push({ name: uniqueNameFor(p, folder), file: inMemory, folder });
       continue;
     }
     // fallback 1: handle File System Access API persistat (poze selectate,
@@ -156,7 +167,7 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[], options: E
     if (storedHandle) {
       try {
         const file = await reacquireFile(storedHandle.handle);
-        available.push({ name: nameFor(p), file, folder });
+        available.push({ name: uniqueNameFor(p, folder), file, folder });
         continue;
       } catch {
         // permisiune refuzata sau fisierul a fost mutat/sters de pe disc —
@@ -166,7 +177,7 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[], options: E
     // fallback 2: fisierul original persistat in IndexedDB (poze selectate,
     // supravietuieste unui reload de tab — vezi core/db.ts OriginalRecord)
     const stored = await db.originals.get(p.id);
-    if (stored) available.push({ name: nameFor(p), file: new File([stored.blob], stored.fileName, { type: stored.type }), folder });
+    if (stored) available.push({ name: uniqueNameFor(p, folder), file: new File([stored.blob], stored.fileName, { type: stored.type }), folder });
     else missing.push(p.fileName);
   }
 

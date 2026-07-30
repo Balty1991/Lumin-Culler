@@ -1,5 +1,37 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
-import { downloadBlob, downloadZip } from './directoryPicker';
+import { downloadBlob, downloadZip, dedupeFileName } from './directoryPicker';
+
+describe('dedupeFileName', () => {
+  it('leaves the first occurrence of a name unchanged', () => {
+    const used = new Set<string>();
+    expect(dedupeFileName(used, 'IMG_0001.jpg')).toBe('IMG_0001.jpg');
+  });
+
+  it('appends a numbered suffix before the extension on collision', () => {
+    const used = new Set<string>();
+    dedupeFileName(used, 'IMG_0001.jpg');
+    expect(dedupeFileName(used, 'IMG_0001.jpg')).toBe('IMG_0001 (2).jpg');
+  });
+
+  it('keeps counting up across repeated collisions with the same base name', () => {
+    const used = new Set<string>();
+    dedupeFileName(used, 'a.jpg');
+    dedupeFileName(used, 'a.jpg');
+    dedupeFileName(used, 'a.jpg');
+    expect(dedupeFileName(used, 'a.jpg')).toBe('a (4).jpg');
+  });
+
+  it('does not collide with a manually pre-existing numbered variant', () => {
+    const used = new Set<string>(['a.jpg', 'a (2).jpg']);
+    expect(dedupeFileName(used, 'a.jpg')).toBe('a (3).jpg');
+  });
+
+  it('handles extensionless names', () => {
+    const used = new Set<string>();
+    dedupeFileName(used, 'IMG_0001');
+    expect(dedupeFileName(used, 'IMG_0001')).toBe('IMG_0001 (2)');
+  });
+});
 
 /**
  * showSaveFilePicker nu exista in jsdom (window.showSaveFilePicker e undefined),

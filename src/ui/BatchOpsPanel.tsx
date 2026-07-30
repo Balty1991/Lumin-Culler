@@ -35,6 +35,15 @@ export function BatchOpsPanel() {
   const containerRef = useRef<HTMLDivElement>(null);
   useModalFocusTrap(containerRef, open);
 
+  // Escape-to-close — vezi acelasi tipar in EditPanel.tsx/MenuDrawer.tsx (bug
+  // real gasit de auditul QA: acest panou nu avea niciunul).
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, setOpen]);
+
   // panoul ramane montat tot timpul (vizibilitate prin CSS) — re-citim presetarile
   // la fiecare deschidere, ca sa prindem si cele restaurate dintr-un backup
   // (backupService.ts scrie direct in localStorage, fara sa treaca prin acest state local)

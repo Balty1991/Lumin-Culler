@@ -44,6 +44,37 @@ export function getDirectoryPicker(): DirectoryPickerWindow['showDirectoryPicker
   return typeof w.showDirectoryPicker === 'function' ? w.showDirectoryPicker.bind(w) : null;
 }
 
+/**
+ * Bug real gasit de auditul QA: doua poze cu acelasi nume de fisier (frecvent
+ * la import din mai multe carduri de memorie ale aceleiasi camere, ex.
+ * "IMG_0001.jpg" de pe doua card-uri diferite) ajungeau, fara acest fix, sa
+ * se suprascrie silentios una pe alta la export — atat pe calea folder
+ * (getFileHandle cu acelasi nume) cat si in zip (aceeasi cheie de path in
+ * obiectul dat lui fflate), fara nicio eroare sau avertisment, iar numarul
+ * "N poze exportate" raportat ramanea cel initial desi mai putine fisiere
+ * ajungeau efectiv pe disc/in arhiva. `used` trebuie sa fie un Set separat
+ * per scop de unicitate (per subfolder pentru export foto, unul singur
+ * pentru XMP care e mereu plat) — vezi apelurile din exportPhotos.ts si
+ * xmpGenerator.ts.
+ */
+export function dedupeFileName(used: Set<string>, name: string): string {
+  if (!used.has(name)) {
+    used.add(name);
+    return name;
+  }
+  const dot = name.lastIndexOf('.');
+  const base = dot > 0 ? name.slice(0, dot) : name;
+  const ext = dot > 0 ? name.slice(dot) : '';
+  let n = 2;
+  let candidate = `${base} (${n})${ext}`;
+  while (used.has(candidate)) {
+    n += 1;
+    candidate = `${base} (${n})${ext}`;
+  }
+  used.add(candidate);
+  return candidate;
+}
+
 export async function writeTextFile(dir: LocalDirHandle, name: string, content: string, type: string): Promise<void> {
   const handle = await dir.getFileHandle(name, { create: true });
   const writable = await handle.createWritable();

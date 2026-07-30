@@ -92,7 +92,17 @@ export function GroupCompare() {
     () => (sortBySharpness ? [...rawMembers].sort((a, b) => b.sharpness - a.sharpness) : rawMembers),
     [rawMembers, sortBySharpness]
   );
-  useModalFocusTrap(containerRef, !!groupId && members.length > 0);
+  const isOpen = !!groupId && members.length > 0;
+  useModalFocusTrap(containerRef, isOpen);
+
+  // Escape-to-close — vezi acelasi tipar in EditPanel.tsx/MenuDrawer.tsx (bug
+  // real gasit de auditul QA: acest panou nu avea niciunul).
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') openCompare(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, openCompare]);
 
   useEffect(() => {
     setRecommendedId(null);

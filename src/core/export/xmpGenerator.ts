@@ -27,7 +27,7 @@
  * Lightroom fara sa copiezi vreun byte de imagine, nu doar selectia finala.
  */
 import type { PhotoRecord } from '../db';
-import { getDirectoryPicker, writeTextFile, downloadBlob, downloadZip, type LocalDirHandle } from './directoryPicker';
+import { getDirectoryPicker, writeTextFile, downloadBlob, downloadZip, dedupeFileName, type LocalDirHandle } from './directoryPicker';
 
 export type XmpDecision = Exclude<PhotoRecord['status'], 'pending'>;
 
@@ -175,6 +175,13 @@ export async function exportXMPSidecars(photos: XmpPhotoInput[]): Promise<XmpExp
       client: p.client, event: p.event, location: p.location, caption: p.caption
     });
 
+  // Exportul XMP e mereu plat (langa originale, vezi comentariul de sus), deci
+  // un singur Set de unicitate pentru toate sidecar-urile — doua poze cu
+  // acelasi nume (ex. carduri de memorie diferite) nu mai trebuie sa se
+  // suprascrie silentios una pe alta (acelasi bug ca la exportPhotos.ts).
+  const usedNames = new Set<string>();
+  const uniqueXmpName = (fileName: string) => dedupeFileName(usedNames, xmpFileName(fileName));
+
   if (pickDirectory) {
     let dir: LocalDirHandle;
     try {
@@ -184,7 +191,7 @@ export async function exportXMPSidecars(photos: XmpPhotoInput[]): Promise<XmpExp
       throw err;
     }
     for (const p of decided) {
-      await writeTextFile(dir, xmpFileName(p.fileName), render(p), 'application/rdf+xml');
+      await writeTextFile(dir, uniqueXmpName(p.fileName), render(p), 'application/rdf+xml');
     }
     return { exported: decided.length, method, cancelled: false };
   }
@@ -193,7 +200,7 @@ export async function exportXMPSidecars(photos: XmpPhotoInput[]): Promise<XmpExp
   if (decided.length === 1) {
     const p = decided[0];
     const blob = new Blob([render(p)], { type: 'application/rdf+xml' });
-    const result = await downloadBlob(xmpFileName(p.fileName), blob);
+    const result = await downloadBlob(uniqueXmpName(p.fileName), blob);
     return { exported: result.cancelled ? 0 : 1, method, cancelled: result.cancelled };
   }
   // mai multe sidecar-uri: O SINGURA descarcare .zip — vezi downloadZip pentru
@@ -201,7 +208,7 @@ export async function exportXMPSidecars(photos: XmpPhotoInput[]): Promise<XmpExp
   // browsere mobile dupa prima)
   const encoder = new TextEncoder();
   const entries = decided.map(p => ({
-    path: xmpFileName(p.fileName),
+    path: uniqueXmpName(p.fileName),
     data: encoder.encode(render(p))
   }));
   const zipName = `lumin-culler-xmp-${new Date().toISOString().slice(0, 10)}.zip`;

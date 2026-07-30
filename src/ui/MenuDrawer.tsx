@@ -1,6 +1,7 @@
-import { useRef, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useStore } from '../state/store';
+import { useModalFocusTrap } from './useModalFocusTrap';
 import {
   UserCheckIcon, SparkleIcon, ListIcon, InfoIcon, XIcon, TagIcon, LayersIcon, KeyboardIcon,
   SunIcon, MoonIcon, BatteryIcon, GridIcon, DownloadIcon, UploadIcon, BarChartIcon, GlobeIcon, PrinterIcon,
@@ -49,6 +50,19 @@ export function MenuDrawer() {
   const askConfirm = useStore(s => s.askConfirm);
   const reduceMotion = useReducedMotion();
   const restoreInputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLElement>(null);
+  useModalFocusTrap(containerRef, open);
+
+  // Bug real gasit de auditul QA: MenuDrawer era singurul panou din aplicatie
+  // fara Escape-to-close — un utilizator de tastatura n-avea nicio cale sa-l
+  // inchida decat sa dea Tab pana la butonul X. Vezi acelasi tipar in
+  // EditPanel.tsx.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, setOpen]);
   // Acelasi eveniment beforeinstallprompt ca InstallPrompt.tsx (citit dintr-un modul
   // comun, nu recaptat aici) — ramane accesibil din Meniu chiar dupa ce bannerul a
   // fost inchis, ca "nu mai arata asta" sa nu insemne "nu mai pot instala niciodata".
@@ -105,6 +119,7 @@ export function MenuDrawer() {
     >
       <motion.nav
         className="drawer" onClick={e => e.stopPropagation()}
+        ref={containerRef} role="dialog" aria-modal="true" aria-label={tr('menu.title')} tabIndex={-1}
         initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
         transition={{ duration: reduceMotion ? 0 : 0.26, ease: EASE }}
       >

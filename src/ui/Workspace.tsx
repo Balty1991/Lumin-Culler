@@ -84,7 +84,7 @@ export function Workspace() {
       // deschisa peste Workspace) — altfel litere ca "p"/"x" ar declansa
       // selecteaza/respinge in fundal in timp ce utilizatorul scrie o comanda
       const target = e.target as HTMLElement | null;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)) return;
       const id = detailIdRef.current;
       if (e.key === 'ArrowRight') stepDetail(1);
       else if (e.key === 'ArrowLeft') stepDetail(-1);
@@ -100,10 +100,17 @@ export function Workspace() {
         // Paleta/scurtaturile au propriul listener global de Escape (tot pe
         // window) — stopPropagation() din ele NU opreste alti listeneri de pe
         // ACELASI target sa ruleze (doar propagarea intre elemente diferite),
-        // asa ca verificam direct starea: daca un panou e deasupra, il lasam
-        // pe el sa se inchida, nu iesim si din Workspace odata cu el.
-        const { paletteOpen, shortcutsOpen } = useStore.getState();
-        if (paletteOpen || shortcutsOpen) return;
+        // asa ca verificam direct starea: daca ORICE panou/dialog e deasupra,
+        // il lasam pe el sa se inchida, nu iesim si din Workspace odata cu el.
+        // Bug real gasit de auditul QA: lipseau majoritatea panourilor din
+        // aceasta lista, deci Escape inchidea Workspace pe sub un panou deschis
+        // (ex. Persoane cunoscute) in loc sa-l inchida pe acela.
+        const s = useStore.getState();
+        if (
+          s.paletteOpen || s.shortcutsOpen || s.menuOpen || s.personsOpen || s.insightsOpen ||
+          s.batchOpsOpen || s.statsOpen || s.projectsOpen || s.contactSheetOpen || s.presentationOpen ||
+          s.compareGroupId || s.editingPhotoId || s.dialogRequest
+        ) return;
         setWorkspaceMode(false);
       }
     };
