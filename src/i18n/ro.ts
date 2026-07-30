@@ -207,7 +207,7 @@ export const ro = {
   'app.dateTo.ariaLabel': 'Data capturii — pana la',
   'app.resetFilters': 'Reseteaza filtrele',
   'app.filtersAdvanced.ariaLabel': 'Filtre avansate',
-  'app.empty.badge': 'AI local · gata de pornire',
+  'app.empty.badge': 'Procesare 100% locala',
   'app.empty.title': 'Adauga sedinta foto',
   'app.empty.description': 'Alege pozele (JPEG/PNG/WebP/RAW — CR2, NEF, ARW, DNG si altele). Analiza ruleaza local, pe fire separate — poti incarca si 1000+ fisiere fara ca aplicatia sa se blocheze.',
   'app.empty.cta': 'Alege fotografiile',
