@@ -135,8 +135,25 @@ const FACTOR_FEATURES = new Set([
   'bokehQuality', 'colorHarmony'
 ]);
 
-function factorLabel(locale: Locale, feature: string): string {
-  return FACTOR_FEATURES.has(feature) ? t(locale, `factor.${feature}`) : feature;
+/**
+ * Feature-uri "de defect": valoarea bruta masoara CAT de mult dintr-un
+ * lucru nedorit e prezent (fractie de highlights arse, umbre blocate,
+ * straini in cadru, zgomot ISO) — nu "cat de mult dintr-un lucru dorit".
+ * O contributie POZITIVA la aceste feature-uri inseamna "aproape deloc
+ * din acest defect", nu "acest defect a ajutat poza". Eticheta unica
+ * folosita inainte de acest fix ("Highlights arse", cu "+" langa ea)
+ * citea backwards — sugera ca prezenta highlights-urilor arse ar fi un
+ * punct in favoarea pozei. Fiecare din aceste feature-uri are acum DOUA
+ * chei i18n (`factor.<feature>` pentru contributie negativa = defectul
+ * chiar a fost prezent si a costat scorul; `factor.<feature>.pos` pentru
+ * contributie pozitiva = absenta lui a ajutat), alese in functie de semn.
+ */
+const INVERTED_SENSE_FEATURES = new Set(['highlightClipping', 'shadowClipping', 'strangerPenalty', 'isoPenalty']);
+
+function factorLabel(locale: Locale, feature: string, positive = false): string {
+  if (!FACTOR_FEATURES.has(feature)) return feature;
+  if (positive && INVERTED_SENSE_FEATURES.has(feature)) return t(locale, `factor.${feature}.pos`);
+  return t(locale, `factor.${feature}`);
 }
 
 /** Transforma topFactors dintr-o Prediction in etichete afisabile, filtrand contributiile neglijabile. */
@@ -146,7 +163,10 @@ export function explainFactors(
 ): { label: string; positive: boolean }[] {
   return topFactors
     .filter(f => FACTOR_FEATURES.has(f.feature) && Math.abs(f.contribution) > 0.03)
-    .map(f => ({ label: factorLabel(locale, f.feature), positive: f.contribution >= 0 }));
+    .map(f => {
+      const positive = f.contribution >= 0;
+      return { label: factorLabel(locale, f.feature, positive), positive };
+    });
 }
 
 // ── Feature extraction ───────────────────────────────────────────────────────

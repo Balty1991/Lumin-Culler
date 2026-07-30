@@ -71,6 +71,34 @@ describe('explainFactors', () => {
     expect(result.some(f => f.label === 'unknownFeature')).toBe(false);
     expect(result).toHaveLength(2);
   });
+
+  // Feedback direct: pastila "+ Highlights arse" (contributie pozitiva) citea
+  // ca "prezenta highlights-urilor arse a ajutat poza" — backwards. Valoarea
+  // bruta a acestor feature-uri masoara CAT de mult dintr-un defect e prezent,
+  // deci o contributie pozitiva inseamna de fapt "aproape deloc din defectul
+  // asta", nu "defectul a ajutat". Eticheta trebuie sa reflecte asta.
+  it('uses an "absence" label for a positive contribution on a defect-style feature (few/no blown highlights helped)', () => {
+    const result = explainFactors([{ feature: 'highlightClipping', contribution: 0.3 }]);
+    expect(result).toEqual([{ label: 'Fara highlights arse', positive: true }]);
+  });
+
+  it('uses the plain "defect present" label for a negative contribution on the same feature', () => {
+    const result = explainFactors([{ feature: 'highlightClipping', contribution: -0.3 }]);
+    expect(result).toEqual([{ label: 'Highlights arse', positive: false }]);
+  });
+
+  it('applies the same absence/presence distinction to shadowClipping, strangerPenalty and isoPenalty', () => {
+    const result = explainFactors([
+      { feature: 'shadowClipping', contribution: 0.2 },
+      { feature: 'strangerPenalty', contribution: 0.2 },
+      { feature: 'isoPenalty', contribution: 0.2 }
+    ]);
+    expect(result).toEqual([
+      { label: 'Fara umbre blocate', positive: true },
+      { label: 'Fara straini in cadru', positive: true },
+      { label: 'ISO redus', positive: true }
+    ]);
+  });
 });
 
 // Bug real raportat: poze de peisaj/natura bune, respinse de AI. Cauza: pentru
