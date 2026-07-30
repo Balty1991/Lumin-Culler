@@ -3,6 +3,7 @@ import { getCachedPreviewUrl } from '../core/previewUrlCache';
 import { useStore } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { computeAutoAdjustments, drawAdjusted, isNeutral, NEUTRAL_ADJUSTMENTS, type EditAdjustments } from '../core/imageAdjust';
+import { db, type AnalysisRecord } from '../core/db';
 import { XIcon, UndoIcon, SparkleIcon } from './icons';
 import { t } from '../i18n';
 
@@ -32,11 +33,15 @@ export function EditPanel() {
   const [imgEl, setImgEl] = useState<HTMLImageElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number | null>(null);
+  // scorurile AI deja calculate pentru poza (acelasi AnalysisRecord afisat in
+  // tab-ul "De ce acest scor") — sursa pentru butonul Auto, vezi applyAuto mai jos
+  const [analysis, setAnalysis] = useState<AnalysisRecord | null>(null);
 
   useEffect(() => {
     if (!photo) return;
     setAdjustments(photo.edits ?? NEUTRAL_ADJUSTMENTS);
     setImgEl(null);
+    setAnalysis(null);
     let alive = true;
     void getCachedPreviewUrl(photo.id).then(url => {
       if (!alive || !url) return;
@@ -44,6 +49,7 @@ export function EditPanel() {
       img.onload = () => { if (alive) setImgEl(img); };
       img.src = url;
     });
+    void db.analyses.get(photo.id).then(a => { if (alive) setAnalysis(a ?? null); });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [photo?.id]);
@@ -87,18 +93,23 @@ export function EditPanel() {
   };
 
   /**
-   * "Editor AI automat" (cerinta directa a utilizatorului) — deriva o singura
-   * data toate cele 7 valori din statisticile de pixel ale imaginii (vezi
-   * core/imageAdjust.ts, computeAutoAdjustments), NU un model ML separat, ci
-   * aceleasi euristici clasice de auto-enhance (auto-nivele, gray-world,
-   * recuperare highlights/shadows). Ruleaza pe imgEl (imaginea deja incarcata,
-   * needitata), nu pe canvas-ul cu ajustari deja aplicate. Ramane complet
-   * reversibil — apasarea Auto doar precompleteaza sliderele, exact ca si cum
-   * utilizatorul le-ar fi tras singur.
+   * "Editor AI automat" (cerinta directa a utilizatorului): expunerea si
+   * recuperarea highlights/shadows se bazeaza pe scorurile AI DEJA calculate
+   * pentru poza (`analysis`, acelasi AnalysisRecord din tab-ul "De ce acest
+   * scor") — nu o re-analiza independenta, ca sa nu ajunga vreodata sa
+   * contrazica explicatia pe care utilizatorul o vede deja pentru acelasi
+   * cadru (vezi core/imageAdjust.ts, computeAutoAdjustments). Ruleaza pe imgEl
+   * (imaginea deja incarcata, needitata), nu pe canvas-ul cu ajustari deja
+   * aplicate. Ramane complet reversibil — apasarea Auto doar precompleteaza
+   * sliderele, exact ca si cum utilizatorul le-ar fi tras singur.
    */
   const applyAuto = () => {
     if (!imgEl) return;
-    const auto = computeAutoAdjustments(imgEl, imgEl.naturalWidth, imgEl.naturalHeight);
+    const auto = computeAutoAdjustments(imgEl, imgEl.naturalWidth, imgEl.naturalHeight, {
+      exposureScore: analysis?.exposure,
+      highlightClipping: analysis?.highlightClipping,
+      shadowClipping: analysis?.shadowClipping
+    });
     setAdjustments(auto);
     void setEditAdjustments(photo.id, auto);
   };

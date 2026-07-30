@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeAutoAdjustmentsFromImageData, NEUTRAL_ADJUSTMENTS } from './imageAdjust';
+import { computeAutoContrast, computeAutoExposureFromScore, computeAutoHighlightsShadows } from './imageAdjust';
 
 function makeImage(w: number, h: number, paint: (x: number, y: number) => [number, number, number]): ImageData {
   const data = new Uint8ClampedArray(w * h * 4);
@@ -17,70 +17,92 @@ function solid(w: number, h: number, rgb: [number, number, number]): ImageData {
   return makeImage(w, h, () => rgb);
 }
 
-describe('computeAutoAdjustmentsFromImageData', () => {
-  it('suggests no changes for an already-neutral mid-gray, well-exposed frame', () => {
-    const result = computeAutoAdjustmentsFromImageData(solid(8, 8, [128, 128, 128]));
-    expect(result).toEqual(NEUTRAL_ADJUSTMENTS);
+// computeAutoExposureFromScore/computeAutoHighlightsShadows raspund la ACELEASI
+// campuri/praguri deja folosite de aiExplanationGenerator.ts (generateSuggestions)
+// pentru "De ce acest scor" — testele de mai jos verifica direct acea consistenta.
+
+describe('computeAutoExposureFromScore', () => {
+  it('suggests no change for a balanced score (50)', () => {
+    expect(computeAutoExposureFromScore(50)).toBe(0);
   });
 
-  it('brightens a too-dark frame (positive exposure)', () => {
-    const result = computeAutoAdjustmentsFromImageData(solid(8, 8, [40, 40, 40]));
-    expect(result.exposure).toBeGreaterThan(0);
+  it('darkens (negative) for a score flagged as overexposed, matching aiSuggest.overexposed direction (score - 50 > 15)', () => {
+    expect(computeAutoExposureFromScore(80)).toBeLessThan(0);
   });
 
-  it('darkens a too-bright frame (negative exposure)', () => {
-    const result = computeAutoAdjustmentsFromImageData(solid(8, 8, [220, 220, 220]));
-    expect(result.exposure).toBeLessThan(0);
+  it('brightens (positive) for a score flagged as underexposed, matching aiSuggest.underexposed direction (score - 50 < -15)', () => {
+    expect(computeAutoExposureFromScore(20)).toBeGreaterThan(0);
   });
 
-  it('never boosts contrast on a flat solid-color frame beyond the neutral baseline (contrast stays clamped, never negative)', () => {
-    const result = computeAutoAdjustmentsFromImageData(solid(8, 8, [128, 128, 128]));
-    expect(result.contrast).toBeGreaterThanOrEqual(0);
+  it('makes no correction when the photo has not been analyzed yet (undefined score)', () => {
+    expect(computeAutoExposureFromScore(undefined)).toBe(0);
+  });
+
+  it('stays within the slider range for an extreme score', () => {
+    const hot = computeAutoExposureFromScore(100);
+    const cold = computeAutoExposureFromScore(0);
+    expect(hot).toBeGreaterThanOrEqual(-100);
+    expect(hot).toBeLessThanOrEqual(100);
+    expect(cold).toBeGreaterThanOrEqual(-100);
+    expect(cold).toBeLessThanOrEqual(100);
+    expect(hot).toBeLessThan(0);
+    expect(cold).toBeGreaterThan(0);
+  });
+});
+
+describe('computeAutoHighlightsShadows', () => {
+  it('does nothing below the 0.06 clipping threshold used by the suggestion text', () => {
+    expect(computeAutoHighlightsShadows(0.06, 0.06)).toEqual({ highlights: 0, shadows: 0 });
+    expect(computeAutoHighlightsShadows(0.02, 0.02)).toEqual({ highlights: 0, shadows: 0 });
+  });
+
+  it('recovers highlights (negative) once above the threshold', () => {
+    const { highlights } = computeAutoHighlightsShadows(0.2, 0);
+    expect(highlights).toBeLessThan(0);
+  });
+
+  it('lifts shadows (positive) once above the threshold', () => {
+    const { shadows } = computeAutoHighlightsShadows(0, 0.2);
+    expect(shadows).toBeGreaterThan(0);
+  });
+
+  it('treats missing fields as zero (no clipping data = no correction)', () => {
+    expect(computeAutoHighlightsShadows(undefined, undefined)).toEqual({ highlights: 0, shadows: 0 });
+  });
+
+  it('stays within the slider range for extreme clipping fractions', () => {
+    const { highlights, shadows } = computeAutoHighlightsShadows(1, 1);
+    expect(highlights).toBeGreaterThanOrEqual(-100);
+    expect(shadows).toBeLessThanOrEqual(100);
+  });
+});
+
+describe('computeAutoContrast', () => {
+  it('suggests no change for a perfectly flat solid-color frame', () => {
+    expect(computeAutoContrast(solid(8, 8, [128, 128, 128]))).toBe(0);
+  });
+
+  it('never goes negative', () => {
+    expect(computeAutoContrast(solid(8, 8, [40, 40, 40]))).toBeGreaterThanOrEqual(0);
   });
 
   it('increases contrast for a low-contrast (narrow histogram) frame', () => {
-    // toti pixelii ingramaditi intr-un interval ingust (100..140) -> ar trebui intins
-    const result = computeAutoAdjustmentsFromImageData(
+    const result = computeAutoContrast(
       makeImage(20, 20, (x, y) => { const v = 100 + ((x + y) % 40); return [v, v, v]; })
     );
-    expect(result.contrast).toBeGreaterThan(0);
+    expect(result).toBeGreaterThan(0);
   });
 
-  it('corrects a warm (orange) color cast toward neutral with a negative temperature/tint nudge', () => {
-    // dominanta calda puternica: R mult peste B -> corectia trebuie sa RACEASCA (temp negativ)
-    const result = computeAutoAdjustmentsFromImageData(solid(8, 8, [200, 140, 60]));
-    expect(result.temperature).toBeLessThan(0);
-  });
-
-  it('corrects a cool (blue) color cast toward neutral with a positive temperature nudge', () => {
-    const result = computeAutoAdjustmentsFromImageData(solid(8, 8, [60, 140, 200]));
-    expect(result.temperature).toBeGreaterThan(0);
-  });
-
-  it('lifts shadows when a large fraction of pixels are crushed near-black', () => {
-    const result = computeAutoAdjustmentsFromImageData(
-      makeImage(10, 10, (x) => (x < 6 ? [2, 2, 2] : [150, 150, 150]))
-    );
-    expect(result.shadows).toBeGreaterThan(0);
-  });
-
-  it('recovers highlights (negative value) when a large fraction of pixels are blown out near-white', () => {
-    const result = computeAutoAdjustmentsFromImageData(
-      makeImage(10, 10, (x) => (x < 6 ? [253, 253, 253] : [110, 110, 110]))
-    );
-    expect(result.highlights).toBeLessThan(0);
-  });
-
-  it('keeps every slider within the -100..100 range for an extreme frame', () => {
-    const result = computeAutoAdjustmentsFromImageData(solid(6, 6, [255, 0, 0]));
-    for (const v of Object.values(result)) {
-      expect(v).toBeGreaterThanOrEqual(-100);
-      expect(v).toBeLessThanOrEqual(100);
-    }
-  });
-
-  it('returns neutral adjustments for an empty (zero-length) image without throwing', () => {
+  it('returns 0 for an empty (zero-length) image without throwing', () => {
     const empty = { data: new Uint8ClampedArray(0), width: 0, height: 0, colorSpace: 'srgb' } as ImageData;
-    expect(computeAutoAdjustmentsFromImageData(empty)).toEqual(NEUTRAL_ADJUSTMENTS);
+    expect(computeAutoContrast(empty)).toBe(0);
+  });
+
+  it('stays within the slider range for an already high-contrast frame', () => {
+    const result = computeAutoContrast(
+      makeImage(20, 20, (x) => (x < 10 ? [0, 0, 0] : [255, 255, 255]))
+    );
+    expect(result).toBeGreaterThanOrEqual(0);
+    expect(result).toBeLessThanOrEqual(100);
   });
 });
