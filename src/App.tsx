@@ -34,7 +34,7 @@ import { armPickerWatchdog, type PickerWatchdog } from './core/pickerWatchdog';
 import { ColorLabelFilter } from './ui/ColorLabelFilter';
 import { SceneTagFilter } from './ui/SceneTagFilter';
 import { CameraFilter } from './ui/CameraFilter';
-import { useScrollFade } from './ui/useScrollFade';
+import { MoreFiltersMenu } from './ui/MoreFiltersMenu';
 import { InstallPrompt } from './ui/InstallPrompt';
 import { BackupReminder } from './ui/BackupReminder';
 import { t } from './i18n';
@@ -171,6 +171,8 @@ export default function App() {
   const setPersonFilter = useStore(s => s.setPersonFilter);
   const colorLabelFilter = useStore(s => s.colorLabelFilter);
   const setColorLabelFilter = useStore(s => s.setColorLabelFilter);
+  const sceneTagFilter = useStore(s => s.sceneTagFilter);
+  const cameraFilter = useStore(s => s.cameraFilter);
   const persons = useStore(s => s.persons);
   const searchText = useStore(s => s.searchText);
   const setSearchText = useStore(s => s.setSearchText);
@@ -254,7 +256,6 @@ export default function App() {
    */
   const scrollAnchorRef = useRef(0);
   const HEADER_TOGGLE_THRESHOLD_PX = 24;
-  const filtersScrollFade = useScrollFade<HTMLElement>();
   const handleGridScroll = (scrollY: number) => {
     if (scrollY < 40) { // aproape de varf — antetul ramane mereu vizibil
       setHeaderHidden(false);
@@ -324,16 +325,28 @@ export default function App() {
     highlights: selectHighlights(photos).length
   }), [photos]);
 
-  const FILTERS: { key: FilterKey; label: string; count: number; icon: ReactNode }[] = [
+  // Randul principal de filtre (.filters) trebuie sa incapa pe un singur ecran de
+  // telefon FARA scroll orizontal (feedback direct: "grupeaza cumva meniul asta,
+  // sa nu mai scrolez la dreapta") — doar cele 4 statusuri de baza (aceleasi ca in
+  // grila 2x2 din CullGauge, cele mai folosite in timpul unei sedinte de triaj)
+  // raman mereu vizibile, ca pastile compacte icon+numar. Restul (statusuri
+  // speciale + persoana/eticheta/scena/aparat + modul de selectie) se muta in
+  // MoreFiltersMenu, un singur buton care le grupeaza pe toate.
+  const PRIMARY_FILTERS: { key: FilterKey; label: string; count: number; icon: ReactNode }[] = [
     { key: 'all', label: tr('palette.filter.all'), count: counts.all, icon: <GridIcon /> },
     { key: 'selected', label: tr('palette.filter.selected'), count: counts.selected, icon: <CheckIcon /> },
     { key: 'review', label: tr('palette.filter.review'), count: counts.review, icon: <ClockIcon /> },
+    { key: 'rejected', label: tr('palette.filter.rejected'), count: counts.rejected, icon: <XIcon /> }
+  ];
+  const SECONDARY_FILTERS: { key: FilterKey; label: string; count: number; icon: ReactNode }[] = [
     { key: 'series', label: tr('palette.filter.series'), count: counts.series, icon: <LayersIcon /> },
     { key: 'highlights', label: tr('palette.filter.highlights'), count: counts.highlights, icon: <StarIcon /> },
     { key: 'blinks', label: tr('palette.filter.blinks'), count: counts.blinks, icon: <EyeClosedIcon /> },
-    { key: 'goldenHour', label: tr('palette.filter.goldenHour'), count: counts.goldenHour, icon: <SunIcon /> },
-    { key: 'rejected', label: tr('palette.filter.rejected'), count: counts.rejected, icon: <XIcon /> }
+    { key: 'goldenHour', label: tr('palette.filter.goldenHour'), count: counts.goldenHour, icon: <SunIcon /> }
   ];
+  const extraFiltersActive = SECONDARY_FILTERS.some(f => f.key === filter) || !!personFilter || !!colorLabelFilter || !!sceneTagFilter || !!cameraFilter;
+  const extraFiltersCount = (SECONDARY_FILTERS.some(f => f.key === filter) ? 1 : 0) +
+    (personFilter ? 1 : 0) + (colorLabelFilter ? 1 : 0) + (sceneTagFilter ? 1 : 0) + (cameraFilter ? 1 : 0);
 
   const onFiles = (list: FileList | null) => {
     pickerWatchdogRef.current?.cancel();
@@ -655,43 +668,62 @@ export default function App() {
         )}
 
         {photos.length > 0 && (
-          <nav
-            ref={filtersScrollFade.ref}
-            className={`filters${filtersScrollFade.fadeLeft ? ' fade-left' : ''}${filtersScrollFade.fadeRight ? ' fade-right' : ''}`}
-          >
-            {FILTERS.map(f => (
+          <nav className="filters" aria-label={tr('app.filters.ariaLabel')}>
+            {PRIMARY_FILTERS.map(f => (
               <button
                 key={f.key}
-                className={filter === f.key ? 'chip active' : 'chip'}
+                className={filter === f.key ? 'chip chip-compact active' : 'chip chip-compact'}
                 onClick={() => setFilter(f.key)}
                 aria-pressed={filter === f.key}
+                aria-label={f.label}
+                title={f.label}
               >
                 <span className="chip-icon" aria-hidden="true">{f.icon}</span>
-                {f.label}
                 <b className="chip-count">{f.count}</b>
               </button>
             ))}
-            {persons.length > 0 && (
-              <select
-                className={personFilter ? 'chip person-filter active' : 'chip person-filter'}
-                value={personFilter ?? ''}
-                onChange={e => setPersonFilter(e.target.value || null)}
-                aria-label={tr('app.personFilter.ariaLabel')}
-              >
-                <option value="">{tr('app.personFilter.any')}</option>
-                {persons.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
-              </select>
-            )}
-            <ColorLabelFilter value={colorLabelFilter} onChange={setColorLabelFilter} />
-            <SceneTagFilter />
-            <CameraFilter />
+            <MoreFiltersMenu active={extraFiltersActive} badgeCount={extraFiltersCount}>
+              {close => (
+                <>
+                  {SECONDARY_FILTERS.map(f => (
+                    <button
+                      key={f.key}
+                      className={filter === f.key ? 'chip active' : 'chip'}
+                      onClick={() => { setFilter(f.key); close(); }}
+                      aria-pressed={filter === f.key}
+                    >
+                      <span className="chip-icon" aria-hidden="true">{f.icon}</span>
+                      {f.label}
+                      <b className="chip-count">{f.count}</b>
+                    </button>
+                  ))}
+                  <div className="more-filters-divider" />
+                  {persons.length > 0 && (
+                    <select
+                      className={personFilter ? 'chip person-filter active' : 'chip person-filter'}
+                      value={personFilter ?? ''}
+                      onChange={e => setPersonFilter(e.target.value || null)}
+                      aria-label={tr('app.personFilter.ariaLabel')}
+                    >
+                      <option value="">{tr('app.personFilter.any')}</option>
+                      {persons.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+                    </select>
+                  )}
+                  <ColorLabelFilter value={colorLabelFilter} onChange={setColorLabelFilter} />
+                  <SceneTagFilter />
+                  <CameraFilter />
+                </>
+              )}
+            </MoreFiltersMenu>
             {multiSelectIds.size === 0 && (
               <button
-                className={selectMode ? 'chip active select-mode-toggle' : 'chip select-mode-toggle'}
+                className={selectMode ? 'chip chip-compact active select-mode-toggle' : 'chip chip-compact select-mode-toggle'}
                 onClick={() => setSelectMode(!selectMode)}
                 aria-pressed={selectMode}
+                aria-label={selectMode ? tr('app.selectMode.active') : tr('app.selectMode.toggle')}
+                title={selectMode ? tr('app.selectMode.active') : tr('app.selectMode.toggle')}
               >
-                <CheckIcon className="inline-icon" aria-hidden="true" /> {selectMode ? tr('app.selectMode.active') : tr('app.selectMode.toggle')}
+                <CheckIcon className="chip-icon" aria-hidden="true" />
               </button>
             )}
           </nav>

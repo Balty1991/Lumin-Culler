@@ -88,6 +88,107 @@ export function drawAdjusted(
   ctx.putImageData(imgData, 0, 0);
 }
 
+function clampRange(v: number, min: number, max: number): number {
+  return v < min ? min : v > max ? max : v;
+}
+
+const AUTO_CLIP_HIGH_LUM = 250; // aceeasi convertie ca faceAnalysis.worker.ts (clippingScores)
+const AUTO_CLIP_LOW_LUM = 5;
+
+/**
+ * "Editor AI automat": deriva o singura data valorile pentru toti cei 7
+ * sliders, direct din statisticile de pixel ale imaginii NEEDITATE (histograma
+ * de luminanta + medii pe canal) — nu un model ML, ci aceleasi euristici clasice
+ * de auto-enhance (auto-nivele, gray-world pentru balansul de alb, recuperare
+ * highlights/shadows din fractiunea de pixeli "arsi"). Rezultatul e doar un
+ * PUNCT DE PORNIRE rezonabil — utilizatorul poate regla oricare slider dupa,
+ * exact ca dupa o editare manuala (nimic destructiv, EditPanel salveaza
+ * oricum doar valorile, nu pixeli).
+ *
+ * Deliberat conservator (damping + clamp sub maximul de 100 al fiecarui
+ * slider): scopul e o corectie utila fara sa transforme o poza "creativ"
+ * subexpusa/supraexpusa/cu dominanta de culoare intentionata intr-o versiune
+ * plata, "normalizata la forta".
+ */
+export function computeAutoAdjustmentsFromImageData(img: ImageData): EditAdjustments {
+  const { data } = img;
+  const step = 16; // esantionaj identic cu exposureScore/clippingScores din faceAnalysis.worker.ts
+  let sumR = 0, sumG = 0, sumB = 0, sumLum = 0, count = 0;
+  let highClip = 0, lowClip = 0;
+  const hist = new Uint32Array(256);
+
+  for (let i = 0; i < data.length; i += step) {
+    const r = data[i], g = data[i + 1], b = data[i + 2];
+    sumR += r; sumG += g; sumB += b;
+    const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+    sumLum += lum;
+    hist[Math.round(clampRange(lum, 0, 255))]++;
+    if (lum >= AUTO_CLIP_HIGH_LUM) highClip++;
+    else if (lum <= AUTO_CLIP_LOW_LUM) lowClip++;
+    count++;
+  }
+  if (!count) return { ...NEUTRAL_ADJUSTMENTS };
+
+  const avgR = sumR / count, avgG = sumG / count, avgB = sumB / count;
+  const meanLum = sumLum / count;
+  const avgGray = (avgR + avgG + avgB) / 3;
+
+  // expunere: tinta luminanta medie ~128 (mijlocul scalei 0..255), damped ca sa
+  // nu supra-corecteze poze intentionat inchise/luminoase (low-key/high-key)
+  const exposureRatio = clampRange(128 / Math.max(meanLum, 1), 0.5, 2.2);
+  const exposure = Math.round(clampRange((exposureRatio - 1) * 100 * 0.6, -35, 35));
+
+  // contrast: intinde histograma intre percentila 2% si 98%, spre un interval
+  // "sanatos" de ~200 din 255 — nu scade niciodata contrastul (doar creste, cand chiar lipseste)
+  let cum = 0, p2 = 0, p98 = 255;
+  for (let v = 0; v < 256; v++) { cum += hist[v]; if (cum / count >= 0.02) { p2 = v; break; } }
+  cum = 0;
+  for (let v = 255; v >= 0; v--) { cum += hist[v]; if (cum / count >= 0.02) { p98 = v; break; } }
+  const rawRange = p98 - p2;
+  // interval 0 (imagine perfect plata, fara nicio textura) -> nimic de intins;
+  // altfel formula de stretch ar "inventa" contrast dintr-o singura valoare
+  const contrast = rawRange <= 0 ? 0 : Math.round(clampRange((clampRange(200 / rawRange, 1, 1.6) - 1) * 100, 0, 35));
+
+  // balans de alb (ipoteza "gray world"): media R/G/B a unei scene tipice ar
+  // trebui sa fie neutra — orice abatere e tratata ca o dominanta de culoare de
+  // corectat. Deriva temperatura/tinta prin inversarea shift-urilor aplicate de
+  // drawAdjusted() mai jos (r += temp - tint/2; b -= temp + tint/2; g += tint).
+  const dR = avgGray - avgR, dG = avgGray - avgG, dB = avgGray - avgB;
+  const tintShift = dG;
+  const tempShift = (dR - dB) / 2;
+  const tint = Math.round(clampRange(tintShift * 2.5, -30, 30));
+  const temperature = Math.round(clampRange(tempShift * 2.5, -30, 30));
+
+  // recuperare highlights/shadows, proportionala cu fractiunea de pixeli "arsi"
+  // (acelasi prag ca clippingScores) — shadows pozitiv LUMINEAZA umbrele (recupereaza
+  // negru inecat), highlights negativ INTUNECA highlights-urile (recupereaza alb ars)
+  const highFrac = highClip / count, lowFrac = lowClip / count;
+  const shadows = Math.round(clampRange(lowFrac * 400, 0, 40));
+  const highlights = Math.round(clampRange(-(highFrac * 400), -40, 0)) || 0; // normalizeaza -0 la 0
+
+  return { exposure, contrast, saturation: 0, temperature, tint, highlights, shadows };
+}
+
+/**
+ * Wrapper de conveninta pentru UI (EditPanel): deseneaza sursa pe un canvas
+ * offscreen, redus la max ~360px pe latura mare (statisticile nu au nevoie de
+ * rezolutie completa, doar viteza — evita blocarea thread-ului principal la
+ * apasarea butonului "Auto" pe o poza de zeci de MP), apoi extrage ImageData.
+ */
+export function computeAutoAdjustments(source: CanvasImageSource, sourceWidth: number, sourceHeight: number): EditAdjustments {
+  const MAX_DIM = 360;
+  const scale = Math.min(1, MAX_DIM / Math.max(sourceWidth, sourceHeight));
+  const w = Math.max(1, Math.round(sourceWidth * scale));
+  const h = Math.max(1, Math.round(sourceHeight * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return { ...NEUTRAL_ADJUSTMENTS };
+  ctx.drawImage(source, 0, 0, w, h);
+  return computeAutoAdjustmentsFromImageData(ctx.getImageData(0, 0, w, h));
+}
+
 /**
  * Randeaza ajustarile pe un blob (ex. miniatura din galeria pentru client) si
  * intoarce un JPEG nou — folosit doar acolo unde utilizatorul alege EXPLICIT

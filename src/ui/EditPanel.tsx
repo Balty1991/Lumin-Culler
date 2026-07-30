@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
 import { useStore } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
-import { drawAdjusted, isNeutral, NEUTRAL_ADJUSTMENTS, type EditAdjustments } from '../core/imageAdjust';
-import { XIcon, UndoIcon } from './icons';
+import { computeAutoAdjustments, drawAdjusted, isNeutral, NEUTRAL_ADJUSTMENTS, type EditAdjustments } from '../core/imageAdjust';
+import { XIcon, UndoIcon, SparkleIcon } from './icons';
 import { t } from '../i18n';
 
 const SLIDERS: (keyof EditAdjustments)[] = [
@@ -86,12 +86,32 @@ export function EditPanel() {
     void setEditAdjustments(photo.id, NEUTRAL_ADJUSTMENTS);
   };
 
+  /**
+   * "Editor AI automat" (cerinta directa a utilizatorului) — deriva o singura
+   * data toate cele 7 valori din statisticile de pixel ale imaginii (vezi
+   * core/imageAdjust.ts, computeAutoAdjustments), NU un model ML separat, ci
+   * aceleasi euristici clasice de auto-enhance (auto-nivele, gray-world,
+   * recuperare highlights/shadows). Ruleaza pe imgEl (imaginea deja incarcata,
+   * needitata), nu pe canvas-ul cu ajustari deja aplicate. Ramane complet
+   * reversibil — apasarea Auto doar precompleteaza sliderele, exact ca si cum
+   * utilizatorul le-ar fi tras singur.
+   */
+  const applyAuto = () => {
+    if (!imgEl) return;
+    const auto = computeAutoAdjustments(imgEl, imgEl.naturalWidth, imgEl.naturalHeight);
+    setAdjustments(auto);
+    void setEditAdjustments(photo.id, auto);
+  };
+
   return (
     <div className="edit-scrim" onClick={e => { if (e.target === e.currentTarget) setEditingId(null); }}>
       <div className="edit-modal" ref={containerRef} role="dialog" aria-modal="true" aria-label={tr('edit.title')} tabIndex={-1}>
         <header className="detail-head">
           <span>{tr('edit.title')}</span>
           <div className="contact-sheet-header-actions">
+            <button className="ghost small-btn edit-auto-btn" onClick={applyAuto} disabled={!imgEl}>
+              <SparkleIcon className="inline-icon" /> {tr('edit.auto')}
+            </button>
             <button className="ghost small-btn" onClick={resetAll} disabled={isNeutral(adjustments)}>
               <UndoIcon className="inline-icon" /> {tr('edit.reset')}
             </button>

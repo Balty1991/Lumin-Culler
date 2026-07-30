@@ -178,6 +178,9 @@ export const en: Record<TranslationKey, string> = {
   'app.sceneTagFilter.clear': 'Clear filter',
   'app.cameraFilter.ariaLabel': 'Filter by camera',
   'app.cameraFilter.label': 'Camera',
+  'app.filters.ariaLabel': 'Filters',
+  'app.moreFilters.ariaLabel': 'More filters',
+  'app.moreFilters.title': 'More filters',
   'colorLabel.none': 'No label',
   'colorLabel.red': 'Red',
   'colorLabel.yellow': 'Yellow',
@@ -502,6 +505,7 @@ export const en: Record<TranslationKey, string> = {
 
   'edit.title': 'Basic edit',
   'edit.open': 'Edit',
+  'edit.auto': 'Auto',
   'edit.reset': 'Reset',
   'edit.exposure': 'Exposure',
   'edit.contrast': 'Contrast',

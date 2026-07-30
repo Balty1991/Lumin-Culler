@@ -175,6 +175,9 @@ export const ro = {
   'app.sceneTagFilter.clear': 'Sterge filtrul',
   'app.cameraFilter.ariaLabel': 'Filtreaza dupa aparatul foto',
   'app.cameraFilter.label': 'Aparat',
+  'app.filters.ariaLabel': 'Filtre',
+  'app.moreFilters.ariaLabel': 'Mai multe filtre',
+  'app.moreFilters.title': 'Mai multe filtre',
   'colorLabel.none': 'Fara eticheta',
   'colorLabel.red': 'Rosu',
   'colorLabel.yellow': 'Galben',
@@ -499,6 +502,7 @@ export const ro = {
 
   'edit.title': 'Editare de baza',
   'edit.open': 'Editeaza',
+  'edit.auto': 'Auto',
   'edit.reset': 'Reseteaza',
   'edit.exposure': 'Expunere',
   'edit.contrast': 'Contrast',

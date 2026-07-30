@@ -125,6 +125,9 @@ export function ClockIcon(p: SVGProps<SVGSVGElement>) {
 export function FilterDotIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><path d="M4 6h16" /><path d="M7.5 12h9" /><path d="M11 18h2" /></svg>;
 }
+export function MoreIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg {...base} {...p}><circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none" /><circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none" /></svg>;
+}
 export function ApertureIcon(p: SVGProps<SVGSVGElement>) {
   return (
     <svg {...base} {...p}>

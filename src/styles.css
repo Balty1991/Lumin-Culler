@@ -516,33 +516,18 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); color: var(--text-dim);
 }
 
-/* ── Filtre cu numaratori, lipite sub antet ── */
-.filters {
-  display: flex; gap: 6px; overflow-x: auto; padding: 8px 2px 12px;
-  background: linear-gradient(var(--bg) 82%, transparent);
-  scrollbar-width: none;
-}
-.filters::-webkit-scrollbar { display: none; }
 /*
- * Indicator de scroll orizontal (vezi ui/useScrollFade.ts): estompeaza marginea
- * DOAR in directia in care chiar exista chip-uri ascunse — apare/dispare in timp
- * real la scroll, nu e un fade static (ar ramane vizibil si cand nu mai e nimic
- * de derulat, ceea ce ar induce in eroare). mask-image (nu opacity/gradient pe
- * background) ca sa functioneze indiferent de continutul din spate (chip-uri
- * colorate, active etc.) — reduce doar alfa, nu adauga o culoare peste el.
+ * ── Filtre cu numaratori, lipite sub antet ──
+ * flex-wrap (nu overflow-x scroll) — cu doar 4 chip-uri de status compacte
+ * (icon + numar, fara eticheta text) + trigger-ul MoreFiltersMenu + comutatorul
+ * modului de selectie, randul incape pe un singur rand pe majoritatea telefoanelor;
+ * pe cele mai inguste, elementele in plus trec pur si simplu pe randul urmator
+ * (putin mai inalt), nu mai necesita NICIODATA scroll orizontal (feedback direct:
+ * "grupeaza cumva meniul asta, sa nu mai scrolez la dreapta").
  */
-.filters.fade-left, .filters.fade-right { -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }
-.filters.fade-left:not(.fade-right) {
-  -webkit-mask-image: linear-gradient(to right, transparent, black 24px);
-  mask-image: linear-gradient(to right, transparent, black 24px);
-}
-.filters.fade-right:not(.fade-left) {
-  -webkit-mask-image: linear-gradient(to left, transparent, black 24px);
-  mask-image: linear-gradient(to left, transparent, black 24px);
-}
-.filters.fade-left.fade-right {
-  -webkit-mask-image: linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent);
-  mask-image: linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent);
+.filters {
+  display: flex; gap: 6px; flex-wrap: wrap; overflow: visible; padding: 8px 2px 12px;
+  background: linear-gradient(var(--bg) 82%, transparent);
 }
 .chip {
   display: inline-flex; align-items: center; gap: 7px;
@@ -569,6 +554,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 .chip.active .chip-icon { opacity: 1; color: var(--accent); }
 .chip.active .chip-count { background: rgb(var(--accent-rgb) / 0.18); color: var(--accent); }
+/* varianta compacta (doar icon + numar, fara eticheta text) — pentru randul principal
+   de filtre, care trebuie sa incapa pe un singur rand fara scroll; eticheta completa
+   ramane disponibila prin aria-label/title. */
+.chip-compact { padding: 7px 10px; gap: 0; }
+.chip-compact .chip-icon { opacity: 0.75; }
+.chip-compact .chip-count:not(:empty) { margin-left: 5px; }
+.chip-compact.select-mode-toggle .chip-icon { opacity: 1; }
 /* select-uri native re-desenate — chrome-ul implicit al browserului (sageata gri,
    fundal alb pe unele SO) rupea iluzia de produs finit, langa restul UI-ului
    custom (feedback convergent runda 6, "polish" perceput). */
@@ -921,6 +913,28 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .scene-tag-filter-count { text-transform: none; font-weight: 700; font-size: 0.7em; color: var(--text-faint); background: var(--surface-3); border-radius: 999px; padding: 1px 7px; }
 .scene-tag-filter-option.active .scene-tag-filter-count { background: rgb(var(--accent-rgb) / 0.18); color: var(--accent); }
 .scene-tag-filter-clear { color: var(--text-dim); font-weight: 500; text-transform: none; border-top: 1px solid var(--line); margin-top: 2px; padding-top: 8px; justify-content: center; }
+
+/* buton care grupeaza statusurile speciale + persoana/eticheta/scena/aparat +
+   modul de selectie sub UN singur trigger (MoreFiltersMenu.tsx), ca randul
+   principal de filtre sa incapa fara scroll orizontal. */
+.more-filters-trigger { flex-shrink: 0; }
+/* z-index sub 40 (color-label/scene-tag/camera filter menus) intentionat —
+   acele meniuri sunt randate CA COPII (JSX) ai panoului, deci portalurile lor
+   proprii trebuie sa apara DEASUPRA panoului parinte, nu dedesubt. */
+.more-filters-menu {
+  position: fixed; z-index: 38;
+  display: flex; flex-wrap: wrap; gap: 6px; align-content: flex-start;
+  width: min(320px, calc(100vw - 16px));
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 14px;
+  padding: 10px; box-shadow: 0 12px 32px -8px rgba(0,0,0,0.5);
+}
+.more-filters-menu-head {
+  flex-basis: 100%; display: flex; align-items: center; justify-content: space-between;
+  font-family: var(--font-display); font-weight: 700; font-size: 0.85rem; color: var(--text);
+  padding: 0 2px 4px;
+}
+.more-filters-menu .chip:not(.chip-compact) { background: var(--surface); }
+.more-filters-divider { flex-basis: 100%; height: 1px; background: var(--line); margin: 2px 0; }
 
 /* dunga verticala pe latura stanga a cardului din grid — indica eticheta de
    culoare fara sa concureze vizual cu badge-urile de status/ora de aur din
@@ -1458,6 +1472,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .compare-actions { display: grid; grid-template-columns: 1fr 2fr; gap: 6px; padding: 0 8px 8px; }
 .compare-actions > * { min-width: 0; }
 .small-btn { padding: 8px 10px; font-size: 0.85rem; border-radius: 8px; }
+/* butonul "editor AI automat" (EditPanel) — usor evidentiat fata de Reseteaza,
+   ca sa citeasca drept actiunea "inteligenta", nu doar un alt buton neutru */
+.edit-auto-btn { color: var(--accent); border-color: rgb(var(--accent-rgb) / 0.4); }
+.edit-auto-btn:not(:disabled):hover { background: rgb(var(--accent-rgb) / 0.1); border-color: var(--accent); }
 
 .compare-zoom-sync { display: inline-flex; align-items: center; gap: 6px; color: var(--text-dim); font-size: 0.78rem; }
 
