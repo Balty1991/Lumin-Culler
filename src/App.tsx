@@ -20,6 +20,8 @@ import { ContactSheet } from './ui/ContactSheet';
 import { PresentationMode } from './ui/PresentationMode';
 import { EditPanel } from './ui/EditPanel';
 import { AnimatedNumber } from './ui/AnimatedNumber';
+import { CullGauge } from './ui/CullGauge';
+import { AiBootScreen } from './ui/AiBootScreen';
 import { Tooltip } from './ui/Tooltip';
 import { StarRating } from './ui/StarRating';
 import { MenuIcon, PlusIcon, UserCheckIcon, AlertIcon, ErrorIcon, XIcon, FocusIcon, SearchIcon, ApertureIcon, SparkleIcon, CheckIcon, EditIcon, GridIcon, ClockIcon, LayersIcon, EyeClosedIcon, SunIcon, DownloadIcon, StarIcon, TagIcon } from './ui/icons';
@@ -524,9 +526,6 @@ export default function App() {
     if (ok) await clearAll();
   };
 
-  const total = Math.max(1, counts.all);
-  const decidedPercent = Math.round(((counts.selected + counts.rejected) / total) * 100);
-
   // Workspace e ecranul principal implicit — grila (jos) ramane accesibila
   // doar cand exista deja poze SI utilizatorul a comutat explicit la ea
   // (buton dedicat in antetul Workspace-ului); fara poze, ramane onboarding-ul.
@@ -561,7 +560,12 @@ export default function App() {
     <div className="app">
       <header className="topbar">
         <div className="brand">
-          <ApertureIcon className="brand-mark" aria-hidden="true" />
+          <div className="brand-mark-wrap">
+            <span className="brand-mark-ring" aria-hidden="true" />
+            <span className="brand-mark">
+              <ApertureIcon aria-hidden="true" />
+            </span>
+          </div>
           <div className="brand-text">
             <h1>LUMIN<span>CULLER</span></h1>
             <p className="mono"><i className="live-dot" aria-hidden="true" /> {tr('app.tagline')}</p>
@@ -616,34 +620,31 @@ export default function App() {
           de afisare al grilei pe mobil. Topbar-ul (brand + actiuni critice) ramane mereu vizibil. */}
       <div className={headerHidden ? 'app-collapsible hidden' : 'app-collapsible'}>
         {photos.length > 0 && (
-          <div className="cullbar-compact mono" aria-label={tr('app.cullbar.ariaLabel')}>
-            <span className="cullbar-compact-stat sel" title={tr('app.cullbar.selected')}>
-              <CheckIcon aria-hidden="true" /><AnimatedNumber value={counts.selected} />
-            </span>
-            <span className="cullbar-compact-stat rev" title={tr('app.cullbar.review')}>
-              <ClockIcon aria-hidden="true" /><AnimatedNumber value={counts.review} />
-            </span>
-            <span className="cullbar-compact-stat rej" title={tr('app.cullbar.rejected')}>
-              <XIcon aria-hidden="true" /><AnimatedNumber value={counts.rejected} />
-            </span>
-            <span className="cullbar-compact-percent" title={tr('app.cullbar.decidedTitle', { percent: decidedPercent })}>{decidedPercent}%</span>
-            <span className="spacer-flex" />
-            <button className="ghost small danger" onClick={() => void confirmClearAll()}>{tr('app.clearSession')}</button>
-          </div>
+          <CullGauge
+            selected={counts.selected}
+            review={counts.review}
+            rejected={counts.rejected}
+            pending={counts.all - counts.selected - counts.review - counts.rejected}
+            total={counts.all}
+            onClearSession={() => void confirmClearAll()}
+          />
         )}
 
         {progress && (
-          <div className="progress" role="status" aria-live="polite">
-            <div className="progress-bar" style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }} />
-            <span className="mono">
-              {progress.phase === 'incarcare' ? tr('app.progress.loadingModels')
-                : progress.phase === 'analiza' ? tr('app.progress.analyzing', { done: progress.done, total: progress.total, fileName: progress.fileName })
-                : progress.phase === 'grupare' ? tr('app.progress.grouping') : tr('app.progress.done')}
-            </span>
-            {progress.phase === 'analiza' && (
-              <button className="ghost small progress-cancel" onClick={() => cancelImport()}>{tr('app.progress.cancel')}</button>
-            )}
-          </div>
+          progress.phase === 'incarcare' ? (
+            <AiBootScreen />
+          ) : (
+            <div className="progress" role="status" aria-live="polite">
+              <div className="progress-bar" style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }} />
+              <span className="mono">
+                {progress.phase === 'analiza' ? tr('app.progress.analyzing', { done: progress.done, total: progress.total, fileName: progress.fileName })
+                  : progress.phase === 'grupare' ? tr('app.progress.grouping') : tr('app.progress.done')}
+              </span>
+              {progress.phase === 'analiza' && (
+                <button className="ghost small progress-cancel" onClick={() => cancelImport()}>{tr('app.progress.cancel')}</button>
+              )}
+            </div>
+          )
         )}
 
         {photos.length > 0 && (
