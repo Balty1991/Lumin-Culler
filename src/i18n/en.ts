@@ -150,7 +150,6 @@ export const en: Record<TranslationKey, string> = {
   'app.aiDegraded': 'Face detection isn\'t accelerated on this device ({backend}) — scores use only sharpness and exposure, without faces/smiles/known people.',
   'app.aiBackend.unknown': 'unknown',
   'app.cullbar.ariaLabel': 'Culling progress',
-  'app.cullbar.decidedTitle': '{percent}% of photos have a decision',
   'app.cullbar.selected': 'selected',
   'app.cullbar.review': 'to review',
   'app.cullbar.rejected': 'rejected',

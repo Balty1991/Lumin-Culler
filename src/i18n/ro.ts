@@ -147,7 +147,6 @@ export const ro = {
   'app.aiDegraded': 'Detectia AI de fete nu ruleaza accelerat pe acest dispozitiv ({backend}) — scorurile folosesc doar claritate si expunere, fara fete/zambet/persoane cunoscute.',
   'app.aiBackend.unknown': 'necunoscut',
   'app.cullbar.ariaLabel': 'Progresul sortarii',
-  'app.cullbar.decidedTitle': '{percent}% din poze au o decizie luata',
   'app.cullbar.selected': 'selectate',
   'app.cullbar.review': 'de verificat',
   'app.cullbar.rejected': 'respinse',

@@ -318,12 +318,29 @@ export function deriveContextKey(a: AnalysisRecord, genre?: string): string {
 export class ContextEngine {
   private models = new Map<string, ContextModelRecord>();
   private loaded = false;
+  private loadingPromise: Promise<void> | null = null;
 
+  /**
+   * Bug real gasit de auditul QA: fara `loadingPromise`, doua apeluri
+   * concurente in init() pe un engine virgin (ex. predict() dintr-un import
+   * si recordCorrection() dintr-o decizie manuala, aproape simultan) treceau
+   * amandoua testul `if (this.loaded) return` (inca false pentru ambele) si
+   * fiecare re-citea+repopula independent this.models — daca o mutatie
+   * trainOne() de la primul flux ajungea intre cele doua citiri, al doilea
+   * init() o putea suprascrie silentios cu o instantanee mai veche, dinainte
+   * de mutatie. Acum orice apel concurent asteapta ACEEASI incarcare in curs,
+   * nu porneste una noua.
+   */
   async init(): Promise<void> {
     if (this.loaded) return;
-    const rows = await db.contextModels.toArray();
-    for (const row of rows) this.models.set(row.contextKey, row);
-    this.loaded = true;
+    if (!this.loadingPromise) {
+      this.loadingPromise = (async () => {
+        const rows = await db.contextModels.toArray();
+        for (const row of rows) this.models.set(row.contextKey, row);
+        this.loaded = true;
+      })().finally(() => { this.loadingPromise = null; });
+    }
+    await this.loadingPromise;
   }
 
   // ── Prediction ─────────────────────────────────────────────────────────────

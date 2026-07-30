@@ -30,7 +30,17 @@ export default defineConfig({
       },
       workbox: {
         maximumFileSizeToCacheInBytes: 25 * 1024 * 1024,
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest,json,bin,wasm}'],
+        // Bug real gasit de auditul QA: lipsea woff2 — cele 3 fonturi self-hosted
+        // (Space Grotesk, ~52KB) nu erau precache-uite deloc, deci un reload complet
+        // offline (dupa golirea cache-ului HTTP normal) cadea pe un font de sistem,
+        // contrazicand exact afirmatia "functioneaza offline" de mai sus.
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest,json,bin,wasm,woff2}'],
+        // Bug real gasit de auditul QA: fara asta, public/store/ (poze de marketing
+        // pentru fisa Play Store — icon-512.png duplicat + feature-graphic.png,
+        // ~348KB) era maturat automat de globPatterns si ajungea in precache-ul
+        // PWA-ului, desi nu e folosit NICIUNDE in interfata reala a aplicatiei —
+        // bytes descarcati degeaba la fiecare instalare noua.
+        globIgnores: ['store/**'],
         // Fara astea, un service worker nou instalat ramane "waiting" pana se
         // inchid TOATE tab-urile/instantele deschise ale aplicatiei — pe un PWA
         // instalat (adaugat pe ecranul principal, ramane rezident) practic nu se

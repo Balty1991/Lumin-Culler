@@ -39,6 +39,15 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
   const [src, setSrc] = useState<string | null>(null);
   const [zoomed, setZoomed] = useState(false);
   const [dragX, setDragX] = useState(0);
+  // Aceeasi tehnica (si acelasi bug real, gasit de auditul QA) ca sheetDragYRef
+  // mai jos: gestul ORIZONTAL e cel care chiar muta statusul pozei (selectat/
+  // respins) la commitSwipe, deci un pointerup ce vine imediat dupa ultimul
+  // pointermove (fara randare intre ele) putea vedea in endDrag o valoare
+  // VECHE a lui `dragX` din closure — un flick rapid risca sa nu comita
+  // deloc, sau sa comita pe baza unei distante usor invechite. Fisierul
+  // remediase deja exact acest tipar pentru gestul vertical (sheet), dar nu
+  // si pentru cel orizontal, singurul care schimba efectiv decizia.
+  const dragXRef = useRef(0);
   const draggingRef = useRef(false);
   const movedRef = useRef(false);
   const startXRef = useRef(0);
@@ -63,6 +72,7 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
 
   useEffect(() => {
     setZoomed(false);
+    dragXRef.current = 0;
     setDragX(0);
     setSheetExpanded(false);
     let alive = true;
@@ -105,6 +115,7 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
   const commitSwipe = (status: 'selected' | 'rejected') => {
     vibrate(status === 'selected' ? 14 : [12, 40, 12]);
     void setStatus(photo.id, status);
+    dragXRef.current = 0;
     setDragX(0);
   };
 
@@ -119,14 +130,15 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
     if (!draggingRef.current) return;
     const delta = e.clientX - startXRef.current;
     if (Math.abs(delta) > SWIPE_TAP_TOLERANCE) movedRef.current = true;
+    dragXRef.current = delta;
     setDragX(delta);
   };
   const endDrag = () => {
     if (!draggingRef.current) return;
     draggingRef.current = false;
-    if (dragX > SWIPE_COMMIT) commitSwipe('selected');
-    else if (dragX < -SWIPE_COMMIT) commitSwipe('rejected');
-    else setDragX(0);
+    if (dragXRef.current > SWIPE_COMMIT) commitSwipe('selected');
+    else if (dragXRef.current < -SWIPE_COMMIT) commitSwipe('rejected');
+    else { dragXRef.current = 0; setDragX(0); }
   };
   const onImageClick = () => {
     if (movedRef.current) return; // a fost swipe, nu tap — nu comuta zoom-ul

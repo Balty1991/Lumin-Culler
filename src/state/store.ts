@@ -1061,10 +1061,18 @@ export const useStore = create<AppState>((set, get) => ({
 
   resolveAllSeries: async () => {
     const resolutions = resolveGroups(get().photos);
+    // Bug real gasit de auditul QA (bug/low): un Array.find() pe intreaga lista
+    // in interiorul buclei (si al buclei imbricate de rejectIds) era O(n) per
+    // cautare — O(M*n) in total pentru M membri de serie, real O(n^2) cand
+    // majoritatea bibliotecii e grupata in serii (exact scenariul burst/sport/
+    // nunta pe care aplicatia il tinteste). `photos` nu se schimba in timpul
+    // buclei (set() vine abia dupa), deci un singur Map construit o data e
+    // sigur si suficient.
+    const photosById = new Map(get().photos.map(p => [p.id, p]));
     const changes: { photoId: string; previousStatus: PhotoRecord['status'] }[] = [];
     let quotaError = false;
     for (const g of resolutions) {
-      const current = get().photos.find(p => p.id === g.keepId);
+      const current = photosById.get(g.keepId);
       if (current?.status !== 'selected') {
         changes.push({ photoId: g.keepId, previousStatus: current?.status ?? 'pending' });
         await db.photos.update(g.keepId, { status: 'selected' });
@@ -1073,7 +1081,7 @@ export const useStore = create<AppState>((set, get) => ({
         await train(g.keepId, true);
       }
       for (const rejectId of g.rejectIds) {
-        const rec = get().photos.find(p => p.id === rejectId);
+        const rec = photosById.get(rejectId);
         if (rec?.status === 'rejected') continue; // deja rezolvat, sarim (evita re-antrenare redundanta)
         changes.push({ photoId: rejectId, previousStatus: rec?.status ?? 'pending' });
         await db.photos.update(rejectId, { status: 'rejected' });
@@ -1603,11 +1611,19 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   exportSessionReport: async () => {
-    const photos = get().photos;
-    const stats = computeLibraryStats(photos);
-    const earliestImportedAt = photos.length ? Math.min(...photos.map(p => p.importedAt)) : null;
+    const projectName = get().projectName;
+    // Bug real gasit de auditul QA: boot() incarca TOATA biblioteca persistata
+    // (nu doar sesiunea curenta), iar acest raport agrega intreaga colectie
+    // `photos`, desi antetul se afiseaza explicit ca "Proiect: {projectName}" —
+    // un raport titrat pentru un anumit proiect putea include totaluri/procente
+    // din poze apartinand altor proiecte, mai vechi, ramase in biblioteca
+    // locala. PhotoRecord.project e populat pe fiecare poza la import (vezi
+    // ProjectsPanel), deci scoping-ul e posibil direct, fara sesiune separata.
+    const scoped = projectName.trim() ? get().photos.filter(p => p.project === projectName) : get().photos;
+    const stats = computeLibraryStats(scoped);
+    const earliestImportedAt = scoped.length ? Math.min(...scoped.map(p => p.importedAt)) : null;
     const text = buildSessionReportText({
-      stats, projectName: get().projectName, earliestImportedAt, generatedAt: Date.now()
+      stats, projectName, earliestImportedAt, generatedAt: Date.now()
     });
     const blob = new Blob([text], { type: 'text/plain' });
     await downloadBlob('raport-sesiune-lumin-' + new Date().toISOString().slice(0, 10) + '.txt', blob);

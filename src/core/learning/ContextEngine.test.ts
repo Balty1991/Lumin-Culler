@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
-import { deriveContextKey, explainFactors, extractFeatures, FACE_ONLY_FEATURES, LANDSCAPE_ONLY_FEATURES, landscapeSharpness } from './ContextEngine';
-import type { AnalysisRecord } from '../db';
+import 'fake-indexeddb/auto';
+import { describe, expect, it, vi } from 'vitest';
+import { deriveContextKey, explainFactors, extractFeatures, FACE_ONLY_FEATURES, LANDSCAPE_ONLY_FEATURES, landscapeSharpness, ContextEngine } from './ContextEngine';
+import { db, type AnalysisRecord } from '../db';
 
 function baseAnalysis(overrides: Partial<AnalysisRecord> = {}): AnalysisRecord {
   return {
@@ -218,5 +219,34 @@ describe('landscapeSharpness', () => {
     for (let i = 1; i < samples.length; i++) {
       expect(landscapeSharpness(samples[i])).toBeGreaterThan(landscapeSharpness(samples[i - 1]));
     }
+  });
+});
+
+// Bug real gasit de auditul QA: doua apeluri concurente in init() pe un engine
+// virgin nu asteptau aceeasi incarcare — fiecare pornea propria citire
+// db.contextModels.toArray(), riscand ca o mutatie intre cele doua citiri sa
+// fie suprascrisa silentios de a doua. fake-indexeddb da un `db` real (nu
+// mockat) — doar interogarea db.contextModels e spionata, ca sa numaram cate
+// citiri chiar au pornit.
+describe('ContextEngine.init concurrency', () => {
+  it('two concurrent init() calls on a virgin engine share a single underlying load', async () => {
+    const engine = new ContextEngine();
+    const toArraySpy = vi.spyOn(db.contextModels, 'toArray');
+
+    await Promise.all([engine.init(), engine.init()]);
+
+    expect(toArraySpy).toHaveBeenCalledTimes(1);
+    toArraySpy.mockRestore();
+  });
+
+  it('a later, sequential init() call after loading is a true no-op (no second read)', async () => {
+    const engine = new ContextEngine();
+    await engine.init();
+    const toArraySpy = vi.spyOn(db.contextModels, 'toArray');
+
+    await engine.init();
+
+    expect(toArraySpy).not.toHaveBeenCalled();
+    toArraySpy.mockRestore();
   });
 });
