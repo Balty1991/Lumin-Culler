@@ -314,16 +314,24 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [multiSelectIds.size, selectMode, setSelectMode]);
 
+  // Bug real gasit de auditul QA: se calculau din TOATA biblioteca `photos`,
+  // ignorand orice filtru secundar activ (persoana/eticheta/scena/camera/
+  // proiect/cautare/data/rating) — pastila "Selectate" arata mereu numarul
+  // pe toata biblioteca, chiar si cu (de ex.) un filtru de persoana activ
+  // care ar arata mult mai putine. secondaryFiltered() aplica exact aceleasi
+  // filtre secundare ca filtered() (grila reala), doar fara axa de status
+  // (asta e ce numaram aici). Vezi store.ts pentru detalii.
+  const secondaryFiltered = useStore(s => s.secondaryFiltered());
   const counts = useMemo(() => ({
-    all: photos.length,
-    selected: photos.filter(p => p.status === 'selected').length,
-    review: photos.filter(p => p.status === 'review').length,
-    rejected: photos.filter(p => p.status === 'rejected').length,
-    series: photos.filter(p => p.groupId).length,
-    blinks: selectBlinks(photos).length,
-    goldenHour: photos.filter(p => p.goldenHourDetected).length,
-    highlights: selectHighlights(photos).length
-  }), [photos]);
+    all: secondaryFiltered.length,
+    selected: secondaryFiltered.filter(p => p.status === 'selected').length,
+    review: secondaryFiltered.filter(p => p.status === 'review').length,
+    rejected: secondaryFiltered.filter(p => p.status === 'rejected').length,
+    series: secondaryFiltered.filter(p => p.groupId).length,
+    blinks: selectBlinks(secondaryFiltered).length,
+    goldenHour: secondaryFiltered.filter(p => p.goldenHourDetected).length,
+    highlights: selectHighlights(secondaryFiltered).length
+  }), [secondaryFiltered]);
 
   // Randul principal de filtre (.filters) trebuie sa incapa pe un singur ecran de
   // telefon FARA scroll orizontal (feedback direct: "grupeaza cumva meniul asta,
@@ -383,6 +391,12 @@ export default function App() {
     // deodata dintr-o aplicatie ca "Fisiere" (nu Galeria) poate face ca `change`
     // sa nu mai ajunga niciodata (confirmat pe teren) — fara asta, utilizatorul
     // ramane in tacere totala, fara nicio explicatie. Vezi core/pickerWatchdog.ts.
+    // Bug real gasit de auditul QA: fara cancel() aici, un watchdog anterior
+    // ramas armat (utilizatorul a apasat "Adauga poze" a doua oara fara sa
+    // aleaga nimic prima data) era orfan — timer-ul lui tot pornea mai tarziu
+    // si arata un avertisment fals "nu s-a intamplat nimic" peste un import
+    // deja in curs, declansat de a doua apasare.
+    pickerWatchdogRef.current?.cancel();
     pickerWatchdogRef.current = armPickerWatchdog(() => setNotice(tr('app.import.pickerTimeout')));
     fileRef.current?.click();
   };

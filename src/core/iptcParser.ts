@@ -139,7 +139,16 @@ export function parseIptc(buffer: ArrayBuffer): IptcData {
         if (view.getUint8(segStart + i) !== PHOTOSHOP_SIGNATURE.charCodeAt(i)) matches = false;
       }
       if (matches) {
-        const segEnd = offset + 2 + segmentLength;
+        // Bug real gasit de auditul QA: segmentLength e un camp pe 16 biti
+        // controlat direct de fisier (corupt/trunchiat) — folosit necorectat
+        // ca limita, findIptcBlock putea primi un `end` peste view.byteLength,
+        // iar bucla lui (offset + 12 <= end) ramanea adevarata dincolo de
+        // capatul real al buffer-ului, facand view.getUint32(offset) sa arunce
+        // un RangeError. Reprodus real la fisiere unde sniff-ul initial
+        // (EXIF_SNIFF_BYTES, primii 128 KiB) taie exact acest segment inainte
+        // de capatul lui declarat. exifParser.ts deja limiteaza corect fiecare
+        // citire la view.byteLength — acelasi clamp aici.
+        const segEnd = Math.min(offset + 2 + segmentLength, view.byteLength);
         const iptcBlock = findIptcBlock(view, sigEnd, segEnd);
         if (iptcBlock) return parseIptcRecords(view, iptcBlock.start, iptcBlock.start + iptcBlock.length);
       }

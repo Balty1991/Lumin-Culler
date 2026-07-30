@@ -117,4 +117,22 @@ describe('parseIptc', () => {
     const result = parseIptc(buildJpegWithIptc(records));
     expect(result.byline).toBe('Ion Popescu');
   });
+
+  // Bug real gasit de auditul QA: segmentLength (camp pe 16 biti, controlat
+  // direct de fisier) era folosit necorectat ca limita superioara pentru
+  // findIptcBlock, fara sa fie plafonat la lungimea reala a buffer-ului —
+  // reproductibil real pentru un fisier trunchiat/corupt, sau unul unde
+  // sniff-ul initial (primii 128 KiB) taie exact acest segment. Rezultatul
+  // era un RangeError aruncat din view.getUint32(), nu un {} gol ca la orice
+  // alt caz "nu se poate citi" — impactul real era ca exceptia scapa din
+  // parseIptc si (in importPipeline.ts) pierde silentios si campurile EXIF
+  // deja citite inainte in acelasi try/catch comun.
+  it('nu arunca (returneaza fara sa crape) cand segmentLength depaseste lungimea reala a buffer-ului (fisier trunchiat/corupt)', () => {
+    const records = encodeIptcRecord(2, 80, 'Ion Popescu');
+    const full = new Uint8Array(buildJpegWithIptc(records));
+    // taiem buffer-ul chiar inainte de EOI, in mijlocul segmentului APP13 —
+    // segmentLength scris in header tot pretinde lungimea INTREGULUI segment original
+    const truncated = full.slice(0, full.length - 4);
+    expect(() => parseIptc(truncated.buffer)).not.toThrow();
+  });
 });

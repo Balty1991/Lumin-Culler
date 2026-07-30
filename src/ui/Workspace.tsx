@@ -137,6 +137,8 @@ export function Workspace() {
       if (picked.files.length) void runImport(picked.files, picked.handles);
       return;
     }
+    // vezi App.tsx onAddPhotosClick pentru bug-ul real pe care il evita cancel() aici
+    pickerWatchdogRef.current?.cancel();
     pickerWatchdogRef.current = armPickerWatchdog(() => setNotice(tr('app.import.pickerTimeout')));
     fileRef.current?.click();
   };

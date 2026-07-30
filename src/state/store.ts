@@ -396,6 +396,8 @@ interface AppState {
   /** Genereaza si descarca o galerie HTML statica cu pozele selectate, pentru feedback de la client. */
   exportClientGallery: () => Promise<void>;
   filtered: () => PhotoView[];
+  /** Aceeasi biblioteca, cu doar filtrele SECUNDARE aplicate (persoana/eticheta/scena/camera/proiect/cautare/data/rating) — vezi comentariul de la implementare. */
+  secondaryFiltered: () => PhotoView[];
   groupOf: (groupId: string) => PhotoView[];
 }
 
@@ -652,6 +654,26 @@ let filteredCache: {
   minRating: number;
   gridSortKey: GridSort['key'];
   gridSortDir: GridSort['dir'];
+  result: PhotoView[];
+} | null = null;
+
+/**
+ * Cache separat pentru secondaryFiltered() — vezi comentariul de acolo pentru
+ * bug-ul real pe care il rezolva (badge-urile de numar din randul de filtre
+ * nu reflectau filtrele secundare active). Aceeasi tehnica de memoizare ca
+ * filteredCache de mai sus, dar fara `filter`/sortare (nu conteaza aici).
+ */
+let secondaryFilteredCache: {
+  photos: PhotoView[];
+  personFilter: string | null;
+  colorLabelFilter: ColorLabel | null;
+  sceneTagFilter: string | null;
+  cameraFilter: string | null;
+  projectFilter: string | null;
+  searchText: string;
+  dateFrom: number | null;
+  dateTo: number | null;
+  minRating: number;
   result: PhotoView[];
 } | null = null;
 
@@ -1760,6 +1782,48 @@ export const useStore = create<AppState>((set, get) => ({
       searchText, dateFrom, dateTo, minRating, gridSortKey: gridSort.key, gridSortDir: gridSort.dir,
       result: base
     };
+    return base;
+  },
+
+  /**
+   * Bug real gasit de auditul QA: badge-urile de numar din randul principal
+   * de filtre (App.tsx, `counts`) se calculau din TOATA biblioteca `photos`,
+   * ignorand orice filtru SECUNDAR activ (persoana/eticheta/scena/camera/
+   * proiect/cautare/data/rating) — conținutul real al grilei (filtered(),
+   * mai sus) le combina corect, dar pastila "Selectate" arata mereu numarul
+   * pe toata biblioteca, chiar si cu un filtru de persoana activ care ar
+   * arata mult mai putine. Extras separat de filtered() (nu reutilizabil
+   * direct: acolo switch-ul pe `filter` ESTE tocmai axa pe care vrem sa
+   * numaram aici, deci trebuie sarit).
+   */
+  secondaryFiltered: () => {
+    const { photos, personFilter, colorLabelFilter, sceneTagFilter, cameraFilter, projectFilter, searchText, dateFrom, dateTo, minRating } = get();
+    const c = secondaryFilteredCache;
+    if (
+      c && c.photos === photos && c.personFilter === personFilter &&
+      c.colorLabelFilter === colorLabelFilter && c.sceneTagFilter === sceneTagFilter &&
+      c.cameraFilter === cameraFilter && c.projectFilter === projectFilter &&
+      c.searchText === searchText && c.dateFrom === dateFrom && c.dateTo === dateTo &&
+      c.minRating === minRating
+    ) {
+      return c.result;
+    }
+    let base = photos;
+    if (personFilter) base = base.filter(p => p.personNames.includes(personFilter));
+    if (colorLabelFilter) base = base.filter(p => (p.colorLabel ?? 'none') === colorLabelFilter);
+    if (sceneTagFilter) base = base.filter(p => p.sceneTags?.includes(sceneTagFilter));
+    if (cameraFilter) base = base.filter(p => p.cameraModel === cameraFilter);
+    if (projectFilter) {
+      base = projectFilter === NO_PROJECT_KEY
+        ? base.filter(p => !p.project)
+        : base.filter(p => p.project === projectFilter);
+    }
+    const q = searchText.trim().toLowerCase();
+    if (q) base = base.filter(p => p.fileName.toLowerCase().includes(q));
+    if (dateFrom !== null) base = base.filter(p => (p.capturedAt ?? 0) >= dateFrom);
+    if (dateTo !== null) base = base.filter(p => (p.capturedAt ?? 0) <= dateTo);
+    if (minRating > 0) base = base.filter(p => p.rating >= minRating);
+    secondaryFilteredCache = { photos, personFilter, colorLabelFilter, sceneTagFilter, cameraFilter, projectFilter, searchText, dateFrom, dateTo, minRating, result: base };
     return base;
   },
 

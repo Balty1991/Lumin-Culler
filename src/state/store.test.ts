@@ -194,3 +194,48 @@ describe('selectMergedEmbeddings', () => {
     expect(merged).toEqual([[1], [2], [3]]);
   });
 });
+
+// Bug real gasit de auditul QA: badge-urile de numar din randul de filtre
+// (App.tsx, `counts`) se calculau din TOATA biblioteca, ignorand orice
+// filtru secundar activ (persoana/eticheta/scena/camera/proiect/cautare/
+// data/rating) — pastila "Selectate" arata mereu numarul pe toata
+// biblioteca, chiar si cu (de ex.) un filtru de persoana activ care ar
+// arata mult mai putine.
+describe('secondaryFiltered', () => {
+  it('applies the person filter, unlike raw photos', () => {
+    const photos = [
+      { ...makePhoto(0), personNames: ['Ami'] },
+      { ...makePhoto(5), personNames: ['Ami'] },
+      { ...makePhoto(1), personNames: ['Sotia'] }
+    ];
+    useStore.setState({ photos, personFilter: 'Ami', colorLabelFilter: null, sceneTagFilter: null, cameraFilter: null, projectFilter: null, searchText: '', dateFrom: null, dateTo: null, minRating: 0 });
+    const result = useStore.getState().secondaryFiltered();
+    expect(result.map(p => p.id).sort()).toEqual(['p0', 'p5']);
+  });
+
+  it('ignores the primary status/blinks/goldenHour axis entirely (that is what counts sums over)', () => {
+    const photos = Array.from({ length: 10 }, (_, i) => makePhoto(i));
+    useStore.setState({ photos, filter: 'selected', personFilter: null, colorLabelFilter: null, sceneTagFilter: null, cameraFilter: null, projectFilter: null, searchText: '', dateFrom: null, dateTo: null, minRating: 0 });
+    const result = useStore.getState().secondaryFiltered();
+    expect(result).toHaveLength(10); // toate, indiferent de `filter` (spre deosebire de filtered())
+  });
+
+  it('combines multiple secondary filters (AND), matching filtered()', () => {
+    const photos = [
+      { ...makePhoto(0), personNames: ['Ami'], rating: 5 },
+      { ...makePhoto(5), personNames: ['Ami'], rating: 1 }
+    ];
+    useStore.setState({ photos, personFilter: 'Ami', minRating: 3, colorLabelFilter: null, sceneTagFilter: null, cameraFilter: null, projectFilter: null, searchText: '', dateFrom: null, dateTo: null });
+    const result = useStore.getState().secondaryFiltered();
+    expect(result.map(p => p.id)).toEqual(['p0']);
+  });
+
+  it('is memoized: returns the same reference when nothing relevant changed', () => {
+    const photos = Array.from({ length: 5 }, (_, i) => makePhoto(i));
+    useStore.setState({ photos, personFilter: null, colorLabelFilter: null, sceneTagFilter: null, cameraFilter: null, projectFilter: null, searchText: '', dateFrom: null, dateTo: null, minRating: 0 });
+    const first = useStore.getState().secondaryFiltered();
+    useStore.setState({ notice: 'unrelated change' });
+    const second = useStore.getState().secondaryFiltered();
+    expect(second).toBe(first);
+  });
+});
