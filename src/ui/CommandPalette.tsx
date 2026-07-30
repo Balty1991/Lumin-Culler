@@ -7,6 +7,7 @@ import {
   KeyboardIcon, SunIcon, MoonIcon, DownloadIcon, TagIcon, ListIcon, TrashIcon, FilterDotIcon
 } from './icons';
 import { EASE } from './motion';
+import { useModalFocusTrap } from './useModalFocusTrap';
 import { t } from '../i18n';
 
 interface Command {
@@ -52,8 +53,16 @@ export function CommandPalette() {
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const reduceMotion = useReducedMotion();
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
+
+  // Bug real gasit de auditul QA: avea deja role="dialog"/aria-modal, dar nu
+  // era cablat la useModalFocusTrap — input-ul de cautare era SINGURUL element
+  // focusabil din interior (optiunile listei folosesc navigare virtuala prin
+  // aria-activedescendant, nu tabIndex propriu), deci un Tab din el iesea
+  // direct in pagina din spatele scrim-ului, ocolind complet modalul.
+  useModalFocusTrap(containerRef, open);
 
   // deschidere globala cu Ctrl/Cmd+K — inregistrata o singura data (dependente
   // stabile), disponibila indiferent de ecran (grid sau Workspace)
@@ -166,7 +175,7 @@ export function CommandPalette() {
         >
           <motion.div
             className="palette" onClick={e => e.stopPropagation()}
-            role="dialog" aria-modal="true" aria-label={tr('palette.ariaLabel')}
+            ref={containerRef} role="dialog" aria-modal="true" aria-label={tr('palette.ariaLabel')}
             initial={{ opacity: 0, scale: 0.97, y: -8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.98, y: -4 }}
             transition={{ duration: reduceMotion ? 0 : 0.18, ease: EASE }}
           >

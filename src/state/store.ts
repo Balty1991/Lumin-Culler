@@ -1423,7 +1423,13 @@ export const useStore = create<AppState>((set, get) => ({
     // dar apelantul (componenta ConfirmDialog) stie deja, din req.kind, ce tip de valoare trimite.
     (req?.resolve as ((v: boolean | string | null) => void) | undefined)?.(value);
   },
-  setWorkspaceMode: on => set({ workspaceMode: on, detailId: on ? get().detailId : null }),
+  // Bug real gasit de auditul QA: GroupCompare (ca si DetailView) nu e montat
+  // cat timp Workspace e activ, dar — spre deosebire de detailId — compareGroupId
+  // nu era niciodata resetat la intoarcerea in grila, deci o comparare de serie
+  // deschisa inainte de a intra in Workspace reaparea NEASTEPTAT la revenire,
+  // fara ca utilizatorul sa fi cerut asta. Acelasi tipar ca detailId mai sus:
+  // pastrat cat timp Workspace e activ (nerandat oricum), golit la intoarcere.
+  setWorkspaceMode: on => set({ workspaceMode: on, detailId: on ? get().detailId : null, compareGroupId: on ? get().compareGroupId : null }),
   setBatchOpsOpen: open => set({ batchOpsOpen: open }),
   setPaletteOpen: open => set({ paletteOpen: open }),
   setShortcutsOpen: open => set({ shortcutsOpen: open }),

@@ -46,8 +46,22 @@ jobs:
           java-version: '21'
       - name: Decode keystore
         run: |
-          if [ -z "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
-            echo "::error::Lipseste secretul ANDROID_KEYSTORE_BASE64 — vezi comentariul din acest workflow." >&2
+          # Bug real gasit de auditul QA: doar ANDROID_KEYSTORE_BASE64 era
+          # verificat aici, desi comentariul de sus (si intentia originala)
+          # promitea esec explicit pentru "aceste secrete" (plural, toate 4).
+          # Fara acest bloc, un secret lipsa dintre celelalte 3 (de ex.
+          # ANDROID_KEY_ALIAS uitat) ajungea sa scrie keystore.properties cu
+          # o valoare goala si esua abia mult mai tarziu, in interiorul
+          # ./gradlew bundleRelease, cu o eroare Gradle/Java confuza ("Keystore
+          # was tampered with, or password was incorrect") fara nicio legatura
+          # vizibila cu secretul lipsa real.
+          missing=""
+          [ -z "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ] && missing="$missing ANDROID_KEYSTORE_BASE64"
+          [ -z "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" ] && missing="$missing ANDROID_KEYSTORE_PASSWORD"
+          [ -z "${{ secrets.ANDROID_KEY_ALIAS }}" ] && missing="$missing ANDROID_KEY_ALIAS"
+          [ -z "${{ secrets.ANDROID_KEY_PASSWORD }}" ] && missing="$missing ANDROID_KEY_PASSWORD"
+          if [ -n "$missing" ]; then
+            echo "::error::Lipsesc secrete:$missing — vezi comentariul din acest workflow." >&2
             exit 1
           fi
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/release.jks

@@ -52,6 +52,21 @@ describe('generateExplanation', () => {
     expect(withFaces.some(p => p.startsWith('Subiectul'))).toBe(true);
   });
 
+  // Bug real gasit de auditul QA: pentru un peisaj/scena fara fete, textul
+  // tot spunea "neclara, cu blur vizibil" pe baza claritatii BRUTE, chiar si
+  // pentru un cadru pe care ContextEngine.landscapeSharpness (perspectiva
+  // atmosferica) il trateaza deja indulgent la scorare — contrazicand direct
+  // decizia AI-ului pentru acelasi cadru. Fix: acelasi calcul, si aici.
+  it('nu descrie un peisaj cu claritate atmosferica moderata drept "neclar" (aliniat cu scorarea)', () => {
+    const paragraphs = generateExplanation(analysis({ faceCount: 0, sharpness: 40 }), true, true, null);
+    expect(paragraphs[0]).not.toMatch(/neclar/);
+  });
+
+  it('tot descrie un portret cu aceeasi claritate bruta drept "neclar" (fara schimbare pentru fete)', () => {
+    const paragraphs = generateExplanation(analysis({ faceCount: 1, sharpness: 40 }), true, true, null);
+    expect(paragraphs[0]).toMatch(/neclar/);
+  });
+
   it('surfaces weighted aiFactors as a dedicated paragraph', () => {
     const paragraphs = generateExplanation(
       analysis({ aiFactors: [{ feature: 'sharpness', contribution: 0.9 }, { feature: 'exposureBalance', contribution: -0.5 }] }),
@@ -72,6 +87,16 @@ describe('generateSuggestions', () => {
 
   it('flags a blurry photo', () => {
     const suggestions = generateSuggestions(analysis({ sharpness: 20 }));
+    expect(suggestions.some(s => s.includes('stabilizarea') || s.includes('obturatorului'))).toBe(true);
+  });
+
+  it('nu sugereaza stabilizare pentru un peisaj cu claritate atmosferica moderata (nu genuine blur)', () => {
+    const suggestions = generateSuggestions(analysis({ faceCount: 0, sharpness: 40 }));
+    expect(suggestions.some(s => s.includes('stabilizarea') || s.includes('obturatorului'))).toBe(false);
+  });
+
+  it('tot sugereaza stabilizare pentru un portret cu aceeasi claritate bruta (fara schimbare pentru fete)', () => {
+    const suggestions = generateSuggestions(analysis({ faceCount: 1, sharpness: 40 }));
     expect(suggestions.some(s => s.includes('stabilizarea') || s.includes('obturatorului'))).toBe(true);
   });
 

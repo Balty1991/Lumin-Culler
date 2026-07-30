@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deriveContextKey, explainFactors, extractFeatures, FACE_ONLY_FEATURES, landscapeSharpness } from './ContextEngine';
+import { deriveContextKey, explainFactors, extractFeatures, FACE_ONLY_FEATURES, LANDSCAPE_ONLY_FEATURES, landscapeSharpness } from './ContextEngine';
 import type { AnalysisRecord } from '../db';
 
 function baseAnalysis(overrides: Partial<AnalysisRecord> = {}): AnalysisRecord {
@@ -154,6 +154,35 @@ describe('extractFeatures', () => {
       }]
     }));
     expect(features.sharpness).toBeCloseTo(0.48);
+  });
+
+  // Oglinda bug-ului FACE_ONLY_FEATURES de mai sus: horizonTiltDeg e calculat
+  // DOAR pentru faceCount === 0 (faceAnalysis.worker.ts) — inainte de fix,
+  // horizonLevel intra totusi in vector cu o valoare filler (0.5) pentru orice
+  // portret/poza de grup, contaminand modelul GLOBAL folosit la cold-start
+  // pentru peisaje. Vezi LANDSCAPE_ONLY_FEATURES.
+  it('omits horizonLevel for photos with faces (structural niciodata masurat acolo)', () => {
+    const features = extractFeatures(baseAnalysis({
+      sceneType: 'portrait', faceCount: 1, knownFaceCount: 1, strangerCount: 0,
+      faces: [{
+        box: [0, 0, 0.1, 0.1], faceScore: 0.9, smile: 0.8,
+        eyesOpen: { left: 1, right: 1 }, isBlinking: false,
+        personId: null, personName: null, similarity: 0
+      }]
+    }));
+    for (const key of LANDSCAPE_ONLY_FEATURES) {
+      expect(features).not.toHaveProperty(key);
+    }
+  });
+
+  it('includes horizonLevel for a face-less photo, with the real tilt when available', () => {
+    const features = extractFeatures(baseAnalysis({ faceCount: 0, faces: [], horizonTiltDeg: 6 }));
+    expect(features.horizonLevel).toBeCloseTo(1 - 6 / 15);
+  });
+
+  it('falls back to the neutral 0.5 for a face-less photo when the tilt could not be estimated', () => {
+    const features = extractFeatures(baseAnalysis({ faceCount: 0, faces: [], horizonTiltDeg: undefined }));
+    expect(features.horizonLevel).toBe(0.5);
   });
 });
 

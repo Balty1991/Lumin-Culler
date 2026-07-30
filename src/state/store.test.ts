@@ -75,3 +75,25 @@ describe('filtered() memoization', () => {
     expect(second).toEqual(first); // continut identic, doar referinta difera
   });
 });
+
+// Bug real gasit de auditul QA: GroupCompare (ca DetailView) nu e montat cat
+// timp Workspace e activ, dar spre deosebire de detailId, compareGroupId nu
+// era niciodata resetat la intoarcerea in grila — o comparare de serie
+// deschisa inainte de a intra in Workspace reaparea neasteptat la revenire.
+describe('setWorkspaceMode', () => {
+  it('clears a stale compareGroupId when returning to the grid, so GroupCompare does not reopen unexpectedly', () => {
+    useStore.setState({ compareGroupId: 'g1', workspaceMode: false });
+    useStore.getState().setWorkspaceMode(true);
+    expect(useStore.getState().compareGroupId).toBe('g1'); // pastrat cat timp Workspace e activ (GroupCompare nu e randat oricum)
+
+    useStore.getState().setWorkspaceMode(false);
+    expect(useStore.getState().compareGroupId).toBeNull();
+  });
+
+  it('leaves compareGroupId untouched when it was already null', () => {
+    useStore.setState({ compareGroupId: null, workspaceMode: false });
+    useStore.getState().setWorkspaceMode(true);
+    useStore.getState().setWorkspaceMode(false);
+    expect(useStore.getState().compareGroupId).toBeNull();
+  });
+});

@@ -21,8 +21,22 @@
  * increderea e minima si recomandarea se bazeaza pe reguli generale.
  */
 import type { AnalysisRecord, ContextModelRecord } from './db';
-import { explainFactors } from './learning/ContextEngine';
+import { explainFactors, landscapeSharpness } from './learning/ContextEngine';
 import { t, type Locale } from '../i18n';
+
+/**
+ * Aceeasi curba de perspectiva atmosferica folosita de ContextEngine.extractFeatures
+ * pentru scorare (vezi landscapeSharpness) — bug real gasit de auditul QA:
+ * explicatiile/sugestiile foloseau in continuare claritatea BRUTA pentru
+ * peisaje/natura, deci un cadru pe care motorul de scor tocmai il trata mai
+ * indulgent (perspectiva atmosferica, nu un defect real) tot aparea in text
+ * ca "neclar, cu blur vizibil" — contrazicand direct decizia AI-ului pentru
+ * acelasi cadru. Pentru poze cu cel putin o fata, comportamentul ramane
+ * neschimbat (claritatea bruta, ca inainte).
+ */
+function effectiveSharpness(a: AnalysisRecord): number {
+  return a.faceCount > 0 ? a.sharpness : landscapeSharpness(a.sharpness) * 100;
+}
 
 const COLD_START_SAMPLES = 8;   // acelasi prag ca in ContextEngine.ts
 const TRAINED_SAMPLES = 40;
@@ -45,9 +59,10 @@ function joinNatural(parts: string[], locale: Locale): string {
 // ── Axa tehnica: claritate, expunere, ISO ───────────────────────────────────
 
 function technicalSentence(a: AnalysisRecord, locale: Locale): string {
+  const sharpness = effectiveSharpness(a);
   const clarity =
-    a.sharpness >= 70 ? t(locale, 'aiExplain.clarity.high')
-    : a.sharpness >= 45 ? t(locale, 'aiExplain.clarity.mid')
+    sharpness >= 70 ? t(locale, 'aiExplain.clarity.high')
+    : sharpness >= 45 ? t(locale, 'aiExplain.clarity.mid')
     : t(locale, 'aiExplain.clarity.low');
 
   const exposureDiff = a.exposure - 50;
@@ -218,7 +233,7 @@ const MAX_SUGGESTIONS = 4;
 export function generateSuggestions(a: AnalysisRecord, locale: Locale = 'ro'): string[] {
   const s: string[] = [];
 
-  if (a.sharpness < 45) {
+  if (effectiveSharpness(a) < 45) {
     s.push(t(locale, 'aiSuggest.blur'));
   }
   const exposureDiff = a.exposure - 50;

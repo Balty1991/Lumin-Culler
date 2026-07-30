@@ -196,6 +196,23 @@ export const FACE_ONLY_FEATURES = [
 ] as const;
 
 /**
+ * Oglinda exacta a bug-ului FACE_ONLY_FEATURES de mai sus, gasita de auditul
+ * QA: faceAnalysis.worker.ts calculeaza horizonTiltDeg DOAR pentru
+ * faceCount === 0 (structural, nu doar "uneori nemasurabil" — vezi
+ * `...(horizonTiltDeg !== null ? {...} : {})` in worker). Inainte de acest
+ * fix, horizonLevel intra totusi in blocul UNIVERSAL din extractFeatures, deci
+ * fiecare portret/poza de grup trimitea o valoare filler (0.5, "neutru") la
+ * trainOne() — inclusiv la modelul GLOBAL_CONTEXT_KEY, folosit la blending-ul
+ * de cold-start pentru orice context nou, peisaje incluse. Daca portretele
+ * domina istoricul unui utilizator, statisticile Welford ale GLOBAL pentru
+ * horizonLevel se aduna in jurul valorii filler constante — cand un peisaj
+ * cu orizont REAL intra la cold-start, z-score-ul lui normalizat devine
+ * artificial amplificat (clamp la ±3), o contributie zgomotoasa, nelegata de
+ * nicio preferinta reala invatata.
+ */
+export const LANDSCAPE_ONLY_FEATURES = ['horizonLevel'] as const;
+
+/**
  * Peisaj/natura fara subiect uman: claritatea globala pe tot cadrul e o
  * masura mult mai putin de incredere decat la un portret. Perspectiva
  * atmosferica — un principiu de baza in fotografia de peisaj — descrie exact
@@ -226,9 +243,6 @@ export function extractFeatures(a: AnalysisRecord): FeatureVector {
     // altfel penalizam artificial poze analizate inainte de aceasta functie
     highlightClipping: a.highlightClipping ?? 0,
     shadowClipping: a.shadowClipping ?? 0,
-    // orizont: convertit din grade in scor 0..1 (1 = perfect drept); 0.5 neutru
-    // cand nu s-a putut estima (poze cu fete, sau prea putine muchii clare)
-    horizonLevel: a.horizonTiltDeg !== undefined ? Math.max(0, 1 - Math.abs(a.horizonTiltDeg) / 15) : 0.5,
     // EXIF — scale logaritmice (in "stops", cum gandesc fotografii), 0 cand
     // lipseste (coincide cu "ISO de baza", nu introduce penalizare falsa)
     isoPenalty: a.iso !== undefined ? Math.min(1, Math.max(0, Math.log2(Math.max(a.iso, 50) / 100) / 6)) : 0,
@@ -270,6 +284,12 @@ export function extractFeatures(a: AnalysisRecord): FeatureVector {
     features.avgEngagement = a.avgEngagement ?? 0.5;
     features.subjectInFocus = a.subjectInFocus === undefined ? 0.5 : (a.subjectInFocus ? 1 : 0);
     features.bokehQuality = a.bokehQuality === 'good' ? 1 : a.bokehQuality === 'poor' ? 0 : 0.5;
+  } else {
+    // orizont: convertit din grade in scor 0..1 (1 = perfect drept); 0.5 neutru
+    // cand nu s-a putut estima (prea putine muchii clare) — vezi LANDSCAPE_ONLY_FEATURES
+    // pentru motivul pentru care lipseste complet la faceCount > 0, in loc de
+    // aceeasi valoare filler ca inainte.
+    features.horizonLevel = a.horizonTiltDeg !== undefined ? Math.max(0, 1 - Math.abs(a.horizonTiltDeg) / 15) : 0.5;
   }
 
   return features;

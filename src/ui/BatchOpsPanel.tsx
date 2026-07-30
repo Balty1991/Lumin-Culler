@@ -25,6 +25,7 @@ export function BatchOpsPanel() {
   const setGenre = useStore(s => s.setGenre);
   const askConfirm = useStore(s => s.askConfirm);
   const askPrompt = useStore(s => s.askPrompt);
+  const setNotice = useStore(s => s.setNotice);
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
 
@@ -88,13 +89,23 @@ export function BatchOpsPanel() {
 
   if (!open) return null;
 
+  // Bug real gasit de auditul QA: niciun handler de mai jos nu avea
+  // try/finally — daca actiunea din store arunca la mijlocul lotului (ex. o
+  // eroare Dexie neasteptata pe un singur photo), setBusy(false) era sarit
+  // complet, iar cele 4 butoane ramaneau disabled={busy} PENTRU TOTDEAUNA,
+  // fara nicio eroare vizibila, pana la un reload de pagina.
   const runReject = async () => {
     if (!targets.length) return;
     const ok = await askConfirm(tr('batch.rejectBelow.confirm', { count: targets.length, threshold }), { danger: true });
     if (!ok) return;
     setBusy(true);
-    await bulkRejectBelow(threshold);
-    setBusy(false);
+    try {
+      await bulkRejectBelow(threshold);
+    } catch (err) {
+      setNotice(tr('batch.operationFailed', { error: String(err) }));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const runResolveSeries = async () => {
@@ -102,8 +113,13 @@ export function BatchOpsPanel() {
     const ok = await askConfirm(tr('batch.resolveSeries.confirm', { count: groups.length }), { danger: true });
     if (!ok) return;
     setBusy(true);
-    await resolveAllSeries();
-    setBusy(false);
+    try {
+      await resolveAllSeries();
+    } catch (err) {
+      setNotice(tr('batch.operationFailed', { error: String(err) }));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const runAutoCull = async () => {
@@ -111,8 +127,13 @@ export function BatchOpsPanel() {
     const ok = await askConfirm(tr('batch.autoCull.confirm', { percent: cullPercent, keep: cull.selectIds.length, reject: cull.rejectIds.length }), { danger: true });
     if (!ok) return;
     setBusy(true);
-    await autoCullTopPercent(cullPercent);
-    setBusy(false);
+    try {
+      await autoCullTopPercent(cullPercent);
+    } catch (err) {
+      setNotice(tr('batch.operationFailed', { error: String(err) }));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const runRescore = async () => {
@@ -120,8 +141,13 @@ export function BatchOpsPanel() {
     const ok = await askConfirm(tr('batch.rescore.confirm', { count: photos.length }), { danger: true });
     if (!ok) return;
     setBusy(true);
-    await rescorePhotos();
-    setBusy(false);
+    try {
+      await rescorePhotos();
+    } catch (err) {
+      setNotice(tr('batch.operationFailed', { error: String(err) }));
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
