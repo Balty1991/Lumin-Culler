@@ -383,7 +383,7 @@ function detectLeadingLines(mag: Float32Array, angleDeg: Float32Array): boolean 
  * muchiilor din jumatatea stanga si oglinda (flip orizontal) celei drepte,
  * pe o grila redusa de blocuri (mai robust la zgomot pixel-cu-pixel).
  */
-function detectSymmetry(mag: Float32Array, w: number, h: number): boolean {
+export function detectSymmetry(mag: Float32Array, w: number, h: number): boolean {
   const GRID = 16;
   const halfW = Math.floor(w / 2);
   const bw = Math.max(1, Math.floor(halfW / GRID));
@@ -408,7 +408,7 @@ function detectSymmetry(mag: Float32Array, w: number, h: number): boolean {
 }
 
 /** Fractiune de blocuri (grila 10x10) cu variatie locala scazuta ("goale") — cer, fundal uniform, spatiu negativ. */
-function negativeSpaceScore(gray: Float32Array, w: number, h: number): number {
+export function negativeSpaceScore(gray: Float32Array, w: number, h: number): number {
   const GRID = 10;
   const bw = Math.max(1, Math.floor(w / GRID));
   const bh = Math.max(1, Math.floor(h / GRID));
@@ -481,7 +481,7 @@ export function regionLaplacianVariance(gray: Float32Array, w: number, h: number
  * cand regiunea e prea mica pentru o masuratoare stabila (acelasi prag ca
  * regionLaplacianVariance, n < 20 pixeli).
  */
-function scoreFocusAndBokeh(gray: Float32Array, w: number, h: number, faces: FaceInsight[]): {
+export function scoreFocusAndBokeh(gray: Float32Array, w: number, h: number, faces: FaceInsight[]): {
   subjectInFocus?: boolean; bokehQuality: NonNullable<AnalysisRecord['bokehQuality']>; subjectSharpness?: number;
 } {
   if (!faces.length) return { bokehQuality: 'n/a' };
@@ -530,7 +530,7 @@ const HUE_BINS = 12; // 30 grade fiecare
  * dezordonata). "Ora de aur" e o aproximare pur vizuala (cast cald + saturatie
  * + expunere medie), fara date GPS/ora reala a rasaritului.
  */
-function analyzeColor(img: ImageData, exposure: number): {
+export function analyzeColor(img: ImageData, exposure: number): {
   colorHarmonyScore: number; dominantColors: string[]; goldenHourDetected: boolean;
 } {
   const { data } = img;

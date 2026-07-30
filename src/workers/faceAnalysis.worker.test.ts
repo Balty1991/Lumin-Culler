@@ -3,6 +3,11 @@ import type { FaceAnalysisService as FaceAnalysisServiceType } from './faceAnaly
 import type { blendSubjectSharpness as blendSubjectSharpnessType } from './faceAnalysis.worker';
 import type { regionLaplacianVariance as regionLaplacianVarianceType } from './faceAnalysis.worker';
 import type { varianceToSharpnessScore as varianceToSharpnessScoreType } from './faceAnalysis.worker';
+import type { detectSymmetry as detectSymmetryType } from './faceAnalysis.worker';
+import type { negativeSpaceScore as negativeSpaceScoreType } from './faceAnalysis.worker';
+import type { analyzeColor as analyzeColorType } from './faceAnalysis.worker';
+import type { scoreFocusAndBokeh as scoreFocusAndBokehType } from './faceAnalysis.worker';
+import type { FaceInsight } from '../core/db';
 
 /**
  * Regression pentru bug-ul real raportat (nu doar sandbox): pe unele telefoane,
@@ -40,9 +45,15 @@ let FaceAnalysisService: typeof FaceAnalysisServiceType;
 let blendSubjectSharpness: typeof blendSubjectSharpnessType;
 let regionLaplacianVariance: typeof regionLaplacianVarianceType;
 let varianceToSharpnessScore: typeof varianceToSharpnessScoreType;
+let detectSymmetry: typeof detectSymmetryType;
+let negativeSpaceScore: typeof negativeSpaceScoreType;
+let analyzeColor: typeof analyzeColorType;
+let scoreFocusAndBokeh: typeof scoreFocusAndBokehType;
 beforeEach(async () => {
-  ({ FaceAnalysisService, blendSubjectSharpness, regionLaplacianVariance, varianceToSharpnessScore } =
-    await import('./faceAnalysis.worker'));
+  ({
+    FaceAnalysisService, blendSubjectSharpness, regionLaplacianVariance, varianceToSharpnessScore,
+    detectSymmetry, negativeSpaceScore, analyzeColor, scoreFocusAndBokeh
+  } = await import('./faceAnalysis.worker'));
 });
 
 describe('FaceAnalysisService.init — cascada WebGPU -> WebGL -> CPU', () => {
@@ -177,5 +188,128 @@ describe('regionLaplacianVariance', () => {
     const gray = new Float32Array(9); // grila 3x3 -> bucla interioara (fara margine) are un singur pixel
     const mask = new Uint8Array(9).fill(1);
     expect(regionLaplacianVariance(gray, 3, 3, mask, true)).toBe(-1);
+  });
+});
+
+describe('detectSymmetry', () => {
+  const W = 32, H = 32;
+
+  it('detects a perfect left-right mirror (correlation exactly 1)', () => {
+    const mag = new Float32Array(W * H);
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W / 2; x++) {
+        const v = (x * 7 + y * 3) % 50; // orice tipar variat, atat timp cat e IDENTIC in oglinda
+        mag[y * W + x] = v;
+        mag[y * W + (W - 1 - x)] = v;
+      }
+    }
+    expect(detectSymmetry(mag, W, H)).toBe(true);
+  });
+
+  it('returns false (via the denominator guard) when one side has no measurable energy at all', () => {
+    const mag = new Float32Array(W * H);
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W / 2; x++) mag[y * W + x] = (x * 7 + y * 3) % 50; // stanga are muchii, dreapta ramane 0
+    }
+    expect(detectSymmetry(mag, W, H)).toBe(false);
+  });
+});
+
+describe('negativeSpaceScore', () => {
+  const W = 40, H = 40; // divizibil exact la grila 10x10 folosita intern
+
+  it('scores a perfectly flat frame as all-negative-space (every block has zero variance)', () => {
+    const gray = new Float32Array(W * H).fill(128);
+    expect(negativeSpaceScore(gray, W, H)).toBe(1);
+  });
+
+  it('scores a busy checkerboard frame as having no negative space (every block has high variance)', () => {
+    const gray = new Float32Array(W * H);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) gray[y * W + x] = (x + y) % 2 === 0 ? 0 : 255;
+    expect(negativeSpaceScore(gray, W, H)).toBe(0);
+  });
+});
+
+describe('analyzeColor', () => {
+  function solidImage(w: number, h: number, [r, g, b]: [number, number, number]): ImageData {
+    const data = new Uint8ClampedArray(w * h * 4);
+    for (let i = 0; i < w * h; i++) { data[i * 4] = r; data[i * 4 + 1] = g; data[i * 4 + 2] = b; data[i * 4 + 3] = 255; }
+    return { data, width: w, height: h, colorSpace: 'srgb' } as ImageData;
+  }
+
+  it('treats a near-gray (low-saturation) frame as harmonious by convention, with no dominant colors', () => {
+    const result = analyzeColor(solidImage(8, 8, [128, 128, 128]), 50);
+    expect(result.colorHarmonyScore).toBe(0.85);
+    expect(result.dominantColors).toEqual([]);
+    expect(result.goldenHourDetected).toBe(false);
+  });
+
+  it('scores a single saturated hue as maximally harmonious, with exactly one dominant color', () => {
+    const result = analyzeColor(solidImage(8, 8, [255, 0, 0]), 50);
+    expect(result.colorHarmonyScore).toBe(1);
+    expect(result.dominantColors).toHaveLength(1);
+  });
+
+  it('detects golden-hour lighting for a warm, saturated, mid-exposure frame', () => {
+    const result = analyzeColor(solidImage(8, 8, [230, 150, 60]), 50); // portocaliu cald, hue ~32°
+    expect(result.goldenHourDetected).toBe(true);
+  });
+
+  it('does not flag golden hour for a cool-toned frame, even at the same exposure/saturation', () => {
+    const result = analyzeColor(solidImage(8, 8, [60, 80, 230]), 50); // albastru, hue ~233°
+    expect(result.goldenHourDetected).toBe(false);
+  });
+});
+
+describe('scoreFocusAndBokeh', () => {
+  const W = 40, H = 40;
+  function face(box: [number, number, number, number]): FaceInsight {
+    return { box, faceScore: 0.9, smile: 0, eyesOpen: { left: 1, right: 1 }, isBlinking: false, personId: null, personName: null, similarity: 0 };
+  }
+  function fillBox(gray: Float32Array, box: [number, number, number, number], pattern: 'checkerboard' | 'flat') {
+    const [bx, by, bw, bh] = box;
+    const x0 = Math.round(bx * W), y0 = Math.round(by * H), x1 = Math.round((bx + bw) * W), y1 = Math.round((by + bh) * H);
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) gray[y * W + x] = pattern === 'checkerboard' ? ((x + y) % 2 === 0 ? 0 : 255) : 128;
+  }
+
+  it('returns bokehQuality "n/a" with no subject data when there are no faces', () => {
+    const gray = new Float32Array(W * H).fill(128);
+    expect(scoreFocusAndBokeh(gray, W, H, [])).toEqual({ bokehQuality: 'n/a' });
+  });
+
+  it('returns bokehQuality "n/a" when the face box is too small for a stable measurement', () => {
+    const gray = new Float32Array(W * H).fill(128);
+    const result = scoreFocusAndBokeh(gray, W, H, [face([0.48, 0.48, 0.02, 0.02])]);
+    expect(result.bokehQuality).toBe('n/a');
+    expect(result.subjectInFocus).toBeUndefined();
+  });
+
+  it('detects good bokeh: a sharp subject against a smooth, out-of-focus background', () => {
+    const gray = new Float32Array(W * H).fill(128); // fundal plat (bgVar ~0)
+    fillBox(gray, [0.25, 0.25, 0.5, 0.5], 'checkerboard'); // subiect ascutit
+    const result = scoreFocusAndBokeh(gray, W, H, [face([0.25, 0.25, 0.5, 0.5])]);
+    expect(result.subjectInFocus).toBe(true);
+    expect(result.bokehQuality).toBe('good');
+  });
+
+  it('detects poor bokeh: the background is just as busy as the subject (no separation)', () => {
+    const gray = new Float32Array(W * H);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) gray[y * W + x] = (x + y) % 2 === 0 ? 0 : 255; // acelasi tipar peste tot
+    const result = scoreFocusAndBokeh(gray, W, H, [face([0.25, 0.25, 0.5, 0.5])]);
+    expect(result.bokehQuality).toBe('poor');
+  });
+
+  it('does not judge bokeh when the subject itself is out of focus (background sharpness is irrelevant then)', () => {
+    const gray = new Float32Array(W * H);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) gray[y * W + x] = (x + y) % 2 === 0 ? 0 : 255; // fundal ascutit
+    // zona plata trebuie sa fie mai mare decat cutia fetei propriu-zisa — altfel
+    // Laplacianul de la granita cutiei "vede" vecinii din checkerboard-ul de
+    // afara si umfla artificial variatia masurata STRICT in interiorul cutiei
+    // (acelasi motiv pentru care testele de mai sus pentru regionLaplacianVariance
+    // folosesc grile OMOGENE, nu doua regiuni alaturate)
+    fillBox(gray, [0.15, 0.15, 0.7, 0.7], 'flat');
+    const result = scoreFocusAndBokeh(gray, W, H, [face([0.25, 0.25, 0.5, 0.5])]);
+    expect(result.subjectInFocus).toBe(false);
+    expect(result.bokehQuality).toBe('n/a');
   });
 });
