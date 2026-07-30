@@ -568,16 +568,7 @@ export default function App() {
       <header className="topbar">
         <div className="brand">
           <div className="brand-mark-wrap">
-            {/* 3 arce de culoare solida (nu un gradient liniar) — un gradient care
-                se roteste ca un tot rigid nu se "citeste" ca miscare (diagonala
-                ramane mereu aceeasi fata de cerc); benzi de culoare distincte,
-                in schimb, se vad clar maturand cercul, la fel ca vechiul
-                conic-gradient, dar fara costul de masca CSS recalculata */}
-            <svg className="brand-mark-ring" viewBox="0 0 34 34" aria-hidden="true">
-              <circle cx="17" cy="17" r="15.5" fill="none" stroke="var(--accent)" strokeWidth="2" strokeDasharray="32.46 97.39" strokeDashoffset="0" />
-              <circle cx="17" cy="17" r="15.5" fill="none" stroke="#8b5cf6" strokeWidth="2" strokeDasharray="32.46 97.39" strokeDashoffset="-32.46" />
-              <circle cx="17" cy="17" r="15.5" fill="none" stroke="var(--accent-2)" strokeWidth="2" strokeDasharray="32.46 97.39" strokeDashoffset="-64.93" />
-            </svg>
+            <span className="brand-mark-ring" aria-hidden="true" />
             <span className="brand-mark">
               <ApertureIcon aria-hidden="true" />
             </span>

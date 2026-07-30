@@ -217,9 +217,16 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .brand { display: flex; align-items: center; gap: 10px; }
 /* ── Inel rotativ in jurul iconitei de brand (concept HUD) ── */
 .brand-mark-wrap { position: relative; width: 34px; height: 34px; flex-shrink: 0; }
+/* conic-gradient adevarat (nu 3 arce solide) — la fel ca in conceptul HUD,
+   ca sa se vada o matura reala de culoare pe tot cercul, nu doar 3 benzi
+   fixe; e static (nu se recalculeaza pe cadru), doar layerul se roteste
+   prin transform, deci ramane ieftin de compus pe GPU */
 .brand-mark-ring {
-  position: absolute; inset: -4px; width: calc(100% + 8px); height: calc(100% + 8px);
-  animation: markSpin 7s linear infinite; opacity: 0.9; transform-origin: 50% 50%; will-change: transform;
+  position: absolute; inset: -4px; border-radius: 13px;
+  background: conic-gradient(from 0deg, var(--accent), #8b5cf6, var(--accent-2), var(--accent));
+  animation: markSpin 7s linear infinite; opacity: 0.9; will-change: transform;
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
 }
 @keyframes markSpin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .brand-mark-ring { animation: none; } }
@@ -467,8 +474,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 @keyframes coreHalo { 0% { opacity: 0.5; transform: scale(0.85); } 100% { opacity: 0; transform: scale(1.15); } }
 @media (prefers-reduced-motion: reduce) { .core-halo { animation: none; opacity: 0.15; } }
 .core-ring {
-  position: absolute; inset: 5px; width: calc(100% - 10px); height: calc(100% - 10px);
-  animation: markSpin 4.5s linear infinite; transform-origin: 50% 50%; will-change: transform;
+  position: absolute; inset: 5px; border-radius: 50%;
+  background: conic-gradient(from 0deg, var(--accent), #8b5cf6, var(--accent-2), var(--accent));
+  animation: markSpin 4.5s linear infinite; will-change: transform;
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
 }
 @media (prefers-reduced-motion: reduce) { .core-ring { animation: none; } }
 /* umbra pe wrapper-ul STATIC (.core-disc) — calculata o singura data, nu la
