@@ -337,6 +337,13 @@ export default function App() {
 
   const onFiles = (list: FileList | null) => {
     pickerWatchdogRef.current?.cancel();
+    // watchdog-ul poate fi deja declansat (fals-pozitiv) daca transferul de
+    // fisiere mari a durat mai mult decat pragul lui, dar `change` tot a ajuns
+    // pana la urma — fara asta, avertismentul ramane afisat inutil chiar in
+    // timp ce importul chiar porneste cu succes (bug real raportat: utilizatorul
+    // vede avertismentul "nu s-a intamplat nimic" suprapus peste ecranul de
+    // incarcare AI, care rulează deja).
+    if (notice === tr('app.import.pickerTimeout')) clearNotice();
     // O selectie "goala" nu inseamna neaparat ca utilizatorul nu a ales nimic —
     // unele aplicatii sursa (Fisiere, Drive, Descarcari) pot returna un FileList
     // gol desi utilizatorul a apasat pe poze in acel selector (MIME raportat de

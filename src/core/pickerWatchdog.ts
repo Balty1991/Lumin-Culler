@@ -10,7 +10,7 @@
  *
  * Strategie in doua straturi:
  * 1. Cand tab-ul redevine vizibil/activ (visibilitychange SAU window focus —
- *    unele browsere declanseaza doar unul dintre ele), lasam un interval scurt
+ *    unele browsere declanseaza doar unul dintre ele), lasam un interval
  *    pentru ca `change` sa ajunga normal.
  * 2. Plasa finala: un timer absolut, independent de orice eveniment de
  *    vizibilitate — confirmat pe teren ca Xiaomi Browser (MIUI) uneori NU
@@ -18,8 +18,14 @@
  *    selectorul de fisiere extern, ceea ce ar face stratul 1 complet inert
  *    acolo. Durata mult mai mare, ca sa nu deranjeze un utilizator care inca
  *    rasfoieste/alege poze in acel moment.
+ *
+ * TIMEOUT_AFTER_VISIBLE_MS a fost initial 6000 — prea scurt in practica:
+ * transferul MAI MULTOR poze mari deodata dintr-o aplicatie ca Fisiere poate
+ * dura legitim peste 6s dupa revenirea pe pagina, inainte ca `change` sa
+ * ajunga (bug real raportat: avertismentul aparea, apoi importul tot pornea
+ * cu succes la scurt timp dupa — fals-pozitiv, nu o blocare reala).
  */
-const TIMEOUT_AFTER_VISIBLE_MS = 6000;
+const TIMEOUT_AFTER_VISIBLE_MS = 15000;
 const ABSOLUTE_FALLBACK_MS = 45000;
 
 export interface PickerWatchdog {
