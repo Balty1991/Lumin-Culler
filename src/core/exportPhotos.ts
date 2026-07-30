@@ -19,6 +19,8 @@ import { db } from './db';
 import { getDirectoryPicker, downloadBlob, downloadZip, dedupeFileName, type LocalDirHandle } from './export/directoryPicker';
 import { reacquireFile } from './filePicker';
 import { buildExportFileName, type RenameContext } from './renameTemplate';
+import { applyAdjustmentsToBlob, isNeutral, type EditAdjustments } from './imageAdjust';
+import { RAW_EXTENSIONS } from './rawDecoder';
 
 export interface ExportResult {
   exported: number;
@@ -46,6 +48,8 @@ export interface ExportPhotoInput {
   client?: string;
   event?: string;
   location?: string;
+  /** Ajustari de baza (EditPanel) — daca sunt reale (nu neutre), coapte in fisierul exportat (vezi bakeEditsIfNeeded), nu doar salvate in IndexedDB. */
+  edits?: EditAdjustments;
 }
 
 export interface ExportOptions {
@@ -107,6 +111,25 @@ export function folderLabel(p: { personNames: string[]; faceCount: number; stran
   return 'Detalii';
 }
 
+/**
+ * Coace ajustarile de baza (EditPanel) direct in bytes-ii exportati — bug real
+ * gasit de auditul QA: PhotoRecord.edits era persistat corect, dar exportul
+ * livra mereu originalul neschimbat (singura cale care aplica ajustari era
+ * galeria de client, si doar pe miniatura, niciodata pe exportul real).
+ * RAW e exclus deliberat: pipeline-ul de editare lucreaza mereu pe preview-ul
+ * deja decodat (JPEG), nu pe bytes-ii bruti RAW — nu exista o cale corecta de
+ * a reinjecta ajustari intr-un fisier RAW proprietar la export; originalul
+ * RAW ramane livrat neschimbat, ca inainte. Re-encode-ul (applyAdjustmentsToBlob)
+ * scoate mereu JPEG — daca extensia originala nu era deja .jpg/.jpeg, o
+ * corectam, ca fisierul de pe disc sa nu minta despre continutul lui.
+ */
+async function bakeEditsIfNeeded(p: ExportPhotoInput, file: File, name: string): Promise<{ file: File; name: string }> {
+  if (!p.edits || isNeutral(p.edits) || RAW_EXTENSIONS.test(p.fileName)) return { file, name };
+  const adjustedBlob = await applyAdjustmentsToBlob(file, p.edits);
+  const finalName = /\.jpe?g$/i.test(name) ? name : name.replace(/\.[^./]+$/, '') + '.jpg';
+  return { file: new File([adjustedBlob], finalName, { type: 'image/jpeg' }), name: finalName };
+}
+
 async function copyToDirectory(files: { name: string; file: File; folder: string }[], dir: LocalDirHandle): Promise<void> {
   const subdirs = new Map<string, LocalDirHandle>();
   for (const { name, file, folder } of files) {
@@ -157,7 +180,7 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[], options: E
     const folder = folderLabel(p);
     const inMemory = originalFiles.get(p.id);
     if (inMemory) {
-      available.push({ name: uniqueNameFor(p, folder), file: inMemory, folder });
+      available.push({ ...await bakeEditsIfNeeded(p, inMemory, uniqueNameFor(p, folder)), folder });
       continue;
     }
     // fallback 1: handle File System Access API persistat (poze selectate,
@@ -167,7 +190,7 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[], options: E
     if (storedHandle) {
       try {
         const file = await reacquireFile(storedHandle.handle);
-        available.push({ name: uniqueNameFor(p, folder), file, folder });
+        available.push({ ...await bakeEditsIfNeeded(p, file, uniqueNameFor(p, folder)), folder });
         continue;
       } catch {
         // permisiune refuzata sau fisierul a fost mutat/sters de pe disc —
@@ -177,8 +200,10 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[], options: E
     // fallback 2: fisierul original persistat in IndexedDB (poze selectate,
     // supravietuieste unui reload de tab — vezi core/db.ts OriginalRecord)
     const stored = await db.originals.get(p.id);
-    if (stored) available.push({ name: uniqueNameFor(p, folder), file: new File([stored.blob], stored.fileName, { type: stored.type }), folder });
-    else missing.push(p.fileName);
+    if (stored) {
+      const file = new File([stored.blob], stored.fileName, { type: stored.type });
+      available.push({ ...await bakeEditsIfNeeded(p, file, uniqueNameFor(p, folder)), folder });
+    } else missing.push(p.fileName);
   }
 
   const pickDirectory = getDirectoryPicker();

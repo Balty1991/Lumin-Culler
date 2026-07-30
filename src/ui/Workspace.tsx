@@ -8,6 +8,8 @@ import { PhotoInfoTabs } from './PhotoInfoTabs';
 import { EmptyFilterState } from './EmptyFilterState';
 import { ChevronLeft, ChevronRight, XIcon, CheckIcon, InfoIcon, GridIcon, PlusIcon, MenuIcon, EditIcon } from './icons';
 import { UndoHistoryButton } from './UndoHistoryButton';
+import { AdjustedImage } from './AdjustedImage';
+import type { EditAdjustments } from '../core/imageAdjust';
 import { pickImportFiles } from '../core/filePicker';
 import { armPickerWatchdog, type PickerWatchdog } from '../core/pickerWatchdog';
 import { t } from '../i18n';
@@ -222,7 +224,7 @@ export function Workspace() {
         <button className="ghost icon-btn workspace-nav prev" onClick={() => stepDetail(-1)} aria-label={tr('workspace.nav.prev')}>
           <ChevronLeft />
         </button>
-        {src && <img key={detailId} src={src} alt={photo.fileName} className="detail-stage-img" />}
+        {src && <AdjustedImage key={detailId} src={src} edits={photo.edits} alt={photo.fileName} className="detail-stage-img" />}
         <span className={`status-tag st-${photo.status} workspace-badge`}>
           {photo.status === 'selected' ? tr('workspace.status.selected') : photo.status === 'rejected' ? tr('workspace.status.rejected') : tr('workspace.status.review')}
         </span>
@@ -269,7 +271,7 @@ export function Workspace() {
                   onClick={() => openDetail(p.id)}
                   title={p.fileName}
                 >
-                  <FilmstripThumb photoId={p.id} fileName={p.fileName} lqip={p.lqip} />
+                  <FilmstripThumb photoId={p.id} fileName={p.fileName} lqip={p.lqip} edits={p.edits} />
                 </button>
               ))}
             </div>
@@ -281,7 +283,7 @@ export function Workspace() {
   );
 }
 
-function FilmstripThumb({ photoId, fileName, lqip }: { photoId: string; fileName: string; lqip?: string }) {
+function FilmstripThumb({ photoId, fileName, lqip, edits }: { photoId: string; fileName: string; lqip?: string; edits?: EditAdjustments }) {
   const [src, setSrc] = useState<string | null>(null);
   useEffect(() => {
     let url: string | null = null;
@@ -294,7 +296,7 @@ function FilmstripThumb({ photoId, fileName, lqip }: { photoId: string; fileName
   return (
     <span className="card-media">
       {lqip && <img className="card-lqip" src={lqip} alt="" />}
-      {src && <img className="card-img-loaded" src={src} alt={fileName} loading="lazy" />}
+      {src && <AdjustedImage className="card-img-loaded" src={src} edits={edits} alt={fileName} loading="lazy" />}
       {!src && !lqip && <span className="card-loading" />}
     </span>
   );

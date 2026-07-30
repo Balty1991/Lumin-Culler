@@ -3,6 +3,8 @@ import { db, type PhotoRecord } from '../core/db';
 import { useStore } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { XIcon, PrinterIcon, StarIcon } from './icons';
+import { AdjustedImage } from './AdjustedImage';
+import type { EditAdjustments } from '../core/imageAdjust';
 import { t } from '../i18n';
 
 const STATUS_KEY: Record<PhotoRecord['status'], string> = {
@@ -13,7 +15,7 @@ const STATUS_KEY: Record<PhotoRecord['status'], string> = {
 };
 
 /** Miniatura decupata din IndexedDB — identic cu tiparul din PhotoCard/GroupCompare, dar fara nicio logica de interactiune (contact sheet-ul e doar de citit/printat). */
-function ContactSheetThumb({ photoId }: { photoId: string }) {
+function ContactSheetThumb({ photoId, edits }: { photoId: string; edits?: EditAdjustments }) {
   const [src, setSrc] = useState<string | null>(null);
   useEffect(() => {
     let url: string | null = null;
@@ -23,7 +25,7 @@ function ContactSheetThumb({ photoId }: { photoId: string }) {
     });
     return () => { alive = false; if (url) URL.revokeObjectURL(url); };
   }, [photoId]);
-  return src ? <img src={src} alt="" loading="lazy" /> : <span className="contact-sheet-thumb-loading" aria-hidden="true" />;
+  return src ? <AdjustedImage src={src} edits={edits} alt="" loading="lazy" /> : <span className="contact-sheet-thumb-loading" aria-hidden="true" />;
 }
 
 /**
@@ -81,7 +83,7 @@ export function ContactSheet() {
               {filtered.map((p, i) => (
                 <div key={p.id} className="contact-sheet-item">
                   <div className="contact-sheet-thumb">
-                    <ContactSheetThumb photoId={p.id} />
+                    <ContactSheetThumb photoId={p.id} edits={p.edits} />
                   </div>
                   <div className="contact-sheet-meta mono">
                     <span className="contact-sheet-frame">#{String(i + 1).padStart(3, '0')}</span>

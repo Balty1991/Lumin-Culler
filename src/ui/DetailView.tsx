@@ -8,6 +8,7 @@ import { PhotoInfoTabs } from './PhotoInfoTabs';
 import { vibrate } from './haptics';
 import { XIcon, ChevronLeft, ChevronRight, LayersIcon, CheckIcon, EditIcon } from './icons';
 import { EASE } from './motion';
+import { AdjustedImage } from './AdjustedImage';
 import { t } from '../i18n';
 
 const SWIPE_COMMIT = 96;       // px de tras pentru a declansa decizia
@@ -195,7 +196,7 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
             transition: draggingRef.current ? 'none' : 'transform 0.25s var(--ease)'
           }}
         >
-          {src && <img src={src} alt={photo.fileName} className="detail-stage-img" />}
+          {src && <AdjustedImage src={src} edits={photo.edits} alt={photo.fileName} className="detail-stage-img" />}
         </div>
 
         <div className="detail-stage-topbar" onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>

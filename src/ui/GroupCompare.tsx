@@ -3,6 +3,7 @@ import { getCachedPreviewUrl } from '../core/previewUrlCache';
 import { useStore, type PhotoView } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { XIcon, LayersIcon, SparkleIcon, GridIcon } from './icons';
+import { AdjustedImage } from './AdjustedImage';
 import { t } from '../i18n';
 
 const ZOOM_LEVELS = [1, 1.5, 2, 3] as const;
@@ -230,8 +231,8 @@ function CompareCard({ photo, recommended, zoomLevel, pan, isPanning, onPanPoint
         title={tr(zoomLevel !== 1 ? 'compare.card.panTitle' : 'compare.card.zoomTitle')}
       >
         {src && (
-          <img
-            src={src} alt={photo.fileName} loading="lazy" decoding="async"
+          <AdjustedImage
+            src={src} edits={photo.edits} alt={photo.fileName} loading="lazy" decoding="async"
             style={zoomLevel !== 1
               ? { transform: `scale(${zoomLevel}) translate(${pan.x / zoomLevel}px, ${pan.y / zoomLevel}px)`, transformOrigin: 'center' }
               : undefined}
@@ -303,10 +304,10 @@ function OverlayCompare({ members, defaultAId }: { members: PhotoView[]; default
       </div>
 
       <div className="overlay-stage">
-        {aSrc && <img src={aSrc} alt={aPhoto?.fileName ?? 'A'} className="overlay-img overlay-img-a" />}
+        {aSrc && <AdjustedImage src={aSrc} edits={aPhoto?.edits} alt={aPhoto?.fileName ?? 'A'} className="overlay-img overlay-img-a" />}
         {bSrc && (
-          <img
-            src={bSrc} alt={bPhoto?.fileName ?? 'B'}
+          <AdjustedImage
+            src={bSrc} edits={bPhoto?.edits} alt={bPhoto?.fileName ?? 'B'}
             className="overlay-img overlay-img-b"
             style={{ opacity: opacity / 100, mixBlendMode: diffMode ? 'difference' : 'normal' }}
           />

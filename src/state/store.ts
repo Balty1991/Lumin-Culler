@@ -1478,7 +1478,8 @@ export const useStore = create<AppState>((set, get) => ({
           capturedAt: p.capturedAt,
           client: meta.client,
           event: meta.event,
-          location: meta.location
+          location: meta.location,
+          edits: p.edits
         };
       }), { renameTemplate: get().renameTemplate });
       if (result.cancelled) return;

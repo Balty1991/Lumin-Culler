@@ -3,6 +3,7 @@ import { db } from '../core/db';
 import { useStore, type PhotoView } from '../state/store';
 import { StarIcon, UserQuestionIcon, UserCheckIcon, EyeClosedIcon, LayersIcon, CheckIcon, SunIcon, ClockIcon, EditIcon } from './icons';
 import { isNeutral } from '../core/imageAdjust';
+import { AdjustedImage } from './AdjustedImage';
 
 /** Aceleasi praguri ca SELECT_THRESHOLD/REJECT_THRESHOLD (importPipeline.ts) — culoarea inelului de scor. */
 function scoreColorVar(score: number): string {
@@ -93,7 +94,7 @@ function PhotoCardInner({ photo, index, onOpen, multiSelected, onCardPointerDown
       )}
       <span className="card-media" aria-hidden="true">
         {photo.lqip && <img className="card-lqip" src={photo.lqip} alt="" />}
-        {src && <img className="card-img-loaded" src={src} alt="" loading="lazy" />}
+        {src && <AdjustedImage className="card-img-loaded" src={src} edits={photo.edits} alt="" loading="lazy" />}
         {!src && !photo.lqip && <span className="card-loading" />}
       </span>
       <span className="card-strip" aria-hidden="true">
