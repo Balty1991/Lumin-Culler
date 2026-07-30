@@ -1041,8 +1041,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .how-it-works { grid-template-columns: repeat(3, 1fr); gap: 14px; }
 }
 /* stacat (1 coloana): rand orizontal, aliniat la stanga — mai usor de citit decat centrat pe un singur item lat.
-   La >=480px (grid pe 3 coloane) devine coloana centrata, tratament clasic de "pas ilustrat". */
-.how-step { display: flex; flex-direction: row; align-items: center; gap: 10px; text-align: left; }
+   La >=480px (grid pe 3 coloane) devine coloana centrata, tratament clasic de "pas ilustrat".
+   align-items: flex-start (nu center) — icoana ramane ancorata la INCEPUTUL
+   randului indiferent daca descrierea are 1 sau 2 randuri, ceea ce face
+   pozitia ei predictibila: exact utila pentru firul de conexiune de mai jos. */
+.how-step { display: flex; flex-direction: row; align-items: flex-start; gap: 10px; text-align: left; }
 /* contur cu gradient (acelasi truc dublu-background ca .chip.active) in loc de
    un fundal plat — fiecare pas al "motorului AI" arata premium, nu doar un
    dreptunghi gri cu o iconita in mijloc. */
@@ -1054,6 +1057,30 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   color: var(--accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   box-shadow: 0 4px 14px -7px rgb(var(--accent-rgb) / 0.5);
 }
+/*
+ * Fir de conexiune intre iconitele numerotate — arata clar ca cei 3 pasi
+ * sunt un FLUX secvential (1 -> 2 -> 3), nu doar 3 intrari de lista fara
+ * legatura intre ele (feedback direct). Segmentul are inaltime FIXA, egala
+ * cu gap-ul dintre randuri (10px) — functioneaza indiferent cate randuri are
+ * descrierea fiecarui pas, tocmai pentru ca icoana e ancorata sus
+ * (align-items: flex-start mai sus), nu centrata pe blocul de text.
+ */
+.how-step:not(:last-child) .how-step-icon::after {
+  content: ""; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+  width: 2px; height: 10px;
+  background: linear-gradient(var(--accent), transparent);
+  opacity: 0.55;
+}
+@media (min-width: 480px) {
+  /* pe 3 coloane firul ar trebui sa fie orizontal, nu vertical — dezactivat, nu inca implementat pentru acel layout */
+  .how-step-icon::after { content: none; }
+}
+/* pasul 2 ("AI analizeaza") e "vedeta" fluxului — inel mai stralucitor, ca sa
+   se simta momentul unde AI-ul chiar face treaba, nu doar un pas oarecare
+   intre celelalte doua. */
+.how-step-icon-hero {
+  box-shadow: 0 0 0 1px rgb(var(--accent-rgb) / 0.5), 0 6px 20px -6px rgb(var(--accent-rgb) / 0.75);
+}
 .how-step-icon svg { width: 15px; height: 15px; }
 .how-step-num {
   position: absolute; top: -5px; right: -5px; width: 15px; height: 15px; border-radius: 50%;
@@ -1061,12 +1088,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   display: flex; align-items: center; justify-content: center;
   font-family: var(--mono); font-size: 0.56rem; font-weight: 700; color: var(--text-dim);
 }
-.how-step-text { display: grid; gap: 1px; }
+.how-step-text { display: grid; gap: 1px; padding-top: 5px; }
 .how-step b { font-size: 0.82rem; font-weight: 700; }
 .how-step p { font-size: 0.71rem; color: var(--text-faint); line-height: 1.3; margin: 0; }
 @media (min-width: 480px) {
-  .how-step { flex-direction: column; text-align: center; gap: 6px; }
-  .how-step-text { justify-items: center; gap: 2px; }
+  .how-step { flex-direction: column; align-items: center; text-align: center; gap: 6px; }
+  .how-step-text { justify-items: center; gap: 2px; padding-top: 0; }
 }
 
 /* ── Suprapuneri (detaliu / serie / persoane) ── */

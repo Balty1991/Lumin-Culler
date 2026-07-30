@@ -827,7 +827,7 @@ export default function App() {
                 </div>
               </div>
               <div className="how-step">
-                <span className="how-step-icon"><span className="how-step-num">2</span><SparkleIcon /></span>
+                <span className="how-step-icon how-step-icon-hero"><span className="how-step-num">2</span><SparkleIcon /></span>
                 <div className="how-step-text">
                   <b>{tr('app.howItWorks.analyze.title')}</b>
                   <p>{tr('app.howItWorks.analyze.desc')}</p>
