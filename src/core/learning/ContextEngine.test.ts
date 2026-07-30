@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deriveContextKey, explainFactors, extractFeatures, FACE_ONLY_FEATURES } from './ContextEngine';
+import { deriveContextKey, explainFactors, extractFeatures, FACE_ONLY_FEATURES, landscapeSharpness } from './ContextEngine';
 import type { AnalysisRecord } from '../db';
 
 function baseAnalysis(overrides: Partial<AnalysisRecord> = {}): AnalysisRecord {
@@ -109,9 +109,57 @@ describe('extractFeatures', () => {
       faceCount: 0, faces: [], sharpness: 90, exposure: 60, highlightClipping: 0.02,
       colorHarmonyScore: 0.8, goldenHourDetected: true
     }));
-    expect(features.sharpness).toBeCloseTo(0.9);
+    // 90/100 trece prin landscapeSharpness (vezi describe-ul dedicat mai jos), nu prin /100 brut
+    expect(features.sharpness).toBeCloseTo(landscapeSharpness(90));
     expect(features.highlightClipping).toBeCloseTo(0.02);
     expect(features.colorHarmony).toBeCloseTo(0.8);
     expect(features.goldenHour).toBe(1);
+  });
+
+  it('uses the raw (uncompressed) sharpness for a photo with at least one face', () => {
+    const features = extractFeatures(baseAnalysis({
+      sceneType: 'portrait', faceCount: 1, knownFaceCount: 1, strangerCount: 0, sharpness: 48,
+      faces: [{
+        box: [0, 0, 0.1, 0.1], faceScore: 0.9, smile: 0.8,
+        eyesOpen: { left: 1, right: 1 }, isBlinking: false,
+        personId: null, personName: null, similarity: 0
+      }]
+    }));
+    expect(features.sharpness).toBeCloseTo(0.48);
+  });
+});
+
+// Feedback real: o poza de munte cu cer dramatic, respinsa de AI aproape doar
+// din cauza factorului "Claritate" — dar claritatea GLOBALA pe tot cadrul e o
+// masura nepotrivita pentru peisaj: perspectiva atmosferica (principiu de baza
+// in fotografia de peisaj) face ca planurile indepartate sa apara natural mai
+// putin definite, fara sa fie un defect real. landscapeSharpness comprima
+// exact acest efect pentru scene fara subiect uman.
+describe('landscapeSharpness', () => {
+  it('leaves a fully sharp photo essentially unchanged', () => {
+    expect(landscapeSharpness(100)).toBeCloseTo(1);
+  });
+
+  it('leaves a completely blurred photo at zero', () => {
+    expect(landscapeSharpness(0)).toBe(0);
+  });
+
+  it('meaningfully softens the penalty for moderate (atmospheric-haze-like) softness', () => {
+    const curved = landscapeSharpness(48);
+    expect(curved).toBeGreaterThan(0.48); // mai putin punitiv decat scorul brut
+    expect(curved).toBeCloseTo(0.6438, 3);
+  });
+
+  it('still clearly penalizes a genuinely blurry photo, not just a hazy one', () => {
+    const curved = landscapeSharpness(20);
+    expect(curved).toBeLessThan(0.5); // ramane sub medie, nu "spalat" complet
+    expect(curved).toBeCloseTo(0.3807, 3);
+  });
+
+  it('is monotonically increasing (never reorders two photos by sharpness)', () => {
+    const samples = [0, 10, 25, 40, 48, 60, 75, 90, 100];
+    for (let i = 1; i < samples.length; i++) {
+      expect(landscapeSharpness(samples[i])).toBeGreaterThan(landscapeSharpness(samples[i - 1]));
+    }
   });
 });

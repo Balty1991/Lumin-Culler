@@ -175,9 +175,30 @@ export const FACE_ONLY_FEATURES = [
   'avgEngagement', 'subjectInFocus', 'bokehQuality'
 ] as const;
 
+/**
+ * Peisaj/natura fara subiect uman: claritatea globala pe tot cadrul e o
+ * masura mult mai putin de incredere decat la un portret. Perspectiva
+ * atmosferica — un principiu de baza in fotografia de peisaj — descrie exact
+ * fenomenul ca planurile indepartate (munti, ceata, nori) apar NATURAL mai
+ * putin definite, mai putin contrastate, usor voalate, fara sa fie un defect;
+ * la fel, o diafragma inchisa (f/11-f/16, alegerea clasica de peisaj pentru
+ * claritate front-to-back) tot lasa straturile foarte indepartate usor moi.
+ * Feedback direct: o poza de munte cu cer dramatic, respinsa aproape doar
+ * din cauza "Claritate" (scor global de claritate moderat, din voalul
+ * atmosferic natural pe crestele indepartate) — utilizatorul o considera buna.
+ * Curba (exponent subunitar) comprima diferenta pentru valori medii-mici
+ * (48/100 -> ~0.64, mai putin punitiv) fara sa ascunda o poza cu adevarat
+ * neclara (20/100 -> ~0.38, tot clar sub medie) si fara sa schimbe practic
+ * nimic pentru poze deja foarte clare (90/100 -> ~0.94). Portretele raman
+ * neatinse — acolo claritatea subiectului chiar conteaza direct, fara nuanta.
+ */
+export function landscapeSharpness(rawSharpness: number): number {
+  return Math.pow(Math.max(0, rawSharpness) / 100, 0.6);
+}
+
 export function extractFeatures(a: AnalysisRecord): FeatureVector {
   const features: FeatureVector = {
-    sharpness: a.sharpness / 100,
+    sharpness: a.faceCount > 0 ? a.sharpness / 100 : landscapeSharpness(a.sharpness),
     // distance from mid-exposure — lets the model learn a *preference direction*
     exposureBalance: 1 - Math.abs(a.exposure - 50) / 50,
     exposureRaw: a.exposure / 100,           // raw value → can learn "prefers darker"
