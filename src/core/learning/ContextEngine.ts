@@ -151,30 +151,36 @@ export function explainFactors(
 
 // ── Feature extraction ───────────────────────────────────────────────────────
 
+/**
+ * Feature-uri care N-AU SENS fara o fata detectata (smile/ochi/incadrarea
+ * fetei/bokeh subiect-fundal etc.) — pentru o poza de peisaj/natura/animale
+ * (faceCount === 0), worker-ul le umple oricum cu o valoare "filler" (0 sau
+ * 0.5: bestSmile=0, ruleOfThirds=0.5, bokehQuality='n/a'→0.5...), NU o masuratoare
+ * reala. Bug real raportat: poze de peisaj bune, respinse de AI — cauza era
+ * exact aici. La cold-start (context nou, sampleCount mic), predict() se
+ * bazeaza pe modelul GLOBAL, antrenat din TOATE corectiile utilizatorului
+ * (portrete incluse); daca acel model global a invatat, de la portrete, ponderi
+ * pozitive pentru bestSmile/ruleOfThirds/etc., iar media lor invatata (folosita
+ * la normalizare z-score) e mult peste 0/0.5, atunci valoarea "filler" a unui
+ * peisaj se normalizeaza puternic NEGATIV — o penalizare complet artificiala,
+ * pentru o caracteristica ce pur si simplu nu se aplica pozei. Solutia: pentru
+ * faceCount === 0, aceste feature-uri nu mai apar deloc in vector (nu sunt
+ * "0"/"neutru", sunt ABSENTE) — nici predict(), nici trainOne() nu le mai
+ * privesc/actualizeaza pentru o astfel de poza, deci nu mai pot contamina sau
+ * fi contaminate de modelul global antrenat pe portrete.
+ */
+export const FACE_ONLY_FEATURES = [
+  'bestSmile', 'allEyesOpen', 'faceCount', 'knownFaceRatio', 'strangerPenalty', 'faceScore',
+  'ruleOfThirds', 'headroom', 'groupEyesOpenRatio', 'groupSmileRatio', 'avgEyeContact',
+  'avgEngagement', 'subjectInFocus', 'bokehQuality'
+] as const;
+
 export function extractFeatures(a: AnalysisRecord): FeatureVector {
-  return {
+  const features: FeatureVector = {
     sharpness: a.sharpness / 100,
     // distance from mid-exposure — lets the model learn a *preference direction*
     exposureBalance: 1 - Math.abs(a.exposure - 50) / 50,
     exposureRaw: a.exposure / 100,           // raw value → can learn "prefers darker"
-    bestSmile: a.bestSmile,
-    allEyesOpen: a.allEyesOpen ? 1 : 0,
-    faceCount: Math.min(a.faceCount, 6) / 6,
-    knownFaceRatio: a.faceCount ? a.knownFaceCount / a.faceCount : 0,
-    strangerPenalty: a.faceCount ? a.strangerCount / a.faceCount : 0,
-    faceScore: a.faces.length
-      ? a.faces.reduce((s, f) => s + f.faceScore, 0) / a.faces.length
-      : 0,
-    // ?? 0.5 (neutru) pentru poze fara fete si pentru inregistrari mai vechi
-    // dinainte de aceasta functie, care nu au deloc campurile — nu 0, ca sa nu
-    // le penalizeze artificial fata de pozele care chiar au compozitie proasta
-    ruleOfThirds: a.ruleOfThirds ?? 0.5,
-    headroom: a.headroom ?? 0.5,
-    // scorare de grup — neutru (0.5) cand nu exista fete (feature-ul nu se aplica)
-    groupEyesOpenRatio: a.groupEyesOpenRatio ?? 0.5,
-    groupSmileRatio: a.groupSmileRatio ?? 0.5,
-    avgEyeContact: a.avgEyeContact ?? 0.5,
-    avgEngagement: a.avgEngagement ?? 0.5,
     // clipping: fara date (inregistrari vechi) = presupunem 0 (fara clipping), nu neutru —
     // altfel penalizam artificial poze analizate inainte de aceasta functie
     highlightClipping: a.highlightClipping ?? 0,
@@ -195,7 +201,7 @@ export function extractFeatures(a: AnalysisRecord): FeatureVector {
     focalLengthRaw: a.focalLength !== undefined ? Math.min(1, Math.max(0, Math.log2(Math.max(a.focalLength, 10) / 10) / 8)) : 0.5,
     // analiza estetica avansata — booleene absente (inregistrari mai vechi) =
     // neutru (0.5), nu 0/1, ca sa nu penalizeze/favorizeze artificial poze
-    // analizate inainte de aceste campuri (acelasi tipar ca ruleOfThirds/headroom mai sus)
+    // analizate inainte de aceste campuri (acelasi tipar ca mai sus)
     compositionScore: a.compositionScore ?? 0.5,
     leadingLines: a.leadingLinesDetected === undefined ? 0.5 : (a.leadingLinesDetected ? 1 : 0),
     symmetry: a.symmetryDetected === undefined ? 0.5 : (a.symmetryDetected ? 1 : 0),
@@ -203,10 +209,29 @@ export function extractFeatures(a: AnalysisRecord): FeatureVector {
     lightHard: a.lightQuality === 'hard' ? 1 : 0,
     lightSoft: a.lightQuality === 'soft' ? 1 : 0,
     goldenHour: a.goldenHourDetected ? 1 : 0,
-    subjectInFocus: a.subjectInFocus === undefined ? 0.5 : (a.subjectInFocus ? 1 : 0),
-    bokehQuality: a.bokehQuality === 'good' ? 1 : a.bokehQuality === 'poor' ? 0 : 0.5,
     colorHarmony: a.colorHarmonyScore ?? 0.5
   };
+
+  if (a.faceCount > 0) {
+    features.bestSmile = a.bestSmile;
+    features.allEyesOpen = a.allEyesOpen ? 1 : 0;
+    features.faceCount = Math.min(a.faceCount, 6) / 6;
+    features.knownFaceRatio = a.faceCount ? a.knownFaceCount / a.faceCount : 0;
+    features.strangerPenalty = a.faceCount ? a.strangerCount / a.faceCount : 0;
+    features.faceScore = a.faces.length
+      ? a.faces.reduce((s, f) => s + f.faceScore, 0) / a.faces.length
+      : 0;
+    features.ruleOfThirds = a.ruleOfThirds ?? 0.5;
+    features.headroom = a.headroom ?? 0.5;
+    features.groupEyesOpenRatio = a.groupEyesOpenRatio ?? 0.5;
+    features.groupSmileRatio = a.groupSmileRatio ?? 0.5;
+    features.avgEyeContact = a.avgEyeContact ?? 0.5;
+    features.avgEngagement = a.avgEngagement ?? 0.5;
+    features.subjectInFocus = a.subjectInFocus === undefined ? 0.5 : (a.subjectInFocus ? 1 : 0);
+    features.bokehQuality = a.bokehQuality === 'good' ? 1 : a.bokehQuality === 'poor' ? 0 : 0.5;
+  }
+
+  return features;
 }
 
 /**
