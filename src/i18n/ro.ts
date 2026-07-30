@@ -211,7 +211,7 @@ export const ro = {
   'app.empty.title': 'Adauga sedinta foto',
   'app.empty.description': 'Alege pozele (JPEG/PNG/WebP/RAW — CR2, NEF, ARW, DNG si altele). Analiza ruleaza local, pe fire separate — poti incarca si 1000+ fisiere fara ca aplicatia sa se blocheze.',
   'app.empty.cta': 'Alege fotografiile',
-  'app.empty.hint': 'Optional: inroleaza persoanele importante din meniu, ca AI-ul sa le prioritizeze la scorare.',
+  'app.empty.hint': 'Optional: inroleaza persoanele importante din meniu, ca AI-ul sa le prioritizeze la evaluare.',
   'app.howItWorks.add.title': 'Adauga poze',
   'app.howItWorks.add.desc': 'JPEG, PNG, WebP sau RAW — orice sedinta foto, oricat de mare.',
   'app.howItWorks.analyze.title': 'AI analizeaza',
