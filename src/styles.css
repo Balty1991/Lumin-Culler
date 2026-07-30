@@ -219,7 +219,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .brand-mark-wrap { position: relative; width: 34px; height: 34px; flex-shrink: 0; }
 .brand-mark-ring {
   position: absolute; inset: -4px; width: calc(100% + 8px); height: calc(100% + 8px);
-  animation: markSpin 7s linear infinite; opacity: 0.9; transform-origin: 50% 50%;
+  animation: markSpin 7s linear infinite; opacity: 0.9; transform-origin: 50% 50%; will-change: transform;
 }
 @keyframes markSpin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .brand-mark-ring { animation: none; } }
@@ -461,46 +461,50 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   padding: 48px 20px 40px; text-align: center;
 }
 .core { position: relative; width: 108px; height: 108px; display: flex; align-items: center; justify-content: center; }
-.core-halo { position: absolute; inset: 0; border-radius: 50%; border: 1px solid var(--line); }
-.core-halo.h2 { inset: -16px; animation: coreHalo 3.2s ease-out infinite; }
-.core-halo.h3 { inset: -32px; animation: coreHalo 3.2s ease-out infinite 1.1s; }
+/* un singur halou (nu doua), fara umbre — animatia asta e in mare parte
+   decorativa, deci prima taiata cand reducem cate elemente animeaza simultan */
+.core-halo { position: absolute; inset: -16px; border-radius: 50%; border: 1px solid var(--line); animation: coreHalo 3.2s ease-out infinite; }
 @keyframes coreHalo { 0% { opacity: 0.5; transform: scale(0.85); } 100% { opacity: 0; transform: scale(1.15); } }
-@media (prefers-reduced-motion: reduce) { .core-halo.h2, .core-halo.h3 { animation: none; opacity: 0.15; } }
+@media (prefers-reduced-motion: reduce) { .core-halo { animation: none; opacity: 0.15; } }
 .core-ring {
   position: absolute; inset: 5px; width: calc(100% - 10px); height: calc(100% - 10px);
-  animation: markSpin 4.5s linear infinite; transform-origin: 50% 50%;
+  animation: markSpin 4.5s linear infinite; transform-origin: 50% 50%; will-change: transform;
 }
 @media (prefers-reduced-motion: reduce) { .core-ring { animation: none; } }
+/* umbra pe wrapper-ul STATIC (.core-disc) — calculata o singura data, nu la
+   fiecare cadru; "respiratia" (scale) traieste doar pe .core-disc-inner, care
+   nu are propria umbra — animarea unui element CU box-shadow simultan cu alte
+   animatii (in special cat timp CPU-ul e ocupat cu incarcarea modelelor AI)
+   era o sursa reala de sacadare; separarea pastreaza animatia ceruta, fara cost */
 .core-disc {
-  position: absolute; inset: 14px; border-radius: 50%; background: var(--surface-2);
+  position: absolute; inset: 14px; border-radius: 50%;
   box-shadow: inset 0 0 0 1px var(--line-strong), 0 0 30px -4px rgb(var(--accent-rgb) / 0.45);
-  display: flex; align-items: center; justify-content: center; animation: coreBreathe 2.6s ease-in-out infinite;
-  color: var(--accent);
+}
+.core-disc-inner {
+  position: absolute; inset: 0; border-radius: 50%; background: var(--surface-2);
+  display: flex; align-items: center; justify-content: center; color: var(--accent);
+  animation: coreBreathe 2.6s ease-in-out infinite; will-change: transform;
 }
 .core-disc svg { width: 30px; height: 30px; }
 @keyframes coreBreathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.045); } }
-@media (prefers-reduced-motion: reduce) { .core-disc { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .core-disc-inner { animation: none; } }
 .boot-title { font-family: var(--font-display); font-weight: 700; font-size: 1.05rem; color: var(--text); margin: 0; }
 .boot-sub { font-size: 0.8rem; color: var(--text-faint); max-width: 300px; line-height: 1.5; margin: 6px 0 0; }
 .boot-shimmer { width: 200px; height: 3px; border-radius: 999px; background: var(--surface-3); overflow: hidden; position: relative; }
 .boot-shimmer::after {
   content: ""; position: absolute; inset: 0; width: 40%; border-radius: 999px; background: var(--accent-gradient);
-  animation: bootShimmer 1.6s ease-in-out infinite;
+  animation: bootShimmer 1.6s ease-in-out infinite; will-change: transform;
 }
 @keyframes bootShimmer { 0% { transform: translateX(-120%); } 100% { transform: translateX(340%); } }
 @media (prefers-reduced-motion: reduce) { .boot-shimmer::after { animation: none; transform: translateX(0); width: 30%; } }
+/* pastilele raman statice (fara pulsare individuala pe fiecare) — cu inelul si
+   haloul deja rotative, patru animatii suplimentare decalate erau zgomot
+   vizual, nu semnal, si contribuiau la aceeasi sacadare */
 .boot-pills { display: flex; gap: 7px; flex-wrap: wrap; justify-content: center; }
 .boot-pill {
   font-family: var(--mono); font-size: 0.66rem; padding: 5px 11px; border-radius: 999px;
-  background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); color: var(--text-faint);
-  opacity: 0.5; animation: pillWake 2.4s ease-in-out infinite;
+  background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); color: var(--text-dim);
 }
-.boot-pill:nth-child(1) { animation-delay: 0s; }
-.boot-pill:nth-child(2) { animation-delay: 0.3s; }
-.boot-pill:nth-child(3) { animation-delay: 0.6s; }
-.boot-pill:nth-child(4) { animation-delay: 0.9s; }
-@keyframes pillWake { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; color: var(--text); } }
-@media (prefers-reduced-motion: reduce) { .boot-pill { animation: none; opacity: 0.85; } }
 
 /* ── Filtre cu numaratori, lipite sub antet ── */
 .filters {

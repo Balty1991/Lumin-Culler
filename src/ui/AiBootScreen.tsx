@@ -19,8 +19,7 @@ export function AiBootScreen() {
   return (
     <div className="boot" role="status" aria-live="polite">
       <div className="core" aria-hidden="true">
-        <span className="core-halo h2" />
-        <span className="core-halo h3" />
+        <span className="core-halo" />
         {/* inel SVG cu contur (nu conic-gradient + mask CSS pe un div) — mult mai
             ieftin de rotit continuu pe telefoane slabe: un mask radial recalculat
             in fiecare cadru poate sacada vizibil, mai ales cat timp CPU-ul e deja
@@ -36,7 +35,9 @@ export function AiBootScreen() {
           <circle cx="54" cy="54" r="50" fill="none" stroke="url(#coreRingGrad)" strokeWidth="4" />
         </svg>
         <div className="core-disc">
-          <SparkleIcon />
+          <div className="core-disc-inner">
+            <SparkleIcon />
+          </div>
         </div>
       </div>
       <div>
