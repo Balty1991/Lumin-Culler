@@ -62,16 +62,22 @@ describe('generateXMPSidecar', () => {
     expect(xmp).not.toContain('lc:AIScore');
     expect(xmp).not.toContain('lc:SeriesId');
     expect(xmp).not.toContain('lc:AIFactors');
-    expect(xmp).not.toContain('photoshop:Location');
+    expect(xmp).not.toContain('Iptc4xmpCore:Location');
     expect(xmp).not.toContain('Iptc4xmpExt:Event');
   });
 
-  it('embeds location as the standard photoshop:Location field and event as Iptc4xmpExt:Event', () => {
+  // Bug real gasit de auditul QA: Location era scris ca photoshop:Location,
+  // dar "Location" NU e o proprietate reala a schemei Photoshop (aceea
+  // defineste doar City/State/Country/Headline etc.) — apartine schemei
+  // Iptc4xmpCore, singurul namespace pe care Lightroom chiar il citeste
+  // pentru panoul de metadate "Locatie". Event e Lang Alt in schema IPTC
+  // Extension (ca dc:description), nu text simplu.
+  it('embeds location as the standard Iptc4xmpCore:Location field and event as an Iptc4xmpExt:Event Lang Alt', () => {
     const xmp = generateXMPSidecar('selected', 3, undefined, { location: 'Brasov', event: 'Nunta', client: 'Ana & Mihai' });
-    expect(xmp).toContain('xmlns:photoshop="http://ns.adobe.com/photoshop/1.0/"');
+    expect(xmp).toContain('xmlns:Iptc4xmpCore="http://iptc.org/std/Iptc4xmpCore/1.0/xmlns/"');
     expect(xmp).toContain('xmlns:Iptc4xmpExt="http://iptc.org/std/Iptc4xmpExt/2008-02-29/"');
-    expect(xmp).toContain('<photoshop:Location>Brasov</photoshop:Location>');
-    expect(xmp).toContain('<Iptc4xmpExt:Event>Nunta</Iptc4xmpExt:Event>');
+    expect(xmp).toContain('<Iptc4xmpCore:Location>Brasov</Iptc4xmpCore:Location>');
+    expect(xmp).toContain('<Iptc4xmpExt:Event>\n     <rdf:Alt>\n      <rdf:li xml:lang="x-default">Nunta</rdf:li>\n     </rdf:Alt>\n    </Iptc4xmpExt:Event>');
     expect(xmp).toContain('lc:Client="Ana &amp; Mihai"');
   });
 

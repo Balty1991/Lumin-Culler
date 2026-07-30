@@ -184,27 +184,53 @@ function fingerprint(p: { fileName: string; capturedAt?: number }): string {
   return `${p.fileName}|${p.capturedAt ?? 0}`;
 }
 
+/**
+ * Bug real gasit de auditul QA (atomicitate): scrierile de mai jos (persons +
+ * contextModels + bucla de decizii per-poza) rulau in afara oricarei
+ * tranzactii Dexie — o intrerupere la mijloc (tab inchis, eroare
+ * QuotaExceededError neasteptata, care lipsea complet din acest fisier spre
+ * deosebire de importPipeline.ts/store.ts syncOriginal) putea lasa persons
+ * restaurate dar contextModels nu (sau invers), si/sau doar unele decizii
+ * aplicate — stare partiala, fara rollback. `db.transaction` face toate
+ * scrierile din interior atomice: ori toate reusesc, ori (la orice eroare)
+ * niciuna nu se aplica.
+ */
 export async function restoreBackup(data: BackupData): Promise<RestoreResult> {
-  await Promise.all([
-    data.persons.length ? db.persons.bulkPut(data.persons) : Promise.resolve(),
-    data.contextModels.length ? db.contextModels.bulkPut(data.contextModels) : Promise.resolve()
-  ]);
+  let decisionsMatched = 0;
+  await db.transaction('rw', [db.persons, db.contextModels, db.photos], async () => {
+    if (data.persons.length) await db.persons.bulkPut(data.persons);
+    if (data.contextModels.length) await db.contextModels.bulkPut(data.contextModels);
+
+    // Bug real gasit de auditul QA (coliziuni de amprenta): daca doua poze
+    // CURENTE au acelasi nume+data capturii (plauzibil la unirea mai multor
+    // carduri de memorie cu suprapunere de nume/timp de burst), un Map cheie
+    // unica pastra doar ultima — cealalta nu primea niciodata decizia
+    // restaurata, silentios. Acum tinem TOATE potrivirile per amprenta si
+    // aplicam decizia restaurata identic pe fiecare — conservator (nu putem
+    // distinge cert intre ele din amprenta), dar niciuna nu mai e ignorata.
+    const currentPhotos = await db.photos.toArray();
+    const byFingerprint = new Map<string, PhotoRecord[]>();
+    for (const p of currentPhotos) {
+      const key = fingerprint(p);
+      const bucket = byFingerprint.get(key);
+      if (bucket) bucket.push(p); else byFingerprint.set(key, [p]);
+    }
+    for (const d of data.photoDecisions) {
+      const matches = byFingerprint.get(fingerprint(d));
+      if (!matches) continue;
+      for (const match of matches) {
+        if (match.status === d.status && (match.rating ?? 0) === (d.rating ?? 0)) continue;
+        await db.photos.update(match.id, { status: d.status, rating: d.rating });
+        decisionsMatched++;
+      }
+    }
+  });
+
   // ContextEngine tine modelele in cache, in memorie — fara reload() ar continua
   // sa foloseasca (si sa suprascrie la urmatoarea corectie) versiunea veche
   await contextEngine.reload();
   if (analysisPool.isReady) {
     await analysisPool.setKnownPersons(await db.persons.toArray()).catch(() => {});
-  }
-
-  const currentPhotos = await db.photos.toArray();
-  const byFingerprint = new Map(currentPhotos.map(p => [fingerprint(p), p]));
-  let decisionsMatched = 0;
-  for (const d of data.photoDecisions) {
-    const match = byFingerprint.get(fingerprint(d));
-    if (!match) continue;
-    if (match.status === d.status && (match.rating ?? 0) === (d.rating ?? 0)) continue;
-    await db.photos.update(match.id, { status: d.status, rating: d.rating });
-    decisionsMatched++;
   }
 
   if (data.settings) applySettings(data.settings);

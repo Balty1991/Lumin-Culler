@@ -62,8 +62,12 @@ export interface XmpAiMeta {
   groupId?: string;
   /**
    * Metadate personalizate de proiect (plan 2.3.5, state/projectMetadata.ts).
-   * `location` foloseste photoshop:Location (camp STANDARD, afisat/cautabil
-   * direct in panoul de metadate Lightroom — nu namespace-ul propriu `lc:`) si
+   * `location` foloseste Iptc4xmpCore:Location (camp STANDARD, afisat/cautabil
+   * direct in panoul de metadate Lightroom — nu namespace-ul propriu `lc:`;
+   * bug real gasit de auditul QA: era scris gresit ca photoshop:Location, care
+   * NU e un camp real al namespace-ului Photoshop — "Location" apartine
+   * schemei Iptc4xmpCore, `photoshop:` defineste doar City/State/Country/
+   * Headline etc., asa ca Lightroom nu-l citea deloc din vechea locatie) si
    * `event` foloseste Iptc4xmpExt:Event (extensia standard IPTC). Pentru
    * `client` nu exista un camp XMP universal recunoscut — ramane in `lc:`.
    */
@@ -91,16 +95,20 @@ export function generateXMPSidecar(status: XmpDecision, starRating?: number, key
     ? `\n    <lc:AIFactors>\n     <rdf:Bag>\n${ai.aiFactors.map(f => `      <rdf:li>${xmlEscape(f)}</rdf:li>`).join('\n')}\n     </rdf:Bag>\n    </lc:AIFactors>`
     : '';
   // camp standard, recunoscut de Lightroom (panoul de metadate "Locatie") — nu namespace-ul propriu lc:
-  const location = ai?.location ? `\n    <photoshop:Location>${xmlEscape(ai.location)}</photoshop:Location>` : '';
-  // extensia standard IPTC pentru evenimente
-  const event = ai?.event ? `\n    <Iptc4xmpExt:Event>${xmlEscape(ai.event)}</Iptc4xmpExt:Event>` : '';
+  const location = ai?.location ? `\n    <Iptc4xmpCore:Location>${xmlEscape(ai.location)}</Iptc4xmpCore:Location>` : '';
+  // extensia standard IPTC pentru evenimente — Lang Alt (ca dc:description mai
+  // sus), nu text simplu: Event e definit ca proprietate localizata in schema
+  // IPTC Extension, la fel ca toate campurile "*LangAlt" ale ei
+  const event = ai?.event
+    ? `\n    <Iptc4xmpExt:Event>\n     <rdf:Alt>\n      <rdf:li xml:lang="x-default">${xmlEscape(ai.event)}</rdf:li>\n     </rdf:Alt>\n    </Iptc4xmpExt:Event>`
+    : '';
   return `<?xpacket begin="﻿" id="W5M0MpCehiHzreSzNTczkc9d"?>
 <x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Lumin Culler Pro">
  <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
   <rdf:Description rdf:about=""
     xmlns:xmp="http://ns.adobe.com/xap/1.0/"
     xmlns:dc="http://purl.org/dc/elements/1.1/"
-    xmlns:photoshop="http://ns.adobe.com/photoshop/1.0/"
+    xmlns:Iptc4xmpCore="http://iptc.org/std/Iptc4xmpCore/1.0/xmlns/"
     xmlns:Iptc4xmpExt="http://iptc.org/std/Iptc4xmpExt/2008-02-29/"
     xmlns:lc="https://luminculler.app/xmp/1.0/"
     xmp:Rating="${rating}"
