@@ -984,9 +984,15 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 @media (prefers-reduced-motion: reduce) {
   .empty::before { animation: none; }
 }
-.empty-mark {
-  width: 56px; height: 56px; padding: 13px; border-radius: 16px; background: var(--accent-gradient); color: #06070a;
-  box-shadow: 0 10px 30px -8px rgb(var(--accent-rgb) / 0.5);
+/* nucleu AI animat (aceeasi tehnica/clase ca .core din AiBootScreen — halou +
+   inel conic rotativ + disc care respira) — inlocuieste iconita statica de
+   brand, ca prima impresie a paginii sa arate ca un motor AI viu, nu un logo
+   plat. Reutilizarea claselor .core* pastreaza acelasi motiv vizual intre
+   "motorul e gata" (aici) si "motorul lucreaza" (ecranul de incarcare). */
+.empty-core { margin: 0 auto; }
+.empty-tagline {
+  display: inline-flex; align-items: center; gap: 7px; margin: -4px 0 0;
+  font-size: 0.72rem; letter-spacing: 0.04em; color: var(--text-faint); text-transform: uppercase;
 }
 .empty h2 { font-family: var(--font-display); font-size: 1.9rem; font-weight: 700; letter-spacing: -0.02em; }
 .empty p, .hint { color: var(--text-dim); }
@@ -1000,10 +1006,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   width: 40px; height: 40px; color: var(--text-faint); opacity: 0.8;
 }
 
-/* ── "Cum functioneaza" — strip in 3 pasi, sub CTA-ul de onboarding ── */
+/* ── "Cum functioneaza" — strip in 3 pasi, sub CTA-ul de onboarding ──
+   Randat in interiorul unui panou .hud (aceleasi clase .hud/.bracket ca la
+   CullGauge) — reutilizeaza identitatea vizuala "HUD" deja stabilita, in loc
+   de un simplu divider deasupra unei liste plate. */
+.how-it-works-hud { width: 100%; margin-top: 20px; }
 .how-it-works {
   display: grid; grid-template-columns: 1fr; gap: 18px;
-  margin-top: 20px; padding-top: 24px; border-top: 1px solid var(--line); width: 100%;
 }
 @media (min-width: 480px) {
   .how-it-works { grid-template-columns: repeat(3, 1fr); gap: 14px; }
@@ -1011,9 +1020,22 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 /* stacat (1 coloana): rand orizontal, aliniat la stanga — mai usor de citit decat centrat pe un singur item lat.
    La >=480px (grid pe 3 coloane) devine coloana centrata, tratament clasic de "pas ilustrat". */
 .how-step { display: flex; flex-direction: row; align-items: center; gap: 12px; text-align: left; }
+/* contur cu gradient (acelasi truc dublu-background ca .chip.active) in loc de
+   un fundal plat — fiecare pas al "motorului AI" arata premium, nu doar un
+   dreptunghi gri cu o iconita in mijloc. */
 .how-step-icon {
-  width: 40px; height: 40px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line);
+  position: relative;
+  width: 40px; height: 40px; border-radius: 12px;
+  background-image: linear-gradient(var(--surface-2), var(--surface-2)), var(--accent-gradient);
+  background-origin: border-box; background-clip: padding-box, border-box; border: 1px solid transparent;
   color: var(--accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  box-shadow: 0 4px 14px -7px rgb(var(--accent-rgb) / 0.5);
+}
+.how-step-num {
+  position: absolute; top: -6px; right: -6px; width: 17px; height: 17px; border-radius: 50%;
+  background: var(--surface-3); box-shadow: inset 0 0 0 1px var(--line-strong);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 0.6rem; font-weight: 700; color: var(--text-dim);
 }
 .how-step-text { display: grid; gap: 2px; }
 .how-step b { font-size: 0.88rem; font-weight: 700; }

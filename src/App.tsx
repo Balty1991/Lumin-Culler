@@ -799,32 +799,45 @@ export default function App() {
 
       {photos.length === 0 && !progress ? (
         <div className="empty">
-          <ApertureIcon className="empty-mark" aria-hidden="true" />
+          <div className="core empty-core" aria-hidden="true">
+            <span className="core-halo" />
+            <div className="core-ring" />
+            <div className="core-disc">
+              <div className="core-disc-inner">
+                <ApertureIcon />
+              </div>
+            </div>
+          </div>
+          <p className="mono empty-tagline"><span className="live-dot" aria-hidden="true" /> {tr('app.empty.badge')}</p>
           <h2>{tr('app.empty.title')}</h2>
           <p>{tr('app.empty.description')}</p>
           <button className="btn-accent big" onClick={() => void onAddPhotosClick()}>{tr('app.empty.cta')}</button>
           <p className="hint"><UserCheckIcon className="inline-icon" /> {tr('app.empty.hint')}</p>
 
-          <div className="how-it-works">
-            <div className="how-step">
-              <span className="how-step-icon"><PlusIcon /></span>
-              <div className="how-step-text">
-                <b>{tr('app.howItWorks.add.title')}</b>
-                <p>{tr('app.howItWorks.add.desc')}</p>
+          <div className="hud how-it-works-hud">
+            <span className="bracket tl" aria-hidden="true" /><span className="bracket tr" aria-hidden="true" />
+            <span className="bracket bl" aria-hidden="true" /><span className="bracket br" aria-hidden="true" />
+            <div className="how-it-works">
+              <div className="how-step">
+                <span className="how-step-icon"><span className="how-step-num">1</span><PlusIcon /></span>
+                <div className="how-step-text">
+                  <b>{tr('app.howItWorks.add.title')}</b>
+                  <p>{tr('app.howItWorks.add.desc')}</p>
+                </div>
               </div>
-            </div>
-            <div className="how-step">
-              <span className="how-step-icon"><SparkleIcon /></span>
-              <div className="how-step-text">
-                <b>{tr('app.howItWorks.analyze.title')}</b>
-                <p>{tr('app.howItWorks.analyze.desc')}</p>
+              <div className="how-step">
+                <span className="how-step-icon"><span className="how-step-num">2</span><SparkleIcon /></span>
+                <div className="how-step-text">
+                  <b>{tr('app.howItWorks.analyze.title')}</b>
+                  <p>{tr('app.howItWorks.analyze.desc')}</p>
+                </div>
               </div>
-            </div>
-            <div className="how-step">
-              <span className="how-step-icon"><CheckIcon /></span>
-              <div className="how-step-text">
-                <b>{tr('app.howItWorks.decide.title')}</b>
-                <p>{tr('app.howItWorks.decide.desc')}</p>
+              <div className="how-step">
+                <span className="how-step-icon"><span className="how-step-num">3</span><CheckIcon /></span>
+                <div className="how-step-text">
+                  <b>{tr('app.howItWorks.decide.title')}</b>
+                  <p>{tr('app.howItWorks.decide.desc')}</p>
+                </div>
               </div>
             </div>
           </div>
