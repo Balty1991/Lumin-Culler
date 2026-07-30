@@ -20,19 +20,15 @@ export function AiBootScreen() {
     <div className="boot" role="status" aria-live="polite">
       <div className="core" aria-hidden="true">
         <span className="core-halo" />
-        {/* inel SVG cu contur (nu conic-gradient + mask CSS pe un div) — mult mai
-            ieftin de rotit continuu pe telefoane slabe: un mask radial recalculat
-            in fiecare cadru poate sacada vizibil, mai ales cat timp CPU-ul e deja
-            ocupat cu incarcarea modelelor AI in fundal (bug real raportat) */}
+        {/* inel SVG cu 3 arce de culoare solida (nu conic-gradient + mask CSS, nici
+            un gradient liniar) — mult mai ieftin de rotit continuu pe telefoane
+            slabe, si spre deosebire de un gradient liniar (care se roteste ca un
+            tot rigid si abia se "citeste" ca miscare), benzi de culoare distincte
+            se vad clar maturand cercul, la fel ca vechiul conic-gradient */}
         <svg className="core-ring" viewBox="0 0 108 108" aria-hidden="true">
-          <defs>
-            <linearGradient id="coreRingGrad" x1="0" y1="0" x2="108" y2="108" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" style={{ stopColor: 'var(--accent)' }} />
-              <stop offset="55%" style={{ stopColor: '#8b5cf6' }} />
-              <stop offset="100%" style={{ stopColor: 'var(--accent-2)' }} />
-            </linearGradient>
-          </defs>
-          <circle cx="54" cy="54" r="50" fill="none" stroke="url(#coreRingGrad)" strokeWidth="4" />
+          <circle cx="54" cy="54" r="50" fill="none" stroke="var(--accent)" strokeWidth="4" strokeDasharray="104.72 314.16" strokeDashoffset="0" />
+          <circle cx="54" cy="54" r="50" fill="none" stroke="#8b5cf6" strokeWidth="4" strokeDasharray="104.72 314.16" strokeDashoffset="-104.72" />
+          <circle cx="54" cy="54" r="50" fill="none" stroke="var(--accent-2)" strokeWidth="4" strokeDasharray="104.72 314.16" strokeDashoffset="-209.44" />
         </svg>
         <div className="core-disc">
           <div className="core-disc-inner">
