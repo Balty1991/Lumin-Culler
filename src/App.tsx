@@ -568,7 +568,17 @@ export default function App() {
       <header className="topbar">
         <div className="brand">
           <div className="brand-mark-wrap">
-            <span className="brand-mark-ring" aria-hidden="true" />
+            {/* inel SVG cu contur, nu conic-gradient + mask CSS — vezi acelasi motiv in AiBootScreen.tsx */}
+            <svg className="brand-mark-ring" viewBox="0 0 34 34" aria-hidden="true">
+              <defs>
+                <linearGradient id="brandRingGrad" x1="0" y1="0" x2="34" y2="34" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" style={{ stopColor: 'var(--accent)' }} />
+                  <stop offset="55%" style={{ stopColor: '#8b5cf6' }} />
+                  <stop offset="100%" style={{ stopColor: 'var(--accent-2)' }} />
+                </linearGradient>
+              </defs>
+              <circle cx="17" cy="17" r="15.5" fill="none" stroke="url(#brandRingGrad)" strokeWidth="2" />
+            </svg>
             <span className="brand-mark">
               <ApertureIcon aria-hidden="true" />
             </span>

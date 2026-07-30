@@ -21,7 +21,20 @@ export function AiBootScreen() {
       <div className="core" aria-hidden="true">
         <span className="core-halo h2" />
         <span className="core-halo h3" />
-        <div className="core-ring" />
+        {/* inel SVG cu contur (nu conic-gradient + mask CSS pe un div) — mult mai
+            ieftin de rotit continuu pe telefoane slabe: un mask radial recalculat
+            in fiecare cadru poate sacada vizibil, mai ales cat timp CPU-ul e deja
+            ocupat cu incarcarea modelelor AI in fundal (bug real raportat) */}
+        <svg className="core-ring" viewBox="0 0 108 108" aria-hidden="true">
+          <defs>
+            <linearGradient id="coreRingGrad" x1="0" y1="0" x2="108" y2="108" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" style={{ stopColor: 'var(--accent)' }} />
+              <stop offset="55%" style={{ stopColor: '#8b5cf6' }} />
+              <stop offset="100%" style={{ stopColor: 'var(--accent-2)' }} />
+            </linearGradient>
+          </defs>
+          <circle cx="54" cy="54" r="50" fill="none" stroke="url(#coreRingGrad)" strokeWidth="4" />
+        </svg>
         <div className="core-disc">
           <SparkleIcon />
         </div>
