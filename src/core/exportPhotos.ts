@@ -241,10 +241,11 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[], options: E
     return { exported: result.cancelled ? 0 : 1, missing, method, cancelled: result.cancelled, grouped: false };
   }
   // mai multe fisiere: O SINGURA descarcare .zip — descarcarile multiple secventiale
-  // sunt blocate silentios de multe browsere mobile dupa prima (vezi downloadZip)
-  const entries = await Promise.all(
-    available.map(async ({ name, file, folder }) => ({ path: `${folder}/${name}`, data: new Uint8Array(await file.arrayBuffer()) }))
-  );
+  // sunt blocate silentios de multe browsere mobile dupa prima (vezi downloadZip).
+  // Trimitem fisierele (Blob-uri) direct, NECITITE — downloadZip le citeste unul
+  // cate unul, in loc sa tinem toate pozele originale decodate in memorie
+  // simultan (vezi comentariul din downloadZip/streamZipEntries).
+  const entries = available.map(({ name, file, folder }) => ({ path: `${folder}/${name}`, data: file }));
   const zipName = `lumin-culler-export-${new Date().toISOString().slice(0, 10)}.zip`;
   const result = await downloadZip(zipName, entries);
   return { exported: result.cancelled ? 0 : available.length, missing, method, cancelled: result.cancelled, grouped: !result.cancelled };

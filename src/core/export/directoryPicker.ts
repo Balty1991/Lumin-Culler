@@ -4,7 +4,7 @@
  * exportului de fotografii si celui de sidecar-uri XMP — evita duplicarea
  * acelorasi tipuri/verificare de suport in doua fisiere.
  */
-import { zip, type Zippable } from 'fflate';
+import { Zip, ZipPassThrough } from 'fflate';
 
 export interface LocalWritable {
   write(data: Blob): Promise<void>;
@@ -177,15 +177,88 @@ export async function downloadBlob(name: string, blob: Blob): Promise<{ cancelle
  * de mai sus, cu acelasi beneficiu de showSaveFilePicker), indiferent cate
  * poze contine — folosit ori de cate ori exportul fallback (fara File System
  * Access API) are mai mult de un fisier de trimis.
+ *
+ * `data` e un Blob (nu un Uint8Array deja citit) tocmai ca fisierele mari
+ * (poze originale, cativa MB fiecare) sa nu fie decodate in memorie TOATE
+ * deodata de apelant inainte sa apucam sa incepem arhivarea — vezi
+ * streamZipEntries mai jos.
  */
-export function downloadZip(zipFileName: string, entries: { path: string; data: Uint8Array }[]): Promise<{ cancelled: boolean }> {
+export interface ZipEntryInput { path: string; data: Blob }
+
+/**
+ * Bug real gasit de auditul QA (scalabilitate, export cu multe poze mari):
+ * varianta veche cerea apelantului sa citeasca Promise.all(files.map(f =>
+ * f.arrayBuffer())) INAINTE de a apela downloadZip, apoi fflate.zip()
+ * construia si el intregul arhiv comprimat dintr-o data — la un export de
+ * cateva sute de poze originale (cativa MB fiecare), asta insemna sa tinem
+ * simultan in memorie ATAT toate fisierele sursa CAT SI arhiva rezultata
+ * (aproape 2x marimea totala a exportului), un risc real de OOM pe mobil.
+ *
+ * Aici citim si arhivam cate UN SINGUR fisier deodata (Zip/ZipPassThrough,
+ * API-ul de streaming al fflate) — bufferul fisierului anterior devine
+ * eligibil pentru colectarea gunoiului inainte sa citim urmatorul, in loc sa
+ * ramana toate simultan in viata. Folosim ZipPassThrough (fara compresie)
+ * intentionat: fisierele exportate sunt deja JPEG/RAW, deja comprimate —
+ * a incerca sa le comprimam din nou (deflate) nu reduce marimea, doar arde
+ * CPU si timp in plus tinand bufferele in viata mai mult.
+ */
+function streamZipEntries(entries: ZipEntryInput[], onChunk: (chunk: Uint8Array) => Promise<void> | void): Promise<void> {
   return new Promise((resolve, reject) => {
-    const files: Zippable = {};
-    for (const e of entries) files[e.path] = e.data;
-    zip(files, (err, data) => {
+    // fflate cheama ondata SINCRON (fara sa astepte), dar onChunk (scrierea
+    // pe disc, cand exista showSaveFilePicker) e async — inlantuim explicit
+    // fiecare bucata dupa cea anterioara, altfel writable.write() ar primi
+    // toate bucatile deodata, fara backpressure, exact problema de memorie
+    // pe care acest streaming ar trebui sa o evite.
+    let chain = Promise.resolve();
+    const z = new Zip((err, chunk, final) => {
       if (err) { reject(err); return; }
-      const blob = new Blob([data], { type: 'application/zip' });
-      downloadBlob(zipFileName, blob).then(resolve, reject);
+      chain = chain.then(() => onChunk(chunk));
+      if (final) chain.then(resolve, reject);
     });
+    (async () => {
+      for (const e of entries) {
+        const buf = new Uint8Array(await e.data.arrayBuffer());
+        const zf = new ZipPassThrough(e.path);
+        z.add(zf);
+        zf.push(buf, true);
+      }
+      z.end();
+    })().catch(reject);
   });
+}
+
+export function downloadZip(zipFileName: string, entries: ZipEntryInput[]): Promise<{ cancelled: boolean }> {
+  return (async () => {
+    // Cale principala (Chromium desktop): scriem fiecare bucata a arhivei
+    // DIRECT pe disc pe masura ce e produsa, fara sa construim niciodata
+    // arhiva completa in memorie — cel mai bun caz posibil pentru exporturi
+    // mari. Acelasi prag/logica de anulare reala ca in downloadBlob (vezi
+    // INSTANT_ABORT_THRESHOLD_MS mai sus).
+    const showSaveFilePicker = getSaveFilePicker();
+    if (showSaveFilePicker) {
+      const startedAt = Date.now();
+      try {
+        const handle = await Promise.race([
+          showSaveFilePicker({ suggestedName: zipFileName }),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('showSaveFilePicker timeout')), SAVE_PICKER_TIMEOUT_MS))
+        ]);
+        const writable = await handle.createWritable();
+        await streamZipEntries(entries, chunk => writable.write(new Blob([chunk as BlobPart])));
+        await writable.close();
+        return { cancelled: false };
+      } catch (err) {
+        const isRealCancel = err instanceof DOMException && err.name === 'AbortError' && Date.now() - startedAt >= INSTANT_ABORT_THRESHOLD_MS;
+        if (isRealCancel) return { cancelled: true };
+        // API absent/restrictionat la runtime -> cadem pe fallback-ul de mai jos
+      }
+    }
+    // Fallback (fara File System Access API): <a download> cere un Blob
+    // complet, deci arhiva tot trebuie construita integral in memorie aici —
+    // dar tot procesam fisierele sursa UNUL CATE UNUL (streamZipEntries),
+    // nu toate deodata, injumatatind varful de memorie fata de varianta veche.
+    const chunks: Uint8Array[] = [];
+    await streamZipEntries(entries, chunk => { chunks.push(chunk); });
+    const blob = new Blob(chunks as BlobPart[], { type: 'application/zip' });
+    return downloadBlob(zipFileName, blob);
+  })();
 }

@@ -218,10 +218,9 @@ export async function exportXMPSidecars(photos: XmpPhotoInput[]): Promise<XmpExp
   // mai multe sidecar-uri: O SINGURA descarcare .zip — vezi downloadZip pentru
   // motivul (descarcarile multiple secventiale sunt blocate silentios de multe
   // browsere mobile dupa prima)
-  const encoder = new TextEncoder();
   const entries = decided.map(p => ({
     path: uniqueXmpName(p.fileName),
-    data: encoder.encode(render(p))
+    data: new Blob([render(p)], { type: 'application/rdf+xml' })
   }));
   const zipName = `lumin-culler-xmp-${new Date().toISOString().slice(0, 10)}.zip`;
   const result = await downloadZip(zipName, entries);

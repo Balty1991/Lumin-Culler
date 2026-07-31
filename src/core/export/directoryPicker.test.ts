@@ -143,11 +143,10 @@ describe('downloadZip', () => {
     URL.createObjectURL = createObjectURL;
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
 
-    const encoder = new TextEncoder();
     await downloadZip('test-export.zip', [
-      { path: 'Ami/a.jpg', data: encoder.encode('poza-a') },
-      { path: 'Ami/b.jpg', data: encoder.encode('poza-b') },
-      { path: 'Necunoscuti/c.jpg', data: encoder.encode('poza-c') }
+      { path: 'Ami/a.jpg', data: new Blob(['poza-a']) },
+      { path: 'Ami/b.jpg', data: new Blob(['poza-b']) },
+      { path: 'Necunoscuti/c.jpg', data: new Blob(['poza-c']) }
     ]);
 
     // un singur URL.createObjectURL + un singur click — indiferent ca zipul contine 3 fisiere,
@@ -165,10 +164,62 @@ describe('downloadZip', () => {
     URL.createObjectURL = vi.fn((b: Blob) => { capturedBlob = b; return 'blob:mock-url'; });
     vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
 
-    const encoder = new TextEncoder();
-    await downloadZip('test.zip', [{ path: 'a.txt', data: encoder.encode('hello world'.repeat(50)) }]);
+    await downloadZip('test.zip', [{ path: 'a.txt', data: new Blob(['hello world'.repeat(50)]) }]);
 
     expect(capturedBlob).not.toBeNull();
     expect(capturedBlob!.size).toBeGreaterThan(0);
+  });
+
+  it('reads and archives entries one at a time, not all at once (bounded peak memory for large exports)', async () => {
+    URL.createObjectURL = vi.fn(() => 'blob:mock-url');
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    let concurrentReads = 0;
+    let maxConcurrentReads = 0;
+    const makeTrackedBlob = (content: string): Blob => {
+      const blob = new Blob([content]);
+      const original = blob.arrayBuffer.bind(blob);
+      blob.arrayBuffer = async () => {
+        concurrentReads += 1;
+        maxConcurrentReads = Math.max(maxConcurrentReads, concurrentReads);
+        await new Promise(r => setTimeout(r, 5));
+        const result = await original();
+        concurrentReads -= 1;
+        return result;
+      };
+      return blob;
+    };
+
+    await downloadZip('test-sequential.zip', [
+      { path: 'a.jpg', data: makeTrackedBlob('a') },
+      { path: 'b.jpg', data: makeTrackedBlob('b') },
+      { path: 'c.jpg', data: makeTrackedBlob('c') }
+    ]);
+
+    expect(maxConcurrentReads).toBe(1);
+  });
+
+  it('streams directly to the picked file (no full-archive Blob ever built) when showSaveFilePicker is available', async () => {
+    const writes: Blob[] = [];
+    const write = vi.fn(async (data: Blob) => { writes.push(data); });
+    const close = vi.fn(async () => {});
+    const createWritable = vi.fn(async () => ({ write, close }));
+    const showSaveFilePicker = vi.fn(async () => ({ createWritable }));
+    (window as unknown as { showSaveFilePicker: unknown }).showSaveFilePicker = showSaveFilePicker;
+    const createObjectURL = vi.fn(() => 'blob:mock-url');
+    URL.createObjectURL = createObjectURL;
+
+    const result = await downloadZip('test-stream.zip', [
+      { path: 'a.jpg', data: new Blob(['poza-a']) },
+      { path: 'b.jpg', data: new Blob(['poza-b']) }
+    ]);
+
+    expect(result).toEqual({ cancelled: false });
+    expect(showSaveFilePicker).toHaveBeenCalledWith({ suggestedName: 'test-stream.zip' });
+    expect(writes.length).toBeGreaterThan(0); // scris in bucati, direct pe disc
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(createObjectURL).not.toHaveBeenCalled(); // NU trece deloc prin fallback-ul <a download>
+
+    Reflect.deleteProperty(window, 'showSaveFilePicker');
   });
 });
