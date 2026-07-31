@@ -201,8 +201,8 @@ export class AnalysisPool {
     }
   }
 
-  /** Înrolare persoană cunoscută: returnează embedding-ul feței principale. */
-  async computeEnrollmentEmbedding(bitmap: ImageBitmap): Promise<number[] | null> {
+  /** Înrolare persoană cunoscută: returnează embedding-ul feței principale + numărul de fețe detectate (vezi worker pentru bug-ul de avertizare). */
+  async computeEnrollmentEmbedding(bitmap: ImageBitmap): Promise<{ embedding: number[]; faceCount: number } | null> {
     const slot = await this.acquire();
     try {
       return await withTimeout(

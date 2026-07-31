@@ -1394,11 +1394,23 @@ export const useStore = create<AppState>((set, get) => ({
   addPerson: async (name, files) => {
     await analysisPool.init();
     const embeddings: number[][] = [];
+    // Bug real gasit de auditul QA: cand o poza de referinta continea mai
+    // multe fete (o poza de grup/familie, plauzibil daca utilizatorul nu e
+    // atent la ce alege), codul alegea silentios fata cea mai mare, fara
+    // nicio confirmare — un strain aflat intamplator mai aproape de camera
+    // putea ajunge inrolat sub numele gresit, cauzand recunoasteri false-
+    // pozitive ulterioare. Nu construim aici o interfata de decupare/alegere
+    // (ar fi un fix mult mai mare ca domeniu) — dar facem alegerea VIZIBILA,
+    // ca utilizatorul sa poata verifica/corecta imediat daca a fost gresita.
+    let multiface = 0;
     for (const file of files.slice(0, MAX_PERSON_REFERENCE_FILES)) {
       try {
         const bitmap = await createImageBitmap(file, { resizeWidth: 1024 } as ImageBitmapOptions);
-        const emb = await analysisPool.computeEnrollmentEmbedding(bitmap);
-        if (emb && emb.length) embeddings.push(emb);
+        const result = await analysisPool.computeEnrollmentEmbedding(bitmap);
+        if (result?.embedding.length) {
+          embeddings.push(result.embedding);
+          if (result.faceCount > 1) multiface++;
+        }
       } catch (err) {
         console.error('Inrolare esuata:', err);
       }
@@ -1408,6 +1420,9 @@ export const useStore = create<AppState>((set, get) => ({
     }
     const skipped = Math.max(0, files.length - MAX_PERSON_REFERENCE_FILES);
     const skippedSuffix = skipped > 0 ? ` (${skipped} poze ignorate, plafon ${MAX_PERSON_REFERENCE_FILES} per inrolare)` : '';
+    const multifaceSuffix = multiface > 0
+      ? ` Atentie: ${multiface} ${multiface === 1 ? 'poza a continut' : 'poze au continut'} mai multe fete — s-a folosit automat cea mai mare din cadru; verifica daca e persoana corecta.`
+      : '';
     const trimmedName = name.trim();
     const existing = get().persons.find(p => p.name.trim().toLowerCase() === trimmedName.toLowerCase());
     let person: KnownPerson;
@@ -1417,10 +1432,10 @@ export const useStore = create<AppState>((set, get) => ({
       // vechi de acum multe luni conteaza mai putin decat cele actuale la recunoastere
       const merged = [...existing.embeddings, ...embeddings].slice(-MAX_PERSON_EMBEDDINGS);
       person = { ...existing, embeddings: merged, updatedAt: Date.now() };
-      message = `${trimmedName}: +${embeddings.length} referinte noi adaugate la profilul existent (total ${merged.length}).${skippedSuffix}`;
+      message = `${trimmedName}: +${embeddings.length} referinte noi adaugate la profilul existent (total ${merged.length}).${skippedSuffix}${multifaceSuffix}`;
     } else {
       person = { id: crypto.randomUUID(), name: trimmedName, embeddings, updatedAt: Date.now() };
-      message = trimmedName + ': ' + embeddings.length + ' referinte salvate.' + skippedSuffix;
+      message = trimmedName + ': ' + embeddings.length + ' referinte salvate.' + skippedSuffix + multifaceSuffix;
     }
     await db.persons.put(person);
     const persons = await db.persons.toArray();

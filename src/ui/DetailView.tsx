@@ -88,8 +88,13 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)) return;
       if (e.key === 'ArrowRight') stepDetail(1);
       else if (e.key === 'ArrowLeft') stepDetail(-1);
-      else if (e.key === 'p' || e.key === 'P') void setStatus(photo.id, 'selected');
-      else if (e.key === 'x' || e.key === 'X') void setStatus(photo.id, 'rejected');
+      // Bug real gasit de auditul QA (suggestion, consistenta): Workspace avanseaza
+      // automat la urmatoarea poza dupa o decizie (tastatura, FAB) — DetailView nu
+      // o facea deloc pe niciuna din cele 3 cai (tastatura/swipe/FAB), desi
+      // ShortcutsPanel le eticheteaza identic ("selecteaza/respinge poza curenta"),
+      // fara nicio nota despre diferenta de comportament intre cele doua ecrane.
+      else if (e.key === 'p' || e.key === 'P') { void setStatus(photo.id, 'selected'); stepDetail(1); }
+      else if (e.key === 'x' || e.key === 'X') { void setStatus(photo.id, 'rejected'); stepDetail(1); }
       else if (e.key === 'z' || e.key === 'Z') setZoomed(z => !z);
       else if (e.key >= '0' && e.key <= '5') void setRating(photo.id, photo.rating === Number(e.key) ? 0 : Number(e.key));
       else if (e.key === 'Escape') {
@@ -115,6 +120,7 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
   const commitSwipe = (status: 'selected' | 'rejected') => {
     vibrate(status === 'selected' ? 14 : [12, 40, 12]);
     void setStatus(photo.id, status);
+    stepDetail(1); // vezi comentariul de la handler-ul de tastatura mai sus
     dragXRef.current = 0;
     setDragX(0);
   };
@@ -260,14 +266,14 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
           <div className={sheetExpanded ? 'detail-fab-row hidden' : 'detail-fab-row'} aria-hidden={sheetExpanded}>
             <button
               className="detail-fab detail-fab-reject" onPointerDown={e => e.stopPropagation()}
-              onClick={e => { e.stopPropagation(); void setStatus(photo.id, 'rejected'); }}
+              onClick={e => { e.stopPropagation(); void setStatus(photo.id, 'rejected'); stepDetail(1); }}
               aria-label={tr('workspace.action.reject')} tabIndex={sheetExpanded ? -1 : 0}
             >
               <XIcon />
             </button>
             <button
               className="detail-fab detail-fab-select" onPointerDown={e => e.stopPropagation()}
-              onClick={e => { e.stopPropagation(); void setStatus(photo.id, 'selected'); }}
+              onClick={e => { e.stopPropagation(); void setStatus(photo.id, 'selected'); stepDetail(1); }}
               aria-label={tr('workspace.action.select')} tabIndex={sheetExpanded ? -1 : 0}
             >
               <CheckIcon />

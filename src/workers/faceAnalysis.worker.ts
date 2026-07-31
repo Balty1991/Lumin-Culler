@@ -876,15 +876,28 @@ export class FaceAnalysisService {
     return out;
   }
 
-  /** Enroll a reference photo for a known person → returns the embedding to store in db.persons. */
-  async computeEnrollmentEmbedding(bitmap: ImageBitmap): Promise<number[] | null> {
+  /**
+   * Enroll a reference photo for a known person -> returns the embedding to
+   * store in db.persons. `faceCount` e intors explicit (nu doar embedding-ul)
+   * pentru ca apelantul (store.ts addPerson) sa poata avertiza utilizatorul
+   * cand fotografia de referinta continea MAI MULTE fete — bug real gasit de
+   * auditul QA: alegerea "fetei celei mai mari" era complet silentioasa, fara
+   * nicio confirmare care fata a fost folosita. Un strain accidental mai
+   * aproape de camera intr-o poza de grup putea ajunge inrolat sub numele
+   * gresit, fara niciun semnal. Nu schimbam algoritmul (tot cea mai mare fata
+   * — o interfata de decupare/alegere ar fi un fix mai complet, dar mult mai
+   * mare ca domeniu), doar facem alegerea VIZIBILA.
+   */
+  async computeEnrollmentEmbedding(bitmap: ImageBitmap): Promise<{ embedding: number[]; faceCount: number } | null> {
     if (!this.human) throw new Error('Not initialized');
     const result = await this.human.detect(bitmap);
     bitmap.close();
     if (!result.face.length) return null;
     // Largest face in the enrollment photo is the subject
     const largest = result.face.reduce((a, b) => (a.box[2] * a.box[3] > b.box[2] * b.box[3] ? a : b));
-    return (largest.embedding as number[]) ?? null;
+    const embedding = (largest.embedding as number[] | undefined) ?? null;
+    if (!embedding) return null;
+    return { embedding, faceCount: result.face.length };
   }
 }
 
