@@ -289,6 +289,10 @@ async function processOne(file: File, genre?: string, project?: string, handle?:
     dHash,
     lqip,
     status,
+    // sir gol, NU absent — vezi db.ts v6 pentru motiv (indexul groupId exclude
+    // orice inregistrare cu campul absent; '' acopera indexul de la inceput,
+    // ramanand falsy identic cu "absent" pentru tot codul existent)
+    groupId: '',
     ...(genre?.trim() ? { genre: genre.trim() } : {}),
     ...(project?.trim() ? { project: project.trim() } : {})
   };
@@ -432,7 +436,11 @@ export async function importFiles(
   // serie deja rezolvata) raman intentionat NEATINSE: nu le re-includem, ca sa nu
   // "relitigam" o decizie deja luata la un import complet nelegat.
   const currentBatchIds = new Set(hashes.map(h => h.id));
-  const existingUngrouped = await db.photos.filter(p => !p.groupId && !currentBatchIds.has(p.id)).toArray();
+  // index-backed (vezi db.ts v6): groupId e mereu '' pentru poze negrupate,
+  // niciodata absent, deci where().equals('') foloseste indexul in loc sa
+  // scaneze toata tabela — cost independent de marimea bibliotecii.
+  const existingUngrouped = (await db.photos.where('groupId').equals('').toArray())
+    .filter(p => !currentBatchIds.has(p.id));
   let existingHashes: HashInput[] = [];
   if (existingUngrouped.length) {
     const analyses = await db.analyses.bulkGet(existingUngrouped.map(p => p.id));

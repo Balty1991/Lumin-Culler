@@ -394,6 +394,36 @@ export class LuminDB extends Dexie {
       corrections: '++id, contextKey, ts',
       history: '++id, ts'
     });
+    // v6: NU schimba schema (groupId era deja indexat inca din v2) — repara doar
+    // datele. Bug real gasit de auditul QA (suggestion, scalabilitate): pozele
+    // fara serie/duplicat nu primeau NICIODATA campul groupId (ramanea complet
+    // absent, nu doar gol) — IndexedDB exclude din index orice inregistrare al
+    // carei camp indexat lipseste, deci interogarea "poze negrupate" din
+    // importPipeline.ts nu putea folosi indexul si trebuia sa scaneze intreaga
+    // tabela (db.photos.filter(), nu db.photos.where()) la FIECARE import, cost
+    // care creste cu marimea totala a bibliotecii, nu doar cu lotul curent.
+    // Migrarea de mai jos scrie explicit groupId: '' (sir gol, nu undefined)
+    // pentru orice poza negrupata deja existenta — acopera indexul si pentru
+    // datele vechi, o singura data, la upgrade. '' ramane falsy identic cu
+    // undefined pentru tot codul existent (verificat: fiecare loc din aplicatie
+    // testeaza `if (p.groupId)`/`!p.groupId`, niciunul `=== undefined`), deci
+    // comportamentul observabil nu se schimba — doar interogarea devine index-backed.
+    this.version(6).stores({
+      photos: 'id, capturedAt, status, dHash, groupId',
+      thumbnails: 'photoId',
+      previews: 'photoId',
+      originals: 'photoId',
+      fileHandles: 'photoId',
+      analyses: 'photoId, sceneType, aiScore',
+      persons: 'id, name',
+      contextModels: 'contextKey',
+      corrections: '++id, contextKey, ts',
+      history: '++id, ts'
+    }).upgrade(async tx => {
+      await tx.table<PhotoRecord, string>('photos')
+        .filter(p => p.groupId === undefined)
+        .modify({ groupId: '' });
+    });
   }
 }
 
