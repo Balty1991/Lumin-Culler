@@ -313,6 +313,7 @@ export const ro = {
   'detail.exif.whiteBalance.auto': 'Automat',
   'detail.exif.whiteBalance.manual': 'Manual',
   'detail.exif.gps': 'Locatie GPS',
+  'detail.exif.gps.disclosure': 'Deschide OpenStreetMap intr-o fila noua si trimite aceste coordonate catre serverele lor — singurul loc din aplicatie unde date parasesc dispozitivul.',
   'detail.exif.artist': 'Autor',
   'detail.exif.copyright': 'Copyright',
   'detail.exif.software': 'Software',

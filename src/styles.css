@@ -910,7 +910,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 .scene-tag-filter-option:hover { background: var(--surface-3); }
 .scene-tag-filter-option.active { background: rgb(var(--accent-rgb) / 0.16); color: var(--accent); }
-.scene-tag-filter-count { text-transform: none; font-weight: 700; font-size: 0.7em; color: var(--text-faint); background: var(--surface-3); border-radius: 999px; padding: 1px 7px; }
+/* Bug real gasit de auditul QA (accesibilitate): --text-faint pe --surface-3
+   (fundalul PROPRIU al acestei pastile, nu unul mostenit) cade sub 4.5:1 WCAG
+   AA in ambele teme (4.16:1 intunecat / 3.96:1 deschis — verificat direct,
+   nu presupus) — --text-faint e documentat/garantat doar pe --surface/--bg,
+   niciodata pe --surface-3. --text-dim pe aceeasi pereche trece confortabil
+   (5.96:1 / 5.77:1). */
+.scene-tag-filter-count { text-transform: none; font-weight: 700; font-size: 0.7em; color: var(--text-dim); background: var(--surface-3); border-radius: 999px; padding: 1px 7px; }
 .scene-tag-filter-option.active .scene-tag-filter-count { background: rgb(var(--accent-rgb) / 0.18); color: var(--accent); }
 .scene-tag-filter-clear { color: var(--text-dim); font-weight: 500; text-transform: none; border-top: 1px solid var(--line); margin-top: 2px; padding-top: 8px; justify-content: center; }
 

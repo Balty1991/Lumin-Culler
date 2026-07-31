@@ -316,6 +316,7 @@ export const en: Record<TranslationKey, string> = {
   'detail.exif.whiteBalance.auto': 'Auto',
   'detail.exif.whiteBalance.manual': 'Manual',
   'detail.exif.gps': 'GPS location',
+  'detail.exif.gps.disclosure': 'Opens OpenStreetMap in a new tab and sends these coordinates to their servers — the only place in the app where data leaves your device.',
   'detail.exif.artist': 'Artist',
   'detail.exif.copyright': 'Copyright',
   'detail.exif.software': 'Software',

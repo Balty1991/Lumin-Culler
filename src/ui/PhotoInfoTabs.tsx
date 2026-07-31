@@ -262,9 +262,16 @@ export function PhotoInfoTabs({ photo, src }: { photo: PhotoView; src: string | 
                   <dt>{r.label}</dt>
                   <dd>
                     {r.key === 'gps' && photo.gpsLatitude !== undefined && photo.gpsLongitude !== undefined ? (
+                      // Aplicatia se declara "AI local, pozele nu parasesc dispozitivul" —
+                      // acest link e SINGURA exceptie (coordonatele GPS sunt trimise catre
+                      // openstreetmap.org la click, un serviciu extern). title/aria-label
+                      // dezvaluie explicit asta INAINTE de click, nu doar in vreun document
+                      // de politica de confidentialitate separat, pe care nimeni nu-l citeste.
                       <a
                         href={`https://www.openstreetmap.org/?mlat=${photo.gpsLatitude}&mlon=${photo.gpsLongitude}#map=15/${photo.gpsLatitude}/${photo.gpsLongitude}`}
                         target="_blank" rel="noreferrer noopener"
+                        title={tr('detail.exif.gps.disclosure')}
+                        aria-label={`${r.value} — ${tr('detail.exif.gps.disclosure')}`}
                       >
                         {r.value}
                       </a>
