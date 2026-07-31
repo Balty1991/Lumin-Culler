@@ -14,7 +14,8 @@ vi.mock('../core/importPipeline', async importOriginal => {
 });
 
 import { useStore, relabelFaces, selectMergedEmbeddings, type PhotoView } from './store';
-import type { AnalysisRecord, FaceInsight } from '../core/db';
+import { db, type AnalysisRecord, type FaceInsight, type PhotoRecord } from '../core/db';
+import { contextEngine } from '../core/learning/ContextEngine';
 
 function makePhoto(i: number): PhotoView {
   return {
@@ -275,5 +276,58 @@ describe('secondaryFiltered', () => {
     useStore.setState({ notice: 'unrelated change' });
     const second = useStore.getState().secondaryFiltered();
     expect(second).toBe(first);
+  });
+});
+
+function makeDbPhoto(overrides: Partial<PhotoRecord> & { id: string }): PhotoRecord {
+  return {
+    fileName: `${overrides.id}.jpg`, importedAt: 0, width: 100, height: 100, dHash: '0',
+    status: 'review', ...overrides
+  };
+}
+
+function makeDbAnalysis(overrides: Partial<AnalysisRecord> & { photoId: string }): AnalysisRecord {
+  return {
+    faces: [], faceCount: 0, knownFaceCount: 0, strangerCount: 0, bestSmile: 0, allEyesOpen: true,
+    sharpness: 80, exposure: 50, sceneType: 'landscape', aiScore: 20, analyzedAt: 0, ...overrides
+  };
+}
+
+// Bug real gasit de auditul QA (bug/medium, scalabilitate): bulkRejectBelow
+// (si celelalte operatii in masa) faceau, per poza, db.photos.update() +
+// syncOriginal() SERIAL inainte de train() — acum scrierile DB ruleaza in
+// PARALEL (Promise.all), cu train() ramas strict SECVENTIAL dupa (nu poate
+// fi paralelizat fara sa schimbe semantica invatarii online). Test real, cu
+// Dexie adevarat (fake-indexeddb) — verifica ambele: (1) toate scrierile DB
+// chiar se aplica, (2) contextEngine.recordCorrection e apelat o singura
+// data per poza, in ordinea targets (nu amestecat de paralelizare).
+describe('bulkRejectBelow (integration, Dexie real via fake-indexeddb)', () => {
+  it('writes all target statuses and trains ContextEngine once per photo, in order', async () => {
+    await db.photos.clear();
+    await db.analyses.clear();
+
+    const ids = ['p1', 'p2', 'p3'];
+    for (const id of ids) {
+      await db.photos.put(makeDbPhoto({ id, status: 'review' }));
+      await db.analyses.put(makeDbAnalysis({ photoId: id, aiScore: 10 }));
+    }
+    const photos = ids.map(id => ({ ...makePhoto(0), id, status: 'review', aiScore: 10 } as PhotoView));
+    useStore.setState({ photos });
+
+    const recordCorrectionSpy = vi.spyOn(contextEngine, 'recordCorrection').mockResolvedValue();
+
+    const result = await useStore.getState().bulkRejectBelow(50);
+
+    expect(result.affected).toBe(3);
+    for (const id of ids) {
+      expect((await db.photos.get(id))?.status).toBe('rejected');
+    }
+    expect(recordCorrectionSpy).toHaveBeenCalledTimes(3);
+    // ordinea de antrenare trebuie sa ramana cea a targets, chiar daca
+    // scrierile DB de dinainte au rulat in paralel
+    expect(recordCorrectionSpy.mock.calls.map(c => c[0].photoId)).toEqual(ids);
+    expect(recordCorrectionSpy.mock.calls.every(c => c[0].userDecision === false)).toBe(true);
+
+    recordCorrectionSpy.mockRestore();
   });
 });

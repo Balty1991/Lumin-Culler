@@ -563,6 +563,39 @@ async function train(id: string, userDecision: boolean): Promise<void> {
   await contextEngine.recordCorrection({ photoId: id, analysis, aiDecision, userDecision, genre: photo?.genre });
 }
 
+/**
+ * Bug real gasit de auditul QA (bug/medium, scalabilitate): fiecare operatie
+ * in masa (Auto-Cull, Respinge sub prag, Rezolva serii, actiuni pe selectia
+ * multipla) facea, per poza, db.photos.update() + syncOriginal() SERIAL
+ * inainte de train() — pentru un lot de cateva sute de poze (Auto-Cull la
+ * 50% pe o biblioteca mare, mai ales nedecisa), asta transforma o actiune
+ * care ar trebui sa fie aproape instantanee intr-o operatie de ordinul
+ * secundelor, agravandu-se pe masura ce biblioteca creste peste 1000+ poze.
+ * train() insa NU poate fi paralelizat/batch-uit fara sa schimbe semantica
+ * invatarii online (fiecare corectie foloseste ca baza ponderile deja
+ * actualizate de cea anterioara, un gradient SGD secvential) — dar
+ * verificat direct: train() nu depinde de scrierea `status` in sine
+ * (foloseste doar AnalysisRecord, neschimbat de aceste actiuni, si
+ * photo.genre, la fel neschimbat), deci scrierile DB pot rula in PARALEL
+ * intre ele, cu train() ramas strict secvential dupa, identic ca inainte.
+ */
+async function applyBulkStatusChanges(
+  changes: { id: string; status: PhotoRecord['status'] }[],
+  trainDecision: (status: PhotoRecord['status']) => boolean | null
+): Promise<{ quotaError: boolean }> {
+  let quotaError = false;
+  await Promise.all(changes.map(async c => {
+    await db.photos.update(c.id, { status: c.status });
+    const res = await syncOriginal(c.id, c.status);
+    if (res.quotaError) quotaError = true;
+  }));
+  for (const c of changes) {
+    const decision = trainDecision(c.status);
+    if (decision !== null) await train(c.id, decision);
+  }
+  return { quotaError };
+}
+
 function makeBatchEvent(label: string, changes: { photoId: string; previousStatus: PhotoRecord['status'] }[]): BatchHistoryEvent {
   return { id: crypto.randomUUID(), label, changes, ts: Date.now() };
 }
@@ -1083,13 +1116,10 @@ export const useStore = create<AppState>((set, get) => ({
   bulkRejectBelow: async (threshold) => {
     const targets = selectBulkRejectTargets(get().photos, threshold);
     const changes = targets.map(p => ({ photoId: p.id, previousStatus: p.status }));
-    let quotaError = false;
-    for (const p of targets) {
-      await db.photos.update(p.id, { status: 'rejected' });
-      const res = await syncOriginal(p.id, 'rejected');
-      if (res.quotaError) quotaError = true;
-      await train(p.id, false);
-    }
+    const { quotaError } = await applyBulkStatusChanges(
+      targets.map(p => ({ id: p.id, status: 'rejected' as const })),
+      () => false
+    );
     const ids = new Set(targets.map(p => p.id));
     const locale = get().locale;
     set(state => ({
@@ -1111,26 +1141,21 @@ export const useStore = create<AppState>((set, get) => ({
     // sigur si suficient.
     const photosById = new Map(get().photos.map(p => [p.id, p]));
     const changes: { photoId: string; previousStatus: PhotoRecord['status'] }[] = [];
-    let quotaError = false;
+    const statusChanges: { id: string; status: PhotoRecord['status'] }[] = [];
     for (const g of resolutions) {
       const current = photosById.get(g.keepId);
       if (current?.status !== 'selected') {
         changes.push({ photoId: g.keepId, previousStatus: current?.status ?? 'pending' });
-        await db.photos.update(g.keepId, { status: 'selected' });
-        const res = await syncOriginal(g.keepId, 'selected');
-        if (res.quotaError) quotaError = true;
-        await train(g.keepId, true);
+        statusChanges.push({ id: g.keepId, status: 'selected' });
       }
       for (const rejectId of g.rejectIds) {
         const rec = photosById.get(rejectId);
         if (rec?.status === 'rejected') continue; // deja rezolvat, sarim (evita re-antrenare redundanta)
         changes.push({ photoId: rejectId, previousStatus: rec?.status ?? 'pending' });
-        await db.photos.update(rejectId, { status: 'rejected' });
-        const res = await syncOriginal(rejectId, 'rejected');
-        if (res.quotaError) quotaError = true;
-        await train(rejectId, false);
+        statusChanges.push({ id: rejectId, status: 'rejected' });
       }
     }
+    const { quotaError } = await applyBulkStatusChanges(statusChanges, status => status === 'selected');
     const keepIds = new Set(resolutions.map(g => g.keepId));
     const rejectIds = new Set(resolutions.flatMap(g => g.rejectIds));
     const locale = get().locale;
@@ -1151,19 +1176,13 @@ export const useStore = create<AppState>((set, get) => ({
     const { selectIds, rejectIds } = selectTopPercent(get().photos, percent);
     const byId = new Map(get().photos.map(p => [p.id, p.status]));
     const changes = [...selectIds, ...rejectIds].map(id => ({ photoId: id, previousStatus: byId.get(id) ?? 'pending' as PhotoRecord['status'] }));
-    let quotaError = false;
-    for (const id of selectIds) {
-      await db.photos.update(id, { status: 'selected' });
-      const res = await syncOriginal(id, 'selected');
-      if (res.quotaError) quotaError = true;
-      await train(id, true);
-    }
-    for (const id of rejectIds) {
-      await db.photos.update(id, { status: 'rejected' });
-      const res = await syncOriginal(id, 'rejected');
-      if (res.quotaError) quotaError = true;
-      await train(id, false);
-    }
+    const { quotaError } = await applyBulkStatusChanges(
+      [
+        ...selectIds.map(id => ({ id, status: 'selected' as const })),
+        ...rejectIds.map(id => ({ id, status: 'rejected' as const }))
+      ],
+      status => status === 'selected'
+    );
     const selectSet = new Set(selectIds);
     const rejectSet = new Set(rejectIds);
     const locale = get().locale;
@@ -1265,13 +1284,10 @@ export const useStore = create<AppState>((set, get) => ({
     if (!ids.length) return;
     const byId = new Map(get().photos.map(p => [p.id, p.status]));
     const changes = ids.map(id => ({ photoId: id, previousStatus: byId.get(id) ?? 'pending' as PhotoRecord['status'] }));
-    let quotaError = false;
-    for (const id of ids) {
-      await db.photos.update(id, { status });
-      const res = await syncOriginal(id, status);
-      if (res.quotaError) quotaError = true;
-      if (status === 'selected' || status === 'rejected') await train(id, status === 'selected');
-    }
+    const { quotaError } = await applyBulkStatusChanges(
+      ids.map(id => ({ id, status })),
+      s => (s === 'selected' || s === 'rejected') ? s === 'selected' : null
+    );
     const idSet = new Set(ids);
     const locale = get().locale;
     set(state => ({
