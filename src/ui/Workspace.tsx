@@ -191,7 +191,8 @@ export function Workspace() {
         )}
         <UndoHistoryButton />
         <Tooltip label={tr('app.addPhotos')}>
-          <button className="ghost icon-btn" onClick={() => void onAddPhotosClick()} aria-label={tr('app.addPhotos')}>
+          {/* vezi App.tsx (acelasi buton, acelasi motiv) — evita al doilea import concurent */}
+          <button className="ghost icon-btn" onClick={() => void onAddPhotosClick()} disabled={!!progress} aria-label={tr('app.addPhotos')}>
             <PlusIcon />
           </button>
         </Tooltip>

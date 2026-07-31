@@ -293,22 +293,32 @@ async function processOne(file: File, genre?: string, project?: string, handle?:
     ...(project?.trim() ? { project: project.trim() } : {})
   };
 
-  await Promise.all([
-    db.photos.put(photo),
-    db.thumbnails.put({ photoId: id, blob: thumbBlob }),
-    db.previews.put({ photoId: id, blob: previewBlob }),
-    db.analyses.put(analysis),
-    // pastram originalul si pentru auto-selectiile AI (nu doar corectiile
-    // manuale) — altfel exportul s-ar rupe la un reload inainte ca utilizatorul
-    // sa apuce sa atinga poza (vezi syncOriginal in state/store.ts). Preferam
-    // handle-ul (cateva zeci de octeti) fata de o copie completa a blob-ului
-    // cand File System Access API e disponibil (plan 2.3.4).
-    ...(status === 'selected'
-      ? [handle
-          ? db.fileHandles.put({ photoId: id, handle })
-          : db.originals.put({ photoId: id, blob: file, fileName: file.name, type: file.type })]
-      : [])
-  ]);
+  // Bug real gasit de auditul QA: cele 4-5 scrieri de mai jos (o singura poza,
+  // mai multe tabele) rulau printr-un simplu Promise.all, in afara oricarei
+  // tranzactii Dexie — daca tab-ul/procesul era omorat la mijloc (crash,
+  // inchidere fortata, OOM), o poza putea ramane cu un rand in `photos` dar
+  // fara `thumbnails`/`analyses` corespunzator: un record orfan/partial, cu
+  // un UUID proaspat pe care un reimport nu-l suprascrie si nu-l repara
+  // singur. db.transaction face toate scrierile atomice: ori toate reusesc,
+  // ori (la orice eroare) niciuna nu se aplica.
+  await db.transaction('rw', [db.photos, db.thumbnails, db.previews, db.analyses, db.fileHandles, db.originals], async () => {
+    await Promise.all([
+      db.photos.put(photo),
+      db.thumbnails.put({ photoId: id, blob: thumbBlob }),
+      db.previews.put({ photoId: id, blob: previewBlob }),
+      db.analyses.put(analysis),
+      // pastram originalul si pentru auto-selectiile AI (nu doar corectiile
+      // manuale) — altfel exportul s-ar rupe la un reload inainte ca utilizatorul
+      // sa apuce sa atinga poza (vezi syncOriginal in state/store.ts). Preferam
+      // handle-ul (cateva zeci de octeti) fata de o copie completa a blob-ului
+      // cand File System Access API e disponibil (plan 2.3.4).
+      ...(status === 'selected'
+        ? [handle
+            ? db.fileHandles.put({ photoId: id, handle })
+            : db.originals.put({ photoId: id, blob: file, fileName: file.name, type: file.type })]
+        : [])
+    ]);
+  });
 
   return { photo, analysis, prediction };
 }

@@ -1,4 +1,18 @@
-import { describe, expect, it } from 'vitest';
+import 'fake-indexeddb/auto';
+import { describe, expect, it, vi } from 'vitest';
+
+// importFiles face analiza AI reala (workeri, modele TFJS) — inutil si lent
+// intr-un test unitar. Il mock-uim CONTROLABIL (o promisiune care nu se
+// rezolva decat cand testul o cere explicit), ca sa putem verifica exact
+// comportamentul lui runImport CAT TIMP un import e "in curs", fara sa
+// asteptam un import real. Restul exporturilor din modul raman reale.
+let resolveImportFiles: (() => void) | null = null;
+const importFilesMock = vi.fn((..._args: unknown[]) => new Promise<void>(resolve => { resolveImportFiles = resolve; }));
+vi.mock('../core/importPipeline', async importOriginal => {
+  const actual = await importOriginal<typeof import('../core/importPipeline')>();
+  return { ...actual, importFiles: (...args: unknown[]) => importFilesMock(...args) };
+});
+
 import { useStore, relabelFaces, selectMergedEmbeddings, type PhotoView } from './store';
 import type { AnalysisRecord, FaceInsight } from '../core/db';
 
@@ -74,6 +88,30 @@ describe('filtered() memoization', () => {
     const second = useStore.getState().filtered();
     expect(second).not.toBe(first);
     expect(second).toEqual(first); // continut identic, doar referinta difera
+  });
+});
+
+// Bug real gasit de auditul QA: un al doilea runImport() pornit inainte ca
+// primul sa se termine suprascria activeCancelToken (modul-level, in afara
+// starii Zustand) — "Anuleaza" nu mai putea opri decat importul cel mai
+// recent, iar `progress` (o singura bara) sarea imprevizibil intre done/
+// total-ul celor doua importuri nelegate.
+describe('runImport concurrency guard', () => {
+  it('refuses to start a second import while one is already in progress', async () => {
+    importFilesMock.mockClear();
+    useStore.setState({ progress: null, notice: '' });
+    const file = new File(['x'], 'a.jpg', { type: 'image/jpeg' });
+
+    const firstImport = useStore.getState().runImport([file]);
+    expect(useStore.getState().progress).not.toBeNull(); // primul a pornit real
+
+    const secondImport = useStore.getState().runImport([file]);
+    await secondImport; // al doilea trebuie sa se rezolve IMEDIAT (respins), nu sa astepte primul
+    expect(importFilesMock).toHaveBeenCalledTimes(1); // NU a pornit un al doilea import real
+    expect(useStore.getState().notice).toBe('Un import e deja in curs — asteapta sa se termine inainte sa mai adaugi poze.');
+
+    resolveImportFiles?.(); // lasam primul import sa se termine, ca testul sa nu ramana agatat
+    await firstImport;
   });
 });
 

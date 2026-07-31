@@ -909,7 +909,10 @@ export default function App() {
             </div>
           ) : (
             <Tooltip label={tr('app.addPhotos')} side="left">
-              <button className="fab" onClick={() => void onAddPhotosClick()} aria-label={tr('app.addPhotos')}><PlusIcon /></button>
+              {/* disabled cat timp un import e deja in curs — vezi runImport (store.ts) pentru
+                  bug-ul real pe care il evita: al doilea import concurent suprascria
+                  activeCancelToken/progress-ul primului, care ramanea imposibil de anulat */}
+              <button className="fab" onClick={() => void onAddPhotosClick()} disabled={!!progress} aria-label={tr('app.addPhotos')}><PlusIcon /></button>
             </Tooltip>
           )}
         </>

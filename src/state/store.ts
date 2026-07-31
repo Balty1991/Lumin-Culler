@@ -842,6 +842,17 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   runImport: async (files: File[], handles?: (FileSystemFileHandleLike | undefined)[]) => {
+    // Bug real gasit de auditul QA: fara aceasta garda, un al doilea import
+    // pornit inainte ca primul sa se termine suprascria activeCancelToken —
+    // "Anuleaza" nu mai putea opri decat importul cel mai recent, primul
+    // continuand la nesfarsit fara nicio cale din UI de a-l opri, iar
+    // `progress` (o singura bara/contor) sarea imprevizibil intre done/total-ul
+    // celor doua importuri nelegate. Un al doilea import trebuie sa astepte,
+    // nu sa concureze cu primul pe aceeasi stare globala.
+    if (activeCancelToken) {
+      set({ notice: t(get().locale, 'store.import.alreadyRunning') });
+      return;
+    }
     set({ progress: { done: 0, total: files.length, fileName: '', phase: 'incarcare' } });
     let warning: string | undefined;
     let done = 0;

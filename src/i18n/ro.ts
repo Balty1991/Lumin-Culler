@@ -547,6 +547,7 @@ export const ro = {
   'store.clientGallery.subtitle': '{count} poze selectate · {date}',
   'store.import.done': '{count} poze importate cu succes.',
   'store.import.failed': 'Import esuat: {error} — incearca din nou.',
+  'store.import.alreadyRunning': 'Un import e deja in curs — asteapta sa se termine inainte sa mai adaugi poze.',
   'store.import.usageNotice': 'Ai procesat {count} poze luna aceasta, peste pragul orientativ de {limit} al nivelului gratuit — aplicatia continua sa functioneze normal, fara nicio limitare.',
   'store.quotaNotice': 'Spatiu de stocare plin — fotografia a fost marcata, dar originalul nu a putut fi salvat pentru export. Elibereaza spatiu (Goleste sesiunea sau exporta ce ai deja) si reincearca.',
   'store.undo.nothing': 'Nimic de anulat.',
