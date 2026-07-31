@@ -32,6 +32,8 @@ export function VirtualPhotoGrid({ photos, onOpen, multiSelectIds, onCardPointer
   const density = useStore(s => s.gridDensity);
   const [columns, setColumns] = useState(4);
   const [scrollHeight, setScrollHeight] = useState(600);
+  const computeRef = useRef<() => void>(() => {});
+  const recomputeScheduledRef = useRef(false);
 
   useEffect(() => {
     const el = parentRef.current;
@@ -43,12 +45,42 @@ export function VirtualPhotoGrid({ photos, onOpen, multiSelectIds, onCardPointer
       const top = el.getBoundingClientRect().top;
       setScrollHeight(Math.max(300, window.innerHeight - top - 8));
     };
+    computeRef.current = compute;
     compute();
     const ro = new ResizeObserver(compute);
     ro.observe(el);
     window.addEventListener('resize', compute);
     return () => { ro.disconnect(); window.removeEventListener('resize', compute); };
   }, [photos.length, density]);
+
+  /**
+   * Bug real gasit de auditul QA (raportat direct de utilizator, cu poze):
+   * la scroll in jos, sub cardurile deja randate aparea o zona neagra
+   * imensa, needita, chiar daca mai erau sute de poze mai jos in lista.
+   * Cauza: `scrollHeight` (inaltimea acestui container) se calculeaza o
+   * singura data la montare, din `top`-ul curent al elementului — dar
+   * antetul (App.tsx) se ASCUNDE la scroll ("headerHidden", vezi
+   * handleGridScroll), ceea ce muta `top`-ul containerului mai sus DUPA
+   * ce am calculat deja o inaltime bazata pe `top`-ul VECHI (mai mare).
+   * Containerul ramanea "inghetat" la inaltimea gresita (prea mica,
+   * calculata cat timp antetul inca ocupa spatiu), desi acum era loc
+   * pentru mai mult — restul spatiului de ecran ramanea complet gol/negru
+   * dedesubt, in afara containerului scrollabil (fundalul paginii). Nu
+   * exista niciun eveniment "antetul s-a ascuns" la care sa ne abonam din
+   * acest component (independent de App.tsx) — dar orice ascundere de
+   * antet e DECLANSATA tocmai de scroll-ul din acest container, deci
+   * recalcularea la fiecare scroll (throttled per frame, nu per eveniment)
+   * prinde exact acelasi moment, fara sa introduca un cuplaj nou intre
+   * componente.
+   */
+  const scheduleRecompute = () => {
+    if (recomputeScheduledRef.current) return;
+    recomputeScheduledRef.current = true;
+    requestAnimationFrame(() => {
+      recomputeScheduledRef.current = false;
+      computeRef.current();
+    });
+  };
 
   const rowCount = Math.ceil(photos.length / columns);
   const rowVirtualizer = useVirtualizer({
@@ -61,7 +93,7 @@ export function VirtualPhotoGrid({ photos, onOpen, multiSelectIds, onCardPointer
   return (
     <div
       ref={parentRef} className="virtual-grid-scroll" style={{ height: scrollHeight }}
-      onScroll={onScroll ? e => onScroll(e.currentTarget.scrollTop) : undefined}
+      onScroll={e => { onScroll?.(e.currentTarget.scrollTop); scheduleRecompute(); }}
     >
       <div style={{ height: rowVirtualizer.getTotalSize(), position: 'relative', width: '100%' }}>
         {rowVirtualizer.getVirtualItems().map(vRow => (
