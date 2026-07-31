@@ -67,15 +67,40 @@ export const originalHandles = new Map<string, FileSystemFileHandleLike>();
 const DECODE_TIMEOUT_MS = 30000;
 
 async function decode(file: File): Promise<ImageBitmap> {
+  let bitmap: ImageBitmap;
   try {
-    return await withTimeout(
+    bitmap = await withTimeout(
       createImageBitmap(file, { resizeWidth: PREVIEW_MAX_SIDE, resizeQuality: 'high' } as ImageBitmapOptions),
       DECODE_TIMEOUT_MS,
       'Decodarea a durat prea mult.'
     );
   } catch {
-    return await withTimeout(createImageBitmap(file), DECODE_TIMEOUT_MS, 'Decodarea a durat prea mult.');
+    bitmap = await withTimeout(createImageBitmap(file), DECODE_TIMEOUT_MS, 'Decodarea a durat prea mult.');
   }
+  return capToPreviewSize(bitmap);
+}
+
+/**
+ * createImageBitmap cu un singur `resizeWidth` limiteaza doar LATIMEA, nu latura cea mai
+ * lunga (contrar comentariului din header al fisierului) — la poze portret (foarte comune:
+ * poze de telefon, cadre 9:16) inaltimea rezultata poate depasi cu mult PREVIEW_MAX_SIDE.
+ * Fallback-ul de mai sus (decodare fara nicio limita, cand resize-ul esueaza) poate produce
+ * un bitmap la rezolutie nativa complet nemarginita (risc real de OOM in WebView Android pe
+ * poze de 48-108MP). Bug real gasit de auditul QA — recadram aici pe AMBELE axe, o singura
+ * data, indiferent de calea care a produs bitmap-ul, ca sa garantam invariantul "preview <=
+ * 2048px pe latura cea mai lunga" asumat in tot restul aplicatiei (buget de stocare,
+ * scorarea claritatii).
+ */
+async function capToPreviewSize(bitmap: ImageBitmap): Promise<ImageBitmap> {
+  const longest = Math.max(bitmap.width, bitmap.height);
+  if (longest <= PREVIEW_MAX_SIDE) return bitmap;
+  const scale = PREVIEW_MAX_SIDE / longest;
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(bitmap.width * scale));
+  c.height = Math.max(1, Math.round(bitmap.height * scale));
+  c.getContext('2d')!.drawImage(bitmap, 0, 0, c.width, c.height);
+  bitmap.close();
+  return createImageBitmap(c);
 }
 
 function canvasToJpeg(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {

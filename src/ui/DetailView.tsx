@@ -5,7 +5,6 @@ import { useStore, type PhotoView } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { StarRating } from './StarRating';
 import { PhotoInfoTabs } from './PhotoInfoTabs';
-import { vibrate } from './haptics';
 import { XIcon, ChevronLeft, ChevronRight, LayersIcon, CheckIcon, EditIcon } from './icons';
 import { EASE } from './motion';
 import { AdjustedImage } from './AdjustedImage';
@@ -76,6 +75,12 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
     setDragX(0);
     setSheetExpanded(false);
     let alive = true;
+    // Curatam src-ul VECHI inainte de a incepe fetch-ul nou — altfel, pana la rezolvarea
+    // promisiunii (LRU-ul din previewUrlCache.ts tine doar 40 de intrari, deci navigarea
+    // rapida printr-o biblioteca mare da frecvent cache miss), numele/EXIF/rating deja
+    // reflecta poza NOUA dar imaginea afisata e inca cea VECHE — bug real gasit de auditul
+    // QA, aceeasi clasa deja evitata corect in GroupCompare.tsx (usePreviewUrl).
+    setSrc(null);
     void getCachedPreviewUrl(photo.id).then(url => { if (alive) setSrc(url); });
     return () => { alive = false; };
   }, [photo.id]);
@@ -118,7 +123,8 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
   }, [photo.id, photo.rating, stepDetail, setStatus, setRating, openDetail]);
 
   const commitSwipe = (status: 'selected' | 'rejected') => {
-    vibrate(status === 'selected' ? 14 : [12, 40, 12]);
+    // vibrate() e apelat acum din interiorul store.setStatus (toate caile de decizie,
+    // nu doar swipe) — vezi comentariul de acolo.
     void setStatus(photo.id, status);
     stepDetail(1); // vezi comentariul de la handler-ul de tastatura mai sus
     dragXRef.current = 0;

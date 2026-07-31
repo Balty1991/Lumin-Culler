@@ -125,9 +125,19 @@ export function folderLabel(p: { personNames: string[]; faceCount: number; stran
  */
 async function bakeEditsIfNeeded(p: ExportPhotoInput, file: File, name: string): Promise<{ file: File; name: string }> {
   if (!p.edits || isNeutral(p.edits) || RAW_EXTENSIONS.test(p.fileName)) return { file, name };
-  const adjustedBlob = await applyAdjustmentsToBlob(file, p.edits);
-  const finalName = /\.jpe?g$/i.test(name) ? name : name.replace(/\.[^./]+$/, '') + '.jpg';
-  return { file: new File([adjustedBlob], finalName, { type: 'image/jpeg' }), name: finalName };
+  try {
+    const adjustedBlob = await applyAdjustmentsToBlob(file, p.edits);
+    const finalName = /\.jpe?g$/i.test(name) ? name : name.replace(/\.[^./]+$/, '') + '.jpg';
+    return { file: new File([adjustedBlob], finalName, { type: 'image/jpeg' }), name: finalName };
+  } catch (err) {
+    // O poza care nu poate fi decodata la coacere (format neuzual/corupt) nu trebuie sa
+    // opreasca TOT exportul — bug real gasit de auditul QA: fara acest catch, o singura
+    // eroare aici arunca din interiorul buclei per-poza din exportOriginalFiles si niciuna
+    // dintre celelalte N poze selectate nu mai ajungea exportata. Livram originalul
+    // needitat pentru aceasta poza, mai bine decat nimic.
+    console.warn(`Coacerea editarilor a esuat pentru ${p.fileName}, export fara editari:`, err);
+    return { file, name };
+  }
 }
 
 async function copyToDirectory(files: { name: string; file: File; folder: string }[], dir: LocalDirHandle): Promise<void> {
@@ -177,10 +187,20 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[], options: E
   // trebuie sa se suprascrie silentios una pe alta odata ajunse in acelasi
   // folder de export — vezi dedupeFileName.
   const usedNamesByFolder = new Map<string, Set<string>>();
-  const uniqueNameFor = (p: ExportPhotoInput, folder: string): string => {
+  const dedupeInFolder = (folder: string, name: string): string => {
     let used = usedNamesByFolder.get(folder);
     if (!used) { used = new Set<string>(); usedNamesByFolder.set(folder, used); }
-    return dedupeFileName(used, nameFor(p));
+    return dedupeFileName(used, name);
+  };
+  // Coacem intai editarile (poate schimba extensia, ex. .heic -> .jpg), APOI deduplicam
+  // numele final — bug real gasit de auditul QA: dedup-ul rula inainte de bake, deci daca
+  // baking-ul schimba extensia dupa deja-verificata unicitate, numele final putea coincide
+  // silentios cu alt fisier deja exportat in acelasi folder (ex. "sunset.heic" editat ->
+  // "sunset.jpg", coliziune cu un "sunset.jpg" needitat din acelasi export), suprascriind
+  // o poza cu alta in folder/zip.
+  const exportName = async (p: ExportPhotoInput, file: File, folder: string): Promise<{ file: File; name: string }> => {
+    const baked = await bakeEditsIfNeeded(p, file, nameFor(p));
+    return { file: baked.file, name: dedupeInFolder(folder, baked.name) };
   };
 
   const available: { name: string; file: File; folder: string }[] = [];
@@ -189,7 +209,7 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[], options: E
     const folder = folderLabel(p);
     const inMemory = originalFiles.get(p.id);
     if (inMemory) {
-      available.push({ ...await bakeEditsIfNeeded(p, inMemory, uniqueNameFor(p, folder)), folder });
+      available.push({ ...await exportName(p, inMemory, folder), folder });
       continue;
     }
     // fallback 1: handle File System Access API persistat (poze selectate,
@@ -199,7 +219,7 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[], options: E
     if (storedHandle) {
       try {
         const file = await reacquireFile(storedHandle.handle);
-        available.push({ ...await bakeEditsIfNeeded(p, file, uniqueNameFor(p, folder)), folder });
+        available.push({ ...await exportName(p, file, folder), folder });
         continue;
       } catch {
         // permisiune refuzata sau fisierul a fost mutat/sters de pe disc —
@@ -211,7 +231,7 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[], options: E
     const stored = await db.originals.get(p.id);
     if (stored) {
       const file = new File([stored.blob], stored.fileName, { type: stored.type });
-      available.push({ ...await bakeEditsIfNeeded(p, file, uniqueNameFor(p, folder)), folder });
+      available.push({ ...await exportName(p, file, folder), folder });
     } else missing.push(p.fileName);
   }
 

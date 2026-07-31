@@ -24,6 +24,13 @@ function notify(): void {
 }
 
 export function isStandalone(): boolean {
+  // Nici display-mode: standalone, nici navigator.standalone (iOS) nu sunt adevarate
+  // intr-un WebView Capacitor (Android) — bug real gasit de auditul QA: un utilizator care
+  // a instalat aplicatia NATIVA de pe Google Play tot vedea intrarea "Instaleaza
+  // aplicatia" in meniu, care nu facea nimic util (beforeinstallprompt nu exista intr-un
+  // WebView nativ). Verificam explicit si Capacitor.
+  const capacitor = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
+  if (capacitor?.isNativePlatform?.()) return true;
   return window.matchMedia('(display-mode: standalone)').matches
     || (window.navigator as unknown as { standalone?: boolean }).standalone === true;
 }

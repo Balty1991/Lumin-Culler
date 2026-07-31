@@ -229,7 +229,12 @@ export function StatsPanel() {
               {tr('stats.lastImport.text', {
                 count: lastImportStats.count,
                 duration: formatDuration(lastImportStats.durationMs),
-                rate: (lastImportStats.count / (lastImportStats.durationMs / 1000)).toFixed(1)
+                // durationMs poate rotunji la 0 pentru un lot foarte mic/rapid — fara garda,
+                // impartirea la 0 producea literalul "Infinity" in text (bug real gasit de
+                // auditul QA).
+                rate: lastImportStats.durationMs > 0
+                  ? (lastImportStats.count / (lastImportStats.durationMs / 1000)).toFixed(1)
+                  : '—'
               })}
             </p>
           </div>

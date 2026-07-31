@@ -19,12 +19,6 @@ export const CARD_MIN_WIDTH: Record<GridDensity, { wide: number; narrow: number 
   large: { wide: 240, narrow: 168 }
 };
 
-export const GRID_DENSITY_LABELS: Record<GridDensity, string> = {
-  compact: 'Compact',
-  comfortable: 'Confortabil',
-  large: 'Mare'
-};
-
 const ORDER: GridDensity[] = ['compact', 'comfortable', 'large'];
 
 /** Urmatoarea densitate in ciclu (Compact -> Confortabil -> Mare -> Compact...) — pentru butonul de comutare din meniu. */

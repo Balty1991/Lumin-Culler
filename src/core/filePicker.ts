@@ -70,8 +70,20 @@ export async function pickImportFiles(): Promise<{ files: File[]; handles: FileS
     console.warn('showOpenFilePicker indisponibil la apel, revenim la <input type="file">:', err);
     return null;
   }
-  const files = await Promise.all(handles.map(h => h.getFile()));
-  return { files, handles };
+  // Un handle poate deveni necitibil intre selectie si citire (fisier sters/mutat,
+  // evacuat dintr-un provider cloud, permisiune revocata) — bug real gasit de auditul QA:
+  // fara acest allSettled, un singur handle picat facea Promise.all sa respinga TOT
+  // apelul, nefiind prins de niciun apelant (App.tsx/Workspace.tsx doar `await` fara
+  // try/catch), deci utilizatorul alegea poze si nu se intampla absolut nimic, fara
+  // nicio explicatie. Acum pastram fisierele care chiar s-au putut citi.
+  const settled = await Promise.allSettled(handles.map(h => h.getFile()));
+  const files: File[] = [];
+  const okHandles: FileSystemFileHandleLike[] = [];
+  settled.forEach((r, i) => {
+    if (r.status === 'fulfilled') { files.push(r.value); okHandles.push(handles[i]); }
+    else console.warn('Fisier ilizibil in selectie, ignorat:', r.reason);
+  });
+  return { files, handles: okHandles };
 }
 
 /**

@@ -88,7 +88,10 @@ export function generateXMPSidecar(status: XmpDecision, starRating?: number, key
   const description = ai?.caption
     ? `\n    <dc:description>\n     <rdf:Alt>\n      <rdf:li xml:lang="x-default">${xmlEscape(ai.caption)}</rdf:li>\n     </rdf:Alt>\n    </dc:description>`
     : '';
-  const aiScoreAttr = ai?.aiScore !== undefined ? `\n    lc:AIScore="${Math.round(ai.aiScore)}"` : '';
+  // Number.isFinite (nu doar !== undefined): un aiScore NaN (posibil in date vechi/coruple)
+  // ar fi scris ca literalul "NaN" in atributul XML — invalid pentru un fisier menit sa fie
+  // "curat" pentru Lightroom (bug real gasit de auditul QA).
+  const aiScoreAttr = Number.isFinite(ai?.aiScore) ? `\n    lc:AIScore="${Math.round(ai!.aiScore!)}"` : '';
   const groupIdAttr = ai?.groupId ? `\n    lc:SeriesId="${xmlEscape(ai.groupId)}"` : '';
   const clientAttr = ai?.client ? `\n    lc:Client="${xmlEscape(ai.client)}"` : '';
   const aiFactors = ai?.aiFactors?.length

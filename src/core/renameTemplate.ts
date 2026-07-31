@@ -41,7 +41,15 @@ const ILLEGAL_PATH_CHARS = /[\\/:*?"<>|]/g;
 
 function formatDate(epochMs?: number): string {
   const d = epochMs ? new Date(epochMs) : new Date();
-  return d.toISOString().slice(0, 10); // YYYY-MM-DD
+  // Format in ora LOCALA, nu UTC — bug real gasit de auditul QA: capturedAt vine din EXIF,
+  // construit cu semantica de ora locala a aparatului (new Date(y, mo, d, h, mi, se) in
+  // exifParser.ts), dar toISOString() trece prin UTC; o poza facuta local dupa miezul
+  // noptii (ex. o receptie de nunta la 00:20) putea sari pe ZIUA ANTERIOARA in numele
+  // exportat, in functie de fusul orar al masinii care ruleaza exportul.
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 function splitExt(fileName: string): { base: string; ext: string } {
@@ -50,8 +58,13 @@ function splitExt(fileName: string): { base: string; ext: string } {
 }
 
 /**
- * Token-uri suportate: {client} {eveniment} {locatie} {data} {secventa} {nume}.
- * `secventa` e 1-based, zero-padded la 3 cifre (001, 002, ...) — suficient
+ * Token-uri suportate, in romana SI engleza (interfata expune ambele variante dupa
+ * locale — bug real gasit de auditul QA: hint-ul din i18n/en.ts sugera token-uri englezesti
+ * ca {event}/{sequence}, dar doar cele romanesti erau recunoscute, deci un utilizator pe
+ * locale EN scria exact ce i se sugera si obtinea token-ul literal, neexpandat, in numele
+ * fisierului): {client} {eveniment}/{event} {locatie}/{location} {data}/{date}
+ * {secventa}/{sequence} {nume}/{name}.
+ * `secventa`/`sequence` e 1-based, zero-padded la 3 cifre (001, 002, ...) — suficient
  * pentru loturi de pana la 999 poze, peste continua simplu cu mai multe cifre.
  * Extensia fisierului original e mereu pastrata, indiferent de sablon.
  * Sablon gol/doar spatii => numele original, NESCHIMBAT (opt-in real).
@@ -61,13 +74,22 @@ export function buildExportFileName(template: string, ctx: RenameContext, sequen
 
   const { base, ext } = splitExt(originalFileName);
   const sequenceStr = String(sequence).padStart(3, '0');
-  const expanded = template
-    .split('{client}').join(ctx.client ?? '')
-    .split('{eveniment}').join(ctx.event ?? '')
-    .split('{locatie}').join(ctx.location ?? '')
-    .split('{data}').join(formatDate(ctx.capturedAt))
-    .split('{secventa}').join(sequenceStr)
-    .split('{nume}').join(base);
+  const tokenValues: Record<string, string> = {
+    client: ctx.client ?? '',
+    eveniment: ctx.event ?? '', event: ctx.event ?? '',
+    locatie: ctx.location ?? '', location: ctx.location ?? '',
+    data: formatDate(ctx.capturedAt), date: formatDate(ctx.capturedAt),
+    secventa: sequenceStr, sequence: sequenceStr,
+    nume: base, name: base
+  };
+  // Inlocuire intr-o singura trecere (regex + callback), nu split/join inlantuit — bug real
+  // gasit de auditul QA: split/join succesiv putea re-expanda text care CONTINE literal
+  // "{...}" venit dintr-o valoare de token anterioara (client/eveniment/locatie sunt text
+  // liber, din metadata proiectului), daca acel text coincidea intamplator cu sintaxa unui
+  // token procesat mai tarziu in lant.
+  const expanded = template.replace(/\{(\w+)\}/g, (match, key: string) =>
+    Object.prototype.hasOwnProperty.call(tokenValues, key) ? tokenValues[key] : match
+  );
 
   const sanitized = expanded
     .replace(ILLEGAL_PATH_CHARS, '-')

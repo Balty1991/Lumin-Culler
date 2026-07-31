@@ -4,28 +4,34 @@ import { useStore, type PhotoView } from '../state/store';
 import { StarIcon, UserQuestionIcon, UserCheckIcon, EyeClosedIcon, LayersIcon, CheckIcon, SunIcon, ClockIcon, EditIcon } from './icons';
 import { isNeutral } from '../core/imageAdjust';
 import { AdjustedImage } from './AdjustedImage';
+import { t, type Locale } from '../i18n';
 
 /** Aceleasi praguri ca SELECT_THRESHOLD/REJECT_THRESHOLD (importPipeline.ts) — culoarea inelului de scor. */
 function scoreColorVar(score: number): string {
   return score >= 65 ? 'var(--pick)' : score <= 35 ? 'var(--reject)' : 'var(--review)';
 }
 
-const STATUS_LABEL_RO: Record<PhotoView['status'], string> = {
-  pending: 'in asteptare', selected: 'selectata', rejected: 'respinsa', review: 'de verificat'
-};
-
-/** Descriere text completa a cardului — button-ul are aria-label pe el, deci
-    toate iconitele-badge din interior devin aria-hidden (un parinte cu
-    aria-label le suprascrie oricum pentru un cititor de ecran). */
-function describeCard(photo: PhotoView): string {
+/**
+ * Descriere text completa a cardului — button-ul are aria-label pe el, deci
+ * toate iconitele-badge din interior devin aria-hidden (un parinte cu
+ * aria-label le suprascrie oricum pentru un cititor de ecran).
+ * Ruteaza prin i18n — bug real gasit de auditul QA: textul era hardcodat in
+ * romana indiferent de locale-ul ales, deci un utilizator TalkBack/VoiceOver
+ * pe engleza auzea tot romana pentru cel mai repetat text accesibil din
+ * aplicatie (o data per poza, potential 1000+ ori pe sesiune).
+ */
+function describeCard(photo: PhotoView, locale: Locale): string {
   const bits: string[] = [];
-  if (photo.personNames.length) bits.push(`persoane cunoscute: ${photo.personNames.join(', ')}`);
-  if (photo.strangerCount > 0) bits.push('contine straini');
-  if (photo.faceCount > 0 && !photo.allEyesOpen) bits.push('ochi inchisi detectati');
-  if (photo.groupId) bits.push('parte dintr-o serie');
-  if (photo.goldenHourDetected) bits.push('ora de aur');
-  if (photo.rating > 0) bits.push(`${photo.rating} stele`);
-  return `${photo.fileName}, scor AI ${photo.aiScore}, ${STATUS_LABEL_RO[photo.status]}${bits.length ? ', ' + bits.join(', ') : ''}`;
+  if (photo.personNames.length) bits.push(t(locale, 'photoCard.knownPersons', { names: photo.personNames.join(', ') }));
+  if (photo.strangerCount > 0) bits.push(t(locale, 'photoCard.strangers'));
+  if (photo.faceCount > 0 && !photo.allEyesOpen) bits.push(t(locale, 'photoCard.eyesClosedFull'));
+  if (photo.groupId) bits.push(t(locale, 'photoCard.seriesFull'));
+  if (photo.goldenHourDetected) bits.push(t(locale, 'photoCard.goldenHour'));
+  if (photo.rating > 0) bits.push(t(locale, 'photoCard.stars', { count: photo.rating }));
+  const extra = bits.length ? ', ' + bits.join(', ') : '';
+  return t(locale, 'photoCard.description', {
+    fileName: photo.fileName, score: photo.aiScore, status: t(locale, `photoCard.status.${photo.status}`), extra
+  });
 }
 
 /** Rand compact de metadate camera, afisat doar la densitatea "large" (plan 3.2.1 —
@@ -51,6 +57,7 @@ function PhotoCardInner({ photo, index, onOpen, multiSelected, onCardPointerDown
 }) {
   const [src, setSrc] = useState<string | null>(null);
   const density = useStore(s => s.gridDensity);
+  const locale = useStore(s => s.locale);
 
   useEffect(() => {
     let url: string | null = null;
@@ -73,16 +80,16 @@ function PhotoCardInner({ photo, index, onOpen, multiSelected, onCardPointerDown
       onClick={e => onOpen(photo.id, e)}
       onPointerDown={e => onCardPointerDown?.(photo.id, e)}
       onContextMenu={e => onContextMenu?.(photo.id, e)}
-      aria-label={describeCard(photo)}
+      aria-label={describeCard(photo, locale)}
       aria-pressed={multiSelected}
     >
       <span className="card-top-left" aria-hidden="true">
         <span className="frame-no">#{String(index + 1).padStart(3, '0')}</span>
         {photo.goldenHourDetected && (
-          <span className="golden-badge" title="Ora de aur"><SunIcon /></span>
+          <span className="golden-badge" title={t(locale, 'photoCard.goldenHour')}><SunIcon /></span>
         )}
         {!isNeutral(photo.edits) && (
-          <span className="edited-badge" title="Editata"><EditIcon /></span>
+          <span className="edited-badge" title={t(locale, 'photoCard.edited')}><EditIcon /></span>
         )}
       </span>
       {multiSelected && <span className="multi-select-badge" aria-hidden="true"><CheckIcon /></span>}
@@ -109,9 +116,9 @@ function PhotoCardInner({ photo, index, onOpen, multiSelected, onCardPointerDown
             <span className="badges">
               {photo.rating > 0 && <span className="rating-chip"><StarIcon fill="currentColor" />{photo.rating}</span>}
               {photo.personNames.length > 0 && <i title={photo.personNames.join(', ')}><UserCheckIcon /></i>}
-              {photo.strangerCount > 0 && <i title="Contine straini"><UserQuestionIcon /></i>}
-              {photo.faceCount > 0 && !photo.allEyesOpen && <i title="Ochi inchisi"><EyeClosedIcon /></i>}
-              {photo.groupId && <i title="Serie / duplicat"><LayersIcon /></i>}
+              {photo.strangerCount > 0 && <i title={t(locale, 'photoCard.strangers')}><UserQuestionIcon /></i>}
+              {photo.faceCount > 0 && !photo.allEyesOpen && <i title={t(locale, 'photoCard.eyesClosed')}><EyeClosedIcon /></i>}
+              {photo.groupId && <i title={t(locale, 'photoCard.series')}><LayersIcon /></i>}
             </span>
           )}
         </span>

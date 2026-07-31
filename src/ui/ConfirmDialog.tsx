@@ -37,7 +37,11 @@ export function ConfirmDialog() {
         className="detail-inner narrow confirm-dialog" ref={containerRef} role="alertdialog" aria-modal="true"
         aria-label={dialogRequest.message} tabIndex={-1}
         onKeyDown={e => {
-          if (e.key === 'Escape') cancel();
+          // stopPropagation: fara ea, Escape "cade" si prin panoul care a deschis acest
+          // dialog (Persons/Insights/BatchOps/etc au propriul listener de Escape pe
+          // window) — bug real gasit de auditul QA: anularea unui "sterge?"/"reseteaza?"
+          // inchidea silentios si panoul parinte, nu doar dialogul de confirmare.
+          if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cancel(); }
           else if (e.key === 'Enter' && dialogRequest.kind === 'prompt') { e.preventDefault(); confirm(); }
         }}
       >

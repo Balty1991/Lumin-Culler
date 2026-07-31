@@ -31,6 +31,7 @@ import { CARD_MIN_WIDTH } from './state/gridDensity';
 import { SORT_KEY_LABELS, type SortKey } from './state/gridSort';
 import { pickImportFiles } from './core/filePicker';
 import { armPickerWatchdog, type PickerWatchdog } from './core/pickerWatchdog';
+import { initAndroidBackButton } from './core/androidBackButton';
 import { ColorLabelFilter } from './ui/ColorLabelFilter';
 import { SceneTagFilter } from './ui/SceneTagFilter';
 import { CameraFilter } from './ui/CameraFilter';
@@ -276,6 +277,11 @@ export default function App() {
 
   useEffect(() => { void boot(); }, [boot]);
 
+  // Butonul/gestul hardware Android de "inapoi" — no-op automat in afara pachetului nativ
+  // Capacitor (vezi core/androidBackButton.ts). Un singur listener global, cat aplicatia
+  // e montata.
+  useEffect(() => initAndroidBackButton(), []);
+
   // semnal de import activ, disponibil INDIFERENT de ecranul curent (Workspace
   // sau grila) — util pentru teste/automatizari care altfel n-ar avea un
   // singur loc unic sa verifice "importul s-a terminat", de vreme ce bara de
@@ -295,6 +301,13 @@ export default function App() {
   // fara modificator, deja folosite acolo pentru navigare/zoom).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // ignora tastarea in orice camp text (nume proiect, cautare, caption/keywords) —
+      // acelasi gardian ca DetailView/Workspace mai jos. Bug real gasit de auditul QA:
+      // fara el, Ctrl/Cmd+Z apasat cu intentia de undo NATIV de text (ex. in campul de
+      // nume proiect) era interceptat global si anula in schimb ultima decizie de
+      // culling, silentios, in loc sa desfaca textul editat.
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)) return;
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
         e.preventDefault();
         void undo();

@@ -22,12 +22,21 @@ function ProjectMetaEditor({ project }: { project: string }) {
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const [meta, setMeta] = useState<ProjectMetadata>(() => getProjectMetadata(project));
   const [saved, setSaved] = useState(false);
+  const metaRef = useRef(meta);
+  useEffect(() => { metaRef.current = meta; }, [meta]);
 
   const save = () => {
     setProjectMetadata(project, meta);
     setSaved(true);
     setTimeout(() => setSaved(false), 1500);
   };
+
+  // Autosalvare la demontare (panoul se inchide prin Escape/backdrop/X, sau lista de
+  // proiecte se re-randeaza) — bug real gasit de auditul QA: editarile client/eveniment/
+  // locatie traiau doar in state local pana la apasarea explicita a butonului mic
+  // "Salveaza"; orice alta cale de inchidere a panoului le pierdea silentios, fara niciun
+  // avertisment, iar exportul XMP folosea in continuare metadata veche/goala.
+  useEffect(() => () => setProjectMetadata(project, metaRef.current), [project]);
 
   return (
     <div className="project-meta-form">

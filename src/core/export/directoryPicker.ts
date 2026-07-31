@@ -5,6 +5,9 @@
  * acelorasi tipuri/verificare de suport in doua fisiere.
  */
 import { Zip, ZipPassThrough } from 'fflate';
+import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 
 export interface LocalWritable {
   write(data: Blob): Promise<void>;
@@ -125,7 +128,47 @@ const SAVE_PICKER_TIMEOUT_MS = 45000;
  */
 const INSTANT_ABORT_THRESHOLD_MS = 500;
 
+async function blobToBase64(blob: Blob): Promise<string> {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  // btoa(String.fromCharCode(...bytes)) arunca RangeError ("too many arguments") pe fisiere
+  // mai mari (poze originale de cativa MB) — construim binary string-ul pe bucati.
+  let binary = '';
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  return btoa(binary);
+}
+
+/**
+ * Capacitor WebView-ul Android NU implementeaza File System Access API (showSaveFilePicker
+ * mai jos ramane mereu null acolo) SI <a download> pe un blob: URL e ignorat silentios de un
+ * WebView nativ (DownloadListener nu se declanseaza niciodata pentru scheme-ul blob:, doar
+ * pentru retea reala) — bug real gasit de auditul QA, confirmat independent de doua audituri
+ * separate: fara aceasta cale, orice export din aplicatia publicata pe Play Store (poze,
+ * XMP, arhive, galerie client) nu producea NICIUN fisier pe telefon, desi interfata raporta
+ * succes — cea mai grava problema gasita, pe o functie centrala a aplicatiei.
+ *
+ * Scriem in storage-ul PRIVAT al aplicatiei (Filesystem, Directory.Cache — nu cere nicio
+ * permisiune pe Android modern) apoi deschidem foaia de partajare nativa (Share), ca
+ * utilizatorul sa aleaga imediat, printr-un dialog al sistemului, unde ajunge de fapt
+ * fisierul (Fisiere, Drive, Descarcari, aplicatia clientului etc).
+ */
+async function saveViaNativeShare(name: string, blob: Blob): Promise<{ cancelled: boolean }> {
+  const data = await blobToBase64(blob);
+  const written = await Filesystem.writeFile({ path: name, data, directory: Directory.Cache });
+  try {
+    await Share.share({ url: written.uri, title: name });
+  } catch (err) {
+    // Utilizatorul a inchis foaia de partajare fara sa aleaga nimic — nu e o eroare reala
+    // de export (fisierul tot exista, scris cu succes mai sus), doar o anulare a PASULUI
+    // urmator (unde sa ajunga in continuare). Orice alta eroare (Share indisponibil etc.)
+    // ramane raportata normal mai sus, catre apelant.
+    if (!(err instanceof Error && /cancel/i.test(err.message))) throw err;
+  }
+  return { cancelled: false };
+}
+
 export async function downloadBlob(name: string, blob: Blob): Promise<{ cancelled: boolean }> {
+  if (Capacitor.isNativePlatform()) return saveViaNativeShare(name, blob);
   const showSaveFilePicker = getSaveFilePicker();
   if (showSaveFilePicker) {
     const startedAt = Date.now();

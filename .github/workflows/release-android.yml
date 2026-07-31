@@ -25,6 +25,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Set version from CI run
+        run: |
+          # Bug real gasit de auditul QA: versionCode era hardcodat la 1 in build.gradle,
+          # potrivit doar pentru PRIMUL upload — Play Console respinge orice upload
+          # ulterior cu acelasi versionCode (trebuie strict crescator). run_number creste
+          # monoton la fiecare rulare a ACESTUI workflow, indiferent de trigger (tag sau
+          # manual), deci e o sursa simpla si sigura, fara sa depinda de formatul tag-ului.
+          VERSION_CODE="$GITHUB_RUN_NUMBER"
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            VERSION_NAME="${GITHUB_REF_NAME#v}"
+          else
+            VERSION_NAME="0.0.0-dev.$VERSION_CODE"
+          fi
+          sed -i "s/versionCode [0-9]\+/versionCode $VERSION_CODE/" android/app/build.gradle
+          sed -i "s/versionName \"[^\"]*\"/versionName \"$VERSION_NAME\"/" android/app/build.gradle
+          echo "Setat versionCode=$VERSION_CODE versionName=$VERSION_NAME"
       - uses: actions/setup-node@v4
         with:
           node-version: 22

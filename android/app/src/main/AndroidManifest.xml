@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- allowBackup="false": Auto Backup pe Google Drive ar copia si stocarea privata a
+         aplicatiei (IndexedDB/Dexie), unde stau embeddingurile faciale ale "persoanelor
+         cunoscute" — contrazice direct politica de confidentialitate ("nu paraseste
+         niciodata dispozitivul"). Bug real gasit de auditul QA. -->
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"

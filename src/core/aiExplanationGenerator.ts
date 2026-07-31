@@ -41,6 +41,28 @@ function effectiveSharpness(a: AnalysisRecord): number {
 const COLD_START_SAMPLES = 8;   // acelasi prag ca in ContextEngine.ts
 const TRAINED_SAMPLES = 40;
 
+// Aceleasi praguri ca HEADROOM_IDEAL_MIN/MAX din faceAnalysis.worker.ts (nu importate direct
+// ca sa nu tragem codul/dependintele workerului de AI in bundle-ul principal).
+const HEADROOM_IDEAL_MIN = 0.04;
+const HEADROOM_IDEAL_MAX = 0.22;
+
+/**
+ * a.headroom e un scor "cat de aproape de ideal" (0..1, simetric — scade la fel de mult
+ * daca spatiul e prea mic SAU prea mare), deci nu poate spune singur DIRECTIA problemei —
+ * bug real gasit de auditul QA: textul presupunea ca headroom mic = "prea strans" mereu,
+ * dar un cadru cu mult spatiu gol deasupra capului (topY mare) produce acelasi scor mic,
+ * si primea gresit sfatul "aproprie cadrul". Recalculam directia din pozitia bruta a
+ * cutiei fetei principale (aceeasi fata folosita la scoreComposition in worker).
+ */
+function headroomDirection(a: AnalysisRecord): 'tight' | 'loose' | null {
+  if (!a.faces?.length) return null;
+  const main = a.faces.reduce((x, y) => (x.box[2] * x.box[3] > y.box[2] * y.box[3] ? x : y));
+  const topY = main.box[1];
+  if (topY < HEADROOM_IDEAL_MIN) return 'tight';
+  if (topY > HEADROOM_IDEAL_MAX) return 'loose';
+  return null;
+}
+
 type Confidence = 'cold' | 'warming' | 'trained';
 
 function modelConfidence(model: ContextModelRecord | null): Confidence {
@@ -89,9 +111,10 @@ function compositionSentence(a: AnalysisRecord, locale: Locale): string | null {
     const thirds = (a.ruleOfThirds ?? 0.5) >= 0.6
       ? t(locale, 'aiExplain.comp.thirds.good')
       : t(locale, 'aiExplain.comp.thirds.centered');
-    const headroomNote = (a.headroom ?? 0.5) < 0.3
+    const direction = headroomDirection(a);
+    const headroomNote = direction === 'tight'
       ? t(locale, 'aiExplain.comp.headroom.tight')
-      : (a.headroom ?? 0.5) > 0.8
+      : direction === 'loose'
         ? t(locale, 'aiExplain.comp.headroom.loose')
         : '';
     return t(locale, 'aiExplain.comp.faces.sentence', { thirds, headroomNote });
@@ -253,9 +276,10 @@ export function generateSuggestions(a: AnalysisRecord, locale: Locale = 'ro'): s
   }
 
   if (a.faceCount > 0) {
-    if ((a.headroom ?? 0.5) < 0.3) {
+    const direction = headroomDirection(a);
+    if (direction === 'tight') {
       s.push(t(locale, 'aiSuggest.headroomTight'));
-    } else if ((a.headroom ?? 0.5) > 0.8) {
+    } else if (direction === 'loose') {
       s.push(t(locale, 'aiSuggest.headroomLoose'));
     }
     if ((a.ruleOfThirds ?? 0.5) < 0.4) {

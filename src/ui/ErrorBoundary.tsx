@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { AlertIcon } from './icons';
+import { t, readStoredLocale } from '../i18n';
 
 interface Props {
   children: ReactNode;
@@ -40,18 +41,24 @@ export class ErrorBoundary extends Component<Props, State> {
     const { error } = this.state;
     if (!error) return this.props.children;
 
+    // Componenta CLASA, deci fara acces la store/hook-uri — citim locale-ul direct din
+    // localStorage (aceeasi sursa ca restul aplicatiei la boot). Bug real gasit de auditul
+    // QA: acest text era hardcodat in romana necondiționat, exact ecranul pe care il vede
+    // un utilizator EN in cel mai prost moment posibil (o eroare React neasteptata).
+    const locale = readStoredLocale();
     return (
       <div className="error-boundary">
         <div className="error-boundary-card">
           <AlertIcon />
-          <h2>A aparut o eroare neasteptata</h2>
+          <h2>{t(locale, 'errorBoundary.title')}</h2>
           <p>
-            Pozele, deciziile si persoanele inrolate sunt salvate separat (IndexedDB) si
-            <b> nu s-au pierdut</b> — problema e doar in interfata curenta.
+            {t(locale, 'errorBoundary.messagePrefix')}
+            <b> {t(locale, 'errorBoundary.messageBold')}</b>
+            {t(locale, 'errorBoundary.messageSuffix')}
           </p>
-          <button className="select" onClick={this.reload}>Reincarca aplicatia</button>
+          <button className="select" onClick={this.reload}>{t(locale, 'errorBoundary.reload')}</button>
           <details className="error-boundary-details">
-            <summary>Detalii tehnice</summary>
+            <summary>{t(locale, 'errorBoundary.details')}</summary>
             <pre className="mono">{error.message}{error.stack ? '\n\n' + error.stack : ''}</pre>
           </details>
         </div>

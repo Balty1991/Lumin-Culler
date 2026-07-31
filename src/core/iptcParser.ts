@@ -44,12 +44,24 @@ const PHOTOSHOP_SIGNATURE = 'Photoshop 3.0\0';
 const RESOURCE_TYPE_8BIM = 0x3842494d; // "8BIM"
 const RESOURCE_ID_IPTC = 0x0404;
 
-/** IPTC-IIM foloseste de obicei Latin-1/ASCII (setul de caractere UTF-8 explicit, marcat prin
-    escape-ul 1:90, e rar in practica) — suficient pentru marea majoritate a fisierelor reale. */
+/**
+ * IPTC-IIM foloseste "oficial" Latin-1/ASCII, marcand UTF-8 explicit doar prin escape-ul
+ * 1:90 (rar respectat in practica) — dar scriitoare moderne (Photo Mechanic, Lightroom/
+ * Bridge recente) scriu adesea UTF-8 fara acel escape. Bug real gasit de auditul QA:
+ * decodarea fixa ca Latin-1 producea mojibake pentru orice diacritice/text non-Latin.
+ * Eurustica sigura: incercam UTF-8 strict (fatal: true) — daca octetii sunt UTF-8 valid,
+ * aproape sigur chiar UTF-8 e; daca nu, Latin-1 (orice octet e Latin-1 "valid") ramane
+ * fallback-ul corect pentru fisierele vechi/reale.
+ */
 function decodeIptcString(view: DataView, offset: number, length: number): string {
-  let s = '';
-  for (let i = 0; i < length; i++) s += String.fromCharCode(view.getUint8(offset + i));
-  return s.trim();
+  const bytes = new Uint8Array(view.buffer, view.byteOffset + offset, length);
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes).trim();
+  } catch {
+    let s = '';
+    for (let i = 0; i < length; i++) s += String.fromCharCode(bytes[i]);
+    return s.trim();
+  }
 }
 
 /** Parcurge inregistrarile IPTC-IIM dintr-un bloc de date (resursa 0x0404). */

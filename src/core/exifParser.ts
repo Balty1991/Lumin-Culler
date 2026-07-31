@@ -121,6 +121,13 @@ function parseExifDateTime(s: string): number | undefined {
   const m = /^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/.exec(s);
   if (!m) return undefined;
   const [, y, mo, d, h, mi, se] = m.map(Number);
+  // Camerele cu bateria de ceas moarta scriu adesea "0000:00:00 00:00:00" — un asemenea
+  // timestamp trecea nedetectat de Number.isFinite (Date normalizeaza silentios luna/ziua 0
+  // catre sfarsitul anului precedent in loc sa produca NaN, si un `y` sub 100 e reinterpretat
+  // de constructorul Date drept 1900+y), producand un capturedAt plauzibil dar complet gresit
+  // care alimenteaza direct sortarea cronologica si redenumirea {data}/{date} — bug real gasit
+  // de auditul QA. Respingem explicit intervale imposibile, nu doar rezultatul normalizat.
+  if (y < 1900 || mo < 1 || mo > 12 || d < 1 || d > 31 || h > 23 || mi > 59 || se > 60) return undefined;
   const ts = new Date(y, mo - 1, d, h, mi, se).getTime();
   return Number.isFinite(ts) ? ts : undefined;
 }

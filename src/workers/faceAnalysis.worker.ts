@@ -58,6 +58,11 @@ const RIGHT_EYE = { top: 386, bottom: 374, inner: 362, outer: 263 };
 
 const RECOGNITION_THRESHOLD = 0.55; // cosine similarity above this = known person
 const BLINK_EAR_THRESHOLD = 0.18;
+// eyeOpenness() normalizeaza EAR brut cu (ear - 0.08) / 0.25 — pragul de blink trebuie
+// trecut prin ACEEASI transformare, altfel comparatia se face pe scari diferite (bug real
+// gasit de auditul QA: fara scaderea celor 0.08, pragul efectiv pe EAR brut ajungea ~0.26 in
+// loc de 0.18, marcand ochi normal deschisi ca "clipiti").
+const BLINK_EAR_THRESHOLD_NORMALIZED = (BLINK_EAR_THRESHOLD - 0.08) / 0.25;
 const GROUP_SMILE_THRESHOLD = 0.4; // prag peste care o fata e considerata "zambitoare" pentru rate de grup
 
 /**
@@ -277,6 +282,10 @@ function detectHorizonTiltDeg(img: ImageData): number | null {
 
 function classifyScene(faces: FaceInsight[], w: number, h: number): AnalysisRecord['sceneType'] {
   if (faces.length === 0) return w >= h ? 'landscape' : 'detail';
+  // O singura fata e mereu "portret", indiferent de cat de mica/departe e in cadru
+  // (bug real gasit de auditul QA: un portret de mediu/environmental cu subiectul mic
+  // in cadru era clasificat gresit ca "group", diluand modelul de invatare per context).
+  if (faces.length === 1) return 'portrait';
   if (faces.length >= 3) return 'group';
   const largest = Math.max(...faces.map(f => f.box[2] * f.box[3]));
   return largest > 0.04 ? 'portrait' : 'group';
@@ -749,7 +758,7 @@ export class FaceAnalysisService {
       faceScore: face.faceScore ?? face.score ?? 0,
       smile: Math.round(emotion.happy * 100) / 100,
       eyesOpen: { left: Math.round(left * 100) / 100, right: Math.round(right * 100) / 100 },
-      isBlinking: left < (BLINK_EAR_THRESHOLD / 0.25) || right < (BLINK_EAR_THRESHOLD / 0.25),
+      isBlinking: left < BLINK_EAR_THRESHOLD_NORMALIZED || right < BLINK_EAR_THRESHOLD_NORMALIZED,
       personId: match.id,
       personName: match.name,
       similarity: Math.round(match.similarity * 100) / 100,

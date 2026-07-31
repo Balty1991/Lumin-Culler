@@ -14,6 +14,7 @@ import {
 } from '../core/importPipeline';
 import type { FileSystemFileHandleLike } from '../core/filePicker';
 import { readEconomicMode, writeEconomicMode } from '../core/performanceSettings';
+import { vibrate } from '../ui/haptics';
 import { exportOriginalFiles, computeGroupPersonUnion } from '../core/exportPhotos';
 import { exportXMPSidecars, deriveXmpKeywords, deriveAiScoreKeyword, deriveSeriesKeyword } from '../core/export/xmpGenerator';
 import { analysisPool } from '../core/workerPool';
@@ -874,12 +875,21 @@ export const useStore = create<AppState>((set, get) => ({
 
   boot: async () => {
     if (get().booted) return;
-    const [views, persons, history] = await Promise.all([
-      reloadPhotoViews(),
-      db.persons.toArray(),
-      db.history.orderBy('ts').toArray()
-    ]);
-    set({ photos: views, persons, history, booted: true });
+    try {
+      const [views, persons, history] = await Promise.all([
+        reloadPhotoViews(),
+        db.persons.toArray(),
+        db.history.orderBy('ts').toArray()
+      ]);
+      set({ photos: views, persons, history, booted: true });
+    } catch (err) {
+      // Deschiderea IndexedDB poate esua (schema stricata, VersionError dupa un update
+      // al aplicatiei, storage blocat de politici de dispozitiv) — bug real gasit de
+      // auditul QA: fara acest catch, o respingere neprinsa lasa `booted` mereu false si
+      // grila goala, nedistinctibil in UI de "nu a importat nimeni nimic inca" (un
+      // utilizator putea crede ca a pierdut toata biblioteca importata anterior).
+      set({ notice: t(get().locale, 'store.boot.failed', { error: err instanceof Error ? err.message : String(err) }) });
+    }
   },
 
   runImport: async (files: File[], handles?: (FileSystemFileHandleLike | undefined)[]) => {
@@ -954,6 +964,13 @@ export const useStore = create<AppState>((set, get) => ({
 
   setStatus: async (id, status) => {
     const previousStatus = get().photos.find(p => p.id === id)?.status;
+    // Feedback haptic pentru ORICE decizie (tastatura, butoane tap, swipe) — bug real gasit
+    // de auditul QA: inainte, doar gestul de swipe din DetailView vibra; utilizatorii care
+    // apasa butoanele mari Selecteaza/Respinge (probabil majoritatea pe telefon, swipe-ul
+    // cere mai multa precizie) nu primeau niciodata confirmarea haptica.
+    if ((status === 'selected' || status === 'rejected') && status !== previousStatus) {
+      vibrate(status === 'selected' ? 14 : [12, 40, 12]);
+    }
     await db.photos.update(id, { status });
     set(state => ({ photos: state.photos.map(p => (p.id === id ? { ...p, status } : p)) }));
     const { quotaError } = await syncOriginal(id, status);
@@ -1214,9 +1231,14 @@ export const useStore = create<AppState>((set, get) => ({
     const updates = new Map<string, { aiScore: number; aiFactors: { feature: string; contribution: number }[]; status: PhotoRecord['status'] }>();
     let quotaError = false;
 
-    for (const p of photos) {
+    // Predictiile (fara efecte secundare — vezi comentariul de mai sus, rescorePhotos
+    // nu antreneaza modelul) si scrierile in DB ruleaza in paralel per poza, nu secvential
+    // ca inainte — bug de scalabilitate real gasit de auditul QA: re-analiza pe o
+    // biblioteca de 500+ poze facea sute de dute-vino DB secvential, blocand UI-ul cateva
+    // secunde bune, exact clasa de bug deja reparata pentru applyBulkStatusChanges.
+    await Promise.all(photos.map(async p => {
       const [analysis, photoRecord] = await Promise.all([db.analyses.get(p.id), db.photos.get(p.id)]);
-      if (!analysis || !photoRecord) continue;
+      if (!analysis || !photoRecord) return;
       const prediction = await contextEngine.predict(analysis, photoRecord.genre);
       const newStatus: PhotoRecord['status'] =
         prediction.score >= SELECT_THRESHOLD ? 'selected'
@@ -1230,7 +1252,7 @@ export const useStore = create<AppState>((set, get) => ({
         if (res.quotaError) quotaError = true;
       }
       updates.set(p.id, { aiScore: prediction.score, aiFactors: prediction.topFactors, status: newStatus });
-    }
+    }));
 
     set(state => ({
       photos: state.photos.map(p => {
@@ -1303,7 +1325,7 @@ export const useStore = create<AppState>((set, get) => ({
     const ids = Array.from(get().multiSelectIds);
     if (!ids.length) return;
     const clamped = Math.max(0, Math.min(5, Math.round(rating)));
-    for (const id of ids) await db.photos.update(id, { rating: clamped });
+    await Promise.all(ids.map(id => db.photos.update(id, { rating: clamped })));
     const idSet = new Set(ids);
     const locale = get().locale;
     set(state => ({
@@ -1320,7 +1342,7 @@ export const useStore = create<AppState>((set, get) => ({
   bulkSetColorLabelForSelection: async label => {
     const ids = Array.from(get().multiSelectIds);
     if (!ids.length) return;
-    for (const id of ids) await db.photos.update(id, { colorLabel: label });
+    await Promise.all(ids.map(id => db.photos.update(id, { colorLabel: label })));
     const idSet = new Set(ids);
     const locale = get().locale;
     set(state => ({
@@ -1334,7 +1356,7 @@ export const useStore = create<AppState>((set, get) => ({
   bulkSetCaptionForSelection: async caption => {
     const ids = Array.from(get().multiSelectIds);
     if (!ids.length) return;
-    for (const id of ids) await db.photos.update(id, { captionOverride: caption });
+    await Promise.all(ids.map(id => db.photos.update(id, { captionOverride: caption })));
     const idSet = new Set(ids);
     const locale = get().locale;
     set(state => ({
@@ -1348,7 +1370,7 @@ export const useStore = create<AppState>((set, get) => ({
   bulkSetKeywordsForSelection: async keywords => {
     const ids = Array.from(get().multiSelectIds);
     if (!ids.length) return;
-    for (const id of ids) await db.photos.update(id, { keywordsOverride: keywords });
+    await Promise.all(ids.map(id => db.photos.update(id, { keywordsOverride: keywords })));
     const idSet = new Set(ids);
     const locale = get().locale;
     set(state => ({
@@ -1380,6 +1402,12 @@ export const useStore = create<AppState>((set, get) => ({
     const list = get().filtered();
     if (!detailId || !list.length) return;
     const idx = list.findIndex(p => p.id === detailId);
+    // detailId poate sa nu mai fie in lista filtrata curenta (ex. utilizatorul a
+    // schimbat filtrul cat timp Detail/Workspace era deschis pe o poza din afara
+    // noului filtru) — bug real gasit de auditul QA: fara aceasta garda,
+    // (idx + dir + list.length) % list.length cadea mereu pe 0 pentru dir=1,
+    // sarind silentios la PRIMA poza din lista in loc de un "next" sensibil.
+    if (idx === -1) { set({ detailId: list[0].id }); return; }
     const next = list[(idx + dir + list.length) % list.length];
     set({ detailId: next.id });
   },
@@ -1445,8 +1473,14 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   removePerson: async id => {
-    await db.persons.delete(id);
-    await relabelAnalyses(new Map([[id, null]]));
+    // db.persons.delete + relabelAnalyses erau doua scrieri separate, neatomice —
+    // bug real gasit de auditul QA: o inchidere a aplicatiei intre ele lasa fete
+    // in db.analyses care mai pointau spre un personId deja sters (desincronizare
+    // permanenta, la fel ca non-atomicitatea deja reparata pentru restoreBackup).
+    await db.transaction('rw', [db.persons, db.analyses], async () => {
+      await db.persons.delete(id);
+      await relabelAnalyses(new Map([[id, null]]));
+    });
     const [persons, photos] = await Promise.all([db.persons.toArray(), reloadPhotoViews()]);
     await analysisPool.setKnownPersons(persons).catch(() => {});
     set({ persons, photos });
@@ -1454,8 +1488,10 @@ export const useStore = create<AppState>((set, get) => ({
 
   removePersons: async ids => {
     if (!ids.length) return;
-    await db.persons.bulkDelete(ids);
-    await relabelAnalyses(new Map(ids.map(id => [id, null])));
+    await db.transaction('rw', [db.persons, db.analyses], async () => {
+      await db.persons.bulkDelete(ids);
+      await relabelAnalyses(new Map(ids.map(id => [id, null])));
+    });
     const [persons, photos] = await Promise.all([db.persons.toArray(), reloadPhotoViews()]);
     await analysisPool.setKnownPersons(persons).catch(() => {});
     set({ persons, photos });
@@ -1468,14 +1504,19 @@ export const useStore = create<AppState>((set, get) => ({
     // simpla concatenare + tail-slice (bug real gasit de auditul QA)
     const merged = selectMergedEmbeddings(toMerge.map(p => p.embeddings), MAX_PERSON_EMBEDDINGS);
     const survivor: KnownPerson = { id: toMerge[0].id, name: keepName.trim() || toMerge[0].name, embeddings: merged, updatedAt: Date.now() };
-    await db.persons.put(survivor);
-    await db.persons.bulkDelete(toMerge.slice(1).map(p => p.id));
-    // re-eticheteaza RETROACTIV pozele deja analizate: fiecare id unit (inclusiv
-    // id-ul supravietuitor, in caz ca numele s-a schimbat la unire) trece la
-    // identitatea finala — altfel doua profiluri care fragmentau aceeasi
-    // persoana raman fragmentate si pe pozele deja etichetate (vezi comentariul
-    // de la relabelAnalyses).
-    await relabelAnalyses(new Map(toMerge.map(p => [p.id, { id: survivor.id, name: survivor.name }])));
+    // Aceleasi 3 scrieri (persons.put, persons.bulkDelete, relabelAnalyses) intr-o
+    // singura tranzactie — o intrerupere la mijloc putea lasa supravietuitorul scris
+    // dar profilurile unite nesterse, sau fete inca legate de un id deja disparut.
+    await db.transaction('rw', [db.persons, db.analyses], async () => {
+      await db.persons.put(survivor);
+      await db.persons.bulkDelete(toMerge.slice(1).map(p => p.id));
+      // re-eticheteaza RETROACTIV pozele deja analizate: fiecare id unit (inclusiv
+      // id-ul supravietuitor, in caz ca numele s-a schimbat la unire) trece la
+      // identitatea finala — altfel doua profiluri care fragmentau aceeasi
+      // persoana raman fragmentate si pe pozele deja etichetate (vezi comentariul
+      // de la relabelAnalyses).
+      await relabelAnalyses(new Map(toMerge.map(p => [p.id, { id: survivor.id, name: survivor.name }])));
+    });
     const [persons, photos] = await Promise.all([db.persons.toArray(), reloadPhotoViews()]);
     await analysisPool.setKnownPersons(persons).catch(() => {});
     set({ persons, photos });
@@ -1524,7 +1565,6 @@ export const useStore = create<AppState>((set, get) => ({
     const person: KnownPerson = existing
       ? { ...existing, embeddings: [...existing.embeddings, ...newEmbeddings].slice(-MAX_PERSON_EMBEDDINGS), updatedAt: Date.now() }
       : { id: crypto.randomUUID(), name: trimmedName, embeddings: newEmbeddings.slice(-MAX_PERSON_EMBEDDINGS), updatedAt: Date.now() };
-    await db.persons.put(person);
 
     // re-eticheteaza RETROACTIV exact fetele din cluster (identificate prin
     // faceIndex, stabil - nu prin embedding, care s-ar putea sa nu compare
@@ -1533,27 +1573,33 @@ export const useStore = create<AppState>((set, get) => ({
     // poze (ar necesita re-rularea ContextEngine si ar putea schimba decizii
     // deja luate de utilizator) — doar identificarea (nume/numar cunoscuti),
     // care conteaza pentru afisare si export.
+    // db.persons.put + actualizarile din db.analyses sunt intr-o singura
+    // tranzactie — separate, o intrerupere la mijloc putea salva persoana noua
+    // fara sa re-eticheteze nicio fata deja analizata (sau invers).
     const photoIds = Array.from(new Set(members.map(m => m.photoId)));
-    const analyses = await db.analyses.bulkGet(photoIds);
-    for (let i = 0; i < photoIds.length; i++) {
-      const analysis = analyses[i];
-      if (!analysis) continue;
-      const faceIndexes = members.filter(m => m.photoId === photoIds[i]).map(m => m.faceIndex);
-      let changed = false;
-      for (const idx of faceIndexes) {
-        const face = analysis.faces[idx];
-        if (face && !face.personId) {
-          face.personId = person.id;
-          face.personName = person.name;
-          changed = true;
+    await db.transaction('rw', [db.persons, db.analyses], async () => {
+      await db.persons.put(person);
+      const analyses = await db.analyses.bulkGet(photoIds);
+      for (let i = 0; i < photoIds.length; i++) {
+        const analysis = analyses[i];
+        if (!analysis) continue;
+        const faceIndexes = members.filter(m => m.photoId === photoIds[i]).map(m => m.faceIndex);
+        let changed = false;
+        for (const idx of faceIndexes) {
+          const face = analysis.faces[idx];
+          if (face && !face.personId) {
+            face.personId = person.id;
+            face.personName = person.name;
+            changed = true;
+          }
+        }
+        if (changed) {
+          analysis.knownFaceCount = analysis.faces.filter(f => f.personId).length;
+          analysis.strangerCount = analysis.faces.filter(f => !f.personId).length;
+          await db.analyses.put(analysis);
         }
       }
-      if (changed) {
-        analysis.knownFaceCount = analysis.faces.filter(f => f.personId).length;
-        analysis.strangerCount = analysis.faces.filter(f => !f.personId).length;
-        await db.analyses.put(analysis);
-      }
-    }
+    });
 
     const persons = await db.persons.toArray();
     await analysisPool.setKnownPersons(persons).catch(() => {});

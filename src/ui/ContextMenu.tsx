@@ -48,9 +48,12 @@ export function ContextMenu({ x, y, count, rating, colorLabel, onSetStatus, onSe
     };
   }, [onClose]);
 
+  // clamp si la 8px minim, nu doar la marginea dreapta/jos — pe viewport-uri foarte
+  // inguste (foldables in cover mode, split-screen) meniul putea iesi partial in stanga/sus
+  // (bug real gasit de auditul QA).
   const style = {
-    left: Math.min(x, window.innerWidth - 210),
-    top: Math.min(y, window.innerHeight - 230)
+    left: Math.max(8, Math.min(x, window.innerWidth - 210)),
+    top: Math.max(8, Math.min(y, window.innerHeight - 230))
   };
 
   const act = (fn: () => void) => { fn(); onClose(); };

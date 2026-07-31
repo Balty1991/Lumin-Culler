@@ -54,6 +54,14 @@
   --review: #fbbf24;
   --review-deep: #271b02;
   --review-rgb: 251 191 36;
+  /* Variante DEDICATE de text/iconita pentru pick/reject/review/accent — pastelurile de mai
+     sus sunt tunate pentru fundaluri aproape negre (zonele de judecat pozele) si au contrast
+     insuficient (~1.5-2:1) ca TEXT pe suprafete deschise (tile-uri/etichete pe --surface).
+     In tema intunecata raman identice cu culoarea "plina" (contrast deja suficient acolo). */
+  --pick-text: var(--pick);
+  --reject-text: var(--reject);
+  --review-text: var(--review);
+  --accent-text: var(--accent);
 
   --mono: "SF Mono", "Cascadia Code", "JetBrains Mono", Consolas, monospace;
   --sans: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -147,6 +155,14 @@
   --shadow-lift: 0 14px 38px -10px rgba(20,20,30,0.13);
   --glass-bg: rgba(255,255,255,0.72);
   --glass-border: rgba(20,20,30,0.08);
+  /* Aceleasi valori deja validate/folosite in @media print pentru contrast pe fundal alb —
+     bug real gasit de auditul QA: pastelurile --pick/--reject/--review (tunate pentru
+     fundaluri aproape negre) foloseau ca text pe suprafete deschise (StatsPanel, "de ce
+     acest scor" din DetailView, chip-uri) dau ~1.5-2:1, sub minimul WCAG AA (4.5:1). */
+  --pick-text: #0a7a3d;
+  --reject-text: #b3261e;
+  --review-text: #8a6d00;
+  --accent-text: #0f766e;
 }
 
 /* prefers-contrast: more — utilizatori cu vedere redusa care au cerut explicit
@@ -218,6 +234,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   position: sticky; top: 0; z-index: var(--z-topbar);
   display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 10px;
   padding: 16px 2px 12px;
+  /* Android 15+ (targetSdk 36, vezi android/variables.gradle) impune edge-to-edge implicit —
+     WebView-ul deseneaza sub o bara de status transparenta. Fara asta, logo-ul/butoanele din
+     capul principal al aplicatiei se randau partial sub bara de status pe un telefon real
+     (bug real gasit de auditul QA; alte suprafete plutitoare — toast/banner — deja aveau
+     acest padding, capul principal nu). */
+  padding-top: calc(16px + env(safe-area-inset-top));
   background: linear-gradient(var(--bg) 78%, transparent);
   backdrop-filter: blur(10px);
 }
@@ -350,7 +372,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .toast-text { flex: 1; }
 @keyframes toastIn { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
 .toast-close {
-  flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%;
+  /* 32px (nu 22px) — zona de tap mai mare pe un toast tranzitoriu, plutitor, unde o
+     atingere gresita e usor de comis (bug real gasit de auditul QA). */
+  flex-shrink: 0; width: 32px; height: 32px; margin: -5px -4px -5px 0; border-radius: 50%;
   display: flex; align-items: center; justify-content: center; color: var(--text-faint);
   transition: background 0.15s var(--ease), color 0.15s var(--ease);
 }
@@ -559,7 +583,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   background-origin: border-box; background-clip: padding-box, border-box; border: 1px solid transparent;
   box-shadow: 0 0 16px -6px rgb(var(--accent-rgb) / 0.45);
 }
-.chip.active .chip-icon { opacity: 1; color: var(--accent); }
+.chip.active .chip-icon { opacity: 1; color: var(--accent-text); }
 .chip.active .chip-count { background: rgb(var(--accent-rgb) / 0.18); color: var(--accent); }
 /* varianta compacta (doar icon + numar, fara eticheta text) — pentru randul principal
    de filtre, care trebuie sa incapa pe un singur rand fara scroll; eticheta completa
@@ -660,6 +684,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   aspect-ratio: 1; display: flex; box-shadow: var(--shadow-sm);
   transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease), border-color 0.2s var(--ease);
   animation: cardIn 0.45s var(--ease) both;
+  /* rezerva doar scroll-ul vertical al browserului pentru gesturi — fara asta, arbitrajul
+     de gesturi al Android poate intarzia/anula (pointercancel) drag-ul orizontal de
+     selecteaza/respinge din grila cand e ambiguu cu scroll-ul (aceeasi problema deja
+     evitata corect pe .detail-stage cu pan-y; bug real gasit de auditul QA). */
+  touch-action: pan-y;
 }
 /* swipe pe miniatura (mobil) — transform/opacity manipulate direct din JS in
    timpul gestului (fara re-render React), transitia CSS normala e dezactivata
@@ -859,18 +888,25 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
    distinga clar de paleta de status (verde/galben/rosu deja folosita pentru
    selectat/de verificat/respins) prin nuante DIFERITE (rosu-caramiziu, mov). */
 .color-label-swatches { display: flex; gap: 6px; }
+/* Zona tap-abila (butonul, 32px) e mai mare decat cercul VIZIBIL (::after, 18px, neschimbat
+   vizual) — bug real gasit de auditul QA: 18px cu doar 6px intre ele era sub minimul de
+   ~44px recomandat pe Android, invitand la atingeri gresite intre etichete adiacente. */
 .color-label-swatch {
-  width: 18px; height: 18px; border-radius: 50%; border: 2px solid transparent;
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25); transition: transform 0.12s var(--ease), border-color 0.12s var(--ease);
-  padding: 0;
+  position: relative; width: 32px; height: 32px; border-radius: 50%; border: none; background: none;
+  padding: 0; display: flex; align-items: center; justify-content: center;
 }
-.color-label-swatch:hover { transform: scale(1.15); }
-.color-label-swatch.active { border-color: var(--text); }
-.color-label-swatch.label-red { background: #c94f4f; }
-.color-label-swatch.label-yellow { background: #c9a227; }
-.color-label-swatch.label-green { background: #4a9d5f; }
-.color-label-swatch.label-blue { background: #4477c4; }
-.color-label-swatch.label-purple { background: #9163c9; }
+.color-label-swatch::after {
+  content: ''; display: block; width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid transparent; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25);
+  transition: transform 0.12s var(--ease), border-color 0.12s var(--ease);
+}
+.color-label-swatch:hover::after { transform: scale(1.15); }
+.color-label-swatch.active::after { border-color: var(--text); }
+.color-label-swatch.label-red::after { background: #c94f4f; }
+.color-label-swatch.label-yellow::after { background: #c9a227; }
+.color-label-swatch.label-green::after { background: #4a9d5f; }
+.color-label-swatch.label-blue::after { background: #4477c4; }
+.color-label-swatch.label-purple::after { background: #9163c9; }
 
 /* buton compact de filtrare dupa eticheta (inlocuieste cele 5 bilute mereu
    vizibile din randul de filtre — aglomerau scroll-ul orizontal pe mobil si
@@ -1198,7 +1234,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 .detail-stage-topbar > * { pointer-events: auto; }
 .detail-overlay-btn {
-  width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+  /* 44px (nu 36px) — minimul recomandat de Android pentru o zona de atingere; iconita
+     ramane 18px, doar zona reala de tap creste (bug real gasit de auditul QA). */
+  width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
   background: rgba(20,20,22,0.5); backdrop-filter: blur(6px); color: #fff;
   display: flex; align-items: center; justify-content: center; transition: background var(--micro);
 }
@@ -1212,7 +1250,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 /* sageti prev/next — subtile, plutitoare peste imagine, nu butoane text masive */
 .detail-nav-btn {
   position: absolute; top: 50%; transform: translateY(-50%); z-index: var(--z-card-badge);
-  width: 38px; height: 38px; border-radius: 50%;
+  /* vezi comentariul de la .detail-overlay-btn — acelasi minim de 44px pentru zona de tap. */
+  width: 44px; height: 44px; border-radius: 50%;
   background: rgba(20,20,22,0.4); backdrop-filter: blur(6px); color: #fff;
   display: flex; align-items: center; justify-content: center;
   opacity: 0.65; transition: opacity var(--micro), background var(--micro);
@@ -1364,8 +1403,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   font-size: 0.64rem; font-weight: 600; padding: 2px 7px; border-radius: 999px;
   border: 1px solid transparent;
 }
-.factor-tag.pos { color: var(--pick); background: rgba(74,222,128,0.12); border-color: rgba(74,222,128,0.3); }
-.factor-tag.neg { color: var(--reject); background: rgba(251,113,133,0.12); border-color: rgba(251,113,133,0.3); }
+.factor-tag.pos { color: var(--pick-text); background: rgba(74,222,128,0.12); border-color: rgba(74,222,128,0.3); }
+.factor-tag.neg { color: var(--reject-text); background: rgba(251,113,133,0.12); border-color: rgba(251,113,133,0.3); }
 
 .why-explanation {
   display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px;
@@ -1440,7 +1479,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .detail-rating-row { display: flex; justify-content: center; }
 
 /* ── Butoane doar-iconita + iconite inline in text ── */
-.icon-btn { width: 38px; height: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; position: relative; }
+/* 44px (nu 38px) — minimul recomandat de Android pentru zona de atingere; iconita SVG
+   ramane 18px, doar cutia clicabila creste (bug real gasit de auditul QA: butoane
+   invecinate — Anuleaza/Workspace/Meniu — sub minim si strans grupate invitau la atingeri
+   gresite pe telefon). */
+.icon-btn { width: 44px; height: 44px; padding: 0; display: inline-flex; align-items: center; justify-content: center; position: relative; }
 .icon-btn svg { width: 18px; height: 18px; }
 .undo-count {
   position: absolute; top: -4px; right: -4px; min-width: 15px; height: 15px; padding: 0 3px;
@@ -1641,8 +1684,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .batch-threshold-value { min-width: 28px; text-align: right; color: var(--text-dim); }
 .batch-preview { display: flex; gap: 6px; }
 .batch-preview-chip { font-size: 0.72rem; font-weight: 700; padding: 3px 9px; border-radius: 999px; border: 1px solid transparent; }
-.batch-preview-chip.pos { color: var(--pick); background: rgba(74,222,128,0.12); border-color: rgba(74,222,128,0.3); }
-.batch-preview-chip.neg { color: var(--reject); background: rgba(251,113,133,0.12); border-color: rgba(251,113,133,0.3); }
+.batch-preview-chip.pos { color: var(--pick-text); background: rgba(74,222,128,0.12); border-color: rgba(74,222,128,0.3); }
+.batch-preview-chip.neg { color: var(--reject-text); background: rgba(251,113,133,0.12); border-color: rgba(251,113,133,0.3); }
 .batch-rename-input {
   background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius);
   color: var(--text); padding: 10px 12px; font: inherit; transition: border-color 0.18s var(--ease);
@@ -1676,8 +1719,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 .stats-tile b { font-size: 1.2rem; font-family: var(--font-display); }
 .stats-tile span { font-size: 0.68rem; color: var(--text-dim); }
-.stats-tile.pos b { color: var(--pick); }
-.stats-tile.neg b { color: var(--reject); }
+.stats-tile.pos b { color: var(--pick-text); }
+.stats-tile.neg b { color: var(--reject-text); }
 
 /* compozitia bibliotecii (Selectat/De verificat/Respins) — bara stivuita orizontala,
    parte-din-intreg (vezi StatsPanel.tsx StatusBreakdownBar) */
@@ -1697,7 +1740,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
    nuanta (accent, nu paleta de status: rating-ul n-are conotatie pozitiv/negativ) */
 .stats-ratings-chart { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
 .stats-ratings-row { display: grid; grid-template-columns: 74px 1fr 24px; align-items: center; gap: 8px; }
-.stats-ratings-label { font-size: 0.72rem; color: var(--review); letter-spacing: 1px; }
+.stats-ratings-label { font-size: 0.72rem; color: var(--review-text); letter-spacing: 1px; }
 .stats-ratings-track { height: 8px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
 .stats-ratings-fill { height: 100%; border-radius: 999px; background: var(--accent); transition: width var(--duration) var(--ease); }
 .stats-ratings-value { font-size: 0.72rem; color: var(--text-faint); text-align: right; font-variant-numeric: tabular-nums; }
@@ -1727,7 +1770,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
      calcula gresit pe mobil cand bara de adrese se ascunde/reapare dinamic; % ramane
      mereu relativ la .drawer-scrim (position:fixed; inset:0), corect dimensionat. */
   width: min(330px, 86%); min-width: 0; height: 100%; background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur));
-  border-left: 1px solid var(--glass-border); padding: 16px 14px calc(16px + env(safe-area-inset-bottom));
+  border-left: 1px solid var(--glass-border);
+  /* padding-bottom pentru gesture bar avea deja safe-area — capul sertarului (titlu +
+     buton inchidere) nu avea si el pentru bara de status (bug real gasit de auditul QA). */
+  padding: calc(16px + env(safe-area-inset-top)) 14px calc(16px + env(safe-area-inset-bottom));
   display: flex; flex-direction: column; gap: 3px; overflow-y: auto; overflow-x: hidden; box-sizing: border-box;
   box-shadow: var(--shadow-lg);
   scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) transparent;
@@ -1745,7 +1791,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   transition: background 0.15s var(--ease);
 }
 .drawer-item:hover { background: var(--surface-2); }
-.drawer-item:hover .drawer-item-icon { background: var(--surface-3); color: var(--accent); }
+.drawer-item:hover .drawer-item-icon { background: var(--surface-3); color: var(--accent-text); }
 .drawer-item-icon {
   flex-shrink: 0; width: 34px; height: 34px; border-radius: 10px; background: var(--surface-2);
   color: var(--text-dim); display: flex; align-items: center; justify-content: center;
@@ -1828,7 +1874,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .palette-item-icon svg { width: 14px; height: 14px; }
 .palette-item-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .palette-item.active { background: var(--surface-2); box-shadow: inset 3px 0 0 var(--accent); }
-.palette-item.active .palette-item-icon { background: var(--surface-3); color: var(--accent); }
+.palette-item.active .palette-item-icon { background: var(--surface-3); color: var(--accent-text); }
 .palette-item.disabled { color: var(--text-faint); cursor: default; }
 .palette-item.disabled .palette-item-icon { opacity: 0.5; }
 .palette-hint {
@@ -1878,6 +1924,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .workspace { height: 100dvh; display: flex; flex-direction: column; background: var(--bg); color: var(--text); position: relative; }
 .workspace-head {
   display: flex; align-items: center; gap: 10px; padding: 10px 12px; flex: 0 0 auto;
+  /* vezi comentariul de la .topbar — acelasi risc de suprapunere cu bara de status pe
+     Android edge-to-edge (bug real gasit de auditul QA). */
+  padding-top: calc(10px + env(safe-area-inset-top));
   margin: 10px 10px 0; border-radius: var(--radius-lg);
   background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur)); border: 1px solid var(--glass-border);
   box-shadow: var(--shadow);
@@ -2049,9 +2098,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 0.68rem; color: var(--text-dim);
 }
 .contact-sheet-frame { color: var(--text-faint); }
-.contact-sheet-status.st-selected { color: var(--pick); }
-.contact-sheet-status.st-rejected { color: var(--reject); }
-.contact-sheet-status.st-review { color: var(--review); }
+.contact-sheet-status.st-selected { color: var(--pick-text); }
+.contact-sheet-status.st-rejected { color: var(--reject-text); }
+.contact-sheet-status.st-review { color: var(--review-text); }
 .contact-sheet-rating { display: inline-flex; align-items: center; gap: 2px; color: var(--accent); }
 .contact-sheet-rating svg { width: 11px; height: 11px; }
 
@@ -2152,7 +2201,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .presentation-scrim, .presentation-frame, .presentation-img { animation: none !important; transition: none !important; }
 }
 @media (max-width: 640px) {
-  .presentation-nav-btn { width: 38px; height: 38px; }
+  /* NU sub 44px — bug real gasit de auditul QA: reducerea la 38px se declanseaza exact
+     pe telefoanele mici, hardware-ul unde zona de tap conteaza cel mai mult (contrar
+     intentiei minimului de 44px de mai sus, la ecrane largi). */
   .presentation-filename { display: none; }
 }
 

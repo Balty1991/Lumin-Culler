@@ -97,12 +97,31 @@ function toImageData(width: number, height: number, colors: number, bits: number
   return new ImageData(out, width, height);
 }
 
+/**
+ * `resizeWidth` fara `resizeHeight` limiteaza doar LATIMEA — la poze portret inaltimea
+ * rezultata poate depasi PREVIEW_MAX_SIDE (aceeasi clasa de bug reparata in
+ * importPipeline.ts:decode(), gasita de auditul QA). Recadram explicit pe latura cea mai
+ * lunga dupa orice createImageBitmap cu resize partial.
+ */
+async function capToPreviewSize(bitmap: ImageBitmap): Promise<ImageBitmap> {
+  const longest = Math.max(bitmap.width, bitmap.height);
+  if (longest <= PREVIEW_MAX_SIDE) return bitmap;
+  const scale = PREVIEW_MAX_SIDE / longest;
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(bitmap.width * scale));
+  c.height = Math.max(1, Math.round(bitmap.height * scale));
+  c.getContext('2d')!.drawImage(bitmap, 0, 0, c.width, c.height);
+  bitmap.close();
+  return createImageBitmap(c);
+}
+
 async function bitmapFromImageData(imageData: ImageData): Promise<ImageBitmap> {
   const canvas = document.createElement('canvas');
   canvas.width = imageData.width;
   canvas.height = imageData.height;
   canvas.getContext('2d')!.putImageData(imageData, 0, 0);
-  return createImageBitmap(canvas, { resizeWidth: PREVIEW_MAX_SIDE, resizeQuality: 'high' } as ImageBitmapOptions);
+  const bitmap = await createImageBitmap(canvas, { resizeWidth: PREVIEW_MAX_SIDE, resizeQuality: 'high' } as ImageBitmapOptions);
+  return capToPreviewSize(bitmap);
 }
 
 export async function decodeRawFile(file: File): Promise<RawDecodeResult> {
@@ -134,7 +153,7 @@ async function decodeThumbFallback(
   try {
     if (thumb.format === 'jpeg') {
       const blob = new Blob([thumb.data as BlobPart], { type: 'image/jpeg' });
-      const bitmap = await createImageBitmap(blob, { resizeWidth: PREVIEW_MAX_SIDE, resizeQuality: 'high' } as ImageBitmapOptions);
+      const bitmap = await capToPreviewSize(await createImageBitmap(blob, { resizeWidth: PREVIEW_MAX_SIDE, resizeQuality: 'high' } as ImageBitmapOptions));
       return { bitmap };
     }
     if (thumb.format === 'bitmap') {
@@ -175,7 +194,7 @@ async function decode(raw: LibRaw, file: File): Promise<RawDecodeResult> {
   if (thumb && thumb.format === 'jpeg' && thumb.width >= MIN_USABLE_THUMB_WIDTH) {
     const blob = new Blob([thumb.data as BlobPart], { type: 'image/jpeg' });
     try {
-      const bitmap = await createImageBitmap(blob, { resizeWidth: PREVIEW_MAX_SIDE, resizeQuality: 'high' } as ImageBitmapOptions);
+      const bitmap = await capToPreviewSize(await createImageBitmap(blob, { resizeWidth: PREVIEW_MAX_SIDE, resizeQuality: 'high' } as ImageBitmapOptions));
       return { bitmap, meta };
     } catch {
       // preview-ul incorporat e corupt/necunoscut — cadem pe decodarea completa mai jos

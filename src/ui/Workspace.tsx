@@ -64,7 +64,11 @@ export function Workspace() {
   }, []);
 
   useEffect(() => {
-    if (!detailId) { setSrc(null); return; }
+    // Curatam src-ul VECHI inainte de fetch-ul nou (vezi acelasi fix in DetailView.tsx) —
+    // bug real gasit de auditul QA: fara asta, o poza noua se putea afisa cu imaginea
+    // fostei poze active pana la rezolvarea promisiunii.
+    setSrc(null);
+    if (!detailId) return;
     let alive = true;
     void getCachedPreviewUrl(detailId).then(url => { if (alive) setSrc(url); });
     return () => { alive = false; };
