@@ -599,6 +599,14 @@ async function syncOriginal(id: string, status: PhotoRecord['status']): Promise<
   } else {
     await db.originals.delete(id);
     await db.fileHandles.delete(id);
+    // Nota (verificat, NU reparat): originalFiles/originalHandles (in memorie,
+    // per sesiune) NU pot fi curatate aici desi randurile din DB tocmai au
+    // fost sterse — daca poza e re-selectata mai tarziu in aceeasi sesiune
+    // (inclusiv prin undo(), care re-cheama syncOriginal cu statusul anterior
+    // 'selected'), acest cod are nevoie de exact aceste Map-uri ca sa poata
+    // repersista originalul. Golirea lor aici ar rupe select->reject->select
+    // (sau orice undo dupa un reject). Cresterea lor pe durata sesiunii e deci
+    // un compromis deliberat, nu un bug — au ramas neatinse intentionat.
   }
   return { quotaError: false };
 }

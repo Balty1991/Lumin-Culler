@@ -134,19 +134,30 @@ export function EditPanel() {
 
         <div className="edit-body">
           <div className="edit-canvas-wrap">
-            <canvas ref={canvasRef} className="edit-canvas" />
+            {/* Bug real gasit de auditul QA: singurul loc din aplicatie unde poza e
+                afisata fara nicio alternativa text pentru un cititor de ecran —
+                DetailView/Workspace/etc au toate alt={photo.fileName}, doar canvas-ul
+                de aici nu avea nimic. Canvas nu are `alt`, dar poate primi role="img"
+                + aria-label, exact echivalentul semantic. */}
+            <canvas ref={canvasRef} className="edit-canvas" role="img" aria-label={photo.fileName} />
             {!imgEl && <span className="card-loading edit-canvas-loading" aria-hidden="true" />}
           </div>
           <div className="edit-sliders">
             {SLIDERS.map(key => (
               <label key={key} className="edit-slider-row">
-                <span className="edit-slider-label">{tr(`edit.${key}`)}</span>
+                <span className="edit-slider-label" aria-hidden="true">{tr(`edit.${key}`)}</span>
                 <input
                   type="range" min={-100} max={100} step={1}
                   value={adjustments[key]}
                   onChange={e => update(key, Number(e.target.value))}
+                  // Bug real gasit de auditul QA: label-ul invaluia si numele SI
+                  // valoarea numerica, deci numele accesibil calculat includea
+                  // ambele (ex. "Expunere 20"), iar cititorul de ecran anunta
+                  // valoarea A DOUA OARA separat (nativ, la fiecare schimbare de
+                  // range) — redundant. aria-label explicit foloseste DOAR numele.
+                  aria-label={tr(`edit.${key}`)}
                 />
-                <span className="edit-slider-value mono">{adjustments[key]}</span>
+                <span className="edit-slider-value mono" aria-hidden="true">{adjustments[key]}</span>
               </label>
             ))}
           </div>

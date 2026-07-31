@@ -125,6 +125,25 @@ describe('exportOriginalFiles (fallback fara File System Access API)', () => {
     expect(downloadBlob.mock.calls[0][0]).toBe('Peisaje/IMG_0001.jpg');
   });
 
+  // Bug real gasit de auditul QA (defense-in-depth — niciun File real nu
+  // poate avea azi un asemenea nume, dar fileName e doar un string, fara
+  // nicio validare la runtime): un "../" literal in numele original nu mai
+  // trebuie sa poata scapa din folderul de destinatie ca path de intrare in
+  // arhiva zip (tiparul clasic "zip-slip").
+  it('sanitizeaza separatorii de path dintr-un nume de fisier nesigur (fara renameTemplate)', async () => {
+    originalFiles.set('p1', fakeFile('evil.jpg'));
+    const result = await exportOriginalFiles([
+      { id: 'p1', fileName: '../../etc/evil.jpg', personNames: [], faceCount: 0, strangerCount: 0, sceneType: 'landscape' }
+    ]);
+    expect(result.exported).toBe(1);
+    const [path] = downloadBlob.mock.calls[0];
+    expect(path.startsWith('Peisaje/')).toBe(true);
+    // numele (portiunea dupa folder/) nu mai poate contine niciun separator
+    // de path — indiferent cate "/" erau in numele original, ele devin "-"
+    const name = path.slice('Peisaje/'.length);
+    expect(name).not.toMatch(/[/\\]/);
+  });
+
   // Bug real gasit de auditul QA: doua poze cu acelasi nume de fisier
   // (frecvent la import din carduri de memorie diferite ale aceleiasi
   // camere) se suprascriau silentios una pe alta in zip (aceeasi cheie de

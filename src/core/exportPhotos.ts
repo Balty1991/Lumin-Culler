@@ -158,7 +158,16 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[], options: E
   let sequence = 0;
   const nameFor = (p: ExportPhotoInput): string => {
     sequence += 1;
-    if (!renameTemplate) return p.fileName;
+    // Bug real gasit de auditul QA (defense-in-depth, nicio vulnerabilitate
+    // activa azi — orice File real vine din picker-ul OS/IndexedDB, ambele
+    // garanteaza deja lipsa separatorilor de path in nume): fara renameTemplate,
+    // numele original ajungea NESANITIZAT direct ca path de intrare in arhiva
+    // zip (fflate) sau ca nume de fisier pe disc — spre deosebire de folderLabel/
+    // sanitizeSegment mai jos si de calea cu renameTemplate (renameTemplate.ts),
+    // ambele deja curata \/:*?"<>|. Daca vreodata un nume ar ajunge aici din
+    // afara acestor garantii (viitoare sursa de fisiere), un "../" literal in
+    // el ar fi exact tiparul clasic "zip-slip". Acelasi filtru, aplicat si aici.
+    if (!renameTemplate) return sanitizeSegment(p.fileName);
     const ctx: RenameContext = { client: p.client, event: p.event, location: p.location, capturedAt: p.capturedAt };
     return buildExportFileName(renameTemplate, ctx, sequence, p.fileName);
   };

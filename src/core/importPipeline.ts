@@ -442,17 +442,29 @@ export async function importFiles(
   }
 
   const { groups: groupResults } = await groupPhotosByHash([...hashes, ...existingHashes]);
+  // Bug real gasit de auditul QA (bug/low-medium): bucla de mai jos facea, per
+  // membru de grup, un db.photos.get() (pentru membrii non-best) urmat de un
+  // db.photos.update() — pentru un import de 1000 de poze cu multe burst-uri
+  // (exact cazul sport/nunta/eveniment tintit de aplicatie), sute-pana-la-o mie
+  // de round-trip-uri IndexedDB SECVENTIALE, chiar dupa faza deja costisitoare
+  // de analiza AI. Inlocuit cu un singur bulkGet + un singur bulkPut.
+  const allMemberIds = groupResults.flatMap(g => g.memberIds);
+  const memberRecords = await db.photos.bulkGet(allMemberIds);
+  const recordById = new Map<string, PhotoRecord>();
+  allMemberIds.forEach((id, i) => { const rec = memberRecords[i]; if (rec) recordById.set(id, rec); });
+
+  const updates: PhotoRecord[] = [];
   for (const g of groupResults) {
     for (const memberId of g.memberIds) {
       groups.set(memberId, g.groupId);
-      const patch: Partial<PhotoRecord> = { groupId: g.groupId };
-      if (memberId !== g.bestId) {
-        const rec = await db.photos.get(memberId);
-        if (rec && rec.status === 'selected') patch.status = 'review';
-      }
-      await db.photos.update(memberId, patch);
+      const rec = recordById.get(memberId);
+      if (!rec) continue;
+      const next: PhotoRecord = { ...rec, groupId: g.groupId };
+      if (memberId !== g.bestId && rec.status === 'selected') next.status = 'review';
+      updates.push(next);
     }
   }
+  if (updates.length) await db.photos.bulkPut(updates);
 
   // Fara acest avertisment, un import in care TOATE pozele esueaza la decodare
   // (fisier corupt, format neasteptat, poza cu 0 fete detectabile pe un device

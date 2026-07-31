@@ -143,9 +143,13 @@ export function deriveSeriesKeyword(groupId: string): string {
   return `Serie ${groupId}`;
 }
 
+// vezi acelasi filtru (si acelasi motiv, defense-in-depth) in exportPhotos.ts
+const ILLEGAL_PATH_CHARS = /[\\/:*?"<>|]/g;
+
 function xmpFileName(fileName: string): string {
   const dot = fileName.lastIndexOf('.');
-  return (dot > 0 ? fileName.slice(0, dot) : fileName) + '.xmp';
+  const base = (dot > 0 ? fileName.slice(0, dot) : fileName).replace(ILLEGAL_PATH_CHARS, '-').trim();
+  return (base || 'poza') + '.xmp';
 }
 
 export interface XmpExportResult {

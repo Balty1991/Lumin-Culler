@@ -170,6 +170,17 @@ describe('exportXMPSidecars (fallback fara File System Access API)', () => {
     expect(entries.map(e => e.path).sort()).toEqual(['a.xmp', 'b.xmp', 'c.xmp']);
   });
 
+  // Bug real gasit de auditul QA (defense-in-depth, ca la exportPhotos.ts):
+  // un "../" literal in numele original nu mai trebuie sa poata scapa din
+  // path-ul de intrare in arhiva zip.
+  it('sanitizeaza separatorii de path dintr-un nume de fisier nesigur', async () => {
+    const result = await exportXMPSidecars([{ fileName: '../../etc/evil.jpg', status: 'selected', rating: 5 }]);
+    expect(result.exported).toBe(1);
+    const [path] = downloadBlob.mock.calls[0];
+    expect(path).not.toMatch(/[/\\]/);
+    expect(path.endsWith('.xmp')).toBe(true);
+  });
+
   // Bug real gasit de auditul QA: exportul XMP e mereu plat, deci doua poze
   // cu acelasi nume de fisier (carduri de memorie diferite) generau acelasi
   // "nume.xmp" si se suprascriau silentios una pe alta in zip.
