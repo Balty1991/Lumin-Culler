@@ -205,6 +205,15 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
+        // Bug real raportat de utilizator (testare pe telefon real): pe Android, un swipe
+        // dus aproape de marginea ecranului poate fi "furat" de gestul de sistem (ex. inapoi)
+        // fara sa mai ajunga niciodata un eveniment pointerup/pointercancel la pagina — dragX
+        // ramanea blocat la o valoare reziduala (translateX), iar poza aparea vizibil
+        // decentrata (o banda neagra pe una din laturi), pana la urmatoarea decizie reala.
+        // onLostPointerCapture e evenimentul DOM dedicat exact acestui caz (pierderea
+        // capturii, indiferent de motiv) — plasa de siguranta pe care pointerUp/Cancel n-o
+        // acopereau.
+        onLostPointerCapture={endDrag}
         title={zoomed ? tr('detail.zoom.exit') : tr('detail.zoom.hint')}
         role="button"
         tabIndex={0}
