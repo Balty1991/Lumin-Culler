@@ -193,6 +193,15 @@ export interface AnalysisRecord {
    * intr-o poza aleasa. 0..1. Optional: doar cand faceCount > 0.
    */
   groupAwkwardRatio?: number;
+  /**
+   * Fractiunea de fete cu un zambet AUTENTIC (marker Duchenne — zambet real +
+   * ochi usor ingustati, nu doar gura care zambeste) — vezi
+   * GENUINE_SMILE_EYE_THRESHOLD in worker pentru datele de calibrare reale
+   * (90 de fete, diferenta mare intre grupul autentic/fortat). Complementar
+   * fata de groupSmileRatio/bestSmile (care masoara CAT de mult se zambeste,
+   * nu CAT de autentic e). 0..1. Optional: doar cand faceCount > 0.
+   */
+  groupGenuineSmileRatio?: number;
   /** Media contact-vizual (eyeContact) pe toate fetele — 0..1. Optional: doar cand faceCount > 0. */
   avgEyeContact?: number;
   /** Media "engagement" (expresie pozitiva vs negativa) pe toate fetele — 0..1. Optional: doar cand faceCount > 0. */

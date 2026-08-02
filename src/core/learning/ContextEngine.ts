@@ -88,6 +88,10 @@ const PRIOR_WEIGHTS: FeatureVector = {
   // fara zambet/surpriza reala) — vezi isAwkwardExpression in worker.
   // Pondere negativa modesta, in acelasi spirit ca strangerPenalty/clipping.
   groupAwkwardRatio: -0.3,
+  // zambet AUTENTIC (nu doar "cat de mult zambeste") — vezi worker pentru
+  // datele de calibrare reale; pondere pozitiva modesta, bonus separat de
+  // bestSmile/groupSmileRatio, nu inlocuieste-le.
+  groupGenuineSmileRatio: 0.25,
   avgEyeContact: 0.35,
   avgEngagement: 0.3,
   highlightClipping: -0.4,
@@ -166,6 +170,7 @@ const PRIOR_FEATURE_STATS: Record<string, { mean: number; std: number }> = {
   groupEyesOpenRatio: { mean: 0.75, std: 0.3 },
   groupSmileRatio: { mean: 0.4, std: 0.3 },
   groupAwkwardRatio: { mean: 0.15, std: 0.3 },
+  groupGenuineSmileRatio: { mean: 0.25, std: 0.35 },
   avgEyeContact: { mean: 0.5, std: 0.25 },
   avgEngagement: { mean: 0.5, std: 0.25 },
   subjectInFocus: { mean: 0.7, std: 0.46 },
@@ -202,7 +207,7 @@ function seedFeatureStats(): Record<string, FeatureStat> {
 const FACTOR_FEATURES = new Set([
   'sharpness', 'exposureBalance', 'exposureRaw', 'bestSmile', 'allEyesOpen', 'faceCount',
   'knownFaceRatio', 'strangerPenalty', 'faceScore', 'ruleOfThirds', 'headroom',
-  'groupEyesOpenRatio', 'groupSmileRatio', 'groupAwkwardRatio', 'avgEyeContact', 'avgEngagement',
+  'groupEyesOpenRatio', 'groupSmileRatio', 'groupAwkwardRatio', 'groupGenuineSmileRatio', 'avgEyeContact', 'avgEngagement',
   'highlightClipping', 'shadowClipping', 'horizonLevel', 'isoPenalty', 'apertureRaw',
   'shutterSpeedRaw', 'focalLengthRaw', 'compositionScore', 'leadingLines', 'symmetry',
   'negativeSpace', 'lightHard', 'lightSoft', 'goldenHour', 'subjectInFocus',
@@ -265,7 +270,7 @@ export function explainFactors(
  */
 export const FACE_ONLY_FEATURES = [
   'bestSmile', 'allEyesOpen', 'faceCount', 'knownFaceRatio', 'strangerPenalty', 'faceScore',
-  'ruleOfThirds', 'headroom', 'groupEyesOpenRatio', 'groupSmileRatio', 'groupAwkwardRatio', 'avgEyeContact',
+  'ruleOfThirds', 'headroom', 'groupEyesOpenRatio', 'groupSmileRatio', 'groupAwkwardRatio', 'groupGenuineSmileRatio', 'avgEyeContact',
   'avgEngagement', 'subjectInFocus', 'bokehQuality'
 ] as const;
 
@@ -355,6 +360,7 @@ export function extractFeatures(a: AnalysisRecord): FeatureVector {
     features.groupEyesOpenRatio = a.groupEyesOpenRatio ?? 0.5;
     features.groupSmileRatio = a.groupSmileRatio ?? 0.5;
     features.groupAwkwardRatio = a.groupAwkwardRatio ?? 0.5;
+    features.groupGenuineSmileRatio = a.groupGenuineSmileRatio ?? 0.5;
     features.avgEyeContact = a.avgEyeContact ?? 0.5;
     features.avgEngagement = a.avgEngagement ?? 0.5;
     features.subjectInFocus = a.subjectInFocus === undefined ? 0.5 : (a.subjectInFocus ? 1 : 0);
@@ -530,7 +536,7 @@ export class ContextEngine {
    */
   private static readonly PREF_FEATURES = new Set([
     'sharpness', 'exposureRaw', 'bestSmile', 'allEyesOpen', 'knownFaceRatio', 'strangerPenalty',
-    'ruleOfThirds', 'headroom', 'groupEyesOpenRatio', 'groupSmileRatio', 'groupAwkwardRatio', 'avgEyeContact',
+    'ruleOfThirds', 'headroom', 'groupEyesOpenRatio', 'groupSmileRatio', 'groupAwkwardRatio', 'groupGenuineSmileRatio', 'avgEyeContact',
     'avgEngagement', 'highlightClipping', 'shadowClipping', 'horizonLevel', 'isoPenalty',
     'apertureRaw', 'shutterSpeedRaw', 'focalLengthRaw', 'compositionScore', 'leadingLines',
     'symmetry', 'negativeSpace', 'lightHard', 'lightSoft', 'goldenHour', 'subjectInFocus',

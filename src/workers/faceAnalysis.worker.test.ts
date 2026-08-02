@@ -9,6 +9,7 @@ import type { analyzeColor as analyzeColorType } from './faceAnalysis.worker';
 import type { scoreFocusAndBokeh as scoreFocusAndBokehType } from './faceAnalysis.worker';
 import type { mainObjectBox as mainObjectBoxType } from './faceAnalysis.worker';
 import type { isAwkwardExpression as isAwkwardExpressionType } from './faceAnalysis.worker';
+import type { isGenuineSmile as isGenuineSmileType } from './faceAnalysis.worker';
 import type { FaceInsight } from '../core/db';
 import type { ObjectResult } from '@vladmandic/human';
 
@@ -54,10 +55,12 @@ let analyzeColor: typeof analyzeColorType;
 let scoreFocusAndBokeh: typeof scoreFocusAndBokehType;
 let mainObjectBox: typeof mainObjectBoxType;
 let isAwkwardExpression: typeof isAwkwardExpressionType;
+let isGenuineSmile: typeof isGenuineSmileType;
 beforeEach(async () => {
   ({
     FaceAnalysisService, blendSubjectSharpness, regionLaplacianVariance, varianceToSharpnessScore,
-    detectSymmetry, negativeSpaceScore, analyzeColor, scoreFocusAndBokeh, mainObjectBox, isAwkwardExpression
+    detectSymmetry, negativeSpaceScore, analyzeColor, scoreFocusAndBokeh, mainObjectBox, isAwkwardExpression,
+    isGenuineSmile
   } = await import('./faceAnalysis.worker'));
 });
 
@@ -379,5 +382,36 @@ describe('isAwkwardExpression', () => {
 
   it('treats a missing emotion vector as neutral (0), not as an exemption', () => {
     expect(isAwkwardExpression(face({ mouthOpen: true }))).toBe(true);
+  });
+});
+
+/**
+ * Prag calibrat pe date reale (vezi GENUINE_SMILE_EYE_THRESHOLD in worker):
+ * 90 de fete rulate prin Human.js real (backend WASM in Node, nu mock) au dat
+ * eyeOpen mediu 0.657 pentru zambet autentic vs 0.873 pentru zambet fortat —
+ * testele de mai jos fixeaza acel comportament calibrat, nu doar logica generala.
+ */
+describe('isGenuineSmile', () => {
+  function face(overrides: Partial<FaceInsight> = {}): FaceInsight {
+    return {
+      box: [0, 0, 0.1, 0.1], faceScore: 0.9, smile: 0, eyesOpen: { left: 1, right: 1 },
+      isBlinking: false, personId: null, personName: null, similarity: 0, ...overrides
+    };
+  }
+
+  it('is false without a real smile, regardless of how narrowed the eyes are', () => {
+    expect(isGenuineSmile(face({ smile: 0.1, eyesOpen: { left: 0.5, right: 0.5 } }))).toBe(false);
+  });
+
+  it('is false for a smile with wide-open eyes (the "fortat" pattern from calibration data)', () => {
+    expect(isGenuineSmile(face({ smile: 0.8, eyesOpen: { left: 0.9, right: 0.9 } }))).toBe(false);
+  });
+
+  it('is true for a smile with narrowed eyes (the "autentic" pattern from calibration data)', () => {
+    expect(isGenuineSmile(face({ smile: 0.8, eyesOpen: { left: 0.6, right: 0.6 } }))).toBe(true);
+  });
+
+  it('averages both eyes — one narrowed eye is not enough if the other stays wide open', () => {
+    expect(isGenuineSmile(face({ smile: 0.8, eyesOpen: { left: 0.6, right: 1.0 } }))).toBe(false); // avg 0.8 > threshold
   });
 });

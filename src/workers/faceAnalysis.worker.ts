@@ -70,6 +70,18 @@ const BLINK_EAR_THRESHOLD = 0.18;
 const BLINK_EAR_THRESHOLD_NORMALIZED = (BLINK_EAR_THRESHOLD - 0.08) / 0.25;
 const GROUP_SMILE_THRESHOLD = 0.4; // prag peste care o fata e considerata "zambitoare" pentru rate de grup
 /**
+ * Prag de "ochi ingustati" sub care un zambet e considerat autentic (marker
+ * Duchenne), NU o presupunere — calibrat pe date reale: 90 de fete (40 zambet
+ * autentic / 50 fortat, imagini generate AI dar rulate prin ACEEASI pipeline
+ * Human.js/eyeOpenness folosita in productie) au dat eyeOpen mediu 0.657
+ * (autentic) vs 0.873 (fortat), o diferenta mare fata de deviatia standard a
+ * fiecarui grup (~0.14) — pragul de mai jos e media celor doua. Limitare
+ * onesta: fete generate AI, nu momente reale capturate — un semnal la nivel
+ * de populatie (ca toate celelalte praguri din acest fisier), nu o calibrare
+ * per-persoana (n-avem o poza neutra de referinta pentru fiecare subiect).
+ */
+const GENUINE_SMILE_EYE_THRESHOLD = 0.77;
+/**
  * Prag empiric pe Mouth Aspect Ratio brut (vertical/orizontal, nemodificat) —
  * gura inchisa sau un zambet normal (chiar cu dinti vizibili) raman de obicei
  * sub acest raport; un cascat sau o gura larg deschisa "la mijlocul cuvantului"
@@ -193,6 +205,18 @@ export function isAwkwardExpression(face: FaceInsight): boolean {
   const happy = face.emotion?.happy ?? 0;
   const surprise = face.emotion?.surprise ?? 0;
   return happy < 0.3 && surprise < 0.3;
+}
+
+/**
+ * Zambet autentic (marker Duchenne) — vezi GENUINE_SMILE_EYE_THRESHOLD pentru
+ * datele de calibrare. Necesita ambele: zambet real (nu doar gura deschisa,
+ * ci scorul de "happy" peste acelasi prag folosit la groupSmileRatio) SI ochii
+ * usor ingustati fata de un zambet fortat/pozat.
+ */
+export function isGenuineSmile(face: FaceInsight): boolean {
+  if (face.smile < GROUP_SMILE_THRESHOLD) return false;
+  const eyeOpen = (face.eyesOpen.left + face.eyesOpen.right) / 2;
+  return eyeOpen < GENUINE_SMILE_EYE_THRESHOLD;
 }
 
 const EYE_CONTACT_ANGLE_LIMIT = 0.6;  // radiani (~34°) — combinat yaw+pitch peste asta = clar intors
@@ -911,6 +935,7 @@ export class FaceAnalysisService {
       groupEyesOpenRatio: faces.length ? faces.filter(f => !f.isBlinking).length / faces.length : undefined,
       groupSmileRatio: faces.length ? faces.filter(f => f.smile >= GROUP_SMILE_THRESHOLD).length / faces.length : undefined,
       groupAwkwardRatio: faces.length ? faces.filter(isAwkwardExpression).length / faces.length : undefined,
+      groupGenuineSmileRatio: faces.length ? faces.filter(isGenuineSmile).length / faces.length : undefined,
       avgEyeContact: faces.length ? faces.reduce((s, f) => s + (f.eyeContact ?? 0.5), 0) / faces.length : undefined,
       avgEngagement: faces.length
         ? faces.reduce((s, f) => s + engagementScore(f.emotion ?? { happy: 0, surprise: 0, negative: 0 }), 0) / faces.length
