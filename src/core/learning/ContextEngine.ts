@@ -118,6 +118,75 @@ const PRIOR_WEIGHTS: FeatureVector = {
 };
 
 /**
+ * Statistici de referinta (medie, deviatie standard) pentru o poza amatoare
+ * "obisnuita" — folosite ca sa SEMENE modelul nou-creat cu date reale, nu gol.
+ * Bug real gasit: normalize() foloseste valoarea BRUTA (nenormalizata) pentru
+ * primele cateva poze dintr-un context nou (`s.n > 2 ? zscore : raw`), pentru
+ * ca featureStats pornea complet gol ({}). Cum majoritatea feature-urilor sunt
+ * pe scala 0..1 si PRIOR_WEIGHTS de mai sus sunt in marea lor majoritate
+ * pozitive, suma ponderata a valorilor BRUTE (nu z-score) iese aproape mereu
+ * peste pragul de selectie (65) chiar din prima poza — exact simptomul
+ * raportat: "pe telefon nou pare ca aproba tot, fara criterii reale". Cu
+ * aceste statistici semanate, normalize() foloseste z-score-uri sensibile
+ * (fata de o poza "medie" plauzibila) inca de la prima fotografie, iar pe
+ * masura ce utilizatorul ia decizii reale, statisticile Welford converg
+ * treptat spre datele lui proprii (vezi PRIOR_N mai jos) — cunostintele
+ * generale raman doar un PUNCT DE PORNIRE, nu o limita.
+ */
+const PRIOR_FEATURE_STATS: Record<string, { mean: number; std: number }> = {
+  sharpness: { mean: 0.65, std: 0.18 },
+  exposureBalance: { mean: 0.72, std: 0.18 },
+  exposureRaw: { mean: 0.5, std: 0.2 },
+  highlightClipping: { mean: 0.05, std: 0.08 },
+  shadowClipping: { mean: 0.05, std: 0.08 },
+  isoPenalty: { mean: 0.15, std: 0.15 },
+  apertureRaw: { mean: 0.5, std: 0.25 },
+  shutterSpeedRaw: { mean: 0.5, std: 0.25 },
+  focalLengthRaw: { mean: 0.5, std: 0.25 },
+  compositionScore: { mean: 0.5, std: 0.2 },
+  leadingLines: { mean: 0.25, std: 0.43 },
+  symmetry: { mean: 0.25, std: 0.43 },
+  negativeSpace: { mean: 0.3, std: 0.2 },
+  lightHard: { mean: 0.25, std: 0.43 },
+  lightSoft: { mean: 0.25, std: 0.43 },
+  goldenHour: { mean: 0.12, std: 0.33 },
+  colorHarmony: { mean: 0.6, std: 0.2 },
+  bestSmile: { mean: 0.4, std: 0.3 },
+  allEyesOpen: { mean: 0.75, std: 0.43 },
+  faceCount: { mean: 0.2, std: 0.15 },
+  knownFaceRatio: { mean: 0.15, std: 0.3 },
+  strangerPenalty: { mean: 0.7, std: 0.35 },
+  faceScore: { mean: 0.7, std: 0.2 },
+  ruleOfThirds: { mean: 0.5, std: 0.2 },
+  headroom: { mean: 0.5, std: 0.2 },
+  groupEyesOpenRatio: { mean: 0.75, std: 0.3 },
+  groupSmileRatio: { mean: 0.4, std: 0.3 },
+  avgEyeContact: { mean: 0.5, std: 0.25 },
+  avgEngagement: { mean: 0.5, std: 0.25 },
+  subjectInFocus: { mean: 0.7, std: 0.46 },
+  bokehQuality: { mean: 0.5, std: 0.3 },
+  horizonLevel: { mean: 0.7, std: 0.25 }
+};
+
+/**
+ * "Increderea" (in poze echivalente) acordata statisticilor de mai sus la
+ * pornire — Welford le trateaza exact ca pe N poze reale deja vazute. Suficient
+ * de mic ca datele reale ale utilizatorului sa preia rapid controlul (dupa
+ * cateva zeci de poze proprii, prior-ul e deja o fractiune mica din medie),
+ * dar suficient de mare cat sa nu se comporte ca "zgomot" instabil in primele
+ * cateva poze (acelasi ordin de marime ca COLD_START_SAMPLES).
+ */
+const PRIOR_N = 6;
+
+function seedFeatureStats(): Record<string, FeatureStat> {
+  const out: Record<string, FeatureStat> = {};
+  for (const [k, { mean, std }] of Object.entries(PRIOR_FEATURE_STATS)) {
+    out[k] = { mean, m2: std * std * (PRIOR_N - 1), n: PRIOR_N };
+  }
+  return out;
+}
+
+/**
  * Nume scurte, lizibile, per feature — folosite pentru explicabilitate PER POZA
  * ("de ce a primit acest scor", DetailView), diferit de perechile pozitiv/negativ
  * din summarize() (care descriu directia PONDERII invatate, nu contributia unei
@@ -536,7 +605,7 @@ export class ContextEngine {
         contextKey,
         weights: { ...PRIOR_WEIGHTS },
         bias: 0,
-        featureStats: {},
+        featureStats: seedFeatureStats(),
         sampleCount: 0,
         updatedAt: Date.now()
       };
