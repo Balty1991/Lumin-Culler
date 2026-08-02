@@ -152,6 +152,13 @@ export interface FaceInsight {
    * sau cascat (nedorit) — vezi groupAwkwardRatio pe AnalysisRecord.
    */
   mouthOpen?: boolean;
+  /**
+   * Catchlight ("lumina in ochi") — un punct mic si luminos reflectat pe
+   * cornee, reper clasic de portret ("privire vie" vs. ochi "stinsi"). Vezi
+   * detectCatchlight in worker. Optional: absent pe inregistrari vechi
+   * (dinainte de aceasta functie), tratat neutru, nu ca "fara catchlight".
+   */
+  catchlight?: boolean;
 }
 
 export interface AnalysisRecord {
@@ -205,6 +212,15 @@ export interface AnalysisRecord {
    * afirmatie cand nu putem distinge sigur intre cele doua.
    */
   groupGenuineSmileRatio?: number;
+  /**
+   * Fractiunea de fete cu catchlight (vezi FaceInsight.catchlight) — un reper
+   * clasic de portret profesionist ("privire vie"), independent de zambet/
+   * ochi deschisi. Nu e calibrat pe date reale (spre deosebire de
+   * groupGenuineSmileRatio) — pragurile din detectCatchlight sunt o
+   * aproximare rezonabila de cunostinte generale de fotografie. 0..1.
+   * Optional: doar cand faceCount > 0.
+   */
+  groupCatchlightRatio?: number;
   /** Media contact-vizual (eyeContact) pe toate fetele — 0..1. Optional: doar cand faceCount > 0. */
   avgEyeContact?: number;
   /** Media "engagement" (expresie pozitiva vs negativa) pe toate fetele — 0..1. Optional: doar cand faceCount > 0. */

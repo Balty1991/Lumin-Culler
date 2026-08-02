@@ -150,6 +150,51 @@ function mouthAspectRatio(mesh: number[][]): number {
 }
 
 /**
+ * Regiunea (in coordonate PIXEL, aceleasi cu mesh-ul, NU normalizate) din care
+ * decupam un ochi pentru catchlight — patrata, centrata pe ochi, cu o marja de
+ * 60% peste latimea ochiului ca sa prindem si irisul/pupila, nu doar fanta
+ * ingusta dintre pleoape.
+ */
+function eyeCropBox(mesh: number[][], eye: typeof LEFT_EYE): { x: number; y: number; size: number } {
+  const cx = (mesh[eye.inner][0] + mesh[eye.outer][0]) / 2;
+  const cy = (mesh[eye.top][1] + mesh[eye.bottom][1]) / 2;
+  const size = Math.max(4, dist(mesh[eye.inner], mesh[eye.outer]) * 1.6);
+  return { x: cx - size / 2, y: cy - size / 2, size };
+}
+
+/**
+ * Catchlight ("lumina in ochi") — un reper clasic de portret: un punct mic si
+ * luminos reflectat pe cornee (de la o fereastra, blitz, orice sursa de lumina)
+ * face privirea sa para "vie"; absenta lui, ochi "stinsi". Cautam exact asta —
+ * un varf de luminanta LOCALIZAT (nu tot ochiul luminos, care ar insemna doar
+ * o poza supraexpusa) — nu o simulare, doar cea mai luminoasa pata din decupaj
+ * comparata cu media restului (fara o mica vecinatate in jurul ei). Pragurile
+ * (200 luminanta absoluta, +60 fata de rest) sunt o aproximare rezonabila
+ * ("prag empiric", ca restul detectorilor din acest fisier), nu calibrate pe
+ * un set mare de poze reale.
+ */
+export function detectCatchlight(crop: ImageData): boolean {
+  const gray = toGray(crop);
+  const w = crop.width, h = crop.height;
+  let maxLum = 0, maxIdx = -1;
+  for (let i = 0; i < gray.length; i++) {
+    if (gray[i] > maxLum) { maxLum = gray[i]; maxIdx = i; }
+  }
+  if (maxLum < 200 || maxIdx < 0) return false;
+  const mx = maxIdx % w, my = Math.floor(maxIdx / w);
+  const excludeRadius = Math.max(1, Math.round(Math.min(w, h) * 0.15));
+  let sum = 0, n = 0;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (Math.hypot(x - mx, y - my) <= excludeRadius) continue;
+      sum += gray[y * w + x]; n++;
+    }
+  }
+  if (!n) return false;
+  return maxLum - sum / n >= 60;
+}
+
+/**
  * Cel mai mare obiect CenterNet suficient de sigur/mare ca sa fie tratat drept
  * "subiectul" pozei — folosit DOAR cand nu exista nicio fata (poza fara oameni:
  * macro, produs, animale), pentru scoreFocusAndBokeh mai jos. Preferam
@@ -714,6 +759,27 @@ export class FaceAnalysisService {
    * pastreaza raportul de aspect real al cadrului, pentru masuratori corecte.
    */
   private horizonCanvas = new OffscreenCanvas(360, 360);
+  /** Canvas mic, redimensionat per ochi — pentru detectCatchlight (vezi eyeCropBox). */
+  private eyeCanvas = new OffscreenCanvas(32, 32);
+
+  /**
+   * Decupeaza regiunea unui ochi (eyeCropBox) direct din bitmap-ul ORIGINAL —
+   * TREBUIE apelat inainte de bitmap.close() mai jos in analyze(). Un ochi mic/
+   * la marginea cadrului poate produce un decupaj partial sau gol; asta duce
+   * doar la "niciun catchlight detectat" (degradare sigura, nu eroare).
+   */
+  private hasCatchlight(bitmap: ImageBitmap, mesh: number[][], eye: typeof LEFT_EYE): boolean {
+    const box = eyeCropBox(mesh, eye);
+    const size = Math.max(4, Math.round(box.size));
+    if (this.eyeCanvas.width !== size || this.eyeCanvas.height !== size) {
+      this.eyeCanvas.width = size;
+      this.eyeCanvas.height = size;
+    }
+    const ctx = this.eyeCanvas.getContext('2d', { willReadFrequently: true })!;
+    ctx.clearRect(0, 0, size, size);
+    ctx.drawImage(bitmap, box.x, box.y, size, size, 0, 0, size, size);
+    return detectCatchlight(ctx.getImageData(0, 0, size, size));
+  }
 
   /**
    * Returneaza backend-ul TFJS efectiv activ dupa incarcare (nu doar cel cerut
@@ -844,7 +910,7 @@ export class FaceAnalysisService {
     return best;
   }
 
-  private toInsight(face: FaceResult, imgW: number, imgH: number): FaceInsight {
+  private toInsight(face: FaceResult, imgW: number, imgH: number, catchlight: boolean): FaceInsight {
     const mesh = face.mesh as unknown as number[][];
     const left = mesh?.length >= 468 ? eyeOpenness(mesh, LEFT_EYE) : 0.5;
     const right = mesh?.length >= 468 ? eyeOpenness(mesh, RIGHT_EYE) : 0.5;
@@ -860,6 +926,7 @@ export class FaceAnalysisService {
       eyesOpen: { left: Math.round(left * 100) / 100, right: Math.round(right * 100) / 100 },
       isBlinking: left < BLINK_EAR_THRESHOLD_NORMALIZED || right < BLINK_EAR_THRESHOLD_NORMALIZED,
       mouthOpen,
+      catchlight,
       personId: match.id,
       personName: match.name,
       similarity: Math.round(match.similarity * 100) / 100,
@@ -902,9 +969,18 @@ export class FaceAnalysisService {
       horizonImg = hctx.getImageData(0, 0, hw, hh);
     }
 
+    // catchlight-urile au nevoie de un decupaj de rezolutie mare per ochi, direct
+    // din bitmap-ul ORIGINAL — trebuie calculate ACUM, cat inca e valid (smallImg
+    // de mai sus e mult prea mic/distorsionat pentru asa ceva)
+    const catchlights = result.face.map(f => {
+      const mesh = f.mesh as unknown as number[][];
+      if (!mesh || mesh.length < 468) return false;
+      return this.hasCatchlight(bitmap, mesh, LEFT_EYE) || this.hasCatchlight(bitmap, mesh, RIGHT_EYE);
+    });
+
     bitmap.close(); // free GPU/CPU memory immediately
 
-    const faces = result.face.map(f => this.toInsight(f, imgW, imgH));
+    const faces = result.face.map((f, i) => this.toInsight(f, imgW, imgH, catchlights[i]));
     const known = faces.filter(f => f.personId !== null);
     const composition = scoreComposition(faces);
     const clipping = clippingScores(smallImg);
@@ -950,6 +1026,7 @@ export class FaceAnalysisService {
       groupSmileRatio: faces.length ? faces.filter(f => f.smile >= GROUP_SMILE_THRESHOLD).length / faces.length : undefined,
       groupAwkwardRatio: faces.length ? faces.filter(isAwkwardExpression).length / faces.length : undefined,
       groupGenuineSmileRatio: computeGroupGenuineSmileRatio(faces, lightQuality),
+      groupCatchlightRatio: faces.length ? faces.filter(f => f.catchlight).length / faces.length : undefined,
       avgEyeContact: faces.length ? faces.reduce((s, f) => s + (f.eyeContact ?? 0.5), 0) / faces.length : undefined,
       avgEngagement: faces.length
         ? faces.reduce((s, f) => s + engagementScore(f.emotion ?? { happy: 0, surprise: 0, negative: 0 }), 0) / faces.length

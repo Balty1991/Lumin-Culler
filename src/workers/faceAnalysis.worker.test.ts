@@ -11,6 +11,7 @@ import type { mainObjectBox as mainObjectBoxType } from './faceAnalysis.worker';
 import type { isAwkwardExpression as isAwkwardExpressionType } from './faceAnalysis.worker';
 import type { isGenuineSmile as isGenuineSmileType } from './faceAnalysis.worker';
 import type { computeGroupGenuineSmileRatio as computeGroupGenuineSmileRatioType } from './faceAnalysis.worker';
+import type { detectCatchlight as detectCatchlightType } from './faceAnalysis.worker';
 import type { FaceInsight } from '../core/db';
 import type { ObjectResult } from '@vladmandic/human';
 
@@ -58,11 +59,12 @@ let mainObjectBox: typeof mainObjectBoxType;
 let isAwkwardExpression: typeof isAwkwardExpressionType;
 let isGenuineSmile: typeof isGenuineSmileType;
 let computeGroupGenuineSmileRatio: typeof computeGroupGenuineSmileRatioType;
+let detectCatchlight: typeof detectCatchlightType;
 beforeEach(async () => {
   ({
     FaceAnalysisService, blendSubjectSharpness, regionLaplacianVariance, varianceToSharpnessScore,
     detectSymmetry, negativeSpaceScore, analyzeColor, scoreFocusAndBokeh, mainObjectBox, isAwkwardExpression,
-    isGenuineSmile, computeGroupGenuineSmileRatio
+    isGenuineSmile, computeGroupGenuineSmileRatio, detectCatchlight
   } = await import('./faceAnalysis.worker'));
 });
 
@@ -443,5 +445,35 @@ describe('computeGroupGenuineSmileRatio', () => {
   it('is undefined in harsh/direct light, even with faces that would otherwise look genuine', () => {
     const faces = [face(), face()]; // ambele "genuine" dupa geometrie
     expect(computeGroupGenuineSmileRatio(faces, 'hard')).toBeUndefined();
+  });
+});
+
+describe('detectCatchlight', () => {
+  function grayImage(size: number, level: number): ImageData {
+    const data = new Uint8ClampedArray(size * size * 4);
+    for (let i = 0; i < size * size; i++) { data[i * 4] = level; data[i * 4 + 1] = level; data[i * 4 + 2] = level; data[i * 4 + 3] = 255; }
+    return { data, width: size, height: size, colorSpace: 'srgb' } as ImageData;
+  }
+  function withBrightSpot(size: number, baseLevel: number, spotLevel: number, cx: number, cy: number): ImageData {
+    const img = grayImage(size, baseLevel);
+    const idx = (cy * size + cx) * 4;
+    img.data[idx] = spotLevel; img.data[idx + 1] = spotLevel; img.data[idx + 2] = spotLevel;
+    return img;
+  }
+
+  it('detects a small, localized bright spot against a dark iris/pupil (a real catchlight)', () => {
+    expect(detectCatchlight(withBrightSpot(16, 40, 255, 8, 8))).toBe(true);
+  });
+
+  it('does not flag a uniformly dark eye (no light source reflected)', () => {
+    expect(detectCatchlight(grayImage(16, 40))).toBe(false);
+  });
+
+  it('does not flag a uniformly bright/overexposed crop — brightness alone is not a catchlight', () => {
+    expect(detectCatchlight(grayImage(16, 230))).toBe(false);
+  });
+
+  it('does not flag a moderately bright spot that is not bright enough in absolute terms', () => {
+    expect(detectCatchlight(withBrightSpot(16, 40, 180, 8, 8))).toBe(false); // sub pragul absolut de 200
   });
 });
