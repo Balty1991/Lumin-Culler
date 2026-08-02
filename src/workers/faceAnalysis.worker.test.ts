@@ -7,7 +7,10 @@ import type { detectSymmetry as detectSymmetryType } from './faceAnalysis.worker
 import type { negativeSpaceScore as negativeSpaceScoreType } from './faceAnalysis.worker';
 import type { analyzeColor as analyzeColorType } from './faceAnalysis.worker';
 import type { scoreFocusAndBokeh as scoreFocusAndBokehType } from './faceAnalysis.worker';
+import type { mainObjectBox as mainObjectBoxType } from './faceAnalysis.worker';
+import type { isAwkwardExpression as isAwkwardExpressionType } from './faceAnalysis.worker';
 import type { FaceInsight } from '../core/db';
+import type { ObjectResult } from '@vladmandic/human';
 
 /**
  * Regression pentru bug-ul real raportat (nu doar sandbox): pe unele telefoane,
@@ -49,10 +52,12 @@ let detectSymmetry: typeof detectSymmetryType;
 let negativeSpaceScore: typeof negativeSpaceScoreType;
 let analyzeColor: typeof analyzeColorType;
 let scoreFocusAndBokeh: typeof scoreFocusAndBokehType;
+let mainObjectBox: typeof mainObjectBoxType;
+let isAwkwardExpression: typeof isAwkwardExpressionType;
 beforeEach(async () => {
   ({
     FaceAnalysisService, blendSubjectSharpness, regionLaplacianVariance, varianceToSharpnessScore,
-    detectSymmetry, negativeSpaceScore, analyzeColor, scoreFocusAndBokeh
+    detectSymmetry, negativeSpaceScore, analyzeColor, scoreFocusAndBokeh, mainObjectBox, isAwkwardExpression
   } = await import('./faceAnalysis.worker'));
 });
 
@@ -311,5 +316,68 @@ describe('scoreFocusAndBokeh', () => {
     const result = scoreFocusAndBokeh(gray, W, H, [face([0.25, 0.25, 0.5, 0.5])]);
     expect(result.subjectInFocus).toBe(false);
     expect(result.bokehQuality).toBe('n/a');
+  });
+
+  it('judges focus/bokeh on the CenterNet object box when there are no faces (macro/product/animal shots)', () => {
+    const gray = new Float32Array(W * H).fill(128); // fundal plat (bgVar ~0)
+    fillBox(gray, [0.25, 0.25, 0.5, 0.5], 'checkerboard'); // "subiectul" — o floare, un caine etc.
+    const result = scoreFocusAndBokeh(gray, W, H, [], [0.25, 0.25, 0.5, 0.5]);
+    expect(result.subjectInFocus).toBe(true);
+    expect(result.bokehQuality).toBe('good');
+  });
+
+  it('still returns "n/a" with no faces AND no usable object box', () => {
+    const gray = new Float32Array(W * H).fill(128);
+    expect(scoreFocusAndBokeh(gray, W, H, [], undefined)).toEqual({ bokehQuality: 'n/a' });
+  });
+});
+
+describe('mainObjectBox', () => {
+  function obj(score: number, box: [number, number, number, number]): ObjectResult {
+    return { id: 0, score, class: 0, label: 'dog', box, boxRaw: box };
+  }
+
+  it('returns undefined when there are no objects', () => {
+    expect(mainObjectBox([])).toBeUndefined();
+  });
+
+  it('ignores low-confidence and tiny detections', () => {
+    expect(mainObjectBox([obj(0.2, [0.1, 0.1, 0.5, 0.5])])).toBeUndefined(); // sub prag de incredere
+    expect(mainObjectBox([obj(0.9, [0.1, 0.1, 0.05, 0.05])])).toBeUndefined(); // prea mic (0.25% din cadru)
+  });
+
+  it('picks the largest qualifying object, not merely the most confident one', () => {
+    const small = obj(0.95, [0.1, 0.1, 0.2, 0.2]);   // incredere mare, dar mic (4% din cadru)
+    const large = obj(0.4, [0.1, 0.1, 0.6, 0.6]);    // incredere mai mica, dar domina cadrul (36%)
+    expect(mainObjectBox([small, large])).toEqual(large.boxRaw);
+  });
+});
+
+describe('isAwkwardExpression', () => {
+  function face(overrides: Partial<FaceInsight> = {}): FaceInsight {
+    return {
+      box: [0, 0, 0.1, 0.1], faceScore: 0.9, smile: 0, eyesOpen: { left: 1, right: 1 },
+      isBlinking: false, personId: null, personName: null, similarity: 0, ...overrides
+    };
+  }
+
+  it('is false when the mouth is closed, regardless of emotion', () => {
+    expect(isAwkwardExpression(face({ mouthOpen: false }))).toBe(false);
+  });
+
+  it('is false for an open mouth explained by a real smile', () => {
+    expect(isAwkwardExpression(face({ mouthOpen: true, emotion: { happy: 0.8, surprise: 0, neutral: 0, negative: 0 } }))).toBe(false);
+  });
+
+  it('is false for an open mouth explained by genuine surprise', () => {
+    expect(isAwkwardExpression(face({ mouthOpen: true, emotion: { happy: 0, surprise: 0.7, neutral: 0, negative: 0 } }))).toBe(false);
+  });
+
+  it('is true for an open mouth with neither smile nor surprise — a mid-speech/yawn moment', () => {
+    expect(isAwkwardExpression(face({ mouthOpen: true, emotion: { happy: 0.05, surprise: 0.1, neutral: 0.8, negative: 0.05 } }))).toBe(true);
+  });
+
+  it('treats a missing emotion vector as neutral (0), not as an exemption', () => {
+    expect(isAwkwardExpression(face({ mouthOpen: true }))).toBe(true);
   });
 });

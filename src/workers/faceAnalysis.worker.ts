@@ -20,7 +20,7 @@
  */
 
 import * as Comlink from 'comlink';
-import { Human, type Config, type FaceResult, type BackendEnum } from '@vladmandic/human';
+import { Human, type Config, type FaceResult, type ObjectResult, type BackendEnum } from '@vladmandic/human';
 import type { AnalysisRecord, FaceInsight, KnownPerson } from '../core/db';
 
 // ── Config ───────────────────────────────────────────────────────────────────
@@ -55,6 +55,11 @@ const HUMAN_CONFIG: Partial<Config> = {
 // MediaPipe Face Mesh landmark indices for Eye Aspect Ratio (EAR)
 const LEFT_EYE = { top: 159, bottom: 145, inner: 133, outer: 33 };
 const RIGHT_EYE = { top: 386, bottom: 374, inner: 362, outer: 263 };
+// Acelasi principiu (raport geometric intre puncte de mesh), pentru gura —
+// buza superioara/inferioara interioara (13/14) si colturile gurii (61/291),
+// indici standard MediaPipe Face Mesh (aceiasi folositi peste tot in literatura
+// pentru Mouth Aspect Ratio — MAR).
+const MOUTH = { top: 13, bottom: 14, left: 61, right: 291 };
 
 const RECOGNITION_THRESHOLD = 0.55; // cosine similarity above this = known person
 const BLINK_EAR_THRESHOLD = 0.18;
@@ -64,6 +69,17 @@ const BLINK_EAR_THRESHOLD = 0.18;
 // loc de 0.18, marcand ochi normal deschisi ca "clipiti").
 const BLINK_EAR_THRESHOLD_NORMALIZED = (BLINK_EAR_THRESHOLD - 0.08) / 0.25;
 const GROUP_SMILE_THRESHOLD = 0.4; // prag peste care o fata e considerata "zambitoare" pentru rate de grup
+/**
+ * Prag empiric pe Mouth Aspect Ratio brut (vertical/orizontal, nemodificat) —
+ * gura inchisa sau un zambet normal (chiar cu dinti vizibili) raman de obicei
+ * sub acest raport; un cascat sau o gura larg deschisa "la mijlocul cuvantului"
+ * il depaseste clar. Aceeasi natura ca BLINK_EAR_THRESHOLD: o aproximare
+ * geometrica rezonabila, nu o valoare calibrata pe un set mare de poze reale.
+ */
+const MOUTH_OPEN_THRESHOLD = 0.32;
+/** Sub aceste incredere/suprafata, un obiect CenterNet e prea nesigur/mic ca sa fie tratat drept "subiectul" pozei. */
+const MAIN_OBJECT_MIN_SCORE = 0.3;
+const MAIN_OBJECT_MIN_AREA = 0.03; // fractiune din cadru — acelasi ordin de marime ca pragul de "fata mica" din classifyScene
 
 /**
  * Cat asteptam incarcarea/warmup-ul pe WebGPU inainte sa renuntam si sa trecem
@@ -114,6 +130,28 @@ function eyeOpenness(mesh: number[][], eye: typeof LEFT_EYE): number {
   return Math.min(1, Math.max(0, (ear - 0.08) / 0.25));
 }
 
+/** Mouth Aspect Ratio brut (vertical/orizontal) din mesh — vezi MOUTH_OPEN_THRESHOLD. */
+function mouthAspectRatio(mesh: number[][]): number {
+  const horizontal = dist(mesh[MOUTH.left], mesh[MOUTH.right]);
+  if (horizontal === 0) return 0;
+  return dist(mesh[MOUTH.top], mesh[MOUTH.bottom]) / horizontal;
+}
+
+/**
+ * Cel mai mare obiect CenterNet suficient de sigur/mare ca sa fie tratat drept
+ * "subiectul" pozei — folosit DOAR cand nu exista nicio fata (poza fara oameni:
+ * macro, produs, animale), pentru scoreFocusAndBokeh mai jos. Preferam
+ * suprafata (nu scorul de incredere brut) pentru ca cel mai relevant obiect
+ * pentru un fotograf care triaza e de obicei cel care domina cadrul, nu cel
+ * mai "sigur" detectat intr-un colt.
+ */
+export function mainObjectBox(objects: ObjectResult[]): [number, number, number, number] | undefined {
+  const candidates = objects.filter(o => o.score >= MAIN_OBJECT_MIN_SCORE && o.boxRaw[2] * o.boxRaw[3] >= MAIN_OBJECT_MIN_AREA);
+  if (!candidates.length) return undefined;
+  const best = candidates.reduce((a, b) => (a.boxRaw[2] * a.boxRaw[3] > b.boxRaw[2] * b.boxRaw[3] ? a : b));
+  return best.boxRaw;
+}
+
 // ── Emotie completa + contact vizual ────────────────────────────────────────
 // Sursa pentru gaze: Human.js calculeaza rotation.gaze.{bearing,strength} din
 // offset-ul irisului fata de centrul ochiului (necesita mesh 478pct, iris
@@ -140,6 +178,21 @@ function extractEmotion(face: FaceResult): { happy: number; surprise: number; ne
 /** Scor 0..1 de "expresie pozitiva" (engagement) — neutru (fara nicio emotie dominanta) = 0.5. */
 function engagementScore(emotion: { happy: number; surprise: number; negative: number }): number {
   return Math.max(0, Math.min(1, 0.5 + 0.5 * emotion.happy + 0.25 * emotion.surprise - 0.5 * emotion.negative));
+}
+
+/**
+ * "Stanjenitor" = gura vizibil deschisa (mouthOpen, geometric) FARA nicio
+ * emotie care sa explice/justifice acea deschidere — un zambet larg sau o
+ * surpriza reala au tot gura deschisa, dar sunt expresii DORITE; un moment
+ * prins "la mijlocul cuvantului" sau un cascat nu au nici zambet, nici
+ * surpriza. Pragurile pe happy/surprise sunt deliberat joase (0.3): vrem sa
+ * excludem orice urma reala a acestor emotii, nu doar cazul lor dominant.
+ */
+export function isAwkwardExpression(face: FaceInsight): boolean {
+  if (!face.mouthOpen) return false;
+  const happy = face.emotion?.happy ?? 0;
+  const surprise = face.emotion?.surprise ?? 0;
+  return happy < 0.3 && surprise < 0.3;
 }
 
 const EYE_CONTACT_ANGLE_LIMIT = 0.6;  // radiani (~34°) — combinat yaw+pitch peste asta = clar intors
@@ -486,15 +539,23 @@ export function regionLaplacianVariance(gray: Float32Array, w: number, h: number
 /**
  * Subiect in focus + calitatea bokeh-ului + claritatea subiectului (scor 0..100,
  * aceeasi scalare ca laplacianSharpness — vezi varianceToSharpnessScore) —
- * pentru blendSubjectSharpness mai jos. 'n/a'/undefined fara fete detectate SAU
- * cand regiunea e prea mica pentru o masuratoare stabila (acelasi prag ca
- * regionLaplacianVariance, n < 20 pixeli).
+ * pentru blendSubjectSharpness mai jos. Subiectul e fetele (cand exista) sau,
+ * pentru poze fara oameni, obiectul principal detectat de CenterNet
+ * (mainObjectBox) — acelasi rationament ca la portrete: un fundal difuz
+ * (bokeh) intentionat pe un macro/produs/animal nu trebuie sa penalizeze
+ * poza doar pentru ca fundalul e neclar. 'n/a'/undefined fara niciun subiect
+ * (nici fete, nici obiect suficient de sigur) SAU cand regiunea e prea mica
+ * pentru o masuratoare stabila (acelasi prag ca regionLaplacianVariance,
+ * n < 20 pixeli).
  */
-export function scoreFocusAndBokeh(gray: Float32Array, w: number, h: number, faces: FaceInsight[]): {
+export function scoreFocusAndBokeh(
+  gray: Float32Array, w: number, h: number, faces: FaceInsight[], objectBox?: [number, number, number, number]
+): {
   subjectInFocus?: boolean; bokehQuality: NonNullable<AnalysisRecord['bokehQuality']>; subjectSharpness?: number;
 } {
-  if (!faces.length) return { bokehQuality: 'n/a' };
-  const mask = boxesToMask(w, h, faces.map(f => f.box));
+  const subjectBoxes = faces.length ? faces.map(f => f.box) : (objectBox ? [objectBox] : []);
+  if (!subjectBoxes.length) return { bokehQuality: 'n/a' };
+  const mask = boxesToMask(w, h, subjectBoxes);
   const subjectVar = regionLaplacianVariance(gray, w, h, mask, true);
   const bgVar = regionLaplacianVariance(gray, w, h, mask, false);
   if (subjectVar < 0 || bgVar < 0) return { bokehQuality: 'n/a' };
@@ -749,6 +810,7 @@ export class FaceAnalysisService {
     const mesh = face.mesh as unknown as number[][];
     const left = mesh?.length >= 468 ? eyeOpenness(mesh, LEFT_EYE) : 0.5;
     const right = mesh?.length >= 468 ? eyeOpenness(mesh, RIGHT_EYE) : 0.5;
+    const mouthOpen = mesh?.length >= 468 ? mouthAspectRatio(mesh) > MOUTH_OPEN_THRESHOLD : false;
     const emotion = extractEmotion(face);
     const embedding = (face.embedding as number[]) ?? [];
     const match = embedding.length ? this.matchPerson(embedding) : { id: null, name: null, similarity: 0 };
@@ -759,6 +821,7 @@ export class FaceAnalysisService {
       smile: Math.round(emotion.happy * 100) / 100,
       eyesOpen: { left: Math.round(left * 100) / 100, right: Math.round(right * 100) / 100 },
       isBlinking: left < BLINK_EAR_THRESHOLD_NORMALIZED || right < BLINK_EAR_THRESHOLD_NORMALIZED,
+      mouthOpen,
       personId: match.id,
       personName: match.name,
       similarity: Math.round(match.similarity * 100) / 100,
@@ -817,7 +880,10 @@ export class FaceAnalysisService {
     const symmetry = detectSymmetry(mag, smallImg.width, smallImg.height);
     const negSpace = negativeSpaceScore(smallGray, smallImg.width, smallImg.height);
     const lightQuality = detectLightQuality(smallGray, mag);
-    const focusBokeh = scoreFocusAndBokeh(smallGray, smallImg.width, smallImg.height, faces);
+    // fara fete: incercam sa gasim un subiect (CenterNet) pentru care sa evaluam
+    // focusul separat de fundal — vezi scoreFocusAndBokeh
+    const mainObject = faces.length === 0 ? mainObjectBox(result.object) : undefined;
+    const focusBokeh = scoreFocusAndBokeh(smallGray, smallImg.width, smallImg.height, faces, mainObject);
     const color = analyzeColor(smallImg, exposure);
     const compositionScore = aggregateComposition({
       ruleOfThirds: composition.ruleOfThirds, headroom: composition.headroom, hasFaces: faces.length > 0,
@@ -844,6 +910,7 @@ export class FaceAnalysisService {
       headroom: composition.headroom,
       groupEyesOpenRatio: faces.length ? faces.filter(f => !f.isBlinking).length / faces.length : undefined,
       groupSmileRatio: faces.length ? faces.filter(f => f.smile >= GROUP_SMILE_THRESHOLD).length / faces.length : undefined,
+      groupAwkwardRatio: faces.length ? faces.filter(isAwkwardExpression).length / faces.length : undefined,
       avgEyeContact: faces.length ? faces.reduce((s, f) => s + (f.eyeContact ?? 0.5), 0) / faces.length : undefined,
       avgEngagement: faces.length
         ? faces.reduce((s, f) => s + engagementScore(f.emotion ?? { happy: 0, surprise: 0, negative: 0 }), 0) / faces.length

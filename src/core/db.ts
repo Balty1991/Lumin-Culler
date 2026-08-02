@@ -144,6 +144,14 @@ export interface FaceInsight {
    * (iris activat) si o fata suficient de mare/clara.
    */
   eyeContact?: number;
+  /**
+   * Gura vizibil deschisa (Mouth Aspect Ratio geometric, din mesh — acelasi
+   * principiu ca eyeOpenness/EAR pentru clipit), fara nicio judecata de
+   * emotie inca. Folosit impreuna cu `emotion` ca sa deosebim un zambet larg
+   * / o expresie de surpriza (dorite) de un moment "la mijlocul vorbirii"
+   * sau cascat (nedorit) — vezi groupAwkwardRatio pe AnalysisRecord.
+   */
+  mouthOpen?: boolean;
 }
 
 export interface AnalysisRecord {
@@ -177,6 +185,14 @@ export interface AnalysisRecord {
    */
   groupEyesOpenRatio?: number;
   groupSmileRatio?: number;
+  /**
+   * Fractiunea de fete cu o expresie "stanjenitoare" — gura vizibil deschisa
+   * (mouthOpen) FARA sa fie explicata de un zambet sau o surpriza reala
+   * (emotion.happy/surprise scazute): tipic un moment prins "la mijlocul
+   * vorbirii" sau un cascat, nu o expresie pe care fotograful si-ar dori-o
+   * intr-o poza aleasa. 0..1. Optional: doar cand faceCount > 0.
+   */
+  groupAwkwardRatio?: number;
   /** Media contact-vizual (eyeContact) pe toate fetele — 0..1. Optional: doar cand faceCount > 0. */
   avgEyeContact?: number;
   /** Media "engagement" (expresie pozitiva vs negativa) pe toate fetele — 0..1. Optional: doar cand faceCount > 0. */
@@ -257,9 +273,16 @@ export interface AnalysisRecord {
   lightQuality?: 'soft' | 'hard' | 'mixed' | 'unknown';
   /** Nuanta calda dominanta (portocaliu/auriu) + ora capturii apropiata de rasarit/apus — semnal aproximativ. */
   goldenHourDetected?: boolean;
-  /** Doar cand exista fete: subiectul principal e mai clar decat fundalul (claritate locala box fata vs. rest). */
+  /**
+   * Subiectul principal e mai clar decat fundalul (claritate locala box
+   * subiect vs. rest). Subiectul e fata cea mai mare cand exista fete, sau —
+   * pentru poze fara oameni (macro, produs, animale) — cel mai mare obiect
+   * detectat de CenterNet cu incredere rezonabila (vezi mainObjectBox in
+   * worker), NU tot cadrul: la fel ca la un portret, un fundal difuz
+   * (bokeh) intentionat nu trebuie sa penalizeze o poza cu subiectul clar.
+   */
   subjectInFocus?: boolean;
-  /** Diferenta de claritate subiect/fundal, calitativa — 'n/a' cand nu exista subiect uman de comparat. */
+  /** Diferenta de claritate subiect/fundal, calitativa — 'n/a' cand nu exista niciun subiect (fata sau obiect) de comparat. */
   bokehQuality?: 'good' | 'average' | 'poor' | 'n/a';
   /** Armonia paletei de culori (0..1) — complementara/analoaga = scor mare, culori dezordonate = scor mic. */
   colorHarmonyScore?: number;
