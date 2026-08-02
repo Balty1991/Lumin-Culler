@@ -199,7 +199,10 @@ export interface AnalysisRecord {
    * GENUINE_SMILE_EYE_THRESHOLD in worker pentru datele de calibrare reale
    * (90 de fete, diferenta mare intre grupul autentic/fortat). Complementar
    * fata de groupSmileRatio/bestSmile (care masoara CAT de mult se zambeste,
-   * nu CAT de autentic e). 0..1. Optional: doar cand faceCount > 0.
+   * nu CAT de autentic e). 0..1. Optional: doar cand faceCount > 0 SI lumina
+   * nu e 'hard' (lightQuality) — ochi ingustati intr-o lumina puternica/directa
+   * pot insemna clipit de la soare, nu zambet, deci evitam sa facem vreo
+   * afirmatie cand nu putem distinge sigur intre cele doua.
    */
   groupGenuineSmileRatio?: number;
   /** Media contact-vizual (eyeContact) pe toate fetele — 0..1. Optional: doar cand faceCount > 0. */

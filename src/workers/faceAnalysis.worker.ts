@@ -219,6 +219,20 @@ export function isGenuineSmile(face: FaceInsight): boolean {
   return eyeOpen < GENUINE_SMILE_EYE_THRESHOLD;
 }
 
+/**
+ * Fractiunea de fete cu zambet autentic — undefined (nicio afirmatie) cand nu
+ * exista fete SAU cand lumina e 'hard' (puternica/directa): ochii ingustati
+ * intr-o astfel de lumina pot insemna clipit de la soare, nu zambet, si
+ * isGenuineSmile nu poate distinge intre cele doua cauze din geometria mesh-ului
+ * — mai sigur sa nu masuram deloc decat sa riscam un fals pozitiv/negativ.
+ */
+export function computeGroupGenuineSmileRatio(
+  faces: FaceInsight[], lightQuality: NonNullable<AnalysisRecord['lightQuality']>
+): number | undefined {
+  if (!faces.length || lightQuality === 'hard') return undefined;
+  return faces.filter(isGenuineSmile).length / faces.length;
+}
+
 const EYE_CONTACT_ANGLE_LIMIT = 0.6;  // radiani (~34°) — combinat yaw+pitch peste asta = clar intors
 const EYE_CONTACT_GAZE_LIMIT = 0.3;   // strength peste asta = iris clar deviat de la centrul ochiului
 
@@ -935,7 +949,7 @@ export class FaceAnalysisService {
       groupEyesOpenRatio: faces.length ? faces.filter(f => !f.isBlinking).length / faces.length : undefined,
       groupSmileRatio: faces.length ? faces.filter(f => f.smile >= GROUP_SMILE_THRESHOLD).length / faces.length : undefined,
       groupAwkwardRatio: faces.length ? faces.filter(isAwkwardExpression).length / faces.length : undefined,
-      groupGenuineSmileRatio: faces.length ? faces.filter(isGenuineSmile).length / faces.length : undefined,
+      groupGenuineSmileRatio: computeGroupGenuineSmileRatio(faces, lightQuality),
       avgEyeContact: faces.length ? faces.reduce((s, f) => s + (f.eyeContact ?? 0.5), 0) / faces.length : undefined,
       avgEngagement: faces.length
         ? faces.reduce((s, f) => s + engagementScore(f.emotion ?? { happy: 0, surprise: 0, negative: 0 }), 0) / faces.length

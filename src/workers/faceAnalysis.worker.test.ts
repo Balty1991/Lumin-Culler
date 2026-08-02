@@ -10,6 +10,7 @@ import type { scoreFocusAndBokeh as scoreFocusAndBokehType } from './faceAnalysi
 import type { mainObjectBox as mainObjectBoxType } from './faceAnalysis.worker';
 import type { isAwkwardExpression as isAwkwardExpressionType } from './faceAnalysis.worker';
 import type { isGenuineSmile as isGenuineSmileType } from './faceAnalysis.worker';
+import type { computeGroupGenuineSmileRatio as computeGroupGenuineSmileRatioType } from './faceAnalysis.worker';
 import type { FaceInsight } from '../core/db';
 import type { ObjectResult } from '@vladmandic/human';
 
@@ -56,11 +57,12 @@ let scoreFocusAndBokeh: typeof scoreFocusAndBokehType;
 let mainObjectBox: typeof mainObjectBoxType;
 let isAwkwardExpression: typeof isAwkwardExpressionType;
 let isGenuineSmile: typeof isGenuineSmileType;
+let computeGroupGenuineSmileRatio: typeof computeGroupGenuineSmileRatioType;
 beforeEach(async () => {
   ({
     FaceAnalysisService, blendSubjectSharpness, regionLaplacianVariance, varianceToSharpnessScore,
     detectSymmetry, negativeSpaceScore, analyzeColor, scoreFocusAndBokeh, mainObjectBox, isAwkwardExpression,
-    isGenuineSmile
+    isGenuineSmile, computeGroupGenuineSmileRatio
   } = await import('./faceAnalysis.worker'));
 });
 
@@ -413,5 +415,33 @@ describe('isGenuineSmile', () => {
 
   it('averages both eyes — one narrowed eye is not enough if the other stays wide open', () => {
     expect(isGenuineSmile(face({ smile: 0.8, eyesOpen: { left: 0.6, right: 1.0 } }))).toBe(false); // avg 0.8 > threshold
+  });
+});
+
+describe('computeGroupGenuineSmileRatio', () => {
+  function face(overrides: Partial<FaceInsight> = {}): FaceInsight {
+    return {
+      box: [0, 0, 0.1, 0.1], faceScore: 0.9, smile: 0.8, eyesOpen: { left: 0.6, right: 0.6 }, // genuine by default
+      isBlinking: false, personId: null, personName: null, similarity: 0, ...overrides
+    };
+  }
+
+  it('is undefined with no faces, regardless of light quality', () => {
+    expect(computeGroupGenuineSmileRatio([], 'soft')).toBeUndefined();
+  });
+
+  it('computes the normal ratio in soft/mixed/unknown light', () => {
+    const faces = [face(), face({ smile: 0.8, eyesOpen: { left: 0.95, right: 0.95 } })]; // 1 genuine, 1 not
+    expect(computeGroupGenuineSmileRatio(faces, 'soft')).toBe(0.5);
+    expect(computeGroupGenuineSmileRatio(faces, 'mixed')).toBe(0.5);
+    expect(computeGroupGenuineSmileRatio(faces, 'unknown')).toBe(0.5);
+  });
+
+  // Bug real evitat inainte sa ajunga in productie: ochii ingustati intr-o lumina
+  // puternica/directa (soare in fata) pot fi doar clipit, nu zambet autentic —
+  // isGenuineSmile nu poate distinge, deci in lumina 'hard' nu facem nicio afirmatie.
+  it('is undefined in harsh/direct light, even with faces that would otherwise look genuine', () => {
+    const faces = [face(), face()]; // ambele "genuine" dupa geometrie
+    expect(computeGroupGenuineSmileRatio(faces, 'hard')).toBeUndefined();
   });
 });
