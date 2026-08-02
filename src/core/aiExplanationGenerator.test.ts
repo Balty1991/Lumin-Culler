@@ -42,6 +42,58 @@ describe('generateExplanation', () => {
     expect(paragraphs.join(' ')).toMatch(/confirmat aceeasi alegere/);
   });
 
+  // Bug real raportat de utilizator la testare: textul spunea "zambeste natural"
+  // pentru orice zambet larg, indiferent daca semnalul de autenticitate (marker
+  // Duchenne, groupGenuineSmileRatio) confirma sau nu — o afirmatie nesustinuta.
+  it('claims "natural" only when groupGenuineSmileRatio actually confirms it (solo)', () => {
+    const genuine = generateExplanation(
+      analysis({ faceCount: 1, bestSmile: 0.9, allEyesOpen: true, groupGenuineSmileRatio: 0.9 }),
+      true, true, null
+    );
+    expect(genuine.some(p => p.includes('zambeste natural'))).toBe(true);
+
+    const posed = generateExplanation(
+      analysis({ faceCount: 1, bestSmile: 0.9, allEyesOpen: true, groupGenuineSmileRatio: 0 }),
+      true, true, null
+    );
+    expect(posed.some(p => p.includes('zambeste natural'))).toBe(false);
+    expect(posed.some(p => p.includes('zambeste larg'))).toBe(true);
+  });
+
+  it('falls back to the non-committal wording when groupGenuineSmileRatio is entirely absent (older records)', () => {
+    const paragraphs = generateExplanation(
+      analysis({ faceCount: 1, bestSmile: 0.9, allEyesOpen: true }),
+      true, true, null
+    );
+    expect(paragraphs.some(p => p.includes('zambeste natural'))).toBe(false);
+    expect(paragraphs.some(p => p.includes('zambeste larg'))).toBe(true);
+  });
+
+  it('uses singular-friendly wording for a 2-person group instead of the vague plural "cativa zambesc"', () => {
+    const paragraphs = generateExplanation(
+      analysis({
+        faceCount: 2, knownFaceCount: 2, sceneType: 'group', bestSmile: 0.5,
+        groupSmileRatio: 0.5, allEyesOpen: true, groupEyesOpenRatio: 1
+      }),
+      true, true, null
+    );
+    const subject = paragraphs.find(p => p.startsWith('Cele'));
+    expect(subject).toContain('unul dintre ei zambeste');
+    expect(subject).not.toContain('cativa zambesc');
+  });
+
+  it('still uses "cativa zambesc" for larger groups in the same mid-smile bracket', () => {
+    const paragraphs = generateExplanation(
+      analysis({
+        faceCount: 4, knownFaceCount: 4, sceneType: 'group', bestSmile: 0.5,
+        groupSmileRatio: 0.5, allEyesOpen: true, groupEyesOpenRatio: 1
+      }),
+      true, true, null
+    );
+    const subject = paragraphs.find(p => p.startsWith('Cele'));
+    expect(subject).toContain('cativa zambesc');
+  });
+
   it('adds a subject paragraph only when faces are present', () => {
     const withoutFaces = generateExplanation(analysis({ faceCount: 0 }), true, true, null);
     const withFaces = generateExplanation(

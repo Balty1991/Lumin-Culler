@@ -137,10 +137,30 @@ function subjectSentence(a: AnalysisRecord, locale: Locale): string | null {
   const smileFrac = group ? (a.groupSmileRatio ?? a.bestSmile) : a.bestSmile;
   const eyesFrac = group ? (a.groupEyesOpenRatio ?? (a.allEyesOpen ? 1 : 0)) : (a.allEyesOpen ? 1 : 0);
 
+  // Bug real raportat de utilizator la testare: textul spunea "zambeste natural"
+  // pentru orice zambet LARG (smileFrac mare), o afirmatie despre AUTENTICITATE
+  // pe care nu o masura de fapt — doar cat de mult zambeste cineva, nu cat de
+  // sincer pare. groupGenuineSmileRatio (calibrat pe date reale — vezi worker)
+  // masoara exact asta (marker Duchenne: zambet + ochi usor ingustati); il
+  // folosim ca sa decidem daca chiar putem sustine cuvantul "natural", altfel
+  // descriem zambetul fara sa facem o afirmatie nesustinuta.
+  const genuineAmongSmilers = smileFrac > 0 && a.groupGenuineSmileRatio !== undefined
+    ? a.groupGenuineSmileRatio / smileFrac
+    : undefined;
+  const looksGenuine = genuineAmongSmilers !== undefined && genuineAmongSmilers >= 0.6;
+
+  // Bug real raportat: pentru un grup de EXACT 2 persoane, "cativa zambesc" (plural
+  // vag, sugereaza 3+) suna gresit cand de fapt inseamna mereu "unul din doi" —
+  // singurul mod de a cadea in intervalul mediu [0.25, 0.6) cu faceCount === 2.
+  const isPairMid = group && a.faceCount === 2 && smileFrac >= 0.25 && smileFrac < 0.6;
+
   const smileNote = smileFrac >= 0.6
-    ? t(locale, group ? 'aiExplain.smile.groupHigh' : 'aiExplain.smile.soloHigh')
-    : smileFrac >= 0.25 ? t(locale, group ? 'aiExplain.smile.groupMid' : 'aiExplain.smile.soloMid')
-    : t(locale, group ? 'aiExplain.smile.groupLow' : 'aiExplain.smile.soloLow');
+    ? (looksGenuine
+        ? t(locale, group ? 'aiExplain.smile.groupHigh' : 'aiExplain.smile.soloHigh')
+        : t(locale, group ? 'aiExplain.smile.groupHighUnsure' : 'aiExplain.smile.soloHighUnsure'))
+    : smileFrac >= 0.25
+      ? (isPairMid ? t(locale, 'aiExplain.smile.groupMidPair') : t(locale, group ? 'aiExplain.smile.groupMid' : 'aiExplain.smile.soloMid'))
+      : t(locale, group ? 'aiExplain.smile.groupLow' : 'aiExplain.smile.soloLow');
 
   const eyesNote = eyesFrac >= 0.999
     ? t(locale, group ? 'aiExplain.eyes.groupAll' : 'aiExplain.eyes.soloOpen')
