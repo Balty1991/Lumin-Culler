@@ -190,9 +190,6 @@ export function Workspace() {
             ? (progress.phase === 'analiza' ? tr('workspace.progress.analyzing', { done: progress.done, total: progress.total }) : tr('workspace.progress.processing'))
             : tr('workspace.defaultHint')}
         </span>
-        {progress?.phase === 'analiza' && (
-          <button className="ghost small-btn" onClick={() => cancelImport()}>{tr('app.progress.cancel')}</button>
-        )}
         <UndoHistoryButton />
         <Tooltip label={tr('app.addPhotos')}>
           {/* vezi App.tsx (acelasi buton, acelasi motiv) — evita al doilea import concurent */}
@@ -215,6 +212,13 @@ export function Workspace() {
             <EditIcon />
           </button>
         </Tooltip>
+        {/* Grila si Meniul sunt singurele "iesiri" din Workspace — trebuie sa
+            ramana pe primul rand cat mai mult timp posibil. Bug real raportat de
+            utilizator: cu "Anulează" inainte de ele in ordinea DOM, flex-wrap le
+            impingea PE ELE pe randul 2 quando importul era activ (butonul de
+            anulare, mult mai putin critic, "castiga" locul de pe primul rand).
+            Mutat dupa, ca elementul care cedeaza spatiul primul sa fie cel
+            temporar/mai putin important, nu iesirea din ecran. */}
         <Tooltip label={tr('workspace.tooltip.grid')} side="left">
           <button className="ghost icon-btn" onClick={() => setWorkspaceMode(false)} aria-label={tr('workspace.grid.ariaLabel')}>
             <GridIcon />
@@ -225,6 +229,15 @@ export function Workspace() {
             <MenuIcon />
           </button>
         </Tooltip>
+        {progress?.phase === 'analiza' && (
+          // flex-basis:100% (.workspace-cancel-btn) — forteaza acest buton pe
+          // PROPRIUL rand mereu, in loc sa concureze cu iconitele de navigare
+          // (grila/meniu) pentru spatiu pe primul rand cand containerul da pe
+          // afara. Bug real raportat: fara asta, iconitele treceau ele pe randul
+          // 2 (mai putin vizibile/usor de gasit), desi butonul temporar de
+          // anulare conta mai putin decat "iesirile" din Workspace.
+          <button className="ghost small-btn workspace-cancel-btn" onClick={() => cancelImport()}>{tr('app.progress.cancel')}</button>
+        )}
       </header>
 
       <div className="workspace-loupe">

@@ -1932,6 +1932,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   box-shadow: var(--shadow);
 }
 .workspace-head span:first-child { flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 40%; font-weight: 600; }
+/* vezi comentariul din Workspace.tsx — mereu pe randul lui propriu, niciodata in concurenta cu iconitele de navigare pentru spatiu */
+.workspace-cancel-btn { flex-basis: 100%; }
 .workspace-hint { flex: 1; text-align: center; color: var(--text-faint); font-size: 0.72rem; }
 .workspace-loupe {
   /* edge-to-edge, fundal negru plat — acelasi limbaj vizual ca .detail-stage
