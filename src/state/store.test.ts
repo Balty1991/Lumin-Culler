@@ -116,6 +116,62 @@ describe('runImport concurrency guard', () => {
   });
 });
 
+// Bug real gasit de auditul QA (raportat de utilizator: "abia incarca poze" la
+// 500+ poze): onPhoto ruleaza per-poza, iar un set() per poza reconstruia
+// intreg array-ul `photos` de fiecare data — cost cumulat aproape patratic.
+// Testele astea verifica direct comportamentul de bufferizare/loturi, nu doar
+// rezultatul final (deja acoperit indirect de alte teste).
+describe('runImport photo batching', () => {
+  function importedPhoto(i: number): { photo: PhotoRecord; analysis: AnalysisRecord } {
+    return {
+      photo: {
+        id: `batch-${i}`, fileName: `IMG_${i}.jpg`, importedAt: i, width: 100, height: 100,
+        dHash: '0'.repeat(64), status: 'review', groupId: ''
+      },
+      analysis: {
+        photoId: `batch-${i}`, faces: [], faceCount: 0, knownFaceCount: 0, strangerCount: 0,
+        bestSmile: 0, allEyesOpen: true, sharpness: 80, exposure: 50, sceneType: 'detail',
+        aiScore: 50, analyzedAt: i
+      }
+    };
+  }
+
+  it('does not touch the photos array until PHOTO_FLUSH_BATCH photos have arrived', async () => {
+    importFilesMock.mockClear();
+    useStore.setState({ progress: null, notice: '', photos: [] });
+    const file = new File(['x'], 'a.jpg', { type: 'image/jpeg' });
+
+    const runningImport = useStore.getState().runImport([file]);
+    const [, , onPhoto] = importFilesMock.mock.calls[0] as [unknown, unknown, (item: { photo: PhotoRecord; analysis: AnalysisRecord }) => void];
+
+    for (let i = 0; i < 14; i++) onPhoto(importedPhoto(i));
+    expect(useStore.getState().photos).toHaveLength(0); // sub pragul de 15 — inca bufferizate
+
+    onPhoto(importedPhoto(14)); // a 15-a — declanseaza flush-ul de lot
+    expect(useStore.getState().photos).toHaveLength(15);
+
+    resolveImportFiles?.();
+    await runningImport;
+  });
+
+  it('flushes any remaining buffered photos (below the batch threshold) once the import finishes', async () => {
+    importFilesMock.mockClear();
+    useStore.setState({ progress: null, notice: '', photos: [] });
+    const file = new File(['x'], 'a.jpg', { type: 'image/jpeg' });
+
+    const runningImport = useStore.getState().runImport([file]);
+    const [, , onPhoto] = importFilesMock.mock.calls[0] as [unknown, unknown, (item: { photo: PhotoRecord; analysis: AnalysisRecord }) => void];
+
+    for (let i = 0; i < 5; i++) onPhoto(importedPhoto(i)); // sub pragul de 15, niciun flush inca
+    expect(useStore.getState().photos).toHaveLength(0);
+
+    resolveImportFiles?.();
+    await runningImport;
+
+    expect(useStore.getState().photos).toHaveLength(5); // flush final, nimic pierdut
+  });
+});
+
 // Bug real gasit de auditul QA: GroupCompare (ca DetailView) nu e montat cat
 // timp Workspace e activ, dar spre deosebire de detailId, compareGroupId nu
 // era niciodata resetat la intoarcerea in grila — o comparare de serie

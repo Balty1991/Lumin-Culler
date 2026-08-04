@@ -910,11 +910,38 @@ export const useStore = create<AppState>((set, get) => ({
     const startedAt = Date.now();
     const cancelToken = createCancelToken();
     activeCancelToken = cancelToken;
+    // Bug real gasit de auditul QA (raportat de utilizator: "abia incarca poze"
+    // la 500+ poze): onPhoto ruleaza per-poza, din workeri paraleli care termina
+    // in tick-uri separate — React nu poate grupa automat aceste update-uri
+    // (batching-ul nu trece de un await). Un set() per poza reconstruia INTREG
+    // array-ul `photos` de fiecare data, invalidand cache-ul din filtered()/
+    // secondaryFiltered() (comparatie c.photos === photos) si retrigger-uind
+    // cele 8 treceri complete din `counts` (App.tsx) — costul cumulat pe
+    // parcursul unui import creste aproape patratic cu numarul de poze.
+    // Bufferizam si aplicam in loturi (la fiecare PHOTO_FLUSH_BATCH poze SAU
+    // la fiecare PHOTO_FLUSH_INTERVAL_MS, ce vine primul) — cardurile tot apar
+    // treptat (senzatia de progres "live" nu se pierde), doar reconstruirea
+    // array-ului se intampla de un ordin de marime mai rar.
+    let pendingPhotos: PhotoView[] = [];
+    let flushTimer: ReturnType<typeof setTimeout> | null = null;
+    const flushPendingPhotos = () => {
+      if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
+      if (!pendingPhotos.length) return;
+      const batch = pendingPhotos;
+      pendingPhotos = [];
+      set(state => ({ photos: [...state.photos, ...batch] }));
+    };
+    const PHOTO_FLUSH_BATCH = 15;
+    const PHOTO_FLUSH_INTERVAL_MS = 200;
     try {
       await importFiles(
         files,
         progress => { warning = progress.warning; done = progress.done; set({ progress: { ...progress } }); },
-        item => set(state => ({ photos: [...state.photos, toView(item.photo, item.analysis)] })),
+        item => {
+          pendingPhotos.push(toView(item.photo, item.analysis));
+          if (pendingPhotos.length >= PHOTO_FLUSH_BATCH) { flushPendingPhotos(); return; }
+          if (!flushTimer) flushTimer = setTimeout(flushPendingPhotos, PHOTO_FLUSH_INTERVAL_MS);
+        },
         cancelToken,
         get().genre,
         get().projectName,
@@ -929,6 +956,10 @@ export const useStore = create<AppState>((set, get) => ({
       });
       return;
     } finally {
+      // flush necesar pe ORICE cale de iesire (succes, eroare, anulare) — altfel
+      // ultimele poze bufferizate (deja scrise in IndexedDB de processOne) ar
+      // ramane invizibile in UI pana la un reload, desi nu s-au pierdut din DB.
+      flushPendingPhotos();
       if (activeCancelToken === cancelToken) activeCancelToken = null;
     }
     // reincarca statusurile si groupId-urile persistate dupa gruparea seriilor
