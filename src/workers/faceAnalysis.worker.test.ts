@@ -12,6 +12,7 @@ import type { isAwkwardExpression as isAwkwardExpressionType } from './faceAnaly
 import type { isGenuineSmile as isGenuineSmileType } from './faceAnalysis.worker';
 import type { computeGroupGenuineSmileRatio as computeGroupGenuineSmileRatioType } from './faceAnalysis.worker';
 import type { detectCatchlight as detectCatchlightType } from './faceAnalysis.worker';
+import type { hasNaturalSkinTone as hasNaturalSkinToneType } from './faceAnalysis.worker';
 import type { FaceInsight } from '../core/db';
 import type { ObjectResult } from '@vladmandic/human';
 
@@ -60,11 +61,12 @@ let isAwkwardExpression: typeof isAwkwardExpressionType;
 let isGenuineSmile: typeof isGenuineSmileType;
 let computeGroupGenuineSmileRatio: typeof computeGroupGenuineSmileRatioType;
 let detectCatchlight: typeof detectCatchlightType;
+let hasNaturalSkinTone: typeof hasNaturalSkinToneType;
 beforeEach(async () => {
   ({
     FaceAnalysisService, blendSubjectSharpness, regionLaplacianVariance, varianceToSharpnessScore,
     detectSymmetry, negativeSpaceScore, analyzeColor, scoreFocusAndBokeh, mainObjectBox, isAwkwardExpression,
-    isGenuineSmile, computeGroupGenuineSmileRatio, detectCatchlight
+    isGenuineSmile, computeGroupGenuineSmileRatio, detectCatchlight, hasNaturalSkinTone
   } = await import('./faceAnalysis.worker'));
 });
 
@@ -475,5 +477,31 @@ describe('detectCatchlight', () => {
 
   it('does not flag a moderately bright spot that is not bright enough in absolute terms', () => {
     expect(detectCatchlight(withBrightSpot(16, 40, 180, 8, 8))).toBe(false); // sub pragul absolut de 200
+  });
+});
+
+describe('hasNaturalSkinTone', () => {
+  function solidBoxImage(size: number, [r, g, b]: [number, number, number]): ImageData {
+    const data = new Uint8ClampedArray(size * size * 4);
+    for (let i = 0; i < size * size; i++) { data[i * 4] = r; data[i * 4 + 1] = g; data[i * 4 + 2] = b; data[i * 4 + 3] = 255; }
+    return { data, width: size, height: size, colorSpace: 'srgb' } as ImageData;
+  }
+  const FULL_BOX: [number, number, number, number] = [0, 0, 1, 1];
+
+  it('accepts a warm skin-like hue (orange-ish), regardless of how light/dark it is', () => {
+    expect(hasNaturalSkinTone(solidBoxImage(16, [200, 150, 120]), FULL_BOX)).toBe(true); // hue ~22°
+    expect(hasNaturalSkinTone(solidBoxImage(16, [90, 65, 50]), FULL_BOX)).toBe(true); // ten inchis, acelasi hue
+  });
+
+  it('flags a green color cast (e.g. fluorescent lighting without white-balance compensation)', () => {
+    expect(hasNaturalSkinTone(solidBoxImage(16, [150, 200, 150]), FULL_BOX)).toBe(false); // hue ~120°
+  });
+
+  it('flags a blue color cast (e.g. shade/tungsten without compensation)', () => {
+    expect(hasNaturalSkinTone(solidBoxImage(16, [120, 150, 200]), FULL_BOX)).toBe(false); // hue ~218°
+  });
+
+  it('is undefined for a region too desaturated to give a reliable reading (not a false negative)', () => {
+    expect(hasNaturalSkinTone(solidBoxImage(16, [128, 128, 128]), FULL_BOX)).toBeUndefined();
   });
 });

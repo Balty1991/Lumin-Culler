@@ -719,6 +719,50 @@ export function analyzeColor(img: ImageData, exposure: number): {
   return { colorHarmonyScore: Math.round(colorHarmonyScore * 100) / 100, dominantColors, goldenHourDetected };
 }
 
+/**
+ * Hue-ul MAXIM (grade) al benzii tipice de ten uman — indiferent de nuanta
+ * reala a pielii (deschisa/inchisa) sau etnie, tenul corect echilibrat cade
+ * aproape mereu intre 0° si acest prag (rosu-portocaliu-galben cald), reper
+ * folosit pe scara larga in literatura de skin-detection bazata pe HSV. Un
+ * balans de alb GRESIT (tungsten fotografiat cu WB de exterior, fluorescent,
+ * umbra fara compensare) impinge hue-ul EXPLICIT in afara acestei benzi
+ * (verde, albastru, magenta) — semnalul de aici nu judeca "cat de deschis"
+ * e tenul, doar daca are un cast de culoare nefiresc.
+ */
+const SKIN_HUE_MAX = 50;
+/** Sub aceasta saturatie, zona (umbra adanca, par, ochelari, reflexii) e prea neutra ca sa fie un esantion de ten de incredere. */
+const SKIN_MIN_SATURATION = 0.08;
+
+/**
+ * Ton de piele "natural" (fara cast de culoare) in interiorul cutiei unei
+ * fete — vezi SKIN_HUE_MAX. undefined cand regiunea e prea mica/prea putin
+ * saturata pentru o masuratoare de incredere (nu "fals", pur si simplu
+ * nemasurabil — acelasi tipar ca bokehQuality 'n/a').
+ */
+export function hasNaturalSkinTone(img: ImageData, box: [number, number, number, number]): boolean | undefined {
+  const { data, width: w, height: h } = img;
+  const [bx, by, bw, bh] = box;
+  const x0 = Math.max(0, Math.round(bx * w)), y0 = Math.max(0, Math.round(by * h));
+  const x1 = Math.min(w, Math.round((bx + bw) * w)), y1 = Math.min(h, Math.round((by + bh) * h));
+  let sumWeight = 0, sumSin = 0, sumCos = 0;
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
+      const i = (y * w + x) * 4;
+      const [hue, sat, val] = rgbToHsv(data[i], data[i + 1], data[i + 2]);
+      if (sat < SKIN_MIN_SATURATION) continue;
+      const weight = sat * val;
+      const rad = (hue * Math.PI) / 180;
+      sumSin += weight * Math.sin(rad);
+      sumCos += weight * Math.cos(rad);
+      sumWeight += weight;
+    }
+  }
+  if (sumWeight < 1) return undefined;
+  let meanHue = (Math.atan2(sumSin, sumCos) * 180) / Math.PI;
+  if (meanHue < 0) meanHue += 360;
+  return meanHue <= SKIN_HUE_MAX || meanHue >= 350;
+}
+
 /** Scor agregat de compozitie (0..1) — cu subiect uman: treimi+headroom; fara: linii/simetrie/spatiu negativ. */
 function aggregateComposition(p: {
   ruleOfThirds: number; headroom: number; hasFaces: boolean;
@@ -999,6 +1043,14 @@ export class FaceAnalysisService {
     const mainObject = faces.length === 0 ? mainObjectBox(result.object) : undefined;
     const focusBokeh = scoreFocusAndBokeh(smallGray, smallImg.width, smallImg.height, faces, mainObject);
     const color = analyzeColor(smallImg, exposure);
+    // balans de alb pe ten — vezi hasNaturalSkinTone; ignoram fetele unde nu s-a
+    // putut masura (regiune prea mica/neutra), nu le tratam ca "nenatural"
+    const skinToneSamples = faces
+      .map(f => hasNaturalSkinTone(smallImg, f.box))
+      .filter((r): r is boolean => r !== undefined);
+    const groupSkinToneNaturalRatio = skinToneSamples.length
+      ? skinToneSamples.filter(Boolean).length / skinToneSamples.length
+      : undefined;
     const compositionScore = aggregateComposition({
       ruleOfThirds: composition.ruleOfThirds, headroom: composition.headroom, hasFaces: faces.length > 0,
       leadingLines, symmetry, negativeSpace: negSpace
@@ -1027,6 +1079,7 @@ export class FaceAnalysisService {
       groupAwkwardRatio: faces.length ? faces.filter(isAwkwardExpression).length / faces.length : undefined,
       groupGenuineSmileRatio: computeGroupGenuineSmileRatio(faces, lightQuality),
       groupCatchlightRatio: faces.length ? faces.filter(f => f.catchlight).length / faces.length : undefined,
+      groupSkinToneNaturalRatio,
       avgEyeContact: faces.length ? faces.reduce((s, f) => s + (f.eyeContact ?? 0.5), 0) / faces.length : undefined,
       avgEngagement: faces.length
         ? faces.reduce((s, f) => s + engagementScore(f.emotion ?? { happy: 0, surprise: 0, negative: 0 }), 0) / faces.length

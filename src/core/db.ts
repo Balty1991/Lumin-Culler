@@ -221,6 +221,16 @@ export interface AnalysisRecord {
    * Optional: doar cand faceCount > 0.
    */
   groupCatchlightRatio?: number;
+  /**
+   * Fractiunea de fete cu ten "natural" (fara cast de culoare de la un balans
+   * de alb gresit) — vezi hasNaturalSkinTone in worker. Diferit de
+   * colorHarmonyScore (care judeca TOATA paleta cadrului, nu specific tenul).
+   * Nu e calibrat pe date reale (la fel ca groupCatchlightRatio) — banda de
+   * hue folosita e un reper din literatura de skin-detection, nu o calibrare
+   * proprie. 0..1. Optional: doar cand exista cel putin o fata unde tenul a
+   * putut fi masurat (regiune suficient de mare/saturata).
+   */
+  groupSkinToneNaturalRatio?: number;
   /** Media contact-vizual (eyeContact) pe toate fetele — 0..1. Optional: doar cand faceCount > 0. */
   avgEyeContact?: number;
   /** Media "engagement" (expresie pozitiva vs negativa) pe toate fetele — 0..1. Optional: doar cand faceCount > 0. */
