@@ -12,6 +12,7 @@ import { AdjustedImage } from './AdjustedImage';
 import type { EditAdjustments } from '../core/imageAdjust';
 import { pickImportFiles } from '../core/filePicker';
 import { armPickerWatchdog, type PickerWatchdog } from '../core/pickerWatchdog';
+import { formatEta } from '../core/formatTime';
 import { t } from '../i18n';
 
 /**
@@ -187,7 +188,11 @@ export function Workspace() {
         <span className="mono">{photo.fileName}</span>
         <span className="mono workspace-hint" role={progress ? 'status' : undefined} aria-live={progress ? 'polite' : undefined}>
           {progress
-            ? (progress.phase === 'analiza' ? tr('workspace.progress.analyzing', { done: progress.done, total: progress.total }) : tr('workspace.progress.processing'))
+            ? (progress.phase === 'analiza'
+              ? (progress.etaSeconds !== undefined
+                ? tr('workspace.progress.analyzingEta', { done: progress.done, total: progress.total, eta: formatEta(progress.etaSeconds) })
+                : tr('workspace.progress.analyzing', { done: progress.done, total: progress.total }))
+              : tr('workspace.progress.processing'))
             : tr('workspace.defaultHint')}
         </span>
         <UndoHistoryButton />
