@@ -25,6 +25,22 @@ import type { AnalysisRecord, FaceInsight, KnownPerson } from '../core/db';
 
 // ── Config ───────────────────────────────────────────────────────────────────
 
+/**
+ * EXPERIMENTAL — in curs de validare pe device real (nu confirmat inca).
+ * WEBGL_FORCE_F16_TEXTURES ii cere backend-ului WebGL sa foloseasca texturi
+ * pe 16 biti (in loc de 32) pentru toate tensoarele intermediare — mai putina
+ * banda de memorie GPU => randuri de inferenta mai rapide, mai ales pe GPU-uri
+ * mobile unde bandwidth-ul e principalul bottleneck, nu compute-ul. Rezultatele
+ * modelelor pot diferi la a 3-a-4-a zecimala fata de float32 (rotunjire), ceea
+ * ce in teorie nu schimba pragurile noastre (ochi inchisi, zambet etc — vezi
+ * ContextEngine) dar nu a fost inca verificat pe un telefon real. Daca GPU-ul
+ * nu suporta texturi half-float, backend-ul WebGL esueaza la incarcare — de
+ * asta tryWebglBackend() reincearca automat FARA acest flag inainte sa renunte
+ * la GPU complet (vezi mai jos). Seteaza pe `false` ca sa revii instant la
+ * comportamentul dinainte de acest experiment.
+ */
+const EXPERIMENTAL_WEBGL_F16_TEXTURES = true;
+
 const HUMAN_CONFIG: Partial<Config> = {
   // Models served locally from /public/models (copied from @vladmandic/human/models)
   // so the app works offline and on GitHub Pages without third-party CDNs.
@@ -860,7 +876,11 @@ export class FaceAnalysisService {
     };
 
     if (forcedBackend) {
-      if (await this.tryBackend({ ...HUMAN_CONFIG, ...overrides, backend: forcedBackend as BackendEnum }, WEBGL_INIT_TIMEOUT_MS)) {
+      const forcedConfig: Partial<Config> = { ...HUMAN_CONFIG, ...overrides, backend: forcedBackend as BackendEnum };
+      const forcedOk = forcedBackend === 'webgl'
+        ? await this.tryWebglBackend(forcedConfig, WEBGL_INIT_TIMEOUT_MS)
+        : await this.tryBackend(forcedConfig, WEBGL_INIT_TIMEOUT_MS);
+      if (forcedOk) {
         return this.backend;
       }
       // rar, dar posibil (contentie tranzitorie) — acelasi refugiu final ca mai jos
@@ -881,7 +901,7 @@ export class FaceAnalysisService {
     if (preferWebGpu && await this.tryBackend({ ...HUMAN_CONFIG, ...overrides, backend: 'webgpu' }, WEBGPU_INIT_TIMEOUT_MS)) {
       return this.backend;
     }
-    if (await this.tryBackend({ ...HUMAN_CONFIG, ...overrides, backend: 'webgl' }, WEBGL_INIT_TIMEOUT_MS)) {
+    if (await this.tryWebglBackend({ ...HUMAN_CONFIG, ...overrides, backend: 'webgl' }, WEBGL_INIT_TIMEOUT_MS)) {
       return this.backend;
     }
 
@@ -901,8 +921,9 @@ export class FaceAnalysisService {
    * (raman libere pentru urmatoarea incercare) — instanta esuata poate ramane
    * blocata la infinit in fundal, dar nu mai e folosita de restul aplicatiei.
    */
-  private async tryBackend(config: Partial<Config>, timeoutMs: number): Promise<boolean> {
+  private async tryBackend(config: Partial<Config>, timeoutMs: number, forceF16 = false): Promise<boolean> {
     const human = new Human(config);
+    if (forceF16) human.tf.env().set('WEBGL_FORCE_F16_TEXTURES', true);
     try {
       await withTimeout(
         (async () => { await human.load(); await human.warmup(); })(),
@@ -910,14 +931,30 @@ export class FaceAnalysisService {
         `${config.backend} init timeout`
       );
     } catch (err) {
-      console.error(`FaceAnalysisService: ${config.backend} init failed/timed out, trying next backend`, err);
+      console.error(`FaceAnalysisService: ${config.backend}${forceF16 ? ' (f16)' : ''} init failed/timed out, trying next backend`, err);
       return false;
     }
     const backend = human.tf?.getBackend?.() ?? 'unknown';
     if (!ACCELERATED_BACKENDS.includes(backend)) return false;
     this.human = human;
     this.backend = backend;
+    if (forceF16) console.info('FaceAnalysisService: WebGL running with EXPERIMENTAL_WEBGL_F16_TEXTURES active');
     return true;
+  }
+
+  /**
+   * WebGL cu incercare F16 (vezi EXPERIMENTAL_WEBGL_F16_TEXTURES) — daca GPU-ul
+   * nu suporta texturi half-float, backend-ul WebGL esueaza complet la incarcare
+   * (nu doar flagul), asa ca reincercam o data in plus, curat, fara flag, inainte
+   * sa cedam controlul urmatorului nivel din cascada (CPU). Fara asta, un GPU
+   * care nu suporta F16 ar sari direct la CPU si ar pierde acceleratia WebGL
+   * normala, nu doar experimentul.
+   */
+  private async tryWebglBackend(config: Partial<Config>, timeoutMs: number): Promise<boolean> {
+    if (EXPERIMENTAL_WEBGL_F16_TEXTURES && await this.tryBackend(config, timeoutMs, true)) {
+      return true;
+    }
+    return this.tryBackend(config, timeoutMs);
   }
 
   /** Ultimul nivel al cascadei — fara timeout, comportament identic cu varianta dinaintea introducerii cascadei WebGPU/WebGL/CPU. */
