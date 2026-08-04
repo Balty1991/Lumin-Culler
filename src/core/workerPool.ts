@@ -51,6 +51,27 @@ export function withTimeout<T>(promise: Promise<T>, ms: number, message: string)
   });
 }
 
+/**
+ * Cate slot-uri (workeri Human.js/TFJS in paralel) sa porneasca — un compromis
+ * intre viteza (mai multi workeri = import mai rapid) si presiunea de RAM
+ * (fiecare worker isi incarca propria instanta completa de modele). Pe un
+ * Honor 8X cu 4GB RAM, 4 workeri simultan a dus la un crash real raportat de
+ * utilizator; pe telefoane cu mult RAM (8GB+), plafonul fix de 4 lasa viteza
+ * pe masa fara niciun motiv. `navigator.deviceMemory` (doar Chromium; undefined
+ * pe Firefox/Safari) da o estimare aproximativa, rotunjita la puteri ale lui 2.
+ */
+export function computeWorkerCount(cores: number, deviceMemoryGB: number | undefined): number {
+  const coreBudget = Math.max(1, cores - 1);
+  if (deviceMemoryGB === undefined) return Math.min(4, coreBudget);
+  if (deviceMemoryGB <= 4) return 1; // acelasi prag ca prabusirea reala pe 4GB RAM
+  if (deviceMemoryGB <= 6) return Math.min(4, coreBudget);
+  return Math.min(6, coreBudget); // 8GB+: putem impinge peste plafonul vechi de 4
+}
+
+function deviceMemoryGB(): number | undefined {
+  return (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
+}
+
 export class AnalysisPool {
   private slots: Slot[] = [];
   private waiters: ((slot: Slot) => void)[] = [];
@@ -89,10 +110,11 @@ export class AnalysisPool {
     if (this.ready) return;
     this.slots = []; // in caz ca o incercare anterioara a esuat/timeout partial, nu dublam sloturile
     const cores = navigator.hardwareConcurrency || 4;
-    // mod economic: un singur worker, in loc de pana la 4 in paralel — mai putina
+    // mod economic: un singur worker, in loc de pana la N in paralel — mai putina
     // presiune de RAM (fiecare worker isi incarca propria instanta Human.js/TFJS)
-    // pe hardware slab, cu costul unui import mai lent
-    const size = readEconomicMode() ? 1 : Math.max(1, Math.min(4, cores - 1));
+    // pe hardware slab, cu costul unui import mai lent. Altfel, numarul se
+    // adapteaza dupa RAM-ul device-ului (vezi computeWorkerCount).
+    const size = readEconomicMode() ? 1 : computeWorkerCount(cores, deviceMemoryGB());
     this.modelBase = new URL(`${import.meta.env.BASE_URL}models/`, location.href).href;
 
     // Doar PRIMUL worker face detectia completa de backend (WebGPU -> WebGL ->
@@ -138,7 +160,7 @@ export class AnalysisPool {
   async resizeForEconomicMode(economic: boolean): Promise<void> {
     if (!this.ready) return; // inca nepornit — init() va citi setarea curenta la primul import
     const cores = navigator.hardwareConcurrency || 4;
-    const targetSize = economic ? 1 : Math.max(1, Math.min(4, cores - 1));
+    const targetSize = economic ? 1 : computeWorkerCount(cores, deviceMemoryGB());
     const oldSlots = this.slots;
 
     // La fel ca in init(): backend-ul e deja cunoscut din flota curenta, asa ca
