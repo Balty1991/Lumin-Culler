@@ -56,7 +56,7 @@ export function CullGauge({ selected, review, rejected, pending, total, onClearS
                 strokeDasharray={`${rejLen} ${CIRC}`} strokeDashoffset={-(selLen + revLen)} />
             )}
           </svg>
-          <div className="gauge-pct">
+          <div className="gauge-pct" title={tr('app.hud.doneHint', { pct: donePercent })}>
             <b><AnimatedNumber value={donePercent} />%</b>
             <span>{tr('app.hud.done')}</span>
           </div>
