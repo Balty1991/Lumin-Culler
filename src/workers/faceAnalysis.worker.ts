@@ -26,20 +26,18 @@ import type { AnalysisRecord, FaceInsight, KnownPerson } from '../core/db';
 // ── Config ───────────────────────────────────────────────────────────────────
 
 /**
- * EXPERIMENTAL — in curs de validare pe device real (nu confirmat inca).
- * WEBGL_FORCE_F16_TEXTURES ii cere backend-ului WebGL sa foloseasca texturi
- * pe 16 biti (in loc de 32) pentru toate tensoarele intermediare — mai putina
- * banda de memorie GPU => randuri de inferenta mai rapide, mai ales pe GPU-uri
- * mobile unde bandwidth-ul e principalul bottleneck, nu compute-ul. Rezultatele
- * modelelor pot diferi la a 3-a-4-a zecimala fata de float32 (rotunjire), ceea
- * ce in teorie nu schimba pragurile noastre (ochi inchisi, zambet etc — vezi
- * ContextEngine) dar nu a fost inca verificat pe un telefon real. Daca GPU-ul
- * nu suporta texturi half-float, backend-ul WebGL esueaza la incarcare — de
- * asta tryWebglBackend() reincearca automat FARA acest flag inainte sa renunte
- * la GPU complet (vezi mai jos). Seteaza pe `false` ca sa revii instant la
- * comportamentul dinainte de acest experiment.
+ * EXPERIMENTAL — DEZACTIVAT dupa testare pe device real: pe cel putin un
+ * telefon a blocat complet incarcarea modelelor AI ("Se incarca modelele AI"
+ * la infinit). Cauza cea mai probabila: `tf.env()` e un singleton GLOBAL in
+ * acest worker thread (nu per-instanta Human), asa ca daca prima incercare
+ * (cu F16) ramane "agatata" in driverul GPU in loc sa arunce eroare curat —
+ * exact modul de esec descris mai jos la cascada WebGPU/WebGL — flagul
+ * ramane setat pe true si pentru incercarea de refugiu FARA F16, care atunci
+ * loveste acelasi blocaj a doua oara. Nu se reactiveaza fara fix real (measu
+ * explicit `.set(..., false)` in ramura non-F16, nu doar omiterea set-ului)
+ * si fara re-validare pe device.
  */
-const EXPERIMENTAL_WEBGL_F16_TEXTURES = true;
+const EXPERIMENTAL_WEBGL_F16_TEXTURES = false;
 
 const HUMAN_CONFIG: Partial<Config> = {
   // Models served locally from /public/models (copied from @vladmandic/human/models)
@@ -923,7 +921,11 @@ export class FaceAnalysisService {
    */
   private async tryBackend(config: Partial<Config>, timeoutMs: number, forceF16 = false): Promise<boolean> {
     const human = new Human(config);
-    if (forceF16) human.tf.env().set('WEBGL_FORCE_F16_TEXTURES', true);
+    // `.env()` e un singleton global in acest worker thread, nu per-instanta
+    // Human — trebuie setat explicit in AMBELE sensuri, altfel o incercare
+    // anterioara cu forceF16=true (chiar daca a esuat/expirat si a fost
+    // abandonata) lasa flagul agatat pe true pentru incercarile urmatoare.
+    human.tf.env().set('WEBGL_FORCE_F16_TEXTURES', forceF16);
     try {
       await withTimeout(
         (async () => { await human.load(); await human.warmup(); })(),
