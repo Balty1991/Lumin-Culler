@@ -921,11 +921,17 @@ export class FaceAnalysisService {
    */
   private async tryBackend(config: Partial<Config>, timeoutMs: number, forceF16 = false): Promise<boolean> {
     const human = new Human(config);
-    // `.env()` e un singleton global in acest worker thread, nu per-instanta
-    // Human — trebuie setat explicit in AMBELE sensuri, altfel o incercare
+    // Atins DOAR cand experimentul e activ si backend-ul e webgl — cand
+    // EXPERIMENTAL_WEBGL_F16_TEXTURES e false (implicit), `.env()` nu e
+    // niciodata chemat, exact comportamentul dinainte de acest experiment
+    // (vezi comentariul de la constanta). `.env()` e un singleton global in
+    // acest worker thread, nu per-instanta Human — trebuie setat explicit in
+    // AMBELE sensuri cat timp experimentul E activ, altfel o incercare
     // anterioara cu forceF16=true (chiar daca a esuat/expirat si a fost
     // abandonata) lasa flagul agatat pe true pentru incercarile urmatoare.
-    human.tf.env().set('WEBGL_FORCE_F16_TEXTURES', forceF16);
+    if (EXPERIMENTAL_WEBGL_F16_TEXTURES && config.backend === 'webgl') {
+      human.tf.env().set('WEBGL_FORCE_F16_TEXTURES', forceF16);
+    }
     try {
       await withTimeout(
         (async () => { await human.load(); await human.warmup(); })(),

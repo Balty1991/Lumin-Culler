@@ -187,6 +187,7 @@ export default function App() {
   const runImport = useStore(s => s.runImport);
   const setNotice = useStore(s => s.setNotice);
   const cancelImport = useStore(s => s.cancelImport);
+  const importCancelling = useStore(s => s.importCancelling);
   const openDetail = useStore(s => s.openDetail);
   const openCompare = useStore(s => s.openCompare);
   const setMenuOpen = useStore(s => s.setMenuOpen);
@@ -692,7 +693,9 @@ export default function App() {
                   : progress.phase === 'grupare' ? tr('app.progress.grouping') : tr('app.progress.done')}
               </span>
               {progress.phase === 'analiza' && (
-                <button className="ghost small progress-cancel" onClick={() => cancelImport()}>{tr('app.progress.cancel')}</button>
+                <button className="ghost small progress-cancel" onClick={() => cancelImport()} disabled={importCancelling}>
+                  {importCancelling ? tr('app.progress.cancelling') : tr('app.progress.cancel')}
+                </button>
               )}
             </div>
           )

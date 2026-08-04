@@ -150,6 +150,16 @@ interface AppState {
   photos: PhotoView[];
   persons: KnownPerson[];
   progress: ProgressState | null;
+  /**
+   * Bifat imediat cand se apasa Anuleaza, INAINTE ca importul sa se opreasca
+   * efectiv — cancelImport() muta direct o proprietate pe un obiect simplu
+   * (activeCancelToken.cancelled), care NU trece prin set() si deci nu
+   * declanseaza niciun re-render; fara acest flag separat, butonul ramanea
+   * vizual neschimbat cat timp pozele deja in curs de analiza isi terminau
+   * rundele (poate dura cateva zeci de secunde), lasand impresia falsa ca
+   * apasarea n-a facut nimic (raportat de utilizator ca buton "stricat").
+   */
+  importCancelling: boolean;
   /** Poate anula un import in curs — vezi runImport/cancelImport mai jos. */
   cancelImport: () => void;
   /** Mod economic: pool de un singur worker + fara iris/emotie — mai putina presiune pe CPU/RAM, pe hardware slab. */
@@ -745,6 +755,7 @@ export const useStore = create<AppState>((set, get) => ({
   photos: [],
   persons: [],
   progress: null,
+  importCancelling: false,
   filter: 'all',
   personFilter: null,
   projectFilter: null,
@@ -761,10 +772,14 @@ export const useStore = create<AppState>((set, get) => ({
   personsOpen: false,
   menuOpen: false,
   insightsOpen: false,
-  // implicit Workspace (lupa + filmstrip) e ecranul principal la pornire —
-  // grila ramane accesibila (buton dedicat), dar nu mai e ce vede utilizatorul
-  // intai; ramane fals doar daca utilizatorul comuta explicit inapoi la grila.
-  workspaceMode: true,
+  // Grila (cu CullGauge + progresul "Analiza AI X/N") e ecranul principal la
+  // pornire SI in timpul importului — feedback direct de la utilizator: cu
+  // Workspace implicit (varianta veche, comentariul de mai sus), importul
+  // sarea direct in lupa (vizibil mai greu/lent cu poze in curs de streaming)
+  // fara sa mai poata vedea progresul general, iar Workspace ramanea greu de
+  // parasit pana la final. Lupa ramane un mod optional, pornit explicit din
+  // grila (butonul Focus) sau din statisticul "de verificat" (startQuickReview).
+  workspaceMode: false,
   batchOpsOpen: false,
   paletteOpen: false,
   shortcutsOpen: false,
@@ -893,7 +908,11 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
-  cancelImport: () => { if (activeCancelToken) activeCancelToken.cancelled = true; },
+  cancelImport: () => {
+    if (!activeCancelToken) return;
+    activeCancelToken.cancelled = true;
+    set({ importCancelling: true });
+  },
 
   boot: async () => {
     if (get().booted) return;
@@ -926,7 +945,7 @@ export const useStore = create<AppState>((set, get) => ({
       set({ notice: t(get().locale, 'store.import.alreadyRunning') });
       return;
     }
-    set({ progress: { done: 0, total: files.length, fileName: '', phase: 'incarcare' } });
+    set({ progress: { done: 0, total: files.length, fileName: '', phase: 'incarcare' }, importCancelling: false });
     let warning: string | undefined;
     let done = 0;
     const startedAt = Date.now();
@@ -1001,6 +1020,7 @@ export const useStore = create<AppState>((set, get) => ({
       // ramane invizibile in UI pana la un reload, desi nu s-au pierdut din DB.
       flushPendingPhotos();
       if (activeCancelToken === cancelToken) activeCancelToken = null;
+      set({ importCancelling: false });
     }
     // reincarca statusurile si groupId-urile persistate dupa gruparea seriilor
     const fresh = await db.photos.toArray();

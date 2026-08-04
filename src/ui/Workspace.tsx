@@ -6,7 +6,7 @@ import { Tooltip } from './Tooltip';
 import { StarRating } from './StarRating';
 import { PhotoInfoTabs } from './PhotoInfoTabs';
 import { EmptyFilterState } from './EmptyFilterState';
-import { ChevronLeft, ChevronRight, XIcon, CheckIcon, InfoIcon, GridIcon, PlusIcon, MenuIcon, EditIcon } from './icons';
+import { ChevronLeft, ChevronRight, XIcon, CheckIcon, GridIcon, PlusIcon, MenuIcon, EditIcon } from './icons';
 import { UndoHistoryButton } from './UndoHistoryButton';
 import { AdjustedImage } from './AdjustedImage';
 import type { EditAdjustments } from '../core/imageAdjust';
@@ -29,6 +29,7 @@ export function Workspace() {
   const filtered = useStore(s => s.filtered());
   const progress = useStore(s => s.progress);
   const cancelImport = useStore(s => s.cancelImport);
+  const importCancelling = useStore(s => s.importCancelling);
   const openDetail = useStore(s => s.openDetail);
   const openEdit = useStore(s => s.openEdit);
   const stepDetail = useStore(s => s.stepDetail);
@@ -185,55 +186,53 @@ export function Workspace() {
   return (
     <div className="workspace">
       <header className="workspace-head">
-        <span className="mono">{photo.fileName}</span>
-        <span className="mono workspace-hint" role={progress ? 'status' : undefined} aria-live={progress ? 'polite' : undefined}>
-          {progress
-            ? (progress.phase === 'analiza'
-              ? (progress.etaSeconds !== undefined
-                ? tr('workspace.progress.analyzingEta', { done: progress.done, total: progress.total, eta: formatEta(progress.etaSeconds) })
-                : tr('workspace.progress.analyzing', { done: progress.done, total: progress.total }))
-              : tr('workspace.progress.processing'))
-            : tr('workspace.defaultHint')}
-        </span>
-        <UndoHistoryButton />
-        <Tooltip label={tr('app.addPhotos')}>
-          {/* vezi App.tsx (acelasi buton, acelasi motiv) — evita al doilea import concurent */}
-          <button className="ghost icon-btn" onClick={() => void onAddPhotosClick()} disabled={!!progress} aria-label={tr('app.addPhotos')}>
-            <PlusIcon />
-          </button>
-        </Tooltip>
-        <Tooltip label={tr('workspace.tooltip.metrics')} shortcut="I">
-          <button
-            className={showMetrics ? 'ghost icon-btn active' : 'ghost icon-btn'}
-            onClick={() => setShowMetrics(v => !v)}
-            aria-label={showMetrics ? tr('workspace.metrics.hide') : tr('workspace.metrics.show')}
-            aria-pressed={showMetrics}
-          >
-            <InfoIcon />
-          </button>
-        </Tooltip>
-        <Tooltip label={tr('edit.open')} side="left">
-          <button className="ghost icon-btn" onClick={() => openEdit(photo.id)} aria-label={tr('edit.open')}>
-            <EditIcon />
-          </button>
-        </Tooltip>
-        {/* Grila si Meniul sunt singurele "iesiri" din Workspace — trebuie sa
-            ramana pe primul rand cat mai mult timp posibil. Bug real raportat de
-            utilizator: cu "Anulează" inainte de ele in ordinea DOM, flex-wrap le
-            impingea PE ELE pe randul 2 quando importul era activ (butonul de
-            anulare, mult mai putin critic, "castiga" locul de pe primul rand).
-            Mutat dupa, ca elementul care cedeaza spatiul primul sa fie cel
-            temporar/mai putin important, nu iesirea din ecran. */}
-        <Tooltip label={tr('workspace.tooltip.grid')} side="left">
-          <button className="ghost icon-btn" onClick={() => setWorkspaceMode(false)} aria-label={tr('workspace.grid.ariaLabel')}>
-            <GridIcon />
-          </button>
-        </Tooltip>
-        <Tooltip label={tr('app.tooltip.menu')} side="left">
-          <button className="ghost icon-btn" onClick={() => setMenuOpen(true)} aria-label={tr('app.menu.ariaLabel')}>
-            <MenuIcon />
-          </button>
-        </Tooltip>
+        {/* randul de iconite NU se mai infasoara linie cu linie (flex-wrap:nowrap
+            aici, spre deosebire de .workspace-head care ramane wrap doar pentru
+            butonul Anuleaza de mai jos) — numele fisierului se micsoreaza cu "…"
+            cat e nevoie, iconitele raman fixe, mereu pe UN singur rand. Bug real
+            raportat de utilizator: inainte, cu totul pe acelasi nivel de flex-wrap,
+            iconitele se rupeau imprevizibil intre randuri (3+3, 4+2 etc, dupa cum
+            se intampla sa incapa) in loc sa cedeze spatiu numelui fisierului. */}
+        <div className="workspace-head-row">
+          <span className="mono">{photo.fileName}</span>
+          <span className="mono workspace-hint" role={progress ? 'status' : undefined} aria-live={progress ? 'polite' : undefined}>
+            {progress
+              ? (progress.phase === 'analiza'
+                ? (progress.etaSeconds !== undefined
+                  ? tr('workspace.progress.analyzingEta', { done: progress.done, total: progress.total, eta: formatEta(progress.etaSeconds) })
+                  : tr('workspace.progress.analyzing', { done: progress.done, total: progress.total }))
+                : tr('workspace.progress.processing'))
+              : tr('workspace.defaultHint')}
+          </span>
+          <UndoHistoryButton />
+          <Tooltip label={tr('app.addPhotos')}>
+            {/* vezi App.tsx (acelasi buton, acelasi motiv) — evita al doilea import concurent */}
+            <button className="ghost icon-btn" onClick={() => void onAddPhotosClick()} disabled={!!progress} aria-label={tr('app.addPhotos')}>
+              <PlusIcon />
+            </button>
+          </Tooltip>
+          {/* butonul (i) de aici a fost eliminat — duplica exact acelasi buton
+              "METRICI" din dock (mai jos, mereu vizibil sub poza), care exista
+              special ca sa rezolve o reclamatie de descoperibilitate anterioara
+              (vezi comentariul .workspace-metrics-handle din styles.css); doar
+              aglomera antetul fara sa adauge vreo functie noua. Comanda rapida
+              "I" ramane neschimbata (leaga direct de showMetrics, nu de buton). */}
+          <Tooltip label={tr('edit.open')} side="left">
+            <button className="ghost icon-btn" onClick={() => openEdit(photo.id)} aria-label={tr('edit.open')}>
+              <EditIcon />
+            </button>
+          </Tooltip>
+          <Tooltip label={tr('workspace.tooltip.grid')} side="left">
+            <button className="ghost icon-btn" onClick={() => setWorkspaceMode(false)} aria-label={tr('workspace.grid.ariaLabel')}>
+              <GridIcon />
+            </button>
+          </Tooltip>
+          <Tooltip label={tr('app.tooltip.menu')} side="left">
+            <button className="ghost icon-btn" onClick={() => setMenuOpen(true)} aria-label={tr('app.menu.ariaLabel')}>
+              <MenuIcon />
+            </button>
+          </Tooltip>
+        </div>
         {progress?.phase === 'analiza' && (
           // flex-basis:100% (.workspace-cancel-btn) — forteaza acest buton pe
           // PROPRIUL rand mereu, in loc sa concureze cu iconitele de navigare
@@ -241,7 +240,9 @@ export function Workspace() {
           // afara. Bug real raportat: fara asta, iconitele treceau ele pe randul
           // 2 (mai putin vizibile/usor de gasit), desi butonul temporar de
           // anulare conta mai putin decat "iesirile" din Workspace.
-          <button className="ghost small-btn workspace-cancel-btn" onClick={() => cancelImport()}>{tr('app.progress.cancel')}</button>
+          <button className="ghost small-btn workspace-cancel-btn" onClick={() => cancelImport()} disabled={importCancelling}>
+            {importCancelling ? tr('app.progress.cancelling') : tr('app.progress.cancel')}
+          </button>
         )}
       </header>
 
