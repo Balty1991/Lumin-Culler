@@ -3,6 +3,13 @@
  * Pool de Web Workers pentru analiza ML. Firul principal doar decodează
  * imaginile și transferă ImageBitmap-uri (zero-copy); inferența rulează
  * exclusiv aici, pe N-1 nuclee.
+ *
+ * Pe Android nativ (Capacitor), acest pool NU mai porneste deloc workeri
+ * Human.js pentru analiza normala — foloseste in schimb core/nativeAnalysis.ts
+ * (5 plugin-uri Kotlin/ML Kit/MediaPipe deja dovedite pe device real). Vezi
+ * `nativeMode` mai jos. Singura exceptie: computeEnrollmentEmbedding()
+ * ("Persoane cunoscute") tot are nevoie de Human.js (recunoasterea nu exista
+ * inca pe native) — porneste UN worker real, lazy, doar la prima folosire.
  */
 import * as Comlink from 'comlink';
 import { Capacitor } from '@capacitor/core';
@@ -10,6 +17,7 @@ import type { FaceAnalysisAPI } from '../workers/faceAnalysis.worker';
 import type { AnalysisRecord, KnownPerson } from './db';
 import { readEconomicMode } from './performanceSettings';
 import { writeLastModelLoadMs } from './modelLoadTiming';
+import { analyzeNative } from './nativeAnalysis';
 
 interface Slot {
   worker: Worker;
@@ -34,7 +42,10 @@ const MODEL_INIT_TIMEOUT_MS = 150000;
  * TF.js intr-un caz patologic etc.) poate bloca WORKER-ul la infinit — nu
  * doar main thread-ul. Fara acest timeout, un singur fisier "prost" inghetat
  * tot importul pentru totdeauna, exact simptomul raportat: bara de progres
- * ramane blocata la "N/total" fara sa mai avanseze vreodata.
+ * ramane blocata la "N/total" fara sa mai avanseze vreodata. Folosit si pentru
+ * lantul de 5 apeluri native secventiale (core/nativeAnalysis.ts) — modelele
+ * native sunt in general mult mai rapide decat Human.js, deci acelasi buget
+ * ramane confortabil.
  */
 const ANALYZE_TIMEOUT_MS = 40000;
 
@@ -64,6 +75,7 @@ export function withTimeout<T>(promise: Promise<T>, ms: number, message: string)
  * utilizator; pe telefoane cu mult RAM (8GB+), plafonul fix de 4 lasa viteza
  * pe masa fara niciun motiv. `navigator.deviceMemory` (doar Chromium; undefined
  * pe Firefox/Safari) da o estimare aproximativa, rotunjita la puteri ale lui 2.
+ * Folosita doar pe web/PWA — pe Android nativ, init() nu mai ajunge aici deloc.
  */
 export function computeWorkerCount(cores: number, deviceMemoryGB: number | undefined): number {
   const coreBudget = Math.max(1, cores - 1);
@@ -77,20 +89,47 @@ function deviceMemoryGB(): number | undefined {
   return (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
 }
 
+/**
+ * Cate poze in paralel sa trimitem prin lantul de 5 apeluri native secventiale
+ * (core/nativeAnalysis.ts). Fiecare apel individual ruleaza deja secvential in
+ * interior (nu Promise.all — bug real de OOM gasit la testare pe device cand
+ * toate 9 module rulau simultan), deci aceasta limita e despre CATE poze diferite
+ * pot avea propriul lor lant de 5 apeluri in zbor deodata, nu despre modele in
+ * paralel per poza. 2 e aceeasi valoare conservatoare deja stabilita in sesiune
+ * pentru contextul WebView Android (vezi istoricul acestui fisier).
+ */
+const NATIVE_ANALYSIS_CONCURRENCY = 2;
+
 export class AnalysisPool {
   private slots: Slot[] = [];
   private waiters: ((slot: Slot) => void)[] = [];
   private ready = false;
   private modelBase = '';
   private knownPersons: KnownPerson[] = [];
-  /** Backend TFJS efectiv folosit de worker-ul de referinta (primul initializat). */
+  /** Backend TFJS efectiv folosit de worker-ul de referinta (primul initializat), sau 'native' pe Android. */
   detectedBackend = 'unknown';
 
-  get size(): number { return this.slots.length; }
+  /** true doar pe Android nativ — analiza normala ocoleste complet workerii Human.js. */
+  private nativeMode = false;
+  private nativeConcurrencyLimit = NATIVE_ANALYSIS_CONCURRENCY;
+  private nativeInFlight = 0;
+  private nativeWaiters: (() => void)[] = [];
 
-  /** false = fara accelerare WebGL/WASM — analiza ruleaza dar fara detectie reala de fete. */
+  /**
+   * Worker Human.js lazy, folosit DOAR de computeEnrollmentEmbedding() pe
+   * native (recunoasterea nu are inca echivalent nativ) — separat de
+   * `slots`/`detectedBackend` intentionat: nu vrem ca o inrolare rara de
+   * "persoana cunoscuta" sa suprascrie `detectedBackend` ('native') citit de
+   * store.ts pentru raportarea normala a importului.
+   */
+  private enrollmentSlot: Slot | undefined;
+  private enrollmentSlotPromise: Promise<Slot> | undefined;
+
+  get size(): number { return this.nativeMode ? this.nativeConcurrencyLimit : this.slots.length; }
+
+  /** false = fara accelerare WebGL/WASM — analiza ruleaza dar fara detectie reala de fete. 'native' e mereu accelerat (NNAPI/GPU delegate pe device). */
   get isAccelerated(): boolean {
-    return ['webgl', 'humangl', 'webgpu', 'wasm'].includes(this.detectedBackend);
+    return ['webgl', 'humangl', 'webgpu', 'wasm', 'native'].includes(this.detectedBackend);
   }
 
   /** true dupa primul init() reusit — util ca sa stim daca resizeForEconomicMode() are ce redimensiona acum sau doar la urmatorul import. */
@@ -116,27 +155,28 @@ export class AnalysisPool {
     // masurat aici (nu doar primul slot) — AiBootScreen ramane vizibil pana la
     // finalul intregii metode (toti workerii), vezi modelLoadTiming.ts
     const startedAt = performance.now();
+
+    if (Capacitor.isNativePlatform()) {
+      // Niciun worker Human.js pornit aici — elimina structural pe Android
+      // exact clasa de crash reparata anterior in sesiune (randare WebView
+      // prabusita/OOM la "Se incarca modelele AI"), nu doar o atenueaza:
+      // acel cod pur si simplu nu se mai executa la pornirea normala a
+      // aplicatiei. Vezi core/nativeAnalysis.ts pentru pipeline-ul real.
+      this.nativeMode = true;
+      this.nativeConcurrencyLimit = readEconomicMode() ? 1 : NATIVE_ANALYSIS_CONCURRENCY;
+      this.detectedBackend = 'native';
+      this.ready = true;
+      writeLastModelLoadMs(performance.now() - startedAt);
+      return;
+    }
+
     this.slots = []; // in caz ca o incercare anterioara a esuat/timeout partial, nu dublam sloturile
     const cores = navigator.hardwareConcurrency || 4;
     // mod economic: un singur worker, in loc de pana la N in paralel — mai putina
     // presiune de RAM (fiecare worker isi incarca propria instanta Human.js/TFJS)
     // pe hardware slab, cu costul unui import mai lent. Altfel, numarul se
     // adapteaza dupa RAM-ul device-ului (vezi computeWorkerCount).
-    // Pe Android nativ (WebView incorporat in aplicatie, nu Chrome ca aplicatie
-    // separata), procesul de randare al WebView-ului pare sa aiba mult mai putina
-    // marja de memorie decat un tab obisnuit de browser inainte sa pice — crash
-    // real reprodus DOAR pe build-ul nativ (nu si in acelasi cod JS rulat intr-un
-    // tab de browser, pe acelasi telefon), chiar la "Se incarca modelele AI",
-    // inainte de orice import real. `computeWorkerCount` foloseste
-    // `navigator.deviceMemory`, o estimare a RAM-ului TOTAL al device-ului — nu a
-    // memoriei disponibile efectiv procesului de randare in acest context mai
-    // constrans — deci pe un telefon cu RAM generos putea intoarce pana la 6
-    // workeri paraleli incarcand fiecare propriul Human.js/TFJS complet chiar la
-    // pornire. Un plafon conservator, DOAR in acest context, reduce presiunea de
-    // memorie la boot fara sa schimbe nimic pe web/PWA (unde nu s-a raportat
-    // aceasta problema).
-    const nativeWorkerCap = Capacitor.isNativePlatform() ? 2 : Infinity;
-    const size = readEconomicMode() ? 1 : Math.min(computeWorkerCount(cores, deviceMemoryGB()), nativeWorkerCap);
+    const size = readEconomicMode() ? 1 : computeWorkerCount(cores, deviceMemoryGB());
     this.modelBase = new URL(`${import.meta.env.BASE_URL}models/`, location.href).href;
 
     // Doar PRIMUL worker face detectia completa de backend (WebGPU -> WebGL ->
@@ -166,6 +206,7 @@ export class AnalysisPool {
   async setKnownPersons(persons: KnownPerson[]): Promise<void> {
     this.knownPersons = persons;
     await Promise.all(this.slots.map(s => s.api.setKnownPersons(persons)));
+    if (this.enrollmentSlot) await this.enrollmentSlot.api.setKnownPersons(persons);
   }
 
   /**
@@ -179,9 +220,28 @@ export class AnalysisPool {
    * "busy": analiza lor in curs va esua pe timeout, ca orice worker blocat —
    * importFiles trateaza deja acest caz ca un esec normal per-poza, nu ca o
    * eroare fatala de import).
+   *
+   * Pe native: reinterpretam acelasi comutator ca plafon de concurenta pentru
+   * apelurile native (1 vs NATIVE_ANALYSIS_CONCURRENCY), nu pentru workeri
+   * Human.js — setarea existenta din meniu ramane utila cross-platform fara
+   * UI nou. `nativeInFlight`/`nativeWaiters` fac limita sigura de schimbat
+   * oricand (chiar cu analize in zbor): disponibilitatea se recalculeaza
+   * mereu ca `nativeInFlight < nativeConcurrencyLimit`, nu printr-un contor
+   * care ar putea deveni negativ/incorect la o scadere in timpul unui import.
    */
   async resizeForEconomicMode(economic: boolean): Promise<void> {
     if (!this.ready) return; // inca nepornit — init() va citi setarea curenta la primul import
+    if (this.nativeMode) {
+      this.nativeConcurrencyLimit = economic ? 1 : NATIVE_ANALYSIS_CONCURRENCY;
+      while (this.nativeInFlight < this.nativeConcurrencyLimit && this.nativeWaiters.length > 0) {
+        const next = this.nativeWaiters.shift();
+        if (!next) break;
+        this.nativeInFlight++;
+        next();
+      }
+      return;
+    }
+
     const cores = navigator.hardwareConcurrency || 4;
     const targetSize = economic ? 1 : computeWorkerCount(cores, deviceMemoryGB());
     const oldSlots = this.slots;
@@ -229,8 +289,32 @@ export class AnalysisPool {
     }
   }
 
-  /** Analizează o fotografie. Bitmap-ul e transferat (nu copiat) și închis în worker. */
+  private acquireNativePermit(): Promise<void> {
+    if (this.nativeInFlight < this.nativeConcurrencyLimit) { this.nativeInFlight++; return Promise.resolve(); }
+    return new Promise(resolve => this.nativeWaiters.push(resolve));
+  }
+
+  private releaseNativePermit(): void {
+    this.nativeInFlight--;
+    const next = this.nativeWaiters.shift();
+    if (next) { this.nativeInFlight++; next(); }
+  }
+
+  /** Analizează o fotografie. Bitmap-ul e transferat (nu copiat) și închis în worker — sau, pe native, închis direct în nativeAnalysis.ts dupa conversia in Blob. */
   async analyze(photoId: string, bitmap: ImageBitmap): Promise<AnalysisRecord> {
+    if (this.nativeMode) {
+      await this.acquireNativePermit();
+      try {
+        return await withTimeout(
+          analyzeNative(photoId, bitmap),
+          ANALYZE_TIMEOUT_MS,
+          'Analiza acestei fotografii a durat prea mult (posibil fisier problematic) — sarita.'
+        );
+      } finally {
+        this.releaseNativePermit();
+      }
+    }
+
     const slot = await this.acquire();
     try {
       return await withTimeout(
@@ -246,8 +330,39 @@ export class AnalysisPool {
     }
   }
 
+  /** Reface (lazy, o singura data) worker-ul Human.js dedicat inrolarii pe native — vezi comentariul de la `enrollmentSlot`. */
+  private ensureEnrollmentSlot(): Promise<Slot> {
+    if (this.enrollmentSlot) return Promise.resolve(this.enrollmentSlot);
+    if (!this.enrollmentSlotPromise) {
+      this.enrollmentSlotPromise = this.spawnSlot().then(async ({ slot }) => {
+        if (this.knownPersons.length) await slot.api.setKnownPersons(this.knownPersons);
+        this.enrollmentSlot = slot;
+        return slot;
+      });
+    }
+    return this.enrollmentSlotPromise;
+  }
+
   /** Înrolare persoană cunoscută: returnează embedding-ul feței principale + numărul de fețe detectate (vezi worker pentru bug-ul de avertizare). */
   async computeEnrollmentEmbedding(bitmap: ImageBitmap): Promise<{ embedding: number[]; faceCount: number } | null> {
+    if (this.nativeMode) {
+      const slot = await this.ensureEnrollmentSlot();
+      try {
+        return await withTimeout(
+          slot.api.computeEnrollmentEmbedding(Comlink.transfer(bitmap, [bitmap])),
+          ANALYZE_TIMEOUT_MS,
+          'Procesarea acestei poze de referinta a durat prea mult.'
+        );
+      } catch (err) {
+        if (err instanceof Error && err.message.includes('a durat prea mult')) {
+          try { slot.worker.terminate(); } catch { /* deja mort, nu conteaza */ }
+          this.enrollmentSlot = undefined;
+          this.enrollmentSlotPromise = undefined;
+        }
+        throw err;
+      }
+    }
+
     const slot = await this.acquire();
     try {
       return await withTimeout(

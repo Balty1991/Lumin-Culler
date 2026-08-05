@@ -336,6 +336,16 @@ export interface AnalysisRecord {
    * aiDegraded) sau pe inregistrari dinaintea acestei functii.
    */
   sceneTags?: string[];
+  /**
+   * Fractiune din cadru acoperita de text detectat (OCR) — 0..1, aproximare
+   * (suma ariilor cutiilor de text, nu o uniune reala). Doar pe Android nativ
+   * (core/nativeAnalysis.ts, plugin-ul TextRecognition), calculat DOAR cand
+   * fotografia nu are nici fete nici sceneTags — semnal pentru
+   * importPipeline.ts:hasNoRecognizableSubject ca sa prinda documente/
+   * capturi de ecran care altfel ar trece drept "fara subiect recognoscibil"
+   * fara sa fie marcate distinct. Absent pe web/PWA (pipeline-ul JS nu are OCR).
+   */
+  textCoverage?: number;
 }
 
 export interface KnownPerson {

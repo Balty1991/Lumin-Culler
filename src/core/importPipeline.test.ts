@@ -72,4 +72,13 @@ describe('decidePhotoStatus', () => {
   it('ramane review intre praguri, ca inainte', () => {
     expect(decidePhotoStatus((SELECT_THRESHOLD + REJECT_THRESHOLD) / 2, baseAnalysis({ faceCount: 1 }))).toBe('review');
   });
+
+  it('NU aproba automat cand textCoverage e dominant (document/captura de ecran), chiar daca exista fete/etichete din intamplare', () => {
+    expect(decidePhotoStatus(SELECT_THRESHOLD, baseAnalysis({ faceCount: 1, sceneTags: ['book'], textCoverage: 0.3 }))).toBe('review');
+  });
+
+  it('aproba normal cand textCoverage e absent sau sub prag (web/PWA nu are OCR — mereu absent acolo)', () => {
+    expect(decidePhotoStatus(SELECT_THRESHOLD, baseAnalysis({ faceCount: 1, sceneTags: [], textCoverage: undefined }))).toBe('selected');
+    expect(decidePhotoStatus(SELECT_THRESHOLD, baseAnalysis({ faceCount: 1, sceneTags: [], textCoverage: 0.05 }))).toBe('selected');
+  });
 });

@@ -51,14 +51,26 @@ export const REJECT_THRESHOLD = 35;
  * intentionat (bug real raportat: poze cu documente/texturi aprobate automat
  * alaturi de poze bune, fara nicio distinctie).
  */
-function hasNoRecognizableSubject(analysis: Pick<AnalysisRecord, 'faceCount' | 'sceneTags'>): boolean {
+/**
+ * TEXT_DOMINANT_THRESHOLD: prag euristic (nu calibrat pe un set mare de date) —
+ * peste aceasta fractiune din cadru acoperita de text (OCR nativ Android, vezi
+ * core/nativeAnalysis.ts), cadrul e tratat ca document/captura de ecran
+ * indiferent de fete/sceneTags — un document poate primi din intamplare o
+ * eticheta COCO/scena (ex. "carte", "laptop") fara sa fie un subiect
+ * fotografic real. Absent pe web/PWA (fara OCR acolo) — conditia devine
+ * mereu falsa, deci fara efect.
+ */
+const TEXT_DOMINANT_THRESHOLD = 0.15;
+
+function hasNoRecognizableSubject(analysis: Pick<AnalysisRecord, 'faceCount' | 'sceneTags' | 'textCoverage'>): boolean {
+  if (analysis.textCoverage !== undefined && analysis.textCoverage >= TEXT_DOMINANT_THRESHOLD) return true;
   return analysis.faceCount === 0 && !(analysis.sceneTags && analysis.sceneTags.length > 0);
 }
 
 /** Reutilizat de store.ts (rescorePhotos) ca sa clasifice exact la fel poze deja existente, re-scorate cu un model ContextEngine actualizat. */
 export function decidePhotoStatus(
   score: number,
-  analysis: Pick<AnalysisRecord, 'faceCount' | 'sceneTags'>
+  analysis: Pick<AnalysisRecord, 'faceCount' | 'sceneTags' | 'textCoverage'>
 ): PhotoRecord['status'] {
   if (score <= REJECT_THRESHOLD) return 'rejected';
   if (score >= SELECT_THRESHOLD && !hasNoRecognizableSubject(analysis)) return 'selected';

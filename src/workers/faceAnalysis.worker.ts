@@ -22,6 +22,7 @@
 import * as Comlink from 'comlink';
 import { Human, type Config, type FaceResult, type ObjectResult, type BackendEnum } from '@vladmandic/human';
 import type { AnalysisRecord, FaceInsight, KnownPerson } from '../core/db';
+import { classifyScene } from '../core/sceneClassifier';
 
 // ── Config ───────────────────────────────────────────────────────────────────
 
@@ -436,17 +437,6 @@ function detectHorizonTiltDeg(img: ImageData): number | null {
   if (edgeCount < w * HORIZON_MIN_EDGE_PIXELS_FACTOR) return null;
   const meanDeg = (Math.atan2(sumSin, sumCos) * 180) / Math.PI / 2;
   return Math.round(meanDeg * 10) / 10;
-}
-
-function classifyScene(faces: FaceInsight[], w: number, h: number): AnalysisRecord['sceneType'] {
-  if (faces.length === 0) return w >= h ? 'landscape' : 'detail';
-  // O singura fata e mereu "portret", indiferent de cat de mica/departe e in cadru
-  // (bug real gasit de auditul QA: un portret de mediu/environmental cu subiectul mic
-  // in cadru era clasificat gresit ca "group", diluand modelul de invatare per context).
-  if (faces.length === 1) return 'portrait';
-  if (faces.length >= 3) return 'group';
-  const largest = Math.max(...faces.map(f => f.box[2] * f.box[3]));
-  return largest > 0.04 ? 'portrait' : 'group';
 }
 
 // ── Compozitie (tehnici clasice de fotografie, calculate geometric) ────────────
