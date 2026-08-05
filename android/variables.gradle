@@ -18,4 +18,9 @@ ext {
     // descarcare separata prin Play Services) — coerent cu "AI local" din tagline-ul aplicatiei.
     kotlinVersion = '2.4.10'
     mlkitFaceDetectionVersion = '16.1.7'
+    // Analiza AI nativa (Faza 3 — vezi plugins/ObjectDetectionPlugin.kt): ML Kit
+    // nu ofera detectie de obiecte la nivel COCO-80 (doar 5 categorii foarte
+    // largi), asa ca aceasta piesa ruleaza direct un model TFLite (vezi
+    // "Bundle native object-detection model" din workflow-urile CI).
+    tensorflowLiteVersion = '2.17.0'
 }

@@ -75,6 +75,10 @@ dependencies {
     // dupa instalare, fara descarcare separata prin Play Services.
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
     implementation "com.google.mlkit:face-detection:$mlkitFaceDetectionVersion"
+    // Analiza AI nativa (Faza 3) — vezi plugins/ObjectDetectionPlugin.kt. Modelul
+    // TFLite (detect.tflite) e descarcat de CI in assets/, nu vine din aceasta
+    // dependinta — biblioteca de aici e doar runtime-ul de inferenta.
+    implementation "org.tensorflow:tensorflow-lite:$tensorflowLiteVersion"
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"

@@ -55,6 +55,15 @@ jobs:
           done
       - run: npm run build
       - run: npx cap sync android
+      # Analiza AI nativa (Faza 3 — vezi plugins/ObjectDetectionPlugin.kt): model
+      # TFLite COCO SSD MobileNet oficial (Apache 2.0, download.tensorflow.org),
+      # NU committed in git (~4MB binar) — descarcat aici, la fel ca modelele
+      # Human.js de mai sus, doar ca in assets-urile native Android, nu in public/.
+      - name: Bundle native object-detection model
+        run: |
+          curl -sL -o /tmp/coco_ssd.zip https://storage.googleapis.com/download.tensorflow.org/models/tflite/coco_ssd_mobilenet_v1_1.0_quant_2018_06_29.zip
+          mkdir -p android/app/src/main/assets
+          unzip -o /tmp/coco_ssd.zip -d android/app/src/main/assets
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:

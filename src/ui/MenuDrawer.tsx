@@ -13,6 +13,7 @@ import { nextGridDensity } from '../state/gridDensity';
 import { getInstallPromptEvent, subscribeInstallPromptEvent, consumeInstallPromptEvent, isStandalone } from '../core/installPromptEvent';
 import { detectFacesNative, isNativeFaceDetectionAvailable } from '../core/nativeFaceDetection';
 import { analyzeImageNative, isNativeImageAnalysisAvailable } from '../core/nativeImageAnalysis';
+import { detectObjectsNative, isNativeObjectDetectionAvailable } from '../core/nativeObjectDetection';
 import { t } from '../i18n';
 
 /** Meniu lateral: persoane, preferinte AI invatate, export lista, despre. */
@@ -73,9 +74,10 @@ export function MenuDrawer() {
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const go = (action: () => void) => { setOpen(false); action(); };
 
-  // TEMPORAR (Faza 1+2, analiza AI nativa) — doar ca sa poata fi testat direct pe
+  // TEMPORAR (Faza 1+2+3, analiza AI nativa) — doar ca sa poata fi testat direct pe
   // device, fara Chrome DevTools/USB. De eliminat cand pipeline-ul nativ chiar
-  // inlocuieste analiza reala (vezi core/nativeFaceDetection.ts + core/nativeImageAnalysis.ts).
+  // inlocuieste analiza reala (vezi core/nativeFaceDetection.ts + core/nativeImageAnalysis.ts
+  // + core/nativeObjectDetection.ts).
   // import.meta.env.DEV e eliminat static din build-ul de productie (Vite),
   // deci acest buton nu ajunge niciodata in APK-ul real.
   const testNativeFaceDetection = () => {
@@ -85,9 +87,9 @@ export function MenuDrawer() {
     input.onchange = () => {
       const file = input.files?.[0];
       if (!file) return;
-      Promise.all([detectFacesNative(file), analyzeImageNative(file)])
-        .then(([faces, analysis]) =>
-          setNotice(`Native OK: ${faces.faces.length} fete. ${JSON.stringify(analysis)}`)
+      Promise.all([detectFacesNative(file), analyzeImageNative(file), detectObjectsNative(file)])
+        .then(([faces, analysis, objects]) =>
+          setNotice(`Native OK: ${faces.faces.length} fete, ${objects.objects.length} obiecte. ${JSON.stringify(analysis)} ${JSON.stringify(objects)}`)
         )
         .catch(err => setNotice(`Native FAIL: ${err instanceof Error ? err.message : String(err)}`));
     };
@@ -319,7 +321,7 @@ export function MenuDrawer() {
           <span>{tr('menu.shortcuts')}</span>
         </button>
 
-        {import.meta.env.DEV && isNativeFaceDetectionAvailable() && isNativeImageAnalysisAvailable() && (
+        {import.meta.env.DEV && isNativeFaceDetectionAvailable() && isNativeImageAnalysisAvailable() && isNativeObjectDetectionAvailable() && (
           <button className="drawer-item" onClick={() => go(testNativeFaceDetection)}>
             <span className="drawer-item-icon"><SparkleIcon /></span>
             <span>[DEV] Test detectie nativa</span>
