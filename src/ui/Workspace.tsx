@@ -6,7 +6,7 @@ import { Tooltip } from './Tooltip';
 import { StarRating } from './StarRating';
 import { PhotoInfoTabs } from './PhotoInfoTabs';
 import { EmptyFilterState } from './EmptyFilterState';
-import { ChevronLeft, ChevronRight, XIcon, CheckIcon, GridIcon, PlusIcon, MenuIcon, EditIcon } from './icons';
+import { ChevronLeft, ChevronRight, ChevronUpIcon, XIcon, CheckIcon, GridIcon, PlusIcon, MenuIcon, EditIcon } from './icons';
 import { UndoHistoryButton } from './UndoHistoryButton';
 import { AdjustedImage } from './AdjustedImage';
 import type { EditAdjustments } from '../core/imageAdjust';
@@ -269,13 +269,16 @@ export function Workspace() {
 
       <div className="workspace-dock">
         <button
-          className="workspace-metrics-handle"
+          className={showMetrics ? 'workspace-metrics-handle expanded' : 'workspace-metrics-handle'}
           onClick={() => setShowMetrics(v => !v)}
           aria-expanded={showMetrics}
           aria-label={showMetrics ? tr('workspace.metrics.hide') : tr('workspace.metrics.show')}
         >
           <span className="workspace-metrics-handle-bar" aria-hidden="true" />
-          <span className="workspace-metrics-peek-label mono">{tr('workspace.metrics.peekLabel')}</span>
+          <span className="workspace-metrics-peek-label mono">
+            {tr('workspace.metrics.peekLabel')}
+            <ChevronUpIcon aria-hidden="true" />
+          </span>
         </button>
         {showMetrics && (
           <div className="workspace-metrics-panel">

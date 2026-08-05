@@ -36,6 +36,9 @@ export function ChevronLeft(p: SVGProps<SVGSVGElement>) {
 export function ChevronRight(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><path d="M9 5l7 7-7 7" /></svg>;
 }
+export function ChevronUpIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg {...base} {...p}><path d="M5 15l7-7 7 7" /></svg>;
+}
 export function EyeClosedIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><path d="M3 12s3.6-6.5 9-6.5S21 12 21 12s-3.6 6.5-9 6.5S3 12 3 12z" opacity="0.35" /><line x1="3" y1="20" x2="21" y2="4" /></svg>;
 }

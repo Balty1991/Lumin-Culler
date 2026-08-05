@@ -5,7 +5,7 @@
  */
 import { create } from 'zustand';
 import { db, type AnalysisRecord, type PhotoRecord, type KnownPerson, type ColorLabel } from '../core/db';
-import { ADJUSTMENT_KEYS, applyAdjustmentsToBlob, type EditAdjustments } from '../core/imageAdjust';
+import { applyAdjustmentsToBlob, isNeutral, type EditAdjustments } from '../core/imageAdjust';
 import { readApplyEditsInGallery, writeApplyEditsInGallery } from './applyEditsPreference';
 import { clearPreviewUrlCache } from '../core/previewUrlCache';
 import {
@@ -231,6 +231,8 @@ interface AppState {
   compareGroupId: string | null;
   /** Poza deschisa in EditPanel (modulul de editare de baza) — null = panoul e inchis. */
   editingPhotoId: string | null;
+  /** vezi openEdit — consumat o singura data de EditPanel la incarcarea pozei, nu ramane "agatat" intre deschideri (openEdit il rescrie mereu, inclusiv la false). */
+  editAutoApplyRequested: boolean;
   personsOpen: boolean;
   menuOpen: boolean;
   insightsOpen: boolean;
@@ -372,7 +374,8 @@ interface AppState {
   clearAdvancedFilters: () => void;
   openDetail: (id: string | null) => void;
   openCompare: (groupId: string | null) => void;
-  openEdit: (id: string | null) => void;
+  /** `autoApply: true` — EditPanel invoca "Auto" o singura data, imediat ce poza s-a incarcat (vezi PhotoInfoTabs, butonul "Aplica" de pe o sugestie fixabila acum). */
+  openEdit: (id: string | null, opts?: { autoApply?: boolean }) => void;
   stepDetail: (dir: 1 | -1) => void;
   addPerson: (name: string, files: File[]) => Promise<{ ok: boolean; message: string }>;
   removePerson: (id: string) => Promise<void>;
@@ -787,6 +790,7 @@ export const useStore = create<AppState>((set, get) => ({
   detailId: null,
   compareGroupId: null,
   editingPhotoId: null,
+  editAutoApplyRequested: false,
   personsOpen: false,
   menuOpen: false,
   insightsOpen: false,
@@ -1109,7 +1113,7 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   setEditAdjustments: async (id, adjustments) => {
-    const neutral = ADJUSTMENT_KEYS.every(k => adjustments[k] === 0);
+    const neutral = isNeutral(adjustments);
     // absent (nu {toate 0}) pe neutru — coerent cu restul campurilor optionale
     // (colorLabel 'none', genre absent) si evita sa "poluam" fiecare poza cu un
     // obiect gol dupa un simplu Reseteaza fara nicio ajustare reala facuta
@@ -1505,7 +1509,7 @@ export const useStore = create<AppState>((set, get) => ({
   clearAdvancedFilters: () => set({ searchText: '', dateFrom: null, dateTo: null, minRating: 0 }),
   openDetail: id => set({ detailId: id }),
   openCompare: groupId => set({ compareGroupId: groupId }),
-  openEdit: id => set({ editingPhotoId: id }),
+  openEdit: (id, opts) => set({ editingPhotoId: id, editAutoApplyRequested: !!opts?.autoApply }),
 
   stepDetail: dir => {
     const { detailId } = get();

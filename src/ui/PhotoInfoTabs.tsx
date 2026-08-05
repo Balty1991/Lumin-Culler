@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { db, type AnalysisRecord } from '../core/db';
 import { useStore, type PhotoView } from '../state/store';
 import { explainFactors } from '../core/learning/ContextEngine';
-import { generateExplanation, generateSuggestions } from '../core/aiExplanationGenerator';
+import { generateExplanation, generateSuggestions, type Suggestion } from '../core/aiExplanationGenerator';
 import { Histogram } from './Histogram';
 import { FocusMap } from './FocusMap';
 import { AnimatedNumber } from './AnimatedNumber';
@@ -103,17 +103,31 @@ function formatRelativeTime(ts: number, locale: Locale): string {
 // "ce ar recomanda AI-ul" pentru explicatia narativa de mai jos
 const AI_SELECT_THRESHOLD = 65;
 
-/** Explicatia narativa (paragrafe) pentru scorul AI — incarcata lenes (AnalysisRecord + ContextModelRecord
-    complete nu fac parte din PhotoView), doar cat timp tab-ul "De ce acest scor" e deschis. */
+/**
+ * Explicatia narativa (paragrafe) pentru scorul AI — incarcata lenes (AnalysisRecord + ContextModelRecord
+ * complete nu fac parte din PhotoView), doar cat timp tab-ul "De ce acest scor" e deschis.
+ *
+ * Restructurat dupa feedback direct ("prea mult text/greu de scanat",
+ * "sugestiile sunt prea generice"): doar verdictul ramane mereu vizibil (deja
+ * are accent vizual, e concluzia care conteaza cel mai mult); restul
+ * rationamentului (tehnic/compozitie/subiect/estetica) sta strans sub
+ * "Detalii", pe cerere. Sugestiile sunt acum impartite explicit intre ce se
+ * poate repara ACUM (cu buton "Aplica", vezi openEdit autoApply mai jos) si
+ * ce ramane sfat pentru urmatorul cadru — inainte, cele doua categorii
+ * stateau amestecate intr-o singura lista, fara sa fie clar care e care.
+ */
 function WhyExplanation({ photo }: { photo: PhotoView }) {
   const locale = useStore(s => s.locale);
+  const openEdit = useStore(s => s.openEdit);
   const [paragraphs, setParagraphs] = useState<string[] | null>(null);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   useEffect(() => {
     let alive = true;
     setParagraphs(null);
     setSuggestions([]);
+    setDetailsOpen(false);
     void Promise.all([db.analyses.get(photo.id), db.contextModels.get(photo.contextKey)]).then(
       ([analysis, contextModel]) => {
         if (!alive || !analysis) return;
@@ -127,19 +141,56 @@ function WhyExplanation({ photo }: { photo: PhotoView }) {
   }, [photo.id, photo.contextKey, photo.aiScore, photo.status, locale]);
 
   if (paragraphs === null) return <p className="hint"><SparkleIcon className="inline-icon spin" /> {t(locale, 'detail.why.loading')}</p>;
+  const verdict = paragraphs[paragraphs.length - 1];
+  const rest = paragraphs.slice(0, -1);
+  const now = suggestions.filter(s => s.when === 'now');
+  const nextTime = suggestions.filter(s => s.when === 'nextTime');
+
   return (
     <div className="why-explanation">
-      {paragraphs.map((p, i) => <p key={i}>{p}</p>)}
-      <div className="why-suggestions">
-        <h4 className="why-suggestions-title mono"><SparkleIcon className="inline-icon" /> {t(locale, 'detail.why.suggestions.title')}</h4>
-        {suggestions.length > 0 ? (
-          <ul>
-            {suggestions.map((s, i) => <li key={i}>{s}</li>)}
-          </ul>
-        ) : (
+      {verdict && <p className="why-verdict">{verdict}</p>}
+      {rest.length > 0 && (
+        <>
+          <button type="button" className="ghost slim why-details-toggle" onClick={() => setDetailsOpen(v => !v)} aria-expanded={detailsOpen}>
+            {t(locale, detailsOpen ? 'detail.why.details.hide' : 'detail.why.details.show')}
+          </button>
+          {detailsOpen && rest.map((p, i) => <p key={i}>{p}</p>)}
+        </>
+      )}
+      {(now.length > 0 || nextTime.length > 0) && (
+        <div className="why-suggestions">
+          <h4 className="why-suggestions-title mono"><SparkleIcon className="inline-icon" /> {t(locale, 'detail.why.suggestions.title')}</h4>
+          {now.length > 0 && (
+            <div className="why-suggestions-group">
+              <span className="why-suggestions-group-label mono">{t(locale, 'detail.why.suggestions.now')}</span>
+              <ul>
+                {now.map((s, i) => (
+                  <li key={i}>
+                    <span>{s.text}</span>
+                    <button type="button" className="ghost slim why-suggestion-apply" onClick={() => openEdit(photo.id, { autoApply: true })}>
+                      {t(locale, 'detail.why.suggestions.apply')}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {nextTime.length > 0 && (
+            <div className="why-suggestions-group">
+              <span className="why-suggestions-group-label mono">{t(locale, 'detail.why.suggestions.nextTime')}</span>
+              <ul>
+                {nextTime.map((s, i) => <li key={i}>{s.text}</li>)}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+      {suggestions.length === 0 && (
+        <div className="why-suggestions">
+          <h4 className="why-suggestions-title mono"><SparkleIcon className="inline-icon" /> {t(locale, 'detail.why.suggestions.title')}</h4>
           <p className="hint">{t(locale, 'detail.why.suggestions.none')}</p>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

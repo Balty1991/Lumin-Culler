@@ -1321,9 +1321,19 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   padding: 0 16px env(safe-area-inset-bottom); background: none; border: none; cursor: grab; touch-action: none;
 }
 .detail-sheet-handle-bar { width: 40px; height: 5px; border-radius: 999px; background: var(--line-strong); }
+/* Bug real gasit de feedback direct al utilizatorului: eticheta veche (text mic,
+   var(--text-faint), fara chenar/fundal) nu se citea ca fiind apasabila — "nu am
+   vazut acel buton DEV"-tipar, dar pentru manerul de metrici. Pilula cu chenar/
+   fundal + iconita (care se rotesc la expandare) o fac vizibil un element
+   interactiv, nu doar text decorativ. */
 .detail-sheet-peek-label {
-  font-size: 0.6rem; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.06em;
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.62rem; color: var(--text); text-transform: uppercase; letter-spacing: 0.06em;
+  background: var(--surface-3); border: 1px solid var(--line-strong); border-radius: 999px;
+  padding: 4px 12px 4px 9px;
 }
+.detail-sheet-peek-label svg { width: 12px; height: 12px; transition: transform 0.3s var(--ease); }
+.detail-sheet.expanded .detail-sheet-peek-label svg { transform: rotate(180deg); }
 .detail-sheet-content {
   flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 8px;
   padding: 0 16px calc(16px + env(safe-area-inset-bottom));
@@ -1433,10 +1443,19 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius);
   padding: 9px 11px;
 }
-/* verdictul (ultimul paragraf) — accentuat cu o muchie stanga in gradientul de brand, nu doar text mai deschis */
-.why-explanation p:last-child {
+/* Verdictul — randat PRIMUL acum (nu ultimul, vezi PhotoInfoTabs.tsx: restructurare
+   dupa feedback "prea mult text"), deci accentul foloseste o clasa explicita
+   (.why-verdict), nu :last-child — pozitia lui in DOM nu mai e garantata ultima
+   odata ce "Detalii" e deschis (paragrafele tehnic/compozitie/subiect/estetica
+   se randeaza dupa el). Accentuat cu o muchie stanga in gradientul de brand,
+   nu doar text mai deschis. */
+.why-explanation p.why-verdict {
   color: var(--text); border-color: var(--line-strong);
   border-left: 3px solid var(--accent); background: var(--surface-3);
+}
+.why-details-toggle {
+  align-self: flex-start; font-size: 0.68rem; color: var(--text-faint);
+  padding: 2px 4px; text-decoration: underline; text-underline-offset: 2px;
 }
 
 /* sugestii de imbunatatire — accent auriu (aceeasi paleta ca golden-badge), distinct de
@@ -1450,8 +1469,24 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   display: flex; align-items: center; gap: 5px; margin: 0 0 6px; color: #f59e0b; font-size: 0.62rem;
 }
 .why-suggestions-title svg { width: 13px; height: 13px; }
+/* Grup "Poti repara acum" / "Pentru data viitoare" — separate explicit dupa
+   feedback direct ("sugestiile sunt prea generice"): inainte stateau intr-o
+   singura lista, fara sa fie clar care sfat se aplica pozei deja facute si
+   care e doar pentru urmatorul cadru. */
+.why-suggestions-group + .why-suggestions-group { margin-top: 8px; }
+.why-suggestions-group-label {
+  display: block; font-size: 0.58rem; color: var(--text-faint); text-transform: uppercase;
+  letter-spacing: 0.05em; margin-bottom: 4px;
+}
 .why-suggestions ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
-.why-suggestions li { font-size: 0.82rem; line-height: 1.5; color: var(--text-dim); }
+.why-suggestions li {
+  font-size: 0.82rem; line-height: 1.5; color: var(--text-dim);
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+}
+.why-suggestion-apply {
+  flex: 0 0 auto; font-size: 0.68rem; color: var(--accent); font-weight: 600;
+  padding: 1px 6px; white-space: nowrap;
+}
 .why-suggestions .hint { margin: 0; }
 
 /* paleta de culori dominante + "ora de aur" (analiza estetica avansata, tab Metrici) */
@@ -1998,9 +2033,19 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   padding: 8px 0 4px;
 }
 .workspace-metrics-handle-bar { width: 36px; height: 4px; border-radius: 999px; background: var(--line-strong); }
+/* Acelasi tratament ca .detail-sheet-peek-label (DetailView) — vezi comentariul de
+   acolo: eticheta veche (text mic, fara chenar/fundal) tot nu se citea ca fiind
+   apasabila, desi comentariul de mai sus arata ca era deja o a doua incercare de
+   a rezolva exact aceasta reclamatie. Pilula cu chenar/fundal + iconita rezolva
+   vizual, nu doar prin text, aceeasi problema in ambele locuri. */
 .workspace-metrics-peek-label {
-  font-size: 0.6rem; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.06em;
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.62rem; color: var(--text); text-transform: uppercase; letter-spacing: 0.06em;
+  background: var(--surface-3); border: 1px solid var(--line-strong); border-radius: 999px;
+  padding: 4px 12px 4px 9px;
 }
+.workspace-metrics-peek-label svg { width: 12px; height: 12px; transition: transform 0.3s var(--ease); }
+.workspace-metrics-handle.expanded .workspace-metrics-peek-label svg { transform: rotate(180deg); }
 /* Paritate cu DetailView (plan "informatii complete"): panoul afiseaza acum aceleasi
    tab-uri Metrici/De ce/Persoane/Istoric (PhotoInfoTabs), nu doar un rezumat de 3 cifre —
    dar traieste in flux normal (nu fixed ca .detail-sheet), asa ca ii limitam inaltimea
