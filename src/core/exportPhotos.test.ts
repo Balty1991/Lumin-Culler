@@ -230,6 +230,58 @@ describe('exportOriginalFiles (fallback fara File System Access API)', () => {
     expect(result.exported).toBe(1);
     expect(downloadBlob.mock.calls[0][0]).toBe('Peisaje/a.jpg');
   });
+
+  // Cerinta directa a utilizatorului: foldere de export dupa categoria de
+  // scena/obiect (nu doar persoane), acum ca detectia de obiecte e legata in
+  // fluxul real de analiza (vezi core/sceneTagLabels.ts, pickFolderSceneTag).
+  it('foloseste prima eticheta de scena concreta ca folder cand nu exista nicio fata', async () => {
+    originalFiles.set('p1', fakeFile('a.jpg'));
+    const result = await exportOriginalFiles([
+      { id: 'p1', fileName: 'a.jpg', personNames: [], faceCount: 0, strangerCount: 0, sceneType: 'landscape', sceneTags: ['park', 'dog'] }
+    ]);
+    expect(result.exported).toBe(1);
+    expect(downloadBlob.mock.calls[0][0]).toBe('Parc/a.jpg');
+  });
+
+  it('sare peste etichetele abstracte/generice (fara valoare ca nume de folder) si foloseste prima eticheta concreta', async () => {
+    originalFiles.set('p1', fakeFile('a.jpg'));
+    const result = await exportOriginalFiles([
+      { id: 'p1', fileName: 'a.jpg', personNames: [], faceCount: 0, strangerCount: 0, sceneType: 'landscape', sceneTags: ['Fun', 'Vacation', 'Beach'] }
+    ]);
+    expect(result.exported).toBe(1);
+    expect(downloadBlob.mock.calls[0][0]).toBe('Plaja/a.jpg');
+  });
+
+  it('ramane pe Peisaje/Detalii cand toate etichetele sunt abstracte sau lipsesc (comportament neschimbat)', async () => {
+    originalFiles.set('p1', fakeFile('a.jpg'));
+    originalFiles.set('p2', fakeFile('b.jpg'));
+    const result = await exportOriginalFiles([
+      { id: 'p1', fileName: 'a.jpg', personNames: [], faceCount: 0, strangerCount: 0, sceneType: 'landscape', sceneTags: ['Fun', 'Selfie'] },
+      { id: 'p2', fileName: 'b.jpg', personNames: [], faceCount: 0, strangerCount: 0, sceneType: 'other', sceneTags: [] }
+    ]);
+    expect(result.exported).toBe(2);
+    const entries = downloadZip.mock.calls[0][1];
+    expect(entries.map(e => e.path).sort()).toEqual(['Detalii/b.jpg', 'Peisaje/a.jpg']);
+  });
+
+  it('fata (chiar nerecunoscuta) ramane mai prioritara decat eticheta de scena pentru numele folderului', async () => {
+    originalFiles.set('p1', fakeFile('a.jpg'));
+    const result = await exportOriginalFiles([
+      { id: 'p1', fileName: 'a.jpg', personNames: [], faceCount: 1, strangerCount: 1, sceneType: 'portrait', sceneTags: ['park'] }
+    ]);
+    expect(result.exported).toBe(1);
+    expect(downloadBlob.mock.calls[0][0]).toBe('Necunoscuți/a.jpg');
+  });
+
+  it('exporta folderul de scena in engleza cand locale e "en"', async () => {
+    originalFiles.set('p1', fakeFile('a.jpg'));
+    const result = await exportOriginalFiles(
+      [{ id: 'p1', fileName: 'a.jpg', personNames: [], faceCount: 0, strangerCount: 0, sceneType: 'landscape', sceneTags: ['park'] }],
+      { locale: 'en' }
+    );
+    expect(result.exported).toBe(1);
+    expect(downloadBlob.mock.calls[0][0]).toBe('Park/a.jpg');
+  });
 });
 
 describe('computeGroupPersonUnion', () => {
