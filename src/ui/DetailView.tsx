@@ -26,12 +26,16 @@ const SHEET_DRAG_COMMIT = 56;
 /**
  * Inaltimea vizibila a manerului cat timp sheet-ul e restrans — trebuie sa fie
  * IDENTICA cu valoarea din CSS (.detail-sheet, translateY collapsed). Marita
- * de la 58 dupa feedback direct pe device real: pe telefoane cu navigare pe 3
- * butoane (nu gesturi), env(safe-area-inset-bottom) raporteaza 0 (spre
- * deosebire de un home-indicator gesture-nav), deci manerul statea lipit
- * direct de bara de sistem a telefonului, fara respiro vizibil.
+ * incremental de la 58 (66, apoi 74) dupa 3 runde de feedback pe acelasi device
+ * real (navigare pe 3 butoane): env(safe-area-inset-bottom) raporteaza 0 acolo,
+ * spre deosebire de un home-indicator gesture-nav. Cauza radacina identificata
+ * acum: targetSdkVersion 36 forteaza edge-to-edge pe Android 15+ (API 35), iar
+ * WebView-ul deseneaza sub bara de navigare fara sa propage inaltimea ei catre
+ * CSS — fixata la nivel de tema nativa (android:windowOptOutEdgeToEdgeEnforcement
+ * in android/app/src/main/res/values/styles.xml). 86px ramane ca respiro vizual
+ * generos peste acel fix structural, nu ca inca o incercare-ghici izolata.
  */
-const SHEET_PEEK_PX = 74;
+const SHEET_PEEK_PX = 86;
 
 function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion: boolean }) {
   const openDetail = useStore(s => s.openDetail);
