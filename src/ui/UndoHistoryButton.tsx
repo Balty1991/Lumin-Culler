@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore, type PhotoView } from '../state/store';
-import type { HistoryEvent, BatchHistoryEvent } from '../state/history';
+import type { HistoryEvent, BatchHistoryEvent, FieldBatchHistoryEvent } from '../state/history';
 import { Tooltip } from './Tooltip';
 import { UndoIcon } from './icons';
 import { t } from '../i18n';
@@ -14,6 +14,7 @@ interface HistoryRow {
 function combinedRows(
   history: HistoryEvent[],
   batchHistory: BatchHistoryEvent[],
+  fieldBatchHistory: FieldBatchHistoryEvent[],
   photos: PhotoView[],
   tr: (key: string, params?: Record<string, string | number>) => string
 ): HistoryRow[] {
@@ -27,7 +28,8 @@ function combinedRows(
     })
   }));
   const batches: HistoryRow[] = batchHistory.map(b => ({ key: `b-${b.id}`, ts: b.ts, label: b.label }));
-  return [...singles, ...batches].sort((a, b) => b.ts - a.ts);
+  const fieldBatches: HistoryRow[] = fieldBatchHistory.map(b => ({ key: `f-${b.id}`, ts: b.ts, label: b.label }));
+  return [...singles, ...batches, ...fieldBatches].sort((a, b) => b.ts - a.ts);
 }
 
 /**
@@ -45,11 +47,12 @@ function combinedRows(
 export function UndoHistoryButton() {
   const history = useStore(s => s.history);
   const batchHistory = useStore(s => s.batchHistory);
+  const fieldBatchHistory = useStore(s => s.fieldBatchHistory);
   const photos = useStore(s => s.photos);
   const undo = useStore(s => s.undo);
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
-  const undoCount = history.length + batchHistory.length;
+  const undoCount = history.length + batchHistory.length + fieldBatchHistory.length;
   const [open, setOpen] = useState(false);
   const [reverting, setReverting] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -74,7 +77,7 @@ export function UndoHistoryButton() {
 
   if (undoCount === 0) return null;
 
-  const rows = combinedRows(history, batchHistory, photos, tr);
+  const rows = combinedRows(history, batchHistory, fieldBatchHistory, photos, tr);
 
   const revertUpTo = async (index: number) => {
     setReverting(true);

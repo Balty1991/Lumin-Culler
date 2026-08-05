@@ -100,6 +100,35 @@ describe('analyzeNative', () => {
     expect(result.allEyesOpen).toBe(false); // cel putin o fata clipeste
   });
 
+  it('calculeaza groupSmileRatio din smilingProbability ML Kit (bug real depistat de audit — lipsea complet pe native)', async () => {
+    detectFacesNative.mockResolvedValue({
+      faces: [
+        { boundingBox: { left: 0, top: 0, width: 10, height: 10 }, smilingProbability: 0.9 }, // peste prag
+        { boundingBox: { left: 0, top: 0, width: 10, height: 10 }, smilingProbability: 0.1 }, // sub prag
+        { boundingBox: { left: 0, top: 0, width: 10, height: 10 } } // fara probabilitate -> tratat ca 0
+      ],
+      imageWidth: 100,
+      imageHeight: 100
+    });
+    labelImageNative.mockResolvedValue({ labels: [] });
+    analyzeFaceMeshNative.mockResolvedValue({ faces: [] });
+
+    const { analyzeNative } = await import('./nativeAnalysis');
+    const result = await analyzeNative('p1', fakeBitmap(100, 100));
+
+    expect(result.groupSmileRatio).toBeCloseTo(1 / 3);
+  });
+
+  it('groupSmileRatio absent cand nu exista fete', async () => {
+    detectFacesNative.mockResolvedValue({ faces: [], imageWidth: 100, imageHeight: 100 });
+    labelImageNative.mockResolvedValue({ labels: [{ label: 'cat', score: 0.9 }] });
+
+    const { analyzeNative } = await import('./nativeAnalysis');
+    const result = await analyzeNative('p1', fakeBitmap(100, 100));
+
+    expect(result.groupSmileRatio).toBeUndefined();
+  });
+
   it('nu apeleaza deloc FaceMesh cand nu exista fete', async () => {
     detectFacesNative.mockResolvedValue({ faces: [], imageWidth: 100, imageHeight: 100 });
     labelImageNative.mockResolvedValue({ labels: [{ label: 'cat', score: 0.9 }] });
@@ -164,7 +193,7 @@ describe('analyzeNative', () => {
     expect(result.textCoverage).toBe(0.4);
   });
 
-  it('nu apeleaza OCR cand exista fete sau etichete de scena', async () => {
+  it('nu apeleaza OCR cand exista fete', async () => {
     detectFacesNative.mockResolvedValue({
       faces: [{ boundingBox: { left: 0, top: 0, width: 10, height: 10 } }],
       imageWidth: 100,
@@ -178,6 +207,29 @@ describe('analyzeNative', () => {
 
     expect(detectTextNative).not.toHaveBeenCalled();
     expect(result.textCoverage).toBeUndefined();
+  });
+
+  it('nu apeleaza OCR cand exista o eticheta de scena CONCRETA (subiect real recunoscut)', async () => {
+    detectFacesNative.mockResolvedValue({ faces: [], imageWidth: 100, imageHeight: 100 });
+    labelImageNative.mockResolvedValue({ labels: [{ label: 'cat', score: 0.9 }] });
+
+    const { analyzeNative } = await import('./nativeAnalysis');
+    const result = await analyzeNative('p1', fakeBitmap(100, 100));
+
+    expect(detectTextNative).not.toHaveBeenCalled();
+    expect(result.textCoverage).toBeUndefined();
+  });
+
+  it('BUG REAL (audit): ruleaza OCR cand fara fete singurele etichete sunt abstracte/non-subiect (ex. "Photography"), nu doar cand nu exista nicio eticheta', async () => {
+    detectFacesNative.mockResolvedValue({ faces: [], imageWidth: 100, imageHeight: 100 });
+    labelImageNative.mockResolvedValue({ labels: [{ label: 'Photography', score: 0.9 }, { label: 'Text', score: 0.8 }] });
+    detectTextNative.mockResolvedValue({ blocks: [], textCoverage: 0.5 });
+
+    const { analyzeNative } = await import('./nativeAnalysis');
+    const result = await analyzeNative('p1', fakeBitmap(100, 100));
+
+    expect(detectTextNative).toHaveBeenCalledTimes(1);
+    expect(result.textCoverage).toBe(0.5);
   });
 
   it('preia direct campurile ImageAnalysis (nume identice cu AnalysisRecord) fara remapare', async () => {

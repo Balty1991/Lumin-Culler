@@ -262,7 +262,7 @@ const NON_FOLDER_SCENE_TAGS = new Set<string>([
   'education', 'learning', 'business', 'work', 'meeting', 'conference', 'teamwork', 'success',
   'number', 'letter', 'symbol', 'icon', 'emblem', 'badge', 'stamp', 'coin', 'currency', 'map',
   'chart', 'graph', 'diagram', 'calendar', 'newspaper', 'magazine',
-  'font', 'logo', 'product', 'electronics', 'technology'
+  'font', 'logo', 'product', 'electronics', 'technology', 'text'
 ]);
 
 /**

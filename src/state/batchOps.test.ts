@@ -79,6 +79,37 @@ describe('resolveGroups', () => {
     expect(result[0].keepId).toBe('a');
     expect(result[0].rejectIds).toEqual(['b']);
   });
+
+  it('never overrides a manually-selected member, even if another has a higher aiScore', () => {
+    const photos = [
+      photo({ id: 'a', groupId: 'g1', aiScore: 40, status: 'selected' }),
+      photo({ id: 'b', groupId: 'g1', aiScore: 90, status: 'review' })
+    ];
+    const result = resolveGroups(photos);
+    expect(result[0].keepId).toBe('a');
+    expect(result[0].rejectIds).toEqual(['b']);
+  });
+
+  it('leaves an already-rejected member untouched instead of re-flagging it', () => {
+    const photos = [
+      photo({ id: 'a', groupId: 'g1', aiScore: 90, status: 'review' }),
+      photo({ id: 'b', groupId: 'g1', aiScore: 10, status: 'rejected' })
+    ];
+    const result = resolveGroups(photos);
+    expect(result[0].keepId).toBe('a');
+    expect(result[0].rejectIds).toEqual([]);
+  });
+
+  it('when multiple members are manually selected, keeps the best of those and does not reject the others', () => {
+    const photos = [
+      photo({ id: 'a', groupId: 'g1', aiScore: 40, status: 'selected' }),
+      photo({ id: 'b', groupId: 'g1', aiScore: 60, status: 'selected' }),
+      photo({ id: 'c', groupId: 'g1', aiScore: 90, status: 'review' })
+    ];
+    const result = resolveGroups(photos);
+    expect(result[0].keepId).toBe('b');
+    expect(result[0].rejectIds).toEqual(['c']);
+  });
 });
 
 describe('selectTopPercent', () => {

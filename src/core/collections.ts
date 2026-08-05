@@ -29,20 +29,32 @@ export async function deleteCollection(id: string): Promise<void> {
   await db.collections.delete(id);
 }
 
-/** Idempotent — o poza deja in folder nu apare de doua ori (Set la unire). */
+/**
+ * Idempotent — o poza deja in folder nu apare de doua ori (Set la unire).
+ * Bug real gasit de auditul QA: get()+update() NEATOMIC permitea un
+ * "lost update" cand doua apeluri (ex. CollectionPicker deschis simultan pe
+ * selectia multipla SI pe o poza din DetailView) scriau pe acelasi folder in
+ * aceeasi fereastra de timp — al doilea update() suprascria memberIds
+ * calculat din citirea (deja invechita) a primului. db.transaction() face
+ * get+update atomic fata de orice ALT apel wrapat la fel, eliminand cursa.
+ */
 export async function addPhotosToCollection(id: string, photoIds: string[]): Promise<CollectionRecord | undefined> {
-  const record = await db.collections.get(id);
-  if (!record) return undefined;
-  const memberIds = [...new Set([...record.memberIds, ...photoIds])];
-  await db.collections.update(id, { memberIds });
-  return { ...record, memberIds };
+  return db.transaction('rw', db.collections, async () => {
+    const record = await db.collections.get(id);
+    if (!record) return undefined;
+    const memberIds = [...new Set([...record.memberIds, ...photoIds])];
+    await db.collections.update(id, { memberIds });
+    return { ...record, memberIds };
+  });
 }
 
 export async function removePhotosFromCollection(id: string, photoIds: string[]): Promise<CollectionRecord | undefined> {
-  const record = await db.collections.get(id);
-  if (!record) return undefined;
-  const toRemove = new Set(photoIds);
-  const memberIds = record.memberIds.filter(pid => !toRemove.has(pid));
-  await db.collections.update(id, { memberIds });
-  return { ...record, memberIds };
+  return db.transaction('rw', db.collections, async () => {
+    const record = await db.collections.get(id);
+    if (!record) return undefined;
+    const toRemove = new Set(photoIds);
+    const memberIds = record.memberIds.filter(pid => !toRemove.has(pid));
+    await db.collections.update(id, { memberIds });
+    return { ...record, memberIds };
+  });
 }

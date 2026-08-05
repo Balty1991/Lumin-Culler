@@ -13,6 +13,7 @@ import { parseExif } from './exifParser';
 import { parseIptc } from './iptcParser';
 import { isRawFile, decodeRawFile, RAW_EXTENSIONS } from './rawDecoder';
 import type { FileSystemFileHandleLike } from './filePicker';
+import { pickFolderSceneTag } from './sceneTagLabels';
 
 export interface ImportProgress {
   done: number;
@@ -64,7 +65,12 @@ const TEXT_DOMINANT_THRESHOLD = 0.15;
 
 function hasNoRecognizableSubject(analysis: Pick<AnalysisRecord, 'faceCount' | 'sceneTags' | 'textCoverage'>): boolean {
   if (analysis.textCoverage !== undefined && analysis.textCoverage >= TEXT_DOMINANT_THRESHOLD) return true;
-  return analysis.faceCount === 0 && !(analysis.sceneTags && analysis.sceneTags.length > 0);
+  // pickFolderSceneTag() ignora etichetele abstracte/non-subiect (ex. "Text",
+  // "Photography", "Pattern" — vezi NON_FOLDER_SCENE_TAGS in sceneTagLabels.ts);
+  // pe native (ML Kit, ~400 etichete Open Images) o poza fara fete poate primi
+  // DOAR astfel de etichete abstracte si totusi trece testul `.length > 0` de
+  // mai devreme — nu inseamna ca AI-ul a recunoscut un subiect fizic real.
+  return analysis.faceCount === 0 && !pickFolderSceneTag(analysis.sceneTags);
 }
 
 /**
@@ -539,17 +545,33 @@ export async function importFiles(
   allMemberIds.forEach((id, i) => { const rec = memberRecords[i]; if (rec) recordById.set(id, rec); });
 
   const updates: PhotoRecord[] = [];
+  // Bug real gasit de auditul QA (storage): un membru demovat aici de la
+  // 'selected' la 'review' isi pastra la infinit copia FULL a fisierului
+  // original in db.originals/db.fileHandles — syncOriginal() (store.ts) e
+  // singurul loc care sterge acele randuri, dar acest bulkPut o ocoleste
+  // complet. Pe un burst de N poze unde mai multe trec initial pragul de
+  // auto-selectare (fiecare scrie deja originalul in processOne), gruparea de
+  // mai jos demoveaza N-1 dintre ele fara sa le mai stearga vreodata copia —
+  // exact cazul burst/eveniment tintit de aplicatie, unde efectul se
+  // multiplica cu marimea burst-ului.
+  const demotedIds: string[] = [];
   for (const g of groupResults) {
     for (const memberId of g.memberIds) {
       groups.set(memberId, g.groupId);
       const rec = recordById.get(memberId);
       if (!rec) continue;
       const next: PhotoRecord = { ...rec, groupId: g.groupId };
-      if (memberId !== g.bestId && rec.status === 'selected') next.status = 'review';
+      if (memberId !== g.bestId && rec.status === 'selected') {
+        next.status = 'review';
+        demotedIds.push(memberId);
+      }
       updates.push(next);
     }
   }
   if (updates.length) await db.photos.bulkPut(updates);
+  if (demotedIds.length) {
+    await Promise.all(demotedIds.map(id => Promise.all([db.originals.delete(id), db.fileHandles.delete(id)])));
+  }
 
   // Fara acest avertisment, un import in care TOATE pozele esueaza la decodare
   // (fisier corupt, format neasteptat, poza cu 0 fete detectabile pe un device

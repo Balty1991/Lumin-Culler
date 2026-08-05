@@ -30,6 +30,13 @@ import { analyzeImageNative } from './nativeImageAnalysis';
 import { labelImageNative } from './nativeImageLabeling';
 import { analyzeFaceMeshNative, type NativeFaceMeshInsight } from './nativeFaceMesh';
 import { detectTextNative } from './nativeTextRecognition';
+import { pickFolderSceneTag } from './sceneTagLabels';
+
+/**
+ * Acelasi prag ca groupSmileRatio din faceAnalysis.worker.ts (web) — "zambet
+ * clar", nu doar o urma de zambet.
+ */
+const GROUP_SMILE_THRESHOLD = 0.4;
 
 /**
  * ML Kit da o PROBABILITATE de clasificare (0..1, "cat de sigur e ca ochiul e
@@ -132,12 +139,17 @@ export async function analyzeNative(photoId: string, bitmap: ImageBitmap): Promi
     ? faceMeshGroupStats((await analyzeFaceMeshNative(blob)).faces)
     : {};
 
-  // OCR rulat DOAR in cazul ambiguu (fara fete, fara etichete de scena) — exact
-  // cazul in care hasNoRecognizableSubject (importPipeline.ts) ar bloca deja
-  // auto-selectarea; textCoverage confirma/intareste acel semnal pentru
-  // documente/capturi de ecran care ar putea totusi primi din intamplare o
-  // eticheta COCO gresita.
-  const textCoverage = faces.length === 0 && sceneTags.length === 0
+  // OCR rulat cand nu exista fete SI nu exista nicio eticheta de scena
+  // CONCRETA (pickFolderSceneTag ignora etichetele abstracte/non-subiect, ex.
+  // "Text", "Photography", "Paper" — vezi NON_FOLDER_SCENE_TAGS in
+  // sceneTagLabels.ts) — exact cazul in care hasNoRecognizableSubject
+  // (importPipeline.ts) ar bloca deja auto-selectarea; textCoverage
+  // confirma/intareste acel semnal pentru documente/capturi de ecran.
+  // BUG REAL depistat de audit: conditia veche cerea sceneTags.length===0
+  // (nicio eticheta deloc), dar un document fotografiat primeste des exact o
+  // eticheta abstracta ca "Text"/"Paper"/"Photography" de la ML Kit — OCR nu
+  // mai rula niciodata in cazul concret pentru care a fost construit.
+  const textCoverage = faces.length === 0 && !pickFolderSceneTag(sceneTags)
     ? (await detectTextNative(blob)).textCoverage
     : undefined;
 
@@ -150,6 +162,11 @@ export async function analyzeNative(photoId: string, bitmap: ImageBitmap): Promi
     knownFaceCount: 0,
     strangerCount: faces.length,
     bestSmile: faces.length ? Math.max(...faces.map(f => f.smile)) : 0,
+    // Acelasi calcul ca faceAnalysis.worker.ts:1121 (web) — omis din portarea
+    // initiala pe native (bug real depistat de audit), lasand ContextEngine
+    // (PRIOR_WEIGHTS.groupSmileRatio) si groupSelection.ts sa foloseasca mereu
+    // valoarea neutra 0.5 in loc de fractia reala de fete care zambesc.
+    groupSmileRatio: faces.length ? faces.filter(f => f.smile >= GROUP_SMILE_THRESHOLD).length / faces.length : undefined,
     allEyesOpen: faces.every(f => !f.isBlinking),
     sceneType,
     aiScore: 0, // completat ulterior de ContextEngine.predict() in importPipeline.ts, la fel ca pe web

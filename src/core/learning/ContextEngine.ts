@@ -496,18 +496,26 @@ export class ContextEngine {
     // vezi comentariul de la GLOBAL_CONTEXT_KEY si blending-ul din predict().
     this.trainOne(globalModel, features, input);
 
-    await Promise.all([
-      db.contextModels.put(model),
-      db.contextModels.put(globalModel),
-      db.corrections.add({
-        photoId: input.photoId,
-        contextKey,
-        features,
-        aiDecision: input.aiDecision,
-        userDecision: input.userDecision,
-        ts: Date.now()
-      })
-    ]);
+    // Bug real gasit de auditul QA: cele 3 scrieri (model de context, model
+    // global, log de corectii) mergeau prin Promise.all NEATOMIC — acelasi
+    // tipar deja identificat si reparat cu db.transaction() in
+    // importPipeline.ts (processOne) si backupService.ts (restoreBackup). O
+    // intrerupere la mijloc (crash/tab inchis) putea lasa modelele si logul
+    // de corectii inconsistente intre ele.
+    await db.transaction('rw', db.contextModels, db.corrections, async () => {
+      await Promise.all([
+        db.contextModels.put(model),
+        db.contextModels.put(globalModel),
+        db.corrections.add({
+          photoId: input.photoId,
+          contextKey,
+          features,
+          aiDecision: input.aiDecision,
+          userDecision: input.userDecision,
+          ts: Date.now()
+        })
+      ]);
+    });
   }
 
   /** Un pas de SGD online (forward + backward + update), aplicat pe orice model — context specific sau backbone-ul global. */

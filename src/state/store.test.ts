@@ -388,6 +388,58 @@ describe('bulkRejectBelow (integration, Dexie real via fake-indexeddb)', () => {
   });
 });
 
+// Bug real gasit de auditul QA: bulkSetRatingForSelection (si surorile ei)
+// suprascriau valorile TUTUROR pozelor din selectie fara nicio urma de undo —
+// Ctrl+Z fie nu gasea nimic de anulat, fie anula din greseala o alta actiune
+// aflata deja pe `batchHistory`. Fix: stiva separata `fieldBatchHistory`.
+describe('bulkSetRatingForSelection undo (integration, Dexie real via fake-indexeddb)', () => {
+  it('e reversibil cu undo() — restaureaza rating-urile individuale anterioare', async () => {
+    await db.photos.clear();
+    await db.analyses.clear();
+
+    await db.photos.put(makeDbPhoto({ id: 'p1', status: 'review', rating: 2 }));
+    await db.photos.put(makeDbPhoto({ id: 'p2', status: 'review', rating: 4 }));
+    const photos = [
+      { ...makePhoto(0), id: 'p1', rating: 2 } as PhotoView,
+      { ...makePhoto(0), id: 'p2', rating: 4 } as PhotoView
+    ];
+    useStore.setState({ photos, multiSelectIds: new Set(['p1', 'p2']), history: [], batchHistory: [], fieldBatchHistory: [] });
+
+    await useStore.getState().bulkSetRatingForSelection(5);
+
+    expect((await db.photos.get('p1'))?.rating).toBe(5);
+    expect((await db.photos.get('p2'))?.rating).toBe(5);
+    expect(useStore.getState().fieldBatchHistory).toHaveLength(1);
+
+    await useStore.getState().undo();
+
+    expect((await db.photos.get('p1'))?.rating).toBe(2);
+    expect((await db.photos.get('p2'))?.rating).toBe(4);
+    expect(useStore.getState().fieldBatchHistory).toHaveLength(0);
+    const s = useStore.getState();
+    expect(s.photos.find(p => p.id === 'p1')?.rating).toBe(2);
+    expect(s.photos.find(p => p.id === 'p2')?.rating).toBe(4);
+  });
+
+  it('undo() alege stiva cu cel mai recent timestamp intre history/batchHistory/fieldBatchHistory', async () => {
+    await db.photos.clear();
+    await db.photos.put(makeDbPhoto({ id: 'p1', status: 'review', rating: 1 }));
+    const photos = [{ ...makePhoto(0), id: 'p1', rating: 1 } as PhotoView];
+    useStore.setState({
+      photos,
+      history: [{ photoId: 'p1', previousStatus: 'pending', newStatus: 'selected', ts: 1 }],
+      batchHistory: [],
+      fieldBatchHistory: [{ id: 'f1', label: 'test', field: 'rating', changes: [{ photoId: 'p1', previousValue: 1 }], ts: 999 }]
+    });
+
+    // fieldBatchHistory (ts 999) e mai recent decat history (ts 1) -> reverta rating-ul, nu statusul
+    await useStore.getState().undo();
+
+    expect(useStore.getState().fieldBatchHistory).toHaveLength(0);
+    expect(useStore.getState().history).toHaveLength(1);
+  });
+});
+
 // Cerinta directa a utilizatorului: un singur buton care sa anuleze TOATE
 // filtrele combinabile deodata (persoana/eticheta/scena/aparat/proiect/folder/
 // cautare/data/rating), fara sa fie nevoie sa stii care era activ ca sa-l
@@ -441,5 +493,30 @@ describe('clearAll clears custom collections too (integration, Dexie real via fa
     const s = useStore.getState();
     expect(s.collections).toEqual([]);
     expect(s.collectionFilter).toBeNull();
+  });
+});
+
+// Bug real gasit de auditul QA: clearAll() nu reseta multiSelectIds/
+// multiSelectAnchor/selectMode/batchHistory/fieldBatchHistory — bara de
+// selectie in masa continua sa arate poze "selectate" peste o grila golita.
+describe('clearAll resets dangling multi-select and batch-history state', () => {
+  it('reseteaza selectia in masa si istoricul de loturi', async () => {
+    await db.photos.clear();
+    useStore.setState({
+      multiSelectIds: new Set(['p1', 'p2']),
+      multiSelectAnchor: 'p1',
+      selectMode: true,
+      batchHistory: [{ id: 'b1', label: 'test', changes: [{ photoId: 'p1', previousStatus: 'review' }], ts: 1 }],
+      fieldBatchHistory: [{ id: 'f1', label: 'test', field: 'rating', changes: [{ photoId: 'p1', previousValue: 0 }], ts: 1 }]
+    });
+
+    await useStore.getState().clearAll();
+
+    const s = useStore.getState();
+    expect(s.multiSelectIds.size).toBe(0);
+    expect(s.multiSelectAnchor).toBeNull();
+    expect(s.selectMode).toBe(false);
+    expect(s.batchHistory).toEqual([]);
+    expect(s.fieldBatchHistory).toEqual([]);
   });
 });

@@ -69,6 +69,14 @@ describe('decidePhotoStatus', () => {
     expect(decidePhotoStatus(99, baseAnalysis({ faceCount: 0, sceneTags: undefined }))).toBe('review');
   });
 
+  it('NU aproba automat cand singurele etichete sunt abstracte/non-subiect (ex. "Photography", "Text" — vocabular ML Kit nativ), chiar fara fete — ramane review', () => {
+    expect(decidePhotoStatus(SELECT_THRESHOLD, baseAnalysis({ faceCount: 0, sceneTags: ['Photography', 'Text'] }))).toBe('review');
+  });
+
+  it('aproba peste SELECT_THRESHOLD cand exista o eticheta concreta amestecata cu una abstracta', () => {
+    expect(decidePhotoStatus(SELECT_THRESHOLD, baseAnalysis({ faceCount: 0, sceneTags: ['Photography', 'cat'] }))).toBe('selected');
+  });
+
   it('ramane review intre praguri, ca inainte', () => {
     expect(decidePhotoStatus((SELECT_THRESHOLD + REJECT_THRESHOLD) / 2, baseAnalysis({ faceCount: 1 }))).toBe('review');
   });

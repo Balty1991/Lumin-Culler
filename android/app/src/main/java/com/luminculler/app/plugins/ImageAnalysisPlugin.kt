@@ -17,15 +17,21 @@ private const val SMALL_SIZE = 320
 private const val HORIZON_MAX_SIDE = 360
 
 /**
- * Analiza AI nativa (Faza 2) — port Kotlin al matematicii de compozitie/
- * claritate/expunere/culoare din faceAnalysis.worker.ts (vezi ImageMath.kt
- * pentru formule). La fel ca FaceDetectionPlugin (Faza 1): dovedeste ca
- * portul functioneaza pe un device real, NU inca legat de fluxul real de
- * analiza — ramane dormant, accesibil doar din hook-ul de test din DEV.
+ * Port Kotlin al matematicii de compozitie/claritate/expunere/culoare din
+ * faceAnalysis.worker.ts (vezi ImageMath.kt pentru formule). Apelat din
+ * src/core/nativeAnalysis.ts (orchestratorul pipeline-ului de analiza pe
+ * Android), el insusi apelat din src/core/workerPool.ts (AnalysisPool).
  *
  * Foloseste propriul detector de fete (mod FAST, fara clasificare) doar ca
  * sa obtina cutiile pentru scorul de compozitie/focus-bokeh — nu si
  * probabilitatile de zambet/ochi, care raman treaba FaceDetectionPlugin.
+ * ATENTIE: fiind un detector INDEPENDENT (FAST vs ACCURATE in
+ * FaceDetectionPlugin), poate rata o fata pe care celalalt o gaseste —
+ * `subjectInFocus`/compositionScore ar putea atunci sa nu reflecte un
+ * faceCount>0 raportat in AnalysisRecord. Cunoscut, neconsiderat critic
+ * momentan (vezi audit-ul din istoricul git) — de rezolvat intr-o faza
+ * viitoare trecand cutiile deja gasite de FaceDetectionPlugin catre acest
+ * plugin, in loc sa se re-detecteze.
  */
 @CapacitorPlugin(name = "ImageAnalysis")
 class ImageAnalysisPlugin : Plugin() {
