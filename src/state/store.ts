@@ -4,7 +4,12 @@
  * a seriilor: alegi cea mai buna poza dintr-un grup de cadre similare.
  */
 import { create } from 'zustand';
-import { db, type AnalysisRecord, type PhotoRecord, type KnownPerson, type ColorLabel } from '../core/db';
+import { db, type AnalysisRecord, type PhotoRecord, type KnownPerson, type ColorLabel, type CollectionRecord } from '../core/db';
+import {
+  loadCollections, createCollection as createCollectionRecord, renameCollection as renameCollectionRecord,
+  deleteCollection as deleteCollectionRecord, addPhotosToCollection as addPhotosToCollectionRecord,
+  removePhotosFromCollection as removePhotosFromCollectionRecord
+} from '../core/collections';
 import { applyAdjustmentsToBlob, isNeutral, type EditAdjustments } from '../core/imageAdjust';
 import { readApplyEditsInGallery, writeApplyEditsInGallery } from './applyEditsPreference';
 import { clearPreviewUrlCache } from '../core/previewUrlCache';
@@ -150,6 +155,8 @@ type ProgressState = ImportProgress & { etaSeconds?: number };
 interface AppState {
   photos: PhotoView[];
   persons: KnownPerson[];
+  /** Foldere personalizate (cerinta directa a utilizatorului) — vezi core/collections.ts. */
+  collections: CollectionRecord[];
   progress: ProgressState | null;
   /**
    * Bifat imediat cand se apasa Anuleaza, INAINTE ca importul sa se opreasca
@@ -216,6 +223,17 @@ interface AppState {
   setCameraFilter: (camera: string | null) => void;
   projectsOpen: boolean;
   setProjectsOpen: (open: boolean) => void;
+  /** Filtru suplimentar dupa un folder personalizat (CollectionRecord.id), combinabil cu restul. Null = fara filtru. */
+  collectionFilter: string | null;
+  setCollectionFilter: (collectionId: string | null) => void;
+  collectionsOpen: boolean;
+  setCollectionsOpen: (open: boolean) => void;
+  createCollection: (name: string) => Promise<CollectionRecord | null>;
+  renameCollection: (id: string, name: string) => Promise<void>;
+  deleteCollection: (id: string) => Promise<void>;
+  /** Adauga fotografiile date (implicit selectia multipla curenta) intr-un folder — vezi core/collections.ts. */
+  addPhotosToCollection: (id: string, photoIds: string[]) => Promise<void>;
+  removePhotosFromCollection: (id: string, photoIds: string[]) => Promise<void>;
   /**
    * Filtre suplimentare, toate combinabile intre ele si cu `filter`/`personFilter` —
    * utile la biblioteci mari (mii de poze), unde navigarea doar prin status/persoana
@@ -740,6 +758,9 @@ let filteredCache: {
   sceneTagFilter: string | null;
   cameraFilter: string | null;
   projectFilter: string | null;
+  collectionFilter: string | null;
+  /** referinta de array — o schimbare de apartenenta (adaugare/scoatere poze dintr-un folder) creeaza mereu un array nou in store (vezi actiunile din core/collections.ts), deci Object.is aici invalideaza corect cache-ul. */
+  collections: CollectionRecord[];
   searchText: string;
   /** cautarea potriveste si etichete de scena TRADUSE — schimbarea limbii schimba rezultatul. */
   locale: Locale;
@@ -764,6 +785,9 @@ let secondaryFilteredCache: {
   sceneTagFilter: string | null;
   cameraFilter: string | null;
   projectFilter: string | null;
+  collectionFilter: string | null;
+  /** referinta de array — o schimbare de apartenenta (adaugare/scoatere poze dintr-un folder) creeaza mereu un array nou in store (vezi actiunile din core/collections.ts), deci Object.is aici invalideaza corect cache-ul. */
+  collections: CollectionRecord[];
   searchText: string;
   locale: Locale;
   dateFrom: number | null;
@@ -775,6 +799,7 @@ let secondaryFilteredCache: {
 export const useStore = create<AppState>((set, get) => ({
   photos: [],
   persons: [],
+  collections: [],
   progress: null,
   importCancelling: false,
   filter: 'all',
@@ -783,6 +808,45 @@ export const useStore = create<AppState>((set, get) => ({
   setProjectFilter: project => set({ projectFilter: project }),
   projectsOpen: false,
   setProjectsOpen: open => set({ projectsOpen: open }),
+  collectionFilter: null,
+  setCollectionFilter: collectionId => set({ collectionFilter: collectionId }),
+  collectionsOpen: false,
+  setCollectionsOpen: open => set({ collectionsOpen: open }),
+  createCollection: async name => {
+    const record = await createCollectionRecord(name);
+    if (!record) return null;
+    set(state => ({ collections: [...state.collections, record] }));
+    return record;
+  },
+  renameCollection: async (id, name) => {
+    await renameCollectionRecord(id, name);
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    set(state => ({ collections: state.collections.map(c => (c.id === id ? { ...c, name: trimmed } : c)) }));
+  },
+  deleteCollection: async id => {
+    await deleteCollectionRecord(id);
+    set(state => ({
+      collections: state.collections.filter(c => c.id !== id),
+      collectionFilter: state.collectionFilter === id ? null : state.collectionFilter
+    }));
+  },
+  addPhotosToCollection: async (id, photoIds) => {
+    if (!photoIds.length) return;
+    const updated = await addPhotosToCollectionRecord(id, photoIds);
+    if (!updated) return;
+    const locale = get().locale;
+    set(state => ({
+      collections: state.collections.map(c => (c.id === id ? updated : c)),
+      notice: t(locale, 'store.collections.added', { count: photoIds.length, name: updated.name })
+    }));
+  },
+  removePhotosFromCollection: async (id, photoIds) => {
+    if (!photoIds.length) return;
+    const updated = await removePhotosFromCollectionRecord(id, photoIds);
+    if (!updated) return;
+    set(state => ({ collections: state.collections.map(c => (c.id === id ? updated : c)) }));
+  },
   searchText: '',
   dateFrom: null,
   dateTo: null,
@@ -939,12 +1003,13 @@ export const useStore = create<AppState>((set, get) => ({
   boot: async () => {
     if (get().booted) return;
     try {
-      const [views, persons, history] = await Promise.all([
+      const [views, persons, history, collections] = await Promise.all([
         reloadPhotoViews(),
         db.persons.toArray(),
-        db.history.orderBy('ts').toArray()
+        db.history.orderBy('ts').toArray(),
+        loadCollections()
       ]);
-      set({ photos: views, persons, history, booted: true });
+      set({ photos: views, persons, history, collections, booted: true });
     } catch (err) {
       // Deschiderea IndexedDB poate esua (schema stricata, VersionError dupa un update
       // al aplicatiei, storage blocat de politici de dispozitiv) — bug real gasit de
@@ -1770,14 +1835,17 @@ export const useStore = create<AppState>((set, get) => ({
     await Promise.all([
       db.photos.clear(), db.thumbnails.clear(), db.previews.clear(), db.originals.clear(), db.fileHandles.clear(),
       db.analyses.clear(), db.history.clear(),
-      db.persons.clear(), db.corrections.clear(),
+      db.persons.clear(), db.corrections.clear(), db.collections.clear(),
       contextEngine.reset()
     ]);
     originalFiles.clear();
     originalHandles.clear();
     clearPreviewUrlCache();
     await analysisPool.setKnownPersons([]).catch(() => {});
-    set({ photos: [], persons: [], detailId: null, compareGroupId: null, editingPhotoId: null, history: [], batchHistory: [] });
+    set({
+      photos: [], persons: [], collections: [], collectionFilter: null,
+      detailId: null, compareGroupId: null, editingPhotoId: null, history: [], batchHistory: []
+    });
   },
 
   /** Exporta pozele selectate ca fisiere reale, in formatul original (JPEG/PNG/etc), grupate pe subfoldere. */
@@ -1925,12 +1993,13 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   filtered: () => {
-    const { photos, filter, personFilter, colorLabelFilter, sceneTagFilter, projectFilter, cameraFilter, searchText, locale, dateFrom, dateTo, minRating, gridSort } = get();
+    const { photos, filter, personFilter, colorLabelFilter, sceneTagFilter, projectFilter, collectionFilter, collections, cameraFilter, searchText, locale, dateFrom, dateTo, minRating, gridSort } = get();
     const c = filteredCache;
     if (
       c && c.photos === photos && c.filter === filter && c.personFilter === personFilter &&
       c.colorLabelFilter === colorLabelFilter && c.sceneTagFilter === sceneTagFilter &&
       c.cameraFilter === cameraFilter && c.projectFilter === projectFilter &&
+      c.collectionFilter === collectionFilter && c.collections === collections &&
       c.searchText === searchText && c.locale === locale && c.dateFrom === dateFrom && c.dateTo === dateTo &&
       c.minRating === minRating && c.gridSortKey === gridSort.key && c.gridSortDir === gridSort.dir
     ) {
@@ -1977,6 +2046,12 @@ export const useStore = create<AppState>((set, get) => ({
         ? base.filter(p => !p.project)
         : base.filter(p => p.project === projectFilter);
     }
+    // filtru dupa folder personalizat — vezi CollectionsPanel; apartenenta traieste
+    // pe CollectionRecord.memberIds, nu pe PhotoView, deci cautam prin Set, nu prin camp direct.
+    if (collectionFilter) {
+      const memberIds = new Set(collections.find(c => c.id === collectionFilter)?.memberIds ?? []);
+      base = base.filter(p => memberIds.has(p.id));
+    }
     // cautare text — dupa numele fisierului SAU dupa etichetele de scena/obiect
     // detectate de AI (traduse, fara diacritice — vezi matchesSearch mai sus)
     const q = normalizeForSearch(searchText.trim());
@@ -1998,6 +2073,7 @@ export const useStore = create<AppState>((set, get) => ({
     }
     filteredCache = {
       photos, filter, personFilter, colorLabelFilter, sceneTagFilter, cameraFilter, projectFilter,
+      collectionFilter, collections,
       searchText, locale, dateFrom, dateTo, minRating, gridSortKey: gridSort.key, gridSortDir: gridSort.dir,
       result: base
     };
@@ -2016,12 +2092,13 @@ export const useStore = create<AppState>((set, get) => ({
    * numaram aici, deci trebuie sarit).
    */
   secondaryFiltered: () => {
-    const { photos, personFilter, colorLabelFilter, sceneTagFilter, cameraFilter, projectFilter, searchText, locale, dateFrom, dateTo, minRating } = get();
+    const { photos, personFilter, colorLabelFilter, sceneTagFilter, cameraFilter, projectFilter, collectionFilter, collections, searchText, locale, dateFrom, dateTo, minRating } = get();
     const c = secondaryFilteredCache;
     if (
       c && c.photos === photos && c.personFilter === personFilter &&
       c.colorLabelFilter === colorLabelFilter && c.sceneTagFilter === sceneTagFilter &&
       c.cameraFilter === cameraFilter && c.projectFilter === projectFilter &&
+      c.collectionFilter === collectionFilter && c.collections === collections &&
       c.searchText === searchText && c.locale === locale && c.dateFrom === dateFrom && c.dateTo === dateTo &&
       c.minRating === minRating
     ) {
@@ -2037,12 +2114,19 @@ export const useStore = create<AppState>((set, get) => ({
         ? base.filter(p => !p.project)
         : base.filter(p => p.project === projectFilter);
     }
+    if (collectionFilter) {
+      const memberIds = new Set(collections.find(c2 => c2.id === collectionFilter)?.memberIds ?? []);
+      base = base.filter(p => memberIds.has(p.id));
+    }
     const q = normalizeForSearch(searchText.trim());
     if (q) base = base.filter(p => matchesSearch(p, q, locale));
     if (dateFrom !== null) base = base.filter(p => (p.capturedAt ?? 0) >= dateFrom);
     if (dateTo !== null) base = base.filter(p => (p.capturedAt ?? 0) <= dateTo);
     if (minRating > 0) base = base.filter(p => p.rating >= minRating);
-    secondaryFilteredCache = { photos, personFilter, colorLabelFilter, sceneTagFilter, cameraFilter, projectFilter, searchText, locale, dateFrom, dateTo, minRating, result: base };
+    secondaryFilteredCache = {
+      photos, personFilter, colorLabelFilter, sceneTagFilter, cameraFilter, projectFilter,
+      collectionFilter, collections, searchText, locale, dateFrom, dateTo, minRating, result: base
+    };
     return base;
   },
 

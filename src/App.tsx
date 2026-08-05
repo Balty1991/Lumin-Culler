@@ -11,6 +11,8 @@ import { InsightsPanel } from './ui/InsightsPanel';
 import { BatchOpsPanel } from './ui/BatchOpsPanel';
 import { StatsPanel } from './ui/StatsPanel';
 import { ProjectsPanel } from './ui/ProjectsPanel';
+import { CollectionsPanel } from './ui/CollectionsPanel';
+import { CollectionPicker } from './ui/CollectionPicker';
 import { CommandPalette } from './ui/CommandPalette';
 import { ShortcutsPanel } from './ui/ShortcutsPanel';
 import { EmptyFilterState } from './ui/EmptyFilterState';
@@ -600,6 +602,7 @@ export default function App() {
         <PresentationMode />
         <EditPanel />
         <ProjectsPanel />
+        <CollectionsPanel />
         <ConfirmDialog />
       </>
     );
@@ -921,6 +924,7 @@ export default function App() {
                 <button className="ghost icon-btn" onClick={() => void handleBulkKeywords()} aria-label={tr('app.bulkBar.keywords')} title={tr('app.bulkBar.keywords')}>
                   <TagIcon />
                 </button>
+                <CollectionPicker photoIds={Array.from(multiSelectIds)} iconOnly />
                 <button className="ghost icon-btn" onClick={() => setSelectMode(false)} aria-label={tr('app.bulkBar.exit')}>
                   <XIcon />
                 </button>
@@ -961,6 +965,7 @@ export default function App() {
       <PresentationMode />
       <EditPanel />
       <ProjectsPanel />
+      <CollectionsPanel />
       <MenuDrawer />
       <CommandPalette />
       <ShortcutsPanel />

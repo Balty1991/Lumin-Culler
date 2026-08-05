@@ -5,7 +5,7 @@ import { useModalFocusTrap } from './useModalFocusTrap';
 import {
   UserCheckIcon, SparkleIcon, ListIcon, InfoIcon, XIcon, TagIcon, LayersIcon, KeyboardIcon,
   SunIcon, MoonIcon, BatteryIcon, GridIcon, DownloadIcon, UploadIcon, BarChartIcon, GlobeIcon, PrinterIcon,
-  ApertureIcon, PlayIcon, EditIcon
+  ApertureIcon, PlayIcon, EditIcon, FolderIcon
 } from './icons';
 import { EASE } from './motion';
 import { GENRE_PRESETS } from '../state/genre';
@@ -67,6 +67,7 @@ export function MenuDrawer() {
   const setContactSheetOpen = useStore(s => s.setContactSheetOpen);
   const setPresentationOpen = useStore(s => s.setPresentationOpen);
   const setProjectsOpen = useStore(s => s.setProjectsOpen);
+  const setCollectionsOpen = useStore(s => s.setCollectionsOpen);
   const persons = useStore(s => s.persons);
   const askConfirm = useStore(s => s.askConfirm);
   const reduceMotion = useReducedMotion();
@@ -247,6 +248,11 @@ export function MenuDrawer() {
         <button className="drawer-item" onClick={() => go(() => setProjectsOpen(true))}>
           <span className="drawer-item-icon"><ListIcon /></span>
           <span>{tr('menu.projects')}</span>
+        </button>
+
+        <button className="drawer-item" onClick={() => go(() => setCollectionsOpen(true))}>
+          <span className="drawer-item-icon"><FolderIcon /></span>
+          <span>{tr('menu.collections')}</span>
         </button>
 
         <label className="drawer-item drawer-item-select" title={tr('menu.genre.title')}>

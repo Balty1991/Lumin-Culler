@@ -348,6 +348,22 @@ export interface AnalysisRecord {
   textCoverage?: number;
 }
 
+/**
+ * Folder personalizat (cerinta directa a utilizatorului: "sa am posibilitatea
+ * sa creez foldere, sa le denumesc si sa pun anumite poze in ele") — distinct
+ * de folderLabel (core/exportPhotos.ts), care deriva automat un folder din
+ * persoane/scena la export. Aici utilizatorul decide EXPLICIT numele si
+ * apartenenta, independent de orice semnal AI. Apartenenta traieste pe
+ * `memberIds` (nu pe PhotoRecord) — o poza poate fi in mai multe foldere
+ * simultan (N:M), fara sa atinga deloc schema tabelei `photos`.
+ */
+export interface CollectionRecord {
+  id: string;
+  name: string;
+  createdAt: number;
+  memberIds: string[];
+}
+
 export interface KnownPerson {
   id: string;
   name: string;
@@ -403,6 +419,7 @@ export class LuminDB extends Dexie {
   contextModels!: Table<ContextModelRecord, string>;
   corrections!: Table<CorrectionRecord, number>;
   history!: Table<HistoryRecord, number>;
+  collections!: Table<CollectionRecord, string>;
 
   constructor() {
     super('lumin-culler-v2');
@@ -494,6 +511,22 @@ export class LuminDB extends Dexie {
       await tx.table<PhotoRecord, string>('photos')
         .filter(p => p.groupId === undefined)
         .modify({ groupId: '' });
+    });
+    // v7: foldere personalizate (CollectionRecord) — tabela noua, vezi comentariul
+    // de langa interfata mai sus. Apartenenta traieste pe memberIds, nu pe
+    // PhotoRecord, deci restul tabelelor raman neschimbate.
+    this.version(7).stores({
+      photos: 'id, capturedAt, status, dHash, groupId',
+      thumbnails: 'photoId',
+      previews: 'photoId',
+      originals: 'photoId',
+      fileHandles: 'photoId',
+      analyses: 'photoId, sceneType, aiScore',
+      persons: 'id, name',
+      contextModels: 'contextKey',
+      corrections: '++id, contextKey, ts',
+      history: '++id, ts',
+      collections: 'id, name'
     });
   }
 }

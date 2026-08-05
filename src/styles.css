@@ -974,6 +974,28 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .scene-tag-filter-option.active .scene-tag-filter-count { background: rgb(var(--accent-rgb) / 0.18); color: var(--accent); }
 .scene-tag-filter-clear { color: var(--text-dim); font-weight: 500; text-transform: none; border-top: 1px solid var(--line); margin-top: 2px; padding-top: 8px; justify-content: center; }
 
+/* CollectionPicker.tsx — popover "Adauga in folder" (foldere personalizate,
+   cerinta directa a utilizatorului). display:contents pe wrapper: butonul
+   declansator trebuie sa ramana un copil FLEX direct al barei parinte
+   (bulk-bar/detail-stage-topbar), nu inconjurat de un div suplimentar care
+   i-ar strica alinierea/dimensiunea. Meniul reutilizeaza .scene-tag-filter-menu/
+   .scene-tag-filter-option (aceeasi structura de portal, doar bife in loc de radio). */
+.collection-picker { display: contents; }
+/* Bug real gasit la verificare vizuala: .scene-tag-filter-option are
+   text-transform:capitalize (potrivit pentru etichete COCO cu un cuvant), dar
+   aici numele folderului e ales liber de utilizator ("poze pentru ig" nu
+   trebuie sa devina "Poze Pentru Ig" doar la afisare) — suprascris explicit. */
+.collection-picker-menu .scene-tag-filter-option { text-transform: none; }
+.collection-picker-empty { padding: 6px 10px; text-transform: none; }
+.collection-picker-create {
+  display: flex; gap: 6px; border-top: 1px solid var(--line); margin-top: 2px; padding-top: 8px;
+}
+.collection-picker-create input {
+  flex: 1; min-width: 0; background: var(--surface-3); border: 1px solid var(--line); border-radius: 8px;
+  padding: 7px 10px; font-size: 0.85rem; color: var(--text);
+}
+.collection-picker-create button { flex-shrink: 0; width: 32px; height: 32px; }
+
 /* buton care grupeaza statusurile speciale + persoana/eticheta/scena/aparat +
    modul de selectie sub UN singur trigger (MoreFiltersMenu.tsx), ca randul
    principal de filtre sa incapa fara scroll orizontal. */
