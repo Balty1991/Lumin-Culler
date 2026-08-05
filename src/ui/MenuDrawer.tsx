@@ -13,7 +13,26 @@ import { nextGridDensity } from '../state/gridDensity';
 import { getInstallPromptEvent, subscribeInstallPromptEvent, consumeInstallPromptEvent, isStandalone } from '../core/installPromptEvent';
 import { detectFacesNative, isNativeFaceDetectionAvailable } from '../core/nativeFaceDetection';
 import { analyzeImageNative, isNativeImageAnalysisAvailable } from '../core/nativeImageAnalysis';
+import { detectObjectsNative, isNativeObjectDetectionAvailable } from '../core/nativeObjectDetection';
+import { analyzeFaceMeshNative, isNativeFaceMeshAvailable } from '../core/nativeFaceMesh';
+import { classifyImageNative, isNativeImageClassifierAvailable } from '../core/nativeImageClassifier';
+import { detectTextNative, isNativeTextRecognitionAvailable } from '../core/nativeTextRecognition';
+import { detectPoseNative, isNativePoseDetectionAvailable } from '../core/nativePoseDetection';
+import { segmentSubjectNative, isNativeSegmentationAvailable } from '../core/nativeSegmentation';
+import { embedImageNative, isNativeImageEmbedderAvailable } from '../core/nativeImageEmbedder';
 import { t } from '../i18n';
+
+/**
+ * Controleaza DOAR vizibilitatea butonului de test nativ — NU e acelasi lucru
+ * cu import.meta.env.DEV (bug real gasit la testare pe device: legarea de DEV
+ * insemna ca intreg build-ul de test rula in modul development al React,
+ * unde StrictMode dubleaza deliberat efectele — asta dubla pornirea analizei
+ * la import si bloca vizibil telefonul). VITE_NATIVE_TEST_BUTTON e setat doar
+ * de android-debug-build.yml (dev_mode=true), pe un build altfel NORMAL de
+ * productie (minificat, React fara StrictMode dublu) — un singur lucru se
+ * schimba: acest buton.
+ */
+const SHOW_NATIVE_TEST_BUTTON = import.meta.env.DEV || import.meta.env.VITE_NATIVE_TEST_BUTTON === 'true';
 
 /** Meniu lateral: persoane, preferinte AI invatate, export lista, despre. */
 export function MenuDrawer() {
@@ -73,11 +92,15 @@ export function MenuDrawer() {
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const go = (action: () => void) => { setOpen(false); action(); };
 
-  // TEMPORAR (Faza 1+2, analiza AI nativa) — doar ca sa poata fi testat direct pe
+  // TEMPORAR (Faza 1-6, analiza AI nativa) — doar ca sa poata fi testat direct pe
   // device, fara Chrome DevTools/USB. De eliminat cand pipeline-ul nativ chiar
-  // inlocuieste analiza reala (vezi core/nativeFaceDetection.ts + core/nativeImageAnalysis.ts).
-  // import.meta.env.DEV e eliminat static din build-ul de productie (Vite),
-  // deci acest buton nu ajunge niciodata in APK-ul real.
+  // inlocuieste analiza reala (vezi core/native*.ts — cate un modul per plugin).
+  // Gated pe SHOW_NATIVE_TEST_BUTTON (mai jos), NU pe import.meta.env.DEV —
+  // bug real gasit la testare pe device: legarea de DEV insemna ca intreg
+  // build-ul de test rula in modul development al React (StrictMode ruleaza
+  // deliberat de doua ori efectele, ca sa prinda bug-uri), ceea ce dubla
+  // pornirea analizei la import si bloca vizibil telefonul — un efect secundar
+  // nedorit, fara nicio legatura reala cu pastrarea butonului de test.
   const testNativeFaceDetection = () => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -85,9 +108,19 @@ export function MenuDrawer() {
     input.onchange = () => {
       const file = input.files?.[0];
       if (!file) return;
-      Promise.all([detectFacesNative(file), analyzeImageNative(file)])
-        .then(([faces, analysis]) =>
-          setNotice(`Native OK: ${faces.faces.length} fete. ${JSON.stringify(analysis)}`)
+      Promise.all([
+        detectFacesNative(file), analyzeImageNative(file), detectObjectsNative(file),
+        analyzeFaceMeshNative(file), classifyImageNative(file),
+        detectTextNative(file), detectPoseNative(file), segmentSubjectNative(file),
+        embedImageNative(file)
+      ])
+        .then(([faces, analysis, objects, faceMesh, labels, text, pose, segmentation, embedding]) =>
+          setNotice(
+            `Native OK: ${faces.faces.length} fete, ${objects.objects.length} obiecte, ` +
+            `${pose.people.length} persoane (postura), text ${Math.round(text.textCoverage * 100)}%, ` +
+            `persoana ${Math.round(segmentation.personCoverage * 100)}% din cadru, embedding ${embedding.embedding.length} dim. ` +
+            `${JSON.stringify(analysis)} ${JSON.stringify(objects)} ${JSON.stringify(faceMesh)} ${JSON.stringify(labels)} ${JSON.stringify(text)}`
+          )
         )
         .catch(err => setNotice(`Native FAIL: ${err instanceof Error ? err.message : String(err)}`));
     };
@@ -319,7 +352,10 @@ export function MenuDrawer() {
           <span>{tr('menu.shortcuts')}</span>
         </button>
 
-        {import.meta.env.DEV && isNativeFaceDetectionAvailable() && isNativeImageAnalysisAvailable() && (
+        {SHOW_NATIVE_TEST_BUTTON && isNativeFaceDetectionAvailable() && isNativeImageAnalysisAvailable() &&
+          isNativeObjectDetectionAvailable() && isNativeFaceMeshAvailable() && isNativeImageClassifierAvailable() &&
+          isNativeTextRecognitionAvailable() && isNativePoseDetectionAvailable() && isNativeSegmentationAvailable() &&
+          isNativeImageEmbedderAvailable() && (
           <button className="drawer-item" onClick={() => go(testNativeFaceDetection)}>
             <span className="drawer-item-icon"><SparkleIcon /></span>
             <span>[DEV] Test detectie nativa</span>

@@ -99,3 +99,22 @@ app/src/main/assets/public
 app/src/main/assets/capacitor.config.json
 app/src/main/assets/capacitor.plugins.json
 app/src/main/res/xml/config.xml
+
+# Model TFLite nativ (Faza 3, ObjectDetectionPlugin.kt) — descarcat de CI la build
+# (~4MB binar, sursa: download.tensorflow.org), niciodata committed
+app/src/main/assets/detect.tflite
+app/src/main/assets/labelmap.txt
+
+# Modele MediaPipe native (Faza 4, FaceMeshPlugin.kt / ImageClassifierPlugin.kt) —
+# descarcate de CI la build (~3.8MB + ~18.6MB, sursa: storage.googleapis.com/mediapipe-models), niciodata committed
+app/src/main/assets/face_landmarker.task
+app/src/main/assets/efficientnet_lite0.tflite
+
+# Modele MediaPipe native (Faza 5, PoseDetectionPlugin.kt / SegmentationPlugin.kt) —
+# descarcate de CI la build (~5.8MB + ~16.4MB), niciodata committed
+app/src/main/assets/pose_landmarker_lite.task
+app/src/main/assets/selfie_multiclass.tflite
+
+# Model MediaPipe nativ (Faza 6, ImageEmbedderPlugin.kt) —
+# descarcat de CI la build (~4.1MB), niciodata committed
+app/src/main/assets/mobilenet_v3_small.tflite

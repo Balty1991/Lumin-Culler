@@ -11,9 +11,16 @@ on:
     inputs:
       dev_mode:
         description: >-
-          Build cu import.meta.env.DEV=true (pastreaza butoanele/hook-urile
-          de test din meniu, ex. [DEV] Test detectie nativa) — doar pentru
-          testare manuala pe device, NU pentru build-uri normale de CI.
+          Pastreaza butoanele/hook-urile de test din meniu (ex. [DEV] Test
+          detectie nativa) — doar pentru testare manuala pe device, NU pentru
+          build-uri normale de CI. Ramane oricum un build NORMAL de productie
+          (minificat, React fara StrictMode dublu) — bug real gasit la
+          testare: legarea acestui buton de `vite build --mode development`
+          punea toata aplicatia in modul development al React, unde
+          StrictMode dubleaza deliberat efectele (pornea analiza la import
+          de doua ori, bloca vizibil telefonul). Acum foloseste doar
+          variabila VITE_NATIVE_TEST_BUTTON (vezi src/ui/MenuDrawer.tsx),
+          fara sa atinga modul de build.
         type: boolean
         default: false
   push:
@@ -44,19 +51,51 @@ jobs:
             cp node_modules/@vladmandic/human/models/$m.bin public/models/
           done
       - name: Build web
-        # dev_mode (doar la declansare manuala) pastreaza import.meta.env.DEV=true
-        # in output-ul static (spre deosebire de `vite dev`, tot un build static,
-        # sigur de impachetat in APK) — normal, push-urile automate raman pe
-        # build-ul de productie neschimbat (dev_mode gol/false pentru event push).
+        # dev_mode (doar la declansare manuala) seteaza VITE_NATIVE_TEST_BUTTON=true,
+        # NU modul de build — ramane un build NORMAL de productie (`vite build`,
+        # fara --mode development) in ambele cazuri, ca sa nu puna React in
+        # StrictMode dublu (bug real gasit la testare: dubla pornirea analizei
+        # la import, bloca vizibil telefonul). Push-urile automate raman
+        # neschimbate (variabila goala = butonul de test ramane ascuns).
         run: |
           npx tsc
           if [ "${{ github.event.inputs.dev_mode }}" = "true" ]; then
-            echo "Build DEV (butoane de test pastrate)"
-            npx vite build --mode development
+            echo "Build productie + buton de test nativ pastrat"
+            VITE_NATIVE_TEST_BUTTON=true npx vite build
           else
             npx vite build
           fi
       - run: npx cap sync android
+      # Analiza AI nativa (Faza 3 — vezi plugins/ObjectDetectionPlugin.kt): model
+      # TFLite COCO SSD MobileNet oficial (Apache 2.0, download.tensorflow.org),
+      # NU committed in git (~4MB binar) — descarcat aici, la fel ca modelele
+      # Human.js de mai sus, doar ca in assets-urile native Android, nu in public/.
+      - name: Bundle native object-detection model
+        run: |
+          curl -sL -o /tmp/coco_ssd.zip https://storage.googleapis.com/download.tensorflow.org/models/tflite/coco_ssd_mobilenet_v1_1.0_quant_2018_06_29.zip
+          mkdir -p android/app/src/main/assets
+          unzip -o /tmp/coco_ssd.zip -d android/app/src/main/assets
+      # Analiza AI nativa (Faza 4 — vezi plugins/FaceMeshPlugin.kt / ImageClassifierPlugin.kt):
+      # doua modele MediaPipe oficiale (Google AI Edge, CC-BY-4.0/Apache 2.0),
+      # NU committed in git — descarcate direct (nu arhive, spre deosebire de
+      # modelul COCO de mai sus).
+      - name: Bundle native face-mesh and image-classifier models
+        run: |
+          curl -sL -o android/app/src/main/assets/face_landmarker.task https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task
+          curl -sL -o android/app/src/main/assets/efficientnet_lite0.tflite https://storage.googleapis.com/mediapipe-models/image_classifier/efficientnet_lite0/float32/1/efficientnet_lite0.tflite
+      # Analiza AI nativa (Faza 5 — vezi plugins/PoseDetectionPlugin.kt / SegmentationPlugin.kt):
+      # doua modele MediaPipe oficiale in plus (pose lite + segmentare selfie
+      # multiclasa), NU committed in git. TextRecognitionPlugin.kt nu are nevoie
+      # de pas separat — modelul lui e bundle-uit direct in dependinta ML Kit.
+      - name: Bundle native pose and segmentation models
+        run: |
+          curl -sL -o android/app/src/main/assets/pose_landmarker_lite.task https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task
+          curl -sL -o android/app/src/main/assets/selfie_multiclass.tflite https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/latest/selfie_multiclass_256x256.tflite
+      # Analiza AI nativa (Faza 6 — vezi plugins/ImageEmbedderPlugin.kt): embedding
+      # general de similaritate vizuala (MediaPipe, MobileNetV3-small), NU committed in git.
+      - name: Bundle native image-embedder model
+        run: |
+          curl -sL -o android/app/src/main/assets/mobilenet_v3_small.tflite https://storage.googleapis.com/mediapipe-models/image_embedder/mobilenet_v3_small/float32/1/mobilenet_v3_small.tflite
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
