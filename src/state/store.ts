@@ -36,6 +36,7 @@ import { recordUsage, readMonthlyUsage, FREE_TIER_MONTHLY_LIMIT } from './usage'
 import { getProjectMetadata } from './projectMetadata';
 import { buildPersonProfilesExport, personProfilesFileName, parsePersonProfilesFile } from '../core/personProfileTransfer';
 import { readStoredLocale, writeStoredLocale, applyLocale, t, plural, type Locale } from '../i18n';
+import { translateSceneTag, normalizeForSearch } from '../core/sceneTagLabels';
 import { buildBackup, backupFileName, parseBackupFile, restoreBackup } from '../core/backupService';
 import { writeLastBackupAt } from './backupReminder';
 import { buildClientGalleryHtml } from '../core/export/clientGallery';
@@ -692,6 +693,20 @@ function statusLabel(locale: Locale, status: PhotoRecord['status']): string {
 applyLocale(readStoredLocale());
 
 /**
+ * Cautarea text (filtered()/secondaryFiltered()) potriveste ACUM si dupa
+ * etichetele de scena/obiect detectate de AI (COCO-80, traduse in romana —
+ * vezi core/sceneTagLabels.ts), nu doar numele fisierului — feedback direct
+ * de la utilizator: cauta "pisica" si asteapta sa gaseasca pozele in care AI-ul
+ * a detectat o pisica, nu doar fisiere cu "pisica" in nume (aproape niciodata
+ * cazul). normalizeForSearch scoate diacriticele din ambele parti, ca "pisica"
+ * tastat fara "ă" tot sa gaseasca "pisică".
+ */
+function matchesSearch(p: PhotoView, normalizedQuery: string, locale: Locale): boolean {
+  if (normalizeForSearch(p.fileName).includes(normalizedQuery)) return true;
+  return (p.sceneTags ?? []).some(tag => normalizeForSearch(translateSceneTag(tag, locale)).includes(normalizedQuery));
+}
+
+/**
  * Distanta pana la CEL MAI APROPIAT prag (select sau reject) pentru un scor
  * din banda "de verificat" (REJECT_THRESHOLD < scor < SELECT_THRESHOLD) —
  * folosita pentru ordinea implicita a filtrului 'review' (vezi filtered()).
@@ -723,6 +738,8 @@ let filteredCache: {
   cameraFilter: string | null;
   projectFilter: string | null;
   searchText: string;
+  /** cautarea potriveste si etichete de scena TRADUSE — schimbarea limbii schimba rezultatul. */
+  locale: Locale;
   dateFrom: number | null;
   dateTo: number | null;
   minRating: number;
@@ -745,6 +762,7 @@ let secondaryFilteredCache: {
   cameraFilter: string | null;
   projectFilter: string | null;
   searchText: string;
+  locale: Locale;
   dateFrom: number | null;
   dateTo: number | null;
   minRating: number;
@@ -1905,13 +1923,13 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   filtered: () => {
-    const { photos, filter, personFilter, colorLabelFilter, sceneTagFilter, projectFilter, cameraFilter, searchText, dateFrom, dateTo, minRating, gridSort } = get();
+    const { photos, filter, personFilter, colorLabelFilter, sceneTagFilter, projectFilter, cameraFilter, searchText, locale, dateFrom, dateTo, minRating, gridSort } = get();
     const c = filteredCache;
     if (
       c && c.photos === photos && c.filter === filter && c.personFilter === personFilter &&
       c.colorLabelFilter === colorLabelFilter && c.sceneTagFilter === sceneTagFilter &&
       c.cameraFilter === cameraFilter && c.projectFilter === projectFilter &&
-      c.searchText === searchText && c.dateFrom === dateFrom && c.dateTo === dateTo &&
+      c.searchText === searchText && c.locale === locale && c.dateFrom === dateFrom && c.dateTo === dateTo &&
       c.minRating === minRating && c.gridSortKey === gridSort.key && c.gridSortDir === gridSort.dir
     ) {
       return c.result;
@@ -1957,10 +1975,10 @@ export const useStore = create<AppState>((set, get) => ({
         ? base.filter(p => !p.project)
         : base.filter(p => p.project === projectFilter);
     }
-    // cautare text dupa numele fisierului — utila la biblioteci mari, unde
-    // stii deja (partial) cum se numeste poza cautata
-    const q = searchText.trim().toLowerCase();
-    if (q) base = base.filter(p => p.fileName.toLowerCase().includes(q));
+    // cautare text — dupa numele fisierului SAU dupa etichetele de scena/obiect
+    // detectate de AI (traduse, fara diacritice — vezi matchesSearch mai sus)
+    const q = normalizeForSearch(searchText.trim());
+    if (q) base = base.filter(p => matchesSearch(p, q, locale));
     // interval de data (capturedAt) — poze fara data cunoscuta sunt excluse
     // doar daca s-a cerut explicit un capat de interval (altfel raman vizibile)
     if (dateFrom !== null) base = base.filter(p => (p.capturedAt ?? 0) >= dateFrom);
@@ -1978,7 +1996,7 @@ export const useStore = create<AppState>((set, get) => ({
     }
     filteredCache = {
       photos, filter, personFilter, colorLabelFilter, sceneTagFilter, cameraFilter, projectFilter,
-      searchText, dateFrom, dateTo, minRating, gridSortKey: gridSort.key, gridSortDir: gridSort.dir,
+      searchText, locale, dateFrom, dateTo, minRating, gridSortKey: gridSort.key, gridSortDir: gridSort.dir,
       result: base
     };
     return base;
@@ -1996,13 +2014,13 @@ export const useStore = create<AppState>((set, get) => ({
    * numaram aici, deci trebuie sarit).
    */
   secondaryFiltered: () => {
-    const { photos, personFilter, colorLabelFilter, sceneTagFilter, cameraFilter, projectFilter, searchText, dateFrom, dateTo, minRating } = get();
+    const { photos, personFilter, colorLabelFilter, sceneTagFilter, cameraFilter, projectFilter, searchText, locale, dateFrom, dateTo, minRating } = get();
     const c = secondaryFilteredCache;
     if (
       c && c.photos === photos && c.personFilter === personFilter &&
       c.colorLabelFilter === colorLabelFilter && c.sceneTagFilter === sceneTagFilter &&
       c.cameraFilter === cameraFilter && c.projectFilter === projectFilter &&
-      c.searchText === searchText && c.dateFrom === dateFrom && c.dateTo === dateTo &&
+      c.searchText === searchText && c.locale === locale && c.dateFrom === dateFrom && c.dateTo === dateTo &&
       c.minRating === minRating
     ) {
       return c.result;
@@ -2017,12 +2035,12 @@ export const useStore = create<AppState>((set, get) => ({
         ? base.filter(p => !p.project)
         : base.filter(p => p.project === projectFilter);
     }
-    const q = searchText.trim().toLowerCase();
-    if (q) base = base.filter(p => p.fileName.toLowerCase().includes(q));
+    const q = normalizeForSearch(searchText.trim());
+    if (q) base = base.filter(p => matchesSearch(p, q, locale));
     if (dateFrom !== null) base = base.filter(p => (p.capturedAt ?? 0) >= dateFrom);
     if (dateTo !== null) base = base.filter(p => (p.capturedAt ?? 0) <= dateTo);
     if (minRating > 0) base = base.filter(p => p.rating >= minRating);
-    secondaryFilteredCache = { photos, personFilter, colorLabelFilter, sceneTagFilter, cameraFilter, projectFilter, searchText, dateFrom, dateTo, minRating, result: base };
+    secondaryFilteredCache = { photos, personFilter, colorLabelFilter, sceneTagFilter, cameraFilter, projectFilter, searchText, locale, dateFrom, dateTo, minRating, result: base };
     return base;
   },
 

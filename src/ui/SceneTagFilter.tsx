@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { useStore } from '../state/store';
 import { SparkleIcon } from './icons';
 import { t } from '../i18n';
+import { translateSceneTag } from '../core/sceneTagLabels';
+import { computeMenuPosition, isInsideAnyMenu, type MenuPosition } from './dropdownPosition';
 
 /**
  * Filtru dupa eticheta de scena/obiect (PhotoView.sceneTags, COCO-80 — ex.
@@ -20,7 +22,7 @@ export function SceneTagFilter() {
   const sceneTagFilter = useStore(s => s.sceneTagFilter);
   const setSceneTagFilter = useStore(s => s.setSceneTagFilter);
   const [open, setOpen] = useState(false);
-  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
+  const [menuPos, setMenuPos] = useState<MenuPosition | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -35,7 +37,7 @@ export function SceneTagFilter() {
   const toggle = () => {
     if (!open) {
       const rect = triggerRef.current?.getBoundingClientRect();
-      if (rect) setMenuPos({ top: rect.bottom + 6, left: rect.left });
+      if (rect) setMenuPos(computeMenuPosition(rect));
     }
     setOpen(v => !v);
   };
@@ -45,6 +47,7 @@ export function SceneTagFilter() {
     const onPointerDown = (e: PointerEvent) => {
       const target = e.target as Node;
       if (triggerRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      if (isInsideAnyMenu(e.target)) return;
       setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
@@ -70,7 +73,7 @@ export function SceneTagFilter() {
         aria-label={tr('app.sceneTagFilter.ariaLabel')}
       >
         <SparkleIcon className="chip-icon" aria-hidden="true" />
-        {sceneTagFilter ?? tr('app.sceneTagFilter.label')}
+        {sceneTagFilter ? translateSceneTag(sceneTagFilter, locale) : tr('app.sceneTagFilter.label')}
       </button>
       {open && menuPos && createPortal(
         <div
@@ -78,7 +81,7 @@ export function SceneTagFilter() {
           role="menu"
           aria-label={tr('app.sceneTagFilter.ariaLabel')}
           ref={menuRef}
-          style={{ top: menuPos.top, left: menuPos.left }}
+          style={{ top: menuPos.top, bottom: menuPos.bottom, left: menuPos.left, maxHeight: menuPos.maxHeight }}
         >
           {tags.map(([tagName, count]) => (
             <button
@@ -89,7 +92,7 @@ export function SceneTagFilter() {
               className={sceneTagFilter === tagName ? 'scene-tag-filter-option active' : 'scene-tag-filter-option'}
               onClick={() => { setSceneTagFilter(sceneTagFilter === tagName ? null : tagName); setOpen(false); }}
             >
-              <span>{tagName}</span>
+              <span>{translateSceneTag(tagName, locale)}</span>
               <b className="scene-tag-filter-count mono">{count}</b>
             </button>
           ))}

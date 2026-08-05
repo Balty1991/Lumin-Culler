@@ -211,7 +211,7 @@ export const ro = {
   'errorBoundary.details': 'Detalii tehnice',
   'app.selectMode.active': 'Mod selectie (activ)',
   'app.selectMode.toggle': 'Selecteaza mai multe',
-  'app.search.placeholder': 'Cauta dupa nume fisier…',
+  'app.search.placeholder': 'Cauta dupa nume fisier sau ce apare in poza (ex. pisica)…',
   'app.search.ariaLabel': 'Cauta poze dupa numele fisierului',
   'app.ratingFilter.ariaLabel': 'Rating minim',
   'app.ratingFilter.any': 'Orice rating',

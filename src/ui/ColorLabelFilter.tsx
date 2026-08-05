@@ -4,6 +4,7 @@ import { COLOR_LABELS, type ColorLabel } from '../core/db';
 import { useStore } from '../state/store';
 import { TagIcon } from './icons';
 import { t } from '../i18n';
+import { computeMenuPosition, isInsideAnyMenu, type MenuPosition } from './dropdownPosition';
 
 interface Props {
   value: ColorLabel | null;
@@ -25,14 +26,14 @@ export function ColorLabelFilter({ value, onChange }: Props) {
   const locale = useStore(s => s.locale);
   const tr = (key: string) => t(locale, key);
   const [open, setOpen] = useState(false);
-  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
+  const [menuPos, setMenuPos] = useState<MenuPosition | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const toggle = () => {
     if (!open) {
       const rect = triggerRef.current?.getBoundingClientRect();
-      if (rect) setMenuPos({ top: rect.bottom + 6, left: rect.left });
+      if (rect) setMenuPos(computeMenuPosition(rect));
     }
     setOpen(v => !v);
   };
@@ -42,6 +43,7 @@ export function ColorLabelFilter({ value, onChange }: Props) {
     const onPointerDown = (e: PointerEvent) => {
       const target = e.target as Node;
       if (triggerRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      if (isInsideAnyMenu(e.target)) return;
       setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
@@ -73,7 +75,7 @@ export function ColorLabelFilter({ value, onChange }: Props) {
           role="menu"
           aria-label={tr('app.colorLabelFilter.ariaLabel')}
           ref={menuRef}
-          style={{ top: menuPos.top, left: menuPos.left }}
+          style={{ top: menuPos.top, bottom: menuPos.bottom, left: menuPos.left, maxHeight: menuPos.maxHeight }}
         >
           {COLOR_LABELS.map(c => (
             <button

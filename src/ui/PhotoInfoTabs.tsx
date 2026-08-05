@@ -8,6 +8,7 @@ import { FocusMap } from './FocusMap';
 import { AnimatedNumber } from './AnimatedNumber';
 import { XIcon, CheckIcon, EyeClosedIcon, SparkleIcon, ClockIcon, SunIcon } from './icons';
 import { t, type Locale } from '../i18n';
+import { translateSceneTag } from '../core/sceneTagLabels';
 
 type Tab = 'metrics' | 'why' | 'persons' | 'history';
 const TAB_KEYS: { key: Tab; labelKey: string }[] = [
@@ -250,7 +251,7 @@ export function PhotoInfoTabs({ photo, src }: { photo: PhotoView; src: string | 
           {photo.sceneTags && photo.sceneTags.length > 0 && (
             <div className="scene-tags-row">
               {photo.sceneTags.map(tag => (
-                <span key={tag} className="scene-tag">{tag}</span>
+                <span key={tag} className="scene-tag">{translateSceneTag(tag, locale)}</span>
               ))}
             </div>
           )}
