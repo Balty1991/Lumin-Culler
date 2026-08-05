@@ -69,12 +69,14 @@ describe('HashCompareService.groupPhotos', () => {
     expect(updates[0].groupId).toBe(updates[1].groupId);
   });
 
-  it('desparte un bucket dHash fals-pozitiv cand embedding-urile faciale arata subiecti diferiti', async () => {
+  it('desparte un bucket dHash fals-pozitiv cand embedding-urile faciale arata subiecti diferiti, dar pastreaza AMBELE componente ca grupuri reale', async () => {
     const service = new HashCompareService();
     // Toate 4 sunt suficient de apropiate structural (dHash) ca sa cada in
     // acelasi bucket, dar 'a'/'b' au fata subiectului X, iar 'c'/'d' au fata
     // subiectului Y (embedding ortogonal) — un fals-pozitiv clasic (aceeasi
-    // compozitie de cadru, oameni diferiti).
+    // compozitie de cadru, oameni diferiti). Ambele perechi raman totusi
+    // rafale reale in sine — nu doar componenta cea mai mare (bug real
+    // raportat: componenta mai mica ramanea "negrupata", deci nesupravegheata).
     const faceX = [1, 0, 0, 0];
     const faceY = [0, 1, 0, 0];
     const photos: HashInput[] = [
@@ -86,10 +88,11 @@ describe('HashCompareService.groupPhotos', () => {
 
     const { groups, totalGroups } = await service.groupPhotos(photos);
 
-    // doar componenta cea mai mare (aici, ambele sunt marimea 2 — prima gasita
-    // castiga, tie-break identic cu restul algoritmului) devine grup real
-    expect(totalGroups).toBe(1);
-    expect(groups[0].memberIds.sort()).toEqual(['a', 'b']);
+    expect(totalGroups).toBe(2);
+    const groupsByMember = new Map(groups.flatMap(g => g.memberIds.map(id => [id, g.groupId])));
+    expect(groupsByMember.get('a')).toBe(groupsByMember.get('b'));
+    expect(groupsByMember.get('c')).toBe(groupsByMember.get('d'));
+    expect(groupsByMember.get('a')).not.toBe(groupsByMember.get('c'));
   });
 
   it('nu desparte un bucket cand fetele detectate se potrivesc (acelasi subiect, unghiuri usor diferite)', async () => {
@@ -116,7 +119,7 @@ describe('HashCompareService.groupPhotos', () => {
     expect(totalGroups).toBe(1);
   });
 
-  it('desparte un bucket fara fete cand compozitia SI armonia culorilor diverg puternic', async () => {
+  it('desparte un bucket fara fete cand compozitia SI armonia culorilor diverg puternic, dar pastreaza AMBELE componente ca grupuri reale', async () => {
     const service = new HashCompareService();
     const photos: HashInput[] = [
       { ...photo('a', '0'.repeat(64)), compositionScore: 0.9, colorHarmonyScore: 0.9 },
@@ -127,7 +130,10 @@ describe('HashCompareService.groupPhotos', () => {
 
     const { groups, totalGroups } = await service.groupPhotos(photos);
 
-    expect(totalGroups).toBe(1);
-    expect(groups[0].memberIds.sort()).toEqual(['a', 'b']);
+    expect(totalGroups).toBe(2);
+    const groupsByMember = new Map(groups.flatMap(g => g.memberIds.map(id => [id, g.groupId])));
+    expect(groupsByMember.get('a')).toBe(groupsByMember.get('b'));
+    expect(groupsByMember.get('c')).toBe(groupsByMember.get('d'));
+    expect(groupsByMember.get('a')).not.toBe(groupsByMember.get('c'));
   });
 });

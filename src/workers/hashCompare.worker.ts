@@ -123,14 +123,17 @@ function looksLikeSameSubject(a: HashInput, b: HashInput): boolean {
 
 /**
  * Imparte un bucket dHash in componente conexe dupa `looksLikeSameSubject`
- * (Union-Find) si pastreaza doar cea mai mare drept grup real — restul
- * membrilor (probabil un fals-pozitiv de dHash) raman NEGRUPATI, la fel ca
- * orice poza fara nicio alta similara. Nu incearca sa-i realipeasca intr-un
- * grup nou separat: scopul e sa REDUCA fals-pozitivele, nu o reclusterizare
- * completa.
+ * (Union-Find). Fiecare componenta ramane un grup real separat — NU doar cea
+ * mai mare: pastrarea doar a celei mai mari si abandonarea restului ca
+ * "negrupati" insemna ca, la un bucket care se imparte in doua rafale
+ * distincte (ex. o rafala cu expresii destul de diferite incat similaritatea
+ * fetei sa oscileze sub prag intre unele perechi), a doua rafala ramanea
+ * complet nesupravegheata — fiecare cadru al ei aprobat independent, fara
+ * nicio comparatie/demovare (bug real raportat: 5 cadre aproape identice
+ * dintr-o rafala, toate aprobate automat).
  */
-function refineBucket(members: HashInput[]): HashInput[] {
-  if (members.length < 2 || members.length > MAX_REFINEMENT_BUCKET_SIZE) return members;
+function refineBucket(members: HashInput[]): HashInput[][] {
+  if (members.length < 2 || members.length > MAX_REFINEMENT_BUCKET_SIZE) return [members];
 
   const parent = members.map((_, i) => i);
   function find(i: number): number { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; }
@@ -149,13 +152,8 @@ function refineBucket(members: HashInput[]): HashInput[] {
     if (list) list.push(m); else componentsByRoot.set(root, [m]);
   });
 
-  if (componentsByRoot.size <= 1) return members; // niciun mismatch gasit — comportament neschimbat
-
-  let largest: HashInput[] = [];
-  for (const component of componentsByRoot.values()) {
-    if (component.length > largest.length) largest = component;
-  }
-  return largest;
+  if (componentsByRoot.size <= 1) return [members]; // niciun mismatch gasit — comportament neschimbat
+  return [...componentsByRoot.values()];
 }
 
 export class HashCompareService {
@@ -204,23 +202,25 @@ export class HashCompareService {
 
     const groups: GroupResult[] = [];
     for (const bucket of buckets) {
-      const members = refineBucket(bucket.members);
-      if (members.length < 2) continue; // fara grup pentru poze unice (inclusiv dupa rafinare)
-      const groupId = 'g-' + members[0].id.slice(0, 8);
-      const bestId = pickBestInGroup(members.map(m => ({
-        id: m.id,
-        sharpness: m.sharpness ?? 0,
-        exposure: m.exposure ?? 50,
-        compositionScore: m.compositionScore,
-        faceCount: m.faceCount ?? 0,
-        bestSmile: m.bestSmile ?? 0,
-        groupSmileRatio: m.groupSmileRatio,
-        allEyesOpen: m.allEyesOpen ?? true,
-        groupEyesOpenRatio: m.groupEyesOpenRatio,
-        avgEyeContact: m.avgEyeContact
-      })));
-      for (const m of members) onUpdate?.({ photoId: m.id, groupId });
-      groups.push({ groupId, memberIds: members.map(m => m.id), bestId });
+      const components = refineBucket(bucket.members);
+      for (const members of components) {
+        if (members.length < 2) continue; // fara grup pentru poze unice (inclusiv dupa rafinare)
+        const groupId = 'g-' + members[0].id.slice(0, 8);
+        const bestId = pickBestInGroup(members.map(m => ({
+          id: m.id,
+          sharpness: m.sharpness ?? 0,
+          exposure: m.exposure ?? 50,
+          compositionScore: m.compositionScore,
+          faceCount: m.faceCount ?? 0,
+          bestSmile: m.bestSmile ?? 0,
+          groupSmileRatio: m.groupSmileRatio,
+          allEyesOpen: m.allEyesOpen ?? true,
+          groupEyesOpenRatio: m.groupEyesOpenRatio,
+          avgEyeContact: m.avgEyeContact
+        })));
+        for (const m of members) onUpdate?.({ photoId: m.id, groupId });
+        groups.push({ groupId, memberIds: members.map(m => m.id), bestId });
+      }
     }
 
     return { groups, totalGroups: groups.length };

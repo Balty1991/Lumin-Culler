@@ -8,6 +8,14 @@ name: Build debug Android APK
 
 on:
   workflow_dispatch:
+    inputs:
+      dev_mode:
+        description: >-
+          Build cu import.meta.env.DEV=true (pastreaza butoanele/hook-urile
+          de test din meniu, ex. [DEV] Test detectie nativa) — doar pentru
+          testare manuala pe device, NU pentru build-uri normale de CI.
+        type: boolean
+        default: false
   push:
     branches:
       - 'claude/**'
@@ -35,7 +43,19 @@ jobs:
             cp node_modules/@vladmandic/human/models/$m.json public/models/
             cp node_modules/@vladmandic/human/models/$m.bin public/models/
           done
-      - run: npm run build
+      - name: Build web
+        # dev_mode (doar la declansare manuala) pastreaza import.meta.env.DEV=true
+        # in output-ul static (spre deosebire de `vite dev`, tot un build static,
+        # sigur de impachetat in APK) — normal, push-urile automate raman pe
+        # build-ul de productie neschimbat (dev_mode gol/false pentru event push).
+        run: |
+          npx tsc
+          if [ "${{ github.event.inputs.dev_mode }}" = "true" ]; then
+            echo "Build DEV (butoane de test pastrate)"
+            npx vite build --mode development
+          else
+            npx vite build
+          fi
       - run: npx cap sync android
       - name: Set up JDK
         uses: actions/setup-java@v4
