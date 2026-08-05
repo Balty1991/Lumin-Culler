@@ -11,9 +11,16 @@ on:
     inputs:
       dev_mode:
         description: >-
-          Build cu import.meta.env.DEV=true (pastreaza butoanele/hook-urile
-          de test din meniu, ex. [DEV] Test detectie nativa) — doar pentru
-          testare manuala pe device, NU pentru build-uri normale de CI.
+          Pastreaza butoanele/hook-urile de test din meniu (ex. [DEV] Test
+          detectie nativa) — doar pentru testare manuala pe device, NU pentru
+          build-uri normale de CI. Ramane oricum un build NORMAL de productie
+          (minificat, React fara StrictMode dublu) — bug real gasit la
+          testare: legarea acestui buton de `vite build --mode development`
+          punea toata aplicatia in modul development al React, unde
+          StrictMode dubleaza deliberat efectele (pornea analiza la import
+          de doua ori, bloca vizibil telefonul). Acum foloseste doar
+          variabila VITE_NATIVE_TEST_BUTTON (vezi src/ui/MenuDrawer.tsx),
+          fara sa atinga modul de build.
         type: boolean
         default: false
   push:
@@ -44,15 +51,17 @@ jobs:
             cp node_modules/@vladmandic/human/models/$m.bin public/models/
           done
       - name: Build web
-        # dev_mode (doar la declansare manuala) pastreaza import.meta.env.DEV=true
-        # in output-ul static (spre deosebire de `vite dev`, tot un build static,
-        # sigur de impachetat in APK) — normal, push-urile automate raman pe
-        # build-ul de productie neschimbat (dev_mode gol/false pentru event push).
+        # dev_mode (doar la declansare manuala) seteaza VITE_NATIVE_TEST_BUTTON=true,
+        # NU modul de build — ramane un build NORMAL de productie (`vite build`,
+        # fara --mode development) in ambele cazuri, ca sa nu puna React in
+        # StrictMode dublu (bug real gasit la testare: dubla pornirea analizei
+        # la import, bloca vizibil telefonul). Push-urile automate raman
+        # neschimbate (variabila goala = butonul de test ramane ascuns).
         run: |
           npx tsc
           if [ "${{ github.event.inputs.dev_mode }}" = "true" ]; then
-            echo "Build DEV (butoane de test pastrate)"
-            npx vite build --mode development
+            echo "Build productie + buton de test nativ pastrat"
+            VITE_NATIVE_TEST_BUTTON=true npx vite build
           else
             npx vite build
           fi

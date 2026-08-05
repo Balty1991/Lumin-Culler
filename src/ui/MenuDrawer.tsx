@@ -22,6 +22,18 @@ import { segmentSubjectNative, isNativeSegmentationAvailable } from '../core/nat
 import { embedImageNative, isNativeImageEmbedderAvailable } from '../core/nativeImageEmbedder';
 import { t } from '../i18n';
 
+/**
+ * Controleaza DOAR vizibilitatea butonului de test nativ — NU e acelasi lucru
+ * cu import.meta.env.DEV (bug real gasit la testare pe device: legarea de DEV
+ * insemna ca intreg build-ul de test rula in modul development al React,
+ * unde StrictMode dubleaza deliberat efectele — asta dubla pornirea analizei
+ * la import si bloca vizibil telefonul). VITE_NATIVE_TEST_BUTTON e setat doar
+ * de android-debug-build.yml (dev_mode=true), pe un build altfel NORMAL de
+ * productie (minificat, React fara StrictMode dublu) — un singur lucru se
+ * schimba: acest buton.
+ */
+const SHOW_NATIVE_TEST_BUTTON = import.meta.env.DEV || import.meta.env.VITE_NATIVE_TEST_BUTTON === 'true';
+
 /** Meniu lateral: persoane, preferinte AI invatate, export lista, despre. */
 export function MenuDrawer() {
   const open = useStore(s => s.menuOpen);
@@ -83,8 +95,12 @@ export function MenuDrawer() {
   // TEMPORAR (Faza 1-6, analiza AI nativa) — doar ca sa poata fi testat direct pe
   // device, fara Chrome DevTools/USB. De eliminat cand pipeline-ul nativ chiar
   // inlocuieste analiza reala (vezi core/native*.ts — cate un modul per plugin).
-  // import.meta.env.DEV e eliminat static din build-ul de productie (Vite),
-  // deci acest buton nu ajunge niciodata in APK-ul real.
+  // Gated pe SHOW_NATIVE_TEST_BUTTON (mai jos), NU pe import.meta.env.DEV —
+  // bug real gasit la testare pe device: legarea de DEV insemna ca intreg
+  // build-ul de test rula in modul development al React (StrictMode ruleaza
+  // deliberat de doua ori efectele, ca sa prinda bug-uri), ceea ce dubla
+  // pornirea analizei la import si bloca vizibil telefonul — un efect secundar
+  // nedorit, fara nicio legatura reala cu pastrarea butonului de test.
   const testNativeFaceDetection = () => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -336,7 +352,7 @@ export function MenuDrawer() {
           <span>{tr('menu.shortcuts')}</span>
         </button>
 
-        {import.meta.env.DEV && isNativeFaceDetectionAvailable() && isNativeImageAnalysisAvailable() &&
+        {SHOW_NATIVE_TEST_BUTTON && isNativeFaceDetectionAvailable() && isNativeImageAnalysisAvailable() &&
           isNativeObjectDetectionAvailable() && isNativeFaceMeshAvailable() && isNativeImageClassifierAvailable() &&
           isNativeTextRecognitionAvailable() && isNativePoseDetectionAvailable() && isNativeSegmentationAvailable() &&
           isNativeImageEmbedderAvailable() && (
