@@ -23,8 +23,15 @@ const SWIPE_TAP_TOLERANCE = 6; // sub asta e considerat click (zoom), nu swipe
  */
 /** Praguri de tras (px) pentru gestul vertical de Bottom Sheet — acelasi principiu ca SWIPE_COMMIT orizontal de mai sus. */
 const SHEET_DRAG_COMMIT = 56;
-/** Inaltimea vizibila a manerului cat timp sheet-ul e restrans — trebuie sa fie IDENTICA cu valoarea din CSS (.detail-sheet, translateY collapsed). */
-const SHEET_PEEK_PX = 58;
+/**
+ * Inaltimea vizibila a manerului cat timp sheet-ul e restrans — trebuie sa fie
+ * IDENTICA cu valoarea din CSS (.detail-sheet, translateY collapsed). Marita
+ * de la 58 dupa feedback direct pe device real: pe telefoane cu navigare pe 3
+ * butoane (nu gesturi), env(safe-area-inset-bottom) raporteaza 0 (spre
+ * deosebire de un home-indicator gesture-nav), deci manerul statea lipit
+ * direct de bara de sistem a telefonului, fara respiro vizibil.
+ */
+const SHEET_PEEK_PX = 66;
 
 function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion: boolean }) {
   const openDetail = useStore(s => s.openDetail);

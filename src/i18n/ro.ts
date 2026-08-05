@@ -368,8 +368,6 @@ export const ro = {
   'detail.why.suggestions.now': 'Poti repara acum',
   'detail.why.suggestions.nextTime': 'Pentru data viitoare',
   'detail.why.suggestions.apply': 'Aplica',
-  'detail.why.details.show': 'Vezi rationamentul complet',
-  'detail.why.details.hide': 'Ascunde rationamentul complet',
   'detail.persons.none': 'Nicio persoana cunoscuta recunoscuta in aceasta poza.',
   'detail.persons.confidenceTitle': 'Similaritate fata de profilul inrolat',
   'detail.history.none': 'Nicio decizie manuala recenta pentru aceasta poza — istoricul pastreaza doar ultimele 10 schimbari din toata sesiunea, nu un jurnal complet.',

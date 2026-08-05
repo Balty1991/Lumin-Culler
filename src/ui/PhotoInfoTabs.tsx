@@ -107,27 +107,28 @@ const AI_SELECT_THRESHOLD = 65;
  * Explicatia narativa (paragrafe) pentru scorul AI — incarcata lenes (AnalysisRecord + ContextModelRecord
  * complete nu fac parte din PhotoView), doar cat timp tab-ul "De ce acest scor" e deschis.
  *
- * Restructurat dupa feedback direct ("prea mult text/greu de scanat",
- * "sugestiile sunt prea generice"): doar verdictul ramane mereu vizibil (deja
- * are accent vizual, e concluzia care conteaza cel mai mult); restul
- * rationamentului (tehnic/compozitie/subiect/estetica) sta strans sub
- * "Detalii", pe cerere. Sugestiile sunt acum impartite explicit intre ce se
- * poate repara ACUM (cu buton "Aplica", vezi openEdit autoApply mai jos) si
- * ce ramane sfat pentru urmatorul cadru — inainte, cele doua categorii
- * stateau amestecate intr-o singura lista, fara sa fie clar care e care.
+ * Restructurat dupa feedback direct pe device real: o incercare anterioara
+ * muta verdictul PRIM si ascundea restul rationamentului sub un toggle
+ * "Detalii" — feedback a fost clar ca asta nu era ce se astepta ("au pus sus
+ * partea cu deciziile AI din trecut") si ca rationamentul complet ar trebui
+ * expus direct, doar afisat mai curat. Acum: ordinea NATURALA (tehnic ->
+ * compozitie -> subiect -> estetica -> factori -> verdict), toate randate
+ * direct, dar intr-un singur card unitar (nu N cutii separate suprapuse) —
+ * verdictul ramane ultimul, distins doar printr-o linie de separare si text
+ * ingrosat, ca o concluzie dupa rationament, nu ca titlu. Sugestiile raman
+ * impartite explicit intre ce se poate repara ACUM (cu buton "Aplica", vezi
+ * openEdit autoApply mai jos) si ce ramane sfat pentru urmatorul cadru.
  */
 function WhyExplanation({ photo }: { photo: PhotoView }) {
   const locale = useStore(s => s.locale);
   const openEdit = useStore(s => s.openEdit);
   const [paragraphs, setParagraphs] = useState<string[] | null>(null);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
-  const [detailsOpen, setDetailsOpen] = useState(false);
 
   useEffect(() => {
     let alive = true;
     setParagraphs(null);
     setSuggestions([]);
-    setDetailsOpen(false);
     void Promise.all([db.analyses.get(photo.id), db.contextModels.get(photo.contextKey)]).then(
       ([analysis, contextModel]) => {
         if (!alive || !analysis) return;
@@ -141,22 +142,16 @@ function WhyExplanation({ photo }: { photo: PhotoView }) {
   }, [photo.id, photo.contextKey, photo.aiScore, photo.status, locale]);
 
   if (paragraphs === null) return <p className="hint"><SparkleIcon className="inline-icon spin" /> {t(locale, 'detail.why.loading')}</p>;
-  const verdict = paragraphs[paragraphs.length - 1];
-  const rest = paragraphs.slice(0, -1);
   const now = suggestions.filter(s => s.when === 'now');
   const nextTime = suggestions.filter(s => s.when === 'nextTime');
 
   return (
     <div className="why-explanation">
-      {verdict && <p className="why-verdict">{verdict}</p>}
-      {rest.length > 0 && (
-        <>
-          <button type="button" className="ghost slim why-details-toggle" onClick={() => setDetailsOpen(v => !v)} aria-expanded={detailsOpen}>
-            {t(locale, detailsOpen ? 'detail.why.details.hide' : 'detail.why.details.show')}
-          </button>
-          {detailsOpen && rest.map((p, i) => <p key={i}>{p}</p>)}
-        </>
-      )}
+      <div className="why-explanation-card">
+        {paragraphs.map((p, i) => (
+          <p key={i} className={i === paragraphs.length - 1 ? 'why-verdict-line' : undefined}>{p}</p>
+        ))}
+      </div>
       {(now.length > 0 || nextTime.length > 0) && (
         <div className="why-suggestions">
           <h4 className="why-suggestions-title mono"><SparkleIcon className="inline-icon" /> {t(locale, 'detail.why.suggestions.title')}</h4>
