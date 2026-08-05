@@ -41,7 +41,7 @@ describe('bkTree', () => {
 
     for (let i = 0; i < 20; i++) {
       const target = randomBits(64, rng);
-      const radius = 8; // acelasi prag ca SIMILARITY_THRESHOLD din hashCompare.worker.ts
+      const radius = 14; // acelasi prag ca SIMILARITY_THRESHOLD din hashCompare.worker.ts
       const expected = bruteForceQuery(keys, target, radius).sort();
       const actual = bkQuery(root, target, radius, hammingDistance).sort();
       expect(actual).toEqual(expected);
