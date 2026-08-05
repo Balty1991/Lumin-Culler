@@ -23,4 +23,9 @@ ext {
     // largi), asa ca aceasta piesa ruleaza direct un model TFLite (vezi
     // "Bundle native object-detection model" din workflow-urile CI).
     tensorflowLiteVersion = '2.17.0'
+    // Analiza AI nativa (Faza 4 — vezi plugins/FaceMeshPlugin.kt / ImageClassifierPlugin.kt):
+    // versiune verificata direct din repo-ul oficial de exemple Google
+    // (google-ai-edge/mediapipe-samples, build.gradle) — maven.google.com nu
+    // e accesibil din acest sandbox ca sa se verifice altfel.
+    mediapipeTasksVisionVersion = '0.10.29'
 }

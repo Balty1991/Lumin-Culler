@@ -104,3 +104,8 @@ app/src/main/res/xml/config.xml
 # (~4MB binar, sursa: download.tensorflow.org), niciodata committed
 app/src/main/assets/detect.tflite
 app/src/main/assets/labelmap.txt
+
+# Modele MediaPipe native (Faza 4, FaceMeshPlugin.kt / ImageClassifierPlugin.kt) —
+# descarcate de CI la build (~3.8MB + ~18.6MB, sursa: storage.googleapis.com/mediapipe-models), niciodata committed
+app/src/main/assets/face_landmarker.task
+app/src/main/assets/efficientnet_lite0.tflite

@@ -79,6 +79,10 @@ dependencies {
     // TFLite (detect.tflite) e descarcat de CI in assets/, nu vine din aceasta
     // dependinta — biblioteca de aici e doar runtime-ul de inferenta.
     implementation "org.tensorflow:tensorflow-lite:$tensorflowLiteVersion"
+    // Analiza AI nativa (Faza 4) — vezi plugins/FaceMeshPlugin.kt / ImageClassifierPlugin.kt.
+    // Modelele (.task / .tflite) sunt descarcate de CI in assets/, nu vin din
+    // aceasta dependinta — biblioteca de aici e doar API-ul MediaPipe Tasks.
+    implementation "com.google.mediapipe:tasks-vision:$mediapipeTasksVisionVersion"
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"

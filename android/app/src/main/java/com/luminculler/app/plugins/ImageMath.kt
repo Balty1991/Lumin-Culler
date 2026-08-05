@@ -112,6 +112,39 @@ object ImageMath {
         return gray
     }
 
+    /**
+     * Catchlight ("lumina in ochi", Faza 4 — vezi FaceMeshPlugin.kt pentru
+     * decupajul per-ochi care alimenteaza aici): un varf de luminanta
+     * LOCALIZAT (nu tot ochiul luminos, care ar insemna doar o poza
+     * supraexpusa) — cea mai luminoasa pata din decupaj comparata cu media
+     * restului (fara o mica vecinatate in jurul ei). Praguri empirice (200
+     * luminanta absoluta, +60 fata de rest), ca restul detectorilor din acest
+     * fisier.
+     */
+    fun detectCatchlight(pixels: IntArray, w: Int, h: Int): Boolean {
+        val gray = toGray(pixels)
+        var maxLum = 0f
+        var maxIdx = -1
+        for (i in gray.indices) {
+            if (gray[i] > maxLum) { maxLum = gray[i]; maxIdx = i }
+        }
+        if (maxLum < 200f || maxIdx < 0) return false
+        val mx = maxIdx % w
+        val my = maxIdx / w
+        val excludeRadius = max(1, Math.round(min(w, h) * 0.15f))
+        var sum = 0.0
+        var n = 0
+        for (y in 0 until h) {
+            for (x in 0 until w) {
+                if (hypot((x - mx).toDouble(), (y - my).toDouble()) <= excludeRadius) continue
+                sum += gray[y * w + x]
+                n++
+            }
+        }
+        if (n == 0) return false
+        return maxLum - sum / n >= 60
+    }
+
     data class SobelMaps(val mag: FloatArray, val angleDeg: FloatArray)
 
     /** Gradient Sobel: magnitudine + unghiul muchiei (nu al gradientului), normalizat la (-90,90]. */

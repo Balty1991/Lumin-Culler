@@ -14,6 +14,8 @@ import { getInstallPromptEvent, subscribeInstallPromptEvent, consumeInstallPromp
 import { detectFacesNative, isNativeFaceDetectionAvailable } from '../core/nativeFaceDetection';
 import { analyzeImageNative, isNativeImageAnalysisAvailable } from '../core/nativeImageAnalysis';
 import { detectObjectsNative, isNativeObjectDetectionAvailable } from '../core/nativeObjectDetection';
+import { analyzeFaceMeshNative, isNativeFaceMeshAvailable } from '../core/nativeFaceMesh';
+import { classifyImageNative, isNativeImageClassifierAvailable } from '../core/nativeImageClassifier';
 import { t } from '../i18n';
 
 /** Meniu lateral: persoane, preferinte AI invatate, export lista, despre. */
@@ -74,10 +76,10 @@ export function MenuDrawer() {
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const go = (action: () => void) => { setOpen(false); action(); };
 
-  // TEMPORAR (Faza 1+2+3, analiza AI nativa) — doar ca sa poata fi testat direct pe
+  // TEMPORAR (Faza 1+2+3+4, analiza AI nativa) — doar ca sa poata fi testat direct pe
   // device, fara Chrome DevTools/USB. De eliminat cand pipeline-ul nativ chiar
   // inlocuieste analiza reala (vezi core/nativeFaceDetection.ts + core/nativeImageAnalysis.ts
-  // + core/nativeObjectDetection.ts).
+  // + core/nativeObjectDetection.ts + core/nativeFaceMesh.ts + core/nativeImageClassifier.ts).
   // import.meta.env.DEV e eliminat static din build-ul de productie (Vite),
   // deci acest buton nu ajunge niciodata in APK-ul real.
   const testNativeFaceDetection = () => {
@@ -87,9 +89,15 @@ export function MenuDrawer() {
     input.onchange = () => {
       const file = input.files?.[0];
       if (!file) return;
-      Promise.all([detectFacesNative(file), analyzeImageNative(file), detectObjectsNative(file)])
-        .then(([faces, analysis, objects]) =>
-          setNotice(`Native OK: ${faces.faces.length} fete, ${objects.objects.length} obiecte. ${JSON.stringify(analysis)} ${JSON.stringify(objects)}`)
+      Promise.all([
+        detectFacesNative(file), analyzeImageNative(file), detectObjectsNative(file),
+        analyzeFaceMeshNative(file), classifyImageNative(file)
+      ])
+        .then(([faces, analysis, objects, faceMesh, labels]) =>
+          setNotice(
+            `Native OK: ${faces.faces.length} fete, ${objects.objects.length} obiecte. ` +
+            `${JSON.stringify(analysis)} ${JSON.stringify(objects)} ${JSON.stringify(faceMesh)} ${JSON.stringify(labels)}`
+          )
         )
         .catch(err => setNotice(`Native FAIL: ${err instanceof Error ? err.message : String(err)}`));
     };
@@ -321,7 +329,8 @@ export function MenuDrawer() {
           <span>{tr('menu.shortcuts')}</span>
         </button>
 
-        {import.meta.env.DEV && isNativeFaceDetectionAvailable() && isNativeImageAnalysisAvailable() && isNativeObjectDetectionAvailable() && (
+        {import.meta.env.DEV && isNativeFaceDetectionAvailable() && isNativeImageAnalysisAvailable() &&
+          isNativeObjectDetectionAvailable() && isNativeFaceMeshAvailable() && isNativeImageClassifierAvailable() && (
           <button className="drawer-item" onClick={() => go(testNativeFaceDetection)}>
             <span className="drawer-item-icon"><SparkleIcon /></span>
             <span>[DEV] Test detectie nativa</span>
