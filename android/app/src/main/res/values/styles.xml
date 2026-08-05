@@ -7,16 +7,33 @@
         <item name="colorPrimary">@color/colorPrimary</item>
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
         <item name="colorAccent">@color/colorAccent</item>
+        <!-- Radacina reala a "manerul Metrici e lipit de bara de navigare" —
+             raportat de 3 ori pe device real, cu incrementari CSS repetate care
+             tot n-au ajuns. targetSdkVersion 36 (vezi variables.gradle) forteaza
+             edge-to-edge pe Android 15+ (API 35): WebView-ul deseneaza SUB bara
+             de navigare pe 3 butoane, dar acel WebView nu propaga inaltimea ei
+             catre env(safe-area-inset-bottom) — CSS-ul primeste 0 desi bara chiar
+             suprapune continutul. windowOptOutEdgeToEdgeEnforcement (atribut oficial
+             Android 15, ignorat sigur pe API < 35) reface comportamentul dinainte de
+             enforcement: sistemul rezerva spatiu pentru bara de navigare, WebView-ul
+             nu mai deseneaza niciodata sub ea — problema devine imposibila structural,
+             nu doar atenuata cu padding CSS ghicit. -->
+        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
     </style>
 
     <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
+        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
     </style>
 
 
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
+        <!-- Tema efectiv activa la runtime (MainActivity o foloseste direct, fara
+             switch la AppTheme.NoActionBar dupa splash) — vezi explicatia de mai sus
+             la AppTheme. -->
+        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
     </style>
 </resources>
