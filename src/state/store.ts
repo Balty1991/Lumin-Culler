@@ -137,10 +137,29 @@ export type FilterKey = 'all' | 'selected' | 'review' | 'rejected' | 'series' | 
 /** Cheie de proiectFilter pentru pozele fara proiect ales — un nume de proiect real nu poate coincide cu acest sentinel (spatii, gol dupa trim). */
 export const NO_PROJECT_KEY = 'no-project';
 
+/**
+ * `etaSeconds` e calculat AICI (nu in importPipeline.ts, care nu stie/nu-i pasa
+ * de timp real, doar de done/total) — medie cumulativa done/elapsed de la
+ * primul tick de faza 'analiza', suficient de stabila fara sa mai tinem o
+ * fereastra glisanta separata. Absent (`undefined`) cat timp nu avem inca
+ * destule date (primul tick, sau done===0).
+ */
+type ProgressState = ImportProgress & { etaSeconds?: number };
+
 interface AppState {
   photos: PhotoView[];
   persons: KnownPerson[];
-  progress: ImportProgress | null;
+  progress: ProgressState | null;
+  /**
+   * Bifat imediat cand se apasa Anuleaza, INAINTE ca importul sa se opreasca
+   * efectiv — cancelImport() muta direct o proprietate pe un obiect simplu
+   * (activeCancelToken.cancelled), care NU trece prin set() si deci nu
+   * declanseaza niciun re-render; fara acest flag separat, butonul ramanea
+   * vizual neschimbat cat timp pozele deja in curs de analiza isi terminau
+   * rundele (poate dura cateva zeci de secunde), lasand impresia falsa ca
+   * apasarea n-a facut nimic (raportat de utilizator ca buton "stricat").
+   */
+  importCancelling: boolean;
   /** Poate anula un import in curs — vezi runImport/cancelImport mai jos. */
   cancelImport: () => void;
   /** Mod economic: pool de un singur worker + fara iris/emotie — mai putina presiune pe CPU/RAM, pe hardware slab. */
@@ -343,6 +362,8 @@ interface AppState {
   /** Suprascrie cuvintele-cheie IPTC pe toata selectia curenta — vezi PhotoRecord.keywordsOverride. */
   bulkSetKeywordsForSelection: (keywords: string[]) => Promise<void>;
   setFilter: (f: FilterKey) => void;
+  /** Intra direct in Workspace (lupa + navigare tastatura) filtrat pe "de verificat" — vezi CullGauge (stat clickabil) si ui/Workspace.tsx. */
+  startQuickReview: () => void;
   setPersonFilter: (name: string | null) => void;
   setSearchText: (text: string) => void;
   setDateRange: (from: number | null, to: number | null) => void;
@@ -671,6 +692,17 @@ function statusLabel(locale: Locale, status: PhotoRecord['status']): string {
 applyLocale(readStoredLocale());
 
 /**
+ * Distanta pana la CEL MAI APROPIAT prag (select sau reject) pentru un scor
+ * din banda "de verificat" (REJECT_THRESHOLD < scor < SELECT_THRESHOLD) —
+ * folosita pentru ordinea implicita a filtrului 'review' (vezi filtered()).
+ * Valoare mica = decizie usoara (aproape de un prag), valoare mare = poza cu
+ * adevarat ambigua (aproape de mijlocul benzii).
+ */
+function reviewProximity(score: number): number {
+  return Math.min(score - REJECT_THRESHOLD, SELECT_THRESHOLD - score);
+}
+
+/**
  * Memoizare pentru filtered(): fara ea, FIECARE schimbare de stare (chiar una
  * fara nicio legatura, ex. o litera tastata in campul de watermark) recalcula
  * integral filtrarea + sortarea pe toata biblioteca — si o facea de mai multe
@@ -723,6 +755,7 @@ export const useStore = create<AppState>((set, get) => ({
   photos: [],
   persons: [],
   progress: null,
+  importCancelling: false,
   filter: 'all',
   personFilter: null,
   projectFilter: null,
@@ -739,10 +772,14 @@ export const useStore = create<AppState>((set, get) => ({
   personsOpen: false,
   menuOpen: false,
   insightsOpen: false,
-  // implicit Workspace (lupa + filmstrip) e ecranul principal la pornire —
-  // grila ramane accesibila (buton dedicat), dar nu mai e ce vede utilizatorul
-  // intai; ramane fals doar daca utilizatorul comuta explicit inapoi la grila.
-  workspaceMode: true,
+  // Grila (cu CullGauge + progresul "Analiza AI X/N") e ecranul principal la
+  // pornire SI in timpul importului — feedback direct de la utilizator: cu
+  // Workspace implicit (varianta veche, comentariul de mai sus), importul
+  // sarea direct in lupa (vizibil mai greu/lent cu poze in curs de streaming)
+  // fara sa mai poata vedea progresul general, iar Workspace ramanea greu de
+  // parasit pana la final. Lupa ramane un mod optional, pornit explicit din
+  // grila (butonul Focus) sau din statisticul "de verificat" (startQuickReview).
+  workspaceMode: false,
   batchOpsOpen: false,
   paletteOpen: false,
   shortcutsOpen: false,
@@ -871,7 +908,11 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
-  cancelImport: () => { if (activeCancelToken) activeCancelToken.cancelled = true; },
+  cancelImport: () => {
+    if (!activeCancelToken) return;
+    activeCancelToken.cancelled = true;
+    set({ importCancelling: true });
+  },
 
   boot: async () => {
     if (get().booted) return;
@@ -904,10 +945,14 @@ export const useStore = create<AppState>((set, get) => ({
       set({ notice: t(get().locale, 'store.import.alreadyRunning') });
       return;
     }
-    set({ progress: { done: 0, total: files.length, fileName: '', phase: 'incarcare' } });
+    set({ progress: { done: 0, total: files.length, fileName: '', phase: 'incarcare' }, importCancelling: false });
     let warning: string | undefined;
     let done = 0;
     const startedAt = Date.now();
+    // separat de `startedAt` (folosit pentru lastImportStats, care include si
+    // faza 'incarcare' de dinainte de bucla) — vrem rata reala doar din faza
+    // 'analiza', altfel primele tick-uri ar subestima rata si ar umfla ETA-ul
+    let analysisStartedAt: number | null = null;
     const cancelToken = createCancelToken();
     activeCancelToken = cancelToken;
     // Bug real gasit de auditul QA (raportat de utilizator: "abia incarca poze"
@@ -936,7 +981,21 @@ export const useStore = create<AppState>((set, get) => ({
     try {
       await importFiles(
         files,
-        progress => { warning = progress.warning; done = progress.done; set({ progress: { ...progress } }); },
+        progress => {
+          warning = progress.warning; done = progress.done;
+          let etaSeconds: number | undefined;
+          if (progress.phase === 'analiza') {
+            if (analysisStartedAt === null) analysisStartedAt = Date.now();
+            const elapsedSec = (Date.now() - analysisStartedAt) / 1000;
+            const remaining = progress.total - progress.done;
+            // sub 1s scursa sau 0 poze gata => rata nu inseamna inca nimic (ar
+            // da un ETA fals de precis din 1-2 tick-uri) — asteptam date reale
+            if (elapsedSec > 1 && progress.done > 0 && remaining > 0) {
+              etaSeconds = (elapsedSec / progress.done) * remaining;
+            }
+          }
+          set({ progress: { ...progress, etaSeconds } });
+        },
         item => {
           pendingPhotos.push(toView(item.photo, item.analysis));
           if (pendingPhotos.length >= PHOTO_FLUSH_BATCH) { flushPendingPhotos(); return; }
@@ -961,6 +1020,7 @@ export const useStore = create<AppState>((set, get) => ({
       // ramane invizibile in UI pana la un reload, desi nu s-au pierdut din DB.
       flushPendingPhotos();
       if (activeCancelToken === cancelToken) activeCancelToken = null;
+      set({ importCancelling: false });
     }
     // reincarca statusurile si groupId-urile persistate dupa gruparea seriilor
     const fresh = await db.photos.toArray();
@@ -1413,6 +1473,10 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   setFilter: f => set({ filter: f }),
+  startQuickReview: () => {
+    set({ filter: 'review' });
+    get().setWorkspaceMode(true);
+  },
   setPersonFilter: name => set({ personFilter: name }),
   colorLabelFilter: null,
   setColorLabelFilter: label => set({ colorLabelFilter: label }),
@@ -1855,7 +1919,14 @@ export const useStore = create<AppState>((set, get) => ({
     let base: PhotoView[];
     switch (filter) {
       case 'selected': base = photos.filter(p => p.status === 'selected'); break;
-      case 'review': base = photos.filter(p => p.status === 'review'); break;
+      // "de verificat" incepe sortat dupa cat de aproape e scorul de UN prag
+      // (select sau reject) — pozele aproape de prag sunt decizii rapide/usoare,
+      // cele din mijlocul benzii (aproape de scor 50) sunt cele cu adevarat
+      // ambigue si raman la coada, ca sa treci intai prin cele multe si usoare.
+      case 'review':
+        base = photos.filter(p => p.status === 'review')
+          .sort((a, b) => reviewProximity(a.aiScore) - reviewProximity(b.aiScore));
+        break;
       case 'rejected': base = photos.filter(p => p.status === 'rejected'); break;
       case 'blinks': base = selectBlinks(photos); break;
       case 'goldenHour': base = photos.filter(p => p.goldenHourDetected); break;
@@ -1896,9 +1967,10 @@ export const useStore = create<AppState>((set, get) => ({
     if (dateTo !== null) base = base.filter(p => (p.capturedAt ?? 0) <= dateTo);
     // rating minim — 0 = fara filtru
     if (minRating > 0) base = base.filter(p => p.rating >= minRating);
-    // sortarea utilizatorului (plan 3.2.1) — filtrul "Serii" isi pastreaza propria
-    // ordine (grupate, cea mai buna din fiecare serie prima), altfel gruparea vizuala s-ar sparge
-    if (filter !== 'series') {
+    // sortarea utilizatorului (plan 3.2.1) — filtrele "Serii" si "De verificat"
+    // isi pastreaza propria ordine (grupare pe serie, respectiv proximitate
+    // fata de prag — vezi reviewProximity mai sus), altfel s-ar suprascrie
+    if (filter !== 'series' && filter !== 'review') {
       base = [...base].sort((a, b) => {
         const cmp = compareBy(gridSort.key, a, b);
         return gridSort.dir === 'asc' ? cmp : -cmp;

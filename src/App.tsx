@@ -32,6 +32,7 @@ import { SORT_KEY_LABELS, type SortKey } from './state/gridSort';
 import { pickImportFiles } from './core/filePicker';
 import { armPickerWatchdog, type PickerWatchdog } from './core/pickerWatchdog';
 import { initAndroidBackButton } from './core/androidBackButton';
+import { formatEta } from './core/formatTime';
 import { ColorLabelFilter } from './ui/ColorLabelFilter';
 import { SceneTagFilter } from './ui/SceneTagFilter';
 import { CameraFilter } from './ui/CameraFilter';
@@ -186,6 +187,7 @@ export default function App() {
   const runImport = useStore(s => s.runImport);
   const setNotice = useStore(s => s.setNotice);
   const cancelImport = useStore(s => s.cancelImport);
+  const importCancelling = useStore(s => s.importCancelling);
   const openDetail = useStore(s => s.openDetail);
   const openCompare = useStore(s => s.openCompare);
   const setMenuOpen = useStore(s => s.setMenuOpen);
@@ -684,11 +686,16 @@ export default function App() {
             <div className="progress" role="status" aria-live="polite">
               <div className="progress-bar" style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }} />
               <span className="mono">
-                {progress.phase === 'analiza' ? tr('app.progress.analyzing', { done: progress.done, total: progress.total, fileName: progress.fileName })
+                {progress.phase === 'analiza'
+                  ? (progress.etaSeconds !== undefined
+                    ? tr('app.progress.analyzingEta', { done: progress.done, total: progress.total, fileName: progress.fileName, eta: formatEta(progress.etaSeconds) })
+                    : tr('app.progress.analyzing', { done: progress.done, total: progress.total, fileName: progress.fileName }))
                   : progress.phase === 'grupare' ? tr('app.progress.grouping') : tr('app.progress.done')}
               </span>
               {progress.phase === 'analiza' && (
-                <button className="ghost small progress-cancel" onClick={() => cancelImport()}>{tr('app.progress.cancel')}</button>
+                <button className="ghost small progress-cancel" onClick={() => cancelImport()} disabled={importCancelling}>
+                  {importCancelling ? tr('app.progress.cancelling') : tr('app.progress.cancel')}
+                </button>
               )}
             </div>
           )
@@ -777,11 +784,15 @@ export default function App() {
               <option value={0}>{tr('app.ratingFilter.any')}</option>
               {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{'★'.repeat(n)}+ </option>)}
             </select>
-            <span className="sort-control" title={filter === 'series' ? tr('app.sort.seriesOverride') : undefined}>
+            <span className="sort-control" title={
+              filter === 'series' ? tr('app.sort.seriesOverride')
+                : filter === 'review' ? tr('app.sort.reviewOverride')
+                : undefined
+            }>
               <select
                 className="chip sort-key"
                 value={gridSort.key}
-                disabled={filter === 'series'}
+                disabled={filter === 'series' || filter === 'review'}
                 onChange={e => setGridSort({ key: e.target.value as SortKey, dir: gridSort.dir })}
                 aria-label={tr('app.sort.ariaLabel')}
               >
@@ -791,7 +802,7 @@ export default function App() {
               </select>
               <button
                 className="chip sort-dir"
-                disabled={filter === 'series'}
+                disabled={filter === 'series' || filter === 'review'}
                 onClick={() => setGridSort({ key: gridSort.key, dir: gridSort.dir === 'asc' ? 'desc' : 'asc' })}
                 aria-label={gridSort.dir === 'asc' ? tr('app.sort.ascToDesc') : tr('app.sort.descToAsc')}
                 title={gridSort.dir === 'asc' ? tr('app.sort.asc') : tr('app.sort.desc')}

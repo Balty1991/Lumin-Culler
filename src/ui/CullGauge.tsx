@@ -25,6 +25,7 @@ interface CullGaugeProps {
 
 export function CullGauge({ selected, review, rejected, pending, total, onClearSession }: CullGaugeProps) {
   const locale = useStore(s => s.locale);
+  const startQuickReview = useStore(s => s.startQuickReview);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
 
   const denom = Math.max(1, total);
@@ -56,14 +57,20 @@ export function CullGauge({ selected, review, rejected, pending, total, onClearS
                 strokeDasharray={`${rejLen} ${CIRC}`} strokeDashoffset={-(selLen + revLen)} />
             )}
           </svg>
-          <div className="gauge-pct">
+          <div className="gauge-pct" title={tr('app.hud.doneHint', { pct: donePercent })}>
             <b><AnimatedNumber value={donePercent} />%</b>
             <span>{tr('app.hud.done')}</span>
           </div>
         </div>
         <div className="hud-stats" aria-label={tr('app.cullbar.ariaLabel')}>
           <div className="stat"><i className="sel" aria-hidden="true" /><b><AnimatedNumber value={selected} /></b><span>{tr('app.cullbar.selected')}</span></div>
-          <div className="stat"><i className="rev" aria-hidden="true" /><b><AnimatedNumber value={review} /></b><span>{tr('app.cullbar.review')}</span></div>
+          {review > 0 ? (
+            <button className="stat stat-btn" onClick={startQuickReview} title={tr('app.cullbar.quickReview')}>
+              <i className="rev" aria-hidden="true" /><b><AnimatedNumber value={review} /></b><span>{tr('app.cullbar.review')}</span>
+            </button>
+          ) : (
+            <div className="stat"><i className="rev" aria-hidden="true" /><b><AnimatedNumber value={review} /></b><span>{tr('app.cullbar.review')}</span></div>
+          )}
           <div className="stat"><i className="rej" aria-hidden="true" /><b><AnimatedNumber value={rejected} /></b><span>{tr('app.cullbar.rejected')}</span></div>
           <div className="stat"><i className="pen" aria-hidden="true" /><b><AnimatedNumber value={pending} /></b><span>{tr('app.hud.pending')}</span></div>
         </div>

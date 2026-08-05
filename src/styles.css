@@ -459,6 +459,16 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .stat i.pen { background: var(--text-faint); }
 .stat b { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.92rem; color: var(--text); }
 .stat span { font-size: 0.62rem; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.05em; }
+/* .stat-btn: aceeasi geometrie ca .stat (grid 2x2 din .hud-stats), dar e un
+   <button> real — reset la stilul implicit de buton, ca sa arate identic cu
+   celelalte 3 statistici necliclabile, doar cu afordanta de hover/focus in
+   plus (intra in "Verifica rapid", vezi CullGauge.tsx/startQuickReview). */
+.stat-btn {
+  background: none; border: none; padding: 3px 4px; margin: -3px -4px; border-radius: var(--radius-sm);
+  font: inherit; color: inherit; text-align: left; cursor: pointer;
+  transition: background 0.15s var(--ease);
+}
+.stat-btn:hover, .stat-btn:focus-visible { background: var(--surface-3); }
 .hud-clear {
   margin-top: 14px; width: 100%; padding: 8px; border-radius: var(--radius-sm); background: none;
   box-shadow: inset 0 0 0 1px var(--line); color: var(--text-faint); font-size: 0.72rem; font-weight: 700;
@@ -531,6 +541,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 @media (prefers-reduced-motion: reduce) { .core-disc-inner { animation: none; } }
 .boot-title { font-family: var(--font-display); font-weight: 700; font-size: 1.05rem; color: var(--text); margin: 0; }
 .boot-sub { font-size: 0.8rem; color: var(--text-faint); max-width: 300px; line-height: 1.5; margin: 6px 0 0; }
+.boot-elapsed { font-size: 0.7rem; color: var(--text-faint); opacity: 0.75; margin: 10px 0 0; }
 .boot-shimmer { width: 200px; height: 3px; border-radius: 999px; background: var(--surface-3); overflow: hidden; position: relative; }
 .boot-shimmer::after {
   content: ""; position: absolute; inset: 0; width: 40%; border-radius: 999px; background: var(--accent-gradient);
@@ -1923,7 +1934,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 /* ── Spatiu de lucru: lupa + toolbar plutitor + dock persistent ── */
 .workspace { height: 100dvh; display: flex; flex-direction: column; background: var(--bg); color: var(--text); position: relative; }
 .workspace-head {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 12px; flex: 0 0 auto;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; flex: 0 0 auto;
   /* vezi comentariul de la .topbar — acelasi risc de suprapunere cu bara de status pe
      Android edge-to-edge (bug real gasit de auditul QA). */
   padding-top: calc(10px + env(safe-area-inset-top));
@@ -1931,10 +1942,23 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur)); border: 1px solid var(--glass-border);
   box-shadow: var(--shadow);
 }
-.workspace-head span:first-child { flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 40%; font-weight: 600; }
+/* randul de iconite (vezi comentariul din Workspace.tsx) — flex-wrap:NOWRAP,
+   spre deosebire de .workspace-head (parintele, care ramane wrap doar ca sa
+   poata trimite butonul Anuleaza pe randul 2 cand e prezent). Fortand un
+   singur rand aici, browserul e obligat sa MICSOREZE numele fisierului
+   (singurul flexibil) in loc sa trimita iconitele pe alt rand — inainte,
+   cu totul pe acelasi nivel de wrap, iconitele se rupeau imprevizibil intre
+   randuri (3+3, 4+2 etc, dupa cum se intampla sa incapa), bug real raportat
+   de utilizator. flex:1 1 100% face acest rand sa ocupe intreaga latime
+   disponibila a lui .workspace-head, ca butonul Anuleaza sa cada curat pe
+   propriul rand dedesubt (flex-basis:100% pe .workspace-cancel-btn). */
+.workspace-head-row { display: flex; flex-wrap: nowrap; align-items: center; gap: 8px; flex: 1 1 100%; min-width: 0; }
+.workspace-head-row span:first-child { flex: 1 1 auto; min-width: 40px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.workspace-head-row .icon-btn, .workspace-head-row .undo-history-wrap, .workspace-head-row .tooltip-wrap { flex-shrink: 0; }
+.workspace-head-row .icon-btn { width: 40px; height: 40px; }
 /* vezi comentariul din Workspace.tsx — mereu pe randul lui propriu, niciodata in concurenta cu iconitele de navigare pentru spatiu */
 .workspace-cancel-btn { flex-basis: 100%; }
-.workspace-hint { flex: 1; text-align: center; color: var(--text-faint); font-size: 0.72rem; }
+.workspace-hint { flex: 1; min-width: 0; text-align: center; color: var(--text-faint); font-size: 0.72rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .workspace-loupe {
   /* edge-to-edge, fundal negru plat — acelasi limbaj vizual ca .detail-stage
      din DetailView (nu mai e o "carte" plutitoare cu colturi rotunjite si

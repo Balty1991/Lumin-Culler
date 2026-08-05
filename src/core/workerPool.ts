@@ -8,6 +8,7 @@ import * as Comlink from 'comlink';
 import type { FaceAnalysisAPI } from '../workers/faceAnalysis.worker';
 import type { AnalysisRecord, KnownPerson } from './db';
 import { readEconomicMode } from './performanceSettings';
+import { writeLastModelLoadMs } from './modelLoadTiming';
 
 interface Slot {
   worker: Worker;
@@ -108,6 +109,9 @@ export class AnalysisPool {
 
   async init(): Promise<void> {
     if (this.ready) return;
+    // masurat aici (nu doar primul slot) — AiBootScreen ramane vizibil pana la
+    // finalul intregii metode (toti workerii), vezi modelLoadTiming.ts
+    const startedAt = performance.now();
     this.slots = []; // in caz ca o incercare anterioara a esuat/timeout partial, nu dublam sloturile
     const cores = navigator.hardwareConcurrency || 4;
     // mod economic: un singur worker, in loc de pana la N in paralel — mai putina
@@ -138,6 +142,7 @@ export class AnalysisPool {
       );
       this.slots.push(...rest.map(r => r.slot));
     }
+    writeLastModelLoadMs(performance.now() - startedAt);
   }
 
   async setKnownPersons(persons: KnownPerson[]): Promise<void> {
