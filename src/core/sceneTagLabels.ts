@@ -11,11 +11,16 @@
  * potrivirea cautarii text (store.ts), cu potrivire case-insensitive mai jos
  * ca sa acopere ambele forme fara doua harti separate.
  *
- * Harta de mai jos NU e exhaustiva — Open Images are peste 400 de etichete,
- * imposibil de acoperit complet dintr-o trecere. Acopera cele mai frecvente
- * intalnite pe poze obisnuite (persoane, natura, mancare, evenimente,
- * animale, obiecte casnice); orice eticheta negasita ramane afisata
- * neschimbata, in engleza (fallback sigur, vezi translateSceneTag mai jos).
+ * Harta de mai jos ramane, prin natura ei, incompleta: Google nu publica
+ * lista exacta a celor ~400 de etichete pe care modelul bundle-uit ML Kit
+ * Image Labeling chiar le poate intoarce (nu e un fisier labelmap.txt simplu
+ * ca la vechiul TFLite — vezi istoricul git). Ce urmeaza e o extindere mare,
+ * bazata pe taxonomia publica Open Images (sursa modelului) si pe etichete
+ * observate uzual la acest tip de model — cateva sute de concepte, mult
+ * peste ce apare de obicei pe poze de familie/calatorie/eveniment. Orice
+ * eticheta tot negasita ramane afisata neschimbata, in engleza (fallback
+ * sigur, vezi translateSceneTag mai jos) — nu blocheaza nimic, doar nu e
+ * inca tradusa.
  */
 export const SCENE_TAG_LABELS_RO: Record<string, string> = {
   // COCO-80 (web, CenterNet)
@@ -39,8 +44,7 @@ export const SCENE_TAG_LABELS_RO: Record<string, string> = {
   book: 'carte', clock: 'ceas', vase: 'vaza', scissors: 'foarfeca', 'teddy bear': 'ursulet de plus',
   'hair drier': 'uscator de par', toothbrush: 'periuta de dinti',
 
-  // ML Kit Image Labeling / Open Images (native, cele mai frecvente etichete generice)
-  // — oameni, expresii, imbracaminte
+  // ML Kit Image Labeling / Open Images (native) — oameni, expresii, imbracaminte
   selfie: 'selfie', photograph: 'fotografie', snapshot: 'instantaneu', photography: 'fotografie',
   vacation: 'vacanta', fun: 'distractie', leisure: 'relaxare', recreation: 'recreere',
   interaction: 'interactiune', smile: 'zambet', 'facial expression': 'expresie faciala',
@@ -52,6 +56,24 @@ export const SCENE_TAG_LABELS_RO: Record<string, string> = {
   clothing: 'imbracaminte', fashion: 'moda', sportswear: 'echipament sportiv', uniform: 'uniforma',
   baby: 'bebelus', child: 'copil', toddler: 'copil mic', family: 'familie', friendship: 'prietenie',
   team: 'echipa', crowd: 'multime', group: 'grup', people: 'oameni', portrait: 'portret',
+  // — anatomie/portret suplimentar
+  forehead: 'frunte', chin: 'barbie', cheek: 'obraz', nose: 'nas', eyebrow: 'sprinceana',
+  eyelash: 'gene', jaw: 'maxilar', neck: 'gat', ear: 'ureche', lip: 'buze', tooth: 'dinte',
+  'facial hair': 'barba/mustata', mustache: 'mustata', 'long hair': 'par lung',
+  'blond hair': 'par blond', 'black hair': 'par negru', wrinkle: 'rid', headgear: 'acoperamant cap',
+  sunglasses: 'ochelari de soare', earrings: 'cercei', necklace: 'colier', jewellery: 'bijuterii',
+  ring: 'inel', bracelet: 'bratara', watch: 'ceas de mana', makeup: 'machiaj',
+  // — imbracaminte suplimentar
+  'formal wear': 'tinuta eleganta', suit: 'costum', blazer: 'sacou', sweater: 'pulover',
+  hoodie: 'hanorac', scarf: 'esarfa', glove: 'manusa', sock: 'soseta', belt: 'curea',
+  boot: 'cizma', sandal: 'sanda', 'high heels': 'tocuri', swimwear: 'costum de baie',
+  bikini: 'bikini', costume: 'costum tematic', 'wedding dress': 'rochie de mireasa',
+  pajamas: 'pijama',
+  // — activitati/pose
+  jumping: 'saritura', dancing: 'dans', singing: 'cantat', laughing: 'ras', crying: 'plans',
+  kissing: 'sarut', hugging: 'imbratisare', waving: 'gest de salut', posing: 'pozat',
+  sleeping: 'somn', eating: 'mancat', drinking: 'baut', reading: 'citit', writing: 'scris',
+  playing: 'joaca',
 
   // natura, peisaj, vreme
   water: 'apa', sky: 'cer', cloud: 'nor', sea: 'mare', ocean: 'ocean', lake: 'lac', river: 'rau',
@@ -61,6 +83,17 @@ export const SCENE_TAG_LABELS_RO: Record<string, string> = {
   tree: 'copac', plant: 'planta', flower: 'floare', 'flowering plant': 'planta cu flori',
   grass: 'iarba', leaf: 'frunza', branch: 'creanga', snow: 'zapada', winter: 'iarna', ice: 'gheata',
   rain: 'ploaie', fog: 'ceata',
+  // — natura extinsa
+  waterfall: 'cascada', canyon: 'canion', desert: 'desert', valley: 'vale', cave: 'pestera',
+  cliff: 'stanca', island: 'insula', volcano: 'vulcan', glacier: 'ghetar', rainbow: 'curcubeu',
+  lightning: 'fulger', storm: 'furtuna', wind: 'vant', dew: 'roua', dust: 'praf',
+  meadow: 'poiana', prairie: 'prerie', savanna: 'savana', jungle: 'jungla',
+  wilderness: 'salbaticie', garden: 'gradina', park: 'parc', path: 'poteca', trail: 'traseu',
+  rock: 'stanca', stone: 'piatra', pebble: 'pietricica', cactus: 'cactus', 'palm tree': 'palmier',
+  pond: 'iaz', stream: 'parau', coast: 'coasta', shore: 'tarm', pier: 'chei', dock: 'doc',
+  // — cer/vreme suplimentar
+  dusk: 'amurg', dawn: 'zori', twilight: 'amurg', moon: 'luna', star: 'stea', galaxy: 'galaxie',
+  aurora: 'aurora boreala', thunderstorm: 'furtuna cu tunete', hail: 'grindina', drizzle: 'burnita',
 
   // orase, cladiri, vehicule
   building: 'cladire', house: 'casa', architecture: 'arhitectura', city: 'oras',
@@ -68,31 +101,121 @@ export const SCENE_TAG_LABELS_RO: Record<string, string> = {
   room: 'camera', 'interior design': 'design interior', furniture: 'mobila', table: 'masa',
   sofa: 'canapea', kitchen: 'bucatarie', bathroom: 'baie', vehicle: 'vehicul', wheel: 'roata',
   bike: 'bicicleta', 'motor vehicle': 'autovehicul',
+  // — cladiri/urban suplimentar
+  apartment: 'apartament', cottage: 'cabana', cabin: 'cabana', castle: 'castel', tower: 'turn',
+  monument: 'monument', statue: 'statuie', church: 'biserica', cathedral: 'catedrala',
+  temple: 'templu', mosque: 'moschee', museum: 'muzeu', library: 'biblioteca', school: 'scoala',
+  university: 'universitate', hospital: 'spital', hotel: 'hotel', office: 'birou',
+  factory: 'fabrica', warehouse: 'depozit', market: 'piata', mall: 'mall', shop: 'magazin',
+  store: 'magazin', stadium: 'stadion', arena: 'arena', gym: 'sala de fitness', pool: 'piscina',
+  'swimming pool': 'piscina', playground: 'loc de joaca', fence: 'gard', gate: 'poarta',
+  staircase: 'scara', stairs: 'scari', balcony: 'balcon', terrace: 'terasa', courtyard: 'curte',
+  fountain: 'fantana', sculpture: 'sculptura', mural: 'pictura murala', graffiti: 'graffiti',
+  billboard: 'panou publicitar', lamp: 'lampa', 'street light': 'felinar', tunnel: 'tunel',
+  railway: 'cale ferata', platform: 'peron', airport: 'aeroport', port: 'port',
+  // — vehicule suplimentar
+  sedan: 'berlina', convertible: 'decapotabila', 'pickup truck': 'pick-up', van: 'duba',
+  trailer: 'remorca', tractor: 'tractor', helicopter: 'elicopter', jet: 'avion cu reactie',
+  glider: 'planor', 'hot air balloon': 'balon cu aer cald', yacht: 'iaht', canoe: 'canoe',
+  kayak: 'caiac', sailboat: 'barca cu panze', ferry: 'feribot', 'cruise ship': 'vas de croaziera',
+  submarine: 'submarin', scooter: 'trotineta', moped: 'moped', wheelchair: 'scaun cu rotile',
+  stroller: 'carucior', tire: 'anvelopa', headlight: 'far', 'license plate': 'numar de inmatriculare',
+  engine: 'motor',
+  // — mobila/interior suplimentar
+  cabinet: 'dulap', shelf: 'raft', drawer: 'sertar', mirror: 'oglinda', curtain: 'perdea',
+  carpet: 'covor', rug: 'covor', pillow: 'perna', cushion: 'perna', blanket: 'patura',
+  chandelier: 'candelabru', fireplace: 'semineu', wallpaper: 'tapet', tile: 'gresie',
+  ceiling: 'tavan', floor: 'podea', doorway: 'cadru de usa', 'home appliance': 'electrocasnic',
+  fan: 'ventilator', heater: 'calorifer', 'air conditioning': 'aer conditionat',
+  thermostat: 'termostat',
 
   // animale
   animal: 'animal', wildlife: 'animal salbatic', pet: 'animal de companie', puppy: 'catelus',
   kitten: 'pisicuta', fish: 'peste', insect: 'insecta',
+  // — animale extinse
+  'dog breed': 'rasa de caine', 'cat breed': 'rasa de pisica', mammal: 'mamifer',
+  vertebrate: 'vertebrat', carnivore: 'carnivor', rabbit: 'iepure', hamster: 'hamster',
+  rodent: 'rozator', reptile: 'reptila', snake: 'sarpe', lizard: 'soparla', turtle: 'testoasa',
+  frog: 'broasca', butterfly: 'fluture', bee: 'albina', spider: 'paianjen', ant: 'furnica',
+  dragonfly: 'libelula', chicken: 'gaina', duck: 'rata', goose: 'gasca', owl: 'bufnita',
+  eagle: 'vultur', parrot: 'papagal', penguin: 'pinguin', dolphin: 'delfin', whale: 'balena',
+  shark: 'rechin', lion: 'leu', tiger: 'tigru', monkey: 'maimuta', deer: 'cerb', fox: 'vulpe',
+  wolf: 'lup', squirrel: 'veverita', hedgehog: 'arici', snail: 'melc', jellyfish: 'meduza',
+  camel: 'camila', pig: 'porc', goat: 'capra', donkey: 'magar', llama: 'lama',
+  kangaroo: 'cangur', koala: 'koala', panda: 'panda',
 
   // mancare/bautura
   food: 'mancare', meal: 'masa', dish: 'fel de mancare', cuisine: 'bucatarie', dessert: 'desert',
   fruit: 'fruct', vegetable: 'legume', drink: 'bautura', beverage: 'bautura', coffee: 'cafea',
   tea: 'ceai', wine: 'vin', restaurant: 'restaurant', cooking: 'gatit',
+  // — mancare extinsa
+  bread: 'paine', cheese: 'branza', meat: 'carne', beef: 'carne de vita', pork: 'carne de porc',
+  seafood: 'fructe de mare', shrimp: 'creveti', lobster: 'homar', crab: 'crab', egg: 'ou',
+  rice: 'orez', pasta: 'paste', noodle: 'taitei', soup: 'supa', salad: 'salata', sauce: 'sos',
+  spice: 'condiment', herb: 'ierburi aromatice', sugar: 'zahar', salt: 'sare',
+  chocolate: 'ciocolata', candy: 'bomboane', cookie: 'fursec', 'ice cream': 'inghetata',
+  pancake: 'clatita', waffle: 'vafa', muffin: 'briosa', croissant: 'croasant', bagel: 'covrig',
+  taco: 'taco', burrito: 'burrito', sushi: 'sushi', dumpling: 'colturasi', curry: 'curry',
+  barbecue: 'gratar', grill: 'gratar', picnic: 'picnic', buffet: 'bufet', 'fast food': 'fast-food',
+  snack: 'gustare', beer: 'bere', cocktail: 'cocktail', juice: 'suc', soda: 'sifon',
+  teapot: 'ceainic', kettle: 'fierbator', tablecloth: 'fata de masa', napkin: 'servetel',
+  tray: 'tava', plate: 'farfurie', platter: 'platou',
 
   // evenimente/obiecte
   event: 'eveniment', party: 'petrecere', wedding: 'nunta', holiday: 'vacanta', christmas: 'craciun',
   birthday: 'zi de nastere', celebration: 'sarbatoare', festival: 'festival', ceremony: 'ceremonie',
   toy: 'jucarie', doll: 'papusa', balloon: 'balon', gift: 'cadou',
+  // — evenimente/obiecte suplimentar
+  fireworks: 'artificii', candle: 'lumanare', ribbon: 'panglica', decoration: 'decoratiune',
+  ornament: 'ornament', wreath: 'coronita', banner: 'banner', flag: 'steag', trophy: 'trofeu',
+  medal: 'medalie', certificate: 'certificat', invitation: 'invitatie', envelope: 'plic',
+  confetti: 'confetti', mask: 'masca', circus: 'circ', carnival: 'carnaval', parade: 'parada',
+  fair: 'targ',
 
   // sport, muzica, arta
   sport: 'sport', ball: 'minge', game: 'joc', football: 'fotbal', basketball: 'baschet',
   tennis: 'tenis', swimming: 'inot', fitness: 'fitness', 'musical instrument': 'instrument muzical',
   music: 'muzica', guitar: 'chitara', piano: 'pian', concert: 'concert', dance: 'dans', art: 'arta',
   painting: 'pictura', drawing: 'desen',
+  // — sport extinse
+  'ice hockey': 'hochei pe gheata', hockey: 'hochei', volleyball: 'volei', baseball: 'baseball',
+  golf: 'golf', boxing: 'box', wrestling: 'lupte', cycling: 'ciclism', skiing: 'schi',
+  snowboarding: 'snowboarding', surfing: 'surfing', skating: 'patinaj',
+  'ice skating': 'patinaj pe gheata', climbing: 'catarare', hiking: 'drumetie', camping: 'camping',
+  fishing: 'pescuit', hunting: 'vanatoare', archery: 'tir cu arcul', gymnastics: 'gimnastica',
+  athletics: 'atletism', marathon: 'maraton', race: 'cursa', competition: 'competitie',
+  championship: 'campionat', tournament: 'turneu', coach: 'antrenor', referee: 'arbitru',
+  athlete: 'atlet',
+  // — muzica/arta suplimentar
+  violin: 'vioara', drum: 'toba', trumpet: 'trompeta', saxophone: 'saxofon',
+  microphone: 'microfon', speaker: 'boxa', orchestra: 'orchestra', band: 'trupa', choir: 'cor',
+  opera: 'opera', theater: 'teatru', ballet: 'balet', pottery: 'olarit', craft: 'artizanat',
+  calligraphy: 'caligrafie', exhibition: 'expozitie', gallery: 'galerie',
 
   // tehnologie/text
   text: 'text', font: 'font', logo: 'logo', product: 'produs', electronics: 'electronice',
   'mobile phone': 'telefon mobil', smartphone: 'smartphone', computer: 'computer',
-  screen: 'ecran', camera: 'aparat foto', technology: 'tehnologie'
+  screen: 'ecran', camera: 'aparat foto', technology: 'tehnologie',
+  // — tehnologie suplimentar
+  television: 'televizor', headphones: 'casti', earphones: 'casti in-ear', tablet: 'tableta',
+  printer: 'imprimanta', router: 'router', cable: 'cablu', charger: 'incarcator',
+  battery: 'baterie', drone: 'drona', robot: 'robot', satellite: 'satelit', antenna: 'antena',
+  monitor: 'monitor', projector: 'proiector', telescope: 'telescop', microscope: 'microscop',
+  // — text/simboluri
+  number: 'numar', letter: 'litera', symbol: 'simbol', icon: 'pictograma', emblem: 'emblema',
+  badge: 'insigna', stamp: 'stampila', coin: 'moneda', currency: 'bani', map: 'harta',
+  chart: 'grafic', graph: 'grafic', diagram: 'diagrama', calendar: 'calendar',
+  newspaper: 'ziar', magazine: 'revista',
+  // — materiale/texturi
+  pattern: 'model', texture: 'textura', wood: 'lemn', metal: 'metal', glass: 'sticla',
+  plastic: 'plastic', fabric: 'material textil', textile: 'textil', leather: 'piele naturala',
+  silk: 'matase', cotton: 'bumbac', wool: 'lana', denim: 'denim', lace: 'dantela',
+  // — concepte/emotii
+  love: 'dragoste', romance: 'romantism', adventure: 'aventura', freedom: 'libertate',
+  meditation: 'meditatie', yoga: 'yoga', wellness: 'wellness', health: 'sanatate',
+  medicine: 'medicina', education: 'educatie', learning: 'invatare', business: 'afaceri',
+  work: 'munca', meeting: 'intalnire', conference: 'conferinta', teamwork: 'lucru in echipa',
+  success: 'succes'
 };
 
 /**
