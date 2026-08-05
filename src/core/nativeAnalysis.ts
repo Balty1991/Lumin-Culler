@@ -3,7 +3,7 @@
  * Orchestratorul pipeline-ului REAL de analiza pe Android nativ — inlocuieste
  * workers/faceAnalysis.worker.ts (Human.js/TFJS) cu 5 dintre cele 9 plugin-uri
  * native Capacitor dovedite functionale pe device real (vezi butonul de test
- * DEV din MenuDrawer.tsx): FaceDetection, ImageAnalysis, ObjectDetection,
+ * DEV din MenuDrawer.tsx): FaceDetection, ImageAnalysis, ImageLabeling,
  * FaceMesh, TextRecognition. Apelat din core/workerPool.ts (AnalysisPool),
  * NU direct din importPipeline.ts — call site-ul `analysisPool.analyze(id,
  * bitmap)` ramane neschimbat pe ambele platforme.
@@ -27,7 +27,7 @@ import type { AnalysisRecord, FaceInsight } from './db';
 import { classifyScene } from './sceneClassifier';
 import { detectFacesNative, type NativeFaceResult } from './nativeFaceDetection';
 import { analyzeImageNative } from './nativeImageAnalysis';
-import { detectObjectsNative } from './nativeObjectDetection';
+import { labelImageNative } from './nativeImageLabeling';
 import { analyzeFaceMeshNative, type NativeFaceMeshInsight } from './nativeFaceMesh';
 import { detectTextNative } from './nativeTextRecognition';
 
@@ -122,9 +122,9 @@ export async function analyzeNative(photoId: string, bitmap: ImageBitmap): Promi
 
   const imageAnalysis = await analyzeImageNative(blob);
 
-  const objectResult = await detectObjectsNative(blob);
+  const labelResult = await labelImageNative(blob);
   // Acelasi tipar de deduplicare ca faceAnalysis.worker.ts: [...new Set(...)].
-  const sceneTags = [...new Set(objectResult.objects.map(o => o.label))];
+  const sceneTags = [...new Set(labelResult.labels.map(l => l.label))];
 
   // FaceMesh e sarit complet cand nu exista fete — nu are ce agrega, si evita
   // un apel MediaPipe intreg (cel mai greu dintre cele 5) fara niciun beneficiu.

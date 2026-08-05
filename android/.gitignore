@@ -100,10 +100,9 @@ app/src/main/assets/capacitor.config.json
 app/src/main/assets/capacitor.plugins.json
 app/src/main/res/xml/config.xml
 
-# Model TFLite nativ (Faza 3, ObjectDetectionPlugin.kt) — descarcat de CI la build
-# (~4MB binar, sursa: download.tensorflow.org), niciodata committed
-app/src/main/assets/detect.tflite
-app/src/main/assets/labelmap.txt
+# Faza 3 (ImageLabelingPlugin.kt): fostul model TFLite (detect.tflite/labelmap.txt)
+# a fost inlocuit cu ML Kit Image Labeling, bundle-uit direct in APK — niciun
+# asset descarcat separat de CI pentru acest modul.
 
 # Modele MediaPipe native (Faza 4, FaceMeshPlugin.kt / ImageClassifierPlugin.kt) —
 # descarcate de CI la build (~3.8MB + ~18.6MB, sursa: storage.googleapis.com/mediapipe-models), niciodata committed

@@ -3,10 +3,10 @@
  * Analiza AI nativa (Faza 4) — punte catre plugin-ul Capacitor local
  * ImageClassifier (vezi android/app/src/main/java/com/luminculler/app/plugins/
  * ImageClassifierPlugin.kt), model EfficientNet-Lite0 (Google AI Edge,
- * ImageNet-1000) — etichete de scena/animal/peisaj MAI BOGATE decat cele 80
- * COCO din nativeObjectDetection.ts (Faza 3), complementare, nu inlocuitoare
- * (acela da cutii precise, acesta da etichete pentru tot cadrul, fara
- * localizare).
+ * ImageNet-1000) — etichete de scena/animal/peisaj complementare celor din
+ * nativeImageLabeling.ts (Faza 3, ML Kit Image Labeling, ~400 etichete Open
+ * Images) — vocabulare diferite (ImageNet vs Open Images), niciunul din cele
+ * doua module nu da cutii de delimitare precise, ambele clasifica tot cadrul.
  *
  * Etichetele raman in engleza — vezi sceneTagLabels.ts, traducerea se face
  * STRICT la afisare, iar acest plugin ramane dormant/dev-only pentru moment.

@@ -66,15 +66,10 @@ jobs:
             npx vite build
           fi
       - run: npx cap sync android
-      # Analiza AI nativa (Faza 3 — vezi plugins/ObjectDetectionPlugin.kt): model
-      # TFLite COCO SSD MobileNet oficial (Apache 2.0, download.tensorflow.org),
-      # NU committed in git (~4MB binar) — descarcat aici, la fel ca modelele
-      # Human.js de mai sus, doar ca in assets-urile native Android, nu in public/.
-      - name: Bundle native object-detection model
-        run: |
-          curl -sL -o /tmp/coco_ssd.zip https://storage.googleapis.com/download.tensorflow.org/models/tflite/coco_ssd_mobilenet_v1_1.0_quant_2018_06_29.zip
-          mkdir -p android/app/src/main/assets
-          unzip -o /tmp/coco_ssd.zip -d android/app/src/main/assets
+      # Analiza AI nativa (Faza 3, rescrisa — vezi plugins/ImageLabelingPlugin.kt):
+      # modelul TFLite COCO SSD MobileNet descarcat separat aici a fost inlocuit
+      # cu ML Kit Image Labeling, bundle-uit direct in dependinta Gradle — niciun
+      # pas de descarcare CI separat nu mai e necesar pentru acest modul.
       # Analiza AI nativa (Faza 4 — vezi plugins/FaceMeshPlugin.kt / ImageClassifierPlugin.kt):
       # doua modele MediaPipe oficiale (Google AI Edge, CC-BY-4.0/Apache 2.0),
       # NU committed in git — descarcate direct (nu arhive, spre deosebire de
