@@ -930,7 +930,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
    depaseste marginea verticala a randului, deci meniul foloseste `fixed`
    cu top/left calculate din pozitia butonului, nu `absolute` in flux normal. */
 .color-label-filter-menu {
-  position: fixed; z-index: 40;
+  position: fixed; z-index: 40; overflow-y: auto;
   display: flex; flex-direction: column; gap: 2px; min-width: 150px;
   background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px;
   padding: 6px; box-shadow: 0 12px 32px -8px rgba(0,0,0,0.5);
@@ -983,15 +983,22 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
    proprii trebuie sa apara DEASUPRA panoului parinte, nu dedesubt. */
 .more-filters-menu {
   position: fixed; z-index: 38;
-  display: flex; flex-wrap: wrap; gap: 6px; align-content: flex-start;
+  display: flex; flex-direction: column;
   width: min(320px, calc(100vw - 16px));
   background: var(--surface-2); border: 1px solid var(--line); border-radius: 14px;
   padding: 10px; box-shadow: 0 12px 32px -8px rgba(0,0,0,0.5);
 }
 .more-filters-menu-head {
-  flex-basis: 100%; display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
   font-family: var(--font-display); font-weight: 700; font-size: 0.85rem; color: var(--text);
   padding: 0 2px 4px;
+}
+/* corpul (statusuri + persoana/eticheta/scena/aparat + mod selectie) scroleaza
+   intern cand panoul intreg nu incape in inaltimea calculata (menuPos.maxHeight,
+   vezi MoreFiltersMenu.tsx) — capul cu butonul de inchidere ramane mereu vizibil. */
+.more-filters-menu-body {
+  display: flex; flex-wrap: wrap; gap: 6px; align-content: flex-start;
+  overflow-y: auto; min-height: 0;
 }
 .more-filters-menu .chip:not(.chip-compact) { background: var(--surface); }
 .more-filters-divider { flex-basis: 100%; height: 1px; background: var(--line); margin: 2px 0; }

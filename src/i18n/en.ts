@@ -214,7 +214,7 @@ export const en: Record<TranslationKey, string> = {
   'errorBoundary.details': 'Technical details',
   'app.selectMode.active': 'Select mode (on)',
   'app.selectMode.toggle': 'Select multiple',
-  'app.search.placeholder': 'Search by file name…',
+  'app.search.placeholder': 'Search by file name or what\'s in the photo (e.g. cat)…',
   'app.search.ariaLabel': 'Search photos by file name',
   'app.ratingFilter.ariaLabel': 'Minimum rating',
   'app.ratingFilter.any': 'Any rating',

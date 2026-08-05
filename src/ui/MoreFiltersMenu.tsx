@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useStore } from '../state/store';
 import { MoreIcon, XIcon } from './icons';
 import { t } from '../i18n';
+import { computeMenuPosition, isInsideAnyMenu, type MenuPosition } from './dropdownPosition';
 
 interface Props {
   /** true daca vreun filtru "secundar" (din interiorul panoului) e activ acum — evidentiaza trigger-ul. */
@@ -26,14 +27,19 @@ export function MoreFiltersMenu({ active, badgeCount, children }: Props) {
   const locale = useStore(s => s.locale);
   const tr = (key: string) => t(locale, key);
   const [open, setOpen] = useState(false);
-  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
+  const [menuPos, setMenuPos] = useState<MenuPosition | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const toggle = () => {
     if (!open) {
       const rect = triggerRef.current?.getBoundingClientRect();
-      if (rect) setMenuPos({ top: rect.bottom + 6, left: Math.min(rect.left, window.innerWidth - 336) });
+      // panoul are multe randuri (statusuri + persoana/eticheta/scena/aparat +
+      // modul de selectie) — pe telefon, fara maxHeight+scroll intern, iesea
+      // pur si simplu din josul ecranului, fara nicio cale sa vezi restul
+      // (bug real raportat de utilizator). Acelasi calcul ca la dropdown-urile
+      // nested din interior (vezi dropdownPosition.ts).
+      if (rect) setMenuPos({ ...computeMenuPosition(rect, 10, 200), left: Math.min(rect.left, window.innerWidth - 336) });
     }
     setOpen(v => !v);
   };
@@ -43,6 +49,7 @@ export function MoreFiltersMenu({ active, badgeCount, children }: Props) {
     const onPointerDown = (e: PointerEvent) => {
       const target = e.target as Node;
       if (triggerRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      if (isInsideAnyMenu(e.target)) return;
       setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
@@ -70,14 +77,24 @@ export function MoreFiltersMenu({ active, badgeCount, children }: Props) {
         {badgeCount > 0 && <b className="chip-count">{badgeCount}</b>}
       </button>
       {open && menuPos && createPortal(
-        <div className="more-filters-menu" role="menu" aria-label={tr('app.moreFilters.ariaLabel')} ref={menuRef} style={{ top: menuPos.top, left: menuPos.left }}>
+        <div
+          className="more-filters-menu"
+          role="menu"
+          aria-label={tr('app.moreFilters.ariaLabel')}
+          ref={menuRef}
+          style={{ top: menuPos.top, bottom: menuPos.bottom, left: menuPos.left, maxHeight: menuPos.maxHeight }}
+        >
           <div className="more-filters-menu-head">
             <span>{tr('app.moreFilters.title')}</span>
             <button type="button" className="ghost icon-btn" onClick={() => setOpen(false)} aria-label={tr('detail.close')}>
               <XIcon />
             </button>
           </div>
-          {children(() => setOpen(false))}
+          {/* corpul scroleaza intern, capul (cu butonul de inchidere) ramane
+              mereu vizibil — vezi comentariul de la toggle() de mai sus */}
+          <div className="more-filters-menu-body">
+            {children(() => setOpen(false))}
+          </div>
         </div>,
         document.body
       )}
