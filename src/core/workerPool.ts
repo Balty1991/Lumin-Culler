@@ -5,6 +5,7 @@
  * exclusiv aici, pe N-1 nuclee.
  */
 import * as Comlink from 'comlink';
+import { Capacitor } from '@capacitor/core';
 import type { FaceAnalysisAPI } from '../workers/faceAnalysis.worker';
 import type { AnalysisRecord, KnownPerson } from './db';
 import { readEconomicMode } from './performanceSettings';
@@ -121,7 +122,21 @@ export class AnalysisPool {
     // presiune de RAM (fiecare worker isi incarca propria instanta Human.js/TFJS)
     // pe hardware slab, cu costul unui import mai lent. Altfel, numarul se
     // adapteaza dupa RAM-ul device-ului (vezi computeWorkerCount).
-    const size = readEconomicMode() ? 1 : computeWorkerCount(cores, deviceMemoryGB());
+    // Pe Android nativ (WebView incorporat in aplicatie, nu Chrome ca aplicatie
+    // separata), procesul de randare al WebView-ului pare sa aiba mult mai putina
+    // marja de memorie decat un tab obisnuit de browser inainte sa pice — crash
+    // real reprodus DOAR pe build-ul nativ (nu si in acelasi cod JS rulat intr-un
+    // tab de browser, pe acelasi telefon), chiar la "Se incarca modelele AI",
+    // inainte de orice import real. `computeWorkerCount` foloseste
+    // `navigator.deviceMemory`, o estimare a RAM-ului TOTAL al device-ului — nu a
+    // memoriei disponibile efectiv procesului de randare in acest context mai
+    // constrans — deci pe un telefon cu RAM generos putea intoarce pana la 6
+    // workeri paraleli incarcand fiecare propriul Human.js/TFJS complet chiar la
+    // pornire. Un plafon conservator, DOAR in acest context, reduce presiunea de
+    // memorie la boot fara sa schimbe nimic pe web/PWA (unde nu s-a raportat
+    // aceasta problema).
+    const nativeWorkerCap = Capacitor.isNativePlatform() ? 2 : Infinity;
+    const size = readEconomicMode() ? 1 : Math.min(computeWorkerCount(cores, deviceMemoryGB()), nativeWorkerCap);
     this.modelBase = new URL(`${import.meta.env.BASE_URL}models/`, location.href).href;
 
     // Doar PRIMUL worker face detectia completa de backend (WebGPU -> WebGL ->
