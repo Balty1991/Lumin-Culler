@@ -61,7 +61,15 @@ const HUMAN_CONFIG: Partial<Config> = {
   // CenterNet (COCO-80 clase) — deja parte din pachetul Human, zero model nou de descarcat.
   // Ruleaza in ACELASI human.detect() ca fetele (nicio trecere de inferenta in plus per poza) —
   // etichete generale de obiect (caine, masina, tort, barca...) pentru export XMP/filtrare.
-  object: { enabled: true, minConfidence: 0.25, maxDetected: 8 },
+  // minConfidence: feedback direct de la utilizator — la 0.25, treceau destule ghiciri
+  // nesigure (un tobogan de plastic clasificat "placa de surf"/"skateboard", mobilier de
+  // langa piscina clasificat "scaun"). COCO-80 (vocabularul FIX al acestui model) nu are
+  // deloc clase pentru "piscina"/"tobogan"/"loc de joaca" — cand vede o forma care nu se
+  // potriveste bine cu niciuna din cele 80 de clase cunoscute, alege oricum cea mai
+  // apropiata vizual, chiar daca gresita; 0.5 nu adauga concepte noi (nu poate — modelul
+  // ramane acelasi), doar reduce cat de des o ghicire slaba ajunge sa fie AFISATA ca
+  // eticheta sigura.
+  object: { enabled: true, minConfidence: 0.5, maxDetected: 8 },
   gesture: { enabled: false },
   segmentation: { enabled: false }
 };
