@@ -108,21 +108,37 @@ export function MenuDrawer() {
     input.onchange = () => {
       const file = input.files?.[0];
       if (!file) return;
-      Promise.all([
-        detectFacesNative(file), analyzeImageNative(file), detectObjectsNative(file),
-        analyzeFaceMeshNative(file), classifyImageNative(file),
-        detectTextNative(file), detectPoseNative(file), segmentSubjectNative(file),
-        embedImageNative(file)
-      ])
-        .then(([faces, analysis, objects, faceMesh, labels, text, pose, segmentation, embedding]) =>
-          setNotice(
-            `Native OK: ${faces.faces.length} fete, ${objects.objects.length} obiecte, ` +
-            `${pose.people.length} persoane (postura), text ${Math.round(text.textCoverage * 100)}%, ` +
-            `persoana ${Math.round(segmentation.personCoverage * 100)}% din cadru, embedding ${embedding.embedding.length} dim. ` +
-            `${JSON.stringify(analysis)} ${JSON.stringify(objects)} ${JSON.stringify(faceMesh)} ${JSON.stringify(labels)} ${JSON.stringify(text)}`
-          )
-        )
-        .catch(err => setNotice(`Native FAIL: ${err instanceof Error ? err.message : String(err)}`));
+      // SECVENTIAL, nu Promise.all — bug real gasit la testare pe device: 9
+      // modele grele (ML Kit + TFLite + MediaPipe) incarcate/rulate deodata
+      // au impins telefonul in lipsa de memorie si l-au facut sa inchida
+      // aplicatia (crash nativ, fara nicio eroare JS prinsa). Rulate pe rand,
+      // varful de memorie ramane mult mai mic — mai lent per total, dar
+      // arata si EXACT la ce pas se opreste, daca tot mai crapa ceva
+      // (ultimul mesaj ramas pe ecran = ultimul modul pornit).
+      void (async () => {
+        const steps: Array<[string, () => Promise<unknown>]> = [
+          ['fete (ML Kit)', () => detectFacesNative(file)],
+          ['compozitie/claritate/culoare', () => analyzeImageNative(file)],
+          ['obiecte (COCO)', () => detectObjectsNative(file)],
+          ['fata detaliata (MediaPipe)', () => analyzeFaceMeshNative(file)],
+          ['etichete bogate (ImageNet)', () => classifyImageNative(file)],
+          ['text (OCR)', () => detectTextNative(file)],
+          ['postura corp', () => detectPoseNative(file)],
+          ['separare persoana/fundal', () => segmentSubjectNative(file)],
+          ['embedding similaritate', () => embedImageNative(file)]
+        ];
+        const results: Record<string, unknown> = {};
+        for (const [name, run] of steps) {
+          setNotice(`Se testeaza: ${name}...`);
+          try {
+            results[name] = await run();
+          } catch (err) {
+            setNotice(`Native FAIL la "${name}": ${err instanceof Error ? err.message : String(err)}`);
+            return;
+          }
+        }
+        setNotice(`Native OK (toate 9 module): ${JSON.stringify(results)}`);
+      })();
     };
     input.click();
   };
