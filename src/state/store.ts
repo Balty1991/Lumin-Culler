@@ -234,6 +234,8 @@ interface AppState {
   /** Adauga fotografiile date (implicit selectia multipla curenta) intr-un folder — vezi core/collections.ts. */
   addPhotosToCollection: (id: string, photoIds: string[]) => Promise<void>;
   removePhotosFromCollection: (id: string, photoIds: string[]) => Promise<void>;
+  /** Exporta toate pozele dintr-un folder personalizat, indiferent de status — vezi comentariul de langa implementare. */
+  exportCollection: (id: string) => Promise<void>;
   /**
    * Filtre suplimentare, toate combinabile intre ele si cu `filter`/`personFilter` —
    * utile la biblioteci mari (mii de poze), unde navigarea doar prin status/persoana
@@ -390,6 +392,17 @@ interface AppState {
   setDateRange: (from: number | null, to: number | null) => void;
   setMinRating: (rating: number) => void;
   clearAdvancedFilters: () => void;
+  /**
+   * Reseteaza TOATE filtrele combinabile dintr-o singura apasare (cerinta
+   * directa a utilizatorului: fara asta, ca sa dezactivezi un filtru trebuia
+   * sa stii exact care era activ si sa-l re-selectezi in panoul lui —
+   * persoana/eticheta/scena/aparat/proiect/folder aveau fiecare propriul
+   * mecanism de "sterge", niciunul central). NU atinge `filter` (statusul
+   * principal Toate/Selectate/...) — acela are deja "Toate" ca reset
+   * evident, cu sens diferit (schimbarea lui ar putea surprinde un
+   * utilizator care vrea doar sa scape de filtrul de persoana, de exemplu).
+   */
+  clearAllFilters: () => void;
   openDetail: (id: string | null) => void;
   openCompare: (groupId: string | null) => void;
   /** `autoApply: true` — EditPanel invoca "Auto" o singura data, imediat ce poza s-a incarcat (vezi PhotoInfoTabs, butonul "Aplica" de pe o sugestie fixabila acum). */
@@ -1572,6 +1585,11 @@ export const useStore = create<AppState>((set, get) => ({
   setDateRange: (from, to) => set({ dateFrom: from, dateTo: to }),
   setMinRating: rating => set({ minRating: rating }),
   clearAdvancedFilters: () => set({ searchText: '', dateFrom: null, dateTo: null, minRating: 0 }),
+  clearAllFilters: () => set({
+    personFilter: null, colorLabelFilter: null, sceneTagFilter: null, cameraFilter: null,
+    projectFilter: null, collectionFilter: null,
+    searchText: '', dateFrom: null, dateTo: null, minRating: 0
+  }),
   openDetail: id => set({ detailId: id }),
   openCompare: groupId => set({ compareGroupId: groupId }),
   openEdit: (id, opts) => set({ editingPhotoId: id, editAutoApplyRequested: !!opts?.autoApply }),
@@ -1823,12 +1841,21 @@ export const useStore = create<AppState>((set, get) => ({
   clearAll: async () => {
     await Promise.all([
       db.photos.clear(), db.thumbnails.clear(), db.previews.clear(), db.originals.clear(), db.fileHandles.clear(),
-      db.analyses.clear(), db.history.clear()
+      db.analyses.clear(), db.history.clear(), db.collections.clear()
     ]);
     originalFiles.clear();
     originalHandles.clear();
     clearPreviewUrlCache();
-    set({ photos: [], detailId: null, compareGroupId: null, editingPhotoId: null, history: [] });
+    // Foldere personalizate golite ODATA CU sesiunea (cerinta directa a
+    // utilizatorului) — spre deosebire de persoane, care raman intentionat pe
+    // "Goleste sesiunea" (identitati durabile, invatate din poze anterioare):
+    // un folder ca "Poze pentru Instagram" e legat de continutul concret al
+    // acelei sesiuni, nu o taxonomie menita sa supravietuiasca peste sedinte
+    // foto complet nelegate viitoare.
+    set({
+      photos: [], collections: [], collectionFilter: null,
+      detailId: null, compareGroupId: null, editingPhotoId: null, history: []
+    });
   },
 
   clearAllIncludingPersons: async () => {
@@ -1894,6 +1921,65 @@ export const useStore = create<AppState>((set, get) => ({
       set({ notice: parts.join(' ') });
     } catch (err) {
       set({ notice: t(get().locale, 'store.exportSelection.failed', { error: String(err) }) });
+    }
+  },
+
+  /**
+   * Exporta TOATE pozele dintr-un folder personalizat (cerinta directa a
+   * utilizatorului — "nu apare posibilitatea sa export foldere"), indiferent
+   * de status (spre deosebire de exportSelection, care exporta doar
+   * status==='selected'): apartenenta la un folder e deja o alegere
+   * explicita a utilizatorului, un semnal la fel de puternic ca statusul.
+   * Aceeasi grupare pe subfoldere persoana/scena ca exportSelection —
+   * folderul personalizat decide DOAR ce poze intra in export, nu inlocuieste
+   * acea organizare interna.
+   */
+  exportCollection: async id => {
+    const locale = get().locale;
+    const collection = get().collections.find(c => c.id === id);
+    const allPhotos = get().photos;
+    const memberSet = new Set(collection?.memberIds ?? []);
+    const members = allPhotos.filter(p => memberSet.has(p.id));
+    if (!members.length) { set({ notice: t(locale, 'collections.export.empty') }); return; }
+    try {
+      const groupUnion = computeGroupPersonUnion(allPhotos);
+      const result = await exportOriginalFiles(members.map(p => {
+        const meta = p.project ? getProjectMetadata(p.project) : {};
+        return {
+          id: p.id,
+          fileName: p.fileName,
+          personNames: p.groupId ? (groupUnion.get(p.groupId) ?? p.personNames) : p.personNames,
+          faceCount: p.faceCount,
+          strangerCount: p.strangerCount,
+          sceneType: p.sceneType,
+          sceneTags: p.sceneTags,
+          capturedAt: p.capturedAt,
+          client: meta.client,
+          event: meta.event,
+          location: meta.location,
+          edits: p.edits
+        };
+      }), {
+        renameTemplate: get().renameTemplate, locale,
+        zipBaseName: 'lumin-culler-' + (collection?.name ?? 'folder').replace(/[\\/:*?"<>|]/g, '-')
+      });
+      if (result.cancelled) return;
+      const parts = [
+        result.exported
+          ? t(locale,
+              result.method === 'folder' ? 'store.exportSelection.exportedFolder'
+              : result.grouped ? 'store.exportSelection.exportedZip'
+              : 'store.exportSelection.exportedDirect',
+              { count: result.exported }
+            )
+          : t(locale, 'store.exportSelection.none')
+      ];
+      if (result.missing.length) {
+        parts.push(t(locale, 'store.exportSelection.missing', { count: result.missing.length }));
+      }
+      set({ notice: parts.join(' ') });
+    } catch (err) {
+      set({ notice: t(locale, 'store.exportSelection.failed', { error: String(err) }) });
     }
   },
 

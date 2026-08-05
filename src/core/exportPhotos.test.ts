@@ -103,6 +103,23 @@ describe('exportOriginalFiles (fallback fara File System Access API)', () => {
     expect(entries).toHaveLength(3);
   });
 
+  // Cerinta directa a utilizatorului: exportul unui folder personalizat
+  // (state/store.ts, exportCollection) foloseste numele arhivei ca sa arate
+  // clar CE folder a fost exportat, nu doar un nume generic identic pentru orice export.
+  it('foloseste zipBaseName pentru numele arhivei cand e specificat (implicit "lumin-culler-export")', async () => {
+    originalFiles.set('p1', fakeFile('a.jpg'));
+    originalFiles.set('p2', fakeFile('b.jpg'));
+    await exportOriginalFiles(
+      [
+        { id: 'p1', fileName: 'a.jpg', personNames: [], faceCount: 0, strangerCount: 0, sceneType: 'landscape' },
+        { id: 'p2', fileName: 'b.jpg', personNames: [], faceCount: 0, strangerCount: 0, sceneType: 'landscape' }
+      ],
+      { zipBaseName: 'lumin-culler-Vacanta' }
+    );
+    const [zipName] = downloadZip.mock.calls[0];
+    expect(zipName.startsWith('lumin-culler-Vacanta-')).toBe(true);
+  });
+
   it('grupeaza corect caile din zip pe folderul de persoana/scena', async () => {
     originalFiles.set('p1', fakeFile('a.jpg'));
     originalFiles.set('p2', fakeFile('b.jpg'));

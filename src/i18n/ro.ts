@@ -184,6 +184,7 @@ export const ro = {
   'app.filters.ariaLabel': 'Filtre',
   'app.moreFilters.ariaLabel': 'Mai multe filtre',
   'app.moreFilters.title': 'Mai multe filtre',
+  'app.clearAllFilters': 'Elimina toate filtrele active',
   'colorLabel.none': 'Fara eticheta',
   'colorLabel.red': 'Rosu',
   'colorLabel.yellow': 'Galben',
@@ -575,7 +576,10 @@ export const ro = {
   'collections.confirmDelete': 'Stergi folderul "{name}"? Pozele din el raman neatinse, doar folderul dispare.',
   'collections.addToFolder': 'Adauga in folder',
   'collections.showOnly': 'Arata doar acest folder',
+  'collections.clearFilter': 'Elimina filtrul de folder curent',
   'collections.photoCount': '{count} poze',
+  'collections.export': 'Exporta',
+  'collections.export.empty': 'Folderul e gol — nimic de exportat.',
 
   'store.state.activated': 'Modul economic activat',
   'store.state.deactivated': 'Modul economic dezactivat',
