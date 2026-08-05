@@ -20,12 +20,13 @@ private const val MAX_RESULTS = 5
 private const val SCORE_THRESHOLD = 0.1f
 
 /**
- * Analiza AI nativa (Faza 4) — etichete de scena/animal/peisaj MAI BOGATE
- * decat cele 80 COCO din ObjectDetectionPlugin.kt (ex. rase specifice de caini,
- * tipuri de peisaj — "seashore", "alp" — pe care COCO nu le are deloc). Model:
- * EfficientNet-Lite0 (Google AI Edge, ImageNet-1000). Complementar cu
- * ObjectDetectionPlugin, NU un inlocuitor: acela da cutii precise pentru
- * categorii largi, acesta da etichete pentru TOT cadrul, fara localizare.
+ * Analiza AI nativa (Faza 4) — etichete de scena/animal/peisaj complementare
+ * celor din ImageLabelingPlugin.kt (Faza 3, ML Kit Image Labeling, ~400
+ * etichete Open Images), cu propriul vocabular ImageNet-1000 (ex. rase
+ * specifice de caini, tipuri de peisaj — "seashore", "alp" — pe care Open
+ * Images nu le are). Model: EfficientNet-Lite0 (Google AI Edge). Complementar
+ * cu ImageLabelingPlugin, NU un inlocuitor: niciunul din cele doua nu da cutii
+ * de delimitare, ambele clasifica tot cadrul, doar cu vocabulare diferite.
  *
  * Etichetele raman in engleza (netraduse) — vezi sceneTagLabels.ts: traducerea
  * se face STRICT la afisare, iar acest plugin ramane dormant/dev-only, fara

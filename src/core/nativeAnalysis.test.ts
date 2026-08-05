@@ -19,8 +19,8 @@ vi.mock('./nativeFaceDetection', () => ({ detectFacesNative: (...a: unknown[]) =
 const analyzeImageNative = vi.fn();
 vi.mock('./nativeImageAnalysis', () => ({ analyzeImageNative: (...a: unknown[]) => analyzeImageNative(...a) }));
 
-const detectObjectsNative = vi.fn();
-vi.mock('./nativeObjectDetection', () => ({ detectObjectsNative: (...a: unknown[]) => detectObjectsNative(...a) }));
+const labelImageNative = vi.fn();
+vi.mock('./nativeImageLabeling', () => ({ labelImageNative: (...a: unknown[]) => labelImageNative(...a) }));
 
 const analyzeFaceMeshNative = vi.fn();
 vi.mock('./nativeFaceMesh', () => ({ analyzeFaceMeshNative: (...a: unknown[]) => analyzeFaceMeshNative(...a) }));
@@ -54,7 +54,7 @@ describe('analyzeNative', () => {
   beforeEach(() => {
     detectFacesNative.mockReset();
     analyzeImageNative.mockReset();
-    detectObjectsNative.mockReset();
+    labelImageNative.mockReset();
     analyzeFaceMeshNative.mockReset();
     detectTextNative.mockReset();
     analyzeImageNative.mockResolvedValue(IMAGE_ANALYSIS_FIXTURE);
@@ -66,7 +66,7 @@ describe('analyzeNative', () => {
       imageWidth: 1000,
       imageHeight: 500
     });
-    detectObjectsNative.mockResolvedValue({ objects: [] });
+    labelImageNative.mockResolvedValue({ labels: [] });
     analyzeFaceMeshNative.mockResolvedValue({ faces: [] });
 
     const { analyzeNative } = await import('./nativeAnalysis');
@@ -89,7 +89,7 @@ describe('analyzeNative', () => {
       imageWidth: 100,
       imageHeight: 100
     });
-    detectObjectsNative.mockResolvedValue({ objects: [] });
+    labelImageNative.mockResolvedValue({ labels: [] });
     analyzeFaceMeshNative.mockResolvedValue({ faces: [] });
 
     const { analyzeNative } = await import('./nativeAnalysis');
@@ -102,7 +102,7 @@ describe('analyzeNative', () => {
 
   it('nu apeleaza deloc FaceMesh cand nu exista fete', async () => {
     detectFacesNative.mockResolvedValue({ faces: [], imageWidth: 100, imageHeight: 100 });
-    detectObjectsNative.mockResolvedValue({ objects: [{ label: 'cat', score: 0.9, box: { x: 0, y: 0, width: 0.5, height: 0.5 } }] });
+    labelImageNative.mockResolvedValue({ labels: [{ label: 'cat', score: 0.9 }] });
 
     const { analyzeNative } = await import('./nativeAnalysis');
     const result = await analyzeNative('p1', fakeBitmap(100, 100));
@@ -112,13 +112,13 @@ describe('analyzeNative', () => {
     expect(result.groupGenuineSmileRatio).toBeUndefined();
   });
 
-  it('dedupe etichetele COCO in sceneTags, la fel ca faceAnalysis.worker.ts', async () => {
+  it('dedupe etichetele in sceneTags, la fel ca faceAnalysis.worker.ts', async () => {
     detectFacesNative.mockResolvedValue({ faces: [], imageWidth: 100, imageHeight: 100 });
-    detectObjectsNative.mockResolvedValue({
-      objects: [
-        { label: 'cat', score: 0.9, box: { x: 0, y: 0, width: 0.1, height: 0.1 } },
-        { label: 'cat', score: 0.7, box: { x: 0.5, y: 0.5, width: 0.1, height: 0.1 } },
-        { label: 'dog', score: 0.6, box: { x: 0.2, y: 0.2, width: 0.1, height: 0.1 } }
+    labelImageNative.mockResolvedValue({
+      labels: [
+        { label: 'cat', score: 0.9 },
+        { label: 'cat', score: 0.7 },
+        { label: 'dog', score: 0.6 }
       ]
     });
 
@@ -134,7 +134,7 @@ describe('analyzeNative', () => {
       imageWidth: 100,
       imageHeight: 100
     });
-    detectObjectsNative.mockResolvedValue({ objects: [] });
+    labelImageNative.mockResolvedValue({ labels: [] });
     analyzeFaceMeshNative.mockResolvedValue({
       faces: [
         { smile: 0.9, emotionSurprise: 0, emotionNegative: 0, eyesOpen: { left: 1, right: 1 }, mouthOpen: false, genuineSmile: true, awkwardExpression: false, engagement: 0.8, eyeContact: 0.6 },
@@ -154,7 +154,7 @@ describe('analyzeNative', () => {
 
   it('ruleaza OCR DOAR cand nu exista nici fete nici etichete de scena, si seteaza textCoverage', async () => {
     detectFacesNative.mockResolvedValue({ faces: [], imageWidth: 100, imageHeight: 100 });
-    detectObjectsNative.mockResolvedValue({ objects: [] });
+    labelImageNative.mockResolvedValue({ labels: [] });
     detectTextNative.mockResolvedValue({ blocks: [{ text: 'Factura', box: { left: 0, top: 0, width: 50, height: 10 } }], textCoverage: 0.4 });
 
     const { analyzeNative } = await import('./nativeAnalysis');
@@ -170,7 +170,7 @@ describe('analyzeNative', () => {
       imageWidth: 100,
       imageHeight: 100
     });
-    detectObjectsNative.mockResolvedValue({ objects: [] });
+    labelImageNative.mockResolvedValue({ labels: [] });
     analyzeFaceMeshNative.mockResolvedValue({ faces: [] });
 
     const { analyzeNative } = await import('./nativeAnalysis');
@@ -182,7 +182,7 @@ describe('analyzeNative', () => {
 
   it('preia direct campurile ImageAnalysis (nume identice cu AnalysisRecord) fara remapare', async () => {
     detectFacesNative.mockResolvedValue({ faces: [], imageWidth: 100, imageHeight: 100 });
-    detectObjectsNative.mockResolvedValue({ objects: [] });
+    labelImageNative.mockResolvedValue({ labels: [] });
     detectTextNative.mockResolvedValue({ blocks: [], textCoverage: 0 });
 
     const { analyzeNative } = await import('./nativeAnalysis');
@@ -200,7 +200,7 @@ describe('analyzeNative', () => {
       imageWidth: 100,
       imageHeight: 100
     });
-    detectObjectsNative.mockResolvedValue({ objects: [] });
+    labelImageNative.mockResolvedValue({ labels: [] });
     analyzeFaceMeshNative.mockResolvedValue({ faces: [] });
 
     const { analyzeNative } = await import('./nativeAnalysis');

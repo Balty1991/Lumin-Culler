@@ -8,7 +8,7 @@ import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.WebViewListener;
 import com.luminculler.app.plugins.FaceDetectionPlugin;
 import com.luminculler.app.plugins.ImageAnalysisPlugin;
-import com.luminculler.app.plugins.ObjectDetectionPlugin;
+import com.luminculler.app.plugins.ImageLabelingPlugin;
 import com.luminculler.app.plugins.FaceMeshPlugin;
 import com.luminculler.app.plugins.ImageClassifierPlugin;
 import com.luminculler.app.plugins.TextRecognitionPlugin;
@@ -22,11 +22,11 @@ public class MainActivity extends BridgeActivity {
         // Plugin-urile native LOCALE (nu pachete npm separate, ca @capacitor/filesystem)
         // nu sunt descoperite automat de Capacitor — trebuie inregistrate explicit aici,
         // inainte de super.onCreate(). Vezi plugins/FaceDetectionPlugin.kt / ImageAnalysisPlugin.kt /
-        // ObjectDetectionPlugin.kt / FaceMeshPlugin.kt / ImageClassifierPlugin.kt /
+        // ImageLabelingPlugin.kt / FaceMeshPlugin.kt / ImageClassifierPlugin.kt /
         // TextRecognitionPlugin.kt / PoseDetectionPlugin.kt / SegmentationPlugin.kt / ImageEmbedderPlugin.kt.
         registerPlugin(FaceDetectionPlugin.class);
         registerPlugin(ImageAnalysisPlugin.class);
-        registerPlugin(ObjectDetectionPlugin.class);
+        registerPlugin(ImageLabelingPlugin.class);
         registerPlugin(FaceMeshPlugin.class);
         registerPlugin(ImageClassifierPlugin.class);
         registerPlugin(TextRecognitionPlugin.class);

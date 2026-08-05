@@ -13,7 +13,7 @@ import { nextGridDensity } from '../state/gridDensity';
 import { getInstallPromptEvent, subscribeInstallPromptEvent, consumeInstallPromptEvent, isStandalone } from '../core/installPromptEvent';
 import { detectFacesNative, isNativeFaceDetectionAvailable } from '../core/nativeFaceDetection';
 import { analyzeImageNative, isNativeImageAnalysisAvailable } from '../core/nativeImageAnalysis';
-import { detectObjectsNative, isNativeObjectDetectionAvailable } from '../core/nativeObjectDetection';
+import { labelImageNative, isNativeImageLabelingAvailable } from '../core/nativeImageLabeling';
 import { analyzeFaceMeshNative, isNativeFaceMeshAvailable } from '../core/nativeFaceMesh';
 import { classifyImageNative, isNativeImageClassifierAvailable } from '../core/nativeImageClassifier';
 import { detectTextNative, isNativeTextRecognitionAvailable } from '../core/nativeTextRecognition';
@@ -119,7 +119,7 @@ export function MenuDrawer() {
         const steps: Array<[string, () => Promise<unknown>]> = [
           ['fete (ML Kit)', () => detectFacesNative(file)],
           ['compozitie/claritate/culoare', () => analyzeImageNative(file)],
-          ['obiecte (COCO)', () => detectObjectsNative(file)],
+          ['etichete de scena (ML Kit)', () => labelImageNative(file)],
           ['fata detaliata (MediaPipe)', () => analyzeFaceMeshNative(file)],
           ['etichete bogate (ImageNet)', () => classifyImageNative(file)],
           ['text (OCR)', () => detectTextNative(file)],
@@ -369,7 +369,7 @@ export function MenuDrawer() {
         </button>
 
         {SHOW_NATIVE_TEST_BUTTON && isNativeFaceDetectionAvailable() && isNativeImageAnalysisAvailable() &&
-          isNativeObjectDetectionAvailable() && isNativeFaceMeshAvailable() && isNativeImageClassifierAvailable() &&
+          isNativeImageLabelingAvailable() && isNativeFaceMeshAvailable() && isNativeImageClassifierAvailable() &&
           isNativeTextRecognitionAvailable() && isNativePoseDetectionAvailable() && isNativeSegmentationAvailable() &&
           isNativeImageEmbedderAvailable() && (
           <button className="drawer-item" onClick={() => go(testNativeFaceDetection)}>

@@ -75,10 +75,10 @@ dependencies {
     // dupa instalare, fara descarcare separata prin Play Services.
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
     implementation "com.google.mlkit:face-detection:$mlkitFaceDetectionVersion"
-    // Analiza AI nativa (Faza 3) — vezi plugins/ObjectDetectionPlugin.kt. Modelul
-    // TFLite (detect.tflite) e descarcat de CI in assets/, nu vine din aceasta
-    // dependinta — biblioteca de aici e doar runtime-ul de inferenta.
-    implementation "org.tensorflow:tensorflow-lite:$tensorflowLiteVersion"
+    // Analiza AI nativa (Faza 3, rescrisa) — vezi plugins/ImageLabelingPlugin.kt.
+    // Modelul e bundle-uit direct in aceasta dependinta (ca ML Kit face-detection
+    // de mai sus), nu mai vine dintr-un asset descarcat separat de CI.
+    implementation "com.google.mlkit:image-labeling:$mlkitImageLabelingVersion"
     // Analiza AI nativa (Faza 4) — vezi plugins/FaceMeshPlugin.kt / ImageClassifierPlugin.kt.
     // Modelele (.task / .tflite) sunt descarcate de CI in assets/, nu vin din
     // aceasta dependinta — biblioteca de aici e doar API-ul MediaPipe Tasks.
