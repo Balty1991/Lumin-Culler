@@ -1,0 +1,52 @@
+# Build de test (.apk NESEMNAT, doar debug) — verifica DOAR ca partea nativa
+# Android (Gradle/Kotlin) compileaza, fara sa ceara secretele de semnare din
+# release-android.yml. Util mai ales cand se schimba ceva pe partea nativa
+# (android/) — sandbox-ul de dezvoltare nu poate ajunge la dl.google.com
+# (Maven-ul Google), deci build-ul real Gradle nu poate fi verificat local
+# acolo; acest workflow e prima verificare reala, automata.
+name: Build debug Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'claude/**'
+    paths:
+      - 'android/**'
+      - 'src/**'
+      - 'package.json'
+      - '.github/workflows/android-debug-build.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      # acelasi pas ca in deploy.yml/release-android.yml — modelele AI trebuie
+      # incluse in pachetul nativ, nu doar in PWA
+      - name: Bundle ML models
+        run: |
+          mkdir -p public/models
+          for m in blazeface facemesh iris emotion faceres centernet; do
+            cp node_modules/@vladmandic/human/models/$m.json public/models/
+            cp node_modules/@vladmandic/human/models/$m.bin public/models/
+          done
+      - run: npm run build
+      - run: npx cap sync android
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Build debug APK (nesemnat)
+        working-directory: android
+        run: ./gradlew assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lumin-culler-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
