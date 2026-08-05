@@ -1,7 +1,11 @@
 package com.luminculler.app;
 
 import android.os.Bundle;
+import android.util.Log;
+import android.webkit.RenderProcessGoneDetail;
+import android.webkit.WebView;
 import com.getcapacitor.BridgeActivity;
+import com.getcapacitor.WebViewListener;
 import com.luminculler.app.plugins.FaceDetectionPlugin;
 import com.luminculler.app.plugins.ImageAnalysisPlugin;
 import com.luminculler.app.plugins.ObjectDetectionPlugin;
@@ -30,5 +34,26 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(SegmentationPlugin.class);
         registerPlugin(ImageEmbedderPlugin.class);
         super.onCreate(savedInstanceState);
+
+        // Fara acest listener, un crash al PROCESULUI DE RANDARE al WebView-ului
+        // (ex. un driver GPU care pica la crearea unui context WebGL — vezi
+        // comentariile din faceAnalysis.worker.ts despre exact acest tip de device
+        // cu WebGL blocklist-uit de Chromium) omoara implicit INTREAGA aplicatie,
+        // nu doar pagina — spre deosebire de un tab obisnuit de Chrome, care
+        // izoleaza un asemenea crash per tab. Simptom real raportat pe device: la
+        // "Se incarca modelele AI" (exact cand ruleaza cascada WebGPU->WebGL->CPU
+        // din workerPool.ts), aplicatia iese singura, desi acelasi cod JS ruleaza
+        // corect intr-un tab de browser pe acelasi telefon — asta arata ca
+        // problema e specifica randarii native WebView, nu logicii JS. Returnand
+        // true si reincarcand pagina, aplicatia ramane in viata si utilizatorul
+        // primeste o noua incercare in loc de o iesire silentioasa completa.
+        getBridge().addWebViewListener(new WebViewListener() {
+            @Override
+            public boolean onRenderProcessGone(WebView webView, RenderProcessGoneDetail detail) {
+                Log.e("LuminCuller", "WebView render process gone (didCrash=" + detail.didCrash() + ") — reincarc pagina in loc sa las aplicatia sa cada.");
+                webView.post(webView::reload);
+                return true;
+            }
+        });
     }
 }
