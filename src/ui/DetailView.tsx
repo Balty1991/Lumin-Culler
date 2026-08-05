@@ -6,6 +6,7 @@ import { useModalFocusTrap } from './useModalFocusTrap';
 import { StarRating } from './StarRating';
 import { PhotoInfoTabs } from './PhotoInfoTabs';
 import { XIcon, ChevronLeft, ChevronRight, ChevronUpIcon, LayersIcon, CheckIcon, EditIcon } from './icons';
+import { CollectionPicker } from './CollectionPicker';
 import { EASE } from './motion';
 import { AdjustedImage } from './AdjustedImage';
 import { t } from '../i18n';
@@ -254,6 +255,7 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
           <button className="detail-overlay-btn" onClick={() => openEdit(photo.id)} aria-label={tr('edit.open')} title={tr('edit.open')}>
             <EditIcon />
           </button>
+          <CollectionPicker photoIds={[photo.id]} iconOnly triggerClassName="detail-overlay-btn" />
         </div>
 
         {!zoomed && dragX > 4 && (

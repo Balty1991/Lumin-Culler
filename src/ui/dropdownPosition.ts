@@ -14,7 +14,9 @@
  * (scroll intern preia restul, daca lista tot nu incape).
  */
 export interface MenuPosition {
-  left: number;
+  left?: number;
+  /** Ancorare la marginea DREAPTA a butonului in loc de stanga — vezi computeMenuPosition mai jos. */
+  right?: number;
   top?: number;
   bottom?: number;
   maxHeight: number;
@@ -38,11 +40,32 @@ export function isInsideAnyMenu(target: EventTarget | null): boolean {
   return target instanceof Element && target.closest('[role="menu"]') !== null;
 }
 
+/**
+ * Bug real gasit la verificare vizuala (CollectionPicker.tsx, butonul de
+ * folder din DetailView — ultima iconita dintr-o bara lipita de marginea
+ * dreapta a ecranului): pozitia orizontala era mereu `left: rect.left`, fara
+ * nicio verificare ca meniul (min-width 150-170px) chiar incape pana la
+ * marginea dreapta a viewport-ului — un buton aproape de acea margine
+ * producea un meniu vizibil taiat, fara nicio cale de a-l derula orizontal
+ * (position:fixed, la fel ca problema deja rezolvata pe verticala mai sus).
+ * Fix simetric cu logica de sus/jos: cand e mai mult spatiu la STANGA
+ * butonului decat la dreapta, ancoram meniul de marginea lui DREAPTA
+ * (`right`, CSS), nu de cea stanga — asa nu trebuie sa cunoastem in avans
+ * latimea reala randata a meniului, doar directia cu mai mult loc.
+ */
 export function computeMenuPosition(rect: DOMRect, margin = 10, minHeight = 120): MenuPosition {
   const spaceBelow = window.innerHeight - rect.bottom - margin;
   const spaceAbove = rect.top - margin;
   const openUpward = spaceBelow < minHeight && spaceAbove > spaceBelow;
-  return openUpward
-    ? { left: rect.left, bottom: window.innerHeight - rect.top + 6, maxHeight: Math.max(minHeight, spaceAbove) }
-    : { left: rect.left, top: rect.bottom + 6, maxHeight: Math.max(minHeight, spaceBelow) };
+  const vertical = openUpward
+    ? { bottom: window.innerHeight - rect.top + 6, maxHeight: Math.max(minHeight, spaceAbove) }
+    : { top: rect.bottom + 6, maxHeight: Math.max(minHeight, spaceBelow) };
+
+  const spaceRight = window.innerWidth - rect.left - margin;
+  const spaceLeft = rect.right - margin;
+  const horizontal = spaceRight < spaceLeft
+    ? { right: window.innerWidth - rect.right }
+    : { left: rect.left };
+
+  return { ...horizontal, ...vertical };
 }

@@ -75,7 +75,7 @@ export function ColorLabelFilter({ value, onChange }: Props) {
           role="menu"
           aria-label={tr('app.colorLabelFilter.ariaLabel')}
           ref={menuRef}
-          style={{ top: menuPos.top, bottom: menuPos.bottom, left: menuPos.left, maxHeight: menuPos.maxHeight }}
+          style={{ top: menuPos.top, bottom: menuPos.bottom, left: menuPos.left, right: menuPos.right, maxHeight: menuPos.maxHeight }}
         >
           {COLOR_LABELS.map(c => (
             <button

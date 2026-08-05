@@ -82,7 +82,7 @@ export function MoreFiltersMenu({ active, badgeCount, children }: Props) {
           role="menu"
           aria-label={tr('app.moreFilters.ariaLabel')}
           ref={menuRef}
-          style={{ top: menuPos.top, bottom: menuPos.bottom, left: menuPos.left, maxHeight: menuPos.maxHeight }}
+          style={{ top: menuPos.top, bottom: menuPos.bottom, left: menuPos.left, right: menuPos.right, maxHeight: menuPos.maxHeight }}
         >
           <div className="more-filters-menu-head">
             <span>{tr('app.moreFilters.title')}</span>

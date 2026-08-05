@@ -81,7 +81,7 @@ export function SceneTagFilter() {
           role="menu"
           aria-label={tr('app.sceneTagFilter.ariaLabel')}
           ref={menuRef}
-          style={{ top: menuPos.top, bottom: menuPos.bottom, left: menuPos.left, maxHeight: menuPos.maxHeight }}
+          style={{ top: menuPos.top, bottom: menuPos.bottom, left: menuPos.left, right: menuPos.right, maxHeight: menuPos.maxHeight }}
         >
           {tags.map(([tagName, count]) => (
             <button
