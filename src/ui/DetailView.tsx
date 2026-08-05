@@ -5,7 +5,7 @@ import { useStore, type PhotoView } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { StarRating } from './StarRating';
 import { PhotoInfoTabs } from './PhotoInfoTabs';
-import { XIcon, ChevronLeft, ChevronRight, LayersIcon, CheckIcon, EditIcon } from './icons';
+import { XIcon, ChevronLeft, ChevronRight, ChevronUpIcon, LayersIcon, CheckIcon, EditIcon } from './icons';
 import { EASE } from './motion';
 import { AdjustedImage } from './AdjustedImage';
 import { t } from '../i18n';
@@ -317,7 +317,10 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
           aria-label={sheetExpanded ? tr('detail.sheet.collapse') : tr('detail.sheet.expand')}
         >
           <span className="detail-sheet-handle-bar" aria-hidden="true" />
-          <span className="detail-sheet-peek-label mono">{tr('detail.sheet.peekLabel')}</span>
+          <span className="detail-sheet-peek-label mono">
+            {tr('detail.sheet.peekLabel')}
+            <ChevronUpIcon aria-hidden="true" />
+          </span>
         </button>
 
         <div className="detail-sheet-content">

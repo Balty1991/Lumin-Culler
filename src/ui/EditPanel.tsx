@@ -7,7 +7,10 @@ import { db, type AnalysisRecord } from '../core/db';
 import { XIcon, UndoIcon, SparkleIcon } from './icons';
 import { t } from '../i18n';
 
-const SLIDERS: (keyof EditAdjustments)[] = [
+// Doar cele 7 chei numerice cu slider in UI — crop/rotationDeg (adaugate pentru
+// recadrare/indreptare automata) NU au inca un control manual (vezi planul:
+// niciun tool de crop cu drag in aceasta trecere), doar Auto le poate seta.
+const SLIDERS: (keyof Omit<EditAdjustments, 'crop' | 'rotationDeg'>)[] = [
   'exposure', 'contrast', 'saturation', 'temperature', 'tint', 'highlights', 'shadows'
 ];
 
@@ -21,6 +24,7 @@ const SLIDERS: (keyof EditAdjustments)[] = [
 export function EditPanel() {
   const editingId = useStore(s => s.editingPhotoId);
   const setEditingId = useStore(s => s.openEdit);
+  const autoApplyRequested = useStore(s => s.editAutoApplyRequested);
   const photos = useStore(s => s.photos);
   const setEditAdjustments = useStore(s => s.setEditAdjustments);
   const locale = useStore(s => s.locale);
@@ -36,12 +40,22 @@ export function EditPanel() {
   // scorurile AI deja calculate pentru poza (acelasi AnalysisRecord afisat in
   // tab-ul "De ce acest scor") — sursa pentru butonul Auto, vezi applyAuto mai jos
   const [analysis, setAnalysis] = useState<AnalysisRecord | null>(null);
+  // Distinct de `analysis === null` (care si el poate insemna "inca nu s-a incarcat"
+  // SAU "chiar nu exista analiza") — necesar ca sa stim sigur cand ambele surse
+  // (imagine + analiza) chiar s-au stabilizat, inainte de auto-aplicarea de mai jos
+  // (vezi PhotoInfoTabs, butonul "Aplica" pe o sugestie) — altfel un auto-apply
+  // declansat inainte ca analiza sa apuce sa soseasca ar folosi doar contrastul
+  // (singurul semnal derivat direct din pixeli), fara expunere/recadrare/etc.
+  const [analysisLoaded, setAnalysisLoaded] = useState(false);
+  const autoAppliedRef = useRef(false);
 
   useEffect(() => {
     if (!photo) return;
     setAdjustments(photo.edits ?? NEUTRAL_ADJUSTMENTS);
     setImgEl(null);
     setAnalysis(null);
+    setAnalysisLoaded(false);
+    autoAppliedRef.current = false;
     let alive = true;
     void getCachedPreviewUrl(photo.id).then(url => {
       if (!alive || !url) return;
@@ -49,7 +63,11 @@ export function EditPanel() {
       img.onload = () => { if (alive) setImgEl(img); };
       img.src = url;
     });
-    void db.analyses.get(photo.id).then(a => { if (alive) setAnalysis(a ?? null); });
+    void db.analyses.get(photo.id).then(a => {
+      if (!alive) return;
+      setAnalysis(a ?? null);
+      setAnalysisLoaded(true);
+    });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [photo?.id]);
@@ -79,6 +97,51 @@ export function EditPanel() {
     return () => window.removeEventListener('keydown', onKey);
   }, [photo, setEditingId]);
 
+  /**
+   * "Editor AI automat" (cerinta directa a utilizatorului): expunerea,
+   * recuperarea highlights/shadows, recadrarea, indreptarea si desaturarea
+   * se bazeaza pe scorurile AI DEJA calculate pentru poza (`analysis`,
+   * acelasi AnalysisRecord din tab-ul "De ce acest scor") — nu o re-analiza
+   * independenta, ca sa nu ajunga vreodata sa contrazica explicatia pe care
+   * utilizatorul o vede deja pentru acelasi cadru (vezi core/imageAdjust.ts,
+   * computeAutoAdjustments). Ruleaza pe imgEl (imaginea deja incarcata,
+   * needitata), nu pe canvas-ul cu ajustari deja aplicate. Ramane complet
+   * reversibil — apasarea Auto doar precompleteaza sliderele/recadrarea,
+   * exact ca si cum utilizatorul le-ar fi facut singur; Reseteaza le duce
+   * pe toate (inclusiv crop/rotationDeg) inapoi la neutru dintr-un tap.
+   * Definit AICI (nu mai jos, langa `update`/`resetAll`) ca sa poata fi
+   * apelat si din efectul de auto-aplicare de mai jos, inainte de orice
+   * return conditionat — hook-urile trebuie sa ramana neconditionate.
+   */
+  const applyAuto = () => {
+    if (!imgEl || !photo) return;
+    const auto = computeAutoAdjustments(imgEl, imgEl.naturalWidth, imgEl.naturalHeight, {
+      exposureScore: analysis?.exposure,
+      highlightClipping: analysis?.highlightClipping,
+      shadowClipping: analysis?.shadowClipping,
+      faceCount: analysis?.faceCount,
+      faces: analysis?.faces,
+      ruleOfThirds: analysis?.ruleOfThirds,
+      horizonTiltDeg: analysis?.horizonTiltDeg,
+      colorHarmonyScore: analysis?.colorHarmonyScore
+    });
+    setAdjustments(auto);
+    void setEditAdjustments(photo.id, auto);
+  };
+
+  // Deschidere din butonul "Aplica" al unei sugestii (PhotoInfoTabs, tab-ul
+  // "De ce acest scor") — openEdit(id, { autoApply: true }) seteaza
+  // editAutoApplyRequested; odata ce imaginea SI analiza (analysisLoaded) s-au
+  // stabilizat, Auto se declanseaza o singura data (autoAppliedRef), fara sa
+  // astepte un tap suplimentar — utilizatorul vede direct rezultatul, gata de
+  // pastrat sau de Reseteaza.
+  useEffect(() => {
+    if (!autoApplyRequested || autoAppliedRef.current || !imgEl || !analysisLoaded || !photo) return;
+    autoAppliedRef.current = true;
+    applyAuto();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoApplyRequested, imgEl, analysisLoaded, photo?.id]);
+
   if (!photo) return null;
 
   const update = (key: keyof EditAdjustments, value: number) => {
@@ -90,28 +153,6 @@ export function EditPanel() {
   const resetAll = () => {
     setAdjustments(NEUTRAL_ADJUSTMENTS);
     void setEditAdjustments(photo.id, NEUTRAL_ADJUSTMENTS);
-  };
-
-  /**
-   * "Editor AI automat" (cerinta directa a utilizatorului): expunerea si
-   * recuperarea highlights/shadows se bazeaza pe scorurile AI DEJA calculate
-   * pentru poza (`analysis`, acelasi AnalysisRecord din tab-ul "De ce acest
-   * scor") — nu o re-analiza independenta, ca sa nu ajunga vreodata sa
-   * contrazica explicatia pe care utilizatorul o vede deja pentru acelasi
-   * cadru (vezi core/imageAdjust.ts, computeAutoAdjustments). Ruleaza pe imgEl
-   * (imaginea deja incarcata, needitata), nu pe canvas-ul cu ajustari deja
-   * aplicate. Ramane complet reversibil — apasarea Auto doar precompleteaza
-   * sliderele, exact ca si cum utilizatorul le-ar fi tras singur.
-   */
-  const applyAuto = () => {
-    if (!imgEl) return;
-    const auto = computeAutoAdjustments(imgEl, imgEl.naturalWidth, imgEl.naturalHeight, {
-      exposureScore: analysis?.exposure,
-      highlightClipping: analysis?.highlightClipping,
-      shadowClipping: analysis?.shadowClipping
-    });
-    setAdjustments(auto);
-    void setEditAdjustments(photo.id, auto);
   };
 
   return (

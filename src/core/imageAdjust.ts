@@ -16,31 +16,78 @@ export interface EditAdjustments {
   tint: number;        // -100..100 (verde <-> magenta)
   highlights: number;  // -100..100
   shadows: number;     // -100..100
+  /** Indreptare unghi mic (grade) — vezi computeAutoStraighten. Absent/0 = fara rotatie. Clamped la ±MAX_ROTATION_DEG. */
+  rotationDeg?: number;
+  /**
+   * Recadrare normalizata (0..1), in spatiul imaginii ORIGINALE — vezi
+   * computeAutoCrop. Absent = cadrul intreg, nemodificat. Nu schimba
+   * rezolutia finala a exportului (canvas-ul de iesire ramane la dimensiunea
+   * originala) — doar CE portiune a cadrului se vede, redesenata la aceeasi
+   * rezolutie, nu o decupare care micsoreaza fisierul.
+   */
+  crop?: { x: number; y: number; width: number; height: number };
 }
 
 export const NEUTRAL_ADJUSTMENTS: EditAdjustments = {
-  exposure: 0, contrast: 0, saturation: 0, temperature: 0, tint: 0, highlights: 0, shadows: 0
+  exposure: 0, contrast: 0, saturation: 0, temperature: 0, tint: 0, highlights: 0, shadows: 0, rotationDeg: 0
 };
 
-export const ADJUSTMENT_KEYS = Object.keys(NEUTRAL_ADJUSTMENTS) as (keyof EditAdjustments)[];
+/** Doar cheile NUMERICE, comparabile direct cu 0 — `crop` (obiect sau absent) e tratat separat in isNeutral(), nu apartine acestui tipar. */
+export const ADJUSTMENT_KEYS = Object.keys(NEUTRAL_ADJUSTMENTS) as (keyof typeof NEUTRAL_ADJUSTMENTS)[];
 
-/** true daca nu exista nicio ajustare (absent SAU toate valorile 0) — folosit pentru badge-ul "editat" si starea butonului Reseteaza. */
+/** true daca nu exista nicio ajustare (absent SAU toate valorile 0, fara crop) — folosit pentru badge-ul "editat" si starea butonului Reseteaza. */
 export function isNeutral(a: EditAdjustments | undefined): boolean {
   if (!a) return true;
-  return ADJUSTMENT_KEYS.every(k => a[k] === 0);
+  return ADJUSTMENT_KEYS.every(k => (a[k] ?? 0) === 0) && !a.crop;
 }
 
 function clamp255(v: number): number {
   return v < 0 ? 0 : v > 255 ? 255 : v;
 }
 
+const MAX_ROTATION_DEG = 8;
+
+/**
+ * Deseneaza doar geometria (recadrare + indreptare unghi mic), fara filtrele
+ * de culoare — separat de drawAdjusted() ca sa ramana usor de testat/rationat
+ * independent. `width`/`height` sunt ATAT dimensiunea sursei CAT SI a
+ * canvas-ului de iesire (identice in toate apelurile din acest fisier) —
+ * recadrarea schimba ce portiune a cadrului se vede, nu rezolutia finala.
+ */
+function drawGeometry(ctx: CanvasRenderingContext2D, source: CanvasImageSource, width: number, height: number, a: EditAdjustments): void {
+  const rotationDeg = clampRange(a.rotationDeg ?? 0, -MAX_ROTATION_DEG, MAX_ROTATION_DEG);
+  const crop = a.crop;
+  const sx = crop ? crop.x * width : 0;
+  const sy = crop ? crop.y * height : 0;
+  const sw = crop ? crop.width * width : width;
+  const sh = crop ? crop.height * height : height;
+
+  if (rotationDeg === 0) {
+    ctx.drawImage(source, sx, sy, sw, sh, 0, 0, width, height);
+    return;
+  }
+  const rad = (rotationDeg * Math.PI) / 180;
+  const cos = Math.abs(Math.cos(rad));
+  const sin = Math.abs(Math.sin(rad));
+  // scala minima ca dreptunghiul rotit sa tot acopere fereastra width x height —
+  // fara ea, colturile ar ramane goale/transparente dupa o mica indreptare.
+  const safetyScale = Math.max((sw * cos + sh * sin) / sw, (sw * sin + sh * cos) / sh);
+  ctx.save();
+  ctx.translate(width / 2, height / 2);
+  ctx.rotate(rad);
+  ctx.scale(safetyScale, safetyScale);
+  ctx.drawImage(source, sx, sy, sw, sh, -width / 2, -height / 2, width, height);
+  ctx.restore();
+}
+
 /**
  * Deseneaza `source` pe canvas-ul lui `ctx` (dimensiune width x height) cu
- * ajustarile aplicate. Expunerea/contrastul/saturatia trec prin ctx.filter
- * (accelerat de browser); temperatura/tinta/highlights/shadows necesita un
- * pixel-pass suplimentar (getImageData/putImageData), sarit complet cand
- * sunt toate neutre — cazul cel mai comun (doar primele 3 ajustate) ramane
- * la fel de rapid ca un simplu drawImage.
+ * ajustarile aplicate — geometrie (recadrare/indreptare) + culoare. Expunerea/
+ * contrastul/saturatia trec prin ctx.filter (accelerat de browser);
+ * temperatura/tinta/highlights/shadows necesita un pixel-pass suplimentar
+ * (getImageData/putImageData), sarit complet cand sunt toate neutre — cazul
+ * cel mai comun (doar primele 3 ajustate) ramane la fel de rapid ca un
+ * simplu drawImage.
  */
 export function drawAdjusted(
   ctx: CanvasRenderingContext2D,
@@ -53,7 +100,7 @@ export function drawAdjusted(
   const contrast = 1 + a.contrast / 100;
   const saturate = 1 + a.saturation / 100;
   ctx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturate})`;
-  ctx.drawImage(source, 0, 0, width, height);
+  drawGeometry(ctx, source, width, height, a);
   ctx.filter = 'none';
 
   if (a.temperature === 0 && a.tint === 0 && a.highlights === 0 && a.shadows === 0) return;
@@ -111,6 +158,16 @@ export interface AutoAdjustSignals {
   highlightClipping?: number;
   /** AnalysisRecord.shadowClipping (0..1) — fractiune de pixeli cu umbre blocate. */
   shadowClipping?: number;
+  /** AnalysisRecord.faceCount — vezi computeAutoCrop/computeAutoStraighten (recadrarea si indreptarea sunt mutual exclusive, gatate ca in generateSuggestions). */
+  faceCount?: number;
+  /** AnalysisRecord.faces — doar `.box` (normalizat [x,y,w,h]) e folosit, de aceea tipul local minimal (nu importam FaceInsight din core/db.ts — acest fisier ramane deliberat decuplat de restul schemei). */
+  faces?: { box: [number, number, number, number] }[];
+  /** AnalysisRecord.ruleOfThirds — vezi computeAutoCrop. */
+  ruleOfThirds?: number;
+  /** AnalysisRecord.horizonTiltDeg — vezi computeAutoStraighten. */
+  horizonTiltDeg?: number;
+  /** AnalysisRecord.colorHarmonyScore — vezi computeAutoSaturation. */
+  colorHarmonyScore?: number;
 }
 
 const EXPOSURE_BALANCED = 50; // identic cu pragul din aiExplanationGenerator.ts
@@ -174,15 +231,79 @@ export function computeAutoContrast(img: ImageData): number {
   return rawRange <= 0 ? 0 : Math.round(clampRange((clampRange(200 / rawRange, 1, 1.6) - 1) * 100, 0, 35));
 }
 
+const THIRDS_POINTS: [number, number][] = [[1 / 3, 1 / 3], [2 / 3, 1 / 3], [1 / 3, 2 / 3], [2 / 3, 2 / 3]];
+const RULE_OF_THIRDS_FLAG_THRESHOLD = 0.4; // identic cu aiSuggest.centered (aiExplanationGenerator.ts)
+const CROP_SCALE = 0.88; // recompozitie discreta — nu un zoom agresiv
+
+/**
+ * Recadrare automata catre cea mai apropiata intersectie de treimi — DOAR
+ * cand se aplica exact aceeasi conditie ca sugestia text "aiSuggest.centered"
+ * (fata detectata, ruleOfThirds sub prag): Auto nu poate "vedea" o problema
+ * de compozitie pe care panoul de explicatii n-o mentioneaza deloc, acelasi
+ * principiu ca restul acestui fisier (vezi comentariul de la AutoAdjustSignals).
+ * Fara camp de obiect principal expus pe AnalysisRecord (doar fete), scenele
+ * fara oameni nu primesc recadrare automata in aceasta versiune.
+ */
+export function computeAutoCrop(signals: AutoAdjustSignals): EditAdjustments['crop'] {
+  if (!signals.faceCount || (signals.ruleOfThirds ?? 0.5) >= RULE_OF_THIRDS_FLAG_THRESHOLD) return undefined;
+  const faces = signals.faces;
+  if (!faces?.length) return undefined;
+  const main = faces.reduce((x, y) => (x.box[2] * x.box[3] > y.box[2] * y.box[3] ? x : y));
+  const [fx, fy, fw, fh] = main.box;
+  const cx = fx + fw / 2;
+  const cy = fy + fh / 2;
+  let nearest = THIRDS_POINTS[0];
+  let best = Infinity;
+  for (const p of THIRDS_POINTS) {
+    const d = Math.hypot(cx - p[0], cy - p[1]);
+    if (d < best) { best = d; nearest = p; }
+  }
+  const w = CROP_SCALE, h = CROP_SCALE;
+  const x = clampRange(cx - nearest[0] * w, 0, 1 - w);
+  const y = clampRange(cy - nearest[1] * h, 0, 1 - h);
+  return { x, y, width: w, height: h };
+}
+
+const HORIZON_FLAG_THRESHOLD_DEG = 2; // identic cu aiSuggest.horizonTilt
+
+/**
+ * Indreptare automata a orizontului — doar pe scene fara fete (acelasi
+ * tipar ca aiSuggest.horizonTilt), peste acelasi prag de 2° folosit acolo.
+ * NEVERIFICAT pe o poza reala cu orizont inclinat: presupune conventia
+ * standard "unghi pozitiv = inclinare in sensul acelor de ceasornic", aceeasi
+ * ca horizonTiltDeg din faceAnalysis.worker.ts — daca la testare pe device
+ * orizontul se indreapta in directia GRESITA, aici e primul loc de verificat
+ * (acelasi tip de avertisment ca headPoseFromMatrix in FaceMeshMath.kt).
+ */
+export function computeAutoStraighten(signals: AutoAdjustSignals): number {
+  if (signals.faceCount || signals.horizonTiltDeg === undefined || Math.abs(signals.horizonTiltDeg) <= HORIZON_FLAG_THRESHOLD_DEG) return 0;
+  return Math.round(clampRange(-signals.horizonTiltDeg, -MAX_ROTATION_DEG, MAX_ROTATION_DEG));
+}
+
+const COLOR_HARMONY_FLAG_THRESHOLD = 0.35; // identic cu aiSuggest.colorHarmony
+const AUTO_DESATURATE_AMOUNT = -12;
+
+/**
+ * Singura corectie de "culoare" din Auto — DOAR o desaturare modesta, NU o
+ * corectie de balans de alb/temperatura (vezi comentariul de la
+ * AutoAdjustSignals despre incercarea anterioara esuata). Directia e
+ * justificata (mai putina saturatie = mai putina disonanta vizuala intre
+ * culori dezordonate), spre deosebire de o presupunere de directie pentru
+ * temperatura/tinta, pentru care nu exista niciun semnal de incredere.
+ */
+export function computeAutoSaturation(signals: AutoAdjustSignals): number {
+  return signals.colorHarmonyScore !== undefined && signals.colorHarmonyScore < COLOR_HARMONY_FLAG_THRESHOLD ? AUTO_DESATURATE_AMOUNT : 0;
+}
+
 /**
  * Punctul de intrare pentru butonul "Auto" din EditPanel: combina scorurile
  * AI deja calculate (`signals`, din AnalysisRecord — acelasi obiect afisat in
  * "De ce acest scor") cu singura statistica de pixel ramasa necesara
  * (contrastul). Rezultatul e doar un PUNCT DE PORNIRE — utilizatorul poate
  * regla oricare slider dupa, exact ca dupa o editare manuala (nimic
- * destructiv, EditPanel salveaza doar valorile, nu pixeli). Saturatie/
- * temperatura/tinta raman intentionat neatinse (0) — nicio sursa de incredere
- * pentru ele in datele deja calculate ale aplicatiei.
+ * destructiv, EditPanel salveaza doar valorile, nu pixeli). Temperatura/tinta
+ * raman intentionat neatinse (0) — nicio sursa de incredere pentru ele in
+ * datele deja calculate ale aplicatiei (vezi comentariul de la AutoAdjustSignals).
  */
 export function computeAutoAdjustments(source: CanvasImageSource, sourceWidth: number, sourceHeight: number, signals: AutoAdjustSignals = {}): EditAdjustments {
   const MAX_DIM = 360;
@@ -203,11 +324,13 @@ export function computeAutoAdjustments(source: CanvasImageSource, sourceWidth: n
   return {
     exposure: computeAutoExposureFromScore(signals.exposureScore),
     contrast,
-    saturation: 0,
+    saturation: computeAutoSaturation(signals),
     temperature: 0,
     tint: 0,
     highlights,
-    shadows
+    shadows,
+    rotationDeg: computeAutoStraighten(signals),
+    crop: computeAutoCrop(signals)
   };
 }
 

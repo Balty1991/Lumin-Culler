@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { computeAutoContrast, computeAutoExposureFromScore, computeAutoHighlightsShadows } from './imageAdjust';
+import {
+  computeAutoContrast, computeAutoExposureFromScore, computeAutoHighlightsShadows,
+  computeAutoCrop, computeAutoStraighten, computeAutoSaturation, isNeutral, NEUTRAL_ADJUSTMENTS,
+  type AutoAdjustSignals
+} from './imageAdjust';
 
 function makeImage(w: number, h: number, paint: (x: number, y: number) => [number, number, number]): ImageData {
   const data = new Uint8ClampedArray(w * h * 4);
@@ -104,5 +108,93 @@ describe('computeAutoContrast', () => {
     );
     expect(result).toBeGreaterThanOrEqual(0);
     expect(result).toBeLessThanOrEqual(100);
+  });
+});
+
+// computeAutoCrop/computeAutoStraighten/computeAutoSaturation raspund la ACELEASI
+// campuri/praguri deja folosite de aiExplanationGenerator.ts (generateSuggestions)
+// pentru "aiSuggest.centered"/"aiSuggest.horizonTilt"/"aiSuggest.colorHarmony" —
+// testele de mai jos verifica direct acea consistenta (Auto nu poate "vedea" o
+// problema pe care panoul de explicatii n-o mentioneaza deloc).
+
+describe('computeAutoCrop', () => {
+  const faceAt = (cx: number, cy: number): AutoAdjustSignals['faces'] => [{ box: [cx - 0.05, cy - 0.05, 0.1, 0.1] }];
+
+  it('does nothing without a face, matching aiSuggest.centered (gated on faceCount > 0)', () => {
+    expect(computeAutoCrop({ faceCount: 0, ruleOfThirds: 0.1, faces: faceAt(0.5, 0.5) })).toBeUndefined();
+  });
+
+  it('does nothing when ruleOfThirds is already at/above the 0.4 threshold', () => {
+    expect(computeAutoCrop({ faceCount: 1, ruleOfThirds: 0.4, faces: faceAt(0.5, 0.5) })).toBeUndefined();
+    expect(computeAutoCrop({ faceCount: 1, ruleOfThirds: 0.9, faces: faceAt(0.5, 0.5) })).toBeUndefined();
+  });
+
+  it('proposes a crop for a centered subject below the threshold', () => {
+    const crop = computeAutoCrop({ faceCount: 1, ruleOfThirds: 0.1, faces: faceAt(0.5, 0.5) });
+    expect(crop).toBeDefined();
+    expect(crop!.width).toBeGreaterThan(0);
+    expect(crop!.height).toBeGreaterThan(0);
+  });
+
+  it('always stays within the [0,1] frame, even for a subject near the edge', () => {
+    const crop = computeAutoCrop({ faceCount: 1, ruleOfThirds: 0.1, faces: faceAt(0.02, 0.02) });
+    expect(crop).toBeDefined();
+    expect(crop!.x).toBeGreaterThanOrEqual(0);
+    expect(crop!.y).toBeGreaterThanOrEqual(0);
+    expect(crop!.x + crop!.width).toBeLessThanOrEqual(1.0001);
+    expect(crop!.y + crop!.height).toBeLessThanOrEqual(1.0001);
+  });
+
+  it('does nothing when faceCount is set but faces[] is empty (defensive — should not happen in practice)', () => {
+    expect(computeAutoCrop({ faceCount: 1, ruleOfThirds: 0.1, faces: [] })).toBeUndefined();
+  });
+});
+
+describe('computeAutoStraighten', () => {
+  it('does nothing when faces are present, matching aiSuggest.horizonTilt (faceless-only)', () => {
+    expect(computeAutoStraighten({ faceCount: 1, horizonTiltDeg: 6 })).toBe(0);
+  });
+
+  it('does nothing below the 2 degree threshold', () => {
+    expect(computeAutoStraighten({ faceCount: 0, horizonTiltDeg: 1.5 })).toBe(0);
+  });
+
+  it('proposes a corrective rotation opposite the tilt direction, above the threshold', () => {
+    expect(computeAutoStraighten({ faceCount: 0, horizonTiltDeg: 6 })).toBeLessThan(0);
+    expect(computeAutoStraighten({ faceCount: 0, horizonTiltDeg: -6 })).toBeGreaterThan(0);
+  });
+
+  it('clamps to the max allowed rotation for an extreme tilt', () => {
+    const r = computeAutoStraighten({ faceCount: 0, horizonTiltDeg: 45 });
+    expect(Math.abs(r)).toBeLessThanOrEqual(8);
+  });
+});
+
+describe('computeAutoSaturation', () => {
+  it('does nothing above the 0.35 threshold', () => {
+    expect(computeAutoSaturation({ colorHarmonyScore: 0.35 })).toBe(0);
+    expect(computeAutoSaturation({ colorHarmonyScore: 0.8 })).toBe(0);
+  });
+
+  it('applies a modest desaturation (never a saturation increase) below the threshold', () => {
+    expect(computeAutoSaturation({ colorHarmonyScore: 0.1 })).toBeLessThan(0);
+  });
+
+  it('does nothing when colorHarmonyScore is undefined', () => {
+    expect(computeAutoSaturation({})).toBe(0);
+  });
+});
+
+describe('isNeutral with crop/rotationDeg', () => {
+  it('treats NEUTRAL_ADJUSTMENTS as neutral', () => {
+    expect(isNeutral(NEUTRAL_ADJUSTMENTS)).toBe(true);
+  });
+
+  it('is not neutral once a crop is set, even with every slider at 0', () => {
+    expect(isNeutral({ ...NEUTRAL_ADJUSTMENTS, crop: { x: 0.1, y: 0.1, width: 0.8, height: 0.8 } })).toBe(false);
+  });
+
+  it('is not neutral once rotationDeg is non-zero', () => {
+    expect(isNeutral({ ...NEUTRAL_ADJUSTMENTS, rotationDeg: 3 })).toBe(false);
   });
 });

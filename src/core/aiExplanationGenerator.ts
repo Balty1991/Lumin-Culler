@@ -267,63 +267,83 @@ export function generateExplanation(
 
 const MAX_SUGGESTIONS = 4;
 
+/** Ce ar face butonul "Aplica" (EditPanel/imageAdjust.ts) pentru o sugestie "now" — absent pe sugestiile "nextTime" (nimic de aplicat pe poza deja facuta). */
+export type SuggestionFix = 'highlights' | 'shadows' | 'crop' | 'straighten' | 'saturation';
+
+export interface Suggestion {
+  text: string;
+  /**
+   * 'now' = reparabil in editorul din aplicatie, pe poza asta; 'nextTime' =
+   * sfat pentru urmatorul cadru (stabilizare, incadrare, reshoot) — nu exista
+   * nicio editare care sa repare retroactiv o poza neclara sau gresit
+   * incadrata la captura. Distinctia conteaza direct pentru UI (PhotoInfoTabs):
+   * fara ea, sugestii ca "verifica focalizarea inainte de declansare" apareau
+   * amestecate cu altele chiar aplicabile acum, fara sa fie clar care-i care —
+   * feedback direct de la utilizator ("sugestiile sunt prea generice").
+   */
+  when: 'now' | 'nextTime';
+  /** Prezent doar cand when === 'now' — vezi computeAutoCrop/computeAutoStraighten/computeAutoAdjustments in core/imageAdjust.ts, care folosesc EXACT aceleasi praguri ca mai jos. */
+  fix?: SuggestionFix;
+}
+
 /**
  * Genereaza sugestii concrete, actionabile, pentru o fotografie — spre
  * deosebire de generateExplanation (care explica scorul), aceasta functie
  * raspunde la "ce as putea face diferit". Listă goală = cadru fără defecte
- * clare de semnalat pe criteriile analizate.
+ * clare de semnalat pe criteriile analizate. Praguri/ordine NESCHIMBATE fata
+ * de versiunea anterioara (doar string[]) — doar metadata when/fix e noua.
  */
-export function generateSuggestions(a: AnalysisRecord, locale: Locale = 'ro'): string[] {
-  const s: string[] = [];
+export function generateSuggestions(a: AnalysisRecord, locale: Locale = 'ro'): Suggestion[] {
+  const s: Suggestion[] = [];
 
   if (effectiveSharpness(a) < 45) {
-    s.push(t(locale, 'aiSuggest.blur'));
+    s.push({ text: t(locale, 'aiSuggest.blur'), when: 'nextTime' });
   }
   const exposureDiff = a.exposure - 50;
   if (exposureDiff < -15) {
-    s.push(t(locale, 'aiSuggest.underexposed'));
+    s.push({ text: t(locale, 'aiSuggest.underexposed'), when: 'nextTime' });
   } else if (exposureDiff > 15) {
-    s.push(t(locale, 'aiSuggest.overexposed'));
+    s.push({ text: t(locale, 'aiSuggest.overexposed'), when: 'nextTime' });
   }
   if ((a.highlightClipping ?? 0) > 0.06) {
-    s.push(t(locale, 'aiSuggest.highlights'));
+    s.push({ text: t(locale, 'aiSuggest.highlights'), when: 'now', fix: 'highlights' });
   }
   if ((a.shadowClipping ?? 0) > 0.06) {
-    s.push(t(locale, 'aiSuggest.shadows'));
+    s.push({ text: t(locale, 'aiSuggest.shadows'), when: 'now', fix: 'shadows' });
   }
   if (a.iso !== undefined && a.iso >= 1600) {
-    s.push(t(locale, 'aiSuggest.highIso', { iso: Math.round(a.iso) }));
+    s.push({ text: t(locale, 'aiSuggest.highIso', { iso: Math.round(a.iso) }), when: 'nextTime' });
   }
 
   if (a.faceCount > 0) {
     const direction = headroomDirection(a);
     if (direction === 'tight') {
-      s.push(t(locale, 'aiSuggest.headroomTight'));
+      s.push({ text: t(locale, 'aiSuggest.headroomTight'), when: 'nextTime' });
     } else if (direction === 'loose') {
-      s.push(t(locale, 'aiSuggest.headroomLoose'));
+      s.push({ text: t(locale, 'aiSuggest.headroomLoose'), when: 'nextTime' });
     }
     if ((a.ruleOfThirds ?? 0.5) < 0.4) {
-      s.push(t(locale, 'aiSuggest.centered'));
+      s.push({ text: t(locale, 'aiSuggest.centered'), when: 'now', fix: 'crop' });
     }
     const group = a.faceCount > 1;
     const eyesFrac = group ? (a.groupEyesOpenRatio ?? (a.allEyesOpen ? 1 : 0)) : (a.allEyesOpen ? 1 : 0);
     if (eyesFrac < 0.999) {
-      s.push(t(locale, group ? 'aiSuggest.eyesClosedGroup' : 'aiSuggest.eyesClosedSolo'));
+      s.push({ text: t(locale, group ? 'aiSuggest.eyesClosedGroup' : 'aiSuggest.eyesClosedSolo'), when: 'nextTime' });
     }
   } else {
     if (!a.leadingLinesDetected && !a.symmetryDetected) {
-      s.push(t(locale, 'aiSuggest.noLinesOrSymmetry'));
+      s.push({ text: t(locale, 'aiSuggest.noLinesOrSymmetry'), when: 'nextTime' });
     }
     if (a.horizonTiltDeg !== undefined && Math.abs(a.horizonTiltDeg) > 2) {
-      s.push(t(locale, 'aiSuggest.horizonTilt', { deg: Math.abs(a.horizonTiltDeg).toFixed(1) }));
+      s.push({ text: t(locale, 'aiSuggest.horizonTilt', { deg: Math.abs(a.horizonTiltDeg).toFixed(1) }), when: 'now', fix: 'straighten' });
     }
   }
 
   if (a.subjectInFocus === false) {
-    s.push(t(locale, 'aiSuggest.notInFocus'));
+    s.push({ text: t(locale, 'aiSuggest.notInFocus'), when: 'nextTime' });
   }
   if (a.colorHarmonyScore !== undefined && a.colorHarmonyScore < 0.35) {
-    s.push(t(locale, 'aiSuggest.colorHarmony'));
+    s.push({ text: t(locale, 'aiSuggest.colorHarmony'), when: 'now', fix: 'saturation' });
   }
 
   return s.slice(0, MAX_SUGGESTIONS);

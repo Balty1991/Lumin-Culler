@@ -139,38 +139,38 @@ describe('generateSuggestions', () => {
 
   it('flags a blurry photo', () => {
     const suggestions = generateSuggestions(analysis({ sharpness: 20 }));
-    expect(suggestions.some(s => s.includes('stabilizarea') || s.includes('obturatorului'))).toBe(true);
+    expect(suggestions.some(s => s.text.includes('stabilizarea') || s.text.includes('obturatorului'))).toBe(true);
   });
 
   it('nu sugereaza stabilizare pentru un peisaj cu claritate atmosferica moderata (nu genuine blur)', () => {
     const suggestions = generateSuggestions(analysis({ faceCount: 0, sharpness: 40 }));
-    expect(suggestions.some(s => s.includes('stabilizarea') || s.includes('obturatorului'))).toBe(false);
+    expect(suggestions.some(s => s.text.includes('stabilizarea') || s.text.includes('obturatorului'))).toBe(false);
   });
 
   it('tot sugereaza stabilizare pentru un portret cu aceeasi claritate bruta (fara schimbare pentru fete)', () => {
     const suggestions = generateSuggestions(analysis({ faceCount: 1, sharpness: 40 }));
-    expect(suggestions.some(s => s.includes('stabilizarea') || s.includes('obturatorului'))).toBe(true);
+    expect(suggestions.some(s => s.text.includes('stabilizarea') || s.text.includes('obturatorului'))).toBe(true);
   });
 
-  it('flags under- and over-exposure distinctly', () => {
+  it('flags under- and over-exposure distinctly, both as nextTime (no in-app fix at this severity)', () => {
     const under = generateSuggestions(analysis({ exposure: 20 }));
     const over = generateSuggestions(analysis({ exposure: 80 }));
-    expect(under.some(s => s.includes('subexpus'))).toBe(true);
-    expect(over.some(s => s.includes('supraexpus'))).toBe(true);
+    expect(under.some(s => s.text.includes('subexpus') && s.when === 'nextTime')).toBe(true);
+    expect(over.some(s => s.text.includes('supraexpus') && s.when === 'nextTime')).toBe(true);
   });
 
   it('flags closed eyes only when faces are present', () => {
     const noFaces = generateSuggestions(analysis({ faceCount: 0 }));
     const withClosedEyes = generateSuggestions(analysis({ faceCount: 1, allEyesOpen: false }));
-    expect(noFaces.some(s => s.includes('ochii'))).toBe(false);
-    expect(withClosedEyes.some(s => s.includes('ochii inchisi'))).toBe(true);
+    expect(noFaces.some(s => s.text.includes('ochii'))).toBe(false);
+    expect(withClosedEyes.some(s => s.text.includes('ochii inchisi'))).toBe(true);
   });
 
   it('flags missing leading lines/symmetry only for faceless scenes', () => {
     const withFaces = generateSuggestions(analysis({ faceCount: 1, leadingLinesDetected: false, symmetryDetected: false }));
     const faceless = generateSuggestions(analysis({ faceCount: 0, leadingLinesDetected: false, symmetryDetected: false }));
-    expect(withFaces.some(s => s.includes('linii directoare'))).toBe(false);
-    expect(faceless.some(s => s.includes('linii directoare'))).toBe(true);
+    expect(withFaces.some(s => s.text.includes('linii directoare'))).toBe(false);
+    expect(faceless.some(s => s.text.includes('linii directoare'))).toBe(true);
   });
 
   it('caps suggestions at 4, even when many issues apply', () => {
@@ -183,7 +183,29 @@ describe('generateSuggestions', () => {
 
   it('generates suggestions in English when locale is "en"', () => {
     const suggestions = generateSuggestions(analysis({ sharpness: 20 }), 'en');
-    expect(suggestions.some(s => s.toLowerCase().includes('stabilization'))).toBe(true);
+    expect(suggestions.some(s => s.text.toLowerCase().includes('stabilization'))).toBe(true);
+  });
+
+  it('tags fixable-now suggestions with the matching fix, so the "Aplica" button in EditPanel knows what to do', () => {
+    const highlights = generateSuggestions(analysis({ highlightClipping: 0.2 }));
+    expect(highlights.find(s => s.fix === 'highlights')?.when).toBe('now');
+
+    const shadows = generateSuggestions(analysis({ shadowClipping: 0.2 }));
+    expect(shadows.find(s => s.fix === 'shadows')?.when).toBe('now');
+
+    const centered = generateSuggestions(analysis({ faceCount: 1, ruleOfThirds: 0.1 }));
+    expect(centered.find(s => s.fix === 'crop')?.when).toBe('now');
+
+    const tilted = generateSuggestions(analysis({ faceCount: 0, horizonTiltDeg: 6 }));
+    expect(tilted.find(s => s.fix === 'straighten')?.when).toBe('now');
+
+    const dissonant = generateSuggestions(analysis({ colorHarmonyScore: 0.1 }));
+    expect(dissonant.find(s => s.fix === 'saturation')?.when).toBe('now');
+  });
+
+  it('leaves "next time" (shooting-technique) suggestions without a fix, since nothing in-app can apply them', () => {
+    const blurry = generateSuggestions(analysis({ sharpness: 20 }));
+    expect(blurry.every(s => s.when === 'nextTime' ? s.fix === undefined : true)).toBe(true);
   });
 });
 
