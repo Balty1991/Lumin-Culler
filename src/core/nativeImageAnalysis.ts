@@ -1,16 +1,13 @@
 /**
  * core/nativeImageAnalysis.ts
- * Analiza AI nativa (Faza 2) — punte catre plugin-ul Capacitor local
- * ImageAnalysis (vezi android/app/src/main/java/com/luminculler/app/plugins/
- * ImageAnalysisPlugin.kt + ImageMath.kt), port Kotlin 1:1 al matematicii de
+ * Punte catre plugin-ul Capacitor local ImageAnalysis (vezi
+ * android/app/src/main/java/com/luminculler/app/plugins/ImageAnalysisPlugin.kt
+ * + ImageMath.kt), port Kotlin 1:1 al matematicii de
  * compozitie/claritate/expunere/culoare din workers/faceAnalysis.worker.ts.
  *
- * La fel ca nativeFaceDetection.ts (Faza 1): doar dovedeste ca portul
- * functioneaza pe un device real. NU e inca legat de fluxul real de analiza
- * (core/workerPool.ts / AnalysisPool ramane sursa de adevar) — asta vine
- * intr-o faza urmatoare, dupa ce si recunoasterea + etichetele de scena au
- * echivalent nativ (decizia explicita a utilizatorului: nici o trecere
- * partiala pe Android inainte de paritate completa).
+ * LEGAT de fluxul real de analiza — apelat din core/nativeAnalysis.ts
+ * (orchestratorul pipeline-ului nativ), el insusi apelat din
+ * core/workerPool.ts (AnalysisPool) pe Android/Capacitor.
  */
 import { registerPlugin, Capacitor } from '@capacitor/core';
 import { blobToBase64 } from './base64';

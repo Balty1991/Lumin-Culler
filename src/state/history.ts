@@ -3,7 +3,7 @@
  * Stiva de undo pentru deciziile manuale (Selecteaza/Respinge) — functii pure,
  * fara Zustand/Dexie/React, ca sa fie testabile izolat (vezi history.test.ts).
  */
-import type { PhotoRecord } from '../core/db';
+import type { ColorLabel, PhotoRecord } from '../core/db';
 
 export interface HistoryEvent {
   photoId: string;
@@ -43,12 +43,34 @@ export interface BatchHistoryEvent {
 
 export const MAX_BATCH_HISTORY = 5;
 
-export function pushBatchHistory(stack: BatchHistoryEvent[], event: BatchHistoryEvent): BatchHistoryEvent[] {
+/** Generica peste tipul evenimentului (BatchHistoryEvent SAU FieldBatchHistoryEvent mai jos) — ambele au doar nevoie de `ts` pentru sortare/capare. */
+export function pushBatchHistory<T extends { ts: number }>(stack: T[], event: T): T[] {
   const next = [...stack, event];
   return next.length > MAX_BATCH_HISTORY ? next.slice(next.length - MAX_BATCH_HISTORY) : next;
 }
 
-export function popBatchHistory(stack: BatchHistoryEvent[]): { event: BatchHistoryEvent | null; rest: BatchHistoryEvent[] } {
+export function popBatchHistory<T extends { ts: number }>(stack: T[]): { event: T | null; rest: T[] } {
   if (!stack.length) return { event: null, rest: stack };
   return { event: stack[stack.length - 1], rest: stack.slice(0, -1) };
+}
+
+/**
+ * Undo pentru editari in masa pe CAMPURI ALTELE decat status (rating,
+ * eticheta de culoare, descriere/cuvinte cheie override) — bug real gasit de
+ * auditul QA: bulkSetRatingForSelection si surorile ei (store.ts) suprascriau
+ * valorile mai multor poze deodata FARA nicio urma in vreo stiva de undo,
+ * deci Ctrl+Z fie raporta "nimic de anulat", fie (mai rau) anula o alta
+ * actiune neconexa aflata deja pe stiva `batchHistory`, lasand editarea in
+ * masa reala imposibil de revenit. Stiva SEPARATA (nu extindem
+ * BatchHistoryEvent) ca sa nu atingem cele ~7 locuri deja existente care
+ * construiesc evenimente de status prin makeBatchEvent().
+ */
+export type FieldBatchValue = number | ColorLabel | string | string[] | undefined;
+
+export interface FieldBatchHistoryEvent {
+  id: string;
+  label: string;
+  field: 'rating' | 'colorLabel' | 'captionOverride' | 'keywordsOverride';
+  changes: { photoId: string; previousValue: FieldBatchValue }[];
+  ts: number;
 }

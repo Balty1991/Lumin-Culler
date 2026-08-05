@@ -1,14 +1,12 @@
 /**
  * core/nativeFaceDetection.ts
- * Analiza AI nativa (Faza 1) — punte catre plugin-ul Capacitor local
- * FaceDetection (vezi android/app/src/main/java/com/luminculler/app/plugins/
- * FaceDetectionPlugin.kt), care ruleaza Google ML Kit direct pe device
- * (fara WebView/TFJS) in loc de pipeline-ul JS existent.
+ * Punte catre plugin-ul Capacitor local FaceDetection (vezi
+ * android/app/src/main/java/com/luminculler/app/plugins/FaceDetectionPlugin.kt),
+ * care ruleaza Google ML Kit direct pe device (fara WebView/TFJS).
  *
- * Scop DOAR pentru Faza 1: dovedeste ca lantul de unelte functioneaza
- * capat-la-capat pe un device real. NU e inca legat de fluxul real de
- * analiza (core/workerPool.ts / AnalysisPool ramane sursa de adevar) —
- * asta vine intr-o faza urmatoare, dupa validarea acestei fundatii.
+ * LEGAT de fluxul real de analiza — apelat din core/nativeAnalysis.ts
+ * (orchestratorul pipeline-ului nativ), el insusi apelat din
+ * core/workerPool.ts (AnalysisPool) pe Android/Capacitor.
  */
 import { registerPlugin, Capacitor } from '@capacitor/core';
 import { blobToBase64 } from './base64';

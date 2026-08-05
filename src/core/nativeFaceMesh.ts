@@ -13,11 +13,10 @@
  * publica un clasificator de emotie oficial (vezi comentariul din
  * FaceMeshMath.kt pentru motiv).
  *
- * La fel ca celelalte native*.ts (Faza 1-3): doar dovedeste ca portul
- * functioneaza pe un device real. NU e inca legat de fluxul real de analiza —
- * asta vine intr-o faza urmatoare, dupa ce si recunoasterea are echivalent
- * nativ (decizia explicita a utilizatorului: nici o trecere partiala pe
- * Android inainte de paritate completa — momentan blocata, vezi planul).
+ * LEGAT de fluxul real de analiza — apelat din core/nativeAnalysis.ts
+ * (orchestratorul pipeline-ului nativ), el insusi apelat din
+ * core/workerPool.ts (AnalysisPool) pe Android/Capacitor, DOAR cand exista
+ * cel putin o fata detectata (vezi faceMeshGroupStats in nativeAnalysis.ts).
  */
 import { registerPlugin, Capacitor } from '@capacitor/core';
 import { blobToBase64 } from './base64';

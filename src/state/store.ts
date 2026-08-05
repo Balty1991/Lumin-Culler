@@ -27,7 +27,7 @@ import { contextEngine, deriveContextKey, explainFactors } from '../core/learnin
 import { pickBestInGroup } from '../core/groupSelection';
 import {
   pushHistory, popHistory, MAX_HISTORY, type HistoryEvent,
-  pushBatchHistory, popBatchHistory, type BatchHistoryEvent
+  pushBatchHistory, popBatchHistory, type BatchHistoryEvent, type FieldBatchHistoryEvent
 } from './history';
 import { selectBulkRejectTargets, resolveGroups, selectTopPercent, selectHighlights, selectBlinks } from './batchOps';
 import { readStoredTheme, applyTheme, type Theme } from './theme';
@@ -302,6 +302,15 @@ interface AppState {
    * dupa timestamp, deci un singur buton/Ctrl+Z acopera ambele.
    */
   batchHistory: BatchHistoryEvent[];
+  /**
+   * Istoric SEPARAT pentru editari in masa pe campuri ALTELE decat status
+   * (rating/eticheta de culoare/descriere/cuvinte cheie override, vezi
+   * bulkSet*ForSelection mai jos) — stiva proprie (nu extinde
+   * BatchHistoryEvent) ca sa nu atinga formatul deja folosit de cele ~7
+   * actiuni de status existente. `undo()` alege cea mai recenta dintre toate
+   * cele 3 stive dupa timestamp.
+   */
+  fieldBatchHistory: FieldBatchHistoryEvent[];
   /**
    * Selectie in masa in grila — Ctrl/Cmd+Click adauga/scoate o poza, Shift+Click
    * selecteaza un interval fata de ultima poza atinsa cu Ctrl sau Shift, iar cat
@@ -657,6 +666,14 @@ function makeBatchEvent(label: string, changes: { photoId: string; previousStatu
   return { id: crypto.randomUUID(), label, changes, ts: Date.now() };
 }
 
+function makeFieldBatchEvent(
+  label: string,
+  field: FieldBatchHistoryEvent['field'],
+  changes: { photoId: string; previousValue: FieldBatchHistoryEvent['changes'][number]['previousValue'] }[]
+): FieldBatchHistoryEvent {
+  return { id: crypto.randomUUID(), label, field, changes, ts: Date.now() };
+}
+
 /**
  * Pastreaza o referinta la fisierul original doar cat timp poza e SELECTATA —
  * altfel exportul "format original" depinde de un File tinut in memorie care
@@ -901,6 +918,7 @@ export const useStore = create<AppState>((set, get) => ({
   multiSelectAnchor: null,
   selectMode: false,
   batchHistory: [],
+  fieldBatchHistory: [],
   economicMode: readEconomicMode(),
   setEconomicMode: on => {
     writeEconomicMode(on);
@@ -1213,10 +1231,58 @@ export const useStore = create<AppState>((set, get) => ({
    * nu "sterge ce a invatat modelul".
    */
   undo: async () => {
-    const { history, batchHistory, locale } = get();
+    const { history, batchHistory, fieldBatchHistory, locale } = get();
     const lastSingleTs = history.length ? history[history.length - 1].ts : -1;
     const lastBatchTs = batchHistory.length ? batchHistory[batchHistory.length - 1].ts : -1;
-    if (lastSingleTs === -1 && lastBatchTs === -1) { set({ notice: t(locale, 'store.undo.nothing') }); return; }
+    const lastFieldTs = fieldBatchHistory.length ? fieldBatchHistory[fieldBatchHistory.length - 1].ts : -1;
+    if (lastSingleTs === -1 && lastBatchTs === -1 && lastFieldTs === -1) { set({ notice: t(locale, 'store.undo.nothing') }); return; }
+
+    if (lastFieldTs > lastSingleTs && lastFieldTs > lastBatchTs) {
+      const { event, rest } = popBatchHistory(fieldBatchHistory);
+      if (!event) return;
+      set({ fieldBatchHistory: rest });
+      const field = event.field;
+      await Promise.all(event.changes.map(c => {
+        switch (field) {
+          case 'rating': return db.photos.update(c.photoId, { rating: c.previousValue as number });
+          case 'colorLabel': return db.photos.update(c.photoId, { colorLabel: c.previousValue as ColorLabel });
+          case 'captionOverride': return db.photos.update(c.photoId, { captionOverride: c.previousValue as string | undefined });
+          case 'keywordsOverride': return db.photos.update(c.photoId, { keywordsOverride: c.previousValue as string[] | undefined });
+        }
+      }));
+      const changed = new Map(event.changes.map(c => [c.photoId, c.previousValue]));
+      if (field === 'captionOverride' || field === 'keywordsOverride') {
+        // iptcCaption/iptcKeywords in PhotoView cad pe valoarea parsata din
+        // fisier cand nu exista suprascriere (vezi toView) — o revenire la
+        // "fara suprascriere" (previousValue undefined) trebuie sa refaca
+        // exact acel fallback, nu doar sa goleasca afisajul.
+        const ids = event.changes.map(c => c.photoId);
+        const analyses = await db.analyses.bulkGet(ids);
+        const analysisById = new Map(ids.map((id, i) => [id, analyses[i]]));
+        set(state => ({
+          photos: state.photos.map(p => {
+            if (!changed.has(p.id)) return p;
+            const prev = changed.get(p.id);
+            const analysis = analysisById.get(p.id);
+            return field === 'captionOverride'
+              ? { ...p, iptcCaption: (prev as string | undefined) ?? analysis?.iptcCaption }
+              : { ...p, iptcKeywords: (prev as string[] | undefined) ?? analysis?.iptcKeywords };
+          })
+        }));
+      } else {
+        set(state => ({
+          photos: state.photos.map(p => {
+            if (!changed.has(p.id)) return p;
+            const prev = changed.get(p.id);
+            return field === 'rating'
+              ? { ...p, rating: (prev as number | undefined) ?? 0 }
+              : { ...p, colorLabel: prev as ColorLabel | undefined };
+          })
+        }));
+      }
+      set({ notice: t(locale, 'store.undo.batch', { label: event.label, count: event.changes.length }) });
+      return;
+    }
 
     if (lastBatchTs > lastSingleTs) {
       const { event, rest } = popBatchHistory(batchHistory);
@@ -1513,6 +1579,14 @@ export const useStore = create<AppState>((set, get) => ({
     const ids = Array.from(get().multiSelectIds);
     if (!ids.length) return;
     const clamped = Math.max(0, Math.min(5, Math.round(rating)));
+    // Bug real gasit de auditul QA: editarile in masa de mai jos (rating/
+    // eticheta de culoare/descriere/cuvinte cheie) suprascriau valorile FARA
+    // nicio urma de undo — Ctrl+Z fie nu gasea nimic de anulat, fie anula din
+    // greseala o alta actiune neconexa aflata deja pe `batchHistory`.
+    // Capturam valorile ANTERIOARE direct din PhotoRecord (nu din PhotoView
+    // derivat) ca sa le putem scrie identic inapoi la undo().
+    const prevRecords = await db.photos.bulkGet(ids);
+    const changes = ids.map((id, i) => ({ photoId: id, previousValue: prevRecords[i]?.rating ?? 0 }));
     await Promise.all(ids.map(id => db.photos.update(id, { rating: clamped })));
     const idSet = new Set(ids);
     const locale = get().locale;
@@ -1520,6 +1594,10 @@ export const useStore = create<AppState>((set, get) => ({
       photos: state.photos.map(p => (idSet.has(p.id) ? { ...p, rating: clamped } : p)),
       multiSelectIds: new Set(),
       multiSelectAnchor: null,
+      fieldBatchHistory: pushBatchHistory(
+        state.fieldBatchHistory,
+        makeFieldBatchEvent(t(locale, 'store.batchEvent.bulkRating', { count: ids.length }), 'rating', changes)
+      ),
       notice: t(locale, 'store.bulkRating.notice', {
         count: ids.length,
         rating: clamped > 0 ? t(locale, 'store.bulkRating.stars', { n: clamped }) : t(locale, 'store.bulkRating.cleared')
@@ -1530,6 +1608,8 @@ export const useStore = create<AppState>((set, get) => ({
   bulkSetColorLabelForSelection: async label => {
     const ids = Array.from(get().multiSelectIds);
     if (!ids.length) return;
+    const prevRecords = await db.photos.bulkGet(ids);
+    const changes = ids.map((id, i) => ({ photoId: id, previousValue: prevRecords[i]?.colorLabel ?? 'none' as ColorLabel }));
     await Promise.all(ids.map(id => db.photos.update(id, { colorLabel: label })));
     const idSet = new Set(ids);
     const locale = get().locale;
@@ -1537,6 +1617,10 @@ export const useStore = create<AppState>((set, get) => ({
       photos: state.photos.map(p => (idSet.has(p.id) ? { ...p, colorLabel: label } : p)),
       multiSelectIds: new Set(),
       multiSelectAnchor: null,
+      fieldBatchHistory: pushBatchHistory(
+        state.fieldBatchHistory,
+        makeFieldBatchEvent(t(locale, 'store.batchEvent.bulkColorLabel', { count: ids.length }), 'colorLabel', changes)
+      ),
       notice: t(locale, 'store.bulkColorLabel.notice', { count: ids.length, label: t(locale, `colorLabel.${label}`) })
     }));
   },
@@ -1544,6 +1628,8 @@ export const useStore = create<AppState>((set, get) => ({
   bulkSetCaptionForSelection: async caption => {
     const ids = Array.from(get().multiSelectIds);
     if (!ids.length) return;
+    const prevRecords = await db.photos.bulkGet(ids);
+    const changes = ids.map((id, i) => ({ photoId: id, previousValue: prevRecords[i]?.captionOverride }));
     await Promise.all(ids.map(id => db.photos.update(id, { captionOverride: caption })));
     const idSet = new Set(ids);
     const locale = get().locale;
@@ -1551,6 +1637,10 @@ export const useStore = create<AppState>((set, get) => ({
       photos: state.photos.map(p => (idSet.has(p.id) ? { ...p, iptcCaption: caption } : p)),
       multiSelectIds: new Set(),
       multiSelectAnchor: null,
+      fieldBatchHistory: pushBatchHistory(
+        state.fieldBatchHistory,
+        makeFieldBatchEvent(t(locale, 'store.batchEvent.bulkCaption', { count: ids.length }), 'captionOverride', changes)
+      ),
       notice: t(locale, 'store.bulkCaption.notice', { count: ids.length })
     }));
   },
@@ -1558,6 +1648,8 @@ export const useStore = create<AppState>((set, get) => ({
   bulkSetKeywordsForSelection: async keywords => {
     const ids = Array.from(get().multiSelectIds);
     if (!ids.length) return;
+    const prevRecords = await db.photos.bulkGet(ids);
+    const changes = ids.map((id, i) => ({ photoId: id, previousValue: prevRecords[i]?.keywordsOverride }));
     await Promise.all(ids.map(id => db.photos.update(id, { keywordsOverride: keywords })));
     const idSet = new Set(ids);
     const locale = get().locale;
@@ -1565,6 +1657,10 @@ export const useStore = create<AppState>((set, get) => ({
       photos: state.photos.map(p => (idSet.has(p.id) ? { ...p, iptcKeywords: keywords } : p)),
       multiSelectIds: new Set(),
       multiSelectAnchor: null,
+      fieldBatchHistory: pushBatchHistory(
+        state.fieldBatchHistory,
+        makeFieldBatchEvent(t(locale, 'store.batchEvent.bulkKeywords', { count: ids.length }), 'keywordsOverride', changes)
+      ),
       notice: t(locale, 'store.bulkKeywords.notice', { count: ids.length })
     }));
   },
@@ -1852,9 +1948,18 @@ export const useStore = create<AppState>((set, get) => ({
     // un folder ca "Poze pentru Instagram" e legat de continutul concret al
     // acelei sesiuni, nu o taxonomie menita sa supravietuiasca peste sedinte
     // foto complet nelegate viitoare.
+    // Bug real gasit de auditul QA: multiSelectIds/multiSelectAnchor/selectMode
+    // ramaneau nesterse aici — bara de selectie in masa continua sa arate "N
+    // selectate" peste o grila goala, iar orice actiune din ea devenea un
+    // no-op tacut (db.photos.update pe un id inexistent nu arunca eroare in
+    // Dexie). batchHistory/fieldBatchHistory raman de asemenea neatinse pe
+    // varianta veche — un Ctrl+Z ulterior ar fi aratat un mesaj "revenit lot
+    // X" fara niciun efect, referindu-se la poze care nu mai exista.
     set({
       photos: [], collections: [], collectionFilter: null,
-      detailId: null, compareGroupId: null, editingPhotoId: null, history: []
+      detailId: null, compareGroupId: null, editingPhotoId: null, history: [],
+      batchHistory: [], fieldBatchHistory: [],
+      multiSelectIds: new Set(), multiSelectAnchor: null, selectMode: false
     });
   },
 
@@ -1871,7 +1976,9 @@ export const useStore = create<AppState>((set, get) => ({
     await analysisPool.setKnownPersons([]).catch(() => {});
     set({
       photos: [], persons: [], collections: [], collectionFilter: null,
-      detailId: null, compareGroupId: null, editingPhotoId: null, history: [], batchHistory: []
+      detailId: null, compareGroupId: null, editingPhotoId: null, history: [],
+      batchHistory: [], fieldBatchHistory: [],
+      multiSelectIds: new Set(), multiSelectAnchor: null, selectMode: false
     });
   },
 

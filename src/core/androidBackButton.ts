@@ -31,9 +31,15 @@ export function initAndroidBackButton(): () => void {
     if (s.projectsOpen) { s.setProjectsOpen(false); return; }
     if (s.contactSheetOpen) { s.setContactSheetOpen(false); return; }
     if (s.presentationOpen) { s.setPresentationOpen(false); return; }
+    if (s.collectionsOpen) { s.setCollectionsOpen(false); return; }
     if (s.editingPhotoId) { s.openEdit(null); return; }
     if (s.compareGroupId) { s.openCompare(null); return; }
     if (s.detailId) { s.openDetail(null); return; }
+    // Bug real gasit de auditul QA: Workspace (modul de review dedicat, intrat
+    // frecvent din "Quick Review"/butonul Focus) nu era verificat aici — cu
+    // niciun alt panou deschis, "inapoi" iesea direct din aplicatie in loc sa
+    // revina la grila, desi Workspace are propriul buton explicit "inapoi".
+    if (s.workspaceMode) { s.setWorkspaceMode(false); return; }
     if (s.multiSelectIds.size || s.selectMode) { s.setSelectMode(false); return; }
     void CapacitorApp.exitApp();
   });

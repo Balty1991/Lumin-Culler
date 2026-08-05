@@ -12,13 +12,12 @@ import com.google.mlkit.vision.face.FaceDetection
 import com.google.mlkit.vision.face.FaceDetectorOptions
 
 /**
- * Analiza AI nativa (Faza 1) — detectie de fete cu Google ML Kit (rulare 100%
- * pe device, model impachetat direct in APK, fara Play Services necesar la
- * runtime pentru descarcarea modelului). Scop: doar sa dovedeasca lantul de
- * unelte (Kotlin + plugin Capacitor + ML Kit) functioneaza pe un device real,
- * NU inca inlocuirea reala a pipeline-ului de analiza (vezi
- * src/core/workerPool.ts / faceAnalysis.worker.ts pe partea JS — acelea raman
- * neschimbate pana la o faza urmatoare).
+ * Detectie de fete cu Google ML Kit (rulare 100% pe device, model impachetat
+ * direct in APK, fara Play Services necesar la runtime pentru descarcarea
+ * modelului). Apelat din src/core/nativeAnalysis.ts (orchestratorul
+ * pipeline-ului de analiza pe Android), el insusi apelat din
+ * src/core/workerPool.ts (AnalysisPool) — inlocuieste efectiv
+ * faceAnalysis.worker.ts pe aceasta platforma.
  *
  * "detectFaces" primeste o imagine base64 (bridge-ul Capacitor duce doar JSON,
  * un Blob nu poate trece direct) — pentru poze la rezolutie completa, o faza

@@ -74,23 +74,43 @@ jobs:
       # doua modele MediaPipe oficiale (Google AI Edge, CC-BY-4.0/Apache 2.0),
       # NU committed in git — descarcate direct (nu arhive, spre deosebire de
       # modelul COCO de mai sus).
+      # Bug real gasit de auditul QA: `curl -sL` fara `-f` intoarce exit code 0
+      # chiar si pe un raspuns HTTP de eroare (404/5xx) — corpul acelui raspuns
+      # (de obicei o pagina HTML de eroare) se scria totusi in fisierul .task/
+      # .tflite, iar buildul Gradle care urmeaza nu are niciun motiv sa esueze
+      # (nu valideaza continutul modelelor). Rezultatul: un AAB/APK "verde" in
+      # CI care contine un model corupt — orice poza cu fata detectata pica
+      # silentios la analiza (vezi FaceMeshPlugin.kt, apelat necondtionat
+      # pentru fiecare fata din nativeAnalysis.ts). `-f` face curl sa esueze
+      # zgomotos pe orice status HTTP de eroare; verificarea marimii minime
+      # prinde in plus un fisier trunchiat/gol care ar fi trecut de `-f`.
       - name: Bundle native face-mesh and image-classifier models
         run: |
-          curl -sL -o android/app/src/main/assets/face_landmarker.task https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task
-          curl -sL -o android/app/src/main/assets/efficientnet_lite0.tflite https://storage.googleapis.com/mediapipe-models/image_classifier/efficientnet_lite0/float32/1/efficientnet_lite0.tflite
+          curl -fL -o android/app/src/main/assets/face_landmarker.task https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task
+          curl -fL -o android/app/src/main/assets/efficientnet_lite0.tflite https://storage.googleapis.com/mediapipe-models/image_classifier/efficientnet_lite0/float32/1/efficientnet_lite0.tflite
+          for f in face_landmarker.task efficientnet_lite0.tflite; do
+            size=$(stat -c%s "android/app/src/main/assets/$f")
+            if [ "$size" -lt 100000 ]; then echo "::error::$f are doar $size octeti — descarcare esuata/trunchiata" && exit 1; fi
+          done
       # Analiza AI nativa (Faza 5 — vezi plugins/PoseDetectionPlugin.kt / SegmentationPlugin.kt):
       # doua modele MediaPipe oficiale in plus (pose lite + segmentare selfie
       # multiclasa), NU committed in git. TextRecognitionPlugin.kt nu are nevoie
       # de pas separat — modelul lui e bundle-uit direct in dependinta ML Kit.
       - name: Bundle native pose and segmentation models
         run: |
-          curl -sL -o android/app/src/main/assets/pose_landmarker_lite.task https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task
-          curl -sL -o android/app/src/main/assets/selfie_multiclass.tflite https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/latest/selfie_multiclass_256x256.tflite
+          curl -fL -o android/app/src/main/assets/pose_landmarker_lite.task https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task
+          curl -fL -o android/app/src/main/assets/selfie_multiclass.tflite https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/latest/selfie_multiclass_256x256.tflite
+          for f in pose_landmarker_lite.task selfie_multiclass.tflite; do
+            size=$(stat -c%s "android/app/src/main/assets/$f")
+            if [ "$size" -lt 100000 ]; then echo "::error::$f are doar $size octeti — descarcare esuata/trunchiata" && exit 1; fi
+          done
       # Analiza AI nativa (Faza 6 — vezi plugins/ImageEmbedderPlugin.kt): embedding
       # general de similaritate vizuala (MediaPipe, MobileNetV3-small), NU committed in git.
       - name: Bundle native image-embedder model
         run: |
-          curl -sL -o android/app/src/main/assets/mobilenet_v3_small.tflite https://storage.googleapis.com/mediapipe-models/image_embedder/mobilenet_v3_small/float32/1/mobilenet_v3_small.tflite
+          curl -fL -o android/app/src/main/assets/mobilenet_v3_small.tflite https://storage.googleapis.com/mediapipe-models/image_embedder/mobilenet_v3_small/float32/1/mobilenet_v3_small.tflite
+          size=$(stat -c%s android/app/src/main/assets/mobilenet_v3_small.tflite)
+          if [ "$size" -lt 100000 ]; then echo "::error::mobilenet_v3_small.tflite are doar $size octeti — descarcare esuata/trunchiata" && exit 1; fi
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:

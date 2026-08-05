@@ -39,7 +39,12 @@ export function MoreFiltersMenu({ active, badgeCount, children }: Props) {
       // pur si simplu din josul ecranului, fara nicio cale sa vezi restul
       // (bug real raportat de utilizator). Acelasi calcul ca la dropdown-urile
       // nested din interior (vezi dropdownPosition.ts).
-      if (rect) setMenuPos({ ...computeMenuPosition(rect, 10, 200), left: Math.min(rect.left, window.innerWidth - 336) });
+      // Bug real gasit de auditul QA: pe un viewport mai ingust de 336px,
+      // `window.innerWidth - 336` devine negativ si castiga mereu Math.min,
+      // impingand panoul in afara ecranului spre stanga INDIFERENT de unde
+      // se afla efectiv butonul — un Math.max(margin, ...) opreste clamp-ul
+      // sa treaca sub marginea vizibila a ecranului.
+      if (rect) setMenuPos({ ...computeMenuPosition(rect, 10, 200), left: Math.max(10, Math.min(rect.left, window.innerWidth - 336)) });
     }
     setOpen(v => !v);
   };

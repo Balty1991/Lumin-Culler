@@ -22,7 +22,18 @@ export interface GroupResolution {
   rejectIds: string[];
 }
 
-/** Pentru fiecare serie (groupId), poza cu scorul cel mai mare ramane, restul se resping. */
+/**
+ * Pentru fiecare serie (groupId), poza cu scorul cel mai mare ramane, restul
+ * se resping — CU EXCEPTIA cand un membru e deja SELECTAT manual: acea poza
+ * ramane "keep" (nu recalculam dupa aiScore), la fel ca invariantul din
+ * selectBulkRejectTargets/selectTopPercent ("o decizie manuala nu e niciodata
+ * suprascrisa de o actiune in masa"). Orice alt membru deja decis manual
+ * (SELECTAT sau RESPINS) ramane neatins in rejectIds — bug real gasit de
+ * auditul QA: varianta veche recalcula "best" pur dupa aiScore si respingea
+ * necondtionat restul, putand suprascrie o alegere manuala facuta anterior in
+ * afara acestei actiuni (ex. utilizatorul a preferat manual un cadru cu un
+ * scor AI mai mic, dar o expresie mai buna).
+ */
 export function resolveGroups(photos: PhotoView[]): GroupResolution[] {
   const groups = new Map<string, PhotoView[]>();
   for (const p of photos) {
@@ -31,8 +42,13 @@ export function resolveGroups(photos: PhotoView[]): GroupResolution[] {
     if (arr) arr.push(p); else groups.set(p.groupId, [p]);
   }
   return Array.from(groups.entries()).map(([groupId, members]) => {
-    const best = members.reduce((a, b) => (a.aiScore >= b.aiScore ? a : b));
-    return { groupId, keepId: best.id, rejectIds: members.filter(m => m.id !== best.id).map(m => m.id) };
+    const manuallySelected = members.filter(m => m.status === 'selected');
+    const keep = (manuallySelected.length ? manuallySelected : members)
+      .reduce((a, b) => (a.aiScore >= b.aiScore ? a : b));
+    const rejectIds = members
+      .filter(m => m.id !== keep.id && m.status !== 'selected' && m.status !== 'rejected')
+      .map(m => m.id);
+    return { groupId, keepId: keep.id, rejectIds };
   });
 }
 

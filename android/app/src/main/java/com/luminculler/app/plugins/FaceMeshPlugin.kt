@@ -19,11 +19,10 @@ private const val MODEL_FILE = "face_landmarker.task"
 private const val MAX_FACES = 15
 
 /**
- * Analiza AI nativa (Faza 4) — semnale fine de fata (zambet autentic/emotie
- * aproximata/contact vizual), port catre MediaPipe Face Landmarker + formulele
- * din FaceMeshMath.kt. La fel ca celelalte plugin-uri (Faza 1-3): dovedeste ca
- * portul functioneaza pe un device real, ramane dormant, accesibil doar din
- * hook-ul de test din DEV.
+ * Semnale fine de fata (zambet autentic/emotie aproximata/contact vizual),
+ * port catre MediaPipe Face Landmarker + formulele din FaceMeshMath.kt.
+ * Apelat din src/core/nativeAnalysis.ts (orchestratorul pipeline-ului de
+ * analiza pe Android), doar cand exista cel putin o fata detectata.
  */
 @CapacitorPlugin(name = "FaceMesh")
 class FaceMeshPlugin : Plugin() {
