@@ -10,6 +10,7 @@ import com.luminculler.app.plugins.ImageClassifierPlugin;
 import com.luminculler.app.plugins.TextRecognitionPlugin;
 import com.luminculler.app.plugins.PoseDetectionPlugin;
 import com.luminculler.app.plugins.SegmentationPlugin;
+import com.luminculler.app.plugins.ImageEmbedderPlugin;
 
 public class MainActivity extends BridgeActivity {
     @Override
@@ -18,7 +19,7 @@ public class MainActivity extends BridgeActivity {
         // nu sunt descoperite automat de Capacitor — trebuie inregistrate explicit aici,
         // inainte de super.onCreate(). Vezi plugins/FaceDetectionPlugin.kt / ImageAnalysisPlugin.kt /
         // ObjectDetectionPlugin.kt / FaceMeshPlugin.kt / ImageClassifierPlugin.kt /
-        // TextRecognitionPlugin.kt / PoseDetectionPlugin.kt / SegmentationPlugin.kt.
+        // TextRecognitionPlugin.kt / PoseDetectionPlugin.kt / SegmentationPlugin.kt / ImageEmbedderPlugin.kt.
         registerPlugin(FaceDetectionPlugin.class);
         registerPlugin(ImageAnalysisPlugin.class);
         registerPlugin(ObjectDetectionPlugin.class);
@@ -27,6 +28,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(TextRecognitionPlugin.class);
         registerPlugin(PoseDetectionPlugin.class);
         registerPlugin(SegmentationPlugin.class);
+        registerPlugin(ImageEmbedderPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

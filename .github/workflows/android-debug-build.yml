@@ -82,6 +82,11 @@ jobs:
         run: |
           curl -sL -o android/app/src/main/assets/pose_landmarker_lite.task https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task
           curl -sL -o android/app/src/main/assets/selfie_multiclass.tflite https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/latest/selfie_multiclass_256x256.tflite
+      # Analiza AI nativa (Faza 6 — vezi plugins/ImageEmbedderPlugin.kt): embedding
+      # general de similaritate vizuala (MediaPipe, MobileNetV3-small), NU committed in git.
+      - name: Bundle native image-embedder model
+        run: |
+          curl -sL -o android/app/src/main/assets/mobilenet_v3_small.tflite https://storage.googleapis.com/mediapipe-models/image_embedder/mobilenet_v3_small/float32/1/mobilenet_v3_small.tflite
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:

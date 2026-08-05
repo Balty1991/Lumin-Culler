@@ -114,3 +114,7 @@ app/src/main/assets/efficientnet_lite0.tflite
 # descarcate de CI la build (~5.8MB + ~16.4MB), niciodata committed
 app/src/main/assets/pose_landmarker_lite.task
 app/src/main/assets/selfie_multiclass.tflite
+
+# Model MediaPipe nativ (Faza 6, ImageEmbedderPlugin.kt) —
+# descarcat de CI la build (~4.1MB), niciodata committed
+app/src/main/assets/mobilenet_v3_small.tflite

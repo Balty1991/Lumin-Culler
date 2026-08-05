@@ -19,6 +19,7 @@ import { classifyImageNative, isNativeImageClassifierAvailable } from '../core/n
 import { detectTextNative, isNativeTextRecognitionAvailable } from '../core/nativeTextRecognition';
 import { detectPoseNative, isNativePoseDetectionAvailable } from '../core/nativePoseDetection';
 import { segmentSubjectNative, isNativeSegmentationAvailable } from '../core/nativeSegmentation';
+import { embedImageNative, isNativeImageEmbedderAvailable } from '../core/nativeImageEmbedder';
 import { t } from '../i18n';
 
 /** Meniu lateral: persoane, preferinte AI invatate, export lista, despre. */
@@ -79,7 +80,7 @@ export function MenuDrawer() {
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const go = (action: () => void) => { setOpen(false); action(); };
 
-  // TEMPORAR (Faza 1-5, analiza AI nativa) — doar ca sa poata fi testat direct pe
+  // TEMPORAR (Faza 1-6, analiza AI nativa) — doar ca sa poata fi testat direct pe
   // device, fara Chrome DevTools/USB. De eliminat cand pipeline-ul nativ chiar
   // inlocuieste analiza reala (vezi core/native*.ts — cate un modul per plugin).
   // import.meta.env.DEV e eliminat static din build-ul de productie (Vite),
@@ -94,13 +95,14 @@ export function MenuDrawer() {
       Promise.all([
         detectFacesNative(file), analyzeImageNative(file), detectObjectsNative(file),
         analyzeFaceMeshNative(file), classifyImageNative(file),
-        detectTextNative(file), detectPoseNative(file), segmentSubjectNative(file)
+        detectTextNative(file), detectPoseNative(file), segmentSubjectNative(file),
+        embedImageNative(file)
       ])
-        .then(([faces, analysis, objects, faceMesh, labels, text, pose, segmentation]) =>
+        .then(([faces, analysis, objects, faceMesh, labels, text, pose, segmentation, embedding]) =>
           setNotice(
             `Native OK: ${faces.faces.length} fete, ${objects.objects.length} obiecte, ` +
             `${pose.people.length} persoane (postura), text ${Math.round(text.textCoverage * 100)}%, ` +
-            `persoana ${Math.round(segmentation.personCoverage * 100)}% din cadru. ` +
+            `persoana ${Math.round(segmentation.personCoverage * 100)}% din cadru, embedding ${embedding.embedding.length} dim. ` +
             `${JSON.stringify(analysis)} ${JSON.stringify(objects)} ${JSON.stringify(faceMesh)} ${JSON.stringify(labels)} ${JSON.stringify(text)}`
           )
         )
@@ -336,7 +338,8 @@ export function MenuDrawer() {
 
         {import.meta.env.DEV && isNativeFaceDetectionAvailable() && isNativeImageAnalysisAvailable() &&
           isNativeObjectDetectionAvailable() && isNativeFaceMeshAvailable() && isNativeImageClassifierAvailable() &&
-          isNativeTextRecognitionAvailable() && isNativePoseDetectionAvailable() && isNativeSegmentationAvailable() && (
+          isNativeTextRecognitionAvailable() && isNativePoseDetectionAvailable() && isNativeSegmentationAvailable() &&
+          isNativeImageEmbedderAvailable() && (
           <button className="drawer-item" onClick={() => go(testNativeFaceDetection)}>
             <span className="drawer-item-icon"><SparkleIcon /></span>
             <span>[DEV] Test detectie nativa</span>
