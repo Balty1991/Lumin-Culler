@@ -21,6 +21,7 @@ import { reacquireFile } from './filePicker';
 import { buildExportFileName, type RenameContext } from './renameTemplate';
 import { applyAdjustmentsToBlob, isNeutral, type EditAdjustments } from './imageAdjust';
 import { RAW_EXTENSIONS } from './rawDecoder';
+import { translateSceneTag, pickFolderSceneTag } from './sceneTagLabels';
 
 export interface ExportResult {
   exported: number;
@@ -37,6 +38,8 @@ export interface ExportPhotoInput {
   faceCount: number;
   strangerCount: number;
   sceneType: string;
+  /** Etichete de scena/obiect (COCO-80 sau ML Kit Image Labeling, engleza) — folosite DOAR ca fallback de folder cand nu exista nicio fata (vezi folderLabel). */
+  sceneTags?: string[];
   /**
    * Campuri folosite DOAR de redenumirea dupa sablon (renameTemplate mai jos),
    * absente => token-ul corespunzator devine gol la expansiune. client/event/
@@ -55,14 +58,17 @@ export interface ExportPhotoInput {
 export interface ExportOptions {
   /** Sablon de redenumire (vezi core/renameTemplate.ts) — gol/absent pastreaza numele original, neschimbat. */
   renameTemplate?: string;
+  /** Limba pentru numele de folder derivate din etichete de scena (vezi folderLabel) — implicit romana. */
+  locale?: 'ro' | 'en';
 }
 
 // ── Grupare pe foldere: persoane cunoscute (si combinatii), apoi scena ─────
 // Ex: "Ami" / "Ami si eu" / "Ami, eu si sotia" / "Ami si altii" (cunoscuti +
-// straini) / "Necunoscuti" (doar straini) / "Peisaje" / "Detalii" (fara fete,
-// cadru apropiat). NU include o categorie "Animale" — ar necesita un detector
-// de obiecte separat (dezactivat momentan), nu doar recunoasterea de fete
-// deja existenta; nu e simulat aici.
+// straini) / "Necunoscuti" (doar straini) / o categorie derivata din eticheta
+// de scena/obiect (ex. "Parc", "Plaja", "Pisici" — vezi pickFolderSceneTag,
+// disponibil acum ca detectia de obiecte/scena e legata in fluxul real de
+// analiza, spre deosebire de cand a fost scrisa nota initiala de mai jos) /
+// "Peisaje" / "Detalii" (fallback, fara fete si fara nicio eticheta concreta).
 const ILLEGAL_PATH_CHARS = /[\\/:*?"<>|]/g;
 
 function sanitizeSegment(s: string): string {
@@ -98,7 +104,17 @@ export function computeGroupPersonUnion(allPhotos: { groupId?: string; personNam
   return result;
 }
 
-export function folderLabel(p: { personNames: string[]; faceCount: number; strangerCount: number; sceneType: string }): string {
+/**
+ * Ordinea de prioritate ramane persoane > fete necunoscute > eticheta de
+ * scena/obiect > peisaj > generic: un chip/fata (chiar nerecunoscuta) e
+ * semnalul mai puternic pentru o aplicatie axata pe poze de oameni, deci
+ * ramane inaintea categoriilor derivate din scena (pickFolderSceneTag NU e
+ * verificat deloc daca exista vreo fata in poza).
+ */
+export function folderLabel(
+  p: { personNames: string[]; faceCount: number; strangerCount: number; sceneType: string; sceneTags?: string[] },
+  locale: 'ro' | 'en' = 'ro'
+): string {
   if (p.personNames.length > 0) {
     const names = [...p.personNames].sort((a, b) => a.localeCompare(b, 'ro'));
     const base = names.length === 1 ? names[0]
@@ -107,6 +123,11 @@ export function folderLabel(p: { personNames: string[]; faceCount: number; stran
     return sanitizeSegment(p.strangerCount > 0 ? `${base} și alții` : base);
   }
   if (p.faceCount > 0) return 'Necunoscuți';
+  const sceneTag = pickFolderSceneTag(p.sceneTags);
+  if (sceneTag) {
+    const label = translateSceneTag(sceneTag, locale);
+    return sanitizeSegment(label.charAt(0).toUpperCase() + label.slice(1));
+  }
   if (p.sceneType === 'landscape') return 'Peisaje';
   return 'Detalii';
 }
@@ -164,7 +185,7 @@ async function copyToDirectory(files: { name: string; file: File; folder: string
  * prefix), nu e o pierdere daca browserul nu suporta subfoldere.
  */
 export async function exportOriginalFiles(photos: ExportPhotoInput[], options: ExportOptions = {}): Promise<ExportResult> {
-  const { renameTemplate } = options;
+  const { renameTemplate, locale = 'ro' } = options;
   let sequence = 0;
   const nameFor = (p: ExportPhotoInput): string => {
     sequence += 1;
@@ -206,7 +227,7 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[], options: E
   const available: { name: string; file: File; folder: string }[] = [];
   const missing: string[] = [];
   for (const p of photos) {
-    const folder = folderLabel(p);
+    const folder = folderLabel(p, locale);
     const inMemory = originalFiles.get(p.id);
     if (inMemory) {
       available.push({ ...await exportName(p, inMemory, folder), folder });

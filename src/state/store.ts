@@ -1791,6 +1791,7 @@ export const useStore = create<AppState>((set, get) => ({
       // unim persoanele recunoscute pe toata seria, ca folderul de export
       // sa reflecte cine e cu-adevarat in poza, nu doar ce a prins acel cadru.
       const groupUnion = computeGroupPersonUnion(allPhotos);
+      const locale = get().locale;
       const result = await exportOriginalFiles(selected.map(p => {
         const meta = p.project ? getProjectMetadata(p.project) : {};
         return {
@@ -1800,15 +1801,15 @@ export const useStore = create<AppState>((set, get) => ({
           faceCount: p.faceCount,
           strangerCount: p.strangerCount,
           sceneType: p.sceneType,
+          sceneTags: p.sceneTags,
           capturedAt: p.capturedAt,
           client: meta.client,
           event: meta.event,
           location: meta.location,
           edits: p.edits
         };
-      }), { renameTemplate: get().renameTemplate });
+      }), { renameTemplate: get().renameTemplate, locale });
       if (result.cancelled) return;
-      const locale = get().locale;
       const parts = [
         result.exported
           ? t(locale,

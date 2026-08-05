@@ -232,6 +232,51 @@ export function translateSceneTag(tag: string, locale: 'ro' | 'en'): string {
 }
 
 /**
+ * Etichete utile pentru traducere/cautare, dar care ar face nume de folder
+ * proaste la exportul organizat pe categorii (core/exportPhotos.ts,
+ * folderLabel): expresii, poze/gesturi, imbracaminte, anatomie, materiale si
+ * concepte abstracte nu spun nimic despre SUBIECTUL fizic al pozei — un
+ * folder numit "Distractie" sau "Material textil" e mult mai putin util
+ * decat "Parc", "Plaja" sau "Pisici". Lista corespunde exact sectiunilor
+ * marcate mai sus in SCENE_TAG_LABELS_RO (COCO-80 si categoriile de
+ * natura/cladiri/vehicule/animale/mancare/evenimente ramase AFARA din lista
+ * de mai jos sunt considerate subiecte concrete, deci folosibile).
+ */
+const NON_FOLDER_SCENE_TAGS = new Set<string>([
+  'selfie', 'photograph', 'snapshot', 'photography', 'vacation', 'fun', 'leisure', 'recreation',
+  'interaction', 'smile', 'facial expression', 'happy', 'eyewear', 'glasses', 'skin', 'hairstyle',
+  'beard', 'human body', 'muscle', 'gesture', 'standing', 'sitting', 'walking', 'running',
+  't-shirt', 'shirt', 'shorts', 'jeans', 'dress', 'jacket', 'coat', 'hat', 'cap', 'shoe', 'sneakers',
+  'clothing', 'fashion', 'sportswear', 'uniform', 'baby', 'child', 'toddler', 'family', 'friendship',
+  'team', 'crowd', 'group', 'people', 'portrait',
+  'forehead', 'chin', 'cheek', 'nose', 'eyebrow', 'eyelash', 'jaw', 'neck', 'ear', 'lip', 'tooth',
+  'facial hair', 'mustache', 'long hair', 'blond hair', 'black hair', 'wrinkle', 'headgear',
+  'sunglasses', 'earrings', 'necklace', 'jewellery', 'ring', 'bracelet', 'watch', 'makeup',
+  'formal wear', 'suit', 'blazer', 'sweater', 'hoodie', 'scarf', 'glove', 'sock', 'belt', 'boot',
+  'sandal', 'high heels', 'swimwear', 'bikini', 'costume', 'wedding dress', 'pajamas',
+  'jumping', 'dancing', 'singing', 'laughing', 'crying', 'kissing', 'hugging', 'waving', 'posing',
+  'sleeping', 'eating', 'drinking', 'reading', 'writing', 'playing',
+  'pattern', 'texture', 'wood', 'metal', 'glass', 'plastic', 'fabric', 'textile', 'leather', 'silk',
+  'cotton', 'wool', 'denim', 'lace',
+  'love', 'romance', 'adventure', 'freedom', 'meditation', 'yoga', 'wellness', 'health', 'medicine',
+  'education', 'learning', 'business', 'work', 'meeting', 'conference', 'teamwork', 'success',
+  'number', 'letter', 'symbol', 'icon', 'emblem', 'badge', 'stamp', 'coin', 'currency', 'map',
+  'chart', 'graph', 'diagram', 'calendar', 'newspaper', 'magazine',
+  'font', 'logo', 'product', 'electronics', 'technology'
+]);
+
+/**
+ * Prima eticheta de scena FOLOSIBILA ca nume de folder (vezi
+ * NON_FOLDER_SCENE_TAGS mai sus) — etichetele vin deja sortate descrescator
+ * dupa incredere (CenterNet/ML Kit, vezi header-ul fisierului), deci prima
+ * potrivire ramane si cea mai relevanta. Absent = nicio eticheta concreta
+ * disponibila (lista goala sau doar concepte abstracte).
+ */
+export function pickFolderSceneTag(tags: string[] | undefined): string | undefined {
+  return tags?.find(t => !NON_FOLDER_SCENE_TAGS.has(t.toLowerCase()));
+}
+
+/**
  * Fara diacritice + minuscule — utilizatorii scriu des "pisica" in loc de
  * "pisică" (tastatura fara diacritice e larg raspandita), asa ca normalizam
  * AMBELE parti (interogare si tinta) inainte de comparatie, altfel cautarea
