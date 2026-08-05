@@ -42,12 +42,12 @@ describe('HashCompareService.groupPhotos', () => {
 
   it('alege primul bucket creat cand o poza e la distanta buna de mai multe grupuri existente (tie-break identic cu varianta liniara)', async () => {
     const service = new HashCompareService();
-    // 'x' devine seed-ul primului grup, 'y' al doilea (distanta 10 fata de 'x' —
-    // peste prag, deci bucket separat) — 'z' e la distanta 5 fata de AMBELE
+    // 'x' devine seed-ul primului grup, 'y' al doilea (distanta 20 fata de 'x' —
+    // peste prag, deci bucket separat) — 'z' e la distanta 10 fata de AMBELE
     // seed-uri (sub prag), deci trebuie sa se alature primului bucket creat ('x').
     const seedX = '0'.repeat(64);
-    const seedY = '1'.repeat(10) + '0'.repeat(54);
-    const z = '1'.repeat(5) + '0'.repeat(59);
+    const seedY = '1'.repeat(20) + '0'.repeat(44);
+    const z = '1'.repeat(10) + '0'.repeat(54);
 
     const photos: HashInput[] = [photo('x', seedX), photo('y', seedY), photo('z', z)];
     const { groups, totalGroups } = await service.groupPhotos(photos);

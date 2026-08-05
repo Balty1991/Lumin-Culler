@@ -50,11 +50,20 @@ export interface GroupResult {
 
 const CHUNK_SIZE = 50;
 /**
- * Acelasi prag deja calibrat in importPipeline.ts (DHASH_DISTANCE) — pe un
- * dHash de 64 biti, 8 inseamna ~12% diferenta, suficient de strans pentru
- * cadre din aceeasi rafala fara sa grupeze poze vizibil diferite intre ele.
+ * Ridicat de la 8 la 14 dupa feedback direct pe device real: mai multe serii
+ * evidente (acelasi cadru/fundal, subiect uman in miscare intre poze — copil
+ * alergand/schimband pozitia bratelor pe un echipament de joaca, poze cu
+ * pisica) NU erau detectate deloc ("Serii: 0" desi vizibil existau).
+ * dHash-ul (gradient de luminanta pe grila 9x8) e sensibil la cat de mult
+ * din cadru ocupa un subiect care se misca intre cadre consecutive — poze
+ * facute din mana, la cateva secunde distanta (nu rafala reala cu cadru
+ * blocat) pot depasi usor un prag de 8/64 (~12%), desi sunt clar aceeasi
+ * serie pentru orice om care se uita la ele. 14/64 (~22%) ramane sub praguri
+ * mult mai permisive folosite in alte instrumente de deduplicare, iar
+ * riscul de fals-pozitiv (compozitie similara, subiecti diferiti) e acoperit
+ * in continuare de refineBucket() mai jos (fete/compozitie/armonie culori).
  */
-const SIMILARITY_THRESHOLD = 8;
+const SIMILARITY_THRESHOLD = 14;
 
 function hammingDistance(a: string, b: string): number {
   let d = 0;
