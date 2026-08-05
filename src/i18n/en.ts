@@ -187,6 +187,7 @@ export const en: Record<TranslationKey, string> = {
   'app.filters.ariaLabel': 'Filters',
   'app.moreFilters.ariaLabel': 'More filters',
   'app.moreFilters.title': 'More filters',
+  'app.clearAllFilters': 'Clear all active filters',
   'colorLabel.none': 'No label',
   'colorLabel.red': 'Red',
   'colorLabel.yellow': 'Yellow',
@@ -578,7 +579,10 @@ export const en: Record<TranslationKey, string> = {
   'collections.confirmDelete': 'Delete folder "{name}"? The photos in it are untouched, only the folder disappears.',
   'collections.addToFolder': 'Add to folder',
   'collections.showOnly': 'Show only this folder',
+  'collections.clearFilter': 'Clear the current folder filter',
   'collections.photoCount': '{count} photos',
+  'collections.export': 'Export',
+  'collections.export.empty': 'This folder is empty — nothing to export.',
 
   'store.state.activated': 'Economic mode enabled',
   'store.state.deactivated': 'Economic mode disabled',

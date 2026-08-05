@@ -387,3 +387,59 @@ describe('bulkRejectBelow (integration, Dexie real via fake-indexeddb)', () => {
     recordCorrectionSpy.mockRestore();
   });
 });
+
+// Cerinta directa a utilizatorului: un singur buton care sa anuleze TOATE
+// filtrele combinabile deodata (persoana/eticheta/scena/aparat/proiect/folder/
+// cautare/data/rating), fara sa fie nevoie sa stii care era activ ca sa-l
+// re-selectezi din propriul lui panou.
+describe('clearAllFilters', () => {
+  it('reseteaza toate filtrele combinabile, dar NU atinge filtrul principal de status', () => {
+    useStore.setState({
+      filter: 'selected',
+      personFilter: 'Ami',
+      colorLabelFilter: 'red',
+      sceneTagFilter: 'dog',
+      cameraFilter: 'Canon EOS R5',
+      projectFilter: 'Nunta',
+      collectionFilter: 'col-1',
+      searchText: 'plaja',
+      dateFrom: 1000,
+      dateTo: 2000,
+      minRating: 3
+    });
+
+    useStore.getState().clearAllFilters();
+
+    const s = useStore.getState();
+    expect(s.filter).toBe('selected'); // neschimbat — vezi comentariul actiunii in store.ts
+    expect(s.personFilter).toBeNull();
+    expect(s.colorLabelFilter).toBeNull();
+    expect(s.sceneTagFilter).toBeNull();
+    expect(s.cameraFilter).toBeNull();
+    expect(s.projectFilter).toBeNull();
+    expect(s.collectionFilter).toBeNull();
+    expect(s.searchText).toBe('');
+    expect(s.dateFrom).toBeNull();
+    expect(s.dateTo).toBeNull();
+    expect(s.minRating).toBe(0);
+  });
+});
+
+// Cerinta directa a utilizatorului: foldere personalizate golite ODATA CU
+// sesiunea ("Goleste sesiunea"), nu doar la reset-ul complet care include si
+// persoanele — vezi comentariul din clearAll (store.ts) pentru motiv.
+describe('clearAll clears custom collections too (integration, Dexie real via fake-indexeddb)', () => {
+  it('sterge db.collections si reseteaza collections/collectionFilter din store', async () => {
+    await db.photos.clear();
+    await db.collections.clear();
+    await db.collections.put({ id: 'col-1', name: 'Vacanta', createdAt: Date.now(), memberIds: ['p1'] });
+    useStore.setState({ collections: [{ id: 'col-1', name: 'Vacanta', createdAt: Date.now(), memberIds: ['p1'] }], collectionFilter: 'col-1' });
+
+    await useStore.getState().clearAll();
+
+    expect(await db.collections.toArray()).toEqual([]);
+    const s = useStore.getState();
+    expect(s.collections).toEqual([]);
+    expect(s.collectionFilter).toBeNull();
+  });
+});

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useStore } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
-import { XIcon, FolderIcon, FilterDotIcon, PlusIcon, TrashIcon, EditIcon } from './icons';
+import { XIcon, FolderIcon, FilterDotIcon, PlusIcon, TrashIcon, EditIcon, DownloadIcon } from './icons';
 import { t } from '../i18n';
 
 /**
@@ -24,6 +24,7 @@ export function CollectionsPanel() {
   const deleteCollection = useStore(s => s.deleteCollection);
   const askConfirm = useStore(s => s.askConfirm);
   const askPrompt = useStore(s => s.askPrompt);
+  const exportCollection = useStore(s => s.exportCollection);
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -86,7 +87,7 @@ export function CollectionsPanel() {
 
         {collectionFilter && (
           <button className="ghost small" onClick={() => applyFilter(null)}>
-            <FilterDotIcon className="inline-icon" /> {tr('projects.clearFilter')}
+            <FilterDotIcon className="inline-icon" /> {tr('collections.clearFilter')}
           </button>
         )}
 
@@ -106,6 +107,14 @@ export function CollectionsPanel() {
                   disabled={collectionFilter === c.id}
                 >
                   {collectionFilter === c.id ? tr('projects.filterActive') : tr('collections.showOnly')}
+                </button>
+                <button
+                  className="ghost small"
+                  onClick={() => void exportCollection(c.id)}
+                  disabled={c.memberIds.length === 0}
+                  title={c.memberIds.length === 0 ? tr('collections.export.empty') : undefined}
+                >
+                  <DownloadIcon className="inline-icon" /> {tr('collections.export')}
                 </button>
                 <button className="ghost small" onClick={() => void runRename(c.id, c.name)}>
                   <EditIcon className="inline-icon" /> {tr('collections.rename')}

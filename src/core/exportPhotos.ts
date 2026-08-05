@@ -60,6 +60,8 @@ export interface ExportOptions {
   renameTemplate?: string;
   /** Limba pentru numele de folder derivate din etichete de scena (vezi folderLabel) — implicit romana. */
   locale?: 'ro' | 'en';
+  /** Numele de baza al arhivei .zip (fara data/extensie) — implicit 'lumin-culler-export'. Folosit de exportCollection (state/store.ts) ca arhiva sa reflecte numele folderului exportat, nu doar un nume generic. */
+  zipBaseName?: string;
 }
 
 // ── Grupare pe foldere: persoane cunoscute (si combinatii), apoi scena ─────
@@ -185,7 +187,7 @@ async function copyToDirectory(files: { name: string; file: File; folder: string
  * prefix), nu e o pierdere daca browserul nu suporta subfoldere.
  */
 export async function exportOriginalFiles(photos: ExportPhotoInput[], options: ExportOptions = {}): Promise<ExportResult> {
-  const { renameTemplate, locale = 'ro' } = options;
+  const { renameTemplate, locale = 'ro', zipBaseName = 'lumin-culler-export' } = options;
   let sequence = 0;
   const nameFor = (p: ExportPhotoInput): string => {
     sequence += 1;
@@ -287,7 +289,7 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[], options: E
   // cate unul, in loc sa tinem toate pozele originale decodate in memorie
   // simultan (vezi comentariul din downloadZip/streamZipEntries).
   const entries = available.map(({ name, file, folder }) => ({ path: `${folder}/${name}`, data: file }));
-  const zipName = `lumin-culler-export-${new Date().toISOString().slice(0, 10)}.zip`;
+  const zipName = `${zipBaseName}-${new Date().toISOString().slice(0, 10)}.zip`;
   const result = await downloadZip(zipName, entries);
   return { exported: result.cancelled ? 0 : available.length, missing, method, cancelled: result.cancelled, grouped: !result.cancelled };
 }

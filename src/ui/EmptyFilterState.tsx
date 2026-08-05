@@ -12,21 +12,30 @@ import { t } from '../i18n';
 export function EmptyFilterState() {
   const filter = useStore(s => s.filter);
   const personFilter = useStore(s => s.personFilter);
+  const colorLabelFilter = useStore(s => s.colorLabelFilter);
+  const sceneTagFilter = useStore(s => s.sceneTagFilter);
+  const cameraFilter = useStore(s => s.cameraFilter);
+  const projectFilter = useStore(s => s.projectFilter);
+  const collectionFilter = useStore(s => s.collectionFilter);
   const searchText = useStore(s => s.searchText);
   const dateFrom = useStore(s => s.dateFrom);
   const dateTo = useStore(s => s.dateTo);
   const minRating = useStore(s => s.minRating);
   const setFilter = useStore(s => s.setFilter);
-  const setPersonFilter = useStore(s => s.setPersonFilter);
-  const clearAdvancedFilters = useStore(s => s.clearAdvancedFilters);
+  const clearAllFilters = useStore(s => s.clearAllFilters);
   const locale = useStore(s => s.locale);
 
-  const hasActiveFilter = filter !== 'all' || !!personFilter || !!searchText || dateFrom !== null || dateTo !== null || minRating > 0;
+  // Bug real gasit la verificare: lipseau colorLabelFilter/sceneTagFilter/
+  // cameraFilter/projectFilter/collectionFilter din aceasta verificare — un
+  // filtru de scena activ, de exemplu, tot golea grila, dar butonul de reset
+  // nici macar nu aparea (hasActiveFilter ramanea fals).
+  const hasActiveFilter = filter !== 'all' || !!personFilter || !!colorLabelFilter || !!sceneTagFilter ||
+    !!cameraFilter || !!projectFilter || !!collectionFilter || !!searchText ||
+    dateFrom !== null || dateTo !== null || minRating > 0;
 
   const resetAll = () => {
     setFilter('all');
-    setPersonFilter(null);
-    clearAdvancedFilters();
+    clearAllFilters();
   };
 
   return (

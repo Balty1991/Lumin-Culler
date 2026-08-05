@@ -177,6 +177,9 @@ export default function App() {
   const setColorLabelFilter = useStore(s => s.setColorLabelFilter);
   const sceneTagFilter = useStore(s => s.sceneTagFilter);
   const cameraFilter = useStore(s => s.cameraFilter);
+  const projectFilter = useStore(s => s.projectFilter);
+  const collectionFilter = useStore(s => s.collectionFilter);
+  const clearAllFilters = useStore(s => s.clearAllFilters);
   const persons = useStore(s => s.persons);
   const searchText = useStore(s => s.searchText);
   const setSearchText = useStore(s => s.setSearchText);
@@ -369,9 +372,19 @@ export default function App() {
     { key: 'blinks', label: tr('palette.filter.blinks'), count: counts.blinks, icon: <EyeClosedIcon /> },
     { key: 'goldenHour', label: tr('palette.filter.goldenHour'), count: counts.goldenHour, icon: <SunIcon /> }
   ];
-  const extraFiltersActive = SECONDARY_FILTERS.some(f => f.key === filter) || !!personFilter || !!colorLabelFilter || !!sceneTagFilter || !!cameraFilter;
+  // Bug real gasit la verificare: projectFilter/collectionFilter lipseau de aici —
+  // un filtru de proiect sau folder activ nu se reflecta deloc in badge-ul/starea
+  // "activa" a butonului "Mai multe filtre", desi grila era deja filtrata de el.
+  const extraFiltersActive = SECONDARY_FILTERS.some(f => f.key === filter) ||
+    !!personFilter || !!colorLabelFilter || !!sceneTagFilter || !!cameraFilter || !!projectFilter || !!collectionFilter;
   const extraFiltersCount = (SECONDARY_FILTERS.some(f => f.key === filter) ? 1 : 0) +
-    (personFilter ? 1 : 0) + (colorLabelFilter ? 1 : 0) + (sceneTagFilter ? 1 : 0) + (cameraFilter ? 1 : 0);
+    (personFilter ? 1 : 0) + (colorLabelFilter ? 1 : 0) + (sceneTagFilter ? 1 : 0) + (cameraFilter ? 1 : 0) +
+    (projectFilter ? 1 : 0) + (collectionFilter ? 1 : 0);
+  // Cerinta directa a utilizatorului: un singur buton care sa anuleze TOATE
+  // filtrele combinabile deodata, fara sa fie nevoie sa stii care anume era
+  // activ ca sa-l re-selectezi din propriul lui panou.
+  const anySecondaryFilterActive = !!personFilter || !!colorLabelFilter || !!sceneTagFilter || !!cameraFilter ||
+    !!projectFilter || !!collectionFilter || !!searchText || dateFrom !== null || dateTo !== null || minRating > 0;
 
   const onFiles = (list: FileList | null) => {
     pickerWatchdogRef.current?.cancel();
@@ -752,6 +765,16 @@ export default function App() {
                 </>
               )}
             </MoreFiltersMenu>
+            {anySecondaryFilterActive && (
+              <button
+                className="chip chip-compact clear-filters-btn"
+                onClick={clearAllFilters}
+                aria-label={tr('app.clearAllFilters')}
+                title={tr('app.clearAllFilters')}
+              >
+                <XIcon className="chip-icon" aria-hidden="true" />
+              </button>
+            )}
             {multiSelectIds.size === 0 && (
               <button
                 className={selectMode ? 'chip chip-compact active select-mode-toggle' : 'chip chip-compact select-mode-toggle'}
