@@ -1,13 +1,24 @@
 /**
  * core/sceneTagLabels.ts
  * PhotoView.sceneTags stocheaza etichetele brute in engleza, exact cum le
- * intoarce detectorul de obiecte CenterNet (COCO-80 — vezi faceAnalysis.worker.ts,
- * `result.object.map(o => o.label)`). Pastram formatul intern neschimbat
- * (stabil pentru DB/export XMP, unde etichetele in engleza sunt un vocabular
- * standard recunoscut de alte unelte foto), dar traducem STRICT la afisare
- * (SceneTagFilter, PhotoInfoTabs) si la potrivirea cautarii text (store.ts).
+ * intoarce detectorul de scena: CenterNet (COCO-80, lowercase — vezi
+ * faceAnalysis.worker.ts, `result.object.map(o => o.label)`) pe web, sau ML
+ * Kit Image Labeling (taxonomie Open Images, Title Case — vezi
+ * core/nativeImageLabeling.ts) pe Android nativ. Doua vocabulare diferite,
+ * pastrate NESCHIMBATE la stocare (stabil pentru DB/export XMP, unde
+ * etichetele in engleza sunt un standard recunoscut de alte unelte foto);
+ * traducem STRICT la afisare (SceneTagFilter, PhotoInfoTabs) si la
+ * potrivirea cautarii text (store.ts), cu potrivire case-insensitive mai jos
+ * ca sa acopere ambele forme fara doua harti separate.
+ *
+ * Harta de mai jos NU e exhaustiva — Open Images are peste 400 de etichete,
+ * imposibil de acoperit complet dintr-o trecere. Acopera cele mai frecvente
+ * intalnite pe poze obisnuite (persoane, natura, mancare, evenimente,
+ * animale, obiecte casnice); orice eticheta negasita ramane afisata
+ * neschimbata, in engleza (fallback sigur, vezi translateSceneTag mai jos).
  */
 export const SCENE_TAG_LABELS_RO: Record<string, string> = {
+  // COCO-80 (web, CenterNet)
   person: 'persoana', bicycle: 'bicicleta', car: 'masina', motorcycle: 'motocicleta',
   airplane: 'avion', bus: 'autobuz', train: 'tren', truck: 'camion', boat: 'barca',
   'traffic light': 'semafor', 'fire hydrant': 'hidrant', 'stop sign': 'indicator stop',
@@ -26,13 +37,75 @@ export const SCENE_TAG_LABELS_RO: Record<string, string> = {
   keyboard: 'tastatura', 'cell phone': 'telefon mobil', microwave: 'cuptor cu microunde',
   oven: 'cuptor', toaster: 'prajitor de paine', sink: 'chiuveta', refrigerator: 'frigider',
   book: 'carte', clock: 'ceas', vase: 'vaza', scissors: 'foarfeca', 'teddy bear': 'ursulet de plus',
-  'hair drier': 'uscator de par', toothbrush: 'periuta de dinti'
+  'hair drier': 'uscator de par', toothbrush: 'periuta de dinti',
+
+  // ML Kit Image Labeling / Open Images (native, cele mai frecvente etichete generice)
+  // — oameni, expresii, imbracaminte
+  selfie: 'selfie', photograph: 'fotografie', snapshot: 'instantaneu', photography: 'fotografie',
+  vacation: 'vacanta', fun: 'distractie', leisure: 'relaxare', recreation: 'recreere',
+  interaction: 'interactiune', smile: 'zambet', 'facial expression': 'expresie faciala',
+  happy: 'fericire', eyewear: 'ochelari', glasses: 'ochelari', skin: 'piele',
+  hairstyle: 'coafura', beard: 'barba', 'human body': 'corp uman', muscle: 'musculatura',
+  gesture: 'gest', standing: 'in picioare', sitting: 'asezat', walking: 'mers', running: 'alergare',
+  't-shirt': 'tricou', shirt: 'camasa', shorts: 'pantaloni scurti', jeans: 'blugi', dress: 'rochie',
+  jacket: 'geaca', coat: 'palton', hat: 'palarie', cap: 'sapca', shoe: 'pantof', sneakers: 'adidasi',
+  clothing: 'imbracaminte', fashion: 'moda', sportswear: 'echipament sportiv', uniform: 'uniforma',
+  baby: 'bebelus', child: 'copil', toddler: 'copil mic', family: 'familie', friendship: 'prietenie',
+  team: 'echipa', crowd: 'multime', group: 'grup', people: 'oameni', portrait: 'portret',
+
+  // natura, peisaj, vreme
+  water: 'apa', sky: 'cer', cloud: 'nor', sea: 'mare', ocean: 'ocean', lake: 'lac', river: 'rau',
+  beach: 'plaja', sand: 'nisip', wave: 'val', sunset: 'apus', sunrise: 'rasarit',
+  sunlight: 'lumina soarelui', horizon: 'orizont', nature: 'natura', landscape: 'peisaj',
+  'natural landscape': 'peisaj natural', mountain: 'munte', hill: 'deal', forest: 'padure',
+  tree: 'copac', plant: 'planta', flower: 'floare', 'flowering plant': 'planta cu flori',
+  grass: 'iarba', leaf: 'frunza', branch: 'creanga', snow: 'zapada', winter: 'iarna', ice: 'gheata',
+  rain: 'ploaie', fog: 'ceata',
+
+  // orase, cladiri, vehicule
+  building: 'cladire', house: 'casa', architecture: 'arhitectura', city: 'oras',
+  skyscraper: 'zgarie-nori', street: 'strada', road: 'drum', sidewalk: 'trotuar', bridge: 'pod',
+  room: 'camera', 'interior design': 'design interior', furniture: 'mobila', table: 'masa',
+  sofa: 'canapea', kitchen: 'bucatarie', bathroom: 'baie', vehicle: 'vehicul', wheel: 'roata',
+  bike: 'bicicleta', 'motor vehicle': 'autovehicul',
+
+  // animale
+  animal: 'animal', wildlife: 'animal salbatic', pet: 'animal de companie', puppy: 'catelus',
+  kitten: 'pisicuta', fish: 'peste', insect: 'insecta',
+
+  // mancare/bautura
+  food: 'mancare', meal: 'masa', dish: 'fel de mancare', cuisine: 'bucatarie', dessert: 'desert',
+  fruit: 'fruct', vegetable: 'legume', drink: 'bautura', beverage: 'bautura', coffee: 'cafea',
+  tea: 'ceai', wine: 'vin', restaurant: 'restaurant', cooking: 'gatit',
+
+  // evenimente/obiecte
+  event: 'eveniment', party: 'petrecere', wedding: 'nunta', holiday: 'vacanta', christmas: 'craciun',
+  birthday: 'zi de nastere', celebration: 'sarbatoare', festival: 'festival', ceremony: 'ceremonie',
+  toy: 'jucarie', doll: 'papusa', balloon: 'balon', gift: 'cadou',
+
+  // sport, muzica, arta
+  sport: 'sport', ball: 'minge', game: 'joc', football: 'fotbal', basketball: 'baschet',
+  tennis: 'tenis', swimming: 'inot', fitness: 'fitness', 'musical instrument': 'instrument muzical',
+  music: 'muzica', guitar: 'chitara', piano: 'pian', concert: 'concert', dance: 'dans', art: 'arta',
+  painting: 'pictura', drawing: 'desen',
+
+  // tehnologie/text
+  text: 'text', font: 'font', logo: 'logo', product: 'produs', electronics: 'electronice',
+  'mobile phone': 'telefon mobil', smartphone: 'smartphone', computer: 'computer',
+  screen: 'ecran', camera: 'aparat foto', technology: 'tehnologie'
 };
 
-/** Traduce o eticheta COCO (engleza, forma stocata) in romana pentru afisare — negasita = intoarsa neschimbata. */
+/**
+ * Traduce o eticheta de scena (engleza, forma stocata) in romana pentru afisare
+ * — negasita = intoarsa neschimbata. Potrivire case-insensitive: COCO (web) e
+ * deja lowercase, dar ML Kit Image Labeling (native) intoarce Title Case
+ * ("Fun", "Skin") — fara normalizare aici, acele etichete n-ar gasi NICIODATA
+ * cheia lowercase din SCENE_TAG_LABELS_RO, chiar daca exista (bug real gasit
+ * de feedback direct: toate etichetele native aparea netraduse).
+ */
 export function translateSceneTag(tag: string, locale: 'ro' | 'en'): string {
   if (locale === 'en') return tag;
-  return SCENE_TAG_LABELS_RO[tag] ?? tag;
+  return SCENE_TAG_LABELS_RO[tag.toLowerCase()] ?? tag;
 }
 
 /**
