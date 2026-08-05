@@ -16,6 +16,9 @@ import { analyzeImageNative, isNativeImageAnalysisAvailable } from '../core/nati
 import { detectObjectsNative, isNativeObjectDetectionAvailable } from '../core/nativeObjectDetection';
 import { analyzeFaceMeshNative, isNativeFaceMeshAvailable } from '../core/nativeFaceMesh';
 import { classifyImageNative, isNativeImageClassifierAvailable } from '../core/nativeImageClassifier';
+import { detectTextNative, isNativeTextRecognitionAvailable } from '../core/nativeTextRecognition';
+import { detectPoseNative, isNativePoseDetectionAvailable } from '../core/nativePoseDetection';
+import { segmentSubjectNative, isNativeSegmentationAvailable } from '../core/nativeSegmentation';
 import { t } from '../i18n';
 
 /** Meniu lateral: persoane, preferinte AI invatate, export lista, despre. */
@@ -76,10 +79,9 @@ export function MenuDrawer() {
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const go = (action: () => void) => { setOpen(false); action(); };
 
-  // TEMPORAR (Faza 1+2+3+4, analiza AI nativa) — doar ca sa poata fi testat direct pe
+  // TEMPORAR (Faza 1-5, analiza AI nativa) — doar ca sa poata fi testat direct pe
   // device, fara Chrome DevTools/USB. De eliminat cand pipeline-ul nativ chiar
-  // inlocuieste analiza reala (vezi core/nativeFaceDetection.ts + core/nativeImageAnalysis.ts
-  // + core/nativeObjectDetection.ts + core/nativeFaceMesh.ts + core/nativeImageClassifier.ts).
+  // inlocuieste analiza reala (vezi core/native*.ts — cate un modul per plugin).
   // import.meta.env.DEV e eliminat static din build-ul de productie (Vite),
   // deci acest buton nu ajunge niciodata in APK-ul real.
   const testNativeFaceDetection = () => {
@@ -91,12 +93,15 @@ export function MenuDrawer() {
       if (!file) return;
       Promise.all([
         detectFacesNative(file), analyzeImageNative(file), detectObjectsNative(file),
-        analyzeFaceMeshNative(file), classifyImageNative(file)
+        analyzeFaceMeshNative(file), classifyImageNative(file),
+        detectTextNative(file), detectPoseNative(file), segmentSubjectNative(file)
       ])
-        .then(([faces, analysis, objects, faceMesh, labels]) =>
+        .then(([faces, analysis, objects, faceMesh, labels, text, pose, segmentation]) =>
           setNotice(
-            `Native OK: ${faces.faces.length} fete, ${objects.objects.length} obiecte. ` +
-            `${JSON.stringify(analysis)} ${JSON.stringify(objects)} ${JSON.stringify(faceMesh)} ${JSON.stringify(labels)}`
+            `Native OK: ${faces.faces.length} fete, ${objects.objects.length} obiecte, ` +
+            `${pose.people.length} persoane (postura), text ${Math.round(text.textCoverage * 100)}%, ` +
+            `persoana ${Math.round(segmentation.personCoverage * 100)}% din cadru. ` +
+            `${JSON.stringify(analysis)} ${JSON.stringify(objects)} ${JSON.stringify(faceMesh)} ${JSON.stringify(labels)} ${JSON.stringify(text)}`
           )
         )
         .catch(err => setNotice(`Native FAIL: ${err instanceof Error ? err.message : String(err)}`));
@@ -330,7 +335,8 @@ export function MenuDrawer() {
         </button>
 
         {import.meta.env.DEV && isNativeFaceDetectionAvailable() && isNativeImageAnalysisAvailable() &&
-          isNativeObjectDetectionAvailable() && isNativeFaceMeshAvailable() && isNativeImageClassifierAvailable() && (
+          isNativeObjectDetectionAvailable() && isNativeFaceMeshAvailable() && isNativeImageClassifierAvailable() &&
+          isNativeTextRecognitionAvailable() && isNativePoseDetectionAvailable() && isNativeSegmentationAvailable() && (
           <button className="drawer-item" onClick={() => go(testNativeFaceDetection)}>
             <span className="drawer-item-icon"><SparkleIcon /></span>
             <span>[DEV] Test detectie nativa</span>

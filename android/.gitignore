@@ -109,3 +109,8 @@ app/src/main/assets/labelmap.txt
 # descarcate de CI la build (~3.8MB + ~18.6MB, sursa: storage.googleapis.com/mediapipe-models), niciodata committed
 app/src/main/assets/face_landmarker.task
 app/src/main/assets/efficientnet_lite0.tflite
+
+# Modele MediaPipe native (Faza 5, PoseDetectionPlugin.kt / SegmentationPlugin.kt) —
+# descarcate de CI la build (~5.8MB + ~16.4MB), niciodata committed
+app/src/main/assets/pose_landmarker_lite.task
+app/src/main/assets/selfie_multiclass.tflite

@@ -83,6 +83,10 @@ dependencies {
     // Modelele (.task / .tflite) sunt descarcate de CI in assets/, nu vin din
     // aceasta dependinta — biblioteca de aici e doar API-ul MediaPipe Tasks.
     implementation "com.google.mediapipe:tasks-vision:$mediapipeTasksVisionVersion"
+    // Analiza AI nativa (Faza 5) — vezi plugins/TextRecognitionPlugin.kt. Modelul
+    // e bundle-uit direct in aceasta dependinta (ca ML Kit face-detection mai sus),
+    // nu vine din assets/ descarcate de CI.
+    implementation "com.google.mlkit:text-recognition:$mlkitTextRecognitionVersion"
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"

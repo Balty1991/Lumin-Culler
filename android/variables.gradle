@@ -28,4 +28,8 @@ ext {
     // (google-ai-edge/mediapipe-samples, build.gradle) — maven.google.com nu
     // e accesibil din acest sandbox ca sa se verifice altfel.
     mediapipeTasksVisionVersion = '0.10.29'
+    // Analiza AI nativa (Faza 5 — vezi plugins/TextRecognitionPlugin.kt): OCR
+    // bundle-uit direct in APK (ca ML Kit face-detection, Faza 1), NU prin
+    // Play Services — versiune verificata din googlesamples/mlkit (build.gradle).
+    mlkitTextRecognitionVersion = '16.0.1'
 }

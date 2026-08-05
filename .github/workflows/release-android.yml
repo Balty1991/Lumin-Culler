@@ -72,6 +72,14 @@ jobs:
         run: |
           curl -sL -o android/app/src/main/assets/face_landmarker.task https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task
           curl -sL -o android/app/src/main/assets/efficientnet_lite0.tflite https://storage.googleapis.com/mediapipe-models/image_classifier/efficientnet_lite0/float32/1/efficientnet_lite0.tflite
+      # Analiza AI nativa (Faza 5 — vezi plugins/PoseDetectionPlugin.kt / SegmentationPlugin.kt):
+      # doua modele MediaPipe oficiale in plus (pose lite + segmentare selfie
+      # multiclasa), NU committed in git. TextRecognitionPlugin.kt nu are nevoie
+      # de pas separat — modelul lui e bundle-uit direct in dependinta ML Kit.
+      - name: Bundle native pose and segmentation models
+        run: |
+          curl -sL -o android/app/src/main/assets/pose_landmarker_lite.task https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task
+          curl -sL -o android/app/src/main/assets/selfie_multiclass.tflite https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/latest/selfie_multiclass_256x256.tflite
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
