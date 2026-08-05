@@ -9,7 +9,7 @@ import { ADJUSTMENT_KEYS, applyAdjustmentsToBlob, type EditAdjustments } from '.
 import { readApplyEditsInGallery, writeApplyEditsInGallery } from './applyEditsPreference';
 import { clearPreviewUrlCache } from '../core/previewUrlCache';
 import {
-  importFiles, originalFiles, originalHandles, createCancelToken, SELECT_THRESHOLD, REJECT_THRESHOLD,
+  importFiles, originalFiles, originalHandles, createCancelToken, SELECT_THRESHOLD, REJECT_THRESHOLD, decidePhotoStatus,
   type ImportProgress, type ImportCancelToken
 } from '../core/importPipeline';
 import type { FileSystemFileHandleLike } from '../core/filePicker';
@@ -1349,10 +1349,7 @@ export const useStore = create<AppState>((set, get) => ({
       const [analysis, photoRecord] = await Promise.all([db.analyses.get(p.id), db.photos.get(p.id)]);
       if (!analysis || !photoRecord) return;
       const prediction = await contextEngine.predict(analysis, photoRecord.genre);
-      const newStatus: PhotoRecord['status'] =
-        prediction.score >= SELECT_THRESHOLD ? 'selected'
-        : prediction.score <= REJECT_THRESHOLD ? 'rejected'
-        : 'review';
+      const newStatus = decidePhotoStatus(prediction.score, analysis);
       await db.analyses.update(p.id, { aiScore: prediction.score, aiFactors: prediction.topFactors });
       if (newStatus !== photoRecord.status) {
         changes.push({ photoId: p.id, previousStatus: photoRecord.status });

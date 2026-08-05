@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { toHashInput } from './importPipeline';
+import { toHashInput, decidePhotoStatus, SELECT_THRESHOLD, REJECT_THRESHOLD } from './importPipeline';
 import type { AnalysisRecord } from './db';
 
 function baseAnalysis(overrides: Partial<AnalysisRecord> = {}): AnalysisRecord {
@@ -48,5 +48,28 @@ describe('toHashInput', () => {
 
     expect(input.faceEmbeddings).toEqual([[1, 2, 3]]);
     expect(input.colorHarmonyScore).toBe(0.7);
+  });
+});
+
+describe('decidePhotoStatus', () => {
+  it('respinge sub REJECT_THRESHOLD indiferent de subiect', () => {
+    expect(decidePhotoStatus(REJECT_THRESHOLD, baseAnalysis({ faceCount: 1, sceneTags: ['cat'] }))).toBe('rejected');
+  });
+
+  it('aproba peste SELECT_THRESHOLD cand exista o fata detectata', () => {
+    expect(decidePhotoStatus(SELECT_THRESHOLD, baseAnalysis({ faceCount: 1, sceneTags: [] }))).toBe('selected');
+  });
+
+  it('aproba peste SELECT_THRESHOLD cand exista cel putin o eticheta de scena/obiect, chiar fara fete', () => {
+    expect(decidePhotoStatus(SELECT_THRESHOLD, baseAnalysis({ faceCount: 0, sceneTags: ['cat'] }))).toBe('selected');
+  });
+
+  it('NU aproba automat peste SELECT_THRESHOLD cand nu exista nicio fata SI nicio eticheta de scena (document/textura fara subiect) — ramane review', () => {
+    expect(decidePhotoStatus(SELECT_THRESHOLD, baseAnalysis({ faceCount: 0, sceneTags: [] }))).toBe('review');
+    expect(decidePhotoStatus(99, baseAnalysis({ faceCount: 0, sceneTags: undefined }))).toBe('review');
+  });
+
+  it('ramane review intre praguri, ca inainte', () => {
+    expect(decidePhotoStatus((SELECT_THRESHOLD + REJECT_THRESHOLD) / 2, baseAnalysis({ faceCount: 1 }))).toBe('review');
   });
 });

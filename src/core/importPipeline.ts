@@ -39,6 +39,31 @@ const LQIP_SIZE = 24;
     exact la fel poze deja existente, re-scorate cu un model ContextEngine actualizat. */
 export const SELECT_THRESHOLD = 65;
 export const REJECT_THRESHOLD = 35;
+
+/**
+ * Un scor ContextEngine mare NU garanteaza ca AI-ul a recunoscut CEVA anume
+ * in cadru — scorarea de claritate/expunere/compozitie functioneaza la fel
+ * de bine (uneori chiar mai bine, fiind foarte "curate" optic) pe o poza a
+ * unui document sau pe un detaliu de acoperis/perete fara niciun subiect
+ * real, ca pe o poza buna. Fara nicio fata SI fara niciun obiect COCO
+ * detectat (sceneTags), un scor peste prag NU devine 'selected' automat —
+ * ramane 'review', ca utilizatorul sa confirme macar o data ca era
+ * intentionat (bug real raportat: poze cu documente/texturi aprobate automat
+ * alaturi de poze bune, fara nicio distinctie).
+ */
+function hasNoRecognizableSubject(analysis: Pick<AnalysisRecord, 'faceCount' | 'sceneTags'>): boolean {
+  return analysis.faceCount === 0 && !(analysis.sceneTags && analysis.sceneTags.length > 0);
+}
+
+/** Reutilizat de store.ts (rescorePhotos) ca sa clasifice exact la fel poze deja existente, re-scorate cu un model ContextEngine actualizat. */
+export function decidePhotoStatus(
+  score: number,
+  analysis: Pick<AnalysisRecord, 'faceCount' | 'sceneTags'>
+): PhotoRecord['status'] {
+  if (score <= REJECT_THRESHOLD) return 'rejected';
+  if (score >= SELECT_THRESHOLD && !hasNoRecognizableSubject(analysis)) return 'selected';
+  return 'review';
+}
 /** EXIF sta mereu aproape de inceputul fisierului (segment APP1, imediat dupa
     SOI) — citim doar un prefix, nu tot fisierul, ca sa nu incarcam inutil in
     memorie poze mari doar pentru cativa octeti de metadate. */
@@ -295,10 +320,7 @@ async function processOne(file: File, genre?: string, project?: string, handle?:
   analysis.aiScore = prediction.score;
   analysis.aiFactors = prediction.topFactors;
 
-  const status: PhotoRecord['status'] =
-    prediction.score >= SELECT_THRESHOLD ? 'selected'
-    : prediction.score <= REJECT_THRESHOLD ? 'rejected'
-    : 'review';
+  const status = decidePhotoStatus(prediction.score, analysis);
 
   const photo: PhotoRecord = {
     id,
