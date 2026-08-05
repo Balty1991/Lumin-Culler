@@ -371,8 +371,6 @@ export const en: Record<TranslationKey, string> = {
   'detail.why.suggestions.now': 'Fixable now',
   'detail.why.suggestions.nextTime': 'For next time',
   'detail.why.suggestions.apply': 'Apply',
-  'detail.why.details.show': 'See full reasoning',
-  'detail.why.details.hide': 'Hide full reasoning',
   'detail.persons.none': 'No known person recognized in this photo.',
   'detail.persons.confidenceTitle': 'Similarity to the enrolled profile',
   'detail.history.none': 'No recent manual decision for this photo — the history only keeps the last 10 changes for the whole session, not a complete log.',
