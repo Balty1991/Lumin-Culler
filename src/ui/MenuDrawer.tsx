@@ -11,6 +11,7 @@ import { EASE } from './motion';
 import { GENRE_PRESETS } from '../state/genre';
 import { nextGridDensity } from '../state/gridDensity';
 import { getInstallPromptEvent, subscribeInstallPromptEvent, consumeInstallPromptEvent, isStandalone } from '../core/installPromptEvent';
+import { detectFacesNative, isNativeFaceDetectionAvailable } from '../core/nativeFaceDetection';
 import { t } from '../i18n';
 
 /** Meniu lateral: persoane, preferinte AI invatate, export lista, despre. */
@@ -70,6 +71,25 @@ export function MenuDrawer() {
 
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const go = (action: () => void) => { setOpen(false); action(); };
+
+  // TEMPORAR (Faza 1, analiza AI nativa) — doar ca sa poata fi testat direct pe
+  // device, fara Chrome DevTools/USB. De eliminat cand pluginul nativ chiar
+  // inlocuieste pipeline-ul de analiza (vezi core/nativeFaceDetection.ts).
+  // import.meta.env.DEV e eliminat static din build-ul de productie (Vite),
+  // deci acest buton nu ajunge niciodata in APK-ul real.
+  const testNativeFaceDetection = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      detectFacesNative(file)
+        .then(res => setNotice(`Native OK: ${res.faces.length} fete, ${JSON.stringify(res.faces)}`))
+        .catch(err => setNotice(`Native FAIL: ${err instanceof Error ? err.message : String(err)}`));
+    };
+    input.click();
+  };
   // Intrarea din Meniu ramane mereu vizibila (utilizatorul a cerut explicit sa nu
   // depinda de momentul in care browserul decide sa ofere beforeinstallprompt) — daca
   // evenimentul chiar exista, il folosim; altfel aratam instructiuni de instalare
@@ -295,6 +315,13 @@ export function MenuDrawer() {
           <span className="drawer-item-icon"><KeyboardIcon /></span>
           <span>{tr('menu.shortcuts')}</span>
         </button>
+
+        {import.meta.env.DEV && isNativeFaceDetectionAvailable() && (
+          <button className="drawer-item" onClick={() => go(testNativeFaceDetection)}>
+            <span className="drawer-item-icon"><SparkleIcon /></span>
+            <span>[DEV] Test detectie nativa</span>
+          </button>
+        )}
 
         <div className="drawer-sep" />
 

@@ -9,6 +9,10 @@ buildscript {
     dependencies {
         classpath 'com.android.tools.build:gradle:8.13.0'
         classpath 'com.google.gms:google-services:4.4.4'
+        // Analiza AI nativa (Faza 1) — versiune scrisa direct aici (nu $kotlinVersion din
+        // variables.gradle): "apply from: variables.gradle" ruleaza DUPA acest buildscript{},
+        // deci acele variabile ext inca nu exista cand se evalueaza acest bloc.
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.10'
 
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files

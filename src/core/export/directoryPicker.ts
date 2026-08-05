@@ -8,6 +8,7 @@ import { Zip, ZipPassThrough } from 'fflate';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
+import { blobToBase64 } from '../base64';
 
 export interface LocalWritable {
   write(data: Blob): Promise<void>;
@@ -127,16 +128,6 @@ const SAVE_PICKER_TIMEOUT_MS = 45000;
  * si exportul s-ar opri silentios, fara sa mai incerce fallback-ul <a download>.
  */
 const INSTANT_ABORT_THRESHOLD_MS = 500;
-
-async function blobToBase64(blob: Blob): Promise<string> {
-  const bytes = new Uint8Array(await blob.arrayBuffer());
-  // btoa(String.fromCharCode(...bytes)) arunca RangeError ("too many arguments") pe fisiere
-  // mai mari (poze originale de cativa MB) — construim binary string-ul pe bucati.
-  let binary = '';
-  const CHUNK = 0x8000;
-  for (let i = 0; i < bytes.length; i += CHUNK) binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
-  return btoa(binary);
-}
 
 /**
  * Capacitor WebView-ul Android NU implementeaza File System Access API (showSaveFilePicker
