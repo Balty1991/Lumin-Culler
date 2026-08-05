@@ -16,15 +16,18 @@ interface Slot {
   busy: boolean;
 }
 
-// 60s -> 90s: primul worker parcurge acum o cascada WebGPU(6s)->WebGL(20s)->CPU
+// 60s -> 90s -> 150s: primul worker parcurge acum o cascada WebGPU(6s)->WebGL(20s)->CPU
 // (fara timeout propriu — ultimul refugiu, vezi faceAnalysis.worker.ts) inainte
 // sa se stabileasca definitiv pe un backend; pe hardware slab, warmup-ul complet
 // pe CPU pur (fara acceleratie GPU) pentru intregul set de modele (fata+iris+
-// emotie+centernet) poate depasi singur vechiul timeout de 60s, ceea ce ar
-// respinge acest timeout EXACT cand cascada de mai jos e pe cale sa reuseasca
-// (doar mai incet) — o eroare "Incarcarea a durat prea mult" tocmai atunci cand
-// device-ul aproape terminase legitim.
-const MODEL_INIT_TIMEOUT_MS = 90000;
+// emotie+centernet) poate depasi singur bugetul disponibil, ceea ce ar respinge
+// acest timeout EXACT cand cascada de mai jos e pe cale sa reuseasca (doar mai
+// incet) — o eroare "Incarcarea a durat prea mult" tocmai atunci cand device-ul
+// aproape terminase legitim. Bug real raportat de utilizator (Xiaomi 15T,
+// WebGL blocklist-uit pe acel device — vezi comentariul din
+// faceAnalysis.worker.ts despre Xiaomi Browser): esecul cadea exact la 90s,
+// adica exact bugetul vechi, in timp ce refugiul CPU inca lucra legitim.
+const MODEL_INIT_TIMEOUT_MS = 150000;
 /**
  * O poza problematica (rezolutie extrema, pixeli corupti care duc inferenta
  * TF.js intr-un caz patologic etc.) poate bloca WORKER-ul la infinit — nu
