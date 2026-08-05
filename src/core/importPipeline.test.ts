@@ -81,4 +81,14 @@ describe('decidePhotoStatus', () => {
     expect(decidePhotoStatus(SELECT_THRESHOLD, baseAnalysis({ faceCount: 1, sceneTags: [], textCoverage: undefined }))).toBe('selected');
     expect(decidePhotoStatus(SELECT_THRESHOLD, baseAnalysis({ faceCount: 1, sceneTags: [], textCoverage: 0.05 }))).toBe('selected');
   });
+
+  it('NU aproba automat cand subjectInFocus e confirmat fals (bug real: obiect ascutit in prim-plan umfla claritatea globala, dar subiectul real e neclar) — ramane review', () => {
+    expect(decidePhotoStatus(SELECT_THRESHOLD, baseAnalysis({ faceCount: 1, sceneTags: [], subjectInFocus: false }))).toBe('review');
+    expect(decidePhotoStatus(99, baseAnalysis({ faceCount: 1, sceneTags: ['cat'], subjectInFocus: false }))).toBe('review');
+  });
+
+  it('aproba normal cand subjectInFocus e true sau nemasurabil (absent nu e penalizat)', () => {
+    expect(decidePhotoStatus(SELECT_THRESHOLD, baseAnalysis({ faceCount: 1, sceneTags: [], subjectInFocus: true }))).toBe('selected');
+    expect(decidePhotoStatus(SELECT_THRESHOLD, baseAnalysis({ faceCount: 1, sceneTags: [], subjectInFocus: undefined }))).toBe('selected');
+  });
 });

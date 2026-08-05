@@ -27,6 +27,7 @@ export function EditPanel() {
   const autoApplyRequested = useStore(s => s.editAutoApplyRequested);
   const photos = useStore(s => s.photos);
   const setEditAdjustments = useStore(s => s.setEditAdjustments);
+  const setNotice = useStore(s => s.setNotice);
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -112,6 +113,11 @@ export function EditPanel() {
    * Definit AICI (nu mai jos, langa `update`/`resetAll`) ca sa poata fi
    * apelat si din efectul de auto-aplicare de mai jos, inainte de orice
    * return conditionat — hook-urile trebuie sa ramana neconditionate.
+   *
+   * Confirmarea prin `setNotice` de mai jos exista dupa feedback direct pe
+   * device real: o recadrare discreta (fara control manual de crop in UI)
+   * putea trece complet neobservata — utilizatorul nu avea niciun semnal ca
+   * "Aplica" chiar facuse ceva, mai ales cand efectul vizual era subtil.
    */
   const applyAuto = () => {
     if (!imgEl || !photo) return;
@@ -127,6 +133,16 @@ export function EditPanel() {
     });
     setAdjustments(auto);
     void setEditAdjustments(photo.id, auto);
+
+    const applied: string[] = [];
+    if (auto.exposure !== 0) applied.push(tr('edit.exposure').toLowerCase());
+    if (auto.highlights !== 0) applied.push(tr('edit.highlights').toLowerCase());
+    if (auto.shadows !== 0) applied.push(tr('edit.shadows').toLowerCase());
+    if (auto.contrast !== 0) applied.push(tr('edit.contrast').toLowerCase());
+    if (auto.saturation !== 0) applied.push(tr('edit.saturation').toLowerCase());
+    if (auto.crop) applied.push(tr('edit.auto.crop'));
+    if (auto.rotationDeg) applied.push(tr('edit.auto.straighten'));
+    setNotice(applied.length ? tr('edit.auto.applied', { list: applied.join(', ') }) : tr('edit.auto.nothingToApply'));
   };
 
   // Deschidere din butonul "Aplica" al unei sugestii (PhotoInfoTabs, tab-ul
