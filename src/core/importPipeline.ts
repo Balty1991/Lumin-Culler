@@ -67,13 +67,31 @@ function hasNoRecognizableSubject(analysis: Pick<AnalysisRecord, 'faceCount' | '
   return analysis.faceCount === 0 && !(analysis.sceneTags && analysis.sceneTags.length > 0);
 }
 
+/**
+ * Bug real raportat de utilizator, cu exemplu concret: o poza cu o mana +
+ * floare in prim-plan (nete, aproape de camera) si copilul din spate vizibil
+ * neclar a fost aprobata automat — sharpness-ul GLOBAL (dominat de obiectul
+ * ascutit din prim-plan) poate ramane mare chiar cand `subjectInFocus`
+ * (comparatia REGIUNII subiectului fata de fundal, vezi scoreFocusAndBokeh in
+ * faceAnalysis.worker.ts) a detectat corect ca subiectul insusi e neclar.
+ * ContextEngine trateaza asta doar ca o GREUTATE invatata (poate fi
+ * "acoperita" de alti factori buni), nu ca o regula stricta — exact ca
+ * hasNoRecognizableSubject mai sus, un `subjectInFocus === false` confirmat
+ * blocheaza auto-selectarea indiferent de scor, forteaza 'review'.
+ * `!== true`, NU `!== false`: absent (nemasurabil) ramane neutru, nu
+ * penalizat — acelasi principiu ca restul campurilor optionale din AnalysisRecord.
+ */
+function subjectConfirmedOutOfFocus(analysis: Pick<AnalysisRecord, 'subjectInFocus'>): boolean {
+  return analysis.subjectInFocus === false;
+}
+
 /** Reutilizat de store.ts (rescorePhotos) ca sa clasifice exact la fel poze deja existente, re-scorate cu un model ContextEngine actualizat. */
 export function decidePhotoStatus(
   score: number,
-  analysis: Pick<AnalysisRecord, 'faceCount' | 'sceneTags' | 'textCoverage'>
+  analysis: Pick<AnalysisRecord, 'faceCount' | 'sceneTags' | 'textCoverage' | 'subjectInFocus'>
 ): PhotoRecord['status'] {
   if (score <= REJECT_THRESHOLD) return 'rejected';
-  if (score >= SELECT_THRESHOLD && !hasNoRecognizableSubject(analysis)) return 'selected';
+  if (score >= SELECT_THRESHOLD && !hasNoRecognizableSubject(analysis) && !subjectConfirmedOutOfFocus(analysis)) return 'selected';
   return 'review';
 }
 /** EXIF sta mereu aproape de inceputul fisierului (segment APP1, imediat dupa

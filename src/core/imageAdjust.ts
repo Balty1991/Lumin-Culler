@@ -233,7 +233,12 @@ export function computeAutoContrast(img: ImageData): number {
 
 const THIRDS_POINTS: [number, number][] = [[1 / 3, 1 / 3], [2 / 3, 1 / 3], [1 / 3, 2 / 3], [2 / 3, 2 / 3]];
 const RULE_OF_THIRDS_FLAG_THRESHOLD = 0.4; // identic cu aiSuggest.centered (aiExplanationGenerator.ts)
-const CROP_SCALE = 0.88; // recompozitie discreta — nu un zoom agresiv
+// 0.78 (nu 0.88, valoarea initiala) — feedback direct pe device real: la 0.88
+// (doar 12% mai stransa incadrarea) diferenta era aproape imperceptibila la
+// o privire rapida pe ecranul telefonului, lasand impresia ca "Aplica" nu
+// facuse nimic. 0.78 ramane o recompozitie, nu un zoom agresiv care sa taie
+// parti importante din cadru, dar chiar se observa.
+const CROP_SCALE = 0.78;
 
 /**
  * Recadrare automata catre cea mai apropiata intersectie de treimi — DOAR

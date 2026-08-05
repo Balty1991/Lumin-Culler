@@ -1290,8 +1290,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 /* Butoane flotante flat-design (X/bifa) — inlocuiesc textele masive Selecteaza/Respinge,
    culori mate temperate, fara gradient, in treimea inferioara a ecranului. */
 .detail-fab-row {
-  /* 66px = SHEET_PEEK_PX (DetailView.tsx) — manerul sheet-ului restrans, +18px respiro */
-  position: absolute; left: 0; right: 0; bottom: 84px; z-index: var(--z-card-badge);
+  /* 74px = SHEET_PEEK_PX (DetailView.tsx) — manerul sheet-ului restrans, +18px respiro */
+  position: absolute; left: 0; right: 0; bottom: 92px; z-index: var(--z-card-badge);
   display: flex; align-items: center; justify-content: center; gap: 28px;
   transition: opacity 0.25s var(--ease), transform 0.25s var(--ease);
 }
@@ -1313,7 +1313,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   /* IDENTIC cu SHEET_PEEK_PX din DetailView.tsx — si cu .detail-sheet-handle mai jos,
      ca manerul vizibil cat timp sheet-ul e restrans sa nu lase continutul de dedesubt
      sa se vada (bara de rating etc.) peste marginea de sus a benzii restranse. */
-  --sheet-peek: 66px;
+  --sheet-peek: 74px;
   position: fixed; left: 0; right: 0; bottom: 0; z-index: var(--z-modal-scrim);
   height: 85dvh; max-height: 85dvh; display: flex; flex-direction: column; overflow: hidden;
   background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur));
@@ -1339,12 +1339,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
    fundal + iconita (care se rotesc la expandare) o fac vizibil un element
    interactiv, nu doar text decorativ. */
 .detail-sheet-peek-label {
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: 0.62rem; color: var(--text); text-transform: uppercase; letter-spacing: 0.06em;
-  background: var(--surface-3); border: 1px solid var(--line-strong); border-radius: 999px;
-  padding: 4px 12px 4px 9px;
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 0.72rem; font-weight: 600; color: var(--text); text-transform: uppercase; letter-spacing: 0.06em;
+  background: var(--surface-3); border: 1px solid var(--accent); border-radius: 999px;
+  padding: 7px 16px 7px 13px; box-shadow: 0 2px 10px -2px rgba(0,0,0,0.4);
 }
-.detail-sheet-peek-label svg { width: 12px; height: 12px; transition: transform 0.3s var(--ease); }
+.detail-sheet-peek-label svg { width: 15px; height: 15px; transition: transform 0.3s var(--ease); }
 .detail-sheet.expanded .detail-sheet-peek-label svg { transform: rotate(180deg); }
 .detail-sheet-content {
   flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 8px;
@@ -2046,12 +2046,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
    a rezolva exact aceasta reclamatie. Pilula cu chenar/fundal + iconita rezolva
    vizual, nu doar prin text, aceeasi problema in ambele locuri. */
 .workspace-metrics-peek-label {
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: 0.62rem; color: var(--text); text-transform: uppercase; letter-spacing: 0.06em;
-  background: var(--surface-3); border: 1px solid var(--line-strong); border-radius: 999px;
-  padding: 4px 12px 4px 9px;
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 0.72rem; font-weight: 600; color: var(--text); text-transform: uppercase; letter-spacing: 0.06em;
+  background: var(--surface-3); border: 1px solid var(--accent); border-radius: 999px;
+  padding: 7px 16px 7px 13px; box-shadow: 0 2px 10px -2px rgba(0,0,0,0.4);
 }
-.workspace-metrics-peek-label svg { width: 12px; height: 12px; transition: transform 0.3s var(--ease); }
+.workspace-metrics-peek-label svg { width: 15px; height: 15px; transition: transform 0.3s var(--ease); }
 .workspace-metrics-handle.expanded .workspace-metrics-peek-label svg { transform: rotate(180deg); }
 /* Paritate cu DetailView (plan "informatii complete"): panoul afiseaza acum aceleasi
    tab-uri Metrici/De ce/Persoane/Istoric (PhotoInfoTabs), nu doar un rezumat de 3 cifre —

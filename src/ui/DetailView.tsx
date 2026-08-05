@@ -31,7 +31,7 @@ const SHEET_DRAG_COMMIT = 56;
  * deosebire de un home-indicator gesture-nav), deci manerul statea lipit
  * direct de bara de sistem a telefonului, fara respiro vizibil.
  */
-const SHEET_PEEK_PX = 66;
+const SHEET_PEEK_PX = 74;
 
 function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion: boolean }) {
   const openDetail = useStore(s => s.openDetail);

@@ -20,7 +20,16 @@ private const val INPUT_SIZE = 300
 // Fix, dictat de operatia TFLite_Detection_PostProcess impachetata in acest model
 // (vezi ObjectDetectionPlugin — comentariul de mai jos despre coco_ssd_mobilenet_v1).
 private const val MODEL_MAX_DETECTIONS = 10
-private const val MIN_CONFIDENCE = 0.5f // aceeasi filozofie ca object.minConfidence din faceAnalysis.worker.ts
+// 0.65 (nu 0.5, ca pe web) — dovada concreta pe device real: aceeasi poza (o
+// lacusta pe un gard, complet in afara celor 80 clase COCO) a primit DOUA
+// etichete gresite diferite in doua rulari separate ("Elefant", apoi
+// "Hidrant") — modelul cuantizat SSD MobileNetV1 (2018) forteaza mereu o
+// incadrare in cea mai apropiata clasa cunoscuta, chiar la incredere joasa,
+// mult mai des decat CenterNet-ul folosit pe web la acelasi prag de 0.5
+// (object.minConfidence din faceAnalysis.worker.ts). Pragul de mai jos ramane
+// intentionat DIFERIT de cel de pe web — nu mai e o chestiune de paritate intre
+// motoare, ci o caracteristica reala de acuratete a acestui model specific.
+private const val MIN_CONFIDENCE = 0.65f
 private const val MAX_RETURNED = 8       // aceeasi valoare ca object.maxDetected din faceAnalysis.worker.ts
 
 /**

@@ -545,6 +545,10 @@ export const ro = {
   'edit.tint': 'Tinta',
   'edit.highlights': 'Highlights',
   'edit.shadows': 'Umbre',
+  'edit.auto.crop': 'recadrare',
+  'edit.auto.straighten': 'indreptare orizont',
+  'edit.auto.applied': 'Auto aplicat: {list}.',
+  'edit.auto.nothingToApply': 'Auto: cadrul e deja solid pe criteriile analizate, nimic de corectat.',
 
   'projects.meta.client': 'Client',
   'projects.meta.client.title': 'Client (ex. Ana & Mihai)',

@@ -548,6 +548,10 @@ export const en: Record<TranslationKey, string> = {
   'edit.tint': 'Tint',
   'edit.highlights': 'Highlights',
   'edit.shadows': 'Shadows',
+  'edit.auto.crop': 'crop',
+  'edit.auto.straighten': 'horizon straighten',
+  'edit.auto.applied': 'Auto applied: {list}.',
+  'edit.auto.nothingToApply': "Auto: the frame is already solid on the criteria analyzed, nothing to fix.",
 
   'projects.meta.client': 'Client',
   'projects.meta.client.title': 'Client (e.g. Ana & Mike)',
