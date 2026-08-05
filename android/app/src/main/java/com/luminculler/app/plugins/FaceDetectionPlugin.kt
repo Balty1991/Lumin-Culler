@@ -1,8 +1,6 @@
 package com.luminculler.app.plugins
 
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.util.Base64
 import com.getcapacitor.JSArray
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
@@ -85,13 +83,5 @@ class FaceDetectionPlugin : Plugin() {
                 call.resolve(result)
             }
             .addOnFailureListener { e -> call.reject("Face detection failed: ${e.message}", e) }
-    }
-
-    private fun decodeBase64ToBitmap(base64: String): Bitmap {
-        val commaIdx = base64.indexOf(",")
-        val cleaned = if (base64.startsWith("data:") && commaIdx >= 0) base64.substring(commaIdx + 1) else base64
-        val bytes = Base64.decode(cleaned, Base64.DEFAULT)
-        return BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-            ?: throw IllegalArgumentException("BitmapFactory returned null bitmap — invalid image data")
     }
 }
