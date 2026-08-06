@@ -9,6 +9,7 @@ import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { blobToBase64 } from '../base64';
+import { withTimeout } from '../workerPool';
 
 export interface LocalWritable {
   write(data: Blob): Promise<void>;
@@ -142,17 +143,38 @@ const INSTANT_ABORT_THRESHOLD_MS = 500;
  * permisiune pe Android modern) apoi deschidem foaia de partajare nativa (Share), ca
  * utilizatorul sa aleaga imediat, printr-un dialog al sistemului, unde ajunge de fapt
  * fisierul (Fisiere, Drive, Descarcari, aplicatia clientului etc).
+ *
+ * Bug real raportat de utilizator pe device (build Play Store): tap pe Exporta arata
+ * toast-ul "Se exporta...", apoi NIMIC — nici eroare, nici foaia de partajare, la
+ * infinit (confirmat identic pe exportul principal SI pe cel de folder, deci in
+ * aceasta cale comuna, nu intr-un apelant anume). Fara niciun timeout, un apel catre
+ * puntea nativa Capacitor (Filesystem.writeFile/Share.share) care nu se rezolva
+ * NICIODATA (bridge blocat, activitate care nu porneste efectiv etc.) bloca export-ul
+ * la infinit, silentios — promisiunea JS ramanea pur si simplu neasezata, fara sa
+ * ajunga vreodata la catch-ul din apelant (state/store.ts). Timeout-uri separate pe
+ * fiecare pas ca eroarea raportata sa spuna EXACT care call nativ s-a blocat.
  */
+const NATIVE_WRITE_TIMEOUT_MS = 15000;
+const NATIVE_SHARE_TIMEOUT_MS = 30000;
+
 async function saveViaNativeShare(name: string, blob: Blob): Promise<{ cancelled: boolean }> {
   const data = await blobToBase64(blob);
-  const written = await Filesystem.writeFile({ path: name, data, directory: Directory.Cache });
+  const written = await withTimeout(
+    Filesystem.writeFile({ path: name, data, directory: Directory.Cache }),
+    NATIVE_WRITE_TIMEOUT_MS,
+    'Scrierea fisierului in spatiul temporar al aplicatiei a durat prea mult.'
+  );
   try {
-    await Share.share({ url: written.uri, title: name });
+    await withTimeout(
+      Share.share({ url: written.uri, title: name }),
+      NATIVE_SHARE_TIMEOUT_MS,
+      'Deschiderea meniului de partajare a durat prea mult.'
+    );
   } catch (err) {
     // Utilizatorul a inchis foaia de partajare fara sa aleaga nimic — nu e o eroare reala
     // de export (fisierul tot exista, scris cu succes mai sus), doar o anulare a PASULUI
-    // urmator (unde sa ajunga in continuare). Orice alta eroare (Share indisponibil etc.)
-    // ramane raportata normal mai sus, catre apelant.
+    // urmator (unde sa ajunga in continuare). Orice alta eroare (Share indisponibil,
+    // timeout etc.) ramane raportata normal mai sus, catre apelant.
     if (!(err instanceof Error && /cancel/i.test(err.message))) throw err;
   }
   return { cancelled: false };
