@@ -957,21 +957,40 @@ const OVERALL_EXPORT_TIMEOUT_MS = 90000;
 const overallExportTimeoutMessage = 'Exportul in ansamblu a durat prea mult (peste 90s) — un pas neasteptat s-a blocat.';
 
 /**
- * Marcaj de build (SHA scurt al commit-ului, injectat de CI — vezi VITE_BUILD_ID
- * in android-debug-build.yml), prefixat DOAR pe mesajul "Se exporta...". Bug real
- * raportat de utilizator: dupa mai multe runde de fix-uri de timeout in exportul
- * nativ, confirmate una cate una prin teste ca functioneaza izolat, comportamentul
- * pe device ramanea IDENTIC — inclusiv fata de un timeout de ansamblu de 90s care
- * ar trebui sa fie imposibil de ratat. Singura dovada directa ca telefonul chiar
- * ruleaza codul din build-ul curent (nu un JS vechi servit dintr-un cache oarecare)
- * e un marcaj vizibil chiar in toast-ul care ramane blocat pe ecran — exact ce se
- * tot trimite in capturi de ecran, fara niciun pas suplimentar din partea
- * utilizatorului. Prefix, NU sufix: noticeTone() din App.tsx clasifica un mesaj ca
- * "in desfasurare" (ramane vizibil, cu spinner) dupa ce se TERMINA cu "...".
+ * Contor live (secunde scurse) in toast-ul "Se exporta...", pornit la fiecare
+ * export si oprit garantat (try/finally la fiecare apelant) la final, oricare
+ * ar fi rezultatul. Include si marcajul de build (SHA scurt, VITE_BUILD_ID —
+ * vezi android-debug-build.yml), ca sa confirme direct in toast-ul deja
+ * screenshot-uit ca telefonul chiar ruleaza codul curent, nu un JS vechi
+ * cache-uit undeva.
+ *
+ * Bug real raportat de utilizator: dupa mai multe runde de fix-uri de timeout,
+ * fiecare confirmata izolat prin teste, comportamentul pe device ramanea
+ * IDENTIC — inclusiv fata de un timeout de ansamblu de 90s (withTimeout,
+ * garantat sa functioneze — un simplu setTimeout). Un setTimeout care nu se
+ * declanseaza NICIODATA, cu buclă de evenimente JS altfel responsiva (restul
+ * interfetei ramanea utilizabila), nu se explica printr-o promisiune ramasa
+ * neasezata undeva (asta ar fi prins-o) — mai probabil bucla de evenimente
+ * insasi se blocheaza SINCRON undeva ÎNAINTE ca acel timer sa apuce sa fie
+ * inregistrat (un `await X()` evalueaza intai `X()`: daca partea sincrona
+ * dinaintea primului `await` din X hanga, apelul catre withTimeout de mai sus
+ * nici nu ajunge sa se execute). Un contor care avanseaza in fiecare secunda
+ * arata exact PANA UNDE apuca sa ajunga executia inainte sa se blocheze —
+ * mult mai util decat un text static pentru diagnostic, fara niciun instrument
+ * de dezvoltator necesar din partea utilizatorului.
  */
-function exportingNotice(locale: Locale): string {
+function startExportTicker(locale: Locale, set: (partial: Partial<AppState>) => void): () => void {
   const buildId = import.meta.env.VITE_BUILD_ID;
-  return (buildId ? `[build ${buildId}] ` : '') + t(locale, 'store.exportSelection.exporting');
+  const prefix = buildId ? `[build ${buildId}] ` : '';
+  const base = t(locale, 'store.exportSelection.exporting').replace(/\.+$/, '');
+  const startedAt = Date.now();
+  const tick = () => {
+    const elapsed = Math.floor((Date.now() - startedAt) / 1000);
+    set({ notice: `${prefix}${base} (${elapsed}s)...` });
+  };
+  tick();
+  const intervalId = setInterval(tick, 1000);
+  return () => clearInterval(intervalId);
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -2249,15 +2268,15 @@ export const useStore = create<AppState>((set, get) => ({
     // acest semnal, nu exista NICIO diferenta vizibila intre "a inceput sa
     // lucreze" si "apasarea n-a avut niciun efect", mai ales pe calea nativa
     // (Share.share), unde foaia de partajare a sistemului poate aparea cu o
-    // intarziere vizibila fata de tap.
-    set({ notice: exportingNotice(get().locale) });
+    // intarziere vizibila fata de tap. Vezi startExportTicker mai sus.
+    const locale = get().locale;
+    const stopTicker = startExportTicker(locale, set);
     try {
       // vezi computeGroupPersonUnion: un cadru dintr-un burst poate rata o
       // fata pe care alt cadru din ACEEASI serie a recunoscut-o clar —
       // unim persoanele recunoscute pe toata seria, ca folderul de export
       // sa reflecte cine e cu-adevarat in poza, nu doar ce a prins acel cadru.
       const groupUnion = computeGroupPersonUnion(allPhotos);
-      const locale = get().locale;
       const result = await withTimeout(exportOriginalFiles(selected.map(p => {
         const meta = p.project ? getProjectMetadata(p.project) : {};
         return {
@@ -2292,6 +2311,8 @@ export const useStore = create<AppState>((set, get) => ({
       set({ notice: parts.join(' ') });
     } catch (err) {
       set({ notice: t(get().locale, 'store.exportSelection.failed', { error: String(err) }) });
+    } finally {
+      stopTicker();
     }
   },
 
@@ -2314,7 +2335,7 @@ export const useStore = create<AppState>((set, get) => ({
     if (!members.length) { set({ notice: t(locale, 'collections.export.empty') }); return; }
     // Vezi comentariul identic din exportSelection mai sus — acelasi bug raportat,
     // aceeasi cauza (munca async fara niciun semnal vizibil pana la finalul ei).
-    set({ notice: exportingNotice(locale) });
+    const stopTicker = startExportTicker(locale, set);
     try {
       const groupUnion = computeGroupPersonUnion(allPhotos);
       const result = await withTimeout(exportOriginalFiles(members.map(p => {
@@ -2354,6 +2375,8 @@ export const useStore = create<AppState>((set, get) => ({
       set({ notice: parts.join(' ') });
     } catch (err) {
       set({ notice: t(locale, 'store.exportSelection.failed', { error: String(err) }) });
+    } finally {
+      stopTicker();
     }
   },
 
@@ -2404,7 +2427,7 @@ export const useStore = create<AppState>((set, get) => ({
     if (!decided.length) { set({ notice: t(locale, 'store.exportXmp.noDecided') }); return; }
     // Vezi comentariul identic din exportSelection (state/store.ts) — acelasi
     // bug raportat, aceeasi cauza (munca async fara niciun semnal vizibil).
-    set({ notice: exportingNotice(locale) });
+    const stopTicker = startExportTicker(locale, set);
     try {
       // vezi computeGroupPersonUnion (exportPhotos.ts) — acelasi principiu ca la
       // exportSelection: un cadru din burst poate rata o fata pe care alt cadru
@@ -2452,6 +2475,8 @@ export const useStore = create<AppState>((set, get) => ({
       set({ notice: msg });
     } catch (err) {
       set({ notice: t(locale, 'store.exportXmp.failed', { error: String(err) }) });
+    } finally {
+      stopTicker();
     }
   },
 
