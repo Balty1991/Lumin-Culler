@@ -76,6 +76,10 @@ export function TagIcon(p: SVGProps<SVGSVGElement>) {
 export function FolderIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><path d="M3.5 6.5A1.5 1.5 0 015 5h4.2l2 2.2H19a1.5 1.5 0 011.5 1.5v9A1.5 1.5 0 0119 19.2H5A1.5 1.5 0 013.5 17.7z" /></svg>;
 }
+/** Rezervata pentru filtre SALVATE (combinatii de filtre denumite de utilizator) — distincta de TagIcon (etichete de scena/culoare individuale). */
+export function BookmarkIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg {...base} {...p}><path d="M6.5 4h11a1 1 0 011 1v15.5l-6.5-4-6.5 4V5a1 1 0 011-1z" /></svg>;
+}
 export function FocusIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><path d="M4 9V6a2 2 0 012-2h3" /><path d="M20 9V6a2 2 0 00-2-2h-3" /><path d="M4 15v3a2 2 0 002 2h3" /><path d="M20 15v3a2 2 0 01-2 2h-3" /><circle cx="12" cy="12" r="3" /></svg>;
 }

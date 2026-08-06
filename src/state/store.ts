@@ -10,6 +10,7 @@ import {
   deleteCollection as deleteCollectionRecord, addPhotosToCollection as addPhotosToCollectionRecord,
   removePhotosFromCollection as removePhotosFromCollectionRecord
 } from '../core/collections';
+import { readSavedFilters, writeSavedFilters, type SavedFilterPreset } from './savedFilters';
 import { applyAdjustmentsToBlob, isNeutral, type EditAdjustments } from '../core/imageAdjust';
 import { readApplyEditsInGallery, writeApplyEditsInGallery } from './applyEditsPreference';
 import { clearPreviewUrlCache } from '../core/previewUrlCache';
@@ -236,6 +237,17 @@ interface AppState {
   removePhotosFromCollection: (id: string, photoIds: string[]) => Promise<void>;
   /** Exporta toate pozele dintr-un folder personalizat, indiferent de status — vezi comentariul de langa implementare. */
   exportCollection: (id: string) => Promise<void>;
+  /**
+   * Combinatii de filtre denumite de utilizator, reaplicabile dintr-un click —
+   * vezi state/savedFilters.ts pentru ce campuri chiar sunt salvate (si de ce
+   * NU toate). Persistate local, nu in Dexie — o preferinta reutilizabila peste
+   * sesiuni/biblioteci, nu date legate strict de sesiunea curenta.
+   */
+  savedFilters: SavedFilterPreset[];
+  /** null daca nu exista niciun filtru secundar activ de salvat (vezi implementarea). */
+  saveCurrentFiltersAsPreset: (name: string) => SavedFilterPreset | null;
+  applySavedFilterPreset: (id: string) => void;
+  deleteSavedFilterPreset: (id: string) => void;
   /**
    * Filtre suplimentare, toate combinabile intre ele si cu `filter`/`personFilter` —
    * utile la biblioteci mari (mii de poze), unde navigarea doar prin status/persoana
@@ -935,6 +947,39 @@ export const useStore = create<AppState>((set, get) => ({
     const nextCollections = get().collections.map(c => (c.id === id ? updated : c));
     await Promise.all(photoIds.map(pid => cleanupOrphanedOriginal(pid, nextCollections)));
     set({ collections: nextCollections });
+  },
+  savedFilters: readSavedFilters(),
+  saveCurrentFiltersAsPreset: name => {
+    const trimmed = name.trim();
+    if (!trimmed) return null;
+    const state = get();
+    // Nu salvam un preset "gol" (fara niciun filtru secundar activ) — n-ar
+    // face nimic la reaplicare, doar ar aglomera lista degeaba.
+    const hasSomethingToSave = !!state.personFilter || !!state.colorLabelFilter || !!state.sceneTagFilter ||
+      !!state.cameraFilter || !!state.projectFilter || !!state.searchText || state.minRating > 0;
+    if (!hasSomethingToSave) return null;
+    const preset: SavedFilterPreset = {
+      id: crypto.randomUUID(), name: trimmed, createdAt: Date.now(),
+      personFilter: state.personFilter, colorLabelFilter: state.colorLabelFilter, sceneTagFilter: state.sceneTagFilter,
+      cameraFilter: state.cameraFilter, projectFilter: state.projectFilter, searchText: state.searchText, minRating: state.minRating
+    };
+    const next = [...state.savedFilters, preset];
+    writeSavedFilters(next);
+    set({ savedFilters: next });
+    return preset;
+  },
+  applySavedFilterPreset: id => {
+    const preset = get().savedFilters.find(p => p.id === id);
+    if (!preset) return;
+    set({
+      personFilter: preset.personFilter, colorLabelFilter: preset.colorLabelFilter, sceneTagFilter: preset.sceneTagFilter,
+      cameraFilter: preset.cameraFilter, projectFilter: preset.projectFilter, searchText: preset.searchText, minRating: preset.minRating
+    });
+  },
+  deleteSavedFilterPreset: id => {
+    const next = get().savedFilters.filter(p => p.id !== id);
+    writeSavedFilters(next);
+    set({ savedFilters: next });
   },
   searchText: '',
   dateFrom: null,

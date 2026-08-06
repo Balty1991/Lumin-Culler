@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 // importFiles face analiza AI reala (workeri, modele TFJS) — inutil si lent
 // intr-un test unitar. Il mock-uim CONTROLABIL (o promisiune care nu se
@@ -17,6 +17,7 @@ import { useStore, relabelFaces, selectMergedEmbeddings, type PhotoView } from '
 import { db, type AnalysisRecord, type FaceInsight, type PhotoRecord } from '../core/db';
 import { contextEngine } from '../core/learning/ContextEngine';
 import { originalFiles } from '../core/importPipeline';
+import { readSavedFilters } from './savedFilters';
 
 function makePhoto(i: number): PhotoView {
   return {
@@ -438,6 +439,65 @@ describe('bulkSetRatingForSelection undo (integration, Dexie real via fake-index
 
     expect(useStore.getState().fieldBatchHistory).toHaveLength(0);
     expect(useStore.getState().history).toHaveLength(1);
+  });
+});
+
+// Cerinta directa a utilizatorului: combinatii de filtre denumite, reaplicabile
+// dintr-un click, persistate local (localStorage) — vezi state/savedFilters.ts.
+describe('saved filter presets', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    useStore.setState({
+      savedFilters: [], personFilter: null, colorLabelFilter: null, sceneTagFilter: null,
+      cameraFilter: null, projectFilter: null, searchText: '', minRating: 0
+    });
+  });
+
+  it('nu salveaza un preset gol (fara niciun filtru secundar activ)', () => {
+    const result = useStore.getState().saveCurrentFiltersAsPreset('Test');
+    expect(result).toBeNull();
+    expect(useStore.getState().savedFilters).toEqual([]);
+    expect(readSavedFilters()).toEqual([]);
+  });
+
+  it('nu salveaza cu un nume gol/doar spatii, chiar daca exista filtre active', () => {
+    useStore.setState({ minRating: 4 });
+    expect(useStore.getState().saveCurrentFiltersAsPreset('   ')).toBeNull();
+    expect(useStore.getState().savedFilters).toEqual([]);
+  });
+
+  it('salveaza si persista snapshot-ul filtrelor curente sub numele dat', () => {
+    useStore.setState({ personFilter: 'Ami', colorLabelFilter: 'red', minRating: 4, searchText: 'plaja' });
+
+    const result = useStore.getState().saveCurrentFiltersAsPreset('  Preferate  ');
+
+    expect(result).toMatchObject({ name: 'Preferate', personFilter: 'Ami', colorLabelFilter: 'red', minRating: 4, searchText: 'plaja' });
+    expect(useStore.getState().savedFilters).toHaveLength(1);
+    expect(readSavedFilters()).toHaveLength(1); // persistat in localStorage, nu doar in memorie
+  });
+
+  it('applySavedFilterPreset seteaza toate campurile din preset, ignora un id necunoscut', () => {
+    useStore.setState({ minRating: 3 });
+    const preset = useStore.getState().saveCurrentFiltersAsPreset('Rating mare')!;
+    useStore.setState({ minRating: 0, personFilter: 'Altcineva' });
+
+    useStore.getState().applySavedFilterPreset(preset.id);
+    expect(useStore.getState().minRating).toBe(3);
+    expect(useStore.getState().personFilter).toBeNull();
+
+    useStore.getState().applySavedFilterPreset('id-inexistent');
+    expect(useStore.getState().minRating).toBe(3); // neschimbat, no-op
+  });
+
+  it('deleteSavedFilterPreset scoate presetul din stare si din localStorage', () => {
+    useStore.setState({ minRating: 2 });
+    const preset = useStore.getState().saveCurrentFiltersAsPreset('De sters')!;
+    expect(useStore.getState().savedFilters).toHaveLength(1);
+
+    useStore.getState().deleteSavedFilterPreset(preset.id);
+
+    expect(useStore.getState().savedFilters).toEqual([]);
+    expect(readSavedFilters()).toEqual([]);
   });
 });
 

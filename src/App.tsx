@@ -39,6 +39,7 @@ import { ColorLabelFilter } from './ui/ColorLabelFilter';
 import { SceneTagFilter } from './ui/SceneTagFilter';
 import { CameraFilter } from './ui/CameraFilter';
 import { MoreFiltersMenu } from './ui/MoreFiltersMenu';
+import { SavedFiltersMenu } from './ui/SavedFiltersMenu';
 import { InstallPrompt } from './ui/InstallPrompt';
 import { BackupReminder } from './ui/BackupReminder';
 import { t } from './i18n';
@@ -762,6 +763,7 @@ export default function App() {
                   <ColorLabelFilter value={colorLabelFilter} onChange={setColorLabelFilter} />
                   <SceneTagFilter />
                   <CameraFilter />
+                  <SavedFiltersMenu />
                 </>
               )}
             </MoreFiltersMenu>

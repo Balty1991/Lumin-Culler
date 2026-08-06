@@ -996,6 +996,15 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 .collection-picker-create button { flex-shrink: 0; width: 32px; height: 32px; }
 
+/* SavedFiltersMenu.tsx — combinatii de filtre denumite de utilizator (cerinta
+   directa). Acelasi motiv ca la .collection-picker-menu: numele presetului
+   e text liber, nu o eticheta COCO cu un cuvant. */
+.saved-filters-menu { flex-shrink: 0; }
+.saved-filters-menu .scene-tag-filter-option { text-transform: none; }
+.saved-filters-row { display: flex; align-items: center; gap: 4px; }
+.saved-filters-row .scene-tag-filter-option { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.saved-filters-row .icon-btn.small { flex-shrink: 0; width: 28px; height: 28px; }
+
 /* buton care grupeaza statusurile speciale + persoana/eticheta/scena/aparat +
    modul de selectie sub UN singur trigger (MoreFiltersMenu.tsx), ca randul
    principal de filtre sa incapa fara scroll orizontal. */
