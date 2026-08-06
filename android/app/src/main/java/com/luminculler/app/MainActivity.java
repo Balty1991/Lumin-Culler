@@ -15,6 +15,7 @@ import com.luminculler.app.plugins.TextRecognitionPlugin;
 import com.luminculler.app.plugins.PoseDetectionPlugin;
 import com.luminculler.app.plugins.SegmentationPlugin;
 import com.luminculler.app.plugins.ImageEmbedderPlugin;
+import com.luminculler.app.plugins.FolderExportPlugin;
 
 public class MainActivity extends BridgeActivity {
     @Override
@@ -23,7 +24,8 @@ public class MainActivity extends BridgeActivity {
         // nu sunt descoperite automat de Capacitor — trebuie inregistrate explicit aici,
         // inainte de super.onCreate(). Vezi plugins/FaceDetectionPlugin.kt / ImageAnalysisPlugin.kt /
         // ImageLabelingPlugin.kt / FaceMeshPlugin.kt / ImageClassifierPlugin.kt /
-        // TextRecognitionPlugin.kt / PoseDetectionPlugin.kt / SegmentationPlugin.kt / ImageEmbedderPlugin.kt.
+        // TextRecognitionPlugin.kt / PoseDetectionPlugin.kt / SegmentationPlugin.kt / ImageEmbedderPlugin.kt /
+        // FolderExportPlugin.kt.
         registerPlugin(FaceDetectionPlugin.class);
         registerPlugin(ImageAnalysisPlugin.class);
         registerPlugin(ImageLabelingPlugin.class);
@@ -33,6 +35,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(PoseDetectionPlugin.class);
         registerPlugin(SegmentationPlugin.class);
         registerPlugin(ImageEmbedderPlugin.class);
+        registerPlugin(FolderExportPlugin.class);
         super.onCreate(savedInstanceState);
 
         // Fara acest listener, un crash al PROCESULUI DE RANDARE al WebView-ului

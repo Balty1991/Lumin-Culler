@@ -10,6 +10,7 @@ import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { blobToBase64 } from '../base64';
 import { withTimeout } from '../workerPool';
+import { ExportCancelledError, isNativeFolderExportAvailable, pickNativeDirectory } from './nativeFolderExport';
 
 export interface LocalWritable {
   write(data: Blob): Promise<void>;
@@ -40,11 +41,18 @@ function getSaveFilePicker(): SaveFilePickerWindow['showSaveFilePicker'] | null 
 }
 
 /**
- * Disponibil in Chromium desktop si Electron; NU si in Safari/WebKit sau
- * in WebView-urile mobile (Android Chrome/Brave inclus) — apelantul trebuie
+ * Selectorul de folder al platformei, sau null cand nu exista niciunul (Safari/
+ * WebKit, Firefox, WebView-uri mobile fara plugin-ul nativ) — apelantul trebuie
  * sa aiba mereu un fallback de descarcari pentru cazul null.
+ *
+ * Pe Android nativ preferam SAF (plugin-ul local FolderExport, vezi
+ * nativeFolderExport.ts) INAINTEA lui showDirectoryPicker: cerinta directa a
+ * utilizatorului era ca exportul unui folder sa produca foldere reale pe telefon,
+ * iar SAF e singura cale prin care aplicatia poate scrie asa ceva. Ambele intorc
+ * acelasi LocalDirHandle, deci apelantul nu vede nicio diferenta.
  */
 export function getDirectoryPicker(): DirectoryPickerWindow['showDirectoryPicker'] | null {
+  if (isNativeFolderExportAvailable()) return () => pickNativeDirectory();
   const w = window as unknown as Partial<DirectoryPickerWindow>;
   return typeof w.showDirectoryPicker === 'function' ? w.showDirectoryPicker.bind(w) : null;
 }
@@ -118,15 +126,25 @@ export async function writeTextFile(dir: LocalDirHandle, name: string, content: 
 export const PICKER_TIMEOUT_MS = 45000;
 
 /**
- * Aplica PICKER_TIMEOUT_MS peste promisiunea unui picker nativ. Deliberat un
+ * Alegerea unui FOLDER de destinatie (showDirectoryPicker pe desktop, selectorul
+ * SAF pe Android) e o navigare, nu un singur tap ca la salvarea unui fisier —
+ * 45s ar expira in mijlocul unei utilizari perfect normale, iar fallback-ul ar
+ * porni o descarcare/o foaie de partajare peste dialogul inca deschis. Pastram
+ * totusi un plafon, ca scopul (sa nu ramanem agatati la NESFARSIT pe un picker
+ * care nu se aseaza niciodata) sa fie in continuare acoperit.
+ */
+export const DIRECTORY_PICKER_TIMEOUT_MS = 300000;
+
+/**
+ * Aplica un timeout peste promisiunea unui picker nativ. Deliberat un
  * Promise.race (nu withTimeout din core/workerPool.ts): apelantii de aici NU
  * propaga eroarea mai departe, ci o folosesc doar ca semnal sa treaca pe
  * fallback, deci mesajul nu ajunge niciodata in fata utilizatorului.
  */
-export function racePickerTimeout<T>(picker: Promise<T>, label: string): Promise<T> {
+export function racePickerTimeout<T>(picker: Promise<T>, label: string, timeoutMs = PICKER_TIMEOUT_MS): Promise<T> {
   return Promise.race([
     picker,
-    new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`${label} timeout`)), PICKER_TIMEOUT_MS))
+    new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`${label} timeout`)), timeoutMs))
   ]);
 }
 
@@ -154,6 +172,10 @@ const INSTANT_ABORT_THRESHOLD_MS = 500;
  * fallback-ul de descarcari — exact simptomul "Se exporta..." la infinit.
  */
 export function isRealUserCancel(err: unknown, startedAt: number): boolean {
+  // Selectorul NATIV de folder (SAF) raporteaza anularea neechivoc, ca rezultat
+  // al unei activitati reale a sistemului — nu are nevoie de euristica de timp
+  // de mai jos, care exista doar pentru API-urile web expuse dar nefunctionale.
+  if (err instanceof ExportCancelledError) return true;
   return err instanceof DOMException && err.name === 'AbortError' && Date.now() - startedAt >= INSTANT_ABORT_THRESHOLD_MS;
 }
 

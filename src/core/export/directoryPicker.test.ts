@@ -1,16 +1,24 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 
 const isNativePlatform = vi.fn(() => false);
+const isPluginAvailable = vi.fn(() => false);
 vi.mock('@capacitor/core', async importOriginal => {
   const actual = await importOriginal<typeof import('@capacitor/core')>();
-  return { ...actual, Capacitor: { ...actual.Capacitor, isNativePlatform: () => isNativePlatform() } };
+  return {
+    ...actual,
+    Capacitor: {
+      ...actual.Capacitor,
+      isNativePlatform: () => isNativePlatform(),
+      isPluginAvailable: () => isPluginAvailable()
+    }
+  };
 });
 const writeFile = vi.fn();
 vi.mock('@capacitor/filesystem', () => ({ Filesystem: { writeFile: (...args: unknown[]) => writeFile(...args) }, Directory: { Cache: 'CACHE' } }));
 const share = vi.fn();
 vi.mock('@capacitor/share', () => ({ Share: { share: (...args: unknown[]) => share(...args) } }));
 
-import { downloadBlob, downloadZip, dedupeFileName } from './directoryPicker';
+import { downloadBlob, downloadZip, dedupeFileName, getDirectoryPicker } from './directoryPicker';
 
 describe('dedupeFileName', () => {
   it('leaves the first occurrence of a name unchanged', () => {
@@ -332,5 +340,52 @@ describe('downloadZip', () => {
     expect(createObjectURL).not.toHaveBeenCalled(); // NU trece deloc prin fallback-ul <a download>
 
     Reflect.deleteProperty(window, 'showSaveFilePicker');
+  });
+});
+
+/**
+ * Cerinta directa a utilizatorului ("la export folder, salveaza doar poza, nu si
+ * folderul creat"): pe Android, exportul trebuie sa treaca prin selectorul NATIV
+ * de folder (SAF, plugin-ul local FolderExport), nu prin foaia de partajare care
+ * pierde gruparea. Ambele cai intorc acelasi LocalDirHandle, deci restul
+ * exportului (core/exportPhotos.ts) nu are nevoie de nicio ramura noua.
+ */
+describe('getDirectoryPicker — ce selector de folder alege platforma', () => {
+  afterEach(() => {
+    isNativePlatform.mockReturnValue(false);
+    isPluginAvailable.mockReturnValue(false);
+    delete (window as unknown as { showDirectoryPicker?: unknown }).showDirectoryPicker;
+  });
+
+  it('nu ofera niciun selector intr-un browser fara File System Access API (fallback pe descarcari)', () => {
+    expect(getDirectoryPicker()).toBeNull();
+  });
+
+  it('foloseste showDirectoryPicker pe desktop, cand exista', () => {
+    const showDirectoryPicker = vi.fn();
+    (window as unknown as { showDirectoryPicker: unknown }).showDirectoryPicker = showDirectoryPicker;
+    expect(getDirectoryPicker()).not.toBeNull();
+  });
+
+  it('prefera selectorul nativ SAF pe Android, chiar daca WebView-ul expune si showDirectoryPicker', () => {
+    isNativePlatform.mockReturnValue(true);
+    isPluginAvailable.mockReturnValue(true);
+    const showDirectoryPicker = vi.fn();
+    (window as unknown as { showDirectoryPicker: unknown }).showDirectoryPicker = showDirectoryPicker;
+
+    const picker = getDirectoryPicker();
+    expect(picker).not.toBeNull();
+    void picker?.({ mode: 'readwrite' }).catch(() => {}); // plugin-ul real lipseste in jsdom — ne intereseaza doar CINE e chemat
+    expect(showDirectoryPicker).not.toHaveBeenCalled();
+  });
+
+  it('cade inapoi pe showDirectoryPicker intr-un build nativ fara plugin-ul inregistrat (APK vechi)', () => {
+    isNativePlatform.mockReturnValue(true);
+    isPluginAvailable.mockReturnValue(false);
+    const showDirectoryPicker = vi.fn();
+    (window as unknown as { showDirectoryPicker: unknown }).showDirectoryPicker = showDirectoryPicker;
+
+    void getDirectoryPicker()?.({ mode: 'readwrite' });
+    expect(showDirectoryPicker).toHaveBeenCalledTimes(1);
   });
 });

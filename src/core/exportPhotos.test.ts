@@ -33,6 +33,7 @@ vi.mock('./imageAdjust', async importOriginal => {
 import { originalFiles } from './importPipeline';
 import { exportOriginalFiles, computeGroupPersonUnion } from './exportPhotos';
 import { NEUTRAL_ADJUSTMENTS, type EditAdjustments } from './imageAdjust';
+import { ExportCancelledError } from './export/nativeFolderExport';
 
 const REAL_EDITS: EditAdjustments = { ...NEUTRAL_ADJUSTMENTS, exposure: 20 };
 
@@ -409,6 +410,26 @@ describe('exportOriginalFiles (fallback fara File System Access API)', () => {
       expect(downloadBlob).toHaveBeenCalledTimes(1);
     });
 
+    // Selectorul NATIV de folder (SAF, Android) raporteaza anularea neechivoc,
+    // ca rezultat al unei activitati reale a sistemului — spre deosebire de web,
+    // nu are nevoie de pragul de timp ca sa fie crezut. O anulare instanta de
+    // acolo NU trebuie sa cada pe fallback si sa deschida o foaie de partajare
+    // peste dialogul pe care tocmai l-a inchis utilizatorul.
+    it('trateaza ExportCancelledError (selectorul nativ SAF) ca anulare reala, chiar instant', async () => {
+      const pickDirectory = vi.fn<PickDirectoryFn>(async () => { throw new ExportCancelledError(); });
+      getDirectoryPicker.mockReturnValue(pickDirectory);
+      originalFiles.set('p1', fakeFile('a.jpg'));
+
+      const result = await exportOriginalFiles([
+        { id: 'p1', fileName: 'a.jpg', personNames: [], faceCount: 0, strangerCount: 0, sceneType: 'landscape' }
+      ]);
+
+      expect(result.cancelled).toBe(true);
+      expect(result.exported).toBe(0);
+      expect(downloadBlob).not.toHaveBeenCalled();
+      expect(downloadZip).not.toHaveBeenCalled();
+    });
+
     it('nu ramane agatat la infinit daca pickDirectory nu rezolva/respinge niciodata — cade pe descarcari dupa timeout', async () => {
       vi.useFakeTimers();
       try {
@@ -419,7 +440,7 @@ describe('exportOriginalFiles (fallback fara File System Access API)', () => {
         const resultPromise = exportOriginalFiles([
           { id: 'p1', fileName: 'a.jpg', personNames: [], faceCount: 0, strangerCount: 0, sceneType: 'landscape' }
         ]);
-        await vi.advanceTimersByTimeAsync(46000); // > PICKER_TIMEOUT_MS
+        await vi.advanceTimersByTimeAsync(301000); // > DIRECTORY_PICKER_TIMEOUT_MS
         const result = await resultPromise;
 
         expect(result.cancelled).toBe(false);

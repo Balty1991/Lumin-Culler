@@ -3,11 +3,13 @@
  * Exporta fotografiile SELECTATE ca fisiere reale, in formatul original
  * (aceiasi bytes/extensie ca la import), nu doar o lista de nume.
  *
- * Cale principala: File System Access API (showDirectoryPicker) — utilizatorul
- * alege un folder, fisierele sunt copiate direct pe disc unul cate unul
- * (streaming, fara sa tina 1000+ poze originale in memorie simultan).
- * Disponibila in Chromium desktop si Electron; NU si in Safari/WebKit sau
- * in WebView-urile mobile (Capacitor), unde se trece pe fallback.
+ * Cale principala: un selector de folder al platformei (vezi getDirectoryPicker)
+ * — utilizatorul alege destinatia, fisierele sunt copiate direct acolo unul cate
+ * unul (streaming, fara sa tina 1000+ poze originale in memorie simultan), in
+ * subfoldere reale pe persoana/scena. File System Access API
+ * (showDirectoryPicker) in Chromium desktop si Electron; Storage Access
+ * Framework prin plugin-ul nativ FolderExport pe Android. NU exista in
+ * Safari/WebKit sau in browserele mobile obisnuite, unde se trece pe fallback.
  *
  * Fallback universal: descarcari secventiale ale fiecarui fisier original,
  * cu numele lor originale — functioneaza peste tot, dar browserul poate
@@ -16,7 +18,7 @@
  */
 import { originalFiles } from './importPipeline';
 import { db } from './db';
-import { getDirectoryPicker, downloadBlob, downloadZip, dedupeFileName, isRealUserCancel, racePickerTimeout, type LocalDirHandle } from './export/directoryPicker';
+import { getDirectoryPicker, downloadBlob, downloadZip, dedupeFileName, isRealUserCancel, racePickerTimeout, DIRECTORY_PICKER_TIMEOUT_MS, type LocalDirHandle } from './export/directoryPicker';
 import { reacquireFile } from './filePicker';
 import { buildExportFileName, type RenameContext } from './renameTemplate';
 import { applyAdjustmentsToBlob, isNeutral, type EditAdjustments } from './imageAdjust';
@@ -277,10 +279,10 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[], options: E
   if (pickDirectory) {
     const startedAt = Date.now();
     try {
-      // Acelasi timeout absolut ca la showSaveFilePicker (vezi PICKER_TIMEOUT_MS):
-      // un picker care nu rezolva si nu respinge NICIODATA lasa altfel exportul
-      // agatat definitiv, cu toast-ul "Se exporta..." pe ecran la infinit.
-      const dir = await racePickerTimeout(pickDirectory({ mode: 'readwrite' }), 'showDirectoryPicker');
+      // Plafon absolut (vezi DIRECTORY_PICKER_TIMEOUT_MS): un picker care nu
+      // rezolva si nu respinge NICIODATA lasa altfel exportul agatat definitiv,
+      // cu toast-ul "Se exporta..." pe ecran la infinit.
+      const dir = await racePickerTimeout(pickDirectory({ mode: 'readwrite' }), 'directoryPicker', DIRECTORY_PICKER_TIMEOUT_MS);
       await copyToDirectory(available, dir);
       return { exported: available.length, missing, method, cancelled: false, grouped: true };
     } catch (err) {
