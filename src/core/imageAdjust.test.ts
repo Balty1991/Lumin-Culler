@@ -1,8 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   computeAutoContrast, computeAutoExposureFromScore, computeAutoHighlightsShadows,
   computeAutoCrop, computeAutoStraighten, computeAutoSaturation, isNeutral, NEUTRAL_ADJUSTMENTS,
-  type AutoAdjustSignals
+  applyAdjustmentsToBlob, type AutoAdjustSignals
 } from './imageAdjust';
 
 function makeImage(w: number, h: number, paint: (x: number, y: number) => [number, number, number]): ImageData {
@@ -196,5 +196,31 @@ describe('isNeutral with crop/rotationDeg', () => {
 
   it('is not neutral once rotationDeg is non-zero', () => {
     expect(isNeutral({ ...NEUTRAL_ADJUSTMENTS, rotationDeg: 3 })).toBe(false);
+  });
+});
+
+// Bug real raportat de utilizator: exportul unei poze CU ajustari ramanea blocat
+// la infinit pe "Se exporta...", fara nicio eroare — createImageBitmap/canvas.toBlob
+// nu aveau niciun timeout, spre deosebire de restul cailor native de export (vezi
+// comentariul de la BAKE_EDITS_TIMEOUT_MS in imageAdjust.ts).
+describe('applyAdjustmentsToBlob timeout', () => {
+  it('rejects instead of hanging forever when createImageBitmap never resolves', async () => {
+    vi.useFakeTimers();
+    const original = globalThis.createImageBitmap;
+    globalThis.createImageBitmap = vi.fn(() => new Promise(() => { /* niciodata rezolvata, simuleaza blocarea reala */ }));
+    try {
+      const promise = applyAdjustmentsToBlob(new Blob(['x']), { ...NEUTRAL_ADJUSTMENTS, exposure: 20 });
+      const assertion = expect(promise).rejects.toThrow(/durat prea mult/);
+      await vi.advanceTimersByTimeAsync(40000);
+      await assertion;
+    } finally {
+      globalThis.createImageBitmap = original;
+      vi.useRealTimers();
+    }
+  });
+
+  it('returns the original blob unchanged when adjustments are neutral (no decode attempted)', async () => {
+    const blob = new Blob(['x']);
+    await expect(applyAdjustmentsToBlob(blob, NEUTRAL_ADJUSTMENTS)).resolves.toBe(blob);
   });
 });

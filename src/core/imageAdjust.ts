@@ -7,6 +7,7 @@
  * reseta oricand fara pierdere de calitate, exact ca develop module-ul dintr-un
  * soft de catalogare (Lightroom/Capture One), dar mult mai restrans in scop.
  */
+import { withTimeout } from './workerPool';
 
 export interface EditAdjustments {
   exposure: number;    // -100..100
@@ -340,14 +341,22 @@ export function computeAutoAdjustments(source: CanvasImageSource, sourceWidth: n
 }
 
 /**
- * Randeaza ajustarile pe un blob (ex. miniatura din galeria pentru client) si
- * intoarce un JPEG nou — folosit doar acolo unde utilizatorul alege EXPLICIT
- * sa "coaca" editarile intr-un export (nu modifica blob-ul original din
- * IndexedDB). `blob` neschimbat daca nu exista nicio ajustare reala, ca sa nu
- * piarda calitate printr-un re-encode inutil.
+ * Prag pentru decodare+desenare+reencodare canvas (acelasi ordin de marime ca
+ * ANALYZE_TIMEOUT_MS din workerPool.ts, pentru aceeasi clasa de operatie —
+ * decodare de imagine pe un device mobil slab). Bug real raportat de
+ * utilizator: exportul unei poze CU ajustari (EditPanel) ramanea blocat la
+ * infinit pe "Se exporta...", fara nicio eroare — spre deosebire de calea
+ * nativa Android (Filesystem.writeFile/Share.share, vezi
+ * core/export/directoryPicker.ts), care are deja timeout-uri, createImageBitmap/
+ * canvas.toBlob de mai jos nu aveau NICIUN timeout. Daca oricare din ele nu se
+ * rezolva niciodata (WebView cu bug de decodare, imagine neuzuala), catch-ul
+ * din bakeEditsIfNeeded (exportPhotos.ts) nu avea niciodata ocazia sa prinda
+ * ceva — o promisiune care nu se aseaza NICIODATA nu declanseaza niciun catch,
+ * doar tine tot exportul agatat definitiv.
  */
-export async function applyAdjustmentsToBlob(blob: Blob, adjustments: EditAdjustments, quality = 0.85): Promise<Blob> {
-  if (isNeutral(adjustments)) return blob;
+const BAKE_EDITS_TIMEOUT_MS = 40000;
+
+async function renderAdjustedBlob(blob: Blob, adjustments: EditAdjustments, quality: number): Promise<Blob> {
   const bitmap = await createImageBitmap(blob);
   try {
     const canvas = document.createElement('canvas');
@@ -362,4 +371,20 @@ export async function applyAdjustmentsToBlob(blob: Blob, adjustments: EditAdjust
   } finally {
     bitmap.close();
   }
+}
+
+/**
+ * Randeaza ajustarile pe un blob (ex. miniatura din galeria pentru client) si
+ * intoarce un JPEG nou — folosit doar acolo unde utilizatorul alege EXPLICIT
+ * sa "coaca" editarile intr-un export (nu modifica blob-ul original din
+ * IndexedDB). `blob` neschimbat daca nu exista nicio ajustare reala, ca sa nu
+ * piarda calitate printr-un re-encode inutil.
+ */
+export async function applyAdjustmentsToBlob(blob: Blob, adjustments: EditAdjustments, quality = 0.85): Promise<Blob> {
+  if (isNeutral(adjustments)) return blob;
+  return withTimeout(
+    renderAdjustedBlob(blob, adjustments, quality),
+    BAKE_EDITS_TIMEOUT_MS,
+    'Randarea ajustarilor a durat prea mult (posibil fisier problematic).'
+  );
 }
