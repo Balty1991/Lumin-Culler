@@ -58,12 +58,25 @@ const SWIPE_COMMIT_PX = 80;
 /** Peste aceasta deriva verticala, gestul e tratat ca scroll, nu ca swipe orizontal intentionat. */
 const SWIPE_MAX_VERTICAL_PX = 45;
 
-/** Clasifica un mesaj de notificare dupa cuvinte-cheie — nu exista un camp de tip in store
-    (notice e doar text), asa ca deducem tonul din continut pentru iconita/culoarea toast-ului. */
-function noticeTone(message: string): 'error' | 'warn' | 'success' {
+/**
+ * Clasifica un mesaj de notificare dupa cuvinte-cheie — nu exista un camp de
+ * tip in store (notice e doar text), asa ca deducem tonul din continut pentru
+ * iconita/culoarea toast-ului.
+ *
+ * 'progress' (mesaje "Se exporta...", "Se restaureaza backup-ul...", etc. —
+ * conventia existenta in i18n e mereu suspensie de 3 puncte la finalul unei
+ * actiuni inca in desfasurare) NU trebuie sa dispara automat dupa 10s ca un
+ * succes obisnuit: bug real raportat de utilizator (export nativ Android,
+ * confirmat pe device) — "Se exporta..." disparea la 10s in timp ce munca
+ * async continua inca (poate dura pana la 30s pe calea nativa de partajare),
+ * lasand un gol tacut in care parea ca nu s-a intamplat NIMIC, desi rezultatul
+ * (succes SAU eroare) tot urma sa apara mai tarziu. Vezi efectul de mai jos.
+ */
+function noticeTone(message: string): 'error' | 'warn' | 'progress' | 'success' {
   const lower = message.toLowerCase();
   if (lower.includes('esuat') || lower.includes('eroare')) return 'error';
   if (lower.includes('plin') || lower.includes('aproape')) return 'warn';
+  if (message.endsWith('...')) return 'progress';
   return 'success';
 }
 /**
@@ -133,7 +146,10 @@ function Toast() {
   return (
     <div className={`toast tone-${tone}`} role="status">
       <span className="toast-icon">
-        {tone === 'error' ? <ErrorIcon /> : tone === 'warn' ? <AlertIcon /> : <CheckIcon />}
+        {tone === 'error' ? <ErrorIcon />
+          : tone === 'warn' ? <AlertIcon />
+          : tone === 'progress' ? <SparkleIcon className="spin" />
+          : <CheckIcon />}
       </span>
       <span className="mono toast-text">{notice}</span>
       <button className="toast-close" onClick={() => clearNotice()} aria-label={t(locale, 'app.toast.close')}>
@@ -303,9 +319,12 @@ export default function App() {
     // Erorile NU dispar singure — utilizatorul trebuie sa apuce sa le citeasca/
     // fotografieze (mai ales mesaje de diagnostic, ex. timeout-urile din
     // exportul nativ Android) inainte sa le poata raporta; le inchide manual
-    // (X-ul din toast) cand a terminat. Succes/avertismente raman pe auto-dismiss,
-    // ca inainte — nu au nevoie sa fie citite cu atentie sau raportate mai departe.
-    if (noticeTone(notice) === 'error') return;
+    // (X-ul din toast) cand a terminat. La fel "progress" (vezi noticeTone) —
+    // ramane pana e inlocuit de rezultatul real (succes/eroare), nu disparea
+    // singur cat munca async e inca in desfasurare. Succes/avertismente raman
+    // pe auto-dismiss, ca inainte.
+    const tone = noticeTone(notice);
+    if (tone === 'error' || tone === 'progress') return;
     const t = setTimeout(() => clearNotice(), NOTICE_AUTODISMISS_MS);
     return () => clearTimeout(t);
   }, [notice, clearNotice]);
