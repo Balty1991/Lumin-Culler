@@ -14,6 +14,7 @@ import { parseIptc } from './iptcParser';
 import { isRawFile, decodeRawFile, RAW_EXTENSIONS } from './rawDecoder';
 import type { FileSystemFileHandleLike } from './filePicker';
 import { pickFolderSceneTag } from './sceneTagLabels';
+import { detectFacesNative, isNativeFaceDetectionAvailable } from './nativeFaceDetection';
 
 export interface ImportProgress {
   done: number;
@@ -168,6 +169,84 @@ function canvasToJpeg(canvas: HTMLCanvasElement, quality: number): Promise<Blob>
   return new Promise((resolve, reject) =>
     canvas.toBlob(b => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/jpeg', quality)
   );
+}
+
+/** Mult sub PREVIEW_MAX_SIDE — scop DOAR sa decidem ordinea de procesare, nu sa mai extragem vreun semnal fin. */
+const FACE_PRESCAN_SIZE = 320;
+const FACE_PRESCAN_TIMEOUT_MS = 8000;
+/** Independent de analysisPool.size — pasul e usor (un decode mic + un apel ML Kit), poate rula cu mai mult paralelism decat analiza completa. */
+const FACE_PRESCAN_CONCURRENCY = 4;
+/** Sub acest numar de poze, reordonarea n-are niciun beneficiu vizibil (biblioteca mica = oricum gata rapid) — doar cost adaugat degeaba. */
+const FACE_PRESCAN_MIN_BATCH = 4;
+
+/**
+ * Cerinta directa a utilizatorului: la un import mare, pozele cu OAMENI (cel
+ * mai adesea subiectul important intr-o sedinta foto) sa fie gata de triat
+ * primele, restul continuand analiza completa in fundal — asa poti incepe
+ * culling-ul imediat, nu abia dupa ce se termina tot lotul.
+ *
+ * DOAR pe Android (native, ML Kit) — pe web/PWA, Human.js NU separa ieftin
+ * detectia de fete de restul analizei (compozitie/claritate/etc. vin din
+ * ACELASI apel human.detect()), deci o pre-scanare acolo ar insemna sa rulam
+ * analiza de doua ori pe fiecare poza, incetinind importul global, exact
+ * opusul scopului — web/PWA ramane neschimbat, ordinea ramane cea din urma
+ * (cum a ales-o utilizatorul in selector).
+ *
+ * Decodare MICA (320px, calitate redusa) + un singur apel ML Kit per poza —
+ * mult mai ieftin decat decodarea completa (2048px) + restul pipeline-ului
+ * din processOne, care oricum va re-detecta fetele la rezolutie completa
+ * (necesar pentru cutii precise de compozitie/focus) — cateva zeci de ms in
+ * plus per poza, acceptabil pentru beneficiul de a vedea pozele cu oameni
+ * primele. Partitie STABILA (nu un sort complet): fetele intai, in ordinea
+ * originala intre ele, apoi restul, tot in ordinea originala — nu amestecam
+ * inutil ordinea din care utilizatorul a ales fisierele.
+ *
+ * Orice esec per-poza (decodare, plugin indisponibil temporar) o lasa pur si
+ * simplu in grupul neprioritizat — o pre-scanare esuata NU trebuie sa
+ * blocheze sau sa strice importul real, care oricum reincearca detectia la
+ * rezolutie completa mai tarziu.
+ */
+/** Exportata doar pentru testabilitate directa (prioritizeFacesFirst.test.ts) — la fel ca toHashInput/decidePhotoStatus mai sus. */
+export async function prioritizeFacesFirst<T extends { file: File }>(images: T[]): Promise<T[]> {
+  if (!isNativeFaceDetectionAvailable() || images.length < FACE_PRESCAN_MIN_BATCH) return images;
+
+  const hasFace = new Array<boolean>(images.length).fill(false);
+  let index = 0;
+  await Promise.all(
+    Array.from({ length: FACE_PRESCAN_CONCURRENCY }, async () => {
+      while (true) {
+        const i = index++;
+        if (i >= images.length) break;
+        const { file } = images[i];
+        // RAW-urile nu se decodeaza cu createImageBitmap (necesita decodeRawFile,
+        // mult mai costisitor) — le lasam neprioritizate, nu merita costul complet
+        // al unui decoder RAW doar ca sa decidem ordinea.
+        if (RAW_EXTENSIONS.test(file.name)) continue;
+        try {
+          const bitmap = await withTimeout(
+            createImageBitmap(file, { resizeWidth: FACE_PRESCAN_SIZE, resizeQuality: 'low' } as ImageBitmapOptions),
+            FACE_PRESCAN_TIMEOUT_MS,
+            'Pre-scanare fete: decodare prea lenta.'
+          );
+          const c = document.createElement('canvas');
+          c.width = bitmap.width;
+          c.height = bitmap.height;
+          c.getContext('2d')!.drawImage(bitmap, 0, 0);
+          bitmap.close();
+          const blob = await canvasToJpeg(c, 0.7);
+          const result = await detectFacesNative(blob);
+          hasFace[i] = result.faces.length > 0;
+        } catch {
+          // esec per-poza (decodare/plugin) -> ramane in grupul neprioritizat, nu blocam pre-scanarea pentru atat
+        }
+      }
+    })
+  );
+
+  const withFace: T[] = [];
+  const withoutFace: T[] = [];
+  images.forEach((img, i) => (hasFace[i] ? withFace : withoutFace).push(img));
+  return [...withFace, ...withoutFace];
 }
 
 function makeDerivatives(bitmap: ImageBitmap): {
@@ -444,7 +523,7 @@ export async function importFiles(
   // dupa format — altfel indexul din `handles` s-ar decala fata de `files`
   // de indata ce un fisier neacceptat (ex. HEIC) e exclus din mijlocul listei.
   const pairs = files.map((file, i) => ({ file, handle: handles?.[i] }));
-  const images = pairs.filter(({ file: f }) =>
+  let images = pairs.filter(({ file: f }) =>
     /image\/(jpeg|png|webp|avif)/.test(f.type) || /\.(jpe?g|png|webp|avif)$/i.test(f.name) || RAW_EXTENSIONS.test(f.name)
   );
   // Daca niciun fisier ales nu are un format suportat (ex. HEIC/HEIF de pe iPhone,
@@ -459,6 +538,11 @@ export async function importFiles(
     onProgress({ done: 0, total: 0, fileName: '', phase: 'finalizat', warning });
     return new Map();
   }
+
+  // Cerinta directa a utilizatorului: la un import mare, pozele cu oameni sa
+  // fie gata de triat primele — vezi comentariul de la prioritizeFacesFirst
+  // (doar Android, no-op si instant pe web/PWA).
+  images = await prioritizeFacesFirst(images);
 
   const concurrency = analysisPool.size + 1;
   let done = 0;
