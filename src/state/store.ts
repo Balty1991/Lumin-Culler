@@ -704,8 +704,21 @@ async function syncOriginal(id: string, status: PhotoRecord['status']): Promise<
       }
     }
   } else {
-    await db.originals.delete(id);
-    await db.fileHandles.delete(id);
+    // Bug real raportat de utilizator (confirmat pe device: "Exporta" pe un
+    // folder personalizat nu facea NIMIC): o poza membra a unui folder
+    // personalizat dar NU 'selected' isi pierdea originalul persistat aici de
+    // fiecare data cand statusul ei se schimba (inclusiv indirect, prin alta
+    // actiune) — desi exportCollection() promite explicit sa exporte un folder
+    // "indiferent de status" (vezi comentariul acelei actiuni). Verificam
+    // apartenenta la vreun folder personalizat INAINTE de stergere; vezi si
+    // persistOriginalForCollectionMember/cleanupOrphanedOriginal mai jos,
+    // care persista/elibereaza aceeasi copie la adaugarea/scoaterea dintr-un
+    // folder (nu doar la (de)selectare, singurul caz acoperit aici).
+    const inAnyCollection = useStore.getState().collections.some(c => c.memberIds.includes(id));
+    if (!inAnyCollection) {
+      await db.originals.delete(id);
+      await db.fileHandles.delete(id);
+    }
     // Nota (verificat, NU reparat): originalFiles/originalHandles (in memorie,
     // per sesiune) NU pot fi curatate aici desi randurile din DB tocmai au
     // fost sterse — daca poza e re-selectata mai tarziu in aceeasi sesiune
@@ -716,6 +729,40 @@ async function syncOriginal(id: string, status: PhotoRecord['status']): Promise<
     // un compromis deliberat, nu un bug — au ramas neatinse intentionat.
   }
   return { quotaError: false };
+}
+
+/**
+ * Persista o copie a originalului pentru o poza adaugata intr-un folder
+ * personalizat, INDIFERENT de statusul ei — syncOriginal() de mai sus face
+ * asta doar pentru 'selected', dar exportCollection() promite explicit sa
+ * exporte un folder "indiferent de status". No-op daca exista deja o copie
+ * (ex. poza e si 'selected') sau daca fisierul nu mai e disponibil in
+ * memorie (sesiune deja reincarcata inainte de adaugarea in folder) —
+ * exportul va raporta atunci corect acea poza ca lipsa, acelasi
+ * comportament onest ca oriunde altundeva in aplicatie.
+ */
+async function persistOriginalForCollectionMember(id: string): Promise<void> {
+  const [existingHandle, existingBlob] = await Promise.all([db.fileHandles.get(id), db.originals.get(id)]);
+  if (existingHandle || existingBlob) return;
+  const handle = originalHandles.get(id);
+  if (handle) { await db.fileHandles.put({ photoId: id, handle }); return; }
+  const file = originalFiles.get(id);
+  if (!file) return;
+  try {
+    await db.originals.put({ photoId: id, blob: file, fileName: file.name, type: file.type });
+  } catch (err) {
+    if (!(err instanceof DOMException && err.name === 'QuotaExceededError')) throw err;
+    // cota depasita — nu blocam adaugarea in folder pentru atat, exportul va raporta poza ca lipsa mai tarziu
+  }
+}
+
+/** Elibereaza originalul persistat pentru o poza scoasa dintr-un folder (sau al carui folder a fost sters), daca nu mai e necesar din niciun alt motiv. */
+async function cleanupOrphanedOriginal(id: string, collectionsAfter: CollectionRecord[]): Promise<void> {
+  if (collectionsAfter.some(c => c.memberIds.includes(id))) return;
+  const photo = await db.photos.get(id);
+  if (photo?.status === 'selected') return;
+  await db.originals.delete(id);
+  await db.fileHandles.delete(id);
 }
 
 function quotaNotice(locale: Locale): string {
@@ -855,9 +902,15 @@ export const useStore = create<AppState>((set, get) => ({
     set(state => ({ collections: state.collections.map(c => (c.id === id ? { ...c, name: trimmed } : c)) }));
   },
   deleteCollection: async id => {
+    const removedIds = get().collections.find(c => c.id === id)?.memberIds ?? [];
     await deleteCollectionRecord(id);
+    const nextCollections = get().collections.filter(c => c.id !== id);
+    // eliberam originalele pastrate DOAR pentru acest folder (vezi
+    // persistOriginalForCollectionMember) — cele ale pozelor si 'selected',
+    // sau membre in alt folder, raman neatinse (cleanupOrphanedOriginal verifica).
+    await Promise.all(removedIds.map(pid => cleanupOrphanedOriginal(pid, nextCollections)));
     set(state => ({
-      collections: state.collections.filter(c => c.id !== id),
+      collections: nextCollections,
       collectionFilter: state.collectionFilter === id ? null : state.collectionFilter
     }));
   },
@@ -865,6 +918,10 @@ export const useStore = create<AppState>((set, get) => ({
     if (!photoIds.length) return;
     const updated = await addPhotosToCollectionRecord(id, photoIds);
     if (!updated) return;
+    // Bug real raportat de utilizator: fara asta, o poza NEselectata adaugata
+    // intr-un folder nu avea originalul persistat, deci exportul acelui
+    // folder nu gasea nimic (vezi comentariul syncOriginal/exportCollection).
+    await Promise.all(photoIds.map(pid => persistOriginalForCollectionMember(pid)));
     const locale = get().locale;
     set(state => ({
       collections: state.collections.map(c => (c.id === id ? updated : c)),
@@ -875,7 +932,9 @@ export const useStore = create<AppState>((set, get) => ({
     if (!photoIds.length) return;
     const updated = await removePhotosFromCollectionRecord(id, photoIds);
     if (!updated) return;
-    set(state => ({ collections: state.collections.map(c => (c.id === id ? updated : c)) }));
+    const nextCollections = get().collections.map(c => (c.id === id ? updated : c));
+    await Promise.all(photoIds.map(pid => cleanupOrphanedOriginal(pid, nextCollections)));
+    set({ collections: nextCollections });
   },
   searchText: '',
   dateFrom: null,
