@@ -207,7 +207,7 @@ describe('applyAdjustmentsToBlob timeout', () => {
   it('rejects instead of hanging forever when createImageBitmap never resolves', async () => {
     vi.useFakeTimers();
     const original = globalThis.createImageBitmap;
-    globalThis.createImageBitmap = vi.fn(() => new Promise(() => { /* niciodata rezolvata, simuleaza blocarea reala */ }));
+    globalThis.createImageBitmap = vi.fn(() => new Promise<ImageBitmap>(() => { /* niciodata rezolvata, simuleaza blocarea reala */ }));
     try {
       const promise = applyAdjustmentsToBlob(new Blob(['x']), { ...NEUTRAL_ADJUSTMENTS, exposure: 20 });
       const assertion = expect(promise).rejects.toThrow(/durat prea mult/);
