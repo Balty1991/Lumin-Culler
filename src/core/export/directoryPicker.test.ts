@@ -10,7 +10,7 @@ vi.mock('@capacitor/filesystem', () => ({ Filesystem: { writeFile: (...args: unk
 const share = vi.fn();
 vi.mock('@capacitor/share', () => ({ Share: { share: (...args: unknown[]) => share(...args) } }));
 
-import { downloadBlob, downloadZip, dedupeFileName } from './directoryPicker';
+import { downloadBlob, downloadZip, dedupeFileName, getDirectoryPicker } from './directoryPicker';
 
 describe('dedupeFileName', () => {
   it('leaves the first occurrence of a name unchanged', () => {
@@ -141,6 +141,39 @@ describe('downloadBlob — File System Access API (showSaveFilePicker)', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+/**
+ * Bug real raportat de utilizator: "Se exporta..." ramanea agatat la infinit,
+ * IDENTIC, chiar si dupa ce toate celelalte cai native (Filesystem.writeFile/
+ * Share.share, coacerea editarilor) au primit deja timeout — pentru ca
+ * exportOriginalFiles/exportXMP incearca ÎNTÂI showDirectoryPicker, inainte sa
+ * ajunga vreodata la caile deja reparate. Acelasi tipar ca la showSaveFilePicker
+ * mai sus (vezi testul "ramane blocat la nesfarsit" din describe-ul precedent).
+ */
+describe('getDirectoryPicker — showDirectoryPicker detectat dar blocat la nesfarsit', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    Reflect.deleteProperty(window, 'showDirectoryPicker');
+    vi.useRealTimers();
+  });
+
+  it('intoarce null cand showDirectoryPicker nu exista pe window', () => {
+    expect(getDirectoryPicker()).toBeNull();
+  });
+
+  it('respinge in loc sa ramana blocata la nesfarsit cand showDirectoryPicker nu se rezolva/respinge niciodata', async () => {
+    vi.useFakeTimers();
+    const showDirectoryPicker = vi.fn(() => new Promise<never>(() => { /* niciodata rezolvata, simuleaza blocarea reala */ }));
+    (window as unknown as { showDirectoryPicker: unknown }).showDirectoryPicker = showDirectoryPicker;
+
+    const pick = getDirectoryPicker();
+    expect(pick).not.toBeNull();
+    const resultPromise = pick!({ mode: 'readwrite' });
+    const assertion = expect(resultPromise).rejects.toThrow(/timeout/);
+    await vi.advanceTimersByTimeAsync(45000);
+    await assertion;
   });
 });
 

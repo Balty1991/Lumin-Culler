@@ -40,13 +40,38 @@ function getSaveFilePicker(): SaveFilePickerWindow['showSaveFilePicker'] | null 
 }
 
 /**
+ * Prag pentru showDirectoryPicker — acelasi ordin de marime si acelasi motiv
+ * ca SAVE_PICKER_TIMEOUT_MS mai jos (45s, suficient pentru navigare reala de
+ * foldere, dar tot recupereaza). Bug real raportat de utilizator, confirmat
+ * DUPA ce toate celelalte cai native (Filesystem.writeFile/Share.share,
+ * coacerea editarilor) au primit deja timeout: "Se exporta..." ramanea agatat
+ * la infinit, IDENTIC, indiferent de poza — pentru ca exportOriginalFiles/
+ * exportXMP incearca ÎNTÂI acest apel, ÎNAINTE sa ajunga vreodata la caile deja
+ * reparate. showDirectoryPicker poate fi DETECTAT pe un WebView Android (functie
+ * prezenta pe window) fara sa fie complet functional la runtime — comentariul
+ * de mai jos (catch-ul din exportPhotos.ts) documenta deja cazul in care API-ul
+ * arunca o eroare (NotAllowedError), dar nu si cazul in care promisiunea lui
+ * nu se aseaza NICIODATA, nici cu succes nici cu eroare — fara acest timeout,
+ * niciun catch din apelanti nu avea vreodata ocazia sa cada pe fallback-ul de
+ * descarcari.
+ */
+const PICK_DIRECTORY_TIMEOUT_MS = 45000;
+
+/**
  * Disponibil in Chromium desktop si Electron; NU si in Safari/WebKit sau
  * in WebView-urile mobile (Android Chrome/Brave inclus) — apelantul trebuie
- * sa aiba mereu un fallback de descarcari pentru cazul null.
+ * sa aiba mereu un fallback de descarcari pentru cazul null. Functia intoarsa
+ * e deja limitata in timp (vezi PICK_DIRECTORY_TIMEOUT_MS) — apelantii nu
+ * trebuie sa mai adauge propriul lor timeout.
  */
 export function getDirectoryPicker(): DirectoryPickerWindow['showDirectoryPicker'] | null {
   const w = window as unknown as Partial<DirectoryPickerWindow>;
-  return typeof w.showDirectoryPicker === 'function' ? w.showDirectoryPicker.bind(w) : null;
+  const raw = typeof w.showDirectoryPicker === 'function' ? w.showDirectoryPicker.bind(w) : null;
+  if (!raw) return null;
+  return options => Promise.race([
+    raw(options),
+    new Promise<never>((_, reject) => setTimeout(() => reject(new Error('showDirectoryPicker timeout')), PICK_DIRECTORY_TIMEOUT_MS))
+  ]);
 }
 
 /**
