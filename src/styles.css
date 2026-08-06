@@ -110,6 +110,14 @@
   --z-dropdown: 46;
   --z-toast: 50;
 
+  /* Marginile sigure, expuse si catre JS: pe Android edge-to-edge (targetSdk 35+)
+     WebView-ul se intinde SUB bara de navigare, deci window.innerHeight singur nu
+     spune unde se termina zona chiar vizibila. Codul care pozitioneaza elemente
+     `fixed` din JS (ui/ContextMenu.tsx) le citeste de aici, in loc sa duplice
+     env() sau sa ghiceasca inaltimea barei. */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
   /* scara de radius — mai generoasa (mai "tactila") decat v2.5 */
   --radius-sm: 8px;
   --radius: 16px;
@@ -887,6 +895,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
      "eticheta culori depaseste blocul". Randul lor se rupe acum pe linie proprie
      (flex-wrap mai jos), iar 224px ii lasa sa incapa acolo intregi. */
   position: fixed; z-index: var(--z-context-menu); width: 224px; padding: 6px;
+  /* Plasa de siguranta pentru ecrane foarte scunde (peisaj, split-screen): daca
+     meniul tot nu incape dupa incadrarea din JS, se deruleaza in loc sa fie taiat. */
+  max-height: calc(100dvh - 16px - var(--safe-top) - var(--safe-bottom)); overflow-y: auto;
   border-radius: var(--radius); box-shadow: var(--shadow-lift);
   animation: fadeUp 0.14s var(--ease) both;
 }

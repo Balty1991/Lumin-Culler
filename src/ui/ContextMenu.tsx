@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { CheckIcon, ClockIcon, XIcon, SearchIcon } from './icons';
 import { StarRating } from './StarRating';
 import { CollectionPicker } from './CollectionPicker';
@@ -64,15 +64,46 @@ export function ContextMenu({ x, y, photoIds, count, rating, colorLabel, onSetSt
     };
   }, [onClose]);
 
-  // clamp si la 8px minim, nu doar la marginea dreapta/jos — pe viewport-uri foarte
-  // inguste (foldables in cover mode, split-screen) meniul putea iesi partial in stanga/sus
-  // (bug real gasit de auditul QA).
-  const style = {
-    left: Math.max(8, Math.min(x, window.innerWidth - 234)),
-    // 270, nu 230: randul "Adauga in folder" (plus separatorul lui) a crescut inaltimea
-    // meniului — cu vechea valoare, o apasare lunga langa marginea de jos il lasa taiat.
-    top: Math.max(8, Math.min(y, window.innerHeight - 270))
-  };
+  // Pozitia finala se calculeaza din dimensiunea REALA a meniului, masurata dupa
+  // randare — vezi useLayoutEffect. Pana atunci il tinem invizibil (o singura
+  // cadra), ca sa nu se vada sarind de la pozitia bruta la cea corectata.
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+
+  /**
+   * Bug real raportat pe device: "cand selectez o poza de jos, nu mai este vizibil
+   * tab-ul". Pozitia se calcula scazand din viewport o CONSTANTA presupusa a fi
+   * inaltimea meniului — o presupunere care s-a invechit de fiecare data cand
+   * meniul a mai primit un rand (etichete de culoare, apoi "Adauga in folder"),
+   * lasand o apasare lunga langa marginea de jos sa produca un meniu taiat.
+   *
+   * Masuram in schimb dimensiunea reala dupa randare si o incadram in viewport.
+   * Asa, orice actiune adaugata mai tarziu ramane vizibila fara sa mai trebuiasca
+   * sa-si aminteasca cineva sa actualizeze o cifra de aici.
+   *
+   * Scadem si marginile sigure: pe Android edge-to-edge (targetSdk 35+) WebView-ul
+   * se intinde SUB bara de navigare, deci window.innerHeight singur nu spune unde
+   * se termina zona chiar vizibila — exact ce se vedea in captura, cu ultimele
+   * randuri ale meniului ascunse in spatele barei.
+   */
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const MARGIN = 8;
+    const { width, height } = el.getBoundingClientRect();
+    const root = getComputedStyle(document.documentElement);
+    const inset = (name: string) => parseFloat(root.getPropertyValue(name)) || 0;
+    const safeTop = inset('--safe-top');
+    const safeBottom = inset('--safe-bottom');
+
+    const maxLeft = window.innerWidth - width - MARGIN;
+    const maxTop = window.innerHeight - height - MARGIN - safeBottom;
+    setPos({
+      left: Math.max(MARGIN, Math.min(x, maxLeft)),
+      top: Math.max(MARGIN + safeTop, Math.min(y, maxTop))
+    });
+  }, [x, y]);
+
+  const style: CSSProperties = pos ? { left: pos.left, top: pos.top } : { left: x, top: y, visibility: 'hidden' };
 
   const act = (fn: () => void) => { fn(); onClose(); };
 
