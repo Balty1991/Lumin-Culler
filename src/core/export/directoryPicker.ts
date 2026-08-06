@@ -178,12 +178,27 @@ const INSTANT_ABORT_THRESHOLD_MS = 500;
  * la infinit, silentios — promisiunea JS ramanea pur si simplu neasezata, fara sa
  * ajunga vreodata la catch-ul din apelant (state/store.ts). Timeout-uri separate pe
  * fiecare pas ca eroarea raportata sa spuna EXACT care call nativ s-a blocat.
+ *
+ * Confirmat pe device DUPA ce Filesystem.writeFile/Share.share au primit deja
+ * timeout mai sus SI showDirectoryPicker/canvas.toBlob in celelalte cai (vezi
+ * getDirectoryPicker mai sus, applyAdjustmentsToBlob in imageAdjust.ts): bug-ul
+ * ramanea IDENTIC, pe o poza fara ajustari, pe un WebView fara showDirectoryPicker
+ * — deci inaintea oricareia din caile deja reparate. blobToBase64(blob) de mai jos
+ * cheama blob.arrayBuffer() (API de browser, nu punte nativa Capacitor) INAINTE
+ * de orice withTimeout — daca implementarea Blob a acestui WebView anume nu-l
+ * rezolva niciodata, export-ul se bloca aici, cu un pas in urma primului timeout
+ * existent. Acelasi tratament: limitat in timp, nu presupus mereu rapid.
  */
+const NATIVE_ENCODE_TIMEOUT_MS = 20000;
 const NATIVE_WRITE_TIMEOUT_MS = 15000;
 const NATIVE_SHARE_TIMEOUT_MS = 30000;
 
 async function saveViaNativeShare(name: string, blob: Blob): Promise<{ cancelled: boolean }> {
-  const data = await blobToBase64(blob);
+  const data = await withTimeout(
+    blobToBase64(blob),
+    NATIVE_ENCODE_TIMEOUT_MS,
+    'Codificarea fisierului pentru export a durat prea mult.'
+  );
   const written = await withTimeout(
     Filesystem.writeFile({ path: name, data, directory: Directory.Cache }),
     NATIVE_WRITE_TIMEOUT_MS,

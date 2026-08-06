@@ -256,6 +256,30 @@ describe('downloadBlob — Android nativ (Capacitor Filesystem + Share)', () => 
       vi.useRealTimers();
     }
   });
+
+  // Bug real raportat de utilizator: blocajul ramanea IDENTIC dupa ce ATAT
+  // Filesystem.writeFile/Share.share (testele de mai sus) CAT SI showDirectoryPicker/
+  // canvas.toBlob in celelalte cai au primit deja timeout — pe o poza fara ajustari,
+  // pe un WebView fara showDirectoryPicker, deci inaintea oricareia din caile deja
+  // reparate. blobToBase64(blob) cheama blob.arrayBuffer() INAINTE de orice
+  // withTimeout — daca acel API de Blob nu se rezolva niciodata pe acest WebView,
+  // asta era ultimul pas neacoperit.
+  it('esueaza cu un mesaj clar (nu blocheaza la infinit) daca blob.arrayBuffer() nu se rezolva niciodata', async () => {
+    vi.useFakeTimers();
+    const arrayBufferSpy = vi.spyOn(Blob.prototype, 'arrayBuffer').mockReturnValue(new Promise(() => {}));
+    try {
+      isNativePlatform.mockReturnValue(true);
+
+      const resultPromise = downloadBlob('export.zip', new Blob(['x']));
+      const assertion = expect(resultPromise).rejects.toThrow('Codificarea fisierului');
+      await vi.advanceTimersByTimeAsync(20001);
+      await assertion;
+      expect(writeFile).not.toHaveBeenCalled();
+    } finally {
+      arrayBufferSpy.mockRestore();
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe('downloadZip', () => {
