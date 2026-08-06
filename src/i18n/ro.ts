@@ -611,6 +611,7 @@ export const ro = {
   'store.quotaNotice': 'Spatiu de stocare plin — fotografia a fost marcata, dar originalul nu a putut fi salvat pentru export. Elibereaza spatiu (Goleste sesiunea sau exporta ce ai deja) si reincearca.',
   'store.undo.nothing': 'Nimic de anulat.',
   'store.undo.batch': 'Anulat: "{label}" ({count} poze).',
+  'store.learned.toast': 'Am invatat: {label}',
   'store.undo.single': 'Anulat: "{fileName}" inapoi la {status}.',
   'store.statusLabel.pending': 'in asteptare',
   'store.statusLabel.selected': 'selectata',
