@@ -23,7 +23,7 @@ import { readEconomicMode, writeEconomicMode } from '../core/performanceSettings
 import { vibrate } from '../ui/haptics';
 import { exportOriginalFiles, computeGroupPersonUnion } from '../core/exportPhotos';
 import { exportXMPSidecars, deriveXmpKeywords, deriveAiScoreKeyword, deriveSeriesKeyword } from '../core/export/xmpGenerator';
-import { analysisPool } from '../core/workerPool';
+import { analysisPool, withTimeout } from '../core/workerPool';
 import { contextEngine, deriveContextKey, explainFactors, type WeightShift } from '../core/learning/ContextEngine';
 import { pickBestInGroup } from '../core/groupSelection';
 import {
@@ -938,6 +938,23 @@ let secondaryFilteredCache: {
   minRating: number;
   result: PhotoView[];
 } | null = null;
+
+/**
+ * Plasa de siguranta FINALA pentru tot exportul (peste TOATE timeout-urile
+ * individuale din exportPhotos.ts/directoryPicker.ts/imageAdjust.ts combinate —
+ * codificare 20s + scriere 15s + partajare 30s = 65s, sau alegere folder 45s).
+ * Bug real raportat de utilizator: dupa mai multe runde de timeout-uri punctuale
+ * pe fiecare pas care se putea bloca (fiecare confirmata cu teste ca functioneaza
+ * izolat), "Se exporta..." tot ramanea agatat identic pe device — semn ca mai
+ * exista un pas neacoperit, negasit inca prin citirea codului. Acest timeout de
+ * ansamblu (exportSelection/exportCollection/exportXMP, toate cele trei cai care
+ * pot ajunge pe ruta nativa Android) garanteaza ca, indiferent CE anume se
+ * blocheaza (inclusiv un pas neanticipat), utilizatorul tot vede o eroare
+ * concreta in maxim 90s — nu inca o tacere identica, fara nicio informatie noua
+ * utila pentru diagnostic.
+ */
+const OVERALL_EXPORT_TIMEOUT_MS = 90000;
+const overallExportTimeoutMessage = 'Exportul in ansamblu a durat prea mult (peste 90s) — un pas neasteptat s-a blocat.';
 
 export const useStore = create<AppState>((set, get) => ({
   photos: [],
@@ -2223,7 +2240,7 @@ export const useStore = create<AppState>((set, get) => ({
       // sa reflecte cine e cu-adevarat in poza, nu doar ce a prins acel cadru.
       const groupUnion = computeGroupPersonUnion(allPhotos);
       const locale = get().locale;
-      const result = await exportOriginalFiles(selected.map(p => {
+      const result = await withTimeout(exportOriginalFiles(selected.map(p => {
         const meta = p.project ? getProjectMetadata(p.project) : {};
         return {
           id: p.id,
@@ -2239,7 +2256,7 @@ export const useStore = create<AppState>((set, get) => ({
           location: meta.location,
           edits: p.edits
         };
-      }), { renameTemplate: get().renameTemplate, locale });
+      }), { renameTemplate: get().renameTemplate, locale }), OVERALL_EXPORT_TIMEOUT_MS, overallExportTimeoutMessage);
       if (result.cancelled) return;
       const parts = [
         result.exported
@@ -2282,7 +2299,7 @@ export const useStore = create<AppState>((set, get) => ({
     set({ notice: t(locale, 'store.exportSelection.exporting') });
     try {
       const groupUnion = computeGroupPersonUnion(allPhotos);
-      const result = await exportOriginalFiles(members.map(p => {
+      const result = await withTimeout(exportOriginalFiles(members.map(p => {
         const meta = p.project ? getProjectMetadata(p.project) : {};
         return {
           id: p.id,
@@ -2301,7 +2318,7 @@ export const useStore = create<AppState>((set, get) => ({
       }), {
         renameTemplate: get().renameTemplate, locale,
         zipBaseName: 'lumin-culler-' + (collection?.name ?? 'folder').replace(/[\\/:*?"<>|]/g, '-')
-      });
+      }), OVERALL_EXPORT_TIMEOUT_MS, overallExportTimeoutMessage);
       if (result.cancelled) return;
       const parts = [
         result.exported
@@ -2375,7 +2392,7 @@ export const useStore = create<AppState>((set, get) => ({
       // exportSelection: un cadru din burst poate rata o fata pe care alt cadru
       // din aceeasi serie a recunoscut-o clar; unim persoanele pe toata seria.
       const groupUnion = computeGroupPersonUnion(allPhotos);
-      const result = await exportXMPSidecars(decided.map(p => {
+      const result = await withTimeout(exportXMPSidecars(decided.map(p => {
         const meta = p.project ? getProjectMetadata(p.project) : {};
         const personNames = p.groupId ? (groupUnion.get(p.groupId) ?? p.personNames) : p.personNames;
         return {
@@ -2404,7 +2421,7 @@ export const useStore = create<AppState>((set, get) => ({
           location: meta.location,
           caption: p.iptcCaption
         };
-      }));
+      })), OVERALL_EXPORT_TIMEOUT_MS, overallExportTimeoutMessage);
       if (result.cancelled) return;
       const msg = result.exported
         ? t(locale,
