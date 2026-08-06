@@ -13,6 +13,16 @@ vi.mock('../core/importPipeline', async importOriginal => {
   return { ...actual, importFiles: (...args: unknown[]) => importFilesMock(...args) };
 });
 
+// Doar exportOriginalFiles e mock-uit (restul modulului ramane real): testele de
+// mai jos verifica ce face STORE-ul cu rezultatul exportului (in special ce ramane
+// pe ecran), nu cum ajung bytes-ii pe disc — acoperit separat in exportPhotos.test.ts.
+type ExportResult = Awaited<ReturnType<typeof import('../core/exportPhotos').exportOriginalFiles>>;
+const exportOriginalFilesMock = vi.fn<(...args: unknown[]) => Promise<ExportResult>>();
+vi.mock('../core/exportPhotos', async importOriginal => {
+  const actual = await importOriginal<typeof import('../core/exportPhotos')>();
+  return { ...actual, exportOriginalFiles: (...args: unknown[]) => exportOriginalFilesMock(...args) };
+});
+
 import { useStore, relabelFaces, selectMergedEmbeddings, type PhotoView } from './store';
 import { db, type AnalysisRecord, type FaceInsight, type PhotoRecord } from '../core/db';
 import { contextEngine } from '../core/learning/ContextEngine';
@@ -853,5 +863,97 @@ describe('importClientFeedback (integration, Dexie real via fake-indexeddb)', ()
     await useStore.getState().importClientFeedback(file);
 
     expect(useStore.getState().notice).toContain('Importul feedback-ului de la client a esuat');
+  });
+});
+
+/**
+ * Bug real raportat de utilizator (confirmat pe device, cu capturi de ecran):
+ * tap pe Exporta -> toast-ul "Se exporta..." ramanea pe ecran LA INFINIT, fara
+ * fisier, fara eroare, fara nimic. Cauza in store: pe o anulare, exportul iesea
+ * din functie (`if (result.cancelled) return;`) fara sa mai atinga `notice`,
+ * iar toast-ul de progres — care, corect, NU se mai auto-sterge dupa 10s
+ * (vezi noticeTone in App.tsx) — ramanea agatat definitiv. O anulare trebuie
+ * sa INLOCUIASCA mereu mesajul de progres cu un rezultat vizibil.
+ */
+describe('exportul nu lasa niciodata toast-ul de progres agatat pe ecran', () => {
+  const cancelledResult: ExportResult = { exported: 0, missing: [], method: 'downloads', cancelled: true, grouped: false };
+
+  beforeEach(() => {
+    exportOriginalFilesMock.mockReset();
+    useStore.setState({ notice: null, locale: 'ro' });
+  });
+
+  it('exportSelection inlocuieste "Se exporta..." cu mesajul de anulare', async () => {
+    exportOriginalFilesMock.mockResolvedValue(cancelledResult);
+    useStore.setState({ photos: [{ ...makePhoto(0), id: 'p1', status: 'selected' } as PhotoView] });
+
+    await useStore.getState().exportSelection();
+
+    expect(exportOriginalFilesMock).toHaveBeenCalledTimes(1);
+    expect(useStore.getState().notice).toBe(t('ro', 'store.exportSelection.cancelled'));
+    expect(useStore.getState().notice).not.toBe(t('ro', 'store.exportSelection.exporting'));
+  });
+
+  it('exportCollection inlocuieste "Se exporta..." cu mesajul de anulare', async () => {
+    exportOriginalFilesMock.mockResolvedValue(cancelledResult);
+    const collection = { id: 'col-1', name: 'Ami', createdAt: Date.now(), memberIds: ['p1'] };
+    useStore.setState({
+      photos: [{ ...makePhoto(0), id: 'p1', status: 'review' } as PhotoView],
+      collections: [collection]
+    });
+
+    await useStore.getState().exportCollection('col-1');
+
+    expect(exportOriginalFilesMock).toHaveBeenCalledTimes(1);
+    expect(useStore.getState().notice).toBe(t('ro', 'store.exportSelection.cancelled'));
+  });
+
+  it('o eroare reala din export ramane raportata ca eroare, nu ca anulare', async () => {
+    exportOriginalFilesMock.mockRejectedValue(new Error('puntea nativa a esuat'));
+    useStore.setState({ photos: [{ ...makePhoto(0), id: 'p1', status: 'selected' } as PhotoView] });
+
+    await useStore.getState().exportSelection();
+
+    expect(useStore.getState().notice).toContain('puntea nativa a esuat');
+  });
+});
+
+/**
+ * Cerinta directa a utilizatorului: exportul unui folder personalizat trebuie sa
+ * produca EXACT folderul pe care l-a creat si denumit el, nu categoriile deduse
+ * de aplicatie (persoana/scena) — vezi ExportOptions.folderName.
+ */
+describe('exportCollection foloseste numele folderului personalizat ca destinatie', () => {
+  beforeEach(() => {
+    exportOriginalFilesMock.mockReset();
+    useStore.setState({ notice: null, locale: 'ro' });
+  });
+
+  it('trimite folderName catre export si numeste folderul in mesajul de succes', async () => {
+    exportOriginalFilesMock.mockResolvedValue({ exported: 2, missing: [], method: 'folder', cancelled: false, grouped: true });
+    const collection = { id: 'col-1', name: 'Vacanta 2026', createdAt: Date.now(), memberIds: ['p1', 'p2'] };
+    useStore.setState({
+      photos: [
+        { ...makePhoto(0), id: 'p1', status: 'review' } as PhotoView,
+        { ...makePhoto(1), id: 'p2', status: 'review' } as PhotoView
+      ],
+      collections: [collection]
+    });
+
+    await useStore.getState().exportCollection('col-1');
+
+    expect(exportOriginalFilesMock.mock.calls[0][1]).toMatchObject({ folderName: 'Vacanta 2026' });
+    expect(useStore.getState().notice).toBe(
+      t('ro', 'collections.export.exportedFolder', { count: 2, name: 'Vacanta 2026' })
+    );
+  });
+
+  it('exportSelection NU primeste folderName — gruparea pe persoana/scena ramane neschimbata acolo', async () => {
+    exportOriginalFilesMock.mockResolvedValue({ exported: 1, missing: [], method: 'folder', cancelled: false, grouped: true });
+    useStore.setState({ photos: [{ ...makePhoto(0), id: 'p1', status: 'selected' } as PhotoView] });
+
+    await useStore.getState().exportSelection();
+
+    expect(exportOriginalFilesMock.mock.calls[0][1]).not.toHaveProperty('folderName');
   });
 });

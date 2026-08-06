@@ -598,6 +598,13 @@ export const ro = {
   'collections.photoCount': '{count} poze',
   'collections.export': 'Exporta',
   'collections.export.empty': 'Folderul e gol — nimic de exportat.',
+  // Exportul unui folder personalizat NU mai grupeaza pe persoana/scena (vezi
+  // ExportOptions.folderName): folderul denumit de utilizator e cel care ajunge pe
+  // disc, deci mesajele de aici il numesc explicit, in loc sa promita "subfoldere
+  // (persoane/scena)" ca mesajele exportului de selectie.
+  'collections.export.exportedFolder': '{count} poze exportate in folderul "{name}", in locatia aleasa.',
+  'collections.export.exportedZip': '{count} poze exportate intr-o arhiva .zip, grupate in folderul "{name}" — descarcarile multiple separate sunt blocate de multe browsere mobile, o singura arhiva e mereu de incredere.',
+  'collections.export.exportedDirect': '{count} poze exportate din folderul "{name}" (descarcare directa).',
 
   'store.state.activated': 'Modul economic activat',
   'store.state.deactivated': 'Modul economic dezactivat',
@@ -667,6 +674,12 @@ export const ro = {
   'store.exportSelection.none': 'Nicio poza nu a putut fi exportata in format original.',
   'store.exportSelection.missing': '{count} nu mai erau disponibile (importate inainte de ultima actualizare) — reimporta-le pentru export.',
   'store.exportSelection.failed': 'Export esuat: {error}',
+  // O anulare TREBUIE sa inlocuiasca toast-ul de progres "Se exporta...", nu doar
+  // sa iasa din functie: bug real raportat de utilizator — pe o anulare, exportul
+  // se oprea fara sa mai atinga `notice`, iar toast-ul de progres (care, corect,
+  // nu se mai auto-sterge dupa 10s) ramanea pe ecran LA INFINIT, exact simptomul
+  // "am apasat Exporta si sta la nesfarsit pe Se exporta...".
+  'store.exportSelection.cancelled': 'Export anulat — niciun fisier nu a fost salvat.',
   'store.exportXmp.noDecided': 'Nicio poza cu decizie luata inca — Selecteaza/Respinge cel putin una.',
   'store.exportXmp.exportedFolder': '{count} sidecar-uri XMP exportate in folderul ales — copiaza-le langa pozele ORIGINALE (structura de foldere de la import, nu cea grupata pe persoane/scena a exportului de poze) ca Lightroom sa le vada.',
   'store.exportXmp.exportedSingle': '{count} sidecar-uri XMP exportate (descarcare directa) — muta-l langa poza ORIGINALA ca Lightroom sa il vada.',

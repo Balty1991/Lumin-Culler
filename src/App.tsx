@@ -75,6 +75,9 @@ const SWIPE_MAX_VERTICAL_PX = 45;
 function noticeTone(message: string): 'error' | 'warn' | 'progress' | 'success' {
   const lower = message.toLowerCase();
   if (lower.includes('esuat') || lower.includes('eroare')) return 'error';
+  // O anulare nu e nici eroare, nici succes — fara ea, "Export anulat..." ar primi
+  // bifa verde de succes, exact mesajul gresit pentru un export care n-a livrat nimic.
+  if (lower.includes('anulat') || lower.includes('cancelled')) return 'warn';
   if (lower.includes('plin') || lower.includes('aproape')) return 'warn';
   if (message.endsWith('...')) return 'progress';
   return 'success';

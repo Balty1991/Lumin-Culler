@@ -3,11 +3,13 @@
  * Exporta fotografiile SELECTATE ca fisiere reale, in formatul original
  * (aceiasi bytes/extensie ca la import), nu doar o lista de nume.
  *
- * Cale principala: File System Access API (showDirectoryPicker) — utilizatorul
- * alege un folder, fisierele sunt copiate direct pe disc unul cate unul
- * (streaming, fara sa tina 1000+ poze originale in memorie simultan).
- * Disponibila in Chromium desktop si Electron; NU si in Safari/WebKit sau
- * in WebView-urile mobile (Capacitor), unde se trece pe fallback.
+ * Cale principala: un selector de folder al platformei (vezi getDirectoryPicker)
+ * — utilizatorul alege destinatia, fisierele sunt copiate direct acolo unul cate
+ * unul (streaming, fara sa tina 1000+ poze originale in memorie simultan), in
+ * subfoldere reale pe persoana/scena. File System Access API
+ * (showDirectoryPicker) in Chromium desktop si Electron; Storage Access
+ * Framework prin plugin-ul nativ FolderExport pe Android. NU exista in
+ * Safari/WebKit sau in browserele mobile obisnuite, unde se trece pe fallback.
  *
  * Fallback universal: descarcari secventiale ale fiecarui fisier original,
  * cu numele lor originale — functioneaza peste tot, dar browserul poate
@@ -16,12 +18,16 @@
  */
 import { originalFiles } from './importPipeline';
 import { db } from './db';
-import { getDirectoryPicker, downloadBlob, downloadZip, dedupeFileName, type LocalDirHandle } from './export/directoryPicker';
+import { getDirectoryPicker, downloadBlob, downloadZip, dedupeFileName, isRealUserCancel, racePickerTimeout, DIRECTORY_PICKER_TIMEOUT_MS, type LocalDirHandle } from './export/directoryPicker';
 import { reacquireFile } from './filePicker';
 import { buildExportFileName, type RenameContext } from './renameTemplate';
 import { applyAdjustmentsToBlob, isNeutral, type EditAdjustments } from './imageAdjust';
 import { RAW_EXTENSIONS } from './rawDecoder';
 import { translateSceneTag, pickFolderSceneTag } from './sceneTagLabels';
+import { withTimeout } from './workerPool';
+
+/** Vezi bakeEditsIfNeeded — plafon per poza pentru decodarea/re-encodarea unei singure imagini. */
+const BAKE_TIMEOUT_MS = 30000;
 
 export interface ExportResult {
   exported: number;
@@ -62,6 +68,16 @@ export interface ExportOptions {
   locale?: 'ro' | 'en';
   /** Numele de baza al arhivei .zip (fara data/extensie) — implicit 'lumin-culler-export'. Folosit de exportCollection (state/store.ts) ca arhiva sa reflecte numele folderului exportat, nu doar un nume generic. */
   zipBaseName?: string;
+  /**
+   * Numele UNUI SINGUR folder de destinatie pentru toate pozele, in locul
+   * gruparii automate pe persoana/scena (folderLabel). Cerinta directa a
+   * utilizatorului pentru exportul unui folder personalizat: acel folder e o
+   * alegere explicita, facuta si denumita de om — un semnal mai puternic decat
+   * orice grupare dedusa de aplicatie, deci trebuie sa fie EXACT folderul care
+   * apare pe disc, nu inlocuit de "Ami"/"Necunoscuti"/"Peisaje". Absent =
+   * gruparea automata de dinainte, neschimbata (exportul selectiei).
+   */
+  folderName?: string;
 }
 
 // ── Grupare pe foldere: persoane cunoscute (si combinatii), apoi scena ─────
@@ -149,7 +165,14 @@ export function folderLabel(
 async function bakeEditsIfNeeded(p: ExportPhotoInput, file: File, name: string): Promise<{ file: File; name: string }> {
   if (!p.edits || isNeutral(p.edits) || RAW_EXTENSIONS.test(p.fileName)) return { file, name };
   try {
-    const adjustedBlob = await applyAdjustmentsToBlob(file, p.edits);
+    // Timeout: createImageBitmap/canvas.toBlob (applyAdjustmentsToBlob) pot ramane
+    // agatate la NESFARSIT pe un WebView mobil sub presiune de memorie, iar acest
+    // pas ruleaza INAINTE de orice picker/scriere, deci o blocare aici tine tot
+    // exportul in loc, cu toast-ul "Se exporta..." pe ecran si fara nicio eroare —
+    // exact simptomul raportat. Prag generos: o singura poza, oricat de mare, nu
+    // are ce cauta peste 30s. Esecul cade oricum pe fallback-ul de mai jos
+    // (exportam originalul needitat), nu opreste exportul.
+    const adjustedBlob = await withTimeout(applyAdjustmentsToBlob(file, p.edits), BAKE_TIMEOUT_MS, `Coacerea editarilor pentru ${p.fileName} a durat prea mult.`);
     const finalName = /\.jpe?g$/i.test(name) ? name : name.replace(/\.[^./]+$/, '') + '.jpg';
     return { file: new File([adjustedBlob], finalName, { type: 'image/jpeg' }), name: finalName };
   } catch (err) {
@@ -187,7 +210,11 @@ async function copyToDirectory(files: { name: string; file: File; folder: string
  * prefix), nu e o pierdere daca browserul nu suporta subfoldere.
  */
 export async function exportOriginalFiles(photos: ExportPhotoInput[], options: ExportOptions = {}): Promise<ExportResult> {
-  const { renameTemplate, locale = 'ro', zipBaseName = 'lumin-culler-export' } = options;
+  const { renameTemplate, locale = 'ro', zipBaseName = 'lumin-culler-export', folderName } = options;
+  // Numele vine de la utilizator (l-a tastat la crearea folderului), deci trece
+  // prin acelasi filtru ca etichetele derivate — un "/" sau ":" in el ar deveni
+  // altfel un nivel de path neintentionat (sau un nume invalid pe disc).
+  const fixedFolder = folderName ? sanitizeSegment(folderName) : null;
   let sequence = 0;
   const nameFor = (p: ExportPhotoInput): string => {
     sequence += 1;
@@ -229,7 +256,7 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[], options: E
   const available: { name: string; file: File; folder: string }[] = [];
   const missing: string[] = [];
   for (const p of photos) {
-    const folder = folderLabel(p, locale);
+    const folder = fixedFolder ?? folderLabel(p, locale);
     const inMemory = originalFiles.get(p.id);
     if (inMemory) {
       available.push({ ...await exportName(p, inMemory, folder), folder });
@@ -264,12 +291,22 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[], options: E
   if (!available.length) return { exported: 0, missing, method, cancelled: false, grouped: false };
 
   if (pickDirectory) {
+    const startedAt = Date.now();
     try {
-      const dir = await pickDirectory({ mode: 'readwrite' });
+      // Plafon absolut (vezi DIRECTORY_PICKER_TIMEOUT_MS): un picker care nu
+      // rezolva si nu respinge NICIODATA lasa altfel exportul agatat definitiv,
+      // cu toast-ul "Se exporta..." pe ecran la infinit.
+      const dir = await racePickerTimeout(pickDirectory({ mode: 'readwrite' }), 'directoryPicker', DIRECTORY_PICKER_TIMEOUT_MS);
       await copyToDirectory(available, dir);
       return { exported: available.length, missing, method, cancelled: false, grouped: true };
     } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') {
+      // Anulare REALA (omul a vazut dialogul si l-a inchis) — vezi isRealUserCancel.
+      // Bug real raportat de utilizator: inainte, ORICE AbortError era luat drept
+      // anulare, deci un WebView/browser mobil care EXPUNE showDirectoryPicker dar
+      // il respinge instant (API detectat, nefunctional in acel context) oprea
+      // exportul aici cu cancelled=true — fara fisier, fara eroare si fara sa mai
+      // incerce macar fallback-ul de descarcari care functioneaza acolo.
+      if (isRealUserCancel(err, startedAt)) {
         return { exported: 0, missing, method, cancelled: true, grouped: false };
       }
       // Bug real raportat de utilizator (confirmat pe device, build Play
