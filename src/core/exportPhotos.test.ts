@@ -144,6 +144,66 @@ describe('exportOriginalFiles (fallback fara File System Access API)', () => {
     expect(downloadBlob.mock.calls[0][0]).toBe('Peisaje/IMG_0001.jpg');
   });
 
+  // Cerinta directa a utilizatorului, dupa ce a vazut prima varianta pe device:
+  // un folder personalizat pe care l-a creat SI l-a numit el e o alegere
+  // explicita, mai puternica decat orice categorie dedusa de aplicatie —
+  // exportul lui trebuie sa produca EXACT acel folder pe disc, nu "Ami"/
+  // "Necunoscuti"/"Peisaje" derivate din persoana/scena.
+  describe('folderName (export de folder personalizat)', () => {
+    it('pune toate pozele in folderul denumit de utilizator, nu in cele derivate din persoana/scena', async () => {
+      originalFiles.set('p1', fakeFile('a.jpg'));
+      originalFiles.set('p2', fakeFile('b.jpg'));
+      const result = await exportOriginalFiles([
+        { id: 'p1', fileName: 'a.jpg', personNames: ['Ami'], faceCount: 1, strangerCount: 0, sceneType: 'portrait' },
+        { id: 'p2', fileName: 'b.jpg', personNames: [], faceCount: 0, strangerCount: 0, sceneType: 'landscape' }
+      ], { folderName: 'Vacanta 2026' });
+
+      expect(result.exported).toBe(2);
+      const entries = downloadZip.mock.calls[0][1];
+      expect(entries.map(e => e.path).sort()).toEqual(['Vacanta 2026/a.jpg', 'Vacanta 2026/b.jpg']);
+    });
+
+    it('se aplica si pe calea unui singur fisier (cazul raportat: folder cu o poza)', async () => {
+      originalFiles.set('p1', fakeFile('IMG_0001.jpg'));
+      const result = await exportOriginalFiles([
+        { id: 'p1', fileName: 'IMG_0001.jpg', personNames: ['Ami'], faceCount: 1, strangerCount: 0, sceneType: 'portrait' }
+      ], { folderName: 'Ami' });
+
+      expect(result.exported).toBe(1);
+      expect(downloadBlob.mock.calls[0][0]).toBe('Ami/IMG_0001.jpg');
+    });
+
+    it('curata separatorii de path din numele dat de utilizator, ca sa nu creeze niveluri neintentionate', async () => {
+      originalFiles.set('p1', fakeFile('a.jpg'));
+      await exportOriginalFiles([
+        { id: 'p1', fileName: 'a.jpg', personNames: [], faceCount: 0, strangerCount: 0, sceneType: 'landscape' }
+      ], { folderName: 'Nunta 12/07: Ana' });
+
+      expect(downloadBlob.mock.calls[0][0]).toBe('Nunta 12-07- Ana/a.jpg');
+    });
+
+    it('fara folderName, gruparea pe persoana/scena ramane neschimbata (exportul selectiei)', async () => {
+      originalFiles.set('p1', fakeFile('a.jpg'));
+      await exportOriginalFiles([
+        { id: 'p1', fileName: 'a.jpg', personNames: ['Ami'], faceCount: 1, strangerCount: 0, sceneType: 'portrait' }
+      ]);
+
+      expect(downloadBlob.mock.calls[0][0]).toBe('Ami/a.jpg');
+    });
+
+    it('deduplicarea numelor ramane per folder de destinatie, nu se pierde cand toate pozele intra in acelasi folder', async () => {
+      originalFiles.set('p1', fakeFile('IMG_0001.jpg'));
+      originalFiles.set('p2', fakeFile('IMG_0001.jpg'));
+      await exportOriginalFiles([
+        { id: 'p1', fileName: 'IMG_0001.jpg', personNames: ['Ami'], faceCount: 1, strangerCount: 0, sceneType: 'portrait' },
+        { id: 'p2', fileName: 'IMG_0001.jpg', personNames: [], faceCount: 0, strangerCount: 0, sceneType: 'landscape' }
+      ], { folderName: 'Ami' });
+
+      const entries = downloadZip.mock.calls[0][1];
+      expect(entries.map(e => e.path).sort()).toEqual(['Ami/IMG_0001 (2).jpg', 'Ami/IMG_0001.jpg']);
+    });
+  });
+
   // Bug real gasit de auditul QA (defense-in-depth — niciun File real nu
   // poate avea azi un asemenea nume, dar fileName e doar un string, fara
   // nicio validare la runtime): un "../" literal in numele original nu mai

@@ -2269,9 +2269,12 @@ export const useStore = create<AppState>((set, get) => ({
    * de status (spre deosebire de exportSelection, care exporta doar
    * status==='selected'): apartenenta la un folder e deja o alegere
    * explicita a utilizatorului, un semnal la fel de puternic ca statusul.
-   * Aceeasi grupare pe subfoldere persoana/scena ca exportSelection —
-   * folderul personalizat decide DOAR ce poze intra in export, nu inlocuieste
-   * acea organizare interna.
+   *
+   * Spre deosebire de exportSelection, pozele NU sunt grupate pe persoana/scena:
+   * ajung toate in folderul denumit de utilizator (vezi ExportOptions.folderName).
+   * Cerinta lui directa, dupa ce a vazut prima varianta pe device — un folder pe
+   * care l-a creat si l-a numit el e o alegere explicita, mai puternica decat
+   * orice categorie dedusa de aplicatie, iar aceea o inlocuia pe a lui pe disc.
    */
   exportCollection: async id => {
     const locale = get().locale;
@@ -2303,17 +2306,20 @@ export const useStore = create<AppState>((set, get) => ({
         };
       }), {
         renameTemplate: get().renameTemplate, locale,
-        zipBaseName: 'lumin-culler-' + (collection?.name ?? 'folder').replace(/[\\/:*?"<>|]/g, '-')
+        zipBaseName: 'lumin-culler-' + (collection?.name ?? 'folder').replace(/[\\/:*?"<>|]/g, '-'),
+        // vezi ExportOptions.folderName: folderul personalizat e o alegere explicita a
+        // utilizatorului, deci el ajunge pe disc — nu gruparea dedusa pe persoana/scena
+        folderName: collection?.name
       });
       // vezi comentariul identic din exportSelection mai sus
       if (result.cancelled) { set({ notice: t(locale, 'store.exportSelection.cancelled') }); return; }
       const parts = [
         result.exported
           ? t(locale,
-              result.method === 'folder' ? 'store.exportSelection.exportedFolder'
-              : result.grouped ? 'store.exportSelection.exportedZip'
-              : 'store.exportSelection.exportedDirect',
-              { count: result.exported }
+              result.method === 'folder' ? 'collections.export.exportedFolder'
+              : result.grouped ? 'collections.export.exportedZip'
+              : 'collections.export.exportedDirect',
+              { count: result.exported, name: collection?.name ?? '' }
             )
           : t(locale, 'store.exportSelection.none')
       ];

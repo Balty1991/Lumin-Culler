@@ -917,3 +917,43 @@ describe('exportul nu lasa niciodata toast-ul de progres agatat pe ecran', () =>
     expect(useStore.getState().notice).toContain('puntea nativa a esuat');
   });
 });
+
+/**
+ * Cerinta directa a utilizatorului: exportul unui folder personalizat trebuie sa
+ * produca EXACT folderul pe care l-a creat si denumit el, nu categoriile deduse
+ * de aplicatie (persoana/scena) — vezi ExportOptions.folderName.
+ */
+describe('exportCollection foloseste numele folderului personalizat ca destinatie', () => {
+  beforeEach(() => {
+    exportOriginalFilesMock.mockReset();
+    useStore.setState({ notice: null, locale: 'ro' });
+  });
+
+  it('trimite folderName catre export si numeste folderul in mesajul de succes', async () => {
+    exportOriginalFilesMock.mockResolvedValue({ exported: 2, missing: [], method: 'folder', cancelled: false, grouped: true });
+    const collection = { id: 'col-1', name: 'Vacanta 2026', createdAt: Date.now(), memberIds: ['p1', 'p2'] };
+    useStore.setState({
+      photos: [
+        { ...makePhoto(0), id: 'p1', status: 'review' } as PhotoView,
+        { ...makePhoto(1), id: 'p2', status: 'review' } as PhotoView
+      ],
+      collections: [collection]
+    });
+
+    await useStore.getState().exportCollection('col-1');
+
+    expect(exportOriginalFilesMock.mock.calls[0][1]).toMatchObject({ folderName: 'Vacanta 2026' });
+    expect(useStore.getState().notice).toBe(
+      t('ro', 'collections.export.exportedFolder', { count: 2, name: 'Vacanta 2026' })
+    );
+  });
+
+  it('exportSelection NU primeste folderName — gruparea pe persoana/scena ramane neschimbata acolo', async () => {
+    exportOriginalFilesMock.mockResolvedValue({ exported: 1, missing: [], method: 'folder', cancelled: false, grouped: true });
+    useStore.setState({ photos: [{ ...makePhoto(0), id: 'p1', status: 'selected' } as PhotoView] });
+
+    await useStore.getState().exportSelection();
+
+    expect(exportOriginalFilesMock.mock.calls[0][1]).not.toHaveProperty('folderName');
+  });
+});

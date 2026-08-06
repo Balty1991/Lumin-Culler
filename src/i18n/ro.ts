@@ -598,6 +598,13 @@ export const ro = {
   'collections.photoCount': '{count} poze',
   'collections.export': 'Exporta',
   'collections.export.empty': 'Folderul e gol — nimic de exportat.',
+  // Exportul unui folder personalizat NU mai grupeaza pe persoana/scena (vezi
+  // ExportOptions.folderName): folderul denumit de utilizator e cel care ajunge pe
+  // disc, deci mesajele de aici il numesc explicit, in loc sa promita "subfoldere
+  // (persoane/scena)" ca mesajele exportului de selectie.
+  'collections.export.exportedFolder': '{count} poze exportate in folderul "{name}", in locatia aleasa.',
+  'collections.export.exportedZip': '{count} poze exportate intr-o arhiva .zip, grupate in folderul "{name}" — descarcarile multiple separate sunt blocate de multe browsere mobile, o singura arhiva e mereu de incredere.',
+  'collections.export.exportedDirect': '{count} poze exportate din folderul "{name}" (descarcare directa).',
 
   'store.state.activated': 'Modul economic activat',
   'store.state.deactivated': 'Modul economic dezactivat',

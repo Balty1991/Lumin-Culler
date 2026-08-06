@@ -600,7 +600,10 @@ export const en: Record<TranslationKey, string> = {
   'collections.clearFilter': 'Clear the current folder filter',
   'collections.photoCount': '{count} photos',
   'collections.export': 'Export',
-  'collections.export.empty': 'This folder is empty — nothing to export.',
+  'collections.export.empty': 'The folder is empty — nothing to export.',
+  'collections.export.exportedFolder': '{count} photos exported into the "{name}" folder, in the chosen location.',
+  'collections.export.exportedZip': '{count} photos exported into a .zip archive, grouped in the "{name}" folder — separate multiple downloads are blocked by many mobile browsers, a single archive is always reliable.',
+  'collections.export.exportedDirect': '{count} photos exported from the "{name}" folder (direct download).',
 
   'store.state.activated': 'Economic mode enabled',
   'store.state.deactivated': 'Economic mode disabled',

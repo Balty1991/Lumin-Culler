@@ -68,6 +68,16 @@ export interface ExportOptions {
   locale?: 'ro' | 'en';
   /** Numele de baza al arhivei .zip (fara data/extensie) — implicit 'lumin-culler-export'. Folosit de exportCollection (state/store.ts) ca arhiva sa reflecte numele folderului exportat, nu doar un nume generic. */
   zipBaseName?: string;
+  /**
+   * Numele UNUI SINGUR folder de destinatie pentru toate pozele, in locul
+   * gruparii automate pe persoana/scena (folderLabel). Cerinta directa a
+   * utilizatorului pentru exportul unui folder personalizat: acel folder e o
+   * alegere explicita, facuta si denumita de om — un semnal mai puternic decat
+   * orice grupare dedusa de aplicatie, deci trebuie sa fie EXACT folderul care
+   * apare pe disc, nu inlocuit de "Ami"/"Necunoscuti"/"Peisaje". Absent =
+   * gruparea automata de dinainte, neschimbata (exportul selectiei).
+   */
+  folderName?: string;
 }
 
 // ── Grupare pe foldere: persoane cunoscute (si combinatii), apoi scena ─────
@@ -200,7 +210,11 @@ async function copyToDirectory(files: { name: string; file: File; folder: string
  * prefix), nu e o pierdere daca browserul nu suporta subfoldere.
  */
 export async function exportOriginalFiles(photos: ExportPhotoInput[], options: ExportOptions = {}): Promise<ExportResult> {
-  const { renameTemplate, locale = 'ro', zipBaseName = 'lumin-culler-export' } = options;
+  const { renameTemplate, locale = 'ro', zipBaseName = 'lumin-culler-export', folderName } = options;
+  // Numele vine de la utilizator (l-a tastat la crearea folderului), deci trece
+  // prin acelasi filtru ca etichetele derivate — un "/" sau ":" in el ar deveni
+  // altfel un nivel de path neintentionat (sau un nume invalid pe disc).
+  const fixedFolder = folderName ? sanitizeSegment(folderName) : null;
   let sequence = 0;
   const nameFor = (p: ExportPhotoInput): string => {
     sequence += 1;
@@ -242,7 +256,7 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[], options: E
   const available: { name: string; file: File; folder: string }[] = [];
   const missing: string[] = [];
   for (const p of photos) {
-    const folder = folderLabel(p, locale);
+    const folder = fixedFolder ?? folderLabel(p, locale);
     const inMemory = originalFiles.get(p.id);
     if (inMemory) {
       available.push({ ...await exportName(p, inMemory, folder), folder });
