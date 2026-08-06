@@ -68,7 +68,7 @@ export function ContextMenu({ x, y, photoIds, count, rating, colorLabel, onSetSt
   // inguste (foldables in cover mode, split-screen) meniul putea iesi partial in stanga/sus
   // (bug real gasit de auditul QA).
   const style = {
-    left: Math.max(8, Math.min(x, window.innerWidth - 210)),
+    left: Math.max(8, Math.min(x, window.innerWidth - 234)),
     // 270, nu 230: randul "Adauga in folder" (plus separatorul lui) a crescut inaltimea
     // meniului — cu vechea valoare, o apasare lunga langa marginea de jos il lasa taiat.
     top: Math.max(8, Math.min(y, window.innerHeight - 270))
