@@ -663,6 +663,7 @@ export const en: Record<TranslationKey, string> = {
   'store.personProfiles.imported': 'Profile import: {added} new, {merged} completed with additional references.',
   'store.personProfiles.importFailed': 'Profile import failed: {error}',
   'store.faceCluster.enrolled': '{name}: new person enrolled from {detections} detections, re-tagged in {photos} photos in the current library.',
+  'store.exportSelection.exporting': 'Exporting...',
   'store.exportSelection.exportedFolder': '{count} photos exported into subfolders (people/scene), in the chosen folder.',
   'store.exportSelection.exportedZip': '{count} photos exported into a .zip archive (subfolders by people/scene) — separate multiple downloads are blocked by many mobile browsers, a single archive is always reliable.',
   'store.exportSelection.exportedDirect': '{count} photos exported (direct download).',
