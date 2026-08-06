@@ -57,8 +57,16 @@ jobs:
         # StrictMode dublu (bug real gasit la testare: dubla pornirea analizei
         # la import, bloca vizibil telefonul). Push-urile automate raman
         # neschimbate (variabila goala = butonul de test ramane ascuns).
+        #
+        # VITE_BUILD_ID (SHA scurt al commit-ului): dupa cateva runde de fix-uri la
+        # exportul nativ, niciuna vizibil pe device oricat de multe reinstalari facea
+        # utilizatorul, singura cale sa confirmam CU CERTITUDINE ce cod chiar ruleaza
+        # pe telefon (nu doar ce crede utilizatorul ca a instalat) e un marcaj vizibil
+        # in interfata, care se schimba la fiecare build — vezi App.tsx (afisat langa
+        # tagline, mereu vizibil, fara niciun pas suplimentar din partea utilizatorului).
         run: |
           npx tsc
+          export VITE_BUILD_ID="$(git rev-parse --short HEAD)"
           if [ "${{ github.event.inputs.dev_mode }}" = "true" ]; then
             echo "Build productie + buton de test nativ pastrat"
             VITE_NATIVE_TEST_BUTTON=true npx vite build

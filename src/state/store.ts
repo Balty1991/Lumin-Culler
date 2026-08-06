@@ -956,6 +956,24 @@ let secondaryFilteredCache: {
 const OVERALL_EXPORT_TIMEOUT_MS = 90000;
 const overallExportTimeoutMessage = 'Exportul in ansamblu a durat prea mult (peste 90s) — un pas neasteptat s-a blocat.';
 
+/**
+ * Marcaj de build (SHA scurt al commit-ului, injectat de CI — vezi VITE_BUILD_ID
+ * in android-debug-build.yml), prefixat DOAR pe mesajul "Se exporta...". Bug real
+ * raportat de utilizator: dupa mai multe runde de fix-uri de timeout in exportul
+ * nativ, confirmate una cate una prin teste ca functioneaza izolat, comportamentul
+ * pe device ramanea IDENTIC — inclusiv fata de un timeout de ansamblu de 90s care
+ * ar trebui sa fie imposibil de ratat. Singura dovada directa ca telefonul chiar
+ * ruleaza codul din build-ul curent (nu un JS vechi servit dintr-un cache oarecare)
+ * e un marcaj vizibil chiar in toast-ul care ramane blocat pe ecran — exact ce se
+ * tot trimite in capturi de ecran, fara niciun pas suplimentar din partea
+ * utilizatorului. Prefix, NU sufix: noticeTone() din App.tsx clasifica un mesaj ca
+ * "in desfasurare" (ramane vizibil, cu spinner) dupa ce se TERMINA cu "...".
+ */
+function exportingNotice(locale: Locale): string {
+  const buildId = import.meta.env.VITE_BUILD_ID;
+  return (buildId ? `[build ${buildId}] ` : '') + t(locale, 'store.exportSelection.exporting');
+}
+
 export const useStore = create<AppState>((set, get) => ({
   photos: [],
   persons: [],
@@ -2232,7 +2250,7 @@ export const useStore = create<AppState>((set, get) => ({
     // lucreze" si "apasarea n-a avut niciun efect", mai ales pe calea nativa
     // (Share.share), unde foaia de partajare a sistemului poate aparea cu o
     // intarziere vizibila fata de tap.
-    set({ notice: t(get().locale, 'store.exportSelection.exporting') });
+    set({ notice: exportingNotice(get().locale) });
     try {
       // vezi computeGroupPersonUnion: un cadru dintr-un burst poate rata o
       // fata pe care alt cadru din ACEEASI serie a recunoscut-o clar —
@@ -2296,7 +2314,7 @@ export const useStore = create<AppState>((set, get) => ({
     if (!members.length) { set({ notice: t(locale, 'collections.export.empty') }); return; }
     // Vezi comentariul identic din exportSelection mai sus — acelasi bug raportat,
     // aceeasi cauza (munca async fara niciun semnal vizibil pana la finalul ei).
-    set({ notice: t(locale, 'store.exportSelection.exporting') });
+    set({ notice: exportingNotice(locale) });
     try {
       const groupUnion = computeGroupPersonUnion(allPhotos);
       const result = await withTimeout(exportOriginalFiles(members.map(p => {
@@ -2386,7 +2404,7 @@ export const useStore = create<AppState>((set, get) => ({
     if (!decided.length) { set({ notice: t(locale, 'store.exportXmp.noDecided') }); return; }
     // Vezi comentariul identic din exportSelection (state/store.ts) — acelasi
     // bug raportat, aceeasi cauza (munca async fara niciun semnal vizibil).
-    set({ notice: t(locale, 'store.exportSelection.exporting') });
+    set({ notice: exportingNotice(locale) });
     try {
       // vezi computeGroupPersonUnion (exportPhotos.ts) — acelasi principiu ca la
       // exportSelection: un cadru din burst poate rata o fata pe care alt cadru
