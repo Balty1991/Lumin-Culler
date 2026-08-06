@@ -300,6 +300,12 @@ export default function App() {
 
   useEffect(() => {
     if (!notice) return;
+    // Erorile NU dispar singure — utilizatorul trebuie sa apuce sa le citeasca/
+    // fotografieze (mai ales mesaje de diagnostic, ex. timeout-urile din
+    // exportul nativ Android) inainte sa le poata raporta; le inchide manual
+    // (X-ul din toast) cand a terminat. Succes/avertismente raman pe auto-dismiss,
+    // ca inainte — nu au nevoie sa fie citite cu atentie sau raportate mai departe.
+    if (noticeTone(notice) === 'error') return;
     const t = setTimeout(() => clearNotice(), NOTICE_AUTODISMISS_MS);
     return () => clearTimeout(t);
   }, [notice, clearNotice]);
