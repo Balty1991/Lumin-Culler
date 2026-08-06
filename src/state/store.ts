@@ -89,6 +89,8 @@ export interface PhotoView {
   negativeSpaceScore?: number;
   groupEyesOpenRatio?: number;
   groupSmileRatio?: number;
+  /** Fractie de fete cu o expresie stanjenitoare (gura deschisa fara zambet/surpriza reala) — vezi ContextEngine PRIOR_WEIGHTS. Folosit pentru badge-ul "Zambet fortat" pe thumbnail. */
+  groupAwkwardRatio?: number;
   iso?: number;
   fNumber?: number;
   exposureTime?: number;
@@ -474,6 +476,8 @@ interface AppState {
   /** Genereaza si descarca o galerie HTML statica cu pozele selectate, pentru feedback de la client. */
   exportClientGallery: () => Promise<void>;
   filtered: () => PhotoView[];
+  /** Id-urile pozelor "cele mai bune" din propriul grup — vezi computeBestInGroupIds, pentru badge-ul "Best of series". */
+  bestInGroupIds: () => Set<string>;
   /** Aceeasi biblioteca, cu doar filtrele SECUNDARE aplicate (persoana/eticheta/scena/camera/proiect/cautare/data/rating) — vezi comentariul de la implementare. */
   secondaryFiltered: () => PhotoView[];
   groupOf: (groupId: string) => PhotoView[];
@@ -521,6 +525,7 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     negativeSpaceScore: analysis?.negativeSpaceScore,
     groupEyesOpenRatio: analysis?.groupEyesOpenRatio,
     groupSmileRatio: analysis?.groupSmileRatio,
+    groupAwkwardRatio: analysis?.groupAwkwardRatio,
     iso: analysis?.iso,
     fNumber: analysis?.fNumber,
     exposureTime: analysis?.exposureTime,
@@ -840,6 +845,42 @@ function reviewProximity(score: number): number {
  * schimbat — Zustand foloseste Object.is pe rezultatul selectorului, deci o
  * referinta identica opreste re-renderul, nu doar recalculul.
  */
+/**
+ * Id-urile pozelor "cele mai bune" din propriul grup (serie/duplicate) —
+ * pentru badge-ul "Best of series" pe thumbnail (cerinta directa). Grupurile
+ * de 1 membru n-au un "cel mai bun" cu sens (n-au cu ce compara), deci raman
+ * excluse. Memoizat prin referinta la `photos` (acelasi tipar ca filteredCache
+ * de mai jos) — un card individual (PhotoCard) n-are acces la restul
+ * bibliotecii, deci calculul trebuie facut o singura data, central, nu per-card.
+ *
+ * Foloseste doar campurile deja disponibile pe PhotoView (sharpness/exposure/
+ * faceCount/bestSmile/groupSmileRatio/allEyesOpen/groupEyesOpenRatio) — spre
+ * deosebire de selectBestPhotoInGroup (folosit la comparatia explicita de
+ * grup, GroupCompare.tsx), care mai citeste si compositionScore/avgEyeContact
+ * direct din db.analyses (absente pe PhotoView). Rezultatul poate deci sa
+ * difere usor de recomandarea din ecranul de comparatie — acceptabil pentru
+ * un badge orientativ pe grila, nu vrem N interogari IndexedDB doar ca sa
+ * afisam niste insigne.
+ */
+let bestInGroupCache: { photos: PhotoView[]; result: Set<string> } | null = null;
+
+function computeBestInGroupIds(photos: PhotoView[]): Set<string> {
+  if (bestInGroupCache && bestInGroupCache.photos === photos) return bestInGroupCache.result;
+  const groups = new Map<string, PhotoView[]>();
+  for (const p of photos) {
+    if (!p.groupId) continue;
+    const arr = groups.get(p.groupId);
+    if (arr) arr.push(p); else groups.set(p.groupId, [p]);
+  }
+  const result = new Set<string>();
+  for (const members of groups.values()) {
+    if (members.length < 2) continue;
+    result.add(pickBestInGroup(members));
+  }
+  bestInGroupCache = { photos, result };
+  return result;
+}
+
 let filteredCache: {
   photos: PhotoView[];
   filter: FilterKey;
@@ -2305,6 +2346,8 @@ export const useStore = create<AppState>((set, get) => ({
       set({ notice: t(locale, 'store.exportXmp.failed', { error: String(err) }) });
     }
   },
+
+  bestInGroupIds: () => computeBestInGroupIds(get().photos),
 
   filtered: () => {
     const { photos, filter, personFilter, colorLabelFilter, sceneTagFilter, projectFilter, collectionFilter, collections, cameraFilter, searchText, locale, dateFrom, dateTo, minRating, gridSort } = get();

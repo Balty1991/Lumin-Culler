@@ -94,6 +94,59 @@ describe('filtered() memoization', () => {
   });
 });
 
+// Cerinta directa a utilizatorului: badge-ul "Best of series" pe thumbnail —
+// PhotoCard nu are acces la restul bibliotecii, deci calculul cross-poze
+// trebuie facut central si memoizat (acelasi tipar ca filteredCache).
+describe('bestInGroupIds()', () => {
+  it('alege membrul cu claritate/expunere/compozitie mai buna dintr-un grup de 2+', () => {
+    const sharp = { ...makePhoto(0), id: 'a', groupId: 'g1', sharpness: 90, exposure: 50 } as PhotoView;
+    const blurry = { ...makePhoto(0), id: 'b', groupId: 'g1', sharpness: 30, exposure: 50 } as PhotoView;
+    useStore.setState({ photos: [sharp, blurry] });
+
+    const ids = useStore.getState().bestInGroupIds();
+
+    expect(ids.has('a')).toBe(true);
+    expect(ids.has('b')).toBe(false);
+  });
+
+  it('exclude pozele fara groupId, si grupurile de UN singur membru (nimic de comparat)', () => {
+    const solo = { ...makePhoto(0), id: 'a', groupId: undefined } as PhotoView;
+    const soloGroup = { ...makePhoto(0), id: 'b', groupId: 'g-solo' } as PhotoView;
+    useStore.setState({ photos: [solo, soloGroup] });
+
+    const ids = useStore.getState().bestInGroupIds();
+
+    expect(ids.size).toBe(0);
+  });
+
+  it('returneaza acelasi Set (referinta) cat timp photos nu s-a schimbat', () => {
+    const a = { ...makePhoto(0), id: 'a', groupId: 'g1', sharpness: 90 } as PhotoView;
+    const b = { ...makePhoto(0), id: 'b', groupId: 'g1', sharpness: 30 } as PhotoView;
+    useStore.setState({ photos: [a, b] });
+
+    const first = useStore.getState().bestInGroupIds();
+    const second = useStore.getState().bestInGroupIds();
+    expect(second).toBe(first);
+
+    useStore.setState({ watermarkText: 'schimbare neconexa' });
+    const third = useStore.getState().bestInGroupIds();
+    expect(third).toBe(first);
+  });
+
+  it('recalculeaza cand array-ul photos e inlocuit efectiv', () => {
+    const a = { ...makePhoto(0), id: 'a', groupId: 'g1', sharpness: 90 } as PhotoView;
+    const b = { ...makePhoto(0), id: 'b', groupId: 'g1', sharpness: 30 } as PhotoView;
+    useStore.setState({ photos: [a, b] });
+    const first = useStore.getState().bestInGroupIds();
+
+    useStore.setState({ photos: [{ ...a }, { ...b }] });
+    const second = useStore.getState().bestInGroupIds();
+
+    expect(second).not.toBe(first);
+    expect(second).toEqual(first);
+  });
+});
+
 // Bug real gasit de auditul QA: un al doilea runImport() pornit inainte ca
 // primul sa se termine suprascria activeCancelToken (modul-level, in afara
 // starii Zustand) — "Anuleaza" nu mai putea opri decat importul cel mai

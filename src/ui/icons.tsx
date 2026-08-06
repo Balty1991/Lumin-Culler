@@ -80,6 +80,18 @@ export function FolderIcon(p: SVGProps<SVGSVGElement>) {
 export function BookmarkIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><path d="M6.5 4h11a1 1 0 011 1v15.5l-6.5-4-6.5 4V5a1 1 0 011-1z" /></svg>;
 }
+/** Badge "Subexpus" pe thumbnail — cerc plin (intunecat) cu un minus, distinct de SunIcon/MoonIcon (rezervate temei). */
+export function UnderexposedIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg {...base} {...p}><circle cx="12" cy="12" r="9" /><line x1="8" y1="12" x2="16" y2="12" /></svg>;
+}
+/** Badge "Zambet fortat/expresie stanjenitoare" pe thumbnail (groupAwkwardRatio) — fata cu gura in zigzag, distincta de EyeClosedIcon. */
+export function AwkwardExpressionIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg {...base} {...p}><circle cx="12" cy="12" r="9" /><circle cx="8.7" cy="10" r="0.9" fill="currentColor" stroke="none" /><circle cx="15.3" cy="10" r="0.9" fill="currentColor" stroke="none" /><path d="M7.5 15.5l2-1.3 2 1.3 2-1.3 2 1.3" /></svg>;
+}
+/** Badge "Best of series" pe thumbnail (pickBestInGroup) — panglica/medalie simpla, distincta de StarIcon (rezervat strict pentru rating). */
+export function RibbonIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg {...base} {...p}><circle cx="12" cy="8.5" r="5" /><path d="M9 12.8L7 21l5-2.8 5 2.8-2-8.2" /></svg>;
+}
 export function FocusIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><path d="M4 9V6a2 2 0 012-2h3" /><path d="M20 9V6a2 2 0 00-2-2h-3" /><path d="M4 15v3a2 2 0 002 2h3" /><path d="M20 15v3a2 2 0 01-2 2h-3" /><circle cx="12" cy="12" r="3" /></svg>;
 }

@@ -1,7 +1,10 @@
 import { useEffect, useState, memo } from 'react';
 import { db } from '../core/db';
 import { useStore, type PhotoView } from '../state/store';
-import { StarIcon, UserQuestionIcon, UserCheckIcon, EyeClosedIcon, LayersIcon, CheckIcon, SunIcon, ClockIcon, EditIcon } from './icons';
+import {
+  StarIcon, UserQuestionIcon, UserCheckIcon, EyeClosedIcon, LayersIcon, CheckIcon, SunIcon, ClockIcon, EditIcon,
+  UnderexposedIcon, AwkwardExpressionIcon, RibbonIcon
+} from './icons';
 import { isNeutral } from '../core/imageAdjust';
 import { AdjustedImage } from './AdjustedImage';
 import { t, type Locale } from '../i18n';
@@ -9,6 +12,16 @@ import { t, type Locale } from '../i18n';
 /** Aceleasi praguri ca SELECT_THRESHOLD/REJECT_THRESHOLD (importPipeline.ts) — culoarea inelului de scor. */
 function scoreColorVar(score: number): string {
   return score >= 65 ? 'var(--pick)' : score <= 35 ? 'var(--reject)' : 'var(--review)';
+}
+
+/** Acelasi prag ca aiSuggest.underexposed (aiExplanationGenerator.ts: exposure - 50 < -15). */
+function isUnderexposed(photo: PhotoView): boolean {
+  return photo.exposure - 50 < -15;
+}
+
+/** Majoritatea fetelor din cadru au o expresie stanjenitoare (gura deschisa fara zambet/surpriza reala) — vezi ContextEngine PRIOR_WEIGHTS.groupAwkwardRatio. */
+function isAwkwardExpression(photo: PhotoView): boolean {
+  return photo.faceCount > 0 && (photo.groupAwkwardRatio ?? 0) > 0.5;
 }
 
 /**
@@ -20,12 +33,15 @@ function scoreColorVar(score: number): string {
  * pe engleza auzea tot romana pentru cel mai repetat text accesibil din
  * aplicatie (o data per poza, potential 1000+ ori pe sesiune).
  */
-function describeCard(photo: PhotoView, locale: Locale): string {
+function describeCard(photo: PhotoView, locale: Locale, isBestOfSeries: boolean): string {
   const bits: string[] = [];
   if (photo.personNames.length) bits.push(t(locale, 'photoCard.knownPersons', { names: photo.personNames.join(', ') }));
   if (photo.strangerCount > 0) bits.push(t(locale, 'photoCard.strangers'));
   if (photo.faceCount > 0 && !photo.allEyesOpen) bits.push(t(locale, 'photoCard.eyesClosedFull'));
   if (photo.groupId) bits.push(t(locale, 'photoCard.seriesFull'));
+  if (isBestOfSeries) bits.push(t(locale, 'photoCard.bestOfSeriesFull'));
+  if (isUnderexposed(photo)) bits.push(t(locale, 'photoCard.underexposedFull'));
+  if (isAwkwardExpression(photo)) bits.push(t(locale, 'photoCard.awkwardFull'));
   if (photo.goldenHourDetected) bits.push(t(locale, 'photoCard.goldenHour'));
   if (photo.rating > 0) bits.push(t(locale, 'photoCard.stars', { count: photo.rating }));
   const extra = bits.length ? ', ' + bits.join(', ') : '';
@@ -58,6 +74,7 @@ function PhotoCardInner({ photo, index, onOpen, multiSelected, onCardPointerDown
   const [src, setSrc] = useState<string | null>(null);
   const density = useStore(s => s.gridDensity);
   const locale = useStore(s => s.locale);
+  const bestInGroupIds = useStore(s => s.bestInGroupIds());
 
   useEffect(() => {
     let url: string | null = null;
@@ -72,6 +89,9 @@ function PhotoCardInner({ photo, index, onOpen, multiSelected, onCardPointerDown
   const ringDeg = Math.max(0, Math.min(360, Math.round((photo.aiScore / 100) * 360)));
 
   const colorLabelClass = photo.colorLabel && photo.colorLabel !== 'none' ? ` label-${photo.colorLabel}` : '';
+  const isBestOfSeries = !!photo.groupId && bestInGroupIds.has(photo.id);
+  const underexposed = isUnderexposed(photo);
+  const awkward = isAwkwardExpression(photo);
 
   return (
     <button
@@ -80,7 +100,7 @@ function PhotoCardInner({ photo, index, onOpen, multiSelected, onCardPointerDown
       onClick={e => onOpen(photo.id, e)}
       onPointerDown={e => onCardPointerDown?.(photo.id, e)}
       onContextMenu={e => onContextMenu?.(photo.id, e)}
-      aria-label={describeCard(photo, locale)}
+      aria-label={describeCard(photo, locale, isBestOfSeries)}
       aria-pressed={multiSelected}
     >
       <span className="card-top-left" aria-hidden="true">
@@ -119,6 +139,9 @@ function PhotoCardInner({ photo, index, onOpen, multiSelected, onCardPointerDown
               {photo.strangerCount > 0 && <i title={t(locale, 'photoCard.strangers')}><UserQuestionIcon /></i>}
               {photo.faceCount > 0 && !photo.allEyesOpen && <i title={t(locale, 'photoCard.eyesClosed')}><EyeClosedIcon /></i>}
               {photo.groupId && <i title={t(locale, 'photoCard.series')}><LayersIcon /></i>}
+              {isBestOfSeries && <i title={t(locale, 'photoCard.bestOfSeries')}><RibbonIcon /></i>}
+              {underexposed && <i title={t(locale, 'photoCard.underexposed')}><UnderexposedIcon /></i>}
+              {awkward && <i title={t(locale, 'photoCard.awkward')}><AwkwardExpressionIcon /></i>}
             </span>
           )}
         </span>
