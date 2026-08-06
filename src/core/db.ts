@@ -82,6 +82,16 @@ export interface PhotoRecord {
    * niciodata — ajustarile se aplica live, la cerere, pe un canvas separat.
    */
   edits?: EditAdjustments;
+  /**
+   * Alegerea clientului ('galerie client cu feedback', vezi core/export/clientGallery.ts
+   * + core/export/clientFeedback.ts) — importata din JSON-ul descarcat de client din
+   * galeria HTML statica trimisa de fotograf, potrivita pe `id` (fallback `fileName`).
+   * Distinct de `status`/`rating` (deciziile FOTOGRAFULUI): un client poate aprecia o
+   * poza pe care fotograful a respins-o, si invers — ambele axe raman vizibile separat.
+   * Absent = niciun feedback de client importat inca; nu necesita bump de schema Dexie
+   * (camp neindexat, exact ca `colorLabel`/`rating`/`genre` de mai sus).
+   */
+  clientFeedback?: 'like' | 'dislike';
 }
 
 export type ColorLabel = 'none' | 'red' | 'yellow' | 'green' | 'blue' | 'purple';

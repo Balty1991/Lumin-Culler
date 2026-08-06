@@ -9,7 +9,7 @@ vi.mock('./watermark', () => ({
 describe('buildClientGalleryHtml', () => {
   it('embeds each photo as an inline data: URI, keyed by escaped filename', async () => {
     const html = await buildClientGalleryHtml(
-      [{ fileName: 'a.jpg', thumbnail: new Blob(['fake-jpeg-bytes'], { type: 'image/jpeg' }) }],
+      [{ id: 'p1', fileName: 'a.jpg', thumbnail: new Blob(['fake-jpeg-bytes'], { type: 'image/jpeg' }) }],
       'Galerie test'
     );
     expect(html).toContain('data-name="a.jpg"');
@@ -19,7 +19,7 @@ describe('buildClientGalleryHtml', () => {
 
   it('escapes XML/HTML-sensitive characters in the title and file names', async () => {
     const html = await buildClientGalleryHtml(
-      [{ fileName: 'Tom & Jerry <2>.jpg', thumbnail: new Blob(['x'], { type: 'image/jpeg' }) }],
+      [{ id: 'p1', fileName: 'Tom & Jerry <2>.jpg', thumbnail: new Blob(['x'], { type: 'image/jpeg' }) }],
       'Client <VIP> & Co'
     );
     expect(html).toContain('Tom &amp; Jerry &lt;2&gt;.jpg');
@@ -29,7 +29,7 @@ describe('buildClientGalleryHtml', () => {
 
   it('produces a single self-contained file with no external references', async () => {
     const html = await buildClientGalleryHtml(
-      [{ fileName: 'a.jpg', thumbnail: new Blob(['x'], { type: 'image/jpeg' }) }],
+      [{ id: 'p1', fileName: 'a.jpg', thumbnail: new Blob(['x'], { type: 'image/jpeg' }) }],
       'Galerie'
     );
     expect(html).not.toMatch(/https?:\/\//);
@@ -41,7 +41,7 @@ describe('buildClientGalleryHtml', () => {
     applyWatermarkMock.mockReset();
     applyWatermarkMock.mockResolvedValue(new Blob(['watermarked-bytes'], { type: 'image/jpeg' }));
     const html = await buildClientGalleryHtml(
-      [{ fileName: 'a.jpg', thumbnail: new Blob(['original-bytes'], { type: 'image/jpeg' }) }],
+      [{ id: 'p1', fileName: 'a.jpg', thumbnail: new Blob(['original-bytes'], { type: 'image/jpeg' }) }],
       'Galerie',
       'Studio Foto X'
     );
@@ -53,7 +53,7 @@ describe('buildClientGalleryHtml', () => {
   it('leaves thumbnails untouched when no watermarkText is given', async () => {
     applyWatermarkMock.mockReset();
     const html = await buildClientGalleryHtml(
-      [{ fileName: 'a.jpg', thumbnail: new Blob(['original-bytes'], { type: 'image/jpeg' }) }],
+      [{ id: 'p1', fileName: 'a.jpg', thumbnail: new Blob(['original-bytes'], { type: 'image/jpeg' }) }],
       'Galerie'
     );
     expect(applyWatermarkMock).not.toHaveBeenCalled();
@@ -62,7 +62,7 @@ describe('buildClientGalleryHtml', () => {
 
   it('renders the subtitle line, escaped, when provided', async () => {
     const html = await buildClientGalleryHtml(
-      [{ fileName: 'a.jpg', thumbnail: new Blob(['x'], { type: 'image/jpeg' }) }],
+      [{ id: 'p1', fileName: 'a.jpg', thumbnail: new Blob(['x'], { type: 'image/jpeg' }) }],
       'Galerie',
       undefined,
       '12 poze selectate <VIP> & Co'
@@ -72,7 +72,7 @@ describe('buildClientGalleryHtml', () => {
 
   it('omits the subtitle paragraph entirely when not provided, exactly as before this field existed', async () => {
     const html = await buildClientGalleryHtml(
-      [{ fileName: 'a.jpg', thumbnail: new Blob(['x'], { type: 'image/jpeg' }) }],
+      [{ id: 'p1', fileName: 'a.jpg', thumbnail: new Blob(['x'], { type: 'image/jpeg' }) }],
       'Galerie'
     );
     expect(html).not.toContain('class="subtitle"');
@@ -80,9 +80,26 @@ describe('buildClientGalleryHtml', () => {
 
   it('always includes the app credit footer', async () => {
     const html = await buildClientGalleryHtml(
-      [{ fileName: 'a.jpg', thumbnail: new Blob(['x'], { type: 'image/jpeg' }) }],
+      [{ id: 'p1', fileName: 'a.jpg', thumbnail: new Blob(['x'], { type: 'image/jpeg' }) }],
       'Galerie'
     );
     expect(html).toContain('Lumin Culler Pro');
+  });
+
+  it('embeds each photo id, escaped, for matching client feedback back to the right photo', async () => {
+    const html = await buildClientGalleryHtml(
+      [{ id: 'photo-id-1', fileName: 'a.jpg', thumbnail: new Blob(['x'], { type: 'image/jpeg' }) }],
+      'Galerie'
+    );
+    expect(html).toContain('data-id="photo-id-1"');
+  });
+
+  it('includes a like/dislike control per card instead of a single favorite checkbox', async () => {
+    const html = await buildClientGalleryHtml(
+      [{ id: 'p1', fileName: 'a.jpg', thumbnail: new Blob(['x'], { type: 'image/jpeg' }) }],
+      'Galerie'
+    );
+    expect(html).toContain('data-action="like"');
+    expect(html).toContain('data-action="dislike"');
   });
 });

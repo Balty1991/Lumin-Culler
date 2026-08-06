@@ -92,6 +92,14 @@ export function AwkwardExpressionIcon(p: SVGProps<SVGSVGElement>) {
 export function RibbonIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><circle cx="12" cy="8.5" r="5" /><path d="M9 12.8L7 21l5-2.8 5 2.8-2-8.2" /></svg>;
 }
+/** Badge "apreciata de client" (galerie client cu feedback) — inima plina. */
+export function HeartIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg {...base} {...p}><path d="M12 20.5s-7.5-4.6-9.7-9C.7 8 2 4.5 5.3 3.7c2-.5 3.9.3 5.2 2 .3.4.8.4 1 0 1.3-1.7 3.2-2.5 5.2-2 3.3.8 4.6 4.3 3 7.8-2.2 4.4-9.7 9-9.7 9z" /></svg>;
+}
+/** Badge "respinsa de client" — aceeasi inima, estompata + taiata, la fel ca EyeClosedIcon fata de un ochi normal. */
+export function HeartOffIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg {...base} {...p}><path d="M12 20.5s-7.5-4.6-9.7-9C.7 8 2 4.5 5.3 3.7c2-.5 3.9.3 5.2 2 .3.4.8.4 1 0 1.3-1.7 3.2-2.5 5.2-2 3.3.8 4.6 4.3 3 7.8-2.2 4.4-9.7 9-9.7 9z" opacity="0.35" /><line x1="3" y1="20" x2="21" y2="4" /></svg>;
+}
 export function FocusIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><path d="M4 9V6a2 2 0 012-2h3" /><path d="M20 9V6a2 2 0 00-2-2h-3" /><path d="M4 15v3a2 2 0 002 2h3" /><path d="M20 15v3a2 2 0 01-2 2h-3" /><circle cx="12" cy="12" r="3" /></svg>;
 }
