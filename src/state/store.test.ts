@@ -18,6 +18,7 @@ import { db, type AnalysisRecord, type FaceInsight, type PhotoRecord } from '../
 import { contextEngine } from '../core/learning/ContextEngine';
 import { originalFiles } from '../core/importPipeline';
 import { readSavedFilters } from './savedFilters';
+import { t } from '../i18n';
 
 function makePhoto(i: number): PhotoView {
   return {
@@ -753,5 +754,104 @@ describe('clearAll resets dangling multi-select and batch-history state', () => 
     expect(s.selectMode).toBe(false);
     expect(s.batchHistory).toEqual([]);
     expect(s.fieldBatchHistory).toEqual([]);
+  });
+});
+
+// "Galerie client cu feedback" — importClientFeedback() citeste JSON-ul descarcat
+// de client din galeria HTML statica (clientGallery.ts) si trebuie sa (1) scrie
+// PhotoRecord.clientFeedback pe pozele care se potrivesc, (2) antreneze
+// ContextEngine exact ca la o decizie normala a fotografului (acelasi train()
+// folosit de setStatus), (3) sa nu se prabuseasca pe un fisier nepotrivit/invalid.
+describe('importClientFeedback (integration, Dexie real via fake-indexeddb)', () => {
+  function feedbackFile(payload: unknown): File {
+    return new File([JSON.stringify(payload)], 'feedback.json', { type: 'application/json' });
+  }
+
+  it('potriveste pe id, scrie clientFeedback in DB + in memorie si antreneaza ContextEngine cu userDecision corect', async () => {
+    await db.photos.clear();
+    await db.analyses.clear();
+    await db.photos.put(makeDbPhoto({ id: 'p1', status: 'selected' }));
+    await db.photos.put(makeDbPhoto({ id: 'p2', status: 'review' }));
+    await db.analyses.put(makeDbAnalysis({ photoId: 'p1', aiScore: 80 }));
+    await db.analyses.put(makeDbAnalysis({ photoId: 'p2', aiScore: 20 }));
+    useStore.setState({
+      photos: [
+        { ...makePhoto(0), id: 'p1', fileName: 'a.jpg', status: 'selected' } as PhotoView,
+        { ...makePhoto(0), id: 'p2', fileName: 'b.jpg', status: 'review' } as PhotoView
+      ],
+      notice: null
+    });
+
+    const recordCorrectionSpy = vi.spyOn(contextEngine, 'recordCorrection').mockResolvedValue({ topShift: null });
+
+    const file = feedbackFile({
+      version: 1, galleryId: 'lc-test', exportedAt: '2026-08-06T00:00:00.000Z',
+      photos: [{ id: 'p1', fileName: 'a.jpg', decision: 'like' }, { id: 'p2', fileName: 'b.jpg', decision: 'dislike' }]
+    });
+
+    await useStore.getState().importClientFeedback(file);
+
+    expect((await db.photos.get('p1'))?.clientFeedback).toBe('like');
+    expect((await db.photos.get('p2'))?.clientFeedback).toBe('dislike');
+    const s = useStore.getState();
+    expect(s.photos.find(p => p.id === 'p1')?.clientFeedback).toBe('like');
+    expect(s.photos.find(p => p.id === 'p2')?.clientFeedback).toBe('dislike');
+
+    expect(recordCorrectionSpy).toHaveBeenCalledTimes(2);
+    const byPhoto = new Map(recordCorrectionSpy.mock.calls.map(c => [c[0].photoId, c[0].userDecision]));
+    expect(byPhoto.get('p1')).toBe(true);
+    expect(byPhoto.get('p2')).toBe(false);
+
+    expect(s.notice).toBe(t('ro', 'store.clientFeedback.imported', { matched: 2, total: 2 }));
+    recordCorrectionSpy.mockRestore();
+  });
+
+  it('foloseste numele de fisier ca alternativa cand id-ul din fisier nu mai exista in biblioteca curenta', async () => {
+    await db.photos.clear();
+    await db.analyses.clear();
+    await db.photos.put(makeDbPhoto({ id: 'new-id', status: 'review' }));
+    await db.analyses.put(makeDbAnalysis({ photoId: 'new-id', aiScore: 20 }));
+    useStore.setState({
+      photos: [{ ...makePhoto(0), id: 'new-id', fileName: 'a.jpg', status: 'review' } as PhotoView],
+      notice: null
+    });
+
+    const recordCorrectionSpy = vi.spyOn(contextEngine, 'recordCorrection').mockResolvedValue({ topShift: null });
+
+    // id-ul din exportul original ("old-id-din-alta-sesiune") nu mai exista —
+    // fallback pe numele de fisier gaseste totusi poza curenta ("new-id")
+    const file = feedbackFile({
+      version: 1, photos: [{ id: 'old-id-din-alta-sesiune', fileName: 'a.jpg', decision: 'like' }]
+    });
+
+    await useStore.getState().importClientFeedback(file);
+
+    expect((await db.photos.get('new-id'))?.clientFeedback).toBe('like');
+    expect(recordCorrectionSpy).toHaveBeenCalledTimes(1);
+    expect(recordCorrectionSpy.mock.calls[0][0].photoId).toBe('new-id');
+    recordCorrectionSpy.mockRestore();
+  });
+
+  it('nu antreneaza nimic si arata un mesaj distinct cand nicio poza din fisier nu se potriveste', async () => {
+    await db.photos.clear();
+    useStore.setState({ photos: [{ ...makePhoto(0), id: 'p1', fileName: 'a.jpg' } as PhotoView], notice: null });
+
+    const recordCorrectionSpy = vi.spyOn(contextEngine, 'recordCorrection').mockResolvedValue({ topShift: null });
+
+    const file = feedbackFile({ version: 1, photos: [{ id: 'necunoscut', fileName: 'necunoscut.jpg', decision: 'like' }] });
+    await useStore.getState().importClientFeedback(file);
+
+    expect(recordCorrectionSpy).not.toHaveBeenCalled();
+    expect(useStore.getState().notice).toBe(t('ro', 'store.clientFeedback.noMatch'));
+    recordCorrectionSpy.mockRestore();
+  });
+
+  it('arata un mesaj de eroare pe un fisier JSON invalid, fara sa arunce', async () => {
+    useStore.setState({ notice: null });
+    const file = new File(['nu-e-json'], 'feedback.json', { type: 'application/json' });
+
+    await useStore.getState().importClientFeedback(file);
+
+    expect(useStore.getState().notice).toContain('Importul feedback-ului de la client a esuat');
   });
 });

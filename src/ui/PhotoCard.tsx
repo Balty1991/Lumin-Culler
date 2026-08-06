@@ -3,7 +3,7 @@ import { db } from '../core/db';
 import { useStore, type PhotoView } from '../state/store';
 import {
   StarIcon, UserQuestionIcon, UserCheckIcon, EyeClosedIcon, LayersIcon, CheckIcon, SunIcon, ClockIcon, EditIcon,
-  UnderexposedIcon, AwkwardExpressionIcon, RibbonIcon
+  UnderexposedIcon, AwkwardExpressionIcon, RibbonIcon, HeartIcon, HeartOffIcon
 } from './icons';
 import { isNeutral } from '../core/imageAdjust';
 import { AdjustedImage } from './AdjustedImage';
@@ -42,6 +42,8 @@ function describeCard(photo: PhotoView, locale: Locale, isBestOfSeries: boolean)
   if (isBestOfSeries) bits.push(t(locale, 'photoCard.bestOfSeriesFull'));
   if (isUnderexposed(photo)) bits.push(t(locale, 'photoCard.underexposedFull'));
   if (isAwkwardExpression(photo)) bits.push(t(locale, 'photoCard.awkwardFull'));
+  if (photo.clientFeedback === 'like') bits.push(t(locale, 'photoCard.clientLikedFull'));
+  if (photo.clientFeedback === 'dislike') bits.push(t(locale, 'photoCard.clientDislikedFull'));
   if (photo.goldenHourDetected) bits.push(t(locale, 'photoCard.goldenHour'));
   if (photo.rating > 0) bits.push(t(locale, 'photoCard.stars', { count: photo.rating }));
   const extra = bits.length ? ', ' + bits.join(', ') : '';
@@ -142,6 +144,8 @@ function PhotoCardInner({ photo, index, onOpen, multiSelected, onCardPointerDown
               {isBestOfSeries && <i title={t(locale, 'photoCard.bestOfSeries')}><RibbonIcon /></i>}
               {underexposed && <i title={t(locale, 'photoCard.underexposed')}><UnderexposedIcon /></i>}
               {awkward && <i title={t(locale, 'photoCard.awkward')}><AwkwardExpressionIcon /></i>}
+              {photo.clientFeedback === 'like' && <i title={t(locale, 'photoCard.clientLiked')}><HeartIcon /></i>}
+              {photo.clientFeedback === 'dislike' && <i title={t(locale, 'photoCard.clientDisliked')}><HeartOffIcon /></i>}
             </span>
           )}
         </span>

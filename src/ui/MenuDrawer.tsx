@@ -5,7 +5,7 @@ import { useModalFocusTrap } from './useModalFocusTrap';
 import {
   UserCheckIcon, SparkleIcon, ListIcon, InfoIcon, XIcon, TagIcon, LayersIcon, KeyboardIcon,
   SunIcon, MoonIcon, BatteryIcon, GridIcon, DownloadIcon, UploadIcon, BarChartIcon, GlobeIcon, PrinterIcon,
-  ApertureIcon, PlayIcon, EditIcon, FolderIcon
+  ApertureIcon, PlayIcon, EditIcon, FolderIcon, HeartIcon
 } from './icons';
 import { EASE } from './motion';
 import { GENRE_PRESETS } from '../state/genre';
@@ -62,6 +62,7 @@ export function MenuDrawer() {
   const setApplyEditsInGallery = useStore(s => s.setApplyEditsInGallery);
   const exportBackup = useStore(s => s.exportBackup);
   const importBackupFile = useStore(s => s.importBackupFile);
+  const importClientFeedback = useStore(s => s.importClientFeedback);
   const setNotice = useStore(s => s.setNotice);
   const setStatsOpen = useStore(s => s.setStatsOpen);
   const setContactSheetOpen = useStore(s => s.setContactSheetOpen);
@@ -72,6 +73,7 @@ export function MenuDrawer() {
   const askConfirm = useStore(s => s.askConfirm);
   const reduceMotion = useReducedMotion();
   const restoreInputRef = useRef<HTMLInputElement>(null);
+  const clientFeedbackInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLElement>(null);
   useModalFocusTrap(containerRef, open);
 
@@ -181,6 +183,19 @@ export function MenuDrawer() {
         // avut vreun efect cat timp asteapta rezultatul
         setNotice(tr('menu.importBackup.processing'));
         void importBackupFile(file);
+      }}
+    />
+    <input
+      ref={clientFeedbackInputRef}
+      type="file"
+      accept="application/json,.json"
+      style={{ display: 'none' }}
+      onChange={e => {
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (!file) return;
+        setNotice(tr('menu.importBackup.processing'));
+        void importClientFeedback(file);
       }}
     />
     <AnimatePresence>
@@ -301,6 +316,15 @@ export function MenuDrawer() {
         >
           <span className="drawer-item-icon"><UserCheckIcon /></span>
           <span>{tr('menu.exportClientGallery')}</span>
+        </button>
+
+        <button
+          className="drawer-item"
+          onClick={() => { setOpen(false); clientFeedbackInputRef.current?.click(); }}
+          title={tr('menu.importClientFeedback.title')}
+        >
+          <span className="drawer-item-icon"><HeartIcon /></span>
+          <span>{tr('menu.importClientFeedback')}</span>
         </button>
 
         <label className="drawer-item drawer-item-select" title={tr('menu.watermark.title')}>

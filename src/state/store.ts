@@ -46,6 +46,7 @@ import { translateSceneTag, normalizeForSearch } from '../core/sceneTagLabels';
 import { buildBackup, backupFileName, parseBackupFile, restoreBackup } from '../core/backupService';
 import { writeLastBackupAt } from './backupReminder';
 import { buildClientGalleryHtml } from '../core/export/clientGallery';
+import { parseClientFeedbackFile } from '../core/export/clientFeedback';
 import { downloadBlob } from '../core/export/directoryPicker';
 import { buildSessionReportText } from '../core/export/sessionReport';
 import { computeLibraryStats } from '../core/stats';
@@ -139,6 +140,8 @@ export interface PhotoView {
   lqip?: string;
   /** Ajustari de baza non-destructive (expunere/contrast/...) — vezi core/imageAdjust.ts si PhotoRecord.edits. Absent = fara ajustari. */
   edits?: EditAdjustments;
+  /** Alegerea clientului importata din "galeria client cu feedback" — vezi PhotoRecord.clientFeedback. Absent = niciun feedback importat. */
+  clientFeedback?: 'like' | 'dislike';
 }
 
 export type FilterKey = 'all' | 'selected' | 'review' | 'rejected' | 'series' | 'blinks' | 'goldenHour' | 'highlights';
@@ -197,6 +200,14 @@ interface AppState {
   exportBackup: () => Promise<void>;
   /** Restaureaza un backup: persoane + modele AI, plus reaplicarea deciziilor (status/rating) pe pozele curente care se potrivesc (nume fisier + data capturii). */
   importBackupFile: (file: File) => Promise<void>;
+  /**
+   * Importa alegerile clientului (JSON descarcat din galeria statica trimisa
+   * clientului — vezi core/export/clientGallery.ts + clientFeedback.ts): scrie
+   * PhotoRecord.clientFeedback pe pozele care se potrivesc (id, fallback nume
+   * fisier) SI antreneaza ContextEngine exact ca la o decizie normala a
+   * fotografului, ca AI-ul sa invete si din alegerile clientului.
+   */
+  importClientFeedback: (file: File) => Promise<void>;
   /** Viteza ultimului import (poze procesate + durata) — afisata in Statistici; null inainte de primul import al sesiunii. */
   lastImportStats: { count: number; durationMs: number } | null;
   /** Contor informativ de poze procesate in luna curenta — vezi state/usage.ts (NU e o limita reala/blocanta). */
@@ -508,6 +519,7 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     colorLabel: photo.colorLabel,
     lqip: photo.lqip,
     edits: photo.edits,
+    clientFeedback: photo.clientFeedback,
     aiScore: analysis?.aiScore ?? 0,
     sceneType: analysis?.sceneType ?? 'detail',
     contextKey: analysis ? deriveContextKey(analysis, photo.genre) : 'detail',
@@ -1135,6 +1147,52 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
+  importClientFeedback: async (file: File) => {
+    const locale = get().locale;
+    try {
+      const data = await parseClientFeedbackFile(file);
+      const currentPhotos = get().photos;
+      const byId = new Map(currentPhotos.map(p => [p.id, p]));
+      const byFileName = new Map<string, PhotoView[]>();
+      for (const p of currentPhotos) {
+        const bucket = byFileName.get(p.fileName);
+        if (bucket) bucket.push(p); else byFileName.set(p.fileName, [p]);
+      }
+      // potrivire pe id (stabil intre export si import — pozele raman in DB,
+      // nu trec printr-un reimport ca la backup), cu fallback pe nume de
+      // fisier doar cand id-ul nu se mai gaseste (ex. poza stearsa si
+      // reimportata intre timp, primeste un id nou)
+      const matches: { id: string; decision: 'like' | 'dislike' }[] = [];
+      const seen = new Set<string>();
+      for (const entry of data.photos) {
+        const direct = byId.get(entry.id);
+        const targets = direct ? [direct] : (byFileName.get(entry.fileName) ?? []);
+        for (const target of targets) {
+          if (seen.has(target.id)) continue;
+          seen.add(target.id);
+          matches.push({ id: target.id, decision: entry.decision });
+        }
+      }
+      if (!matches.length) {
+        set({ notice: t(locale, 'store.clientFeedback.noMatch') });
+        return;
+      }
+      await db.transaction('rw', [db.photos], async () => {
+        for (const m of matches) await db.photos.update(m.id, { clientFeedback: m.decision });
+      });
+      const views = await reloadPhotoViews();
+      set({ photos: views });
+      // antrenam ContextEngine exact ca la o decizie normala a fotografului
+      // (train(), vezi setStatus) — secvential (nu in paralel, acelasi motiv
+      // documentat langa runAutoCull: SGD-ul global nu e sigur de antrenat concurent)
+      // si FARA toast per poza (la fel ca actiunile in masa, vezi setStatus)
+      for (const m of matches) await train(m.id, m.decision === 'like');
+      set({ notice: t(locale, 'store.clientFeedback.imported', { matched: matches.length, total: data.photos.length }) });
+    } catch (err) {
+      set({ notice: t(locale, 'store.clientFeedback.failed', { error: err instanceof Error ? err.message : String(err) }) });
+    }
+  },
+
   /**
    * Galerie HTML statica pentru feedback de la client (plan 3.2.3, "Client Review") —
    * exporta doar pozele SELECTATE (acelasi domeniu ca exportSelection), cu
@@ -1157,8 +1215,8 @@ export const useStore = create<AppState>((set, get) => ({
         // acest lucru, ca sa nu surprindem un export cu poze aratand diferit fata
         // de ce se vede in restul aplicatiei fara sa fie o decizie constienta.
         const thumbnail = applyEdits && p.edits ? await applyAdjustmentsToBlob(raw, p.edits) : raw;
-        return { fileName: p.fileName, thumbnail };
-      }))).filter((it): it is { fileName: string; thumbnail: Blob } => !!it);
+        return { id: p.id, fileName: p.fileName, thumbnail };
+      }))).filter((it): it is { id: string; fileName: string; thumbnail: Blob } => !!it);
       const title = get().projectName ? t(locale, 'store.clientGallery.title', { project: get().projectName }) : t(locale, 'store.clientGallery.titleDefault');
       const subtitle = t(locale, 'store.clientGallery.subtitle', { count: items.length, date: new Date().toLocaleDateString() });
       const html = await buildClientGalleryHtml(items, title, get().watermarkText.trim() || undefined, subtitle);
