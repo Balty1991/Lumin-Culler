@@ -39,6 +39,14 @@ export interface CorrectionInput {
   userDecision: boolean;  // what the user actually chose
   /** Genul fotografic activ pentru aceasta poza (PhotoRecord.genre) — vezi deriveContextKey. */
   genre?: string;
+  /** Doar pentru textul lui topShift (vezi recordCorrection) — 'ro' implicit, ca la summarize(). */
+  locale?: Locale;
+}
+
+/** O singura schimbare de pondere, suficient de mare cat sa merite anuntata utilizatorului imediat — vezi recordCorrection. */
+export interface WeightShift {
+  feature: string;
+  label: string;
 }
 
 interface FeatureStat { mean: number; m2: number; n: number }
@@ -50,6 +58,8 @@ const L2_LAMBDA = 0.002;
 const MAX_ABS_WEIGHT = 4.0;
 const COLD_START_SAMPLES = 8;
 const TRAINED_SAMPLES = 40;
+/** Acelasi prag ca explainFactors() ("contributii neglijabile") — o schimbare de pondere sub asta nu merita un toast "Am invatat". */
+const PREF_SHIFT_THRESHOLD = 0.03;
 
 /**
  * Model "backbone": antrenat pe FIECARE corectie, indiferent de context —
@@ -483,13 +493,26 @@ export class ContextEngine {
   /**
    * Called on EVERY manual decision (not only disagreements): agreements
    * reinforce, disagreements correct. Online SGD on log-loss.
+   *
+   * Returneaza `topShift` — cerinta directa a utilizatorului: un mic
+   * toast imediat ("Am invatat: X"), NU doar panoul agregat "Preferinte AI"
+   * (deja existent, InsightsPanel.tsx) pe care trebuie sa-l deschizi manual.
+   * Calculat DOAR la un dezacord real (aiDecision !== userDecision) — o
+   * confirmare a ceea ce AI-ul deja propunea intareste ponderile cu un pas
+   * minuscul, nu are ce sa anunte ca "nou invatat"; un toast la fiecare
+   * P/X ar fi oricum zgomot pur culling-uind sute de poze. Restrans la
+   * modelul PER-CONTEXT (nu si backbone-ul global) si la PREF_FEATURES
+   * (acelasi subset deja folosit de summarize() pentru panoul agregat) —
+   * consistenta cu ce utilizatorul poate vedea acolo daca deschide panoul.
    */
-  async recordCorrection(input: CorrectionInput): Promise<void> {
+  async recordCorrection(input: CorrectionInput): Promise<{ topShift: WeightShift | null }> {
     await this.init();
     const contextKey = deriveContextKey(input.analysis, input.genre);
     const model = this.getOrCreateModel(contextKey);
     const globalModel = this.getOrCreateModel(GLOBAL_CONTEXT_KEY);
     const features = extractFeatures(input.analysis);
+    const disagreement = input.aiDecision !== input.userDecision;
+    const weightsBefore = disagreement ? { ...model.weights } : null;
 
     this.trainOne(model, features, input);
     // backbone-ul global invata din FIECARE corectie, indiferent de context —
@@ -516,6 +539,21 @@ export class ContextEngine {
         })
       ]);
     });
+
+    return { topShift: weightsBefore ? this.biggestPrefShift(weightsBefore, model.weights, features, input.locale ?? 'ro') : null };
+  }
+
+  /** Feature-ul (dintre PREF_FEATURES, prezent in vectorul ACESTEI poze) a carui pondere s-a schimbat cel mai mult la acest pas — null daca nimic n-a trecut de PREF_SHIFT_THRESHOLD. */
+  private biggestPrefShift(before: FeatureVector, after: FeatureVector, features: FeatureVector, locale: Locale): WeightShift | null {
+    let best: { feature: string; delta: number } | null = null;
+    for (const feature of Object.keys(features)) {
+      if (!ContextEngine.PREF_FEATURES.has(feature)) continue;
+      const delta = Math.abs((after[feature] ?? 0) - (before[feature] ?? 0));
+      if (delta > PREF_SHIFT_THRESHOLD && (!best || delta > best.delta)) best = { feature, delta };
+    }
+    if (!best) return null;
+    const sign = (after[best.feature] ?? 0) >= 0 ? 'pos' : 'neg';
+    return { feature: best.feature, label: t(locale, `insightsPref.${best.feature}.${sign}`) };
   }
 
   /** Un pas de SGD online (forward + backward + update), aplicat pe orice model — context specific sau backbone-ul global. */

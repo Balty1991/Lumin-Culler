@@ -372,7 +372,7 @@ describe('bulkRejectBelow (integration, Dexie real via fake-indexeddb)', () => {
     const photos = ids.map(id => ({ ...makePhoto(0), id, status: 'review', aiScore: 10 } as PhotoView));
     useStore.setState({ photos });
 
-    const recordCorrectionSpy = vi.spyOn(contextEngine, 'recordCorrection').mockResolvedValue();
+    const recordCorrectionSpy = vi.spyOn(contextEngine, 'recordCorrection').mockResolvedValue({ topShift: null });
 
     const result = await useStore.getState().bulkRejectBelow(50);
 
@@ -386,6 +386,59 @@ describe('bulkRejectBelow (integration, Dexie real via fake-indexeddb)', () => {
     expect(recordCorrectionSpy.mock.calls.map(c => c[0].photoId)).toEqual(ids);
     expect(recordCorrectionSpy.mock.calls.every(c => c[0].userDecision === false)).toBe(true);
 
+    recordCorrectionSpy.mockRestore();
+  });
+});
+
+// Cerinta directa a utilizatorului: un mic toast IMEDIAT dupa o corectie
+// reala ("Am invatat: X"), distinct de panoul agregat "Preferinte AI"
+// (InsightsPanel) deschis manual. Scop deliberat restrans la setStatus()
+// (decizia P/X unica) — actiunile in masa NU trec pe aici.
+describe('setStatus topShift toast (integration, Dexie real via fake-indexeddb)', () => {
+  it('afiseaza toast-ul "Am invatat: X" cand recordCorrection raporteaza un topShift, la o schimbare reala de status', async () => {
+    await db.photos.clear();
+    await db.analyses.clear();
+    await db.photos.put(makeDbPhoto({ id: 'p1', status: 'review' }));
+    await db.analyses.put(makeDbAnalysis({ photoId: 'p1', aiScore: 20 }));
+    useStore.setState({ photos: [{ ...makePhoto(0), id: 'p1', status: 'review' } as PhotoView], notice: null });
+
+    const recordCorrectionSpy = vi.spyOn(contextEngine, 'recordCorrection')
+      .mockResolvedValue({ topShift: { feature: 'bestSmile', label: 'zambete largi' } });
+
+    await useStore.getState().setStatus('p1', 'selected');
+
+    expect(useStore.getState().notice).toBe('Am invatat: zambete largi');
+    recordCorrectionSpy.mockRestore();
+  });
+
+  it('NU afiseaza toast cand recordCorrection nu raporteaza niciun topShift (acord, sau schimbare prea mica)', async () => {
+    await db.photos.clear();
+    await db.analyses.clear();
+    await db.photos.put(makeDbPhoto({ id: 'p1', status: 'review' }));
+    await db.analyses.put(makeDbAnalysis({ photoId: 'p1', aiScore: 20 }));
+    useStore.setState({ photos: [{ ...makePhoto(0), id: 'p1', status: 'review' } as PhotoView], notice: null });
+
+    const recordCorrectionSpy = vi.spyOn(contextEngine, 'recordCorrection').mockResolvedValue({ topShift: null });
+
+    await useStore.getState().setStatus('p1', 'selected');
+
+    expect(useStore.getState().notice).toBeNull();
+    recordCorrectionSpy.mockRestore();
+  });
+
+  it('NU afiseaza toast pentru o re-confirmare a aceluiasi status (nu e o schimbare reala)', async () => {
+    await db.photos.clear();
+    await db.analyses.clear();
+    await db.photos.put(makeDbPhoto({ id: 'p1', status: 'selected' }));
+    await db.analyses.put(makeDbAnalysis({ photoId: 'p1', aiScore: 80 }));
+    useStore.setState({ photos: [{ ...makePhoto(0), id: 'p1', status: 'selected' } as PhotoView], notice: null });
+
+    const recordCorrectionSpy = vi.spyOn(contextEngine, 'recordCorrection')
+      .mockResolvedValue({ topShift: { feature: 'bestSmile', label: 'zambete largi' } });
+
+    await useStore.getState().setStatus('p1', 'selected'); // acelasi status ca inainte
+
+    expect(useStore.getState().notice).toBeNull();
     recordCorrectionSpy.mockRestore();
   });
 });

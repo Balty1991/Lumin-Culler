@@ -24,7 +24,7 @@ import { vibrate } from '../ui/haptics';
 import { exportOriginalFiles, computeGroupPersonUnion } from '../core/exportPhotos';
 import { exportXMPSidecars, deriveXmpKeywords, deriveAiScoreKeyword, deriveSeriesKeyword } from '../core/export/xmpGenerator';
 import { analysisPool } from '../core/workerPool';
-import { contextEngine, deriveContextKey, explainFactors } from '../core/learning/ContextEngine';
+import { contextEngine, deriveContextKey, explainFactors, type WeightShift } from '../core/learning/ContextEngine';
 import { pickBestInGroup } from '../core/groupSelection';
 import {
   pushHistory, popHistory, MAX_HISTORY, type HistoryEvent,
@@ -634,11 +634,12 @@ export function selectMergedEmbeddings(profiles: number[][][], maxTotal: number)
   return profiles.flatMap(p => p.slice(-perProfileCap)).slice(-maxTotal);
 }
 
-async function train(id: string, userDecision: boolean): Promise<void> {
+async function train(id: string, userDecision: boolean): Promise<{ topShift: WeightShift | null }> {
   const [analysis, photo] = await Promise.all([db.analyses.get(id), db.photos.get(id)]);
-  if (!analysis) return;
+  if (!analysis) return { topShift: null };
   const aiDecision = analysis.aiScore >= 65;
-  await contextEngine.recordCorrection({ photoId: id, analysis, aiDecision, userDecision, genre: photo?.genre });
+  const locale = useStore.getState().locale;
+  return contextEngine.recordCorrection({ photoId: id, analysis, aiDecision, userDecision, genre: photo?.genre, locale });
 }
 
 /**
@@ -1277,18 +1278,34 @@ export const useStore = create<AppState>((set, get) => ({
 
   setStatus: async (id, status) => {
     const previousStatus = get().photos.find(p => p.id === id)?.status;
+    const isRealChange = (status === 'selected' || status === 'rejected') && status !== previousStatus;
     // Feedback haptic pentru ORICE decizie (tastatura, butoane tap, swipe) — bug real gasit
     // de auditul QA: inainte, doar gestul de swipe din DetailView vibra; utilizatorii care
     // apasa butoanele mari Selecteaza/Respinge (probabil majoritatea pe telefon, swipe-ul
     // cere mai multa precizie) nu primeau niciodata confirmarea haptica.
-    if ((status === 'selected' || status === 'rejected') && status !== previousStatus) {
+    if (isRealChange) {
       vibrate(status === 'selected' ? 14 : [12, 40, 12]);
     }
     await db.photos.update(id, { status });
     set(state => ({ photos: state.photos.map(p => (p.id === id ? { ...p, status } : p)) }));
     const { quotaError } = await syncOriginal(id, status);
     if (quotaError) set({ notice: quotaNotice(get().locale) });
-    if (status === 'selected' || status === 'rejected') await train(id, status === 'selected');
+    if (status === 'selected' || status === 'rejected') {
+      const { topShift } = await train(id, status === 'selected');
+      // Cerinta directa a utilizatorului: un mic toast IMEDIAT dupa o corectie
+      // reala ("Am invatat: X"), distinct de panoul agregat "Preferinte AI"
+      // (InsightsPanel, deschis manual) — vezi ContextEngine.recordCorrection
+      // pentru cand chiar exista un topShift (doar la un dezacord real AI/
+      // utilizator, cu o schimbare de pondere suficient de mare). Scop DELIBERAT
+      // restrans la aceasta cale (decizia P/X unica, cea mai frecventa
+      // interactie) — actiunile in masa/de grup NU trec prin setStatus, deci
+      // nu pot inunda utilizatorul cu un toast per poza dintr-un lot de sute.
+      // Nu suprascriem un avertisment de cota (mai urgent), si nu aratam nimic
+      // pentru o re-confirmare a aceluiasi status (isRealChange).
+      if (topShift && isRealChange && !quotaError) {
+        set({ notice: t(get().locale, 'store.learned.toast', { label: topShift.label }) });
+      }
+    }
     if (previousStatus && previousStatus !== status) {
       const event: HistoryEvent = { photoId: id, previousStatus, newStatus: status, ts: Date.now() };
       set(state => ({ history: pushHistory(state.history, event) }));

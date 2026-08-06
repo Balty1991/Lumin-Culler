@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto';
 import { describe, expect, it, vi } from 'vitest';
 import { deriveContextKey, explainFactors, extractFeatures, FACE_ONLY_FEATURES, LANDSCAPE_ONLY_FEATURES, landscapeSharpness, ContextEngine } from './ContextEngine';
 import { db, type AnalysisRecord } from '../db';
+import { t } from '../../i18n';
 
 function baseAnalysis(overrides: Partial<AnalysisRecord> = {}): AnalysisRecord {
   return {
@@ -248,5 +249,60 @@ describe('ContextEngine.init concurrency', () => {
 
     expect(toArraySpy).not.toHaveBeenCalled();
     toArraySpy.mockRestore();
+  });
+});
+
+// Cerinta directa a utilizatorului: un mic toast IMEDIAT dupa o corectie
+// ("Am invatat: X"), distinct de panoul agregat "Preferinte AI" (deja
+// existent, InsightsPanel.tsx) pe care trebuie sa-l deschizi manual.
+describe('ContextEngine.recordCorrection topShift ("Am invatat: X")', () => {
+  it('returneaza topShift: null la un ACORD (AI si utilizatorul coincid) — nimic nou de anuntat', async () => {
+    const engine = new ContextEngine();
+    const result = await engine.recordCorrection({
+      photoId: 'p1', analysis: baseAnalysis({ sharpness: 90, aiScore: 80 }), aiDecision: true, userDecision: true
+    });
+    expect(result.topShift).toBeNull();
+  });
+
+  it('returneaza un topShift tradus la un DEZACORD real, cu pondere schimbata suficient', async () => {
+    const engine = new ContextEngine();
+    const result = await engine.recordCorrection({
+      photoId: 'p1',
+      analysis: baseAnalysis({ sharpness: 95, exposure: 50, faceCount: 1, bestSmile: 0.9, allEyesOpen: true, aiScore: 80 }),
+      aiDecision: true, userDecision: false // AI a propus selectare, utilizatorul a respins -> dezacord real
+    });
+    expect(result.topShift).not.toBeNull();
+    expect(typeof result.topShift?.feature).toBe('string');
+    expect(result.topShift?.label).toBeTruthy();
+    // label-ul e traducerea (insightsPref.<feature>.pos/neg), nu cheia bruta a feature-ului
+    expect(result.topShift?.label).not.toBe(result.topShift?.feature);
+  });
+
+  it('nu raporteaza niciodata un feature specific fetelor pentru o poza fara fete (faceCount 0)', async () => {
+    const engine = new ContextEngine();
+    const result = await engine.recordCorrection({
+      photoId: 'p1',
+      analysis: baseAnalysis({ faceCount: 0, sharpness: 30, aiScore: 20 }),
+      aiDecision: false, userDecision: true
+    });
+    if (result.topShift) {
+      expect(FACE_ONLY_FEATURES as readonly string[]).not.toContain(result.topShift.feature);
+    }
+  });
+
+  it('respecta parametrul locale (en) pentru textul lui topShift', async () => {
+    const engine = new ContextEngine();
+    const result = await engine.recordCorrection({
+      photoId: 'p1',
+      analysis: baseAnalysis({ sharpness: 95, exposure: 50, faceCount: 1, bestSmile: 0.9, allEyesOpen: true, aiScore: 80 }),
+      aiDecision: true, userDecision: false, locale: 'en'
+    });
+    // pragul/feature-ul castigator e acelasi calcul numeric, indiferent de locale —
+    // doar verificam ca textul nu ramane in romana cand se cere engleza.
+    if (result.topShift) {
+      const roLabel = t('ro', `insightsPref.${result.topShift.feature}.pos`);
+      const roLabelNeg = t('ro', `insightsPref.${result.topShift.feature}.neg`);
+      expect([roLabel, roLabelNeg]).not.toContain(result.topShift.label);
+    }
   });
 });

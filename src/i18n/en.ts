@@ -614,6 +614,7 @@ export const en: Record<TranslationKey, string> = {
   'store.quotaNotice': 'Storage full — the photo was marked, but the original couldn\'t be saved for export. Free up space (Clear session or export what you already have) and try again.',
   'store.undo.nothing': 'Nothing to undo.',
   'store.undo.batch': 'Undone: "{label}" ({count} photos).',
+  'store.learned.toast': 'Learned: {label}',
   'store.undo.single': 'Undone: "{fileName}" back to {status}.',
   'store.statusLabel.pending': 'pending',
   'store.statusLabel.selected': 'selected',
