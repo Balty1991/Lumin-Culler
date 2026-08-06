@@ -27,7 +27,7 @@
  * Lightroom fara sa copiezi vreun byte de imagine, nu doar selectia finala.
  */
 import type { PhotoRecord } from '../db';
-import { getDirectoryPicker, writeTextFile, downloadBlob, downloadZip, dedupeFileName, type LocalDirHandle } from './directoryPicker';
+import { getDirectoryPicker, writeTextFile, downloadBlob, downloadZip, dedupeFileName } from './directoryPicker';
 
 export type XmpDecision = Exclude<PhotoRecord['status'], 'pending'>;
 
@@ -180,7 +180,7 @@ export async function exportXMPSidecars(photos: XmpPhotoInput[]): Promise<XmpExp
     (p): p is XmpPhotoInput & { status: XmpDecision } => p.status !== 'pending'
   );
   const pickDirectory = getDirectoryPicker();
-  const method: XmpExportResult['method'] = pickDirectory ? 'folder' : 'downloads';
+  let method: XmpExportResult['method'] = pickDirectory ? 'folder' : 'downloads';
 
   if (!decided.length) return { exported: 0, method, cancelled: false };
 
@@ -198,17 +198,20 @@ export async function exportXMPSidecars(photos: XmpPhotoInput[]): Promise<XmpExp
   const uniqueXmpName = (fileName: string) => dedupeFileName(usedNames, xmpFileName(fileName));
 
   if (pickDirectory) {
-    let dir: LocalDirHandle;
     try {
-      dir = await pickDirectory({ mode: 'readwrite' });
+      const dir = await pickDirectory({ mode: 'readwrite' });
+      for (const p of decided) {
+        await writeTextFile(dir, uniqueXmpName(p.fileName), render(p), 'application/rdf+xml');
+      }
+      return { exported: decided.length, method, cancelled: false };
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') return { exported: 0, method, cancelled: true };
-      throw err;
+      // Acelasi bug real ca in exportPhotos.ts (exportOriginalFiles) —
+      // showDirectoryPicker detectat dar nefunctional la runtime (ex.
+      // NotAllowedError) trebuie sa cada pe fallback-ul de descarcari, nu sa
+      // esueze exportul complet.
+      method = 'downloads';
     }
-    for (const p of decided) {
-      await writeTextFile(dir, uniqueXmpName(p.fileName), render(p), 'application/rdf+xml');
-    }
-    return { exported: decided.length, method, cancelled: false };
   }
 
   // un singur sidecar: descarcare directa

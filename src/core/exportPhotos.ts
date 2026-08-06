@@ -259,22 +259,30 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[], options: E
   }
 
   const pickDirectory = getDirectoryPicker();
-  const method: ExportResult['method'] = pickDirectory ? 'folder' : 'downloads';
+  let method: ExportResult['method'] = pickDirectory ? 'folder' : 'downloads';
 
   if (!available.length) return { exported: 0, missing, method, cancelled: false, grouped: false };
 
   if (pickDirectory) {
-    let dir: LocalDirHandle;
     try {
-      dir = await pickDirectory({ mode: 'readwrite' });
+      const dir = await pickDirectory({ mode: 'readwrite' });
+      await copyToDirectory(available, dir);
+      return { exported: available.length, missing, method, cancelled: false, grouped: true };
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {
         return { exported: 0, missing, method, cancelled: true, grouped: false };
       }
-      throw err;
+      // Bug real raportat de utilizator (confirmat pe device, build Play
+      // Store): showDirectoryPicker poate fi DETECTAT (functie prezenta) dar
+      // nefunctional la runtime — ex. NotAllowedError "User activation
+      // required" cand gap-uri async intre click-ul utilizatorului si acest
+      // apel (bake editari, cautari in IndexedDB pentru fiecare poza mai sus)
+      // consuma gestul de activare tranzitorie a browserului. Fara acest
+      // fallback, exportul esua COMPLET aici — acelasi tipar "API detectat
+      // dar restrictionat -> cadem pe descarcari" deja aplicat in
+      // downloadBlob/downloadZip (directoryPicker.ts), doar ca lipsea aici.
+      method = 'downloads';
     }
-    await copyToDirectory(available, dir);
-    return { exported: available.length, missing, method, cancelled: false, grouped: true };
   }
 
   // un singur fisier: descarcare directa (nume/extensie originale, fara zip inutil)

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-const getDirectoryPicker = vi.fn<() => null>(() => null);
+type PickDirectoryFn = (options?: { mode?: 'read' | 'readwrite' }) => Promise<unknown>;
+const getDirectoryPicker = vi.fn<() => PickDirectoryFn | null>(() => null);
 const downloadZip = vi.fn<(name: string, entries: { path: string; data: Uint8Array }[]) => Promise<{ cancelled: boolean }>>(async () => ({ cancelled: false }));
 const downloadBlob = vi.fn<(name: string, blob: Blob) => Promise<{ cancelled: boolean }>>(async () => ({ cancelled: false }));
 
@@ -298,6 +299,68 @@ describe('exportOriginalFiles (fallback fara File System Access API)', () => {
     );
     expect(result.exported).toBe(1);
     expect(downloadBlob.mock.calls[0][0]).toBe('Park/a.jpg');
+  });
+
+  // Bug real raportat de utilizator (confirmat pe device, build Play Store):
+  // showDirectoryPicker poate fi DETECTAT (functie prezenta pe window) dar
+  // arunca la runtime (ex. NotAllowedError "User activation required" dupa
+  // ce gap-uri async ii consuma gestul utilizatorului) — exportul nu mai
+  // trebuie sa esueze complet in acest caz, ci sa cada pe fallback-ul de
+  // descarcari, la fel ca atunci cand API-ul lipseste de tot.
+  describe('showDirectoryPicker detectat dar nefunctional la runtime', () => {
+    it('cade pe descarcare directa (downloadBlob) cand pickDirectory arunca NotAllowedError, nu AbortError', async () => {
+      const pickDirectory = vi.fn<PickDirectoryFn>(async () => {
+        throw new DOMException('User activation required.', 'NotAllowedError');
+      });
+      getDirectoryPicker.mockReturnValue(pickDirectory);
+      originalFiles.set('p1', fakeFile('a.jpg'));
+
+      const result = await exportOriginalFiles([
+        { id: 'p1', fileName: 'a.jpg', personNames: [], faceCount: 0, strangerCount: 0, sceneType: 'landscape' }
+      ]);
+
+      expect(pickDirectory).toHaveBeenCalledTimes(1);
+      expect(result.exported).toBe(1);
+      expect(result.method).toBe('downloads');
+      expect(result.cancelled).toBe(false);
+      expect(downloadBlob).toHaveBeenCalledTimes(1);
+    });
+
+    it('cade pe zip cand exista mai multe poze si pickDirectory arunca o eroare care nu e o anulare reala', async () => {
+      const pickDirectory = vi.fn<PickDirectoryFn>(async () => {
+        throw new Error('unexpected runtime failure');
+      });
+      getDirectoryPicker.mockReturnValue(pickDirectory);
+      originalFiles.set('p1', fakeFile('a.jpg'));
+      originalFiles.set('p2', fakeFile('b.jpg'));
+
+      const result = await exportOriginalFiles([
+        { id: 'p1', fileName: 'a.jpg', personNames: [], faceCount: 0, strangerCount: 0, sceneType: 'landscape' },
+        { id: 'p2', fileName: 'b.jpg', personNames: [], faceCount: 0, strangerCount: 0, sceneType: 'landscape' }
+      ]);
+
+      expect(result.exported).toBe(2);
+      expect(result.method).toBe('downloads');
+      expect(downloadZip).toHaveBeenCalledTimes(1);
+    });
+
+    it('ramane raportat ca anulare reala (cancelled: true) cand pickDirectory arunca chiar AbortError — NU cade pe fallback', async () => {
+      const pickDirectory = vi.fn<PickDirectoryFn>(async () => {
+        throw new DOMException('The user aborted a request.', 'AbortError');
+      });
+      getDirectoryPicker.mockReturnValue(pickDirectory);
+      originalFiles.set('p1', fakeFile('a.jpg'));
+
+      const result = await exportOriginalFiles([
+        { id: 'p1', fileName: 'a.jpg', personNames: [], faceCount: 0, strangerCount: 0, sceneType: 'landscape' }
+      ]);
+
+      expect(result.exported).toBe(0);
+      expect(result.cancelled).toBe(true);
+      expect(result.method).toBe('folder');
+      expect(downloadBlob).not.toHaveBeenCalled();
+      expect(downloadZip).not.toHaveBeenCalled();
+    });
   });
 });
 
