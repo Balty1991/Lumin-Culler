@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { CheckIcon, ClockIcon, XIcon, SearchIcon } from './icons';
 import { StarRating } from './StarRating';
+import { CollectionPicker } from './CollectionPicker';
+import { isInsideAnyMenu } from './dropdownPosition';
 import { COLOR_LABELS, type PhotoRecord, type ColorLabel } from '../core/db';
 import { useStore } from '../state/store';
 import { t } from '../i18n';
@@ -8,6 +10,8 @@ import { t } from '../i18n';
 interface ContextMenuProps {
   x: number;
   y: number;
+  /** Pozele pe care le vizeaza actiunile — vezi `count`. Trimise lui CollectionPicker ("Adauga in folder"). */
+  photoIds: string[];
   /** Cate poze afecteaza actiunile din meniu — 1 (poza pe care s-a facut click-dreapta/apasare lunga) sau toata selectia in masa, daca poza vizata face deja parte din ea. */
   count: number;
   /** Ratingul curent, pentru a preseta stelele — 0 cand actioneaza pe o selectie de mai multe poze (rating-urile pot diferi). */
@@ -27,15 +31,27 @@ interface ContextMenuProps {
  * pe touch (vezi onCardPointerDown din App.tsx). Actiuni rapide fara sa deschizi
  * DetailView: decizie (selecteaza/verifica/respinge) + rating, aplicate fie unei
  * singure poze, fie intregii selectii in masa curente (daca poza vizata face parte din ea).
+ *
+ * "Adauga in folder" e aici la cererea directa a utilizatorului: exista deja in
+ * bara de selectie in masa si in DetailView, dar ambele cer sa STII intai de
+ * modul de selectie multipla (un chip cu bifa, la capatul randului de filtre)
+ * — feedback pe device: "e cam greu de gasit, daca nu spuneai nu stiam; era mai
+ * simplu sa tii apasat pe o poza si sa se declanseze". Apasarea lunga deschidea
+ * deja acest meniu, deci gestul lui natural doar nu gasea aici actiunea asteptata.
  */
-export function ContextMenu({ x, y, count, rating, colorLabel, onSetStatus, onSetRating, onSetColorLabel, onOpenDetail, onClose }: ContextMenuProps) {
+export function ContextMenu({ x, y, photoIds, count, rating, colorLabel, onSetStatus, onSetRating, onSetColorLabel, onOpenDetail, onClose }: ContextMenuProps) {
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const onPointerDown = (e: PointerEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+      // isInsideAnyMenu: popover-ul lui CollectionPicker de mai jos e randat printr-un
+      // PORTAL in <body>, deci in DOM nu e descendentul lui `ref` desi vizual iese din
+      // acest meniu — fara aceasta verificare, primul tap pe un folder ar inchide meniul
+      // contextual (si odata cu el popover-ul), inainte ca alegerea sa se aplice. Exact
+      // bug-ul deja documentat pentru MoreFiltersMenu, vezi ui/dropdownPosition.ts.
+      if (ref.current && !ref.current.contains(e.target as Node) && !isInsideAnyMenu(e.target)) onClose();
     };
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     // "capture" + urmatorul tick: evita sa inchida meniul chiar la evenimentul care l-a deschis (right-click/long-press)
@@ -53,7 +69,9 @@ export function ContextMenu({ x, y, count, rating, colorLabel, onSetStatus, onSe
   // (bug real gasit de auditul QA).
   const style = {
     left: Math.max(8, Math.min(x, window.innerWidth - 210)),
-    top: Math.max(8, Math.min(y, window.innerHeight - 230))
+    // 270, nu 230: randul "Adauga in folder" (plus separatorul lui) a crescut inaltimea
+    // meniului — cu vechea valoare, o apasare lunga langa marginea de jos il lasa taiat.
+    top: Math.max(8, Math.min(y, window.innerHeight - 270))
   };
 
   const act = (fn: () => void) => { fn(); onClose(); };
@@ -92,6 +110,10 @@ export function ContextMenu({ x, y, count, rating, colorLabel, onSetStatus, onSe
           ))}
         </div>
       </div>
+      <div className="context-menu-sep" />
+      {/* NU trece prin act(): CollectionPicker isi deschide propriul popover, iar
+          inchiderea meniului la primul tap ar face alegerea folderului imposibila. */}
+      <CollectionPicker photoIds={photoIds} triggerClassName="context-menu-item context-menu-folder" />
       {onOpenDetail && (
         <>
           <div className="context-menu-sep" />

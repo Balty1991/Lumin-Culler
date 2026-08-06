@@ -890,6 +890,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 .context-menu-item:hover, .context-menu-item:focus-visible { background: var(--surface-2); outline: none; }
 .context-menu-item .inline-icon { opacity: 0.7; }
+/* Declansatorul lui CollectionPicker ("Adauga in folder") isi randeaza eticheta intr-un
+   <span> lipit de iconita, fara nodul-text de spatiu pe care il au celelalte randuri din
+   meniu — fara asta, ar fi vizibil mai stramt decat vecinii lui. */
+.context-menu-folder .inline-icon { margin-right: 7px; }
 .context-menu-sep { height: 1px; margin: 5px 4px; background: var(--line); }
 .context-menu-rating { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; font-size: 0.8rem; color: var(--text-dim); }
 .context-menu-color-labels { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; font-size: 0.8rem; color: var(--text-dim); }
