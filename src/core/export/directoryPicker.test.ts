@@ -173,14 +173,33 @@ describe('downloadBlob — Android nativ (Capacitor Filesystem + Share)', () => 
     expect(share).toHaveBeenCalledWith(expect.objectContaining({ url: 'file:///cache/export.zip', title: 'export.zip' }));
   });
 
-  it('nu trateaza o anulare reala a foii de partajare (utilizatorul a inchis-o) ca eroare', async () => {
+  // Bug real: exportul UNEI SINGURE poze trimite aici un nume care contine
+  // subfolderul de grupare ("Ami/IMG_0001.jpg", vezi exportOriginalFiles), iar
+  // Filesystem.writeFile respinge implicit (recursive=false) cand folderul
+  // parinte nu exista in Cache — deci exportul unei singure poze esua MEREU pe
+  // Android, desi exportul .zip (nume plat) mergea.
+  it('cere crearea recursiva a folderului parinte cand numele contine un subfolder de grupare', async () => {
+    isNativePlatform.mockReturnValue(true);
+    writeFile.mockResolvedValue({ uri: 'file:///cache/Ami/IMG_0001.jpg' });
+    share.mockResolvedValue({ activityType: 'com.example.files' });
+
+    const result = await downloadBlob('Ami/IMG_0001.jpg', new Blob(['x']));
+
+    expect(result).toEqual({ cancelled: false });
+    expect(writeFile).toHaveBeenCalledWith(expect.objectContaining({ path: 'Ami/IMG_0001.jpg', recursive: true }));
+  });
+
+  it('raporteaza anulare (nu succes) cand utilizatorul inchide foaia de partajare fara sa aleaga nimic', async () => {
+    // fisierul a ramas doar in cache-ul PRIVAT al aplicatiei, unde utilizatorul nu
+    // ajunge la el — a raporta { cancelled: false } ar face apelantul sa anunte
+    // "N poze exportate" pentru un export care n-a livrat de fapt nimic nicaieri
     isNativePlatform.mockReturnValue(true);
     writeFile.mockResolvedValue({ uri: 'file:///cache/export.zip' });
     share.mockRejectedValue(new Error('Share canceled'));
 
     const result = await downloadBlob('export.zip', new Blob(['x']));
 
-    expect(result).toEqual({ cancelled: false });
+    expect(result).toEqual({ cancelled: true });
   });
 
   it('propaga o eroare reala (non-anulare) de la Share.share, in loc sa o inghita silentios', async () => {

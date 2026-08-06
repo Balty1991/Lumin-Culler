@@ -344,8 +344,11 @@ describe('exportOriginalFiles (fallback fara File System Access API)', () => {
       expect(downloadZip).toHaveBeenCalledTimes(1);
     });
 
-    it('ramane raportat ca anulare reala (cancelled: true) cand pickDirectory arunca chiar AbortError — NU cade pe fallback', async () => {
+    it('ramane raportat ca anulare reala (cancelled: true) cand pickDirectory arunca AbortError DUPA o interactiune reala — NU cade pe fallback', async () => {
+      // 600ms > INSTANT_ABORT_THRESHOLD_MS: timpul real in care omul vede dialogul
+      // nativ si apasa "Anuleaza" (vezi testul urmator pentru abandonul instant)
       const pickDirectory = vi.fn<PickDirectoryFn>(async () => {
+        await new Promise(r => setTimeout(r, 600));
         throw new DOMException('The user aborted a request.', 'AbortError');
       });
       getDirectoryPicker.mockReturnValue(pickDirectory);
@@ -360,6 +363,71 @@ describe('exportOriginalFiles (fallback fara File System Access API)', () => {
       expect(result.method).toBe('folder');
       expect(downloadBlob).not.toHaveBeenCalled();
       expect(downloadZip).not.toHaveBeenCalled();
+    });
+
+    // Bug real raportat de utilizator (pe device): tap pe Exporta -> toast-ul
+    // "Se exporta..." ramanea pe ecran la infinit, fara fisier si fara eroare.
+    // Cauza: un AbortError INSTANT de la un showDirectoryPicker expus dar
+    // nefunctional era luat drept anulare a utilizatorului, deci exportul se
+    // oprea cu cancelled=true si apelantul (state/store.ts) iesea fara sa mai
+    // atinga toast-ul de progres. Un abandon instant nu poate fi o anulare
+    // reala (nu a existat timp sa vada dialogul) -> fallback pe descarcari.
+    it('nu ramane agatat daca aplicarea editarilor (createImageBitmap/toBlob) nu se termina niciodata — exporta originalul needitat', async () => {
+      vi.useFakeTimers();
+      try {
+        applyAdjustmentsToBlob.mockReturnValue(new Promise<Blob>(() => {})); // niciodata rezolvat
+        originalFiles.set('p1', fakeFile('a.jpg'));
+
+        const resultPromise = exportOriginalFiles([
+          { id: 'p1', fileName: 'a.jpg', personNames: [], faceCount: 0, strangerCount: 0, sceneType: 'landscape', edits: REAL_EDITS }
+        ]);
+        await vi.advanceTimersByTimeAsync(31000); // > BAKE_TIMEOUT_MS
+        const result = await resultPromise;
+
+        expect(result.exported).toBe(1);
+        expect(result.cancelled).toBe(false);
+        expect(downloadBlob.mock.calls[0][0]).toBe('Peisaje/a.jpg');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('cade pe descarcari cand pickDirectory respinge cu AbortError INSTANT (API expus dar nefunctional, nu o anulare reala)', async () => {
+      const pickDirectory = vi.fn<PickDirectoryFn>(async () => {
+        throw new DOMException('The user aborted a request.', 'AbortError');
+      });
+      getDirectoryPicker.mockReturnValue(pickDirectory);
+      originalFiles.set('p1', fakeFile('a.jpg'));
+
+      const result = await exportOriginalFiles([
+        { id: 'p1', fileName: 'a.jpg', personNames: [], faceCount: 0, strangerCount: 0, sceneType: 'landscape' }
+      ]);
+
+      expect(result.cancelled).toBe(false);
+      expect(result.exported).toBe(1);
+      expect(result.method).toBe('downloads');
+      expect(downloadBlob).toHaveBeenCalledTimes(1);
+    });
+
+    it('nu ramane agatat la infinit daca pickDirectory nu rezolva/respinge niciodata — cade pe descarcari dupa timeout', async () => {
+      vi.useFakeTimers();
+      try {
+        const pickDirectory = vi.fn<PickDirectoryFn>(() => new Promise<never>(() => {}));
+        getDirectoryPicker.mockReturnValue(pickDirectory);
+        originalFiles.set('p1', fakeFile('a.jpg'));
+
+        const resultPromise = exportOriginalFiles([
+          { id: 'p1', fileName: 'a.jpg', personNames: [], faceCount: 0, strangerCount: 0, sceneType: 'landscape' }
+        ]);
+        await vi.advanceTimersByTimeAsync(46000); // > PICKER_TIMEOUT_MS
+        const result = await resultPromise;
+
+        expect(result.cancelled).toBe(false);
+        expect(result.exported).toBe(1);
+        expect(result.method).toBe('downloads');
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 });

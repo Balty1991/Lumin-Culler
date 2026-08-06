@@ -670,6 +670,7 @@ export const en: Record<TranslationKey, string> = {
   'store.exportSelection.none': 'No photo could be exported in its original format.',
   'store.exportSelection.missing': '{count} were no longer available (imported before the last update) — re-import them to export.',
   'store.exportSelection.failed': 'Export failed: {error}',
+  'store.exportSelection.cancelled': 'Export cancelled — no file was saved.',
   'store.exportXmp.noDecided': 'No photo has a decision yet — Select/Reject at least one.',
   'store.exportXmp.exportedFolder': '{count} XMP sidecars exported into the chosen folder — copy them next to the ORIGINAL photos (the import folder structure, not the people/scene-grouped one from the photo export) so Lightroom picks them up.',
   'store.exportXmp.exportedSingle': '{count} XMP sidecars exported (direct download) — move it next to the ORIGINAL photo so Lightroom picks it up.',

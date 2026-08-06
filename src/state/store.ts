@@ -2240,7 +2240,10 @@ export const useStore = create<AppState>((set, get) => ({
           edits: p.edits
         };
       }), { renameTemplate: get().renameTemplate, locale });
-      if (result.cancelled) return;
+      // Vezi 'store.exportSelection.cancelled' (i18n): o anulare trebuie sa
+      // INLOCUIASCA toast-ul de progres, altfel "Se exporta..." ramane agatat
+      // pe ecran la infinit — bug real raportat de utilizator.
+      if (result.cancelled) { set({ notice: t(locale, 'store.exportSelection.cancelled') }); return; }
       const parts = [
         result.exported
           ? t(locale,
@@ -2302,7 +2305,8 @@ export const useStore = create<AppState>((set, get) => ({
         renameTemplate: get().renameTemplate, locale,
         zipBaseName: 'lumin-culler-' + (collection?.name ?? 'folder').replace(/[\\/:*?"<>|]/g, '-')
       });
-      if (result.cancelled) return;
+      // vezi comentariul identic din exportSelection mai sus
+      if (result.cancelled) { set({ notice: t(locale, 'store.exportSelection.cancelled') }); return; }
       const parts = [
         result.exported
           ? t(locale,
@@ -2405,7 +2409,8 @@ export const useStore = create<AppState>((set, get) => ({
           caption: p.iptcCaption
         };
       }));
-      if (result.cancelled) return;
+      // vezi comentariul identic din exportSelection mai sus
+      if (result.cancelled) { set({ notice: t(locale, 'store.exportSelection.cancelled') }); return; }
       const msg = result.exported
         ? t(locale,
             result.method === 'folder' ? 'store.exportXmp.exportedFolder'

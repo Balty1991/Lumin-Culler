@@ -103,18 +103,32 @@ export async function writeTextFile(dir: LocalDirHandle, name: string, content: 
  * browsere mai vechi) — acelasi comportament ca inainte pentru acele cazuri.
  *
  * Timeout absolut (ACELASI prag ca watchdog-ul de import, vezi
- * core/pickerWatchdog.ts ABSOLUTE_FALLBACK_MS) in jurul apelului
- * showSaveFilePicker: verificat direct (nu presupus) ca API-ul poate ramane
- * blocat la NESFARSIT, fara sa rezolve sau sa respinga vreodata, intr-un
- * context fara UI reala cu care sa interactioneze (confirmat intr-un Chromium
- * headless — un risc real si pe unele combinatii browser mobil/WebView unde
- * API-ul e detectat dar nu complet functional). Fara acest timeout, un caz
- * real ca acela ar inlocui bug-ul vechi (esec silentios, dar rapid) cu unul
- * mai rau (blocare permanenta, fara nicio notificare). 45s e suficient pentru
- * o interactiune reala (navigare foldere), dar tot recupereaza, in loc sa
- * ramana agatat definitiv.
+ * core/pickerWatchdog.ts ABSOLUTE_FALLBACK_MS) in jurul oricarui picker nativ
+ * (showSaveFilePicker aici, showDirectoryPicker in core/exportPhotos.ts):
+ * verificat direct (nu presupus) ca API-ul poate ramane blocat la NESFARSIT,
+ * fara sa rezolve sau sa respinga vreodata, intr-un context fara UI reala cu
+ * care sa interactioneze (confirmat intr-un Chromium headless — un risc real
+ * si pe unele combinatii browser mobil/WebView unde API-ul e detectat dar nu
+ * complet functional). Fara acest timeout, un caz real ca acela ar inlocui
+ * bug-ul vechi (esec silentios, dar rapid) cu unul mai rau (blocare
+ * permanenta, fara nicio notificare). 45s e suficient pentru o interactiune
+ * reala (navigare foldere), dar tot recupereaza, in loc sa ramana agatat
+ * definitiv.
  */
-const SAVE_PICKER_TIMEOUT_MS = 45000;
+export const PICKER_TIMEOUT_MS = 45000;
+
+/**
+ * Aplica PICKER_TIMEOUT_MS peste promisiunea unui picker nativ. Deliberat un
+ * Promise.race (nu withTimeout din core/workerPool.ts): apelantii de aici NU
+ * propaga eroarea mai departe, ci o folosesc doar ca semnal sa treaca pe
+ * fallback, deci mesajul nu ajunge niciodata in fata utilizatorului.
+ */
+export function racePickerTimeout<T>(picker: Promise<T>, label: string): Promise<T> {
+  return Promise.race([
+    picker,
+    new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`${label} timeout`)), PICKER_TIMEOUT_MS))
+  ]);
+}
 
 /**
  * Prag sub care un AbortError de la showSaveFilePicker e tratat ca fals
@@ -129,6 +143,19 @@ const SAVE_PICKER_TIMEOUT_MS = 45000;
  * si exportul s-ar opri silentios, fara sa mai incerce fallback-ul <a download>.
  */
 const INSTANT_ABORT_THRESHOLD_MS = 500;
+
+/**
+ * true DOAR pentru o anulare pe care chiar a facut-o utilizatorul (a vazut
+ * dialogul nativ si a apasat "Anuleaza"). Exportat ca sa aplice EXACT aceeasi
+ * regula si showDirectoryPicker (core/exportPhotos.ts) — bug real raportat de
+ * utilizator: acolo orice AbortError era luat drept anulare, deci un WebView
+ * Android care EXPUNE showDirectoryPicker dar il respinge instant oprea
+ * exportul cu cancelled=true, fara fisier, fara eroare si fara sa mai incerce
+ * fallback-ul de descarcari — exact simptomul "Se exporta..." la infinit.
+ */
+export function isRealUserCancel(err: unknown, startedAt: number): boolean {
+  return err instanceof DOMException && err.name === 'AbortError' && Date.now() - startedAt >= INSTANT_ABORT_THRESHOLD_MS;
+}
 
 /**
  * Capacitor WebView-ul Android NU implementeaza File System Access API (showSaveFilePicker
@@ -160,7 +187,15 @@ const NATIVE_SHARE_TIMEOUT_MS = 30000;
 async function saveViaNativeShare(name: string, blob: Blob): Promise<{ cancelled: boolean }> {
   const data = await blobToBase64(blob);
   const written = await withTimeout(
-    Filesystem.writeFile({ path: name, data, directory: Directory.Cache }),
+    // recursive: true — bug real gasit pe device: numele primit aici poate contine
+    // subfolderul de grupare ("Ami/IMG_0001.jpg", vezi exportOriginalFiles), iar
+    // Filesystem.writeFile respinge implicit (recursive=false, verificat in sursa
+    // plugin-ului: FilesystemErrors.missingParentDirectories) cand folderul parinte
+    // nu exista deja in Cache. Efectul: exportul UNEI SINGURE poze — cazul cel mai
+    // frecvent, o poza selectata sau un folder cu o poza — esua MEREU pe Android,
+    // desi exportul in .zip (nume plat, fara "/") functiona. Cu recursive, calea
+    // completa e creata si fisierul partajat isi pastreaza numele real.
+    Filesystem.writeFile({ path: name, data, directory: Directory.Cache, recursive: true }),
     NATIVE_WRITE_TIMEOUT_MS,
     'Scrierea fisierului in spatiul temporar al aplicatiei a durat prea mult.'
   );
@@ -171,11 +206,16 @@ async function saveViaNativeShare(name: string, blob: Blob): Promise<{ cancelled
       'Deschiderea meniului de partajare a durat prea mult.'
     );
   } catch (err) {
-    // Utilizatorul a inchis foaia de partajare fara sa aleaga nimic — nu e o eroare reala
-    // de export (fisierul tot exista, scris cu succes mai sus), doar o anulare a PASULUI
-    // urmator (unde sa ajunga in continuare). Orice alta eroare (Share indisponibil,
-    // timeout etc.) ramane raportata normal mai sus, catre apelant.
+    // Utilizatorul a inchis foaia de partajare fara sa aleaga nimic. NU e o eroare de
+    // export, dar nici un succes: fisierul a ramas doar in cache-ul PRIVAT al aplicatiei,
+    // unde utilizatorul nu ajunge la el: raportat ca atare (cancelled), ca apelantul sa
+    // nu anunte "N poze exportate" pentru un export care n-a livrat nimic nicaieri.
+    // Plugin-ul Share distinge corect cazurile (respinge cu "Share canceled" doar cand
+    // activitatea NU a fost oprita, deci cand chooser-ul a fost inchis fara alegere).
+    // Orice alta eroare (Share indisponibil, timeout etc.) ramane raportata normal mai
+    // sus, catre apelant.
     if (!(err instanceof Error && /cancel/i.test(err.message))) throw err;
+    return { cancelled: true };
   }
   return { cancelled: false };
 }
@@ -186,17 +226,13 @@ export async function downloadBlob(name: string, blob: Blob): Promise<{ cancelle
   if (showSaveFilePicker) {
     const startedAt = Date.now();
     try {
-      const handle = await Promise.race([
-        showSaveFilePicker({ suggestedName: name }),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('showSaveFilePicker timeout')), SAVE_PICKER_TIMEOUT_MS))
-      ]);
+      const handle = await racePickerTimeout(showSaveFilePicker({ suggestedName: name }), 'showSaveFilePicker');
       const writable = await handle.createWritable();
       await writable.write(blob);
       await writable.close();
       return { cancelled: false };
     } catch (err) {
-      const isRealCancel = err instanceof DOMException && err.name === 'AbortError' && Date.now() - startedAt >= INSTANT_ABORT_THRESHOLD_MS;
-      if (isRealCancel) return { cancelled: true };
+      if (isRealUserCancel(err, startedAt)) return { cancelled: true };
       // orice alta eroare (API detectat dar restrictionat la runtime, ex. context nesigur,
       // sau un AbortError instantaneu care nu putea fi o anulare reala de la utilizator) ->
       // cadem pe <a download>, nu lasam exportul sa esueze silentios
@@ -294,17 +330,13 @@ export function downloadZip(zipFileName: string, entries: ZipEntryInput[]): Prom
     if (showSaveFilePicker) {
       const startedAt = Date.now();
       try {
-        const handle = await Promise.race([
-          showSaveFilePicker({ suggestedName: zipFileName }),
-          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('showSaveFilePicker timeout')), SAVE_PICKER_TIMEOUT_MS))
-        ]);
+        const handle = await racePickerTimeout(showSaveFilePicker({ suggestedName: zipFileName }), 'showSaveFilePicker');
         const writable = await handle.createWritable();
         await streamZipEntries(entries, chunk => writable.write(new Blob([chunk as BlobPart])));
         await writable.close();
         return { cancelled: false };
       } catch (err) {
-        const isRealCancel = err instanceof DOMException && err.name === 'AbortError' && Date.now() - startedAt >= INSTANT_ABORT_THRESHOLD_MS;
-        if (isRealCancel) return { cancelled: true };
+        if (isRealUserCancel(err, startedAt)) return { cancelled: true };
         // API absent/restrictionat la runtime -> cadem pe fallback-ul de mai jos
       }
     }

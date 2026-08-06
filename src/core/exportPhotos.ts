@@ -16,12 +16,16 @@
  */
 import { originalFiles } from './importPipeline';
 import { db } from './db';
-import { getDirectoryPicker, downloadBlob, downloadZip, dedupeFileName, type LocalDirHandle } from './export/directoryPicker';
+import { getDirectoryPicker, downloadBlob, downloadZip, dedupeFileName, isRealUserCancel, racePickerTimeout, type LocalDirHandle } from './export/directoryPicker';
 import { reacquireFile } from './filePicker';
 import { buildExportFileName, type RenameContext } from './renameTemplate';
 import { applyAdjustmentsToBlob, isNeutral, type EditAdjustments } from './imageAdjust';
 import { RAW_EXTENSIONS } from './rawDecoder';
 import { translateSceneTag, pickFolderSceneTag } from './sceneTagLabels';
+import { withTimeout } from './workerPool';
+
+/** Vezi bakeEditsIfNeeded — plafon per poza pentru decodarea/re-encodarea unei singure imagini. */
+const BAKE_TIMEOUT_MS = 30000;
 
 export interface ExportResult {
   exported: number;
@@ -149,7 +153,14 @@ export function folderLabel(
 async function bakeEditsIfNeeded(p: ExportPhotoInput, file: File, name: string): Promise<{ file: File; name: string }> {
   if (!p.edits || isNeutral(p.edits) || RAW_EXTENSIONS.test(p.fileName)) return { file, name };
   try {
-    const adjustedBlob = await applyAdjustmentsToBlob(file, p.edits);
+    // Timeout: createImageBitmap/canvas.toBlob (applyAdjustmentsToBlob) pot ramane
+    // agatate la NESFARSIT pe un WebView mobil sub presiune de memorie, iar acest
+    // pas ruleaza INAINTE de orice picker/scriere, deci o blocare aici tine tot
+    // exportul in loc, cu toast-ul "Se exporta..." pe ecran si fara nicio eroare —
+    // exact simptomul raportat. Prag generos: o singura poza, oricat de mare, nu
+    // are ce cauta peste 30s. Esecul cade oricum pe fallback-ul de mai jos
+    // (exportam originalul needitat), nu opreste exportul.
+    const adjustedBlob = await withTimeout(applyAdjustmentsToBlob(file, p.edits), BAKE_TIMEOUT_MS, `Coacerea editarilor pentru ${p.fileName} a durat prea mult.`);
     const finalName = /\.jpe?g$/i.test(name) ? name : name.replace(/\.[^./]+$/, '') + '.jpg';
     return { file: new File([adjustedBlob], finalName, { type: 'image/jpeg' }), name: finalName };
   } catch (err) {
@@ -264,12 +275,22 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[], options: E
   if (!available.length) return { exported: 0, missing, method, cancelled: false, grouped: false };
 
   if (pickDirectory) {
+    const startedAt = Date.now();
     try {
-      const dir = await pickDirectory({ mode: 'readwrite' });
+      // Acelasi timeout absolut ca la showSaveFilePicker (vezi PICKER_TIMEOUT_MS):
+      // un picker care nu rezolva si nu respinge NICIODATA lasa altfel exportul
+      // agatat definitiv, cu toast-ul "Se exporta..." pe ecran la infinit.
+      const dir = await racePickerTimeout(pickDirectory({ mode: 'readwrite' }), 'showDirectoryPicker');
       await copyToDirectory(available, dir);
       return { exported: available.length, missing, method, cancelled: false, grouped: true };
     } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') {
+      // Anulare REALA (omul a vazut dialogul si l-a inchis) — vezi isRealUserCancel.
+      // Bug real raportat de utilizator: inainte, ORICE AbortError era luat drept
+      // anulare, deci un WebView/browser mobil care EXPUNE showDirectoryPicker dar
+      // il respinge instant (API detectat, nefunctional in acel context) oprea
+      // exportul aici cu cancelled=true — fara fisier, fara eroare si fara sa mai
+      // incerce macar fallback-ul de descarcari care functioneaza acolo.
+      if (isRealUserCancel(err, startedAt)) {
         return { exported: 0, missing, method, cancelled: true, grouped: false };
       }
       // Bug real raportat de utilizator (confirmat pe device, build Play
