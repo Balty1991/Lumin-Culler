@@ -1,4 +1,15 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
+
+const isNativePlatform = vi.fn(() => false);
+vi.mock('@capacitor/core', async importOriginal => {
+  const actual = await importOriginal<typeof import('@capacitor/core')>();
+  return { ...actual, Capacitor: { ...actual.Capacitor, isNativePlatform: () => isNativePlatform() } };
+});
+const writeFile = vi.fn();
+vi.mock('@capacitor/filesystem', () => ({ Filesystem: { writeFile: (...args: unknown[]) => writeFile(...args) }, Directory: { Cache: 'CACHE' } }));
+const share = vi.fn();
+vi.mock('@capacitor/share', () => ({ Share: { share: (...args: unknown[]) => share(...args) } }));
+
 import { downloadBlob, downloadZip, dedupeFileName } from './directoryPicker';
 
 describe('dedupeFileName', () => {
@@ -127,6 +138,87 @@ describe('downloadBlob — File System Access API (showSaveFilePicker)', () => {
 
       expect(clickSpy).toHaveBeenCalledTimes(1);
       expect(result).toEqual({ cancelled: false });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+/**
+ * Bug real raportat de utilizator pe device (build Play Store): tap pe Exporta
+ * arata toast-ul "Se exporta...", apoi NIMIC — nici eroare, nici foaia de
+ * partajare, la infinit. Testele astea acopera calea Android nativa
+ * (saveViaNativeShare, ne-testata deloc inainte) — in special garantia noua ca
+ * un apel catre puntea Capacitor (Filesystem.writeFile/Share.share) care nu se
+ * rezolva NICIODATA nu mai blocheaza exportul la infinit, silentios.
+ */
+describe('downloadBlob — Android nativ (Capacitor Filesystem + Share)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+    isNativePlatform.mockReturnValue(false);
+    writeFile.mockReset();
+    share.mockReset();
+  });
+
+  it('scrie in Directory.Cache si deschide foaia de partajare nativa cand ruleaza pe Android', async () => {
+    isNativePlatform.mockReturnValue(true);
+    writeFile.mockResolvedValue({ uri: 'file:///cache/export.zip' });
+    share.mockResolvedValue({ activityType: 'com.example.files' });
+
+    const result = await downloadBlob('export.zip', new Blob(['x']));
+
+    expect(result).toEqual({ cancelled: false });
+    expect(writeFile).toHaveBeenCalledWith(expect.objectContaining({ path: 'export.zip', directory: 'CACHE' }));
+    expect(share).toHaveBeenCalledWith(expect.objectContaining({ url: 'file:///cache/export.zip', title: 'export.zip' }));
+  });
+
+  it('nu trateaza o anulare reala a foii de partajare (utilizatorul a inchis-o) ca eroare', async () => {
+    isNativePlatform.mockReturnValue(true);
+    writeFile.mockResolvedValue({ uri: 'file:///cache/export.zip' });
+    share.mockRejectedValue(new Error('Share canceled'));
+
+    const result = await downloadBlob('export.zip', new Blob(['x']));
+
+    expect(result).toEqual({ cancelled: false });
+  });
+
+  it('propaga o eroare reala (non-anulare) de la Share.share, in loc sa o inghita silentios', async () => {
+    isNativePlatform.mockReturnValue(true);
+    writeFile.mockResolvedValue({ uri: 'file:///cache/export.zip' });
+    share.mockRejectedValue(new Error('Can\'t share while sharing is in progress'));
+
+    await expect(downloadBlob('export.zip', new Blob(['x']))).rejects.toThrow('sharing is in progress');
+  });
+
+  it('esueaza cu un mesaj clar (nu blocheaza la infinit) daca Filesystem.writeFile nu se rezolva niciodata', async () => {
+    vi.useFakeTimers();
+    try {
+      isNativePlatform.mockReturnValue(true);
+      writeFile.mockReturnValue(new Promise(() => {})); // niciodata rezolvat/respins — exact simptomul raportat
+      share.mockResolvedValue({ activityType: '' });
+
+      const resultPromise = downloadBlob('export.zip', new Blob(['x']));
+      const assertion = expect(resultPromise).rejects.toThrow('Scrierea fisierului');
+      await vi.advanceTimersByTimeAsync(15001);
+      await assertion;
+      expect(share).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('esueaza cu un mesaj clar (nu blocheaza la infinit) daca Share.share nu se rezolva niciodata', async () => {
+    vi.useFakeTimers();
+    try {
+      isNativePlatform.mockReturnValue(true);
+      writeFile.mockResolvedValue({ uri: 'file:///cache/export.zip' });
+      share.mockReturnValue(new Promise(() => {})); // niciodata rezolvat/respins
+
+      const resultPromise = downloadBlob('export.zip', new Blob(['x']));
+      const assertion = expect(resultPromise).rejects.toThrow('Deschiderea meniului de partajare');
+      await vi.advanceTimersByTimeAsync(30001);
+      await assertion;
     } finally {
       vi.useRealTimers();
     }
