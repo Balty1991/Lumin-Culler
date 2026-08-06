@@ -16,6 +16,7 @@ vi.mock('../core/importPipeline', async importOriginal => {
 import { useStore, relabelFaces, selectMergedEmbeddings, type PhotoView } from './store';
 import { db, type AnalysisRecord, type FaceInsight, type PhotoRecord } from '../core/db';
 import { contextEngine } from '../core/learning/ContextEngine';
+import { originalFiles } from '../core/importPipeline';
 
 function makePhoto(i: number): PhotoView {
   return {
@@ -493,6 +494,74 @@ describe('clearAll clears custom collections too (integration, Dexie real via fa
     const s = useStore.getState();
     expect(s.collections).toEqual([]);
     expect(s.collectionFilter).toBeNull();
+  });
+});
+
+// Bug real raportat de utilizator (confirmat pe device: "Exporta" pe un
+// folder personalizat nu facea nimic): o poza membra a unui folder dar NU
+// 'selected' nu avea originalul persistat, deci exportCollection() nu gasea
+// nimic dupa un reload de sesiune (originalFiles, in memorie, e golit atunci).
+describe('addPhotosToCollection persists originals regardless of status (integration, Dexie real via fake-indexeddb)', () => {
+  it('persista originalul unei poze NEselectate la adaugarea in folder, si il elibereaza la scoatere', async () => {
+    await db.photos.clear();
+    await db.collections.clear();
+    await db.originals.clear();
+    await db.fileHandles.clear();
+
+    await db.photos.put(makeDbPhoto({ id: 'p1', status: 'review' }));
+    const file = new File(['fake-bytes'], 'p1.jpg', { type: 'image/jpeg' });
+    originalFiles.set('p1', file);
+    useStore.setState({ collections: [] });
+
+    const collection = await useStore.getState().createCollection('Test');
+    expect(collection).not.toBeNull();
+
+    await useStore.getState().addPhotosToCollection(collection!.id, ['p1']);
+    expect(await db.originals.get('p1')).toMatchObject({ photoId: 'p1', fileName: 'p1.jpg' });
+
+    await useStore.getState().removePhotosFromCollection(collection!.id, ['p1']);
+    expect(await db.originals.get('p1')).toBeUndefined();
+
+    originalFiles.delete('p1');
+  });
+
+  it('NU elibereaza originalul la scoaterea din folder daca poza e SELECTATA', async () => {
+    await db.photos.clear();
+    await db.collections.clear();
+    await db.originals.clear();
+
+    await db.photos.put(makeDbPhoto({ id: 'p1', status: 'selected' }));
+    await db.originals.put({ photoId: 'p1', blob: new Blob(['x']), fileName: 'p1.jpg', type: 'image/jpeg' });
+    useStore.setState({ collections: [] });
+
+    const collection = await useStore.getState().createCollection('Test');
+    await useStore.getState().addPhotosToCollection(collection!.id, ['p1']);
+    await useStore.getState().removePhotosFromCollection(collection!.id, ['p1']);
+
+    expect(await db.originals.get('p1')).toBeDefined();
+  });
+
+  it('syncOriginal (prin setStatus) NU sterge originalul cat timp poza ramane membra a unui folder', async () => {
+    await db.photos.clear();
+    await db.collections.clear();
+    await db.originals.clear();
+
+    await db.photos.put(makeDbPhoto({ id: 'p1', status: 'review' }));
+    const file = new File(['fake-bytes'], 'p1.jpg', { type: 'image/jpeg' });
+    originalFiles.set('p1', file);
+    useStore.setState({ photos: [{ ...makePhoto(0), id: 'p1', status: 'review' } as PhotoView], collections: [] });
+
+    const collection = await useStore.getState().createCollection('Test');
+    await useStore.getState().addPhotosToCollection(collection!.id, ['p1']);
+    expect(await db.originals.get('p1')).toBeDefined();
+
+    // O actiune de status NECONEXA (ex. respinsa manual) nu trebuie sa stearga
+    // originalul pastrat pentru folder — inainte de fix, syncOriginal() il
+    // stergea neconditionat de fiecare data cand statusul nu era 'selected'.
+    await useStore.getState().setStatus('p1', 'rejected');
+    expect(await db.originals.get('p1')).toBeDefined();
+
+    originalFiles.delete('p1');
   });
 });
 
