@@ -1,7 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { generateXMPSidecar, deriveXmpKeywords, deriveAiScoreKeyword, deriveSeriesKeyword, exportXMPSidecars } from './xmpGenerator';
 
-const getDirectoryPicker = vi.fn<() => null>(() => null);
+type PickDirectoryFn = (options?: { mode?: 'read' | 'readwrite' }) => Promise<unknown>;
+const getDirectoryPicker = vi.fn<() => PickDirectoryFn | null>(() => null);
 const downloadZip = vi.fn<(name: string, entries: { path: string; data: Uint8Array }[]) => Promise<{ cancelled: boolean }>>(async () => ({ cancelled: false }));
 const downloadBlob = vi.fn<(name: string, blob: Blob) => Promise<{ cancelled: boolean }>>(async () => ({ cancelled: false }));
 
@@ -207,5 +208,36 @@ describe('exportXMPSidecars (fallback fara File System Access API)', () => {
       { fileName: 'b.jpg', status: 'rejected' }
     ]);
     expect(result).toEqual({ exported: 0, method: 'downloads', cancelled: true });
+  });
+
+  // Bug real raportat de utilizator (acelasi ca la exportPhotos.ts): pickDirectory
+  // detectat dar nefunctional la runtime nu mai trebuie sa esueze exportul complet.
+  describe('showDirectoryPicker detectat dar nefunctional la runtime', () => {
+    it('cade pe fallback-ul de descarcari cand pickDirectory arunca NotAllowedError, nu AbortError', async () => {
+      const pickDirectory = vi.fn<PickDirectoryFn>(async () => {
+        throw new DOMException('User activation required.', 'NotAllowedError');
+      });
+      getDirectoryPicker.mockReturnValue(pickDirectory);
+
+      const result = await exportXMPSidecars([{ fileName: 'a.jpg', status: 'selected', rating: 5 }]);
+
+      expect(pickDirectory).toHaveBeenCalledTimes(1);
+      expect(result.exported).toBe(1);
+      expect(result.method).toBe('downloads');
+      expect(result.cancelled).toBe(false);
+      expect(downloadBlob).toHaveBeenCalledTimes(1);
+    });
+
+    it('ramane cancelled:true cand pickDirectory arunca chiar AbortError — NU cade pe fallback', async () => {
+      const pickDirectory = vi.fn<PickDirectoryFn>(async () => {
+        throw new DOMException('The user aborted a request.', 'AbortError');
+      });
+      getDirectoryPicker.mockReturnValue(pickDirectory);
+
+      const result = await exportXMPSidecars([{ fileName: 'a.jpg', status: 'selected', rating: 5 }]);
+
+      expect(result).toEqual({ exported: 0, method: 'folder', cancelled: true });
+      expect(downloadBlob).not.toHaveBeenCalled();
+    });
   });
 });
