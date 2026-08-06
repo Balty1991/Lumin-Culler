@@ -2207,6 +2207,15 @@ export const useStore = create<AppState>((set, get) => ({
     const allPhotos = get().photos;
     const selected = allPhotos.filter(p => p.status === 'selected');
     if (!selected.length) return;
+    // Feedback IMEDIAT, inainte de orice munca async (coacere editari, cautari
+    // in IndexedDB per poza, apoi pe Android scriere in cache + share nativ,
+    // care impreuna pot dura cateva secunde bune pe un export mare) — bug real
+    // raportat de utilizator ("apas Exporta si nu se intampla nimic"): fara
+    // acest semnal, nu exista NICIO diferenta vizibila intre "a inceput sa
+    // lucreze" si "apasarea n-a avut niciun efect", mai ales pe calea nativa
+    // (Share.share), unde foaia de partajare a sistemului poate aparea cu o
+    // intarziere vizibila fata de tap.
+    set({ notice: t(get().locale, 'store.exportSelection.exporting') });
     try {
       // vezi computeGroupPersonUnion: un cadru dintr-un burst poate rata o
       // fata pe care alt cadru din ACEEASI serie a recunoscut-o clar —
@@ -2268,6 +2277,9 @@ export const useStore = create<AppState>((set, get) => ({
     const memberSet = new Set(collection?.memberIds ?? []);
     const members = allPhotos.filter(p => memberSet.has(p.id));
     if (!members.length) { set({ notice: t(locale, 'collections.export.empty') }); return; }
+    // Vezi comentariul identic din exportSelection mai sus — acelasi bug raportat,
+    // aceeasi cauza (munca async fara niciun semnal vizibil pana la finalul ei).
+    set({ notice: t(locale, 'store.exportSelection.exporting') });
     try {
       const groupUnion = computeGroupPersonUnion(allPhotos);
       const result = await exportOriginalFiles(members.map(p => {
@@ -2355,6 +2367,9 @@ export const useStore = create<AppState>((set, get) => ({
     const decided = allPhotos.filter(p => p.status !== 'pending');
     const locale = get().locale;
     if (!decided.length) { set({ notice: t(locale, 'store.exportXmp.noDecided') }); return; }
+    // Vezi comentariul identic din exportSelection (state/store.ts) — acelasi
+    // bug raportat, aceeasi cauza (munca async fara niciun semnal vizibil).
+    set({ notice: t(locale, 'store.exportSelection.exporting') });
     try {
       // vezi computeGroupPersonUnion (exportPhotos.ts) — acelasi principiu ca la
       // exportSelection: un cadru din burst poate rata o fata pe care alt cadru

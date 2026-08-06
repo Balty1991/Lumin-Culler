@@ -660,6 +660,7 @@ export const ro = {
   'store.personProfiles.imported': 'Import profiluri: {added} noi, {merged} completate cu referinte suplimentare.',
   'store.personProfiles.importFailed': 'Import profiluri esuat: {error}',
   'store.faceCluster.enrolled': '{name}: persoana noua inrolata din {detections} detectii, re-etichetata in {photos} poze din biblioteca curenta.',
+  'store.exportSelection.exporting': 'Se exporta...',
   'store.exportSelection.exportedFolder': '{count} poze exportate in subfoldere (persoane/scena), in folderul ales.',
   'store.exportSelection.exportedZip': '{count} poze exportate intr-o arhiva .zip (subfoldere pe persoane/scena) — descarcarile multiple separate sunt blocate de multe browsere mobile, o singura arhiva e mereu de incredere.',
   'store.exportSelection.exportedDirect': '{count} poze exportate (descarcare directa).',
