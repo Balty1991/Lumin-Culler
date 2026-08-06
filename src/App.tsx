@@ -1027,6 +1027,11 @@ export default function App() {
         <ContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
+          photoIds={
+            multiSelectIds.has(contextMenu.photoId) && multiSelectIds.size > 1
+              ? Array.from(multiSelectIds)
+              : [contextMenu.photoId]
+          }
           count={multiSelectIds.has(contextMenu.photoId) && multiSelectIds.size > 1 ? multiSelectIds.size : 1}
           rating={
             multiSelectIds.has(contextMenu.photoId) && multiSelectIds.size > 1

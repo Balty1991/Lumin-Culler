@@ -102,7 +102,21 @@
   --z-palette-scrim: 30;
   --z-tooltip: 40;
   --z-context-menu: 45;
+  /* Dropdown-uri randate prin portal (SceneTagFilter, ColorLabelFilter,
+     CollectionPicker, SavedFiltersMenu) — DEASUPRA meniului contextual, care le
+     poate deschide: bug real raportat pe device, "cand apas pe folder, apare in
+     spatele ferestrei". Popover-ul statea la 40, sub cele 45 ale meniului din
+     care fusese deschis, deci lista de foldere aparea ascunsa in spatele lui. */
+  --z-dropdown: 46;
   --z-toast: 50;
+
+  /* Marginile sigure, expuse si catre JS: pe Android edge-to-edge (targetSdk 35+)
+     WebView-ul se intinde SUB bara de navigare, deci window.innerHeight singur nu
+     spune unde se termina zona chiar vizibila. Codul care pozitioneaza elemente
+     `fixed` din JS (ui/ContextMenu.tsx) le citeste de aici, in loc sa duplice
+     env() sau sa ghiceasca inaltimea barei. */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 
   /* scara de radius — mai generoasa (mai "tactila") decat v2.5 */
   --radius-sm: 8px;
@@ -875,7 +889,15 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
 /* ── Meniu contextual pe grila — click-dreapta (desktop) sau apasare lunga (touch) pe un card (plan 3.2.1) ── */
 .context-menu {
-  position: fixed; z-index: var(--z-context-menu); width: 200px; padding: 6px;
+  /* 224px, nu 200: cele 5 buline de eticheta au fiecare 32px zona tap-abila (minim
+     de accesibilitate, vezi .color-label-swatch) => 5*32 + 4*6 gap = 184px, care nu
+     incapeau in cei 168px ramasi dupa padding-uri — bug real raportat pe device,
+     "eticheta culori depaseste blocul". Randul lor se rupe acum pe linie proprie
+     (flex-wrap mai jos), iar 224px ii lasa sa incapa acolo intregi. */
+  position: fixed; z-index: var(--z-context-menu); width: 224px; padding: 6px;
+  /* Plasa de siguranta pentru ecrane foarte scunde (peisaj, split-screen): daca
+     meniul tot nu incape dupa incadrarea din JS, se deruleaza in loc sa fie taiat. */
+  max-height: calc(100dvh - 16px - var(--safe-top) - var(--safe-bottom)); overflow-y: auto;
   border-radius: var(--radius); box-shadow: var(--shadow-lift);
   animation: fadeUp 0.14s var(--ease) both;
 }
@@ -890,9 +912,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 .context-menu-item:hover, .context-menu-item:focus-visible { background: var(--surface-2); outline: none; }
 .context-menu-item .inline-icon { opacity: 0.7; }
+/* Declansatorul lui CollectionPicker ("Adauga in folder") isi randeaza eticheta intr-un
+   <span> lipit de iconita, fara nodul-text de spatiu pe care il au celelalte randuri din
+   meniu — fara asta, ar fi vizibil mai stramt decat vecinii lui. */
+.context-menu-folder .inline-icon { margin-right: 7px; }
 .context-menu-sep { height: 1px; margin: 5px 4px; background: var(--line); }
 .context-menu-rating { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; font-size: 0.8rem; color: var(--text-dim); }
-.context-menu-color-labels { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; font-size: 0.8rem; color: var(--text-dim); }
+.context-menu-color-labels { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; padding: 6px 10px; font-size: 0.8rem; color: var(--text-dim); }
 
 /* etichete de culoare custom (Lightroom-style), a doua axa de organizare
    libera fata de status/rating — swatch-uri rotunde, culori mate ca sa se
@@ -951,7 +977,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .scene-tag-filter { flex-shrink: 0; }
 .scene-tag-filter-trigger { display: inline-flex; align-items: center; text-transform: capitalize; }
 .scene-tag-filter-menu {
-  position: fixed; z-index: 40;
+  position: fixed; z-index: var(--z-dropdown);
   display: flex; flex-direction: column; gap: 2px; min-width: 170px; max-width: 240px;
   max-height: 60vh; overflow-y: auto;
   background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px;
