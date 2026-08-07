@@ -5,6 +5,7 @@
  */
 import { create } from 'zustand';
 import { db, type AnalysisRecord, type PhotoRecord, type KnownPerson, type ColorLabel, type CollectionRecord } from '../core/db';
+import { recordExport, remainingFreeExports, isPremium, canEnrollAnotherPersonFree, FREE_EXPORT_PHOTOS_PER_MONTH } from '../core/entitlement';
 import {
   loadCollections, createCollection as createCollectionRecord, renameCollection as renameCollectionRecord,
   deleteCollection as deleteCollectionRecord, addPhotosToCollection as addPhotosToCollectionRecord,
@@ -853,6 +854,18 @@ async function cleanupOrphanedOriginal(id: string, collectionsAfter: CollectionR
 
 function quotaNotice(locale: Locale): string {
   return t(locale, 'store.quotaNotice');
+}
+
+/**
+ * Sufix informativ, NECONDITIONAT de blocare — atasat notificarii de export
+ * cand plafonul lunar gratuit (vezi core/entitlement.ts) tocmai a fost atins
+ * sau depasit. Nu exista inca niciun mecanism real de plata (Google Play
+ * Billing) — acest mesaj doar anunta, nu opreste exportul curent si nu
+ * blocheaza pe urmatorul.
+ */
+function freeExportCapNotice(locale: Locale): string {
+  if (isPremium() || remainingFreeExports() > 0) return '';
+  return ' ' + t(locale, 'store.exportSelection.freeCapReached', { limit: FREE_EXPORT_PHOTOS_PER_MONTH });
 }
 
 /** Plafon de referinte faciale per persoana — reinrolarile succesive extind profilul, nu-l lasa sa creasca la nesfarsit. */
@@ -2032,7 +2045,12 @@ export const useStore = create<AppState>((set, get) => ({
       message = `${trimmedName}: +${embeddings.length} referinte noi adaugate la profilul existent (total ${merged.length}).${skippedSuffix}${multifaceSuffix}`;
     } else {
       person = { id: crypto.randomUUID(), name: trimmedName, embeddings, updatedAt: Date.now() };
-      message = trimmedName + ': ' + embeddings.length + ' referinte salvate.' + skippedSuffix + multifaceSuffix;
+      // Informativ, NU blocant — vezi core/entitlement.ts: fara mecanism real de
+      // plata inca, a doua+ persoana se inroleaza normal, doar cu acest hint.
+      const premiumSuffix = canEnrollAnotherPersonFree(get().persons.length)
+        ? ''
+        : ' ' + t(get().locale, 'store.addPerson.premiumHint');
+      message = trimmedName + ': ' + embeddings.length + ' referinte salvate.' + skippedSuffix + multifaceSuffix + premiumSuffix;
     }
     await db.persons.put(person);
     await rematchPersonInExistingAnalyses(person);
@@ -2304,6 +2322,7 @@ export const useStore = create<AppState>((set, get) => ({
       // INLOCUIASCA toast-ul de progres, altfel "Se exporta..." ramane agatat
       // pe ecran la infinit — bug real raportat de utilizator.
       if (result.cancelled) { set({ notice: t(locale, 'store.exportSelection.cancelled') }); return; }
+      recordExport(result.exported);
       const parts = [
         result.exported
           ? t(locale,
@@ -2317,7 +2336,7 @@ export const useStore = create<AppState>((set, get) => ({
       if (result.missing.length) {
         parts.push(t(locale, 'store.exportSelection.missing', { count: result.missing.length }));
       }
-      set({ notice: parts.join(' ') });
+      set({ notice: parts.join(' ') + freeExportCapNotice(locale) });
     } catch (err) {
       set({ notice: t(get().locale, 'store.exportSelection.failed', { error: String(err) }) });
     }
@@ -2373,6 +2392,7 @@ export const useStore = create<AppState>((set, get) => ({
       });
       // vezi comentariul identic din exportSelection mai sus
       if (result.cancelled) { set({ notice: t(locale, 'store.exportSelection.cancelled') }); return; }
+      recordExport(result.exported);
       const parts = [
         result.exported
           ? t(locale,
@@ -2386,7 +2406,7 @@ export const useStore = create<AppState>((set, get) => ({
       if (result.missing.length) {
         parts.push(t(locale, 'store.exportSelection.missing', { count: result.missing.length }));
       }
-      set({ notice: parts.join(' ') });
+      set({ notice: parts.join(' ') + freeExportCapNotice(locale) });
     } catch (err) {
       set({ notice: t(locale, 'store.exportSelection.failed', { error: String(err) }) });
     }
