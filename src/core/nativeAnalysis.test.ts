@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { KnownPerson } from './db';
 
 // jsdom nu implementeaza OffscreenCanvas — stub minimal, dar de data asta
 // TREBUIE sa functioneze cu adevarat (spre deosebire de faceAnalysis.worker.test.ts,
@@ -12,6 +13,12 @@ class StubOffscreenCanvas {
   convertToBlob() { return Promise.resolve(new Blob(['fake-jpeg'], { type: 'image/jpeg' })); }
 }
 vi.stubGlobal('OffscreenCanvas', StubOffscreenCanvas);
+
+// jsdom nu implementeaza nici createImageBitmap() — folosit doar de calea de
+// recunoastere faciala (cropFaceBitmap in nativeAnalysis.ts) pentru a decupa
+// regiunea unei fete inainte de a o trimite la worker-ul de recunoastere.
+// Stub minimal: ignora coordonatele, intoarce un "bitmap" fals cu close() no-op.
+vi.stubGlobal('createImageBitmap', vi.fn(() => Promise.resolve({ close: () => {} } as unknown as ImageBitmap)));
 
 const detectFacesNative = vi.fn();
 vi.mock('./nativeFaceDetection', () => ({ detectFacesNative: (...a: unknown[]) => detectFacesNative(...a) }));
@@ -246,7 +253,7 @@ describe('analyzeNative', () => {
     expect(result.bokehQuality).toBe('average');
   });
 
-  it('nu seteaza recunoastere faciala pe native — knownFaceCount 0, strangerCount = faceCount, personId null', async () => {
+  it('fara callback de recunoastere (web nu ajunge aici; native cand nimeni nu e inrolat) — knownFaceCount 0, strangerCount = faceCount, personId null', async () => {
     detectFacesNative.mockResolvedValue({
       faces: [{ boundingBox: { left: 0, top: 0, width: 10, height: 10 } }],
       imageWidth: 100,
@@ -262,5 +269,90 @@ describe('analyzeNative', () => {
     expect(result.strangerCount).toBe(1);
     expect(result.faces[0].personId).toBeNull();
     expect(result.faces[0].embedding).toBeUndefined();
+  });
+
+  // Bug real gasit de auditul QA: pipeline-ul nativ (ML Kit/MediaPipe) nu are
+  // niciun model propriu de recunoastere faciala — addPerson/enrollare
+  // functionau, dar pozele analizate NATIV ramaneau mereu cu toata lumea
+  // "necunoscuta", indiferent cati oameni erau inrolati. Fix: recognize()
+  // (injectat de AnalysisPool.analyze() din workerPool.ts, care ruleaza un
+  // worker Human.js lazy DOAR pentru decupajul mic al fiecarei fete, vezi
+  // header-ul fisierului) e apelat per fata ML Kit, iar rezultatul e comparat
+  // cosinus fata de knownPersons.
+  describe('recunoastere faciala nativa (recognize + knownPersons)', () => {
+    const AMI: KnownPerson = { id: 'ami-id', name: 'Ami', embeddings: [[1, 0]], updatedAt: 0 };
+
+    function mockOneFace() {
+      detectFacesNative.mockResolvedValue({
+        faces: [{ boundingBox: { left: 10, top: 10, width: 50, height: 50 } }],
+        imageWidth: 200,
+        imageHeight: 200
+      });
+      labelImageNative.mockResolvedValue({ labels: [] });
+      analyzeFaceMeshNative.mockResolvedValue({ faces: [] });
+    }
+
+    it('eticheteaza fata cu persoana cunoscuta cand embeddingul intors de recognize() se potriveste', async () => {
+      mockOneFace();
+      const recognize = vi.fn().mockResolvedValue({ embedding: [1, 0], faceCount: 1 });
+
+      const { analyzeNative } = await import('./nativeAnalysis');
+      const result = await analyzeNative('p1', fakeBitmap(200, 200), recognize, [AMI]);
+
+      expect(recognize).toHaveBeenCalledTimes(1);
+      expect(result.faces[0].personId).toBe('ami-id');
+      expect(result.faces[0].personName).toBe('Ami');
+      expect(result.faces[0].similarity).toBe(1);
+      expect(result.faces[0].embedding).toEqual([1, 0]);
+      expect(result.knownFaceCount).toBe(1);
+      expect(result.strangerCount).toBe(0);
+    });
+
+    it('lasa fata neidentificata cand similaritatea ramane sub pragul de recunoastere', async () => {
+      mockOneFace();
+      const recognize = vi.fn().mockResolvedValue({ embedding: [0, 1], faceCount: 1 }); // ortogonal pe [1,0] -> similaritate 0
+
+      const { analyzeNative } = await import('./nativeAnalysis');
+      const result = await analyzeNative('p1', fakeBitmap(200, 200), recognize, [AMI]);
+
+      expect(result.faces[0].personId).toBeNull();
+      expect(result.knownFaceCount).toBe(0);
+      expect(result.strangerCount).toBe(1);
+    });
+
+    it('nu apeleaza deloc recognize() cand nu exista nicio persoana inrolata (gard redundant fata de AnalysisPool)', async () => {
+      mockOneFace();
+      const recognize = vi.fn();
+
+      const { analyzeNative } = await import('./nativeAnalysis');
+      await analyzeNative('p1', fakeBitmap(200, 200), recognize, []);
+
+      expect(recognize).not.toHaveBeenCalled();
+    });
+
+    it('un esec al recognize() pentru o fata nu opreste restul analizei pozei (fata ramane neidentificata)', async () => {
+      mockOneFace();
+      const recognize = vi.fn().mockRejectedValue(new Error('worker de recunoastere blocat'));
+
+      const { analyzeNative } = await import('./nativeAnalysis');
+      const result = await analyzeNative('p1', fakeBitmap(200, 200), recognize, [AMI]);
+
+      expect(result.faces[0].personId).toBeNull();
+      expect(result.faceCount).toBe(1); // restul analizei (faceCount, etc.) tot s-a produs normal
+    });
+
+    it('proceseaza cel mult MAX_RECOGNIZED_FACES_PER_PHOTO fete — restul raman neidentificate, fara sa mai apeleze recognize()', async () => {
+      const manyFaces = Array.from({ length: 8 }, () => ({ boundingBox: { left: 10, top: 10, width: 50, height: 50 } }));
+      detectFacesNative.mockResolvedValue({ faces: manyFaces, imageWidth: 200, imageHeight: 200 });
+      labelImageNative.mockResolvedValue({ labels: [] });
+      analyzeFaceMeshNative.mockResolvedValue({ faces: [] });
+      const recognize = vi.fn().mockResolvedValue({ embedding: [1, 0], faceCount: 1 });
+
+      const { analyzeNative } = await import('./nativeAnalysis');
+      const result = await analyzeNative('p1', fakeBitmap(200, 200), recognize, [AMI]);
+
+      expect(recognize.mock.calls.length).toBeLessThan(manyFaces.length);
+      expect(result.faceCount).toBe(8); // toate fetele raman in AnalysisRecord, doar recunoasterea e plafonata
+    });
   });
 });

@@ -125,6 +125,20 @@ export class AnalysisPool {
   private enrollmentSlot: Slot | undefined;
   private enrollmentSlotPromise: Promise<Slot> | undefined;
 
+  /**
+   * Al doilea worker Human.js lazy, separat de enrollmentSlot — foloseste
+   * config-ul 'recognitionOnly' (mesh/iris/emotie/CenterNet dezactivate, vezi
+   * faceAnalysis.worker.ts) si ruleaza pe FIECARE poza analizata nativ (nu doar
+   * la inrolare, rara), deci trebuie sa ramana cel mai ieftin mod posibil.
+   * UN singur worker (nu un pool) — recunoasterea per-fata ruleaza strict
+   * serializata, indiferent de NATIVE_ANALYSIS_CONCURRENCY: cauza reala a
+   * crash-urilor native anterioare (vezi comentariile din init()) a fost
+   * presiunea de GPU/RAM a MAI MULTOR incarcari/inferente Human.js in paralel,
+   * exact ce acest design evita structural.
+   */
+  private recognitionSlot: Slot | undefined;
+  private recognitionSlotPromise: Promise<Slot> | undefined;
+
   get size(): number { return this.nativeMode ? this.nativeConcurrencyLimit : this.slots.length; }
 
   /** false = fara accelerare WebGL/WASM — analiza ruleaza dar fara detectie reala de fete. 'native' e mereu accelerat (NNAPI/GPU delegate pe device). */
@@ -135,14 +149,14 @@ export class AnalysisPool {
   /** true dupa primul init() reusit — util ca sa stim daca resizeForEconomicMode() are ce redimensiona acum sau doar la urmatorul import. */
   get isReady(): boolean { return this.ready; }
 
-  private async spawnSlot(forcedBackend?: string): Promise<{ slot: Slot; backend: string }> {
+  private async spawnSlot(forcedBackend?: string, recognitionOnly = false): Promise<{ slot: Slot; backend: string }> {
     const worker = new Worker(
       new URL('../workers/faceAnalysis.worker.ts', import.meta.url),
       { type: 'module' }
     );
     const api = Comlink.wrap<FaceAnalysisAPI>(worker);
     const backend = await withTimeout(
-      api.init(this.modelBase, readEconomicMode(), forcedBackend),
+      api.init(this.modelBase, readEconomicMode(), forcedBackend, recognitionOnly),
       MODEL_INIT_TIMEOUT_MS,
       'Incarcarea modelelor AI a durat prea mult — verifica conexiunea la internet.'
     );
@@ -207,6 +221,7 @@ export class AnalysisPool {
     this.knownPersons = persons;
     await Promise.all(this.slots.map(s => s.api.setKnownPersons(persons)));
     if (this.enrollmentSlot) await this.enrollmentSlot.api.setKnownPersons(persons);
+    if (this.recognitionSlot) await this.recognitionSlot.api.setKnownPersons(persons);
   }
 
   /**
@@ -306,7 +321,16 @@ export class AnalysisPool {
       await this.acquireNativePermit();
       try {
         return await withTimeout(
-          analyzeNative(photoId, bitmap),
+          analyzeNative(
+            photoId,
+            bitmap,
+            // Recunoasterea per-fata e utila (si platita ca timp) doar cand exista
+            // cel putin o persoana inrolata — fara acest gard, fiecare fata din
+            // fiecare poza ar trece prin worker-ul de recunoastere chiar si pentru
+            // utilizatorii care nu folosesc deloc "Persoane cunoscute".
+            this.knownPersons.length ? crop => this.computeFaceRecognitionEmbedding(crop) : undefined,
+            this.knownPersons
+          ),
           ANALYZE_TIMEOUT_MS,
           'Analiza acestei fotografii a durat prea mult (posibil fisier problematic) — sarita.'
         );
@@ -375,6 +399,46 @@ export class AnalysisPool {
       throw err;
     } finally {
       this.release(slot);
+    }
+  }
+
+  /** Reface (lazy, o singura data) worker-ul Human.js 'recognitionOnly' — vezi comentariul de la `recognitionSlot`. */
+  private ensureRecognitionSlot(): Promise<Slot> {
+    if (this.recognitionSlot) return Promise.resolve(this.recognitionSlot);
+    if (!this.recognitionSlotPromise) {
+      this.recognitionSlotPromise = this.spawnSlot(undefined, true).then(async ({ slot }) => {
+        if (this.knownPersons.length) await slot.api.setKnownPersons(this.knownPersons);
+        this.recognitionSlot = slot;
+        return slot;
+      });
+    }
+    return this.recognitionSlotPromise;
+  }
+
+  /**
+   * Recunoastere per-fata pe native: primeste un decupaj MIC (o singura fata,
+   * deja localizata de ML Kit — vezi core/nativeAnalysis.ts) si returneaza
+   * embeddingul ei, folosind acelasi worker Human.js lazy pentru toate fetele
+   * din TOATE pozele native — vezi comentariul de la `recognitionSlot` pentru
+   * motivul serializarii stricte. Esecul (timeout/eroare) e tratat de apelant
+   * (nativeAnalysis.ts) ca "nicio potrivire" pentru acea fata, nu ca eroare
+   * fatala a analizei intregii poze.
+   */
+  async computeFaceRecognitionEmbedding(bitmap: ImageBitmap): Promise<{ embedding: number[]; faceCount: number } | null> {
+    const slot = await this.ensureRecognitionSlot();
+    try {
+      return await withTimeout(
+        slot.api.computeEnrollmentEmbedding(Comlink.transfer(bitmap, [bitmap])),
+        ANALYZE_TIMEOUT_MS,
+        'Recunoasterea acestei fete a durat prea mult.'
+      );
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('a durat prea mult')) {
+        try { slot.worker.terminate(); } catch { /* deja mort, nu conteaza */ }
+        this.recognitionSlot = undefined;
+        this.recognitionSlotPromise = undefined;
+      }
+      throw err;
     }
   }
 }

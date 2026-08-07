@@ -855,7 +855,7 @@ export class FaceAnalysisService {
    * eroare vizibila) — desi fiecare timeout individual e finit. Doar primul
    * worker face detectia completa; restul primesc direct backend-ul gasit.
    */
-  async init(modelBasePath?: string, economicMode?: boolean, forcedBackend?: string): Promise<string> {
+  async init(modelBasePath?: string, economicMode?: boolean, forcedBackend?: string, recognitionOnly?: boolean): Promise<string> {
     if (this.human) return this.backend;
     const overrides: Partial<Config> = {
       ...(modelBasePath ? { modelBasePath } : {}),
@@ -867,6 +867,15 @@ export class FaceAnalysisService {
       // sceneTags ramane absent (optional, tratat neutru la fel ca restul).
       ...(economicMode ? {
         face: { ...HUMAN_CONFIG.face, iris: { enabled: false }, emotion: { enabled: false } },
+        object: { ...HUMAN_CONFIG.object, enabled: false }
+      } : {}),
+      // recognitionOnly: worker dedicat exclusiv recunoasterii per-fata pe native
+      // (vezi core/nativeAnalysis.ts) — primeste DOAR decupaje mici, cu o singura
+      // fata deja localizata de ML Kit, deci mesh/iris/emotie/CenterNet (niciunul
+      // consumat de matchPerson) sunt cost pur, fara beneficiu; maxDetected:1
+      // fiindca decupajul contine mereu o singura fata tinta.
+      ...(recognitionOnly ? {
+        face: { ...HUMAN_CONFIG.face, detector: { ...HUMAN_CONFIG.face!.detector, maxDetected: 1 }, mesh: { enabled: false }, iris: { enabled: false }, emotion: { enabled: false } },
         object: { ...HUMAN_CONFIG.object, enabled: false }
       } : {})
     };

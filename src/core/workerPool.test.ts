@@ -70,7 +70,29 @@ describe('AnalysisPool native mode (Capacitor Android)', () => {
     const bitmap = {} as unknown as ImageBitmap;
     const result = await pool.analyze('p1', bitmap);
     expect(result).toBe(fakeRecord);
-    expect(analyzeNativeMock).toHaveBeenCalledWith('p1', bitmap);
+    // Al 3-lea arg (recognize) ramane undefined cand nu e nicio persoana
+    // inrolata (this.knownPersons gol) — vezi gardul din analyze()/workerPool.ts.
+    expect(analyzeNativeMock).toHaveBeenCalledWith('p1', bitmap, undefined, []);
+  });
+
+  // Bug real gasit de auditul QA: analyze() pe native nu trimitea niciodata un
+  // callback de recunoastere catre analyzeNative() — persoanele inrolate erau
+  // complet ignorate pe telefon (vezi recognitionSlot/computeFaceRecognitionEmbedding
+  // mai jos in acest fisier pentru mecanismul propriu-zis).
+  it('analyze() trimite un callback de recunoastere catre analyzeNative() cand exista persoane inrolate', async () => {
+    const { AnalysisPool } = await import('./workerPool');
+    const pool = new AnalysisPool();
+    await pool.init();
+    await pool.setKnownPersons([{ id: 'ami-id', name: 'Ami', embeddings: [[1, 0]], updatedAt: 0 }]);
+
+    const fakeRecord = { photoId: 'p1', faces: [], faceCount: 0 };
+    analyzeNativeMock.mockResolvedValueOnce(fakeRecord);
+    const bitmap = {} as unknown as ImageBitmap;
+    await pool.analyze('p1', bitmap);
+
+    const [, , recognize, knownPersons] = analyzeNativeMock.mock.calls[0];
+    expect(typeof recognize).toBe('function');
+    expect(knownPersons).toEqual([{ id: 'ami-id', name: 'Ami', embeddings: [[1, 0]], updatedAt: 0 }]);
   });
 
   it('caps concurrent analyze() calls at the native concurrency limit (2)', async () => {
