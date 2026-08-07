@@ -635,6 +635,62 @@ async function relabelAnalyses(mapping: Map<string, { id: string; name: string }
   if (updates.length) await db.analyses.bulkPut(updates);
 }
 
+// Trebuie sa ramana identic cu RECOGNITION_THRESHOLD din faceAnalysis.worker.ts —
+// worker-ul nu poate fi importat aici (ar trage Comlink/@vladmandic/human in
+// thread-ul principal doar pentru o constanta), asa ca pragul e duplicat, ca
+// si cosineSimilarity din core/faceClustering.ts pentru acelasi motiv.
+const RETROACTIVE_MATCH_THRESHOLD = 0.55;
+
+function faceCosineSimilarity(a: number[], b: number[]): number {
+  let dot = 0, na = 0, nb = 0;
+  const len = Math.min(a.length, b.length);
+  for (let i = 0; i < len; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
+  return na && nb ? dot / (Math.sqrt(na) * Math.sqrt(nb)) : 0;
+}
+
+/**
+ * Bug real gasit de auditul QA: addPerson/importPersonProfiles apelau doar
+ * analysisPool.setKnownPersons(persons), care actualizeaza lista de persoane
+ * cunoscute DOAR pentru analize VIITOARE (poze importate de-acum inainte).
+ * Pozele deja analizate inainte de inrolare (majoritatea bibliotecii, in
+ * cazul obisnuit) ramaneau cu personId null pentru vecie — desi embeddingul
+ * fiecarei fete e deja salvat in db.analyses (FaceInsight.embedding), deci
+ * re-potrivirea nu necesita nicio re-analiza, doar o comparatie cosinus.
+ * Ating doar fetele INCA neidentificate (personId null) — o fata deja
+ * atribuita altei persoane nu e retrasa aici, la fel ca relabelFaces. Extrasa
+ * separat de rematchPersonInExistingAnalyses ca sa fie testabila unitar fara
+ * IndexedDB reala, la fel ca relabelFaces/relabelAnalyses mai sus.
+ */
+export function matchFacesToPerson(analysis: AnalysisRecord, person: KnownPerson): boolean {
+  if (!person.embeddings.length) return false;
+  let changed = false;
+  for (const face of analysis.faces) {
+    if (face.personId || !face.embedding?.length) continue;
+    let best = 0;
+    for (const ref of person.embeddings) {
+      const sim = faceCosineSimilarity(face.embedding, ref);
+      if (sim > best) best = sim;
+    }
+    if (best >= RETROACTIVE_MATCH_THRESHOLD) {
+      face.personId = person.id;
+      face.personName = person.name;
+      face.similarity = Math.round(best * 100) / 100;
+      changed = true;
+    }
+  }
+  if (changed) {
+    analysis.knownFaceCount = analysis.faces.filter(f => f.personId).length;
+    analysis.strangerCount = analysis.faces.filter(f => !f.personId).length;
+  }
+  return changed;
+}
+
+async function rematchPersonInExistingAnalyses(person: KnownPerson): Promise<void> {
+  const all = await db.analyses.toArray();
+  const updates = all.filter(analysis => matchFacesToPerson(analysis, person));
+  if (updates.length) await db.analyses.bulkPut(updates);
+}
+
 /**
  * Bug real gasit de auditul QA: o simpla concatenare + tail-slice la
  * `maxTotal` NU pastreaza "cele mai recente" cum pretindea comentariul vechi
@@ -1979,9 +2035,10 @@ export const useStore = create<AppState>((set, get) => ({
       message = trimmedName + ': ' + embeddings.length + ' referinte salvate.' + skippedSuffix + multifaceSuffix;
     }
     await db.persons.put(person);
-    const persons = await db.persons.toArray();
+    await rematchPersonInExistingAnalyses(person);
+    const [persons, photos] = await Promise.all([db.persons.toArray(), reloadPhotoViews()]);
     await analysisPool.setKnownPersons(persons);
-    set({ persons });
+    set({ persons, photos });
     return { ok: true, message };
   },
 
@@ -2053,18 +2110,21 @@ export const useStore = create<AppState>((set, get) => ({
       let added = 0, merged = 0;
       for (const incoming of data.persons) {
         const existing = get().persons.find(p => p.name.trim().toLowerCase() === incoming.name.trim().toLowerCase());
+        let person: KnownPerson;
         if (existing) {
           const combined = [...existing.embeddings, ...incoming.embeddings].slice(-MAX_PERSON_EMBEDDINGS);
-          await db.persons.put({ ...existing, embeddings: combined, updatedAt: Date.now() });
+          person = { ...existing, embeddings: combined, updatedAt: Date.now() };
           merged++;
         } else {
-          await db.persons.put({ id: crypto.randomUUID(), name: incoming.name, embeddings: incoming.embeddings, updatedAt: Date.now() });
+          person = { id: crypto.randomUUID(), name: incoming.name, embeddings: incoming.embeddings, updatedAt: Date.now() };
           added++;
         }
+        await db.persons.put(person);
+        await rematchPersonInExistingAnalyses(person);
       }
-      const persons = await db.persons.toArray();
+      const [persons, photos] = await Promise.all([db.persons.toArray(), reloadPhotoViews()]);
       await analysisPool.setKnownPersons(persons).catch(() => {});
-      set({ persons, notice: t(locale, 'store.personProfiles.imported', { added, merged }) });
+      set({ persons, photos, notice: t(locale, 'store.personProfiles.imported', { added, merged }) });
     } catch (err) {
       set({ notice: t(locale, 'store.personProfiles.importFailed', { error: err instanceof Error ? err.message : String(err) }) });
     }
