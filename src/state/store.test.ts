@@ -23,8 +23,8 @@ vi.mock('../core/exportPhotos', async importOriginal => {
   return { ...actual, exportOriginalFiles: (...args: unknown[]) => exportOriginalFilesMock(...args) };
 });
 
-import { useStore, relabelFaces, selectMergedEmbeddings, type PhotoView } from './store';
-import { db, type AnalysisRecord, type FaceInsight, type PhotoRecord } from '../core/db';
+import { useStore, relabelFaces, matchFacesToPerson, selectMergedEmbeddings, type PhotoView } from './store';
+import { db, type AnalysisRecord, type FaceInsight, type KnownPerson, type PhotoRecord } from '../core/db';
 import { contextEngine } from '../core/learning/ContextEngine';
 import { originalFiles } from '../core/importPipeline';
 import { readSavedFilters } from './savedFilters';
@@ -268,6 +268,14 @@ function makeFace(personId: string | null, personName: string | null): FaceInsig
   };
 }
 
+function makeFaceWithEmbedding(embedding: number[] | undefined, personId: string | null = null): FaceInsight {
+  return { ...makeFace(personId, personId ? 'Deja identificat' : null), embedding };
+}
+
+function makePerson(embeddings: number[][]): KnownPerson {
+  return { id: 'ami-id', name: 'Ami', embeddings, updatedAt: 0 };
+}
+
 function makeAnalysis(faces: FaceInsight[]): AnalysisRecord {
   return {
     photoId: 'p1', faces, faceCount: faces.length,
@@ -315,6 +323,44 @@ describe('relabelFaces', () => {
   it('never touches strangers (personId already null)', () => {
     const analysis = makeAnalysis([makeFace(null, null)]);
     const changed = relabelFaces(analysis, new Map([['person-a', null]]));
+    expect(changed).toBe(false);
+  });
+});
+
+// Bug real gasit de auditul QA: addPerson/importPersonProfiles nu re-potriveau
+// RETROACTIV noile referinte fata de pozele deja analizate — doar viitoarele
+// analize "vedeau" persoana nou-inrolata, desi embeddingul fiecarei fete e deja
+// salvat in AnalysisRecord. matchFacesToPerson e logica extrasa din
+// rematchPersonInExistingAnalyses (care atinge Dexie), testabila unitar.
+describe('matchFacesToPerson', () => {
+  it('identifies a previously-unmatched face whose embedding is close enough to a person reference', () => {
+    const analysis = makeAnalysis([makeFaceWithEmbedding([1, 0])]);
+    const changed = matchFacesToPerson(analysis, makePerson([[1, 0]]));
+    expect(changed).toBe(true);
+    expect(analysis.faces[0].personId).toBe('ami-id');
+    expect(analysis.faces[0].personName).toBe('Ami');
+    expect(analysis.faces[0].similarity).toBe(1);
+    expect(analysis.knownFaceCount).toBe(1);
+    expect(analysis.strangerCount).toBe(0);
+  });
+
+  it('leaves a face unmatched when similarity stays under the recognition threshold', () => {
+    const analysis = makeAnalysis([makeFaceWithEmbedding([1, 0])]);
+    const changed = matchFacesToPerson(analysis, makePerson([[0, 1]])); // orthogonal -> similarity 0
+    expect(changed).toBe(false);
+    expect(analysis.faces[0].personId).toBeNull();
+  });
+
+  it('never overrides a face already assigned to another person', () => {
+    const analysis = makeAnalysis([makeFaceWithEmbedding([1, 0], 'someone-else')]);
+    const changed = matchFacesToPerson(analysis, makePerson([[1, 0]]));
+    expect(changed).toBe(false);
+    expect(analysis.faces[0].personId).toBe('someone-else');
+  });
+
+  it('skips faces with no stored embedding (older records)', () => {
+    const analysis = makeAnalysis([makeFaceWithEmbedding(undefined)]);
+    const changed = matchFacesToPerson(analysis, makePerson([[1, 0]]));
     expect(changed).toBe(false);
   });
 });
