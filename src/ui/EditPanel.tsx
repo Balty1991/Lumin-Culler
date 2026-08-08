@@ -40,6 +40,39 @@ function clamp01(v: number, min: number, max: number): number {
   return v < min ? min : v > max ? max : v;
 }
 
+// Presetari de raport de aspect (cerinta directa a utilizatorului: "o
+// dimensiune standard... sau crop liber") — `ratio` e latime/inaltime in
+// pixeli REALI (ex. 1:1, 4:5 portret, 16:9 landscape); `null` = "Liber",
+// fara nicio constrangere, comportamentul original de dinainte.
+const CROP_PRESETS: { key: string; labelKey: string; ratio: number | null }[] = [
+  { key: 'free', labelKey: 'edit.crop.free', ratio: null },
+  { key: '1:1', labelKey: 'edit.crop.ratio.1:1', ratio: 1 },
+  { key: '4:5', labelKey: 'edit.crop.ratio.4:5', ratio: 4 / 5 },
+  { key: '3:4', labelKey: 'edit.crop.ratio.3:4', ratio: 3 / 4 },
+  { key: '16:9', labelKey: 'edit.crop.ratio.16:9', ratio: 16 / 9 }
+];
+
+/**
+ * Un raport gen "1:1" e definit in pixeli REALI ai fotografiei, dar `crop`
+ * lucreaza in fractiuni normalizate (0..1) fata de latimea/inaltimea
+ * cadrului — o caseta patrata (1:1) pe o poza portret NU inseamna
+ * box.width === box.height in coordonate normalizate, ci trebuie corectata
+ * cu raportul de aspect AL POZEI (naturalWidth/naturalHeight), altfel ar
+ * iesi un dreptunghi, nu un patrat, cand se deseneaza pe pixelii reali.
+ */
+function normalizedBoxRatio(ratio: number, naturalWidth: number, naturalHeight: number): number {
+  return (ratio * naturalHeight) / naturalWidth;
+}
+
+/** Cea mai mare caseta cu raportul `normR` (width/height, normalizat) care incape in cadrul [0,1], centrata pe (cx, cy). */
+function boxForAspect(normR: number, cx: number, cy: number): CropBox {
+  const width = normR <= 1 ? normR : 1;
+  const height = normR <= 1 ? 1 : 1 / normR;
+  const x = clamp01(cx - width / 2, 0, 1 - width);
+  const y = clamp01(cy - height / 2, 0, 1 - height);
+  return { x, y, width, height };
+}
+
 /**
  * Modul de editare de baza, non-destructiv (plan "modernizare cat mai pro"):
  * expunere/contrast/saturatie/temperatura/tinta/highlights/shadows, aplicate
@@ -108,6 +141,10 @@ export function EditPanel() {
    * arunca fara sa atinga nimic.
    */
   const [cropDraft, setCropDraft] = useState<CropBox | null>(null);
+  // null = "Liber" (fara nicio constrangere de raport) — vezi CROP_PRESETS.
+  // Cat timp e setat, redimensionarea din colturi (onCropOverlayMove mai jos)
+  // pastreaza raportul, in loc de comportamentul liber implicit.
+  const [cropAspect, setCropAspect] = useState<number | null>(null);
   const cropModeActive = cropDraft !== null;
   const cropDragRef = useRef<{ mode: CropDragMode; startX: number; startY: number; startBox: CropBox } | null>(null);
 
@@ -120,6 +157,7 @@ export function EditPanel() {
     setAnalysisLoaded(false);
     autoAppliedRef.current = false;
     setCropDraft(null);
+    setCropAspect(null);
     let alive = true;
     void getCachedPreviewUrl(photo.id).then(url => {
       if (!alive || !url) return;
@@ -285,9 +323,11 @@ export function EditPanel() {
   // Porneste modul de recadrare manuala, pornind de la recadrarea deja
   // existenta (auto sau manuala anterioara) daca exista una, altfel de la
   // cadrul intreg — utilizatorul rafineaza ce e deja acolo, nu reincepe de la 0.
-  const startCrop = () => setCropDraft(adjustments.crop ?? FULL_CROP);
+  // Porneste mereu pe "Liber" (cropAspect=null) — un raport fix e o alegere
+  // explicita per sesiune de recadrare, nu ceva retinut intre poze.
+  const startCrop = () => { setCropAspect(null); setCropDraft(adjustments.crop ?? FULL_CROP); };
   const cancelCrop = () => { cropDragRef.current = null; setCropDraft(null); };
-  const clearCropDraft = () => setCropDraft(FULL_CROP);
+  const clearCropDraft = () => { setCropAspect(null); setCropDraft(FULL_CROP); };
   const applyCrop = () => {
     if (!cropDraft) return;
     // Cadru practic intreg (utilizatorul a tras caseta inapoi la marginile
@@ -301,6 +341,20 @@ export function EditPanel() {
     void setEditAdjustments(photo.id, next);
     cropDragRef.current = null;
     setCropDraft(null);
+  };
+
+  // Selectarea unei presetari (1:1/4:5/3:4/16:9) re-centreaza imediat caseta
+  // pe raportul ales (vezi boxForAspect/normalizedBoxRatio) — utilizatorul
+  // vede pe loc rezultatul, nu doar o "blocare" tacuta a raportului pentru
+  // urmatorul drag. "Liber" (ratio null) doar deblocheaza constrangerea,
+  // fara sa schimbe caseta curenta.
+  const applyCropPreset = (ratio: number | null) => {
+    setCropAspect(ratio);
+    if (ratio === null || !imgEl || !cropDraft) return;
+    const normR = normalizedBoxRatio(ratio, imgEl.naturalWidth, imgEl.naturalHeight);
+    const cx = cropDraft.x + cropDraft.width / 2;
+    const cy = cropDraft.y + cropDraft.height / 2;
+    setCropDraft(boxForAspect(normR, cx, cy));
   };
 
   /**
@@ -334,6 +388,29 @@ export function EditPanel() {
         ...b,
         x: clamp01(b.x + dx, 0, 1 - b.width),
         y: clamp01(b.y + dy, 0, 1 - b.height)
+      };
+    } else if (cropAspect !== null && imgEl) {
+      // Redimensionare cu raport BLOCAT (presetare aleasa) — coltul opus celui
+      // tras (`anchor`) ramane fix, latimea se deriva din distanta pana la
+      // pointer, inaltimea din raport (normalizat la pixelii reali ai pozei,
+      // vezi normalizedBoxRatio), clampata sa incapa in spatiul disponibil
+      // intre ancora si marginea cadrului pe fiecare axa.
+      const normR = normalizedBoxRatio(cropAspect, imgEl.naturalWidth, imgEl.naturalHeight);
+      const isLeftHandle = drag.mode === 'nw' || drag.mode === 'sw';
+      const isTopHandle = drag.mode === 'nw' || drag.mode === 'ne';
+      const anchorX = isLeftHandle ? b.x + b.width : b.x;
+      const anchorY = isTopHandle ? b.y + b.height : b.y;
+      const rawCornerX = isLeftHandle ? b.x + dx : b.x + b.width + dx;
+      const rawCornerY = isTopHandle ? b.y + dy : b.y + b.height + dy;
+      const maxWidth = Math.max(MIN_CROP_SIZE, isLeftHandle ? anchorX : 1 - anchorX);
+      const maxHeight = Math.max(MIN_CROP_SIZE, isTopHandle ? anchorY : 1 - anchorY);
+      let width = clamp01(Math.abs(rawCornerX - anchorX), MIN_CROP_SIZE, maxWidth);
+      let height = width / normR;
+      if (height > maxHeight) { height = maxHeight; width = height * normR; }
+      next = {
+        x: isLeftHandle ? anchorX - width : anchorX,
+        y: isTopHandle ? anchorY - height : anchorY,
+        width, height
       };
     } else {
       let { x, y, width, height } = b;
@@ -407,7 +484,10 @@ export function EditPanel() {
               (vezi .edit-canvas-wrap in @media (max-width:760px) din styles.css)
               tine poza fixata sus in timp ce doar lista de slidere scroleaza pe
               sub ea. */}
-          <div className="edit-canvas-wrap" style={imgEl ? { aspectRatio: `${imgEl.naturalWidth} / ${imgEl.naturalHeight}` } : undefined}>
+          <div
+            className={cropDraft ? 'edit-canvas-wrap cropping' : 'edit-canvas-wrap'}
+            style={imgEl ? { aspectRatio: `${imgEl.naturalWidth} / ${imgEl.naturalHeight}` } : undefined}
+          >
             {/* Bug real gasit de auditul QA: singurul loc din aplicatie unde poza e
                 afisata fara nicio alternativa text pentru un cititor de ecran —
                 DetailView/Workspace/etc au toate alt={photo.fileName}, doar canvas-ul
@@ -416,12 +496,26 @@ export function EditPanel() {
             <canvas ref={canvasRef} className="edit-canvas" role="img" aria-label={photo.fileName} />
             {!imgEl && <span className="card-loading edit-canvas-loading" aria-hidden="true" />}
             {cropDraft && (
+              /* Bug real raportat de utilizator: handle-urile de colt erau abia
+                 apucabile — stateau exact pe marginea lui .edit-canvas-wrap, care
+                 avea overflow:hidden (pentru coltul rotunjit al preview-ului),
+                 asa ca jumatate din cercul fiecarui handle era pur si simplu
+                 DECUPATA acolo unde caseta ajungea la marginea cadrului (foarte
+                 comun — multe recadrari ating cel putin o margine). `.cropping`
+                 (mai sus) trece wrap-ul pe overflow:visible cat timp se editeaza,
+                 iar masca de intunecare nu mai foloseste trucul cu box-shadow
+                 (care avea nevoie de overflow:hidden ca sa se decupeze singur),
+                 ci 4 dreptunghiuri separate — vezi .crop-mask mai jos. */
               <div
                 className="crop-overlay"
                 onPointerMove={onCropOverlayMove}
                 onPointerUp={onCropOverlayUp}
                 onPointerCancel={onCropOverlayUp}
               >
+                <div className="crop-mask" style={{ left: 0, top: 0, right: 0, height: `${cropDraft.y * 100}%` }} />
+                <div className="crop-mask" style={{ left: 0, top: `${(cropDraft.y + cropDraft.height) * 100}%`, right: 0, bottom: 0 }} />
+                <div className="crop-mask" style={{ left: 0, top: `${cropDraft.y * 100}%`, width: `${cropDraft.x * 100}%`, height: `${cropDraft.height * 100}%` }} />
+                <div className="crop-mask" style={{ left: `${(cropDraft.x + cropDraft.width) * 100}%`, top: `${cropDraft.y * 100}%`, right: 0, height: `${cropDraft.height * 100}%` }} />
                 <div
                   className="crop-box"
                   style={{
@@ -439,7 +533,21 @@ export function EditPanel() {
             )}
           </div>
           {cropDraft ? (
-            <p className="edit-crop-hint">{tr('edit.crop.hint')}</p>
+            <div className="edit-crop-panel">
+              <div className="edit-crop-presets" role="group" aria-label={tr('edit.crop')}>
+                {CROP_PRESETS.map(({ key, labelKey, ratio }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className={cropAspect === ratio ? 'chip active' : 'chip'}
+                    onClick={() => applyCropPreset(ratio)}
+                  >
+                    {tr(labelKey)}
+                  </button>
+                ))}
+              </div>
+              <p className="edit-crop-hint">{tr('edit.crop.hint')}</p>
+            </div>
           ) : (
             <div className="edit-sliders">
               {SLIDERS.map(({ key, min, max }) => (
