@@ -2469,26 +2469,37 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .edit-modal { display: flex; flex-direction: column; height: 94dvh; max-height: 94dvh; overflow: hidden; }
   .edit-modal > .detail-head { flex: 0 0 auto; }
   /* Bug real raportat de utilizator: 4 butoane (Auto/Recadrare/Reseteaza/X)
-     nu mai incapeau pe un singur rand pe un telefon ingust — .ghost are
-     flex-shrink:0 (deliberat, ca textul/iconul butoanelor sa nu se
-     striveasca), asa ca fara flex-wrap ultimul buton (X) pur si simplu
-     iesea din cadrul tab-ului, in loc sa treaca pe randul urmator. */
-  .edit-modal .contact-sheet-header-actions { flex-wrap: wrap; justify-content: flex-end; row-gap: 8px; }
+     nu mai incapeau pe un singur rand pe un telefon ingust. Titlul
+     ("Editare de baza") nu aduce nicio informatie noua cat timp panoul e
+     deja deschis — pe mobil, unde spatiul e limitat, e mai util eliberat
+     complet pentru butoane decat pastrat (chiar trunchiat cu "..."). Impreuna
+     cu padding/gap usor mai stranse pe aceste 4 butoane, incap pe UN singur
+     rand pe majoritatea telefoanelor; flex-wrap ramane totusi ca plasa de
+     siguranta — mai bine un al doilea rand decat un buton (X) impins in
+     afara tab-ului, cum se intampla inainte fara el. */
+  .edit-modal .detail-head span:first-child { display: none; }
+  .edit-modal .contact-sheet-header-actions { flex-wrap: wrap; justify-content: flex-end; gap: 6px; row-gap: 8px; }
+  .edit-modal .contact-sheet-header-actions .small-btn { padding: 7px 8px; font-size: 0.8rem; }
+  /* Bug real raportat de utilizator: pe o singura coloana, cele 10 slidere
+     cereau mult scroll ca sa ajunga la ultimele (Claritate/Accentuare/
+     Reducere zgomot) — 2 coloane injumatatesc numarul de randuri (5 in loc
+     de 10), vizibile mult mai multe dintr-o singura privire. Fiecare
+     .edit-slider-row isi pastreaza propriul grid intern (nume+valoare
+     deasupra, range dedesubt, vezi regula de baza) — aici se schimba doar
+     CATE randuri incap unul langa altul. */
+  .edit-sliders { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; }
   .edit-body { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; grid-template-columns: none; }
-  /* Bug real raportat de utilizator: fostul max-height:42vh de aici, combinat
-     cu aspect-ratio (setat inline din poza reala), ii micsora si LATIMEA —
-     pentru o poza portret (mai inalta decat lata), limitarea inaltimii trage
-     dupa ea si latimea proportional (o cutie cu aspect-ratio fix nu poate
-     respecta un plafon de inaltime fara sa devina mai ingusta ca sa pastreze
-     raportul), lasand un gol negru vizibil in dreapta — indiferent de
-     align-items pe parinte, aceasta recalculare vine direct din interactiunea
-     aspect-ratio + max-height, nu dintr-o problema de aliniere. Fara niciun
-     plafon de inaltime aici, poza ramane mereu la latimea INTREAGA a coloanei
-     (flex:0 0 auto ii da inaltimea naturala rezultata din acea latime);
-     .edit-sliders de mai jos (flex:1 1 auto + min-height:0) primeste orice
-     spatiu ramane si scroleaza singur daca nu ajunge — inclusiv in cazul rar
-     al unei poze extrem de inalte, unde sliderele ar primi doar o fasie mica
-     de scrollat, dar latimea pozei nu se mai micsoreaza NICIODATA. */
-  .edit-canvas-wrap { flex: 0 0 auto; box-shadow: 0 10px 18px -12px rgb(0 0 0 / 0.6); }
+  /* Bug real raportat de utilizator, a doua incercare: fara niciun plafon,
+     poza (la latime intreaga) ajungea sa ocupe aproape tot spatiul vertical
+     disponibil pe o poza portret obisnuita, lasand vizibile doar 2-3 slidere
+     — utilizatorul a cerut explicit o poza mai mica, in avantajul
+     sliderelor. Un plafon de inaltime pe o cutie cu aspect-ratio fix ii
+     reduce si latimea proportional (vezi comentariul mai vechi despre
+     acelasi mecanism) — de data asta e intentionat si acceptat, nu mai e
+     un bug: 44vh lasa poza clar vizibila, dar mult mai mult spatiu pentru
+     lista de slidere (acum pe 2 coloane) dedesubt. align-self:center o
+     reaseaza pe mijloc (nu lipita de marginea stanga) ori de cate ori
+     latimea rezultata ajunge sub latimea intreaga a coloanei. */
+  .edit-canvas-wrap { flex: 0 0 auto; max-height: 44vh; align-self: center; box-shadow: 0 10px 18px -12px rgb(0 0 0 / 0.6); }
   .edit-sliders, .edit-crop-panel { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 }
