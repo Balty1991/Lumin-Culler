@@ -7,7 +7,6 @@ import { Workspace } from './ui/Workspace';
 import { GroupCompare } from './ui/GroupCompare';
 import { PersonsPanel } from './ui/PersonsPanel';
 import { MenuDrawer } from './ui/MenuDrawer';
-import { LocaleToggle } from './ui/LocaleToggle';
 import { InsightsPanel } from './ui/InsightsPanel';
 import { BatchOpsPanel } from './ui/BatchOpsPanel';
 import { StatsPanel } from './ui/StatsPanel';
@@ -27,9 +26,9 @@ import { CullGauge } from './ui/CullGauge';
 import { AiBootScreen } from './ui/AiBootScreen';
 import { Tooltip } from './ui/Tooltip';
 import { StarRating } from './ui/StarRating';
-import { MenuIcon, PlusIcon, UserCheckIcon, AlertIcon, ErrorIcon, XIcon, FocusIcon, SearchIcon, ApertureIcon, SparkleIcon, CheckIcon, EditIcon, GridIcon, ClockIcon, LayersIcon, EyeClosedIcon, SunIcon, DownloadIcon, StarIcon, TagIcon } from './ui/icons';
+import { MenuIcon, PlusIcon, UserCheckIcon, AlertIcon, ErrorIcon, XIcon, FocusIcon, SearchIcon, ApertureIcon, SparkleIcon, CheckIcon, EditIcon, GridIcon, ClockIcon, LayersIcon, EyeClosedIcon, SunIcon, DownloadIcon, StarIcon, TagIcon, TrashIcon } from './ui/icons';
 import { UndoHistoryButton } from './ui/UndoHistoryButton';
-import { selectHighlights, selectBlinks } from './state/batchOps';
+import { selectHighlights, selectBlinks, selectDeletableRejected } from './state/batchOps';
 import { CARD_MIN_WIDTH } from './state/gridDensity';
 import { SORT_KEY_LABELS, type SortKey } from './state/gridSort';
 import { pickImportFiles } from './core/filePicker';
@@ -192,6 +191,8 @@ function epochToDateInput(epoch: number | null): string {
 export default function App() {
   const boot = useStore(s => s.boot);
   const photos = useStore(s => s.photos);
+  const setBatchOpsOpen = useStore(s => s.setBatchOpsOpen);
+  const deletableRejectedCount = useMemo(() => selectDeletableRejected(photos).deletable.length, [photos]);
   const progress = useStore(s => s.progress);
   const filter = useStore(s => s.filter);
   const setFilter = useStore(s => s.setFilter);
@@ -715,7 +716,6 @@ export default function App() {
           >
             <DownloadIcon className="inline-icon" aria-hidden="true" /> {tr('app.export', { count: counts.selected })}
           </button>
-          <LocaleToggle />
           <Tooltip label={tr('app.tooltip.menu')} side="left">
             <button className="ghost icon-btn" onClick={() => setMenuOpen(true)} aria-label={tr('app.menu.ariaLabel')}>
               <MenuIcon />
@@ -821,6 +821,19 @@ export default function App() {
                   <SceneTagFilter />
                   <CameraFilter />
                   <SavedFiltersMenu />
+                  {isNativeMediaLibraryAvailable() && (
+                    <>
+                      <div className="more-filters-divider" />
+                      <button
+                        className="chip danger"
+                        onClick={() => { setBatchOpsOpen(true); close(); }}
+                      >
+                        <TrashIcon className="chip-icon" aria-hidden="true" />
+                        {tr('menu.deleteRejected')}
+                        {deletableRejectedCount > 0 && <b className="chip-count">{deletableRejectedCount}</b>}
+                      </button>
+                    </>
+                  )}
                 </>
               )}
             </MoreFiltersMenu>

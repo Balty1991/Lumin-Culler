@@ -50,7 +50,7 @@ export function WelcomeOnboarding() {
           <XIcon />
         </button>
         <div className="welcome-onboarding-locale">
-          <LocaleToggle side="bottom" />
+          <LocaleToggle />
         </div>
 
         <div className="core" aria-hidden="true">
