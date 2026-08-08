@@ -351,6 +351,7 @@ export function toHashInput(id: string, dHash: string, a: AnalysisRecord): HashI
     groupEyesOpenRatio: a.groupEyesOpenRatio,
     avgEyeContact: a.avgEyeContact,
     faceEmbeddings: a.faces.map(f => f.embedding).filter((e): e is number[] => !!e && e.length > 0),
+    imageEmbedding: a.imageEmbedding,
     colorHarmonyScore: a.colorHarmonyScore
   };
 }

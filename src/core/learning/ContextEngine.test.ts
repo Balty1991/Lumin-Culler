@@ -101,6 +101,13 @@ describe('explainFactors', () => {
       { label: 'ISO redus', positive: true }
     ]);
   });
+
+  it('applies the same absence/presence distinction to bodyCroppedAtEdge (pose-based limb-crop signal)', () => {
+    expect(explainFactors([{ feature: 'bodyCroppedAtEdge', contribution: 0.2 }]))
+      .toEqual([{ label: 'Nimic taiat de cadru', positive: true }]);
+    expect(explainFactors([{ feature: 'bodyCroppedAtEdge', contribution: -0.2 }]))
+      .toEqual([{ label: 'Membru taiat de cadru', positive: false }]);
+  });
 });
 
 // Bug real raportat: poze de peisaj/natura bune, respinse de AI. Cauza: pentru
@@ -185,6 +192,21 @@ describe('extractFeatures', () => {
   it('falls back to the neutral 0.5 for a face-less photo when the tilt could not be estimated', () => {
     const features = extractFeatures(baseAnalysis({ faceCount: 0, faces: [], horizonTiltDeg: undefined }));
     expect(features.horizonLevel).toBe(0.5);
+  });
+
+  // bodyCroppedAtEdge (Android nativ, PoseDetection) — absent pe web/PWA si pe
+  // inregistrari mai vechi, tratat neutru (0.5), la fel ca subjectInFocus/
+  // bokehQuality mai sus, nu "asumat fara defect" (0).
+  it('defaults bodyCroppedAtEdge to the neutral 0.5 when the signal was never computed (web, or older records)', () => {
+    const features = extractFeatures(baseAnalysis({ sceneType: 'portrait', faceCount: 1, bodyCroppedAtEdge: undefined }));
+    expect(features.bodyCroppedAtEdge).toBe(0.5);
+  });
+
+  it('reflects a real bodyCroppedAtEdge value (true/false) as 1/0', () => {
+    const cropped = extractFeatures(baseAnalysis({ sceneType: 'portrait', faceCount: 1, bodyCroppedAtEdge: true }));
+    const clean = extractFeatures(baseAnalysis({ sceneType: 'portrait', faceCount: 1, bodyCroppedAtEdge: false }));
+    expect(cropped.bodyCroppedAtEdge).toBe(1);
+    expect(clean.bodyCroppedAtEdge).toBe(0);
   });
 });
 

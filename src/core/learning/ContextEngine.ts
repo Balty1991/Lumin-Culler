@@ -98,6 +98,10 @@ const PRIOR_WEIGHTS: FeatureVector = {
   // fara zambet/surpriza reala) — vezi isAwkwardExpression in worker.
   // Pondere negativa modesta, in acelasi spirit ca strangerPenalty/clipping.
   groupAwkwardRatio: -0.3,
+  // "defect": o extremitate (mana/picior) pare taiata de marginea cadrului —
+  // vezi hasAwkwardBodyCrop in nativeAnalysis.ts (doar Android nativ, NEVERIFICAT
+  // pe date reale). Pondere negativa modesta, acelasi spirit ca groupAwkwardRatio.
+  bodyCroppedAtEdge: -0.3,
   // zambet AUTENTIC (nu doar "cat de mult zambeste") — vezi worker pentru
   // datele de calibrare reale; pondere pozitiva modesta, bonus separat de
   // bestSmile/groupSmileRatio, nu inlocuieste-le.
@@ -189,6 +193,7 @@ const PRIOR_FEATURE_STATS: Record<string, { mean: number; std: number }> = {
   groupEyesOpenRatio: { mean: 0.75, std: 0.3 },
   groupSmileRatio: { mean: 0.4, std: 0.3 },
   groupAwkwardRatio: { mean: 0.15, std: 0.3 },
+  bodyCroppedAtEdge: { mean: 0.1, std: 0.3 },
   groupGenuineSmileRatio: { mean: 0.25, std: 0.35 },
   groupCatchlightRatio: { mean: 0.4, std: 0.35 },
   groupSkinToneNaturalRatio: { mean: 0.7, std: 0.3 },
@@ -232,7 +237,7 @@ const FACTOR_FEATURES = new Set([
   'highlightClipping', 'shadowClipping', 'horizonLevel', 'isoPenalty', 'apertureRaw',
   'shutterSpeedRaw', 'focalLengthRaw', 'compositionScore', 'leadingLines', 'symmetry',
   'negativeSpace', 'lightHard', 'lightSoft', 'goldenHour', 'subjectInFocus',
-  'bokehQuality', 'colorHarmony'
+  'bokehQuality', 'colorHarmony', 'bodyCroppedAtEdge'
 ]);
 
 /**
@@ -248,7 +253,7 @@ const FACTOR_FEATURES = new Set([
  * chiar a fost prezent si a costat scorul; `factor.<feature>.pos` pentru
  * contributie pozitiva = absenta lui a ajutat), alese in functie de semn.
  */
-const INVERTED_SENSE_FEATURES = new Set(['highlightClipping', 'shadowClipping', 'strangerPenalty', 'isoPenalty', 'groupAwkwardRatio']);
+const INVERTED_SENSE_FEATURES = new Set(['highlightClipping', 'shadowClipping', 'strangerPenalty', 'isoPenalty', 'groupAwkwardRatio', 'bodyCroppedAtEdge']);
 
 function factorLabel(locale: Locale, feature: string, positive = false): string {
   if (!FACTOR_FEATURES.has(feature)) return feature;
@@ -292,7 +297,7 @@ export function explainFactors(
 export const FACE_ONLY_FEATURES = [
   'bestSmile', 'allEyesOpen', 'faceCount', 'knownFaceRatio', 'strangerPenalty', 'faceScore',
   'ruleOfThirds', 'headroom', 'groupEyesOpenRatio', 'groupSmileRatio', 'groupAwkwardRatio', 'groupGenuineSmileRatio', 'groupCatchlightRatio', 'groupSkinToneNaturalRatio', 'avgEyeContact',
-  'avgEngagement', 'subjectInFocus', 'bokehQuality'
+  'avgEngagement', 'subjectInFocus', 'bokehQuality', 'bodyCroppedAtEdge'
 ] as const;
 
 /**
@@ -388,6 +393,10 @@ export function extractFeatures(a: AnalysisRecord): FeatureVector {
     features.avgEngagement = a.avgEngagement ?? 0.5;
     features.subjectInFocus = a.subjectInFocus === undefined ? 0.5 : (a.subjectInFocus ? 1 : 0);
     features.bokehQuality = a.bokehQuality === 'good' ? 1 : a.bokehQuality === 'poor' ? 0 : 0.5;
+    // Android nativ, NEVERIFICAT pe date reale (vezi hasAwkwardBodyCrop in
+    // nativeAnalysis.ts) — absent pe web/PWA si pe inregistrari mai vechi,
+    // tratat neutru (0.5), nu "asumat fara defect" (0), acelasi tipar ca restul.
+    features.bodyCroppedAtEdge = a.bodyCroppedAtEdge === undefined ? 0.5 : (a.bodyCroppedAtEdge ? 1 : 0);
   } else {
     // orizont: convertit din grade in scor 0..1 (1 = perfect drept); 0.5 neutru
     // cand nu s-a putut estima (prea putine muchii clare) — vezi LANDSCAPE_ONLY_FEATURES

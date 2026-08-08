@@ -37,6 +37,8 @@ import { analyzeImageNative } from './nativeImageAnalysis';
 import { labelImageNative } from './nativeImageLabeling';
 import { analyzeFaceMeshNative, type NativeFaceMeshInsight } from './nativeFaceMesh';
 import { detectTextNative } from './nativeTextRecognition';
+import { embedImageNative } from './nativeImageEmbedder';
+import { detectPoseNative, type NativePose } from './nativePoseDetection';
 import { pickFolderSceneTag } from './sceneTagLabels';
 
 /**
@@ -191,6 +193,42 @@ function faceMeshGroupStats(
 }
 
 /**
+ * Indicii MediaPipe Pose Landmarker (33 de puncte) pentru extremitati — maini/
+ * incheieturi si picioare/glezne, exact partile care se "pierd" primele cand
+ * cadrul taie un subiect prea aproape. Umeri/solduri/genunchi raman in afara —
+ * un genunchi taiat de cadru e o alegere de compozitie obisnuita, nu un defect.
+ */
+const EXTREMITY_LANDMARK_INDICES = [15, 16, 17, 18, 19, 20, 21, 22, 27, 28, 29, 30, 31, 32];
+/** Cat de aproape de marginea cadrului (fractiune normalizata) conteaza "posibil taiat". */
+const EDGE_MARGIN = 0.03;
+/** Sub aceasta incredere de vizibilitate, MediaPipe considera ca probabil a EXTRAPOLAT punctul (nu l-a vazut cu-adevarat). */
+const LOW_VISIBILITY_THRESHOLD = 0.5;
+
+/**
+ * true daca vreo persoana detectata pare sa aiba o mana/picior taiat de
+ * marginea cadrului — combina "aproape de margine" CU "incredere scazuta",
+ * fiindca multe poze au deliberat o mana/picior aproape de margine dar clar
+ * vizibil (incredere mare); doar combinatia sugereaza ca MediaPipe a
+ * EXTRAPOLAT punctul dincolo de cadru, semn ca partea reala a fost taiata.
+ * NEVERIFICAT pe un set mare de poze reale (la fel ca alte praguri din acest
+ * fisier bazate pe comportamentul documentat, nu calibrat empiric, al
+ * modelului) — primul loc de recalibrat daca la testare pe device se
+ * dovedeste prea sensibil/insensibil.
+ */
+function hasAwkwardBodyCrop(people: NativePose[]): boolean {
+  for (const pose of people) {
+    for (const idx of EXTREMITY_LANDMARK_INDICES) {
+      const lm = pose.landmarks[idx];
+      if (!lm) continue;
+      const nearEdge = lm.x < EDGE_MARGIN || lm.x > 1 - EDGE_MARGIN || lm.y < EDGE_MARGIN || lm.y > 1 - EDGE_MARGIN;
+      const lowConfidence = (lm.visibility ?? 1) < LOW_VISIBILITY_THRESHOLD;
+      if (nearEdge && lowConfidence) return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Ruleaza recunoasterea per-fata (vezi header-ul fisierului) si muteaza
  * FIECARE FaceInsight din `faces` in-place cu rezultatul — index-uri identice
  * cu `faceResult.faces` (ambele construite din aceeasi lista ML Kit, in
@@ -266,6 +304,19 @@ export async function analyzeNative(
     ? faceMeshGroupStats((await analyzeFaceMeshNative(blob)).faces)
     : {};
 
+  // Embedding general de similaritate — vezi AnalysisRecord.imageEmbedding:
+  // doar pentru poze FARA fete (cu fete, embedding-urile faciale sunt deja
+  // semnalul puternic pentru rafinarea seriilor in hashCompare.worker.ts).
+  const imageEmbedding = faces.length === 0
+    ? (await embedImageNative(blob)).embedding
+    : undefined;
+
+  // Postura — vezi AnalysisRecord.bodyCroppedAtEdge: doar cand exista fete
+  // (postura n-are subiect de verificat pe un peisaj/obiect).
+  const bodyCroppedAtEdge = faces.length > 0
+    ? hasAwkwardBodyCrop((await detectPoseNative(blob)).people)
+    : undefined;
+
   // OCR rulat cand nu exista fete SI nu exista nicio eticheta de scena
   // CONCRETA (pickFolderSceneTag ignora etichetele abstracte/non-subiect, ex.
   // "Text", "Photography", "Paper" — vezi NON_FOLDER_SCENE_TAGS in
@@ -304,6 +355,8 @@ export async function analyzeNative(
     ...imageAnalysis,
     ...meshStats,
     ...(sceneTags.length ? { sceneTags } : {}),
-    ...(textCoverage !== undefined ? { textCoverage } : {})
+    ...(textCoverage !== undefined ? { textCoverage } : {}),
+    ...(imageEmbedding ? { imageEmbedding } : {}),
+    ...(bodyCroppedAtEdge !== undefined ? { bodyCroppedAtEdge } : {})
   };
 }

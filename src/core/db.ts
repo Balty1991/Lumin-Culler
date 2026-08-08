@@ -356,6 +356,27 @@ export interface AnalysisRecord {
    * fara sa fie marcate distinct. Absent pe web/PWA (pipeline-ul JS nu are OCR).
    */
   textCoverage?: number;
+  /**
+   * Embedding general de similaritate vizuala (continut, NU identitate) —
+   * MediaPipe Image Embedder + MobileNetV3-small (core/nativeImageEmbedder.ts).
+   * Doar Android nativ, si doar cand faceCount === 0: pentru poze CU fete,
+   * embedding-urile faciale (FaceInsight.embedding) sunt deja semnalul
+   * puternic folosit de hashCompare.worker.ts la rafinarea seriilor/duplicatelor;
+   * acesta acopera exact golul ramas — rafale FARA oameni (peisaje, animale),
+   * care altfel cad pe un semnal mult mai slab (compozitie/armonie culori).
+   */
+  imageEmbedding?: number[];
+  /**
+   * true daca cel putin o persoana detectata (MediaPipe Pose Landmarker,
+   * core/nativePoseDetection.ts) pare sa aiba o extremitate (mana/incheietura
+   * sau picior/glezna) taiata de marginea cadrului — landmark aproape de
+   * margine SI cu incredere de vizibilitate scazuta (MediaPipe extrapoleaza
+   * punctele din afara cadrului, cu incredere redusa). Doar Android nativ, si
+   * doar cand faceCount > 0 (fara consumator pentru poze fara oameni). NU
+   * verificat pe un set mare de poze reale — o prima aproximare rezonabila,
+   * de recalibrat daca la testare pe device se dovedeste prea sensibila/insensibila.
+   */
+  bodyCroppedAtEdge?: boolean;
 }
 
 /**

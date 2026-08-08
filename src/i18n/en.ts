@@ -719,6 +719,8 @@ export const en: Record<TranslationKey, string> = {
   'factor.groupSmileRatio': 'Smiles (group)',
   'factor.groupAwkwardRatio': 'Awkward expressions (group)',
   'factor.groupAwkwardRatio.pos': 'No awkward expressions',
+  'factor.bodyCroppedAtEdge': 'Limb cropped by frame',
+  'factor.bodyCroppedAtEdge.pos': 'Nothing cropped by frame',
   'factor.groupGenuineSmileRatio': 'Genuine smile',
   'factor.groupCatchlightRatio': 'Catchlight (light in the eyes)',
   'factor.groupSkinToneNaturalRatio': 'Natural skin tone',
