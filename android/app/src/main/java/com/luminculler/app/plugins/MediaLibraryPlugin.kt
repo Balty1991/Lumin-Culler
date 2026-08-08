@@ -131,7 +131,20 @@ class MediaLibraryPlugin : Plugin() {
             return
         }
         try {
-            val uris = uriStrings.map(Uri::parse)
+            // Confirmat pe device real: createDeleteRequest() respinge cu
+            // "All requested items must be referenced by specific ID" cand
+            // primeste URI-uri SAF de document (content://com.android.
+            // providers.media.documents/document/image:123, exact ce intoarce
+            // ACTION_OPEN_DOCUMENT/pickPhotos() de mai sus) — are nevoie de
+            // URI-uri MediaStore propriu-zise (content://media/external/
+            // images/media/123). MediaStore.getMediaUri() e conversia oficiala
+            // pentru exact acest caz (document MediaProvider -> MediaStore);
+            // daca un URI nu vine de la MediaProvider (alt furnizor SAF), intoarce
+            // null si pastram URI-ul original ca ultima incercare.
+            val uris = uriStrings.map { s ->
+                val uri = Uri.parse(s)
+                MediaStore.getMediaUri(context, uri) ?: uri
+            }
             val pendingIntent = MediaStore.createDeleteRequest(context.contentResolver, uris)
             pendingDeleteCall = call
             deleteLauncher.launch(IntentSenderRequest.Builder(pendingIntent.intentSender).build())

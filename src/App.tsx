@@ -455,10 +455,6 @@ export default function App() {
     if (isNativeMediaLibraryAvailable()) {
       try {
         const photos = await pickNativePhotos();
-        // TODO(debug temporar): de scos dupa ce confirmam pe device ca mediaUri
-        // chiar ajunge pe PhotoRecord — vezi discutia din sesiune despre
-        // "Sterge pozele respinse" raportand 0 poze eligibile dupa import nativ.
-        setNotice(`[debug] selector nativ: ${photos.length} poze — ${photos.length ? photos.map(p => p.uri).join(' | ') : 'niciuna (anulat sau 0 rezultate)'}`);
         // O selectie goala aici e o ANULARE deliberata a utilizatorului din
         // dialogul nativ — nu trebuie sa deschidem imediat DUPA un al doilea
         // selector ca "plasa de siguranta"; acel fallback ramane doar pentru
@@ -466,14 +462,11 @@ export default function App() {
         if (photos.length) void runImport(photos.map(p => p.file), undefined, photos.map(p => p.uri));
         return;
       } catch (err) {
-        setNotice(`[debug] selectorul nativ a esuat: ${err instanceof Error ? err.message : String(err)}`);
         console.warn('Selectorul nativ de poze a esuat, revenim la API-ul de desktop / <input type="file">:', err);
       }
     }
     const picked = await pickImportFiles();
     if (picked) {
-      // TODO(debug temporar): de scos odata cu celalalt debug de mai sus.
-      setNotice(`[debug] pickImportFiles (API desktop) a raspuns cu ${picked.files.length} fisiere — aceasta cale NU seteaza mediaUri.`);
       if (picked.files.length) void runImport(picked.files, picked.handles);
       return;
     }
