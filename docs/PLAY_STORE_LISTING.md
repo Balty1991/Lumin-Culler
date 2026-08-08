@@ -25,9 +25,9 @@ Culling foto AI, 100% local: alege rapid cele mai bune poze din sedinte
 
 ### Descriere lunga (max 4000 caractere)
 ```
-Lumin Culler Pro e o aplicatie de sortare si selectie a fotografiilor (culling)
-gandita pentru fotografi care se intorc dintr-o sedinta cu sute sau mii de poze
-si nu vor sa piarda ore alegand manual cele mai bune cadre.
+Lumin Culler Pro e o aplicatie de sortare si selectie a fotografiilor (culling):
+te intorci dintr-o vacanta, o petrecere sau o sedinta foto cu sute sau mii de
+poze pe telefon si nu vrei sa pierzi ore alegand manual cele mai bune cadre.
 
 Toata inteligenta artificiala ruleaza DIRECT PE TELEFON. Nicio poza, nicio fata
 si nicio metadata nu parasesc vreodata dispozitivul tau — nu exista upload catre
@@ -68,10 +68,11 @@ CE FACE APLICATIA
 
 PENTRU CINE E
 
-Fotografi profesionisti si amatori pasionati care fac sedinte foto (nunti,
-evenimente, portrete, sport, peisaj) si vor un instrument rapid, privat si
-inteligent care invata cum aleg ei, in loc sa aplice o formula generica pentru
-toata lumea.
+Pentru oricine se trezeste cu sute de poze dupa o iesire — parinti care
+fotografiaza copiii, calatori, oameni de la evenimente — la fel de bine ca
+pentru fotografi profesionisti si amatori pasionati (nunti, evenimente,
+portrete, sport, peisaj). Un instrument rapid, privat si inteligent care
+invata cum alegi TU, in loc sa aplice o formula generica pentru toata lumea.
 
 CONFIDENTIALITATE
 
@@ -95,9 +96,9 @@ AI photo culling, 100% on-device: pick your best shots fast, privately
 
 ### Full description (max 4000 characters)
 ```
-Lumin Culler Pro is a photo culling and selection app built for photographers
-coming back from a shoot with hundreds or thousands of photos who don't want
-to spend hours manually picking the best frames.
+Lumin Culler Pro is a photo culling and selection app: you come back from a
+trip, a party, or a shoot with hundreds or thousands of photos on your phone,
+and you don't want to spend hours manually picking the best frames.
 
 All the AI runs DIRECTLY ON YOUR PHONE. No photo, face, or metadata ever
 leaves your device — no server upload, no mandatory account, no ads, no
@@ -139,10 +140,11 @@ WHAT IT DOES
 
 WHO IT'S FOR
 
-Professional and enthusiast photographers doing shoots (weddings, events,
-portraits, sports, landscapes) who want a fast, private, smart tool that
-learns how THEY choose, instead of applying a generic one-size-fits-all
-formula.
+Anyone who ends up with hundreds of photos after a day out — parents
+photographing their kids, travelers, people covering events — just as much
+as professional and enthusiast photographers doing shoots (weddings, events,
+portraits, sports, landscapes). A fast, private, smart tool that learns how
+YOU choose, instead of applying a generic one-size-fits-all formula.
 
 PRIVACY
 

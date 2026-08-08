@@ -1265,6 +1265,18 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .confirm-dialog-input:focus { outline: none; border-color: var(--accent); }
 .confirm-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
+/* ── Ecran de bun venit (o singura data, vezi state/welcomeOnboarding.ts) ── */
+.welcome-onboarding {
+  position: relative; text-align: center; display: grid; gap: 10px; justify-items: center; padding-top: 8px;
+}
+.welcome-onboarding-skip { position: absolute; top: 0; right: 0; }
+.welcome-onboarding-body { margin: 0; color: var(--text-dim); font-size: 0.92rem; line-height: 1.5; max-width: 34ch; }
+.welcome-onboarding-dots { display: flex; gap: 6px; margin-top: 4px; }
+.welcome-onboarding-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--line-strong); transition: background var(--micro), transform var(--micro); }
+.welcome-onboarding-dot.active { background: var(--accent); transform: scale(1.3); }
+.welcome-onboarding-actions { display: flex; justify-content: center; gap: 8px; margin-top: 8px; width: 100%; }
+.welcome-onboarding-actions .btn-accent { flex: 1; max-width: 200px; }
+
 /* pastile pline, discrete — accent doar din fundal/text, fara contur dur */
 .status-tag {
   font-family: var(--mono); font-size: 0.66rem; font-weight: 700; letter-spacing: 0.03em;
