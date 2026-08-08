@@ -1,26 +1,19 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, lazy, Suspense, type ComponentType, type CSSProperties, type ReactNode } from 'react';
 import { useStore, type FilterKey } from './state/store';
 import { PhotoCard } from './ui/PhotoCard';
 import { VirtualPhotoGrid } from './ui/VirtualPhotoGrid';
 import { DetailView } from './ui/DetailView';
 import { Workspace } from './ui/Workspace';
-import { GroupCompare } from './ui/GroupCompare';
-import { PersonsPanel } from './ui/PersonsPanel';
 import { MenuDrawer } from './ui/MenuDrawer';
-import { InsightsPanel } from './ui/InsightsPanel';
-import { BatchOpsPanel } from './ui/BatchOpsPanel';
-import { StatsPanel } from './ui/StatsPanel';
-import { ProjectsPanel } from './ui/ProjectsPanel';
-import { CollectionsPanel } from './ui/CollectionsPanel';
+// Nu si CollectionPicker printre panourile lazy de mai jos, desi e folosit tot
+// ocazional — ContextMenu.tsx/DetailView.tsx il importa deja STATIC (eager),
+// asa ca Rollup nu poate sa-l scoata oricum intr-un chunk separat (avertisment
+// de build confirmat la verificare); un wrapper lazy aici ar fi doar
+// complexitate suplimentara fara niciun beneficiu real de marime.
 import { CollectionPicker } from './ui/CollectionPicker';
-import { CommandPalette } from './ui/CommandPalette';
-import { ShortcutsPanel } from './ui/ShortcutsPanel';
 import { EmptyFilterState } from './ui/EmptyFilterState';
 import { ContextMenu } from './ui/ContextMenu';
 import { ConfirmDialog } from './ui/ConfirmDialog';
-import { ContactSheet } from './ui/ContactSheet';
-import { PresentationMode } from './ui/PresentationMode';
-import { EditPanel } from './ui/EditPanel';
 import { CullGauge } from './ui/CullGauge';
 import { AiBootScreen } from './ui/AiBootScreen';
 import { Tooltip } from './ui/Tooltip';
@@ -45,6 +38,52 @@ import { BackupReminder } from './ui/BackupReminder';
 import { ImportReminder } from './ui/ImportReminder';
 import { WelcomeOnboarding } from './ui/WelcomeOnboarding';
 import { t } from './i18n';
+
+/**
+ * Panourile de mai jos sunt randate NECONDITIONAT mai jos in acest fisier
+ * (`<CommandPalette />`, `<InsightsPanel />` etc., fara niciun `{open && ...}`
+ * in jurul lor) — fiecare isi verifica singur starea "deschis" din store si
+ * intoarce `null` cand e inchis. Comod pentru randare, dar inseamna ca
+ * CODUL lor era incarcat si executat la pornirea aplicatiei INDIFERENT daca
+ * utilizatorul ajunge vreodata sa deschida Statistici/Proiecte/Colectii/
+ * Command Palette etc. — gasit la auditul de performanta: bundle-ul
+ * principal avea 849KB (262KB gzip), fara nicio incarcare amanata nicaieri
+ * in aplicatie (`grep React.lazy` nu gasea nimic). `lazyPanel` pastreaza
+ * exact acelasi comportament (fiecare tot randeaza `null` cand e inchis —
+ * `Suspense fallback={null}` nu introduce niciun ecran de incarcare vizibil),
+ * dar codul lor JS se descarca/executa abia la PRIMA deschidere reala, nu la
+ * pornirea aplicatiei — utilizatorii care nu ating niciodata aceste panouri
+ * (majoritatea, probabil) nu mai platesc deloc costul lor de parsare.
+ */
+// Toate componentele de mai jos sunt FARA PROPS (CollectionPicker, singurul
+// panou cu props reale, nu poate fi scos oricum in propriul chunk — vezi
+// comentariul de la importul lui static, mai sus) — helperul ramane
+// deliberat nespecializat (fara generic pe props) ca sa evite dureri de cap
+// de inferenta TS intre cele 12 apeluri, pentru un caz care oricum nu are
+// nevoie de generalitate.
+function lazyPanel(loader: () => Promise<{ default: ComponentType<Record<string, never>> }>): ComponentType<Record<string, never>> {
+  const LazyComponent = lazy(loader);
+  return function LazyPanel() {
+    return (
+      <Suspense fallback={null}>
+        <LazyComponent />
+      </Suspense>
+    );
+  };
+}
+
+const GroupCompare = lazyPanel(() => import('./ui/GroupCompare').then(m => ({ default: m.GroupCompare })));
+const PersonsPanel = lazyPanel(() => import('./ui/PersonsPanel').then(m => ({ default: m.PersonsPanel })));
+const InsightsPanel = lazyPanel(() => import('./ui/InsightsPanel').then(m => ({ default: m.InsightsPanel })));
+const BatchOpsPanel = lazyPanel(() => import('./ui/BatchOpsPanel').then(m => ({ default: m.BatchOpsPanel })));
+const StatsPanel = lazyPanel(() => import('./ui/StatsPanel').then(m => ({ default: m.StatsPanel })));
+const ProjectsPanel = lazyPanel(() => import('./ui/ProjectsPanel').then(m => ({ default: m.ProjectsPanel })));
+const CollectionsPanel = lazyPanel(() => import('./ui/CollectionsPanel').then(m => ({ default: m.CollectionsPanel })));
+const CommandPalette = lazyPanel(() => import('./ui/CommandPalette').then(m => ({ default: m.CommandPalette })));
+const ShortcutsPanel = lazyPanel(() => import('./ui/ShortcutsPanel').then(m => ({ default: m.ShortcutsPanel })));
+const ContactSheet = lazyPanel(() => import('./ui/ContactSheet').then(m => ({ default: m.ContactSheet })));
+const PresentationMode = lazyPanel(() => import('./ui/PresentationMode').then(m => ({ default: m.PresentationMode })));
+const EditPanel = lazyPanel(() => import('./ui/EditPanel').then(m => ({ default: m.EditPanel })));
 
 // 7s a fost prea scurt pentru notificari dupa actiuni care nu schimba nimic
 // vizibil pe ecran (ex. restaurare backup intr-o sesiune goala — nu apar poze
