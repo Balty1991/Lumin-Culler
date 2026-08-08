@@ -110,7 +110,6 @@ export function PresentationMode() {
     if (!open) return;
     bumpControls();
     return () => { if (hideTimerRef.current) clearTimeout(hideTimerRef.current); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   useEffect(() => {

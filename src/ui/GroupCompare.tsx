@@ -85,6 +85,14 @@ export function GroupCompare() {
     setIsPanning(true);
   };
 
+  // Recalculat deliberat la FIECARE randare (nu memoizat) — grupurile au de
+  // regula doar cateva cadre, deci apelul e ieftin oricum, iar `groupOf`
+  // citeste starea LIVE din store la fiecare apel: memoizarea dupa [groupId]
+  // ar "inghite" strict, fara sa mai reflecte un status/sharpness schimbat
+  // intre timp (ex. din alt tab de analiza), iar singura alternativa corecta
+  // (abonare directa la `photos`) ar re-randa acest panou la ORICE schimbare
+  // de poza in toata aplicatia, chiar si cat timp panoul e inchis.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const rawMembers = groupId ? groupOf(groupId) : [];
   // burst-uri de sport/wildlife pot avea zeci de cadre aproape identice —
   // sortarea dupa claritate ajuta sa gasesti rapid cele mai nete, in loc sa

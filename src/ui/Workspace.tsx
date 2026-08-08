@@ -62,7 +62,6 @@ export function Workspace() {
     const { detailId, filtered, openDetail } = useStore.getState();
     const list = filtered();
     if (list.length && (!detailId || !list.some(p => p.id === detailId))) openDetail(list[0].id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
