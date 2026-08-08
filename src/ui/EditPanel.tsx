@@ -112,6 +112,23 @@ export function EditPanel() {
   // Redesenare pe requestAnimationFrame — dragul unui slider poate emite multe
   // evenimente pe cadru; fara asta, un pixel-pass complet (temperatura/tinta/
   // highlights/shadows) ar rula de mai multe ori inutil pentru acelasi cadru vizual.
+  //
+  // Bug real raportat de utilizator: slidere tot sacadate dupa ce persistarea
+  // in Dexie a fost amanata (vezi persistTimerRef mai sus) — cauza ramasa era
+  // ALTA: de indata ce O SINGURA ajustare din familia highlights/shadows/
+  // temperatura/tinta e diferita de 0 (foarte comun — Auto seteaza des
+  // highlights), FIECARE redesenare, indiferent ce slider anume se trage
+  // (inclusiv Contrast, care altfel ar fi "gratuit" prin ctx.filter), trece
+  // printr-un getImageData/bucla-pe-pixel/putImageData pe TOATA rezolutia
+  // preview-ului incarcat (pana la 2048px lung, vezi PREVIEW_MAX_SIDE din
+  // importPipeline.ts) — cateva milioane de pixeli, la fiecare cadru, cat
+  // timp utilizatorul trage un slider. RAF-ul de mai sus limiteaza CATE ORI
+  // pe secunda se redeseneaza, dar nu face desenul insusi mai rapid daca
+  // depaseste bugetul unui cadru. Canvas-ul de aici e doar o PREVIZUALIZARE
+  // (exportul foloseste applyAdjustmentsToBlob pe blob-ul original, la
+  // rezolutie completa) — nu are nevoie de rezolutia integrala a preview-ului
+  // pentru feedback vizual pe un ecran de telefon.
+  const EDIT_PREVIEW_MAX_SIDE = 1024;
   useEffect(() => {
     if (!imgEl || !canvasRef.current) return;
     if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
@@ -119,8 +136,9 @@ export function EditPanel() {
       rafRef.current = null;
       const canvas = canvasRef.current;
       if (!canvas) return;
-      canvas.width = imgEl.naturalWidth;
-      canvas.height = imgEl.naturalHeight;
+      const scale = Math.min(1, EDIT_PREVIEW_MAX_SIDE / Math.max(imgEl.naturalWidth, imgEl.naturalHeight));
+      canvas.width = Math.max(1, Math.round(imgEl.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(imgEl.naturalHeight * scale));
       const ctx = canvas.getContext('2d');
       if (ctx) drawAdjusted(ctx, imgEl, canvas.width, canvas.height, adjustments);
     });

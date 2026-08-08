@@ -423,6 +423,14 @@ const SMALL_FACE_HEIGHT_THRESHOLD = 0.15;
  * Fara camp de obiect principal expus pe AnalysisRecord (doar fete), scenele
  * fara oameni nu primesc recadrare automata in aceasta versiune.
  */
+/**
+ * Sub acest prag, fereastra rezultata e practic identica cu cadrul intreg —
+ * la fel ca justificarea CROP_SCALE=0.78 (nu 0.88) de mai sus, o "recadrare"
+ * prea subtila lasa impresia ca Auto n-a facut nimic, deci nu merita sa fie
+ * raportata ca recompunere aplicata.
+ */
+const NEGLIGIBLE_CROP_SCALE = 0.92;
+
 export function computeAutoCrop(signals: AutoAdjustSignals): EditAdjustments['crop'] {
   if (!signals.faceCount || (signals.ruleOfThirds ?? 0.5) >= RULE_OF_THIRDS_FLAG_THRESHOLD) return undefined;
   const faces = signals.faces;
@@ -437,36 +445,39 @@ export function computeAutoCrop(signals: AutoAdjustSignals): EditAdjustments['cr
     const d = Math.hypot(cx - p[0], cy - p[1]);
     if (d < best) { best = d; nearest = p; }
   }
-  const w = CROP_SCALE, h = CROP_SCALE;
-  let x = clampRange(cx - nearest[0] * w, 0, 1 - w);
-  let y = clampRange(cy - nearest[1] * h, 0, 1 - h);
 
   const safeLeft = clampRange(fx - fw * ARM_MARGIN_X, 0, 1);
   const safeRight = clampRange(fx + fw + fw * ARM_MARGIN_X, 0, 1);
   const safeTop = clampRange(fy - fh * HEAD_MARGIN_Y, 0, 1);
-  // Bug real raportat de utilizator: chiar si cu marja proportionala de mai
-  // jos (BODY_MARGIN_Y, calibrata si verificata pentru un portret apropiat),
-  // o poza cu corpul INTREG vizibil (ex. un copil in picioare, la distanta —
-  // fata mica fata de cadru) tot avea picioarele taiate: aceeasi marja
-  // subestimeaza drastic distanta reala pana la picioare intr-un cadru de
-  // corp intreg (poate fi 6-8x inaltimea fetei, nu 2.5x). Fata MICA (sub
-  // SMALL_FACE_HEIGHT_THRESHOLD) e singurul semnal disponibil ca poza arata
-  // probabil corpul intreg — in acel caz, protejeaza TOT ce e vizibil sub
-  // fata, pana la marginea de jos a cadrului ORIGINAL, in loc sa ghicim o
-  // marja: o recompunere ratata (Auto renunta la recadrare) e de preferat
-  // inca unei poze cu un membru taiat. Pentru fete de dimensiune normala
-  // (portret), marja proportionala ramane neschimbata.
+  // Fata MICA (sub SMALL_FACE_HEIGHT_THRESHOLD) e singurul semnal disponibil
+  // ca poza arata probabil corpul INTREG (subiect la distanta) — o marja
+  // proportionala cu fata (BODY_MARGIN_Y, calibrata pentru un portret
+  // apropiat) subestimeaza drastic distanta reala pana la picioare in acel
+  // caz (poate fi 6-8x inaltimea fetei, nu 2.5x) — bug real raportat de
+  // utilizator, picioare taiate. Pentru fete mici, protejam TOT ce e vizibil
+  // sub fata, pana la marginea de jos a cadrului ORIGINAL.
   const safeBottom = fh < SMALL_FACE_HEIGHT_THRESHOLD
     ? 1
     : clampRange(fy + fh + fh * BODY_MARGIN_Y, 0, 1);
 
-  // Zona de siguranta nu incape in fereastra w x h, indiferent unde am muta-o —
-  // mai bine renuntam complet la recadrare decat sa riscam sa taiem persoana.
-  if (safeRight - safeLeft > w || safeBottom - safeTop > h) return undefined;
+  // Scala minima (uniforma pe ambele axe, pastreaza raportul de aspect) care
+  // CHIAR incape zona de siguranta — pornim de la CROP_SCALE (recompunerea
+  // "ideala"), dar largim fereastra (pana la cadrul intreg) daca zona de
+  // siguranta o cere, in loc sa renuntam complet la orice recompunere de
+  // indata ce 0.78 nu mai ajunge. Bug real raportat de utilizator: varianta
+  // veche renunta TOTAL la recadrare pe orice poza de corp intreg (safeBottom
+  // de mai sus ajunge mereu la 1 pentru fete mici) — chiar si atunci cand o
+  // recompunere mai blanda (fereastra putin mai mare) tot ar fi fost posibila
+  // si utila, nu doar "totul sau nimic".
+  const scale = Math.min(1, Math.max(CROP_SCALE, safeRight - safeLeft, safeBottom - safeTop));
+  if (scale >= NEGLIGIBLE_CROP_SCALE) return undefined;
+  const w = scale, h = scale;
+  let x = clampRange(cx - nearest[0] * w, 0, 1 - w);
+  let y = clampRange(cy - nearest[1] * h, 0, 1 - h);
 
   // Impinge fereastra sa acopere intreaga zona de siguranta, chiar daca asta
   // strica usor alinierea pe treimi — un cadru usor decentrat e de preferat
-  // unuia care taie un brat/umeri.
+  // unuia care taie un brat/umeri/picioare.
   if (x > safeLeft) x = safeLeft;
   if (x + w < safeRight) x = safeRight - w;
   if (y > safeTop) y = safeTop;

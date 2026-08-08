@@ -200,6 +200,24 @@ describe('computeAutoCrop', () => {
       const smallFace: AutoAdjustSignals['faces'] = [{ box: [0.4, 0.05, 0.08, 0.08] }];
       expect(computeAutoCrop({ faceCount: 1, ruleOfThirds: 0.1, faces: smallFace })).toBeUndefined();
     });
+
+    // Feedback direct al utilizatorului dupa fix-ul de mai sus: "nu vreau sa
+    // renunte, sa se orienteze corect" — o fata mica NU trebuie sa insemne
+    // automat "fara nicio recompunere", doar "nu recompunerea IDEALA (0.78)".
+    // Cand zona de siguranta cere o fereastra mai mare (ex. 0.85) dar tot mai
+    // mica decat cadrul intreg, Auto foloseste acea fereastra mai larga —
+    // o recompunere mai blanda, dar reala — in loc sa renunte complet.
+    it('foloseste o fereastra mai larga (nu CROP_SCALE ideal, dar nici renuntare) cand corpul intreg cere putin mai mult spatiu', () => {
+      const face: AutoAdjustSignals['faces'] = [{ box: [0.4, 0.2, 0.08, 0.08] }];
+      const crop = computeAutoCrop({ faceCount: 1, ruleOfThirds: 0.1, faces: face });
+      expect(crop).toBeDefined();
+      expect(crop!.width).toBeGreaterThan(0.78); // CROP_SCALE (nu exportata) — recompunerea "ideala"
+      expect(crop!.width).toBeLessThan(1);
+      expect(crop!.height).toBe(crop!.width);
+      // Tot corpul (fata + tot ce e dedesubt, pana la marginea de jos a cadrului) ramane in fereastra.
+      expect(crop!.y).toBeLessThanOrEqual(0.2 - 0.08 * 0.6 + 1e-9);
+      expect(crop!.y + crop!.height).toBeGreaterThanOrEqual(1 - 1e-9);
+    });
   });
 });
 
