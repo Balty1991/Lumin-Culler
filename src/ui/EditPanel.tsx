@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
 import { useStore } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
@@ -467,7 +467,20 @@ export function EditPanel() {
           </div>
         </header>
 
-        <div className="edit-body">
+        <div
+          className="edit-body"
+          // Bug real raportat de utilizator: pe mobil, poza (centrata, latime
+          // derivata din aspect-ratio + plafonul de inaltime, vezi mai jos)
+          // ajungea vizibil mai ingusta decat grila de slidere de dedesubt
+          // (care ramanea intinsa pe toata latimea coloanei) — un aspect
+          // inconsistent. Raportul real al pozei e disponibil DOAR aici (din
+          // imgEl, incarcat in JS), nu si in CSS — expus ca proprietate CSS
+          // custom pe .edit-body (parintele comun al pozei SI sliderelor), ca
+          // .edit-sliders/.edit-crop-panel sa poata calcula ACEEASI latime
+          // maxima (44vh * raport) ca .edit-canvas-wrap, prin CSS pur, fara sa
+          // duplice logica in JS.
+          style={imgEl ? ({ '--photo-aspect': imgEl.naturalWidth / imgEl.naturalHeight } as CSSProperties) : undefined}
+        >
           {/* Bug real raportat de utilizator: containerul avea un aspect-ratio FIX
               (4/3 pe desktop, 16/10 — si mai landscape — pe mobil), asa ca orice
               poza portret (majoritatea pozelor facute cu telefonul tinut vertical)
