@@ -2468,7 +2468,27 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
      STRICT sub ea, in propriul dreptunghi, niciodata peste imagine. */
   .edit-modal { display: flex; flex-direction: column; height: 94dvh; max-height: 94dvh; overflow: hidden; }
   .edit-modal > .detail-head { flex: 0 0 auto; }
+  /* Bug real raportat de utilizator: 4 butoane (Auto/Recadrare/Reseteaza/X)
+     nu mai incapeau pe un singur rand pe un telefon ingust — .ghost are
+     flex-shrink:0 (deliberat, ca textul/iconul butoanelor sa nu se
+     striveasca), asa ca fara flex-wrap ultimul buton (X) pur si simplu
+     iesea din cadrul tab-ului, in loc sa treaca pe randul urmator. */
+  .edit-modal .contact-sheet-header-actions { flex-wrap: wrap; justify-content: flex-end; row-gap: 8px; }
   .edit-body { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; grid-template-columns: none; }
-  .edit-canvas-wrap { flex: 0 0 auto; max-height: 42vh; box-shadow: 0 10px 18px -12px rgb(0 0 0 / 0.6); }
+  /* Bug real raportat de utilizator: fostul max-height:42vh de aici, combinat
+     cu aspect-ratio (setat inline din poza reala), ii micsora si LATIMEA —
+     pentru o poza portret (mai inalta decat lata), limitarea inaltimii trage
+     dupa ea si latimea proportional (o cutie cu aspect-ratio fix nu poate
+     respecta un plafon de inaltime fara sa devina mai ingusta ca sa pastreze
+     raportul), lasand un gol negru vizibil in dreapta — indiferent de
+     align-items pe parinte, aceasta recalculare vine direct din interactiunea
+     aspect-ratio + max-height, nu dintr-o problema de aliniere. Fara niciun
+     plafon de inaltime aici, poza ramane mereu la latimea INTREAGA a coloanei
+     (flex:0 0 auto ii da inaltimea naturala rezultata din acea latime);
+     .edit-sliders de mai jos (flex:1 1 auto + min-height:0) primeste orice
+     spatiu ramane si scroleaza singur daca nu ajunge — inclusiv in cazul rar
+     al unei poze extrem de inalte, unde sliderele ar primi doar o fasie mica
+     de scrollat, dar latimea pozei nu se mai micsoreaza NICIODATA. */
+  .edit-canvas-wrap { flex: 0 0 auto; box-shadow: 0 10px 18px -12px rgb(0 0 0 / 0.6); }
   .edit-sliders, .edit-crop-panel { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 }
