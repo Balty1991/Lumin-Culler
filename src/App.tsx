@@ -446,6 +446,8 @@ export default function App() {
   const onAddPhotosClick = async () => {
     const picked = await pickImportFiles();
     if (picked) {
+      // TODO(debug temporar): de scos odata cu celalalt debug de mai jos.
+      setNotice(`[debug] pickImportFiles (API desktop) a raspuns cu ${picked.files.length} fisiere — aceasta cale NU seteaza mediaUri.`);
       if (picked.files.length) void runImport(picked.files, picked.handles);
       return;
     }
@@ -461,11 +463,18 @@ export default function App() {
     if (isNativeMediaLibraryAvailable()) {
       try {
         const photos = await pickNativePhotos();
+        // TODO(debug temporar): de scos dupa ce confirmam pe device ca mediaUri
+        // chiar ajunge pe PhotoRecord — vezi discutia din sesiune despre
+        // "Sterge pozele respinse" raportand 0 poze eligibile dupa import nativ.
+        setNotice(`[debug] selector nativ: ${photos.length} poze — ${photos.length ? photos.map(p => p.uri).join(' | ') : 'niciuna (anulat sau 0 rezultate)'}`);
         if (photos.length) void runImport(photos.map(p => p.file), undefined, photos.map(p => p.uri));
         return;
       } catch (err) {
+        setNotice(`[debug] selectorul nativ a esuat: ${err instanceof Error ? err.message : String(err)}`);
         console.warn('Selectorul nativ de poze a esuat, revenim la <input type="file">:', err);
       }
+    } else {
+      setNotice('[debug] MediaLibrary indisponibil pe acest device — folosesc <input type="file">.');
     }
     // Plasa de siguranta: pe unele telefoane, alegerea mai multor poze mari
     // deodata dintr-o aplicatie ca "Fisiere" (nu Galeria) poate face ca `change`
