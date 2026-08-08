@@ -2501,5 +2501,19 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
      reaseaza pe mijloc (nu lipita de marginea stanga) ori de cate ori
      latimea rezultata ajunge sub latimea intreaga a coloanei. */
   .edit-canvas-wrap { flex: 0 0 auto; max-height: 44vh; align-self: center; box-shadow: 0 10px 18px -12px rgb(0 0 0 / 0.6); }
-  .edit-sliders, .edit-crop-panel { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  /* Bug real raportat de utilizator: poza (centrata, mai ingusta decat
+     coloana intreaga din cauza plafonului de mai sus) si grila de slidere
+     (intinsa pe toata latimea coloanei) aveau latimi diferite — un aspect
+     inconsistent, vizibil mai ales cu 2 coloane de slidere sub o poza mult
+     mai ingusta. --photo-aspect (proprietate CSS custom, setata din JS pe
+     .edit-body — vezi EditPanel.tsx) reface AICI, in CSS, acelasi calcul de
+     latime pe care aspect-ratio + max-height:44vh il aplica deja pozei
+     (latime = inaltime x raport), ca sliderele sa ajunga la EXACT aceeasi
+     latime si sa ramana centrate identic — width:100% ramane limita reala
+     pentru poze landscape (unde formula ar da o valoare mai mare decat
+     coloana, caz in care max-width nu are niciun efect vizibil). */
+  .edit-sliders, .edit-crop-panel {
+    flex: 1 1 auto; min-height: 0; overflow-y: auto;
+    width: 100%; max-width: calc(44vh * var(--photo-aspect, 1)); margin-inline: auto;
+  }
 }
