@@ -22,21 +22,24 @@ import com.getcapacitor.annotation.CapacitorPlugin
  * Selectie de poze care PASTREAZA URI-ul content:// (spre deosebire de
  * <input type="file"> din WebView-ul Capacitor, care preda doar bytes-ii
  * fisierului si arunca URI-ul — vezi discutia din App.tsx/onAddPhotosClick)
- * si stergere ulterioara prin MediaStore.createDeleteRequest() (API 30+),
- * care afiseaza dialogul de confirmare AL SISTEMULUI. Aplicatia nu sterge
- * nimic fara acel acord explicit — nicio permisiune noua declarata in
- * manifest, exact ca la FolderExportPlugin (SAF).
+ * si mutare ulterioara in Cosul de gunoi prin MediaStore.createTrashRequest()
+ * (API 30+), care afiseaza dialogul de confirmare AL SISTEMULUI. Aplicatia nu
+ * atinge nimic fara acel acord explicit — nicio permisiune noua declarata in
+ * manifest, exact ca la FolderExportPlugin (SAF). Deliberat createTrashRequest(),
+ * NU createDeleteRequest() (stergere definitiva) — cerinta directa a
+ * utilizatorului: pozele trebuie sa poata fi recuperate din Cosul de gunoi al
+ * telefonului daca se razgandeste, nu sterse ireversibil.
  *
  * Limitare cunoscuta, ne-verificata inca pe device real: unii provideri
  * (Photo Picker-ul modern Android, unele aplicatii cloud) pot da URI-uri cu
- * scop limitat, care sa nu fie acceptate direct de createDeleteRequest() —
+ * scop limitat, care sa nu fie acceptate direct de createTrashRequest() —
  * de aceea deletePhotos() trateaza orice exceptie ca esec recuperabil
  * (respinge apelul cu un mesaj clar), nu ca un crash.
  */
 @CapacitorPlugin(name = "MediaLibrary")
 class MediaLibraryPlugin : Plugin() {
     /**
-     * createDeleteRequest() intoarce un PendingIntent, NU un Intent obisnuit —
+     * createTrashRequest() intoarce un PendingIntent, NU un Intent obisnuit —
      * nu se preteaza la startActivityForResult(call, intent, "callbackName")/
      * @ActivityCallback (mecanismul folosit de restul plugin-urilor din acest
      * fisier de alaturi, ex. FolderExportPlugin). Inregistram in schimb propriul
@@ -113,16 +116,19 @@ class MediaLibraryPlugin : Plugin() {
     }
 
     /**
-     * Cere stergerea (efectiv, din stocare — nu doar din aplicatie) prin
-     * dialogul de confirmare al sistemului. Rezolva mereu cu `cancelled`
-     * (true/false dupa alegerea utilizatorului in acel dialog), nu respinge
-     * doar pentru ca utilizatorul a ales "Nu" — o respingere reala inseamna
-     * ca cererea nici n-a putut fi pornita.
+     * Muta pozele in Cosul de gunoi al sistemului (MediaStore.createTrashRequest,
+     * NU createDeleteRequest) prin dialogul de confirmare al sistemului — cerinta
+     * directa a utilizatorului: nu stergere definitiva, ca sa poata fi recuperate
+     * daca se razgandeste (fereastra tipica de retentie ~30-60 zile, gestionata
+     * de sistem/Galerie, nu de aceasta aplicatie). Rezolva mereu cu `cancelled`
+     * (true/false dupa alegerea utilizatorului in acel dialog), nu respinge doar
+     * pentru ca utilizatorul a ales "Nu" — o respingere reala inseamna ca cererea
+     * nici n-a putut fi pornita.
      */
     @PluginMethod
     fun deletePhotos(call: PluginCall) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-            call.reject("Stergerea prin dialogul sistemului necesita Android 11 (API 30) sau mai nou")
+            call.reject("Mutarea in Cosul de gunoi prin dialogul sistemului necesita Android 11 (API 30) sau mai nou")
             return
         }
         val uriStrings = call.getArray("uris")?.toList<String>() ?: emptyList()
@@ -131,21 +137,21 @@ class MediaLibraryPlugin : Plugin() {
             return
         }
         try {
-            // Confirmat pe device real: createDeleteRequest() respinge cu
-            // "All requested items must be referenced by specific ID" cand
-            // primeste URI-uri SAF de document (content://com.android.
-            // providers.media.documents/document/image:123, exact ce intoarce
-            // ACTION_OPEN_DOCUMENT/pickPhotos() de mai sus) — are nevoie de
-            // URI-uri MediaStore propriu-zise (content://media/external/
-            // images/media/123). MediaStore.getMediaUri() e conversia oficiala
-            // pentru exact acest caz (document MediaProvider -> MediaStore);
-            // daca un URI nu vine de la MediaProvider (alt furnizor SAF), intoarce
-            // null si pastram URI-ul original ca ultima incercare.
+            // Confirmat pe device real: MediaStore respinge cu "All requested
+            // items must be referenced by specific ID" cand primeste URI-uri SAF
+            // de document (content://com.android.providers.media.documents/
+            // document/image:123, exact ce intoarce ACTION_OPEN_DOCUMENT/
+            // pickPhotos() de mai sus) — are nevoie de URI-uri MediaStore
+            // propriu-zise (content://media/external/images/media/123).
+            // MediaStore.getMediaUri() e conversia oficiala pentru exact acest
+            // caz (document MediaProvider -> MediaStore); daca un URI nu vine de
+            // la MediaProvider (alt furnizor SAF), intoarce null si pastram
+            // URI-ul original ca ultima incercare.
             val uris = uriStrings.map { s ->
                 val uri = Uri.parse(s)
                 MediaStore.getMediaUri(context, uri) ?: uri
             }
-            val pendingIntent = MediaStore.createDeleteRequest(context.contentResolver, uris)
+            val pendingIntent = MediaStore.createTrashRequest(context.contentResolver, uris, true)
             pendingDeleteCall = call
             deleteLauncher.launch(IntentSenderRequest.Builder(pendingIntent.intentSender).build())
         } catch (e: Exception) {
