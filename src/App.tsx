@@ -42,6 +42,7 @@ import { MoreFiltersMenu } from './ui/MoreFiltersMenu';
 import { SavedFiltersMenu } from './ui/SavedFiltersMenu';
 import { InstallPrompt } from './ui/InstallPrompt';
 import { BackupReminder } from './ui/BackupReminder';
+import { ImportReminder } from './ui/ImportReminder';
 import { WelcomeOnboarding } from './ui/WelcomeOnboarding';
 import { t } from './i18n';
 
@@ -632,6 +633,7 @@ export default function App() {
         <div className="banner-stack">
           <InstallPrompt />
           <BackupReminder />
+          <ImportReminder onAddPhotos={() => void onAddPhotosClick()} />
         </div>
         <Workspace />
         <CommandPalette />
@@ -703,6 +705,7 @@ export default function App() {
       <div className="banner-stack">
         <InstallPrompt />
         <BackupReminder />
+        <ImportReminder onAddPhotos={() => void onAddPhotosClick()} />
       </div>
 
       {aiDegraded && (
