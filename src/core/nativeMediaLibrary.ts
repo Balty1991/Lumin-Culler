@@ -3,9 +3,10 @@
  * Punte catre plugin-ul Capacitor local MediaLibrary (vezi android/app/src/main/
  * java/com/luminculler/app/plugins/MediaLibraryPlugin.kt) — selectie de poze cu
  * URI content:// PASTRAT (spre deosebire de <input type="file"> din WebView,
- * care preda doar bytes-ii fisierului si arunca URI-ul) si stergere ulterioara
- * prin dialogul de confirmare AL SISTEMULUI (MediaStore.createDeleteRequest,
- * API 30+) — vezi state/store.ts:deleteRejectedPhotos.
+ * care preda doar bytes-ii fisierului si arunca URI-ul) si mutare ulterioara in
+ * Cosul de gunoi (NU stergere definitiva) prin dialogul de confirmare AL
+ * SISTEMULUI (MediaStore.createTrashRequest, API 30+) — vezi
+ * state/store.ts:deleteRejectedPhotos.
  *
  * Doar Android nativ: pe web/PWA, "sterge din telefon" nu are sens (nu exista
  * fisier de sters, doar Blob-uri in IndexedDB) — apelantul trebuie sa verifice
@@ -60,11 +61,12 @@ export async function pickNativePhotos(): Promise<NativePickedPhoto[]> {
 }
 
 /**
- * Cere stergerea efectiva (din stocare) prin dialogul de confirmare al
- * sistemului. Intoarce `cancelled: true` daca utilizatorul a refuzat in acel
- * dialog SAU daca lista de URI-uri era goala — apelantul nu trebuie sa
- * trateze niciun caz ca eroare, doar promisiunea respinsa inseamna ca
- * cererea nici n-a putut fi pornita (ex. Android < 11).
+ * Cere mutarea in Cosul de gunoi al telefonului (nu stergere definitiva —
+ * recuperabile de acolo, fereastra tipica ~30-60 zile, gestionata de sistem)
+ * prin dialogul de confirmare al sistemului. Intoarce `cancelled: true` daca
+ * utilizatorul a refuzat in acel dialog SAU daca lista de URI-uri era goala —
+ * apelantul nu trebuie sa trateze niciun caz ca eroare, doar promisiunea
+ * respinsa inseamna ca cererea nici n-a putut fi pornita (ex. Android < 11).
  */
 export async function deleteNativePhotos(uris: string[]): Promise<{ cancelled: boolean }> {
   if (!uris.length) return { cancelled: true };
