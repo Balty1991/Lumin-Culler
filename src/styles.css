@@ -610,6 +610,14 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 .chip.active .chip-icon { opacity: 1; color: var(--accent-text); }
 .chip.active .chip-count { background: rgb(var(--accent-rgb) / 0.18); color: var(--accent); }
+/* actiune (nu filtru) strecurata in popover-ul "Mai multe filtre" — Sterge pozele
+   respinse, cerinta directa a utilizatorului sa fie accesibila de acolo, nu doar
+   ingropata in meniul lateral. Culoarea de "reject" o deosebeste vizual de chip-urile
+   de filtrare de deasupra ei (separate printr-un .more-filters-divider). */
+.chip.danger { color: var(--reject); border-color: rgb(var(--reject-rgb) / 0.35); }
+.chip.danger .chip-icon { opacity: 1; }
+.chip.danger .chip-count { background: rgb(var(--reject-rgb) / 0.18); color: var(--reject); }
+.chip.danger:hover { border-color: var(--reject); }
 /* varianta compacta (doar icon + numar, fara eticheta text) — pentru randul principal
    de filtre, care trebuie sa incapa pe un singur rand fara scroll; eticheta completa
    ramane disponibila prin aria-label/title. */
@@ -1271,6 +1279,18 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 .welcome-onboarding-skip { position: absolute; top: 0; right: 0; }
 .welcome-onboarding-locale { position: absolute; top: 0; left: 0; }
+/* comutator RO/EN sub forma de 2 segmente text (nu un glob generic) — vezi
+   comentariul din LocaleToggle.tsx pentru motiv. */
+.locale-toggle {
+  display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px;
+  background: var(--surface); border: 1px solid var(--line);
+}
+.locale-toggle-option {
+  border: none; background: transparent; color: var(--text-dim); cursor: pointer;
+  font-family: inherit; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.03em;
+  padding: 5px 11px; border-radius: 999px; transition: background 0.18s var(--ease), color 0.18s var(--ease);
+}
+.locale-toggle-option.active { background: var(--accent); color: var(--bg); }
 .welcome-onboarding-body { margin: 0; color: var(--text-dim); font-size: 0.92rem; line-height: 1.5; max-width: 34ch; }
 .welcome-onboarding-dots { display: flex; gap: 6px; margin-top: 4px; }
 .welcome-onboarding-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--line-strong); transition: background var(--micro), transform var(--micro); }

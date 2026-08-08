@@ -1,30 +1,35 @@
 import { useStore } from '../state/store';
-import { GlobeIcon } from './icons';
-import { Tooltip } from './Tooltip';
 import { t } from '../i18n';
+import type { Locale } from '../i18n';
 
 /**
- * Comutator RO/EN reutilizabil — cerinta directa a utilizatorului: selectorul
- * de limba trebuie vazut DE LA INCEPUT (ecranul de bun venit, ecranul gol
- * dinainte de orice import), nu doar ingropat in meniul lateral (unde ramane
- * si el, neschimbat) — un utilizator strain care nimereste interfata in
- * romana n-ar avea altfel niciun indiciu vizibil ca poate schimba limba
- * inainte sa exploreze tot meniul.
+ * Comutator RO/EN — cerinta directa a utilizatorului: pe ecranul de bun venit
+ * (inainte ca cineva sa apuce sa deschida meniul lateral, unde exista deja un
+ * comutator separat, neschimbat), trebuie sa fie clar DE LA PRIMA PRIVIRE ca
+ * exact 2 limbi sunt disponibile — un glob generic nu spune asta. Doua
+ * segmente text ("RO"/"EN"), cel activ evidentiat, comunica exact atat cate
+ * optiuni exista, fara sa mai fie nevoie de vreo iconita separata.
  */
-export function LocaleToggle({ side = 'left' }: { side?: 'left' | 'bottom' }) {
+export function LocaleToggle() {
   const locale = useStore(s => s.locale);
   const setLocale = useStore(s => s.setLocale);
   const tr = (key: string) => t(locale, key);
 
+  const option = (value: Locale, label: string) => (
+    <button
+      type="button"
+      className={locale === value ? 'locale-toggle-option active' : 'locale-toggle-option'}
+      onClick={() => setLocale(value)}
+      aria-pressed={locale === value}
+    >
+      {label}
+    </button>
+  );
+
   return (
-    <Tooltip label={tr('menu.language.title')} side={side}>
-      <button
-        className="ghost icon-btn"
-        onClick={() => setLocale(locale === 'ro' ? 'en' : 'ro')}
-        aria-label={tr('menu.language.title')}
-      >
-        <GlobeIcon />
-      </button>
-    </Tooltip>
+    <div className="locale-toggle" role="group" aria-label={tr('menu.language.title')} title={tr('menu.language.title')}>
+      {option('ro', 'RO')}
+      {option('en', 'EN')}
+    </div>
   );
 }
