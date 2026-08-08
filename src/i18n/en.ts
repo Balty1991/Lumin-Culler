@@ -604,6 +604,11 @@ export const en: Record<TranslationKey, string> = {
   'edit.crop.cancel': 'Cancel',
   'edit.crop.reset': 'Full frame',
   'edit.crop.hint': 'Drag the corners to resize, or the box to move it. "Full frame" removes the crop entirely.',
+  'edit.crop.free': 'Free',
+  'edit.crop.ratio.1:1': '1:1',
+  'edit.crop.ratio.4:5': '4:5',
+  'edit.crop.ratio.3:4': '3:4',
+  'edit.crop.ratio.16:9': '16:9',
 
   'projects.meta.client': 'Client',
   'projects.meta.client.title': 'Client (e.g. Ana & Mike)',

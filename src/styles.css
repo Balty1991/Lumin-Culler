@@ -2405,31 +2405,46 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   display: flex; align-items: center; justify-content: center; min-height: 260px;
   aspect-ratio: 4 / 3;
 }
-.edit-canvas { width: 100%; height: 100%; object-fit: contain; display: block; }
+.edit-canvas { width: 100%; height: 100%; object-fit: contain; display: block; border-radius: inherit; }
 .edit-canvas-loading { position: absolute; inset: 0; }
 .edit-sliders { display: grid; gap: 14px; align-content: start; }
 .edit-slider-row { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; }
 .edit-slider-label { font-size: 0.8rem; color: var(--text-dim); }
 .edit-slider-value { font-size: 0.78rem; color: var(--text-faint); text-align: right; min-width: 2.6em; }
 .edit-slider-row input[type="range"] { grid-column: 1 / -1; width: 100%; accent-color: var(--accent); }
+.edit-crop-panel { display: grid; gap: 10px; align-content: start; }
+.edit-crop-presets { display: flex; flex-wrap: wrap; gap: 8px; }
 .edit-crop-hint { font-size: 0.82rem; color: var(--text-dim); margin: 0; }
 /* Caseta de recadrare manuala (drag pentru mutare/redimensionare) — vezi
-   startCrop/onCropHandleDown in EditPanel.tsx. box-shadow cu spread urias in
-   loc de un element separat de masca: se decupeaza singur la marginile lui
-   .edit-canvas-wrap (care are overflow:hidden), fara alt element suplimentar. */
+   startCrop/onCropHandleDown in EditPanel.tsx. */
 .crop-overlay { position: absolute; inset: 0; touch-action: none; }
-.crop-box {
-  position: absolute; border: 2px solid var(--accent); cursor: move; touch-action: none;
-  box-shadow: 0 0 0 9999px rgb(0 0 0 / 0.55);
-}
+/* Bug real raportat de utilizator: masca intunecata folosea box-shadow cu
+   spread urias, care avea nevoie de overflow:hidden pe .edit-canvas-wrap ca
+   sa se decupeze la marginile cadrului — dar overflow:hidden e exact ce
+   taia jumatate din fiecare handle de colt (vezi .crop-handle mai jos).
+   4 dreptunghiuri separate obtin acelasi efect vizual (zona din afara casetei
+   intunecata) fara sa depinda deloc de clipping-ul parintelui. */
+.crop-mask { position: absolute; background: rgb(0 0 0 / 0.55); pointer-events: none; }
+.crop-box { position: absolute; border: 2px solid var(--accent); cursor: move; touch-action: none; }
 .crop-handle {
-  position: absolute; width: 22px; height: 22px; margin: -11px; border-radius: 50%;
-  background: var(--accent); border: 2px solid var(--bg); touch-action: none;
+  position: absolute; width: 36px; height: 36px; margin: -18px; border-radius: 50%;
+  touch-action: none;
+}
+/* Cerc vizibil mai mic decat zona de tap reala (36px, cat un buton minim
+   recomandat pe mobil) — un cerc plin de 36px ar arata disproportionat de
+   mare langa o caseta de recadrare fina. */
+.crop-handle::before {
+  content: ''; position: absolute; inset: 9px; border-radius: 50%;
+  background: var(--accent); border: 2px solid var(--bg);
 }
 .crop-handle-nw { left: 0; top: 0; cursor: nwse-resize; }
 .crop-handle-ne { left: 100%; top: 0; cursor: nesw-resize; }
 .crop-handle-sw { left: 0; top: 100%; cursor: nesw-resize; }
 .crop-handle-se { left: 100%; top: 100%; cursor: nwse-resize; }
+/* Cat timp se editeaza recadrarea, handle-urile de colt trebuie sa ramana
+   complet apucabile chiar si atunci cand caseta atinge marginea cadrului —
+   indiferent de dimensiunea ecranului, nu doar pe mobil. */
+.edit-canvas-wrap.cropping { overflow: visible; }
 @media (max-width: 760px) {
   .edit-body { grid-template-columns: 1fr; }
   /* Bug real raportat de utilizator: la scroll spre sliderele de jos, poza

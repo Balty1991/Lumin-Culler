@@ -601,6 +601,11 @@ export const ro = {
   'edit.crop.cancel': 'Renunta',
   'edit.crop.reset': 'Cadru intreg',
   'edit.crop.hint': 'Trage colturile ca sa redimensionezi, sau caseta ca s-o muti. "Cadru intreg" elimina recadrarea complet.',
+  'edit.crop.free': 'Liber',
+  'edit.crop.ratio.1:1': '1:1',
+  'edit.crop.ratio.4:5': '4:5',
+  'edit.crop.ratio.3:4': '3:4',
+  'edit.crop.ratio.16:9': '16:9',
 
   'projects.meta.client': 'Client',
   'projects.meta.client.title': 'Client (ex. Ana & Mihai)',
