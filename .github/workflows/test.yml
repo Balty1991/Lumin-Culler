@@ -1,0 +1,31 @@
+# Verificare rapida pe fiecare push/PR: typecheck + lint + suita de teste
+# (vitest). Bug de proces gasit la audit — niciun workflow existent nu rula
+# de fapt `vitest`; android-debug-build.yml doar compileaza (tsc), iar
+# deploy.yml doar buildeaza pentru GitHub Pages. Pana acum, singura plasa de
+# siguranta reala era rularea manuala locala inainte de fiecare PR. Acest
+# workflow ruleaza independent de partea nativa Android (nu are nevoie de
+# modelele ML/Gradle), deci ramane rapid si nu necesita acces la
+# dl.google.com (indisponibil in sandbox-ul de dezvoltare).
+name: Test
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/**'
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npx tsc --noEmit
+      - run: npm run lint
+      - run: npm test
