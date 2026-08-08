@@ -140,7 +140,7 @@ export function EditPanel() {
       canvas.width = Math.max(1, Math.round(imgEl.naturalWidth * scale));
       canvas.height = Math.max(1, Math.round(imgEl.naturalHeight * scale));
       const ctx = canvas.getContext('2d');
-      if (ctx) drawAdjusted(ctx, imgEl, canvas.width, canvas.height, adjustments);
+      if (ctx) drawAdjusted(ctx, imgEl, imgEl.naturalWidth, imgEl.naturalHeight, canvas.width, canvas.height, adjustments);
     });
     return () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); };
   }, [imgEl, adjustments]);
