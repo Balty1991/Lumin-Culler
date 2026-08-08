@@ -596,6 +596,11 @@ export const ro = {
   'edit.auto.straighten': 'indreptare orizont',
   'edit.auto.applied': 'Auto aplicat: {list}.',
   'edit.auto.nothingToApply': 'Auto: cadrul e deja solid pe criteriile analizate, nimic de corectat.',
+  'edit.crop': 'Recadrare',
+  'edit.crop.apply': 'Salveaza',
+  'edit.crop.cancel': 'Renunta',
+  'edit.crop.reset': 'Cadru intreg',
+  'edit.crop.hint': 'Trage colturile ca sa redimensionezi, sau caseta ca s-o muti. "Cadru intreg" elimina recadrarea complet.',
 
   'projects.meta.client': 'Client',
   'projects.meta.client.title': 'Client (ex. Ana & Mihai)',

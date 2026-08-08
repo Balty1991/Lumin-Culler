@@ -599,6 +599,11 @@ export const en: Record<TranslationKey, string> = {
   'edit.auto.straighten': 'horizon straighten',
   'edit.auto.applied': 'Auto applied: {list}.',
   'edit.auto.nothingToApply': "Auto: the frame is already solid on the criteria analyzed, nothing to fix.",
+  'edit.crop': 'Crop',
+  'edit.crop.apply': 'Save',
+  'edit.crop.cancel': 'Cancel',
+  'edit.crop.reset': 'Full frame',
+  'edit.crop.hint': 'Drag the corners to resize, or the box to move it. "Full frame" removes the crop entirely.',
 
   'projects.meta.client': 'Client',
   'projects.meta.client.title': 'Client (e.g. Ana & Mike)',
