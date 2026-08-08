@@ -35,7 +35,7 @@ export function AdjustedImage({ src, edits, alt, className, style, loading, deco
       canvas.height = img.naturalHeight;
       const ctx = canvas.getContext('2d');
       if (!ctx || !edits) return;
-      drawAdjusted(ctx, img, canvas.width, canvas.height, edits);
+      drawAdjusted(ctx, img, img.naturalWidth, img.naturalHeight, canvas.width, canvas.height, edits);
     };
     img.src = src;
     return () => { cancelled = true; };

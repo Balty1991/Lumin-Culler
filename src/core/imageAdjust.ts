@@ -57,33 +57,42 @@ const MAX_ROTATION_DEG = 8;
 /**
  * Deseneaza doar geometria (recadrare + indreptare unghi mic), fara filtrele
  * de culoare — separat de drawAdjusted() ca sa ramana usor de testat/rationat
- * independent. `width`/`height` sunt ATAT dimensiunea sursei CAT SI a
- * canvas-ului de iesire (identice in toate apelurile din acest fisier) —
- * recadrarea schimba ce portiune a cadrului se vede, nu rezolutia finala.
+ * independent. `sourceWidth`/`sourceHeight` sunt dimensiunile REALE ale lui
+ * `source` (folosite pentru a converti fractiunile de crop, definite in
+ * spatiul imaginii originale, in pixeli de citit din `source`); `destWidth`/
+ * `destHeight` sunt dimensiunea canvas-ului de iesire — pot diferi acum
+ * (EditPanel deseneaza un preview plafonat la EDIT_PREVIEW_MAX_SIDE dintr-un
+ * imgEl la rezolutie completa). Bug real raportat de utilizator, dupa
+ * plafonarea rezolutiei preview-ului: cand cele doua dimensiuni difera si
+ * exista un crop, folosirea lui destWidth/destHeight (mult mai mici) pentru a
+ * citi din `source` (la rezolutie completa) facea sa se citeasca doar un
+ * colt minuscul din imagine — un preview aparent "spart", zoomat gresit intr-o
+ * portiune mica si neclara a cadrului, exact ca in captura primita.
  */
-function drawGeometry(ctx: CanvasRenderingContext2D, source: CanvasImageSource, width: number, height: number, a: EditAdjustments): void {
+function drawGeometry(ctx: CanvasRenderingContext2D, source: CanvasImageSource, sourceWidth: number, sourceHeight: number, destWidth: number, destHeight: number, a: EditAdjustments): void {
   const rotationDeg = clampRange(a.rotationDeg ?? 0, -MAX_ROTATION_DEG, MAX_ROTATION_DEG);
   const crop = a.crop;
-  const sx = crop ? crop.x * width : 0;
-  const sy = crop ? crop.y * height : 0;
-  const sw = crop ? crop.width * width : width;
-  const sh = crop ? crop.height * height : height;
+  const sx = crop ? crop.x * sourceWidth : 0;
+  const sy = crop ? crop.y * sourceHeight : 0;
+  const sw = crop ? crop.width * sourceWidth : sourceWidth;
+  const sh = crop ? crop.height * sourceHeight : sourceHeight;
 
   if (rotationDeg === 0) {
-    ctx.drawImage(source, sx, sy, sw, sh, 0, 0, width, height);
+    ctx.drawImage(source, sx, sy, sw, sh, 0, 0, destWidth, destHeight);
     return;
   }
   const rad = (rotationDeg * Math.PI) / 180;
   const cos = Math.abs(Math.cos(rad));
   const sin = Math.abs(Math.sin(rad));
-  // scala minima ca dreptunghiul rotit sa tot acopere fereastra width x height —
-  // fara ea, colturile ar ramane goale/transparente dupa o mica indreptare.
+  // scala minima ca dreptunghiul rotit sa tot acopere fereastra destWidth x
+  // destHeight — fara ea, colturile ar ramane goale/transparente dupa o mica
+  // indreptare.
   const safetyScale = Math.max((sw * cos + sh * sin) / sw, (sw * sin + sh * cos) / sh);
   ctx.save();
-  ctx.translate(width / 2, height / 2);
+  ctx.translate(destWidth / 2, destHeight / 2);
   ctx.rotate(rad);
   ctx.scale(safetyScale, safetyScale);
-  ctx.drawImage(source, sx, sy, sw, sh, -width / 2, -height / 2, width, height);
+  ctx.drawImage(source, sx, sy, sw, sh, -destWidth / 2, -destHeight / 2, destWidth, destHeight);
   ctx.restore();
 }
 
@@ -226,10 +235,17 @@ export function applyDetailPass(d: Uint8ClampedArray, width: number, height: num
  * necesita un pixel-pass suplimentar (getImageData/putImageData), sarit
  * complet cand sunt toate neutre — cazul cel mai comun (doar primele 3
  * ajustate) ramane la fel de rapid ca un simplu drawImage.
+ *
+ * `sourceWidth`/`sourceHeight` (dimensiunea REALA a lui `source`) si
+ * `width`/`height` (dimensiunea canvas-ului de iesire) pot diferi — vezi
+ * comentariul de la drawGeometry despre bug-ul de crop gresit calculat cand
+ * cele doua nu mai coincid (EditPanel plafoneaza rezolutia preview-ului).
  */
 export function drawAdjusted(
   ctx: CanvasRenderingContext2D,
   source: CanvasImageSource,
+  sourceWidth: number,
+  sourceHeight: number,
   width: number,
   height: number,
   a: EditAdjustments
@@ -238,7 +254,7 @@ export function drawAdjusted(
   const contrast = 1 + a.contrast / 100;
   const saturate = 1 + a.saturation / 100;
   ctx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturate})`;
-  drawGeometry(ctx, source, width, height, a);
+  drawGeometry(ctx, source, sourceWidth, sourceHeight, width, height, a);
   ctx.filter = 'none';
 
   const hasColorShift = a.temperature !== 0 || a.tint !== 0 || a.highlights !== 0 || a.shadows !== 0;
@@ -574,7 +590,7 @@ export async function applyAdjustmentsToBlob(blob: Blob, adjustments: EditAdjust
     canvas.height = bitmap.height;
     const ctx = canvas.getContext('2d');
     if (!ctx) return blob;
-    drawAdjusted(ctx, bitmap, canvas.width, canvas.height, adjustments);
+    drawAdjusted(ctx, bitmap, bitmap.width, bitmap.height, canvas.width, canvas.height, adjustments);
     return await new Promise<Blob>((resolve, reject) =>
       canvas.toBlob(b => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/jpeg', quality)
     );
