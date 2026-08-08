@@ -140,7 +140,14 @@ export function CommandPalette() {
     { id: 'export-manifest', label: tr('palette.cmd.exportManifest'), sectionKey: 'palette.section.export', icon: <ListIcon />, run: () => void exportManifest(), disabled: !counts.selected },
     { id: 'shortcuts', label: tr('palette.cmd.shortcuts'), hint: '?', sectionKey: 'palette.section.app', icon: <KeyboardIcon />, run: () => setShortcutsOpen(true) },
     { id: 'theme', label: theme === 'light' ? tr('palette.cmd.themeToDark') : tr('palette.cmd.themeToLight'), sectionKey: 'palette.section.app', icon: theme === 'light' ? <MoonIcon /> : <SunIcon />, run: () => setTheme(theme === 'light' ? 'dark' : 'light') }
-  ] as Command[], [photos.length, history.length, counts, filter, theme, workspaceMode, locale]);
+  // Actiunile din store (setFilter/setTheme/exportXMP/undo/etc.) sunt
+  // referinte STABILE din Zustand (nu se recreeaza la fiecare randare) —
+  // includerea lor n-ar schimba niciodata cand memo-ul recalculeaza, doar
+  // ar umple degeaba array-ul de dependinte. `tr` depinde DOAR de `locale`
+  // (deja in lista), iar `confirmClearAll` e o inchidere noua la fiecare
+  // randare oricum (ar defeta complet memo-ul daca ar fi adaugata — s-ar
+  // recalcula la fiecare randare, nu doar cand se schimba ceva relevant).
+  ] as Command[], [photos.length, history.length, counts, filter, theme, workspaceMode, locale]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();

@@ -30,7 +30,6 @@ export function ImportReminder({ onAddPhotos }: { onAddPhotos: () => void }) {
       lastImportAt,
       snoozedUntil: readImportReminderSnoozedUntil()
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hiddenThisSession, photos]);
 
   if (!visible) return null;

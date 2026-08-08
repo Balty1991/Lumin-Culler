@@ -21,7 +21,6 @@ import { ConfirmDialog } from './ui/ConfirmDialog';
 import { ContactSheet } from './ui/ContactSheet';
 import { PresentationMode } from './ui/PresentationMode';
 import { EditPanel } from './ui/EditPanel';
-import { AnimatedNumber } from './ui/AnimatedNumber';
 import { CullGauge } from './ui/CullGauge';
 import { AiBootScreen } from './ui/AiBootScreen';
 import { Tooltip } from './ui/Tooltip';
@@ -304,7 +303,6 @@ export default function App() {
     const onWindowScroll = () => handleGridScroll(window.scrollY);
     window.addEventListener('scroll', onWindowScroll, { passive: true });
     return () => window.removeEventListener('scroll', onWindowScroll);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => { void boot(); }, [boot]);

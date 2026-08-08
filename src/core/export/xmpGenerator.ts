@@ -105,6 +105,13 @@ export function generateXMPSidecar(status: XmpDecision, starRating?: number, key
   const event = ai?.event
     ? `\n    <Iptc4xmpExt:Event>\n     <rdf:Alt>\n      <rdf:li xml:lang="x-default">${xmlEscape(ai.event)}</rdf:li>\n     </rdf:Alt>\n    </Iptc4xmpExt:Event>`
     : '';
+  // BOM-ul literal (U+FEFF) din atributul `begin` de mai jos NU e o greseala
+  // de spatiere — specificatia XMP (Adobe) cere exact acest caracter acolo,
+  // ca parserele sa poata detecta encoding-ul pachetului (UTF-8/UTF-16/
+  // UTF-16BE) inainte de a-l parsa. Semnalat de eslint (no-irregular-
+  // whitespace) ca fals-pozitiv — eliminarea lui ar strica un sidecar altfel
+  // valid pentru orice cititor XMP strict.
+  // eslint-disable-next-line no-irregular-whitespace
   return `<?xpacket begin="﻿" id="W5M0MpCehiHzreSzNTczkc9d"?>
 <x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Lumin Culler Pro">
  <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">

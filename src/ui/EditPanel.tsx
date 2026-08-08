@@ -3,6 +3,10 @@ import { getCachedPreviewUrl } from '../core/previewUrlCache';
 import { useStore } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { computeAutoAdjustments, drawAdjusted, isNeutral, NEUTRAL_ADJUSTMENTS, type EditAdjustments } from '../core/imageAdjust';
+import {
+  boxForAspect, moveCropBox, normalizedBoxRatio, resizeCropFree, resizeCropLocked,
+  FULL_CROP, type CropBox, type CropDragMode
+} from '../core/cropMath';
 import { db, type AnalysisRecord } from '../core/db';
 import { XIcon, UndoIcon, SparkleIcon, CropIcon } from './icons';
 import { t } from '../i18n';
@@ -30,20 +34,14 @@ const SLIDERS: { key: keyof Omit<EditAdjustments, 'crop' | 'rotationDeg'>; min: 
   { key: 'noiseReduction', min: 0, max: 100 }
 ];
 
-type CropBox = { x: number; y: number; width: number; height: number };
-type CropDragMode = 'move' | 'nw' | 'ne' | 'sw' | 'se';
-const FULL_CROP: CropBox = { x: 0, y: 0, width: 1, height: 1 };
-// Sub aceasta latime/inaltime (fractiune din cadru), o caseta ar fi prea mica
-// ca sa mai poata fi apucata de handle-uri pe un ecran de telefon.
-const MIN_CROP_SIZE = 0.1;
-function clamp01(v: number, min: number, max: number): number {
-  return v < min ? min : v > max ? max : v;
-}
-
 // Presetari de raport de aspect (cerinta directa a utilizatorului: "o
 // dimensiune standard... sau crop liber") — `ratio` e latime/inaltime in
 // pixeli REALI (ex. 1:1, 4:5 portret, 16:9 landscape); `null` = "Liber",
-// fara nicio constrangere, comportamentul original de dinainte.
+// fara nicio constrangere, comportamentul original de dinainte. Restul
+// matematicii de recadrare (CropBox, clamp01, normalizedBoxRatio,
+// boxForAspect, resize*) traieste in core/cropMath.ts — extrasa acolo ca sa
+// fie testabila direct (vezi cropMath.test.ts), fara sa randam EditPanel
+// intreg sau sa simulam evenimente de pointer/canvas.
 const CROP_PRESETS: { key: string; labelKey: string; ratio: number | null }[] = [
   { key: 'free', labelKey: 'edit.crop.free', ratio: null },
   { key: '1:1', labelKey: 'edit.crop.ratio.1:1', ratio: 1 },
@@ -51,27 +49,6 @@ const CROP_PRESETS: { key: string; labelKey: string; ratio: number | null }[] = 
   { key: '3:4', labelKey: 'edit.crop.ratio.3:4', ratio: 3 / 4 },
   { key: '16:9', labelKey: 'edit.crop.ratio.16:9', ratio: 16 / 9 }
 ];
-
-/**
- * Un raport gen "1:1" e definit in pixeli REALI ai fotografiei, dar `crop`
- * lucreaza in fractiuni normalizate (0..1) fata de latimea/inaltimea
- * cadrului — o caseta patrata (1:1) pe o poza portret NU inseamna
- * box.width === box.height in coordonate normalizate, ci trebuie corectata
- * cu raportul de aspect AL POZEI (naturalWidth/naturalHeight), altfel ar
- * iesi un dreptunghi, nu un patrat, cand se deseneaza pe pixelii reali.
- */
-function normalizedBoxRatio(ratio: number, naturalWidth: number, naturalHeight: number): number {
-  return (ratio * naturalHeight) / naturalWidth;
-}
-
-/** Cea mai mare caseta cu raportul `normR` (width/height, normalizat) care incape in cadrul [0,1], centrata pe (cx, cy). */
-function boxForAspect(normR: number, cx: number, cy: number): CropBox {
-  const width = normR <= 1 ? normR : 1;
-  const height = normR <= 1 ? 1 : 1 / normR;
-  const x = clamp01(cx - width / 2, 0, 1 - width);
-  const y = clamp01(cy - height / 2, 0, 1 - height);
-  return { x, y, width, height };
-}
 
 /**
  * Modul de editare de baza, non-destructiv (plan "modernizare cat mai pro"):
@@ -129,6 +106,15 @@ export function EditPanel() {
   };
   // Nicio editare in curs nu trebuie pierduta la schimbarea pozei sau la
   // inchiderea panoului — scrie imediat orice a mai ramas in asteptare.
+  // `flushPersist` lipseste intentionat din dependinte: e o inchidere noua
+  // la fiecare randare, dar tot ce citeste/scrie sunt refs (persistTimerRef/
+  // pendingPersistRef, mereu proaspete indiferent cand a fost creata
+  // inchiderea) si `setEditAdjustments` (actiune stabila din Zustand) — deci
+  // versiunea capturata la montare se comporta identic cu ultima versiune.
+  // Cu deps reale (empty array), efectul ruleaza o singura data la montare/
+  // demontare, exact ce se doreste — cu `flushPersist` in deps, s-ar
+  // reinregistra la fiecare randare, fara niciun beneficiu real.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => () => flushPersist(), []);
 
   /**
@@ -223,7 +209,6 @@ export function EditPanel() {
       if (ctx) drawAdjusted(ctx, imgEl, imgEl.naturalWidth, imgEl.naturalHeight, canvas.width, canvas.height, drawn);
     });
     return () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [imgEl, adjustments, cropModeActive]);
 
   useEffect(() => {
@@ -384,53 +369,12 @@ export function EditPanel() {
     const b = drag.startBox;
     let next: CropBox;
     if (drag.mode === 'move') {
-      next = {
-        ...b,
-        x: clamp01(b.x + dx, 0, 1 - b.width),
-        y: clamp01(b.y + dy, 0, 1 - b.height)
-      };
+      next = moveCropBox(b, dx, dy);
     } else if (cropAspect !== null && imgEl) {
-      // Redimensionare cu raport BLOCAT (presetare aleasa) — coltul opus celui
-      // tras (`anchor`) ramane fix, latimea se deriva din distanta pana la
-      // pointer, inaltimea din raport (normalizat la pixelii reali ai pozei,
-      // vezi normalizedBoxRatio), clampata sa incapa in spatiul disponibil
-      // intre ancora si marginea cadrului pe fiecare axa.
       const normR = normalizedBoxRatio(cropAspect, imgEl.naturalWidth, imgEl.naturalHeight);
-      const isLeftHandle = drag.mode === 'nw' || drag.mode === 'sw';
-      const isTopHandle = drag.mode === 'nw' || drag.mode === 'ne';
-      const anchorX = isLeftHandle ? b.x + b.width : b.x;
-      const anchorY = isTopHandle ? b.y + b.height : b.y;
-      const rawCornerX = isLeftHandle ? b.x + dx : b.x + b.width + dx;
-      const rawCornerY = isTopHandle ? b.y + dy : b.y + b.height + dy;
-      const maxWidth = Math.max(MIN_CROP_SIZE, isLeftHandle ? anchorX : 1 - anchorX);
-      const maxHeight = Math.max(MIN_CROP_SIZE, isTopHandle ? anchorY : 1 - anchorY);
-      let width = clamp01(Math.abs(rawCornerX - anchorX), MIN_CROP_SIZE, maxWidth);
-      let height = width / normR;
-      if (height > maxHeight) { height = maxHeight; width = height * normR; }
-      next = {
-        x: isLeftHandle ? anchorX - width : anchorX,
-        y: isTopHandle ? anchorY - height : anchorY,
-        width, height
-      };
+      next = resizeCropLocked(b, drag.mode, dx, dy, normR);
     } else {
-      let { x, y, width, height } = b;
-      if (drag.mode === 'nw' || drag.mode === 'sw') {
-        const newX = clamp01(b.x + dx, 0, b.x + b.width - MIN_CROP_SIZE);
-        width = b.width - (newX - b.x);
-        x = newX;
-      }
-      if (drag.mode === 'ne' || drag.mode === 'se') {
-        width = clamp01(b.width + dx, MIN_CROP_SIZE, 1 - b.x);
-      }
-      if (drag.mode === 'nw' || drag.mode === 'ne') {
-        const newY = clamp01(b.y + dy, 0, b.y + b.height - MIN_CROP_SIZE);
-        height = b.height - (newY - b.y);
-        y = newY;
-      }
-      if (drag.mode === 'sw' || drag.mode === 'se') {
-        height = clamp01(b.height + dy, MIN_CROP_SIZE, 1 - b.y);
-      }
-      next = { x, y, width, height };
+      next = resizeCropFree(b, drag.mode, dx, dy);
     }
     setCropDraft(next);
   };
