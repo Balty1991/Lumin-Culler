@@ -137,7 +137,13 @@ describe('computeAutoCrop', () => {
   });
 
   it('always stays within the [0,1] frame, even for a subject near the edge', () => {
-    const crop = computeAutoCrop({ faceCount: 1, ruleOfThirds: 0.1, faces: faceAt(0.02, 0.02) });
+    // Fata de dimensiune normala (20% din cadru, deasupra SMALL_FACE_HEIGHT_THRESHOLD)
+    // ca sa ramana pe ramura "portret" (BODY_MARGIN_Y proportional) — o fata mica
+    // aici ar declansa noua ramura "corp intreg" (safeBottom=1), care renunta
+    // intentionat la recadrare langa marginea de sus a cadrului (vezi testul dedicat
+    // "renunta la recadrare pentru un cadru de corp intreg" mai jos).
+    const nearEdgeFace: AutoAdjustSignals['faces'] = [{ box: [0.02, 0.02, 0.2, 0.2] }];
+    const crop = computeAutoCrop({ faceCount: 1, ruleOfThirds: 0.1, faces: nearEdgeFace });
     expect(crop).toBeDefined();
     expect(crop!.x).toBeGreaterThanOrEqual(0);
     expect(crop!.y).toBeGreaterThanOrEqual(0);
@@ -180,6 +186,19 @@ describe('computeAutoCrop', () => {
       // clampata la [0,1]) depaseste CROP_SCALE (0.78) indiferent de pozitionare.
       const bigFace: AutoAdjustSignals['faces'] = [{ box: [0.2, 0.2, 0.6, 0.6] }];
       expect(computeAutoCrop({ faceCount: 1, ruleOfThirds: 0.1, faces: bigFace })).toBeUndefined();
+    });
+
+    // Bug real raportat de utilizator, DUPA fix-ul de mai sus pentru brate:
+    // o poza cu corpul intreg vizibil (copil in picioare, la distanta — fata
+    // mica fata de cadru) tot avea picioarele taiate. O marja proportionala
+    // cu inaltimea fetei (2.5x, calibrata pentru un portret apropiat)
+    // subestima drastic distanta reala pana la picioare intr-un cadru de
+    // corp intreg.
+    it('renunta la recadrare pentru un cadru de corp intreg (fata mica, mult spatiu vizibil dedesubt)', () => {
+      // Fata mica (8% din cadru), aproape de partea de sus — tipic pentru o
+      // poza cu subiectul vazut din cap pana in picioare, la distanta.
+      const smallFace: AutoAdjustSignals['faces'] = [{ box: [0.4, 0.05, 0.08, 0.08] }];
+      expect(computeAutoCrop({ faceCount: 1, ruleOfThirds: 0.1, faces: smallFace })).toBeUndefined();
     });
   });
 });

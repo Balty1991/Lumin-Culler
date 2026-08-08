@@ -383,14 +383,18 @@ const RULE_OF_THIRDS_FLAG_THRESHOLD = 0.4; // identic cu aiSuggest.centered (aiE
 const CROP_SCALE = 0.78;
 
 /**
- * Marja de siguranta in jurul casetei fetei, ca fractiune din latimea/inaltimea
- * FETEI — nu avem detectie de corp intreg (doar fete, vezi AutoAdjustSignals),
- * deci nu putem sti unde sunt umerii/bratele/restul corpului. O marja
- * proportionala cu dimensiunea fetei ramane cea mai buna aproximare fara acel
- * semnal. ARM_MARGIN mai mare pe orizontala (un brat ridicat lateral, o mana pe
- * umarul altcuiva) decat HEAD_MARGIN pe verticala in sus (par/palarie); in jos
- * (umeri/piept) marja e cea mai mare — acolo se intinde majoritatea corpului
- * vizibil intr-un portret apropiat.
+ * Marja de siguranta orizontala/superioara in jurul casetei fetei, ca fractiune
+ * din latimea/inaltimea FETEI — nu avem detectie de corp intreg (doar fete,
+ * vezi AutoAdjustSignals), deci nu putem sti exact unde sunt umerii/bratele.
+ * O marja proportionala cu dimensiunea fetei ramane o aproximare rezonabila
+ * DOAR pe aceste doua axe (lateral/sus), unde variatia reala e mica indiferent
+ * de tipul cadrului (portret apropiat sau corp intreg). ARM_MARGIN mai mare pe
+ * orizontala (un brat ridicat lateral, o mana pe umarul altcuiva) decat
+ * HEAD_MARGIN pe verticala in sus (par/palarie).
+ *
+ * Marja de JOS nu urmeaza acelasi tipar — vezi safeBottom din computeAutoCrop
+ * mai jos, unde o marja proportionala cu fata s-a dovedit insuficienta pentru
+ * cadre de corp intreg.
  *
  * Bug real raportat de utilizator: recadrarea automata sectiona bratul unei
  * persoane — algoritmul vechi alinia doar CENTRUL fetei la o intersectie de
@@ -400,6 +404,15 @@ const CROP_SCALE = 0.78;
 const ARM_MARGIN_X = 1.2;
 const HEAD_MARGIN_Y = 0.6;
 const BODY_MARGIN_Y = 2.5;
+/**
+ * Sub acest prag (inaltimea fetei ca fractiune din cadru), consideram fata
+ * "mica" — semnal ca poza arata probabil corpul INTREG, la distanta (nu un
+ * portret apropiat) — vezi comentariul de la safeBottom din computeAutoCrop.
+ * 0.15 lasa marja BODY_MARGIN_Y (2.5x) sa functioneze neschimbat pentru
+ * portrete normale (fata >= ~15% din inaltimea cadrului), unde e deja
+ * verificata ca suficienta.
+ */
+const SMALL_FACE_HEIGHT_THRESHOLD = 0.15;
 
 /**
  * Recadrare automata catre cea mai apropiata intersectie de treimi — DOAR
@@ -431,7 +444,21 @@ export function computeAutoCrop(signals: AutoAdjustSignals): EditAdjustments['cr
   const safeLeft = clampRange(fx - fw * ARM_MARGIN_X, 0, 1);
   const safeRight = clampRange(fx + fw + fw * ARM_MARGIN_X, 0, 1);
   const safeTop = clampRange(fy - fh * HEAD_MARGIN_Y, 0, 1);
-  const safeBottom = clampRange(fy + fh + fh * BODY_MARGIN_Y, 0, 1);
+  // Bug real raportat de utilizator: chiar si cu marja proportionala de mai
+  // jos (BODY_MARGIN_Y, calibrata si verificata pentru un portret apropiat),
+  // o poza cu corpul INTREG vizibil (ex. un copil in picioare, la distanta —
+  // fata mica fata de cadru) tot avea picioarele taiate: aceeasi marja
+  // subestimeaza drastic distanta reala pana la picioare intr-un cadru de
+  // corp intreg (poate fi 6-8x inaltimea fetei, nu 2.5x). Fata MICA (sub
+  // SMALL_FACE_HEIGHT_THRESHOLD) e singurul semnal disponibil ca poza arata
+  // probabil corpul intreg — in acel caz, protejeaza TOT ce e vizibil sub
+  // fata, pana la marginea de jos a cadrului ORIGINAL, in loc sa ghicim o
+  // marja: o recompunere ratata (Auto renunta la recadrare) e de preferat
+  // inca unei poze cu un membru taiat. Pentru fete de dimensiune normala
+  // (portret), marja proportionala ramane neschimbata.
+  const safeBottom = fh < SMALL_FACE_HEIGHT_THRESHOLD
+    ? 1
+    : clampRange(fy + fh + fh * BODY_MARGIN_Y, 0, 1);
 
   // Zona de siguranta nu incape in fereastra w x h, indiferent unde am muta-o —
   // mai bine renuntam complet la recadrare decat sa riscam sa taiem persoana.
