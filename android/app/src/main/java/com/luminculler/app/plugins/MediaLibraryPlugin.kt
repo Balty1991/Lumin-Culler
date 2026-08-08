@@ -35,6 +35,16 @@ import com.getcapacitor.annotation.CapacitorPlugin
  * scop limitat, care sa nu fie acceptate direct de createTrashRequest() —
  * de aceea deletePhotos() trateaza orice exceptie ca esec recuperabil
  * (respinge apelul cu un mesaj clar), nu ca un crash.
+ *
+ * Confirmat pe device real (Xiaomi/HyperOS), prin re-interogarea directa a
+ * MediaStore dupa operatie: fisierul CHIAR e marcat corect
+ * (IS_TRASHED=true) — dar aplicatia de Galerie proprie a telefonului nu
+ * arata in propriul ei ecran "Elemente sterse recent" pozele trecute in cos
+ * de o ALTA aplicatie prin acest API standard Android. E o limitare a
+ * respectivei aplicatii de Galerie (multe skin-uri de producator au propriul
+ * "cos de gunoi", separat de flag-ul oficial Android), nu un bug aici —
+ * fisierul ramane recuperabil la nivel de sistem chiar daca nu apare vizibil
+ * in Galeria implicita a fiecarui telefon.
  */
 @CapacitorPlugin(name = "MediaLibrary")
 class MediaLibraryPlugin : Plugin() {
@@ -52,61 +62,12 @@ class MediaLibraryPlugin : Plugin() {
      */
     private lateinit var deleteLauncher: ActivityResultLauncher<IntentSenderRequest>
     private var pendingDeleteCall: PluginCall? = null
-    // TODO(debug temporar): de scos dupa ce confirmam pe device DE CE nu apar
-    // pozele in "Elemente sterse recent" din Galeria MIUI — vezi discutia din
-    // sesiune. Insotesc fiecare URI trimis la createTrashRequest ca sa putem
-    // re-interoga starea reala (IS_TRASHED) dupa ce sistemul confirma operatia,
-    // in loc sa ghicim din comportamentul unei singure aplicatii de Galerie.
-    private var pendingResolvedUris: List<ResolvedUri>? = null
-    private data class ResolvedUri(val original: Uri, val resolved: Uri, val wasConverted: Boolean)
 
     override fun load() {
         deleteLauncher = bridge.registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
             val call = pendingDeleteCall
-            val resolved = pendingResolvedUris
             pendingDeleteCall = null
-            pendingResolvedUris = null
-            if (call == null) return@registerForActivityResult
-            val cancelled = result.resultCode != Activity.RESULT_OK
-            val diagnostics = JSArray()
-            if (!cancelled) {
-                resolved?.forEach { r ->
-                    val info = queryTrashInfo(r.resolved)
-                    diagnostics.put(
-                        JSObject()
-                            .put("original", r.original.toString())
-                            .put("resolved", r.resolved.toString())
-                            .put("wasConverted", r.wasConverted)
-                            .put("found", info != null)
-                            .put("isTrashed", info?.isTrashed ?: false)
-                            .put("displayName", info?.displayName)
-                    )
-                }
-            }
-            call.resolve(JSObject().put("cancelled", cancelled).put("diagnostics", diagnostics))
-        }
-    }
-
-    private data class TrashInfo(val isTrashed: Boolean, val displayName: String?)
-
-    /** Re-interogheaza direct MediaStore, dupa operatie, ca sa vedem starea reala — nu ghicim din UI-ul unei aplicatii de Galerie. */
-    private fun queryTrashInfo(uri: Uri): TrashInfo? {
-        return try {
-            context.contentResolver.query(
-                uri,
-                arrayOf(MediaStore.MediaColumns.IS_TRASHED, MediaStore.MediaColumns.DISPLAY_NAME),
-                null, null, null
-            )?.use { cursor ->
-                if (!cursor.moveToFirst()) return null
-                val trashedIdx = cursor.getColumnIndex(MediaStore.MediaColumns.IS_TRASHED)
-                val nameIdx = cursor.getColumnIndex(MediaStore.MediaColumns.DISPLAY_NAME)
-                TrashInfo(
-                    isTrashed = trashedIdx >= 0 && cursor.getInt(trashedIdx) == 1,
-                    displayName = if (nameIdx >= 0) cursor.getString(nameIdx) else null
-                )
-            }
-        } catch (e: Exception) {
-            null
+            call?.resolve(JSObject().put("cancelled", result.resultCode != Activity.RESULT_OK))
         }
     }
 
@@ -196,18 +157,15 @@ class MediaLibraryPlugin : Plugin() {
             // caz (document MediaProvider -> MediaStore); daca un URI nu vine de
             // la MediaProvider (alt furnizor SAF), intoarce null si pastram
             // URI-ul original ca ultima incercare.
-            val resolved = uriStrings.map { s ->
+            val uris = uriStrings.map { s ->
                 val uri = Uri.parse(s)
-                val converted = MediaStore.getMediaUri(context, uri)
-                ResolvedUri(original = uri, resolved = converted ?: uri, wasConverted = converted != null)
+                MediaStore.getMediaUri(context, uri) ?: uri
             }
-            val pendingIntent = MediaStore.createTrashRequest(context.contentResolver, resolved.map { it.resolved }, true)
+            val pendingIntent = MediaStore.createTrashRequest(context.contentResolver, uris, true)
             pendingDeleteCall = call
-            pendingResolvedUris = resolved
             deleteLauncher.launch(IntentSenderRequest.Builder(pendingIntent.intentSender).build())
         } catch (e: Exception) {
             pendingDeleteCall = null
-            pendingResolvedUris = null
             call.reject("Nu am putut porni cererea de stergere: ${e.message}", e)
         }
     }

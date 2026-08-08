@@ -32,7 +32,7 @@ import {
   pushBatchHistory, popBatchHistory, type BatchHistoryEvent, type FieldBatchHistoryEvent
 } from './history';
 import { selectBulkRejectTargets, resolveGroups, selectTopPercent, selectHighlights, selectBlinks, selectDeletableRejected } from './batchOps';
-import { isNativeMediaLibraryAvailable, deleteNativePhotos, type TrashDiagnostic } from '../core/nativeMediaLibrary';
+import { isNativeMediaLibraryAvailable, deleteNativePhotos } from '../core/nativeMediaLibrary';
 import { readStoredTheme, applyTheme, type Theme } from './theme';
 import { readStoredProjectName, writeProjectName } from './projectName';
 import { readStoredWatermarkText, writeWatermarkText } from './watermarkText';
@@ -1832,7 +1832,7 @@ export const useStore = create<AppState>((set, get) => ({
     if (!deletable.length) return { deleted: 0, skipped: skippedCount, cancelled: false };
     if (!isNativeMediaLibraryAvailable()) return { deleted: 0, skipped: skippedCount + deletable.length, cancelled: false };
 
-    let result: { cancelled: boolean; diagnostics: TrashDiagnostic[] };
+    let result: { cancelled: boolean };
     try {
       result = await deleteNativePhotos(deletable.map(p => p.mediaUri!));
     } catch (err) {
@@ -1856,19 +1856,11 @@ export const useStore = create<AppState>((set, get) => ({
 
     const deletedNotice = t(locale, 'store.deleteRejected.notice', { deleted: ids.length });
     const skippedNotice = skippedCount > 0 ? t(locale, 'store.deleteRejected.skippedPart', { skipped: skippedCount }) : '';
-    // TODO(debug temporar): de scos dupa ce confirmam pe device DE CE nu apar
-    // pozele mutate in "Elemente sterse recent" din Galeria MIUI — vezi
-    // discutia din sesiune. `result.diagnostics` vine din re-interogarea directa
-    // a MediaStore facuta de plugin dupa operatie (nu din UI-ul unei aplicatii
-    // de Galerie), deci raspunde cert: chiar s-a marcat IS_TRASHED sau nu.
-    const debugDiagnostics = result.diagnostics.length
-      ? ` [debug] ${result.diagnostics.map(d => `${d.displayName ?? '?'}: gasit=${d.found} trashed=${d.isTrashed} convertit=${d.wasConverted}`).join(' | ')}`
-      : ' [debug] fara diagnostice.';
     set(state => ({
       photos: state.photos.filter(p => !idSet.has(p.id)),
       detailId: state.detailId && idSet.has(state.detailId) ? null : state.detailId,
       multiSelectIds: new Set([...state.multiSelectIds].filter(id => !idSet.has(id))),
-      notice: deletedNotice + skippedNotice + debugDiagnostics
+      notice: deletedNotice + skippedNotice
     }));
     return { deleted: ids.length, skipped: skippedCount, cancelled: false };
   },

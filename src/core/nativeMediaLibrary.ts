@@ -14,19 +14,9 @@
  */
 import { registerPlugin, Capacitor } from '@capacitor/core';
 
-/** TODO(debug temporar): TrashDiagnostic e doar pentru investigatia curenta ("Elemente sterse recent" nu arata pozele mutate) — de scos odata cu restul codului de debug din acest fisier. */
-export interface TrashDiagnostic {
-  original: string;
-  resolved: string;
-  wasConverted: boolean;
-  found: boolean;
-  isTrashed: boolean;
-  displayName: string | null;
-}
-
 interface MediaLibraryPluginApi {
   pickPhotos(): Promise<{ cancelled: boolean; photos: { uri: string; name: string }[] }>;
-  deletePhotos(options: { uris: string[] }): Promise<{ cancelled: boolean; diagnostics: TrashDiagnostic[] }>;
+  deletePhotos(options: { uris: string[] }): Promise<{ cancelled: boolean }>;
 }
 
 const MediaLibraryNative = registerPlugin<MediaLibraryPluginApi>('MediaLibrary');
@@ -78,7 +68,7 @@ export async function pickNativePhotos(): Promise<NativePickedPhoto[]> {
  * apelantul nu trebuie sa trateze niciun caz ca eroare, doar promisiunea
  * respinsa inseamna ca cererea nici n-a putut fi pornita (ex. Android < 11).
  */
-export async function deleteNativePhotos(uris: string[]): Promise<{ cancelled: boolean; diagnostics: TrashDiagnostic[] }> {
-  if (!uris.length) return { cancelled: true, diagnostics: [] };
+export async function deleteNativePhotos(uris: string[]): Promise<{ cancelled: boolean }> {
+  if (!uris.length) return { cancelled: true };
   return MediaLibraryNative.deletePhotos({ uris });
 }
