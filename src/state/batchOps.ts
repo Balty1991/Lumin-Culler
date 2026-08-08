@@ -52,6 +52,26 @@ export function resolveGroups(photos: PhotoView[]): GroupResolution[] {
   });
 }
 
+export interface DeletableRejectedResult {
+  /** Poze respinse care AU un URI nativ retinut (PhotoRecord.mediaUri) — singurele pentru care stergerea reala din stocare (deleteRejectedPhotos) e posibila. */
+  deletable: PhotoView[];
+  /** Poze respinse FARA URI retinut (importate pe web/PWA, prin <input type="file">, sau inainte de aceasta functie) — raman doar respinse in aplicatie, nesterse de pe disc. */
+  skippedCount: number;
+}
+
+/**
+ * Vezi PhotoRecord.mediaUri (core/db.ts) pentru de ce doar UNELE poze respinse
+ * sunt eligibile — separam explicit cele doua grupuri (nu doar un filtru
+ * simplu) ca UI-ul (BatchOpsPanel) sa poata arata onest cate poze raman
+ * neatinse, in loc sa lase impresia falsa ca "sterge pozele respinse"
+ * curata toata biblioteca de respinse.
+ */
+export function selectDeletableRejected(photos: PhotoView[]): DeletableRejectedResult {
+  const rejected = photos.filter(p => p.status === 'rejected');
+  const deletable = rejected.filter(p => !!p.mediaUri);
+  return { deletable, skippedCount: rejected.length - deletable.length };
+}
+
 export interface TopPercentResult {
   selectIds: string[];
   rejectIds: string[];

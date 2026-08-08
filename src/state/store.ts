@@ -31,7 +31,8 @@ import {
   pushHistory, popHistory, MAX_HISTORY, type HistoryEvent,
   pushBatchHistory, popBatchHistory, type BatchHistoryEvent, type FieldBatchHistoryEvent
 } from './history';
-import { selectBulkRejectTargets, resolveGroups, selectTopPercent, selectHighlights, selectBlinks } from './batchOps';
+import { selectBulkRejectTargets, resolveGroups, selectTopPercent, selectHighlights, selectBlinks, selectDeletableRejected } from './batchOps';
+import { isNativeMediaLibraryAvailable, deleteNativePhotos } from '../core/nativeMediaLibrary';
 import { readStoredTheme, applyTheme, type Theme } from './theme';
 import { readStoredProjectName, writeProjectName } from './projectName';
 import { readStoredWatermarkText, writeWatermarkText } from './watermarkText';
@@ -143,6 +144,8 @@ export interface PhotoView {
   edits?: EditAdjustments;
   /** Alegerea clientului importata din "galeria client cu feedback" — vezi PhotoRecord.clientFeedback. Absent = niciun feedback importat. */
   clientFeedback?: 'like' | 'dislike';
+  /** URI content:// nativ Android al fisierului original — vezi PhotoRecord.mediaUri. Absent = stergerea din stocare (deleteRejectedPhotos) nu e posibila pentru aceasta poza. */
+  mediaUri?: string;
 }
 
 export type FilterKey = 'all' | 'selected' | 'review' | 'rejected' | 'series' | 'blinks' | 'goldenHour' | 'highlights';
@@ -355,7 +358,7 @@ interface AppState {
   selectMode: boolean;
 
   boot: () => Promise<void>;
-  runImport: (files: File[], handles?: (FileSystemFileHandleLike | undefined)[]) => Promise<void>;
+  runImport: (files: File[], handles?: (FileSystemFileHandleLike | undefined)[], mediaUris?: (string | undefined)[]) => Promise<void>;
   setStatus: (id: string, status: PhotoRecord['status']) => Promise<void>;
   /**
    * Rating 1-5 stele — axa SEPARATA de status (pick/respins/de verificat),
@@ -402,6 +405,16 @@ interface AppState {
    * inregistrata in batchHistory pentru undo.
    */
   rescorePhotos: () => Promise<{ total: number; changed: number }>;
+  /**
+   * Sterge REAL, din stocarea telefonului, pozele deja RESPINSE care au un
+   * URI nativ retinut la import (PhotoRecord.mediaUri) — vezi
+   * core/nativeMediaLibrary.ts si state/batchOps.ts:selectDeletableRejected.
+   * Doar Android nativ (API 30+); pe web/PWA sau pentru poze fara mediaUri
+   * (importate prin <input type="file">, sau inainte de aceasta functie),
+   * nu are ce sterge — apelantul (BatchOpsPanel) trebuie sa arate distinct
+   * cate poze au fost efectiv sterse fata de cate au ramas doar respinse.
+   */
+  deleteRejectedPhotos: () => Promise<{ deleted: number; skipped: number; cancelled: boolean }>;
   /** Comuta o singura poza in/din selectia in masa — Ctrl/Cmd+Click sau, cat timp selectia nu e goala, orice click simplu pe card. */
   toggleMultiSelect: (id: string) => void;
   /** Selecteaza tot intervalul dintre ultimul anchor si `id`, in ordinea data (lista filtrata curenta) — Shift+Click. */
@@ -521,6 +534,7 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     lqip: photo.lqip,
     edits: photo.edits,
     clientFeedback: photo.clientFeedback,
+    mediaUri: photo.mediaUri,
     aiScore: analysis?.aiScore ?? 0,
     sceneType: analysis?.sceneType ?? 'detail',
     contextKey: analysis ? deriveContextKey(analysis, photo.genre) : 'detail',
@@ -1324,7 +1338,7 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
-  runImport: async (files: File[], handles?: (FileSystemFileHandleLike | undefined)[]) => {
+  runImport: async (files: File[], handles?: (FileSystemFileHandleLike | undefined)[], mediaUris?: (string | undefined)[]) => {
     // Bug real gasit de auditul QA: fara aceasta garda, un al doilea import
     // pornit inainte ca primul sa se termine suprascria activeCancelToken —
     // "Anuleaza" nu mai putea opri decat importul cel mai recent, primul
@@ -1395,7 +1409,8 @@ export const useStore = create<AppState>((set, get) => ({
         cancelToken,
         get().genre,
         get().projectName,
-        handles
+        handles,
+        mediaUris
       );
     } catch (err) {
       // fara asta, o promisiune respinsa (ex. retea slaba la incarcarea modelelor AI)
@@ -1808,6 +1823,45 @@ export const useStore = create<AppState>((set, get) => ({
       notice: quotaError ? quotaNotice(locale) : t(locale, 'store.rescore.notice', { total: photos.length, changed: changes.length })
     }));
     return { total: photos.length, changed: changes.length };
+  },
+
+  deleteRejectedPhotos: async () => {
+    const locale = get().locale;
+    const { deletable, skippedCount } = selectDeletableRejected(get().photos);
+    if (!deletable.length) return { deleted: 0, skipped: skippedCount, cancelled: false };
+    if (!isNativeMediaLibraryAvailable()) return { deleted: 0, skipped: skippedCount + deletable.length, cancelled: false };
+
+    let result: { cancelled: boolean };
+    try {
+      result = await deleteNativePhotos(deletable.map(p => p.mediaUri!));
+    } catch (err) {
+      set({ notice: t(locale, 'store.deleteRejected.failed', { error: err instanceof Error ? err.message : String(err) }) });
+      return { deleted: 0, skipped: skippedCount + deletable.length, cancelled: false };
+    }
+    // Utilizatorul a inchis/refuzat dialogul de confirmare al sistemului — o
+    // alegere valida, nu o eroare: nu s-a sters nimic, dar nici n-avem ce raporta
+    // ca "esec" (spre deosebire de catch-ul de mai sus, unde cererea nici n-a putut porni).
+    if (result.cancelled) return { deleted: 0, skipped: skippedCount + deletable.length, cancelled: true };
+
+    const ids = deletable.map(p => p.id);
+    const idSet = new Set(ids);
+    // Aceleasi 6 tabele golite la "Goleste sesiunea" (clearAll), dar doar pentru
+    // ACESTE id-uri — vezi comentariul de acolo pentru ce contine fiecare.
+    await Promise.all([
+      db.photos.bulkDelete(ids), db.thumbnails.bulkDelete(ids), db.previews.bulkDelete(ids),
+      db.originals.bulkDelete(ids), db.fileHandles.bulkDelete(ids), db.analyses.bulkDelete(ids)
+    ]);
+    for (const id of ids) { originalFiles.delete(id); originalHandles.delete(id); }
+
+    const deletedNotice = t(locale, 'store.deleteRejected.notice', { deleted: ids.length });
+    const skippedNotice = skippedCount > 0 ? t(locale, 'store.deleteRejected.skippedPart', { skipped: skippedCount }) : '';
+    set(state => ({
+      photos: state.photos.filter(p => !idSet.has(p.id)),
+      detailId: state.detailId && idSet.has(state.detailId) ? null : state.detailId,
+      multiSelectIds: new Set([...state.multiSelectIds].filter(id => !idSet.has(id))),
+      notice: deletedNotice + skippedNotice
+    }));
+    return { deleted: ids.length, skipped: skippedCount, cancelled: false };
   },
 
   toggleMultiSelect: id => set(state => {

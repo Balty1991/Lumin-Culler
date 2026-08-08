@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { selectBulkRejectTargets, resolveGroups, selectTopPercent, selectHighlights, selectBlinks } from './batchOps';
+import { selectBulkRejectTargets, resolveGroups, selectTopPercent, selectHighlights, selectBlinks, selectDeletableRejected } from './batchOps';
 import type { PhotoView } from './store';
 
 function photo(overrides: Partial<PhotoView>): PhotoView {
@@ -34,6 +34,36 @@ describe('selectBulkRejectTargets', () => {
   it('excludes photos already rejected (no-op, avoid retraining the same decision)', () => {
     const photos = [photo({ id: 'a', status: 'rejected', aiScore: 5 })];
     expect(selectBulkRejectTargets(photos, 90)).toEqual([]);
+  });
+});
+
+describe('selectDeletableRejected', () => {
+  it('splits rejected photos into deletable (has mediaUri) and skipped (does not)', () => {
+    const photos = [
+      photo({ id: 'a', status: 'rejected', mediaUri: 'content://a' }),
+      photo({ id: 'b', status: 'rejected' }),
+      photo({ id: 'c', status: 'rejected', mediaUri: 'content://c' })
+    ];
+    const result = selectDeletableRejected(photos);
+    expect(result.deletable.map(p => p.id)).toEqual(['a', 'c']);
+    expect(result.skippedCount).toBe(1);
+  });
+
+  it('ignores photos that are not rejected, even with a mediaUri', () => {
+    const photos = [
+      photo({ id: 'a', status: 'selected', mediaUri: 'content://a' }),
+      photo({ id: 'b', status: 'pending', mediaUri: 'content://b' }),
+      photo({ id: 'c', status: 'review', mediaUri: 'content://c' })
+    ];
+    const result = selectDeletableRejected(photos);
+    expect(result.deletable).toEqual([]);
+    expect(result.skippedCount).toBe(0);
+  });
+
+  it('returns nothing when there are no rejected photos at all', () => {
+    const result = selectDeletableRejected([photo({ id: 'a', status: 'pending' })]);
+    expect(result.deletable).toEqual([]);
+    expect(result.skippedCount).toBe(0);
   });
 });
 

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../state/store';
-import { selectBulkRejectTargets, resolveGroups, selectTopPercent } from '../state/batchOps';
+import { selectBulkRejectTargets, resolveGroups, selectTopPercent, selectDeletableRejected } from '../state/batchOps';
+import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { listCullingPresets, saveCullingPreset, deleteCullingPreset, type CullingPreset } from '../state/cullingPresets';
 import { buildExportFileName } from '../core/renameTemplate';
 import { useModalFocusTrap } from './useModalFocusTrap';
@@ -19,6 +20,7 @@ export function BatchOpsPanel() {
   const resolveAllSeries = useStore(s => s.resolveAllSeries);
   const autoCullTopPercent = useStore(s => s.autoCullTopPercent);
   const rescorePhotos = useStore(s => s.rescorePhotos);
+  const deleteRejectedPhotos = useStore(s => s.deleteRejectedPhotos);
   const renameTemplate = useStore(s => s.renameTemplate);
   const setRenameTemplate = useStore(s => s.setRenameTemplate);
   const genre = useStore(s => s.genre);
@@ -81,6 +83,7 @@ export function BatchOpsPanel() {
   const targets = useMemo(() => selectBulkRejectTargets(photos, threshold), [photos, threshold]);
   const groups = useMemo(() => resolveGroups(photos), [photos]);
   const cull = useMemo(() => selectTopPercent(photos, cullPercent), [photos, cullPercent]);
+  const deletableRejected = useMemo(() => selectDeletableRejected(photos), [photos]);
 
   const renamePreview = useMemo(
     () => buildExportFileName(renameTemplate, { client: 'Ana', event: 'Nunta', capturedAt: Date.now() }, 1, 'IMG_1234.jpg'),
@@ -143,6 +146,20 @@ export function BatchOpsPanel() {
     setBusy(true);
     try {
       await rescorePhotos();
+    } catch (err) {
+      setNotice(tr('batch.operationFailed', { error: String(err) }));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const runDeleteRejected = async () => {
+    if (!deletableRejected.deletable.length) return;
+    const ok = await askConfirm(tr('batch.deleteRejected.confirm', { count: deletableRejected.deletable.length }), { danger: true });
+    if (!ok) return;
+    setBusy(true);
+    try {
+      await deleteRejectedPhotos();
     } catch (err) {
       setNotice(tr('batch.operationFailed', { error: String(err) }));
     } finally {
@@ -243,6 +260,21 @@ export function BatchOpsPanel() {
             {photos.length ? tr('batch.rescore.apply', { count: photos.length }) : tr('batch.rescore.none')}
           </button>
         </div>
+
+        {isNativeMediaLibraryAvailable() && (
+          <div className="batch-section">
+            <h3><span className="batch-section-icon"><TrashIcon /></span> {tr('batch.deleteRejected.title')}</h3>
+            <p className="hint">{tr('batch.deleteRejected.hint')}</p>
+            {deletableRejected.skippedCount > 0 && (
+              <p className="hint mono">{tr('batch.deleteRejected.skippedHint', { count: deletableRejected.skippedCount })}</p>
+            )}
+            <button className="reject batch-reject-btn" onClick={() => void runDeleteRejected()} disabled={busy || !deletableRejected.deletable.length}>
+              {deletableRejected.deletable.length
+                ? tr('batch.deleteRejected.apply', { count: deletableRejected.deletable.length })
+                : tr('batch.deleteRejected.none')}
+            </button>
+          </div>
+        )}
 
         <div className="batch-section">
           <h3><span className="batch-section-icon"><EditIcon /></span> {tr('batch.rename.title')}</h3>

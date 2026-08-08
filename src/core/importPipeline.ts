@@ -356,7 +356,7 @@ export function toHashInput(id: string, dHash: string, a: AnalysisRecord): HashI
   };
 }
 
-async function processOne(file: File, genre?: string, project?: string, handle?: FileSystemFileHandleLike): Promise<ImportedPhoto> {
+async function processOne(file: File, genre?: string, project?: string, handle?: FileSystemFileHandleLike, mediaUri?: string): Promise<ImportedPhoto> {
   const id = crypto.randomUUID();
   originalFiles.set(id, file);
   if (handle) originalHandles.set(id, handle);
@@ -457,7 +457,8 @@ async function processOne(file: File, genre?: string, project?: string, handle?:
     // ramanand falsy identic cu "absent" pentru tot codul existent)
     groupId: '',
     ...(genre?.trim() ? { genre: genre.trim() } : {}),
-    ...(project?.trim() ? { project: project.trim() } : {})
+    ...(project?.trim() ? { project: project.trim() } : {}),
+    ...(mediaUri ? { mediaUri } : {})
   };
 
   // Bug real gasit de auditul QA: cele 4-5 scrieri de mai jos (o singura poza,
@@ -510,7 +511,9 @@ export async function importFiles(
   /** Numele proiectului/sesiunii active (ProjectNameField) — vezi PhotoRecord.project. */
   project?: string,
   /** Handle-uri File System Access API, aliniate index-cu-index cu `files` (vezi filePicker.ts pickImportFiles). Absent = import prin <input type="file">. */
-  handles?: (FileSystemFileHandleLike | undefined)[]
+  handles?: (FileSystemFileHandleLike | undefined)[],
+  /** URI-uri content:// Android, aliniate index-cu-index cu `files` (vezi nativeMediaLibrary.ts pickNativePhotos). Absent = import prin <input type="file"> sau pe web/PWA — vezi PhotoRecord.mediaUri. */
+  mediaUris?: (string | undefined)[]
 ): Promise<Map<string, string>> {
   // faza separata (nu "analiza 0/N"): la primul import, descarca modelele AI
   // (cateva zeci de MB) — poate dura, si utilizatorul trebuie sa stie de ce.
@@ -523,7 +526,7 @@ export async function importFiles(
   // pastram fisierul si handle-ul corespunzator impreuna INAINTE de a filtra
   // dupa format — altfel indexul din `handles` s-ar decala fata de `files`
   // de indata ce un fisier neacceptat (ex. HEIC) e exclus din mijlocul listei.
-  const pairs = files.map((file, i) => ({ file, handle: handles?.[i] }));
+  const pairs = files.map((file, i) => ({ file, handle: handles?.[i], mediaUri: mediaUris?.[i] }));
   let images = pairs.filter(({ file: f }) =>
     /image\/(jpeg|png|webp|avif)/.test(f.type) || /\.(jpe?g|png|webp|avif)$/i.test(f.name) || RAW_EXTENSIONS.test(f.name)
   );
@@ -568,10 +571,10 @@ export async function importFiles(
         if (cancelToken?.cancelled) { stopReason = `Import anulat — ${done}/${images.length} poze procesate pana la anulare.`; break; }
         const myIndex = index++;
         if (myIndex >= images.length) break;
-        const { file, handle } = images[myIndex];
+        const { file, handle, mediaUri } = images[myIndex];
 
         try {
-          const item = await processOne(file, genre, project, handle);
+          const item = await processOne(file, genre, project, handle, mediaUri);
           hashes.push(toHashInput(item.photo.id, item.photo.dHash, item.analysis));
           onPhoto(item);
         } catch (err) {

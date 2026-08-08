@@ -32,6 +32,7 @@ import { selectHighlights, selectBlinks } from './state/batchOps';
 import { CARD_MIN_WIDTH } from './state/gridDensity';
 import { SORT_KEY_LABELS, type SortKey } from './state/gridSort';
 import { pickImportFiles } from './core/filePicker';
+import { isNativeMediaLibraryAvailable, pickNativePhotos } from './core/nativeMediaLibrary';
 import { armPickerWatchdog, type PickerWatchdog } from './core/pickerWatchdog';
 import { initAndroidBackButton } from './core/androidBackButton';
 import { formatEta } from './core/formatTime';
@@ -447,6 +448,24 @@ export default function App() {
     if (picked) {
       if (picked.files.length) void runImport(picked.files, picked.handles);
       return;
+    }
+    // Pe Android nativ, foloseste selectorul propriu (MediaLibraryPlugin) —
+    // singura cale prin care pastram URI-ul content:// al pozei, necesar mai
+    // tarziu pentru "Sterge pozele respinse" (BatchOpsPanel). <input type="file">
+    // de mai jos preda doar bytes-ii fisierului, fara nicio urma a locatiei lui
+    // reale pe telefon. O selectie goala aici e o ANULARE deliberata a
+    // utilizatorului din dialogul nativ — nu trebuie sa deschidem imediat DUPA
+    // un al doilea selector (<input type="file">) ca "plasa de siguranta";
+    // acel fallback ramane doar pentru cazul in care selectorul nativ chiar
+    // esueaza (arunca), nu pentru o alegere explicita de a nu selecta nimic.
+    if (isNativeMediaLibraryAvailable()) {
+      try {
+        const photos = await pickNativePhotos();
+        if (photos.length) void runImport(photos.map(p => p.file), undefined, photos.map(p => p.uri));
+        return;
+      } catch (err) {
+        console.warn('Selectorul nativ de poze a esuat, revenim la <input type="file">:', err);
+      }
     }
     // Plasa de siguranta: pe unele telefoane, alegerea mai multor poze mari
     // deodata dintr-o aplicatie ca "Fisiere" (nu Galeria) poate face ca `change`
