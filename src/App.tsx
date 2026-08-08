@@ -444,22 +444,14 @@ export default function App() {
    * inainte, pe browsere fara suport (Safari/WebKit, WebView-uri mobile).
    */
   const onAddPhotosClick = async () => {
-    const picked = await pickImportFiles();
-    if (picked) {
-      // TODO(debug temporar): de scos odata cu celalalt debug de mai jos.
-      setNotice(`[debug] pickImportFiles (API desktop) a raspuns cu ${picked.files.length} fisiere — aceasta cale NU seteaza mediaUri.`);
-      if (picked.files.length) void runImport(picked.files, picked.handles);
-      return;
-    }
-    // Pe Android nativ, foloseste selectorul propriu (MediaLibraryPlugin) —
+    // Pe Android nativ, incearca INTAI selectorul propriu (MediaLibraryPlugin) —
     // singura cale prin care pastram URI-ul content:// al pozei, necesar mai
-    // tarziu pentru "Sterge pozele respinse" (BatchOpsPanel). <input type="file">
-    // de mai jos preda doar bytes-ii fisierului, fara nicio urma a locatiei lui
-    // reale pe telefon. O selectie goala aici e o ANULARE deliberata a
-    // utilizatorului din dialogul nativ — nu trebuie sa deschidem imediat DUPA
-    // un al doilea selector (<input type="file">) ca "plasa de siguranta";
-    // acel fallback ramane doar pentru cazul in care selectorul nativ chiar
-    // esueaza (arunca), nu pentru o alegere explicita de a nu selecta nimic.
+    // tarziu pentru "Sterge pozele respinse" (BatchOpsPanel). Bug real gasit
+    // prin test pe device: verificam mai intai pickImportFiles() (API-ul
+    // showOpenFilePicker de desktop) — dar WebView-ul Android a inceput sa
+    // raspunda si el la acel API (fara sa expuna vreun URI persistent prin el),
+    // deci codul lua mereu acea cale si selectorul nostru nu mai apuca sa
+    // porneasca niciodata. Pe Android nativ, ordinea trebuie inversata.
     if (isNativeMediaLibraryAvailable()) {
       try {
         const photos = await pickNativePhotos();
@@ -467,14 +459,23 @@ export default function App() {
         // chiar ajunge pe PhotoRecord — vezi discutia din sesiune despre
         // "Sterge pozele respinse" raportand 0 poze eligibile dupa import nativ.
         setNotice(`[debug] selector nativ: ${photos.length} poze — ${photos.length ? photos.map(p => p.uri).join(' | ') : 'niciuna (anulat sau 0 rezultate)'}`);
+        // O selectie goala aici e o ANULARE deliberata a utilizatorului din
+        // dialogul nativ — nu trebuie sa deschidem imediat DUPA un al doilea
+        // selector ca "plasa de siguranta"; acel fallback ramane doar pentru
+        // cazul in care selectorul nativ chiar esueaza (arunca).
         if (photos.length) void runImport(photos.map(p => p.file), undefined, photos.map(p => p.uri));
         return;
       } catch (err) {
         setNotice(`[debug] selectorul nativ a esuat: ${err instanceof Error ? err.message : String(err)}`);
-        console.warn('Selectorul nativ de poze a esuat, revenim la <input type="file">:', err);
+        console.warn('Selectorul nativ de poze a esuat, revenim la API-ul de desktop / <input type="file">:', err);
       }
-    } else {
-      setNotice('[debug] MediaLibrary indisponibil pe acest device — folosesc <input type="file">.');
+    }
+    const picked = await pickImportFiles();
+    if (picked) {
+      // TODO(debug temporar): de scos odata cu celalalt debug de mai sus.
+      setNotice(`[debug] pickImportFiles (API desktop) a raspuns cu ${picked.files.length} fisiere — aceasta cale NU seteaza mediaUri.`);
+      if (picked.files.length) void runImport(picked.files, picked.handles);
+      return;
     }
     // Plasa de siguranta: pe unele telefoane, alegerea mai multor poze mari
     // deodata dintr-o aplicatie ca "Fisiere" (nu Galeria) poate face ca `change`
