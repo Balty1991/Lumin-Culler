@@ -1,19 +1,22 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
 import { useStore } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { computeAutoAdjustments, drawAdjusted, isNeutral, NEUTRAL_ADJUSTMENTS, type EditAdjustments } from '../core/imageAdjust';
 import { db, type AnalysisRecord } from '../core/db';
-import { XIcon, UndoIcon, SparkleIcon } from './icons';
+import { XIcon, UndoIcon, SparkleIcon, CropIcon } from './icons';
 import { t } from '../i18n';
 
-// Doar cele 10 chei numerice cu slider in UI — crop/rotationDeg (adaugate pentru
-// recadrare/indreptare automata) NU au inca un control manual (vezi planul:
-// niciun tool de crop cu drag in aceasta trecere), doar Auto le poate seta.
-// sharpen/noiseReduction sunt 0..100 (o singura directie are sens — nu exista
-// "sharpen negativ"), clarity ramane -100..100 ca restul (poate si inmuia
-// contrastul local, nu doar accentua) — de-aia fiecare slider isi declara
-// propriul interval, nu mai e un singur min/max fix pentru toate.
+// Doar cele 10 chei numerice cu slider in UI — rotationDeg (auto-indreptare)
+// tot nu are un control manual dedicat, dar `crop` acum are propriul tool
+// (vezi CropBox/startCrop mai jos) — bug real raportat de utilizator: cand
+// recadrarea automata a AI-ului nu era pe placul lui, singura optiune era
+// Reseteaza (care anula TOATE ajustarile, nu doar crop-ul) sau sa renunte
+// complet la recadrare. sharpen/noiseReduction sunt 0..100 (o singura
+// directie are sens — nu exista "sharpen negativ"), clarity ramane -100..100
+// ca restul (poate si inmuia contrastul local, nu doar accentua) — de-aia
+// fiecare slider isi declara propriul interval, nu mai e un singur min/max
+// fix pentru toate.
 const SLIDERS: { key: keyof Omit<EditAdjustments, 'crop' | 'rotationDeg'>; min: number; max: number }[] = [
   { key: 'exposure', min: -100, max: 100 },
   { key: 'contrast', min: -100, max: 100 },
@@ -26,6 +29,16 @@ const SLIDERS: { key: keyof Omit<EditAdjustments, 'crop' | 'rotationDeg'>; min: 
   { key: 'sharpen', min: 0, max: 100 },
   { key: 'noiseReduction', min: 0, max: 100 }
 ];
+
+type CropBox = { x: number; y: number; width: number; height: number };
+type CropDragMode = 'move' | 'nw' | 'ne' | 'sw' | 'se';
+const FULL_CROP: CropBox = { x: 0, y: 0, width: 1, height: 1 };
+// Sub aceasta latime/inaltime (fractiune din cadru), o caseta ar fi prea mica
+// ca sa mai poata fi apucata de handle-uri pe un ecran de telefon.
+const MIN_CROP_SIZE = 0.1;
+function clamp01(v: number, min: number, max: number): number {
+  return v < min ? min : v > max ? max : v;
+}
 
 /**
  * Modul de editare de baza, non-destructiv (plan "modernizare cat mai pro"):
@@ -85,6 +98,19 @@ export function EditPanel() {
   // inchiderea panoului — scrie imediat orice a mai ramas in asteptare.
   useEffect(() => () => flushPersist(), []);
 
+  /**
+   * Recadrare manuala (tool nou, cerinta directa a utilizatorului): cat timp
+   * `cropDraft` nu e null, panoul e in "modul crop" — canvas-ul arata cadrul
+   * INTREG (vezi drawAdjusted mai jos, cropModeActive ignora adjustments.crop
+   * cat timp se editeaza), cu o caseta suprapusa pe care utilizatorul o poate
+   * muta/redimensiona. `cropDraft` e coordonatele TEMPORARE (draft), separate
+   * de `adjustments.crop` — Salveaza scrie draftul in adjustments, Renunta il
+   * arunca fara sa atinga nimic.
+   */
+  const [cropDraft, setCropDraft] = useState<CropBox | null>(null);
+  const cropModeActive = cropDraft !== null;
+  const cropDragRef = useRef<{ mode: CropDragMode; startX: number; startY: number; startBox: CropBox } | null>(null);
+
   useEffect(() => {
     flushPersist();
     if (!photo) return;
@@ -93,6 +119,7 @@ export function EditPanel() {
     setAnalysis(null);
     setAnalysisLoaded(false);
     autoAppliedRef.current = false;
+    setCropDraft(null);
     let alive = true;
     void getCachedPreviewUrl(photo.id).then(url => {
       if (!alive || !url) return;
@@ -128,7 +155,21 @@ export function EditPanel() {
   // (exportul foloseste applyAdjustmentsToBlob pe blob-ul original, la
   // rezolutie completa) — nu are nevoie de rezolutia integrala a preview-ului
   // pentru feedback vizual pe un ecran de telefon.
-  const EDIT_PREVIEW_MAX_SIDE = 1024;
+  // 768 (nu 1024, valoarea initiala a acestui plafon) — feedback direct pe
+  // device real dupa primul plafon: sliderele tot "se putea si mai rapid".
+  // Trecerea de pixeli (temperatura/tinta/highlights/shadows/claritate/
+  // sharpen/reducere-zgomot) scaleaza cu NUMARUL de pixeli al canvas-ului,
+  // deci 768 (~44% mai putini pixeli fata de 1024) ramane vizibil suficient
+  // de clar pe un ecran de telefon, dar taie proportional din costul per cadru.
+  const EDIT_PREVIEW_MAX_SIDE = 768;
+  // Cat timp utilizatorul editeaza manual recadrarea (cropModeActive), preview-ul
+  // arata cadrul INTREG (crop: undefined), nu cel deja recadrat — caseta suprapusa
+  // (vezi JSX mai jos) se pozitioneaza direct in coordonatele canvas-ului doar daca
+  // acesta arata intreaga poza, altfel fractiile 0..1 ale casetei nu s-ar mai
+  // potrivi cu ce se vede. Foloseste `cropModeActive` (boolean), NU `cropDraft`
+  // direct, ca dependinta — altfel fiecare tick de drag al casetei (care schimba
+  // identitatea obiectului cropDraft) ar redeclansa un pixel-pass complet, desi
+  // imaginea de fundal nu se schimba deloc in timpul unui drag de recadrare.
   useEffect(() => {
     if (!imgEl || !canvasRef.current) return;
     if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
@@ -140,17 +181,23 @@ export function EditPanel() {
       canvas.width = Math.max(1, Math.round(imgEl.naturalWidth * scale));
       canvas.height = Math.max(1, Math.round(imgEl.naturalHeight * scale));
       const ctx = canvas.getContext('2d');
-      if (ctx) drawAdjusted(ctx, imgEl, imgEl.naturalWidth, imgEl.naturalHeight, canvas.width, canvas.height, adjustments);
+      const drawn = cropModeActive ? { ...adjustments, crop: undefined } : adjustments;
+      if (ctx) drawAdjusted(ctx, imgEl, imgEl.naturalWidth, imgEl.naturalHeight, canvas.width, canvas.height, drawn);
     });
     return () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); };
-  }, [imgEl, adjustments]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [imgEl, adjustments, cropModeActive]);
 
   useEffect(() => {
     if (!photo) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setEditingId(null); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (cropDraft) { setCropDraft(null); return; }
+      setEditingId(null);
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [photo, setEditingId]);
+  }, [photo, setEditingId, cropDraft]);
 
   /**
    * "Editor AI automat" (cerinta directa a utilizatorului): expunerea,
@@ -235,21 +282,111 @@ export function EditPanel() {
     void setEditAdjustments(photo.id, NEUTRAL_ADJUSTMENTS);
   };
 
+  // Porneste modul de recadrare manuala, pornind de la recadrarea deja
+  // existenta (auto sau manuala anterioara) daca exista una, altfel de la
+  // cadrul intreg — utilizatorul rafineaza ce e deja acolo, nu reincepe de la 0.
+  const startCrop = () => setCropDraft(adjustments.crop ?? FULL_CROP);
+  const cancelCrop = () => { cropDragRef.current = null; setCropDraft(null); };
+  const clearCropDraft = () => setCropDraft(FULL_CROP);
+  const applyCrop = () => {
+    if (!cropDraft) return;
+    // Cadru practic intreg (utilizatorul a tras caseta inapoi la marginile
+    // originale) — salveaza `undefined`, nu un obiect crop redundant, ca sa
+    // ramana consistent cu isNeutral()/badge-ul "editat" din alta parte.
+    const isFull = cropDraft.x <= 0.005 && cropDraft.y <= 0.005 && cropDraft.width >= 0.995 && cropDraft.height >= 0.995;
+    const next = { ...adjustments, crop: isFull ? undefined : cropDraft };
+    setAdjustments(next);
+    pendingPersistRef.current = null;
+    if (persistTimerRef.current !== null) { clearTimeout(persistTimerRef.current); persistTimerRef.current = null; }
+    void setEditAdjustments(photo.id, next);
+    cropDragRef.current = null;
+    setCropDraft(null);
+  };
+
+  /**
+   * Drag pentru caseta de recadrare — un singur handler de pointerdown pentru
+   * mutare (`move`, pe caseta insasi) SI cele 4 colturi de redimensionare
+   * (`nw`/`ne`/`sw`/`se`), diferentiate prin `mode`. Foloseste Pointer Events
+   * (nu mouse/touch separat) — functioneaza identic cu mouse pe desktop si cu
+   * degetul pe telefon (cazul principal aici), inclusiv setPointerCapture ca
+   * drag-ul sa continue chiar daca degetul/cursorul iese din caseta la mijlocul
+   * gestului.
+   */
+  const onCropHandleDown = (mode: CropDragMode) => (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!cropDraft) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    cropDragRef.current = { mode, startX: e.clientX, startY: e.clientY, startBox: cropDraft };
+  };
+  const onCropOverlayMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = cropDragRef.current;
+    const canvas = canvasRef.current;
+    if (!drag || !canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const dx = (e.clientX - drag.startX) / rect.width;
+    const dy = (e.clientY - drag.startY) / rect.height;
+    const b = drag.startBox;
+    let next: CropBox;
+    if (drag.mode === 'move') {
+      next = {
+        ...b,
+        x: clamp01(b.x + dx, 0, 1 - b.width),
+        y: clamp01(b.y + dy, 0, 1 - b.height)
+      };
+    } else {
+      let { x, y, width, height } = b;
+      if (drag.mode === 'nw' || drag.mode === 'sw') {
+        const newX = clamp01(b.x + dx, 0, b.x + b.width - MIN_CROP_SIZE);
+        width = b.width - (newX - b.x);
+        x = newX;
+      }
+      if (drag.mode === 'ne' || drag.mode === 'se') {
+        width = clamp01(b.width + dx, MIN_CROP_SIZE, 1 - b.x);
+      }
+      if (drag.mode === 'nw' || drag.mode === 'ne') {
+        const newY = clamp01(b.y + dy, 0, b.y + b.height - MIN_CROP_SIZE);
+        height = b.height - (newY - b.y);
+        y = newY;
+      }
+      if (drag.mode === 'sw' || drag.mode === 'se') {
+        height = clamp01(b.height + dy, MIN_CROP_SIZE, 1 - b.y);
+      }
+      next = { x, y, width, height };
+    }
+    setCropDraft(next);
+  };
+  const onCropOverlayUp = () => { cropDragRef.current = null; };
+
   return (
     <div className="edit-scrim" onClick={e => { if (e.target === e.currentTarget) setEditingId(null); }}>
       <div className="edit-modal" ref={containerRef} role="dialog" aria-modal="true" aria-label={tr('edit.title')} tabIndex={-1}>
         <header className="detail-head">
           <span>{tr('edit.title')}</span>
           <div className="contact-sheet-header-actions">
-            <button className="ghost small-btn edit-auto-btn" onClick={applyAuto} disabled={!imgEl}>
-              <SparkleIcon className="inline-icon" /> {tr('edit.auto')}
-            </button>
-            <button className="ghost small-btn" onClick={resetAll} disabled={isNeutral(adjustments)}>
-              <UndoIcon className="inline-icon" /> {tr('edit.reset')}
-            </button>
-            <button className="ghost icon-btn" onClick={() => setEditingId(null)} aria-label={tr('detail.close')}>
-              <XIcon />
-            </button>
+            {cropDraft ? (
+              <>
+                <button className="ghost small-btn" onClick={clearCropDraft}>{tr('edit.crop.reset')}</button>
+                <button className="ghost small-btn" onClick={cancelCrop}>{tr('edit.crop.cancel')}</button>
+                <button className="btn-accent small-btn" onClick={applyCrop}>{tr('edit.crop.apply')}</button>
+              </>
+            ) : (
+              <>
+                <button className="ghost small-btn edit-auto-btn" onClick={applyAuto} disabled={!imgEl}>
+                  <SparkleIcon className="inline-icon" /> {tr('edit.auto')}
+                </button>
+                <button className="ghost small-btn" onClick={startCrop} disabled={!imgEl}>
+                  <CropIcon className="inline-icon" /> {tr('edit.crop')}
+                </button>
+                <button className="ghost small-btn" onClick={resetAll} disabled={isNeutral(adjustments)}>
+                  <UndoIcon className="inline-icon" /> {tr('edit.reset')}
+                </button>
+                <button className="ghost icon-btn" onClick={() => setEditingId(null)} aria-label={tr('detail.close')}>
+                  <XIcon />
+                </button>
+              </>
+            )}
           </div>
         </header>
 
@@ -261,7 +398,15 @@ export function EditPanel() {
               poza s-a incarcat, containerul isi ia raportul EI real de aspect —
               indiferent de orientare/dimensiune, umple exact spatiul disponibil,
               fara letterboxing si fara sa "sara" de la o dimensiune presupusa la
-              cea reala. */}
+              cea reala.
+              Bug real raportat de utilizator (a doua oara): pe telefon, tot panoul
+              (.edit-modal) e cel care scroleaza, nu doar lista de slidere — cand
+              utilizatorul cobora ca sa ajunga la sliderele de jos (Claritate/
+              Accentuare/Reducere zgomot), poza disparea complet din ecran, desi
+              tocmai despre "sa vezi live corectia" e vorba. `position: sticky`
+              (vezi .edit-canvas-wrap in @media (max-width:760px) din styles.css)
+              tine poza fixata sus in timp ce doar lista de slidere scroleaza pe
+              sub ea. */}
           <div className="edit-canvas-wrap" style={imgEl ? { aspectRatio: `${imgEl.naturalWidth} / ${imgEl.naturalHeight}` } : undefined}>
             {/* Bug real gasit de auditul QA: singurul loc din aplicatie unde poza e
                 afisata fara nicio alternativa text pentru un cititor de ecran —
@@ -270,26 +415,52 @@ export function EditPanel() {
                 + aria-label, exact echivalentul semantic. */}
             <canvas ref={canvasRef} className="edit-canvas" role="img" aria-label={photo.fileName} />
             {!imgEl && <span className="card-loading edit-canvas-loading" aria-hidden="true" />}
+            {cropDraft && (
+              <div
+                className="crop-overlay"
+                onPointerMove={onCropOverlayMove}
+                onPointerUp={onCropOverlayUp}
+                onPointerCancel={onCropOverlayUp}
+              >
+                <div
+                  className="crop-box"
+                  style={{
+                    left: `${cropDraft.x * 100}%`, top: `${cropDraft.y * 100}%`,
+                    width: `${cropDraft.width * 100}%`, height: `${cropDraft.height * 100}%`
+                  }}
+                  onPointerDown={onCropHandleDown('move')}
+                >
+                  <span className="crop-handle crop-handle-nw" onPointerDown={onCropHandleDown('nw')} />
+                  <span className="crop-handle crop-handle-ne" onPointerDown={onCropHandleDown('ne')} />
+                  <span className="crop-handle crop-handle-sw" onPointerDown={onCropHandleDown('sw')} />
+                  <span className="crop-handle crop-handle-se" onPointerDown={onCropHandleDown('se')} />
+                </div>
+              </div>
+            )}
           </div>
-          <div className="edit-sliders">
-            {SLIDERS.map(({ key, min, max }) => (
-              <label key={key} className="edit-slider-row">
-                <span className="edit-slider-label" aria-hidden="true">{tr(`edit.${key}`)}</span>
-                <input
-                  type="range" min={min} max={max} step={1}
-                  value={adjustments[key] ?? 0}
-                  onChange={e => update(key, Number(e.target.value))}
-                  // Bug real gasit de auditul QA: label-ul invaluia si numele SI
-                  // valoarea numerica, deci numele accesibil calculat includea
-                  // ambele (ex. "Expunere 20"), iar cititorul de ecran anunta
-                  // valoarea A DOUA OARA separat (nativ, la fiecare schimbare de
-                  // range) — redundant. aria-label explicit foloseste DOAR numele.
-                  aria-label={tr(`edit.${key}`)}
-                />
-                <span className="edit-slider-value mono" aria-hidden="true">{adjustments[key] ?? 0}</span>
-              </label>
-            ))}
-          </div>
+          {cropDraft ? (
+            <p className="edit-crop-hint">{tr('edit.crop.hint')}</p>
+          ) : (
+            <div className="edit-sliders">
+              {SLIDERS.map(({ key, min, max }) => (
+                <label key={key} className="edit-slider-row">
+                  <span className="edit-slider-label" aria-hidden="true">{tr(`edit.${key}`)}</span>
+                  <input
+                    type="range" min={min} max={max} step={1}
+                    value={adjustments[key] ?? 0}
+                    onChange={e => update(key, Number(e.target.value))}
+                    // Bug real gasit de auditul QA: label-ul invaluia si numele SI
+                    // valoarea numerica, deci numele accesibil calculat includea
+                    // ambele (ex. "Expunere 20"), iar cititorul de ecran anunta
+                    // valoarea A DOUA OARA separat (nativ, la fiecare schimbare de
+                    // range) — redundant. aria-label explicit foloseste DOAR numele.
+                    aria-label={tr(`edit.${key}`)}
+                  />
+                  <span className="edit-slider-value mono" aria-hidden="true">{adjustments[key] ?? 0}</span>
+                </label>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
