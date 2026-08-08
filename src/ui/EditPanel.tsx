@@ -62,8 +62,31 @@ export function EditPanel() {
   // (singurul semnal derivat direct din pixeli), fara expunere/recadrare/etc.
   const [analysisLoaded, setAnalysisLoaded] = useState(false);
   const autoAppliedRef = useRef(false);
+  // Bug real raportat de utilizator: slidere "extrem de greu, cu lag mare".
+  // Cauza — update() scria in Dexie (setEditAdjustments) la FIECARE eveniment
+  // de drag, nu doar la eliberare; acel write reconstruieste intreg array-ul
+  // `photos` din store (potential sute/mii de poze) la fiecare pixel de
+  // miscare a unui slider, declansand recalculari in cascada peste tot ce
+  // citeste `photos` (filtered/secondaryFiltered/counts). Redesenarea pe canvas
+  // era deja limitata corect la un cadru (rafRef mai jos), dar persistarea nu
+  // era limitata deloc. Solutie: persistarea in Dexie e amanata (debounce),
+  // starea locala (adjustments) ramane instant — previzualizarea live nu
+  // depinde de scrierea in DB.
+  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingPersistRef = useRef<{ id: string; adjustments: EditAdjustments } | null>(null);
+  const flushPersist = () => {
+    if (persistTimerRef.current !== null) { clearTimeout(persistTimerRef.current); persistTimerRef.current = null; }
+    const pending = pendingPersistRef.current;
+    if (!pending) return;
+    pendingPersistRef.current = null;
+    void setEditAdjustments(pending.id, pending.adjustments);
+  };
+  // Nicio editare in curs nu trebuie pierduta la schimbarea pozei sau la
+  // inchiderea panoului — scrie imediat orice a mai ramas in asteptare.
+  useEffect(() => () => flushPersist(), []);
 
   useEffect(() => {
+    flushPersist();
     if (!photo) return;
     setAdjustments(photo.edits ?? NEUTRAL_ADJUSTMENTS);
     setImgEl(null);
@@ -145,6 +168,8 @@ export function EditPanel() {
       colorHarmonyScore: analysis?.colorHarmonyScore
     });
     setAdjustments(auto);
+    pendingPersistRef.current = null;
+    if (persistTimerRef.current !== null) { clearTimeout(persistTimerRef.current); persistTimerRef.current = null; }
     void setEditAdjustments(photo.id, auto);
 
     const applied: string[] = [];
@@ -173,14 +198,22 @@ export function EditPanel() {
 
   if (!photo) return null;
 
+  const PERSIST_DEBOUNCE_MS = 400;
+
   const update = (key: keyof EditAdjustments, value: number) => {
     const next = { ...adjustments, [key]: value };
     setAdjustments(next);
-    void setEditAdjustments(photo.id, next);
+    // starea locala (de mai sus) ramane instant, pentru previzualizarea live —
+    // doar scrierea in Dexie e amanata, vezi comentariul de la persistTimerRef.
+    pendingPersistRef.current = { id: photo.id, adjustments: next };
+    if (persistTimerRef.current !== null) clearTimeout(persistTimerRef.current);
+    persistTimerRef.current = setTimeout(flushPersist, PERSIST_DEBOUNCE_MS);
   };
 
   const resetAll = () => {
     setAdjustments(NEUTRAL_ADJUSTMENTS);
+    pendingPersistRef.current = null;
+    if (persistTimerRef.current !== null) { clearTimeout(persistTimerRef.current); persistTimerRef.current = null; }
     void setEditAdjustments(photo.id, NEUTRAL_ADJUSTMENTS);
   };
 
