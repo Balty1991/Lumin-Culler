@@ -406,14 +406,18 @@ interface AppState {
    */
   rescorePhotos: () => Promise<{ total: number; changed: number }>;
   /**
-   * Muta REAL, in Cosul de gunoi al telefonului (NU stergere definitiva),
-   * pozele deja RESPINSE care au un URI nativ retinut la import
-   * (PhotoRecord.mediaUri) — vezi core/nativeMediaLibrary.ts si
-   * state/batchOps.ts:selectDeletableRejected. Doar Android nativ (API 30+);
-   * pe web/PWA sau pentru poze fara mediaUri (importate prin
-   * <input type="file">, sau inainte de aceasta functie), nu are ce muta —
-   * apelantul (BatchOpsPanel) trebuie sa arate distinct cate poze au fost
-   * efectiv mutate fata de cate au ramas doar respinse.
+   * Sterge REAL, de pe telefon, pozele deja RESPINSE care au un URI nativ
+   * retinut la import (PhotoRecord.mediaUri) — vezi core/nativeMediaLibrary.ts
+   * si state/batchOps.ts:selectDeletableRejected. Foloseste tehnic API-ul de
+   * Cos de gunoi al Android (MediaStore.createTrashRequest, nu stergere brutala),
+   * dar utilizatorul e informat ca stergere DEFINITIVA — confirmat pe device
+   * real ca nu toate aplicatiile de Galerie arata fisierele trecute in cos de
+   * o alta aplicatie, deci recuperarea nu e garantata (vezi comentariul din
+   * MediaLibraryPlugin.kt). Doar Android nativ (API 30+); pe web/PWA sau
+   * pentru poze fara mediaUri (importate prin <input type="file">, sau
+   * inainte de aceasta functie), nu are ce sterge — apelantul (BatchOpsPanel)
+   * trebuie sa arate distinct cate poze au fost efectiv sterse fata de cate
+   * au ramas doar respinse.
    */
   deleteRejectedPhotos: () => Promise<{ deleted: number; skipped: number; cancelled: boolean }>;
   /** Comuta o singura poza in/din selectia in masa — Ctrl/Cmd+Click sau, cat timp selectia nu e goala, orice click simplu pe card. */

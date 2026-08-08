@@ -1270,6 +1270,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   position: relative; text-align: center; display: grid; gap: 10px; justify-items: center; padding-top: 8px;
 }
 .welcome-onboarding-skip { position: absolute; top: 0; right: 0; }
+.welcome-onboarding-locale { position: absolute; top: 0; left: 0; }
 .welcome-onboarding-body { margin: 0; color: var(--text-dim); font-size: 0.92rem; line-height: 1.5; max-width: 34ch; }
 .welcome-onboarding-dots { display: flex; gap: 6px; margin-top: 4px; }
 .welcome-onboarding-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--line-strong); transition: background var(--micro), transform var(--micro); }

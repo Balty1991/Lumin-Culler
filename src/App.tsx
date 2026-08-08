@@ -7,6 +7,7 @@ import { Workspace } from './ui/Workspace';
 import { GroupCompare } from './ui/GroupCompare';
 import { PersonsPanel } from './ui/PersonsPanel';
 import { MenuDrawer } from './ui/MenuDrawer';
+import { LocaleToggle } from './ui/LocaleToggle';
 import { InsightsPanel } from './ui/InsightsPanel';
 import { BatchOpsPanel } from './ui/BatchOpsPanel';
 import { StatsPanel } from './ui/StatsPanel';
@@ -714,6 +715,7 @@ export default function App() {
           >
             <DownloadIcon className="inline-icon" aria-hidden="true" /> {tr('app.export', { count: counts.selected })}
           </button>
+          <LocaleToggle />
           <Tooltip label={tr('app.tooltip.menu')} side="left">
             <button className="ghost icon-btn" onClick={() => setMenuOpen(true)} aria-label={tr('app.menu.ariaLabel')}>
               <MenuIcon />

@@ -96,9 +96,10 @@ export interface PhotoRecord {
    * URI content:// nativ Android al fisierului original (MediaLibraryPlugin.kt,
    * ACTION_OPEN_DOCUMENT cu permisiune persistenta) — spre deosebire de
    * FileHandleRecord (File System Access API, doar desktop), acesta e ce
-   * permite `deleteRejectedPhotos` (state/store.ts) sa ceara mutarea in Cosul
-   * de gunoi al telefonului (NU stergere definitiva), prin dialogul de
-   * confirmare al sistemului (MediaStore.createTrashRequest). Absent pentru:
+   * permite `deleteRejectedPhotos` (state/store.ts) sa ceara stergerea de pe
+   * telefon, prin dialogul de confirmare al sistemului
+   * (MediaStore.createTrashRequest — tehnic Cos de gunoi, prezentata insa
+   * utilizatorului ca definitiva, vezi MediaLibraryPlugin.kt). Absent pentru:
    * poze importate pe web/PWA, poze importate pe Android prin
    * <input type="file"> (plasa de siguranta, nu retine URI-ul), si orice poza
    * importata INAINTE de aceasta functie — in toate aceste cazuri, stergerea

@@ -43,8 +43,13 @@ import com.getcapacitor.annotation.CapacitorPlugin
  * de o ALTA aplicatie prin acest API standard Android. E o limitare a
  * respectivei aplicatii de Galerie (multe skin-uri de producator au propriul
  * "cos de gunoi", separat de flag-ul oficial Android), nu un bug aici —
- * fisierul ramane recuperabil la nivel de sistem chiar daca nu apare vizibil
- * in Galeria implicita a fiecarui telefon.
+ * fisierul ramane recuperabil la nivel de sistem (IS_TRASHED, nu bytes
+ * stersi), dar NU garantat vizibil/recuperabil din Galeria implicita a
+ * fiecarui telefon. Din acest motiv, textul aratat utilizatorului (vezi
+ * batch.deleteRejected.* in i18n) trateaza actiunea ca stergere DEFINITIVA,
+ * desi tehnic foloseste API-ul de trash (cel mai sigur disponibil) — mai
+ * bine sa promitem mai putin decat sa lasam impresia falsa ca poate fi
+ * recuperata sigur dintr-un loc anume.
  */
 @CapacitorPlugin(name = "MediaLibrary")
 class MediaLibraryPlugin : Plugin() {

@@ -3,10 +3,11 @@
  * Punte catre plugin-ul Capacitor local MediaLibrary (vezi android/app/src/main/
  * java/com/luminculler/app/plugins/MediaLibraryPlugin.kt) — selectie de poze cu
  * URI content:// PASTRAT (spre deosebire de <input type="file"> din WebView,
- * care preda doar bytes-ii fisierului si arunca URI-ul) si mutare ulterioara in
- * Cosul de gunoi (NU stergere definitiva) prin dialogul de confirmare AL
- * SISTEMULUI (MediaStore.createTrashRequest, API 30+) — vezi
- * state/store.ts:deleteRejectedPhotos.
+ * care preda doar bytes-ii fisierului si arunca URI-ul) si stergere ulterioara
+ * prin dialogul de confirmare AL SISTEMULUI (MediaStore.createTrashRequest,
+ * API 30+ — tehnic Cos de gunoi, nu stergere bruta, dar prezentata
+ * utilizatorului ca definitiva, vezi MediaLibraryPlugin.kt pentru motiv) —
+ * vezi state/store.ts:deleteRejectedPhotos.
  *
  * Doar Android nativ: pe web/PWA, "sterge din telefon" nu are sens (nu exista
  * fisier de sters, doar Blob-uri in IndexedDB) — apelantul trebuie sa verifice
