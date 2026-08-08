@@ -42,6 +42,7 @@ import { MoreFiltersMenu } from './ui/MoreFiltersMenu';
 import { SavedFiltersMenu } from './ui/SavedFiltersMenu';
 import { InstallPrompt } from './ui/InstallPrompt';
 import { BackupReminder } from './ui/BackupReminder';
+import { WelcomeOnboarding } from './ui/WelcomeOnboarding';
 import { t } from './i18n';
 
 // 7s a fost prea scurt pentru notificari dupa actiuni care nu schimba nimic
@@ -698,6 +699,7 @@ export default function App() {
       </header>
 
       <Toast />
+      <WelcomeOnboarding />
       <div className="banner-stack">
         <InstallPrompt />
         <BackupReminder />
