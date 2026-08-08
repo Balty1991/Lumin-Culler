@@ -1,12 +1,14 @@
-import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useStore } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import {
   UserCheckIcon, SparkleIcon, ListIcon, InfoIcon, XIcon, TagIcon, LayersIcon, KeyboardIcon,
   SunIcon, MoonIcon, BatteryIcon, GridIcon, DownloadIcon, UploadIcon, BarChartIcon, GlobeIcon, PrinterIcon,
-  ApertureIcon, PlayIcon, EditIcon, FolderIcon, HeartIcon
+  ApertureIcon, PlayIcon, EditIcon, FolderIcon, HeartIcon, TrashIcon
 } from './icons';
+import { selectDeletableRejected } from '../state/batchOps';
+import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { EASE } from './motion';
 import { GENRE_PRESETS } from '../state/genre';
 import { nextGridDensity } from '../state/gridDensity';
@@ -41,6 +43,8 @@ export function MenuDrawer() {
   const setPersonsOpen = useStore(s => s.setPersonsOpen);
   const setInsightsOpen = useStore(s => s.setInsightsOpen);
   const setBatchOpsOpen = useStore(s => s.setBatchOpsOpen);
+  const photos = useStore(s => s.photos);
+  const deletableRejectedCount = useMemo(() => selectDeletableRejected(photos).deletable.length, [photos]);
   const setShortcutsOpen = useStore(s => s.setShortcutsOpen);
   const theme = useStore(s => s.theme);
   const setTheme = useStore(s => s.setTheme);
@@ -244,6 +248,17 @@ export function MenuDrawer() {
           <span className="drawer-item-icon"><LayersIcon /></span>
           <span>{tr('menu.batchOps')}</span>
         </button>
+
+        {isNativeMediaLibraryAvailable() && (
+          <button className="drawer-item" onClick={() => go(() => setBatchOpsOpen(true))}>
+            <span className="drawer-item-icon"><TrashIcon /></span>
+            <span>
+              {deletableRejectedCount > 0
+                ? tr('menu.deleteRejected.withCount', { count: deletableRejectedCount })
+                : tr('menu.deleteRejected')}
+            </span>
+          </button>
+        )}
 
         <button className="drawer-item" onClick={() => go(() => setStatsOpen(true))}>
           <span className="drawer-item-icon"><BarChartIcon /></span>

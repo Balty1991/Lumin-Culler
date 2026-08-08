@@ -3,6 +3,7 @@ import { useStore } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { readWelcomeSeen, writeWelcomeSeen } from '../state/welcomeOnboarding';
 import { ApertureIcon, SparkleIcon, UserCheckIcon, StarIcon, XIcon } from './icons';
+import { LocaleToggle } from './LocaleToggle';
 import { t } from '../i18n';
 
 /**
@@ -48,6 +49,9 @@ export function WelcomeOnboarding() {
         <button className="ghost icon-btn welcome-onboarding-skip" onClick={finish} aria-label={tr('welcome.skip')}>
           <XIcon />
         </button>
+        <div className="welcome-onboarding-locale">
+          <LocaleToggle side="bottom" />
+        </div>
 
         <div className="core" aria-hidden="true">
           <span className="core-halo" />
