@@ -2393,5 +2393,4 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .edit-slider-row input[type="range"] { grid-column: 1 / -1; width: 100%; accent-color: var(--accent); }
 @media (max-width: 760px) {
   .edit-body { grid-template-columns: 1fr; }
-  .edit-canvas-wrap { aspect-ratio: 16 / 10; }
 }
