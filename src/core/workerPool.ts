@@ -359,10 +359,22 @@ export class AnalysisPool {
     if (this.enrollmentSlot) return Promise.resolve(this.enrollmentSlot);
     if (!this.enrollmentSlotPromise) {
       this.enrollmentSlotPromise = this.spawnSlot().then(async ({ slot }) => {
-        if (this.knownPersons.length) await slot.api.setKnownPersons(this.knownPersons);
+        // Bug real gasit de auditul QA: acest apel Comlink NU avea niciun timeout,
+        // spre deosebire de restul apelurilor din acest fisier — daca se bloca din
+        // orice motiv (worker ocupat/raspuns pierdut), intreaga inrolare ramanea
+        // agatata la infinit, fara nicio eroare vizibila si fara nicio recuperare.
+        if (this.knownPersons.length) {
+          await withTimeout(slot.api.setKnownPersons(this.knownPersons), MODEL_INIT_TIMEOUT_MS, 'Configurarea persoanelor cunoscute a durat prea mult.');
+        }
         this.enrollmentSlot = slot;
         return slot;
       });
+      // Bug real gasit de auditul QA: un esec aici (spawn/init SAU setKnownPersons)
+      // nu reseta niciodata enrollmentSlotPromise — prima incercare esuata/blocata
+      // "otravea" promisiunea memorata pentru tot restul sesiunii, facand orice
+      // incercare ULTERIOARA de inrolare sa esueze instantaneu, fara sa mai
+      // porneasca vreodata un worker nou, pana la restart complet al aplicatiei.
+      this.enrollmentSlotPromise.catch(() => { this.enrollmentSlotPromise = undefined; });
     }
     return this.enrollmentSlotPromise;
   }
@@ -407,10 +419,16 @@ export class AnalysisPool {
     if (this.recognitionSlot) return Promise.resolve(this.recognitionSlot);
     if (!this.recognitionSlotPromise) {
       this.recognitionSlotPromise = this.spawnSlot(undefined, true).then(async ({ slot }) => {
-        if (this.knownPersons.length) await slot.api.setKnownPersons(this.knownPersons);
+        // Acelasi bug real (fara timeout) ca la ensureEnrollmentSlot — vezi comentariul de acolo.
+        if (this.knownPersons.length) {
+          await withTimeout(slot.api.setKnownPersons(this.knownPersons), MODEL_INIT_TIMEOUT_MS, 'Configurarea persoanelor cunoscute a durat prea mult.');
+        }
         this.recognitionSlot = slot;
         return slot;
       });
+      // Acelasi bug real (promisiune "otravita" definitiv la primul esec) ca la
+      // ensureEnrollmentSlot — vezi comentariul de acolo.
+      this.recognitionSlotPromise.catch(() => { this.recognitionSlotPromise = undefined; });
     }
     return this.recognitionSlotPromise;
   }
