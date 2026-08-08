@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   computeAutoContrast, computeAutoExposureFromScore, computeAutoHighlightsShadows,
   computeAutoCrop, computeAutoStraighten, computeAutoSaturation, isNeutral, NEUTRAL_ADJUSTMENTS,
-  type AutoAdjustSignals
+  applyDetailPass, type AutoAdjustSignals
 } from './imageAdjust';
 
 function makeImage(w: number, h: number, paint: (x: number, y: number) => [number, number, number]): ImageData {
@@ -230,5 +230,78 @@ describe('isNeutral with crop/rotationDeg', () => {
 
   it('is not neutral once rotationDeg is non-zero', () => {
     expect(isNeutral({ ...NEUTRAL_ADJUSTMENTS, rotationDeg: 3 })).toBe(false);
+  });
+});
+
+// Sharpen/claritate/reducere zgomot — singurele ajustari cu nevoie de pixeli
+// VECINI (nu doar transformare per-pixel independenta) — testate direct pe un
+// Uint8ClampedArray construit manual, fara canvas real (jsdom nu il implementeaza,
+// vezi makeImage() de mai sus, folosit deja pentru computeAutoContrast).
+describe('applyDetailPass', () => {
+  function pixels(w: number, h: number, paint: (x: number, y: number) => [number, number, number]): Uint8ClampedArray {
+    return makeImage(w, h, paint).data;
+  }
+  const at = (data: Uint8ClampedArray, w: number, x: number, y: number): number => data[(y * w + x) * 4];
+
+  it('leaves pixels completely unchanged when sharpen/clarity/noiseReduction are all 0', () => {
+    const before = pixels(6, 6, (x, y) => [x * 40, y * 40, 100]);
+    const data = before.slice();
+    applyDetailPass(data, 6, 6, { ...NEUTRAL_ADJUSTMENTS });
+    expect(Array.from(data)).toEqual(Array.from(before));
+  });
+
+  describe('noiseReduction', () => {
+    it('leaves a perfectly flat image unchanged (blur of a constant is the constant)', () => {
+      const before = pixels(6, 6, () => [120, 130, 140]);
+      const data = before.slice();
+      applyDetailPass(data, 6, 6, { ...NEUTRAL_ADJUSTMENTS, noiseReduction: 100 });
+      expect(Array.from(data)).toEqual(Array.from(before));
+    });
+
+    it('pulls an isolated bright pixel toward its darker neighborhood', () => {
+      const data = pixels(7, 7, (x, y) => (x === 3 && y === 3 ? [255, 255, 255] : [0, 0, 0]));
+      const before = at(data, 7, 3, 3);
+      applyDetailPass(data, 7, 7, { ...NEUTRAL_ADJUSTMENTS, noiseReduction: 100 });
+      expect(at(data, 7, 3, 3)).toBeLessThan(before);
+    });
+  });
+
+  describe('sharpen', () => {
+    it('leaves a perfectly flat image unchanged (no edges to accentuate)', () => {
+      const before = pixels(6, 6, () => [90, 90, 90]);
+      const data = before.slice();
+      applyDetailPass(data, 6, 6, { ...NEUTRAL_ADJUSTMENTS, sharpen: 100 });
+      expect(Array.from(data)).toEqual(Array.from(before));
+    });
+
+    it('pushes an isolated bright pixel even brighter relative to its dark surroundings', () => {
+      const data = pixels(7, 7, (x, y) => (x === 3 && y === 3 ? [200, 200, 200] : [50, 50, 50]));
+      const before = at(data, 7, 3, 3);
+      applyDetailPass(data, 7, 7, { ...NEUTRAL_ADJUSTMENTS, sharpen: 100 });
+      expect(at(data, 7, 3, 3)).toBeGreaterThan(before);
+    });
+  });
+
+  describe('clarity', () => {
+    it('leaves a perfectly flat image unchanged (no local contrast to touch)', () => {
+      const before = pixels(8, 8, () => [128, 128, 128]);
+      const data = before.slice();
+      applyDetailPass(data, 8, 8, { ...NEUTRAL_ADJUSTMENTS, clarity: 100 });
+      expect(Array.from(data)).toEqual(Array.from(before));
+    });
+
+    it('widens the gap across a hard edge (positive clarity = more local contrast)', () => {
+      const data = pixels(20, 4, x => (x < 10 ? [60, 60, 60] : [190, 190, 190]));
+      applyDetailPass(data, 20, 4, { ...NEUTRAL_ADJUSTMENTS, clarity: 100 });
+      const gap = at(data, 20, 10, 0) - at(data, 20, 9, 0);
+      expect(gap).toBeGreaterThan(190 - 60);
+    });
+
+    it('narrows the gap across a hard edge (negative clarity = flatter/softer)', () => {
+      const data = pixels(20, 4, x => (x < 10 ? [60, 60, 60] : [190, 190, 190]));
+      applyDetailPass(data, 20, 4, { ...NEUTRAL_ADJUSTMENTS, clarity: -100 });
+      const gap = at(data, 20, 10, 0) - at(data, 20, 9, 0);
+      expect(gap).toBeLessThan(190 - 60);
+    });
   });
 });

@@ -26,10 +26,17 @@ export interface EditAdjustments {
    * rezolutie, nu o decupare care micsoreaza fisierul.
    */
   crop?: { x: number; y: number; width: number; height: number };
+  /** Accentuare margini (unsharp simplu, kernel 3x3) — 0..100. Absent = 0, la fel ca inregistrarile vechi din Dexie dinainte de acest camp. */
+  sharpen?: number;
+  /** Contrast local ("claritate" stil Lightroom) — -100..100; negativ inmoaie, pozitiv accentueaza texturile de detaliu fara sa schimbe expunerea globala. */
+  clarity?: number;
+  /** Reducere zgomot (blend cu o varianta usor difuzata) — 0..100. */
+  noiseReduction?: number;
 }
 
 export const NEUTRAL_ADJUSTMENTS: EditAdjustments = {
-  exposure: 0, contrast: 0, saturation: 0, temperature: 0, tint: 0, highlights: 0, shadows: 0, rotationDeg: 0
+  exposure: 0, contrast: 0, saturation: 0, temperature: 0, tint: 0, highlights: 0, shadows: 0, rotationDeg: 0,
+  sharpen: 0, clarity: 0, noiseReduction: 0
 };
 
 /** Doar cheile NUMERICE, comparabile direct cu 0 — `crop` (obiect sau absent) e tratat separat in isNeutral(), nu apartine acestui tipar. */
@@ -80,14 +87,145 @@ function drawGeometry(ctx: CanvasRenderingContext2D, source: CanvasImageSource, 
   ctx.restore();
 }
 
+function clampRange(v: number, min: number, max: number): number {
+  return v < min ? min : v > max ? max : v;
+}
+
+function clampIdx(i: number, size: number): number {
+  return i < 0 ? 0 : i >= size ? size - 1 : i;
+}
+
+/**
+ * Cache de UN singur "slot" (nu pe marime, ca sa nu creasca nelimitat cat timp
+ * ContactSheet/Workspace redeseneaza multe poze de dimensiuni diferite) pentru
+ * cele 4 buffere Float32 folosite de reducerea de zgomot/claritate/sharpen mai
+ * jos — evita realocarea a ~50MB (2048x1536, cazul obisnuit — vezi
+ * PREVIEW_MAX_SIDE din importPipeline.ts) la FIECARE cadru cat timp utilizatorul
+ * trage un slider pe ACEEASI poza (cazul de departe cel mai frecvent). La
+ * schimbarea dimensiunii (poza noua), buffer-ele vechi sunt pur si simplu
+ * inlocuite, nu acumulate — presiune de GC marginala, nu o scurgere de memorie.
+ * Sigur doar cat timp drawAdjusted ramane SINCRON si apelat dintr-un singur
+ * thread (adevarat azi — niciun apel concurent posibil).
+ */
+let scratchSize = -1;
+let scratch: Float32Array[] = [];
+function getScratch(size: number): Float32Array[] {
+  if (scratchSize !== size) {
+    scratch = [new Float32Array(size), new Float32Array(size), new Float32Array(size), new Float32Array(size)];
+    scratchSize = size;
+  }
+  return scratch;
+}
+
+/** Blur box separabil (orizontal apoi vertical) pe UN plan de canal, O(n) via suma culisanta — NU O(n * raza^2) cu bucla imbricata naiva. */
+function boxBlurChannel(src: Float32Array, dst: Float32Array, temp: Float32Array, width: number, height: number, radius: number): void {
+  const windowSize = radius * 2 + 1;
+  for (let y = 0; y < height; y++) {
+    const row = y * width;
+    let sum = 0;
+    for (let x = -radius; x <= radius; x++) sum += src[row + clampIdx(x, width)];
+    for (let x = 0; x < width; x++) {
+      temp[row + x] = sum / windowSize;
+      sum += src[row + clampIdx(x + radius + 1, width)] - src[row + clampIdx(x - radius, width)];
+    }
+  }
+  for (let x = 0; x < width; x++) {
+    let sum = 0;
+    for (let y = -radius; y <= radius; y++) sum += temp[clampIdx(y, height) * width + x];
+    for (let y = 0; y < height; y++) {
+      dst[y * width + x] = sum / windowSize;
+      sum += temp[clampIdx(y + radius + 1, height) * width + x] - temp[clampIdx(y - radius, height) * width + x];
+    }
+  }
+}
+
+/**
+ * Unsharp simplu, kernel 3x3 clasic (centru 1+4k, cei 4 vecini directi -k).
+ * Citeste din `src`, scrie in `dst` — buffere SEPARATE, altfel vecinii deja
+ * suprascrisi in aceeasi trecere ar strica rezultatul pixelilor urmatori.
+ */
+function applySharpenChannel(src: Float32Array, dst: Float32Array, width: number, height: number, k: number): void {
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = y * width + x;
+      const up = src[clampIdx(y - 1, height) * width + x];
+      const down = src[clampIdx(y + 1, height) * width + x];
+      const left = src[y * width + clampIdx(x - 1, width)];
+      const right = src[y * width + clampIdx(x + 1, width)];
+      dst[idx] = src[idx] * (1 + 4 * k) - k * (up + down + left + right);
+    }
+  }
+}
+
+const NOISE_BLUR_RADIUS = 2;
+const CLARITY_BLUR_RADIUS = 10;
+/** Magnitudine maxima a delta-ului de claritate la ±100 — calibrata sa ramana un contrast local vizibil, nu o resolarizare agresiva. */
+const CLARITY_MAX_STRENGTH = 0.6;
+/** k maxim in kernelul de sharpen (vezi applySharpenChannel) la slider=100 — peste asta apar halouri vizibile in jurul muchiilor. */
+const SHARPEN_MAX_K = 0.5;
+
+/**
+ * Reducere zgomot / claritate / accentuare — SINGURELE ajustari din acest
+ * fisier care au nevoie de pixeli VECINI (nu doar transformare per-pixel
+ * independenta), deci opereaza pe planuri de canal separate (Float32Array),
+ * nu pe bufferul intretesut RGBA direct. Ordinea conteaza: reducere zgomot
+ * INTAI (altfel am accentua exact zgomotul pe care tocmai l-am atenuat),
+ * claritate apoi, sharpen ULTIMUL (pasul clasic de finisare intr-un pipeline
+ * de editare foto).
+ */
+/** Exportata (nu doar folosita intern de drawAdjusted) ca sa fie testabila direct pe un Uint8ClampedArray construit manual, fara canvas real (jsdom nu il implementeaza). */
+export function applyDetailPass(d: Uint8ClampedArray, width: number, height: number, a: EditAdjustments): void {
+  const size = width * height;
+  const r = new Float32Array(size), g = new Float32Array(size), b = new Float32Array(size);
+  for (let i = 0, p = 0; i < d.length; i += 4, p++) { r[p] = d[i]; g[p] = d[i + 1]; b[p] = d[i + 2]; }
+
+  const noiseAmt = clampRange((a.noiseReduction ?? 0) / 100, 0, 1);
+  if (noiseAmt > 0) {
+    const [rb, gb, bb, temp] = getScratch(size);
+    boxBlurChannel(r, rb, temp, width, height, NOISE_BLUR_RADIUS);
+    boxBlurChannel(g, gb, temp, width, height, NOISE_BLUR_RADIUS);
+    boxBlurChannel(b, bb, temp, width, height, NOISE_BLUR_RADIUS);
+    for (let p = 0; p < size; p++) {
+      r[p] += (rb[p] - r[p]) * noiseAmt;
+      g[p] += (gb[p] - g[p]) * noiseAmt;
+      b[p] += (bb[p] - b[p]) * noiseAmt;
+    }
+  }
+
+  const clarityAmt = (a.clarity ?? 0) / 100; // -1..1
+  if (clarityAmt !== 0) {
+    const [lum, lumBlur, temp] = getScratch(size);
+    for (let p = 0; p < size; p++) lum[p] = 0.299 * r[p] + 0.587 * g[p] + 0.114 * b[p];
+    boxBlurChannel(lum, lumBlur, temp, width, height, CLARITY_BLUR_RADIUS);
+    const strength = clarityAmt * CLARITY_MAX_STRENGTH;
+    for (let p = 0; p < size; p++) {
+      const delta = (lum[p] - lumBlur[p]) * strength;
+      r[p] += delta; g[p] += delta; b[p] += delta;
+    }
+  }
+
+  const sharpenAmt = clampRange((a.sharpen ?? 0) / 100, 0, 1) * SHARPEN_MAX_K;
+  if (sharpenAmt > 0) {
+    const [rs, gs, bs] = getScratch(size);
+    applySharpenChannel(r, rs, width, height, sharpenAmt);
+    applySharpenChannel(g, gs, width, height, sharpenAmt);
+    applySharpenChannel(b, bs, width, height, sharpenAmt);
+    r.set(rs); g.set(gs); b.set(bs);
+  }
+
+  for (let i = 0, p = 0; i < d.length; i += 4, p++) {
+    d[i] = clamp255(r[p]); d[i + 1] = clamp255(g[p]); d[i + 2] = clamp255(b[p]);
+  }
+}
+
 /**
  * Deseneaza `source` pe canvas-ul lui `ctx` (dimensiune width x height) cu
  * ajustarile aplicate — geometrie (recadrare/indreptare) + culoare. Expunerea/
  * contrastul/saturatia trec prin ctx.filter (accelerat de browser);
- * temperatura/tinta/highlights/shadows necesita un pixel-pass suplimentar
- * (getImageData/putImageData), sarit complet cand sunt toate neutre — cazul
- * cel mai comun (doar primele 3 ajustate) ramane la fel de rapid ca un
- * simplu drawImage.
+ * temperatura/tinta/highlights/shadows/reducere-zgomot/claritate/sharpen
+ * necesita un pixel-pass suplimentar (getImageData/putImageData), sarit
+ * complet cand sunt toate neutre — cazul cel mai comun (doar primele 3
+ * ajustate) ramane la fel de rapid ca un simplu drawImage.
  */
 export function drawAdjusted(
   ctx: CanvasRenderingContext2D,
@@ -103,40 +241,44 @@ export function drawAdjusted(
   drawGeometry(ctx, source, width, height, a);
   ctx.filter = 'none';
 
-  if (a.temperature === 0 && a.tint === 0 && a.highlights === 0 && a.shadows === 0) return;
+  const hasColorShift = a.temperature !== 0 || a.tint !== 0 || a.highlights !== 0 || a.shadows !== 0;
+  const hasDetailPass = (a.sharpen ?? 0) !== 0 || (a.clarity ?? 0) !== 0 || (a.noiseReduction ?? 0) !== 0;
+  if (!hasColorShift && !hasDetailPass) return;
 
   const imgData = ctx.getImageData(0, 0, width, height);
   const d = imgData.data;
-  const tempShift = (a.temperature / 100) * 40;  // pana la ±40 pe canalele R/B (cald/rece)
-  const tintShift = (a.tint / 100) * 40;         // pana la ±40 pe G vs R+B (verde/magenta)
-  const highlightAmt = (a.highlights / 100) * 60;
-  const shadowAmt = (a.shadows / 100) * 60;
-  const hasToneShift = highlightAmt !== 0 || shadowAmt !== 0;
 
-  for (let i = 0; i < d.length; i += 4) {
-    let r = d[i], g = d[i + 1], b = d[i + 2];
-    r += tempShift - tintShift / 2;
-    b -= tempShift + tintShift / 2;
-    g += tintShift;
+  if (hasColorShift) {
+    const tempShift = (a.temperature / 100) * 40;  // pana la ±40 pe canalele R/B (cald/rece)
+    const tintShift = (a.tint / 100) * 40;         // pana la ±40 pe G vs R+B (verde/magenta)
+    const highlightAmt = (a.highlights / 100) * 60;
+    const shadowAmt = (a.shadows / 100) * 60;
+    const hasToneShift = highlightAmt !== 0 || shadowAmt !== 0;
 
-    if (hasToneShift) {
-      // luminanta inainte de shift-ul de temperatura/tinta ar fi mai corecta, dar
-      // diferenta e imperceptibila la magnitudinea shift-urilor de mai sus —
-      // preferam un singur pass peste pixel in loc de doua
-      const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-      const hiWeight = Math.max(0, (lum - 128) / 127);
-      const shWeight = Math.max(0, (128 - lum) / 128);
-      const delta = highlightAmt * hiWeight + shadowAmt * shWeight;
-      r += delta; g += delta; b += delta;
+    for (let i = 0; i < d.length; i += 4) {
+      let r = d[i], g = d[i + 1], b = d[i + 2];
+      r += tempShift - tintShift / 2;
+      b -= tempShift + tintShift / 2;
+      g += tintShift;
+
+      if (hasToneShift) {
+        // luminanta inainte de shift-ul de temperatura/tinta ar fi mai corecta, dar
+        // diferenta e imperceptibila la magnitudinea shift-urilor de mai sus —
+        // preferam un singur pass peste pixel in loc de doua
+        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+        const hiWeight = Math.max(0, (lum - 128) / 127);
+        const shWeight = Math.max(0, (128 - lum) / 128);
+        const delta = highlightAmt * hiWeight + shadowAmt * shWeight;
+        r += delta; g += delta; b += delta;
+      }
+
+      d[i] = clamp255(r); d[i + 1] = clamp255(g); d[i + 2] = clamp255(b);
     }
-
-    d[i] = clamp255(r); d[i + 1] = clamp255(g); d[i + 2] = clamp255(b);
   }
-  ctx.putImageData(imgData, 0, 0);
-}
 
-function clampRange(v: number, min: number, max: number): number {
-  return v < min ? min : v > max ? max : v;
+  if (hasDetailPass) applyDetailPass(d, width, height, a);
+
+  ctx.putImageData(imgData, 0, 0);
 }
 
 /**
