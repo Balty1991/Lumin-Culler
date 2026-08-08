@@ -32,6 +32,13 @@ export interface HashInput extends Partial<Omit<GroupCandidate, 'id'>> {
   score: number;
   /** Embedding-uri (1024-dim, FaceRes) ale fetelor detectate in poza — unul per fata, absent/gol daca nu s-a detectat nicio fata. */
   faceEmbeddings?: number[][];
+  /**
+   * Embedding general de similaritate vizuala (MediaPipe Image Embedder,
+   * AnalysisRecord.imageEmbedding) — DOAR pentru poze fara fete (Android
+   * nativ). "A doua opinie" pentru rafale fara oameni (peisaje, animale),
+   * care altfel cad pe semnalul mai slab compozitie+armonie-culori de mai jos.
+   */
+  imageEmbedding?: number[];
   /** 0..1, vezi AnalysisRecord.colorHarmonyScore — folosit doar ca semnal secundar cand nu exista fete de comparat. */
   colorHarmonyScore?: number;
 }
@@ -89,7 +96,18 @@ interface Bucket {
  * reale (unghi/expresie usor diferite intre cadre consecutive).
  */
 const FACE_MATCH_THRESHOLD = 0.5;
-/** Delta compozitie/armonie culori peste care doua poze par scene diferite — folosit DOAR cand nu exista fete de comparat. */
+/**
+ * Prag de similaritate cosinus pentru embedding-ul general (MediaPipe Image
+ * Embedder + MobileNetV3-small) — semnal folosit DOAR cand nu exista fete de
+ * comparat (vezi looksLikeSameSubject). Mai permisiv decat FACE_MATCH_THRESHOLD
+ * din acelasi motiv structural (comparam cadre deja confirmate similare de
+ * dHash), dar NEVERIFICAT pe un set mare de poze reale — un embedding general
+ * de continut (nu specializat pe identitate ca FaceRes) tinde sa clusterizeze
+ * mai lejer, deci pragul e un prim ghicit rezonabil, de recalibrat daca la
+ * testare pe device desparte gresit rafale reale fara oameni.
+ */
+const IMAGE_EMBEDDING_MATCH_THRESHOLD = 0.75;
+/** Delta compozitie/armonie culori peste care doua poze par scene diferite — folosit DOAR cand nu exista fete SI nu exista embedding general de comparat. */
 const COMPOSITION_DELTA_THRESHOLD = 0.4;
 const COLOR_HARMONY_DELTA_THRESHOLD = 0.35;
 /** Peste acest numar de membri intr-un bucket, sarim rafinarea O(n^2) — bucket-e dHash normale raman mult sub prag. */
@@ -113,14 +131,21 @@ function bestFaceSimilarity(a: number[][], b: number[][]): number | null {
 /**
  * Decide daca doua poze DEJA in acelasi bucket dHash par sa arate acelasi
  * subiect/scena. Fetele sunt semnalul decisiv cand exista pe ambele parti;
- * fara fete (peisaje, spate intors), recurge la compozitie+armonie culori —
- * dar cere ca AMBELE sa diverga semnificativ, ca un singur semnal zgomotos
- * sa nu desparta gresit cadre reale din aceeasi serie. Fara niciun semnal
- * utilizabil, ramane compatibila (comportamentul original, doar-dHash).
+ * fara fete (peisaje, spate intors), incearca embedding-ul general de
+ * continut (imageEmbedding, Android nativ) — o "a doua opinie" mai puternica
+ * decat compozitie+armonie culori pentru rafale fara oameni; daca niciunul nu
+ * exista (web/PWA, sau inregistrari mai vechi), recurge la compozitie+armonie
+ * culori — dar cere ca AMBELE sa diverga semnificativ, ca un singur semnal
+ * zgomotos sa nu desparta gresit cadre reale din aceeasi serie. Fara niciun
+ * semnal utilizabil, ramane compatibila (comportamentul original, doar-dHash).
  */
 function looksLikeSameSubject(a: HashInput, b: HashInput): boolean {
   const faceSim = bestFaceSimilarity(a.faceEmbeddings ?? [], b.faceEmbeddings ?? []);
   if (faceSim !== null) return faceSim >= FACE_MATCH_THRESHOLD;
+
+  if (a.imageEmbedding && b.imageEmbedding) {
+    return cosineSimilarity(a.imageEmbedding, b.imageEmbedding) >= IMAGE_EMBEDDING_MATCH_THRESHOLD;
+  }
 
   if (a.compositionScore != null && b.compositionScore != null && a.colorHarmonyScore != null && b.colorHarmonyScore != null) {
     const compositionDelta = Math.abs(a.compositionScore - b.compositionScore);

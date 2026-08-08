@@ -725,6 +725,8 @@ export const ro = {
   'factor.groupSmileRatio': 'Zambete (grup)',
   'factor.groupAwkwardRatio': 'Expresii stanjenitoare (grup)',
   'factor.groupAwkwardRatio.pos': 'Fara expresii stanjenitoare',
+  'factor.bodyCroppedAtEdge': 'Membru taiat de cadru',
+  'factor.bodyCroppedAtEdge.pos': 'Nimic taiat de cadru',
   'factor.groupGenuineSmileRatio': 'Zambet autentic',
   'factor.groupCatchlightRatio': 'Lumina in ochi (catchlight)',
   'factor.groupSkinToneNaturalRatio': 'Ton de piele natural',

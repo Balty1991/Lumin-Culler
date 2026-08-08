@@ -136,4 +136,59 @@ describe('HashCompareService.groupPhotos', () => {
     expect(groupsByMember.get('c')).toBe(groupsByMember.get('d'));
     expect(groupsByMember.get('a')).not.toBe(groupsByMember.get('c'));
   });
+
+  // imageEmbedding (ImageEmbedder general, Android nativ) — "a doua opinie"
+  // pentru rafale FARA fete (peisaje, animale), unde inainte singurul semnal
+  // de rafinare era compozitie+armonie culori, mult mai slab.
+  describe('imageEmbedding (rafale fara fete)', () => {
+    it('desparte un bucket dHash fals-pozitiv cand embedding-ul general arata continut diferit, dar pastreaza AMBELE componente ca grupuri reale', async () => {
+      const service = new HashCompareService();
+      const contentX = [1, 0, 0, 0];
+      const contentY = [0, 1, 0, 0];
+      const photos: HashInput[] = [
+        { ...photo('a', '0'.repeat(64)), imageEmbedding: contentX },
+        { ...photo('b', '0'.repeat(63) + '1'), imageEmbedding: contentX },
+        { ...photo('c', '0'.repeat(62) + '11'), imageEmbedding: contentY },
+        { ...photo('d', '0'.repeat(61) + '111'), imageEmbedding: contentY }
+      ];
+
+      const { groups, totalGroups } = await service.groupPhotos(photos);
+
+      expect(totalGroups).toBe(2);
+      const groupsByMember = new Map(groups.flatMap(g => g.memberIds.map(id => [id, g.groupId])));
+      expect(groupsByMember.get('a')).toBe(groupsByMember.get('b'));
+      expect(groupsByMember.get('c')).toBe(groupsByMember.get('d'));
+      expect(groupsByMember.get('a')).not.toBe(groupsByMember.get('c'));
+    });
+
+    it('nu desparte un bucket cand embedding-urile generale se potrivesc (acelasi peisaj, cadre usor diferite)', async () => {
+      const service = new HashCompareService();
+      const content = [1, 0, 0, 0];
+      const contentSlightlyDifferent = [0.9, 0.436, 0, 0]; // cos similarity ~0.9, peste prag
+      const photos: HashInput[] = [
+        { ...photo('a', '0'.repeat(64)), imageEmbedding: content },
+        { ...photo('b', '0'.repeat(63) + '1'), imageEmbedding: contentSlightlyDifferent }
+      ];
+
+      const { groups, totalGroups } = await service.groupPhotos(photos);
+
+      expect(totalGroups).toBe(1);
+      expect(groups[0].memberIds.sort()).toEqual(['a', 'b']);
+    });
+
+    it('foloseste embedding-ul general in locul (nu impreuna cu) compozitie/armonie-culori cand ambele exista', async () => {
+      const service = new HashCompareService();
+      const content = [1, 0, 0, 0];
+      // compozitie/armonie diverg puternic (ar desparti bucket-ul dupa vechiul
+      // fallback), dar embedding-ul general e IDENTIC — trebuie sa ramana grupate.
+      const photos: HashInput[] = [
+        { ...photo('a', '0'.repeat(64)), imageEmbedding: content, compositionScore: 0.9, colorHarmonyScore: 0.9 },
+        { ...photo('b', '0'.repeat(63) + '1'), imageEmbedding: content, compositionScore: 0.1, colorHarmonyScore: 0.1 }
+      ];
+
+      const { totalGroups } = await service.groupPhotos(photos);
+
+      expect(totalGroups).toBe(1);
+    });
+  });
 });

@@ -35,6 +35,12 @@ vi.mock('./nativeFaceMesh', () => ({ analyzeFaceMeshNative: (...a: unknown[]) =>
 const detectTextNative = vi.fn();
 vi.mock('./nativeTextRecognition', () => ({ detectTextNative: (...a: unknown[]) => detectTextNative(...a) }));
 
+const embedImageNative = vi.fn();
+vi.mock('./nativeImageEmbedder', () => ({ embedImageNative: (...a: unknown[]) => embedImageNative(...a) }));
+
+const detectPoseNative = vi.fn();
+vi.mock('./nativePoseDetection', () => ({ detectPoseNative: (...a: unknown[]) => detectPoseNative(...a) }));
+
 const IMAGE_ANALYSIS_FIXTURE = {
   sharpness: 80,
   exposure: 55,
@@ -64,7 +70,11 @@ describe('analyzeNative', () => {
     labelImageNative.mockReset();
     analyzeFaceMeshNative.mockReset();
     detectTextNative.mockReset();
+    embedImageNative.mockReset();
+    detectPoseNative.mockReset();
     analyzeImageNative.mockResolvedValue(IMAGE_ANALYSIS_FIXTURE);
+    embedImageNative.mockResolvedValue({ embedding: [0.1, 0.2, 0.3] });
+    detectPoseNative.mockResolvedValue({ people: [] });
   });
 
   it('normalizeaza casetele ML Kit (pixeli) in FaceInsight.box (0..1) folosind imageWidth/imageHeight raportate de plugin', async () => {
@@ -353,6 +363,114 @@ describe('analyzeNative', () => {
 
       expect(recognize.mock.calls.length).toBeLessThan(manyFaces.length);
       expect(result.faceCount).toBe(8); // toate fetele raman in AnalysisRecord, doar recunoasterea e plafonata
+    });
+  });
+
+  // imageEmbedding (ImageEmbedder, Faza 6) — vezi AnalysisRecord: doar pentru
+  // poze FARA fete, unde nu exista deja embedding-uri faciale mai puternice
+  // pentru rafinarea seriilor in hashCompare.worker.ts.
+  describe('imageEmbedding general (fara fete)', () => {
+    it('calculeaza embedding-ul general cand nu exista nicio fata', async () => {
+      detectFacesNative.mockResolvedValue({ faces: [], imageWidth: 100, imageHeight: 100 });
+      labelImageNative.mockResolvedValue({ labels: [] });
+      detectTextNative.mockResolvedValue({ blocks: [], textCoverage: 0 });
+      embedImageNative.mockResolvedValue({ embedding: [0.4, 0.5, 0.6] });
+
+      const { analyzeNative } = await import('./nativeAnalysis');
+      const result = await analyzeNative('p1', fakeBitmap(100, 100));
+
+      expect(embedImageNative).toHaveBeenCalledTimes(1);
+      expect(result.imageEmbedding).toEqual([0.4, 0.5, 0.6]);
+    });
+
+    it('nu calculeaza deloc embedding-ul general cand exista cel putin o fata (embedding-urile faciale sunt deja semnalul puternic)', async () => {
+      detectFacesNative.mockResolvedValue({
+        faces: [{ boundingBox: { left: 0, top: 0, width: 10, height: 10 } }],
+        imageWidth: 100,
+        imageHeight: 100
+      });
+      labelImageNative.mockResolvedValue({ labels: [] });
+      analyzeFaceMeshNative.mockResolvedValue({ faces: [] });
+
+      const { analyzeNative } = await import('./nativeAnalysis');
+      const result = await analyzeNative('p1', fakeBitmap(100, 100));
+
+      expect(embedImageNative).not.toHaveBeenCalled();
+      expect(result.imageEmbedding).toBeUndefined();
+    });
+  });
+
+  // bodyCroppedAtEdge (PoseDetection, Faza 5) — vezi AnalysisRecord: doar cand
+  // exista fete (postura n-are subiect de verificat pe un peisaj/obiect).
+  describe('bodyCroppedAtEdge (postura)', () => {
+    function mockOneFaceForPose() {
+      detectFacesNative.mockResolvedValue({
+        faces: [{ boundingBox: { left: 0, top: 0, width: 10, height: 10 } }],
+        imageWidth: 100,
+        imageHeight: 100
+      });
+      labelImageNative.mockResolvedValue({ labels: [] });
+      analyzeFaceMeshNative.mockResolvedValue({ faces: [] });
+    }
+
+    const WRIST_INDEX = 15;
+
+    function landmarksWithWristAt(x: number, y: number, visibility: number) {
+      const landmarks = Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.5, z: 0, visibility: 1 }));
+      landmarks[WRIST_INDEX] = { x, y, z: 0, visibility };
+      return landmarks;
+    }
+
+    it('nu calculeaza deloc postura cand nu exista nicio fata', async () => {
+      detectFacesNative.mockResolvedValue({ faces: [], imageWidth: 100, imageHeight: 100 });
+      labelImageNative.mockResolvedValue({ labels: [] });
+      detectTextNative.mockResolvedValue({ blocks: [], textCoverage: 0 });
+
+      const { analyzeNative } = await import('./nativeAnalysis');
+      const result = await analyzeNative('p1', fakeBitmap(100, 100));
+
+      expect(detectPoseNative).not.toHaveBeenCalled();
+      expect(result.bodyCroppedAtEdge).toBeUndefined();
+    });
+
+    it('true cand o incheietura e langa marginea cadrului SI cu incredere de vizibilitate scazuta (probabil extrapolata dincolo de cadru)', async () => {
+      mockOneFaceForPose();
+      detectPoseNative.mockResolvedValue({ people: [{ landmarks: landmarksWithWristAt(0.01, 0.5, 0.2) }] });
+
+      const { analyzeNative } = await import('./nativeAnalysis');
+      const result = await analyzeNative('p1', fakeBitmap(100, 100));
+
+      expect(result.bodyCroppedAtEdge).toBe(true);
+    });
+
+    it('false cand o incheietura e langa margine dar cu incredere MARE (clar vizibila, nu taiata)', async () => {
+      mockOneFaceForPose();
+      detectPoseNative.mockResolvedValue({ people: [{ landmarks: landmarksWithWristAt(0.01, 0.5, 0.95) }] });
+
+      const { analyzeNative } = await import('./nativeAnalysis');
+      const result = await analyzeNative('p1', fakeBitmap(100, 100));
+
+      expect(result.bodyCroppedAtEdge).toBe(false);
+    });
+
+    it('false cand incheietura are incredere scazuta dar NU e langa margine (ocluzie in alta parte a cadrului, nu taiere)', async () => {
+      mockOneFaceForPose();
+      detectPoseNative.mockResolvedValue({ people: [{ landmarks: landmarksWithWristAt(0.5, 0.5, 0.2) }] });
+
+      const { analyzeNative } = await import('./nativeAnalysis');
+      const result = await analyzeNative('p1', fakeBitmap(100, 100));
+
+      expect(result.bodyCroppedAtEdge).toBe(false);
+    });
+
+    it('false cand nicio persoana nu e detectata de PoseDetection', async () => {
+      mockOneFaceForPose();
+      detectPoseNative.mockResolvedValue({ people: [] });
+
+      const { analyzeNative } = await import('./nativeAnalysis');
+      const result = await analyzeNative('p1', fakeBitmap(100, 100));
+
+      expect(result.bodyCroppedAtEdge).toBe(false);
     });
   });
 });
