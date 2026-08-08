@@ -7,11 +7,24 @@ import { db, type AnalysisRecord } from '../core/db';
 import { XIcon, UndoIcon, SparkleIcon } from './icons';
 import { t } from '../i18n';
 
-// Doar cele 7 chei numerice cu slider in UI — crop/rotationDeg (adaugate pentru
+// Doar cele 10 chei numerice cu slider in UI — crop/rotationDeg (adaugate pentru
 // recadrare/indreptare automata) NU au inca un control manual (vezi planul:
 // niciun tool de crop cu drag in aceasta trecere), doar Auto le poate seta.
-const SLIDERS: (keyof Omit<EditAdjustments, 'crop' | 'rotationDeg'>)[] = [
-  'exposure', 'contrast', 'saturation', 'temperature', 'tint', 'highlights', 'shadows'
+// sharpen/noiseReduction sunt 0..100 (o singura directie are sens — nu exista
+// "sharpen negativ"), clarity ramane -100..100 ca restul (poate si inmuia
+// contrastul local, nu doar accentua) — de-aia fiecare slider isi declara
+// propriul interval, nu mai e un singur min/max fix pentru toate.
+const SLIDERS: { key: keyof Omit<EditAdjustments, 'crop' | 'rotationDeg'>; min: number; max: number }[] = [
+  { key: 'exposure', min: -100, max: 100 },
+  { key: 'contrast', min: -100, max: 100 },
+  { key: 'saturation', min: -100, max: 100 },
+  { key: 'temperature', min: -100, max: 100 },
+  { key: 'tint', min: -100, max: 100 },
+  { key: 'highlights', min: -100, max: 100 },
+  { key: 'shadows', min: -100, max: 100 },
+  { key: 'clarity', min: -100, max: 100 },
+  { key: 'sharpen', min: 0, max: 100 },
+  { key: 'noiseReduction', min: 0, max: 100 }
 ];
 
 /**
@@ -208,12 +221,12 @@ export function EditPanel() {
             {!imgEl && <span className="card-loading edit-canvas-loading" aria-hidden="true" />}
           </div>
           <div className="edit-sliders">
-            {SLIDERS.map(key => (
+            {SLIDERS.map(({ key, min, max }) => (
               <label key={key} className="edit-slider-row">
                 <span className="edit-slider-label" aria-hidden="true">{tr(`edit.${key}`)}</span>
                 <input
-                  type="range" min={-100} max={100} step={1}
-                  value={adjustments[key]}
+                  type="range" min={min} max={max} step={1}
+                  value={adjustments[key] ?? 0}
                   onChange={e => update(key, Number(e.target.value))}
                   // Bug real gasit de auditul QA: label-ul invaluia si numele SI
                   // valoarea numerica, deci numele accesibil calculat includea
@@ -222,7 +235,7 @@ export function EditPanel() {
                   // range) — redundant. aria-label explicit foloseste DOAR numele.
                   aria-label={tr(`edit.${key}`)}
                 />
-                <span className="edit-slider-value mono" aria-hidden="true">{adjustments[key]}</span>
+                <span className="edit-slider-value mono" aria-hidden="true">{adjustments[key] ?? 0}</span>
               </label>
             ))}
           </div>
