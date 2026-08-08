@@ -7,6 +7,9 @@ import android.os.Build
 import android.provider.MediaStore
 import android.provider.OpenableColumns
 import androidx.activity.result.ActivityResult
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import com.getcapacitor.JSArray
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
@@ -27,13 +30,33 @@ import com.getcapacitor.annotation.CapacitorPlugin
  * Limitare cunoscuta, ne-verificata inca pe device real: unii provideri
  * (Photo Picker-ul modern Android, unele aplicatii cloud) pot da URI-uri cu
  * scop limitat, care sa nu fie acceptate direct de createDeleteRequest() —
- * de aceea deletePhotos() trateaza orice IllegalArgumentException/
- * SecurityException ca esec recuperabil (respinge apelul cu un mesaj clar),
- * nu ca un crash.
+ * de aceea deletePhotos() trateaza orice exceptie ca esec recuperabil
+ * (respinge apelul cu un mesaj clar), nu ca un crash.
  */
 @CapacitorPlugin(name = "MediaLibrary")
 class MediaLibraryPlugin : Plugin() {
-    private var pendingDeleteCallbackId: String? = null
+    /**
+     * createDeleteRequest() intoarce un PendingIntent, NU un Intent obisnuit —
+     * nu se preteaza la startActivityForResult(call, intent, "callbackName")/
+     * @ActivityCallback (mecanismul folosit de restul plugin-urilor din acest
+     * fisier de alaturi, ex. FolderExportPlugin). Inregistram in schimb propriul
+     * ActivityResultLauncher, cu contractul StartIntentSenderForResult — acelasi
+     * bridge.registerForActivityResult() pe care Capacitor insusi il foloseste
+     * intern pentru @ActivityCallback (vezi Plugin.initializeActivityLaunchers
+     * in capacitor-android). Trebuie inregistrat in load() (rulat in onCreate,
+     * inainte ca Activity-ul sa ajunga STARTED) — AndroidX respinge orice
+     * inregistrare facuta mai tarziu.
+     */
+    private lateinit var deleteLauncher: ActivityResultLauncher<IntentSenderRequest>
+    private var pendingDeleteCall: PluginCall? = null
+
+    override fun load() {
+        deleteLauncher = bridge.registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+            val call = pendingDeleteCall
+            pendingDeleteCall = null
+            call?.resolve(JSObject().put("cancelled", result.resultCode != Activity.RESULT_OK))
+        }
+    }
 
     /**
      * Deschide selectorul de documente al sistemului (nu Photo Picker-ul
@@ -110,33 +133,11 @@ class MediaLibraryPlugin : Plugin() {
         try {
             val uris = uriStrings.map(Uri::parse)
             val pendingIntent = MediaStore.createDeleteRequest(context.contentResolver, uris)
-            call.setKeepAlive(true)
-            pendingDeleteCallbackId = bridge.saveCall(call)
-            activity.startIntentSenderForResult(pendingIntent.intentSender, DELETE_REQUEST_CODE, null, 0, 0, 0)
+            pendingDeleteCall = call
+            deleteLauncher.launch(IntentSenderRequest.Builder(pendingIntent.intentSender).build())
         } catch (e: Exception) {
+            pendingDeleteCall = null
             call.reject("Nu am putut porni cererea de stergere: ${e.message}", e)
         }
-    }
-
-    /**
-     * MediaStore.createDeleteRequest() intoarce un PendingIntent, lansat mai
-     * sus prin startIntentSenderForResult (NU prin startActivityForResult, ca
-     * la restul plugin-urilor din acest fisier de alaturi) — rezultatul
-     * ajunge tot in onActivityResult-ul Activitatii, deci Bridge-ul Capacitor
-     * il livreaza aici, la fel ca la orice alt cod de cerere pe care nu l-a
-     * generat el insusi prin startActivityForResult(call, intent, ...).
-     */
-    override fun handleOnActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.handleOnActivityResult(requestCode, resultCode, data)
-        if (requestCode != DELETE_REQUEST_CODE) return
-        val callbackId = pendingDeleteCallbackId ?: return
-        pendingDeleteCallbackId = null
-        val call = bridge.getSavedCall(callbackId) ?: return
-        call.resolve(JSObject().put("cancelled", resultCode != Activity.RESULT_OK))
-        bridge.releaseCall(call)
-    }
-
-    companion object {
-        private const val DELETE_REQUEST_CODE = 9001
     }
 }
