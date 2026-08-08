@@ -241,6 +241,25 @@ const RULE_OF_THIRDS_FLAG_THRESHOLD = 0.4; // identic cu aiSuggest.centered (aiE
 const CROP_SCALE = 0.78;
 
 /**
+ * Marja de siguranta in jurul casetei fetei, ca fractiune din latimea/inaltimea
+ * FETEI — nu avem detectie de corp intreg (doar fete, vezi AutoAdjustSignals),
+ * deci nu putem sti unde sunt umerii/bratele/restul corpului. O marja
+ * proportionala cu dimensiunea fetei ramane cea mai buna aproximare fara acel
+ * semnal. ARM_MARGIN mai mare pe orizontala (un brat ridicat lateral, o mana pe
+ * umarul altcuiva) decat HEAD_MARGIN pe verticala in sus (par/palarie); in jos
+ * (umeri/piept) marja e cea mai mare — acolo se intinde majoritatea corpului
+ * vizibil intr-un portret apropiat.
+ *
+ * Bug real raportat de utilizator: recadrarea automata sectiona bratul unei
+ * persoane — algoritmul vechi alinia doar CENTRUL fetei la o intersectie de
+ * treimi, fara nicio garantie ca zona din jurul ei (unde poate fi un brat
+ * ridicat) ramane in cadru.
+ */
+const ARM_MARGIN_X = 1.2;
+const HEAD_MARGIN_Y = 0.6;
+const BODY_MARGIN_Y = 2.5;
+
+/**
  * Recadrare automata catre cea mai apropiata intersectie de treimi — DOAR
  * cand se aplica exact aceeasi conditie ca sugestia text "aiSuggest.centered"
  * (fata detectata, ruleOfThirds sub prag): Auto nu poate "vedea" o problema
@@ -264,8 +283,28 @@ export function computeAutoCrop(signals: AutoAdjustSignals): EditAdjustments['cr
     if (d < best) { best = d; nearest = p; }
   }
   const w = CROP_SCALE, h = CROP_SCALE;
-  const x = clampRange(cx - nearest[0] * w, 0, 1 - w);
-  const y = clampRange(cy - nearest[1] * h, 0, 1 - h);
+  let x = clampRange(cx - nearest[0] * w, 0, 1 - w);
+  let y = clampRange(cy - nearest[1] * h, 0, 1 - h);
+
+  const safeLeft = clampRange(fx - fw * ARM_MARGIN_X, 0, 1);
+  const safeRight = clampRange(fx + fw + fw * ARM_MARGIN_X, 0, 1);
+  const safeTop = clampRange(fy - fh * HEAD_MARGIN_Y, 0, 1);
+  const safeBottom = clampRange(fy + fh + fh * BODY_MARGIN_Y, 0, 1);
+
+  // Zona de siguranta nu incape in fereastra w x h, indiferent unde am muta-o —
+  // mai bine renuntam complet la recadrare decat sa riscam sa taiem persoana.
+  if (safeRight - safeLeft > w || safeBottom - safeTop > h) return undefined;
+
+  // Impinge fereastra sa acopere intreaga zona de siguranta, chiar daca asta
+  // strica usor alinierea pe treimi — un cadru usor decentrat e de preferat
+  // unuia care taie un brat/umeri.
+  if (x > safeLeft) x = safeLeft;
+  if (x + w < safeRight) x = safeRight - w;
+  if (y > safeTop) y = safeTop;
+  if (y + h < safeBottom) y = safeBottom - h;
+  x = clampRange(x, 0, 1 - w);
+  y = clampRange(y, 0, 1 - h);
+
   return { x, y, width: w, height: h };
 }
 

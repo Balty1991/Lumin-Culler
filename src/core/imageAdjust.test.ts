@@ -148,6 +148,40 @@ describe('computeAutoCrop', () => {
   it('does nothing when faceCount is set but faces[] is empty (defensive — should not happen in practice)', () => {
     expect(computeAutoCrop({ faceCount: 1, ruleOfThirds: 0.1, faces: [] })).toBeUndefined();
   });
+
+  // Bug real raportat de utilizator: recadrarea automata a sectionat bratul
+  // unei persoane. Algoritmul vechi alinia DOAR centrul fetei la o intersectie
+  // de treimi, fara nicio garantie ca zona din jur (unde poate fi un brat
+  // ridicat/umeri) ramane in cadrul recadrat.
+  describe('zona de siguranta din jurul fetei (brate/umeri) — fix pentru bug-ul de sectionare', () => {
+    it('impinge fereastra sa acopere zona de siguranta, chiar daca strica alinierea perfecta pe treimi', () => {
+      // Fata medie (20% din cadru), pozitionata astfel incat alinierea "doar pe
+      // centru" ar lasa zona de siguranta din dreapta/de jos in afara ferestrei
+      // de 0.78 — verificat manual: vechiul algoritm producea x:[0.08,0.86],
+      // y:[0.08,0.86], in timp ce zona de siguranta cerea sa acopere pana la 0.94/1.0.
+      const faces: AutoAdjustSignals['faces'] = [{ box: [0.5, 0.5, 0.2, 0.2] }];
+      const crop = computeAutoCrop({ faceCount: 1, ruleOfThirds: 0.1, faces });
+      expect(crop).toBeDefined();
+
+      const [fx, fy, fw, fh] = faces![0].box;
+      const safeLeft = Math.max(0, fx - fw * 1.2);
+      const safeRight = Math.min(1, fx + fw + fw * 1.2);
+      const safeTop = Math.max(0, fy - fh * 0.6);
+      const safeBottom = Math.min(1, fy + fh + fh * 2.5);
+
+      expect(crop!.x).toBeLessThanOrEqual(safeLeft + 1e-9);
+      expect(crop!.x + crop!.width).toBeGreaterThanOrEqual(safeRight - 1e-9);
+      expect(crop!.y).toBeLessThanOrEqual(safeTop + 1e-9);
+      expect(crop!.y + crop!.height).toBeGreaterThanOrEqual(safeBottom - 1e-9);
+    });
+
+    it('renunta complet la recadrare cand zona de siguranta nu incape in fereastra (fata foarte mare/apropiata)', () => {
+      // Fata ocupa 60% din latime — zona de siguranta (fw * (1+2*1.2) = 2.4*fw = 1.44,
+      // clampata la [0,1]) depaseste CROP_SCALE (0.78) indiferent de pozitionare.
+      const bigFace: AutoAdjustSignals['faces'] = [{ box: [0.2, 0.2, 0.6, 0.6] }];
+      expect(computeAutoCrop({ faceCount: 1, ruleOfThirds: 0.1, faces: bigFace })).toBeUndefined();
+    });
+  });
 });
 
 describe('computeAutoStraighten', () => {

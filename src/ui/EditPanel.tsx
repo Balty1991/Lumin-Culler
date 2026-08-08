@@ -190,7 +190,15 @@ export function EditPanel() {
         </header>
 
         <div className="edit-body">
-          <div className="edit-canvas-wrap">
+          {/* Bug real raportat de utilizator: containerul avea un aspect-ratio FIX
+              (4/3 pe desktop, 16/10 — si mai landscape — pe mobil), asa ca orice
+              poza portret (majoritatea pozelor facute cu telefonul tinut vertical)
+              aparea minuscula, incadrata intre doua bare negre uriase. Odata ce
+              poza s-a incarcat, containerul isi ia raportul EI real de aspect —
+              indiferent de orientare/dimensiune, umple exact spatiul disponibil,
+              fara letterboxing si fara sa "sara" de la o dimensiune presupusa la
+              cea reala. */}
+          <div className="edit-canvas-wrap" style={imgEl ? { aspectRatio: `${imgEl.naturalWidth} / ${imgEl.naturalHeight}` } : undefined}>
             {/* Bug real gasit de auditul QA: singurul loc din aplicatie unde poza e
                 afisata fara nicio alternativa text pentru un cititor de ecran —
                 DetailView/Workspace/etc au toate alt={photo.fileName}, doar canvas-ul
