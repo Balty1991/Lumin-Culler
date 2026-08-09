@@ -717,6 +717,7 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
+        <span className="scan-sweep-mask" aria-hidden="true"><span className="scan-sweep" /></span>
         <div className="brand">
           <div className="brand-mark-wrap">
             <span className="brand-mark-ring" aria-hidden="true" />
