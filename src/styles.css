@@ -41,8 +41,7 @@
   /* "Studio Noir" (accent turcoaz plat) a fost testat pe telefon real si
      respins de utilizator — revenire la gradientul turcoaz->violet->indigo
      de dinainte, pe care 13 locuri il folosesc (butoane, chip-uri, insigne,
-     bara de comparare), acum insotit de un semnal de miscare (v. .scan-sweep
-     mai jos) pentru senzatia "futurista" ceruta explicit. */
+     bara de comparare). */
   --accent-gradient: linear-gradient(135deg, var(--accent) 0%, #8b5cf6 55%, var(--accent-2) 100%);
   --accent-rgb: 45 212 191;
   --accent-2-rgb: 99 102 241;
@@ -259,28 +258,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   background: linear-gradient(var(--bg) 78%, transparent);
   backdrop-filter: blur(10px);
 }
-/* Semnal de miscare "holo-scan" cerut explicit de utilizator (directie futurista) —
-   o singura linie, o singura animatie, la fel de ieftina de compus pe GPU ca
-   .brand-mark-ring de mai jos (doar transform, will-change, fara recalcul de layout
-   pe cadru), deci costul ei NU creste cu marimea bibliotecii de poze (spre deosebire
-   de orice ar rula per-card in grid-ul virtualizat din VirtualPhotoGrid).
-   Masca proprie (nu overflow:hidden pe .topbar) ca sa nu taie .tooltip-bubble,
-   care se deschide sub butoanele-iconita din topbar si ar fi fost clipuit. */
-.scan-sweep-mask {
-  position: absolute; inset: 0; height: 54px; overflow: hidden; pointer-events: none; z-index: 0;
-}
-.scan-sweep {
-  position: absolute; left: 0; right: 0; top: 0; height: 2px; display: block;
-  background: var(--accent-gradient); opacity: 0.55;
-  box-shadow: 0 0 12px 1px rgb(var(--accent-2-rgb) / 0.5);
-  animation: scanSweep 5s ease-in-out infinite; will-change: transform;
-}
-@keyframes scanSweep {
-  0% { transform: translateY(0); opacity: 0.2; }
-  50% { transform: translateY(52px); opacity: 0.55; }
-  100% { transform: translateY(0); opacity: 0.2; }
-}
-@media (prefers-reduced-motion: reduce) { .scan-sweep { animation: none; opacity: 0.3; } }
 .brand { display: flex; align-items: center; gap: 10px; }
 /* ── Inel rotativ in jurul iconitei de brand (concept HUD) ── */
 .brand-mark-wrap { position: relative; width: 34px; height: 34px; flex-shrink: 0; }
