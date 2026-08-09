@@ -38,20 +38,11 @@
 
   --accent: #2dd4bf;
   --accent-2: #6366f1;
-  /* Cerinta directa a utilizatorului ("Studio Noir" — vezi explorarea de
-     design): UN SINGUR accent turcoaz pe butoane/insigne/chip-uri, nu
-     gradientul turcoaz->violet->indigo de dinainte. --accent-gradient ramane
-     ca nume de token (13 locuri il folosesc — butoane, chip-uri, insigne,
-     bara de comparare) ca sa nu fie nevoie sa fie editat fiecare loc in
-     parte, dar valoarea lui e acum un gradient cu ACELASI stop la ambele
-     capete — vizual identic cu un fundal turcoaz plat, dar ramane un <image>
-     valid oriunde e folosit ca `background-image` (o culoare simpla NU e
-     valida acolo, doar in `background` shorthand — vezi .chip.active mai jos,
-     care foloseste exact acel truc de "gradient border" pe 2 straturi).
-     --accent-2 ramane definit — il foloseste in continuare inelul animat de
-     langa logo (.brand-mark-ring/.core-ring mai jos), care utilizatorul a
-     cerut explicit sa NU fie atins. */
-  --accent-gradient: linear-gradient(var(--accent), var(--accent));
+  /* "Studio Noir" (accent turcoaz plat) a fost testat pe telefon real si
+     respins de utilizator — revenire la gradientul turcoaz->violet->indigo
+     de dinainte, pe care 13 locuri il folosesc (butoane, chip-uri, insigne,
+     bara de comparare). */
+  --accent-gradient: linear-gradient(135deg, var(--accent) 0%, #8b5cf6 55%, var(--accent-2) 100%);
   --accent-rgb: 45 212 191;
   --accent-2-rgb: 99 102 241;
 
