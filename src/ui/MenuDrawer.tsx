@@ -4,7 +4,7 @@ import { useStore } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import {
   UserCheckIcon, SparkleIcon, ListIcon, InfoIcon, XIcon, TagIcon, LayersIcon, KeyboardIcon,
-  SunIcon, MoonIcon, BatteryIcon, GridIcon, DownloadIcon, UploadIcon, BarChartIcon, GlobeIcon, PrinterIcon,
+  SunIcon, MoonIcon, ClockIcon, BatteryIcon, GridIcon, DownloadIcon, UploadIcon, BarChartIcon, GlobeIcon, PrinterIcon,
   ApertureIcon, PlayIcon, EditIcon, FolderIcon, HeartIcon, TrashIcon
 } from './icons';
 import { selectDeletableRejected } from '../state/batchOps';
@@ -91,6 +91,17 @@ export function MenuDrawer() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, setOpen]);
+
+  // "Automat, dupa ora" (plan modernizare) — reaplica periodic tema cat timp
+  // preferinta e 'auto', ca o sesiune care ramane deschisa peste pragul
+  // 7:00/20:00 sa comute fara sa fie nevoie de o repornire a aplicatiei.
+  // MenuDrawer ramane montat permanent in App.tsx (doar continutul e ascuns
+  // cand !open), deci acest efect ruleaza indiferent daca meniul e deschis.
+  useEffect(() => {
+    if (theme !== 'auto') return;
+    const id = setInterval(() => setTheme('auto'), 15 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [theme, setTheme]);
   // Acelasi eveniment beforeinstallprompt ca InstallPrompt.tsx (citit dintr-un modul
   // comun, nu recaptat aici) — ramane accesibil din Meniu chiar dupa ce bannerul a
   // fost inchis, ca "nu mai arata asta" sa nu insemne "nu mai pot instala niciodata".
@@ -374,9 +385,16 @@ export function MenuDrawer() {
         </button>
 
         <div className="drawer-section-label">{tr('menu.section.settings')}</div>
-        <button className="drawer-item" onClick={() => go(() => setTheme(theme === 'light' ? 'dark' : 'light'))}>
-          <span className="drawer-item-icon">{theme === 'light' ? <SunIcon /> : <MoonIcon />}</span>
-          <span>{theme === 'light' ? tr('menu.theme.light') : tr('menu.theme.dark')}</span>
+        {/* Ciclu pe 3 stari (intunecat -> luminos -> automat -> intunecat), nu doar comutator
+            intre 2 — "automat" e o preferinta stocata separat, nu doar un rezultat vizual
+            derivat, deci trebuie sa fie o optiune explicit selectabila, nu ceva ce apare
+            "din senin" doar din combinarea celorlalte doua. */}
+        <button
+          className="drawer-item"
+          onClick={() => go(() => setTheme(theme === 'dark' ? 'light' : theme === 'light' ? 'auto' : 'dark'))}
+        >
+          <span className="drawer-item-icon">{theme === 'light' ? <SunIcon /> : theme === 'auto' ? <ClockIcon /> : <MoonIcon />}</span>
+          <span>{theme === 'light' ? tr('menu.theme.light') : theme === 'auto' ? tr('menu.theme.auto') : tr('menu.theme.dark')}</span>
         </button>
 
         <button
