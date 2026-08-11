@@ -36,6 +36,7 @@ import { isNativeMediaLibraryAvailable, deleteNativePhotos } from '../core/nativ
 import { readStoredTheme, applyTheme, type Theme } from './theme';
 import { readStoredAccent, applyAccent, type AccentTheme } from './accentTheme';
 import { readAccessibleMode, applyAccessibleMode } from '../core/accessibleMode';
+import { readZenMode, writeZenMode } from '../core/zenMode';
 import { readStoredProjectName, writeProjectName } from './projectName';
 import { readStoredWatermarkText, writeWatermarkText } from './watermarkText';
 import { readStoredGenre, writeStoredGenre } from './genre';
@@ -317,6 +318,8 @@ interface AppState {
   setAccentTheme: (accent: AccentTheme) => void;
   accessibleMode: boolean;
   setAccessibleMode: (on: boolean) => void;
+  zenMode: boolean;
+  setZenMode: (on: boolean) => void;
   /** Limba interfetei — vezi i18n/index.ts. Migrare treptata: doar unele ecrane citesc asta deocamdata, restul ramane in romana codificata direct. */
   locale: Locale;
   setLocale: (locale: Locale) => void;
@@ -1175,6 +1178,8 @@ export const useStore = create<AppState>((set, get) => ({
   setAccentTheme: accent => { applyAccent(accent); set({ accentTheme: accent }); },
   accessibleMode: readAccessibleMode(),
   setAccessibleMode: on => { applyAccessibleMode(on); set({ accessibleMode: on }); },
+  zenMode: readZenMode(),
+  setZenMode: on => { writeZenMode(on); set({ zenMode: on }); },
   locale: readStoredLocale(),
   setLocale: locale => { writeStoredLocale(locale); applyLocale(locale); set({ locale }); },
   projectName: readStoredProjectName(),
@@ -1492,6 +1497,12 @@ export const useStore = create<AppState>((set, get) => ({
         return rec ? { ...p, status: rec.status, groupId: rec.groupId } : p;
       })
     }));
+    // "Mod Zen": aceeasi rezolvare ca butonul manual "Rezolva toate seriile",
+    // declansata automat dupa import in loc sa astepte un click. Doar cand au
+    // intrat poze noi (done > 0) — altfel un import gol/anulat n-are ce rezolva.
+    if (done > 0 && get().zenMode) {
+      await get().resolveAllSeries();
+    }
   },
 
   setStatus: async (id, status) => {
