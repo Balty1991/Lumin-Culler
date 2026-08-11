@@ -164,6 +164,9 @@ export function HomeIcon(p: SVGProps<SVGSVGElement>) {
 export function PaletteIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><path d="M12 3a9 8.5 0 1 0 0 17c1.1 0 1.8-.9 1.4-1.9-.3-.7.2-1.5 1-1.5H16a4 4 0 0 0 4-4 8 8 0 0 0-8-8.6z" /><circle cx="8" cy="11" r="1.1" fill="currentColor" stroke="none" /><circle cx="12" cy="8" r="1.1" fill="currentColor" stroke="none" /><circle cx="16" cy="11" r="1.1" fill="currentColor" stroke="none" /></svg>;
 }
+export function AccessibilityIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg {...base} {...p}><circle cx="12" cy="5" r="1.7" fill="currentColor" stroke="none" /><path d="M12 7.5v6.5" /><path d="M7 10.5h10" /><path d="M12 14l-4 5" /><path d="M12 14l4 5" /></svg>;
+}
 export function FilterDotIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><path d="M4 6h16" /><path d="M7.5 12h9" /><path d="M11 18h2" /></svg>;
 }

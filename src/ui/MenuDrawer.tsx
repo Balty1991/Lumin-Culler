@@ -5,7 +5,7 @@ import { useModalFocusTrap } from './useModalFocusTrap';
 import {
   UserCheckIcon, SparkleIcon, ListIcon, InfoIcon, XIcon, TagIcon, LayersIcon, KeyboardIcon,
   SunIcon, MoonIcon, ClockIcon, BatteryIcon, GridIcon, DownloadIcon, UploadIcon, BarChartIcon, GlobeIcon, PrinterIcon,
-  ApertureIcon, PlayIcon, EditIcon, FolderIcon, HeartIcon, TrashIcon, PinIcon, PaletteIcon
+  ApertureIcon, PlayIcon, EditIcon, FolderIcon, HeartIcon, TrashIcon, PinIcon, PaletteIcon, AccessibilityIcon
 } from './icons';
 import type { AccentTheme } from '../state/accentTheme';
 import { selectDeletableRejected } from '../state/batchOps';
@@ -65,6 +65,10 @@ export function MenuDrawer() {
   const setLocale = useStore(s => s.setLocale);
   const economicMode = useStore(s => s.economicMode);
   const setEconomicMode = useStore(s => s.setEconomicMode);
+  const accessibleMode = useStore(s => s.accessibleMode);
+  const setAccessibleMode = useStore(s => s.setAccessibleMode);
+  const zenMode = useStore(s => s.zenMode);
+  const setZenMode = useStore(s => s.setZenMode);
   const genre = useStore(s => s.genre);
   const setGenre = useStore(s => s.setGenre);
   const gridDensity = useStore(s => s.gridDensity);
@@ -463,6 +467,26 @@ export function MenuDrawer() {
         >
           <span className="drawer-item-icon"><BatteryIcon /></span>
           <span>{economicMode ? tr('menu.economicMode.active') : tr('menu.economicMode')}</span>
+        </button>
+
+        <button
+          className="drawer-item"
+          onClick={() => go(() => setAccessibleMode(!accessibleMode))}
+          aria-pressed={accessibleMode}
+          title={tr('menu.accessibleMode.title')}
+        >
+          <span className="drawer-item-icon"><AccessibilityIcon /></span>
+          <span>{accessibleMode ? tr('menu.accessibleMode.active') : tr('menu.accessibleMode')}</span>
+        </button>
+
+        <button
+          className="drawer-item"
+          onClick={() => go(() => setZenMode(!zenMode))}
+          aria-pressed={zenMode}
+          title={tr('menu.zenMode.title')}
+        >
+          <span className="drawer-item-icon"><SparkleIcon /></span>
+          <span>{zenMode ? tr('menu.zenMode.active') : tr('menu.zenMode')}</span>
         </button>
 
         <button
