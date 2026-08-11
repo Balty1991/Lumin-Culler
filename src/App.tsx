@@ -80,6 +80,7 @@ const BatchOpsPanel = lazyPanel(() => import('./ui/BatchOpsPanel').then(m => ({ 
 const StatsPanel = lazyPanel(() => import('./ui/StatsPanel').then(m => ({ default: m.StatsPanel })));
 const ProjectsPanel = lazyPanel(() => import('./ui/ProjectsPanel').then(m => ({ default: m.ProjectsPanel })));
 const CollectionsPanel = lazyPanel(() => import('./ui/CollectionsPanel').then(m => ({ default: m.CollectionsPanel })));
+const TripsPanel = lazyPanel(() => import('./ui/TripsPanel').then(m => ({ default: m.TripsPanel })));
 const CommandPalette = lazyPanel(() => import('./ui/CommandPalette').then(m => ({ default: m.CommandPalette })));
 const ShortcutsPanel = lazyPanel(() => import('./ui/ShortcutsPanel').then(m => ({ default: m.ShortcutsPanel })));
 const ContactSheet = lazyPanel(() => import('./ui/ContactSheet').then(m => ({ default: m.ContactSheet })));
@@ -711,6 +712,7 @@ export default function App() {
         <EditPanel />
         <ProjectsPanel />
         <CollectionsPanel />
+        <TripsPanel />
         <ConfirmDialog />
       </>
     );
@@ -1100,6 +1102,7 @@ export default function App() {
       <EditPanel />
       <ProjectsPanel />
       <CollectionsPanel />
+      <TripsPanel />
       <MenuDrawer />
       <CommandPalette />
       <ShortcutsPanel />

@@ -7,8 +7,18 @@ import { AdjustedImage } from './AdjustedImage';
 import { ClockIcon, XIcon } from './icons';
 import { t, plural } from '../i18n';
 
-/** Miniatura din IndexedDB — acelasi tipar minimal ca ContactSheetThumb (ContactSheet.tsx). */
-function MemoryThumb({ photoId, onClick, label }: { photoId: string; onClick: () => void; label: string }) {
+/**
+ * Continutul vizual al unei miniaturi din IndexedDB — NU un buton propriu, ca
+ * sa poata fi folosit si in interiorul altui element deja clicabil (cover-ul
+ * din banner, imbratisat de butonul "deschide amintirea"). Un <button> imbricat
+ * in alt <button> e HTML invalid — browserul inchide automat butonul exterior
+ * la primul buton imbricat intalnit, rupand vizual tot restul continutului
+ * (bug real gasit la verificare vizuala pe grila de calatorii, care foloseste
+ * acelasi tipar). Locul unde chiar are nevoie de propriul buton (grila din
+ * modal, unde fiecare miniatura e un target de click independent) il adauga
+ * la fata locului, nu aici.
+ */
+function MemoryThumbImage({ photoId }: { photoId: string }) {
   const [src, setSrc] = useState<string | null>(null);
   useEffect(() => {
     let url: string | null = null;
@@ -18,11 +28,7 @@ function MemoryThumb({ photoId, onClick, label }: { photoId: string; onClick: ()
     });
     return () => { alive = false; if (url) URL.revokeObjectURL(url); };
   }, [photoId]);
-  return (
-    <button className="memory-thumb" onClick={onClick} aria-label={label}>
-      {src ? <AdjustedImage src={src} alt="" loading="lazy" /> : <span className="memory-thumb-loading" aria-hidden="true" />}
-    </button>
-  );
+  return src ? <AdjustedImage src={src} alt="" loading="lazy" /> : <span className="memory-thumb-loading" aria-hidden="true" />;
 }
 
 /**
@@ -60,9 +66,9 @@ export function MemoryBanner() {
   return (
     <>
       <div className="memory-banner glass" role="status">
-        <button className="memory-banner-main" onClick={() => setModalOpen(true)}>
-          <span className="memory-banner-cover">
-            <MemoryThumb photoId={cover.id} onClick={() => setModalOpen(true)} label={tr('app.memory.viewAll')} />
+        <button className="memory-banner-main" onClick={() => setModalOpen(true)} aria-label={tr('app.memory.viewAll')}>
+          <span className="memory-banner-cover memory-thumb">
+            <MemoryThumbImage photoId={cover.id} />
           </span>
           <span className="memory-banner-text">
             <span className="memory-banner-title"><ClockIcon className="inline-icon" aria-hidden="true" /> {tr('app.memory.title', { years: group.yearsAgo })}</span>
@@ -87,12 +93,14 @@ export function MemoryBanner() {
             </header>
             <div className="memory-grid">
               {group.photos.map(photo => (
-                <MemoryThumb
+                <button
                   key={photo.id}
-                  photoId={photo.id}
-                  label={photo.fileName}
+                  className="memory-thumb"
+                  aria-label={photo.fileName}
                   onClick={() => { setModalOpen(false); openDetail(photo.id); }}
-                />
+                >
+                  <MemoryThumbImage photoId={photo.id} />
+                </button>
               ))}
             </div>
           </div>
