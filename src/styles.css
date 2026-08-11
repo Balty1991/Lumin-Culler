@@ -463,6 +463,83 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .trip-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; padding: 0 11px 11px; }
 .trip-card-grid .memory-thumb { width: 100%; height: auto; aspect-ratio: 1/1; border-radius: 8px; box-shadow: none; }
 
+/* "Sortare stil TikTok" (plan modernizare) — flux alternativ plin ecran peste
+   coada de poze nedecise, cu o coloana de actiuni la degetul mare (dreapta,
+   zona natural accesibila la telefon tinut cu o mana) si un gest de swipe
+   in sus pentru a trece mai departe fara sa decizi. Fundal opac (nu .glass/
+   scrim ca restul suprapunerilor) — aici imaginea trebuie sa acopere tot
+   ecranul, nu doar sa pluteasca peste grila din spate. */
+.tiktok-sort {
+  position: fixed; inset: 0; z-index: var(--z-modal-scrim);
+  background: #000; overflow: hidden;
+  animation: fadeIn 0.2s var(--ease) both;
+}
+.tiktok-close {
+  position: absolute; top: calc(12px + env(safe-area-inset-top)); left: 12px; z-index: var(--z-card-badge);
+  width: 40px; height: 40px; border-radius: 50%; border: none;
+  background: rgba(20,20,22,0.45); backdrop-filter: blur(6px); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+}
+.tiktok-close svg { width: 18px; height: 18px; }
+.tiktok-progress {
+  position: absolute; top: calc(14px + env(safe-area-inset-top)); left: 60px; right: 16px;
+  height: 3px; border-radius: 2px; background: rgba(255,255,255,0.22); overflow: hidden;
+  z-index: var(--z-card-badge);
+}
+.tiktok-progress i { display: block; height: 100%; background: #fff; transition: width 0.25s var(--ease); }
+.tiktok-up-hint {
+  position: absolute; top: calc(48px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  font-size: 0.62rem; color: rgba(255,255,255,0.6); z-index: var(--z-card-badge); pointer-events: none;
+}
+.tiktok-up-hint svg { width: 16px; height: 16px; }
+.tiktok-stage-wrap { position: absolute; inset: 0; touch-action: none; }
+.tiktok-stage { width: 100%; height: 100%; object-fit: cover; }
+.tiktok-veil-top {
+  position: absolute; top: 0; left: 0; right: 0; height: 90px;
+  background: linear-gradient(rgba(0,0,0,0.55), transparent); pointer-events: none;
+}
+.tiktok-veil-bottom {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 200px;
+  background: linear-gradient(transparent, rgba(0,0,0,0.82)); pointer-events: none;
+}
+.tiktok-caption {
+  position: absolute; left: 16px; right: 88px; bottom: calc(28px + env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; gap: 6px; z-index: var(--z-card-badge);
+}
+.tiktok-ai-chip {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 4px;
+  background: rgb(var(--accent-rgb) / 0.22); color: #fff; border: 1px solid rgb(var(--accent-rgb) / 0.4);
+  border-radius: 999px; padding: 3px 9px; font-size: 0.68rem; font-weight: 600;
+}
+.tiktok-ai-chip .inline-icon { width: 11px; height: 11px; }
+.tiktok-caption-sub { font-size: 0.72rem; color: rgba(255,255,255,0.72); }
+.tiktok-rail {
+  position: absolute; right: 14px; bottom: calc(96px + env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; align-items: center; gap: 16px; z-index: var(--z-card-badge);
+}
+.tiktok-rail-item { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.tiktok-rail-label { font-size: 0.6rem; color: rgba(255,255,255,0.78); }
+.tiktok-rail-btn {
+  width: 46px; height: 46px; border-radius: 50%; border: none;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.15s var(--ease), filter 0.15s var(--ease);
+}
+.tiktok-rail-btn:active { transform: scale(0.88); }
+.tiktok-rail-btn svg { width: 20px; height: 20px; }
+.tiktok-rail-btn.keep { background: rgb(var(--pick-rgb) / 0.24); color: var(--pick); box-shadow: 0 0 18px -6px rgb(var(--pick-rgb) / 0.7); }
+.tiktok-rail-btn.del { background: rgb(var(--reject-rgb) / 0.24); color: var(--reject); box-shadow: 0 0 18px -6px rgb(var(--reject-rgb) / 0.6); }
+.tiktok-rail-btn.album { background: rgba(255,255,255,0.16); color: #fff; }
+.tiktok-rail-btn.undo { width: 38px; height: 38px; background: rgba(255,255,255,0.1); color: #cfc9e0; margin-top: 4px; }
+.tiktok-rail-btn.undo svg { width: 16px; height: 16px; }
+.tiktok-empty {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 8px; color: #fff; text-align: center; padding: 32px;
+}
+.tiktok-empty svg { width: 34px; height: 34px; color: var(--accent); }
+.tiktok-empty h3 { font-size: 1.05rem; }
+.tiktok-empty p { font-size: 0.82rem; color: rgba(255,255,255,0.65); max-width: 280px; }
+
 /* ── Toast: mesaj tranzitoriu (rezultat export, avertisment stocare) — plutitor, cu auto-dismiss.
    Tonul (succes/avertisment/eroare) e dedus din continutul mesajului (App.tsx: noticeTone), nu
    dintr-un camp separat — coloreaza doar iconita si muchia stanga, mesajul ramane lizibil neutru. ── */
