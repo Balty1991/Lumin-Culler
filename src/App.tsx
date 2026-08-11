@@ -36,6 +36,7 @@ import { SavedFiltersMenu } from './ui/SavedFiltersMenu';
 import { InstallPrompt } from './ui/InstallPrompt';
 import { BackupReminder } from './ui/BackupReminder';
 import { ImportReminder } from './ui/ImportReminder';
+import { MemoryBanner } from './ui/MemoryBanner';
 import { WelcomeOnboarding } from './ui/WelcomeOnboarding';
 import { t } from './i18n';
 
@@ -692,6 +693,7 @@ export default function App() {
       <>
         <Toast />
         <div className="banner-stack">
+          <MemoryBanner />
           <InstallPrompt />
           <BackupReminder />
           <ImportReminder onAddPhotos={() => void onAddPhotosClick()} />
