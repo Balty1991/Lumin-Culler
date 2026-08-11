@@ -246,6 +246,8 @@ interface AppState {
   setCollectionFilter: (collectionId: string | null) => void;
   collectionsOpen: boolean;
   setCollectionsOpen: (open: boolean) => void;
+  tripsOpen: boolean;
+  setTripsOpen: (open: boolean) => void;
   createCollection: (name: string) => Promise<CollectionRecord | null>;
   renameCollection: (id: string, name: string) => Promise<void>;
   deleteCollection: (id: string) => Promise<void>;
@@ -1043,6 +1045,8 @@ export const useStore = create<AppState>((set, get) => ({
   setCollectionFilter: collectionId => set({ collectionFilter: collectionId }),
   collectionsOpen: false,
   setCollectionsOpen: open => set({ collectionsOpen: open }),
+  tripsOpen: false,
+  setTripsOpen: open => set({ tripsOpen: open }),
   createCollection: async name => {
     const record = await createCollectionRecord(name);
     if (!record) return null;

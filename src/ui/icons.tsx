@@ -155,6 +155,9 @@ export function BarChartIcon(p: SVGProps<SVGSVGElement>) {
 export function ClockIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><circle cx="12" cy="12" r="9" /><path d="M12 7v5.5l3.5 2" /></svg>;
 }
+export function PinIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg {...base} {...p}><path d="M12 21s7-6.8 7-12a7 7 0 1 0-14 0c0 5.2 7 12 7 12z" /><circle cx="12" cy="9" r="2.4" /></svg>;
+}
 export function FilterDotIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><path d="M4 6h16" /><path d="M7.5 12h9" /><path d="M11 18h2" /></svg>;
 }

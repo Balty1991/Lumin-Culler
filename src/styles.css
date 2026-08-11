@@ -385,6 +385,23 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .memory-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; padding: 14px; }
 .memory-grid .memory-thumb { width: 100%; height: auto; aspect-ratio: 3/4; border-radius: 10px; }
 
+/* "Calatorii" (plan modernizare) — acelasi limbaj vizual ca .persons (lista de
+   carduri in panoul lateral), plus o miniatura de coperta per calatorie. */
+.trips-list { list-style: none; display: grid; gap: 8px; padding: 0; }
+.trip-card {
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius);
+  overflow: hidden; transition: border-color 0.18s var(--ease);
+}
+.trip-card:hover { border-color: var(--line-strong); }
+.trip-card-main { display: flex; align-items: center; gap: 11px; width: 100%; padding: 9px 11px; text-align: left; }
+.trip-thumb { width: 52px; height: 52px; border-radius: 10px; box-shadow: none; }
+.trip-card-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.trip-card-range { font-weight: 600; font-size: 0.86rem; color: var(--text); }
+.trip-card-sub { display: flex; align-items: center; gap: 4px; font-size: 0.74rem; color: var(--text-dim); flex-wrap: wrap; }
+.trip-card-sub .inline-icon { width: 12px; height: 12px; flex-shrink: 0; }
+.trip-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; padding: 0 11px 11px; }
+.trip-card-grid .memory-thumb { width: 100%; height: auto; aspect-ratio: 1/1; border-radius: 8px; box-shadow: none; }
+
 /* ── Toast: mesaj tranzitoriu (rezultat export, avertisment stocare) — plutitor, cu auto-dismiss.
    Tonul (succes/avertisment/eroare) e dedus din continutul mesajului (App.tsx: noticeTone), nu
    dintr-un camp separat — coloreaza doar iconita si muchia stanga, mesajul ramane lizibil neutru. ── */
