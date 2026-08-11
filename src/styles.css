@@ -96,6 +96,10 @@
   --z-decorative: 1;
   --z-card-badge: 2;
   --z-fab: 4;
+  --z-bottom-nav: 4;
+  /* Inaltimea barei de navigare jos — un singur loc de adevar, folosit si de
+     .fab/.bulk-bar (mai jos) ca sa stea DEASUPRA barei, nu ascunse sub ea. */
+  --bottomnav-h: 62px;
   --z-sticky-bar: 5;
   --z-topbar: 6;
   --z-modal-scrim: 20;
@@ -254,7 +258,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 
 
-.app { max-width: 1400px; margin: 0 auto; padding: 0 10px 96px; }
+.app { max-width: 1400px; margin: 0 auto; padding: 0 10px calc(96px + var(--bottomnav-h)); }
 
 /* ── Antet ── */
 .topbar {
@@ -944,7 +948,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
 /* ── Bara de actiuni in masa — inlocuieste FAB-ul cat timp selectia nu e goala ── */
 .bulk-bar {
-  position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: var(--z-fab);
+  position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom) + var(--bottomnav-h)); z-index: var(--z-fab);
   transform: translateX(-50%); max-width: min(560px, calc(100vw - 24px));
   display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
   padding: 10px 10px 10px 16px; border-radius: var(--radius-lg); box-shadow: var(--shadow-lift);
@@ -1144,7 +1148,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .card.label-purple::after { background: #9163c9; }
 
 .fab {
-  position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom));
+  position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom) + var(--bottomnav-h));
   width: 58px; height: 58px; border-radius: 50%; z-index: var(--z-fab); overflow: hidden;
   background: var(--accent-gradient); color: #06070a; font-size: 1.9rem; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
@@ -1154,6 +1158,27 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .fab:hover { transform: translateY(-2px) scale(1.04); box-shadow: var(--shadow-lg), 0 12px 38px -6px rgb(var(--accent-rgb) / 0.65); }
 .fab:active { transform: scale(0.94); }
 .fab svg { width: 26px; height: 26px; position: relative; }
+
+/* Bara de navigare jos (cerinta directa de directie vizuala) — vezi BottomNav.tsx
+   pentru cand se randeaza; inaltimea ei (--bottomnav-h) e sincronizata cu
+   padding-ul de jos al .app si cu offset-ul .fab/.bulk-bar de mai sus, ca sa
+   nu se suprapuna peste nimic. */
+.bottom-nav {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: var(--z-bottom-nav);
+  height: calc(var(--bottomnav-h) + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  display: flex; align-items: stretch; justify-content: space-around;
+  border-radius: 0; border-left: none; border-right: none; border-bottom: none;
+  box-shadow: 0 -8px 28px -12px rgba(0,0,0,0.5);
+}
+.bottom-nav-tab {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  color: var(--text-faint); font-size: 0.66rem; font-weight: 600; border-radius: 0;
+  transition: color 0.16s var(--ease);
+}
+.bottom-nav-tab svg { width: 20px; height: 20px; }
+.bottom-nav-tab.active { color: var(--accent); }
+.bottom-nav-tab.active svg { filter: drop-shadow(0 0 6px rgb(var(--accent-rgb) / 0.6)); }
 
 /* ── Stare goala ── */
 /* padding-top mic intentionat (nu 12vh ca inainte) — cerinta directa: intreaga

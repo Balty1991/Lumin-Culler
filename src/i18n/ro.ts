@@ -5,6 +5,11 @@
  * ca sa ramana usor de gasit sursa unui text la nevoie.
  */
 export const ro = {
+  'nav.ariaLabel': 'Navigare principala',
+  'nav.home': 'Acasa',
+  'nav.albums': 'Albume',
+  'nav.persons': 'Persoane',
+  'nav.me': 'Eu',
   'menu.title': 'Meniu',
   'menu.close': 'Inchide meniul',
   'menu.section.workspace': 'Spatiu de lucru',
