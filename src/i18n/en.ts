@@ -8,6 +8,11 @@
 import type { TranslationKey } from './ro';
 
 export const en: Record<TranslationKey, string> = {
+  'nav.ariaLabel': 'Main navigation',
+  'nav.home': 'Home',
+  'nav.albums': 'Albums',
+  'nav.persons': 'People',
+  'nav.me': 'Me',
   'menu.title': 'Menu',
   'menu.close': 'Close menu',
   'menu.section.workspace': 'Workspace',

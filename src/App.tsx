@@ -37,6 +37,7 @@ import { InstallPrompt } from './ui/InstallPrompt';
 import { BackupReminder } from './ui/BackupReminder';
 import { ImportReminder } from './ui/ImportReminder';
 import { MemoryBanner } from './ui/MemoryBanner';
+import { BottomNav } from './ui/BottomNav';
 import { WelcomeOnboarding } from './ui/WelcomeOnboarding';
 import { t } from './i18n';
 
@@ -1091,6 +1092,7 @@ export default function App() {
         onChange={e => onFiles(e.target.files)}
       />
 
+      <BottomNav />
       <DetailView />
       <GroupCompare />
       <PersonsPanel />

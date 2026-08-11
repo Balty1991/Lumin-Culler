@@ -9,6 +9,11 @@ import { CARD_MIN_WIDTH } from '../state/gridDensity';
 const NARROW_BREAKPOINT = 560;
 const GAP = 10;
 const ROW_HEIGHT_ESTIMATE = 200; // ajustat automat per rand prin measureElement (inaltimi variabile)
+/** Trebuie sa ramana in sincron cu --bottomnav-h din styles.css — acest component
+    randeaza mereu impreuna cu <BottomNav /> (ambele conditionate strict de
+    photos.length > 0 in App.tsx), altfel ultimul rand de poze ar ajunge sub bara
+    de navigare fixa de jos, nu doar aproape de ea. */
+const BOTTOM_NAV_HEIGHT = 62;
 
 /**
  * Grid virtualizat pe RANDURI: doar cardurile vizibile (+ overscan) exista in DOM,
@@ -43,7 +48,7 @@ export function VirtualPhotoGrid({ photos, onOpen, multiSelectIds, onCardPointer
       const minCard = width <= NARROW_BREAKPOINT ? CARD_MIN_WIDTH[density].narrow : CARD_MIN_WIDTH[density].wide;
       setColumns(Math.max(1, Math.floor((width + GAP) / (minCard + GAP))));
       const top = el.getBoundingClientRect().top;
-      setScrollHeight(Math.max(300, window.innerHeight - top - 8));
+      setScrollHeight(Math.max(300, window.innerHeight - top - 8 - BOTTOM_NAV_HEIGHT));
     };
     computeRef.current = compute;
     compute();
