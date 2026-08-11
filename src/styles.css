@@ -358,6 +358,33 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .install-prompt-install { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; font-family: var(--sans); }
 .install-prompt-close { flex-shrink: 0; }
 
+/* "Acum X ani" (plan modernizare) — tratament mai premium decat bannerele
+   utilitare de mai sus (glass + contur cu gradient, acelasi truc dublu-background
+   ca .how-step-icon/.chip.active): functia e menita sa aduca placere/nostalgie,
+   nu doar o informatie de rutina. */
+.memory-banner {
+  display: flex; align-items: center; gap: 8px; padding: 8px 10px 8px 8px; border-radius: var(--radius);
+  background-image: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--accent-gradient);
+  background-origin: border-box; background-clip: padding-box, border-box; border: 1px solid transparent;
+  box-shadow: var(--shadow-lg), 0 0 22px -12px rgb(var(--accent-2-rgb) / 0.55);
+  animation: fadeUp 0.3s var(--ease) both;
+}
+.memory-banner-main { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; text-align: left; }
+.memory-thumb {
+  width: 42px; height: 42px; padding: 0; border-radius: 10px; overflow: hidden; flex-shrink: 0; position: relative;
+  box-shadow: 0 0 0 1px rgb(var(--accent-rgb) / 0.4);
+}
+.memory-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.memory-thumb-loading { display: block; width: 100%; height: 100%; background: var(--skeleton-a); }
+.memory-banner-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.memory-banner-title { font-weight: 700; font-size: 0.82rem; display: flex; align-items: center; gap: 5px; color: var(--text); }
+.memory-banner-title .inline-icon { width: 14px; height: 14px; color: var(--accent); flex-shrink: 0; }
+.memory-banner-sub { font-size: 0.72rem; color: var(--text-dim); }
+.memory-banner-close { flex-shrink: 0; }
+
+.memory-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; padding: 14px; }
+.memory-grid .memory-thumb { width: 100%; height: auto; aspect-ratio: 3/4; border-radius: 10px; }
+
 /* ── Toast: mesaj tranzitoriu (rezultat export, avertisment stocare) — plutitor, cu auto-dismiss.
    Tonul (succes/avertisment/eroare) e dedus din continutul mesajului (App.tsx: noticeTone), nu
    dintr-un camp separat — coloreaza doar iconita si muchia stanga, mesajul ramane lizibil neutru. ── */
