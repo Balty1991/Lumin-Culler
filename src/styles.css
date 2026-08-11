@@ -211,7 +211,19 @@
    overflow-x:auto pe propriul element, neafectat de regula asta de pe html/body. */
 html, body { height: 100%; overflow-x: hidden; }
 body {
-  background: var(--bg);
+  /* Glow ambiental (cerinta directa a utilizatorului: aplicatia sa arate ca
+     directia "ultra moderna" din mockup-uri) — DOAR pe fundalul paginii (nu
+     backdrop-filter, nu pe cardurile din grila), ca sa nu repete riscul de
+     performanta semnalat mai devreme (blur pe sute de carduri) si sa nu
+     denatureze judecata de culoare pe zonele unde se compara poze — acelea
+     raman neschimbate, aproape negre (vezi comentariul "Obsidian Studio" de
+     la :root). Straturi de gradient in spatele culorii de fundal, nu deasupra ei.
+     Opacitate joasa (0.12-0.16) — semnal vizual, nu recolorare. */
+  background:
+    radial-gradient(circle at 10% -10%, rgb(var(--accent-2-rgb) / 0.16), transparent 42%),
+    radial-gradient(circle at 105% 8%, rgb(var(--accent-rgb) / 0.13), transparent 40%),
+    var(--bg);
+  background-attachment: fixed, fixed, scroll;
   color: var(--text);
   font-family: var(--sans);
   font-size: 15px;
