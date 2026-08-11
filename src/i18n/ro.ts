@@ -46,6 +46,7 @@ export const ro = {
   'menu.section.settings': 'Setari',
   'menu.theme.light': 'Tema deschisa',
   'menu.theme.dark': 'Tema intunecata',
+  'menu.theme.auto': 'Tema automata (dupa ora)',
   'menu.economicMode': 'Mod economic',
   'menu.economicMode.active': 'Mod economic (activ)',
   'menu.economicMode.title': 'Pool de un singur worker + fara iris/emotie — mai putina presiune pe CPU/RAM la import, pe hardware slab.',

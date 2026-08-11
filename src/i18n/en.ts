@@ -49,6 +49,7 @@ export const en: Record<TranslationKey, string> = {
   'menu.section.settings': 'Settings',
   'menu.theme.light': 'Light theme',
   'menu.theme.dark': 'Dark theme',
+  'menu.theme.auto': 'Automatic theme (by time of day)',
   'menu.economicMode': 'Economic mode',
   'menu.economicMode.active': 'Economic mode (on)',
   'menu.economicMode.title': 'Single-worker pool + no iris/emotion detection — less CPU/RAM pressure during import, for weaker hardware.',
