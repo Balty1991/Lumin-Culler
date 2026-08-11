@@ -5,6 +5,19 @@
  * ca sa ramana usor de gasit sursa unui text la nevoie.
  */
 export const ro = {
+  'home.greet.night': 'Buna noaptea! 🌙',
+  'home.greet.morning': 'Buna dimineata! 👋',
+  'home.greet.afternoon': 'Buna ziua! 👋',
+  'home.greet.evening': 'Buna seara! 👋',
+  'home.greet.reviewCount.one': '{count} poza de verificat',
+  'home.greet.reviewCount.other': '{count} poze de verificat',
+  'home.recap.title': 'Recapul tau lunar e gata',
+  'home.recap.sub.one': '{count} moment, gata de distribuit',
+  'home.recap.sub.other': '{count} momente, gata de distribuit',
+  'home.streak.label.one': 'zi la rand',
+  'home.streak.label.other': 'zile la rand',
+  'home.trips.label.one': 'calatorie',
+  'home.trips.label.other': 'calatorii',
   'nav.ariaLabel': 'Navigare principala',
   'nav.home': 'Acasa',
   'nav.albums': 'Albume',

@@ -38,6 +38,7 @@ import { BackupReminder } from './ui/BackupReminder';
 import { ImportReminder } from './ui/ImportReminder';
 import { MemoryBanner } from './ui/MemoryBanner';
 import { DeleteRejectedBanner } from './ui/DeleteRejectedBanner';
+import { HomeDashboard } from './ui/HomeDashboard';
 import { BottomNav } from './ui/BottomNav';
 import { WelcomeOnboarding } from './ui/WelcomeOnboarding';
 import { t } from './i18n';
@@ -696,6 +697,7 @@ export default function App() {
     return (
       <>
         <Toast />
+        <HomeDashboard />
         <div className="banner-stack">
           <MemoryBanner />
           <DeleteRejectedBanner />
@@ -772,6 +774,7 @@ export default function App() {
 
       <Toast />
       <WelcomeOnboarding />
+      <HomeDashboard />
       <div className="banner-stack">
         <MemoryBanner />
         <DeleteRejectedBanner />
