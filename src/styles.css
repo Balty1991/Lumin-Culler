@@ -184,6 +184,23 @@
   --accent-text: #0f766e;
 }
 
+/* Aspect / alegerea accentului (plan modernizare, cerinta directa: utilizatorul
+   alege, nu doar eu — vezi istoricul "Studio Noir" de mai sus). Doar tokenii de
+   accent se schimba, nu fundalul/suprafetele/textul — consecvent in ambele teme.
+   --accent-text ramane neschimbat sub un accent alternativ (nuanta dedicata,
+   validata pentru contrast pe fundal deschis) — o mica inconsecventa acceptata,
+   nu o eroare: e folosit doar pe text mic, nu pe suprafete mari. */
+:root[data-accent="sunset"] {
+  --accent: #ff8a5c; --accent-2: #ff5c8a;
+  --accent-gradient: linear-gradient(135deg, var(--accent) 0%, #ff6f9e 55%, var(--accent-2) 100%);
+  --accent-rgb: 255 138 92; --accent-2-rgb: 255 92 138;
+}
+:root[data-accent="holo"] {
+  --accent: #00fff2; --accent-2: #7a5cff;
+  --accent-gradient: linear-gradient(90deg, var(--accent) 0%, #7a5cff 100%);
+  --accent-rgb: 0 255 242; --accent-2-rgb: 122 92 255;
+}
+
 /* prefers-contrast: more — utilizatori cu vedere redusa care au cerut explicit
    mai mult contrast la nivel de sistem/browser; ignorat complet altfel de
    variabilele CSS custom (nu e ceva ce browser-ul aplica singur peste ele). */
@@ -2055,6 +2072,14 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .drawer-item span:not(.drawer-item-icon) { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .drawer-count { background: var(--surface-3); color: var(--text-dim); font-size: 0.72rem; padding: 2px 8px; border-radius: 999px; }
 .drawer-item-select { cursor: default; }
+.drawer-item-accent { cursor: default; }
+.accent-swatches { display: flex; gap: 8px; flex: none !important; }
+.accent-swatch {
+  width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0; border: 2px solid transparent;
+  transition: transform 0.15s var(--ease), border-color 0.15s var(--ease);
+}
+.accent-swatch:hover { transform: scale(1.1); }
+.accent-swatch.active { border-color: var(--text); box-shadow: 0 0 0 2px var(--surface-2); }
 .drawer-select {
   flex: none; max-width: 40%; background: var(--surface-2); color: var(--text);
   border: 1px solid var(--line); border-radius: 8px; padding: 5px 24px 5px 8px; font-size: 0.78rem;

@@ -34,6 +34,7 @@ import {
 import { selectBulkRejectTargets, resolveGroups, selectTopPercent, selectHighlights, selectBlinks, selectDeletableRejected } from './batchOps';
 import { isNativeMediaLibraryAvailable, deleteNativePhotos } from '../core/nativeMediaLibrary';
 import { readStoredTheme, applyTheme, type Theme } from './theme';
+import { readStoredAccent, applyAccent, type AccentTheme } from './accentTheme';
 import { readStoredProjectName, writeProjectName } from './projectName';
 import { readStoredWatermarkText, writeWatermarkText } from './watermarkText';
 import { readStoredGenre, writeStoredGenre } from './genre';
@@ -311,6 +312,8 @@ interface AppState {
   resolveDialog: (value: boolean | string | null) => void;
   theme: Theme;
   setTheme: (theme: Theme) => void;
+  accentTheme: AccentTheme;
+  setAccentTheme: (accent: AccentTheme) => void;
   /** Limba interfetei — vezi i18n/index.ts. Migrare treptata: doar unele ecrane citesc asta deocamdata, restul ramane in romana codificata direct. */
   locale: Locale;
   setLocale: (locale: Locale) => void;
@@ -916,6 +919,12 @@ function statusLabel(locale: Locale, status: PhotoRecord['status']): string {
 // persistata (fara asta, un utilizator care revine cu engleza deja aleasa
 // ar avea temporar/permanent atributul lang gresit pana la primul setLocale).
 applyLocale(readStoredLocale());
+// Acelasi motiv ca mai sus, pentru accentul ales — spre deosebire de tema
+// deschisa/inchisa (care are propriul script anti-FOUC in theme-init.js,
+// pentru ca schimba tot fundalul paginii), o schimbare de accent e suficient
+// de subtila incat un flash de-o fractiune de secunda pana ruleaza acest
+// modul nu justifica un al doilea script separat.
+applyAccent(readStoredAccent());
 
 /**
  * Cautarea text (filtered()/secondaryFiltered()) potriveste ACUM si dupa
@@ -1158,6 +1167,8 @@ export const useStore = create<AppState>((set, get) => ({
   shortcutsOpen: false,
   theme: readStoredTheme(),
   setTheme: theme => { applyTheme(theme); set({ theme }); },
+  accentTheme: readStoredAccent(),
+  setAccentTheme: accent => { applyAccent(accent); set({ accentTheme: accent }); },
   locale: readStoredLocale(),
   setLocale: locale => { writeStoredLocale(locale); applyLocale(locale); set({ locale }); },
   projectName: readStoredProjectName(),
