@@ -37,6 +37,7 @@ import { InstallPrompt } from './ui/InstallPrompt';
 import { BackupReminder } from './ui/BackupReminder';
 import { ImportReminder } from './ui/ImportReminder';
 import { MemoryBanner } from './ui/MemoryBanner';
+import { DeleteRejectedBanner } from './ui/DeleteRejectedBanner';
 import { BottomNav } from './ui/BottomNav';
 import { WelcomeOnboarding } from './ui/WelcomeOnboarding';
 import { t } from './i18n';
@@ -696,6 +697,7 @@ export default function App() {
         <Toast />
         <div className="banner-stack">
           <MemoryBanner />
+          <DeleteRejectedBanner />
           <InstallPrompt />
           <BackupReminder />
           <ImportReminder onAddPhotos={() => void onAddPhotosClick()} />
@@ -769,6 +771,8 @@ export default function App() {
       <Toast />
       <WelcomeOnboarding />
       <div className="banner-stack">
+        <MemoryBanner />
+        <DeleteRejectedBanner />
         <InstallPrompt />
         <BackupReminder />
         <ImportReminder onAddPhotos={() => void onAddPhotosClick()} />
