@@ -401,6 +401,21 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .memory-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; padding: 14px; }
 .memory-grid .memory-thumb { width: 100%; height: auto; aspect-ratio: 3/4; border-radius: 10px; }
 
+/* "Sterge pozele respinse" (plan modernizare) — acelasi limbaj vizual ca .memory-banner,
+   dar cu accentul rosu/coral (--reject), ca o functie distructiva sa se citeasca vizual
+   diferit de una "placuta" (amintiri). */
+.delete-rejected-banner { background-image: linear-gradient(var(--glass-bg), var(--glass-bg)), linear-gradient(120deg, var(--reject), #ff8fa3); box-shadow: var(--shadow-lg), 0 0 22px -12px rgb(var(--reject-rgb) / 0.5); }
+.delete-rejected-icon {
+  width: 42px; height: 42px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  background: rgb(var(--reject-rgb) / 0.16); color: var(--reject);
+}
+.delete-rejected-grid { grid-template-columns: repeat(4, 1fr); }
+.delete-rejected-more {
+  display: flex; align-items: center; justify-content: center; aspect-ratio: 3/4; border-radius: 10px;
+  background: var(--surface-2); color: var(--text-dim); font-size: 0.8rem; font-weight: 700;
+}
+.delete-rejected-cta { display: block; width: calc(100% - 28px); margin: 4px 14px 14px; text-align: center; }
+
 /* "Calatorii" (plan modernizare) — acelasi limbaj vizual ca .persons (lista de
    carduri in panoul lateral), plus o miniatura de coperta per calatorie. */
 .trips-list { list-style: none; display: grid; gap: 8px; padding: 0; }
