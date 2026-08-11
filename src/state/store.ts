@@ -35,6 +35,7 @@ import { selectBulkRejectTargets, resolveGroups, selectTopPercent, selectHighlig
 import { isNativeMediaLibraryAvailable, deleteNativePhotos } from '../core/nativeMediaLibrary';
 import { readStoredTheme, applyTheme, type Theme } from './theme';
 import { readStoredAccent, applyAccent, type AccentTheme } from './accentTheme';
+import { readAccessibleMode, applyAccessibleMode } from '../core/accessibleMode';
 import { readStoredProjectName, writeProjectName } from './projectName';
 import { readStoredWatermarkText, writeWatermarkText } from './watermarkText';
 import { readStoredGenre, writeStoredGenre } from './genre';
@@ -314,6 +315,8 @@ interface AppState {
   setTheme: (theme: Theme) => void;
   accentTheme: AccentTheme;
   setAccentTheme: (accent: AccentTheme) => void;
+  accessibleMode: boolean;
+  setAccessibleMode: (on: boolean) => void;
   /** Limba interfetei — vezi i18n/index.ts. Migrare treptata: doar unele ecrane citesc asta deocamdata, restul ramane in romana codificata direct. */
   locale: Locale;
   setLocale: (locale: Locale) => void;
@@ -925,6 +928,7 @@ applyLocale(readStoredLocale());
 // de subtila incat un flash de-o fractiune de secunda pana ruleaza acest
 // modul nu justifica un al doilea script separat.
 applyAccent(readStoredAccent());
+applyAccessibleMode(readAccessibleMode());
 
 /**
  * Cautarea text (filtered()/secondaryFiltered()) potriveste ACUM si dupa
@@ -1169,6 +1173,8 @@ export const useStore = create<AppState>((set, get) => ({
   setTheme: theme => { applyTheme(theme); set({ theme }); },
   accentTheme: readStoredAccent(),
   setAccentTheme: accent => { applyAccent(accent); set({ accentTheme: accent }); },
+  accessibleMode: readAccessibleMode(),
+  setAccessibleMode: on => { applyAccessibleMode(on); set({ accessibleMode: on }); },
   locale: readStoredLocale(),
   setLocale: locale => { writeStoredLocale(locale); applyLocale(locale); set({ locale }); },
   projectName: readStoredProjectName(),

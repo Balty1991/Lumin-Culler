@@ -219,6 +219,19 @@
   button:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline-width: 3px; }
 }
 
+/* "Mod accesibil" (plan modernizare, setare explicita din Meniu — vezi
+   core/accessibleMode.ts) — text de baza mai mare + cele mai frecvente
+   butoane de decizie (verdict in DetailView, select/respinge/export) mai
+   mari. Deliberat NU un scalaj global: multe componente (unealta de
+   decupare, panourile dense de editare) au dimensiuni fixe in px, calculate
+   geometric — un scalaj global le-ar rupe layout-ul. */
+:root[data-a11y="1"] body { font-size: 17px; }
+:root[data-a11y="1"] .select,
+:root[data-a11y="1"] .reject,
+:root[data-a11y="1"] .btn-accent { padding: 13px 20px; font-size: 1.05rem; }
+:root[data-a11y="1"] .detail-fab { width: 72px; height: 72px; }
+:root[data-a11y="1"] .detail-fab svg { width: 32px; height: 32px; }
+
 * { box-sizing: border-box; margin: 0; }
 /* overflow-x:hidden aici, nu doar pe elementele individuale — fara asta, daca ORICE
    element de pe pagina depaseste cu un pixel latimea vizibila (usor de intamplat cu
