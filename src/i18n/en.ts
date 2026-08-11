@@ -25,6 +25,8 @@ export const en: Record<TranslationKey, string> = {
   'menu.contactSheet': 'Contact sheet / print',
   'menu.presentation': 'Cinematic presentation',
   'menu.presentation.title': 'Fullscreen, auto-advancing — show the selected photos to the client on the spot, without them seeing the working grid.',
+  'menu.monthlyRecap': 'Monthly recap',
+  'menu.monthlyRecap.title': 'The best photos from the last 30 days, in a quick presentation.',
   'menu.projects': 'Projects',
   'menu.collections': 'Folders',
   'menu.trips': 'Trips',
@@ -598,6 +600,7 @@ export const en: Record<TranslationKey, string> = {
   'presentation.source.selection': 'manually selected photos',
   'presentation.source.selected': 'photos with "selected" status',
   'presentation.source.filtered': 'photos from the current filter',
+  'presentation.source.recap': 'the monthly recap',
 
   'edit.title': 'Basic edit',
   'edit.open': 'Edit',
