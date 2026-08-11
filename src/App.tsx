@@ -83,6 +83,7 @@ const StatsPanel = lazyPanel(() => import('./ui/StatsPanel').then(m => ({ defaul
 const ProjectsPanel = lazyPanel(() => import('./ui/ProjectsPanel').then(m => ({ default: m.ProjectsPanel })));
 const CollectionsPanel = lazyPanel(() => import('./ui/CollectionsPanel').then(m => ({ default: m.CollectionsPanel })));
 const TripsPanel = lazyPanel(() => import('./ui/TripsPanel').then(m => ({ default: m.TripsPanel })));
+const TikTokSort = lazyPanel(() => import('./ui/TikTokSort').then(m => ({ default: m.TikTokSort })));
 const CommandPalette = lazyPanel(() => import('./ui/CommandPalette').then(m => ({ default: m.CommandPalette })));
 const ShortcutsPanel = lazyPanel(() => import('./ui/ShortcutsPanel').then(m => ({ default: m.ShortcutsPanel })));
 const ContactSheet = lazyPanel(() => import('./ui/ContactSheet').then(m => ({ default: m.ContactSheet })));
@@ -716,6 +717,7 @@ export default function App() {
         <ProjectsPanel />
         <CollectionsPanel />
         <TripsPanel />
+        <TikTokSort />
         <ConfirmDialog />
       </>
     );
@@ -1109,6 +1111,7 @@ export default function App() {
       <ProjectsPanel />
       <CollectionsPanel />
       <TripsPanel />
+      <TikTokSort />
       <MenuDrawer />
       <CommandPalette />
       <ShortcutsPanel />

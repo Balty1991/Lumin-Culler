@@ -5,7 +5,8 @@ import { useModalFocusTrap } from './useModalFocusTrap';
 import {
   UserCheckIcon, SparkleIcon, ListIcon, InfoIcon, XIcon, TagIcon, LayersIcon, KeyboardIcon,
   SunIcon, MoonIcon, ClockIcon, BatteryIcon, GridIcon, DownloadIcon, UploadIcon, BarChartIcon, GlobeIcon, PrinterIcon,
-  ApertureIcon, PlayIcon, EditIcon, FolderIcon, HeartIcon, TrashIcon, PinIcon, PaletteIcon, AccessibilityIcon
+  ApertureIcon, PlayIcon, EditIcon, FolderIcon, HeartIcon, TrashIcon, PinIcon, PaletteIcon, AccessibilityIcon,
+  ChevronUpIcon
 } from './icons';
 import type { AccentTheme } from '../state/accentTheme';
 import { selectDeletableRejected } from '../state/batchOps';
@@ -92,6 +93,7 @@ export function MenuDrawer() {
   const setProjectsOpen = useStore(s => s.setProjectsOpen);
   const setCollectionsOpen = useStore(s => s.setCollectionsOpen);
   const setTripsOpen = useStore(s => s.setTripsOpen);
+  const setTiktokSortOpen = useStore(s => s.setTiktokSortOpen);
   const persons = useStore(s => s.persons);
   const askConfirm = useStore(s => s.askConfirm);
   const reduceMotion = useReducedMotion();
@@ -298,6 +300,11 @@ export function MenuDrawer() {
         <button className="drawer-item" onClick={() => go(() => setContactSheetOpen(true))}>
           <span className="drawer-item-icon"><PrinterIcon /></span>
           <span>{tr('menu.contactSheet')}</span>
+        </button>
+
+        <button className="drawer-item" onClick={() => go(() => setTiktokSortOpen(true))} title={tr('menu.tiktokSort.title')}>
+          <span className="drawer-item-icon"><ChevronUpIcon /></span>
+          <span>{tr('menu.tiktokSort')}</span>
         </button>
 
         <button className="drawer-item" onClick={() => go(() => setPresentationOpen(true))} title={tr('menu.presentation.title')}>
