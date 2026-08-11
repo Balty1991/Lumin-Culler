@@ -5,8 +5,9 @@ import { useModalFocusTrap } from './useModalFocusTrap';
 import {
   UserCheckIcon, SparkleIcon, ListIcon, InfoIcon, XIcon, TagIcon, LayersIcon, KeyboardIcon,
   SunIcon, MoonIcon, ClockIcon, BatteryIcon, GridIcon, DownloadIcon, UploadIcon, BarChartIcon, GlobeIcon, PrinterIcon,
-  ApertureIcon, PlayIcon, EditIcon, FolderIcon, HeartIcon, TrashIcon, PinIcon
+  ApertureIcon, PlayIcon, EditIcon, FolderIcon, HeartIcon, TrashIcon, PinIcon, PaletteIcon
 } from './icons';
+import type { AccentTheme } from '../state/accentTheme';
 import { selectDeletableRejected } from '../state/batchOps';
 import { selectMonthlyRecap } from '../state/monthlyRecap';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
@@ -37,6 +38,15 @@ import { t } from '../i18n';
  */
 const SHOW_NATIVE_TEST_BUTTON = import.meta.env.DEV || import.meta.env.VITE_NATIVE_TEST_BUTTON === 'true';
 
+/** Previzualizari statice (nu variabile CSS) — trebuie sa arate TOATE cele 3 optiuni
+    simultan, nu doar cea activa in acest moment. Vezi :root[data-accent] in styles.css
+    pentru valorile reale aplicate. */
+const ACCENT_OPTIONS: { id: AccentTheme; gradient: string }[] = [
+  { id: 'classic', gradient: 'linear-gradient(135deg, #2dd4bf, #8b5cf6 55%, #6366f1)' },
+  { id: 'sunset', gradient: 'linear-gradient(135deg, #ff8a5c, #ff5c8a)' },
+  { id: 'holo', gradient: 'linear-gradient(90deg, #00fff2, #7a5cff)' }
+];
+
 /** Meniu lateral: persoane, preferinte AI invatate, export lista, despre. */
 export function MenuDrawer() {
   const open = useStore(s => s.menuOpen);
@@ -49,6 +59,8 @@ export function MenuDrawer() {
   const setShortcutsOpen = useStore(s => s.setShortcutsOpen);
   const theme = useStore(s => s.theme);
   const setTheme = useStore(s => s.setTheme);
+  const accentTheme = useStore(s => s.accentTheme);
+  const setAccentTheme = useStore(s => s.setAccentTheme);
   const locale = useStore(s => s.locale);
   const setLocale = useStore(s => s.setLocale);
   const economicMode = useStore(s => s.economicMode);
@@ -413,6 +425,26 @@ export function MenuDrawer() {
           <span className="drawer-item-icon">{theme === 'light' ? <SunIcon /> : theme === 'auto' ? <ClockIcon /> : <MoonIcon />}</span>
           <span>{theme === 'light' ? tr('menu.theme.light') : theme === 'auto' ? tr('menu.theme.auto') : tr('menu.theme.dark')}</span>
         </button>
+
+        {/* Utilizatorul alege el accentul, in loc sa aleg eu unul singur pentru toata
+            lumea — vezi istoricul "Studio Noir" (respins pe telefon real dupa ce fusese
+            aprobat doar pe mockup) din comentariul --accent-gradient (styles.css). */}
+        <div className="drawer-item drawer-item-accent">
+          <span className="drawer-item-icon"><PaletteIcon /></span>
+          <span>{tr('menu.accent')}</span>
+          <span className="accent-swatches">
+            {ACCENT_OPTIONS.map(({ id, gradient }) => (
+              <button
+                key={id}
+                className={accentTheme === id ? 'accent-swatch active' : 'accent-swatch'}
+                style={{ background: gradient }}
+                onClick={() => setAccentTheme(id)}
+                aria-label={tr(`menu.accent.${id}`)}
+                aria-pressed={accentTheme === id}
+              />
+            ))}
+          </span>
+        </div>
 
         <button
           className="drawer-item"
