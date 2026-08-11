@@ -224,6 +224,13 @@ interface AppState {
   /** Prezentare fullscreen cinematica (auto-advance) — pentru aratat pozele clientului pe loc, fara laptop deschis pe grila de lucru. */
   presentationOpen: boolean;
   setPresentationOpen: (open: boolean) => void;
+  /** Cand setat, Prezentarea ruleaza EXACT aceasta lista de poze (in loc de selectia
+      multipla/pozele "selectate"/filtrul curent) — folosit de "Recap lunar" (Meniu),
+      care alege cele mai bune poze din ultimele 30 de zile, indiferent de filtrul activ.
+      Golit la inchiderea Prezentarii, ca urmatoarea deschidere normala (din grila) sa
+      revina la comportamentul obisnuit. */
+  presentationPhotoIds: string[] | null;
+  setPresentationPhotoIds: (ids: string[] | null) => void;
   filter: FilterKey;
   /** Filtru suplimentar, combinabil cu `filter` — numele unei persoane cunoscute, sau null (fara filtru). */
   personFilter: string | null;
@@ -1198,6 +1205,8 @@ export const useStore = create<AppState>((set, get) => ({
   setContactSheetOpen: open => set({ contactSheetOpen: open }),
   presentationOpen: false,
   setPresentationOpen: open => set({ presentationOpen: open }),
+  presentationPhotoIds: null,
+  setPresentationPhotoIds: ids => set({ presentationPhotoIds: ids }),
 
   exportBackup: async () => {
     const data = await buildBackup();

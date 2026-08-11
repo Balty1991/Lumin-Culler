@@ -57,7 +57,10 @@ function PresentationSlide({ photo, reduceMotion }: { photo: PhotoView; reduceMo
 export function PresentationMode() {
   const open = useStore(s => s.presentationOpen);
   const setOpen = useStore(s => s.setPresentationOpen);
+  const presentationPhotoIds = useStore(s => s.presentationPhotoIds);
+  const setPresentationPhotoIds = useStore(s => s.setPresentationPhotoIds);
   const multiSelectIds = useStore(s => s.multiSelectIds);
+  const allPhotos = useStore(s => s.photos);
   const filtered = useStore(s => s.filtered());
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
@@ -66,6 +69,12 @@ export function PresentationMode() {
   useModalFocusTrap(containerRef, open);
 
   const { photos, sourceLabel } = useMemo(() => {
+    // Recap lunar (Meniu) fixeaza o lista explicita de poze, indiferent de filtrul
+    // curent al grilei — cauta in TOATE pozele (allPhotos), nu doar in `filtered`.
+    if (presentationPhotoIds) {
+      const idSet = new Set(presentationPhotoIds);
+      return { photos: allPhotos.filter(p => idSet.has(p.id)), sourceLabel: tr('presentation.source.recap') };
+    }
     if (multiSelectIds.size > 0) {
       return { photos: filtered.filter(p => multiSelectIds.has(p.id)), sourceLabel: tr('presentation.source.selection') };
     }
@@ -73,7 +82,14 @@ export function PresentationMode() {
     if (selected.length > 0) return { photos: selected, sourceLabel: tr('presentation.source.selected') };
     return { photos: filtered, sourceLabel: tr('presentation.source.filtered') };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [multiSelectIds, filtered, locale]);
+  }, [presentationPhotoIds, multiSelectIds, allPhotos, filtered, locale]);
+
+  // Golim lista fixata a Recap-ului la inchidere, indiferent cum s-a inchis
+  // (Escape, buton, iesire din empty-state) — urmatoarea deschidere normala
+  // (din grila) trebuie sa revina la comportamentul obisnuit (selectie/filtru).
+  useEffect(() => {
+    if (!open && presentationPhotoIds) setPresentationPhotoIds(null);
+  }, [open, presentationPhotoIds, setPresentationPhotoIds]);
 
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(true);

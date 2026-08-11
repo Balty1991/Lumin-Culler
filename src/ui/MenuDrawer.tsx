@@ -8,6 +8,7 @@ import {
   ApertureIcon, PlayIcon, EditIcon, FolderIcon, HeartIcon, TrashIcon, PinIcon
 } from './icons';
 import { selectDeletableRejected } from '../state/batchOps';
+import { selectMonthlyRecap } from '../state/monthlyRecap';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { EASE } from './motion';
 import { GENRE_PRESETS } from '../state/genre';
@@ -71,6 +72,7 @@ export function MenuDrawer() {
   const setStatsOpen = useStore(s => s.setStatsOpen);
   const setContactSheetOpen = useStore(s => s.setContactSheetOpen);
   const setPresentationOpen = useStore(s => s.setPresentationOpen);
+  const setPresentationPhotoIds = useStore(s => s.setPresentationPhotoIds);
   const setProjectsOpen = useStore(s => s.setProjectsOpen);
   const setCollectionsOpen = useStore(s => s.setCollectionsOpen);
   const setTripsOpen = useStore(s => s.setTripsOpen);
@@ -285,6 +287,15 @@ export function MenuDrawer() {
         <button className="drawer-item" onClick={() => go(() => setPresentationOpen(true))} title={tr('menu.presentation.title')}>
           <span className="drawer-item-icon"><PlayIcon /></span>
           <span>{tr('menu.presentation')}</span>
+        </button>
+
+        <button
+          className="drawer-item"
+          onClick={() => go(() => { setPresentationPhotoIds(selectMonthlyRecap(photos).map(p => p.id)); setPresentationOpen(true); })}
+          title={tr('menu.monthlyRecap.title')}
+        >
+          <span className="drawer-item-icon"><SparkleIcon /></span>
+          <span>{tr('menu.monthlyRecap')}</span>
         </button>
 
         <button className="drawer-item" onClick={() => go(() => setProjectsOpen(true))}>

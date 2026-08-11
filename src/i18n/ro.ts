@@ -22,6 +22,8 @@ export const ro = {
   'menu.contactSheet': 'Contact sheet / print',
   'menu.presentation': 'Prezentare cinematica',
   'menu.presentation.title': 'Fullscreen, auto-advance — arata pozele selectate clientului pe loc, fara sa mai vada grila de lucru.',
+  'menu.monthlyRecap': 'Recap lunar',
+  'menu.monthlyRecap.title': 'Cele mai bune poze din ultimele 30 de zile, intr-o prezentare rapida.',
   'menu.projects': 'Proiecte',
   'menu.collections': 'Foldere',
   'menu.trips': 'Calatorii',
@@ -595,6 +597,7 @@ export const ro = {
   'presentation.source.selection': 'poze selectate manual',
   'presentation.source.selected': 'poze cu status "selectata"',
   'presentation.source.filtered': 'poze din filtrul curent',
+  'presentation.source.recap': 'recapul lunar',
 
   'edit.title': 'Editare de baza',
   'edit.open': 'Editeaza',
