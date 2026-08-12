@@ -568,11 +568,23 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 .tiktok-close svg { width: 18px; height: 18px; }
 .tiktok-progress {
-  position: absolute; top: calc(14px + env(safe-area-inset-top)); left: 60px; right: 16px;
+  position: absolute; top: calc(14px + env(safe-area-inset-top)); left: 60px; right: 46px;
   height: 3px; border-radius: 2px; background: rgba(255,255,255,0.22); overflow: hidden;
   z-index: var(--z-card-badge);
 }
 .tiktok-progress i { display: block; height: 100%; background: #fff; transition: width 0.25s var(--ease); }
+/* Coada segmentata (mockup m-tiktok: .progress-dots) — un fir subtire per poza, umplut pe
+   masura ce inaintezi; peste MAX_PROGRESS_DOTS cade pe bara continua de mai sus. */
+.tiktok-progress-dots {
+  position: absolute; top: calc(14px + env(safe-area-inset-top)); left: 60px; right: 46px;
+  display: flex; gap: 3px; z-index: var(--z-card-badge);
+}
+.tiktok-progress-dots i { flex: 1; height: 2.5px; border-radius: 2px; background: rgba(255,255,255,0.3); }
+.tiktok-progress-dots i.done { background: #fff; }
+.tiktok-progress-count {
+  position: absolute; top: calc(10px + env(safe-area-inset-top)); right: 12px;
+  font-size: 0.62rem; color: rgba(255,255,255,0.75); z-index: var(--z-card-badge);
+}
 .tiktok-up-hint {
   position: absolute; top: calc(48px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
   display: flex; flex-direction: column; align-items: center; gap: 2px;
@@ -593,13 +605,21 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   position: absolute; left: 16px; right: 88px; bottom: calc(28px + env(safe-area-inset-bottom));
   display: flex; flex-direction: column; gap: 6px; z-index: var(--z-card-badge);
 }
+.tiktok-chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
 .tiktok-ai-chip {
   align-self: flex-start; display: inline-flex; align-items: center; gap: 4px;
   background: rgb(var(--accent-rgb) / 0.22); color: #fff; border: 1px solid rgb(var(--accent-rgb) / 0.4);
   border-radius: 999px; padding: 3px 9px; font-size: 0.68rem; font-weight: 600;
 }
 .tiktok-ai-chip .inline-icon { width: 11px; height: 11px; }
+/* Recomandarea AI (accept/de verificat/respins) — aceleasi 3 culori de stare
+   ca --pick/--review/--reject folosite peste tot in aplicatie (CullGauge,
+   PhotoCard), ca utilizatorul sa recunoasca instant acelasi cod de culoare. */
+.tiktok-ai-chip.rec-select { background: rgb(var(--pick-rgb) / 0.24); border-color: rgb(var(--pick-rgb) / 0.5); }
+.tiktok-ai-chip.rec-review { background: rgb(var(--review-rgb) / 0.24); border-color: rgb(var(--review-rgb) / 0.5); }
+.tiktok-ai-chip.rec-reject { background: rgb(var(--reject-rgb) / 0.24); border-color: rgb(var(--reject-rgb) / 0.5); }
 .tiktok-caption-sub { font-size: 0.72rem; color: rgba(255,255,255,0.72); }
+.tiktok-caption-meta { color: rgba(255,255,255,0.55); }
 .tiktok-rail {
   position: absolute; right: 14px; bottom: calc(96px + env(safe-area-inset-bottom));
   display: flex; flex-direction: column; align-items: center; gap: 16px; z-index: var(--z-card-badge);
@@ -2939,3 +2959,33 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .duplicates-best svg { width: 11px; height: 11px; }
 .duplicates-group-info { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
 .duplicates-group-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* "Supervizorul galeriei" — acelasi limbaj vizual gradient ca .home-recap-card/
+   .memory-banner (functie de descoperire/progres, nu un avertisment). */
+.gallery-supervisor-banner {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius);
+  background-image: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--accent-gradient);
+  background-origin: border-box; background-clip: padding-box, border-box; border: 1px solid transparent;
+  box-shadow: var(--shadow-lg), 0 0 22px -12px rgb(var(--accent-rgb) / 0.5);
+  animation: fadeUp 0.3s var(--ease) both;
+}
+.gallery-supervisor-icon { width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: rgb(var(--accent-rgb) / 0.16); color: var(--accent); }
+.gallery-supervisor-icon svg { width: 15px; height: 15px; }
+.gallery-supervisor-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.gallery-supervisor-text b { font-size: 0.82rem; color: var(--text); }
+.gallery-supervisor-text span { font-size: 0.72rem; color: var(--text-dim); }
+.gallery-supervisor-cta {
+  flex-shrink: 0; border: none; border-radius: 999px; padding: 8px 14px; font-size: 0.76rem; font-weight: 700;
+  background: var(--accent-gradient); color: #06070a;
+}
+.gallery-supervisor-cta:disabled { opacity: 0.6; }
+
+/* "Vezi toate pozele" — singura punte intre Acasa (curat, doar HomeDashboard)
+   si grila clasica (CullGauge + filtre + carduri), acum ascunsa implicit. */
+.home-view-all-cta {
+  display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
+  margin: 4px 0 18px; padding: 12px; border-radius: var(--radius);
+  background: var(--surface-2); border: 1px solid var(--line); color: var(--text);
+  font-size: 0.86rem; font-weight: 700;
+}
+.home-view-all-cta:hover { border-color: var(--line-strong); }

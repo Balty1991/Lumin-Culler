@@ -239,4 +239,157 @@ class MediaLibraryPlugin : Plugin() {
             call.reject("Nu am putut citi galeria: ${e.message}", e)
         }
     }
+
+    /**
+     * "Supervizorul galeriei" (cerinta directa a utilizatorului: import pe
+     * perioade cronologice, cele mai vechi intai, cu recomandarea urmatoarei
+     * perioade) — vezi state/gallerySupervisor.ts. Cea mai veche/cea mai noua
+     * data efectiva din toata galeria, punctul de plecare pentru segmentarea
+     * pe perioade. NEVALIDAT inca pe device real (ca galleryOverview() mai
+     * sus) — de verificat manual dupa instalare ca earliestMs/latestMs
+     * corespund cu cele mai vechi/noi poze reale din Galerie.
+     *
+     * Interogari simple (o coloana, sortata, primul rand), NU functii de
+     * agregare SQL (MIN/MAX) in proiectie — MediaProvider (stocare cu scop
+     * limitat, Android 10+) valideaza/restrictioneaza proiectiile pe unii
+     * producatori, iar o expresie de agregare nu e garantat acceptata pe toti;
+     * ORDER BY + primul rand e sintaxa standard de interogare, sigur suportata.
+     */
+    @PluginMethod
+    fun galleryDateRange(call: PluginCall) {
+        if (getPermissionState(photosPermissionAlias) != PermissionState.GRANTED) {
+            requestPermissionForAlias(photosPermissionAlias, call, "galleryDateRangePermissionCallback")
+            return
+        }
+        resolveGalleryDateRange(call)
+    }
+
+    @PermissionCallback
+    private fun galleryDateRangePermissionCallback(call: PluginCall) {
+        if (getPermissionState(photosPermissionAlias) == PermissionState.GRANTED) {
+            resolveGalleryDateRange(call)
+        } else {
+            call.resolve(JSObject().put("granted", false))
+        }
+    }
+
+    /** O singura data (prima dupa sortare) dintr-o coloana — null daca galeria e goala sau coloana lipseste peste tot. */
+    private fun singleDate(column: String, ascending: Boolean): Long? {
+        val projection = arrayOf(column)
+        val selection = "$column IS NOT NULL AND $column > 0"
+        val sortOrder = "$column ${if (ascending) "ASC" else "DESC"}"
+        context.contentResolver.query(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI, projection, selection, null, sortOrder
+        )?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val idx = cursor.getColumnIndex(column)
+                if (idx >= 0) return cursor.getLong(idx)
+            }
+        }
+        return null
+    }
+
+    private fun resolveGalleryDateRange(call: PluginCall) {
+        try {
+            // DATE_TAKEN e in milisecunde; DATE_ADDED e in SECUNDE (particularitate
+            // MediaStore) — pentru poze fara DATE_TAKEN (frecvent la capturi de
+            // ecran/poze descarcate), DATE_ADDED*1000 e o aproximare rezonabila.
+            val takenEarliest = singleDate(MediaStore.Images.Media.DATE_TAKEN, true)
+            val takenLatest = singleDate(MediaStore.Images.Media.DATE_TAKEN, false)
+            val addedEarliest = singleDate(MediaStore.Images.Media.DATE_ADDED, true)?.times(1000)
+            val addedLatest = singleDate(MediaStore.Images.Media.DATE_ADDED, false)?.times(1000)
+            val earliest = listOfNotNull(takenEarliest, addedEarliest).minOrNull()
+            val latest = listOfNotNull(takenLatest, addedLatest).maxOrNull()
+            val result = JSObject().put("granted", true)
+            if (earliest != null) result.put("earliestMs", earliest)
+            if (latest != null) result.put("latestMs", latest)
+            call.resolve(result)
+        } catch (e: Exception) {
+            call.reject("Nu am putut citi intervalul de date al galeriei: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Pozele din galerie cu data efectiva (DATE_TAKEN, fallback DATE_ADDED)
+     * in intervalul [startMs, endMs) — "Supervizorul galeriei" aduce direct
+     * aceasta perioada, fara sa mai treaca prin selectorul manual pickPhotos()
+     * de mai sus (ar insemna sa cauti manual aceleasi poze dupa data, exact
+     * ce aceasta functie automatizeaza). Foloseste ACEEASI permisiune ca
+     * galleryOverview/galleryDateRange (READ_MEDIA_IMAGES/READ_EXTERNAL_STORAGE),
+     * deja acordata daca oricare din ele a rulat inainte. NEVALIDAT inca pe
+     * device real.
+     */
+    @PluginMethod
+    fun photosInRange(call: PluginCall) {
+        if (getPermissionState(photosPermissionAlias) != PermissionState.GRANTED) {
+            requestPermissionForAlias(photosPermissionAlias, call, "photosInRangePermissionCallback")
+            return
+        }
+        resolvePhotosInRange(call)
+    }
+
+    @PermissionCallback
+    private fun photosInRangePermissionCallback(call: PluginCall) {
+        if (getPermissionState(photosPermissionAlias) == PermissionState.GRANTED) {
+            resolvePhotosInRange(call)
+        } else {
+            call.resolve(JSObject().put("granted", false).put("photos", JSArray()))
+        }
+    }
+
+    private fun resolvePhotosInRange(call: PluginCall) {
+        // Transmise ca text (nu numar) dinspre JS: milisecundele de la epoca depasesc
+        // domeniul unui Int pe 32 de biti (folosit de unele metode PluginCall.getInt),
+        // iar un string+toLongOrNull() e cea mai sigura conversie fara ambiguitate de tip.
+        val startMs = call.getString("startMs")?.toLongOrNull()
+        val endMs = call.getString("endMs")?.toLongOrNull()
+        if (startMs == null || endMs == null) {
+            call.reject("startMs/endMs lipsesc sau sunt invalide")
+            return
+        }
+        try {
+            val projection = arrayOf(
+                MediaStore.Images.Media._ID,
+                MediaStore.Images.Media.DISPLAY_NAME,
+                MediaStore.Images.Media.DATE_TAKEN,
+                MediaStore.Images.Media.DATE_ADDED
+            )
+            val selection = "(${MediaStore.Images.Media.DATE_TAKEN} BETWEEN ? AND ?) OR " +
+                "(${MediaStore.Images.Media.DATE_TAKEN} IS NULL AND ${MediaStore.Images.Media.DATE_ADDED} BETWEEN ? AND ?) OR " +
+                "(${MediaStore.Images.Media.DATE_TAKEN} = 0 AND ${MediaStore.Images.Media.DATE_ADDED} BETWEEN ? AND ?)"
+            val addedStartSec = (startMs / 1000).toString()
+            val addedEndSec = (endMs / 1000).toString()
+            val args = arrayOf(
+                startMs.toString(), endMs.toString(),
+                addedStartSec, addedEndSec,
+                addedStartSec, addedEndSec
+            )
+            val photos = JSArray()
+            context.contentResolver.query(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI, projection, selection, args,
+                "${MediaStore.Images.Media.DATE_TAKEN} ASC"
+            )?.use { cursor ->
+                val idCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+                val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
+                val takenCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN)
+                val addedCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
+                while (cursor.moveToNext()) {
+                    val id = cursor.getLong(idCol)
+                    val uri = Uri.withAppendedPath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id.toString())
+                    val taken = cursor.getLong(takenCol)
+                    val added = cursor.getLong(addedCol)
+                    val capturedAt = if (taken > 0) taken else added * 1000
+                    photos.put(
+                        JSObject()
+                            .put("uri", uri.toString())
+                            .put("name", cursor.getString(nameCol) ?: "photo_$id.jpg")
+                            .put("capturedAt", capturedAt)
+                    )
+                }
+            }
+            call.resolve(JSObject().put("granted", true).put("photos", photos))
+        } catch (e: Exception) {
+            call.reject("Nu am putut citi pozele din acest interval: ${e.message}", e)
+        }
+    }
 }

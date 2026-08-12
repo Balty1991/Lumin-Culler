@@ -19,6 +19,8 @@ interface MediaLibraryPluginApi {
   pickPhotos(): Promise<{ cancelled: boolean; photos: { uri: string; name: string }[] }>;
   deletePhotos(options: { uris: string[] }): Promise<{ cancelled: boolean }>;
   galleryOverview(): Promise<{ granted: boolean; totalCount: number }>;
+  galleryDateRange(): Promise<{ granted: boolean; earliestMs?: number; latestMs?: number }>;
+  photosInRange(options: { startMs: string; endMs: string }): Promise<{ granted: boolean; photos: { uri: string; name: string; capturedAt: number }[] }>;
 }
 
 const MediaLibraryNative = registerPlugin<MediaLibraryPluginApi>('MediaLibrary');
@@ -86,4 +88,46 @@ export async function deleteNativePhotos(uris: string[]): Promise<{ cancelled: b
  */
 export async function readGalleryOverview(): Promise<{ granted: boolean; totalCount: number }> {
   return MediaLibraryNative.galleryOverview();
+}
+
+/**
+ * "Supervizorul galeriei" (cerinta directa a utilizatorului: import pe
+ * perioade cronologice, cele mai vechi intai) — vezi state/gallerySupervisor.ts
+ * si MediaLibraryPlugin.kt:galleryDateRange (NEVALIDAT inca pe device real).
+ * earliestMs/latestMs absente = galerie goala sau fara nicio poza cu data cunoscuta.
+ */
+export async function readGalleryDateRange(): Promise<{ granted: boolean; earliestMs?: number; latestMs?: number }> {
+  return MediaLibraryNative.galleryDateRange();
+}
+
+export interface RangePickedPhoto {
+  uri: string;
+  name: string;
+  capturedAt: number;
+  file: File;
+}
+
+/**
+ * Aduce DIRECT (fara selector manual) pozele din galerie cu data efectiva in
+ * [startMs, endMs) — vezi MediaLibraryPlugin.kt:photosInRange. Aceeasi
+ * conversie File prin Capacitor.convertFileSrc ca pickNativePhotos() de mai
+ * sus; poze ilizibile individual sunt ignorate, nu opresc tot lotul.
+ */
+export async function pickPhotosInRange(startMs: number, endMs: number): Promise<RangePickedPhoto[]> {
+  const result = await MediaLibraryNative.photosInRange({ startMs: String(startMs), endMs: String(endMs) });
+  if (!result.granted || !result.photos.length) return [];
+  const settled = await Promise.allSettled(
+    result.photos.map(async p => {
+      const response = await fetch(Capacitor.convertFileSrc(p.uri));
+      const blob = await response.blob();
+      const file = new File([blob], p.name, { type: blob.type });
+      return { uri: p.uri, name: p.name, capturedAt: p.capturedAt, file };
+    })
+  );
+  const photos: RangePickedPhoto[] = [];
+  settled.forEach(r => {
+    if (r.status === 'fulfilled') photos.push(r.value);
+    else console.warn('Poza ilizibila din perioada ceruta, ignorata:', r.reason);
+  });
+  return photos;
 }
