@@ -394,7 +394,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .install-prompt {
   padding: 9px 10px 9px 13px; border-radius: var(--radius);
   display: flex; flex-direction: column; gap: 8px; font-size: 0.78rem; color: var(--text-dim);
-  background: linear-gradient(var(--surface), var(--surface)) padding-box, var(--accent-gradient) border-box;
+  /* Sticla/blur + fundal translucid — acelasi limbaj vizual ca .memory-banner/
+     .gallery-supervisor-banner (idem in .banner-stack), nu un fundal opac plat:
+     stivuite impreuna, cele 3 bannere .install-prompt (InstallPrompt/BackupReminder/
+     ImportReminder) ieseau in evidenta ca fiind dintr-un alt sistem de design. */
+  background: linear-gradient(var(--glass-bg), var(--glass-bg)) padding-box, var(--accent-gradient) border-box;
+  backdrop-filter: blur(var(--glass-blur));
   border: 1px solid transparent; box-shadow: var(--shadow-lg);
   animation: fadeUp 0.3s var(--ease) both;
 }
