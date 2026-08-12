@@ -88,6 +88,8 @@ const CollectionsPanel = lazyPanel(() => import('./ui/CollectionsPanel').then(m 
 const TripsPanel = lazyPanel(() => import('./ui/TripsPanel').then(m => ({ default: m.TripsPanel })));
 const TikTokSort = lazyPanel(() => import('./ui/TikTokSort').then(m => ({ default: m.TikTokSort })));
 const ZenModePanel = lazyPanel(() => import('./ui/ZenModePanel').then(m => ({ default: m.ZenModePanel })));
+const AppearancePanel = lazyPanel(() => import('./ui/AppearancePanel').then(m => ({ default: m.AppearancePanel })));
+const PremiumPanel = lazyPanel(() => import('./ui/PremiumPanel').then(m => ({ default: m.PremiumPanel })));
 const SearchPanel = lazyPanel(() => import('./ui/SearchPanel').then(m => ({ default: m.SearchPanel })));
 const DocumentShieldPanel = lazyPanel(() => import('./ui/DocumentShieldPanel').then(m => ({ default: m.DocumentShieldPanel })));
 const VaultPanel = lazyPanel(() => import('./ui/VaultPanel').then(m => ({ default: m.VaultPanel })));
@@ -758,6 +760,8 @@ export default function App() {
         <TripsPanel />
         <TikTokSort />
         <ZenModePanel />
+        <AppearancePanel />
+        <PremiumPanel />
         <SearchPanel />
         <DocumentShieldPanel />
         <VaultPanel />
@@ -1167,6 +1171,8 @@ export default function App() {
       <TripsPanel />
       <TikTokSort />
       <ZenModePanel />
+      <AppearancePanel />
+      <PremiumPanel />
       <SearchPanel />
       <DocumentShieldPanel />
       <VaultPanel />

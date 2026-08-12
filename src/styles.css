@@ -190,6 +190,14 @@
    --accent-text ramane neschimbat sub un accent alternativ (nuanta dedicata,
    validata pentru contrast pe fundal deschis) — o mica inconsecventa acceptata,
    nu o eroare: e folosit doar pe text mic, nu pe suprafete mari. */
+/* Turcoaz plin, fara gradient — a doua pastila din mockup-ul 15. Gradientul
+   ramane definit (--accent-gradient), doar ca intre doua nuante ale aceleiasi
+   culori, ca butoanele/insignele care il folosesc sa nu devina plate brusc. */
+:root[data-accent="teal"] {
+  --accent: #2dd4bf; --accent-2: #14b8a6;
+  --accent-gradient: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+  --accent-rgb: 45 212 191; --accent-2-rgb: 20 184 166;
+}
 :root[data-accent="sunset"] {
   --accent: #ff8a5c; --accent-2: #ff5c8a;
   --accent-gradient: linear-gradient(135deg, var(--accent) 0%, #ff6f9e 55%, var(--accent-2) 100%);
@@ -1642,6 +1650,74 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .confirm-dialog-input:focus { outline: none; border-color: var(--accent); }
 .confirm-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
+/* ── "Aspect": tema + accent, ecran dedicat (mockup 15 + 16) ── */
+.appearance-section-label { font-size: 0.72rem; color: var(--text-faint); letter-spacing: 0.04em; text-transform: uppercase; margin-top: 2px; }
+.appearance-swatches { display: flex; gap: 12px; }
+.appearance-swatch {
+  width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0; padding: 0; border: none;
+  transition: transform var(--micro), box-shadow var(--micro);
+}
+.appearance-swatch:hover { transform: scale(1.08); }
+/* inel dublu (fundal + alb) ca pastila activa sa se citeasca peste orice culoare */
+.appearance-swatch.active { box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--text); }
+.appearance-preview {
+  border-radius: var(--radius-lg); padding: 14px;
+  background-image: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--accent-gradient);
+  background-origin: border-box; background-clip: padding-box, border-box; border: 1px solid transparent;
+  display: grid; gap: 8px; justify-items: start;
+}
+.appearance-preview-chip {
+  display: inline-flex; align-items: center; gap: 5px; font-size: 0.66rem; font-weight: 800;
+  padding: 4px 10px; border-radius: 999px; color: var(--text);
+  background: rgb(var(--accent-rgb) / 0.18); border: 1px solid rgb(var(--accent-2-rgb) / 0.45);
+}
+.appearance-preview-chip .inline-icon { width: 11px; height: 11px; color: var(--accent); }
+.appearance-preview-body { font-size: 0.78rem; color: var(--text-dim); margin: 0; }
+.appearance-preview-btn {
+  font-size: 0.76rem; font-weight: 800; padding: 8px 16px; border-radius: 999px;
+  background: var(--accent-gradient); color: #06050a;
+}
+.appearance-option {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; text-align: left;
+  padding: 12px 14px; border-radius: var(--radius); margin-bottom: 8px;
+  background: var(--surface-2); border: 1px solid var(--line);
+}
+.appearance-option.on { border-color: rgb(var(--accent-rgb) / 0.55); background: rgb(var(--accent-rgb) / 0.08); }
+.appearance-option-text b { display: block; font-size: 0.84rem; color: var(--text); }
+.appearance-option-text span { font-size: 0.7rem; color: var(--text-dim); }
+.appearance-radio {
+  width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0;
+  border: 2px solid var(--line-strong); display: flex; align-items: center; justify-content: center;
+}
+.appearance-radio.on { border-color: var(--accent); }
+.appearance-radio.on::after { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+
+/* ── "Premium": previzualizare onesta, fara buton de plata (mockup 21) ── */
+.premium-chip {
+  justify-self: start; display: inline-flex; align-items: center; gap: 5px;
+  font-size: 0.64rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 5px 11px; border-radius: 999px; color: var(--text);
+  background: rgb(var(--accent-rgb) / 0.16); border: 1px solid rgb(var(--accent-2-rgb) / 0.45);
+}
+.premium-chip .inline-icon { width: 12px; height: 12px; color: var(--accent); }
+.premium-lead { font-family: var(--font-display); font-size: 1rem; line-height: 1.35; margin: 0; }
+.premium-perk { display: flex; gap: 10px; align-items: flex-start; }
+.premium-perk i {
+  width: 30px; height: 30px; border-radius: 10px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface-2); border: 1px solid var(--line); color: var(--accent);
+}
+.premium-perk i svg { width: 15px; height: 15px; }
+.premium-perk b { display: block; font-size: 0.82rem; color: var(--text); }
+.premium-perk > span > span { font-size: 0.72rem; color: var(--text-dim); }
+.premium-usage {
+  border-radius: var(--radius); padding: 11px 13px;
+  background: var(--surface-2); border: 1px solid var(--line);
+}
+.premium-usage b { display: block; font-size: 0.8rem; color: var(--text); }
+.premium-usage span { font-size: 0.7rem; color: var(--text-dim); }
+.premium-soon { font-size: 0.74rem; color: var(--text-faint); margin: 0; line-height: 1.5; }
+
 /* ── Ecran de bun venit (o singura data, vezi state/welcomeOnboarding.ts) ──
    Ecran PLIN cu glow, dupa mockup-ul 01 din prezentare — nu o foaie de jos.
    Glow-ul e mai puternic aici (0.30/0.24) decat cel ambiental de pe <body>
@@ -2396,14 +2472,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .drawer-item span:not(.drawer-item-icon) { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .drawer-count { background: var(--surface-3); color: var(--text-dim); font-size: 0.72rem; padding: 2px 8px; border-radius: 999px; }
 .drawer-item-select { cursor: default; }
-.drawer-item-accent { cursor: default; }
-.accent-swatches { display: flex; gap: 8px; flex: none !important; }
-.accent-swatch {
-  width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0; border: 2px solid transparent;
-  transition: transform 0.15s var(--ease), border-color 0.15s var(--ease);
-}
-.accent-swatch:hover { transform: scale(1.1); }
-.accent-swatch.active { border-color: var(--text); box-shadow: 0 0 0 2px var(--surface-2); }
+/* Doar starea curenta a accentului, ca pastila mica langa eticheta — alegerea
+   propriu-zisa s-a mutat pe ecranul Aspect (ui/AppearancePanel.tsx). */
+.drawer-accent-dot { width: 20px; height: 20px; border-radius: 50%; flex: none !important; }
 .drawer-select {
   flex: none; max-width: 40%; background: var(--surface-2); color: var(--text);
   border: 1px solid var(--line); border-radius: 8px; padding: 5px 24px 5px 8px; font-size: 0.78rem;

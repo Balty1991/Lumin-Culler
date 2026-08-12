@@ -388,6 +388,12 @@ interface AppState {
   setZenAskOnUncertain: (on: boolean) => void;
   zenPanelOpen: boolean;
   setZenPanelOpen: (open: boolean) => void;
+  /** "Aspect" — tema + accent, ecran dedicat (vezi ui/AppearancePanel.tsx). */
+  appearanceOpen: boolean;
+  setAppearanceOpen: (open: boolean) => void;
+  /** "Premium" — previzualizare onesta a planului, fara mecanism de plata (vezi ui/PremiumPanel.tsx). */
+  premiumOpen: boolean;
+  setPremiumOpen: (open: boolean) => void;
   /** Vezi state/zenResolve.ts — ruleaza automat dupa import cand zenMode e activ (store.ts, runImport). */
   runZenResolve: () => Promise<{ resolved: number; uncertain: number; deleted: number }>;
   /**
@@ -1379,6 +1385,10 @@ export const useStore = create<AppState>((set, get) => ({
   setZenAskOnUncertain: on => { writeZenAskOnUncertain(on); set({ zenAskOnUncertain: on }); },
   zenPanelOpen: false,
   setZenPanelOpen: open => set({ zenPanelOpen: open }),
+  appearanceOpen: false,
+  setAppearanceOpen: open => set({ appearanceOpen: open }),
+  premiumOpen: false,
+  setPremiumOpen: open => set({ premiumOpen: open }),
   runZenResolve: async () => {
     const { zenAutoDeleteObvious, zenAskOnUncertain, locale } = get();
     const resolutions = resolveGroupsWithConfidence(get().photos);
