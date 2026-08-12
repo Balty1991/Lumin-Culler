@@ -8,6 +8,19 @@
 import type { TranslationKey } from './ro';
 
 export const en: Record<TranslationKey, string> = {
+  'home.greet.night': 'Good night! 🌙',
+  'home.greet.morning': 'Good morning! 👋',
+  'home.greet.afternoon': 'Good afternoon! 👋',
+  'home.greet.evening': 'Good evening! 👋',
+  'home.greet.reviewCount.one': '{count} photo to review',
+  'home.greet.reviewCount.other': '{count} photos to review',
+  'home.recap.title': 'Your monthly recap is ready',
+  'home.recap.sub.one': '{count} moment, ready to share',
+  'home.recap.sub.other': '{count} moments, ready to share',
+  'home.streak.label.one': 'day streak',
+  'home.streak.label.other': 'day streak',
+  'home.trips.label.one': 'trip',
+  'home.trips.label.other': 'trips',
   'nav.ariaLabel': 'Main navigation',
   'nav.home': 'Home',
   'nav.albums': 'Albums',

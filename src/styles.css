@@ -404,6 +404,36 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .install-prompt-install { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; font-family: var(--sans); }
 .install-prompt-close { flex-shrink: 0; }
 
+/* Ecranul Acasa ca dashboard (plan modernizare, cerinta directa: reorganizare
+   reala a aplicatiei, nu doar functii noi bagate in Meniu) — salut + card-teaser
+   recap + rand de mini-statistici reale (zile la rand, calatorii), deasupra
+   bannerelor existente (amintiri/sterge respinse). Vezi ui/HomeDashboard.tsx
+   pentru de ce inelul de progres (CullGauge) NU e reconstruit aici. */
+.home-dash { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; animation: fadeUp 0.3s var(--ease) both; }
+.home-greet { display: flex; flex-direction: column; gap: 2px; padding: 2px 2px 0; }
+.home-greet-hello { font-size: 1.1rem; font-weight: 700; color: var(--text); }
+.home-greet-sub { display: flex; align-items: center; gap: 5px; font-size: 0.78rem; color: var(--text-dim); }
+.home-greet-sub .inline-icon { width: 13px; height: 13px; color: var(--accent); flex-shrink: 0; }
+.home-recap-card {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius); text-align: left; width: 100%;
+  background-image: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--accent-gradient);
+  background-origin: border-box; background-clip: padding-box, border-box; border: 1px solid transparent;
+  box-shadow: var(--shadow-lg), 0 0 22px -12px rgb(var(--accent-rgb) / 0.5);
+}
+.home-recap-icon { font-size: 1.2rem; flex-shrink: 0; }
+.home-recap-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.home-recap-text b { font-size: 0.84rem; color: var(--text); }
+.home-recap-text span { font-size: 0.72rem; color: var(--text-dim); }
+.home-stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.home-mini-card {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  padding: 10px 8px; border-radius: var(--radius); text-align: center;
+}
+.home-mini-card-btn { cursor: pointer; }
+.home-mini-num { font-size: 0.95rem; font-weight: 700; color: var(--text); display: flex; align-items: center; justify-content: center; gap: 4px; }
+.home-mini-num .inline-icon { width: 15px; height: 15px; color: var(--accent); }
+.home-mini-lbl { font-size: 0.68rem; color: var(--text-dim); }
+
 /* "Acum X ani" (plan modernizare) — tratament mai premium decat bannerele
    utilitare de mai sus (glass + contur cu gradient, acelasi truc dublu-background
    ca .how-step-icon/.chip.active): functia e menita sa aduca placere/nostalgie,
