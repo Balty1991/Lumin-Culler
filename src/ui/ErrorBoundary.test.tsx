@@ -15,9 +15,9 @@ describe('ErrorBoundary', () => {
   it('catches a render error from a child and shows the fallback screen instead of a blank page', () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     render(<ErrorBoundary><Bomb /></ErrorBoundary>);
-    expect(screen.getByText(/eroare neasteptata/i)).toBeInTheDocument();
+    expect(screen.getByText(/eroare neașteptată/i)).toBeInTheDocument();
     expect(screen.getByText(/nu s-au pierdut/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /reincarca/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /reîncarcă/i })).toBeInTheDocument();
     consoleSpy.mockRestore();
   });
 
@@ -33,7 +33,7 @@ describe('ErrorBoundary', () => {
     const reloadSpy = vi.fn();
     Object.defineProperty(window, 'location', { value: { reload: reloadSpy }, writable: true });
     render(<ErrorBoundary><Bomb /></ErrorBoundary>);
-    fireEvent.click(screen.getByRole('button', { name: /reincarca/i }));
+    fireEvent.click(screen.getByRole('button', { name: /reîncarcă/i }));
     expect(reloadSpy).toHaveBeenCalledTimes(1);
     consoleSpy.mockRestore();
   });

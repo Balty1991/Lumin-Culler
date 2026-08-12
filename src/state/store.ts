@@ -388,6 +388,15 @@ interface AppState {
   setZenAskOnUncertain: (on: boolean) => void;
   zenPanelOpen: boolean;
   setZenPanelOpen: (open: boolean) => void;
+  /** "Aspect" — tema + accent, ecran dedicat (vezi ui/AppearancePanel.tsx). */
+  appearanceOpen: boolean;
+  setAppearanceOpen: (open: boolean) => void;
+  /** "Premium" — previzualizare onesta a planului, fara mecanism de plata (vezi ui/PremiumPanel.tsx). */
+  premiumOpen: boolean;
+  setPremiumOpen: (open: boolean) => void;
+  /** Foaia "unde trimit pozele păstrate" (vezi ui/ExportDestinations.tsx). */
+  exportDestinationsOpen: boolean;
+  setExportDestinationsOpen: (open: boolean) => void;
   /** Vezi state/zenResolve.ts — ruleaza automat dupa import cand zenMode e activ (store.ts, runImport). */
   runZenResolve: () => Promise<{ resolved: number; uncertain: number; deleted: number }>;
   /**
@@ -633,7 +642,8 @@ interface AppState {
   notice: string | null;
   setNotice: (message: string) => void;
   clearNotice: () => void;
-  exportSelection: () => Promise<void>;
+  /** `destination` vine din foaia de destinatii (ui/ExportDestinations.tsx); absent = comportamentul de dinainte. */
+  exportSelection: (destination?: 'auto' | 'folder' | 'apps') => Promise<void>;
   exportManifest: () => Promise<void>;
   /** Sumar text (nr. poze, scor mediu, durata sesiunii) pentru documentare/facturare fata de client. */
   exportSessionReport: () => Promise<void>;
@@ -1379,6 +1389,12 @@ export const useStore = create<AppState>((set, get) => ({
   setZenAskOnUncertain: on => { writeZenAskOnUncertain(on); set({ zenAskOnUncertain: on }); },
   zenPanelOpen: false,
   setZenPanelOpen: open => set({ zenPanelOpen: open }),
+  appearanceOpen: false,
+  setAppearanceOpen: open => set({ appearanceOpen: open }),
+  premiumOpen: false,
+  setPremiumOpen: open => set({ premiumOpen: open }),
+  exportDestinationsOpen: false,
+  setExportDestinationsOpen: open => set({ exportDestinationsOpen: open }),
   runZenResolve: async () => {
     const { zenAutoDeleteObvious, zenAskOnUncertain, locale } = get();
     const resolutions = resolveGroupsWithConfidence(get().photos);
@@ -2585,12 +2601,12 @@ export const useStore = create<AppState>((set, get) => ({
       }
     }
     if (!embeddings.length) {
-      return { ok: false, message: 'Nicio fata detectata in pozele de referinta. Alege poze clare, frontale.' };
+      return { ok: false, message: 'Nicio față detectată în pozele de referință. Alege poze clare, frontale.' };
     }
     const skipped = Math.max(0, files.length - MAX_PERSON_REFERENCE_FILES);
     const skippedSuffix = skipped > 0 ? ` (${skipped} poze ignorate, plafon ${MAX_PERSON_REFERENCE_FILES} per inrolare)` : '';
     const multifaceSuffix = multiface > 0
-      ? ` Atentie: ${multiface} ${multiface === 1 ? 'poza a continut' : 'poze au continut'} mai multe fete — s-a folosit automat cea mai mare din cadru; verifica daca e persoana corecta.`
+      ? ` Atenție: ${multiface} ${multiface === 1 ? 'poză a conținut' : 'poze au conținut'} mai multe fețe — s-a folosit automat cea mai mare din cadru; verifică dacă e persoana corectă.`
       : '';
     const trimmedName = name.trim();
     const existing = get().persons.find(p => p.name.trim().toLowerCase() === trimmedName.toLowerCase());
@@ -2840,7 +2856,7 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   /** Exporta pozele selectate ca fisiere reale, in formatul original (JPEG/PNG/etc), grupate pe subfoldere. */
-  exportSelection: async () => {
+  exportSelection: async (destination = 'auto') => {
     const allPhotos = get().photos;
     const selected = allPhotos.filter(p => p.status === 'selected');
     if (!selected.length) return;
@@ -2876,7 +2892,7 @@ export const useStore = create<AppState>((set, get) => ({
           location: meta.location,
           edits: p.edits
         };
-      }), { renameTemplate: get().renameTemplate, locale });
+      }), { renameTemplate: get().renameTemplate, locale, destination });
       // Vezi 'store.exportSelection.cancelled' (i18n): o anulare trebuie sa
       // INLOCUIASCA toast-ul de progres, altfel "Se exporta..." ramane agatat
       // pe ecran la infinit — bug real raportat de utilizator.

@@ -5,8 +5,8 @@ import { useModalFocusTrap } from './useModalFocusTrap';
 import {
   UserCheckIcon, SparkleIcon, ListIcon, InfoIcon, XIcon, TagIcon, LayersIcon, KeyboardIcon,
   SunIcon, MoonIcon, ClockIcon, BatteryIcon, GridIcon, DownloadIcon, UploadIcon, BarChartIcon, GlobeIcon, PrinterIcon,
-  ApertureIcon, PlayIcon, EditIcon, FolderIcon, HeartIcon, TrashIcon, PinIcon, PaletteIcon, AccessibilityIcon,
-  ChevronUpIcon, SearchIcon, ShieldIcon, LockIcon, CopyIcon
+  ApertureIcon, PlayIcon, EditIcon, FolderIcon, HeartIcon, TrashIcon, PinIcon, AccessibilityIcon,
+  ChevronUpIcon, SearchIcon, ShieldIcon, LockIcon, CopyIcon, StarIcon
 } from './icons';
 import type { AccentTheme } from '../state/accentTheme';
 import { selectDeletableRejected } from '../state/batchOps';
@@ -42,10 +42,11 @@ import { t } from '../i18n';
 const SHOW_NATIVE_TEST_BUTTON = import.meta.env.DEV || import.meta.env.VITE_NATIVE_TEST_BUTTON === 'true';
 
 /** Previzualizari statice (nu variabile CSS) — trebuie sa arate TOATE cele 3 optiuni
-    simultan, nu doar cea activa in acest moment. Vezi :root[data-accent] in styles.css
+    simultan, nu doar cea activa in acest moment (vezi si ui/AppearancePanel.tsx). Vezi :root[data-accent] in styles.css
     pentru valorile reale aplicate. */
 const ACCENT_OPTIONS: { id: AccentTheme; gradient: string }[] = [
   { id: 'classic', gradient: 'linear-gradient(135deg, #2dd4bf, #8b5cf6 55%, #6366f1)' },
+  { id: 'teal', gradient: 'linear-gradient(135deg, #2dd4bf, #14b8a6)' },
   { id: 'sunset', gradient: 'linear-gradient(135deg, #ff8a5c, #ff5c8a)' },
   { id: 'holo', gradient: 'linear-gradient(90deg, #00fff2, #7a5cff)' }
 ];
@@ -106,7 +107,8 @@ export function MenuDrawer() {
   const theme = useStore(s => s.theme);
   const setTheme = useStore(s => s.setTheme);
   const accentTheme = useStore(s => s.accentTheme);
-  const setAccentTheme = useStore(s => s.setAccentTheme);
+  const setAppearanceOpen = useStore(s => s.setAppearanceOpen);
+  const setPremiumOpen = useStore(s => s.setPremiumOpen);
   const locale = useStore(s => s.locale);
   const setLocale = useStore(s => s.setLocale);
   const economicMode = useStore(s => s.economicMode);
@@ -534,37 +536,21 @@ export function MenuDrawer() {
           expandLabel={tr('menu.expandSection', { section: tr('menu.section.settings') })}
           collapseLabel={tr('menu.collapseSection', { section: tr('menu.section.settings') })}
         >
-          {/* Ciclu pe 3 stari (intunecat -> luminos -> automat -> intunecat), nu doar comutator
-              intre 2 — "automat" e o preferinta stocata separat, nu doar un rezultat vizual
-              derivat, deci trebuie sa fie o optiune explicit selectabila, nu ceva ce apare
-              "din senin" doar din combinarea celorlalte doua. */}
-          <button
-            className="drawer-item"
-            onClick={() => go(() => setTheme(theme === 'dark' ? 'light' : theme === 'light' ? 'auto' : 'dark'))}
-          >
+          {/* Tema si accentul au acum un ecran propriu (ui/AppearancePanel.tsx,
+              mockup 15+16): aici erau un buton care CICLA prin cele 3 teme — nu
+              vedeai niciodata ce optiuni exista, doar pe cea curenta — si un rand
+              de pastile de 22px, fara nume si fara efect vizibil pana inchideai
+              meniul. Randul de aici ramane doar ca punct de intrare, si arata
+              starea curenta (iconita temei + accentul activ). */}
+          <button className="drawer-item" onClick={() => go(() => setAppearanceOpen(true))}>
             <span className="drawer-item-icon">{theme === 'light' ? <SunIcon /> : theme === 'auto' ? <ClockIcon /> : <MoonIcon />}</span>
-            <span>{theme === 'light' ? tr('menu.theme.light') : theme === 'auto' ? tr('menu.theme.auto') : tr('menu.theme.dark')}</span>
-          </button>
-
-          {/* Utilizatorul alege el accentul, in loc sa aleg eu unul singur pentru toata
-              lumea — vezi istoricul "Studio Noir" (respins pe telefon real dupa ce fusese
-              aprobat doar pe mockup) din comentariul --accent-gradient (styles.css). */}
-          <div className="drawer-item drawer-item-accent">
-            <span className="drawer-item-icon"><PaletteIcon /></span>
             <span>{tr('menu.accent')}</span>
-            <span className="accent-swatches">
-              {ACCENT_OPTIONS.map(({ id, gradient }) => (
-                <button
-                  key={id}
-                  className={accentTheme === id ? 'accent-swatch active' : 'accent-swatch'}
-                  style={{ background: gradient }}
-                  onClick={() => setAccentTheme(id)}
-                  aria-label={tr(`menu.accent.${id}`)}
-                  aria-pressed={accentTheme === id}
-                />
-              ))}
-            </span>
-          </div>
+            <span
+              className="drawer-accent-dot"
+              style={{ background: ACCENT_OPTIONS.find(a => a.id === accentTheme)?.gradient }}
+              aria-hidden="true"
+            />
+          </button>
 
           <button
             className="drawer-item"
@@ -629,6 +615,11 @@ export function MenuDrawer() {
           <button className="drawer-item" onClick={() => go(() => setShortcutsOpen(true))}>
             <span className="drawer-item-icon"><KeyboardIcon /></span>
             <span>{tr('menu.shortcuts')}</span>
+          </button>
+
+          <button className="drawer-item" onClick={() => go(() => setPremiumOpen(true))}>
+            <span className="drawer-item-icon"><StarIcon /></span>
+            <span>{tr('premium.title')}</span>
           </button>
 
           {SHOW_NATIVE_TEST_BUTTON && isNativeFaceDetectionAvailable() && isNativeImageAnalysisAvailable() &&

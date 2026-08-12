@@ -13,9 +13,15 @@ import { t } from '../i18n';
  * meniuri), ci raspunde la "de ce sa folosesc asta": procesare 100% locala,
  * cum functioneaza scorul AI, recunoasterea persoanelor (si limita ei gratuita),
  * si o previzualizare onesta a Premium (inca fara mecanism real de plata — vezi
- * core/entitlement.ts). Reutilizeaza markup-ul ".core" (halo/inel/disc) deja
- * folosit de AiBootScreen si ecranul gol, ca sa ramana aceeasi identitate
- * vizuala, doar cu iconita schimbata per pas.
+ * core/entitlement.ts).
+ *
+ * Layout: ecran PLIN, nu foaie de jos (mockup 01 din prezentare) — fundal cu
+ * glow violet+turcoaz, o pastila-iconita cu gradientul de brand, o singura
+ * promisiune si un CTA rotunjit. Inainte reutiliza sasiul de dialog
+ * (.detail/.detail-inner), care il randa ca un sheet lipit de marginea de jos,
+ * cu jumatatea de sus goala si intunecata — exact opusul primei impresii pe
+ * care o arata mockup-ul. Pasii raman 4 (fiecare spune ceva real), doar
+ * prezentarea lor s-a schimbat.
  */
 const STEPS = [
   { Icon: ApertureIcon, titleKey: 'welcome.step1.title', bodyKey: 'welcome.step1.body' },
@@ -40,9 +46,9 @@ export function WelcomeOnboarding() {
   const { Icon, titleKey, bodyKey } = STEPS[step];
 
   return (
-    <div className="detail welcome-onboarding-backdrop">
+    <div className="welcome-screen">
       <div
-        className="detail-inner narrow welcome-onboarding" ref={containerRef} role="dialog" aria-modal="true"
+        className="welcome-onboarding" ref={containerRef} role="dialog" aria-modal="true"
         aria-label={tr(titleKey)} tabIndex={-1}
         onKeyDown={e => { if (e.key === 'Escape') { e.preventDefault(); finish(); } }}
       >
@@ -53,14 +59,8 @@ export function WelcomeOnboarding() {
           <LocaleToggle />
         </div>
 
-        <div className="core" aria-hidden="true">
-          <span className="core-halo" />
-          <div className="core-ring" />
-          <div className="core-disc">
-            <div className="core-disc-inner">
-              <Icon />
-            </div>
-          </div>
+        <div className="welcome-onboarding-icon" aria-hidden="true">
+          <Icon />
         </div>
 
         <h2>{tr(titleKey)}</h2>

@@ -43,7 +43,7 @@ export function CommandPalette() {
   const theme = useStore(s => s.theme);
   const setTheme = useStore(s => s.setTheme);
   const locale = useStore(s => s.locale);
-  const exportSelection = useStore(s => s.exportSelection);
+  const setExportDestinationsOpen = useStore(s => s.setExportDestinationsOpen);
   const exportManifest = useStore(s => s.exportManifest);
   const exportXMP = useStore(s => s.exportXMP);
   const undo = useStore(s => s.undo);
@@ -135,7 +135,7 @@ export function CommandPalette() {
     })),
     { id: 'persons', label: tr('palette.cmd.persons'), sectionKey: 'palette.section.people', icon: <UserCheckIcon />, run: () => setPersonsOpen(true) },
     { id: 'insights', label: tr('palette.cmd.insights'), sectionKey: 'palette.section.people', icon: <SparkleIcon />, run: () => setInsightsOpen(true) },
-    { id: 'export-selection', label: tr('palette.cmd.exportSelection', { count: counts.selected }), sectionKey: 'palette.section.export', icon: <DownloadIcon />, run: () => void exportSelection(), disabled: !counts.selected },
+    { id: 'export-selection', label: tr('palette.cmd.exportSelection', { count: counts.selected }), sectionKey: 'palette.section.export', icon: <DownloadIcon />, run: () => setExportDestinationsOpen(true), disabled: !counts.selected },
     { id: 'export-xmp', label: tr('palette.cmd.exportXmp'), sectionKey: 'palette.section.export', icon: <TagIcon />, run: () => void exportXMP(), disabled: !photos.length },
     { id: 'export-manifest', label: tr('palette.cmd.exportManifest'), sectionKey: 'palette.section.export', icon: <ListIcon />, run: () => void exportManifest(), disabled: !counts.selected },
     { id: 'shortcuts', label: tr('palette.cmd.shortcuts'), hint: '?', sectionKey: 'palette.section.app', icon: <KeyboardIcon />, run: () => setShortcutsOpen(true) },

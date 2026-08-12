@@ -7,10 +7,17 @@
  * testabila izolat, aplicata prin atribut pe <html> + variabile CSS (vezi
  * :root[data-accent="..."] in styles.css).
  */
-export type AccentTheme = 'classic' | 'sunset' | 'holo';
+/**
+ * 'teal' e accentul plat turcoaz respins candva ca DEFAULT pentru toata lumea
+ * ("Studio Noir", vezi comentariul --accent-gradient din styles.css) — revine
+ * aici doar ca OPTIUNE, alaturi de celelalte, exact ca in mockup-ul 15 din
+ * prezentare (a doua pastila, culoare plina). A alege tu un aspect plat nu e
+ * acelasi lucru cu a-l primi impus.
+ */
+export type AccentTheme = 'classic' | 'teal' | 'sunset' | 'holo';
 
 const STORAGE_KEY = 'lumin-accent';
-const VALID_ACCENTS: readonly AccentTheme[] = ['classic', 'sunset', 'holo'];
+const VALID_ACCENTS: readonly AccentTheme[] = ['classic', 'teal', 'sunset', 'holo'];
 
 export function readStoredAccent(): AccentTheme {
   try {

@@ -24,7 +24,7 @@ describe('generateExplanation', () => {
 
   it('mentions cold-start confidence when no context model exists yet', () => {
     const paragraphs = generateExplanation(analysis({}), true, null, null);
-    expect(paragraphs.join(' ')).toMatch(/inceput/);
+    expect(paragraphs.join(' ')).toMatch(/început/);
   });
 
   it('mentions "trained" confidence with a model that has many samples', () => {
@@ -39,7 +39,7 @@ describe('generateExplanation', () => {
 
   it('confirms agreement when AI and user both selected', () => {
     const paragraphs = generateExplanation(analysis({}), true, true, null);
-    expect(paragraphs.join(' ')).toMatch(/confirmat aceeasi alegere/);
+    expect(paragraphs.join(' ')).toMatch(/confirmat aceeași alegere/);
   });
 
   // Bug real raportat de utilizator la testare: textul spunea "zambeste natural"
@@ -50,14 +50,14 @@ describe('generateExplanation', () => {
       analysis({ faceCount: 1, bestSmile: 0.9, allEyesOpen: true, groupGenuineSmileRatio: 0.9 }),
       true, true, null
     );
-    expect(genuine.some(p => p.includes('zambeste natural'))).toBe(true);
+    expect(genuine.some(p => p.includes('zâmbește natural'))).toBe(true);
 
     const posed = generateExplanation(
       analysis({ faceCount: 1, bestSmile: 0.9, allEyesOpen: true, groupGenuineSmileRatio: 0 }),
       true, true, null
     );
-    expect(posed.some(p => p.includes('zambeste natural'))).toBe(false);
-    expect(posed.some(p => p.includes('zambeste larg'))).toBe(true);
+    expect(posed.some(p => p.includes('zâmbește natural'))).toBe(false);
+    expect(posed.some(p => p.includes('zâmbește larg'))).toBe(true);
   });
 
   it('falls back to the non-committal wording when groupGenuineSmileRatio is entirely absent (older records)', () => {
@@ -65,8 +65,8 @@ describe('generateExplanation', () => {
       analysis({ faceCount: 1, bestSmile: 0.9, allEyesOpen: true }),
       true, true, null
     );
-    expect(paragraphs.some(p => p.includes('zambeste natural'))).toBe(false);
-    expect(paragraphs.some(p => p.includes('zambeste larg'))).toBe(true);
+    expect(paragraphs.some(p => p.includes('zâmbește natural'))).toBe(false);
+    expect(paragraphs.some(p => p.includes('zâmbește larg'))).toBe(true);
   });
 
   it('uses singular-friendly wording for a 2-person group instead of the vague plural "cativa zambesc"', () => {
@@ -78,8 +78,8 @@ describe('generateExplanation', () => {
       true, true, null
     );
     const subject = paragraphs.find(p => p.startsWith('Cele'));
-    expect(subject).toContain('unul dintre ei zambeste');
-    expect(subject).not.toContain('cativa zambesc');
+    expect(subject).toContain('unul dintre ei zâmbește');
+    expect(subject).not.toContain('câțiva zâmbesc');
   });
 
   it('still uses "cativa zambesc" for larger groups in the same mid-smile bracket', () => {
@@ -91,7 +91,7 @@ describe('generateExplanation', () => {
       true, true, null
     );
     const subject = paragraphs.find(p => p.startsWith('Cele'));
-    expect(subject).toContain('cativa zambesc');
+    expect(subject).toContain('câțiva zâmbesc');
   });
 
   it('adds a subject paragraph only when faces are present', () => {
@@ -163,7 +163,7 @@ describe('generateSuggestions', () => {
     const noFaces = generateSuggestions(analysis({ faceCount: 0 }));
     const withClosedEyes = generateSuggestions(analysis({ faceCount: 1, allEyesOpen: false }));
     expect(noFaces.some(s => s.text.includes('ochii'))).toBe(false);
-    expect(withClosedEyes.some(s => s.text.includes('ochii inchisi'))).toBe(true);
+    expect(withClosedEyes.some(s => s.text.includes('ochii închiși'))).toBe(true);
   });
 
   it('flags missing leading lines/symmetry only for faceless scenes', () => {
