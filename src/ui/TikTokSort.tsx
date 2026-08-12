@@ -8,7 +8,7 @@ import { AdjustedImage } from './AdjustedImage';
 import { XIcon, HeartIcon, UndoIcon, ChevronUpIcon, SparkleIcon } from './icons';
 import { t, type Locale } from '../i18n';
 
-const SWIPE_UP_COMMIT = 80; // px de tras in sus pentru a trece la poza urmatoare (fara sa decida nimic)
+const SWIPE_COMMIT = 80; // px de tras (sus SAU jos) pentru a schimba pozitia in coada, fara sa decida nimic
 
 function formatCaptureDate(ts: number | undefined, locale: Locale): string | null {
   if (!ts) return null;
@@ -18,12 +18,18 @@ function formatCaptureDate(ts: number | undefined, locale: Locale): string | nul
 
 /**
  * "Sortare stil TikTok" (plan modernizare) — flux alternativ, plin ecran,
- * peste coada de poze nedecise (pending/review): un gest vertical de treci
- * mai departe (fara sa decizi) + o coloana de actiuni la indemana degetului
- * mare (pastreaza/sterge/album/anuleaza). NU inlocuieste grila+DetailView
- * (ramane calea principala, cu control fin per-poza) — e o a doua cale,
- * pentru triaj rapid pe cantitati mari, unde gestul de swipe deja e familiar
- * din alte aplicatii.
+ * peste coada de poze nedecise (pending/review): gest vertical BIDIRECTIONAL
+ * (sus = mai departe fara sa decizi, jos = inapoi la poza anterioara — bug
+ * real raportat de utilizator: prima versiune permitea doar inainte) + o
+ * coloana de actiuni la indemana degetului mare (pastreaza/sterge/album/
+ * anuleaza). NU inlocuieste grila+DetailView (ramane calea principala, cu
+ * control fin per-poza) — e o a doua cale, pentru triaj rapid pe cantitati
+ * mari, unde gestul de swipe deja e familiar din alte aplicatii.
+ *
+ * Coada e "inghetata" (queueIds) la deschidere, ca ordinea sa ramana STABILA
+ * cat timp navighezi inainte/inapoi — un index (nu un filtru live) tine
+ * pozitia curenta, iar poza efectiva e cautata dupa id in `photos` (starea
+ * ei — decisa sau nu — ramane mereu la zi, chiar daca ordinea nu se schimba).
  *
  * Reutilizeaza in intregime `setStatus`/`undo` din store (acelasi istoric de
  * anulare, acelasi feedback haptic, aceeasi invatare AI ca restul aplicatiei)
@@ -39,23 +45,23 @@ export function TikTokSort() {
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
 
-  const [skipped, setSkipped] = useState<Set<string>>(() => new Set());
-  const [sessionDone, setSessionDone] = useState(0);
+  const [queueIds, setQueueIds] = useState<string[]>([]);
+  const [index, setIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   useModalFocusTrap(containerRef, open);
 
   // Ecranul ramane montat intre deschideri (acelasi tipar ca TripsPanel/PersonsPanel
-  // — vezi `if (!open) return null` mai jos), deci coada/progresul trebuie resetate
+  // — vezi `if (!open) return null` mai jos), deci coada/pozitia trebuie resetate
   // explicit la fiecare deschidere, altfel un utilizator care redeschide ecranul
-  // dupa o sesiune anterioara ar vedea inca pozele "sarite" (fara decizie) ascunse.
+  // dupa o sesiune anterioara ar relua de unde a ramas ultima data, nu de la inceput.
   useEffect(() => {
-    if (open) { setSkipped(new Set()); setSessionDone(0); }
+    if (open) { setQueueIds(selectSortQueue(photos).map(p => p.id)); setIndex(0); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- coada se "ingheata" DOAR la momentul deschiderii, nu trebuie sa se refaca la fiecare schimbare din `photos`
   }, [open]);
 
-  const queue = useMemo(() => selectSortQueue(photos), [photos]);
-  const visible = useMemo(() => queue.filter(p => !skipped.has(p.id)), [queue, skipped]);
-  const current = visible[0] ?? null;
-  const totalThisSession = sessionDone + visible.length;
+  const photosById = useMemo(() => new Map(photos.map(p => [p.id, p])), [photos]);
+  const current = photosById.get(queueIds[index]) ?? null;
+  const total = queueIds.length;
 
   const [src, setSrc] = useState<string | null>(null);
   const [dragY, setDragY] = useState(0);
@@ -72,6 +78,14 @@ export function TikTokSort() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- doar id-ul conteaza, ca in DetailView (photo.id)
   }, [current?.id]);
 
+  // O poza poate disparea complet din `photos` (stersa nativ — ex. Mod Zen
+  // "sterge automat duplicatele") fara sa fi fost decisa AICI — fara acest
+  // efect, ecranul ar ramane blocat pe o poza fantoma (current === null la
+  // un index valid), fara nicio cale sa mearga mai departe.
+  useEffect(() => {
+    if (open && !current && index < total) setIndex(i => Math.min(i + 1, total));
+  }, [open, current, index, total]);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
@@ -81,20 +95,19 @@ export function TikTokSort() {
 
   if (!open) return null;
 
-  const skip = () => { if (!current) return; setSkipped(prev => new Set(prev).add(current.id)); setSessionDone(d => d + 1); };
+  const goNext = () => setIndex(i => Math.min(i + 1, total));
+  const goPrev = () => setIndex(i => Math.max(i - 1, 0));
   const decide = (status: 'selected' | 'rejected') => {
     if (!current) return;
     void setStatus(current.id, status);
-    setSessionDone(d => d + 1);
+    goNext();
   };
   const doUndo = () => {
     void undo();
-    // vezi comentariul de mai sus despre acelasi istoric — daca anularea chiar
-    // priveste ultima decizie luata aici, poza revine automat in `queue`
-    // (status-ul redevine pending/review); scadem contorul in mod optimist,
-    // fara sa incercam sa verificam daca anularea a fost intr-adevar despre
-    // ecranul asta (istoricul e global, aceeasi limitare exista si la Ctrl+Z).
-    setSessionDone(d => Math.max(0, d - 1));
+    // Anularea (istoric global, acelasi ca Ctrl+Z) readuce poza la pending/
+    // review — mutam si pozitia inapoi, ca utilizatorul sa o vada din nou
+    // imediat, nu doar sa observe ca progresul a scazut fara nicio poza vizibila.
+    goPrev();
   };
 
   const startDrag = (e: PointerEvent<HTMLDivElement>) => {
@@ -105,14 +118,15 @@ export function TikTokSort() {
   };
   const moveDrag = (e: PointerEvent<HTMLDivElement>) => {
     if (!draggingRef.current) return;
-    const delta = Math.min(0, e.clientY - startYRef.current); // doar in sus
+    const delta = e.clientY - startYRef.current; // ambele directii
     dragYRef.current = delta;
     setDragY(delta);
   };
   const endDrag = () => {
     if (!draggingRef.current) return;
     draggingRef.current = false;
-    if (dragYRef.current < -SWIPE_UP_COMMIT) skip();
+    if (dragYRef.current < -SWIPE_COMMIT) goNext();
+    else if (dragYRef.current > SWIPE_COMMIT) goPrev();
     dragYRef.current = 0;
     setDragY(0);
   };
@@ -137,8 +151,8 @@ export function TikTokSort() {
 
       {current && (
         <>
-          <div className="tiktok-progress" role="progressbar" aria-valuenow={sessionDone} aria-valuemin={0} aria-valuemax={totalThisSession}>
-            <i style={{ width: totalThisSession > 0 ? `${(sessionDone / totalThisSession) * 100}%` : '0%' }} />
+          <div className="tiktok-progress" role="progressbar" aria-valuenow={index} aria-valuemin={0} aria-valuemax={total}>
+            <i style={{ width: total > 0 ? `${(index / total) * 100}%` : '0%' }} />
           </div>
           <div className="tiktok-up-hint"><ChevronUpIcon aria-hidden="true" /><span>{tr('tiktok.hint')}</span></div>
 

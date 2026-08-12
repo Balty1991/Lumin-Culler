@@ -12,7 +12,7 @@ describe('WelcomeOnboarding', () => {
   it('se afiseaza la prima vizita, pe primul pas', () => {
     render(<WelcomeOnboarding />);
     expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByText('Bun venit in Lumin Culler')).toBeInTheDocument();
+    expect(screen.getByText('AI-ul iti pune pozele in ordine. Tu decizi ce ramane.')).toBeInTheDocument();
   });
 
   it('nu se mai afiseaza deloc daca a fost deja vazut (localStorage)', () => {
@@ -40,7 +40,7 @@ describe('WelcomeOnboarding', () => {
     render(<WelcomeOnboarding />);
     fireEvent.click(screen.getByRole('button', { name: 'Urmatorul' }));
     fireEvent.click(screen.getByRole('button', { name: 'Inapoi' }));
-    expect(screen.getByText('Bun venit in Lumin Culler')).toBeInTheDocument();
+    expect(screen.getByText('AI-ul iti pune pozele in ordine. Tu decizi ce ramane.')).toBeInTheDocument();
   });
 
   it('finalizarea de pe ultimul pas ("Sa incepem") marcheaza ecranul ca vazut si il ascunde', () => {
