@@ -69,7 +69,7 @@ export function MenuDrawer() {
   const accessibleMode = useStore(s => s.accessibleMode);
   const setAccessibleMode = useStore(s => s.setAccessibleMode);
   const zenMode = useStore(s => s.zenMode);
-  const setZenMode = useStore(s => s.setZenMode);
+  const setZenPanelOpen = useStore(s => s.setZenPanelOpen);
   const genre = useStore(s => s.genre);
   const setGenre = useStore(s => s.setGenre);
   const gridDensity = useStore(s => s.gridDensity);
@@ -488,12 +488,12 @@ export function MenuDrawer() {
 
         <button
           className="drawer-item"
-          onClick={() => go(() => setZenMode(!zenMode))}
+          onClick={() => go(() => setZenPanelOpen(true))}
           aria-pressed={zenMode}
           title={tr('menu.zenMode.title')}
         >
           <span className="drawer-item-icon"><SparkleIcon /></span>
-          <span>{zenMode ? tr('menu.zenMode.active') : tr('menu.zenMode')}</span>
+          <span>{tr('menu.zenMode')}</span>
         </button>
 
         <button

@@ -452,6 +452,7 @@ async function processOne(file: File, genre?: string, project?: string, handle?:
     dHash,
     lqip,
     status,
+    sizeBytes: file.size,
     // sir gol, NU absent — vezi db.ts v6 pentru motiv (indexul groupId exclude
     // orice inregistrare cu campul absent; '' acopera indexul de la inceput,
     // ramanand falsy identic cu "absent" pentru tot codul existent)

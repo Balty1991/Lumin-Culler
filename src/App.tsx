@@ -37,7 +37,6 @@ import { InstallPrompt } from './ui/InstallPrompt';
 import { BackupReminder } from './ui/BackupReminder';
 import { ImportReminder } from './ui/ImportReminder';
 import { MemoryBanner } from './ui/MemoryBanner';
-import { DeleteRejectedBanner } from './ui/DeleteRejectedBanner';
 import { HomeDashboard } from './ui/HomeDashboard';
 import { BottomNav } from './ui/BottomNav';
 import { WelcomeOnboarding } from './ui/WelcomeOnboarding';
@@ -85,6 +84,7 @@ const ProjectsPanel = lazyPanel(() => import('./ui/ProjectsPanel').then(m => ({ 
 const CollectionsPanel = lazyPanel(() => import('./ui/CollectionsPanel').then(m => ({ default: m.CollectionsPanel })));
 const TripsPanel = lazyPanel(() => import('./ui/TripsPanel').then(m => ({ default: m.TripsPanel })));
 const TikTokSort = lazyPanel(() => import('./ui/TikTokSort').then(m => ({ default: m.TikTokSort })));
+const ZenModePanel = lazyPanel(() => import('./ui/ZenModePanel').then(m => ({ default: m.ZenModePanel })));
 const CommandPalette = lazyPanel(() => import('./ui/CommandPalette').then(m => ({ default: m.CommandPalette })));
 const ShortcutsPanel = lazyPanel(() => import('./ui/ShortcutsPanel').then(m => ({ default: m.ShortcutsPanel })));
 const ContactSheet = lazyPanel(() => import('./ui/ContactSheet').then(m => ({ default: m.ContactSheet })));
@@ -700,8 +700,7 @@ export default function App() {
         <HomeDashboard />
         <div className="banner-stack">
           <MemoryBanner />
-          <DeleteRejectedBanner />
-          <InstallPrompt />
+            <InstallPrompt />
           <BackupReminder />
           <ImportReminder onAddPhotos={() => void onAddPhotosClick()} />
         </div>
@@ -720,6 +719,7 @@ export default function App() {
         <CollectionsPanel />
         <TripsPanel />
         <TikTokSort />
+        <ZenModePanel />
         <ConfirmDialog />
       </>
     );
@@ -777,7 +777,6 @@ export default function App() {
       <HomeDashboard />
       <div className="banner-stack">
         <MemoryBanner />
-        <DeleteRejectedBanner />
         <InstallPrompt />
         <BackupReminder />
         <ImportReminder onAddPhotos={() => void onAddPhotosClick()} />
@@ -1115,6 +1114,7 @@ export default function App() {
       <CollectionsPanel />
       <TripsPanel />
       <TikTokSort />
+      <ZenModePanel />
       <MenuDrawer />
       <CommandPalette />
       <ShortcutsPanel />
