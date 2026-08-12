@@ -21,6 +21,8 @@ interface MediaLibraryPluginApi {
   galleryOverview(): Promise<{ granted: boolean; totalCount: number }>;
   galleryDateRange(): Promise<{ granted: boolean; earliestMs?: number; latestMs?: number }>;
   photosInRange(options: { startMs: string; endMs: string }): Promise<{ granted: boolean; photos: { uri: string; name: string; capturedAt: number }[] }>;
+  galleryFolders(): Promise<{ granted: boolean; folders: { id: string; name: string; count: number }[] }>;
+  photosInFolder(options: { bucketId: string }): Promise<{ granted: boolean; photos: { uri: string; name: string; capturedAt: number }[] }>;
 }
 
 const MediaLibraryNative = registerPlugin<MediaLibraryPluginApi>('MediaLibrary');
@@ -71,8 +73,7 @@ export async function pickNativePhotos(): Promise<NativePickedPhoto[]> {
  * utilizatorul a refuzat in acel dialog SAU daca lista de URI-uri era goala —
  * apelantul nu trebuie sa trateze niciun caz ca eroare, doar promisiunea
  * respinsa inseamna ca cererea nici n-a putut fi pornita (ex. Android < 11).
- */
-/**
+ *
  * `skippedUris` (bug real raportat de utilizator): unele URI-uri din lot pot
  * deveni neaccesibile intre import si stergere (ex. permisiunea "Acces la
  * fotografii selectate" pe Android 14+, revocata/schimbata intre timp) — vezi
@@ -139,6 +140,35 @@ export async function pickPhotosInRange(startMs: number, endMs: number): Promise
   settled.forEach(r => {
     if (r.status === 'fulfilled') photos.push(r.value);
     else console.warn('Poza ilizibila din perioada ceruta, ignorata:', r.reason);
+  });
+  return photos;
+}
+
+/**
+ * Foldere din galerie (bucket-uri MediaStore, ex. "Camera", "WhatsApp Images")
+ * — cerinta directa a utilizatorului: alternativa la segmentarea cronologica.
+ * Vezi MediaLibraryPlugin.kt:galleryFolders (NEVALIDAT inca pe device real).
+ */
+export async function readGalleryFolders(): Promise<{ granted: boolean; folders: { id: string; name: string; count: number }[] }> {
+  return MediaLibraryNative.galleryFolders();
+}
+
+/** Aduce DIRECT toate pozele dintr-un folder — vezi pickPhotosInRange mai sus pentru acelasi tipar de conversie File. */
+export async function pickPhotosInFolder(bucketId: string): Promise<RangePickedPhoto[]> {
+  const result = await MediaLibraryNative.photosInFolder({ bucketId });
+  if (!result.granted || !result.photos.length) return [];
+  const settled = await Promise.allSettled(
+    result.photos.map(async p => {
+      const response = await fetch(Capacitor.convertFileSrc(p.uri));
+      const blob = await response.blob();
+      const file = new File([blob], p.name, { type: blob.type });
+      return { uri: p.uri, name: p.name, capturedAt: p.capturedAt, file };
+    })
+  );
+  const photos: RangePickedPhoto[] = [];
+  settled.forEach(r => {
+    if (r.status === 'fulfilled') photos.push(r.value);
+    else console.warn('Poza ilizibila din folderul cerut, ignorata:', r.reason);
   });
   return photos;
 }

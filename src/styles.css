@@ -2974,11 +2974,32 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .gallery-supervisor-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
 .gallery-supervisor-text b { font-size: 0.82rem; color: var(--text); }
 .gallery-supervisor-text span { font-size: 0.72rem; color: var(--text-dim); }
+/* Zona clicabila care deschide panoul complet (icon+text) — buton, nu span-uri simple, deci
+   are nevoie sa refaca explicit alinierea/latimea pe care le mostenea gratis inainte. */
+.gallery-supervisor-main { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; text-align: left; }
 .gallery-supervisor-cta {
   flex-shrink: 0; border: none; border-radius: 999px; padding: 8px 14px; font-size: 0.76rem; font-weight: 700;
   background: var(--accent-gradient); color: #06070a;
 }
 .gallery-supervisor-cta:disabled { opacity: 0.6; }
+.gallery-supervisor-close { flex-shrink: 0; color: rgba(255,255,255,0.7); }
+
+/* Panoul complet al supervizorului (lungime perioada, calendar, foldere) */
+.supervisor-section { margin: 16px 0; }
+.supervisor-section-label { font-size: 0.74rem; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 8px; }
+.supervisor-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.supervisor-next-card { width: 100%; margin-bottom: 4px; }
+.supervisor-next-card:disabled { opacity: 0.7; }
+.supervisor-period-list { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
+.supervisor-period-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 10px 12px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line);
+  font-size: 0.82rem; color: var(--text); text-align: left;
+}
+.supervisor-period-row:disabled { opacity: 0.6; }
+.supervisor-period-row .inline-icon { width: 13px; height: 13px; vertical-align: -2px; margin-right: 3px; }
+.supervisor-period-covered { display: flex; align-items: center; font-size: 0.68rem; color: var(--pick); flex-shrink: 0; }
+.supervisor-period-covered .inline-icon { color: var(--pick); }
 
 /* "Vezi toate pozele" — singura punte intre Acasa (curat, doar HomeDashboard)
    si grila clasica (CullGauge + filtre + carduri), acum ascunsa implicit. */

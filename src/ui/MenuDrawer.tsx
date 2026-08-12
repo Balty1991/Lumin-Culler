@@ -102,6 +102,7 @@ export function MenuDrawer() {
   const setDocumentShieldOpen = useStore(s => s.setDocumentShieldOpen);
   const setVaultOpen = useStore(s => s.setVaultOpen);
   const setDuplicatesPanelOpen = useStore(s => s.setDuplicatesPanelOpen);
+  const setSupervisorPanelOpen = useStore(s => s.setSupervisorPanelOpen);
   const collections = useStore(s => s.collections);
   const shieldPendingCount = useMemo(() => {
     const vaultIds = new Set(collections.find(c => c.isPrivate)?.memberIds ?? []);
@@ -325,6 +326,13 @@ export function MenuDrawer() {
           <span className="drawer-item-icon"><SearchIcon /></span>
           <span>{tr('menu.visualSearch')}</span>
         </button>
+
+        {isNativeMediaLibraryAvailable() && (
+          <button className="drawer-item" onClick={() => go(() => setSupervisorPanelOpen(true))}>
+            <span className="drawer-item-icon"><ClockIcon /></span>
+            <span>{tr('menu.gallerySupervisor')}</span>
+          </button>
+        )}
 
         <button className="drawer-item" onClick={() => go(() => setDuplicatesPanelOpen(true))}>
           <span className="drawer-item-icon"><CopyIcon /></span>

@@ -32,8 +32,14 @@ import {
   pushBatchHistory, popBatchHistory, type BatchHistoryEvent, type FieldBatchHistoryEvent
 } from './history';
 import { selectBulkRejectTargets, resolveGroups, selectTopPercent, selectHighlights, selectBlinks, selectDeletableRejected } from './batchOps';
-import { isNativeMediaLibraryAvailable, deleteNativePhotos, readGalleryOverview, readGalleryDateRange, pickPhotosInRange } from '../core/nativeMediaLibrary';
-import { computeNextPeriod, readCoveredUntil, writeCoveredUntil, type GalleryPeriod } from './gallerySupervisor';
+import {
+  isNativeMediaLibraryAvailable, deleteNativePhotos, readGalleryOverview, readGalleryDateRange, pickPhotosInRange,
+  readGalleryFolders, pickPhotosInFolder
+} from '../core/nativeMediaLibrary';
+import {
+  computeNextPeriod, readCoveredUntil, writeCoveredUntil, listAllPeriods, readPeriodMonths, writePeriodMonths,
+  periodMonthsToMs, type GalleryPeriod, type GalleryPeriodEntry, type PeriodMonths
+} from './gallerySupervisor';
 import { readStoredTheme, applyTheme, type Theme } from './theme';
 import { readStoredAccent, applyAccent, type AccentTheme } from './accentTheme';
 import { readAccessibleMode, applyAccessibleMode } from '../core/accessibleMode';
@@ -394,11 +400,26 @@ interface AppState {
   loadGalleryDateRange: () => Promise<void>;
   /** Pana unde s-a "acoperit" deja galeria (cursor persistat) — reactiv in store, nu doar in localStorage, ca UI-ul sa se actualizeze imediat dupa fiecare perioada adusa. */
   supervisorCoveredUntil: number | null;
+  /** Lungimea unei perioade (1/2/3 luni — "mai scurte si mai lungi... in functie de cat timp disponibil are utilizatorul"), persistata. */
+  supervisorPeriodMonths: PeriodMonths;
+  setSupervisorPeriodMonths: (months: PeriodMonths) => void;
   /** Perioada urmatoare de recomandat — null daca intervalul inca nu s-a incarcat, sau s-a ajuns deja la zi. */
   supervisorNextPeriod: () => GalleryPeriod | null;
+  /** Toate perioadele (calendaristic) de la cea mai veche poza pana acum, fiecare marcata daca a fost deja acoperita — pentru selectorul manual. */
+  supervisorAllPeriods: () => GalleryPeriodEntry[];
   supervisorImporting: boolean;
-  /** Aduce DIRECT perioada recomandata (fara selector manual) si avanseaza cursorul. */
+  /** Aduce o perioada ANUME (selectata manual sau recomandata) si avanseaza cursorul (fara sa-l dea niciodata inapoi). */
+  importGalleryPeriod: (period: GalleryPeriod) => Promise<void>;
+  /** Aduce DIRECT perioada recomandata (fara selector manual) — echivalent cu importGalleryPeriod(supervisorNextPeriod()). */
   importNextGalleryPeriod: () => Promise<void>;
+  /** Panoul complet (lungime perioada, selector calendaristic, foldere) — vezi GallerySupervisorPanel.tsx. Redeschis oricand din Meniu, chiar daca bannerul de pe Acasa a fost inchis pentru ziua curenta. */
+  supervisorPanelOpen: boolean;
+  setSupervisorPanelOpen: (open: boolean) => void;
+  /** Foldere din galerie (bucket-uri MediaStore) — alternativa la segmentarea cronologica. */
+  galleryFolders: { granted: boolean; folders: { id: string; name: string; count: number }[] } | null;
+  loadGalleryFolders: () => Promise<void>;
+  /** Aduce DIRECT toate pozele dintr-un folder (fara selector manual). */
+  importGalleryFolder: (bucketId: string) => Promise<void>;
   /** Limba interfetei — vezi i18n/index.ts. Migrare treptata: doar unele ecrane citesc asta deocamdata, restul ramane in romana codificata direct. */
   locale: Locale;
   setLocale: (locale: Locale) => void;
@@ -1438,15 +1459,27 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
   supervisorCoveredUntil: readCoveredUntil(),
+  supervisorPeriodMonths: readPeriodMonths(),
+  setSupervisorPeriodMonths: months => { writePeriodMonths(months); set({ supervisorPeriodMonths: months }); },
   supervisorNextPeriod: () => {
     const range = get().galleryDateRange;
     if (!range?.granted || range.earliestMs === undefined) return null;
-    return computeNextPeriod({ earliestMs: range.earliestMs, nowMs: Date.now(), coveredUntilMs: get().supervisorCoveredUntil });
+    return computeNextPeriod({
+      earliestMs: range.earliestMs, nowMs: Date.now(), coveredUntilMs: get().supervisorCoveredUntil,
+      periodMs: periodMonthsToMs(get().supervisorPeriodMonths)
+    });
+  },
+  supervisorAllPeriods: () => {
+    const range = get().galleryDateRange;
+    if (!range?.granted || range.earliestMs === undefined) return [];
+    return listAllPeriods({
+      earliestMs: range.earliestMs, nowMs: Date.now(), coveredUntilMs: get().supervisorCoveredUntil,
+      periodMs: periodMonthsToMs(get().supervisorPeriodMonths)
+    });
   },
   supervisorImporting: false,
-  importNextGalleryPeriod: async () => {
-    const period = get().supervisorNextPeriod();
-    if (!period || get().supervisorImporting) return;
+  importGalleryPeriod: async period => {
+    if (get().supervisorImporting) return;
     set({ supervisorImporting: true });
     const locale = get().locale;
     try {
@@ -1454,9 +1487,47 @@ export const useStore = create<AppState>((set, get) => ({
       // Cursorul avanseaza DUPA o citire reusita (chiar daca perioada era goala —
       // nimic de adus acolo, dar tot "acoperita") — o eroare de citire (permisiune
       // refuzata, plugin indisponibil) NU trebuie sa avanseze cursorul, ca aceeasi
-      // perioada sa ramana recomandata data viitoare.
-      writeCoveredUntil(period.end);
-      set({ supervisorCoveredUntil: period.end });
+      // perioada sa ramana recomandata data viitoare. Math.max: o perioada aleasa
+      // manual, MAI VECHE decat cursorul curent (re-sortare, cu confirmare in UI —
+      // vezi GallerySupervisorPanel.tsx), nu trebuie sa DEA INAPOI cursorul si sa
+      // "descopere" ca nesortate perioade mai noi, deja acoperite.
+      const nextCovered = Math.max(get().supervisorCoveredUntil ?? period.end, period.end);
+      writeCoveredUntil(nextCovered);
+      set({ supervisorCoveredUntil: nextCovered });
+      if (picked.length) {
+        await get().runImport(picked.map(p => p.file), undefined, picked.map(p => p.uri));
+      } else {
+        set({ notice: t(locale, 'gallerySupervisor.periodEmpty') });
+      }
+    } catch (err) {
+      set({ notice: t(locale, 'gallerySupervisor.failed', { error: String(err) }) });
+    } finally {
+      set({ supervisorImporting: false });
+    }
+  },
+  importNextGalleryPeriod: async () => {
+    const period = get().supervisorNextPeriod();
+    if (!period) return;
+    await get().importGalleryPeriod(period);
+  },
+  supervisorPanelOpen: false,
+  setSupervisorPanelOpen: open => set({ supervisorPanelOpen: open }),
+  galleryFolders: null,
+  loadGalleryFolders: async () => {
+    if (!isNativeMediaLibraryAvailable()) return;
+    try {
+      const result = await readGalleryFolders();
+      set({ galleryFolders: result });
+    } catch (err) {
+      console.warn('Nu am putut citi folderele galeriei:', err);
+    }
+  },
+  importGalleryFolder: async bucketId => {
+    if (get().supervisorImporting) return;
+    set({ supervisorImporting: true });
+    const locale = get().locale;
+    try {
+      const picked = await pickPhotosInFolder(bucketId);
       if (picked.length) {
         await get().runImport(picked.map(p => p.file), undefined, picked.map(p => p.uri));
       } else {
