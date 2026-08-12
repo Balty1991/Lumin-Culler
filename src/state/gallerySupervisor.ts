@@ -20,6 +20,7 @@
 const COVERED_UNTIL_KEY = 'lumin-gallery-supervisor-covered-until';
 const PERIOD_MONTHS_KEY = 'lumin-gallery-supervisor-period-months';
 const BANNER_DISMISSED_KEY = 'lumin-gallery-supervisor-banner-dismissed-date';
+const IMPORTED_FOLDERS_KEY = 'lumin-gallery-supervisor-imported-folders';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** Aproximare deliberata (nu luna calendaristica exacta) — consistenta indiferent de luna aleasa, acelasi compromis facut deja la ~2 luni initial. */
@@ -175,4 +176,39 @@ export function listAllPeriods(opts: {
 export function isPeriodAlreadyCovered(period: GalleryPeriod, coveredUntilMs: number | null): boolean {
   if (coveredUntilMs === null) return false;
   return period.start < coveredUntilMs;
+}
+
+/**
+ * Cat din TOATA galeria (de la cea mai veche poza pana acum) a fost deja
+ * "acoperita" de supervizor — procent 0-100, idee proprie pentru cardul de
+ * pe Acasa (distinct de "% organizata", care masoara doar deciziile luate
+ * peste pozele DEJA aduse in aplicatie). null (0%) daca intervalul galeriei
+ * inca nu s-a incarcat sau galeria e goala (earliest >= now, nimic de acoperit).
+ */
+export function computeGalleryCoveragePercent(opts: {
+  earliestMs: number;
+  nowMs: number;
+  coveredUntilMs: number | null;
+}): number {
+  const span = opts.nowMs - opts.earliestMs;
+  if (span <= 0) return 100;
+  const covered = opts.coveredUntilMs !== null ? Math.max(0, Math.min(opts.coveredUntilMs, opts.nowMs) - opts.earliestMs) : 0;
+  return Math.round((covered / span) * 100);
+}
+
+export function readImportedFolderIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem(IMPORTED_FOLDERS_KEY);
+    if (!raw) return new Set();
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? new Set(parsed.filter((v): v is string => typeof v === 'string')) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+export function writeImportedFolderIds(ids: ReadonlySet<string>): void {
+  try { localStorage.setItem(IMPORTED_FOLDERS_KEY, JSON.stringify([...ids])); } catch {
+    // stocare indisponibila — folderele deja aduse pot fi propuse din nou la urmatoarea vizita
+  }
 }

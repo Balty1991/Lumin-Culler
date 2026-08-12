@@ -18,23 +18,30 @@ export function SmartNotification() {
   const enabled = useStore(s => s.smartNotificationsEnabled);
   const photos = useStore(s => s.photos);
   const locale = useStore(s => s.locale);
+  const nextPeriod = useStore(s => s.supervisorNextPeriod());
+  const setSupervisorPanelOpen = useStore(s => s.setSupervisorPanelOpen);
 
   useEffect(() => {
     if (!enabled) return;
     if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
     const unsortedCount = photos.filter(p => p.status === 'pending' || p.status === 'review').length;
+    const hasNextPeriod = nextPeriod !== null;
     const now = Date.now();
-    if (!shouldShowSmartNotification({ now, enabled, unsortedCount, lastShown: readSmartNotificationLastShown() })) return;
+    if (!shouldShowSmartNotification({ now, enabled, unsortedCount, hasNextPeriod, lastShown: readSmartNotificationLastShown() })) return;
     writeSmartNotificationLastShown(now);
     try {
-      new Notification('Lumin Culler', {
-        body: t(locale, plural(unsortedCount, 'notif.body.one', 'notif.body.other'), { count: unsortedCount }),
-        icon: 'icon-192.png'
-      });
+      // Cand nu mai e nimic de sortat, dar supervizorul galeriei are o perioada
+      // noua pregatita, contextul concret devine perioada, nu "0 poze" (idee
+      // proprie — vezi state/smartNotification.ts:hasNextPeriod).
+      const body = unsortedCount > 0
+        ? t(locale, plural(unsortedCount, 'notif.body.one', 'notif.body.other'), { count: unsortedCount })
+        : t(locale, 'notif.body.nextPeriod');
+      const notification = new Notification('Lumin Culler', { body, icon: 'icon-192.png' });
+      notification.onclick = () => { window.focus(); setSupervisorPanelOpen(true); };
     } catch {
       // unele platforme (ex. Safari iOS) nu suporta deloc Notification din pagina — degradare tacuta
     }
-  }, [enabled, photos, locale]);
+  }, [enabled, photos, locale, nextPeriod, setSupervisorPanelOpen]);
 
   return null;
 }

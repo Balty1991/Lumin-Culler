@@ -1029,14 +1029,8 @@ export default function App() {
 
       {photos.length === 0 && !progress ? (
         <div className="empty">
-          <div className="core empty-core" aria-hidden="true">
-            <span className="core-halo" />
-            <div className="core-ring" />
-            <div className="core-disc">
-              <div className="core-disc-inner">
-                <ApertureIcon />
-              </div>
-            </div>
+          <div className="empty-badge" aria-hidden="true">
+            <ApertureIcon />
           </div>
           <p className="mono empty-tagline"><span className="live-dot" aria-hidden="true" /> {tr('app.empty.badge')}</p>
           <h2>{tr('app.empty.title')}</h2>

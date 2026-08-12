@@ -38,7 +38,8 @@ import {
 } from '../core/nativeMediaLibrary';
 import {
   computeNextPeriod, computeRemainingPeriod, readCoveredUntil, writeCoveredUntil, listAllPeriods, readPeriodMonths,
-  writePeriodMonths, periodMonthsToMs, type GalleryPeriod, type GalleryPeriodEntry, type PeriodMonths
+  writePeriodMonths, periodMonthsToMs, computeGalleryCoveragePercent, readImportedFolderIds, writeImportedFolderIds,
+  type GalleryPeriod, type GalleryPeriodEntry, type PeriodMonths
 } from './gallerySupervisor';
 import { readStoredTheme, applyTheme, type Theme } from './theme';
 import { readStoredAccent, applyAccent, type AccentTheme } from './accentTheme';
@@ -281,6 +282,12 @@ interface AppState {
   setTripsOpen: (open: boolean) => void;
   tiktokSortOpen: boolean;
   setTiktokSortOpen: (open: boolean) => void;
+  /** Cand nenul, sortarea rapida arata DOAR aceste poze (ex. "Sorteaza acum ce ai adus" — vezi openTiktokSortForIds), nu toata coada. Golit la fiecare deschidere normala (fara scop) sau dupa ce a fost folosit. */
+  tiktokSortScopeIds: string[] | null;
+  /** Pozele aduse la ultimul import prin supervizorul galeriei — sursa pentru "Sorteaza acum ce ai adus" (CTA aparuta imediat dupa un import reusit). null daca n-a fost niciun import inca sau CTA-ul a fost deja folosit. */
+  lastSupervisorImportIds: string[] | null;
+  /** Deschide sortarea rapida DIRECT pe pozele indicate (ex. tocmai aduse de supervizor), nu pe toata coada. */
+  openTiktokSortForIds: (ids: string[]) => void;
   /** Cautare vizuala pe ecran intreg (plan modernizare) — reutilizeaza searchText/sceneTagFilter, doar UI dedicat. */
   searchPanelOpen: boolean;
   setSearchPanelOpen: (open: boolean) => void;
@@ -409,20 +416,26 @@ interface AppState {
   supervisorAllPeriods: () => GalleryPeriodEntry[];
   /** "Tot ce a ramas", de la cursor pana acum, intr-un singur pas ("inclusiv butonul toata perioada" — cerinta directa). null daca s-a ajuns deja la zi. */
   supervisorRemainingPeriod: () => GalleryPeriod | null;
+  /** Cat din TOATA galeria telefonului (de la cea mai veche poza pana acum) a fost deja acoperita de supervizor — 0-100, distinct de "% organizata" (care masoara doar deciziile luate peste pozele deja aduse in aplicatie). */
+  supervisorCoveragePercent: () => number;
   supervisorImporting: boolean;
   /** Aduce o perioada ANUME (selectata manual sau recomandata) si avanseaza cursorul (fara sa-l dea niciodata inapoi). */
   importGalleryPeriod: (period: GalleryPeriod) => Promise<void>;
   /** Aduce DIRECT perioada recomandata (fara selector manual) — echivalent cu importGalleryPeriod(supervisorNextPeriod()). */
   importNextGalleryPeriod: () => Promise<void>;
+  /** Sare peste o perioada FARA sa o aduca — avanseaza cursorul ca si cum ar fi fost acoperita, ca supervizorul sa nu o mai recomande. */
+  skipGalleryPeriod: (period: GalleryPeriod) => void;
   /** Panoul complet (lungime perioada, selector calendaristic, foldere) — vezi GallerySupervisorPanel.tsx. Redeschis oricand din Meniu, chiar daca bannerul de pe Acasa a fost inchis pentru ziua curenta. */
   supervisorPanelOpen: boolean;
   setSupervisorPanelOpen: (open: boolean) => void;
   /** Foldere din galerie (bucket-uri MediaStore) — alternativa la segmentarea cronologica. */
   galleryFolders: { granted: boolean; folders: { id: string; name: string; count: number }[] } | null;
   loadGalleryFolders: () => Promise<void>;
+  /** Foldere deja aduse macar o data — persistat, ca "Toate folderele" sa nu le mai propuna implicit (idee proprie: evita re-aducerea acelorasi poze la fiecare tap). */
+  supervisorImportedFolderIds: Set<string>;
   /** Aduce DIRECT toate pozele dintr-un folder (fara selector manual). */
   importGalleryFolder: (bucketId: string) => Promise<void>;
-  /** Aduce toate folderele deodata ("si la foldere, la fel" — cerinta directa). */
+  /** Aduce toate folderele NEACOPERITE deodata ("si la foldere, la fel" — cerinta directa; extindere proprie: sare peste cele deja aduse). */
   importAllGalleryFolders: () => Promise<void>;
   /** Limba interfetei — vezi i18n/index.ts. Migrare treptata: doar unele ecrane citesc asta deocamdata, restul ramane in romana codificata direct. */
   locale: Locale;
@@ -1179,7 +1192,12 @@ export const useStore = create<AppState>((set, get) => ({
   tripsOpen: false,
   setTripsOpen: open => set({ tripsOpen: open }),
   tiktokSortOpen: false,
-  setTiktokSortOpen: open => set({ tiktokSortOpen: open }),
+  // Deschiderea "normala" (fara scop explicit) porneste mereu pe toata coada,
+  // nu pe ramasitele unui scop anterior (ex. dupa "Sorteaza acum ce ai adus").
+  setTiktokSortOpen: open => set(open ? { tiktokSortOpen: true, tiktokSortScopeIds: null } : { tiktokSortOpen: false }),
+  tiktokSortScopeIds: null,
+  lastSupervisorImportIds: null,
+  openTiktokSortForIds: ids => set({ tiktokSortOpen: true, tiktokSortScopeIds: ids, lastSupervisorImportIds: null }),
   searchPanelOpen: false,
   setSearchPanelOpen: open => set({ searchPanelOpen: open }),
   duplicatesPanelOpen: false,
@@ -1486,11 +1504,17 @@ export const useStore = create<AppState>((set, get) => ({
     if (!range?.granted || range.earliestMs === undefined) return null;
     return computeRemainingPeriod({ earliestMs: range.earliestMs, nowMs: Date.now(), coveredUntilMs: get().supervisorCoveredUntil });
   },
+  supervisorCoveragePercent: () => {
+    const range = get().galleryDateRange;
+    if (!range?.granted || range.earliestMs === undefined) return 0;
+    return computeGalleryCoveragePercent({ earliestMs: range.earliestMs, nowMs: Date.now(), coveredUntilMs: get().supervisorCoveredUntil });
+  },
   supervisorImporting: false,
   importGalleryPeriod: async period => {
     if (get().supervisorImporting) return;
     set({ supervisorImporting: true });
     const locale = get().locale;
+    const beforeIds = new Set(get().photos.map(p => p.id));
     try {
       const picked = await pickPhotosInRange(period.start, period.end);
       // Cursorul avanseaza DUPA o citire reusita (chiar daca perioada era goala —
@@ -1505,6 +1529,11 @@ export const useStore = create<AppState>((set, get) => ({
       set({ supervisorCoveredUntil: nextCovered });
       if (picked.length) {
         await get().runImport(picked.map(p => p.file), undefined, picked.map(p => p.uri));
+        // "Sorteaza acum ce ai adus" (idee proprie) — diferenta fata de starea
+        // dinainte de import, ca sa stim exact ce a fost adus ACUM, nu tot ce e
+        // in coada de sortare (poate exista deja alt continut nesortat).
+        const newIds = get().photos.filter(p => !beforeIds.has(p.id)).map(p => p.id);
+        if (newIds.length) set({ lastSupervisorImportIds: newIds });
       } else {
         set({ notice: t(locale, 'gallerySupervisor.periodEmpty') });
       }
@@ -1519,6 +1548,13 @@ export const useStore = create<AppState>((set, get) => ({
     if (!period) return;
     await get().importGalleryPeriod(period);
   },
+  skipGalleryPeriod: period => {
+    // Aceeasi logica de non-regresie ca importGalleryPeriod, dar fara nicio
+    // citire/import — cursorul avanseaza ca si cum perioada ar fi fost adusa.
+    const nextCovered = Math.max(get().supervisorCoveredUntil ?? period.end, period.end);
+    writeCoveredUntil(nextCovered);
+    set({ supervisorCoveredUntil: nextCovered });
+  },
   supervisorPanelOpen: false,
   setSupervisorPanelOpen: open => set({ supervisorPanelOpen: open }),
   galleryFolders: null,
@@ -1531,14 +1567,21 @@ export const useStore = create<AppState>((set, get) => ({
       console.warn('Nu am putut citi folderele galeriei:', err);
     }
   },
+  supervisorImportedFolderIds: readImportedFolderIds(),
   importGalleryFolder: async bucketId => {
     if (get().supervisorImporting) return;
     set({ supervisorImporting: true });
     const locale = get().locale;
+    const beforeIds = new Set(get().photos.map(p => p.id));
     try {
       const picked = await pickPhotosInFolder(bucketId);
+      const coveredFolders = new Set(get().supervisorImportedFolderIds).add(bucketId);
+      writeImportedFolderIds(coveredFolders);
+      set({ supervisorImportedFolderIds: coveredFolders });
       if (picked.length) {
         await get().runImport(picked.map(p => p.file), undefined, picked.map(p => p.uri));
+        const newIds = get().photos.filter(p => !beforeIds.has(p.id)).map(p => p.id);
+        if (newIds.length) set({ lastSupervisorImportIds: newIds });
       } else {
         set({ notice: t(locale, 'gallerySupervisor.periodEmpty') });
       }
@@ -1550,18 +1593,31 @@ export const useStore = create<AppState>((set, get) => ({
   },
   importAllGalleryFolders: async () => {
     if (get().supervisorImporting) return;
-    const folders = get().galleryFolders?.folders ?? [];
+    const coveredFolders = get().supervisorImportedFolderIds;
+    // Extindere proprie fata de cerinta initiala ("si la foldere, la fel"):
+    // sare peste folderele deja aduse macar o data, ca "Toate folderele" sa
+    // nu re-aduca aceleasi poze de fiecare data — un folder deja acoperit
+    // ramane totusi accesibil individual din lista, cu confirmare (vezi
+    // GallerySupervisorPanel.tsx).
+    const folders = (get().galleryFolders?.folders ?? []).filter(f => !coveredFolders.has(f.id));
     if (!folders.length) return;
     set({ supervisorImporting: true });
     const locale = get().locale;
+    const beforeIds = new Set(get().photos.map(p => p.id));
     try {
       // Cate un apel per folder, in paralel — fiecare folder al galeriei e independent,
       // acelasi motiv pentru care pickPhotosInFolder/pickPhotosInRange trateaza deja
       // fiecare poza individual (Promise.allSettled) fara sa opreasca tot lotul la o eroare.
       const results = await Promise.all(folders.map(f => pickPhotosInFolder(f.id)));
       const picked = results.flat();
+      const nextCovered = new Set(coveredFolders);
+      folders.forEach(f => nextCovered.add(f.id));
+      writeImportedFolderIds(nextCovered);
+      set({ supervisorImportedFolderIds: nextCovered });
       if (picked.length) {
         await get().runImport(picked.map(p => p.file), undefined, picked.map(p => p.uri));
+        const newIds = get().photos.filter(p => !beforeIds.has(p.id)).map(p => p.id);
+        if (newIds.length) set({ lastSupervisorImportIds: newIds });
       } else {
         set({ notice: t(locale, 'gallerySupervisor.periodEmpty') });
       }

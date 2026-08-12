@@ -1,7 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import {
   computeNextPeriod, computeRemainingPeriod, SUPERVISOR_PERIOD_MS, periodMonthsToMs, listAllPeriods,
-  isPeriodAlreadyCovered, isSupervisorBannerDismissedToday
+  isPeriodAlreadyCovered, isSupervisorBannerDismissedToday, computeGalleryCoveragePercent,
+  readImportedFolderIds, writeImportedFolderIds
 } from './gallerySupervisor';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -126,5 +127,50 @@ describe('isSupervisorBannerDismissedToday', () => {
     const dismissedOn = new Date(2026, 2, 15);
     const nextDay = new Date(2026, 2, 16);
     expect(isSupervisorBannerDismissedToday(`${dismissedOn.getFullYear()}-${dismissedOn.getMonth()}-${dismissedOn.getDate()}`, nextDay)).toBe(false);
+  });
+});
+
+describe('computeGalleryCoveragePercent', () => {
+  it('is 0 when nothing was ever covered', () => {
+    const earliestMs = 1_000_000;
+    const nowMs = earliestMs + 100 * DAY;
+    expect(computeGalleryCoveragePercent({ earliestMs, nowMs, coveredUntilMs: null })).toBe(0);
+  });
+
+  it('is 50 when the cursor has reached the midpoint of the gallery span', () => {
+    const earliestMs = 0;
+    const nowMs = 100 * DAY;
+    const coveredUntilMs = 50 * DAY;
+    expect(computeGalleryCoveragePercent({ earliestMs, nowMs, coveredUntilMs })).toBe(50);
+  });
+
+  it('is 100 once the cursor reaches or passes now', () => {
+    const earliestMs = 0;
+    const nowMs = 100 * DAY;
+    expect(computeGalleryCoveragePercent({ earliestMs, nowMs, coveredUntilMs: nowMs })).toBe(100);
+    expect(computeGalleryCoveragePercent({ earliestMs, nowMs, coveredUntilMs: nowMs + 500 * DAY })).toBe(100);
+  });
+
+  it('is 100 when the gallery has no span to cover', () => {
+    expect(computeGalleryCoveragePercent({ earliestMs: 1000, nowMs: 1000, coveredUntilMs: null })).toBe(100);
+    expect(computeGalleryCoveragePercent({ earliestMs: 2000, nowMs: 1000, coveredUntilMs: null })).toBe(100);
+  });
+});
+
+describe('readImportedFolderIds / writeImportedFolderIds', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('is empty when nothing was ever written', () => {
+    expect(readImportedFolderIds()).toEqual(new Set());
+  });
+
+  it('round-trips a set of folder ids through localStorage', () => {
+    writeImportedFolderIds(new Set(['folder-a', 'folder-b']));
+    expect(readImportedFolderIds()).toEqual(new Set(['folder-a', 'folder-b']));
+  });
+
+  it('ignores corrupted storage content', () => {
+    localStorage.setItem('lumin-gallery-supervisor-imported-folders', '{not valid json');
+    expect(readImportedFolderIds()).toEqual(new Set());
   });
 });

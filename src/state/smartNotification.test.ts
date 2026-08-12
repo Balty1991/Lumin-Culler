@@ -25,4 +25,17 @@ describe('shouldShowSmartNotification', () => {
       now, enabled: true, unsortedCount: 5, lastShown: now - SMART_NOTIFICATION_INTERVAL_MS - 1
     })).toBe(true);
   });
+
+  it('shows when caught up on sorting but a new gallery period is ready', () => {
+    expect(shouldShowSmartNotification({
+      now: 1000, enabled: true, unsortedCount: 0, hasNextPeriod: true, lastShown: null
+    })).toBe(true);
+  });
+
+  it('still respects the daily interval for the next-period case', () => {
+    const now = 10_000_000;
+    expect(shouldShowSmartNotification({
+      now, enabled: true, unsortedCount: 0, hasNextPeriod: true, lastShown: now - 1000
+    })).toBe(false);
+  });
 });

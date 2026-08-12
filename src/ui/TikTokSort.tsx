@@ -72,6 +72,7 @@ function formatCaptureDate(ts: number | undefined, locale: Locale): string | nul
 export function TikTokSort() {
   const open = useStore(s => s.tiktokSortOpen);
   const setOpen = useStore(s => s.setTiktokSortOpen);
+  const scopeIds = useStore(s => s.tiktokSortScopeIds);
   const photos = useStore(s => s.photos);
   const collections = useStore(s => s.collections);
   const setStatus = useStore(s => s.setStatus);
@@ -89,7 +90,14 @@ export function TikTokSort() {
   // explicit la fiecare deschidere, altfel un utilizator care redeschide ecranul
   // dupa o sesiune anterioara ar relua de unde a ramas ultima data, nu de la inceput.
   useEffect(() => {
-    if (open) { setQueueIds(selectSortQueue(photos).map(p => p.id)); setIndex(0); }
+    if (!open) return;
+    const queue = selectSortQueue(photos);
+    // "Sorteaza acum ce ai adus" (tiktokSortScopeIds, setat de openTiktokSortForIds
+    // din supervizorul galeriei) — arata DOAR pozele indicate, nu toata coada
+    // normala de sortare, ca utilizatorul sa termine exact lotul proaspat adus.
+    const scoped = scopeIds ? queue.filter(p => scopeIds.includes(p.id)) : queue;
+    setQueueIds(scoped.map(p => p.id));
+    setIndex(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- coada se "ingheata" DOAR la momentul deschiderii, nu trebuie sa se refaca la fiecare schimbare din `photos`
   }, [open]);
 
