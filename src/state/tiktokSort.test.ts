@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { selectSortQueue, countSeriesSiblings } from './tiktokSort';
+import { selectSortQueue, countSeriesSiblings, formatExifLine } from './tiktokSort';
 import type { PhotoView } from './store';
 
 function photo(id: string, opts: Partial<PhotoView> = {}): PhotoView {
@@ -51,5 +51,24 @@ describe('countSeriesSiblings', () => {
       photo('d', { groupId: 'g2' })
     ];
     expect(countSeriesSiblings(photos, photos[0])).toBe(3);
+  });
+});
+
+describe('formatExifLine', () => {
+  it('returns null when no EXIF fields are present', () => {
+    expect(formatExifLine(photo('a'))).toBeNull();
+  });
+
+  it('formats a fast shutter speed as a fraction', () => {
+    expect(formatExifLine(photo('a', { fNumber: 2.8, exposureTime: 1 / 125, iso: 200, focalLength: 24 })))
+      .toBe('f/2.8 · 1/125s · ISO 200 · 24mm');
+  });
+
+  it('formats a slow shutter speed (>=1s) as whole seconds', () => {
+    expect(formatExifLine(photo('a', { exposureTime: 2 }))).toBe('2s');
+  });
+
+  it('only includes the fields that are actually present', () => {
+    expect(formatExifLine(photo('a', { iso: 400 }))).toBe('ISO 400');
   });
 });

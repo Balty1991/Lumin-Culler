@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { useStore, type PhotoView } from '../state/store';
-import { selectSortQueue, countSeriesSiblings } from '../state/tiktokSort';
+import { selectSortQueue, countSeriesSiblings, formatExifLine } from '../state/tiktokSort';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
 import { SELECT_THRESHOLD, REJECT_THRESHOLD } from '../core/importPipeline';
 import { explainFactors } from '../core/learning/ContextEngine';
@@ -78,6 +78,7 @@ export function TikTokSort() {
   const setStatus = useStore(s => s.setStatus);
   const undo = useStore(s => s.undo);
   const locale = useStore(s => s.locale);
+  const visualTheme = useStore(s => s.visualTheme);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
 
   const [queueIds, setQueueIds] = useState<string[]>([]);
@@ -302,6 +303,7 @@ export function TikTokSort() {
   const album = current ? (collections.find(c => c.memberIds.includes(current.id))?.name ?? current.project) : undefined;
   const recommendation = current ? aiRecommendation(current.aiScore) : null;
   const reasonsText = current ? topReasonsText(current, locale) : null;
+  const exifLine = current ? formatExifLine(current) : null;
 
   return (
     <div className="tiktok-sort" ref={containerRef} role="dialog" aria-modal="true" aria-label={tr('tiktok.title')} tabIndex={-1}>
@@ -353,6 +355,16 @@ export function TikTokSort() {
                   : undefined}
               />
             )}
+            {/* Colturi de cadraj HUD — pur decorative, doar in tema Consola (vezi
+                MenuDrawer.tsx). Nu ating gestica de mai sus (pointer-events: none). */}
+            {visualTheme === 'consola' && (
+              <>
+                <span className="tiktok-hud-corner tl" aria-hidden="true" />
+                <span className="tiktok-hud-corner tr" aria-hidden="true" />
+                <span className="tiktok-hud-corner bl" aria-hidden="true" />
+                <span className="tiktok-hud-corner br" aria-hidden="true" />
+              </>
+            )}
           </div>
           {zoomScale !== 1 && <span className="tiktok-zoom-hint mono">{Math.round(zoomScale * 100)}%</span>}
           <div className="tiktok-veil-top" aria-hidden="true" />
@@ -373,6 +385,7 @@ export function TikTokSort() {
               )}
             </div>
             {reasonsText && <span className="tiktok-caption-sub">{reasonsText}</span>}
+            {exifLine && <span className="tiktok-exif-line">{exifLine}</span>}
             <span className="tiktok-caption-sub tiktok-caption-meta">
               {[captureDate, album].filter(Boolean).join(' · ')}
             </span>
