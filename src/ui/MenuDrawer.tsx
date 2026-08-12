@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useStore } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
@@ -49,6 +49,49 @@ const ACCENT_OPTIONS: { id: AccentTheme; gradient: string }[] = [
   { id: 'sunset', gradient: 'linear-gradient(135deg, #ff8a5c, #ff5c8a)' },
   { id: 'holo', gradient: 'linear-gradient(90deg, #00fff2, #7a5cff)' }
 ];
+
+/**
+ * Sectiune pliabila a meniului (reorganizare — cerinta directa: "mai lizibila,
+ * usor accesibila") — cele ~35 de optiuni erau o singura lista plata, cu doar
+ * 5 etichete de sectiune fara nicio grupare vizuala reala. Sectiunile mai rar
+ * folosite (Export & backup, Setari) pornesc STRANSE implicit, ca lista
+ * vizibila la deschidere sa fie scurta (Organizare + Biblioteca), nu toate
+ * cele 35 de randuri deodata. Animatia de (des)stringere e CSS pur
+ * (grid-template-rows 0fr->1fr), nu framer-motion — nu are nevoie sa masoare
+ * inaltimea continutului in JS, si degradeaza simplu (fara animatie, dar
+ * functional) pe motoare mai vechi.
+ */
+function DrawerGroup(props: {
+  label: string; collapsible?: boolean; defaultOpen?: boolean; children: ReactNode;
+  expandLabel?: string; collapseLabel?: string;
+}) {
+  const [open, setOpen] = useState(props.defaultOpen ?? true);
+  if (!props.collapsible) {
+    return (
+      <div className="drawer-group">
+        <div className="drawer-section-label">{props.label}</div>
+        {props.children}
+      </div>
+    );
+  }
+  return (
+    <div className="drawer-group">
+      <button
+        type="button"
+        className="drawer-group-head"
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+        aria-label={open ? props.collapseLabel : props.expandLabel}
+      >
+        <span className="drawer-section-label">{props.label}</span>
+        <ChevronUpIcon className="drawer-group-chevron" data-open={open} aria-hidden="true" />
+      </button>
+      <div className="drawer-group-body" data-open={open}>
+        <div className="drawer-group-body-inner">{props.children}</div>
+      </div>
+    </div>
+  );
+}
 
 /** Meniu lateral: persoane, preferinte AI invatate, export lista, despre. */
 export function MenuDrawer() {
@@ -279,303 +322,325 @@ export function MenuDrawer() {
           </>
         )}
 
-        <div className="drawer-section-label">{tr('menu.section.workspace')}</div>
-        <button className="drawer-item" onClick={() => go(() => setPersonsOpen(true))}>
-          <span className="drawer-item-icon"><UserCheckIcon /></span>
-          <span>{tr('menu.knownPersons')}</span>
-          {persons.length > 0 && <b className="drawer-count mono">{persons.length}</b>}
-        </button>
-
-        <button className="drawer-item" onClick={() => go(() => setInsightsOpen(true))}>
-          <span className="drawer-item-icon"><SparkleIcon /></span>
-          <span>{tr('menu.aiPreferences')}</span>
-        </button>
-
-        <button className="drawer-item" onClick={() => go(() => setBatchOpsOpen(true))}>
-          <span className="drawer-item-icon"><LayersIcon /></span>
-          <span>{tr('menu.batchOps')}</span>
-        </button>
-
-        {isNativeMediaLibraryAvailable() && (
-          <button className="drawer-item" onClick={() => go(() => setBatchOpsOpen(true))}>
-            <span className="drawer-item-icon"><TrashIcon /></span>
-            <span>
-              {deletableRejectedCount > 0
-                ? tr('menu.deleteRejected.withCount', { count: deletableRejectedCount })
-                : tr('menu.deleteRejected')}
-            </span>
+        {/* Randul de actiuni rapide (idee proprie, parte din reorganizare) — cele
+            doua actiuni cele mai des folosite, la un singur tap, in afara
+            listei lungi de mai jos, nu ingropate printre cele ~30 optiuni mai
+            rar accesate. */}
+        <div className="drawer-quick-row">
+          <button className="drawer-quick-btn" onClick={() => go(() => setTiktokSortOpen(true))} title={tr('menu.tiktokSort.title')}>
+            <ChevronUpIcon aria-hidden="true" />
+            <span>{tr('menu.quickSort')}</span>
           </button>
-        )}
-
-        <button className="drawer-item" onClick={() => go(() => setStatsOpen(true))}>
-          <span className="drawer-item-icon"><BarChartIcon /></span>
-          <span>{tr('menu.stats')}</span>
-        </button>
-
-        <button className="drawer-item" onClick={() => go(() => setContactSheetOpen(true))}>
-          <span className="drawer-item-icon"><PrinterIcon /></span>
-          <span>{tr('menu.contactSheet')}</span>
-        </button>
-
-        <button className="drawer-item" onClick={() => go(() => setTiktokSortOpen(true))} title={tr('menu.tiktokSort.title')}>
-          <span className="drawer-item-icon"><ChevronUpIcon /></span>
-          <span>{tr('menu.tiktokSort')}</span>
-        </button>
-
-        <button className="drawer-item" onClick={() => go(() => setSearchPanelOpen(true))}>
-          <span className="drawer-item-icon"><SearchIcon /></span>
-          <span>{tr('menu.visualSearch')}</span>
-        </button>
-
-        {isNativeMediaLibraryAvailable() && (
-          <button className="drawer-item" onClick={() => go(() => setSupervisorPanelOpen(true))}>
-            <span className="drawer-item-icon"><ClockIcon /></span>
-            <span>{tr('menu.gallerySupervisor')}</span>
+          <button className="drawer-quick-btn" onClick={() => go(() => setSearchPanelOpen(true))}>
+            <SearchIcon aria-hidden="true" />
+            <span>{tr('menu.quickSearch')}</span>
           </button>
-        )}
-
-        <button className="drawer-item" onClick={() => go(() => setDuplicatesPanelOpen(true))}>
-          <span className="drawer-item-icon"><CopyIcon /></span>
-          <span>{tr('menu.duplicates')}</span>
-          {duplicateGroupCount > 0 && <b className="drawer-count mono">{duplicateGroupCount}</b>}
-        </button>
-
-        <button className="drawer-item" onClick={() => go(() => setDocumentShieldOpen(true))}>
-          <span className="drawer-item-icon"><ShieldIcon /></span>
-          <span>{tr('menu.documentShield')}</span>
-          {shieldPendingCount > 0 && <b className="drawer-count mono">{shieldPendingCount}</b>}
-        </button>
-
-        <button className="drawer-item" onClick={() => go(() => setVaultOpen(true))}>
-          <span className="drawer-item-icon"><LockIcon /></span>
-          <span>{tr('menu.vault')}</span>
-        </button>
-
-        <button className="drawer-item" onClick={() => go(() => setPresentationOpen(true))} title={tr('menu.presentation.title')}>
-          <span className="drawer-item-icon"><PlayIcon /></span>
-          <span>{tr('menu.presentation')}</span>
-        </button>
-
-        <button
-          className="drawer-item"
-          onClick={() => go(() => { setPresentationPhotoIds(selectMonthlyRecap(photos).map(p => p.id)); setPresentationOpen(true); })}
-          title={tr('menu.monthlyRecap.title')}
-        >
-          <span className="drawer-item-icon"><SparkleIcon /></span>
-          <span>{tr('menu.monthlyRecap')}</span>
-        </button>
-
-        <button className="drawer-item" onClick={() => go(() => setProjectsOpen(true))}>
-          <span className="drawer-item-icon"><ListIcon /></span>
-          <span>{tr('menu.projects')}</span>
-        </button>
-
-        <button className="drawer-item" onClick={() => go(() => setCollectionsOpen(true))}>
-          <span className="drawer-item-icon"><FolderIcon /></span>
-          <span>{tr('menu.collections')}</span>
-        </button>
-
-        <button className="drawer-item" onClick={() => go(() => setTripsOpen(true))}>
-          <span className="drawer-item-icon"><PinIcon /></span>
-          <span>{tr('menu.trips')}</span>
-        </button>
-
-        <label className="drawer-item drawer-item-select" title={tr('menu.genre.title')}>
-          <span className="drawer-item-icon"><TagIcon /></span>
-          <span>{tr('menu.genre')}</span>
-          <select
-            className="drawer-select mono"
-            value={genre}
-            onChange={e => setGenre(e.target.value)}
-          >
-            <option value="">{tr('menu.genre.none')}</option>
-            {GENRE_PRESETS.map(g => <option key={g} value={g}>{g}</option>)}
-          </select>
-        </label>
-
-        <div className="drawer-section-label">{tr('menu.section.export')}</div>
-        <button className="drawer-item" onClick={() => go(() => void exportManifest())}>
-          <span className="drawer-item-icon"><ListIcon /></span>
-          <span>{tr('menu.exportManifest')}</span>
-        </button>
-
-        <button className="drawer-item" onClick={() => go(() => void exportSessionReport())} title={tr('menu.exportSessionReport.title')}>
-          <span className="drawer-item-icon"><BarChartIcon /></span>
-          <span>{tr('menu.exportSessionReport')}</span>
-        </button>
-
-        <button className="drawer-item" onClick={() => go(() => void exportXMP())}>
-          <span className="drawer-item-icon"><TagIcon /></span>
-          <span>{tr('menu.exportXmp')}</span>
-        </button>
-
-        <button
-          className="drawer-item"
-          onClick={() => setApplyEditsInGallery(!applyEditsInGallery)}
-          aria-pressed={applyEditsInGallery}
-          title={tr('menu.applyEditsInGallery.title')}
-        >
-          <span className="drawer-item-icon"><EditIcon /></span>
-          <span>{applyEditsInGallery ? tr('menu.applyEditsInGallery.active') : tr('menu.applyEditsInGallery')}</span>
-        </button>
-
-        <button
-          className="drawer-item"
-          onClick={() => go(() => void exportClientGallery())}
-          title={tr('menu.exportClientGallery.title')}
-        >
-          <span className="drawer-item-icon"><UserCheckIcon /></span>
-          <span>{tr('menu.exportClientGallery')}</span>
-        </button>
-
-        <button
-          className="drawer-item"
-          onClick={() => { setOpen(false); clientFeedbackInputRef.current?.click(); }}
-          title={tr('menu.importClientFeedback.title')}
-        >
-          <span className="drawer-item-icon"><HeartIcon /></span>
-          <span>{tr('menu.importClientFeedback')}</span>
-        </button>
-
-        <label className="drawer-item drawer-item-select" title={tr('menu.watermark.title')}>
-          <span className="drawer-item-icon"><TagIcon /></span>
-          <span>{tr('menu.watermark')}</span>
-          <input
-            type="text"
-            className="drawer-text-input mono"
-            placeholder={tr('menu.watermark.placeholder')}
-            value={watermarkText}
-            onChange={e => setWatermarkText(e.target.value)}
-            maxLength={40}
-          />
-        </label>
-
-        <div className="drawer-section-label">{tr('menu.section.backup')}</div>
-        <button
-          className="drawer-item"
-          onClick={() => go(() => void exportBackup())}
-          title={tr('menu.exportBackup.title')}
-        >
-          <span className="drawer-item-icon"><DownloadIcon /></span>
-          <span>{tr('menu.exportBackup')}</span>
-        </button>
-        <button
-          className="drawer-item"
-          onClick={() => { setOpen(false); restoreInputRef.current?.click(); }}
-          title={tr('menu.importBackup.title')}
-        >
-          <span className="drawer-item-icon"><UploadIcon /></span>
-          <span>{tr('menu.importBackup')}</span>
-        </button>
-
-        <div className="drawer-section-label">{tr('menu.section.settings')}</div>
-        {/* Ciclu pe 3 stari (intunecat -> luminos -> automat -> intunecat), nu doar comutator
-            intre 2 — "automat" e o preferinta stocata separat, nu doar un rezultat vizual
-            derivat, deci trebuie sa fie o optiune explicit selectabila, nu ceva ce apare
-            "din senin" doar din combinarea celorlalte doua. */}
-        <button
-          className="drawer-item"
-          onClick={() => go(() => setTheme(theme === 'dark' ? 'light' : theme === 'light' ? 'auto' : 'dark'))}
-        >
-          <span className="drawer-item-icon">{theme === 'light' ? <SunIcon /> : theme === 'auto' ? <ClockIcon /> : <MoonIcon />}</span>
-          <span>{theme === 'light' ? tr('menu.theme.light') : theme === 'auto' ? tr('menu.theme.auto') : tr('menu.theme.dark')}</span>
-        </button>
-
-        {/* Utilizatorul alege el accentul, in loc sa aleg eu unul singur pentru toata
-            lumea — vezi istoricul "Studio Noir" (respins pe telefon real dupa ce fusese
-            aprobat doar pe mockup) din comentariul --accent-gradient (styles.css). */}
-        <div className="drawer-item drawer-item-accent">
-          <span className="drawer-item-icon"><PaletteIcon /></span>
-          <span>{tr('menu.accent')}</span>
-          <span className="accent-swatches">
-            {ACCENT_OPTIONS.map(({ id, gradient }) => (
-              <button
-                key={id}
-                className={accentTheme === id ? 'accent-swatch active' : 'accent-swatch'}
-                style={{ background: gradient }}
-                onClick={() => setAccentTheme(id)}
-                aria-label={tr(`menu.accent.${id}`)}
-                aria-pressed={accentTheme === id}
-              />
-            ))}
-          </span>
         </div>
 
-        <button
-          className="drawer-item"
-          onClick={() => go(() => setLocale(locale === 'ro' ? 'en' : 'ro'))}
-          title={tr('menu.language.title')}
-        >
-          <span className="drawer-item-icon"><GlobeIcon /></span>
-          <span>{tr('menu.language')}</span>
-        </button>
-
-        <button
-          className="drawer-item"
-          onClick={() => go(() => setEconomicMode(!economicMode))}
-          aria-pressed={economicMode}
-          title={tr('menu.economicMode.title')}
-        >
-          <span className="drawer-item-icon"><BatteryIcon /></span>
-          <span>{economicMode ? tr('menu.economicMode.active') : tr('menu.economicMode')}</span>
-        </button>
-
-        <button
-          className="drawer-item"
-          onClick={() => go(() => setAccessibleMode(!accessibleMode))}
-          aria-pressed={accessibleMode}
-          title={tr('menu.accessibleMode.title')}
-        >
-          <span className="drawer-item-icon"><AccessibilityIcon /></span>
-          <span>{accessibleMode ? tr('menu.accessibleMode.active') : tr('menu.accessibleMode')}</span>
-        </button>
-
-        <button
-          className="drawer-item"
-          onClick={() => go(() => setSmartNotificationsEnabled(!smartNotificationsEnabled))}
-          aria-pressed={smartNotificationsEnabled}
-          title={tr('menu.smartNotifications.title')}
-        >
-          <span className="drawer-item-icon"><InfoIcon /></span>
-          <span>{smartNotificationsEnabled ? tr('menu.smartNotifications.active') : tr('menu.smartNotifications')}</span>
-        </button>
-
-        <button
-          className="drawer-item"
-          onClick={() => go(() => setZenPanelOpen(true))}
-          aria-pressed={zenMode}
-          title={tr('menu.zenMode.title')}
-        >
-          <span className="drawer-item-icon"><SparkleIcon /></span>
-          <span>{tr('menu.zenMode')}</span>
-        </button>
-
-        <button
-          className="drawer-item"
-          onClick={() => setGridDensity(nextGridDensity(gridDensity))}
-          title={tr('menu.gridDensity.title')}
-        >
-          <span className="drawer-item-icon"><GridIcon /></span>
-          <span>{tr('menu.gridDensity', { density: tr(`menu.gridDensity.${gridDensity}`) })}</span>
-        </button>
-
-        <div className="drawer-section-label">{tr('menu.section.help')}</div>
-        <button className="drawer-item" onClick={() => go(() => setShortcutsOpen(true))}>
-          <span className="drawer-item-icon"><KeyboardIcon /></span>
-          <span>{tr('menu.shortcuts')}</span>
-        </button>
-
-        {SHOW_NATIVE_TEST_BUTTON && isNativeFaceDetectionAvailable() && isNativeImageAnalysisAvailable() &&
-          isNativeImageLabelingAvailable() && isNativeFaceMeshAvailable() && isNativeImageClassifierAvailable() &&
-          isNativeTextRecognitionAvailable() && isNativePoseDetectionAvailable() && isNativeSegmentationAvailable() &&
-          isNativeImageEmbedderAvailable() && (
-          <button className="drawer-item" onClick={() => go(testNativeFaceDetection)}>
-            <span className="drawer-item-icon"><SparkleIcon /></span>
-            <span>[DEV] Test detectie nativa</span>
+        <DrawerGroup label={tr('menu.section.workspace')}>
+          <button className="drawer-item" onClick={() => go(() => setPersonsOpen(true))}>
+            <span className="drawer-item-icon"><UserCheckIcon /></span>
+            <span>{tr('menu.knownPersons')}</span>
+            {persons.length > 0 && <b className="drawer-count mono">{persons.length}</b>}
           </button>
-        )}
 
-        <div className="drawer-sep" />
+          <button className="drawer-item" onClick={() => go(() => setInsightsOpen(true))}>
+            <span className="drawer-item-icon"><SparkleIcon /></span>
+            <span>{tr('menu.aiPreferences')}</span>
+          </button>
+
+          <button className="drawer-item" onClick={() => go(() => setBatchOpsOpen(true))}>
+            <span className="drawer-item-icon"><LayersIcon /></span>
+            <span>{tr('menu.batchOps')}</span>
+          </button>
+
+          {isNativeMediaLibraryAvailable() && (
+            <button className="drawer-item" onClick={() => go(() => setBatchOpsOpen(true))}>
+              <span className="drawer-item-icon"><TrashIcon /></span>
+              <span>
+                {deletableRejectedCount > 0
+                  ? tr('menu.deleteRejected.withCount', { count: deletableRejectedCount })
+                  : tr('menu.deleteRejected')}
+              </span>
+            </button>
+          )}
+
+          {isNativeMediaLibraryAvailable() && (
+            <button className="drawer-item" onClick={() => go(() => setSupervisorPanelOpen(true))}>
+              <span className="drawer-item-icon"><ClockIcon /></span>
+              <span>{tr('menu.gallerySupervisor')}</span>
+            </button>
+          )}
+
+          <button className="drawer-item" onClick={() => go(() => setDuplicatesPanelOpen(true))}>
+            <span className="drawer-item-icon"><CopyIcon /></span>
+            <span>{tr('menu.duplicates')}</span>
+            {duplicateGroupCount > 0 && <b className="drawer-count mono">{duplicateGroupCount}</b>}
+          </button>
+
+          <button className="drawer-item" onClick={() => go(() => setDocumentShieldOpen(true))}>
+            <span className="drawer-item-icon"><ShieldIcon /></span>
+            <span>{tr('menu.documentShield')}</span>
+            {shieldPendingCount > 0 && <b className="drawer-count mono">{shieldPendingCount}</b>}
+          </button>
+
+          <button className="drawer-item" onClick={() => go(() => setVaultOpen(true))}>
+            <span className="drawer-item-icon"><LockIcon /></span>
+            <span>{tr('menu.vault')}</span>
+          </button>
+        </DrawerGroup>
+
+        <DrawerGroup label={tr('menu.section.library')}>
+          <button className="drawer-item" onClick={() => go(() => setStatsOpen(true))}>
+            <span className="drawer-item-icon"><BarChartIcon /></span>
+            <span>{tr('menu.stats')}</span>
+          </button>
+
+          <button className="drawer-item" onClick={() => go(() => setContactSheetOpen(true))}>
+            <span className="drawer-item-icon"><PrinterIcon /></span>
+            <span>{tr('menu.contactSheet')}</span>
+          </button>
+
+          <button className="drawer-item" onClick={() => go(() => setPresentationOpen(true))} title={tr('menu.presentation.title')}>
+            <span className="drawer-item-icon"><PlayIcon /></span>
+            <span>{tr('menu.presentation')}</span>
+          </button>
+
+          <button
+            className="drawer-item"
+            onClick={() => go(() => { setPresentationPhotoIds(selectMonthlyRecap(photos).map(p => p.id)); setPresentationOpen(true); })}
+            title={tr('menu.monthlyRecap.title')}
+          >
+            <span className="drawer-item-icon"><SparkleIcon /></span>
+            <span>{tr('menu.monthlyRecap')}</span>
+          </button>
+
+          <button className="drawer-item" onClick={() => go(() => setProjectsOpen(true))}>
+            <span className="drawer-item-icon"><ListIcon /></span>
+            <span>{tr('menu.projects')}</span>
+          </button>
+
+          <button className="drawer-item" onClick={() => go(() => setCollectionsOpen(true))}>
+            <span className="drawer-item-icon"><FolderIcon /></span>
+            <span>{tr('menu.collections')}</span>
+          </button>
+
+          <button className="drawer-item" onClick={() => go(() => setTripsOpen(true))}>
+            <span className="drawer-item-icon"><PinIcon /></span>
+            <span>{tr('menu.trips')}</span>
+          </button>
+
+          <label className="drawer-item drawer-item-select" title={tr('menu.genre.title')}>
+            <span className="drawer-item-icon"><TagIcon /></span>
+            <span>{tr('menu.genre')}</span>
+            <select
+              className="drawer-select mono"
+              value={genre}
+              onChange={e => setGenre(e.target.value)}
+            >
+              <option value="">{tr('menu.genre.none')}</option>
+              {GENRE_PRESETS.map(g => <option key={g} value={g}>{g}</option>)}
+            </select>
+          </label>
+        </DrawerGroup>
+
+        <DrawerGroup
+          label={tr('menu.section.exportBackup')}
+          collapsible
+          defaultOpen={false}
+          expandLabel={tr('menu.expandSection', { section: tr('menu.section.exportBackup') })}
+          collapseLabel={tr('menu.collapseSection', { section: tr('menu.section.exportBackup') })}
+        >
+          <button className="drawer-item" onClick={() => go(() => void exportManifest())}>
+            <span className="drawer-item-icon"><ListIcon /></span>
+            <span>{tr('menu.exportManifest')}</span>
+          </button>
+
+          <button className="drawer-item" onClick={() => go(() => void exportSessionReport())} title={tr('menu.exportSessionReport.title')}>
+            <span className="drawer-item-icon"><BarChartIcon /></span>
+            <span>{tr('menu.exportSessionReport')}</span>
+          </button>
+
+          <button className="drawer-item" onClick={() => go(() => void exportXMP())}>
+            <span className="drawer-item-icon"><TagIcon /></span>
+            <span>{tr('menu.exportXmp')}</span>
+          </button>
+
+          <button
+            className="drawer-item"
+            onClick={() => setApplyEditsInGallery(!applyEditsInGallery)}
+            aria-pressed={applyEditsInGallery}
+            title={tr('menu.applyEditsInGallery.title')}
+          >
+            <span className="drawer-item-icon"><EditIcon /></span>
+            <span>{applyEditsInGallery ? tr('menu.applyEditsInGallery.active') : tr('menu.applyEditsInGallery')}</span>
+          </button>
+
+          <button
+            className="drawer-item"
+            onClick={() => go(() => void exportClientGallery())}
+            title={tr('menu.exportClientGallery.title')}
+          >
+            <span className="drawer-item-icon"><UserCheckIcon /></span>
+            <span>{tr('menu.exportClientGallery')}</span>
+          </button>
+
+          <button
+            className="drawer-item"
+            onClick={() => { setOpen(false); clientFeedbackInputRef.current?.click(); }}
+            title={tr('menu.importClientFeedback.title')}
+          >
+            <span className="drawer-item-icon"><HeartIcon /></span>
+            <span>{tr('menu.importClientFeedback')}</span>
+          </button>
+
+          <label className="drawer-item drawer-item-select" title={tr('menu.watermark.title')}>
+            <span className="drawer-item-icon"><TagIcon /></span>
+            <span>{tr('menu.watermark')}</span>
+            <input
+              type="text"
+              className="drawer-text-input mono"
+              placeholder={tr('menu.watermark.placeholder')}
+              value={watermarkText}
+              onChange={e => setWatermarkText(e.target.value)}
+              maxLength={40}
+            />
+          </label>
+
+          <div className="drawer-sep" />
+
+          <button
+            className="drawer-item"
+            onClick={() => go(() => void exportBackup())}
+            title={tr('menu.exportBackup.title')}
+          >
+            <span className="drawer-item-icon"><DownloadIcon /></span>
+            <span>{tr('menu.exportBackup')}</span>
+          </button>
+          <button
+            className="drawer-item"
+            onClick={() => { setOpen(false); restoreInputRef.current?.click(); }}
+            title={tr('menu.importBackup.title')}
+          >
+            <span className="drawer-item-icon"><UploadIcon /></span>
+            <span>{tr('menu.importBackup')}</span>
+          </button>
+        </DrawerGroup>
+
+        <DrawerGroup
+          label={tr('menu.section.settings')}
+          collapsible
+          defaultOpen={false}
+          expandLabel={tr('menu.expandSection', { section: tr('menu.section.settings') })}
+          collapseLabel={tr('menu.collapseSection', { section: tr('menu.section.settings') })}
+        >
+          {/* Ciclu pe 3 stari (intunecat -> luminos -> automat -> intunecat), nu doar comutator
+              intre 2 — "automat" e o preferinta stocata separat, nu doar un rezultat vizual
+              derivat, deci trebuie sa fie o optiune explicit selectabila, nu ceva ce apare
+              "din senin" doar din combinarea celorlalte doua. */}
+          <button
+            className="drawer-item"
+            onClick={() => go(() => setTheme(theme === 'dark' ? 'light' : theme === 'light' ? 'auto' : 'dark'))}
+          >
+            <span className="drawer-item-icon">{theme === 'light' ? <SunIcon /> : theme === 'auto' ? <ClockIcon /> : <MoonIcon />}</span>
+            <span>{theme === 'light' ? tr('menu.theme.light') : theme === 'auto' ? tr('menu.theme.auto') : tr('menu.theme.dark')}</span>
+          </button>
+
+          {/* Utilizatorul alege el accentul, in loc sa aleg eu unul singur pentru toata
+              lumea — vezi istoricul "Studio Noir" (respins pe telefon real dupa ce fusese
+              aprobat doar pe mockup) din comentariul --accent-gradient (styles.css). */}
+          <div className="drawer-item drawer-item-accent">
+            <span className="drawer-item-icon"><PaletteIcon /></span>
+            <span>{tr('menu.accent')}</span>
+            <span className="accent-swatches">
+              {ACCENT_OPTIONS.map(({ id, gradient }) => (
+                <button
+                  key={id}
+                  className={accentTheme === id ? 'accent-swatch active' : 'accent-swatch'}
+                  style={{ background: gradient }}
+                  onClick={() => setAccentTheme(id)}
+                  aria-label={tr(`menu.accent.${id}`)}
+                  aria-pressed={accentTheme === id}
+                />
+              ))}
+            </span>
+          </div>
+
+          <button
+            className="drawer-item"
+            onClick={() => go(() => setLocale(locale === 'ro' ? 'en' : 'ro'))}
+            title={tr('menu.language.title')}
+          >
+            <span className="drawer-item-icon"><GlobeIcon /></span>
+            <span>{tr('menu.language')}</span>
+          </button>
+
+          <button
+            className="drawer-item"
+            onClick={() => go(() => setEconomicMode(!economicMode))}
+            aria-pressed={economicMode}
+            title={tr('menu.economicMode.title')}
+          >
+            <span className="drawer-item-icon"><BatteryIcon /></span>
+            <span>{economicMode ? tr('menu.economicMode.active') : tr('menu.economicMode')}</span>
+          </button>
+
+          <button
+            className="drawer-item"
+            onClick={() => go(() => setAccessibleMode(!accessibleMode))}
+            aria-pressed={accessibleMode}
+            title={tr('menu.accessibleMode.title')}
+          >
+            <span className="drawer-item-icon"><AccessibilityIcon /></span>
+            <span>{accessibleMode ? tr('menu.accessibleMode.active') : tr('menu.accessibleMode')}</span>
+          </button>
+
+          <button
+            className="drawer-item"
+            onClick={() => go(() => setSmartNotificationsEnabled(!smartNotificationsEnabled))}
+            aria-pressed={smartNotificationsEnabled}
+            title={tr('menu.smartNotifications.title')}
+          >
+            <span className="drawer-item-icon"><InfoIcon /></span>
+            <span>{smartNotificationsEnabled ? tr('menu.smartNotifications.active') : tr('menu.smartNotifications')}</span>
+          </button>
+
+          <button
+            className="drawer-item"
+            onClick={() => go(() => setZenPanelOpen(true))}
+            aria-pressed={zenMode}
+            title={tr('menu.zenMode.title')}
+          >
+            <span className="drawer-item-icon"><SparkleIcon /></span>
+            <span>{tr('menu.zenMode')}</span>
+          </button>
+
+          <button
+            className="drawer-item"
+            onClick={() => setGridDensity(nextGridDensity(gridDensity))}
+            title={tr('menu.gridDensity.title')}
+          >
+            <span className="drawer-item-icon"><GridIcon /></span>
+            <span>{tr('menu.gridDensity', { density: tr(`menu.gridDensity.${gridDensity}`) })}</span>
+          </button>
+        </DrawerGroup>
+
+        <DrawerGroup label={tr('menu.section.help')}>
+          <button className="drawer-item" onClick={() => go(() => setShortcutsOpen(true))}>
+            <span className="drawer-item-icon"><KeyboardIcon /></span>
+            <span>{tr('menu.shortcuts')}</span>
+          </button>
+
+          {SHOW_NATIVE_TEST_BUTTON && isNativeFaceDetectionAvailable() && isNativeImageAnalysisAvailable() &&
+            isNativeImageLabelingAvailable() && isNativeFaceMeshAvailable() && isNativeImageClassifierAvailable() &&
+            isNativeTextRecognitionAvailable() && isNativePoseDetectionAvailable() && isNativeSegmentationAvailable() &&
+            isNativeImageEmbedderAvailable() && (
+            <button className="drawer-item" onClick={() => go(testNativeFaceDetection)}>
+              <span className="drawer-item-icon"><SparkleIcon /></span>
+              <span>[DEV] Test detectie nativa</span>
+            </button>
+          )}
+        </DrawerGroup>
 
         <div className="drawer-about">
           <InfoIcon />
