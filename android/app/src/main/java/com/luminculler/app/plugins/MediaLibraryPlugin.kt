@@ -382,6 +382,40 @@ class MediaLibraryPlugin : Plugin() {
         }
     }
 
+    /** Coloanele comune (id/nume/data) citite ca JSArray de {uri,name,capturedAt} — reutilizat de photosInRange si photosInFolder, aceeasi forma de rezultat pentru ambele cai. */
+    private fun queryPhotosAsJson(selection: String?, args: Array<String>?): JSArray {
+        val projection = arrayOf(
+            MediaStore.Images.Media._ID,
+            MediaStore.Images.Media.DISPLAY_NAME,
+            MediaStore.Images.Media.DATE_TAKEN,
+            MediaStore.Images.Media.DATE_ADDED
+        )
+        val photos = JSArray()
+        context.contentResolver.query(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI, projection, selection, args,
+            "${MediaStore.Images.Media.DATE_TAKEN} ASC"
+        )?.use { cursor ->
+            val idCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+            val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
+            val takenCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN)
+            val addedCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
+            while (cursor.moveToNext()) {
+                val id = cursor.getLong(idCol)
+                val uri = Uri.withAppendedPath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id.toString())
+                val taken = cursor.getLong(takenCol)
+                val added = cursor.getLong(addedCol)
+                val capturedAt = if (taken > 0) taken else added * 1000
+                photos.put(
+                    JSObject()
+                        .put("uri", uri.toString())
+                        .put("name", cursor.getString(nameCol) ?: "photo_$id.jpg")
+                        .put("capturedAt", capturedAt)
+                )
+            }
+        }
+        return photos
+    }
+
     private fun resolvePhotosInRange(call: PluginCall) {
         // Transmise ca text (nu numar) dinspre JS: milisecundele de la epoca depasesc
         // domeniul unui Int pe 32 de biti (folosit de unele metode PluginCall.getInt),
@@ -393,12 +427,6 @@ class MediaLibraryPlugin : Plugin() {
             return
         }
         try {
-            val projection = arrayOf(
-                MediaStore.Images.Media._ID,
-                MediaStore.Images.Media.DISPLAY_NAME,
-                MediaStore.Images.Media.DATE_TAKEN,
-                MediaStore.Images.Media.DATE_ADDED
-            )
             val selection = "(${MediaStore.Images.Media.DATE_TAKEN} BETWEEN ? AND ?) OR " +
                 "(${MediaStore.Images.Media.DATE_TAKEN} IS NULL AND ${MediaStore.Images.Media.DATE_ADDED} BETWEEN ? AND ?) OR " +
                 "(${MediaStore.Images.Media.DATE_TAKEN} = 0 AND ${MediaStore.Images.Media.DATE_ADDED} BETWEEN ? AND ?)"
@@ -409,32 +437,99 @@ class MediaLibraryPlugin : Plugin() {
                 addedStartSec, addedEndSec,
                 addedStartSec, addedEndSec
             )
-            val photos = JSArray()
-            context.contentResolver.query(
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI, projection, selection, args,
-                "${MediaStore.Images.Media.DATE_TAKEN} ASC"
-            )?.use { cursor ->
-                val idCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
-                val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
-                val takenCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN)
-                val addedCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
-                while (cursor.moveToNext()) {
-                    val id = cursor.getLong(idCol)
-                    val uri = Uri.withAppendedPath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id.toString())
-                    val taken = cursor.getLong(takenCol)
-                    val added = cursor.getLong(addedCol)
-                    val capturedAt = if (taken > 0) taken else added * 1000
-                    photos.put(
-                        JSObject()
-                            .put("uri", uri.toString())
-                            .put("name", cursor.getString(nameCol) ?: "photo_$id.jpg")
-                            .put("capturedAt", capturedAt)
-                    )
-                }
-            }
-            call.resolve(JSObject().put("granted", true).put("photos", photos))
+            call.resolve(JSObject().put("granted", true).put("photos", queryPhotosAsJson(selection, args)))
         } catch (e: Exception) {
             call.reject("Nu am putut citi pozele din acest interval: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Foldere (bucket-uri MediaStore, ex. "Camera", "WhatsApp Images",
+     * "Screenshots") — cerinta directa a utilizatorului: alternativa la
+     * segmentarea cronologica, sortare pe sursa. O singura trecere prin
+     * cursor (fara GROUP BY — vezi comentariul de la galleryDateRange despre
+     * functii de agregare SQL nesigure pe MediaProvider), numarand manual per
+     * bucket. NEVALIDAT inca pe device real.
+     */
+    @PluginMethod
+    fun galleryFolders(call: PluginCall) {
+        if (getPermissionState(photosPermissionAlias) != PermissionState.GRANTED) {
+            requestPermissionForAlias(photosPermissionAlias, call, "galleryFoldersPermissionCallback")
+            return
+        }
+        resolveGalleryFolders(call)
+    }
+
+    @PermissionCallback
+    private fun galleryFoldersPermissionCallback(call: PluginCall) {
+        if (getPermissionState(photosPermissionAlias) == PermissionState.GRANTED) {
+            resolveGalleryFolders(call)
+        } else {
+            call.resolve(JSObject().put("granted", false).put("folders", JSArray()))
+        }
+    }
+
+    private fun resolveGalleryFolders(call: PluginCall) {
+        try {
+            val projection = arrayOf(MediaStore.Images.Media.BUCKET_ID, MediaStore.Images.Media.BUCKET_DISPLAY_NAME)
+            // LinkedHashMap - pastreaza ordinea primei aparitii, rezonabil pentru o
+            // lista stabila intre apeluri fara sa mai sortam separat dupa nume.
+            val counts = LinkedHashMap<String, Pair<String, Int>>()
+            context.contentResolver.query(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI, projection, null, null, null
+            )?.use { cursor ->
+                val idCol = cursor.getColumnIndex(MediaStore.Images.Media.BUCKET_ID)
+                val nameCol = cursor.getColumnIndex(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)
+                if (idCol >= 0 && nameCol >= 0) {
+                    while (cursor.moveToNext()) {
+                        val id = cursor.getString(idCol) ?: continue
+                        val name = cursor.getString(nameCol) ?: continue
+                        val existing = counts[id]
+                        counts[id] = name to ((existing?.second ?: 0) + 1)
+                    }
+                }
+            }
+            val folders = JSArray()
+            for ((id, pair) in counts) {
+                folders.put(JSObject().put("id", id).put("name", pair.first).put("count", pair.second))
+            }
+            call.resolve(JSObject().put("granted", true).put("folders", folders))
+        } catch (e: Exception) {
+            call.reject("Nu am putut citi folderele galeriei: ${e.message}", e)
+        }
+    }
+
+    /** Pozele dintr-un singur folder (bucket) — vezi galleryFolders() de mai sus. NEVALIDAT inca pe device real. */
+    @PluginMethod
+    fun photosInFolder(call: PluginCall) {
+        if (getPermissionState(photosPermissionAlias) != PermissionState.GRANTED) {
+            requestPermissionForAlias(photosPermissionAlias, call, "photosInFolderPermissionCallback")
+            return
+        }
+        resolvePhotosInFolder(call)
+    }
+
+    @PermissionCallback
+    private fun photosInFolderPermissionCallback(call: PluginCall) {
+        if (getPermissionState(photosPermissionAlias) == PermissionState.GRANTED) {
+            resolvePhotosInFolder(call)
+        } else {
+            call.resolve(JSObject().put("granted", false).put("photos", JSArray()))
+        }
+    }
+
+    private fun resolvePhotosInFolder(call: PluginCall) {
+        val bucketId = call.getString("bucketId")
+        if (bucketId.isNullOrEmpty()) {
+            call.reject("bucketId lipseste")
+            return
+        }
+        try {
+            val selection = "${MediaStore.Images.Media.BUCKET_ID} = ?"
+            val args = arrayOf(bucketId)
+            call.resolve(JSObject().put("granted", true).put("photos", queryPhotosAsJson(selection, args)))
+        } catch (e: Exception) {
+            call.reject("Nu am putut citi pozele din acest folder: ${e.message}", e)
         }
     }
 }

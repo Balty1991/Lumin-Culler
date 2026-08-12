@@ -3,21 +3,53 @@
  * "Supervizorul galeriei" — cerinta directa a utilizatorului: nu un import
  * masiv al intregii galerii dintr-o data (surprinzator, consuma bateria/
  * timpul telefonului analizand mii de poze deodata, fara control), ci un
- * import GHIDAT pe perioade cronologice — cele mai vechi poze intai, ~2 luni
- * pe rand — cu recomandarea explicita a urmatoarei perioade dupa ce cea
- * curenta a fost adusa. Cursorul (coveredUntilMs) tine minte pana unde s-a
- * ajuns deja, ca AI-ul sa "stie ce perioade a recomandat anterior si ce a
- * ramas nesortat" fara sa retina o lista separata per-perioada — o secventa
- * STRICT cronologica (nu paralela pe mai multe perioade deodata), exact cum a
- * fost descrisa cerinta.
+ * import GHIDAT pe perioade cronologice — cele mai vechi poze intai, lungime
+ * aleasa de utilizator (1/2/3 luni, in functie de cat timp are disponibil) —
+ * cu recomandarea explicita a urmatoarei perioade dupa ce cea curenta a fost
+ * adusa. Cursorul (coveredUntilMs) tine minte pana unde s-a ajuns deja, ca
+ * AI-ul sa "stie ce perioade a recomandat anterior si ce a ramas nesortat"
+ * fara sa retina o lista separata per-perioada — o secventa STRICT
+ * cronologica (nu paralela pe mai multe perioade deodata), exact cum a fost
+ * descrisa cerinta. Selectorul calendaristic (listAllPeriods) permite totusi
+ * sa sari INAINTEA cursorului la orice perioada, cu confirmare daca era deja
+ * acoperita — vezi isPeriodAlreadyCovered.
  *
- * Functii pure (computeNextPeriod) separate de citirea/scrierea din
- * localStorage de mai jos, testabile izolat.
+ * Functii pure separate de citirea/scrierea din localStorage de mai jos,
+ * testabile izolat.
  */
 const COVERED_UNTIL_KEY = 'lumin-gallery-supervisor-covered-until';
+const PERIOD_MONTHS_KEY = 'lumin-gallery-supervisor-period-months';
+const BANNER_DISMISSED_KEY = 'lumin-gallery-supervisor-banner-dismissed-date';
 
-/** ~2 luni — perioada implicita ceruta explicit ("Analizam la 2 luni"). */
-export const SUPERVISOR_PERIOD_MS = 60 * 24 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+/** Aproximare deliberata (nu luna calendaristica exacta) — consistenta indiferent de luna aleasa, acelasi compromis facut deja la ~2 luni initial. */
+const MONTH_MS = 30 * DAY_MS;
+
+/** Variantele oferite explicit ("mai scurte si mai lungi... in functie de cat timp disponibil are utilizatorul"). */
+export const PERIOD_MONTH_OPTIONS = [1, 2, 3] as const;
+export type PeriodMonths = typeof PERIOD_MONTH_OPTIONS[number];
+
+/** ~2 luni — valoarea implicita, pastrata si ca fallback de test/compatibilitate. */
+export const SUPERVISOR_PERIOD_MS = 2 * MONTH_MS;
+
+export function periodMonthsToMs(months: PeriodMonths): number {
+  return months * MONTH_MS;
+}
+
+export function readPeriodMonths(): PeriodMonths {
+  try {
+    const raw = Number(localStorage.getItem(PERIOD_MONTHS_KEY));
+    return (PERIOD_MONTH_OPTIONS as readonly number[]).includes(raw) ? (raw as PeriodMonths) : 2;
+  } catch {
+    return 2;
+  }
+}
+
+export function writePeriodMonths(months: PeriodMonths): void {
+  try { localStorage.setItem(PERIOD_MONTHS_KEY, String(months)); } catch {
+    // stocare indisponibila — preferinta ramane activa doar pentru sesiunea curenta
+  }
+}
 
 export function readCoveredUntil(): number | null {
   try {
@@ -32,6 +64,29 @@ export function writeCoveredUntil(ms: number): void {
   try { localStorage.setItem(COVERED_UNTIL_KEY, String(ms)); } catch {
     // stocare indisponibila — supervizorul poate recomanda aceeasi perioada din nou la urmatoarea vizita
   }
+}
+
+function dayKey(now: Date): string {
+  return `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
+}
+
+/** "Inchide" bannerul de pe Acasa DOAR pentru ziua curenta (nu permanent) — acelasi tipar ca state/memories.ts. Panoul complet ramane accesibil oricand din Meniu. */
+export function readSupervisorBannerDismissedDate(): string | null {
+  try {
+    return localStorage.getItem(BANNER_DISMISSED_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function writeSupervisorBannerDismissedDate(now: Date = new Date()): void {
+  try { localStorage.setItem(BANNER_DISMISSED_KEY, dayKey(now)); } catch {
+    // stocare indisponibila — bannerul poate reaparea la urmatoarea vizita
+  }
+}
+
+export function isSupervisorBannerDismissedToday(dismissedDate: string | null, now: Date = new Date()): boolean {
+  return dismissedDate === dayKey(now);
 }
 
 export interface GalleryPeriod {
@@ -55,4 +110,49 @@ export function computeNextPeriod(opts: {
   if (start >= opts.nowMs) return null;
   const end = Math.min(start + periodMs, opts.nowMs);
   return { start, end };
+}
+
+export interface GalleryPeriodEntry extends GalleryPeriod {
+  /** true daca perioada e in intregime inaintea cursorului — deja recomandata/adusa anterior. */
+  covered: boolean;
+}
+
+/**
+ * TOATE perioadele consecutive, de la cea mai veche poza pana acum — pentru
+ * selectorul calendaristic manual (cerinta directa: "poti face selectorul
+ * gen calendaristic"), fiecare marcata daca a fost deja acoperita de cursor.
+ * Plafonat implicit la 240 de intrari (20 de ani la perioade de o luna) —
+ * plasa de siguranta pentru o data eronata din galerie (EXIF/MediaStore
+ * corupt), nu o limita reala pentru o utilizare normala.
+ */
+const MAX_PERIOD_ENTRIES = 240;
+
+export function listAllPeriods(opts: {
+  earliestMs: number;
+  nowMs: number;
+  coveredUntilMs: number | null;
+  periodMs: number;
+}): GalleryPeriodEntry[] {
+  const { earliestMs, nowMs, periodMs } = opts;
+  if (earliestMs >= nowMs || periodMs <= 0) return [];
+  const coveredUntilMs = opts.coveredUntilMs ?? earliestMs;
+  const periods: GalleryPeriodEntry[] = [];
+  let cursor = earliestMs;
+  while (cursor < nowMs && periods.length < MAX_PERIOD_ENTRIES) {
+    const end = Math.min(cursor + periodMs, nowMs);
+    periods.push({ start: cursor, end, covered: end <= coveredUntilMs });
+    cursor = end;
+  }
+  return periods;
+}
+
+/**
+ * true daca perioada a fost (macar partial) deja acoperita — folosit ca sa
+ * ceara confirmare inainte de a re-aduce o perioada deja sortata ("sa intrebe
+ * utilizatorii daca selecteaza o perioada deja sortata daca vor sa o faca
+ * din nou").
+ */
+export function isPeriodAlreadyCovered(period: GalleryPeriod, coveredUntilMs: number | null): boolean {
+  if (coveredUntilMs === null) return false;
+  return period.start < coveredUntilMs;
 }

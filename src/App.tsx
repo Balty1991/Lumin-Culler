@@ -92,6 +92,7 @@ const SearchPanel = lazyPanel(() => import('./ui/SearchPanel').then(m => ({ defa
 const DocumentShieldPanel = lazyPanel(() => import('./ui/DocumentShieldPanel').then(m => ({ default: m.DocumentShieldPanel })));
 const VaultPanel = lazyPanel(() => import('./ui/VaultPanel').then(m => ({ default: m.VaultPanel })));
 const DuplicatesPanel = lazyPanel(() => import('./ui/DuplicatesPanel').then(m => ({ default: m.DuplicatesPanel })));
+const GallerySupervisorPanel = lazyPanel(() => import('./ui/GallerySupervisorPanel').then(m => ({ default: m.GallerySupervisorPanel })));
 const CommandPalette = lazyPanel(() => import('./ui/CommandPalette').then(m => ({ default: m.CommandPalette })));
 const ShortcutsPanel = lazyPanel(() => import('./ui/ShortcutsPanel').then(m => ({ default: m.ShortcutsPanel })));
 const ContactSheet = lazyPanel(() => import('./ui/ContactSheet').then(m => ({ default: m.ContactSheet })));
@@ -761,6 +762,7 @@ export default function App() {
         <DocumentShieldPanel />
         <VaultPanel />
         <DuplicatesPanel />
+        <GallerySupervisorPanel />
         <ConfirmDialog />
       </>
     );
@@ -1175,6 +1177,7 @@ export default function App() {
       <DocumentShieldPanel />
       <VaultPanel />
       <DuplicatesPanel />
+      <GallerySupervisorPanel />
       <MenuDrawer />
       <CommandPalette />
       <ShortcutsPanel />
