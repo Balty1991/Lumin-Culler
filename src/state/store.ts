@@ -36,6 +36,7 @@ import { isNativeMediaLibraryAvailable, deleteNativePhotos, readGalleryOverview 
 import { readStoredTheme, applyTheme, type Theme } from './theme';
 import { readStoredAccent, applyAccent, type AccentTheme } from './accentTheme';
 import { readAccessibleMode, applyAccessibleMode } from '../core/accessibleMode';
+import { readSmartNotificationEnabled, writeSmartNotificationEnabled } from './smartNotification';
 import {
   readZenMode, writeZenMode,
   readZenAutoDeleteObvious, writeZenAutoDeleteObvious,
@@ -60,6 +61,10 @@ import { parseClientFeedbackFile } from '../core/export/clientFeedback';
 import { downloadBlob } from '../core/export/directoryPicker';
 import { buildSessionReportText } from '../core/export/sessionReport';
 import { computeLibraryStats } from '../core/stats';
+import {
+  getOrCreateVaultCollection, setVaultPin as coreSetVaultPin, verifyVaultPin,
+  clearVaultPin as coreClearVaultPin, isVaultUnlockedInSession, setVaultUnlockedInSession
+} from '../core/vault';
 
 /** Cerere activa de dialog tematizat (vezi askConfirm/askPrompt mai jos) — `resolve` e apelat o singura data, de componenta ConfirmDialog. */
 export type DialogRequest =
@@ -148,6 +153,8 @@ export interface PhotoView {
   sceneSemantic?: string;
   /** Etichete generale de obiect/scena (COCO-80, ex. "dog", "cake", "boat") — vezi AnalysisRecord.sceneTags. */
   sceneTags?: string[];
+  /** Fractiune din cadru acoperita de text OCR (doar Android nativ) — vezi AnalysisRecord.textCoverage si core/documentShield.ts. */
+  textCoverage?: number;
   /** Placeholder minuscul blurat, disponibil sincron — vezi PhotoRecord.lqip. Absent pe importuri vechi. */
   lqip?: string;
   /** Ajustari de baza non-destructive (expunere/contrast/...) — vezi core/imageAdjust.ts si PhotoRecord.edits. Absent = fara ajustari. */
@@ -267,6 +274,27 @@ interface AppState {
   setTripsOpen: (open: boolean) => void;
   tiktokSortOpen: boolean;
   setTiktokSortOpen: (open: boolean) => void;
+  /** Cautare vizuala pe ecran intreg (plan modernizare) — reutilizeaza searchText/sceneTagFilter, doar UI dedicat. */
+  searchPanelOpen: boolean;
+  setSearchPanelOpen: (open: boolean) => void;
+  /** Grupurile serie/duplicat existente (groupId), prezentate ca o lista de revizuit, nu una cate una din grila. */
+  duplicatesPanelOpen: boolean;
+  setDuplicatesPanelOpen: (open: boolean) => void;
+  /** "Protectie documente" — coada de poze care par documente/capturi (vezi core/documentShield.ts), de revizuit una cate una. */
+  documentShieldOpen: boolean;
+  setDocumentShieldOpen: (open: boolean) => void;
+  /** Dosarul privat (vezi core/vault.ts) — folder ascuns din Albume, deblocat cu PIN local (nu biometrie: niciun plugin nu exista inca). */
+  vaultOpen: boolean;
+  setVaultOpen: (open: boolean) => void;
+  /** Deblocat DOAR pentru sesiunea curenta (nu persistat) — un reload cere din nou PIN-ul. */
+  vaultUnlocked: boolean;
+  setupVault: (pin: string) => Promise<void>;
+  unlockVault: (pin: string) => Promise<boolean>;
+  lockVault: () => void;
+  /** Dezactiveaza vaultul: sterge PIN-ul SI muta toate pozele inapoi in galerie normala (folderul ramane, dar isPrivate devine false). */
+  disableVault: () => Promise<void>;
+  moveToVault: (photoIds: string[]) => Promise<void>;
+  removeFromVault: (photoIds: string[]) => Promise<void>;
   createCollection: (name: string) => Promise<CollectionRecord | null>;
   renameCollection: (id: string, name: string) => Promise<void>;
   deleteCollection: (id: string) => Promise<void>;
@@ -327,6 +355,9 @@ interface AppState {
   setAccentTheme: (accent: AccentTheme) => void;
   accessibleMode: boolean;
   setAccessibleMode: (on: boolean) => void;
+  /** "Notificare inteligenta" (vezi state/smartNotification.ts) — opt-in, cere permisiune de notificare cand e pornita. */
+  smartNotificationsEnabled: boolean;
+  setSmartNotificationsEnabled: (on: boolean) => void;
   zenMode: boolean;
   setZenMode: (on: boolean) => void;
   zenAutoDeleteObvious: boolean;
@@ -640,7 +671,8 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     goldenHourDetected: analysis?.goldenHourDetected,
     dominantColors: analysis?.dominantColors,
     sceneSemantic: analysis?.sceneSemantic,
-    sceneTags: analysis?.sceneTags
+    sceneTags: analysis?.sceneTags,
+    textCoverage: analysis?.textCoverage
   };
 }
 
@@ -1050,6 +1082,7 @@ let filteredCache: {
   minRating: number;
   gridSortKey: GridSort['key'];
   gridSortDir: GridSort['dir'];
+  vaultUnlocked: boolean;
   result: PhotoView[];
 } | null = null;
 
@@ -1074,6 +1107,7 @@ let secondaryFilteredCache: {
   dateFrom: number | null;
   dateTo: number | null;
   minRating: number;
+  vaultUnlocked: boolean;
   result: PhotoView[];
 } | null = null;
 
@@ -1097,6 +1131,57 @@ export const useStore = create<AppState>((set, get) => ({
   setTripsOpen: open => set({ tripsOpen: open }),
   tiktokSortOpen: false,
   setTiktokSortOpen: open => set({ tiktokSortOpen: open }),
+  searchPanelOpen: false,
+  setSearchPanelOpen: open => set({ searchPanelOpen: open }),
+  duplicatesPanelOpen: false,
+  setDuplicatesPanelOpen: open => set({ duplicatesPanelOpen: open }),
+  documentShieldOpen: false,
+  setDocumentShieldOpen: open => set({ documentShieldOpen: open }),
+  vaultOpen: false,
+  setVaultOpen: open => set({ vaultOpen: open }),
+  vaultUnlocked: isVaultUnlockedInSession(),
+  setupVault: async pin => {
+    await coreSetVaultPin(pin);
+    setVaultUnlockedInSession(true);
+    set({ vaultUnlocked: true });
+  },
+  unlockVault: async pin => {
+    const ok = await verifyVaultPin(pin);
+    if (ok) { setVaultUnlockedInSession(true); set({ vaultUnlocked: true }); }
+    return ok;
+  },
+  lockVault: () => { setVaultUnlockedInSession(false); set({ vaultUnlocked: false }); },
+  disableVault: async () => {
+    const vault = get().collections.find(c => c.isPrivate);
+    if (vault && vault.memberIds.length) await get().removeFromVault(vault.memberIds);
+    coreClearVaultPin();
+    setVaultUnlockedInSession(false);
+    set({ vaultUnlocked: false });
+  },
+  moveToVault: async photoIds => {
+    if (!photoIds.length) return;
+    const vault = await getOrCreateVaultCollection();
+    const updated = await addPhotosToCollectionRecord(vault.id, photoIds);
+    if (!updated) return;
+    // acelasi motiv ca addPhotosToCollection mai jos: fara originalul persistat,
+    // o poza neselectata mutata in vault n-ar avea ce exporta ulterior din el
+    await Promise.all(photoIds.map(pid => persistOriginalForCollectionMember(pid)));
+    set(state => ({
+      collections: state.collections.some(c => c.id === vault.id)
+        ? state.collections.map(c => (c.id === vault.id ? updated : c))
+        : [...state.collections, updated]
+    }));
+  },
+  removeFromVault: async photoIds => {
+    if (!photoIds.length) return;
+    const vault = get().collections.find(c => c.isPrivate);
+    if (!vault) return;
+    const updated = await removePhotosFromCollectionRecord(vault.id, photoIds);
+    if (!updated) return;
+    const nextCollections = get().collections.map(c => (c.id === vault.id ? updated : c));
+    await Promise.all(photoIds.map(pid => cleanupOrphanedOriginal(pid, nextCollections)));
+    set({ collections: nextCollections });
+  },
   createCollection: async name => {
     const record = await createCollectionRecord(name);
     if (!record) return null;
@@ -1205,6 +1290,18 @@ export const useStore = create<AppState>((set, get) => ({
   setAccentTheme: accent => { applyAccent(accent); set({ accentTheme: accent }); },
   accessibleMode: readAccessibleMode(),
   setAccessibleMode: on => { applyAccessibleMode(on); set({ accessibleMode: on }); },
+  smartNotificationsEnabled: readSmartNotificationEnabled(),
+  setSmartNotificationsEnabled: on => {
+    writeSmartNotificationEnabled(on);
+    set({ smartNotificationsEnabled: on });
+    // Cerem permisiunea DOAR la activare explicita (nu silentios la boot) — daca
+    // e refuzata, comutatorul ramane pornit (preferinta utilizatorului), dar
+    // SmartNotification.tsx nu va afisa niciodata nimic pana userul o permite
+    // manual din setarile browserului/sistemului.
+    if (on && typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      void Notification.requestPermission();
+    }
+  },
   zenMode: readZenMode(),
   setZenMode: on => { writeZenMode(on); set({ zenMode: on }); },
   zenAutoDeleteObvious: readZenAutoDeleteObvious(),
@@ -2740,7 +2837,7 @@ export const useStore = create<AppState>((set, get) => ({
   bestInGroupIds: () => computeBestInGroupIds(get().photos),
 
   filtered: () => {
-    const { photos, filter, personFilter, colorLabelFilter, sceneTagFilter, projectFilter, collectionFilter, collections, cameraFilter, searchText, locale, dateFrom, dateTo, minRating, gridSort } = get();
+    const { photos, filter, personFilter, colorLabelFilter, sceneTagFilter, projectFilter, collectionFilter, collections, cameraFilter, searchText, locale, dateFrom, dateTo, minRating, gridSort, vaultUnlocked } = get();
     const c = filteredCache;
     if (
       c && c.photos === photos && c.filter === filter && c.personFilter === personFilter &&
@@ -2748,33 +2845,45 @@ export const useStore = create<AppState>((set, get) => ({
       c.cameraFilter === cameraFilter && c.projectFilter === projectFilter &&
       c.collectionFilter === collectionFilter && c.collections === collections &&
       c.searchText === searchText && c.locale === locale && c.dateFrom === dateFrom && c.dateTo === dateTo &&
-      c.minRating === minRating && c.gridSortKey === gridSort.key && c.gridSortDir === gridSort.dir
+      c.minRating === minRating && c.gridSortKey === gridSort.key && c.gridSortDir === gridSort.dir &&
+      c.vaultUnlocked === vaultUnlocked
     ) {
       return c.result;
     }
+    // Dosarul privat (core/vault.ts) e ascuns din grila principala cat timp nu e
+    // deblocat cu PIN in aceasta sesiune — vezi VaultPanel.tsx pentru singurul
+    // loc unde continutul lui e vizibil altfel.
+    let photosVisible = photos;
+    if (!vaultUnlocked) {
+      const vault = collections.find(col => col.isPrivate);
+      if (vault?.memberIds.length) {
+        const hidden = new Set(vault.memberIds);
+        photosVisible = photos.filter(p => !hidden.has(p.id));
+      }
+    }
     let base: PhotoView[];
     switch (filter) {
-      case 'selected': base = photos.filter(p => p.status === 'selected'); break;
+      case 'selected': base = photosVisible.filter(p => p.status === 'selected'); break;
       // "de verificat" incepe sortat dupa cat de aproape e scorul de UN prag
       // (select sau reject) — pozele aproape de prag sunt decizii rapide/usoare,
       // cele din mijlocul benzii (aproape de scor 50) sunt cele cu adevarat
       // ambigue si raman la coada, ca sa treci intai prin cele multe si usoare.
       case 'review':
-        base = photos.filter(p => p.status === 'review')
+        base = photosVisible.filter(p => p.status === 'review')
           .sort((a, b) => reviewProximity(a.aiScore) - reviewProximity(b.aiScore));
         break;
-      case 'rejected': base = photos.filter(p => p.status === 'rejected'); break;
-      case 'blinks': base = selectBlinks(photos); break;
-      case 'goldenHour': base = photos.filter(p => p.goldenHourDetected); break;
-      case 'highlights': base = selectHighlights(photos); break;
+      case 'rejected': base = photosVisible.filter(p => p.status === 'rejected'); break;
+      case 'blinks': base = selectBlinks(photosVisible); break;
+      case 'goldenHour': base = photosVisible.filter(p => p.goldenHourDetected); break;
+      case 'highlights': base = selectHighlights(photosVisible); break;
       case 'series': {
-        const withGroup = photos.filter(p => p.groupId);
+        const withGroup = photosVisible.filter(p => p.groupId);
         base = withGroup.sort((a, b) =>
           a.groupId === b.groupId ? b.aiScore - a.aiScore : (a.groupId! < b.groupId! ? -1 : 1)
         );
         break;
       }
-      default: base = photos;
+      default: base = photosVisible;
     }
     // filtru dupa persoana cunoscuta — combinabil cu orice alt filtru de mai sus
     // (ex. "Selectate" + "Ami" = pozele selectate in care apare Ami), nu un
@@ -2822,7 +2931,7 @@ export const useStore = create<AppState>((set, get) => ({
       photos, filter, personFilter, colorLabelFilter, sceneTagFilter, cameraFilter, projectFilter,
       collectionFilter, collections,
       searchText, locale, dateFrom, dateTo, minRating, gridSortKey: gridSort.key, gridSortDir: gridSort.dir,
-      result: base
+      vaultUnlocked, result: base
     };
     return base;
   },
@@ -2839,7 +2948,7 @@ export const useStore = create<AppState>((set, get) => ({
    * numaram aici, deci trebuie sarit).
    */
   secondaryFiltered: () => {
-    const { photos, personFilter, colorLabelFilter, sceneTagFilter, cameraFilter, projectFilter, collectionFilter, collections, searchText, locale, dateFrom, dateTo, minRating } = get();
+    const { photos, personFilter, colorLabelFilter, sceneTagFilter, cameraFilter, projectFilter, collectionFilter, collections, searchText, locale, dateFrom, dateTo, minRating, vaultUnlocked } = get();
     const c = secondaryFilteredCache;
     if (
       c && c.photos === photos && c.personFilter === personFilter &&
@@ -2847,11 +2956,18 @@ export const useStore = create<AppState>((set, get) => ({
       c.cameraFilter === cameraFilter && c.projectFilter === projectFilter &&
       c.collectionFilter === collectionFilter && c.collections === collections &&
       c.searchText === searchText && c.locale === locale && c.dateFrom === dateFrom && c.dateTo === dateTo &&
-      c.minRating === minRating
+      c.minRating === minRating && c.vaultUnlocked === vaultUnlocked
     ) {
       return c.result;
     }
     let base = photos;
+    if (!vaultUnlocked) {
+      const vault = collections.find(col => col.isPrivate);
+      if (vault?.memberIds.length) {
+        const hidden = new Set(vault.memberIds);
+        base = base.filter(p => !hidden.has(p.id));
+      }
+    }
     if (personFilter) base = base.filter(p => p.personNames.includes(personFilter));
     if (colorLabelFilter) base = base.filter(p => (p.colorLabel ?? 'none') === colorLabelFilter);
     if (sceneTagFilter) base = base.filter(p => p.sceneTags?.includes(sceneTagFilter));
@@ -2872,7 +2988,7 @@ export const useStore = create<AppState>((set, get) => ({
     if (minRating > 0) base = base.filter(p => p.rating >= minRating);
     secondaryFilteredCache = {
       photos, personFilter, colorLabelFilter, sceneTagFilter, cameraFilter, projectFilter,
-      collectionFilter, collections, searchText, locale, dateFrom, dateTo, minRating, result: base
+      collectionFilter, collections, searchText, locale, dateFrom, dateTo, minRating, vaultUnlocked, result: base
     };
     return base;
   },

@@ -2851,3 +2851,91 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     width: 100%; max-width: calc(44vh * var(--photo-aspect, 1)); margin-inline: auto;
   }
 }
+
+/* ===================================================================
+   Cautare vizuala / Protectie documente / Dosar privat / Duplicate gasite
+   (plan modernizare, mockup HTML de prezentare) — patru ecrane noi, toate
+   reutilizand tiparele vizuale deja stabilite mai sus (.detail-inner.narrow
+   pentru modal, .glass pentru carduri, .chip pentru sugestii, .memory-grid/
+   .memory-thumb pentru grile de miniaturi).
+   =================================================================== */
+
+/* -- Acasa: card "poza sensibila gasita" — acelasi limbaj ca .home-recap-card
+   (gradient border violet-turcoaz, functie informativa/AI, nu distructiva ca
+   .home-delete-cta, care ramane rosie). */
+.home-shield-cta {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius);
+  text-align: left; width: 100%; margin-bottom: 9px;
+  background-image: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--accent-gradient);
+  background-origin: border-box; background-clip: padding-box, border-box; border: 1px solid transparent;
+  box-shadow: var(--shadow-lg), 0 0 22px -12px rgb(var(--accent-2-rgb) / 0.5);
+}
+.home-shield-icon { width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: rgb(var(--accent-rgb) / 0.16); color: var(--accent); }
+.home-shield-icon svg { width: 16px; height: 16px; }
+.home-shield-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.home-shield-text b { font-size: 0.84rem; color: var(--text); }
+.home-shield-text span { font-size: 0.72rem; color: var(--text-dim); }
+
+/* -- Cautare vizuala -- */
+.search-panel-bar {
+  display: flex; align-items: center; gap: 8px; padding: 10px 13px; border-radius: var(--radius); margin: 4px 0 12px;
+}
+.search-panel-bar .inline-icon { width: 16px; height: 16px; color: var(--text-dim); flex-shrink: 0; }
+.search-panel-bar input {
+  flex: 1; min-width: 0; background: none; border: none; outline: none; color: var(--text); font-size: 0.92rem;
+}
+.search-panel-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.search-panel-results-label {
+  display: flex; align-items: center; gap: 6px; font-size: 0.72rem; color: var(--text-dim); margin-bottom: 8px;
+}
+.search-panel-results-label .inline-icon { width: 13px; height: 13px; color: var(--accent); }
+.search-panel-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.search-result-thumb {
+  position: relative; aspect-ratio: 1/1; border-radius: 9px; overflow: hidden; padding: 0; background: var(--skeleton-a);
+}
+.search-result-thumb img, .search-result-thumb canvas { width: 100%; height: 100%; object-fit: cover; display: block; }
+.search-result-lqip { position: absolute; inset: 0; filter: blur(8px); transform: scale(1.1); }
+.search-panel-empty, .search-panel-more { text-align: center; margin-top: 16px; }
+
+/* -- Protectie documente (coada de revizuit, o poza pe rand) -- */
+.shield-preview {
+  border-radius: var(--radius); overflow: hidden; background: var(--surface-2); margin-bottom: 14px;
+  aspect-ratio: 4/3; display: flex; align-items: center; justify-content: center;
+}
+.shield-preview-img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.shield-preview-loading { display: block; width: 100%; height: 100%; background: var(--skeleton-a); }
+.shield-question { font-size: 0.98rem; font-weight: 800; margin: 0 0 4px; text-align: center; }
+.shield-row { display: flex; gap: 8px; margin-top: 14px; }
+.shield-row button { flex: 1; justify-content: center; text-align: center; padding: 11px; border-radius: 13px; }
+.shield-remaining { text-align: center; margin-top: 10px; }
+.shield-empty { text-align: center; margin-top: 16px; }
+
+/* -- Dosar privat -- */
+.vault-form { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+.vault-form input {
+  padding: 11px 13px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--surface);
+  color: var(--text); font-size: 1rem; letter-spacing: 0.3em; text-align: center;
+}
+.vault-form input:focus { outline: none; border-color: var(--accent); }
+.vault-toolbar { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+.vault-thumb-wrap { position: relative; }
+.vault-thumb-wrap .memory-thumb { width: 100%; height: auto; aspect-ratio: 3/4; border-radius: 10px; }
+.vault-thumb-remove {
+  position: absolute; top: 4px; right: 4px; width: 24px; height: 24px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.55); color: #fff;
+}
+.vault-thumb-remove svg { width: 13px; height: 13px; }
+
+/* -- Duplicate gasite (lista de grupuri, fiecare cu perechea de miniaturi + decizie rapida) -- */
+.duplicates-list { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.duplicates-group { display: flex; gap: 10px; padding: 10px; border-radius: var(--radius); align-items: center; }
+.duplicates-pair { display: flex; gap: 4px; flex-shrink: 0; }
+.duplicates-thumb { position: relative; width: 56px; height: 56px; border-radius: 9px; overflow: hidden; display: block; }
+.duplicates-thumb img, .duplicates-thumb canvas { width: 100%; height: 100%; object-fit: cover; display: block; }
+.duplicates-best {
+  position: absolute; bottom: 2px; right: 2px; width: 18px; height: 18px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; background: var(--pick); color: #06200f;
+}
+.duplicates-best svg { width: 11px; height: 11px; }
+.duplicates-group-info { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
+.duplicates-group-actions { display: flex; gap: 8px; flex-wrap: wrap; }

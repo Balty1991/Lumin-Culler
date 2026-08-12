@@ -6,9 +6,11 @@ import { selectMonthlyRecap } from '../state/monthlyRecap';
 import { selectDeletableRejected } from '../state/batchOps';
 import { sumKnownSizeBytes, formatGB } from '../state/storageStats';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
+import { selectPendingShieldReview, readShieldDismissedIds } from '../core/documentShield';
+import { selectUnresolvedGroups } from '../state/duplicateGroups';
 import { AnimatedNumber } from './AnimatedNumber';
 import { GalleryOverviewNote } from './GalleryOverviewNote';
-import { SparkleIcon, PinIcon, ChevronUpIcon } from './icons';
+import { SparkleIcon, PinIcon, ChevronUpIcon, ShieldIcon, CopyIcon } from './icons';
 import { t, plural } from '../i18n';
 
 const RECAP_TEASER_MIN_PHOTOS = 5; // sub atat, un "recap" nu chiar inseamna nimic
@@ -42,6 +44,9 @@ export function HomeDashboard() {
   const setPresentationOpen = useStore(s => s.setPresentationOpen);
   const setTripsOpen = useStore(s => s.setTripsOpen);
   const setTiktokSortOpen = useStore(s => s.setTiktokSortOpen);
+  const setDocumentShieldOpen = useStore(s => s.setDocumentShieldOpen);
+  const setDuplicatesPanelOpen = useStore(s => s.setDuplicatesPanelOpen);
+  const collections = useStore(s => s.collections);
   const deleteRejectedPhotos = useStore(s => s.deleteRejectedPhotos);
   const askConfirm = useStore(s => s.askConfirm);
   const [deleting, setDeleting] = useState(false);
@@ -52,6 +57,11 @@ export function HomeDashboard() {
   const tripCount = useMemo(() => findTrips(photos).length, [photos]);
   const recapPhotos = useMemo(() => selectMonthlyRecap(photos, now), [photos]); // eslint-disable-line react-hooks/exhaustive-deps
   const { deletable: deletableRejected } = useMemo(() => selectDeletableRejected(photos), [photos]);
+  const shieldPendingCount = useMemo(() => {
+    const vaultIds = new Set(collections.find(c => c.isPrivate)?.memberIds ?? []);
+    return selectPendingShieldReview(photos, vaultIds, readShieldDismissedIds()).length;
+  }, [photos, collections]);
+  const duplicateGroupCount = useMemo(() => selectUnresolvedGroups(photos).length, [photos]);
 
   if (photos.length === 0) return null;
 
@@ -129,7 +139,17 @@ export function HomeDashboard() {
         </div>
       )}
 
-      {(streak > 1 || tripCount > 0) && (
+      {shieldPendingCount > 0 && (
+        <button className="home-shield-cta" onClick={() => setDocumentShieldOpen(true)}>
+          <span className="home-shield-icon" aria-hidden="true"><ShieldIcon /></span>
+          <span className="home-shield-text">
+            <b>{tr(plural(shieldPendingCount, 'shield.home.title.one', 'shield.home.title.other'), { count: shieldPendingCount })}</b>
+            <span>{tr('shield.home.sub')}</span>
+          </span>
+        </button>
+      )}
+
+      {(streak > 1 || tripCount > 0 || duplicateGroupCount > 0) && (
         <div className="home-stat-row">
           {streak > 1 && (
             <div className="home-mini-card glass">
@@ -141,6 +161,12 @@ export function HomeDashboard() {
             <button className="home-mini-card glass home-mini-card-btn" onClick={() => setTripsOpen(true)}>
               <span className="home-mini-num"><PinIcon className="inline-icon" aria-hidden="true" /> <AnimatedNumber value={tripCount} /></span>
               <span className="home-mini-lbl">{tr(plural(tripCount, 'home.trips.label.one', 'home.trips.label.other'), { count: tripCount })}</span>
+            </button>
+          )}
+          {duplicateGroupCount > 0 && (
+            <button className="home-mini-card glass home-mini-card-btn" onClick={() => setDuplicatesPanelOpen(true)}>
+              <span className="home-mini-num"><CopyIcon className="inline-icon" aria-hidden="true" /> <AnimatedNumber value={duplicateGroupCount} /></span>
+              <span className="home-mini-lbl">{tr(plural(duplicateGroupCount, 'duplicates.count.one', 'duplicates.count.other'), { count: duplicateGroupCount })}</span>
             </button>
           )}
         </div>

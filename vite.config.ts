@@ -26,6 +26,29 @@ export default defineConfig({
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
           { src: 'icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
+        ],
+        // "Widget pe ecranul principal" (plan modernizare, mockup m-widget) — un
+        // widget nativ real (Android AppWidgetProvider/Glance) ar cere cod Kotlin
+        // separat, in afara acestui strat web/Capacitor, deci NU e livrat aici.
+        // App shortcuts sunt echivalentul realist accesibil din acest strat:
+        // apasare lunga pe iconita PWA instalata arata direct aceste 2 actiuni,
+        // fara sa mai deschizi intai aplicatia — vezi App.tsx (citeste ?action=
+        // o singura data la pornire) pentru handling-ul lor.
+        shortcuts: [
+          {
+            name: 'Sortare rapida',
+            short_name: 'Sortare',
+            description: 'Deschide direct sortarea stil TikTok',
+            url: './?action=sort',
+            icons: [{ src: 'icon-192.png', sizes: '192x192', type: 'image/png' }]
+          },
+          {
+            name: 'Adauga poze',
+            short_name: 'Adauga',
+            description: 'Deschide direct selectorul de poze',
+            url: './?action=add',
+            icons: [{ src: 'icon-192.png', sizes: '192x192', type: 'image/png' }]
+          }
         ]
       },
       workbox: {

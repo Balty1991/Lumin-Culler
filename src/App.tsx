@@ -41,6 +41,7 @@ import { HomeDashboard } from './ui/HomeDashboard';
 import { GalleryOverviewNote } from './ui/GalleryOverviewNote';
 import { BottomNav } from './ui/BottomNav';
 import { WelcomeOnboarding } from './ui/WelcomeOnboarding';
+import { SmartNotification } from './ui/SmartNotification';
 import { t } from './i18n';
 
 /**
@@ -86,6 +87,10 @@ const CollectionsPanel = lazyPanel(() => import('./ui/CollectionsPanel').then(m 
 const TripsPanel = lazyPanel(() => import('./ui/TripsPanel').then(m => ({ default: m.TripsPanel })));
 const TikTokSort = lazyPanel(() => import('./ui/TikTokSort').then(m => ({ default: m.TikTokSort })));
 const ZenModePanel = lazyPanel(() => import('./ui/ZenModePanel').then(m => ({ default: m.ZenModePanel })));
+const SearchPanel = lazyPanel(() => import('./ui/SearchPanel').then(m => ({ default: m.SearchPanel })));
+const DocumentShieldPanel = lazyPanel(() => import('./ui/DocumentShieldPanel').then(m => ({ default: m.DocumentShieldPanel })));
+const VaultPanel = lazyPanel(() => import('./ui/VaultPanel').then(m => ({ default: m.VaultPanel })));
+const DuplicatesPanel = lazyPanel(() => import('./ui/DuplicatesPanel').then(m => ({ default: m.DuplicatesPanel })));
 const CommandPalette = lazyPanel(() => import('./ui/CommandPalette').then(m => ({ default: m.CommandPalette })));
 const ShortcutsPanel = lazyPanel(() => import('./ui/ShortcutsPanel').then(m => ({ default: m.ShortcutsPanel })));
 const ContactSheet = lazyPanel(() => import('./ui/ContactSheet').then(m => ({ default: m.ContactSheet })));
@@ -277,6 +282,7 @@ export default function App() {
   const filtered = useStore(s => s.filtered());
   const workspaceMode = useStore(s => s.workspaceMode);
   const setWorkspaceMode = useStore(s => s.setWorkspaceMode);
+  const setTiktokSortOpen = useStore(s => s.setTiktokSortOpen);
   const undo = useStore(s => s.undo);
   const setPaletteOpen = useStore(s => s.setPaletteOpen);
   const multiSelectIds = useStore(s => s.multiSelectIds);
@@ -300,6 +306,8 @@ export default function App() {
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const fileRef = useRef<HTMLInputElement>(null);
   const pickerWatchdogRef = useRef<PickerWatchdog | null>(null);
+  /** "?action=sort" (App shortcuts) — asteapta pana boot() incarca poze, vezi efectul de mai jos. */
+  const pendingSortShortcutRef = useRef(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; photoId: string } | null>(null);
   const dragSelectRef = useRef<{ originId: string; adding: boolean; visited: Set<string>; dragged: boolean } | null>(null);
   const longPressTimerRef = useRef<number | null>(null);
@@ -530,6 +538,29 @@ export default function App() {
     fileRef.current?.click();
   };
 
+  // App shortcuts (vite.config.ts, apasare lunga pe iconita PWA instalata) —
+  // "?action=sort"/"?action=add" in URL la pornire. Curatam parametrul din
+  // URL imediat (altfel un refresh manual ulterior redeschide acelasi ecran
+  // la nesfarsit), dar actiunea 'sort' asteapta pana exista poze de sortat
+  // (boot() e async, la primul randare `photos` e inca gol).
+  useEffect(() => {
+    const action = new URLSearchParams(window.location.search).get('action');
+    if (!action) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete('action');
+    window.history.replaceState({}, '', url);
+    if (action === 'add') void onAddPhotosClick();
+    else if (action === 'sort') pendingSortShortcutRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- doar la montare, citeste URL-ul initial o singura data
+  }, []);
+
+  useEffect(() => {
+    if (pendingSortShortcutRef.current && photos.length > 0) {
+      pendingSortShortcutRef.current = false;
+      setTiktokSortOpen(true);
+    }
+  }, [photos.length, setTiktokSortOpen]);
+
   /**
    * Editare in masa a descrierii/cuvintelor-cheie IPTC (plan "modernizare") —
    * pre-completeaza cu valoarea curenta DOAR daca toate pozele din selectie o
@@ -698,6 +729,7 @@ export default function App() {
     return (
       <>
         <Toast />
+        <SmartNotification />
         <HomeDashboard />
         <div className="banner-stack">
           <MemoryBanner />
@@ -721,6 +753,10 @@ export default function App() {
         <TripsPanel />
         <TikTokSort />
         <ZenModePanel />
+        <SearchPanel />
+        <DocumentShieldPanel />
+        <VaultPanel />
+        <DuplicatesPanel />
         <ConfirmDialog />
       </>
     );
@@ -1117,6 +1153,10 @@ export default function App() {
       <TripsPanel />
       <TikTokSort />
       <ZenModePanel />
+      <SearchPanel />
+      <DocumentShieldPanel />
+      <VaultPanel />
+      <DuplicatesPanel />
       <MenuDrawer />
       <CommandPalette />
       <ShortcutsPanel />

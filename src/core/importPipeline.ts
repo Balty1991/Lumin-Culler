@@ -61,8 +61,13 @@ export const REJECT_THRESHOLD = 35;
  * eticheta COCO/scena (ex. "carte", "laptop") fara sa fie un subiect
  * fotografic real. Absent pe web/PWA (fara OCR acolo) — conditia devine
  * mereu falsa, deci fara efect.
+ *
+ * Exportat: core/documentShield.ts reutilizeaza acelasi prag pentru
+ * "poza asta pare document/document sensibil" (UI de protectie, plan
+ * modernizare) — un singur numar de calibrat, nu doua praguri care ar
+ * putea diverge silentios.
  */
-const TEXT_DOMINANT_THRESHOLD = 0.15;
+export const TEXT_DOMINANT_THRESHOLD = 0.15;
 
 function hasNoRecognizableSubject(analysis: Pick<AnalysisRecord, 'faceCount' | 'sceneTags' | 'textCoverage'>): boolean {
   if (analysis.textCoverage !== undefined && analysis.textCoverage >= TEXT_DOMINANT_THRESHOLD) return true;
