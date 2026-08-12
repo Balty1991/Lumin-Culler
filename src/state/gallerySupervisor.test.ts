@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-  computeNextPeriod, SUPERVISOR_PERIOD_MS, periodMonthsToMs, listAllPeriods, isPeriodAlreadyCovered,
-  isSupervisorBannerDismissedToday
+  computeNextPeriod, computeRemainingPeriod, SUPERVISOR_PERIOD_MS, periodMonthsToMs, listAllPeriods,
+  isPeriodAlreadyCovered, isSupervisorBannerDismissedToday
 } from './gallerySupervisor';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -51,6 +51,28 @@ describe('periodMonthsToMs', () => {
     expect(periodMonthsToMs(1) * 2).toBe(periodMonthsToMs(2));
     expect(periodMonthsToMs(2)).toBe(SUPERVISOR_PERIOD_MS);
     expect(periodMonthsToMs(3) > periodMonthsToMs(2)).toBe(true);
+  });
+});
+
+describe('computeRemainingPeriod', () => {
+  it('spans from the earliest photo to now when nothing was covered yet', () => {
+    const earliestMs = 1_000_000;
+    const nowMs = earliestMs + 365 * DAY;
+    const period = computeRemainingPeriod({ earliestMs, nowMs, coveredUntilMs: null });
+    expect(period).toEqual({ start: earliestMs, end: nowMs });
+  });
+
+  it('spans from the cursor to now, in one single period', () => {
+    const earliestMs = 1_000_000;
+    const coveredUntilMs = earliestMs + 40 * DAY;
+    const nowMs = coveredUntilMs + 300 * DAY;
+    const period = computeRemainingPeriod({ earliestMs, nowMs, coveredUntilMs });
+    expect(period).toEqual({ start: coveredUntilMs, end: nowMs });
+  });
+
+  it('returns null once fully caught up', () => {
+    const nowMs = 1_000_000;
+    expect(computeRemainingPeriod({ earliestMs: 0, nowMs, coveredUntilMs: nowMs })).toBeNull();
   });
 });
 

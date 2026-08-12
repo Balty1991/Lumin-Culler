@@ -4,8 +4,17 @@ import { useModalFocusTrap } from './useModalFocusTrap';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { isPeriodAlreadyCovered, PERIOD_MONTH_OPTIONS, type GalleryPeriod, type PeriodMonths } from '../state/gallerySupervisor';
 import { formatPeriod } from './GallerySupervisorBanner';
-import { ClockIcon, XIcon, FolderIcon, CheckIcon } from './icons';
+import { ClockIcon, XIcon, FolderIcon, CheckIcon, GridIcon } from './icons';
 import { t, plural } from '../i18n';
+
+type Tr = (key: string, params?: Record<string, string | number>) => string;
+
+/** 0.5/12 sunt cazuri speciale ("2 saptamani"/"1 an"), nu doar "N luni" — restul folosesc pluralul normal. */
+function periodMonthsLabel(months: PeriodMonths, tr: Tr): string {
+  if (months === 0.5) return tr('gallerySupervisor.months.half');
+  if (months === 12) return tr('gallerySupervisor.months.year');
+  return tr(plural(months, 'gallerySupervisor.months.one', 'gallerySupervisor.months.other'), { count: months });
+}
 
 /**
  * Panoul complet al "Supervizorului galeriei" — cerinta directa a
@@ -31,6 +40,7 @@ export function GallerySupervisorPanel() {
   const supervisorCoveredUntil = useStore(s => s.supervisorCoveredUntil);
   const nextPeriod = useStore(s => s.supervisorNextPeriod());
   const allPeriods = useStore(s => s.supervisorAllPeriods());
+  const remainingPeriod = useStore(s => s.supervisorRemainingPeriod());
   const importGalleryPeriod = useStore(s => s.importGalleryPeriod);
   const supervisorImporting = useStore(s => s.supervisorImporting);
   const askConfirm = useStore(s => s.askConfirm);
@@ -38,6 +48,7 @@ export function GallerySupervisorPanel() {
   const galleryFolders = useStore(s => s.galleryFolders);
   const loadGalleryFolders = useStore(s => s.loadGalleryFolders);
   const importGalleryFolder = useStore(s => s.importGalleryFolder);
+  const importAllGalleryFolders = useStore(s => s.importAllGalleryFolders);
 
   useEffect(() => {
     if (!open || !isNativeMediaLibraryAvailable()) return;
@@ -61,6 +72,21 @@ export function GallerySupervisorPanel() {
       if (!ok) return;
     }
     await importGalleryPeriod(period);
+  };
+
+  const bringRemaining = async () => {
+    if (!remainingPeriod || supervisorImporting) return;
+    const ok = await askConfirm(tr('gallerySupervisor.remaining.confirm', { period: formatPeriod(remainingPeriod.start, remainingPeriod.end, locale) }));
+    if (!ok) return;
+    await importGalleryPeriod(remainingPeriod);
+  };
+
+  const bringAllFolders = async () => {
+    if (supervisorImporting || !galleryFolders?.folders.length) return;
+    const total = galleryFolders.folders.reduce((sum, f) => sum + f.count, 0);
+    const ok = await askConfirm(tr('gallerySupervisor.allFolders.confirm', { count: total }));
+    if (!ok) return;
+    await importAllGalleryFolders();
   };
 
   return (
@@ -87,7 +113,7 @@ export function GallerySupervisorPanel() {
                     className={supervisorPeriodMonths === months ? 'chip active' : 'chip'}
                     onClick={() => setSupervisorPeriodMonths(months as PeriodMonths)}
                   >
-                    {tr(plural(months, 'gallerySupervisor.months.one', 'gallerySupervisor.months.other'), { count: months })}
+                    {periodMonthsLabel(months as PeriodMonths, tr)}
                   </button>
                 ))}
               </div>
@@ -105,6 +131,12 @@ export function GallerySupervisorPanel() {
                   <b>{tr('gallerySupervisor.title')}</b>
                   <span>{formatPeriod(nextPeriod.start, nextPeriod.end, locale)}</span>
                 </span>
+              </button>
+            )}
+
+            {remainingPeriod && (
+              <button type="button" className="ghost supervisor-remaining-cta" disabled={supervisorImporting} onClick={() => void bringRemaining()}>
+                {tr('gallerySupervisor.remaining.cta', { period: formatPeriod(remainingPeriod.start, remainingPeriod.end, locale) })}
               </button>
             )}
 
@@ -134,7 +166,12 @@ export function GallerySupervisorPanel() {
 
             {galleryFolders?.granted && galleryFolders.folders.length > 0 && (
               <div className="supervisor-section">
-                <div className="supervisor-section-label">{tr('gallerySupervisor.folders')}</div>
+                <div className="supervisor-section-head">
+                  <div className="supervisor-section-label">{tr('gallerySupervisor.folders')}</div>
+                  <button type="button" className="ghost small" disabled={supervisorImporting} onClick={() => void bringAllFolders()}>
+                    <GridIcon className="inline-icon" aria-hidden="true" /> {tr('gallerySupervisor.allFolders.cta')}
+                  </button>
+                </div>
                 <div className="supervisor-period-list">
                   {galleryFolders.folders.map(folder => (
                     <button

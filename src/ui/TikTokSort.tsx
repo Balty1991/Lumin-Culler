@@ -14,6 +14,20 @@ const SWIPE_COMMIT = 80; // px de tras (sus SAU jos) pentru a schimba pozitia in
 /** Peste acest numar de poze in coada, punctele individuale de progres (un <i> per poza) ar
     deveni fire de par nefolositoare vizual — cade pe bara continua clasica, cu numarator text. */
 const MAX_PROGRESS_DOTS = 60;
+/** Bug real raportat de utilizator: capturi de ecran/documente (aspect diferit de o poza
+    normala) erau taiate de object-fit:cover, fara nicio cale sa vezi restul cadrului. */
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 4;
+
+function pointerDistance(a: { x: number; y: number }, b: { x: number; y: number }): number {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+function pointerMidpoint(a: { x: number; y: number }, b: { x: number; y: number }): { x: number; y: number } {
+  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+}
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
 
 type AiRecommendation = 'select' | 'review' | 'reject';
 
@@ -89,6 +103,33 @@ export function TikTokSort() {
   const dragYRef = useRef(0);
   const startYRef = useRef(0);
 
+  // Zoom/pan cu 2 degete (plan modernizare, cerinta directa a utilizatorului) —
+  // vezi onStageDown/onStageMove/onStageUp mai jos pentru masina de stari completa
+  // (navigare cu un deget la scala 1x, panoramare cu un deget la scala >1x, zoom
+  // cu 2 degete oricand). zoomScale/zoomPan sunt STARE (pentru randare); *Ref sunt
+  // sursa de adevar in timpul gestului (citite/scrise sincron in handlere, la fel
+  // ca dragYRef de mai sus — fara ele, evenimente pointermove dese ar citi valori
+  // "inghetate" din closure-ul din randarea anterioara).
+  const [zoomScale, setZoomScale] = useState(1);
+  const [zoomPan, setZoomPan] = useState({ x: 0, y: 0 });
+  const zoomScaleRef = useRef(1);
+  const zoomPanRef = useRef({ x: 0, y: 0 });
+  const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const pinchRef = useRef<{ startDistance: number; startScale: number; startPan: { x: number; y: number }; startMid: { x: number; y: number } } | null>(null);
+  const panDragRef = useRef<{ startX: number; startY: number; startPan: { x: number; y: number } } | null>(null);
+  const zoomGestureActiveRef = useRef(false);
+  /** true daca ultimul gest a MISCAT ceva (pan/zoom/swipe) — un tap simplu (fara miscare) pe imagine, cat timp e marita, reseteaza zoom-ul; un tap dupa ce chiar ai panoramat/miscat NU trebuie sa reseteze accidental. */
+  const gestureMovedRef = useRef(false);
+
+  // Fiecare poza noua incepe nemarita — zoom-ul NU se pastreaza intre poze (ar fi
+  // surprinzator sa gasesti urmatoarea poza deja marita 3x din swipe-ul anterior).
+  useEffect(() => {
+    zoomScaleRef.current = 1;
+    zoomPanRef.current = { x: 0, y: 0 };
+    setZoomScale(1);
+    setZoomPan({ x: 0, y: 0 });
+  }, [current?.id]);
+
   useEffect(() => {
     if (!current) { setSrc(null); return; }
     let alive = true;
@@ -130,25 +171,122 @@ export function TikTokSort() {
     goPrev();
   };
 
-  const startDrag = (e: PointerEvent<HTMLDivElement>) => {
-    draggingRef.current = true;
-    startYRef.current = e.clientY;
-    dragYRef.current = 0;
+  /**
+   * Un singur handler pentru toate gesturile pe imagine — PointerEvent nu are un
+   * echivalent al `TouchEvent.touches` (lista tuturor degetelor active deodata),
+   * asa ca tinem propria evidenta (pointersRef) si decidem ce inseamna gestul
+   * curent dupa CATE degete sunt jos ACUM:
+   *   - 2 degete -> pinch (zoom + panoramare dupa mijlocul intre degete)
+   *   - 1 deget, deja marit (zoomScale > 1) -> panoramare
+   *   - 1 deget, la 1x -> navigare verticala (comportamentul original)
+   */
+  const onStageDown = (e: PointerEvent<HTMLDivElement>) => {
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    gestureMovedRef.current = false;
+
+    if (pointersRef.current.size === 2) {
+      // Al doilea deget soseste in timp ce navigarea cu un deget era deja pornita —
+      // anulam acea navigare (un pinch nu trebuie sa schimbe si poza curenta).
+      draggingRef.current = false;
+      dragYRef.current = 0;
+      setDragY(0);
+      panDragRef.current = null;
+      const [p1, p2] = [...pointersRef.current.values()];
+      zoomGestureActiveRef.current = true;
+      pinchRef.current = {
+        startDistance: pointerDistance(p1, p2),
+        startScale: zoomScaleRef.current,
+        startPan: zoomPanRef.current,
+        startMid: pointerMidpoint(p1, p2)
+      };
+    } else if (pointersRef.current.size === 1) {
+      if (zoomScaleRef.current > 1) {
+        zoomGestureActiveRef.current = true;
+        panDragRef.current = { startX: e.clientX, startY: e.clientY, startPan: zoomPanRef.current };
+      } else {
+        draggingRef.current = true;
+        startYRef.current = e.clientY;
+        dragYRef.current = 0;
+      }
+    }
   };
-  const moveDrag = (e: PointerEvent<HTMLDivElement>) => {
-    if (!draggingRef.current) return;
-    const delta = e.clientY - startYRef.current; // ambele directii
-    dragYRef.current = delta;
-    setDragY(delta);
+
+  const onStageMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (!pointersRef.current.has(e.pointerId)) return;
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (pointersRef.current.size === 2 && pinchRef.current) {
+      gestureMovedRef.current = true;
+      const [p1, p2] = [...pointersRef.current.values()];
+      const ratio = pointerDistance(p1, p2) / pinchRef.current.startDistance;
+      const nextScale = clamp(pinchRef.current.startScale * ratio, MIN_ZOOM, MAX_ZOOM);
+      const newMid = pointerMidpoint(p1, p2);
+      const nextPan = {
+        x: pinchRef.current.startPan.x + (newMid.x - pinchRef.current.startMid.x),
+        y: pinchRef.current.startPan.y + (newMid.y - pinchRef.current.startMid.y)
+      };
+      zoomScaleRef.current = nextScale;
+      zoomPanRef.current = nextPan;
+      setZoomScale(nextScale);
+      setZoomPan(nextPan);
+      return;
+    }
+
+    if (panDragRef.current) {
+      gestureMovedRef.current = true;
+      const drag = panDragRef.current;
+      const nextPan = { x: drag.startPan.x + (e.clientX - drag.startX), y: drag.startPan.y + (e.clientY - drag.startY) };
+      zoomPanRef.current = nextPan;
+      setZoomPan(nextPan);
+      return;
+    }
+
+    if (draggingRef.current) {
+      const delta = e.clientY - startYRef.current; // ambele directii
+      if (Math.abs(delta) > 4) gestureMovedRef.current = true;
+      dragYRef.current = delta;
+      setDragY(delta);
+    }
   };
-  const endDrag = () => {
-    if (!draggingRef.current) return;
-    draggingRef.current = false;
-    if (dragYRef.current < -SWIPE_COMMIT) goNext();
-    else if (dragYRef.current > SWIPE_COMMIT) goPrev();
-    dragYRef.current = 0;
-    setDragY(0);
+
+  const onStageUp = (e: PointerEvent<HTMLDivElement>) => {
+    pointersRef.current.delete(e.pointerId);
+
+    if (pointersRef.current.size >= 1) {
+      // A ramas macar un deget dupa un pinch cu 2 — re-ancoram panoramarea la
+      // pozitia lui curenta, ca imaginea sa nu "sara" cand pinch-ul se transforma
+      // in panoramare cu un singur deget.
+      pinchRef.current = null;
+      if (zoomScaleRef.current > 1) {
+        const [remaining] = [...pointersRef.current.values()];
+        panDragRef.current = { startX: remaining.x, startY: remaining.y, startPan: zoomPanRef.current };
+      }
+      return;
+    }
+
+    // S-au ridicat toate degetele.
+    pinchRef.current = null;
+    panDragRef.current = null;
+    zoomGestureActiveRef.current = false;
+    if (draggingRef.current) {
+      draggingRef.current = false;
+      if (dragYRef.current < -SWIPE_COMMIT) goNext();
+      else if (dragYRef.current > SWIPE_COMMIT) goPrev();
+      dragYRef.current = 0;
+      setDragY(0);
+    }
+  };
+
+  /** Tap simplu (fara nicio miscare) cat timp imaginea e marita — revine la 1x, cel mai rapid mod de a "reseta" fara sa cauti un buton dedicat. */
+  const onStageClick = () => {
+    if (gestureMovedRef.current) { gestureMovedRef.current = false; return; }
+    if (zoomScaleRef.current > 1) {
+      zoomScaleRef.current = 1;
+      zoomPanRef.current = { x: 0, y: 0 };
+      setZoomScale(1);
+      setZoomPan({ x: 0, y: 0 });
+    }
   };
 
   const seriesCount = current ? countSeriesSiblings(photos, current) : 0;
@@ -188,13 +326,27 @@ export function TikTokSort() {
           <div
             className="tiktok-stage-wrap"
             style={{ transform: `translateY(${dragY}px)`, transition: draggingRef.current ? 'none' : 'transform 0.25s var(--ease)' }}
-            onPointerDown={startDrag}
-            onPointerMove={moveDrag}
-            onPointerUp={endDrag}
-            onPointerCancel={endDrag}
+            onPointerDown={onStageDown}
+            onPointerMove={onStageMove}
+            onPointerUp={onStageUp}
+            onPointerCancel={onStageUp}
+            onClick={onStageClick}
           >
-            {src && <AdjustedImage src={src} alt="" className="tiktok-stage" />}
+            {src && (
+              <AdjustedImage
+                src={src}
+                alt=""
+                className={zoomScale !== 1 ? 'tiktok-stage zoomed' : 'tiktok-stage'}
+                style={zoomScale !== 1
+                  ? {
+                      transform: `scale(${zoomScale}) translate(${zoomPan.x / zoomScale}px, ${zoomPan.y / zoomScale}px)`,
+                      transition: zoomGestureActiveRef.current ? 'none' : 'transform 0.2s var(--ease)'
+                    }
+                  : undefined}
+              />
+            )}
           </div>
+          {zoomScale !== 1 && <span className="tiktok-zoom-hint mono">{Math.round(zoomScale * 100)}%</span>}
           <div className="tiktok-veil-top" aria-hidden="true" />
           <div className="tiktok-veil-bottom" aria-hidden="true" />
 
