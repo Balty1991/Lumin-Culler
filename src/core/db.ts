@@ -19,6 +19,15 @@ export interface PhotoRecord {
   groupId?: string;         // seria/duplicatele din care face parte
   status: 'pending' | 'selected' | 'rejected' | 'review';
   /**
+   * Dimensiunea fisierului original (bytes, din File.size la import) — plan
+   * modernizare, ecranul Acasa: singurul mod REAL de a arata "X GB ocupate"/
+   * "eliberezi Y GB" fara sa ghicim. Optional: absent la poze importate
+   * inainte de acest camp (biblioteci vechi) — codul care il citeste trebuie
+   * sa trateze absenta separat de 0, nu presupune. Nu necesita bump de schema
+   * Dexie (camp neindexat, la fel ca `rating`/`genre`/`project` de mai sus).
+   */
+  sizeBytes?: number;
+  /**
    * Rating 1-5 stele, independent de status (ca in Lightroom: flag-ul
    * pick/reject si rating-ul sunt axe separate — o poza poate fi Selectata
    * SI 3 stele, sau De verificat fara nicio stea). Optional/0/absent = fara

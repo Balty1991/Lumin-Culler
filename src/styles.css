@@ -405,15 +405,51 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .install-prompt-close { flex-shrink: 0; }
 
 /* Ecranul Acasa ca dashboard (plan modernizare, cerinta directa: reorganizare
-   reala a aplicatiei, nu doar functii noi bagate in Meniu) — salut + card-teaser
-   recap + rand de mini-statistici reale (zile la rand, calatorii), deasupra
-   bannerelor existente (amintiri/sterge respinse). Vezi ui/HomeDashboard.tsx
-   pentru de ce inelul de progres (CullGauge) NU e reconstruit aici. */
+   reala vizuala a aplicatiei, dupa mockup-ul HTML — nu doar functii noi bagate
+   in Meniu) — salut, card hero (% organizat + inel de spatiu), card recap,
+   card sterge respinse, rand de mini-statistici reale, deasupra bannerelor
+   existente (amintiri). CullGauge (inelul/statisticile detaliate, mai jos)
+   ramane si el — cardul hero e rezumatul rapid, CullGauge ramane locul cu
+   detaliu (selectate/verificat/respins/in asteptare) si "Goleste sesiunea". */
 .home-dash { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; animation: fadeUp 0.3s var(--ease) both; }
 .home-greet { display: flex; flex-direction: column; gap: 2px; padding: 2px 2px 0; }
 .home-greet-hello { font-size: 1.1rem; font-weight: 700; color: var(--text); }
 .home-greet-sub { display: flex; align-items: center; gap: 5px; font-size: 0.78rem; color: var(--text-dim); }
 .home-greet-sub .inline-icon { width: 13px; height: 13px; color: var(--accent); flex-shrink: 0; }
+.home-hero-card {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 16px; border-radius: var(--radius-lg);
+  background-image: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--accent-gradient);
+  background-origin: border-box; background-clip: padding-box, border-box; border: 1px solid transparent;
+  box-shadow: var(--shadow-lg), 0 0 26px -14px rgb(var(--accent-rgb) / 0.5);
+}
+.home-hero-num { font-size: 1.5rem; font-weight: 800; color: var(--text); line-height: 1.1; }
+.home-hero-lbl { font-size: 0.76rem; color: var(--text-dim); }
+.home-hero-ring {
+  width: 52px; height: 52px; border-radius: 50%; flex-shrink: 0;
+  background: conic-gradient(var(--accent) 0deg, var(--accent-2) var(--pct-deg), rgb(255 255 255 / 0.12) var(--pct-deg));
+  display: flex; align-items: center; justify-content: center;
+}
+.home-hero-ring b {
+  width: 40px; height: 40px; border-radius: 50%; background: var(--bg);
+  display: flex; align-items: center; justify-content: center; font-size: 0.62rem; font-weight: 800; color: var(--text);
+}
+.home-sort-cta {
+  display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 13px; border-radius: var(--radius); text-align: left; width: 100%;
+  background: var(--surface-2); border: 1px solid var(--line);
+}
+.home-sort-icon {
+  flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: rgb(var(--accent-rgb) / 0.16); color: var(--accent);
+}
+.home-sort-icon svg { width: 16px; height: 16px; }
+.home-sort-text { flex: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.home-sort-text b { font-size: 0.84rem; color: var(--text); }
+.home-sort-text span { font-size: 0.72rem; color: var(--text-dim); }
+.home-sort-go {
+  flex-shrink: 0; border-radius: 999px; padding: 8px 16px; font-size: 0.76rem; font-weight: 700;
+  background: var(--accent-gradient); color: #06050a;
+}
 .home-recap-card {
   display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius); text-align: left; width: 100%;
   background-image: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--accent-gradient);
@@ -424,6 +460,19 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .home-recap-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .home-recap-text b { font-size: 0.84rem; color: var(--text); }
 .home-recap-text span { font-size: 0.72rem; color: var(--text-dim); }
+.home-delete-cta {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 10px 10px 13px; border-radius: var(--radius);
+  background: rgb(var(--reject-rgb) / 0.1); border: 1px solid rgb(var(--reject-rgb) / 0.28);
+}
+.home-delete-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.home-delete-text b { font-size: 0.84rem; color: var(--text); }
+.home-delete-text span { font-size: 0.72rem; color: var(--text-dim); }
+.home-delete-go {
+  flex-shrink: 0; border: none; border-radius: 999px; padding: 8px 14px; font-size: 0.76rem; font-weight: 700;
+  background: var(--reject); color: #2c0b10;
+}
+.home-delete-go:disabled { opacity: 0.6; }
 .home-stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
 .home-mini-card {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
@@ -1464,7 +1513,15 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
 /* ── Suprapuneri (detaliu / serie / persoane) ── */
 .detail {
-  position: fixed; inset: 0; background: rgba(5,6,8,0.74); z-index: var(--z-modal-scrim);
+  position: fixed; inset: 0; z-index: var(--z-modal-scrim);
+  /* Bug real gasit de utilizator (poza/screenshot): la 0.74 alfa, textul mare/
+     bold direct in spatele overlay-ului (ex. salutul de pe Acasa, HomeDashboard)
+     ramanea vizibil ca o fantoma, chiar si prin blur — un blur gaussian
+     inmoaie MARGINILE formelor, nu reduce mult luminozitatea de varf a unui
+     text bold alb pe fundal inchis. 0.92 pastreaza aspectul de "sticla mata"
+     (inca usor translucid), dar destul de opac cat orice text din spate sa
+     nu mai fie citibil. */
+  background: rgba(5,6,8,0.92);
   backdrop-filter: blur(16px) saturate(140%);
   display: flex; align-items: flex-end; justify-content: center;
   animation: fadeIn 0.2s var(--ease) both;
@@ -1497,6 +1554,34 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .detail-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .detail-head span:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 .detail-head .ghost { flex-shrink: 0; }
+
+/* "Mod Zen" (plan modernizare) — ecran dedicat (ui/ZenModePanel.tsx), nu doar
+   un buton de Meniu care ciclează stări ascunse. Orb-ul e pur decorativ (acelasi
+   truc dublu-cerc ca inelul de progres de pe Acasa — conic-gradient + un disc
+   opac deasupra, ca sa ramana doar inelul colorat vizibil). */
+.zen-panel { text-align: center; }
+.zen-orb {
+  width: 84px; height: 84px; border-radius: 50%; margin: 4px auto 4px; position: relative;
+  background: conic-gradient(from 0deg, var(--accent), var(--accent-2), var(--accent));
+}
+.zen-orb::after { content: ''; position: absolute; inset: 6px; border-radius: 50%; background: var(--surface); }
+.zen-lead { font-size: 0.84rem; color: var(--text-dim); margin: 0 0 4px; }
+.zen-toggle-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%;
+  border-radius: var(--radius); padding: 11px 13px; background: var(--surface-2); border: 1px solid var(--line);
+  text-align: left;
+}
+.zen-toggle-row.zen-master.on { border-color: rgb(var(--accent-rgb) / 0.5); }
+.zen-toggle-row b { font-size: 0.82rem; display: block; color: var(--text); }
+.zen-toggle-row span span { font-size: 0.7rem; color: var(--text-dim); }
+.zen-switch {
+  width: 38px; height: 21px; border-radius: 999px; position: relative; flex-shrink: 0; border: none;
+  background: var(--surface-3);
+}
+.zen-switch.on { background: var(--accent); }
+.zen-switch:disabled { opacity: 0.5; }
+.zen-switch i { position: absolute; top: 2px; left: 2px; width: 17px; height: 17px; border-radius: 50%; background: #fff; transition: left 0.15s var(--ease); }
+.zen-switch.on i { left: 19px; }
 
 /* ── Dialog de confirmare/prompt tematizat — inlocuieste window.confirm/prompt ── */
 .confirm-dialog-message { margin: 0; font-size: 0.95rem; line-height: 1.5; color: var(--text); white-space: pre-line; }

@@ -36,7 +36,12 @@ import { isNativeMediaLibraryAvailable, deleteNativePhotos } from '../core/nativ
 import { readStoredTheme, applyTheme, type Theme } from './theme';
 import { readStoredAccent, applyAccent, type AccentTheme } from './accentTheme';
 import { readAccessibleMode, applyAccessibleMode } from '../core/accessibleMode';
-import { readZenMode, writeZenMode } from '../core/zenMode';
+import {
+  readZenMode, writeZenMode,
+  readZenAutoDeleteObvious, writeZenAutoDeleteObvious,
+  readZenAskOnUncertain, writeZenAskOnUncertain
+} from '../core/zenMode';
+import { resolveGroupsWithConfidence } from './zenResolve';
 import { readStoredProjectName, writeProjectName } from './projectName';
 import { readStoredWatermarkText, writeWatermarkText } from './watermarkText';
 import { readStoredGenre, writeStoredGenre } from './genre';
@@ -131,6 +136,8 @@ export interface PhotoView {
   personMatches: { name: string; similarity: number }[];
   groupId?: string;
   capturedAt?: number;
+  /** Dimensiunea fisierului original (bytes) — vezi PhotoRecord.sizeBytes; absent la poze importate inainte de acest camp. */
+  sizeBytes?: number;
   /** Genul fotografic activ la import ("Nunta", "Portret", ...) — vezi state/genre.ts si ContextEngine.deriveContextKey. */
   genre?: string;
   /** Numele proiectului/sesiunii active la import (ProjectNameField) — vezi PhotoRecord.project. */
@@ -322,6 +329,14 @@ interface AppState {
   setAccessibleMode: (on: boolean) => void;
   zenMode: boolean;
   setZenMode: (on: boolean) => void;
+  zenAutoDeleteObvious: boolean;
+  setZenAutoDeleteObvious: (on: boolean) => void;
+  zenAskOnUncertain: boolean;
+  setZenAskOnUncertain: (on: boolean) => void;
+  zenPanelOpen: boolean;
+  setZenPanelOpen: (open: boolean) => void;
+  /** Vezi state/zenResolve.ts — ruleaza automat dupa import cand zenMode e activ (store.ts, runImport). */
+  runZenResolve: () => Promise<{ resolved: number; uncertain: number; deleted: number }>;
   /** Limba interfetei — vezi i18n/index.ts. Migrare treptata: doar unele ecrane citesc asta deocamdata, restul ramane in romana codificata direct. */
   locale: Locale;
   setLocale: (locale: Locale) => void;
@@ -612,6 +627,7 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     personMatches: analysis ? bestMatchPerName(analysis.faces) : [],
     groupId: photo.groupId,
     capturedAt: photo.capturedAt,
+    sizeBytes: photo.sizeBytes,
     genre: photo.genre,
     project: photo.project,
     goldenHourDetected: analysis?.goldenHourDetected,
@@ -1184,6 +1200,91 @@ export const useStore = create<AppState>((set, get) => ({
   setAccessibleMode: on => { applyAccessibleMode(on); set({ accessibleMode: on }); },
   zenMode: readZenMode(),
   setZenMode: on => { writeZenMode(on); set({ zenMode: on }); },
+  zenAutoDeleteObvious: readZenAutoDeleteObvious(),
+  setZenAutoDeleteObvious: on => { writeZenAutoDeleteObvious(on); set({ zenAutoDeleteObvious: on }); },
+  zenAskOnUncertain: readZenAskOnUncertain(),
+  setZenAskOnUncertain: on => { writeZenAskOnUncertain(on); set({ zenAskOnUncertain: on }); },
+  zenPanelOpen: false,
+  setZenPanelOpen: open => set({ zenPanelOpen: open }),
+  runZenResolve: async () => {
+    const { zenAutoDeleteObvious, zenAskOnUncertain, locale } = get();
+    const resolutions = resolveGroupsWithConfidence(get().photos);
+    const confident = resolutions.filter(r => r.confident);
+    const uncertain = resolutions.filter(r => !r.confident);
+    if (!confident.length) {
+      if (zenAskOnUncertain && uncertain.length > 0) {
+        set({ notice: t(locale, 'store.zenResolve.uncertainOnly', { count: uncertain.length }) });
+      }
+      return { resolved: 0, uncertain: uncertain.length, deleted: 0 };
+    }
+
+    const photosById = new Map(get().photos.map(p => [p.id, p]));
+    const changes: { photoId: string; previousStatus: PhotoRecord['status'] }[] = [];
+    const statusChanges: { id: string; status: PhotoRecord['status'] }[] = [];
+    for (const g of confident) {
+      const current = photosById.get(g.keepId);
+      if (current?.status !== 'selected') {
+        changes.push({ photoId: g.keepId, previousStatus: current?.status ?? 'pending' });
+        statusChanges.push({ id: g.keepId, status: 'selected' });
+      }
+      for (const rejectId of g.rejectIds) {
+        const rec = photosById.get(rejectId);
+        if (rec?.status === 'rejected') continue;
+        changes.push({ photoId: rejectId, previousStatus: rec?.status ?? 'pending' });
+        statusChanges.push({ id: rejectId, status: 'rejected' });
+      }
+    }
+    const { quotaError } = await applyBulkStatusChanges(statusChanges, status => status === 'selected');
+    const keepIds = new Set(confident.map(g => g.keepId));
+    const rejectIds = new Set(confident.flatMap(g => g.rejectIds));
+    set(state => ({
+      photos: state.photos.map(p => {
+        if (keepIds.has(p.id)) return { ...p, status: 'selected' };
+        if (rejectIds.has(p.id)) return { ...p, status: 'rejected' };
+        return p;
+      }),
+      batchHistory: pushBatchHistory(state.batchHistory, makeBatchEvent(t(locale, 'store.batchEvent.zenResolve'), changes))
+    }));
+
+    // "Sterge automat duplicatele evidente, fara sa te intrebe" (mockup) — Android
+    // tot arata propriul dialog de confirmare la stergere (MediaStore.createDeleteRequest
+    // NU poate fi ocolit, la fel ca la deleteRejectedPhotos), doar aplicatia nu mai
+    // adauga un al doilea dialog peste el. SCOPED strict la respinsele deciziei
+    // curente de Mod Zen (rejectIds) — NU la toate pozele deja respinse in
+    // biblioteca, ca sa nu stearga surprinzator ceva respins manual mai demult.
+    let deletedCount = 0;
+    if (zenAutoDeleteObvious && rejectIds.size > 0 && isNativeMediaLibraryAvailable()) {
+      const justRejected = get().photos.filter(p => rejectIds.has(p.id) && !!p.mediaUri);
+      if (justRejected.length) {
+        try {
+          const result = await deleteNativePhotos(justRejected.map(p => p.mediaUri!));
+          if (!result.cancelled) {
+            const ids = justRejected.map(p => p.id);
+            const idSet = new Set(ids);
+            await Promise.all([
+              db.photos.bulkDelete(ids), db.thumbnails.bulkDelete(ids), db.previews.bulkDelete(ids),
+              db.originals.bulkDelete(ids), db.fileHandles.bulkDelete(ids), db.analyses.bulkDelete(ids)
+            ]);
+            for (const id of ids) { originalFiles.delete(id); originalHandles.delete(id); }
+            deletedCount = ids.length;
+            set(state => ({ photos: state.photos.filter(p => !idSet.has(p.id)) }));
+          }
+        } catch {
+          // esec de stergere nativa aici nu trebuie sa blocheze restul rezultatului Mod Zen
+          // (statusurile deja s-au aplicat) — acelasi compromis ca deleteRejectedPhotos.
+        }
+      }
+    }
+
+    const notice = quotaError
+      ? quotaNotice(locale)
+      : (zenAskOnUncertain && uncertain.length > 0)
+        ? t(locale, 'store.zenResolve.notice', { count: confident.length, uncertain: uncertain.length })
+        : t(locale, 'store.zenResolve.noticeSimple', { count: confident.length });
+    set({ notice });
+
+    return { resolved: confident.length, uncertain: uncertain.length, deleted: deletedCount };
+  },
   locale: readStoredLocale(),
   setLocale: locale => { writeStoredLocale(locale); applyLocale(locale); set({ locale }); },
   projectName: readStoredProjectName(),
@@ -1501,11 +1602,13 @@ export const useStore = create<AppState>((set, get) => ({
         return rec ? { ...p, status: rec.status, groupId: rec.groupId } : p;
       })
     }));
-    // "Mod Zen": aceeasi rezolvare ca butonul manual "Rezolva toate seriile",
-    // declansata automat dupa import in loc sa astepte un click. Doar cand au
-    // intrat poze noi (done > 0) — altfel un import gol/anulat n-are ce rezolva.
+    // "Mod Zen": rezolva automat grupurile clare dupa import, in loc sa astepte
+    // un click pe "Rezolva toate seriile" — vezi runZenResolve/zenResolve.ts
+    // pentru distinctia intre grupuri "confidente" (rezolvate) si "incerte"
+    // (doar semnalate). Doar cand au intrat poze noi (done > 0) — altfel un
+    // import gol/anulat n-are ce rezolva.
     if (done > 0 && get().zenMode) {
-      await get().resolveAllSeries();
+      await get().runZenResolve();
     }
   },
 
