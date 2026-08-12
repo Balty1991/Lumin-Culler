@@ -44,15 +44,22 @@ export function writeSmartNotificationLastShown(ts: number): void {
 /** Cel mult o data pe zi — orice mai des ar deveni exact zgomotul pe care mockup-ul il evita explicit ("context concret, nu revino in aplicatie generic"). */
 export const SMART_NOTIFICATION_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
-/** Functie pura, testabila separat de localStorage/Notification API. */
+/**
+ * Functie pura, testabila separat de localStorage/Notification API.
+ * `hasNextPeriod` — supervizorul galeriei are o perioada noua de recomandat
+ * (idee proprie: cand utilizatorul e la zi cu sortarea, dar mai e galerie
+ * telefonului neadusa in aplicatie, tot merita un context concret, nu doar
+ * tacere pana apar poze nesortate din nou).
+ */
 export function shouldShowSmartNotification(opts: {
   now: number;
   enabled: boolean;
   unsortedCount: number;
+  hasNextPeriod?: boolean;
   lastShown: number | null;
 }): boolean {
   if (!opts.enabled) return false;
-  if (opts.unsortedCount <= 0) return false;
+  if (opts.unsortedCount <= 0 && !opts.hasNextPeriod) return false;
   if (opts.lastShown !== null && opts.now - opts.lastShown < SMART_NOTIFICATION_INTERVAL_MS) return false;
   return true;
 }

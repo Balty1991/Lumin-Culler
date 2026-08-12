@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type MouseEvent } from 'react';
 import { useStore } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
@@ -49,6 +49,10 @@ export function GallerySupervisorPanel() {
   const loadGalleryFolders = useStore(s => s.loadGalleryFolders);
   const importGalleryFolder = useStore(s => s.importGalleryFolder);
   const importAllGalleryFolders = useStore(s => s.importAllGalleryFolders);
+  const supervisorImportedFolderIds = useStore(s => s.supervisorImportedFolderIds);
+  const skipGalleryPeriod = useStore(s => s.skipGalleryPeriod);
+  const lastSupervisorImportIds = useStore(s => s.lastSupervisorImportIds);
+  const openTiktokSortForIds = useStore(s => s.openTiktokSortForIds);
 
   useEffect(() => {
     if (!open || !isNativeMediaLibraryAvailable()) return;
@@ -81,12 +85,31 @@ export function GallerySupervisorPanel() {
     await importGalleryPeriod(remainingPeriod);
   };
 
+  const skipPeriod = async (period: GalleryPeriod, e?: MouseEvent) => {
+    e?.stopPropagation();
+    if (supervisorImporting) return;
+    const ok = await askConfirm(tr('gallerySupervisor.skip.confirm', { period: formatPeriod(period.start, period.end, locale) }));
+    if (!ok) return;
+    skipGalleryPeriod(period);
+  };
+
+  const uncoveredFolders = (galleryFolders?.folders ?? []).filter(f => !supervisorImportedFolderIds.has(f.id));
+
   const bringAllFolders = async () => {
-    if (supervisorImporting || !galleryFolders?.folders.length) return;
-    const total = galleryFolders.folders.reduce((sum, f) => sum + f.count, 0);
+    if (supervisorImporting || !uncoveredFolders.length) return;
+    const total = uncoveredFolders.reduce((sum, f) => sum + f.count, 0);
     const ok = await askConfirm(tr('gallerySupervisor.allFolders.confirm', { count: total }));
     if (!ok) return;
     await importAllGalleryFolders();
+  };
+
+  const bringFolder = async (folder: { id: string; name: string; count: number }) => {
+    if (supervisorImporting) return;
+    if (supervisorImportedFolderIds.has(folder.id)) {
+      const ok = await askConfirm(tr('gallerySupervisor.folderCovered.confirm', { name: folder.name }));
+      if (!ok) return;
+    }
+    await importGalleryFolder(folder.id);
   };
 
   return (
@@ -119,19 +142,39 @@ export function GallerySupervisorPanel() {
               </div>
             </div>
 
-            {nextPeriod && (
+            {lastSupervisorImportIds && lastSupervisorImportIds.length > 0 && (
               <button
                 type="button"
-                className="gallery-supervisor-banner glass supervisor-next-card"
-                disabled={supervisorImporting}
-                onClick={() => void bringPeriod(nextPeriod)}
+                className="ghost supervisor-sortnow-cta"
+                onClick={() => openTiktokSortForIds(lastSupervisorImportIds)}
               >
-                <span className="gallery-supervisor-icon" aria-hidden="true"><ClockIcon /></span>
-                <span className="gallery-supervisor-text">
-                  <b>{tr('gallerySupervisor.title')}</b>
-                  <span>{formatPeriod(nextPeriod.start, nextPeriod.end, locale)}</span>
-                </span>
+                {tr(plural(lastSupervisorImportIds.length, 'gallerySupervisor.sortNow.one', 'gallerySupervisor.sortNow.other'), { count: lastSupervisorImportIds.length })}
               </button>
+            )}
+
+            {nextPeriod && (
+              <div className="gallery-supervisor-banner glass supervisor-next-card">
+                <button
+                  type="button"
+                  className="gallery-supervisor-main"
+                  disabled={supervisorImporting}
+                  onClick={() => void bringPeriod(nextPeriod)}
+                >
+                  <span className="gallery-supervisor-icon" aria-hidden="true"><ClockIcon /></span>
+                  <span className="gallery-supervisor-text">
+                    <b>{tr('gallerySupervisor.title')}</b>
+                    <span>{formatPeriod(nextPeriod.start, nextPeriod.end, locale)}</span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="ghost small supervisor-skip-btn"
+                  disabled={supervisorImporting}
+                  onClick={e => void skipPeriod(nextPeriod, e)}
+                >
+                  {tr('gallerySupervisor.skip')}
+                </button>
+              </div>
             )}
 
             {remainingPeriod && (
@@ -145,20 +188,31 @@ export function GallerySupervisorPanel() {
                 <div className="supervisor-section-label">{tr('gallerySupervisor.calendar')}</div>
                 <div className="supervisor-period-list">
                   {allPeriods.map(period => (
-                    <button
-                      key={period.start}
-                      type="button"
-                      className="supervisor-period-row"
-                      disabled={supervisorImporting}
-                      onClick={() => void bringPeriod(period)}
-                    >
-                      <span>{formatPeriod(period.start, period.end, locale)}</span>
-                      {period.covered && (
-                        <span className="supervisor-period-covered">
-                          <CheckIcon className="inline-icon" aria-hidden="true" /> {tr('gallerySupervisor.covered')}
-                        </span>
+                    <div key={period.start} className="supervisor-period-row">
+                      <button
+                        type="button"
+                        className="supervisor-period-row-main"
+                        disabled={supervisorImporting}
+                        onClick={() => void bringPeriod(period)}
+                      >
+                        <span>{formatPeriod(period.start, period.end, locale)}</span>
+                        {period.covered && (
+                          <span className="supervisor-period-covered">
+                            <CheckIcon className="inline-icon" aria-hidden="true" /> {tr('gallerySupervisor.covered')}
+                          </span>
+                        )}
+                      </button>
+                      {!period.covered && (
+                        <button
+                          type="button"
+                          className="ghost small supervisor-skip-btn"
+                          disabled={supervisorImporting}
+                          onClick={e => void skipPeriod(period, e)}
+                        >
+                          {tr('gallerySupervisor.skip')}
+                        </button>
                       )}
-                    </button>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -168,23 +222,31 @@ export function GallerySupervisorPanel() {
               <div className="supervisor-section">
                 <div className="supervisor-section-head">
                   <div className="supervisor-section-label">{tr('gallerySupervisor.folders')}</div>
-                  <button type="button" className="ghost small" disabled={supervisorImporting} onClick={() => void bringAllFolders()}>
+                  <button type="button" className="ghost small" disabled={supervisorImporting || !uncoveredFolders.length} onClick={() => void bringAllFolders()}>
                     <GridIcon className="inline-icon" aria-hidden="true" /> {tr('gallerySupervisor.allFolders.cta')}
                   </button>
                 </div>
                 <div className="supervisor-period-list">
-                  {galleryFolders.folders.map(folder => (
-                    <button
-                      key={folder.id}
-                      type="button"
-                      className="supervisor-period-row"
-                      disabled={supervisorImporting}
-                      onClick={() => void importGalleryFolder(folder.id)}
-                    >
-                      <span><FolderIcon className="inline-icon" aria-hidden="true" /> {folder.name}</span>
-                      <span className="mono">{tr(plural(folder.count, 'gallerySupervisor.folderCount.one', 'gallerySupervisor.folderCount.other'), { count: folder.count })}</span>
-                    </button>
-                  ))}
+                  {galleryFolders.folders.map(folder => {
+                    const covered = supervisorImportedFolderIds.has(folder.id);
+                    return (
+                      <button
+                        key={folder.id}
+                        type="button"
+                        className="supervisor-period-row"
+                        disabled={supervisorImporting}
+                        onClick={() => void bringFolder(folder)}
+                      >
+                        <span><FolderIcon className="inline-icon" aria-hidden="true" /> {folder.name}</span>
+                        {covered && (
+                          <span className="supervisor-period-covered">
+                            <CheckIcon className="inline-icon" aria-hidden="true" /> {tr('gallerySupervisor.covered')}
+                          </span>
+                        )}
+                        <span className="mono">{tr(plural(folder.count, 'gallerySupervisor.folderCount.one', 'gallerySupervisor.folderCount.other'), { count: folder.count })}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}

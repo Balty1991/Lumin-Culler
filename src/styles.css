@@ -1422,35 +1422,30 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
    pagina de onboarding (nucleu + text + CTA + cei 3 pasi) trebuie sa incapa pe
    un ecran de telefon FARA sa fie nevoie de scroll. */
 .empty { position: relative; isolation: isolate; text-align: center; padding: 3vh 16px 14px; max-width: 420px; margin: 0 auto; display: grid; gap: 8px; justify-items: center; animation: fadeUp 0.4s var(--ease) both; }
+/* Fundal STATIC, discret (nu mai deriveaza/pulseaza) — feedback direct al
+   utilizatorului: prima impresie a aplicatiei parea "ciudata", nu profesionala.
+   Un glow fix, suficient de subtil incat sa citeasca a lumina ambientala de
+   fundal (patternul obisnuit in unelte "pro"), nu a efect decorativ activ. */
 .empty::before {
-  content: ""; position: absolute; top: -12%; left: 50%; transform: translateX(-50%);
-  width: 620px; height: 620px; max-width: 150vw; z-index: -1; pointer-events: none;
-  background:
-    radial-gradient(circle at 30% 30%, rgb(var(--accent-rgb) / 0.20), transparent 55%),
-    radial-gradient(circle at 70% 65%, rgb(var(--accent-2-rgb) / 0.16), transparent 55%);
-  filter: blur(60px);
-  animation: auroraDrift 14s ease-in-out infinite alternate;
+  content: ""; position: absolute; top: -10%; left: 50%; transform: translateX(-50%);
+  width: 560px; height: 560px; max-width: 140vw; z-index: -1; pointer-events: none;
+  background: radial-gradient(circle at 50% 30%, rgb(var(--accent-rgb) / 0.10), transparent 60%);
+  filter: blur(70px);
 }
-@keyframes auroraDrift {
-  from { transform: translateX(-52%) translateY(0) scale(1); }
-  to { transform: translateX(-48%) translateY(-2%) scale(1.06); }
+/* Iconita de brand: insigna STATICA (contur cu gradient, aceeasi tehnica
+   discreta deja folosita la .how-step-icon mai jos), nu un nucleu care se
+   invarte/pulseaza la nesfarsit — un spinner continuu langa "Adauga primele
+   poze" citea ca "aplicatia inca incarca", nu ca un ecran gata de folosit.
+   Animatia .core* (halou+inel rotativ+respiratie) ramane doar acolo unde
+   chiar inseamna "se lucreaza" — AiBootScreen, in timpul analizei reale. */
+.empty-badge {
+  width: 64px; height: 64px; margin: 0 auto; border-radius: 20px;
+  display: flex; align-items: center; justify-content: center;
+  background-image: linear-gradient(var(--surface-2), var(--surface-2)), var(--accent-gradient);
+  background-origin: border-box; background-clip: padding-box, border-box; border: 1px solid transparent;
+  color: var(--accent); box-shadow: 0 8px 22px -10px rgb(var(--accent-rgb) / 0.45);
 }
-@media (prefers-reduced-motion: reduce) {
-  .empty::before { animation: none; }
-}
-/* nucleu AI animat (aceeasi tehnica/clase ca .core din AiBootScreen — halou +
-   inel conic rotativ + disc care respira) — inlocuieste iconita statica de
-   brand, ca prima impresie a paginii sa arate ca un motor AI viu, nu un logo
-   plat. Reutilizarea claselor .core* pastreaza acelasi motiv vizual intre
-   "motorul e gata" (aici) si "motorul lucreaza" (ecranul de incarcare). */
-/* mai mic decat pe ecranul de incarcare (108px) — aici concureaza cu titlul,
-   textul si cei 3 pasi pentru inaltimea disponibila, nu e singurul element de
-   pe ecran; insets-urile copiilor .core-* sunt recalculate proportional. */
-.empty-core { width: 78px; height: 78px; margin: 0 auto; }
-.empty-core .core-halo { inset: -11px; }
-.empty-core .core-ring { inset: 4px; }
-.empty-core .core-disc { inset: 10px; }
-.empty-core .core-disc svg { width: 22px; height: 22px; }
+.empty-badge svg { width: 28px; height: 28px; }
 .empty-tagline {
   display: inline-flex; align-items: center; gap: 7px; margin: -4px 0 0;
   font-size: 0.72rem; letter-spacing: 0.04em; color: var(--text-faint); text-transform: uppercase;
@@ -2992,6 +2987,19 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 .gallery-supervisor-cta:disabled { opacity: 0.6; }
 .gallery-supervisor-close { flex-shrink: 0; color: rgba(255,255,255,0.7); }
+/* Card acoperire galerie (idee proprie) — bara subtire sub perioada recomandata,
+   procentul din TOATA galeria telefonului deja "acoperita" de supervizor. */
+.gallery-supervisor-progress {
+  display: block; margin-top: 4px; width: 100%; max-width: 140px; height: 4px; border-radius: 999px;
+  background: rgb(var(--accent-rgb) / 0.14); overflow: hidden;
+}
+.gallery-supervisor-progress-fill { display: block; height: 100%; border-radius: 999px; background: var(--accent-gradient); transition: width 0.3s var(--ease); }
+/* "Sorteaza acum ce ai adus" (idee proprie) — CTA distincta, aparuta imediat dupa un import reusit din supervizor. */
+.gallery-supervisor-sortnow {
+  width: 100%; text-align: center; padding: 10px 14px; border-radius: 12px; border: none;
+  background: var(--accent-gradient); color: #06070a; font-size: 0.8rem; font-weight: 700;
+}
+.supervisor-sortnow-cta { width: 100%; text-align: center; padding: 10px; border-radius: 12px; margin-bottom: 4px; font-size: 0.8rem; font-weight: 700; color: var(--accent); }
 
 /* Panoul complet al supervizorului (lungime perioada, calendar, foldere) */
 .supervisor-section { margin: 16px 0; }
@@ -3001,7 +3009,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .supervisor-remaining-cta { width: 100%; text-align: center; padding: 10px; border-radius: 12px; margin-bottom: 4px; font-size: 0.8rem; }
 .supervisor-chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .supervisor-next-card { width: 100%; margin-bottom: 4px; }
-.supervisor-next-card:disabled { opacity: 0.7; }
 .supervisor-period-list { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
 .supervisor-period-row {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
@@ -3012,6 +3019,16 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .supervisor-period-row .inline-icon { width: 13px; height: 13px; vertical-align: -2px; margin-right: 3px; }
 .supervisor-period-covered { display: flex; align-items: center; font-size: 0.68rem; color: var(--pick); flex-shrink: 0; }
 .supervisor-period-covered .inline-icon { color: var(--pick); }
+/* Randurile din calendar sunt acum <div> (nu <button>) — contin un buton principal
+   (aduce perioada) + un buton "Sari peste" (idee proprie), separate ca skip-ul sa
+   nu declanseze accidental importul intregii perioade. */
+.supervisor-period-row-main {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  flex: 1; min-width: 0; background: none; border: none; padding: 0; margin: 0;
+  font: inherit; color: inherit; text-align: left;
+}
+.supervisor-period-row-main:disabled { opacity: 0.6; }
+.supervisor-skip-btn { flex-shrink: 0; white-space: nowrap; }
 
 /* "Vezi toate pozele" — singura punte intre Acasa (curat, doar HomeDashboard)
    si grila clasica (CullGauge + filtre + carduri), acum ascunsa implicit. */
