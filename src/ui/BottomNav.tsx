@@ -23,6 +23,7 @@ export function BottomNav() {
   const setPersonsOpen = useStore(s => s.setPersonsOpen);
   const menuOpen = useStore(s => s.menuOpen);
   const setMenuOpen = useStore(s => s.setMenuOpen);
+  const setHomeGridOpen = useStore(s => s.setHomeGridOpen);
 
   if (photos.length === 0) return null;
 
@@ -30,7 +31,11 @@ export function BottomNav() {
   // verificam TOATE panourile posibile din aplicatie (Statistici, Proiecte
   // etc., deschise tot din Meniu), doar starea proprie a acestei bare.
   const isHomeActive = !collectionsOpen && !personsOpen && !menuOpen;
-  const goHome = () => { setCollectionsOpen(false); setPersonsOpen(false); setMenuOpen(false); };
+  // Un tap pe "Acasa" (fie din alt tab, fie din grila deschisa) revine mereu
+  // la dashboard-ul curat — nu doar inchide celelalte 3 panouri, ci si
+  // ascunde grila clasica daca era deschisa (homeGridOpen), la fel cum un tap
+  // pe tab-ul activ in alte aplicatii mobile te duce "sus"/la starea initiala.
+  const goHome = () => { setCollectionsOpen(false); setPersonsOpen(false); setMenuOpen(false); setHomeGridOpen(false); };
 
   return (
     <nav className="bottom-nav glass" aria-label={tr('nav.ariaLabel')}>

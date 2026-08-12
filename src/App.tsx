@@ -37,6 +37,7 @@ import { InstallPrompt } from './ui/InstallPrompt';
 import { BackupReminder } from './ui/BackupReminder';
 import { ImportReminder } from './ui/ImportReminder';
 import { MemoryBanner } from './ui/MemoryBanner';
+import { GallerySupervisorBanner } from './ui/GallerySupervisorBanner';
 import { HomeDashboard } from './ui/HomeDashboard';
 import { GalleryOverviewNote } from './ui/GalleryOverviewNote';
 import { BottomNav } from './ui/BottomNav';
@@ -282,6 +283,8 @@ export default function App() {
   const filtered = useStore(s => s.filtered());
   const workspaceMode = useStore(s => s.workspaceMode);
   const setWorkspaceMode = useStore(s => s.setWorkspaceMode);
+  const homeGridOpen = useStore(s => s.homeGridOpen);
+  const setHomeGridOpen = useStore(s => s.setHomeGridOpen);
   const setTiktokSortOpen = useStore(s => s.setTiktokSortOpen);
   const undo = useStore(s => s.undo);
   const setPaletteOpen = useStore(s => s.setPaletteOpen);
@@ -736,6 +739,7 @@ export default function App() {
             <InstallPrompt />
           <BackupReminder />
           <ImportReminder onAddPhotos={() => void onAddPhotosClick()} />
+          <GallerySupervisorBanner />
         </div>
         <Workspace />
         <CommandPalette />
@@ -817,6 +821,7 @@ export default function App() {
         <InstallPrompt />
         <BackupReminder />
         <ImportReminder onAddPhotos={() => void onAddPhotosClick()} />
+        <GallerySupervisorBanner />
       </div>
 
       {aiDegraded && (
@@ -829,7 +834,7 @@ export default function App() {
           globale se ascund la scroll in jos si revin la scroll in sus — maximizeaza spatiul
           de afisare al grilei pe mobil. Topbar-ul (brand + actiuni critice) ramane mereu vizibil. */}
       <div className={headerHidden ? 'app-collapsible hidden' : 'app-collapsible'}>
-        {photos.length > 0 && (
+        {photos.length > 0 && homeGridOpen && (
           <CullGauge
             selected={counts.selected}
             review={counts.review}
@@ -862,7 +867,7 @@ export default function App() {
           )
         )}
 
-        {photos.length > 0 && (
+        {photos.length > 0 && homeGridOpen && (
           <nav className="filters" aria-label={tr('app.filters.ariaLabel')}>
             {PRIMARY_FILTERS.map(f => (
               <button
@@ -948,7 +953,7 @@ export default function App() {
           </nav>
         )}
 
-        {photos.length > 0 && (
+        {photos.length > 0 && homeGridOpen && (
           <nav className="filters filters-advanced" aria-label={tr('app.filtersAdvanced.ariaLabel')}>
             <label className="search-field">
               <SearchIcon className="inline-icon" aria-hidden="true" />
@@ -1069,30 +1074,43 @@ export default function App() {
         </div>
       ) : (
         <>
-          {filtered.length > VIRTUALIZE_THRESHOLD ? (
-            <VirtualPhotoGrid
-              photos={filtered} onOpen={onCardOpen} multiSelectIds={multiSelectIds}
-              onCardPointerDown={onCardPointerDown} onContextMenu={onCardContextMenu}
-              onScroll={handleGridScroll}
-            />
-          ) : (
-            <div
-              className="grid"
-              style={{
-                '--card-min': `${CARD_MIN_WIDTH[gridDensity].wide}px`,
-                '--card-min-narrow': `${CARD_MIN_WIDTH[gridDensity].narrow}px`
-              } as CSSProperties}
-            >
-              {filtered.map((p, i) => (
-                <PhotoCard
-                  key={p.id} photo={p} index={i} onOpen={onCardOpen}
-                  multiSelected={multiSelectIds.has(p.id)}
-                  onCardPointerDown={onCardPointerDown} onContextMenu={onCardContextMenu}
-                />
-              ))}
-            </div>
+          {/* Ecranul Acasa (plan modernizare): implicit arata doar HomeDashboard-ul
+              de mai sus, curat — grila clasica (CullGauge + filtre + carduri) ramane
+              accesibila, dar la cerere, prin acest buton, nu mai stivuita direct sub
+              dashboard din start (feedback direct: "arata dublu, nu curat ca in HTML"). */}
+          {!homeGridOpen && (
+            <button className="home-view-all-cta" onClick={() => setHomeGridOpen(true)}>
+              {tr('app.viewAllPhotos', { count: counts.all })}
+            </button>
           )}
-          {filtered.length === 0 && !progress && <EmptyFilterState />}
+          {homeGridOpen && (
+            <>
+              {filtered.length > VIRTUALIZE_THRESHOLD ? (
+                <VirtualPhotoGrid
+                  photos={filtered} onOpen={onCardOpen} multiSelectIds={multiSelectIds}
+                  onCardPointerDown={onCardPointerDown} onContextMenu={onCardContextMenu}
+                  onScroll={handleGridScroll}
+                />
+              ) : (
+                <div
+                  className="grid"
+                  style={{
+                    '--card-min': `${CARD_MIN_WIDTH[gridDensity].wide}px`,
+                    '--card-min-narrow': `${CARD_MIN_WIDTH[gridDensity].narrow}px`
+                  } as CSSProperties}
+                >
+                  {filtered.map((p, i) => (
+                    <PhotoCard
+                      key={p.id} photo={p} index={i} onOpen={onCardOpen}
+                      multiSelected={multiSelectIds.has(p.id)}
+                      onCardPointerDown={onCardPointerDown} onContextMenu={onCardContextMenu}
+                    />
+                  ))}
+                </div>
+              )}
+              {filtered.length === 0 && !progress && <EmptyFilterState />}
+            </>
+          )}
           {multiSelectIds.size > 0 ? (
             <div className="bulk-bar glass" role="toolbar" aria-label={tr('app.bulkBar.ariaLabel')}>
               <span className="bulk-bar-count mono">{tr('app.bulkBar.count', { count: multiSelectIds.size })}</span>

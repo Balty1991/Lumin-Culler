@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
-import { useStore } from '../state/store';
+import { useStore, type PhotoView } from '../state/store';
 import { selectSortQueue, countSeriesSiblings } from '../state/tiktokSort';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
+import { SELECT_THRESHOLD, REJECT_THRESHOLD } from '../core/importPipeline';
+import { explainFactors } from '../core/learning/ContextEngine';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { CollectionPicker } from './CollectionPicker';
 import { AdjustedImage } from './AdjustedImage';
@@ -9,6 +11,24 @@ import { XIcon, HeartIcon, UndoIcon, ChevronUpIcon, SparkleIcon } from './icons'
 import { t, type Locale } from '../i18n';
 
 const SWIPE_COMMIT = 80; // px de tras (sus SAU jos) pentru a schimba pozitia in coada, fara sa decida nimic
+/** Peste acest numar de poze in coada, punctele individuale de progres (un <i> per poza) ar
+    deveni fire de par nefolositoare vizual — cade pe bara continua clasica, cu numarator text. */
+const MAX_PROGRESS_DOTS = 60;
+
+type AiRecommendation = 'select' | 'review' | 'reject';
+
+function aiRecommendation(score: number): AiRecommendation {
+  if (score >= SELECT_THRESHOLD) return 'select';
+  if (score <= REJECT_THRESHOLD) return 'reject';
+  return 'review';
+}
+
+/** Motivul scorului AI, pe scurt — reutilizeaza aceiasi factori (topFactors) deja calculati
+    la import, nu o noua explicatie: doar primele 2, ca sa incapa pe caption-ul plin ecran. */
+function topReasonsText(photo: PhotoView, locale: Locale): string | null {
+  const factors = explainFactors(photo.aiFactors, locale).slice(0, 2).map(f => f.label);
+  return factors.length ? factors.join(', ') : null;
+}
 
 function formatCaptureDate(ts: number | undefined, locale: Locale): string | null {
   if (!ts) return null;
@@ -134,6 +154,8 @@ export function TikTokSort() {
   const seriesCount = current ? countSeriesSiblings(photos, current) : 0;
   const captureDate = current ? formatCaptureDate(current.capturedAt, locale) : null;
   const album = current ? (collections.find(c => c.memberIds.includes(current.id))?.name ?? current.project) : undefined;
+  const recommendation = current ? aiRecommendation(current.aiScore) : null;
+  const reasonsText = current ? topReasonsText(current, locale) : null;
 
   return (
     <div className="tiktok-sort" ref={containerRef} role="dialog" aria-modal="true" aria-label={tr('tiktok.title')} tabIndex={-1}>
@@ -151,9 +173,16 @@ export function TikTokSort() {
 
       {current && (
         <>
-          <div className="tiktok-progress" role="progressbar" aria-valuenow={index} aria-valuemin={0} aria-valuemax={total}>
-            <i style={{ width: total > 0 ? `${(index / total) * 100}%` : '0%' }} />
-          </div>
+          {total <= MAX_PROGRESS_DOTS ? (
+            <div className="tiktok-progress-dots" role="progressbar" aria-valuenow={index + 1} aria-valuemin={1} aria-valuemax={total}>
+              {queueIds.map((id, i) => <i key={id} className={i < index ? 'done' : undefined} />)}
+            </div>
+          ) : (
+            <div className="tiktok-progress" role="progressbar" aria-valuenow={index} aria-valuemin={0} aria-valuemax={total}>
+              <i style={{ width: total > 0 ? `${(index / total) * 100}%` : '0%' }} />
+            </div>
+          )}
+          <span className="tiktok-progress-count mono" aria-hidden="true">{index + 1}/{total}</span>
           <div className="tiktok-up-hint"><ChevronUpIcon aria-hidden="true" /><span>{tr('tiktok.hint')}</span></div>
 
           <div
@@ -170,12 +199,21 @@ export function TikTokSort() {
           <div className="tiktok-veil-bottom" aria-hidden="true" />
 
           <div className="tiktok-caption">
-            {seriesCount > 1 && (
-              <span className="tiktok-ai-chip">
-                <SparkleIcon className="inline-icon" aria-hidden="true" /> {tr('tiktok.caption.series', { count: seriesCount })}
-              </span>
-            )}
-            <span className="tiktok-caption-sub">
+            <div className="tiktok-chip-row">
+              {recommendation && (
+                <span className={`tiktok-ai-chip rec-${recommendation}`}>
+                  <SparkleIcon className="inline-icon" aria-hidden="true" />
+                  {tr(`tiktok.ai.${recommendation}`)} · {current.aiScore}
+                </span>
+              )}
+              {seriesCount > 1 && (
+                <span className="tiktok-ai-chip">
+                  {tr('tiktok.caption.series', { count: seriesCount })}
+                </span>
+              )}
+            </div>
+            {reasonsText && <span className="tiktok-caption-sub">{reasonsText}</span>}
+            <span className="tiktok-caption-sub tiktok-caption-meta">
               {[captureDate, album].filter(Boolean).join(' · ')}
             </span>
           </div>
