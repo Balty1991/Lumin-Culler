@@ -201,45 +201,6 @@
   --accent-rgb: 0 255 242; --accent-2-rgb: 122 92 255;
 }
 
-/* Consola (plan modernizare) — temă vizuală ALTERNATIVĂ, comutabilă din Meniu
-   (state/visualTheme.ts), NU înlocuire a designului implicit. Precedent direct:
-   "Studio Noir" de mai sus, aprobat doar pe mockup si respins pe telefon real.
-   Paletă rece/grafit, un singur accent cyan, tipografie monospațiată pentru
-   date — pentru că majoritatea suprafețelor citesc deja aceste token-uri,
-   comutarea temei le actualizează automat; regulile de mai jos (lângă
-   .home-* si .tiktok-*) acoperă doar detaliile care NU sunt doar culoare. */
-:root[data-visual="consola"] {
-  --bg: #0a0c0f;
-  --surface: #12151a;
-  --surface-2: #171b21;
-  --surface-3: #1c2129;
-  --line: #1c2129;
-  --line-strong: #2a303a;
-  --text: #eef2f4;
-  --text-dim: #8b95a1;
-  --text-faint: #5c6672;
-  --accent: #52e8c7;
-  --accent-2: #52e8c7;
-  --accent-gradient: linear-gradient(90deg, #52e8c7, #8ff5df);
-  --accent-rgb: 82 232 199;
-  --accent-2-rgb: 82 232 199;
-  --accent-text: #52e8c7;
-  --radius-sm: 6px;
-  --radius: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 18px;
-  --glass-bg: rgba(18,21,26,0.82);
-  --glass-border: rgba(255,255,255,0.08);
-}
-:root[data-visual="consola"][data-theme="light"] {
-  /* Consola e gândită dark-first (panou de bord); tema deschisă rămâne cea implicită,
-     doar suprafețele de bază se schimbă, ca la orice alt data-theme — nu inventăm o
-     a doua identitate luminoasă separată. */
-  --bg: #f4f5f7; --surface: #ffffff; --surface-2: #eef0f3; --surface-3: #e2e4ea;
-  --text: #14171b; --text-dim: #5b6470; --line: #e2e5ea; --line-strong: #c7ccd3;
-  --accent-text: #0f8f7c;
-}
-
 /* prefers-contrast: more — utilizatori cu vedere redusa care au cerut explicit
    mai mult contrast la nivel de sistem/browser; ignorat complet altfel de
    variabilele CSS custom (nu e ceva ce browser-ul aplica singur peste ele). */
@@ -534,53 +495,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .home-mini-num .inline-icon { width: 15px; height: 15px; color: var(--accent); }
 .home-mini-lbl { font-size: 0.68rem; color: var(--text-dim); }
 
-/* Consola (plan modernizare) — Acasa ca plan de actiune numerotat, randat DOAR
-   cand visualTheme === 'consola' (vezi HomeDashboard.tsx -> HomePlanConsola.tsx).
-   Clase proprii, nu suprascrieri peste .home-* — structura de informatie e
-   diferita (o lista ordonata de pasi), nu doar un alt stil pe acelasi markup. */
-.consola-plan { display: flex; flex-direction: column; gap: 10px; margin-bottom: 8px; animation: fadeUp 0.3s var(--ease) both; }
-.consola-greet-row { display: flex; justify-content: space-between; align-items: baseline; padding: 2px 2px 0; }
-.consola-greet-row b { font-size: 1.05rem; font-weight: 700; color: var(--text); }
-.consola-session { font-family: var(--mono); font-size: 0.68rem; color: var(--text-dim); letter-spacing: 0.04em; }
-
-.consola-panel { border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px 12px; background: var(--surface); }
-.consola-panel-lbl { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); margin: 0 0 8px; }
-.consola-panel-num { font-family: var(--mono); font-size: 1.9rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; color: var(--text); }
-.consola-bar-track { height: 5px; border-radius: 3px; background: var(--surface-3); margin: 10px 0; overflow: hidden; }
-.consola-bar-fill { height: 100%; border-radius: 3px; background: var(--accent-gradient); transition: width 0.4s var(--ease); }
-.consola-tele-row { display: flex; font-family: var(--mono); font-size: 0.66rem; color: var(--text-dim); }
-.consola-tele-row div { flex: 1; border-left: 1px solid var(--line); padding-left: 8px; }
-.consola-tele-row div:first-child { border-left: 0; padding-left: 0; }
-.consola-tele-row b { display: block; font-size: 0.92rem; color: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; }
-
-.consola-plan-head { display: flex; justify-content: space-between; align-items: baseline; padding: 2px 2px 4px; }
-.consola-plan-head span:first-child { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); }
-.consola-plan-head span:last-child { font-family: var(--mono); font-size: 0.62rem; color: var(--accent); }
-.consola-step-list { display: flex; flex-direction: column; gap: 7px; }
-.consola-step { display: flex; align-items: center; gap: 10px; padding: 11px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); text-align: left; width: 100%; }
-.consola-step.current { border-color: rgb(var(--accent-rgb) / 0.5); background: rgb(var(--accent-rgb) / 0.06); }
-.consola-step.done { opacity: 0.55; }
-.consola-step-num {
-  width: 22px; height: 22px; border-radius: 5px; border: 1px solid var(--line-strong); flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 0.62rem; color: var(--text-dim);
-}
-.consola-step.current .consola-step-num { border-color: var(--accent); color: var(--accent); }
-.consola-step.done .consola-step-num { border-color: var(--accent); background: var(--accent); color: #06110e; }
-.consola-step-txt { flex: 1; min-width: 0; }
-.consola-step-txt b { display: block; font-size: 0.8rem; font-weight: 700; color: var(--text); }
-.consola-step.done .consola-step-txt b { text-decoration: line-through; color: var(--text-dim); }
-.consola-step-txt span { display: block; font-size: 0.66rem; color: var(--text-dim); font-family: var(--mono); margin-top: 1px; }
-.consola-step-go {
-  flex-shrink: 0; font-family: var(--mono); font-size: 0.6rem; font-weight: 700; letter-spacing: 0.03em;
-  padding: 6px 10px; border-radius: 5px; border: 1px solid var(--accent); color: var(--accent); background: transparent;
-}
-.consola-step.current .consola-step-go { background: var(--accent); color: #06110e; }
-
-.consola-chip-row { display: flex; gap: 8px; }
-.consola-chip { flex: 1; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 8px 10px; font-family: var(--mono); background: var(--surface); }
-.consola-chip b { display: block; font-size: 0.85rem; color: var(--text); font-variant-numeric: tabular-nums; }
-.consola-chip span { display: block; font-size: 0.58rem; color: var(--text-dim); letter-spacing: 0.03em; margin-top: 2px; text-transform: uppercase; }
-
 /* "Acum X ani" (plan modernizare) — tratament mai premium decat bannerele
    utilitare de mai sus (glass + contur cu gradient, acelasi truc dublu-background
    ca .how-step-icon/.chip.active): functia e menita sa aduca placere/nostalgie,
@@ -720,9 +634,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .tiktok-ai-chip.rec-reject { background: rgb(var(--reject-rgb) / 0.24); border-color: rgb(var(--reject-rgb) / 0.5); }
 .tiktok-caption-sub { font-size: 0.72rem; color: rgba(255,255,255,0.72); }
 .tiktok-caption-meta { color: rgba(255,255,255,0.55); }
-/* EXIF-ul e informatie reala (PhotoView.fNumber/exposureTime/iso/focalLength), afisata
-   in ambele teme — vezi tiktokSort.ts formatExifLine. Consola ii da relief mono mai jos. */
-.tiktok-exif-line { font-size: 0.68rem; color: rgba(255,255,255,0.55); font-variant-numeric: tabular-nums; }
 .tiktok-rail {
   position: absolute; right: 14px; bottom: calc(96px + env(safe-area-inset-bottom));
   display: flex; flex-direction: column; align-items: center; gap: 16px; z-index: var(--z-card-badge);
@@ -748,38 +659,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .tiktok-empty svg { width: 34px; height: 34px; color: var(--accent); }
 .tiktok-empty h3 { font-size: 1.05rem; }
 .tiktok-empty p { font-size: 0.82rem; color: rgba(255,255,255,0.65); max-width: 280px; }
-
-/* Consola — reskin HUD peste Sortare rapidă, strict pe stratul de prezentare;
-   gestica din TikTokSort.tsx (swipe/pinch/pan) ramane complet neatinsa. */
-[data-visual="consola"] .tiktok-progress-dots i { border-radius: 2px; background: rgba(82,232,199,0.18); }
-[data-visual="consola"] .tiktok-progress-dots i.done { background: var(--accent); box-shadow: 0 0 6px rgba(82,232,199,0.6); }
-[data-visual="consola"] .tiktok-progress i { background: var(--accent); box-shadow: 0 0 8px rgba(82,232,199,0.5); }
-[data-visual="consola"] .tiktok-progress-count { font-family: var(--mono); color: var(--accent); letter-spacing: 0.04em; }
-[data-visual="consola"] .tiktok-ai-chip {
-  border-radius: 5px; font-family: var(--mono); letter-spacing: 0.02em;
-  background: rgba(255,255,255,0.04); border: 1px solid var(--line-strong);
-}
-[data-visual="consola"] .tiktok-ai-chip.rec-select { border-color: rgb(var(--pick-rgb) / 0.6); }
-[data-visual="consola"] .tiktok-ai-chip.rec-review { border-color: rgb(var(--review-rgb) / 0.6); }
-[data-visual="consola"] .tiktok-ai-chip.rec-reject { border-color: rgb(var(--reject-rgb) / 0.6); }
-[data-visual="consola"] .tiktok-exif-line { font-family: var(--mono); color: var(--accent); font-size: 0.66rem; letter-spacing: 0.03em; }
-[data-visual="consola"] .tiktok-caption-meta { font-family: var(--mono); }
-[data-visual="consola"] .tiktok-rail-btn { border-radius: 8px; }
-[data-visual="consola"] .tiktok-rail-btn.keep { background: rgba(82,232,199,0.12); color: var(--accent); box-shadow: none; border: 1px solid var(--accent); }
-[data-visual="consola"] .tiktok-rail-btn.del { border: 1px solid rgb(var(--reject-rgb) / 0.6); box-shadow: none; }
-[data-visual="consola"] .tiktok-rail-btn.album { border-radius: 8px; border: 1px solid var(--line-strong); }
-[data-visual="consola"] .tiktok-rail-label { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.02em; text-transform: uppercase; }
-
-/* Colturi de cadraj HUD — pur decorative (aria-hidden), randate DOAR cand
-   visualTheme === 'consola' (vezi TikTokSort.tsx), nu doar ascunse prin CSS. */
-.tiktok-hud-corner {
-  position: absolute; width: 18px; height: 18px; border-color: rgb(var(--accent-rgb) / 0.85);
-  z-index: var(--z-card-badge); pointer-events: none;
-}
-.tiktok-hud-corner.tl { top: 96px; left: 16px; border-top: 2px solid; border-left: 2px solid; border-radius: 3px 0 0 0; }
-.tiktok-hud-corner.tr { top: 96px; right: 16px; border-top: 2px solid; border-right: 2px solid; border-radius: 0 3px 0 0; }
-.tiktok-hud-corner.bl { bottom: 200px; left: 16px; border-bottom: 2px solid; border-left: 2px solid; border-radius: 0 0 0 3px; }
-.tiktok-hud-corner.br { bottom: 200px; right: 16px; border-bottom: 2px solid; border-right: 2px solid; border-radius: 0 0 3px 0; }
 
 /* ── Toast: mesaj tranzitoriu (rezultat export, avertisment stocare) — plutitor, cu auto-dismiss.
    Tonul (succes/avertisment/eroare) e dedus din continutul mesajului (App.tsx: noticeTone), nu

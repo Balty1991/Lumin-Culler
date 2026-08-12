@@ -10,7 +10,6 @@ import { selectPendingShieldReview, readShieldDismissedIds } from '../core/docum
 import { selectUnresolvedGroups } from '../state/duplicateGroups';
 import { AnimatedNumber } from './AnimatedNumber';
 import { GalleryOverviewNote } from './GalleryOverviewNote';
-import { HomePlanConsola } from './HomePlanConsola';
 import { SparkleIcon, PinIcon, ChevronUpIcon, ShieldIcon, CopyIcon } from './icons';
 import { t, plural } from '../i18n';
 
@@ -41,7 +40,6 @@ function greetingKey(hour: number): string {
 export function HomeDashboard() {
   const photos = useStore(s => s.photos);
   const locale = useStore(s => s.locale);
-  const visualTheme = useStore(s => s.visualTheme);
   const setPresentationPhotoIds = useStore(s => s.setPresentationPhotoIds);
   const setPresentationOpen = useStore(s => s.setPresentationOpen);
   const setTripsOpen = useStore(s => s.setTripsOpen);
@@ -83,30 +81,6 @@ export function HomeDashboard() {
     setDeleting(true);
     try { await deleteRejectedPhotos(); } finally { setDeleting(false); }
   };
-
-  // Consola (plan modernizare) — tema alternativa comutabila (Meniu -> Consola),
-  // NU inlocuire a designului implicit: "Acasa" devine un plan de actiune
-  // numerotat in loc de o vitrina de carduri. Aceleasi valori calculate mai
-  // sus, doar o alta prezentare — calea implicita de mai jos ramane neatinsa.
-  if (visualTheme === 'consola') {
-    return (
-      <HomePlanConsola
-        greeting={tr(greetingKey(now.getHours()))}
-        unsortedCount={unsortedCount}
-        duplicateGroupCount={duplicateGroupCount}
-        recapCount={recapPhotos.length >= RECAP_TEASER_MIN_PHOTOS ? recapPhotos.length : 0}
-        donePercent={donePercent}
-        decidedCount={decidedCount}
-        totalCount={photos.length}
-        totalGB={totalGB}
-        streak={streak}
-        tripCount={tripCount}
-        onOpenSort={() => setTiktokSortOpen(true)}
-        onOpenDuplicates={() => setDuplicatesPanelOpen(true)}
-        onOpenRecap={openRecap}
-      />
-    );
-  }
 
   return (
     <div className="home-dash">

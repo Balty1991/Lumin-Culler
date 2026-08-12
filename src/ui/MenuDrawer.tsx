@@ -107,8 +107,6 @@ export function MenuDrawer() {
   const setTheme = useStore(s => s.setTheme);
   const accentTheme = useStore(s => s.accentTheme);
   const setAccentTheme = useStore(s => s.setAccentTheme);
-  const visualTheme = useStore(s => s.visualTheme);
-  const setVisualTheme = useStore(s => s.setVisualTheme);
   const locale = useStore(s => s.locale);
   const setLocale = useStore(s => s.setLocale);
   const economicMode = useStore(s => s.economicMode);
@@ -567,19 +565,6 @@ export function MenuDrawer() {
               ))}
             </span>
           </div>
-
-          {/* Temă alternativă comutabilă, nu înlocuire directă a designului implicit — vezi
-              istoricul "Studio Noir" din accentTheme.ts. Consola reorganizează Acasă/Sortare
-              rapidă (nu doar culoarea), deci merită testată pe telefon real cu cale de întoarcere. */}
-          <button
-            className="drawer-item"
-            onClick={() => go(() => setVisualTheme(visualTheme === 'consola' ? 'default' : 'consola'))}
-            aria-pressed={visualTheme === 'consola'}
-            title={tr('menu.visualTheme.title')}
-          >
-            <span className="drawer-item-icon"><BarChartIcon /></span>
-            <span>{visualTheme === 'consola' ? tr('menu.visualTheme.active') : tr('menu.visualTheme')}</span>
-          </button>
 
           <button
             className="drawer-item"

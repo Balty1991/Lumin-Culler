@@ -43,7 +43,6 @@ import {
 } from './gallerySupervisor';
 import { readStoredTheme, applyTheme, type Theme } from './theme';
 import { readStoredAccent, applyAccent, type AccentTheme } from './accentTheme';
-import { readStoredVisualTheme, applyVisualTheme, type VisualTheme } from './visualTheme';
 import { readAccessibleMode, applyAccessibleMode } from '../core/accessibleMode';
 import { readSmartNotificationEnabled, writeSmartNotificationEnabled } from './smartNotification';
 import {
@@ -376,8 +375,6 @@ interface AppState {
   setTheme: (theme: Theme) => void;
   accentTheme: AccentTheme;
   setAccentTheme: (accent: AccentTheme) => void;
-  visualTheme: VisualTheme;
-  setVisualTheme: (visual: VisualTheme) => void;
   accessibleMode: boolean;
   setAccessibleMode: (on: boolean) => void;
   /** "Notificare inteligenta" (vezi state/smartNotification.ts) — opt-in, cere permisiune de notificare cand e pornita. */
@@ -1053,7 +1050,6 @@ applyLocale(readStoredLocale());
 // de subtila incat un flash de-o fractiune de secunda pana ruleaza acest
 // modul nu justifica un al doilea script separat.
 applyAccent(readStoredAccent());
-applyVisualTheme(readStoredVisualTheme());
 applyAccessibleMode(readAccessibleMode());
 
 /**
@@ -1361,8 +1357,6 @@ export const useStore = create<AppState>((set, get) => ({
   setTheme: theme => { applyTheme(theme); set({ theme }); },
   accentTheme: readStoredAccent(),
   setAccentTheme: accent => { applyAccent(accent); set({ accentTheme: accent }); },
-  visualTheme: readStoredVisualTheme(),
-  setVisualTheme: visual => { applyVisualTheme(visual); set({ visualTheme: visual }); },
   accessibleMode: readAccessibleMode(),
   setAccessibleMode: on => { applyAccessibleMode(on); set({ accessibleMode: on }); },
   smartNotificationsEnabled: readSmartNotificationEnabled(),
