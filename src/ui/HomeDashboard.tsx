@@ -7,6 +7,7 @@ import { selectDeletableRejected } from '../state/batchOps';
 import { sumKnownSizeBytes, formatGB } from '../state/storageStats';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { AnimatedNumber } from './AnimatedNumber';
+import { GalleryOverviewNote } from './GalleryOverviewNote';
 import { SparkleIcon, PinIcon, ChevronUpIcon } from './icons';
 import { t, plural } from '../i18n';
 
@@ -92,6 +93,8 @@ export function HomeDashboard() {
           <b>{totalGB}GB</b>
         </div>
       </div>
+
+      <GalleryOverviewNote />
 
       {unsortedCount > 0 && (
         <button className="home-sort-cta" onClick={() => setTiktokSortOpen(true)}>

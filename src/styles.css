@@ -450,6 +450,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   flex-shrink: 0; border-radius: 999px; padding: 8px 16px; font-size: 0.76rem; font-weight: 700;
   background: var(--accent-gradient); color: #06050a;
 }
+/* "Cate poze ai in galerie" (plan modernizare) — buton discret, NU o cerere
+   automata de permisiune; vezi ui/GalleryOverviewNote.tsx. */
+.gallery-overview-cta {
+  align-self: flex-start; border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px;
+  font-size: 0.76rem; color: var(--text-dim); background: var(--surface-2);
+}
+.gallery-overview-cta:disabled { opacity: 0.6; }
 .home-recap-card {
   display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius); text-align: left; width: 100%;
   background-image: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--accent-gradient);

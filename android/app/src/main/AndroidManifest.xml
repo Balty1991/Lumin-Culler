@@ -42,4 +42,12 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Doar pentru "cate poze ai in galerie" (Acasa, plan modernizare) — o interogare
+         MediaStore de NUMARAT, nu de citit bytes. Selectorul de import (pickPhotos,
+         ACTION_OPEN_DOCUMENT) NU are nevoie de asta, ramane neschimbat. Ambele declarate,
+         standard Android: READ_MEDIA_IMAGES pe API 33+ (Android 13), READ_EXTERNAL_STORAGE
+         cu maxSdkVersion pe API-uri mai vechi (ignorata automat de sistem pe 33+). -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
 </manifest>

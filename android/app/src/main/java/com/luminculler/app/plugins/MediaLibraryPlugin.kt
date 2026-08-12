@@ -1,5 +1,6 @@
 package com.luminculler.app.plugins
 
+import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
@@ -12,11 +13,14 @@ import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import com.getcapacitor.JSArray
 import com.getcapacitor.JSObject
+import com.getcapacitor.PermissionState
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.ActivityCallback
 import com.getcapacitor.annotation.CapacitorPlugin
+import com.getcapacitor.annotation.Permission
+import com.getcapacitor.annotation.PermissionCallback
 
 /**
  * Selectie de poze care PASTREAZA URI-ul content:// (spre deosebire de
@@ -51,7 +55,16 @@ import com.getcapacitor.annotation.CapacitorPlugin
  * bine sa promitem mai putin decat sa lasam impresia falsa ca poate fi
  * recuperata sigur dintr-un loc anume.
  */
-@CapacitorPlugin(name = "MediaLibrary")
+@CapacitorPlugin(
+    name = "MediaLibrary",
+    permissions = [
+        // Doar pentru galleryOverview() (numarul de poze din galerie, Acasa) — pickPhotos()/
+        // deletePhotos() de mai jos NU au nevoie de asta (SAF/trash-request isi cer singure
+        // acordul, per-operatie). NEVALIDAT inca pe device real (nu poate fi testat din
+        // sesiunea de dezvoltare) — vezi comentariul de la galleryOverview().
+        Permission(strings = [Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_EXTERNAL_STORAGE], alias = "photos")
+    ]
+)
 class MediaLibraryPlugin : Plugin() {
     /**
      * createTrashRequest() intoarce un PendingIntent, NU un Intent obisnuit —
@@ -172,6 +185,50 @@ class MediaLibraryPlugin : Plugin() {
         } catch (e: Exception) {
             pendingDeleteCall = null
             call.reject("Nu am putut porni cererea de stergere: ${e.message}", e)
+        }
+    }
+
+    /**
+     * "Cate poze ai in galerie" (Acasa, plan modernizare — cerinta directa a
+     * utilizatorului) — DOAR un numar (COUNT pe MediaStore), nu citeste bytes-ii
+     * niciunei poze si nu aduce nimic in aplicatie. Import-ul efectiv ramane strict
+     * prin pickPhotos() (selectorul explicit de mai sus) — asta e doar vizibilitate,
+     * nu un import automat al intregii galerii.
+     *
+     * NEVALIDAT inca pe device real (nu poate fi testat din sesiunea de dezvoltare,
+     * fara acces la un telefon Android fizic) — la fel ca celelalte module native
+     * marcate explicit ne-verificate in acest proiect (ex. core/nativeTextRecognition.ts).
+     * Verifica manual dupa instalare: permisiunea trebuie sa apara ca dialog nativ
+     * o singura data, iar numarul intors trebuie sa corespunda cu ce arata Galeria.
+     */
+    @PluginMethod
+    fun galleryOverview(call: PluginCall) {
+        if (getPermissionState("photos") != PermissionState.GRANTED) {
+            requestPermissionForAlias("photos", call, "galleryOverviewPermissionCallback")
+            return
+        }
+        resolveGalleryOverview(call)
+    }
+
+    @PermissionCallback
+    private fun galleryOverviewPermissionCallback(call: PluginCall) {
+        if (getPermissionState("photos") == PermissionState.GRANTED) {
+            resolveGalleryOverview(call)
+        } else {
+            // Refuz explicit al utilizatorului — nu e o eroare, doar "nu stim numarul"
+            call.resolve(JSObject().put("granted", false).put("totalCount", 0))
+        }
+    }
+
+    private fun resolveGalleryOverview(call: PluginCall) {
+        try {
+            val projection = arrayOf(MediaStore.Images.Media._ID)
+            val count = context.contentResolver.query(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI, projection, null, null, null
+            )?.use { it.count } ?: 0
+            call.resolve(JSObject().put("granted", true).put("totalCount", count))
+        } catch (e: Exception) {
+            call.reject("Nu am putut citi galeria: ${e.message}", e)
         }
     }
 }

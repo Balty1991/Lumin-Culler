@@ -18,6 +18,7 @@ import { registerPlugin, Capacitor } from '@capacitor/core';
 interface MediaLibraryPluginApi {
   pickPhotos(): Promise<{ cancelled: boolean; photos: { uri: string; name: string }[] }>;
   deletePhotos(options: { uris: string[] }): Promise<{ cancelled: boolean }>;
+  galleryOverview(): Promise<{ granted: boolean; totalCount: number }>;
 }
 
 const MediaLibraryNative = registerPlugin<MediaLibraryPluginApi>('MediaLibrary');
@@ -72,4 +73,17 @@ export async function pickNativePhotos(): Promise<NativePickedPhoto[]> {
 export async function deleteNativePhotos(uris: string[]): Promise<{ cancelled: boolean }> {
   if (!uris.length) return { cancelled: true };
   return MediaLibraryNative.deletePhotos({ uris });
+}
+
+/**
+ * "Cate poze ai in galerie" (Acasa, plan modernizare) — cere permisiunea de
+ * CITIRE a galeriei (READ_MEDIA_IMAGES/READ_EXTERNAL_STORAGE, prima data cand
+ * se apeleaza asta) si intoarce DOAR un numar (MediaStore.query cu COUNT, fara
+ * sa citeasca bytes-ii vreunei poze) — nu aduce nimic in aplicatie, doar
+ * vizibilitate. Importul efectiv ramane strict prin pickNativePhotos() de mai sus.
+ *
+ * NEVALIDAT inca pe device real — vezi comentariul din MediaLibraryPlugin.kt.
+ */
+export async function readGalleryOverview(): Promise<{ granted: boolean; totalCount: number }> {
+  return MediaLibraryNative.galleryOverview();
 }
