@@ -56,7 +56,7 @@ describe('explainFactors', () => {
     const result = explainFactors(factors);
     expect(result).toEqual([
       { label: 'Claritate', positive: true },
-      { label: 'Expunere echilibrata', positive: false }
+      { label: 'Expunere echilibrată', positive: false }
     ]);
   });
 
@@ -81,7 +81,7 @@ describe('explainFactors', () => {
   // asta", nu "defectul a ajutat". Eticheta trebuie sa reflecte asta.
   it('uses an "absence" label for a positive contribution on a defect-style feature (few/no blown highlights helped)', () => {
     const result = explainFactors([{ feature: 'highlightClipping', contribution: 0.3 }]);
-    expect(result).toEqual([{ label: 'Fara highlights arse', positive: true }]);
+    expect(result).toEqual([{ label: 'Fără highlights arse', positive: true }]);
   });
 
   it('uses the plain "defect present" label for a negative contribution on the same feature', () => {
@@ -96,17 +96,17 @@ describe('explainFactors', () => {
       { feature: 'isoPenalty', contribution: 0.2 }
     ]);
     expect(result).toEqual([
-      { label: 'Fara umbre blocate', positive: true },
-      { label: 'Fara straini in cadru', positive: true },
+      { label: 'Fără umbre blocate', positive: true },
+      { label: 'Fără străini în cadru', positive: true },
       { label: 'ISO redus', positive: true }
     ]);
   });
 
   it('applies the same absence/presence distinction to bodyCroppedAtEdge (pose-based limb-crop signal)', () => {
     expect(explainFactors([{ feature: 'bodyCroppedAtEdge', contribution: 0.2 }]))
-      .toEqual([{ label: 'Nimic taiat de cadru', positive: true }]);
+      .toEqual([{ label: 'Nimic tăiat de cadru', positive: true }]);
     expect(explainFactors([{ feature: 'bodyCroppedAtEdge', contribution: -0.2 }]))
-      .toEqual([{ label: 'Membru taiat de cadru', positive: false }]);
+      .toEqual([{ label: 'Membru tăiat de cadru', positive: false }]);
   });
 });
 

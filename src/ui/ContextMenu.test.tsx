@@ -23,7 +23,7 @@ describe('ContextMenu — "Adauga in folder" pe apasare lunga', () => {
 
   it('ofera actiunea de folder direct in meniul deschis prin apasare lunga', () => {
     render(<ContextMenu {...baseProps} photoIds={['p1']} />);
-    expect(screen.getByRole('button', { name: /adauga in folder/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /adaugă în folder/i })).toBeInTheDocument();
   });
 
   it('actioneaza pe toata selectia cand meniul a fost deschis peste o selectie in masa', async () => {
@@ -34,7 +34,7 @@ describe('ContextMenu — "Adauga in folder" pe apasare lunga', () => {
     });
 
     render(<ContextMenu {...baseProps} count={3} photoIds={['p1', 'p2', 'p3']} />);
-    fireEvent.click(screen.getByRole('button', { name: /adauga in folder/i }));
+    fireEvent.click(screen.getByRole('button', { name: /adaugă în folder/i }));
     fireEvent.click(screen.getByRole('menuitemcheckbox', { name: /Ami/ }));
 
     expect(addPhotosToCollection).toHaveBeenCalledWith('col-1', ['p1', 'p2', 'p3']);
@@ -53,7 +53,7 @@ describe('ContextMenu — "Adauga in folder" pe apasare lunga', () => {
     useStore.setState({ collections: [{ id: 'col-1', name: 'Ami', createdAt: 1, memberIds: [] }] });
 
     render(<ContextMenu {...baseProps} photoIds={['p1']} onClose={onClose} />);
-    fireEvent.click(screen.getByRole('button', { name: /adauga in folder/i }));
+    fireEvent.click(screen.getByRole('button', { name: /adaugă în folder/i }));
     // listener-ul de "click in afara" se ataseaza abia in tick-ul urmator (vezi setTimeout din ContextMenu)
     await act(async () => { await new Promise(r => setTimeout(r, 0)); });
 

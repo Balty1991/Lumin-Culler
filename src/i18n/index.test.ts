@@ -12,7 +12,7 @@ describe('t', () => {
   });
 
   it('interpolates {param} placeholders', () => {
-    expect(t('ro', 'menu.gridDensity', { density: 'Mare' })).toBe('Densitate grila: Mare');
+    expect(t('ro', 'menu.gridDensity', { density: 'Mare' })).toBe('Densitatea grilei: Mare');
     expect(t('en', 'menu.gridDensity', { density: 'Large' })).toBe('Grid density: Large');
   });
 

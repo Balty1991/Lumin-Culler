@@ -2585,12 +2585,12 @@ export const useStore = create<AppState>((set, get) => ({
       }
     }
     if (!embeddings.length) {
-      return { ok: false, message: 'Nicio fata detectata in pozele de referinta. Alege poze clare, frontale.' };
+      return { ok: false, message: 'Nicio față detectată în pozele de referință. Alege poze clare, frontale.' };
     }
     const skipped = Math.max(0, files.length - MAX_PERSON_REFERENCE_FILES);
     const skippedSuffix = skipped > 0 ? ` (${skipped} poze ignorate, plafon ${MAX_PERSON_REFERENCE_FILES} per inrolare)` : '';
     const multifaceSuffix = multiface > 0
-      ? ` Atentie: ${multiface} ${multiface === 1 ? 'poza a continut' : 'poze au continut'} mai multe fete — s-a folosit automat cea mai mare din cadru; verifica daca e persoana corecta.`
+      ? ` Atenție: ${multiface} ${multiface === 1 ? 'poză a conținut' : 'poze au conținut'} mai multe fețe — s-a folosit automat cea mai mare din cadru; verifică dacă e persoana corectă.`
       : '';
     const trimmedName = name.trim();
     const existing = get().persons.find(p => p.name.trim().toLowerCase() === trimmedName.toLowerCase());

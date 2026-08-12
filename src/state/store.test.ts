@@ -175,7 +175,7 @@ describe('runImport concurrency guard', () => {
     const secondImport = useStore.getState().runImport([file]);
     await secondImport; // al doilea trebuie sa se rezolve IMEDIAT (respins), nu sa astepte primul
     expect(importFilesMock).toHaveBeenCalledTimes(1); // NU a pornit un al doilea import real
-    expect(useStore.getState().notice).toBe('Un import e deja in curs — asteapta sa se termine inainte sa mai adaugi poze.');
+    expect(useStore.getState().notice).toBe('Un import e deja în curs — așteaptă să se termine înainte să mai adaugi poze.');
 
     resolveImportFiles?.(); // lasam primul import sa se termine, ca testul sa nu ramana agatat
     await firstImport;
@@ -517,7 +517,7 @@ describe('setStatus topShift toast (integration, Dexie real via fake-indexeddb)'
 
     await useStore.getState().setStatus('p1', 'selected');
 
-    expect(useStore.getState().notice).toBe('Am invatat: zambete largi');
+    expect(useStore.getState().notice).toBe('Am învățat: zambete largi');
     recordCorrectionSpy.mockRestore();
   });
 
@@ -908,7 +908,7 @@ describe('importClientFeedback (integration, Dexie real via fake-indexeddb)', ()
 
     await useStore.getState().importClientFeedback(file);
 
-    expect(useStore.getState().notice).toContain('Importul feedback-ului de la client a esuat');
+    expect(useStore.getState().notice).toContain('Importul feedback-ului de la client a eșuat');
   });
 });
 

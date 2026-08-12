@@ -328,7 +328,7 @@ describe('exportOriginalFiles (fallback fara File System Access API)', () => {
       { id: 'p1', fileName: 'a.jpg', personNames: [], faceCount: 0, strangerCount: 0, sceneType: 'landscape', sceneTags: ['Fun', 'Vacation', 'Beach'] }
     ]);
     expect(result.exported).toBe(1);
-    expect(downloadBlob.mock.calls[0][0]).toBe('Plaja/a.jpg');
+    expect(downloadBlob.mock.calls[0][0]).toBe('Plajă/a.jpg');
   });
 
   it('ramane pe Peisaje/Detalii cand toate etichetele sunt abstracte sau lipsesc (comportament neschimbat)', async () => {
