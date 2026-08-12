@@ -891,6 +891,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   transition: border-color 0.18s var(--ease), background 0.18s var(--ease), color 0.18s var(--ease), transform 0.15s var(--ease), box-shadow 0.18s var(--ease);
 }
 .chip:hover { border-color: var(--line-strong); transform: translateY(-1px); box-shadow: 0 4px 12px -5px rgba(0,0,0,0.4); }
+.chip:active { transform: translateY(-1px) scale(0.96); }
 /* iconita in fata etichetei — discreta cand inactiva, plina cand chip-ul e selectat */
 .chip-icon { display: inline-flex; width: 14px; height: 14px; opacity: 0.55; flex-shrink: 0; }
 .chip-icon svg { width: 100%; height: 100%; }
@@ -1582,8 +1583,16 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 @keyframes sheetIn { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
 .detail-inner.narrow { max-width: 460px; }
 .detail-inner.wide { max-width: 940px; }
-.detail-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-.detail-head span:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.detail-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 2px; }
+/* Consecventa tipografica (reorganizare interfata) — titlul fiecarui panou
+   modal (~17 ecrane: Vault, Duplicate, Statistici, Calatorii etc.) foloseste
+   acum aceeasi voce de brand ca titlul Meniului si titlul ecranului de bun
+   venit (--font-display), in loc sa ramana pe fontul de sistem generic — un
+   singur loc de adevar, nu o repetare per-panou. */
+.detail-head span:first-child {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--font-display); font-weight: 700; letter-spacing: -0.01em; font-size: 1.05rem;
+}
 .detail-head .ghost { flex-shrink: 0; }
 
 /* "Mod Zen" (plan modernizare) — ecran dedicat (ui/ZenModePanel.tsx), nu doar
@@ -2285,13 +2294,44 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   display: flex; justify-content: space-between; align-items: center;
   margin-bottom: 10px; font-family: var(--font-display); font-weight: 700; letter-spacing: -0.01em; font-size: 1.16rem;
 }
+/* Randul de actiuni rapide (reorganizare meniu) — cele doua actiuni cele mai
+   folosite, scoase in fata, in afara listei lungi de mai jos. */
+.drawer-quick-row { display: flex; gap: 8px; margin-bottom: 6px; }
+.drawer-quick-btn {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 12px 8px; border-radius: var(--radius); text-align: center;
+  background-image: linear-gradient(var(--surface-2), var(--surface-2)), var(--accent-gradient);
+  background-origin: border-box; background-clip: padding-box, border-box; border: 1px solid transparent;
+  color: var(--text); font-size: 0.76rem; font-weight: 600;
+  transition: transform 0.15s var(--ease), box-shadow 0.15s var(--ease);
+}
+.drawer-quick-btn svg { width: 18px; height: 18px; color: var(--accent-text); }
+.drawer-quick-btn:hover { box-shadow: 0 6px 18px -8px rgb(var(--accent-rgb) / 0.45); }
+.drawer-quick-btn:active { transform: scale(0.96); }
+/* Sectiuni pliabile (reorganizare meniu — cerinta directa: "mai lizibila, usor
+   accesibila") — cele mai rar folosite (Export & backup, Setari) pornesc
+   stranse implicit, ca lista sa nu mai fie 35 de randuri identice deodata. */
+.drawer-group + .drawer-group { margin-top: 2px; }
+.drawer-group-head {
+  display: flex; align-items: center; justify-content: space-between; width: 100%;
+  background: none; border: none; padding: 0; text-align: left; cursor: pointer;
+}
+.drawer-group-head .drawer-section-label { padding-bottom: 0; }
+.drawer-group-chevron { width: 13px; height: 13px; color: var(--text-faint); transition: transform 0.2s var(--ease); }
+.drawer-group-chevron[data-open="false"] { transform: rotate(180deg); }
+.drawer-group-body {
+  display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.25s var(--ease);
+}
+.drawer-group-body[data-open="true"] { grid-template-rows: 1fr; }
+.drawer-group-body-inner { display: flex; flex-direction: column; gap: 3px; min-height: 0; overflow: hidden; }
 .drawer-item {
   display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
   padding: 10px; border-radius: var(--radius); color: var(--text);
-  transition: background 0.15s var(--ease);
+  transition: background 0.15s var(--ease), transform 0.1s var(--ease);
 }
 .drawer-item:hover { background: var(--surface-2); }
 .drawer-item:hover .drawer-item-icon { background: var(--surface-3); color: var(--accent-text); }
+.drawer-item:active { transform: scale(0.98); }
 .drawer-item-icon {
   flex-shrink: 0; width: 34px; height: 34px; border-radius: 10px; background: var(--surface-2);
   color: var(--text-dim); display: flex; align-items: center; justify-content: center;
