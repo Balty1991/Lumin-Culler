@@ -32,7 +32,7 @@ import {
   pushBatchHistory, popBatchHistory, type BatchHistoryEvent, type FieldBatchHistoryEvent
 } from './history';
 import { selectBulkRejectTargets, resolveGroups, selectTopPercent, selectHighlights, selectBlinks, selectDeletableRejected } from './batchOps';
-import { isNativeMediaLibraryAvailable, deleteNativePhotos } from '../core/nativeMediaLibrary';
+import { isNativeMediaLibraryAvailable, deleteNativePhotos, readGalleryOverview } from '../core/nativeMediaLibrary';
 import { readStoredTheme, applyTheme, type Theme } from './theme';
 import { readStoredAccent, applyAccent, type AccentTheme } from './accentTheme';
 import { readAccessibleMode, applyAccessibleMode } from '../core/accessibleMode';
@@ -337,6 +337,13 @@ interface AppState {
   setZenPanelOpen: (open: boolean) => void;
   /** Vezi state/zenResolve.ts — ruleaza automat dupa import cand zenMode e activ (store.ts, runImport). */
   runZenResolve: () => Promise<{ resolved: number; uncertain: number; deleted: number }>;
+  /**
+   * "Cate poze ai in galerie" (Acasa, plan modernizare) — null = inca nu s-a
+   * cerut (utilizatorul nu a apasat butonul dedicat inca). Vezi
+   * core/nativeMediaLibrary.ts:readGalleryOverview — NEVALIDAT pe device real.
+   */
+  galleryOverview: { granted: boolean; totalCount: number } | null;
+  loadGalleryOverview: () => Promise<void>;
   /** Limba interfetei — vezi i18n/index.ts. Migrare treptata: doar unele ecrane citesc asta deocamdata, restul ramane in romana codificata direct. */
   locale: Locale;
   setLocale: (locale: Locale) => void;
@@ -1284,6 +1291,18 @@ export const useStore = create<AppState>((set, get) => ({
     set({ notice });
 
     return { resolved: confident.length, uncertain: uncertain.length, deleted: deletedCount };
+  },
+  galleryOverview: null,
+  loadGalleryOverview: async () => {
+    if (!isNativeMediaLibraryAvailable()) return;
+    try {
+      const result = await readGalleryOverview();
+      set({ galleryOverview: result });
+    } catch (err) {
+      // esec de citire (plugin indisponibil, eroare MediaStore) — ramane null,
+      // apelantul (UI) trateaza null identic cu "inca nu s-a cerut"
+      console.warn('Nu am putut citi galeria:', err);
+    }
   },
   locale: readStoredLocale(),
   setLocale: locale => { writeStoredLocale(locale); applyLocale(locale); set({ locale }); },

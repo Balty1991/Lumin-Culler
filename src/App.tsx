@@ -38,6 +38,7 @@ import { BackupReminder } from './ui/BackupReminder';
 import { ImportReminder } from './ui/ImportReminder';
 import { MemoryBanner } from './ui/MemoryBanner';
 import { HomeDashboard } from './ui/HomeDashboard';
+import { GalleryOverviewNote } from './ui/GalleryOverviewNote';
 import { BottomNav } from './ui/BottomNav';
 import { WelcomeOnboarding } from './ui/WelcomeOnboarding';
 import { t } from './i18n';
@@ -1000,6 +1001,7 @@ export default function App() {
           <button className="btn-accent big" onClick={() => void onAddPhotosClick()}>{tr('app.empty.cta')}</button>
           <p className="mono empty-formats">{tr('app.empty.formats')}</p>
           <p className="hint"><UserCheckIcon className="inline-icon" /> {tr('app.empty.hint')}</p>
+          <GalleryOverviewNote />
 
           <div className="hud how-it-works-hud">
             <span className="bracket tl" aria-hidden="true" /><span className="bracket tr" aria-hidden="true" />
