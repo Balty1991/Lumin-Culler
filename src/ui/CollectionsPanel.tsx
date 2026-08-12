@@ -16,7 +16,10 @@ import { t } from '../i18n';
 export function CollectionsPanel() {
   const open = useStore(s => s.collectionsOpen);
   const setOpen = useStore(s => s.setCollectionsOpen);
-  const collections = useStore(s => s.collections);
+  // Dosarul privat (isPrivate) NU apare aici — are propriul panou gestionat cu
+  // PIN (VaultPanel.tsx); listat aici ar aparea in Albume la orice utilizator,
+  // fara nicio deblocare, exact ce "privat" incearca sa evite.
+  const collections = useStore(s => s.collections).filter(c => !c.isPrivate);
   const collectionFilter = useStore(s => s.collectionFilter);
   const setCollectionFilter = useStore(s => s.setCollectionFilter);
   const createCollection = useStore(s => s.createCollection);

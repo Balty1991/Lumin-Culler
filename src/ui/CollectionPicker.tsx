@@ -28,7 +28,8 @@ interface CollectionPickerProps {
 export function CollectionPicker({ photoIds, iconOnly, triggerClassName }: CollectionPickerProps) {
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
-  const collections = useStore(s => s.collections);
+  // Dosarul privat (isPrivate) NU apare in acest selector — vezi CollectionsPanel.tsx.
+  const collections = useStore(s => s.collections).filter(c => !c.isPrivate);
   const createCollection = useStore(s => s.createCollection);
   const addPhotosToCollection = useStore(s => s.addPhotosToCollection);
   const removePhotosFromCollection = useStore(s => s.removePhotosFromCollection);

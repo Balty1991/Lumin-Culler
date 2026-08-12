@@ -417,6 +417,16 @@ export interface CollectionRecord {
   name: string;
   createdAt: number;
   memberIds: string[];
+  /**
+   * "Dosar privat" (plan modernizare, core/vault.ts) — un singur folder cu
+   * acest flag exista per biblioteca (getOrCreateVaultCollection), filtrat
+   * explicit din Albume/selectorul de foldere si din grila principala cat
+   * timp nu e deblocat cu PIN in sesiunea curenta. Absent/false = folder
+   * normal, vizibil mereu (comportament neschimbat); nu necesita bump de
+   * schema Dexie (camp neindexat, exact ca restul campurilor optionale din
+   * PhotoRecord de mai sus).
+   */
+  isPrivate?: boolean;
 }
 
 export interface KnownPerson {

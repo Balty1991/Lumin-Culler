@@ -6,10 +6,12 @@ import {
   UserCheckIcon, SparkleIcon, ListIcon, InfoIcon, XIcon, TagIcon, LayersIcon, KeyboardIcon,
   SunIcon, MoonIcon, ClockIcon, BatteryIcon, GridIcon, DownloadIcon, UploadIcon, BarChartIcon, GlobeIcon, PrinterIcon,
   ApertureIcon, PlayIcon, EditIcon, FolderIcon, HeartIcon, TrashIcon, PinIcon, PaletteIcon, AccessibilityIcon,
-  ChevronUpIcon
+  ChevronUpIcon, SearchIcon, ShieldIcon, LockIcon, CopyIcon
 } from './icons';
 import type { AccentTheme } from '../state/accentTheme';
 import { selectDeletableRejected } from '../state/batchOps';
+import { selectPendingShieldReview, readShieldDismissedIds } from '../core/documentShield';
+import { selectUnresolvedGroups } from '../state/duplicateGroups';
 import { selectMonthlyRecap } from '../state/monthlyRecap';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { EASE } from './motion';
@@ -68,6 +70,8 @@ export function MenuDrawer() {
   const setEconomicMode = useStore(s => s.setEconomicMode);
   const accessibleMode = useStore(s => s.accessibleMode);
   const setAccessibleMode = useStore(s => s.setAccessibleMode);
+  const smartNotificationsEnabled = useStore(s => s.smartNotificationsEnabled);
+  const setSmartNotificationsEnabled = useStore(s => s.setSmartNotificationsEnabled);
   const zenMode = useStore(s => s.zenMode);
   const setZenPanelOpen = useStore(s => s.setZenPanelOpen);
   const genre = useStore(s => s.genre);
@@ -94,6 +98,16 @@ export function MenuDrawer() {
   const setCollectionsOpen = useStore(s => s.setCollectionsOpen);
   const setTripsOpen = useStore(s => s.setTripsOpen);
   const setTiktokSortOpen = useStore(s => s.setTiktokSortOpen);
+  const setSearchPanelOpen = useStore(s => s.setSearchPanelOpen);
+  const setDocumentShieldOpen = useStore(s => s.setDocumentShieldOpen);
+  const setVaultOpen = useStore(s => s.setVaultOpen);
+  const setDuplicatesPanelOpen = useStore(s => s.setDuplicatesPanelOpen);
+  const collections = useStore(s => s.collections);
+  const shieldPendingCount = useMemo(() => {
+    const vaultIds = new Set(collections.find(c => c.isPrivate)?.memberIds ?? []);
+    return selectPendingShieldReview(photos, vaultIds, readShieldDismissedIds()).length;
+  }, [photos, collections]);
+  const duplicateGroupCount = useMemo(() => selectUnresolvedGroups(photos).length, [photos]);
   const persons = useStore(s => s.persons);
   const askConfirm = useStore(s => s.askConfirm);
   const reduceMotion = useReducedMotion();
@@ -307,6 +321,28 @@ export function MenuDrawer() {
           <span>{tr('menu.tiktokSort')}</span>
         </button>
 
+        <button className="drawer-item" onClick={() => go(() => setSearchPanelOpen(true))}>
+          <span className="drawer-item-icon"><SearchIcon /></span>
+          <span>{tr('menu.visualSearch')}</span>
+        </button>
+
+        <button className="drawer-item" onClick={() => go(() => setDuplicatesPanelOpen(true))}>
+          <span className="drawer-item-icon"><CopyIcon /></span>
+          <span>{tr('menu.duplicates')}</span>
+          {duplicateGroupCount > 0 && <b className="drawer-count mono">{duplicateGroupCount}</b>}
+        </button>
+
+        <button className="drawer-item" onClick={() => go(() => setDocumentShieldOpen(true))}>
+          <span className="drawer-item-icon"><ShieldIcon /></span>
+          <span>{tr('menu.documentShield')}</span>
+          {shieldPendingCount > 0 && <b className="drawer-count mono">{shieldPendingCount}</b>}
+        </button>
+
+        <button className="drawer-item" onClick={() => go(() => setVaultOpen(true))}>
+          <span className="drawer-item-icon"><LockIcon /></span>
+          <span>{tr('menu.vault')}</span>
+        </button>
+
         <button className="drawer-item" onClick={() => go(() => setPresentationOpen(true))} title={tr('menu.presentation.title')}>
           <span className="drawer-item-icon"><PlayIcon /></span>
           <span>{tr('menu.presentation')}</span>
@@ -484,6 +520,16 @@ export function MenuDrawer() {
         >
           <span className="drawer-item-icon"><AccessibilityIcon /></span>
           <span>{accessibleMode ? tr('menu.accessibleMode.active') : tr('menu.accessibleMode')}</span>
+        </button>
+
+        <button
+          className="drawer-item"
+          onClick={() => go(() => setSmartNotificationsEnabled(!smartNotificationsEnabled))}
+          aria-pressed={smartNotificationsEnabled}
+          title={tr('menu.smartNotifications.title')}
+        >
+          <span className="drawer-item-icon"><InfoIcon /></span>
+          <span>{smartNotificationsEnabled ? tr('menu.smartNotifications.active') : tr('menu.smartNotifications')}</span>
         </button>
 
         <button

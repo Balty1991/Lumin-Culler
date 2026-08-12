@@ -225,3 +225,29 @@ export function PrinterIcon(p: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+/** Dosarul privat (core/vault.ts) — lacat clasic, folosit atat pentru meniu cat si pentru ecranul de deblocare PIN. */
+export function LockIcon(p: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base} {...p}>
+      <rect x="5" y="11" width="14" height="9" rx="2" />
+      <path d="M8 11V7a4 4 0 018 0v4" />
+    </svg>
+  );
+}
+/** Protectie documente/coduri sensibile — scut, distinct de LockIcon (folder vs. detectie proactiva). */
+export function ShieldIcon(p: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base} {...p}>
+      <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" />
+    </svg>
+  );
+}
+/** "Duplicate gasite" — doua dreptunghiuri suprapuse (copie), distinct de LayersIcon (folosit deja pentru serii/copy-stack in badge-uri de card). */
+export function CopyIcon(p: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base} {...p}>
+      <rect x="9" y="9" width="11" height="11" rx="2" />
+      <path d="M5 15V5a2 2 0 012-2h10" />
+    </svg>
+  );
+}
