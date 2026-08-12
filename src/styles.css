@@ -1642,12 +1642,50 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .confirm-dialog-input:focus { outline: none; border-color: var(--accent); }
 .confirm-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
-/* ── Ecran de bun venit (o singura data, vezi state/welcomeOnboarding.ts) ── */
-.welcome-onboarding {
-  position: relative; text-align: center; display: grid; gap: 10px; justify-items: center; padding-top: 8px;
+/* ── Ecran de bun venit (o singura data, vezi state/welcomeOnboarding.ts) ──
+   Ecran PLIN cu glow, dupa mockup-ul 01 din prezentare — nu o foaie de jos.
+   Glow-ul e mai puternic aici (0.30/0.24) decat cel ambiental de pe <body>
+   (0.16/0.13): e singurul ecran fara nicio poza pe el, deci nu poate denatura
+   judecata de culoare a nimanui, si e singura ocazie de a arata identitatea
+   vizuala inainte ca utilizatorul sa aiba continut propriu. */
+.welcome-screen {
+  position: fixed; inset: 0; z-index: var(--z-modal-scrim);
+  display: flex; align-items: center; justify-content: center;
+  padding: calc(24px + env(safe-area-inset-top)) 20px calc(24px + env(safe-area-inset-bottom));
+  overflow-y: auto;
+  background:
+    radial-gradient(circle at 15% 18%, rgb(var(--accent-2-rgb) / 0.30), transparent 46%),
+    radial-gradient(circle at 88% 78%, rgb(var(--accent-rgb) / 0.24), transparent 44%),
+    var(--bg);
+  animation: fadeIn 0.25s var(--ease) both;
 }
-.welcome-onboarding-skip { position: absolute; top: 0; right: 0; }
-.welcome-onboarding-locale { position: absolute; top: 0; left: 0; }
+.welcome-onboarding {
+  position: relative; text-align: center; display: grid; gap: 12px; justify-items: center;
+  width: 100%; max-width: 380px;
+  /* Fara animatie cu `transform` aici: un transform (chiar si la valoarea
+     finala, cu fill-mode `both`) face din acest element blocul de referinta
+     pentru descendentii `position: fixed`, deci comutatorul RO/EN si butonul
+     de sarit ajungeau ancorate in coltul BLOCULUI centrat, plutind peste
+     iconita, in loc de colturile ecranului. Intrarea o face .welcome-screen. */
+}
+/* Pastila-iconita din mockup (rotunjita, gradientul de brand) — inlocuieste
+   discul cu halou rotativ (.core) folosit de AiBootScreen/ecranul gol: acolo
+   sugereaza "lucreaza acum", aici nu lucreaza nimic, e doar prima impresie. */
+.welcome-onboarding-icon {
+  width: 68px; height: 68px; border-radius: 22px; display: flex; align-items: center; justify-content: center;
+  background: var(--accent-gradient); color: #06070a;
+  box-shadow: 0 18px 40px -14px rgb(var(--accent-rgb) / 0.7);
+}
+.welcome-onboarding-icon svg { width: 32px; height: 32px; }
+.welcome-onboarding h2 { font-family: var(--font-display); font-size: 1.35rem; line-height: 1.25; letter-spacing: -0.01em; }
+.welcome-onboarding-actions .btn-accent { border-radius: 999px; padding: 13px 20px; }
+/* Ancorate in colturile ECRANULUI, nu ale blocului de text: blocul e centrat
+   vertical, deci `absolute` fata de el le aducea plutind in mijlocul paginii,
+   peste iconita. Prefixate cu .welcome-screen ca sa bata
+   `.icon-btn { position: relative }`, declarat mai jos in fisier la aceeasi
+   specificitate. */
+.welcome-screen .welcome-onboarding-skip { position: fixed; top: calc(14px + env(safe-area-inset-top)); right: 14px; }
+.welcome-screen .welcome-onboarding-locale { position: fixed; top: calc(14px + env(safe-area-inset-top)); left: 14px; }
 /* comutator RO/EN sub forma de 2 segmente text (nu un glob generic) — vezi
    comentariul din LocaleToggle.tsx pentru motiv. */
 .locale-toggle {
