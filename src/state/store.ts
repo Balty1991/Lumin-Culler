@@ -2167,7 +2167,7 @@ export const useStore = create<AppState>((set, get) => ({
     if (!deletable.length) return { deleted: 0, skipped: skippedCount, cancelled: false };
     if (!isNativeMediaLibraryAvailable()) return { deleted: 0, skipped: skippedCount + deletable.length, cancelled: false };
 
-    let result: { cancelled: boolean };
+    let result: { cancelled: boolean; skippedUris: string[] };
     try {
       result = await deleteNativePhotos(deletable.map(p => p.mediaUri!));
     } catch (err) {
@@ -2179,7 +2179,16 @@ export const useStore = create<AppState>((set, get) => ({
     // ca "esec" (spre deosebire de catch-ul de mai sus, unde cererea nici n-a putut porni).
     if (result.cancelled) return { deleted: 0, skipped: skippedCount + deletable.length, cancelled: true };
 
-    const ids = deletable.map(p => p.id);
+    // Bug real raportat de utilizator: o singura poza inaccesibila (permisiune
+    // schimbata intre timp) facea sa esueze STERGEREA INTREGULUI LOT (0 din 29).
+    // MediaLibraryPlugin.kt acum omite doar acele poze din cererea de stergere —
+    // aici le scoatem la fel din setul "chiar sters", ca sa nu disparea din
+    // biblioteca aplicatiei desi tot mai exista fizic pe telefon.
+    const nativeSkippedUris = new Set(result.skippedUris);
+    const actuallyDeleted = deletable.filter(p => !nativeSkippedUris.has(p.mediaUri!));
+    const nativeSkippedCount = deletable.length - actuallyDeleted.length;
+
+    const ids = actuallyDeleted.map(p => p.id);
     const idSet = new Set(ids);
     // Aceleasi 6 tabele golite la "Goleste sesiunea" (clearAll), dar doar pentru
     // ACESTE id-uri — vezi comentariul de acolo pentru ce contine fiecare.
@@ -2189,15 +2198,16 @@ export const useStore = create<AppState>((set, get) => ({
     ]);
     for (const id of ids) { originalFiles.delete(id); originalHandles.delete(id); }
 
+    const totalSkipped = skippedCount + nativeSkippedCount;
     const deletedNotice = t(locale, 'store.deleteRejected.notice', { deleted: ids.length });
-    const skippedNotice = skippedCount > 0 ? t(locale, 'store.deleteRejected.skippedPart', { skipped: skippedCount }) : '';
+    const skippedNotice = totalSkipped > 0 ? t(locale, 'store.deleteRejected.skippedPart', { skipped: totalSkipped }) : '';
     set(state => ({
       photos: state.photos.filter(p => !idSet.has(p.id)),
       detailId: state.detailId && idSet.has(state.detailId) ? null : state.detailId,
       multiSelectIds: new Set([...state.multiSelectIds].filter(id => !idSet.has(id))),
       notice: deletedNotice + skippedNotice
     }));
-    return { deleted: ids.length, skipped: skippedCount, cancelled: false };
+    return { deleted: ids.length, skipped: totalSkipped, cancelled: false };
   },
 
   toggleMultiSelect: id => set(state => {
