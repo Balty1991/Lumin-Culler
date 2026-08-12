@@ -591,8 +591,17 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   font-size: 0.62rem; color: rgba(255,255,255,0.6); z-index: var(--z-card-badge); pointer-events: none;
 }
 .tiktok-up-hint svg { width: 16px; height: 16px; }
-.tiktok-stage-wrap { position: absolute; inset: 0; touch-action: none; }
-.tiktok-stage { width: 100%; height: 100%; object-fit: cover; }
+.tiktok-stage-wrap { position: absolute; inset: 0; touch-action: none; overflow: hidden; }
+/* object-fit:contain (nu cover) — bug real raportat de utilizator: capturi de ecran/documente
+   (proportii diferite de o poza normala) erau taiate de margini, fara nicio cale sa vezi restul
+   cadrului. Fundalul negru al ecranului (.tiktok-sort) devine "bara" naturala pe laturi. */
+.tiktok-stage { width: 100%; height: 100%; object-fit: contain; touch-action: none; }
+.tiktok-stage.zoomed { cursor: grab; }
+.tiktok-zoom-hint {
+  position: absolute; top: calc(78px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
+  font-size: 0.62rem; color: rgba(255,255,255,0.7); background: rgba(0,0,0,0.5); padding: 3px 9px;
+  border-radius: 999px; z-index: var(--z-card-badge); pointer-events: none;
+}
 .tiktok-veil-top {
   position: absolute; top: 0; left: 0; right: 0; height: 90px;
   background: linear-gradient(rgba(0,0,0,0.55), transparent); pointer-events: none;
@@ -2987,6 +2996,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 /* Panoul complet al supervizorului (lungime perioada, calendar, foldere) */
 .supervisor-section { margin: 16px 0; }
 .supervisor-section-label { font-size: 0.74rem; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 8px; }
+.supervisor-section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.supervisor-section-head .supervisor-section-label { margin-bottom: 0; }
+.supervisor-remaining-cta { width: 100%; text-align: center; padding: 10px; border-radius: 12px; margin-bottom: 4px; font-size: 0.8rem; }
 .supervisor-chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .supervisor-next-card { width: 100%; margin-bottom: 4px; }
 .supervisor-next-card:disabled { opacity: 0.7; }

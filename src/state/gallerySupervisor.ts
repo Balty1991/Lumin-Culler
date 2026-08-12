@@ -25,8 +25,13 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /** Aproximare deliberata (nu luna calendaristica exacta) — consistenta indiferent de luna aleasa, acelasi compromis facut deja la ~2 luni initial. */
 const MONTH_MS = 30 * DAY_MS;
 
-/** Variantele oferite explicit ("mai scurte si mai lungi... in functie de cat timp disponibil are utilizatorul"). */
-export const PERIOD_MONTH_OPTIONS = [1, 2, 3] as const;
+/**
+ * Variantele oferite explicit ("adauga mai multe intervale... in functie de
+ * cat timp disponibil are utilizatorul") — de la o sesiune scurta (2
+ * saptamani) pana la una ampla (1 an), nu doar 1-3 luni. 0.5 = 2 saptamani
+ * (jumatate de luna, aceeasi aproximare de 30 zile/luna ca restul).
+ */
+export const PERIOD_MONTH_OPTIONS = [0.5, 1, 2, 3, 6, 12] as const;
 export type PeriodMonths = typeof PERIOD_MONTH_OPTIONS[number];
 
 /** ~2 luni — valoarea implicita, pastrata si ca fallback de test/compatibilitate. */
@@ -110,6 +115,21 @@ export function computeNextPeriod(opts: {
   if (start >= opts.nowMs) return null;
   const end = Math.min(start + periodMs, opts.nowMs);
   return { start, end };
+}
+
+/**
+ * "Tot ce a ramas" (cerinta directa: "inclusiv butonul toata perioada") — de
+ * la cursor pana acum, INTR-UN SINGUR PAS, indiferent de lungimea aleasa
+ * pentru perioadele individuale. null daca s-a ajuns deja la zi (nimic ramas).
+ */
+export function computeRemainingPeriod(opts: {
+  earliestMs: number;
+  nowMs: number;
+  coveredUntilMs: number | null;
+}): GalleryPeriod | null {
+  const start = opts.coveredUntilMs !== null ? Math.max(opts.coveredUntilMs, opts.earliestMs) : opts.earliestMs;
+  if (start >= opts.nowMs) return null;
+  return { start, end: opts.nowMs };
 }
 
 export interface GalleryPeriodEntry extends GalleryPeriod {

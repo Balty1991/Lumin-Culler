@@ -37,8 +37,8 @@ import {
   readGalleryFolders, pickPhotosInFolder
 } from '../core/nativeMediaLibrary';
 import {
-  computeNextPeriod, readCoveredUntil, writeCoveredUntil, listAllPeriods, readPeriodMonths, writePeriodMonths,
-  periodMonthsToMs, type GalleryPeriod, type GalleryPeriodEntry, type PeriodMonths
+  computeNextPeriod, computeRemainingPeriod, readCoveredUntil, writeCoveredUntil, listAllPeriods, readPeriodMonths,
+  writePeriodMonths, periodMonthsToMs, type GalleryPeriod, type GalleryPeriodEntry, type PeriodMonths
 } from './gallerySupervisor';
 import { readStoredTheme, applyTheme, type Theme } from './theme';
 import { readStoredAccent, applyAccent, type AccentTheme } from './accentTheme';
@@ -407,6 +407,8 @@ interface AppState {
   supervisorNextPeriod: () => GalleryPeriod | null;
   /** Toate perioadele (calendaristic) de la cea mai veche poza pana acum, fiecare marcata daca a fost deja acoperita — pentru selectorul manual. */
   supervisorAllPeriods: () => GalleryPeriodEntry[];
+  /** "Tot ce a ramas", de la cursor pana acum, intr-un singur pas ("inclusiv butonul toata perioada" — cerinta directa). null daca s-a ajuns deja la zi. */
+  supervisorRemainingPeriod: () => GalleryPeriod | null;
   supervisorImporting: boolean;
   /** Aduce o perioada ANUME (selectata manual sau recomandata) si avanseaza cursorul (fara sa-l dea niciodata inapoi). */
   importGalleryPeriod: (period: GalleryPeriod) => Promise<void>;
@@ -420,6 +422,8 @@ interface AppState {
   loadGalleryFolders: () => Promise<void>;
   /** Aduce DIRECT toate pozele dintr-un folder (fara selector manual). */
   importGalleryFolder: (bucketId: string) => Promise<void>;
+  /** Aduce toate folderele deodata ("si la foldere, la fel" — cerinta directa). */
+  importAllGalleryFolders: () => Promise<void>;
   /** Limba interfetei — vezi i18n/index.ts. Migrare treptata: doar unele ecrane citesc asta deocamdata, restul ramane in romana codificata direct. */
   locale: Locale;
   setLocale: (locale: Locale) => void;
@@ -1477,6 +1481,11 @@ export const useStore = create<AppState>((set, get) => ({
       periodMs: periodMonthsToMs(get().supervisorPeriodMonths)
     });
   },
+  supervisorRemainingPeriod: () => {
+    const range = get().galleryDateRange;
+    if (!range?.granted || range.earliestMs === undefined) return null;
+    return computeRemainingPeriod({ earliestMs: range.earliestMs, nowMs: Date.now(), coveredUntilMs: get().supervisorCoveredUntil });
+  },
   supervisorImporting: false,
   importGalleryPeriod: async period => {
     if (get().supervisorImporting) return;
@@ -1528,6 +1537,29 @@ export const useStore = create<AppState>((set, get) => ({
     const locale = get().locale;
     try {
       const picked = await pickPhotosInFolder(bucketId);
+      if (picked.length) {
+        await get().runImport(picked.map(p => p.file), undefined, picked.map(p => p.uri));
+      } else {
+        set({ notice: t(locale, 'gallerySupervisor.periodEmpty') });
+      }
+    } catch (err) {
+      set({ notice: t(locale, 'gallerySupervisor.failed', { error: String(err) }) });
+    } finally {
+      set({ supervisorImporting: false });
+    }
+  },
+  importAllGalleryFolders: async () => {
+    if (get().supervisorImporting) return;
+    const folders = get().galleryFolders?.folders ?? [];
+    if (!folders.length) return;
+    set({ supervisorImporting: true });
+    const locale = get().locale;
+    try {
+      // Cate un apel per folder, in paralel — fiecare folder al galeriei e independent,
+      // acelasi motiv pentru care pickPhotosInFolder/pickPhotosInRange trateaza deja
+      // fiecare poza individual (Promise.allSettled) fara sa opreasca tot lotul la o eroare.
+      const results = await Promise.all(folders.map(f => pickPhotosInFolder(f.id)));
+      const picked = results.flat();
       if (picked.length) {
         await get().runImport(picked.map(p => p.file), undefined, picked.map(p => p.uri));
       } else {
