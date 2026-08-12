@@ -78,6 +78,19 @@ export interface ExportOptions {
    * gruparea automata de dinainte, neschimbata (exportul selectiei).
    */
   folderName?: string;
+  /**
+   * Unde ajung fisierele, cand utilizatorul a ales explicit (foaia "Trimite
+   * pozele păstrate", mockup 20). Absent = 'auto', comportamentul de dinainte:
+   * folder daca platforma are un selector, altfel descarcare/partajare.
+   *
+   * 'apps' sare PESTE selectorul de folder si merge direct pe calea de
+   * descarcare — care pe Android nativ e foaia de partajare a sistemului
+   * (vezi saveViaNativeShare in export/directoryPicker.ts), adica exact
+   * drumul catre Google Photos, Drive, Fisiere sau orice altceva are omul
+   * instalat. Asta face mockup-ul 20 real fara OAuth si fara chei de API:
+   * destinatia o alege sistemul de operare, nu noi.
+   */
+  destination?: 'auto' | 'folder' | 'apps';
 }
 
 // ── Grupare pe foldere: persoane cunoscute (si combinatii), apoi scena ─────
@@ -210,7 +223,7 @@ async function copyToDirectory(files: { name: string; file: File; folder: string
  * prefix), nu e o pierdere daca browserul nu suporta subfoldere.
  */
 export async function exportOriginalFiles(photos: ExportPhotoInput[], options: ExportOptions = {}): Promise<ExportResult> {
-  const { renameTemplate, locale = 'ro', zipBaseName = 'lumin-culler-export', folderName } = options;
+  const { renameTemplate, locale = 'ro', zipBaseName = 'lumin-culler-export', folderName, destination = 'auto' } = options;
   // Numele vine de la utilizator (l-a tastat la crearea folderului), deci trece
   // prin acelasi filtru ca etichetele derivate — un "/" sau ":" in el ar deveni
   // altfel un nivel de path neintentionat (sau un nume invalid pe disc).
@@ -285,7 +298,8 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[], options: E
     } else missing.push(p.fileName);
   }
 
-  const pickDirectory = getDirectoryPicker();
+  // 'apps' = utilizatorul a cerut explicit alta aplicatie/cloud, nu un folder.
+  const pickDirectory = destination === 'apps' ? null : getDirectoryPicker();
   let method: ExportResult['method'] = pickDirectory ? 'folder' : 'downloads';
 
   if (!available.length) return { exported: 0, missing, method, cancelled: false, grouped: false };

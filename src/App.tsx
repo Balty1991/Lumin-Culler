@@ -90,6 +90,7 @@ const TikTokSort = lazyPanel(() => import('./ui/TikTokSort').then(m => ({ defaul
 const ZenModePanel = lazyPanel(() => import('./ui/ZenModePanel').then(m => ({ default: m.ZenModePanel })));
 const AppearancePanel = lazyPanel(() => import('./ui/AppearancePanel').then(m => ({ default: m.AppearancePanel })));
 const PremiumPanel = lazyPanel(() => import('./ui/PremiumPanel').then(m => ({ default: m.PremiumPanel })));
+const ExportDestinations = lazyPanel(() => import('./ui/ExportDestinations').then(m => ({ default: m.ExportDestinations })));
 const SearchPanel = lazyPanel(() => import('./ui/SearchPanel').then(m => ({ default: m.SearchPanel })));
 const DocumentShieldPanel = lazyPanel(() => import('./ui/DocumentShieldPanel').then(m => ({ default: m.DocumentShieldPanel })));
 const VaultPanel = lazyPanel(() => import('./ui/VaultPanel').then(m => ({ default: m.VaultPanel })));
@@ -275,7 +276,7 @@ export default function App() {
   const openDetail = useStore(s => s.openDetail);
   const openCompare = useStore(s => s.openCompare);
   const setMenuOpen = useStore(s => s.setMenuOpen);
-  const exportSelection = useStore(s => s.exportSelection);
+  const setExportDestinationsOpen = useStore(s => s.setExportDestinationsOpen);
   const notice = useStore(s => s.notice);
   const clearNotice = useStore(s => s.clearNotice);
   const aiDegraded = useStore(s => s.aiDegraded);
@@ -762,6 +763,7 @@ export default function App() {
         <ZenModePanel />
         <AppearancePanel />
         <PremiumPanel />
+        <ExportDestinations />
         <SearchPanel />
         <DocumentShieldPanel />
         <VaultPanel />
@@ -806,7 +808,7 @@ export default function App() {
           )}
           <button
             className={counts.selected ? 'btn-accent export-cta' : 'ghost export-cta'}
-            onClick={() => void exportSelection()}
+            onClick={() => setExportDestinationsOpen(true)}
             disabled={!counts.selected}
           >
             <DownloadIcon className="inline-icon" aria-hidden="true" /> {tr('app.export', { count: counts.selected })}
@@ -1173,6 +1175,7 @@ export default function App() {
       <ZenModePanel />
       <AppearancePanel />
       <PremiumPanel />
+      <ExportDestinations />
       <SearchPanel />
       <DocumentShieldPanel />
       <VaultPanel />

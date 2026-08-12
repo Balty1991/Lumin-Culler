@@ -394,6 +394,9 @@ interface AppState {
   /** "Premium" — previzualizare onesta a planului, fara mecanism de plata (vezi ui/PremiumPanel.tsx). */
   premiumOpen: boolean;
   setPremiumOpen: (open: boolean) => void;
+  /** Foaia "unde trimit pozele păstrate" (vezi ui/ExportDestinations.tsx). */
+  exportDestinationsOpen: boolean;
+  setExportDestinationsOpen: (open: boolean) => void;
   /** Vezi state/zenResolve.ts — ruleaza automat dupa import cand zenMode e activ (store.ts, runImport). */
   runZenResolve: () => Promise<{ resolved: number; uncertain: number; deleted: number }>;
   /**
@@ -639,7 +642,8 @@ interface AppState {
   notice: string | null;
   setNotice: (message: string) => void;
   clearNotice: () => void;
-  exportSelection: () => Promise<void>;
+  /** `destination` vine din foaia de destinatii (ui/ExportDestinations.tsx); absent = comportamentul de dinainte. */
+  exportSelection: (destination?: 'auto' | 'folder' | 'apps') => Promise<void>;
   exportManifest: () => Promise<void>;
   /** Sumar text (nr. poze, scor mediu, durata sesiunii) pentru documentare/facturare fata de client. */
   exportSessionReport: () => Promise<void>;
@@ -1389,6 +1393,8 @@ export const useStore = create<AppState>((set, get) => ({
   setAppearanceOpen: open => set({ appearanceOpen: open }),
   premiumOpen: false,
   setPremiumOpen: open => set({ premiumOpen: open }),
+  exportDestinationsOpen: false,
+  setExportDestinationsOpen: open => set({ exportDestinationsOpen: open }),
   runZenResolve: async () => {
     const { zenAutoDeleteObvious, zenAskOnUncertain, locale } = get();
     const resolutions = resolveGroupsWithConfidence(get().photos);
@@ -2850,7 +2856,7 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   /** Exporta pozele selectate ca fisiere reale, in formatul original (JPEG/PNG/etc), grupate pe subfoldere. */
-  exportSelection: async () => {
+  exportSelection: async (destination = 'auto') => {
     const allPhotos = get().photos;
     const selected = allPhotos.filter(p => p.status === 'selected');
     if (!selected.length) return;
@@ -2886,7 +2892,7 @@ export const useStore = create<AppState>((set, get) => ({
           location: meta.location,
           edits: p.edits
         };
-      }), { renameTemplate: get().renameTemplate, locale });
+      }), { renameTemplate: get().renameTemplate, locale, destination });
       // Vezi 'store.exportSelection.cancelled' (i18n): o anulare trebuie sa
       // INLOCUIASCA toast-ul de progres, altfel "Se exporta..." ramane agatat
       // pe ecran la infinit — bug real raportat de utilizator.

@@ -1692,6 +1692,25 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .appearance-radio.on { border-color: var(--accent); }
 .appearance-radio.on::after { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
 
+/* ── "Trimite pozele pastrate": foaia de destinatii (mockup 20) ── */
+.export-dest-count { font-size: 0.78rem; color: var(--text-dim); margin: 0; }
+.export-dest-row {
+  width: 100%; display: flex; align-items: center; gap: 11px; text-align: left;
+  padding: 12px 13px; border-radius: var(--radius); margin-bottom: 8px;
+  background: var(--surface-2); border: 1px solid var(--line);
+}
+.export-dest-row:hover { border-color: var(--line-strong); }
+.export-dest-icon {
+  width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgb(var(--accent-rgb) / 0.14); color: var(--accent);
+}
+.export-dest-icon svg { width: 16px; height: 16px; }
+.export-dest-text { min-width: 0; }
+.export-dest-text b { display: block; font-size: 0.84rem; color: var(--text); }
+.export-dest-text span { font-size: 0.72rem; color: var(--text-dim); }
+.export-dest-note { font-size: 0.72rem; color: var(--text-faint); margin: 0; line-height: 1.5; }
+
 /* ── "Premium": previzualizare onesta, fara buton de plata (mockup 21) ── */
 .premium-chip {
   justify-self: start; display: inline-flex; align-items: center; gap: 5px;
