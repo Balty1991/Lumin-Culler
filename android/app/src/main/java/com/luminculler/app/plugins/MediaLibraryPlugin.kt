@@ -58,14 +58,22 @@ import com.getcapacitor.annotation.PermissionCallback
 @CapacitorPlugin(
     name = "MediaLibrary",
     permissions = [
-        // Doar pentru galleryOverview() (numarul de poze din galerie, Acasa) — pickPhotos()/
-        // deletePhotos() de mai jos NU au nevoie de asta (SAF/trash-request isi cer singure
-        // acordul, per-operatie). NEVALIDAT inca pe device real (nu poate fi testat din
-        // sesiunea de dezvoltare) — vezi comentariul de la galleryOverview().
-        Permission(strings = [Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_EXTERNAL_STORAGE], alias = "photos")
+        // Doua aliasuri SEPARATE, nu unul singur cu ambele string-uri — bug real
+        // gasit la testare pe device (Xiaomi/HyperOS, Android 13+): READ_EXTERNAL_STORAGE
+        // e limitat prin android:maxSdkVersion="32" in manifest, deci sistemul nu-l acorda
+        // NICIODATA pe API 33+, indiferent ce alege utilizatorul in dialog. Un singur alias
+        // cu ambele string-uri cerea "GRANTED" pe AMBELE ca sa treaca — pe API 33+ ramanea
+        // veșnic "not granted" chiar dupa ce utilizatorul aproba READ_MEDIA_IMAGES, pentru ca
+        // READ_EXTERNAL_STORAGE nu putea fi acordat niciodata. Vezi photosPermissionAlias mai
+        // jos pentru alegerea aliasului corect dupa Build.VERSION.SDK_INT.
+        Permission(strings = [Manifest.permission.READ_MEDIA_IMAGES], alias = "photos33"),
+        Permission(strings = [Manifest.permission.READ_EXTERNAL_STORAGE], alias = "photosLegacy")
     ]
 )
 class MediaLibraryPlugin : Plugin() {
+    /** Vezi comentariul de la adnotarea @CapacitorPlugin de mai sus. */
+    private val photosPermissionAlias: String
+        get() = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) "photos33" else "photosLegacy"
     /**
      * createTrashRequest() intoarce un PendingIntent, NU un Intent obisnuit —
      * nu se preteaza la startActivityForResult(call, intent, "callbackName")/
@@ -203,8 +211,8 @@ class MediaLibraryPlugin : Plugin() {
      */
     @PluginMethod
     fun galleryOverview(call: PluginCall) {
-        if (getPermissionState("photos") != PermissionState.GRANTED) {
-            requestPermissionForAlias("photos", call, "galleryOverviewPermissionCallback")
+        if (getPermissionState(photosPermissionAlias) != PermissionState.GRANTED) {
+            requestPermissionForAlias(photosPermissionAlias, call, "galleryOverviewPermissionCallback")
             return
         }
         resolveGalleryOverview(call)
@@ -212,7 +220,7 @@ class MediaLibraryPlugin : Plugin() {
 
     @PermissionCallback
     private fun galleryOverviewPermissionCallback(call: PluginCall) {
-        if (getPermissionState("photos") == PermissionState.GRANTED) {
+        if (getPermissionState(photosPermissionAlias) == PermissionState.GRANTED) {
             resolveGalleryOverview(call)
         } else {
             // Refuz explicit al utilizatorului — nu e o eroare, doar "nu stim numarul"
