@@ -17,7 +17,7 @@ import { registerPlugin, Capacitor } from '@capacitor/core';
 
 interface MediaLibraryPluginApi {
   pickPhotos(): Promise<{ cancelled: boolean; photos: { uri: string; name: string }[] }>;
-  deletePhotos(options: { uris: string[] }): Promise<{ cancelled: boolean }>;
+  deletePhotos(options: { uris: string[] }): Promise<{ cancelled: boolean; skippedUris: string[] }>;
   galleryOverview(): Promise<{ granted: boolean; totalCount: number }>;
   galleryDateRange(): Promise<{ granted: boolean; earliestMs?: number; latestMs?: number }>;
   photosInRange(options: { startMs: string; endMs: string }): Promise<{ granted: boolean; photos: { uri: string; name: string; capturedAt: number }[] }>;
@@ -72,8 +72,19 @@ export async function pickNativePhotos(): Promise<NativePickedPhoto[]> {
  * apelantul nu trebuie sa trateze niciun caz ca eroare, doar promisiunea
  * respinsa inseamna ca cererea nici n-a putut fi pornita (ex. Android < 11).
  */
-export async function deleteNativePhotos(uris: string[]): Promise<{ cancelled: boolean }> {
-  if (!uris.length) return { cancelled: true };
+/**
+ * `skippedUris` (bug real raportat de utilizator): unele URI-uri din lot pot
+ * deveni neaccesibile intre import si stergere (ex. permisiunea "Acces la
+ * fotografii selectate" pe Android 14+, revocata/schimbata intre timp) — vezi
+ * MediaLibraryPlugin.kt:deletePhotos. Acestea sunt OMISE din cererea de
+ * stergere (nu mai blocheaza intreg lotul care altfel ar fi esuat 100%), dar
+ * returnate exact (URI-urile ORIGINALE, nu cele convertite intern) ca
+ * apelantul (state/store.ts:deleteRejectedPhotos) sa NU le scoata din
+ * biblioteca aplicatiei — tot mai exista pe telefon, doar n-au putut fi mutate
+ * in Cosul de gunoi de data asta.
+ */
+export async function deleteNativePhotos(uris: string[]): Promise<{ cancelled: boolean; skippedUris: string[] }> {
+  if (!uris.length) return { cancelled: true, skippedUris: [] };
   return MediaLibraryNative.deletePhotos({ uris });
 }
 

@@ -88,12 +88,29 @@ class MediaLibraryPlugin : Plugin() {
      */
     private lateinit var deleteLauncher: ActivityResultLauncher<IntentSenderRequest>
     private var pendingDeleteCall: PluginCall? = null
+    /**
+     * URI-urile ORIGINALE (exact cum au fost primite din JS, nu cele convertite
+     * intern de MediaStore.getMediaUri) omise la pre-verificarea de citire —
+     * vezi deletePhotos. Returnate ca atare (nu doar un numar) ca partea JS
+     * (state/store.ts:deleteRejectedPhotos) sa poata potrivi exact CARE poze
+     * n-au fost sterse si sa NU le scoata din biblioteca aplicatiei, desi tot
+     * lotul le-a cerut initial.
+     */
+    private var pendingDeleteSkippedUris: List<String> = emptyList()
 
     override fun load() {
         deleteLauncher = bridge.registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
             val call = pendingDeleteCall
+            val skippedUris = pendingDeleteSkippedUris
             pendingDeleteCall = null
-            call?.resolve(JSObject().put("cancelled", result.resultCode != Activity.RESULT_OK))
+            pendingDeleteSkippedUris = emptyList()
+            val skippedArray = JSArray()
+            for (u in skippedUris) skippedArray.put(u)
+            call?.resolve(
+                JSObject()
+                    .put("cancelled", result.resultCode != Activity.RESULT_OK)
+                    .put("skippedUris", skippedArray)
+            )
         }
     }
 
@@ -151,6 +168,18 @@ class MediaLibraryPlugin : Plugin() {
         return null
     }
 
+    /** true daca aplicatia poate CITI efectiv acest URI chiar acum — vezi comentariul din deletePhotos pentru bug-ul real pe care il evita. */
+    private fun canRead(uri: Uri): Boolean {
+        return try {
+            context.contentResolver.query(uri, arrayOf(MediaStore.Images.Media._ID), null, null, null)
+                ?.use { it.moveToFirst() } ?: false
+        } catch (_: SecurityException) {
+            false
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     /**
      * Muta pozele in Cosul de gunoi al sistemului (MediaStore.createTrashRequest,
      * NU createDeleteRequest) prin dialogul de confirmare al sistemului — cerinta
@@ -169,7 +198,7 @@ class MediaLibraryPlugin : Plugin() {
         }
         val uriStrings = call.getArray("uris")?.toList<String>() ?: emptyList()
         if (uriStrings.isEmpty()) {
-            call.resolve(JSObject().put("cancelled", true))
+            call.resolve(JSObject().put("cancelled", true).put("skippedUris", JSArray()))
             return
         }
         try {
@@ -183,15 +212,31 @@ class MediaLibraryPlugin : Plugin() {
             // caz (document MediaProvider -> MediaStore); daca un URI nu vine de
             // la MediaProvider (alt furnizor SAF), intoarce null si pastram
             // URI-ul original ca ultima incercare.
-            val uris = uriStrings.map { s ->
-                val uri = Uri.parse(s)
-                MediaStore.getMediaUri(context, uri) ?: uri
+            //
+            // Bug real raportat de utilizator: UN SINGUR URI neaccesibil (ex.
+            // permisiunea "Acces la fotografii selectate" pe Android 14+, sau
+            // orice alta schimbare de permisiune intre import si stergere) facea
+            // MediaStore.createTrashRequest() sa arunce pentru INTREG lotul —
+            // 0 din 29 poze respinse se stergeau, din cauza uneia singure. Acum
+            // verificam citirea fiecarui URI in parte INAINTE de cerere si il
+            // omitem pe cele inaccesibile — dar pastram URI-ul ORIGINAL (nu cel
+            // convertit) pentru fiecare omis, ca partea JS sa stie exact care
+            // poza n-a fost stearsa (si sa n-o scoata din biblioteca aplicatiei).
+            data class Candidate(val original: String, val resolved: Uri)
+            val candidates = uriStrings.map { s -> Candidate(s, MediaStore.getMediaUri(context, Uri.parse(s)) ?: Uri.parse(s)) }
+            val (readableCandidates, skippedCandidates) = candidates.partition { canRead(it.resolved) }
+            val skippedOriginals = skippedCandidates.map { it.original }
+            if (readableCandidates.isEmpty()) {
+                call.reject("Niciuna dintre pozele de sters nu mai e accesibila (permisiunea de galerie s-a schimbat intre timp)")
+                return
             }
-            val pendingIntent = MediaStore.createTrashRequest(context.contentResolver, uris, true)
+            val pendingIntent = MediaStore.createTrashRequest(context.contentResolver, readableCandidates.map { it.resolved }, true)
             pendingDeleteCall = call
+            pendingDeleteSkippedUris = skippedOriginals
             deleteLauncher.launch(IntentSenderRequest.Builder(pendingIntent.intentSender).build())
         } catch (e: Exception) {
             pendingDeleteCall = null
+            pendingDeleteSkippedUris = emptyList()
             call.reject("Nu am putut porni cererea de stergere: ${e.message}", e)
         }
     }
