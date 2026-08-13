@@ -5,7 +5,7 @@
  */
 import { create } from 'zustand';
 import { db, type AnalysisRecord, type PhotoRecord, type KnownPerson, type ColorLabel, type CollectionRecord } from '../core/db';
-import { recordExport, remainingFreeExports, isPremium, canEnrollAnotherPersonFree, FREE_EXPORT_PHOTOS_PER_MONTH, refreshEntitlement } from '../core/entitlement';
+import { recordExport, remainingFreeExports, isPremium, canEnrollAnotherPersonFree, FREE_EXPORT_PHOTOS_PER_MONTH, refreshEntitlement, isCapEnforced, FREE_ENROLLED_PERSONS } from '../core/entitlement';
 import {
   loadCollections, createCollection as createCollectionRecord, renameCollection as renameCollectionRecord,
   deleteCollection as deleteCollectionRecord, addPhotosToCollection as addPhotosToCollectionRecord,
@@ -2737,9 +2737,17 @@ export const useStore = create<AppState>((set, get) => ({
       person = { ...existing, embeddings: merged, updatedAt: Date.now() };
       message = `${trimmedName}: +${embeddings.length} referinte noi adaugate la profilul existent (total ${merged.length}).${skippedSuffix}${multifaceSuffix}`;
     } else {
+      // Blocant doar cand exista o cale reala de plata (isCapEnforced); altfel
+      // ramane hintul informativ de dinainte. Panoul Premium ANUNTA limita asta
+      // ca beneficiu platit — daca n-ar fi niciodata aplicata, panoul ar minti.
+      if (!canEnrollAnotherPersonFree(get().persons.length) && isCapEnforced()) {
+        // { ok: false }, nu un `return` gol: apelantul (PersonsPanel) afiseaza
+        // el mesajul si trateaza esecul — un `undefined` ar rupe contractul si
+        // ar lasa dialogul de inrolare intr-o stare de "s-a intamplat ceva".
+        set({ premiumOpen: true });
+        return { ok: false, message: t(get().locale, 'store.addPerson.capBlocked', { limit: FREE_ENROLLED_PERSONS }) };
+      }
       person = { id: crypto.randomUUID(), name: trimmedName, embeddings, updatedAt: Date.now() };
-      // Informativ, NU blocant — vezi core/entitlement.ts: fara mecanism real de
-      // plata inca, a doua+ persoana se inroleaza normal, doar cu acest hint.
       const premiumSuffix = canEnrollAnotherPersonFree(get().persons.length)
         ? ''
         : ' ' + t(get().locale, 'store.addPerson.premiumHint');
@@ -2992,6 +3000,19 @@ export const useStore = create<AppState>((set, get) => ({
     const allPhotos = get().photos;
     const selected = allPhotos.filter(p => p.status === 'selected');
     if (!selected.length) return;
+    // Plafonul opreste exportul DOAR cand exista o cale reala de plata (vezi
+    // isCapEnforced). Refuzam tot lotul in loc sa exportam partial: "150 din
+    // cele 300 de poze" lasa utilizatorul sa ghiceasca singur care au plecat si
+    // care nu, iar dupa un triaj lung asta e mai rau decat un refuz clar.
+    if (isCapEnforced() && selected.length > remainingFreeExports()) {
+      set({
+        notice: t(get().locale, 'store.exportSelection.capBlocked', {
+          count: selected.length, remaining: remainingFreeExports(), limit: FREE_EXPORT_PHOTOS_PER_MONTH
+        }),
+        premiumOpen: true
+      });
+      return;
+    }
     // Feedback IMEDIAT, inainte de orice munca async (coacere editari, cautari
     // in IndexedDB per poza, apoi pe Android scriere in cache + share nativ,
     // care impreuna pot dura cateva secunde bune pe un export mare) — bug real

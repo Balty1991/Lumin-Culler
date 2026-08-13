@@ -22,9 +22,11 @@
  * abonament de consum la o aplicatie locala, ala e compromisul corect.
  */
 
-import { isBillingAvailable, queryPremiumActive } from './billing';
+import { isBillingAvailable, queryPremiumActive, queryPremiumPrice } from './billing';
 
 const PREMIUM_FLAG_KEY = 'lumin-premium';
+/** Play a confirmat cel putin o data ca abonamentul chiar poate fi cumparat — vezi isPurchasable(). */
+const PURCHASABLE_KEY = 'lumin-billing-ready';
 const EXPORT_LOG_KEY = 'lumin-export-log';
 
 /** Cate poze poate exporta gratuit un utilizator neabonat, intr-o fereastra glisanta de 30 de zile. */
@@ -45,13 +47,40 @@ const ROLLING_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
  */
 export async function refreshEntitlement(): Promise<boolean> {
   if (!isBillingAvailable()) return isPremium();
-  const active = await queryPremiumActive();
+  const [active, price] = await Promise.all([queryPremiumActive(), queryPremiumPrice()]);
   try {
     localStorage.setItem(PREMIUM_FLAG_KEY, active ? '1' : '0');
+    // Doar cand chiar am primit un pret. Un `null` inseamna "n-am aflat" (fara
+    // retea, produs neconfigurat inca), nu "nu se poate cumpara" — deci nu
+    // stergem un `1` scris cand Play chiar raspunsese.
+    if (price) localStorage.setItem(PURCHASABLE_KEY, '1');
   } catch {
     // stocare indisponibila — ramane starea din memoria sesiunii curente
   }
   return active;
+}
+
+/**
+ * Exista o cale reala de plata pe acest dispozitiv.
+ *
+ * De asta atarna TOATE blocarile de plafon, si e singurul lucru care le
+ * deosebeste de o inselatorie: un plafon care opreste utilizatorul fara sa-i dea
+ * cum sa treaca de el nu e un model freemium, e un perete. Cat timp produsul nu
+ * e configurat in Play Console sau build-ul nu e semnat, plafoanele raman pur
+ * informative, exact ca inainte — iar cand configurarea e gata, se activeaza
+ * singure, fara nicio schimbare de cod.
+ */
+export function isPurchasable(): boolean {
+  try {
+    return localStorage.getItem(PURCHASABLE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+/** Plafonul chiar opreste actiunea: nu esti abonat, ai depasit, SI ai de unde cumpara. */
+export function isCapEnforced(): boolean {
+  return !isPremium() && isPurchasable();
 }
 
 export function isPremium(): boolean {

@@ -986,6 +986,8 @@ export const ro = {
   'store.exportSelection.failed': 'Export eșuat: {error}',
   'store.exportSelection.freeCapReached': 'Ai trecut de {limit} de poze exportate luna asta — Premium (în curând) elimină plafonul.',
   'store.addPerson.premiumHint': 'Poți înrola gratuit o singură persoană — Premium (în curând) elimină limita.',
+  'store.exportSelection.capBlocked': 'Ai {count} poze de exportat, dar îți mai rămân {remaining} din cele {limit} gratuite luna asta. Cu Premium exporți fără limită.',
+  'store.addPerson.capBlocked': 'Nivelul gratuit include {limit} persoană recunoscută. Cu Premium poți înrola oricâte.',
   // O anulare TREBUIE sa inlocuiasca toast-ul de progres "Se exporta...", nu doar
   // sa iasa din functie: bug real raportat de utilizator — pe o anulare, exportul
   // se oprea fara sa mai atinga `notice`, iar toast-ul de progres (care, corect,

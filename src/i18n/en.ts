@@ -985,6 +985,8 @@ export const en: Record<TranslationKey, string> = {
   'store.exportSelection.failed': 'Export failed: {error}',
   'store.exportSelection.freeCapReached': 'You\'ve gone over {limit} exported photos this month — Premium (coming soon) removes the cap.',
   'store.addPerson.premiumHint': 'You can enroll one person for free — Premium (coming soon) removes the limit.',
+  'store.exportSelection.capBlocked': 'You have {count} photos to export, but only {remaining} of your {limit} free ones left this month. Premium exports without a limit.',
+  'store.addPerson.capBlocked': 'The free tier includes {limit} recognised person. Premium lets you enrol as many as you like.',
   'store.exportSelection.cancelled': 'Export cancelled — no file was saved.',
   'store.exportXmp.noDecided': 'No photo has a decision yet — Select/Reject at least one.',
   'store.exportXmp.exportedFolder': '{count} XMP sidecars exported into the chosen folder — copy them next to the ORIGINAL photos (the import folder structure, not the people/scene-grouped one from the photo export) so Lightroom picks them up.',
