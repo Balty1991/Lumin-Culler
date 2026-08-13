@@ -335,39 +335,58 @@ export async function analyzeNative(
   // merge la toate modelele, iar cel mare se genereaza doar daca ajungem la OCR.
   const source: NativeImageSource = mediaUri ? { uri: mediaUri } : { blob: await canvasToModelBlob(canvas) };
 
-  const faceResult = await detectFacesNative(source);
+  // ── Etapa 1: tot ce nu depinde de nimic, deodata ────────────────────────
+  // Aceste trei modele nu au nevoie unul de rezultatul altuia: ImageAnalysis
+  // isi face propria detectie de fete (vezi ImageAnalysisPlugin.kt), iar
+  // etichetele de scena nu depind de fete deloc. Erau totusi asteptate strict
+  // unul dupa altul, deci timpul per poza era SUMA celor 7 modele, nu maximul
+  // lor — cu tot ce inseamna asta pe un lot de 400 de poze.
+  //
+  // Nu multiplica presiunea pe device necontrolat: numarul de poze in zbor
+  // ramane plafonat de nativeAnalysisConcurrency() (workerPool.ts), iar toate
+  // apelurile pentru aceeasi poza refolosesc UN singur bitmap decodat — vezi
+  // decodeUriCached in BitmapUtils.kt, care de-dublica acum si decodarile
+  // pornite simultan, exact cazul creat de paralelizarea de aici.
+  const [faceResult, imageAnalysis, labelResult] = await Promise.all([
+    detectFacesNative(source),
+    analyzeImageNative(source),
+    labelImageNative(source)
+  ]);
+
   const faces = faceResult.faces.map(f =>
     toFaceInsight(f, faceResult.imageWidth || imageWidth, faceResult.imageHeight || imageHeight)
   );
-
-  if (recognize && knownPersons?.length && faces.length > 0) {
-    await recognizeFaces(canvas, faceResult, faces, imageWidth, imageHeight, recognize, knownPersons);
-  }
-
-  const imageAnalysis = await analyzeImageNative(source);
-
-  const labelResult = await labelImageNative(source);
   // Acelasi tipar de deduplicare ca faceAnalysis.worker.ts: [...new Set(...)].
   const sceneTags = [...new Set(labelResult.labels.map(l => l.label))];
 
-  // FaceMesh e sarit complet cand nu exista fete — nu are ce agrega, si evita
-  // un apel MediaPipe intreg (cel mai greu dintre cele 5) fara niciun beneficiu.
-  const meshStats = faces.length > 0
-    ? faceMeshGroupStats((await analyzeFaceMeshNative(source)).faces)
-    : {};
+  // ── Etapa 2: tot ce depinde doar de cate fete s-au gasit, iarasi deodata ──
+  // Recunoasterea persoanelor merge in acelasi val: ruleaza pe worker-ul
+  // Human.js (serializat separat), deci nu concureaza cu modelele native, dar
+  // asteptata la rand ii adauga latenta la fiecare poza fara niciun motiv.
+  // E singura care MUTA ceva in `faces` (personId/personName), asa ca o
+  // asteptam inainte sa numaram cunoscutii/strainii mai jos.
+  const recognition = recognize && knownPersons?.length && faces.length > 0
+    ? recognizeFaces(canvas, faceResult, faces, imageWidth, imageHeight, recognize, knownPersons)
+    : Promise.resolve();
 
-  // Embedding general de similaritate — vezi AnalysisRecord.imageEmbedding:
-  // doar pentru poze FARA fete (cu fete, embedding-urile faciale sunt deja
-  // semnalul puternic pentru rafinarea seriilor in hashCompare.worker.ts).
-  const imageEmbedding = faces.length === 0
-    ? (await embedImageNative(source)).embedding
-    : undefined;
-
-  // Postura — vezi AnalysisRecord.bodyCroppedAtEdge: doar cand exista fete
-  // (postura n-are subiect de verificat pe un peisaj/obiect).
-  const bodyCroppedAtEdge = faces.length > 0
-    ? hasAwkwardBodyCrop((await detectPoseNative(source)).people)
-    : undefined;
+  const [meshStats, imageEmbedding, bodyCroppedAtEdge] = await Promise.all([
+    // FaceMesh e sarit complet cand nu exista fete — nu are ce agrega, si evita
+    // un apel MediaPipe intreg (cel mai greu dintre cele 5) fara niciun beneficiu.
+    faces.length > 0
+      ? analyzeFaceMeshNative(source).then(r => faceMeshGroupStats(r.faces))
+      : Promise.resolve({}),
+    // Embedding general de similaritate — vezi AnalysisRecord.imageEmbedding:
+    // doar pentru poze FARA fete (cu fete, embedding-urile faciale sunt deja
+    // semnalul puternic pentru rafinarea seriilor in hashCompare.worker.ts).
+    faces.length === 0
+      ? embedImageNative(source).then(r => r.embedding)
+      : Promise.resolve(undefined),
+    // Postura — vezi AnalysisRecord.bodyCroppedAtEdge: doar cand exista fete
+    // (postura n-are subiect de verificat pe un peisaj/obiect).
+    faces.length > 0
+      ? detectPoseNative(source).then(r => hasAwkwardBodyCrop(r.people))
+      : Promise.resolve(undefined)
+  ]);
 
   // OCR rulat cand nu exista fete SI nu exista nicio eticheta de scena
   // CONCRETA (pickFolderSceneTag ignora etichetele abstracte/non-subiect, ex.
@@ -389,6 +408,10 @@ export async function analyzeNative(
           : { blob: await canvasToBlob(canvas) }
       )).textCoverage
     : undefined;
+
+  // Recunoasterea a rulat in paralel cu etapa 2; abia acum avem voie sa numaram
+  // cunoscutii/strainii, fiindca ea e cea care completeaza personId pe fete.
+  await recognition;
 
   const sceneType = classifyScene(faces, imageWidth, imageHeight);
 

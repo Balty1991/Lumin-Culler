@@ -474,3 +474,92 @@ describe('analyzeNative', () => {
     });
   });
 });
+
+// Un lot de 400 de poze inseamna 400 x (suma timpilor tuturor modelelor) daca
+// apelurile independente sunt asteptate unul dupa altul. Testele de mai jos
+// prind exact regresia asta: nu masoara timp (fragil), ci verifica cine a
+// APUCAT sa porneasca inainte ca altcineva sa termine.
+describe('analyzeNative — apelurile independente chiar pornesc in paralel', () => {
+  /** Un mock care intoarce `value`, dar abia dupa ce i se spune, si care raporteaza cand a fost pornit. */
+  function gated<T>(value: T) {
+    let release!: () => void;
+    const gate = new Promise<void>(r => { release = r; });
+    let started = false;
+    return {
+      get started() { return started; },
+      release,
+      impl: async () => { started = true; await gate; return value; }
+    };
+  }
+
+  beforeEach(() => {
+    for (const m of [detectFacesNative, analyzeImageNative, labelImageNative, analyzeFaceMeshNative, detectTextNative, embedImageNative, detectPoseNative]) m.mockReset();
+  });
+
+  it('detectia de fete, analiza de imagine si etichetarea pornesc toate trei inainte ca vreuna sa termine', async () => {
+    const faces = gated({ faces: [], imageWidth: 100, imageHeight: 100 });
+    const image = gated(IMAGE_ANALYSIS_FIXTURE);
+    const labels = gated({ labels: [{ label: 'dog', confidence: 0.9 }] });
+    detectFacesNative.mockImplementation(faces.impl);
+    analyzeImageNative.mockImplementation(image.impl);
+    labelImageNative.mockImplementation(labels.impl);
+    embedImageNative.mockResolvedValue({ embedding: [0.1] });
+    detectTextNative.mockResolvedValue({ textCoverage: 0 });
+
+    const { analyzeNative } = await import('./nativeAnalysis');
+    const running = analyzeNative('p1', fakeBitmap(100, 100));
+    await Promise.resolve(); // lasa microtask-urile sa porneasca apelurile
+
+    expect(faces.started).toBe(true);
+    expect(image.started).toBe(true);
+    expect(labels.started).toBe(true);
+
+    faces.release(); image.release(); labels.release();
+    await running;
+  });
+
+  it('mesh-ul si postura pornesc amandoua imediat ce se stie ca exista fete', async () => {
+    detectFacesNative.mockResolvedValue({
+      faces: [{ boundingBox: { left: 0, top: 0, width: 50, height: 50 }, smilingProbability: 0.5, leftEyeOpenProbability: 0.9, rightEyeOpenProbability: 0.9 }],
+      imageWidth: 100, imageHeight: 100
+    });
+    analyzeImageNative.mockResolvedValue(IMAGE_ANALYSIS_FIXTURE);
+    labelImageNative.mockResolvedValue({ labels: [] });
+    const mesh = gated({ faces: [] });
+    const pose = gated({ people: [] });
+    analyzeFaceMeshNative.mockImplementation(mesh.impl);
+    detectPoseNative.mockImplementation(pose.impl);
+
+    const { analyzeNative } = await import('./nativeAnalysis');
+    const running = analyzeNative('p1', fakeBitmap(100, 100));
+    // cateva ture de microtask-uri ca etapa 1 sa se rezolve si etapa 2 sa porneasca
+    for (let i = 0; i < 20; i++) await Promise.resolve();
+
+    expect(mesh.started).toBe(true);
+    expect(pose.started).toBe(true);
+
+    mesh.release(); pose.release();
+    await running;
+  });
+
+  it('rezultatul ramane identic cu cel al ordinii secventiale de dinainte', async () => {
+    detectFacesNative.mockResolvedValue({
+      faces: [{ boundingBox: { left: 10, top: 10, width: 40, height: 40 }, smilingProbability: 0.7, leftEyeOpenProbability: 0.9, rightEyeOpenProbability: 0.9 }],
+      imageWidth: 100, imageHeight: 100
+    });
+    analyzeImageNative.mockResolvedValue(IMAGE_ANALYSIS_FIXTURE);
+    labelImageNative.mockResolvedValue({ labels: [{ label: 'dog', confidence: 0.9 }, { label: 'dog', confidence: 0.8 }] });
+    analyzeFaceMeshNative.mockResolvedValue({ faces: [] });
+    detectPoseNative.mockResolvedValue({ people: [] });
+
+    const { analyzeNative } = await import('./nativeAnalysis');
+    const result = await analyzeNative('p1', fakeBitmap(100, 100));
+
+    expect(result.faceCount).toBe(1);
+    expect(result.sceneTags).toEqual(['dog']);        // dedupe pastrat
+    expect(result.sharpness).toBe(IMAGE_ANALYSIS_FIXTURE.sharpness);
+    expect(result.imageEmbedding).toBeUndefined();     // exista fete -> fara embedding de continut
+    expect(embedImageNative).not.toHaveBeenCalled();
+    expect(detectTextNative).not.toHaveBeenCalled();   // exista fete -> fara OCR
+  });
+});

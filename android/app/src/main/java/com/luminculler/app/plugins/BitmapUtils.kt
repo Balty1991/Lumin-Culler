@@ -131,15 +131,47 @@ private fun decodeUri(context: Context, uri: Uri, maxSide: Int): Bitmap {
     return if (rotation == 0) scaled else rotate(scaled, rotation)
 }
 
+/**
+ * Cate un lacat per poza, ca doua apeluri simultane pentru ACEEASI imagine sa
+ * nu o decodeze amandoua.
+ *
+ * Cat timp modelele rulau strict unul dupa altul, cursa asta era rara si doar
+ * risipitoare. De cand analyzeNative() porneste in paralel apelurile
+ * independente (detectie de fete + analiza de imagine + etichete pentru aceeasi
+ * poza), ea devine SISTEMATICA: toate trei rateaza cache-ul in aceeasi
+ * milisecunda si decodeaza aceeasi imagine de trei ori — adica exact costul pe
+ * care cache-ul exista ca sa-l elimine, transformand paralelizarea intr-o
+ * inrautatire.
+ *
+ * Plafonat ca si cache-ul (obiecte minuscule, dar o galerie de 10.000 de poze
+ * n-are voie sa lase in urma 10.000 de lacate). Un lacat evacuat cat timp cineva
+ * il tine inseamna doar ca se revine la vechea cursa risipitoare — nu un blocaj
+ * si nu un crash — iar cu limita de mai jos mult peste concurenta reala nu se
+ * intampla in practica.
+ */
+private const val DECODE_LOCKS = 32
+
+private val decodeLocks = object : LinkedHashMap<String, Any>(DECODE_LOCKS, 0.75f, true) {
+    override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Any>): Boolean = size > DECODE_LOCKS
+}
+
+private fun lockFor(key: String): Any = synchronized(decodeLocks) { decodeLocks.getOrPut(key) { Any() } }
+
+private fun cachedBitmap(key: String): Bitmap? = synchronized(bitmapCache) {
+    bitmapCache[key]?.takeIf { !it.isRecycled }
+}
+
 private fun decodeUriCached(context: Context, uriString: String, maxSide: Int): Bitmap {
     val key = "$uriString|$maxSide"
-    synchronized(bitmapCache) {
-        val cached = bitmapCache[key]
-        if (cached != null && !cached.isRecycled) return cached
+    cachedBitmap(key)?.let { return it }
+    synchronized(lockFor(key)) {
+        // A doua verificare, sub lacat: cat am asteptat, alt fir poate sa fi
+        // terminat exact decodarea pe care eram pe cale s-o repetam.
+        cachedBitmap(key)?.let { return it }
+        val bitmap = decodeUri(context, Uri.parse(uriString), maxSide)
+        synchronized(bitmapCache) { bitmapCache[key] = bitmap }
+        return bitmap
     }
-    val bitmap = decodeUri(context, Uri.parse(uriString), maxSide)
-    synchronized(bitmapCache) { bitmapCache[key] = bitmap }
-    return bitmap
 }
 
 /**
