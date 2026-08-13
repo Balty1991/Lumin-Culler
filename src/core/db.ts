@@ -445,6 +445,30 @@ export interface ContextModelRecord {
   updatedAt: number;
 }
 
+/**
+ * "Cu ce seamana pozele pe care le pastrezi" — doua centroide (medii) peste
+ * embedding-urile de continut ale pozelor pastrate, respectiv respinse.
+ *
+ * De ce exista: embedding-ul de 1024 de dimensiuni (AnalysisRecord.imageEmbedding)
+ * se calculeaza deja pentru fiecare poza fara fete, dar era folosit EXCLUSIV la
+ * detectia de duplicate (hashCompare.worker.ts) — un semnal semantic complet
+ * platit si complet ignorat la scorare. Cu el, motorul poate invata ce fel de
+ * CONTINUT tii (peisaje de munte, animalul tau, mancare) si ce arunci
+ * (capturi de ecran, poze de pereti), nu doar cat de clara/expusa e poza.
+ *
+ * Un singur rand ('current'). Medie incrementala, deci costul e O(1) per
+ * decizie si nu tine minte nicio poza individuala — doar directia generala.
+ */
+export interface EmbeddingMemoryRecord {
+  id: 'current';
+  /** Suma embedding-urilor pastrate (impartita la keptCount da centroida). */
+  keptSum: number[];
+  keptCount: number;
+  rejectedSum: number[];
+  rejectedCount: number;
+  updatedAt: number;
+}
+
 export interface CorrectionRecord {
   id?: number;
   photoId: string;
@@ -482,6 +506,7 @@ export class LuminDB extends Dexie {
   analyses!: Table<AnalysisRecord, string>;
   persons!: Table<KnownPerson, string>;
   contextModels!: Table<ContextModelRecord, string>;
+  embeddingMemory!: Table<EmbeddingMemoryRecord, string>;
   corrections!: Table<CorrectionRecord, number>;
   history!: Table<HistoryRecord, number>;
   collections!: Table<CollectionRecord, string>;
@@ -592,6 +617,23 @@ export class LuminDB extends Dexie {
       corrections: '++id, contextKey, ts',
       history: '++id, ts',
       collections: 'id, name'
+    });
+
+    // v8: tabela noua pentru memoria de continut (vezi EmbeddingMemoryRecord).
+    // Migrare pur aditiva — Dexie creeaza tabela goala, nu atinge nimic existent.
+    this.version(8).stores({
+      photos: 'id, capturedAt, status, dHash, groupId',
+      thumbnails: 'photoId',
+      previews: 'photoId',
+      originals: 'photoId',
+      fileHandles: 'photoId',
+      analyses: 'photoId, sceneType, aiScore',
+      persons: 'id, name',
+      contextModels: 'contextKey',
+      corrections: '++id, contextKey, ts',
+      history: '++id, ts',
+      collections: 'id, name',
+      embeddingMemory: 'id'
     });
   }
 }

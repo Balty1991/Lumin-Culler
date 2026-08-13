@@ -26,7 +26,7 @@
  * difere intre browsere (modelul ContextEngine, cold-start intr-un browser
  * nou, scoreaza altfel decat unul deja antrenat in celalalt).
  */
-import { db, type KnownPerson, type ContextModelRecord, type PhotoRecord } from './db';
+import { db, type KnownPerson, type ContextModelRecord, type PhotoRecord, type EmbeddingMemoryRecord } from './db';
 import { contextEngine } from './learning/ContextEngine';
 import { analysisPool } from './workerPool';
 import { readGridSort, writeGridSort, type GridSort } from '../state/gridSort';
@@ -74,6 +74,13 @@ export interface BackupData {
   persons: KnownPerson[];
   contextModels: ContextModelRecord[];
   photoDecisions: BackupPhotoDecision[];
+  /**
+   * Memoria de continut ("cu ce seamana pozele pe care le pastrezi", vezi
+   * learning/embeddingMemory.ts) — tot preferinta invatata, deci apartine
+   * backup-ului alaturi de ponderi. Absenta pe backup-uri facute inainte sa
+   * existe: restaurarea o sare pur si simplu, nu esueaza.
+   */
+  embeddingMemory?: EmbeddingMemoryRecord;
   /** Absent pe backup-uri v1 (compatibilitate cu fisiere exportate inainte de acest camp). */
   settings?: BackupSettings;
 }
@@ -134,10 +141,11 @@ export function backupFileName(): string {
 }
 
 export async function buildBackup(): Promise<BackupData> {
-  const [persons, contextModels, photos] = await Promise.all([
+  const [persons, contextModels, photos, embeddingMemory] = await Promise.all([
     db.persons.toArray(),
     db.contextModels.toArray(),
-    db.photos.toArray()
+    db.photos.toArray(),
+    db.embeddingMemory.get('current')
   ]);
   // doar pozele cu o decizie reala (status diferit de "pending") sau cu rating —
   // restul (poze inca nedecise) nu au nimic de "restaurat"
@@ -146,7 +154,8 @@ export async function buildBackup(): Promise<BackupData> {
     .map(p => ({ fileName: p.fileName, capturedAt: p.capturedAt, status: p.status, rating: p.rating }));
   return {
     version: BACKUP_VERSION, exportedAt: Date.now(), persons, contextModels, photoDecisions,
-    settings: buildSettings()
+    settings: buildSettings(),
+    ...(embeddingMemory ? { embeddingMemory } : {})
   };
 }
 
@@ -197,9 +206,10 @@ function fingerprint(p: { fileName: string; capturedAt?: number }): string {
  */
 export async function restoreBackup(data: BackupData): Promise<RestoreResult> {
   let decisionsMatched = 0;
-  await db.transaction('rw', [db.persons, db.contextModels, db.photos], async () => {
+  await db.transaction('rw', [db.persons, db.contextModels, db.photos, db.embeddingMemory], async () => {
     if (data.persons.length) await db.persons.bulkPut(data.persons);
     if (data.contextModels.length) await db.contextModels.bulkPut(data.contextModels);
+    if (data.embeddingMemory) await db.embeddingMemory.put(data.embeddingMemory);
 
     // Bug real gasit de auditul QA (coliziuni de amprenta): daca doua poze
     // CURENTE au acelasi nume+data capturii (plauzibil la unirea mai multor

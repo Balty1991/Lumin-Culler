@@ -328,3 +328,18 @@ describe('ContextEngine.recordCorrection topShift ("Am invatat: X")', () => {
     }
   });
 });
+
+// Afinitatea de continut e un feature ca oricare altul, dar cu o regula stricta:
+// e ABSENT cand nu stim, nu "neutru" — vezi nota despre horizonLevel din
+// ContextEngine.ts pentru ce strica un filler trimis la fiecare poza.
+describe('extractFeatures — contentAffinity', () => {
+  it('lipseste complet cand nu se stie nimic despre continut', () => {
+    expect('contentAffinity' in extractFeatures(baseAnalysis())).toBe(false);
+    expect('contentAffinity' in extractFeatures(baseAnalysis(), null)).toBe(false);
+  });
+
+  it('apare doar cand chiar exista o valoare', () => {
+    const features = extractFeatures(baseAnalysis(), 0.8);
+    expect(features.contentAffinity).toBe(0.8);
+  });
+});

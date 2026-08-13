@@ -17,7 +17,8 @@
  *  - Pure TypeScript, no DOM access → can also run inside a worker if needed.
  */
 
-import { db, type AnalysisRecord, type ContextModelRecord } from '../db';
+import { db, type AnalysisRecord, type ContextModelRecord, type EmbeddingMemoryRecord } from '../db';
+import { affinity, readEmbeddingMemory, recordEmbeddingDecision, resetEmbeddingMemory } from './embeddingMemory';
 import { t, type Locale } from '../../i18n';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -116,6 +117,10 @@ const PRIOR_WEIGHTS: FeatureVector = {
   // decat la catchlight.
   groupSkinToneNaturalRatio: 0.3,
   avgEyeContact: 0.35,
+  // "seamana cu ce pastrezi" — pornit MIC deliberat: e singurul feature care nu
+  // descrie o proprietate a pozei, ci o corelatie cu istoricul tau; lasam
+  // motorul sa-i creasca ponderea daca chiar prezice, in loc sa-l credem din start.
+  contentAffinity: 0.2,
   avgEngagement: 0.3,
   highlightClipping: -0.4,
   shadowClipping: -0.3,
@@ -338,7 +343,7 @@ export function landscapeSharpness(rawSharpness: number): number {
   return Math.pow(Math.max(0, rawSharpness) / 100, 0.6);
 }
 
-export function extractFeatures(a: AnalysisRecord): FeatureVector {
+export function extractFeatures(a: AnalysisRecord, contentAffinity?: number | null): FeatureVector {
   const features: FeatureVector = {
     sharpness: a.faceCount > 0 ? a.sharpness / 100 : landscapeSharpness(a.sharpness),
     // distance from mid-exposure — lets the model learn a *preference direction*
@@ -371,6 +376,14 @@ export function extractFeatures(a: AnalysisRecord): FeatureVector {
     goldenHour: a.goldenHourDetected ? 1 : 0,
     colorHarmony: a.colorHarmonyScore ?? 0.5
   };
+
+  // Cu ce seamana pozele pe care le pastrezi (vezi learning/embeddingMemory.ts).
+  // ABSENT, nu 0.5, cand nu stim inca — un feature "neutru" trimis la fiecare
+  // poza polueaza statisticile de normalizare exact ca in cazul horizonLevel
+  // descris mai sus.
+  if (contentAffinity !== undefined && contentAffinity !== null) {
+    features.contentAffinity = contentAffinity;
+  }
 
   if (a.faceCount > 0) {
     features.bestSmile = a.bestSmile;
@@ -430,6 +443,8 @@ export function deriveContextKey(a: AnalysisRecord, genre?: string): string {
 
 export class ContextEngine {
   private models = new Map<string, ContextModelRecord>();
+  /** Memoria de continut (vezi learning/embeddingMemory.ts) — tinuta aici ca predict() sa nu citeasca din DB pentru fiecare poza dintr-un import de sute. */
+  private embeddingMemory: EmbeddingMemoryRecord | undefined;
   private loaded = false;
   private loadingPromise: Promise<void> | null = null;
 
@@ -448,12 +463,18 @@ export class ContextEngine {
     if (this.loaded) return;
     if (!this.loadingPromise) {
       this.loadingPromise = (async () => {
-        const rows = await db.contextModels.toArray();
+        const [rows, memory] = await Promise.all([db.contextModels.toArray(), readEmbeddingMemory()]);
         for (const row of rows) this.models.set(row.contextKey, row);
+        this.embeddingMemory = memory;
         this.loaded = true;
       })().finally(() => { this.loadingPromise = null; });
     }
     await this.loadingPromise;
+  }
+
+  /** Afinitatea de continut a acestei poze, sau null cand nu se aplica (fara embedding / prea putine decizii). */
+  private contentAffinity(analysis: AnalysisRecord): number | null {
+    return analysis.imageEmbedding ? affinity(analysis.imageEmbedding, this.embeddingMemory) : null;
   }
 
   // ── Prediction ─────────────────────────────────────────────────────────────
@@ -463,7 +484,7 @@ export class ContextEngine {
     const contextKey = deriveContextKey(analysis, genre);
     const model = this.getOrCreateModel(contextKey);
     const globalModel = this.getOrCreateModel(GLOBAL_CONTEXT_KEY);
-    const features = extractFeatures(analysis);
+    const features = extractFeatures(analysis, this.contentAffinity(analysis));
     const normalized = this.normalize(model, features, /*update=*/ false);
     const globalNormalized = this.normalize(globalModel, features, /*update=*/ false);
 
@@ -519,7 +540,7 @@ export class ContextEngine {
     const contextKey = deriveContextKey(input.analysis, input.genre);
     const model = this.getOrCreateModel(contextKey);
     const globalModel = this.getOrCreateModel(GLOBAL_CONTEXT_KEY);
-    const features = extractFeatures(input.analysis);
+    const features = extractFeatures(input.analysis, this.contentAffinity(input.analysis));
     const disagreement = input.aiDecision !== input.userDecision;
     const weightsBefore = disagreement ? { ...model.weights } : null;
 
@@ -548,6 +569,18 @@ export class ContextEngine {
         })
       ]);
     });
+
+    // Memoria de continut invata din aceeasi decizie (vezi learning/embeddingMemory.ts).
+    // Dupa transactie, si tolerant la esec: e un semnal in plus, nu are voie sa
+    // strice o corectie deja scrisa daca scrierea asta pica.
+    if (input.analysis.imageEmbedding?.length) {
+      try {
+        await recordEmbeddingDecision(input.analysis.imageEmbedding, input.userDecision);
+        this.embeddingMemory = await readEmbeddingMemory();
+      } catch (err) {
+        console.error('Nu am putut actualiza memoria de continut (corectia s-a salvat oricum):', err);
+      }
+    }
 
     return { topShift: weightsBefore ? this.biggestPrefShift(weightsBefore, model.weights, features, input.locale ?? 'ro') : null };
   }
@@ -678,6 +711,7 @@ export class ContextEngine {
   /** Re-citeste modelele din DB, ignorand cache-ul in memorie — necesar dupa ce alt cod (ex. restaurarea unui backup) a scris direct in db.contextModels. */
   async reload(): Promise<void> {
     this.models.clear();
+    this.embeddingMemory = undefined;
     this.loaded = false;
     await this.init();
   }
@@ -689,6 +723,11 @@ export class ContextEngine {
     } else {
       this.models.clear();
       await db.contextModels.clear();
+      // Memoria de continut e tot preferinta invatata — un reset complet o
+      // include, la fel ca ponderile. Un reset PE CONTEXT nu: memoria e una
+      // singura, comuna tuturor contextelor.
+      this.embeddingMemory = undefined;
+      await resetEmbeddingMemory();
     }
   }
 
