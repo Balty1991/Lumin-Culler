@@ -35,11 +35,13 @@ function groupTimeoutMs(count: number): number {
  */
 export async function groupPhotosByHash(
   photos: HashInput[],
-  onUpdate?: (update: GroupUpdate) => void
+  onUpdate?: (update: GroupUpdate) => void,
+  /** Vezi ContextEngine.learnedWeight() — cat cantareste modelul invatat la alegerea celui mai bun cadru din serie. */
+  learnedWeight = 0
 ): Promise<{ groups: GroupResult[]; totalGroups: number }> {
   try {
     return await withTimeout(
-      getApi().groupPhotos(photos, onUpdate ? Comlink.proxy(onUpdate) : undefined),
+      getApi().groupPhotos(photos, onUpdate ? Comlink.proxy(onUpdate) : undefined, learnedWeight),
       groupTimeoutMs(photos.length),
       'Gruparea seriilor/duplicatelor a durat prea mult.'
     );

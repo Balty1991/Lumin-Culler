@@ -57,3 +57,39 @@ describe('pickBestInGroup', () => {
     expect(result).toBe('strong-comp');
   });
 });
+
+// Ce a invatat motorul din deciziile utilizatorului cantareste si el la alegerea
+// cadrului din serie — proportional cu cat de antrenat e (ContextEngine.learnedWeight).
+describe('pickBestInGroup cu scorul invatat', () => {
+  it('ignora complet aiScore cat timp motorul nu a invatat nimic (learnedWeight 0)', () => {
+    const result = pickBestInGroup([
+      candidate({ id: 'clar', sharpness: 90, aiScore: 10 }),
+      candidate({ id: 'neclar', sharpness: 20, aiScore: 99 })
+    ]);
+    expect(result).toBe('clar');
+  });
+
+  it('lasa scorul invatat sa decida cand motorul e antrenat, la diferente mici de calitate', () => {
+    const result = pickBestInGroup([
+      candidate({ id: 'a', sharpness: 60, aiScore: 20 }),
+      candidate({ id: 'b', sharpness: 55, aiScore: 95 })
+    ], 1);
+    expect(result).toBe('b');
+  });
+
+  it('nu lasa scorul invatat sa salveze un cadru vizibil neclar (amestec, nu inlocuire)', () => {
+    const result = pickBestInGroup([
+      candidate({ id: 'clar', sharpness: 100, aiScore: 50 }),
+      candidate({ id: 'foarte-neclar', sharpness: 0, aiScore: 80 })
+    ], 0.5);
+    expect(result).toBe('clar');
+  });
+
+  it('se comporta ca inainte cand candidatii nu au aiScore deloc (web/inregistrari vechi)', () => {
+    const result = pickBestInGroup([
+      candidate({ id: 'clar', sharpness: 90 }),
+      candidate({ id: 'neclar', sharpness: 20 })
+    ], 1);
+    expect(result).toBe('clar');
+  });
+});

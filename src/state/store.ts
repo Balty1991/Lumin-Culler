@@ -887,6 +887,17 @@ export function selectMergedEmbeddings(profiles: number[][][], maxTotal: number)
   return profiles.flatMap(p => p.slice(-perProfileCap)).slice(-maxTotal);
 }
 
+/**
+ * Ce "spune" un rating despre poza, ca semnal de antrenare: 4-5 stele = da,
+ * 1-2 = nu, 3 = nimic (mijloc explicit), 0 = nimic (fara rating dat, nu o
+ * judecata). Exportata pentru test.
+ */
+export function ratingDecision(rating: number): boolean | null {
+  if (rating >= 4) return true;
+  if (rating === 1 || rating === 2) return false;
+  return null;
+}
+
 async function train(id: string, userDecision: boolean): Promise<{ topShift: WeightShift | null }> {
   const [analysis, photo] = await Promise.all([db.analyses.get(id), db.photos.get(id)]);
   if (!analysis) return { topShift: null };
@@ -2036,6 +2047,13 @@ export const useStore = create<AppState>((set, get) => ({
     const clamped = Math.max(0, Math.min(5, Math.round(rating)));
     await db.photos.update(id, { rating: clamped });
     set(state => ({ photos: state.photos.map(p => (p.id === id ? { ...p, rating: clamped } : p)) }));
+    // Stelele antreneaza si ele motorul. Pana acum invata DOAR din
+    // Selecteaza/Respinge, desi un 5 e cea mai clara parere pe care o dai
+    // despre o poza, iar 1 stea la fel, in celalalt sens. Doar extremele:
+    // 3 stele e literalmente "asa si asa", n-ar trebui sa impinga in nicio
+    // directie, iar 0 inseamna "fara rating", nu "poza slaba".
+    const decision = ratingDecision(clamped);
+    if (decision !== null) await train(id, decision);
   },
 
   setColorLabel: async (id, label) => {
@@ -2199,10 +2217,12 @@ export const useStore = create<AppState>((set, get) => ({
     const members = get().photos.filter(p => p.groupId === groupId);
     if (!members.length) return null;
     const analyses = await Promise.all(members.map(m => db.analyses.get(m.id)));
+    const learnedWeight = await contextEngine.learnedWeight();
     return pickBestInGroup(members.map((m, i) => {
       const a = analyses[i];
       return {
         id: m.id,
+        aiScore: a?.aiScore ?? m.aiScore,
         sharpness: a?.sharpness ?? m.sharpness,
         exposure: a?.exposure ?? m.exposure,
         compositionScore: a?.compositionScore,
@@ -2213,7 +2233,7 @@ export const useStore = create<AppState>((set, get) => ({
         groupEyesOpenRatio: m.groupEyesOpenRatio,
         avgEyeContact: a?.avgEyeContact
       };
-    }));
+    }), learnedWeight);
   },
 
   /**
@@ -2487,6 +2507,12 @@ export const useStore = create<AppState>((set, get) => ({
         rating: clamped > 0 ? t(locale, 'store.bulkRating.stars', { n: clamped }) : t(locale, 'store.bulkRating.cleared')
       })
     }));
+    // Acelasi semnal ca la o stea data individual (vezi setRating) — secvential,
+    // nu Promise.all: recordCorrection e SGD online, pasii trebuie sa se vada
+    // unul pe altul, iar un lot mare de antrenari paralele ar concura pe aceeasi
+    // stare de model.
+    const decision = ratingDecision(clamped);
+    if (decision !== null) for (const id of ids) await train(id, decision);
   },
 
   bulkSetColorLabelForSelection: async label => {

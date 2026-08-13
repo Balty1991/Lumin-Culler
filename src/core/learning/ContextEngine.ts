@@ -612,6 +612,22 @@ export class ContextEngine {
   ]);
 
   /** Rezumat lizibil al tuturor contextelor invatate — pentru panoul "Preferinte AI" din UI. */
+  /**
+   * Cat de mult sa aiba incredere restul aplicatiei in ce a invatat motorul,
+   * 0..1 (0 = nimic invatat inca, 1 = model antrenat).
+   *
+   * Citit din backbone-ul GLOBAL, nu dintr-un context anume: cine intreaba
+   * (alegerea celui mai bun cadru dintr-o serie — core/groupSelection.ts) are
+   * de comparat cadre din ACELASI context intre ele, deci intrebarea reala e
+   * "a apucat omul sa-si arate preferintele in general?", nu "in scena asta".
+   * Aceeasi scara ca `confidence` din predict(): plin la TRAINED_SAMPLES.
+   */
+  async learnedWeight(): Promise<number> {
+    await this.init();
+    const global = this.getOrCreateModel(GLOBAL_CONTEXT_KEY);
+    return Math.max(0, Math.min(1, global.sampleCount / TRAINED_SAMPLES));
+  }
+
   async summarize(locale: Locale = 'ro'): Promise<{
     contextKey: string;
     sampleCount: number;

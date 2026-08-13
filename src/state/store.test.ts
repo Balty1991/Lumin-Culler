@@ -23,7 +23,7 @@ vi.mock('../core/exportPhotos', async importOriginal => {
   return { ...actual, exportOriginalFiles: (...args: unknown[]) => exportOriginalFilesMock(...args) };
 });
 
-import { useStore, relabelFaces, matchFacesToPerson, selectMergedEmbeddings, type PhotoView } from './store';
+import { ratingDecision, useStore, relabelFaces, matchFacesToPerson, selectMergedEmbeddings, type PhotoView } from './store';
 import { db, type AnalysisRecord, type FaceInsight, type KnownPerson, type PhotoRecord } from '../core/db';
 import { contextEngine } from '../core/learning/ContextEngine';
 import { originalFiles } from '../core/importPipeline';
@@ -717,6 +717,23 @@ describe('clearAll clears custom collections too (integration, Dexie real via fa
     const s = useStore.getState();
     expect(s.collections).toEqual([]);
     expect(s.collectionFilter).toBeNull();
+  });
+});
+
+// Motorul invata acum si din stele, nu doar din Selecteaza/Respinge: un 5 e
+// cea mai clara parere pe care o dai despre o poza, un 1 la fel, in celalalt
+// sens. Vezi ratingDecision (store.ts) pentru de ce 3 si 0 nu spun nimic.
+describe('ratingDecision', () => {
+  it('trateaza 4-5 stele ca "da" si 1-2 ca "nu"', () => {
+    expect(ratingDecision(5)).toBe(true);
+    expect(ratingDecision(4)).toBe(true);
+    expect(ratingDecision(2)).toBe(false);
+    expect(ratingDecision(1)).toBe(false);
+  });
+
+  it('nu invata nimic din 3 stele (mijloc explicit) sau 0 (fara rating dat)', () => {
+    expect(ratingDecision(3)).toBeNull();
+    expect(ratingDecision(0)).toBeNull();
   });
 });
 

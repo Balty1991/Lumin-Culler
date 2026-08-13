@@ -203,7 +203,9 @@ export class HashCompareService {
    */
   async groupPhotos(
     photos: HashInput[],
-    onUpdate?: (update: GroupUpdate) => void
+    onUpdate?: (update: GroupUpdate) => void,
+    /** Cat de mult sa cantareasca scorul invatat la alegerea celui mai bun cadru — vezi ContextEngine.learnedWeight(). 0 = doar ierarhia fixa, ca inainte. */
+    learnedWeight = 0
   ): Promise<{ groups: GroupResult[]; totalGroups: number }> {
     const buckets: Bucket[] = [];
     // indexeaza seed-ul fiecarui bucket (BK-tree, distanta Hamming) — plan 2.3.3
@@ -242,6 +244,9 @@ export class HashCompareService {
         const groupId = 'g-' + members[0].id.slice(0, 8);
         const bestId = pickBestInGroup(members.map(m => ({
           id: m.id,
+          // `score` E aiScore-ul calculat la import (vezi HashInput) — pana acum
+          // pastrat doar pentru afisare, acum si consultat la alegerea cadrului.
+          aiScore: m.score,
           sharpness: m.sharpness ?? 0,
           exposure: m.exposure ?? 50,
           compositionScore: m.compositionScore,
@@ -251,7 +256,7 @@ export class HashCompareService {
           allEyesOpen: m.allEyesOpen ?? true,
           groupEyesOpenRatio: m.groupEyesOpenRatio,
           avgEyeContact: m.avgEyeContact
-        })));
+        })), learnedWeight);
         for (const m of members) onUpdate?.({ photoId: m.id, groupId });
         groups.push({ groupId, memberIds: members.map(m => m.id), bestId });
       }

@@ -660,7 +660,12 @@ export async function importFiles(
       .filter((h): h is HashInput => h !== null);
   }
 
-  const { groups: groupResults } = await groupPhotosByHash([...hashes, ...existingHashes]);
+  // Alegerea celui mai bun cadru din serie tine cont si de ce a invatat motorul
+  // din deciziile utilizatorului, proportional cu cat de antrenat e — vezi
+  // groupScore in core/groupSelection.ts.
+  const { groups: groupResults } = await groupPhotosByHash(
+    [...hashes, ...existingHashes], undefined, await contextEngine.learnedWeight()
+  );
   // Bug real gasit de auditul QA (bug/low-medium): bucla de mai jos facea, per
   // membru de grup, un db.photos.get() (pentru membrii non-best) urmat de un
   // db.photos.update() — pentru un import de 1000 de poze cu multe burst-uri
