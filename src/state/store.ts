@@ -2231,6 +2231,9 @@ export const useStore = create<AppState>((set, get) => ({
         groupSmileRatio: m.groupSmileRatio,
         allEyesOpen: m.allEyesOpen,
         groupEyesOpenRatio: m.groupEyesOpenRatio,
+        groupAwkwardRatio: m.groupAwkwardRatio ?? a?.groupAwkwardRatio,
+        subjectInFocus: a?.subjectInFocus,
+        highlightClipping: a?.highlightClipping,
         avgEyeContact: a?.avgEyeContact
       };
     }), learnedWeight);

@@ -24,9 +24,25 @@ export interface GroupCandidate {
   allEyesOpen: boolean;
   groupEyesOpenRatio?: number;     // 0..1, doar la faceCount > 1
   avgEyeContact?: number;          // 0..1
+  /**
+   * Fractiune de fete prinse "la mijlocul vorbirii"/cascat (vezi
+   * groupAwkwardRatio pe AnalysisRecord) — 0..1, absent = neutru.
+   * Intr-o rafala e adesea SINGURA diferenta reala intre cadre: claritatea,
+   * expunerea si compozitia sunt practic identice de la un cadru la altul, dar
+   * unul are gura deschisa la mijlocul unui cuvant. Fara el, alegerea intre
+   * doua cadre gemene se facea la a patra zecimala a claritatii.
+   */
+  groupAwkwardRatio?: number;
+  /** Subiectul principal e mai clar decat fundalul. Absent/necunoscut = neutru. */
+  subjectInFocus?: boolean;
+  /** Fractiune de pixeli arsi in highlights, 0..1 — absent = neutru. */
+  highlightClipping?: number;
   /** Scorul dat de motorul invatat (0..100). Absent = se foloseste doar ierarhia fixa de mai jos. */
   aiScore?: number;
 }
+
+/** Cat ramane din claritatea globala cand subiectul insusi e confirmat neclar — vezi fixedScore. */
+const SUBJECT_BLUR_DISCOUNT = 0.6;
 
 /**
  * Scor compozit 0..1 pentru un candidat — nu doar un tiebreak lexicografic
@@ -37,17 +53,40 @@ export interface GroupCandidate {
  */
 function fixedScore(c: GroupCandidate): number {
   const exposureBalance = 1 - Math.abs(c.exposure - 50) / 50;
+  // Expresia: zambet + ochi deschisi, minus momentele prinse la mijlocul
+  // vorbirii. Scaderea, nu media: o expresie stanjenitoare e un DEFECT al
+  // cadrului, nu inca o calitate care se mediaza cu celelalte — un cadru cu
+  // toata lumea zambind si unul singur cu gura deschisa la mijlocul unui cuvant
+  // trebuie sa iasa clar in urma celui curat.
   const faceQuality = c.faceCount > 0
-    ? 0.5 * (c.faceCount > 1 ? c.groupSmileRatio ?? c.bestSmile : c.bestSmile)
-      + 0.5 * (c.faceCount > 1 ? c.groupEyesOpenRatio ?? (c.allEyesOpen ? 1 : 0) : (c.allEyesOpen ? 1 : 0))
+    ? Math.max(0,
+        0.5 * (c.faceCount > 1 ? c.groupSmileRatio ?? c.bestSmile : c.bestSmile)
+        + 0.5 * (c.faceCount > 1 ? c.groupEyesOpenRatio ?? (c.allEyesOpen ? 1 : 0) : (c.allEyesOpen ? 1 : 0))
+        - (c.groupAwkwardRatio ?? 0))
     : 0.5;
   const eyeContact = c.avgEyeContact ?? 0.5;
+  // Claritatea GLOBALA nu distinge cadrul cu subiectul clar si fundalul difuz de
+  // cel in care s-a intamplat exact invers — diferenta cea mai frecventa intre
+  // doua cadre dintr-o rafala in care autofocusul "vaneaza". Acelasi rationament
+  // ca subjectConfirmedOutOfFocus din importPipeline.ts: cand subiectul e
+  // CONFIRMAT neclar, claritatea globala nu mai e o masura de incredere a
+  // cadrului (poate fi mare doar din prim-planul ascutit), deci o scontam.
+  //
+  // Modificator, nu termen separat cu pondere proprie: claritatea trebuie sa
+  // ramana criteriul dominant cu greutatea ei intreaga — un cadru complet neclar
+  // nu are voie sa castige o serie oricat de bine ar sta la restul.
+  // Necunoscut (absent, web/inregistrari vechi) nu sconteaza nimic.
+  const clarity = (c.sharpness / 100) * (c.subjectInFocus === false ? SUBJECT_BLUR_DISCOUNT : 1);
+  // Highlights arse: dintre defectele care despart doua cadre dintr-o rafala,
+  // singurul complet ireparabil la editare — detaliul chiar lipseste din fisier.
+  const highlights = 1 - Math.min(1, Math.max(0, c.highlightClipping ?? 0));
   return (
-    0.35 * (c.sharpness / 100) +
-    0.2 * exposureBalance +
-    0.2 * (c.compositionScore ?? 0.5) +
+    0.35 * clarity +
+    0.18 * exposureBalance +
+    0.07 * highlights +
+    0.18 * (c.compositionScore ?? 0.5) +
     0.15 * faceQuality +
-    0.1 * eyeContact
+    0.07 * eyeContact
   );
 }
 

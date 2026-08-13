@@ -291,6 +291,9 @@ export class HashCompareService {
           groupSmileRatio: m.groupSmileRatio,
           allEyesOpen: m.allEyesOpen ?? true,
           groupEyesOpenRatio: m.groupEyesOpenRatio,
+          groupAwkwardRatio: m.groupAwkwardRatio,
+          subjectInFocus: m.subjectInFocus,
+          highlightClipping: m.highlightClipping,
           avgEyeContact: m.avgEyeContact
         })), learnedWeight);
         for (const m of members) onUpdate?.({ photoId: m.id, groupId });
