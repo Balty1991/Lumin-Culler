@@ -651,6 +651,7 @@ export const en: Record<TranslationKey, string> = {
   'compare.composite.title': 'No single frame works for everyone',
   'compare.composite.base': 'Start from frame {frame}.',
   'compare.composite.swap': 'Person {person} looks better in frame {frame}.',
+  'compare.composite.swapNamed': '{name} looks better in frame {frame}.',
   'compare.zoomSync': 'Synced zoom',
   'compare.overlayToggle': 'Overlay two frames',
   'compare.hint': '"Keep only this one" automatically rejects the rest of the series and trains the engine with your choice. Tap the image for 100% zoom. Synced zoom scales all frames around the same point; while zoomed, drag any image to pan all frames together, useful for comparing fine detail (eyes, expressions).',

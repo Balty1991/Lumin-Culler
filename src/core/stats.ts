@@ -53,7 +53,14 @@ export interface AgreementStats {
   agreementRate: number;
 }
 
-export function computeAgreementStats(corrections: CorrectionRecord[]): AgreementStats {
+/**
+ * `Pick`, nu `CorrectionRecord` intreg: functia citeste doar cele doua decizii.
+ * Cu tipul complet, orice apelant care are exact datele necesare (dar nu si
+ * photoId/contextKey/features) era obligat sa forteze un cast — adica sa
+ * pacaleasca verificarea de tipuri ca sa treaca de o cerinta care nu exista in
+ * realitate. Vezi learning/accuracy.ts, care refoloseste aceasta functie.
+ */
+export function computeAgreementStats(corrections: readonly Pick<CorrectionRecord, 'aiDecision' | 'userDecision'>[]): AgreementStats {
   if (!corrections.length) return { total: 0, agreementRate: 0 };
   const agreed = corrections.filter(c => c.aiDecision === c.userDecision).length;
   return { total: corrections.length, agreementRate: agreed / corrections.length };

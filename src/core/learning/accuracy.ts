@@ -59,7 +59,7 @@ export interface AccuracySummary {
 
 function agreementOf(rows: readonly AccuracyInput[]): number {
   // acelasi calcul ca in StatsPanel, o singura definitie — vezi nota de sus
-  return computeAgreementStats(rows as Parameters<typeof computeAgreementStats>[0]).agreementRate;
+  return computeAgreementStats(rows).agreementRate;
 }
 
 /**

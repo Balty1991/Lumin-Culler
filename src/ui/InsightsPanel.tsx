@@ -80,10 +80,20 @@ export function InsightsPanel() {
       // Tiparele au nevoie si de metadatele pozei (ora capturii, subiecte,
       // focala), care nu stau pe corectie — le luam prin photoId. Pozele
       // sterse intre timp cad pur si simplu din analiza.
-      const [photos, analyses] = await Promise.all([db.photos.toArray(), db.analyses.toArray()]);
+      //
+      // bulkGet DOAR pe pozele cu o decizie manuala, nu toata biblioteca: o
+      // inregistrare de analiza contine embedding-ul de continut (1024 de
+      // numere) si cate unul per fata, deci `db.analyses.toArray()` pe o
+      // biblioteca de cateva mii de poze ar trage zeci de MB in memorie ca sa
+      // citeasca din ele trei campuri mici. Numarul de decizii manuale e cu
+      // ordine de marime mai mic si — spre deosebire de biblioteca — nu creste
+      // cu fiecare import, ci doar cu cat lucrezi efectiv.
+      const ids = [...new Set(rows.map(c => c.photoId))];
+      const [photos, analyses] = await Promise.all([db.photos.bulkGet(ids), db.analyses.bulkGet(ids)]);
       if (!alive) return;
-      const photoById = new Map(photos.map(p => [p.id, p]));
-      const analysisById = new Map(analyses.map(a => [a.photoId, a]));
+      // bulkGet intoarce undefined pe pozitiile fara inregistrare (sterse intre timp)
+      const photoById = new Map(photos.flatMap(p => (p ? [[p.id, p] as const] : [])));
+      const analysisById = new Map(analyses.flatMap(a => (a ? [[a.photoId, a] as const] : [])));
       setHabits(findHabits(rows.flatMap(c => {
         const photo = photoById.get(c.photoId);
         if (!photo) return [];

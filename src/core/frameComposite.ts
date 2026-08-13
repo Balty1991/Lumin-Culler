@@ -44,6 +44,8 @@ export interface CompositeFace {
   embedding?: number[];
   /** 0..1 — cat de bine arata persoana in acest cadru; vezi faceAppearance(). */
   quality: number;
+  /** Numele persoanei, cand e una inrolata (FaceInsight.personName). Vezi FrameSwap.name. */
+  name?: string | null;
 }
 
 export interface CompositeFrame {
@@ -52,8 +54,21 @@ export interface CompositeFrame {
 }
 
 export interface FrameSwap {
-  /** Indexul persoanei (in ordinea aparitiei in cadrul de baza) — apelantul il traduce in "persoana 2" sau intr-un nume. */
+  /**
+   * Indexul persoanei, in ordinea primei aparitii in serie (dupa filtrarea
+   * celor care apar intr-un singur cadru). E o eticheta de rezerva, nu o
+   * referinta pe care utilizatorul o poate urmari cu ochiul — vezi `name`.
+   */
   person: number;
+  /**
+   * Numele persoanei, cand e una inrolata.
+   *
+   * Fara el, sfatul suna "persoana 3 arata mai bine in cadrul 4" — si nimeni nu
+   * stie care e a treia: numerotarea vine din ordinea interna de detectie, care
+   * nu apare nicaieri pe ecran. Cu un nume, aceeasi propozitie devine imediat
+   * urmaribila.
+   */
+  name?: string;
   /** Cadrul din care sa iei acea persoana. */
   fromFrameId: string;
   /** Cat de mult arata mai bine acolo, 0..1. */
@@ -104,10 +119,24 @@ export function faceAppearance(f: {
  * poate fi urmarita si e ignorata cu totul — mai bine tacem despre ea decat s-o
  * confundam cu altcineva.
  */
-function trackPersons(frames: readonly CompositeFrame[]): Map<string, number>[] {
-  const tracks: { centroid: number[]; }[] = [];
+function trackPersons(frames: readonly CompositeFrame[]): {
+  perFrame: Map<string, number>[];
+  nameOf: Map<string, string>;
+} {
+  /**
+   * `reference`, nu "centroida": pastram embedding-ul PRIMEI aparitii si
+   * comparam totul cu el, fara sa mediem. E o simplificare constienta —
+   * intr-o serie, aceeasi persoana isi schimba putin unghiul intre cadre, deci
+   * o medie ar fi ceva mai robusta. Deocamdata nu merita: cadrele unei serii
+   * sunt facute la secunde-minute distanta, iar pragul de potrivire e oricum
+   * permisiv. De recalibrat daca la testare se rup piste care ar trebui sa fie
+   * una singura.
+   */
+  const tracks: { reference: number[] }[] = [];
   /** per cadru: indicele pistei -> calitatea persoanei in acel cadru */
   const perFrame: Map<string, number>[] = [];
+  /** indicele pistei -> numele persoanei, daca s-a aflat din vreun cadru */
+  const nameOf = new Map<string, string>();
 
   for (const frame of frames) {
     const qualityByTrack = new Map<string, number>();
@@ -116,21 +145,24 @@ function trackPersons(frames: readonly CompositeFrame[]): Map<string, number>[] 
       let bestTrack = -1;
       let bestSim = SAME_PERSON_THRESHOLD;
       for (let t = 0; t < tracks.length; t++) {
-        const sim = cosine(face.embedding, tracks[t].centroid);
+        const sim = cosine(face.embedding, tracks[t].reference);
         if (sim >= bestSim) { bestSim = sim; bestTrack = t; }
       }
       if (bestTrack === -1) {
-        tracks.push({ centroid: [...face.embedding] });
+        tracks.push({ reference: [...face.embedding] });
         bestTrack = tracks.length - 1;
       }
       // o persoana poate aparea o singura data per cadru; daca detectia a dat
       // doua fete apropiate, pastram cea mai buna
       const previous = qualityByTrack.get(String(bestTrack));
       if (previous === undefined || face.quality > previous) qualityByTrack.set(String(bestTrack), face.quality);
+      // primul cadru in care persoana a fost recunoscuta da numele; celelalte
+      // nu il suprascriu (recunoasterea poate rata pe un cadru, nu si invers)
+      if (face.name && !nameOf.has(String(bestTrack))) nameOf.set(String(bestTrack), face.name);
     }
     perFrame.push(qualityByTrack);
   }
-  return perFrame;
+  return { perFrame, nameOf };
 }
 
 /**
@@ -140,7 +172,7 @@ function trackPersons(frames: readonly CompositeFrame[]): Map<string, number>[] 
  */
 export function suggestComposite(frames: readonly CompositeFrame[]): CompositeHint | null {
   if (frames.length < 2) return null;
-  const perFrame = trackPersons(frames);
+  const { perFrame, nameOf } = trackPersons(frames);
 
   // Persoanele care apar in CEL PUTIN doua cadre — doar despre ele se poate
   // spune "arata mai bine dincolo".
@@ -174,7 +206,8 @@ export function suggestComposite(frames: readonly CompositeFrame[]): CompositeHi
       if (score > bestScore) { bestScore = score; bestFrame = i; }
     });
     if (bestFrame === -1 || bestScore - here < MIN_SWAP_GAIN || bestScore < GOOD_ENOUGH) return;
-    swaps.push({ person: personIndex, fromFrameId: frames[bestFrame].id, gain: bestScore - here });
+    const name = nameOf.get(track);
+    swaps.push({ person: personIndex, fromFrameId: frames[bestFrame].id, gain: bestScore - here, ...(name ? { name } : {}) });
   });
 
   if (!swaps.length || swaps.length > MAX_SWAPS) return null;

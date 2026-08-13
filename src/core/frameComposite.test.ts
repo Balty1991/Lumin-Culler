@@ -134,3 +134,32 @@ describe('suggestComposite', () => {
     expect(hint.swaps[0].gain).toBeGreaterThanOrEqual(hint.swaps[1].gain);
   });
 });
+
+// "Persoana 3" nu-i spune nimanui CINE — numerotarea vine din ordinea interna de
+// detectie, care nu apare nicaieri pe ecran. Cand persoana e inrolata, sfatul
+// trebuie sa-i spuna pe nume.
+describe('suggestComposite — numele persoanei', () => {
+  it('poarta numele mai departe cand persoana e recunoscuta', () => {
+    const hint = suggestComposite([
+      { id: 'c1', faces: [{ embedding: ANA, quality: GOOD, name: 'Ana' }, { embedding: BOGDAN, quality: BAD, name: 'Bogdan' }] },
+      { id: 'c2', faces: [{ embedding: ANA, quality: BAD, name: 'Ana' }, { embedding: BOGDAN, quality: GOOD, name: 'Bogdan' }] }
+    ])!;
+    expect(hint.swaps[0].name).toBe('Bogdan');
+  });
+
+  it('il ia din cadrul in care recunoasterea a reusit, chiar daca a ratat in altul', () => {
+    const hint = suggestComposite([
+      { id: 'c1', faces: [{ embedding: ANA, quality: GOOD }, { embedding: BOGDAN, quality: BAD, name: 'Bogdan' }] },
+      { id: 'c2', faces: [{ embedding: ANA, quality: BAD }, { embedding: BOGDAN, quality: GOOD }] }
+    ])!;
+    expect(hint.swaps[0].name).toBe('Bogdan');
+  });
+
+  it('ramane fara nume cand persoana nu e inrolata — apelantul cade pe numerotare', () => {
+    const hint = suggestComposite([
+      { id: 'c1', faces: [{ embedding: ANA, quality: GOOD }, { embedding: BOGDAN, quality: BAD, name: null }] },
+      { id: 'c2', faces: [{ embedding: ANA, quality: BAD }, { embedding: BOGDAN, quality: GOOD }] }
+    ])!;
+    expect(hint.swaps[0].name).toBeUndefined();
+  });
+});

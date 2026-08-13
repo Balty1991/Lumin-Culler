@@ -144,6 +144,7 @@ export function GroupCompare() {
           id: memberIds[i],
           faces: a.faces.map(f => ({
             embedding: f.embedding,
+            name: f.personName,
             quality: faceAppearance({
               isBlinking: f.isBlinking, smile: f.smile, eyeContact: f.eyeContact, awkward: isAwkwardExpression(f)
             })
@@ -184,9 +185,10 @@ export function GroupCompare() {
             <b>{tr('compare.composite.title')}</b>
             <p>
               {tr('compare.composite.base', { frame: frameLabel(composite.baseFrameId) })}{' '}
-              {composite.swaps.map(sw => tr('compare.composite.swap', {
-                person: sw.person + 1, frame: frameLabel(sw.fromFrameId)
-              })).join(' ')}
+              {composite.swaps.map(sw => (sw.name
+                ? tr('compare.composite.swapNamed', { name: sw.name, frame: frameLabel(sw.fromFrameId) })
+                : tr('compare.composite.swap', { person: sw.person + 1, frame: frameLabel(sw.fromFrameId) })
+              )).join(' ')}
             </p>
           </div>
         )}
