@@ -1077,9 +1077,10 @@ export default function App() {
               Supervizorul galeriei, langa bara de acoperire, unde chiar
               raspunde la o intrebare pusa acolo ("cat am de adus?"). */}
 
-          <div className="hud how-it-works-hud">
-            <span className="bracket tl" aria-hidden="true" /><span className="bracket tr" aria-hidden="true" />
-            <span className="bracket bl" aria-hidden="true" /><span className="bracket br" aria-hidden="true" />
+          {/* Card simplu, nu panou HUD cu colturi in paranteze: tratamentul acela
+              a ramas limbajul pentru DATE LIVE (CullGauge, in timpul triajului).
+              Pe un explicativ static citea decorativ, nu profesional. */}
+          <div className="how-it-works-card">
             <div className="how-it-works">
               <div className="how-step">
                 <span className="how-step-icon"><span className="how-step-num">1</span><PlusIcon /></span>

@@ -1487,7 +1487,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 /* padding-top mic intentionat (nu 12vh ca inainte) — cerinta directa: intreaga
    pagina de onboarding (nucleu + text + CTA + cei 3 pasi) trebuie sa incapa pe
    un ecran de telefon FARA sa fie nevoie de scroll. */
-.empty { position: relative; isolation: isolate; text-align: center; padding: 3vh 16px 14px; max-width: 420px; margin: 0 auto; display: grid; gap: 8px; justify-items: center; animation: fadeUp 0.4s var(--ease) both; }
+/* gap 6px, nu 8px, plus corectiile de mai jos: cu un singur gap uniform,
+   insigna, promisiunea, titlul, fraza si cele doua butoane erau toate la fel de
+   departe unele de altele, deci nu se citea nicio ierarhie — sase elemente
+   plutind, in loc de un bloc-erou urmat de actiuni. */
+.empty { position: relative; isolation: isolate; text-align: center; padding: 3vh 16px 14px; max-width: 420px; margin: 0 auto; display: grid; gap: 6px; justify-items: center; animation: fadeUp 0.4s var(--ease) both; }
 /* Fundal STATIC, discret (nu mai deriveaza/pulseaza) — feedback direct al
    utilizatorului: prima impresie a aplicatiei parea "ciudata", nu profesionala.
    Un glow fix, suficient de subtil incat sa citeasca a lumina ambientala de
@@ -1512,6 +1516,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   color: var(--accent); box-shadow: 0 8px 22px -10px rgb(var(--accent-rgb) / 0.45);
 }
 .empty-badge svg { width: 28px; height: 28px; }
+/* insigna e capul blocului-erou: lipita de promisiunea de sub ea, despartita de
+   ce e deasupra */
+.empty-badge { margin-bottom: 4px; }
 .empty-tagline {
   /* baseline, nu center: cand textul se rupe pe doua randuri (ecrane inguste),
      `center` alinia buletina verde la mijlocul blocului de doua linii, parand
@@ -1519,7 +1526,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   display: inline-flex; align-items: baseline; gap: 7px; margin: -4px 0 0;
   font-size: 0.72rem; letter-spacing: 0.04em; color: var(--text-faint); text-transform: uppercase;
 }
-.empty h2 { font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; margin-top: 2px; }
+.empty h2 { font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; margin-top: 0; }
 /*
  * Textul lung, tehnic, intr-un singur paragraf ("JPEG/PNG/WebP/RAW — CR2,
  * NEF, ARW, DNG...") citea greu/obositor (feedback direct) — despartit acum
@@ -1528,8 +1535,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
  * ("empty-formats", pentru cine chiar vrea sa stie ce formate sunt suportate)
  * — nu mai concureaza pentru atentie in aceeasi propozitie.
  */
-.empty-lead { font-size: 0.95rem; line-height: 1.6; color: var(--text-dim); margin-top: 2px; }
-.empty .btn-accent.big { margin-top: 6px; }
+.empty-lead { font-size: 0.95rem; line-height: 1.6; color: var(--text-dim); margin-top: 0; max-width: 30ch; }
+/* singura pauza mare din ecran: aici se termina "ce e asta" si incepe "ce fac" */
+.empty .btn-accent.big { margin-top: 14px; }
 .empty-formats {
   font-size: 0.66rem; line-height: 1.5; color: var(--text-faint); letter-spacing: 0.02em;
   max-width: 320px;
@@ -1548,7 +1556,14 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
    Randat in interiorul unui panou .hud (aceleasi clase .hud/.bracket ca la
    CullGauge) — reutilizeaza identitatea vizuala "HUD" deja stabilita, in loc
    de un simplu divider deasupra unei liste plate. */
-.how-it-works-hud { width: 100%; margin-top: 8px; padding: 10px 12px 9px; }
+/* Card calm, cu o singura muchie discreta — vezi nota din App.tsx pentru de ce
+   nu mai e un panou HUD cu colturi in paranteze. Mai mult aer inauntru (14px)
+   decat avea panoul (10px): descrierile au acum cate un singur rand, deci
+   spatiul castigat se duce in respiratie, nu in text. */
+.how-it-works-card {
+  width: 100%; margin-top: 12px; padding: 15px 14px;
+  border-radius: var(--radius); background: var(--surface); border: 1px solid var(--border);
+}
 .how-it-works {
   display: grid; grid-template-columns: 1fr; gap: 10px;
 }
@@ -1855,6 +1870,30 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 .locale-toggle-option.active { background: var(--accent); color: var(--bg); }
 .welcome-onboarding-body { margin: 0; color: var(--text-dim); font-size: 0.92rem; line-height: 1.5; max-width: 34ch; }
+
+/* ── Pasul de permisiuni: reproducerea celor trei optiuni ale dialogului
+   Android, cu cea corecta marcata. Sistemul evidentiaza vizual tocmai optiunea
+   gresita pentru aplicatia asta (acces limitat), asa ca o descriere in cuvinte
+   nu ajunge — utilizatorul trebuie sa RECUNOASCA randul pe care sa apese o
+   secunda mai tarziu. Deliberat nu imita culorile Android (butonul lui albastru
+   e cel gresit): pastilele stau in paleta aplicatiei, iar singurul accent e pe
+   randul recomandat. */
+.welcome-permission { display: grid; gap: 6px; width: 100%; max-width: 300px; margin-top: 4px; }
+.welcome-permission-option {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 9px 12px; border-radius: 999px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  color: var(--text-faint); font-size: 0.82rem;
+  /* optiunile nerecomandate raman lizibile, dar clar in plan secund */
+  opacity: 0.55;
+}
+.welcome-permission-option.recommended {
+  opacity: 1; color: var(--text); font-weight: 650;
+  background-image: linear-gradient(var(--surface-2), var(--surface-2)), var(--accent-gradient);
+  background-origin: border-box; background-clip: padding-box, border-box; border-color: transparent;
+  box-shadow: 0 6px 18px -10px rgb(var(--accent-rgb) / 0.75);
+}
+.welcome-permission-option.recommended svg { width: 15px; height: 15px; color: var(--accent); flex-shrink: 0; }
 .welcome-onboarding-dots { display: flex; gap: 6px; margin-top: 4px; }
 .welcome-onboarding-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--line-strong); transition: background var(--micro), transform var(--micro); }
 .welcome-onboarding-dot.active { background: var(--accent); transform: scale(1.3); }
