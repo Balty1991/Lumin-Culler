@@ -236,3 +236,66 @@ describe('serii prinse dupa apropierea in timp', () => {
     expect(groups).toHaveLength(1);
   });
 });
+
+// Al treilea nivel de grupare: MOMENTE, nu rafale — acelasi subiect fotografiat
+// de mai multe ori pe parcursul catorva minute (un pas in spate, o incercare pe
+// verticala, inca o data pana se uita omul la tine). Cadrul se schimba prea mult
+// pentru pragul de rafala, dar pentru cine sorteaza e tot "aceeasi poza".
+describe('HashCompareService.groupPhotos — momente', () => {
+  const t = Date.UTC(2026, 0, 1, 12, 0, 0);
+  /** Hash la distanta ~27 de zero — peste pragul de rafala (24), sub cel de moment (30). */
+  const FAR = '1'.repeat(27) + '0'.repeat(37);
+  const face = (seed: number) => [Array.from({ length: 8 }, (_, i) => (i === seed ? 1 : 0))];
+
+  it('grupeaza doua cadre la minute distanta cand fata dovedeste ca e acelasi om', async () => {
+    const { groups } = await new HashCompareService().groupPhotos([
+      { id: 'a', hash: '0'.repeat(64), score: 50, capturedAt: t, faceEmbeddings: face(0) },
+      { id: 'b', hash: FAR, score: 50, capturedAt: t + 4 * 60_000, faceEmbeddings: face(0) }
+    ]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].memberIds.sort()).toEqual(['a', 'b']);
+  });
+
+  it('NU le grupeaza fara nicio dovada de subiect — timpul si dHash-ul singure nu ajung', async () => {
+    // exact aceleasi poze, dar fara embedding-uri: lipsa semnalului inseamna "nu",
+    // nu "presupunem ca da"
+    const { groups } = await new HashCompareService().groupPhotos([
+      { id: 'a', hash: '0'.repeat(64), score: 50, capturedAt: t },
+      { id: 'b', hash: FAR, score: 50, capturedAt: t + 4 * 60_000 }
+    ]);
+    expect(groups).toHaveLength(0);
+  });
+
+  it('NU le grupeaza cand fetele arata ca sunt oameni diferiti', async () => {
+    const { groups } = await new HashCompareService().groupPhotos([
+      { id: 'a', hash: '0'.repeat(64), score: 50, capturedAt: t, faceEmbeddings: face(0) },
+      { id: 'b', hash: FAR, score: 50, capturedAt: t + 4 * 60_000, faceEmbeddings: face(5) }
+    ]);
+    expect(groups).toHaveLength(0);
+  });
+
+  it('nu intinde un moment peste fereastra lui, oricat de sigur ar fi subiectul', async () => {
+    const { groups } = await new HashCompareService().groupPhotos([
+      { id: 'a', hash: '0'.repeat(64), score: 50, capturedAt: t, faceEmbeddings: face(0) },
+      { id: 'b', hash: FAR, score: 50, capturedAt: t + 30 * 60_000, faceEmbeddings: face(0) }
+    ]);
+    expect(groups).toHaveLength(0);
+  });
+
+  it('foloseste si embedding-ul de continut ca dovada, pentru cadre fara oameni', async () => {
+    const emb = [1, 0, 0, 0];
+    const { groups } = await new HashCompareService().groupPhotos([
+      { id: 'a', hash: '0'.repeat(64), score: 50, capturedAt: t, imageEmbedding: emb },
+      { id: 'b', hash: FAR, score: 50, capturedAt: t + 5 * 60_000, imageEmbedding: emb }
+    ]);
+    expect(groups).toHaveLength(1);
+  });
+
+  it('nu schimba comportamentul pentru poze fara data capturii', async () => {
+    const { groups } = await new HashCompareService().groupPhotos([
+      { id: 'a', hash: '0'.repeat(64), score: 50, faceEmbeddings: face(0) },
+      { id: 'b', hash: FAR, score: 50, faceEmbeddings: face(0) }
+    ]);
+    expect(groups).toHaveLength(0);
+  });
+});

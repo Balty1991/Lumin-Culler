@@ -95,6 +95,28 @@ const TIME_CLOSE_SIMILARITY_THRESHOLD = 24;
 /** Cat de aproape in timp trebuie sa fie doua poze ca sa merite pragul relaxat de mai sus. */
 const BURST_WINDOW_MS = 45_000;
 
+/**
+ * Al treilea nivel: MOMENTE, nu rafale.
+ *
+ * O rafala inseamna secunde. Dar galeriile de telefon sunt pline de altceva:
+ * acelasi subiect fotografiat de mai multe ori pe parcursul catorva minute — te
+ * dai un pas in spate, incerci pe verticala, mai astepti o data ca omul sa se
+ * uite la tine. Pentru cine sorteaza, alea sunt tot "aceeasi poza de mai multe
+ * ori", dar cad mult peste pragul de rafala: si timpul, si cadrul s-au schimbat
+ * prea mult.
+ *
+ * De ce e sigur sa lasam pragul atat de larg: aici, spre deosebire de celelalte
+ * doua nivele, asemanarea vizuala NU mai e argumentul principal — e doar o
+ * preselectie ieftina. Ce decide e sameSubjectConfirmed(), care cere DOVADA
+ * (aceeasi fata, sau embedding de continut apropiat), nu simpla absenta a unei
+ * contraziceri. Fara dovada, poza ramane negrupata, chiar daca timpul si dHash-ul
+ * s-ar potrivi — exact invers fata de nivelele de rafala, unde vizualul e strans
+ * si verificarea subiectului e permisiva.
+ */
+const MOMENT_SIMILARITY_THRESHOLD = 30;
+/** Cat de lung poate fi un "moment". Peste asta e o alta scena, oricat de mult ar semana. */
+const MOMENT_WINDOW_MS = 8 * 60_000;
+
 function hammingDistance(a: string, b: string): number {
   let d = 0;
   const len = Math.min(a.length, b.length);
@@ -144,10 +166,10 @@ function cosineSimilarity(a: number[], b: number[]): number {
   return denom > 0 ? dot / denom : 0;
 }
 
-/** true daca poza e la cel mult BURST_WINDOW_MS de VREUN membru al bucket-ului. Fara date de captura pe vreuna dintre parti, nu putem afirma nimic. */
-function closeInTime(photo: HashInput, members: HashInput[]): boolean {
+/** true daca poza e la cel mult `windowMs` de VREUN membru al bucket-ului. Fara date de captura pe vreuna dintre parti, nu putem afirma nimic. */
+function closeInTime(photo: HashInput, members: HashInput[], windowMs = BURST_WINDOW_MS): boolean {
   if (photo.capturedAt === undefined) return false;
-  return members.some(m => m.capturedAt !== undefined && Math.abs(m.capturedAt - photo.capturedAt!) <= BURST_WINDOW_MS);
+  return members.some(m => m.capturedAt !== undefined && Math.abs(m.capturedAt - photo.capturedAt!) <= windowMs);
 }
 
 function bestFaceSimilarity(a: number[][], b: number[][]): number | null {
@@ -182,6 +204,26 @@ function looksLikeSameSubject(a: HashInput, b: HashInput): boolean {
     return !(compositionDelta > COMPOSITION_DELTA_THRESHOLD && colorDelta > COLOR_HARMONY_DELTA_THRESHOLD);
   }
   return true;
+}
+
+/**
+ * Ca `looksLikeSameSubject`, dar cere DOVADA ca e acelasi subiect, nu doar
+ * absenta unei contraziceri.
+ *
+ * Diferenta e intreaga garantie a nivelului "moment": acolo pragul vizual e
+ * larg si fereastra de timp e de minute, deci un `return true` pe lipsa de date
+ * (cum face varianta permisiva la final) ar grupa scene complet diferite dintr-o
+ * petrecere. Aici, lipsa semnalului inseamna "nu", nu "presupunem ca da" — si nu
+ * accepta niciodata semnalul slab compozitie+armonie-culori, care spune doar ca
+ * doua poze nu se bat cap in cap, nu ca arata acelasi lucru.
+ */
+function sameSubjectConfirmed(a: HashInput, b: HashInput): boolean {
+  const faceSim = bestFaceSimilarity(a.faceEmbeddings ?? [], b.faceEmbeddings ?? []);
+  if (faceSim !== null) return faceSim >= FACE_MATCH_THRESHOLD;
+  if (a.imageEmbedding && b.imageEmbedding) {
+    return cosineSimilarity(a.imageEmbedding, b.imageEmbedding) >= IMAGE_EMBEDDING_MATCH_THRESHOLD;
+  }
+  return false;
 }
 
 /**
@@ -248,11 +290,18 @@ export class HashCompareService {
       for (const photo of chunk) {
         // Interogam cu pragul RELAXAT, apoi filtram: distanta stransa e mereu
         // acceptata, cea relaxata doar cand pozele sunt si apropiate in timp.
-        const candidates = bkQuery(seedTree, photo.hash, TIME_CLOSE_SIMILARITY_THRESHOLD, hammingDistance)
+        const candidates = bkQuery(seedTree, photo.hash, MOMENT_SIMILARITY_THRESHOLD, hammingDistance)
           .filter(index => {
             const distance = hammingDistance(photo.hash, buckets[index].seedHash);
+            const members = buckets[index].members;
+            // 1. asemanare vizuala stransa — acceptata mereu, indiferent de timp
             if (distance <= SIMILARITY_THRESHOLD) return true;
-            return closeInTime(photo, buckets[index].members);
+            // 2. rafala: prag relaxat, dar doar la cateva zeci de secunde distanta
+            if (distance <= TIME_CLOSE_SIMILARITY_THRESHOLD && closeInTime(photo, members)) return true;
+            // 3. moment: prag larg si minute intregi, DAR numai cu dovada ca e
+            //    acelasi subiect — vezi MOMENT_SIMILARITY_THRESHOLD.
+            return closeInTime(photo, members, MOMENT_WINDOW_MS)
+              && members.some(m => sameSubjectConfirmed(photo, m));
           });
         // primul bucket creat dintre candidati — aceeasi regula de departajare ca
         // Array.prototype.find de dinainte (scanare in ordinea crearii)
