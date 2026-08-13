@@ -44,6 +44,7 @@ import {
 import { readStoredTheme, applyTheme, type Theme } from './theme';
 import { readStoredAccent, applyAccent, type AccentTheme } from './accentTheme';
 import { readWelcomeSeen, writeWelcomeSeen } from './welcomeOnboarding';
+import { keepScreenAwake } from '../core/wakeLock';
 import { readAccessibleMode, applyAccessibleMode } from '../core/accessibleMode';
 import { readSmartNotificationEnabled, writeSmartNotificationEnabled } from './smartNotification';
 import {
@@ -1867,6 +1868,10 @@ export const useStore = create<AppState>((set, get) => ({
       return;
     }
     set({ progress: { done: 0, total: files.length, fileName: '', phase: 'incarcare' }, importCancelling: false });
+    // Ecranul ramane aprins cat dureaza importul: altfel se stingea singur dupa
+    // 30s-1min de inactivitate, sistemul suspenda WebView-ul si analiza se
+    // oprea la jumatate (vezi core/wakeLock.ts pentru ce NU rezolva asta).
+    const releaseWakeLock = keepScreenAwake();
     let warning: string | undefined;
     let done = 0;
     const startedAt = Date.now();
@@ -1943,6 +1948,7 @@ export const useStore = create<AppState>((set, get) => ({
       flushPendingPhotos();
       if (activeCancelToken === cancelToken) activeCancelToken = null;
       set({ importCancelling: false });
+      releaseWakeLock();
     }
     // reincarca statusurile si groupId-urile persistate dupa gruparea seriilor
     const fresh = await db.photos.toArray();

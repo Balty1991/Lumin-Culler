@@ -34,7 +34,7 @@ export const en: Record<TranslationKey, string> = {
   'nav.home': 'Home',
   'nav.albums': 'Albums',
   'nav.persons': 'People',
-  'nav.me': 'Me',
+  'nav.me': 'Menu',
   'menu.title': 'Menu',
   'menu.close': 'Close menu',
   'menu.section.workspace': 'Organize',

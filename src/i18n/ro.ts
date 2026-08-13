@@ -31,7 +31,7 @@ export const ro = {
   'nav.home': 'Acasă',
   'nav.albums': 'Albume',
   'nav.persons': 'Persoane',
-  'nav.me': 'Eu',
+  'nav.me': 'Meniu',
   'menu.title': 'Meniu',
   'menu.close': 'Închide meniul',
   'menu.section.workspace': 'Organizare',

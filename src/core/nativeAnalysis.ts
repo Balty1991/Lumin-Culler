@@ -63,6 +63,31 @@ const ML_KIT_EYE_OPEN_THRESHOLD = 0.5;
  */
 const NATIVE_ANALYZE_JPEG_QUALITY = 0.92;
 
+/**
+ * Latura maxima a imaginii trimise MODELELOR native, si calitatea ei JPEG.
+ *
+ * De ce exista: fiecare apel nativ trece imaginea peste puntea Capacitor ca
+ * string base64 (vezi core/base64.ts si nativeFaceDetection/ImageLabeling/...),
+ * iar o poza trece prin 4-7 astfel de apeluri. La 2048px/q0.92 asta inseamna
+ * ~1 MB de JPEG -> ~1,4 MB de base64, serializat si deserializat de fiecare
+ * data: cateva MB de marshalling per poza, care nu au nimic de-a face cu
+ * inferenta propriu-zisa. La 1280px/q0.85 raman ~2,5-3x mai putini octeti,
+ * de fiecare data.
+ *
+ * De ce e sigur pentru precizie: modelele isi fac oricum propria redimensionare
+ * interna, mult sub 1280 (etichetare si embedding ~224px, postura ~256px,
+ * detectia de fete ML Kit e documentata sa aiba nevoie de ~100px pe fata —
+ * la 1280 o fata cat 10% din cadru inca are ~128px). Cutiile intoarse sunt
+ * normalizate la faceResult.imageWidth/Height, deci raman corecte indiferent
+ * de scara — vezi cropFaceBitmap, care decupeaza tot din canvas-ul MARE.
+ *
+ * Ce NU se micsoreaza: decupajele de fata pentru recunoastere (se iau din
+ * canvas-ul la rezolutie plina) si OCR-ul, care chiar are nevoie de pixeli ca
+ * sa citeasca text mic — acela primeste blob-ul mare, generat doar atunci.
+ */
+const NATIVE_ANALYZE_MAX_SIDE = 1280;
+const NATIVE_ANALYZE_SMALL_JPEG_QUALITY = 0.85;
+
 function drawToCanvas(bitmap: ImageBitmap): OffscreenCanvas {
   const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
   const ctx = canvas.getContext('2d');
@@ -73,6 +98,20 @@ function drawToCanvas(bitmap: ImageBitmap): OffscreenCanvas {
 
 function canvasToBlob(canvas: OffscreenCanvas): Promise<Blob> {
   return canvas.convertToBlob({ type: 'image/jpeg', quality: NATIVE_ANALYZE_JPEG_QUALITY });
+}
+
+/** Copia mica trimisa modelelor. Daca poza e deja sub prag, reincadram acelasi canvas (fara redimensionare inutila), doar la calitatea mai mica. */
+function canvasToModelBlob(canvas: OffscreenCanvas): Promise<Blob> {
+  const longest = Math.max(canvas.width, canvas.height);
+  if (longest <= NATIVE_ANALYZE_MAX_SIDE) {
+    return canvas.convertToBlob({ type: 'image/jpeg', quality: NATIVE_ANALYZE_SMALL_JPEG_QUALITY });
+  }
+  const scale = NATIVE_ANALYZE_MAX_SIDE / longest;
+  const small = new OffscreenCanvas(Math.round(canvas.width * scale), Math.round(canvas.height * scale));
+  const ctx = small.getContext('2d');
+  if (!ctx) throw new Error('Nu s-a putut obtine context 2D pentru copia de analiza (analiza nativa).');
+  ctx.drawImage(canvas, 0, 0, small.width, small.height);
+  return small.convertToBlob({ type: 'image/jpeg', quality: NATIVE_ANALYZE_SMALL_JPEG_QUALITY });
 }
 
 /**
@@ -281,7 +320,11 @@ export async function analyzeNative(
   const imageHeight = bitmap.height;
   const canvas = drawToCanvas(bitmap);
   bitmap.close();
-  const blob = await canvasToBlob(canvas);
+  // Blob-ul MIC merge la toate modelele; cel mare se genereaza doar daca
+  // ajungem la OCR (vezi NATIVE_ANALYZE_MAX_SIDE) — inainte, poza intreaga era
+  // codata la rezolutie plina pentru FIECARE import, chiar si cand nimeni nu
+  // avea nevoie de ea.
+  const blob = await canvasToModelBlob(canvas);
 
   const faceResult = await detectFacesNative(blob);
   const faces = faceResult.faces.map(f =>
@@ -327,8 +370,10 @@ export async function analyzeNative(
   // (nicio eticheta deloc), dar un document fotografiat primeste des exact o
   // eticheta abstracta ca "Text"/"Paper"/"Photography" de la ML Kit — OCR nu
   // mai rula niciodata in cazul concret pentru care a fost construit.
+  // OCR primeste blob-ul la rezolutie PLINA: e singurul model din lant care chiar
+  // depinde de pixeli (text mic pe un buletin/o captura de ecran), si ruleaza rar.
   const textCoverage = faces.length === 0 && !pickFolderSceneTag(sceneTags)
-    ? (await detectTextNative(blob)).textCoverage
+    ? (await detectTextNative(await canvasToBlob(canvas))).textCoverage
     : undefined;
 
   const sceneType = classifyScene(faces, imageWidth, imageHeight);

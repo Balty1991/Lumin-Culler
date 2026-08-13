@@ -2431,8 +2431,14 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 /* ── Meniu lateral ── */
 /* animatia de intrare/iesire e controlata de framer-motion (MenuDrawer.tsx) —
    CSS-ul ramane doar cu aspectul static, ca sa nu se bata cu transform-ul JS */
+/* Fara backdrop-filter (feedback direct: sertarul "apare cam sacadat"). Aveam
+   DOUA straturi de blur suprapuse — voalul pe tot ecranul si sertarul insusi —
+   iar cel din urma se translateaza, deci blur-ul trebuia recalculat la fiecare
+   cadru al animatiei, exact cand procesorul e ocupat cu analiza AI. Voalul e
+   acum doar mai opac: pe un fundal aproape negru, diferenta vizuala fata de
+   blur e mica, iar animatia devine o simpla compunere de straturi. */
 .drawer-scrim {
-  position: fixed; inset: 0; z-index: var(--z-drawer-scrim); background: rgba(5,6,8,0.62); backdrop-filter: blur(9px);
+  position: fixed; inset: 0; z-index: var(--z-drawer-scrim); background: rgba(5,6,8,0.78);
   display: flex; justify-content: flex-end;
 }
 .drawer {
@@ -2442,7 +2448,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
      ecranului, in loc sa se plafoneze la 330px/86%. Procent (%), nu vw — vw se poate
      calcula gresit pe mobil cand bara de adrese se ascunde/reapare dinamic; % ramane
      mereu relativ la .drawer-scrim (position:fixed; inset:0), corect dimensionat. */
-  width: min(330px, 86%); min-width: 0; height: 100%; background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur));
+  /* Suprafata opaca, nu sticla: e elementul care se MISCA la deschidere (vezi
+     nota de la .drawer-scrim). Peste un voal de 0.78 negru, un fundal solid
+     arata practic la fel, dar nu mai cere o recalculare de blur pe cadru.
+     will-change ii promite compozitorului un strat propriu inainte sa porneasca
+     animatia, ca primul cadru sa nu fie cel care plateste promovarea. */
+  width: min(330px, 86%); min-width: 0; height: 100%; background: var(--surface); will-change: transform;
   border-left: 1px solid var(--glass-border);
   /* padding-bottom pentru gesture bar avea deja safe-area — capul sertarului (titlu +
      buton inchidere) nu avea si el pentru bara de status (bug real gasit de auditul QA). */
