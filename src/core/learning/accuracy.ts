@@ -18,9 +18,14 @@
  * tu — pozele lasate in seama AI-ului nu apar aici deloc, tocmai pentru ca
  * nimeni nu le-a verificat.
  *
- * Fara dependinte (nici db.ts): matematica se testeaza direct pe o lista de
- * inregistrari.
+ * NOTA de intretinere: rata de acord agregata exista deja in core/stats.ts
+ * (computeAgreementStats, folosita de StatsPanel pentru grafice). Nu o
+ * recalculam aici — o refolosim — ca sa nu existe doua definitii ale aceleiasi
+ * cifre care pot diverge tacut. Ce e NOU aici e despartirea pe cele doua
+ * directii de greseala (propus spre pastrare vs. pus deoparte), care se comporta
+ * diferit si dintre care doar a doua doare cu adevarat.
  */
+import { computeAgreementStats } from '../stats';
 
 /** Sub atatea decizii judecate de tine, orice procent e zgomot — nu aratam nimic. */
 export const MIN_DECISIONS_FOR_ACCURACY = 20;
@@ -53,8 +58,8 @@ export interface AccuracySummary {
 }
 
 function agreementOf(rows: readonly AccuracyInput[]): number {
-  if (!rows.length) return 0;
-  return rows.filter(r => r.aiDecision === r.userDecision).length / rows.length;
+  // acelasi calcul ca in StatsPanel, o singura definitie — vezi nota de sus
+  return computeAgreementStats(rows as Parameters<typeof computeAgreementStats>[0]).agreementRate;
 }
 
 /**

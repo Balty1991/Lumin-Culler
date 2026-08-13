@@ -1571,6 +1571,16 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .accuracy-trend { margin: 9px 0 0; font-size: 0.84rem; color: var(--accent); }
 .accuracy-basis { margin: 9px 0 0; font-size: 0.72rem; line-height: 1.45; }
 
+/* "Tipare in deciziile tale" (InsightsPanel) — vezi core/learning/habits.ts.
+   Fiecare constatare isi poarta baza ("N decizii") langa ea, nu intr-o nota de
+   subsol: o afirmatie despre tine trebuie sa vina cu cat de mult sa o crezi. */
+.habits { margin: 0 0 14px; padding: 13px 14px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--border); }
+.habits h3 { margin: 0 0 8px; font-size: 0.8rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-faint); font-weight: 650; }
+.habits ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.habits li { font-size: 0.9rem; line-height: 1.45; display: grid; gap: 2px; }
+.habits-basis { font-size: 0.66rem; color: var(--text-faint); }
+
+
 /* "Ce ai pierde" — banda de miniaturi dinaintea stergerii definitive. Miniaturile
    sunt LQIP-uri (24px, blurate): destul cat sa RECUNOSTI o poza, nu cat s-o
    judeci — de aceea scorul sta scris sub fiecare, si de aceea butonul de

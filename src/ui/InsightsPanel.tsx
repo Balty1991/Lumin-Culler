@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { db } from '../core/db';
 import { summarizeAccuracy, type AccuracySummary } from '../core/learning/accuracy';
+import { findHabits, type Habit } from '../core/learning/habits';
+import { translateSceneTag } from '../core/sceneTagLabels';
 import { useStore } from '../state/store';
 import { contextEngine } from '../core/learning/ContextEngine';
 import { useModalFocusTrap } from './useModalFocusTrap';
@@ -51,6 +53,7 @@ export function InsightsPanel() {
   const [summary, setSummary] = useState<Summary[] | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [accuracy, setAccuracy] = useState<AccuracySummary | null>(null);
+  const [habits, setHabits] = useState<Habit[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
   useModalFocusTrap(containerRef, open);
 
@@ -66,12 +69,33 @@ export function InsightsPanel() {
   const reload = () => { void contextEngine.summarize(locale).then(s => setSummary(s)); };
 
   useEffect(() => {
-    if (!open) { setSummary(null); setExpanded(new Set()); setAccuracy(null); return; }
+    if (!open) { setSummary(null); setExpanded(new Set()); setAccuracy(null); setHabits([]); return; }
     let alive = true;
     void contextEngine.summarize(locale).then(s => { if (alive) setSummary(s); });
     // Raspunsurile corecte exista deja: fiecare decizie manuala a salvat si ce
     // propunea AI-ul, si ce ai ales tu. Vezi core/learning/accuracy.ts.
-    void db.corrections.toArray().then(rows => { if (alive) setAccuracy(summarizeAccuracy(rows)); });
+    void db.corrections.toArray().then(async rows => {
+      if (!alive) return;
+      setAccuracy(summarizeAccuracy(rows));
+      // Tiparele au nevoie si de metadatele pozei (ora capturii, subiecte,
+      // focala), care nu stau pe corectie — le luam prin photoId. Pozele
+      // sterse intre timp cad pur si simplu din analiza.
+      const [photos, analyses] = await Promise.all([db.photos.toArray(), db.analyses.toArray()]);
+      if (!alive) return;
+      const photoById = new Map(photos.map(p => [p.id, p]));
+      const analysisById = new Map(analyses.map(a => [a.photoId, a]));
+      setHabits(findHabits(rows.flatMap(c => {
+        const photo = photoById.get(c.photoId);
+        if (!photo) return [];
+        const analysis = analysisById.get(c.photoId);
+        return [{
+          kept: c.userDecision,
+          capturedAt: photo.capturedAt,
+          sceneTags: analysis?.sceneTags,
+          focalLength35mm: analysis?.focalLength35mm
+        }];
+      })));
+    });
     return () => { alive = false; };
   }, [open, locale]);
 
@@ -128,6 +152,27 @@ export function InsightsPanel() {
               </p>
             )}
             <p className="accuracy-basis hint">{tr('insights.accuracy.basis', { count: accuracy.total })}</p>
+          </section>
+        )}
+
+        {/* Aceleasi corectii, dar intoarse spre TINE, nu spre motor: ce tipare
+            exista in ce arunci, pe care nu le stiai. Vezi core/learning/habits.ts
+            pentru pragurile care despart o observatie de un horoscop. */}
+        {habits.length > 0 && (
+          <section className="habits">
+            <h3>{tr('insights.habits.title')}</h3>
+            <ul>
+              {habits.map(h => (
+                <li key={h.kind + h.key}>
+                  {tr(`insights.habits.${h.kind}.${h.keepRate >= h.baseline ? 'more' : 'less'}`, {
+                    group: h.kind === 'subject' ? translateSceneTag(h.key, locale) : tr(`insights.habits.band.${h.key}`),
+                    percent: Math.round(h.keepRate * 100),
+                    baseline: Math.round(h.baseline * 100)
+                  })}
+                  <span className="habits-basis mono">{tr('insights.habits.basis', { count: h.count })}</span>
+                </li>
+              ))}
+            </ul>
           </section>
         )}
 
