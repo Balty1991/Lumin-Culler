@@ -1473,7 +1473,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 .empty-badge svg { width: 28px; height: 28px; }
 .empty-tagline {
-  display: inline-flex; align-items: center; gap: 7px; margin: -4px 0 0;
+  /* baseline, nu center: cand textul se rupe pe doua randuri (ecrane inguste),
+     `center` alinia buletina verde la mijlocul blocului de doua linii, parand
+     desprinsa de text. */
+  display: inline-flex; align-items: baseline; gap: 7px; margin: -4px 0 0;
   font-size: 0.72rem; letter-spacing: 0.04em; color: var(--text-faint); text-transform: uppercase;
 }
 .empty h2 { font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; margin-top: 2px; }
@@ -3166,8 +3169,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
 /* "Supervizorul galeriei" — acelasi limbaj vizual gradient ca .home-recap-card/
    .memory-banner (functie de descoperire/progres, nu un avertisment). */
+/* Pe DOUA randuri (text + inchidere, apoi actiunea pe toata latimea), acelasi
+   tipar deja folosit de .install-prompt pentru exact aceeasi problema: pe un
+   singur rand, titlul se rupea cate un cuvant pe linie langa un buton care nu
+   se putea micsora, iar butonul de inchidere ajungea singur pe randul urmator. */
 .gallery-supervisor-banner {
-  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px; border-radius: var(--radius);
+  display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: var(--radius);
   background-image: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--accent-gradient);
   background-origin: border-box; background-clip: padding-box, border-box; border: 1px solid transparent;
   box-shadow: var(--shadow-lg), 0 0 22px -12px rgb(var(--accent-rgb) / 0.5);
@@ -3183,8 +3190,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 /* min-width mai mare decat 0: sub ~180px titlul se rupea cate un cuvant pe rand
    ("Urmatoarea / perioada de / sortat"), inghesuit langa buton. Sub prag, randul
    se infasoara si butonul trece dedesubt, pe toata latimea. */
-.gallery-supervisor-main { display: flex; align-items: center; gap: 10px; flex: 1 1 190px; min-width: 0; text-align: left; }
-.gallery-supervisor-banner .gallery-supervisor-cta { flex: 0 1 auto; }
+.gallery-supervisor-row { display: flex; align-items: center; gap: 10px; }
+.gallery-supervisor-main { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; text-align: left; }
+.gallery-supervisor-banner .gallery-supervisor-cta { width: 100%; text-align: center; padding: 10px 14px; }
 .gallery-supervisor-cta {
   flex-shrink: 0; border: none; border-radius: 999px; padding: 8px 14px; font-size: 0.76rem; font-weight: 700;
   background: var(--accent-gradient); color: #06070a;
@@ -3194,7 +3202,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 /* Card acoperire galerie (idee proprie) — bara subtire sub perioada recomandata,
    procentul din TOATA galeria telefonului deja "acoperita" de supervizor. */
 .gallery-supervisor-progress {
-  display: block; margin-top: 4px; width: 100%; max-width: 140px; height: 4px; border-radius: 999px;
+  display: block; margin-top: 5px; width: 100%; height: 4px; border-radius: 999px;
   background: rgb(var(--accent-rgb) / 0.14); overflow: hidden;
 }
 .gallery-supervisor-progress-fill { display: block; height: 100%; border-radius: 999px; background: var(--accent-gradient); transition: width 0.3s var(--ease); }
@@ -3219,6 +3227,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .supervisor-coverage-head span { font-size: 0.72rem; color: var(--text-faint); }
 .supervisor-coverage-bar { height: 6px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
 .supervisor-coverage-bar i { display: block; height: 100%; border-radius: 999px; background: var(--accent-gradient); transition: width 0.3s var(--ease); }
+.supervisor-coverage .gallery-overview-cta,
+.supervisor-coverage .gallery-overview-result,
+.supervisor-coverage .gallery-overview-denied { margin-top: 8px; }
 
 /* Perioade / Foldere ca file, nu doua sectiuni stivuite: inainte trebuia sa
    derulezi toata lista de perioade ca sa ajungi la foldere. */

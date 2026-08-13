@@ -18,7 +18,7 @@ import { CullGauge } from './ui/CullGauge';
 import { AiBootScreen } from './ui/AiBootScreen';
 import { Tooltip } from './ui/Tooltip';
 import { StarRating } from './ui/StarRating';
-import { MenuIcon, PlusIcon, UserCheckIcon, AlertIcon, ErrorIcon, XIcon, FocusIcon, SearchIcon, ApertureIcon, SparkleIcon, CheckIcon, EditIcon, GridIcon, ClockIcon, LayersIcon, EyeClosedIcon, SunIcon, DownloadIcon, StarIcon, TagIcon, TrashIcon } from './ui/icons';
+import { MenuIcon, PlusIcon, AlertIcon, ErrorIcon, XIcon, FocusIcon, SearchIcon, ApertureIcon, SparkleIcon, CheckIcon, EditIcon, GridIcon, ClockIcon, LayersIcon, EyeClosedIcon, SunIcon, DownloadIcon, StarIcon, TagIcon, TrashIcon } from './ui/icons';
 import { UndoHistoryButton } from './ui/UndoHistoryButton';
 import { selectHighlights, selectBlinks, selectDeletableRejected } from './state/batchOps';
 import { CARD_MIN_WIDTH } from './state/gridDensity';
@@ -39,7 +39,6 @@ import { ImportReminder } from './ui/ImportReminder';
 import { MemoryBanner } from './ui/MemoryBanner';
 import { GallerySupervisorBanner } from './ui/GallerySupervisorBanner';
 import { HomeDashboard } from './ui/HomeDashboard';
-import { GalleryOverviewNote } from './ui/GalleryOverviewNote';
 import { BottomNav } from './ui/BottomNav';
 import { WelcomeOnboarding } from './ui/WelcomeOnboarding';
 import { SmartNotification } from './ui/SmartNotification';
@@ -1063,9 +1062,13 @@ export default function App() {
               </button>
             )}
           </div>
-          <p className="mono empty-formats">{tr('app.empty.formats')}</p>
-          <p className="hint"><UserCheckIcon className="inline-icon" /> {tr('app.empty.hint')}</p>
-          <GalleryOverviewNote />
+          {/* Aici erau inca 3 blocuri de text sub butoane (formatele acceptate,
+              sfatul cu inrolarea unei persoane, si "cate poze ai pe telefon").
+              Feedback direct: "prea multe texte". Formatele se repetau cuvant
+              cu cuvant in pasul 1 de mai jos; sfatul cu persoanele il spune deja
+              ecranul de bun venit; iar numaratoarea galeriei s-a mutat in
+              Supervizorul galeriei, langa bara de acoperire, unde chiar
+              raspunde la o intrebare pusa acolo ("cat am de adus?"). */}
 
           <div className="hud how-it-works-hud">
             <span className="bracket tl" aria-hidden="true" /><span className="bracket tr" aria-hidden="true" />

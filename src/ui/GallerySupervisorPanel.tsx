@@ -2,17 +2,19 @@ import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
-import { isPeriodAlreadyCovered, PERIOD_MONTH_OPTIONS, type GalleryPeriod, type PeriodMonths } from '../state/gallerySupervisor';
+import { isPeriodAlreadyCovered, PERIOD_MONTH_OPTIONS, ALL_PERIOD_MONTHS, type GalleryPeriod, type PeriodMonths } from '../state/gallerySupervisor';
 import { formatPeriod } from './GallerySupervisorBanner';
 import { ClockIcon, XIcon, FolderIcon, CheckIcon } from './icons';
+import { GalleryOverviewNote } from './GalleryOverviewNote';
 import { t, plural } from '../i18n';
 
 type Tr = (key: string, params?: Record<string, string | number>) => string;
 
-/** 0.5/12 sunt cazuri speciale ("2 saptamani"/"1 an"), nu doar "N luni" — restul folosesc pluralul normal. */
+/** 0.5/12/ALL sunt cazuri speciale ("2 saptamani"/"1 an"/"toata perioada"), nu doar "N luni" — restul folosesc pluralul normal. */
 function periodMonthsLabel(months: PeriodMonths, tr: Tr): string {
   if (months === 0.5) return tr('gallerySupervisor.months.half');
   if (months === 12) return tr('gallerySupervisor.months.year');
+  if (months === ALL_PERIOD_MONTHS) return tr('gallerySupervisor.months.all');
   return tr(plural(months, 'gallerySupervisor.months.one', 'gallerySupervisor.months.other'), { count: months });
 }
 
@@ -154,6 +156,10 @@ export function GallerySupervisorPanel() {
               <div className="supervisor-coverage-bar" role="progressbar" aria-valuenow={coveragePercent} aria-valuemin={0} aria-valuemax={100}>
                 <i style={{ width: `${coveragePercent}%` }} />
               </div>
+              {/* "Cate poze ai pe telefon" — mutat aici de pe ecranul gol: raspunde
+                  la intrebarea pusa chiar de bara de deasupra ("cat mai am de adus?"),
+                  in loc sa fie o a treia actiune concurenta pe ecranul de start. */}
+              <GalleryOverviewNote />
             </div>
 
             {lastSupervisorImportIds && lastSupervisorImportIds.length > 0 && (

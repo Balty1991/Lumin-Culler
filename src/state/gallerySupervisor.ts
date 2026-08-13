@@ -32,7 +32,14 @@ const MONTH_MS = 30 * DAY_MS;
  * saptamani) pana la una ampla (1 an), nu doar 1-3 luni. 0.5 = 2 saptamani
  * (jumatate de luna, aceeasi aproximare de 30 zile/luna ca restul).
  */
-export const PERIOD_MONTH_OPTIONS = [0.5, 1, 2, 3, 6, 12] as const;
+/** "Toata perioada" (cerinta directa) — o singura bucata, de la cea mai veche
+    poza pana acum. 1200 de luni (~100 de ani) e sigur mai mult decat intervalul
+    oricarei galerii reale, deci listAllPeriods produce exact O perioada, iar
+    restul logicii (cursor, "urmeaza", acoperire) merge neschimbata — nu are
+    nevoie de nicio ramura speciala. Vezi periodMonthsLabel in
+    ui/GallerySupervisorPanel.tsx pentru eticheta. */
+export const ALL_PERIOD_MONTHS = 1200;
+export const PERIOD_MONTH_OPTIONS = [0.5, 1, 2, 3, 6, 12, ALL_PERIOD_MONTHS] as const;
 export type PeriodMonths = typeof PERIOD_MONTH_OPTIONS[number];
 
 /** ~2 luni — valoarea implicita, pastrata si ca fallback de test/compatibilitate. */

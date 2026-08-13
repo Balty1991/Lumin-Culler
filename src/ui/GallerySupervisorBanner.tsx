@@ -41,6 +41,7 @@ export function GallerySupervisorBanner() {
   const setSupervisorPanelOpen = useStore(s => s.setSupervisorPanelOpen);
   const lastSupervisorImportIds = useStore(s => s.lastSupervisorImportIds);
   const openTiktokSortForIds = useStore(s => s.openTiktokSortForIds);
+  const photoCount = useStore(s => s.photos.length);
   const [dismissedToday, setDismissedToday] = useState(() => isSupervisorBannerDismissedToday(readSupervisorBannerDismissedDate()));
 
   useEffect(() => {
@@ -49,6 +50,10 @@ export function GallerySupervisorBanner() {
 
   const sortNowCount = lastSupervisorImportIds?.length ?? 0;
 
+  // Nu si pe ecranul gol: acolo exista deja butonul "Adu pe perioade", langa
+  // "Alege fotografiile" (cerinta directa) — bannerul ar fi a doua copie a
+  // aceleiasi actiuni, peste continutul de start.
+  if (photoCount === 0) return null;
   if (!isNativeMediaLibraryAvailable() || dismissedToday || (!nextPeriod && sortNowCount === 0)) return null;
 
   const dismiss = () => { writeSupervisorBannerDismissedDate(); setDismissedToday(true); };
@@ -60,23 +65,28 @@ export function GallerySupervisorBanner() {
           {tr(plural(sortNowCount, 'gallerySupervisor.sortNow.one', 'gallerySupervisor.sortNow.other'), { count: sortNowCount })}
         </button>
       )}
-      {nextPeriod && (
+      {nextPeriod ? (
         <>
-          <button
-            type="button"
-            className="gallery-supervisor-main"
-            onClick={() => setSupervisorPanelOpen(true)}
-            aria-label={tr('gallerySupervisor.openPanel')}
-          >
-            <span className="gallery-supervisor-icon" aria-hidden="true"><ClockIcon /></span>
-            <span className="gallery-supervisor-text">
-              <b>{tr('gallerySupervisor.title')}</b>
-              <span>{formatPeriod(nextPeriod.start, nextPeriod.end, locale)}</span>
-              <span className="gallery-supervisor-progress" role="progressbar" aria-valuenow={coveragePercent} aria-valuemin={0} aria-valuemax={100} aria-label={tr('gallerySupervisor.coverage', { percent: coveragePercent })}>
-                <span className="gallery-supervisor-progress-fill" style={{ width: `${coveragePercent}%` }} />
+          <div className="gallery-supervisor-row">
+            <button
+              type="button"
+              className="gallery-supervisor-main"
+              onClick={() => setSupervisorPanelOpen(true)}
+              aria-label={tr('gallerySupervisor.openPanel')}
+            >
+              <span className="gallery-supervisor-icon" aria-hidden="true"><ClockIcon /></span>
+              <span className="gallery-supervisor-text">
+                <b>{tr('gallerySupervisor.title')}</b>
+                <span>{formatPeriod(nextPeriod.start, nextPeriod.end, locale)}</span>
+                <span className="gallery-supervisor-progress" role="progressbar" aria-valuenow={coveragePercent} aria-valuemin={0} aria-valuemax={100} aria-label={tr('gallerySupervisor.coverage', { percent: coveragePercent })}>
+                  <span className="gallery-supervisor-progress-fill" style={{ width: `${coveragePercent}%` }} />
+                </span>
               </span>
-            </span>
-          </button>
+            </button>
+            <button className="ghost icon-btn gallery-supervisor-close" onClick={dismiss} aria-label={tr('gallerySupervisor.dismiss')}>
+              <XIcon />
+            </button>
+          </div>
           <button
             className="gallery-supervisor-cta"
             disabled={supervisorImporting}
@@ -85,10 +95,11 @@ export function GallerySupervisorBanner() {
             {supervisorImporting ? tr('gallerySupervisor.importing') : tr('gallerySupervisor.cta')}
           </button>
         </>
+      ) : (
+        <button className="ghost icon-btn gallery-supervisor-close" onClick={dismiss} aria-label={tr('gallerySupervisor.dismiss')}>
+          <XIcon />
+        </button>
       )}
-      <button className="ghost icon-btn gallery-supervisor-close" onClick={dismiss} aria-label={tr('gallerySupervisor.dismiss')}>
-        <XIcon />
-      </button>
     </div>
   );
 }
