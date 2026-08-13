@@ -19,7 +19,7 @@ import {
   importFiles, originalFiles, originalHandles, createCancelToken, SELECT_THRESHOLD, REJECT_THRESHOLD, decidePhotoStatus,
   readLibraryScores, type ImportProgress, type ImportCancelToken
 } from '../core/importPipeline';
-import { deriveThresholds } from '../core/scoreThresholds';
+import { deriveThresholds, type Thresholds } from '../core/scoreThresholds';
 import type { FileSystemFileHandleLike } from '../core/filePicker';
 import { readEconomicMode, writeEconomicMode } from '../core/performanceSettings';
 import { vibrate } from '../ui/haptics';
@@ -1915,6 +1915,9 @@ export const useStore = create<AppState>((set, get) => ({
       pendingPhotos = [];
       set(state => ({ photos: [...state.photos, ...batch] }));
     };
+    // Raportate o singura data de importFiles, doar cand plasa de siguranta chiar
+    // a mutat un prag — vezi core/scoreThresholds.ts.
+    let adaptedThresholds: Thresholds | undefined;
     const PHOTO_FLUSH_BATCH = 15;
     const PHOTO_FLUSH_INTERVAL_MS = 200;
     try {
@@ -1922,6 +1925,7 @@ export const useStore = create<AppState>((set, get) => ({
         files,
         progress => {
           warning = progress.warning; done = progress.done;
+          if (progress.thresholds) adaptedThresholds = progress.thresholds;
           let etaSeconds: number | undefined;
           if (progress.phase === 'analiza') {
             if (analysisStartedAt === null) analysisStartedAt = Date.now();
@@ -1979,7 +1983,12 @@ export const useStore = create<AppState>((set, get) => ({
     // NICIO confirmare vizibila ca s-a intamplat ceva — bara de progres disparea
     // pur si simplu, fara mesaj, indiferent daca importul reusise sau nu; doar
     // erorile/avertismentele aveau notificare, nu si succesul simplu, comun
-    const doneNotice = done > 0 ? t(get().locale, 'store.import.done', { count: done }) : undefined;
+    const doneNotice = done > 0
+      ? t(get().locale, 'store.import.done', { count: done })
+        + (adaptedThresholds
+            ? ' ' + t(get().locale, 'store.import.thresholdsAdapted', { select: adaptedThresholds.select, reject: adaptedThresholds.reject })
+            : '')
+      : undefined;
     set(state => ({
       progress: null,
       notice: warning ?? usageNotice ?? doneNotice ?? state.notice,

@@ -874,6 +874,7 @@ export const ro = {
   'store.boot.failed': 'Nu am putut încarcă biblioteca salvată ({error}). Pozele sunt probabil în continuare pe disc — încearcă să reîncarci aplicația; dacă problema persistă, repornește dispozitivul.',
   'store.import.done': '{count} poze importate cu succes.',
   'store.import.failed': 'Import eșuat: {error} — încearcă din nou.',
+  'store.import.thresholdsAdapted': 'Pragurile au fost potrivite cu biblioteca ta: propun automat de la {select} în sus și resping sub {reject}.',
   'store.import.alreadyRunning': 'Un import e deja în curs — așteaptă să se termine înainte să mai adaugi poze.',
   'store.import.usageNotice': 'Ai procesat {count} poze luna aceasta, peste pragul orientativ de {limit} al nivelului gratuit — aplicația continuă să funcționeze normal, fără nicio limitare.',
   'store.quotaNotice': 'Spațiu de stocare plin — fotografia a fost marcată, dar originalul nu a putut fi salvat pentru export. Eliberează spațiu (Golește sesiunea sau exportă ce ai deja) și reîncearcă.',

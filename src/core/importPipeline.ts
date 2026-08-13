@@ -24,6 +24,14 @@ export interface ImportProgress {
   phase: 'incarcare' | 'pregatire' | 'analiza' | 'grupare' | 'finalizat';
   /** setat doar pe ultimul apel, daca importul s-a oprit inainte de a termina toate fisierele */
   warning?: string;
+  /**
+   * Pragurile de decizie folosite pentru ACEST lot — raportate o singura data,
+   * la inceput, pe acelasi canal ca `warning`. Utilizatorul trebuie sa poata
+   * afla de ce s-au propus brusc mai multe sau mai putine poze decat se astepta;
+   * fara asta, plasa de siguranta din core/scoreThresholds.ts ar fi o schimbare
+   * de comportament complet invizibila.
+   */
+  thresholds?: Thresholds;
 }
 
 export interface ImportedPhoto {
@@ -584,6 +592,7 @@ export async function importFiles(
   // decat ultimele, iar rezultatul aceluiasi import ar depinde de ordinea
   // fisierelor. Vezi core/scoreThresholds.ts.
   const thresholds = deriveThresholds(await readLibraryScores());
+  if (thresholds.adapted) onProgress({ done: 0, total: files.length, fileName: '', phase: 'incarcare', thresholds });
 
   // pastram fisierul si handle-ul corespunzator impreuna INAINTE de a filtra
   // dupa format — altfel indexul din `handles` s-ar decala fata de `files`

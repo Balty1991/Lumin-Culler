@@ -873,6 +873,7 @@ export const en: Record<TranslationKey, string> = {
   'store.boot.failed': 'Couldn\'t load your saved library ({error}). Your photos are likely still on disk — try reloading the app; if this keeps happening, restart your device.',
   'store.import.done': '{count} photos imported successfully.',
   'store.import.failed': 'Import failed: {error} — try again.',
+  'store.import.thresholdsAdapted': 'Thresholds were matched to your library: auto-selecting from {select} up, rejecting below {reject}.',
   'store.import.alreadyRunning': 'An import is already running — wait for it to finish before adding more photos.',
   'store.import.usageNotice': 'You\'ve processed {count} photos this month, above the free tier\'s indicative threshold of {limit} — the app keeps working normally, with no limitation.',
   'store.quotaNotice': 'Storage full — the photo was marked, but the original couldn\'t be saved for export. Free up space (Clear session or export what you already have) and try again.',
