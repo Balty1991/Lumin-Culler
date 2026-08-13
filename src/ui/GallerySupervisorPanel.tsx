@@ -6,6 +6,7 @@ import { isPeriodAlreadyCovered, PERIOD_MONTH_OPTIONS, ALL_PERIOD_MONTHS, type G
 import { formatPeriod } from './GallerySupervisorBanner';
 import { ClockIcon, XIcon, FolderIcon, CheckIcon } from './icons';
 import { GalleryOverviewNote } from './GalleryOverviewNote';
+import { PhotosAccessNotice } from './PhotosAccessNotice';
 import { t, plural } from '../i18n';
 
 type Tr = (key: string, params?: Record<string, string | number>) => string;
@@ -158,6 +159,14 @@ export function GallerySupervisorPanel() {
           <p className="hint">{tr('gallerySupervisor.nativeOnly')}</p>
         ) : (
           <>
+            {/* Avertismentul de acces partial statea DOAR pe ecranul gol, deci
+                disparea dupa primul import — exact cand supervizorul devine
+                folosibil si, cu acces limitat, tacut si gresit (numara doar
+                pozele bifate manual atunci). Aici e locul unde limitarea chiar
+                se vede, deci si locul unde merita spusa. Nu se randeaza cand
+                accesul e complet — vezi PhotosAccessNotice. */}
+            <PhotosAccessNotice />
+
             {/* Unde te afli in galerie — panoul nu spunea asta nicaieri. */}
             <div className="supervisor-coverage">
               <div className="supervisor-coverage-head">

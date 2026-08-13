@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { selectSortQueue, countSeriesSiblings } from './tiktokSort';
+import { selectSortQueue, selectScopedQueue, countSeriesSiblings } from './tiktokSort';
 import type { PhotoView } from './store';
 
 function photo(id: string, opts: Partial<PhotoView> = {}): PhotoView {
@@ -34,6 +34,34 @@ describe('selectSortQueue', () => {
 
   it('returns an empty array when nothing is pending/review', () => {
     expect(selectSortQueue([photo('a', { status: 'selected' })])).toEqual([]);
+  });
+});
+
+describe('selectScopedQueue', () => {
+  // Bug real raportat de utilizator: "Verifica deciziile la limita" arata "Totul
+  // sortat!" — pozele cerute erau deja decise automat, iar apelantul le filtra
+  // prin selectSortQueue (care tine doar nedecisele), deci nu ramanea niciuna.
+  it('keeps photos the undecided queue would drop (selected/rejected)', () => {
+    const photos = [
+      photo('a', { status: 'selected' }),
+      photo('b', { status: 'rejected' }),
+      photo('c', { status: 'pending' })
+    ];
+    expect(selectSortQueue(photos).map(p => p.id)).toEqual(['c']);
+    expect(selectScopedQueue(photos, ['a', 'b']).map(p => p.id)).toEqual(['a', 'b']);
+  });
+
+  it('preserves the order it was given, not capture order', () => {
+    const photos = [
+      photo('old', { capturedAt: 1000, status: 'selected' }),
+      photo('new', { capturedAt: 2000, status: 'selected' })
+    ];
+    expect(selectScopedQueue(photos, ['new', 'old']).map(p => p.id)).toEqual(['new', 'old']);
+  });
+
+  it('skips ids that no longer exist instead of leaving a gap', () => {
+    const photos = [photo('a', { status: 'selected' })];
+    expect(selectScopedQueue(photos, ['a', 'deleted']).map(p => p.id)).toEqual(['a']);
   });
 });
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { useStore, type PhotoView } from '../state/store';
-import { selectSortQueue, countSeriesSiblings } from '../state/tiktokSort';
+import { selectSortQueue, selectScopedQueue, countSeriesSiblings } from '../state/tiktokSort';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
 import { SELECT_THRESHOLD, REJECT_THRESHOLD } from '../core/importPipeline';
 import { explainFactors } from '../core/learning/ContextEngine';
@@ -91,12 +91,11 @@ export function TikTokSort() {
   // dupa o sesiune anterioara ar relua de unde a ramas ultima data, nu de la inceput.
   useEffect(() => {
     if (!open) return;
-    const queue = selectSortQueue(photos);
-    // "Sorteaza acum ce ai adus" (tiktokSortScopeIds, setat de openTiktokSortForIds
-    // din supervizorul galeriei) — arata DOAR pozele indicate, nu toata coada
-    // normala de sortare, ca utilizatorul sa termine exact lotul proaspat adus.
-    const scoped = scopeIds ? queue.filter(p => scopeIds.includes(p.id)) : queue;
-    setQueueIds(scoped.map(p => p.id));
+    // Cu scop (tiktokSortScopeIds, setat de openTiktokSortForIds): arata EXACT
+    // pozele cerute, in ordinea primita — nu coada normala filtrata prin ele.
+    // Vezi selectScopedQueue pentru bug-ul pe care il repara distinctia asta.
+    const queue = scopeIds ? selectScopedQueue(photos, scopeIds) : selectSortQueue(photos);
+    setQueueIds(queue.map(p => p.id));
     setIndex(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- coada se "ingheata" DOAR la momentul deschiderii, nu trebuie sa se refaca la fiecare schimbare din `photos`
   }, [open]);

@@ -2669,12 +2669,27 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
    accesibila") — cele mai rar folosite (Export & backup, Setari) pornesc
    stranse implicit, ca lista sa nu mai fie 35 de randuri identice deodata. */
 .drawer-group + .drawer-group { margin-top: 2px; }
+/* Feedback direct al utilizatorului: "accesul la butoane Setari, Export sunt
+   prea mici si greu de accesat". Capul de sectiune avea padding 0 si o eticheta
+   de 0.64rem — o zona de atins de ~26px inaltime, sub minimul de 44px
+   recomandat pentru deget (Material/HIG). Erau si SINGURELE randuri din meniu
+   care nu aratau deloc ca butoane, desi sunt: restul optiunilor au .drawer-item
+   cu 9px padding, fundal la atingere si scale la apasare. Acum au aceeasi
+   inaltime utila si acelasi raspuns la atingere ca orice alt rand. */
 .drawer-group-head {
   display: flex; align-items: center; justify-content: space-between; width: 100%;
-  background: none; border: none; padding: 0; text-align: left; cursor: pointer;
+  background: none; border: none; padding: 6px 10px; min-height: 44px;
+  border-radius: var(--radius); text-align: left; cursor: pointer;
+  transition: background 0.15s var(--ease), transform 0.1s var(--ease);
 }
-.drawer-group-head .drawer-section-label { padding-bottom: 0; }
-.drawer-group-chevron { width: 13px; height: 13px; color: var(--text-faint); transition: transform 0.2s var(--ease); }
+.drawer-group-head:hover { background: var(--surface-2); }
+.drawer-group-head:active { transform: scale(0.98); }
+.drawer-group-head:hover .drawer-section-label,
+.drawer-group-head:hover .drawer-group-chevron { color: var(--text); }
+/* Eticheta isi pierde aici paddingul propriu (il da butonul) si creste — la
+   0.64rem era greu de citit chiar si de aproape. */
+.drawer-group-head .drawer-section-label { padding: 0; font-size: 0.72rem; }
+.drawer-group-chevron { width: 16px; height: 16px; color: var(--text-faint); transition: transform 0.2s var(--ease), color 0.15s var(--ease); }
 .drawer-group-chevron[data-open="false"] { transform: rotate(180deg); }
 .drawer-group-body {
   display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.25s var(--ease);

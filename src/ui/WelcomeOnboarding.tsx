@@ -40,9 +40,7 @@ const BASE_STEPS: Step[] = [
 ];
 
 /**
- * Pasul despre permisiunea de galerie, ULTIMUL — deci ultimul lucru citit
- * inainte ca utilizatorul sa apese "Alege fotografiile" si sa primeasca
- * dialogul de sistem.
+ * Pasul despre permisiunea de galerie.
  *
  * Android 14+ arata trei optiuni, iar cea evidentiata vizual ("Permite cu acces
  * limitat") e exact cea GRESITA pentru aplicatia asta: cu acces partial vedem
@@ -58,8 +56,31 @@ const PERMISSION_STEP: Step = {
   Icon: ShieldIcon, titleKey: 'welcome.permission.title', bodyKey: 'welcome.permission.body', visual: 'permission'
 };
 
+/**
+ * Pozitia pasului de permisiuni: AL DOILEA, imediat dupa "ce face aplicatia".
+ *
+ * A fost ultimul, cu un motiv real — asa era ultimul lucru citit inainte de
+ * dialogul de sistem, deci cel mai proaspat in minte. Cerinta directa a
+ * utilizatorului l-a mutat in fata, si compromisul e acceptat constient: cine
+ * inchide ecranul dupa doua pasi (cazul frecvent) vedea inainte fix zero
+ * informatii despre alegerea care poate strica aplicatia. Trei ecrane de
+ * distanta pana la dialog costa putina prospetime; a nu ajunge niciodata la el
+ * costa tot.
+ *
+ * Nu-l punem PRIMUL: un ecran care cere permisiuni inainte sa fi spus ce e
+ * aplicatia e exact tiparul pe care oamenii au invatat sa-l refuze.
+ *
+ * Plasa de siguranta ramane oricum ui/PhotosAccessNotice.tsx, care apare cand
+ * accesul chiar E limitat — singurul moment in care sfatul e verificabil, nu
+ * doar prevenit.
+ */
+const PERMISSION_STEP_INDEX = 1;
+
 function buildSteps(): Step[] {
-  return isNativeMediaLibraryAvailable() ? [...BASE_STEPS, PERMISSION_STEP] : BASE_STEPS;
+  if (!isNativeMediaLibraryAvailable()) return BASE_STEPS;
+  const steps = [...BASE_STEPS];
+  steps.splice(PERMISSION_STEP_INDEX, 0, PERMISSION_STEP);
+  return steps;
 }
 
 export function WelcomeOnboarding() {
