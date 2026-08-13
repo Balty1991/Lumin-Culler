@@ -277,6 +277,7 @@ export default function App() {
   const openCompare = useStore(s => s.openCompare);
   const setMenuOpen = useStore(s => s.setMenuOpen);
   const setExportDestinationsOpen = useStore(s => s.setExportDestinationsOpen);
+  const welcomeSeen = useStore(s => s.welcomeSeen);
   const notice = useStore(s => s.notice);
   const clearNotice = useStore(s => s.clearNotice);
   const aiDegraded = useStore(s => s.aiDegraded);
@@ -738,13 +739,15 @@ export default function App() {
         <Toast />
         <SmartNotification />
         <HomeDashboard />
-        <div className="banner-stack">
-          <MemoryBanner />
+        {welcomeSeen && (
+          <div className="banner-stack">
+            <MemoryBanner />
             <InstallPrompt />
-          <BackupReminder />
-          <ImportReminder onAddPhotos={() => void onAddPhotosClick()} />
-          <GallerySupervisorBanner />
-        </div>
+            <BackupReminder />
+            <ImportReminder onAddPhotos={() => void onAddPhotosClick()} />
+            <GallerySupervisorBanner />
+          </div>
+        )}
         <Workspace />
         <CommandPalette />
         <ShortcutsPanel />
@@ -824,13 +827,18 @@ export default function App() {
       <Toast />
       <WelcomeOnboarding />
       <HomeDashboard />
-      <div className="banner-stack">
-        <MemoryBanner />
-        <InstallPrompt />
-        <BackupReminder />
-        <ImportReminder onAddPhotos={() => void onAddPhotosClick()} />
-        <GallerySupervisorBanner />
-      </div>
+      {/* Nimic nu se desenează peste ecranul de bun venit: .banner-stack are
+          z-index de toast, deci bannerele acopereau comutatorul de limbă și
+          butonul de închidere. Reapar imediat ce ecranul e închis. */}
+      {welcomeSeen && (
+        <div className="banner-stack">
+          <MemoryBanner />
+          <InstallPrompt />
+          <BackupReminder />
+          <ImportReminder onAddPhotos={() => void onAddPhotosClick()} />
+          <GallerySupervisorBanner />
+        </div>
+      )}
 
       {aiDegraded && (
         <p className="notice warn mono">

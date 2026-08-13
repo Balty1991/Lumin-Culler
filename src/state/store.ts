@@ -43,6 +43,7 @@ import {
 } from './gallerySupervisor';
 import { readStoredTheme, applyTheme, type Theme } from './theme';
 import { readStoredAccent, applyAccent, type AccentTheme } from './accentTheme';
+import { readWelcomeSeen, writeWelcomeSeen } from './welcomeOnboarding';
 import { readAccessibleMode, applyAccessibleMode } from '../core/accessibleMode';
 import { readSmartNotificationEnabled, writeSmartNotificationEnabled } from './smartNotification';
 import {
@@ -397,6 +398,16 @@ interface AppState {
   /** Foaia "unde trimit pozele păstrate" (vezi ui/ExportDestinations.tsx). */
   exportDestinationsOpen: boolean;
   setExportDestinationsOpen: (open: boolean) => void;
+  /**
+   * Ecranul de bun venit e inca deschis? Traieste in store, nu doar in
+   * WelcomeOnboarding, pentru ca si ALTE lucruri trebuie sa stie: bannerele
+   * (memorii, instalare, backup, supervizorul galeriei) stau intr-un
+   * .banner-stack cu z-index de toast, deci se desenau PESTE ecranul de bun
+   * venit, exact peste comutatorul de limba si butonul de inchidere (bug
+   * raportat cu captura). Nimic nu trebuie sa concureze cu primul ecran.
+   */
+  welcomeSeen: boolean;
+  dismissWelcome: () => void;
   /** Vezi state/zenResolve.ts — ruleaza automat dupa import cand zenMode e activ (store.ts, runImport). */
   runZenResolve: () => Promise<{ resolved: number; uncertain: number; deleted: number }>;
   /**
@@ -1395,6 +1406,8 @@ export const useStore = create<AppState>((set, get) => ({
   setPremiumOpen: open => set({ premiumOpen: open }),
   exportDestinationsOpen: false,
   setExportDestinationsOpen: open => set({ exportDestinationsOpen: open }),
+  welcomeSeen: readWelcomeSeen(),
+  dismissWelcome: () => { writeWelcomeSeen(); set({ welcomeSeen: true }); },
   runZenResolve: async () => {
     const { zenAutoDeleteObvious, zenAskOnUncertain, locale } = get();
     const resolutions = resolveGroupsWithConfidence(get().photos);

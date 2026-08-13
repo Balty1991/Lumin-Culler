@@ -6,7 +6,10 @@ import { useStore } from '../state/store';
 describe('WelcomeOnboarding', () => {
   beforeEach(() => {
     localStorage.clear();
-    useStore.setState({ locale: 'ro' });
+    // welcomeSeen e citit din localStorage O SINGURA DATA, la crearea store-ului
+    // (modul singleton), deci fiecare test trebuie sa il reaseze explicit — altfel
+    // primul test care inchide ecranul l-ar tine inchis pentru toate urmatoarele.
+    useStore.setState({ locale: 'ro', welcomeSeen: false });
   });
 
   it('se afiseaza la prima vizita, pe primul pas', () => {
@@ -15,8 +18,8 @@ describe('WelcomeOnboarding', () => {
     expect(screen.getByText('AI-ul îți pune pozele în ordine. Tu decizi ce rămâne.')).toBeInTheDocument();
   });
 
-  it('nu se mai afiseaza deloc daca a fost deja vazut (localStorage)', () => {
-    localStorage.setItem('lumin-welcome-seen', '1');
+  it('nu se mai afiseaza deloc daca a fost deja vazut', () => {
+    useStore.setState({ welcomeSeen: true });
     render(<WelcomeOnboarding />);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });

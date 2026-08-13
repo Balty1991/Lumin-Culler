@@ -1,14 +1,14 @@
 import { useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
-import { readWelcomeSeen, writeWelcomeSeen } from '../state/welcomeOnboarding';
 import { ApertureIcon, SparkleIcon, UserCheckIcon, StarIcon, XIcon } from './icons';
 import { LocaleToggle } from './LocaleToggle';
 import { t } from '../i18n';
 
 /**
  * ui/WelcomeOnboarding.tsx
- * Ecran de bun venit, aratat O SINGURA DATA (readWelcomeSeen/writeWelcomeSeen),
+ * Ecran de bun venit, aratat O SINGURA DATA (welcomeSeen/dismissWelcome in
+ * state/store.ts, persistat de state/welcomeOnboarding.ts),
  * inainte ca utilizatorul sa fi importat vreo poza — nu explica UI-ul (butoane,
  * meniuri), ci raspunde la "de ce sa folosesc asta": procesare 100% locala,
  * cum functioneaza scorul AI, recunoasterea persoanelor (si limita ei gratuita),
@@ -33,7 +33,10 @@ const STEPS = [
 export function WelcomeOnboarding() {
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
-  const [seen, setSeen] = useState(readWelcomeSeen);
+  // Starea "vazut" sta in store, nu local: si App-ul trebuie sa o citeasca, ca
+  // sa nu randeze bannerele peste acest ecran (vezi welcomeSeen in state/store.ts).
+  const seen = useStore(s => s.welcomeSeen);
+  const dismissWelcome = useStore(s => s.dismissWelcome);
   const [step, setStep] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const open = !seen;
@@ -41,7 +44,7 @@ export function WelcomeOnboarding() {
 
   if (!open) return null;
 
-  const finish = () => { writeWelcomeSeen(); setSeen(true); };
+  const finish = () => dismissWelcome();
   const isLast = step === STEPS.length - 1;
   const { Icon, titleKey, bodyKey } = STEPS[step];
 
