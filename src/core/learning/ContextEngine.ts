@@ -182,6 +182,9 @@ const PRIOR_WEIGHTS: FeatureVector = {
   apertureRaw: 0,
   shutterSpeedRaw: 0,
   focalLengthRaw: 0,
+  flashFired: 0,
+  // vezi deliberateSettings in extractFeatures — mic, si necalibrat
+  deliberateSettings: 0.15,
   // analiza estetica avansata (compozitie extinsa, lumina, culoare) — vezi
   // core/db.ts (AnalysisRecord) si workers/faceAnalysis.worker.ts pentru cum
   // sunt calculate. Prioritati modeste: compozitia si focusul subiectului au
@@ -264,7 +267,11 @@ const PRIOR_FEATURE_STATS: Record<string, { mean: number; std: number }> = {
   isoPenalty: { mean: 0.15, std: 0.15 },
   apertureRaw: { mean: 0.5, std: 0.25 },
   shutterSpeedRaw: { mean: 0.5, std: 0.25 },
-  focalLengthRaw: { mean: 0.5, std: 0.25 },
+  // echivalent 35mm: ultrawide ~13mm -> 0.05, camera principala ~26mm -> 0.17,
+  // tele ~77mm -> 0.37, un 200mm de aparat foto -> 0.54
+  focalLengthRaw: { mean: 0.25, std: 0.15 },
+  flashFired: { mean: 0.12, std: 0.33 },
+  deliberateSettings: { mean: 0.05, std: 0.22 },
   compositionScore: { mean: 0.5, std: 0.2 },
   leadingLines: { mean: 0.25, std: 0.43 },
   symmetry: { mean: 0.25, std: 0.43 },
@@ -346,7 +353,8 @@ const FACTOR_FEATURES = new Set([
   'knownFaceRatio', 'strangerPenalty', 'faceScore', 'ruleOfThirds', 'headroom',
   'groupEyesOpenRatio', 'groupSmileRatio', 'groupAwkwardRatio', 'groupGenuineSmileRatio', 'groupCatchlightRatio', 'groupSkinToneNaturalRatio', 'avgEyeContact', 'avgEngagement',
   'highlightClipping', 'shadowClipping', 'horizonLevel', 'isoPenalty', 'apertureRaw',
-  'shutterSpeedRaw', 'focalLengthRaw', 'compositionScore', 'leadingLines', 'symmetry',
+  'shutterSpeedRaw', 'focalLengthRaw', 'flashFired', 'deliberateSettings',
+  'compositionScore', 'leadingLines', 'symmetry',
   'negativeSpace', 'lightHard', 'lightSoft', 'goldenHour', 'subjectInFocus',
   'bokehQuality', 'colorHarmony', 'bodyCroppedAtEdge', 'subjectProminence', 'noCameraMetadata'
 ]);
@@ -488,6 +496,16 @@ export function lacksCameraMetadata(
     && a.exposureTime === undefined && a.focalLength === undefined;
 }
 
+/** Focala in echivalent 35mm — singura comparabila intre aparate; focala bruta doar ca rezerva. */
+function focalLengthEquivalent(a: Pick<AnalysisRecord, 'focalLength35mm' | 'focalLength'>): number | undefined {
+  return a.focalLength35mm ?? a.focalLength;
+}
+
+/** Fotograful a umblat pe setari in loc sa lase totul automat — vezi feature-ul deliberateSettings. */
+function hasDeliberateSettings(a: Pick<AnalysisRecord, 'exposureBias' | 'whiteBalance'>): boolean {
+  return (a.exposureBias !== undefined && Math.abs(a.exposureBias) >= 0.3) || a.whiteBalance === 'manual';
+}
+
 export function extractFeatures(a: AnalysisRecord, memorySignals?: { contentAffinity?: number | null; subjectAffinity?: number | null }): FeatureVector {
   const features: FeatureVector = {
     // "subiect uman prominent", nu "exista o fata" — vezi hasProminentSubject
@@ -509,7 +527,26 @@ export function extractFeatures(a: AnalysisRecord, memorySignals?: { contentAffi
     shutterSpeedRaw: a.exposureTime && a.exposureTime > 0
       ? Math.min(1, Math.max(0, Math.log2(Math.max(1 / a.exposureTime, 1)) / 13))
       : 0.5,
-    focalLengthRaw: a.focalLength !== undefined ? Math.min(1, Math.max(0, Math.log2(Math.max(a.focalLength, 10) / 10) / 8)) : 0.5,
+    // Focala: ECHIVALENTUL 35mm cand exista, focala bruta doar ca rezerva.
+    // Bruta e incomparabila intre aparate — 4mm pe un telefon inseamna ~26mm
+    // echivalent, iar scala de mai jos porneste de la 10mm, deci TOATE focalele
+    // brute de telefon (2-9mm) se prabuseau in aceeasi valoare, 0: ultrawide,
+    // camera principala si teleobiectivul erau indistinctibile pentru motor,
+    // exact pe platforma unde conteaza cel mai mult.
+    focalLengthRaw: focalLengthEquivalent(a) !== undefined
+      ? Math.min(1, Math.max(0, Math.log2(Math.max(focalLengthEquivalent(a)!, 10) / 10) / 8))
+      : 0.5,
+    // Blitz declansat. Fara directie universala — pe telefon inseamna de obicei
+    // lumina dura si frontala, dar exista si poze bune facute asa, deci pornim
+    // de la 0 si lasam corectiile reale sa decida (acelasi tipar ca diafragma/
+    // viteza). 0 si cand EXIF-ul lipseste: "fara blitz" e presupunerea corecta
+    // pentru covarsitoarea majoritate a pozelor.
+    flashFired: a.flashFired ? 1 : 0,
+    // Fotograful a intervenit pe setari (compensare de expunere sau balans de
+    // alb manual) — pe un telefon asta cere intrarea in modul pro, deci e un
+    // semn ca poza a contat pentru el. NEVERIFICAT pe date reale, si rar in
+    // practica: pondere pozitiva mica.
+    deliberateSettings: hasDeliberateSettings(a) ? 1 : 0,
     // analiza estetica avansata — booleene absente (inregistrari mai vechi) =
     // neutru (0.5), nu 0/1, ca sa nu penalizeze/favorizeze artificial poze
     // analizate inainte de aceste campuri (acelasi tipar ca mai sus)
@@ -822,7 +859,8 @@ export class ContextEngine {
     'sharpness', 'exposureRaw', 'bestSmile', 'allEyesOpen', 'knownFaceRatio', 'strangerPenalty',
     'ruleOfThirds', 'headroom', 'groupEyesOpenRatio', 'groupSmileRatio', 'groupAwkwardRatio', 'groupGenuineSmileRatio', 'groupCatchlightRatio', 'groupSkinToneNaturalRatio', 'avgEyeContact',
     'avgEngagement', 'highlightClipping', 'shadowClipping', 'horizonLevel', 'isoPenalty',
-    'apertureRaw', 'shutterSpeedRaw', 'focalLengthRaw', 'compositionScore', 'leadingLines',
+    'apertureRaw', 'shutterSpeedRaw', 'focalLengthRaw', 'flashFired', 'deliberateSettings',
+    'compositionScore', 'leadingLines',
     'symmetry', 'negativeSpace', 'lightHard', 'lightSoft', 'goldenHour', 'subjectInFocus',
     'bokehQuality', 'colorHarmony', 'subjectProminence', 'noCameraMetadata'
   ]);

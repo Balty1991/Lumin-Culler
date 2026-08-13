@@ -967,6 +967,8 @@ export const ro = {
   'factor.subjectProminence': 'Subiect mare în cadru',
   'factor.noCameraMetadata': 'Fără date de aparat foto',
   'factor.noCameraMetadata.pos': 'Fotografiată cu aparatul',
+  'factor.flashFired': 'Blitz',
+  'factor.deliberateSettings': 'Setări alese manual',
   'factor.groupGenuineSmileRatio': 'Zâmbet autentic',
   'factor.groupCatchlightRatio': 'Lumină în ochi (catchlight)',
   'factor.groupSkinToneNaturalRatio': 'Ton de piele natural',
@@ -1064,6 +1066,10 @@ export const ro = {
   'insightsPref.subjectProminence.neg': 'preferă subiectul mic, în context',
   'insightsPref.noCameraMetadata.pos': 'păstrează și capturile de ecran',
   'insightsPref.noCameraMetadata.neg': 'preferă pozele făcute cu aparatul',
+  'insightsPref.flashFired.pos': 'acceptă pozele cu blitz',
+  'insightsPref.flashFired.neg': 'evită pozele cu blitz',
+  'insightsPref.deliberateSettings.pos': 'preferă pozele făcute cu setări alese manual',
+  'insightsPref.deliberateSettings.neg': 'indiferent la setările manuale',
 
   // ── aiExplanationGenerator: explicatia narativa "De ce acest scor" ──
   'aiExplain.and': ' și ',

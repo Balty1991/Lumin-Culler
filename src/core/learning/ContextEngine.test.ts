@@ -567,3 +567,37 @@ describe('extractFeatures — orizontul unui peisaj cu om mic in cadru', () => {
     expect(extractFeatures(baseAnalysis({ faceCount: 0, faces: [] })).horizonLevel).toBe(0.5);
   });
 });
+
+// EXIF citit de mult, dar folosit doar pentru afisare, niciodata la decizie.
+describe('extractFeatures — semnalele EXIF ramase nefolosite', () => {
+  it('foloseste echivalentul 35mm, singurul comparabil intre aparate', () => {
+    // Bug real: scala porneste de la 10mm, deci TOATE focalele brute de telefon
+    // (2-9mm) se prabuseau in 0 — ultrawide, camera principala si teleobiectivul
+    // erau indistinctibile exact pe platforma unde conteaza cel mai mult.
+    const ultrawide = extractFeatures(baseAnalysis({ focalLength: 2.2, focalLength35mm: 13 }));
+    const principala = extractFeatures(baseAnalysis({ focalLength: 6.9, focalLength35mm: 26 }));
+    const tele = extractFeatures(baseAnalysis({ focalLength: 9, focalLength35mm: 77 }));
+    expect(ultrawide.focalLengthRaw).toBeLessThan(principala.focalLengthRaw);
+    expect(principala.focalLengthRaw).toBeLessThan(tele.focalLengthRaw);
+
+    // fara echivalent, focala bruta ramane rezerva (comportamentul de dinainte)
+    const brut = extractFeatures(baseAnalysis({ focalLength: 50 }));
+    expect(brut.focalLengthRaw).toBeCloseTo(Math.log2(5) / 8);
+    // si 0.5 (neutru) cand nu stim nimic despre focala
+    expect(extractFeatures(baseAnalysis()).focalLengthRaw).toBe(0.5);
+  });
+
+  it('marcheaza blitzul, si presupune "fara blitz" cand EXIF-ul lipseste', () => {
+    expect(extractFeatures(baseAnalysis({ flashFired: true })).flashFired).toBe(1);
+    expect(extractFeatures(baseAnalysis({ flashFired: false })).flashFired).toBe(0);
+    expect(extractFeatures(baseAnalysis()).flashFired).toBe(0);
+  });
+
+  it('recunoaste ca fotograful a umblat pe setari', () => {
+    expect(extractFeatures(baseAnalysis({ exposureBias: -1 })).deliberateSettings).toBe(1);
+    expect(extractFeatures(baseAnalysis({ whiteBalance: 'manual' })).deliberateSettings).toBe(1);
+    // compensarea zero (sau microscopica) nu e o interventie
+    expect(extractFeatures(baseAnalysis({ exposureBias: 0, whiteBalance: 'auto' })).deliberateSettings).toBe(0);
+    expect(extractFeatures(baseAnalysis()).deliberateSettings).toBe(0);
+  });
+});

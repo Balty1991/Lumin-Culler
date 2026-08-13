@@ -961,6 +961,8 @@ export const en: Record<TranslationKey, string> = {
   'factor.subjectProminence': 'Subject fills the frame',
   'factor.noCameraMetadata': 'No camera metadata',
   'factor.noCameraMetadata.pos': 'Shot with a camera',
+  'factor.flashFired': 'Flash',
+  'factor.deliberateSettings': 'Manual settings',
   'factor.groupGenuineSmileRatio': 'Genuine smile',
   'factor.groupCatchlightRatio': 'Catchlight (light in the eyes)',
   'factor.groupSkinToneNaturalRatio': 'Natural skin tone',
@@ -1058,6 +1060,10 @@ export const en: Record<TranslationKey, string> = {
   'insightsPref.subjectProminence.neg': 'prefers the subject small, in context',
   'insightsPref.noCameraMetadata.pos': 'keeps screenshots too',
   'insightsPref.noCameraMetadata.neg': 'prefers photos shot with a camera',
+  'insightsPref.flashFired.pos': 'accepts flash photos',
+  'insightsPref.flashFired.neg': 'avoids flash photos',
+  'insightsPref.deliberateSettings.pos': 'prefers photos shot with manual settings',
+  'insightsPref.deliberateSettings.neg': 'indifferent to manual settings',
 
   // ── aiExplanationGenerator: narrative "Why this score" explanation ──
   'aiExplain.and': ' and ',
