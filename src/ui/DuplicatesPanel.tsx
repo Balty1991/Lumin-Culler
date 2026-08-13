@@ -71,7 +71,7 @@ export function DuplicatesPanel() {
 
   return (
     <div className="detail" onClick={e => { if (e.target === e.currentTarget) setOpen(false); }}>
-      <div className="detail-inner narrow duplicates-panel" ref={containerRef} role="dialog" aria-modal="true" aria-label={tr('duplicates.title')} tabIndex={-1}>
+      <div className="detail-inner narrow" ref={containerRef} role="dialog" aria-modal="true" aria-label={tr('duplicates.title')} tabIndex={-1}>
         <header className="detail-head">
           <span><CopyIcon className="inline-icon" aria-hidden="true" /> {tr('duplicates.title')}</span>
           <button className="ghost icon-btn" onClick={() => setOpen(false)} aria-label={tr('detail.close')}>

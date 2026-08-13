@@ -954,7 +954,7 @@ export default function App() {
             </MoreFiltersMenu>
             {anySecondaryFilterActive && (
               <button
-                className="chip chip-compact clear-filters-btn"
+                className="chip chip-compact"
                 onClick={clearAllFilters}
                 aria-label={tr('app.clearAllFilters')}
                 title={tr('app.clearAllFilters')}

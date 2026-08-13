@@ -566,20 +566,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .memory-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; padding: 14px; }
 .memory-grid .memory-thumb { width: 100%; height: auto; aspect-ratio: 3/4; border-radius: 10px; }
 
-/* "Sterge pozele respinse" (plan modernizare) — acelasi limbaj vizual ca .memory-banner,
-   dar cu accentul rosu/coral (--reject), ca o functie distructiva sa se citeasca vizual
-   diferit de una "placuta" (amintiri). */
-.delete-rejected-banner { background-image: linear-gradient(var(--glass-bg), var(--glass-bg)), linear-gradient(120deg, var(--reject), #ff8fa3); box-shadow: var(--shadow-lg), 0 0 22px -12px rgb(var(--reject-rgb) / 0.5); }
-.delete-rejected-icon {
-  width: 42px; height: 42px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
-  background: rgb(var(--reject-rgb) / 0.16); color: var(--reject);
-}
-.delete-rejected-grid { grid-template-columns: repeat(4, 1fr); }
-.delete-rejected-more {
-  display: flex; align-items: center; justify-content: center; aspect-ratio: 3/4; border-radius: 10px;
-  background: var(--surface-2); color: var(--text-dim); font-size: 0.8rem; font-weight: 700;
-}
-.delete-rejected-cta { display: block; width: calc(100% - 28px); margin: 4px 14px 14px; text-align: center; }
+
+
+
+
+
 
 /* "Calatorii" (plan modernizare) — acelasi limbaj vizual ca .persons (lista de
    carduri in panoul lateral), plus o miniatura de coperta per calatorie. */
@@ -799,7 +790,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .app-collapsible.hidden { grid-template-rows: 0fr; opacity: 0; pointer-events: none; }
 @media (prefers-reduced-motion: reduce) { .app-collapsible { transition: none; } }
 
-.spacer-flex { flex: 1; }
+
 
 /* ── Panou HUD (CullGauge): gauge circular segmentat + statistici + colturi
    tip "bracket" — concept vizual "LuminCuller — concept HUD", portat pe
@@ -1527,21 +1518,14 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   font-size: 0.72rem; letter-spacing: 0.04em; color: var(--text-faint); text-transform: uppercase;
 }
 .empty h2 { font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; margin-top: 0; }
-/*
- * Textul lung, tehnic, intr-un singur paragraf ("JPEG/PNG/WebP/RAW — CR2,
- * NEF, ARW, DNG...") citea greu/obositor (feedback direct) — despartit acum
- * in doua nivele: o fraza scurta, calda ("empty-lead", ce conteaza pentru
- * utilizator: incarci pozele, AI-ul ajuta) si o mentiune tehnica mica sub CTA
- * ("empty-formats", pentru cine chiar vrea sa stie ce formate sunt suportate)
- * — nu mai concureaza pentru atentie in aceeasi propozitie.
- */
+/* Textul lung si tehnic dintr-un singur paragraf ("JPEG/PNG/WebP/RAW — CR2,
+   NEF, ARW, DNG...") citea greu (feedback direct). A ramas doar fraza scurta de
+   aici; formatele s-au mutat in cardul "cum functioneaza" de dedesubt, unde
+   apartin pasului 1, in loc sa concureze pentru atentie cu promisiunea. */
 .empty-lead { font-size: 0.95rem; line-height: 1.6; color: var(--text-dim); margin-top: 0; max-width: 30ch; }
 /* singura pauza mare din ecran: aici se termina "ce e asta" si incepe "ce fac" */
 .empty .btn-accent.big { margin-top: 14px; }
-.empty-formats {
-  font-size: 0.66rem; line-height: 1.5; color: var(--text-faint); letter-spacing: 0.02em;
-  max-width: 320px;
-}
+
 .hint { color: var(--text-dim); font-size: 0.82rem; margin-top: 2px; }
 /* Avertisment de acces partial la galerie (Android 14+) — vezi
    ui/PhotosAccessNotice.tsx. Ton de problema REZOLVABILA, nu de eroare:
@@ -1708,10 +1692,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   display: flex; align-items: flex-end; justify-content: center;
   animation: fadeIn 0.2s var(--ease) both;
 }
-/* DetailView foloseste framer-motion pentru intrare/iesire (vezi DetailView.tsx) —
-   dezactivam animatia CSS doar aici, ca sa nu se bata cu transform-ul/opacity-ul JS;
-   celelalte panouri (.detail fara acest modificator) raman pe animatia CSS simpla. */
-.detail.detail-motion { animation: none; }
+
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 .detail-inner {
   width: 100%; max-width: 740px; max-height: 96dvh; overflow-y: auto;
@@ -3373,8 +3354,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 /* Panoul complet al supervizorului (lungime perioada, calendar, foldere) */
 .supervisor-section { margin: 16px 0; }
 .supervisor-section-label { font-size: 0.74rem; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 8px; }
-.supervisor-section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
-.supervisor-section-head .supervisor-section-label { margin-bottom: 0; }
+
+
 .supervisor-remaining-cta { width: 100%; text-align: center; padding: 10px; border-radius: 12px; margin-bottom: 4px; font-size: 0.8rem; }
 /* Bara de acoperire: cat din galerie a fost adusa deja (idee proprie —
    panoul nu spunea nicaieri unde te afli). */

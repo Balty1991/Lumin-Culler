@@ -227,7 +227,7 @@ export function BatchOpsPanel() {
             <span className="batch-preview-chip pos">{tr('batch.autoCull.kept', { count: cull.selectIds.length })}</span>
             <span className="batch-preview-chip neg">{tr('batch.autoCull.rejected', { count: cull.rejectIds.length })}</span>
           </div>
-          <button className="select batch-cull-btn" onClick={() => void runAutoCull()} disabled={busy || (!cull.selectIds.length && !cull.rejectIds.length)}>
+          <button className="select" onClick={() => void runAutoCull()} disabled={busy || (!cull.selectIds.length && !cull.rejectIds.length)}>
             {cull.selectIds.length || cull.rejectIds.length
               ? tr('batch.autoCull.apply', { keep: cull.selectIds.length, reject: cull.rejectIds.length })
               : tr('batch.autoCull.none')}
@@ -246,7 +246,7 @@ export function BatchOpsPanel() {
             />
             <span className="mono batch-threshold-value">{threshold}</span>
           </div>
-          <button className="reject batch-reject-btn" onClick={() => void runReject()} disabled={busy || !targets.length}>
+          <button className="reject" onClick={() => void runReject()} disabled={busy || !targets.length}>
             {targets.length ? tr('batch.rejectBelow.apply', { count: targets.length }) : tr('batch.rejectBelow.none')}
           </button>
         </div>
@@ -254,7 +254,7 @@ export function BatchOpsPanel() {
         <div className="batch-section">
           <h3><span className="batch-section-icon"><LayersIcon /></span> {tr('batch.resolveSeries.title')}</h3>
           <p className="hint">{tr('batch.resolveSeries.hint')}</p>
-          <button className="select batch-resolve-btn" onClick={() => void runResolveSeries()} disabled={busy || !groups.length}>
+          <button className="select" onClick={() => void runResolveSeries()} disabled={busy || !groups.length}>
             {groups.length ? tr('batch.resolveSeries.apply', { count: groups.length }) : tr('batch.resolveSeries.none')}
           </button>
         </div>
@@ -262,7 +262,7 @@ export function BatchOpsPanel() {
         <div className="batch-section">
           <h3><span className="batch-section-icon"><SparkleIcon /></span> {tr('batch.rescore.title')}</h3>
           <p className="hint">{tr('batch.rescore.hint')}</p>
-          <button className="select batch-resolve-btn" onClick={() => void runRescore()} disabled={busy || !photos.length}>
+          <button className="select" onClick={() => void runRescore()} disabled={busy || !photos.length}>
             {photos.length ? tr('batch.rescore.apply', { count: photos.length }) : tr('batch.rescore.none')}
           </button>
         </div>
@@ -300,7 +300,7 @@ export function BatchOpsPanel() {
                 </button>
               </div>
             )}
-            <button className="reject batch-reject-btn" onClick={() => void runDeleteRejected()} disabled={busy || !deletableRejected.deletable.length}>
+            <button className="reject" onClick={() => void runDeleteRejected()} disabled={busy || !deletableRejected.deletable.length}>
               {deletableRejected.deletable.length
                 ? tr('batch.deleteRejected.apply', { count: deletableRejected.deletable.length })
                 : tr('batch.deleteRejected.none')}

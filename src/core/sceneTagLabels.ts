@@ -22,7 +22,7 @@
  * sigur, vezi translateSceneTag mai jos) — nu blocheaza nimic, doar nu e
  * inca tradusa.
  */
-export const SCENE_TAG_LABELS_RO: Record<string, string> = {
+const SCENE_TAG_LABELS_RO: Record<string, string> = {
   // COCO-80 (web, CenterNet)
   person: 'persoană', bicycle: 'bicicletă', car: 'mașină', motorcycle: 'motocicletă',
   airplane: 'avion', bus: 'autobuz', train: 'tren', truck: 'camion', boat: 'barcă',

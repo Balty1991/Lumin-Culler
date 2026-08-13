@@ -95,7 +95,7 @@ export function HomeDashboard() {
       </div>
 
       <div className="home-hero-card glass">
-        <div className="home-hero-main">
+        <div>
           <div className="home-hero-num">{donePercent}%</div>
           <div className="home-hero-lbl">{tr('home.hero.label')}</div>
         </div>

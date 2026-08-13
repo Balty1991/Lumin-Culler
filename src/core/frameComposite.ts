@@ -28,7 +28,7 @@
  */
 
 /** Cat de asemanatoare trebuie sa fie doua fete ca sa le consideram acelasi om intre cadre. */
-export const SAME_PERSON_THRESHOLD = 0.5;
+const SAME_PERSON_THRESHOLD = 0.5;
 
 /** Peste cat considera "arata bine" — sub asta, persoana strica cadrul. */
 export const GOOD_ENOUGH = 0.6;

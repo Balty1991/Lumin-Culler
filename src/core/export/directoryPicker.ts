@@ -123,7 +123,7 @@ export async function writeTextFile(dir: LocalDirHandle, name: string, content: 
  * reala (navigare foldere), dar tot recupereaza, in loc sa ramana agatat
  * definitiv.
  */
-export const PICKER_TIMEOUT_MS = 45000;
+const PICKER_TIMEOUT_MS = 45000;
 
 /**
  * Alegerea unui FOLDER de destinatie (showDirectoryPicker pe desktop, selectorul

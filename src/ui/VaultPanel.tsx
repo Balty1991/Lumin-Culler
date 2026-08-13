@@ -98,7 +98,7 @@ export function VaultPanel() {
 
   return (
     <div className="detail" onClick={e => { if (e.target === e.currentTarget) setOpen(false); }}>
-      <div className="detail-inner narrow vault-panel" ref={containerRef} role="dialog" aria-modal="true" aria-label={tr('vault.title')} tabIndex={-1}>
+      <div className="detail-inner narrow" ref={containerRef} role="dialog" aria-modal="true" aria-label={tr('vault.title')} tabIndex={-1}>
         <header className="detail-head">
           <span><LockIcon className="inline-icon" aria-hidden="true" /> {tr('vault.title')}</span>
           <button className="ghost icon-btn" onClick={() => setOpen(false)} aria-label={tr('detail.close')}>

@@ -40,7 +40,7 @@ export const NEUTRAL_ADJUSTMENTS: EditAdjustments = {
 };
 
 /** Doar cheile NUMERICE, comparabile direct cu 0 — `crop` (obiect sau absent) e tratat separat in isNeutral(), nu apartine acestui tipar. */
-export const ADJUSTMENT_KEYS = Object.keys(NEUTRAL_ADJUSTMENTS) as (keyof typeof NEUTRAL_ADJUSTMENTS)[];
+const ADJUSTMENT_KEYS = Object.keys(NEUTRAL_ADJUSTMENTS) as (keyof typeof NEUTRAL_ADJUSTMENTS)[];
 
 /** true daca nu exista nicio ajustare (absent SAU toate valorile 0, fara crop) — folosit pentru badge-ul "editat" si starea butonului Reseteaza. */
 export function isNeutral(a: EditAdjustments | undefined): boolean {

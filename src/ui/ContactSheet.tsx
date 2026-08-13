@@ -93,7 +93,7 @@ export function ContactSheet() {
                         <StarIcon fill="currentColor" /> {p.rating}
                       </span>
                     )}
-                    <span className="contact-sheet-score">{tr('detail.stat.score')} {p.aiScore}</span>
+                    <span>{tr('detail.stat.score')} {p.aiScore}</span>
                   </div>
                 </div>
               ))}

@@ -67,7 +67,7 @@ export function MemoryBanner() {
     <>
       <div className="memory-banner glass" role="status">
         <button className="memory-banner-main" onClick={() => setModalOpen(true)} aria-label={tr('app.memory.viewAll')}>
-          <span className="memory-banner-cover memory-thumb">
+          <span className="memory-thumb">
             <MemoryThumbImage photoId={cover.id} />
           </span>
           <span className="memory-banner-text">

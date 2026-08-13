@@ -362,11 +362,11 @@ function OverlayCompare({ members, defaultAId }: { members: PhotoView[]; default
       </div>
 
       <div className="overlay-stage">
-        {aSrc && <AdjustedImage src={aSrc} edits={aPhoto?.edits} alt={aPhoto?.fileName ?? 'A'} className="overlay-img overlay-img-a" />}
+        {aSrc && <AdjustedImage src={aSrc} edits={aPhoto?.edits} alt={aPhoto?.fileName ?? 'A'} className="overlay-img" />}
         {bSrc && (
           <AdjustedImage
             src={bSrc} edits={bPhoto?.edits} alt={bPhoto?.fileName ?? 'B'}
-            className="overlay-img overlay-img-b"
+            className="overlay-img"
             style={{ opacity: opacity / 100, mixBlendMode: diffMode ? 'difference' : 'normal' }}
           />
         )}
