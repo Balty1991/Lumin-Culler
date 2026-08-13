@@ -20,6 +20,7 @@ import {
   readLibraryScores, type ImportProgress, type ImportCancelToken
 } from '../core/importPipeline';
 import { deriveThresholds, type Thresholds } from '../core/scoreThresholds';
+import { pickMostUncertain } from '../core/uncertainty';
 import type { FileSystemFileHandleLike } from '../core/filePicker';
 import { readEconomicMode, writeEconomicMode } from '../core/performanceSettings';
 import { vibrate } from '../ui/haptics';
@@ -292,6 +293,13 @@ interface AppState {
   lastSupervisorImportIds: string[] | null;
   /** Deschide sortarea rapida DIRECT pe pozele indicate (ex. tocmai aduse de supervizor), nu pe toata coada. */
   openTiktokSortForIds: (ids: string[]) => void;
+  /**
+   * "Verifică ce nu știu sigur" — deschide sortarea rapida cu pozele pe care
+   * motorul le-a decis SINGUR, dar aproape la limita (vezi core/uncertainty.ts).
+   * Intoarce cate au fost gasite; 0 inseamna ca n-a ramas nicio decizie
+   * indoielnica, si spune asta printr-o notificare in loc sa deschida gol.
+   */
+  openUncertainReview: () => Promise<number>;
   /** Cautare vizuala pe ecran intreg (plan modernizare) — reutilizeaza searchText/sceneTagFilter, doar UI dedicat. */
   searchPanelOpen: boolean;
   setSearchPanelOpen: (open: boolean) => void;
@@ -1233,6 +1241,24 @@ export const useStore = create<AppState>((set, get) => ({
   tiktokSortScopeIds: null,
   lastSupervisorImportIds: null,
   openTiktokSortForIds: ids => set({ tiktokSortOpen: true, tiktokSortScopeIds: ids, lastSupervisorImportIds: null }),
+
+  openUncertainReview: async () => {
+    const locale = get().locale;
+    // Pozele pe care le-ai judecat deja tu: o corectie e inregistrata la
+    // FIECARE decizie manuala (vezi ContextEngine.recordCorrection), deci logul
+    // de corectii e exact lista "am spus deja ce cred despre asta".
+    const decided = new Set((await db.corrections.toArray()).map(c => c.photoId));
+    const ids = pickMostUncertain(
+      get().photos.map(p => ({ id: p.id, aiScore: p.aiScore, status: p.status })),
+      decided
+    );
+    if (!ids.length) {
+      set({ notice: t(locale, 'store.uncertainReview.none') });
+      return 0;
+    }
+    get().openTiktokSortForIds(ids);
+    return ids.length;
+  },
   searchPanelOpen: false,
   setSearchPanelOpen: open => set({ searchPanelOpen: open }),
   duplicatesPanelOpen: false,

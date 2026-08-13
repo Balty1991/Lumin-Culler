@@ -6,8 +6,7 @@ import {
   UserCheckIcon, SparkleIcon, ListIcon, InfoIcon, XIcon, TagIcon, LayersIcon, KeyboardIcon,
   SunIcon, MoonIcon, ClockIcon, BatteryIcon, GridIcon, DownloadIcon, UploadIcon, BarChartIcon, GlobeIcon, PrinterIcon,
   ApertureIcon, PlayIcon, EditIcon, FolderIcon, HeartIcon, TrashIcon, PinIcon, AccessibilityIcon,
-  ChevronUpIcon, SearchIcon, ShieldIcon, LockIcon, CopyIcon, StarIcon
-} from './icons';
+  ChevronUpIcon, SearchIcon, ShieldIcon, LockIcon, CopyIcon, StarIcon, FocusIcon } from './icons';
 import type { AccentTheme } from '../state/accentTheme';
 import { selectDeletableRejected } from '../state/batchOps';
 import { selectPendingShieldReview, readShieldDismissedIds } from '../core/documentShield';
@@ -148,6 +147,7 @@ export function MenuDrawer() {
   const setDocumentShieldOpen = useStore(s => s.setDocumentShieldOpen);
   const setVaultOpen = useStore(s => s.setVaultOpen);
   const setDuplicatesPanelOpen = useStore(s => s.setDuplicatesPanelOpen);
+  const openUncertainReview = useStore(s => s.openUncertainReview);
   const setSupervisorPanelOpen = useStore(s => s.setSupervisorPanelOpen);
   const collections = useStore(s => s.collections);
   const shieldPendingCount = useMemo(() => {
@@ -400,6 +400,15 @@ export function MenuDrawer() {
 
         {hasPhotos && (
           <DrawerGroup label={tr('menu.section.cleanup')}>
+            {/* Primul din grup, deliberat: e cel mai scurt lucru util pe care il
+                poti face dupa un import — cateva secunde care verifica exact
+                deciziile la limita si, in acelasi timp, invata motorul cel mai
+                repede (vezi core/uncertainty.ts). */}
+            <button className="drawer-item" onClick={() => go(() => { void openUncertainReview(); })}>
+              <span className="drawer-item-icon"><FocusIcon /></span>
+              <span>{tr('menu.uncertainReview')}</span>
+            </button>
+
             <button className="drawer-item" onClick={() => go(() => setDuplicatesPanelOpen(true))}>
               <span className="drawer-item-icon"><CopyIcon /></span>
               <span>{tr('menu.duplicates')}</span>
