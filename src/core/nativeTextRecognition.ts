@@ -15,7 +15,7 @@
  * functioneaza pe un device real.
  */
 import { registerPlugin, Capacitor } from '@capacitor/core';
-import { blobToBase64 } from './base64';
+import { nativeImageParams, type NativeImageParams, type NativeImageSource } from './nativeImageSource';
 
 export interface NativeTextBlock {
   text: string;
@@ -29,7 +29,7 @@ export interface NativeTextRecognitionResult {
 }
 
 interface TextRecognitionPluginApi {
-  detectText(options: { imageBase64: string }): Promise<NativeTextRecognitionResult>;
+  detectText(options: NativeImageParams): Promise<NativeTextRecognitionResult>;
 }
 
 const TextRecognitionNative = registerPlugin<TextRecognitionPluginApi>('TextRecognition');
@@ -39,10 +39,9 @@ export function isNativeTextRecognitionAvailable(): boolean {
   return Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('TextRecognition');
 }
 
-export async function detectTextNative(imageBlob: Blob): Promise<NativeTextRecognitionResult> {
+export async function detectTextNative(source: NativeImageSource): Promise<NativeTextRecognitionResult> {
   if (!isNativeTextRecognitionAvailable()) {
     throw new Error('Recunoasterea nativa de text e disponibila doar in aplicatia Android (Capacitor), nu in browser.');
   }
-  const imageBase64 = await blobToBase64(imageBlob);
-  return TextRecognitionNative.detectText({ imageBase64 });
+  return TextRecognitionNative.detectText(await nativeImageParams(source));
 }

@@ -324,8 +324,8 @@ export class AnalysisPool {
     if (next) { this.nativeInFlight++; next(); }
   }
 
-  /** Analizează o fotografie. Bitmap-ul e transferat (nu copiat) și închis în worker — sau, pe native, închis direct în nativeAnalysis.ts dupa conversia in Blob. */
-  async analyze(photoId: string, bitmap: ImageBitmap): Promise<AnalysisRecord> {
+  /** Analizează o fotografie. Bitmap-ul e transferat (nu copiat) și închis în worker — sau, pe native, închis direct în nativeAnalysis.ts. `mediaUri` (Android, poze din galerie) lasa partea nativa sa citeasca imaginea singura, fara nimic peste punte. */
+  async analyze(photoId: string, bitmap: ImageBitmap, mediaUri?: string): Promise<AnalysisRecord> {
     if (this.nativeMode) {
       await this.acquireNativePermit();
       try {
@@ -338,7 +338,10 @@ export class AnalysisPool {
             // fiecare poza ar trece prin worker-ul de recunoastere chiar si pentru
             // utilizatorii care nu folosesc deloc "Persoane cunoscute".
             this.knownPersons.length ? crop => this.computeFaceRecognitionEmbedding(crop) : undefined,
-            this.knownPersons
+            this.knownPersons,
+            // content:// din galerie, cand exista — vezi analyzeNative: cu el,
+            // imaginea nu mai trece deloc peste puntea Capacitor.
+            mediaUri
           ),
           ANALYZE_TIMEOUT_MS,
           'Analiza acestei fotografii a durat prea mult (posibil fisier problematic) — sarita.'

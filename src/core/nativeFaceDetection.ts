@@ -9,7 +9,7 @@
  * core/workerPool.ts (AnalysisPool) pe Android/Capacitor.
  */
 import { registerPlugin, Capacitor } from '@capacitor/core';
-import { blobToBase64 } from './base64';
+import { nativeImageParams, type NativeImageParams, type NativeImageSource } from './nativeImageSource';
 
 export interface NativeFaceBoundingBox {
   left: number;
@@ -33,7 +33,7 @@ export interface NativeFaceDetectionResult {
 }
 
 interface FaceDetectionPluginApi {
-  detectFaces(options: { imageBase64: string }): Promise<NativeFaceDetectionResult>;
+  detectFaces(options: NativeImageParams): Promise<NativeFaceDetectionResult>;
 }
 
 const FaceDetectionNative = registerPlugin<FaceDetectionPluginApi>('FaceDetection');
@@ -43,10 +43,9 @@ export function isNativeFaceDetectionAvailable(): boolean {
   return Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('FaceDetection');
 }
 
-export async function detectFacesNative(imageBlob: Blob): Promise<NativeFaceDetectionResult> {
+export async function detectFacesNative(source: NativeImageSource): Promise<NativeFaceDetectionResult> {
   if (!isNativeFaceDetectionAvailable()) {
     throw new Error('Detectia nativa de fete e disponibila doar in aplicatia Android (Capacitor), nu in browser.');
   }
-  const imageBase64 = await blobToBase64(imageBlob);
-  return FaceDetectionNative.detectFaces({ imageBase64 });
+  return FaceDetectionNative.detectFaces(await nativeImageParams(source));
 }

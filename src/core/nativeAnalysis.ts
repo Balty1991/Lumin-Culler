@@ -40,6 +40,7 @@ import { detectTextNative } from './nativeTextRecognition';
 import { embedImageNative } from './nativeImageEmbedder';
 import { detectPoseNative, type NativePose } from './nativePoseDetection';
 import { pickFolderSceneTag } from './sceneTagLabels';
+import type { NativeImageSource } from './nativeImageSource';
 
 /**
  * Acelasi prag ca groupSmileRatio din faceAnalysis.worker.ts (web) — "zambet
@@ -86,6 +87,8 @@ const NATIVE_ANALYZE_JPEG_QUALITY = 0.92;
  * sa citeasca text mic — acela primeste blob-ul mare, generat doar atunci.
  */
 const NATIVE_ANALYZE_MAX_SIDE = 1280;
+/** Doar pentru OCR, si doar pe calea cu URI (unde marirea nu costa nimic in plus peste punte). */
+const NATIVE_OCR_MAX_SIDE = 2560;
 const NATIVE_ANALYZE_SMALL_JPEG_QUALITY = 0.85;
 
 function drawToCanvas(bitmap: ImageBitmap): OffscreenCanvas {
@@ -314,19 +317,25 @@ export async function analyzeNative(
   photoId: string,
   bitmap: ImageBitmap,
   recognize?: (crop: ImageBitmap) => Promise<{ embedding: number[]; faceCount: number } | null>,
-  knownPersons?: KnownPerson[]
+  knownPersons?: KnownPerson[],
+  /**
+   * content:// al pozei din galerie, cand exista. Cu el, partea nativa citeste
+   * imaginea singura si NIMIC nu mai trece peste punte: fara codare JPEG in JS,
+   * fara base64, fara MB de JSON — de 4-7 ori per poza. Absent (selector de
+   * fisiere, RAW decodat in JS) = calea veche, cu blob, neschimbata.
+   */
+  mediaUri?: string
 ): Promise<AnalysisRecord> {
   const imageWidth = bitmap.width;
   const imageHeight = bitmap.height;
   const canvas = drawToCanvas(bitmap);
   bitmap.close();
-  // Blob-ul MIC merge la toate modelele; cel mare se genereaza doar daca
-  // ajungem la OCR (vezi NATIVE_ANALYZE_MAX_SIDE) — inainte, poza intreaga era
-  // codata la rezolutie plina pentru FIECARE import, chiar si cand nimeni nu
-  // avea nevoie de ea.
-  const blob = await canvasToModelBlob(canvas);
+  // Cu URI, nu codam nimic: partea nativa decodeaza o singura data si
+  // refoloseste acelasi bitmap pentru toate modelele. Fara URI, blob-ul MIC
+  // merge la toate modelele, iar cel mare se genereaza doar daca ajungem la OCR.
+  const source: NativeImageSource = mediaUri ? { uri: mediaUri } : { blob: await canvasToModelBlob(canvas) };
 
-  const faceResult = await detectFacesNative(blob);
+  const faceResult = await detectFacesNative(source);
   const faces = faceResult.faces.map(f =>
     toFaceInsight(f, faceResult.imageWidth || imageWidth, faceResult.imageHeight || imageHeight)
   );
@@ -335,29 +344,29 @@ export async function analyzeNative(
     await recognizeFaces(canvas, faceResult, faces, imageWidth, imageHeight, recognize, knownPersons);
   }
 
-  const imageAnalysis = await analyzeImageNative(blob);
+  const imageAnalysis = await analyzeImageNative(source);
 
-  const labelResult = await labelImageNative(blob);
+  const labelResult = await labelImageNative(source);
   // Acelasi tipar de deduplicare ca faceAnalysis.worker.ts: [...new Set(...)].
   const sceneTags = [...new Set(labelResult.labels.map(l => l.label))];
 
   // FaceMesh e sarit complet cand nu exista fete — nu are ce agrega, si evita
   // un apel MediaPipe intreg (cel mai greu dintre cele 5) fara niciun beneficiu.
   const meshStats = faces.length > 0
-    ? faceMeshGroupStats((await analyzeFaceMeshNative(blob)).faces)
+    ? faceMeshGroupStats((await analyzeFaceMeshNative(source)).faces)
     : {};
 
   // Embedding general de similaritate — vezi AnalysisRecord.imageEmbedding:
   // doar pentru poze FARA fete (cu fete, embedding-urile faciale sunt deja
   // semnalul puternic pentru rafinarea seriilor in hashCompare.worker.ts).
   const imageEmbedding = faces.length === 0
-    ? (await embedImageNative(blob)).embedding
+    ? (await embedImageNative(source)).embedding
     : undefined;
 
   // Postura — vezi AnalysisRecord.bodyCroppedAtEdge: doar cand exista fete
   // (postura n-are subiect de verificat pe un peisaj/obiect).
   const bodyCroppedAtEdge = faces.length > 0
-    ? hasAwkwardBodyCrop((await detectPoseNative(blob)).people)
+    ? hasAwkwardBodyCrop((await detectPoseNative(source)).people)
     : undefined;
 
   // OCR rulat cand nu exista fete SI nu exista nicio eticheta de scena
@@ -370,10 +379,15 @@ export async function analyzeNative(
   // (nicio eticheta deloc), dar un document fotografiat primeste des exact o
   // eticheta abstracta ca "Text"/"Paper"/"Photography" de la ML Kit — OCR nu
   // mai rula niciodata in cazul concret pentru care a fost construit.
-  // OCR primeste blob-ul la rezolutie PLINA: e singurul model din lant care chiar
-  // depinde de pixeli (text mic pe un buletin/o captura de ecran), si ruleaza rar.
+  // OCR cere rezolutie PLINA: e singurul model din lant care chiar depinde de
+  // pixeli (text mic pe un buletin/o captura de ecran), si ruleaza rar. Cu URI
+  // cerem doar o latura mai mare — tot fara nimic peste punte.
   const textCoverage = faces.length === 0 && !pickFolderSceneTag(sceneTags)
-    ? (await detectTextNative(await canvasToBlob(canvas))).textCoverage
+    ? (await detectTextNative(
+        mediaUri
+          ? { uri: mediaUri, maxSide: NATIVE_OCR_MAX_SIDE }
+          : { blob: await canvasToBlob(canvas) }
+      )).textCoverage
     : undefined;
 
   const sceneType = classifyScene(faces, imageWidth, imageHeight);

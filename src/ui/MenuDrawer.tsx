@@ -217,15 +217,15 @@ export function MenuDrawer() {
       // (ultimul mesaj ramas pe ecran = ultimul modul pornit).
       void (async () => {
         const steps: Array<[string, () => Promise<unknown>]> = [
-          ['fete (ML Kit)', () => detectFacesNative(file)],
-          ['compozitie/claritate/culoare', () => analyzeImageNative(file)],
-          ['etichete de scena (ML Kit)', () => labelImageNative(file)],
-          ['fata detaliata (MediaPipe)', () => analyzeFaceMeshNative(file)],
+          ['fete (ML Kit)', () => detectFacesNative({ blob: file })],
+          ['compozitie/claritate/culoare', () => analyzeImageNative({ blob: file })],
+          ['etichete de scena (ML Kit)', () => labelImageNative({ blob: file })],
+          ['fata detaliata (MediaPipe)', () => analyzeFaceMeshNative({ blob: file })],
           ['etichete bogate (ImageNet)', () => classifyImageNative(file)],
-          ['text (OCR)', () => detectTextNative(file)],
-          ['postura corp', () => detectPoseNative(file)],
+          ['text (OCR)', () => detectTextNative({ blob: file })],
+          ['postura corp', () => detectPoseNative({ blob: file })],
           ['separare persoana/fundal', () => segmentSubjectNative(file)],
-          ['embedding similaritate', () => embedImageNative(file)]
+          ['embedding similaritate', () => embedImageNative({ blob: file })]
         ];
         const results: Record<string, unknown> = {};
         for (const [name, run] of steps) {

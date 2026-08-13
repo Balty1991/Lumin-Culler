@@ -8,14 +8,17 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 // fisier in teste, in ciuda concurentei reale din interiorul functiei).
 const isNativeFaceDetectionAvailable = vi.fn(() => true);
 const facesByFileName = new Map<string, boolean>();
-const detectFacesNative = vi.fn(async (blob: Blob) => {
-  const name = await blob.text();
+// Sursa e acum { blob } SAU { uri } — pre-scanarea foloseste URI-ul de galerie
+// cand exista (nicio decodare in JS), altfel calea veche cu blob.
+type Source = { blob?: Blob; uri?: string };
+const detectFacesNative = vi.fn(async (source: Source) => {
+  const name = source.uri ?? (source.blob ? await source.blob.text() : '');
   const hasFace = facesByFileName.get(name) ?? false;
   return { faces: hasFace ? [{ boundingBox: { left: 0, top: 0, width: 1, height: 1 } }] : [], imageWidth: 1, imageHeight: 1 };
 });
 vi.mock('./nativeFaceDetection', () => ({
   isNativeFaceDetectionAvailable: () => isNativeFaceDetectionAvailable(),
-  detectFacesNative: (blob: Blob) => detectFacesNative(blob)
+  detectFacesNative: (source: Source) => detectFacesNative(source)
 }));
 
 const failingDecodeNames = new Set<string>();

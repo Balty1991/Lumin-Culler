@@ -17,14 +17,14 @@
  * functioneaza pe un device real.
  */
 import { registerPlugin, Capacitor } from '@capacitor/core';
-import { blobToBase64 } from './base64';
+import { nativeImageParams, type NativeImageParams, type NativeImageSource } from './nativeImageSource';
 
 export interface NativeImageEmbeddingResult {
   embedding: number[];
 }
 
 interface ImageEmbedderPluginApi {
-  embedImage(options: { imageBase64: string }): Promise<NativeImageEmbeddingResult>;
+  embedImage(options: NativeImageParams): Promise<NativeImageEmbeddingResult>;
 }
 
 const ImageEmbedderNative = registerPlugin<ImageEmbedderPluginApi>('ImageEmbedder');
@@ -34,10 +34,9 @@ export function isNativeImageEmbedderAvailable(): boolean {
   return Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('ImageEmbedder');
 }
 
-export async function embedImageNative(imageBlob: Blob): Promise<NativeImageEmbeddingResult> {
+export async function embedImageNative(source: NativeImageSource): Promise<NativeImageEmbeddingResult> {
   if (!isNativeImageEmbedderAvailable()) {
     throw new Error('Embedding-ul nativ de imagine e disponibil doar in aplicatia Android (Capacitor), nu in browser.');
   }
-  const imageBase64 = await blobToBase64(imageBlob);
-  return ImageEmbedderNative.embedImage({ imageBase64 });
+  return ImageEmbedderNative.embedImage(await nativeImageParams(source));
 }

@@ -19,7 +19,7 @@
  * cel putin o fata detectata (vezi faceMeshGroupStats in nativeAnalysis.ts).
  */
 import { registerPlugin, Capacitor } from '@capacitor/core';
-import { blobToBase64 } from './base64';
+import { nativeImageParams, type NativeImageParams, type NativeImageSource } from './nativeImageSource';
 
 export interface NativeFaceMeshInsight {
   /** = emotion.happy aproximat (acelasi lucru ca FaceInsight.smile din JS). */
@@ -40,7 +40,7 @@ export interface NativeFaceMeshResult {
 }
 
 interface FaceMeshPluginApi {
-  analyzeFaceMesh(options: { imageBase64: string }): Promise<NativeFaceMeshResult>;
+  analyzeFaceMesh(options: NativeImageParams): Promise<NativeFaceMeshResult>;
 }
 
 const FaceMeshNative = registerPlugin<FaceMeshPluginApi>('FaceMesh');
@@ -50,10 +50,9 @@ export function isNativeFaceMeshAvailable(): boolean {
   return Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('FaceMesh');
 }
 
-export async function analyzeFaceMeshNative(imageBlob: Blob): Promise<NativeFaceMeshResult> {
+export async function analyzeFaceMeshNative(source: NativeImageSource): Promise<NativeFaceMeshResult> {
   if (!isNativeFaceMeshAvailable()) {
     throw new Error('Analiza nativa de fata (mesh) e disponibila doar in aplicatia Android (Capacitor), nu in browser.');
   }
-  const imageBase64 = await blobToBase64(imageBlob);
-  return FaceMeshNative.analyzeFaceMesh({ imageBase64 });
+  return FaceMeshNative.analyzeFaceMesh(await nativeImageParams(source));
 }

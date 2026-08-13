@@ -12,7 +12,7 @@
  * decizie de produs separata, pentru o discutie explicita.
  */
 import { registerPlugin, Capacitor } from '@capacitor/core';
-import { blobToBase64 } from './base64';
+import { nativeImageParams, type NativeImageParams, type NativeImageSource } from './nativeImageSource';
 
 export interface NativePoseLandmark {
   x: number;
@@ -31,7 +31,7 @@ export interface NativePoseDetectionResult {
 }
 
 interface PoseDetectionPluginApi {
-  detectPose(options: { imageBase64: string }): Promise<NativePoseDetectionResult>;
+  detectPose(options: NativeImageParams): Promise<NativePoseDetectionResult>;
 }
 
 const PoseDetectionNative = registerPlugin<PoseDetectionPluginApi>('PoseDetection');
@@ -41,10 +41,9 @@ export function isNativePoseDetectionAvailable(): boolean {
   return Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('PoseDetection');
 }
 
-export async function detectPoseNative(imageBlob: Blob): Promise<NativePoseDetectionResult> {
+export async function detectPoseNative(source: NativeImageSource): Promise<NativePoseDetectionResult> {
   if (!isNativePoseDetectionAvailable()) {
     throw new Error('Detectia nativa de postura e disponibila doar in aplicatia Android (Capacitor), nu in browser.');
   }
-  const imageBase64 = await blobToBase64(imageBlob);
-  return PoseDetectionNative.detectPose({ imageBase64 });
+  return PoseDetectionNative.detectPose(await nativeImageParams(source));
 }

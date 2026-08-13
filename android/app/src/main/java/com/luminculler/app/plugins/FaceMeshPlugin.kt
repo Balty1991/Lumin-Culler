@@ -41,18 +41,9 @@ class FaceMeshPlugin : Plugin() {
 
     @PluginMethod
     fun analyzeFaceMesh(call: PluginCall) {
-        val base64 = call.getString("imageBase64")
-        if (base64.isNullOrEmpty()) {
-            call.reject("imageBase64 is required")
-            return
-        }
-
-        val bitmap: Bitmap = try {
-            decodeBase64ToBitmap(base64)
-        } catch (e: Exception) {
-            call.reject("Failed to decode image: ${e.message}", e)
-            return
-        }
+        // Preferam `imageUri` (fara nicio imagine peste punte); `imageBase64`
+        // ramane pentru pozele care nu vin din galerie. Vezi BitmapUtils.kt.
+        val bitmap: Bitmap = resolveInputBitmap(context, call) ?: return
 
         try {
             call.resolve(analyze(bitmap))

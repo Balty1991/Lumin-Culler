@@ -211,8 +211,19 @@ const FACE_PRESCAN_MIN_BATCH = 4;
  * blocheze sau sa strice importul real, care oricum reincearca detectia la
  * rezolutie completa mai tarziu.
  */
+/** Calea de pre-scanare fara URI de galerie (selector de fisiere): decodare mica in JS, apoi acelasi detector nativ. */
+async function prescanViaCanvas(file: File) {
+  const bitmap = await createImageBitmap(file, { resizeWidth: FACE_PRESCAN_SIZE, resizeQuality: 'low' } as ImageBitmapOptions);
+  const c = document.createElement('canvas');
+  c.width = bitmap.width;
+  c.height = bitmap.height;
+  c.getContext('2d')!.drawImage(bitmap, 0, 0);
+  bitmap.close();
+  return detectFacesNative({ blob: await canvasToJpeg(c, 0.7) });
+}
+
 /** Exportata doar pentru testabilitate directa (prioritizeFacesFirst.test.ts) — la fel ca toHashInput/decidePhotoStatus mai sus. */
-export async function prioritizeFacesFirst<T extends { file: File }>(images: T[]): Promise<T[]> {
+export async function prioritizeFacesFirst<T extends { file: File; mediaUri?: string }>(images: T[]): Promise<T[]> {
   if (!isNativeFaceDetectionAvailable() || images.length < FACE_PRESCAN_MIN_BATCH) return images;
 
   const hasFace = new Array<boolean>(images.length).fill(false);
@@ -222,24 +233,24 @@ export async function prioritizeFacesFirst<T extends { file: File }>(images: T[]
       while (true) {
         const i = index++;
         if (i >= images.length) break;
-        const { file } = images[i];
+        const { file, mediaUri } = images[i];
         // RAW-urile nu se decodeaza cu createImageBitmap (necesita decodeRawFile,
         // mult mai costisitor) — le lasam neprioritizate, nu merita costul complet
         // al unui decoder RAW doar ca sa decidem ordinea.
         if (RAW_EXTENSIONS.test(file.name)) continue;
         try {
-          const bitmap = await withTimeout(
-            createImageBitmap(file, { resizeWidth: FACE_PRESCAN_SIZE, resizeQuality: 'low' } as ImageBitmapOptions),
+          // Cu URI de galerie, pre-scanarea nu mai decodeaza nimic in JS: partea
+          // nativa citeste direct din MediaStore, subesantionat la dimensiunea
+          // ceruta. Inainte, doar ca sa decida ORDINEA, fiecare poza trecea
+          // printr-o decodare JPEG completa in JS (rezultat mic, dar decodarea
+          // in sine e integrala), plus o recodare si un base64.
+          const result = await withTimeout(
+            mediaUri
+              ? detectFacesNative({ uri: mediaUri, maxSide: FACE_PRESCAN_SIZE })
+              : prescanViaCanvas(file),
             FACE_PRESCAN_TIMEOUT_MS,
             'Pre-scanare fete: decodare prea lenta.'
           );
-          const c = document.createElement('canvas');
-          c.width = bitmap.width;
-          c.height = bitmap.height;
-          c.getContext('2d')!.drawImage(bitmap, 0, 0);
-          bitmap.close();
-          const blob = await canvasToJpeg(c, 0.7);
-          const result = await detectFacesNative(blob);
           hasFace[i] = result.faces.length > 0;
         } catch {
           // esec per-poza (decodare/plugin) -> ramane in grupul neprioritizat, nu blocam pre-scanarea pentru atat
@@ -375,7 +386,9 @@ async function processOne(file: File, genre?: string, project?: string, handle?:
   const { preview, thumb, lqip, dHash, w, h } = makeDerivatives(bitmap);
 
   // Bitmap-ul pleaca in worker (transfer, zero-copy) — de aici nu-l mai atingem
-  const analysisPromise = analysisPool.analyze(id, bitmap);
+  // mediaUri doar pentru non-RAW: BitmapFactory (Android) nu stie CR2/NEF —
+  // acelea raman pe calea cu blob, decodate deja in JS de LibRaw.
+  const analysisPromise = analysisPool.analyze(id, bitmap, isRaw ? undefined : mediaUri);
   const [previewBlob, thumbBlob] = await Promise.all([preview, thumb]);
 
   const analysis = await analysisPromise;

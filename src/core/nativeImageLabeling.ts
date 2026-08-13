@@ -9,7 +9,7 @@
  * in APK. Detaliile complete ale deciziei sunt in comentariul plugin-ului Kotlin.
  */
 import { registerPlugin, Capacitor } from '@capacitor/core';
-import { blobToBase64 } from './base64';
+import { nativeImageParams, type NativeImageParams, type NativeImageSource } from './nativeImageSource';
 
 export interface NativeImageLabel {
   /**
@@ -27,7 +27,7 @@ export interface NativeImageLabelingResult {
 }
 
 interface ImageLabelingPluginApi {
-  labelImage(options: { imageBase64: string }): Promise<NativeImageLabelingResult>;
+  labelImage(options: NativeImageParams): Promise<NativeImageLabelingResult>;
 }
 
 const ImageLabelingNative = registerPlugin<ImageLabelingPluginApi>('ImageLabeling');
@@ -37,10 +37,9 @@ export function isNativeImageLabelingAvailable(): boolean {
   return Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('ImageLabeling');
 }
 
-export async function labelImageNative(imageBlob: Blob): Promise<NativeImageLabelingResult> {
+export async function labelImageNative(source: NativeImageSource): Promise<NativeImageLabelingResult> {
   if (!isNativeImageLabelingAvailable()) {
     throw new Error('Etichetarea nativa de imagini e disponibila doar in aplicatia Android (Capacitor), nu in browser.');
   }
-  const imageBase64 = await blobToBase64(imageBlob);
-  return ImageLabelingNative.labelImage({ imageBase64 });
+  return ImageLabelingNative.labelImage(await nativeImageParams(source));
 }

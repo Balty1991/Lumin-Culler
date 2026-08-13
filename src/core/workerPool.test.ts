@@ -72,7 +72,9 @@ describe('AnalysisPool native mode (Capacitor Android)', () => {
     expect(result).toBe(fakeRecord);
     // Al 3-lea arg (recognize) ramane undefined cand nu e nicio persoana
     // inrolata (this.knownPersons gol) — vezi gardul din analyze()/workerPool.ts.
-    expect(analyzeNativeMock).toHaveBeenCalledWith('p1', bitmap, undefined, []);
+    // Al 5-lea (mediaUri) e undefined aici: fara URI de galerie, analiza cade pe
+    // calea cu blob, ca inainte.
+    expect(analyzeNativeMock).toHaveBeenCalledWith('p1', bitmap, undefined, [], undefined);
   });
 
   // Bug real gasit de auditul QA: analyze() pe native nu trimitea niciodata un

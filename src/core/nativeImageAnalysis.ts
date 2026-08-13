@@ -10,7 +10,7 @@
  * core/workerPool.ts (AnalysisPool) pe Android/Capacitor.
  */
 import { registerPlugin, Capacitor } from '@capacitor/core';
-import { blobToBase64 } from './base64';
+import { nativeImageParams, type NativeImageParams, type NativeImageSource } from './nativeImageSource';
 
 export interface NativeImageAnalysisResult {
   sharpness: number;
@@ -33,7 +33,7 @@ export interface NativeImageAnalysisResult {
 }
 
 interface ImageAnalysisPluginApi {
-  analyze(options: { imageBase64: string }): Promise<NativeImageAnalysisResult>;
+  analyze(options: NativeImageParams): Promise<NativeImageAnalysisResult>;
 }
 
 const ImageAnalysisNative = registerPlugin<ImageAnalysisPluginApi>('ImageAnalysis');
@@ -43,10 +43,9 @@ export function isNativeImageAnalysisAvailable(): boolean {
   return Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('ImageAnalysis');
 }
 
-export async function analyzeImageNative(imageBlob: Blob): Promise<NativeImageAnalysisResult> {
+export async function analyzeImageNative(source: NativeImageSource): Promise<NativeImageAnalysisResult> {
   if (!isNativeImageAnalysisAvailable()) {
     throw new Error('Analiza nativa de imagine e disponibila doar in aplicatia Android (Capacitor), nu in browser.');
   }
-  const imageBase64 = await blobToBase64(imageBlob);
-  return ImageAnalysisNative.analyze({ imageBase64 });
+  return ImageAnalysisNative.analyze(await nativeImageParams(source));
 }
