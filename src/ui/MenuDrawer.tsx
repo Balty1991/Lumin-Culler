@@ -103,6 +103,7 @@ export function MenuDrawer() {
   const setBatchOpsOpen = useStore(s => s.setBatchOpsOpen);
   const photos = useStore(s => s.photos);
   const deletableRejectedCount = useMemo(() => selectDeletableRejected(photos).deletable.length, [photos]);
+  const hasPhotos = photos.length > 0;
   const setShortcutsOpen = useStore(s => s.setShortcutsOpen);
   const theme = useStore(s => s.theme);
   const setTheme = useStore(s => s.setTheme);
@@ -324,20 +325,26 @@ export function MenuDrawer() {
           </>
         )}
 
-        {/* Randul de actiuni rapide (idee proprie, parte din reorganizare) — cele
-            doua actiuni cele mai des folosite, la un singur tap, in afara
-            listei lungi de mai jos, nu ingropate printre cele ~30 optiuni mai
-            rar accesate. */}
-        <div className="drawer-quick-row">
-          <button className="drawer-quick-btn" onClick={() => go(() => setTiktokSortOpen(true))} title={tr('menu.tiktokSort.title')}>
-            <ChevronUpIcon aria-hidden="true" />
-            <span>{tr('menu.quickSort')}</span>
-          </button>
-          <button className="drawer-quick-btn" onClick={() => go(() => setSearchPanelOpen(true))}>
-            <SearchIcon aria-hidden="true" />
-            <span>{tr('menu.quickSearch')}</span>
-          </button>
-        </div>
+        {/* Reorganizare dupa feedback direct ("prea incarcat, si texte si
+            vizual"): meniul avea ~35 de randuri identice, in 5 grupuri, si le
+            arata pe TOATE inca de la prima deschidere, cu galeria goala — cand
+            majoritatea nu puteau face nimic (statistici fara poze, export fara
+            selectie, duplicate fara ce compara). Acum randurile care au nevoie
+            de poze apar doar cand exista poze: pe un cont nou meniul e de 3-4
+            ori mai scurt, iar ce ramane e chiar ce poti folosi. Nimic nu s-a
+            pierdut — reapar toate dupa primul import. */}
+        {hasPhotos && (
+          <div className="drawer-quick-row">
+            <button className="drawer-quick-btn" onClick={() => go(() => setTiktokSortOpen(true))} title={tr('menu.tiktokSort.title')}>
+              <ChevronUpIcon aria-hidden="true" />
+              <span>{tr('menu.quickSort')}</span>
+            </button>
+            <button className="drawer-quick-btn" onClick={() => go(() => setSearchPanelOpen(true))}>
+              <SearchIcon aria-hidden="true" />
+              <span>{tr('menu.quickSearch')}</span>
+            </button>
+          </div>
+        )}
 
         <DrawerGroup label={tr('menu.section.workspace')}>
           <button className="drawer-item" onClick={() => go(() => setPersonsOpen(true))}>
@@ -346,27 +353,6 @@ export function MenuDrawer() {
             {persons.length > 0 && <b className="drawer-count mono">{persons.length}</b>}
           </button>
 
-          <button className="drawer-item" onClick={() => go(() => setInsightsOpen(true))}>
-            <span className="drawer-item-icon"><SparkleIcon /></span>
-            <span>{tr('menu.aiPreferences')}</span>
-          </button>
-
-          <button className="drawer-item" onClick={() => go(() => setBatchOpsOpen(true))}>
-            <span className="drawer-item-icon"><LayersIcon /></span>
-            <span>{tr('menu.batchOps')}</span>
-          </button>
-
-          {isNativeMediaLibraryAvailable() && (
-            <button className="drawer-item" onClick={() => go(() => setBatchOpsOpen(true))}>
-              <span className="drawer-item-icon"><TrashIcon /></span>
-              <span>
-                {deletableRejectedCount > 0
-                  ? tr('menu.deleteRejected.withCount', { count: deletableRejectedCount })
-                  : tr('menu.deleteRejected')}
-              </span>
-            </button>
-          )}
-
           {isNativeMediaLibraryAvailable() && (
             <button className="drawer-item" onClick={() => go(() => setSupervisorPanelOpen(true))}>
               <span className="drawer-item-icon"><ClockIcon /></span>
@@ -374,77 +360,108 @@ export function MenuDrawer() {
             </button>
           )}
 
-          <button className="drawer-item" onClick={() => go(() => setDuplicatesPanelOpen(true))}>
-            <span className="drawer-item-icon"><CopyIcon /></span>
-            <span>{tr('menu.duplicates')}</span>
-            {duplicateGroupCount > 0 && <b className="drawer-count mono">{duplicateGroupCount}</b>}
-          </button>
-
-          <button className="drawer-item" onClick={() => go(() => setDocumentShieldOpen(true))}>
-            <span className="drawer-item-icon"><ShieldIcon /></span>
-            <span>{tr('menu.documentShield')}</span>
-            {shieldPendingCount > 0 && <b className="drawer-count mono">{shieldPendingCount}</b>}
-          </button>
-
           <button className="drawer-item" onClick={() => go(() => setVaultOpen(true))}>
             <span className="drawer-item-icon"><LockIcon /></span>
             <span>{tr('menu.vault')}</span>
           </button>
+
+          {hasPhotos && (
+            <>
+              <button className="drawer-item" onClick={() => go(() => setCollectionsOpen(true))}>
+                <span className="drawer-item-icon"><FolderIcon /></span>
+                <span>{tr('menu.collections')}</span>
+              </button>
+
+              <button className="drawer-item" onClick={() => go(() => setProjectsOpen(true))}>
+                <span className="drawer-item-icon"><ListIcon /></span>
+                <span>{tr('menu.projects')}</span>
+              </button>
+
+              <button className="drawer-item" onClick={() => go(() => setTripsOpen(true))}>
+                <span className="drawer-item-icon"><PinIcon /></span>
+                <span>{tr('menu.trips')}</span>
+              </button>
+
+              <label className="drawer-item drawer-item-select" title={tr('menu.genre.title')}>
+                <span className="drawer-item-icon"><TagIcon /></span>
+                <span>{tr('menu.genre')}</span>
+                <select
+                  className="drawer-select mono"
+                  value={genre}
+                  onChange={e => setGenre(e.target.value)}
+                >
+                  <option value="">{tr('menu.genre.none')}</option>
+                  {GENRE_PRESETS.map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+              </label>
+            </>
+          )}
         </DrawerGroup>
 
-        <DrawerGroup label={tr('menu.section.library')}>
-          <button className="drawer-item" onClick={() => go(() => setStatsOpen(true))}>
-            <span className="drawer-item-icon"><BarChartIcon /></span>
-            <span>{tr('menu.stats')}</span>
-          </button>
+        {hasPhotos && (
+          <DrawerGroup label={tr('menu.section.cleanup')}>
+            <button className="drawer-item" onClick={() => go(() => setDuplicatesPanelOpen(true))}>
+              <span className="drawer-item-icon"><CopyIcon /></span>
+              <span>{tr('menu.duplicates')}</span>
+              {duplicateGroupCount > 0 && <b className="drawer-count mono">{duplicateGroupCount}</b>}
+            </button>
 
-          <button className="drawer-item" onClick={() => go(() => setContactSheetOpen(true))}>
-            <span className="drawer-item-icon"><PrinterIcon /></span>
-            <span>{tr('menu.contactSheet')}</span>
-          </button>
+            <button className="drawer-item" onClick={() => go(() => setDocumentShieldOpen(true))}>
+              <span className="drawer-item-icon"><ShieldIcon /></span>
+              <span>{tr('menu.documentShield')}</span>
+              {shieldPendingCount > 0 && <b className="drawer-count mono">{shieldPendingCount}</b>}
+            </button>
 
-          <button className="drawer-item" onClick={() => go(() => setPresentationOpen(true))} title={tr('menu.presentation.title')}>
-            <span className="drawer-item-icon"><PlayIcon /></span>
-            <span>{tr('menu.presentation')}</span>
-          </button>
+            {isNativeMediaLibraryAvailable() && (
+              <button className="drawer-item" onClick={() => go(() => setBatchOpsOpen(true))}>
+                <span className="drawer-item-icon"><TrashIcon /></span>
+                <span>
+                  {deletableRejectedCount > 0
+                    ? tr('menu.deleteRejected.withCount', { count: deletableRejectedCount })
+                    : tr('menu.deleteRejected')}
+                </span>
+              </button>
+            )}
 
-          <button
-            className="drawer-item"
-            onClick={() => go(() => { setPresentationPhotoIds(selectMonthlyRecap(photos).map(p => p.id)); setPresentationOpen(true); })}
-            title={tr('menu.monthlyRecap.title')}
-          >
-            <span className="drawer-item-icon"><SparkleIcon /></span>
-            <span>{tr('menu.monthlyRecap')}</span>
-          </button>
+            <button className="drawer-item" onClick={() => go(() => setBatchOpsOpen(true))}>
+              <span className="drawer-item-icon"><LayersIcon /></span>
+              <span>{tr('menu.batchOps')}</span>
+            </button>
+          </DrawerGroup>
+        )}
 
-          <button className="drawer-item" onClick={() => go(() => setProjectsOpen(true))}>
-            <span className="drawer-item-icon"><ListIcon /></span>
-            <span>{tr('menu.projects')}</span>
-          </button>
+        {hasPhotos && (
+          <DrawerGroup label={tr('menu.section.library')}>
+            <button className="drawer-item" onClick={() => go(() => setStatsOpen(true))}>
+              <span className="drawer-item-icon"><BarChartIcon /></span>
+              <span>{tr('menu.stats')}</span>
+            </button>
 
-          <button className="drawer-item" onClick={() => go(() => setCollectionsOpen(true))}>
-            <span className="drawer-item-icon"><FolderIcon /></span>
-            <span>{tr('menu.collections')}</span>
-          </button>
+            <button className="drawer-item" onClick={() => go(() => setInsightsOpen(true))}>
+              <span className="drawer-item-icon"><SparkleIcon /></span>
+              <span>{tr('menu.aiPreferences')}</span>
+            </button>
 
-          <button className="drawer-item" onClick={() => go(() => setTripsOpen(true))}>
-            <span className="drawer-item-icon"><PinIcon /></span>
-            <span>{tr('menu.trips')}</span>
-          </button>
-
-          <label className="drawer-item drawer-item-select" title={tr('menu.genre.title')}>
-            <span className="drawer-item-icon"><TagIcon /></span>
-            <span>{tr('menu.genre')}</span>
-            <select
-              className="drawer-select mono"
-              value={genre}
-              onChange={e => setGenre(e.target.value)}
+            <button
+              className="drawer-item"
+              onClick={() => go(() => { setPresentationPhotoIds(selectMonthlyRecap(photos).map(p => p.id)); setPresentationOpen(true); })}
+              title={tr('menu.monthlyRecap.title')}
             >
-              <option value="">{tr('menu.genre.none')}</option>
-              {GENRE_PRESETS.map(g => <option key={g} value={g}>{g}</option>)}
-            </select>
-          </label>
-        </DrawerGroup>
+              <span className="drawer-item-icon"><SparkleIcon /></span>
+              <span>{tr('menu.monthlyRecap')}</span>
+            </button>
+
+            <button className="drawer-item" onClick={() => go(() => setPresentationOpen(true))} title={tr('menu.presentation.title')}>
+              <span className="drawer-item-icon"><PlayIcon /></span>
+              <span>{tr('menu.presentation')}</span>
+            </button>
+
+            <button className="drawer-item" onClick={() => go(() => setContactSheetOpen(true))}>
+              <span className="drawer-item-icon"><PrinterIcon /></span>
+              <span>{tr('menu.contactSheet')}</span>
+            </button>
+          </DrawerGroup>
+        )}
 
         <DrawerGroup
           label={tr('menu.section.exportBackup')}
@@ -453,72 +470,79 @@ export function MenuDrawer() {
           expandLabel={tr('menu.expandSection', { section: tr('menu.section.exportBackup') })}
           collapseLabel={tr('menu.collapseSection', { section: tr('menu.section.exportBackup') })}
         >
-          <button className="drawer-item" onClick={() => go(() => void exportManifest())}>
-            <span className="drawer-item-icon"><ListIcon /></span>
-            <span>{tr('menu.exportManifest')}</span>
-          </button>
+          {/* Fara nicio poza, tot ce se poate exporta e gol — ramane doar
+              restaurarea, singura care ARE sens pe o biblioteca goala (e chiar
+              felul in care iti aduci datele inapoi). */}
+          {hasPhotos && (
+            <>
+              <button className="drawer-item" onClick={() => go(() => void exportManifest())}>
+                <span className="drawer-item-icon"><ListIcon /></span>
+                <span>{tr('menu.exportManifest')}</span>
+              </button>
 
-          <button className="drawer-item" onClick={() => go(() => void exportSessionReport())} title={tr('menu.exportSessionReport.title')}>
-            <span className="drawer-item-icon"><BarChartIcon /></span>
-            <span>{tr('menu.exportSessionReport')}</span>
-          </button>
+              <button className="drawer-item" onClick={() => go(() => void exportSessionReport())} title={tr('menu.exportSessionReport.title')}>
+                <span className="drawer-item-icon"><BarChartIcon /></span>
+                <span>{tr('menu.exportSessionReport')}</span>
+              </button>
 
-          <button className="drawer-item" onClick={() => go(() => void exportXMP())}>
-            <span className="drawer-item-icon"><TagIcon /></span>
-            <span>{tr('menu.exportXmp')}</span>
-          </button>
+              <button className="drawer-item" onClick={() => go(() => void exportXMP())}>
+                <span className="drawer-item-icon"><TagIcon /></span>
+                <span>{tr('menu.exportXmp')}</span>
+              </button>
 
-          <button
-            className="drawer-item"
-            onClick={() => setApplyEditsInGallery(!applyEditsInGallery)}
-            aria-pressed={applyEditsInGallery}
-            title={tr('menu.applyEditsInGallery.title')}
-          >
-            <span className="drawer-item-icon"><EditIcon /></span>
-            <span>{applyEditsInGallery ? tr('menu.applyEditsInGallery.active') : tr('menu.applyEditsInGallery')}</span>
-          </button>
+              <button
+                className="drawer-item"
+                onClick={() => setApplyEditsInGallery(!applyEditsInGallery)}
+                aria-pressed={applyEditsInGallery}
+                title={tr('menu.applyEditsInGallery.title')}
+              >
+                <span className="drawer-item-icon"><EditIcon /></span>
+                <span>{applyEditsInGallery ? tr('menu.applyEditsInGallery.active') : tr('menu.applyEditsInGallery')}</span>
+              </button>
 
-          <button
-            className="drawer-item"
-            onClick={() => go(() => void exportClientGallery())}
-            title={tr('menu.exportClientGallery.title')}
-          >
-            <span className="drawer-item-icon"><UserCheckIcon /></span>
-            <span>{tr('menu.exportClientGallery')}</span>
-          </button>
+              <button
+                className="drawer-item"
+                onClick={() => go(() => void exportClientGallery())}
+                title={tr('menu.exportClientGallery.title')}
+              >
+                <span className="drawer-item-icon"><UserCheckIcon /></span>
+                <span>{tr('menu.exportClientGallery')}</span>
+              </button>
 
-          <button
-            className="drawer-item"
-            onClick={() => { setOpen(false); clientFeedbackInputRef.current?.click(); }}
-            title={tr('menu.importClientFeedback.title')}
-          >
-            <span className="drawer-item-icon"><HeartIcon /></span>
-            <span>{tr('menu.importClientFeedback')}</span>
-          </button>
+              <button
+                className="drawer-item"
+                onClick={() => { setOpen(false); clientFeedbackInputRef.current?.click(); }}
+                title={tr('menu.importClientFeedback.title')}
+              >
+                <span className="drawer-item-icon"><HeartIcon /></span>
+                <span>{tr('menu.importClientFeedback')}</span>
+              </button>
 
-          <label className="drawer-item drawer-item-select" title={tr('menu.watermark.title')}>
-            <span className="drawer-item-icon"><TagIcon /></span>
-            <span>{tr('menu.watermark')}</span>
-            <input
-              type="text"
-              className="drawer-text-input mono"
-              placeholder={tr('menu.watermark.placeholder')}
-              value={watermarkText}
-              onChange={e => setWatermarkText(e.target.value)}
-              maxLength={40}
-            />
-          </label>
+              <label className="drawer-item drawer-item-select" title={tr('menu.watermark.title')}>
+                <span className="drawer-item-icon"><TagIcon /></span>
+                <span>{tr('menu.watermark')}</span>
+                <input
+                  type="text"
+                  className="drawer-text-input mono"
+                  placeholder={tr('menu.watermark.placeholder')}
+                  value={watermarkText}
+                  onChange={e => setWatermarkText(e.target.value)}
+                  maxLength={40}
+                />
+              </label>
 
-          <div className="drawer-sep" />
+              <div className="drawer-sep" />
 
-          <button
-            className="drawer-item"
-            onClick={() => go(() => void exportBackup())}
-            title={tr('menu.exportBackup.title')}
-          >
-            <span className="drawer-item-icon"><DownloadIcon /></span>
-            <span>{tr('menu.exportBackup')}</span>
-          </button>
+              <button
+                className="drawer-item"
+                onClick={() => go(() => void exportBackup())}
+                title={tr('menu.exportBackup.title')}
+              >
+                <span className="drawer-item-icon"><DownloadIcon /></span>
+                <span>{tr('menu.exportBackup')}</span>
+              </button>
+            </>
+          )}
           <button
             className="drawer-item"
             onClick={() => { setOpen(false); restoreInputRef.current?.click(); }}
@@ -563,12 +587,12 @@ export function MenuDrawer() {
 
           <button
             className="drawer-item"
-            onClick={() => go(() => setEconomicMode(!economicMode))}
-            aria-pressed={economicMode}
-            title={tr('menu.economicMode.title')}
+            onClick={() => go(() => setZenPanelOpen(true))}
+            aria-pressed={zenMode}
+            title={tr('menu.zenMode.title')}
           >
-            <span className="drawer-item-icon"><BatteryIcon /></span>
-            <span>{economicMode ? tr('menu.economicMode.active') : tr('menu.economicMode')}</span>
+            <span className="drawer-item-icon"><SparkleIcon /></span>
+            <span>{tr('menu.zenMode')}</span>
           </button>
 
           <button
@@ -593,22 +617,24 @@ export function MenuDrawer() {
 
           <button
             className="drawer-item"
-            onClick={() => go(() => setZenPanelOpen(true))}
-            aria-pressed={zenMode}
-            title={tr('menu.zenMode.title')}
+            onClick={() => go(() => setEconomicMode(!economicMode))}
+            aria-pressed={economicMode}
+            title={tr('menu.economicMode.title')}
           >
-            <span className="drawer-item-icon"><SparkleIcon /></span>
-            <span>{tr('menu.zenMode')}</span>
+            <span className="drawer-item-icon"><BatteryIcon /></span>
+            <span>{economicMode ? tr('menu.economicMode.active') : tr('menu.economicMode')}</span>
           </button>
 
-          <button
-            className="drawer-item"
-            onClick={() => setGridDensity(nextGridDensity(gridDensity))}
-            title={tr('menu.gridDensity.title')}
-          >
-            <span className="drawer-item-icon"><GridIcon /></span>
-            <span>{tr('menu.gridDensity', { density: tr(`menu.gridDensity.${gridDensity}`) })}</span>
-          </button>
+          {hasPhotos && (
+            <button
+              className="drawer-item"
+              onClick={() => setGridDensity(nextGridDensity(gridDensity))}
+              title={tr('menu.gridDensity.title')}
+            >
+              <span className="drawer-item-icon"><GridIcon /></span>
+              <span>{tr('menu.gridDensity', { density: tr(`menu.gridDensity.${gridDensity}`) })}</span>
+            </button>
+          )}
         </DrawerGroup>
 
         <DrawerGroup label={tr('menu.section.help')}>

@@ -278,6 +278,7 @@ export default function App() {
   const setMenuOpen = useStore(s => s.setMenuOpen);
   const setExportDestinationsOpen = useStore(s => s.setExportDestinationsOpen);
   const welcomeSeen = useStore(s => s.welcomeSeen);
+  const setSupervisorPanelOpen = useStore(s => s.setSupervisorPanelOpen);
   const notice = useStore(s => s.notice);
   const clearNotice = useStore(s => s.clearNotice);
   const aiDegraded = useStore(s => s.aiDegraded);
@@ -1049,7 +1050,19 @@ export default function App() {
           <p className="mono empty-tagline"><span className="live-dot" aria-hidden="true" /> {tr('app.empty.badge')}</p>
           <h2>{tr('app.empty.title')}</h2>
           <p className="empty-lead">{tr('app.empty.description')}</p>
-          <button className="btn-accent big" onClick={() => void onAddPhotosClick()}>{tr('app.empty.cta')}</button>
+          {/* Doua cai de intrare, una langa alta (cerinta directa): alegi tu
+              fisierele, sau lasi supervizorul sa aduca galeria telefonului pe
+              perioade. A doua exista doar pe Android nativ, unde chiar avem un
+              MediaStore de citit — pe web ar fi un buton care nu poate face
+              nimic. */}
+          <div className="empty-cta-row">
+            <button className="btn-accent big" onClick={() => void onAddPhotosClick()}>{tr('app.empty.cta')}</button>
+            {isNativeMediaLibraryAvailable() && (
+              <button className="ghost big empty-cta-secondary" onClick={() => setSupervisorPanelOpen(true)}>
+                <ClockIcon className="inline-icon" aria-hidden="true" /> {tr('app.empty.supervisorCta')}
+              </button>
+            )}
+          </div>
           <p className="mono empty-formats">{tr('app.empty.formats')}</p>
           <p className="hint"><UserCheckIcon className="inline-icon" /> {tr('app.empty.hint')}</p>
           <GalleryOverviewNote />

@@ -113,6 +113,13 @@
      spatele ferestrei". Popover-ul statea la 40, sub cele 45 ale meniului din
      care fusese deschis, deci lista de foldere aparea ascunsa in spatele lui. */
   --z-dropdown: 46;
+  /* Bannerele persistente (memorii, instalare, backup, supervizor) stau
+     DEASUPRA paginii, dar SUB panourile modale: la z-index de toast (50) se
+     desenau peste orice panou deschis si peste ecranul de bun venit, acoperind
+     exact continutul pe care utilizatorul tocmai il deschisese (bug raportat
+     cu captura). Toast-urile propriu-zise raman la 50 — alea chiar trebuie
+     vazute oriunde, sunt tranzitorii. */
+  --z-banner: 8;
   --z-toast: 50;
 
   /* Marginile sigure, expuse si catre JS: pe Android edge-to-edge (targetSdk 35+)
@@ -389,7 +396,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
    `position: fixed`, ca sa se stivuiasca vertical fara sa se suprapuna cand
    sunt vizibile mai multe deodata. */
 .banner-stack {
-  position: fixed; left: 8px; right: 8px; top: calc(8px + env(safe-area-inset-top)); z-index: var(--z-toast);
+  position: fixed; left: 8px; right: 8px; top: calc(8px + env(safe-area-inset-top)); z-index: var(--z-banner);
   max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; gap: 8px;
   pointer-events: none;
 }
@@ -1692,6 +1699,17 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .appearance-radio.on { border-color: var(--accent); }
 .appearance-radio.on::after { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
 
+/* Cele doua cai de intrare de pe ecranul gol, una langa alta (alegi fisiere /
+   aduci galeria pe perioade). Pe ecrane inguste trec una sub alta, ambele pe
+   toata latimea — nu doua butoane inghesuite pe acelasi rand. */
+.empty-cta-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; align-items: stretch; }
+.empty-cta-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+.empty-cta-secondary .inline-icon { width: 15px; height: 15px; color: var(--accent); }
+@media (max-width: 420px) {
+  .empty-cta-row { flex-direction: column; width: 100%; max-width: 320px; }
+  .empty-cta-row > * { width: 100%; }
+}
+
 /* ── "Trimite pozele pastrate": foaia de destinatii (mockup 20) ── */
 .export-dest-count { font-size: 0.78rem; color: var(--text-dim); margin: 0; }
 .export-dest-row {
@@ -2468,16 +2486,20 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .drawer-group-body[data-open="true"] { grid-template-rows: 1fr; }
 .drawer-group-body-inner { display: flex; flex-direction: column; gap: 3px; min-height: 0; overflow: hidden; }
 .drawer-item {
-  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
-  padding: 10px; border-radius: var(--radius); color: var(--text);
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  padding: 9px 10px; border-radius: var(--radius); color: var(--text); font-size: 0.9rem;
   transition: background 0.15s var(--ease), transform 0.1s var(--ease);
 }
 .drawer-item:hover { background: var(--surface-2); }
 .drawer-item:hover .drawer-item-icon { background: var(--surface-3); color: var(--accent-text); }
 .drawer-item:active { transform: scale(0.98); }
+/* Fara pastila plina implicit (reorganizare meniu, feedback "prea incarcat
+   vizual"): ~30 de patratele umplute unul sub altul faceau lista sa arate ca o
+   grila de cutii, nu ca un meniu. Fundalul apare doar pe randul atins/hover,
+   unde chiar spune ceva. */
 .drawer-item-icon {
-  flex-shrink: 0; width: 34px; height: 34px; border-radius: 10px; background: var(--surface-2);
-  color: var(--text-dim); display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; width: 30px; height: 30px; border-radius: 9px; background: transparent;
+  color: var(--text-faint); display: flex; align-items: center; justify-content: center;
   transition: background 0.15s var(--ease), color 0.15s var(--ease);
 }
 .drawer-item-icon svg { width: 17px; height: 17px; }
@@ -3145,7 +3167,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 /* "Supervizorul galeriei" — acelasi limbaj vizual gradient ca .home-recap-card/
    .memory-banner (functie de descoperire/progres, nu un avertisment). */
 .gallery-supervisor-banner {
-  display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius);
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px; border-radius: var(--radius);
   background-image: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--accent-gradient);
   background-origin: border-box; background-clip: padding-box, border-box; border: 1px solid transparent;
   box-shadow: var(--shadow-lg), 0 0 22px -12px rgb(var(--accent-rgb) / 0.5);
@@ -3158,7 +3180,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .gallery-supervisor-text span { font-size: 0.72rem; color: var(--text-dim); }
 /* Zona clicabila care deschide panoul complet (icon+text) — buton, nu span-uri simple, deci
    are nevoie sa refaca explicit alinierea/latimea pe care le mostenea gratis inainte. */
-.gallery-supervisor-main { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; text-align: left; }
+/* min-width mai mare decat 0: sub ~180px titlul se rupea cate un cuvant pe rand
+   ("Urmatoarea / perioada de / sortat"), inghesuit langa buton. Sub prag, randul
+   se infasoara si butonul trece dedesubt, pe toata latimea. */
+.gallery-supervisor-main { display: flex; align-items: center; gap: 10px; flex: 1 1 190px; min-width: 0; text-align: left; }
+.gallery-supervisor-banner .gallery-supervisor-cta { flex: 0 1 auto; }
 .gallery-supervisor-cta {
   flex-shrink: 0; border: none; border-radius: 999px; padding: 8px 14px; font-size: 0.76rem; font-weight: 700;
   background: var(--accent-gradient); color: #06070a;
@@ -3185,8 +3211,36 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .supervisor-section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
 .supervisor-section-head .supervisor-section-label { margin-bottom: 0; }
 .supervisor-remaining-cta { width: 100%; text-align: center; padding: 10px; border-radius: 12px; margin-bottom: 4px; font-size: 0.8rem; }
-.supervisor-chips { display: flex; gap: 6px; flex-wrap: wrap; }
-.supervisor-next-card { width: 100%; margin-bottom: 4px; }
+/* Bara de acoperire: cat din galerie a fost adusa deja (idee proprie —
+   panoul nu spunea nicaieri unde te afli). */
+.supervisor-coverage { margin-bottom: 12px; }
+.supervisor-coverage-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.supervisor-coverage-head b { font-size: 0.86rem; color: var(--text); }
+.supervisor-coverage-head span { font-size: 0.72rem; color: var(--text-faint); }
+.supervisor-coverage-bar { height: 6px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.supervisor-coverage-bar i { display: block; height: 100%; border-radius: 999px; background: var(--accent-gradient); transition: width 0.3s var(--ease); }
+
+/* Perioade / Foldere ca file, nu doua sectiuni stivuite: inainte trebuia sa
+   derulezi toata lista de perioade ca sa ajungi la foldere. */
+.supervisor-tabs { display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); margin-bottom: 12px; }
+.supervisor-tab { flex: 1; padding: 8px; border-radius: 999px; font-size: 0.8rem; font-weight: 600; color: var(--text-dim); }
+.supervisor-tab.active { background: var(--surface-3); color: var(--text); box-shadow: 0 0 0 1px rgb(var(--accent-rgb) / 0.3); }
+
+/* Perioada urmatoare — singurul lucru cu adevarat "principal" din panou. */
+.supervisor-next {
+  border-radius: var(--radius-lg); padding: 14px; margin-bottom: 12px;
+  background-image: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--accent-gradient);
+  background-origin: border-box; background-clip: padding-box, border-box; border: 1px solid transparent;
+}
+.supervisor-next-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-faint); }
+.supervisor-next-range { font-size: 1rem; font-weight: 700; color: var(--text); margin: 3px 0 11px; }
+.supervisor-next-actions { display: flex; gap: 8px; }
+.supervisor-next-actions .btn-accent { flex: 1; }
+
+/* Lungimea perioadei: un <select> nativ pe un rand, in loc de 6 pastile care
+   se rupeau pe doua randuri. */
+.supervisor-length { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; font-size: 0.8rem; color: var(--text-dim); }
+.supervisor-folder-count { flex-shrink: 0; color: var(--text-faint); font-size: 0.72rem; }
 .supervisor-period-list { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
 .supervisor-period-row {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
@@ -3197,16 +3251,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .supervisor-period-row .inline-icon { width: 13px; height: 13px; vertical-align: -2px; margin-right: 3px; }
 .supervisor-period-covered { display: flex; align-items: center; font-size: 0.68rem; color: var(--pick); flex-shrink: 0; }
 .supervisor-period-covered .inline-icon { color: var(--pick); }
-/* Randurile din calendar sunt acum <div> (nu <button>) — contin un buton principal
-   (aduce perioada) + un buton "Sari peste" (idee proprie), separate ca skip-ul sa
-   nu declanseze accidental importul intregii perioade. */
-.supervisor-period-row-main {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  flex: 1; min-width: 0; background: none; border: none; padding: 0; margin: 0;
-  font: inherit; color: inherit; text-align: left;
-}
-.supervisor-period-row-main:disabled { opacity: 0.6; }
-.supervisor-skip-btn { flex-shrink: 0; white-space: nowrap; }
 
 /* "Vezi toate pozele" — singura punte intre Acasa (curat, doar HomeDashboard)
    si grila clasica (CullGauge + filtre + carduri), acum ascunsa implicit. */

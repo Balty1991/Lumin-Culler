@@ -1,10 +1,10 @@
-import { useEffect, useRef, type MouseEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { isPeriodAlreadyCovered, PERIOD_MONTH_OPTIONS, type GalleryPeriod, type PeriodMonths } from '../state/gallerySupervisor';
 import { formatPeriod } from './GallerySupervisorBanner';
-import { ClockIcon, XIcon, FolderIcon, CheckIcon, GridIcon } from './icons';
+import { ClockIcon, XIcon, FolderIcon, CheckIcon } from './icons';
 import { t, plural } from '../i18n';
 
 type Tr = (key: string, params?: Record<string, string | number>) => string;
@@ -17,13 +17,25 @@ function periodMonthsLabel(months: PeriodMonths, tr: Tr): string {
 }
 
 /**
- * Panoul complet al "Supervizorului galeriei" — cerinta directa a
- * utilizatorului: lungime de perioada aleasa (1/2/3 luni), selector
- * calendaristic peste TOATE perioadele (nu doar cea recomandata), cu
- * confirmare inainte de a re-aduce o perioada deja acoperita, plus foldere
- * din galerie ca alternativa la segmentarea cronologica. Redeschis oricand
- * din Meniu (bannerul de pe Acasa poate fi inchis doar pentru ziua curenta —
- * vezi GallerySupervisorBanner.tsx).
+ * Panoul "Supervizorului galeriei": aduci galeria telefonului in aplicatie pe
+ * bucati — cronologic (perioade) sau pe foldere.
+ *
+ * Reorganizat dupa feedback direct ("prea incarcat, si texte si vizual"). Ce
+ * s-a schimbat fata de prima versiune, si de ce:
+ *
+ * - O bara de acoperire sus. Panoul nu spunea NICAIERI unde te afli in
+ *   galerie; acum vezi din prima cat ai adus si cat a ramas.
+ * - Perioade si Foldere devin doua file, nu doua sectiuni stivuite. Inainte
+ *   trebuia sa derulezi peste toata lista de perioade ca sa ajungi la foldere.
+ * - Perioada URMATOARE nu se mai repeta in lista de dedesubt (aparea de doua
+ *   ori, o data ca ecran principal si o data ca prim rand).
+ * - Lungimea perioadei era un rand de 6 pastile care se rupea pe doua randuri;
+ *   e acum un <select> nativ, o singura linie, cu eticheta proprie.
+ * - "Sari peste" era pe FIECARE rand (5-6 butoane identice). A ramas doar pe
+ *   cardul perioadei urmatoare — acolo si inseamna ce zice ("las-o, treci la
+ *   urmatoarea"), pentru ca actiunea muta cursorul; pe un rand oarecare din
+ *   mijlocul listei ar fi insemnat, de fapt, "marcheaza tot pana aici ca
+ *   sortat", ceea ce eticheta nu spunea.
  */
 export function GallerySupervisorPanel() {
   const open = useStore(s => s.supervisorPanelOpen);
@@ -32,6 +44,7 @@ export function GallerySupervisorPanel() {
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const containerRef = useRef<HTMLDivElement>(null);
   useModalFocusTrap(containerRef, open);
+  const [tab, setTab] = useState<'periods' | 'folders'>('periods');
 
   const galleryDateRange = useStore(s => s.galleryDateRange);
   const loadGalleryDateRange = useStore(s => s.loadGalleryDateRange);
@@ -41,6 +54,7 @@ export function GallerySupervisorPanel() {
   const nextPeriod = useStore(s => s.supervisorNextPeriod());
   const allPeriods = useStore(s => s.supervisorAllPeriods());
   const remainingPeriod = useStore(s => s.supervisorRemainingPeriod());
+  const coveragePercent = useStore(s => s.supervisorCoveragePercent());
   const importGalleryPeriod = useStore(s => s.importGalleryPeriod);
   const supervisorImporting = useStore(s => s.supervisorImporting);
   const askConfirm = useStore(s => s.askConfirm);
@@ -85,12 +99,11 @@ export function GallerySupervisorPanel() {
     await importGalleryPeriod(remainingPeriod);
   };
 
-  const skipPeriod = async (period: GalleryPeriod, e?: MouseEvent) => {
-    e?.stopPropagation();
-    if (supervisorImporting) return;
-    const ok = await askConfirm(tr('gallerySupervisor.skip.confirm', { period: formatPeriod(period.start, period.end, locale) }));
+  const skipNext = async () => {
+    if (!nextPeriod || supervisorImporting) return;
+    const ok = await askConfirm(tr('gallerySupervisor.skip.confirm', { period: formatPeriod(nextPeriod.start, nextPeriod.end, locale) }));
     if (!ok) return;
-    skipGalleryPeriod(period);
+    skipGalleryPeriod(nextPeriod);
   };
 
   const uncoveredFolders = (galleryFolders?.folders ?? []).filter(f => !supervisorImportedFolderIds.has(f.id));
@@ -112,6 +125,10 @@ export function GallerySupervisorPanel() {
     await importGalleryFolder(folder.id);
   };
 
+  // Perioada urmatoare are deja cardul ei mare deasupra — nu o repetam si in lista.
+  const restPeriods = allPeriods.filter(p => !nextPeriod || p.start !== nextPeriod.start);
+  const hasFolders = Boolean(galleryFolders?.granted && galleryFolders.folders.length);
+
   return (
     <div className="detail" onClick={e => { if (e.target === e.currentTarget) setOpen(false); }}>
       <div className="detail-inner narrow supervisor-panel" ref={containerRef} role="dialog" aria-modal="true" aria-label={tr('gallerySupervisor.panelTitle')} tabIndex={-1}>
@@ -126,108 +143,116 @@ export function GallerySupervisorPanel() {
           <p className="hint">{tr('gallerySupervisor.nativeOnly')}</p>
         ) : (
           <>
-            <div className="supervisor-section">
-              <div className="supervisor-section-label">{tr('gallerySupervisor.periodLength')}</div>
-              <div className="supervisor-chips">
-                {PERIOD_MONTH_OPTIONS.map(months => (
-                  <button
-                    key={months}
-                    type="button"
-                    className={supervisorPeriodMonths === months ? 'chip active' : 'chip'}
-                    onClick={() => setSupervisorPeriodMonths(months as PeriodMonths)}
-                  >
-                    {periodMonthsLabel(months as PeriodMonths, tr)}
-                  </button>
-                ))}
+            {/* Unde te afli in galerie — panoul nu spunea asta nicaieri. */}
+            <div className="supervisor-coverage">
+              <div className="supervisor-coverage-head">
+                <b>{tr('gallerySupervisor.coverage', { percent: coveragePercent })}</b>
+                {remainingPeriod && (
+                  <span>{formatPeriod(remainingPeriod.start, remainingPeriod.end, locale)}</span>
+                )}
+              </div>
+              <div className="supervisor-coverage-bar" role="progressbar" aria-valuenow={coveragePercent} aria-valuemin={0} aria-valuemax={100}>
+                <i style={{ width: `${coveragePercent}%` }} />
               </div>
             </div>
 
             {lastSupervisorImportIds && lastSupervisorImportIds.length > 0 && (
               <button
                 type="button"
-                className="ghost supervisor-sortnow-cta"
+                className="btn-accent supervisor-sortnow-cta"
                 onClick={() => openTiktokSortForIds(lastSupervisorImportIds)}
               >
                 {tr(plural(lastSupervisorImportIds.length, 'gallerySupervisor.sortNow.one', 'gallerySupervisor.sortNow.other'), { count: lastSupervisorImportIds.length })}
               </button>
             )}
 
-            {nextPeriod && (
-              <div className="gallery-supervisor-banner glass supervisor-next-card">
+            {hasFolders && (
+              <div className="supervisor-tabs" role="tablist" aria-label={tr('gallerySupervisor.panelTitle')}>
                 <button
-                  type="button"
-                  className="gallery-supervisor-main"
-                  disabled={supervisorImporting}
-                  onClick={() => void bringPeriod(nextPeriod)}
+                  type="button" role="tab" aria-selected={tab === 'periods'}
+                  className={tab === 'periods' ? 'supervisor-tab active' : 'supervisor-tab'}
+                  onClick={() => setTab('periods')}
                 >
-                  <span className="gallery-supervisor-icon" aria-hidden="true"><ClockIcon /></span>
-                  <span className="gallery-supervisor-text">
-                    <b>{tr('gallerySupervisor.title')}</b>
-                    <span>{formatPeriod(nextPeriod.start, nextPeriod.end, locale)}</span>
-                  </span>
+                  {tr('gallerySupervisor.tab.periods')}
                 </button>
                 <button
-                  type="button"
-                  className="ghost small supervisor-skip-btn"
-                  disabled={supervisorImporting}
-                  onClick={e => void skipPeriod(nextPeriod, e)}
+                  type="button" role="tab" aria-selected={tab === 'folders'}
+                  className={tab === 'folders' ? 'supervisor-tab active' : 'supervisor-tab'}
+                  onClick={() => setTab('folders')}
                 >
-                  {tr('gallerySupervisor.skip')}
+                  {tr('gallerySupervisor.tab.folders')}
                 </button>
               </div>
             )}
 
-            {remainingPeriod && (
-              <button type="button" className="ghost supervisor-remaining-cta" disabled={supervisorImporting} onClick={() => void bringRemaining()}>
-                {tr('gallerySupervisor.remaining.cta', { period: formatPeriod(remainingPeriod.start, remainingPeriod.end, locale) })}
-              </button>
-            )}
-
-            {allPeriods.length > 0 && (
-              <div className="supervisor-section">
-                <div className="supervisor-section-label">{tr('gallerySupervisor.calendar')}</div>
-                <div className="supervisor-period-list">
-                  {allPeriods.map(period => (
-                    <div key={period.start} className="supervisor-period-row">
+            {tab === 'periods' || !hasFolders ? (
+              <>
+                {nextPeriod && (
+                  <div className="supervisor-next">
+                    <div className="supervisor-next-label">{tr('gallerySupervisor.next')}</div>
+                    <div className="supervisor-next-range">{formatPeriod(nextPeriod.start, nextPeriod.end, locale)}</div>
+                    <div className="supervisor-next-actions">
                       <button
-                        type="button"
-                        className="supervisor-period-row-main"
+                        type="button" className="btn-accent"
                         disabled={supervisorImporting}
-                        onClick={() => void bringPeriod(period)}
+                        onClick={() => void bringPeriod(nextPeriod)}
                       >
-                        <span>{formatPeriod(period.start, period.end, locale)}</span>
-                        {period.covered && (
-                          <span className="supervisor-period-covered">
-                            <CheckIcon className="inline-icon" aria-hidden="true" /> {tr('gallerySupervisor.covered')}
-                          </span>
-                        )}
+                        {tr('gallerySupervisor.bring')}
                       </button>
-                      {!period.covered && (
-                        <button
-                          type="button"
-                          className="ghost small supervisor-skip-btn"
-                          disabled={supervisorImporting}
-                          onClick={e => void skipPeriod(period, e)}
-                        >
-                          {tr('gallerySupervisor.skip')}
-                        </button>
-                      )}
+                      <button type="button" className="ghost" disabled={supervisorImporting} onClick={() => void skipNext()}>
+                        {tr('gallerySupervisor.skip')}
+                      </button>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                  </div>
+                )}
 
-            {galleryFolders?.granted && galleryFolders.folders.length > 0 && (
-              <div className="supervisor-section">
-                <div className="supervisor-section-head">
-                  <div className="supervisor-section-label">{tr('gallerySupervisor.folders')}</div>
-                  <button type="button" className="ghost small" disabled={supervisorImporting || !uncoveredFolders.length} onClick={() => void bringAllFolders()}>
-                    <GridIcon className="inline-icon" aria-hidden="true" /> {tr('gallerySupervisor.allFolders.cta')}
+                <label className="supervisor-length">
+                  <span>{tr('gallerySupervisor.periodLength')}</span>
+                  <select
+                    className="drawer-select mono"
+                    value={supervisorPeriodMonths}
+                    onChange={e => setSupervisorPeriodMonths(Number(e.target.value) as PeriodMonths)}
+                  >
+                    {PERIOD_MONTH_OPTIONS.map(months => (
+                      <option key={months} value={months}>{periodMonthsLabel(months as PeriodMonths, tr)}</option>
+                    ))}
+                  </select>
+                </label>
+
+                {restPeriods.length > 0 && (
+                  <div className="supervisor-section">
+                    <div className="supervisor-section-label">{tr('gallerySupervisor.calendar')}</div>
+                    <div className="supervisor-period-list">
+                      {restPeriods.map(period => (
+                        <button
+                          key={period.start}
+                          type="button"
+                          className="supervisor-period-row"
+                          disabled={supervisorImporting}
+                          onClick={() => void bringPeriod(period)}
+                        >
+                          <span>{formatPeriod(period.start, period.end, locale)}</span>
+                          {period.covered && (
+                            <span className="supervisor-period-covered">
+                              <CheckIcon className="inline-icon" aria-hidden="true" /> {tr('gallerySupervisor.covered')}
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {remainingPeriod && (
+                  <button type="button" className="ghost supervisor-remaining-cta" disabled={supervisorImporting} onClick={() => void bringRemaining()}>
+                    {tr('gallerySupervisor.remaining.cta', { period: formatPeriod(remainingPeriod.start, remainingPeriod.end, locale) })}
                   </button>
-                </div>
+                )}
+              </>
+            ) : (
+              <div className="supervisor-section">
                 <div className="supervisor-period-list">
-                  {galleryFolders.folders.map(folder => {
+                  {galleryFolders?.folders.map(folder => {
                     const covered = supervisorImportedFolderIds.has(folder.id);
                     return (
                       <button
@@ -243,11 +268,14 @@ export function GallerySupervisorPanel() {
                             <CheckIcon className="inline-icon" aria-hidden="true" /> {tr('gallerySupervisor.covered')}
                           </span>
                         )}
-                        <span className="mono">{tr(plural(folder.count, 'gallerySupervisor.folderCount.one', 'gallerySupervisor.folderCount.other'), { count: folder.count })}</span>
+                        <span className="mono supervisor-folder-count">{tr(plural(folder.count, 'gallerySupervisor.folderCount.one', 'gallerySupervisor.folderCount.other'), { count: folder.count })}</span>
                       </button>
                     );
                   })}
                 </div>
+                <button type="button" className="ghost supervisor-remaining-cta" disabled={supervisorImporting || !uncoveredFolders.length} onClick={() => void bringAllFolders()}>
+                  {tr('gallerySupervisor.allFolders.cta')}
+                </button>
               </div>
             )}
           </>
