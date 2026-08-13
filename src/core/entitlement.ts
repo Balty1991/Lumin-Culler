@@ -5,16 +5,24 @@
  * recunoasterea a mai mult de o persoana si exportul de poze peste un plafon
  * lunar generos sunt gandite ca sa ceara abonament.
  *
- * Deocamdata NU exista niciun mecanism real de plata (Google Play Billing nu
- * e cablat inca — necesita crearea produsului de abonament in Play Console,
- * pas care apartine dezvoltatorului, nu codului). Pana atunci:
- *   - isPremium() e mereu false (nimic de citit inca dintr-o achizitie reala);
- *   - depasirea plafonului NU blocheaza nimic — doar informeaza (notice),
- *     ca utilizatorii sa nu ramana blocati fara nicio cale reala de plata.
- * Cand pluginul de billing va exista, singura schimbare necesara e ca acesta
- * sa scrie in PREMIUM_FLAG_KEY dupa o achizitie activa confirmata — restul
- * codului (apelantii din state/store.ts) nu se schimba.
+ * Sursa de adevar e Google Play, nu acest fisier: refreshEntitlement() intreaba
+ * plugin-ul de billing si scrie raspunsul in PREMIUM_FLAG_KEY. isPremium()
+ * ramane SINCRON si citeste doar cache-ul acela — altfel fiecare apelant
+ * (state/store.ts, PersonsPanel, SessionOutcome) ar fi trebuit sa devina async
+ * pentru o intrebare la care raspunsul se schimba de cateva ori pe an.
+ *
+ * De ce se pastreaza ultima stare cunoscuta: verificarea are nevoie de retea.
+ * Fara cache, un abonat care deschide aplicatia in avion ar fi tratat ca
+ * neabonat pana la urmatoarea conexiune. Cache-ul se actualizeaza doar cand Play
+ * chiar RASPUNDE — un esec de retea nu sterge niciodata un abonament valid.
+ *
+ * Ce NU face: validare de chitanta pe server. Aplicatia n-are server, si a
+ * adauga unul ar contrazice direct promisiunea ca nimic nu pleaca de pe telefon.
+ * Un flag din localStorage e falsificabil de cine vrea neaparat; pentru un
+ * abonament de consum la o aplicatie locala, ala e compromisul corect.
  */
+
+import { isBillingAvailable, queryPremiumActive } from './billing';
 
 const PREMIUM_FLAG_KEY = 'lumin-premium';
 const EXPORT_LOG_KEY = 'lumin-export-log';
@@ -25,6 +33,26 @@ export const FREE_EXPORT_PHOTOS_PER_MONTH = 150;
 export const FREE_ENROLLED_PERSONS = 1;
 
 const ROLLING_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+
+/**
+ * Reintreaba Google Play si actualizeaza cache-ul local. De apelat la pornire si
+ * dupa o cumparare reusita.
+ *
+ * Scrie DOAR cand primeste un raspuns: queryPremiumActive() intoarce `false` si
+ * la esec de retea (vezi core/billing.ts), iar pe web e mereu `false` — daca am
+ * scrie neconditionat, o pornire offline sau o deschidere in browser ar sterge
+ * abonamentul cuiva care chiar plateste.
+ */
+export async function refreshEntitlement(): Promise<boolean> {
+  if (!isBillingAvailable()) return isPremium();
+  const active = await queryPremiumActive();
+  try {
+    localStorage.setItem(PREMIUM_FLAG_KEY, active ? '1' : '0');
+  } catch {
+    // stocare indisponibila — ramane starea din memoria sesiunii curente
+  }
+  return active;
+}
 
 export function isPremium(): boolean {
   try {

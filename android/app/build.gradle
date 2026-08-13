@@ -87,6 +87,10 @@ dependencies {
     // e bundle-uit direct in aceasta dependinta (ca ML Kit face-detection mai sus),
     // nu vine din assets/ descarcate de CI.
     implementation "com.google.mlkit:text-recognition:$mlkitTextRecognitionVersion"
+    // Abonament Premium — vezi plugins/BillingPlugin.kt. Singura dependinta din
+    // proiect care chiar are nevoie de retea: verificarea abonamentului se face
+    // prin Google Play, restul aplicatiei ramane complet offline.
+    implementation "com.android.billingclient:billing-ktx:$billingVersion"
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"

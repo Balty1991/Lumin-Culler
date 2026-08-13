@@ -5,7 +5,7 @@
  */
 import { create } from 'zustand';
 import { db, type AnalysisRecord, type PhotoRecord, type KnownPerson, type ColorLabel, type CollectionRecord } from '../core/db';
-import { recordExport, remainingFreeExports, isPremium, canEnrollAnotherPersonFree, FREE_EXPORT_PHOTOS_PER_MONTH } from '../core/entitlement';
+import { recordExport, remainingFreeExports, isPremium, canEnrollAnotherPersonFree, FREE_EXPORT_PHOTOS_PER_MONTH, refreshEntitlement } from '../core/entitlement';
 import {
   loadCollections, createCollection as createCollectionRecord, renameCollection as renameCollectionRecord,
   deleteCollection as deleteCollectionRecord, addPhotosToCollection as addPhotosToCollectionRecord,
@@ -1885,6 +1885,10 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   boot: async () => {
+    // Abonamentul se reverifica la fiecare pornire: poate fi expirat, anulat,
+    // rambursat sau cumparat pe alt dispozitiv de la ultima deschidere. Nu se
+    // asteapta dupa el — restul pornirii nu depinde de retea.
+    void refreshEntitlement();
     if (get().booted) return;
     try {
       const [views, persons, history, collections] = await Promise.all([

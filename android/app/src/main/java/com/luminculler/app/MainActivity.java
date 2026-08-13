@@ -17,6 +17,7 @@ import com.luminculler.app.plugins.SegmentationPlugin;
 import com.luminculler.app.plugins.ImageEmbedderPlugin;
 import com.luminculler.app.plugins.FolderExportPlugin;
 import com.luminculler.app.plugins.MediaLibraryPlugin;
+import com.luminculler.app.plugins.BillingPlugin;
 
 public class MainActivity extends BridgeActivity {
     @Override
@@ -26,7 +27,7 @@ public class MainActivity extends BridgeActivity {
         // inainte de super.onCreate(). Vezi plugins/FaceDetectionPlugin.kt / ImageAnalysisPlugin.kt /
         // ImageLabelingPlugin.kt / FaceMeshPlugin.kt / ImageClassifierPlugin.kt /
         // TextRecognitionPlugin.kt / PoseDetectionPlugin.kt / SegmentationPlugin.kt / ImageEmbedderPlugin.kt /
-        // FolderExportPlugin.kt / MediaLibraryPlugin.kt.
+        // FolderExportPlugin.kt / MediaLibraryPlugin.kt / BillingPlugin.kt.
         registerPlugin(FaceDetectionPlugin.class);
         registerPlugin(ImageAnalysisPlugin.class);
         registerPlugin(ImageLabelingPlugin.class);
@@ -38,6 +39,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(ImageEmbedderPlugin.class);
         registerPlugin(FolderExportPlugin.class);
         registerPlugin(MediaLibraryPlugin.class);
+        registerPlugin(BillingPlugin.class);
         super.onCreate(savedInstanceState);
 
         // Fara acest listener, un crash al PROCESULUI DE RANDARE al WebView-ului

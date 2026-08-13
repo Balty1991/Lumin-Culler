@@ -1623,6 +1623,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   color: var(--accent); text-decoration: underline; cursor: pointer;
 }
 
+/* Butonul real de abonare (PremiumPanel) — apare doar cand Play a confirmat un
+   pret, deci nu poate duce niciodata intr-un flux inexistent. */
+.premium-subscribe { width: 100%; margin-top: 4px; }
+.premium-subscribe:disabled { opacity: 0.6; cursor: default; }
+
 
 
 

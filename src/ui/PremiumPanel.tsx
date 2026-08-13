@@ -1,8 +1,10 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { XIcon, StarIcon, UserCheckIcon, DownloadIcon, SparkleIcon } from './icons';
 import { FREE_EXPORT_PHOTOS_PER_MONTH, FREE_ENROLLED_PERSONS, exportsInRollingMonth } from '../core/entitlement';
+import { refreshEntitlement } from '../core/entitlement';
+import { isBillingAvailable, queryPremiumPrice, startSubscription } from '../core/billing';
 import { t } from '../i18n';
 
 /**
@@ -28,6 +30,17 @@ export function PremiumPanel() {
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const containerRef = useRef<HTMLDivElement>(null);
   useModalFocusTrap(containerRef, open);
+  /** null = inca nu stim (Play n-a raspuns, produs neconfigurat, web) — NU inventam un pret. */
+  const [price, setPrice] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    if (!open) { setFailed(false); return; }
+    let alive = true;
+    void queryPremiumPrice().then(p => { if (alive) setPrice(p); });
+    return () => { alive = false; };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -85,8 +98,32 @@ export function PremiumPanel() {
           <span>{tr('premium.usage.persons', { count: persons.length, limit: FREE_ENROLLED_PERSONS })}</span>
         </div>
 
-        {/* Deliberat un anunt, nu un buton: nu exista nimic de cumparat inca. */}
-        <p className="premium-soon">{tr('premium.soon')}</p>
+        {/* Butonul apare doar cand Play chiar a confirmat ca exista ceva de
+            cumparat: `price` nenul inseamna produs configurat SI build semnat.
+            Un buton care deschide un flux inexistent e mai rau decat un anunt. */}
+        {isBillingAvailable() && price ? (
+          <>
+            <button
+              className="btn-accent big premium-subscribe"
+              disabled={busy}
+              onClick={() => {
+                setBusy(true); setFailed(false);
+                void startSubscription()
+                  .then(async outcome => {
+                    if (outcome === 'purchased') { await refreshEntitlement(); setOpen(false); }
+                    else if (outcome === 'unavailable') setFailed(true);
+                    // 'cancelled' = utilizatorul s-a razgandit; nimic de spus
+                  })
+                  .finally(() => setBusy(false));
+              }}
+            >
+              {busy ? tr('premium.subscribing') : tr('premium.subscribe', { price })}
+            </button>
+            {failed && <p className="premium-soon">{tr('premium.failed')}</p>}
+          </>
+        ) : (
+          <p className="premium-soon">{tr('premium.soon')}</p>
+        )}
       </div>
     </div>
   );
