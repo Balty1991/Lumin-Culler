@@ -964,6 +964,9 @@ export const ro = {
   'factor.groupAwkwardRatio.pos': 'Fără expresii stânjenitoare',
   'factor.bodyCroppedAtEdge': 'Membru tăiat de cadru',
   'factor.bodyCroppedAtEdge.pos': 'Nimic tăiat de cadru',
+  'factor.subjectProminence': 'Subiect mare în cadru',
+  'factor.noCameraMetadata': 'Fără date de aparat foto',
+  'factor.noCameraMetadata.pos': 'Fotografiată cu aparatul',
   'factor.groupGenuineSmileRatio': 'Zâmbet autentic',
   'factor.groupCatchlightRatio': 'Lumină în ochi (catchlight)',
   'factor.groupSkinToneNaturalRatio': 'Ton de piele natural',
@@ -1057,6 +1060,10 @@ export const ro = {
   'insightsPref.bokehQuality.neg': 'preferă totul clar, fără bokeh',
   'insightsPref.colorHarmony.pos': 'preferă palete de culori armonioase',
   'insightsPref.colorHarmony.neg': 'indiferent la armonia culorilor',
+  'insightsPref.subjectProminence.pos': 'preferă subiectul mare în cadru',
+  'insightsPref.subjectProminence.neg': 'preferă subiectul mic, în context',
+  'insightsPref.noCameraMetadata.pos': 'păstrează și capturile de ecran',
+  'insightsPref.noCameraMetadata.neg': 'preferă pozele făcute cu aparatul',
 
   // ── aiExplanationGenerator: explicatia narativa "De ce acest scor" ──
   'aiExplain.and': ' și ',

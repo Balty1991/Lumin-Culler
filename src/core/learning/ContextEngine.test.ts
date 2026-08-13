@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { describe, expect, it, vi } from 'vitest';
-import { deriveContextKey, explainFactors, extractFeatures, FACE_ONLY_FEATURES, LANDSCAPE_ONLY_FEATURES, landscapeSharpness, ContextEngine, updateWeight, priorAnchor } from './ContextEngine';
+import { deriveContextKey, explainFactors, extractFeatures, FACE_ONLY_FEATURES, LANDSCAPE_ONLY_FEATURES, landscapeSharpness, ContextEngine, updateWeight, priorAnchor, hasProminentSubject, lacksCameraMetadata } from './ContextEngine';
 import { db, type AnalysisRecord } from '../db';
 import { t } from '../../i18n';
 
@@ -449,5 +449,91 @@ describe('ContextEngine — semnalele noi sunt centrate de la prima poza', () =>
     const document = await engine.predict(baseAnalysis({ photoId: 'doc', textCoverage: 0.85 }));
     const photo = await engine.predict(baseAnalysis({ photoId: 'foto', textCoverage: 0.02 }));
     expect(document.score).toBeLessThan(photo.score);
+  });
+});
+
+/** O fata cu aria data (fractiune din cadru), patrata, in coltul stanga-sus. */
+function faceOfArea(area: number) {
+  const side = Math.sqrt(area);
+  return {
+    box: [0, 0, side, side] as [number, number, number, number],
+    faceScore: 0.9, smile: 0.5, eyesOpen: { left: 1, right: 1 }, isBlinking: false,
+    personId: null, personName: null, similarity: 0
+  };
+}
+
+// "Exista o fata" nu inseamna "fotografia e despre acea persoana": un trecator
+// la 30 de metri intr-un peisaj transforma cadrul in portret pentru tot restul
+// motorului, si dezactiveaza exact compensarea (landscapeSharpness) scrisa
+// pentru genul acela de cadru.
+describe('hasProminentSubject', () => {
+  it('nu vede subiect intr-o poza fara fete', () => {
+    expect(hasProminentSubject({ faceCount: 0, faces: [] })).toBe(false);
+  });
+
+  it('vede subiect intr-un portret normal', () => {
+    expect(hasProminentSubject({ faceCount: 1, faces: [faceOfArea(0.06)] })).toBe(true);
+  });
+
+  it('nu vede subiect intr-un trecator minuscul dintr-un peisaj', () => {
+    expect(hasProminentSubject({ faceCount: 1, faces: [faceOfArea(0.0004)] })).toBe(false);
+  });
+
+  it('e destul ca UNA dintre fete sa fie prominenta', () => {
+    expect(hasProminentSubject({ faceCount: 3, faces: [faceOfArea(0.0002), faceOfArea(0.0003), faceOfArea(0.05)] })).toBe(true);
+  });
+
+  it('pastreaza comportamentul vechi cand cutiile lipsesc (inregistrari mai vechi)', () => {
+    expect(hasProminentSubject({ faceCount: 2, faces: [] })).toBe(true);
+  });
+});
+
+describe('extractFeatures — subiect prominent vs. fata detectata', () => {
+  it('aplica compensarea de peisaj unei poze cu un trecator minuscul, nu regula de portret', () => {
+    const features = extractFeatures(baseAnalysis({
+      sceneType: 'portrait', faceCount: 1, strangerCount: 1, sharpness: 48, faces: [faceOfArea(0.0004)]
+    }));
+    expect(features.sharpness).toBeCloseTo(landscapeSharpness(48));
+  });
+
+  it('lasa claritatea bruta pentru un portret real', () => {
+    const features = extractFeatures(baseAnalysis({
+      sceneType: 'portrait', faceCount: 1, sharpness: 48, faces: [faceOfArea(0.06)]
+    }));
+    expect(features.sharpness).toBeCloseTo(0.48);
+  });
+
+  it('masoara cat de mare e omul in cadru, nu doar ca exista', () => {
+    const departe = extractFeatures(baseAnalysis({ faceCount: 1, faces: [faceOfArea(0.0004)] }));
+    const aproape = extractFeatures(baseAnalysis({ faceCount: 1, faces: [faceOfArea(0.16)] }));
+    expect(departe.subjectProminence).toBeLessThan(aproape.subjectProminence);
+    expect(aproape.subjectProminence).toBeCloseTo(0.8); // sqrt(0.16) = 0.4, adica 0.4/0.5
+  });
+
+  it('omite prominenta cand cutiile fetelor lipsesc — "nu stiu" nu inseamna "subiect minuscul"', () => {
+    expect('subjectProminence' in extractFeatures(baseAnalysis({ faceCount: 1, faces: [] }))).toBe(false);
+  });
+});
+
+// Intr-o galerie de telefon, fisierele fara nicio urma de aparat foto sunt
+// aproape exact categoria "poze care nu sunt pozele tale" — capturi de ecran,
+// meme-uri, imagini primite pe mesagerie (care sterge metadatele).
+describe('lacksCameraMetadata', () => {
+  it('recunoaste un fisier fara nicio urma de aparat', () => {
+    expect(lacksCameraMetadata({})).toBe(true);
+  });
+
+  it('e destul UN singur camp de aparat ca sa nu mai fie considerat asa', () => {
+    expect(lacksCameraMetadata({ iso: 100 })).toBe(false);
+    expect(lacksCameraMetadata({ cameraMake: 'Google' })).toBe(false);
+    expect(lacksCameraMetadata({ exposureTime: 0.004 })).toBe(false);
+    expect(lacksCameraMetadata({ focalLength: 24 })).toBe(false);
+  });
+
+  it('coboara scorul unei capturi de ecran fata de aceeasi poza facuta cu aparatul, de la prima poza', async () => {
+    const engine = new ContextEngine();
+    const capturaDeEcran = await engine.predict(baseAnalysis({ photoId: 'captura' }));
+    const pozaReala = await engine.predict(baseAnalysis({ photoId: 'poza', cameraMake: 'Google', iso: 100, fNumber: 1.8 }));
+    expect(capturaDeEcran.score).toBeLessThan(pozaReala.score);
   });
 });

@@ -118,6 +118,11 @@ const PRIOR_WEIGHTS: FeatureVector = {
   strangerPenalty: -0.5,
   faceScore: 0.4,
   faceCount: 0.1,
+  // cat de mare e omul in cadru (vezi subjectProminence) — bonus pozitiv
+  // rezonabil: o fata mare e aproape mereu intentia fotografiei, una minuscula
+  // e de obicei un trecator. Sub sharpness/allEyesOpen: un portret bine
+  // incadrat, dar neclar sau cu ochii inchisi, tot nu e o poza buna.
+  subjectProminence: 0.45,
   // compozitie (regula treimilor, headroom) — bonus modest, nu domina claritatea/expunerea/ochii
   ruleOfThirds: 0.3,
   headroom: 0.25,
@@ -158,6 +163,11 @@ const PRIOR_WEIGHTS: FeatureVector = {
   // pe care o tii — dar unii chiar le tin, deci pondere negativa modesta, nu o
   // condamnare.
   textCoverage: -0.3,
+  // fisier fara nicio urma de aparat foto — capturi de ecran, meme-uri, imagini
+  // primite (vezi lacksCameraMetadata). Pondere negativa mai ferma decat
+  // textCoverage: acolo "mult text" chiar poate fi o poza legitima (un afis, un
+  // meniu), aici lipsa completa a EXIF-ului e un semnal mai curat.
+  noCameraMetadata: -0.5,
   avgEngagement: 0.3,
   highlightClipping: -0.4,
   shadowClipping: -0.3,
@@ -295,7 +305,13 @@ const PRIOR_FEATURE_STATS: Record<string, { mean: number; std: number }> = {
   // Text in cadru: aproape orice poza obisnuita are foarte putin, documentele si
   // capturile de ecran au mult — distributie puternic asimetrica, deci media e
   // mica si deviatia relativ mare fata de ea.
-  textCoverage: { mean: 0.08, std: 0.16 }
+  textCoverage: { mean: 0.08, std: 0.16 },
+  // fete tipice de telefon: portret apropiat ~0.35-0.5, poza de grup ~0.15-0.25,
+  // om in peisaj sub 0.1 — media ponderata a unei galerii obisnuite sta pe la 0.25
+  subjectProminence: { mean: 0.25, std: 0.15 },
+  // proportia de fisiere fara EXIF intr-o galerie de telefon obisnuita (capturi
+  // de ecran + primite pe mesagerie); std-ul unei variabile binare cu p=0.25
+  noCameraMetadata: { mean: 0.25, std: 0.43 }
 };
 
 /**
@@ -331,7 +347,7 @@ const FACTOR_FEATURES = new Set([
   'highlightClipping', 'shadowClipping', 'horizonLevel', 'isoPenalty', 'apertureRaw',
   'shutterSpeedRaw', 'focalLengthRaw', 'compositionScore', 'leadingLines', 'symmetry',
   'negativeSpace', 'lightHard', 'lightSoft', 'goldenHour', 'subjectInFocus',
-  'bokehQuality', 'colorHarmony', 'bodyCroppedAtEdge'
+  'bokehQuality', 'colorHarmony', 'bodyCroppedAtEdge', 'subjectProminence', 'noCameraMetadata'
 ]);
 
 /**
@@ -347,7 +363,7 @@ const FACTOR_FEATURES = new Set([
  * chiar a fost prezent si a costat scorul; `factor.<feature>.pos` pentru
  * contributie pozitiva = absenta lui a ajutat), alese in functie de semn.
  */
-const INVERTED_SENSE_FEATURES = new Set(['highlightClipping', 'shadowClipping', 'strangerPenalty', 'isoPenalty', 'groupAwkwardRatio', 'bodyCroppedAtEdge']);
+const INVERTED_SENSE_FEATURES = new Set(['highlightClipping', 'shadowClipping', 'strangerPenalty', 'isoPenalty', 'groupAwkwardRatio', 'bodyCroppedAtEdge', 'noCameraMetadata']);
 
 function factorLabel(locale: Locale, feature: string, positive = false): string {
   if (!FACTOR_FEATURES.has(feature)) return feature;
@@ -391,7 +407,7 @@ export function explainFactors(
 export const FACE_ONLY_FEATURES = [
   'bestSmile', 'allEyesOpen', 'faceCount', 'knownFaceRatio', 'strangerPenalty', 'faceScore',
   'ruleOfThirds', 'headroom', 'groupEyesOpenRatio', 'groupSmileRatio', 'groupAwkwardRatio', 'groupGenuineSmileRatio', 'groupCatchlightRatio', 'groupSkinToneNaturalRatio', 'avgEyeContact',
-  'avgEngagement', 'subjectInFocus', 'bokehQuality', 'bodyCroppedAtEdge'
+  'avgEngagement', 'subjectInFocus', 'bokehQuality', 'bodyCroppedAtEdge', 'subjectProminence'
 ] as const;
 
 /**
@@ -432,9 +448,87 @@ export function landscapeSharpness(rawSharpness: number): number {
   return Math.pow(Math.max(0, rawSharpness) / 100, 0.6);
 }
 
+/**
+ * Aria minima a unei fete (fractiune din aria cadrului) de la care fotografia e
+ * considerata a fi DESPRE acea persoana. 0.004 inseamna o fata cu latura de
+ * ~6% din latura cadrului — la 4000px, o fata de ~250px: perfect vizibila, dar
+ * clar un trecator, nu subiectul.
+ *
+ * Prag euristic, NECALIBRAT pe un set real de poze. Raul e mic in ambele
+ * directii (vezi hasProminentSubject), dar merita recalibrat daca la testare
+ * pe device se dovedeste prea sever/prea permisiv.
+ */
+const MIN_SUBJECT_FACE_AREA = 0.004;
+
+/**
+ * "Exista un SUBIECT uman", nu doar "exista o fata".
+ *
+ * Un trecator la 30 de metri intr-o poza de peisaj e o fata detectata, iar
+ * `faceCount > 0` transforma instant fotografia in portret pentru tot restul
+ * motorului. Consecinta concreta: landscapeSharpness — compresia adaugata
+ * anume pentru ca perspectiva atmosferica inmoaie natural crestele indepartate,
+ * dupa o poza de munte respinsa pe nedrept — se DEZACTIVA pentru exact acel gen
+ * de cadru, daca se intampla sa fie cineva in el.
+ *
+ * Deliberat NU schimba si blocul FACE_ONLY_FEATURES: zambetul/ochii unei fete
+ * mici sunt masurati, doar mai putin siguri — a-i sterge cu totul ar arunca
+ * informatie reala. Aici se decide doar CUM e judecat cadrul in ansamblu.
+ *
+ * `faces` gol cu faceCount > 0 (inregistrari mai vechi, fara cutii salvate)
+ * pastreaza comportamentul de dinainte: prominent.
+ */
+export function hasProminentSubject(a: Pick<AnalysisRecord, 'faceCount' | 'faces'>): boolean {
+  if (a.faceCount === 0) return false;
+  if (!a.faces.length) return true;
+  return a.faces.some(f => f.box[2] * f.box[3] >= MIN_SUBJECT_FACE_AREA);
+}
+
+/**
+ * Cat de mult ocupa subiectul principal din cadru, 0..1 — latura fetei celei mai
+ * mari raportata la jumatate din latura cadrului (o fata care acopera jumatate
+ * din latura = 1).
+ *
+ * Lipsea complet ca semnal: `faceScore` e increderea DETECTIEI, iar
+ * ruleOfThirds/headroom descriu POZITIA — niciunul nu spune cat de mare e omul
+ * in poza. Un portret in care fata umple cadrul si o poza in care aceeasi
+ * persoana e un punct in departare arata identic pentru motor, desi sunt doua
+ * fotografii complet diferite. Radacina patrata, nu aria bruta: aria scade cu
+ * patratul, deci o scala liniara e mult mai apropiata de cum percepem "mare in
+ * cadru".
+ */
+export function subjectProminence(faces: AnalysisRecord['faces']): number | null {
+  let maxArea = 0;
+  for (const f of faces) maxArea = Math.max(maxArea, f.box[2] * f.box[3]);
+  if (maxArea <= 0) return null;
+  return Math.min(1, Math.sqrt(maxArea) / 0.5);
+}
+
+/**
+ * Fisierul nu poarta NICIO urma de aparat foto: nici marca/model, nici
+ * ISO/diafragma/timp de expunere/focala. Intr-o galerie de telefon asta descrie
+ * aproape exact categoria de "poze care nu sunt pozele tale" — capturi de ecran,
+ * meme-uri descarcate, imagini primite pe WhatsApp (care sterge metadatele la
+ * trimitere). Exact gunoiul pe care culling-ul ar trebui sa-l scoata primul, si
+ * pe care restul semnalelor nu-l vad deloc: o captura de ecran e perfect clara,
+ * perfect expusa si fara zgomot.
+ *
+ * NU e o regula stricta, ci un feature ca oricare altul, cu pondere negativa
+ * modesta: un export editat (Lightroom, un crop salvat) poate pierde EXIF-ul
+ * fara sa fie gunoi, iar PNG/WebP nu au EXIF prin definitie. Cine chiar isi tine
+ * capturile de ecran isi va vedea ponderea urcand inapoi spre zero.
+ */
+export function lacksCameraMetadata(
+  a: Pick<AnalysisRecord, 'cameraMake' | 'cameraModel' | 'iso' | 'fNumber' | 'exposureTime' | 'focalLength'>
+): boolean {
+  return a.cameraMake === undefined && a.cameraModel === undefined
+    && a.iso === undefined && a.fNumber === undefined
+    && a.exposureTime === undefined && a.focalLength === undefined;
+}
+
 export function extractFeatures(a: AnalysisRecord, memorySignals?: { contentAffinity?: number | null; subjectAffinity?: number | null }): FeatureVector {
   const features: FeatureVector = {
-    sharpness: a.faceCount > 0 ? a.sharpness / 100 : landscapeSharpness(a.sharpness),
+    // "subiect uman prominent", nu "exista o fata" — vezi hasProminentSubject
+    sharpness: hasProminentSubject(a) ? a.sharpness / 100 : landscapeSharpness(a.sharpness),
     // distance from mid-exposure — lets the model learn a *preference direction*
     exposureBalance: 1 - Math.abs(a.exposure - 50) / 50,
     exposureRaw: a.exposure / 100,           // raw value → can learn "prefers darker"
@@ -484,8 +578,15 @@ export function extractFeatures(a: AnalysisRecord, memorySignals?: { contentAffi
   // feature, motorul poate invata si contrariul, pentru cine chiar isi tine
   // capturile de ecran.
   if (a.textCoverage !== undefined) features.textCoverage = a.textCoverage;
+  // Nicio urma de aparat foto in fisier (capturi de ecran, meme-uri, imagini
+  // primite) — vezi lacksCameraMetadata.
+  features.noCameraMetadata = lacksCameraMetadata(a) ? 1 : 0;
 
   if (a.faceCount > 0) {
+    // Cat de mare e omul in cadru — absent, nu 0, cand nu avem cutiile fetelor
+    // (inregistrari mai vechi): "nu stiu" nu inseamna "subiect minuscul".
+    const prominence = subjectProminence(a.faces);
+    if (prominence !== null) features.subjectProminence = prominence;
     features.bestSmile = a.bestSmile;
     features.allEyesOpen = a.allEyesOpen ? 1 : 0;
     features.faceCount = Math.min(a.faceCount, 6) / 6;
@@ -751,7 +852,7 @@ export class ContextEngine {
     'avgEngagement', 'highlightClipping', 'shadowClipping', 'horizonLevel', 'isoPenalty',
     'apertureRaw', 'shutterSpeedRaw', 'focalLengthRaw', 'compositionScore', 'leadingLines',
     'symmetry', 'negativeSpace', 'lightHard', 'lightSoft', 'goldenHour', 'subjectInFocus',
-    'bokehQuality', 'colorHarmony'
+    'bokehQuality', 'colorHarmony', 'subjectProminence', 'noCameraMetadata'
   ]);
 
   /** Rezumat lizibil al tuturor contextelor invatate — pentru panoul "Preferinte AI" din UI. */

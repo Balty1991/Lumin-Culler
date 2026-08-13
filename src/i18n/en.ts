@@ -958,6 +958,9 @@ export const en: Record<TranslationKey, string> = {
   'factor.groupAwkwardRatio.pos': 'No awkward expressions',
   'factor.bodyCroppedAtEdge': 'Limb cropped by frame',
   'factor.bodyCroppedAtEdge.pos': 'Nothing cropped by frame',
+  'factor.subjectProminence': 'Subject fills the frame',
+  'factor.noCameraMetadata': 'No camera metadata',
+  'factor.noCameraMetadata.pos': 'Shot with a camera',
   'factor.groupGenuineSmileRatio': 'Genuine smile',
   'factor.groupCatchlightRatio': 'Catchlight (light in the eyes)',
   'factor.groupSkinToneNaturalRatio': 'Natural skin tone',
@@ -1051,6 +1054,10 @@ export const en: Record<TranslationKey, string> = {
   'insightsPref.bokehQuality.neg': 'prefers everything sharp, no bokeh',
   'insightsPref.colorHarmony.pos': 'prefers harmonious color palettes',
   'insightsPref.colorHarmony.neg': 'indifferent to color harmony',
+  'insightsPref.subjectProminence.pos': 'prefers the subject large in frame',
+  'insightsPref.subjectProminence.neg': 'prefers the subject small, in context',
+  'insightsPref.noCameraMetadata.pos': 'keeps screenshots too',
+  'insightsPref.noCameraMetadata.neg': 'prefers photos shot with a camera',
 
   // ── aiExplanationGenerator: narrative "Why this score" explanation ──
   'aiExplain.and': ' and ',
