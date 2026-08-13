@@ -39,6 +39,7 @@ import { ImportReminder } from './ui/ImportReminder';
 import { MemoryBanner } from './ui/MemoryBanner';
 import { GallerySupervisorBanner } from './ui/GallerySupervisorBanner';
 import { PhotosAccessNotice } from './ui/PhotosAccessNotice';
+import { SessionOutcome } from './ui/SessionOutcome';
 import { HomeDashboard } from './ui/HomeDashboard';
 import { BottomNav } from './ui/BottomNav';
 import { WelcomeOnboarding } from './ui/WelcomeOnboarding';
@@ -1048,6 +1049,8 @@ export default function App() {
         )}
         </div>
       </div>
+
+      <SessionOutcome />
 
       {photos.length === 0 && !progress ? (
         <div className="empty">

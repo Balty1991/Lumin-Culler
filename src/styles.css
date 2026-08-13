@@ -1574,6 +1574,35 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .composite-hint b { display: block; font-size: 0.86rem; margin-bottom: 3px; }
 .composite-hint p { margin: 0; font-size: 0.82rem; line-height: 1.5; color: var(--text-dim); }
 
+/* Rezultatul lotului, imediat dupa import — vezi ui/SessionOutcome.tsx.
+   Ton de raport, nu de sarbatoare: cifra care conteaza (cate ti-au ramas) e
+   scrisa mare, restul e context. Mentiunea de limita sta jos, despartita de o
+   linie, ca sa se citeasca a informatie utila si nu a reclama lipita de rezultat. */
+.session-outcome {
+  position: relative; margin: 0 auto 12px; max-width: 520px; padding: 15px 16px;
+  border-radius: var(--radius); background: var(--surface);
+  border: 1px solid rgb(var(--accent-rgb) / 0.3);
+  animation: fadeUp 0.35s var(--ease) both;
+}
+.session-outcome-close { position: absolute; top: 7px; right: 7px; }
+.session-outcome-head { display: flex; align-items: center; gap: 7px; color: var(--accent); margin-bottom: 7px; }
+.session-outcome-head b { font-size: 0.9rem; color: var(--text); }
+.session-outcome-lead { margin: 0; font-size: 1.05rem; line-height: 1.45; font-weight: 600; }
+.session-outcome-rest { margin: 4px 0 0; font-size: 0.86rem; line-height: 1.45; color: var(--text-dim); }
+.session-outcome-actions { margin-top: 12px; }
+.session-outcome-actions .btn-accent { padding: 9px 15px; font-size: 0.85rem; }
+.session-outcome-limit {
+  margin: 13px 0 0; padding-top: 11px; border-top: 1px solid var(--border);
+  font-size: 0.78rem; line-height: 1.5; color: var(--text-faint);
+}
+/* buton in mijlocul unei fraze: arata a link, nu a al doilea CTA — mentiunea
+   despre limita e informatie, iar un buton plin acolo ar transforma-o in reclama */
+.session-outcome-link {
+  background: none; border: none; padding: 0; font: inherit;
+  color: var(--accent); text-decoration: underline; cursor: pointer;
+}
+
+
 
 
 /* "Ce ai pierde" — banda de miniaturi dinaintea stergerii definitive. Miniaturile

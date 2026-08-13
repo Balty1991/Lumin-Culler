@@ -21,6 +21,7 @@ import {
 } from '../core/importPipeline';
 import { deriveThresholds, type Thresholds } from '../core/scoreThresholds';
 import { pickMostUncertain } from '../core/uncertainty';
+import { summarizeSession, type SessionOutcome } from '../core/sessionOutcome';
 import type { FileSystemFileHandleLike } from '../core/filePicker';
 import { readEconomicMode, writeEconomicMode } from '../core/performanceSettings';
 import { vibrate } from '../ui/haptics';
@@ -300,6 +301,12 @@ interface AppState {
    * indoielnica, si spune asta printr-o notificare in loc sa deschida gol.
    */
   openUncertainReview: () => Promise<number>;
+  /**
+   * Rezultatul ultimului lot, aratat O SINGURA DATA imediat dupa import — vezi
+   * core/sessionOutcome.ts. null = nimic de raportat sau deja inchis de utilizator.
+   */
+  sessionOutcome: SessionOutcome | null;
+  dismissSessionOutcome: () => void;
   /** Cautare vizuala pe ecran intreg (plan modernizare) — reutilizeaza searchText/sceneTagFilter, doar UI dedicat. */
   searchPanelOpen: boolean;
   setSearchPanelOpen: (open: boolean) => void;
@@ -1242,6 +1249,9 @@ export const useStore = create<AppState>((set, get) => ({
   lastSupervisorImportIds: null,
   openTiktokSortForIds: ids => set({ tiktokSortOpen: true, tiktokSortScopeIds: ids, lastSupervisorImportIds: null }),
 
+  sessionOutcome: null,
+  dismissSessionOutcome: () => set({ sessionOutcome: null }),
+
   openUncertainReview: async () => {
     const locale = get().locale;
     // Pozele pe care le-ai judecat deja tu: o corectie e inregistrata la
@@ -1933,6 +1943,8 @@ export const useStore = create<AppState>((set, get) => ({
     // treptat (senzatia de progres "live" nu se pierde), doar reconstruirea
     // array-ului se intampla de un ordin de marime mai rar.
     let pendingPhotos: PhotoView[] = [];
+    /** Id-urile pozelor din ACEST lot — rezultatul de la final se raporteaza doar despre ele, nu despre toata biblioteca. */
+    const importedIds: string[] = [];
     let flushTimer: ReturnType<typeof setTimeout> | null = null;
     const flushPendingPhotos = () => {
       if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
@@ -1966,6 +1978,7 @@ export const useStore = create<AppState>((set, get) => ({
           set({ progress: { ...progress, etaSeconds } });
         },
         item => {
+          importedIds.push(item.photo.id);
           pendingPhotos.push(toView(item.photo, item.analysis));
           if (pendingPhotos.length >= PHOTO_FLUSH_BATCH) { flushPendingPhotos(); return; }
           if (!flushTimer) flushTimer = setTimeout(flushPendingPhotos, PHOTO_FLUSH_INTERVAL_MS);
@@ -1997,6 +2010,16 @@ export const useStore = create<AppState>((set, get) => ({
     const fresh = await db.photos.toArray();
     const byId = new Map(fresh.map(p => [p.id, p]));
     const aiDegraded = !analysisPool.isAccelerated;
+    // Rezultatul lotului, din statusurile DEJA recitite mai sus (dupa gruparea
+    // seriilor, deci reflecta si demovarile facute de ea) — nicio interogare in
+    // plus. Restrans la pozele acestui import: `photoIds` sunt exact ele.
+    const batch = importedIds.map(id => byId.get(id)).filter((p): p is PhotoRecord => !!p);
+    const sessionOutcome = summarizeSession({
+      imported: done,
+      autoDecided: batch.filter(p => p.status === 'selected' || p.status === 'rejected').length,
+      seriesFound: new Set(batch.map(p => p.groupId).filter(Boolean)).size,
+      durationMs: Date.now() - startedAt
+    });
     // contor informativ de utilizare lunara (plan 4.2, freemium) — vezi state/usage.ts
     // pentru de ce NU blocheaza nimic, doar informeaza la prima depasire a pragului
     const usageBefore = readMonthlyUsage();
@@ -2021,6 +2044,7 @@ export const useStore = create<AppState>((set, get) => ({
       aiDegraded,
       aiBackend: analysisPool.detectedBackend,
       lastImportStats: done > 0 ? { count: done, durationMs: Date.now() - startedAt } : state.lastImportStats,
+      sessionOutcome,
       monthlyUsage,
       photos: state.photos.map(p => {
         const rec = byId.get(p.id);
