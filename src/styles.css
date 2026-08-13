@@ -288,6 +288,35 @@ body {
   transition: background 0.22s var(--ease), color 0.22s var(--ease);
 }
 @media (prefers-reduced-motion: reduce) { body { transition: none; } }
+
+/* ── Plasa de siguranta pentru "vreau mai putina miscare" ────────────────────
+   Fisierul are peste 120 de tranzitii/animatii, dar doar ~16 aveau un bloc
+   propriu de prefers-reduced-motion: restul rulau neschimbat pentru cineva care
+   a cerut explicit din sistem mai putina miscare (setare pe care unii o folosesc
+   pentru rau de miscare sau vertij, nu din preferinta estetica). Partea de
+   framer-motion era deja acoperita — toate cele patru componente care o
+   folosesc trec prin useReducedMotion — deci golul era strict in CSS.
+
+   Durata aproape zero, NU `animation: none`: un `none` opreste si evenimentele
+   transitionend/animationend, iar codul care se bazeaza pe ele ar ramane blocat
+   intr-o stare intermediara. 0.01ms se termina practic instantaneu, dar se
+   termina cu adevarat.
+
+   .spin ramane exceptata deliberat (vezi comentariul de la definitia ei): e
+   singurul indiciu ca o operatie chiar e in curs, iar oprita ar arata identic
+   cu o aplicatie blocata. E o rotatie mica si constanta, nu o miscare
+   ampla/parallax — exact tipul pe care ghidul WCAG il considera acceptabil. */
+@media (prefers-reduced-motion: reduce) {
+  *:not(.spin), *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    transition-delay: 0ms !important;
+  }
+  html { scroll-behavior: auto !important; }
+}
+
 /* scrollbar-uri subtiri, neutre — Firefox (global) + Webkit (per-container, mai jos) */
 * { scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) transparent; }
 .mono { font-family: var(--mono); font-size: 0.82em; letter-spacing: 0.02em; }
