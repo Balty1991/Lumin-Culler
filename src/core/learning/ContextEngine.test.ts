@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { describe, expect, it, vi } from 'vitest';
-import { deriveContextKey, explainFactors, extractFeatures, FACE_ONLY_FEATURES, LANDSCAPE_ONLY_FEATURES, landscapeSharpness, ContextEngine } from './ContextEngine';
+import { deriveContextKey, explainFactors, extractFeatures, FACE_ONLY_FEATURES, LANDSCAPE_ONLY_FEATURES, landscapeSharpness, ContextEngine, updateWeight, priorAnchor } from './ContextEngine';
 import { db, type AnalysisRecord } from '../db';
 import { t } from '../../i18n';
 
@@ -355,5 +355,99 @@ describe('extractFeatures — semnalele de memorie', () => {
   it('textCoverage devine feature cand a fost masurat, si lipseste cand nu', () => {
     expect('textCoverage' in extractFeatures(baseAnalysis())).toBe(false);
     expect(extractFeatures(baseAnalysis({ textCoverage: 0.7 })).textCoverage).toBe(0.7);
+  });
+});
+
+// Cerinta directa a utilizatorului: motorul de baza sa fie puternic de la prima
+// poza, iar autoinvatarea sa fie ADAPTARE peste el, nu inlocuirea lui in timp.
+// Regula de actualizare e testata aici direct (nu prin capatul celalalt al unui
+// import de sute de poze, unde efectul ei se amesteca inseparabil cu invatarea
+// reala din date).
+describe('updateWeight — regularizare spre prior, nu spre zero', () => {
+  const LR = 0.05; // ordinul de marime al lui BASE_LR/sqrt(n) pentru un model deja antrenat
+
+  it('fara niciun gradient, o pondere ramane practic pe ancora ei', () => {
+    let w = priorAnchor('sharpness'); // 0.9
+    for (let i = 0; i < 1000; i++) w = updateWeight(w, 0, LR, priorAnchor('sharpness'));
+    expect(w).toBeCloseTo(0.9, 6);
+  });
+
+  it('fara niciun gradient, o pondere deviata se intoarce SPRE ancora, nu spre zero', () => {
+    const anchor = priorAnchor('sharpness');
+    let w = 0.2; // impinsa mult sub prior de o serie de decizii
+    for (let i = 0; i < 1000; i++) w = updateWeight(w, 0, LR, anchor);
+    expect(w).toBeGreaterThan(0.2);
+    expect(w).toBeLessThanOrEqual(anchor);
+    // revenirea e lenta si asimptotica, nu un salt inapoi peste ce s-a invatat
+    expect(updateWeight(0.2, 0, LR, anchor) - 0.2).toBeLessThan(0.01);
+  });
+
+  it('o pondere peste ancora e trasa in jos de acelasi termen (simetric)', () => {
+    const anchor = priorAnchor('sharpness');
+    expect(updateWeight(2.0, 0, LR, anchor)).toBeLessThan(2.0);
+    expect(updateWeight(2.0, 0, LR, anchor)).toBeGreaterThan(anchor);
+  });
+
+  it('un feature fara prior fotografic se comporta exact ca inainte: revine spre zero', () => {
+    // negativeSpace/lightHard sunt deliberat 0 in PRIOR_WEIGHTS (preferinte de
+    // stil, fara directie universala) — ancora lor E zero.
+    expect(priorAnchor('negativeSpace')).toBe(0);
+    let w = 0.8;
+    for (let i = 0; i < 2000; i++) w = updateWeight(w, 0, LR, priorAnchor('negativeSpace'));
+    expect(w).toBeLessThan(0.4);
+  });
+
+  it('un gradient consistent invinge revenirea — utilizatorul chiar isi poate muta preferinta', () => {
+    const anchor = priorAnchor('sharpness');
+    let w = anchor;
+    // presiune modesta, dar mereu in aceeasi directie
+    for (let i = 0; i < 200; i++) w = updateWeight(w, 0.4, LR, anchor);
+    expect(w).toBeLessThan(0); // a trecut chiar si de zero
+  });
+
+  it('dar nu poate inversa complet cunostinta de baza: banda ±1.5 in jurul ancorei', () => {
+    const anchor = priorAnchor('sharpness'); // 0.9
+    let w = anchor;
+    for (let i = 0; i < 5000; i++) w = updateWeight(w, 5, LR, anchor);
+    expect(w).toBeGreaterThanOrEqual(anchor - 1.5 - 1e-9);
+    expect(w).toBeCloseTo(anchor - 1.5, 6);
+
+    let up = anchor;
+    for (let i = 0; i < 5000; i++) up = updateWeight(up, -5, LR, anchor);
+    expect(up).toBeCloseTo(anchor + 1.5, 6);
+  });
+});
+
+// Cele trei feature-uri de mai jos intrau in vector fara statistici de referinta,
+// deci normalize() le trata ca valori BRUTE pentru primele lor 3 aparitii —
+// vezi nota din PRIOR_FEATURE_STATS.
+describe('ContextEngine — semnalele noi sunt centrate de la prima poza', () => {
+  it('o afinitate de continut NEUTRA nu misca scorul fata de o poza fara niciun semnal de continut', async () => {
+    const engine = new ContextEngine();
+    // memoria de continut are nevoie de decizii de ambele parti ca sa se activeze
+    for (let i = 0; i < 6; i++) {
+      await engine.recordCorrection({
+        photoId: `k${i}`, analysis: baseAnalysis({ imageEmbedding: [1, 0] }), aiDecision: true, userDecision: true
+      });
+      await engine.recordCorrection({
+        photoId: `r${i}`, analysis: baseAnalysis({ imageEmbedding: [-1, 0] }), aiDecision: false, userDecision: false
+      });
+    }
+
+    // [0, 1] e la fel de departe de ambele centroide -> afinitate exact 0.5 (neutru)
+    const neutralSignal = await engine.predict(baseAnalysis({ photoId: 'x', imageEmbedding: [0, 1] }));
+    const noSignal = await engine.predict(baseAnalysis({ photoId: 'y' }));
+
+    // Fara statistici de referinta, 0.5 intra BRUT in model si adauga
+    // 0.5 x ponderea la fiecare poza — o inclinare constanta spre "pastreaza",
+    // care nu vine din nimic observat. Centrat pe 0.5, z-scorul e 0.
+    expect(neutralSignal.score).toBe(noSignal.score);
+  });
+
+  it('text mult in cadru coboara scorul inca de la prima poza analizata vreodata', async () => {
+    const engine = new ContextEngine();
+    const document = await engine.predict(baseAnalysis({ photoId: 'doc', textCoverage: 0.85 }));
+    const photo = await engine.predict(baseAnalysis({ photoId: 'foto', textCoverage: 0.02 }));
+    expect(document.score).toBeLessThan(photo.score);
   });
 });

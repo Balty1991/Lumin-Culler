@@ -56,8 +56,38 @@ interface FeatureStat { mean: number; m2: number; n: number }
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const BASE_LR = 0.35;
-const L2_LAMBDA = 0.002;
+/**
+ * Puterea termenului de regularizare — cat de tare sunt trase ponderile inapoi
+ * spre ANCORA lor (vezi priorAnchor() si updateWeight()), nu spre zero.
+ *
+ * Era 0.002 si trage spre 0. Efectul, pe termen lung, era exact invers fata de
+ * ce trebuie: un feature care apare la fiecare poza (claritatea, expunerea)
+ * primeste sute de pasi de antrenare, iar fiecare pas ii mai musca din pondere
+ * cate lr*L2*w INDIFERENT daca utilizatorul a confirmat sau nu ceva despre el.
+ * Cu destule decizii, cunostintele fotografice puse cu mana in PRIOR_WEIGHTS
+ * (claritate 0.9, ochi deschisi 0.8, zambet 0.7...) se erodau lent spre zero,
+ * si motorul ajungea sa stie MAI PUTIN dupa ce invata decat stia din prima poza.
+ *
+ * Acum termenul trage spre prior: deviatia de la cunostintele de baza trebuie
+ * re-justificata continuu de date reale. Un utilizator care chiar prefera altceva
+ * (impinge constant in aceeasi directie) isi muta ponderea si o tine acolo;
+ * o serie de decizii intamplatoare se stinge inapoi in prior. Valoarea e
+ * deliberat mica in raport cu gradientul (pas tipic de gradient ~0.05-0.15,
+ * revenire ~0.001 x deviatie per pas): pe termen scurt nu franeaza invatarea,
+ * pe termen lung — cateva sute de decizii — recupereaza deviatia nesustinuta.
+ */
+const L2_LAMBDA = 0.02;
 const MAX_ABS_WEIGHT = 4.0;
+/**
+ * Cat de departe de ancora poate ajunge o pondere invatata. Motorul de baza
+ * ramane baza: autoinvatarea are voie sa ADAPTEZE stilul (o pondere de 0.9 poate
+ * ajunge oriunde intre -0.6 si 2.4), nu sa inverseze complet cunostintele
+ * fotografice pe baza catorva zeci de decizii. Fara acest plafon, MAX_ABS_WEIGHT
+ * (±4) lasa teoretic "claritatea" sa devina puternic NEGATIVA — adica "prefer
+ * pozele neclare" — dintr-o serie nefericita de corectii corelate (o sesiune
+ * intreaga de poze de concert, toate neclare, toate pastrate).
+ */
+const MAX_PRIOR_DEVIATION = 1.5;
 const COLD_START_SAMPLES = 8;
 const TRAINED_SAMPLES = 40;
 /** Acelasi prag ca explainFactors() ("contributii neglijabile") — o schimbare de pondere sub asta nu merita un toast "Am invatat". */
@@ -161,6 +191,44 @@ const PRIOR_WEIGHTS: FeatureVector = {
 };
 
 /**
+ * Punctul spre care se intoarce o pondere in lipsa unui semnal sustinut din
+ * date — cunostintele fotografice de baza pentru feature-urile care le au, 0
+ * pentru cele lasate deliberat "invatate din zero" (diafragma, viteza, focala,
+ * duritatea luminii, spatiul negativ: nu au o directie universala, vezi
+ * comentariile din PRIOR_WEIGHTS).
+ */
+export function priorAnchor(feature: string): number {
+  return PRIOR_WEIGHTS[feature] ?? 0;
+}
+
+/**
+ * Plafoneaza o pondere invatata: banda ±MAX_PRIOR_DEVIATION in jurul ancorei,
+ * intersectata cu limita absoluta ±MAX_ABS_WEIGHT. Pentru feature-urile cu
+ * ancora 0 (cele fara directie universala) banda devine efectiv ±1.5, mai
+ * stramta decat vechiul ±4 — dar ±4 era oricum de neatins in practica: cu
+ * z-score-uri plafonate la ±3, o pondere de 1.5 aduce deja ±4.5 in logit,
+ * adica sigmoida complet saturata.
+ */
+function clampAroundAnchor(weight: number, anchor: number): number {
+  const lo = Math.max(-MAX_ABS_WEIGHT, anchor - MAX_PRIOR_DEVIATION);
+  const hi = Math.min(MAX_ABS_WEIGHT, anchor + MAX_PRIOR_DEVIATION);
+  return Math.max(lo, Math.min(hi, weight));
+}
+
+/**
+ * Un singur pas de actualizare pentru o pondere. Exportat pentru ca regula in
+ * sine — "gradient, plus revenire spre ancora" — e miezul deciziei de design
+ * "motor de baza puternic, autoinvatare ca adaptare", si merita testata direct,
+ * nu dedusa din capatul celalalt al unui import de sute de poze (unde efectul
+ * ei se amesteca inseparabil cu invatarea reala).
+ *
+ * @param gradient dL/dw pentru acest feature (error * valoarea normalizata)
+ */
+export function updateWeight(w: number, gradient: number, lr: number, anchor: number): number {
+  return clampAroundAnchor(w - lr * (gradient + L2_LAMBDA * (w - anchor)), anchor);
+}
+
+/**
  * Statistici de referinta (medie, deviatie standard) pentru o poza amatoare
  * "obisnuita" — folosite ca sa SEMENE modelul nou-creat cu date reale, nu gol.
  * Bug real gasit: normalize() foloseste valoarea BRUTA (nenormalizata) pentru
@@ -213,7 +281,21 @@ const PRIOR_FEATURE_STATS: Record<string, { mean: number; std: number }> = {
   avgEngagement: { mean: 0.5, std: 0.25 },
   subjectInFocus: { mean: 0.7, std: 0.46 },
   bokehQuality: { mean: 0.5, std: 0.3 },
-  horizonLevel: { mean: 0.7, std: 0.25 }
+  horizonLevel: { mean: 0.7, std: 0.25 },
+  // Cele trei de mai jos lipseau de aici, desi intra in vector — deci pentru
+  // primele 3 poze in care apar, normalize() folosea valoarea BRUTA (`s.n > 2`),
+  // iar apoi un z-score calculat din 3-4 observatii, adica zgomot. La
+  // contentAffinity/subjectAffinity efectul era si sistematic, nu doar zgomotos:
+  // "nu stiu nimic despre poza asta" inseamna 0.5, iar 0.5 brut x 0.2 pondere =
+  // +0.1 adaugat la scorul FIECAREI poze, o inclinare constanta spre "pastreaza"
+  // care nu vine din nimic observat. Centrate pe neutru, aceleasi valori devin
+  // z-score 0, adica exact ce trebuie sa insemne: nicio contributie.
+  contentAffinity: { mean: 0.5, std: 0.15 },
+  subjectAffinity: { mean: 0.5, std: 0.15 },
+  // Text in cadru: aproape orice poza obisnuita are foarte putin, documentele si
+  // capturile de ecran au mult — distributie puternic asimetrica, deci media e
+  // mica si deviatia relativ mare fata de ea.
+  textCoverage: { mean: 0.08, std: 0.16 }
 };
 
 /**
@@ -644,10 +726,9 @@ export class ContextEngine {
     const disagreement = input.aiDecision !== input.userDecision;
     const lr = (BASE_LR / Math.sqrt(model.sampleCount + 1)) * (disagreement ? 1.6 : 1.0);
 
+    // Regularizare spre ANCORA (prior), nu spre zero — vezi updateWeight/L2_LAMBDA.
     for (const [k, v] of Object.entries(normalized)) {
-      const w = model.weights[k] ?? 0;
-      const updated = w - lr * (error * v + L2_LAMBDA * w);
-      model.weights[k] = Math.max(-MAX_ABS_WEIGHT, Math.min(MAX_ABS_WEIGHT, updated));
+      model.weights[k] = updateWeight(model.weights[k] ?? 0, error * v, lr, priorAnchor(k));
     }
     model.bias -= lr * error;
     model.sampleCount++;
