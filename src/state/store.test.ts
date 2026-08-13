@@ -720,6 +720,42 @@ describe('clearAll clears custom collections too (integration, Dexie real via fa
   });
 });
 
+// Bug real raportat de utilizator: dupa "Goleste sesiunea", Supervizorul
+// galeriei arata in continuare perioada tocmai stearsa ca deja acoperita (cu
+// procentul vechi de acoperire), deci nu se mai putea relua curat. Cursorul
+// inseamna "pana unde am adus poze IN biblioteca" — golirea bibliotecii il face
+// fals prin definitie. Vezi resetSupervisorProgress (state/gallerySupervisor.ts).
+describe('clearAll resets the gallery supervisor progress (integration, Dexie real via fake-indexeddb)', () => {
+  it('uita cursorul, folderele aduse si ultimul import, in store si in localStorage', async () => {
+    await db.photos.clear();
+    localStorage.setItem('lumin-gallery-supervisor-covered-until', '1750000000000');
+    localStorage.setItem('lumin-gallery-supervisor-imported-folders', JSON.stringify(['bucket-1']));
+    useStore.setState({
+      supervisorCoveredUntil: 1750000000000,
+      supervisorImportedFolderIds: new Set(['bucket-1']),
+      lastSupervisorImportIds: ['p1', 'p2']
+    });
+
+    await useStore.getState().clearAll();
+
+    const s = useStore.getState();
+    expect(s.supervisorCoveredUntil).toBeNull();
+    expect([...s.supervisorImportedFolderIds]).toEqual([]);
+    expect(s.lastSupervisorImportIds).toBeNull();
+    expect(localStorage.getItem('lumin-gallery-supervisor-covered-until')).toBeNull();
+    expect(localStorage.getItem('lumin-gallery-supervisor-imported-folders')).toBeNull();
+  });
+
+  it('pastreaza lungimea perioadei — e o preferinta de lucru, nu o evidenta a ce s-a adus', async () => {
+    await db.photos.clear();
+    localStorage.setItem('lumin-gallery-supervisor-period-months', '6');
+
+    await useStore.getState().clearAll();
+
+    expect(localStorage.getItem('lumin-gallery-supervisor-period-months')).toBe('6');
+  });
+});
+
 // Bug real raportat de utilizator (confirmat pe device: "Exporta" pe un
 // folder personalizat nu facea nimic): o poza membra a unui folder dar NU
 // 'selected' nu avea originalul persistat, deci exportCollection() nu gasea

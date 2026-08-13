@@ -90,15 +90,24 @@ function deviceMemoryGB(): number | undefined {
 }
 
 /**
- * Cate poze in paralel sa trimitem prin lantul de 5 apeluri native secventiale
+ * Cate poze in paralel sa trimitem prin lantul de apeluri native secventiale
  * (core/nativeAnalysis.ts). Fiecare apel individual ruleaza deja secvential in
  * interior (nu Promise.all — bug real de OOM gasit la testare pe device cand
  * toate 9 module rulau simultan), deci aceasta limita e despre CATE poze diferite
- * pot avea propriul lor lant de 5 apeluri in zbor deodata, nu despre modele in
- * paralel per poza. 2 e aceeasi valoare conservatoare deja stabilita in sesiune
- * pentru contextul WebView Android (vezi istoricul acestui fisier).
+ * pot avea propriul lor lant in zbor deodata, nu despre modele in paralel per poza.
+ *
+ * Era fixat la 2, valoare aleasa cand fiecare apel ducea imaginea la rezolutie
+ * plina (2048px, ~1,4 MB de base64 per apel) — acolo, mai multe poze in paralel
+ * chiar insemnau zeci de MB in zbor. De cand modelele primesc copia mica
+ * (NATIVE_ANALYZE_MAX_SIDE in nativeAnalysis.ts), o poza in zbor costa cateva
+ * sute de KB, deci limita conservatoare lasa pur si simplu nuclee nefolosite pe
+ * un telefon cu 8. Jumatate din nuclee, plafonat la 4, cu minimul vechi de 2 pe
+ * hardware slab.
  */
-const NATIVE_ANALYSIS_CONCURRENCY = 2;
+function nativeAnalysisConcurrency(): number {
+  const cores = navigator.hardwareConcurrency || 4;
+  return Math.max(2, Math.min(4, Math.floor(cores / 2)));
+}
 
 export class AnalysisPool {
   private slots: Slot[] = [];
@@ -111,7 +120,7 @@ export class AnalysisPool {
 
   /** true doar pe Android nativ — analiza normala ocoleste complet workerii Human.js. */
   private nativeMode = false;
-  private nativeConcurrencyLimit = NATIVE_ANALYSIS_CONCURRENCY;
+  private nativeConcurrencyLimit = nativeAnalysisConcurrency();
   private nativeInFlight = 0;
   private nativeWaiters: (() => void)[] = [];
 
@@ -177,7 +186,7 @@ export class AnalysisPool {
       // acel cod pur si simplu nu se mai executa la pornirea normala a
       // aplicatiei. Vezi core/nativeAnalysis.ts pentru pipeline-ul real.
       this.nativeMode = true;
-      this.nativeConcurrencyLimit = readEconomicMode() ? 1 : NATIVE_ANALYSIS_CONCURRENCY;
+      this.nativeConcurrencyLimit = readEconomicMode() ? 1 : nativeAnalysisConcurrency();
       this.detectedBackend = 'native';
       this.ready = true;
       writeLastModelLoadMs(performance.now() - startedAt);
@@ -247,7 +256,7 @@ export class AnalysisPool {
   async resizeForEconomicMode(economic: boolean): Promise<void> {
     if (!this.ready) return; // inca nepornit — init() va citi setarea curenta la primul import
     if (this.nativeMode) {
-      this.nativeConcurrencyLimit = economic ? 1 : NATIVE_ANALYSIS_CONCURRENCY;
+      this.nativeConcurrencyLimit = economic ? 1 : nativeAnalysisConcurrency();
       while (this.nativeInFlight < this.nativeConcurrencyLimit && this.nativeWaiters.length > 0) {
         const next = this.nativeWaiters.shift();
         if (!next) break;

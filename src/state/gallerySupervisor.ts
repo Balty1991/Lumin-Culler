@@ -203,6 +203,31 @@ export function computeGalleryCoveragePercent(opts: {
   return Math.round((covered / span) * 100);
 }
 
+/**
+ * Uita tot ce stie supervizorul despre ce a fost deja adus — cursorul
+ * cronologic si folderele bifate.
+ *
+ * Chemata de "Goleste sesiunea" (state/store.ts): cursorul descrie "pana unde
+ * am adus deja poze IN biblioteca". Cand biblioteca e golita, afirmatia devine
+ * falsa prin definitie. Bug real raportat: dupa golirea sesiunii, supervizorul
+ * arata in continuare perioada ca acoperita si un procent de acoperire mostenit,
+ * asa ca perioada tocmai stearsa parea deja rezolvata si nu se mai putea relua
+ * curat. Aceeasi logica prin care folderele personalizate se sterg odata cu
+ * sesiunea, iar persoanele inrolate NU (identitati durabile, nu date de sesiune).
+ *
+ * Lungimea perioadei ramane: e o preferinta despre CUM vrei sa lucrezi, nu o
+ * evidenta a ce s-a adus.
+ */
+export function resetSupervisorProgress(): void {
+  try {
+    localStorage.removeItem(COVERED_UNTIL_KEY);
+    localStorage.removeItem(IMPORTED_FOLDERS_KEY);
+    localStorage.removeItem(BANNER_DISMISSED_KEY);
+  } catch {
+    // stocare indisponibila — starea din memorie e oricum resetata de apelant
+  }
+}
+
 export function readImportedFolderIds(): Set<string> {
   try {
     const raw = localStorage.getItem(IMPORTED_FOLDERS_KEY);

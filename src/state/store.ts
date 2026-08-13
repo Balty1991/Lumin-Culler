@@ -39,6 +39,7 @@ import {
 import {
   computeNextPeriod, computeRemainingPeriod, readCoveredUntil, writeCoveredUntil, listAllPeriods, readPeriodMonths,
   writePeriodMonths, periodMonthsToMs, computeGalleryCoveragePercent, readImportedFolderIds, writeImportedFolderIds,
+  resetSupervisorProgress,
   type GalleryPeriod, type GalleryPeriodEntry, type PeriodMonths
 } from './gallerySupervisor';
 import { readStoredTheme, applyTheme, type Theme } from './theme';
@@ -2847,11 +2848,18 @@ export const useStore = create<AppState>((set, get) => ({
     // Dexie). batchHistory/fieldBatchHistory raman de asemenea neatinse pe
     // varianta veche — un Ctrl+Z ulterior ar fi aratat un mesaj "revenit lot
     // X" fara niciun efect, referindu-se la poze care nu mai exista.
+    // Supervizorul galeriei uita si el ce a adus: cursorul lui inseamna "pana
+    // unde am adus deja poze IN biblioteca", iar biblioteca tocmai a fost
+    // golita (bug raportat: perioada stearsa ramanea marcata ca acoperita, cu
+    // procentul vechi, si nu se mai putea relua curat). Vezi
+    // resetSupervisorProgress in state/gallerySupervisor.ts.
+    resetSupervisorProgress();
     set({
       photos: [], collections: [], collectionFilter: null,
       detailId: null, compareGroupId: null, editingPhotoId: null, history: [],
       batchHistory: [], fieldBatchHistory: [],
-      multiSelectIds: new Set(), multiSelectAnchor: null, selectMode: false
+      multiSelectIds: new Set(), multiSelectAnchor: null, selectMode: false,
+      supervisorCoveredUntil: null, supervisorImportedFolderIds: new Set(), lastSupervisorImportIds: null,
     });
   },
 
@@ -2866,11 +2874,18 @@ export const useStore = create<AppState>((set, get) => ({
     originalHandles.clear();
     clearPreviewUrlCache();
     await analysisPool.setKnownPersons([]).catch(() => {});
+    // Supervizorul galeriei uita si el ce a adus: cursorul lui inseamna "pana
+    // unde am adus deja poze IN biblioteca", iar biblioteca tocmai a fost
+    // golita (bug raportat: perioada stearsa ramanea marcata ca acoperita, cu
+    // procentul vechi, si nu se mai putea relua curat). Vezi
+    // resetSupervisorProgress in state/gallerySupervisor.ts.
+    resetSupervisorProgress();
     set({
       photos: [], persons: [], collections: [], collectionFilter: null,
       detailId: null, compareGroupId: null, editingPhotoId: null, history: [],
       batchHistory: [], fieldBatchHistory: [],
-      multiSelectIds: new Set(), multiSelectAnchor: null, selectMode: false
+      multiSelectIds: new Set(), multiSelectAnchor: null, selectMode: false,
+      supervisorCoveredUntil: null, supervisorImportedFolderIds: new Set(), lastSupervisorImportIds: null,
     });
   },
 
