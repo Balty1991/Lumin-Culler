@@ -6,6 +6,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import android.provider.Settings
 import android.provider.OpenableColumns
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.ActivityResultLauncher
@@ -67,13 +68,60 @@ import com.getcapacitor.annotation.PermissionCallback
         // READ_EXTERNAL_STORAGE nu putea fi acordat niciodata. Vezi photosPermissionAlias mai
         // jos pentru alegerea aliasului corect dupa Build.VERSION.SDK_INT.
         Permission(strings = [Manifest.permission.READ_MEDIA_IMAGES], alias = "photos33"),
-        Permission(strings = [Manifest.permission.READ_EXTERNAL_STORAGE], alias = "photosLegacy")
+        Permission(strings = [Manifest.permission.READ_EXTERNAL_STORAGE], alias = "photosLegacy"),
+        // Android 14+: cand utilizatorul alege "Permite cu acces limitat", ASTA
+        // se acorda, iar READ_MEDIA_IMAGES ramane refuzat. Fara aliasul de aici
+        // n-am putea DEOSEBI "acces limitat" de "refuzat" — vezi photosAccess().
+        Permission(strings = ["android.permission.READ_MEDIA_VISUAL_USER_SELECTED"], alias = "photosPartial")
     ]
 )
 class MediaLibraryPlugin : Plugin() {
     /** Vezi comentariul de la adnotarea @CapacitorPlugin de mai sus. */
     private val photosPermissionAlias: String
         get() = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) "photos33" else "photosLegacy"
+
+    /**
+     * Ce fel de acces la galerie avem chiar acum: "full", "limited" sau "denied".
+     *
+     * Pe Android 14+ dialogul de permisiuni are trei optiuni, iar sistemul o
+     * evidentiaza tocmai pe cea din mijloc ("Permite cu acces limitat"). Aceea
+     * NU acorda READ_MEDIA_IMAGES, ci READ_MEDIA_VISUAL_USER_SELECTED — deci tot
+     * codul care verifica doar READ_MEDIA_IMAGES vede exact acelasi lucru ca la
+     * un refuz total, si reincearca la nesfarsit o cerere pe care sistemul n-o
+     * mai arata. Pentru utilizator, aplicatia pur si simplu nu face nimic.
+     *
+     * Cu acces limitat vedem doar pozele bifate manual in acel moment, deci
+     * "Adu pe perioade" si Supervizorul galeriei (care numara cate poze ai pe
+     * fiecare luna) n-au ce citi — de aceea JS-ul trebuie sa poata spune asta
+     * explicit, in loc sa para stricat.
+     */
+    @PluginMethod
+    fun photosAccess(call: PluginCall) {
+        val full = getPermissionState(photosPermissionAlias) == PermissionState.GRANTED
+        val partial = Build.VERSION.SDK_INT >= 34 &&
+            getPermissionState("photosPartial") == PermissionState.GRANTED
+        val result = JSObject()
+        result.put("access", if (full) "full" else if (partial) "limited" else "denied")
+        call.resolve(result)
+    }
+
+    /**
+     * Deschide pagina de setari a aplicatiei.
+     *
+     * Odata ce utilizatorul a ales "acces limitat", sistemul nu mai arata
+     * dialogul la o noua cerere — singurul drum inapoi la acces complet trece
+     * prin Setari. Fara scurtatura asta, sfatul "schimba permisiunea" ar fi
+     * corect si complet neurmaribil.
+     */
+    @PluginMethod
+    fun openAppSettings(call: PluginCall) {
+        val intent = Intent(
+            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+            Uri.fromParts("package", context.packageName, null)
+        ).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+        context.startActivity(intent)
+        call.resolve()
+    }
     /**
      * createTrashRequest() intoarce un PendingIntent, NU un Intent obisnuit —
      * nu se preteaza la startActivityForResult(call, intent, "callbackName")/

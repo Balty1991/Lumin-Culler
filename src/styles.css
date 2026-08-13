@@ -1543,6 +1543,21 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   max-width: 320px;
 }
 .hint { color: var(--text-dim); font-size: 0.82rem; margin-top: 2px; }
+/* Avertisment de acces partial la galerie (Android 14+) — vezi
+   ui/PhotosAccessNotice.tsx. Ton de problema REZOLVABILA, nu de eroare:
+   utilizatorul a apasat butonul pe care sistemul il evidentia, deci mesajul
+   spune ce se pierde si ofera drumul inapoi, nu il mustra. */
+.photos-access-notice {
+  width: 100%; margin-top: 12px; padding: 13px 14px;
+  display: grid; grid-template-columns: auto 1fr; gap: 10px 11px; align-items: start; text-align: left;
+  border-radius: var(--radius); background: var(--surface); border: 1px solid rgb(var(--review-rgb) / 0.45);
+}
+.photos-access-notice > svg { width: 18px; height: 18px; color: var(--review); flex-shrink: 0; margin-top: 1px; }
+.photos-access-notice-text { display: grid; gap: 3px; }
+.photos-access-notice-text b { font-size: 0.86rem; }
+.photos-access-notice-text p { margin: 0; font-size: 0.76rem; line-height: 1.45; color: var(--text-dim); }
+.photos-access-notice .btn-accent { grid-column: 2; justify-self: start; padding: 8px 14px; font-size: 0.8rem; }
+
 .empty-filter {
   display: grid; justify-items: center; gap: 12px; text-align: center; color: var(--text-dim);
   padding: 48px 16px; animation: fadeUp 0.3s var(--ease) both;

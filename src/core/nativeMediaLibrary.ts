@@ -23,7 +23,17 @@ interface MediaLibraryPluginApi {
   photosInRange(options: { startMs: string; endMs: string }): Promise<{ granted: boolean; photos: { uri: string; name: string; capturedAt: number }[] }>;
   galleryFolders(): Promise<{ granted: boolean; folders: { id: string; name: string; count: number }[] }>;
   photosInFolder(options: { bucketId: string }): Promise<{ granted: boolean; photos: { uri: string; name: string; capturedAt: number }[] }>;
+  photosAccess(): Promise<{ access: PhotosAccess }>;
+  openAppSettings(): Promise<void>;
 }
+
+/**
+ * "limited" = Android 14+, utilizatorul a ales "Permite cu acces limitat" in
+ * dialogul de permisiuni (optiunea pe care sistemul o si evidentiaza). Atunci
+ * vedem DOAR pozele bifate manual atunci, deci tot ce citeste galeria ca intreg
+ * — "Adu pe perioade", Supervizorul galeriei — nu are ce numara.
+ */
+export type PhotosAccess = 'full' | 'limited' | 'denied' | 'unavailable';
 
 const MediaLibraryNative = registerPlugin<MediaLibraryPluginApi>('MediaLibrary');
 
@@ -171,4 +181,33 @@ export async function pickPhotosInFolder(bucketId: string): Promise<RangePickedP
     else console.warn('Poza ilizibila din folderul cerut, ignorata:', r.reason);
   });
   return photos;
+}
+
+/**
+ * Ce fel de acces la galerie avem acum. 'unavailable' pe web/PWA si pe orice
+ * versiune de plugin fara metoda asta (build vechi instalat peste) — apelantul
+ * trebuie sa trateze cazul acela ca "nu stiu", nu ca pe o problema.
+ */
+export async function getPhotosAccess(): Promise<PhotosAccess> {
+  if (!isNativeMediaLibraryAvailable()) return 'unavailable';
+  try {
+    return (await MediaLibraryNative.photosAccess()).access;
+  } catch {
+    return 'unavailable';
+  }
+}
+
+/**
+ * Deschide setarile aplicatiei. Dupa ce s-a ales o data "acces limitat",
+ * sistemul nu mai arata dialogul, deci asta e singurul drum inapoi la acces
+ * complet — fara el, sfatul "schimba permisiunea" ar fi corect si complet
+ * neurmaribil.
+ */
+export async function openAppSettings(): Promise<void> {
+  if (!isNativeMediaLibraryAvailable()) return;
+  try {
+    await MediaLibraryNative.openAppSettings();
+  } catch (err) {
+    console.error('Nu am putut deschide setarile aplicatiei:', err);
+  }
 }

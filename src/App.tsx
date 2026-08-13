@@ -38,6 +38,7 @@ import { BackupReminder } from './ui/BackupReminder';
 import { ImportReminder } from './ui/ImportReminder';
 import { MemoryBanner } from './ui/MemoryBanner';
 import { GallerySupervisorBanner } from './ui/GallerySupervisorBanner';
+import { PhotosAccessNotice } from './ui/PhotosAccessNotice';
 import { HomeDashboard } from './ui/HomeDashboard';
 import { BottomNav } from './ui/BottomNav';
 import { WelcomeOnboarding } from './ui/WelcomeOnboarding';
@@ -1069,6 +1070,8 @@ export default function App() {
               </button>
             )}
           </div>
+          <PhotosAccessNotice />
+
           {/* Aici erau inca 3 blocuri de text sub butoane (formatele acceptate,
               sfatul cu inrolarea unei persoane, si "cate poze ai pe telefon").
               Feedback direct: "prea multe texte". Formatele se repetau cuvant
