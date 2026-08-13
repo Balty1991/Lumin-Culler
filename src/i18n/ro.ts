@@ -758,6 +758,8 @@ export const ro = {
   'batch.deleteRejected.none': 'Nicio poză respinsă eligibilă pentru ștergere',
   'batch.deleteRejected.confirm': 'Ștergi definitiv {count} poze respinse de pe telefon? Sistemul Android îți va cere confirmarea o dată în plus. Tratează asta ca ireversibil — pe multe telefoane nu vei putea recupera fișierul din propria Galerie.',
   'batch.deleteRejected.skippedHint': '{count} poze respinse nu sunt eligibile (importate înainte de această funcție) și rămân doar respinse în aplicație.',
+  'batch.deleteRejected.previewHint': 'Ce ai pierde — cele mai îndoielnice primele (scorul sub fiecare):',
+  'batch.deleteRejected.checkRiskiest': 'Verifică aceste {count} înainte',
   'batch.operationFailed': 'Operația în masă a eșuat la mijlocul lotului: {error} — unele poze pot fi deja actualizate.',
   'batch.applying': 'Se aplică…',
   'batch.rename.title': 'Redenumire la export',

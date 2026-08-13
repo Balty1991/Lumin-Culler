@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../state/store';
-import { selectBulkRejectTargets, resolveGroups, selectTopPercent, selectDeletableRejected } from '../state/batchOps';
+import { selectBulkRejectTargets, resolveGroups, selectTopPercent, selectDeletableRejected, orderByDeletionRisk } from '../state/batchOps';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { listCullingPresets, saveCullingPreset, deleteCullingPreset, type CullingPreset } from '../state/cullingPresets';
 import { buildExportFileName } from '../core/renameTemplate';
@@ -12,6 +12,9 @@ const DEFAULT_THRESHOLD = 35; // acelasi prag ca REJECT_THRESHOLD din importPipe
 const DEFAULT_CULL_PERCENT = 20;
 
 /** Operatii in masa: respinge sub un prag de scor (cu preview live), rezolva toate seriile deodata si Auto-Cull top-X%. */
+/** Cate poze aratam in banda "ce ai pierde" — destule cat sa recunosti tiparul, nu inca o grila de parcurs. */
+const DELETION_PREVIEW = 8;
+
 export function BatchOpsPanel() {
   const open = useStore(s => s.batchOpsOpen);
   const setOpen = useStore(s => s.setBatchOpsOpen);
@@ -84,6 +87,9 @@ export function BatchOpsPanel() {
   const groups = useMemo(() => resolveGroups(photos), [photos]);
   const cull = useMemo(() => selectTopPercent(photos, cullPercent), [photos, cullPercent]);
   const deletableRejected = useMemo(() => selectDeletableRejected(photos), [photos]);
+  // Ce urmeaza sa dispara, cele mai indoielnice primele — vezi orderByDeletionRisk.
+  const riskiest = useMemo(() => orderByDeletionRisk(deletableRejected.deletable, DELETION_PREVIEW), [deletableRejected]);
+  const openTiktokSortForIds = useStore(s => s.openTiktokSortForIds);
 
   const renamePreview = useMemo(
     () => buildExportFileName(renameTemplate, { client: 'Ana', event: 'Nunta', capturedAt: Date.now() }, 1, 'IMG_1234.jpg'),
@@ -267,6 +273,32 @@ export function BatchOpsPanel() {
             <p className="hint">{tr('batch.deleteRejected.hint')}</p>
             {deletableRejected.skippedCount > 0 && (
               <p className="hint mono">{tr('batch.deleteRejected.skippedHint', { count: deletableRejected.skippedCount })}</p>
+            )}
+            {/* "Ce ai pierde": stergerea din telefon e singura actiune care nu se
+                poate lua inapoi, iar un simplu numar ("sterge 214 poze") nu-ti da
+                nimic de verificat. Miniaturile sunt LQIP-urile deja incarcate
+                (sincron, fara nicio citire noua), asezate cu cele mai indoielnice
+                primele. */}
+            {riskiest.length > 0 && (
+              <div className="deletion-preview">
+                <p className="hint">{tr('batch.deleteRejected.previewHint')}</p>
+                <ul className="deletion-preview-strip">
+                  {riskiest.map(p => (
+                    <li key={p.id}>
+                      {p.lqip
+                        ? <img src={p.lqip} alt="" />
+                        : <span className="deletion-preview-blank" />}
+                      <b className="mono">{p.aiScore}</b>
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  className="ghost deletion-preview-check"
+                  onClick={() => { openTiktokSortForIds(riskiest.map(p => p.id)); setOpen(false); }}
+                >
+                  {tr('batch.deleteRejected.checkRiskiest', { count: riskiest.length })}
+                </button>
+              </div>
             )}
             <button className="reject batch-reject-btn" onClick={() => void runDeleteRejected()} disabled={busy || !deletableRejected.deletable.length}>
               {deletableRejected.deletable.length

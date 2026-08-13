@@ -761,6 +761,8 @@ export const en: Record<TranslationKey, string> = {
   'batch.deleteRejected.none': 'No rejected photos eligible for deletion',
   'batch.deleteRejected.confirm': 'Permanently delete {count} rejected photos from your phone? Android will ask you to confirm once more. Treat this as irreversible — on many phones you won\'t be able to recover the file from your Gallery.',
   'batch.deleteRejected.skippedHint': '{count} rejected photos are not eligible (imported before this feature) and remain only rejected within the app.',
+  'batch.deleteRejected.previewHint': 'What you would lose — the most doubtful first (score below each):',
+  'batch.deleteRejected.checkRiskiest': 'Check these {count} first',
   'batch.operationFailed': 'Batch operation failed partway through: {error} — some photos may already be updated.',
   'batch.applying': 'Applying…',
   'batch.rename.title': 'Rename on export',

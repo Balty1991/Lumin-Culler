@@ -5,6 +5,7 @@
  * (aplicare reala) cat si in UI (preview live, fara efecte secundare).
  */
 import type { PhotoView } from './store';
+import { uncertainty } from '../core/uncertainty';
 
 /**
  * Poze care ar fi respinse in bloc sub un prag de scor — exclude explicit
@@ -70,6 +71,25 @@ export function selectDeletableRejected(photos: PhotoView[]): DeletableRejectedR
   const rejected = photos.filter(p => p.status === 'rejected');
   const deletable = rejected.filter(p => !!p.mediaUri);
   return { deletable, skippedCount: rejected.length - deletable.length };
+}
+
+/**
+ * Pozele care urmeaza sa dispara, cele mai INDOIELNICE primele.
+ *
+ * Stergerea din telefon e singura actiune din aplicatie care nu se poate lua
+ * inapoi, si e exact cea la care o lista de "N poze" nu spune nimic — nu poti
+ * verifica 200 de miniaturi, deci fie ai incredere oarba, fie renunti. Ordinea
+ * dupa nesiguranta muta primele exact pozele pe care motorul le-a respins la
+ * mustata, adica singurele unde o greseala e chiar plauzibila.
+ *
+ * Pe o lista numai de respinse, ordinea asta coincide cu "scorul cel mai mare
+ * intai" — dar exprimata prin uncertainty() ramane acelasi concept ca in restul
+ * aplicatiei (vezi core/uncertainty.ts) si nu se rupe daca lista se schimba.
+ */
+export function orderByDeletionRisk(deletable: readonly PhotoView[], limit: number): PhotoView[] {
+  return [...deletable]
+    .sort((a, b) => uncertainty(b.aiScore) - uncertainty(a.aiScore))
+    .slice(0, Math.max(0, limit));
 }
 
 export interface TopPercentResult {

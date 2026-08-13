@@ -1571,6 +1571,23 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .accuracy-trend { margin: 9px 0 0; font-size: 0.84rem; color: var(--accent); }
 .accuracy-basis { margin: 9px 0 0; font-size: 0.72rem; line-height: 1.45; }
 
+/* "Ce ai pierde" — banda de miniaturi dinaintea stergerii definitive. Miniaturile
+   sunt LQIP-uri (24px, blurate): destul cat sa RECUNOSTI o poza, nu cat s-o
+   judeci — de aceea scorul sta scris sub fiecare, si de aceea butonul de
+   verificare deschide sortarea reala. */
+.deletion-preview { margin: 10px 0 12px; }
+.deletion-preview-strip {
+  display: flex; gap: 6px; overflow-x: auto; list-style: none; margin: 8px 0 0; padding: 0 0 4px;
+}
+.deletion-preview-strip li { flex-shrink: 0; display: grid; gap: 3px; justify-items: center; }
+.deletion-preview-strip img, .deletion-preview-blank {
+  width: 46px; height: 46px; object-fit: cover; border-radius: 9px;
+  border: 1px solid var(--border); background: var(--surface-2); display: block;
+}
+.deletion-preview-strip b { font-size: 0.66rem; color: var(--text-faint); font-weight: 600; }
+.deletion-preview-check { margin-top: 8px; font-size: 0.8rem; padding: 7px 12px; }
+
+
 
 .empty-filter {
   display: grid; justify-items: center; gap: 12px; text-align: center; color: var(--text-dim);

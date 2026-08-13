@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { selectBulkRejectTargets, resolveGroups, selectTopPercent, selectHighlights, selectBlinks, selectDeletableRejected } from './batchOps';
+import { selectBulkRejectTargets, resolveGroups, selectTopPercent, selectHighlights, selectBlinks, selectDeletableRejected, orderByDeletionRisk } from './batchOps';
 import type { PhotoView } from './store';
 
 function photo(overrides: Partial<PhotoView>): PhotoView {
@@ -287,5 +287,32 @@ describe('selectHighlights', () => {
     // top 30% din 10 poze (TOTAL) => 3 — dar exista doar 3 candidati dupa dedup (1 din rafala + 2 solo), deci ii ia pe toti
     const result = selectHighlights(photos, 30);
     expect(result.map(p => p.id)).toEqual(['burst0', 'solo-a', 'solo-b']);
+  });
+});
+
+// Stergerea din telefon e singura actiune care nu se poate lua inapoi, iar un
+// numar ("sterge 214 poze") nu-ti da nimic de verificat — vezi orderByDeletionRisk.
+describe('orderByDeletionRisk', () => {
+  const p = (id: string, aiScore: number) => ({ id, aiScore }) as PhotoView;
+
+  it('pune primele pozele respinse la mustata, nu pe cele clar slabe', () => {
+    const result = orderByDeletionRisk([p('clar-slaba', 4), p('la-mustata', 34), p('slabuta', 18)], 10);
+    expect(result.map(x => x.id)).toEqual(['la-mustata', 'slabuta', 'clar-slaba']);
+  });
+
+  it('se opreste la cate incap in banda, nu intoarce toata coada', () => {
+    const many = Array.from({ length: 50 }, (_, i) => p('p' + i, i));
+    expect(orderByDeletionRisk(many, 8)).toHaveLength(8);
+    expect(orderByDeletionRisk(many, 0)).toEqual([]);
+  });
+
+  it('nu modifica lista primita', () => {
+    const input = [p('a', 5), p('b', 30)];
+    orderByDeletionRisk(input, 10);
+    expect(input.map(x => x.id)).toEqual(['a', 'b']);
+  });
+
+  it('nu se supara pe o lista goala', () => {
+    expect(orderByDeletionRisk([], 8)).toEqual([]);
   });
 });
