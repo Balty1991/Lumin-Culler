@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { db } from '../core/db';
+import { summarizeAccuracy, type AccuracySummary } from '../core/learning/accuracy';
 import { useStore } from '../state/store';
 import { contextEngine } from '../core/learning/ContextEngine';
 import { useModalFocusTrap } from './useModalFocusTrap';
@@ -48,6 +50,7 @@ export function InsightsPanel() {
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const [summary, setSummary] = useState<Summary[] | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [accuracy, setAccuracy] = useState<AccuracySummary | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   useModalFocusTrap(containerRef, open);
 
@@ -63,9 +66,12 @@ export function InsightsPanel() {
   const reload = () => { void contextEngine.summarize(locale).then(s => setSummary(s)); };
 
   useEffect(() => {
-    if (!open) { setSummary(null); setExpanded(new Set()); return; }
+    if (!open) { setSummary(null); setExpanded(new Set()); setAccuracy(null); return; }
     let alive = true;
     void contextEngine.summarize(locale).then(s => { if (alive) setSummary(s); });
+    // Raspunsurile corecte exista deja: fiecare decizie manuala a salvat si ce
+    // propunea AI-ul, si ce ai ales tu. Vezi core/learning/accuracy.ts.
+    void db.corrections.toArray().then(rows => { if (alive) setAccuracy(summarizeAccuracy(rows)); });
     return () => { alive = false; };
   }, [open, locale]);
 
@@ -94,6 +100,36 @@ export function InsightsPanel() {
             <XIcon />
           </button>
         </header>
+
+        {/* Cifra pe care o aplicatie care decide in locul tau ti-o datoreaza, si
+            pe care aproape nicio aplicatie AI nu o da: cat de des a avut
+            dreptate, masurat pe pozele pe care le-ai judecat chiar tu. Poate
+            arata si prost — un indicator care nu poate arata rau e o reclama,
+            nu un indicator. */}
+        {accuracy && (
+          <section className="accuracy">
+            <h3>{tr('insights.accuracy.title')}</h3>
+            <div className="accuracy-rows">
+              {accuracy.keepPrecision !== null && (
+                <p>{tr('insights.accuracy.keep', { percent: Math.round(accuracy.keepPrecision * 100) })}</p>
+              )}
+              {accuracy.rejectPrecision !== null && (
+                <p>{tr('insights.accuracy.reject', { percent: Math.round(accuracy.rejectPrecision * 100) })}</p>
+              )}
+            </div>
+            {accuracy.trend && (
+              <p className="accuracy-trend">
+                {tr(
+                  accuracy.trend.recent > accuracy.trend.earlier ? 'insights.accuracy.trend.up'
+                  : accuracy.trend.recent < accuracy.trend.earlier ? 'insights.accuracy.trend.down'
+                  : 'insights.accuracy.trend.flat',
+                  { recent: Math.round(accuracy.trend.recent * 100), earlier: Math.round(accuracy.trend.earlier * 100) }
+                )}
+              </p>
+            )}
+            <p className="accuracy-basis hint">{tr('insights.accuracy.basis', { count: accuracy.total })}</p>
+          </section>
+        )}
 
         {summary === null && <p className="hint"><SparkleIcon className="inline-icon spin" /> {tr('insights.loading')}</p>}
 

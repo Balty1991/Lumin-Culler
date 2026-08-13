@@ -1558,6 +1558,20 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .photos-access-notice-text p { margin: 0; font-size: 0.76rem; line-height: 1.45; color: var(--text-dim); }
 .photos-access-notice .btn-accent { grid-column: 2; justify-self: start; padding: 8px 14px; font-size: 0.8rem; }
 
+/* "Cat de bine te cunosc" (InsightsPanel) — vezi core/learning/accuracy.ts.
+   Deliberat tipografie, nu un cadran/procent urias: cifra e onesta si poate fi
+   si proasta, deci trebuie sa citeasca a raport, nu a scor de joc. */
+.accuracy {
+  margin: 0 0 14px; padding: 13px 14px;
+  border-radius: var(--radius); background: var(--surface); border: 1px solid var(--border);
+}
+.accuracy h3 { margin: 0 0 8px; font-size: 0.8rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-faint); font-weight: 650; }
+.accuracy-rows { display: grid; gap: 5px; }
+.accuracy-rows p { margin: 0; font-size: 0.92rem; line-height: 1.45; }
+.accuracy-trend { margin: 9px 0 0; font-size: 0.84rem; color: var(--accent); }
+.accuracy-basis { margin: 9px 0 0; font-size: 0.72rem; line-height: 1.45; }
+
+
 .empty-filter {
   display: grid; justify-items: center; gap: 12px; text-align: center; color: var(--text-dim);
   padding: 48px 16px; animation: fadeUp 0.3s var(--ease) both;
