@@ -563,6 +563,11 @@ export async function importFiles(
   let images = pairs.filter(({ file: f }) =>
     /image\/(jpeg|png|webp|avif)/.test(f.type) || /\.(jpe?g|png|webp|avif)$/i.test(f.name) || RAW_EXTENSIONS.test(f.name)
   );
+  // Cate au fost lasate deoparte dintr-o selectie MIXTA. Pana acum, un clip
+  // video sau un HEIC ales din greseala disparea in tacere: utilizatorul alegea
+  // 20 de fisiere, se importau 18, si nimic nu spunea de ce. Cazul "niciunul
+  // suportat" avea deja mesaj (mai jos), cazul partial nu.
+  const skippedCount = pairs.length - images.length;
   // Daca niciun fisier ales nu are un format suportat (ex. HEIC/HEIF de pe iPhone,
   // sau un director gol), bucla de mai jos nu are ce procesa si totul se termina
   // instant, fara nicio poza si fara nicio eroare — utilizatorul vede doar ca
@@ -713,6 +718,13 @@ export async function importFiles(
         : `${failed} din ${images.length} poze nu au putut fi procesate — restul au fost adaugate.`)
       + (topReasons ? ` Motiv: ${topReasons}` : '')
     : undefined;
-  onProgress({ done, total: images.length, fileName: '', phase: 'finalizat', warning: stopReason ?? failureWarning });
+  const skippedWarning = skippedCount > 0
+    ? `${skippedCount} ${skippedCount === 1 ? 'fisier ales nu e o poza' : 'fisiere alese nu sunt poze'} `
+      + `(video, HEIC etc.) — ${skippedCount === 1 ? 'a fost sarit' : 'au fost sarite'}.`
+    : undefined;
+  onProgress({
+    done, total: images.length, fileName: '', phase: 'finalizat',
+    warning: stopReason ?? failureWarning ?? skippedWarning
+  });
   return groups;
 }

@@ -124,6 +124,18 @@ class MediaLibraryPlugin : Plugin() {
     fun pickPhotos(call: PluginCall) {
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
             type = "image/*"
+            // EXTRA_MIME_TYPES pe langa `type`: "image/*" singur e tratat ca o
+            // sugestie de unele surse din selector (Google Photos in special,
+            // care listeaza si clipuri) — raportat de utilizator: "uneori
+            // incarca si videoclipuri". Cu lista explicita, sursele care o
+            // respecta nici nu mai afiseaza altceva decat pozele pe care
+            // aplicatia chiar le poate deschide. Partea de galerie (perioade,
+            // foldere) nu avea nevoie de asta: interogheaza MediaStore.Images,
+            // unde clipurile nici nu exista.
+            putExtra(
+                Intent.EXTRA_MIME_TYPES,
+                arrayOf("image/jpeg", "image/png", "image/webp", "image/avif", "image/x-adobe-dng")
+            )
             addCategory(Intent.CATEGORY_OPENABLE)
             putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
         }
