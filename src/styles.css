@@ -1580,6 +1580,17 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .habits li { font-size: 0.9rem; line-height: 1.45; display: grid; gap: 2px; }
 .habits-basis { font-size: 0.66rem; color: var(--text-faint); }
 
+/* "Niciun cadru nu e bun pentru toata lumea" (GroupCompare) — vezi
+   core/frameComposite.ts. Sta sus, deasupra cadrelor, fiindca schimba felul in
+   care te uiti la ele: nu mai cauti cadrul bun, ci doua care se completeaza. */
+.composite-hint {
+  margin: 0 0 10px; padding: 11px 13px; border-radius: var(--radius);
+  background: var(--surface); border: 1px solid rgb(var(--accent-rgb) / 0.35);
+}
+.composite-hint b { display: block; font-size: 0.86rem; margin-bottom: 3px; }
+.composite-hint p { margin: 0; font-size: 0.82rem; line-height: 1.5; color: var(--text-dim); }
+
+
 
 /* "Ce ai pierde" — banda de miniaturi dinaintea stergerii definitive. Miniaturile
    sunt LQIP-uri (24px, blurate): destul cat sa RECUNOSTI o poza, nu cat s-o

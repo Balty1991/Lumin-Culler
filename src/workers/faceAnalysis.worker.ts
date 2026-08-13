@@ -24,6 +24,7 @@ import { Human, type Config, type FaceResult, type ObjectResult, type BackendEnu
 import type { AnalysisRecord, FaceInsight, KnownPerson } from '../core/db';
 import { classifyScene } from '../core/sceneClassifier';
 import { prominentFaces } from '../core/subjectProminence';
+import { isAwkwardExpression } from '../core/faceExpression';
 
 // ── Config ───────────────────────────────────────────────────────────────────
 
@@ -269,12 +270,7 @@ function engagementScore(emotion: { happy: number; surprise: number; negative: n
  * surpriza. Pragurile pe happy/surprise sunt deliberat joase (0.3): vrem sa
  * excludem orice urma reala a acestor emotii, nu doar cazul lor dominant.
  */
-export function isAwkwardExpression(face: FaceInsight): boolean {
-  if (!face.mouthOpen) return false;
-  const happy = face.emotion?.happy ?? 0;
-  const surprise = face.emotion?.surprise ?? 0;
-  return happy < 0.3 && surprise < 0.3;
-}
+export { isAwkwardExpression };
 
 /**
  * Zambet autentic (marker Duchenne) — vezi GENUINE_SMILE_EYE_THRESHOLD pentru

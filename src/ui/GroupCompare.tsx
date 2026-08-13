@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { db } from '../core/db';
+import { suggestComposite, faceAppearance, type CompositeHint } from '../core/frameComposite';
+import { isAwkwardExpression } from '../core/faceExpression';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
 import { useStore, type PhotoView } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
@@ -36,6 +39,7 @@ export function GroupCompare() {
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const [recommendedId, setRecommendedId] = useState<string | null>(null);
+  const [composite, setComposite] = useState<CompositeHint | null>(null);
   const [sortBySharpness, setSortBySharpness] = useState(false);
   const [topN, setTopN] = useState(3);
   const [zoomLevel, setZoomLevel] = useState<number>(1);
@@ -102,6 +106,13 @@ export function GroupCompare() {
     [rawMembers, sortBySharpness]
   );
   const isOpen = !!groupId && members.length > 0;
+  /**
+   * Id-urile membrilor ca un singur string. `rawMembers` e reconstruit la
+   * fiecare randare, deci nu poate sta ca dependenta de efect (ar reporni
+   * efectul la nesfarsit); o cheie primitiva e stabila prin VALOARE si spune
+   * exact ce ne intereseaza — "s-a schimbat componenta grupului?".
+   */
+  const memberIdsKey = rawMembers.map(m => m.id).join(',');
   useModalFocusTrap(containerRef, isOpen);
 
   // Escape-to-close — vezi acelasi tipar in EditPanel.tsx/MenuDrawer.tsx (bug
@@ -115,17 +126,38 @@ export function GroupCompare() {
 
   useEffect(() => {
     setRecommendedId(null);
-    setTopN(Math.min(3, Math.max(1, rawMembers.length)));
+    setComposite(null);
+    setTopN(Math.min(3, Math.max(1, memberIdsKey ? memberIdsKey.split(',').length : 0)));
     setZoomLevel(1);
     setOverlayMode(false);
     setPan({ x: 0, y: 0 });
     if (!groupId) return;
     let alive = true;
     void selectBestPhotoInGroup(groupId).then(id => { if (alive) setRecommendedId(id); });
+    // "Niciun cadru nu e bun pentru toata lumea" — vezi core/frameComposite.ts.
+    // Toate datele exista deja pe fetele analizate; nu se recalculeaza nimic.
+    const memberIds = memberIdsKey ? memberIdsKey.split(',') : [];
+    void Promise.all(memberIds.map(id => db.analyses.get(id))).then(analyses => {
+      if (!alive) return;
+      setComposite(suggestComposite(
+        analyses.flatMap((a, i) => (a ? [{
+          id: memberIds[i],
+          faces: a.faces.map(f => ({
+            embedding: f.embedding,
+            quality: faceAppearance({
+              isBlinking: f.isBlinking, smile: f.smile, eyeContact: f.eyeContact, awkward: isAwkwardExpression(f)
+            })
+          }))
+        }] : []))
+      ));
+    });
     return () => { alive = false; };
-  }, [groupId, selectBestPhotoInGroup, rawMembers.length]);
+  }, [groupId, selectBestPhotoInGroup, memberIdsKey]);
 
   if (!groupId || members.length === 0) return null;
+
+  /** "cadrul 2" — pozitia in lista chiar afisata, singura referinta pe care o vede utilizatorul. */
+  const frameLabel = (id: string) => String(members.findIndex(m => m.id === id) + 1);
 
   const clampedN = Math.min(Math.max(1, topN), members.length - 1 || 1);
 
@@ -143,6 +175,22 @@ export function GroupCompare() {
             <XIcon />
           </button>
         </header>
+        {/* Sfatul pe care nicio aplicatie de consum nu-l da: la 4-5 oameni,
+            statistic de multe ori NU exista cadrul in care toti ies bine, iar
+            fluxul profesionist e sa combini doua cadre. Ce nu poti face din ochi
+            e sa afli CARE doua — aplicatia stie deja, din fete. */}
+        {composite && (
+          <div className="composite-hint">
+            <b>{tr('compare.composite.title')}</b>
+            <p>
+              {tr('compare.composite.base', { frame: frameLabel(composite.baseFrameId) })}{' '}
+              {composite.swaps.map(sw => tr('compare.composite.swap', {
+                person: sw.person + 1, frame: frameLabel(sw.fromFrameId)
+              })).join(' ')}
+            </p>
+          </div>
+        )}
+
         {members.length > 2 && (
           <div className="compare-toolbar">
             <button
