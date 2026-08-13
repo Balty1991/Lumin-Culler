@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { toHashInput, decidePhotoStatus, SELECT_THRESHOLD, REJECT_THRESHOLD } from './importPipeline';
+import { deriveThresholds } from './scoreThresholds';
 import type { AnalysisRecord } from './db';
 
 function baseAnalysis(overrides: Partial<AnalysisRecord> = {}): AnalysisRecord {
@@ -98,5 +99,44 @@ describe('decidePhotoStatus', () => {
   it('aproba normal cand subjectInFocus e true sau nemasurabil (absent nu e penalizat)', () => {
     expect(decidePhotoStatus(SELECT_THRESHOLD, baseAnalysis({ faceCount: 1, sceneTags: [], subjectInFocus: true }))).toBe('selected');
     expect(decidePhotoStatus(SELECT_THRESHOLD, baseAnalysis({ faceCount: 1, sceneTags: [], subjectInFocus: undefined }))).toBe('selected');
+  });
+});
+
+// Plasa de siguranta pentru pragurile fixe (vezi core/scoreThresholds.ts):
+// decidePhotoStatus le primeste ca parametru, dar TOATE celelalte reguli
+// (document/captura de ecran, subiect confirmat neclar) raman neschimbate.
+describe('decidePhotoStatus cu praguri adaptate', () => {
+  // Sesiune in interior: scorurile stau intre 30 si 66, deci pragul fix de 65
+  // ar propune sub 3% din poze. Coboara la ~59 — dar NU sub 55: nu auto-selectam
+  // niciodata o poza pe care motorul o crede la limita "poate da, poate nu".
+  const intuneric = Array.from({ length: 400 }, (_, i) => 30 + Math.round((i / 399) * 36));
+  const adaptate = deriveThresholds(intuneric);
+  const BUNA_PENTRU_LOTUL_ASTA = 61;
+
+  it('propune pozele bune ale lotului, pe care pragul fix le-ar fi trimis toate la revizuire', () => {
+    expect(decidePhotoStatus(BUNA_PENTRU_LOTUL_ASTA, baseAnalysis({ faceCount: 1 }))).toBe('review');
+    expect(decidePhotoStatus(BUNA_PENTRU_LOTUL_ASTA, baseAnalysis({ faceCount: 1 }), adaptate)).toBe('selected');
+  });
+
+  it('nu coboara pragul sub podeaua absoluta, oricat de slab ar fi lotul', () => {
+    const totSlab = Array.from({ length: 400 }, (_, i) => 20 + Math.round((i / 399) * 30)); // 20..50
+    const t = deriveThresholds(totSlab);
+    expect(t.select).toBe(55);
+    // cea mai buna poza din lot (50) tot nu se auto-selecteaza — ramane la revizuire
+    expect(decidePhotoStatus(50, baseAnalysis({ faceCount: 1 }), t)).toBe('review');
+  });
+
+  it('se comporta exact ca inainte cand nu i se dau praguri', () => {
+    expect(decidePhotoStatus(SELECT_THRESHOLD, baseAnalysis({ faceCount: 1 }))).toBe('selected');
+    expect(decidePhotoStatus(REJECT_THRESHOLD, baseAnalysis({ faceCount: 1 }))).toBe('rejected');
+  });
+
+  it('nu slabeste protectia pentru documente/capturi de ecran, oricat de jos ar cobori pragul', () => {
+    expect(decidePhotoStatus(BUNA_PENTRU_LOTUL_ASTA, baseAnalysis({ faceCount: 0, sceneTags: [] }), adaptate)).toBe('review');
+    expect(decidePhotoStatus(BUNA_PENTRU_LOTUL_ASTA, baseAnalysis({ faceCount: 1, textCoverage: 0.9 }), adaptate)).toBe('review');
+  });
+
+  it('nu slabeste nici blocarea unui subiect confirmat neclar', () => {
+    expect(decidePhotoStatus(BUNA_PENTRU_LOTUL_ASTA, baseAnalysis({ faceCount: 1, subjectInFocus: false }), adaptate)).toBe('review');
   });
 });

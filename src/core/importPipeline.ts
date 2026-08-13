@@ -15,6 +15,7 @@ import { isRawFile, decodeRawFile, RAW_EXTENSIONS } from './rawDecoder';
 import type { FileSystemFileHandleLike } from './filePicker';
 import { pickFolderSceneTag } from './sceneTagLabels';
 import { detectFacesNative, isNativeFaceDetectionAvailable } from './nativeFaceDetection';
+import { deriveThresholds, FIXED_THRESHOLDS, type Thresholds } from './scoreThresholds';
 
 export interface ImportProgress {
   done: number;
@@ -38,9 +39,11 @@ const THUMB_SIZE = 512;
     cat sa se recunoasca formele/culorile dominante prin blur, nu doar un gradient generic. */
 const LQIP_SIZE = 24;
 /** Exportate (nu doar folosite local) — reutilizate de store.ts (rescorePhotos) ca sa clasifice
-    exact la fel poze deja existente, re-scorate cu un model ContextEngine actualizat. */
-export const SELECT_THRESHOLD = 65;
-export const REJECT_THRESHOLD = 35;
+    exact la fel poze deja existente, re-scorate cu un model ContextEngine actualizat.
+    Definitia traieste in core/scoreThresholds.ts, impreuna cu plasa de siguranta
+    care le muta cand ar produce un rezultat degenerat (zero poze propuse, sau
+    aproape toate). */
+export { SELECT_THRESHOLD, REJECT_THRESHOLD } from './scoreThresholds';
 
 /**
  * Un scor ContextEngine mare NU garanteaza ca AI-ul a recunoscut CEVA anume
@@ -97,14 +100,31 @@ function subjectConfirmedOutOfFocus(analysis: Pick<AnalysisRecord, 'subjectInFoc
   return analysis.subjectInFocus === false;
 }
 
-/** Reutilizat de store.ts (rescorePhotos) ca sa clasifice exact la fel poze deja existente, re-scorate cu un model ContextEngine actualizat. */
+/**
+ * Reutilizat de store.ts (rescorePhotos) ca sa clasifice exact la fel poze deja
+ * existente, re-scorate cu un model ContextEngine actualizat.
+ *
+ * `thresholds` implicit = valorile fixe, deci orice apelant care nu stie de
+ * adaptare se comporta exact ca inainte. Vezi core/scoreThresholds.ts pentru
+ * cand si cat de mult se pot misca.
+ */
 export function decidePhotoStatus(
   score: number,
-  analysis: Pick<AnalysisRecord, 'faceCount' | 'sceneTags' | 'textCoverage' | 'subjectInFocus'>
+  analysis: Pick<AnalysisRecord, 'faceCount' | 'sceneTags' | 'textCoverage' | 'subjectInFocus'>,
+  thresholds: Thresholds = FIXED_THRESHOLDS
 ): PhotoRecord['status'] {
-  if (score <= REJECT_THRESHOLD) return 'rejected';
-  if (score >= SELECT_THRESHOLD && !hasNoRecognizableSubject(analysis) && !subjectConfirmedOutOfFocus(analysis)) return 'selected';
+  if (score <= thresholds.reject) return 'rejected';
+  if (score >= thresholds.select && !hasNoRecognizableSubject(analysis) && !subjectConfirmedOutOfFocus(analysis)) return 'selected';
   return 'review';
+}
+
+/**
+ * Scorurile AI ale intregii biblioteci, sortate crescator — citite direct din
+ * indexul Dexie pe `aiScore`, deci fara sa incarce inregistrarile de analiza in
+ * memorie si fara sa sorteze nimic in JS.
+ */
+export async function readLibraryScores(): Promise<number[]> {
+  return (await db.analyses.orderBy('aiScore').keys()) as number[];
 }
 /** EXIF sta mereu aproape de inceputul fisierului (segment APP1, imediat dupa
     SOI) — citim doar un prefix, nu tot fisierul, ca sa nu incarcam inutil in
@@ -390,7 +410,7 @@ export function toHashInput(id: string, dHash: string, a: AnalysisRecord, captur
   };
 }
 
-async function processOne(file: File, genre?: string, project?: string, handle?: FileSystemFileHandleLike, mediaUri?: string): Promise<ImportedPhoto> {
+async function processOne(file: File, genre?: string, project?: string, handle?: FileSystemFileHandleLike, mediaUri?: string, thresholds: Thresholds = FIXED_THRESHOLDS): Promise<ImportedPhoto> {
   const id = crypto.randomUUID();
   originalFiles.set(id, file);
   if (handle) originalHandles.set(id, handle);
@@ -472,7 +492,7 @@ async function processOne(file: File, genre?: string, project?: string, handle?:
   analysis.aiScore = prediction.score;
   analysis.aiFactors = prediction.topFactors;
 
-  const status = decidePhotoStatus(prediction.score, analysis);
+  const status = decidePhotoStatus(prediction.score, analysis, thresholds);
 
   const photo: PhotoRecord = {
     id,
@@ -559,6 +579,11 @@ export async function importFiles(
   await contextEngine.init();
   const persons = await db.persons.toArray();
   await analysisPool.setKnownPersons(persons);
+  // Pragurile se calculeaza O SINGURA DATA, inainte de lot, si raman fixe pe
+  // toata durata lui: altfel primele poze ar fi clasificate dupa alte reguli
+  // decat ultimele, iar rezultatul aceluiasi import ar depinde de ordinea
+  // fisierelor. Vezi core/scoreThresholds.ts.
+  const thresholds = deriveThresholds(await readLibraryScores());
 
   // pastram fisierul si handle-ul corespunzator impreuna INAINTE de a filtra
   // dupa format — altfel indexul din `handles` s-ar decala fata de `files`
@@ -618,7 +643,7 @@ export async function importFiles(
         const { file, handle, mediaUri } = images[myIndex];
 
         try {
-          const item = await processOne(file, genre, project, handle, mediaUri);
+          const item = await processOne(file, genre, project, handle, mediaUri, thresholds);
           hashes.push(toHashInput(item.photo.id, item.photo.dHash, item.analysis, item.photo.capturedAt));
           onPhoto(item);
         } catch (err) {

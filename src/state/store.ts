@@ -17,8 +17,9 @@ import { readApplyEditsInGallery, writeApplyEditsInGallery } from './applyEditsP
 import { clearPreviewUrlCache } from '../core/previewUrlCache';
 import {
   importFiles, originalFiles, originalHandles, createCancelToken, SELECT_THRESHOLD, REJECT_THRESHOLD, decidePhotoStatus,
-  type ImportProgress, type ImportCancelToken
+  readLibraryScores, type ImportProgress, type ImportCancelToken
 } from '../core/importPipeline';
+import { deriveThresholds } from '../core/scoreThresholds';
 import type { FileSystemFileHandleLike } from '../core/filePicker';
 import { readEconomicMode, writeEconomicMode } from '../core/performanceSettings';
 import { vibrate } from '../ui/haptics';
@@ -2342,6 +2343,11 @@ export const useStore = create<AppState>((set, get) => ({
   rescorePhotos: async () => {
     const locale = get().locale;
     const photos = get().photos;
+    // Aceleasi praguri pentru toata biblioteca, calculate o data — vezi
+    // core/scoreThresholds.ts si nota din importFiles. Citite INAINTE de bucla:
+    // scorurile se rescriu pe parcurs, iar un prag recalculat la mijloc ar
+    // clasifica ultimele poze dupa alte reguli decat primele.
+    const thresholds = deriveThresholds(await readLibraryScores());
     const changes: { photoId: string; previousStatus: PhotoRecord['status'] }[] = [];
     const updates = new Map<string, { aiScore: number; aiFactors: { feature: string; contribution: number }[]; status: PhotoRecord['status'] }>();
     let quotaError = false;
@@ -2355,7 +2361,7 @@ export const useStore = create<AppState>((set, get) => ({
       const [analysis, photoRecord] = await Promise.all([db.analyses.get(p.id), db.photos.get(p.id)]);
       if (!analysis || !photoRecord) return;
       const prediction = await contextEngine.predict(analysis, photoRecord.genre);
-      const newStatus = decidePhotoStatus(prediction.score, analysis);
+      const newStatus = decidePhotoStatus(prediction.score, analysis, thresholds);
       await db.analyses.update(p.id, { aiScore: prediction.score, aiFactors: prediction.topFactors });
       if (newStatus !== photoRecord.status) {
         changes.push({ photoId: p.id, previousStatus: photoRecord.status });
