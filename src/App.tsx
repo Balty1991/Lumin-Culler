@@ -850,6 +850,10 @@ export default function App() {
           globale se ascund la scroll in jos si revin la scroll in sus — maximizeaza spatiul
           de afisare al grilei pe mobil. Topbar-ul (brand + actiuni critice) ramane mereu vizibil. */}
       <div className={headerHidden ? 'app-collapsible hidden' : 'app-collapsible'}>
+        {/* Un singur copil, obligatoriu: colapsarea merge pe grid-template-rows
+            0fr->1fr (vezi .app-collapsible in styles.css), iar tehnica aia are
+            nevoie de EXACT un rand de grila. */}
+        <div className="app-collapsible-inner">
         {photos.length > 0 && homeGridOpen && (
           <CullGauge
             selected={counts.selected}
@@ -1041,6 +1045,7 @@ export default function App() {
             )}
           </nav>
         )}
+        </div>
       </div>
 
       {photos.length === 0 && !progress ? (

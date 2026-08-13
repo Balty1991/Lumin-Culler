@@ -42,6 +42,7 @@ export function GallerySupervisorBanner() {
   const lastSupervisorImportIds = useStore(s => s.lastSupervisorImportIds);
   const openTiktokSortForIds = useStore(s => s.openTiktokSortForIds);
   const photoCount = useStore(s => s.photos.length);
+  const importRunning = useStore(s => s.progress !== null);
   const [dismissedToday, setDismissedToday] = useState(() => isSupervisorBannerDismissedToday(readSupervisorBannerDismissedDate()));
 
   useEffect(() => {
@@ -54,6 +55,11 @@ export function GallerySupervisorBanner() {
   // "Alege fotografiile" (cerinta directa) — bannerul ar fi a doua copie a
   // aceleiasi actiuni, peste continutul de start.
   if (photoCount === 0) return null;
+  // Nici cat timp inca se analizeaza lotul curent (raportat: "nici nu terminase
+  // de sortat ce am dat"). A propune urmatoarea perioada peste o analiza in
+  // curs cere exact lucrul pe care utilizatorul tocmai il asteapta sa se
+  // termine — si, daca accepta, pune un al doilea import la coada dupa primul.
+  if (importRunning) return null;
   if (!isNativeMediaLibraryAvailable() || dismissedToday || (!nextPeriod && sortNowCount === 0)) return null;
 
   const dismiss = () => { writeSupervisorBannerDismissedDate(); setDismissedToday(true); };

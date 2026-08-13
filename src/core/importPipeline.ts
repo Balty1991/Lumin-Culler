@@ -366,10 +366,11 @@ async function sniffRealFormat(file: File): Promise<string | null> {
 }
 
 /** Construieste intrarea folosita de gruparea dupa dHash (hashCompare.worker.ts) din campurile deja calculate de analiza AI. */
-export function toHashInput(id: string, dHash: string, a: AnalysisRecord): HashInput {
+export function toHashInput(id: string, dHash: string, a: AnalysisRecord, capturedAt?: number): HashInput {
   return {
     id,
     hash: dHash,
+    ...(capturedAt !== undefined ? { capturedAt } : {}),
     score: a.aiScore,
     sharpness: a.sharpness,
     exposure: a.exposure,
@@ -615,7 +616,7 @@ export async function importFiles(
 
         try {
           const item = await processOne(file, genre, project, handle, mediaUri);
-          hashes.push(toHashInput(item.photo.id, item.photo.dHash, item.analysis));
+          hashes.push(toHashInput(item.photo.id, item.photo.dHash, item.analysis, item.photo.capturedAt));
           onPhoto(item);
         } catch (err) {
           if (isQuotaError(err)) { stopReason = stopMessage(done); break; }
@@ -656,7 +657,7 @@ export async function importFiles(
   if (existingUngrouped.length) {
     const analyses = await db.analyses.bulkGet(existingUngrouped.map(p => p.id));
     existingHashes = existingUngrouped
-      .map((p, i) => { const a = analyses[i]; return a ? toHashInput(p.id, p.dHash, a) : null; })
+      .map((p, i) => { const a = analyses[i]; return a ? toHashInput(p.id, p.dHash, a, p.capturedAt) : null; })
       .filter((h): h is HashInput => h !== null);
   }
 

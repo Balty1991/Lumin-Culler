@@ -41,6 +41,8 @@ export interface HashInput extends Partial<Omit<GroupCandidate, 'id'>> {
   imageEmbedding?: number[];
   /** 0..1, vezi AnalysisRecord.colorHarmonyScore — folosit doar ca semnal secundar cand nu exista fete de comparat. */
   colorHarmonyScore?: number;
+  /** Momentul capturii (EXIF, altfel data fisierului) — vezi TIME_CLOSE_SIMILARITY_THRESHOLD. Absent = doar pragul strans de asemanare. */
+  capturedAt?: number;
 }
 
 export interface GroupUpdate {
@@ -71,6 +73,27 @@ const CHUNK_SIZE = 50;
  * in continuare de refineBucket() mai jos (fete/compozitie/armonie culori).
  */
 const SIMILARITY_THRESHOLD = 14;
+
+/**
+ * Prag mai permisiv, folosit DOAR intre poze facute la cateva zeci de secunde
+ * una de alta.
+ *
+ * Bug raportat cu captura: o serie evidenta (aceeasi mama tinand acelasi copil
+ * in acelasi parc innezapezit, 6 cadre consecutive) nu a fost grupata deloc.
+ * dHash-ul compara luminanta pe o grila 9x8, deci "acelasi moment, dar cu un
+ * pas in lateral si un zoom putin diferit" muta mult din cadru si sare usor de
+ * 14/64 — chiar daca pentru orice om sunt limpede aceeasi serie.
+ *
+ * Timpul e semnalul care lipsea: doua poze facute la 20 de secunde una de alta
+ * SUNT, aproape mereu, acelasi moment. Nu e suficient singur (doua poze
+ * diferite la o petrecere sunt tot la secunde distanta), de aceea ramane o
+ * conditie IN PLUS peste asemanarea vizuala, doar cu pragul relaxat — iar
+ * refineBucket() de mai jos verifica oricum, dupa, ca subiectul chiar e acelasi
+ * (fete, embedding de continut).
+ */
+const TIME_CLOSE_SIMILARITY_THRESHOLD = 24;
+/** Cat de aproape in timp trebuie sa fie doua poze ca sa merite pragul relaxat de mai sus. */
+const BURST_WINDOW_MS = 45_000;
 
 function hammingDistance(a: string, b: string): number {
   let d = 0;
@@ -119,6 +142,12 @@ function cosineSimilarity(a: number[], b: number[]): number {
   for (let i = 0; i < len; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
   const denom = Math.sqrt(na) * Math.sqrt(nb);
   return denom > 0 ? dot / denom : 0;
+}
+
+/** true daca poza e la cel mult BURST_WINDOW_MS de VREUN membru al bucket-ului. Fara date de captura pe vreuna dintre parti, nu putem afirma nimic. */
+function closeInTime(photo: HashInput, members: HashInput[]): boolean {
+  if (photo.capturedAt === undefined) return false;
+  return members.some(m => m.capturedAt !== undefined && Math.abs(m.capturedAt - photo.capturedAt!) <= BURST_WINDOW_MS);
 }
 
 function bestFaceSimilarity(a: number[][], b: number[][]): number | null {
@@ -217,7 +246,14 @@ export class HashCompareService {
     for (let start = 0; start < photos.length; start += CHUNK_SIZE) {
       const chunk = photos.slice(start, start + CHUNK_SIZE);
       for (const photo of chunk) {
-        const candidates = bkQuery(seedTree, photo.hash, SIMILARITY_THRESHOLD, hammingDistance);
+        // Interogam cu pragul RELAXAT, apoi filtram: distanta stransa e mereu
+        // acceptata, cea relaxata doar cand pozele sunt si apropiate in timp.
+        const candidates = bkQuery(seedTree, photo.hash, TIME_CLOSE_SIMILARITY_THRESHOLD, hammingDistance)
+          .filter(index => {
+            const distance = hammingDistance(photo.hash, buckets[index].seedHash);
+            if (distance <= SIMILARITY_THRESHOLD) return true;
+            return closeInTime(photo, buckets[index].members);
+          });
         // primul bucket creat dintre candidati — aceeasi regula de departajare ca
         // Array.prototype.find de dinainte (scanare in ordinea crearii)
         const bucketIndex = candidates.length ? Math.min(...candidates) : -1;

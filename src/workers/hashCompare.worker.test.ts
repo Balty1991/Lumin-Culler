@@ -192,3 +192,47 @@ describe('HashCompareService.groupPhotos', () => {
     });
   });
 });
+
+// Bug raportat cu captura: o serie evidenta (aceeasi scena, cadre consecutive,
+// incadrare usor diferita) nu era grupata deloc, pentru ca dHash-ul sarea de
+// pragul strans. Vezi TIME_CLOSE_SIMILARITY_THRESHOLD in hashCompare.worker.ts.
+describe('serii prinse dupa apropierea in timp', () => {
+  /** Distanta 18: peste pragul strans (14), sub cel relaxat (24). */
+  const nearHash = '0'.repeat(46) + '1'.repeat(18);
+
+  it('grupeaza doua cadre asemanatoare facute la cateva secunde unul de altul', async () => {
+    const t = Date.now();
+    const { groups } = await new HashCompareService().groupPhotos([
+      { id: 'a', hash: '0'.repeat(64), score: 50, capturedAt: t },
+      { id: 'b', hash: nearHash, score: 50, capturedAt: t + 8_000 }
+    ]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].memberIds).toEqual(['a', 'b']);
+  });
+
+  it('NU le grupeaza daca sunt facute la ore distanta — asemanarea singura nu ajunge', async () => {
+    const t = Date.now();
+    const { groups } = await new HashCompareService().groupPhotos([
+      { id: 'a', hash: '0'.repeat(64), score: 50, capturedAt: t },
+      { id: 'b', hash: nearHash, score: 50, capturedAt: t + 3 * 60 * 60 * 1000 }
+    ]);
+    expect(groups).toHaveLength(0);
+  });
+
+  it('NU le grupeaza cand lipsesc datele de captura (nu putem afirma nimic despre timp)', async () => {
+    const { groups } = await new HashCompareService().groupPhotos([
+      { id: 'a', hash: '0'.repeat(64), score: 50 },
+      { id: 'b', hash: nearHash, score: 50 }
+    ]);
+    expect(groups).toHaveLength(0);
+  });
+
+  it('pragul strans ramane valabil singur, oricat de departate in timp ar fi pozele', async () => {
+    const t = Date.now();
+    const { groups } = await new HashCompareService().groupPhotos([
+      { id: 'a', hash: '0'.repeat(64), score: 50, capturedAt: t },
+      { id: 'b', hash: '0'.repeat(63) + '1', score: 50, capturedAt: t + 30 * 24 * 3600 * 1000 }
+    ]);
+    expect(groups).toHaveLength(1);
+  });
+});
