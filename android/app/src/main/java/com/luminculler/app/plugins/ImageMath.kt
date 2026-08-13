@@ -206,6 +206,23 @@ object ImageMath {
     /** [x, y, latime, inaltime], normalizat 0..1 fata de cadrul intreg — acelasi format ca FaceInsight.box din JS. */
     data class FaceBox(val x: Double, val y: Double, val w: Double, val h: Double)
 
+    /**
+     * Aria minima a unei fete (fractiune din aria cadrului) de la care
+     * fotografia e considerata a fi DESPRE acea persoana.
+     *
+     * Oglinda exacta a lui MIN_SUBJECT_FACE_AREA din
+     * src/core/subjectProminence.ts — cele doua trebuie sa ramana identice, la
+     * fel ca restul matematicii portate aici. Vezi acel fisier pentru ce anume
+     * strica un trecator minuscul tratat drept subiect (compozitia judecata
+     * dupa capul lui, focusul masurat pe cateva zeci de pixeli din fata lui,
+     * orizontul necalculat).
+     */
+    const val MIN_SUBJECT_FACE_AREA = 0.004
+
+    /** Fetele destul de mari cat sa fie subiectul fotografiei. */
+    fun prominentFaces(faces: List<FaceBox>): List<FaceBox> =
+        faces.filter { it.w * it.h >= MIN_SUBJECT_FACE_AREA }
+
     private val THIRDS_POINTS = arrayOf(
         1.0 / 3 to 1.0 / 3, 2.0 / 3 to 1.0 / 3, 1.0 / 3 to 2.0 / 3, 2.0 / 3 to 2.0 / 3
     )

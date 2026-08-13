@@ -537,3 +537,33 @@ describe('lacksCameraMetadata', () => {
     expect(capturaDeEcran.score).toBeLessThan(pozaReala.score);
   });
 });
+
+// Orizontul e a doua jumatate a aceleiasi probleme: un peisaj cu un trecator mic
+// e tot un peisaj, si are tot un orizont de judecat.
+describe('extractFeatures — orizontul unui peisaj cu om mic in cadru', () => {
+  it('include orizontul cand analiza chiar l-a masurat, desi exista o fata mica', () => {
+    const features = extractFeatures(baseAnalysis({
+      sceneType: 'portrait', faceCount: 1, faces: [faceOfArea(0.0004)], horizonTiltDeg: 6
+    }));
+    expect(features.horizonLevel).toBeCloseTo(1 - 6 / 15);
+  });
+
+  it('nu-l include pentru un portret real, oricat de masurat ar fi', () => {
+    const features = extractFeatures(baseAnalysis({
+      sceneType: 'portrait', faceCount: 1, faces: [faceOfArea(0.06)], horizonTiltDeg: 6
+    }));
+    expect('horizonLevel' in features).toBe(false);
+  });
+
+  it('nu trimite filler pentru inregistrarile vechi, unde poarta de analiza era inca "fara nicio fata"', () => {
+    // fata mica + orizont niciodata masurat: OMIS, nu 0.5 — un filler constant
+    // strica exact statisticile de normalizare pe care le protejeaza
+    // LANDSCAPE_ONLY_FEATURES.
+    const features = extractFeatures(baseAnalysis({ faceCount: 1, faces: [faceOfArea(0.0004)] }));
+    expect('horizonLevel' in features).toBe(false);
+  });
+
+  it('pastreaza 0.5 pentru o poza chiar fara fete, unde masuratoarea a esuat (prea putine muchii)', () => {
+    expect(extractFeatures(baseAnalysis({ faceCount: 0, faces: [] })).horizonLevel).toBe(0.5);
+  });
+});

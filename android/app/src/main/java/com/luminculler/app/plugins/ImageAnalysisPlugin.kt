@@ -75,9 +75,15 @@ class ImageAnalysisPlugin : Plugin() {
      * compozitie din fete; clipping/expunere/gray/sobel din bufferul 320x320;
      * linii directoare/simetrie/spatiu negativ/calitatea luminii din gray+sobel;
      * focus/bokeh din gray+fete; culoare din bufferul 320x320; orizont din
-     * bufferul separat doar cand nu exista fete; agregarea compozitiei la final.
+     * bufferul separat doar cand nu exista un subiect uman prominent; agregarea
+     * compozitiei la final.
      */
-    private fun runAnalysis(bitmap: Bitmap, faces: List<ImageMath.FaceBox>): JSObject {
+    private fun runAnalysis(bitmap: Bitmap, allFaces: List<ImageMath.FaceBox>): JSObject {
+        // Compozitia, focusul si orizontul se decid dupa subiectii REALI ai
+        // cadrului, nu dupa orice fata detectata — un trecator la 30 de metri
+        // dintr-un peisaj nu face fotografia sa fie despre el. Oglinda fixului
+        // din faceAnalysis.worker.ts; vezi src/core/subjectProminence.ts.
+        val faces = ImageMath.prominentFaces(allFaces)
         val small = Bitmap.createScaledBitmap(bitmap, SMALL_SIZE, SMALL_SIZE, true)
         val smallPixels = IntArray(SMALL_SIZE * SMALL_SIZE)
         small.getPixels(smallPixels, 0, SMALL_SIZE, 0, 0, SMALL_SIZE, SMALL_SIZE)

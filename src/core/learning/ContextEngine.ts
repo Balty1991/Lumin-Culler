@@ -20,6 +20,7 @@
 import { db, type AnalysisRecord, type ContextModelRecord, type EmbeddingMemoryRecord, type TagMemoryRecord } from '../db';
 import { affinity, readEmbeddingMemory, recordEmbeddingDecision, resetEmbeddingMemory } from './embeddingMemory';
 import { tagAffinity, readTagMemory, recordTagDecision, resetTagMemory } from './tagMemory';
+import { hasProminentFace, subjectProminence } from '../subjectProminence';
 import { t, type Locale } from '../../i18n';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -449,26 +450,8 @@ export function landscapeSharpness(rawSharpness: number): number {
 }
 
 /**
- * Aria minima a unei fete (fractiune din aria cadrului) de la care fotografia e
- * considerata a fi DESPRE acea persoana. 0.004 inseamna o fata cu latura de
- * ~6% din latura cadrului — la 4000px, o fata de ~250px: perfect vizibila, dar
- * clar un trecator, nu subiectul.
- *
- * Prag euristic, NECALIBRAT pe un set real de poze. Raul e mic in ambele
- * directii (vezi hasProminentSubject), dar merita recalibrat daca la testare
- * pe device se dovedeste prea sever/prea permisiv.
- */
-const MIN_SUBJECT_FACE_AREA = 0.004;
-
-/**
- * "Exista un SUBIECT uman", nu doar "exista o fata".
- *
- * Un trecator la 30 de metri intr-o poza de peisaj e o fata detectata, iar
- * `faceCount > 0` transforma instant fotografia in portret pentru tot restul
- * motorului. Consecinta concreta: landscapeSharpness — compresia adaugata
- * anume pentru ca perspectiva atmosferica inmoaie natural crestele indepartate,
- * dupa o poza de munte respinsa pe nedrept — se DEZACTIVA pentru exact acel gen
- * de cadru, daca se intampla sa fie cineva in el.
+ * "Exista un SUBIECT uman", nu doar "exista o fata" — vezi core/subjectProminence.ts
+ * pentru regula in sine si pentru tot ce strica un trecator minuscul.
  *
  * Deliberat NU schimba si blocul FACE_ONLY_FEATURES: zambetul/ochii unei fete
  * mici sunt masurati, doar mai putin siguri — a-i sterge cu totul ar arunca
@@ -480,27 +463,7 @@ const MIN_SUBJECT_FACE_AREA = 0.004;
 export function hasProminentSubject(a: Pick<AnalysisRecord, 'faceCount' | 'faces'>): boolean {
   if (a.faceCount === 0) return false;
   if (!a.faces.length) return true;
-  return a.faces.some(f => f.box[2] * f.box[3] >= MIN_SUBJECT_FACE_AREA);
-}
-
-/**
- * Cat de mult ocupa subiectul principal din cadru, 0..1 — latura fetei celei mai
- * mari raportata la jumatate din latura cadrului (o fata care acopera jumatate
- * din latura = 1).
- *
- * Lipsea complet ca semnal: `faceScore` e increderea DETECTIEI, iar
- * ruleOfThirds/headroom descriu POZITIA — niciunul nu spune cat de mare e omul
- * in poza. Un portret in care fata umple cadrul si o poza in care aceeasi
- * persoana e un punct in departare arata identic pentru motor, desi sunt doua
- * fotografii complet diferite. Radacina patrata, nu aria bruta: aria scade cu
- * patratul, deci o scala liniara e mult mai apropiata de cum percepem "mare in
- * cadru".
- */
-export function subjectProminence(faces: AnalysisRecord['faces']): number | null {
-  let maxArea = 0;
-  for (const f of faces) maxArea = Math.max(maxArea, f.box[2] * f.box[3]);
-  if (maxArea <= 0) return null;
-  return Math.min(1, Math.sqrt(maxArea) / 0.5);
+  return hasProminentFace(a.faces);
 }
 
 /**
@@ -611,11 +574,20 @@ export function extractFeatures(a: AnalysisRecord, memorySignals?: { contentAffi
     // nativeAnalysis.ts) — absent pe web/PWA si pe inregistrari mai vechi,
     // tratat neutru (0.5), nu "asumat fara defect" (0), acelasi tipar ca restul.
     features.bodyCroppedAtEdge = a.bodyCroppedAtEdge === undefined ? 0.5 : (a.bodyCroppedAtEdge ? 1 : 0);
-  } else {
-    // orizont: convertit din grade in scor 0..1 (1 = perfect drept); 0.5 neutru
-    // cand nu s-a putut estima (prea putine muchii clare) — vezi LANDSCAPE_ONLY_FEATURES
-    // pentru motivul pentru care lipseste complet la faceCount > 0, in loc de
-    // aceeasi valoare filler ca inainte.
+  }
+
+  // Orizont: convertit din grade in scor 0..1 (1 = perfect drept). Poarta e
+  // "fara subiect uman PROMINENT", nu "fara nicio fata" — un peisaj cu un
+  // trecator mic in cadru e tot un peisaj, si are tot un orizont de judecat
+  // (vezi core/subjectProminence.ts; analiza il si calculeaza acum acolo).
+  //
+  // Conditia a doua tine cont de inregistrarile mai vechi, facute cand poarta
+  // din analiza era inca `faceCount === 0`: acolo o poza cu o fata mica nu are
+  // orizontul masurat, si atunci il OMITEM in loc sa trimitem 0.5 filler — vezi
+  // LANDSCAPE_ONLY_FEATURES pentru ce anume strica un filler constant. Pentru
+  // pozele fara nicio fata pastram 0.5 cand masuratoarea chiar a esuat (prea
+  // putine muchii clare), exact ca inainte.
+  if (!hasProminentSubject(a) && (a.horizonTiltDeg !== undefined || a.faceCount === 0)) {
     features.horizonLevel = a.horizonTiltDeg !== undefined ? Math.max(0, 1 - Math.abs(a.horizonTiltDeg) / 15) : 0.5;
   }
 

@@ -23,6 +23,7 @@ import * as Comlink from 'comlink';
 import { Human, type Config, type FaceResult, type ObjectResult, type BackendEnum } from '@vladmandic/human';
 import type { AnalysisRecord, FaceInsight, KnownPerson } from '../core/db';
 import { classifyScene } from '../core/sceneClassifier';
+import { prominentFaces } from '../core/subjectProminence';
 
 // ── Config ───────────────────────────────────────────────────────────────────
 
@@ -775,6 +776,16 @@ export function hasNaturalSkinTone(img: ImageData, box: [number, number, number,
   return meanHue <= SKIN_HUE_MAX || meanHue >= 350;
 }
 
+/**
+ * Cutia unei fete detectate ca fractiuni din cadru — aceeasi normalizare ca
+ * toInsight(). Necesara separat pentru ca decizia despre orizont se ia inainte
+ * ca lista de FaceInsight (deja normalizata) sa fie construita.
+ */
+function normalizedBox(face: FaceResult, imgW: number, imgH: number): [number, number, number, number] {
+  const [x, y, w, h] = face.box;
+  return [x / imgW, y / imgH, w / imgW, h / imgH];
+}
+
 /** Scor agregat de compozitie (0..1) — cu subiect uman: treimi+headroom; fara: linii/simetrie/spatiu negativ. */
 function aggregateComposition(p: {
   ruleOfThirds: number; headroom: number; hasFaces: boolean;
@@ -1047,11 +1058,13 @@ export class FaceAnalysisService {
     const result = await this.human.detect(bitmap);
     const imgW = bitmap.width, imgH = bitmap.height;
 
-    // orizontul are sens doar cand nu exista subiect uman de compus dupa treimi/headroom
-    // — desenat separat (proportii reale, nu patratul distorsionat de mai sus),
-    // INAINTE de close() cat timp bitmap-ul e inca valid
+    // Orizontul are sens cand nu exista un subiect uman PROMINENT de compus dupa
+    // treimi/headroom — un trecator mic dintr-un peisaj nu e un astfel de subiect
+    // (vezi core/subjectProminence.ts). Desenat separat (proportii reale, nu
+    // patratul distorsionat de mai sus), INAINTE de close() cat timp bitmap-ul
+    // e inca valid.
     let horizonImg: ImageData | null = null;
-    if (result.face.length === 0) {
+    if (prominentFaces(result.face.map(f => ({ box: normalizedBox(f, imgW, imgH) }))).length === 0) {
       const HORIZON_MAX_SIDE = 360;
       const scale = Math.min(1, HORIZON_MAX_SIDE / Math.max(imgW, imgH));
       const hw = Math.max(1, Math.round(imgW * scale));
@@ -1078,7 +1091,11 @@ export class FaceAnalysisService {
 
     const faces = result.face.map((f, i) => this.toInsight(f, imgW, imgH, catchlights[i]));
     const known = faces.filter(f => f.personId !== null);
-    const composition = scoreComposition(faces);
+    // Compozitia, focusul si obiectul principal se decid dupa subiectii REALI ai
+    // cadrului, nu dupa orice fata detectata — vezi core/subjectProminence.ts.
+    // `faces` (complet) ramane sursa pentru expresii, ochi si identitate.
+    const subjects = prominentFaces(faces);
+    const composition = scoreComposition(subjects);
     const clipping = clippingScores(smallImg);
     const horizonTiltDeg = horizonImg ? detectHorizonTiltDeg(horizonImg) : null;
     const exposure = exposureScore(smallImg);
@@ -1092,8 +1109,8 @@ export class FaceAnalysisService {
     const lightQuality = detectLightQuality(smallGray, mag);
     // fara fete: incercam sa gasim un subiect (CenterNet) pentru care sa evaluam
     // focusul separat de fundal — vezi scoreFocusAndBokeh
-    const mainObject = faces.length === 0 ? mainObjectBox(result.object) : undefined;
-    const focusBokeh = scoreFocusAndBokeh(smallGray, smallImg.width, smallImg.height, faces, mainObject);
+    const mainObject = subjects.length === 0 ? mainObjectBox(result.object) : undefined;
+    const focusBokeh = scoreFocusAndBokeh(smallGray, smallImg.width, smallImg.height, subjects, mainObject);
     const color = analyzeColor(smallImg, exposure);
     // balans de alb pe ten — vezi hasNaturalSkinTone; ignoram fetele unde nu s-a
     // putut masura (regiune prea mica/neutra), nu le tratam ca "nenatural"
@@ -1104,7 +1121,7 @@ export class FaceAnalysisService {
       ? skinToneSamples.filter(Boolean).length / skinToneSamples.length
       : undefined;
     const compositionScore = aggregateComposition({
-      ruleOfThirds: composition.ruleOfThirds, headroom: composition.headroom, hasFaces: faces.length > 0,
+      ruleOfThirds: composition.ruleOfThirds, headroom: composition.headroom, hasFaces: subjects.length > 0,
       leadingLines, symmetry, negativeSpace: negSpace
     });
     const sceneType = classifyScene(faces, imgW, imgH);
