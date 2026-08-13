@@ -17,8 +17,9 @@
  *  - Pure TypeScript, no DOM access → can also run inside a worker if needed.
  */
 
-import { db, type AnalysisRecord, type ContextModelRecord, type EmbeddingMemoryRecord } from '../db';
+import { db, type AnalysisRecord, type ContextModelRecord, type EmbeddingMemoryRecord, type TagMemoryRecord } from '../db';
 import { affinity, readEmbeddingMemory, recordEmbeddingDecision, resetEmbeddingMemory } from './embeddingMemory';
+import { tagAffinity, readTagMemory, recordTagDecision, resetTagMemory } from './tagMemory';
 import { t, type Locale } from '../../i18n';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -121,6 +122,12 @@ const PRIOR_WEIGHTS: FeatureVector = {
   // descrie o proprietate a pozei, ci o corelatie cu istoricul tau; lasam
   // motorul sa-i creasca ponderea daca chiar prezice, in loc sa-l credem din start.
   contentAffinity: 0.2,
+  // Acelasi rationament ca la contentAffinity: pornit mic, isi merita ponderea.
+  subjectAffinity: 0.2,
+  // Text mult in cadru inseamna de obicei document/captura de ecran, nu o poza
+  // pe care o tii — dar unii chiar le tin, deci pondere negativa modesta, nu o
+  // condamnare.
+  textCoverage: -0.3,
   avgEngagement: 0.3,
   highlightClipping: -0.4,
   shadowClipping: -0.3,
@@ -343,7 +350,7 @@ export function landscapeSharpness(rawSharpness: number): number {
   return Math.pow(Math.max(0, rawSharpness) / 100, 0.6);
 }
 
-export function extractFeatures(a: AnalysisRecord, contentAffinity?: number | null): FeatureVector {
+export function extractFeatures(a: AnalysisRecord, memorySignals?: { contentAffinity?: number | null; subjectAffinity?: number | null }): FeatureVector {
   const features: FeatureVector = {
     sharpness: a.faceCount > 0 ? a.sharpness / 100 : landscapeSharpness(a.sharpness),
     // distance from mid-exposure — lets the model learn a *preference direction*
@@ -381,9 +388,20 @@ export function extractFeatures(a: AnalysisRecord, contentAffinity?: number | nu
   // ABSENT, nu 0.5, cand nu stim inca — un feature "neutru" trimis la fiecare
   // poza polueaza statisticile de normalizare exact ca in cazul horizonLevel
   // descris mai sus.
-  if (contentAffinity !== undefined && contentAffinity !== null) {
-    features.contentAffinity = contentAffinity;
+  if (memorySignals?.contentAffinity !== undefined && memorySignals.contentAffinity !== null) {
+    features.contentAffinity = memorySignals.contentAffinity;
   }
+  // Ce SUBIECTE pastrezi, dupa etichetele de scena (vezi learning/tagMemory.ts).
+  // Acopera si pozele CU fete, unde contentAffinity de mai sus lipseste
+  // structural (embedding-ul se calculeaza doar cand nu exista fete).
+  if (memorySignals?.subjectAffinity !== undefined && memorySignals.subjectAffinity !== null) {
+    features.subjectAffinity = memorySignals.subjectAffinity;
+  }
+  // Cat din cadru e text (documente, capturi de ecran). Se calcula deja, dar era
+  // folosit DOAR ca poarta binara la auto-selectare (decidePhotoStatus) — ca
+  // feature, motorul poate invata si contrariul, pentru cine chiar isi tine
+  // capturile de ecran.
+  if (a.textCoverage !== undefined) features.textCoverage = a.textCoverage;
 
   if (a.faceCount > 0) {
     features.bestSmile = a.bestSmile;
@@ -445,6 +463,7 @@ export class ContextEngine {
   private models = new Map<string, ContextModelRecord>();
   /** Memoria de continut (vezi learning/embeddingMemory.ts) — tinuta aici ca predict() sa nu citeasca din DB pentru fiecare poza dintr-un import de sute. */
   private embeddingMemory: EmbeddingMemoryRecord | undefined;
+  private tagMemory: TagMemoryRecord | undefined;
   private loaded = false;
   private loadingPromise: Promise<void> | null = null;
 
@@ -463,18 +482,24 @@ export class ContextEngine {
     if (this.loaded) return;
     if (!this.loadingPromise) {
       this.loadingPromise = (async () => {
-        const [rows, memory] = await Promise.all([db.contextModels.toArray(), readEmbeddingMemory()]);
+        const [rows, memory, tags] = await Promise.all([
+          db.contextModels.toArray(), readEmbeddingMemory(), readTagMemory()
+        ]);
         for (const row of rows) this.models.set(row.contextKey, row);
         this.embeddingMemory = memory;
+        this.tagMemory = tags;
         this.loaded = true;
       })().finally(() => { this.loadingPromise = null; });
     }
     await this.loadingPromise;
   }
 
-  /** Afinitatea de continut a acestei poze, sau null cand nu se aplica (fara embedding / prea putine decizii). */
-  private contentAffinity(analysis: AnalysisRecord): number | null {
-    return analysis.imageEmbedding ? affinity(analysis.imageEmbedding, this.embeddingMemory) : null;
+  /** Cele doua semnale de memorie ale acestei poze — fiecare null cand nu se aplica (lipsa datelor sau prea putine decizii). */
+  private memorySignals(analysis: AnalysisRecord): { contentAffinity: number | null; subjectAffinity: number | null } {
+    return {
+      contentAffinity: analysis.imageEmbedding ? affinity(analysis.imageEmbedding, this.embeddingMemory) : null,
+      subjectAffinity: tagAffinity(analysis.sceneTags, this.tagMemory)
+    };
   }
 
   // ── Prediction ─────────────────────────────────────────────────────────────
@@ -484,7 +509,7 @@ export class ContextEngine {
     const contextKey = deriveContextKey(analysis, genre);
     const model = this.getOrCreateModel(contextKey);
     const globalModel = this.getOrCreateModel(GLOBAL_CONTEXT_KEY);
-    const features = extractFeatures(analysis, this.contentAffinity(analysis));
+    const features = extractFeatures(analysis, this.memorySignals(analysis));
     const normalized = this.normalize(model, features, /*update=*/ false);
     const globalNormalized = this.normalize(globalModel, features, /*update=*/ false);
 
@@ -540,7 +565,7 @@ export class ContextEngine {
     const contextKey = deriveContextKey(input.analysis, input.genre);
     const model = this.getOrCreateModel(contextKey);
     const globalModel = this.getOrCreateModel(GLOBAL_CONTEXT_KEY);
-    const features = extractFeatures(input.analysis, this.contentAffinity(input.analysis));
+    const features = extractFeatures(input.analysis, this.memorySignals(input.analysis));
     const disagreement = input.aiDecision !== input.userDecision;
     const weightsBefore = disagreement ? { ...model.weights } : null;
 
@@ -573,13 +598,17 @@ export class ContextEngine {
     // Memoria de continut invata din aceeasi decizie (vezi learning/embeddingMemory.ts).
     // Dupa transactie, si tolerant la esec: e un semnal in plus, nu are voie sa
     // strice o corectie deja scrisa daca scrierea asta pica.
-    if (input.analysis.imageEmbedding?.length) {
-      try {
+    try {
+      if (input.analysis.imageEmbedding?.length) {
         await recordEmbeddingDecision(input.analysis.imageEmbedding, input.userDecision);
         this.embeddingMemory = await readEmbeddingMemory();
-      } catch (err) {
-        console.error('Nu am putut actualiza memoria de continut (corectia s-a salvat oricum):', err);
       }
+      if (input.analysis.sceneTags?.length) {
+        await recordTagDecision(input.analysis.sceneTags, input.userDecision);
+        this.tagMemory = await readTagMemory();
+      }
+    } catch (err) {
+      console.error('Nu am putut actualiza memoria de continut/subiecte (corectia s-a salvat oricum):', err);
     }
 
     return { topShift: weightsBefore ? this.biggestPrefShift(weightsBefore, model.weights, features, input.locale ?? 'ro') : null };
@@ -712,6 +741,7 @@ export class ContextEngine {
   async reload(): Promise<void> {
     this.models.clear();
     this.embeddingMemory = undefined;
+    this.tagMemory = undefined;
     this.loaded = false;
     await this.init();
   }
@@ -727,7 +757,8 @@ export class ContextEngine {
       // include, la fel ca ponderile. Un reset PE CONTEXT nu: memoria e una
       // singura, comuna tuturor contextelor.
       this.embeddingMemory = undefined;
-      await resetEmbeddingMemory();
+      this.tagMemory = undefined;
+      await Promise.all([resetEmbeddingMemory(), resetTagMemory()]);
     }
   }
 

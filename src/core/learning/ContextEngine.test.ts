@@ -332,14 +332,28 @@ describe('ContextEngine.recordCorrection topShift ("Am invatat: X")', () => {
 // Afinitatea de continut e un feature ca oricare altul, dar cu o regula stricta:
 // e ABSENT cand nu stim, nu "neutru" — vezi nota despre horizonLevel din
 // ContextEngine.ts pentru ce strica un filler trimis la fiecare poza.
-describe('extractFeatures — contentAffinity', () => {
-  it('lipseste complet cand nu se stie nimic despre continut', () => {
-    expect('contentAffinity' in extractFeatures(baseAnalysis())).toBe(false);
-    expect('contentAffinity' in extractFeatures(baseAnalysis(), null)).toBe(false);
+describe('extractFeatures — semnalele de memorie', () => {
+  it('lipsesc complet cand nu se stie nimic', () => {
+    const none = extractFeatures(baseAnalysis());
+    expect('contentAffinity' in none).toBe(false);
+    expect('subjectAffinity' in none).toBe(false);
+    const nulls = extractFeatures(baseAnalysis(), { contentAffinity: null, subjectAffinity: null });
+    expect('contentAffinity' in nulls).toBe(false);
+    expect('subjectAffinity' in nulls).toBe(false);
   });
 
-  it('apare doar cand chiar exista o valoare', () => {
-    const features = extractFeatures(baseAnalysis(), 0.8);
-    expect(features.contentAffinity).toBe(0.8);
+  it('apar doar cand chiar exista o valoare, independent unul de altul', () => {
+    const onlyContent = extractFeatures(baseAnalysis(), { contentAffinity: 0.8, subjectAffinity: null });
+    expect(onlyContent.contentAffinity).toBe(0.8);
+    expect('subjectAffinity' in onlyContent).toBe(false);
+
+    const onlySubject = extractFeatures(baseAnalysis(), { subjectAffinity: 0.2 });
+    expect(onlySubject.subjectAffinity).toBe(0.2);
+    expect('contentAffinity' in onlySubject).toBe(false);
+  });
+
+  it('textCoverage devine feature cand a fost masurat, si lipseste cand nu', () => {
+    expect('textCoverage' in extractFeatures(baseAnalysis())).toBe(false);
+    expect(extractFeatures(baseAnalysis({ textCoverage: 0.7 })).textCoverage).toBe(0.7);
   });
 });

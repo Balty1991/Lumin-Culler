@@ -469,6 +469,22 @@ export interface EmbeddingMemoryRecord {
   updatedAt: number;
 }
 
+/**
+ * Ce SUBIECTE pastrezi si ce arunci, dupa etichetele de scena — vezi
+ * learning/tagMemory.ts. Distinct de EmbeddingMemoryRecord fiindca etichetele
+ * exista la ORICE poza, iar embedding-ul de continut doar la pozele fara fete.
+ *
+ * Un singur rand ('current'). Doar numaratori — nicio poza nu e retinuta.
+ */
+export interface TagMemoryRecord {
+  id: 'current';
+  /** eticheta -> de cate ori a aparut pe o poza pastrata / respinsa */
+  tags: Record<string, { kept: number; rejected: number }>;
+  keptTotal: number;
+  rejectedTotal: number;
+  updatedAt: number;
+}
+
 export interface CorrectionRecord {
   id?: number;
   photoId: string;
@@ -507,6 +523,7 @@ export class LuminDB extends Dexie {
   persons!: Table<KnownPerson, string>;
   contextModels!: Table<ContextModelRecord, string>;
   embeddingMemory!: Table<EmbeddingMemoryRecord, string>;
+  tagMemory!: Table<TagMemoryRecord, string>;
   corrections!: Table<CorrectionRecord, number>;
   history!: Table<HistoryRecord, number>;
   collections!: Table<CollectionRecord, string>;
@@ -634,6 +651,24 @@ export class LuminDB extends Dexie {
       history: '++id, ts',
       collections: 'id, name',
       embeddingMemory: 'id'
+    });
+
+    // v9: memoria de subiecte, dupa etichetele de scena (vezi TagMemoryRecord).
+    // Tot aditiva, ca v8.
+    this.version(9).stores({
+      photos: 'id, capturedAt, status, dHash, groupId',
+      thumbnails: 'photoId',
+      previews: 'photoId',
+      originals: 'photoId',
+      fileHandles: 'photoId',
+      analyses: 'photoId, sceneType, aiScore',
+      persons: 'id, name',
+      contextModels: 'contextKey',
+      corrections: '++id, contextKey, ts',
+      history: '++id, ts',
+      collections: 'id, name',
+      embeddingMemory: 'id',
+      tagMemory: 'id'
     });
   }
 }
