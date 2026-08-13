@@ -872,7 +872,9 @@ export default function App() {
                   ? (progress.etaSeconds !== undefined
                     ? tr('app.progress.analyzingEta', { done: progress.done, total: progress.total, fileName: progress.fileName, eta: formatEta(progress.etaSeconds) })
                     : tr('app.progress.analyzing', { done: progress.done, total: progress.total, fileName: progress.fileName }))
-                  : progress.phase === 'grupare' ? tr('app.progress.grouping') : tr('app.progress.done')}
+                  : progress.phase === 'pregatire'
+                    ? tr('app.progress.prescan', { done: progress.done, total: progress.total })
+                    : progress.phase === 'grupare' ? tr('app.progress.grouping') : tr('app.progress.done')}
               </span>
               {progress.phase === 'analiza' && (
                 <button className="ghost small progress-cancel" onClick={() => cancelImport()} disabled={importCancelling}>

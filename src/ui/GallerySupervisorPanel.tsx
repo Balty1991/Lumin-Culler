@@ -85,20 +85,33 @@ export function GallerySupervisorPanel() {
 
   if (!open) return null;
 
+  /**
+   * Bug raportat: dupa "Adu pozele" nu se intampla nimic VIZIBIL — panoul
+   * ramanea deschis, iar singurul semn era ca butoanele deveneau gri.
+   * Utilizatorul a trebuit sa inchida panoul cu X ca sa vada ca lucreaza ceva.
+   * Progresul (bannerul "Se aduc pozele...", apoi bara de analiza) traieste pe
+   * Acasa, deci inchidem panoul odata cu pornirea importului si il ducem exact
+   * acolo unde se vede ce se intampla.
+   */
+  const startImport = async (run: () => Promise<void>) => {
+    setOpen(false);
+    await run();
+  };
+
   const bringPeriod = async (period: GalleryPeriod) => {
     if (supervisorImporting) return;
     if (isPeriodAlreadyCovered(period, supervisorCoveredUntil)) {
       const ok = await askConfirm(tr('gallerySupervisor.alreadyCovered.confirm', { period: formatPeriod(period.start, period.end, locale) }));
       if (!ok) return;
     }
-    await importGalleryPeriod(period);
+    await startImport(() => importGalleryPeriod(period));
   };
 
   const bringRemaining = async () => {
     if (!remainingPeriod || supervisorImporting) return;
     const ok = await askConfirm(tr('gallerySupervisor.remaining.confirm', { period: formatPeriod(remainingPeriod.start, remainingPeriod.end, locale) }));
     if (!ok) return;
-    await importGalleryPeriod(remainingPeriod);
+    await startImport(() => importGalleryPeriod(remainingPeriod));
   };
 
   const skipNext = async () => {
@@ -115,7 +128,7 @@ export function GallerySupervisorPanel() {
     const total = uncoveredFolders.reduce((sum, f) => sum + f.count, 0);
     const ok = await askConfirm(tr('gallerySupervisor.allFolders.confirm', { count: total }));
     if (!ok) return;
-    await importAllGalleryFolders();
+    await startImport(() => importAllGalleryFolders());
   };
 
   const bringFolder = async (folder: { id: string; name: string; count: number }) => {
@@ -124,7 +137,7 @@ export function GallerySupervisorPanel() {
       const ok = await askConfirm(tr('gallerySupervisor.folderCovered.confirm', { name: folder.name }));
       if (!ok) return;
     }
-    await importGalleryFolder(folder.id);
+    await startImport(() => importGalleryFolder(folder.id));
   };
 
   // Perioada urmatoare are deja cardul ei mare deasupra — nu o repetam si in lista.

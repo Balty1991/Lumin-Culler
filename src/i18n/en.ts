@@ -376,6 +376,7 @@ export const en: Record<TranslationKey, string> = {
   'app.progress.analyzing': 'AI analysis {done}/{total} — {fileName}',
   'app.progress.analyzingEta': 'AI analysis {done}/{total} — {fileName} · ~{eta} left',
   'app.progress.grouping': 'Grouping series and duplicates…',
+  'app.progress.prescan': 'Finding the photos with people {done}/{total}…',
   'app.progress.done': 'Done',
   'app.progress.cancel': 'Cancel',
   'app.progress.cancelling': 'Cancelling…',

@@ -20,7 +20,7 @@ export interface ImportProgress {
   done: number;
   total: number;
   fileName: string;
-  phase: 'incarcare' | 'analiza' | 'grupare' | 'finalizat';
+  phase: 'incarcare' | 'pregatire' | 'analiza' | 'grupare' | 'finalizat';
   /** setat doar pe ultimul apel, daca importul s-a oprit inainte de a termina toate fisierele */
   warning?: string;
 }
@@ -178,6 +178,8 @@ function canvasToJpeg(canvas: HTMLCanvasElement, quality: number): Promise<Blob>
 
 /** Mult sub PREVIEW_MAX_SIDE — scop DOAR sa decidem ordinea de procesare, nu sa mai extragem vreun semnal fin. */
 const FACE_PRESCAN_SIZE = 320;
+/** Cate poze de la inceputul lotului trec prin pre-scanare — vezi prioritizeFacesFirst pentru de ce nu tot lotul. */
+const FACE_PRESCAN_MAX = 150;
 const FACE_PRESCAN_TIMEOUT_MS = 8000;
 /** Independent de analysisPool.size — pasul e usor (un decode mic + un apel ML Kit), poate rula cu mai mult paralelism decat analiza completa. */
 const FACE_PRESCAN_CONCURRENCY = 4;
@@ -223,16 +225,27 @@ async function prescanViaCanvas(file: File) {
 }
 
 /** Exportata doar pentru testabilitate directa (prioritizeFacesFirst.test.ts) — la fel ca toHashInput/decidePhotoStatus mai sus. */
-export async function prioritizeFacesFirst<T extends { file: File; mediaUri?: string }>(images: T[]): Promise<T[]> {
+export async function prioritizeFacesFirst<T extends { file: File; mediaUri?: string }>(
+  images: T[],
+  onScanned?: (done: number, total: number) => void
+): Promise<T[]> {
   if (!isNativeFaceDetectionAvailable() || images.length < FACE_PRESCAN_MIN_BATCH) return images;
 
+  // Pre-scanam doar INCEPUTUL lotului. Costul e liniar (un apel de detectie per
+  // poza), dar folosul nu e: rostul ordonarii e sa ai poze cu oameni de triat
+  // IMEDIAT, iar asta se decide in primele cateva zeci, nu in a 400-a. Pe un
+  // lot de 437 de poze, pre-scanarea completa lua ~2 minute inainte ca analiza
+  // sa inceapa macar — raportat de utilizator, si pe deasupra sub eticheta
+  // gresita "Se incarca modelele AI". Restul lotului isi pastreaza ordinea.
+  const scanCount = Math.min(images.length, FACE_PRESCAN_MAX);
   const hasFace = new Array<boolean>(images.length).fill(false);
+  let scanned = 0;
   let index = 0;
   await Promise.all(
     Array.from({ length: FACE_PRESCAN_CONCURRENCY }, async () => {
       while (true) {
         const i = index++;
-        if (i >= images.length) break;
+        if (i >= scanCount) break;
         const { file, mediaUri } = images[i];
         // RAW-urile nu se decodeaza cu createImageBitmap (necesita decodeRawFile,
         // mult mai costisitor) — le lasam neprioritizate, nu merita costul complet
@@ -255,6 +268,7 @@ export async function prioritizeFacesFirst<T extends { file: File; mediaUri?: st
         } catch {
           // esec per-poza (decodare/plugin) -> ramane in grupul neprioritizat, nu blocam pre-scanarea pentru atat
         }
+        onScanned?.(++scanned, scanCount);
       }
     })
   );
@@ -565,7 +579,9 @@ export async function importFiles(
   // Cerinta directa a utilizatorului: la un import mare, pozele cu oameni sa
   // fie gata de triat primele — vezi comentariul de la prioritizeFacesFirst
   // (doar Android, no-op si instant pe web/PWA).
-  images = await prioritizeFacesFirst(images);
+  images = await prioritizeFacesFirst(images, (done, total) =>
+    onProgress({ done, total, fileName: '', phase: 'pregatire' })
+  );
 
   const concurrency = analysisPool.size + 1;
   let done = 0;

@@ -76,6 +76,24 @@ describe('prioritizeFacesFirst', () => {
     expect(detectFacesNative).not.toHaveBeenCalled();
   });
 
+  // Costul pre-scanarii e liniar in numarul de poze, folosul nu e: pe un lot de
+  // 437 de poze, scanarea completa lua ~2 minute inainte ca analiza sa inceapa
+  // (raportat de utilizator). Vezi FACE_PRESCAN_MAX in importPipeline.ts.
+  it('scaneaza doar inceputul unui lot mare, si raporteaza progresul scanarii', async () => {
+    const images = Array.from({ length: 400 }, (_, i) => ({ file: makeFile(`p${i}.jpg`) }));
+    // o fata dincolo de plafon — ramane pe locul ei, nu e promovata
+    facesByFileName.set('p399.jpg', true);
+    const scanned: number[] = [];
+
+    const result = await prioritizeFacesFirst(images, done => scanned.push(done));
+
+    expect(detectFacesNative.mock.calls.length).toBeLessThan(images.length);
+    expect(result[0].file.name).toBe('p0.jpg');
+    expect(result[399].file.name).toBe('p399.jpg');
+    // progresul raportat merge pana la exact cate poze au fost chiar scanate
+    expect(scanned[scanned.length - 1]).toBe(detectFacesNative.mock.calls.length);
+  });
+
   it('muta pozele cu fete primele, pastrand ordinea originala STABILA in interiorul fiecarui grup', async () => {
     facesByFileName.set('b.jpg', true);
     facesByFileName.set('d.jpg', true);
