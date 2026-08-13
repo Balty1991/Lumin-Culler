@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useStore } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
-import { XIcon, FolderIcon, UploadIcon } from './icons';
+import { XIcon, FolderIcon, UploadIcon, TagIcon } from './icons';
 import { getDirectoryPicker } from '../core/export/directoryPicker';
 import { t, plural } from '../i18n';
 
@@ -29,6 +29,7 @@ export function ExportDestinations() {
   const open = useStore(s => s.exportDestinationsOpen);
   const setOpen = useStore(s => s.setExportDestinationsOpen);
   const exportSelection = useStore(s => s.exportSelection);
+  const exportXMP = useStore(s => s.exportXMP);
   const photos = useStore(s => s.photos);
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
@@ -85,6 +86,22 @@ export function ExportDestinations() {
             </span>
           </button>
         )}
+
+        {/* A treia destinatie: munca de triaj, nu pozele.
+            Exportul XMP exista de mult si e testat, dar traia intr-o sectiune
+            colapsata din meniu, sub eticheta "Etichete Lightroom (XMP)" — pe
+            care o recunoaste doar cine stie deja ce e un sidecar. Aici, in
+            ecranul in care tocmai ai terminat de ales si te intrebi unde pleaca
+            rezultatul, e exact locul in care are sens: pentru un fotograf,
+            "unde pleaca" nu inseamna intotdeauna fisiere copiate, ci decizia
+            dusa mai departe in programul in care lucreaza. */}
+        <button className="export-dest-row" onClick={() => { setOpen(false); void exportXMP(); }}>
+          <span className="export-dest-icon" aria-hidden="true"><TagIcon /></span>
+          <span className="export-dest-text">
+            <b>{tr('exportDest.xmp.title')}</b>
+            <span>{tr('exportDest.xmp.sub')}</span>
+          </span>
+        </button>
 
         <p className="export-dest-note">{tr('exportDest.note')}</p>
       </div>

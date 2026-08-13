@@ -14,6 +14,7 @@ import { selectUnresolvedGroups } from '../state/duplicateGroups';
 import { selectMonthlyRecap } from '../state/monthlyRecap';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { EASE } from './motion';
+import { TrainedProfileStrip } from './TrainedProfileStrip';
 import { GENRE_PRESETS } from '../state/genre';
 import { nextGridDensity } from '../state/gridDensity';
 import { getInstallPromptEvent, subscribeInstallPromptEvent, consumeInstallPromptEvent, isStandalone } from '../core/installPromptEvent';
@@ -314,6 +315,10 @@ export function MenuDrawer() {
             <XIcon />
           </button>
         </header>
+
+        {/* Primul lucru din meniu: cat te cunoaste motorul. Vezi
+            TrainedProfileStrip pentru de ce merita locul asta. */}
+        <TrainedProfileStrip onAction={() => setOpen(false)} />
 
         {!isStandalone() && (
           <>

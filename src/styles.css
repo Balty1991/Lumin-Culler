@@ -1602,6 +1602,27 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   color: var(--accent); text-decoration: underline; cursor: pointer;
 }
 
+/* "Te cunosc din N decizii" (capul meniului) — vezi ui/TrainedProfileStrip.tsx.
+   Contur cu gradient, ca .how-step-icon: e singurul lucru din meniu care creste
+   in timp, si arata ca atare fara sa strige. */
+.trained-profile { margin: 0 0 4px; }
+.trained-profile-main {
+  width: 100%; display: flex; align-items: center; gap: 11px; text-align: left;
+  padding: 11px 12px; border-radius: var(--radius); cursor: pointer;
+  background-image: linear-gradient(var(--surface), var(--surface)), var(--accent-gradient);
+  background-origin: border-box; background-clip: padding-box, border-box; border: 1px solid transparent;
+}
+.trained-profile-icon { color: var(--accent); display: flex; flex-shrink: 0; }
+.trained-profile-icon svg { width: 17px; height: 17px; }
+.trained-profile-text { display: grid; gap: 1px; }
+.trained-profile-text b { font-size: 0.88rem; }
+.trained-profile-text span { font-size: 0.72rem; color: var(--text-faint); }
+.trained-profile-warn { margin: 7px 2px 0; font-size: 0.71rem; line-height: 1.45; color: var(--text-faint); }
+.trained-profile-link {
+  background: none; border: none; padding: 0; font: inherit;
+  color: var(--accent); text-decoration: underline; cursor: pointer;
+}
+
 
 
 
