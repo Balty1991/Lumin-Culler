@@ -58,8 +58,9 @@ CE FACE APLICATIA
   multe fire in paralel, fara sa incarce toata biblioteca in memorie deodata.
 
 • Export flexibil — poze selectate in formatul original (fara pierdere de
-  calitate), liste pentru Adobe Lightroom, fisiere XMP cu metadate, galerie
-  HTML pentru clienti, redenumire in masa dupa sabloane personalizate.
+  calitate), liste pentru Adobe Lightroom, galerie HTML pentru clienti,
+  redenumire in masa dupa sabloane personalizate. Fisierele XMP cu metadate
+  fac parte din Premium (vezi mai jos).
 
 • Operatii in masa — Auto-Cull dupa procent, respinge sub un prag de scor,
   presetari salvate per tip de sedinta (nunta, portret, eveniment...).
@@ -73,6 +74,25 @@ fotografiaza copiii, calatori, oameni de la evenimente — la fel de bine ca
 pentru fotografi profesionisti si amatori pasionati (nunti, evenimente,
 portrete, sport, peisaj). Un instrument rapid, privat si inteligent care
 invata cum alegi TU, in loc sa aplice o formula generica pentru toata lumea.
+
+GRATUIT SI PREMIUM
+
+Sortarea in sine e gratuita si nelimitata: importi oricate poze, primesti
+scorul AI, sortarea, gruparea seriilor si compararea cadrelor, fara plafon si
+fara cont.
+
+Abonamentul Premium (optional, lunar, prin Google Play) ridica plafonul pe
+pozele SCOASE din aplicatie si deblocheaza fluxul profesional:
+
+• Gratuit: 150 de poze scoase din aplicatie la fiecare 30 de zile (exportate
+  sau sterse din telefon), o persoana recunoscuta inrolata.
+• Premium: export si stergere nelimitate, oricate persoane recunoscute, plus
+  fisiere XMP pentru Lightroom, plansa de contact, dosar privat, recap lunar,
+  prezentare, calatorii si sugestia de combinare a doua cadre.
+
+Pretul se vede in aplicatie, in moneda contului tau. Abonamentul se reinnoieste
+automat pana il anulezi din Google Play > Meniu > Abonamente; anularea are efect
+la finalul perioadei deja platite.
 
 CONFIDENTIALITATE
 
@@ -130,8 +150,9 @@ WHAT IT DOES
   memory at once.
 
 • Flexible export — selected photos in their original format (no quality
-  loss), Adobe Lightroom selection lists, XMP metadata sidecars, an HTML
-  gallery for clients, batch renaming with custom templates.
+  loss), Adobe Lightroom selection lists, an HTML gallery for clients, batch
+  renaming with custom templates. XMP metadata sidecars are part of Premium
+  (see below).
 
 • Batch operations — Auto-Cull by percentage, reject below a score
   threshold, saved presets per shoot type (wedding, portrait, event...).
@@ -145,6 +166,25 @@ photographing their kids, travelers, people covering events — just as much
 as professional and enthusiast photographers doing shoots (weddings, events,
 portraits, sports, landscapes). A fast, private, smart tool that learns how
 YOU choose, instead of applying a generic one-size-fits-all formula.
+
+FREE AND PREMIUM
+
+The culling itself is free and unlimited: import as many photos as you like
+and get AI scoring, sorting, burst grouping and frame comparison, with no cap
+and no account.
+
+The optional Premium subscription (monthly, via Google Play) lifts the cap on
+photos taken OUT of the app and unlocks the professional workflow:
+
+• Free: 150 photos taken out of the app every 30 days (exported or deleted
+  from the phone), one enrolled recognised person.
+• Premium: unlimited export and deletion, as many recognised people as you
+  like, plus XMP sidecars for Lightroom, contact sheet, private vault, monthly
+  recap, presentation mode, trips, and the two-frame composite suggestion.
+
+The price is shown in the app, in your account's currency. The subscription
+renews automatically until you cancel it in Google Play > Menu > Subscriptions;
+cancelling takes effect at the end of the period you already paid for.
 
 PRIVACY
 
