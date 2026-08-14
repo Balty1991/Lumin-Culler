@@ -405,7 +405,17 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   70% { box-shadow: 0 0 0 6px rgba(74,222,128,0); }
   100% { box-shadow: 0 0 0 0 rgba(74,222,128,0); }
 }
-.top-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+/* flex-wrap:NOWRAP, deliberat. Bug real raportat de utilizator, cu captura:
+   butonul de anulare apare abia dupa primele decizii, randul ajunge la cinci
+   butoane, nu mai incape — si cu `wrap` cadea DOAR meniul pe randul urmator,
+   singur si aliniat la dreapta, la doua degete sub restul. Un rand de actiuni
+   care se rearanjeaza singur dupa ce iei o decizie arata ca o defectiune.
+   Iconitele isi pastreaza latimea (sunt zone de atins de 44px, nu au voie sa se
+   micsoreze); butonul de export e singurul care cedeaza spatiu, cu "…" la
+   nevoie. */
+.top-actions { display: flex; gap: 6px; flex-wrap: nowrap; justify-content: flex-end; min-width: 0; }
+.top-actions .icon-btn { flex: 0 0 auto; }
+.top-actions .export-cta { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .notice {
   margin: 0 2px 10px; padding: 9px 13px; border-radius: var(--radius);
   background: var(--surface); border: 1px solid var(--line); color: var(--text-dim); font-size: 0.78rem;
