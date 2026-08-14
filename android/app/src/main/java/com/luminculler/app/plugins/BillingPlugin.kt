@@ -102,16 +102,69 @@ class BillingPlugin : Plugin() {
         ) { /* esecul se reia singur: reincercam la urmatorul status() */ }
     }
 
+    /**
+     * Apelurile care asteapta ca o conexiune DEJA pornita sa se termine.
+     *
+     * Bug real gasit la audit: refreshEntitlement() (core/entitlement.ts) cheama
+     * status() si price() cu Promise.all, adica DEODATA — iar la prima pornire
+     * amandoua gaseau `client.isReady == false` si porneau fiecare cate un
+     * startConnection() pe acelasi BillingClient. Un al doilea startConnection
+     * peste unul in curs nu e definit sa livreze ambele callback-uri: unul din
+     * apeluri putea ramane nerezolvat pentru totdeauna (apel Capacitor scurs,
+     * promisiune JS agatata), sau sa fie respins.
+     *
+     * Simptomul pentru utilizator nu arata deloc a problema de conexiune: un
+     * abonat care chiar plateste aparea, din cand in cand, ca neabonat imediat
+     * dupa pornire; sau pretul nu se incarca, deci butonul de cumparare nici nu
+     * se afisa (vezi PremiumPanel — butonul cere `price` nenul).
+     *
+     * Acum exista o singura incercare de conectare in zbor, iar toate apelurile
+     * sosite intre timp se pun la coada si primesc acelasi raspuns.
+     */
+    private val pendingConnection = mutableListOf<Pair<PluginCall, () -> Unit>>()
+    private var connecting = false
+
     private fun withConnection(call: PluginCall, block: () -> Unit) {
         if (client.isReady) { block(); return }
+
+        synchronized(pendingConnection) {
+            pendingConnection.add(call to block)
+            if (connecting) return // deja se conecteaza cineva; asteptam acelasi raspuns
+            connecting = true
+        }
+
         client.startConnection(object : BillingClientStateListener {
             override fun onBillingSetupFinished(result: BillingResult) {
-                if (result.responseCode == BillingClient.BillingResponseCode.OK) block()
-                else call.reject("Billing unavailable: ${result.debugMessage} (${result.responseCode})")
+                val waiting = synchronized(pendingConnection) {
+                    connecting = false
+                    // Golim coada INAINTE de a rula blocurile: unul dintre ele poate
+                    // porni un apel nou, care altfel s-ar adauga la o lista pe cale
+                    // sa fie parcursa.
+                    val copy = pendingConnection.toList()
+                    pendingConnection.clear()
+                    copy
+                }
+                val ok = result.responseCode == BillingClient.BillingResponseCode.OK
+                for ((waitingCall, waitingBlock) in waiting) {
+                    if (ok) waitingBlock()
+                    else waitingCall.reject("Billing unavailable: ${result.debugMessage} (${result.responseCode})")
+                }
             }
+
             override fun onBillingServiceDisconnected() {
-                // fara reconectare agresiva aici: urmatorul apel din JS reia
-                // conexiunea oricum, si o bucla de retry ar tine radioul pornit
+                // Fara reconectare agresiva: urmatorul apel din JS reia conexiunea
+                // oricum, si o bucla de retry ar tine radioul pornit degeaba.
+                //
+                // Dar coada TREBUIE golita, altfel apelurile care asteptau raman
+                // nerezolvate la nesfarsit — exact scurgerea de mai sus, doar pe alt
+                // drum (serviciul Play cade in timpul conectarii).
+                val waiting = synchronized(pendingConnection) {
+                    connecting = false
+                    val copy = pendingConnection.toList()
+                    pendingConnection.clear()
+                    copy
+                }
+                for ((waitingCall, _) in waiting) waitingCall.reject("Billing service disconnected")
             }
         })
     }
@@ -210,7 +263,21 @@ class BillingPlugin : Plugin() {
     }
 
     override fun handleOnDestroy() {
+        // Rezolvate, nu doar uitate. Bug real: un apel abandonat aici lasa
+        // promisiunea din JS neincheiata pentru totdeauna — startSubscription()
+        // nu se mai intorcea niciodata, deci `busy` ramanea true si butonul
+        // ingheta pe "Se deschide Google Play...", fara nicio cale de iesire in
+        // afara de repornirea aplicatiei. Se intampla la ceva absolut banal:
+        // rotirea telefonului in timp ce e deschisa foaia de plata a lui Play.
+        pendingPurchaseCall?.reject("Activity destroyed before the purchase finished")
         pendingPurchaseCall = null
+        val abandoned = synchronized(pendingConnection) {
+            connecting = false
+            val copy = pendingConnection.toList()
+            pendingConnection.clear()
+            copy
+        }
+        for ((call, _) in abandoned) call.reject("Activity destroyed while connecting to Billing")
         if (client.isReady) client.endConnection()
         super.handleOnDestroy()
     }

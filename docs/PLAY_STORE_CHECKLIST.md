@@ -70,14 +70,56 @@ Completezi un chestionar standard Google (violenta/continut adult/etc.) — pent
 ### 8. Track de testare inainte de productie
 Recomandat: **Internal testing** (cativa testeri, tu insuti) → **Closed testing** (grup mai larg, cateva zile/saptamani) → **Production**. Nu trece direct la productie fara sa fi rulat macar internal testing pe un telefon real.
 
-### 9. Decizie de monetizare (inainte de a scrie cod de billing)
-Google Play NU permite plati directe (Stripe etc.) pentru continut/functii digitale in-aplicatie — trebuie **Google Play Billing**. Decide intai:
-- Gratuit la inceput, monetizare mai tarziu (recomandat daca nu esti sigur de cerere)?
-- Cumparare unica (o singura plata, deblocheaza tot)?
-- Abonament (lunar/anual, functii premium continue — ex. sincronizare cloud pentru clienti)?
-- Freemium (gratuit cu limite — ex. numar de poze/luna — plus upgrade platit)?
+### 9. Monetizare — DECISA SI IMPLEMENTATA
 
-Raspunsul aici schimba mult ce construim la pasul de "backend + conturi utilizatori" discutat separat.
+Sectiunea asta era scrisa ca o decizie inca neluata ("inainte de a scrie cod de
+billing"). Intre timp codul exista si e complet, deci mai jos e ce e chiar in
+aplicatie, nu variante de ales.
+
+**Modelul ales: freemium, cu plafon pe IESIRE, nu pe intrare.**
+Triajul e gratuit si nelimitat — import, scor AI, sortare, grupare, comparare
+serii, oricate poze. Se plateste pentru ce faci cu rezultatul:
+
+| Ce | Gratuit | Premium |
+|---|---|---|
+| Poze scoase din aplicatie (exportate **sau** sterse din telefon) | 150 la fiecare 30 de zile (fereastra glisanta) | nelimitat |
+| Persoane recunoscute inrolate | 1 | oricate |
+| Predare Lightroom (XMP), plansa de contact, dosar privat | — | da |
+| Recap lunar, prezentare, calatorii | — | da |
+| Sugestia de combinare a doua cadre | — | da |
+
+Numerele traiesc in `src/core/entitlement.ts` (`FREE_PHOTOS_PER_MONTH`,
+`FREE_ENROLLED_PERSONS`) — se schimba acolo, intr-un singur loc.
+
+**Ce e deja scris:**
+- `android/.../plugins/BillingPlugin.kt` — Play Billing scris de mana
+  (status/price/subscribe + confirmarea achizitiei, fara care Google
+  ramburseaza automat in 3 zile).
+- `src/core/billing.ts` + `src/core/entitlement.ts` — puntea si cache-ul local.
+- `src/ui/PremiumPanel.tsx` — cele trei stari (abonat / cumparabil / in curand)
+  si butonul de restaurare a achizitiei.
+
+**Regula care tine tot modelul, si care nu trebuie stricata:** nimic nu se
+blocheaza cat timp nu exista o cale reala de plata pe dispozitiv (vezi
+`isPurchasable()`). Pe web/PWA, si pe orice build in care produsul nu e inca
+publicat in Play Console, plafoanele doar informeaza. Un plafon care opreste
+utilizatorul fara sa-i dea cum sa treaca de el nu e freemium, e un perete.
+
+**Ce a mai ramas de facut, si e in AFARA codului:**
+1. In Play Console, un abonament cu ID-ul **`lumin_premium_monthly`** (exact
+   acesta — vezi `subscriptionId` in BillingPlugin.kt), cu cel putin un plan de
+   baza activ. Fara el, `price()` intoarce gol si butonul de cumparare nici nu
+   se afiseaza.
+2. Build **semnat cu cheia de release**, incarcat macar pe internal testing.
+   Play Billing nu raspunde niciodata unui APK de debug instalat cu adb.
+3. Contul de test adaugat ca **licensed tester** in Play Console.
+4. In fisa din Store: mentionarea explicita a abonamentului si a pretului in
+   descriere, plus sectiunea de preturi completata. `docs/PLAY_STORE_LISTING.md`
+   nu spune azi nimic despre abonament — de completat inainte de publicare.
+5. De testat pe device, in ordinea asta: cumparare → repornire aplicatie
+   (abonamentul trebuie sa persiste) → "Am deja abonament — restaureaza" pe o
+   instalare curata → anulare din Play (dupa expirare, aplicatia trebuie sa
+   revina la gratuit singura, la prima pornire cu retea).
 
 ## Ordinea recomandata
 
@@ -85,4 +127,4 @@ Raspunsul aici schimba mult ce construim la pasul de "backend + conturi utilizat
 2. Keystore + build de productie functional local.
 3. Internal testing pe un telefon real — prinde bug-urile reale de packaging inainte de orice altceva.
 4. Assets grafice + fisa Store + Data Safety + content rating.
-5. Decizie de monetizare → abia apoi billing/backend, ca sa nu construim ceva ce se schimba dupa.
+5. Monetizare: codul e scris (vezi 9) — mai raman configurarea produsului in Play Console, un build semnat si testarea fluxului pe device.
