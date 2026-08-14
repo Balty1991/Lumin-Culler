@@ -2,6 +2,7 @@ package com.luminculler.app.plugins
 
 import android.Manifest
 import android.app.Activity
+import android.app.PendingIntent
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -228,12 +229,54 @@ class MediaLibraryPlugin : Plugin() {
         return null
     }
 
-    /** true daca aplicatia poate CITI efectiv acest URI chiar acum — vezi comentariul din deletePhotos pentru bug-ul real pe care il evita. */
+    /** URI-ul asa cum a venit din JS, alaturi de forma in care va fi cerut MediaStore-ului — vezi resolveToMediaUri si deletePhotos. */
     private data class Candidate(val original: String, val resolved: Uri)
 
     /**
+     * Forma pe care createTrashRequest o accepta, pentru un URI venit din JS.
+     *
+     * BUG REAL raportat de utilizator, cu captura, si cauza pentru care cele
+     * doua filtre de mai jos pareau ca nu fac nimic: stergerea pica de fiecare
+     * data cu "MediaProvider: User 10605 does not have read permission on
+     * content://media/external/images/media/5523" — un mesaj de la
+     * MediaStore.getMediaUri(), NU de la cererea de stergere. Apelul acela era
+     * facut necontrolat, pe TOT lotul, INAINTE de orice filtru, deci arunca
+     * pentru tot lotul si nici nu se ajungea la partea care omite pozele
+     * problematice. De aici "am incarcat ultima versiune, tot nu pot sterge".
+     *
+     * Doua reparatii, amandoua necesare:
+     *
+     * 1. Nu mai convertim URI-urile care sunt DEJA in forma buna. getMediaUri()
+     *    e conversia document SAF -> MediaStore, si cere o permisiune ACORDATA
+     *    PE URI (o cesiune temporara/persistenta, ca cea luata in photosPicked).
+     *    Pozele aduse de Supervizorul galeriei (photosInRange/photosInFolder)
+     *    vin din interogarea directa a MediaStore: sunt deja
+     *    content://media/external/images/media/<id>, deci n-au ce converti, iar
+     *    aplicatia le citeste prin PERMISIUNEA READ_MEDIA_IMAGES, nu printr-o
+     *    cesiune pe URI — exact cazul in care getMediaUri arunca degeaba.
+     *
+     * 2. Chiar si pentru URI-urile care chiar au nevoie de conversie, esecul e
+     *    tratat per poza: pastram URI-ul original si lasam filtrele de mai jos
+     *    sa decida, in loc sa aruncam tot lotul.
+     */
+    private fun resolveToMediaUri(raw: String): Uri {
+        val uri = Uri.parse(raw)
+        if (uri.authority == MediaStore.AUTHORITY) return uri
+        return try {
+            MediaStore.getMediaUri(context, uri) ?: uri
+        } catch (_: Exception) {
+            uri
+        }
+    }
+
+    /**
      * Cel mai mare subset pe care MediaStore chiar accepta sa-l puna in Cosul de
-     * gunoi.
+     * gunoi, IMPREUNA cu cererea creata pentru exact acel subset.
+     *
+     * Intoarce insasi cererea, nu doar lista: altfel am face un al doilea apel,
+     * cu alta lista decat cea verificata, si tocmai diferenta dintre "ce am
+     * verificat" si "ce cerem" era gaura prin care esecul ajungea la utilizator.
+     * Asa, ce pornim e mereu un apel care a reusit deja.
      *
      * De ce prin injumatatire si nu poza cu poza: createTrashRequest e un apel
      * catre MediaProvider, iar pe un lot de cateva sute de poze un apel per poza
@@ -246,6 +289,24 @@ class MediaLibraryPlugin : Plugin() {
      * iar o reparatie care depinde de forma unui mesaj de eroare se strica in
      * tacere la prima actualizare.
      */
+    private fun trashRequestFor(candidates: List<Candidate>): Pair<PendingIntent, List<Candidate>>? {
+        if (candidates.isEmpty()) return null
+        try {
+            val pendingIntent = MediaStore.createTrashRequest(context.contentResolver, candidates.map { it.resolved }, true)
+            return pendingIntent to candidates
+        } catch (_: Exception) {
+            if (candidates.size == 1) return null
+        }
+        val mid = candidates.size / 2
+        val survivors = trashableSubset(candidates.subList(0, mid)) + trashableSubset(candidates.subList(mid, candidates.size))
+        // Lista trebuie sa se scurteze la fiecare pas, altfel recursia n-ar avea
+        // capat: daca ambele jumatati trec separat dar impreuna nu (limita de
+        // marime a lotului, nu o poza anume), incercam doar prima jumatate.
+        val next = if (survivors.size < candidates.size) survivors else candidates.subList(0, mid)
+        return trashRequestFor(next)
+    }
+
+    /** Ca trashRequestFor, dar doar lista — cererea creata aici e aruncata, se recreeaza pe lista finala. */
     private fun trashableSubset(candidates: List<Candidate>): List<Candidate> {
         if (candidates.isEmpty()) return emptyList()
         return try {
@@ -258,9 +319,18 @@ class MediaLibraryPlugin : Plugin() {
         }
     }
 
+    /**
+     * true daca aplicatia poate CITI efectiv acest URI chiar acum.
+     *
+     * DISPLAY_NAME, nu _ID: e singura coloana pe care o cunosc si MediaStore, si
+     * furnizorii de documente SAF (OpenableColumns) — iar aici pot ajunge ambele
+     * feluri de URI, de vreme ce conversia (resolveToMediaUri) poate pastra
+     * URI-ul original. Cu o coloana proprie MediaStore, un URI de document ar fi
+     * fost declarat "necitibil" din cauza proiectiei, nu a permisiunii.
+     */
     private fun canRead(uri: Uri): Boolean {
         return try {
-            context.contentResolver.query(uri, arrayOf(MediaStore.Images.Media._ID), null, null, null)
+            context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
                 ?.use { it.moveToFirst() } ?: false
         } catch (_: SecurityException) {
             false
@@ -298,9 +368,11 @@ class MediaLibraryPlugin : Plugin() {
             // pickPhotos() de mai sus) — are nevoie de URI-uri MediaStore
             // propriu-zise (content://media/external/images/media/123).
             // MediaStore.getMediaUri() e conversia oficiala pentru exact acest
-            // caz (document MediaProvider -> MediaStore); daca un URI nu vine de
-            // la MediaProvider (alt furnizor SAF), intoarce null si pastram
-            // URI-ul original ca ultima incercare.
+            // caz (document MediaProvider -> MediaStore) — dar NUMAI pentru
+            // URI-urile care chiar au nevoie de ea, si niciodata ca apel care
+            // poate arunca peste tot lotul: vezi resolveToMediaUri, unde e
+            // descris bug-ul care facea stergerea imposibila indiferent de
+            // filtrele de mai jos.
             //
             // Bug real raportat de utilizator: UN SINGUR URI neaccesibil (ex.
             // permisiunea "Acces la fotografii selectate" pe Android 14+, sau
@@ -311,7 +383,7 @@ class MediaLibraryPlugin : Plugin() {
             // omitem pe cele inaccesibile — dar pastram URI-ul ORIGINAL (nu cel
             // convertit) pentru fiecare omis, ca partea JS sa stie exact care
             // poza n-a fost stearsa (si sa n-o scoata din biblioteca aplicatiei).
-            val candidates = uriStrings.map { s -> Candidate(s, MediaStore.getMediaUri(context, Uri.parse(s)) ?: Uri.parse(s)) }
+            val candidates = uriStrings.map { s -> Candidate(s, resolveToMediaUri(s)) }
             // Doua filtre, nu unul. canRead() e ieftin si prinde cazurile
             // evidente, dar NU e echivalent cu ce cere createTrashRequest: bug
             // real raportat de utilizator, cu captura — interogarea trecea, iar
@@ -321,14 +393,14 @@ class MediaLibraryPlugin : Plugin() {
             // folosita, deci nu mai poate exista diferenta intre ce verificam si
             // ce facem.
             val readable = candidates.filter { canRead(it.resolved) }
-            val trashable = trashableSubset(readable)
-            val trashableOriginals = trashable.map { it.original }.toSet()
-            val skippedOriginals = uriStrings.filter { it !in trashableOriginals }
-            if (trashable.isEmpty()) {
+            val request = trashRequestFor(readable)
+            if (request == null) {
                 call.reject("Niciuna dintre pozele de sters nu mai e accesibila (permisiunea de galerie s-a schimbat intre timp)")
                 return
             }
-            val pendingIntent = MediaStore.createTrashRequest(context.contentResolver, trashable.map { it.resolved }, true)
+            val (pendingIntent, trashable) = request
+            val trashableOriginals = trashable.map { it.original }.toSet()
+            val skippedOriginals = uriStrings.filter { it !in trashableOriginals }
             pendingDeleteCall = call
             pendingDeleteSkippedUris = skippedOriginals
             deleteLauncher.launch(IntentSenderRequest.Builder(pendingIntent.intentSender).build())

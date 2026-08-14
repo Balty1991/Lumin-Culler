@@ -40,6 +40,7 @@ import { MemoryBanner } from './ui/MemoryBanner';
 import { GallerySupervisorBanner } from './ui/GallerySupervisorBanner';
 import { PhotosAccessNotice } from './ui/PhotosAccessNotice';
 import { useHeaderBottomVar } from './ui/useHeaderBottomVar';
+import { noticeTone } from './ui/noticeTone';
 import { SessionOutcome } from './ui/SessionOutcome';
 import { HomeDashboard } from './ui/HomeDashboard';
 import { BottomNav } from './ui/BottomNav';
@@ -118,30 +119,6 @@ const SWIPE_COMMIT_PX = 80;
 /** Peste aceasta deriva verticala, gestul e tratat ca scroll, nu ca swipe orizontal intentionat. */
 const SWIPE_MAX_VERTICAL_PX = 45;
 
-/**
- * Clasifica un mesaj de notificare dupa cuvinte-cheie — nu exista un camp de
- * tip in store (notice e doar text), asa ca deducem tonul din continut pentru
- * iconita/culoarea toast-ului.
- *
- * 'progress' (mesaje "Se exporta...", "Se restaureaza backup-ul...", etc. —
- * conventia existenta in i18n e mereu suspensie de 3 puncte la finalul unei
- * actiuni inca in desfasurare) NU trebuie sa dispara automat dupa 10s ca un
- * succes obisnuit: bug real raportat de utilizator (export nativ Android,
- * confirmat pe device) — "Se exporta..." disparea la 10s in timp ce munca
- * async continua inca (poate dura pana la 30s pe calea nativa de partajare),
- * lasand un gol tacut in care parea ca nu s-a intamplat NIMIC, desi rezultatul
- * (succes SAU eroare) tot urma sa apara mai tarziu. Vezi efectul de mai jos.
- */
-function noticeTone(message: string): 'error' | 'warn' | 'progress' | 'success' {
-  const lower = message.toLowerCase();
-  if (lower.includes('esuat') || lower.includes('eroare')) return 'error';
-  // O anulare nu e nici eroare, nici succes — fara ea, "Export anulat..." ar primi
-  // bifa verde de succes, exact mesajul gresit pentru un export care n-a livrat nimic.
-  if (lower.includes('anulat') || lower.includes('cancelled')) return 'warn';
-  if (lower.includes('plin') || lower.includes('aproape')) return 'warn';
-  if (message.endsWith('...')) return 'progress';
-  return 'success';
-}
 /**
  * Eticheta editabila de proiect/sesiune — freelancerii care lucreaza in paralel la mai
  * multe importuri/clienti se pot pierde intre tab-uri identice ("LUMIN CULLER" peste tot);
