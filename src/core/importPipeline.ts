@@ -15,6 +15,7 @@ import { isRawFile, decodeRawFile, RAW_EXTENSIONS } from './rawDecoder';
 import type { FileSystemFileHandleLike } from './filePicker';
 import { pickFolderSceneTag } from './sceneTagLabels';
 import { detectFacesNative, isNativeFaceDetectionAvailable } from './nativeFaceDetection';
+import type { MediaLocation } from './nativeMediaLibrary';
 import { deriveThresholds, FIXED_THRESHOLDS, type Thresholds } from './scoreThresholds';
 
 export interface ImportProgress {
@@ -433,7 +434,7 @@ export function toHashInput(id: string, dHash: string, a: AnalysisRecord, captur
   };
 }
 
-async function processOne(file: File, genre?: string, project?: string, handle?: FileSystemFileHandleLike, mediaUri?: string, thresholds: Thresholds = FIXED_THRESHOLDS): Promise<ImportedPhoto> {
+async function processOne(file: File, genre?: string, project?: string, handle?: FileSystemFileHandleLike, mediaUri?: string, thresholds: Thresholds = FIXED_THRESHOLDS, mediaLocation?: MediaLocation): Promise<ImportedPhoto> {
   const id = crypto.randomUUID();
   const isRaw = isRawFile(file);
   // RAW (CR2/NEF/ARW/DNG/...) nu se decodeaza cu createImageBitmap — folosim
@@ -507,6 +508,24 @@ async function processOne(file: File, genre?: string, project?: string, handle?:
     } catch (err) {
       console.error('Citire EXIF esuata pentru ' + file.name + ':', err);
     }
+  }
+
+  // Coordonatele citite NATIV, cand EXIF-ul din bytes-ii primiti n-are niciuna.
+  //
+  // Bug real raportat de utilizator: "faza cu calatorii, nu apare niciodata
+  // nimic, cred ca nu citeste locatia pozelor" — exact asa era. Incepand cu
+  // Android 10, MediaStore REDACTEAZA (sterge) tag-urile GPS din fisierul pe
+  // care il primeste o aplicatie, chiar daca poza chiar are locatie si chiar
+  // daca aplicatia are voie sa citeasca poza. Parserul EXIF de mai sus e
+  // corect; pur si simplu nu avea ce gasi, deci nicio poza n-avea coordonate,
+  // deci state/trips.ts nu avea din ce forma vreo calatorie, niciodata.
+  //
+  // Singura cale oficiala e permisiunea ACCESS_MEDIA_LOCATION plus o citire
+  // facuta prin MediaStore.setRequireOriginal() — deci nativ, nu din WebView:
+  // vezi MediaLibraryPlugin.kt:photoLocations si nativeMediaLibrary.ts.
+  if (analysis.gpsLatitude === undefined && mediaLocation) {
+    analysis.gpsLatitude = mediaLocation.latitude;
+    analysis.gpsLongitude = mediaLocation.longitude;
   }
 
   const prediction = await contextEngine.predict(analysis, genre);
@@ -605,7 +624,9 @@ export async function importFiles(
   /** Handle-uri File System Access API, aliniate index-cu-index cu `files` (vezi filePicker.ts pickImportFiles). Absent = import prin <input type="file">. */
   handles?: (FileSystemFileHandleLike | undefined)[],
   /** URI-uri content:// Android, aliniate index-cu-index cu `files` (vezi nativeMediaLibrary.ts pickNativePhotos). Absent = import prin <input type="file"> sau pe web/PWA — vezi PhotoRecord.mediaUri. */
-  mediaUris?: (string | undefined)[]
+  mediaUris?: (string | undefined)[],
+  /** Coordonatele citite nativ, pe URI (vezi nativeMediaLibrary.ts readNativePhotoLocations si comentariul din processOne despre redactarea GPS de catre MediaStore). */
+  mediaLocations?: Map<string, MediaLocation>
 ): Promise<Map<string, string>> {
   // faza separata (nu "analiza 0/N"): la primul import, descarca modelele AI
   // (cateva zeci de MB) — poate dura, si utilizatorul trebuie sa stie de ce.
@@ -679,7 +700,7 @@ export async function importFiles(
         const { file, handle, mediaUri } = images[myIndex];
 
         try {
-          const item = await processOne(file, genre, project, handle, mediaUri, thresholds);
+          const item = await processOne(file, genre, project, handle, mediaUri, thresholds, mediaUri ? mediaLocations?.get(mediaUri) : undefined);
           hashes.push(toHashInput(item.photo.id, item.photo.dHash, item.analysis, item.photo.capturedAt));
           onPhoto(item);
         } catch (err) {

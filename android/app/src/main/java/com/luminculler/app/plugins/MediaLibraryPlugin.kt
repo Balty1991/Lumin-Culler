@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.Activity
 import android.app.PendingIntent
 import android.content.Intent
+import android.media.ExifInterface
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
@@ -73,7 +74,11 @@ import com.getcapacitor.annotation.PermissionCallback
         // Android 14+: cand utilizatorul alege "Permite cu acces limitat", ASTA
         // se acorda, iar READ_MEDIA_IMAGES ramane refuzat. Fara aliasul de aici
         // n-am putea DEOSEBI "acces limitat" de "refuzat" — vezi photosAccess().
-        Permission(strings = ["android.permission.READ_MEDIA_VISUAL_USER_SELECTED"], alias = "photosPartial")
+        Permission(strings = ["android.permission.READ_MEDIA_VISUAL_USER_SELECTED"], alias = "photosPartial"),
+        // Android 10+ sterge coordonatele GPS din EXIF-ul pe care il primeste
+        // orice aplicatie, indiferent ce alte permisiuni are. ASTA e permisiunea
+        // care cere originalul nemodificat — vezi photoLocations() mai jos.
+        Permission(strings = [Manifest.permission.ACCESS_MEDIA_LOCATION], alias = "mediaLocation")
     ]
 )
 class MediaLibraryPlugin : Plugin() {
@@ -409,6 +414,99 @@ class MediaLibraryPlugin : Plugin() {
             pendingDeleteSkippedUris = emptyList()
             call.reject("Nu am putut porni cererea de stergere: ${e.message}", e)
         }
+    }
+
+    /**
+     * Coordonatele GPS ale pozelor date — singura cale prin care aplicatia le
+     * poate afla deloc pe Android 10+.
+     *
+     * Bug real raportat de utilizator: "faza cu calatorii, nu apare niciodata
+     * nimic, cred ca nu citeste locatia pozelor". Chiar asa era, si nu din
+     * vina parserului EXIF (care e corect, vezi core/exifParser.ts): incepand
+     * cu Android 10, MediaStore REDACTEAZA tag-urile GPS din fisierul servit
+     * oricarei aplicatii — poza chiar are locatie, aplicatia chiar are voie
+     * s-o citeasca, dar bytes-ii primiti sunt curatati de coordonate. Deci
+     * nicio poza importata n-avea vreodata gpsLatitude, deci state/trips.ts
+     * n-avea din ce forma vreo calatorie, niciodata.
+     *
+     * Doua conditii, amandoua obligatorii: permisiunea ACCESS_MEDIA_LOCATION
+     * (ceruta aici, la primul apel) SI citirea prin
+     * MediaStore.setRequireOriginal() — de aceea trebuie facut nativ, nu din
+     * WebView, unde fetch-ul obisnuit primeste tot varianta redactata.
+     *
+     * Se citesc DOAR coordonatele, nimic altceva, si raman in aplicatie
+     * (biblioteca locala) — nu pleaca nicaieri, ca tot restul analizei.
+     * Pozele fara locatie (captura de ecran, GPS oprit la declansare) sunt
+     * pur si simplu absente din raspuns, nu o eroare.
+     *
+     * NEVALIDAT inca pe device real — de verificat dupa instalare: dialogul de
+     * permisiune trebuie sa apara o singura data la primul import de dupa
+     * actualizare, iar cardul "Calatorii" de pe Acasa trebuie sa apara dupa un
+     * import care contine poze facute la peste 50 km de casa, in zile diferite
+     * (vezi state/trips.ts pentru pragurile exacte).
+     */
+    @PluginMethod
+    fun photoLocations(call: PluginCall) {
+        // Sub Android 10 nu exista nici redactare, nici permisiunea asta: se
+        // citeste direct, fara sa cerem nimic utilizatorului.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+            getPermissionState("mediaLocation") != PermissionState.GRANTED
+        ) {
+            requestPermissionForAlias("mediaLocation", call, "photoLocationsPermissionCallback")
+            return
+        }
+        resolvePhotoLocations(call)
+    }
+
+    @PermissionCallback
+    private fun photoLocationsPermissionCallback(call: PluginCall) {
+        if (getPermissionState("mediaLocation") == PermissionState.GRANTED) {
+            resolvePhotoLocations(call)
+        } else {
+            // Refuz explicit — nu e o eroare: importul continua fara coordonate,
+            // exact ca inainte de aceasta functie.
+            call.resolve(JSObject().put("granted", false).put("locations", JSArray()))
+        }
+    }
+
+    private fun resolvePhotoLocations(call: PluginCall) {
+        val uriStrings = call.getArray("uris")?.toList<String>() ?: emptyList()
+        val locations = JSArray()
+        for (raw in uriStrings) {
+            try {
+                // Aceeasi conversie ca la stergere: setRequireOriginal vrea un
+                // URI MediaStore, iar selectorul manual (pickPhotos) da URI-uri
+                // de document — fara conversie, pozele alese cu mana n-ar primi
+                // niciodata coordonate. Vezi resolveToMediaUri.
+                val uri = resolveToMediaUri(raw)
+                val original = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    MediaStore.setRequireOriginal(uri)
+                } else uri
+                context.contentResolver.openInputStream(original)?.use { stream ->
+                    val latLong = FloatArray(2)
+                    // android.media.ExifInterface, nu androidx: e in platforma de
+                    // la API 24 (minSdk-ul proiectului) si citeste dintr-un
+                    // InputStream, deci nu adaugam o dependinta noua doar pentru
+                    // doua numere. Varianta cu FloatArray e cea disponibila pe
+                    // toate versiunile; precizia de float inseamna ~1 metru,
+                    // irelevant fata de pragul de 50 km din state/trips.ts.
+                    @Suppress("DEPRECATION")
+                    if (ExifInterface(stream).getLatLong(latLong)) {
+                        locations.put(
+                            JSObject()
+                                .put("uri", raw)
+                                .put("latitude", latLong[0].toDouble())
+                                .put("longitude", latLong[1].toDouble())
+                        )
+                    }
+                }
+            } catch (_: Exception) {
+                // Poza fara locatie, URI expirat, fisier ilizibil — o sarim.
+                // O singura poza problematica nu are voie sa strice tot lotul
+                // (aceeasi lectie ca la deletePhotos mai sus).
+            }
+        }
+        call.resolve(JSObject().put("granted", true).put("locations", locations))
     }
 
     /**

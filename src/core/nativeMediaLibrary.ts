@@ -25,6 +25,13 @@ interface MediaLibraryPluginApi {
   photosInFolder(options: { bucketId: string }): Promise<{ granted: boolean; photos: { uri: string; name: string; capturedAt: number }[] }>;
   photosAccess(): Promise<{ access: PhotosAccess }>;
   openAppSettings(): Promise<void>;
+  photoLocations(options: { uris: string[] }): Promise<{ granted: boolean; locations: { uri: string; latitude: number; longitude: number }[] }>;
+}
+
+/** Coordonatele unei poze, in grade zecimale — vezi readNativePhotoLocations. */
+export interface MediaLocation {
+  latitude: number;
+  longitude: number;
 }
 
 /**
@@ -235,6 +242,39 @@ export async function getPhotosAccess(): Promise<PhotosAccess> {
   } catch {
     return 'unavailable';
   }
+}
+
+/**
+ * Coordonatele GPS ale pozelor date, citite NATIV — singura cale prin care
+ * aplicatia le poate afla deloc pe Android 10+.
+ *
+ * Bug real raportat de utilizator: "faza cu calatorii, nu apare niciodata
+ * nimic, cred ca nu citeste locatia pozelor". Asa era: MediaStore REDACTEAZA
+ * tag-urile GPS din fisierul primit de aplicatie, deci parserul EXIF din
+ * importPipeline.ts nu avea ce gasi, nicio poza n-avea coordonate, si
+ * state/trips.ts nu putea forma vreo calatorie. Citirea originalului cere
+ * permisiunea ACCESS_MEDIA_LOCATION plus MediaStore.setRequireOriginal() —
+ * vezi MediaLibraryPlugin.kt:photoLocations.
+ *
+ * Intoarce o harta URI -> coordonate, cu DOAR pozele care chiar au locatie:
+ * multe poze n-au deloc (captura de ecran, poza descarcata, GPS oprit la
+ * declansare), iar asta nu e o eroare. Harta goala si pe web/PWA, unde nu
+ * exista plugin — apelantul nu trebuie sa verifice platforma.
+ */
+export async function readNativePhotoLocations(uris: string[]): Promise<Map<string, MediaLocation>> {
+  const out = new Map<string, MediaLocation>();
+  if (!isNativeMediaLibraryAvailable() || !uris.length) return out;
+  try {
+    const result = await MediaLibraryNative.photoLocations({ uris });
+    for (const loc of result.locations) {
+      out.set(loc.uri, { latitude: loc.latitude, longitude: loc.longitude });
+    }
+  } catch (err) {
+    // Permisiune refuzata, versiune veche de plugin instalata peste, orice
+    // altceva: importul merge mai departe fara coordonate, exact ca inainte.
+    console.warn('Nu am putut citi locatia pozelor:', err);
+  }
+  return out;
 }
 
 /**

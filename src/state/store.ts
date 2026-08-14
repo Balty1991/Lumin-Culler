@@ -37,7 +37,7 @@ import {
 import { selectBulkRejectTargets, resolveGroups, selectTopPercent, selectHighlights, selectBlinks, selectDeletableRejected } from './batchOps';
 import {
   isNativeMediaLibraryAvailable, deleteNativePhotos, readGalleryOverview, readGalleryDateRange, pickPhotosInRange,
-  readGalleryFolders, pickPhotosInFolder, getPhotosAccess
+  readGalleryFolders, pickPhotosInFolder, getPhotosAccess, readNativePhotoLocations
 } from '../core/nativeMediaLibrary';
 import {
   computeNextPeriod, computeRemainingPeriod, readCoveredUntil, writeCoveredUntil, listAllPeriods, readPeriodMonths,
@@ -50,6 +50,7 @@ import { readStoredAccent, applyAccent, type AccentTheme } from './accentTheme';
 import { readWelcomeSeen, writeWelcomeSeen } from './welcomeOnboarding';
 import { keepScreenAwake } from '../core/wakeLock';
 import { createActiveElapsed, type ActiveElapsed } from '../core/activeElapsed';
+import { stabilizeEta } from '../core/etaEstimate';
 import { readAccessibleMode, applyAccessibleMode } from '../core/accessibleMode';
 import { readSmartNotificationEnabled, writeSmartNotificationEnabled } from './smartNotification';
 import {
@@ -2059,6 +2060,8 @@ export const useStore = create<AppState>((set, get) => ({
     // umfla estimarea in loc s-o scada (raportat de utilizator, cu doua capturi:
     // 155/839 "~23m ramase", apoi 162/839 "~41m ramase"). Vezi core/activeElapsed.ts.
     let analysisClock: ActiveElapsed | null = null;
+    /** Ultima valoare ARATATA, nu ultima calculata — vezi core/etaEstimate.ts pentru de ce difera. */
+    let shownEtaSeconds: number | undefined;
     const onAnalysisVisibility = () =>
       analysisClock?.setVisible(document.visibilityState === 'visible', Date.now());
     document.addEventListener('visibilitychange', onAnalysisVisibility);
@@ -2092,6 +2095,20 @@ export const useStore = create<AppState>((set, get) => ({
     let adaptedThresholds: Thresholds | undefined;
     const PHOTO_FLUSH_BATCH = 15;
     const PHOTO_FLUSH_INTERVAL_MS = 200;
+    // Coordonatele GPS, citite NATIV inainte de analiza — un singur apel pentru
+    // tot lotul. Nu pot fi luate din bytes-ii pozei: Android 10+ le sterge din
+    // EXIF-ul servit aplicatiei (vezi core/nativeMediaLibrary.ts
+    // readNativePhotoLocations si comentariul din importPipeline.ts:processOne).
+    // Fara ele, "Calatorii" de pe Acasa ramanea gol pentru totdeauna — bug real
+    // raportat de utilizator. Harta e goala pe web/PWA, la import prin
+    // <input type="file"> (fara mediaUri) sau daca permisiunea e refuzata;
+    // importul merge mai departe identic in toate cazurile.
+    // Conditionat, nu neconditionat: fara niciun URI nativ (web/PWA, import prin
+    // <input type="file">) nu exista ce intreba, iar un `await` degeaba ar muta
+    // apelul importFiles de mai jos intr-un microtask urmator — adica ar schimba
+    // ordinea observabila a unui import care pana acum pornea sincron.
+    const knownUris = (mediaUris ?? []).filter((u): u is string => !!u);
+    const mediaLocations = knownUris.length ? await readNativePhotoLocations(knownUris) : undefined;
     try {
       await importFiles(
         files,
@@ -2108,7 +2125,10 @@ export const useStore = create<AppState>((set, get) => ({
             // sub 1s scursa sau 0 poze gata => rata nu inseamna inca nimic (ar
             // da un ETA fals de precis din 1-2 tick-uri) — asteptam date reale
             if (elapsedSec > 1 && progress.done > 0 && remaining > 0) {
-              etaSeconds = (elapsedSec / progress.done) * remaining;
+              // Rata medie de pana acum, trecuta apoi prin filtrul de afisare
+              // (rotunjire + cresterile mici ignorate) — vezi core/etaEstimate.ts.
+              shownEtaSeconds = stabilizeEta(shownEtaSeconds, (elapsedSec / progress.done) * remaining);
+              etaSeconds = shownEtaSeconds;
             }
           }
           set({ progress: { ...progress, etaSeconds } });
@@ -2123,7 +2143,8 @@ export const useStore = create<AppState>((set, get) => ({
         get().genre,
         get().projectName,
         handles,
-        mediaUris
+        mediaUris,
+        mediaLocations
       );
     } catch (err) {
       // fara asta, o promisiune respinsa (ex. retea slaba la incarcarea modelelor AI)

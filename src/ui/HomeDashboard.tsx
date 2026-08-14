@@ -99,7 +99,16 @@ export function HomeDashboard() {
           <div className="home-hero-num">{donePercent}%</div>
           <div className="home-hero-lbl">{tr('home.hero.label')}</div>
         </div>
-        <div className="home-hero-ring" style={{ '--pct-deg': `${donePercent * 3.6}deg` } as CSSProperties}>
+        {/* Inelul arata spatiul ocupat de pozele ADUSE IN APLICATIE, nu de
+            galeria telefonului — la fel ca procentul de alaturi. Fara titlu/
+            eticheta, "0.7GB" langa un procent numit candva "din galerie" citea
+            ca o masura a intregului telefon (observatie a utilizatorului). */}
+        <div
+          className="home-hero-ring"
+          style={{ '--pct-deg': `${donePercent * 3.6}deg` } as CSSProperties}
+          title={tr('home.hero.ringTitle')}
+          aria-label={tr('home.hero.ringTitle')}
+        >
           <b>{totalGB}GB</b>
         </div>
       </div>
@@ -156,8 +165,12 @@ export function HomeDashboard() {
 
       {(streak > 1 || tripCount > 0 || duplicateGroupCount > 0) && (
         <div className="home-stat-row">
+          {/* Singurul card din rand care NU se apasa (nu are ce deschide: e o
+              simpla numaratoare) — observatie a utilizatorului: "am apasat si
+              nu s-a intamplat nimic". Arata la fel ca vecinele lui apasabile,
+              deci macar spune ce inseamna, in eticheta si in titlu. */}
           {streak > 1 && (
-            <div className="home-mini-card glass">
+            <div className="home-mini-card glass" title={tr('home.streak.title')}>
               <span className="home-mini-num">🔥 <AnimatedNumber value={streak} /></span>
               <span className="home-mini-lbl">{tr(plural(streak, 'home.streak.label.one', 'home.streak.label.other'), { count: streak })}</span>
             </div>
