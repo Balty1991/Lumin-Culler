@@ -89,6 +89,7 @@ export const en: Record<TranslationKey, string> = {
   'gallerySupervisor.title': 'Next period to sort',
   'gallerySupervisor.cta': 'Bring in these photos',
   'gallerySupervisor.importing': 'Bringing in photos...',
+  'gallerySupervisor.noAccess': 'No access to the gallery, so there is nothing to read. Check the photo permission in your phone settings.',
   'gallerySupervisor.periodEmpty': 'No new photos in this period — moving to the next one.',
   'gallerySupervisor.failed': "Couldn't bring in photos from this period: {error}",
   'gallerySupervisor.openPanel': 'Open the gallery supervisor',

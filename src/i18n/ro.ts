@@ -86,6 +86,7 @@ export const ro = {
   'gallerySupervisor.title': 'Următoarea perioadă de sortat',
   'gallerySupervisor.cta': 'Adu aceste poze',
   'gallerySupervisor.importing': 'Se aduc pozele...',
+  'gallerySupervisor.noAccess': 'Nu am acces la galerie, deci n-am ce citi. Verifică permisiunea pentru fotografii în setările telefonului.',
   'gallerySupervisor.periodEmpty': 'Nicio poză nouă în această perioadă — trecem la următoarea.',
   'gallerySupervisor.failed': 'Nu am putut aduce pozele din această perioadă: {error}',
   'gallerySupervisor.openPanel': 'Deschide supervizorul galeriei',

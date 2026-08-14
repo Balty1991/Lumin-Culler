@@ -37,7 +37,7 @@ import {
 import { selectBulkRejectTargets, resolveGroups, selectTopPercent, selectHighlights, selectBlinks, selectDeletableRejected } from './batchOps';
 import {
   isNativeMediaLibraryAvailable, deleteNativePhotos, readGalleryOverview, readGalleryDateRange, pickPhotosInRange,
-  readGalleryFolders, pickPhotosInFolder
+  readGalleryFolders, pickPhotosInFolder, getPhotosAccess
 } from '../core/nativeMediaLibrary';
 import {
   computeNextPeriod, computeRemainingPeriod, readCoveredUntil, writeCoveredUntil, listAllPeriods, readPeriodMonths,
@@ -1591,11 +1591,31 @@ export const useStore = create<AppState>((set, get) => ({
   supervisorImporting: false,
   importGalleryPeriod: async period => {
     if (get().supervisorImporting) return;
+    // Cu acces PARTIAL, cererea de permisiune nu mai are ce declansa: sistemul
+    // nu reafiseaza dialogul pentru READ_MEDIA_IMAGES odata ce utilizatorul a
+    // ales "doar pozele selectate", deci apelul nativ ar astepta un raspuns
+    // care nu vine. Iesim inainte, cu singurul mesaj care ajuta aici — drumul
+    // spre Setari (vezi ui/PhotosAccessNotice.tsx, care il si ofera).
+    if ((await getPhotosAccess()) === 'limited') {
+      set({ notice: t(get().locale, 'gallerySupervisor.noAccess') });
+      return;
+    }
     set({ supervisorImporting: true });
     const locale = get().locale;
     const beforeIds = new Set(get().photos.map(p => p.id));
     try {
-      const picked = await pickPhotosInRange(period.start, period.end);
+      const read = await pickPhotosInRange(period.start, period.end);
+      // Acces refuzat/partial: NU avansam cursorul si spunem exact ce s-a
+      // intamplat. Bug real raportat de utilizator: "Adu pozele" parea ca nu
+      // face nimic, minute intregi, fara niciun mesaj — pentru ca "n-am avut
+      // voie sa citesc" era tratat identic cu "perioada e goala". In plus,
+      // perioada ramanea marcata acoperita, deci pozele din ea nu mai erau
+      // propuse niciodata.
+      if (!read.granted) {
+        set({ notice: t(locale, 'gallerySupervisor.noAccess') });
+        return;
+      }
+      const picked = read.photos;
       // Cursorul avanseaza DUPA o citire reusita (chiar daca perioada era goala —
       // nimic de adus acolo, dar tot "acoperita") — o eroare de citire (permisiune
       // refuzata, plugin indisponibil) NU trebuie sa avanseze cursorul, ca aceeasi
@@ -1653,7 +1673,12 @@ export const useStore = create<AppState>((set, get) => ({
     const locale = get().locale;
     const beforeIds = new Set(get().photos.map(p => p.id));
     try {
-      const picked = await pickPhotosInFolder(bucketId);
+      const read = await pickPhotosInFolder(bucketId);
+      if (!read.granted) {
+        set({ notice: t(locale, 'gallerySupervisor.noAccess') });
+        return;
+      }
+      const picked = read.photos;
       const coveredFolders = new Set(get().supervisorImportedFolderIds).add(bucketId);
       writeImportedFolderIds(coveredFolders);
       set({ supervisorImportedFolderIds: coveredFolders });
@@ -1688,7 +1713,14 @@ export const useStore = create<AppState>((set, get) => ({
       // acelasi motiv pentru care pickPhotosInFolder/pickPhotosInRange trateaza deja
       // fiecare poza individual (Promise.allSettled) fara sa opreasca tot lotul la o eroare.
       const results = await Promise.all(folders.map(f => pickPhotosInFolder(f.id)));
-      const picked = results.flat();
+      // Un singur refuz de acces opreste tot: daca nu putem citi galeria, a
+      // marca fie si un singur folder drept adus ar ascunde pozele lui pentru
+      // totdeauna din "Toate folderele".
+      if (results.some(r => !r.granted)) {
+        set({ notice: t(locale, 'gallerySupervisor.noAccess') });
+        return;
+      }
+      const picked = results.flatMap(r => r.photos);
       const nextCovered = new Set(coveredFolders);
       folders.forEach(f => nextCovered.add(f.id));
       writeImportedFolderIds(nextCovered);

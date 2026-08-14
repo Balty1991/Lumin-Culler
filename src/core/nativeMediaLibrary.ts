@@ -130,16 +130,25 @@ export interface RangePickedPhoto {
 }
 
 /**
- * Aduce DIRECT (fara selector manual) pozele din galerie cu data efectiva in
- * [startMs, endMs) — vezi MediaLibraryPlugin.kt:photosInRange. Aceeasi
- * conversie File prin Capacitor.convertFileSrc ca pickNativePhotos() de mai
- * sus; poze ilizibile individual sunt ignorate, nu opresc tot lotul.
+ * Rezultatul unei citiri din galerie, cu accesul RAPORTAT SEPARAT de continut.
+ *
+ * Bug real raportat de utilizator: "Adu pozele" nu facea nimic — niciun mesaj,
+ * nicio poza, minute intregi. Cauza era ca ambele functii de mai jos colapsau
+ * `!granted` si `photos.length === 0` in acelasi `[]`, iar apelantul nu mai
+ * avea cum sa deosebeasca "n-am avut voie sa ma uit" de "m-am uitat si nu era
+ * nimic". Al doilea caz avanseaza corect cursorul supervizorului; primul NU
+ * trebuie sa-l avanseze niciodata, altfel o perioada necitita ramane marcata ca
+ * acoperita si pozele din ea nu mai sunt propuse vreodata.
  */
-export async function pickPhotosInRange(startMs: number, endMs: number): Promise<RangePickedPhoto[]> {
-  const result = await MediaLibraryNative.photosInRange({ startMs: String(startMs), endMs: String(endMs) });
-  if (!result.granted || !result.photos.length) return [];
+export interface GalleryReadResult {
+  granted: boolean;
+  photos: RangePickedPhoto[];
+}
+
+/** Poze ilizibile individual sunt ignorate, nu opresc tot lotul. */
+async function toFiles(raw: { uri: string; name: string; capturedAt: number }[]): Promise<RangePickedPhoto[]> {
   const settled = await Promise.allSettled(
-    result.photos.map(async p => {
+    raw.map(async p => {
       const response = await fetch(Capacitor.convertFileSrc(p.uri));
       const blob = await response.blob();
       const file = new File([blob], p.name, { type: blob.type });
@@ -149,9 +158,21 @@ export async function pickPhotosInRange(startMs: number, endMs: number): Promise
   const photos: RangePickedPhoto[] = [];
   settled.forEach(r => {
     if (r.status === 'fulfilled') photos.push(r.value);
-    else console.warn('Poza ilizibila din perioada ceruta, ignorata:', r.reason);
+    else console.warn('Poza ilizibila, ignorata:', r.reason);
   });
   return photos;
+}
+
+/**
+ * Aduce DIRECT (fara selector manual) pozele din galerie cu data efectiva in
+ * [startMs, endMs) — vezi MediaLibraryPlugin.kt:photosInRange. Aceeasi
+ * conversie File prin Capacitor.convertFileSrc ca pickNativePhotos() de mai
+ * sus; poze ilizibile individual sunt ignorate, nu opresc tot lotul.
+ */
+export async function pickPhotosInRange(startMs: number, endMs: number): Promise<GalleryReadResult> {
+  const result = await MediaLibraryNative.photosInRange({ startMs: String(startMs), endMs: String(endMs) });
+  if (!result.granted) return { granted: false, photos: [] };
+  return { granted: true, photos: await toFiles(result.photos) };
 }
 
 /**
@@ -164,23 +185,10 @@ export async function readGalleryFolders(): Promise<{ granted: boolean; folders:
 }
 
 /** Aduce DIRECT toate pozele dintr-un folder — vezi pickPhotosInRange mai sus pentru acelasi tipar de conversie File. */
-export async function pickPhotosInFolder(bucketId: string): Promise<RangePickedPhoto[]> {
+export async function pickPhotosInFolder(bucketId: string): Promise<GalleryReadResult> {
   const result = await MediaLibraryNative.photosInFolder({ bucketId });
-  if (!result.granted || !result.photos.length) return [];
-  const settled = await Promise.allSettled(
-    result.photos.map(async p => {
-      const response = await fetch(Capacitor.convertFileSrc(p.uri));
-      const blob = await response.blob();
-      const file = new File([blob], p.name, { type: blob.type });
-      return { uri: p.uri, name: p.name, capturedAt: p.capturedAt, file };
-    })
-  );
-  const photos: RangePickedPhoto[] = [];
-  settled.forEach(r => {
-    if (r.status === 'fulfilled') photos.push(r.value);
-    else console.warn('Poza ilizibila din folderul cerut, ignorata:', r.reason);
-  });
-  return photos;
+  if (!result.granted) return { granted: false, photos: [] };
+  return { granted: true, photos: await toFiles(result.photos) };
 }
 
 /**
