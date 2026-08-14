@@ -391,7 +391,7 @@ export const ro = {
   'app.progress.grouping': 'Grupare serii și duplicate…',
   'app.progress.reading': 'Aduc pozele din galerie {done}/{total}…',
   'app.progress.readingUnknown': 'Aduc pozele din galerie… {done}',
-  'app.progress.prescan': 'Aleg ordinea: caut oameni în primele {total} poze…',
+  'app.progress.prescan': 'Aleg ordinea: caut pozele cu oameni…',
   'app.progress.done': 'Finalizat',
   'app.progress.cancel': 'Anulează',
   'app.progress.cancelling': 'Se anulează…',

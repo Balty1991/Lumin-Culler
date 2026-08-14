@@ -394,7 +394,7 @@ export const en: Record<TranslationKey, string> = {
   'app.progress.grouping': 'Grouping series and duplicates…',
   'app.progress.reading': 'Reading photos from the gallery {done}/{total}…',
   'app.progress.readingUnknown': 'Reading photos from the gallery… {done}',
-  'app.progress.prescan': 'Choosing the order: looking for people in the first {total} photos…',
+  'app.progress.prescan': 'Choosing the order: looking for the photos with people…',
   'app.progress.done': 'Done',
   'app.progress.cancel': 'Cancel',
   'app.progress.cancelling': 'Cancelling…',
