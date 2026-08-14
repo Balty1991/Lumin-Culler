@@ -382,7 +382,7 @@ export const ro = {
   'app.progress.analyzing': 'Analiza AI {done}/{total} — {fileName}',
   'app.progress.analyzingEta': 'Analiza AI {done}/{total} — {fileName} · ~{eta} rămase',
   'app.progress.grouping': 'Grupare serii și duplicate…',
-  'app.progress.prescan': 'Se caută pozele cu oameni {done}/{total}…',
+  'app.progress.prescan': 'Aleg ordinea: caut oameni în primele {total} poze…',
   'app.progress.done': 'Finalizat',
   'app.progress.cancel': 'Anulează',
   'app.progress.cancelling': 'Se anulează…',

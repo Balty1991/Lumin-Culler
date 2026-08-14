@@ -886,7 +886,13 @@ export default function App() {
                     ? tr('app.progress.analyzingEta', { done: progress.done, total: progress.total, fileName: progress.fileName, eta: formatEta(progress.etaSeconds) })
                     : tr('app.progress.analyzing', { done: progress.done, total: progress.total, fileName: progress.fileName }))
                   : progress.phase === 'pregatire'
-                    ? tr('app.progress.prescan', { done: progress.done, total: progress.total })
+                    // Bug real raportat de utilizator: cu 180 de poze alese, textul
+                    // scria "14/150" si parea ca 30 s-au pierdut. 150 e plafonul
+                    // PRE-SCANARII (vezi FACE_PRESCAN_MAX), care doar decide ordinea
+                    // — importul ia tot lotul. `done` a fost scos: fractia era
+                    // singura care sugera o dimensiune de lot, iar bara de progres
+                    // de deasupra arata oricum inaintarea.
+                    ? tr('app.progress.prescan', { total: progress.total })
                     : progress.phase === 'grupare' ? tr('app.progress.grouping') : tr('app.progress.done')}
               </span>
               {progress.phase === 'analiza' && (
