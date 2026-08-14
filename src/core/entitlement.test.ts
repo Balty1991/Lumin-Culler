@@ -108,6 +108,40 @@ describe('jurnalul de folosire (format comprimat)', () => {
     expect(photosUsedInRollingMonth(now)).toBe(5);
   });
 
+  /**
+   * Regresie: migrarea trebuie sa COMPRIME, nu doar sa transcrie. Un utilizator
+   * care actualizeaza aplicatia avand deja un jurnal in formatul vechi (un
+   * timestamp per poza — mii de intrari pentru cateva ore de export) ajungea, la
+   * prima scriere, cu tot atatea perechi `[ora, 1]` in localStorage. Adica exact
+   * jurnalul nemarginit pe care formatul pe ore exista ca sa-l previna, si inca
+   * unul mai MARE ca inainte (o pereche ocupa mai multi octeti decat un numar),
+   * deci mai aproape de QuotaExceededError, nu mai departe.
+   */
+  it('migrarea din formatul vechi chiar comprima: 3000 de timestampuri dintr-o ora devin o intrare', () => {
+    const now = Date.now();
+    const legacy = Array.from({ length: 3000 }, (_, i) => now - i); // toate in aceeasi ora
+    localStorage.setItem('lumin-export-log', JSON.stringify(legacy));
+    const bytesBefore = localStorage.getItem('lumin-export-log')!.length;
+
+    recordPhotosUsed(1, now); // prima scriere de dupa actualizare
+
+    const stored = JSON.parse(localStorage.getItem('lumin-export-log')!) as unknown[];
+    expect(stored.length).toBe(1);
+    expect(photosUsedInRollingMonth(now)).toBe(3001);
+    expect(localStorage.getItem('lumin-export-log')!.length).toBeLessThan(bytesBefore);
+  });
+
+  it('uneste si doua intrari deja in formatul nou care cad in aceeasi ora', () => {
+    const now = Date.now();
+    const bucket = Math.floor(now / HOUR_MS) * HOUR_MS;
+    localStorage.setItem('lumin-export-log', JSON.stringify([[bucket, 4], [bucket, 6]]));
+    expect(photosUsedInRollingMonth(now)).toBe(10);
+    recordPhotosUsed(1, now);
+    const stored = JSON.parse(localStorage.getItem('lumin-export-log')!) as unknown[];
+    expect(stored.length).toBe(1);
+    expect(photosUsedInRollingMonth(now)).toBe(11);
+  });
+
   it('ignora intrarile corupte fara sa arunce', () => {
     const now = Date.now();
     localStorage.setItem('lumin-export-log', JSON.stringify(['x', null, { a: 1 }, [now, 7], [now, -3]]));

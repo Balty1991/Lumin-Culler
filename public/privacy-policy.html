@@ -86,7 +86,8 @@ si se deschide DOAR daca apesi explicit pe el; nicio coordonata nu e trimisa nic
 <ul>
   <li><strong>Acces la internet</strong>: folosit pentru incarcarea initiala a resurselor aplicatiei si a modelelor AI incluse in pachet, si pentru verificarea abonamentului la Google Play (vezi sectiunea de mai jos) — nu pentru a transmite pozele sau datele tale personale.</li>
   <li><strong>Facturare in aplicatie</strong> (<code>com.android.vending.BILLING</code>): necesara pentru abonamentul Premium optional, gestionat integral de Google Play.</li>
-  <li><strong>Fisiere/foldere</strong>: aplicatia acceseaza doar fisierele pe care le alegi explicit, prin selectorul de sistem — nu solicita permisiune de acces general la galerie.</li>
+  <li><strong>Fisiere/foldere</strong>: pentru importul obisnuit, aplicatia acceseaza doar fisierele pe care le alegi explicit, prin selectorul de sistem.</li>
+  <li><strong>Acces la galeria foto</strong> (<code>READ_MEDIA_IMAGES</code>, plus <code>READ_MEDIA_VISUAL_USER_SELECTED</code> pe Android 14+ si <code>READ_EXTERNAL_STORAGE</code> pana la Android 12): ceruta pentru functiile <em>Supervizorul galeriei</em> si <em>Adu pe perioade</em>, care numara cate poze ai pe fiecare luna si aduc in aplicatie pozele dintr-un interval de timp ales de tine. Fara ea, restul aplicatiei functioneaza normal, prin selectorul de sistem. Pozele sunt citite exclusiv pe dispozitiv; nimic nu pleaca nicaieri.</li>
 </ul>
 
 <h2>Abonamentul Premium (Google Play Billing)</h2>
@@ -172,7 +173,8 @@ explicitly tap it; no coordinates are sent anywhere automatically.
 <ul>
   <li><strong>Internet access</strong>: used for initial loading of app resources and the bundled AI models, and to check your subscription with Google Play (see the section below) — not to transmit your photos or personal data.</li>
   <li><strong>In-app billing</strong> (<code>com.android.vending.BILLING</code>): required for the optional Premium subscription, handled entirely by Google Play.</li>
-  <li><strong>Files/folders</strong>: the app only accesses files you explicitly choose via the system picker — it does not request blanket photo-library access.</li>
+  <li><strong>Files/folders</strong>: for ordinary importing, the app only accesses files you explicitly choose via the system picker.</li>
+  <li><strong>Photo library access</strong> (<code>READ_MEDIA_IMAGES</code>, plus <code>READ_MEDIA_VISUAL_USER_SELECTED</code> on Android 14+ and <code>READ_EXTERNAL_STORAGE</code> up to Android 12): requested for the <em>Gallery supervisor</em> and <em>Bring by periods</em> features, which count how many photos you have per month and bring in the photos from a time range you choose. Without it the rest of the app works normally, through the system picker. Photos are read on the device only; nothing leaves it.</li>
 </ul>
 
 <h2>Premium subscription (Google Play Billing)</h2>

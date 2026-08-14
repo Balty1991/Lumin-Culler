@@ -149,7 +149,7 @@ export const ro = {
   'menu.section.settings': 'Setări',
   'menu.theme.light': 'Tema deschisă',
   'menu.theme.dark': 'Tema întunecată',
-  'menu.theme.auto': 'Tema automată (după oră)',
+  'menu.theme.auto': 'Tema automată (după telefon)',
   'menu.accent': 'Aspect',
   'menu.accent.classic': 'Clasic — turcoaz-violet-indigo',
   'menu.accent.sunset': 'Apus — portocaliu-roz',
@@ -162,8 +162,14 @@ export const ro = {
   'appearance.theme.light.sub': 'fundal deschis, mereu',
   'appearance.theme.dark': 'Întunecat',
   'appearance.theme.dark.sub': 'fundal închis, mereu',
-  'appearance.theme.auto': 'Automat, după oră',
-  'appearance.theme.auto.sub': 'luminos între 7:00 și 20:00, întunecat în rest',
+  'appearance.theme.auto': 'Automat',
+  // Textul TREBUIE sa ramana in pas cu resolveTheme din state/theme.ts: acolo
+  // setarea de sistem (prefers-color-scheme) are prioritate, iar intervalul orar
+  // e doar rezerva pentru cand sistemul nu spune nimic. Cat timp scria "după oră",
+  // optiunea isi mintea numele: pe un telefon tinut permanent pe tema intunecata,
+  // "Automat" da intunecat si la ora 10 dimineata — corect, dar exact pe dos fata
+  // de ce promitea eticheta.
+  'appearance.theme.auto.sub': 'urmează setarea telefonului; dacă telefonul nu are una, luminos între 7:00 și 20:00',
   'appearance.preview': 'Previzualizare',
   'appearance.preview.body': 'Așa arată butoanele și insignele AI cu alegerea ta.',
   'appearance.preview.button': 'Exportă (12)',

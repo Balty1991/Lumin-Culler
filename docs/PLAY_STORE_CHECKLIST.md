@@ -61,7 +61,7 @@ Pe baza a ce chiar face aplicatia (vezi `public/privacy-policy.html`):
 - **Colectare date**: NU colectezi/transmiti date catre servere — totul e procesat si stocat local pe dispozitiv.
 - **Poze**: procesate local, nu sunt incarcate.
 - **Date faciale ("persoane cunoscute")**: declara-le ca informatie sensibila procesata **doar local, niciodata transmisa** — Google Play e strict aici, raspunde cu atentie, nu bifa "nu se aplica".
-- **Permisiuni**: doar INTERNET (incarcare resurse aplicatie, nu date personale) — fara acces global la galerie (foloseste selectorul de sistem).
+- **Permisiuni**: verifica lista REALA in `android/app/src/main/AndroidManifest.xml`, nu din memorie. Azi sunt patru: `INTERNET` (incarcare resurse aplicatie, nu date personale), `READ_MEDIA_IMAGES`, `READ_MEDIA_VISUAL_USER_SELECTED` (Android 14+, cazul "acces limitat") si `READ_EXTERNAL_STORAGE` (`maxSdkVersion="32"`). Cele trei de acces la poze sunt cerute de Supervizorul galeriei si de "Adu pe perioade" (`MediaLibraryPlugin.kt`), care citesc din MediaStore pe intervale de timp — deci aplicatia CHIAR cere acces la galerie, pe langa selectorul de sistem, iar formularul trebuie sa spuna asta. Pozele raman procesate local; permisiunea e despre citire, nu despre transmitere. `com.android.vending.BILLING` se adauga singura la merge-ul de manifest, din biblioteca Play Billing.
 - Daca in viitor adaugi sincronizarea prin GitHub (sau alt cloud), formularul trebuie actualizat ATUNCI, inainte de urmatorul update — sa reflecte ca acele date (setari + model AI, fara nume/poze) pot fi transmise optional, la cererea utilizatorului.
 
 ### 7. Content rating questionnaire

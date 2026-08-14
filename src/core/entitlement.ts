@@ -188,19 +188,34 @@ function readExportLog(): UsageEntry[] {
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    const entries: UsageEntry[] = [];
+    // Adunate PE ORA chiar aici, nu doar transcrise una cate una. Fara pasul
+    // asta, migrarea nu comprima nimic: formatul vechi are un timestamp per
+    // poza, deci zeci de mii de intrari care cad toate in aceleasi cateva ore,
+    // si prima scriere le-ar persista pe toate in noul format — adica exact
+    // jurnalul nemarginit pe care formatul pe ore exista ca sa-l previna. Mai
+    // rau, l-ar face si MAI MARE: o pereche `[1755000000000,1]` ocupa mai multi
+    // octeti decat numarul `1755000000000` singur, deci prima scriere de dupa
+    // actualizare umfla jurnalul cu ~30% si apropie QuotaExceededError-ul pe
+    // care schimbarea trebuia sa-l indeparteze. Aceeasi unire repara si un
+    // jurnal in formatul nou care ar contine, din orice motiv, doua intrari
+    // pentru aceeasi ora.
+    const merged = new Map<number, number>();
+    const add = (bucket: number, count: number) => merged.set(bucket, (merged.get(bucket) ?? 0) + count);
     for (const item of parsed) {
       if (typeof item === 'number' && Number.isFinite(item)) {
-        entries.push([bucketOf(item), 1]); // format vechi: un timestamp per poza
+        add(bucketOf(item), 1); // format vechi: un timestamp per poza
       } else if (
         Array.isArray(item) && typeof item[0] === 'number' && Number.isFinite(item[0]) &&
         typeof item[1] === 'number' && Number.isFinite(item[1]) && item[1] > 0
       ) {
-        entries.push([item[0], Math.floor(item[1])]);
+        add(item[0], Math.floor(item[1]));
       }
       // orice altceva = intrare corupta, se ignora tacut (jurnalul nu e critic)
     }
-    return entries;
+    // Perechi PROASPETE la fiecare citire: recordPhotosUsed incrementeaza pe loc
+    // (`existing[1] += added`), deci n-are voie sa primeasca vreodata un tuplu
+    // partajat cu altcineva.
+    return [...merged].map(([bucket, count]): UsageEntry => [bucket, count]);
   } catch {
     return [];
   }
