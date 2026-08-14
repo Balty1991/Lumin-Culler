@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { db, type AnalysisRecord } from '../core/db';
 import { useStore, type PhotoView } from '../state/store';
 import { explainFactors } from '../core/learning/ContextEngine';
@@ -210,6 +210,32 @@ export function PhotoInfoTabs({ photo, src }: { photo: PhotoView; src: string | 
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const [tab, setTab] = useState<Tab>('metrics');
+  /** Prefix unic de id — vezi comentariul de la <nav role="tablist"> mai jos. */
+  const tabsId = useId();
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  /**
+   * Navigarea ceruta de tiparul ARIA de file: Sageti stanga/dreapta trec la fila
+   * urmatoare/precedenta (circular), Home/End sar la prima/ultima. Fila noua
+   * primeste si focusul, nu doar selectia — altfel urmatoarea apasare de sageata
+   * ar porni tot de la fila veche.
+   */
+  const onTabKeyDown = (e: React.KeyboardEvent, index: number) => {
+    const last = TAB_KEYS.length - 1;
+    let next: number;
+    switch (e.key) {
+      case 'ArrowRight': next = index === last ? 0 : index + 1; break;
+      case 'ArrowLeft': next = index === 0 ? last : index - 1; break;
+      case 'Home': next = 0; break;
+      case 'End': next = last; break;
+      default: return;
+    }
+    // Doar dupa ce stim ca era o tasta de navigare: altfel am fi inghitit
+    // Tab-ul si Shift+Tab, adica exact iesirea din grupul de file.
+    e.preventDefault();
+    setTab(TAB_KEYS[next].key);
+    tabRefs.current[next]?.focus();
+  };
 
   useEffect(() => { setTab('metrics'); }, [photo.id]);
 
@@ -224,12 +250,36 @@ export function PhotoInfoTabs({ photo, src }: { photo: PhotoView; src: string | 
 
   return (
     <>
+      {/*
+        Tiparul ARIA de file era pornit pe jumatate — bug real gasit de auditul UI:
+        exista `role="tablist"`/`role="tab"`/`aria-selected`, deci un cititor de
+        ecran anunta "fila, 1 din 4" si promite navigare cu sagetile, dar:
+          - sagetile nu faceau nimic (niciun handler);
+          - toate cele 4 file erau opriri separate de Tab, in loc de UNA singura
+            (tabindex rulant), deci pe tastatura trebuia sa treci prin fiecare;
+          - continutul de dedesubt nu era legat de nicio fila (fara `tabpanel`,
+            fara `aria-controls`), deci nu exista nicio relatie anuntabila intre
+            "fila selectata" si ce se vede.
+        Zona de continut primeste si `tabIndex={0}`: e un container cu derulare
+        proprie, iar un asemenea container trebuie sa poata fi derulat de la
+        tastatura chiar si cand nu contine niciun element focusabil.
+        `useId()` — cele doua locuri care monteaza componenta (DetailView si
+        Workspace) nu coexista azi, dar id-uri generate evita orice coliziune
+        daca vreodata ar coexista.
+      */}
       <nav className="detail-tabs" role="tablist">
-        {TAB_KEYS.map(tabDef => (
+        {TAB_KEYS.map((tabDef, i) => (
           <button
-            key={tabDef.key} role="tab" aria-selected={tab === tabDef.key}
+            key={tabDef.key}
+            id={`${tabsId}-tab-${tabDef.key}`}
+            ref={el => { tabRefs.current[i] = el; }}
+            role="tab"
+            aria-selected={tab === tabDef.key}
+            aria-controls={`${tabsId}-panel`}
+            tabIndex={tab === tabDef.key ? 0 : -1}
             className={tab === tabDef.key ? 'detail-tab active' : 'detail-tab'}
             onClick={() => setTab(tabDef.key)}
+            onKeyDown={e => onTabKeyDown(e, i)}
           >
             {tr(tabDef.labelKey)}
             {tabDef.key === 'history' && photoHistory.length > 0 && <b className="detail-tab-count mono">{photoHistory.length}</b>}
@@ -237,7 +287,13 @@ export function PhotoInfoTabs({ photo, src }: { photo: PhotoView; src: string | 
         ))}
       </nav>
 
-      <div className="detail-scroll">
+      <div
+        className="detail-scroll"
+        id={`${tabsId}-panel`}
+        role="tabpanel"
+        aria-labelledby={`${tabsId}-tab-${tab}`}
+        tabIndex={0}
+      >
       {tab === 'metrics' && (
         <>
           <div className="stat-grid">

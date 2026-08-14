@@ -88,4 +88,38 @@ describe('findHabits', () => {
     ]);
     expect(found[0].kind).toBe('time');
   });
+
+  /**
+   * Bug real gasit de auditul QA — vezi `new Set` in tally(). O eticheta
+   * repetata pe ACEEASI poza nu e o a doua decizie, e aceeasi decizie.
+   */
+  it('nu numara de doua ori o eticheta repetata pe ACEEASI poza', () => {
+    const found = findHabits([
+      ...NEUTRAL,
+      ...rows(20, true, { sceneTags: ['dog', 'dog', 'dog'] })
+    ]);
+    const subject = found.find(h => h.kind === 'subject')!;
+    expect(subject.key).toBe('dog');
+    expect(subject.count).toBe(20); // inainte: 60, adica de trei ori numarul real de decizii
+  });
+
+  it('nu mai trece pragul de zgomot (MIN_BUCKET) pe decizii duplicate', () => {
+    // 8 decizii reale, fiecare cu eticheta repetata de doua ori: inainte
+    // ieseau 16 "decizii" si constatarea trecea de MIN_BUCKET=15
+    const found = findHabits([
+      ...NEUTRAL,
+      ...rows(MIN_BUCKET - 7, false, { sceneTags: ['receipt', 'receipt'] })
+    ]);
+    expect(found.find(h => h.kind === 'subject')).toBeUndefined();
+  });
+
+  it('MIN_DEVIATION ramane raportat la rata reala, nu la una umflata de duplicate', () => {
+    const found = findHabits([
+      ...NEUTRAL,
+      ...rows(20, false, { sceneTags: ['screenshot', 'screenshot'] })
+    ]);
+    const subject = found.find(h => h.kind === 'subject')!;
+    expect(subject.keepRate).toBe(0);
+    expect(Math.abs(subject.keepRate - subject.baseline)).toBeGreaterThanOrEqual(MIN_DEVIATION);
+  });
 });

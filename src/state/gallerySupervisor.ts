@@ -64,13 +64,28 @@ export function writePeriodMonths(months: PeriodMonths): void {
   }
 }
 
-export function readCoveredUntil(): number | null {
+/**
+ * Bug real gasit de auditul QA (aceeasi clasa ca in state/backupReminder.ts):
+ * `raw ? Number(raw) : null` intoarce NaN, nu null, pentru orice continut
+ * ne-numeric. Aici efectul e cel mai vizibil dintre toate citirile de acest
+ * fel: computeNextPeriod(NaN) intoarce { start: NaN, end: NaN } — adica
+ * supervizorul cere galeriei telefonului pozele dintr-un interval inexistent
+ * (MediaLibraryPlugin.photosInRange primeste NaN) — iar
+ * computeGalleryCoveragePercent afiseaza NaN% pe cardul de pe Acasa.
+ */
+function readFiniteNumber(key: string): number | null {
   try {
-    const raw = localStorage.getItem(COVERED_UNTIL_KEY);
-    return raw ? Number(raw) : null;
+    const raw = localStorage.getItem(key);
+    if (raw === null || raw === '') return null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
   } catch {
     return null;
   }
+}
+
+export function readCoveredUntil(): number | null {
+  return readFiniteNumber(COVERED_UNTIL_KEY);
 }
 
 export function writeCoveredUntil(ms: number): void {

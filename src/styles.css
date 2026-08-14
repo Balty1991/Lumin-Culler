@@ -317,6 +317,18 @@ body {
   html { scroll-behavior: auto !important; }
 }
 
+/* Text doar pentru cititoarele de ecran — vizibil in arborele de accesibilitate,
+   invizibil pe ecran. Aplicatia n-avea niciun astfel de utilitar, asa ca singura
+   cale de a eticheta ceva pentru TalkBack/VoiceOver era `aria-label`, care NU
+   functioneaza pe elemente fara rol (un <div> simplu ramane neanuntat) si nici nu
+   poate fi citit de o regiune `aria-live`. Tehnica standard (1px + clip-path), nu
+   `display:none`/`visibility:hidden`, care ar ascunde continutul si de la
+   cititoarele de ecran. */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+
 /* scrollbar-uri subtiri, neutre — Firefox (global) + Webkit (per-container, mai jos) */
 * { scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) transparent; }
 .mono { font-family: var(--mono); font-size: 0.82em; letter-spacing: 0.02em; }
@@ -1824,6 +1836,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .zen-toggle-row b { font-size: 0.82rem; display: block; color: var(--text); }
 .zen-toggle-row span span { font-size: 0.7rem; color: var(--text-dim); }
 .zen-switch {
+  /* `display:block` — varianta pur vizuala (ZenSwitchVisual) e un <span>, care
+     altfel ar fi inline si ar ignora latimea/inaltimea de mai jos. */
+  display: block;
   width: 38px; height: 21px; border-radius: 999px; position: relative; flex-shrink: 0; border: none;
   background: var(--surface-3);
 }
@@ -2061,6 +2076,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 .detail-stage.zoomed { cursor: zoom-out; overflow: auto; touch-action: pan-x pan-y pinch-zoom; -webkit-overflow-scrolling: touch; }
 .swipe-surface { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+/* Suprafata poarta acum rolul de buton "mareste/micsoreaza" (vezi DetailView.tsx) si
+   ocupa exact toata scena, care e `overflow: hidden` — un contur de focus DESENAT IN
+   AFARA (offset pozitiv, cum e implicit in aplicatie) ar fi taiat pe toate laturile si
+   nu s-ar vedea deloc. Offset negativ = conturul cade in interior, complet vizibil. */
+.swipe-surface:focus-visible { outline: 2px solid var(--accent); outline-offset: -4px; box-shadow: none; }
 .detail-stage-img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; display: block; user-select: none; -webkit-user-drag: none; }
 .detail-stage.zoomed .detail-stage-img { max-width: none; max-height: none; width: auto; height: auto; }
 .zoom-hint {
@@ -3508,3 +3528,105 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   font-size: 0.86rem; font-weight: 700;
 }
 .home-view-all-cta:hover { border-color: var(--line-strong); }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Audit UI/UX — corectii transversale (comportament de scroll pe mobil +
+   elemente ascunse vizual dar inca focusabile).
+   ═════════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. Blocarea scroll-ului paginii cat timp un panou modal e deschis ──────
+   Bug real: pe telefon, cu orice panou modal deschis (Meniu, Statistici,
+   Persoane, Editare, Paleta, Prezentare, sortare rapida), un swipe pornit pe
+   VOAL (sau ajuns la capatul continutului panoului) derula pagina din SPATE.
+   La inchidere, utilizatorul se trezea in cu totul alt loc din grila decat
+   cel de unde plecase — pe Android Chrome se putea declansa si "trage ca sa
+   reimprospatezi", care reincarca aplicatia si pierde sesiunea de triaj.
+
+   Facut in CSS (`:has()`), nu cu un hook care scrie `document.body.style`:
+   panourile sunt ~25, montate/demontate independent, iar o solutie in JS ar
+   fi cerut ca fiecare sa apeleze corect un hook si sa numere corect
+   deschiderile suprapuse (Editare peste DetailView peste grila). Selectorul
+   de mai jos nu poate ramane niciodata "agatat" — depinde strict de ce e in
+   DOM chiar acum. `:has()` e suportat de toate motoarele tinta (Chrome 105+,
+   deci si WebView-ul Android/Capacitor 8, Safari 15.4+, Firefox 121+); pe un
+   motor fara suport regula e ignorata in intregime si comportamentul ramane
+   exact cel de dinainte, nu unul rupt.
+
+   `overflow: clip` (nu `hidden`) pe <body>: `hidden` creeaza un container de
+   scroll nou, ceea ce ar reseta pozitia de derulare a paginii la 0 pe unele
+   motoare; `clip` doar taie, fara sa atinga scrollTop-ul deja existent —
+   deci la inchiderea panoului grila reapare exact unde era. */
+html:has(> body .detail),
+html:has(> body .drawer-scrim),
+html:has(> body .palette-scrim),
+html:has(> body .edit-scrim),
+html:has(> body .presentation-scrim),
+html:has(> body .detail-fullscreen),
+html:has(> body .tiktok-sort),
+html:has(> body .welcome-screen) {
+  overflow-y: clip;
+}
+
+/* ── 2. Fara "scroll chaining" din containerele interne in pagina ───────────
+   Acelasi bug ca mai sus, pe cealalta cale: cand continutul unui panou/lista
+   ajunge la capat, browserul trece derularea mai departe catre parinte
+   (pagina). `overscroll-behavior: contain` opreste lantul la container si, in
+   plus, dezactiveaza "trage ca sa reimprospatezi" pornit din interiorul lui.
+   Pe containerele cu derulare ORIZONTALA intentionata (filmstrip, randul de
+   filtre) conteaza la fel de mult: un swipe orizontal ajuns la capat nu mai
+   trebuie sa devina gestul de "inapoi" al sistemului. */
+.detail-inner,
+.drawer,
+.palette-list,
+.detail-scroll,
+.virtual-grid-scroll,
+.workspace-filmstrip,
+.edit-modal,
+.filters,
+.supervisor-period-list,
+.context-menu,
+.scene-tag-filter-menu,
+.color-label-filter-menu,
+.more-filters-menu-body,
+.detail-stage.zoomed {
+  overscroll-behavior: contain;
+}
+
+/* ── 3. Comenzi ascunse vizual, dar inca in ordinea de Tab ──────────────────
+   Bug real de accesibilitate: `opacity: 0` + `pointer-events: none` ascunde
+   un element de mouse si de ochi, dar NU si de tastatura — butoanele
+   ramaneau focusabile, deci Tab "disparea" in comenzi invizibile (bara de
+   sus/jos a Prezentarii dupa cele 2.8s de inactivitate; bara de cautare/
+   filtre din antetul care se pliaza la derulare). `visibility: hidden` le
+   scoate si din ordinea de Tab.
+
+   Intarzierea pe `visibility` (0s la aparitie, dupa tranzitie la disparitie)
+   pastreaza estomparea vizuala intacta — fara ea, elementul ar disparea
+   instantaneu in loc sa se stinga. */
+.presentation-controls { transition: opacity 0.3s var(--ease), visibility 0s; }
+.presentation-controls.hidden { visibility: hidden; transition: opacity 0.3s var(--ease), visibility 0s 0.3s; }
+.app-collapsible.hidden { visibility: hidden; transition: grid-template-rows 0.3s var(--ease), opacity 0.2s var(--ease), visibility 0s 0.3s; }
+
+/* Aceeasi problema, alte doua mecanisme de ascundere — ambele lasau in ordinea
+   de Tab zeci de comenzi pe care utilizatorul nu le vede:
+
+   a) Sectiunile pliate din Meniu (`grid-template-rows: 0fr` + overflow ascuns).
+      Meniul are ~35 de randuri in 6 sectiuni, majoritatea pliate implicit: un
+      utilizator de tastatura tinea Tab si "disparea" prin toate randurile
+      ascunse, fara nimic vizibil pe ecran care sa se miste.
+
+   b) Foaia de metrici din DetailView cat timp e restransa — e mutata sub ecran
+      cu `translateY`, deci ramane tehnic vizibila pentru browser: Tab ajungea
+      pe stelele de rating si pe filele de informatii de dedesubt, iar browserul
+      incerca sa deruleze catre ele intr-un container `fixed` care nu deruleaza.
+      Manerul (butonul care o deschide) ramane in afara acestei reguli, ca sa
+      poata fi in continuare deschisa de la tastatura. */
+.drawer-group-body-inner { transition: visibility 0s; }
+.drawer-group-body:not([data-open="true"]) .drawer-group-body-inner {
+  visibility: hidden; transition: visibility 0s 0.25s;
+}
+.detail-sheet-content { transition: visibility 0s; }
+.detail-sheet:not(.expanded):not(.dragging) .detail-sheet-content {
+  visibility: hidden; transition: visibility 0s 0.4s;
+}

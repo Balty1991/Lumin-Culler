@@ -47,7 +47,15 @@ export function AiBootScreen() {
         <p className="boot-title">{tr('app.boot.title')}</p>
         <p className="boot-sub">{tr('app.progress.loadingModels')}</p>
         {elapsedMs >= 1000 && (
-          <p className="boot-elapsed mono">
+          // aria-hidden — bug real gasit de auditul UI: acest text se schimba la
+          // FIECARE secunda, iar intreg ecranul e o regiune `aria-live="polite"`
+          // (vezi <div className="boot"> mai sus). Rezultatul: TalkBack/VoiceOver
+          // reciteau "au trecut 6s… au trecut 7s… au trecut 8s…" fara oprire, timp
+          // de zeci de secunde cat dureaza incarcarea modelelor, acoperind orice
+          // altceva ar fi vrut utilizatorul sa auda. Informatia utila ("se
+          // pregateste AI-ul") e deja anuntata o data, din titlul de deasupra,
+          // care nu se schimba; cronometrul ramane strict un indiciu vizual.
+          <p className="boot-elapsed mono" aria-hidden="true">
             {rememberedMs !== null
               ? tr('app.boot.elapsedWithEstimate', { time: formatEta(elapsedMs / 1000), estimate: formatEta(rememberedMs / 1000) })
               : tr('app.boot.elapsed', { time: formatEta(elapsedMs / 1000) })}

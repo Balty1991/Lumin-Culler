@@ -318,8 +318,26 @@ export class AnalysisPool {
     return new Promise(resolve => this.nativeWaiters.push(resolve));
   }
 
+  /**
+   * Bug real gasit de auditul QA: varianta veche preda permisul urmatorului
+   * din coada NECONDITIONAT (`const next = shift(); if (next) { inFlight++;
+   * next(); }`), fara sa mai verifice plafonul — exact ce comentariul de la
+   * resizeForEconomicMode promitea ca NU se poate intampla ("disponibilitatea
+   * se recalculeaza mereu ca nativeInFlight < nativeConcurrencyLimit, nu
+   * printr-un contor care ar putea deveni... incorect la o scadere in timpul
+   * unui import").
+   *
+   * Scenariu concret, reprodus in test: import in curs pe Android cu plafonul
+   * normal (2-4 poze in zbor), utilizatorul comuta "mod economic" din meniu la
+   * mijlocul importului -> resizeForEconomicMode(true) coboara plafonul la 1,
+   * dar fiecare analiza terminata readmitea imediat o alta din coada, deci
+   * numarul REAL de poze in zbor ramanea la vechiul plafon pana la finalul
+   * lotului. Adica exact momentul in care setarea conteaza cel mai mult (import
+   * mare pe telefon slab, presiune de RAM) era singurul in care nu facea nimic.
+   */
   private releaseNativePermit(): void {
     this.nativeInFlight--;
+    if (this.nativeInFlight >= this.nativeConcurrencyLimit) return; // plafon coborat intre timp — nu mai admitem pe nimeni
     const next = this.nativeWaiters.shift();
     if (next) { this.nativeInFlight++; next(); }
   }

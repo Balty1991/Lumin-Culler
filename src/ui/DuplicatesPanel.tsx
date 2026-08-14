@@ -101,7 +101,12 @@ export function DuplicatesPanel() {
                       <span className="mono">{tr(plural(members.length, 'duplicates.members.one', 'duplicates.members.other'), { count: members.length })}</span>
                       <div className="duplicates-group-actions">
                         <button className="ghost small" onClick={() => { setOpen(false); openCompare(groupId); }}>{tr('duplicates.compare')}</button>
-                        <button className="btn-accent" disabled={!keepId || busyGroup === groupId} onClick={() => void resolve(groupId)}>
+                        {/* Bug real gasit de auditul UI: butonul era dezactivat doar pentru
+                            grupul care se rezolva CHIAR ACUM (`busyGroup === groupId`), dar
+                            `resolve` refuza sa porneasca daca ORICE grup e in lucru — deci
+                            butoanele celorlalte grupuri aratau active si nu faceau nimic la
+                            apasare, fara niciun mesaj. Acum starea vizuala spune adevarul. */}
+                        <button className="btn-accent" disabled={!keepId || busyGroup !== null} onClick={() => void resolve(groupId)}>
                           {tr('duplicates.keepBest')}
                         </button>
                       </div>

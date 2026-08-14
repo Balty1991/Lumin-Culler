@@ -154,4 +154,51 @@ describe('AnalysisPool native mode (Capacitor Android)', () => {
     await pool.analyze('b', bitmap);
     expect(pool.size).toBe(1);
   });
+  /**
+   * Bug real gasit de auditul QA — vezi releaseNativePermit in workerPool.ts.
+   * Testul de mai sus verifica doar cazul cu O SINGURA analiza in zbor, adica
+   * exact cazul in care numarul in zbor scade oricum sub noul plafon; bug-ul
+   * traia in celalalt caz — pool-ul SATURAT la vechiul plafon, cu poze deja in
+   * coada, exact situatia unui import real de cateva sute de poze.
+   */
+  it('nu mai readmite din coada peste plafonul COBORAT la mijlocul unui import (mod economic pornit din mers)', async () => {
+    const { AnalysisPool } = await import('./workerPool');
+    const pool = new AnalysisPool();
+    await pool.init();
+    expect(pool.size).toBe(2);
+
+    const resolvers: (() => void)[] = [];
+    let started = 0;
+    analyzeNativeMock.mockImplementation(() => new Promise(resolve => {
+      started++;
+      resolvers.push(() => resolve({ photoId: 'x' }));
+    }));
+
+    const bitmap = {} as unknown as ImageBitmap;
+    // 2 in zbor (plafonul normal) + 2 in asteptare
+    const all = [0, 1, 2, 3].map(i => pool.analyze('p' + i, bitmap));
+    await new Promise(r => setTimeout(r, 0));
+    expect(started).toBe(2);
+
+    // utilizatorul comuta "mod economic" din meniu, cu importul in curs
+    await pool.resizeForEconomicMode(true);
+    expect(pool.size).toBe(1);
+
+    // o analiza se termina: cu plafonul coborat la 1 si inca una in zbor,
+    // NIMENI nu mai are voie sa porneasca (inainte pornea, si concurenta
+    // ramanea blocata la 2 pana la finalul lotului)
+    resolvers[0]();
+    await new Promise(r => setTimeout(r, 0));
+    expect(started).toBe(2);
+
+    // abia dupa ce si a doua se termina (0 in zbor < 1) porneste urmatoarea
+    resolvers[1]();
+    await new Promise(r => setTimeout(r, 0));
+    expect(started).toBe(3);
+
+    while (resolvers.length) resolvers.shift()!();
+    await new Promise(r => setTimeout(r, 0));
+    while (resolvers.length) resolvers.shift()!();
+    await Promise.all(all);
+  });
 });

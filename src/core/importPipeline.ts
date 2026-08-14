@@ -279,7 +279,15 @@ export async function prioritizeFacesFirst<T extends { file: File; mediaUri?: st
         // RAW-urile nu se decodeaza cu createImageBitmap (necesita decodeRawFile,
         // mult mai costisitor) — le lasam neprioritizate, nu merita costul complet
         // al unui decoder RAW doar ca sa decidem ordinea.
-        if (RAW_EXTENSIONS.test(file.name)) continue;
+        //
+        // Bug real gasit de auditul QA: `continue` sarea si peste onScanned(),
+        // nu doar peste detectie — deci pentru un lot care contine si RAW-uri,
+        // ultimul progres raportat era mereu SUB total (ex. "3/6" pentru 6
+        // fisiere din care 3 CR2/NEF/ARW), iar bara fazei "pregatire" ramanea
+        // inghetata la ~50% pana cand faza urmatoare o inlocuia. Fisierul CHIAR
+        // a trecut prin pre-scanare (decizia fiind "il lasam neprioritizat"),
+        // deci trebuie sa se numere ca atare.
+        if (RAW_EXTENSIONS.test(file.name)) { onScanned?.(++scanned, scanCount); continue; }
         try {
           // Cu URI de galerie, pre-scanarea nu mai decodeaza nimic in JS: partea
           // nativa citeste direct din MediaStore, subesantionat la dimensiunea
@@ -421,8 +429,6 @@ export function toHashInput(id: string, dHash: string, a: AnalysisRecord, captur
 
 async function processOne(file: File, genre?: string, project?: string, handle?: FileSystemFileHandleLike, mediaUri?: string, thresholds: Thresholds = FIXED_THRESHOLDS): Promise<ImportedPhoto> {
   const id = crypto.randomUUID();
-  originalFiles.set(id, file);
-  if (handle) originalHandles.set(id, handle);
   const isRaw = isRawFile(file);
   // RAW (CR2/NEF/ARW/DNG/...) nu se decodeaza cu createImageBitmap — folosim
   // LibRaw (WASM); metadatele EXIF vin direct din LibRaw (mai fiabil decat
@@ -553,6 +559,20 @@ async function processOne(file: File, genre?: string, project?: string, handle?:
         : [])
     ]);
   });
+
+  // Bug real gasit de auditul QA (scurgere de memorie): cele doua Map-uri
+  // modulare erau populate la INCEPUTUL functiei, inainte de tot ce poate
+  // esua (decodare RAW/LibRaw, analiza AI cu timeout, scrierile in Dexie).
+  // La orice esec per-poza, importFiles prinde eroarea si trece mai departe —
+  // dar intrarea ramanea acolo pentru tot restul sesiunii, cu un UUID pe care
+  // NICIO inregistrare din DB nu-l referentiaza, deci pe care nimic nu-l mai
+  // sterge vreodata (nici clearSession, care itereaza pozele reale). Un
+  // director cu 200 de fisiere corupte/HEIC-mascate reimportat de cateva ori
+  // acumula tot atatea File-uri "fantoma", fiecare tinand viu un handle catre
+  // fisierul de pe disc. Inregistram abia dupa ce poza CHIAR exista in DB —
+  // singurul moment din care exportOriginalFiles are ce cauta dupa acest id.
+  originalFiles.set(id, file);
+  if (handle) originalHandles.set(id, handle);
 
   return { photo, analysis, prediction };
 }

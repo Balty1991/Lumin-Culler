@@ -21,6 +21,25 @@ function ZenSwitch({ on, onToggle, label, disabled }: { on: boolean; onToggle: (
 }
 
 /**
+ * Doar aspectul comutatorului, FARA sa fie el insusi o comanda — folosit cand
+ * randul intreg e deja butonul (vezi randul "master" mai jos). Bug real gasit
+ * de auditul UI: acolo statea un <ZenSwitch> (adica un <button role="switch">)
+ * INAUNTRUL unui alt <button> — HTML invalid, pe care cititoarele de ecran il
+ * anunta ca o singura tinta confuza, iar un tap chiar pe comutator declansa
+ * ambele handlere (se salva doar din faptul ca amandoua calculau aceeasi
+ * valoare noua din acelasi render; orice trecere la forma functionala
+ * `setZenMode(v => !v)` ar fi transformat-o instant intr-o "apasare care nu
+ * face nimic"). Starea e purtata acum de randul-buton, prin role="switch".
+ */
+function ZenSwitchVisual({ on }: { on: boolean }) {
+  return (
+    <span className={on ? 'zen-switch on' : 'zen-switch off'} aria-hidden="true">
+      <i />
+    </span>
+  );
+}
+
+/**
  * "Mod Zen" (plan modernizare) — ecran dedicat, nu doar un buton in Meniu:
  * AI-ul rezolva singur grupurile clare (diferenta mare de scor, fara poze cu
  * multe fete — vezi state/zenResolve.ts), te intreaba doar la incertitudini.
@@ -65,6 +84,12 @@ export function ZenModePanel() {
 
         <button
           type="button"
+          role="switch"
+          aria-checked={zenMode}
+          // Numele accesibil ramane scurt ("Mod Zen"), ca inainte, cand statea pe
+          // comutatorul dinauntru — fara el s-ar calcula din tot continutul
+          // randului si ar deveni titlul lipit de subtitlul explicativ.
+          aria-label={tr('zen.master.title')}
           className={zenMode ? 'zen-toggle-row zen-master on' : 'zen-toggle-row zen-master'}
           onClick={() => setZenMode(!zenMode)}
         >
@@ -72,7 +97,7 @@ export function ZenModePanel() {
             <b>{tr('zen.master.title')}</b>
             <span>{tr('zen.master.sub')}</span>
           </span>
-          <ZenSwitch on={zenMode} onToggle={() => setZenMode(!zenMode)} label={tr('zen.master.title')} />
+          <ZenSwitchVisual on={zenMode} />
         </button>
 
         <div className="zen-toggle-row">

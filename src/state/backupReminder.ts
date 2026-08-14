@@ -10,13 +10,31 @@
 const LAST_BACKUP_KEY = 'lumin-last-backup-at';
 const SNOOZED_UNTIL_KEY = 'lumin-backup-reminder-snoozed-until';
 
-export function readLastBackupAt(): number | null {
+/**
+ * Bug real gasit de auditul QA: `raw ? Number(raw) : null` intoarce NaN — NU
+ * null — pentru orice continut care nu e un numar (scriere partiala/intrerupta,
+ * o cheie ramasa de la o versiune mai veche, orice altceva a atins
+ * localStorage). NaN nu e null, deci trece de toate gardele `!== null` de mai
+ * jos, iar apoi FIECARE comparatie cu el e falsa: efectul concret e ca
+ * "amana"-ul devine invizibil (bannerul reapare imediat, desi utilizatorul
+ * tocmai l-a amanat 7 zile) sau, la lastBackupAt, ca memento-ul se comporta ca
+ * si cum n-ar exista niciun backup. core/modelLoadTiming.ts facea deja
+ * verificarea corecta (Number.isFinite) — restul citirilor numerice din
+ * localStorage nu. Un singur helper, aceeasi regula peste tot.
+ */
+function readFiniteNumber(key: string): number | null {
   try {
-    const raw = localStorage.getItem(LAST_BACKUP_KEY);
-    return raw ? Number(raw) : null;
+    const raw = localStorage.getItem(key);
+    if (raw === null || raw === '') return null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
   } catch {
     return null;
   }
+}
+
+export function readLastBackupAt(): number | null {
+  return readFiniteNumber(LAST_BACKUP_KEY);
 }
 
 export function writeLastBackupAt(ts: number): void {
@@ -28,12 +46,7 @@ export function writeLastBackupAt(ts: number): void {
 }
 
 export function readSnoozedUntil(): number | null {
-  try {
-    const raw = localStorage.getItem(SNOOZED_UNTIL_KEY);
-    return raw ? Number(raw) : null;
-  } catch {
-    return null;
-  }
+  return readFiniteNumber(SNOOZED_UNTIL_KEY);
 }
 
 export function writeSnoozedUntil(ts: number): void {

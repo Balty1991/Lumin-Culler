@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { shouldShowImportReminder, IMPORT_REMINDER_INTERVAL_MS } from './importReminder';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { shouldShowImportReminder, IMPORT_REMINDER_INTERVAL_MS, readImportReminderSnoozedUntil } from './importReminder';
 
 const DAY = 24 * 60 * 60 * 1000;
 const now = Date.UTC(2026, 0, 15);
@@ -31,5 +31,22 @@ describe('shouldShowImportReminder', () => {
     expect(shouldShowImportReminder({
       now, lastImportAt: now - IMPORT_REMINDER_INTERVAL_MS - DAY, snoozedUntil: now - 1
     })).toBe(true);
+  });
+});
+
+/** Aceeasi clasa de bug ca in backupReminder.test.ts — vezi readFiniteNumber. */
+describe('importReminder — "amana" corupt in localStorage', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('trateaza o valoare ne-numerica drept absenta, in loc sa dezactiveze tacut amanarea prin NaN', () => {
+    localStorage.setItem('lumin-import-reminder-snoozed-until', 'candva');
+    expect(readImportReminderSnoozedUntil()).toBeNull();
+  });
+
+  it('o amanare VALIDA opreste in continuare memento-ul', () => {
+    localStorage.setItem('lumin-import-reminder-snoozed-until', String(now + DAY));
+    expect(shouldShowImportReminder({
+      now, lastImportAt: now - 60 * DAY, snoozedUntil: readImportReminderSnoozedUntil()
+    })).toBe(false);
   });
 });

@@ -275,7 +275,17 @@ export function PersonsPanel() {
           <button className="select" onClick={() => void submit()} disabled={busy}>
             {busy ? <><SparkleIcon className="inline-icon spin" /> {tr('workspace.progress.processing')}</> : tr('persons.enroll')}
           </button>
-          {message && <p className="hint">{busy && <SparkleIcon className="inline-icon spin" />} {message}</p>}
+          {/* role="status" + aria-live — bug real gasit de auditul UI: acesta e
+              SINGURUL raspuns pe care il primeste utilizatorul dupa inrolare
+              ("se calculeaza amprentele", "adaugat", "nu s-a detectat nicio
+              fata in pozele alese"), si aparea doar vizual. Cu un cititor de
+              ecran, apasarea pe "Inroleaza" parea ca nu face nimic, inclusiv
+              atunci cand esuase. `aria-live` sta pe elementul PERMANENT (nu pe
+              cel conditionat), altfel prima aparitie a mesajului nu se anunta —
+              regiunea trebuie sa existe in DOM inainte sa i se schimbe textul. */}
+          <p className="hint" role="status" aria-live="polite">
+            {message && <>{busy && <SparkleIcon className="inline-icon spin" />} {message}</>}
+          </p>
         </div>
 
         {persons.length > 0 && (

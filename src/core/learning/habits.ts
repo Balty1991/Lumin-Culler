@@ -80,11 +80,24 @@ function focalBand(focalLength35mm: number): string {
   return 'normal';
 }
 
-/** Grupele unei categorii: cheie -> [pastrate, total]. */
+/**
+ * Grupele unei categorii: cheie -> [pastrate, total].
+ *
+ * Bug real gasit de auditul QA: `new Set` — o decizie contribuie la o grupa
+ * CEL MULT o data. Fara el, o poza ale carei sceneTags contin de doua ori
+ * aceeasi eticheta (etichetele sunt un camp liber pe AnalysisRecord, iar
+ * inregistrarile mai vechi sau o alta sursa de analiza nu garanteaza
+ * unicitatea — learning/tagMemory.ts o impune EXPLICIT, cu `new Set(tags)`,
+ * exact pentru asta) era numarata de doua ori si in `kept`, si in `total`.
+ * Consecinta concreta: 8 decizii reale raportau `count: 16` si treceau de
+ * MIN_BUCKET (15), producand exact "moneda aruncata de patru ori" pe care
+ * disciplina din capul fisierului o interzice — si o afirmatie prezentata
+ * utilizatorului ca masurata pe 16 decizii, cand in spate erau 8.
+ */
 function tally(rows: readonly HabitInput[], keysOf: (r: HabitInput) => string[]): Map<string, [number, number]> {
   const out = new Map<string, [number, number]>();
   for (const r of rows) {
-    for (const key of keysOf(r)) {
+    for (const key of new Set(keysOf(r))) {
       const cell = out.get(key) ?? [0, 0];
       cell[0] += r.kept ? 1 : 0;
       cell[1] += 1;

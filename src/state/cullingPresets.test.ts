@@ -50,3 +50,37 @@ describe('cullingPresets', () => {
     expect(after[0].renameTemplate).toBeUndefined();
   });
 });
+
+/**
+ * Bug real gasit de auditul QA — vezi isValidPreset in cullingPresets.ts.
+ * Cheia poate ajunge sa contina intrari incomplete fara nicio interventie
+ * manuala: backupService.applySettings scrie settings.cullingPresets verbatim
+ * din JSON-ul unui fisier de backup, fara nicio validare.
+ */
+describe('cullingPresets — intrari corupte in localStorage', () => {
+  it('nu mai arunca la salvare cand o intrare stocata nu are `name` (inainte: TypeError, salvarea devenea imposibila)', () => {
+    localStorage.setItem('lumin-culling-presets', JSON.stringify([{ id: 'orfan' }]));
+    const after = saveCullingPreset('Nunta', 30, 40);
+    expect(after.map(p => p.name)).toEqual(['Nunta']);
+  });
+
+  it('sare peste intrarile care nu sunt obiecte, in loc sa le predea UI-ului', () => {
+    localStorage.setItem('lumin-culling-presets', JSON.stringify(['nu-e-obiect', null, 42]));
+    expect(listCullingPresets()).toEqual([]);
+  });
+
+  it('pastreaza intrarile valide si le arunca doar pe cele stricate', () => {
+    const valid = { id: 'a', name: 'Sport', cullPercent: 60, rejectThreshold: 20, createdAt: 1000 };
+    localStorage.setItem('lumin-culling-presets', JSON.stringify([valid, { id: 'b' }, { name: 'fara-id' }]));
+    expect(listCullingPresets()).toEqual([valid]);
+  });
+
+  it('respinge o intrare cu campuri de tip gresit (createdAt text, praguri text)', () => {
+    localStorage.setItem('lumin-culling-presets', JSON.stringify([
+      { id: 'a', name: 'X', cullPercent: '60', rejectThreshold: 20, createdAt: 1 },
+      { id: 'b', name: 'Y', cullPercent: 60, rejectThreshold: 20, createdAt: 'ieri' }
+    ]));
+    expect(listCullingPresets()).toEqual([]);
+    expect(() => deleteCullingPreset('a')).not.toThrow();
+  });
+});

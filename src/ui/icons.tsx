@@ -1,7 +1,21 @@
 /** Iconite SVG minime, inline — fara dependenta externa, fara CDN de fonturi de icoane. */
 import type { SVGProps } from 'react';
 
-const base = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+/**
+ * `aria-hidden` + `focusable="false"` IMPLICIT pe toate iconitele — bug real de
+ * accesibilitate gasit de auditul UI: iconitele sunt pur decorative (fiecare
+ * buton icon-only din aplicatie are deja propriul `aria-label`, iar randurile
+ * de meniu au text alaturi), dar un <svg> fara `aria-hidden` e anuntat de
+ * cititoarele de ecran ca "imagine"/"grafic" nedenumit, dublandu-l pe fiecare
+ * buton ("Meniu, buton, grafic"). Doar ~30 din cele ~180 de utilizari treceau
+ * explicit `aria-hidden="true"`; restul nu. Pus in `base`, se aplica tuturor
+ * celor ~60 de iconite dintr-un singur loc.
+ *
+ * `{...p}` ramane DUPA `{...base}`, deci o iconita care chiar poarta sens
+ * (folosita fara text alaturi) poate suprascrie local cu `aria-hidden={false}`
+ * + `role="img"` + `aria-label`.
+ */
+const base = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true, focusable: 'false' as const };
 
 export function MenuIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><line x1="4" y1="7" x2="20" y2="7" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="17" x2="14" y2="17" /></svg>;

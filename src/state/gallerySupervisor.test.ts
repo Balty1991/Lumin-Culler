@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
   computeNextPeriod, computeRemainingPeriod, SUPERVISOR_PERIOD_MS, periodMonthsToMs, listAllPeriods,
   isPeriodAlreadyCovered, isSupervisorBannerDismissedToday, computeGalleryCoveragePercent,
-  readImportedFolderIds, writeImportedFolderIds
+  readImportedFolderIds, writeImportedFolderIds, readCoveredUntil, writeCoveredUntil
 } from './gallerySupervisor';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -172,5 +172,47 @@ describe('readImportedFolderIds / writeImportedFolderIds', () => {
   it('ignores corrupted storage content', () => {
     localStorage.setItem('lumin-gallery-supervisor-imported-folders', '{not valid json');
     expect(readImportedFolderIds()).toEqual(new Set());
+  });
+});
+
+/**
+ * Bug real gasit de auditul QA — vezi readFiniteNumber in gallerySupervisor.ts.
+ * Dintre toate citirile numerice din localStorage, aici NaN-ul se vedea cel mai
+ * tare: intra direct in computeNextPeriod, care intorcea { start: NaN, end: NaN },
+ * deci supervizorul cerea galeriei telefonului pozele dintr-un interval
+ * inexistent, iar cardul de acoperire de pe Acasa afisa NaN%.
+ */
+describe('gallerySupervisor — cursor corupt in localStorage', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('trateaza un cursor ne-numeric drept absent, nu drept NaN', () => {
+    localStorage.setItem('lumin-gallery-supervisor-covered-until', 'nu-e-numar');
+    expect(readCoveredUntil()).toBeNull();
+  });
+
+  it('perioada urmatoare ramane un interval REAL dupa un cursor corupt (inainte: start/end NaN)', () => {
+    localStorage.setItem('lumin-gallery-supervisor-covered-until', 'stricat');
+    const nowMs = Date.UTC(2026, 0, 15);
+    const earliestMs = nowMs - 365 * DAY;
+    const period = computeNextPeriod({ earliestMs, nowMs, coveredUntilMs: readCoveredUntil() })!;
+    expect(Number.isFinite(period.start)).toBe(true);
+    expect(Number.isFinite(period.end)).toBe(true);
+    expect(period.start).toBe(earliestMs);
+  });
+
+  it('procentul de acoperire ramane un numar dupa un cursor corupt (inainte: NaN%)', () => {
+    localStorage.setItem('lumin-gallery-supervisor-covered-until', '{}');
+    const nowMs = Date.UTC(2026, 0, 15);
+    const percent = computeGalleryCoveragePercent({
+      earliestMs: nowMs - 100 * DAY, nowMs, coveredUntilMs: readCoveredUntil()
+    });
+    expect(Number.isFinite(percent)).toBe(true);
+    expect(percent).toBe(0);
+  });
+
+  it('un cursor VALID (inclusiv scris prin writeCoveredUntil) se citeste neschimbat', () => {
+    const ts = Date.UTC(2026, 0, 1);
+    writeCoveredUntil(ts);
+    expect(readCoveredUntil()).toBe(ts);
   });
 });

@@ -26,13 +26,27 @@ export function writeSmartNotificationEnabled(on: boolean): void {
   }
 }
 
-export function readSmartNotificationLastShown(): number | null {
+/**
+ * Bug real gasit de auditul QA (aceeasi clasa ca in state/backupReminder.ts):
+ * `raw ? Number(raw) : null` intoarce NaN, nu null, pentru orice continut
+ * ne-numeric din localStorage. NaN trece de gardele `!== null` de mai jos, dar
+ * apoi orice comparatie cu el e falsa — deci limitarea pe care o pazeste
+ * dispare in tacere, exact opusul comportamentului sigur asteptat de la o
+ * valoare corupta. core/modelLoadTiming.ts facea deja verificarea corecta.
+ */
+function readFiniteNumber(key: string): number | null {
   try {
-    const raw = localStorage.getItem(LAST_SHOWN_KEY);
-    return raw ? Number(raw) : null;
+    const raw = localStorage.getItem(key);
+    if (raw === null || raw === '') return null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
   } catch {
     return null;
   }
+}
+
+export function readSmartNotificationLastShown(): number | null {
+  return readFiniteNumber(LAST_SHOWN_KEY);
 }
 
 export function writeSmartNotificationLastShown(ts: number): void {

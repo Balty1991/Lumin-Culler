@@ -138,11 +138,26 @@ export function WelcomeOnboarding() {
           </div>
         )}
 
-        <div className="welcome-onboarding-dots" role="tablist" aria-label={tr('welcome.progress', { current: step + 1, total: steps.length })}>
+        {/* Doua bug-uri reale de accesibilitate gasite de auditul UI:
+            1. `role="tablist"` pe un container ai carui copii sunt <span>-uri
+               `aria-hidden`, fara niciun `role="tab"` — o structura ARIA
+               invalida (un tablist FARA file), pe care cititoarele de ecran o
+               anunta ca o lista de file goala.
+            2. Trecerea de la un pas la altul nu era anuntata deloc: focusul
+               ramane pe butonul "Inainte", al carui text nu se schimba, iar
+               titlul/corpul se inlocuiesc tacut mai sus in ecran. Un utilizator
+               de cititor de ecran apasa "Inainte" si nu primea nicio confirmare
+               ca s-a intamplat ceva.
+            Punctele raman pur decorative; progresul devine un text real intr-o
+            regiune `aria-live`, deci fiecare pas se anunta o singura data. */}
+        <div className="welcome-onboarding-dots">
           {steps.map((_, i) => (
             <span key={i} className={i === step ? 'welcome-onboarding-dot active' : 'welcome-onboarding-dot'} aria-hidden="true" />
           ))}
         </div>
+        <span className="sr-only" role="status" aria-live="polite">
+          {tr('welcome.progress', { current: step + 1, total: steps.length })}
+        </span>
 
         <div className="welcome-onboarding-actions">
           {step > 0 && <button className="ghost" onClick={() => setStep(s => s - 1)}>{tr('welcome.back')}</button>}

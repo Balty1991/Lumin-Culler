@@ -601,3 +601,52 @@ describe('extractFeatures — semnalele EXIF ramase nefolosite', () => {
     expect(extractFeatures(baseAnalysis()).deliberateSettings).toBe(0);
   });
 });
+
+/**
+ * Bug real gasit de auditul QA — vezi comentariile lungi de la normalize() si
+ * updateWeight() in ContextEngine.ts. Rezumat: o singura valoare ne-finita
+ * (feature corupt) sau o singura pondere ne-finita (model restaurat dintr-un
+ * backup editat/trunchiat, pe care restoreBackup il scrie verbatim cu bulkPut
+ * fara nicio validare) transforma `aiScore` in NaN — iar `aiScore` e camp
+ * INDEXAT in db.analyses, unde NaN nu e o cheie valida: inregistrarea dispare
+ * tacut din index, deci readLibraryScores()/deriveThresholds n-o mai vad, si
+ * decidePhotoStatus(NaN) blocheaza poza in 'review' pentru orice prag.
+ */
+describe('ContextEngine — o valoare/pondere corupta nu mai otraveste tot scorul', () => {
+  it('un feature NaN devine neutru, restul pozei se scoreaza normal', async () => {
+    const engine = new ContextEngine();
+    const corrupt = await engine.predict(baseAnalysis({ photoId: 'nan', sharpness: NaN }));
+    expect(Number.isFinite(corrupt.score)).toBe(true);
+    expect(corrupt.score).toBeGreaterThanOrEqual(0);
+    expect(corrupt.score).toBeLessThanOrEqual(100);
+    expect(corrupt.topFactors.every(f => Number.isFinite(f.contribution))).toBe(true);
+  });
+
+  it('un feature Infinity e tratat la fel (neutru), nu ca un maxim absolut', async () => {
+    const engine = new ContextEngine();
+    const infinite = await engine.predict(baseAnalysis({ photoId: 'inf', exposure: Infinity }));
+    expect(Number.isFinite(infinite.score)).toBe(true);
+  });
+
+  it('nu contamineaza permanent statisticile contextului (poza URMATOARE, curata, se scoreaza ca inainte)', async () => {
+    const clean = new ContextEngine();
+    const reference = await clean.predict(baseAnalysis({ photoId: 'ref' }));
+
+    const poisoned = new ContextEngine();
+    await poisoned.recordCorrection({
+      photoId: 'nan', analysis: baseAnalysis({ sharpness: NaN }), aiDecision: true, userDecision: true
+    });
+    const after = await poisoned.predict(baseAnalysis({ photoId: 'ref' }));
+
+    expect(Number.isFinite(after.score)).toBe(true);
+    // un singur pas de antrenare misca scorul putin, dar nu-l scoate din scala
+    expect(Math.abs(after.score - reference.score)).toBeLessThan(25);
+  });
+
+  it('updateWeight readuce pe ancora o pondere deja ne-finita, in loc s-o lase NaN pe veci', () => {
+    expect(updateWeight(NaN, 0.1, 0.3, priorAnchor('sharpness'))).toBe(priorAnchor('sharpness'));
+    expect(updateWeight(Infinity, 0.1, 0.3, priorAnchor('negativeSpace'))).toBe(priorAnchor('negativeSpace'));
+    // comportamentul pentru valori normale ramane neschimbat
+    expect(updateWeight(0.5, 0.1, 0.3, 0.5)).toBeCloseTo(0.47, 5);
+  });
+});

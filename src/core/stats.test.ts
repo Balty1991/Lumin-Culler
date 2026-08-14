@@ -81,4 +81,38 @@ describe('computeAgreementTrend', () => {
     const corrections = Array.from({ length: 12 }, (_, i) => correction(i, true));
     expect(computeAgreementTrend(corrections)).toHaveLength(6);
   });
+
+  /**
+   * Bug real gasit de auditul QA — vezi partitionarea echilibrata din
+   * computeAgreementTrend. Cazul in care numarul de corectii NU se imparte
+   * exact la numarul de bucket-uri e cazul obisnuit, nu unul exotic.
+   */
+  it('returneaza MEREU exact bucketCount puncte, chiar cand totalul nu se imparte exact (inainte: 5 din 6)', () => {
+    for (const n of [13, 17, 25, 29, 41]) {
+      const corrections = Array.from({ length: n }, (_, i) => correction(i, i % 2 === 0));
+      const trend = computeAgreementTrend(corrections);
+      expect(trend, `n=${n}`).toHaveLength(6);
+      expect(trend.map(p => p.index), `n=${n}`).toEqual([0, 1, 2, 3, 4, 5]);
+      // nicio corectie pierduta si niciuna numarata de doua ori
+      expect(trend.reduce((s, p) => s + p.count, 0), `n=${n}`).toBe(n);
+    }
+  });
+
+  it('nu mai produce un ultim bucket degenerat de o singura decizie (rata 0%/100% din nimic)', () => {
+    // 13 corectii / 6 bucket-uri: inainte iesea 3+3+3+3+1, deci ultimul punct
+    // al graficului — cel citit ca "unde sunt ACUM" — venea dintr-o singura decizie
+    const corrections = Array.from({ length: 13 }, (_, i) => correction(i, i % 2 === 0));
+    const trend = computeAgreementTrend(corrections);
+    const sizes = trend.map(p => p.count);
+    expect(sizes).toEqual([3, 2, 2, 2, 2, 2]);
+    expect(Math.max(...sizes) - Math.min(...sizes)).toBeLessThanOrEqual(1);
+  });
+
+  it('pastreaza ordinea cronologica intre bucket-uri la partitionare inegala', () => {
+    // primele 7 in dezacord, ultimele 6 in acord -> tendinta trebuie sa urce
+    const corrections = Array.from({ length: 13 }, (_, i) => correction(i, i >= 7));
+    const trend = computeAgreementTrend(corrections);
+    expect(trend[0].agreementRate).toBe(0);
+    expect(trend[5].agreementRate).toBe(1);
+  });
 });

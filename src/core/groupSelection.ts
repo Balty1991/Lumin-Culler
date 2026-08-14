@@ -104,9 +104,22 @@ function fixedScore(c: GroupCandidate): number {
  */
 function groupScore(c: GroupCandidate, learnedWeight: number): number {
   const fixed = fixedScore(c);
-  if (c.aiScore === undefined || learnedWeight <= 0) return fixed;
-  const w = Math.max(0, Math.min(1, learnedWeight));
-  return (1 - w) * fixed + w * (Math.max(0, Math.min(100, c.aiScore)) / 100);
+  const blended = c.aiScore === undefined || learnedWeight <= 0
+    ? fixed
+    : (() => {
+        const w = Math.max(0, Math.min(1, learnedWeight));
+        return (1 - w) * fixed + w * (Math.max(0, Math.min(100, c.aiScore)) / 100);
+      })();
+  // Bug real gasit de auditul QA: cu un singur camp ne-finit pe un candidat
+  // (sharpness/exposure NaN dintr-o inregistrare corupta sau dintr-un plugin
+  // nativ care a intors un numar invalid), scorul lui devenea NaN — iar ORICE
+  // comparatie cu NaN e falsa, deci bucla `score > bestScore` din
+  // pickBestInGroup nu-l mai putea inlocui NICIODATA odata ce ajungea `best`.
+  // Concret: daca poza corupta era PRIMA din serie, castiga automat rafala
+  // (devine cadrul propus, restul sunt demovate la 'review') indiferent cat de
+  // bune erau celelalte — iar rezultatul depindea de ordinea din vector, nu de
+  // calitate. Un candidat nemasurabil trebuie sa fie ULTIMUL, nu primul.
+  return Number.isFinite(blended) ? blended : 0;
 }
 
 /** Returneaza id-ul celui mai bun candidat dintr-un grup (dupa groupScore). Arunca daca grupul e gol. */

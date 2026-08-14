@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { shouldShowBackupReminder, BACKUP_REMINDER_INTERVAL_MS } from './backupReminder';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { shouldShowBackupReminder, BACKUP_REMINDER_INTERVAL_MS, readLastBackupAt, readSnoozedUntil } from './backupReminder';
 
 const DAY = 24 * 60 * 60 * 1000;
 const now = Date.UTC(2026, 0, 15);
@@ -51,5 +51,45 @@ describe('shouldShowBackupReminder', () => {
     expect(shouldShowBackupReminder({
       hasDataWorthBackingUp: true, now, lastBackupAt: now - BACKUP_REMINDER_INTERVAL_MS - DAY, snoozedUntil: now - 1, earliestActivityAt: now - 60 * DAY
     })).toBe(true);
+  });
+});
+
+/**
+ * Bug real gasit de auditul QA — vezi readFiniteNumber in backupReminder.ts.
+ * `raw ? Number(raw) : null` intorcea NaN pentru orice continut ne-numeric,
+ * iar NaN nu e null: trecea de gardele `!== null` si apoi orice comparatie cu
+ * el era falsa, deci "amana 7 zile" devenea invizibil si bannerul reaparea
+ * imediat dupa ce utilizatorul tocmai il amanase.
+ */
+describe('backupReminder — citiri numerice din localStorage corupte', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('trateaza o valoare ne-numerica drept absenta (null), nu drept NaN', () => {
+    localStorage.setItem('lumin-last-backup-at', 'ieri');
+    localStorage.setItem('lumin-backup-reminder-snoozed-until', '{}');
+    expect(readLastBackupAt()).toBeNull();
+    expect(readSnoozedUntil()).toBeNull();
+  });
+
+  it('respinge Infinity si sirul gol la fel ca orice alta valoare invalida', () => {
+    localStorage.setItem('lumin-last-backup-at', 'Infinity');
+    expect(readLastBackupAt()).toBeNull();
+    localStorage.setItem('lumin-last-backup-at', '');
+    expect(readLastBackupAt()).toBeNull();
+  });
+
+  it('un "amana" corupt nu mai ascunde bannerul si nici nu-l face permanent — se comporta ca si cum n-ar exista', () => {
+    localStorage.setItem('lumin-backup-reminder-snoozed-until', 'nu-e-numar');
+    expect(shouldShowBackupReminder({
+      hasDataWorthBackingUp: true, now, lastBackupAt: now - 30 * DAY,
+      snoozedUntil: readSnoozedUntil(), earliestActivityAt: now - 60 * DAY
+    })).toBe(true);
+  });
+
+  it('citeste normal o valoare valida (inclusiv 0, epoch)', () => {
+    localStorage.setItem('lumin-last-backup-at', '0');
+    expect(readLastBackupAt()).toBe(0);
+    localStorage.setItem('lumin-last-backup-at', String(now));
+    expect(readLastBackupAt()).toBe(now);
   });
 });

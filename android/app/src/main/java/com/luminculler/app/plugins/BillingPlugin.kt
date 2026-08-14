@@ -17,7 +17,16 @@ import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
 
 /**
- * Abonamentul Premium, prin Google Play Billing.
+ * Abonamentul Premium, prin Google Play Billing (biblioteca v9 — vezi
+ * billingVersion in android/variables.gradle).
+ *
+ * De ce v9 si nu v7, cu ce a costat: Play Console a semnalat ca de la
+ * 31 august 2026 orice actualizare trimisa cu o versiune sub 8.0.0 e respinsa.
+ * Migrarea are exact o schimbare care rupe compilarea, iar restul fluxului a
+ * ramas neatins: `queryProductDetailsAsync` intoarce acum un
+ * QueryProductDetailsResult in loc de List<ProductDetails> (vezi cele doua
+ * apeluri de mai jos). Am luat din drum si `enableAutoServiceReconnection()`,
+ * adaugat tot in v8.
  *
  * Scris de mana peste billing-ktx, ca toate celelalte plugin-uri din proiect —
  * nu printr-un wrapper Cordova/Capacitor tert. Motivul e acelasi ca la
@@ -79,6 +88,15 @@ class BillingPlugin : Plugin() {
             .setListener(purchasesUpdated)
             // Obligatoriu din Billing 7 chiar si cand nu folosim produse consumabile.
             .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
+            // Din Billing 8: biblioteca isi reface singura conexiunea cand
+            // serviciul Play cade (actualizare a aplicatiei Play, memorie
+            // recuperata de sistem). Fara asta, prima operatie de dupa o cadere
+            // esua, iar reconectarea ramanea in sarcina noastra.
+            //
+            // NU inlocuieste coada din withConnection() de mai jos: prima
+            // conectare tot noi o pornim, si tot atunci apar apelurile
+            // simultane care erau problema.
+            .enableAutoServiceReconnection()
             .build()
     }
 
@@ -203,12 +221,14 @@ class BillingPlugin : Plugin() {
                         .build()
                 )
             ).build()
-            client.queryProductDetailsAsync(params) { result, productDetailsList ->
+            // Din Billing 8, callback-ul primeste un QueryProductDetailsResult, nu
+            // direct List<ProductDetails> — vezi comentariul de la subscribe().
+            client.queryProductDetailsAsync(params) { result, productDetailsResult ->
                 if (result.responseCode != BillingClient.BillingResponseCode.OK) {
                     call.reject("Could not read product: ${result.debugMessage} (${result.responseCode})")
                     return@queryProductDetailsAsync
                 }
-                val offer = productDetailsList.firstOrNull()
+                val offer = productDetailsResult.productDetailsList.firstOrNull()
                     ?.subscriptionOfferDetails?.firstOrNull()
                     ?.pricingPhases?.pricingPhaseList?.firstOrNull()
                 val out = JSObject()
@@ -232,11 +252,28 @@ class BillingPlugin : Plugin() {
                         .build()
                 )
             ).build()
-            client.queryProductDetailsAsync(params) { result, productDetailsList ->
-                val details = productDetailsList.firstOrNull()
+            /*
+             * Din Billing 8, `onProductDetailsResponse` primeste un
+             * QueryProductDetailsResult in loc de List<ProductDetails> — singura
+             * schimbare care rupea compilarea la migrarea de la v7. Obiectul nou
+             * poarta si `unfetchedProductList`: produsele care n-au putut fi
+             * aduse, fiecare cu motivul lui. Inainte pur si simplu lipseau din
+             * lista, deci "produs neconfigurat in Play Console" si "produs fara
+             * nicio oferta valabila pentru contul asta" aratau identic — o lista
+             * goala. Il punem in mesajul de eroare, ca diagnosticarea sa nu mai
+             * ceara ghicit.
+             */
+            client.queryProductDetailsAsync(params) { result, productDetailsResult ->
+                val details = productDetailsResult.productDetailsList.firstOrNull()
                 val offerToken = details?.subscriptionOfferDetails?.firstOrNull()?.offerToken
                 if (result.responseCode != BillingClient.BillingResponseCode.OK || details == null || offerToken == null) {
-                    call.reject("Subscription not available — check that '$subscriptionId' exists in Play Console and the build is signed.")
+                    val unfetched = productDetailsResult.unfetchedProductList
+                        .joinToString { "${it.productId} (status ${it.statusCode})" }
+                        .ifEmpty { "none reported" }
+                    call.reject(
+                        "Subscription not available — check that '$subscriptionId' exists in Play Console " +
+                            "and the build is signed. Unfetched: $unfetched"
+                    )
                     return@queryProductDetailsAsync
                 }
                 val flowParams = BillingFlowParams.newBuilder().setProductDetailsParamsList(

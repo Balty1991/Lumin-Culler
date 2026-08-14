@@ -29,11 +29,37 @@ export interface CullingPreset {
 const STORAGE_KEY = 'lumin-culling-presets';
 const MAX_PRESETS = 12;
 
+/**
+ * Bug real gasit de auditul QA: readAll() verifica DOAR ca valoarea stocata e
+ * un array, nu si ca fiecare element e o presetare reala — spre deosebire de
+ * state/savedFilters.ts (isValidPreset), care valideaza structural fiecare
+ * intrare. Consecinta concreta, nu teoretica: cu o singura intrare partiala in
+ * localStorage (`[{"id":"x"}]`), saveCullingPreset() arunca
+ * `TypeError: Cannot read properties of undefined (reading 'toLowerCase')`
+ * la filtrul dupa nume — adica salvarea ORICAREI presetari noi devine
+ * imposibila pentru tot restul sesiunii, fara nicio cale de recuperare din UI.
+ *
+ * Nu e nevoie de editare manuala a localStorage ca sa se ajunga acolo:
+ * core/backupService.ts (applySettings) scrie `settings.cullingPresets`
+ * DIRECT, verbatim, din JSON-ul unui fisier de backup, fara nicio validare —
+ * deci un backup dintr-o versiune mai veche/trunchiat/editat de om otraveste
+ * cheia. O intrare invalida e sarita, restul raman utilizabile.
+ */
+function isValidPreset(v: unknown): v is CullingPreset {
+  if (!v || typeof v !== 'object') return false;
+  const p = v as Record<string, unknown>;
+  return typeof p.id === 'string' && typeof p.name === 'string'
+    && typeof p.cullPercent === 'number' && typeof p.rejectThreshold === 'number'
+    && typeof p.createdAt === 'number' && Number.isFinite(p.createdAt)
+    && (p.renameTemplate === undefined || typeof p.renameTemplate === 'string')
+    && (p.genre === undefined || typeof p.genre === 'string');
+}
+
 function readAll(): CullingPreset[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? parsed.filter(isValidPreset) : [];
   } catch {
     return []; // JSON corupt sau stocare indisponibila — pornim de la o lista goala
   }

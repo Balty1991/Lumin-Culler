@@ -119,7 +119,11 @@ export function VaultPanel() {
               value={confirmPin} onChange={e => setConfirmPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
               placeholder={tr('vault.setup.confirmPlaceholder')} aria-label={tr('vault.setup.confirmPlaceholder')}
             />
-            {error && <p className="notice warn mono">{error}</p>}
+            {/* role="alert" — bug real gasit de auditul UI: mesajele "PIN incorect"/
+                "PIN-urile nu se potrivesc" apareau doar VIZUAL. Un utilizator de
+                cititor de ecran apasa "Deblocheaza", campul se golea si nu se anunta
+                nimic: pentru el ecranul pur si simplu nu reactiona. */}
+            {error && <p className="notice warn mono" role="alert">{error}</p>}
             <button type="submit" className="btn-accent" disabled={busy}>{tr('vault.setup.cta')}</button>
           </form>
         )}
@@ -132,7 +136,11 @@ export function VaultPanel() {
               value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
               placeholder={tr('vault.unlock.pinPlaceholder')} aria-label={tr('vault.unlock.pinPlaceholder')}
             />
-            {error && <p className="notice warn mono">{error}</p>}
+            {/* role="alert" — bug real gasit de auditul UI: mesajele "PIN incorect"/
+                "PIN-urile nu se potrivesc" apareau doar VIZUAL. Un utilizator de
+                cititor de ecran apasa "Deblocheaza", campul se golea si nu se anunta
+                nimic: pentru el ecranul pur si simplu nu reactiona. */}
+            {error && <p className="notice warn mono" role="alert">{error}</p>}
             <button type="submit" className="btn-accent" disabled={busy || !pin}>{tr('vault.unlock.cta')}</button>
           </form>
         )}

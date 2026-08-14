@@ -88,11 +88,31 @@ export interface AgreementTrendPoint {
 export function computeAgreementTrend(corrections: CorrectionRecord[], bucketCount = 6): AgreementTrendPoint[] {
   if (corrections.length < bucketCount * 2) return [];
   const sorted = [...corrections].sort((a, b) => a.ts - b.ts);
-  const bucketSize = Math.ceil(sorted.length / bucketCount);
+
+  // Bug real gasit de auditul QA: impartirea se facea cu un `bucketSize`
+  // FIX (Math.ceil(n / bucketCount)), taiat secvential — ceea ce producea
+  // exact doua defecte, ambele contrazicand promisiunea de mai sus:
+  //   - un ULTIM bucket degenerat: cu 13 corectii si 6 bucket-uri iesea
+  //     3+3+3+3+1, iar acel punct final avea agreementRate calculat dintr-o
+  //     SINGURA decizie (deci mereu 0% sau 100%) — adica exact zgomotul pe
+  //     date insuficiente pe care gardul `< bucketCount * 2` exista sa-l
+  //     previna, aparut chiar la capatul din dreapta al graficului, singurul
+  //     pe care utilizatorul il citeste ca "unde sunt ACUM";
+  //   - mai PUTINE puncte decat cele cerute: cu 25 de corectii, ceil(25/6)=5
+  //     acoperea tot setul in 5 bucket-uri, deci al 6-lea iesea gol si bucla
+  //     se oprea — un grafic "in 6 pasi" desenat cu 5.
+  // Partitionare echilibrata: restul impartirii se distribuie cate unul peste
+  // primele bucket-uri, deci marimile difera cu cel mult 1 si numarul de
+  // puncte e MEREU exact bucketCount (garantat de gardul de mai sus, care
+  // asigura minim 2 corectii per bucket).
+  const base = Math.floor(sorted.length / bucketCount);
+  const remainder = sorted.length % bucketCount;
   const points: AgreementTrendPoint[] = [];
+  let start = 0;
   for (let i = 0; i < bucketCount; i++) {
-    const chunk = sorted.slice(i * bucketSize, (i + 1) * bucketSize);
-    if (!chunk.length) break;
+    const size = base + (i < remainder ? 1 : 0);
+    const chunk = sorted.slice(start, start + size);
+    start += size;
     const agreed = chunk.filter(c => c.aiDecision === c.userDecision).length;
     points.push({ index: i, count: chunk.length, agreementRate: agreed / chunk.length });
   }

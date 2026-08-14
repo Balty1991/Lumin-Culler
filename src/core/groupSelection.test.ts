@@ -155,4 +155,33 @@ describe('pickBestInGroup — diferentele care chiar despart cadrele unei rafale
     ]);
     expect(result).toBe('clar-dar-subiect-moale');
   });
+
+  /**
+   * Bug real gasit de auditul QA — vezi gardul pe valori ne-finite din
+   * groupScore(). Alegerea cadrului dintr-o rafala e decizia cu cel mai mare
+   * impact din tot culling-ul: cadrul ales ramane propus, restul sunt demovate
+   * la 'review'. Inainte, un singur camp NaN o transforma intr-o loterie de
+   * ordine in vector.
+   */
+  it('un candidat cu metrici ne-finite nu mai castiga seria doar fiindca era primul in lista', () => {
+    const corupt = candidate({ id: 'corupt', sharpness: NaN });
+    const bun = candidate({ id: 'bun', sharpness: 95 });
+    expect(pickBestInGroup([corupt, bun])).toBe('bun');
+    expect(pickBestInGroup([bun, corupt])).toBe('bun');
+  });
+
+  it('rezultatul nu mai depinde de ordinea din vector nici cu aiScore ne-finit', () => {
+    const corupt = candidate({ id: 'corupt', aiScore: NaN, sharpness: 90 });
+    const bun = candidate({ id: 'bun', aiScore: 80, sharpness: 60 });
+    expect(pickBestInGroup([corupt, bun], 1)).toBe('bun');
+    expect(pickBestInGroup([bun, corupt], 1)).toBe('bun');
+  });
+
+  it('un grup format DOAR din candidati corupti tot intoarce un id valid, nu arunca', () => {
+    const result = pickBestInGroup([
+      candidate({ id: 'a', sharpness: NaN }),
+      candidate({ id: 'b', exposure: NaN })
+    ]);
+    expect(['a', 'b']).toContain(result);
+  });
 });

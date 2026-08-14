@@ -81,7 +81,11 @@ export function Workspace() {
   // scroll automat, ca miniatura activa sa ramana vizibila in filmstrip
   useEffect(() => {
     const el = filmstripRef.current?.querySelector('.workspace-thumb.active');
-    el?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    // `typeof === 'function'`: scrollIntoView lipseste in jsdom (teste); e pur
+    // cosmetic aici (banda se auto-centreaza), nu merita sa arunce.
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
   }, [detailId]);
 
   // inregistrat O SINGURA DATA (dependente stabile — actiunile Zustand nu-si
@@ -95,6 +99,17 @@ export function Workspace() {
       // selecteaza/respinge in fundal in timp ce utilizatorul scrie o comanda
       const target = e.target as HTMLElement | null;
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)) return;
+      // Bug real gasit de auditul UI: scurtaturile de aici sunt definite ca taste
+      // SIMPLE (P/X/I/0-5/Sageti), dar nu verificau deloc modificatorii — asa ca
+      // fiecare combinatie de sistem care contine acele litere declansa in acelasi
+      // timp si o DECIZIE ireversibila asupra pozei curente: Ctrl/Cmd+X (taie)
+      // respingea poza si sarea mai departe, Ctrl/Cmd+P (tipareste) o selecta,
+      // Ctrl/Cmd+1..5 (schimba fila in browser) ii schimba nota. Utilizatorul
+      // vedea doar dialogul nativ al browserului, nu si ca in spatele lui poza a
+      // fost deja mutata in alt teanc. Ctrl/Cmd+Z (Anuleaza, in App.tsx) si
+      // Ctrl/Cmd+K (Paleta) au listenerii lor separati, care cer explicit
+      // modificatorul, deci nu sunt afectate de acest filtru.
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
       const id = detailIdRef.current;
       if (e.key === 'ArrowRight') stepDetail(1);
       else if (e.key === 'ArrowLeft') stepDetail(-1);

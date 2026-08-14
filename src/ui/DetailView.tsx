@@ -103,6 +103,11 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
       // vezi acelasi gardian in Workspace.tsx
       const target = e.target as HTMLElement | null;
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)) return;
+      // Acelasi gardian ca in Workspace.tsx (vezi comentariul detaliat de acolo):
+      // fara el, Ctrl/Cmd+X taia textul SI respingea poza, Ctrl/Cmd+P deschidea
+      // tiparirea SI o selecta, Ctrl/Cmd+1..5 schimba fila din browser SI ii
+      // schimba nota — decizii ireversibile luate in spatele unui dialog nativ.
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === 'ArrowRight') stepDetail(1);
       else if (e.key === 'ArrowLeft') stepDetail(-1);
       // Bug real gasit de auditul QA (suggestion, consistenta): Workspace avanseaza
@@ -227,15 +232,26 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
         // acopereau.
         onLostPointerCapture={endDrag}
         title={zoomed ? tr('detail.zoom.exit') : tr('detail.zoom.hint')}
-        role="button"
-        tabIndex={0}
-        aria-label={zoomed ? tr('detail.zoom.exit') : tr('detail.zoom.hint')}
-        onKeyDown={e => {
-          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setZoomed(z => !z); }
-        }}
       >
+        {/* Bug real de accesibilitate gasit de auditul UI: `role="button"` +
+            tabIndex statea pe .detail-stage, adica pe containerul care le
+            CONTINE si pe celelalte 8 butoane reale (inchide, editeaza,
+            colectii, inainte/inapoi, selecteaza/respinge). Un element cu rol de
+            buton nu are voie sa contina alte comenzi — cititoarele de ecran il
+            trateaza ca pe o singura tinta si "aplatizeaza" continutul, deci
+            butoanele dinauntru deveneau greu sau deloc de gasit in modul de
+            parcurgere. Rolul/tabIndex-ul/Enter-Space s-au mutat pe .swipe-surface,
+            care ocupa exact aceeasi suprafata (100%/100%) dar nu contine decat
+            imaginea — comportamentul la mouse/atingere ramane neschimbat
+            (handlerele de pointer si de click stau in continuare pe scena). */}
         <div
           className="swipe-surface"
+          role="button"
+          tabIndex={0}
+          aria-label={zoomed ? tr('detail.zoom.exit') : tr('detail.zoom.hint')}
+          onKeyDown={e => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setZoomed(z => !z); }
+          }}
           style={zoomed ? undefined : {
             transform: `translateX(${dragX}px) rotate(${dragX / 30}deg)`,
             transition: draggingRef.current ? 'none' : 'transform 0.25s var(--ease)'
@@ -313,7 +329,13 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
       {/* Bottom Sheet: metrici/tab-uri/rating, ascunse implicit — deschise prin tap pe maner
           sau gest de swipe up (SHEET_DRAG_COMMIT), animate cu transform translateY + cubic-bezier. */}
       <div
-        className={sheetExpanded ? 'detail-sheet expanded' : 'detail-sheet'}
+        // Clasa `dragging` exista strict pentru CSS: cat timp foaia e restransa,
+        // continutul ei e scos din ordinea de Tab cu `visibility: hidden` (vezi
+        // styles.css — altfel Tab ajungea pe stele/file aflate sub marginea de
+        // jos a ecranului). In timpul gestului de tras in sus, insa, continutul
+        // chiar se vede treptat, deci acolo trebuie sa ramana vizibil pana cand
+        // clasa `expanded` preia stafeta la ridicarea degetului.
+        className={`detail-sheet${sheetExpanded ? ' expanded' : ''}${sheetDraggingRef.current ? ' dragging' : ''}`}
         style={sheetDraggingRef.current ? {
           transform: `translateY(calc(${sheetExpanded ? '0%' : `100% - ${SHEET_PEEK_PX}px`} + ${sheetDragY}px))`,
           transition: 'none'

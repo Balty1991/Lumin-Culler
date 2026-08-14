@@ -25,10 +25,21 @@ function ProjectMetaEditor({ project }: { project: string }) {
   const metaRef = useRef(meta);
   useEffect(() => { metaRef.current = meta; }, [meta]);
 
+  // Bug real gasit de auditul UI: temporizatorul de 1.5s care intorcea butonul
+  // din "Salvat" in "Salveaza" nu era niciodata anulat. Doua consecinte reale:
+  // (1) inchiderea panoului in acel interval lasa un setState pe o componenta
+  // demontata (scurgere de memorie: closure-ul tine componenta in viata pana
+  // expira); (2) doua apasari rapide pe Salveaza porneau DOUA temporizatoare,
+  // iar primul il stergea pe "Salvat" al celei de-a doua apasari dupa doar
+  // cateva zecimi de secunda — confirmarea clipea si disparea.
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (savedTimerRef.current) clearTimeout(savedTimerRef.current); }, []);
+
   const save = () => {
     setProjectMetadata(project, meta);
     setSaved(true);
-    setTimeout(() => setSaved(false), 1500);
+    if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+    savedTimerRef.current = setTimeout(() => setSaved(false), 1500);
   };
 
   // Autosalvare la demontare (panoul se inchide prin Escape/backdrop/X, sau lista de

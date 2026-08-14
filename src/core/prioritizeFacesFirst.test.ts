@@ -119,6 +119,30 @@ describe('prioritizeFacesFirst', () => {
     expect(result.map(i => i.file.name)).toEqual(['portret.jpg', 'peisaj.cr2', 'detaliu.jpg', 'alt.nef']);
   });
 
+  /**
+   * Bug real gasit de auditul QA: `continue`-ul pentru RAW sarea si peste
+   * onScanned(), nu doar peste detectie — deci pentru orice lot amestecat
+   * (RAW + JPEG, adica exact fluxul unui fotograf care trage RAW+JPEG in
+   * paralel), ultimul progres raportat ramanea sub total si bara fazei
+   * "pregatire" ingheta la o fractiune, fara sa ajunga vreodata la capat.
+   */
+  it('raporteaza progres si pentru fisierele RAW sarite, ca faza "pregatire" sa ajunga la total (inainte: ingheta la 3/6)', async () => {
+    const images = [
+      { file: makeFile('a.cr2') }, { file: makeFile('b.jpg') }, { file: makeFile('c.nef') },
+      { file: makeFile('d.jpg') }, { file: makeFile('e.arw') }, { file: makeFile('f.jpg') }
+    ];
+    const progress: [number, number][] = [];
+
+    await prioritizeFacesFirst(images, (done, total) => progress.push([done, total]));
+
+    expect(progress).toHaveLength(images.length);
+    expect(progress[progress.length - 1]).toEqual([images.length, images.length]);
+    // progresul ramane monoton crescator, fara sarituri peste vreun pas
+    expect(progress.map(([done]) => done)).toEqual([1, 2, 3, 4, 5, 6]);
+    // ...si totusi niciun RAW n-a trecut prin detectorul nativ
+    expect(detectFacesNative).toHaveBeenCalledTimes(3);
+  });
+
   it('un esec de decodare per-poza o lasa in grupul neprioritizat, fara sa opreasca restul pre-scanarii', async () => {
     failingDecodeNames.add('corupta.jpg');
     facesByFileName.set('cu-fata.jpg', true);

@@ -38,7 +38,15 @@ ext {
     // Abonament Premium (vezi plugins/BillingPlugin.kt). Google Play Billing
     // Library, folosita direct — acelasi tipar ca restul plugin-urilor din
     // proiect, scrise de mana in loc sa se adauge un wrapper Cordova/Capacitor
-    // tert peste ea. v7 e prima care cere obligatoriu API-ul de produse noi
-    // (queryProductDetails), pe care il foloseste plugin-ul.
-    billingVersion = '7.1.1'
+    // tert peste ea.
+    //
+    // v9, nu v7: Play Console a semnalat ca de la 31 august 2026 orice
+    // actualizare trimisa cu o versiune sub 8.0.0 e RESPINSA. Am sarit direct
+    // la 9 (recomandarea Google) ca sa nu refacem migrarea peste cateva luni —
+    // v8 si v9 au impreuna doua schimbari care rup compilarea, si le-am facut
+    // pe amandoua o data (vezi BillingPlugin.kt).
+    //
+    // v9 cere androidx.core 1.9+ pentru codul de eroare al Play Store-ului
+    // blocat; proiectul e deja pe 1.17.0 (androidxCoreVersion, mai sus).
+    billingVersion = '9.0.0'
 }

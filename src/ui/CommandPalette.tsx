@@ -68,7 +68,11 @@ export function CommandPalette() {
   // stabile), disponibila indiferent de ecran (grid sau Workspace)
   useEffect(() => {
     const onKey = (e: KeyboardEvent | globalThis.KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      // `e.key` raporteaza litera EFECTIVA, nu tasta fizica: cu Caps Lock activ
+      // (sau cu Shift apasat din reflex) devine 'K', iar scurtatura anuntata in
+      // Scurtaturi ca "Ctrl/Cmd+K" pur si simplu nu mai facea nimic — bug real
+      // gasit de auditul UI, cu atat mai derutant cu cat nu da niciun semn.
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
         e.preventDefault();
         setOpen(true);
       }
@@ -154,6 +158,33 @@ export function CommandPalette() {
     if (!q) return commands;
     return commands.filter(c => c.label.toLowerCase().includes(q));
   }, [commands, query]);
+
+  /**
+   * Bug real gasit de auditul UI: lista are ~20 de comenzi, dar `.palette` e
+   * plafonata la 60vh — deci doar 6-8 incap pe ecran. Navigarea cu sagetile
+   * muta evidentierea in jos peste marginea vizibila si NU derula lista dupa
+   * ea: din a 7-a comanda incolo, utilizatorul de tastatura apasa pe orb,
+   * fara sa vada ce e selectat, iar Enter executa ceva ce nu vede.
+   *
+   * `block: 'nearest'` deruleaza doar cat e nevoie (nu recentreaza lista la
+   * fiecare pas, ceea ce ar face-o sa "sara"), si doar in interiorul
+   * containerului cu scroll propriu, nu in pagina din spate.
+   */
+  const activeId = filtered[activeIndex]?.id;
+  useEffect(() => {
+    if (!open || !activeId) return;
+    const el = containerRef.current?.querySelector(`#palette-option-${CSS.escape(activeId)}`);
+    // `typeof === 'function'`: scrollIntoView lipseste in jsdom (teste) si nu
+    // merita sa arunce acolo — e pur cosmetic, nu o functie a aplicatiei.
+    if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest' });
+  }, [open, activeId]);
+
+  // Filtrarea (sau o comanda care dispare din lista) poate lasa `activeIndex`
+  // in afara listei — pana acum Enter nu mai executa nimic si niciun rand nu
+  // mai aparea evidentiat, fara nicio explicatie pe ecran.
+  useEffect(() => {
+    if (activeIndex > 0 && activeIndex >= filtered.length) setActiveIndex(Math.max(0, filtered.length - 1));
+  }, [filtered.length, activeIndex]);
 
   const execute = (cmd: Command | undefined) => {
     if (!cmd || cmd.disabled) return;

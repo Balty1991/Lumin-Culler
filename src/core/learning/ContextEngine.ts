@@ -239,7 +239,15 @@ function clampAroundAnchor(weight: number, anchor: number): number {
  * @param gradient dL/dw pentru acest feature (error * valoarea normalizata)
  */
 export function updateWeight(w: number, gradient: number, lr: number, anchor: number): number {
-  return clampAroundAnchor(w - lr * (gradient + L2_LAMBDA * (w - anchor)), anchor);
+  const next = clampAroundAnchor(w - lr * (gradient + L2_LAMBDA * (w - anchor)), anchor);
+  // Auto-vindecare: clampAroundAnchor foloseste Math.max/Math.min, iar
+  // ambele intorc NaN cand primesc NaN — deci o pondere ajunsa cumva
+  // ne-finita (model restaurat dintr-un backup editat/trunchiat, pe care
+  // backupService.restoreBackup il scrie verbatim cu bulkPut, fara nicio
+  // validare) ramanea NaN PENTRU TOTDEAUNA, oricate corectii ar fi facut
+  // utilizatorul dupa. Cadem inapoi pe ancora: cunostintele fotografice de
+  // baza pentru acel feature, exact punctul din care ar fi pornit un model nou.
+  return Number.isFinite(next) ? next : anchor;
 }
 
 /**
@@ -716,11 +724,17 @@ export class ContextEngine {
     for (const k of Object.keys(normalized)) {
       const wContext = model.weights[k] ?? 0;
       const wGlobal = globalModel.weights[k] ?? 0;
-      const contribution = alpha * wContext * normalized[k] + (1 - alpha) * wGlobal * globalNormalized[k];
+      const raw = alpha * wContext * normalized[k] + (1 - alpha) * wGlobal * globalNormalized[k];
+      // A doua poarta impotriva NaN, dupa cea din normalize(): acolo se opreste
+      // o VALOARE corupta, aici o PONDERE corupta (model restaurat dintr-un
+      // backup editat de om — restoreBackup scrie contextModels verbatim).
+      // Vezi comentariul lung de la normalize() pentru ce strica exact un
+      // aiScore NaN ajuns in db.analyses (camp indexat, NaN nu e cheie valida).
+      const contribution = Number.isFinite(raw) ? raw : 0;
       z += contribution;
       contributions.push({ feature: k, contribution });
     }
-    const probability = 1 / (1 + Math.exp(-z));
+    const probability = Number.isFinite(z) ? 1 / (1 + Math.exp(-z)) : 0.5;
     contributions.sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution));
 
     return {
@@ -972,10 +986,35 @@ export class ContextEngine {
     return model;
   }
 
-  /** Welford running normalization: z = (x - mean) / std, clamped to ±3. */
+  /**
+   * Welford running normalization: z = (x - mean) / std, clamped to ±3.
+   *
+   * Gardul pe valori ne-finite e un bug real gasit de auditul QA. O SINGURA
+   * valoare NaN/Infinity intr-un feature (un camp lipsa/corupt pe o
+   * AnalysisRecord veche, un numar invalid intors de un plugin nativ) nu
+   * ramanea locala: intra in `z` prin suma ponderata, deci `probability`
+   * devenea NaN, `score` devenea NaN, si de acolo mai departe —
+   *   - decidePhotoStatus(NaN) cadea pe 'review' pentru ORICE prag (ambele
+   *     comparatii cu NaN sunt false), deci poza nu mai putea fi decisa
+   *     automat niciodata;
+   *   - `aiScore: NaN` era scris in db.analyses, unde `aiScore` e camp
+   *     INDEXAT — IndexedDB nu accepta NaN drept cheie, deci inregistrarea
+   *     dispare tacut din index: readLibraryScores() (care alimenteaza
+   *     deriveThresholds pentru TOT lotul urmator) n-o mai vede, iar orice
+   *     sortare/filtrare dupa scor o trateaza ca inexistenta.
+   * Mai rau, statisticile Welford se contaminau si ele permanent (mean/m2
+   * devin NaN dupa un singur update cu NaN), otravind contextul pentru toate
+   * pozele viitoare, nu doar pentru cea corupta.
+   *
+   * Un feature nemasurabil trebuie sa fie NEUTRU (z = 0, contributie zero) —
+   * acelasi principiu ca restul campurilor optionale din AnalysisRecord — nu
+   * sa scoata din functiune scorarea intregii poze si a contextului ei.
+   */
   private normalize(model: ContextModelRecord, features: FeatureVector, update: boolean): FeatureVector {
     const out: FeatureVector = {};
-    for (const [k, x] of Object.entries(features)) {
+    for (const [k, raw] of Object.entries(features)) {
+      if (!Number.isFinite(raw)) { out[k] = 0; continue; }
+      const x = raw;
       let s: FeatureStat = model.featureStats[k] ?? { mean: 0, m2: 0, n: 0 };
       if (update) {
         s = { ...s, n: s.n + 1 };
