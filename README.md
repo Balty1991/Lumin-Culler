@@ -72,7 +72,8 @@ Orice modificare ulterioara: editezi fisierul in web editor → Commit → Actio
 
 1. **Inroleaza persoanele cunoscute** (butonul ★ Persoane): nume + 2-4 poze clare, frontale
    pentru fiecare. Fa asta INAINTE de primul import mare.
-2. **Alege fotografiile** (JPEG/PNG/WebP/AVIF). Progresul apare in timp real; UI-ul ramane fluid.
+2. **Alege fotografiile** (JPEG/PNG/WebP/AVIF si RAW — CR2/CR3/NEF/ARW/DNG/RAF/ORF/RW2 etc.).
+   Progresul apare in timp real; UI-ul ramane fluid.
 3. AI-ul propune automat: **verde = selectata** (scor ≥ 65), **rosu = respinsa** (≤ 35),
    **galben = de verificat**. Insigne pe carduri: ★ persoana cunoscuta, ? strain, ◑ ochi inchisi, ≡ serie.
 4. **Deschide orice poza** → vezi metricile AI → decide cu **Selecteaza (P)** / **Respinge (X)**;
@@ -82,11 +83,35 @@ Orice modificare ulterioara: editezi fisierul in web editor → Commit → Actio
 
 ## Limitari cunoscute
 
-- **RAW (.CR3/.NEF/.ARW) nu se decodeaza in browser.** Foloseste JPEG-urile (shooting RAW+JPEG
-  sau extrage preview-urile). Suport RAW vine odata cu impachetarea desktop (Tauri + librarie nativa).
+- **RAW se decodeaza direct in browser** (CR2/CR3/NEF/ARW/DNG/RAF/ORF/RW2/PEF/SRW si
+  altele — vezi `RAW_EXTENSIONS` in `src/core/rawDecoder.ts`), via libraw-wasm intr-un
+  Worker propriu, fara build nativ si fara instalare separata. Nu mai e nevoie de
+  shooting RAW+JPEG. Costul real ramane viteza: cand fisierul are un preview JPEG
+  incorporat destul de mare (majoritatea aparatelor moderne), decodarea e instant;
+  altfel se face demosaicing complet, care ia secunde per fisier, nu milisecunde.
 - Prima incarcare descarca ~16 MB de modele ML (apoi sunt in cache).
 - Recunoasterea are prag de similaritate 0.55 — daca apar confuzii, adauga mai multe
   poze de referinta per persoana (unghiuri/lumini diferite).
+
+## Model de monetizare
+
+Triajul e **gratuit si nelimitat** — import, scor AI, sortare, grupare, comparare serii,
+oricate poze. Se plateste pentru ce faci cu rezultatul:
+
+| | Gratuit | Premium |
+|---|---|---|
+| Poze scoase din aplicatie (exportate **sau** sterse din telefon) | 150 la 30 de zile | nelimitat |
+| Persoane recunoscute inrolate | 1 | oricate |
+| Predare Lightroom (XMP), plansa de contact, dosar privat | — | da |
+| Recap lunar, prezentare, calatorii | — | da |
+| Sugestia de combinare a doua cadre | — | da |
+
+Numerele stau intr-un singur loc, `src/core/entitlement.ts`. Plata merge prin Google Play
+Billing (`android/.../plugins/BillingPlugin.kt`) — nu exista server, deci nici validare de
+chitanta pe partea noastra; vezi comentariul din acel fisier pentru de ce e compromisul
+corect aici. Regula care tine tot modelul: **nimic nu se blocheaza cat timp nu exista o
+cale reala de plata pe dispozitiv** (`isPurchasable()`), deci pe web/PWA plafoanele doar
+informeaza.
 
 ## Drumul spre Desktop si Mobil
 
