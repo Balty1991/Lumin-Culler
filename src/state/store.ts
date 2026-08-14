@@ -2109,7 +2109,13 @@ export const useStore = create<AppState>((set, get) => ({
     const batch = importedIds.map(id => byId.get(id)).filter((p): p is PhotoRecord => !!p);
     const scoreById = new Map(get().photos.map(p => [p.id, p.aiScore]));
     const sessionOutcome = summarizeSession({
-      imported: done,
+      // `batch.length`, NU `done`. Bug real raportat de utilizator: dupa un
+      // import anulat la 52/437, cardul anunta "36 din 56 poze" si "ti-am lasat
+      // 20 de verificat", cand de verificat erau 3. `done` e contorul barei de
+      // progres — numara si pozele sarite sau esuate, si continua sa creasca
+      // pana la anulare. `batch` sunt pozele care chiar au ajuns in baza, deci
+      // singurele despre care avem dreptul sa raportam ceva.
+      imported: batch.length,
       autoDecided: batch.filter(p => p.status === 'selected' || p.status === 'rejected').length,
       seriesFound: new Set(batch.map(p => p.groupId).filter(Boolean)).size,
       // Cate ies la limita, ca butonul de verificare sa NU apara cand n-are ce

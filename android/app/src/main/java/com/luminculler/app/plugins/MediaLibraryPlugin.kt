@@ -229,6 +229,35 @@ class MediaLibraryPlugin : Plugin() {
     }
 
     /** true daca aplicatia poate CITI efectiv acest URI chiar acum — vezi comentariul din deletePhotos pentru bug-ul real pe care il evita. */
+    private data class Candidate(val original: String, val resolved: Uri)
+
+    /**
+     * Cel mai mare subset pe care MediaStore chiar accepta sa-l puna in Cosul de
+     * gunoi.
+     *
+     * De ce prin injumatatire si nu poza cu poza: createTrashRequest e un apel
+     * catre MediaProvider, iar pe un lot de cateva sute de poze un apel per poza
+     * ar fi vizibil de lent. Pozele problematice sunt rare, deci injumatatirea
+     * se opreste dupa cateva incercari; cand lotul e curat — cazul obisnuit —
+     * costa exact un apel, ca inainte.
+     *
+     * Nu se citeste mesajul exceptiei ca sa aflam care poza e vinovata: textul
+     * vine de la sistem, difera intre versiuni de Android si intre producatori,
+     * iar o reparatie care depinde de forma unui mesaj de eroare se strica in
+     * tacere la prima actualizare.
+     */
+    private fun trashableSubset(candidates: List<Candidate>): List<Candidate> {
+        if (candidates.isEmpty()) return emptyList()
+        return try {
+            MediaStore.createTrashRequest(context.contentResolver, candidates.map { it.resolved }, true)
+            candidates
+        } catch (_: Exception) {
+            if (candidates.size == 1) return emptyList()
+            val mid = candidates.size / 2
+            trashableSubset(candidates.subList(0, mid)) + trashableSubset(candidates.subList(mid, candidates.size))
+        }
+    }
+
     private fun canRead(uri: Uri): Boolean {
         return try {
             context.contentResolver.query(uri, arrayOf(MediaStore.Images.Media._ID), null, null, null)
@@ -282,15 +311,24 @@ class MediaLibraryPlugin : Plugin() {
             // omitem pe cele inaccesibile — dar pastram URI-ul ORIGINAL (nu cel
             // convertit) pentru fiecare omis, ca partea JS sa stie exact care
             // poza n-a fost stearsa (si sa n-o scoata din biblioteca aplicatiei).
-            data class Candidate(val original: String, val resolved: Uri)
             val candidates = uriStrings.map { s -> Candidate(s, MediaStore.getMediaUri(context, Uri.parse(s)) ?: Uri.parse(s)) }
-            val (readableCandidates, skippedCandidates) = candidates.partition { canRead(it.resolved) }
-            val skippedOriginals = skippedCandidates.map { it.original }
-            if (readableCandidates.isEmpty()) {
+            // Doua filtre, nu unul. canRead() e ieftin si prinde cazurile
+            // evidente, dar NU e echivalent cu ce cere createTrashRequest: bug
+            // real raportat de utilizator, cu captura — interogarea trecea, iar
+            // cererea pica apoi cu "User 10603 does not have read permission on
+            // content://media/external/images/media/7030" si nu se stergea NICIUNA
+            // din cele 5 poze. Al doilea filtru intreaba chiar operatia care va fi
+            // folosita, deci nu mai poate exista diferenta intre ce verificam si
+            // ce facem.
+            val readable = candidates.filter { canRead(it.resolved) }
+            val trashable = trashableSubset(readable)
+            val trashableOriginals = trashable.map { it.original }.toSet()
+            val skippedOriginals = uriStrings.filter { it !in trashableOriginals }
+            if (trashable.isEmpty()) {
                 call.reject("Niciuna dintre pozele de sters nu mai e accesibila (permisiunea de galerie s-a schimbat intre timp)")
                 return
             }
-            val pendingIntent = MediaStore.createTrashRequest(context.contentResolver, readableCandidates.map { it.resolved }, true)
+            val pendingIntent = MediaStore.createTrashRequest(context.contentResolver, trashable.map { it.resolved }, true)
             pendingDeleteCall = call
             pendingDeleteSkippedUris = skippedOriginals
             deleteLauncher.launch(IntentSenderRequest.Builder(pendingIntent.intentSender).build())
