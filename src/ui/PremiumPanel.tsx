@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
-import { XIcon, StarIcon, UserCheckIcon, DownloadIcon, SparkleIcon } from './icons';
+import { XIcon, StarIcon, UserCheckIcon, DownloadIcon, SparkleIcon, TagIcon, PlayIcon, CheckIcon } from './icons';
 import { FREE_EXPORT_PHOTOS_PER_MONTH, FREE_ENROLLED_PERSONS, exportsInRollingMonth } from '../core/entitlement';
 import { refreshEntitlement } from '../core/entitlement';
 import { isBillingAvailable, queryPremiumPrice, startSubscription } from '../core/billing';
@@ -86,7 +86,30 @@ export function PremiumPanel() {
           </span>
         </div>
         <div className="premium-perk">
+          <i aria-hidden="true"><TagIcon /></i>
+          <span>
+            <b>{tr('premium.perk.pro.title')}</b>
+            <span>{tr('premium.perk.pro.sub')}</span>
+          </span>
+        </div>
+        <div className="premium-perk">
+          <i aria-hidden="true"><PlayIcon /></i>
+          <span>
+            <b>{tr('premium.perk.show.title')}</b>
+            <span>{tr('premium.perk.show.sub')}</span>
+          </span>
+        </div>
+        {/* Ultimul, deliberat: e singurul lucru din lista pe care nu-l are
+            nimeni altcineva, si se retine mai bine la final decat la mijloc. */}
+        <div className="premium-perk">
           <i aria-hidden="true"><SparkleIcon /></i>
+          <span>
+            <b>{tr('premium.perk.composite.title')}</b>
+            <span>{tr('premium.perk.composite.sub')}</span>
+          </span>
+        </div>
+        <div className="premium-perk">
+          <i aria-hidden="true"><CheckIcon /></i>
           <span>
             <b>{tr('premium.perk.local.title')}</b>
             <span>{tr('premium.perk.local.sub')}</span>

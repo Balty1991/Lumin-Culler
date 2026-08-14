@@ -1572,6 +1572,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 /* "Niciun cadru nu e bun pentru toata lumea" (GroupCompare) — vezi
    core/frameComposite.ts. Sta sus, deasupra cadrelor, fiindca schimba felul in
    care te uiti la ele: nu mai cauti cadrul bun, ci doua care se completeaza. */
+.composite-hint-locked { width: 100%; text-align: left; cursor: pointer; transition: transform 0.1s var(--ease); }
+.composite-hint-locked:active { transform: scale(0.99); }
 .composite-hint {
   margin: 0 0 10px; padding: 11px 13px; border-radius: var(--radius);
   background: var(--surface); border: 1px solid rgb(var(--accent-rgb) / 0.35);
@@ -2713,7 +2715,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   transition: background 0.15s var(--ease), transform 0.1s var(--ease);
 }
 .drawer-item:hover { background: var(--surface-2); }
-.drawer-item:hover .drawer-item-icon { background: var(--surface-3); color: var(--accent-text); }
+.drawer-item:hover /* Steluta de la capatul randurilor rezervate abonatilor. Marginea auto o
+   impinge la dreapta, departe de eticheta — se citeste ca o insigna, nu ca
+   inca o iconita de actiune. */
+.drawer-item-lock { width: 14px; height: 14px; margin-left: auto; flex-shrink: 0; color: var(--accent-text); opacity: 0.75; }
+.drawer-item:hover .drawer-item-lock { opacity: 1; }
+.drawer-item-icon { background: var(--surface-3); color: var(--accent-text); }
 .drawer-item:active { transform: scale(0.98); }
 /* Fara pastila plina implicit (reorganizare meniu, feedback "prea incarcat
    vizual"): ~30 de patratele umplute unul sub altul faceau lista sa arate ca o

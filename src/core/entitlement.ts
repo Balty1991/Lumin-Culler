@@ -83,6 +83,28 @@ export function isCapEnforced(): boolean {
   return !isPremium() && isPurchasable();
 }
 
+/**
+ * O functie rezervata abonatilor e blocata acum.
+ *
+ * Aceeasi regula ca la plafoane, si din acelasi motiv: nu blocam nimic cat timp
+ * nu exista o cale reala de plata pe dispozitiv. Diferenta e doar de forma —
+ * plafoanele sunt despre CAT, astea sunt despre CE.
+ *
+ * Ce e blocat, si de ce tocmai astea: predarea catre Lightroom (XMP),
+ * plansa de contact, sugestia de combinare a doua cadre, recapul lunar,
+ * prezentarea, calatoriile si dosarul privat. Toate vin DUPA ce triajul s-a
+ * terminat — sunt despre ce faci cu rezultatul, nu despre a-l obtine.
+ *
+ * Ce ramane gratuit desi s-ar fi putut bloca, ca decizie explicita: importul si
+ * analiza AI (oricate poze), supervizorul galeriei, gruparea, stergerea pozelor
+ * respinse, statisticile, si backup-ul profilului antrenat. Ultimul mai ales:
+ * sunt deciziile TALE, iar a le tine ostatice ar fi santaj — si contrazice
+ * dreptul la portabilitatea datelor.
+ */
+export function isPremiumFeatureLocked(): boolean {
+  return !isPremium() && isPurchasable();
+}
+
 export function isPremium(): boolean {
   try {
     return localStorage.getItem(PREMIUM_FLAG_KEY) === '1';

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
   isPremium, recordExport, exportsInRollingMonth, remainingFreeExports,
-  canEnrollAnotherPersonFree, FREE_EXPORT_PHOTOS_PER_MONTH, FREE_ENROLLED_PERSONS
+  canEnrollAnotherPersonFree, isPremiumFeatureLocked, FREE_EXPORT_PHOTOS_PER_MONTH, FREE_ENROLLED_PERSONS
 } from './entitlement';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -66,5 +66,26 @@ describe('entitlement (freemium local tracking)', () => {
       localStorage.setItem('lumin-premium', '1');
       expect(canEnrollAnotherPersonFree(999)).toBe(true);
     });
+  });
+});
+
+describe('isPremiumFeatureLocked', () => {
+  beforeEach(() => localStorage.clear());
+
+  // Regula care deosebeste un model freemium de un perete: nu blocam nimic cat
+  // timp utilizatorul n-are de unde cumpara.
+  it('nu blocheaza nimic cat timp Play n-a confirmat ca exista ce cumpara', () => {
+    expect(isPremiumFeatureLocked()).toBe(false);
+  });
+
+  it('blocheaza cand abonamentul e cumparabil si utilizatorul nu e abonat', () => {
+    localStorage.setItem('lumin-billing-ready', '1');
+    expect(isPremiumFeatureLocked()).toBe(true);
+  });
+
+  it('nu blocheaza un abonat', () => {
+    localStorage.setItem('lumin-billing-ready', '1');
+    localStorage.setItem('lumin-premium', '1');
+    expect(isPremiumFeatureLocked()).toBe(false);
   });
 });

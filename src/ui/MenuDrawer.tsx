@@ -13,6 +13,7 @@ import { selectPendingShieldReview, readShieldDismissedIds } from '../core/docum
 import { selectUnresolvedGroups } from '../state/duplicateGroups';
 import { selectMonthlyRecap } from '../state/monthlyRecap';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
+import { isPremiumFeatureLocked } from '../core/entitlement';
 import { EASE } from './motion';
 import { TrainedProfileStrip } from './TrainedProfileStrip';
 import { GENRE_PRESETS } from '../state/genre';
@@ -192,6 +193,16 @@ export function MenuDrawer() {
 
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const go = (action: () => void) => { setOpen(false); action(); };
+  /**
+   * Doar INSIGNA. Blocarea efectiva sta in store (gatePremium), pentru ca
+   * aceleasi functii au si alte intrari — ecranul Acasa, foaia de export,
+   * paleta de comenzi — iar o poarta pusa pe butoane lasa portite.
+   *
+   * Randul ramane vizibil si apasabil: duce la ecranul Premium, nu la un refuz.
+   * Un utilizator care nu stie ce pierde n-are de ce sa plateasca.
+   */
+  const premiumLocked = isPremiumFeatureLocked();
+  const lockBadge = premiumLocked ? <StarIcon className="drawer-item-lock" aria-hidden="true" /> : null;
 
   // TEMPORAR (Faza 1-6, analiza AI nativa) — doar ca sa poata fi testat direct pe
   // device, fara Chrome DevTools/USB. De eliminat cand pipeline-ul nativ chiar
@@ -368,6 +379,7 @@ export function MenuDrawer() {
           <button className="drawer-item" onClick={() => go(() => setVaultOpen(true))}>
             <span className="drawer-item-icon"><LockIcon /></span>
             <span>{tr('menu.vault')}</span>
+            {lockBadge}
           </button>
 
           {hasPhotos && (
@@ -385,6 +397,7 @@ export function MenuDrawer() {
               <button className="drawer-item" onClick={() => go(() => setTripsOpen(true))}>
                 <span className="drawer-item-icon"><PinIcon /></span>
                 <span>{tr('menu.trips')}</span>
+                {lockBadge}
               </button>
 
               <label className="drawer-item drawer-item-select" title={tr('menu.genre.title')}>
@@ -463,16 +476,19 @@ export function MenuDrawer() {
             >
               <span className="drawer-item-icon"><SparkleIcon /></span>
               <span>{tr('menu.monthlyRecap')}</span>
+              {lockBadge}
             </button>
 
             <button className="drawer-item" onClick={() => go(() => setPresentationOpen(true))} title={tr('menu.presentation.title')}>
               <span className="drawer-item-icon"><PlayIcon /></span>
               <span>{tr('menu.presentation')}</span>
+              {lockBadge}
             </button>
 
             <button className="drawer-item" onClick={() => go(() => setContactSheetOpen(true))}>
               <span className="drawer-item-icon"><PrinterIcon /></span>
               <span>{tr('menu.contactSheet')}</span>
+              {lockBadge}
             </button>
           </DrawerGroup>
         )}
@@ -502,6 +518,7 @@ export function MenuDrawer() {
               <button className="drawer-item" onClick={() => go(() => void exportXMP())}>
                 <span className="drawer-item-icon"><TagIcon /></span>
                 <span>{tr('menu.exportXmp')}</span>
+                {lockBadge}
               </button>
 
               <button

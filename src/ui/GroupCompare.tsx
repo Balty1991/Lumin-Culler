@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { db } from '../core/db';
 import { suggestComposite, faceAppearance, type CompositeHint } from '../core/frameComposite';
+import { isPremiumFeatureLocked } from '../core/entitlement';
 import { isAwkwardExpression } from '../core/faceExpression';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
 import { useStore, type PhotoView } from '../state/store';
@@ -38,6 +39,8 @@ export function GroupCompare() {
   const selectBestPhotoInGroup = useStore(s => s.selectBestPhotoInGroup);
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
+  const setPremiumOpen = useStore(s => s.setPremiumOpen);
+  const premiumLocked = isPremiumFeatureLocked();
   const [recommendedId, setRecommendedId] = useState<string | null>(null);
   const [composite, setComposite] = useState<CompositeHint | null>(null);
   const [sortBySharpness, setSortBySharpness] = useState(false);
@@ -180,7 +183,18 @@ export function GroupCompare() {
             statistic de multe ori NU exista cadrul in care toti ies bine, iar
             fluxul profesionist e sa combini doua cadre. Ce nu poti face din ochi
             e sa afli CARE doua — aplicatia stie deja, din fete. */}
-        {composite && (
+        {composite && (premiumLocked ? (
+          /* Blocat, dar NU ascuns. Faptul ca exista o sugestie s-a stabilit deja
+             din fetele analizate — deci mesajul e adevarat, nu o momeala. Se
+             spune CA stim care doua cadre, fara sa spunem CARE: singura forma
+             onesta de teaser, si cel mai bun moment de vanzare din aplicatie,
+             pentru ca utilizatorul tocmai se uita la doua poze in care nimeni nu
+             iese bine peste tot. */
+          <button className="composite-hint composite-hint-locked" onClick={() => setPremiumOpen(true)}>
+            <b>{tr('compare.composite.title')}</b>
+            <p>{tr('compare.composite.locked')}</p>
+          </button>
+        ) : (
           <div className="composite-hint">
             <b>{tr('compare.composite.title')}</b>
             <p>
@@ -191,7 +205,7 @@ export function GroupCompare() {
               )).join(' ')}
             </p>
           </div>
-        )}
+        ))}
 
         {members.length > 2 && (
           <div className="compare-toolbar">

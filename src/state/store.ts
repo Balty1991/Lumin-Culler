@@ -5,7 +5,7 @@
  */
 import { create } from 'zustand';
 import { db, type AnalysisRecord, type PhotoRecord, type KnownPerson, type ColorLabel, type CollectionRecord } from '../core/db';
-import { recordExport, remainingFreeExports, isPremium, canEnrollAnotherPersonFree, FREE_EXPORT_PHOTOS_PER_MONTH, refreshEntitlement, isCapEnforced, FREE_ENROLLED_PERSONS } from '../core/entitlement';
+import { recordExport, remainingFreeExports, isPremium, canEnrollAnotherPersonFree, FREE_EXPORT_PHOTOS_PER_MONTH, refreshEntitlement, isCapEnforced, isPremiumFeatureLocked, FREE_ENROLLED_PERSONS } from '../core/entitlement';
 import {
   loadCollections, createCollection as createCollectionRecord, renameCollection as renameCollectionRecord,
   deleteCollection as deleteCollectionRecord, addPhotosToCollection as addPhotosToCollectionRecord,
@@ -78,7 +78,7 @@ import { buildSessionReportText } from '../core/export/sessionReport';
 import { computeLibraryStats } from '../core/stats';
 import {
   getOrCreateVaultCollection, setVaultPin as coreSetVaultPin, verifyVaultPin,
-  clearVaultPin as coreClearVaultPin, isVaultUnlockedInSession, setVaultUnlockedInSession
+  clearVaultPin as coreClearVaultPin, isVaultUnlockedInSession, setVaultUnlockedInSession, hasVaultPin
 } from '../core/vault';
 
 /** Cerere activa de dialog tematizat (vezi askConfirm/askPrompt mai jos) — `resolve` e apelat o singura data, de componenta ConfirmDialog. */
@@ -286,6 +286,8 @@ interface AppState {
   collectionsOpen: boolean;
   setCollectionsOpen: (open: boolean) => void;
   tripsOpen: boolean;
+  /** Deschide ecranul Premium in locul functiei cerute cand nu esti abonat. `true` = a preluat actiunea. */
+  gatePremium: () => boolean;
   setTripsOpen: (open: boolean) => void;
   tiktokSortOpen: boolean;
   setTiktokSortOpen: (open: boolean) => void;
@@ -1241,7 +1243,21 @@ export const useStore = create<AppState>((set, get) => ({
   collectionsOpen: false,
   setCollectionsOpen: open => set({ collectionsOpen: open }),
   tripsOpen: false,
-  setTripsOpen: open => set({ tripsOpen: open }),
+  /**
+   * Poarta unica pentru functiile rezervate abonatilor.
+   *
+   * Aici, si nu in fiecare buton: aceleasi functii au cate 2-5 intrari diferite
+   * (meniu, ecranul Acasa, foaia de export, paleta de comenzi, protectia
+   * documentelor), iar o poarta pusa pe butoane inseamna ca prima intrare uitata
+   * devine portita. Intoarce `true` cand a preluat ea actiunea — apelantul nu
+   * mai face nimic.
+   */
+  gatePremium: () => {
+    if (!isPremiumFeatureLocked()) return false;
+    set({ premiumOpen: true });
+    return true;
+  },
+  setTripsOpen: open => { if (open && get().gatePremium()) return; set({ tripsOpen: open }); },
   tiktokSortOpen: false,
   // Deschiderea "normala" (fara scop explicit) porneste mereu pe toata coada,
   // nu pe ramasitele unui scop anterior (ex. dupa "Sorteaza acum ce ai adus").
@@ -1277,7 +1293,11 @@ export const useStore = create<AppState>((set, get) => ({
   documentShieldOpen: false,
   setDocumentShieldOpen: open => set({ documentShieldOpen: open }),
   vaultOpen: false,
-  setVaultOpen: open => set({ vaultOpen: open }),
+  // Poarta e DOAR pe crearea dosarului, nu pe deschiderea lui. Un abonament
+  // expirat n-are voie sa incuie pe cineva in afara propriilor poze: alea sunt
+  // deja acolo, ascunse din galerie, si singura cale spre ele e ecranul asta.
+  // Cine are deja un dosar intra mereu; cine vrea sa-si faca unul, se aboneaza.
+  setVaultOpen: open => { if (open && !hasVaultPin() && get().gatePremium()) return; set({ vaultOpen: open }); },
   vaultUnlocked: isVaultUnlockedInSession(),
   setupVault: async pin => {
     await coreSetVaultPin(pin);
@@ -1809,9 +1829,9 @@ export const useStore = create<AppState>((set, get) => ({
   statsOpen: false,
   setStatsOpen: open => set({ statsOpen: open }),
   contactSheetOpen: false,
-  setContactSheetOpen: open => set({ contactSheetOpen: open }),
+  setContactSheetOpen: open => { if (open && get().gatePremium()) return; set({ contactSheetOpen: open }); },
   presentationOpen: false,
-  setPresentationOpen: open => set({ presentationOpen: open }),
+  setPresentationOpen: open => { if (open && get().gatePremium()) return; set({ presentationOpen: open }); },
   presentationPhotoIds: null,
   setPresentationPhotoIds: ids => set({ presentationPhotoIds: ids }),
 
@@ -3273,6 +3293,7 @@ export const useStore = create<AppState>((set, get) => ({
    * Lightroom/Bridge sa le asocieze automat.
    */
   exportXMP: async () => {
+    if (get().gatePremium()) return;
     const allPhotos = get().photos;
     const decided = allPhotos.filter(p => p.status !== 'pending');
     const locale = get().locale;
