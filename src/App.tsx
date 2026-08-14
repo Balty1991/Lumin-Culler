@@ -39,6 +39,7 @@ import { ImportReminder } from './ui/ImportReminder';
 import { MemoryBanner } from './ui/MemoryBanner';
 import { GallerySupervisorBanner } from './ui/GallerySupervisorBanner';
 import { PhotosAccessNotice } from './ui/PhotosAccessNotice';
+import { useHeaderBottomVar } from './ui/useHeaderBottomVar';
 import { SessionOutcome } from './ui/SessionOutcome';
 import { HomeDashboard } from './ui/HomeDashboard';
 import { BottomNav } from './ui/BottomNav';
@@ -213,7 +214,11 @@ function Toast() {
           : tone === 'progress' ? <SparkleIcon className="spin" />
           : <CheckIcon />}
       </span>
-      <span className="mono toast-text">{notice}</span>
+      {/* Fara `mono`: notificarile sunt propozitii, nu scoruri sau id-uri (unde
+          fontul monospatiat chiar ajuta la aliniere). Cu el, un mesaj normal se
+          rupe in randuri scurte si arata ca o iesire de terminal — vezi captura
+          din feedback-ul utilizatorului. */}
+      <span className="toast-text">{notice}</span>
       <button className="toast-close" onClick={() => clearNotice()} aria-label={t(locale, 'app.toast.close')}>
         <XIcon />
       </button>
@@ -282,6 +287,8 @@ export default function App() {
   const setSupervisorPanelOpen = useStore(s => s.setSupervisorPanelOpen);
   const notice = useStore(s => s.notice);
   const clearNotice = useStore(s => s.clearNotice);
+  // Toastul se aseaza sub capul de ecran masurat, nu sub un numar fix — vezi useHeaderBottomVar.
+  const headerBottomRef = useHeaderBottomVar<HTMLElement>();
   const aiDegraded = useStore(s => s.aiDegraded);
   const aiBackend = useStore(s => s.aiBackend);
   const clearAll = useStore(s => s.clearAll);
@@ -781,7 +788,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <header className="topbar">
+      <header className="topbar" ref={headerBottomRef}>
         <div className="brand">
           <div className="brand-mark-wrap">
             <span className="brand-mark-ring" aria-hidden="true" />

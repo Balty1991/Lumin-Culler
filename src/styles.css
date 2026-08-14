@@ -704,7 +704,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
      z-index cel mai mare din toata aplicatia (peste tooltip 40, peste orice
      scrim/dialog 20-30) — o notificare (export terminat, cota de stocare,
      eroare) trebuie sa ramana vizibila indiferent ce panou e deschis deasupra. */
-  position: fixed; left: 50%; top: calc(60px + env(safe-area-inset-top)); z-index: var(--z-toast);
+  /* --header-bottom e MASURAT (vezi ui/useHeaderBottomVar.ts) si include deja
+     safe-area-inset-top. Inainte era `60px + safe-area`, o valoare scrisa de
+     mana care presupune un cap de ecran de un rand — pe telefon `.topbar` cade
+     pe doua randuri, iar toastul ateriza fix peste butonul "Exporta poze"
+     (bug real raportat de utilizator, cu captura). */
+  position: fixed; left: 50%; top: calc(var(--header-bottom, 96px) + 8px); z-index: var(--z-toast);
   transform: translateX(-50%); max-width: min(440px, calc(100vw - 24px));
   display: flex; align-items: flex-start; gap: 10px;
   background: var(--surface-2); border: 1px solid var(--line-strong); border-left: 3px solid var(--text-faint);

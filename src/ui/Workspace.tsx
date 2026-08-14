@@ -8,6 +8,7 @@ import { PhotoInfoTabs } from './PhotoInfoTabs';
 import { EmptyFilterState } from './EmptyFilterState';
 import { ChevronLeft, ChevronRight, ChevronUpIcon, XIcon, CheckIcon, GridIcon, PlusIcon, MenuIcon, EditIcon } from './icons';
 import { UndoHistoryButton } from './UndoHistoryButton';
+import { useHeaderBottomVar } from './useHeaderBottomVar';
 import { AdjustedImage } from './AdjustedImage';
 import type { EditAdjustments } from '../core/imageAdjust';
 import { pickImportFiles } from '../core/filePicker';
@@ -24,6 +25,8 @@ import { t } from '../i18n';
  * un modal — aceeasi poza afisata de doua ori).
  */
 export function Workspace() {
+  // Toastul se aseaza sub capul de ecran masurat — vezi useHeaderBottomVar.
+  const headerBottomRef = useHeaderBottomVar<HTMLElement>();
   const detailId = useStore(s => s.detailId);
   const photos = useStore(s => s.photos);
   const filtered = useStore(s => s.filtered());
@@ -162,7 +165,7 @@ export function Workspace() {
   if (!photo) {
     return (
       <div className="workspace">
-        <header className="workspace-head">
+        <header className="workspace-head" ref={headerBottomRef}>
           <span className="mono workspace-hint">{tr('workspace.emptyHint')}</span>
           <UndoHistoryButton />
           <Tooltip label={tr('workspace.tooltip.grid')} side="left">
@@ -184,7 +187,7 @@ export function Workspace() {
 
   return (
     <div className="workspace">
-      <header className="workspace-head">
+      <header className="workspace-head" ref={headerBottomRef}>
         {/* randul de iconite NU se mai infasoara linie cu linie (flex-wrap:nowrap
             aici, spre deosebire de .workspace-head care ramane wrap doar pentru
             butonul Anuleaza de mai jos) — numele fisierului se micsoreaza cu "…"
