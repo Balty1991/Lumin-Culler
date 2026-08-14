@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { db } from '../core/db';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
-import { useStore } from '../state/store';
+import { useStore, isAnyOverlayOpen } from '../state/store';
 import { Tooltip } from './Tooltip';
 import { StarRating } from './StarRating';
 import { PhotoInfoTabs } from './PhotoInfoTabs';
@@ -130,12 +130,9 @@ export function Workspace() {
         // Bug real gasit de auditul QA: lipseau majoritatea panourilor din
         // aceasta lista, deci Escape inchidea Workspace pe sub un panou deschis
         // (ex. Persoane cunoscute) in loc sa-l inchida pe acela.
-        const s = useStore.getState();
-        if (
-          s.paletteOpen || s.shortcutsOpen || s.menuOpen || s.personsOpen || s.insightsOpen ||
-          s.batchOpsOpen || s.statsOpen || s.projectsOpen || s.contactSheetOpen || s.presentationOpen ||
-          s.compareGroupId || s.editingPhotoId || s.dialogRequest
-        ) return;
+        // Lista traieste acum intr-un singur loc — vezi isAnyOverlayOpen() in
+        // state/store.ts pentru de ce (aici lipseau 12 din 22 de panouri).
+        if (isAnyOverlayOpen()) return;
         setWorkspaceMode(false);
       }
     };

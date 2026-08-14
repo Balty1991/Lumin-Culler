@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { computeWorkerCount } from './workerPool';
+import { computeWorkerCount, withTimeout } from './workerPool';
 
 let nativePlatform = false;
 vi.mock('@capacitor/core', () => ({
@@ -200,5 +200,54 @@ describe('AnalysisPool native mode (Capacitor Android)', () => {
     await new Promise(r => setTimeout(r, 0));
     while (resolvers.length) resolvers.shift()!();
     await Promise.all(all);
+  });
+});
+
+/**
+ * Bug real gasit de auditul QA — vezi `onAbandoned` in withTimeout().
+ * Un timeout nu anuleaza promisiunea de dedesubt, doar inceteaza s-o astepte:
+ * pentru createImageBitmap (importPipeline.decode / rawDecoder.decodeRawFile)
+ * asta insemna un ImageBitmap de pana la ~16 MB pe care nimeni nu-l mai inchide.
+ */
+describe('withTimeout — resursa care soseste dupa timeout', () => {
+  it('preda apelantului valoarea cand promisiunea castiga cursa (comportament neschimbat)', async () => {
+    await expect(withTimeout(Promise.resolve('gata'), 1000, 'prea lent')).resolves.toBe('gata');
+  });
+
+  it('respinge cu mesajul dat cand timeout-ul castiga cursa', async () => {
+    const slow = new Promise(resolve => setTimeout(() => resolve('tarziu'), 50));
+    await expect(withTimeout(slow, 5, 'prea lent')).rejects.toThrow('prea lent');
+  });
+
+  it('inchide resursa sosita TARZIU, in loc s-o abandoneze (scurgerea de memorie reparata)', async () => {
+    const closed: string[] = [];
+    const lateBitmap = { id: 'b1', close: () => closed.push('b1') };
+    const slow = new Promise<typeof lateBitmap>(resolve => setTimeout(() => resolve(lateBitmap), 20));
+
+    await expect(withTimeout(slow, 5, 'prea lent', late => late.close())).rejects.toThrow('prea lent');
+    expect(closed).toEqual([]); // inca n-a sosit
+
+    await new Promise(r => setTimeout(r, 40));
+    expect(closed).toEqual(['b1']); // sosita si inchisa, nu scursa
+  });
+
+  it('NU cheama carligul de curatenie cand valoarea a ajuns la apelant la timp', async () => {
+    const closed: string[] = [];
+    const bitmap = { close: () => closed.push('x') };
+    await expect(withTimeout(Promise.resolve(bitmap), 1000, 'prea lent', late => late.close())).resolves.toBe(bitmap);
+    await new Promise(r => setTimeout(r, 10));
+    expect(closed).toEqual([]);
+  });
+
+  it('o eroare sosita dupa timeout nu mai produce o a doua respingere (fara unhandled rejection)', async () => {
+    const slow = new Promise((_, reject) => setTimeout(() => reject(new Error('esec tarziu')), 20));
+    await expect(withTimeout(slow, 5, 'prea lent')).rejects.toThrow('prea lent');
+    await new Promise(r => setTimeout(r, 40)); // daca s-ar respinge a doua oara, ar iesi ca unhandled
+  });
+
+  it('un carlig care arunca nu strica respingerea deja livrata apelantului', async () => {
+    const slow = new Promise(resolve => setTimeout(() => resolve('x'), 20));
+    await expect(withTimeout(slow, 5, 'prea lent', () => { throw new Error('close a esuat'); })).rejects.toThrow('prea lent');
+    await new Promise(r => setTimeout(r, 40));
   });
 });

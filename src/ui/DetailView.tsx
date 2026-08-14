@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
-import { useStore, type PhotoView } from '../state/store';
+import { useStore, isAnyOverlayOpen, type PhotoView } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { StarRating } from './StarRating';
 import { PhotoInfoTabs } from './PhotoInfoTabs';
@@ -126,12 +126,8 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
         // Bug real gasit de auditul QA: lipseau majoritatea panourilor din
         // aceasta lista, deci Escape inchidea DetailView pe sub un panou
         // deschis (ex. Editare de baza) in loc sa-l inchida pe acela.
-        const s = useStore.getState();
-        if (
-          s.paletteOpen || s.shortcutsOpen || s.menuOpen || s.personsOpen || s.insightsOpen ||
-          s.batchOpsOpen || s.statsOpen || s.projectsOpen || s.contactSheetOpen || s.presentationOpen ||
-          s.compareGroupId || s.editingPhotoId || s.dialogRequest
-        ) return;
+        // vezi isAnyOverlayOpen() in state/store.ts — o singura lista, nu trei
+        if (isAnyOverlayOpen()) return;
         openDetail(null);
       }
     };

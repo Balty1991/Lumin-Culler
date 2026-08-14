@@ -9,11 +9,28 @@ import { CARD_MIN_WIDTH } from '../state/gridDensity';
 const NARROW_BREAKPOINT = 560;
 const GAP = 10;
 const ROW_HEIGHT_ESTIMATE = 200; // ajustat automat per rand prin measureElement (inaltimi variabile)
-/** Trebuie sa ramana in sincron cu --bottomnav-h din styles.css — acest component
-    randeaza mereu impreuna cu <BottomNav /> (ambele conditionate strict de
-    photos.length > 0 in App.tsx), altfel ultimul rand de poze ar ajunge sub bara
-    de navigare fixa de jos, nu doar aproape de ea. */
-const BOTTOM_NAV_HEIGHT = 62;
+/**
+ * Inaltimea barei de jos, CITITA din CSS in loc de copiata aici.
+ *
+ * Bug real gasit la auditul UI: valoarea era scrisa de mana (62) si nu includea
+ * `env(safe-area-inset-bottom)`, desi `.bottom-nav` din CSS o include —
+ * `height: calc(var(--bottomnav-h) + env(safe-area-inset-bottom))`. Pe
+ * telefoanele cu bara de gesturi (home indicator), bara ocupa deci cu ~20-34px
+ * mai mult decat credea grila, si ultimul rand de poze ajungea partial sub ea.
+ *
+ * Ambele valori sunt deja expuse ca variabile CSS tocmai pentru asta (vezi
+ * --safe-bottom in styles.css, folosita la fel in ContextMenu.tsx), deci nu mai
+ * exista o a doua sursa de adevar care sa poata iesi din sincron.
+ */
+function readBottomNavHeight(): number {
+  if (typeof getComputedStyle !== 'function') return 62; // jsdom / medii fara layout
+  const root = getComputedStyle(document.documentElement);
+  const px = (name: string, fallback: number) => {
+    const parsed = parseFloat(root.getPropertyValue(name));
+    return Number.isFinite(parsed) ? parsed : fallback;
+  };
+  return px('--bottomnav-h', 62) + px('--safe-bottom', 0);
+}
 
 /**
  * Grid virtualizat pe RANDURI: doar cardurile vizibile (+ overscan) exista in DOM,
@@ -48,7 +65,9 @@ export function VirtualPhotoGrid({ photos, onOpen, multiSelectIds, onCardPointer
       const minCard = width <= NARROW_BREAKPOINT ? CARD_MIN_WIDTH[density].narrow : CARD_MIN_WIDTH[density].wide;
       setColumns(Math.max(1, Math.floor((width + GAP) / (minCard + GAP))));
       const top = el.getBoundingClientRect().top;
-      setScrollHeight(Math.max(300, window.innerHeight - top - 8 - BOTTOM_NAV_HEIGHT));
+      // Recitita la fiecare calcul, nu o singura data: `compute` ruleaza si la
+      // resize/rotire, iar marginea de siguranta de jos difera intre orientari.
+      setScrollHeight(Math.max(300, window.innerHeight - top - 8 - readBottomNavHeight()));
     };
     computeRef.current = compute;
     compute();

@@ -3612,3 +3612,40 @@ export const useStore = create<AppState>((set, get) => ({
  * timp exista store-ul exista si abonamentul, deci nu are cine sa-l dezlege.
  */
 subscribeEntitlement(() => { useStore.getState().syncEntitlement(); });
+
+/**
+ * Exista vreun panou, dialog sau ecran suprapus deasupra continutului?
+ *
+ * Sursa UNICA de adevar pentru intrebarea "cine primeste tasta Escape". Fiecare
+ * ecran de fundal (Workspace, DetailView, grila din App) are propriul ascultator
+ * global de Escape, iar `stopPropagation()` dintr-un panou NU opreste ascultatorii
+ * de pe ACELASI target (window) sa ruleze — opreste doar propagarea intre
+ * elemente diferite. Deci fiecare trebuie sa intrebe singur daca e ceva deasupra.
+ *
+ * De ce centralizat, si nu cate o lista la fata locului: erau doua liste scrise
+ * de mana, in Workspace.tsx si DetailView.tsx, iar comentariile din ambele spun
+ * ca bug-ul reparat inainte fusese exact "lipseau majoritatea panourilor din
+ * lista". La auditul asta lipseau din nou 12 din 22 — printre ele Cautarea,
+ * Colectiile, Duplicatele, Dosarul privat, Aspectul si chiar ecranul Premium —
+ * iar App.tsx (Escape care goleste selectia in masa) n-avea deloc lista, deci
+ * Escape iesea din modul selectie odata cu inchiderea oricarui panou.
+ *
+ * O lista scrisa de mana in trei locuri nu ramane completa: orice panou adaugat
+ * de acum reintroduce acelasi bug in toate trei. Aici e un singur loc de
+ * actualizat, iar TypeScript nu poate impune asta, deci: CAND ADAUGI UN PANOU
+ * NOU, ADAUGA-L SI AICI.
+ *
+ * Nu intra in lista `homeGridOpen` (mod de vizualizare, nu suprapunere) si nici
+ * `allEyesOpen` (camp de pe poza, nu panou).
+ */
+export function isAnyOverlayOpen(): boolean {
+  const s = useStore.getState();
+  return Boolean(
+    s.paletteOpen || s.shortcutsOpen || s.menuOpen || s.personsOpen || s.insightsOpen ||
+    s.batchOpsOpen || s.statsOpen || s.projectsOpen || s.contactSheetOpen || s.presentationOpen ||
+    s.appearanceOpen || s.collectionsOpen || s.documentShieldOpen || s.duplicatesPanelOpen ||
+    s.exportDestinationsOpen || s.premiumOpen || s.searchPanelOpen || s.supervisorPanelOpen ||
+    s.tiktokSortOpen || s.tripsOpen || s.vaultOpen || s.zenPanelOpen ||
+    s.compareGroupId || s.editingPhotoId || s.dialogRequest
+  );
+}

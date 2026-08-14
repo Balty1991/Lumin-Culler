@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, lazy, Suspense, type ComponentType, type CSSProperties, type ReactNode } from 'react';
-import { useStore, type FilterKey } from './state/store';
+import { useStore, isAnyOverlayOpen, type FilterKey } from './state/store';
 import { PhotoCard } from './ui/PhotoCard';
 import { VirtualPhotoGrid } from './ui/VirtualPhotoGrid';
 import { DetailView } from './ui/DetailView';
@@ -432,7 +432,15 @@ export default function App() {
   // panouri/paleta)
   useEffect(() => {
     if (!multiSelectIds.size && !selectMode) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setSelectMode(false); };
+    const onKey = (e: KeyboardEvent) => {
+      // Bug real gasit la auditul UI: aici lipsea COMPLET verificarea a ce e
+      // deasupra (spre deosebire de Workspace/DetailView, care aveau macar o
+      // lista partiala). Cu selectie multipla activa si un panou deschis peste
+      // grila, un singur Escape inchidea panoul SI iesea din modul selectie —
+      // adica pierdeai o selectie construita poza cu poza, fara s-o fi cerut.
+      if (e.key !== 'Escape' || isAnyOverlayOpen()) return;
+      setSelectMode(false);
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [multiSelectIds.size, selectMode, setSelectMode]);

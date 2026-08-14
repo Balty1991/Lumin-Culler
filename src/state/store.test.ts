@@ -23,7 +23,7 @@ vi.mock('../core/exportPhotos', async importOriginal => {
   return { ...actual, exportOriginalFiles: (...args: unknown[]) => exportOriginalFilesMock(...args) };
 });
 
-import { ratingDecision, useStore, relabelFaces, matchFacesToPerson, selectMergedEmbeddings, type PhotoView } from './store';
+import { ratingDecision, useStore, relabelFaces, matchFacesToPerson, selectMergedEmbeddings, isAnyOverlayOpen, type PhotoView } from './store';
 import { db, type AnalysisRecord, type FaceInsight, type KnownPerson, type PhotoRecord } from '../core/db';
 import { contextEngine } from '../core/learning/ContextEngine';
 import { originalFiles } from '../core/importPipeline';
@@ -1157,5 +1157,65 @@ describe('starea premium din store se sincronizeaza cu entitlement.ts', () => {
     await useStore.getState().exportSelection();
 
     expect(useStore.getState().photosUsedThisWindow).toBe(7);
+  });
+});
+
+/**
+ * Lista de suprapuneri s-a rupt de fiecare data la fel: cineva adauga un panou
+ * nou si uita sa-l treaca in listele scrise de mana din Workspace/DetailView.
+ * Comentariile din cod arata cel putin doua runde anterioare de "lipseau
+ * majoritatea panourilor". Testul de mai jos e singurul lucru care poate opri
+ * a treia: compara lista folosita de isAnyOverlayOpen() cu flag-urile *Open
+ * care chiar exista in stare.
+ */
+describe('isAnyOverlayOpen', () => {
+  /** Nu sunt suprapuneri: mod de vizualizare, respectiv camp de pe poza. */
+  const NOT_OVERLAYS = new Set(['homeGridOpen', 'allEyesOpen']);
+
+  beforeEach(() => {
+    const s = useStore.getState();
+    for (const key of Object.keys(s)) {
+      if (key.endsWith('Open') && typeof (s as never as Record<string, unknown>)[key] === 'boolean') {
+        useStore.setState({ [key]: false } as never);
+      }
+    }
+    useStore.setState({ compareGroupId: null, editingPhotoId: null, dialogRequest: null });
+  });
+
+  it('e false cand nu e nimic deschis', () => {
+    expect(isAnyOverlayOpen()).toBe(false);
+  });
+
+  // Inima testului: fiecare flag *Open din stare trebuie sa fie chiar vazut de
+  // helper. Un panou nou uitat pica AICI, nu in mainile unui utilizator care
+  // apasa Escape si pierde selectia.
+  it('vede FIECARE flag *Open din stare (niciun panou uitat)', () => {
+    const state = useStore.getState() as never as Record<string, unknown>;
+    const flags = Object.keys(state).filter(
+      k => k.endsWith('Open') && typeof state[k] === 'boolean' && !NOT_OVERLAYS.has(k)
+    );
+    expect(flags.length).toBeGreaterThan(15); // plasa de siguranta daca se schimba conventia de nume
+
+    const uitate: string[] = [];
+    for (const flag of flags) {
+      useStore.setState({ [flag]: true } as never);
+      if (!isAnyOverlayOpen()) uitate.push(flag);
+      useStore.setState({ [flag]: false } as never);
+    }
+    expect(uitate).toEqual([]);
+  });
+
+  it('vede si suprapunerile care nu sunt boolean (comparare, editare, dialog)', () => {
+    useStore.setState({ compareGroupId: 'g1' });
+    expect(isAnyOverlayOpen()).toBe(true);
+    useStore.setState({ compareGroupId: null, editingPhotoId: 'p1' });
+    expect(isAnyOverlayOpen()).toBe(true);
+    useStore.setState({ editingPhotoId: null });
+    expect(isAnyOverlayOpen()).toBe(false);
+  });
+
+  it('nu considera grila de acasa o suprapunere — e un mod de vizualizare', () => {
+    useStore.setState({ homeGridOpen: true });
+    expect(isAnyOverlayOpen()).toBe(false);
   });
 });

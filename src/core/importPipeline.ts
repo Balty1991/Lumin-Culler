@@ -164,14 +164,20 @@ const DECODE_TIMEOUT_MS = 30000;
 
 async function decode(file: File): Promise<ImageBitmap> {
   let bitmap: ImageBitmap;
+  // `late => late.close()`: un timeout nu anuleaza decodarea de dedesubt, doar
+  // inceteaza s-o astepte — fara acest carlig, bitmap-ul care soseste tarziu
+  // (pana la ~16 MB la 2048px) nu mai era inchis de nimeni, niciodata. Vezi
+  // comentariul lung de la withTimeout in core/workerPool.ts.
+  const closeLate = (late: ImageBitmap) => late.close();
   try {
     bitmap = await withTimeout(
       createImageBitmap(file, { resizeWidth: PREVIEW_MAX_SIDE, resizeQuality: 'high' } as ImageBitmapOptions),
       DECODE_TIMEOUT_MS,
-      'Decodarea a durat prea mult.'
+      'Decodarea a durat prea mult.',
+      closeLate
     );
   } catch {
-    bitmap = await withTimeout(createImageBitmap(file), DECODE_TIMEOUT_MS, 'Decodarea a durat prea mult.');
+    bitmap = await withTimeout(createImageBitmap(file), DECODE_TIMEOUT_MS, 'Decodarea a durat prea mult.', closeLate);
   }
   return capToPreviewSize(bitmap);
 }

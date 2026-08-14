@@ -127,7 +127,14 @@ async function bitmapFromImageData(imageData: ImageData): Promise<ImageBitmap> {
 export async function decodeRawFile(file: File): Promise<RawDecodeResult> {
   const raw = new LibRaw();
   try {
-    return await withTimeout(decode(raw, file), RAW_DECODE_TIMEOUT_MS, 'Decodarea RAW a durat prea mult.');
+    // Acelasi carlig de curatenie ca la decode() in importPipeline.ts: pe
+    // timeout, decodarea LibRaw continua si poate produce totusi un bitmap pe
+    // care nu-l mai primeste nimeni — un RAW decodat complet e cea mai scumpa
+    // resursa din tot pipeline-ul, deci si cea mai scumpa de pierdut.
+    return await withTimeout(
+      decode(raw, file), RAW_DECODE_TIMEOUT_MS, 'Decodarea RAW a durat prea mult.',
+      late => late.bitmap.close()
+    );
   } finally {
     raw.dispose();
   }

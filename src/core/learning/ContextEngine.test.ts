@@ -650,3 +650,54 @@ describe('ContextEngine — o valoare/pondere corupta nu mai otraveste tot scoru
     expect(updateWeight(0.5, 0.1, 0.3, 0.5)).toBeCloseTo(0.47, 5);
   });
 });
+
+/**
+ * Bug real gasit de auditul QA — vezi ContextEngine.repair(). Validarea din
+ * core/backupService.ts opreste scrierile NOI de modele stricate, dar nu repara
+ * bazele utilizatorilor care au restaurat un backup trunchiat INAINTE de acel
+ * fix: inregistrarea stricata traieste in IndexedDB, deci `model.weights[k]` pe
+ * un `weights` undefined arunca la fiecare poza scorata, la nesfarsit, si nici
+ * reload-ul paginii nici reimportul pozelor n-o repara.
+ */
+describe('ContextEngine — model deja corupt in IndexedDB se repara la citire', () => {
+  it('scoreaza normal un context al carui model si-a pierdut `weights` (inainte: TypeError la fiecare poza)', async () => {
+    await db.contextModels.clear();
+    await db.contextModels.put({ contextKey: 'landscape' } as unknown as Parameters<typeof db.contextModels.put>[0]);
+
+    const engine = new ContextEngine();
+    const prediction = await engine.predict(baseAnalysis({ photoId: 'x' }));
+
+    expect(Number.isFinite(prediction.score)).toBe(true);
+    expect(prediction.contextKey).toBe('landscape');
+  });
+
+  it('repara si `featureStats`/`bias`/`sampleCount` lipsa sau de tip gresit', async () => {
+    await db.contextModels.clear();
+    await db.contextModels.put({
+      contextKey: 'landscape', weights: { sharpness: 0.9 }, bias: 'zero', sampleCount: -5
+    } as unknown as Parameters<typeof db.contextModels.put>[0]);
+
+    const engine = new ContextEngine();
+    const prediction = await engine.predict(baseAnalysis({ photoId: 'x' }));
+
+    expect(Number.isFinite(prediction.score)).toBe(true);
+    expect(prediction.confidence).toBe('cold'); // sampleCount negativ readus la 0
+  });
+
+  it('nu atinge un model VALID (ponderile invatate raman exact cum erau)', async () => {
+    await db.contextModels.clear();
+    await db.contextModels.put({
+      contextKey: 'landscape', weights: { sharpness: 0.42 },
+      featureStats: { sharpness: { mean: 0.6, m2: 0.2, n: 10 } },
+      bias: 0.3, sampleCount: 50, updatedAt: 1
+    });
+
+    const engine = new ContextEngine();
+    await engine.predict(baseAnalysis({ photoId: 'x' }));
+    const summaries = await engine.summarize();
+    const landscape = summaries.find(s => s.contextKey === 'landscape')!;
+
+    expect(landscape.sampleCount).toBe(50);
+    expect(landscape.allWeights.find(w => w.feature === 'sharpness')?.weight).toBe(0.42);
+  });
+});

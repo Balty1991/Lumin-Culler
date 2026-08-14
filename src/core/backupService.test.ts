@@ -47,7 +47,11 @@ describe('restoreBackup', () => {
 
     const result = await restoreBackup(backup);
 
-    expect(result).toEqual({ personsRestored: 1, modelsRestored: 1, decisionsMatched: 1, decisionsTotal: 1, settingsRestored: false });
+    expect(result).toEqual({
+      personsRestored: 1, modelsRestored: 1, decisionsMatched: 1, decisionsTotal: 1, settingsRestored: false,
+      // un backup curat nu sare nimic — vezi validatoarele din backupService.ts
+      personsSkipped: 0, modelsSkipped: 0, decisionsSkipped: 0
+    });
     const persons = await db.persons.toArray();
     expect(persons).toHaveLength(1);
     expect(persons[0].name).toBe('Ami');
@@ -111,5 +115,99 @@ describe('restoreBackup', () => {
     } finally {
       updateSpy.mockRestore();
     }
+  });
+});
+
+/**
+ * Bug real gasit de auditul QA — vezi validatoarele din backupService.ts.
+ * Cel mai grav din fisier: pana la acest fix, singura verificare pe continutul
+ * unui backup era `Array.isArray` pe cele trei liste, iar inregistrarile
+ * ajungeau NEVALIDATE in IndexedDB. Un fisier trunchiat la descarcare (cazul
+ * banal) ajungea sa OMOARE PERMANENT scorarea AI, fiindca inregistrarea
+ * stricata e persistata: niciun reload si niciun reimport n-o mai repara.
+ */
+describe('restoreBackup — inregistrari corupte in fisierul de backup', () => {
+  beforeEach(async () => {
+    await db.photos.clear();
+    await db.persons.clear();
+    await db.contextModels.clear();
+  });
+
+  it('nu mai scrie un contextModel fara `weights` (inainte: predict() arunca TypeError pentru totdeauna)', async () => {
+    const broken = { contextKey: 'landscape' } as unknown as BackupData['contextModels'][number];
+    const result = await restoreBackup(makeBackup({ contextModels: [broken] }));
+
+    expect(await db.contextModels.toArray()).toEqual([]);
+    expect(result.modelsRestored).toBe(0);
+    expect(result.modelsSkipped).toBe(1);
+  });
+
+  it('respinge un contextModel cu ponderi ne-numerice sau statistici stricate', async () => {
+    const models = [
+      { contextKey: 'a', weights: { sharpness: 'multa' }, featureStats: {}, bias: 0, sampleCount: 1 },
+      { contextKey: 'b', weights: { sharpness: NaN }, featureStats: {}, bias: 0, sampleCount: 1 },
+      { contextKey: 'c', weights: {}, featureStats: { sharpness: { mean: 1 } }, bias: 0, sampleCount: 1 },
+      { contextKey: 'd', weights: {}, featureStats: {}, bias: 'zero', sampleCount: 1 }
+    ] as unknown as BackupData['contextModels'];
+    const result = await restoreBackup(makeBackup({ contextModels: models }));
+
+    expect(await db.contextModels.toArray()).toEqual([]);
+    expect(result.modelsSkipped).toBe(4);
+  });
+
+  it('pastreaza modelele VALIDE si le sare doar pe cele stricate din acelasi fisier', async () => {
+    const good = {
+      contextKey: 'portrait:known', weights: { sharpness: 0.9 },
+      featureStats: { sharpness: { mean: 0.6, m2: 0.1, n: 5 } },
+      bias: 0.2, sampleCount: 12, updatedAt: 1000
+    };
+    const result = await restoreBackup(makeBackup({
+      contextModels: [good, { contextKey: 'rupt' }] as unknown as BackupData['contextModels']
+    }));
+
+    expect((await db.contextModels.toArray()).map(m => m.contextKey)).toEqual(['portrait:known']);
+    expect(result.modelsRestored).toBe(1);
+    expect(result.modelsSkipped).toBe(1);
+  });
+
+  it('nu mai scrie o persoana fara embeddings (ar ajunge asa in worker-ul de recunoastere)', async () => {
+    const result = await restoreBackup(makeBackup({
+      persons: [
+        { id: 'x', name: 'Ana' },
+        { id: 'y', name: 'Bob', embeddings: [] },
+        { id: 'z', name: 'Cip', embeddings: [[1, 2, 3]], updatedAt: 1 }
+      ] as unknown as BackupData['persons']
+    }));
+
+    expect((await db.persons.toArray()).map(p => p.id)).toEqual(['z']);
+    expect(result.personsRestored).toBe(1);
+    expect(result.personsSkipped).toBe(2);
+  });
+
+  it('nu mai scrie un status inventat pe PhotoRecord (inainte: poza disparea din toate filtrele)', async () => {
+    await db.photos.put(makePhoto({ id: 'p1', fileName: 'a.jpg', capturedAt: 1000, status: 'pending' }));
+    const result = await restoreBackup(makeBackup({
+      photoDecisions: [{ fileName: 'a.jpg', capturedAt: 1000, status: 'GUNOI', rating: 'x' }] as unknown as BackupData['photoDecisions']
+    }));
+
+    expect((await db.photos.get('p1'))?.status).toBe('pending');
+    expect(result.decisionsMatched).toBe(0);
+    expect(result.decisionsSkipped).toBe(1);
+  });
+
+  it('aplica in continuare deciziile valide din acelasi fisier', async () => {
+    await db.photos.put(makePhoto({ id: 'p1', fileName: 'a.jpg', capturedAt: 1000, status: 'pending' }));
+    await db.photos.put(makePhoto({ id: 'p2', fileName: 'b.jpg', capturedAt: 2000, status: 'pending' }));
+    const result = await restoreBackup(makeBackup({
+      photoDecisions: [
+        { fileName: 'a.jpg', capturedAt: 1000, status: 'GUNOI' },
+        { fileName: 'b.jpg', capturedAt: 2000, status: 'selected', rating: 4 }
+      ] as unknown as BackupData['photoDecisions']
+    }));
+
+    expect((await db.photos.get('p1'))?.status).toBe('pending');
+    expect((await db.photos.get('p2'))?.status).toBe('selected');
+    expect(result.decisionsMatched).toBe(1);
+    expect(result.decisionsSkipped).toBe(1);
   });
 });

@@ -57,12 +57,35 @@ const ANALYZE_TIMEOUT_MS = 40000;
  * pe care runImport (state/store.ts) il poate afisa si din care utilizatorul
  * se poate recupera (reincearca), in loc sa ramana blocat.
  */
-export function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+/**
+ * @param onAbandoned Chemat cand promisiunea originala se aseaza DUPA ce
+ *   timeout-ul a castigat deja cursa — adica exact cand rezultatul ei nu mai
+ *   ajunge la niciun apelant.
+ *
+ *   Bug real gasit de auditul QA (scurgere de memorie): un timeout nu ANULEAZA
+ *   promisiunea de dedesubt, doar inceteaza sa o astepte. Pentru majoritatea
+ *   apelurilor de aici (Comlink, pickere) valoarea intarziata e inofensiva —
+ *   dar `createImageBitmap` intoarce un ImageBitmap, o resursa care trebuie
+ *   inchisa EXPLICIT (close()) si care, la 2048px, tine ~16 MB de memorie
+ *   GPU/CPU. Fara acest carlig, fiecare decodare care depaseste bugetul de 30s
+ *   (decodari lente pe WebView mobil sub presiune — exact conditiile in care
+ *   timeout-ul chiar se declanseaza) lasa in urma un bitmap pe care nimeni nu-l
+ *   mai inchide vreodata. Pe un import mare, esecurile se aduna, si fiecare
+ *   scurgere face urmatoarea decodare si mai lenta — deci si mai probabil sa
+ *   depaseasca timeout-ul: exact spirala de OOM pe care timeout-ul incerca s-o
+ *   previna.
+ */
+export function withTimeout<T>(promise: Promise<T>, ms: number, message: string, onAbandoned?: (value: T) => void): Promise<T> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(message)), ms);
+    let timedOut = false;
+    const timer = setTimeout(() => { timedOut = true; reject(new Error(message)); }, ms);
     promise.then(
-      v => { clearTimeout(timer); resolve(v); },
-      e => { clearTimeout(timer); reject(e); }
+      v => {
+        clearTimeout(timer);
+        if (timedOut) { try { onAbandoned?.(v); } catch { /* curatenie best-effort, nu are ce raporta */ } return; }
+        resolve(v);
+      },
+      e => { clearTimeout(timer); if (!timedOut) reject(e); }
     );
   });
 }

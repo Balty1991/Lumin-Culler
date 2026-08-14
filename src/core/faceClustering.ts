@@ -43,6 +43,41 @@ function cosineSimilarity(a: number[], b: number[]): number {
   return denom > 0 ? dot / denom : 0;
 }
 
+/**
+ * Aceeasi similaritate, dar cu normele PRECALCULATE — vezi bucla din
+ * findUnrecognizedFaceClusters pentru de ce conteaza.
+ *
+ * Masurat de auditul QA (embeddinguri distincte, 1024 dimensiuni, deci cazul
+ * cel mai rau in care fiecare fata isi deschide propriul cluster): 4000 de
+ * fete durau ~2,4s pe desktop — pe un telefon de gama medie inseamna zeci de
+ * secunde cu FIRUL PRINCIPAL BLOCAT, fiindca functia e apelata direct din
+ * PersonsPanel, nu dintr-un worker. Costul e intrinsec patratic (fiecare fata
+ * se compara cu fiecare cluster existent), dar varianta veche recalcula, la
+ * FIECARE comparatie, si norma seed-ului si norma item-ului — desi ambele sunt
+ * constante. Adica doua treimi din inmultiri erau munca refacuta degeaba.
+ *
+ * Rezultatele raman IDENTICE bit-cu-bit: `dot` se aduna in exact aceeasi
+ * ordine, iar normele sunt aceleasi sume, doar calculate o singura data. Cand
+ * lungimile difera (embeddinguri din modele diferite, unde functia veche
+ * trunchia la cea mai scurta si deci normele partiale NU coincid cu cele
+ * complete), cadem inapoi pe implementarea originala, ca sa nu schimbam
+ * nicicum comportamentul.
+ */
+function cosineWithNorms(a: number[], normA: number, b: number[], normB: number): number {
+  if (a.length !== b.length) return cosineSimilarity(a, b);
+  const denom = normA * normB;
+  if (denom <= 0) return 0;
+  let dot = 0;
+  for (let i = 0; i < a.length; i++) dot += a[i] * b[i];
+  return dot / denom;
+}
+
+function norm(v: number[]): number {
+  let n = 0;
+  for (let i = 0; i < v.length; i++) n += v[i] * v[i];
+  return Math.sqrt(n);
+}
+
 export function findUnrecognizedFaceClusters(photos: ClusterablePhoto[], minClusterSize = 2): FaceCluster[] {
   const items: FaceClusterMember[] = [];
   for (const p of photos) {
@@ -53,11 +88,12 @@ export function findUnrecognizedFaceClusters(photos: ClusterablePhoto[], minClus
     });
   }
 
-  const clusters: { seed: number[]; members: FaceClusterMember[] }[] = [];
+  const clusters: { seed: number[]; seedNorm: number; members: FaceClusterMember[] }[] = [];
   for (const item of items) {
-    const bucket = clusters.find(c => cosineSimilarity(c.seed, item.embedding) >= CLUSTER_SIMILARITY_THRESHOLD);
+    const itemNorm = norm(item.embedding); // o data per fata, nu o data per comparatie
+    const bucket = clusters.find(c => cosineWithNorms(c.seed, c.seedNorm, item.embedding, itemNorm) >= CLUSTER_SIMILARITY_THRESHOLD);
     if (bucket) bucket.members.push(item);
-    else clusters.push({ seed: item.embedding, members: [item] });
+    else clusters.push({ seed: item.embedding, seedNorm: itemNorm, members: [item] });
   }
 
   return clusters

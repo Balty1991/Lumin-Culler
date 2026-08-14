@@ -190,6 +190,88 @@ export interface RestoreResult {
   decisionsMatched: number;
   decisionsTotal: number;
   settingsRestored: boolean;
+  /**
+   * Cate inregistrari au fost SARITE fiindca nu aveau forma asteptata — vezi
+   * validatoarele de mai jos. Optionale: apelantii existenti (store.ts) le pot
+   * ignora, dar exista ca restaurarea sa nu poata minti tacut despre ce a scris.
+   */
+  personsSkipped?: number;
+  modelsSkipped?: number;
+  decisionsSkipped?: number;
+}
+
+/**
+ * Bug real gasit de auditul QA, si cel mai grav din acest fisier: pana aici,
+ * SINGURA verificare facuta pe un fisier de backup era `Array.isArray` pe cele
+ * trei liste (parseBackupFile) — continutul lor ajungea NEVALIDAT direct in
+ * `db.persons.bulkPut` / `db.contextModels.bulkPut` / `db.photos.update`.
+ *
+ * Reprodus, nu presupus:
+ *  - un `contextModels: [{ contextKey: 'landscape' }]` (intrare fara `weights`/
+ *    `featureStats` — exact ce produce un fisier trunchiat la descarcare, un
+ *    backup dintr-un format mai vechi, sau unul deschis si re-salvat de un
+ *    editor) se restaura "cu succes", iar de la urmatoarea poza scorata
+ *    ContextEngine.predict() arunca `TypeError: Cannot read properties of
+ *    undefined (reading 'sharpness')`. Inregistrarea stricata e PERSISTATA in
+ *    IndexedDB, deci eroarea supravietuieste oricarui reload: scorarea AI
+ *    ramane moarta definitiv pentru acel context, fara nicio cale de reparare
+ *    din interfata (nici macar reimportul pozelor);
+ *  - un `persons: [{ id, name }]` fara `embeddings` se restaura la fel de
+ *    tacut, iar setKnownPersons il trimitea asa in worker-ul de recunoastere;
+ *  - un `photoDecisions: [{ status: 'GUNOI', rating: 'x' }]` scria literal
+ *    `status: 'GUNOI'` pe PhotoRecord — o poza care nu mai apare in niciun
+ *    filtru (nici pending, nici selected/rejected/review) si care nu mai poate
+ *    fi readusa la o stare valida decat prin reimport.
+ *
+ * Politica aleasa e cea deja declarata pentru BackupSettings mai sus ("un
+ * backup restaurat partial nu trebuie sa strice restul restaurarii"): fiecare
+ * inregistrare invalida e SARITA si numarata, restul se restaureaza normal.
+ */
+function isFiniteNumber(v: unknown): v is number {
+  return typeof v === 'number' && Number.isFinite(v);
+}
+
+/** Un dictionar plat de numere finite (weights, si valorile numerice din featureStats). */
+function isNumberRecord(v: unknown): v is Record<string, number> {
+  return !!v && typeof v === 'object' && !Array.isArray(v)
+    && Object.values(v as Record<string, unknown>).every(isFiniteNumber);
+}
+
+function isValidFeatureStats(v: unknown): v is ContextModelRecord['featureStats'] {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return false;
+  return Object.values(v as Record<string, unknown>).every(
+    s => !!s && typeof s === 'object' && isFiniteNumber((s as { mean?: unknown }).mean)
+      && isFiniteNumber((s as { m2?: unknown }).m2) && isFiniteNumber((s as { n?: unknown }).n)
+  );
+}
+
+function isValidContextModel(v: unknown): v is ContextModelRecord {
+  if (!v || typeof v !== 'object') return false;
+  const m = v as Record<string, unknown>;
+  return typeof m.contextKey === 'string' && m.contextKey.length > 0
+    && isNumberRecord(m.weights) && isValidFeatureStats(m.featureStats)
+    && isFiniteNumber(m.bias) && isFiniteNumber(m.sampleCount) && m.sampleCount >= 0;
+}
+
+function isValidPerson(v: unknown): v is KnownPerson {
+  if (!v || typeof v !== 'object') return false;
+  const p = v as Record<string, unknown>;
+  return typeof p.id === 'string' && p.id.length > 0 && typeof p.name === 'string'
+    // `length > 0`: un profil inrolat FARA nicio referinta faciala nu poate
+    // potrivi nimic niciodata — e o intrare stricata, nu una goala legitima.
+    && Array.isArray(p.embeddings) && p.embeddings.length > 0
+    && p.embeddings.every(e => Array.isArray(e) && e.length > 0 && e.every(isFiniteNumber));
+}
+
+const VALID_STATUSES: readonly PhotoRecord['status'][] = ['pending', 'selected', 'rejected', 'review'];
+
+function isValidDecision(v: unknown): v is BackupPhotoDecision {
+  if (!v || typeof v !== 'object') return false;
+  const d = v as Record<string, unknown>;
+  return typeof d.fileName === 'string'
+    && (d.capturedAt === undefined || isFiniteNumber(d.capturedAt))
+    && (VALID_STATUSES as readonly unknown[]).includes(d.status)
+    && (d.rating === undefined || isFiniteNumber(d.rating));
 }
 
 /** amprenta unei poze pentru potrivire intre sesiuni — id-ul (UUID) nu supravietuieste unui reimport. */
@@ -210,9 +292,15 @@ function fingerprint(p: { fileName: string; capturedAt?: number }): string {
  */
 export async function restoreBackup(data: BackupData): Promise<RestoreResult> {
   let decisionsMatched = 0;
+  // Vezi isValidContextModel/isValidPerson/isValidDecision mai sus pentru ce
+  // anume strica o singura inregistrare nevalidata ajunsa in IndexedDB.
+  const persons = data.persons.filter(isValidPerson);
+  const contextModels = data.contextModels.filter(isValidContextModel);
+  const decisions = data.photoDecisions.filter(isValidDecision);
+
   await db.transaction('rw', [db.persons, db.contextModels, db.photos, db.embeddingMemory, db.tagMemory], async () => {
-    if (data.persons.length) await db.persons.bulkPut(data.persons);
-    if (data.contextModels.length) await db.contextModels.bulkPut(data.contextModels);
+    if (persons.length) await db.persons.bulkPut(persons);
+    if (contextModels.length) await db.contextModels.bulkPut(contextModels);
     if (data.embeddingMemory) await db.embeddingMemory.put(data.embeddingMemory);
     if (data.tagMemory) await db.tagMemory.put(data.tagMemory);
 
@@ -230,7 +318,7 @@ export async function restoreBackup(data: BackupData): Promise<RestoreResult> {
       const bucket = byFingerprint.get(key);
       if (bucket) bucket.push(p); else byFingerprint.set(key, [p]);
     }
-    for (const d of data.photoDecisions) {
+    for (const d of decisions) {
       const matches = byFingerprint.get(fingerprint(d));
       if (!matches) continue;
       for (const match of matches) {
@@ -251,10 +339,15 @@ export async function restoreBackup(data: BackupData): Promise<RestoreResult> {
   if (data.settings) applySettings(data.settings);
 
   return {
-    personsRestored: data.persons.length,
-    modelsRestored: data.contextModels.length,
+    // Numarul REAL scris, nu lungimea listei din fisier — altfel notice-ul din
+    // store.ts ar raporta "N persoane restaurate" inclusiv pentru intrari sarite.
+    personsRestored: persons.length,
+    modelsRestored: contextModels.length,
     decisionsMatched,
-    decisionsTotal: data.photoDecisions.length,
-    settingsRestored: !!data.settings
+    decisionsTotal: decisions.length,
+    settingsRestored: !!data.settings,
+    personsSkipped: data.persons.length - persons.length,
+    modelsSkipped: data.contextModels.length - contextModels.length,
+    decisionsSkipped: data.photoDecisions.length - decisions.length
   };
 }

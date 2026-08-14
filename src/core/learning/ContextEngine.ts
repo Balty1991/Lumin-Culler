@@ -970,6 +970,36 @@ export class ContextEngine {
 
   // ── Internals ──────────────────────────────────────────────────────────────
 
+  /**
+   * Bug real gasit de auditul QA, in tandem cu validarea din
+   * core/backupService.ts: un ContextModelRecord poate ajunge in IndexedDB cu
+   * campuri lipsa (restaurare a unui backup trunchiat/editat — inainte de fix,
+   * restoreBackup scria lista verbatim cu bulkPut). Efectul era o eroare
+   * PERMANENTA, nu una trecatoare: `model.weights[k]` pe un `weights`
+   * undefined arunca `TypeError: Cannot read properties of undefined`, la
+   * FIECARE poza scorata, iar inregistrarea stricata traieste pe disc — deci
+   * reload-ul paginii n-o repara, reimportul pozelor n-o repara, si scorarea
+   * AI ramanea moarta pentru acel context pana la stergerea datelor din browser.
+   *
+   * Validarea din backupService opreste scrierile NOI, dar nu repara bazele
+   * deja stricate ale utilizatorilor care au restaurat inainte de acest fix.
+   * De asta reparam si la CITIRE: orice camp lipsa/de tip gresit revine la
+   * valoarea unui model nou (prior-uri + statistici semanate), pastrand ce e
+   * inca folosibil din inregistrare. Un model care si-a pierdut ponderile
+   * porneste de la cunostintele de baza — mult mai bine decat sa nu mai poata
+   * scora nimic niciodata.
+   */
+  private static repair(model: ContextModelRecord): ContextModelRecord {
+    const isNumberRecord = (v: unknown): boolean =>
+      !!v && typeof v === 'object' && !Array.isArray(v)
+      && Object.values(v as Record<string, unknown>).every(n => typeof n === 'number' && Number.isFinite(n));
+    if (!isNumberRecord(model.weights)) model.weights = { ...PRIOR_WEIGHTS };
+    if (!model.featureStats || typeof model.featureStats !== 'object') model.featureStats = seedFeatureStats();
+    if (!Number.isFinite(model.bias)) model.bias = 0;
+    if (!Number.isFinite(model.sampleCount) || model.sampleCount < 0) model.sampleCount = 0;
+    return model;
+  }
+
   private getOrCreateModel(contextKey: string): ContextModelRecord {
     let model = this.models.get(contextKey);
     if (!model) {
@@ -983,7 +1013,7 @@ export class ContextEngine {
       };
       this.models.set(contextKey, model);
     }
-    return model;
+    return ContextEngine.repair(model);
   }
 
   /**

@@ -109,12 +109,27 @@ export function PresentationMode() {
     setIndex(i => (i + delta + photos.length) % photos.length);
   };
 
+  /**
+   * Avansul automat NU mai atarna de `prefers-reduced-motion`.
+   *
+   * Bug real gasit la auditul UI: setarea taia complet avansul, nu doar
+   * animatiile — iar Ken Burns si tranzitia sunt oricum tratate separat, prin
+   * `reduceMotion` in `transition`. Rezultatul: pentru cineva cu setarea
+   * activata, prezentarea nu pornea niciodata, iar butonul de redare/pauza
+   * ramanea pe ecran perfect inert. O comanda moarta care arata functionala e
+   * mai rea decat absenta ei.
+   *
+   * "Miscare redusa" inseamna fara animatii, nu fara functie: o prezentare care
+   * nu avanseaza nu mai e o prezentare. Cerinta WCAG pentru continut care
+   * avanseaza singur (sa poata fi oprit) e satisfacuta de butonul de pauza, care
+   * exista si functioneaza.
+   */
   useEffect(() => {
-    if (!open || !playing || photos.length < 2 || reduceMotion) return;
+    if (!open || !playing || photos.length < 2) return;
     const id = setTimeout(() => step(1), ADVANCE_MS);
     return () => clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, playing, index, photos.length, reduceMotion]);
+  }, [open, playing, index, photos.length]);
 
   const bumpControls = () => {
     setControlsVisible(true);
