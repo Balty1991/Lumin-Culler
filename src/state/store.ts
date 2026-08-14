@@ -49,6 +49,7 @@ import { readStoredTheme, applyTheme, type Theme } from './theme';
 import { readStoredAccent, applyAccent, type AccentTheme } from './accentTheme';
 import { readWelcomeSeen, writeWelcomeSeen } from './welcomeOnboarding';
 import { keepScreenAwake } from '../core/wakeLock';
+import { createActiveElapsed, type ActiveElapsed } from '../core/activeElapsed';
 import { readAccessibleMode, applyAccessibleMode } from '../core/accessibleMode';
 import { readSmartNotificationEnabled, writeSmartNotificationEnabled } from './smartNotification';
 import {
@@ -1603,6 +1604,10 @@ export const useStore = create<AppState>((set, get) => ({
     set({ supervisorImporting: true });
     const locale = get().locale;
     const beforeIds = new Set(get().photos.map(p => p.id));
+    // Citirea din galerie e INAINTE de runImport, care isi ia propria blocare —
+    // pe un lot mare tine minute bune, iar ecranul se stingea taman atunci.
+    // Blocarea e refcontorizata (core/wakeLock.ts), deci suprapunerea e sigura.
+    const releaseWakeLock = keepScreenAwake();
     try {
       // Fara asta, citirea a 839 de poze dura minute intregi cu ecranul gol
       // si utilizatorul credea ca aplicatia e blocata (raportat cu captura).
@@ -1647,6 +1652,7 @@ export const useStore = create<AppState>((set, get) => ({
     } catch (err) {
       set({ notice: t(locale, 'gallerySupervisor.failed', { error: String(err) }) });
     } finally {
+      releaseWakeLock();
       set({ supervisorImporting: false });
     }
   },
@@ -1680,6 +1686,7 @@ export const useStore = create<AppState>((set, get) => ({
     set({ supervisorImporting: true });
     const locale = get().locale;
     const beforeIds = new Set(get().photos.map(p => p.id));
+    const releaseWakeLock = keepScreenAwake();
     try {
       const read = await pickPhotosInFolder(bucketId, (done, total) =>
         set({ progress: { done, total, fileName: '', phase: 'citire' } })
@@ -1703,6 +1710,7 @@ export const useStore = create<AppState>((set, get) => ({
     } catch (err) {
       set({ notice: t(locale, 'gallerySupervisor.failed', { error: String(err) }) });
     } finally {
+      releaseWakeLock();
       set({ supervisorImporting: false });
     }
   },
@@ -1719,6 +1727,7 @@ export const useStore = create<AppState>((set, get) => ({
     set({ supervisorImporting: true });
     const locale = get().locale;
     const beforeIds = new Set(get().photos.map(p => p.id));
+    const releaseWakeLock = keepScreenAwake();
     try {
       // Cate un apel per folder, in paralel — fiecare folder al galeriei e independent,
       // acelasi motiv pentru care pickPhotosInFolder/pickPhotosInRange trateaza deja
@@ -1752,6 +1761,7 @@ export const useStore = create<AppState>((set, get) => ({
     } catch (err) {
       set({ notice: t(locale, 'gallerySupervisor.failed', { error: String(err) }) });
     } finally {
+      releaseWakeLock();
       set({ supervisorImporting: false });
     }
   },
@@ -1980,7 +1990,14 @@ export const useStore = create<AppState>((set, get) => ({
     // separat de `startedAt` (folosit pentru lastImportStats, care include si
     // faza 'incarcare' de dinainte de bucla) — vrem rata reala doar din faza
     // 'analiza', altfel primele tick-uri ar subestima rata si ar umfla ETA-ul
-    let analysisStartedAt: number | null = null;
+    // Numara doar timpul in PRIM-PLAN: cu aplicatia minimizata, Android suspenda
+    // WebView-ul si nu se proceseaza nimic, iar timpul acela bagat in medie
+    // umfla estimarea in loc s-o scada (raportat de utilizator, cu doua capturi:
+    // 155/839 "~23m ramase", apoi 162/839 "~41m ramase"). Vezi core/activeElapsed.ts.
+    let analysisClock: ActiveElapsed | null = null;
+    const onAnalysisVisibility = () =>
+      analysisClock?.setVisible(document.visibilityState === 'visible', Date.now());
+    document.addEventListener('visibilitychange', onAnalysisVisibility);
     const cancelToken = createCancelToken();
     activeCancelToken = cancelToken;
     // Bug real gasit de auditul QA (raportat de utilizator: "abia incarca poze"
@@ -2019,8 +2036,10 @@ export const useStore = create<AppState>((set, get) => ({
           if (progress.thresholds) adaptedThresholds = progress.thresholds;
           let etaSeconds: number | undefined;
           if (progress.phase === 'analiza') {
-            if (analysisStartedAt === null) analysisStartedAt = Date.now();
-            const elapsedSec = (Date.now() - analysisStartedAt) / 1000;
+            if (analysisClock === null) {
+              analysisClock = createActiveElapsed(document.visibilityState === 'visible', Date.now());
+            }
+            const elapsedSec = analysisClock.elapsedMs(Date.now()) / 1000;
             const remaining = progress.total - progress.done;
             // sub 1s scursa sau 0 poze gata => rata nu inseamna inca nimic (ar
             // da un ETA fals de precis din 1-2 tick-uri) — asteptam date reale
@@ -2055,6 +2074,7 @@ export const useStore = create<AppState>((set, get) => ({
       // ultimele poze bufferizate (deja scrise in IndexedDB de processOne) ar
       // ramane invizibile in UI pana la un reload, desi nu s-au pierdut din DB.
       flushPendingPhotos();
+      document.removeEventListener('visibilitychange', onAnalysisVisibility);
       if (activeCancelToken === cancelToken) activeCancelToken = null;
       set({ importCancelling: false });
       releaseWakeLock();
