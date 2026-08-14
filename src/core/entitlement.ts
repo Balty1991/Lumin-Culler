@@ -1,9 +1,11 @@
 /**
  * core/entitlement.ts
- * Fundatia LOCALA a modelului freemium decis pentru monetizare: folosirea de
- * baza (import, scor AI, sortare, export normal) ramane gratuita la nesfarsit;
- * recunoasterea a mai mult de o persoana si exportul de poze peste un plafon
- * lunar generos sunt gandite ca sa ceara abonament.
+ * Fundatia LOCALA a modelului freemium: TRIAJUL e gratuit la nesfarsit —
+ * import, scor AI, sortare, grupare, oricate poze. Se plateste pentru ce faci
+ * cu rezultatul: pentru pozele SCOASE din aplicatie peste un plafon lunar
+ * generos (exportate sau sterse din telefon — vezi FREE_PHOTOS_PER_MONTH),
+ * pentru a doua persoana recunoscuta, si pentru functiile de dupa triaj (vezi
+ * isPremiumFeatureLocked).
  *
  * Sursa de adevar e Google Play, nu acest fisier: refreshEntitlement() intreaba
  * plugin-ul de billing si scrie raspunsul in PREMIUM_FLAG_KEY. isPremium()
@@ -27,10 +29,20 @@ import { isBillingAvailable, queryPremiumActive, queryPremiumPrice } from './bil
 const PREMIUM_FLAG_KEY = 'lumin-premium';
 /** Play a confirmat cel putin o data ca abonamentul chiar poate fi cumparat — vezi isPurchasable(). */
 const PURCHASABLE_KEY = 'lumin-billing-ready';
-const EXPORT_LOG_KEY = 'lumin-export-log';
+/** Numele cheii ramane cel vechi ca sa nu se piarda contorul celor care au deja aplicatia. */
+const USAGE_LOG_KEY = 'lumin-export-log';
 
-/** Cate poze poate exporta gratuit un utilizator neabonat, intr-o fereastra glisanta de 30 de zile. */
-export const FREE_EXPORT_PHOTOS_PER_MONTH = 150;
+/**
+ * Cate poze poate SCOATE gratuit un utilizator neabonat dintr-o fereastra
+ * glisanta de 30 de zile.
+ *
+ * "A scoate" acopera si exportul, si stergerea din telefon — observatie a
+ * utilizatorului, si are dreptate: amandoua incaseaza rezultatul triajului.
+ * Cine trage 5000 de poze, sterge respinsele si isi curata galeria a primit
+ * exact folosul pentru care se plateste, fara sa exporte nimic. Un plafon doar
+ * pe export ar fi fost o portita, nu un model.
+ */
+export const FREE_PHOTOS_PER_MONTH = 150;
 /** Cate persoane poate inrola gratuit un utilizator neabonat (a doua+ cere abonament). */
 export const FREE_ENROLLED_PERSONS = 1;
 
@@ -115,7 +127,7 @@ export function isPremium(): boolean {
 
 function readExportLog(): number[] {
   try {
-    const raw = localStorage.getItem(EXPORT_LOG_KEY);
+    const raw = localStorage.getItem(USAGE_LOG_KEY);
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed.filter((v): v is number => typeof v === 'number') : [];
@@ -126,24 +138,24 @@ function readExportLog(): number[] {
 
 function writeExportLog(entries: number[]): void {
   try {
-    localStorage.setItem(EXPORT_LOG_KEY, JSON.stringify(entries));
+    localStorage.setItem(USAGE_LOG_KEY, JSON.stringify(entries));
   } catch {
     // stocare indisponibila (mod privat strict etc.) — folosirea continua fara sa fie numarata, degradare sigura
   }
 }
 
-/** Cate poze au fost exportate in ultimele 30 de zile (fereastra glisanta, nu "luna calendaristica"). */
-export function exportsInRollingMonth(now = Date.now()): number {
+/** Cate poze au fost scoase (exportate SAU sterse din telefon) in ultimele 30 de zile — fereastra glisanta, nu "luna calendaristica". */
+export function photosUsedInRollingMonth(now = Date.now()): number {
   const cutoff = now - ROLLING_WINDOW_MS;
   return readExportLog().filter(ts => ts > cutoff).length;
 }
 
 /**
- * Inregistreaza `count` poze exportate ACUM. Apelata neconditionat (chiar si
- * pentru utilizatori premium) — jurnalul ramane util pentru un eventual ecran
- * "ai exportat X poze luna asta", indiferent de abonament.
+ * Inregistreaza `count` poze scoase ACUM (exportate sau sterse din telefon).
+ * Apelata neconditionat, chiar si pentru abonati — jurnalul ramane util pentru
+ * ecranul de folosire, indiferent de abonament.
  */
-export function recordExport(count: number, now = Date.now()): void {
+export function recordPhotosUsed(count: number, now = Date.now()): void {
   if (count <= 0) return;
   const cutoff = now - ROLLING_WINDOW_MS;
   const kept = readExportLog().filter(ts => ts > cutoff);
@@ -151,10 +163,10 @@ export function recordExport(count: number, now = Date.now()): void {
   writeExportLog(kept);
 }
 
-/** Cate poze mai poate exporta gratuit utilizatorul in fereastra curenta (Infinity daca e premium). */
-export function remainingFreeExports(now = Date.now()): number {
+/** Cate poze mai poate scoate gratuit utilizatorul in fereastra curenta (Infinity daca e premium). */
+export function remainingFreePhotos(now = Date.now()): number {
   if (isPremium()) return Infinity;
-  return Math.max(0, FREE_EXPORT_PHOTOS_PER_MONTH - exportsInRollingMonth(now));
+  return Math.max(0, FREE_PHOTOS_PER_MONTH - photosUsedInRollingMonth(now));
 }
 
 /** true daca utilizatorul mai poate inrola inca o persoana fara abonament. */

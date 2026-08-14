@@ -5,7 +5,7 @@
  */
 import { create } from 'zustand';
 import { db, type AnalysisRecord, type PhotoRecord, type KnownPerson, type ColorLabel, type CollectionRecord } from '../core/db';
-import { recordExport, remainingFreeExports, isPremium, canEnrollAnotherPersonFree, FREE_EXPORT_PHOTOS_PER_MONTH, refreshEntitlement, isCapEnforced, isPremiumFeatureLocked, FREE_ENROLLED_PERSONS } from '../core/entitlement';
+import { recordPhotosUsed, remainingFreePhotos, isPremium, canEnrollAnotherPersonFree, FREE_PHOTOS_PER_MONTH, refreshEntitlement, isCapEnforced, isPremiumFeatureLocked, FREE_ENROLLED_PERSONS } from '../core/entitlement';
 import {
   loadCollections, createCollection as createCollectionRecord, renameCollection as renameCollectionRecord,
   deleteCollection as deleteCollectionRecord, addPhotosToCollection as addPhotosToCollectionRecord,
@@ -1073,8 +1073,8 @@ function quotaNotice(locale: Locale): string {
  * blocheaza pe urmatorul.
  */
 function freeExportCapNotice(locale: Locale): string {
-  if (isPremium() || remainingFreeExports() > 0) return '';
-  return ' ' + t(locale, 'store.exportSelection.freeCapReached', { limit: FREE_EXPORT_PHOTOS_PER_MONTH });
+  if (isPremium() || remainingFreePhotos() > 0) return '';
+  return ' ' + t(locale, 'store.exportSelection.freeCapReached', { limit: FREE_PHOTOS_PER_MONTH });
 }
 
 /** Plafon de referinte faciale per persoana — reinrolarile succesive extind profilul, nu-l lasa sa creasca la nesfarsit. */
@@ -2558,6 +2558,24 @@ export const useStore = create<AppState>((set, get) => ({
     if (!deletable.length) return { deleted: 0, skipped: skippedCount, cancelled: false };
     if (!isNativeMediaLibraryAvailable()) return { deleted: 0, skipped: skippedCount + deletable.length, cancelled: false };
 
+    // Acelasi plafon ca la export, si din acelasi buget — observatie a
+    // utilizatorului: a-ti curata galeria stergand respinsele e exact folosul
+    // pentru care se plateste, doar incasat altfel. Un plafon pus doar pe export
+    // ar fi lasat drumul asta liber, iar cine tria 5000 de poze si stergea
+    // respinsele n-ar fi platit niciodata.
+    //
+    // Refuzam tot lotul, nu o parte: dupa un dialog de stergere e cu atat mai
+    // rau sa nu stii care poze au disparut si care nu.
+    if (isCapEnforced() && deletable.length > remainingFreePhotos()) {
+      set({
+        notice: t(locale, 'store.deleteRejected.capBlocked', {
+          count: deletable.length, remaining: remainingFreePhotos(), limit: FREE_PHOTOS_PER_MONTH
+        }),
+        premiumOpen: true
+      });
+      return { deleted: 0, skipped: skippedCount + deletable.length, cancelled: true };
+    }
+
     let result: { cancelled: boolean; skippedUris: string[] };
     try {
       result = await deleteNativePhotos(deletable.map(p => p.mediaUri!));
@@ -2588,6 +2606,9 @@ export const useStore = create<AppState>((set, get) => ({
       db.originals.bulkDelete(ids), db.fileHandles.bulkDelete(ids), db.analyses.bulkDelete(ids)
     ]);
     for (const id of ids) { originalFiles.delete(id); originalHandles.delete(id); }
+
+    // Se scad din acelasi buget de 150 ca exporturile — vezi plafonul de mai sus.
+    recordPhotosUsed(ids.length);
 
     const totalSkipped = skippedCount + nativeSkippedCount;
     const deletedNotice = t(locale, 'store.deleteRejected.notice', { deleted: ids.length });
@@ -3116,10 +3137,10 @@ export const useStore = create<AppState>((set, get) => ({
     // isCapEnforced). Refuzam tot lotul in loc sa exportam partial: "150 din
     // cele 300 de poze" lasa utilizatorul sa ghiceasca singur care au plecat si
     // care nu, iar dupa un triaj lung asta e mai rau decat un refuz clar.
-    if (isCapEnforced() && selected.length > remainingFreeExports()) {
+    if (isCapEnforced() && selected.length > remainingFreePhotos()) {
       set({
         notice: t(get().locale, 'store.exportSelection.capBlocked', {
-          count: selected.length, remaining: remainingFreeExports(), limit: FREE_EXPORT_PHOTOS_PER_MONTH
+          count: selected.length, remaining: remainingFreePhotos(), limit: FREE_PHOTOS_PER_MONTH
         }),
         premiumOpen: true
       });
@@ -3162,7 +3183,7 @@ export const useStore = create<AppState>((set, get) => ({
       // INLOCUIASCA toast-ul de progres, altfel "Se exporta..." ramane agatat
       // pe ecran la infinit — bug real raportat de utilizator.
       if (result.cancelled) { set({ notice: t(locale, 'store.exportSelection.cancelled') }); return; }
-      recordExport(result.exported);
+      recordPhotosUsed(result.exported);
       const parts = [
         result.exported
           ? t(locale,
@@ -3232,7 +3253,7 @@ export const useStore = create<AppState>((set, get) => ({
       });
       // vezi comentariul identic din exportSelection mai sus
       if (result.cancelled) { set({ notice: t(locale, 'store.exportSelection.cancelled') }); return; }
-      recordExport(result.exported);
+      recordPhotosUsed(result.exported);
       const parts = [
         result.exported
           ? t(locale,

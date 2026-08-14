@@ -1,5 +1,5 @@
 import { useStore } from '../state/store';
-import { isPremium, remainingFreeExports } from '../core/entitlement';
+import { isPremium, remainingFreePhotos } from '../core/entitlement';
 import { SparkleIcon, XIcon } from './icons';
 import { t } from '../i18n';
 
@@ -34,7 +34,7 @@ export function SessionOutcome() {
   if (!outcome) return null;
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
 
-  const remaining = remainingFreeExports();
+  const remaining = remainingFreePhotos();
   // Doar cand limita chiar sta in calea a ceea ce tocmai ai triat.
   const exportPressure = !isPremium() && selectedCount > remaining;
 

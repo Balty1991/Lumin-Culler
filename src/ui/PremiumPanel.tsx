@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { XIcon, StarIcon, UserCheckIcon, DownloadIcon, SparkleIcon, TagIcon, PlayIcon, CheckIcon } from './icons';
-import { FREE_EXPORT_PHOTOS_PER_MONTH, FREE_ENROLLED_PERSONS, exportsInRollingMonth } from '../core/entitlement';
+import { FREE_PHOTOS_PER_MONTH, FREE_ENROLLED_PERSONS, photosUsedInRollingMonth } from '../core/entitlement';
 import { refreshEntitlement } from '../core/entitlement';
 import { isBillingAvailable, queryPremiumPrice, startSubscription } from '../core/billing';
 import { t } from '../i18n';
@@ -51,7 +51,7 @@ export function PremiumPanel() {
 
   if (!open) return null;
 
-  const exported = exportsInRollingMonth();
+  const exported = photosUsedInRollingMonth();
 
   return (
     <div className="detail" onClick={e => { if (e.target === e.currentTarget) setOpen(false); }}>
@@ -75,7 +75,7 @@ export function PremiumPanel() {
           <i aria-hidden="true"><DownloadIcon /></i>
           <span>
             <b>{tr('premium.perk.export.title')}</b>
-            <span>{tr('premium.perk.export.sub', { limit: FREE_EXPORT_PHOTOS_PER_MONTH })}</span>
+            <span>{tr('premium.perk.export.sub', { limit: FREE_PHOTOS_PER_MONTH })}</span>
           </span>
         </div>
         <div className="premium-perk">
@@ -117,7 +117,7 @@ export function PremiumPanel() {
         </div>
 
         <div className="premium-usage">
-          <b>{tr('premium.usage.title', { count: exported, limit: FREE_EXPORT_PHOTOS_PER_MONTH })}</b>
+          <b>{tr('premium.usage.title', { count: exported, limit: FREE_PHOTOS_PER_MONTH })}</b>
           <span>{tr('premium.usage.persons', { count: persons.length, limit: FREE_ENROLLED_PERSONS })}</span>
         </div>
 
