@@ -21,7 +21,8 @@ export interface ImportProgress {
   done: number;
   total: number;
   fileName: string;
-  phase: 'incarcare' | 'pregatire' | 'analiza' | 'grupare' | 'finalizat';
+  /** 'citire' = se aduc pozele din galerie, INAINTE de import (vezi nativeMediaLibrary.toFiles). */
+  phase: 'citire' | 'incarcare' | 'pregatire' | 'analiza' | 'grupare' | 'finalizat';
   /** setat doar pe ultimul apel, daca importul s-a oprit inainte de a termina toate fisierele */
   warning?: string;
   /**

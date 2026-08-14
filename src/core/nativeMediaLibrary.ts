@@ -145,21 +145,47 @@ export interface GalleryReadResult {
   photos: RangePickedPhoto[];
 }
 
+/**
+ * Cate citiri simultane din MediaStore.
+ *
+ * Bug real raportat de utilizator: "Adu pozele" statea minute intregi fara
+ * niciun semn, apoi pornea brusc cu 839 de poze. Cauza nu era o eroare, ci un
+ * Promise.allSettled peste TOATA lista — 839 de fetch-uri lansate in aceeasi
+ * clipa. WebView-ul le pune la coada oricum, deci nimic nu se termina mai
+ * repede; se pierde doar orice posibilitate de a raporta inaintarea, si se
+ * incarca degeaba memoria cu sute de blob-uri deodata.
+ *
+ * 8: destul cat sa acopere latenta de I/O, destul de putin cat sa nu tina in
+ * memorie mai mult de cateva poze decodate simultan.
+ */
+const READ_CONCURRENCY = 8;
+
 /** Poze ilizibile individual sunt ignorate, nu opresc tot lotul. */
-async function toFiles(raw: { uri: string; name: string; capturedAt: number }[]): Promise<RangePickedPhoto[]> {
-  const settled = await Promise.allSettled(
-    raw.map(async p => {
-      const response = await fetch(Capacitor.convertFileSrc(p.uri));
-      const blob = await response.blob();
-      const file = new File([blob], p.name, { type: blob.type });
-      return { uri: p.uri, name: p.name, capturedAt: p.capturedAt, file };
+async function toFiles(
+  raw: { uri: string; name: string; capturedAt: number }[],
+  onProgress?: (done: number, total: number) => void
+): Promise<RangePickedPhoto[]> {
+  const photos: RangePickedPhoto[] = [];
+  let index = 0;
+  let done = 0;
+  onProgress?.(0, raw.length);
+  await Promise.all(
+    Array.from({ length: Math.min(READ_CONCURRENCY, raw.length) }, async () => {
+      while (true) {
+        const i = index++;
+        if (i >= raw.length) break;
+        const p = raw[i];
+        try {
+          const response = await fetch(Capacitor.convertFileSrc(p.uri));
+          const blob = await response.blob();
+          photos.push({ uri: p.uri, name: p.name, capturedAt: p.capturedAt, file: new File([blob], p.name, { type: blob.type }) });
+        } catch (err) {
+          console.warn('Poza ilizibila, ignorata:', err);
+        }
+        onProgress?.(++done, raw.length);
+      }
     })
   );
-  const photos: RangePickedPhoto[] = [];
-  settled.forEach(r => {
-    if (r.status === 'fulfilled') photos.push(r.value);
-    else console.warn('Poza ilizibila, ignorata:', r.reason);
-  });
   return photos;
 }
 
@@ -169,10 +195,13 @@ async function toFiles(raw: { uri: string; name: string; capturedAt: number }[])
  * conversie File prin Capacitor.convertFileSrc ca pickNativePhotos() de mai
  * sus; poze ilizibile individual sunt ignorate, nu opresc tot lotul.
  */
-export async function pickPhotosInRange(startMs: number, endMs: number): Promise<GalleryReadResult> {
+export async function pickPhotosInRange(
+  startMs: number, endMs: number,
+  onProgress?: (done: number, total: number) => void
+): Promise<GalleryReadResult> {
   const result = await MediaLibraryNative.photosInRange({ startMs: String(startMs), endMs: String(endMs) });
   if (!result.granted) return { granted: false, photos: [] };
-  return { granted: true, photos: await toFiles(result.photos) };
+  return { granted: true, photos: await toFiles(result.photos, onProgress) };
 }
 
 /**
@@ -185,10 +214,13 @@ export async function readGalleryFolders(): Promise<{ granted: boolean; folders:
 }
 
 /** Aduce DIRECT toate pozele dintr-un folder — vezi pickPhotosInRange mai sus pentru acelasi tipar de conversie File. */
-export async function pickPhotosInFolder(bucketId: string): Promise<GalleryReadResult> {
+export async function pickPhotosInFolder(
+  bucketId: string,
+  onProgress?: (done: number, total: number) => void
+): Promise<GalleryReadResult> {
   const result = await MediaLibraryNative.photosInFolder({ bucketId });
   if (!result.granted) return { granted: false, photos: [] };
-  return { granted: true, photos: await toFiles(result.photos) };
+  return { granted: true, photos: await toFiles(result.photos, onProgress) };
 }
 
 /**

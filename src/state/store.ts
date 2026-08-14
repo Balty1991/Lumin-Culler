@@ -1604,7 +1604,15 @@ export const useStore = create<AppState>((set, get) => ({
     const locale = get().locale;
     const beforeIds = new Set(get().photos.map(p => p.id));
     try {
-      const read = await pickPhotosInRange(period.start, period.end);
+      // Fara asta, citirea a 839 de poze dura minute intregi cu ecranul gol
+      // si utilizatorul credea ca aplicatia e blocata (raportat cu captura).
+      const read = await pickPhotosInRange(period.start, period.end, (done, total) =>
+        set({ progress: { done, total, fileName: '', phase: 'citire' } })
+      );
+      // Citirea s-a terminat: runImport isi pune propriul progres mai jos, iar
+      // pe caile fara import (acces refuzat, perioada goala) nu trebuie sa ramana
+      // o bara inghetata pe ecran.
+      set({ progress: null });
       // Acces refuzat/partial: NU avansam cursorul si spunem exact ce s-a
       // intamplat. Bug real raportat de utilizator: "Adu pozele" parea ca nu
       // face nimic, minute intregi, fara niciun mesaj — pentru ca "n-am avut
@@ -1673,7 +1681,10 @@ export const useStore = create<AppState>((set, get) => ({
     const locale = get().locale;
     const beforeIds = new Set(get().photos.map(p => p.id));
     try {
-      const read = await pickPhotosInFolder(bucketId);
+      const read = await pickPhotosInFolder(bucketId, (done, total) =>
+        set({ progress: { done, total, fileName: '', phase: 'citire' } })
+      );
+      set({ progress: null });
       if (!read.granted) {
         set({ notice: t(locale, 'gallerySupervisor.noAccess') });
         return;
@@ -1712,7 +1723,13 @@ export const useStore = create<AppState>((set, get) => ({
       // Cate un apel per folder, in paralel — fiecare folder al galeriei e independent,
       // acelasi motiv pentru care pickPhotosInFolder/pickPhotosInRange trateaza deja
       // fiecare poza individual (Promise.allSettled) fara sa opreasca tot lotul la o eroare.
-      const results = await Promise.all(folders.map(f => pickPhotosInFolder(f.id)));
+      // Un contor comun peste toate folderele: fiecare apel raporteaza propriul
+      // total, iar utilizatorul trebuie sa vada inaintarea intregii operatii.
+      let readDone = 0;
+      const results = await Promise.all(folders.map(f => pickPhotosInFolder(f.id, () =>
+        set({ progress: { done: ++readDone, total: 0, fileName: '', phase: 'citire' } })
+      )));
+      set({ progress: null });
       // Un singur refuz de acces opreste tot: daca nu putem citi galeria, a
       // marca fie si un singur folder drept adus ar ascunde pozele lui pentru
       // totdeauna din "Toate folderele".
@@ -3013,6 +3030,10 @@ export const useStore = create<AppState>((set, get) => ({
       batchHistory: [], fieldBatchHistory: [],
       multiSelectIds: new Set(), multiSelectAnchor: null, selectMode: false,
       supervisorCoveredUntil: null, supervisorImportedFolderIds: new Set(), lastSupervisorImportIds: null,
+      // Bug real raportat de utilizator (captura): cardul "Gata. Iata ce am
+      // facut. Am decis singur 16 din 21 poze" ramanea pe ecranul GOL, dupa
+      // ce sesiunea fusese stearsa — un raport despre poze care nu mai exista.
+      sessionOutcome: null,
     });
   },
 
@@ -3039,6 +3060,10 @@ export const useStore = create<AppState>((set, get) => ({
       batchHistory: [], fieldBatchHistory: [],
       multiSelectIds: new Set(), multiSelectAnchor: null, selectMode: false,
       supervisorCoveredUntil: null, supervisorImportedFolderIds: new Set(), lastSupervisorImportIds: null,
+      // Bug real raportat de utilizator (captura): cardul "Gata. Iata ce am
+      // facut. Am decis singur 16 din 21 poze" ramanea pe ecranul GOL, dupa
+      // ce sesiunea fusese stearsa — un raport despre poze care nu mai exista.
+      sessionOutcome: null,
     });
   },
 

@@ -881,7 +881,11 @@ export default function App() {
             <div className="progress" role="status" aria-live="polite">
               <div className="progress-bar" style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }} />
               <span className="mono">
-                {progress.phase === 'analiza'
+                {progress.phase === 'citire'
+                  ? (progress.total
+                    ? tr('app.progress.reading', { done: progress.done, total: progress.total })
+                    : tr('app.progress.readingUnknown', { done: progress.done }))
+                  : progress.phase === 'analiza'
                   ? (progress.etaSeconds !== undefined
                     ? tr('app.progress.analyzingEta', { done: progress.done, total: progress.total, fileName: progress.fileName, eta: formatEta(progress.etaSeconds) })
                     : tr('app.progress.analyzing', { done: progress.done, total: progress.total, fileName: progress.fileName }))
