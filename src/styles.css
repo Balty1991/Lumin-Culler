@@ -1663,6 +1663,16 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .premium-subscribe { width: 100%; margin-top: 4px; }
 .premium-subscribe:disabled { opacity: 0.6; cursor: default; }
 
+/* "Am deja abonament — restaureaza". Deliberat discret sub butonul de
+   cumparare: il cauta doar cine chiar a platit deja (telefon nou, reinstalare),
+   iar restul lumii n-are de ce sa ezite intre doua butoane care par a face
+   acelasi lucru. Ramane totusi o tinta de 44px, ca orice buton real. */
+.premium-restore {
+  width: 100%; min-height: 44px; margin-top: 2px;
+  font-size: 0.76rem; color: var(--text-dim);
+}
+.premium-restore:disabled { opacity: 0.5; cursor: default; }
+
 
 
 
