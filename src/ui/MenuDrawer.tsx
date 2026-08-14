@@ -13,7 +13,6 @@ import { selectPendingShieldReview, readShieldDismissedIds } from '../core/docum
 import { selectUnresolvedGroups } from '../state/duplicateGroups';
 import { selectMonthlyRecap } from '../state/monthlyRecap';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
-import { isPremiumFeatureLocked } from '../core/entitlement';
 import { EASE } from './motion';
 import { TrainedProfileStrip } from './TrainedProfileStrip';
 import { GENRE_PRESETS } from '../state/genre';
@@ -201,7 +200,10 @@ export function MenuDrawer() {
    * Randul ramane vizibil si apasabil: duce la ecranul Premium, nu la un refuz.
    * Un utilizator care nu stie ce pierde n-are de ce sa plateasca.
    */
-  const premiumLocked = isPremiumFeatureLocked();
+  // Din store, nu din entitlement.ts direct: acolo raspunsul e sincron, deci
+  // React nu afla ca s-a schimbat. Bug real — cine tocmai cumparase
+  // abonamentul ramanea cu lacatele pe randuri. Vezi AppState.premiumLocked.
+  const premiumLocked = useStore(s => s.premiumLocked);
   const lockBadge = premiumLocked ? <StarIcon className="drawer-item-lock" aria-hidden="true" /> : null;
 
   // TEMPORAR (Faza 1-6, analiza AI nativa) — doar ca sa poata fi testat direct pe

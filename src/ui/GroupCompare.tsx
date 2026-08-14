@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { db } from '../core/db';
 import { suggestComposite, faceAppearance, type CompositeHint } from '../core/frameComposite';
-import { isPremiumFeatureLocked } from '../core/entitlement';
 import { isAwkwardExpression } from '../core/faceExpression';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
 import { useStore, type PhotoView } from '../state/store';
@@ -40,7 +39,8 @@ export function GroupCompare() {
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const setPremiumOpen = useStore(s => s.setPremiumOpen);
-  const premiumLocked = isPremiumFeatureLocked();
+  // vezi MenuDrawer: starea premium trebuie citita din store ca sa fie reactiva
+  const premiumLocked = useStore(s => s.premiumLocked);
   const [recommendedId, setRecommendedId] = useState<string | null>(null);
   const [composite, setComposite] = useState<CompositeHint | null>(null);
   const [sortBySharpness, setSortBySharpness] = useState(false);
