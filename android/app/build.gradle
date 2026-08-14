@@ -23,8 +23,14 @@ android {
         applicationId "com.luminculler.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        // Tinute in pas cu package.json (2.0.0). versionName e ce vede
+        // utilizatorul in Play Store si in Setari > Aplicatii; ramasese "1.0"
+        // pentru o aplicatie deja la v2, ceea ce ar fi aparut ca atare in
+        // magazin. versionCode trebuie DOAR sa creasca la fiecare incarcare in
+        // Play — nu are legatura cu versiunea afisata, si Play refuza un
+        // versionCode deja folosit.
+        versionCode 2
+        versionName "2.0.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

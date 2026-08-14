@@ -1,6 +1,6 @@
 [package]
 name = "lumin-culler-pro"
-version = "0.1.0"
+version = "2.0.0"
 description = "Sortare si alegere fotografii cu AI real (TensorFlow.js), impachetata desktop cu Tauri."
 authors = ["Lumin Culler"]
 license = ""
