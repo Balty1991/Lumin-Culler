@@ -1,25 +1,26 @@
 /**
  * state/usage.ts
- * Contor local de utilizare lunara (poze procesate) — scaffolding pentru viitorul
- * model freemium (plan 4.2): "Nivelul Freemium (Gratuit): functionalitati de baza
- * de culling cu o limita de procesare (ex. 500-1000 imagini/luna)".
+ * Contor PUR STATISTIC: cate poze a analizat aplicatia in luna calendaristica
+ * curenta. Il arata ecranul Statistici, si atat.
  *
- * IMPORTANT — ce NU e asta: nu e un sistem real de licentiere sau de plata.
- * E doar un contor informativ, persistat in localStorage, pe care orice
- * utilizator cu acces la devtools il poate reseta/ocoli instant. O aplicatie
- * 100% locala/offline-first, fara server propriu, nu poate impune real o
- * limita fara un backend de validare a licentei (si un procesator de plati,
- * ex. Stripe/Paddle) — acela ramane un proiect de business separat, pentru
- * cand exista un asemenea backend. Pana atunci, acest contor doar informeaza
- * utilizatorul cand a depasit pragul sugerat de plan, FARA sa blocheze vreo
- * functionalitate — o limita blocanta, fara validare reala pe server, ar fi
- * doar teatru (trivial de ocolit) si ar induce in eroare utilizatorul in
- * privinta a ceea ce chiar restrictioneaza aplicatia.
+ * NU e un plafon si nu are legatura cu abonamentul. Modelul freemium chiar
+ * aplicat traieste in core/entitlement.ts si numara cu totul altceva — pozele
+ * SCOASE din aplicatie (exportate sau sterse din telefon), intr-o fereastra
+ * glisanta de 30 de zile.
+ *
+ * Fisierul asta a inceput ca schela pentru un "nivel gratuit" de 750 de imagini
+ * procesate pe luna, iar acel prag a supravietuit dupa ce modelul s-a schimbat.
+ * Rezultatul, gasit la audit: aceluiasi utilizator i se aratau DOUA niveluri
+ * gratuite diferite, cu doua cifre diferite — unul la import ("ai trecut de
+ * pragul de 750"), altul pe ecranul Premium ("150 de poze la 30 de zile") — iar
+ * primul nu exista nicaieri in cod ca limita. Cine importa 800 de poze credea
+ * ca a consumat ceva, desi triajul e si ramane nelimitat si gratuit, exact cum
+ * promite ecranul Premium.
+ *
+ * De aceea pragul a fost scos de tot, nu doar ascuns: un numar care nu
+ * restrictioneaza nimic, dar e prezentat ca limita, e mai rau decat lipsa lui.
  */
 const STORAGE_KEY = 'lumin-usage-monthly';
-
-/** Mijlocul intervalului 500-1000 imagini/luna sugerat in plan pentru nivelul Freemium. */
-export const FREE_TIER_MONTHLY_LIMIT = 750;
 
 interface UsageRecord { month: string; count: number; }
 

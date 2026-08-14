@@ -1056,3 +1056,106 @@ describe('exportCollection foloseste numele folderului personalizat ca destinati
     expect(exportOriginalFilesMock.mock.calls[0][1]).not.toHaveProperty('folderName');
   });
 });
+
+/**
+ * Plafonul gratuit trebuie sa se aplice pe TOATE drumurile prin care pozele ies
+ * din aplicatie, altfel nu e un plafon, e o sugestie. Bug real gasit la audit:
+ * exportCollection consuma din plafon (recordPhotosUsed) dar nu-l verifica
+ * niciodata — adica exact drumul recomandat in UI pentru "exporta tot folderul"
+ * il ocolea complet.
+ */
+describe('plafonul gratuit se aplica pe toate caile de iesire', () => {
+  beforeEach(() => {
+    exportOriginalFilesMock.mockReset();
+    localStorage.clear();
+    // Plafonul blocheaza doar cand exista o cale reala de plata — vezi isCapEnforced().
+    localStorage.setItem('lumin-billing-ready', '1');
+    useStore.setState({ notice: null, locale: 'ro', premiumOpen: false });
+    useStore.getState().syncEntitlement();
+  });
+
+  const photosOf = (n: number, status: PhotoView['status']) =>
+    Array.from({ length: n }, (_, i) => ({ ...makePhoto(i), id: `p${i}`, status }) as PhotoView);
+
+  it('exportCollection refuza un folder mai mare decat plafonul ramas', async () => {
+    exportOriginalFilesMock.mockResolvedValue({ exported: 0, missing: [], method: 'folder', cancelled: false, grouped: true });
+    const members = photosOf(200, 'review');
+    useStore.setState({
+      photos: members,
+      collections: [{ id: 'col-1', name: 'Tot', createdAt: Date.now(), memberIds: members.map(p => p.id) }]
+    });
+
+    await useStore.getState().exportCollection('col-1');
+
+    expect(exportOriginalFilesMock).not.toHaveBeenCalled();
+    expect(useStore.getState().premiumOpen).toBe(true);
+    expect(useStore.getState().notice).toContain('200');
+  });
+
+  it('exportCollection lasa sa treaca un folder care incape in plafon', async () => {
+    exportOriginalFilesMock.mockResolvedValue({ exported: 3, missing: [], method: 'folder', cancelled: false, grouped: true });
+    const members = photosOf(3, 'review');
+    useStore.setState({
+      photos: members,
+      collections: [{ id: 'col-1', name: 'Mic', createdAt: Date.now(), memberIds: members.map(p => p.id) }]
+    });
+
+    await useStore.getState().exportCollection('col-1');
+
+    expect(exportOriginalFilesMock).toHaveBeenCalled();
+    expect(useStore.getState().premiumOpen).toBe(false);
+  });
+
+  it('un abonat nu e oprit de plafon nici pe calea folderului', async () => {
+    localStorage.setItem('lumin-premium', '1');
+    useStore.getState().syncEntitlement();
+    exportOriginalFilesMock.mockResolvedValue({ exported: 200, missing: [], method: 'folder', cancelled: false, grouped: true });
+    const members = photosOf(200, 'review');
+    useStore.setState({
+      photos: members,
+      collections: [{ id: 'col-1', name: 'Tot', createdAt: Date.now(), memberIds: members.map(p => p.id) }]
+    });
+
+    await useStore.getState().exportCollection('col-1');
+
+    expect(exportOriginalFilesMock).toHaveBeenCalled();
+  });
+});
+
+/**
+ * Bug real: isPremium() citeste localStorage sincron, deci React nu afla ca
+ * raspunsul s-a schimbat. Cine tocmai platise ramanea cu lacatele pe ecran.
+ */
+describe('starea premium din store se sincronizeaza cu entitlement.ts', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    useStore.getState().syncEntitlement();
+  });
+
+  it('reflecta abonamentul devenit activ', () => {
+    expect(useStore.getState().premium).toBe(false);
+    localStorage.setItem('lumin-premium', '1');
+    useStore.getState().syncEntitlement();
+    expect(useStore.getState().premium).toBe(true);
+  });
+
+  it('premiumLocked cade cand abonamentul devine activ', () => {
+    localStorage.setItem('lumin-billing-ready', '1');
+    useStore.getState().syncEntitlement();
+    expect(useStore.getState().premiumLocked).toBe(true);
+
+    localStorage.setItem('lumin-premium', '1');
+    useStore.getState().syncEntitlement();
+    expect(useStore.getState().premiumLocked).toBe(false);
+  });
+
+  it('contorul de poze scoase ajunge in stare fara ca apelantul sa ceara asta', async () => {
+    exportOriginalFilesMock.mockReset();
+    exportOriginalFilesMock.mockResolvedValue({ exported: 7, missing: [], method: 'folder', cancelled: false, grouped: false });
+    useStore.setState({ photos: [{ ...makePhoto(0), id: 'p1', status: 'selected' } as PhotoView] });
+
+    await useStore.getState().exportSelection();
+
+    expect(useStore.getState().photosUsedThisWindow).toBe(7);
+  });
+});

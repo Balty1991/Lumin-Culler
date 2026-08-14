@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { db } from '../core/db';
 import { computeLibraryStats, computeAgreementStats, computeAgreementTrend, type AgreementStats, type AgreementTrendPoint, type LibraryStats } from '../core/stats';
-import { FREE_TIER_MONTHLY_LIMIT } from '../state/usage';
+import { FREE_PHOTOS_PER_MONTH } from '../core/entitlement';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { XIcon, SparkleIcon } from './icons';
 import { t } from '../i18n';
@@ -135,6 +135,10 @@ export function StatsPanel() {
   const photos = useStore(s => s.photos);
   const lastImportStats = useStore(s => s.lastImportStats);
   const monthlyUsage = useStore(s => s.monthlyUsage);
+  // Din store, nu din entitlement.ts direct: acolo raspunsul e sincron si React
+  // n-ar afla ca s-a schimbat dupa un export sau dupa o cumparare. Vezi AppState.premium.
+  const premium = useStore(s => s.premium);
+  const photosUsedThisWindow = useStore(s => s.photosUsedThisWindow);
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const [agreement, setAgreement] = useState<AgreementStats | null>(null);
@@ -240,10 +244,18 @@ export function StatsPanel() {
           </div>
         )}
 
+        {/* Doua cifre DIFERITE, si asta e tot rostul sectiunii: cate poze ai
+            analizat (nelimitat, gratuit) si cate ai SCOS din aplicatie (singurul
+            lucru plafonat). Inainte, aici se arata un al doilea "nivel gratuit"
+            de 750 de poze procesate, care nu exista nicaieri in cod ca limita —
+            vezi state/usage.ts si core/entitlement.ts. */}
         <div className="batch-section">
           <h3>{tr('stats.usage.title')}</h3>
+          <p>{tr('stats.usage.analyzed', { count: monthlyUsage })}</p>
           <p>
-            {tr('stats.usage.text', { count: monthlyUsage, limit: FREE_TIER_MONTHLY_LIMIT })} <b>{tr('stats.usage.infoOnly')}</b>{tr('stats.usage.textEnd')}
+            {premium
+              ? tr('stats.usage.takenOutPremium', { count: photosUsedThisWindow })
+              : tr('stats.usage.takenOut', { count: photosUsedThisWindow, limit: FREE_PHOTOS_PER_MONTH })}
           </p>
         </div>
       </div>

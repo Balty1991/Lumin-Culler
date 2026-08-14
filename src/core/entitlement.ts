@@ -33,6 +33,33 @@ const PURCHASABLE_KEY = 'lumin-billing-ready';
 const USAGE_LOG_KEY = 'lumin-export-log';
 
 /**
+ * Abonati la schimbarile de drepturi.
+ *
+ * De ce exista: isPremium() citeste localStorage SINCRON, deci React n-are cum
+ * sa afle ca raspunsul s-a schimbat. Bug real: cine cumpara abonamentul (sau il
+ * are deja cumparat pe alt telefon, si refreshEntitlement() il descopera la
+ * pornire) ramanea cu lacatele pe ecran pana la urmatoarea re-randare provocata
+ * de cu totul altceva — adica exact utilizatorul care tocmai a platit vedea in
+ * continuare "Premium". Acum orice schimbare de stare anunta abonatii, iar
+ * state/store.ts oglindeste raspunsul intr-un camp de care UI-ul chiar asculta.
+ */
+type EntitlementListener = () => void;
+const listeners = new Set<EntitlementListener>();
+
+/** Returneaza functia de dezabonare. */
+export function subscribeEntitlement(listener: EntitlementListener): () => void {
+  listeners.add(listener);
+  return () => { listeners.delete(listener); };
+}
+
+function notifyEntitlementChanged(): void {
+  for (const listener of [...listeners]) {
+    // Un abonat care arunca nu are voie sa-i taie pe ceilalti de la notificare.
+    try { listener(); } catch (err) { console.error('Abonat la drepturi a esuat:', err); }
+  }
+}
+
+/**
  * Cate poze poate SCOATE gratuit un utilizator neabonat dintr-o fereastra
  * glisanta de 30 de zile.
  *
@@ -60,6 +87,7 @@ const ROLLING_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 export async function refreshEntitlement(): Promise<boolean> {
   if (!isBillingAvailable()) return isPremium();
   const [active, price] = await Promise.all([queryPremiumActive(), queryPremiumPrice()]);
+  const before = { premium: isPremium(), purchasable: isPurchasable() };
   try {
     localStorage.setItem(PREMIUM_FLAG_KEY, active ? '1' : '0');
     // Doar cand chiar am primit un pret. Un `null` inseamna "n-am aflat" (fara
@@ -68,6 +96,11 @@ export async function refreshEntitlement(): Promise<boolean> {
     if (price) localStorage.setItem(PURCHASABLE_KEY, '1');
   } catch {
     // stocare indisponibila — ramane starea din memoria sesiunii curente
+  }
+  // Doar cand chiar s-a schimbat ceva: pornirea aplicatiei reverifica mereu
+  // abonamentul, iar un anunt la fiecare pornire ar re-randa degeaba tot UI-ul.
+  if (before.premium !== isPremium() || before.purchasable !== isPurchasable()) {
+    notifyEntitlementChanged();
   }
   return active;
 }
@@ -125,18 +158,55 @@ export function isPremium(): boolean {
   }
 }
 
-function readExportLog(): number[] {
+const HOUR_MS = 60 * 60 * 1000;
+
+/**
+ * O intrare in jurnal: [inceputul orei, cate poze in acea ora].
+ *
+ * De ce pe ore, si nu un timestamp per poza (formatul vechi): jurnalul sta in
+ * localStorage, unde bugetul e de ordinul a 5 MB pentru TOATA aplicatia. Un
+ * fotograf care scoate 300 000 de poze intr-o luna producea 300 000 de numere,
+ * adica ~4 MB de JSON — destul cat scrierea sa inceapa sa esueze cu
+ * QuotaExceededError, iar `writeExportLog` inghite eroarea, deci contorul se
+ * oprea in tacere din numarat. Pe ore, o fereastra de 30 de zile are cel mult
+ * 720 de intrari, indiferent cate poze trec prin ea.
+ *
+ * Rotunjirea in jos la ora inseamna ca o intrare iese din fereastra cu pana la
+ * o ora mai devreme decat momentul real. Diferenta e aleasa in favoarea
+ * utilizatorului, si e neglijabila fata de o fereastra de 30 de zile.
+ */
+type UsageEntry = [bucketStart: number, count: number];
+
+/**
+ * Citeste jurnalul, acceptand SI formatul vechi (un `number` simplu per poza)
+ * ca sa nu se piarda contorul celor care au deja aplicatia instalata: intrarile
+ * vechi se convertesc la mers, iar prima scriere le persista comprimate.
+ */
+function readExportLog(): UsageEntry[] {
   try {
     const raw = localStorage.getItem(USAGE_LOG_KEY);
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter((v): v is number => typeof v === 'number') : [];
+    if (!Array.isArray(parsed)) return [];
+    const entries: UsageEntry[] = [];
+    for (const item of parsed) {
+      if (typeof item === 'number' && Number.isFinite(item)) {
+        entries.push([bucketOf(item), 1]); // format vechi: un timestamp per poza
+      } else if (
+        Array.isArray(item) && typeof item[0] === 'number' && Number.isFinite(item[0]) &&
+        typeof item[1] === 'number' && Number.isFinite(item[1]) && item[1] > 0
+      ) {
+        entries.push([item[0], Math.floor(item[1])]);
+      }
+      // orice altceva = intrare corupta, se ignora tacut (jurnalul nu e critic)
+    }
+    return entries;
   } catch {
     return [];
   }
 }
 
-function writeExportLog(entries: number[]): void {
+function writeExportLog(entries: UsageEntry[]): void {
   try {
     localStorage.setItem(USAGE_LOG_KEY, JSON.stringify(entries));
   } catch {
@@ -144,10 +214,28 @@ function writeExportLog(entries: number[]): void {
   }
 }
 
+function bucketOf(ts: number): number {
+  return Math.floor(ts / HOUR_MS) * HOUR_MS;
+}
+
+/**
+ * Intrarile care conteaza ACUM: in fereastra de 30 de zile si nu din viitor.
+ *
+ * Filtrul de viitor nu e teoretic: ceasul telefonului poate sari inainte (fus
+ * orar gresit la prima pornire, sincronizare NTP dupa o baterie descarcata,
+ * sau utilizatorul insusi). Fara el, o singura intrare scrisa cu un ceas dat
+ * cu un an inainte ramanea in fereastra un an intreg dupa corectarea ceasului,
+ * si epuiza plafonul gratuit al cuiva care nu scosese nimic.
+ */
+function activeEntries(entries: UsageEntry[], now: number): UsageEntry[] {
+  const cutoff = now - ROLLING_WINDOW_MS;
+  const horizon = now + HOUR_MS; // o ora de toleranta = exact latimea unui bucket
+  return entries.filter(([ts]) => ts > cutoff && ts <= horizon);
+}
+
 /** Cate poze au fost scoase (exportate SAU sterse din telefon) in ultimele 30 de zile — fereastra glisanta, nu "luna calendaristica". */
 export function photosUsedInRollingMonth(now = Date.now()): number {
-  const cutoff = now - ROLLING_WINDOW_MS;
-  return readExportLog().filter(ts => ts > cutoff).length;
+  return activeEntries(readExportLog(), now).reduce((sum, [, count]) => sum + count, 0);
 }
 
 /**
@@ -156,11 +244,17 @@ export function photosUsedInRollingMonth(now = Date.now()): number {
  * ecranul de folosire, indiferent de abonament.
  */
 export function recordPhotosUsed(count: number, now = Date.now()): void {
-  if (count <= 0) return;
-  const cutoff = now - ROLLING_WINDOW_MS;
-  const kept = readExportLog().filter(ts => ts > cutoff);
-  for (let i = 0; i < count; i++) kept.push(now);
+  if (!Number.isFinite(count) || count <= 0) return;
+  const added = Math.floor(count);
+  const kept = activeEntries(readExportLog(), now);
+  const bucket = bucketOf(now);
+  const existing = kept.find(([ts]) => ts === bucket);
+  if (existing) existing[1] += added;
+  else kept.push([bucket, added]);
   writeExportLog(kept);
+  // Ecranul Premium si randul de folosire arata contorul asta — vezi
+  // subscribeEntitlement: fara anunt, raman pe cifra dinainte de export.
+  notifyEntitlementChanged();
 }
 
 /** Cate poze mai poate scoate gratuit utilizatorul in fereastra curenta (Infinity daca e premium). */

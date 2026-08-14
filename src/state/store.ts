@@ -5,7 +5,7 @@
  */
 import { create } from 'zustand';
 import { db, type AnalysisRecord, type PhotoRecord, type KnownPerson, type ColorLabel, type CollectionRecord } from '../core/db';
-import { recordPhotosUsed, remainingFreePhotos, isPremium, canEnrollAnotherPersonFree, FREE_PHOTOS_PER_MONTH, refreshEntitlement, isCapEnforced, isPremiumFeatureLocked, FREE_ENROLLED_PERSONS } from '../core/entitlement';
+import { recordPhotosUsed, remainingFreePhotos, isPremium, canEnrollAnotherPersonFree, FREE_PHOTOS_PER_MONTH, refreshEntitlement, isCapEnforced, isPremiumFeatureLocked, FREE_ENROLLED_PERSONS, isPurchasable, photosUsedInRollingMonth, subscribeEntitlement } from '../core/entitlement';
 import {
   loadCollections, createCollection as createCollectionRecord, renameCollection as renameCollectionRecord,
   deleteCollection as deleteCollectionRecord, addPhotosToCollection as addPhotosToCollectionRecord,
@@ -64,7 +64,7 @@ import { readStoredGenre, writeStoredGenre } from './genre';
 import { readGridDensity, writeGridDensity, type GridDensity } from './gridDensity';
 import { readGridSort, writeGridSort, compareBy, type GridSort } from './gridSort';
 import { readStoredRenameTemplate, writeStoredRenameTemplate } from '../core/renameTemplate';
-import { recordUsage, readMonthlyUsage, FREE_TIER_MONTHLY_LIMIT } from './usage';
+import { recordUsage, readMonthlyUsage } from './usage';
 import { getProjectMetadata } from './projectMetadata';
 import { buildPersonProfilesExport, personProfilesFileName, parsePersonProfilesFile } from '../core/personProfileTransfer';
 import { readStoredLocale, writeStoredLocale, applyLocale, t, plural, type Locale } from '../i18n';
@@ -288,6 +288,30 @@ interface AppState {
   tripsOpen: boolean;
   /** Deschide ecranul Premium in locul functiei cerute cand nu esti abonat. `true` = a preluat actiunea. */
   gatePremium: () => boolean;
+  /**
+   * Oglinda REACTIVA a drepturilor din core/entitlement.ts.
+   *
+   * De ce exista, cand entitlement.ts raspunde deja la aceleasi intrebari:
+   * functiile de acolo citesc localStorage SINCRON, deci React n-are cum sa
+   * afle ca raspunsul s-a schimbat. Bug real gasit la audit — un utilizator
+   * care cumpara abonamentul (sau il avea deja cumparat pe alt telefon, si
+   * refreshEntitlement() il descopera la pornire) ramanea cu lacatele pe ecran
+   * pana cand cu totul altceva provoca o re-randare. Adica exact omul care
+   * tocmai platise continua sa vada "Premium".
+   *
+   * Se actualizeaza singura: syncEntitlement() e abonata la entitlement.ts (vezi
+   * subscribeEntitlement), deci orice schimbare ajunge aici fara ca apelantii
+   * sa fie nevoiti sa stie ca trebuie s-o ceara.
+   */
+  premium: boolean;
+  /** Exista o cale reala de plata pe acest dispozitiv (Play a confirmat un produs cumparabil). */
+  premiumPurchasable: boolean;
+  /** O functie rezervata abonatilor e blocata ACUM — varianta reactiva a isPremiumFeatureLocked(). */
+  premiumLocked: boolean;
+  /** Cate poze au fost scoase (exportate sau sterse) in ultimele 30 de zile. */
+  photosUsedThisWindow: number;
+  /** Reciteste drepturile din entitlement.ts in stare. Apelata de abonament, nu direct. */
+  syncEntitlement: () => void;
   setTripsOpen: (open: boolean) => void;
   tiktokSortOpen: boolean;
   setTiktokSortOpen: (open: boolean) => void;
@@ -1257,6 +1281,26 @@ export const useStore = create<AppState>((set, get) => ({
     set({ premiumOpen: true });
     return true;
   },
+  premium: isPremium(),
+  premiumPurchasable: isPurchasable(),
+  premiumLocked: isPremiumFeatureLocked(),
+  photosUsedThisWindow: photosUsedInRollingMonth(),
+  syncEntitlement: () => {
+    const next = {
+      premium: isPremium(),
+      premiumPurchasable: isPurchasable(),
+      premiumLocked: isPremiumFeatureLocked(),
+      photosUsedThisWindow: photosUsedInRollingMonth()
+    };
+    const cur = get();
+    // Comparatie inainte de set(): entitlement.ts anunta si dupa fiecare export,
+    // iar un set() cu aceleasi valori ar re-randa degeaba toata grila.
+    if (
+      cur.premium === next.premium && cur.premiumPurchasable === next.premiumPurchasable &&
+      cur.premiumLocked === next.premiumLocked && cur.photosUsedThisWindow === next.photosUsedThisWindow
+    ) return;
+    set(next);
+  },
   setTripsOpen: open => { if (open && get().gatePremium()) return; set({ tripsOpen: open }); },
   tiktokSortOpen: false,
   // Deschiderea "normala" (fara scop explicit) porneste mereu pe toata coada,
@@ -2134,14 +2178,18 @@ export const useStore = create<AppState>((set, get) => ({
       ).length,
       durationMs: Date.now() - startedAt
     });
-    // contor informativ de utilizare lunara (plan 4.2, freemium) — vezi state/usage.ts
-    // pentru de ce NU blocheaza nimic, doar informeaza la prima depasire a pragului
-    const usageBefore = readMonthlyUsage();
+    // Contor pur STATISTIC de poze analizate luna aceasta (il arata ecranul
+    // Statistici). Nu mai exista niciun prag legat de el, si nici notificare la
+    // depasire — vezi state/usage.ts.
+    //
+    // Bug real gasit la audit: aici se anunta "ai trecut de pragul orientativ de
+    // 750 al nivelului gratuit", in timp ce modelul chiar aplicat de aplicatie
+    // (core/entitlement.ts) spune exact pe dos — triajul e gratuit la nesfarsit,
+    // oricate poze, iar plafonul de 150 e doar pe pozele SCOASE din aplicatie.
+    // Deci aceluiasi utilizator i se aratau doua "niveluri gratuite" diferite,
+    // cu doua cifre diferite, dintre care unul nu exista. Cine importa 800 de
+    // poze credea ca a consumat ceva, desi importul e si ramane nelimitat.
     const monthlyUsage = recordUsage(done);
-    const crossedFreeTierLimit = usageBefore < FREE_TIER_MONTHLY_LIMIT && monthlyUsage >= FREE_TIER_MONTHLY_LIMIT;
-    const usageNotice = crossedFreeTierLimit
-      ? t(get().locale, 'store.import.usageNotice', { count: monthlyUsage, limit: FREE_TIER_MONTHLY_LIMIT })
-      : undefined;
     // fara asta, dupa un import reusit fara avertismente, utilizatorul nu primea
     // NICIO confirmare vizibila ca s-a intamplat ceva — bara de progres disparea
     // pur si simplu, fara mesaj, indiferent daca importul reusise sau nu; doar
@@ -2154,7 +2202,7 @@ export const useStore = create<AppState>((set, get) => ({
       : undefined;
     set(state => ({
       progress: null,
-      notice: warning ?? usageNotice ?? doneNotice ?? state.notice,
+      notice: warning ?? doneNotice ?? state.notice,
       aiDegraded,
       aiBackend: analysisPool.detectedBackend,
       lastImportStats: done > 0 ? { count: done, durationMs: Date.now() - startedAt } : state.lastImportStats,
@@ -3229,6 +3277,22 @@ export const useStore = create<AppState>((set, get) => ({
     const memberSet = new Set(collection?.memberIds ?? []);
     const members = allPhotos.filter(p => memberSet.has(p.id));
     if (!members.length) { set({ notice: t(locale, 'collections.export.empty') }); return; }
+    // ACELASI plafon ca exportSelection si deleteRejectedPhotos, din acelasi
+    // buget. Bug real gasit la audit: aici lipsea complet, desi mai jos se
+    // apela recordPhotosUsed() — adica exportul de folder CONSUMA din plafon,
+    // dar nu-l respecta. Un utilizator neabonat isi punea toate pozele intr-un
+    // folder si le scotea pe toate, oricate, ocolind un plafon pe care exportul
+    // selectiei chiar il aplica. Nu era o portita teoretica: e exact drumul
+    // recomandat in UI pentru "exporta tot".
+    if (isCapEnforced() && members.length > remainingFreePhotos()) {
+      set({
+        notice: t(locale, 'store.exportSelection.capBlocked', {
+          count: members.length, remaining: remainingFreePhotos(), limit: FREE_PHOTOS_PER_MONTH
+        }),
+        premiumOpen: true
+      });
+      return;
+    }
     // Vezi comentariul identic din exportSelection mai sus — acelasi bug raportat,
     // aceeasi cauza (munca async fara niciun semnal vizibil pana la finalul ei).
     set({ notice: t(locale, 'store.exportSelection.exporting') });
@@ -3541,3 +3605,10 @@ export const useStore = create<AppState>((set, get) => ({
   groupOf: groupId =>
     get().photos.filter(p => p.groupId === groupId).sort((a, b) => b.aiScore - a.aiScore)
 }));
+
+/**
+ * Legatura dintre drepturile din core/entitlement.ts si starea reactiva de mai
+ * sus (vezi AppState.premium). O singura data, la incarcarea modulului: cat
+ * timp exista store-ul exista si abonamentul, deci nu are cine sa-l dezlege.
+ */
+subscribeEntitlement(() => { useStore.getState().syncEntitlement(); });

@@ -54,4 +54,29 @@ describe('dictionary completeness', () => {
     const missing = Object.keys(ro).filter(k => !(k in en));
     expect(missing).toEqual([]);
   });
+
+  // Cealalta directie: o cheie ramasa doar in en.ts e o traducere care nu se va
+  // afisa NICIODATA (ro e limba de baza si de rezerva), deci e cod mort care
+  // arata ca lucru facut. Prinsa la audit, cu ocazia curatarii pragului fantoma
+  // de "nivel gratuit" — stergerea unei chei din ro.ts o lasa orfana in en.ts.
+  it('ro.ts defineste fiecare cheie din en.ts (fara traduceri orfane)', () => {
+    const orphans = Object.keys(en).filter(k => !(k in ro));
+    expect(orphans).toEqual([]);
+  });
+
+  /**
+   * Bug real de traducere, si greu de vazut cu ochiul: daca textul romanesc
+   * spune "{count} din {limit}" iar cel englezesc uita `{limit}`, aplicatia nu
+   * arunca nimic — doar afiseaza o propozitie ciunta, si numai pe engleza. Un
+   * test care compara MULTIMEA de {parametri} per cheie prinde asta la commit,
+   * nu la raportul unui utilizator.
+   */
+  it('fiecare cheie foloseste aceiasi {parametri} in ambele limbi', () => {
+    const params = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map(m => m[1]).sort();
+    const mismatched = Object.keys(ro)
+      .filter(k => k in en)
+      .filter(k => params(ro[k as keyof typeof ro]).join(',') !== params(en[k as keyof typeof en]).join(','))
+      .map(k => `${k}: ro=[${params(ro[k as keyof typeof ro])}] en=[${params(en[k as keyof typeof en])}]`);
+    expect(mismatched).toEqual([]);
+  });
 });

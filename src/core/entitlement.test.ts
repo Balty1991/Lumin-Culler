@@ -1,10 +1,12 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   isPremium, recordPhotosUsed, photosUsedInRollingMonth, remainingFreePhotos,
-  canEnrollAnotherPersonFree, isPremiumFeatureLocked, FREE_PHOTOS_PER_MONTH, FREE_ENROLLED_PERSONS
+  canEnrollAnotherPersonFree, isPremiumFeatureLocked, subscribeEntitlement,
+  FREE_PHOTOS_PER_MONTH, FREE_ENROLLED_PERSONS
 } from './entitlement';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
 
 describe('entitlement (freemium local tracking)', () => {
   beforeEach(() => {
@@ -66,6 +68,110 @@ describe('entitlement (freemium local tracking)', () => {
       localStorage.setItem('lumin-premium', '1');
       expect(canEnrollAnotherPersonFree(999)).toBe(true);
     });
+  });
+});
+
+/**
+ * Jurnalul de folosire: formatul comprimat pe ore, migrarea din formatul vechi
+ * si rezistenta la un ceas de telefon dat peste cap. Vezi core/entitlement.ts.
+ */
+describe('jurnalul de folosire (format comprimat)', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('nu creste nemarginit: 5000 de apeluri in aceeasi ora raman o singura intrare', () => {
+    const now = Date.now();
+    for (let i = 0; i < 5000; i++) recordPhotosUsed(1, now);
+    expect(photosUsedInRollingMonth(now)).toBe(5000);
+    const stored: unknown = JSON.parse(localStorage.getItem('lumin-export-log')!);
+    expect(Array.isArray(stored) && stored.length).toBe(1);
+  });
+
+  it('o fereastra de 30 de zile are cel mult ~720 de intrari, oricate poze trec prin ea', () => {
+    const now = Date.now();
+    // cate un export la fiecare ora, timp de 20 de zile
+    for (let h = 0; h < 20 * 24; h++) recordPhotosUsed(50, now - h * HOUR_MS);
+    const stored = JSON.parse(localStorage.getItem('lumin-export-log')!) as unknown[];
+    expect(stored.length).toBeLessThanOrEqual(30 * 24);
+  });
+
+  it('citeste jurnalul in formatul VECHI (un timestamp per poza) fara sa piarda contorul', () => {
+    const now = Date.now();
+    // exact ce scria versiunea anterioara a aplicatiei
+    localStorage.setItem('lumin-export-log', JSON.stringify([now, now, now, now - 40 * DAY_MS]));
+    expect(photosUsedInRollingMonth(now)).toBe(3); // a patra e in afara ferestrei
+  });
+
+  it('converteste formatul vechi la scriere, pastrand totalul', () => {
+    const now = Date.now();
+    localStorage.setItem('lumin-export-log', JSON.stringify([now, now, now]));
+    recordPhotosUsed(2, now);
+    expect(photosUsedInRollingMonth(now)).toBe(5);
+  });
+
+  it('ignora intrarile corupte fara sa arunce', () => {
+    const now = Date.now();
+    localStorage.setItem('lumin-export-log', JSON.stringify(['x', null, { a: 1 }, [now, 7], [now, -3]]));
+    expect(photosUsedInRollingMonth(now)).toBe(7);
+  });
+
+  it('un JSON complet stricat nu arunca — contorul reporneste de la zero', () => {
+    localStorage.setItem('lumin-export-log', '{nu e json');
+    expect(() => photosUsedInRollingMonth()).not.toThrow();
+    expect(photosUsedInRollingMonth()).toBe(0);
+  });
+
+  // Bug real: ceasul telefonului sarit inainte (fus gresit, NTP dupa baterie
+  // descarcata) scria o intrare in viitor, care ramanea in fereastra 30 de zile
+  // DUPA corectarea ceasului si epuiza plafonul cuiva care nu scosese nimic.
+  it('nu numara intrari scrise cu un ceas dat mult inainte', () => {
+    const now = Date.now();
+    recordPhotosUsed(140, now + 300 * DAY_MS); // scris cu ceasul stricat
+    expect(photosUsedInRollingMonth(now)).toBe(0);
+    expect(remainingFreePhotos(now)).toBe(FREE_PHOTOS_PER_MONTH);
+  });
+
+  it('nu numara fractii sau valori nefinite', () => {
+    const now = Date.now();
+    recordPhotosUsed(NaN, now);
+    recordPhotosUsed(Infinity, now);
+    recordPhotosUsed(2.7, now);
+    expect(photosUsedInRollingMonth(now)).toBe(2);
+  });
+});
+
+/**
+ * Bug real: cine cumpara abonamentul ramanea cu lacatele pe ecran, pentru ca
+ * isPremium() citeste localStorage sincron si React n-avea de unde sa afle ca
+ * raspunsul s-a schimbat.
+ */
+describe('subscribeEntitlement', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('anunta abonatii cand se inregistreaza poze scoase', () => {
+    const seen = vi.fn();
+    const off = subscribeEntitlement(seen);
+    recordPhotosUsed(3);
+    expect(seen).toHaveBeenCalled();
+    off();
+  });
+
+  it('nu mai anunta dupa dezabonare', () => {
+    const seen = vi.fn();
+    subscribeEntitlement(seen)();
+    recordPhotosUsed(3);
+    expect(seen).not.toHaveBeenCalled();
+  });
+
+  it('un abonat care arunca nu-i taie pe ceilalti de la notificare', () => {
+    const boom = vi.fn(() => { throw new Error('boom'); });
+    const ok = vi.fn();
+    const offA = subscribeEntitlement(boom);
+    const offB = subscribeEntitlement(ok);
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(() => recordPhotosUsed(1)).not.toThrow();
+    expect(ok).toHaveBeenCalled();
+    offA(); offB();
+    vi.restoreAllMocks();
   });
 });
 
