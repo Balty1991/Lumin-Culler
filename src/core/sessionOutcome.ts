@@ -30,6 +30,8 @@ export interface SessionOutcomeInput {
   autoDecided: number;
   /** Cate serii/duplicate au fost strunse in grupuri in acest lot. */
   seriesFound: number;
+  /** Cate decizii automate au iesit la limita — vezi core/uncertainty.ts. */
+  uncertain: number;
   durationMs: number;
 }
 
@@ -41,6 +43,16 @@ export interface SessionOutcome {
   /** Fractiunea din lot pe care nu mai trebuie s-o atingi, 0..1. */
   handledShare: number;
   seriesFound: number;
+  /**
+   * Cate dintre deciziile automate au iesit la limita.
+   *
+   * Exista ca sa poata fi ASCUNS butonul "Verifica deciziile la limita" cand nu
+   * e nimic de verificat. Bug real raportat de utilizator: butonul aparea mereu,
+   * iar la apasare raspundea "nicio decizie la limita" — un buton care promite
+   * ceva si apoi spune ca nu exista invata utilizatorul sa nu-l mai apese
+   * niciodata, inclusiv cand chiar are ce arata.
+   */
+  uncertain: number;
   durationMs: number;
 }
 
@@ -61,6 +73,9 @@ export function summarizeSession(input: SessionOutcomeInput): SessionOutcome | n
     leftToReview: input.imported - autoDecided,
     handledShare: autoDecided / input.imported,
     seriesFound: Math.max(0, input.seriesFound),
+    // Nu pot fi mai multe la limita decat decizii automate luate: cifrele vin
+    // din acelasi lot, dar o nepotrivire ar fi vizibila direct in text.
+    uncertain: Math.max(0, Math.min(autoDecided, input.uncertain)),
     durationMs: Math.max(0, input.durationMs)
   };
 }

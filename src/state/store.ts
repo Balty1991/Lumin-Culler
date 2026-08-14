@@ -2018,10 +2018,25 @@ export const useStore = create<AppState>((set, get) => ({
     // seriilor, deci reflecta si demovarile facute de ea) — nicio interogare in
     // plus. Restrans la pozele acestui import: `photoIds` sunt exact ele.
     const batch = importedIds.map(id => byId.get(id)).filter((p): p is PhotoRecord => !!p);
+    const scoreById = new Map(get().photos.map(p => [p.id, p.aiScore]));
     const sessionOutcome = summarizeSession({
       imported: done,
       autoDecided: batch.filter(p => p.status === 'selected' || p.status === 'rejected').length,
       seriesFound: new Set(batch.map(p => p.groupId).filter(Boolean)).size,
+      // Cate ies la limita, ca butonul de verificare sa NU apara cand n-are ce
+      // arata. Setul de "deja decise de tine" e gol pe buna dreptate: pozele
+      // astea tocmai au fost importate, deci nu exista nicio corectie pe ele.
+      //
+      // Scorul se ia din `photos` (starea deja incarcata, sincron dupa
+      // flushPendingPhotos), nu din `batch`: aiScore sta in db.analyses, iar o
+      // citire de acolo ar aduce si embedding-urile — zeci de MB pentru un
+      // simplu numar. Statusul, in schimb, se ia din `batch`, care e recitit
+      // dupa gruparea seriilor si deci mai proaspat.
+      uncertain: pickMostUncertain(
+        batch.map(p => ({ id: p.id, aiScore: scoreById.get(p.id) ?? 0, status: p.status })),
+        new Set<string>(),
+        Number.MAX_SAFE_INTEGER
+      ).length,
       durationMs: Date.now() - startedAt
     });
     // contor informativ de utilizare lunara (plan 4.2, freemium) — vezi state/usage.ts

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { summarizeSession } from './sessionOutcome';
 
-const base = { imported: 400, autoDecided: 353, seriesFound: 18, durationMs: 300_000 };
+const base = { imported: 400, autoDecided: 353, seriesFound: 18, uncertain: 21, durationMs: 300_000 };
 
 describe('summarizeSession', () => {
   it('spune cate raman de verificat, nu doar cate au intrat', () => {
@@ -31,9 +31,21 @@ describe('summarizeSession', () => {
   });
 
   it('nu lasa cifre negative sa ajunga pe ecran', () => {
-    const out = summarizeSession({ imported: 10, autoDecided: -5, seriesFound: -2, durationMs: -1 })!;
+    const out = summarizeSession({ imported: 10, autoDecided: -5, seriesFound: -2, uncertain: -7, durationMs: -1 })!;
     expect(out.autoDecided).toBe(0);
     expect(out.seriesFound).toBe(0);
+    expect(out.uncertain).toBe(0);
     expect(out.durationMs).toBe(0);
+  });
+
+  // Butonul "Verifica deciziile la limita" se randeaza dupa aceasta cifra: zero
+  // inseamna buton ascuns, si asta e tot rostul campului.
+  it('raporteaza zero la limita cand motorul a fost sigur pe tot', () => {
+    expect(summarizeSession({ ...base, uncertain: 0 })!.uncertain).toBe(0);
+  });
+
+  it('nu poate anunta mai multe la limita decat decizii automate', () => {
+    const out = summarizeSession({ ...base, autoDecided: 5, uncertain: 9 })!;
+    expect(out.uncertain).toBe(5);
   });
 });

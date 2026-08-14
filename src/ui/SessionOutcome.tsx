@@ -59,11 +59,17 @@ export function SessionOutcome() {
         {outcome.seriesFound > 0 && ' ' + tr('session.series', { count: outcome.seriesFound })}
       </p>
 
-      <div className="session-outcome-actions">
-        <button className="btn-accent" onClick={() => { void openUncertainReview(); dismiss(); }}>
-          {tr('session.checkUncertain')}
-        </button>
-      </div>
+      {/* Doar cand chiar EXISTA decizii la limita. Bug real raportat de
+          utilizator: butonul aparea mereu, iar la apasare raspundea "nicio
+          decizie la limita" — un buton care promite ceva si apoi spune ca nu
+          exista te invata sa nu-l mai apesi, inclusiv cand are ce arata. */}
+      {outcome.uncertain > 0 && (
+        <div className="session-outcome-actions">
+          <button className="btn-accent" onClick={() => { void openUncertainReview(); dismiss(); }}>
+            {tr('session.checkUncertain')}
+          </button>
+        </div>
+      )}
 
       {exportPressure && (
         <p className="session-outcome-limit">

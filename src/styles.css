@@ -1589,7 +1589,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   border: 1px solid rgb(var(--accent-rgb) / 0.3);
   animation: fadeUp 0.35s var(--ease) both;
 }
-.session-outcome-close { position: absolute; top: 7px; right: 7px; }
+/* Bug real raportat de utilizator (captura): X-ul aparea in flux normal, sus-stanga,
+   ocupand un rand intreg de 44px deasupra textului. Cauza e capcana descrisa deja in
+   comentariul de la .welcome-onboarding-skip: `.icon-btn { position: relative }` e
+   declarat MAI JOS in fisier, la aceeasi specificitate (o singura clasa), deci
+   castiga si anuleaza `absolute`. Acolo s-a reparat prin specificitate, aici
+   ramasese. Parintele in selector = o clasa in plus, deci ordinea nu mai conteaza. */
+.session-outcome .session-outcome-close { position: absolute; top: 7px; right: 7px; }
 .session-outcome-head { display: flex; align-items: center; gap: 7px; color: var(--accent); margin-bottom: 7px; }
 .session-outcome-head b { font-size: 0.9rem; color: var(--text); }
 .session-outcome-lead { margin: 0; font-size: 1.05rem; line-height: 1.45; font-weight: 600; }
