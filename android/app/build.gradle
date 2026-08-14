@@ -29,7 +29,16 @@ android {
         // magazin. versionCode trebuie DOAR sa creasca la fiecare incarcare in
         // Play — nu are legatura cu versiunea afisata, si Play refuza un
         // versionCode deja folosit.
-        versionCode 2
+        //
+        // 3, nu 2: 2 a fost pregatit pentru incarcarea care a dus in Play
+        // versiunea cu Billing 9. Avertismentul de politica din Play Console
+        // ("Aplicatia trebuie sa foloseasca Biblioteca Google Play Billing
+        // 8.0.0 sau ulterioara") NU se stinge la incarcarea unui pachet, ci
+        // dupa ce o versiune noua e PUBLICATA pe toate canalele pe care se
+        // publica activ (inclusiv testele interne/inchise ramase cu un build
+        // vechi) si dupa ce Play rescaneaza — deci mai e nevoie de cel putin o
+        // incarcare, iar aceea are nevoie de un numar liber.
+        versionCode 3
         versionName "2.0.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
