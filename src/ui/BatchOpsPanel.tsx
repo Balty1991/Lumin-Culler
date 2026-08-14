@@ -183,6 +183,23 @@ export function BatchOpsPanel() {
           </button>
         </header>
 
+        {/*
+          Bug real gasit de auditul UI: panoul are OPT butoane care se sting toate
+          deodata cat timp `busy` e adevarat, iar operatiile de aici (auto-cull,
+          respinge sub prag, rezolva toate seriile, recalculeaza scorurile, sterge
+          respinsele) trec prin toata biblioteca — pot dura zeci de secunde. Pentru
+          un cititor de ecran, "toate butoanele s-au dezactivat" e indistinct de
+          "nu mai ai voie sa faci nimic aici".
+
+          O singura regiune `aria-live` la nivel de panou, in loc sa schimb eticheta
+          fiecarui buton in parte: butoanele isi pastreaza numele (utile ca sa stii
+          ce ai apasat), iar starea "lucreaza" se anunta o data, clar. `aria-busy`
+          pe container marcheaza si ca intreaga zona e temporar in tranzitie.
+        */}
+        <p className="hint" role="status" aria-live="polite" aria-busy={busy}>
+          {busy ? tr('workspace.progress.processing') : ''}
+        </p>
+
         <div className="batch-section">
           <h3><span className="batch-section-icon"><FilterDotIcon /></span> {tr('batch.presets.title')}</h3>
           <p className="hint">{tr('batch.presets.hint')}</p>

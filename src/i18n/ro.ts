@@ -638,6 +638,7 @@ export const ro = {
   'focusMap.ariaLabel': 'Harta de focus — claritate locală pe zone ale cadrului',
   'histogram.ariaLabel': 'Histograma RGB',
   'insightsChart.ariaLabel': 'Ponderile factorilor învățați pentru acest context',
+  'starRating.clearHint': 'apasă din nou ca să ștergi nota',
   'starRating.ariaLabel': 'Rating',
   'starRating.star': '{n} stea',
   'starRating.stars': '{n} stele',

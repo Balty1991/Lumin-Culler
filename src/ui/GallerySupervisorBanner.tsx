@@ -78,13 +78,22 @@ export function GallerySupervisorBanner() {
               type="button"
               className="gallery-supervisor-main"
               onClick={() => setSupervisorPanelOpen(true)}
-              aria-label={tr('gallerySupervisor.openPanel')}
+              aria-label={`${tr('gallerySupervisor.openPanel')} — ${formatPeriod(nextPeriod.start, nextPeriod.end, locale)}, ${tr('gallerySupervisor.coverage', { percent: coveragePercent })}`}
             >
               <span className="gallery-supervisor-icon" aria-hidden="true"><ClockIcon /></span>
               <span className="gallery-supervisor-text">
                 <b>{tr('gallerySupervisor.title')}</b>
                 <span>{formatPeriod(nextPeriod.start, nextPeriod.end, locale)}</span>
-                <span className="gallery-supervisor-progress" role="progressbar" aria-valuenow={coveragePercent} aria-valuemin={0} aria-valuemax={100} aria-label={tr('gallerySupervisor.coverage', { percent: coveragePercent })}>
+                {/*
+                  Cod mort ARIA, gasit de auditul UI: bara avea `role="progressbar"`
+                  cu propriul `aria-label`, dar sta INAUNTRUL unui <button> care are
+                  deja `aria-label`. Copiii unui buton sunt "prezentationali" per
+                  specificatia ARIA — rolul si eticheta de aici nu ajungeau niciodata
+                  la niciun cititor de ecran, deci procentul ramanea oricum neanuntat.
+                  Bara devine ce a fost mereu in practica, pur vizuala; procentul e
+                  spus acum in numele butonului, unde chiar poate fi auzit.
+                */}
+                <span className="gallery-supervisor-progress" aria-hidden="true">
                   <span className="gallery-supervisor-progress-fill" style={{ width: `${coveragePercent}%` }} />
                 </span>
               </span>

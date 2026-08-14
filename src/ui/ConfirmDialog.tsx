@@ -54,9 +54,18 @@ export function ConfirmDialog() {
         )}
         <div className="confirm-dialog-actions">
           <button className="ghost" onClick={cancel}>{dialogRequest.cancelLabel ?? tr('confirmDialog.cancel')}</button>
+          {/*
+            `autoFocus` a fost ELIMINAT de aici — era cod mort care insela: pentru
+            un dialog de confirmare cerea focusul pe butonul de CONFIRMARE, dar
+            useModalFocusTrap muta oricum focusul pe primul element focusabil din
+            panou (butonul "Anuleaza"), deci n-a avut niciodata vreun efect.
+            Rezultatul real e si cel corect si il pastram deliberat: pe un dialog
+            care poate sterge poze, tasta Enter apasata din reflex trebuie sa cada
+            pe "Anuleaza", nu pe actiunea distructiva.
+          */}
           <button
             className={dialogRequest.kind === 'confirm' && dialogRequest.danger ? 'reject' : 'btn-accent'}
-            onClick={confirm} autoFocus={dialogRequest.kind === 'confirm'}
+            onClick={confirm}
           >
             {dialogRequest.confirmLabel ?? tr('confirmDialog.confirm')}
           </button>

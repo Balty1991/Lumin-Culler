@@ -272,7 +272,9 @@ export function PersonsPanel() {
           <p className="hint">
             {tr('persons.reenrollHint')}
           </p>
-          <button className="select" onClick={() => void submit()} disabled={busy}>
+          {/* eticheta se schimba deja; lipsea doar aria-busy, care spune explicit
+              "asteapta, lucreaza" in loc de "dezactivat, indisponibil". */}
+          <button className="select" onClick={() => void submit()} disabled={busy} aria-busy={busy}>
             {busy ? <><SparkleIcon className="inline-icon spin" /> {tr('workspace.progress.processing')}</> : tr('persons.enroll')}
           </button>
           {/* role="status" + aria-live — bug real gasit de auditul UI: acesta e

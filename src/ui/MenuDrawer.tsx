@@ -183,7 +183,20 @@ export function MenuDrawer() {
   useEffect(() => {
     if (theme !== 'auto') return;
     const id = setInterval(() => setTheme('auto'), 15 * 60 * 1000);
-    return () => clearInterval(id);
+    // "Automat" tine cont acum si de setarea de sistem (prefers-color-scheme —
+    // vezi resolveTheme din state/theme.ts), care se poate schimba in orice
+    // clipa, nu doar la un prag orar: pe Android/iOS tema intunecata poate fi
+    // programata sa se activeze la apus sau comutata manual din centrul de
+    // notificari. Fara acest abonament, aplicatia ar ramane pe tema veche pana
+    // la urmatoarea bifa de 15 minute — vizibil gresita, chiar langa restul
+    // sistemului deja comutat.
+    const media = typeof matchMedia === 'function' ? matchMedia('(prefers-color-scheme: dark)') : null;
+    const onSystemChange = () => setTheme('auto');
+    media?.addEventListener('change', onSystemChange);
+    return () => {
+      clearInterval(id);
+      media?.removeEventListener('change', onSystemChange);
+    };
   }, [theme, setTheme]);
   // Acelasi eveniment beforeinstallprompt ca InstallPrompt.tsx (citit dintr-un modul
   // comun, nu recaptat aici) — ramane accesibil din Meniu chiar dupa ce bannerul a

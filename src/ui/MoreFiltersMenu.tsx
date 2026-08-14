@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useStore } from '../state/store';
 import { MoreIcon, XIcon } from './icons';
 import { t } from '../i18n';
-import { computeMenuPosition, isInsideAnyMenu, type MenuPosition } from './dropdownPosition';
+import { computeMenuPosition, isInsideAnyMenu, useReanchorOnViewportChange, type MenuPosition } from './dropdownPosition';
 
 interface Props {
   /** true daca vreun filtru "secundar" (din interiorul panoului) e activ acum — evidentiaza trigger-ul. */
@@ -31,6 +31,14 @@ export function MoreFiltersMenu({ active, badgeCount, children }: Props) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  /** Un singur loc unde se decide pozitia — folosit si la deschidere, si la fiecare
+      reancorare (rotire/derulare/redimensionare, vezi useReanchorOnViewportChange). */
+  const place = (rect: DOMRect) => setMenuPos({
+    ...computeMenuPosition(rect, 10, 200),
+    left: Math.max(10, Math.min(rect.left, window.innerWidth - 336))
+  });
+  useReanchorOnViewportChange(open, triggerRef, place);
+
   const toggle = () => {
     if (!open) {
       const rect = triggerRef.current?.getBoundingClientRect();
@@ -44,7 +52,7 @@ export function MoreFiltersMenu({ active, badgeCount, children }: Props) {
       // impingand panoul in afara ecranului spre stanga INDIFERENT de unde
       // se afla efectiv butonul — un Math.max(margin, ...) opreste clamp-ul
       // sa treaca sub marginea vizibila a ecranului.
-      if (rect) setMenuPos({ ...computeMenuPosition(rect, 10, 200), left: Math.max(10, Math.min(rect.left, window.innerWidth - 336)) });
+      if (rect) place(rect);
     }
     setOpen(v => !v);
   };
@@ -74,7 +82,9 @@ export function MoreFiltersMenu({ active, badgeCount, children }: Props) {
         className={active ? 'chip chip-compact more-filters-trigger active' : 'chip chip-compact more-filters-trigger'}
         onClick={toggle}
         aria-expanded={open}
-        aria-haspopup="menu"
+        // fara aria-haspopup: singurele valori posibile ar minti la fel ca vechiul
+        // role="menu" (nu e nici meniu, nici dialog). `aria-expanded` de mai sus
+        // spune deja tot ce trebuie — ca butonul deschide si inchide ceva.
         aria-label={tr('app.moreFilters.ariaLabel')}
         title={tr('app.moreFilters.ariaLabel')}
       >
@@ -84,7 +94,20 @@ export function MoreFiltersMenu({ active, badgeCount, children }: Props) {
       {open && menuPos && createPortal(
         <div
           className="more-filters-menu"
-          role="menu"
+          /*
+           * `role="group"`, nu `role="menu"` — bug real de accesibilitate gasit de
+           * auditul UI: `menu` promite un tipar pe care panoul nu-l implementa
+           * deloc (niciun `role="menuitem"` in copii, nicio navigare cu sagetile),
+           * iar un cititor de ecran anunta "meniu" si trece in modul de navigare
+           * specific lui, unde sagetile ar trebui sa mute intre comenzi si nu fac
+           * nimic. Continutul e oricum eterogen — pastile de status, dropdown-uri
+           * de persoana/eticheta/scena/aparat, un comutator de mod — adica exact
+           * un GRUP de controale, nu o lista de comenzi. `data-menu-surface`
+           * pastreaza comportamentul de "click inauntru" pentru dropdown-urile
+           * deschise din interior (vezi isInsideAnyMenu).
+           */
+          role="group"
+          data-menu-surface=""
           aria-label={tr('app.moreFilters.ariaLabel')}
           ref={menuRef}
           style={{ top: menuPos.top, bottom: menuPos.bottom, left: menuPos.left, right: menuPos.right, maxHeight: menuPos.maxHeight }}

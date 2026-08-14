@@ -106,8 +106,16 @@ export function DuplicatesPanel() {
                             `resolve` refuza sa porneasca daca ORICE grup e in lucru — deci
                             butoanele celorlalte grupuri aratau active si nu faceau nimic la
                             apasare, fara niciun mesaj. Acum starea vizuala spune adevarul. */}
-                        <button className="btn-accent" disabled={!keepId || busyGroup !== null} onClick={() => void resolve(groupId)}>
-                          {tr('duplicates.keepBest')}
+                        {/* aria-busy + eticheta care se schimba: "pastreaza cea mai buna"
+                            respinge restul grupului si poate atinge zeci de poze; inainte,
+                            singurul semn ca lucreaza era ca butonul se stingea. */}
+                        <button
+                          className="btn-accent"
+                          disabled={!keepId || busyGroup !== null}
+                          aria-busy={busyGroup === groupId}
+                          onClick={() => void resolve(groupId)}
+                        >
+                          {busyGroup === groupId ? tr('workspace.progress.processing') : tr('duplicates.keepBest')}
                         </button>
                       </div>
                     </div>

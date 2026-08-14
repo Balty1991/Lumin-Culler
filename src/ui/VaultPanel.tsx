@@ -124,7 +124,14 @@ export function VaultPanel() {
                 cititor de ecran apasa "Deblocheaza", campul se golea si nu se anunta
                 nimic: pentru el ecranul pur si simplu nu reactiona. */}
             {error && <p className="notice warn mono" role="alert">{error}</p>}
-            <button type="submit" className="btn-accent" disabled={busy}>{tr('vault.setup.cta')}</button>
+            {/* aria-busy + eticheta care se schimba — vezi acelasi fix in
+                HomeDashboard/DuplicatesPanel: derivarea cheii din PIN e deliberat
+                lenta (PBKDF2, vezi core/vault.ts) si poate tine cateva secunde pe
+                un telefon modest. Singurul semn era butonul stins, indistinct de
+                "indisponibil" pentru un cititor de ecran. */}
+            <button type="submit" className="btn-accent" disabled={busy} aria-busy={busy}>
+              {busy ? tr('workspace.progress.processing') : tr('vault.setup.cta')}
+            </button>
           </form>
         )}
 
@@ -141,7 +148,9 @@ export function VaultPanel() {
                 cititor de ecran apasa "Deblocheaza", campul se golea si nu se anunta
                 nimic: pentru el ecranul pur si simplu nu reactiona. */}
             {error && <p className="notice warn mono" role="alert">{error}</p>}
-            <button type="submit" className="btn-accent" disabled={busy || !pin}>{tr('vault.unlock.cta')}</button>
+            <button type="submit" className="btn-accent" disabled={busy || !pin} aria-busy={busy}>
+              {busy ? tr('workspace.progress.processing') : tr('vault.unlock.cta')}
+            </button>
           </form>
         )}
 

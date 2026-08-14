@@ -1,3 +1,5 @@
+import { useEffect, useRef, type RefObject } from 'react';
+
 /**
  * ui/dropdownPosition.ts
  * Pozitionare pentru meniuri randate printr-un portal in <body> (SceneTagFilter,
@@ -23,6 +25,70 @@ export interface MenuPosition {
 }
 
 /**
+ * Reancoreaza un meniu deschis cand se schimba geometria ecranului.
+ *
+ * Bug real gasit de auditul UI, comun TUTUROR celor sase meniuri randate prin
+ * portal (SceneTagFilter, ColorLabelFilter, CameraFilter, SavedFiltersMenu,
+ * CollectionPicker, MoreFiltersMenu): pozitia se calcula O SINGURA DATA, la
+ * deschidere, din `getBoundingClientRect()` al butonului. Meniul e insa
+ * `position: fixed`, deci nu se mai misca niciodata dupa aceea. Consecinte
+ * reale pe telefon:
+ *   - rotirea ecranului cu meniul deschis il lasa "agatat" la coordonatele
+ *     vechi, complet detasat de butonul lui (uneori pe jumatate in afara
+ *     ecranului, in noua latime);
+ *   - derularea randului de filtre sau a sertarului sub un meniu deschis muta
+ *     butonul, dar nu si meniul — care ramane plutind peste alt continut;
+ *   - aparitia/disparitia tastaturii virtuale schimba inaltimea viewport-ului
+ *     si invalideaza calculul de "incape dedesubt sau deasupra".
+ *
+ * Reancorare, nu inchidere: inchiderea ar fi mai ieftina, dar ar insemna ca o
+ * simpla atingere accidentala a ecranului in timpul derularii inchide meniul
+ * din care utilizatorul tocmai voia sa aleaga.
+ *
+ * `scroll` in faza de CAPTURA: evenimentele de scroll nu urca (nu fac bubbling)
+ * de la containerul care chiar deruleaza, deci un listener normal pe `window`
+ * n-ar vedea derularea randului de filtre sau a sertarului — doar pe cea a
+ * paginii. Captura le vede pe toate.
+ *
+ * Limitat la un singur recalcul per cadru (requestAnimationFrame): un scroll
+ * produce zeci de evenimente pe secunda, iar `getBoundingClientRect()` forteaza
+ * de fiecare data recalcularea layout-ului.
+ */
+export function useReanchorOnViewportChange(
+  open: boolean,
+  triggerRef: RefObject<HTMLElement | null>,
+  place: (rect: DOMRect) => void
+): void {
+  // Ref, nu dependenta: `place` e o inchidere noua la fiecare randare, iar ca
+  // dependenta ar dezabona/reabona cei trei listeneri de zeci de ori pe secunda
+  // exact in timpul derularii pe care incearca sa o urmareasca.
+  const placeRef = useRef(place);
+  placeRef.current = place;
+
+  useEffect(() => {
+    if (!open) return;
+    let frame: number | null = null;
+    const reanchor = () => {
+      if (frame !== null) return;
+      frame = requestAnimationFrame(() => {
+        frame = null;
+        const rect = triggerRef.current?.getBoundingClientRect();
+        if (rect) placeRef.current(rect);
+      });
+    };
+    window.addEventListener('resize', reanchor);
+    window.addEventListener('orientationchange', reanchor);
+    window.addEventListener('scroll', reanchor, true);
+    return () => {
+      if (frame !== null) cancelAnimationFrame(frame);
+      window.removeEventListener('resize', reanchor);
+      window.removeEventListener('orientationchange', reanchor);
+      window.removeEventListener('scroll', reanchor, true);
+    };
+  }, [open, triggerRef]);
+}
+
+/**
  * Bug real gasit in timpul verificarii: SceneTagFilter/ColorLabelFilter sunt
  * randate CA COPII ai MoreFiltersMenu in React, dar fiecare isi randeaza
  * propriul meniu printr-un portal SEPARAT direct in <body> — deci in DOM,
@@ -36,8 +102,17 @@ export interface MenuPosition {
  * (`role="menu"`, indiferent de portal) numara drept "inauntru" pentru toate
  * meniurile deschise, nu doar pentru al lui.
  */
+/**
+ * `data-menu-surface` pe langa `role="menu"`: panoul "Mai multe filtre" nu mai
+ * poarta `role="menu"` (nu era un meniu — vezi comentariul din MoreFiltersMenu),
+ * dar ramane o suprafata plutitoare in care un click NU trebuie sa numere drept
+ * "in afara" pentru meniurile deschise din interiorul lui. Atributul e marcajul
+ * neutru care pastreaza acel comportament fara sa minta despre semantica.
+ */
+const MENU_SURFACE_SELECTOR = '[role="menu"], [data-menu-surface]';
+
 export function isInsideAnyMenu(target: EventTarget | null): boolean {
-  return target instanceof Element && target.closest('[role="menu"]') !== null;
+  return target instanceof Element && target.closest(MENU_SURFACE_SELECTOR) !== null;
 }
 
 /**

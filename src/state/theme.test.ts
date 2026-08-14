@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import { readStoredTheme, applyTheme, resolveTheme } from './theme';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { readStoredTheme, applyTheme, resolveTheme, readSystemColorScheme } from './theme';
 
 beforeEach(() => {
   localStorage.clear();
@@ -43,6 +43,45 @@ describe('resolveTheme', () => {
     expect(resolveTheme('auto', new Date(2026, 0, 1, 6, 59))).toBe('dark');
     expect(resolveTheme('auto', new Date(2026, 0, 1, 20, 0))).toBe('dark');
     expect(resolveTheme('auto', new Date(2026, 0, 1, 23))).toBe('dark');
+  });
+
+  /**
+   * Setarea de sistem bate ceasul: "automat" insemna exclusiv "dupa ora", deci
+   * un utilizator cu telefonul pe tema intunecata permanent primea tema
+   * LUMINOASA la 10 dimineata — exact opusul a ce ceruse sistemului.
+   */
+  it('prefers the system colour scheme over the clock when the system states one', () => {
+    expect(resolveTheme('auto', new Date(2026, 0, 1, 12), 'dark')).toBe('dark');
+    expect(resolveTheme('auto', new Date(2026, 0, 1, 23), 'light')).toBe('light');
+  });
+
+  it('falls back to the hour range only when the system states no preference', () => {
+    expect(resolveTheme('auto', new Date(2026, 0, 1, 12), 'no-preference')).toBe('light');
+    expect(resolveTheme('auto', new Date(2026, 0, 1, 23), 'no-preference')).toBe('dark');
+  });
+
+  it('still ignores the system scheme for an explicit dark/light preference', () => {
+    expect(resolveTheme('light', new Date(2026, 0, 1, 23), 'dark')).toBe('light');
+    expect(resolveTheme('dark', new Date(2026, 0, 1, 12), 'light')).toBe('dark');
+  });
+});
+
+describe('readSystemColorScheme', () => {
+  it('reports no-preference when matchMedia answers false to both queries (jsdom default)', () => {
+    expect(readSystemColorScheme()).toBe('no-preference');
+  });
+
+  // stubGlobal, nu spyOn: jsdom nu defineste deloc matchMedia (de aceea si codul
+  // aplicatiei il gardeaza cu `typeof matchMedia !== 'function'`), deci nu exista
+  // nimic pe care sa se poata spiona.
+  it('reports the scheme the system actually asks for', () => {
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: q.includes('dark') }));
+    expect(readSystemColorScheme()).toBe('dark');
+
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: q.includes('light') }));
+    expect(readSystemColorScheme()).toBe('light');
+
+    vi.unstubAllGlobals();
   });
 });
 

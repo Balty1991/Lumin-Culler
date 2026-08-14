@@ -4,7 +4,7 @@ import { COLOR_LABELS, type ColorLabel } from '../core/db';
 import { useStore } from '../state/store';
 import { TagIcon } from './icons';
 import { t } from '../i18n';
-import { computeMenuPosition, isInsideAnyMenu, type MenuPosition } from './dropdownPosition';
+import { computeMenuPosition, isInsideAnyMenu, useReanchorOnViewportChange, type MenuPosition } from './dropdownPosition';
 
 interface Props {
   value: ColorLabel | null;
@@ -30,10 +30,15 @@ export function ColorLabelFilter({ value, onChange }: Props) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  /** Un singur loc unde se decide pozitia — folosit si la deschidere, si la fiecare
+      reancorare (rotire/derulare/redimensionare, vezi useReanchorOnViewportChange). */
+  const place = (rect: DOMRect) => setMenuPos(computeMenuPosition(rect));
+  useReanchorOnViewportChange(open, triggerRef, place);
+
   const toggle = () => {
     if (!open) {
       const rect = triggerRef.current?.getBoundingClientRect();
-      if (rect) setMenuPos(computeMenuPosition(rect));
+      if (rect) place(rect);
     }
     setOpen(v => !v);
   };

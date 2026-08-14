@@ -641,6 +641,7 @@ export const en: Record<TranslationKey, string> = {
   'focusMap.ariaLabel': 'Focus map — local sharpness across the frame',
   'histogram.ariaLabel': 'RGB histogram',
   'insightsChart.ariaLabel': 'Learned factor weights for this context',
+  'starRating.clearHint': 'press again to clear the rating',
   'starRating.ariaLabel': 'Rating',
   'starRating.star': '{n} star',
   'starRating.stars': '{n} stars',

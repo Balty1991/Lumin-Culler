@@ -133,8 +133,13 @@ export function HomeDashboard() {
             <b>{tr(plural(deletableRejected.length, 'home.delete.title.one', 'home.delete.title.other'), { count: deletableRejected.length })}</b>
             <span>{tr('home.delete.sub', { gb: freedGB })}</span>
           </span>
-          <button className="home-delete-go" disabled={deleting} onClick={() => void doDelete()}>
-            {tr('home.delete.cta')}
+          {/* aria-busy + eticheta care se schimba — bug real gasit de auditul UI:
+              stergerea nativa a pozelor respinse poate dura zeci de secunde, iar
+              singurul semn ca se intampla ceva era ca butonul se stingea. Pentru
+              un cititor de ecran asta e indistinct de "butonul s-a dezactivat,
+              actiunea nu mai e disponibila". */}
+          <button className="home-delete-go" disabled={deleting} aria-busy={deleting} onClick={() => void doDelete()}>
+            {deleting ? tr('workspace.progress.processing') : tr('home.delete.cta')}
           </button>
         </div>
       )}

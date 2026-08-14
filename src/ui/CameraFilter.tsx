@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '../state/store';
 import { ApertureIcon } from './icons';
+import { useReanchorOnViewportChange } from './dropdownPosition';
 import { t } from '../i18n';
 
 /**
@@ -33,10 +34,15 @@ export function CameraFilter() {
     return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   }, [photos]);
 
+  /** Un singur loc unde se decide pozitia — folosit si la deschidere, si la fiecare
+      reancorare (rotire/derulare/redimensionare, vezi useReanchorOnViewportChange). */
+  const place = (rect: DOMRect) => setMenuPos({ top: rect.bottom + 6, left: rect.left });
+  useReanchorOnViewportChange(open, triggerRef, place);
+
   const toggle = () => {
     if (!open) {
       const rect = triggerRef.current?.getBoundingClientRect();
-      if (rect) setMenuPos({ top: rect.bottom + 6, left: rect.left });
+      if (rect) place(rect);
     }
     setOpen(v => !v);
   };

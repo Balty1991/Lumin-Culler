@@ -4,7 +4,7 @@ import { useStore } from '../state/store';
 import { SparkleIcon } from './icons';
 import { t } from '../i18n';
 import { translateSceneTag } from '../core/sceneTagLabels';
-import { computeMenuPosition, isInsideAnyMenu, type MenuPosition } from './dropdownPosition';
+import { computeMenuPosition, isInsideAnyMenu, useReanchorOnViewportChange, type MenuPosition } from './dropdownPosition';
 
 /**
  * Filtru dupa eticheta de scena/obiect (PhotoView.sceneTags, COCO-80 — ex.
@@ -34,10 +34,15 @@ export function SceneTagFilter() {
     return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   }, [photos]);
 
+  /** Un singur loc unde se decide pozitia — folosit si la deschidere, si la fiecare
+      reancorare (rotire/derulare/redimensionare, vezi useReanchorOnViewportChange). */
+  const place = (rect: DOMRect) => setMenuPos(computeMenuPosition(rect));
+  useReanchorOnViewportChange(open, triggerRef, place);
+
   const toggle = () => {
     if (!open) {
       const rect = triggerRef.current?.getBoundingClientRect();
-      if (rect) setMenuPos(computeMenuPosition(rect));
+      if (rect) place(rect);
     }
     setOpen(v => !v);
   };
