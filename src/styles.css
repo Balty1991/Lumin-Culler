@@ -611,6 +611,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 .location-card-title .inline-icon { width: 13px; height: 13px; flex-shrink: 0; color: var(--accent); }
 .location-card-sub { display: flex; align-items: center; gap: 4px; font-size: 0.74rem; color: var(--text-dim); flex-wrap: wrap; }
+.location-card-approx { font-size: 0.74rem; color: var(--text-dim); font-style: italic; }
 .location-card-coords { font-size: 0.68rem; color: var(--text-faint); }
 /* Coordonatele exacte, sub numele localitatii, in panoul de informatii al pozei. */
 .detail-exif-coords { display: block; font-size: 0.66rem; color: var(--text-faint); }

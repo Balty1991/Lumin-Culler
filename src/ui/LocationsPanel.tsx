@@ -3,7 +3,7 @@ import { db } from '../core/db';
 import { useStore } from '../state/store';
 import { findLocations, NO_LOCATION_KEY, type PhotoLocationGroup } from '../state/locations';
 import { hasRealGps } from '../core/gpsCoordinates';
-import { resolvePlaceLabels } from '../core/placeLookup';
+import { resolvePlaceLabels, resolvePlaceDetails } from '../core/placeLookup';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { AdjustedImage } from './AdjustedImage';
 import { XIcon, PinIcon } from './icons';
@@ -46,8 +46,13 @@ function LocationThumbImage({ photoId }: { photoId: string }) {
   return src ? <AdjustedImage src={src} alt="" loading="lazy" /> : <span className="memory-thumb-loading" aria-hidden="true" />;
 }
 
-function LocationCard({ group, placeName, locale, onOpenPhoto }: {
-  group: PhotoLocationGroup; placeName?: string; locale: Locale; onOpenPhoto: (id: string) => void;
+function LocationCard({ group, placeName, approxAddress, locale, onOpenPhoto }: {
+  group: PhotoLocationGroup;
+  placeName?: string;
+  /** Strada, cand se stie — aratata SEPARAT de titlu si marcata ca presupunere; vezi 'locations.approx.why'. */
+  approxAddress?: string;
+  locale: Locale;
+  onOpenPhoto: (id: string) => void;
 }) {
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const [expanded, setExpanded] = useState(false);
@@ -79,6 +84,15 @@ function LocationCard({ group, placeName, locale, onOpenPhoto }: {
             <PinIcon className="inline-icon" aria-hidden="true" />
             {title}
           </span>
+          {/* Strada, cand exista, sub titlu si marcata ca presupunere: nu e un
+              fapt, ci ce a ales serviciul de harti pentru o coordonata care si
+              ea are eroare. Vezi 'locations.approx.why' pentru explicatia
+              completa, aratata la apasarea grupului. */}
+          {approxAddress && (
+            <span className="location-card-approx" title={tr('locations.approx.why')}>
+              {tr('locations.approx', { address: approxAddress })}
+            </span>
+          )}
           <span className="location-card-sub">
             {group.hasLocation && placeName && !group.isHome && (
               <>{tr('locations.distance', { km: Math.round(group.distanceFromHomeKm ?? 0) })}{' · '}</>
@@ -99,6 +113,7 @@ function LocationCard({ group, placeName, locale, onOpenPhoto }: {
       {expanded && (
         <>
           {!group.hasLocation && <p className="hint">{tr('locations.none.hint')}</p>}
+          {approxAddress && <p className="hint">{tr('locations.approx.why')}</p>}
           <div className="location-card-grid">
             {group.photos.map(photo => (
               <button key={photo.id} className="memory-thumb" aria-label={photo.fileName} onClick={() => onOpenPhoto(photo.id)}>
@@ -135,7 +150,11 @@ export function LocationsPanel() {
    * (vezi core/placeLookup.ts), deci 30 de poze din acelasi foisor inseamna o
    * singura intrebare.
    */
-  const [photoAddresses, setPhotoAddresses] = useState<Map<string, string>>(new Map());
+  const [photoPlaces, setPhotoPlaces] = useState<Map<string, { address: string; locality: string }>>(new Map());
+  const photoAddresses = useMemo(
+    () => new Map([...photoPlaces].map(([id, place]) => [id, place.address])),
+    [photoPlaces]
+  );
   const groups = useMemo(() => findLocations(photos, photoAddresses), [photos, photoAddresses]);
   /**
    * Etichetele grupurilor si adresele pozelor, dupa modul ales de utilizator
@@ -159,8 +178,8 @@ export function LocationsPanel() {
       const perPhoto = photos
         .filter(p => hasRealGps(p.gpsLatitude, p.gpsLongitude))
         .map(p => ({ key: p.id, latitude: p.gpsLatitude!, longitude: p.gpsLongitude! }));
-      void resolvePlaceLabels(perPhoto, locale, near, 'address').then(addresses => {
-        if (alive) setPhotoAddresses(addresses);
+      void resolvePlaceDetails(perPhoto, locale, near).then(places => {
+        if (alive) setPhotoPlaces(places);
       });
       return () => { alive = false; };
     }
@@ -209,7 +228,8 @@ export function LocationsPanel() {
                 <LocationCard
                   key={group.key}
                   group={group}
-                  placeName={photoAddresses.get(group.photos[0].id) ?? placeNames.get(group.key)}
+                  placeName={photoPlaces.get(group.photos[0].id)?.locality ?? placeNames.get(group.key)}
+                  approxAddress={photoPlaces.get(group.photos[0].id)?.address}
                   locale={locale}
                   onOpenPhoto={openPhoto}
                 />

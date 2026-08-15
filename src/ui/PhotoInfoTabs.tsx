@@ -48,7 +48,7 @@ function formatExif(photo: { iso?: number; fNumber?: number; exposureTime?: numb
 function extendedExifRows(photo: {
   cameraMake?: string; cameraModel?: string; lensModel?: string; focalLength35mm?: number;
   exposureBias?: number; meteringMode?: string; flashFired?: boolean; whiteBalance?: 'auto' | 'manual';
-  gpsLatitude?: number; gpsLongitude?: number; exifArtist?: string; exifCopyright?: string; exifSoftware?: string;
+  gpsLatitude?: number; gpsLongitude?: number; gpsAccuracyM?: number; exifArtist?: string; exifCopyright?: string; exifSoftware?: string;
 }, tr: (key: string, params?: Record<string, string | number>) => string): { key: string; label: string; value: string }[] {
   const rows: { key: string; label: string; value: string }[] = [];
   const camera = [photo.cameraMake, photo.cameraModel].filter(Boolean).join(' ');
@@ -388,14 +388,20 @@ export function PhotoInfoTabs({ photo, src }: { photo: PhotoView; src: string | 
                         title={tr('detail.exif.gps.disclosure')}
                         aria-label={`${placeName ?? r.value} — ${tr('detail.exif.gps.disclosure')}`}
                       >
-                        {placeName ?? r.value}
+                        {placeName ? tr('locations.approx', { address: placeName }) : r.value}
                       </a>
                     ) : r.value}
                     {r.key === 'gps' && placeName && (
-                      // Coordonatele raman vizibile sub nume: numele vine de la
-                      // un serviciu si poate fi aproximativ, cifrele sunt exact
-                      // ce scrie in poza.
-                      <span className="detail-exif-coords mono">{r.value}</span>
+                      // Coordonatele raman vizibile sub nume, si numele e marcat
+                      // ca presupunere: strada e ce a ales serviciul de harti
+                      // pentru o coordonata care si ea are eroare — intrebarea
+                      // utilizatorului, "cum stim locatia adevarata". Cifrele si
+                      // eroarea declarata de aparat sunt singurele fapte.
+                      <span className="detail-exif-coords mono" title={tr('locations.approx.why')}>
+                        {r.value}
+                        {photo.gpsAccuracyM !== undefined &&
+                          ` · ${tr('locations.accuracy', { m: Math.round(photo.gpsAccuracyM) })}`}
+                      </span>
                     )}
                   </dd>
                 </div>

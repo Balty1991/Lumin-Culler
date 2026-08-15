@@ -309,6 +309,8 @@ export interface AnalysisRecord {
   flashFired?: boolean;
   whiteBalance?: 'auto' | 'manual';
   focalLength35mm?: number;
+  /** Eroarea de pozitionare declarata de aparat, in metri — vezi core/exifParser.ts. */
+  gpsAccuracyM?: number;
   gpsLatitude?: number;
   gpsLongitude?: number;
 

@@ -33,6 +33,8 @@ export interface ExifData {
   flashFired?: boolean;
   whiteBalance?: 'auto' | 'manual';
   focalLength35mm?: number; // echivalent 35mm (util pt. senzori APS-C/MFT, unde focalLength brut e inselator)
+  /** Eroarea de pozitionare declarata de aparat, in metri (GPSHPositioningError) — vezi TAG_GPS_H_POSITIONING_ERROR. Absenta la majoritatea telefoanelor. */
+  gpsAccuracyM?: number;
   gpsLatitude?: number;    // grade zecimale, negativ = emisfera sudica
   gpsLongitude?: number;   // grade zecimale, negativ = vest
 }
@@ -60,6 +62,16 @@ const TAG_GPS_LAT_REF = 0x0001;
 const TAG_GPS_LAT = 0x0002;
 const TAG_GPS_LON_REF = 0x0003;
 const TAG_GPS_LON = 0x0004;
+/**
+ * GPSHPositioningError — cat de departe de locul real poate fi coordonata, in
+ * metri, dupa propria estimare a aparatului.
+ *
+ * Intrebarea utilizatorului: "cum facem sa stim locatia adevarata, sa nu ii
+ * ducem pe utilizatori in eroare?". Asta e singurul raspuns care vine chiar din
+ * poza. Multe telefoane nu scriu tag-ul; cand il scriu, e cea mai cinstita
+ * masura a increderii pe care o putem arata.
+ */
+const TAG_GPS_H_POSITIONING_ERROR = 0x001f;
 
 const TYPE_SHORT = 3;
 const TYPE_LONG = 4;
@@ -219,6 +231,9 @@ function parseTiff(view: DataView, tiffStart: number): ExifData {
       if (hasRealGps(lat, lon)) {
         result.gpsLatitude = lat;
         result.gpsLongitude = lon;
+        const accuracyEntry = gpsIfd.get(TAG_GPS_H_POSITIONING_ERROR);
+        const accuracy = accuracyEntry ? readRational(view, tiffStart, accuracyEntry, littleEndian) : undefined;
+        if (accuracy !== undefined && accuracy > 0) result.gpsAccuracyM = accuracy;
       }
     }
   }

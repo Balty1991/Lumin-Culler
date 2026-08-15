@@ -490,6 +490,7 @@ async function processOne(file: File, genre?: string, project?: string, handle?:
       if (exif.flashFired !== undefined) analysis.flashFired = exif.flashFired;
       if (exif.whiteBalance !== undefined) analysis.whiteBalance = exif.whiteBalance;
       if (exif.focalLength35mm !== undefined) analysis.focalLength35mm = exif.focalLength35mm;
+      if (exif.gpsAccuracyM !== undefined) analysis.gpsAccuracyM = exif.gpsAccuracyM;
       if (exif.gpsLatitude !== undefined) analysis.gpsLatitude = exif.gpsLatitude;
       if (exif.gpsLongitude !== undefined) analysis.gpsLongitude = exif.gpsLongitude;
       capturedAt = exif.capturedAt;

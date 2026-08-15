@@ -141,6 +141,8 @@ export interface PhotoView {
   flashFired?: boolean;
   whiteBalance?: 'auto' | 'manual';
   focalLength35mm?: number;
+  /** Cat de departe de locul real poate fi coordonata, dupa aparat (metri). Absenta la majoritatea telefoanelor. */
+  gpsAccuracyM?: number;
   gpsLatitude?: number;
   gpsLongitude?: number;
   /** Metadate IPTC-IIM (segment Photoshop APP13) — vezi core/iptcParser.ts. */
@@ -785,6 +787,7 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     flashFired: analysis?.flashFired,
     whiteBalance: analysis?.whiteBalance,
     focalLength35mm: analysis?.focalLength35mm,
+    gpsAccuracyM: analysis?.gpsAccuracyM,
     gpsLatitude: analysis?.gpsLatitude,
     gpsLongitude: analysis?.gpsLongitude,
     iptcByline: analysis?.iptcByline,

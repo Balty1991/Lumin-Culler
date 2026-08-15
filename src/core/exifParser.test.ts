@@ -220,6 +220,9 @@ describe('parseExif — camp extinse (panou de informatii extins)', () => {
     const data = parseExif(buf);
     expect(data.gpsLatitude).toBeCloseTo(47.5);
     expect(data.gpsLongitude).toBeCloseTo(19 + 2 / 60);
+    // Majoritatea telefoanelor NU scriu eroarea de pozitionare; absenta ei nu e
+    // o problema si nu se inventeaza o valoare — vezi TAG_GPS_H_POSITIONING_ERROR.
+    expect(data.gpsAccuracyM).toBeUndefined();
   });
 
   it('negates latitude/longitude for S/W hemispheres', () => {

@@ -213,3 +213,32 @@ export async function resolvePlaceLabels(
   }
   return labels;
 }
+
+/**
+ * Si adresa, si localitatea, pentru aceleasi puncte.
+ *
+ * Intrebarea utilizatorului: "cum facem sa stim locatia adevarata, sa nu ii
+ * ducem pe utilizatori in eroare?" — raspunsul e ca NU se poate sti strada cu
+ * certitudine, si atunci ecranul trebuie sa arate ambele niveluri, cu increderi
+ * diferite: localitatea (sigura, o eroare de sute de metri n-o schimba) si
+ * strada (o presupunere a serviciului de harti, pornind de la o coordonata care
+ * si ea are eroare). Vezi ui/LocationsPanel.tsx pentru cum sunt aratate.
+ */
+export async function resolvePlaceDetails(
+  points: PlacePoint[],
+  locale: string,
+  nearLabel: (place: string) => string
+): Promise<Map<string, { address: string; locality: string }>> {
+  const [addresses, localities] = await Promise.all([
+    resolvePlaceLabels(points, locale, nearLabel, 'address'),
+    resolvePlaceLabels(points, locale, nearLabel, 'locality')
+  ]);
+  const details = new Map<string, { address: string; locality: string }>();
+  for (const point of points) {
+    const address = addresses.get(point.key);
+    const locality = localities.get(point.key);
+    if (!address && !locality) continue;
+    details.set(point.key, { address: address ?? locality!, locality: locality ?? address! });
+  }
+  return details;
+}
