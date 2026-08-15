@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { db } from '../core/db';
 import { useStore } from '../state/store';
 import { findLocations, NO_LOCATION_KEY, type PhotoLocationGroup } from '../state/locations';
+import { resolvePlaceNames } from '../core/reverseGeocode';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { AdjustedImage } from './AdjustedImage';
 import { XIcon, PinIcon } from './icons';
@@ -44,8 +45,8 @@ function LocationThumbImage({ photoId }: { photoId: string }) {
   return src ? <AdjustedImage src={src} alt="" loading="lazy" /> : <span className="memory-thumb-loading" aria-hidden="true" />;
 }
 
-function LocationCard({ group, locale, onOpenPhoto }: {
-  group: PhotoLocationGroup; locale: Locale; onOpenPhoto: (id: string) => void;
+function LocationCard({ group, placeName, locale, onOpenPhoto }: {
+  group: PhotoLocationGroup; placeName?: string; locale: Locale; onOpenPhoto: (id: string) => void;
 }) {
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const [expanded, setExpanded] = useState(false);
@@ -56,14 +57,15 @@ function LocationCard({ group, locale, onOpenPhoto }: {
   const range = formatRange(group, locale);
 
   // Titlul spune LOCUL, nu data: e un ecran de locatii, iar data e detaliu.
-  // Locurile n-au nume (ar cere o cautare pe internet, iar aplicatia nu trimite
-  // nimic nicaieri), deci numele lor e relatia cu zona in care faci de obicei
-  // poze — singurul reper pe care il avem local.
-  const title = !group.hasLocation
+  // Numele localitatii cand il stim (vezi core/reverseGeocode.ts); altfel —
+  // fara retea, fara serviciu de geocodare — relatia cu zona in care faci de
+  // obicei poze, singurul reper care se calculeaza local.
+  const fallbackTitle = !group.hasLocation
     ? tr('locations.none')
     : group.isHome
       ? tr('locations.home')
       : tr('locations.distance', { km: Math.round(group.distanceFromHomeKm ?? 0) });
+  const title = group.hasLocation && placeName ? placeName : fallbackTitle;
 
   return (
     <li className="location-card">
@@ -77,6 +79,9 @@ function LocationCard({ group, locale, onOpenPhoto }: {
             {title}
           </span>
           <span className="location-card-sub">
+            {group.hasLocation && placeName && !group.isHome && (
+              <>{tr('locations.distance', { km: Math.round(group.distanceFromHomeKm ?? 0) })}{' · '}</>
+            )}
             {range && <>{range}{' · '}</>}
             {tr(plural(group.photos.length, 'locations.photos.one', 'locations.photos.other'), { count: group.photos.length })}
             {range && dayCount > 1 && <>{' · '}{tr(plural(dayCount, 'locations.days.one', 'locations.days.other'), { count: dayCount })}</>}
@@ -124,6 +129,21 @@ export function LocationsPanel() {
   useModalFocusTrap(containerRef, open);
 
   const groups = useMemo(() => findLocations(photos), [photos]);
+  /**
+   * Numele localitatilor, cerute o singura data per loc si tinute minte (vezi
+   * core/reverseGeocode.ts). Doar cat timp panoul e deschis: nimic nu pleaca de
+   * pe telefon pentru un ecran pe care nu-l vede nimeni.
+   */
+  const [placeNames, setPlaceNames] = useState<Map<string, string>>(new Map());
+  useEffect(() => {
+    if (!open) return;
+    let alive = true;
+    const points = groups
+      .filter(g => g.hasLocation)
+      .map(g => ({ key: g.key, latitude: g.centroidLat!, longitude: g.centroidLon! }));
+    void resolvePlaceNames(points).then(names => { if (alive) setPlaceNames(names); });
+    return () => { alive = false; };
+  }, [open, groups]);
 
   useEffect(() => {
     if (!open) return;
@@ -153,7 +173,13 @@ export function LocationsPanel() {
             {hasRealPlaces && <p className="hint">{tr('locations.hint')}</p>}
             <ul className="locations-list">
               {groups.map(group => (
-                <LocationCard key={group.key} group={group} locale={locale} onOpenPhoto={openPhoto} />
+                <LocationCard
+                  key={group.key}
+                  group={group}
+                  placeName={placeNames.get(group.key)}
+                  locale={locale}
+                  onOpenPhoto={openPhoto}
+                />
               ))}
             </ul>
           </>

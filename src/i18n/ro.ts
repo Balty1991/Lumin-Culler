@@ -63,7 +63,7 @@ export const ro = {
   'menu.collections': 'Foldere',
   'menu.locations': 'Locații',
   'locations.empty': 'Nicio poză importată încă — locurile apar aici imediat ce aduci poze în aplicație.',
-  'locations.hint': 'Pozele importate, grupate după locul unde au fost făcute. Locurile nu au nume: numele ar cere o căutare pe internet, iar aplicația nu trimite nimic nicăieri.',
+  'locations.hint': 'Pozele importate, grupate după locul unde au fost făcute. Numele localităților vin de la serviciul de hărți al telefonului — pentru ele pleacă doar coordonatele, niciodată pozele, și o singură dată pentru fiecare loc.',
   'locations.home': 'zona ta obișnuită',
   'locations.distance': '~{km} km de zona ta obișnuită',
   'locations.none': 'Fără locație disponibilă',

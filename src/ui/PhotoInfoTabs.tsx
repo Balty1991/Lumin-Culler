@@ -10,6 +10,7 @@ import { XIcon, CheckIcon, EyeClosedIcon, SparkleIcon, ClockIcon, SunIcon } from
 import { t, type Locale } from '../i18n';
 import { translateSceneTag } from '../core/sceneTagLabels';
 import { hasRealGps } from '../core/gpsCoordinates';
+import { usePlaceName } from './usePlaceName';
 
 type Tab = 'metrics' | 'why' | 'persons' | 'history';
 const TAB_KEYS: { key: Tab; labelKey: string }[] = [
@@ -215,6 +216,12 @@ export function PhotoInfoTabs({ photo, src }: { photo: PhotoView; src: string | 
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const [tab, setTab] = useState<Tab>('metrics');
+  /**
+   * Numele localitatii pentru randul de locatie de mai jos — cerinta directa a
+   * utilizatorului: "sa foloseasca orasele sau localitatile, si nu sa arate
+   * locatia cod GPS". Coordonatele raman dedesubt, ca informatie exacta.
+   */
+  const placeName = usePlaceName(photo.gpsLatitude, photo.gpsLongitude);
   /** Prefix unic de id — vezi comentariul de la <nav role="tablist"> mai jos. */
   const tabsId = useId();
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -379,11 +386,17 @@ export function PhotoInfoTabs({ photo, src }: { photo: PhotoView; src: string | 
                         href={`https://www.openstreetmap.org/?mlat=${photo.gpsLatitude}&mlon=${photo.gpsLongitude}#map=15/${photo.gpsLatitude}/${photo.gpsLongitude}`}
                         target="_blank" rel="noreferrer noopener"
                         title={tr('detail.exif.gps.disclosure')}
-                        aria-label={`${r.value} — ${tr('detail.exif.gps.disclosure')}`}
+                        aria-label={`${placeName ?? r.value} — ${tr('detail.exif.gps.disclosure')}`}
                       >
-                        {r.value}
+                        {placeName ?? r.value}
                       </a>
                     ) : r.value}
+                    {r.key === 'gps' && placeName && (
+                      // Coordonatele raman vizibile sub nume: numele vine de la
+                      // un serviciu si poate fi aproximativ, cifrele sunt exact
+                      // ce scrie in poza.
+                      <span className="detail-exif-coords mono">{r.value}</span>
+                    )}
                   </dd>
                 </div>
               ))}

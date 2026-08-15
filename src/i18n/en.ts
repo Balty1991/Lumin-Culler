@@ -66,7 +66,7 @@ export const en: Record<TranslationKey, string> = {
   'menu.collections': 'Folders',
   'menu.locations': 'Locations',
   'locations.empty': 'No photos imported yet — places show up here as soon as you bring photos into the app.',
-  'locations.hint': 'Your imported photos, grouped by where they were taken. Places have no names: a name would need an internet lookup, and the app never sends anything anywhere.',
+  'locations.hint': 'Your imported photos, grouped by where they were taken. Place names come from your phone’s own map service — only the coordinates are sent for them, never the photos, and only once per place.',
   'locations.home': 'your usual area',
   'locations.distance': '~{km} km from your usual area',
   'locations.none': 'No location available',
