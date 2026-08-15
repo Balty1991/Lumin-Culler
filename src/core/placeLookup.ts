@@ -29,13 +29,26 @@ import { findNearestPlace, formatPlace, loadPlaceIndex } from './placeNames';
 
 interface ReverseGeocodePluginApi {
   reverseGeocode(options: { points: { key: string; latitude: number; longitude: number }[] }):
-    Promise<{ places: { key: string; label: string }[] }>;
+    Promise<{ places: { key: string; label: string; locality?: string }[] }>;
 }
+
+/**
+ * Cat de precisa sa fie eticheta ceruta.
+ *
+ * 'address' pentru O poza anume: adresa completa e exact ce vrei acolo.
+ * 'locality' pentru un GRUP de poze: grupul acopera mai multe strazi, iar
+ * eticheta lui se calculeaza pe centrul grupului — un punct pe care nu s-a
+ * facut nicio poza. Observatie a utilizatorului, cu captura: grupul scria
+ * "Strada Renasterii 78", dar pozele din el erau de pe alte strazi. Localitatea
+ * e adevarata pentru toate pozele din grup.
+ */
+export type PlacePrecision = 'address' | 'locality';
 
 const MediaLibraryNative = registerPlugin<ReverseGeocodePluginApi>('MediaLibrary');
 
 const ONLINE_KEY = 'lumin-place-names-online';
-const CACHE_KEY = 'lumin-place-names';
+/** v2: intrarile tin acum si adresa, si localitatea, nu un singur text. */
+const CACHE_KEY = 'lumin-place-names-v2';
 /** Zecimalele cheii din memorie: 2 inseamna ~1 km, deci doua poze din acelasi oras nimeresc aceeasi intrare. */
 const CACHE_PRECISION = 2;
 /** Peste atatea adrese retinute, cele mai vechi ies — o biblioteca mare n-are voie sa umfle localStorage la nesfarsit. */
@@ -60,15 +73,23 @@ export function placeCacheKey(latitude: number, longitude: number): string {
   return `${latitude.toFixed(CACHE_PRECISION)},${longitude.toFixed(CACHE_PRECISION)}`;
 }
 
-function readCache(): Record<string, string> {
+/** Ce s-a aflat despre un loc: adresa completa si localitatea din care face parte. */
+interface CachedPlace {
+  address: string;
+  locality: string;
+}
+
+function readCache(): Record<string, CachedPlace> {
   try {
     const raw = localStorage.getItem(CACHE_KEY);
     if (!raw) return {};
     const parsed: unknown = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
-    const out: Record<string, string> = {};
+    const out: Record<string, CachedPlace> = {};
     for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
-      if (typeof v === 'string') out[k] = v;
+      if (!v || typeof v !== 'object') continue;
+      const { address, locality } = v as Record<string, unknown>;
+      if (typeof address === 'string' && typeof locality === 'string') out[k] = { address, locality };
     }
     return out;
   } catch {
@@ -76,7 +97,7 @@ function readCache(): Record<string, string> {
   }
 }
 
-function writeCache(cache: Record<string, string>): void {
+function writeCache(cache: Record<string, CachedPlace>): void {
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify(Object.fromEntries(Object.entries(cache).slice(-MAX_CACHED_PLACES))));
   } catch {
@@ -122,9 +143,11 @@ async function offlineNames(
 export async function resolvePlaceLabels(
   points: PlacePoint[],
   locale: string,
-  nearLabel: (place: string) => string
+  nearLabel: (place: string) => string,
+  precision: PlacePrecision = 'address'
 ): Promise<Map<string, string>> {
   if (!points.length) return new Map();
+  // Lista offline stie oricum doar localitati, deci precizia n-are ce schimba.
   if (!readOnlinePlaceNames()) return offlineNames(points, locale, nearLabel);
 
   // Modul online: intai ce s-a aflat deja (nicio interogare repetata), apoi
@@ -135,7 +158,7 @@ export async function resolvePlaceLabels(
   const missing: PlacePoint[] = [];
   for (const point of points) {
     const cached = cache[placeCacheKey(point.latitude, point.longitude)];
-    if (cached) labels.set(point.key, cached);
+    if (cached) labels.set(point.key, precision === 'locality' ? cached.locality : cached.address);
     else missing.push(point);
   }
 
@@ -146,8 +169,11 @@ export async function resolvePlaceLabels(
       for (const place of result.places) {
         const point = byKey.get(place.key);
         if (!point || !place.label) continue;
-        labels.set(place.key, place.label);
-        cache[placeCacheKey(point.latitude, point.longitude)] = place.label;
+        // Versiunile mai vechi ale plugin-ului nu trimit `locality` — atunci
+        // adresa tine si locul ei, ca ecranul sa nu ramana gol.
+        const entry = { address: place.label, locality: place.locality || place.label };
+        labels.set(place.key, precision === 'locality' ? entry.locality : entry.address);
+        cache[placeCacheKey(point.latitude, point.longitude)] = entry;
       }
       if (result.places.length) writeCache(cache);
     } catch (err) {

@@ -47,4 +47,28 @@ describe('selectMonthlyRecap', () => {
   it('returns an empty array for an empty library', () => {
     expect(selectMonthlyRecap([], new Date())).toEqual([]);
   });
+
+  /**
+   * Observatie a utilizatorului, cu captura: "cele mai bune poze, a pus tot ce
+   * am incarcat" — 32 de poze importate, 32 in recap. O selectie care include
+   * tot nu alege nimic.
+   */
+  it('leaves photos out — a "best of" that keeps everything selects nothing', () => {
+    const now = new Date(2026, 7, 15);
+    const photos = Array.from({ length: 32 }, (_, i) =>
+      photo(`p${i}`, now.getTime() - i * 60_000, 50 + i)
+    );
+    const recap = selectMonthlyRecap(photos, now);
+    expect(recap.length).toBeLessThan(photos.length);
+    expect(recap.length).toBe(Math.ceil(32 / 3));
+    // si sunt chiar cele mai bune, in ordine
+    expect(recap[0].aiScore).toBe(81);
+    expect(recap[recap.length - 1].aiScore).toBeGreaterThan(50);
+  });
+
+  it('keeps everything when there is barely anything to choose from', () => {
+    const now = new Date(2026, 7, 15);
+    const photos = Array.from({ length: 4 }, (_, i) => photo(`p${i}`, now.getTime() - i * 60_000, 50 + i));
+    expect(selectMonthlyRecap(photos, now)).toHaveLength(4);
+  });
 });

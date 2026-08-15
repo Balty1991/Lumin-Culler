@@ -528,11 +528,27 @@ class MediaLibraryPlugin : Plugin() {
                         .filter { it.isNotBlank() }
                         .joinToString(" ")
                     val place = address.locality ?: address.subAdminArea ?: address.adminArea
+                    // DOUA etichete, nu una. Adresa completa e ce vrei cand te
+                    // uiti la o poza anume. Dar un GRUP de poze acopera mai
+                    // multe strazi, iar eticheta lui se calculeaza pe centrul
+                    // grupului — adica pe un punct pe care nu s-a facut nicio
+                    // poza. Observatie a utilizatorului, cu captura: grupul
+                    // scria "Strada Renasterii 78", iar pozele din el erau de pe
+                    // alta strada. Pentru grupuri se foloseste localitatea, care
+                    // e adevarata pentru toate pozele din ele.
+                    val locality = listOfNotNull(place, address.countryName)
+                        .filter { it.isNotBlank() }
+                        .joinToString(", ")
                     val label = listOfNotNull(street.ifBlank { null }, place, address.countryName)
                         .filter { it.isNotBlank() }
                         .joinToString(", ")
-                    if (label.isNotBlank()) {
-                        places.put(JSObject().put("key", key).put("label", label))
+                    if (label.isNotBlank() || locality.isNotBlank()) {
+                        places.put(
+                            JSObject()
+                                .put("key", key)
+                                .put("label", label.ifBlank { locality })
+                                .put("locality", locality.ifBlank { label })
+                        )
                     }
                 } catch (_: Exception) {
                     // Un punct fara raspuns (fara retea, coordonate in mijlocul
