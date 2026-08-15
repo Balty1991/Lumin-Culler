@@ -12,8 +12,9 @@ import { hasRealGps } from '../core/gpsCoordinates';
  * coordonate, apare la locul ei; daca nu are, apare intr-o grupa separata,
  * spusa pe fata. Ecranul arata ce stie aplicatia, nu ce n-a gasit.
  *
- * Nu exista nume de locuri, doar coordonate si distante: numele ar cere o
- * cautare inversa pe internet, iar aplicatia nu trimite nimic nicaieri.
+ * Aici se face DOAR gruparea; numele locurilor vin din alta parte (vezi
+ * core/placeLookup.ts, care le cauta intr-o lista inclusa in aplicatie sau, la
+ * alegerea utilizatorului, le cere serviciului de harti al telefonului).
  */
 
 export interface PhotoLocationGroup {
@@ -26,6 +27,9 @@ export interface PhotoLocationGroup {
   /** Absente pentru grupa fara locatie. */
   centroidLat?: number;
   centroidLon?: number;
+  /** Coordonatele POZEI celei mai apropiate de centru — un loc real, caruia i se poate cere o adresa adevarata. */
+  anchorLat?: number;
+  anchorLon?: number;
   distanceFromHomeKm?: number;
   /** Grupa asta e in zona in care faci de obicei poze. */
   isHome: boolean;
@@ -53,8 +57,20 @@ function avg(values: number[]): number {
 
 /** Sub atata, o grupa e in zona in care traiesti — nu are rost sa i se spuna distanta. */
 export const HOME_RADIUS_KM = 25;
-/** Latura celulei unei locatii — 0.1 grade de latitudine sunt ~11 km, adica un oras cu imprejurimile lui. */
-const LOCATION_CELL_DEG = 0.1;
+/**
+ * Cat de aproape trebuie sa fie doua poze ca sa fie "in acelasi loc" — 400 m.
+ *
+ * Observatie a utilizatorului, cu doua capturi: doua grupuri, amandoua numite
+ * "Rosiori de Vede", desi pozele erau dintr-un parc, de pe o terasa si de acasa.
+ * Gruparea se facea pe celule de ~11 km, adica un oras intreg intr-un singur
+ * grup: locul unei poze devenea numele orasului, si toate locurile aratau la
+ * fel. Un "loc" e un parc, o terasa, o curte — nu un oras.
+ *
+ * 400 m: destul cat cateva zeci de pasi si imprecizia GPS (5-20 m in aer liber)
+ * sa nu rupa un loc in doua, destul de putin cat doua locuri diferite din
+ * acelasi oras sa ramana doua.
+ */
+const LOCATION_CLUSTER_RADIUS_KM = 0.4;
 /** Latura celulei in care se cauta "zona obisnuita" — 0.5 grade sunt ~55 km, deliberat mai mare decat o locatie, ca zona sa nu se rupa in doua de o margine de celula. */
 const HOME_CELL_DEG = 0.5;
 /** Cheia grupei pentru pozele fara coordonate. */
@@ -63,6 +79,38 @@ export const NO_LOCATION_KEY = 'no-location';
 interface Coords {
   gpsLatitude: number;
   gpsLongitude: number;
+}
+
+/**
+ * Grupare dupa apropiere, NU pe o grila fixa.
+ *
+ * Grila avea o hiba pe care nu o are apropierea: doua poze la 50 m distanta,
+ * dar de o parte si de alta a unei margini de celula, ajungeau in grupuri
+ * diferite, iar doua locuri la 10 km unul de altul, in aceeasi celula, ajungeau
+ * impreuna. Aici o poza intra in grupul al carui centru ii e cel mai apropiat,
+ * daca e sub raza de mai sus, si deschide un grup nou altfel.
+ */
+function clusterByProximity<T extends Coords>(photos: T[]): T[][] {
+  const clusters: { lat: number; lon: number; items: T[] }[] = [];
+  for (const photo of photos) {
+    let best: typeof clusters[number] | undefined;
+    let bestDistance = Infinity;
+    for (const cluster of clusters) {
+      const distance = haversineKm(cluster.lat, cluster.lon, photo.gpsLatitude, photo.gpsLongitude);
+      if (distance <= LOCATION_CLUSTER_RADIUS_KM && distance < bestDistance) {
+        best = cluster;
+        bestDistance = distance;
+      }
+    }
+    if (!best) {
+      clusters.push({ lat: photo.gpsLatitude, lon: photo.gpsLongitude, items: [photo] });
+      continue;
+    }
+    best.items.push(photo);
+    best.lat = avg(best.items.map(i => i.gpsLatitude));
+    best.lon = avg(best.items.map(i => i.gpsLongitude));
+  }
+  return clusters.map(c => c.items);
 }
 
 function cellKey(p: Coords, size: number): string {
@@ -129,16 +177,27 @@ export function findLocations(photos: PhotoView[]): PhotoLocationGroup[] {
   const groups: PhotoLocationGroup[] = [];
   if (located.length) {
     const home = homeAnchor(located);
-    for (const [key, cell] of groupByCell(located, LOCATION_CELL_DEG)) {
-      const centroidLat = avg(cell.map(p => p.gpsLatitude));
-      const centroidLon = avg(cell.map(p => p.gpsLongitude));
+    for (const cluster of clusterByProximity(located)) {
+      const centroidLat = avg(cluster.map(p => p.gpsLatitude));
+      const centroidLon = avg(cluster.map(p => p.gpsLongitude));
+      // Punctul de reper NU e centrul, ci poza cea mai apropiata de centru.
+      // Centrul e o medie: un punct pe care nu s-a facut nicio poza, si caruia
+      // i se poate cere o adresa care nu e a nimanui. Reperul e mereu un loc in
+      // care chiar ai fost — vezi ui/LocationsPanel.tsx, unde i se cere numele.
+      const anchor = cluster.reduce((best, p) =>
+        haversineKm(centroidLat, centroidLon, p.gpsLatitude, p.gpsLongitude) <
+        haversineKm(centroidLat, centroidLon, best.gpsLatitude, best.gpsLongitude) ? p : best
+      );
       const distanceFromHomeKm = haversineKm(home.lat, home.lon, centroidLat, centroidLon);
       groups.push({
-        key,
-        photos: [...cell].sort((a, b) => (a.capturedAt ?? 0) - (b.capturedAt ?? 0)),
-        ...dateRange(cell),
+        // Cheia e id-ul pozei de reper: stabila intre randari si unica pe grup.
+        key: `place-${anchor.id}`,
+        photos: [...cluster].sort((a, b) => (a.capturedAt ?? 0) - (b.capturedAt ?? 0)),
+        ...dateRange(cluster),
         centroidLat,
         centroidLon,
+        anchorLat: anchor.gpsLatitude,
+        anchorLon: anchor.gpsLongitude,
         distanceFromHomeKm,
         isHome: distanceFromHomeKm < HOME_RADIUS_KM,
         hasLocation: true

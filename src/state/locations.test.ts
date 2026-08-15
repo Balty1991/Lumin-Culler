@@ -38,6 +38,49 @@ describe('findLocations', () => {
     expect(groups[0].isHome).toBe(true);
   });
 
+  /**
+   * Observatie a utilizatorului, cu doua capturi: doua grupuri, amandoua numite
+   * "Rosiori de Vede", desi pozele erau dintr-un parc, de pe o terasa si de
+   * acasa. Se grupa pe celule de ~11 km — un oras intreg intr-un grup.
+   */
+  it('separates two spots in the same town', () => {
+    const PARK = { lat: 44.1155, lon: 25.0035 };       // ~1.4 km de HOME
+    const groups = findLocations([
+      photo('h1', base, HOME),
+      photo('h2', base + 3600000, HOME),
+      photo('p1', base + 7200000, PARK),
+      photo('p2', base + 10800000, PARK)
+    ]);
+    expect(groups).toHaveLength(2);
+    expect(groups.map(g => g.photos.length)).toEqual([2, 2]);
+    const ids = groups.map(g => g.photos.map(p => p.id).sort().join(','));
+    expect(ids.sort()).toEqual(['h1,h2', 'p1,p2']);
+  });
+
+  /** Cativa pasi, sau imprecizia GPS, nu rup un loc in doua. */
+  it('keeps photos a few dozen metres apart in the same place', () => {
+    const groups = findLocations([
+      photo('a', base, HOME),
+      photo('b', base + 60000, { lat: HOME.lat + 0.0005, lon: HOME.lon + 0.0005 }), // ~70 m
+      photo('c', base + 120000, { lat: HOME.lat - 0.0008, lon: HOME.lon }) // ~90 m
+    ]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].photos).toHaveLength(3);
+  });
+
+  /** Reperul e o poza reala, nu media coordonatelor — vezi comentariul din findLocations. */
+  it('anchors the group on an actual photo, not on the average point', () => {
+    const groups = findLocations([
+      photo('a', base, HOME),
+      photo('b', base + 60000, { lat: HOME.lat + 0.002, lon: HOME.lon })
+    ]);
+    const [group] = groups;
+    const anchorIsAPhoto = group.photos.some(
+      p => p.gpsLatitude === group.anchorLat && p.gpsLongitude === group.anchorLon
+    );
+    expect(anchorIsAPhoto).toBe(true);
+  });
+
   it('keeps distinct areas apart and marks only the usual one as home', () => {
     const photos = [
       ...Array.from({ length: 5 }, (_, i) => photo(`h${i}`, base + i * DAY, HOME)),

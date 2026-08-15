@@ -141,22 +141,17 @@ export function LocationsPanel() {
   useEffect(() => {
     if (!open) return;
     let alive = true;
-    // Doua cereri, cu precizii diferite: un grup cu mai multe poze primeste
-    // LOCALITATEA (eticheta lui se calculeaza pe centrul grupului, un punct pe
-    // care nu s-a facut nicio poza — o strada de acolo n-ar fi adevarata pentru
-    // niciuna), iar un grup cu o singura poza primeste adresa exacta, fiindca
-    // acolo centrul CHIAR e locul pozei. Observatie a utilizatorului, cu
-    // captura: grupul scria "Strada Renasterii 78", dar pozele erau de pe alte
-    // strazi.
-    const located = groups.filter(g => g.hasLocation);
-    const pointOf = (g: PhotoLocationGroup) => ({ key: g.key, latitude: g.centroidLat!, longitude: g.centroidLon! });
-    const near = (place: string) => tr('locations.near', { place });
-    void Promise.all([
-      resolvePlaceLabels(located.filter(g => g.photos.length === 1).map(pointOf), locale, near, 'address'),
-      resolvePlaceLabels(located.filter(g => g.photos.length > 1).map(pointOf), locale, near, 'locality')
-    ]).then(([single, grouped]) => {
-      if (alive) setPlaceNames(new Map([...single, ...grouped]));
-    });
+    // Numele se cere pentru POZA DE REPER a grupului, nu pentru centrul lui:
+    // centrul e o medie, un punct pe care nu s-a facut nicio poza, si i se
+    // poate raspunde cu adresa nimanui. Observatie a utilizatorului, cu
+    // captura: grupul scria "Strada Renasterii 78", iar pozele erau de pe alte
+    // strazi. Acum grupurile sunt si mici (~400 m, vezi state/locations.ts),
+    // deci adresa reperului chiar descrie tot grupul.
+    const points = groups
+      .filter(g => g.hasLocation)
+      .map(g => ({ key: g.key, latitude: g.anchorLat ?? g.centroidLat!, longitude: g.anchorLon ?? g.centroidLon! }));
+    void resolvePlaceLabels(points, locale, near => tr('locations.near', { place: near }), 'address')
+      .then(names => { if (alive) setPlaceNames(names); });
     return () => { alive = false; };
   }, [open, groups, locale, onlinePlaceNames]); // eslint-disable-line react-hooks/exhaustive-deps -- `tr` se reface la fiecare randare; `locale` e ce conteaza
 
