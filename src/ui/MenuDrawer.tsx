@@ -67,6 +67,21 @@ function DrawerGroup(props: {
   expandLabel?: string; collapseLabel?: string;
 }) {
   const [open, setOpen] = useState(props.defaultOpen ?? true);
+  /**
+   * Continutul unei sectiuni STRANSE nu se randeaza deloc pana la prima ei
+   * deschidere.
+   *
+   * Bug real raportat de utilizator: "cand accesez meniu, apare sacadat".
+   * Strangerea era doar vizuala (grid-template-rows: 0fr), deci la fiecare
+   * deschidere a sertarului se construiau TOATE randurile din toate sectiunile
+   * — inclusiv cele doua stranse implicit, pe care nu le vede nimeni — exact in
+   * cadrul in care incepe si animatia de glisare. Munca aia de constructie tine
+   * ocupat firul principal, iar animatia pierde primele cadre.
+   *
+   * Dupa prima deschidere ramane montat, ca strangerea/desfacerea urmatoare sa
+   * ramana animatia CSS ieftina de dinainte, fara sa reconstruiasca nimic.
+   */
+  const [everOpened, setEverOpened] = useState(props.defaultOpen ?? true);
   if (!props.collapsible) {
     return (
       <div className="drawer-group">
@@ -80,7 +95,7 @@ function DrawerGroup(props: {
       <button
         type="button"
         className="drawer-group-head"
-        onClick={() => setOpen(o => !o)}
+        onClick={() => { setOpen(o => !o); setEverOpened(true); }}
         aria-expanded={open}
         aria-label={open ? props.collapseLabel : props.expandLabel}
       >
@@ -88,7 +103,7 @@ function DrawerGroup(props: {
         <ChevronUpIcon className="drawer-group-chevron" data-open={open} aria-hidden="true" />
       </button>
       <div className="drawer-group-body" data-open={open}>
-        <div className="drawer-group-body-inner">{props.children}</div>
+        <div className="drawer-group-body-inner">{everOpened ? props.children : null}</div>
       </div>
     </div>
   );

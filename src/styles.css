@@ -2697,6 +2697,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .drawer-scrim {
   position: fixed; inset: 0; z-index: var(--z-drawer-scrim); background: rgba(5,6,8,0.78);
   display: flex; justify-content: flex-end;
+  /* Voalul acopera tot ecranul, iar opacitatea lui e animata la deschidere:
+     fara promisiunea asta, fiecare cadru poate cere o re-pictare pe toata
+     suprafata, in loc de o simpla compunere a unui strat gata pictat. */
+  will-change: opacity;
 }
 .drawer {
   /* min-width:0 e esential: .drawer e el insusi un flex item (in .drawer-scrim, flex),
@@ -2710,6 +2714,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
      arata practic la fel, dar nu mai cere o recalculare de blur pe cadru.
      will-change ii promite compozitorului un strat propriu inainte sa porneasca
      animatia, ca primul cadru sa nu fie cel care plateste promovarea. */
+  /* contain: layout paint — sertarul e un panou inchis: nimic din interiorul lui
+     nu influenteaza asezarea restului paginii, si nimic nu deseneaza in afara
+     lui (are oricum overflow-y: auto). Spus explicit, motorul poate trata tot
+     continutul ca pe o insula si nu mai recalculeaza nimic dincolo de ea in
+     cadrele animatiei de glisare — parte din raspunsul la "meniul apare
+     sacadat", impreuna cu montarea lenesa a sectiunilor stranse (MenuDrawer.tsx). */
+  contain: layout paint;
   width: min(330px, 86%); min-width: 0; height: 100%; background: var(--surface); will-change: transform;
   border-left: 1px solid var(--glass-border);
   /* padding-bottom pentru gesture bar avea deja safe-area — capul sertarului (titlu +

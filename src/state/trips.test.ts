@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { findTrips } from './trips';
+import { findTrips, summarizeTripSearch } from './trips';
 import type { PhotoView } from './store';
 
 // Bucuresti (acasa, in aceste teste) ~ 44.43,26.10 — Paris ~ 48.86,2.35 (~1450km distanta)
@@ -112,5 +112,55 @@ describe('findTrips', () => {
     const trips = findTrips(photos);
     expect(trips).toHaveLength(1);
     expect(trips[0].photos.map(p => p.id)).toEqual(['a', 'b']);
+  });
+
+  /**
+   * Bug real raportat de utilizator: locatia se citea corect, dar "Calatorii"
+   * ramanea gol. "Acasa" era MEDIA tuturor coordonatelor — cu jumatate din poze
+   * acasa si jumatate in vacanta, media cade la mijlocul drumului, deci ambele
+   * capete par aproape de "casa" si nicio calatorie nu trece pragul de 50 km.
+   */
+  it('finds the trip even when half the located photos are from it', () => {
+    const base = new Date(2026, 5, 10).getTime();
+    const HOME = { lat: 44.43, lon: 26.10 };            // Bucuresti
+    const AWAY = { lat: 45.65, lon: 25.60 };            // Brasov, ~145 km
+    const photos = [
+      photo('h1', base - 10 * DAY, HOME),
+      photo('h2', base - 9 * DAY, HOME),
+      photo('h3', base - 8 * DAY, HOME),
+      photo('a', base, AWAY),
+      photo('b', base + DAY, AWAY),
+      photo('c', base + DAY + 3600000, AWAY)
+    ];
+    const trips = findTrips(photos);
+    expect(trips).toHaveLength(1);
+    expect(trips[0].photos.map(p => p.id)).toEqual(['a', 'b', 'c']);
+    expect(Math.round(trips[0].distanceFromHomeKm)).toBeGreaterThan(100);
+  });
+
+  describe('summarizeTripSearch', () => {
+    it('spune cate poze au locatie reala', () => {
+      const base = new Date(2026, 5, 10).getTime();
+      const s = summarizeTripSearch([
+        photo('a', base, { lat: 44.43, lon: 26.10 }),
+        photo('b', base + DAY, undefined),
+        photo('c', base + 2 * DAY, { lat: 0, lon: 0 })
+      ]);
+      expect(s.withLocation).toBe(1);
+    });
+
+    it('deosebeste "toate dintr-o singura zi" de "prea aproape de casa"', () => {
+      const base = new Date(2026, 5, 10).getTime();
+      const HOME = { lat: 44.43, lon: 26.10 };
+      // doua poze in aceeasi zi: niciun grup de 2+ zile
+      const singleDay = summarizeTripSearch([photo('a', base, HOME), photo('b', base + 3600000, HOME)]);
+      expect(singleDay.multiDayGroups).toBe(0);
+      expect(singleDay.farthestGroupKm).toBeUndefined();
+
+      // doua zile la rand, dar acasa
+      const nearby = summarizeTripSearch([photo('a', base, HOME), photo('b', base + DAY, HOME)]);
+      expect(nearby.multiDayGroups).toBe(1);
+      expect(nearby.farthestGroupKm).toBeLessThan(50);
+    });
   });
 });

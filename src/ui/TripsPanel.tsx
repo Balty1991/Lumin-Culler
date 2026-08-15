@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { db } from '../core/db';
 import { useStore } from '../state/store';
-import { findTrips, type Trip } from '../state/trips';
+import { findTrips, summarizeTripSearch, TRIP_MIN_DISTANCE_FROM_HOME_KM, type Trip } from '../state/trips';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { AdjustedImage } from './AdjustedImage';
 import { XIcon, PinIcon } from './icons';
@@ -88,11 +88,26 @@ export function TripsPanel() {
   const photos = useStore(s => s.photos);
   const openDetail = useStore(s => s.openDetail);
   const locale = useStore(s => s.locale);
-  const tr = (key: string) => t(locale, key);
+  const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const containerRef = useRef<HTMLDivElement>(null);
   useModalFocusTrap(containerRef, open);
 
   const trips = useMemo(() => findTrips(photos), [photos]);
+  // Calculat doar cand chiar nu s-a gasit nimic — vezi summarizeTripSearch:
+  // "nimic" are trei cauze diferite si doar una e o problema.
+  const emptyReason = useMemo(() => {
+    if (trips.length > 0) return '';
+    const s = summarizeTripSearch(photos);
+    if (s.withLocation === 0) {
+      return photos.length ? tr('trips.empty.noLocation', { total: photos.length }) : tr('trips.empty');
+    }
+    if (s.multiDayGroups === 0) return tr('trips.empty.singleDay', { count: s.withLocation });
+    return tr('trips.empty.tooClose', {
+      count: s.withLocation,
+      km: Math.round(s.farthestGroupKm ?? 0),
+      threshold: TRIP_MIN_DISTANCE_FROM_HOME_KM
+    });
+  }, [trips, photos, locale]); // eslint-disable-line react-hooks/exhaustive-deps -- `tr` se schimba la fiecare randare; `locale` e ce conteaza
 
   useEffect(() => {
     if (!open) return;
@@ -115,7 +130,7 @@ export function TripsPanel() {
           </button>
         </header>
         {trips.length === 0
-          ? <p className="hint">{tr('trips.empty')}</p>
+          ? <p className="hint">{emptyReason}</p>
           : (
             <ul className="trips-list">
               {trips.map(trip => (
