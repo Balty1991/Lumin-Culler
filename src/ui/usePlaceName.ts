@@ -1,28 +1,31 @@
 import { useEffect, useState } from 'react';
 import { hasRealGps } from '../core/gpsCoordinates';
-import { resolvePlaceNames } from '../core/reverseGeocode';
+import { findNearestPlace, formatPlace, loadPlaceIndex } from '../core/placeNames';
+import { useStore } from '../state/store';
+import { t } from '../i18n';
 
 /**
  * Numele localitatii pentru o pereche de coordonate, sau `null` cat timp nu se
- * stie (nici nu se poate afla, fara retea sau fara serviciu de geocodare).
+ * stie.
  *
  * Cerinta directa a utilizatorului: unde se vede o locatie, sa scrie
- * localitatea, ca in Galeria telefonului, nu un cod GPS. Coordonatele raman
- * afisate dedesubt — sunt informatia exacta, si tot ele se deschid in harta.
- *
- * Interogarea se face o singura data pe loc si se tine minte local (vezi
- * core/reverseGeocode.ts, unde e explicat si ce anume pleaca de pe telefon).
+ * localitatea, nu un cod GPS — dar fara ca ceva sa plece de pe telefon. Numele
+ * vine dintr-o lista de localitati inclusa in aplicatie (vezi
+ * core/placeNames.ts); coordonatele raman afisate, sunt informatia exacta.
  */
 export function usePlaceName(latitude: number | undefined, longitude: number | undefined): string | null {
+  const locale = useStore(s => s.locale);
   const [name, setName] = useState<string | null>(null);
   useEffect(() => {
     setName(null);
     if (!hasRealGps(latitude, longitude)) return;
     let alive = true;
-    const key = 'photo';
-    void resolvePlaceNames([{ key, latitude: latitude!, longitude: longitude! }])
-      .then(names => { if (alive) setName(names.get(key) ?? null); });
+    void loadPlaceIndex().then(index => {
+      if (!alive || !index) return;
+      const place = findNearestPlace(index, latitude!, longitude!);
+      if (place) setName(formatPlace(place, locale, near => t(locale, 'locations.near', { place: near })));
+    });
     return () => { alive = false; };
-  }, [latitude, longitude]);
+  }, [latitude, longitude, locale]);
   return name;
 }

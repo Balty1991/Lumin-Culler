@@ -1,6 +1,9 @@
 node_modules/
 dist/
 public/models/
+# lista de localitati pentru ecranul Locatii — adusa de CI la build (GeoNames),
+# ca si modelele AI de mai sus; vezi pasul "Bundle place names" din workflow-uri
+public/places/
 release/
 *.local
 

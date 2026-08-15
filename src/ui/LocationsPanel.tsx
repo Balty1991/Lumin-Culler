@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { db } from '../core/db';
 import { useStore } from '../state/store';
 import { findLocations, NO_LOCATION_KEY, type PhotoLocationGroup } from '../state/locations';
-import { resolvePlaceNames } from '../core/reverseGeocode';
+import { findNearestPlace, formatPlace, loadPlaceIndex } from '../core/placeNames';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { AdjustedImage } from './AdjustedImage';
 import { XIcon, PinIcon } from './icons';
@@ -130,20 +130,27 @@ export function LocationsPanel() {
 
   const groups = useMemo(() => findLocations(photos), [photos]);
   /**
-   * Numele localitatilor, cerute o singura data per loc si tinute minte (vezi
-   * core/reverseGeocode.ts). Doar cat timp panoul e deschis: nimic nu pleaca de
-   * pe telefon pentru un ecran pe care nu-l vede nimeni.
+   * Numele localitatilor, cautate in lista inclusa in aplicatie (vezi
+   * core/placeNames.ts) — nimic nu pleaca de pe telefon. Lista se incarca doar
+   * la prima deschidere a ecranului, nu la pornirea aplicatiei: cateva MB
+   * degeaba pentru cine nu se uita niciodata aici.
    */
   const [placeNames, setPlaceNames] = useState<Map<string, string>>(new Map());
   useEffect(() => {
     if (!open) return;
     let alive = true;
-    const points = groups
-      .filter(g => g.hasLocation)
-      .map(g => ({ key: g.key, latitude: g.centroidLat!, longitude: g.centroidLon! }));
-    void resolvePlaceNames(points).then(names => { if (alive) setPlaceNames(names); });
+    void loadPlaceIndex().then(index => {
+      if (!alive || !index) return;
+      const names = new Map<string, string>();
+      for (const group of groups) {
+        if (!group.hasLocation) continue;
+        const place = findNearestPlace(index, group.centroidLat!, group.centroidLon!);
+        if (place) names.set(group.key, formatPlace(place, locale, near => tr('locations.near', { place: near })));
+      }
+      setPlaceNames(names);
+    });
     return () => { alive = false; };
-  }, [open, groups]);
+  }, [open, groups, locale]); // eslint-disable-line react-hooks/exhaustive-deps -- `tr` se reface la fiecare randare; `locale` e ce conteaza
 
   useEffect(() => {
     if (!open) return;
