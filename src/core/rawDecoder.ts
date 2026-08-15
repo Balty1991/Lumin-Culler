@@ -25,6 +25,8 @@ export function isRawFile(file: File): boolean {
   return RAW_EXTENSIONS.test(file.name);
 }
 
+import { hasRealGps } from './gpsCoordinates';
+
 export interface RawExifMeta {
   iso?: number;
   fNumber?: number;
@@ -72,8 +74,11 @@ function metaFromLibRaw(m: Awaited<ReturnType<LibRaw['metadata']>>): RawExifMeta
     let lon = longitude[0] + longitude[1] / 60 + longitude[2] / 3600;
     if (latref === 'S') lat = -lat;
     if (longref === 'W') lon = -lon;
-    meta.gpsLatitude = lat;
-    meta.gpsLongitude = lon;
+    // 0,0 = fara locatie, nu Golful Guineei — vezi core/gpsCoordinates.ts.
+    if (hasRealGps(lat, lon)) {
+      meta.gpsLatitude = lat;
+      meta.gpsLongitude = lon;
+    }
   }
   return meta;
 }

@@ -9,6 +9,7 @@ import { AnimatedNumber } from './AnimatedNumber';
 import { XIcon, CheckIcon, EyeClosedIcon, SparkleIcon, ClockIcon, SunIcon } from './icons';
 import { t, type Locale } from '../i18n';
 import { translateSceneTag } from '../core/sceneTagLabels';
+import { hasRealGps } from '../core/gpsCoordinates';
 
 type Tab = 'metrics' | 'why' | 'persons' | 'history';
 const TAB_KEYS: { key: Tab; labelKey: string }[] = [
@@ -59,8 +60,12 @@ function extendedExifRows(photo: {
   if (photo.meteringMode) rows.push({ key: 'metering', label: tr('detail.exif.metering'), value: photo.meteringMode });
   if (photo.flashFired !== undefined) rows.push({ key: 'flash', label: tr('detail.exif.flash'), value: photo.flashFired ? tr('detail.exif.flash.yes') : tr('detail.exif.flash.no') });
   if (photo.whiteBalance) rows.push({ key: 'whiteBalance', label: tr('detail.exif.whiteBalance'), value: photo.whiteBalance === 'auto' ? tr('detail.exif.whiteBalance.auto') : tr('detail.exif.whiteBalance.manual') });
-  if (photo.gpsLatitude !== undefined && photo.gpsLongitude !== undefined) {
-    rows.push({ key: 'gps', label: tr('detail.exif.gps'), value: `${photo.gpsLatitude.toFixed(5)}, ${photo.gpsLongitude.toFixed(5)}` });
+  // hasRealGps, nu doar "au valoare": bug real raportat de utilizator, cu
+  // captura — panoul arata "Locatie GPS: 0.00000, 0.00000" pentru poze carora
+  // Android le redactase locatia lasand tag-urile pe zero. Vezi
+  // core/gpsCoordinates.ts. Un rand lipsa spune adevarul; 0,0 minte.
+  if (hasRealGps(photo.gpsLatitude, photo.gpsLongitude)) {
+    rows.push({ key: 'gps', label: tr('detail.exif.gps'), value: `${photo.gpsLatitude!.toFixed(5)}, ${photo.gpsLongitude!.toFixed(5)}` });
   }
   if (photo.exifArtist) rows.push({ key: 'artist', label: tr('detail.exif.artist'), value: photo.exifArtist });
   if (photo.exifCopyright) rows.push({ key: 'copyright', label: tr('detail.exif.copyright'), value: photo.exifCopyright });
@@ -364,7 +369,7 @@ export function PhotoInfoTabs({ photo, src }: { photo: PhotoView; src: string | 
                 <div className="detail-exif-row" key={r.key}>
                   <dt>{r.label}</dt>
                   <dd>
-                    {r.key === 'gps' && photo.gpsLatitude !== undefined && photo.gpsLongitude !== undefined ? (
+                    {r.key === 'gps' && hasRealGps(photo.gpsLatitude, photo.gpsLongitude) ? (
                       // Aplicatia se declara "AI local, pozele nu parasesc dispozitivul" —
                       // acest link e SINGURA exceptie (coordonatele GPS sunt trimise catre
                       // openstreetmap.org la click, un serviciu extern). title/aria-label

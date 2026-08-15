@@ -1,4 +1,5 @@
 import type { PhotoView } from './store';
+import { hasRealGps } from '../core/gpsCoordinates';
 
 export interface Trip {
   photos: PhotoView[];
@@ -51,8 +52,13 @@ const TRIP_MIN_DISTANCE_FROM_HOME_KM = 50;
  */
 export function findTrips(photos: PhotoView[]): Trip[] {
   const withGps = photos
+    // hasRealGps, nu doar "au valoare": pozele importate INAINTE de citirea
+    // nativa a locatiei au in baza 0,0 (redactarea Android lasa tag-urile GPS
+    // cu zero — vezi core/gpsCoordinates.ts). Fara filtrul asta, toate ar fi
+    // considerate in acelasi loc, "acasa" ar iesi tot acolo, si nicio calatorie
+    // n-ar depasi vreodata pragul de distanta.
     .filter((p): p is PhotoView & { capturedAt: number; gpsLatitude: number; gpsLongitude: number } =>
-      p.capturedAt !== undefined && p.gpsLatitude !== undefined && p.gpsLongitude !== undefined)
+      p.capturedAt !== undefined && hasRealGps(p.gpsLatitude, p.gpsLongitude))
     .sort((a, b) => a.capturedAt - b.capturedAt);
   if (withGps.length === 0) return [];
 

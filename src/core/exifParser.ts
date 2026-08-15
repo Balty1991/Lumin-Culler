@@ -9,6 +9,8 @@
  * fara EXIF) => toate campurile absente, nu eroare.
  */
 
+import { hasRealGps } from './gpsCoordinates';
+
 export interface ExifData {
   iso?: number;
   fNumber?: number;      // f/X (diafragma)
@@ -212,8 +214,12 @@ function parseTiff(view: DataView, tiffStart: number): ExifData {
       const lonRef = lonRefEntry ? readAscii(view, tiffStart, lonRefEntry, littleEndian) : undefined;
       if (lat !== undefined && latRef === 'S') lat = -lat;
       if (lon !== undefined && lonRef === 'W') lon = -lon;
-      result.gpsLatitude = lat;
-      result.gpsLongitude = lon;
+      // Android lasa tag-urile GPS pe loc, cu zero, cand redacteaza locatia unei
+      // poze servite aplicatiei — 0,0 NU e un loc. Vezi core/gpsCoordinates.ts.
+      if (hasRealGps(lat, lon)) {
+        result.gpsLatitude = lat;
+        result.gpsLongitude = lon;
+      }
     }
   }
 

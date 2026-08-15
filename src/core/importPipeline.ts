@@ -16,6 +16,7 @@ import type { FileSystemFileHandleLike } from './filePicker';
 import { pickFolderSceneTag } from './sceneTagLabels';
 import { detectFacesNative, isNativeFaceDetectionAvailable } from './nativeFaceDetection';
 import type { MediaLocation } from './nativeMediaLibrary';
+import { hasRealGps } from './gpsCoordinates';
 import { deriveThresholds, FIXED_THRESHOLDS, type Thresholds } from './scoreThresholds';
 
 export interface ImportProgress {
@@ -523,9 +524,18 @@ async function processOne(file: File, genre?: string, project?: string, handle?:
   // Singura cale oficiala e permisiunea ACCESS_MEDIA_LOCATION plus o citire
   // facuta prin MediaStore.setRequireOriginal() — deci nativ, nu din WebView:
   // vezi MediaLibraryPlugin.kt:photoLocations si nativeMediaLibrary.ts.
-  if (analysis.gpsLatitude === undefined && mediaLocation) {
-    analysis.gpsLatitude = mediaLocation.latitude;
-    analysis.gpsLongitude = mediaLocation.longitude;
+  //
+  // `hasRealGps`, nu `=== undefined`: cand Android redacteaza locatia, de multe
+  // ori LASA tag-urile GPS in EXIF, cu valoarea zero. Deci campul chiar exista,
+  // are valoarea 0, si o verificare pe "lipseste?" n-ar completa niciodata
+  // nimic — exact capcana in care intrase prima varianta a acestei reparatii.
+  if (!hasRealGps(analysis.gpsLatitude, analysis.gpsLongitude)) {
+    delete analysis.gpsLatitude;
+    delete analysis.gpsLongitude;
+    if (mediaLocation) {
+      analysis.gpsLatitude = mediaLocation.latitude;
+      analysis.gpsLongitude = mediaLocation.longitude;
+    }
   }
 
   const prediction = await contextEngine.predict(analysis, genre);

@@ -50,6 +50,7 @@ import { readStoredAccent, applyAccent, type AccentTheme } from './accentTheme';
 import { readWelcomeSeen, writeWelcomeSeen } from './welcomeOnboarding';
 import { keepScreenAwake } from '../core/wakeLock';
 import { createActiveElapsed, type ActiveElapsed } from '../core/activeElapsed';
+import { recordImportDay } from './streak';
 import { stabilizeEta } from '../core/etaEstimate';
 import { readAccessibleMode, applyAccessibleMode } from '../core/accessibleMode';
 import { readSmartNotificationEnabled, writeSmartNotificationEnabled } from './smartNotification';
@@ -2215,6 +2216,9 @@ export const useStore = create<AppState>((set, get) => ({
     // NICIO confirmare vizibila ca s-a intamplat ceva — bara de progres disparea
     // pur si simplu, fara mesaj, indiferent daca importul reusise sau nu; doar
     // erorile/avertismentele aveau notificare, nu si succesul simplu, comun
+    // Ziua asta ramane marcata ca zi cu import chiar daca pozele dispar mai
+    // tarziu (Goleste sesiunea, stergerea respinselor) — vezi state/streak.ts.
+    if (done > 0) recordImportDay();
     const doneNotice = done > 0
       ? t(get().locale, 'store.import.done', { count: done })
         + (adaptedThresholds

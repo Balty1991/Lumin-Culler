@@ -90,4 +90,27 @@ describe('findTrips', () => {
     const base = new Date(2026, 5, 10).getTime();
     expect(findTrips([photo('a', base, undefined), photo('b', base + DAY, undefined)])).toEqual([]);
   });
+
+  /**
+   * Bug real raportat de utilizator: pozele importate inainte de citirea nativa
+   * a locatiei au in baza 0,0 (Android lasa tag-urile GPS pe zero cand
+   * redacteaza locatia). Tratate ca un loc real, toate ies "acasa" in Golful
+   * Guineei, distanta fata de casa 0, si nicio calatorie nu trece pragul.
+   */
+  it('treats 0,0 as no location, not as a place off the coast of Africa', () => {
+    const base = new Date(2026, 5, 10).getTime();
+    const redacted = { lat: 0, lon: 0 };
+    expect(findTrips([photo('a', base, redacted), photo('b', base + DAY, redacted)])).toEqual([]);
+
+    // si nu strica o calatorie reala aflata in acelasi lot cu poze redactate
+    const photos = [
+      ...homeNoise(base),
+      photo('r1', base, redacted),
+      photo('a', base, FAR_AWAY),
+      photo('b', base + DAY, FAR_AWAY)
+    ];
+    const trips = findTrips(photos);
+    expect(trips).toHaveLength(1);
+    expect(trips[0].photos.map(p => p.id)).toEqual(['a', 'b']);
+  });
 });
