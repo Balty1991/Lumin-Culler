@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { db } from '../core/db';
 import { useStore } from '../state/store';
 import { findLocations, NO_LOCATION_KEY, type PhotoLocationGroup } from '../state/locations';
-import { findNearestPlace, formatPlace, loadPlaceIndex } from '../core/placeNames';
+import { resolvePlaceLabels } from '../core/placeLookup';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { AdjustedImage } from './AdjustedImage';
 import { XIcon, PinIcon } from './icons';
@@ -122,6 +122,7 @@ export function LocationsPanel() {
   const open = useStore(s => s.locationsOpen);
   const setOpen = useStore(s => s.setLocationsOpen);
   const photos = useStore(s => s.photos);
+  const onlinePlaceNames = useStore(s => s.onlinePlaceNames);
   const openDetail = useStore(s => s.openDetail);
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
@@ -130,27 +131,23 @@ export function LocationsPanel() {
 
   const groups = useMemo(() => findLocations(photos), [photos]);
   /**
-   * Numele localitatilor, cautate in lista inclusa in aplicatie (vezi
-   * core/placeNames.ts) — nimic nu pleaca de pe telefon. Lista se incarca doar
-   * la prima deschidere a ecranului, nu la pornirea aplicatiei: cateva MB
-   * degeaba pentru cine nu se uita niciodata aici.
+   * Numele/adresele locurilor, dupa modul ales de utilizator (lista inclusa in
+   * aplicatie, implicit; sau serviciul de harti al telefonului, daca a pornit
+   * "Adrese exacte") — vezi core/placeLookup.ts. Se cauta doar la deschiderea
+   * ecranului, nu la pornirea aplicatiei: nici lista de cateva MB, nici vreo
+   * interogare, nu au ce cauta acolo unde nu se uita nimeni.
    */
   const [placeNames, setPlaceNames] = useState<Map<string, string>>(new Map());
   useEffect(() => {
     if (!open) return;
     let alive = true;
-    void loadPlaceIndex().then(index => {
-      if (!alive || !index) return;
-      const names = new Map<string, string>();
-      for (const group of groups) {
-        if (!group.hasLocation) continue;
-        const place = findNearestPlace(index, group.centroidLat!, group.centroidLon!);
-        if (place) names.set(group.key, formatPlace(place, locale, near => tr('locations.near', { place: near })));
-      }
-      setPlaceNames(names);
-    });
+    const points = groups
+      .filter(g => g.hasLocation)
+      .map(g => ({ key: g.key, latitude: g.centroidLat!, longitude: g.centroidLon! }));
+    void resolvePlaceLabels(points, locale, near => tr('locations.near', { place: near }))
+      .then(names => { if (alive) setPlaceNames(names); });
     return () => { alive = false; };
-  }, [open, groups, locale]); // eslint-disable-line react-hooks/exhaustive-deps -- `tr` se reface la fiecare randare; `locale` e ce conteaza
+  }, [open, groups, locale, onlinePlaceNames]); // eslint-disable-line react-hooks/exhaustive-deps -- `tr` se reface la fiecare randare; `locale` e ce conteaza
 
   useEffect(() => {
     if (!open) return;
@@ -177,7 +174,12 @@ export function LocationsPanel() {
           <p className="hint">{tr('locations.empty')}</p>
         ) : (
           <>
-            {hasRealPlaces && <p className="hint">{tr('locations.hint')}</p>}
+            {hasRealPlaces && (
+              <p className="hint">
+                {tr('locations.hint')}{' '}
+                {tr(onlinePlaceNames ? 'locations.hint.online' : 'locations.hint.offline')}
+              </p>
+            )}
             <ul className="locations-list">
               {groups.map(group => (
                 <LocationCard

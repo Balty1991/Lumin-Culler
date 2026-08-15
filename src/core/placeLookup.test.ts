@@ -1,0 +1,78 @@
+import { describe, it, expect, beforeEach } from 'vitest';
+import {
+  placeCacheKey, readOnlinePlaceNames, writeOnlinePlaceNames, forgetCachedAddresses, resolvePlaceLabels
+} from './placeLookup';
+
+const near = (place: string) => `lângă ${place}`;
+
+describe('optiunea de adrese online', () => {
+  beforeEach(() => localStorage.clear());
+
+  /**
+   * Implicit OPRIT, si asta nu e un detaliu: aplicatia promite ca nu trimite
+   * nimic, iar promisiunea n-are voie sa depinda de cine a citit setarile.
+   */
+  it('is off until the user turns it on', () => {
+    expect(readOnlinePlaceNames()).toBe(false);
+    writeOnlinePlaceNames(true);
+    expect(readOnlinePlaceNames()).toBe(true);
+    writeOnlinePlaceNames(false);
+    expect(readOnlinePlaceNames()).toBe(false);
+  });
+
+  it('treats a corrupted preference as off', () => {
+    localStorage.setItem('lumin-place-names-online', 'poate');
+    expect(readOnlinePlaceNames()).toBe(false);
+  });
+
+  /** La oprire, adresele deja obtinute nu mai au ce cauta pe ecran. */
+  it('forgets stored addresses on request', () => {
+    localStorage.setItem('lumin-place-names', JSON.stringify({ '44.11,24.99': 'Strada Carpați 68' }));
+    forgetCachedAddresses();
+    expect(localStorage.getItem('lumin-place-names')).toBeNull();
+  });
+});
+
+describe('placeCacheKey', () => {
+  it('rounds to about a kilometre', () => {
+    expect(placeCacheKey(44.11431, 24.98677)).toBe('44.11,24.99');
+    expect(placeCacheKey(44.11439, 24.98671)).toBe(placeCacheKey(44.11431, 24.98677));
+    expect(placeCacheKey(44.43, 26.10)).not.toBe(placeCacheKey(44.11, 24.99));
+  });
+
+  it('keeps the southern/western hemispheres apart', () => {
+    expect(placeCacheKey(-33.87, 151.21)).toBe('-33.87,151.21');
+  });
+});
+
+describe('resolvePlaceLabels', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('returns nothing for an empty request', async () => {
+    expect((await resolvePlaceLabels([], 'ro', near)).size).toBe(0);
+  });
+
+  /**
+   * In test nu exista nici plugin nativ, nici lista de localitati (fetch-ul
+   * esueaza) — deci nu se afla niciun nume, si ecranul ramane pe eticheta lui
+   * de rezerva. Ce conteaza aici e ca nu arunca si nu inventeaza.
+   */
+  it('stays silent instead of guessing when nothing can answer', async () => {
+    const labels = await resolvePlaceLabels([{ key: 'g1', latitude: 44.11, longitude: 24.99 }], 'ro', near);
+    expect(labels.has('g1')).toBe(false);
+  });
+
+  it('serves addresses already known, without asking anything', async () => {
+    writeOnlinePlaceNames(true);
+    localStorage.setItem('lumin-place-names', JSON.stringify({ '44.11,24.99': 'Strada Carpați 68, Roșiori de Vede' }));
+    const labels = await resolvePlaceLabels([{ key: 'g1', latitude: 44.11431, longitude: 24.98677 }], 'ro', near);
+    expect(labels.get('g1')).toBe('Strada Carpați 68, Roșiori de Vede');
+  });
+
+  /** Cu optiunea OPRITA, adresele retinute candva nu mai sunt folosite. */
+  it('ignores the address cache while the option is off', async () => {
+    localStorage.setItem('lumin-place-names', JSON.stringify({ '44.11,24.99': 'Strada Carpați 68' }));
+    const labels = await resolvePlaceLabels([{ key: 'g1', latitude: 44.11431, longitude: 24.98677 }], 'ro', near);
+    expect(labels.has('g1')).toBe(false);
+  });
+});
