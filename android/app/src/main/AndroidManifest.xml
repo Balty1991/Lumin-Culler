@@ -57,9 +57,10 @@
     <!-- Coordonatele GPS din EXIF-ul pozelor. Incepand cu Android 10, sistemul le
          STERGE din fisierul servit oricarei aplicatii, oricat acces la galerie ar
          avea; fara permisiunea asta (plus MediaStore.setRequireOriginal la citire)
-         nicio poza importata n-are locatie, iar "Calatorii" de pe Acasa ramane
-         gol pentru totdeauna — bug real raportat de utilizator. Coordonatele se
-         folosesc DOAR local, ca sa grupeze pozele in calatorii (state/trips.ts);
+         nicio poza importata n-are locatie, iar ecranul "Locatii" ar arata totul
+         intr-o singura grupa "fara locatie disponibila" — bug real raportat de
+         utilizator. Coordonatele se folosesc DOAR local, ca sa grupeze pozele
+         dupa locul unde au fost facute (state/locations.ts);
          nu se trimit nicaieri, ca tot restul analizei. Vezi photoLocations() in
          MediaLibraryPlugin.kt. -->
     <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION" />

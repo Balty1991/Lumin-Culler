@@ -252,7 +252,7 @@ export async function getPhotosAccess(): Promise<PhotosAccess> {
  * nimic, cred ca nu citeste locatia pozelor". Asa era: MediaStore REDACTEAZA
  * tag-urile GPS din fisierul primit de aplicatie, deci parserul EXIF din
  * importPipeline.ts nu avea ce gasi, nicio poza n-avea coordonate, si
- * state/trips.ts nu putea forma vreo calatorie. Citirea originalului cere
+ * state/locations.ts nu putea grupa nimic pe locuri. Citirea originalului cere
  * permisiunea ACCESS_MEDIA_LOCATION plus MediaStore.setRequireOriginal() —
  * vezi MediaLibraryPlugin.kt:photoLocations.
  *

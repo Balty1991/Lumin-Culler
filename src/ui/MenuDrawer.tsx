@@ -157,7 +157,7 @@ export function MenuDrawer() {
   const setPresentationPhotoIds = useStore(s => s.setPresentationPhotoIds);
   const setProjectsOpen = useStore(s => s.setProjectsOpen);
   const setCollectionsOpen = useStore(s => s.setCollectionsOpen);
-  const setTripsOpen = useStore(s => s.setTripsOpen);
+  const setLocationsOpen = useStore(s => s.setLocationsOpen);
   const setTiktokSortOpen = useStore(s => s.setTiktokSortOpen);
   const setSearchPanelOpen = useStore(s => s.setSearchPanelOpen);
   const setDocumentShieldOpen = useStore(s => s.setDocumentShieldOpen);
@@ -424,9 +424,9 @@ export function MenuDrawer() {
                 <span>{tr('menu.projects')}</span>
               </button>
 
-              <button className="drawer-item" onClick={() => go(() => setTripsOpen(true))}>
+              <button className="drawer-item" onClick={() => go(() => setLocationsOpen(true))}>
                 <span className="drawer-item-icon"><PinIcon /></span>
-                <span>{tr('menu.trips')}</span>
+                <span>{tr('menu.locations')}</span>
                 {lockBadge}
               </button>
 

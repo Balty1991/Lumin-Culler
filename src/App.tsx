@@ -88,7 +88,7 @@ const BatchOpsPanel = lazyPanel(() => import('./ui/BatchOpsPanel').then(m => ({ 
 const StatsPanel = lazyPanel(() => import('./ui/StatsPanel').then(m => ({ default: m.StatsPanel })));
 const ProjectsPanel = lazyPanel(() => import('./ui/ProjectsPanel').then(m => ({ default: m.ProjectsPanel })));
 const CollectionsPanel = lazyPanel(() => import('./ui/CollectionsPanel').then(m => ({ default: m.CollectionsPanel })));
-const TripsPanel = lazyPanel(() => import('./ui/TripsPanel').then(m => ({ default: m.TripsPanel })));
+const LocationsPanel = lazyPanel(() => import('./ui/LocationsPanel').then(m => ({ default: m.LocationsPanel })));
 const TikTokSort = lazyPanel(() => import('./ui/TikTokSort').then(m => ({ default: m.TikTokSort })));
 const ZenModePanel = lazyPanel(() => import('./ui/ZenModePanel').then(m => ({ default: m.ZenModePanel })));
 const AppearancePanel = lazyPanel(() => import('./ui/AppearancePanel').then(m => ({ default: m.AppearancePanel })));
@@ -755,7 +755,7 @@ export default function App() {
         <EditPanel />
         <ProjectsPanel />
         <CollectionsPanel />
-        <TripsPanel />
+        <LocationsPanel />
         <TikTokSort />
         <ZenModePanel />
         <AppearancePanel />
@@ -1210,7 +1210,7 @@ export default function App() {
       <EditPanel />
       <ProjectsPanel />
       <CollectionsPanel />
-      <TripsPanel />
+      <LocationsPanel />
       <TikTokSort />
       <ZenModePanel />
       <AppearancePanel />

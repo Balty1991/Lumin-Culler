@@ -1,11 +1,11 @@
 /**
  * core/gpsCoordinates.ts
  * "Are poza asta o locatie reala?" — o singura definitie, folosita de tot ce
- * atinge coordonate (parserul EXIF, decodorul RAW, importul, Calatoriile,
+ * atinge coordonate (parserul EXIF, decodorul RAW, importul, Locatiile,
  * panoul de informatii).
  *
  * Bug real raportat de utilizator, cu captura: panoul unei poze arata
- * "Locatie GPS: 0.00000, 0.00000", iar "Calatorii" ramanea gol. Cauza:
+ * "Locatie GPS: 0.00000, 0.00000", iar gruparea pe locuri nu functiona. Cauza:
  * incepand cu Android 10, cand sistemul REDACTEAZA locatia unei poze servite
  * unei aplicatii, de multe ori nu sterge tag-urile GPS din EXIF, ci le lasa pe
  * loc cu valoarea ZERO. Pentru cod, asta arata exact ca o coordonata citita cu
@@ -13,10 +13,9 @@
  *
  * Consecintele erau doua, amandoua tacute:
  *   1. Panoul de informatii afisa cu seriozitate 0.00000, 0.00000.
- *   2. state/trips.ts lua toate pozele ca fiind in acelasi loc (Golful Guineei,
- *      unde se intersecteaza ecuatorul cu meridianul zero), deci "acasa" iesea
- *      tot acolo, distanta fata de casa 0 km, si nicio calatorie nu trecea
- *      vreodata pragul.
+ *   2. state/locations.ts lua toate pozele ca fiind in acelasi loc (Golful Guineei,
+ *      unde se intersecteaza ecuatorul cu meridianul zero), deci toate pozele
+ *      ajungeau intr-un singur loc fals, in largul oceanului.
  *
  * 0,0 e tratat ca "fara locatie", nu ca un loc: e in largul oceanului, unde nu
  * exista poza de facut, si e valoarea pe care o produc si alte aparate/programe

@@ -513,13 +513,13 @@ async function processOne(file: File, genre?: string, project?: string, handle?:
 
   // Coordonatele citite NATIV, cand EXIF-ul din bytes-ii primiti n-are niciuna.
   //
-  // Bug real raportat de utilizator: "faza cu calatorii, nu apare niciodata
+  // Bug real raportat de utilizator: "faza cu calatorii (azi Locatii), nu apare niciodata
   // nimic, cred ca nu citeste locatia pozelor" — exact asa era. Incepand cu
   // Android 10, MediaStore REDACTEAZA (sterge) tag-urile GPS din fisierul pe
   // care il primeste o aplicatie, chiar daca poza chiar are locatie si chiar
   // daca aplicatia are voie sa citeasca poza. Parserul EXIF de mai sus e
   // corect; pur si simplu nu avea ce gasi, deci nicio poza n-avea coordonate,
-  // deci state/trips.ts nu avea din ce forma vreo calatorie, niciodata.
+  // deci state/locations.ts nu avea ce grupa pe locuri, niciodata.
   //
   // Singura cale oficiala e permisiunea ACCESS_MEDIA_LOCATION plus o citire
   // facuta prin MediaStore.setRequireOriginal() — deci nativ, nu din WebView:

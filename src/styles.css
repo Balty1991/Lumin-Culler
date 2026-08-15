@@ -594,22 +594,27 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
 
 
-/* "Calatorii" (plan modernizare) — acelasi limbaj vizual ca .persons (lista de
-   carduri in panoul lateral), plus o miniatura de coperta per calatorie. */
-.trips-list { list-style: none; display: grid; gap: 8px; padding: 0; }
-.trip-card {
+/* "Locatii" (fostele "Calatorii") — acelasi limbaj vizual ca .persons (lista de
+   carduri in panoul lateral), plus o miniatura de coperta per loc. */
+.locations-list { list-style: none; display: grid; gap: 8px; padding: 0; }
+.location-card {
   background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius);
   overflow: hidden; transition: border-color 0.18s var(--ease);
 }
-.trip-card:hover { border-color: var(--line-strong); }
-.trip-card-main { display: flex; align-items: center; gap: 11px; width: 100%; padding: 9px 11px; text-align: left; }
-.trip-thumb { width: 52px; height: 52px; border-radius: 10px; box-shadow: none; }
-.trip-card-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.trip-card-range { font-weight: 600; font-size: 0.86rem; color: var(--text); }
-.trip-card-sub { display: flex; align-items: center; gap: 4px; font-size: 0.74rem; color: var(--text-dim); flex-wrap: wrap; }
-.trip-card-sub .inline-icon { width: 12px; height: 12px; flex-shrink: 0; }
-.trip-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; padding: 0 11px 11px; }
-.trip-card-grid .memory-thumb { width: 100%; height: auto; aspect-ratio: 1/1; border-radius: 8px; box-shadow: none; }
+.location-card:hover { border-color: var(--line-strong); }
+.location-card-main { display: flex; align-items: center; gap: 11px; width: 100%; padding: 9px 11px; text-align: left; }
+.location-thumb { width: 52px; height: 52px; border-radius: 10px; box-shadow: none; }
+.location-card-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.location-card-title {
+  display: flex; align-items: center; gap: 5px;
+  font-weight: 600; font-size: 0.86rem; color: var(--text);
+}
+.location-card-title .inline-icon { width: 13px; height: 13px; flex-shrink: 0; color: var(--accent); }
+.location-card-sub { display: flex; align-items: center; gap: 4px; font-size: 0.74rem; color: var(--text-dim); flex-wrap: wrap; }
+.location-card-coords { font-size: 0.68rem; color: var(--text-faint); }
+.location-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; padding: 0 11px 11px; }
+.location-card-grid .memory-thumb { width: 100%; height: auto; aspect-ratio: 1/1; border-radius: 8px; box-shadow: none; }
+.location-card .hint { padding: 0 11px 8px; }
 
 /* "Sortare stil TikTok" (plan modernizare) — flux alternativ plin ecran peste
    coada de poze nedecise, cu o coloana de actiuni la degetul mare (dreapta,
@@ -1838,7 +1843,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .detail-inner.wide { max-width: 940px; }
 .detail-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 2px; }
 /* Consecventa tipografica (reorganizare interfata) — titlul fiecarui panou
-   modal (~17 ecrane: Vault, Duplicate, Statistici, Calatorii etc.) foloseste
+   modal (~17 ecrane: Vault, Duplicate, Statistici, Locatii etc.) foloseste
    acum aceeasi voce de brand ca titlul Meniului si titlul ecranului de bun
    venit (--font-display), in loc sa ramana pe fontul de sistem generic — un
    singur loc de adevar, nu o repetare per-panou. */

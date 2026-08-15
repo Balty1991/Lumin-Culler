@@ -426,8 +426,8 @@ class MediaLibraryPlugin : Plugin() {
      * cu Android 10, MediaStore REDACTEAZA tag-urile GPS din fisierul servit
      * oricarei aplicatii — poza chiar are locatie, aplicatia chiar are voie
      * s-o citeasca, dar bytes-ii primiti sunt curatati de coordonate. Deci
-     * nicio poza importata n-avea vreodata gpsLatitude, deci state/trips.ts
-     * n-avea din ce forma vreo calatorie, niciodata.
+     * nicio poza importata n-avea vreodata gpsLatitude, deci state/locations.ts
+     * n-avea ce grupa pe locuri, niciodata.
      *
      * Doua conditii, amandoua obligatorii: permisiunea ACCESS_MEDIA_LOCATION
      * (ceruta aici, la primul apel) SI citirea prin
@@ -441,9 +441,9 @@ class MediaLibraryPlugin : Plugin() {
      *
      * NEVALIDAT inca pe device real — de verificat dupa instalare: dialogul de
      * permisiune trebuie sa apara o singura data la primul import de dupa
-     * actualizare, iar cardul "Calatorii" de pe Acasa trebuie sa apara dupa un
-     * import care contine poze facute la peste 50 km de casa, in zile diferite
-     * (vezi state/trips.ts pentru pragurile exacte).
+     * actualizare, iar ecranul "Locatii" trebuie sa arate pozele grupate pe
+     * locuri (vezi state/locations.ts), nu totul intr-o singura grupa "fara
+     * locatie disponibila".
      */
     @PluginMethod
     fun photoLocations(call: PluginCall) {
@@ -489,7 +489,7 @@ class MediaLibraryPlugin : Plugin() {
                     // InputStream, deci nu adaugam o dependinta noua doar pentru
                     // doua numere. Varianta cu FloatArray e cea disponibila pe
                     // toate versiunile; precizia de float inseamna ~1 metru,
-                    // irelevant fata de pragul de 50 km din state/trips.ts.
+                    // irelevant fata de gruparea pe locuri din state/locations.ts.
                     @Suppress("DEPRECATION")
                     if (ExifInterface(stream).getLatLong(latLong)) {
                         locations.put(

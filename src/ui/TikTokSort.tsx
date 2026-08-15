@@ -85,7 +85,7 @@ export function TikTokSort() {
   const containerRef = useRef<HTMLDivElement>(null);
   useModalFocusTrap(containerRef, open);
 
-  // Ecranul ramane montat intre deschideri (acelasi tipar ca TripsPanel/PersonsPanel
+  // Ecranul ramane montat intre deschideri (acelasi tipar ca LocationsPanel/PersonsPanel
   // — vezi `if (!open) return null` mai jos), deci coada/pozitia trebuie resetate
   // explicit la fiecare deschidere, altfel un utilizator care redeschide ecranul
   // dupa o sesiune anterioara ar relua de unde a ramas ultima data, nu de la inceput.

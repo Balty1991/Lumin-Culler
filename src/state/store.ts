@@ -287,7 +287,7 @@ interface AppState {
   setCollectionFilter: (collectionId: string | null) => void;
   collectionsOpen: boolean;
   setCollectionsOpen: (open: boolean) => void;
-  tripsOpen: boolean;
+  locationsOpen: boolean;
   /** Deschide ecranul Premium in locul functiei cerute cand nu esti abonat. `true` = a preluat actiunea. */
   gatePremium: () => boolean;
   /**
@@ -314,7 +314,7 @@ interface AppState {
   photosUsedThisWindow: number;
   /** Reciteste drepturile din entitlement.ts in stare. Apelata de abonament, nu direct. */
   syncEntitlement: () => void;
-  setTripsOpen: (open: boolean) => void;
+  setLocationsOpen: (open: boolean) => void;
   tiktokSortOpen: boolean;
   setTiktokSortOpen: (open: boolean) => void;
   /** Cand nenul, sortarea rapida arata DOAR aceste poze (ex. "Sorteaza acum ce ai adus" — vezi openTiktokSortForIds), nu toata coada. Golit la fiecare deschidere normala (fara scop) sau dupa ce a fost folosit. */
@@ -1268,7 +1268,7 @@ export const useStore = create<AppState>((set, get) => ({
   setCollectionFilter: collectionId => set({ collectionFilter: collectionId }),
   collectionsOpen: false,
   setCollectionsOpen: open => set({ collectionsOpen: open }),
-  tripsOpen: false,
+  locationsOpen: false,
   /**
    * Poarta unica pentru functiile rezervate abonatilor.
    *
@@ -1303,7 +1303,7 @@ export const useStore = create<AppState>((set, get) => ({
     ) return;
     set(next);
   },
-  setTripsOpen: open => { if (open && get().gatePremium()) return; set({ tripsOpen: open }); },
+  setLocationsOpen: open => { if (open && get().gatePremium()) return; set({ locationsOpen: open }); },
   tiktokSortOpen: false,
   // Deschiderea "normala" (fara scop explicit) porneste mereu pe toata coada,
   // nu pe ramasitele unui scop anterior (ex. dupa "Sorteaza acum ce ai adus").
@@ -2100,7 +2100,7 @@ export const useStore = create<AppState>((set, get) => ({
     // tot lotul. Nu pot fi luate din bytes-ii pozei: Android 10+ le sterge din
     // EXIF-ul servit aplicatiei (vezi core/nativeMediaLibrary.ts
     // readNativePhotoLocations si comentariul din importPipeline.ts:processOne).
-    // Fara ele, "Calatorii" de pe Acasa ramanea gol pentru totdeauna — bug real
+    // Fara ele, "Locatii" ar arata totul intr-o singura grupa fara locatie — bug real
     // raportat de utilizator. Harta e goala pe web/PWA, la import prin
     // <input type="file"> (fara mediaUri) sau daca permisiunea e refuzata;
     // importul merge mai departe identic in toate cazurile.
@@ -3670,7 +3670,7 @@ export function isAnyOverlayOpen(): boolean {
     s.batchOpsOpen || s.statsOpen || s.projectsOpen || s.contactSheetOpen || s.presentationOpen ||
     s.appearanceOpen || s.collectionsOpen || s.documentShieldOpen || s.duplicatesPanelOpen ||
     s.exportDestinationsOpen || s.premiumOpen || s.searchPanelOpen || s.supervisorPanelOpen ||
-    s.tiktokSortOpen || s.tripsOpen || s.vaultOpen || s.zenPanelOpen ||
+    s.tiktokSortOpen || s.locationsOpen || s.vaultOpen || s.zenPanelOpen ||
     s.compareGroupId || s.editingPhotoId || s.dialogRequest
   );
 }

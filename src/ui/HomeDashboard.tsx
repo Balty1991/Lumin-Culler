@@ -1,7 +1,7 @@
 import { useMemo, useState, type CSSProperties } from 'react';
 import { useStore } from '../state/store';
 import { computeImportStreak } from '../state/streak';
-import { findTrips } from '../state/trips';
+import { countRealLocations } from '../state/locations';
 import { selectMonthlyRecap } from '../state/monthlyRecap';
 import { selectDeletableRejected } from '../state/batchOps';
 import { sumKnownSizeBytes, formatGB } from '../state/storageStats';
@@ -34,7 +34,7 @@ function greetingKey(hour: number): string {
  * - "GB" ocupate/eliberate = suma reala PhotoView.sizeBytes (File.size la
  *   import) — vezi state/storageStats.ts. Poze importate INAINTE de acest
  *   camp nu au sizeBytes si sunt excluse din suma, nu numarate ca 0.
- * - streak/calatorii/recap — vezi state/streak.ts, state/trips.ts,
+ * - streak/locatii/recap — vezi state/streak.ts, state/locations.ts,
  *   state/monthlyRecap.ts, deja construite.
  */
 export function HomeDashboard() {
@@ -42,7 +42,7 @@ export function HomeDashboard() {
   const locale = useStore(s => s.locale);
   const setPresentationPhotoIds = useStore(s => s.setPresentationPhotoIds);
   const setPresentationOpen = useStore(s => s.setPresentationOpen);
-  const setTripsOpen = useStore(s => s.setTripsOpen);
+  const setLocationsOpen = useStore(s => s.setLocationsOpen);
   const setTiktokSortOpen = useStore(s => s.setTiktokSortOpen);
   const setDocumentShieldOpen = useStore(s => s.setDocumentShieldOpen);
   const setDuplicatesPanelOpen = useStore(s => s.setDuplicatesPanelOpen);
@@ -54,7 +54,7 @@ export function HomeDashboard() {
 
   const now = new Date();
   const streak = useMemo(() => computeImportStreak(photos, now), [photos]); // eslint-disable-line react-hooks/exhaustive-deps -- `now` doar ancoreaza calculul, nu trebuie sa retrigger-uiasca la fiecare randare
-  const tripCount = useMemo(() => findTrips(photos).length, [photos]);
+  const locationCount = useMemo(() => countRealLocations(photos), [photos]);
   const recapPhotos = useMemo(() => selectMonthlyRecap(photos, now), [photos]); // eslint-disable-line react-hooks/exhaustive-deps
   const { deletable: deletableRejected } = useMemo(() => selectDeletableRejected(photos), [photos]);
   const shieldPendingCount = useMemo(() => {
@@ -163,7 +163,7 @@ export function HomeDashboard() {
         </button>
       )}
 
-      {(streak > 1 || tripCount > 0 || duplicateGroupCount > 0) && (
+      {(streak > 1 || locationCount > 0 || duplicateGroupCount > 0) && (
         <div className="home-stat-row">
           {/* Singurul card din rand care NU se apasa (nu are ce deschide: e o
               simpla numaratoare) — observatie a utilizatorului: "am apasat si
@@ -175,10 +175,10 @@ export function HomeDashboard() {
               <span className="home-mini-lbl">{tr(plural(streak, 'home.streak.label.one', 'home.streak.label.other'), { count: streak })}</span>
             </div>
           )}
-          {tripCount > 0 && (
-            <button className="home-mini-card glass home-mini-card-btn" onClick={() => setTripsOpen(true)}>
-              <span className="home-mini-num"><PinIcon className="inline-icon" aria-hidden="true" /> <AnimatedNumber value={tripCount} /></span>
-              <span className="home-mini-lbl">{tr(plural(tripCount, 'home.trips.label.one', 'home.trips.label.other'), { count: tripCount })}</span>
+          {locationCount > 0 && (
+            <button className="home-mini-card glass home-mini-card-btn" onClick={() => setLocationsOpen(true)}>
+              <span className="home-mini-num"><PinIcon className="inline-icon" aria-hidden="true" /> <AnimatedNumber value={locationCount} /></span>
+              <span className="home-mini-lbl">{tr(plural(locationCount, 'home.locations.label.one', 'home.locations.label.other'), { count: locationCount })}</span>
             </button>
           )}
           {duplicateGroupCount > 0 && (

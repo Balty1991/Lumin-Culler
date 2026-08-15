@@ -13,7 +13,7 @@ import { t, plural } from '../i18n';
  * din banner, imbratisat de butonul "deschide amintirea"). Un <button> imbricat
  * in alt <button> e HTML invalid — browserul inchide automat butonul exterior
  * la primul buton imbricat intalnit, rupand vizual tot restul continutului
- * (bug real gasit la verificare vizuala pe grila de calatorii, care foloseste
+ * (bug real gasit la verificare vizuala pe grila de locatii, care foloseste
  * acelasi tipar). Locul unde chiar are nevoie de propriul buton (grila din
  * modal, unde fiecare miniatura e un target de click independent) il adauga
  * la fata locului, nu aici.
