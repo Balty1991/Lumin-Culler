@@ -40,8 +40,8 @@ import { MemoryBanner } from './ui/MemoryBanner';
 import { GallerySupervisorBanner } from './ui/GallerySupervisorBanner';
 import { PhotosAccessNotice } from './ui/PhotosAccessNotice';
 import { useHeaderBottomVar } from './ui/useHeaderBottomVar';
+import { useBannerStackVar } from './ui/useBannerStackVar';
 import { noticeTone } from './ui/noticeTone';
-import { SessionOutcome } from './ui/SessionOutcome';
 import { HomeDashboard } from './ui/HomeDashboard';
 import { BottomNav } from './ui/BottomNav';
 import { WelcomeOnboarding } from './ui/WelcomeOnboarding';
@@ -266,6 +266,9 @@ export default function App() {
   const clearNotice = useStore(s => s.clearNotice);
   // Toastul se aseaza sub capul de ecran masurat, nu sub un numar fix — vezi useHeaderBottomVar.
   const headerBottomRef = useHeaderBottomVar<HTMLElement>();
+  // Bannerele plutitoare acopereau salutul de pe Acasa (captura de la
+  // utilizator) — acum isi publica inaltimea si continutul le lasa loc.
+  const bannerStackRef = useBannerStackVar<HTMLDivElement>();
   const aiDegraded = useStore(s => s.aiDegraded);
   const aiBackend = useStore(s => s.aiBackend);
   const clearAll = useStore(s => s.clearAll);
@@ -734,7 +737,7 @@ export default function App() {
         <SmartNotification />
         <HomeDashboard />
         {welcomeSeen && (
-          <div className="banner-stack">
+          <div className="banner-stack" ref={bannerStackRef}>
             <MemoryBanner />
             <InstallPrompt />
             <BackupReminder />
@@ -825,7 +828,7 @@ export default function App() {
           z-index de toast, deci bannerele acopereau comutatorul de limbă și
           butonul de închidere. Reapar imediat ce ecranul e închis. */}
       {welcomeSeen && (
-        <div className="banner-stack">
+        <div className="banner-stack" ref={bannerStackRef}>
           <MemoryBanner />
           <InstallPrompt />
           <BackupReminder />
@@ -1052,7 +1055,6 @@ export default function App() {
         </div>
       </div>
 
-      <SessionOutcome />
 
       {photos.length === 0 && !progress ? (
         <div className="empty">

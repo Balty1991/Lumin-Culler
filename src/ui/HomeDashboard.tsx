@@ -10,6 +10,7 @@ import { selectPendingShieldReview, readShieldDismissedIds } from '../core/docum
 import { selectUnresolvedGroups } from '../state/duplicateGroups';
 import { AnimatedNumber } from './AnimatedNumber';
 import { GalleryOverviewNote } from './GalleryOverviewNote';
+import { SessionOutcome } from './SessionOutcome';
 import { SparkleIcon, PinIcon, ChevronUpIcon, ShieldIcon, CopyIcon } from './icons';
 import { t, plural } from '../i18n';
 
@@ -49,6 +50,8 @@ export function HomeDashboard() {
   const collections = useStore(s => s.collections);
   const deleteRejectedPhotos = useStore(s => s.deleteRejectedPhotos);
   const askConfirm = useStore(s => s.askConfirm);
+  /** Cardul de rezumat e pe ecran — sub-randul din salut ar spune acelasi lucru. */
+  const hasOutcome = useStore(s => s.sessionOutcome !== null);
   const [deleting, setDeleting] = useState(false);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
 
@@ -71,8 +74,18 @@ export function HomeDashboard() {
   const unsortedCount = photos.filter(p => p.status === 'pending' || p.status === 'review').length;
   const decidedCount = photos.filter(p => p.status === 'selected' || p.status === 'rejected').length;
   const donePercent = Math.round((decidedCount / Math.max(1, photos.length)) * 100);
-  const totalGB = formatGB(sumKnownSizeBytes(photos));
-  const freedGB = formatGB(sumKnownSizeBytes(deletableRejected));
+  const knownBytes = sumKnownSizeBytes(photos);
+  const totalGB = formatGB(knownBytes);
+  const freedBytes = sumKnownSizeBytes(deletableRejected);
+  const freedGB = formatGB(freedBytes);
+  // "0.0" nu inseamna "zero octeti", inseamna "sub 50 MB" sau "poze importate
+  // inainte sa existe campul de marime". In ambele cazuri, nu e o cifra de
+  // aratat — vezi state/storageStats.ts.
+  const hasKnownSize = totalGB !== '0.0';
+  const hasKnownFreed = freedGB !== '0.0';
+  // In inel incap trei-patru caractere. Peste o mie de poze, cifrele absolute
+  // n-ar mai fi lizibile, iar procentul de langa el le spune oricum.
+  const ringLabel = photos.length <= 999 ? `${decidedCount}/${photos.length}` : `${donePercent}%`;
 
   const openRecap = () => { setPresentationPhotoIds(recapPhotos.map(p => p.id)); setPresentationOpen(true); };
   const doDelete = async () => {
@@ -86,7 +99,12 @@ export function HomeDashboard() {
     <div className="home-dash">
       <div className="home-greet">
         <span className="home-greet-hello">{tr(greetingKey(now.getHours()))}</span>
-        {unsortedCount > 0 && (
+        {/* Sub-randul dispare cat timp cardul de rezumat e pe ecran: amandoua
+            spuneau acelasi numar cu alte cuvinte ("2 poze de curatat" / "ti-am
+            lasat 2 de verificat"), plus butonul de sortare de mai jos — de trei
+            ori acelasi lucru pe un ecran de care utilizatorul s-a plans ca e
+            "bombardat cu info". */}
+        {unsortedCount > 0 && !hasOutcome && (
           <span className="home-greet-sub">
             <SparkleIcon className="inline-icon" aria-hidden="true" />{' '}
             {tr(plural(unsortedCount, 'home.greet.unsorted.one', 'home.greet.unsorted.other'), { count: unsortedCount })}
@@ -94,26 +112,31 @@ export function HomeDashboard() {
         )}
       </div>
 
+      {/* Ce tocmai s-a intamplat, imediat sub salut. Statea la BAZA paginii, sub
+          toate butoanele — adica rezumatul unei actiuni terminate acum se citea
+          ultimul, dupa ce parcurgeai tot ce ai de facut. */}
+      <SessionOutcome />
+
       <div className="home-hero-card glass">
-        <div>
+        <div className="home-hero-text">
           <div className="home-hero-num">{donePercent}%</div>
           <div className="home-hero-lbl">{tr('home.hero.label')}</div>
+          {/* Doar cand chiar stim niste octeti. Pentru cine tocmai a adus sase
+              poze, "0.0GB" nu e o informatie, e zgomot — si, pus intr-un inel
+              fara eticheta, arata ca o masura a intregului telefon. */}
+          {hasKnownSize && <div className="home-hero-size">{tr('home.hero.size', { gb: totalGB })}</div>}
         </div>
-        {/* Inelul arata spatiul ocupat de pozele ADUSE IN APLICATIE, nu de
-            galeria telefonului — la fel ca procentul de alaturi. Fara titlu/
-            eticheta, "0.7GB" langa un procent numit candva "din galerie" citea
-            ca o masura a intregului telefon (observatie a utilizatorului). */}
+        {/* Inelul arata acelasi progres ca procentul, in cifre absolute: cate
+            poze din cate ai decis. */}
         <div
           className="home-hero-ring"
           style={{ '--pct-deg': `${donePercent * 3.6}deg` } as CSSProperties}
           title={tr('home.hero.ringTitle')}
           aria-label={tr('home.hero.ringTitle')}
         >
-          <b>{totalGB}GB</b>
+          <b>{ringLabel}</b>
         </div>
       </div>
-
-      <GalleryOverviewNote />
 
       {unsortedCount > 0 && (
         <button className="home-sort-cta" onClick={() => setTiktokSortOpen(true)}>
@@ -126,21 +149,12 @@ export function HomeDashboard() {
         </button>
       )}
 
-      {recapPhotos.length >= RECAP_TEASER_MIN_PHOTOS && (
-        <button className="home-recap-card glass" onClick={openRecap}>
-          <span className="home-recap-icon" aria-hidden="true">🎬</span>
-          <span className="home-recap-text">
-            <b>{tr('home.recap.title')}</b>
-            <span>{tr(plural(recapPhotos.length, 'home.recap.sub.one', 'home.recap.sub.other'), { count: recapPhotos.length })}</span>
-          </span>
-        </button>
-      )}
-
       {isNativeMediaLibraryAvailable() && deletableRejected.length > 0 && (
         <div className="home-delete-cta">
           <span className="home-delete-text">
             <b>{tr(plural(deletableRejected.length, 'home.delete.title.one', 'home.delete.title.other'), { count: deletableRejected.length })}</b>
-            <span>{tr('home.delete.sub', { gb: freedGB })}</span>
+            {/* "eliberezi 0.0 GB" nu e un argument, e o gluma involuntara. */}
+            {hasKnownFreed && <span>{tr('home.delete.sub', { gb: freedGB })}</span>}
           </span>
           {/* aria-busy + eticheta care se schimba — bug real gasit de auditul UI:
               stergerea nativa a pozelor respinse poate dura zeci de secunde, iar
@@ -163,32 +177,49 @@ export function HomeDashboard() {
         </button>
       )}
 
+      {recapPhotos.length >= RECAP_TEASER_MIN_PHOTOS && (
+        <button className="home-recap-card" onClick={openRecap}>
+          <span className="home-recap-icon" aria-hidden="true">🎬</span>
+          <span className="home-recap-text">
+            <b>{tr('home.recap.title')}</b>
+            <span>{tr(plural(recapPhotos.length, 'home.recap.sub.one', 'home.recap.sub.other'), { count: recapPhotos.length })}</span>
+          </span>
+        </button>
+      )}
+
+      {/* Randul de jos: cifre secundare, intr-un singur rand de pastile, nu in
+          carduri late cat ecranul. Erau trei suprafete de aceeasi greutate
+          vizuala ca actiunea principala, pentru informatii pe care le citesti
+          din coltul ochiului. */}
       {(streak > 1 || locationCount > 0 || duplicateGroupCount > 0) && (
         <div className="home-stat-row">
-          {/* Singurul card din rand care NU se apasa (nu are ce deschide: e o
-              simpla numaratoare) — observatie a utilizatorului: "am apasat si
-              nu s-a intamplat nimic". Arata la fel ca vecinele lui apasabile,
-              deci macar spune ce inseamna, in eticheta si in titlu. */}
+          {/* Singura pastila care NU se apasa (nu are ce deschide: e o simpla
+              numaratoare) — observatie a utilizatorului: "am apasat si nu s-a
+              intamplat nimic". Acum se si vede ca e alta: fara contur de buton. */}
           {streak > 1 && (
-            <div className="home-mini-card glass" title={tr('home.streak.title')}>
+            <span className="home-mini-chip home-mini-chip-static" title={tr('home.streak.title')}>
               <span className="home-mini-num">🔥 <AnimatedNumber value={streak} /></span>
               <span className="home-mini-lbl">{tr(plural(streak, 'home.streak.label.one', 'home.streak.label.other'), { count: streak })}</span>
-            </div>
+            </span>
           )}
           {locationCount > 0 && (
-            <button className="home-mini-card glass home-mini-card-btn" onClick={() => setLocationsOpen(true)}>
+            <button className="home-mini-chip" onClick={() => setLocationsOpen(true)}>
               <span className="home-mini-num"><PinIcon className="inline-icon" aria-hidden="true" /> <AnimatedNumber value={locationCount} /></span>
               <span className="home-mini-lbl">{tr(plural(locationCount, 'home.locations.label.one', 'home.locations.label.other'), { count: locationCount })}</span>
             </button>
           )}
           {duplicateGroupCount > 0 && (
-            <button className="home-mini-card glass home-mini-card-btn" onClick={() => setDuplicatesPanelOpen(true)}>
+            <button className="home-mini-chip" onClick={() => setDuplicatesPanelOpen(true)}>
               <span className="home-mini-num"><CopyIcon className="inline-icon" aria-hidden="true" /> <AnimatedNumber value={duplicateGroupCount} /></span>
               <span className="home-mini-lbl">{tr(plural(duplicateGroupCount, 'duplicates.count.one', 'duplicates.count.other'), { count: duplicateGroupCount })}</span>
             </button>
           )}
         </div>
       )}
+
+      {/* Ultimul, nu al treilea rand de sus: e o intrebare optionala despre
+          telefon, nu un pas din triajul de acum. */}
+      <GalleryOverviewNote />
     </div>
   );
 }

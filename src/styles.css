@@ -447,7 +447,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
    `position: fixed`, ca sa se stivuiasca vertical fara sa se suprapuna cand
    sunt vizibile mai multe deodata. */
 .banner-stack {
-  position: fixed; left: 8px; right: 8px; top: calc(8px + env(safe-area-inset-top)); z-index: var(--z-banner);
+  /* Sub capul de ecran MASURAT, ca toastul (vezi ui/useHeaderBottomVar.ts).
+     Inainte era `8px + safe-area`, adica fix peste `.topbar` — bannerul de
+     reamintire acoperea antetul si salutul de dedesubt (captura de la
+     utilizator). Locul pe care il ocupa e rezervat in flux prin
+     --banner-stack-h; vezi ui/useBannerStackVar.ts. */
+  position: fixed; left: 8px; right: 8px; top: calc(var(--header-bottom, 96px) + 8px); z-index: var(--z-banner);
   max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; gap: 8px;
   pointer-events: none;
 }
@@ -482,7 +487,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
    existente (amintiri). CullGauge (inelul/statisticile detaliate, mai jos)
    ramane si el — cardul hero e rezumatul rapid, CullGauge ramane locul cu
    detaliu (selectate/verificat/respins/in asteptare) si "Goleste sesiunea". */
-.home-dash { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; animation: fadeUp 0.3s var(--ease) both; }
+.home-dash {
+  display: flex; flex-direction: column; gap: 10px; margin-bottom: 8px;
+  /* Loc pentru stiva de bannere plutitoare, masurata (0 cand nu e niciunul). */
+  padding-top: var(--banner-stack-h, 0px);
+  animation: fadeUp 0.3s var(--ease) both;
+}
 .home-greet { display: flex; flex-direction: column; gap: 2px; padding: 2px 2px 0; }
 .home-greet-hello { font-size: 1.1rem; font-weight: 700; color: var(--text); }
 .home-greet-sub { display: flex; align-items: center; gap: 5px; font-size: 0.78rem; color: var(--text-dim); }
@@ -494,8 +504,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   background-origin: border-box; background-clip: padding-box, border-box; border: 1px solid transparent;
   box-shadow: var(--shadow-lg), 0 0 26px -14px rgb(var(--accent-rgb) / 0.5);
 }
+.home-hero-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .home-hero-num { font-size: 1.5rem; font-weight: 800; color: var(--text); line-height: 1.1; }
 .home-hero-lbl { font-size: 0.76rem; color: var(--text-dim); }
+/* Marimea, cand chiar o stim — un rand discret sub eticheta, nu o cifra fara
+   nume intr-un inel (vezi HomeDashboard: hasKnownSize). */
+.home-hero-size { font-size: 0.7rem; color: var(--text-faint); }
 .home-hero-ring {
   width: 52px; height: 52px; border-radius: 50%; flex-shrink: 0;
   background: conic-gradient(var(--accent) 0deg, var(--accent-2) var(--pct-deg), rgb(255 255 255 / 0.12) var(--pct-deg));
@@ -503,7 +517,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 .home-hero-ring b {
   width: 40px; height: 40px; border-radius: 50%; background: var(--bg);
-  display: flex; align-items: center; justify-content: center; font-size: 0.62rem; font-weight: 800; color: var(--text);
+  display: flex; align-items: center; justify-content: center; font-size: 0.64rem; font-weight: 800; color: var(--text);
+  font-variant-numeric: tabular-nums;
 }
 .home-sort-cta {
   display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 13px; border-radius: var(--radius); text-align: left; width: 100%;
@@ -528,12 +543,15 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   font-size: 0.76rem; color: var(--text-dim); background: var(--surface-2);
 }
 .gallery-overview-cta:disabled { opacity: 0.6; }
+/* Card obisnuit, nu cu contur-gradient si halou: pe Acasa erau trei suprafete
+   care straluceau deodata (hero, recap, amintiri), si cand totul e special nu
+   mai e nimic special — feedback direct: "zici ca e bombardat cu info". Singurul
+   care pastreaza tratamentul premium e .home-hero-card. */
 .home-recap-card {
   display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius); text-align: left; width: 100%;
-  background-image: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--accent-gradient);
-  background-origin: border-box; background-clip: padding-box, border-box; border: 1px solid transparent;
-  box-shadow: var(--shadow-lg), 0 0 22px -12px rgb(var(--accent-rgb) / 0.5);
+  background: var(--surface-2); border: 1px solid var(--line);
 }
+.home-recap-card:hover { border-color: var(--line-strong); }
 .home-recap-icon { font-size: 1.2rem; flex-shrink: 0; }
 .home-recap-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .home-recap-text b { font-size: 0.84rem; color: var(--text); }
@@ -551,15 +569,22 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   background: var(--reject); color: #2c0b10;
 }
 .home-delete-go:disabled { opacity: 0.6; }
-.home-stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
-.home-mini-card {
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-  padding: 10px 8px; border-radius: var(--radius); text-align: center;
+/* Cifre secundare: un rand de pastile, nu carduri cat ecranul. Aveau aceeasi
+   greutate vizuala ca actiunea principala, pentru informatii citite din coltul
+   ochiului. Se infasoara pe telefoane inguste in loc sa se stivuiasca. */
+.home-stat-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.home-mini-chip {
+  display: inline-flex; align-items: baseline; gap: 5px;
+  padding: 6px 11px; border-radius: 999px; text-align: left;
+  background: var(--surface-2); border: 1px solid var(--line); cursor: pointer;
 }
-.home-mini-card-btn { cursor: pointer; }
-.home-mini-num { font-size: 0.95rem; font-weight: 700; color: var(--text); display: flex; align-items: center; justify-content: center; gap: 4px; }
-.home-mini-num .inline-icon { width: 15px; height: 15px; color: var(--accent); }
-.home-mini-lbl { font-size: 0.68rem; color: var(--text-dim); }
+.home-mini-chip:hover { border-color: var(--line-strong); }
+/* Pastila care nu se apasa: fara contur si fara cursor de buton, ca sa nu mai
+   promita o apasare care nu face nimic. */
+.home-mini-chip-static { background: none; border-color: transparent; cursor: default; }
+.home-mini-num { font-size: 0.82rem; font-weight: 700; color: var(--text); display: inline-flex; align-items: center; gap: 4px; }
+.home-mini-num .inline-icon { width: 13px; height: 13px; color: var(--accent); }
+.home-mini-lbl { font-size: 0.7rem; color: var(--text-dim); }
 
 /* "Acum X ani" (plan modernizare) — tratament mai premium decat bannerele
    utilitare de mai sus (glass + contur cu gradient, acelasi truc dublu-background
@@ -1647,8 +1672,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
    Ton de raport, nu de sarbatoare: cifra care conteaza (cate ti-au ramas) e
    scrisa mare, restul e context. Mentiunea de limita sta jos, despartita de o
    linie, ca sa se citeasca a informatie utila si nu a reclama lipita de rezultat. */
+/* `margin: 0`, nu `0 auto 12px`: cardul traieste acum in .home-dash (imediat
+   sub salut, nu la baza paginii), iar acolo distanta o da `gap`-ul coloanei —
+   marginea proprie ii adauga inca 12px doar in partea de jos, si il si centra
+   pe alta latime decat restul cardurilor. */
 .session-outcome {
-  position: relative; margin: 0 auto 12px; max-width: 520px; padding: 15px 16px;
+  position: relative; margin: 0; padding: 15px 16px;
   border-radius: var(--radius); background: var(--surface);
   border: 1px solid rgb(var(--accent-rgb) / 0.3);
   animation: fadeUp 0.35s var(--ease) both;

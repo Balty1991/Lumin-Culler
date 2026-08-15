@@ -1,7 +1,7 @@
 import { useStore } from '../state/store';
 import { FREE_PHOTOS_PER_MONTH } from '../core/entitlement';
 import { SparkleIcon, XIcon } from './icons';
-import { t } from '../i18n';
+import { t, plural } from '../i18n';
 
 /**
  * ui/SessionOutcome.tsx
@@ -62,7 +62,11 @@ export function SessionOutcome() {
         {outcome.leftToReview > 0
           ? tr('session.leftToReview', { count: outcome.leftToReview })
           : tr('session.nothingLeft')}
-        {outcome.seriesFound > 0 && ' ' + tr('session.series', { count: outcome.seriesFound })}
+        {/* La plural, nu la fix: scria "1 serii in grupuri" (captura de la utilizator). */}
+        {outcome.seriesFound > 0 && ' ' + tr(
+          plural(outcome.seriesFound, 'session.series.one', 'session.series.other'),
+          { count: outcome.seriesFound }
+        )}
       </p>
 
       {/* Doar cand chiar EXISTA decizii la limita. Bug real raportat de
