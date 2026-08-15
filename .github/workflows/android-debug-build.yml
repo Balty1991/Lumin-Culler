@@ -56,22 +56,27 @@ jobs:
       # vine de la GeoNames (CC BY 4.0, atribuire in politica de
       # confidentialitate) si e adusa aici, la build, exact ca modelele AI —
       # nu se comite in git, si nu se descarca niciodata de pe telefon.
-      # Pastram doar 4 coloane din formatul GeoNames: nume, latitudine,
-      # longitudine, cod de tara. Vezi core/placeNames.ts pentru citire; fara
-      # fisierul asta, aplicatia merge mai departe fara nume de localitati.
+      # Lista e MONDIALA (toate tarile), nu doar Romania. cities500 = tot ce
+      # trece de ~500 de locuitori, plus resedintele — de trei ori mai multe
+      # localitati mici decat cities1000, cerinta utilizatorului.
+      # Pastram doar 5 coloane din formatul GeoNames: nume, latitudine,
+      # longitudine, cod de tara, populatie. Populatia da raza sub care o poza
+      # e considerata IN localitate (un catun nu se intinde cat un oras).
+      # Vezi core/placeNames.ts pentru citire; fara fisierul asta, aplicatia
+      # merge mai departe fara nume de localitati.
       - name: Bundle place names
         run: |
           mkdir -p public/places
-          curl -fL -o /tmp/cities1000.zip https://download.geonames.org/export/dump/cities1000.zip
-          unzip -p /tmp/cities1000.zip cities1000.txt \
-            | awk -F'\t' 'NF>=15 && $2 != "" && $5 != "" && $6 != "" { printf "%s\t%.4f\t%.4f\t%s\n", $2, $5, $6, $9 }' \
+          curl -fL -o /tmp/cities500.zip https://download.geonames.org/export/dump/cities500.zip
+          unzip -p /tmp/cities500.zip cities500.txt \
+            | awk -F'\t' 'NF>=15 && $2 != "" && $5 != "" && $6 != "" { printf "%s\t%.4f\t%.4f\t%s\t%s\n", $2, $5, $6, $9, $15 }' \
             > public/places/cities.tsv
           lines=$(wc -l < public/places/cities.tsv)
           echo "cities.tsv: $lines localitati, $(stat -c%s public/places/cities.tsv) octeti"
           # `curl -f` prinde un 404, dar nu si o arhiva valida cu alt continut;
           # pragul de mai jos prinde o lista trunchiata inainte sa ajunga intr-un
           # pachet "verde" in care numele de localitati lipsesc in tacere.
-          if [ "$lines" -lt 50000 ]; then echo "::error::lista de localitati pare trunchiata ($lines randuri)" && exit 1; fi
+          if [ "$lines" -lt 150000 ]; then echo "::error::lista de localitati pare trunchiata ($lines randuri)" && exit 1; fi
       - name: Build web
         # dev_mode (doar la declansare manuala) seteaza VITE_NATIVE_TEST_BUTTON=true,
         # NU modul de build — ramane un build NORMAL de productie (`vite build`,
