@@ -27,21 +27,26 @@ describe('optiunea de adrese online', () => {
 
   /** La oprire, adresele deja obtinute nu mai au ce cauta pe ecran. */
   it('forgets stored addresses on request', () => {
-    localStorage.setItem('lumin-place-names-v2', JSON.stringify({ '44.11,24.99': { address: 'Strada Carpați 68', locality: 'Roșiori de Vede' } }));
+    localStorage.setItem('lumin-place-names-v2', JSON.stringify({ '44.1143,24.9868': { address: 'Strada Carpați 68', locality: 'Roșiori de Vede' } }));
     forgetCachedAddresses();
     expect(localStorage.getItem('lumin-place-names-v2')).toBeNull();
   });
 });
 
 describe('placeCacheKey', () => {
-  it('rounds to about a kilometre', () => {
-    expect(placeCacheKey(44.11431, 24.98677)).toBe('44.11,24.99');
-    expect(placeCacheKey(44.11439, 24.98671)).toBe(placeCacheKey(44.11431, 24.98677));
-    expect(placeCacheKey(44.43, 26.10)).not.toBe(placeCacheKey(44.11, 24.99));
+  /**
+   * ~11 metri, nu ~1 km (cat era): doua poze de pe strazi diferite nu mai
+   * primesc aceeasi adresa doar fiindca sunt in acelasi cartier.
+   */
+  it('rounds to about ten metres', () => {
+    expect(placeCacheKey(44.11431, 24.98677)).toBe('44.1143,24.9868');
+    expect(placeCacheKey(44.114312, 24.986771)).toBe(placeCacheKey(44.11431, 24.98677));
+    // doua strazi la cateva sute de metri raman intrari diferite
+    expect(placeCacheKey(44.116, 25.004)).not.toBe(placeCacheKey(44.112, 24.995));
   });
 
   it('keeps the southern/western hemispheres apart', () => {
-    expect(placeCacheKey(-33.87, 151.21)).toBe('-33.87,151.21');
+    expect(placeCacheKey(-33.87, 151.21)).toBe('-33.8700,151.2100');
   });
 });
 
@@ -65,7 +70,7 @@ describe('resolvePlaceLabels', () => {
   it('serves addresses already known, without asking anything', async () => {
     writeOnlinePlaceNames(true);
     localStorage.setItem('lumin-place-names-v2', JSON.stringify({
-      '44.11,24.99': { address: 'Strada Carpați 68, Roșiori de Vede, România', locality: 'Roșiori de Vede, România' }
+      '44.1143,24.9868': { address: 'Strada Carpați 68, Roșiori de Vede, România', locality: 'Roșiori de Vede, România' }
     }));
     const labels = await resolvePlaceLabels([{ key: 'g1', latitude: 44.11431, longitude: 24.98677 }], 'ro', near);
     expect(labels.get('g1')).toBe('Strada Carpați 68, Roșiori de Vede, România');
@@ -80,7 +85,7 @@ describe('resolvePlaceLabels', () => {
   it('gives a group the locality, not the street of its centre', async () => {
     writeOnlinePlaceNames(true);
     localStorage.setItem('lumin-place-names-v2', JSON.stringify({
-      '44.11,24.99': { address: 'Strada Renașterii 78, Roșiori de Vede, România', locality: 'Roșiori de Vede, România' }
+      '44.1143,24.9868': { address: 'Strada Renașterii 78, Roșiori de Vede, România', locality: 'Roșiori de Vede, România' }
     }));
     const point = [{ key: 'g1', latitude: 44.11431, longitude: 24.98677 }];
     expect((await resolvePlaceLabels(point, 'ro', near, 'locality')).get('g1')).toBe('Roșiori de Vede, România');
@@ -90,7 +95,7 @@ describe('resolvePlaceLabels', () => {
   /** Cu optiunea OPRITA, adresele retinute candva nu mai sunt folosite. */
   it('ignores the address cache while the option is off', async () => {
     localStorage.setItem('lumin-place-names-v2', JSON.stringify({
-      '44.11,24.99': { address: 'Strada Carpați 68', locality: 'Roșiori de Vede' }
+      '44.1143,24.9868': { address: 'Strada Carpați 68', locality: 'Roșiori de Vede' }
     }));
     const labels = await resolvePlaceLabels([{ key: 'g1', latitude: 44.11431, longitude: 24.98677 }], 'ro', near);
     expect(labels.has('g1')).toBe(false);

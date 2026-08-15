@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { db } from '../core/db';
 import { useStore } from '../state/store';
 import { findLocations, NO_LOCATION_KEY, type PhotoLocationGroup } from '../state/locations';
+import { hasRealGps } from '../core/gpsCoordinates';
 import { resolvePlaceLabels } from '../core/placeLookup';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { AdjustedImage } from './AdjustedImage';
@@ -129,31 +130,48 @@ export function LocationsPanel() {
   const containerRef = useRef<HTMLDivElement>(null);
   useModalFocusTrap(containerRef, open);
 
-  const groups = useMemo(() => findLocations(photos), [photos]);
   /**
-   * Numele/adresele locurilor, dupa modul ales de utilizator (lista inclusa in
-   * aplicatie, implicit; sau serviciul de harti al telefonului, daca a pornit
-   * "Adrese exacte") — vezi core/placeLookup.ts. Se cauta doar la deschiderea
-   * ecranului, nu la pornirea aplicatiei: nici lista de cateva MB, nici vreo
-   * interogare, nu au ce cauta acolo unde nu se uita nimeni.
+   * Adresa fiecarei poze, cand se stie. Se cere o singura data per loc de ~11 m
+   * (vezi core/placeLookup.ts), deci 30 de poze din acelasi foisor inseamna o
+   * singura intrebare.
+   */
+  const [photoAddresses, setPhotoAddresses] = useState<Map<string, string>>(new Map());
+  const groups = useMemo(() => findLocations(photos, photoAddresses), [photos, photoAddresses]);
+  /**
+   * Etichetele grupurilor si adresele pozelor, dupa modul ales de utilizator
+   * (vezi core/placeLookup.ts). Se cauta doar la deschiderea ecranului, nu la
+   * pornirea aplicatiei: nici lista de cateva MB, nici vreo interogare, n-au ce
+   * cauta acolo unde nu se uita nimeni.
+   *
+   * In modul online se cere adresa FIECAREI poze, nu una per grup: pe ea se
+   * face si gruparea (vezi findLocations), fiindca doua poze din acelasi loc pot
+   * avea coordonate la sute de metri una de alta, iar adresa le aduna oricum
+   * corect. In modul offline nu exista adrese, deci se cere doar cate un nume
+   * per grup, ca inainte.
    */
   const [placeNames, setPlaceNames] = useState<Map<string, string>>(new Map());
   useEffect(() => {
     if (!open) return;
     let alive = true;
-    // Numele se cere pentru POZA DE REPER a grupului, nu pentru centrul lui:
-    // centrul e o medie, un punct pe care nu s-a facut nicio poza, si i se
-    // poate raspunde cu adresa nimanui. Observatie a utilizatorului, cu
-    // captura: grupul scria "Strada Renasterii 78", iar pozele erau de pe alte
-    // strazi. Acum grupurile sunt si mici (~400 m, vezi state/locations.ts),
-    // deci adresa reperului chiar descrie tot grupul.
+    const near = (place: string) => tr('locations.near', { place });
+
+    if (onlinePlaceNames) {
+      const perPhoto = photos
+        .filter(p => hasRealGps(p.gpsLatitude, p.gpsLongitude))
+        .map(p => ({ key: p.id, latitude: p.gpsLatitude!, longitude: p.gpsLongitude! }));
+      void resolvePlaceLabels(perPhoto, locale, near, 'address').then(addresses => {
+        if (alive) setPhotoAddresses(addresses);
+      });
+      return () => { alive = false; };
+    }
+
+    // Offline: un nume per grup, pe poza de reper (cea mai apropiata de centru).
     const points = groups
       .filter(g => g.hasLocation)
       .map(g => ({ key: g.key, latitude: g.anchorLat ?? g.centroidLat!, longitude: g.anchorLon ?? g.centroidLon! }));
-    void resolvePlaceLabels(points, locale, near => tr('locations.near', { place: near }), 'address')
-      .then(names => { if (alive) setPlaceNames(names); });
+    void resolvePlaceLabels(points, locale, near).then(names => { if (alive) setPlaceNames(names); });
     return () => { alive = false; };
-  }, [open, groups, locale, onlinePlaceNames]); // eslint-disable-line react-hooks/exhaustive-deps -- `tr` se reface la fiecare randare; `locale` e ce conteaza
+  }, [open, groups, locale, onlinePlaceNames, photos]); // eslint-disable-line react-hooks/exhaustive-deps -- `tr` se reface la fiecare randare; `locale` e ce conteaza
 
   useEffect(() => {
     if (!open) return;
@@ -191,7 +209,7 @@ export function LocationsPanel() {
                 <LocationCard
                   key={group.key}
                   group={group}
-                  placeName={placeNames.get(group.key)}
+                  placeName={photoAddresses.get(group.photos[0].id) ?? placeNames.get(group.key)}
                   locale={locale}
                   onOpenPhoto={openPhoto}
                 />

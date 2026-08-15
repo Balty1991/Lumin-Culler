@@ -82,6 +82,30 @@ interface Coords {
 }
 
 /**
+ * Grupurile, dupa adresa cand se stie, dupa apropiere pentru restul.
+ *
+ * Pozele carora li se stie adresa se aduna dupa ea, oricat de imprastiate ar fi
+ * coordonatele lor. Cele fara adresa (mod offline, fara retea, sau o adresa care
+ * n-a venit) cad pe gruparea dupa apropiere de mai jos, deci nu se pierd si nu
+ * se lipesc de un loc care nu e al lor.
+ */
+function clusterByAddressOrProximity<T extends Coords & { id: string }>(
+  photos: T[],
+  addressByPhotoId?: Map<string, string>
+): T[][] {
+  if (!addressByPhotoId?.size) return clusterByProximity(photos);
+  const byAddress = new Map<string, T[]>();
+  const withoutAddress: T[] = [];
+  for (const photo of photos) {
+    const address = addressByPhotoId.get(photo.id);
+    if (!address) { withoutAddress.push(photo); continue; }
+    const group = byAddress.get(address);
+    if (group) group.push(photo); else byAddress.set(address, [photo]);
+  }
+  return [...byAddress.values(), ...clusterByProximity(withoutAddress)];
+}
+
+/**
  * Grupare dupa apropiere, NU pe o grila fixa.
  *
  * Grila avea o hiba pe care nu o are apropierea: doua poze la 50 m distanta,
@@ -166,7 +190,23 @@ function dateRange(photos: PhotoView[]): { startDate?: number; endDate?: number 
  * cand redacteaza locatia — vezi core/gpsCoordinates.ts) intra in grupa de
  * rest, nu intr-un loc inventat.
  */
-export function findLocations(photos: PhotoView[]): PhotoLocationGroup[] {
+export function findLocations(
+  photos: PhotoView[],
+  /**
+   * Adresa fiecarei poze, cand se stie (id -> adresa) — vezi
+   * core/placeLookup.ts si ui/LocationsPanel.tsx.
+   *
+   * Cand exista, gruparea se face DUPA ADRESA, nu dupa apropiere. Motivul e o
+   * observatie a utilizatorului, cu capturi: doua poze facute in acelasi foisor,
+   * la cateva minute distanta, aveau in EXIF coordonate la ~840 m una de alta
+   * (asa e GPS-ul unui telefon sub acoperis sau la primul cadru dupa pornirea
+   * camerei), iar Galeria telefonului le arata pe amandoua pe aceeasi strada.
+   * Orice prag de distanta ori le rupe pe astea in doua, ori lipeste doua strazi
+   * vecine — pe cand adresa spune direct ce voia utilizatorul sa vada, si spune
+   * exact ce spune si Galeria, fiindca vine de la acelasi serviciu.
+   */
+  addressByPhotoId?: Map<string, string>
+): PhotoLocationGroup[] {
   const located: (PhotoView & Coords)[] = [];
   const unlocated: PhotoView[] = [];
   for (const p of photos) {
@@ -177,7 +217,7 @@ export function findLocations(photos: PhotoView[]): PhotoLocationGroup[] {
   const groups: PhotoLocationGroup[] = [];
   if (located.length) {
     const home = homeAnchor(located);
-    for (const cluster of clusterByProximity(located)) {
+    for (const cluster of clusterByAddressOrProximity(located, addressByPhotoId)) {
       const centroidLat = avg(cluster.map(p => p.gpsLatitude));
       const centroidLon = avg(cluster.map(p => p.gpsLongitude));
       // Punctul de reper NU e centrul, ci poza cea mai apropiata de centru.

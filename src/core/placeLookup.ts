@@ -49,8 +49,17 @@ const MediaLibraryNative = registerPlugin<ReverseGeocodePluginApi>('MediaLibrary
 const ONLINE_KEY = 'lumin-place-names-online';
 /** v2: intrarile tin acum si adresa, si localitatea, nu un singur text. */
 const CACHE_KEY = 'lumin-place-names-v2';
-/** Zecimalele cheii din memorie: 2 inseamna ~1 km, deci doua poze din acelasi oras nimeresc aceeasi intrare. */
-const CACHE_PRECISION = 2;
+/**
+ * Zecimalele cheii din memorie: 4 inseamna ~11 metri.
+ *
+ * Erau 2 (~1 km), si asta era o greseala tacuta: doua poze de pe strazi diferite,
+ * la cateva sute de metri, primeau ACEEASI intrare, deci aceeasi adresa. Pentru
+ * un oras e destul; pentru "adresa pozei asteia" e exact felul in care se pierde
+ * ce cauta utilizatorul. La 11 metri, doua poze din acelasi loc tot nimeresc o
+ * singura intrare (deci o singura intrebare), dar doua strazi nu se mai
+ * amesteca.
+ */
+const CACHE_PRECISION = 4;
 /** Peste atatea adrese retinute, cele mai vechi ies — o biblioteca mare n-are voie sa umfle localStorage la nesfarsit. */
 const MAX_CACHED_PLACES = 500;
 
@@ -155,11 +164,21 @@ export async function resolvePlaceLabels(
   // n-a raspuns — asa ecranul nu ramane gol fara retea.
   const labels = new Map<string, string>();
   const cache = readCache();
+  // Dedublare INAINTE de a intreba: 30 de poze facute in acelasi loc au aceeasi
+  // cheie, deci merita o singura interogare, nu 30. Conteaza mai ales de cand
+  // ecranul cere adresa fiecarei poze, nu una per grup.
   const missing: PlacePoint[] = [];
+  const askedKeys = new Set<string>();
   for (const point of points) {
-    const cached = cache[placeCacheKey(point.latitude, point.longitude)];
-    if (cached) labels.set(point.key, precision === 'locality' ? cached.locality : cached.address);
-    else missing.push(point);
+    const cacheKey = placeCacheKey(point.latitude, point.longitude);
+    const cached = cache[cacheKey];
+    if (cached) {
+      labels.set(point.key, precision === 'locality' ? cached.locality : cached.address);
+      continue;
+    }
+    if (askedKeys.has(cacheKey)) continue;
+    askedKeys.add(cacheKey);
+    missing.push(point);
   }
 
   if (missing.length && Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('MediaLibrary')) {
@@ -176,6 +195,13 @@ export async function resolvePlaceLabels(
         cache[placeCacheKey(point.latitude, point.longitude)] = entry;
       }
       if (result.places.length) writeCache(cache);
+      // Punctele care au ASTEPTAT un raspuns dat altui punct din acelasi loc
+      // (vezi dedublarea de mai sus) isi iau acum eticheta din memorie.
+      for (const point of points) {
+        if (labels.has(point.key)) continue;
+        const cached = cache[placeCacheKey(point.latitude, point.longitude)];
+        if (cached) labels.set(point.key, precision === 'locality' ? cached.locality : cached.address);
+      }
     } catch (err) {
       console.warn('Nu am putut afla adresele online:', err);
     }
