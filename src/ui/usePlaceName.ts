@@ -1,34 +1,38 @@
 import { useEffect, useState } from 'react';
 import { hasRealGps } from '../core/gpsCoordinates';
-import { resolvePlaceLabels } from '../core/placeLookup';
+import { findNearestPlace, formatPlace, loadPlaceIndex } from '../core/placeNames';
 import { useStore } from '../state/store';
 import { t } from '../i18n';
 
 /**
- * Numele locului pentru o pereche de coordonate, sau `null` cat timp nu se
- * stie.
+ * Localitatea in care a fost facuta poza — "Roșiori de Vede, România" — sau
+ * `null` cat timp nu se stie.
  *
- * Ce anume scrie depinde de alegerea utilizatorului (vezi core/placeLookup.ts):
- * implicit localitatea din lista inclusa in aplicatie, fara sa plece nimic; cu
- * "Adrese exacte" pornit, adresa completa de la serviciul de harti al
- * telefonului. Coordonatele raman afisate in ambele cazuri — ele sunt
- * informatia exacta, scrisa in poza de aparat.
+ * DOAR localitatea si tara, deliberat. Am avut si adrese exacte, cerute
+ * serviciului de harti al telefonului, si le-am scos dupa o intrebare a
+ * utilizatorului la care raspunsul cinstit a fost "nu se poate sti": strada e
+ * ce ALEGE un serviciu pentru o coordonata care are ea insasi eroare de zeci-
+ * sute de metri. Dovada, de pe telefonul lui: o poza dintr-o curte si alta
+ * dintr-o piata publica, la kilometri distanta, primeau de la Galerie aceeasi
+ * strada. Localitatea, in schimb, nu se schimba de la o eroare de sute de
+ * metri — deci poate fi afirmata.
+ *
+ * Numele vine dintr-o lista inclusa in aplicatie (core/placeNames.ts): nu pleaca
+ * nimic de pe telefon, nici macar coordonatele.
  */
 export function usePlaceName(latitude: number | undefined, longitude: number | undefined): string | null {
   const locale = useStore(s => s.locale);
-  const onlinePlaceNames = useStore(s => s.onlinePlaceNames);
   const [name, setName] = useState<string | null>(null);
   useEffect(() => {
     setName(null);
     if (!hasRealGps(latitude, longitude)) return;
     let alive = true;
-    const key = 'photo';
-    void resolvePlaceLabels(
-      [{ key, latitude: latitude!, longitude: longitude! }],
-      locale,
-      near => t(locale, 'locations.near', { place: near })
-    ).then(labels => { if (alive) setName(labels.get(key) ?? null); });
+    void loadPlaceIndex().then(index => {
+      if (!alive || !index) return;
+      const place = findNearestPlace(index, latitude!, longitude!);
+      if (place) setName(formatPlace(place, locale, near => t(locale, 'locations.near', { place: near })));
+    });
     return () => { alive = false; };
-  }, [latitude, longitude, locale, onlinePlaceNames]);
+  }, [latitude, longitude, locale]);
   return name;
 }

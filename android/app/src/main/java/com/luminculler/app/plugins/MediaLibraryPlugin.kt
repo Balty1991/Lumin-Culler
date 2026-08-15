@@ -4,7 +4,6 @@ import android.Manifest
 import android.app.Activity
 import android.app.PendingIntent
 import android.content.Intent
-import android.location.Geocoder
 import android.media.ExifInterface
 import android.net.Uri
 import android.os.Build
@@ -15,8 +14,6 @@ import androidx.activity.result.ActivityResult
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import java.util.Locale
-import java.util.concurrent.Executors
 import com.getcapacitor.JSArray
 import com.getcapacitor.JSObject
 import com.getcapacitor.PermissionState
@@ -143,9 +140,6 @@ class MediaLibraryPlugin : Plugin() {
      * inainte ca Activity-ul sa ajunga STARTED) — AndroidX respinge orice
      * inregistrare facuta mai tarziu.
      */
-    /** Un singur fir pentru geocodare (vezi reverseGeocode): iese in retea, deci n-are ce cauta pe firul principal, dar nici nu merita un fir per apel. */
-    private val geocodeExecutor = Executors.newSingleThreadExecutor()
-
     private lateinit var deleteLauncher: ActivityResultLauncher<IntentSenderRequest>
     private var pendingDeleteCall: PluginCall? = null
     /**
@@ -472,90 +466,6 @@ class MediaLibraryPlugin : Plugin() {
             // Refuz explicit — nu e o eroare: importul continua fara coordonate,
             // exact ca inainte de aceasta functie.
             call.resolve(JSObject().put("granted", false).put("locations", JSArray()))
-        }
-    }
-
-    /**
-     * Numele locurilor pentru coordonate — "Roșiori de Vede, România", nu
-     * "44.114, 24.987".
-     *
-     * NU se apeleaza de la sine: partea JS o cheama doar daca utilizatorul a
-     * pornit ANUME optiunea "Adrese exacte (online)" din meniu, oprita
-     * implicit. Fara ea, numele vin dintr-o lista inclusa in aplicatie si nu
-     * pleaca nimic (vezi core/placeNames.ts si core/placeLookup.ts).
-     *
-     * ATENTIE, e singurul loc din aplicatie care intreaba ceva in afara ei.
-     * Geocoder e serviciul de geocodare AL SISTEMULUI (acelasi pe care il
-     * foloseste si Galeria ca sa scrie "Strada Carpati 68, Rosiori de Vede") si
-     * pe telefoanele cu servicii Google inseamna o interogare catre serverele
-     * lor. Pleaca DOAR coordonatele, niciodata poza, si doar cate una pe loc
-     * (partea JS tine minte numele, vezi core/placeLookup.ts) — dar tot
-     * inseamna ca ceva pleaca de pe telefon, deci e scris pe optiunea insasi si
-     * in politica de confidentialitate, nu ascuns.
-     *
-     * Fara retea sau fara serviciu (Geocoder.isPresent() fals, telefoane fara
-     * servicii Google), intoarce lista goala: partea JS cade inapoi pe lista
-     * offline, deci ecranul arata tot un nume, nu o eroare.
-     */
-    @PluginMethod
-    fun reverseGeocode(call: PluginCall) {
-        val points = call.getArray("points")
-        if (points == null || points.length() == 0 || !Geocoder.isPresent()) {
-            call.resolve(JSObject().put("places", JSArray()))
-            return
-        }
-        // Pe un fir separat: interogarea iese in retea, iar metodele plugin-ului
-        // ruleaza pe firul principal, unde ar bloca vizibil interfata.
-        geocodeExecutor.execute {
-            val places = JSArray()
-            val geocoder = Geocoder(context, Locale.getDefault())
-            for (i in 0 until points.length()) {
-                try {
-                    val point = points.getJSONObject(i)
-                    val key = point.getString("key")
-                    @Suppress("DEPRECATION")
-                    val address = geocoder
-                        .getFromLocation(point.getDouble("latitude"), point.getDouble("longitude"), 1)
-                        ?.firstOrNull()
-                        ?: continue
-                    // Adresa completa cand exista (strada si numarul) — asta e
-                    // exact ce NU poate da lista offline, deci singurul motiv
-                    // pentru care cineva ar porni optiunea. Daca furnizorul n-o
-                    // are, coboaram la localitate, apoi comuna/judet, apoi
-                    // regiune. Tara la final, ca sa se distinga doua localitati
-                    // omonime din tari diferite.
-                    val street = listOfNotNull(address.thoroughfare, address.subThoroughfare)
-                        .filter { it.isNotBlank() }
-                        .joinToString(" ")
-                    val place = address.locality ?: address.subAdminArea ?: address.adminArea
-                    // DOUA etichete, nu una. Adresa completa e ce vrei cand te
-                    // uiti la o poza anume. Dar un GRUP de poze acopera mai
-                    // multe strazi, iar eticheta lui se calculeaza pe centrul
-                    // grupului — adica pe un punct pe care nu s-a facut nicio
-                    // poza. Observatie a utilizatorului, cu captura: grupul
-                    // scria "Strada Renasterii 78", iar pozele din el erau de pe
-                    // alta strada. Pentru grupuri se foloseste localitatea, care
-                    // e adevarata pentru toate pozele din ele.
-                    val locality = listOfNotNull(place, address.countryName)
-                        .filter { it.isNotBlank() }
-                        .joinToString(", ")
-                    val label = listOfNotNull(street.ifBlank { null }, place, address.countryName)
-                        .filter { it.isNotBlank() }
-                        .joinToString(", ")
-                    if (label.isNotBlank() || locality.isNotBlank()) {
-                        places.put(
-                            JSObject()
-                                .put("key", key)
-                                .put("label", label.ifBlank { locality })
-                                .put("locality", locality.ifBlank { label })
-                        )
-                    }
-                } catch (_: Exception) {
-                    // Un punct fara raspuns (fara retea, coordonate in mijlocul
-                    // oceanului) nu opreste restul lotului.
-                }
-            }
-            call.resolve(JSObject().put("places", places))
         }
     }
 

@@ -147,14 +147,14 @@ describe('findLocations', () => {
  * Galeria telefonului le arata pe amandoua pe aceeasi strada. Orice prag de
  * distanta ori le rupe pe astea, ori lipeste doua strazi vecine.
  */
-describe('findLocations, dupa adresa', () => {
+describe('findLocations, dupa localitate', () => {
   const SAME_SPOT_A = { lat: 44.116, lon: 25.004 };
   const SAME_SPOT_B = { lat: 44.112, lon: 24.995 }; // ~840 m mai incolo, acelasi loc real
 
-  it('keeps photos with the same address together, however far apart their coordinates', () => {
+  it('keeps photos from the same locality together, however far apart their coordinates', () => {
     const addresses = new Map([
-      ['a', 'Strada Oituz, Roșiori de Vede, România'],
-      ['b', 'Strada Oituz, Roșiori de Vede, România']
+      ['a', 'Roșiori de Vede, România'],
+      ['b', 'Roșiori de Vede, România']
     ]);
     const groups = findLocations(
       [photo('a', base, SAME_SPOT_A), photo('b', base + 60000, SAME_SPOT_B)],
@@ -164,10 +164,10 @@ describe('findLocations, dupa adresa', () => {
     expect(groups[0].photos.map(p => p.id)).toEqual(['a', 'b']);
   });
 
-  it('keeps different addresses apart even when the coordinates are close', () => {
+  it('keeps different localities apart even when the coordinates are close', () => {
     const addresses = new Map([
-      ['a', 'Strada Oituz 1, Roșiori de Vede, România'],
-      ['b', 'Strada Republicii 2, Roșiori de Vede, România']
+      ['a', 'Roșiori de Vede, România'],
+      ['b', 'Alexandria, România']
     ]);
     const groups = findLocations(
       [photo('a', base, HOME), photo('b', base + 60000, { lat: HOME.lat + 0.0005, lon: HOME.lon })],
@@ -176,13 +176,13 @@ describe('findLocations, dupa adresa', () => {
     expect(groups).toHaveLength(2);
   });
 
-  it('falls back to proximity for photos whose address is unknown', () => {
-    const addresses = new Map([['a', 'Strada Oituz, Roșiori de Vede, România']]);
+  it('falls back to proximity for photos whose locality is unknown', () => {
+    const addresses = new Map([['a', 'Roșiori de Vede, România']]);
     const groups = findLocations(
       [photo('a', base, HOME), photo('b', base + 60000, HOME), photo('c', base, NEXT_CITY)],
       addresses
     );
-    // 'a' dupa adresa; 'b' si 'c' dupa apropiere, in doua locuri diferite
+    // 'a' dupa localitate; 'b' si 'c' dupa apropiere, in doua locuri diferite
     expect(groups).toHaveLength(3);
   });
 });

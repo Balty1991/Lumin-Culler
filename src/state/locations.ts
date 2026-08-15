@@ -12,9 +12,8 @@ import { hasRealGps } from '../core/gpsCoordinates';
  * coordonate, apare la locul ei; daca nu are, apare intr-o grupa separata,
  * spusa pe fata. Ecranul arata ce stie aplicatia, nu ce n-a gasit.
  *
- * Aici se face DOAR gruparea; numele locurilor vin din alta parte (vezi
- * core/placeLookup.ts, care le cauta intr-o lista inclusa in aplicatie sau, la
- * alegerea utilizatorului, le cere serviciului de harti al telefonului).
+ * Aici se face DOAR gruparea; numele localitatilor vin din alta parte (vezi
+ * core/placeNames.ts, care le cauta intr-o lista inclusa in aplicatie).
  */
 
 export interface PhotoLocationGroup {
@@ -82,27 +81,28 @@ interface Coords {
 }
 
 /**
- * Grupurile, dupa adresa cand se stie, dupa apropiere pentru restul.
+ * Grupurile, dupa localitate cand se stie, dupa apropiere pentru restul.
  *
- * Pozele carora li se stie adresa se aduna dupa ea, oricat de imprastiate ar fi
- * coordonatele lor. Cele fara adresa (mod offline, fara retea, sau o adresa care
- * n-a venit) cad pe gruparea dupa apropiere de mai jos, deci nu se pierd si nu
- * se lipesc de un loc care nu e al lor.
+ * Pozele carora li se stie localitatea se aduna dupa ea, oricat de imprastiate
+ * ar fi coordonatele lor. Cele fara (lista de localitati inca neincarcata, sau
+ * un loc prea departe de orice localitate cunoscuta) cad pe gruparea dupa
+ * apropiere de mai jos, deci nu se pierd si nu se lipesc de un loc care nu e al
+ * lor.
  */
-function clusterByAddressOrProximity<T extends Coords & { id: string }>(
+function clusterByLocalityOrProximity<T extends Coords & { id: string }>(
   photos: T[],
-  addressByPhotoId?: Map<string, string>
+  localityByPhotoId?: Map<string, string>
 ): T[][] {
-  if (!addressByPhotoId?.size) return clusterByProximity(photos);
-  const byAddress = new Map<string, T[]>();
-  const withoutAddress: T[] = [];
+  if (!localityByPhotoId?.size) return clusterByProximity(photos);
+  const byLocality = new Map<string, T[]>();
+  const withoutLocality: T[] = [];
   for (const photo of photos) {
-    const address = addressByPhotoId.get(photo.id);
-    if (!address) { withoutAddress.push(photo); continue; }
-    const group = byAddress.get(address);
-    if (group) group.push(photo); else byAddress.set(address, [photo]);
+    const locality = localityByPhotoId.get(photo.id);
+    if (!locality) { withoutLocality.push(photo); continue; }
+    const group = byLocality.get(locality);
+    if (group) group.push(photo); else byLocality.set(locality, [photo]);
   }
-  return [...byAddress.values(), ...clusterByProximity(withoutAddress)];
+  return [...byLocality.values(), ...clusterByProximity(withoutLocality)];
 }
 
 /**
@@ -193,19 +193,19 @@ function dateRange(photos: PhotoView[]): { startDate?: number; endDate?: number 
 export function findLocations(
   photos: PhotoView[],
   /**
-   * Adresa fiecarei poze, cand se stie (id -> adresa) — vezi
-   * core/placeLookup.ts si ui/LocationsPanel.tsx.
+   * Localitatea fiecarei poze, cand se stie (id -> "Rosiori de Vede, Romania")
+   * — vezi core/placeNames.ts si ui/LocationsPanel.tsx.
    *
-   * Cand exista, gruparea se face DUPA ADRESA, nu dupa apropiere. Motivul e o
+   * Cand exista, gruparea se face DUPA EA, nu dupa apropiere. Motivul e o
    * observatie a utilizatorului, cu capturi: doua poze facute in acelasi foisor,
    * la cateva minute distanta, aveau in EXIF coordonate la ~840 m una de alta
    * (asa e GPS-ul unui telefon sub acoperis sau la primul cadru dupa pornirea
-   * camerei), iar Galeria telefonului le arata pe amandoua pe aceeasi strada.
-   * Orice prag de distanta ori le rupe pe astea in doua, ori lipeste doua strazi
-   * vecine — pe cand adresa spune direct ce voia utilizatorul sa vada, si spune
-   * exact ce spune si Galeria, fiindca vine de la acelasi serviciu.
+   * camerei). Orice prag de distanta ori le rupe pe astea in doua, ori lipeste
+   * doua locuri vecine. Localitatea, in schimb, nu se schimba de la o eroare de
+   * sute de metri — deci grupeaza exact cum se asteapta cineva care se uita la
+   * ecran, si nu afirma nimic ce n-am putea sustine.
    */
-  addressByPhotoId?: Map<string, string>
+  localityByPhotoId?: Map<string, string>
 ): PhotoLocationGroup[] {
   const located: (PhotoView & Coords)[] = [];
   const unlocated: PhotoView[] = [];
@@ -217,7 +217,7 @@ export function findLocations(
   const groups: PhotoLocationGroup[] = [];
   if (located.length) {
     const home = homeAnchor(located);
-    for (const cluster of clusterByAddressOrProximity(located, addressByPhotoId)) {
+    for (const cluster of clusterByLocalityOrProximity(located, localityByPhotoId)) {
       const centroidLat = avg(cluster.map(p => p.gpsLatitude));
       const centroidLon = avg(cluster.map(p => p.gpsLongitude));
       // Punctul de reper NU e centrul, ci poza cea mai apropiata de centru.

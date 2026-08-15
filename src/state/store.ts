@@ -52,7 +52,6 @@ import { keepScreenAwake } from '../core/wakeLock';
 import { createActiveElapsed, type ActiveElapsed } from '../core/activeElapsed';
 import { recordImportDay } from './streak';
 import { stabilizeEta } from '../core/etaEstimate';
-import { readOnlinePlaceNames, writeOnlinePlaceNames, forgetCachedAddresses } from '../core/placeLookup';
 import { readAccessibleMode, applyAccessibleMode } from '../core/accessibleMode';
 import { readSmartNotificationEnabled, writeSmartNotificationEnabled } from './smartNotification';
 import {
@@ -431,14 +430,6 @@ interface AppState {
   /** "Notificare inteligenta" (vezi state/smartNotification.ts) — opt-in, cere permisiune de notificare cand e pornita. */
   smartNotificationsEnabled: boolean;
   setSmartNotificationsEnabled: (on: boolean) => void;
-  /**
-   * Adrese exacte (strada si numarul) de la serviciul de harti al telefonului,
-   * in loc de localitatea din lista inclusa in aplicatie. OPRIT implicit: e
-   * singurul lucru care trimite ceva de pe telefon (doar coordonate, niciodata
-   * pozele) — vezi core/placeLookup.ts.
-   */
-  onlinePlaceNames: boolean;
-  setOnlinePlaceNames: (on: boolean) => void;
   zenMode: boolean;
   setZenMode: (on: boolean) => void;
   zenAutoDeleteObvious: boolean;
@@ -1509,15 +1500,6 @@ export const useStore = create<AppState>((set, get) => ({
   setAccentTheme: accent => { applyAccent(accent); set({ accentTheme: accent }); },
   accessibleMode: readAccessibleMode(),
   setAccessibleMode: on => { applyAccessibleMode(on); set({ accessibleMode: on }); },
-  onlinePlaceNames: readOnlinePlaceNames(),
-  setOnlinePlaceNames: on => {
-    writeOnlinePlaceNames(on);
-    // La oprire uitam adresele deja cerute: altfel ecranul ar continua sa arate
-    // strada si numarul obtinute cat timp optiunea era pornita, iar utilizatorul
-    // ar avea toate motivele sa creada ca inca se intreaba ceva in afara.
-    if (!on) forgetCachedAddresses();
-    set({ onlinePlaceNames: on });
-  },
   smartNotificationsEnabled: readSmartNotificationEnabled(),
   setSmartNotificationsEnabled: on => {
     writeSmartNotificationEnabled(on);

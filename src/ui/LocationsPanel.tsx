@@ -3,7 +3,7 @@ import { db } from '../core/db';
 import { useStore } from '../state/store';
 import { findLocations, NO_LOCATION_KEY, type PhotoLocationGroup } from '../state/locations';
 import { hasRealGps } from '../core/gpsCoordinates';
-import { resolvePlaceLabels, resolvePlaceDetails } from '../core/placeLookup';
+import { findNearestPlace, formatPlace, loadPlaceIndex } from '../core/placeNames';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { AdjustedImage } from './AdjustedImage';
 import { XIcon, PinIcon } from './icons';
@@ -46,13 +46,8 @@ function LocationThumbImage({ photoId }: { photoId: string }) {
   return src ? <AdjustedImage src={src} alt="" loading="lazy" /> : <span className="memory-thumb-loading" aria-hidden="true" />;
 }
 
-function LocationCard({ group, placeName, approxAddress, locale, onOpenPhoto }: {
-  group: PhotoLocationGroup;
-  placeName?: string;
-  /** Strada, cand se stie — aratata SEPARAT de titlu si marcata ca presupunere; vezi 'locations.approx.why'. */
-  approxAddress?: string;
-  locale: Locale;
-  onOpenPhoto: (id: string) => void;
+function LocationCard({ group, placeName, locale, onOpenPhoto }: {
+  group: PhotoLocationGroup; placeName?: string; locale: Locale; onOpenPhoto: (id: string) => void;
 }) {
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const [expanded, setExpanded] = useState(false);
@@ -84,15 +79,6 @@ function LocationCard({ group, placeName, approxAddress, locale, onOpenPhoto }: 
             <PinIcon className="inline-icon" aria-hidden="true" />
             {title}
           </span>
-          {/* Strada, cand exista, sub titlu si marcata ca presupunere: nu e un
-              fapt, ci ce a ales serviciul de harti pentru o coordonata care si
-              ea are eroare. Vezi 'locations.approx.why' pentru explicatia
-              completa, aratata la apasarea grupului. */}
-          {approxAddress && (
-            <span className="location-card-approx" title={tr('locations.approx.why')}>
-              {tr('locations.approx', { address: approxAddress })}
-            </span>
-          )}
           <span className="location-card-sub">
             {group.hasLocation && placeName && !group.isHome && (
               <>{tr('locations.distance', { km: Math.round(group.distanceFromHomeKm ?? 0) })}{' · '}</>
@@ -113,7 +99,6 @@ function LocationCard({ group, placeName, approxAddress, locale, onOpenPhoto }: 
       {expanded && (
         <>
           {!group.hasLocation && <p className="hint">{tr('locations.none.hint')}</p>}
-          {approxAddress && <p className="hint">{tr('locations.approx.why')}</p>}
           <div className="location-card-grid">
             {group.photos.map(photo => (
               <button key={photo.id} className="memory-thumb" aria-label={photo.fileName} onClick={() => onOpenPhoto(photo.id)}>
@@ -138,7 +123,6 @@ export function LocationsPanel() {
   const open = useStore(s => s.locationsOpen);
   const setOpen = useStore(s => s.setLocationsOpen);
   const photos = useStore(s => s.photos);
-  const onlinePlaceNames = useStore(s => s.onlinePlaceNames);
   const openDetail = useStore(s => s.openDetail);
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
@@ -146,51 +130,28 @@ export function LocationsPanel() {
   useModalFocusTrap(containerRef, open);
 
   /**
-   * Adresa fiecarei poze, cand se stie. Se cere o singura data per loc de ~11 m
-   * (vezi core/placeLookup.ts), deci 30 de poze din acelasi foisor inseamna o
-   * singura intrebare.
+   * Localitatea fiecarei poze, cautata in lista inclusa in aplicatie. Pe ea se
+   * face si gruparea (vezi findLocations): doua poze din acelasi oras stau
+   * impreuna chiar daca au coordonate la sute de metri una de alta — asa sunt
+   * coordonatele scrise de telefon, si nu e un motiv sa apara doua "locatii".
    */
-  const [photoPlaces, setPhotoPlaces] = useState<Map<string, { address: string; locality: string }>>(new Map());
-  const photoAddresses = useMemo(
-    () => new Map([...photoPlaces].map(([id, place]) => [id, place.address])),
-    [photoPlaces]
-  );
-  const groups = useMemo(() => findLocations(photos, photoAddresses), [photos, photoAddresses]);
-  /**
-   * Etichetele grupurilor si adresele pozelor, dupa modul ales de utilizator
-   * (vezi core/placeLookup.ts). Se cauta doar la deschiderea ecranului, nu la
-   * pornirea aplicatiei: nici lista de cateva MB, nici vreo interogare, n-au ce
-   * cauta acolo unde nu se uita nimeni.
-   *
-   * In modul online se cere adresa FIECAREI poze, nu una per grup: pe ea se
-   * face si gruparea (vezi findLocations), fiindca doua poze din acelasi loc pot
-   * avea coordonate la sute de metri una de alta, iar adresa le aduna oricum
-   * corect. In modul offline nu exista adrese, deci se cere doar cate un nume
-   * per grup, ca inainte.
-   */
-  const [placeNames, setPlaceNames] = useState<Map<string, string>>(new Map());
+  const [photoPlaces, setPhotoPlaces] = useState<Map<string, string>>(new Map());
+  const groups = useMemo(() => findLocations(photos, photoPlaces), [photos, photoPlaces]);
   useEffect(() => {
     if (!open) return;
     let alive = true;
-    const near = (place: string) => tr('locations.near', { place });
-
-    if (onlinePlaceNames) {
-      const perPhoto = photos
-        .filter(p => hasRealGps(p.gpsLatitude, p.gpsLongitude))
-        .map(p => ({ key: p.id, latitude: p.gpsLatitude!, longitude: p.gpsLongitude! }));
-      void resolvePlaceDetails(perPhoto, locale, near).then(places => {
-        if (alive) setPhotoPlaces(places);
-      });
-      return () => { alive = false; };
-    }
-
-    // Offline: un nume per grup, pe poza de reper (cea mai apropiata de centru).
-    const points = groups
-      .filter(g => g.hasLocation)
-      .map(g => ({ key: g.key, latitude: g.anchorLat ?? g.centroidLat!, longitude: g.anchorLon ?? g.centroidLon! }));
-    void resolvePlaceLabels(points, locale, near).then(names => { if (alive) setPlaceNames(names); });
+    void loadPlaceIndex().then(index => {
+      if (!alive || !index) return;
+      const places = new Map<string, string>();
+      for (const photo of photos) {
+        if (!hasRealGps(photo.gpsLatitude, photo.gpsLongitude)) continue;
+        const place = findNearestPlace(index, photo.gpsLatitude!, photo.gpsLongitude!);
+        if (place) places.set(photo.id, formatPlace(place, locale, near => tr('locations.near', { place: near })));
+      }
+      setPhotoPlaces(places);
+    });
     return () => { alive = false; };
-  }, [open, groups, locale, onlinePlaceNames, photos]); // eslint-disable-line react-hooks/exhaustive-deps -- `tr` se reface la fiecare randare; `locale` e ce conteaza
+  }, [open, photos, locale]); // eslint-disable-line react-hooks/exhaustive-deps -- `tr` se reface la fiecare randare; `locale` e ce conteaza
 
   useEffect(() => {
     if (!open) return;
@@ -219,8 +180,7 @@ export function LocationsPanel() {
           <>
             {hasRealPlaces && (
               <p className="hint">
-                {tr('locations.hint')}{' '}
-                {tr(onlinePlaceNames ? 'locations.hint.online' : 'locations.hint.offline')}
+                {tr('locations.hint')}{' '}{tr('locations.hint.offline')}
               </p>
             )}
             <ul className="locations-list">
@@ -228,8 +188,7 @@ export function LocationsPanel() {
                 <LocationCard
                   key={group.key}
                   group={group}
-                  placeName={photoPlaces.get(group.photos[0].id)?.locality ?? placeNames.get(group.key)}
-                  approxAddress={photoPlaces.get(group.photos[0].id)?.address}
+                  placeName={photoPlaces.get(group.photos[0].id)}
                   locale={locale}
                   onOpenPhoto={openPhoto}
                 />

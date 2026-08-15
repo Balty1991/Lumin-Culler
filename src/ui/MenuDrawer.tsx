@@ -131,8 +131,6 @@ export function MenuDrawer() {
   const setEconomicMode = useStore(s => s.setEconomicMode);
   const accessibleMode = useStore(s => s.accessibleMode);
   const setAccessibleMode = useStore(s => s.setAccessibleMode);
-  const onlinePlaceNames = useStore(s => s.onlinePlaceNames);
-  const setOnlinePlaceNames = useStore(s => s.setOnlinePlaceNames);
   const smartNotificationsEnabled = useStore(s => s.smartNotificationsEnabled);
   const setSmartNotificationsEnabled = useStore(s => s.setSmartNotificationsEnabled);
   const zenMode = useStore(s => s.zenMode);
@@ -666,19 +664,6 @@ export function MenuDrawer() {
           >
             <span className="drawer-item-icon"><AccessibilityIcon /></span>
             <span>{accessibleMode ? tr('menu.accessibleMode.active') : tr('menu.accessibleMode')}</span>
-          </button>
-
-          {/* Singura optiune din aplicatie care porneste ceva spre exterior —
-              de aceea e OPRITA implicit, iar title-ul spune exact ce se schimba
-              in ambele pozitii, nu doar ce se castiga. Vezi core/placeLookup.ts. */}
-          <button
-            className="drawer-item"
-            onClick={() => setOnlinePlaceNames(!onlinePlaceNames)}
-            aria-pressed={onlinePlaceNames}
-            title={tr('menu.onlinePlaces.title')}
-          >
-            <span className="drawer-item-icon"><PinIcon /></span>
-            <span>{onlinePlaceNames ? tr('menu.onlinePlaces.active') : tr('menu.onlinePlaces')}</span>
           </button>
 
           <button

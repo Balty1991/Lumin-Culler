@@ -388,16 +388,15 @@ export function PhotoInfoTabs({ photo, src }: { photo: PhotoView; src: string | 
                         title={tr('detail.exif.gps.disclosure')}
                         aria-label={`${placeName ?? r.value} — ${tr('detail.exif.gps.disclosure')}`}
                       >
-                        {placeName ? tr('locations.approx', { address: placeName }) : r.value}
+                        {placeName ?? r.value}
                       </a>
                     ) : r.value}
                     {r.key === 'gps' && placeName && (
-                      // Coordonatele raman vizibile sub nume, si numele e marcat
-                      // ca presupunere: strada e ce a ales serviciul de harti
-                      // pentru o coordonata care si ea are eroare — intrebarea
-                      // utilizatorului, "cum stim locatia adevarata". Cifrele si
-                      // eroarea declarata de aparat sunt singurele fapte.
-                      <span className="detail-exif-coords mono" title={tr('locations.approx.why')}>
+                      // Coordonatele raman vizibile sub numele localitatii: ele
+                      // sunt faptul scris de aparat in poza, iar cand aparatul a
+                      // notat si cat de sigur era pe ele, se arata si asta.
+                      // Strada NU se afiseaza nicaieri — vezi ui/usePlaceName.ts.
+                      <span className="detail-exif-coords mono">
                         {r.value}
                         {photo.gpsAccuracyM !== undefined &&
                           ` · ${tr('locations.accuracy', { m: Math.round(photo.gpsAccuracyM) })}`}
