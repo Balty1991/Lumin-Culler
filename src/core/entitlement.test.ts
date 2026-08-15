@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   isPremium, recordPhotosUsed, photosUsedInRollingMonth, remainingFreePhotos,
-  canEnrollAnotherPersonFree, isPremiumFeatureLocked, subscribeEntitlement,
+  canEnrollAnotherPersonFree, isPremiumFeatureLocked, isCapEnforced, subscribeEntitlement,
   FREE_PHOTOS_PER_MONTH, FREE_ENROLLED_PERSONS
 } from './entitlement';
 
@@ -213,19 +213,133 @@ describe('isPremiumFeatureLocked', () => {
   beforeEach(() => localStorage.clear());
 
   // Regula care deosebeste un model freemium de un perete: nu blocam nimic cat
-  // timp utilizatorul n-are de unde cumpara.
-  it('nu blocheaza nimic cat timp Play n-a confirmat ca exista ce cumpara', () => {
+  // timp utilizatorul n-are de unde cumpara. Aici (test, nu telefon)
+  // isBillingAvailable() e fals, deci nu exista magazin deloc.
+  it('nu blocheaza nimic cat timp nu exista niciun magazin (web/PWA)', () => {
     expect(isPremiumFeatureLocked()).toBe(false);
+    expect(isCapEnforced()).toBe(false);
   });
 
   it('blocheaza cand abonamentul e cumparabil si utilizatorul nu e abonat', () => {
     localStorage.setItem('lumin-billing-ready', '1');
     expect(isPremiumFeatureLocked()).toBe(true);
+    expect(isCapEnforced()).toBe(true);
   });
 
   it('nu blocheaza un abonat', () => {
     localStorage.setItem('lumin-billing-ready', '1');
     localStorage.setItem('lumin-premium', '1');
     expect(isPremiumFeatureLocked()).toBe(false);
+    expect(isCapEnforced()).toBe(false);
+  });
+});
+
+/**
+ * BUG REAL, raportat de utilizator: a deschis ecranul Locatii fara sa fie
+ * abonat, pe un build unde abonamentul chiar se putea cumpara.
+ *
+ * Cauza: blocarile atarnau DOAR de `lumin-billing-ready`, care se scrie abia
+ * dupa primul raspuns al lui Play. Pana atunci — prima pornire de dupa
+ * instalare, sau orice pornire in care interogarea esueaza — "inca n-am aflat"
+ * era tratat identic cu "nu exista ce cumpara", deci nu se bloca nimic.
+ *
+ * Testele de aici pun in scena EXACT un telefon cu Play (isBillingAvailable
+ * adevarat), lucru imposibil altfel intr-un test: pe web plugin-ul lipseste.
+ */
+describe('blocarea cat timp Play inca n-a raspuns (regresie)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.resetModules();
+    vi.useRealTimers();
+  });
+
+  /** Reincarca modulul cu un billing.ts mimat — `startedAt` porneste de la zero. */
+  async function loadWithBilling(available: boolean) {
+    vi.doMock('./billing', () => ({
+      isBillingAvailable: () => available,
+      queryPremiumActive: async () => false,
+      queryPremiumPriceAnswer: async () => ({ answered: false, price: null })
+    }));
+    return import('./entitlement');
+  }
+
+  it('blocheaza pe un telefon cu Play, cat timp raspunsul inca nu a venit', async () => {
+    const mod = await loadWithBilling(true);
+    expect(mod.isPurchasable()).toBe(false); // Play inca n-a confirmat nimic
+    expect(mod.isPremiumFeatureLocked()).toBe(true);
+  });
+
+  it('NU blocheaza dupa ce Play a raspuns ca nu exista produsul', async () => {
+    const mod = await loadWithBilling(true);
+    localStorage.setItem('lumin-billing-absent', '1');
+    expect(mod.isPremiumFeatureLocked()).toBe(false);
+  });
+
+  it('NU blocheaza pe web/PWA, unde nu exista magazin deloc', async () => {
+    const mod = await loadWithBilling(false);
+    expect(mod.isPremiumFeatureLocked()).toBe(false);
+  });
+
+  it('nu blocheaza pentru totdeauna cand raspunsul nu vine niciodata', async () => {
+    const mod = await loadWithBilling(true);
+    expect(mod.isPremiumFeatureLocked()).toBe(true);
+    // 20 de secunde mai tarziu, fara niciun raspuns: ramane deschis, ca inainte.
+    // Altfel un build de debug (caruia Play nu-i raspunde) ar fi un perete.
+    vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 21_000);
+    expect(mod.isPremiumFeatureLocked()).toBe(false);
+    vi.restoreAllMocks();
+  });
+
+  it('un abonat nu e blocat nici in fereastra de asteptare', async () => {
+    const mod = await loadWithBilling(true);
+    localStorage.setItem('lumin-premium', '1');
+    expect(mod.isPremiumFeatureLocked()).toBe(false);
+  });
+});
+
+/**
+ * refreshEntitlement scrie DOUA raspunsuri diferite in doua chei diferite —
+ * "exista produs" si "Play a spus ca nu exista". Confuzia dintre ele a fost
+ * exact cauza bug-ului de mai sus.
+ */
+describe('refreshEntitlement retine ce a raspuns Play', () => {
+  beforeEach(() => { localStorage.clear(); vi.resetModules(); });
+
+  async function loadWithPrice(answer: { answered: boolean; price: string | null }) {
+    vi.doMock('./billing', () => ({
+      isBillingAvailable: () => true,
+      queryPremiumActive: async () => false,
+      queryPremiumPriceAnswer: async () => answer
+    }));
+    return import('./entitlement');
+  }
+
+  it('un pret real face abonamentul cumparabil', async () => {
+    const mod = await loadWithPrice({ answered: true, price: '19,99 RON' });
+    await mod.refreshEntitlement();
+    expect(mod.isPurchasable()).toBe(true);
+    expect(localStorage.getItem('lumin-billing-absent')).toBeNull();
+  });
+
+  it('un raspuns "nu exista produsul" deschide functiile, definitiv', async () => {
+    const mod = await loadWithPrice({ answered: true, price: null });
+    await mod.refreshEntitlement();
+    expect(localStorage.getItem('lumin-billing-absent')).toBe('1');
+    expect(mod.isPremiumFeatureLocked()).toBe(false);
+  });
+
+  it('un esec de interogare NU e luat drept "nu exista produsul"', async () => {
+    const mod = await loadWithPrice({ answered: false, price: null });
+    await mod.refreshEntitlement();
+    expect(localStorage.getItem('lumin-billing-absent')).toBeNull();
+    expect(mod.isPremiumFeatureLocked()).toBe(true); // inca in fereastra de asteptare
+  });
+
+  it('un produs aparut intre timp sterge un "nu exista" mai vechi', async () => {
+    localStorage.setItem('lumin-billing-absent', '1');
+    const mod = await loadWithPrice({ answered: true, price: '19,99 RON' });
+    await mod.refreshEntitlement();
+    expect(localStorage.getItem('lumin-billing-absent')).toBeNull();
+    expect(mod.isPremiumFeatureLocked()).toBe(true); // acum chiar are de unde cumpara
   });
 });

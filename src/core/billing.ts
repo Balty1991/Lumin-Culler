@@ -49,18 +49,45 @@ export async function queryPremiumActive(): Promise<boolean> {
 }
 
 /**
+ * Raspunsul lui Play la intrebarea despre pret, cu trei stari, nu doua.
+ *
+ * `answered: false` inseamna "N-AM PUTUT INTREBA" (fara retea, serviciul Play
+ * picat, build de debug caruia Play nu-i raspunde). `answered: true` cu
+ * `price: null` inseamna cu totul altceva: Play A RASPUNS si nu exista produsul
+ * pentru contul si build-ul asta.
+ *
+ * Diferenta n-a fost mereu aici, si lipsa ei a costat: entitlement.ts trata
+ * amandoua cazurile ca "nu se poate cumpara nimic", deci nu bloca nicio functie
+ * platita. La prima pornire de dupa instalare, cat timp Play inca nu raspunsese,
+ * TOT ce e rezervat abonatilor era deschis. Vezi isPremiumFeatureLocked().
+ *
+ * Distinctia chiar exista in plugin (BillingPlugin.kt): `price()` respinge apelul
+ * cand interogarea esueaza, si raspunde cu un obiect FARA camp `price` cand
+ * produsul lipseste. Aici doar n-o pierdem pe drum.
+ */
+export interface PriceAnswer {
+  /** Play a raspuns (indiferent daca a avut sau nu un pret de dat). */
+  answered: boolean;
+  price: string | null;
+}
+
+export async function queryPremiumPriceAnswer(): Promise<PriceAnswer> {
+  if (!isBillingAvailable()) return { answered: false, price: null };
+  try {
+    return { answered: true, price: (await BillingNative.price()).price ?? null };
+  } catch (err) {
+    console.error('Nu am putut citi pretul abonamentului:', err);
+    return { answered: false, price: null };
+  }
+}
+
+/**
  * Pretul formatat de Play, in moneda si limba contului. `null` cand nu poate fi
  * aflat — UI-ul trebuie sa poata deosebi "inca nu stiu pretul" de un pret real,
  * si sa NU inventeze niciodata unul scris in cod.
  */
 export async function queryPremiumPrice(): Promise<string | null> {
-  if (!isBillingAvailable()) return null;
-  try {
-    return (await BillingNative.price()).price ?? null;
-  } catch (err) {
-    console.error('Nu am putut citi pretul abonamentului:', err);
-    return null;
-  }
+  return (await queryPremiumPriceAnswer()).price;
 }
 
 export type SubscribeOutcome = 'purchased' | 'cancelled' | 'unavailable';

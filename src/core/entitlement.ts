@@ -24,11 +24,13 @@
  * abonament de consum la o aplicatie locala, ala e compromisul corect.
  */
 
-import { isBillingAvailable, queryPremiumActive, queryPremiumPrice } from './billing';
+import { isBillingAvailable, queryPremiumActive, queryPremiumPriceAnswer } from './billing';
 
 const PREMIUM_FLAG_KEY = 'lumin-premium';
 /** Play a confirmat cel putin o data ca abonamentul chiar poate fi cumparat — vezi isPurchasable(). */
 const PURCHASABLE_KEY = 'lumin-billing-ready';
+/** Play a raspuns explicit ca NU exista produsul (nu "n-am putut intreba") — vezi billingAnswerPending(). */
+const NO_PRODUCT_KEY = 'lumin-billing-absent';
 /** Numele cheii ramane cel vechi ca sa nu se piarda contorul celor care au deja aplicatia. */
 const USAGE_LOG_KEY = 'lumin-export-log';
 
@@ -86,23 +88,57 @@ const ROLLING_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
  */
 export async function refreshEntitlement(): Promise<boolean> {
   if (!isBillingAvailable()) return isPremium();
-  const [active, price] = await Promise.all([queryPremiumActive(), queryPremiumPrice()]);
-  const before = { premium: isPremium(), purchasable: isPurchasable() };
+  const [active, priceAnswer] = await Promise.all([queryPremiumActive(), queryPremiumPriceAnswer()]);
+  const before = { premium: isPremium(), purchasable: isPurchasable(), locked: isPremiumFeatureLocked() };
   try {
     localStorage.setItem(PREMIUM_FLAG_KEY, active ? '1' : '0');
-    // Doar cand chiar am primit un pret. Un `null` inseamna "n-am aflat" (fara
-    // retea, produs neconfigurat inca), nu "nu se poate cumpara" — deci nu
+    // Doar cand chiar am primit un pret. Un pret absent poate insemna "n-am
+    // aflat" (fara retea, serviciu picat), nu "nu se poate cumpara" — deci nu
     // stergem un `1` scris cand Play chiar raspunsese.
-    if (price) localStorage.setItem(PURCHASABLE_KEY, '1');
+    if (priceAnswer.price) {
+      localStorage.setItem(PURCHASABLE_KEY, '1');
+      // Produsul a aparut intre timp (publicat in Play Console, build semnat):
+      // un "nu exista" scris mai demult n-are voie sa tina functiile deschise.
+      localStorage.removeItem(NO_PRODUCT_KEY);
+    } else if (priceAnswer.answered) {
+      // Play A RASPUNS si n-are produsul. Asta, spre deosebire de un esec de
+      // retea, e un raspuns definitiv: nu exista cale de plata, deci nu se
+      // blocheaza nimic. Vezi billingAnswerPending().
+      localStorage.setItem(NO_PRODUCT_KEY, '1');
+    }
   } catch {
     // stocare indisponibila — ramane starea din memoria sesiunii curente
   }
   // Doar cand chiar s-a schimbat ceva: pornirea aplicatiei reverifica mereu
   // abonamentul, iar un anunt la fiecare pornire ar re-randa degeaba tot UI-ul.
-  if (before.premium !== isPremium() || before.purchasable !== isPurchasable()) {
+  if (
+    before.premium !== isPremium() || before.purchasable !== isPurchasable() ||
+    before.locked !== isPremiumFeatureLocked()
+  ) {
     notifyEntitlementChanged();
   }
   return active;
+}
+
+/**
+ * Intrebarea de la pornire, cu reincercari cat timp Play n-a raspuns.
+ *
+ * Prima conectare la serviciul Play dupa o pornire la rece nu e instantanee, si
+ * uneori esueaza de tot pe primul apel. Cu o singura incercare pierduta,
+ * `isPurchasable()` ramanea fals pana cand utilizatorul se nimerea sa deschida
+ * ecranul Premium — adica o sesiune intreaga cu toate functiile platite
+ * deschise. Reincercam de cateva ori, in fundal, si ne oprim la primul raspuns
+ * definitiv (pret sau "nu exista produsul").
+ */
+const STARTUP_RETRY_DELAYS_MS = [0, 1500, 4000, 9000];
+
+export async function refreshEntitlementAtStartup(): Promise<void> {
+  if (!isBillingAvailable()) return;
+  for (const delay of STARTUP_RETRY_DELAYS_MS) {
+    if (delay) await new Promise(resolve => setTimeout(resolve, delay));
+    await refreshEntitlement();
+    if (!billingAnswerPending()) return;
+  }
 }
 
 /**
@@ -123,9 +159,45 @@ export function isPurchasable(): boolean {
   }
 }
 
+/**
+ * Cat timp mai presupunem ca SE POATE cumpara, pe un telefon unde Play exista,
+ * dar inca n-a apucat sa raspunda.
+ *
+ * De ce o fereastra si nu "pentru totdeauna": pe un build de debug, sau pe un
+ * telefon fara servicii Play, raspunsul nu vine niciodata. A bloca la nesfarsit
+ * acolo ar fi exact peretele pe care tot fisierul asta il evita — un plafon fara
+ * nicio cale de a trece de el. Dupa fereastra, ramane deschis ca inainte.
+ */
+const BILLING_ANSWER_GRACE_MS = 20_000;
+/** Momentul incarcarii modulului = pornirea aplicatiei. */
+const startedAt = Date.now();
+
+/**
+ * Inca asteptam raspunsul lui Play despre existenta produsului.
+ *
+ * BUG REAL, raportat de utilizator dupa ce a deschis ecranul Locatii fara sa fie
+ * abonat: `isPurchasable()` e fals si INAINTE de primul raspuns al lui Play, nu
+ * doar cand nu exista ce cumpara. Cum toate blocarile atarnau doar de el, prima
+ * pornire de dupa instalare (si orice pornire in care interogarea esua) lasa
+ * complet deschise ecranele rezervate abonatilor. Acum "n-am aflat inca" e o
+ * stare distincta de "nu exista produs", si cat tine ea se blocheaza — pe un
+ * telefon cu Play si cu plugin de billing, presupunerea corecta e ca exista o
+ * cale de plata.
+ */
+function billingAnswerPending(): boolean {
+  if (!isBillingAvailable()) return false; // web/PWA: n-a existat niciodata un magazin
+  if (isPurchasable()) return false;       // stim deja: da, se poate cumpara
+  try {
+    if (localStorage.getItem(NO_PRODUCT_KEY) === '1') return false; // stim deja: nu exista produsul
+  } catch {
+    // stocare indisponibila — tratam ca "inca nu stim", si decide fereastra
+  }
+  return Date.now() - startedAt < BILLING_ANSWER_GRACE_MS;
+}
+
 /** Plafonul chiar opreste actiunea: nu esti abonat, ai depasit, SI ai de unde cumpara. */
 export function isCapEnforced(): boolean {
-  return !isPremium() && isPurchasable();
+  return !isPremium() && (isPurchasable() || billingAnswerPending());
 }
 
 /**
@@ -135,9 +207,13 @@ export function isCapEnforced(): boolean {
  * nu exista o cale reala de plata pe dispozitiv. Diferenta e doar de forma —
  * plafoanele sunt despre CAT, astea sunt despre CE.
  *
+ * "Nu exista cale de plata" inseamna insa ceva precis: Play a spus-o, sau nu e
+ * niciun Play (web/PWA). Cat timp intrebarea e inca pe drum, se blocheaza —
+ * altfel prima pornire de dupa instalare deschide tot. Vezi billingAnswerPending().
+ *
  * Ce e blocat, si de ce tocmai astea: predarea catre Lightroom (XMP),
  * plansa de contact, sugestia de combinare a doua cadre, recapul lunar,
- * prezentarea, calatoriile si dosarul privat. Toate vin DUPA ce triajul s-a
+ * prezentarea, locatiile si dosarul privat. Toate vin DUPA ce triajul s-a
  * terminat — sunt despre ce faci cu rezultatul, nu despre a-l obtine.
  *
  * Ce ramane gratuit desi s-ar fi putut bloca, ca decizie explicita: importul si
@@ -147,7 +223,7 @@ export function isCapEnforced(): boolean {
  * dreptul la portabilitatea datelor.
  */
 export function isPremiumFeatureLocked(): boolean {
-  return !isPremium() && isPurchasable();
+  return !isPremium() && (isPurchasable() || billingAnswerPending());
 }
 
 export function isPremium(): boolean {

@@ -5,7 +5,7 @@
  */
 import { create } from 'zustand';
 import { db, type AnalysisRecord, type PhotoRecord, type KnownPerson, type ColorLabel, type CollectionRecord } from '../core/db';
-import { recordPhotosUsed, remainingFreePhotos, isPremium, canEnrollAnotherPersonFree, FREE_PHOTOS_PER_MONTH, refreshEntitlement, isCapEnforced, isPremiumFeatureLocked, FREE_ENROLLED_PERSONS, isPurchasable, photosUsedInRollingMonth, subscribeEntitlement } from '../core/entitlement';
+import { recordPhotosUsed, remainingFreePhotos, isPremium, canEnrollAnotherPersonFree, FREE_PHOTOS_PER_MONTH, isCapEnforced, isPremiumFeatureLocked, FREE_ENROLLED_PERSONS, isPurchasable, photosUsedInRollingMonth, subscribeEntitlement, refreshEntitlementAtStartup } from '../core/entitlement';
 import {
   loadCollections, createCollection as createCollectionRecord, renameCollection as renameCollectionRecord,
   deleteCollection as deleteCollectionRecord, addPhotosToCollection as addPhotosToCollectionRecord,
@@ -2049,7 +2049,10 @@ export const useStore = create<AppState>((set, get) => ({
     // Abonamentul se reverifica la fiecare pornire: poate fi expirat, anulat,
     // rambursat sau cumparat pe alt dispozitiv de la ultima deschidere. Nu se
     // asteapta dupa el — restul pornirii nu depinde de retea.
-    void refreshEntitlement();
+    // ...cu reincercari: un singur apel pierdut la pornirea la rece lasa
+    // `isPurchasable()` fals o sesiune intreaga, adica toate functiile platite
+    // deschise (bug raportat de utilizator). Vezi refreshEntitlementAtStartup.
+    void refreshEntitlementAtStartup();
     if (get().booted) return;
     try {
       const [views, persons, history, collections] = await Promise.all([
