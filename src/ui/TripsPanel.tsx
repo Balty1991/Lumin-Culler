@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { db } from '../core/db';
 import { useStore } from '../state/store';
-import { findTrips, summarizeTripSearch, TRIP_MIN_DISTANCE_FROM_HOME_KM, type Trip } from '../state/trips';
+import { findTrips, findPlaces, summarizeTripSearch, TRIP_MIN_DISTANCE_FROM_HOME_KM, type Trip } from '../state/trips';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { AdjustedImage } from './AdjustedImage';
 import { XIcon, PinIcon } from './icons';
@@ -56,7 +56,7 @@ function TripCard({ trip, locale, onOpenPhoto }: { trip: Trip; locale: Locale; o
           <span className="trip-card-range">{formatRange(trip, locale)}</span>
           <span className="trip-card-sub">
             <PinIcon className="inline-icon" aria-hidden="true" />
-            {tr('trips.distance', { km: Math.round(trip.distanceFromHomeKm) })}
+            {trip.isHome ? tr('trips.place.home') : tr('trips.distance', { km: Math.round(trip.distanceFromHomeKm) })}
             {' · '}
             {tr(plural(dayCount, 'trips.days.one', 'trips.days.other'), { count: dayCount })}
             {' · '}
@@ -95,6 +95,9 @@ export function TripsPanel() {
   const trips = useMemo(() => findTrips(photos), [photos]);
   // Calculat doar cand chiar nu s-a gasit nimic — vezi summarizeTripSearch:
   // "nimic" are trei cauze diferite si doar una e o problema.
+  // Locurile se calculeaza doar cand nu exista nicio calatorie — ecranul arata
+  // atunci ce STIE (unde s-au facut pozele), nu doar ce n-a gasit.
+  const places = useMemo(() => (trips.length === 0 ? findPlaces(photos) : []), [trips, photos]);
   const emptyReason = useMemo(() => {
     if (trips.length > 0) return '';
     const s = summarizeTripSearch(photos);
@@ -129,15 +132,28 @@ export function TripsPanel() {
             <XIcon />
           </button>
         </header>
-        {trips.length === 0
-          ? <p className="hint">{emptyReason}</p>
-          : (
-            <ul className="trips-list">
-              {trips.map(trip => (
-                <TripCard key={trip.photos[0].id} trip={trip} locale={locale} onOpenPhoto={openPhoto} />
-              ))}
-            </ul>
-          )}
+        {trips.length > 0 ? (
+          <ul className="trips-list">
+            {trips.map(trip => (
+              <TripCard key={trip.photos[0].id} trip={trip} locale={locale} onOpenPhoto={openPhoto} />
+            ))}
+          </ul>
+        ) : (
+          <>
+            <p className="hint">{emptyReason}</p>
+            {places.length > 0 && (
+              <>
+                <div className="drawer-section-label">{tr('trips.places.title')}</div>
+                <p className="hint">{tr('trips.places.hint')}</p>
+                <ul className="trips-list">
+                  {places.map(place => (
+                    <TripCard key={place.photos[0].id} trip={place} locale={locale} onOpenPhoto={openPhoto} />
+                  ))}
+                </ul>
+              </>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

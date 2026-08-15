@@ -8,6 +8,8 @@ export interface Trip {
   centroidLat: number;
   centroidLon: number;
   distanceFromHomeKm: number;
+  /** Doar pentru "locuri" (findPlaces): gruparea asta E zona ta obisnuita, nu o iesire din ea. */
+  isHome?: boolean;
 }
 
 const EARTH_RADIUS_KM = 6371;
@@ -33,8 +35,29 @@ function avg(values: number[]): number {
     scoti telefonul), oricare ar fi ora din zi a ultimei/primei poze din zilele vecine,
     fara sa uneasca 2 calatorii separate la saptamani distanta. */
 const TRIP_MAX_GAP_MS = 48 * 60 * 60 * 1000;
-/** Distanta minima (km) fata de zona obisnuita ca un grup de zile sa conteze ca o calatorie reala, nu doar poze de rutina cu GPS activat. */
-export const TRIP_MIN_DISTANCE_FROM_HOME_KM = 50;
+/**
+ * Distanta minima (km) fata de zona obisnuita ca un grup sa conteze drept
+ * calatorie.
+ *
+ * 25, nu 50: observatie a utilizatorului, dupa ce citirea locatiei a inceput sa
+ * functioneze — "pe telefon pozele au locatie, fa cumva sa apara". La 50 km,
+ * definitia cerea practic o vacanta; o zi intreaga petrecuta in orasul vecin,
+ * la 30 km, nu se califica, desi pentru cine a facut pozele ala e exact genul
+ * de iesire pe care vrea s-o regaseasca. 25 km e destul cat sa nu prinda
+ * drumurile prin propriul oras.
+ */
+export const TRIP_MIN_DISTANCE_FROM_HOME_KM = 25;
+/**
+ * Cate poze trebuie sa aiba un grup de O SINGURA zi ca sa conteze drept iesire.
+ *
+ * Pana acum se cereau obligatoriu 2 zile calendaristice, ceea ce excludea din
+ * start orice excursie de o zi — cea mai obisnuita forma de iesire. O poza
+ * singura facuta in trecere (o oprire pe drum) nu e insa o iesire, de-aici
+ * pragul.
+ */
+const DAY_TRIP_MIN_PHOTOS = 3;
+/** Latura celulei in care se grupeaza "locurile" — 0.1 grade de latitudine sunt ~11 km, adica un oras si imprejurimile lui. */
+const PLACE_CELL_DEG = 0.1;
 /** Latura celulei in care se numara pozele cand se cauta "zona obisnuita" — 0.5 grade de latitudine inseamna ~55 km, adica exact ordinul de marime al pragului de mai sus. */
 const HOME_CELL_DEG = 0.5;
 
@@ -101,9 +124,14 @@ function splitIntoRuns<T extends Located>(photos: T[]): T[][] {
   return runs;
 }
 
-/** Un grup conteaza doar daca acopera 2+ zile calendaristice DISTINCTE. */
+/** Un grup acopera 2+ zile calendaristice DISTINCTE. */
 function spansMultipleDays(run: Located[]): boolean {
   return new Date(run[0].capturedAt).toDateString() !== new Date(run[run.length - 1].capturedAt).toDateString();
+}
+
+/** Grup destul de consistent cat sa fie o iesire: ori tine mai multe zile, ori are destule poze intr-una singura. */
+function looksLikeAnOuting(run: Located[]): boolean {
+  return spansMultipleDays(run) || run.length >= DAY_TRIP_MIN_PHOTOS;
 }
 
 /**
@@ -114,8 +142,9 @@ function spansMultipleDays(run: Located[]): boolean {
  *   2. "Acasa" = celula de ~55 km cu cele mai multe poze — vezi homeAnchor.
  *   3. Pozele consecutive (sortate cronologic) raman in aceeasi calatorie cat
  *      timp gap-ul dintre ele nu depaseste TRIP_MAX_GAP_MS.
- *   4. Grupul conteaza ca "calatorie" doar daca acopera 2+ zile calendaristice
- *      DISTINCTE si centrul lui e la peste TRIP_MIN_DISTANCE_FROM_HOME_KM.
+ *   4. Grupul conteaza ca "calatorie" daca arata a iesire (2+ zile SAU destule
+ *      poze intr-o zi — vezi looksLikeAnOuting) si centrul lui e la peste
+ *      TRIP_MIN_DISTANCE_FROM_HOME_KM de zona obisnuita.
  * Sortate descrescator dupa data de start (cea mai recenta calatorie prima).
  */
 export function findTrips(photos: PhotoView[]): Trip[] {
@@ -125,7 +154,7 @@ export function findTrips(photos: PhotoView[]): Trip[] {
 
   const trips: Trip[] = [];
   for (const run of splitIntoRuns(withGps)) {
-    if (!spansMultipleDays(run)) continue;
+    if (!looksLikeAnOuting(run)) continue;
     const centroidLat = avg(run.map(p => p.gpsLatitude));
     const centroidLon = avg(run.map(p => p.gpsLongitude));
     const distanceFromHomeKm = haversineKm(home.lat, home.lon, centroidLat, centroidLon);
@@ -164,7 +193,7 @@ export function summarizeTripSearch(photos: PhotoView[]): TripSearchSummary {
   const withGps = locatedPhotos(photos);
   if (withGps.length === 0) return { withLocation: 0, multiDayGroups: 0 };
   const home = homeAnchor(withGps);
-  const multiDay = splitIntoRuns(withGps).filter(spansMultipleDays);
+  const multiDay = splitIntoRuns(withGps).filter(looksLikeAnOuting);
   const distances = multiDay.map(run =>
     haversineKm(home.lat, home.lon, avg(run.map(p => p.gpsLatitude)), avg(run.map(p => p.gpsLongitude)))
   );
@@ -173,4 +202,51 @@ export function summarizeTripSearch(photos: PhotoView[]): TripSearchSummary {
     multiDayGroups: multiDay.length,
     ...(distances.length ? { farthestGroupKm: Math.max(...distances) } : {})
   };
+}
+
+/**
+ * Locurile din care ai poze, grupate pe zone de ~11 km — folosite cand nu s-a
+ * calificat nicio calatorie, ca ecranul sa arate ce STIE, nu doar ce n-a gasit.
+ *
+ * Cerinta directa a utilizatorului: "pe telefon pozele au locatie, fa cumva sa
+ * apara". O calatorie ramane ceva anume (o iesire departe de casa), si nu se
+ * inventeaza una cand nu exista — dar daca pozele chiar au coordonate, e
+ * absurd ca ecranul dedicat locurilor sa fie gol. Locurile sunt aceleasi date,
+ * fara nicio conditie de distanta sau de durata: aici ai fost, atatea poze ai
+ * facut, atunci.
+ *
+ * Aceeasi forma ca o calatorie (Trip), ca sa poata fi randate cu acelasi card;
+ * cel din zona obisnuita e marcat cu isHome, ca sa nu scrie "~1 km de casa"
+ * despre casa. Sortate cu cel mai indepartat primul — locul in care esti mereu
+ * e cel mai putin interesant de recitit.
+ */
+export function findPlaces(photos: PhotoView[]): Trip[] {
+  const withGps = locatedPhotos(photos);
+  if (withGps.length === 0) return [];
+  const home = homeAnchor(withGps);
+
+  const cells = new Map<string, (PhotoView & Located)[]>();
+  for (const p of withGps) {
+    const key = `${Math.floor(p.gpsLatitude / PLACE_CELL_DEG)}:${Math.floor(p.gpsLongitude / PLACE_CELL_DEG)}`;
+    const cell = cells.get(key);
+    if (cell) cell.push(p); else cells.set(key, [p]);
+  }
+
+  const places = [...cells.values()].map(group => {
+    const centroidLat = avg(group.map(p => p.gpsLatitude));
+    const centroidLon = avg(group.map(p => p.gpsLongitude));
+    const distanceFromHomeKm = haversineKm(home.lat, home.lon, centroidLat, centroidLon);
+    return {
+      photos: group,
+      startDate: group[0].capturedAt,
+      endDate: group[group.length - 1].capturedAt,
+      centroidLat,
+      centroidLon,
+      distanceFromHomeKm,
+      // Acelasi prag ca la calatorii: sub el esti in zona in care traiesti, si
+      // n-are rost sa i se spuna "~2 km de casa" despre casa.
+      isHome: distanceFromHomeKm < TRIP_MIN_DISTANCE_FROM_HOME_KM
+    };
+  });
+  return places.sort((a, b) => b.distanceFromHomeKm - a.distanceFromHomeKm);
 }

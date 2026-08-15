@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { findTrips, summarizeTripSearch } from './trips';
+import { findTrips, findPlaces, summarizeTripSearch } from './trips';
 import type { PhotoView } from './store';
 
 // Bucuresti (acasa, in aceste teste) ~ 44.43,26.10 — Paris ~ 48.86,2.35 (~1450km distanta)
@@ -161,6 +161,68 @@ describe('findTrips', () => {
       const nearby = summarizeTripSearch([photo('a', base, HOME), photo('b', base + DAY, HOME)]);
       expect(nearby.multiDayGroups).toBe(1);
       expect(nearby.farthestGroupKm).toBeLessThan(50);
+    });
+  });
+
+  /**
+   * Cerinta directa a utilizatorului ("pe telefon pozele au locatie, fa cumva sa
+   * apara"): o excursie de o zi in orasul vecin e cea mai obisnuita forma de
+   * iesire, si era exclusa din start de cerinta celor 2 zile calendaristice.
+   */
+  it('counts a day trip with enough photos, not just multi-day ones', () => {
+    const base = new Date(2026, 5, 10, 9, 0).getTime();
+    const HOME = { lat: 44.11, lon: 24.98 };            // Rosiori de Vede
+    const AWAY = { lat: 44.43, lon: 26.10 };            // Bucuresti, ~90 km
+    const photos = [
+      ...Array.from({ length: 6 }, (_, i) => photo(`h${i}`, base - (10 + i) * DAY, HOME)),
+      photo('a', base, AWAY),
+      photo('b', base + 3600000, AWAY),
+      photo('c', base + 7200000, AWAY)
+    ];
+    const trips = findTrips(photos);
+    expect(trips).toHaveLength(1);
+    expect(trips[0].photos.map(p => p.id)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('does not turn a single photo taken in passing into a trip', () => {
+    const base = new Date(2026, 5, 10, 9, 0).getTime();
+    const HOME = { lat: 44.11, lon: 24.98 };
+    const AWAY = { lat: 44.43, lon: 26.10 };
+    const photos = [
+      ...Array.from({ length: 6 }, (_, i) => photo(`h${i}`, base - (10 + i) * DAY, HOME)),
+      photo('single', base, AWAY)
+    ];
+    expect(findTrips(photos)).toEqual([]);
+  });
+
+  describe('findPlaces', () => {
+    it('groups photos by area even when nothing qualifies as a trip', () => {
+      const base = new Date(2026, 5, 10, 9, 0).getTime();
+      const HOME = { lat: 44.11, lon: 24.98 };
+      const places = findPlaces([photo('a', base, HOME), photo('b', base + 3600000, HOME)]);
+      expect(places).toHaveLength(1);
+      expect(places[0].photos).toHaveLength(2);
+      expect(places[0].isHome).toBe(true);
+    });
+
+    it('puts the farthest place first and marks only the usual area as home', () => {
+      const base = new Date(2026, 5, 10, 9, 0).getTime();
+      const HOME = { lat: 44.11, lon: 24.98 };
+      const AWAY = { lat: 44.43, lon: 26.10 };
+      const photos = [
+        ...Array.from({ length: 4 }, (_, i) => photo(`h${i}`, base - i * DAY, HOME)),
+        photo('a', base, AWAY)
+      ];
+      const places = findPlaces(photos);
+      expect(places).toHaveLength(2);
+      expect(places[0].isHome).toBe(false);
+      expect(places[0].photos.map(p => p.id)).toEqual(['a']);
+      expect(places[1].isHome).toBe(true);
+    });
+
+    it('ignores photos without a real location', () => {
+      const base = new Date(2026, 5, 10).getTime();
+      expect(findPlaces([photo('a', base, { lat: 0, lon: 0 }), photo('b', base, undefined)])).toEqual([]);
     });
   });
 });
