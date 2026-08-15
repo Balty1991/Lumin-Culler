@@ -841,6 +841,69 @@ describe('addPhotosToCollection persists originals regardless of status (integra
   });
 });
 
+// "Fa folder din locul asta" — butonul de pe ecranul Locatii (cerinta directa a
+// utilizatorului). Un loc apasat de doua ori trebuie sa dea acelasi folder, nu
+// doua identice, iar dosarul privat n-are voie sa primeasca poze din el.
+describe('createCollectionFromLocation', () => {
+  beforeEach(async () => {
+    await db.photos.clear();
+    await db.collections.clear();
+    await db.originals.clear();
+    await db.photos.bulkPut([makeDbPhoto({ id: 'p1', status: 'review' }), makeDbPhoto({ id: 'p2', status: 'review' })]);
+    useStore.setState({ collections: [], notice: null, locale: 'ro' });
+  });
+
+  it('face un folder cu numele locului si pozele lui', async () => {
+    const created = await useStore.getState().createCollectionFromLocation('Roșiori de Vede, România', ['p1', 'p2']);
+    expect(created?.name).toBe('Roșiori de Vede, România');
+    expect(created?.memberIds).toEqual(['p1', 'p2']);
+    expect(await db.collections.toArray()).toHaveLength(1);
+    expect(useStore.getState().notice).toBe(
+      t('ro', 'store.collections.added', { count: 2, name: 'Roșiori de Vede, România' })
+    );
+  });
+
+  it('refoloseste folderul existent si adauga doar pozele noi', async () => {
+    await useStore.getState().createCollectionFromLocation('Alexandria, România', ['p1']);
+    useStore.setState({ notice: null });
+    await useStore.getState().createCollectionFromLocation('Alexandria, România', ['p1', 'p2']);
+
+    const all = await db.collections.toArray();
+    expect(all).toHaveLength(1);
+    expect(all[0].memberIds).toEqual(['p1', 'p2']);
+    // doar p2 era noua — mesajul nu are voie sa spuna "2 poze adaugate"
+    expect(useStore.getState().notice).toBe(
+      t('ro', 'store.collections.added', { count: 1, name: 'Alexandria, România' })
+    );
+  });
+
+  it('spune ca folderul exista deja cand nu era nimic nou de pus in el', async () => {
+    await useStore.getState().createCollectionFromLocation('Măldăeni, România', ['p1']);
+    useStore.setState({ notice: null });
+    await useStore.getState().createCollectionFromLocation('Măldăeni, România', ['p1']);
+
+    expect(await db.collections.toArray()).toHaveLength(1);
+    expect(useStore.getState().notice).toBe(t('ro', 'store.locations.folder.exists', { name: 'Măldăeni, România' }));
+  });
+
+  it('nu toarna pozele in dosarul privat, chiar daca poarta acelasi nume', async () => {
+    const vault = { id: 'vault-1', name: 'Sector 6, România', createdAt: Date.now(), memberIds: [], isPrivate: true };
+    await db.collections.put(vault);
+    useStore.setState({ collections: [vault] });
+
+    await useStore.getState().createCollectionFromLocation('Sector 6, România', ['p1']);
+
+    expect(await db.collections.get('vault-1')).toMatchObject({ memberIds: [] });
+    expect((await db.collections.toArray()).filter(c => !c.isPrivate)).toHaveLength(1);
+  });
+
+  it('nu face nimic fara nume sau fara poze', async () => {
+    expect(await useStore.getState().createCollectionFromLocation('   ', ['p1'])).toBeNull();
+    expect(await useStore.getState().createCollectionFromLocation('Undeva', [])).toBeNull();
+    expect(await db.collections.toArray()).toEqual([]);
+  });
+});
+
 // Bug real gasit de auditul QA: clearAll() nu reseta multiSelectIds/
 // multiSelectAnchor/selectMode/batchHistory/fieldBatchHistory — bara de
 // selectie in masa continua sa arate poze "selectate" peste o grila golita.

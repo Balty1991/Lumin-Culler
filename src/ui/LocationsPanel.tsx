@@ -6,7 +6,7 @@ import { hasRealGps } from '../core/gpsCoordinates';
 import { findNearestPlace, formatPlace, loadPlaceIndex } from '../core/placeNames';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { AdjustedImage } from './AdjustedImage';
-import { XIcon, PinIcon } from './icons';
+import { XIcon, PinIcon, FolderIcon } from './icons';
 import { t, plural, type Locale } from '../i18n';
 
 /** Intervalul de date al unei grupe. Absent daca nicio poza din grupa n-are data capturii. */
@@ -46,8 +46,10 @@ function LocationThumbImage({ photoId }: { photoId: string }) {
   return src ? <AdjustedImage src={src} alt="" loading="lazy" /> : <span className="memory-thumb-loading" aria-hidden="true" />;
 }
 
-function LocationCard({ group, placeName, locale, onOpenPhoto }: {
-  group: PhotoLocationGroup; placeName?: string; locale: Locale; onOpenPhoto: (id: string) => void;
+function LocationCard({ group, placeName, locale, onOpenPhoto, onMakeFolder }: {
+  group: PhotoLocationGroup; placeName?: string; locale: Locale;
+  onOpenPhoto: (id: string) => void;
+  onMakeFolder: (name: string, photoIds: string[]) => void;
 }) {
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const [expanded, setExpanded] = useState(false);
@@ -99,6 +101,16 @@ function LocationCard({ group, placeName, locale, onOpenPhoto }: {
       {expanded && (
         <>
           {!group.hasLocation && <p className="hint">{tr('locations.none.hint')}</p>}
+          {/* Aici, nu pe randul cardului: randul E deja un buton (expand), iar
+              un <button> in alt <button> e HTML invalid — vezi comentariul de
+              la LocationThumbImage, acelasi bug prins o data. */}
+          <button
+            className="ghost location-card-folder"
+            title={tr('locations.makeFolder.title')}
+            onClick={() => onMakeFolder(title, group.photos.map(p => p.id))}
+          >
+            <FolderIcon className="inline-icon" aria-hidden="true" /> {tr('locations.makeFolder')}
+          </button>
           <div className="location-card-grid">
             {group.photos.map(photo => (
               <button key={photo.id} className="memory-thumb" aria-label={photo.fileName} onClick={() => onOpenPhoto(photo.id)}>
@@ -124,6 +136,7 @@ export function LocationsPanel() {
   const setOpen = useStore(s => s.setLocationsOpen);
   const photos = useStore(s => s.photos);
   const openDetail = useStore(s => s.openDetail);
+  const createCollectionFromLocation = useStore(s => s.createCollectionFromLocation);
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -163,6 +176,9 @@ export function LocationsPanel() {
   if (!open) return null;
 
   const openPhoto = (id: string) => { setOpen(false); openDetail(id); };
+  // Ecranul RAMANE deschis: cine face un folder dintr-un loc vrea de obicei sa
+  // faca si din urmatorul, iar confirmarea vine oricum din notificarea globala.
+  const makeFolder = (name: string, photoIds: string[]) => { void createCollectionFromLocation(name, photoIds); };
   const hasRealPlaces = groups.some(g => g.key !== NO_LOCATION_KEY);
 
   return (
@@ -191,6 +207,7 @@ export function LocationsPanel() {
                   placeName={photoPlaces.get(group.photos[0].id)}
                   locale={locale}
                   onOpenPhoto={openPhoto}
+                  onMakeFolder={makeFolder}
                 />
               ))}
             </ul>

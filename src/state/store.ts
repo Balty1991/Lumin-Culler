@@ -364,6 +364,12 @@ interface AppState {
   deleteCollection: (id: string) => Promise<void>;
   /** Adauga fotografiile date (implicit selectia multipla curenta) intr-un folder — vezi core/collections.ts. */
   addPhotosToCollection: (id: string, photoIds: string[]) => Promise<void>;
+  /**
+   * Face un folder dintr-o grupa de pe ecranul Locatii (cerinta directa a
+   * utilizatorului: "sa poti crea folder pe locatii"). Intoarce folderul, sau
+   * null daca n-avea ce sa puna in el.
+   */
+  createCollectionFromLocation: (name: string, photoIds: string[]) => Promise<CollectionRecord | null>;
   removePhotosFromCollection: (id: string, photoIds: string[]) => Promise<void>;
   /** Exporta toate pozele dintr-un folder personalizat, indiferent de status — vezi comentariul de langa implementare. */
   exportCollection: (id: string) => Promise<void>;
@@ -1428,6 +1434,33 @@ export const useStore = create<AppState>((set, get) => ({
       collections: state.collections.map(c => (c.id === id ? updated : c)),
       notice: t(locale, 'store.collections.added', { count: photoIds.length, name: updated.name })
     }));
+  },
+  /**
+   * Un folder per loc, dintr-un buton.
+   *
+   * Refoloseste un folder cu EXACT acelasi nume in loc sa faca al doilea: cine
+   * apasa a doua oara pe "Roșiori de Vede, România" vrea acelasi folder, nu
+   * inca unul identic langa el. Dosarul privat (isPrivate) e sarit deliberat la
+   * cautarea dupa nume — n-are voie sa primeasca poze pe furis, dintr-un buton
+   * care nu spune nicaieri "vault".
+   *
+   * Cand toate pozele erau deja acolo nu se scrie nimic si nu se minte cu
+   * "N poze adaugate": se spune ca folderul exista deja.
+   */
+  createCollectionFromLocation: async (name, photoIds) => {
+    const trimmed = name.trim();
+    if (!trimmed || !photoIds.length) return null;
+    const existing = get().collections.find(c => !c.isPrivate && c.name === trimmed);
+    const target = existing ?? await get().createCollection(trimmed);
+    if (!target) return null;
+    const already = new Set(target.memberIds);
+    const fresh = photoIds.filter(id => !already.has(id));
+    if (!fresh.length) {
+      set({ notice: t(get().locale, 'store.locations.folder.exists', { name: trimmed }) });
+      return target;
+    }
+    await get().addPhotosToCollection(target.id, fresh);
+    return get().collections.find(c => c.id === target.id) ?? target;
   },
   removePhotosFromCollection: async (id, photoIds) => {
     if (!photoIds.length) return;

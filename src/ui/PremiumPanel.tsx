@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
-import { XIcon, StarIcon, UserCheckIcon, DownloadIcon, SparkleIcon, TagIcon, PlayIcon, CheckIcon } from './icons';
+import { XIcon, StarIcon, UserCheckIcon, DownloadIcon, SparkleIcon, TagIcon, PlayIcon, CheckIcon, PinIcon } from './icons';
 import { FREE_PHOTOS_PER_MONTH, FREE_ENROLLED_PERSONS, refreshEntitlement } from '../core/entitlement';
 import { isBillingAvailable, queryPremiumPrice, startSubscription } from '../core/billing';
 import { t } from '../i18n';
@@ -109,6 +109,16 @@ export function PremiumPanel() {
           <span>
             <b>{tr('premium.perk.show.title')}</b>
             <span>{tr('premium.perk.show.sub')}</span>
+          </span>
+        </div>
+        {/* Rand propriu, nu o vorba in subtitlul de mai sus: era pomenit acolo
+            printre altele si utilizatorul, care CHIAR are ecranul blocat, n-a
+            observat ca plateste pentru el. */}
+        <div className="premium-perk">
+          <i aria-hidden="true"><PinIcon /></i>
+          <span>
+            <b>{tr('premium.perk.locations.title')}</b>
+            <span>{tr('premium.perk.locations.sub')}</span>
           </span>
         </div>
         {/* Ultimul, deliberat: e singurul lucru din lista pe care nu-l are

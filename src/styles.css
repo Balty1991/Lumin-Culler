@@ -618,6 +618,16 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .location-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; padding: 0 11px 11px; }
 .location-card-grid .memory-thumb { width: 100%; height: auto; aspect-ratio: 1/1; border-radius: 8px; box-shadow: none; }
 .location-card .hint { padding: 0 11px 8px; }
+/* "Fa folder din locul asta" — apare doar cand cardul e desfacut, deasupra
+   grilei. Contur, nu doar text: la sortarea TikTok butoanele fara contur au fost
+   raportate ca invizibile, si n-are rost sa repetam greseala aici. */
+.location-card-folder {
+  display: inline-flex; align-items: center; gap: 6px; margin: 0 11px 8px;
+  padding: 6px 10px; border: 1px solid var(--line-strong); border-radius: 999px;
+  font-size: 0.74rem; color: var(--text);
+}
+.location-card-folder:hover { border-color: var(--accent); color: var(--accent); }
+.location-card-folder .inline-icon { width: 13px; height: 13px; flex-shrink: 0; }
 
 /* "Sortare stil TikTok" (plan modernizare) — flux alternativ plin ecran peste
    coada de poze nedecise, cu o coloana de actiuni la degetul mare (dreapta,
