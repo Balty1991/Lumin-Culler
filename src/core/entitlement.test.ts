@@ -257,7 +257,7 @@ describe('blocarea cat timp Play inca n-a raspuns (regresie)', () => {
   async function loadWithBilling(available: boolean) {
     vi.doMock('./billing', () => ({
       isBillingAvailable: () => available,
-      queryPremiumActive: async () => false,
+      queryPremiumStatusAnswer: async () => ({ answered: false, active: false }),
       queryPremiumPriceAnswer: async () => ({ answered: false, price: null })
     }));
     return import('./entitlement');
@@ -305,10 +305,13 @@ describe('blocarea cat timp Play inca n-a raspuns (regresie)', () => {
 describe('refreshEntitlement retine ce a raspuns Play', () => {
   beforeEach(() => { localStorage.clear(); vi.resetModules(); });
 
-  async function loadWithPrice(answer: { answered: boolean; price: string | null }) {
+  async function loadWithPrice(
+    answer: { answered: boolean; price: string | null },
+    status = { answered: true, active: false }
+  ) {
     vi.doMock('./billing', () => ({
       isBillingAvailable: () => true,
-      queryPremiumActive: async () => false,
+      queryPremiumStatusAnswer: async () => status,
       queryPremiumPriceAnswer: async () => answer
     }));
     return import('./entitlement');
@@ -341,5 +344,27 @@ describe('refreshEntitlement retine ce a raspuns Play', () => {
     await mod.refreshEntitlement();
     expect(localStorage.getItem('lumin-billing-absent')).toBeNull();
     expect(mod.isPremiumFeatureLocked()).toBe(true); // acum chiar are de unde cumpara
+  });
+
+  it('pastreaza entitlement-ul confirmat daca Play nu raspunde temporar', async () => {
+    localStorage.setItem('lumin-premium', '1');
+    const mod = await loadWithPrice(
+      { answered: false, price: null },
+      { answered: false, active: false }
+    );
+    await mod.refreshEntitlement();
+    expect(mod.isPremium()).toBe(true);
+    expect(localStorage.getItem('lumin-premium')).toBe('1');
+  });
+
+  it('schimba entitlement-ul numai cand Play confirma explicit ca abonamentul nu e activ', async () => {
+    localStorage.setItem('lumin-premium', '1');
+    const mod = await loadWithPrice(
+      { answered: true, price: '19,99 RON' },
+      { answered: true, active: false }
+    );
+    await mod.refreshEntitlement();
+    expect(mod.isPremium()).toBe(false);
+    expect(localStorage.getItem('lumin-premium')).toBe('0');
   });
 });

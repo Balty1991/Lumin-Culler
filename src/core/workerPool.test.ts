@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { computeWorkerCount, withTimeout } from './workerPool';
 
 let nativePlatform = false;
+/** Testul fixeaza un dispozitiv cu 6 nuclee: plafonul adaptiv nativ trebuie sa fie 3. */
+const NATIVE_NORMAL_CONCURRENCY = 3;
 vi.mock('@capacitor/core', () => ({
   Capacitor: { isNativePlatform: () => nativePlatform, isPluginAvailable: () => true }
 }));
@@ -46,6 +48,7 @@ describe('computeWorkerCount', () => {
 describe('AnalysisPool native mode (Capacitor Android)', () => {
   beforeEach(() => {
     nativePlatform = true;
+    Object.defineProperty(navigator, 'hardwareConcurrency', { configurable: true, value: 6 });
     analyzeNativeMock.mockReset();
   });
 
@@ -58,7 +61,7 @@ describe('AnalysisPool native mode (Capacitor Android)', () => {
     expect(pool.isReady).toBe(true);
     expect(pool.detectedBackend).toBe('native');
     expect(pool.isAccelerated).toBe(true);
-    expect(pool.size).toBe(2);
+    expect(pool.size).toBe(NATIVE_NORMAL_CONCURRENCY);
   });
 
   it('analyze() routes to analyzeNative() and returns its result', async () => {
@@ -97,7 +100,7 @@ describe('AnalysisPool native mode (Capacitor Android)', () => {
     expect(knownPersons).toEqual([{ id: 'ami-id', name: 'Ami', embeddings: [[1, 0]], updatedAt: 0 }]);
   });
 
-  it('caps concurrent analyze() calls at the native concurrency limit (2)', async () => {
+  it('caps concurrent analyze() calls at the adaptive native concurrency limit', async () => {
     const { AnalysisPool } = await import('./workerPool');
     const pool = new AnalysisPool();
     await pool.init();
@@ -114,9 +117,9 @@ describe('AnalysisPool native mode (Capacitor Android)', () => {
     });
 
     const bitmap = {} as unknown as ImageBitmap;
-    const calls = [pool.analyze('a', bitmap), pool.analyze('b', bitmap), pool.analyze('c', bitmap)];
+    const calls = Array.from({ length: NATIVE_NORMAL_CONCURRENCY + 1 }, (_, i) => pool.analyze(String.fromCharCode(97 + i), bitmap));
     await new Promise(r => setTimeout(r, 0)); // macrotask — dreneaza toate microtask-urile de acquire()
-    expect(maxInFlight).toBe(2); // al treilea trebuie sa astepte, nu porneste imediat
+    expect(maxInFlight).toBe(NATIVE_NORMAL_CONCURRENCY); // urmatoarea poza trebuie sa astepte
 
     // Rezolva pe rand: eliberarea unui permis lasa a treia analiza sa porneasca
     // abia atunci (isi adauga propriul resolver dupa aceea) — o singura trecere
@@ -126,14 +129,14 @@ describe('AnalysisPool native mode (Capacitor Android)', () => {
       await new Promise(r => setTimeout(r, 0));
     }
     await Promise.all(calls);
-    expect(maxInFlight).toBe(2);
+    expect(maxInFlight).toBe(NATIVE_NORMAL_CONCURRENCY);
   });
 
   it('resizeForEconomicMode() changes the concurrency limit safely even with an analysis in flight', async () => {
     const { AnalysisPool } = await import('./workerPool');
     const pool = new AnalysisPool();
     await pool.init();
-    expect(pool.size).toBe(2);
+    expect(pool.size).toBe(NATIVE_NORMAL_CONCURRENCY);
 
     let release: (() => void) | undefined;
     analyzeNativeMock.mockImplementationOnce(() => new Promise(resolve => {
@@ -165,7 +168,7 @@ describe('AnalysisPool native mode (Capacitor Android)', () => {
     const { AnalysisPool } = await import('./workerPool');
     const pool = new AnalysisPool();
     await pool.init();
-    expect(pool.size).toBe(2);
+    expect(pool.size).toBe(NATIVE_NORMAL_CONCURRENCY);
 
     const resolvers: (() => void)[] = [];
     let started = 0;
@@ -175,10 +178,10 @@ describe('AnalysisPool native mode (Capacitor Android)', () => {
     }));
 
     const bitmap = {} as unknown as ImageBitmap;
-    // 2 in zbor (plafonul normal) + 2 in asteptare
-    const all = [0, 1, 2, 3].map(i => pool.analyze('p' + i, bitmap));
+    // Plafonul normal in zbor + doua poze in asteptare.
+    const all = Array.from({ length: NATIVE_NORMAL_CONCURRENCY + 2 }, (_, i) => pool.analyze('p' + i, bitmap));
     await new Promise(r => setTimeout(r, 0));
-    expect(started).toBe(2);
+    expect(started).toBe(NATIVE_NORMAL_CONCURRENCY);
 
     // utilizatorul comuta "mod economic" din meniu, cu importul in curs
     await pool.resizeForEconomicMode(true);
@@ -189,12 +192,17 @@ describe('AnalysisPool native mode (Capacitor Android)', () => {
     // ramanea blocata la 2 pana la finalul lotului)
     resolvers[0]();
     await new Promise(r => setTimeout(r, 0));
-    expect(started).toBe(2);
+    expect(started).toBe(NATIVE_NORMAL_CONCURRENCY);
 
-    // abia dupa ce si a doua se termina (0 in zbor < 1) porneste urmatoarea
+    // Cu inca doua analize in zbor, plafonul coborat la 1 nu permite readmiterea.
     resolvers[1]();
     await new Promise(r => setTimeout(r, 0));
-    expect(started).toBe(3);
+    expect(started).toBe(NATIVE_NORMAL_CONCURRENCY);
+
+    // Abia dupa ce se termina si a treia (0 in zbor < 1) porneste urmatoarea.
+    resolvers[2]();
+    await new Promise(r => setTimeout(r, 0));
+    expect(started).toBe(NATIVE_NORMAL_CONCURRENCY + 1);
 
     while (resolvers.length) resolvers.shift()!();
     await new Promise(r => setTimeout(r, 0));

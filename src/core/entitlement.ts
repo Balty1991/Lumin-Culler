@@ -24,7 +24,7 @@
  * abonament de consum la o aplicatie locala, ala e compromisul corect.
  */
 
-import { isBillingAvailable, queryPremiumActive, queryPremiumPriceAnswer } from './billing';
+import { isBillingAvailable, queryPremiumStatusAnswer, queryPremiumPriceAnswer } from './billing';
 
 const PREMIUM_FLAG_KEY = 'lumin-premium';
 /** Play a confirmat cel putin o data ca abonamentul chiar poate fi cumparat — vezi isPurchasable(). */
@@ -81,17 +81,16 @@ const ROLLING_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
  * Reintreaba Google Play si actualizeaza cache-ul local. De apelat la pornire si
  * dupa o cumparare reusita.
  *
- * Scrie DOAR cand primeste un raspuns: queryPremiumActive() intoarce `false` si
- * la esec de retea (vezi core/billing.ts), iar pe web e mereu `false` — daca am
- * scrie neconditionat, o pornire offline sau o deschidere in browser ar sterge
- * abonamentul cuiva care chiar plateste.
+ * Scrie numai dupa un raspuns explicit din Play. O problema temporara de retea
+ * sau de Play Services nu este un raspuns „neabonat” si nu are voie sa schimbe
+ * cache-ul local al utilizatorului.
  */
 export async function refreshEntitlement(): Promise<boolean> {
   if (!isBillingAvailable()) return isPremium();
-  const [active, priceAnswer] = await Promise.all([queryPremiumActive(), queryPremiumPriceAnswer()]);
+  const [statusAnswer, priceAnswer] = await Promise.all([queryPremiumStatusAnswer(), queryPremiumPriceAnswer()]);
   const before = { premium: isPremium(), purchasable: isPurchasable(), locked: isPremiumFeatureLocked() };
   try {
-    localStorage.setItem(PREMIUM_FLAG_KEY, active ? '1' : '0');
+    if (statusAnswer.answered) localStorage.setItem(PREMIUM_FLAG_KEY, statusAnswer.active ? '1' : '0');
     // Doar cand chiar am primit un pret. Un pret absent poate insemna "n-am
     // aflat" (fara retea, serviciu picat), nu "nu se poate cumpara" — deci nu
     // stergem un `1` scris cand Play chiar raspunsese.
@@ -117,7 +116,7 @@ export async function refreshEntitlement(): Promise<boolean> {
   ) {
     notifyEntitlementChanged();
   }
-  return active;
+  return statusAnswer.answered ? statusAnswer.active : isPremium();
 }
 
 /**
