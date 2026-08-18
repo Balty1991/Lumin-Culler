@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useStore } from '../state/store';
 import { t } from '../i18n';
-import { SparkleIcon } from './icons';
 import { readLastModelLoadMs } from '../core/modelLoadTiming';
 import { formatEta } from '../core/formatTime';
 
@@ -32,43 +31,48 @@ export function AiBootScreen() {
     return () => clearInterval(id);
   }, []);
 
+  // Acelasi invelis ca ecranul de progres al importului (vezi App.tsx,
+  // .analysis-studio): incarcarea modelelor si analiza sunt doua etape ale
+  // aceleiasi asteptari, iar pana acum aratau ca doua ecrane fara legatura —
+  // primul static, fiindca animatia lui fusese incetinita la 8s, deci in
+  // secunda cat se vede nu se misca nimic vizibil.
   return (
-    <div className="boot" role="status" aria-live="polite">
-      <div className="core" aria-hidden="true">
-        <span className="core-halo" />
-        <div className="core-ring" />
-        <div className="core-disc">
-          <div className="core-disc-inner">
-            <SparkleIcon />
-          </div>
-        </div>
+    <section className="analysis-studio" role="status" aria-live="polite">
+      <div className="analysis-studio-glow" aria-hidden="true" />
+      <div className="analysis-studio-head">
+        <span className="analysis-studio-kicker">{tr('app.progress.studioKicker')}</span>
+        <span className="analysis-studio-count">
+          {elapsedMs >= 1000 ? formatEta(elapsedMs / 1000) : '…'}
+        </span>
       </div>
-      <div>
-        <p className="boot-title">{tr('app.boot.title')}</p>
-        <p className="boot-sub">{tr('app.progress.loadingModels')}</p>
+      <div className="analysis-studio-lens" aria-hidden="true">
+        <span className="analysis-studio-orbit orbit-one" />
+        <span className="analysis-studio-orbit orbit-two" />
+        <span className="analysis-studio-core" />
+      </div>
+      <div className="analysis-studio-copy">
+        <h2>{tr('app.boot.title')}</h2>
+        <p>{tr('app.progress.loadingModels')}</p>
         {elapsedMs >= 1000 && (
           // aria-hidden — bug real gasit de auditul UI: acest text se schimba la
-          // FIECARE secunda, iar intreg ecranul e o regiune `aria-live="polite"`
-          // (vezi <div className="boot"> mai sus). Rezultatul: TalkBack/VoiceOver
-          // reciteau "au trecut 6s… au trecut 7s… au trecut 8s…" fara oprire, timp
-          // de zeci de secunde cat dureaza incarcarea modelelor, acoperind orice
-          // altceva ar fi vrut utilizatorul sa auda. Informatia utila ("se
-          // pregateste AI-ul") e deja anuntata o data, din titlul de deasupra,
-          // care nu se schimba; cronometrul ramane strict un indiciu vizual.
-          <p className="boot-elapsed mono" aria-hidden="true">
+          // FIECARE secunda, iar intreg ecranul e o regiune `aria-live="polite"`.
+          // Rezultatul: TalkBack/VoiceOver reciteau "au trecut 6s… 7s… 8s…" fara
+          // oprire. Informatia utila e deja anuntata o data, din titlu.
+          <p className="analysis-studio-elapsed mono" aria-hidden="true">
             {rememberedMs !== null
               ? tr('app.boot.elapsedWithEstimate', { time: formatEta(elapsedMs / 1000), estimate: formatEta(rememberedMs / 1000) })
               : tr('app.boot.elapsed', { time: formatEta(elapsedMs / 1000) })}
           </p>
         )}
       </div>
-      <div className="boot-shimmer" />
-      <div className="boot-pills">
-        <span className="boot-pill">{tr('app.boot.pill.faces')}</span>
-        <span className="boot-pill">{tr('app.boot.pill.composition')}</span>
-        <span className="boot-pill">{tr('app.boot.pill.sharpness')}</span>
-        <span className="boot-pill">{tr('app.boot.pill.recognition')}</span>
+      {/* Bara nu are procent real aici — durata incarcarii modelelor nu se stie
+          dinainte — deci se misca singura, ca semn ca lucreaza. */}
+      <div className="analysis-studio-progress is-indeterminate" aria-hidden="true"><span /></div>
+      <div className="analysis-studio-steps" aria-hidden="true">
+        <span className="active">{tr('app.boot.pill.faces')}</span>
+        <span>{tr('app.boot.pill.composition')}</span>
+        <span>{tr('app.boot.pill.sharpness')}</span>
       </div>
-    </div>
+    </section>
   );
 }

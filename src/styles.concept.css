@@ -3068,24 +3068,113 @@ body:before {
 :root[data-theme="light"] .drawer-about { color: #53565f !important; }
 
 
+
+/* ── Cardul Premium: starea activa arata altfel decat oferta ── */
+.drawer-pro-card.is-active {
+  border-color: rgb(var(--accent-rgb) / .55);
+  background: linear-gradient(105deg, rgb(var(--accent-rgb) / .16), rgb(var(--accent-2-rgb) / .07));
+}
+.drawer-pro-card.is-active .drawer-pro-icon {
+  color: #06201c;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+}
+.drawer-pro-card.is-active .drawer-pro-copy em { color: var(--accent); }
+.drawer-pro-check { display: grid; place-items: center; color: var(--accent); }
+.drawer-pro-check svg { width: 22px; height: 22px; }
+
+/* ── Bara de decizie: cele patru butoane au aceeasi marime ──
+   Stratul de preview dadea 58px pe "pastrez" si "sterg" prin min-width/
+   min-height, iar regula de pe mobil incerca sa le puna la 48px prin
+   width/height — dar min-* castiga mereu in fata width, deci doua butoane
+   ramaneau mai mari decat celelalte doua si ieseau din rand. */
+@media (max-width: 600px) {
+  .tiktok-rail-btn.keep,
+  .tiktok-rail-btn.del {
+    min-width: 0;
+    min-height: 0;
+    width: 48px;
+    height: 48px;
+    border-width: 1.5px;
+  }
+  .tiktok-rail-item { justify-content: flex-end; }
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
- * Sectiunea 3 — singura adaugire fata de build-ul de referinta.
+ * Tema luminoasa pentru stratul de concept.
  *
- * In referinta, continutul meniului trecea pe sub ceasul si iconitele
- * sistemului la derulare: .drawer este el insusi containerul cu scroll, deci
- * padding-ul lui de sus se deruleaza odata cu continutul. Antetul devine
- * sticky si acopera banda. Marginea negativa il urca peste zona de padding,
- * iar padding-ul propriu o pune la loc — pozitia in repaus nu se schimba,
- * doar ce se vede la derulare. Valorile urmaresc .drawer de mai sus
- * (padding: calc(14px + safe-area) 16px ...), iar fundalul se mosteneste, ca
- * sa ramana corect si pe tema luminoasa.
+ * Build-ul de referinta era gandit intunecat: tokenii --atelier-* si o buna
+ * parte din culori sunt scrise direct, fara varianta luminoasa. Cel mai grav
+ * efect venea de la o singura regula — `body { color: var(--atelier-ink) }`,
+ * cu --atelier-ink aproape alb — care lasa titlurile albe pe fundal deschis,
+ * practic invizibile (ecranul gol, meniul, panoul de metrici).
+ *
+ * Se rezolva de la radacina: tokenii se remapeaza pe cei ai temei. Mai jos
+ * raman doar suprafetele scrise cu hex direct.
+ *
+ * Ce NU se schimba: zonele care stau PESTE fotografie (scena din Review Desk,
+ * sortarea rapida) raman intunecate in ambele teme — acolo fundalul inchis nu
+ * e o alegere de tema, ci conditia ca fotografia sa se vada corect. Aceeasi
+ * intentie e scrisa si in docs/concept-reference-spec.md, criteriul 7.
  * ═══════════════════════════════════════════════════════════════════════════ */
 
-.drawer-head {
-  position: sticky;
-  top: 0;
-  z-index: 6;
-  margin: calc(-1 * (14px + env(safe-area-inset-top))) -16px 0;
-  padding: calc(14px + env(safe-area-inset-top)) 16px 23px;
-  background: inherit;
+:root[data-theme="light"] {
+  --atelier-canvas: var(--bg);
+  --atelier-panel: var(--surface);
+  --atelier-panel-raised: var(--surface-2);
+  --atelier-line: var(--line);
+  --atelier-line-strong: var(--line-strong);
+  --atelier-ink: var(--text);
+  --atelier-muted: var(--text-dim);
+  --atelier-teal: var(--accent-text);
+  --atelier-violet: var(--accent-2);
+  --atelier-coral: var(--reject-text);
+}
+
+/* Sertarul si cardurile de pe pagina: fundal de tema, nu hex intunecat. */
+:root[data-theme="light"] .drawer {
+  background: var(--surface);
+  border-left-color: var(--line);
+}
+:root[data-theme="light"] .analysis-studio {
+  background: var(--surface);
+  border-color: var(--line);
+  box-shadow: var(--shadow);
+}
+:root[data-theme="light"] .analysis-studio-copy h2 { color: var(--text); }
+:root[data-theme="light"] .analysis-studio-copy p { color: var(--text-dim); }
+:root[data-theme="light"] .analysis-studio-progress { background: var(--surface-3); }
+:root[data-theme="light"] .analysis-studio-steps { color: var(--text-faint); }
+:root[data-theme="light"] .analysis-studio-cancel {
+  border-color: var(--line-strong);
+  color: var(--text-dim);
+}
+:root[data-theme="light"] .analysis-studio-glow { opacity: .45; }
+
+/* Cele trei carduri de valoare de pe ecranul gol: degradeul inchis devine o
+   tenta deschisa a acelorasi doua accente, iar textul urmeaza tema. */
+:root[data-theme="light"] .lc-home-proof-item {
+  border-color: rgb(var(--accent-rgb) / .3);
+  background: linear-gradient(145deg, rgb(var(--accent-rgb) / .12), rgb(var(--accent-2-rgb) / .1));
+}
+:root[data-theme="light"] .lc-home-proof-item strong { color: var(--text); }
+:root[data-theme="light"] .lc-home-proof-note { color: var(--text-dim); }
+:root[data-theme="light"] .empty .empty-cta-secondary { border-color: var(--line-strong); }
+:root[data-theme="light"] .empty-badge {
+  background-image: linear-gradient(145deg, var(--surface), var(--surface-2)), var(--accent-gradient);
+}
+
+
+/* Bara fara procent cunoscut (incarcarea modelelor): se plimba singura, ca sa
+   se vada ca lucreaza, in loc sa stea la 0 sau sa sara direct la plin. */
+.analysis-studio-progress.is-indeterminate span {
+  width: 38%;
+  animation: studioSweep 1.15s ease-in-out infinite alternate;
+}
+@keyframes studioSweep {
+  from { transform: translateX(-8%); }
+  to { transform: translateX(170%); }
+}
+.analysis-studio-elapsed { margin: 2px 0 0; color: var(--desk-muted); font-size: .72rem; }
+@media (prefers-reduced-motion: reduce) {
+  .analysis-studio-progress.is-indeterminate span { animation: none; width: 100%; }
 }

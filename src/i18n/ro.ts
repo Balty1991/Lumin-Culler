@@ -46,6 +46,8 @@ export const ro = {
   'menu.expandSection': 'Extinde secțiunea {section}',
   'menu.collapseSection': 'Restrânge secțiunea {section}',
   'menu.pro.label': 'LUMIN PRO',
+  'menu.pro.label.active': 'LUMIN PRO · ACTIV',
+  'inspector.editStudio': 'Deschide Edit Studio',
   'menu.pro.locked': 'Premium disponibil — activează după ce alegi planul',
   'menu.pro.active': 'Premium activ — toate uneltele sunt disponibile',
   'menu.pro.action': 'VEZI',

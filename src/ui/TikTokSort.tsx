@@ -403,9 +403,15 @@ export function TikTokSort() {
             </span>
           </>
         )}
-        <button className="tiktok-rail-btn undo" onClick={doUndo} aria-label={tr('tiktok.rail.undo')}>
-          <UndoIcon />
-        </button>
+        {/* Aceeasi structura ca celelalte trei celule (buton + eticheta): grila
+            barei aliniaza pe randul de jos, iar o celula fara eticheta isi urca
+            butonul cu inaltimea etichetei lipsa — de aici iesea din rand. */}
+        <span className="tiktok-rail-item">
+          <button className="tiktok-rail-btn undo" onClick={doUndo} aria-label={tr('tiktok.rail.undo')}>
+            <UndoIcon />
+          </button>
+          <span className="tiktok-rail-label">{tr('tiktok.rail.undo')}</span>
+        </span>
       </div>
     </div>
   );

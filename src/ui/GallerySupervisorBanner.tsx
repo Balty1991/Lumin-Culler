@@ -4,7 +4,7 @@ import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import {
   readSupervisorBannerDismissedDate, writeSupervisorBannerDismissedDate, isSupervisorBannerDismissedToday
 } from '../state/gallerySupervisor';
-import { ClockIcon, XIcon } from './icons';
+import { XIcon } from './icons';
 import { t, plural, type Locale } from '../i18n';
 
 export function formatPeriod(startMs: number, endMs: number, locale: Locale): string {
@@ -34,11 +34,6 @@ export function GallerySupervisorBanner() {
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const galleryDateRange = useStore(s => s.galleryDateRange);
   const loadGalleryDateRange = useStore(s => s.loadGalleryDateRange);
-  const nextPeriod = useStore(s => s.supervisorNextPeriod());
-  const coveragePercent = useStore(s => s.supervisorCoveragePercent());
-  const importNextGalleryPeriod = useStore(s => s.importNextGalleryPeriod);
-  const supervisorImporting = useStore(s => s.supervisorImporting);
-  const setSupervisorPanelOpen = useStore(s => s.setSupervisorPanelOpen);
   const lastSupervisorImportIds = useStore(s => s.lastSupervisorImportIds);
   const openTiktokSortForIds = useStore(s => s.openTiktokSortForIds);
   const photoCount = useStore(s => s.photos.length);
@@ -60,61 +55,22 @@ export function GallerySupervisorBanner() {
   // curs cere exact lucrul pe care utilizatorul tocmai il asteapta sa se
   // termine — si, daca accepta, pune un al doilea import la coada dupa primul.
   if (importRunning) return null;
-  if (!isNativeMediaLibraryAvailable() || dismissedToday || (!nextPeriod && sortNowCount === 0)) return null;
+  // Doar continuarea unui import deja cerut. Propunerea automata a urmatoarei
+  // perioade a fost scoasa (cerinta directa): venea imediat dupa ce tocmai
+  // adusesesi poze, adica exact cand utilizatorul avea deja de lucru, si
+  // dubla mesajul de import care aparea oricum.
+  if (!isNativeMediaLibraryAvailable() || dismissedToday || sortNowCount === 0) return null;
 
   const dismiss = () => { writeSupervisorBannerDismissedDate(); setDismissedToday(true); };
 
   return (
     <div className="gallery-supervisor-banner glass">
-      {sortNowCount > 0 && (
-        <button type="button" className="gallery-supervisor-sortnow" onClick={() => openTiktokSortForIds(lastSupervisorImportIds!)}>
-          {tr(plural(sortNowCount, 'gallerySupervisor.sortNow.one', 'gallerySupervisor.sortNow.other'), { count: sortNowCount })}
-        </button>
-      )}
-      {nextPeriod ? (
-        <>
-          <div className="gallery-supervisor-row">
-            <button
-              type="button"
-              className="gallery-supervisor-main"
-              onClick={() => setSupervisorPanelOpen(true)}
-              aria-label={`${tr('gallerySupervisor.openPanel')} — ${formatPeriod(nextPeriod.start, nextPeriod.end, locale)}, ${tr('gallerySupervisor.coverage', { percent: coveragePercent })}`}
-            >
-              <span className="gallery-supervisor-icon" aria-hidden="true"><ClockIcon /></span>
-              <span className="gallery-supervisor-text">
-                <b>{tr('gallerySupervisor.title')}</b>
-                <span>{formatPeriod(nextPeriod.start, nextPeriod.end, locale)}</span>
-                {/*
-                  Cod mort ARIA, gasit de auditul UI: bara avea `role="progressbar"`
-                  cu propriul `aria-label`, dar sta INAUNTRUL unui <button> care are
-                  deja `aria-label`. Copiii unui buton sunt "prezentationali" per
-                  specificatia ARIA — rolul si eticheta de aici nu ajungeau niciodata
-                  la niciun cititor de ecran, deci procentul ramanea oricum neanuntat.
-                  Bara devine ce a fost mereu in practica, pur vizuala; procentul e
-                  spus acum in numele butonului, unde chiar poate fi auzit.
-                */}
-                <span className="gallery-supervisor-progress" aria-hidden="true">
-                  <span className="gallery-supervisor-progress-fill" style={{ width: `${coveragePercent}%` }} />
-                </span>
-              </span>
-            </button>
-            <button className="ghost icon-btn gallery-supervisor-close" onClick={dismiss} aria-label={tr('gallerySupervisor.dismiss')}>
-              <XIcon />
-            </button>
-          </div>
-          <button
-            className="gallery-supervisor-cta"
-            disabled={supervisorImporting}
-            onClick={() => void importNextGalleryPeriod()}
-          >
-            {supervisorImporting ? tr('gallerySupervisor.importing') : tr('gallerySupervisor.cta')}
-          </button>
-        </>
-      ) : (
-        <button className="ghost icon-btn gallery-supervisor-close" onClick={dismiss} aria-label={tr('gallerySupervisor.dismiss')}>
-          <XIcon />
-        </button>
-      )}
+      <button type="button" className="gallery-supervisor-sortnow" onClick={() => openTiktokSortForIds(lastSupervisorImportIds!)}>
+        {tr(plural(sortNowCount, 'gallerySupervisor.sortNow.one', 'gallerySupervisor.sortNow.other'), { count: sortNowCount })}
+      </button>
+      <button className="ghost icon-btn gallery-supervisor-close" onClick={dismiss} aria-label={tr('gallerySupervisor.dismiss')}>
+        <XIcon />
+      </button>
     </div>
   );
 }

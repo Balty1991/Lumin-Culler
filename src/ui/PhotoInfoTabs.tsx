@@ -321,14 +321,10 @@ export function PhotoInfoTabs({ photo, src }: { photo: PhotoView; src: string | 
             <ScoreRing score={photo.aiScore} />
           </section>
           <button className="inspector-edit-cta" type="button" onClick={() => openEdit(photo.id)}>
-            Deschide Edit Studio <span aria-hidden="true">→</span>
+            {tr('inspector.editStudio')} <span aria-hidden="true">→</span>
           </button>
           <div className="inspector-section-head"><span className="mono">ANALIZĂ CADRU</span><b>{photo.aiScore} / 100</b></div>
           <div className="stat-grid">
-            <div className="stat-tile score-tile">
-              <ScoreRing score={photo.aiScore} />
-              <span className="stat-label">{tr('detail.stat.score')}</span>
-            </div>
             <StatTile label={tr('detail.stat.sharpness')} value={photo.sharpness} />
             <StatTile label={tr('detail.stat.exposure')} value={photo.exposure} />
             {photo.faceCount > 0 && <StatTile label={tr('detail.stat.faces')} value={photo.faceCount} />}

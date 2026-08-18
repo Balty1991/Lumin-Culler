@@ -216,7 +216,9 @@ export function HomeDashboard() {
               <b>{tr('reviewDesk.library')}</b>
               <span className="review-desk-library-count">{photos.length}</span>
             </button>
-            {!hasReviewQueue && isNativeMediaLibraryAvailable() && (
+            {/* Calea explicita spre urmatoarea perioada, de cand bannerul nu o mai
+                propune singur dupa fiecare import. */}
+            {isNativeMediaLibraryAvailable() && (
               <button className="review-desk-period-link" onClick={() => setSupervisorPanelOpen(true)}>
                 <span>{tr('reviewDesk.nextPeriod')}</span>
                 <span aria-hidden="true">→</span>

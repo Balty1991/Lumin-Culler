@@ -6,7 +6,7 @@ import {
   UserCheckIcon, SparkleIcon, ListIcon, InfoIcon, XIcon, TagIcon, LayersIcon, KeyboardIcon,
   SunIcon, MoonIcon, ClockIcon, BatteryIcon, GridIcon, DownloadIcon, UploadIcon, BarChartIcon, GlobeIcon, PrinterIcon,
   ApertureIcon, PlayIcon, EditIcon, FolderIcon, HeartIcon, TrashIcon, PinIcon, AccessibilityIcon,
-  ChevronUpIcon, SearchIcon, ShieldIcon, LockIcon, CopyIcon, StarIcon, FocusIcon } from './icons';
+  ChevronUpIcon, SearchIcon, ShieldIcon, LockIcon, CopyIcon, StarIcon, FocusIcon, CheckIcon } from './icons';
 import type { AccentTheme } from '../state/accentTheme';
 import { selectDeletableRejected } from '../state/batchOps';
 import { selectPendingShieldReview, readShieldDismissedIds } from '../core/documentShield';
@@ -357,10 +357,22 @@ export function MenuDrawer() {
           </button>
         </header>
 
-        <button className="drawer-pro-card" onClick={() => go(() => setPremiumOpen(true))}>
+        {/* Cat te cunoaste motorul, inaintea cardului Premium — ordinea din
+            build-ul de referinta. Se arata singura doar peste 15 decizii. */}
+        <TrainedProfileStrip onAction={() => setOpen(false)} />
+
+        <button
+          className={premiumLocked ? 'drawer-pro-card' : 'drawer-pro-card is-active'}
+          onClick={() => go(() => setPremiumOpen(true))}
+        >
           <span className="drawer-pro-icon"><StarIcon /></span>
-          <span className="drawer-pro-copy"><em className="mono">{tr('menu.pro.label')}</em><b>{tr(premiumLocked ? 'menu.pro.locked' : 'menu.pro.active')}</b></span>
-          <span className="drawer-pro-action mono">{tr('menu.pro.action')}</span>
+          <span className="drawer-pro-copy">
+            <em className="mono">{tr(premiumLocked ? 'menu.pro.label' : 'menu.pro.label.active')}</em>
+            <b>{tr(premiumLocked ? 'menu.pro.locked' : 'menu.pro.active')}</b>
+          </span>
+          {premiumLocked
+            ? <span className="drawer-pro-action mono">{tr('menu.pro.action')}</span>
+            : <span className="drawer-pro-check" aria-hidden="true"><CheckIcon /></span>}
         </button>
 
         {!isStandalone() && (
@@ -393,10 +405,6 @@ export function MenuDrawer() {
             </button>
           </div>
         )}
-
-        {/* Cat te cunoaste motorul. Se arata singura doar peste 15 decizii (vezi
-            TrainedProfileStrip) — sub atat ar fi o lauda goala. */}
-        <TrainedProfileStrip onAction={() => setOpen(false)} />
 
         <DrawerGroup label={tr('menu.section.workspace')} collapsible defaultOpen={false} expandLabel={tr('menu.expandSection', { section: tr('menu.section.workspace') })} collapseLabel={tr('menu.collapseSection', { section: tr('menu.section.workspace') })}>
           <button className="drawer-item" onClick={() => go(() => setPersonsOpen(true))}>

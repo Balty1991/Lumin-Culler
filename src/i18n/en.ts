@@ -49,6 +49,8 @@ export const en: Record<TranslationKey, string> = {
   'menu.expandSection': 'Expand {section} section',
   'menu.collapseSection': 'Collapse {section} section',
   'menu.pro.label': 'LUMIN PRO',
+  'menu.pro.label.active': 'LUMIN PRO · ACTIVE',
+  'inspector.editStudio': 'Open Edit Studio',
   'menu.pro.locked': 'Premium available — activate it after you pick a plan',
   'menu.pro.active': 'Premium active — every tool is available',
   'menu.pro.action': 'VIEW',
