@@ -4162,3 +4162,28 @@ html:has(> body .welcome-screen) {
     bottom: calc(112px + env(safe-area-inset-bottom));
   }
 }
+
+
+/* ── Filtrul activ: pastila plina, nu doar bordura-gradient ── */
+/* Build-ul de referinta umplea pastila cu aqua scris de mana (#67e4cf). Aici
+   umplerea vine din var(--accent): altfel cele trei teme de accent
+   (teal/sunset/holo) ar fi ramas toate aqua, indiferent ce alege utilizatorul.
+   background-image/clip/origin se reseteaza explicit — regula de baza le
+   foloseste pentru bordura-gradient, si fara reset umplerea ramanea dedesubt. */
+.chip.active {
+  border: 2px solid rgb(255 255 255 / .78);
+  color: #06100e;
+  background: var(--accent);
+  background-image: none;
+  background-clip: border-box;
+  background-origin: border-box;
+  box-shadow: 0 0 0 2px rgb(var(--accent-rgb) / .22), 0 8px 22px rgb(0 0 0 / .30);
+  font-weight: 900;
+}
+.chip.active .chip-icon,
+.chip.active .chip-count { color: #06100e; }
+.chip.active .chip-count { background: rgb(0 0 0 / .14); }
+:root[data-theme="light"] .chip.active {
+  border-color: var(--accent-text);
+  color: #063c36;
+}

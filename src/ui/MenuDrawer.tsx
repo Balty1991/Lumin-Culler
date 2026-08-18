@@ -13,6 +13,7 @@ import { selectPendingShieldReview, readShieldDismissedIds } from '../core/docum
 import { selectUnresolvedGroups } from '../state/duplicateGroups';
 import { selectMonthlyRecap } from '../state/monthlyRecap';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
+import { TrainedProfileStrip } from './TrainedProfileStrip';
 import { EASE } from './motion';
 import { GENRE_PRESETS } from '../state/genre';
 import { nextGridDensity } from '../state/gridDensity';
@@ -392,6 +393,10 @@ export function MenuDrawer() {
             </button>
           </div>
         )}
+
+        {/* Cat te cunoaste motorul. Se arata singura doar peste 15 decizii (vezi
+            TrainedProfileStrip) — sub atat ar fi o lauda goala. */}
+        <TrainedProfileStrip onAction={() => setOpen(false)} />
 
         <DrawerGroup label={tr('menu.section.workspace')} collapsible defaultOpen={false} expandLabel={tr('menu.expandSection', { section: tr('menu.section.workspace') })} collapseLabel={tr('menu.collapseSection', { section: tr('menu.section.workspace') })}>
           <button className="drawer-item" onClick={() => go(() => setPersonsOpen(true))}>
