@@ -1053,26 +1053,33 @@ export default function App() {
 
 
       {photos.length === 0 && !progress ? (
-        <div className="empty">
+        <div className="empty concept-empty">
           <div className="empty-badge" aria-hidden="true">
             <ApertureIcon />
           </div>
-          <p className="mono empty-tagline"><span className="live-dot" aria-hidden="true" /> {tr('app.empty.badge')}</p>
-          <h2>{tr('app.empty.title')}</h2>
-          <p className="empty-lead">{tr('app.empty.description')}</p>
+          <p className="mono empty-tagline"><span className="live-dot" aria-hidden="true" /> STUDIO LOCAL · FĂRĂ UPLOAD</p>
+          <h2>Transformă un lot într-o selecție</h2>
+          <p className="empty-lead">Importă un set, lasă AI-ul să facă prima trecere, apoi decizi rapid ce merită păstrat.</p>
+          <div className="concept-empty-proof" aria-label="Avantajele LuminCuller">
+            <div><span>PRIVAT</span><b>Pozele rămân pe telefon</b></div>
+            <div><span>RAPID</span><b>AI-ul face prima trecere</b></div>
+            <div><span>CONTROL</span><b>Tu confirmi și poți corecta</b></div>
+          </div>
+          <p className="concept-empty-note">Începi cu importul, apoi primești o selecție explicabilă și revizuibilă.</p>
           {/* Doua cai de intrare, una langa alta (cerinta directa): alegi tu
               fisierele, sau lasi supervizorul sa aduca galeria telefonului pe
               perioade. A doua exista doar pe Android nativ, unde chiar avem un
               MediaStore de citit — pe web ar fi un buton care nu poate face
               nimic. */}
           <div className="empty-cta-row">
-            <button className="btn-accent big" onClick={() => void onAddPhotosClick()}>{tr('app.empty.cta')}</button>
+            <button className="btn-accent big" onClick={() => void onAddPhotosClick()}>Pornește selecția</button>
             {isNativeMediaLibraryAvailable() && (
               <button className="ghost big empty-cta-secondary" onClick={() => setSupervisorPanelOpen(true)}>
                 <ClockIcon className="inline-icon" aria-hidden="true" /> {tr('app.empty.supervisorCta')}
               </button>
             )}
           </div>
+          <p className="concept-empty-safety"><CheckIcon aria-hidden="true" /> AI-ul recomandă. Tu ai ultimul cuvânt — nimic nu se șterge fără confirmarea ta.</p>
           <PhotosAccessNotice />
 
           {/* Aici erau inca 3 blocuri de text sub butoane (formatele acceptate,
@@ -1086,7 +1093,7 @@ export default function App() {
           {/* Card simplu, nu panou HUD cu colturi in paranteze: tratamentul acela
               a ramas limbajul pentru DATE LIVE (CullGauge, in timpul triajului).
               Pe un explicativ static citea decorativ, nu profesional. */}
-          <div className="how-it-works-card">
+          <div className="how-it-works-card concept-empty-legacy">
             <div className="how-it-works">
               <div className="how-step">
                 <span className="how-step-icon"><span className="how-step-num">1</span><PlusIcon /></span>
