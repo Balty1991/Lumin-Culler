@@ -3798,3 +3798,114 @@ html:has(> body .welcome-screen) {
   background: rgb(var(--accent-rgb) / .16);
   border-color: var(--accent-text);
 }
+
+
+/* ── Concept portat din buildul de referinta: controale explicite, fara patch-uri DOM ── */
+.workspace-metrics-panel {
+  position: relative;
+  padding-top: 54px;
+}
+.workspace-metrics-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 116px;
+  min-height: 40px;
+  padding: 0 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  color: var(--text);
+  background: var(--surface-3);
+  box-shadow: var(--shadow-sm);
+  font-size: .72rem;
+  font-weight: 800;
+}
+.workspace-metrics-close svg { width: 17px; height: 17px; }
+.workspace-metrics-close:hover { color: var(--accent); border-color: var(--accent); }
+.workspace-metrics-close:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+
+.contact-sheet-header-actions .small-btn,
+.contact-sheet-header-actions .icon-btn { min-height: 44px; }
+.contact-sheet-item {
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+.contact-sheet-meta { padding: 0 7px 7px; }
+.contact-sheet-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 7px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-weight: 800;
+  letter-spacing: .03em;
+}
+.contact-sheet-status.st-selected { background: rgb(var(--pick-rgb) / .15); }
+.contact-sheet-status.st-rejected { background: rgb(var(--reject-rgb) / .15); }
+.contact-sheet-status.st-review,
+.contact-sheet-status.st-pending { background: rgb(var(--review-rgb) / .14); }
+
+/* Pe mobil, cele patru decizii raman in aceeasi bara compacta si nu acopera
+   fotografia. Suprafata opaca asigura contrast indiferent de cadrul evaluat. */
+@media (max-width: 600px) {
+  .tiktok-rail {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-items: end;
+    gap: 6px;
+    padding: 10px 7px 8px;
+    border: 1px solid rgb(255 255 255 / .16);
+    border-radius: 22px;
+    background: rgb(16 18 25 / .96);
+    box-shadow: 0 -10px 34px rgb(0 0 0 / .38);
+    backdrop-filter: blur(18px);
+  }
+  .tiktok-rail-item { min-width: 0; gap: 4px; }
+  .tiktok-rail-btn,
+  .tiktok-rail-btn.undo {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto;
+  }
+  .tiktok-rail-label {
+    display: block;
+    max-width: none;
+    color: #f4f7fb;
+    font-size: .66rem;
+    font-weight: 800;
+    text-align: center;
+    text-shadow: none;
+    white-space: nowrap;
+  }
+  .tiktok-rail-btn.keep { background: rgb(var(--pick-rgb) / .9); color: #06100e; }
+  .tiktok-rail-btn.del { background: var(--reject); color: #fff; }
+  .tiktok-rail-btn.album { background: #252b35; color: #fff; }
+  .tiktok-rail-btn.undo { background: #1b2029; color: #e7edf7; }
+}
+
+:root[data-theme="light"] .workspace-metrics-close {
+  color: var(--text);
+  background: var(--surface-2);
+  border-color: var(--line-strong);
+}
+:root[data-theme="light"] .tiktok-rail {
+  border-color: var(--line-strong);
+  background: var(--surface);
+  box-shadow: 0 -10px 34px rgb(20 20 30 / .16);
+}
+:root[data-theme="light"] .tiktok-rail-label { color: var(--text); }
+:root[data-theme="light"] .tiktok-rail-btn.album { background: var(--surface-3); color: var(--text); }
+:root[data-theme="light"] .tiktok-rail-btn.undo { background: var(--surface-2); color: var(--text); }

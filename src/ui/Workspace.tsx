@@ -296,6 +296,18 @@ export function Workspace() {
         </button>
         {showMetrics && (
           <div className="workspace-metrics-panel">
+            {/* Inchidere explicita: panoul nu mai depinde doar de aceeasi pastila
+                care l-a deschis sau de scurtatura I. Pe mobil, butonul ramane
+                mereu vizibil deasupra continutului cu scroll. */}
+            <button
+              className="ghost workspace-metrics-close"
+              type="button"
+              onClick={() => setShowMetrics(false)}
+              aria-label={tr('workspace.metrics.hide')}
+            >
+              <XIcon aria-hidden="true" />
+              <span>{tr('workspace.metrics.hide')}</span>
+            </button>
             <PhotoInfoTabs photo={photo} src={src} />
           </div>
         )}
