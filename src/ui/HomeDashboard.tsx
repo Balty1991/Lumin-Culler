@@ -62,6 +62,7 @@ export function HomeDashboard() {
   const setPresentationOpen = useStore(s => s.setPresentationOpen);
   const setLocationsOpen = useStore(s => s.setLocationsOpen);
   const setTiktokSortOpen = useStore(s => s.setTiktokSortOpen);
+  const openTiktokSortForIds = useStore(s => s.openTiktokSortForIds);
   const setHomeGridOpen = useStore(s => s.setHomeGridOpen);
   const setDocumentShieldOpen = useStore(s => s.setDocumentShieldOpen);
   const setDuplicatesPanelOpen = useStore(s => s.setDuplicatesPanelOpen);
@@ -119,6 +120,20 @@ export function HomeDashboard() {
   const confirmClearSession = async () => {
     const ok = await askConfirm(tr('app.clearSession.confirm', { count: photos.length }), { danger: true });
     if (ok) await clearAll();
+  };
+
+  /**
+   * Sortarea rapida peste TOT lotul, in ordine cronologica — nu doar peste
+   * coada nedecisa (selectSortQueue, care filtreaza pending/review). Asa se
+   * poate reveni si peste o decizie deja luata, cu recomandarea AI si
+   * metricile la indemana, fara sa treci prin grila.
+   */
+  const openQuickSortAll = () => {
+    const ids = photos
+      .slice()
+      .sort((a, b) => (a.capturedAt ?? 0) - (b.capturedAt ?? 0))
+      .map(p => p.id);
+    if (ids.length > 0) openTiktokSortForIds(ids);
   };
 
   const openRecap = () => { setPresentationPhotoIds(recapPhotos.map(p => p.id)); setPresentationOpen(true); };
@@ -193,7 +208,7 @@ export function HomeDashboard() {
                 : tr('reviewDesk.title.ready')}</h2>
               <p>{tr(hasReviewQueue ? 'reviewDesk.lead.next' : 'reviewDesk.lead.ready')}</p>
               <div className="review-desk-actions">
-                <button className="review-desk-continue" onClick={() => hasReviewQueue ? setTiktokSortOpen(true) : setHomeGridOpen(true)}>
+                <button className="review-desk-continue" onClick={() => openQuickSortAll()}>
                   <span>{tr(hasReviewQueue ? 'reviewDesk.continue' : 'reviewDesk.open')}</span>
                   <span aria-hidden="true">→</span>
                 </button>

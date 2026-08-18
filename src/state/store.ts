@@ -2259,7 +2259,7 @@ export const useStore = create<AppState>((set, get) => ({
     // tarziu (Goleste sesiunea, stergerea respinselor) — vezi state/streak.ts.
     if (done > 0) recordImportDay();
     const doneNotice = done > 0
-      ? t(get().locale, 'store.import.done', { count: done })
+      ? t(get().locale, plural(done, 'store.import.done.one', 'store.import.done.other'), { count: done })
         + (adaptedThresholds
             ? ' ' + t(get().locale, 'store.import.thresholdsAdapted', { select: adaptedThresholds.select, reject: adaptedThresholds.reject })
             : '')

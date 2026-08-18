@@ -82,6 +82,11 @@ export function PremiumPanel() {
           <StarIcon className="inline-icon" aria-hidden="true" /> {tr(premium ? 'premium.chip.active' : 'premium.chip')}
         </span>
         <h3 className="premium-lead">{tr(premium ? 'premium.lead.active' : 'premium.lead')}</h3>
+        {!premium && price && (
+          <p className="premium-price">{tr('premium.price.tag', { price })}</p>
+        )}
+
+        <h4 className="premium-group-head">{tr('premium.section.unlock')}</h4>
 
         <div className="premium-perk">
           <i aria-hidden="true"><DownloadIcon /></i>
@@ -130,22 +135,33 @@ export function PremiumPanel() {
             <span>{tr('premium.perk.composite.sub')}</span>
           </span>
         </div>
-        <div className="premium-perk">
-          <i aria-hidden="true"><CheckIcon /></i>
-          <span>
-            <b>{tr('premium.perk.local.title')}</b>
-            <span>{tr('premium.perk.local.sub')}</span>
-          </span>
-        </div>
 
         {/* Un abonat nu are de ce sa vada cat i-a mai ramas dintr-un plafon pe
             care nu-l mai are — vezi remainingFreePhotos(), care intoarce Infinity. */}
+        <section className="premium-group premium-free">
+          <h4 className="premium-group-head">{tr('premium.section.free')}</h4>
+          <div className="premium-perk">
+            <i aria-hidden="true"><CheckIcon /></i>
+            <span>
+              <b>{tr('premium.perk.local.title')}</b>
+              <span>{tr('premium.perk.local.sub')}</span>
+            </span>
+          </div>
+        </section>
+
         <div className="premium-usage">
           {premium ? (
             <b>{tr('premium.usage.titlePremium', { count: photosUsed })}</b>
           ) : (
             <>
+              <span className="premium-usage-label mono">{tr('premium.usage.label')}</span>
               <b>{tr('premium.usage.title', { count: photosUsed, limit: FREE_PHOTOS_PER_MONTH })}</b>
+              {/* Bara e doar vizuala: cifrele exacte sunt deja in randul de
+                  deasupra, iar o bara cu rol de progressbar intr-un card pe
+                  care nimeni nu-l parcurge cu tastatura n-ar fi citita oricum. */}
+              <span className="premium-usage-bar" aria-hidden="true">
+                <span style={{ width: `${Math.min(100, Math.round((photosUsed / FREE_PHOTOS_PER_MONTH) * 100))}%` }} />
+              </span>
               <span>{tr('premium.usage.persons', { count: persons.length, limit: FREE_ENROLLED_PERSONS })}</span>
             </>
           )}

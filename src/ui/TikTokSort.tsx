@@ -72,6 +72,7 @@ function formatCaptureDate(ts: number | undefined, locale: Locale): string | nul
 export function TikTokSort() {
   const open = useStore(s => s.tiktokSortOpen);
   const setOpen = useStore(s => s.setTiktokSortOpen);
+  const openDetail = useStore(s => s.openDetail);
   const scopeIds = useStore(s => s.tiktokSortScopeIds);
   const photos = useStore(s => s.photos);
   const collections = useStore(s => s.collections);
@@ -375,6 +376,13 @@ export function TikTokSort() {
             <span className="tiktok-caption-sub tiktok-caption-meta">
               {[captureDate, album].filter(Boolean).join(' · ')}
             </span>
+            {/* Cerinta directa: din sortarea rapida trebuie sa se ajunga la
+                metrici si la editare, fara sa iesi in grila. Deschide aceeasi
+                foaie de detaliu (Metrici / De ce acest scor / Persoane /
+                Istoric), peste ecranul de sortare, care ramane montat. */}
+            <button className="tiktok-metrics-cta" onClick={() => openDetail(current.id)}>
+              {tr('tiktok.metrics')}
+            </button>
           </div>
         </>
       )}

@@ -52,7 +52,7 @@ describe('noticeTone', () => {
       const partial = t(locale, 'store.deleteRejected.notice', { deleted: 8 }) +
         t(locale, 'store.deleteRejected.skippedPart', { skipped: 2 });
       expect(noticeTone(partial), partial).toBe('success');
-      expect(noticeTone(t(locale, 'store.import.done', { count: 12 }))).toBe('success');
+      expect(noticeTone(t(locale, 'store.import.done.other', { count: 12 }))).toBe('success');
     }
   });
 

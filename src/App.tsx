@@ -806,13 +806,19 @@ export default function App() {
               </button>
             </Tooltip>
           )}
-          <button
-            className={counts.selected ? 'btn-accent export-cta' : 'ghost export-cta'}
-            onClick={() => setExportDestinationsOpen(true)}
-            disabled={!counts.selected}
-          >
-            <DownloadIcon className="inline-icon" aria-hidden="true" /> {tr('app.export', { count: counts.selected })}
-          </button>
+          {/* Doar cand exista ceva de exportat. Pe ecranul gol ramanea un buton
+              dezactivat care scria "Exporta poze (0)" — ocupa jumatate din
+              antet fara sa poata face nimic. Celelalte butoane din antet erau
+              deja conditionate la fel. */}
+          {photos.length > 0 && (
+            <button
+              className={counts.selected ? 'btn-accent export-cta' : 'ghost export-cta'}
+              onClick={() => setExportDestinationsOpen(true)}
+              disabled={!counts.selected}
+            >
+              <DownloadIcon className="inline-icon" aria-hidden="true" /> {tr('app.export', { count: counts.selected })}
+            </button>
+          )}
           <Tooltip label={tr('app.tooltip.menu')} side="left">
             <button className="ghost icon-btn" onClick={() => setMenuOpen(true)} aria-label={tr('app.menu.ariaLabel')}>
               <MenuIcon />

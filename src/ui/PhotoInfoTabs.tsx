@@ -258,7 +258,7 @@ export function PhotoInfoTabs({ photo, src }: { photo: PhotoView; src: string | 
   );
 
   const exif = formatExif(photo);
-  const verdict = photo.aiScore >= 65 ? 'Păstrează' : photo.aiScore <= 35 ? 'Respinge' : 'Verifică';
+  const verdict = tr(photo.aiScore >= 65 ? 'inspector.verdict.keep' : photo.aiScore <= 35 ? 'inspector.verdict.reject' : 'inspector.verdict.review');
   const verdictFactors = explainFactors(photo.aiFactors, locale).slice(0, 3);
   const exifRows = extendedExifRows(photo, tr);
   const iptcRowsList = iptcRows(photo, tr);
@@ -323,7 +323,7 @@ export function PhotoInfoTabs({ photo, src }: { photo: PhotoView; src: string | 
           <button className="inspector-edit-cta" type="button" onClick={() => openEdit(photo.id)}>
             {tr('inspector.editStudio')} <span aria-hidden="true">→</span>
           </button>
-          <div className="inspector-section-head"><span className="mono">ANALIZĂ CADRU</span><b>{photo.aiScore} / 100</b></div>
+          <div className="inspector-section-head"><span className="mono">{tr('inspector.frameAnalysis')}</span><b>{photo.aiScore} / 100</b></div>
           <div className="stat-grid">
             <StatTile label={tr('detail.stat.sharpness')} value={photo.sharpness} />
             <StatTile label={tr('detail.stat.exposure')} value={photo.exposure} />

@@ -3178,3 +3178,107 @@ body:before {
 @media (prefers-reduced-motion: reduce) {
   .analysis-studio-progress.is-indeterminate span { animation: none; width: 100%; }
 }
+
+
+/* Textul cardului Premium avea white-space: nowrap si se taia cu "…" chiar si
+   in romana (verificat in browser, ambele teme). Doua randuri incap in
+   inaltimea cardului si lasa loc si limbilor mai lungi. */
+.drawer-pro-copy b {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
+  line-height: 1.25;
+}
+
+/* ── Antetul Review Desk: doua defecte mostenite din stratarea din referinta ──
+   1. `.review-desk-head` primeste `display: grid` intr-o regula tarzie, dar
+      pastreaza `justify-content: space-between` din prima regula, cand era
+      flex. Pe grid asta NU mai inseamna "imprastie pe latime": coloana ramane
+      la latimea continutului si se aseaza la stanga. Masurat in browser:
+      randul si bara de sesiune ocupau 240px din 388px disponibili.
+   2. Div-ul care tine eticheta si contorul ramasese `display: block` — regula
+      `.review-desk-head > div` prinde doar copiii directi, iar el e nepot.
+      De aici "REVIEW DESK0/1 · 0%", scris fara spatiu intre ele. */
+.review-desk-head {
+  justify-content: stretch;
+  align-items: stretch;
+}
+.review-desk-head-line > div {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  min-width: 0;
+}
+
+/* ── Acces la metrici din sortarea rapida ── */
+.tiktok-metrics-cta {
+  width: 100%;
+  min-height: 46px;
+  margin-top: 8px;
+  padding: 0 14px;
+  border: 1px solid rgb(255 255 255 / .16);
+  border-radius: 15px;
+  color: #f2f5fa;
+  background: rgb(14 17 24 / .82);
+  backdrop-filter: blur(10px);
+  font-size: .82rem;
+  font-weight: 750;
+}
+.tiktok-metrics-cta:active { transform: scale(.99); }
+.tiktok-metrics-cta:focus-visible { outline: 3px solid var(--desk-aqua); outline-offset: 3px; }
+:root[data-theme="light"] .tiktok-metrics-cta {
+  color: #f7fbff;
+  background: rgb(20 22 30 / .84);
+  border-color: rgb(255 255 255 / .22);
+}
+
+/* Foaia de detaliu se deschide PESTE sortarea rapida. Ambele erau pe acelasi
+   z-index (--z-modal-scrim), iar <TikTokSort /> e randat dupa <DetailView />
+   in App.tsx — deci, la egalitate, sortarea acoperea detaliul si butonul de
+   mai sus n-ar fi parut ca face nimic. */
+.detail-fullscreen { z-index: calc(var(--z-modal-scrim) + 2); }
+
+
+/* ── Premium: oferta grupata, nu o lista plata ── */
+.premium-price {
+  margin: 6px 0 2px;
+  color: var(--accent-text);
+  font-size: .84rem;
+  font-weight: 750;
+}
+.premium-group-head {
+  margin: 18px 0 8px;
+  color: var(--text-faint);
+  font-family: var(--mono);
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+.premium-free {
+  margin-top: 20px;
+  padding: 2px 12px 10px;
+  border: 1px solid rgb(var(--pick-rgb) / .28);
+  border-radius: 18px;
+  background: rgb(var(--pick-rgb) / .07);
+}
+.premium-free .premium-group-head { margin-top: 12px; color: var(--pick-text); }
+.premium-usage-label { display: block; margin-bottom: 4px; color: var(--text-faint); font-size: .62rem; letter-spacing: .12em; }
+.premium-usage-bar {
+  display: block;
+  height: 7px;
+  margin: 8px 0 6px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: var(--surface-3);
+}
+.premium-usage-bar > span {
+  display: block;
+  height: 100%;
+  min-width: 3px;
+  border-radius: inherit;
+  background: var(--accent-gradient);
+  transition: width .35s var(--ease);
+}
+@media (prefers-reduced-motion: reduce) { .premium-usage-bar > span { transition: none; } }
