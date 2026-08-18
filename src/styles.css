@@ -4048,3 +4048,22 @@ html:has(> body .welcome-screen) {
   letter-spacing: .1em;
   backdrop-filter: blur(8px);
 }
+
+
+/* Review Desk este pagina Home principala dupa import; elementele vechi raman
+   in cod pentru actiuni existente, dar nu mai concureaza cu fluxul de concept. */
+.concept-home { display: flex; flex-direction: column; gap: 12px; }
+.concept-home > .home-greet,
+.concept-home > .session-outcome,
+.concept-home > .home-hero-card,
+.concept-home > .home-sort-cta,
+.concept-home > .home-delete-cta,
+.concept-home > .home-shield-cta,
+.concept-home > .home-recap-card,
+.concept-home > .home-stat-row,
+.concept-home > .gallery-overview-note { display: none; }
+.concept-home .review-desk-session { order: -2; }
+.concept-home .review-desk-card { order: -1; }
+.review-desk-session { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 18px; border: 1px solid var(--line); border-radius: 17px; background: var(--surface); color: var(--text-dim); font-size: .9rem; }
+.review-desk-session b { color: var(--accent); font-size: 1.35rem; }
+.review-desk-session span + span b { color: var(--text); }

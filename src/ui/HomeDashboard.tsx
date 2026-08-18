@@ -120,7 +120,7 @@ export function HomeDashboard() {
   };
 
   return (
-    <div className="home-dash">
+    <div className="home-dash concept-home">
       <div className="home-greet">
         <span className="home-greet-hello">{tr(greetingKey(now.getHours()))}</span>
         {/* Sub-randul dispare cat timp cardul de rezumat e pe ecran: amandoua
@@ -142,6 +142,11 @@ export function HomeDashboard() {
       <SessionOutcome />
 
       {reviewDeskPhoto && (
+        <>
+        <div className="review-desk-session" aria-label="Rezumat sesiune">
+          <span><b>{photos.filter(p => p.status === 'selected').length}</b> păstrate</span>
+          <span><b>{photos.filter(p => p.status === 'rejected').length}</b> respinse</span>
+        </div>
         <section className="review-desk-card" aria-label="Review Desk">
           <span className="review-desk-build mono">STUDIO EXPERIENCE · RC5</span>
           <ReviewDeskPreview photo={reviewDeskPhoto} />
@@ -168,6 +173,7 @@ export function HomeDashboard() {
             </div>
           </div>
         </section>
+        </>
       )}
 
       <div className="home-hero-card glass">
