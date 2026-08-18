@@ -3282,3 +3282,12 @@ body:before {
   transition: width .35s var(--ease);
 }
 @media (prefers-reduced-motion: reduce) { .premium-usage-bar > span { transition: none; } }
+
+/* ── Ecranul gol umple inaltimea disponibila ──
+   Regula din referinta plafoneaza blocul la 610px si centreaza continutul in
+   INTERIORUL acelui plafon, nu in ecran: pe un telefon de 915px cu antetul de
+   doua randuri raman ~270px goi dedesubt, iar primul ecran al aplicatiei arata
+   ca si cum s-ar fi terminat continutul. Plafonul cade; centrarea ramane.
+   Ecranele scunde nu sunt afectate — pentru ele exista deja
+   @media (max-height: 710px) mai sus, care aliniaza sus in loc sa centreze. */
+.empty { min-height: calc(100dvh - var(--header-bottom, 0px) - 44px); }
