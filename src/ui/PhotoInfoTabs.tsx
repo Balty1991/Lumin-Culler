@@ -313,7 +313,7 @@ export function PhotoInfoTabs({ photo, src }: { photo: PhotoView; src: string | 
         <>
           <section className={`inspector-verdict ${photo.aiScore >= 65 ? 'positive' : photo.aiScore <= 35 ? 'negative' : 'review'}`}>
             <div className="inspector-verdict-copy">
-              <span className="mono inspector-verdict-kicker">VERDICT AI</span>
+              <span className="mono inspector-verdict-kicker">{tr('inspector.verdict.label')}</span>
               <h3>{verdict}</h3>
               <p>{photo.faceCount > 0 ? `${photo.faceCount} ${photo.faceCount === 1 ? 'subiect detectat' : 'subiecți detectați'} · ` : ''}{Math.round(photo.sharpness)}/100 claritate · {Math.round(photo.exposure)}/100 expunere</p>
               {verdictFactors.length > 0 && <div className="inspector-verdict-factors">{verdictFactors.map(f => <span key={f.label} className={f.positive ? 'pos' : 'neg'}>{f.positive ? '+' : '−'} {f.label}</span>)}</div>}

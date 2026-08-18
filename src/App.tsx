@@ -25,6 +25,7 @@ import { CARD_MIN_WIDTH } from './state/gridDensity';
 import { SORT_KEY_LABELS, type SortKey } from './state/gridSort';
 import { pickImportFiles } from './core/filePicker';
 import { isNativeMediaLibraryAvailable, pickNativePhotos } from './core/nativeMediaLibrary';
+import { analysisPool } from './core/workerPool';
 import { armPickerWatchdog, type PickerWatchdog } from './core/pickerWatchdog';
 import { initAndroidBackButton } from './core/androidBackButton';
 import { formatEta } from './core/formatTime';
@@ -503,6 +504,23 @@ export default function App() {
    * inainte, pe browsere fara suport (Safari/WebKit, WebView-uri mobile).
    */
   const onAddPhotosClick = async () => {
+    /*
+     * Modelele incep sa se incarce ACUM, nu dupa ce se intorc fisierele.
+     * Masurat in browser pe 12 poze de 4000x3000: incarcarea modelelor a durat
+     * 82 din cele 82 de secunde ale importului, iar analiza propriu-zisa abia
+     * incepea dupa. Selectorul de fisiere tine utilizatorul cateva secunde bune
+     * — timp in care, pana acum, nu se intampla nimic.
+     *
+     * Nu se iroseste nimic: pornim doar cand un import e deja iminent, nu la
+     * fiecare deschidere a aplicatiei. Daca utilizatorul anuleaza selectorul,
+     * modelele raman incarcate si urmatorul import porneste instant.
+     * Pe Android nativ, init() se termina imediat (analiza merge prin pluginuri,
+     * vezi core/nativeAnalysis.ts), deci apelul e inofensiv acolo.
+     * Erorile se ignora deliberat: runImport() apeleaza oricum init() si
+     * raporteaza corect esecul, cu ecranul lui.
+     */
+    void analysisPool.init().catch(() => {});
+
     // Pe Android nativ, incearca INTAI selectorul propriu (MediaLibraryPlugin) —
     // singura cale prin care pastram URI-ul content:// al pozei, necesar mai
     // tarziu pentru "Sterge pozele respinse" (BatchOpsPanel). Bug real gasit

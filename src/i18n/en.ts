@@ -52,6 +52,7 @@ export const en: Record<TranslationKey, string> = {
   'menu.pro.label.active': 'LUMIN PRO · ACTIVE',
   'inspector.editStudio': 'Open Edit Studio',
   'inspector.frameAnalysis': 'FRAME ANALYSIS',
+  'inspector.verdict.label': 'AI VERDICT',
   'inspector.verdict.keep': 'Keep',
   'inspector.verdict.reject': 'Reject',
   'inspector.verdict.review': 'Check',

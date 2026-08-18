@@ -198,6 +198,18 @@ export class AnalysisPool {
 
   async init(): Promise<void> {
     if (this.ready) return;
+    // Apelurile concurente asteapta aceeasi initializare, nu pornesc inca una:
+    // `ready` devine true abia la final, deci doua apeluri pornite inainte de
+    // asta ar fi incarcat modelele de doua ori, in paralel — pe un telefon,
+    // exact clasa de varf de memorie care omoara WebView-ul.
+    if (this.initInFlight) return this.initInFlight;
+    this.initInFlight = this.doInit().finally(() => { this.initInFlight = null; });
+    return this.initInFlight;
+  }
+
+  private initInFlight: Promise<void> | null = null;
+
+  private async doInit(): Promise<void> {
     // masurat aici (nu doar primul slot) — AiBootScreen ramane vizibil pana la
     // finalul intregii metode (toti workerii), vezi modelLoadTiming.ts
     const startedAt = performance.now();

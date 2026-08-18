@@ -49,6 +49,7 @@ export const ro = {
   'menu.pro.label.active': 'LUMIN PRO · ACTIV',
   'inspector.editStudio': 'Deschide Edit Studio',
   'inspector.frameAnalysis': 'ANALIZĂ CADRU',
+  'inspector.verdict.label': 'VERDICT AI',
   'inspector.verdict.keep': 'Păstrează',
   'inspector.verdict.reject': 'Respinge',
   'inspector.verdict.review': 'Verifică',
