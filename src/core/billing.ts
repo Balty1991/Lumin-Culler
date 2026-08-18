@@ -27,25 +27,35 @@ export function isBillingAvailable(): boolean {
   return Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('Billing');
 }
 
+/** Raspunsul Play despre entitlement, fara a confunda „neabonat” cu „n-am putut verifica”. */
+export interface PremiumStatusAnswer {
+  /** Play a raspuns la interogarea abonamentului. */
+  answered: boolean;
+  /** Valoarea are sens numai cand `answered` este true. */
+  active: boolean;
+}
+
 /**
- * Abonamentul e activ ACUM, dupa Google Play.
- *
- * Orice esec (fara retea, Play indisponibil, produs neconfigurat inca)
- * inseamna `false`, nu o eroare aruncata mai departe: un utilizator care
- * deschide aplicatia in avion nu trebuie sa vada un ecran de eroare, iar
- * functiile gratuite nu au voie sa depinda de disponibilitatea unui magazin.
- * Consecinta acceptata constient: un abonat fara retea e tratat temporar ca
- * neabonat — vezi entitlement.ts, unde ultima stare CUNOSCUTA e pastrata tocmai
- * ca sa nu se intample asta la fiecare pornire.
+ * Interogare cu stare explicita. Distinctia protejeaza cache-ul unui abonat
+ * atunci cand Play Services sau reteaua nu raspund temporar.
+ */
+export async function queryPremiumStatusAnswer(): Promise<PremiumStatusAnswer> {
+  if (!isBillingAvailable()) return { answered: false, active: false };
+  try {
+    return { answered: true, active: (await BillingNative.status()).active };
+  } catch (err) {
+    console.error('Nu am putut verifica abonamentul:', err);
+    return { answered: false, active: false };
+  }
+}
+
+/**
+ * Varianta simpla, pastrata pentru apelantii care au nevoie doar de un boolean.
+ * Persistenta entitlement-ului trebuie sa foloseasca `queryPremiumStatusAnswer()`
+ * pentru a nu rescrie cache-ul dupa un esec temporar.
  */
 export async function queryPremiumActive(): Promise<boolean> {
-  if (!isBillingAvailable()) return false;
-  try {
-    return (await BillingNative.status()).active;
-  } catch (err) {
-    console.error('Nu am putut verifica abonamentul (se continua ca neabonat):', err);
-    return false;
-  }
+  return (await queryPremiumStatusAnswer()).active;
 }
 
 /**

@@ -3720,3 +3720,81 @@ html:has(> body .welcome-screen) {
 .detail-sheet:not(.expanded):not(.dragging) .detail-sheet-content {
   visibility: hidden; transition: visibility 0s 0.4s;
 }
+
+
+/* ── Integritate tema luminoasă ───────────────────────────────────────────
+   Zonele de evaluare foto pot rămâne deliberate întunecate, însă niciun control
+   de navigare nu are voie să moștenească textul din tema opusă. Aceste override-
+   uri stau la final pentru a câștiga față de regulile de componentă și pentru a
+   proteja inclusiv panourile adăugate ulterior. */
+:root[data-theme="light"] .drawer {
+  background: var(--surface);
+  color: var(--text);
+  border-left-color: var(--line);
+}
+:root[data-theme="light"] .drawer-head,
+:root[data-theme="light"] .drawer-head > span,
+:root[data-theme="light"] .drawer-item,
+:root[data-theme="light"] .drawer-group-head,
+:root[data-theme="light"] .drawer-section-label,
+:root[data-theme="light"] .trained-profile-text,
+:root[data-theme="light"] .trained-profile-text b {
+  color: var(--text);
+}
+:root[data-theme="light"] .drawer-group-chevron,
+:root[data-theme="light"] .drawer-item-icon,
+:root[data-theme="light"] .drawer-about,
+:root[data-theme="light"] .trained-profile-text span,
+:root[data-theme="light"] .trained-profile-warn {
+  color: var(--text-dim);
+}
+:root[data-theme="light"] .drawer-quick-btn {
+  background-image: linear-gradient(var(--surface-2), var(--surface-2)), var(--accent-gradient);
+  color: var(--text);
+  border-color: var(--line-strong);
+}
+:root[data-theme="light"] .drawer-quick-btn svg { color: var(--accent-text); }
+:root[data-theme="light"] .home-sort-cta,
+:root[data-theme="light"] .home-recap-card,
+:root[data-theme="light"] .home-mini-chip,
+:root[data-theme="light"] .home-view-all-cta {
+  background: var(--surface-2);
+  color: var(--text);
+  border-color: var(--line-strong);
+}
+:root[data-theme="light"] .home-sort-text b,
+:root[data-theme="light"] .home-recap-text b,
+:root[data-theme="light"] .home-mini-num { color: var(--text); }
+:root[data-theme="light"] .home-sort-text span,
+:root[data-theme="light"] .home-recap-text span,
+:root[data-theme="light"] .home-mini-lbl { color: var(--text-dim); }
+/* Review Desk peste fotografie ramane dark, iar textul lui ramane alb cu umbre. */
+:root[data-theme="light"] .session-outcome,
+:root[data-theme="light"] .session-outcome-card { color: #fff; }
+:root[data-theme="light"] .session-outcome .btn-accent { color: #06100e; }
+:root[data-theme="light"] .tiktok-sort .tiktok-rail-label { color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.9); }
+:root[data-theme="light"] .tiktok-sort .tiktok-rail-btn.album,
+:root[data-theme="light"] .tiktok-sort .tiktok-rail-btn.undo {
+  background: rgba(20,23,28,.92);
+  color: #fff;
+}
+:root[data-theme="light"] .workspace-metrics-panel,
+:root[data-theme="light"] .workspace-metrics-panel .detail-scroll {
+  background: var(--surface);
+  color: var(--text);
+}
+:root[data-theme="light"] .workspace-metrics-panel .detail-tabs { background: var(--surface-2); }
+:root[data-theme="light"] .workspace-metrics-panel .detail-tab { color: var(--text-dim); }
+:root[data-theme="light"] .workspace-metrics-panel .detail-tab.active {
+  color: var(--accent-text);
+  background: rgb(var(--accent-rgb) / .16);
+}
+:root[data-theme="light"] .workspace-metrics-panel .detail-history-list li {
+  background: var(--surface-2);
+  color: var(--text);
+}
+:root[data-theme="light"] .chip.active {
+  color: var(--accent-text);
+  background: rgb(var(--accent-rgb) / .16);
+  border-color: var(--accent-text);
+}
