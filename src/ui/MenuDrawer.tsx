@@ -14,7 +14,6 @@ import { selectUnresolvedGroups } from '../state/duplicateGroups';
 import { selectMonthlyRecap } from '../state/monthlyRecap';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { EASE } from './motion';
-import { TrainedProfileStrip } from './TrainedProfileStrip';
 import { GENRE_PRESETS } from '../state/genre';
 import { nextGridDensity } from '../state/gridDensity';
 import { getInstallPromptEvent, subscribeInstallPromptEvent, consumeInstallPromptEvent, isStandalone } from '../core/installPromptEvent';
@@ -359,8 +358,8 @@ export function MenuDrawer() {
 
         <button className="drawer-pro-card" onClick={() => go(() => setPremiumOpen(true))}>
           <span className="drawer-pro-icon"><StarIcon /></span>
-          <span className="drawer-pro-copy"><em className="mono">LUMIN PRO</em><b>{premiumLocked ? 'Premium disponibil — activează după ce alegi planul' : 'Premium activ — toate uneltele sunt disponibile'}</b></span>
-          <span className="drawer-pro-action mono">VEZI</span>
+          <span className="drawer-pro-copy"><em className="mono">{tr('menu.pro.label')}</em><b>{tr(premiumLocked ? 'menu.pro.locked' : 'menu.pro.active')}</b></span>
+          <span className="drawer-pro-action mono">{tr('menu.pro.action')}</span>
         </button>
 
         {!isStandalone() && (
@@ -394,7 +393,7 @@ export function MenuDrawer() {
           </div>
         )}
 
-        <DrawerGroup label="ORGANIZARE" collapsible defaultOpen={false} expandLabel="Deschide Organizare" collapseLabel="Închide Organizare">
+        <DrawerGroup label={tr('menu.section.workspace')} collapsible defaultOpen={false} expandLabel={tr('menu.expandSection', { section: tr('menu.section.workspace') })} collapseLabel={tr('menu.collapseSection', { section: tr('menu.section.workspace') })}>
           <button className="drawer-item" onClick={() => go(() => setPersonsOpen(true))}>
             <span className="drawer-item-icon"><UserCheckIcon /></span>
             <span>{tr('menu.knownPersons')}</span>
@@ -449,7 +448,7 @@ export function MenuDrawer() {
         </DrawerGroup>
 
         {hasPhotos && (
-          <DrawerGroup label="CURĂȚARE AI" collapsible defaultOpen={false} expandLabel="Deschide Curățare AI" collapseLabel="Închide Curățare AI">
+          <DrawerGroup label={tr('menu.section.cleanup')} collapsible defaultOpen={false} expandLabel={tr('menu.expandSection', { section: tr('menu.section.cleanup') })} collapseLabel={tr('menu.collapseSection', { section: tr('menu.section.cleanup') })}>
             {/* Primul din grup, deliberat: e cel mai scurt lucru util pe care il
                 poti face dupa un import — cateva secunde care verifica exact
                 deciziile la limita si, in acelasi timp, invata motorul cel mai
@@ -490,7 +489,7 @@ export function MenuDrawer() {
         )}
 
         {hasPhotos && (
-          <DrawerGroup label="VEZI ȘI PREZINTĂ" collapsible defaultOpen={false} expandLabel="Deschide Vezi și prezintă" collapseLabel="Închide Vezi și prezintă">
+          <DrawerGroup label={tr('menu.section.library')} collapsible defaultOpen={false} expandLabel={tr('menu.expandSection', { section: tr('menu.section.library') })} collapseLabel={tr('menu.collapseSection', { section: tr('menu.section.library') })}>
             <button className="drawer-item" onClick={() => go(() => setStatsOpen(true))}>
               <span className="drawer-item-icon"><BarChartIcon /></span>
               <span>{tr('menu.stats')}</span>
@@ -526,7 +525,7 @@ export function MenuDrawer() {
         )}
 
         <DrawerGroup
-          label="EXPORT ȘI BACKUP"
+          label={tr('menu.section.exportBackup')}
           collapsible
           defaultOpen={false}
           expandLabel={tr('menu.expandSection', { section: tr('menu.section.exportBackup') })}
@@ -617,7 +616,7 @@ export function MenuDrawer() {
         </DrawerGroup>
 
         <DrawerGroup
-          label="SETĂRI"
+          label={tr('menu.section.settings')}
           collapsible
           defaultOpen={false}
           expandLabel={tr('menu.expandSection', { section: tr('menu.section.settings') })}
@@ -700,7 +699,7 @@ export function MenuDrawer() {
           )}
         </DrawerGroup>
 
-        <DrawerGroup label="AJUTOR" collapsible defaultOpen={false} expandLabel="Deschide Ajutor" collapseLabel="Închide Ajutor">
+        <DrawerGroup label={tr('menu.section.help')} collapsible defaultOpen={false} expandLabel={tr('menu.expandSection', { section: tr('menu.section.help') })} collapseLabel={tr('menu.collapseSection', { section: tr('menu.section.help') })}>
           <button className="drawer-item" onClick={() => go(() => setShortcutsOpen(true))}>
             <span className="drawer-item-icon"><KeyboardIcon /></span>
             <span>{tr('menu.shortcuts')}</span>

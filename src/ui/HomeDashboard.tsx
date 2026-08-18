@@ -147,28 +147,29 @@ export function HomeDashboard() {
           <span><b>{photos.filter(p => p.status === 'selected').length}</b> păstrate</span>
           <span><b>{photos.filter(p => p.status === 'rejected').length}</b> respinse</span>
         </div>
-        <section className="review-desk-card" aria-label="Review Desk">
-          <span className="review-desk-build mono">STUDIO EXPERIENCE · RC5</span>
+        <section className="review-desk-card" aria-label={tr('reviewDesk.label')}>
           <ReviewDeskPreview photo={reviewDeskPhoto} />
           <div className="review-desk-shade" />
           <div className="review-desk-content">
             <div className="review-desk-topline">
-              <span className="mono">REVIEW DESK</span>
+              <span className="mono">{tr('reviewDesk.label')}</span>
               <span className="mono">{decidedCount}/{photos.length} · {donePercent}%</span>
             </div>
             <div className="review-desk-file mono">{reviewDeskPhoto.fileName}</div>
-            <p className="review-desk-kicker mono">{hasReviewQueue ? 'URMĂTOAREA DECIZIE' : 'SELECȚIA ESTE PREGĂTITĂ'}</p>
-            <h2>{hasReviewQueue ? `${unsortedCount} ${unsortedCount === 1 ? 'fotografie de trecut în revistă' : 'poze de trecut în revistă'}` : 'Revede selecția ta'}</h2>
-            <p>{hasReviewQueue ? 'AI-ul a pregătit fotografia următoare pentru alegerea ta.' : 'AI-ul a decis acest lot. Poți deschide orice fotografie și modifica alegerea.'}</p>
+            <p className="review-desk-kicker mono">{tr(hasReviewQueue ? 'reviewDesk.kicker.next' : 'reviewDesk.kicker.ready')}</p>
+            <h2>{hasReviewQueue
+              ? tr(plural(unsortedCount, 'reviewDesk.title.one', 'reviewDesk.title.other'), { count: unsortedCount })
+              : tr('reviewDesk.title.ready')}</h2>
+            <p>{tr(hasReviewQueue ? 'reviewDesk.lead.next' : 'reviewDesk.lead.ready')}</p>
             <div className="review-desk-actions">
               <button className="review-desk-continue" onClick={() => hasReviewQueue ? setTiktokSortOpen(true) : (setHomeGridOpen(true), openDetail(reviewDeskPhoto.id))}>
-                {hasReviewQueue ? 'Continuă' : 'Deschide selecția'} <ChevronRight />
+                {tr(hasReviewQueue ? 'reviewDesk.continue' : 'reviewDesk.open')} <ChevronRight />
               </button>
               {hasReviewQueue && <button className="review-desk-secondary" onClick={() => setTiktokSortOpen(true)}>
-                <ChevronUpIcon /> Sortare rapidă
+                <ChevronUpIcon /> {tr('menu.quickSort')}
               </button>}
               <button className="review-desk-library" onClick={() => { setHomeGridOpen(true); openDetail(reviewDeskPhoto.id); }}>
-                <GridIcon /> Vezi toate fotografiile
+                <GridIcon /> {tr('reviewDesk.library')}
               </button>
             </div>
           </div>

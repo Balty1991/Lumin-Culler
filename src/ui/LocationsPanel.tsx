@@ -3,6 +3,7 @@ import { db } from '../core/db';
 import { useStore } from '../state/store';
 import { findLocations, NO_LOCATION_KEY, type PhotoLocationGroup } from '../state/locations';
 import { hasRealGps } from '../core/gpsCoordinates';
+import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { findNearestPlace, formatPlace, loadPlaceIndex } from '../core/placeNames';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { AdjustedImage } from './AdjustedImage';
@@ -46,10 +47,12 @@ function LocationThumbImage({ photoId }: { photoId: string }) {
   return src ? <AdjustedImage src={src} alt="" loading="lazy" /> : <span className="memory-thumb-loading" aria-hidden="true" />;
 }
 
-function LocationCard({ group, placeName, locale, onOpenPhoto, onMakeFolder }: {
+function LocationCard({ group, placeName, locale, onOpenPhoto, onMakeFolder, onReimportGps }: {
   group: PhotoLocationGroup; placeName?: string; locale: Locale;
   onOpenPhoto: (id: string) => void;
   onMakeFolder: (name: string, photoIds: string[]) => void;
+  /** Doar pe Android nativ: acolo exista un MediaStore din care EXIF-ul se poate reciti. */
+  onReimportGps?: () => void;
 }) {
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const [expanded, setExpanded] = useState(false);
@@ -101,6 +104,10 @@ function LocationCard({ group, placeName, locale, onOpenPhoto, onMakeFolder }: {
       {expanded && (
         <>
           {!group.hasLocation && <p className="hint">{tr('locations.none.hint')}</p>}
+          {/* Grupul fara coordonate: spunem ce NU se poate (GPS-ul lipsa nu se
+              reconstruieste) inainte sa oferim ce se poate. Fara asta, butonul
+              de mai jos parea ca "repara" locatia. */}
+          {!group.hasLocation && <p className="location-nogps-note">{tr('locations.noGps.fallback')}</p>}
           {/* Aici, nu pe randul cardului: randul E deja un buton (expand), iar
               un <button> in alt <button> e HTML invalid — vezi comentariul de
               la LocationThumbImage, acelasi bug prins o data. */}
@@ -109,8 +116,13 @@ function LocationCard({ group, placeName, locale, onOpenPhoto, onMakeFolder }: {
             title={tr('locations.makeFolder.title')}
             onClick={() => onMakeFolder(title, group.photos.map(p => p.id))}
           >
-            <FolderIcon className="inline-icon" aria-hidden="true" /> {tr('locations.makeFolder')}
+            <FolderIcon className="inline-icon" aria-hidden="true" /> {tr(group.hasLocation ? 'locations.makeFolder' : 'locations.makeFolder.byDate')}
           </button>
+          {!group.hasLocation && onReimportGps && (
+            <button className="ghost location-card-folder location-reimport-gps" onClick={onReimportGps}>
+              {tr('locations.reimportGps')}
+            </button>
+          )}
           <div className="location-card-grid">
             {group.photos.map(photo => (
               <button key={photo.id} className="memory-thumb" aria-label={photo.fileName} onClick={() => onOpenPhoto(photo.id)}>
@@ -137,6 +149,7 @@ export function LocationsPanel() {
   const photos = useStore(s => s.photos);
   const openDetail = useStore(s => s.openDetail);
   const createCollectionFromLocation = useStore(s => s.createCollectionFromLocation);
+  const setSupervisorPanelOpen = useStore(s => s.setSupervisorPanelOpen);
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -208,6 +221,9 @@ export function LocationsPanel() {
                   locale={locale}
                   onOpenPhoto={openPhoto}
                   onMakeFolder={makeFolder}
+                  onReimportGps={isNativeMediaLibraryAvailable()
+                    ? () => { setOpen(false); setSupervisorPanelOpen(true); }
+                    : undefined}
                 />
               ))}
             </ul>

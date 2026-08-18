@@ -87,7 +87,10 @@ export function ContactSheet() {
                   </div>
                   <div className="contact-sheet-meta mono">
                     <span className="contact-sheet-frame">#{String(i + 1).padStart(3, '0')}</span>
-                    <span className={`contact-sheet-status st-${p.status}`}>{tr(STATUS_KEY[p.status])}</span>
+                    <span
+                      className={`contact-sheet-status st-${p.status}`}
+                      aria-label={tr('contactSheet.status.ariaLabel', { status: tr(STATUS_KEY[p.status]) })}
+                    >{tr(STATUS_KEY[p.status])}</span>
                     {p.rating > 0 && (
                       <span className="contact-sheet-rating">
                         <StarIcon fill="currentColor" /> {p.rating}
