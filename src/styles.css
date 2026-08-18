@@ -4032,3 +4032,19 @@ html:has(> body .welcome-screen) {
 :root[data-theme="light"] .detail-tabs { background: var(--surface-2); }
 :root[data-theme="light"] .detail-tab.active { color: var(--text); background: var(--surface-3); }
 :root[data-theme="light"] .inspector-edit-cta { color: #073e37; background: linear-gradient(100deg, rgb(var(--accent-rgb) / .15), rgb(var(--accent-2-rgb) / .1)); }
+
+.review-desk-build {
+  position: absolute;
+  z-index: 4;
+  top: 10px;
+  left: 14px;
+  padding: 5px 8px;
+  border: 1px solid rgb(115 236 216 / .34);
+  border-radius: 999px;
+  color: #8df4df;
+  background: rgb(5 12 17 / .68);
+  font-size: .56rem;
+  font-weight: 800;
+  letter-spacing: .1em;
+  backdrop-filter: blur(8px);
+}

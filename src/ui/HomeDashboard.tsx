@@ -105,7 +105,11 @@ export function HomeDashboard() {
   // In inel incap trei-patru caractere. Peste o mie de poze, cifrele absolute
   // n-ar mai fi lizibile, iar procentul de langa el le spune oricum.
   const ringLabel = photos.length <= 999 ? `${decidedCount}/${photos.length}` : `${donePercent}%`;
-  const nextReview = photos.find(p => p.status === 'pending' || p.status === 'review') ?? null;
+  // Review Desk este punctul central al noii experiente, nu doar un mesaj pentru
+  // fotografiile ambigue. Daca AI a decis tot lotul, pastram cardul vizibil cu
+  // prima fotografie din sesiune ca intrare spre revedere si biblioteca completa.
+  const reviewDeskPhoto = photos.find(p => p.status === 'pending' || p.status === 'review') ?? photos[0] ?? null;
+  const hasReviewQueue = unsortedCount > 0;
 
   const openRecap = () => { setPresentationPhotoIds(recapPhotos.map(p => p.id)); setPresentationOpen(true); };
   const doDelete = async () => {
@@ -137,27 +141,28 @@ export function HomeDashboard() {
           ultimul, dupa ce parcurgeai tot ce ai de facut. */}
       <SessionOutcome />
 
-      {nextReview && (
+      {reviewDeskPhoto && (
         <section className="review-desk-card" aria-label="Review Desk">
-          <ReviewDeskPreview photo={nextReview} />
+          <span className="review-desk-build mono">STUDIO EXPERIENCE · RC5</span>
+          <ReviewDeskPreview photo={reviewDeskPhoto} />
           <div className="review-desk-shade" />
           <div className="review-desk-content">
             <div className="review-desk-topline">
               <span className="mono">REVIEW DESK</span>
               <span className="mono">{decidedCount}/{photos.length} · {donePercent}%</span>
             </div>
-            <div className="review-desk-file mono">{nextReview.fileName}</div>
-            <p className="review-desk-kicker mono">URMĂTOAREA DECIZIE</p>
-            <h2>{unsortedCount} {unsortedCount === 1 ? 'fotografie de trecut în revistă' : 'poze de trecut în revistă'}</h2>
-            <p>AI-ul a pregătit fotografia următoare pentru alegerea ta.</p>
+            <div className="review-desk-file mono">{reviewDeskPhoto.fileName}</div>
+            <p className="review-desk-kicker mono">{hasReviewQueue ? 'URMĂTOAREA DECIZIE' : 'SELECȚIA ESTE PREGĂTITĂ'}</p>
+            <h2>{hasReviewQueue ? `${unsortedCount} ${unsortedCount === 1 ? 'fotografie de trecut în revistă' : 'poze de trecut în revistă'}` : 'Revede selecția ta'}</h2>
+            <p>{hasReviewQueue ? 'AI-ul a pregătit fotografia următoare pentru alegerea ta.' : 'AI-ul a decis acest lot. Poți deschide orice fotografie și modifica alegerea.'}</p>
             <div className="review-desk-actions">
-              <button className="review-desk-continue" onClick={() => setTiktokSortOpen(true)}>
-                Continuă <ChevronRight />
+              <button className="review-desk-continue" onClick={() => hasReviewQueue ? setTiktokSortOpen(true) : (setHomeGridOpen(true), openDetail(reviewDeskPhoto.id))}>
+                {hasReviewQueue ? 'Continuă' : 'Deschide selecția'} <ChevronRight />
               </button>
-              <button className="review-desk-secondary" onClick={() => setTiktokSortOpen(true)}>
+              {hasReviewQueue && <button className="review-desk-secondary" onClick={() => setTiktokSortOpen(true)}>
                 <ChevronUpIcon /> Sortare rapidă
-              </button>
-              <button className="review-desk-library" onClick={() => { setHomeGridOpen(true); openDetail(nextReview.id); }}>
+              </button>}
+              <button className="review-desk-library" onClick={() => { setHomeGridOpen(true); openDetail(reviewDeskPhoto.id); }}>
                 <GridIcon /> Vezi toate fotografiile
               </button>
             </div>
