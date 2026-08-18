@@ -213,6 +213,7 @@ function ScoreRing({ score }: { score: number }) {
  */
 export function PhotoInfoTabs({ photo, src }: { photo: PhotoView; src: string | null }) {
   const history = useStore(s => s.history);
+  const openEdit = useStore(s => s.openEdit);
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const [tab, setTab] = useState<Tab>('metrics');
@@ -257,6 +258,8 @@ export function PhotoInfoTabs({ photo, src }: { photo: PhotoView; src: string | 
   );
 
   const exif = formatExif(photo);
+  const verdict = photo.aiScore >= 65 ? 'Păstrează' : photo.aiScore <= 35 ? 'Respinge' : 'Verifică';
+  const verdictFactors = explainFactors(photo.aiFactors, locale).slice(0, 3);
   const exifRows = extendedExifRows(photo, tr);
   const iptcRowsList = iptcRows(photo, tr);
 
@@ -308,6 +311,19 @@ export function PhotoInfoTabs({ photo, src }: { photo: PhotoView; src: string | 
       >
       {tab === 'metrics' && (
         <>
+          <section className={`inspector-verdict ${photo.aiScore >= 65 ? 'positive' : photo.aiScore <= 35 ? 'negative' : 'review'}`}>
+            <div className="inspector-verdict-copy">
+              <span className="mono inspector-verdict-kicker">VERDICT AI</span>
+              <h3>{verdict}</h3>
+              <p>{photo.faceCount > 0 ? `${photo.faceCount} ${photo.faceCount === 1 ? 'subiect detectat' : 'subiecți detectați'} · ` : ''}{Math.round(photo.sharpness)}/100 claritate · {Math.round(photo.exposure)}/100 expunere</p>
+              {verdictFactors.length > 0 && <div className="inspector-verdict-factors">{verdictFactors.map(f => <span key={f.label} className={f.positive ? 'pos' : 'neg'}>{f.positive ? '+' : '−'} {f.label}</span>)}</div>}
+            </div>
+            <ScoreRing score={photo.aiScore} />
+          </section>
+          <button className="inspector-edit-cta" type="button" onClick={() => openEdit(photo.id)}>
+            Deschide Edit Studio <span aria-hidden="true">→</span>
+          </button>
+          <div className="inspector-section-head"><span className="mono">ANALIZĂ CADRU</span><b>{photo.aiScore} / 100</b></div>
           <div className="stat-grid">
             <div className="stat-tile score-tile">
               <ScoreRing score={photo.aiScore} />

@@ -866,33 +866,29 @@ export default function App() {
           progress.phase === 'incarcare' ? (
             <AiBootScreen />
           ) : (
-            <div className="progress" role="status" aria-live="polite">
-              <div className="progress-bar" style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }} />
-              <span className="mono">
+            <section className="analysis-studio-progress" role="status" aria-live="polite">
+              <div className="analysis-studio-head mono">
+                <span>ANALYSIS STUDIO</span>
+                <span>{progress.total ? `${progress.done}/${progress.total}` : '…'}</span>
+              </div>
+              <div className="analysis-studio-orbit" aria-hidden="true"><i /><i /><i /><b /></div>
+              <h2>Pregătim sesiunea</h2>
+              <p className="analysis-studio-message mono">
                 {progress.phase === 'citire'
-                  ? (progress.total
-                    ? tr('app.progress.reading', { done: progress.done, total: progress.total })
-                    : tr('app.progress.readingUnknown', { done: progress.done }))
+                  ? (progress.total ? tr('app.progress.reading', { done: progress.done, total: progress.total }) : tr('app.progress.readingUnknown', { done: progress.done }))
                   : progress.phase === 'analiza'
-                  ? (progress.etaSeconds !== undefined
-                    ? tr('app.progress.analyzingEta', { done: progress.done, total: progress.total, fileName: progress.fileName, eta: formatEta(progress.etaSeconds) })
-                    : tr('app.progress.analyzing', { done: progress.done, total: progress.total, fileName: progress.fileName }))
-                  : progress.phase === 'pregatire'
-                    // Nicio cifra aici, deliberat. 150 e plafonul PRE-SCANARII
-                    // (vezi FACE_PRESCAN_MAX) — cate poze deschidem ca sa decidem
-                    // ORDINEA, nu cate importam. Utilizatorul a citit numarul de
-                    // trei ori ca plafon de import ("de ce doar 150 din 437?") si
-                    // avea dreptate sa-l citeasca asa: e un detaliu intern din
-                    // care n-are ce face. Bara de deasupra arata inaintarea.
-                    ? tr('app.progress.prescan')
-                    : progress.phase === 'grupare' ? tr('app.progress.grouping') : tr('app.progress.done')}
-              </span>
+                    ? (progress.etaSeconds !== undefined ? tr('app.progress.analyzingEta', { done: progress.done, total: progress.total, fileName: progress.fileName, eta: formatEta(progress.etaSeconds) }) : tr('app.progress.analyzing', { done: progress.done, total: progress.total, fileName: progress.fileName }))
+                    : progress.phase === 'pregatire' ? tr('app.progress.prescan')
+                      : progress.phase === 'grupare' ? tr('app.progress.grouping') : tr('app.progress.done')}
+              </p>
+              <div className="analysis-studio-track"><span style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }} /></div>
+              <div className="analysis-studio-stages mono"><span>IMPORT</span><span>ANALIZĂ LOCALĂ</span><span>SERII</span></div>
               {progress.phase === 'analiza' && (
                 <button className="ghost small progress-cancel" onClick={() => cancelImport()} disabled={importCancelling}>
                   {importCancelling ? tr('app.progress.cancelling') : tr('app.progress.cancel')}
                 </button>
               )}
-            </div>
+            </section>
           )
         )}
 

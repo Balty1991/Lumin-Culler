@@ -1,5 +1,7 @@
-import { useMemo, useState, type CSSProperties } from 'react';
-import { useStore } from '../state/store';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useStore, type PhotoView } from '../state/store';
+import { getCachedPreviewUrl } from '../core/previewUrlCache';
+import { AdjustedImage } from './AdjustedImage';
 import { computeImportStreak } from '../state/streak';
 import { countRealLocations } from '../state/locations';
 import { selectMonthlyRecap } from '../state/monthlyRecap';
@@ -11,7 +13,7 @@ import { selectUnresolvedGroups } from '../state/duplicateGroups';
 import { AnimatedNumber } from './AnimatedNumber';
 import { GalleryOverviewNote } from './GalleryOverviewNote';
 import { SessionOutcome } from './SessionOutcome';
-import { SparkleIcon, PinIcon, ChevronUpIcon, ShieldIcon, CopyIcon } from './icons';
+import { SparkleIcon, PinIcon, ChevronUpIcon, ShieldIcon, CopyIcon, ChevronRight, GridIcon } from './icons';
 import { t, plural } from '../i18n';
 
 const RECAP_TEASER_MIN_PHOTOS = 5; // sub atat, un "recap" nu chiar inseamna nimic
@@ -38,6 +40,21 @@ function greetingKey(hour: number): string {
  * - streak/locatii/recap — vezi state/streak.ts, state/locations.ts,
  *   state/monthlyRecap.ts, deja construite.
  */
+function ReviewDeskPreview({ photo }: { photo: PhotoView }) {
+  const [src, setSrc] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void getCachedPreviewUrl(photo.id).then(url => { if (alive) setSrc(url); });
+    return () => { alive = false; };
+  }, [photo.id]);
+
+  return (
+    <div className="review-desk-preview" aria-hidden="true">
+      {src && <AdjustedImage src={src} edits={photo.edits} alt="" />}
+    </div>
+  );
+}
+
 export function HomeDashboard() {
   const photos = useStore(s => s.photos);
   const locale = useStore(s => s.locale);
@@ -45,6 +62,8 @@ export function HomeDashboard() {
   const setPresentationOpen = useStore(s => s.setPresentationOpen);
   const setLocationsOpen = useStore(s => s.setLocationsOpen);
   const setTiktokSortOpen = useStore(s => s.setTiktokSortOpen);
+  const setHomeGridOpen = useStore(s => s.setHomeGridOpen);
+  const openDetail = useStore(s => s.openDetail);
   const setDocumentShieldOpen = useStore(s => s.setDocumentShieldOpen);
   const setDuplicatesPanelOpen = useStore(s => s.setDuplicatesPanelOpen);
   const collections = useStore(s => s.collections);
@@ -86,6 +105,7 @@ export function HomeDashboard() {
   // In inel incap trei-patru caractere. Peste o mie de poze, cifrele absolute
   // n-ar mai fi lizibile, iar procentul de langa el le spune oricum.
   const ringLabel = photos.length <= 999 ? `${decidedCount}/${photos.length}` : `${donePercent}%`;
+  const nextReview = photos.find(p => p.status === 'pending' || p.status === 'review') ?? null;
 
   const openRecap = () => { setPresentationPhotoIds(recapPhotos.map(p => p.id)); setPresentationOpen(true); };
   const doDelete = async () => {
@@ -116,6 +136,34 @@ export function HomeDashboard() {
           toate butoanele — adica rezumatul unei actiuni terminate acum se citea
           ultimul, dupa ce parcurgeai tot ce ai de facut. */}
       <SessionOutcome />
+
+      {nextReview && (
+        <section className="review-desk-card" aria-label="Review Desk">
+          <ReviewDeskPreview photo={nextReview} />
+          <div className="review-desk-shade" />
+          <div className="review-desk-content">
+            <div className="review-desk-topline">
+              <span className="mono">REVIEW DESK</span>
+              <span className="mono">{decidedCount}/{photos.length} · {donePercent}%</span>
+            </div>
+            <div className="review-desk-file mono">{nextReview.fileName}</div>
+            <p className="review-desk-kicker mono">URMĂTOAREA DECIZIE</p>
+            <h2>{unsortedCount} {unsortedCount === 1 ? 'fotografie de trecut în revistă' : 'poze de trecut în revistă'}</h2>
+            <p>AI-ul a pregătit fotografia următoare pentru alegerea ta.</p>
+            <div className="review-desk-actions">
+              <button className="review-desk-continue" onClick={() => setTiktokSortOpen(true)}>
+                Continuă <ChevronRight />
+              </button>
+              <button className="review-desk-secondary" onClick={() => setTiktokSortOpen(true)}>
+                <ChevronUpIcon /> Sortare rapidă
+              </button>
+              <button className="review-desk-library" onClick={() => { setHomeGridOpen(true); openDetail(nextReview.id); }}>
+                <GridIcon /> Vezi toate fotografiile
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
 
       <div className="home-hero-card glass">
         <div className="home-hero-text">
