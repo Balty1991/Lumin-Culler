@@ -866,14 +866,23 @@ export default function App() {
           progress.phase === 'incarcare' ? (
             <AiBootScreen />
           ) : (
-            <section className="analysis-studio-progress" role="status" aria-live="polite">
-              <div className="analysis-studio-head mono">
-                <span>ANALYSIS STUDIO</span>
-                <span>{progress.total ? `${progress.done}/${progress.total}` : '…'}</span>
+            <section className="analysis-studio" role="status" aria-live="polite">
+              <div className="analysis-studio-glow" aria-hidden="true" />
+              <div className="analysis-studio-head">
+                <span className="analysis-studio-kicker">{tr('app.progress.studioKicker')}</span>
+                <span className="analysis-studio-count">{progress.total ? `${progress.done}/${progress.total}` : '…'}</span>
               </div>
-              <div className="analysis-studio-orbit" aria-hidden="true"><i /><i /><i /><b /></div>
-              <h2>Pregătim sesiunea</h2>
-              <p className="analysis-studio-message mono">
+              {/* Lentila: doua inele care se rotesc in sensuri opuse, plus miezul.
+                  Miscarea e ce spune "lucreaza acum" — un desen static citea a
+                  ecran blocat. */}
+              <div className="analysis-studio-lens" aria-hidden="true">
+                <span className="analysis-studio-orbit orbit-one" />
+                <span className="analysis-studio-orbit orbit-two" />
+                <span className="analysis-studio-core" />
+              </div>
+              <div className="analysis-studio-copy">
+              <h2>{tr(progress.phase === 'analiza' ? 'app.progress.studioTitleReading' : 'app.progress.studioTitle')}</h2>
+              <p>
                 {progress.phase === 'citire'
                   ? (progress.total ? tr('app.progress.reading', { done: progress.done, total: progress.total }) : tr('app.progress.readingUnknown', { done: progress.done }))
                   : progress.phase === 'analiza'
@@ -881,10 +890,19 @@ export default function App() {
                     : progress.phase === 'pregatire' ? tr('app.progress.prescan')
                       : progress.phase === 'grupare' ? tr('app.progress.grouping') : tr('app.progress.done')}
               </p>
-              <div className="analysis-studio-track"><span style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }} /></div>
-              <div className="analysis-studio-stages mono"><span>IMPORT</span><span>ANALIZĂ LOCALĂ</span><span>SERII</span></div>
+              </div>
+              <div className="analysis-studio-progress" aria-hidden="true">
+                <span style={{ width: `${progress.total ? Math.max(4, (progress.done / progress.total) * 100) : 18}%` }} />
+              </div>
+              {/* Etapa curenta e marcata, nu doar listata: altfel cele trei
+                  cuvinte erau decor, nu progres. */}
+              <div className="analysis-studio-steps" aria-hidden="true">
+                <span className={progress.phase === 'citire' ? 'active' : ''}>{tr('app.progress.step.import')}</span>
+                <span className={progress.phase === 'analiza' ? 'active' : ''}>{tr('app.progress.step.analyze')}</span>
+                <span className={progress.phase === 'grupare' ? 'active' : ''}>{tr('app.progress.step.series')}</span>
+              </div>
               {progress.phase === 'analiza' && (
-                <button className="ghost small progress-cancel" onClick={() => cancelImport()} disabled={importCancelling}>
+                <button className="analysis-studio-cancel" onClick={() => cancelImport()} disabled={importCancelling}>
                   {importCancelling ? tr('app.progress.cancelling') : tr('app.progress.cancel')}
                 </button>
               )}
@@ -1053,7 +1071,7 @@ export default function App() {
 
 
       {photos.length === 0 && !progress ? (
-        <div className="empty concept-empty">
+        <div className="empty">
           <div className="empty-badge" aria-hidden="true">
             <ApertureIcon />
           </div>
@@ -1063,12 +1081,21 @@ export default function App() {
           {/* Cele trei carduri de valoare. Eticheta scurta (Privat/Rapid/Control)
               se scrie cu majuscule din CSS, nu in traducere — asa ramane corecta
               si in limbile unde majusculele se fac altfel. */}
-          <div className="concept-empty-proof" aria-label={tr('app.empty.proof.ariaLabel')}>
-            <div><span>{tr('app.empty.proof.private.kicker')}</span><b>{tr('app.empty.proof.private.text')}</b></div>
-            <div><span>{tr('app.empty.proof.fast.kicker')}</span><b>{tr('app.empty.proof.fast.text')}</b></div>
-            <div><span>{tr('app.empty.proof.control.kicker')}</span><b>{tr('app.empty.proof.control.text')}</b></div>
-          </div>
-          <p className="concept-empty-note">{tr('app.empty.proof.note')}</p>
+          <section className="lc-home-proof" aria-label={tr('app.empty.proof.ariaLabel')}>
+            <div className="lc-home-proof-item">
+              <span className="lc-home-proof-kicker">{tr('app.empty.proof.private.kicker')}</span>
+              <strong>{tr('app.empty.proof.private.text')}</strong>
+            </div>
+            <div className="lc-home-proof-item">
+              <span className="lc-home-proof-kicker">{tr('app.empty.proof.fast.kicker')}</span>
+              <strong>{tr('app.empty.proof.fast.text')}</strong>
+            </div>
+            <div className="lc-home-proof-item">
+              <span className="lc-home-proof-kicker">{tr('app.empty.proof.control.kicker')}</span>
+              <strong>{tr('app.empty.proof.control.text')}</strong>
+            </div>
+          </section>
+          <p className="lc-home-proof-note">{tr('app.empty.proof.note')}</p>
           {/* Doua cai de intrare, una langa alta (cerinta directa): alegi tu
               fisierele, sau lasi supervizorul sa aduca galeria telefonului pe
               perioade. A doua exista doar pe Android nativ, unde chiar avem un
@@ -1082,8 +1109,11 @@ export default function App() {
               </button>
             )}
           </div>
-          <p className="concept-empty-safety"><CheckIcon aria-hidden="true" /> {tr('app.empty.safety')}</p>
           <PhotosAccessNotice />
+          <div className="empty-control-note">
+            <CheckIcon aria-hidden="true" />
+            <span>{tr('app.empty.safety')}</span>
+          </div>
 
           {/* Aici erau inca 3 blocuri de text sub butoane (formatele acceptate,
               sfatul cu inrolarea unei persoane, si "cate poze ai pe telefon").

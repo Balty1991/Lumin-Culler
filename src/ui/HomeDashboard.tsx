@@ -13,7 +13,7 @@ import { selectUnresolvedGroups } from '../state/duplicateGroups';
 import { AnimatedNumber } from './AnimatedNumber';
 import { GalleryOverviewNote } from './GalleryOverviewNote';
 import { SessionOutcome } from './SessionOutcome';
-import { SparkleIcon, PinIcon, ChevronUpIcon, ShieldIcon, CopyIcon, ChevronRight, GridIcon } from './icons';
+import { SparkleIcon, PinIcon, ChevronUpIcon, ShieldIcon, CopyIcon, TrashIcon } from './icons';
 import { t, plural } from '../i18n';
 
 const RECAP_TEASER_MIN_PHOTOS = 5; // sub atat, un "recap" nu chiar inseamna nimic
@@ -49,8 +49,8 @@ function ReviewDeskPreview({ photo }: { photo: PhotoView }) {
   }, [photo.id]);
 
   return (
-    <div className="review-desk-preview" aria-hidden="true">
-      {src && <AdjustedImage src={src} edits={photo.edits} alt="" />}
+    <div className="review-desk-media" aria-hidden="true">
+      {src ? <AdjustedImage src={src} edits={photo.edits} alt="" /> : <span className="review-desk-media-fallback" />}
     </div>
   );
 }
@@ -63,12 +63,13 @@ export function HomeDashboard() {
   const setLocationsOpen = useStore(s => s.setLocationsOpen);
   const setTiktokSortOpen = useStore(s => s.setTiktokSortOpen);
   const setHomeGridOpen = useStore(s => s.setHomeGridOpen);
-  const openDetail = useStore(s => s.openDetail);
   const setDocumentShieldOpen = useStore(s => s.setDocumentShieldOpen);
   const setDuplicatesPanelOpen = useStore(s => s.setDuplicatesPanelOpen);
   const collections = useStore(s => s.collections);
   const deleteRejectedPhotos = useStore(s => s.deleteRejectedPhotos);
   const askConfirm = useStore(s => s.askConfirm);
+  const clearAll = useStore(s => s.clearAll);
+  const setSupervisorPanelOpen = useStore(s => s.setSupervisorPanelOpen);
   /** Cardul de rezumat e pe ecran — sub-randul din salut ar spune acelasi lucru. */
   const hasOutcome = useStore(s => s.sessionOutcome !== null);
   const [deleting, setDeleting] = useState(false);
@@ -111,6 +112,15 @@ export function HomeDashboard() {
   const reviewDeskPhoto = photos.find(p => p.status === 'pending' || p.status === 'review') ?? photos[0] ?? null;
   const hasReviewQueue = unsortedCount > 0;
 
+  const selectedCount = photos.filter(p => p.status === 'selected').length;
+  const rejectedCount = photos.filter(p => p.status === 'rejected').length;
+
+  /** Aceeasi plasa de siguranta ca in App.tsx: golirea sesiunii e ireversibila. */
+  const confirmClearSession = async () => {
+    const ok = await askConfirm(tr('app.clearSession.confirm', { count: photos.length }), { danger: true });
+    if (ok) await clearAll();
+  };
+
   const openRecap = () => { setPresentationPhotoIds(recapPhotos.map(p => p.id)); setPresentationOpen(true); };
   const doDelete = async () => {
     const ok = await askConfirm(tr('batch.deleteRejected.confirm', { count: deletableRejected.length }), { confirmLabel: tr('home.delete.cta'), danger: true });
@@ -141,40 +151,79 @@ export function HomeDashboard() {
           ultimul, dupa ce parcurgeai tot ce ai de facut. */}
       <SessionOutcome />
 
+      {/* Review Desk — structura vine din build-ul de referinta (release
+          apk-referinta). Ce era aici inainte purta aceleasi nume de clase, dar
+          era alt aranjament: un singur card, fara randul de sesiune cu actiune
+          pe respinse, fara subsolul cu numele fisierului si fara lista de
+          biblioteca de dedesubt. CSS-ul corespunzator e in styles.concept.css. */}
       {reviewDeskPhoto && (
-        <>
-        <div className="review-desk-session" aria-label="Rezumat sesiune">
-          <span><b>{photos.filter(p => p.status === 'selected').length}</b> păstrate</span>
-          <span><b>{photos.filter(p => p.status === 'rejected').length}</b> respinse</span>
+        <div className="review-desk">
+          <header className="review-desk-head">
+            <div className="review-desk-head-line">
+              <div>
+                <span className="review-desk-eyebrow">{tr('reviewDesk.label')}</span>
+                <span className="review-desk-session">{decidedCount}/{photos.length} · {donePercent}%</span>
+              </div>
+              <button className="review-desk-reset" onClick={() => void confirmClearSession()}>{tr('app.clearSession')}</button>
+            </div>
+            <div className="review-desk-session-rail" aria-label={tr('reviewDesk.sessionSummary')}>
+              <span className="review-desk-session-stat is-selected">
+                <b>{selectedCount}</b> {tr('reviewDesk.kept')}
+              </span>
+              {deletableRejected.length > 0 ? (
+                <button className="review-desk-rejected-action" onClick={() => void doDelete()} disabled={deleting}>
+                  <TrashIcon aria-hidden="true" />
+                  <span>{tr('reviewDesk.deleteRejected', { count: deletableRejected.length })}</span>
+                </button>
+              ) : (
+                <span className="review-desk-session-stat">
+                  <b>{rejectedCount}</b> {tr('reviewDesk.rejected')}
+                </span>
+              )}
+            </div>
+          </header>
+
+          <section className="review-desk-stage" aria-label={tr('reviewDesk.label')}>
+            <ReviewDeskPreview photo={reviewDeskPhoto} />
+            <div className="review-desk-overlay" />
+            <div className="review-desk-content">
+              <span className="review-desk-kicker">{tr(hasReviewQueue ? 'reviewDesk.kicker.next' : 'reviewDesk.kicker.ready')}</span>
+              <h2>{hasReviewQueue
+                ? tr(plural(unsortedCount, 'home.sortCta.sub.one', 'home.sortCta.sub.other'), { count: unsortedCount })
+                : tr('reviewDesk.title.ready')}</h2>
+              <p>{tr(hasReviewQueue ? 'reviewDesk.lead.next' : 'reviewDesk.lead.ready')}</p>
+              <div className="review-desk-actions">
+                <button className="review-desk-continue" onClick={() => hasReviewQueue ? setTiktokSortOpen(true) : setHomeGridOpen(true)}>
+                  <span>{tr(hasReviewQueue ? 'reviewDesk.continue' : 'reviewDesk.open')}</span>
+                  <span aria-hidden="true">→</span>
+                </button>
+                {hasReviewQueue && (
+                  <button className="review-desk-secondary" onClick={() => setHomeGridOpen(true)} aria-label={tr('reviewDesk.library')}>
+                    {tr('reviewDesk.library')}
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="review-desk-stage-footer">
+              <span>{tr('reviewDesk.label')}</span>
+              <span>{reviewDeskPhoto.fileName}</span>
+            </div>
+          </section>
+
+          <section className="review-desk-library" aria-label={tr('reviewDesk.libraryLabel')}>
+            <button onClick={() => setHomeGridOpen(true)}>
+              <span className="review-desk-library-label">{tr('reviewDesk.libraryLabel')}</span>
+              <b>{tr('reviewDesk.library')}</b>
+              <span className="review-desk-library-count">{photos.length}</span>
+            </button>
+            {!hasReviewQueue && isNativeMediaLibraryAvailable() && (
+              <button className="review-desk-period-link" onClick={() => setSupervisorPanelOpen(true)}>
+                <span>{tr('reviewDesk.nextPeriod')}</span>
+                <span aria-hidden="true">→</span>
+              </button>
+            )}
+          </section>
         </div>
-        <section className="review-desk-card" aria-label={tr('reviewDesk.label')}>
-          <ReviewDeskPreview photo={reviewDeskPhoto} />
-          <div className="review-desk-shade" />
-          <div className="review-desk-content">
-            <div className="review-desk-topline">
-              <span className="mono">{tr('reviewDesk.label')}</span>
-              <span className="mono">{decidedCount}/{photos.length} · {donePercent}%</span>
-            </div>
-            <div className="review-desk-file mono">{reviewDeskPhoto.fileName}</div>
-            <p className="review-desk-kicker mono">{tr(hasReviewQueue ? 'reviewDesk.kicker.next' : 'reviewDesk.kicker.ready')}</p>
-            <h2>{hasReviewQueue
-              ? tr(plural(unsortedCount, 'reviewDesk.title.one', 'reviewDesk.title.other'), { count: unsortedCount })
-              : tr('reviewDesk.title.ready')}</h2>
-            <p>{tr(hasReviewQueue ? 'reviewDesk.lead.next' : 'reviewDesk.lead.ready')}</p>
-            <div className="review-desk-actions">
-              <button className="review-desk-continue" onClick={() => hasReviewQueue ? setTiktokSortOpen(true) : (setHomeGridOpen(true), openDetail(reviewDeskPhoto.id))}>
-                {tr(hasReviewQueue ? 'reviewDesk.continue' : 'reviewDesk.open')} <ChevronRight />
-              </button>
-              {hasReviewQueue && <button className="review-desk-secondary" onClick={() => setTiktokSortOpen(true)}>
-                <ChevronUpIcon /> {tr('menu.quickSort')}
-              </button>}
-              <button className="review-desk-library" onClick={() => { setHomeGridOpen(true); openDetail(reviewDeskPhoto.id); }}>
-                <GridIcon /> {tr('reviewDesk.library')}
-              </button>
-            </div>
-          </div>
-        </section>
-        </>
       )}
 
       <div className="home-hero-card glass">

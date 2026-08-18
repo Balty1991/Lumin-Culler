@@ -4,6 +4,9 @@ import { registerSW } from 'virtual:pwa-register';
 import App from './App';
 import { ErrorBoundary } from './ui/ErrorBoundary';
 import './styles.css';
+// Stratul vizual de concept, dupa foaia de baza — aceeasi ordine ca in
+// build-ul de referinta, unde era o a doua foaie incarcata peste prima.
+import './styles.concept.css';
 
 // registerType: 'autoUpdate' (vite.config.ts) inseamna ca update-urile se aplica
 // singure, fara sa intrebe utilizatorul — dar DOAR daca chiar inregistram service
