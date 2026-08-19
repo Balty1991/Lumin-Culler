@@ -59,28 +59,6 @@ android {
         }
     }
     buildTypes {
-        debug {
-            // APK-ul de test se construieste DOAR pentru arm64-v8a.
-            //
-            // De ce: dependintele de analiza (ML Kit face-detection /
-            // image-labeling / text-recognition si MediaPipe tasks-vision) vin
-            // fiecare cu biblioteci native compilate pentru toate cele patru
-            // arhitecturi Android (armeabi-v7a, arm64-v8a, x86, x86_64). Un
-            // telefon foloseste EXACT una. Restul erau descarcate degeaba la
-            // fiecare test — motivul real pentru care fisierul ajunsese la
-            // ~152 MB si se descarca in zeci de minute pe o legatura mobila.
-            //
-            // arm64-v8a acopera practic orice telefon Android de dupa 2017;
-            // x86/x86_64 raman doar pentru emulatoarele de pe PC, care nu sunt
-            // felul in care se testeaza aplicatia asta.
-            //
-            // NU se aplica si la release: acolo se construieste un .aab, iar
-            // Play livreaza automat fiecare telefon doar cu arhitectura lui —
-            // deci pachetul din magazin era deja mic, si ramane neatins.
-            ndk {
-                abiFilters 'arm64-v8a'
-            }
-        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
