@@ -58,11 +58,12 @@ export default defineConfig({
         // offline (dupa golirea cache-ului HTTP normal) cadea pe un font de sistem,
         // contrazicand exact afirmatia "functioneaza offline" de mai sus.
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest,json,bin,wasm,woff2}'],
-        // Bug real gasit de auditul QA: fara asta, public/store/ (poze de marketing
-        // pentru fisa Play Store — icon-512.png duplicat + feature-graphic.png,
-        // ~348KB) era maturat automat de globPatterns si ajungea in precache-ul
-        // PWA-ului, desi nu e folosit NICIUNDE in interfata reala a aplicatiei —
-        // bytes descarcati degeaba la fiecare instalare noua.
+        // Materialele pentru fisa Play Store stau acum in `store/` la radacina
+        // repo-ului, nu in `public/` — vezi docs/PLAY_STORE_CHECKLIST.md. Cat
+        // timp erau in public/, Vite le copia in dist/, de unde Capacitor le
+        // ducea in APK/AAB: 3,3 MiB de capturi si feature graphic in fiecare
+        // instalare, pentru ceva ce nu se vede niciodata in aplicatie.
+        // Excluderea de mai jos ramane ca plasa de siguranta daca reapar acolo.
         globIgnores: ['store/**'],
         // Fara astea, un service worker nou instalat ramane "waiting" pana se
         // inchid TOATE tab-urile/instantele deschise ale aplicatiei — pe un PWA

@@ -3783,3 +3783,16 @@ input[type="search"] { min-height: 44px; }
    3px la 0,68rem — cuvintele nu se pot rupe intre ele fara cratima, deci
    ruperea se face pe semnul "/" si eticheta ramane intreaga. */
 .stats-tile span { overflow-wrap: anywhere; line-height: 1.25; }
+
+/* Nota de sub o metrica slaba (vezi StatTile din PhotoInfoTabs). Dala creste
+   doar cand nota exista, deci grila de metrici ramane compacta pe cazul
+   obisnuit, in care nimic nu are nevoie de aparare. */
+.stat-tile .stat-note {
+  margin-top: 6px;
+  color: var(--text-dim);
+  font-size: .66rem;
+  line-height: 1.35;
+  text-align: center;
+  text-wrap: pretty;
+}
+.detail-scroll .stat-tile:has(.stat-note) { min-height: 0; padding-bottom: 12px; }

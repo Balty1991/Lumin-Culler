@@ -20,11 +20,20 @@ const TAB_KEYS: { key: Tab; labelKey: string }[] = [
   { key: 'history', labelKey: 'detail.tab.history' }
 ];
 
-function StatTile({ label, value, warn }: { label: string; value: ReactNode; warn?: boolean }) {
+/**
+ * O dala de metrica. `note` apare DOAR cand valoarea e slaba, si spune intr-o
+ * propozitie ce inseamna — altfel un "Simetrie ✕" sau un "Cadraj 0%" langa un
+ * verdict de 92/100 se citeste ca o contradictie, sau ca "poza e stricata".
+ * Metricile astea sunt observatii despre compozitie, nu defecte: o poza poate
+ * fi excelenta fara simetrie si fara linii directoare. Nota le spune pe fata,
+ * ca utilizatorul sa nu deduca singur ceva mai grav decat e cazul.
+ */
+function StatTile({ label, value, warn, note }: { label: string; value: ReactNode; warn?: boolean; note?: string }) {
   return (
     <div className={warn ? 'stat-tile warn' : 'stat-tile'}>
       <span className="stat-value">{value}</span>
       <span className="stat-label">{label}</span>
+      {note && <span className="stat-note">{note}</span>}
     </div>
   );
 }
@@ -325,8 +334,15 @@ export function PhotoInfoTabs({ photo, src }: { photo: PhotoView; src: string | 
           </button>
           <div className="inspector-section-head"><span className="mono">{tr('inspector.frameAnalysis')}</span><b>{photo.aiScore} / 100</b></div>
           <div className="stat-grid">
-            <StatTile label={tr('detail.stat.sharpness')} value={photo.sharpness} />
-            <StatTile label={tr('detail.stat.exposure')} value={photo.exposure} />
+            <StatTile
+              label={tr('detail.stat.sharpness')} value={photo.sharpness}
+              note={photo.sharpness < 40 ? tr('detail.stat.note.sharpness') : undefined}
+            />
+            <StatTile
+              label={tr('detail.stat.exposure')} value={photo.exposure}
+              note={photo.exposure < 35 ? tr('detail.stat.note.underexposed')
+                : photo.exposure > 70 ? tr('detail.stat.note.overexposed') : undefined}
+            />
             {photo.faceCount > 0 && <StatTile label={tr('detail.stat.faces')} value={photo.faceCount} />}
             {photo.faceCount > 0 && (
               // grup (mai multe fete): procent care zambesc, nu doar cea mai buna fata —
@@ -349,19 +365,38 @@ export function PhotoInfoTabs({ photo, src }: { photo: PhotoView; src: string | 
                 warn={photo.faceCount > 1 ? (photo.groupEyesOpenRatio ?? 1) < 1 : !photo.allEyesOpen}
               />
             )}
-            {photo.faceCount > 0 && <StatTile label={tr('detail.stat.thirds')} value={`${Math.round(photo.ruleOfThirds * 100)}%`} />}
-            {photo.faceCount > 0 && <StatTile label={tr('detail.stat.headroom')} value={`${Math.round(photo.headroom * 100)}%`} />}
+            {photo.faceCount > 0 && (
+              <StatTile
+                label={tr('detail.stat.thirds')} value={`${Math.round(photo.ruleOfThirds * 100)}%`}
+                note={photo.ruleOfThirds < 0.35 ? tr('detail.stat.note.thirds') : undefined}
+              />
+            )}
+            {photo.faceCount > 0 && (
+              <StatTile
+                label={tr('detail.stat.headroom')} value={`${Math.round(photo.headroom * 100)}%`}
+                note={photo.headroom < 0.35 ? tr('detail.stat.note.headroom') : undefined}
+              />
+            )}
             {/* Fara subiect uman, treimile/headroom-ul de mai sus n-au sens (calculate pe cutia fetei
                 principale) — aratam in loc liniile directoare/simetria/spatiul negativ (plan 2.2.3),
                 deja factorizate in scorul AI dar niciodata afisate separat pana acum. */}
             {photo.faceCount === 0 && photo.symmetryDetected !== undefined && (
-              <StatTile label={tr('detail.stat.symmetry')} value={photo.symmetryDetected ? <CheckIcon /> : <XIcon />} />
+              <StatTile
+                label={tr('detail.stat.symmetry')} value={photo.symmetryDetected ? <CheckIcon /> : <XIcon />}
+                note={photo.symmetryDetected ? undefined : tr('detail.stat.note.symmetry')}
+              />
             )}
             {photo.faceCount === 0 && photo.leadingLinesDetected !== undefined && (
-              <StatTile label={tr('detail.stat.leadingLines')} value={photo.leadingLinesDetected ? <CheckIcon /> : <XIcon />} />
+              <StatTile
+                label={tr('detail.stat.leadingLines')} value={photo.leadingLinesDetected ? <CheckIcon /> : <XIcon />}
+                note={photo.leadingLinesDetected ? undefined : tr('detail.stat.note.leadingLines')}
+              />
             )}
             {photo.faceCount === 0 && photo.negativeSpaceScore !== undefined && (
-              <StatTile label={tr('detail.stat.negativeSpace')} value={`${Math.round(photo.negativeSpaceScore * 100)}%`} />
+              <StatTile
+                label={tr('detail.stat.negativeSpace')} value={`${Math.round(photo.negativeSpaceScore * 100)}%`}
+                note={photo.negativeSpaceScore < 0.35 ? tr('detail.stat.note.negativeSpace') : undefined}
+              />
             )}
           </div>
           {(photo.dominantColors?.length || photo.goldenHourDetected) && (
