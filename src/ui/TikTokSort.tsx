@@ -7,7 +7,7 @@ import { explainFactors } from '../core/learning/ContextEngine';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { CollectionPicker } from './CollectionPicker';
 import { AdjustedImage } from './AdjustedImage';
-import { XIcon, HeartIcon, UndoIcon, ChevronUpIcon, SparkleIcon } from './icons';
+import { XIcon, HeartIcon, UndoIcon, ChevronUpIcon, SparkleIcon, LayersIcon } from './icons';
 import { t, type Locale } from '../i18n';
 
 const SWIPE_COMMIT = 80; // px de tras (sus SAU jos) pentru a schimba pozitia in coada, fara sa decida nimic
@@ -73,6 +73,7 @@ export function TikTokSort() {
   const open = useStore(s => s.tiktokSortOpen);
   const setOpen = useStore(s => s.setTiktokSortOpen);
   const openDetail = useStore(s => s.openDetail);
+  const openCompare = useStore(s => s.openCompare);
   const scopeIds = useStore(s => s.tiktokSortScopeIds);
   const photos = useStore(s => s.photos);
   const collections = useStore(s => s.collections);
@@ -107,6 +108,7 @@ export function TikTokSort() {
 
   const [src, setSrc] = useState<string | null>(null);
   const [dragY, setDragY] = useState(0);
+  const stageWrapRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
   const dragYRef = useRef(0);
   const startYRef = useRef(0);
@@ -157,10 +159,50 @@ export function TikTokSort() {
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    const onKey = (e: KeyboardEvent) => {
+      // Escape inchide fereastra de DEASUPRA, nu ecranul de dedesubt. Cand e
+      // deschisa compararea seriei sau foaia de metrici, apasarea inchidea si
+      // panoul, si coada de triaj — adica exact ce reclamase utilizatorul:
+      // "o deschide, dar imi inchide sortarea rapida". Panourile isi au propriul
+      // Escape; aici doar ne dam la o parte cat timp e ceva peste noi.
+      if (e.key !== 'Escape') return;
+      const st = useStore.getState();
+      if (st.compareGroupId || st.detailId || st.editingPhotoId) return;
+      setOpen(false);
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, setOpen]);
+
+  // Trecerea la alta poza trebuie sa se VADA. Raportat direct la testare:
+  // "uneori nici nu iti dai seama ca a trecut la alta imagine" — la doua poze
+  // din aceeasi serie, facute la o secunda distanta, ecranul arata practic
+  // identic inainte si dupa swipe, iar singurul indiciu era un contor mic.
+  //
+  // Cadrul nou intra din directia in care ai tras: inainte = de jos, inapoi =
+  // de sus. Animatia se face din JS, nu dintr-o clasa CSS, ca sa se poata
+  // REPETA la fiecare schimbare fara sa remontam imaginea (o remontare ar da un
+  // cadru gol cat se incarca noul blob).
+  const prevIndexRef = useRef(index);
+  useEffect(() => {
+    const prev = prevIndexRef.current;
+    prevIndexRef.current = index;
+    if (prev === index) return;
+    const el = stageWrapRef.current;
+    if (!el) return;
+    // Cine a cerut mai putina miscare o primeste: fara animatie, dar cu acelasi
+    // rezultat functional.
+    if (typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const fromBelow = index > prev;
+    el.animate?.(
+      [
+        { transform: `translateY(${fromBelow ? 6 : -6}%)`, opacity: 0.35 },
+        { transform: 'translateY(0)', opacity: 1 }
+      ],
+      { duration: 260, easing: 'cubic-bezier(.22,.61,.36,1)' }
+    );
+  }, [index]);
+
 
   if (!open) return null;
 
@@ -333,6 +375,7 @@ export function TikTokSort() {
 
           <div
             className="tiktok-stage-wrap"
+            ref={stageWrapRef}
             style={{ transform: `translateY(${dragY}px)`, transition: draggingRef.current ? 'none' : 'transform 0.25s var(--ease)' }}
             onPointerDown={onStageDown}
             onPointerMove={onStageMove}
@@ -366,10 +409,20 @@ export function TikTokSort() {
                   {tr(`tiktok.ai.${recommendation}`)} · {current.aiScore}
                 </span>
               )}
-              {seriesCount > 1 && (
-                <span className="tiktok-ai-chip">
+              {/* Cerinta directa a utilizatorului: eticheta spunea "parte dintr-o
+                  serie de 3" si nu facea nimic — ca sa scapi de dubluri trebuia
+                  sa iesi din sortare, sa cauti seria, si sa reiei coada de la
+                  capat. Acum deschide compararea seriei PESTE sortare; la
+                  inchiderea ei, coada continua exact de unde a ramas. */}
+              {seriesCount > 1 && current.groupId && (
+                <button
+                  type="button"
+                  className="tiktok-ai-chip tiktok-series-chip"
+                  onClick={() => openCompare(current.groupId!)}
+                >
+                  <LayersIcon className="inline-icon" aria-hidden="true" />
                   {tr('tiktok.caption.series', { count: seriesCount })}
-                </span>
+                </button>
               )}
             </div>
             {reasonsText && <span className="tiktok-caption-sub">{reasonsText}</span>}

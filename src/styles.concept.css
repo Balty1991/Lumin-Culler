@@ -4119,3 +4119,72 @@ input[type="search"] { min-height: 44px; }
       bordura si fundalul lui, dar textul trece pe o nuanta care se citeste. */
 :root[data-theme="light"] .edit-auto-btn { color: #0f766e; border-color: #0f766e59; }
 :root[data-theme="light"] .edit-auto-btn:not(:disabled):hover { border-color: #0f766e; }
+
+/* ── Sortarea rapida: contorul si inchiderea, peste o poza ──
+   Raportat direct de utilizator, cu zona incercuita: "1/77" e alb la 70% pus
+   direct pe fotografie. Peste un cadru intunecat se citea; peste unul deschis
+   (perete alb, zapada, asternut roz) devine invizibil. Nu e o problema de
+   nuanta, ci de PRINCIPIU: un text asezat peste o imagine oarecare nu poate sa
+   se bazeze pe fundal, pentru ca fundalul e imprevizibil — trebuie sa-si aduca
+   propriul suport.
+
+   De asta a scapat auditului: verificarea de contrast sare peste elementele
+   asezate peste imagini (nu poate sti ce culoare are poza dedesubt). Corect e
+   sa nu le sara, ci sa ceara suport propriu — vezi si sonda din harness. */
+.tiktok-progress-count {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgb(10 11 14 / .72);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgb(255 255 255 / .12);
+  color: #fff;
+  font-size: .68rem;
+  line-height: 1.2;
+}
+
+/* Butonul de inchidere avea acelasi neajuns, mai putin grav: fundal la 62%
+   peste o poza deschisa il facea sa "abia se distinga" (tot raportul
+   utilizatorului). Il facem sa nu mai depinda de ce e in spate. */
+.tiktok-close {
+  background: rgb(10 11 14 / .82);
+  border-color: rgb(255 255 255 / .22);
+}
+
+/* ── Sortarea rapida: seria se deschide pe loc ──
+   Eticheta "parte dintr-o serie de 3" era doar text. Acum e buton si trebuie sa
+   arate ca atare — altfel ramane la fel de mut ca inainte, doar ca reactioneaza
+   la apasare pentru cine nimereste. */
+.tiktok-series-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  cursor: pointer;
+  border: 1px solid rgb(255 255 255 / .28);
+  background: rgb(10 11 14 / .78);
+  color: #fff;
+}
+.tiktok-series-chip:hover { border-color: rgb(255 255 255 / .5); }
+
+/* Panourile modale trebuie sa se deschida PESTE sortarea rapida, nu sub ea.
+   Toate trei (.tiktok-sort, .detail, .detail-fullscreen) stateau pe acelasi
+   nivel (20), iar sortarea e montata ultima in App.tsx — deci acoperea si foaia
+   de metrici, si compararea seriei. Singura cale ramasa era ca sortarea sa se
+   INCHIDA cand deschizi altceva, exact ce a raportat utilizatorul: seria se
+   deschide, dar coada de triaj e pierduta si trebuie reluata de la capat.
+   Sortarea coboara un nivel: e ecranul de LUCRU, peste care se deschid
+   ferestre, si la inchiderea lor coada continua de unde a ramas. */
+.tiktok-sort { z-index: 19; }
+
+/* ── Simbolul aplicatiei in antet ──
+   Sub 520px numele scris e ascuns (randul de actiuni n-avea loc), si ramanea
+   doar patratul de 31px — care nu e buton si nu face nimic, deci arata ca o
+   actiune stricata langa cinci actiuni adevarate. Raportat exact asa:
+   "a ramas prea retras acolo, nesemnificativ".
+   Pe telefon, in timpul lucrului, randul de sus e pentru unelte. Identitatea
+   aplicatiei e deja data de iconita de pe ecranul principal si de pornire —
+   n-are ce cauta a treia oara aici, ocupand spatiu. Peste 520px revine intreg,
+   cu nume cu tot. */
+@media (max-width: 520px) {
+  .topbar .brand { display: none; }
+}

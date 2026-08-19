@@ -137,7 +137,20 @@ export function HomeDashboard() {
    * metricile la indemana, fara sa treci prin grila.
    */
   const openQuickSortAll = () => {
-    const ids = photos
+    // Bug real gasit la testare pe telefon: cardul anunta "29 poze de trecut in
+    // revista" (unsortedCount), iar butonul de sub el deschidea TOATA
+    // biblioteca — 77 de poze, adica si cele 48 pe care AI-ul le decisese deja.
+    // Utilizatorul era pus sa treaca prin poze despre care nimeni nu-l
+    // intrebase nimic, ca sa ajunga la cele 29 promise.
+    //
+    // Coada urmeaza acum promisiunea de deasupra ei: exact pozele nedecise.
+    // Cand nu mai e nimic de decis, butonul isi schimba oricum eticheta in
+    // "Deschide" si atunci a trece prin toata biblioteca e chiar ce trebuie —
+    // e o revedere, nu o coada.
+    const queue = hasReviewQueue
+      ? photos.filter(p => p.status === 'pending' || p.status === 'review')
+      : photos;
+    const ids = queue
       .slice()
       .sort((a, b) => (a.capturedAt ?? 0) - (b.capturedAt ?? 0))
       .map(p => p.id);
