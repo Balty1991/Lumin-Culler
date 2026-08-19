@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { readStageStats, resetStageStats } from '../core/stageTiming';
+import { summariseFeedback, resetFeedback } from '../core/aiFeedback';
 import { db } from '../core/db';
 import { computeLibraryStats, computeAgreementStats, computeAgreementTrend, type AgreementStats, type AgreementTrendPoint, type LibraryStats } from '../core/stats';
 import { FREE_PHOTOS_PER_MONTH } from '../core/entitlement';
@@ -149,6 +150,8 @@ export function StatsPanel() {
   const [stageStats, setStageStats] = useState(() => readStageStats());
   useEffect(() => { if (open) setStageStats(readStageStats()); }, [open]);
   const stageTotal = Math.max(1, stageStats.reduce((sum, st) => sum + st.totalMs, 0));
+  const [feedback, setFeedback] = useState(() => summariseFeedback());
+  useEffect(() => { if (open) setFeedback(summariseFeedback()); }, [open]);
   const photosUsedThisWindow = useStore(s => s.photosUsedThisWindow);
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
@@ -236,6 +239,31 @@ export function StatsPanel() {
             </div>
             <button type="button" className="ghost small danger" onClick={() => { resetStageStats(); setStageStats([]); }}>
               {tr('stats.stages.reset')}
+            </button>
+          </div>
+        )}
+
+        {/* Ce a raportat utilizatorul din Inspector prin "AI a greșit?".
+            Scorul mediu per motiv raspunde la intrebarea utila: se plange de
+            pozele judecate cu incredere sau de cele de la limita? */}
+        {feedback.length > 0 && (
+          <div className="batch-section">
+            <h3>{tr('stats.feedback.title')}</h3>
+            <p className="hint">{tr('stats.feedback.hint')}</p>
+            <div className="feedback-summary">
+              {feedback.map(f => (
+                <div key={f.reason} className="feedback-summary-row">
+                  <span>{tr(`aiFeedback.reason.${f.reason}`)}</span>
+                  <span className="mono">
+                    {f.avgScore === null
+                      ? tr('stats.feedback.rowNoScore', { count: f.count })
+                      : tr('stats.feedback.row', { count: f.count, score: f.avgScore })}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <button type="button" className="ghost small danger" onClick={() => { resetFeedback(); setFeedback([]); }}>
+              {tr('stats.feedback.reset')}
             </button>
           </div>
         )}

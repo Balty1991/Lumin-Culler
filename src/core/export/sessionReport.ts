@@ -7,6 +7,7 @@
  */
 import type { LibraryStats } from '../stats';
 import type { StageStat } from '../stageTiming';
+import type { FeedbackSummary } from '../aiFeedback';
 
 export interface SessionReportInput {
   stats: LibraryStats;
@@ -22,6 +23,8 @@ export interface SessionReportInput {
    * telefonul LUI, fara sa trimita vreo poza si fara telemetrie pe server.
    */
   stageStats?: StageStat[];
+  /** Ce a raportat utilizatorul prin "AI a greșit?" — motive si numaratori, fara nimic despre poze. */
+  feedback?: FeedbackSummary[];
 }
 
 /** ex: 45m, 2h 15m, 3z 4h — zile/ore/minute, nu doar secunde (o sesiune reala poate dura zile). */
@@ -39,7 +42,7 @@ function pct(n: number, total: number): number {
   return total > 0 ? Math.round((n / total) * 100) : 0;
 }
 
-export function buildSessionReportText({ stats, projectName, earliestImportedAt, generatedAt, stageStats }: SessionReportInput): string {
+export function buildSessionReportText({ stats, projectName, earliestImportedAt, generatedAt, stageStats, feedback }: SessionReportInput): string {
   const lines: string[] = [];
   lines.push('Raport de sesiune — Lumin Culler');
   lines.push(`Proiect: ${projectName || '(fara nume)'}`);
@@ -69,6 +72,13 @@ export function buildSessionReportText({ stats, projectName, earliestImportedAt,
         ` · mediana ${Math.round(st.p50Ms)}ms` +
         ` · p90 ${Math.round(st.p90Ms)}ms`
       );
+    }
+  }
+  if (feedback?.length) {
+    lines.push('');
+    lines.push('Raportari "AI a gresit?" (numai motive si scoruri)');
+    for (const f of feedback) {
+      lines.push(`  ${f.reason}: ${f.count}x` + (f.avgScore === null ? '' : ` · scor mediu ${f.avgScore}`));
     }
   }
   return lines.join('\n') + '\n';

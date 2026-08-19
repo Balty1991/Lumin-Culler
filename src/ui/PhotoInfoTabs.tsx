@@ -8,6 +8,7 @@ import { FocusMap } from './FocusMap';
 import { AnimatedNumber } from './AnimatedNumber';
 import { XIcon, CheckIcon, EyeClosedIcon, SparkleIcon, ClockIcon, SunIcon } from './icons';
 import { t, type Locale } from '../i18n';
+import { FEEDBACK_REASONS, recordFeedback, type FeedbackReason } from '../core/aiFeedback';
 import { translateSceneTag } from '../core/sceneTagLabels';
 import { hasRealGps } from '../core/gpsCoordinates';
 import { usePlaceName } from './usePlaceName';
@@ -28,6 +29,48 @@ const TAB_KEYS: { key: Tab; labelKey: string }[] = [
  * fi excelenta fara simetrie si fara linii directoare. Nota le spune pe fata,
  * ca utilizatorul sa nu deduca singur ceva mai grav decat e cazul.
  */
+/**
+ * "AI a greșit?" — inchis dupa o singura apasare, cu multumire scurta si fara
+ * dialog. Orice pas in plus (confirmare, camp de text, "trimite") transforma un
+ * gest de o secunda intr-o sarcina, si atunci nimeni nu-l mai face.
+ */
+function AiFeedbackButton({ score, locale }: { score: number; locale: Locale }) {
+  const [open, setOpen] = useState(false);
+  const [sent, setSent] = useState<FeedbackReason | null>(null);
+  const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
+
+  if (sent) {
+    return <p className="ai-feedback-thanks" role="status">{tr('aiFeedback.thanks')}</p>;
+  }
+  if (!open) {
+    return (
+      <button type="button" className="ai-feedback-trigger" onClick={() => setOpen(true)}>
+        {tr('aiFeedback.trigger')}
+      </button>
+    );
+  }
+  return (
+    <div className="ai-feedback-panel" role="group" aria-label={tr('aiFeedback.trigger')}>
+      <p className="ai-feedback-question">{tr('aiFeedback.question')}</p>
+      <div className="ai-feedback-reasons">
+        {FEEDBACK_REASONS.map(reason => (
+          <button
+            key={reason}
+            type="button"
+            className="ghost small"
+            onClick={() => { recordFeedback(reason, score); setSent(reason); }}
+          >
+            {tr(`aiFeedback.reason.${reason}`)}
+          </button>
+        ))}
+      </div>
+      <button type="button" className="ghost small ai-feedback-cancel" onClick={() => setOpen(false)}>
+        {tr('aiFeedback.cancel')}
+      </button>
+    </div>
+  );
+}
+
 function StatTile({ label, value, warn, note }: { label: string; value: ReactNode; warn?: boolean; note?: string }) {
   return (
     <div className={warn ? 'stat-tile warn' : 'stat-tile'}>
@@ -332,6 +375,9 @@ export function PhotoInfoTabs({ photo, src }: { photo: PhotoView; src: string | 
           <button className="inspector-edit-cta" type="button" onClick={() => openEdit(photo.id)}>
             {tr('inspector.editStudio')} <span aria-hidden="true">→</span>
           </button>
+          {/* Discret, sub verdict: exact locul unde utilizatorul nu e de acord.
+              Motive fixe, nu text liber — vezi core/aiFeedback.ts pentru de ce. */}
+          <AiFeedbackButton score={photo.aiScore} locale={locale} />
           <div className="inspector-section-head"><span className="mono">{tr('inspector.frameAnalysis')}</span><b>{photo.aiScore} / 100</b></div>
           <div className="stat-grid">
             <StatTile
