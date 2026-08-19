@@ -9,6 +9,8 @@ import { XIcon, LayersIcon, SparkleIcon, GridIcon } from './icons';
 import { AdjustedImage } from './AdjustedImage';
 import { t } from '../i18n';
 import { explainGroupChoice } from '../core/groupVerdict';
+import { buildFaceStrip, type StripRow } from '../core/faceStrip';
+import { FaceCompareStrip } from './FaceCompareStrip';
 
 const ZOOM_LEVELS = [1, 1.5, 2, 3] as const;
 /** Peste aceasta miscare (px), un pointerdown pe imagine e tratat ca "a tras", nu ca un tap simplu — suprima deschiderea la 100%. */
@@ -43,6 +45,7 @@ export function GroupCompare() {
   // vezi MenuDrawer: starea premium trebuie citita din store ca sa fie reactiva
   const premiumLocked = useStore(s => s.premiumLocked);
   const [recommendedId, setRecommendedId] = useState<string | null>(null);
+  const [faceRows, setFaceRows] = useState<StripRow[]>([]);
   const [composite, setComposite] = useState<CompositeHint | null>(null);
   const [sortBySharpness, setSortBySharpness] = useState(false);
   const [topN, setTopN] = useState(3);
@@ -143,6 +146,18 @@ export function GroupCompare() {
     const memberIds = memberIdsKey ? memberIdsKey.split(',') : [];
     void Promise.all(memberIds.map(id => db.analyses.get(id))).then(analyses => {
       if (!alive) return;
+      // Fasia de fete se construieste din ACELEASI analize deja citite mai sus:
+      // niciun acces suplimentar la baza de date, niciun calcul nou pe imagini.
+      setFaceRows(buildFaceStrip(
+        analyses.flatMap((a, i) => (a ? [{
+          photoId: memberIds[i],
+          label: String(i + 1),
+          faces: a.faces.map(f => ({
+            box: f.box, isBlinking: f.isBlinking, smile: f.smile,
+            personId: f.personId, personName: f.personName, embedding: f.embedding
+          }))
+        }] : []))
+      ));
       setComposite(suggestComposite(
         analyses.flatMap((a, i) => (a ? [{
           id: memberIds[i],
@@ -289,6 +304,12 @@ export function GroupCompare() {
             </p>
           );
         })()}
+        <FaceCompareStrip
+          rows={faceRows}
+          locale={locale}
+          selectedId={recommendedId}
+          onPick={id => { openCompare(null); openDetail(id); }}
+        />
         <p className="hint">{tr('compare.hint')}</p>
       </div>
     </div>

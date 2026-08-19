@@ -349,6 +349,12 @@ interface AppState {
   setSearchPanelOpen: (open: boolean) => void;
   /** Grupurile serie/duplicat existente (groupId), prezentate ca o lista de revizuit, nu una cate una din grila. */
   duplicatesPanelOpen: boolean;
+  /** Coada de salvare: cadre respinse/nedecise care se pot repara — vezi core/rescueQueue.ts. */
+  rescueQueueOpen: boolean;
+  setRescueQueueOpen: (open: boolean) => void;
+  /** Ce nu pare amintire: capturi de ecran si documente — vezi core/smartInbox.ts. */
+  smartInboxOpen: boolean;
+  setSmartInboxOpen: (open: boolean) => void;
   setDuplicatesPanelOpen: (open: boolean) => void;
   /** "Protectie documente" — coada de poze care par documente/capturi (vezi core/documentShield.ts), de revizuit una cate una. */
   documentShieldOpen: boolean;
@@ -1374,6 +1380,10 @@ export const useStore = create<AppState>((set, get) => ({
   setSearchPanelOpen: open => set({ searchPanelOpen: open }),
   duplicatesPanelOpen: false,
   setDuplicatesPanelOpen: open => set({ duplicatesPanelOpen: open }),
+  rescueQueueOpen: false,
+  setRescueQueueOpen: open => set({ rescueQueueOpen: open }),
+  smartInboxOpen: false,
+  setSmartInboxOpen: open => set({ smartInboxOpen: open }),
   documentShieldOpen: false,
   setDocumentShieldOpen: open => set({ documentShieldOpen: open }),
   vaultOpen: false,
@@ -3753,6 +3763,7 @@ export function isAnyOverlayOpen(): boolean {
     s.paletteOpen || s.shortcutsOpen || s.menuOpen || s.personsOpen || s.insightsOpen ||
     s.batchOpsOpen || s.statsOpen || s.projectsOpen || s.contactSheetOpen || s.presentationOpen ||
     s.appearanceOpen || s.collectionsOpen || s.documentShieldOpen || s.duplicatesPanelOpen ||
+    s.rescueQueueOpen || s.smartInboxOpen ||
     s.exportDestinationsOpen || s.premiumOpen || s.searchPanelOpen || s.supervisorPanelOpen ||
     s.tiktokSortOpen || s.locationsOpen || s.vaultOpen || s.zenPanelOpen ||
     s.compareGroupId || s.editingPhotoId || s.dialogRequest

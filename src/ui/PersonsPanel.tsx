@@ -4,42 +4,9 @@ import { db } from '../core/db';
 import { computePersonRecognitionStats, type PersonRecognitionStats } from '../core/stats';
 import { findUnrecognizedFaceClusters, type FaceCluster } from '../core/faceClustering';
 import { useModalFocusTrap } from './useModalFocusTrap';
+import { FaceCropThumb } from './FaceCropThumb';
 import { UserCheckIcon, TrashIcon, XIcon, DownloadIcon, UploadIcon, LayersIcon, SparkleIcon } from './icons';
 import { t, plural } from '../i18n';
-
-/** Decupaj patrat in jurul cutiei fetei detectate (box normalizat 0..1), din miniatura deja generata — fara nicio re-decodare. */
-function FaceCropThumb({ photoId, box }: { photoId: string; box: [number, number, number, number] }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    let cancelled = false;
-    let url: string | null = null;
-
-    void db.thumbnails.get(photoId).then(rec => {
-      if (!rec || cancelled) return;
-      const img = new Image();
-      img.onload = () => {
-        if (cancelled) return;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-        const [bx, by, bw, bh] = box;
-        const pad = 0.2; // marja in jurul cutiei, ca fata sa nu fie taiata prea strans
-        const x = Math.max(0, (bx - bw * pad) * img.width);
-        const y = Math.max(0, (by - bh * pad) * img.height);
-        const w = Math.min(img.width - x, bw * (1 + pad * 2) * img.width);
-        const h = Math.min(img.height - y, bh * (1 + pad * 2) * img.height);
-        ctx.drawImage(img, x, y, Math.max(1, w), Math.max(1, h), 0, 0, 56, 56);
-      };
-      url = URL.createObjectURL(rec.blob);
-      img.src = url;
-    });
-    return () => { cancelled = true; if (url) URL.revokeObjectURL(url); };
-  }, [photoId, box]);
-
-  return <canvas ref={canvasRef} className="face-crop-thumb" width={56} height={56} aria-hidden="true" />;
-}
 
 /** Inrolare persoane cunoscute (ex. Ami, sotia): nume + 1-4 poze de referinta. */
 export function PersonsPanel() {

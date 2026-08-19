@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useStore, type PhotoView } from '../state/store';
+import { pickResumeTarget } from '../state/resumeProject';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
 import { AdjustedImage } from './AdjustedImage';
 import { computeImportStreak } from '../state/streak';
@@ -75,6 +76,13 @@ export function HomeDashboard() {
   const hasOutcome = useStore(s => s.sessionOutcome !== null);
   const [deleting, setDeleting] = useState(false);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
+  const setProjectFilter = useStore(s => s.setProjectFilter);
+  const setFilter = useStore(s => s.setFilter);
+  // Peste pozele deja in memorie, fara nicio citire: doar proiect + stare.
+  const resumeTarget = useMemo(
+    () => pickResumeTarget(photos.map(p => ({ project: p.project, status: p.status }))),
+    [photos]
+  );
 
   const now = new Date();
   const streak = useMemo(() => computeImportStreak(photos, now), [photos]); // eslint-disable-line react-hooks/exhaustive-deps -- `now` doar ancoreaza calculul, nu trebuie sa retrigger-uiasca la fiecare randare
@@ -165,6 +173,29 @@ export function HomeDashboard() {
           toate butoanele — adica rezumatul unei actiuni terminate acum se citea
           ultimul, dupa ce parcurgeai tot ce ai de facut. */}
       <SessionOutcome />
+
+      {/* Reluarea unui proiect intrerupt. Costul care lasa sesiunile
+          neterminate nu e efortul, ci REINTRAREA: la revenire, aplicatia arata
+          ce arata oricui, si trebuie sa-ti amintesti singur unde ramasesesi.
+          Vezi state/resumeProject.ts pentru cand merita propus si cand nu. */}
+      {resumeTarget && (
+        <div className="resume-card">
+          <div className="resume-copy">
+            <span className="resume-kicker mono">{tr('resume.title')}</span>
+            <p>{tr('resume.body', {
+              project: resumeTarget.project,
+              remaining: resumeTarget.remaining,
+              percent: resumeTarget.percent
+            })}</p>
+          </div>
+          <button
+            className="btn-accent resume-cta"
+            onClick={() => { setProjectFilter(resumeTarget.project); setFilter('review'); }}
+          >
+            {tr('resume.cta')}
+          </button>
+        </div>
+      )}
 
       {/* Review Desk — structura vine din build-ul de referinta (release
           apk-referinta). Ce era aici inainte purta aceleasi nume de clase, dar

@@ -29,6 +29,8 @@ import { detectPoseNative, isNativePoseDetectionAvailable } from '../core/native
 import { segmentSubjectNative, isNativeSegmentationAvailable } from '../core/nativeSegmentation';
 import { embedImageNative, isNativeImageEmbedderAvailable } from '../core/nativeImageEmbedder';
 import { t } from '../i18n';
+import { countRescuable } from '../core/rescueQueue';
+import { countNonPersonal } from '../core/smartInbox';
 
 /**
  * Controleaza DOAR vizibilitatea butonului de test nativ — NU e acelasi lucru
@@ -164,6 +166,19 @@ export function MenuDrawer() {
   const setDocumentShieldOpen = useStore(s => s.setDocumentShieldOpen);
   const setVaultOpen = useStore(s => s.setVaultOpen);
   const setDuplicatesPanelOpen = useStore(s => s.setDuplicatesPanelOpen);
+  const setRescueQueueOpen = useStore(s => s.setRescueQueueOpen);
+  const setSmartInboxOpen = useStore(s => s.setSmartInboxOpen);
+  // Contoarele se calculeaza din pozele deja in memorie, fara nicio citire din
+  // baza de date: `countRescuable` foloseste doar campurile din PhotoView, iar
+  // semnalele fine (highlights/umbre/orizont) se citesc abia la deschiderea
+  // panoului. Meniul nu are voie sa coste cat un panou.
+  const rescuableCount = useStore(s => countRescuable(s.photos.map(p => ({
+    id: p.id, status: p.status, aiScore: p.aiScore, sharpness: p.sharpness,
+    exposure: p.exposure, faceCount: p.faceCount, ruleOfThirds: p.ruleOfThirds
+  }))));
+  const nonPersonalCount = useStore(s => countNonPersonal(s.photos.map(p => ({
+    id: p.id, fileName: p.fileName, faceCount: p.faceCount, textCoverage: p.textCoverage
+  }))));
   const openDecisionInversions = useStore(s => s.openDecisionInversions);
   const inversionCount = useStore(s => countDecisionInversions(
     s.photos.map(p => ({ id: p.id, groupId: p.groupId, status: p.status, aiScore: p.aiScore }))
@@ -487,6 +502,18 @@ export function MenuDrawer() {
                 <b className="drawer-count mono">{inversionCount}</b>
               </button>
             )}
+
+            <button className="drawer-item" onClick={() => go(() => setRescueQueueOpen(true))}>
+              <span className="drawer-item-icon"><SparkleIcon /></span>
+              <span>{tr('menu.rescueQueue')}</span>
+              {rescuableCount > 0 && <b className="drawer-count mono">{rescuableCount}</b>}
+            </button>
+
+            <button className="drawer-item" onClick={() => go(() => setSmartInboxOpen(true))}>
+              <span className="drawer-item-icon"><CopyIcon /></span>
+              <span>{tr('menu.smartInbox')}</span>
+              {nonPersonalCount > 0 && <b className="drawer-count mono">{nonPersonalCount}</b>}
+            </button>
 
             <button className="drawer-item" onClick={() => go(() => setDuplicatesPanelOpen(true))}>
               <span className="drawer-item-icon"><CopyIcon /></span>
