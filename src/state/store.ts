@@ -49,6 +49,7 @@ import {
 import { readStoredTheme, applyTheme, type Theme } from './theme';
 import { readStoredAccent, applyAccent, type AccentTheme } from './accentTheme';
 import { readWelcomeSeen, writeWelcomeSeen } from './welcomeOnboarding';
+import { readExcludedFolderIds, writeExcludedFolderIds } from './galleryFolders';
 import { keepScreenAwake } from '../core/wakeLock';
 import { createActiveElapsed, type ActiveElapsed } from '../core/activeElapsed';
 import { recordImportDay } from './streak';
@@ -511,6 +512,14 @@ interface AppState {
   loadGalleryFolders: () => Promise<void>;
   /** Foldere deja aduse macar o data — persistat, ca "Toate folderele" sa nu le mai propuna implicit (idee proprie: evita re-aducerea acelorasi poze la fiecare tap). */
   supervisorImportedFolderIds: Set<string>;
+  /**
+   * Foldere pe care utilizatorul le-a scos DEFINITIV din triaj (Screenshots,
+   * WhatsApp Images si ce mai alege el). Diferit de `supervisorImportedFolderIds`,
+   * care inseamna doar "deja adus o data": excluderea inseamna "nu mi le
+   * propune niciodata". Persistate, si reversibile din acelasi ecran.
+   */
+  excludedFolderIds: Set<string>;
+  toggleFolderExcluded: (bucketId: string) => void;
   /** Aduce DIRECT toate pozele dintr-un folder (fara selector manual). */
   importGalleryFolder: (bucketId: string) => Promise<void>;
   /** Aduce toate folderele NEACOPERITE deodata ("si la foldere, la fel" — cerinta directa; extindere proprie: sare peste cele deja aduse). */
@@ -1801,6 +1810,13 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
   supervisorImportedFolderIds: readImportedFolderIds(),
+  excludedFolderIds: readExcludedFolderIds(),
+  toggleFolderExcluded: bucketId => {
+    const next = new Set(get().excludedFolderIds);
+    if (next.has(bucketId)) next.delete(bucketId); else next.add(bucketId);
+    writeExcludedFolderIds(next);
+    set({ excludedFolderIds: next });
+  },
   importGalleryFolder: async bucketId => {
     if (get().supervisorImporting) return;
     set({ supervisorImporting: true });
@@ -1842,7 +1858,12 @@ export const useStore = create<AppState>((set, get) => ({
     // nu re-aduca aceleasi poze de fiecare data — un folder deja acoperit
     // ramane totusi accesibil individual din lista, cu confirmare (vezi
     // GallerySupervisorPanel.tsx).
-    const folders = (get().galleryFolders?.folders ?? []).filter(f => !coveredFolders.has(f.id));
+    // ...si peste cele excluse definitiv de utilizator. Fara asta, "Toate
+    // folderele" aducea si Screenshots, si WhatsApp Images — adica exact
+    // traficul pentru care nimeni nu vrea sa ia decizii cadru cu cadru.
+    const excluded = get().excludedFolderIds;
+    const folders = (get().galleryFolders?.folders ?? [])
+      .filter(f => !coveredFolders.has(f.id) && !excluded.has(f.id));
     if (!folders.length) return;
     set({ supervisorImporting: true });
     const locale = get().locale;
@@ -3227,7 +3248,7 @@ export const useStore = create<AppState>((set, get) => ({
       detailId: null, compareGroupId: null, editingPhotoId: null, history: [],
       batchHistory: [], fieldBatchHistory: [],
       multiSelectIds: new Set(), multiSelectAnchor: null, selectMode: false,
-      supervisorCoveredUntil: null, supervisorImportedFolderIds: new Set(), lastSupervisorImportIds: null,
+      supervisorCoveredUntil: null, supervisorImportedFolderIds: new Set(), excludedFolderIds: new Set(), lastSupervisorImportIds: null,
       // Bug real raportat de utilizator (captura): cardul "Gata. Iata ce am
       // facut. Am decis singur 16 din 21 poze" ramanea pe ecranul GOL, dupa
       // ce sesiunea fusese stearsa — un raport despre poze care nu mai exista.
@@ -3257,7 +3278,7 @@ export const useStore = create<AppState>((set, get) => ({
       detailId: null, compareGroupId: null, editingPhotoId: null, history: [],
       batchHistory: [], fieldBatchHistory: [],
       multiSelectIds: new Set(), multiSelectAnchor: null, selectMode: false,
-      supervisorCoveredUntil: null, supervisorImportedFolderIds: new Set(), lastSupervisorImportIds: null,
+      supervisorCoveredUntil: null, supervisorImportedFolderIds: new Set(), excludedFolderIds: new Set(), lastSupervisorImportIds: null,
       // Bug real raportat de utilizator (captura): cardul "Gata. Iata ce am
       // facut. Am decis singur 16 din 21 poze" ramanea pe ecranul GOL, dupa
       // ce sesiunea fusese stearsa — un raport despre poze care nu mai exista.

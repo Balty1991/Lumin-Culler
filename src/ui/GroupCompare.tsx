@@ -8,6 +8,7 @@ import { useModalFocusTrap } from './useModalFocusTrap';
 import { XIcon, LayersIcon, SparkleIcon, GridIcon } from './icons';
 import { AdjustedImage } from './AdjustedImage';
 import { t } from '../i18n';
+import { explainGroupChoice } from '../core/groupVerdict';
 
 const ZOOM_LEVELS = [1, 1.5, 2, 3] as const;
 /** Peste aceasta miscare (px), un pointerdown pe imagine e tratat ca "a tras", nu ca un tap simplu — suprima deschiderea la 100%. */
@@ -271,6 +272,23 @@ export function GroupCompare() {
               ))}
             </div>
           )}
+        {/* Acelasi verdict comparativ ca in panoul de Duplicate: aici se apasa
+            "pastreaza cele mai bune N", deci motivul trebuie sa fie pe ecran
+            inainte de apasare, nu dedus din doua numere. */}
+        {(() => {
+          if (!recommendedId) return null;
+          const verdict = explainGroupChoice(members, recommendedId);
+          if (!verdict) return null;
+          const reasons = verdict.reasons.map(r => t(locale, r.key, r.params)).join(' · ');
+          return (
+            <p className={verdict.confidence === 'low' ? 'group-verdict low' : 'group-verdict'}>
+              <span className="group-verdict-label mono">
+                {verdict.confidence === 'low' ? tr('groupVerdict.lowConfidence') : tr('groupVerdict.label')}
+              </span>
+              {tr('compare.card.frame', { n: frameLabel(recommendedId) })} — {reasons}
+            </p>
+          );
+        })()}
         <p className="hint">{tr('compare.hint')}</p>
       </div>
     </div>

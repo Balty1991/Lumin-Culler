@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../state/store';
+import { sortFolders, suggestExcluded, includedPhotoCount } from '../state/galleryFolders';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { isPeriodAlreadyCovered, PERIOD_MONTH_OPTIONS, ALL_PERIOD_MONTHS, type GalleryPeriod, type PeriodMonths } from '../state/gallerySupervisor';
@@ -67,6 +68,20 @@ export function GallerySupervisorPanel() {
   const importGalleryFolder = useStore(s => s.importGalleryFolder);
   const importAllGalleryFolders = useStore(s => s.importAllGalleryFolders);
   const supervisorImportedFolderIds = useStore(s => s.supervisorImportedFolderIds);
+  const excludedFolderIds = useStore(s => s.excludedFolderIds);
+  const toggleFolderExcluded = useStore(s => s.toggleFolderExcluded);
+  const allFolders = useMemo(() => galleryFolders?.folders ?? [], [galleryFolders]);
+  /**
+   * Cat timp utilizatorul nu a atins inca niciun folder, propunem excluse cele
+   * care arata a trafic (Screenshots, WhatsApp…) — vizibil bifat, nu tacut, ca
+   * sa poata desface inainte sa aduca ceva. La prima apasare pe "exclude"/
+   * "include", propunerea dispare si conteaza doar alegerea lui.
+   */
+  const shownExcluded = useMemo(
+    () => (excludedFolderIds.size ? excludedFolderIds : suggestExcluded(allFolders)),
+    [excludedFolderIds, allFolders]
+  );
+  const orderedFolders = useMemo(() => sortFolders(allFolders, shownExcluded), [allFolders, shownExcluded]);
   const skipGalleryPeriod = useStore(s => s.skipGalleryPeriod);
   const lastSupervisorImportIds = useStore(s => s.lastSupervisorImportIds);
   const openTiktokSortForIds = useStore(s => s.openTiktokSortForIds);
@@ -123,6 +138,7 @@ export function GallerySupervisorPanel() {
   };
 
   const uncoveredFolders = (galleryFolders?.folders ?? []).filter(f => !supervisorImportedFolderIds.has(f.id));
+  const importableFolders = uncoveredFolders.filter(f => !shownExcluded.has(f.id));
 
   const bringAllFolders = async () => {
     if (supervisorImporting || !uncoveredFolders.length) return;
@@ -280,28 +296,50 @@ export function GallerySupervisorPanel() {
             ) : (
               <div className="supervisor-section">
                 <div className="supervisor-period-list">
-                  {galleryFolders?.folders.map(folder => {
+                  {orderedFolders.map(folder => {
                     const covered = supervisorImportedFolderIds.has(folder.id);
+                    const excluded = shownExcluded.has(folder.id);
                     return (
-                      <button
-                        key={folder.id}
-                        type="button"
-                        className="supervisor-period-row"
-                        disabled={supervisorImporting}
-                        onClick={() => void bringFolder(folder)}
-                      >
-                        <span><FolderIcon className="inline-icon" aria-hidden="true" /> {folder.name}</span>
-                        {covered && (
-                          <span className="supervisor-period-covered">
-                            <CheckIcon className="inline-icon" aria-hidden="true" /> {tr('gallerySupervisor.covered')}
-                          </span>
-                        )}
-                        <span className="mono supervisor-folder-count">{tr(plural(folder.count, 'gallerySupervisor.folderCount.one', 'gallerySupervisor.folderCount.other'), { count: folder.count })}</span>
-                      </button>
+                      // Randul nu mai e el insusi un buton: contine doua actiuni
+                      // distincte (adu / exclude mereu), iar un buton nu poate
+                      // cuprinde alt buton.
+                      <div key={folder.id} className={excluded ? 'supervisor-folder-row excluded' : 'supervisor-folder-row'}>
+                        <button
+                          type="button"
+                          className="supervisor-period-row supervisor-folder-main"
+                          disabled={supervisorImporting || excluded}
+                          onClick={() => void bringFolder(folder)}
+                        >
+                          <span><FolderIcon className="inline-icon" aria-hidden="true" /> {folder.name}</span>
+                          {covered && !excluded && (
+                            <span className="supervisor-period-covered">
+                              <CheckIcon className="inline-icon" aria-hidden="true" /> {tr('gallerySupervisor.covered')}
+                            </span>
+                          )}
+                          <span className="mono supervisor-folder-count">{tr(plural(folder.count, 'gallerySupervisor.folderCount.one', 'gallerySupervisor.folderCount.other'), { count: folder.count })}</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost small supervisor-folder-exclude"
+                          aria-pressed={excluded}
+                          onClick={() => toggleFolderExcluded(folder.id)}
+                        >
+                          {excluded ? tr('gallerySupervisor.folder.include') : tr('gallerySupervisor.folder.exclude')}
+                        </button>
+                      </div>
                     );
                   })}
                 </div>
-                <button type="button" className="ghost supervisor-remaining-cta" disabled={supervisorImporting || !uncoveredFolders.length} onClick={() => void bringAllFolders()}>
+                {/* Raportul cerut de utilizatori in categoria asta: cat se
+                    analizeaza si cat s-a lasat deoparte, INAINTE de apasare. */}
+                <p className="hint supervisor-folder-report">
+                  {tr('gallerySupervisor.folder.report', {
+                    photos: includedPhotoCount(orderedFolders, shownExcluded),
+                    folders: orderedFolders.length - shownExcluded.size,
+                    excluded: shownExcluded.size
+                  })}
+                </p>
+                <button type="button" className="ghost supervisor-remaining-cta" disabled={supervisorImporting || !importableFolders.length} onClick={() => void bringAllFolders()}>
                   {tr('gallerySupervisor.allFolders.cta')}
                 </button>
               </div>

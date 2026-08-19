@@ -3,9 +3,10 @@ import { db } from '../core/db';
 import { useStore } from '../state/store';
 import { selectUnresolvedGroups } from '../state/duplicateGroups';
 import { useModalFocusTrap } from './useModalFocusTrap';
+import { explainGroupChoice, type GroupMember } from '../core/groupVerdict';
 import { AdjustedImage } from './AdjustedImage';
 import { CopyIcon, XIcon, RibbonIcon } from './icons';
-import { t, plural } from '../i18n';
+import { t, plural, type Locale } from '../i18n';
 
 function DupThumb({ photoId }: { photoId: string }) {
   const [src, setSrc] = useState<string | null>(null);
@@ -29,6 +30,26 @@ function DupThumb({ photoId }: { photoId: string }) {
  * grilei) — vezi GroupCompare.tsx pentru comparatia detaliata la care
  * "Compara" de mai jos duce.
  */
+/**
+ * Motivul din spatele cadrului recomandat, intr-o singura propozitie. Cand
+ * semnalele masurate nu despart cu adevarat cadrele, spune exact asta in loc sa
+ * imbrace o alegere de moneda in limbaj sigur pe sine — vezi core/groupVerdict.ts.
+ */
+function GroupVerdictLine({ members, keptId, locale }: { members: GroupMember[]; keptId: string | null | undefined; locale: Locale }) {
+  if (!keptId) return null;
+  const verdict = explainGroupChoice(members, keptId);
+  if (!verdict) return null;
+  const text = verdict.reasons.map(r => t(locale, r.key, r.params)).join(' · ');
+  return (
+    <p className={verdict.confidence === 'low' ? 'group-verdict low' : 'group-verdict'}>
+      <span className="group-verdict-label mono">
+        {verdict.confidence === 'low' ? t(locale, 'groupVerdict.lowConfidence') : t(locale, 'groupVerdict.label')}
+      </span>
+      {text}
+    </p>
+  );
+}
+
 export function DuplicatesPanel() {
   const open = useStore(s => s.duplicatesPanelOpen);
   const setOpen = useStore(s => s.setDuplicatesPanelOpen);
@@ -99,6 +120,11 @@ export function DuplicatesPanel() {
                     </div>
                     <div className="duplicates-group-info">
                       <span className="mono">{tr(plural(members.length, 'duplicates.members.one', 'duplicates.members.other'), { count: members.length })}</span>
+                      {/* De ce cadrul cu panglica, si nu celalalt. "Păstrează cea mai
+                          buna" respinge restul grupului — pana acum utilizatorul trebuia
+                          sa dea acel ordin fara sa afle pe ce s-a bazat alegerea. Vezi
+                          core/groupVerdict.ts, inclusiv cazul cinstit "alegere stransa". */}
+                      <GroupVerdictLine members={members} keptId={keepId} locale={locale} />
                       <div className="duplicates-group-actions">
                         <button className="ghost small" onClick={() => { setOpen(false); openCompare(groupId); }}>{tr('duplicates.compare')}</button>
                         {/* Bug real gasit de auditul UI: butonul era dezactivat doar pentru

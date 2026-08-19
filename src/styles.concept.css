@@ -3796,3 +3796,50 @@ input[type="search"] { min-height: 44px; }
   text-wrap: pretty;
 }
 .detail-scroll .stat-tile:has(.stat-note) { min-height: 0; padding-bottom: 12px; }
+
+/* ── De ce acest cadru: verdictul comparativ dintr-un grup ──
+   Aplicatia explica de ce o poza are scorul ei, dar decizia care chiar sterge
+   poze e alta: care cadru din serie ramane. Linia asta o motiveaza, in panoul
+   de Duplicate si in compararea de serii. Varianta `low` e cazul cinstit in
+   care semnalele masurate nu despart cadrele — atunci arata altfel, ca sa nu
+   fie citita ca o certitudine. */
+.group-verdict {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  margin: 8px 0 0;
+  color: var(--text-dim);
+  font-size: .78rem;
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+.group-verdict-label {
+  flex: none;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgb(var(--pick-rgb) / .15);
+  color: var(--pick-text);
+  font-size: .6rem;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.group-verdict.low .group-verdict-label {
+  background: rgb(var(--review-rgb) / .18);
+  color: var(--review-text);
+}
+
+/* ── Foldere din galerie: exclude mereu ──
+   Randul are acum doua actiuni ("adu de aici" si "nu analiza niciodata"), deci
+   nu mai poate fi el insusi un buton. Folderul exclus ramane vizibil si
+   reversibil — nimic nu dispare din lista, doar nu mai e propus. */
+.supervisor-folder-row { display: flex; align-items: stretch; gap: 8px; }
+.supervisor-folder-main { flex: 1; min-width: 0; }
+.supervisor-folder-exclude { flex: none; white-space: nowrap; }
+.supervisor-folder-row.excluded .supervisor-folder-main { opacity: .5; }
+.supervisor-folder-row.excluded .supervisor-folder-exclude {
+  border-color: rgb(var(--pick-rgb) / .45);
+  color: var(--pick-text);
+}
+.supervisor-folder-report { margin-top: 4px; }
