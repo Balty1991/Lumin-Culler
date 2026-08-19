@@ -3743,3 +3743,43 @@ input[type="search"] { min-height: 44px; }
 :root[data-theme="light"] .inspector-verdict.negative {
   background: radial-gradient(circle at 89% 28%, rgb(var(--reject-rgb) / .22), transparent 34%), rgb(var(--reject-rgb) / .13);
 }
+
+/* Campul din paleta de comenzi avea 24px inaltime. */
+.palette-input-row input { min-height: 44px; }
+
+/* Meniul "Mai multe filtre" e un dropdown propriu (.more-filters-menu), nu
+   randul .filters — chip-urile lui ramasesera la 36px. La fel, iesirea din
+   modul de selectie multipla, la 38px. */
+.more-filters-menu .chip { min-height: 44px; }
+.bulk-bar button { min-height: 44px; }
+
+/* Meniul contextual de pe card (apasare lunga): randurile aveau 36px, iar
+   etichetele de culoare 32x32. E meniul care schimba starea unei poze dintr-un
+   gest — nu are voie sa ceara precizie. */
+.context-menu-item { min-height: 44px; }
+.color-label-swatch { width: 44px; height: 44px; }
+
+/* Popover-ul de foldere (din meniul contextual si din Inspector) avea campul de
+   nume si butonul de creare la 32px. */
+.collection-picker-menu input,
+.collection-picker-menu button { min-height: 44px; }
+.collection-picker-menu button { min-width: 44px; }
+
+/* Contorul "1/10" din sortarea rapida statea PESTE butonul de inchidere:
+   stratul de concept l-a mutat la top:39px/left:18px, dar butonul ocupa
+   14..58px pe verticala, tot in coltul stanga-sus. In plus `right:12px` a
+   ramas mostenit din foaia de baza, deci cutia lui invizibila se intindea
+   382px peste tot antetul — se vedea si in auditul de controale acoperite,
+   unde butoanele antetului apareau "sub span.tiktok-progress-count".
+   Coboara sub buton si se ingusteaza la propriul text. */
+.tiktok-progress-count {
+  top: calc(64px + env(safe-area-inset-top));
+  right: auto;
+  width: max-content;
+  pointer-events: none;
+}
+
+/* "serii/duplicate" e cea mai lunga eticheta din Statistici si depasea dala cu
+   3px la 0,68rem — cuvintele nu se pot rupe intre ele fara cratima, deci
+   ruperea se face pe semnul "/" si eticheta ramane intreaga. */
+.stats-tile span { overflow-wrap: anywhere; line-height: 1.25; }

@@ -1369,12 +1369,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
 /* ── Meniu contextual pe grila — click-dreapta (desktop) sau apasare lunga (touch) pe un card (plan 3.2.1) ── */
 .context-menu {
-  /* 224px, nu 200: cele 5 buline de eticheta au fiecare 32px zona tap-abila (minim
-     de accesibilitate, vezi .color-label-swatch) => 5*32 + 4*6 gap = 184px, care nu
-     incapeau in cei 168px ramasi dupa padding-uri — bug real raportat pe device,
-     "eticheta culori depaseste blocul". Randul lor se rupe acum pe linie proprie
-     (flex-wrap mai jos), iar 224px ii lasa sa incapa acolo intregi. */
-  position: fixed; z-index: var(--z-context-menu); width: 224px; padding: 6px;
+  /* 268px, nu 224: cele 5 buline de eticheta si cele 5 stele au fiecare 44px zona
+     tap-abila (pragul de deget — vezi .color-label-swatch / .star-rating-btn, urcate
+     de la 32px de auditul vizual) => 5*44 + 4*6 gap = 244px, plus padding-urile.
+     La 224px a cincea bulina si a cincea stea ieseau din contur si erau taiate:
+     nu puteai da 5 stele sau eticheta mov dintr-un meniu contextual. Randurile
+     se rup oricum pe linie proprie (flex-wrap mai jos). */
+  position: fixed; z-index: var(--z-context-menu); width: 268px; padding: 6px;
   /* Plasa de siguranta pentru ecrane foarte scunde (peisaj, split-screen): daca
      meniul tot nu incape dupa incadrarea din JS, se deruleaza in loc sa fie taiat. */
   max-height: calc(100dvh - 16px - var(--safe-top) - var(--safe-bottom)); overflow-y: auto;
@@ -1397,7 +1398,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
    meniu — fara asta, ar fi vizibil mai stramt decat vecinii lui. */
 .context-menu-folder .inline-icon { margin-right: 7px; }
 .context-menu-sep { height: 1px; margin: 5px 4px; background: var(--line); }
-.context-menu-rating { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; font-size: 0.8rem; color: var(--text-dim); }
+/* flex-wrap ca la randul de etichete de mai jos: cu stele de 44px (pragul de
+   deget), eticheta "Rating" plus cele cinci stele nu mai incap pe un rand —
+   a cincea stea iesea din contur si nu se putea da nota maxima. */
+.context-menu-rating { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; padding: 6px 10px; font-size: 0.8rem; color: var(--text-dim); }
 .context-menu-color-labels { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; padding: 6px 10px; font-size: 0.8rem; color: var(--text-dim); }
 
 /* etichete de culoare custom (Lightroom-style), a doua axa de organizare
