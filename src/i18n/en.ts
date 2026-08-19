@@ -233,7 +233,7 @@ export const en: Record<TranslationKey, string> = {
   'premium.perk.show.title': 'The part you show others',
   'premium.perk.show.sub': 'monthly recap, presentation',
   'premium.perk.locations.title': 'Locations',
-  'premium.perk.locations.sub': 'your photos grouped by where they were taken, named by locality and country, and any place turned into a folder with one button; the lookup happens on your phone — not even the coordinates leave it',
+  'premium.perk.locations.sub': 'grouped by where they were taken, named by locality and country — looked up on your phone, without a single coordinate leaving it',
   'premium.perk.composite.title': 'Combining two frames',
   'premium.perk.composite.sub': 'when no single frame works for everyone, it tells you which two to combine',
   'premium.perk.local.title': 'Culling stays free',

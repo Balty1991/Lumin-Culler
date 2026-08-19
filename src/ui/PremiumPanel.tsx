@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
-import { XIcon, StarIcon, UserCheckIcon, DownloadIcon, SparkleIcon, TagIcon, PlayIcon, CheckIcon, PinIcon } from './icons';
+import { XIcon, StarIcon, CheckIcon } from './icons';
 import { FREE_PHOTOS_PER_MONTH, FREE_ENROLLED_PERSONS, refreshEntitlement } from '../core/entitlement';
 import { isBillingAvailable, queryPremiumPrice, startSubscription } from '../core/billing';
 import { t } from '../i18n';
+import { PremiumProof } from './PremiumProof';
 
 /**
  * ui/PremiumPanel.tsx
@@ -88,52 +89,52 @@ export function PremiumPanel() {
 
         <h4 className="premium-group-head">{tr('premium.section.unlock')}</h4>
 
-        <div className="premium-perk">
-          <i aria-hidden="true"><DownloadIcon /></i>
+        <div className="premium-perk premium-perk-demo">
           <span>
             <b>{tr('premium.perk.export.title')}</b>
             <span>{tr('premium.perk.export.sub', { limit: FREE_PHOTOS_PER_MONTH })}</span>
           </span>
+          <PremiumProof kind="export" />
         </div>
-        <div className="premium-perk">
-          <i aria-hidden="true"><UserCheckIcon /></i>
+        <div className="premium-perk premium-perk-demo">
           <span>
             <b>{tr('premium.perk.persons.title')}</b>
             <span>{tr('premium.perk.persons.sub', { limit: FREE_ENROLLED_PERSONS })}</span>
           </span>
+          <PremiumProof kind="persons" />
         </div>
-        <div className="premium-perk">
-          <i aria-hidden="true"><TagIcon /></i>
+        <div className="premium-perk premium-perk-demo">
           <span>
             <b>{tr('premium.perk.pro.title')}</b>
             <span>{tr('premium.perk.pro.sub')}</span>
           </span>
+          <PremiumProof kind="pro" />
         </div>
-        <div className="premium-perk">
-          <i aria-hidden="true"><PlayIcon /></i>
+        <div className="premium-perk premium-perk-demo">
           <span>
             <b>{tr('premium.perk.show.title')}</b>
             <span>{tr('premium.perk.show.sub')}</span>
           </span>
+          <PremiumProof kind="show" />
         </div>
         {/* Rand propriu, nu o vorba in subtitlul de mai sus: era pomenit acolo
             printre altele si utilizatorul, care CHIAR are ecranul blocat, n-a
             observat ca plateste pentru el. */}
-        <div className="premium-perk">
-          <i aria-hidden="true"><PinIcon /></i>
+        <div className="premium-perk premium-perk-demo">
           <span>
             <b>{tr('premium.perk.locations.title')}</b>
             <span>{tr('premium.perk.locations.sub')}</span>
           </span>
+          <PremiumProof kind="locations" />
         </div>
         {/* Ultimul, deliberat: e singurul lucru din lista pe care nu-l are
             nimeni altcineva, si se retine mai bine la final decat la mijloc. */}
-        <div className="premium-perk">
-          <i aria-hidden="true"><SparkleIcon /></i>
+        <div className="premium-perk premium-perk-demo">
           <span>
             <b>{tr('premium.perk.composite.title')}</b>
             <span>{tr('premium.perk.composite.sub')}</span>
           </span>
+          <PremiumProof kind="composite" />
         </div>
 
         {/* Un abonat nu are de ce sa vada cat i-a mai ramas dintr-un plafon pe

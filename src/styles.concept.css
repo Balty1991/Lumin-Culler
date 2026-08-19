@@ -3369,3 +3369,43 @@ body:before {
     border: 2px solid var(--bg);
   }
 }
+
+
+/* ── Panoul Premium demonstreaza, nu enumera ──
+   Fiecare beneficiu are miniatura rezultatului lui (ui/PremiumProof.tsx) in
+   locul unei iconite generice: cine nu a folosit inca functia vede in mai putin
+   de o secunda ce primeste. Miniatura sta in dreapta textului, nu deasupra, ca
+   panoul sa nu devina un sul de sase ecrane. */
+.premium-perk-demo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 128px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+}
+.premium-perk-demo + .premium-perk-demo { border-top: 1px solid var(--line); }
+.premium-proof { width: 128px; height: auto; display: block; }
+
+/* Vocabular comun tuturor miniaturilor: aceleasi grosimi si aceiasi tokeni,
+   ca sa se citeasca drept un set, nu sase desene facute separat. */
+.premium-proof .pp-bg { fill: var(--surface-2); stroke: var(--line); }
+.premium-proof .pp-bg-fill { fill: var(--surface-2); }
+.premium-proof .pp-solid { fill: var(--surface-3); }
+.premium-proof .pp-faint-fill { fill: var(--text-faint); opacity: .5; }
+.premium-proof .pp-faint-stroke { fill: none; stroke: var(--line-strong); }
+.premium-proof .pp-grid { stroke: var(--line); stroke-width: 1; opacity: .7; }
+.premium-proof .pp-track { fill: var(--surface-3); }
+.premium-proof .pp-chip { fill: var(--surface-3); stroke: var(--line); }
+.premium-proof .pp-accent-fill { fill: var(--accent); }
+.premium-proof .pp-accent-stroke { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.premium-proof .pp-accent-dash { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.premium-proof .pp-review-fill { fill: var(--review); }
+.premium-proof .pp-label { font: 700 9px var(--mono); fill: var(--text-dim); }
+.premium-proof .pp-accent-text { fill: var(--accent-text); }
+
+@media (max-width: 380px) {
+  /* Pe ecrane foarte inguste textul ar ramane pe doua cuvinte pe rand: miniatura
+     trece dedesubt, pe toata latimea, unde are si mai mult loc sa se citeasca. */
+  .premium-perk-demo { grid-template-columns: minmax(0, 1fr); }
+  .premium-proof { width: 100%; max-width: 260px; }
+}

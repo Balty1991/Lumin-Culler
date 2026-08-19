@@ -240,7 +240,7 @@ export const ro = {
   'premium.perk.show.title': 'Partea de arătat altora',
   'premium.perk.show.sub': 'recap lunar, prezentare',
   'premium.perk.locations.title': 'Locații',
-  'premium.perk.locations.sub': 'pozele grupate după locul unde au fost făcute, cu numele localității și al țării, plus un folder făcut dintr-un buton pentru orice loc; căutarea numelui se face pe telefon, nu pleacă nici măcar coordonatele',
+  'premium.perk.locations.sub': 'grupate după locul unde au fost făcute, cu numele localității și al țării — căutat pe telefon, fără ca vreo coordonată să plece',
   'premium.perk.composite.title': 'Combinarea a două cadre',
   'premium.perk.composite.sub': 'când niciun cadru nu e bun pentru toți, îți spune care două să le combini',
   'premium.perk.local.title': 'Triajul rămâne gratuit',
