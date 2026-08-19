@@ -146,6 +146,20 @@ jobs:
       - name: Build debug APK (nesemnat)
         working-directory: android
         run: ./gradlew assembleDebug
+      # Marimea se raporteaza IN rezumatul rularii, nu doar in fisier: altfel
+      # singurul mod de a afla cat s-a mai umflat APK-ul era sa-l descarci —
+      # exact lucrul care doare pe o legatura mobila. Cu asta se vede din
+      # browser, inainte de descarcare.
+      - name: Raporteaza marimea APK-ului
+        run: |
+          apk=android/app/build/outputs/apk/debug/app-debug.apk
+          bytes=$(stat -c%s "$apk")
+          echo "### APK de test: $(numfmt --to=iec --format='%.1f' "$bytes")" >> "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Cele mai mari componente:' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          unzip -l "$apk" | sort -k1 -n -r | head -12 >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
           name: lumin-culler-debug-apk
