@@ -3409,3 +3409,18 @@ body:before {
   .premium-perk-demo { grid-template-columns: minmax(0, 1fr); }
   .premium-proof { width: 100%; max-width: 260px; }
 }
+
+/* ── Toastul nu mai fura atingerile ──
+   Masurat pe 412x915: notificarea sta la y=96 si acopera 39% din randul de
+   antet al Review Desk, adica exact zona in care se afla si "Goleste sesiunea".
+   Cat era vizibila — cateva secunde dupa fiecare import — orice atingere in
+   acea zona nimerea in ea, nu in butonul de dedesubt.
+
+   Pozitia RAMANE unde e: a fost aleasa deliberat, dupa un bug raportat cu
+   captura in care toastul ateriza peste "Exporta poze" (vezi comentariul de la
+   .toast din styles.css). Masuratorile arata ca alternativele sunt mai rele —
+   jos, ar intra peste FAB (y=779) si peste bara de navigare (y=843). Se schimba
+   doar ce conta cu adevarat: notificarea se vede, dar nu mai opreste nimic.
+   Butonul ei de inchidere ramane, evident, apasabil. */
+.toast { pointer-events: none; }
+.toast .toast-close { pointer-events: auto; }
