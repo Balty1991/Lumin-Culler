@@ -4188,3 +4188,22 @@ input[type="search"] { min-height: 44px; }
 @media (max-width: 520px) {
   .topbar .brand { display: none; }
 }
+
+/* Butonul de iesire din ecranul gol de prezentare avea 40px inaltime — sub
+   pragul de 44 (WCAG 2.5.5), si e singura cale de iesire de pe acel ecran.
+   Gasit abia acum, cand auditul a ajuns si in starea "prezentare fara poze". */
+.presentation-empty .ghost { min-height: 44px; }
+
+/* ── Tema luminoasa: doua contraste ramase, gasite de auditul pe stari reale ──
+
+   1. Prezentarea e un ecran NEGRU in ambele teme (o poza se judeca pe fundal
+      neutru, nu pe alb). Dar textele secundare din el foloseau `--text-dim`,
+      care in tema luminoasa e gri inchis: 3,54:1 pe negru. Suprafata e
+      intunecata, deci textul trebuie sa fie deschis — indiferent de tema. */
+:root[data-theme="light"] .presentation-scrim .hint,
+:root[data-theme="light"] .presentation-empty { color: rgb(255 255 255 / .86); }
+
+/* 2. Eticheta de reparatie din coada de salvare (ex. "Expunere") era galbenul
+      de "de verificat" pe fundalul lui la 18%: 4:1, sub pragul de 4,5.
+      Aceeasi culoare, dusa mai in intuneric doar cat sa treaca. */
+:root[data-theme="light"] .rescue-fix-tag { color: #6b5200; }
