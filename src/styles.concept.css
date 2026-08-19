@@ -3291,3 +3291,42 @@ body:before {
    Ecranele scunde nu sunt afectate — pentru ele exista deja
    @media (max-height: 710px) mai sus, care aliniaza sus in loc sa centreze. */
 .empty { min-height: calc(100dvh - var(--header-bottom, 0px) - 44px); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * Accesibilitate: contrast si zone de atingere.
+ *
+ * Masurat in browser (Chromium, 412x915, ambele teme, pe ecran gol / Review
+ * Desk / meniu). Fiecare regula de mai jos repara o cadere reala, cu cifra ei.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Etichetele din bara de jos: stratul de concept le da #8f96a5 fix, fara
+   varianta luminoasa — pe fundal deschis ies la 2,97:1 la 9,9px, sub minimul
+   de 4,5:1. Peste prag, si raman discrete fata de tabul activ. */
+:root[data-theme="light"] .bottom-nav-tab { color: var(--text-dim); }
+
+/* "LUMIN PRO · ACTIV" iesea la 1,63:1 pe tema luminoasa: eticheta folosea
+   var(--accent), un turcoaz deschis, pe un card deschis. --accent-text exista
+   exact pentru cazul asta (vezi comentariul din :root, styles.css). */
+:root[data-theme="light"] .drawer-pro-card.is-active .drawer-pro-copy em { color: var(--accent-text); }
+
+/* Butoanele-iconita din antet erau micsorate la 42x42 de stratul de concept,
+   sub minimul de 44x44. Doi pixeli nu schimba desenul, dar scot butonul din
+   zona in care atingerea rateaza. */
+.top-actions .icon-btn { width: 44px; height: 44px; }
+/* Fundalul lor (#ffffff06) e practic invizibil pe tema luminoasa. */
+:root[data-theme="light"] .top-actions .icon-btn { background: var(--surface-2); border-color: var(--line); }
+
+/* Zona de atingere ajunge la 44x44 fara ca butonul sa creasca vizual: pe un
+   toast plutitor, un buton desenat mai mare ar inghesui textul. */
+.toast-close { position: relative; }
+.toast-close::after { content: ''; position: absolute; inset: -6px; }
+
+/* Actiuni-text care ramaneau sub prag pe inaltime. */
+.review-desk-reset { min-height: 44px; }
+.export-cta { min-height: 44px; }
+
+/* Jumatatea violeta a logo-ului: stratul de concept inlocuieste gradientul cu
+   #a18bff fix, care pe fundal deschis da 2,51:1 la 19,8px bold — sub minimul
+   de 3:1 pentru text mare. Nuanta de mai jos ramane clar violeta, dar urca la
+   ~3,9:1. Tema intunecata pastreaza culoarea originala. */
+:root[data-theme="light"] .brand-text h1 span { color: #7c5cff; }
