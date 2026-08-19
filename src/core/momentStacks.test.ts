@@ -140,3 +140,48 @@ describe('momentOf si countOpenMoments', () => {
     expect(countOpenMoments(stacks)).toBe(1);
   });
 });
+
+describe('pickTopFrames — ce reprezinta un moment', () => {
+  it('cazul raportat: pozele cu oameni trec inaintea peisajului, chiar cu scor mai mic', () => {
+    const picks = pickTopFrames([
+      p('urme-in-zapada', 0, { aiScore: 96 }),
+      p('copilul', 1, { aiScore: 71, faceCount: 1 }),
+      p('copilul-si-tata', 2, { aiScore: 68, faceCount: 2 })
+    ]);
+    expect(picks.slice(0, 2)).toEqual(['copilul', 'copilul-si-tata']);
+  });
+
+  it('cazul raportat: hartiile nu se propun cand exista poze adevarate', () => {
+    const picks = pickTopFrames([
+      p('hartie-1', 0, { aiScore: 99, isDocument: true }),
+      p('hartie-2', 1, { aiScore: 98, isDocument: true }),
+      p('copilul-cu-pisica', 2, { aiScore: 62, faceCount: 1 }),
+      p('strada', 3, { aiScore: 55 })
+    ]);
+    expect(picks).toEqual(['copilul-cu-pisica', 'strada', 'hartie-1']);
+  });
+
+  it('un moment format DOAR din documente tot propune ceva — altfel ar parea gol', () => {
+    const picks = pickTopFrames([
+      p('a', 0, { aiScore: 80, isDocument: true }),
+      p('b', 1, { aiScore: 90, isDocument: true })
+    ]);
+    expect(picks).toEqual(['b', 'a']);
+  });
+
+  it('in aceeasi categorie decide tot scorul', () => {
+    expect(pickTopFrames([
+      p('slab', 0, { aiScore: 40, faceCount: 1 }),
+      p('bun', 1, { aiScore: 90, faceCount: 1 })
+    ])).toEqual(['bun', 'slab']);
+  });
+
+  it('regula seriilor distincte ramane peste noua ordonare', () => {
+    const picks = pickTopFrames([
+      p('rafala-1', 0, { aiScore: 90, faceCount: 1, groupId: 'A' }),
+      p('rafala-2', 1, { aiScore: 89, faceCount: 1, groupId: 'A' }),
+      p('altceva', 2, { aiScore: 50, faceCount: 1 })
+    ]);
+    expect(picks).toEqual(['rafala-1', 'altceva']);
+  });
+});

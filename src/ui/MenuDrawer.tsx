@@ -183,7 +183,8 @@ export function MenuDrawer() {
   }))));
   // Acelasi principiu: doar ora capturii si statusul, ambele deja in memorie.
   const openMomentCount = useStore(s => countOpenMoments(buildMomentStacks(s.photos.map(p => ({
-    id: p.id, capturedAt: p.capturedAt, aiScore: p.aiScore, status: p.status, groupId: p.groupId
+    id: p.id, capturedAt: p.capturedAt, aiScore: p.aiScore, status: p.status, groupId: p.groupId,
+    faceCount: p.faceCount
   })))));
   const openDecisionInversions = useStore(s => s.openDecisionInversions);
   const inversionCount = useStore(s => countDecisionInversions(

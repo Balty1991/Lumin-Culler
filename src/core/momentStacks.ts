@@ -32,6 +32,10 @@ export interface MomentPhoto {
   status: 'selected' | 'review' | 'rejected' | 'pending';
   /** Seria de cadre cvasi-identice din care face parte, daca exista. */
   groupId?: string;
+  /** Cate fete s-au detectat. Decide ce se propune dintr-un moment — vezi pickTopFrames. */
+  faceCount?: number;
+  /** Pare document/captura de ecran (vezi core/smartInbox.ts). Nu se propune decat in lipsa altceva. */
+  isDocument?: boolean;
 }
 
 export interface MomentStack {
@@ -66,8 +70,30 @@ export const MAX_TOP_PICKS = 3;
  * poze — utilizatorul ar trebui inca sa aleaga intre ele, adica exact munca pe
  * care voiam sa o scutim. Pozele fara serie conteaza fiecare ca serie proprie.
  */
+/**
+ * Cat de mult MERITA poza sa reprezinte momentul, inainte de calitatea ei.
+ *
+ * Bug real, raportat cu doua capturi: dintr-o iesire cu copilul, propunerile au
+ * fost urmele din zapada si doua poze cu niste hartii — in timp ce cadrele cu
+ * copilul si cu pisica au ramas nepropuse. Cauza nu e un scor gresit, ci
+ * intrebarea gresita: `aiScore` masoara cat de BINE FACUTA e o poza, si o coala
+ * de hartie plata, bine luminata, e perfect clara si perfect expusa. Un copil
+ * in miscare nu e.
+ *
+ * Un moment se reprezinta prin ce s-a intamplat in el, nu prin cel mai curat
+ * dreptunghi. Deci intai categoria, si abia in interiorul ei scorul:
+ *   2 = are oameni in ea
+ *   1 = orice altceva (peisaj, detaliu)
+ *   0 = document sau captura de ecran — doar daca nu exista nimic altceva
+ */
+function subjectTier(p: MomentPhoto): number {
+  if (p.isDocument) return 0;
+  return (p.faceCount ?? 0) > 0 ? 2 : 1;
+}
+
 export function pickTopFrames(photos: MomentPhoto[], limit = MAX_TOP_PICKS): string[] {
-  const sorted = [...photos].sort((a, b) => b.aiScore - a.aiScore || a.id.localeCompare(b.id));
+  const sorted = [...photos].sort((a, b) =>
+    subjectTier(b) - subjectTier(a) || b.aiScore - a.aiScore || a.id.localeCompare(b.id));
   const seenSeries = new Set<string>();
   const picks: string[] = [];
   for (const p of sorted) {

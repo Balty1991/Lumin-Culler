@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { db } from '../core/db';
 import { buildMomentStacks } from '../core/momentStacks';
+import { classifyPhoto } from '../core/smartInbox';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { AdjustedImage } from './AdjustedImage';
 import { ClockIcon, XIcon } from './icons';
@@ -49,7 +50,14 @@ export function MomentsPanel() {
   const stacks = useMemo(() => {
     if (!open) return [];
     return buildMomentStacks(photos.map(p => ({
-      id: p.id, capturedAt: p.capturedAt, aiScore: p.aiScore, status: p.status, groupId: p.groupId
+      id: p.id, capturedAt: p.capturedAt, aiScore: p.aiScore, status: p.status, groupId: p.groupId,
+      // Ce reprezinta momentul, nu doar cat de curat e cadrul — vezi subjectTier
+      // din core/momentStacks.ts si bug-ul raportat (urme in zapada si hartii
+      // propuse in locul pozelor cu copilul).
+      faceCount: p.faceCount,
+      isDocument: classifyPhoto({
+        id: p.id, fileName: p.fileName, faceCount: p.faceCount, textCoverage: p.textCoverage
+      }) !== 'personal'
     })));
   }, [open, photos]);
 

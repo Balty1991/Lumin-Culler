@@ -77,6 +77,7 @@ import { getProjectMetadata } from './projectMetadata';
 import { buildPersonProfilesExport, personProfilesFileName, parsePersonProfilesFile } from '../core/personProfileTransfer';
 import { readStoredLocale, writeStoredLocale, applyLocale, t, plural, type Locale } from '../i18n';
 import { translateSceneTag, normalizeForSearch } from '../core/sceneTagLabels';
+import { relatedSceneTags } from '../core/searchSynonyms';
 import { buildBackup, backupFileName, parseBackupFile, restoreBackup } from '../core/backupService';
 import { writeLastBackupAt } from './backupReminder';
 import { buildClientGalleryHtml } from '../core/export/clientGallery';
@@ -1199,8 +1200,28 @@ applyAccessibleMode(readAccessibleMode());
  * tastat fara "ă" tot sa gaseasca "pisică".
  */
 function matchesSearch(p: PhotoView, normalizedQuery: string, locale: Locale): boolean {
+  // Numele fisierului si etichetele de scena erau SINGURELE campuri cautate.
+  // Doua consecinte reale, amandoua raportate sau gasite la revizie:
+  //
+  //  - cautarea dupa numele unei persoane inrolate nu gasea nimic, desi
+  //    aplicatia stie exact in ce poze apare;
+  //  - "zapada" dadea 0 rezultate pe o biblioteca plina de zapada, pentru ca
+  //    modelul etichetase acele poze "ice"/"sky"/"branch", niciodata "snow".
+  //    Cautarea era corecta; vocabularul masinii nu e vocabularul omului.
   if (normalizeForSearch(p.fileName).includes(normalizedQuery)) return true;
-  return (p.sceneTags ?? []).some(tag => normalizeForSearch(translateSceneTag(tag, locale)).includes(normalizedQuery));
+  if (p.personNames.some(n => normalizeForSearch(n).includes(normalizedQuery))) return true;
+  if (p.iptcCaption && normalizeForSearch(p.iptcCaption).includes(normalizedQuery)) return true;
+  if ((p.iptcKeywords ?? []).some(k => normalizeForSearch(k).includes(normalizedQuery))) return true;
+  if (p.project && normalizeForSearch(p.project).includes(normalizedQuery)) return true;
+  const camera = [p.cameraMake, p.cameraModel, p.lensModel].filter(Boolean).join(' ');
+  if (camera && normalizeForSearch(camera).includes(normalizedQuery)) return true;
+  const tags = p.sceneTags ?? [];
+  if (tags.some(tag => normalizeForSearch(translateSceneTag(tag, locale)).includes(normalizedQuery))) return true;
+  // Ultima plasa: conceptele invecinate cu ce a scris utilizatorul. Vezi
+  // core/searchSynonyms.ts pentru de ce nu e un dictionar de sinonime.
+  const related = relatedSceneTags(normalizedQuery);
+  if (related.size && tags.some(tag => related.has(tag))) return true;
+  return false;
 }
 
 /**
