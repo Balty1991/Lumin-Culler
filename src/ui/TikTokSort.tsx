@@ -393,17 +393,17 @@ export function TikTokSort() {
       <div className="tiktok-rail">
         {current && (
           <>
-            <span className="tiktok-rail-item">
+            <span className="tiktok-rail-item rail-keep">
               <button className="tiktok-rail-btn keep" onClick={() => decide('selected')} aria-label={tr('tiktok.rail.keep')}>
                 <HeartIcon />
               </button>
               <span className="tiktok-rail-label">{tr('tiktok.rail.keep')}</span>
             </span>
-            <span className="tiktok-rail-item">
+            <span className="tiktok-rail-item rail-album">
               <CollectionPicker photoIds={[current.id]} iconOnly triggerClassName="tiktok-rail-btn album" />
               <span className="tiktok-rail-label">{tr('tiktok.rail.album')}</span>
             </span>
-            <span className="tiktok-rail-item">
+            <span className="tiktok-rail-item rail-del">
               <button className="tiktok-rail-btn del" onClick={() => decide('rejected')} aria-label={tr('tiktok.rail.delete')}>
                 <XIcon />
               </button>
@@ -414,11 +414,14 @@ export function TikTokSort() {
         {/* Aceeasi structura ca celelalte trei celule (buton + eticheta): grila
             barei aliniaza pe randul de jos, iar o celula fara eticheta isi urca
             butonul cu inaltimea etichetei lipsa — de aici iesea din rand. */}
-        <span className="tiktok-rail-item">
+        <span className="tiktok-rail-item rail-undo">
           <button className="tiktok-rail-btn undo" onClick={doUndo} aria-label={tr('tiktok.rail.undo')}>
             <UndoIcon />
           </button>
-          <span className="tiktok-rail-label">{tr('tiktok.rail.undo')}</span>
+          {/* Eticheta vizibila e scurta: "Anulează ultima decizie" pe o coloana
+              de un sfert din latimea ecranului iesea din bara. Textul complet
+              ramane in aria-label, unde conteaza pentru cititoarele de ecran. */}
+          <span className="tiktok-rail-label">{tr('tiktok.rail.undoShort')}</span>
         </span>
       </div>
     </div>

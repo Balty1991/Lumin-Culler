@@ -753,7 +753,16 @@ export default function App() {
       <>
         <Toast />
         <SmartNotification />
-        <HomeDashboard />
+        {/* HomeDashboard NU se mai monteaza aici. Workspace-ul are propriul
+            antet fix si propriul filmstrip fix, dar corpul lui nu acopera
+            pagina — asa ca ecranul de acasa, montat ca frate deasupra lui in
+            flux, ramanea vizibil dedesubt: se vedea Review Desk-ul cu
+            "Continuă" si biblioteca, iar peste ele plutea butonul METRICI si
+            banda de miniaturi. Masurat in browser: `.workspace` e in flux
+            normal, nu suprapus. Pe langa ce se vedea, tot ecranul de acasa
+            ramanea si in arborele de accesibilitate — un cititor de ecran
+            citea intreaga pagina de acasa in timp ce utilizatorul era in
+            spatiul de lucru. */}
         {welcomeSeen && (
           <div className="banner-stack" ref={bannerStackRef}>
             <MemoryBanner />
@@ -840,6 +849,10 @@ export default function App() {
                 actiuni sub logo si antetul creste la doua randuri. Numarul
                 ramane vizibil, ca pastila — vezi .export-cta-count. */}
               <span className="export-cta-label">{tr('app.export', { count: counts.selected })}</span>
+              {/* Varianta scurta pentru antetul de telefon: butonul spunea doar
+                  cu o iconita ce face, iar numarul statea intr-o pastila taiata
+                  la marginea lui. Textul complet ramane in aria-label. */}
+              <span className="export-cta-short" aria-hidden="true">{tr('app.exportShort')}</span>
               {counts.selected > 0 && <span className="export-cta-count mono" aria-hidden="true">{counts.selected}</span>}
             </button>
           )}

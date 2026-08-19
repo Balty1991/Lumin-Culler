@@ -3451,3 +3451,113 @@ body:before {
    gol in ele. La 84px raman la fel de usor de atins (peste minimul de 44px),
    dar nu mai impinge restul meniului sub marginea ecranului. */
 .drawer .drawer-quick-btn { min-height: 84px; }
+
+/* ── Trei corecturi din capturile de pe telefon (a doua rundă) ── */
+
+/* (1) Iconitele de pe poze disparusera complet din grila.
+   Stratul de concept a fost extras dintr-un preview de prezentare, unde
+   cardurile erau pur decorative: ascundea `.badges`, `.golden-badge` si
+   `.edited-badge`, iar pe orice ecran tactil — adica pe telefon — ascundea
+   tot `.card-top-left` si `.card-strip`. Masurat in browser pe 412x915:
+   display:none pe toate trei, deci nici scorul, nici "cea mai buna din
+   serie", nici persoanele, nici seria nu se mai vedeau nicaieri.
+   Astea nu sunt ornamente, sunt singurul mod de a citi o grila de 2000 de
+   poze fara sa deschizi fiecare cadru. Revin, permanent, nu la hover:
+   pe telefon nu exista hover, deci "se vede la hover" inseamna "nu se vede". */
+.grid .card-top-left,
+.grid .card-strip {
+  opacity: 1;
+  transform: none;
+}
+.grid .card .badges,
+.grid .card .golden-badge,
+.grid .card .edited-badge {
+  display: flex;
+}
+@media (hover: none) {
+  .grid .card-top-left { display: flex; }
+  .grid .card-strip { display: flex; }
+}
+
+/* (2) Numarul de pe butonul de export tot nu se citea. Nu era doar taiat:
+   pastila avea 18px inaltime, text de 10,9px si fundal rgb(0 0 0 / .22)
+   peste un antet aproape negru — un disc intunecat cu o cifra in el, exact
+   ce se vede in captura. Si eticheta era ascunsa cu totul sub 520px, deci
+   butonul nu spunea nici ce face.
+   Numarul intra inapoi in buton, ca text propriu-zis: fara pozitionare
+   absoluta nu mai are ce sa taie, si mosteneste contrastul butonului.
+   Costa ~20px latime, care incap in antetul de un rand (masurat: randul de
+   actiuni are 219px disponibili si folosea 197px). */
+.export-cta-short { display: none; }
+@media (max-width: 520px) {
+  .top-actions .export-cta {
+    width: auto;
+    min-width: 44px;
+    padding-inline: 12px;
+    gap: 6px;
+  }
+  .export-cta-short { display: inline; }
+  .top-actions .export-cta .export-cta-count {
+    position: static;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    min-width: 0;
+    height: auto;
+    font-size: .84rem;
+    font-weight: 800;
+    color: inherit;
+  }
+  .export-cta .inline-icon { margin-right: 0; }
+
+  /* Randul de actiuni nu mai incapea langa numele scris al aplicatiei.
+     Masurat pe 412x915: antetul are 388px utili, numele ocupa 128 din ei, iar
+     dupa prima decizie apare si butonul de istoric — cinci actiuni de 44px cu
+     spatii inseamna 225px, deci randul cadea sub logo si antetul sarea de la
+     78px la 105px chiar in timpul lucrului. Sub 520px ramane simbolul, care
+     spune la fel de bine in ce aplicatie esti, si toate actiunile isi recapata
+     eticheta. Numele complet revine peste 520px. */
+  .topbar .brand-text { display: none; }
+}
+
+/* (3) Bara de decizie din sortarea rapida isi punea etichetele pe butoanele
+   gresite. Masurat pe 412x915: eticheta "Păstrez" era centrata pe 66px, iar
+   butonul rosu de stergere tot pe 67px — deci butonul care respinge poza
+   scria dedesubt "Păstrez", si inima verde care o pastreaza scria "Șterg".
+
+   Cauza: in build-ul de referinta `.tiktok-rail-item` e `display: contents`
+   si etichetele sunt ascunse, asa ca grila primea direct cele patru butoane
+   si `order: 1/2/3/4` le aseza sters-album-pastrez-anuleaza. Stratul de
+   preview a reaprins etichetele (`display: block !important`), dar ele nu au
+   `order`, deci grila primea opt copii: intai cele patru etichete in ordinea
+   din DOM, apoi cele patru butoane in ordinea impusa. Perechile s-au rupt.
+
+   Reperechez la sursa: pe ecranele unde se vad etichetele, celula redevine o
+   cutie proprie (buton + eticheta impreuna), iar `order` trece de pe buton pe
+   celula. Ordinea vizuala din referinta ramane neschimbata. */
+@media (max-width: 600px) {
+  .tiktok-rail-item { display: flex; }
+  .tiktok-rail-btn.keep,
+  .tiktok-rail-btn.del,
+  .tiktok-rail .album,
+  .tiktok-rail-btn.undo { order: 0; }
+  .tiktok-rail .rail-del { order: 1; }
+  .tiktok-rail .rail-album { order: 2; }
+  .tiktok-rail .rail-keep { order: 3; }
+  .tiktok-rail .rail-undo { order: 4; }
+}
+
+/* (4) Spatiul de lucru se deschidea peste ecranul de acasa, transparent.
+   `.workspace` sta in flux normal, iar antetul si banda de miniaturi sunt
+   fixate — deci tot ce nu e chrome lasa sa se vada pagina de dedesubt. Am
+   scos ecranul de acasa din montare (vezi App.tsx), iar aici inchid si
+   posibilitatea ca altceva sa transpara: spatiul de lucru devine un strat
+   propriu, opac, peste chrome-ul aplicatiei si sub modale. */
+.workspace {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  overflow: auto;
+  background: var(--bg);
+}
