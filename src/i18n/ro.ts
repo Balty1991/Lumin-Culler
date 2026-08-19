@@ -596,6 +596,8 @@ export const ro = {
   'photosAccess.limited.body': 'Aplicația vede doar pozele bifate atunci, așa că „Adu pe perioade” și Supervizorul galeriei nu au ce citi. Schimbă în „Permite-le pe toate”.',
   'photosAccess.limited.cta': 'Deschide setările',
   'store.uncertainReview.none': 'Nicio decizie la limită — motorul a fost sigur pe tot ce a hotărât singur.',
+  'menu.decisionInversions': 'Verifică deciziile în contradicție',
+  'store.decisionInversions.none': 'Nicio contradicție: nu ai respins nimic vizibil mai bun decât ce ai păstrat din aceeași serie.',
   'menu.uncertainReview': 'Verifică ce nu știu sigur',
   'menu.uncertainReview.hint': 'Cele câteva poze decise la limită — le confirmi în câteva secunde și motorul învață cel mai mult din ele.',
   'welcome.skip': 'Sari peste',

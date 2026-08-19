@@ -3330,3 +3330,42 @@ body:before {
    de 3:1 pentru text mare. Nuanta de mai jos ramane clar violeta, dar urca la
    ~3,9:1. Tema intunecata pastreaza culoarea originala. */
 :root[data-theme="light"] .brand-text h1 span { color: #7c5cff; }
+
+
+/* ── Antetul incape pe un rand ──
+   Masurat pe 412x915: antetul ocupa 105px (11,5% din ecran) fiindca butonul de
+   export, cu eticheta, nu incape langa logo si cele trei iconite — .topbar are
+   flex-wrap, deci randul de actiuni cade sub logo. Pe ecrane inguste eticheta
+   dispare si ramane iconita cu numarul, exact ca in build-ul de referinta.
+   Numele complet ramane pentru cititoarele de ecran, prin aria-label. */
+.export-cta-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / .22);
+  font-size: .68rem;
+  font-weight: 800;
+}
+.ghost.export-cta .export-cta-count { background: rgb(var(--accent-rgb) / .22); color: var(--accent-text); }
+@media (max-width: 520px) {
+  .export-cta-label { display: none; }
+  .top-actions .export-cta {
+    width: 44px;
+    min-width: 44px;
+    padding: 0;
+    justify-content: center;
+    position: relative;
+  }
+  .top-actions .export-cta .export-cta-count {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    margin: 0;
+    border: 2px solid var(--bg);
+  }
+}

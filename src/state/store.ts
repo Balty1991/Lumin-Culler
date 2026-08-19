@@ -21,6 +21,7 @@ import {
 } from '../core/importPipeline';
 import { deriveThresholds, type Thresholds } from '../core/scoreThresholds';
 import { pickMostUncertain } from '../core/uncertainty';
+import { selectDecisionInversions } from './decisionInversions';
 import { summarizeSession, type SessionOutcome } from '../core/sessionOutcome';
 import type { FileSystemFileHandleLike } from '../core/filePicker';
 import { readEconomicMode, writeEconomicMode } from '../core/performanceSettings';
@@ -332,6 +333,8 @@ interface AppState {
    * indoielnica, si spune asta printr-o notificare in loc sa deschida gol.
    */
   openUncertainReview: () => Promise<number>;
+  /** Deschide sortarea rapida peste pozele respinse care par respinse din greseala (vezi state/decisionInversions.ts). Intoarce cate a gasit. */
+  openDecisionInversions: () => Promise<number>;
   /**
    * Rezultatul ultimului lot, aratat O SINGURA DATA imediat dupa import — vezi
    * core/sessionOutcome.ts. null = nimic de raportat sau deja inchis de utilizator.
@@ -1323,6 +1326,18 @@ export const useStore = create<AppState>((set, get) => ({
 
   sessionOutcome: null,
   dismissSessionOutcome: () => set({ sessionOutcome: null }),
+
+  openDecisionInversions: async () => {
+    const ids = selectDecisionInversions(
+      get().photos.map(p => ({ id: p.id, groupId: p.groupId, status: p.status, aiScore: p.aiScore }))
+    );
+    if (!ids.length) {
+      set({ notice: t(get().locale, 'store.decisionInversions.none') });
+      return 0;
+    }
+    get().openTiktokSortForIds(ids);
+    return ids.length;
+  },
 
   openUncertainReview: async () => {
     const locale = get().locale;

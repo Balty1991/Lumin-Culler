@@ -587,6 +587,8 @@ export const en: Record<TranslationKey, string> = {
   'photosAccess.limited.body': 'The app only sees the photos you ticked, so "Import by period" and the Gallery supervisor have nothing to read. Switch it to "Allow all".',
   'photosAccess.limited.cta': 'Open settings',
   'store.uncertainReview.none': 'No borderline calls — the engine was confident about everything it decided on its own.',
+  'menu.decisionInversions': 'Check contradictory decisions',
+  'store.decisionInversions.none': 'No contradictions: you have not rejected anything visibly better than what you kept from the same series.',
   'menu.uncertainReview': 'Check what I am unsure about',
   'menu.uncertainReview.hint': 'The few photos decided by a hair — confirming them takes seconds and teaches the engine the most.',
   'welcome.skip': 'Skip',

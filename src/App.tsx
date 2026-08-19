@@ -833,8 +833,14 @@ export default function App() {
               className={counts.selected ? 'btn-accent export-cta' : 'ghost export-cta'}
               onClick={() => setExportDestinationsOpen(true)}
               disabled={!counts.selected}
+              aria-label={tr('app.export', { count: counts.selected })}
             >
-              <DownloadIcon className="inline-icon" aria-hidden="true" /> {tr('app.export', { count: counts.selected })}
+              <DownloadIcon className="inline-icon" aria-hidden="true" />
+            {/* Eticheta cade pe ecrane inguste, unde altfel impinge randul de
+                actiuni sub logo si antetul creste la doua randuri. Numarul
+                ramane vizibil, ca pastila — vezi .export-cta-count. */}
+              <span className="export-cta-label">{tr('app.export', { count: counts.selected })}</span>
+              {counts.selected > 0 && <span className="export-cta-count mono" aria-hidden="true">{counts.selected}</span>}
             </button>
           )}
           <Tooltip label={tr('app.tooltip.menu')} side="left">

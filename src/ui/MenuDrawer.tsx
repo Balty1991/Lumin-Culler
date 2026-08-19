@@ -6,11 +6,12 @@ import {
   UserCheckIcon, SparkleIcon, ListIcon, InfoIcon, XIcon, TagIcon, LayersIcon, KeyboardIcon,
   SunIcon, MoonIcon, ClockIcon, BatteryIcon, GridIcon, DownloadIcon, UploadIcon, BarChartIcon, GlobeIcon, PrinterIcon,
   ApertureIcon, PlayIcon, EditIcon, FolderIcon, HeartIcon, TrashIcon, PinIcon, AccessibilityIcon,
-  ChevronUpIcon, SearchIcon, ShieldIcon, LockIcon, CopyIcon, StarIcon, FocusIcon, CheckIcon } from './icons';
+  ChevronUpIcon, SearchIcon, ShieldIcon, LockIcon, CopyIcon, StarIcon, FocusIcon, CheckIcon, UndoIcon } from './icons';
 import type { AccentTheme } from '../state/accentTheme';
 import { selectDeletableRejected } from '../state/batchOps';
 import { selectPendingShieldReview, readShieldDismissedIds } from '../core/documentShield';
 import { selectUnresolvedGroups } from '../state/duplicateGroups';
+import { countDecisionInversions } from '../state/decisionInversions';
 import { selectMonthlyRecap } from '../state/monthlyRecap';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { TrainedProfileStrip } from './TrainedProfileStrip';
@@ -163,6 +164,10 @@ export function MenuDrawer() {
   const setDocumentShieldOpen = useStore(s => s.setDocumentShieldOpen);
   const setVaultOpen = useStore(s => s.setVaultOpen);
   const setDuplicatesPanelOpen = useStore(s => s.setDuplicatesPanelOpen);
+  const openDecisionInversions = useStore(s => s.openDecisionInversions);
+  const inversionCount = useStore(s => countDecisionInversions(
+    s.photos.map(p => ({ id: p.id, groupId: p.groupId, status: p.status, aiScore: p.aiScore }))
+  ));
   const openUncertainReview = useStore(s => s.openUncertainReview);
   const setSupervisorPanelOpen = useStore(s => s.setSupervisorPanelOpen);
   const collections = useStore(s => s.collections);
@@ -470,6 +475,18 @@ export function MenuDrawer() {
               <span className="drawer-item-icon"><FocusIcon /></span>
               <span>{tr('menu.uncertainReview')}</span>
             </button>
+
+            {/* Imediat dupa verificarea deciziilor la limita, fiindca raspunde
+                la o intrebare vecina: acolo "unde nu stiu sigur eu", aici "unde
+                pare ca ai apasat gresit". Se arata doar cand chiar exista ceva
+                de aratat — un rand care spune mereu zero e doar zgomot. */}
+            {inversionCount > 0 && (
+              <button className="drawer-item" onClick={() => go(() => { void openDecisionInversions(); })}>
+                <span className="drawer-item-icon"><UndoIcon /></span>
+                <span>{tr('menu.decisionInversions')}</span>
+                <b className="drawer-count mono">{inversionCount}</b>
+              </button>
+            )}
 
             <button className="drawer-item" onClick={() => go(() => setDuplicatesPanelOpen(true))}>
               <span className="drawer-item-icon"><CopyIcon /></span>
