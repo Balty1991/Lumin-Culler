@@ -27,5 +27,15 @@
       }
     }
     if (isLight) document.documentElement.dataset.theme = 'light';
+
+    // theme-color, nu doar data-theme: pe Android (WebView/PWA) meta-ul asta
+    // coloreaza bara de status si bara de navigare a SISTEMULUI. Pana acum era
+    // atins doar de applyTheme (state/theme.ts), care ruleaza cand utilizatorul
+    // SCHIMBA tema — deci la fiecare pornire in tema luminoasa aplicatia era
+    // deschisa, dar barele sistemului ramaneau negre, pana cand comutai tema
+    // manual inainte si inapoi. Valorile trebuie sa ramana identice cu cele din
+    // applyTheme; vezi nota de sincronizare de mai sus.
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', isLight ? '#f5f5f7' : '#0a0b0d');
   } catch (e) {}
 })();

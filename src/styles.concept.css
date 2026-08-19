@@ -3424,3 +3424,30 @@ body:before {
    Butonul ei de inchidere ramane, evident, apasabil. */
 .toast { pointer-events: none; }
 .toast .toast-close { pointer-events: auto; }
+
+
+/* ── Sase corecturi din testarea pe telefon ── */
+
+/* (1) Pastila cu numarul de pe butonul de export era taiata: .top-actions
+   .export-cta are overflow:hidden (styles.css), iar pastila e pozitionata in
+   afara conturului butonului. Doar in starea compacta, unde chiar iese afara. */
+@media (max-width: 520px) {
+  .top-actions .export-cta { overflow: visible; }
+}
+
+/* (2) Inelul de scor: cercul exterior creste la 92px in Inspector, dar discul
+   din interior ramasese fix la 25px din regula de baza — iar cifra de 1,55rem
+   se revarsa din el. De aici forma ciudata si scorul ilizibil. Procent, nu
+   pixeli: discul urmeaza acum orice marime a inelului. */
+.score-ring-inner { width: 78%; height: 78%; }
+
+/* (3) Dalele de metrici ocupau prea mult: 112px inaltime fiecare, deci sapte
+   dale umpleau doua ecrane. Raman lizibile, dar incap toate deodata. */
+.detail-scroll .stat-tile { min-height: 84px; padding: 11px 8px; border-radius: 15px; }
+.detail-scroll .stat-value { font-size: clamp(1.2rem, 5.5vw, 1.7rem); }
+.detail-scroll .stat-grid { gap: 8px; }
+
+/* (4) Cele doua actiuni rapide din meniu erau casete de 116px inaltime, cu mult
+   gol in ele. La 84px raman la fel de usor de atins (peste minimul de 44px),
+   dar nu mai impinge restul meniului sub marginea ecranului. */
+.drawer .drawer-quick-btn { min-height: 84px; }

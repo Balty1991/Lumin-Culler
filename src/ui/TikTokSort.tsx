@@ -380,7 +380,7 @@ export function TikTokSort() {
                 metrici si la editare, fara sa iesi in grila. Deschide aceeasi
                 foaie de detaliu (Metrici / De ce acest scor / Persoane /
                 Istoric), peste ecranul de sortare, care ramane montat. */}
-            <button className="tiktok-metrics-cta" onClick={() => openDetail(current.id)}>
+            <button className="tiktok-metrics-cta" onClick={() => openDetail(current.id, { expandMetrics: true })}>
               {tr('tiktok.metrics')}
             </button>
           </div>

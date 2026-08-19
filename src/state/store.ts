@@ -669,7 +669,10 @@ interface AppState {
    * utilizator care vrea doar sa scape de filtrul de persoana, de exemplu).
    */
   clearAllFilters: () => void;
-  openDetail: (id: string | null) => void;
+  /** `expandMetrics` — deschide direct cu foaia de metrici desfasurata (butonul din sortarea rapida cere metricile, nu poza). */
+  openDetail: (id: string | null, opts?: { expandMetrics?: boolean }) => void;
+  /** Consumat o singura data de DetailView la montare; vezi openDetail. */
+  detailExpandMetrics: boolean;
   openCompare: (groupId: string | null) => void;
   /** `autoApply: true` — EditPanel invoca "Auto" o singura data, imediat ce poza s-a incarcat (vezi PhotoInfoTabs, butonul "Aplica" de pe o sugestie fixabila acum). */
   openEdit: (id: string | null, opts?: { autoApply?: boolean }) => void;
@@ -2926,7 +2929,8 @@ export const useStore = create<AppState>((set, get) => ({
     projectFilter: null, collectionFilter: null,
     searchText: '', dateFrom: null, dateTo: null, minRating: 0
   }),
-  openDetail: id => set({ detailId: id }),
+  openDetail: (id, opts) => set({ detailId: id, detailExpandMetrics: opts?.expandMetrics === true }),
+  detailExpandMetrics: false,
   openCompare: groupId => set({ compareGroupId: groupId }),
   openEdit: (id, opts) => set({ editingPhotoId: id, editAutoApplyRequested: !!opts?.autoApply }),
 

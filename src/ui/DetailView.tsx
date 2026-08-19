@@ -65,7 +65,11 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
   const containerRef = useRef<HTMLDivElement>(null);
   // Bottom Sheet (plan "Refactorizare UI/UX"): metricile/tab-urile nu mai stau permanent
   // pe ecran — traiesc intr-un panou retractabil, deschis explicit (tap pe maner sau swipe up).
-  const [sheetExpanded, setSheetExpanded] = useState(false);
+  // Cand deschiderea a cerut explicit metricile (butonul din sortarea rapida),
+  // foaia porneste desfasurata: altfel utilizatorul apasa "metrici", ajunge pe
+  // alt ecran, si trebuie sa apese "METRICI" a doua oara ca sa vada acelasi lucru.
+  const expandMetricsOnOpen = useStore(s => s.detailExpandMetrics);
+  const [sheetExpanded, setSheetExpanded] = useState(expandMetricsOnOpen);
   const [sheetDragY, setSheetDragY] = useState(0);
   const sheetDraggingRef = useRef(false);
   const sheetMovedRef = useRef(false);
