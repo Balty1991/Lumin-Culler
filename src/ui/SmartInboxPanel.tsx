@@ -36,10 +36,7 @@ export function SmartInboxPanel() {
   const open = useStore(s => s.smartInboxOpen);
   const setOpen = useStore(s => s.setSmartInboxOpen);
   const photos = useStore(s => s.photos);
-  const setFilter = useStore(s => s.setFilter);
-  const setMultiSelected = useStore(s => s.setMultiSelected);
-  const clearMultiSelect = useStore(s => s.clearMultiSelect);
-  const setSelectMode = useStore(s => s.setSelectMode);
+  const revealInGrid = useStore(s => s.revealInGrid);
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -82,13 +79,7 @@ export function SmartInboxPanel() {
   if (!open) return null;
 
   /** Trece grupul in selectia multipla si duce utilizatorul in grila, unde poate decide singur ce face cu el. */
-  const reviewGroup = (ids: string[]) => {
-    clearMultiSelect();
-    setFilter('all');
-    setSelectMode(true);
-    for (const id of ids) setMultiSelected(id, true);
-    setOpen(false);
-  };
+  const reviewGroup = (ids: string[]) => { revealInGrid(ids); setOpen(false); };
 
   return (
     <div className="detail" onClick={e => { if (e.target === e.currentTarget) setOpen(false); }}>

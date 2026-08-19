@@ -8,6 +8,7 @@
 import type { LibraryStats } from '../stats';
 import type { StageStat } from '../stageTiming';
 import type { FeedbackSummary } from '../aiFeedback';
+import type { OutcomeSummary } from '../importOutcome';
 
 export interface SessionReportInput {
   stats: LibraryStats;
@@ -25,6 +26,12 @@ export interface SessionReportInput {
   stageStats?: StageStat[];
   /** Ce a raportat utilizatorul prin "AI a greșit?" — motive si numaratori, fara nimic despre poze. */
   feedback?: FeedbackSummary[];
+  /**
+   * Bilantul ultimelor importuri (core/importOutcome.ts). Acelasi rost ca
+   * `stageStats` in testarea inchisa: "la mine esueaza cam 5% din poze, cu
+   * motivul asta" e un raport pe care il poate trimite oricine, fara nicio poza.
+   */
+  imports?: OutcomeSummary | null;
 }
 
 /** ex: 45m, 2h 15m, 3z 4h — zile/ore/minute, nu doar secunde (o sesiune reala poate dura zile). */
@@ -42,7 +49,7 @@ function pct(n: number, total: number): number {
   return total > 0 ? Math.round((n / total) * 100) : 0;
 }
 
-export function buildSessionReportText({ stats, projectName, earliestImportedAt, generatedAt, stageStats, feedback }: SessionReportInput): string {
+export function buildSessionReportText({ stats, projectName, earliestImportedAt, generatedAt, stageStats, feedback, imports }: SessionReportInput): string {
   const lines: string[] = [];
   lines.push('Raport de sesiune — Lumin Culler');
   lines.push(`Proiect: ${projectName || '(fara nume)'}`);
@@ -73,6 +80,13 @@ export function buildSessionReportText({ stats, projectName, earliestImportedAt,
         ` · p90 ${Math.round(st.p90Ms)}ms`
       );
     }
+  }
+  if (imports && (imports.totalFailed > 0 || imports.totalSkipped > 0)) {
+    lines.push('');
+    lines.push(`Importuri retinute: ${imports.imports} · ${imports.totalPhotos} poze incercate`);
+    if (imports.totalFailed > 0) lines.push(`  Esuate la analiza: ${imports.totalFailed} (${imports.failureRate}%)`);
+    if (imports.totalSkipped > 0) lines.push(`  Sarite (format nesuportat): ${imports.totalSkipped}`);
+    if (imports.lastReason) lines.push(`  Ultimul motiv: ${imports.lastReason}`);
   }
   if (feedback?.length) {
     lines.push('');

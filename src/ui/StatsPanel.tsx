@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { readStageStats, resetStageStats } from '../core/stageTiming';
+import { summariseOutcomes, resetImportOutcomes } from '../core/importOutcome';
 import { summariseFeedback, resetFeedback } from '../core/aiFeedback';
 import { db } from '../core/db';
 import { computeLibraryStats, computeAgreementStats, computeAgreementTrend, type AgreementStats, type AgreementTrendPoint, type LibraryStats } from '../core/stats';
@@ -152,6 +153,9 @@ export function StatsPanel() {
   const stageTotal = Math.max(1, stageStats.reduce((sum, st) => sum + st.totalMs, 0));
   const [feedback, setFeedback] = useState(() => summariseFeedback());
   useEffect(() => { if (open) setFeedback(summariseFeedback()); }, [open]);
+  // La fel ca mai sus: se schimba doar la sfarsitul unui import.
+  const [imports, setImports] = useState(() => summariseOutcomes());
+  useEffect(() => { if (open) setImports(summariseOutcomes()); }, [open]);
   const photosUsedThisWindow = useStore(s => s.photosUsedThisWindow);
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
@@ -239,6 +243,34 @@ export function StatsPanel() {
             </div>
             <button type="button" className="ghost small danger" onClick={() => { resetStageStats(); setStageStats([]); }}>
               {tr('stats.stages.reset')}
+            </button>
+          </div>
+        )}
+
+        {/* Pozele care n-au ajuns in biblioteca. Numarul exista deja la sfarsitul
+            importului, ca notificare — dar notificarea trece, si adesea trece in
+            timp ce utilizatorul nu se uita la ecran. Aici ramane, si abia asa se
+            vede un TIPAR: "de fiecare data esueaza cam atatea, cu motivul asta".
+            Sectiunea apare doar cand chiar a esuat sau s-a sarit ceva. */}
+        {imports && (imports.totalFailed > 0 || imports.totalSkipped > 0) && (
+          <div className="batch-section">
+            <h3>{tr('stats.imports.title')}</h3>
+            <p className="hint">{tr('stats.imports.hint', { imports: imports.imports, photos: imports.totalPhotos })}</p>
+            <div className="stats-grid mono">
+              {imports.totalFailed > 0 && (
+                <div className="stats-tile">
+                  <b>{imports.totalFailed}</b><span>{tr('stats.imports.failed', { rate: imports.failureRate })}</span>
+                </div>
+              )}
+              {imports.totalSkipped > 0 && (
+                <div className="stats-tile"><b>{imports.totalSkipped}</b><span>{tr('stats.imports.skipped')}</span></div>
+              )}
+            </div>
+            {imports.lastReason && (
+              <p className="stat-note">{tr('stats.imports.lastReason', { reason: imports.lastReason })}</p>
+            )}
+            <button type="button" className="ghost small danger" onClick={() => { resetImportOutcomes(); setImports(null); }}>
+              {tr('stats.imports.reset')}
             </button>
           </div>
         )}

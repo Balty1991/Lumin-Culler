@@ -31,6 +31,7 @@ import { embedImageNative, isNativeImageEmbedderAvailable } from '../core/native
 import { t } from '../i18n';
 import { countRescuable } from '../core/rescueQueue';
 import { countNonPersonal } from '../core/smartInbox';
+import { buildMomentStacks, countOpenMoments } from '../core/momentStacks';
 
 /**
  * Controleaza DOAR vizibilitatea butonului de test nativ — NU e acelasi lucru
@@ -168,6 +169,7 @@ export function MenuDrawer() {
   const setDuplicatesPanelOpen = useStore(s => s.setDuplicatesPanelOpen);
   const setRescueQueueOpen = useStore(s => s.setRescueQueueOpen);
   const setSmartInboxOpen = useStore(s => s.setSmartInboxOpen);
+  const setMomentsOpen = useStore(s => s.setMomentsOpen);
   // Contoarele se calculeaza din pozele deja in memorie, fara nicio citire din
   // baza de date: `countRescuable` foloseste doar campurile din PhotoView, iar
   // semnalele fine (highlights/umbre/orizont) se citesc abia la deschiderea
@@ -179,6 +181,10 @@ export function MenuDrawer() {
   const nonPersonalCount = useStore(s => countNonPersonal(s.photos.map(p => ({
     id: p.id, fileName: p.fileName, faceCount: p.faceCount, textCoverage: p.textCoverage
   }))));
+  // Acelasi principiu: doar ora capturii si statusul, ambele deja in memorie.
+  const openMomentCount = useStore(s => countOpenMoments(buildMomentStacks(s.photos.map(p => ({
+    id: p.id, capturedAt: p.capturedAt, aiScore: p.aiScore, status: p.status, groupId: p.groupId
+  })))));
   const openDecisionInversions = useStore(s => s.openDecisionInversions);
   const inversionCount = useStore(s => countDecisionInversions(
     s.photos.map(p => ({ id: p.id, groupId: p.groupId, status: p.status, aiScore: p.aiScore }))
@@ -507,6 +513,12 @@ export function MenuDrawer() {
               <span className="drawer-item-icon"><SparkleIcon /></span>
               <span>{tr('menu.rescueQueue')}</span>
               {rescuableCount > 0 && <b className="drawer-count mono">{rescuableCount}</b>}
+            </button>
+
+            <button className="drawer-item" onClick={() => go(() => setMomentsOpen(true))}>
+              <span className="drawer-item-icon"><ClockIcon /></span>
+              <span>{tr('menu.moments')}</span>
+              {openMomentCount > 0 && <b className="drawer-count mono">{openMomentCount}</b>}
             </button>
 
             <button className="drawer-item" onClick={() => go(() => setSmartInboxOpen(true))}>

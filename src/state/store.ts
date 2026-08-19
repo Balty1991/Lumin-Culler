@@ -17,7 +17,7 @@ import { readApplyEditsInGallery, writeApplyEditsInGallery } from './applyEditsP
 import { clearPreviewUrlCache } from '../core/previewUrlCache';
 import {
   importFiles, originalFiles, originalHandles, createCancelToken, SELECT_THRESHOLD, REJECT_THRESHOLD, decidePhotoStatus,
-  readLibraryScores, type ImportProgress, type ImportCancelToken
+  readLibraryScores, type ImportProgress, type ImportCancelToken, type ImportOutcomeReport
 } from '../core/importPipeline';
 import { deriveThresholds, type Thresholds } from '../core/scoreThresholds';
 import { pickMostUncertain } from '../core/uncertainty';
@@ -50,8 +50,10 @@ import { readStoredTheme, applyTheme, type Theme } from './theme';
 import { readStoredAccent, applyAccent, type AccentTheme } from './accentTheme';
 import { readWelcomeSeen, writeWelcomeSeen } from './welcomeOnboarding';
 import { readExcludedFolderIds, writeExcludedFolderIds } from './galleryFolders';
+import { readProtectedPersons, writeProtectedPersons, excludeProtected } from './protectedPersons';
 import { readStageStats } from '../core/stageTiming';
 import { summariseFeedback } from '../core/aiFeedback';
+import { recordImportOutcome, summariseOutcomes } from '../core/importOutcome';
 import { keepScreenAwake } from '../core/wakeLock';
 import { createActiveElapsed, type ActiveElapsed } from '../core/activeElapsed';
 import { recordImportDay } from './streak';
@@ -355,6 +357,9 @@ interface AppState {
   /** Ce nu pare amintire: capturi de ecran si documente — vezi core/smartInbox.ts. */
   smartInboxOpen: boolean;
   setSmartInboxOpen: (open: boolean) => void;
+  /** Momentele (sesiuni de fotografiat separate de pauze), cu 1-3 cadre propuse din fiecare — vezi core/momentStacks.ts. */
+  momentsOpen: boolean;
+  setMomentsOpen: (open: boolean) => void;
   setDuplicatesPanelOpen: (open: boolean) => void;
   /** "Protectie documente" — coada de poze care par documente/capturi (vezi core/documentShield.ts), de revizuit una cate una. */
   documentShieldOpen: boolean;
@@ -527,6 +532,13 @@ interface AppState {
    * propune niciodata". Persistate, si reversibile din acelasi ecran.
    */
   excludedFolderIds: Set<string>;
+  /**
+   * Persoane pe care operatiile automate nu au voie sa le respinga. Protectia e
+   * fata de AUTOMATIZARE, nu fata de utilizator: el poate respinge oricand
+   * manual. Vezi state/protectedPersons.ts.
+   */
+  protectedPersons: Set<string>;
+  toggleProtectedPerson: (name: string) => void;
   toggleFolderExcluded: (bucketId: string) => void;
   /** Aduce DIRECT toate pozele dintr-un folder (fara selector manual). */
   importGalleryFolder: (bucketId: string) => Promise<void>;
@@ -601,6 +613,8 @@ interface AppState {
   setColorLabel: (id: string, label: ColorLabel) => Promise<void>;
   /** Salveaza ajustarile de baza (EditPanel) — non-destructiv, vezi PhotoRecord.edits. */
   setEditAdjustments: (id: string, adjustments: EditAdjustments) => Promise<void>;
+  /** Aplica editarile unei poze tuturor celorlalte cadre NEEDITATE din lista data. */
+  applyEditsToMoment: (sourceId: string, ids: string[]) => Promise<{ applied: number }>;
   undo: () => Promise<void>;
   keepOnlyInGroup: (groupId: string, keepId: string) => Promise<void>;
   /**
@@ -658,6 +672,18 @@ interface AppState {
   setMultiSelected: (id: string, on: boolean) => void;
   clearMultiSelect: () => void;
   setSelectMode: (on: boolean) => void;
+  /**
+   * Duce utilizatorul in grila, cu `ids` deja selectate.
+   *
+   * Bug real gasit la auditul in browser: panourile care "trimit in grila"
+   * (Nu par amintiri, Momente) puneau selectia si inchideau panoul, dar
+   * ramaneau pe ecranul Acasa — unde grila e ASCUNSA pana la un click pe
+   * "Vezi toate pozele". Utilizatorul apasa "Verifica grupul" si nu se
+   * intampla nimic vizibil, desi selectia exista. Punem toti pasii intr-un
+   * singur loc, ca urmatorul panou care trimite in grila sa nu-l uite iar pe
+   * al treilea.
+   */
+  revealInGrid: (ids: string[]) => void;
   /** Aplica un status TUTUROR pozelor din selectia curenta (antreneaza AI-ul per poza, ca setStatus). */
   bulkSetStatusForSelection: (status: PhotoRecord['status']) => Promise<void>;
   /** Aplica un rating TUTUROR pozelor din selectia curenta. */
@@ -1384,6 +1410,8 @@ export const useStore = create<AppState>((set, get) => ({
   setRescueQueueOpen: open => set({ rescueQueueOpen: open }),
   smartInboxOpen: false,
   setSmartInboxOpen: open => set({ smartInboxOpen: open }),
+  momentsOpen: false,
+  setMomentsOpen: open => set({ momentsOpen: open }),
   documentShieldOpen: false,
   setDocumentShieldOpen: open => set({ documentShieldOpen: open }),
   vaultOpen: false,
@@ -1823,6 +1851,13 @@ export const useStore = create<AppState>((set, get) => ({
   },
   supervisorImportedFolderIds: readImportedFolderIds(),
   excludedFolderIds: readExcludedFolderIds(),
+  protectedPersons: readProtectedPersons(),
+  toggleProtectedPerson: name => {
+    const next = new Set(get().protectedPersons);
+    if (next.has(name)) next.delete(name); else next.add(name);
+    writeProtectedPersons(next);
+    set({ protectedPersons: next });
+  },
   toggleFolderExcluded: bucketId => {
     const next = new Set(get().excludedFolderIds);
     if (next.has(bucketId)) next.delete(bucketId); else next.add(bucketId);
@@ -2141,6 +2176,8 @@ export const useStore = create<AppState>((set, get) => ({
     // oprea la jumatate (vezi core/wakeLock.ts pentru ce NU rezolva asta).
     const releaseWakeLock = keepScreenAwake();
     let warning: string | undefined;
+    /** Bilantul in cifre al lotului, raportat de pipeline pe ultimul apel — vezi core/importOutcome.ts. */
+    let outcomeReport: ImportOutcomeReport | undefined;
     let done = 0;
     const startedAt = Date.now();
     // separat de `startedAt` (folosit pentru lastImportStats, care include si
@@ -2205,6 +2242,7 @@ export const useStore = create<AppState>((set, get) => ({
         files,
         progress => {
           warning = progress.warning; done = progress.done;
+          if (progress.outcome) outcomeReport = progress.outcome;
           if (progress.thresholds) adaptedThresholds = progress.thresholds;
           let etaSeconds: number | undefined;
           if (progress.phase === 'analiza') {
@@ -2309,6 +2347,20 @@ export const useStore = create<AppState>((set, get) => ({
     // Ziua asta ramane marcata ca zi cu import chiar daca pozele dispar mai
     // tarziu (Goleste sesiunea, stergerea respinselor) — vezi state/streak.ts.
     if (done > 0) recordImportDay();
+    // Ce s-a intamplat la importul asta, pastrat dupa ce dispare notificarea.
+    // `imported` se ia din `batch` (pozele chiar ajunse in baza), nu din
+    // raportul pipeline-ului: e acelasi numar pe care il raporteaza si cardul
+    // de sesiune, deci cele doua ecrane nu se pot contrazice.
+    if (outcomeReport) {
+      recordImportOutcome({
+        ts: Date.now(),
+        total: outcomeReport.total,
+        imported: batch.length,
+        failed: outcomeReport.failed,
+        skipped: outcomeReport.skipped,
+        reasons: outcomeReport.reasons
+      });
+    }
     const doneNotice = done > 0
       ? t(get().locale, plural(done, 'store.import.done.one', 'store.import.done.other'), { count: done })
         + (adaptedThresholds
@@ -2407,6 +2459,33 @@ export const useStore = create<AppState>((set, get) => ({
     set(state => ({
       photos: state.photos.map(p => (p.id === id ? { ...p, edits: neutral ? undefined : adjustments } : p))
     }));
+  },
+
+  /**
+   * Aplica ACELEASI ajustari tuturor celorlalte cadre din acelasi moment.
+   *
+   * Un fix aprobat pe un cadru e aproape sigur bun si pe restul cadrelor din
+   * aceeasi lumina: aceeasi expunere gresita, acelasi cer ars. Pana acum
+   * trebuia repetat manual, cadru cu cadru, iar la 18 cadre nimeni nu o face.
+   *
+   * Doar cadrele care NU au deja editari proprii: o corectie facuta manual de
+   * utilizator pe un cadru anume nu are voie sa fie stearsa de o aplicare in
+   * lot. Reversibil ca orice operatie in masa.
+   */
+  applyEditsToMoment: async (sourceId, ids) => {
+    const source = get().photos.find(p => p.id === sourceId);
+    if (!source?.edits) return { applied: 0 };
+    const targets = get().photos.filter(p => ids.includes(p.id) && p.id !== sourceId && isNeutral(p.edits));
+    if (!targets.length) return { applied: 0 };
+    const edits = source.edits;
+    await Promise.all(targets.map(p => db.photos.update(p.id, { edits })));
+    const targetIds = new Set(targets.map(p => p.id));
+    const locale = get().locale;
+    set(state => ({
+      photos: state.photos.map(p => (targetIds.has(p.id) ? { ...p, edits } : p)),
+      notice: t(locale, 'edit.appliedToMoment', { count: targets.length })
+    }));
+    return { applied: targets.length };
   },
 
   /**
@@ -2583,7 +2662,10 @@ export const useStore = create<AppState>((set, get) => ({
    * de confirm() la aplicare.
    */
   bulkRejectBelow: async (threshold) => {
-    const targets = selectBulkRejectTargets(get().photos, threshold);
+    // Protectia se aplica DUPA ce operatia si-a ales tintele — un singur filtru,
+    // in acelasi loc, in loc sa fie strecurat in fiecare selector si uitat la
+    // urmatorul adaugat. Vezi state/protectedPersons.ts.
+    const targets = excludeProtected(selectBulkRejectTargets(get().photos, threshold), get().protectedPersons);
     const changes = targets.map(p => ({ photoId: p.id, previousStatus: p.status }));
     const { quotaError } = await applyBulkStatusChanges(
       targets.map(p => ({ id: p.id, status: 'rejected' as const })),
@@ -2601,6 +2683,7 @@ export const useStore = create<AppState>((set, get) => ({
 
   resolveAllSeries: async () => {
     const resolutions = resolveGroups(get().photos);
+    const protectedForSeries = get().protectedPersons;
     // Bug real gasit de auditul QA (bug/low): un Array.find() pe intreaga lista
     // in interiorul buclei (si al buclei imbricate de rejectIds) era O(n) per
     // cautare — O(M*n) in total pentru M membri de serie, real O(n^2) cand
@@ -2620,6 +2703,10 @@ export const useStore = create<AppState>((set, get) => ({
       for (const rejectId of g.rejectIds) {
         const rec = photosById.get(rejectId);
         if (rec?.status === 'rejected') continue; // deja rezolvat, sarim (evita re-antrenare redundanta)
+        // Persoana protejata: nu o respingem automat nici cand pierde in serie.
+        // Un cadru putin miscat in care copilul rade e exact ce nu vrei sa
+        // dispara pentru ca a luat un scor mai mic. Vezi state/protectedPersons.ts.
+        if (rec && protectedForSeries.size && rec.personNames.some(n => protectedForSeries.has(n))) continue;
         changes.push({ photoId: rejectId, previousStatus: rec?.status ?? 'pending' });
         statusChanges.push({ id: rejectId, status: 'rejected' });
       }
@@ -2642,7 +2729,14 @@ export const useStore = create<AppState>((set, get) => ({
 
   /** Ca si celelalte operatii in masa — reversibila dintr-o data cu Ctrl+Z (batchHistory). */
   autoCullTopPercent: async (percent) => {
-    const { selectIds, rejectIds } = selectTopPercent(get().photos, percent);
+    const { selectIds, rejectIds: rawRejectIds } = selectTopPercent(get().photos, percent);
+    // Doar RESPINGERILE se filtreaza: a scoate o poza protejata si din lista de
+    // pastrate ar fi absurd — protectia inseamna "nu o arunca", nu "nu o atinge".
+    const protectedNames = get().protectedPersons;
+    const photoIndex = new Map(get().photos.map(p => [p.id, p]));
+    const rejectIds = protectedNames.size
+      ? rawRejectIds.filter(id => { const ph = photoIndex.get(id); return !ph || !ph.personNames.some(n => protectedNames.has(n)); })
+      : rawRejectIds;
     const byId = new Map(get().photos.map(p => [p.id, p.status]));
     const changes = [...selectIds, ...rejectIds].map(id => ({ photoId: id, previousStatus: byId.get(id) ?? 'pending' as PhotoRecord['status'] }));
     const { quotaError } = await applyBulkStatusChanges(
@@ -2823,6 +2917,19 @@ export const useStore = create<AppState>((set, get) => ({
     multiSelectIds: on ? state.multiSelectIds : new Set(),
     multiSelectAnchor: on ? state.multiSelectAnchor : null
   })),
+
+  revealInGrid: ids => set({
+    // Tab-urile Albume/Persoane si meniul acopera grila: fara asta, selectia
+    // s-ar face in spatele panoului din care tocmai s-a apasat.
+    collectionsOpen: false,
+    personsOpen: false,
+    menuOpen: false,
+    homeGridOpen: true,
+    filter: 'all',
+    selectMode: true,
+    multiSelectIds: new Set(ids),
+    multiSelectAnchor: ids.length ? ids[ids.length - 1] : null
+  }),
 
   /** Ca si celelalte operatii in masa — reversibila dintr-o data cu Ctrl+Z (batchHistory). */
   bulkSetStatusForSelection: async status => {
@@ -3489,7 +3596,8 @@ export const useStore = create<AppState>((set, get) => ({
       stats, projectName, earliestImportedAt, generatedAt: Date.now(),
       // Numai durate, si numai daca s-a masurat ceva — vezi core/stageTiming.ts.
       stageStats: readStageStats(),
-      feedback: summariseFeedback()
+      feedback: summariseFeedback(),
+      imports: summariseOutcomes()
     });
     const blob = new Blob([text], { type: 'text/plain' });
     await downloadBlob('raport-sesiune-lumin-' + new Date().toISOString().slice(0, 10) + '.txt', blob);
@@ -3763,7 +3871,7 @@ export function isAnyOverlayOpen(): boolean {
     s.paletteOpen || s.shortcutsOpen || s.menuOpen || s.personsOpen || s.insightsOpen ||
     s.batchOpsOpen || s.statsOpen || s.projectsOpen || s.contactSheetOpen || s.presentationOpen ||
     s.appearanceOpen || s.collectionsOpen || s.documentShieldOpen || s.duplicatesPanelOpen ||
-    s.rescueQueueOpen || s.smartInboxOpen ||
+    s.rescueQueueOpen || s.smartInboxOpen || s.momentsOpen ||
     s.exportDestinationsOpen || s.premiumOpen || s.searchPanelOpen || s.supervisorPanelOpen ||
     s.tiktokSortOpen || s.locationsOpen || s.vaultOpen || s.zenPanelOpen ||
     s.compareGroupId || s.editingPhotoId || s.dialogRequest

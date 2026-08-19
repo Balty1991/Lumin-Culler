@@ -5,12 +5,14 @@ import { computePersonRecognitionStats, type PersonRecognitionStats } from '../c
 import { findUnrecognizedFaceClusters, type FaceCluster } from '../core/faceClustering';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { FaceCropThumb } from './FaceCropThumb';
-import { UserCheckIcon, TrashIcon, XIcon, DownloadIcon, UploadIcon, LayersIcon, SparkleIcon } from './icons';
+import { UserCheckIcon, TrashIcon, XIcon, DownloadIcon, UploadIcon, LayersIcon, SparkleIcon, ShieldIcon } from './icons';
 import { t, plural } from '../i18n';
 
 /** Inrolare persoane cunoscute (ex. Ami, sotia): nume + 1-4 poze de referinta. */
 export function PersonsPanel() {
   const open = useStore(s => s.personsOpen);
+  const protectedPersons = useStore(s => s.protectedPersons);
+  const toggleProtectedPerson = useStore(s => s.toggleProtectedPerson);
   const setOpen = useStore(s => s.setPersonsOpen);
   const persons = useStore(s => s.persons);
   const addPerson = useStore(s => s.addPerson);
@@ -158,7 +160,7 @@ export function PersonsPanel() {
                   <span>
                     <UserCheckIcon className="inline-icon" /> {p.name}{' '}
                     <em className="mono">
-                      ({tr('persons.refCount', { count: p.embeddings.length })}
+                      ({tr(plural(p.embeddings.length, 'persons.refCount.one', 'persons.refCount'), { count: p.embeddings.length })}
                       {stats ? tr('persons.statsSuffix', {
                         count: stats.matchCount,
                         faceWord: plural(stats.matchCount, tr('persons.faceWord.one'), tr('persons.faceWord.other')),
@@ -167,6 +169,18 @@ export function PersonsPanel() {
                     </em>
                   </span>
                 </label>
+                {/* Protectia e fata de AUTOMATIZARE, nu fata de utilizator: el
+                    poate respinge oricand manual o poza cu persoana protejata.
+                    Vezi state/protectedPersons.ts. */}
+                <button
+                  className={protectedPersons.has(p.name) ? 'ghost small person-protect on' : 'ghost small person-protect'}
+                  aria-pressed={protectedPersons.has(p.name)}
+                  onClick={() => toggleProtectedPerson(p.name)}
+                  title={tr('persons.protect.title')}
+                >
+                  <ShieldIcon className="inline-icon" aria-hidden="true" />
+                  {protectedPersons.has(p.name) ? tr('persons.protect.on') : tr('persons.protect.off')}
+                </button>
                 <button className="ghost icon-btn" onClick={() => confirmRemove(p.id, p.name)} aria-label={tr('persons.deleteAriaLabel', { name: p.name })}>
                   <TrashIcon />
                 </button>

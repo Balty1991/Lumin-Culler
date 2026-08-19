@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
 import { useStore } from '../state/store';
+import { buildMomentStacks, momentOf } from '../core/momentStacks';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { computeAutoAdjustments, drawAdjusted, isNeutral, NEUTRAL_ADJUSTMENTS, type EditAdjustments } from '../core/imageAdjust';
 import {
@@ -8,7 +9,7 @@ import {
   FULL_CROP, type CropBox, type CropDragMode
 } from '../core/cropMath';
 import { db, type AnalysisRecord } from '../core/db';
-import { XIcon, UndoIcon, SparkleIcon, CropIcon } from './icons';
+import { XIcon, UndoIcon, SparkleIcon, CropIcon, LayersIcon } from './icons';
 import { t } from '../i18n';
 
 // Doar cele 10 chei numerice cu slider in UI — rotationDeg (auto-indreptare)
@@ -68,6 +69,26 @@ export function EditPanel() {
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const containerRef = useRef<HTMLDivElement>(null);
   const photo = photos.find(p => p.id === editingId) ?? null;
+
+  // Celelalte cadre NEEDITATE din acelasi moment. Se calculeaza din pozele
+  // deja in memorie (doar ora capturii si scorul), fara niciun acces la disc:
+  // vezi core/momentStacks.ts, care nu se uita deloc la imagini.
+  const applyEditsToMoment = useStore(s => s.applyEditsToMoment);
+  const momentSiblings = useMemo(() => {
+    if (!photo) return [];
+    const stacks = buildMomentStacks(photos.map(p => ({
+      id: p.id, capturedAt: p.capturedAt, aiScore: p.aiScore, status: p.status, groupId: p.groupId
+    })));
+    const moment = momentOf(stacks, photo.id);
+    if (!moment) return [];
+    const byId = new Map(photos.map(p => [p.id, p]));
+    return moment.ids.filter(id => id !== photo.id && isNeutral(byId.get(id)?.edits));
+  }, [photo, photos]);
+
+  const applyToMoment = async () => {
+    if (!photo) return;
+    await applyEditsToMoment(photo.id, momentSiblings);
+  };
   useModalFocusTrap(containerRef, !!photo);
 
   const [adjustments, setAdjustments] = useState<EditAdjustments>(NEUTRAL_ADJUSTMENTS);
@@ -403,6 +424,15 @@ export function EditPanel() {
                 <button className="ghost small-btn" onClick={resetAll} disabled={isNeutral(adjustments)}>
                   <UndoIcon className="inline-icon" /> {tr('edit.reset')}
                 </button>
+                {/* Un fix aprobat pe un cadru e aproape sigur bun si pe restul
+                    cadrelor din aceeasi lumina. Apare doar cand chiar exista
+                    alte cadre needitate in acelasi moment — vezi
+                    core/momentStacks.ts si applyEditsToMoment din store. */}
+                {momentSiblings.length > 0 && !isNeutral(adjustments) && (
+                  <button className="ghost small-btn" onClick={() => void applyToMoment()}>
+                    <LayersIcon className="inline-icon" /> {tr('edit.applyToMoment', { count: momentSiblings.length })}
+                  </button>
+                )}
                 <button className="ghost icon-btn" onClick={() => setEditingId(null)} aria-label={tr('detail.close')}>
                   <XIcon />
                 </button>

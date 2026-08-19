@@ -36,6 +36,27 @@ export interface ImportProgress {
    * de comportament complet invizibila.
    */
   thresholds?: Thresholds;
+  /**
+   * Bilantul in cifre al lotului, raportat o singura data, pe ultimul apel.
+   *
+   * Exista separat de `warning` pentru ca mesajul e o propozitie pentru om, iar
+   * asta e ceva ce se poate pastra si insuma peste mai multe importuri (vezi
+   * core/importOutcome.ts). Fara el, singurul loc in care traia numarul de
+   * esecuri era un toast de cateva secunde.
+   */
+  outcome?: ImportOutcomeReport;
+}
+
+/** Numai cifre si motivul deja agregat — fara nume de fisier, fara cai. */
+export interface ImportOutcomeReport {
+  /** Fisiere intrate efectiv in analiza (dupa filtrarea formatelor nesuportate). */
+  total: number;
+  imported: number;
+  failed: number;
+  /** Alese, dar sarite inainte de analiza: video, HEIC, formate nesuportate. */
+  skipped: number;
+  /** Primele motive de esec, deja agregate. */
+  reasons?: string;
 }
 
 export interface ImportedPhoto {
@@ -684,7 +705,10 @@ export async function importFiles(
       ? `Niciunul dintre cele ${files.length} fisiere alese nu e intr-un format suportat ` +
         `(JPEG/PNG/WebP/AVIF/RAW). HEIC/HEIF de pe iPhone nu e suportat inca — converteste-le in JPEG.`
       : undefined;
-    onProgress({ done: 0, total: 0, fileName: '', phase: 'finalizat', warning });
+    onProgress({
+      done: 0, total: 0, fileName: '', phase: 'finalizat', warning,
+      outcome: { total: 0, imported: 0, failed: 0, skipped: pairs.length }
+    });
     return new Map();
   }
 
@@ -841,7 +865,17 @@ export async function importFiles(
     : undefined;
   onProgress({
     done, total: images.length, fileName: '', phase: 'finalizat',
-    warning: stopReason ?? failureWarning ?? skippedWarning
+    warning: stopReason ?? failureWarning ?? skippedWarning,
+    outcome: {
+      // `done`, nu `images.length`: la un import anulat la 52/437, denominatorul
+      // corect e ce s-a incercat, nu ce s-ar fi incercat. Altfel un import oprit
+      // devreme ar raporta mereu o rata de esec aproape zero.
+      total: done,
+      imported: done - failed,
+      failed,
+      skipped: skippedCount,
+      reasons: topReasons || undefined
+    }
   });
   return groups;
 }

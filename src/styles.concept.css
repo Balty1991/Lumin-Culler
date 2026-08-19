@@ -3707,6 +3707,7 @@ input[type="range"] { height: 44px; }
    Suprafetele care stau peste scrim devin opace. Sticla ramane acolo unde are
    sens: peste continutul paginii, nu peste un scrim intunecat. */
 :root[data-theme="light"] .detail-inner,
+:root[data-theme="light"] .edit-modal,
 :root[data-theme="light"] .palette { background: #f2f4f7; }
 
 /* Actiunea distructiva era rosu deschis pe suprafata deschisa: 2,69:1. */
@@ -4064,3 +4065,57 @@ input[type="search"] { min-height: 44px; }
   .compare-card.recommended,
   .compare-card.recommended:hover { transform: none; }
 }
+
+/* ── Momente ──
+   Cadrele propuse trebuie sa se distinga de restul momentului la o singura
+   privire, fara sa citesti nimic: sunt mai mari si au un contur colorat.
+   Restul e un context, nu o galerie — de asta e taiat la 8 si mai mic. */
+.moment-card h3 { margin-bottom: 2px; font-variant-numeric: tabular-nums; }
+.moment-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0 10px; }
+.moment-thumb { width: 46px; height: 46px; border-radius: 9px; object-fit: cover; opacity: .72; }
+.moment-thumb.top {
+  width: 68px;
+  height: 68px;
+  opacity: 1;
+  outline: 2px solid rgb(var(--accent-rgb) / .85);
+  outline-offset: 1px;
+}
+.moment-thumb.empty { display: block; background: var(--surface-2); }
+.moment-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+/* Ambele actiuni sunt tinte de atingere, nu doar cea principala. */
+.moment-actions button { min-height: 44px; }
+
+/* ── Randul unei persoane inrolate ──
+   Trei defecte gasite abia cand auditul a avut in sfarsit persoane inrolate
+   de aratat (pozele de test n-au fete, deci randul nu se randase niciodata).
+
+   1. Eticheta e tinta reala de atingere — bifa din ea are 16px, dar se apasa
+      oriunde pe rand. Randul insa se inalta dupa text: la un nume scurt
+      ajungea 22px. Sub prag, si cu atat mai neplacut cu cat e o bifa. */
+.person-select-row { min-height: 44px; }
+/* Bifa in sine ramane mica de privit la 16px, desi se apasa pe tot randul. */
+.person-select-row input[type="checkbox"] { width: 20px; height: 20px; }
+
+/* 2. Butonul de stergere se comprima cand randul devine ingust (39px latime,
+      langa noul comutator de protectie). O tinta de atingere nu are voie sa
+      fie strivita de vecini. */
+.persons li .icon-btn { flex: 0 0 auto; min-width: 44px; }
+
+/* 3. Pe ecran ingust cele trei elemente se bat pe latime; le lasam sa treaca
+      pe randul urmator in loc sa se stranga sub prag. */
+.persons li { flex-wrap: wrap; gap: 8px; }
+.person-select-row { flex: 1 1 160px; }
+
+/* Panoul de editare, in tema luminoasa: aceeasi cauza ca la .detail-inner mai
+   sus (sticla peste un scrim intunecat), gasita abia acum, cand auditul a intrat
+   in editor pe tema luminoasa. Doua lucruri in plus, proprii lui:
+
+   1. Scrim-ul lui e negru 82% fix in CSS, nu prin token — sub el pagina e
+      luminoasa, deci il aducem la un gri deschis, ca celelalte panouri. */
+:root[data-theme="light"] .edit-scrim { background: rgb(226 228 234 / .86); }
+
+/* 2. "Auto" e scris cu accentul (turcoaz) pe fundal deschis: 1,86:1, cel mai
+      slab contrast din toata aplicatia. Butonul ramane recunoscibil dupa
+      bordura si fundalul lui, dar textul trece pe o nuanta care se citeste. */
+:root[data-theme="light"] .edit-auto-btn { color: #0f766e; border-color: #0f766e59; }
+:root[data-theme="light"] .edit-auto-btn:not(:disabled):hover { border-color: #0f766e; }
