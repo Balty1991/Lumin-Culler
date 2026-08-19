@@ -66,7 +66,7 @@ export function PresentationMode() {
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const reduceMotion = useReducedMotion() ?? false;
   const containerRef = useRef<HTMLDivElement>(null);
-  useModalFocusTrap(containerRef, open);
+  useModalFocusTrap(containerRef, open, true);
 
   const { photos, sourceLabel } = useMemo(() => {
     // Recap lunar (Meniu) fixeaza o lista explicita de poze, indiferent de filtrul

@@ -83,13 +83,21 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
   // (navigarea intre poze cu sagetile NU remonteaza, vezi comentariul de mai jos) —
   // capcana de focus trebuie sa se activeze o singura data la deschidere, nu la
   // fiecare schimbare de poza (altfel ar fura focusul vizibil la fiecare sageata)
-  useModalFocusTrap(containerRef, true);
+  useModalFocusTrap(containerRef, true, true);
+
+  // Efectul de mai jos ruleaza si la MONTARE, nu doar la schimbarea pozei, iar
+  // acolo `setSheetExpanded(false)` anula imediat starea ceruta la deschidere
+  // (vezi expandMetricsOnOpen) — de aceea butonul "Vezi metricile si editarea"
+  // din sortarea rapida ajungea tot pe o foaie stransa, si trebuia apasat
+  // "METRICI" inca o data. Colapsam doar cand se schimba efectiv poza.
+  const photoChangedRef = useRef(false);
 
   useEffect(() => {
     setZoomed(false);
     dragXRef.current = 0;
     setDragX(0);
-    setSheetExpanded(false);
+    if (photoChangedRef.current) setSheetExpanded(false);
+    photoChangedRef.current = true;
     let alive = true;
     // Curatam src-ul VECHI inainte de a incepe fetch-ul nou — altfel, pana la rezolvarea
     // promisiunii (LRU-ul din previewUrlCache.ts tine doar 40 de intrari, deci navigarea

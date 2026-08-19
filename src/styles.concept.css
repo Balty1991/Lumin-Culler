@@ -3561,3 +3561,185 @@ body:before {
   overflow: auto;
   background: var(--bg);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * Audit vizual complet — zone de atingere si contrast
+ *
+ * Masurat in browser pe 412x915, pe toate ecranele si pe toate cele 42 de
+ * intrari din meniu. Ghidul minim pentru un deget e 44x44 CSS px (Apple HIG,
+ * Material, WCAG 2.5.5). Mai jos sunt controalele care cadeau sub el pe
+ * traseele pe care utilizatorul le atinge de sute de ori intr-o sesiune.
+ * Crestem CUTIA DE ATINGERE, nu desenul: unde marirea ar strica un rand dens,
+ * folosim inaltime minima pe element, nu padding vizibil.
+ * ═════════════════════════════════════════════════════════════════════════ */
+
+/* Randul de filtre din grila: stratul de concept le pusese la 34px. E randul
+   cel mai apasat din aplicatie (Toate / Selectate / De verificat / Respinse). */
+.filters .chip { min-height: 44px; }
+.filters .chip.chip-compact.more-filters-trigger,
+.filters .chip.chip-compact.select-mode-toggle { min-width: 44px; }
+
+/* Pastilele de stare din HUD sunt si butoane de filtrare — 27px inaltime. */
+.hud .stat.stat-btn { min-height: 44px; }
+.hud-clear { min-height: 44px; }
+
+/* Inchiderea sortarii rapide si esantioanele de tema erau la 42px: doi pixeli
+   sub prag, dar exact colturile ecranului unde degetul e cel mai imprecis. */
+.tiktok-close { width: 44px; height: 44px; }
+.appearance-swatch { width: 44px; height: 44px; }
+
+/* Actiunile secundare din panouri (Compară, Creează, Resetează, Arată toate
+   ponderile…) aveau 28px — mai putin de doua treimi din prag. Raman vizual
+   "mici" (padding si font neschimbate), dar cutia ajunge la 44px. */
+.ghost.small { min-height: 44px; }
+.detail-inner input.mono { min-height: 44px; }
+.workspace-metrics-handle { min-height: 44px; }
+
+/* Campurile din meniu aveau 27px inaltime — mai putin decat un rand de text
+   cu diacritice. */
+.drawer-select,
+.drawer-text-input { min-height: 44px; }
+
+/* Cursoarele (Auto-Cull, prag de scor, ajustari de editare) aveau 16px: pista
+   nativa e subtire, iar cutia elementului o urma exact. Inaltimea de 44px nu
+   schimba desenul — pista si bulina raman centrate in ea — dar degetul are in
+   sfarsit pe ce sa cada. */
+input[type="range"] { height: 44px; }
+
+/* Campul de cautare vizuala avea 18px inaltime. */
+.search-input,
+.search-panel input[type="text"],
+.search-panel input:not([type]) { min-height: 44px; }
+
+/* Comutatoarele din Mod Zen: 38x21. Desenul ramane, zona de atins creste. */
+.zen-switch { position: relative; }
+.zen-switch::after { content: ''; position: absolute; inset: -12px -4px; }
+
+/* Stelele de rating din Inspector aveau 28x35 — cel mai des atins control din
+   foaia de metrici. Si "Compară toată seria", 33px pe toata latimea. */
+.star-rating-btn { min-width: 44px; min-height: 44px; }
+.ghost.slim { min-height: 44px; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * Tema luminoasa — 17 esecuri de contrast, masurate pe toate ecranele
+ *
+ * Stratul de concept e gandit intunecat. Peste el, tema luminoasa a rasturnat
+ * fundalurile, dar cateva culori de text au ramas cele de pe intuneric — sau
+ * invers: text deschis pe o suprafata care a devenit deschisa. Fiecare valoare
+ * de mai jos e calculata pe fundalul REAL pe care ajunge textul, la un raport
+ * de cel putin 4,6:1 (peste minimul WCAG AA de 4,5:1 pentru text normal).
+ * ═════════════════════════════════════════════════════════════════════════ */
+
+:root[data-theme="light"] {
+  /* Cele doua nuante secundare erau calibrate pe alb pur (`--surface`), dar in
+     aplicatie textul ajunge pe suprafetele usor colorate de deasupra lui:
+     238,240,243 in foaia de metrici si 226,228,234 in meniu. Acolo dadeau
+     4,41:1 si 4,14:1 — sub pragul AA de 4,5:1 — pentru etichetele de metrici,
+     numele filelor din Inspector, contoarele din chip-uri, etichetele de
+     factori si numerele din meniu. Recalculate pe fundalul REAL: 4,67:1. */
+  --text-dim: #60646c;
+  --text-faint: #60646c;
+}
+
+/* Foaia de metrici era alb 72% peste scena neagra a Inspectorului: se compunea
+   intr-un gri de mijloc (184,184,184) pe care orice text secundar cadea sub
+   prag, iar panoul arata murdar in loc de deschis. O facem opaca. */
+:root[data-theme="light"] .detail-sheet { background: #f2f4f7; }
+
+/* Numarul de poze respinse era alb-albastrui (244,247,251) pe cardul deschis —
+   1,01:1, adica invizibil. Doar perechea "selectate" avea culoare proprie. */
+:root[data-theme="light"] .review-desk-session-stat b { color: var(--text); }
+
+/* Etichetele barei de decizie erau albe cu umbra, scrise pentru vremea cand
+   pluteau peste poza. De cand se vad sub butoane, stau pe bara alba a temei
+   luminoase: alb pe alb, 1,09:1. */
+:root[data-theme="light"] .tiktok-rail-label {
+  color: #14151a !important;
+  text-shadow: none !important;
+}
+
+/* Numarul de cadru sta pe pastila lui intunecata in ambele teme, dar culoarea
+   textului se inversase odata cu tema: gri inchis pe gri inchis, 1,11:1. */
+.frame-no { color: #e8eaf0; }
+
+/* Indiciul de zoom si supratitlul de pe Review Desk stau amandoua peste o
+   scena care ramane intunecata in ambele teme — deci si culoarea lor trebuie
+   sa ramana cea de pe intuneric. */
+:root[data-theme="light"] .zoom-hint { color: rgb(255 255 255 / .72); }
+:root[data-theme="light"] .review-desk-kicker { color: #67e4cf; }
+
+/* Butonul principal de pe Review Desk devenise verde-petrol inchis, dar
+   pastrase cerneala aproape neagra: 3,53:1 pe cel mai apasat buton din
+   aplicatie. Alb pe acelasi verde da 5,47:1. */
+:root[data-theme="light"] .review-desk-continue { color: #fff; }
+
+/* Discul din inelul de scor se deschisese odata cu tema, iar cifra colorata
+   (verde/chihlimbar/rosu) ramanea pe el la 1,53:1. Discul ramane intunecat in
+   ambele teme, ca in build-ul de referinta — verde pe el da 11,29:1. */
+:root[data-theme="light"] .score-ring-inner,
+:root[data-theme="light"] .mini-score-ring-inner { background: rgb(10 11 14 / .88); }
+
+/* Chihlimbarul si verdele de eticheta, coborate exact cat sa treaca pragul. */
+:root[data-theme="light"] .why-suggestions-title { color: #956007; }
+:root[data-theme="light"] .factor-tag.pos { color: #0a783c; }
+
+/* Cerneala butonului principal sta pe un <span> din interior, nu pe buton. */
+:root[data-theme="light"] .review-desk-continue,
+:root[data-theme="light"] .review-desk-continue span { color: #fff; }
+
+/* Scorul din capul sectiunii "Analiză cadru" era turcoazul de accent pe foaia
+   deschisa: 1,69:1. Aceeasi nuanta, coborata pana trece pragul. */
+:root[data-theme="light"] .inspector-section-head b { color: #1a7b6f; }
+
+/* Antetul spatiului de lucru: stratul de concept pusese iconitele la 38px, iar
+   sagetile de navigare la 43px latime. Sunt exact butoanele pe care degetul le
+   apasa la fiecare cadru cand rasfoiesti cu lupa. */
+.workspace-head .icon-btn { width: 44px; height: 44px; }
+.workspace-nav.icon-btn { min-width: 44px; }
+
+/* ── Tema luminoasa: panourile nu mai sunt gri ──
+   Cauza radacina a tot ce urmeaza: in tema luminoasa `--glass-bg` e alb la 72%,
+   iar scrim-ul din spatele oricarui panou modal (.detail) e aproape negru la
+   92%. Alb 72% peste asa ceva NU da o suprafata deschisa, ci un gri de mijloc:
+   masurat, panourile se compun la ~#bfbfbf. Pe el, fiecare text secundar cadea
+   la 3,22:1, iar panoul arata murdar in loc de luminos — asta se vedea ca
+   "tema luminoasa sufera".
+   Suprafetele care stau peste scrim devin opace. Sticla ramane acolo unde are
+   sens: peste continutul paginii, nu peste un scrim intunecat. */
+:root[data-theme="light"] .detail-inner,
+:root[data-theme="light"] .palette { background: #f2f4f7; }
+
+/* Actiunea distructiva era rosu deschis pe suprafata deschisa: 2,69:1. */
+:root[data-theme="light"] .ghost.small.danger { color: #a3323f; }
+
+/* Titlurile de grup din Premium foloseau nuanta cea mai stinsa la 0,68rem. */
+:root[data-theme="light"] .premium-group-head { color: var(--text); }
+
+/* Butoanele mari din panouri se opreau la 42px, iar campurile de PIN/nume la
+   42. Doi pixeli sub prag, dar sunt actiunile care confirma operatii in masa. */
+.select, .reject, .btn-accent { min-height: 44px; }
+.detail-inner input[type="text"],
+.detail-inner input[type="password"],
+.detail-inner input[type="number"],
+.detail-inner input[type="search"] { min-height: 44px; }
+
+/* Campul de cautare vizuala avea 18px inaltime — mai putin decat textul din el. */
+input[type="search"] { min-height: 44px; }
+
+/* Plansa de contact isi pastreaza cartonul INTUNECAT si in tema luminoasa (e
+   o proba tiparita, nu o pagina de aplicatie), dar numerele de cadru si
+   scorurile mostenisera nuanta stinsa a temei deschise — gri inchis pe carton
+   inchis, 3,03:1. Raman deschise, ca pe intuneric. */
+:root[data-theme="light"] .contact-sheet-frame,
+:root[data-theme="light"] .contact-sheet-meta { color: rgb(255 255 255 / .82); }
+
+/* Cardul de verdict din Inspector isi lua fundalul dintr-un verde/rosu INCHIS
+   la 42% — corect peste scena intunecata, dar peste foaia deschisa se compunea
+   intr-un verde-salvie tulbure, singurul element mohorat de pe un panou altfel
+   limpede. In tema luminoasa devine o spoiala palida din aceeasi culoare. */
+:root[data-theme="light"] .inspector-verdict.positive {
+  background: radial-gradient(circle at 89% 28%, rgb(var(--pick-rgb) / .22), transparent 34%), rgb(var(--pick-rgb) / .13);
+}
+:root[data-theme="light"] .inspector-verdict.negative {
+  background: radial-gradient(circle at 89% 28%, rgb(var(--reject-rgb) / .22), transparent 34%), rgb(var(--reject-rgb) / .13);
+}

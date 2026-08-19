@@ -773,6 +773,11 @@ export default function App() {
           </div>
         )}
         <Workspace />
+        {/* Compararea de serii nu era montata aici: butonul "Compară" din
+            panoul de Duplicate (montat mai jos) nu facea nimic in modul
+            spatiu de lucru. Nu intra in conflict cu Workspace-ul — atarna de
+            `compareGroupId`, nu de `detailId`. */}
+        <GroupCompare />
         <CommandPalette />
         <ShortcutsPanel />
         <MenuDrawer />

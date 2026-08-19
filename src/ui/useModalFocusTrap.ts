@@ -44,13 +44,59 @@ function isTabbable(el: HTMLElement): boolean {
  * sigure — hook-ul insusi tot trebuie apelat neconditionat (regula hook-urilor),
  * dar efectul lui verifica `active` intern inainte sa actioneze.
  */
-export function useModalFocusTrap(containerRef: RefObject<HTMLElement | null>, active: boolean): void {
+/**
+ * Ascunde restul paginii de cititorul de ecran cat timp un strat pe tot
+ * ecranul e deschis, si intoarce functia care repune totul la loc.
+ *
+ * Capcana de Tab (mai jos) tine deja tastatura in strat — masurat in browser:
+ * 26 de Tab-uri consecutive in sortarea rapida, in Inspector si in meniu nu ies
+ * niciodata afara. Dar cursorul virtual al unui cititor de ecran (TalkBack,
+ * VoiceOver) NU trece prin Tab: el parcurge arborele de accesibilitate, unde
+ * ecranul de dedesubt era in continuare tot acolo. Masurat: 21 de controale
+ * ale paginii sub sortarea rapida, 30 sub Inspector — un utilizator nevazator
+ * aluneca din Inspector direct in "Continuă" sau "Golește sesiunea" fara sa
+ * stie ca a plecat de pe poza pe care o judeca.
+ *
+ * Marcam fratii de pe fiecare nivel, de la container pana la <body>. Sarim
+ * peste fratii care SUNT ei insisi regiuni de anunt (aria-live, role=status/
+ * alert): toast-ul e frate cu straturile, iar ascuns nu s-ar mai auzi
+ * confirmarea actiunii tocmai facute. O regiune de anunt aflata INAUNTRUL unui
+ * frate nu opreste ascunderea lui — un ecran acoperit are voie sa taca; altfel
+ * o singura regiune ingropata (ecranul de analiza din HomeDashboard) scutea de
+ * la ascundere tot ecranul de acasa, cu tot cu butoanele lui de decizie.
+ * Elementele deja ascunse raman ascunse la restaurare.
+ */
+function hideBackgroundFromScreenReaders(container: HTMLElement): () => void {
+  const touched: HTMLElement[] = [];
+  let node: HTMLElement | null = container;
+  while (node && node !== document.body && node.parentElement) {
+    for (const sib of Array.from(node.parentElement.children)) {
+      if (sib === node || !(sib instanceof HTMLElement)) continue;
+      if (sib.getAttribute('aria-hidden') === 'true') continue;
+      if (sib.hasAttribute('aria-live') || sib.getAttribute('role') === 'status' || sib.getAttribute('role') === 'alert') continue;
+      sib.setAttribute('aria-hidden', 'true');
+      touched.push(sib);
+    }
+    node = node.parentElement;
+  }
+  return () => { for (const el of touched) el.removeAttribute('aria-hidden'); };
+}
+
+export function useModalFocusTrap(
+  containerRef: RefObject<HTMLElement | null>,
+  active: boolean,
+  /** Straturile care ocupa TOT ecranul cer si ascunderea fundalului din
+      arborele de accesibilitate. Panourile care lasa pagina vizibila sub un
+      backdrop partial nu o cer — acolo contextul de dedesubt e intentionat. */
+  hideBackground = false
+): void {
   useEffect(() => {
     if (!active) return;
     const previouslyFocused = document.activeElement as HTMLElement | null;
     const container = containerRef.current;
     const firstFocusable = container?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
     (firstFocusable ?? container)?.focus();
+    const restoreBackground = hideBackground && container ? hideBackgroundFromScreenReaders(container) : null;
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Tab' || !container) return;
@@ -70,7 +116,8 @@ export function useModalFocusTrap(containerRef: RefObject<HTMLElement | null>, a
     document.addEventListener('keydown', onKeyDown);
     return () => {
       document.removeEventListener('keydown', onKeyDown);
+      restoreBackground?.();
       previouslyFocused?.focus?.();
     };
-  }, [active, containerRef]);
+  }, [active, containerRef, hideBackground]);
 }

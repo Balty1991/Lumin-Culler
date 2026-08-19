@@ -84,7 +84,7 @@ export function TikTokSort() {
   const [queueIds, setQueueIds] = useState<string[]>([]);
   const [index, setIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
-  useModalFocusTrap(containerRef, open);
+  useModalFocusTrap(containerRef, open, true);
 
   // Ecranul ramane montat intre deschideri (acelasi tipar ca LocationsPanel/PersonsPanel
   // — vezi `if (!open) return null` mai jos), deci coada/pozitia trebuie resetate
@@ -380,7 +380,14 @@ export function TikTokSort() {
                 metrici si la editare, fara sa iesi in grila. Deschide aceeasi
                 foaie de detaliu (Metrici / De ce acest scor / Persoane /
                 Istoric), peste ecranul de sortare, care ramane montat. */}
-            <button className="tiktok-metrics-cta" onClick={() => openDetail(current.id, { expandMetrics: true })}>
+            <button className="tiktok-metrics-cta" onClick={() => {
+              openDetail(current.id, { expandMetrics: true });
+              // In spatiul de lucru metricile se deschid in foaia LUI, care e
+              // sub sortarea rapida — daca ramanem aici, utilizatorul apasa si
+              // nu vede nimic. In ramura principala DetailView se deschide
+              // PESTE sortare, iar inchiderea lui readuce coada: acolo ramanem.
+              if (useStore.getState().workspaceMode) setOpen(false);
+            }}>
               {tr('tiktok.metrics')}
             </button>
           </div>

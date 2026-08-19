@@ -46,6 +46,17 @@ export function Workspace() {
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const [src, setSrc] = useState<string | null>(null);
   const [showMetrics, setShowMetrics] = useState(false);
+  // Butonul "Vezi metricile si editarea" din sortarea rapida cere metricile
+  // prin `detailExpandMetrics`. In ramura principala le arata DetailView, dar
+  // aici DetailView nu e montat (ar acoperi permanent spatiul de lucru, care
+  // isi pune singur `detailId` la intrare) — deci cererea se pierdea si
+  // butonul nu facea nimic. O consumam aici, in foaia proprie de metrici.
+  const metricsRequested = useStore(s => s.detailExpandMetrics);
+  useEffect(() => {
+    if (!metricsRequested) return;
+    setShowMetrics(true);
+    useStore.setState({ detailExpandMetrics: false });
+  }, [metricsRequested]);
   const filmstripRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const pickerWatchdogRef = useRef<PickerWatchdog | null>(null);

@@ -390,9 +390,14 @@ function factorLabel(locale: Locale, feature: string, positive = false): string 
 
 /** Transforma topFactors dintr-o Prediction in etichete afisabile, filtrand contributiile neglijabile. */
 export function explainFactors(
-  topFactors: { feature: string; contribution: number }[],
+  /** Poate lipsi: o poza importata inainte ca motorul de context sa fi rulat
+      (sau cand analiza a esuat) nu are `aiFactors`. Fara aceasta aparare
+      Inspectorul cadea in ErrorBoundary la deschidere, pentru ca
+      PhotoInfoTabs cheama direct `explainFactors(photo.aiFactors)`. */
+  topFactors: { feature: string; contribution: number }[] | undefined,
   locale: Locale = 'ro'
 ): { label: string; positive: boolean }[] {
+  if (!topFactors) return [];
   return topFactors
     .filter(f => FACTOR_FEATURES.has(f.feature) && Math.abs(f.contribution) > 0.03)
     .map(f => {

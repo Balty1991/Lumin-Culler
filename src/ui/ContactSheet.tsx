@@ -47,7 +47,7 @@ export function ContactSheet() {
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const containerRef = useRef<HTMLDivElement>(null);
-  useModalFocusTrap(containerRef, open);
+  useModalFocusTrap(containerRef, open, true);
 
   // Escape-to-close — vezi acelasi tipar in EditPanel.tsx/MenuDrawer.tsx (bug
   // real gasit de auditul QA: acest panou nu avea niciunul).
