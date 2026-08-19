@@ -10,6 +10,7 @@ import { contextEngine, type Prediction } from './learning/ContextEngine';
 import { groupPhotosByHash } from './hashComparePool';
 import type { HashInput } from '../workers/hashCompare.worker';
 import { parseExif } from './exifParser';
+import { timed, timedSync, record } from './stageTiming';
 import { parseIptc } from './iptcParser';
 import { isRawFile, decodeRawFile, RAW_EXTENSIONS } from './rawDecoder';
 import type { FileSystemFileHandleLike } from './filePicker';
@@ -441,18 +442,27 @@ async function processOne(file: File, genre?: string, project?: string, handle?:
   // RAW (CR2/NEF/ARW/DNG/...) nu se decodeaza cu createImageBitmap — folosim
   // LibRaw (WASM); metadatele EXIF vin direct din LibRaw (mai fiabil decat
   // sniff-ul de octeti gandit pentru JPEG, care nu intelege containerul RAW).
-  const { bitmap, rawMeta } = isRaw
-    ? await decodeRawFile(file).then(r => ({ bitmap: r.bitmap, rawMeta: r.meta }))
-    : { bitmap: await decode(file), rawMeta: undefined };
-  const { preview, thumb, lqip, dHash, w, h } = makeDerivatives(bitmap);
+  // Etapele de mai jos sunt cronometrate separat (core/stageTiming.ts): un
+  // import lent poate fi decodare, analiza AI, EXIF sau scriere in baza de
+  // date, iar din afara toate arata identic — "e lent".
+  const { bitmap, rawMeta } = await timed('decode', async () => isRaw
+    ? decodeRawFile(file).then(r => ({ bitmap: r.bitmap, rawMeta: r.meta }))
+    : { bitmap: await decode(file), rawMeta: undefined });
+  const { preview, thumb, lqip, dHash, w, h } = timedSync('derivatives', () => makeDerivatives(bitmap));
 
   // Bitmap-ul pleaca in worker (transfer, zero-copy) — de aici nu-l mai atingem
   // mediaUri doar pentru non-RAW: BitmapFactory (Android) nu stie CR2/NEF —
   // acelea raman pe calea cu blob, decodate deja in JS de LibRaw.
+  const analysisStart = performance.now();
   const analysisPromise = analysisPool.analyze(id, bitmap, isRaw ? undefined : mediaUri);
   const [previewBlob, thumbBlob] = await Promise.all([preview, thumb]);
 
   const analysis = await analysisPromise;
+  // Masurat de la pornirea analizei pana la rezultat, nu doar `await`-ul de
+  // mai sus: encodarea preview/thumb ruleaza in paralel cu ea, deci un simplu
+  // timp petrecut in ultimul await ar raporta aproape zero pe pozele unde
+  // analiza s-a terminat prima.
+  record('analysis', performance.now() - analysisStart);
 
   // EXIF (ISO/diafragma/timp expunere/focala/data capturii) — optional, poze fara EXIF
   // (PNG/WebP sau JPEG cu metadate sterse) nu primesc aceste campuri deloc
@@ -473,7 +483,7 @@ async function processOne(file: File, genre?: string, project?: string, handle?:
     capturedAt = rawMeta.capturedAt;
   } else {
     try {
-      const exifBuf = await file.slice(0, EXIF_SNIFF_BYTES).arrayBuffer();
+      const exifBuf = await timed('exif', () => file.slice(0, EXIF_SNIFF_BYTES).arrayBuffer());
       const exif = parseExif(exifBuf);
       if (exif.iso !== undefined) analysis.iso = exif.iso;
       if (exif.fNumber !== undefined) analysis.fNumber = exif.fNumber;
@@ -577,7 +587,7 @@ async function processOne(file: File, genre?: string, project?: string, handle?:
   // un UUID proaspat pe care un reimport nu-l suprascrie si nu-l repara
   // singur. db.transaction face toate scrierile atomice: ori toate reusesc,
   // ori (la orice eroare) niciuna nu se aplica.
-  await db.transaction('rw', [db.photos, db.thumbnails, db.previews, db.analyses, db.fileHandles, db.originals], async () => {
+  await timed('persist', () => db.transaction('rw', [db.photos, db.thumbnails, db.previews, db.analyses, db.fileHandles, db.originals], async () => {
     await Promise.all([
       db.photos.put(photo),
       db.thumbnails.put({ photoId: id, blob: thumbBlob }),
@@ -594,7 +604,7 @@ async function processOne(file: File, genre?: string, project?: string, handle?:
             : db.originals.put({ photoId: id, blob: file, fileName: file.name, type: file.type })]
         : [])
     ]);
-  });
+  }));
 
   // Bug real gasit de auditul QA (scurgere de memorie): cele doua Map-uri
   // modulare erau populate la INCEPUTUL functiei, inainte de tot ce poate
@@ -735,6 +745,10 @@ export async function importFiles(
   // pentru 1000+ poze, milioane de comparatii sincrone pe firul principal
   // blocau vizibil UI-ul in acest punct al importului.
   onProgress({ done, total: images.length, fileName: '', phase: 'grupare' });
+  // Gruparea e masurata ca UN SINGUR bloc, nu per poza: costul ei e O(n^2) in
+  // marimea bibliotecii, deci "cat a durat pe tot lotul" e singura cifra care
+  // spune ceva. Vezi core/stageTiming.ts.
+  const groupingStart = performance.now();
   const groups = new Map<string, string>();
 
   // Procesare incrementala (plan 2.3.3): comparam si cu poze NEGRUPATE dintr-un
@@ -799,6 +813,7 @@ export async function importFiles(
     }
   }
   if (updates.length) await db.photos.bulkPut(updates);
+  record('grouping', performance.now() - groupingStart);
   if (demotedIds.length) {
     await Promise.all(demotedIds.map(id => Promise.all([db.originals.delete(id), db.fileHandles.delete(id)])));
   }

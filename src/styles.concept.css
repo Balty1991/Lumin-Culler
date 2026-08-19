@@ -3843,3 +3843,33 @@ input[type="search"] { min-height: 44px; }
   color: var(--pick-text);
 }
 .supervisor-folder-report { margin-top: 4px; }
+
+/* ── Unde s-a dus timpul: defalcarea importului pe etape ──
+   Bara e proportionala cu timpul TOTAL al etapei, nu cu media: o etapa rapida
+   chemata de mii de ori poate costa mai mult decat una lenta chemata o data,
+   si exact asta trebuie sa se vada dintr-o privire. */
+.stage-timing { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 12px; }
+.stage-timing-row {
+  display: grid;
+  grid-template-columns: minmax(84px, auto) 1fr;
+  align-items: center;
+  gap: 4px 10px;
+}
+.stage-timing-name { font-size: .8rem; font-weight: 600; }
+.stage-timing-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.stage-timing-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent-gradient, var(--accent));
+}
+.stage-timing-value {
+  grid-column: 1 / -1;
+  color: var(--text-dim);
+  font-size: .68rem;
+}

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../state/store';
+import { readStageStats, resetStageStats } from '../core/stageTiming';
 import { db } from '../core/db';
 import { computeLibraryStats, computeAgreementStats, computeAgreementTrend, type AgreementStats, type AgreementTrendPoint, type LibraryStats } from '../core/stats';
 import { FREE_PHOTOS_PER_MONTH } from '../core/entitlement';
@@ -129,6 +130,11 @@ function AgreementTrendChart({ points }: { points: AgreementTrendPoint[] }) {
 }
 
 /** Dashboard de performanta si statistici (plan 3.2.3): stare curenta a bibliotecii + rata de acord AI/utilizator. */
+/** Durata pe scurt: sub o secunda in milisecunde, peste in secunde cu o zecimala. */
+function formatMs(ms: number): string {
+  return ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1)}s`;
+}
+
 export function StatsPanel() {
   const open = useStore(s => s.statsOpen);
   const setOpen = useStore(s => s.setStatsOpen);
@@ -138,6 +144,11 @@ export function StatsPanel() {
   // Din store, nu din entitlement.ts direct: acolo raspunsul e sincron si React
   // n-ar afla ca s-a schimbat dupa un export sau dupa o cumparare. Vezi AppState.premium.
   const premium = useStore(s => s.premium);
+  // Citite la deschidere, nu la fiecare randare: se schimba doar in timpul unui
+  // import, iar panoul nu e deschis atunci.
+  const [stageStats, setStageStats] = useState(() => readStageStats());
+  useEffect(() => { if (open) setStageStats(readStageStats()); }, [open]);
+  const stageTotal = Math.max(1, stageStats.reduce((sum, st) => sum + st.totalMs, 0));
   const photosUsedThisWindow = useStore(s => s.photosUsedThisWindow);
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
@@ -197,6 +208,37 @@ export function StatsPanel() {
               </>
             )}
         </div>
+
+        {/* Unde s-a dus timpul la import. Fara defalcare, orice incetinire arata
+            la fel din afara; cu ea se vede daca a fost decodarea, analiza AI,
+            EXIF-ul, scrierea in baza de date sau gruparea. Numai durate — nimic
+            despre continutul pozelor, si nimic nu pleaca de pe dispozitiv. */}
+        {stageStats.length > 0 && (
+          <div className="batch-section">
+            <h3>{tr('stats.stages.title')}</h3>
+            <p className="hint">{tr('stats.stages.hint')}</p>
+            <div className="stage-timing">
+              {stageStats.map(st => (
+                <div key={st.stage} className="stage-timing-row">
+                  <span className="stage-timing-name">{tr(`stats.stage.${st.stage}`)}</span>
+                  <span className="stage-timing-bar" aria-hidden="true">
+                    <i style={{ width: `${Math.round((st.totalMs / stageTotal) * 100)}%` }} />
+                  </span>
+                  <span className="mono stage-timing-value">
+                    {tr('stats.stages.value', {
+                      share: Math.round((st.totalMs / stageTotal) * 100),
+                      median: formatMs(st.p50Ms),
+                      slow: formatMs(st.p90Ms)
+                    })}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <button type="button" className="ghost small danger" onClick={() => { resetStageStats(); setStageStats([]); }}>
+              {tr('stats.stages.reset')}
+            </button>
+          </div>
+        )}
 
         {stats.ratingCounts.slice(1).some(n => n > 0) && (
           <div className="batch-section">

@@ -50,6 +50,7 @@ import { readStoredTheme, applyTheme, type Theme } from './theme';
 import { readStoredAccent, applyAccent, type AccentTheme } from './accentTheme';
 import { readWelcomeSeen, writeWelcomeSeen } from './welcomeOnboarding';
 import { readExcludedFolderIds, writeExcludedFolderIds } from './galleryFolders';
+import { readStageStats } from '../core/stageTiming';
 import { keepScreenAwake } from '../core/wakeLock';
 import { createActiveElapsed, type ActiveElapsed } from '../core/activeElapsed';
 import { recordImportDay } from './streak';
@@ -3474,7 +3475,9 @@ export const useStore = create<AppState>((set, get) => ({
     const stats = computeLibraryStats(scoped);
     const earliestImportedAt = scoped.length ? Math.min(...scoped.map(p => p.importedAt)) : null;
     const text = buildSessionReportText({
-      stats, projectName, earliestImportedAt, generatedAt: Date.now()
+      stats, projectName, earliestImportedAt, generatedAt: Date.now(),
+      // Numai durate, si numai daca s-a masurat ceva — vezi core/stageTiming.ts.
+      stageStats: readStageStats()
     });
     const blob = new Blob([text], { type: 'text/plain' });
     await downloadBlob('raport-sesiune-lumin-' + new Date().toISOString().slice(0, 10) + '.txt', blob);

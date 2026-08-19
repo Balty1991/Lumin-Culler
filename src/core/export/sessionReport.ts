@@ -6,6 +6,7 @@
  * descarcabil alaturi de restul exporturilor.
  */
 import type { LibraryStats } from '../stats';
+import type { StageStat } from '../stageTiming';
 
 export interface SessionReportInput {
   stats: LibraryStats;
@@ -14,6 +15,13 @@ export interface SessionReportInput {
   earliestImportedAt: number | null;
   /** momentul generarii raportului (parametru, nu Date.now() direct — testabil). */
   generatedAt: number;
+  /**
+   * Defalcarea pe etape a importului (core/stageTiming.ts) — optionala, si
+   * inclusa DOAR daca s-a masurat ceva. Aici e utila mai ales in testarea
+   * inchisa: un tester poate trimite raportul cu unde s-a dus timpul pe
+   * telefonul LUI, fara sa trimita vreo poza si fara telemetrie pe server.
+   */
+  stageStats?: StageStat[];
 }
 
 /** ex: 45m, 2h 15m, 3z 4h — zile/ore/minute, nu doar secunde (o sesiune reala poate dura zile). */
@@ -31,7 +39,7 @@ function pct(n: number, total: number): number {
   return total > 0 ? Math.round((n / total) * 100) : 0;
 }
 
-export function buildSessionReportText({ stats, projectName, earliestImportedAt, generatedAt }: SessionReportInput): string {
+export function buildSessionReportText({ stats, projectName, earliestImportedAt, generatedAt, stageStats }: SessionReportInput): string {
   const lines: string[] = [];
   lines.push('Raport de sesiune — Lumin Culler');
   lines.push(`Proiect: ${projectName || '(fara nume)'}`);
@@ -49,6 +57,19 @@ export function buildSessionReportText({ stats, projectName, earliestImportedAt,
     lines.push('');
     lines.push(`Sesiune incepusa: ${new Date(earliestImportedAt).toLocaleString()}`);
     lines.push(`Durata de la primul import: ${formatSpan(generatedAt - earliestImportedAt)}`);
+  }
+  if (stageStats?.length) {
+    const total = stageStats.reduce((sum, st) => sum + st.totalMs, 0);
+    lines.push('');
+    lines.push('Unde s-a dus timpul la import (numai durate, pe acest dispozitiv)');
+    for (const st of stageStats) {
+      lines.push(
+        `  ${st.stage}: ${pct(st.totalMs, total)}% din timp` +
+        ` · ${st.count} masuratori` +
+        ` · mediana ${Math.round(st.p50Ms)}ms` +
+        ` · p90 ${Math.round(st.p90Ms)}ms`
+      );
+    }
   }
   return lines.join('\n') + '\n';
 }
