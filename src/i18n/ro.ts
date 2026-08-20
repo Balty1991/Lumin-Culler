@@ -1199,6 +1199,19 @@ export const ro = {
   'store.state.deactivated': 'Modul economic dezactivat',
   'store.appliesNow': ' — se aplică imediat.',
   'store.appliesNextImport': ' — se aplică de la următorul import.',
+  // Raspunsurile comutatoarelor din Setari. Bug real raportat de utilizator:
+  // "setări care nu schimba nimic după activare" — efectul fiecaruia se vede in
+  // alta parte (mai sus in meniu, la urmatorul import, sau abia cand sistemul
+  // trimite o notificare), deci apasarea trebuie sa raspunda pe loc.
+  'store.proMode.on': 'Uneltele de după triaj sunt acum în meniu: export XMP, galerie client, filigran, rapoarte.',
+  'store.proMode.off': 'Meniul arată doar ce îți trebuie ca să triezi.',
+  'store.zenMode.on': 'La următorul import, AI-ul rezolvă singur cazurile clare și te întreabă doar la incertitudini.',
+  'store.zenMode.off': 'Mod Zen oprit — vei decide tu fiecare serie.',
+  'store.smartNotifications.on': 'Gata. Te anunț când ai poze de sortat, cât timp aplicația e deschisă.',
+  'store.smartNotifications.asking': 'Îți cer permisiunea pentru notificări…',
+  'store.smartNotifications.off': 'Notificări inteligente oprite.',
+  'store.smartNotifications.blocked': 'Telefonul blochează notificările pentru aplicație. Pornește-le din setările sistemului, altfel comutatorul ăsta nu are ce face.',
+  'store.smartNotifications.unsupported': 'Browserul de aici nu poate trimite notificări.',
   'store.backup.exported': 'Backup exportat: {persons} persoane, {models} profiluri AI învățate, {decisions} decizii.',
   'store.backup.restored': 'Backup restaurat: {persons} persoane, {models} profiluri AI',
   'store.backup.restored.withDecisions': ', {matched}/{total} decizii potrivite cu pozele curente.',

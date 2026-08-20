@@ -3748,8 +3748,14 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
    tipar deja folosit de .install-prompt pentru exact aceeasi problema: pe un
    singur rand, titlul se rupea cate un cuvant pe linie langa un buton care nu
    se putea micsora, iar butonul de inchidere ajungea singur pe randul urmator. */
+/* Bug real raportat de utilizator, cu captura: X-ul nu era aliniat cu textul,
+   ci cadea dedesubt, in stanga. Cauza: bannerul era `flex-direction: column`,
+   ramas de la o varianta mai bogata (iconita + text + bara de acoperire) care
+   intre timp a ramas doar in panoul supervizorului. Cu doi copii — butonul si
+   X-ul — coloana ii pune unul sub altul. Un rand, cu X-ul centrat pe verticala
+   langa buton. */
 .gallery-supervisor-banner {
-  display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: var(--radius);
+  display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: var(--radius);
   background-image: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--accent-gradient);
   background-origin: border-box; background-clip: padding-box, border-box; border: 1px solid transparent;
   box-shadow: var(--shadow-lg), 0 0 22px -12px rgb(var(--accent-rgb) / 0.5);
@@ -3773,7 +3779,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   background: var(--accent-gradient); color: #06070a;
 }
 .gallery-supervisor-cta:disabled { opacity: 0.6; }
-.gallery-supervisor-close { flex-shrink: 0; color: rgba(255,255,255,0.7); }
+.gallery-supervisor-close { flex-shrink: 0; align-self: center; color: var(--text-dim); }
 /* Card acoperire galerie (idee proprie) — bara subtire sub perioada recomandata,
    procentul din TOATA galeria telefonului deja "acoperita" de supervizor. */
 .gallery-supervisor-progress {
@@ -3783,7 +3789,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .gallery-supervisor-progress-fill { display: block; height: 100%; border-radius: 999px; background: var(--accent-gradient); transition: width 0.3s var(--ease); }
 /* "Sorteaza acum ce ai adus" (idee proprie) — CTA distincta, aparuta imediat dupa un import reusit din supervizor. */
 .gallery-supervisor-sortnow {
-  width: 100%; text-align: center; padding: 10px 14px; border-radius: 12px; border: none;
+  /* flex:1, nu width:100% — pe acelasi rand cu X-ul, `width:100%` l-ar fi
+     impins in afara cardului. */
+  flex: 1; min-width: 0; text-align: center; padding: 10px 14px; border-radius: 12px; border: none;
   background: var(--accent-gradient); color: #06070a; font-size: 0.8rem; font-weight: 700;
 }
 .supervisor-sortnow-cta { width: 100%; text-align: center; padding: 10px; border-radius: 12px; margin-bottom: 4px; font-size: 0.8rem; font-weight: 700; color: var(--accent); }

@@ -765,14 +765,20 @@ export function MenuDrawer() {
             <b className="drawer-count mono">{tr(proMode ? 'menu.proMode.on' : 'menu.proMode.off')}</b>
           </button>
 
+          {/* Randul nu e un comutator, ci deschide un panou — deci `aria-pressed`
+              (care promitea unui cititor de ecran ca apasarea porneste ceva)
+              era o minciuna; `aria-haspopup` spune ce se intampla de fapt.
+              Starea se vede acum pe rand, ca la Mod profesional: pana acum
+              trebuia sa deschizi panoul ca sa afli daca e pornit. */}
           <button
             className="drawer-item"
             onClick={() => go(() => setZenPanelOpen(true))}
-            aria-pressed={zenMode}
+            aria-haspopup="dialog"
             title={tr('menu.zenMode.title')}
           >
             <span className="drawer-item-icon"><SparkleIcon /></span>
             <span>{tr('menu.zenMode')}</span>
+            <b className="drawer-count mono">{tr(zenMode ? 'menu.proMode.on' : 'menu.proMode.off')}</b>
           </button>
 
           <button
@@ -785,14 +791,20 @@ export function MenuDrawer() {
             <span>{accessibleMode ? tr('menu.accessibleMode.active') : tr('menu.accessibleMode')}</span>
           </button>
 
+          {/* Fara `go`, ca la Mod profesional: un comutator care inchide sertarul
+              nu-si arata niciodata starea noua, si pare ca n-a facut nimic.
+              Raspunsul concret vine din setSmartNotificationsEnabled (store),
+              care spune si cand sistemul blocheaza notificarile — cazul in care
+              comutatorul chiar nu putea face nimic, si nimeni nu spunea de ce. */}
           <button
             className="drawer-item"
-            onClick={() => go(() => setSmartNotificationsEnabled(!smartNotificationsEnabled))}
+            onClick={() => setSmartNotificationsEnabled(!smartNotificationsEnabled)}
             aria-pressed={smartNotificationsEnabled}
             title={tr('menu.smartNotifications.title')}
           >
             <span className="drawer-item-icon"><InfoIcon /></span>
-            <span>{smartNotificationsEnabled ? tr('menu.smartNotifications.active') : tr('menu.smartNotifications')}</span>
+            <span>{tr('menu.smartNotifications')}</span>
+            <b className="drawer-count mono">{tr(smartNotificationsEnabled ? 'menu.proMode.on' : 'menu.proMode.off')}</b>
           </button>
 
           <button

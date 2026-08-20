@@ -1455,7 +1455,13 @@ export const useStore = create<AppState>((set, get) => ({
   momentsOpen: false,
   setMomentsOpen: open => set({ momentsOpen: open }),
   proMode: readProMode(),
-  setProMode: on => { writeProMode(on); set({ proMode: on }); },
+  setProMode: on => {
+    writeProMode(on);
+    // Meniul chiar se schimba sub deget, dar intrarile care apar/dispar sunt
+    // mai sus in lista, deci utilizatorul care apasa comutatorul (aflat jos, la
+    // Setari) nu vede nimic miscandu-se si crede ca butonul nu face nimic.
+    set({ proMode: on, notice: t(get().locale, on ? 'store.proMode.on' : 'store.proMode.off') });
+  },
   quickScan: null,
   exactDupesOpen: false,
   setExactDupesOpen: open => set({ exactDupesOpen: open }),
@@ -1651,16 +1657,49 @@ export const useStore = create<AppState>((set, get) => ({
   setSmartNotificationsEnabled: on => {
     writeSmartNotificationEnabled(on);
     set({ smartNotificationsEnabled: on });
-    // Cerem permisiunea DOAR la activare explicita (nu silentios la boot) — daca
-    // e refuzata, comutatorul ramane pornit (preferinta utilizatorului), dar
-    // SmartNotification.tsx nu va afisa niciodata nimic pana userul o permite
-    // manual din setarile browserului/sistemului.
-    if (on && typeof Notification !== 'undefined' && Notification.permission === 'default') {
-      void Notification.requestPermission();
+    const locale = get().locale;
+    if (!on) { set({ notice: t(locale, 'store.smartNotifications.off') }); return; }
+
+    // Bug real raportat de utilizator: "setări care nu schimbă nimic după
+    // activare". Permisiunea se cerea deja aici, dar RASPUNSUL era ignorat —
+    // daca sistemul o refuza (sau era deja refuzata), comutatorul ramanea
+    // pornit si nu se intampla niciodata nimic, fara ca nimeni sa spuna de ce.
+    // Acum fiecare cale de iesire raspunde ceva.
+    if (typeof Notification === 'undefined') {
+      set({ notice: t(locale, 'store.smartNotifications.unsupported') });
+      return;
     }
+    if (Notification.permission === 'granted') {
+      set({ notice: t(locale, 'store.smartNotifications.on') });
+      return;
+    }
+    if (Notification.permission === 'denied') {
+      set({ notice: t(locale, 'store.smartNotifications.blocked') });
+      return;
+    }
+    // Raspuns IMEDIAT, apoi corectat daca sistemul refuza. Cererea de permisiune
+    // deschide un dialog al sistemului si se poate rezolva tarziu — sau, pe unele
+    // platforme, deloc. A astepta raspunsul inseamna ca apasarea nu produce
+    // nimic pe ecran, adica exact senzatia raportata: "nu schimba nimic".
+    set({ notice: t(locale, 'store.smartNotifications.asking') });
+    void Notification.requestPermission().then(result => {
+      set({
+        notice: t(get().locale, result === 'granted'
+          ? 'store.smartNotifications.on'
+          : 'store.smartNotifications.blocked')
+      });
+    }).catch(() => {
+      set({ notice: t(get().locale, 'store.smartNotifications.unsupported') });
+    });
   },
   zenMode: readZenMode(),
-  setZenMode: on => { writeZenMode(on); set({ zenMode: on }); },
+  setZenMode: on => {
+    writeZenMode(on);
+    // Modul Zen lucreaza abia la URMATORUL import (vezi runImport) — fara acest
+    // raspuns, comutatorul parea ca nu face nimic, pentru ca efectul lui nu are
+    // cum sa se vada in clipa apasarii.
+    set({ zenMode: on, notice: t(get().locale, on ? 'store.zenMode.on' : 'store.zenMode.off') });
+  },
   zenAutoDeleteObvious: readZenAutoDeleteObvious(),
   setZenAutoDeleteObvious: on => { writeZenAutoDeleteObvious(on); set({ zenAutoDeleteObvious: on }); },
   zenAskOnUncertain: readZenAskOnUncertain(),

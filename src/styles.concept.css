@@ -1648,9 +1648,17 @@ body:before {
   background:#050608;
 }
 
+/* Bug real raportat de utilizator, cu captura: barele de progres treceau PESTE
+   butonul de inchidere. Cauza: regula asta a mutat butonul la dreapta, dar n-a
+   anulat `left:12px` din foaia de baza — iar cand un element pozitionat absolut
+   cu latime fixa are si `left`, si `right`, castiga `left`. Butonul a ramas deci
+   in stanga, in timp ce barele au fost mutate la `left:18px`, adica exact peste
+   el. Aici se alege UN singur asezamant, explicit: X in stanga (ca in restul
+   aplicatiei), barele si contorul dupa el. */
 .tiktok-close {
   top:calc(14px + env(safe-area-inset-top));
-  right:14px;
+  left:14px;
+  right:auto;
   width:42px;
   height:42px;
   border:1px solid rgb(255 255 255 / .14);
@@ -1659,16 +1667,19 @@ body:before {
   backdrop-filter:blur(12px);
 }
 
+/* Centrate pe verticala cu butonul de inchidere (14px + 42px inaltime => mijloc
+   la 35px), si pornind dupa el pe orizontala. */
 .tiktok-progress-dots,
 .tiktok-progress {
-  top:calc(22px + env(safe-area-inset-top));
-  left:18px;
-  right:72px;
+  top:calc(34px + env(safe-area-inset-top));
+  left:68px;
+  right:82px;
 }
 
 .tiktok-progress-count {
-  top:calc(39px + env(safe-area-inset-top));
-  left:18px;
+  top:calc(24px + env(safe-area-inset-top));
+  left:auto;
+  right:14px;
   color:#ffffffb3;
 }
 
@@ -3248,8 +3259,25 @@ body:before {
 }
 
 /* ── Acces la metrici din sortarea rapida ── */
+/* Bug real raportat de utilizator: "dacă dai swipe la următoarea foto, trebuie
+   sa pui degetul aproape în mijlocul ecranului". Cauza: intreg blocul de
+   informatii de jos (.tiktok-caption) statea PESTE suprafata care asculta
+   gestul (.tiktok-stage-wrap, inset:0) si ii inghitea toate atingerile, desi
+   aproape tot ce contine e text. Acum blocul e transparent la atingere, si
+   doar butoanele din el o primesc — restul treimii de jos redevine zona de
+   swipe. */
+.tiktok-caption { pointer-events: none; }
+.tiktok-caption button,
+.tiktok-caption a { pointer-events: auto; }
+
 .tiktok-metrics-cta {
-  width: 100%;
+  /* Nu pe toata latimea: un buton lat cat ecranul e o banda pe care degetul nu
+     mai poate incepe un swipe. Cat ii cere textul, atat. */
+  width: auto;
+  /* .tiktok-caption e o grila, deci `align-self` n-ar ingusta nimic — in grila,
+     un element se intinde implicit pe toata coloana. `justify-self` e cel care
+     conteaza aici. */
+  justify-self: start;
   min-height: 46px;
   margin-top: 8px;
   padding: 0 14px;
@@ -3815,16 +3843,17 @@ input[type="search"] { min-height: 44px; }
 .collection-picker-menu button { min-height: 44px; }
 .collection-picker-menu button { min-width: 44px; }
 
-/* Contorul "1/10" din sortarea rapida statea PESTE butonul de inchidere:
-   stratul de concept l-a mutat la top:39px/left:18px, dar butonul ocupa
-   14..58px pe verticala, tot in coltul stanga-sus. In plus `right:12px` a
-   ramas mostenit din foaia de baza, deci cutia lui invizibila se intindea
-   382px peste tot antetul — se vedea si in auditul de controale acoperite,
-   unde butoanele antetului apareau "sub span.tiktok-progress-count".
-   Coboara sub buton si se ingusteaza la propriul text. */
+/* Contorul "1/10" din sortarea rapida statea PESTE butonul de inchidere, si a
+   fost coborat sub el ca solutie de moment. Acum antetul are un asezamant
+   explicit — X in stanga, barele dupa el, contorul in dreapta, toate pe acelasi
+   rand (vezi .tiktok-close mai sus) — deci contorul se poate intoarce in rand.
+   Ce ramane din reparatia veche: latimea proprie. Fara `width: max-content`,
+   `left` mostenit din foaia de baza ii intindea cutia invizibila peste tot
+   antetul, si acoperea butoanele de sub ea. */
 .tiktok-progress-count {
-  top: calc(64px + env(safe-area-inset-top));
-  right: auto;
+  top: calc(24px + env(safe-area-inset-top));
+  left: auto;
+  right: 14px;
   width: max-content;
   pointer-events: none;
 }
