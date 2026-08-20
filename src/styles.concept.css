@@ -4231,3 +4231,17 @@ input[type="search"] { min-height: 44px; }
 .dupe-thumb.empty { display: block; background: var(--surface-2); }
 .dupe-more { color: var(--text-dim); font-size: .7rem; align-self: center; }
 .dupe-apply { width: 100%; min-height: 48px; margin-top: 6px; }
+
+/* X-ul de pe notificare avea 32x32 desenati. Trece de pragul AA de 24px
+   (WCAG 2.5.8), deci fusese lasat asa — dar pe telefon, cu degetul, 32 e
+   fitil, si e singurul mod de a inchide o notificare inainte de cele 10
+   secunde. Zona de atingere creste la 44 fara ca butonul sa creasca: patratul
+   desenat ramane 32, doar suprafata care raspunde e mai mare. */
+.toast-close { position: relative; }
+.toast-close::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 44px; height: 44px;
+  transform: translate(-50%, -50%);
+}
