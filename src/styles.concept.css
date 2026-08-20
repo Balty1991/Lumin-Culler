@@ -3511,13 +3511,17 @@ body:before {
   }
   .export-cta .inline-icon { margin-right: 0; }
 
-  /* Randul de actiuni nu mai incapea langa numele scris al aplicatiei.
-     Masurat pe 412x915: antetul are 388px utili, numele ocupa 128 din ei, iar
-     dupa prima decizie apare si butonul de istoric — cinci actiuni de 44px cu
-     spatii inseamna 225px, deci randul cadea sub logo si antetul sarea de la
-     78px la 105px chiar in timpul lucrului. Sub 520px ramane simbolul, care
-     spune la fel de bine in ce aplicatie esti, si toate actiunile isi recapata
-     eticheta. Numele complet revine peste 520px. */
+  /* Randul de actiuni nu incape langa NUMELE SCRIS al aplicatiei.
+     Masurat pe 412x915: antetul are 398px utili, numele ocupa 128 din ei, iar
+     in cazul cel mai plin (istoric prezent, "Export" cu numar din trei cifre)
+     actiunile ajung pe la 266 — impreuna ar cere 434, deci randul cadea sub
+     logo si antetul sarea de la 78px la 105px chiar in timpul lucrului.
+
+     Ramane SIMBOLUL. A fost o vreme ascuns si el, cand randul avea inca sase
+     lucruri si arata orfan; utilizatorul a cerut sa revina, si pe buna
+     dreptate — intre timp a plecat si butonul de meniu (dublat de fila din bara
+     de jos), deci acum actiunile folosesc 182 din 398 si e loc berechet.
+     Numele complet revine peste 520px, unde chiar incape. */
   .topbar .brand-text { display: none; }
 }
 
@@ -4176,17 +4180,7 @@ input[type="search"] { min-height: 44px; }
    ferestre, si la inchiderea lor coada continua de unde a ramas. */
 .tiktok-sort { z-index: 19; }
 
-/* ── Simbolul aplicatiei in antet ──
-   Sub 520px numele scris e ascuns (randul de actiuni n-avea loc), si ramanea
-   doar patratul de 31px — care nu e buton si nu face nimic, deci arata ca o
-   actiune stricata langa cinci actiuni adevarate. Raportat exact asa:
-   "a ramas prea retras acolo, nesemnificativ".
-   Pe telefon, in timpul lucrului, randul de sus e pentru unelte. Identitatea
-   aplicatiei e deja data de iconita de pe ecranul principal si de pornire —
-   n-are ce cauta a treia oara aici, ocupand spatiu. Peste 520px revine intreg,
-   cu nume cu tot. */
-@media (max-width: 520px) {
-  .topbar .brand { display: none; }
+
 }
 
 /* Butonul de iesire din ecranul gol de prezentare avea 40px inaltime — sub
