@@ -15,6 +15,7 @@ import { readSavedFilters, writeSavedFilters, type SavedFilterPreset } from './s
 import { applyAdjustmentsToBlob, isNeutral, type EditAdjustments } from '../core/imageAdjust';
 import { readApplyEditsInGallery, writeApplyEditsInGallery } from './applyEditsPreference';
 import { readProMode, writeProMode } from './proMode';
+import type { QuickScanResult } from '../core/quickDuplicateScan';
 import { clearPreviewUrlCache } from '../core/previewUrlCache';
 import {
   importFiles, originalFiles, originalHandles, createCancelToken, SELECT_THRESHOLD, REJECT_THRESHOLD, decidePhotoStatus,
@@ -376,6 +377,8 @@ interface AppState {
    */
   proMode: boolean;
   setProMode: (on: boolean) => void;
+  /** Copiile identice gasite inainte de analiza, pentru ecranul de progres. Null pana se termina scanarea. */
+  quickScan: QuickScanResult | null;
   setDuplicatesPanelOpen: (open: boolean) => void;
   /** "Protectie documente" — coada de poze care par documente/capturi (vezi core/documentShield.ts), de revizuit una cate una. */
   documentShieldOpen: boolean;
@@ -1453,6 +1456,7 @@ export const useStore = create<AppState>((set, get) => ({
   setMomentsOpen: open => set({ momentsOpen: open }),
   proMode: readProMode(),
   setProMode: on => { writeProMode(on); set({ proMode: on }); },
+  quickScan: null,
   exactDupesOpen: false,
   setExactDupesOpen: open => set({ exactDupesOpen: open }),
   documentShieldOpen: false,
@@ -2208,7 +2212,7 @@ export const useStore = create<AppState>((set, get) => ({
       set({ notice: t(get().locale, 'store.import.alreadyRunning') });
       return;
     }
-    set({ progress: { done: 0, total: files.length, fileName: '', phase: 'incarcare' }, importCancelling: false });
+    set({ progress: { done: 0, total: files.length, fileName: '', phase: 'incarcare' }, importCancelling: false, quickScan: null });
     // Ecranul ramane aprins cat dureaza importul: altfel se stingea singur dupa
     // 30s-1min de inactivitate, sistemul suspenda WebView-ul si analiza se
     // oprea la jumatate (vezi core/wakeLock.ts pentru ce NU rezolva asta).
@@ -2281,6 +2285,10 @@ export const useStore = create<AppState>((set, get) => ({
         progress => {
           warning = progress.warning; done = progress.done;
           if (progress.outcome) outcomeReport = progress.outcome;
+          // Cifra din primele secunde — vezi core/quickDuplicateScan.ts. Se
+          // pastreaza dupa ce progresul dispare: e prima si singura informatie
+          // concreta pe care o primeste utilizatorul cat timp analiza ruleaza.
+          if (progress.quickScan) set({ quickScan: progress.quickScan });
           if (progress.thresholds) adaptedThresholds = progress.thresholds;
           let etaSeconds: number | undefined;
           if (progress.phase === 'analiza') {

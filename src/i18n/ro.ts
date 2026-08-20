@@ -536,6 +536,11 @@ export const ro = {
   'app.progress.reading': 'Aduc pozele din galerie {done}/{total}…',
   'app.progress.readingUnknown': 'Aduc pozele din galerie… {done}',
   'app.progress.prescan': 'Aleg ordinea: caut pozele cu oameni…',
+  // Prima cifra concreta din tot importul: apare in cateva secunde, cat inca
+  // ruleaza analiza, pentru ca se citesc doar dimensiunile si cate 64KB de la
+  // capetele fisierelor cu aceeasi dimensiune — nicio imagine nu se decodeaza.
+  'app.progress.quickScan.one': 'ocupați de {count} copie identică, deja găsită',
+  'app.progress.quickScan.other': 'ocupați de {count} copii identice, deja găsite',
   'app.progress.done': 'Finalizat',
   'app.progress.cancel': 'Anulează',
   'app.progress.cancelling': 'Se anulează…',

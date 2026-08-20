@@ -2070,6 +2070,34 @@ body:before {
   font:.77rem/1.55 var(--mono);
 }
 
+/* Prima cifra concreta a importului. Nu e decor: e singurul lucru pe care il
+   afla utilizatorul inainte sa se termine analiza, asa ca numarul de octeti
+   sta primul si e mai mare decat explicatia din jurul lui. */
+.analysis-studio-find {
+  width:min(100%,390px);
+  display:flex;
+  align-items:baseline;
+  justify-content:center;
+  flex-wrap:wrap;
+  gap:6px;
+  padding:9px 14px;
+  border:1px solid rgb(103 228 207 / .32);
+  border-radius:14px;
+  background:rgb(103 228 207 / .09);
+  text-align:center;
+}
+
+.analysis-studio-find b {
+  color:var(--desk-aqua);
+  font:800 1.05rem/1.2 var(--mono);
+  letter-spacing:-.02em;
+}
+
+.analysis-studio-find span {
+  color:#c8d0dd;
+  font:.72rem/1.45 var(--mono);
+}
+
 .analysis-studio-progress {
   width:min(100%,380px);
   height:5px;
@@ -3143,6 +3171,14 @@ body:before {
 :root[data-theme="light"] .analysis-studio-copy h2 { color: var(--text); }
 :root[data-theme="light"] .analysis-studio-copy p { color: var(--text-dim); }
 :root[data-theme="light"] .analysis-studio-progress { background: var(--surface-3); }
+/* Pe fond deschis aqua-ul nu mai are contrast pentru text, asa ca ramane doar
+   in chenar; cifra trece pe culoarea normala de text. */
+:root[data-theme="light"] .analysis-studio-find {
+  border-color: rgb(var(--accent-rgb) / .35);
+  background: rgb(var(--accent-rgb) / .1);
+}
+:root[data-theme="light"] .analysis-studio-find b { color: var(--text); }
+:root[data-theme="light"] .analysis-studio-find span { color: var(--text-dim); }
 :root[data-theme="light"] .analysis-studio-steps { color: var(--text-faint); }
 :root[data-theme="light"] .analysis-studio-cancel {
   border-color: var(--line-strong);

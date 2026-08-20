@@ -529,6 +529,8 @@ export const en: Record<TranslationKey, string> = {
   'app.progress.reading': 'Reading photos from the gallery {done}/{total}…',
   'app.progress.readingUnknown': 'Reading photos from the gallery… {done}',
   'app.progress.prescan': 'Choosing the order: looking for the photos with people…',
+  'app.progress.quickScan.one': 'taken up by {count} identical copy, already found',
+  'app.progress.quickScan.other': 'taken up by {count} identical copies, already found',
   'app.progress.done': 'Done',
   'app.progress.cancel': 'Cancel',
   'app.progress.cancelling': 'Cancelling…',

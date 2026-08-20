@@ -19,6 +19,7 @@ import { detectFacesNative, isNativeFaceDetectionAvailable } from './nativeFaceD
 import type { MediaLocation } from './nativeMediaLibrary';
 import { hasRealGps } from './gpsCoordinates';
 import { deriveThresholds, FIXED_THRESHOLDS, type Thresholds } from './scoreThresholds';
+import { quickDuplicateScan, type QuickScanResult } from './quickDuplicateScan';
 
 export interface ImportProgress {
   done: number;
@@ -45,6 +46,12 @@ export interface ImportProgress {
    * esecuri era un toast de cateva secunde.
    */
   outcome?: ImportOutcomeReport;
+  /**
+   * Copiile identice gasite INAINTE de analiza, fara sa se decodeze nicio
+   * imagine — vezi core/quickDuplicateScan.ts. Raportat de indata ce e gata,
+   * ca utilizatorul sa aiba o cifra concreta cat timp analiza abia porneste.
+   */
+  quickScan?: QuickScanResult;
 }
 
 /** Numai cifre si motivul deja agregat — fara nume de fisier, fara cai. */
@@ -691,7 +698,7 @@ export function createCancelToken(): ImportCancelToken { return { cancelled: fal
 
 export async function importFiles(
   files: File[],
-  onProgress: (p: ImportProgress) => void,
+  onProgressRaw: (p: ImportProgress) => void,
   onPhoto: (item: ImportedPhoto) => void,
   cancelToken?: ImportCancelToken,
   /** Genul fotografic activ (ex. "Nunta", "Portret") — vezi ContextEngine.deriveContextKey. */
@@ -705,19 +712,16 @@ export async function importFiles(
   /** Coordonatele citite nativ, pe URI (vezi nativeMediaLibrary.ts readNativePhotoLocations si comentariul din processOne despre redactarea GPS de catre MediaStore). */
   mediaLocations?: Map<string, MediaLocation>
 ): Promise<Map<string, string>> {
+  // Progresul trece printr-un invelis care retine ULTIMA stare trimisa.
+  // Scanarea rapida de duplicate (mai jos) se termina intr-un moment
+  // imprevizibil — trebuie sa ADAUGE cifra la starea curenta, nu sa inventeze
+  // o faza: altfel ecranul ar sari inapoi la "incarcare" in mijlocul analizei.
+  let lastProgress: ImportProgress = { done: 0, total: files.length, fileName: '', phase: 'incarcare' };
+  const onProgress = (p: ImportProgress) => { lastProgress = p; onProgressRaw(p); };
+
   // faza separata (nu "analiza 0/N"): la primul import, descarca modelele AI
   // (cateva zeci de MB) — poate dura, si utilizatorul trebuie sa stie de ce.
   onProgress({ done: 0, total: files.length, fileName: '', phase: 'incarcare' });
-  await analysisPool.init();
-  await contextEngine.init();
-  const persons = await db.persons.toArray();
-  await analysisPool.setKnownPersons(persons);
-  // Pragurile se calculeaza O SINGURA DATA, inainte de lot, si raman fixe pe
-  // toata durata lui: altfel primele poze ar fi clasificate dupa alte reguli
-  // decat ultimele, iar rezultatul aceluiasi import ar depinde de ordinea
-  // fisierelor. Vezi core/scoreThresholds.ts.
-  const thresholds = deriveThresholds(await readLibraryScores());
-  if (thresholds.adapted) onProgress({ done: 0, total: files.length, fileName: '', phase: 'incarcare', thresholds });
 
   // pastram fisierul si handle-ul corespunzator impreuna INAINTE de a filtra
   // dupa format — altfel indexul din `handles` s-ar decala fata de `files`
@@ -747,6 +751,28 @@ export async function importFiles(
     return new Map();
   }
 
+  // Scanarea rapida de copii identice. Sta AICI, inaintea lui analysisPool.init(),
+  // si nu se asteapta: incarcarea modelelor AI e cea mai lunga pauza din tot
+  // importul, si pana acum era complet goala. Scanarea nu decodeaza nicio
+  // imagine (vezi quickDuplicateScan) — pe o galerie fara duplicate nici macar
+  // nu citeste de pe disc — deci nu ia nimic din bugetul analizei.
+  void quickDuplicateScan(images.map(({ file }) => file)).then(quickScan => {
+    if (quickScan.duplicates > 0) onProgress({ ...lastProgress, quickScan });
+  }).catch(() => {
+    // o cifra in plus care lipseste nu e un motiv sa se opreasca importul
+  });
+
+  await analysisPool.init();
+  await contextEngine.init();
+  const persons = await db.persons.toArray();
+  await analysisPool.setKnownPersons(persons);
+  // Pragurile se calculeaza O SINGURA DATA, inainte de lot, si raman fixe pe
+  // toata durata lui: altfel primele poze ar fi clasificate dupa alte reguli
+  // decat ultimele, iar rezultatul aceluiasi import ar depinde de ordinea
+  // fisierelor. Vezi core/scoreThresholds.ts.
+  const thresholds = deriveThresholds(await readLibraryScores());
+  if (thresholds.adapted) onProgress({ done: 0, total: files.length, fileName: '', phase: 'incarcare', thresholds });
+
   // Cerinta directa a utilizatorului: la un import mare, pozele cu oameni sa
   // fie gata de triat primele — vezi comentariul de la prioritizeFacesFirst
   // (doar Android, no-op si instant pe web/PWA).
@@ -758,6 +784,7 @@ export async function importFiles(
   let done = 0;
   let index = 0;
   let failed = 0;
+
   let stopReason: string | undefined;
   const hashes: HashInput[] = [];
   // Motivele reale (distincte) ale esecurilor — altfel "fisier corupt sau

@@ -47,6 +47,7 @@ import { HomeDashboard } from './ui/HomeDashboard';
 import { BottomNav } from './ui/BottomNav';
 import { WelcomeOnboarding } from './ui/WelcomeOnboarding';
 import { SmartNotification } from './ui/SmartNotification';
+import { QuickScanFind } from './ui/QuickScanFind';
 import { t } from './i18n';
 
 /**
@@ -959,6 +960,7 @@ export default function App() {
                       : progress.phase === 'grupare' ? tr('app.progress.grouping') : tr('app.progress.done')}
               </p>
               </div>
+              <QuickScanFind />
               <div className="analysis-studio-progress" aria-hidden="true">
                 <span style={{ width: `${progress.total ? Math.max(4, (progress.done / progress.total) * 100) : 18}%` }} />
               </div>

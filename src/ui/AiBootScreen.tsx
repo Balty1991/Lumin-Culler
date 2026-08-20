@@ -3,6 +3,7 @@ import { useStore } from '../state/store';
 import { t } from '../i18n';
 import { readLastModelLoadMs } from '../core/modelLoadTiming';
 import { formatEta } from '../core/formatTime';
+import { QuickScanFind } from './QuickScanFind';
 
 /**
  * ui/AiBootScreen.tsx
@@ -65,6 +66,9 @@ export function AiBootScreen() {
           </p>
         )}
       </div>
+      {/* Aici e cea mai lunga pauza din tot importul (zeci de MB de modele).
+          Pana acum era complet goala — acum ofera deja un rezultat. */}
+      <QuickScanFind />
       {/* Bara nu are procent real aici — durata incarcarii modelelor nu se stie
           dinainte — deci se misca singura, ca semn ca lucreaza. */}
       <div className="analysis-studio-progress is-indeterminate" aria-hidden="true"><span /></div>
