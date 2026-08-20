@@ -23,7 +23,7 @@
  * altfel primele trei ar fi trei variante ale aceluiasi cadru, ceea ce nu e o
  * alegere.
  */
-
+import { subjectRank } from './subjectSignificance';
 export interface MomentPhoto {
   id: string;
   /** Momentul capturii (epoch ms). Fara el, poza nu poate intra in niciun moment. */
@@ -74,21 +74,20 @@ export const MAX_TOP_PICKS = 3;
  * Cat de mult MERITA poza sa reprezinte momentul, inainte de calitatea ei.
  *
  * Bug real, raportat cu doua capturi: dintr-o iesire cu copilul, propunerile au
- * fost urmele din zapada si doua poze cu niste hartii — in timp ce cadrele cu
+ * fost urmele din zapada si doua poze cu niste hartii, in timp ce cadrele cu
  * copilul si cu pisica au ramas nepropuse. Cauza nu e un scor gresit, ci
- * intrebarea gresita: `aiScore` masoara cat de BINE FACUTA e o poza, si o coala
- * de hartie plata, bine luminata, e perfect clara si perfect expusa. Un copil
- * in miscare nu e.
- *
- * Un moment se reprezinta prin ce s-a intamplat in el, nu prin cel mai curat
- * dreptunghi. Deci intai categoria, si abia in interiorul ei scorul:
- *   2 = are oameni in ea
- *   1 = orice altceva (peisaj, detaliu)
- *   0 = document sau captura de ecran — doar daca nu exista nimic altceva
+ * intrebarea gresita — vezi core/subjectSignificance.ts, unde traieste acum
+ * regula, folosita si de "cele mai bune poze" si de Auto-Cull. Aici doar o
+ * traducem din campurile pe care le are un moment.
  */
 function subjectTier(p: MomentPhoto): number {
-  if (p.isDocument) return 0;
-  return (p.faceCount ?? 0) > 0 ? 2 : 1;
+  return subjectRank({
+    faceCount: p.faceCount,
+    // `isDocument` e deja decis de apelant (clasificarea din smartInbox, care
+    // se uita si la numele fisierului, nu doar la text) — il exprimam ca
+    // acoperire totala de text, ca sa treaca prin aceeasi poarta.
+    textCoverage: p.isDocument ? 1 : undefined
+  });
 }
 
 export function pickTopFrames(photos: MomentPhoto[], limit = MAX_TOP_PICKS): string[] {

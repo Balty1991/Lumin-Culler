@@ -5,6 +5,7 @@
  * (aplicare reala) cat si in UI (preview live, fara efecte secundare).
  */
 import type { PhotoView } from './store';
+import { compareBySignificance } from '../core/subjectSignificance';
 import { uncertainty } from '../core/uncertainty';
 
 /**
@@ -107,7 +108,10 @@ export interface TopPercentResult {
  */
 export function selectTopPercent(photos: PhotoView[], percent: number): TopPercentResult {
   const undecided = photos.filter(p => p.status !== 'selected' && p.status !== 'rejected');
-  const sorted = [...undecided].sort((a, b) => b.aiScore - a.aiScore);
+  // Aceeasi ordine ca la highlights: un document nu trebuie sa intre in pozele
+  // pastrate doar pentru ca a iesit optic curat, iar o poza cu cineva drag nu
+  // trebuie sa cada sub el pentru cateva puncte de claritate.
+  const sorted = [...undecided].sort(compareBySignificance);
   const keepCount = Math.min(sorted.length, Math.max(0, Math.round(sorted.length * percent / 100)));
   return {
     selectIds: sorted.slice(0, keepCount).map(p => p.id),
@@ -222,7 +226,11 @@ export function selectHighlights(photos: PhotoView[], percent = 10): PhotoView[]
     if (!current || p.aiScore > current.aiScore) bestPerGroup.set(p.groupId, p);
   }
   const candidates = [...bestPerGroup.values(), ...ungrouped];
-  const sorted = candidates.sort((a, b) => b.aiScore - a.aiScore);
+  // Intai CINE e in cadru, apoi cat de bine a iesit — altfel un document bine
+  // luminat, perfect clar si perfect expus, ajunge in "cele mai bune poze din
+  // tot evenimentul" peste o poza cu copilul iesita putin miscata.
+  // Vezi core/subjectSignificance.ts.
+  const sorted = candidates.sort(compareBySignificance);
   const keepCount = Math.min(sorted.length, Math.max(1, Math.round(photos.length * percent / 100)));
   return sorted.slice(0, keepCount);
 }

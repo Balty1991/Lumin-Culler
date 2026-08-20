@@ -199,6 +199,42 @@ describe('selectTopPercent', () => {
   });
 });
 
+describe('semnificatia subiectului in "cele mai bune"', () => {
+  it('selectHighlights: documentul clar nu mai bate poza cu copilul', () => {
+    const photos = [
+      photo({ id: 'hartie', aiScore: 99, textCoverage: 0.8 }),
+      photo({ id: 'copilul', aiScore: 62, faceCount: 1, knownFaceCount: 1 }),
+      photo({ id: 'peisaj', aiScore: 88 })
+    ];
+    // 34% din 3 poze = 1 pastrata
+    expect(selectHighlights(photos, 34).map(p => p.id)).toEqual(['copilul']);
+  });
+
+  it('selectHighlights: fara fete si fara text, ordinea ramane exact cea de scor', () => {
+    const photos = [
+      photo({ id: 'a', aiScore: 30 }), photo({ id: 'b', aiScore: 90 }), photo({ id: 'c', aiScore: 60 })
+    ];
+    expect(selectHighlights(photos, 67).map(p => p.id)).toEqual(['b', 'c']);
+  });
+
+  it('Auto-Cull: documentul cade in respinse, poza cu copilul ramane', () => {
+    const photos = [
+      photo({ id: 'hartie', aiScore: 99, textCoverage: 0.8 }),
+      photo({ id: 'copilul', aiScore: 55, faceCount: 1, knownFaceCount: 1 })
+    ];
+    const res = selectTopPercent(photos, 50);
+    expect(res.selectIds).toEqual(['copilul']);
+    expect(res.rejectIds).toEqual(['hartie']);
+  });
+
+  it('Auto-Cull: pe poze fara semnal, se comporta ca inainte', () => {
+    const photos = [photo({ id: 'slaba', aiScore: 20 }), photo({ id: 'buna', aiScore: 95 })];
+    const res = selectTopPercent(photos, 50);
+    expect(res.selectIds).toEqual(['buna']);
+    expect(res.rejectIds).toEqual(['slaba']);
+  });
+});
+
 describe('selectBlurry', () => {
   it('prinde o poza clar miscata', () => {
     expect(selectBlurry([photo({ id: 'a', sharpness: 20 })]).map(p => p.id)).toEqual(['a']);

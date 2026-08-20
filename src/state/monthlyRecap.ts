@@ -1,4 +1,5 @@
 import type { PhotoView } from './store';
+import { compareBySignificance } from '../core/subjectSignificance';
 
 const RECAP_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 /** Plafon absolut: un recap ramane ceva ce te uiti la el, nu un rulaj al intregii luni. */
@@ -30,7 +31,9 @@ export function selectMonthlyRecap(photos: PhotoView[], now: Date = new Date(), 
   const cutoff = now.getTime() - RECAP_WINDOW_MS;
   const eligible = photos
     .filter(p => p.capturedAt !== undefined && p.capturedAt >= cutoff && p.status !== 'rejected')
-    .sort((a, b) => b.aiScore - a.aiScore);
+    // "Cele mai bune ale lunii" — vezi core/subjectSignificance.ts pentru de ce
+    // scorul singur pune un document inaintea unei poze cu cineva drag.
+    .sort(compareBySignificance);
   // Cu putine poze eligibile, fractiunea ar taia pana la 1-2 poze; atunci
   // pastram tot ce e (recapul oricum nu se arata sub un prag — vezi
   // RECAP_TEASER_MIN_PHOTOS in ui/HomeDashboard.tsx).
