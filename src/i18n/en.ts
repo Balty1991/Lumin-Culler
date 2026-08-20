@@ -1033,6 +1033,11 @@ export const en: Record<TranslationKey, string> = {
 
   'presentation.empty': 'No results for the current filter.',
   'presentation.exit': 'Exit presentation',
+  'recapVideo.export': 'Export as video',
+  'recapVideo.cancel': 'Stop',
+  'recapVideo.tooFew': 'Too few photos for a clip — you need at least three.',
+  'recapVideo.done': 'Clip ready, from {count} photos. Made entirely on your phone — no photo left the device.',
+  'recapVideo.failed': "The clip couldn't be made. Try again, or with fewer photos.",
   'presentation.play': 'Auto-play',
   'presentation.pause': 'Pause',
   'presentation.fullscreen': 'Fullscreen',

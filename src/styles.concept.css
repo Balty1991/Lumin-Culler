@@ -4245,3 +4245,20 @@ input[type="search"] { min-height: 44px; }
   width: 44px; height: 44px;
   transform: translate(-50%, -50%);
 }
+
+/* Butonul de export video din prezentare, cat timp inregistreaza: arata
+   procentul si e in acelasi timp butonul de oprire. Un buton separat de anulare
+   ar fi cerut inca o tinta de atingere pe o bara care nu mai are loc. */
+.presentation-video-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  color: #fff;
+  background: rgb(255 255 255 / .12);
+  border: 1px solid rgb(255 255 255 / .22);
+  border-radius: 999px;
+  font-size: .78rem;
+}
+.presentation-video-progress .mono { font-variant-numeric: tabular-nums; opacity: .85; }

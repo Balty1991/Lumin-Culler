@@ -3,7 +3,10 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
 import { useStore, type PhotoView } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
-import { XIcon, ChevronLeft, ChevronRight, PlayIcon, PauseIcon, MaximizeIcon } from './icons';
+import { XIcon, ChevronLeft, ChevronRight, PlayIcon, PauseIcon, MaximizeIcon, DownloadIcon } from './icons';
+import { planRecapVideo } from '../core/recapVideo';
+import { renderRecapVideo, isRecapVideoSupported, pickMimeType, extensionFor } from '../core/recapVideoRender';
+import { downloadBlob } from '../core/export/directoryPicker';
 import { EASE } from './motion';
 import { t } from '../i18n';
 
@@ -61,11 +64,55 @@ export function PresentationMode() {
   const setPresentationPhotoIds = useStore(s => s.setPresentationPhotoIds);
   const multiSelectIds = useStore(s => s.multiSelectIds);
   const allPhotos = useStore(s => s.photos);
+  const setNotice = useStore(s => s.setNotice);
   const filtered = useStore(s => s.filtered());
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const reduceMotion = useReducedMotion() ?? false;
   const containerRef = useRef<HTMLDivElement>(null);
+  /**
+   * Exportul clipului: prezentarea putea fi PRIVITA, dar nu trimisa nicaieri.
+   * Un clip scurt cu cele mai bune poze e ceva ce omul trimite in familie, si
+   * fiecare trimitere e reclama pentru aplicatie. Totul local — vezi
+   * core/recapVideoRender.ts.
+   */
+  const [videoProgress, setVideoProgress] = useState<number | null>(null);
+  const cancelVideoRef = useRef(false);
+  const canExportVideo = useMemo(() => isRecapVideoSupported(), []);
+
+  const exportVideo = async () => {
+    const plan = planRecapVideo(photos.map(p => p.id));
+    if (!plan) { setNotice(tr('recapVideo.tooFew')); return; }
+    cancelVideoRef.current = false;
+    setVideoProgress(0);
+    setPlaying(false);
+    try {
+      // Incarcam intai TOATE pozele din plan: inregistrarea merge in timp real,
+      // deci o poza care se incarca la mijloc ar lasa un gol chiar in clip.
+      const urls = await Promise.all(plan.frames.map(f => getCachedPreviewUrl(f.id)));
+      const images = await Promise.all(urls.map(url => new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('poza nu s-a putut incarca'));
+        img.src = url ?? '';
+      })));
+      if (cancelVideoRef.current) return;
+      const blob = await renderRecapVideo({
+        plan, images,
+        onProgress: setVideoProgress,
+        isCancelled: () => cancelVideoRef.current
+      });
+      if (cancelVideoRef.current) return;
+      const ext = extensionFor(pickMimeType() ?? 'video/webm');
+      await downloadBlob(`recap-lumin-${new Date().toISOString().slice(0, 10)}.${ext}`, blob);
+      setNotice(tr('recapVideo.done', { count: plan.frames.length }));
+    } catch {
+      setNotice(tr('recapVideo.failed'));
+    } finally {
+      setVideoProgress(null);
+    }
+  };
+
   useModalFocusTrap(containerRef, open, true);
 
   const { photos, sourceLabel } = useMemo(() => {
@@ -230,6 +277,22 @@ export function PresentationMode() {
               <button className="ghost icon-btn" onClick={toggleFullscreen} aria-label={tr('presentation.fullscreen')}>
                 <MaximizeIcon />
               </button>
+              {canExportVideo && (
+                videoProgress === null ? (
+                  <button className="ghost icon-btn" onClick={() => void exportVideo()} aria-label={tr('recapVideo.export')} title={tr('recapVideo.export')}>
+                    <DownloadIcon />
+                  </button>
+                ) : (
+                  <button
+                    className="ghost presentation-video-progress"
+                    onClick={() => { cancelVideoRef.current = true; }}
+                    aria-label={tr('recapVideo.cancel')}
+                  >
+                    <span className="mono">{Math.round(videoProgress * 100)}%</span>
+                    <span>{tr('recapVideo.cancel')}</span>
+                  </button>
+                )
+              )}
               {photo?.fileName && <span className="presentation-filename mono">{photo.fileName}</span>}
             </div>
           </div>

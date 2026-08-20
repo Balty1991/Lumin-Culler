@@ -1046,6 +1046,11 @@ export const ro = {
 
   'presentation.empty': 'Niciun rezultat pentru filtrul curent.',
   'presentation.exit': 'Ieși din prezentare',
+  'recapVideo.export': 'Exportă ca video',
+  'recapVideo.cancel': 'Oprește',
+  'recapVideo.tooFew': 'Prea puține poze pentru un clip — îți trebuie măcar trei.',
+  'recapVideo.done': 'Clip gata, din {count} poze. Totul s-a făcut pe telefon — nicio poză n-a plecat nicăieri.',
+  'recapVideo.failed': 'Clipul nu s-a putut face. Încearcă din nou, sau cu mai puține poze.',
   'presentation.play': 'Reda automat',
   'presentation.pause': 'Pauză',
   'presentation.fullscreen': 'Fullscreen',
