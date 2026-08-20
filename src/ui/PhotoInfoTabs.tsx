@@ -13,7 +13,7 @@ import { translateSceneTag } from '../core/sceneTagLabels';
 import { hasRealGps } from '../core/gpsCoordinates';
 import { usePlaceName } from './usePlaceName';
 
-type Tab = 'metrics' | 'why' | 'persons' | 'history';
+export type Tab = 'metrics' | 'why' | 'persons' | 'history';
 const TAB_KEYS: { key: Tab; labelKey: string }[] = [
   { key: 'metrics', labelKey: 'detail.tab.metrics' },
   { key: 'why', labelKey: 'detail.tab.why' },
@@ -263,7 +263,18 @@ function ScoreRing({ score }: { score: number }) {
  * fi montate identic si in Workspace (paritate ceruta explicit: "vreau tot asa, sa am
  * informatii complete"), fara sa duplice tile-uri/EXIF/histograma/harta de focalizare.
  */
-export function PhotoInfoTabs({ photo, src }: { photo: PhotoView; src: string | null }) {
+export function PhotoInfoTabs({ photo, src, openTab }: {
+  photo: PhotoView;
+  src: string | null;
+  /**
+   * Cerere din afara de a deschide o anumita fila (vezi ScoreReason din
+   * DetailView: "De ce?"). `at` e momentul cererii, nu un detaliu de stil —
+   * fara el, o a doua apasare pe acelasi buton dupa ce utilizatorul a schimbat
+   * fila cu mana n-ar mai avea niciun efect, pentru ca valoarea propriu-zisa
+   * (`tab`) ar fi ramas aceeasi.
+   */
+  openTab?: { tab: Tab; at: number };
+}) {
   const history = useStore(s => s.history);
   const openEdit = useStore(s => s.openEdit);
   const locale = useStore(s => s.locale);
@@ -303,6 +314,12 @@ export function PhotoInfoTabs({ photo, src }: { photo: PhotoView; src: string | 
   };
 
   useEffect(() => { setTab('metrics'); }, [photo.id]);
+
+  useEffect(() => {
+    if (openTab) setTab(openTab.tab);
+    // doar `at` in dependinte: vezi comentariul de la prop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openTab?.at]);
 
   const photoHistory = useMemo(
     () => history.filter(h => h.photoId === photo.id).slice().reverse(),

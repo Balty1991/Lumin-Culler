@@ -5,6 +5,7 @@ import { useStore, isAnyOverlayOpen, type PhotoView } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { StarRating } from './StarRating';
 import { PhotoInfoTabs } from './PhotoInfoTabs';
+import { ScoreReason } from './ScoreReason';
 import { XIcon, ChevronLeft, ChevronRight, ChevronUpIcon, LayersIcon, CheckIcon, EditIcon } from './icons';
 import { CollectionPicker } from './CollectionPicker';
 import { EASE } from './motion';
@@ -70,6 +71,14 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
   // alt ecran, si trebuie sa apese "METRICI" a doua oara ca sa vada acelasi lucru.
   const expandMetricsOnOpen = useStore(s => s.detailExpandMetrics);
   const [sheetExpanded, setSheetExpanded] = useState(expandMetricsOnOpen);
+  /**
+   * Cererea de a deschide rationamentul complet, venita din linia de motiv de
+   * deasupra butoanelor de decizie (ScoreReason). Deschide foaia SI pune fila
+   * "De ce acest scor" — pana acum, ca sa afli de ce a decis AI-ul asa, trebuia
+   * sa tragi foaia in sus si sa nimeresti fila.
+   */
+  const [openTab, setOpenTab] = useState<{ tab: 'why'; at: number } | undefined>(undefined);
+  const explainScore = () => { setOpenTab({ tab: 'why', at: Date.now() }); setSheetExpanded(true); };
   const [sheetDragY, setSheetDragY] = useState(0);
   const sheetDraggingRef = useRef(false);
   const sheetMovedRef = useRef(false);
@@ -311,6 +320,20 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
           </>
         )}
 
+        {/* Motivul deciziei, chiar deasupra butoanelor cu care se ia decizia.
+            Vezi ScoreReason: scorul, verdictul si primele doua cauze, toate din
+            date deja aflate in memorie. */}
+        {!zoomed && (
+          <div
+            className={sheetExpanded ? 'detail-reason-row hidden' : 'detail-reason-row'}
+            aria-hidden={sheetExpanded}
+            onPointerDown={e => e.stopPropagation()}
+            onClick={e => e.stopPropagation()}
+          >
+            <ScoreReason photo={photo} onExplain={explainScore} />
+          </div>
+        )}
+
         {/* Butoane flotante flat-design (plan "Refactorizare UI/UX") — inlocuiesc butoanele
             text masive Selecteaza/Respinge; ascunse cat timp sheet-ul de metrici e extins,
             ca sa nu se suprapuna peste continutul lui. */}
@@ -377,7 +400,7 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
             </button>
           )}
 
-          <PhotoInfoTabs photo={photo} src={src} />
+          <PhotoInfoTabs photo={photo} src={src} openTab={openTab} />
         </div>
       </div>
     </motion.div>

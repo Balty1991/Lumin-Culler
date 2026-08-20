@@ -740,6 +740,7 @@ export const en: Record<TranslationKey, string> = {
   'detail.sheet.expand': 'Show metrics',
   'detail.sheet.collapse': 'Hide metrics',
   'detail.sheet.peekLabel': 'Metrics',
+  'detail.reason.why': 'Why?',
   'detail.stat.score': 'AI score',
   'detail.stat.sharpness': 'Sharpness',
   'detail.stat.note.sharpness': 'Soft edges. Could be motion or missed focus — or a choice: a portrait with deliberate blur.',

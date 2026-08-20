@@ -752,6 +752,9 @@ export const ro = {
   'detail.sheet.expand': 'Arată metricile',
   'detail.sheet.collapse': 'Ascunde metricile',
   'detail.sheet.peekLabel': 'Metrici',
+  // Linia de motiv de deasupra butoanelor de decizie (ui/ScoreReason.tsx):
+  // scorul si cauzele lui erau ingropate intr-o fila inchisa implicit.
+  'detail.reason.why': 'De ce?',
   'detail.stat.score': 'Scor AI',
   'detail.stat.sharpness': 'Claritate',
   'detail.stat.note.sharpness': 'Contur moale. Poate fi mișcare sau focus ratat — dar și o alegere: portret cu blur intenționat.',

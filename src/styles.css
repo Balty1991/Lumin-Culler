@@ -2233,6 +2233,63 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .detail-nav-prev { left: 10px; }
 .detail-nav-next { right: 10px; }
 
+/* -- Linia de motiv, deasupra butoanelor de decizie (ui/ScoreReason.tsx).
+   Aplicatia stia deja sa motiveze fiecare scor, dar explicatia statea intr-o
+   fila dintr-o foaie inchisa implicit — adica exact argumentul care o deosebeste
+   de o galerie oarecare nu ajungea la om decat daca il cauta.
+   Fundalul e OPAC, nu translucid: linia sta peste fotografie, iar o poza poate
+   fi de orice culoare — un fundal semi-transparent ar fi lizibil pe unele si
+   ilizibil pe altele. */
+.detail-reason-row {
+  /* 104px (.detail-fab-row) + 58px (butonul) + 14px respiro */
+  position: absolute; left: 0; right: 0; bottom: 176px; z-index: var(--z-card-badge);
+  display: flex; justify-content: center; padding: 0 12px;
+  transition: opacity 0.25s var(--ease), transform 0.25s var(--ease);
+}
+.detail-reason-row.hidden { opacity: 0; transform: translateY(14px); pointer-events: none; }
+.score-reason {
+  display: flex; align-items: center; gap: 9px; max-width: 100%;
+  padding: 5px 6px 5px 7px; border-radius: 99px;
+  background: #14161c; border: 1px solid rgb(255 255 255 / 0.14);
+  box-shadow: 0 8px 22px -10px rgb(0 0 0 / 0.85);
+}
+.score-reason-score {
+  flex: 0 0 auto; min-width: 36px; height: 34px; border-radius: 99px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 0.82rem; font-weight: 800; color: #0a0c10;
+}
+.score-reason-keep .score-reason-score { background: var(--pick); }
+.score-reason-reject .score-reason-score { background: var(--reject); }
+.score-reason-review .score-reason-score { background: var(--review); }
+.score-reason-text {
+  display: flex; align-items: baseline; gap: 8px; min-width: 0;
+  color: #eef1f6; font-size: 0.78rem; line-height: 1.3;
+}
+.score-reason-text b { flex: 0 0 auto; font-weight: 700; }
+.score-reason-factors {
+  display: flex; gap: 8px; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Cauzele care au TRAS IN SUS scorul si cele care l-au tras in jos nu se pot
+   distinge decat prin culoare aici — textul lor e la fel de scurt in ambele
+   cazuri ("clar", "miscata"). */
+.score-reason-factor { position: relative; padding-left: 11px; color: #aeb7c7; }
+.score-reason-factor::before {
+  content: ''; position: absolute; left: 0; top: 50%; margin-top: -2px;
+  width: 5px; height: 5px; border-radius: 50%;
+}
+.score-reason-factor.pos::before { background: var(--pick); }
+.score-reason-factor.neg::before { background: var(--reject); }
+.score-reason-why {
+  /* 44px: e o tinta de atins, nu o eticheta — restul aplicatiei tine acelasi
+     prag de la auditul de tinte incoace. */
+  flex: 0 0 auto; min-height: 44px; padding: 0 13px; border-radius: 99px;
+  display: inline-flex; align-items: center; gap: 5px;
+  border: 1px solid rgb(255 255 255 / 0.2); background: rgb(255 255 255 / 0.08);
+  color: #eef1f6; font-size: 0.76rem; font-weight: 700; cursor: pointer;
+}
+.score-reason-why:hover { background: rgb(255 255 255 / 0.16); }
+
 /* Butoane flotante flat-design (X/bifa) — inlocuiesc textele masive Selecteaza/Respinge,
    culori mate temperate, fara gradient, in treimea inferioara a ecranului. */
 .detail-fab-row {
