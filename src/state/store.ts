@@ -14,6 +14,7 @@ import {
 import { readSavedFilters, writeSavedFilters, type SavedFilterPreset } from './savedFilters';
 import { applyAdjustmentsToBlob, isNeutral, type EditAdjustments } from '../core/imageAdjust';
 import { readApplyEditsInGallery, writeApplyEditsInGallery } from './applyEditsPreference';
+import { readProMode, writeProMode } from './proMode';
 import { clearPreviewUrlCache } from '../core/previewUrlCache';
 import {
   importFiles, originalFiles, originalHandles, createCancelToken, SELECT_THRESHOLD, REJECT_THRESHOLD, decidePhotoStatus,
@@ -368,6 +369,13 @@ interface AppState {
   /** Momentele (sesiuni de fotografiat separate de pauze), cu 1-3 cadre propuse din fiecare — vezi core/momentStacks.ts. */
   momentsOpen: boolean;
   setMomentsOpen: (open: boolean) => void;
+  /**
+   * "Mod profesional": arata in meniu si functiile de dupa triaj (XMP, contact
+   * sheet, galerie client, watermark, proiecte, gen fotografic, locatii).
+   * Oprit implicit — vezi state/proMode.ts pentru de ce.
+   */
+  proMode: boolean;
+  setProMode: (on: boolean) => void;
   setDuplicatesPanelOpen: (open: boolean) => void;
   /** "Protectie documente" — coada de poze care par documente/capturi (vezi core/documentShield.ts), de revizuit una cate una. */
   documentShieldOpen: boolean;
@@ -1443,6 +1451,8 @@ export const useStore = create<AppState>((set, get) => ({
   setSmartInboxOpen: open => set({ smartInboxOpen: open }),
   momentsOpen: false,
   setMomentsOpen: open => set({ momentsOpen: open }),
+  proMode: readProMode(),
+  setProMode: on => { writeProMode(on); set({ proMode: on }); },
   exactDupesOpen: false,
   setExactDupesOpen: open => set({ exactDupesOpen: open }),
   documentShieldOpen: false,

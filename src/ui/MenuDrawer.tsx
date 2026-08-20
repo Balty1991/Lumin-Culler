@@ -171,6 +171,8 @@ export function MenuDrawer() {
   const setRescueQueueOpen = useStore(s => s.setRescueQueueOpen);
   const setSmartInboxOpen = useStore(s => s.setSmartInboxOpen);
   const setMomentsOpen = useStore(s => s.setMomentsOpen);
+  const proMode = useStore(s => s.proMode);
+  const setProMode = useStore(s => s.setProMode);
   const setExactDupesOpen = useStore(s => s.setExactDupesOpen);
   // Cere o citire din baza de date (dHash nu sta in memorie), deci se face o
   // singura data cand se deschide meniul — nu la fiecare randare.
@@ -465,29 +467,35 @@ export function MenuDrawer() {
                 <span>{tr('menu.collections')}</span>
               </button>
 
-              <button className="drawer-item" onClick={() => go(() => setProjectsOpen(true))}>
-                <span className="drawer-item-icon"><ListIcon /></span>
-                <span>{tr('menu.projects')}</span>
-              </button>
+              {proMode && (
+                <button className="drawer-item" onClick={() => go(() => setProjectsOpen(true))}>
+                  <span className="drawer-item-icon"><ListIcon /></span>
+                  <span>{tr('menu.projects')}</span>
+                </button>
+              )}
 
-              <button className="drawer-item" onClick={() => go(() => setLocationsOpen(true))}>
-                <span className="drawer-item-icon"><PinIcon /></span>
-                <span>{tr('menu.locations')}</span>
-                {lockBadge}
-              </button>
+              {proMode && (
+                <button className="drawer-item" onClick={() => go(() => setLocationsOpen(true))}>
+                  <span className="drawer-item-icon"><PinIcon /></span>
+                  <span>{tr('menu.locations')}</span>
+                  {lockBadge}
+                </button>
+              )}
 
-              <label className="drawer-item drawer-item-select" title={tr('menu.genre.title')}>
-                <span className="drawer-item-icon"><TagIcon /></span>
-                <span>{tr('menu.genre')}</span>
-                <select
-                  className="drawer-select mono"
-                  value={genre}
-                  onChange={e => setGenre(e.target.value)}
-                >
-                  <option value="">{tr('menu.genre.none')}</option>
-                  {GENRE_PRESETS.map(g => <option key={g} value={g}>{g}</option>)}
-                </select>
-              </label>
+              {proMode && (
+                <label className="drawer-item drawer-item-select" title={tr('menu.genre.title')}>
+                  <span className="drawer-item-icon"><TagIcon /></span>
+                  <span>{tr('menu.genre')}</span>
+                  <select
+                    className="drawer-select mono"
+                    value={genre}
+                    onChange={e => setGenre(e.target.value)}
+                  >
+                    <option value="">{tr('menu.genre.none')}</option>
+                    {GENRE_PRESETS.map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </label>
+              )}
             </>
           )}
         </DrawerGroup>
@@ -597,11 +605,13 @@ export function MenuDrawer() {
               {lockBadge}
             </button>
 
-            <button className="drawer-item" onClick={() => go(() => setContactSheetOpen(true))}>
-              <span className="drawer-item-icon"><PrinterIcon /></span>
-              <span>{tr('menu.contactSheet')}</span>
-              {lockBadge}
-            </button>
+            {proMode && (
+              <button className="drawer-item" onClick={() => go(() => setContactSheetOpen(true))}>
+                <span className="drawer-item-icon"><PrinterIcon /></span>
+                <span>{tr('menu.contactSheet')}</span>
+                {lockBadge}
+              </button>
+            )}
           </DrawerGroup>
         )}
 
@@ -617,21 +627,27 @@ export function MenuDrawer() {
               felul in care iti aduci datele inapoi). */}
           {hasPhotos && (
             <>
-              <button className="drawer-item" onClick={() => go(() => void exportManifest())}>
-                <span className="drawer-item-icon"><ListIcon /></span>
-                <span>{tr('menu.exportManifest')}</span>
-              </button>
+              {proMode && (
+                <button className="drawer-item" onClick={() => go(() => void exportManifest())}>
+                  <span className="drawer-item-icon"><ListIcon /></span>
+                  <span>{tr('menu.exportManifest')}</span>
+                </button>
+              )}
 
-              <button className="drawer-item" onClick={() => go(() => void exportSessionReport())} title={tr('menu.exportSessionReport.title')}>
-                <span className="drawer-item-icon"><BarChartIcon /></span>
-                <span>{tr('menu.exportSessionReport')}</span>
-              </button>
+              {proMode && (
+                <button className="drawer-item" onClick={() => go(() => void exportSessionReport())} title={tr('menu.exportSessionReport.title')}>
+                  <span className="drawer-item-icon"><BarChartIcon /></span>
+                  <span>{tr('menu.exportSessionReport')}</span>
+                </button>
+              )}
 
-              <button className="drawer-item" onClick={() => go(() => void exportXMP())}>
-                <span className="drawer-item-icon"><TagIcon /></span>
-                <span>{tr('menu.exportXmp')}</span>
-                {lockBadge}
-              </button>
+              {proMode && (
+                <button className="drawer-item" onClick={() => go(() => void exportXMP())}>
+                  <span className="drawer-item-icon"><TagIcon /></span>
+                  <span>{tr('menu.exportXmp')}</span>
+                  {lockBadge}
+                </button>
+              )}
 
               <button
                 className="drawer-item"
@@ -643,36 +659,42 @@ export function MenuDrawer() {
                 <span>{applyEditsInGallery ? tr('menu.applyEditsInGallery.active') : tr('menu.applyEditsInGallery')}</span>
               </button>
 
-              <button
-                className="drawer-item"
-                onClick={() => go(() => void exportClientGallery())}
-                title={tr('menu.exportClientGallery.title')}
-              >
-                <span className="drawer-item-icon"><UserCheckIcon /></span>
-                <span>{tr('menu.exportClientGallery')}</span>
-              </button>
+              {proMode && (
+                <button
+                  className="drawer-item"
+                  onClick={() => go(() => void exportClientGallery())}
+                  title={tr('menu.exportClientGallery.title')}
+                >
+                  <span className="drawer-item-icon"><UserCheckIcon /></span>
+                  <span>{tr('menu.exportClientGallery')}</span>
+                </button>
+              )}
 
-              <button
-                className="drawer-item"
-                onClick={() => { setOpen(false); clientFeedbackInputRef.current?.click(); }}
-                title={tr('menu.importClientFeedback.title')}
-              >
-                <span className="drawer-item-icon"><HeartIcon /></span>
-                <span>{tr('menu.importClientFeedback')}</span>
-              </button>
+              {proMode && (
+                <button
+                  className="drawer-item"
+                  onClick={() => { setOpen(false); clientFeedbackInputRef.current?.click(); }}
+                  title={tr('menu.importClientFeedback.title')}
+                >
+                  <span className="drawer-item-icon"><HeartIcon /></span>
+                  <span>{tr('menu.importClientFeedback')}</span>
+                </button>
+              )}
 
-              <label className="drawer-item drawer-item-select" title={tr('menu.watermark.title')}>
-                <span className="drawer-item-icon"><TagIcon /></span>
-                <span>{tr('menu.watermark')}</span>
-                <input
-                  type="text"
-                  className="drawer-text-input mono"
-                  placeholder={tr('menu.watermark.placeholder')}
-                  value={watermarkText}
-                  onChange={e => setWatermarkText(e.target.value)}
-                  maxLength={40}
-                />
-              </label>
+              {proMode && (
+                <label className="drawer-item drawer-item-select" title={tr('menu.watermark.title')}>
+                  <span className="drawer-item-icon"><TagIcon /></span>
+                  <span>{tr('menu.watermark')}</span>
+                  <input
+                    type="text"
+                    className="drawer-text-input mono"
+                    placeholder={tr('menu.watermark.placeholder')}
+                    value={watermarkText}
+                    onChange={e => setWatermarkText(e.target.value)}
+                    maxLength={40}
+                  />
+                </label>
+              )}
 
               <div className="drawer-sep" />
 
@@ -726,6 +748,21 @@ export function MenuDrawer() {
           >
             <span className="drawer-item-icon"><GlobeIcon /></span>
             <span>{tr('menu.language')}</span>
+          </button>
+
+          {/* Comutatorul care decide daca meniul arata si uneltele de dupa triaj.
+              Oprit implicit — vezi state/proMode.ts. Nu inchide sertarul (fara
+              `go`): utilizatorul trebuie sa VADA meniul schimbandu-se sub
+              deget, altfel n-are cum sa priceapa ce a facut butonul. */}
+          <button
+            className="drawer-item"
+            onClick={() => setProMode(!proMode)}
+            aria-pressed={proMode}
+            title={tr('menu.proMode.title')}
+          >
+            <span className="drawer-item-icon"><FocusIcon /></span>
+            <span>{tr('menu.proMode')}</span>
+            <b className="drawer-count mono">{tr(proMode ? 'menu.proMode.on' : 'menu.proMode.off')}</b>
           </button>
 
           <button
