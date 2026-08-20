@@ -514,8 +514,6 @@ interface AppState {
   supervisorImporting: boolean;
   /** Aduce o perioada ANUME (selectata manual sau recomandata) si avanseaza cursorul (fara sa-l dea niciodata inapoi). */
   importGalleryPeriod: (period: GalleryPeriod) => Promise<void>;
-  /** Aduce DIRECT perioada recomandata (fara selector manual) — echivalent cu importGalleryPeriod(supervisorNextPeriod()). */
-  importNextGalleryPeriod: () => Promise<void>;
   /** Sare peste o perioada FARA sa o aduca — avanseaza cursorul ca si cum ar fi fost acoperita, ca supervizorul sa nu o mai recomande. */
   skipGalleryPeriod: (period: GalleryPeriod) => void;
   /** Panoul complet (lungime perioada, selector calendaristic, foldere) — vezi GallerySupervisorPanel.tsx. Redeschis oricand din Meniu, chiar daca bannerul de pe Acasa a fost inchis pentru ziua curenta. */
@@ -634,6 +632,11 @@ interface AppState {
   selectBestPhotoInGroup: (groupId: string) => Promise<string | null>;
   /** Respinge in bloc pozele nedecise (nu selectate/respinse deja) cu scor sub prag. */
   bulkRejectBelow: (threshold: number) => Promise<{ affected: number }>;
+  /** Panoul de copii identice (acelasi fisier salvat de mai multe ori) — vezi core/exactDuplicates.ts. */
+  exactDupesOpen: boolean;
+  setExactDupesOpen: (open: boolean) => void;
+  /** Respinge copiile in plus, pastrand una din fiecare. Reversibil cu Ctrl+Z, ca orice operatie in masa. */
+  rejectExactDuplicates: (ids: string[]) => Promise<{ affected: number }>;
   /** Rezolva TOATE seriile deodata: cea mai buna poza din fiecare ramane, restul se resping. */
   resolveAllSeries: () => Promise<{ groupsResolved: number }>;
   /** Auto-Cull: pastreaza cele mai bune X% (dupa scor) din pozele nedecise, respinge restul. */
@@ -671,7 +674,6 @@ interface AppState {
   rangeMultiSelect: (id: string, orderedIds: string[]) => void;
   /** Forteaza o poza in/afara selectiei (spre deosebire de toggleMultiSelect) — folosit la "vopsirea" prin drag peste mai multe carduri. */
   setMultiSelected: (id: string, on: boolean) => void;
-  clearMultiSelect: () => void;
   setSelectMode: (on: boolean) => void;
   /**
    * Duce utilizatorul in grila, cu `ids` deja selectate.
@@ -1433,6 +1435,8 @@ export const useStore = create<AppState>((set, get) => ({
   setSmartInboxOpen: open => set({ smartInboxOpen: open }),
   momentsOpen: false,
   setMomentsOpen: open => set({ momentsOpen: open }),
+  exactDupesOpen: false,
+  setExactDupesOpen: open => set({ exactDupesOpen: open }),
   documentShieldOpen: false,
   setDocumentShieldOpen: open => set({ documentShieldOpen: open }),
   vaultOpen: false,
@@ -1845,11 +1849,6 @@ export const useStore = create<AppState>((set, get) => ({
       releaseWakeLock();
       set({ supervisorImporting: false });
     }
-  },
-  importNextGalleryPeriod: async () => {
-    const period = get().supervisorNextPeriod();
-    if (!period) return;
-    await get().importGalleryPeriod(period);
   },
   skipGalleryPeriod: period => {
     // Aceeasi logica de non-regresie ca importGalleryPeriod, dar fara nicio
@@ -2702,6 +2701,38 @@ export const useStore = create<AppState>((set, get) => ({
     return { affected: targets.length };
   },
 
+  /**
+   * Copiile in plus ale aceleiasi poze — vezi core/exactDuplicates.ts pentru cum
+   * se stabileste ca sunt chiar identice si care dintre ele ramane.
+   *
+   * Nu sterge nimic: le trece pe "respinse", exact ca orice alta decizie, deci
+   * se vad in filtrul de respinse, se pot readuce una cate una, si toata
+   * operatia se anuleaza dintr-o data cu Ctrl+Z. Stergerea de pe dispozitiv
+   * ramane un pas separat, cerut explicit de utilizator.
+   *
+   * Protectia persoanelor NU se aplica aici, si e o alegere: doua fisiere
+   * identice bit cu bit nu sunt "poza cu copilul si inca una" — sunt aceeasi
+   * poza de doua ori, iar cea pastrata ramane oricum in biblioteca.
+   */
+  rejectExactDuplicates: async ids => {
+    const byId = new Map(get().photos.map(p => [p.id, p]));
+    const targets = ids.map(id => byId.get(id)).filter((p): p is PhotoView => !!p && p.status !== 'rejected');
+    if (!targets.length) return { affected: 0 };
+    const changes = targets.map(p => ({ photoId: p.id, previousStatus: p.status }));
+    const { quotaError } = await applyBulkStatusChanges(
+      targets.map(p => ({ id: p.id, status: 'rejected' as const })),
+      () => false
+    );
+    const targetIds = new Set(targets.map(p => p.id));
+    const locale = get().locale;
+    set(state => ({
+      photos: state.photos.map(p => (targetIds.has(p.id) ? { ...p, status: 'rejected' } : p)),
+      batchHistory: pushBatchHistory(state.batchHistory, makeBatchEvent(t(locale, 'store.batchEvent.exactDupes'), changes)),
+      notice: quotaError ? quotaNotice(locale) : t(locale, 'store.exactDupes.notice', { count: targets.length })
+    }));
+    return { affected: targets.length };
+  },
+
   resolveAllSeries: async () => {
     const resolutions = resolveGroups(get().photos);
     const protectedForSeries = get().protectedPersons;
@@ -2931,7 +2962,6 @@ export const useStore = create<AppState>((set, get) => ({
     return { multiSelectIds: next, multiSelectAnchor: id };
   }),
 
-  clearMultiSelect: () => set({ multiSelectIds: new Set(), multiSelectAnchor: null }),
   setSelectMode: on => set(state => ({
     selectMode: on,
     // la iesire din mod, golim si selectia — la intrare, pornim de la zero
@@ -3892,7 +3922,7 @@ export function isAnyOverlayOpen(): boolean {
     s.paletteOpen || s.shortcutsOpen || s.menuOpen || s.personsOpen || s.insightsOpen ||
     s.batchOpsOpen || s.statsOpen || s.projectsOpen || s.contactSheetOpen || s.presentationOpen ||
     s.appearanceOpen || s.collectionsOpen || s.documentShieldOpen || s.duplicatesPanelOpen ||
-    s.rescueQueueOpen || s.smartInboxOpen || s.momentsOpen ||
+    s.rescueQueueOpen || s.smartInboxOpen || s.momentsOpen || s.exactDupesOpen ||
     s.exportDestinationsOpen || s.premiumOpen || s.searchPanelOpen || s.supervisorPanelOpen ||
     s.tiktokSortOpen || s.locationsOpen || s.vaultOpen || s.zenPanelOpen ||
     s.compareGroupId || s.editingPhotoId || s.dialogRequest

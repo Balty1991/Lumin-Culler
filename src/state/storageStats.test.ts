@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sumKnownSizeBytes, formatGB } from './storageStats';
+import { sumKnownSizeBytes, formatGB, formatSize } from './storageStats';
 import type { PhotoView } from './store';
 
 function photo(id: string, sizeBytes: number | undefined): PhotoView {
@@ -32,5 +32,22 @@ describe('formatGB', () => {
 
   it('formats 0 bytes as 0.0', () => {
     expect(formatGB(0)).toBe('0.0');
+  });
+});
+
+describe('formatSize', () => {
+  it('alege unitatea dupa ordinul de marime', () => {
+    expect(formatSize(512)).toBe('512 B');
+    expect(formatSize(1024 * 40)).toBe('40 KB');
+    expect(formatSize(1024 ** 2 * 40)).toBe('40 MB');
+    expect(formatSize(1024 ** 3 * 2.5)).toBe('2.5 GB');
+  });
+
+  it('nu ascunde zeci de MB in spatele unui "0.0 GB"', () => {
+    expect(formatSize(1024 ** 2 * 43)).toBe('43 MB');
+  });
+
+  it('zero ramane zero', () => {
+    expect(formatSize(0)).toBe('0 B');
   });
 });

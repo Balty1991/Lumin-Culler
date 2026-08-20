@@ -15,3 +15,17 @@ export function sumKnownSizeBytes(photos: PhotoView[]): number {
 export function formatGB(bytes: number): string {
   return (bytes / 1024 ** 3).toFixed(1);
 }
+
+/**
+ * Marime lizibila, cu unitatea potrivita.
+ *
+ * formatGB de mai sus e bun pentru totalul bibliotecii, unde ordinul de marime
+ * e mereu gigabytes. Pentru cifre mai mici — cat ocupa niste copii identice —
+ * "0.0 GB" nu spune nimic, desi sunt 40 de MB reali care se pot elibera.
+ */
+export function formatSize(bytes: number): string {
+  if (bytes >= 1024 ** 3) return (bytes / 1024 ** 3).toFixed(1) + ' GB';
+  if (bytes >= 1024 ** 2) return Math.round(bytes / 1024 ** 2) + ' MB';
+  if (bytes >= 1024) return Math.round(bytes / 1024) + ' KB';
+  return bytes + ' B';
+}

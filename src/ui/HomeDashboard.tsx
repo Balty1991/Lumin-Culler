@@ -65,6 +65,7 @@ export function HomeDashboard() {
   const setTiktokSortOpen = useStore(s => s.setTiktokSortOpen);
   const openTiktokSortForIds = useStore(s => s.openTiktokSortForIds);
   const setHomeGridOpen = useStore(s => s.setHomeGridOpen);
+  const homeGridOpen = useStore(s => s.homeGridOpen);
   const setDocumentShieldOpen = useStore(s => s.setDocumentShieldOpen);
   const setDuplicatesPanelOpen = useStore(s => s.setDuplicatesPanelOpen);
   const collections = useStore(s => s.collections);
@@ -223,7 +224,15 @@ export function HomeDashboard() {
                 <span className="review-desk-eyebrow">{tr('reviewDesk.label')}</span>
                 <span className="review-desk-session">{decidedCount}/{photos.length} · {donePercent}%</span>
               </div>
-              <button className="review-desk-reset" onClick={() => void confirmClearSession()}>{tr('app.clearSession')}</button>
+              {/* Cea mai distructiva actiune din aplicatie aparea de DOUA ori pe
+                  acelasi ecran cand grila e deschisa: aici, in antet, si in
+                  cardul de dedesubt (CullGauge), care o are incadrata in rosu,
+                  langa cifrele pe care le sterge. Ramane una singura, si aia
+                  cea care arata ca ce este. Cu grila inchisa, cardul nu exista,
+                  deci butonul de aici e singurul si ramane. */}
+              {!homeGridOpen && (
+                <button className="review-desk-reset" onClick={() => void confirmClearSession()}>{tr('app.clearSession')}</button>
+              )}
             </div>
             <div className="review-desk-session-rail" aria-label={tr('reviewDesk.sessionSummary')}>
               <span className="review-desk-session-stat is-selected">

@@ -32,6 +32,7 @@ import { t } from '../i18n';
 import { countRescuable } from '../core/rescueQueue';
 import { countNonPersonal } from '../core/smartInbox';
 import { buildMomentStacks, countOpenMoments } from '../core/momentStacks';
+import { useExactDupeCount } from './useExactDupeCount';
 
 /**
  * Controleaza DOAR vizibilitatea butonului de test nativ — NU e acelasi lucru
@@ -170,6 +171,10 @@ export function MenuDrawer() {
   const setRescueQueueOpen = useStore(s => s.setRescueQueueOpen);
   const setSmartInboxOpen = useStore(s => s.setSmartInboxOpen);
   const setMomentsOpen = useStore(s => s.setMomentsOpen);
+  const setExactDupesOpen = useStore(s => s.setExactDupesOpen);
+  // Cere o citire din baza de date (dHash nu sta in memorie), deci se face o
+  // singura data cand se deschide meniul — nu la fiecare randare.
+  const exactDupeCount = useExactDupeCount(open);
   // Contoarele se calculeaza din pozele deja in memorie, fara nicio citire din
   // baza de date: `countRescuable` foloseste doar campurile din PhotoView, iar
   // semnalele fine (highlights/umbre/orizont) se citesc abia la deschiderea
@@ -514,6 +519,12 @@ export function MenuDrawer() {
               <span className="drawer-item-icon"><SparkleIcon /></span>
               <span>{tr('menu.rescueQueue')}</span>
               {rescuableCount > 0 && <b className="drawer-count mono">{rescuableCount}</b>}
+            </button>
+
+            <button className="drawer-item" onClick={() => go(() => setExactDupesOpen(true))}>
+              <span className="drawer-item-icon"><CopyIcon /></span>
+              <span>{tr('menu.exactDupes')}</span>
+              {exactDupeCount > 0 && <b className="drawer-count mono">{exactDupeCount}</b>}
             </button>
 
             <button className="drawer-item" onClick={() => go(() => setMomentsOpen(true))}>

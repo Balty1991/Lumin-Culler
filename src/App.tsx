@@ -101,6 +101,7 @@ const VaultPanel = lazyPanel(() => import('./ui/VaultPanel').then(m => ({ defaul
 const RescueQueuePanel = lazyPanel(() => import('./ui/RescueQueuePanel').then(m => ({ default: m.RescueQueuePanel })));
 const SmartInboxPanel = lazyPanel(() => import('./ui/SmartInboxPanel').then(m => ({ default: m.SmartInboxPanel })));
 const MomentsPanel = lazyPanel(() => import('./ui/MomentsPanel').then(m => ({ default: m.MomentsPanel })));
+const ExactDupesPanel = lazyPanel(() => import('./ui/ExactDupesPanel').then(m => ({ default: m.ExactDupesPanel })));
 const DuplicatesPanel = lazyPanel(() => import('./ui/DuplicatesPanel').then(m => ({ default: m.DuplicatesPanel })));
 const GallerySupervisorPanel = lazyPanel(() => import('./ui/GallerySupervisorPanel').then(m => ({ default: m.GallerySupervisorPanel })));
 const CommandPalette = lazyPanel(() => import('./ui/CommandPalette').then(m => ({ default: m.CommandPalette })));
@@ -806,6 +807,7 @@ export default function App() {
         <RescueQueuePanel />
         <SmartInboxPanel />
         <MomentsPanel />
+        <ExactDupesPanel />
         <GallerySupervisorPanel />
         <ConfirmDialog />
       </>
@@ -867,11 +869,21 @@ export default function App() {
               {counts.selected > 0 && <span className="export-cta-count mono" aria-hidden="true">{counts.selected}</span>}
             </button>
           )}
-          <Tooltip label={tr('app.tooltip.menu')} side="left">
-            <button className="ghost icon-btn" onClick={() => setMenuOpen(true)} aria-label={tr('app.menu.ariaLabel')}>
-              <MenuIcon />
-            </button>
-          </Tooltip>
+          {/* Doua butoane "Meniu" pe acelasi ecran, amandoua deschizand acelasi
+              sertar: cel de aici si fila din bara de jos. Gasit la inventarul
+              controalelor, dupa ce utilizatorul a cerut sa nu existe butoane
+              care fac acelasi lucru — si dupa ce s-a plans ca randul de sus e
+              inghesuit, ceea ce exact un buton in plus provoca.
+              Bara de jos apare doar cand exista poze (vezi BottomNav), deci
+              butonul de aici ramane pentru biblioteca goala, unde e singura
+              cale spre meniu. */}
+          {photos.length === 0 && (
+            <Tooltip label={tr('app.tooltip.menu')} side="left">
+              <button className="ghost icon-btn" onClick={() => setMenuOpen(true)} aria-label={tr('app.menu.ariaLabel')}>
+                <MenuIcon />
+              </button>
+            </Tooltip>
+          )}
         </div>
       </header>
 
@@ -1315,6 +1327,7 @@ export default function App() {
       <RescueQueuePanel />
       <SmartInboxPanel />
       <MomentsPanel />
+      <ExactDupesPanel />
       <GallerySupervisorPanel />
       <MenuDrawer />
       <CommandPalette />

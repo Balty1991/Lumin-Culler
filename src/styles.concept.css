@@ -4207,3 +4207,27 @@ input[type="search"] { min-height: 44px; }
       de "de verificat" pe fundalul lui la 18%: 4:1, sub pragul de 4,5.
       Aceeasi culoare, dusa mai in intuneric doar cat sa treaca. */
 :root[data-theme="light"] .rescue-fix-tag { color: #6b5200; }
+
+/* ── Copii identice ──
+   Copia pastrata trebuie sa se distinga instant de cele care pleaca: e verde si
+   marcata, restul sunt sterse ca ton. Fara asta, un rand de sase miniaturi
+   identice nu spune nimic despre ce se intampla la apasarea butonului. */
+.dupe-summary { margin: 4px 0 10px; }
+.dupe-summary b { font-size: .95rem; color: var(--text); }
+.dupe-set h3 { margin-bottom: 2px; }
+.dupe-strip { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; margin: 8px 0 10px; }
+.dupe-cell { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.dupe-cell em {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-style: normal; font-size: .6rem; font-weight: 700;
+  color: var(--pick-text, var(--pick));
+}
+.dupe-thumb { width: 54px; height: 54px; border-radius: 9px; object-fit: cover; opacity: .55; }
+.dupe-thumb.keep {
+  opacity: 1;
+  outline: 2px solid var(--pick);
+  outline-offset: 1px;
+}
+.dupe-thumb.empty { display: block; background: var(--surface-2); }
+.dupe-more { color: var(--text-dim); font-size: .7rem; align-self: center; }
+.dupe-apply { width: 100%; min-height: 48px; margin-top: 6px; }
