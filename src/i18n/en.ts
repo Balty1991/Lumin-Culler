@@ -454,6 +454,7 @@ export const en: Record<TranslationKey, string> = {
   'palette.filter.rejected': 'Rejected',
   'palette.filter.series': 'Series',
   'palette.filter.blinks': 'Closed eyes',
+  'palette.filter.blurry': 'Blurry',
   'palette.filter.goldenHour': 'Golden hour',
   'palette.filter.highlights': 'Highlights',
   'palette.cmd.persons': 'Known people',

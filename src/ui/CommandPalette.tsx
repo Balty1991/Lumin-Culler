@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useStore, type FilterKey } from '../state/store';
-import { selectHighlights, selectBlinks } from '../state/batchOps';
+import { selectHighlights, selectBlinks, selectBlurry } from '../state/batchOps';
 import {
   SearchIcon, FocusIcon, GridIcon, UndoIcon, LayersIcon, UserCheckIcon, SparkleIcon,
   KeyboardIcon, SunIcon, MoonIcon, DownloadIcon, TagIcon, ListIcon, TrashIcon, FilterDotIcon
@@ -111,6 +111,7 @@ export function CommandPalette() {
     rejected: photos.filter(p => p.status === 'rejected').length,
     series: photos.filter(p => p.groupId).length,
     blinks: selectBlinks(photos).length,
+    blurry: selectBlurry(photos).length,
     goldenHour: photos.filter(p => p.goldenHourDetected).length,
     highlights: selectHighlights(photos).length,
     all: photos.length
@@ -128,7 +129,7 @@ export function CommandPalette() {
     { id: 'undo', label: tr('palette.cmd.undo'), hint: 'Ctrl+Z', sectionKey: 'palette.section.edit', icon: <UndoIcon />, run: () => void undo(), disabled: !history.length },
     { id: 'batch', label: tr('palette.cmd.batch'), hint: tr('palette.cmd.batch.hint'), sectionKey: 'palette.section.edit', icon: <LayersIcon />, run: () => setBatchOpsOpen(true), disabled: !photos.length },
     { id: 'clear-all', label: tr('palette.cmd.clearAll'), hint: tr('palette.cmd.clearAll.hint'), sectionKey: 'palette.section.edit', icon: <TrashIcon />, run: confirmClearAll, disabled: !photos.length },
-    ...(['all', 'selected', 'review', 'series', 'highlights', 'blinks', 'goldenHour', 'rejected'] as FilterKey[]).map(key => ({
+    ...(['all', 'selected', 'review', 'series', 'highlights', 'blinks', 'blurry', 'goldenHour', 'rejected'] as FilterKey[]).map(key => ({
       id: 'filter-' + key,
       label: tr('palette.filter.showLabel', { filter: tr(`palette.filter.${key}`) }),
       hint: String(counts[key]),

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { selectBulkRejectTargets, resolveGroups, selectTopPercent, selectHighlights, selectBlinks, selectDeletableRejected, orderByDeletionRisk } from './batchOps';
+import { selectBulkRejectTargets, resolveGroups, selectTopPercent, selectHighlights, selectBlinks, selectBlurry, BLURRY_SHARPNESS, selectDeletableRejected, orderByDeletionRisk } from './batchOps';
 import type { PhotoView } from './store';
 
 function photo(overrides: Partial<PhotoView>): PhotoView {
@@ -196,6 +196,63 @@ describe('selectTopPercent', () => {
     const photos = [photo({ id: 'a', status: 'selected', aiScore: 90 })];
     const result = selectTopPercent(photos, 50);
     expect(result).toEqual({ selectIds: [], rejectIds: [] });
+  });
+});
+
+describe('selectBlurry', () => {
+  it('prinde o poza clar miscata', () => {
+    expect(selectBlurry([photo({ id: 'a', sharpness: 20 })]).map(p => p.id)).toEqual(['a']);
+  });
+
+  it('lasa in pace o poza clara', () => {
+    expect(selectBlurry([photo({ id: 'a', sharpness: 80 })])).toEqual([]);
+  });
+
+  it('pragul e acelasi cu cel din explicatia scorului', () => {
+    // exact la prag inseamna "acceptabila", nu "miscata" — altfel filtrul si
+    // explicatia ar spune lucruri diferite despre aceeasi poza
+    expect(selectBlurry([photo({ id: 'a', sharpness: BLURRY_SHARPNESS })])).toEqual([]);
+    expect(selectBlurry([photo({ id: 'a', sharpness: BLURRY_SHARPNESS - 1 })]).map(p => p.id)).toEqual(['a']);
+  });
+
+  it('un portret cu fundal topit NU e o poza miscata', () => {
+    // claritate globala mica, dar subiectul e in focus: profunzime mica
+    // intentionata. Fara garantia asta, filtrul ar acuza tocmai pozele bune.
+    expect(selectBlurry([photo({ id: 'portret', sharpness: 25, subjectInFocus: true })])).toEqual([]);
+  });
+
+  it('nu semnaleaza un cadru ratat dintr-o rafala care are si unul clar', () => {
+    const photos = [
+      photo({ id: 'ratat', groupId: 'g1', sharpness: 20 }),
+      photo({ id: 'bun', groupId: 'g1', sharpness: 85 })
+    ];
+    expect(selectBlurry(photos)).toEqual([]);
+  });
+
+  it('semnaleaza toata seria cand NICIUN cadru nu a iesit clar', () => {
+    const photos = [
+      photo({ id: 'a', groupId: 'g1', sharpness: 20 }),
+      photo({ id: 'b', groupId: 'g1', sharpness: 25 })
+    ];
+    expect(selectBlurry(photos).map(p => p.id)).toEqual(['a', 'b']);
+  });
+
+  it('o alternativa doar cu putin mai clara nu salveaza seria', () => {
+    // 50 e peste pragul de "miscata", dar tot sub ce numim un cadru clar —
+    // doua cadre la fel de ratate nu trebuie sa se acopere reciproc
+    const photos = [
+      photo({ id: 'a', groupId: 'g1', sharpness: 20 }),
+      photo({ id: 'b', groupId: 'g1', sharpness: 50 })
+    ];
+    expect(selectBlurry(photos).map(p => p.id)).toEqual(['a']);
+  });
+
+  it('seriile nu se amesteca intre ele', () => {
+    const photos = [
+      photo({ id: 'ratat', groupId: 'g1', sharpness: 20 }),
+      photo({ id: 'clar-din-alta-serie', groupId: 'g2', sharpness: 90 })
+    ];
+    expect(selectBlurry(photos).map(p => p.id)).toEqual(['ratat']);
   });
 });
 

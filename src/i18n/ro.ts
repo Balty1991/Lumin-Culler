@@ -461,6 +461,7 @@ export const ro = {
   'palette.filter.rejected': 'Respinse',
   'palette.filter.series': 'Serii',
   'palette.filter.blinks': 'Ochi închiși',
+  'palette.filter.blurry': 'Mișcate',
   'palette.filter.goldenHour': 'Oră de aur',
   'palette.filter.highlights': 'Cele mai bune',
   'palette.cmd.persons': 'Persoane cunoscute',

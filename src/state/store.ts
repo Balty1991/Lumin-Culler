@@ -35,7 +35,7 @@ import {
   pushHistory, popHistory, MAX_HISTORY, type HistoryEvent,
   pushBatchHistory, popBatchHistory, type BatchHistoryEvent, type FieldBatchHistoryEvent
 } from './history';
-import { selectBulkRejectTargets, resolveGroups, selectTopPercent, selectHighlights, selectBlinks, selectDeletableRejected } from './batchOps';
+import { selectBulkRejectTargets, resolveGroups, selectTopPercent, selectHighlights, selectBlinks, selectBlurry, selectDeletableRejected } from './batchOps';
 import {
   isNativeMediaLibraryAvailable, deleteNativePhotos, readGalleryOverview, readGalleryDateRange, pickPhotosInRange,
   readGalleryFolders, pickPhotosInFolder, getPhotosAccess, readNativePhotoLocations
@@ -113,6 +113,13 @@ export interface PhotoView {
   bestSmile: number;
   allEyesOpen: boolean;
   sharpness: number;
+  /**
+   * Subiectul e clar, chiar daca restul cadrului nu e — adica profunzime mica
+   * intentionata, nu miscare. Fara el, un portret cu fundal frumos topit ar
+   * ajunge in "Mișcate" langa pozele chiar ratate. Vine din analiza deja
+   * citita aici, deci nu costa nicio interogare in plus.
+   */
+  subjectInFocus?: boolean;
   exposure: number;
   ruleOfThirds: number;
   headroom: number;
@@ -191,7 +198,7 @@ export interface PhotoView {
   mediaUri?: string;
 }
 
-export type FilterKey = 'all' | 'selected' | 'review' | 'rejected' | 'series' | 'blinks' | 'goldenHour' | 'highlights';
+export type FilterKey = 'all' | 'selected' | 'review' | 'rejected' | 'series' | 'blinks' | 'blurry' | 'goldenHour' | 'highlights';
 
 /** Cheie de proiectFilter pentru pozele fara proiect ales — un nume de proiect real nu poate coincide cu acest sentinel (spatii, gol dupa trim). */
 export const NO_PROJECT_KEY = 'no-project';
@@ -812,6 +819,7 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     bestSmile: analysis?.bestSmile ?? 0,
     allEyesOpen: analysis?.allEyesOpen ?? true,
     sharpness: analysis?.sharpness ?? 0,
+    subjectInFocus: analysis?.subjectInFocus,
     exposure: analysis?.exposure ?? 0,
     ruleOfThirds: analysis?.ruleOfThirds ?? 0.5,
     headroom: analysis?.headroom ?? 0.5,
@@ -3761,6 +3769,7 @@ export const useStore = create<AppState>((set, get) => ({
         break;
       case 'rejected': base = photosVisible.filter(p => p.status === 'rejected'); break;
       case 'blinks': base = selectBlinks(photosVisible); break;
+      case 'blurry': base = selectBlurry(photosVisible); break;
       case 'goldenHour': base = photosVisible.filter(p => p.goldenHourDetected); break;
       case 'highlights': base = selectHighlights(photosVisible); break;
       case 'series': {

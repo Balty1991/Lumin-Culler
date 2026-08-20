@@ -142,6 +142,58 @@ export function selectBlinks(photos: PhotoView[]): PhotoView[] {
 }
 
 /**
+ * Pragul sub care o poza se considera miscata.
+ *
+ * 45 nu e ales acum: e exact granita pe care aplicatia o foloseste deja cand
+ * ITI EXPLICA scorul (aiExplanationGenerator: peste 70 "clara", peste 45
+ * "acceptabila", sub 45 "neclara"). Filtrul si explicatia trebuie sa spuna
+ * acelasi lucru despre aceeasi poza — altfel utilizatorul citeste "claritate
+ * acceptabila" pe o poza pe care tot noi am pus-o la "Mișcate".
+ */
+export const BLURRY_SHARPNESS = 45;
+
+/**
+ * Cat de clar trebuie sa fie un alt cadru din serie ca sa consideram ca exista
+ * deja o alternativa buna. Nu "mai clar cu un pic": diferenta trebuie sa fie
+ * intre categorii, altfel doua cadre la fel de ratate s-ar acoperi reciproc.
+ */
+const SHARP_ALTERNATIVE = 60;
+
+/**
+ * "Mișcate" — pozele pe care nu le salveaza nimic.
+ *
+ * Coșul pe care il au toate aplicatiile de curatat galerii si care ne lipsea,
+ * desi claritatea se calcula pentru fiecare poza inca de la import.
+ *
+ * Doua lucruri pe care un prag simplu pe claritate le-ar gresi, si pe care le
+ * evitam explicit:
+ *
+ *  - PROFUNZIMEA MICA NU E MISCARE. Un portret cu fundalul topit frumos are
+ *    claritate GLOBALA mica si subiectul perfect clar. `subjectInFocus` face
+ *    exact distinctia asta (vezi faceAnalysis.worker: varianta pe subiect fata
+ *    de varianta pe fundal), asa ca o poza cu subiectul in focus nu ajunge
+ *    niciodata aici. Fara asta, filtrul ar acuza tocmai pozele cele mai bune.
+ *
+ *  - O RAFALA CU UN CADRU BUN NU E O PROBLEMA. Daca alt cadru din aceeasi serie
+ *    e clar, alegerea celui mai bun cadru il va prefera oricum pe acela;
+ *    utilizatorul n-are ce decide aici. Acelasi principiu ca la selectBlinks
+ *    mai sus, si aceeasi motivatie: filtrul trebuie sa arate cazurile REALE,
+ *    nu tot ce atinge pragul.
+ */
+export function selectBlurry(photos: PhotoView[]): PhotoView[] {
+  const sharpAlternative = new Set<string>();
+  for (const p of photos) {
+    if (p.groupId && p.sharpness >= SHARP_ALTERNATIVE) sharpAlternative.add(p.groupId);
+  }
+  return photos.filter(p => {
+    if (p.sharpness >= BLURRY_SHARPNESS) return false;
+    if (p.subjectInFocus) return false;
+    if (p.groupId && sharpAlternative.has(p.groupId)) return false;
+    return true;
+  });
+}
+
+/**
  * "Highlights" (filtru pasiv, NU o actiune ca selectTopPercent): cele mai
  * bune poze din TOATA biblioteca dupa scorul AI, indiferent de status — util
  * ca instrument de DESCOPERIRE ("care sunt cele mai tari cadre din tot

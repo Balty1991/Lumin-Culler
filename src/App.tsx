@@ -20,7 +20,7 @@ import { Tooltip } from './ui/Tooltip';
 import { StarRating } from './ui/StarRating';
 import { MenuIcon, PlusIcon, AlertIcon, ErrorIcon, XIcon, FocusIcon, SearchIcon, ApertureIcon, SparkleIcon, CheckIcon, EditIcon, GridIcon, ClockIcon, LayersIcon, EyeClosedIcon, SunIcon, DownloadIcon, StarIcon, TagIcon, TrashIcon } from './ui/icons';
 import { UndoHistoryButton } from './ui/UndoHistoryButton';
-import { selectHighlights, selectBlinks, selectDeletableRejected } from './state/batchOps';
+import { selectHighlights, selectBlinks, selectBlurry, selectDeletableRejected } from './state/batchOps';
 import { CARD_MIN_WIDTH } from './state/gridDensity';
 import { SORT_KEY_LABELS, type SortKey } from './state/gridSort';
 import { pickImportFiles } from './core/filePicker';
@@ -445,6 +445,7 @@ export default function App() {
     rejected: secondaryFiltered.filter(p => p.status === 'rejected').length,
     series: secondaryFiltered.filter(p => p.groupId).length,
     blinks: selectBlinks(secondaryFiltered).length,
+    blurry: selectBlurry(secondaryFiltered).length,
     goldenHour: secondaryFiltered.filter(p => p.goldenHourDetected).length,
     highlights: selectHighlights(secondaryFiltered).length
   }), [secondaryFiltered]);
@@ -466,6 +467,7 @@ export default function App() {
     { key: 'series', label: tr('palette.filter.series'), count: counts.series, icon: <LayersIcon /> },
     { key: 'highlights', label: tr('palette.filter.highlights'), count: counts.highlights, icon: <StarIcon /> },
     { key: 'blinks', label: tr('palette.filter.blinks'), count: counts.blinks, icon: <EyeClosedIcon /> },
+    { key: 'blurry', label: tr('palette.filter.blurry'), count: counts.blurry, icon: <FocusIcon /> },
     { key: 'goldenHour', label: tr('palette.filter.goldenHour'), count: counts.goldenHour, icon: <SunIcon /> }
   ];
   // Bug real gasit la verificare: projectFilter/collectionFilter lipseau de aici —
