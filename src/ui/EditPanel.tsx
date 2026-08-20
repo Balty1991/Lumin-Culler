@@ -3,14 +3,29 @@ import { getCachedPreviewUrl } from '../core/previewUrlCache';
 import { useStore } from '../state/store';
 import { buildMomentStacks, momentOf } from '../core/momentStacks';
 import { useModalFocusTrap } from './useModalFocusTrap';
-import { computeAutoAdjustments, drawAdjusted, isNeutral, NEUTRAL_ADJUSTMENTS, type EditAdjustments } from '../core/imageAdjust';
+import {
+  computeAutoAdjustments, drawAdjusted, isNeutral, NEUTRAL_ADJUSTMENTS,
+  originalToCanvas, canvasToOriginal, cropRadiusScale,
+  type EditAdjustments, type NumericAdjustmentKey
+} from '../core/imageAdjust';
 import {
   boxForAspect, moveCropBox, normalizedBoxRatio, resizeCropFree, resizeCropLocked,
   FULL_CROP, type CropBox, type CropDragMode
 } from '../core/cropMath';
 import { db, type AnalysisRecord } from '../core/db';
-import { XIcon, UndoIcon, SparkleIcon, CropIcon, LayersIcon } from './icons';
-import { t } from '../i18n';
+import { CurveEditor } from './CurveEditor';
+import { EditSlider } from './EditSlider';
+import {
+  CURVE_PRESETS, LINEAR_CURVE,
+  type CurveChannel, type CurvePoint, type PhotoCurves
+} from '../core/toneCurve';
+import {
+  createControlPoint, isNeutralControlPoint, MAX_CONTROL_POINTS,
+  MIN_CONTROL_RADIUS, MAX_CONTROL_RADIUS, type ControlPoint
+} from '../core/selectiveEdit';
+import { DEFAULT_HEAL_RADIUS, MIN_HEAL_RADIUS, MAX_HEAL_RADIUS, type HealStroke } from '../core/spotHeal';
+import { XIcon, UndoIcon, SparkleIcon, LayersIcon, TrashIcon } from './icons';
+import { t, plural } from '../i18n';
 
 // Doar cele 10 chei numerice cu slider in UI — rotationDeg (auto-indreptare)
 // tot nu are un control manual dedicat, dar `crop` acum are propriul tool
@@ -22,7 +37,7 @@ import { t } from '../i18n';
 // ca restul (poate si inmuia contrastul local, nu doar accentua) — de-aia
 // fiecare slider isi declara propriul interval, nu mai e un singur min/max
 // fix pentru toate.
-const SLIDERS: { key: keyof Omit<EditAdjustments, 'crop' | 'rotationDeg'>; min: number; max: number }[] = [
+const SLIDERS: { key: Exclude<NumericAdjustmentKey, 'rotationDeg'>; min: number; max: number }[] = [
   { key: 'exposure', min: -100, max: 100 },
   { key: 'contrast', min: -100, max: 100 },
   { key: 'saturation', min: -100, max: 100 },
@@ -32,7 +47,46 @@ const SLIDERS: { key: keyof Omit<EditAdjustments, 'crop' | 'rotationDeg'>; min: 
   { key: 'shadows', min: -100, max: 100 },
   { key: 'clarity', min: -100, max: 100 },
   { key: 'sharpen', min: 0, max: 100 },
-  { key: 'noiseReduction', min: 0, max: 100 }
+  { key: 'noiseReduction', min: 0, max: 100 },
+  { key: 'vignette', min: -100, max: 100 }
+];
+
+/**
+ * Instrumentele editorului. Pana acum panoul avea o singura fata (o lista de
+ * slidere) plus un mod de recadrare pornit dintr-un buton din antet — adica
+ * doua feluri diferite de a intra in doua feluri diferite de editare. Acum
+ * toate sunt intrari egale in aceeasi bara: expunerea, curba, punctele
+ * selective, vindecarea si recadrarea sunt cinci instrumente, nu un panou si
+ * patru exceptii.
+ */
+type EditTool = 'basic' | 'curves' | 'selective' | 'heal' | 'crop';
+const TOOLS: { key: EditTool; labelKey: string }[] = [
+  { key: 'basic', labelKey: 'edit.tool.basic' },
+  { key: 'curves', labelKey: 'edit.tool.curves' },
+  { key: 'selective', labelKey: 'edit.tool.selective' },
+  { key: 'heal', labelKey: 'edit.tool.heal' },
+  { key: 'crop', labelKey: 'edit.tool.crop' }
+];
+
+/** Cheia din PhotoCurves pentru fiecare canal + culoarea liniei din editor. */
+const CURVE_CHANNEL_UI: { key: CurveChannel; labelKey: string; color: string }[] = [
+  { key: 'master', labelKey: 'edit.curves.master', color: '#f2f5fa' },
+  { key: 'red', labelKey: 'edit.curves.red', color: '#ff6b6b' },
+  { key: 'green', labelKey: 'edit.curves.green', color: '#5fd68a' },
+  { key: 'blue', labelKey: 'edit.curves.blue', color: '#6ba8ff' }
+];
+
+/** Sliderele unui punct de control selectiv. */
+/** Acelasi generator ca peste tot in aplicatie (colectii, presetari) — vezi core/collections.ts. */
+function newControlPointId(): string {
+  return crypto.randomUUID();
+}
+
+const CONTROL_SLIDERS: { key: 'brightness' | 'contrast' | 'saturation' | 'structure'; labelKey: string }[] = [
+  { key: 'brightness', labelKey: 'edit.selective.brightness' },
+  { key: 'contrast', labelKey: 'edit.selective.contrast' },
+  { key: 'saturation', labelKey: 'edit.selective.saturation' },
+  { key: 'structure', labelKey: 'edit.selective.structure' }
 ];
 
 // Presetari de raport de aspect (cerinta directa a utilizatorului: "o
@@ -153,6 +207,20 @@ export function EditPanel() {
   // pastreaza raportul, in loc de comportamentul liber implicit.
   const [cropAspect, setCropAspect] = useState<number | null>(null);
   const cropModeActive = cropDraft !== null;
+
+  const [tool, setTool] = useState<EditTool>('basic');
+  const [curveChannel, setCurveChannel] = useState<CurveChannel>('master');
+  const [selectedPointId, setSelectedPointId] = useState<string | null>(null);
+  const [healRadius, setHealRadius] = useState(DEFAULT_HEAL_RADIUS);
+  // Tusa in curs de desenare — traieste separat de `adjustments.heal` pana la
+  // ridicarea degetului: altfel fiecare pixel de miscare ar declansa o
+  // vindecare completa (cautare de petic inclusa) pe imaginea intreaga.
+  const [drawingStroke, setDrawingStroke] = useState<{ x: number; y: number }[] | null>(null);
+  const healPointerRef = useRef<number | null>(null);
+  const pointDragRef = useRef<string | null>(null);
+  // Histograma luminantei, calculata O DATA per poza, pe o versiune mica —
+  // fundalul editorului de curbe. Vezi CurveEditor.
+  const [histogram, setHistogram] = useState<Uint32Array | undefined>(undefined);
   const cropDragRef = useRef<{ mode: CropDragMode; startX: number; startY: number; startBox: CropBox } | null>(null);
 
   useEffect(() => {
@@ -165,6 +233,11 @@ export function EditPanel() {
     autoAppliedRef.current = false;
     setCropDraft(null);
     setCropAspect(null);
+    setTool('basic');
+    setCurveChannel('master');
+    setSelectedPointId(null);
+    setDrawingStroke(null);
+    setHistogram(undefined);
     let alive = true;
     void getCachedPreviewUrl(photo.id).then(url => {
       if (!alive || !url) return;
@@ -180,6 +253,36 @@ export function EditPanel() {
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [photo?.id]);
+
+  /**
+   * Histograma luminantei — fundalul editorului de curbe. Se calculeaza o
+   * singura data per poza, pe o versiune mica (128px): la 256 de galeti,
+   * forma histogramei nu se schimba vizibil intre 128px si rezolutia intreaga,
+   * dar costul scade de zeci de ori.
+   */
+  useEffect(() => {
+    if (!imgEl || typeof document === 'undefined') return;
+    const side = 128;
+    const scale = Math.min(1, side / Math.max(imgEl.naturalWidth, imgEl.naturalHeight));
+    const w = Math.max(1, Math.round(imgEl.naturalWidth * scale));
+    const h = Math.max(1, Math.round(imgEl.naturalHeight * scale));
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return;
+    ctx.drawImage(imgEl, 0, 0, w, h);
+    let data: Uint8ClampedArray;
+    try {
+      data = ctx.getImageData(0, 0, w, h).data;
+    } catch {
+      return; // canvas "murdarit" (imagine din alta origine) — histograma e optionala
+    }
+    const hist = new Uint32Array(256);
+    for (let i = 0; i < data.length; i += 4) {
+      hist[Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2])]++;
+    }
+    setHistogram(hist);
+  }, [imgEl]);
 
   // Redesenare pe requestAnimationFrame — dragul unui slider poate emite multe
   // evenimente pe cadru; fara asta, un pixel-pass complet (temperatura/tinta/
@@ -309,14 +412,53 @@ export function EditPanel() {
 
   const PERSIST_DEBOUNCE_MS = 400;
 
-  const update = (key: keyof EditAdjustments, value: number) => {
-    const next = { ...adjustments, [key]: value };
+  /**
+   * Singurul loc prin care trec TOATE modificarile, indiferent de instrument.
+   * Starea locala se schimba instant (previzualizarea nu asteapta nimic), doar
+   * scrierea in Dexie e amanata — vezi comentariul de la persistTimerRef.
+   */
+  const commit = (next: EditAdjustments) => {
     setAdjustments(next);
-    // starea locala (de mai sus) ramane instant, pentru previzualizarea live —
-    // doar scrierea in Dexie e amanata, vezi comentariul de la persistTimerRef.
     pendingPersistRef.current = { id: photo.id, adjustments: next };
     if (persistTimerRef.current !== null) clearTimeout(persistTimerRef.current);
     persistTimerRef.current = setTimeout(flushPersist, PERSIST_DEBOUNCE_MS);
+  };
+
+  const update = (key: NumericAdjustmentKey, value: number) => commit({ ...adjustments, [key]: value });
+
+  // --- curbe ---
+  const curves: PhotoCurves = adjustments.curves ?? {};
+  const currentCurve: CurvePoint[] = curves[curveChannel] ?? LINEAR_CURVE;
+  const setCurve = (points: CurvePoint[]) => commit({ ...adjustments, curves: { ...curves, [curveChannel]: points } });
+  const applyCurvePreset = (preset: PhotoCurves) => {
+    // Presetarea inlocuieste TOATE canalele, nu doar cel afisat: altfel
+    // "cinematic" (care coloreaza umbrele pe rosu si albastru) ar lasa in urma
+    // canalele unei presetari anterioare si ar da un amestec pe care nu l-a
+    // cerut nimeni. Punctele raman editabile dupa aceea.
+    const empty = Object.keys(preset).length === 0;
+    commit({ ...adjustments, curves: empty ? undefined : preset });
+  };
+
+  // --- puncte de control selective ---
+  const controlPoints: ControlPoint[] = adjustments.controlPoints ?? [];
+  const selectedPoint = controlPoints.find(p => p.id === selectedPointId) ?? null;
+  const setControlPoints = (points: ControlPoint[]) =>
+    commit({ ...adjustments, controlPoints: points.length ? points : undefined });
+  const updateSelectedPoint = (key: keyof ControlPoint, value: number) => {
+    if (!selectedPoint) return;
+    setControlPoints(controlPoints.map(p => (p.id === selectedPoint.id ? { ...p, [key]: value } : p)));
+  };
+  const removeSelectedPoint = () => {
+    if (!selectedPoint) return;
+    setControlPoints(controlPoints.filter(p => p.id !== selectedPoint.id));
+    setSelectedPointId(null);
+  };
+
+  // --- vindecare ---
+  const healStrokes: HealStroke[] = adjustments.heal ?? [];
+  const undoLastHeal = () => {
+    const rest = healStrokes.slice(0, -1);
+    commit({ ...adjustments, heal: rest.length ? rest : undefined });
   };
 
   const resetAll = () => {
@@ -333,6 +475,7 @@ export function EditPanel() {
   // explicita per sesiune de recadrare, nu ceva retinut intre poze.
   const startCrop = () => { setCropAspect(null); setCropDraft(adjustments.crop ?? FULL_CROP); };
   const cancelCrop = () => { cropDragRef.current = null; setCropDraft(null); };
+  const leaveCrop = () => { cancelCrop(); setTool('basic'); };
   const clearCropDraft = () => { setCropAspect(null); setCropDraft(FULL_CROP); };
   const applyCrop = () => {
     if (!cropDraft) return;
@@ -347,6 +490,7 @@ export function EditPanel() {
     void setEditAdjustments(photo.id, next);
     cropDragRef.current = null;
     setCropDraft(null);
+    setTool('basic');
   };
 
   // Selectarea unei presetari (1:1/4:5/3:4/16:9) re-centreaza imediat caseta
@@ -401,45 +545,175 @@ export function EditPanel() {
   };
   const onCropOverlayUp = () => { cropDragRef.current = null; };
 
+  /**
+   * Coordonatele unei atingeri, in DOUA sisteme deodata: cele ale canvas-ului
+   * (pentru desenat pe ecran) si cele ale cadrului intreg (pentru memorat).
+   * Vezi canvasToOriginal din core/imageAdjust.ts pentru de ce sunt doua.
+   */
+  const overlayCoords = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+    const cx = (e.clientX - rect.left) / rect.width;
+    const cy = (e.clientY - rect.top) / rect.height;
+    return { canvas: { x: cx, y: cy }, original: canvasToOriginal(cx, cy, adjustments, canvas.width, canvas.height) };
+  };
+
+  /** Pozitia pe ecran a unui punct memorat in cadrul intreg, in procente. */
+  const pointScreenPos = (x: number, y: number) => {
+    const canvas = canvasRef.current;
+    const c = originalToCanvas(x, y, adjustments, canvas?.width ?? 1, canvas?.height ?? 1);
+    return { left: `${c.x * 100}%`, top: `${c.y * 100}%` };
+  };
+
+  /**
+   * Diametrul pe ecran al unui cerc (punct de control sau pensula), exprimat
+   * separat pe latime si pe inaltime. Doua procente diferite pentru acelasi
+   * cerc pentru ca razele sunt fractii din latura MARE a pozei, iar containerul
+   * are raportul pozei — un singur procent ar da o elipsa pe orice cadru care
+   * nu e patrat.
+   */
+  const circleSize = (radius: number) => {
+    const w = imgEl?.naturalWidth ?? 1, h = imgEl?.naturalHeight ?? 1;
+    const maxSide = Math.max(w, h);
+    const scaled = radius * cropRadiusScale(adjustments);
+    return { width: `${2 * scaled * (maxSide / w) * 100}%`, height: `${2 * scaled * (maxSide / h) * 100}%` };
+  };
+
+  /** Cat de aproape (in coordonate de canvas) trebuie sa fie degetul de un punct ca sa il apuce, nu sa creeze altul. */
+  const POINT_HIT = 0.06;
+
+  const onSelectiveDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const pos = overlayCoords(e);
+    if (!pos) return;
+    e.preventDefault();
+    const canvas = canvasRef.current;
+    let closest: { id: string; d: number } | null = null;
+    for (const p of controlPoints) {
+      const c = originalToCanvas(p.x, p.y, adjustments, canvas?.width ?? 1, canvas?.height ?? 1);
+      const d = Math.hypot(c.x - pos.canvas.x, c.y - pos.canvas.y);
+      if (d <= POINT_HIT && (!closest || d < closest.d)) closest = { id: p.id, d };
+    }
+    if (closest) {
+      setSelectedPointId(closest.id);
+      pointDragRef.current = closest.id;
+      e.currentTarget.setPointerCapture(e.pointerId);
+      return;
+    }
+    if (controlPoints.length >= MAX_CONTROL_POINTS) {
+      setNotice(tr('edit.selective.limit', { count: MAX_CONTROL_POINTS }));
+      return;
+    }
+    const point = createControlPoint(pos.original.x, pos.original.y, newControlPointId());
+    setControlPoints([...controlPoints, point]);
+    setSelectedPointId(point.id);
+  };
+
+  const onSelectiveMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const id = pointDragRef.current;
+    if (!id) return;
+    const pos = overlayCoords(e);
+    if (!pos) return;
+    setControlPoints(controlPoints.map(p => (p.id === id ? { ...p, x: pos.original.x, y: pos.original.y } : p)));
+  };
+
+  const onSelectiveUp = () => { pointDragRef.current = null; };
+
+  /**
+   * Vindecarea: tusa se aduna cat timp degetul e pe ecran si se APLICA abia la
+   * ridicare. Motivul e direct — o vindecare inseamna cautarea unui petic
+   * potrivit; facuta la fiecare pixel de miscare, ar bloca degetul. Cat timp
+   * se deseneaza, se vede doar urma pensulei.
+   */
+  const onHealDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const pos = overlayCoords(e);
+    if (!pos) return;
+    e.preventDefault();
+    healPointerRef.current = e.pointerId;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDrawingStroke([pos.original]);
+  };
+
+  const onHealMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (healPointerRef.current !== e.pointerId) return;
+    const pos = overlayCoords(e);
+    if (!pos) return;
+    setDrawingStroke(prev => {
+      if (!prev) return prev;
+      const last = prev[prev.length - 1];
+      // un punct la fiecare sfert de raza: destul ca urma sa fie continua, dar
+      // fara sa umplem tusa cu sute de cercuri suprapuse
+      if (Math.hypot(pos.original.x - last.x, pos.original.y - last.y) < healRadius / 4) return prev;
+      return [...prev, pos.original];
+    });
+  };
+
+  const onHealUp = () => {
+    healPointerRef.current = null;
+    const stroke = drawingStroke;
+    setDrawingStroke(null);
+    if (!stroke?.length) return;
+    commit({ ...adjustments, heal: [...healStrokes, { points: stroke, radius: healRadius }] });
+  };
+
+  /**
+   * Intrarea si iesirea din instrumentul de recadrare. Recadrarea are stare
+   * proprie (caseta draft), deci nu poate fi doar "inca un panou": schimbarea
+   * instrumentului o porneste, iar parasirea lui o anuleaza — altfel o caseta
+   * pe jumatate trasa ar ramane atarnata cand utilizatorul trece la curbe.
+   */
+  const selectTool = (next: EditTool) => {
+    if (next === tool) return;
+    if (tool === 'crop') cancelCrop();
+    if (tool === 'heal') { setDrawingStroke(null); healPointerRef.current = null; }
+    if (next === 'crop') startCrop();
+    setTool(next);
+  };
+
+
   return (
     <div className="edit-scrim" onClick={e => { if (e.target === e.currentTarget) setEditingId(null); }}>
       <div className="edit-modal" ref={containerRef} role="dialog" aria-modal="true" aria-label={tr('edit.title')} tabIndex={-1}>
+        {/* Antetul are acum UN singur lucru pe fiecare parte: numele panoului
+            la stanga, inchiderea la dreapta. Feedback direct de pe telefon:
+            butoanele se rupeau pe doua randuri inegale, iar X-ul ajungea pe al
+            doilea rand, alta pozitie de fiecare data. Actiunile au coborat pe
+            randul lor, in coloane egale — vezi .edit-actions. */}
         <header className="detail-head">
           <span>{tr('edit.title')}</span>
-          <div className="contact-sheet-header-actions">
-            {cropDraft ? (
-              <>
-                <button className="ghost small-btn" onClick={clearCropDraft}>{tr('edit.crop.reset')}</button>
-                <button className="ghost small-btn" onClick={cancelCrop}>{tr('edit.crop.cancel')}</button>
-                <button className="btn-accent small-btn" onClick={applyCrop}>{tr('edit.crop.apply')}</button>
-              </>
-            ) : (
-              <>
-                <button className="ghost small-btn edit-auto-btn" onClick={applyAuto} disabled={!imgEl}>
-                  <SparkleIcon className="inline-icon" /> {tr('edit.auto')}
-                </button>
-                <button className="ghost small-btn" onClick={startCrop} disabled={!imgEl}>
-                  <CropIcon className="inline-icon" /> {tr('edit.crop')}
-                </button>
-                <button className="ghost small-btn" onClick={resetAll} disabled={isNeutral(adjustments)}>
-                  <UndoIcon className="inline-icon" /> {tr('edit.reset')}
-                </button>
-                {/* Un fix aprobat pe un cadru e aproape sigur bun si pe restul
-                    cadrelor din aceeasi lumina. Apare doar cand chiar exista
-                    alte cadre needitate in acelasi moment — vezi
-                    core/momentStacks.ts si applyEditsToMoment din store. */}
-                {momentSiblings.length > 0 && !isNeutral(adjustments) && (
-                  <button className="ghost small-btn" onClick={() => void applyToMoment()}>
-                    <LayersIcon className="inline-icon" /> {tr('edit.applyToMoment', { count: momentSiblings.length })}
-                  </button>
-                )}
-                <button className="ghost icon-btn" onClick={() => setEditingId(null)} aria-label={tr('detail.close')}>
-                  <XIcon />
-                </button>
-              </>
-            )}
-          </div>
+          <button className="ghost icon-btn" onClick={() => setEditingId(null)} aria-label={tr('detail.close')}>
+            <XIcon />
+          </button>
         </header>
+
+        <div className="edit-actions">
+          {cropDraft ? (
+            <>
+              <button className="ghost small-btn" onClick={clearCropDraft}>{tr('edit.crop.reset')}</button>
+              <button className="ghost small-btn" onClick={leaveCrop}>{tr('edit.crop.cancel')}</button>
+              <button className="btn-accent small-btn" onClick={applyCrop}>{tr('edit.crop.apply')}</button>
+            </>
+          ) : (
+            <>
+              <button className="ghost small-btn edit-auto-btn" onClick={applyAuto} disabled={!imgEl}>
+                <SparkleIcon className="inline-icon" /> {tr('edit.auto')}
+              </button>
+              <button className="ghost small-btn" onClick={resetAll} disabled={isNeutral(adjustments)}>
+                <UndoIcon className="inline-icon" /> {tr('edit.reset')}
+              </button>
+              {/* Un fix aprobat pe un cadru e aproape sigur bun si pe restul
+                  cadrelor din aceeasi lumina. Apare doar cand chiar exista
+                  alte cadre needitate in acelasi moment — vezi
+                  core/momentStacks.ts si applyEditsToMoment din store. */}
+              {momentSiblings.length > 0 && !isNeutral(adjustments) && (
+                <button className="ghost small-btn edit-actions-wide" onClick={() => void applyToMoment()}>
+                  <LayersIcon className="inline-icon" /> {tr('edit.applyToMoment', { count: momentSiblings.length })}
+                </button>
+              )}
+            </>
+          )}
+        </div>
 
         <div
           className="edit-body"
@@ -518,8 +792,79 @@ export function EditPanel() {
                 </div>
               </div>
             )}
+            {tool === 'selective' && imgEl && (
+              <div
+                className="selective-overlay"
+                onPointerDown={onSelectiveDown}
+                onPointerMove={onSelectiveMove}
+                onPointerUp={onSelectiveUp}
+                onPointerCancel={onSelectiveUp}
+              >
+                {controlPoints.map(p => {
+                  const pos = pointScreenPos(p.x, p.y);
+                  return (
+                    <div key={p.id}>
+                      {/* Conturul arata CAT DE DEPARTE ajunge punctul. Fara el,
+                          raza e un numar abstract intr-un slider si nimeni nu
+                          poate ghici ce anume atinge corectia. */}
+                      <span
+                        className={p.id === selectedPointId ? 'selective-ring active' : 'selective-ring'}
+                        style={{ ...pos, ...circleSize(p.radius) }}
+                        aria-hidden="true"
+                      />
+                      <span
+                        className={
+                          p.id === selectedPointId ? 'selective-dot active'
+                            : isNeutralControlPoint(p) ? 'selective-dot empty' : 'selective-dot'
+                        }
+                        style={pos}
+                        aria-hidden="true"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {tool === 'heal' && imgEl && (
+              <div
+                className="heal-overlay"
+                onPointerDown={onHealDown}
+                onPointerMove={onHealMove}
+                onPointerUp={onHealUp}
+                onPointerCancel={onHealUp}
+              >
+                {drawingStroke?.map((p, i) => (
+                  <span
+                    key={i}
+                    className="heal-dab"
+                    style={{ ...pointScreenPos(p.x, p.y), ...circleSize(healRadius) }}
+                    aria-hidden="true"
+                  />
+                ))}
+              </div>
+            )}
           </div>
-          {cropDraft ? (
+          {/* Bara de instrumente. Pana acum, recadrarea se pornea dintr-un
+              buton din antet, iar restul editarii era o singura lista de
+              slidere — doua feluri diferite de a intra in doua feluri diferite
+              de editare. Acum toate cinci sunt intrari egale in acelasi loc. */}
+          <div className="edit-tools" role="tablist" aria-label={tr('edit.tools')}>
+            {TOOLS.map(({ key, labelKey }) => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={tool === key}
+                className={tool === key ? 'edit-tool active' : 'edit-tool'}
+                onClick={() => selectTool(key)}
+                disabled={!imgEl}
+              >
+                {tr(labelKey)}
+              </button>
+            ))}
+          </div>
+
+          {tool === 'crop' && cropDraft && (
             <div className="edit-crop-panel">
               <div className="edit-crop-presets" role="group" aria-label={tr('edit.crop')}>
                 {CROP_PRESETS.map(({ key, labelKey, ratio }) => (
@@ -535,25 +880,109 @@ export function EditPanel() {
               </div>
               <p className="edit-crop-hint">{tr('edit.crop.hint')}</p>
             </div>
-          ) : (
+          )}
+
+          {tool === 'basic' && (
             <div className="edit-sliders">
               {SLIDERS.map(({ key, min, max }) => (
-                <label key={key} className="edit-slider-row">
-                  <span className="edit-slider-label" aria-hidden="true">{tr(`edit.${key}`)}</span>
-                  <input
-                    type="range" min={min} max={max} step={1}
-                    value={adjustments[key] ?? 0}
-                    onChange={e => update(key, Number(e.target.value))}
-                    // Bug real gasit de auditul QA: label-ul invaluia si numele SI
-                    // valoarea numerica, deci numele accesibil calculat includea
-                    // ambele (ex. "Expunere 20"), iar cititorul de ecran anunta
-                    // valoarea A DOUA OARA separat (nativ, la fiecare schimbare de
-                    // range) — redundant. aria-label explicit foloseste DOAR numele.
-                    aria-label={tr(`edit.${key}`)}
-                  />
-                  <span className="edit-slider-value mono" aria-hidden="true">{adjustments[key] ?? 0}</span>
-                </label>
+                <EditSlider
+                  key={key}
+                  label={tr(`edit.${key}`)}
+                  value={adjustments[key] ?? 0}
+                  min={min} max={max}
+                  onChange={v => update(key, v)}
+                />
               ))}
+            </div>
+          )}
+
+          {tool === 'curves' && (
+            <div className="edit-tool-panel">
+              <div className="edit-chip-row" role="group" aria-label={tr('edit.curves.channel')}>
+                {CURVE_CHANNEL_UI.map(({ key, labelKey }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className={curveChannel === key ? 'chip active' : 'chip'}
+                    onClick={() => setCurveChannel(key)}
+                  >
+                    {tr(labelKey)}
+                  </button>
+                ))}
+              </div>
+              <CurveEditor
+                points={currentCurve}
+                onChange={setCurve}
+                histogram={histogram}
+                strokeColor={CURVE_CHANNEL_UI.find(c => c.key === curveChannel)!.color}
+                label={tr('edit.curves.canvasLabel')}
+                hint={tr('edit.curves.hint')}
+              />
+              <div className="edit-chip-row" role="group" aria-label={tr('edit.curves.presets')}>
+                {CURVE_PRESETS.map(({ key, curves: preset }) => (
+                  <button key={key} type="button" className="chip" onClick={() => applyCurvePreset(preset)}>
+                    {tr(`edit.curves.preset.${key}`)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {tool === 'selective' && (
+            <div className="edit-tool-panel">
+              {selectedPoint ? (
+                <>
+                  <div className="edit-tool-panel-head">
+                    <span className="edit-tool-panel-title">
+                      {tr('edit.selective.point', { index: controlPoints.indexOf(selectedPoint) + 1 })}
+                    </span>
+                    <button className="ghost small-btn" onClick={removeSelectedPoint}>
+                      <TrashIcon className="inline-icon" /> {tr('edit.selective.remove')}
+                    </button>
+                  </div>
+                  <div className="edit-sliders">
+                    <EditSlider
+                      label={tr('edit.selective.size')}
+                      value={Math.round(selectedPoint.radius * 100)}
+                      min={Math.round(MIN_CONTROL_RADIUS * 100)} max={Math.round(MAX_CONTROL_RADIUS * 100)}
+                      onChange={v => updateSelectedPoint('radius', v / 100)}
+                    />
+                    {CONTROL_SLIDERS.map(({ key, labelKey }) => (
+                      <EditSlider
+                        key={key}
+                        label={tr(labelKey)}
+                        value={selectedPoint[key]}
+                        min={-100} max={100}
+                        onChange={v => updateSelectedPoint(key, v)}
+                      />
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="edit-crop-hint">{tr('edit.selective.hint')}</p>
+              )}
+            </div>
+          )}
+
+          {tool === 'heal' && (
+            <div className="edit-tool-panel">
+              <div className="edit-tool-panel-head">
+                <span className="edit-tool-panel-title">
+                  {tr(plural(healStrokes.length, 'edit.heal.count.one', 'edit.heal.count.other'), { count: healStrokes.length })}
+                </span>
+                <button className="ghost small-btn" onClick={undoLastHeal} disabled={healStrokes.length === 0}>
+                  <UndoIcon className="inline-icon" /> {tr('edit.heal.undo')}
+                </button>
+              </div>
+              <div className="edit-sliders">
+                <EditSlider
+                  label={tr('edit.heal.size')}
+                  value={Math.round(healRadius * 1000)}
+                  min={Math.round(MIN_HEAL_RADIUS * 1000)} max={Math.round(MAX_HEAL_RADIUS * 1000)}
+                  onChange={v => setHealRadius(v / 1000)}
+                />
+              </div>
+              <p className="edit-crop-hint">{tr('edit.heal.hint')}</p>
             </div>
           )}
         </div>

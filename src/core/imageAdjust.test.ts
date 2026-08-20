@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   computeAutoContrast, computeAutoExposureFromScore, computeAutoHighlightsShadows,
   computeAutoCrop, computeAutoStraighten, computeAutoSaturation, isNeutral, NEUTRAL_ADJUSTMENTS,
-  applyDetailPass, type AutoAdjustSignals
+  applyDetailPass, applyVignette, originalToCanvas, canvasToOriginal, cropRadiusScale,
+  type AutoAdjustSignals, type EditAdjustments
 } from './imageAdjust';
 
 function makeImage(w: number, h: number, paint: (x: number, y: number) => [number, number, number]): ImageData {
@@ -340,5 +341,116 @@ describe('applyDetailPass', () => {
       const gap = at(data, 20, 10, 0) - at(data, 20, 9, 0);
       expect(gap).toBeLessThan(190 - 60);
     });
+  });
+});
+
+describe('vinieta', () => {
+  const plat = (w: number, h: number) => {
+    const d = new Uint8ClampedArray(w * h * 4);
+    for (let i = 0; i < d.length; i += 4) { d[i] = 200; d[i + 1] = 200; d[i + 2] = 200; d[i + 3] = 255; }
+    return d;
+  };
+
+  it('intuneca colturile si lasa centrul neatins', () => {
+    const w = 41, h = 41;
+    const d = plat(w, h);
+    applyVignette(d, w, h, 100);
+    const centru = d[(20 * w + 20) * 4];
+    const colt = d[(0 * w + 0) * 4];
+    expect(centru).toBe(200);
+    expect(colt).toBeLessThan(120);
+  });
+
+  it('intensitate negativa deschide colturile', () => {
+    const w = 41, h = 41;
+    const d = plat(w, h);
+    applyVignette(d, w, h, -100);
+    expect(d[0]).toBeGreaterThan(200);
+  });
+
+  it('creste monoton spre colt, fara inel vizibil', () => {
+    const w = 81, h = 81;
+    const d = plat(w, h);
+    applyVignette(d, w, h, 80);
+    let precedent = 201;
+    for (let x = 40; x >= 0; x--) {
+      const v = d[(40 * w + x) * 4];
+      expect(v).toBeLessThanOrEqual(precedent);
+      precedent = v;
+    }
+  });
+
+  it('zero nu schimba nimic', () => {
+    const w = 20, h = 20;
+    const d = plat(w, h);
+    const inainte = d.slice();
+    applyVignette(d, w, h, 0);
+    expect(Array.from(d)).toEqual(Array.from(inainte));
+  });
+});
+
+describe('isNeutral cu instrumentele noi', () => {
+  it('o curba desenata conteaza ca editare', () => {
+    expect(isNeutral({ ...NEUTRAL_ADJUSTMENTS, curves: { master: [{ x: 0, y: 0.2 }, { x: 1, y: 1 }] } })).toBe(false);
+    expect(isNeutral({ ...NEUTRAL_ADJUSTMENTS, curves: { master: [{ x: 0, y: 0 }, { x: 1, y: 1 }] } })).toBe(true);
+  });
+
+  it('un punct de control pus dar neatins NU marcheaza poza ca editata', () => {
+    const punct = { id: 'a', x: 0.5, y: 0.5, radius: 0.2, brightness: 0, contrast: 0, saturation: 0, structure: 0 };
+    expect(isNeutral({ ...NEUTRAL_ADJUSTMENTS, controlPoints: [punct] })).toBe(true);
+    expect(isNeutral({ ...NEUTRAL_ADJUSTMENTS, controlPoints: [{ ...punct, brightness: -30 }] })).toBe(false);
+  });
+
+  it('o tusa de vindecare conteaza ca editare', () => {
+    expect(isNeutral({ ...NEUTRAL_ADJUSTMENTS, heal: [] })).toBe(true);
+    expect(isNeutral({ ...NEUTRAL_ADJUSTMENTS, heal: [{ points: [{ x: 0.5, y: 0.5 }], radius: 0.04 }] })).toBe(false);
+  });
+
+  it('vinieta conteaza ca editare', () => {
+    expect(isNeutral({ ...NEUTRAL_ADJUSTMENTS, vignette: 40 })).toBe(false);
+  });
+});
+
+describe('conversia cadru intreg <-> cadru vizibil', () => {
+  const neutru: EditAdjustments = { ...NEUTRAL_ADJUSTMENTS };
+
+  it('fara recadrare si fara rotatie, coordonatele nu se schimba', () => {
+    const c = originalToCanvas(0.3, 0.7, neutru, 800, 600);
+    expect(c.x).toBeCloseTo(0.3, 6);
+    expect(c.y).toBeCloseTo(0.7, 6);
+  });
+
+  it('recadrarea muta si intinde: coltul decupajului devine coltul canvas-ului', () => {
+    const a: EditAdjustments = { ...neutru, crop: { x: 0.25, y: 0.25, width: 0.5, height: 0.5 } };
+    const coltStanga = originalToCanvas(0.25, 0.25, a, 800, 600);
+    expect(coltStanga.x).toBeCloseTo(0, 6);
+    expect(coltStanga.y).toBeCloseTo(0, 6);
+    const mijloc = originalToCanvas(0.5, 0.5, a, 800, 600);
+    expect(mijloc.x).toBeCloseTo(0.5, 6);
+    expect(mijloc.y).toBeCloseTo(0.5, 6);
+  });
+
+  it('inversa chiar readuce punctul de unde a plecat — cu recadrare si rotatie', () => {
+    const a: EditAdjustments = {
+      ...neutru, rotationDeg: 5, crop: { x: 0.1, y: 0.2, width: 0.7, height: 0.6 }
+    };
+    for (const [x, y] of [[0.3, 0.4], [0.15, 0.25], [0.75, 0.7]]) {
+      const c = originalToCanvas(x, y, a, 1024, 768);
+      const back = canvasToOriginal(c.x, c.y, a, 1024, 768);
+      expect(back.x).toBeCloseTo(x, 6);
+      expect(back.y).toBeCloseTo(y, 6);
+    }
+  });
+
+  it('centrul ramane centru oricat s-ar roti cadrul', () => {
+    const a: EditAdjustments = { ...neutru, rotationDeg: 8 };
+    const c = originalToCanvas(0.5, 0.5, a, 900, 900);
+    expect(c.x).toBeCloseTo(0.5, 6);
+    expect(c.y).toBeCloseTo(0.5, 6);
+  });
+
+  it('raza creste odata cu decupajul, si ramane 1 fara decupaj', () => {
+    expect(cropRadiusScale(neutru)).toBe(1);
+    expect(cropRadiusScale({ ...neutru, crop: { x: 0, y: 0, width: 0.5, height: 0.5 } })).toBeCloseTo(2, 6);
   });
 });

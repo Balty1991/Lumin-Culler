@@ -1088,6 +1088,48 @@ export const ro = {
   'edit.clarity': 'Claritate',
   'edit.sharpen': 'Accentuare',
   'edit.noiseReduction': 'Reducere zgomot',
+  'edit.vignette': 'Vinietă',
+
+  // --- Instrumentele editorului (bara de sub poză) ---
+  'edit.tools': 'Instrumente',
+  'edit.tool.basic': 'Bază',
+  'edit.tool.curves': 'Curbe',
+  'edit.tool.selective': 'Selectiv',
+  'edit.tool.heal': 'Vindecare',
+  'edit.tool.crop': 'Decupare',
+
+  // --- Curba tonală ---
+  'edit.curves.channel': 'Canal',
+  'edit.curves.master': 'Lumină',
+  'edit.curves.red': 'Roșu',
+  'edit.curves.green': 'Verde',
+  'edit.curves.blue': 'Albastru',
+  'edit.curves.canvasLabel': 'Curba tonală — apasă pentru un punct nou, săgețile îl mută, Delete îl șterge',
+  'edit.curves.hint': 'Apasă pe curbă ca să adaugi un punct și trage-l. Diagonala punctată e poza neatinsă; forma gri din spate arată unde stau umbrele și luminile ei.',
+  'edit.curves.presets': 'Presetări',
+  'edit.curves.preset.linear': 'Neutru',
+  'edit.curves.preset.contrast': 'Contrast',
+  'edit.curves.preset.faded': 'Mat',
+  'edit.curves.preset.cinematic': 'Cinematic',
+  'edit.curves.preset.liftShadows': 'Umbre deschise',
+
+  // --- Puncte de control selective ---
+  'edit.selective.hint': 'Apasă pe poză unde vrei să corectezi. Punctul prinde doar zona din jur cu aceeași culoare — cerul, nu și chipul de sub el.',
+  'edit.selective.point': 'Punctul {index}',
+  'edit.selective.remove': 'Șterge',
+  'edit.selective.size': 'Întindere',
+  'edit.selective.brightness': 'Luminozitate',
+  'edit.selective.contrast': 'Contrast',
+  'edit.selective.saturation': 'Saturație',
+  'edit.selective.structure': 'Structură',
+  'edit.selective.limit': 'Maximum {count} puncte de control pe o poză.',
+
+  // --- Vindecare ---
+  'edit.heal.hint': 'Trage degetul peste ce vrei să dispară. Zona se umple cu textura din jur când ridici degetul.',
+  'edit.heal.size': 'Pensulă',
+  'edit.heal.undo': 'Anulează ultima',
+  'edit.heal.count.one': '{count} zonă vindecată',
+  'edit.heal.count.other': '{count} zone vindecate',
   'edit.auto.crop': 'recadrare',
   'edit.auto.straighten': 'îndreptare orizont',
   'edit.auto.applied': 'Auto aplicat: {list}.',

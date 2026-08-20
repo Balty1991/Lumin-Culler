@@ -8,6 +8,10 @@
  * soft de catalogare (Lightroom/Capture One), dar mult mai restrans in scop.
  */
 
+import { buildChannelLuts, hasNoCurves, type PhotoCurves } from './toneCurve';
+import { applyControlPoint, hasNoControlPoints, isNeutralControlPoint, type ControlPoint } from './selectiveEdit';
+import { applyHealStrokes, type HealStroke } from './spotHeal';
+
 export interface EditAdjustments {
   exposure: number;    // -100..100
   contrast: number;    // -100..100
@@ -32,20 +36,46 @@ export interface EditAdjustments {
   clarity?: number;
   /** Reducere zgomot (blend cu o varianta usor difuzata) — 0..100. */
   noiseReduction?: number;
+  /** Intunecarea/luminarea colturilor — -100..100. Negativ = colturi mai deschise. */
+  vignette?: number;
+  /** Curbele tonale (master + R/G/B) — vezi core/toneCurve.ts. Absent = liniare. */
+  curves?: PhotoCurves;
+  /** Punctele de control selective — vezi core/selectiveEdit.ts. Absent = niciunul. */
+  controlPoints?: ControlPoint[];
+  /** Tusele de vindecare, in coordonate 0..1 ale imaginii ORIGINALE — vezi core/spotHeal.ts. */
+  heal?: HealStroke[];
 }
 
 export const NEUTRAL_ADJUSTMENTS: EditAdjustments = {
   exposure: 0, contrast: 0, saturation: 0, temperature: 0, tint: 0, highlights: 0, shadows: 0, rotationDeg: 0,
-  sharpen: 0, clarity: 0, noiseReduction: 0
+  sharpen: 0, clarity: 0, noiseReduction: 0, vignette: 0
 };
 
-/** Doar cheile NUMERICE, comparabile direct cu 0 — `crop` (obiect sau absent) e tratat separat in isNeutral(), nu apartine acestui tipar. */
-const ADJUSTMENT_KEYS = Object.keys(NEUTRAL_ADJUSTMENTS) as (keyof typeof NEUTRAL_ADJUSTMENTS)[];
+/**
+ * Cheile NUMERICE ale unei ajustari — singurele care au slider si singurele
+ * comparabile direct cu 0. `crop`, `curves`, `controlPoints` si `heal` sunt
+ * structuri, nu numere: fiecare are propria verificare in isNeutral().
+ * Tipul e exportat ca sa nu mai fie nevoie ca UI-ul sa repete lista de excluderi
+ * (si sa o uite la urmatorul instrument adaugat — exact ce s-a intamplat).
+ */
+export type NumericAdjustmentKey = Exclude<keyof EditAdjustments, 'crop' | 'curves' | 'controlPoints' | 'heal'>;
+const ADJUSTMENT_KEYS = Object.keys(NEUTRAL_ADJUSTMENTS) as NumericAdjustmentKey[];
 
-/** true daca nu exista nicio ajustare (absent SAU toate valorile 0, fara crop) — folosit pentru badge-ul "editat" si starea butonului Reseteaza. */
+/**
+ * true daca nu exista nicio ajustare — folosit pentru badge-ul "editat" si
+ * starea butonului Reseteaza. Pe langa slidere si crop, verifica si cele trei
+ * instrumente care nu sunt numere: curbele, punctele de control si tusele de
+ * vindecare. Un punct de control PUS dar neatins inca (toate valorile 0) nu
+ * conteaza ca editare — altfel simpla deschidere a instrumentului ar marca
+ * poza drept editata.
+ */
 export function isNeutral(a: EditAdjustments | undefined): boolean {
   if (!a) return true;
-  return ADJUSTMENT_KEYS.every(k => (a[k] ?? 0) === 0) && !a.crop;
+  return ADJUSTMENT_KEYS.every(k => (a[k] ?? 0) === 0)
+    && !a.crop
+    && hasNoCurves(a.curves)
+    && hasNoControlPoints(a.controlPoints)
+    && !a.heal?.length;
 }
 
 function clamp255(v: number): number {
@@ -228,6 +258,130 @@ export function applyDetailPass(d: Uint8ClampedArray, width: number, height: num
 }
 
 /**
+ * Conversia intre coordonatele CADRULUI INTREG (0..1, cum sunt memorate
+ * punctele de control si tusele de vindecare) si coordonatele a ceea ce se
+ * VEDE pe canvas dupa recadrare si indreptare.
+ *
+ * De ce doua sisteme si nu unul: daca punctele ar fi memorate direct in
+ * coordonatele cadrului vizibil, o singura atingere a recadrarii le-ar muta pe
+ * toate pe poza. Memorate in cadrul intreg, raman lipite de obiectul pe care
+ * le-a pus fotograful, orice s-ar intampla cu decupajul dupa aceea.
+ *
+ * `destWidth`/`destHeight` intra in calcul doar pentru rotatie: `ctx.rotate`
+ * lucreaza in pixelii canvas-ului, deci unghiul trebuie aplicat acolo, nu in
+ * fractii.
+ */
+export function originalToCanvas(
+  x: number, y: number, a: EditAdjustments, destWidth: number, destHeight: number
+): { x: number; y: number } {
+  const crop = a.crop;
+  let u = crop ? (x - crop.x) / crop.width : x;
+  let v = crop ? (y - crop.y) / crop.height : y;
+  const rotationDeg = clampRange(a.rotationDeg ?? 0, -MAX_ROTATION_DEG, MAX_ROTATION_DEG);
+  if (rotationDeg !== 0) {
+    const rad = (rotationDeg * Math.PI) / 180;
+    const cos = Math.cos(rad), sin = Math.sin(rad);
+    const sw = crop ? crop.width : 1, sh = crop ? crop.height : 1;
+    const safetyScale = Math.max(
+      (sw * Math.abs(cos) + sh * Math.abs(sin)) / sw,
+      (sw * Math.abs(sin) + sh * Math.abs(cos)) / sh
+    );
+    const du = (u - 0.5) * destWidth, dv = (v - 0.5) * destHeight;
+    u = 0.5 + (safetyScale * (du * cos - dv * sin)) / destWidth;
+    v = 0.5 + (safetyScale * (du * sin + dv * cos)) / destHeight;
+  }
+  return { x: u, y: v };
+}
+
+/** Inversa lui originalToCanvas — pentru o atingere pe canvas, unde cade in cadrul intreg. */
+export function canvasToOriginal(
+  x: number, y: number, a: EditAdjustments, destWidth: number, destHeight: number
+): { x: number; y: number } {
+  let u = x, v = y;
+  const crop = a.crop;
+  const rotationDeg = clampRange(a.rotationDeg ?? 0, -MAX_ROTATION_DEG, MAX_ROTATION_DEG);
+  if (rotationDeg !== 0) {
+    const rad = (rotationDeg * Math.PI) / 180;
+    const cos = Math.cos(rad), sin = Math.sin(rad);
+    const sw = crop ? crop.width : 1, sh = crop ? crop.height : 1;
+    const safetyScale = Math.max(
+      (sw * Math.abs(cos) + sh * Math.abs(sin)) / sw,
+      (sw * Math.abs(sin) + sh * Math.abs(cos)) / sh
+    );
+    const du = (u - 0.5) * destWidth / safetyScale, dv = (v - 0.5) * destHeight / safetyScale;
+    u = 0.5 + (du * cos + dv * sin) / destWidth;
+    v = 0.5 + (-du * sin + dv * cos) / destHeight;
+  }
+  if (crop) { u = crop.x + u * crop.width; v = crop.y + v * crop.height; }
+  return { x: u, y: v };
+}
+
+/**
+ * Cat de mult "creste" un obiect cand o portiune din cadru e intinsa peste tot
+ * canvas-ul — folosit ca sa scaleze raza unui punct de control odata cu
+ * recadrarea. E media celor doua axe, si asta e o aproximare asumata: pe o
+ * recadrare care schimba raportul, un cerc devine strict vorbind o elipsa, iar
+ * noi il tinem cerc. Diferenta e sub pragul vizibil la recadrarile obisnuite,
+ * iar alternativa (raza pe fiecare axa) ar complica si datele memorate, si
+ * manevrarea din UI, pentru un castig pe care nu-l vede nimeni.
+ */
+export function cropRadiusScale(a: EditAdjustments): number {
+  const crop = a.crop;
+  if (!crop) return 1;
+  return 2 / (crop.width + crop.height);
+}
+
+/**
+ * Canvas de lucru pentru vindecare, pastrat intre apeluri (acelasi motiv ca
+ * `scratch` de mai sus: EditPanel redeseneaza la fiecare cadru cat timp se
+ * trage un slider, si un canvas nou per cadru ar da de lucru degeaba lui GC).
+ */
+let healCanvas: HTMLCanvasElement | null = null;
+/**
+ * Ce contine `healCanvas` in acest moment. Fara asta, fiecare cadru al unui
+ * drag de slider redesena imaginea SURSA intreaga (pana la 2048px), o citea cu
+ * getImageData si o vindeca din nou — desi nici sursa, nici tusele nu se
+ * schimbasera. Vindecarea depinde EXCLUSIV de imagine si de tuse, deci
+ * rezultatul se poate pastra pana cand una dintre ele chiar se schimba.
+ */
+let healCacheKey: { source: CanvasImageSource; strokes: string; width: number; height: number } | null = null;
+
+/**
+ * Aplica tusele de vindecare pe o COPIE a sursei si intoarce canvas-ul
+ * rezultat, ca sa fie desenat mai departe in locul imaginii originale.
+ *
+ * Se intampla INAINTE de geometrie, si asta e o decizie, nu o intamplare:
+ * tusele sunt memorate in coordonate 0..1 ale cadrului INTREG. Daca ar fi
+ * aplicate dupa recadrare/indreptare, aceleasi coordonate ar cadea in alt
+ * loc, si o pata reparata s-ar "muta" pe poza in clipa in care utilizatorul
+ * atinge crop-ul. Asa, tusele raman legate de poza, nu de cadrul curent.
+ *
+ * Intoarce `null` cand nu e nimic de vindecat sau cand nu exista canvas
+ * (jsdom in teste) — apelantul deseneaza atunci sursa originala.
+ */
+function healedSource(source: CanvasImageSource, sourceWidth: number, sourceHeight: number, strokes: HealStroke[]): CanvasImageSource | null {
+  if (!strokes.length || typeof document === 'undefined') return null;
+  const strokeKey = JSON.stringify(strokes);
+  if (healCanvas && healCacheKey
+    && healCacheKey.source === source && healCacheKey.strokes === strokeKey
+    && healCacheKey.width === sourceWidth && healCacheKey.height === sourceHeight) {
+    return healCanvas;
+  }
+  if (!healCanvas) healCanvas = document.createElement('canvas');
+  healCanvas.width = sourceWidth;
+  healCanvas.height = sourceHeight;
+  const hctx = healCanvas.getContext('2d', { willReadFrequently: true });
+  if (!hctx) return null;
+  hctx.clearRect(0, 0, sourceWidth, sourceHeight);
+  hctx.drawImage(source, 0, 0, sourceWidth, sourceHeight);
+  const img = hctx.getImageData(0, 0, sourceWidth, sourceHeight);
+  applyHealStrokes(img.data, sourceWidth, sourceHeight, strokes);
+  hctx.putImageData(img, 0, 0);
+  healCacheKey = { source, strokes: strokeKey, width: sourceWidth, height: sourceHeight };
+  return healCanvas;
+}
+
+/**
  * Deseneaza `source` pe canvas-ul lui `ctx` (dimensiune width x height) cu
  * ajustarile aplicate — geometrie (recadrare/indreptare) + culoare. Expunerea/
  * contrastul/saturatia trec prin ctx.filter (accelerat de browser);
@@ -253,13 +407,17 @@ export function drawAdjusted(
   const brightness = 1 + a.exposure / 100;
   const contrast = 1 + a.contrast / 100;
   const saturate = 1 + a.saturation / 100;
+  const healed = a.heal?.length ? healedSource(source, sourceWidth, sourceHeight, a.heal) : null;
   ctx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturate})`;
-  drawGeometry(ctx, source, sourceWidth, sourceHeight, width, height, a);
+  drawGeometry(ctx, healed ?? source, sourceWidth, sourceHeight, width, height, a);
   ctx.filter = 'none';
 
   const hasColorShift = a.temperature !== 0 || a.tint !== 0 || a.highlights !== 0 || a.shadows !== 0;
   const hasDetailPass = (a.sharpen ?? 0) !== 0 || (a.clarity ?? 0) !== 0 || (a.noiseReduction ?? 0) !== 0;
-  if (!hasColorShift && !hasDetailPass) return;
+  const luts = buildChannelLuts(a.curves);
+  const activePoints = (a.controlPoints ?? []).filter(p => !isNeutralControlPoint(p));
+  const vignette = a.vignette ?? 0;
+  if (!hasColorShift && !hasDetailPass && !luts && activePoints.length === 0 && vignette === 0) return;
 
   const imgData = ctx.getImageData(0, 0, width, height);
   const d = imgData.data;
@@ -292,9 +450,89 @@ export function drawAdjusted(
     }
   }
 
+  // Curbele: trei citiri din tablou per pixel, indiferent cate curbe a desenat
+  // utilizatorul — toata compunerea s-a facut deja in buildChannelLuts.
+  if (luts) {
+    for (let i = 0; i < d.length; i += 4) {
+      d[i] = luts.r[d[i]];
+      d[i + 1] = luts.g[d[i + 1]];
+      d[i + 2] = luts.b[d[i + 2]];
+    }
+  }
+
+  // Punctele de control. Luminanta neclara (necesara doar pentru "structura")
+  // se calculeaza O SINGURA DATA si se imparte intre puncte — altfel fiecare
+  // punct ar reface aceeasi neclaritate pe toata imaginea.
+  if (activePoints.length) {
+    let blurredLum: Float32Array | undefined;
+    if (activePoints.some(p => p.structure !== 0)) {
+      const size = width * height;
+      const [lum, lumBlur, temp] = getScratch(size);
+      for (let i = 0, p = 0; i < d.length; i += 4, p++) lum[p] = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+      boxBlurChannel(lum, lumBlur, temp, width, height, CLARITY_BLUR_RADIUS);
+      // `lumBlur` e un buffer din scratch, refolosit — applyControlPoint doar il
+      // citeste, si nimic altceva nu-l atinge pana la sfarsitul acestui pas,
+      // deci nu are rost o copie noua la fiecare cadru.
+      blurredLum = lumBlur;
+    }
+    // Punctele sunt memorate in cadrul INTREG; aici lucram pe cadrul VIZIBIL,
+    // deci fiecare punct se converteste inainte de aplicare — vezi originalToCanvas.
+    const radiusScale = cropRadiusScale(a);
+    for (const point of activePoints) {
+      const c = originalToCanvas(point.x, point.y, a, width, height);
+      applyControlPoint(d, width, height, { ...point, x: c.x, y: c.y, radius: point.radius * radiusScale }, blurredLum);
+    }
+  }
+
   if (hasDetailPass) applyDetailPass(d, width, height, a);
 
+  // Vinieta ULTIMA: e un efect de obiectiv, se aseaza peste imaginea finita,
+  // nu peste una careia urmeaza sa i se mai schimbe contrastul.
+  if (vignette !== 0) applyVignette(d, width, height, vignette);
+
   ctx.putImageData(imgData, 0, 0);
+}
+
+/**
+ * Intunecarea (sau luminarea) colturilor. Intensitatea creste cu patratul
+ * distantei normalizate fata de centru — asa arata si caderea reala de lumina
+ * a unui obiectiv, si de-aia o vinieta liniara se vede imediat ca "pusa".
+ * Centrul ramane COMPLET neatins la orice intensitate: o vinieta care inchide
+ * si mijlocul e doar o scadere de expunere prost deghizata.
+ */
+export function applyVignette(d: Uint8ClampedArray, width: number, height: number, amount: number): void {
+  const cx = width / 2, cy = height / 2;
+  const maxDist = Math.sqrt(cx * cx + cy * cy);
+  const strength = (amount / 100) * 0.85;
+  // pana la 45% din raza nu se intampla nimic — zona "curata" din centru
+  const inner = 0.45;
+
+  // Factorul depinde DOAR de distanta fata de centru, deci se poate tabela o
+  // singura data si citi apoi din tablou, indexat direct cu distanta la PATRAT.
+  // Asa dispar cele ~440.000 de radacini patrate pe cadru (una per pixel), care
+  // erau cel mai scump lucru din tot pasul — masurat, nu presupus.
+  const STEPS = 1024;
+  const table = new Float32Array(STEPS + 1);
+  for (let i = 0; i <= STEPS; i++) {
+    const dist = Math.sqrt(i / STEPS); // i/STEPS e distanta la PATRAT, normalizata
+    table[i] = dist <= inner ? 1 : 1 - strength * ((dist - inner) / (1 - inner)) ** 2;
+  }
+
+  const invMax2 = 1 / (maxDist * maxDist);
+  for (let y = 0; y < height; y++) {
+    const dy = y - cy;
+    const dy2 = dy * dy;
+    for (let x = 0; x < width; x++) {
+      const dx = x - cx;
+      const t = (dx * dx + dy2) * invMax2;
+      const factor = table[t >= 1 ? STEPS : (t * STEPS) | 0];
+      if (factor === 1) continue;
+      const i = (y * width + x) * 4;
+      d[i] = clamp255(d[i] * factor);
+      d[i + 1] = clamp255(d[i + 1] * factor);
+      d[i + 2] = clamp255(d[i + 2] * factor);
+    }
+  }
 }
 
 /**
