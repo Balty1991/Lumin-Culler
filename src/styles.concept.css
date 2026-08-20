@@ -3496,7 +3496,11 @@ body:before {
     padding-inline: 12px;
     gap: 6px;
   }
-  .export-cta-short { display: inline; }
+  /* Cuvantul "Export" pleaca si el: sageata in jos plus cifra spun destul, mai
+     ales ca e singurul buton colorat din rand. Cei ~60px eliberati sunt exact
+     cei care fac loc numelui aplicatiei, mai jos. Textul complet ramane in
+     aria-label, deci cititoarele de ecran anunta in continuare "Exporta poze (N)". */
+  .export-cta-short { display: none; }
   .top-actions .export-cta .export-cta-count {
     position: static;
     margin: 0;
@@ -3517,12 +3521,17 @@ body:before {
      actiunile ajung pe la 266 — impreuna ar cere 434, deci randul cadea sub
      logo si antetul sarea de la 78px la 105px chiar in timpul lucrului.
 
-     Ramane SIMBOLUL. A fost o vreme ascuns si el, cand randul avea inca sase
-     lucruri si arata orfan; utilizatorul a cerut sa revina, si pe buna
-     dreptate — intre timp a plecat si butonul de meniu (dublat de fila din bara
-     de jos), deci acum actiunile folosesc 182 din 398 si e loc berechet.
-     Numele complet revine peste 520px, unde chiar incape. */
-  .topbar .brand-text { display: none; }
+     Asta a fost valabil cat timp butonul de export isi purta si cuvantul. Fara
+     el, socoteala se schimba: masurat pe 412px, cu "Export 128", numele intreg
+     plus actiunile ajung la 316 din 388 — incap, cu 72px de rezerva, si antetul
+     ramane pe un singur rand.
+
+     Deci numele revine. Sub el raman ascunse doar sublinia si numele
+     proiectului: alea chiar n-au loc, si oricum isi au locul lor pe ecranul
+     Acasa, nu intr-un antet de telefon. */
+  .topbar .brand-text p,
+  .topbar .brand-text .project-name-btn,
+  .topbar .brand-text .project-name-input { display: none; }
 }
 
 /* (3) Bara de decizie din sortarea rapida isi punea etichetele pe butoanele
