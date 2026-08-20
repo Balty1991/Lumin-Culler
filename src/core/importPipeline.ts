@@ -6,7 +6,7 @@
  */
 import { db, type AnalysisRecord, type PhotoRecord } from './db';
 import { analysisPool, withTimeout } from './workerPool';
-import { contextEngine, type Prediction } from './learning/ContextEngine';
+import { contextEngine, landscapeSharpness, type Prediction } from './learning/ContextEngine';
 import { groupPhotosByHash } from './hashComparePool';
 import type { HashInput } from '../workers/hashCompare.worker';
 import { parseExif } from './exifParser';
@@ -176,6 +176,53 @@ function showsKnownPerson(analysis: Pick<AnalysisRecord, 'knownFaceCount'>): boo
 }
 
 /**
+ * Pragurile sub care o poza chiar are ceva in neregula. Aceleasi valori pe care
+ * le foloseste deja aiExplanationGenerator ca sa SPUNA ce e in neregula — un
+ * singur adevar: daca explicatia nu gaseste niciun defect de numit, decizia
+ * automata n-are voie sa se poarte ca si cum ar fi gasit unul.
+ */
+const DEFECT_SHARPNESS = 45;
+const DEFECT_EXPOSURE_OFF = 15;
+const DEFECT_CLIPPING = 0.06;
+/** Sub atatea fete cu ochii deschisi, poza de grup chiar are o problema. */
+const DEFECT_EYES_OPEN_RATIO = 0.8;
+
+/**
+ * Are poza un defect REAL, care se poate numi?
+ *
+ * Bug real raportat de utilizator, cu capturi de pe telefon: 13 poze respinse
+ * din 19, toate ale aceluiasi copil, toate clare si bine expuse, cu scoruri de
+ * 0, 1, 4 si 6. Cauza de fond era normalizarea (vezi MIN_FEATURE_VARIANCE in
+ * ContextEngine), dar mai era ceva, la fel de important: "respins" se decidea
+ * EXCLUSIV dupa scor, iar scorul spune cat de sus sta poza fata de restul
+ * bibliotecii, nu daca are ceva in neregula. Pe un lot omogen, cineva trebuie
+ * sa fie ultimul — si acel ultim ajungea la cos fara sa aiba nimic.
+ *
+ * De aici incolo, respingerea automata cere DOUA lucruri deodata: scor mic SI
+ * un defect care se poate numi. Fara defect, poza merge la 'review' — adica
+ * exact acolo unde omul se uita oricum, si o poate respinge cu o apasare.
+ * Nu forteaza pastrarea nimanui si nu umfla niciun scor.
+ */
+export function hasNamedDefect(
+  a: Pick<AnalysisRecord, 'faceCount' | 'sharpness' | 'exposure' | 'highlightClipping' | 'shadowClipping'
+    | 'allEyesOpen' | 'groupEyesOpenRatio' | 'subjectInFocus'>
+): boolean {
+  // Claritatea se judeca altfel cand exista un om in cadru decat pe un peisaj —
+  // acelasi calcul ca in aiExplanationGenerator.effectiveSharpness.
+  const sharpness = a.faceCount > 0 ? a.sharpness : landscapeSharpness(a.sharpness) * 100;
+  if (sharpness < DEFECT_SHARPNESS) return true;
+  if (Math.abs(a.exposure - 50) > DEFECT_EXPOSURE_OFF) return true;
+  if ((a.highlightClipping ?? 0) > DEFECT_CLIPPING) return true;
+  if ((a.shadowClipping ?? 0) > DEFECT_CLIPPING) return true;
+  if (a.subjectInFocus === false) return true;
+  if (a.faceCount > 0) {
+    const eyesOpen = a.groupEyesOpenRatio ?? (a.allEyesOpen ? 1 : 0);
+    if (eyesOpen < DEFECT_EYES_OPEN_RATIO) return true;
+  }
+  return false;
+}
+
+/**
  * Reutilizat de store.ts (rescorePhotos) ca sa clasifice exact la fel poze deja
  * existente, re-scorate cu un model ContextEngine actualizat.
  *
@@ -185,10 +232,11 @@ function showsKnownPerson(analysis: Pick<AnalysisRecord, 'knownFaceCount'>): boo
  */
 export function decidePhotoStatus(
   score: number,
-  analysis: Pick<AnalysisRecord, 'faceCount' | 'knownFaceCount' | 'sceneTags' | 'textCoverage' | 'subjectInFocus'>,
+  analysis: Pick<AnalysisRecord, 'faceCount' | 'knownFaceCount' | 'sceneTags' | 'textCoverage' | 'subjectInFocus'
+    | 'sharpness' | 'exposure' | 'highlightClipping' | 'shadowClipping' | 'allEyesOpen' | 'groupEyesOpenRatio'>,
   thresholds: Thresholds = FIXED_THRESHOLDS
 ): PhotoRecord['status'] {
-  if (score <= thresholds.reject && !showsKnownPerson(analysis)) return 'rejected';
+  if (score <= thresholds.reject && !showsKnownPerson(analysis) && hasNamedDefect(analysis)) return 'rejected';
   if (score >= thresholds.select && !hasNoRecognizableSubject(analysis) && !subjectConfirmedOutOfFocus(analysis)) return 'selected';
   return 'review';
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { toHashInput, decidePhotoStatus, SELECT_THRESHOLD, REJECT_THRESHOLD } from './importPipeline';
+import { toHashInput, decidePhotoStatus, hasNamedDefect, SELECT_THRESHOLD, REJECT_THRESHOLD } from './importPipeline';
 import { deriveThresholds } from './scoreThresholds';
 import type { AnalysisRecord } from './db';
 
@@ -57,7 +57,9 @@ describe('decidePhotoStatus', () => {
     // `knownFaceCount: 0` in baseAnalysis: un trecator nu e un motiv sa nu
     // respingem. Altfel respingerea automata ar disparea pe orice galerie cu
     // oameni, adica exact functia pentru care exista aplicatia.
-    expect(decidePhotoStatus(REJECT_THRESHOLD, baseAnalysis({ faceCount: 1, sceneTags: ['cat'] }))).toBe('rejected');
+    // `sharpness: 20` — respingerea cere ACUM si un defect care se poate numi
+    // (vezi hasNamedDefect), nu doar un scor mic.
+    expect(decidePhotoStatus(REJECT_THRESHOLD, baseAnalysis({ faceCount: 1, sceneTags: ['cat'], sharpness: 20 }))).toBe('rejected');
   });
 
   it('NU respinge automat o poza in care apare cineva inrolat — o trimite la verificat', () => {
@@ -77,6 +79,59 @@ describe('decidePhotoStatus', () => {
       .not.toBe('selected');
   });
 
+  describe('respingerea cere un defect care se poate numi', () => {
+    // Bug real raportat de utilizator, cu capturi de pe telefon: 13 respinse
+    // din 19, toate ale aceluiasi copil, toate clare si bine expuse, cu scoruri
+    // de 0, 1, 4 si 6. Scorul spune cat de sus sta poza fata de restul
+    // bibliotecii — pe un lot omogen, cineva trebuie sa fie ultimul, si acel
+    // ultim ajungea la cos fara sa aiba nimic.
+    it('o poza clara si bine expusa NU se arunca, oricat de mic i-ar fi scorul', () => {
+      expect(hasNamedDefect(baseAnalysis({ faceCount: 1 }))).toBe(false);
+      expect(decidePhotoStatus(0, baseAnalysis({ faceCount: 1, sceneTags: ['cat'] }))).toBe('review');
+    });
+
+    it('miscata: se arunca', () => {
+      expect(hasNamedDefect(baseAnalysis({ faceCount: 1, sharpness: 20 }))).toBe(true);
+      expect(decidePhotoStatus(10, baseAnalysis({ faceCount: 1, sharpness: 20 }))).toBe('rejected');
+    });
+
+    it('subexpusa sau supraexpusa: se arunca', () => {
+      expect(decidePhotoStatus(10, baseAnalysis({ faceCount: 1, exposure: 20 }))).toBe('rejected');
+      expect(decidePhotoStatus(10, baseAnalysis({ faceCount: 1, exposure: 85 }))).toBe('rejected');
+    });
+
+    it('lumini sau umbre taiate: se arunca', () => {
+      expect(decidePhotoStatus(10, baseAnalysis({ faceCount: 1, highlightClipping: 0.2 }))).toBe('rejected');
+      expect(decidePhotoStatus(10, baseAnalysis({ faceCount: 1, shadowClipping: 0.2 }))).toBe('rejected');
+    });
+
+    it('ochi inchisi: se arunca — dar numai cand chiar exista o fata', () => {
+      expect(decidePhotoStatus(10, baseAnalysis({ faceCount: 2, allEyesOpen: false }))).toBe('rejected');
+      expect(decidePhotoStatus(10, baseAnalysis({ faceCount: 2, groupEyesOpenRatio: 0.4 }))).toBe('rejected');
+      // fara fete, "ochii inchisi" nu inseamna nimic
+      expect(hasNamedDefect(baseAnalysis({ faceCount: 0, allEyesOpen: false }))).toBe(false);
+    });
+
+    it('un grup in care aproape toti au ochii deschisi nu e un defect', () => {
+      expect(hasNamedDefect(baseAnalysis({ faceCount: 5, groupEyesOpenRatio: 0.9 }))).toBe(false);
+    });
+
+    it('subiect confirmat neclar: se arunca', () => {
+      expect(decidePhotoStatus(10, baseAnalysis({ faceCount: 1, subjectInFocus: false }))).toBe('rejected');
+    });
+
+    it('claritatea se judeca altfel pe peisaj decat pe portret', () => {
+      // acelasi numar brut, doua verdicte — vezi landscapeSharpness
+      const brut = 30;
+      expect(hasNamedDefect(baseAnalysis({ faceCount: 1, sharpness: brut }))).toBe(true);
+      expect(hasNamedDefect(baseAnalysis({ faceCount: 0, sharpness: brut }))).toBe(false);
+    });
+
+    it('regula nu slabeste selectia: o poza buna cu scor mare ramane selectata', () => {
+      expect(decidePhotoStatus(SELECT_THRESHOLD, baseAnalysis({ faceCount: 1 }))).toBe('selected');
+    });
+  });
+
   it('peste pragul de selectie, persoana inrolata nu schimba nimic', () => {
     expect(decidePhotoStatus(SELECT_THRESHOLD, baseAnalysis({ faceCount: 1, knownFaceCount: 1 })))
       .toBe('selected');
@@ -84,8 +139,8 @@ describe('decidePhotoStatus', () => {
 
   it('garantia tine si cu praguri adaptate, nu doar cu cele fixe', () => {
     const adapted = { select: 70, reject: 40, adapted: true };
-    expect(decidePhotoStatus(35, baseAnalysis({ faceCount: 1, knownFaceCount: 1 }), adapted)).toBe('review');
-    expect(decidePhotoStatus(35, baseAnalysis({ faceCount: 1, knownFaceCount: 0 }), adapted)).toBe('rejected');
+    expect(decidePhotoStatus(35, baseAnalysis({ faceCount: 1, knownFaceCount: 1, sharpness: 20 }), adapted)).toBe('review');
+    expect(decidePhotoStatus(35, baseAnalysis({ faceCount: 1, knownFaceCount: 0, sharpness: 20 }), adapted)).toBe('rejected');
   });
 
   it('aproba peste SELECT_THRESHOLD cand exista o fata detectata', () => {
@@ -159,7 +214,7 @@ describe('decidePhotoStatus cu praguri adaptate', () => {
 
   it('se comporta exact ca inainte cand nu i se dau praguri', () => {
     expect(decidePhotoStatus(SELECT_THRESHOLD, baseAnalysis({ faceCount: 1 }))).toBe('selected');
-    expect(decidePhotoStatus(REJECT_THRESHOLD, baseAnalysis({ faceCount: 1 }))).toBe('rejected');
+    expect(decidePhotoStatus(REJECT_THRESHOLD, baseAnalysis({ faceCount: 1, sharpness: 20 }))).toBe('rejected');
   });
 
   it('nu slabeste protectia pentru documente/capturi de ecran, oricat de jos ar cobori pragul', () => {

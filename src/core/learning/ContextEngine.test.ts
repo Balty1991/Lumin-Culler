@@ -701,3 +701,41 @@ describe('ContextEngine — model deja corupt in IndexedDB se repara la citire',
     expect(landscape.allWeights.find(w => w.feature === 'sharpness')?.weight).toBe(0.42);
   });
 });
+
+describe('ce NU stie motorul nu trebuie sa conteze impotriva pozei', () => {
+  const cuOameni = baseAnalysis({
+    photoId: 'familie', faceCount: 2, knownFaceCount: 0, strangerCount: 2,
+    faces: [
+      { box: [0.2, 0.2, 0.2, 0.3], faceScore: 0.9, smile: 0.8, eyesOpen: { left: 1, right: 1 }, isBlinking: false, personId: null, personName: null, similarity: 0 },
+      { box: [0.6, 0.2, 0.2, 0.3], faceScore: 0.9, smile: 0.8, eyesOpen: { left: 1, right: 1 }, isBlinking: false, personId: null, personName: null, similarity: 0 }
+    ]
+  });
+
+  it('cat timp nu e inrolat nimeni, "cine e in poza" lipseste din vector, nu apasa in jos', () => {
+    // Bug real: knownFaceCount e 0 si strangerCount egal cu numarul de fete pe
+    // ORICE poza cat timp utilizatorul n-a inrolat pe nimeni — nu pentru ca ar
+    // fi straini, ci pentru ca aplicatia n-are cum sa stie. Tratate ca straini,
+    // scadeau scorul fiecarei poze cu oameni, exact la utilizatorii noi.
+    const faraNimeniInrolat = extractFeatures(cuOameni, undefined, false);
+    expect(faraNimeniInrolat.knownFaceRatio).toBeUndefined();
+    expect(faraNimeniInrolat.strangerPenalty).toBeUndefined();
+  });
+
+  it('de indata ce exista cineva inrolat, cele doua semnale revin', () => {
+    const cuCinevaInrolat = extractFeatures(cuOameni, undefined, true);
+    expect(cuCinevaInrolat.knownFaceRatio).toBe(0);
+    expect(cuCinevaInrolat.strangerPenalty).toBe(1);
+  });
+
+  it('restul semnalelor despre fete raman neatinse in ambele cazuri', () => {
+    const fara = extractFeatures(cuOameni, undefined, false);
+    const cu = extractFeatures(cuOameni, undefined, true);
+    for (const k of ['bestSmile', 'allEyesOpen', 'faceCount', 'faceScore'] as const) {
+      expect(fara[k]).toBe(cu[k]);
+    }
+  });
+
+  it('implicit se comporta ca inainte — apelantii care nu stiu de parametru nu se schimba', () => {
+    expect(extractFeatures(cuOameni).strangerPenalty).toBe(1);
+  });
+});

@@ -3236,6 +3236,7 @@ export const useStore = create<AppState>((set, get) => ({
     await rematchPersonInExistingAnalyses(person);
     const [persons, photos] = await Promise.all([db.persons.toArray(), reloadPhotoViews()]);
     await analysisPool.setKnownPersons(persons);
+    contextEngine.setEnrolledPersonCount(persons.length);
     set({ persons, photos });
     return { ok: true, message };
   },
@@ -3251,6 +3252,7 @@ export const useStore = create<AppState>((set, get) => ({
     });
     const [persons, photos] = await Promise.all([db.persons.toArray(), reloadPhotoViews()]);
     await analysisPool.setKnownPersons(persons).catch(() => {});
+    contextEngine.setEnrolledPersonCount(persons.length);
     set({ persons, photos });
   },
 
@@ -3262,6 +3264,7 @@ export const useStore = create<AppState>((set, get) => ({
     });
     const [persons, photos] = await Promise.all([db.persons.toArray(), reloadPhotoViews()]);
     await analysisPool.setKnownPersons(persons).catch(() => {});
+    contextEngine.setEnrolledPersonCount(persons.length);
     set({ persons, photos });
   },
 
@@ -3287,6 +3290,7 @@ export const useStore = create<AppState>((set, get) => ({
     });
     const [persons, photos] = await Promise.all([db.persons.toArray(), reloadPhotoViews()]);
     await analysisPool.setKnownPersons(persons).catch(() => {});
+    contextEngine.setEnrolledPersonCount(persons.length);
     set({ persons, photos });
   },
 
@@ -3322,6 +3326,7 @@ export const useStore = create<AppState>((set, get) => ({
       }
       const [persons, photos] = await Promise.all([db.persons.toArray(), reloadPhotoViews()]);
       await analysisPool.setKnownPersons(persons).catch(() => {});
+      contextEngine.setEnrolledPersonCount(persons.length);
       set({ persons, photos, notice: t(locale, 'store.personProfiles.imported', { added, merged }) });
     } catch (err) {
       set({ notice: t(locale, 'store.personProfiles.importFailed', { error: err instanceof Error ? err.message : String(err) }) });
@@ -3374,6 +3379,7 @@ export const useStore = create<AppState>((set, get) => ({
 
     const persons = await db.persons.toArray();
     await analysisPool.setKnownPersons(persons).catch(() => {});
+    contextEngine.setEnrolledPersonCount(persons.length);
     const views = await reloadPhotoViews();
     set({
       persons, photos: views,

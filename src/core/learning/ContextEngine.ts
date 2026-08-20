@@ -109,6 +109,32 @@ const GLOBAL_CONTEXT_KEY = '__global__';
 /** La sampleCount == GLOBAL_BLEND_K, context si backbone au pondere egala (50/50) in predictie. */
 const GLOBAL_BLEND_K = 12;
 
+/**
+ * Cat de mult trebuie sa difere doua poze ca sa insemne ceva.
+ *
+ * Bug real raportat de utilizator, cu capturi: 13 respinse din 19, pe poze
+ * evident bune ale aceluiasi copil, cu scoruri de 0, 1, 4 si 6. Cauza nu era
+ * niciun prag si nicio pondere, ci NORMALIZAREA de mai jos.
+ *
+ * Feature-urile sunt aduse toate in 0..1 (vezi extractFeatures), iar scorul
+ * lucreaza pe z-scoruri: cu cate deviatii standard difera poza asta de media
+ * BIBLIOTECII. Pragul de dinainte (varianta minima 1e-4, adica o deviatie de
+ * 0.01) insemna ca o diferenta de 3 sutimi dintr-un feature — nimic, in
+ * termeni de fotografie — ajungea la z = 3, adica extrema absoluta. Pe un lot
+ * omogen (acelasi copil, aceeasi lumina, aceeasi dupa-amiaza) toate
+ * feature-urile au varianta mica, deci lotul se desfacea in evantai pe tot
+ * intervalul 0..100 si un sfert din el cadea sub pragul de respingere — fara
+ * ca vreo poza sa aiba, de fapt, ceva in neregula.
+ *
+ * 0.0225 e o deviatie de 0.15, adica 15% din intreaga gama a unui feature:
+ * doua poze trebuie sa difere cu aproape jumatate de gama ca sa ajunga la
+ * extreme. Cand biblioteca chiar variaza (poze bune si poze ratate la un loc),
+ * varianta reala depaseste pragul si normalizarea lucreaza ca inainte —
+ * pragul nu comprima nimic acolo unde exista diferente adevarate. El opreste
+ * doar amplificarea zgomotului acolo unde diferentele nu exista.
+ */
+const MIN_FEATURE_VARIANCE = 0.0225;
+
 /** Sensible priors so the engine is useful before any correction exists. */
 const PRIOR_WEIGHTS: FeatureVector = {
   sharpness: 0.9,
@@ -519,7 +545,25 @@ function hasDeliberateSettings(a: Pick<AnalysisRecord, 'exposureBias' | 'whiteBa
   return (a.exposureBias !== undefined && Math.abs(a.exposureBias) >= 0.3) || a.whiteBalance === 'manual';
 }
 
-export function extractFeatures(a: AnalysisRecord, memorySignals?: { contentAffinity?: number | null; subjectAffinity?: number | null }): FeatureVector {
+export function extractFeatures(
+  a: AnalysisRecord,
+  memorySignals?: { contentAffinity?: number | null; subjectAffinity?: number | null },
+  /**
+   * A declarat utilizatorul PE CINEVA drept persoana lui? Implicit `true`, ca
+   * apelantii care nu stiu de acest parametru sa se comporte ca inainte.
+   *
+   * De ce conteaza: cat timp nu e inrolat nimeni, `knownFaceCount` e 0 si
+   * `strangerCount` e egal cu numarul de fete PE ORICE POZA — nu pentru ca ar
+   * fi poze cu necunoscuti, ci pentru ca aplicatia n-are cum sa stie cine e
+   * cine. Tratate ca atare, cele doua feature-uri scadeau scorul fiecarei poze
+   * cu oameni (~-0.7 in log-odds) exact la utilizatorii care n-au apucat inca
+   * sa inroleze pe nimeni — adica la toti, la inceput. Un om nu gandeste asa:
+   * daca nu stie cine e in poza, nu conchide ca sunt straini, ci ca nu stie.
+   * Vezi mai jos: cand nu e inrolat nimeni, ambele feature-uri LIPSESC din
+   * vector, iar lipsa inseamna deja "neutru" peste tot in acest fisier.
+   */
+  anyPersonEnrolled = true
+): FeatureVector {
   const features: FeatureVector = {
     // "subiect uman prominent", nu "exista o fata" — vezi hasProminentSubject
     sharpness: hasProminentSubject(a) ? a.sharpness / 100 : landscapeSharpness(a.sharpness),
@@ -603,8 +647,10 @@ export function extractFeatures(a: AnalysisRecord, memorySignals?: { contentAffi
     features.bestSmile = a.bestSmile;
     features.allEyesOpen = a.allEyesOpen ? 1 : 0;
     features.faceCount = Math.min(a.faceCount, 6) / 6;
-    features.knownFaceRatio = a.faceCount ? a.knownFaceCount / a.faceCount : 0;
-    features.strangerPenalty = a.faceCount ? a.strangerCount / a.faceCount : 0;
+    if (anyPersonEnrolled) {
+      features.knownFaceRatio = a.faceCount ? a.knownFaceCount / a.faceCount : 0;
+      features.strangerPenalty = a.faceCount ? a.strangerCount / a.faceCount : 0;
+    }
     features.faceScore = a.faces.length
       ? a.faces.reduce((s, f) => s + f.faceScore, 0) / a.faces.length
       : 0;
@@ -671,6 +717,17 @@ export class ContextEngine {
   private tagMemory: TagMemoryRecord | undefined;
   private loaded = false;
   private loadingPromise: Promise<void> | null = null;
+  /**
+   * Cate persoane a inrolat utilizatorul. Citit o data la init si tinut la zi
+   * de store (setEnrolledPersonCount) — vezi comentariul de la extractFeatures
+   * pentru ce se strica atunci cand nu e inrolat nimeni.
+   */
+  private enrolledPersonCount = 0;
+
+  /** Chemat de store dupa fiecare inrolare/stergere de persoana. */
+  setEnrolledPersonCount(n: number): void {
+    this.enrolledPersonCount = Math.max(0, Math.floor(n));
+  }
 
   /**
    * Bug real gasit de auditul QA: fara `loadingPromise`, doua apeluri
@@ -687,12 +744,13 @@ export class ContextEngine {
     if (this.loaded) return;
     if (!this.loadingPromise) {
       this.loadingPromise = (async () => {
-        const [rows, memory, tags] = await Promise.all([
-          db.contextModels.toArray(), readEmbeddingMemory(), readTagMemory()
+        const [rows, memory, tags, persons] = await Promise.all([
+          db.contextModels.toArray(), readEmbeddingMemory(), readTagMemory(), db.persons.count()
         ]);
         for (const row of rows) this.models.set(row.contextKey, row);
         this.embeddingMemory = memory;
         this.tagMemory = tags;
+        this.enrolledPersonCount = persons;
         this.loaded = true;
       })().finally(() => { this.loadingPromise = null; });
     }
@@ -714,7 +772,7 @@ export class ContextEngine {
     const contextKey = deriveContextKey(analysis, genre);
     const model = this.getOrCreateModel(contextKey);
     const globalModel = this.getOrCreateModel(GLOBAL_CONTEXT_KEY);
-    const features = extractFeatures(analysis, this.memorySignals(analysis));
+    const features = extractFeatures(analysis, this.memorySignals(analysis), this.enrolledPersonCount > 0);
     const normalized = this.normalize(model, features, /*update=*/ false);
     const globalNormalized = this.normalize(globalModel, features, /*update=*/ false);
 
@@ -776,7 +834,7 @@ export class ContextEngine {
     const contextKey = deriveContextKey(input.analysis, input.genre);
     const model = this.getOrCreateModel(contextKey);
     const globalModel = this.getOrCreateModel(GLOBAL_CONTEXT_KEY);
-    const features = extractFeatures(input.analysis, this.memorySignals(input.analysis));
+    const features = extractFeatures(input.analysis, this.memorySignals(input.analysis), this.enrolledPersonCount > 0);
     const disagreement = input.aiDecision !== input.userDecision;
     const weightsBefore = disagreement ? { ...model.weights } : null;
 
@@ -1059,7 +1117,7 @@ export class ContextEngine {
         model.featureStats[k] = s;
       }
       const variance = s.n > 1 ? s.m2 / (s.n - 1) : 1;
-      const std = Math.sqrt(Math.max(variance, 1e-4));
+      const std = Math.sqrt(Math.max(variance, MIN_FEATURE_VARIANCE));
       const z = s.n > 2 ? (x - s.mean) / std : x; // raw until stats warm up
       out[k] = Math.max(-3, Math.min(3, z));
     }
