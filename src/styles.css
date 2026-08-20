@@ -2019,6 +2019,14 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
 /* ── "Trimite pozele pastrate": foaia de destinatii (mockup 20) ── */
 .export-dest-count { font-size: 0.78rem; color: var(--text-dim); margin: 0; }
+/* Plafonul, spus INAINTE de export (vezi ExportDestinations.tsx). Marcat cu
+   accentul de atentie, nu cu rosu de eroare: nu s-a stricat nimic, doar e ceva
+   de stiut inainte de a apasa. */
+.export-dest-allowance {
+  margin: 0; padding: 9px 11px; border-radius: var(--radius);
+  border: 1px solid rgb(var(--accent-rgb) / 0.32); background: rgb(var(--accent-rgb) / 0.08);
+  font-size: 0.78rem; line-height: 1.5; color: var(--text);
+}
 .export-dest-row {
   width: 100%; display: flex; align-items: center; gap: 11px; text-align: left;
   padding: 12px 13px; border-radius: var(--radius); margin-bottom: 8px;

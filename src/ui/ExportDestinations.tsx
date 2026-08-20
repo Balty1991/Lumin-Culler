@@ -3,6 +3,8 @@ import { useStore } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { XIcon, FolderIcon, UploadIcon, TagIcon } from './icons';
 import { getDirectoryPicker } from '../core/export/directoryPicker';
+import { FREE_PHOTOS_PER_MONTH } from '../core/entitlement';
+import { exportAllowanceWarning } from '../state/freeAllowance';
 import { t, plural } from '../i18n';
 
 /**
@@ -32,6 +34,9 @@ export function ExportDestinations() {
   const exportXMP = useStore(s => s.exportXMP);
   const photos = useStore(s => s.photos);
   const locale = useStore(s => s.locale);
+  const photosUsed = useStore(s => s.photosUsedThisWindow);
+  const premiumLocked = useStore(s => s.premiumLocked);
+  const setPremiumOpen = useStore(s => s.setPremiumOpen);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const containerRef = useRef<HTMLDivElement>(null);
   useModalFocusTrap(containerRef, open);
@@ -47,6 +52,7 @@ export function ExportDestinations() {
 
   const selectedCount = photos.filter(p => p.status === 'selected').length;
   const hasFolderPicker = getDirectoryPicker() !== null;
+  const allowance = exportAllowanceWarning(selectedCount, photosUsed, FREE_PHOTOS_PER_MONTH, premiumLocked);
   const send = (destination: 'folder' | 'apps') => {
     setOpen(false);
     void exportSelection(destination);
@@ -68,6 +74,22 @@ export function ExportDestinations() {
         <p className="export-dest-count">
           {tr(plural(selectedCount, 'exportDest.count.one', 'exportDest.count.other'), { count: selectedCount })}
         </p>
+
+        {/* Plafonul, spus cat timp omul inca poate alege altfel. Pana acum,
+            mesajul despre plafon se atasa notificarii de DUPA export — sosea
+            exact cand nu mai putea servi la nimic. Vezi exportAllowanceWarning:
+            nu apare pentru cine mai are loc berechet, ca sa nu transforme
+            fiecare export intr-o reclama. */}
+        {allowance && (
+          <p className="export-dest-allowance">
+            {allowance.kind === 'exceeds'
+              ? tr(plural(allowance.remaining, 'exportDest.allowance.exceeds.one', 'exportDest.allowance.exceeds.other'), { selected: selectedCount, remaining: allowance.remaining, limit: FREE_PHOTOS_PER_MONTH })
+              : tr(plural(allowance.remaining - selectedCount, 'exportDest.allowance.tight.one', 'exportDest.allowance.tight.other'), { left: allowance.remaining - selectedCount, limit: FREE_PHOTOS_PER_MONTH })}{' '}
+            <button className="session-outcome-link" onClick={() => { setOpen(false); setPremiumOpen(true); }}>
+              {tr('exportDest.allowance.cta')}
+            </button>
+          </p>
+        )}
 
         <button className="export-dest-row" onClick={() => send('apps')}>
           <span className="export-dest-icon" aria-hidden="true"><UploadIcon /></span>
