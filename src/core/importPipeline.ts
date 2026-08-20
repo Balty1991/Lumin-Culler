@@ -134,6 +134,41 @@ function subjectConfirmedOutOfFocus(analysis: Pick<AnalysisRecord, 'subjectInFoc
 }
 
 /**
+ * In poza apare cineva pe care UTILIZATORUL l-a inrolat el insusi.
+ *
+ * Oglinda exacta a celor doua garantii de mai sus (hasNoRecognizableSubject,
+ * subjectConfirmedOutOfFocus), care blocheaza auto-SELECTAREA. Aceasta
+ * blocheaza auto-RESPINGEREA, dupa acelasi principiu: cand un semnal e destul
+ * de puternic cat aplicatia sa nu fie sigura, nu decide singura — intreaba.
+ *
+ * De ce era nevoie: scorul masoara cat de BINE FACUTA e o poza. O coala de
+ * hartie plata, bine luminata, e perfect clara si perfect expusa; un copil in
+ * miscare nu e. Pentru un fotograf de nunta mestesugul E criteriul, dar pentru
+ * pozele ocazionale — cazul tintit de aplicatie — nu e: acolo conteaza si CINE
+ * e in cadru, nu doar cat de curat a iesit. Fara garantia asta, singura poza
+ * dintr-o zi cu copilul putea fi aruncata automat pentru ca a iesit putin
+ * miscata, inainte ca utilizatorul sa apuce s-o vada.
+ *
+ * DOAR persoanele inrolate, nu orice fata. "Orice fata" ar dezactiva practic
+ * respingerea automata pe o galerie de familie, adica ar strica exact functia
+ * pentru care exista aplicatia. Inrolarea e afirmatia explicita a
+ * utilizatorului despre cine conteaza pentru el.
+ *
+ * Nu e acelasi lucru cu "Protejeaza mereu" (state/protectedPersons.ts), desi
+ * seamana: acolo utilizatorul apasa un comutator, si efectul e asupra
+ * operatiilor in MASA pe care le porneste tot el (Auto-Cull, respinge sub prag,
+ * rezolva seriile). Aici e vorba de decizia automata de la import, pe care n-a
+ * cerut-o nimeni — ea se intampla singura. Cea invizibila e cea care are mai
+ * mare nevoie de o plasa.
+ *
+ * NU forteaza pastrarea si nu umfla niciun scor: poza ajunge la 'review', adica
+ * fix in locul unde utilizatorul se uita oricum. O poate respinge cu o apasare.
+ */
+function showsKnownPerson(analysis: Pick<AnalysisRecord, 'knownFaceCount'>): boolean {
+  return analysis.knownFaceCount > 0;
+}
+
+/**
  * Reutilizat de store.ts (rescorePhotos) ca sa clasifice exact la fel poze deja
  * existente, re-scorate cu un model ContextEngine actualizat.
  *
@@ -143,10 +178,10 @@ function subjectConfirmedOutOfFocus(analysis: Pick<AnalysisRecord, 'subjectInFoc
  */
 export function decidePhotoStatus(
   score: number,
-  analysis: Pick<AnalysisRecord, 'faceCount' | 'sceneTags' | 'textCoverage' | 'subjectInFocus'>,
+  analysis: Pick<AnalysisRecord, 'faceCount' | 'knownFaceCount' | 'sceneTags' | 'textCoverage' | 'subjectInFocus'>,
   thresholds: Thresholds = FIXED_THRESHOLDS
 ): PhotoRecord['status'] {
-  if (score <= thresholds.reject) return 'rejected';
+  if (score <= thresholds.reject && !showsKnownPerson(analysis)) return 'rejected';
   if (score >= thresholds.select && !hasNoRecognizableSubject(analysis) && !subjectConfirmedOutOfFocus(analysis)) return 'selected';
   return 'review';
 }

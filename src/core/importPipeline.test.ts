@@ -53,8 +53,39 @@ describe('toHashInput', () => {
 });
 
 describe('decidePhotoStatus', () => {
-  it('respinge sub REJECT_THRESHOLD indiferent de subiect', () => {
+  it('respinge sub REJECT_THRESHOLD — o fata oarecare nu opreste respingerea', () => {
+    // `knownFaceCount: 0` in baseAnalysis: un trecator nu e un motiv sa nu
+    // respingem. Altfel respingerea automata ar disparea pe orice galerie cu
+    // oameni, adica exact functia pentru care exista aplicatia.
     expect(decidePhotoStatus(REJECT_THRESHOLD, baseAnalysis({ faceCount: 1, sceneTags: ['cat'] }))).toBe('rejected');
+  });
+
+  it('NU respinge automat o poza in care apare cineva inrolat — o trimite la verificat', () => {
+    // Cazul concret: singura poza dintr-o zi cu copilul, iesita putin miscata.
+    // Scorul e mic pentru ca mestesugul e slab, dar poza conteaza.
+    expect(decidePhotoStatus(REJECT_THRESHOLD - 20, baseAnalysis({ faceCount: 1, knownFaceCount: 1 })))
+      .toBe('review');
+  });
+
+  it('garantia se aplica si la scor zero — nu e o marja, e o regula', () => {
+    expect(decidePhotoStatus(0, baseAnalysis({ faceCount: 2, knownFaceCount: 1 }))).toBe('review');
+  });
+
+  it('nu forteaza pastrarea: o poza cu persoana inrolata sub prag NU devine selectata', () => {
+    // plasa opreste aruncarea, nu umfla scorul
+    expect(decidePhotoStatus(REJECT_THRESHOLD - 20, baseAnalysis({ faceCount: 1, knownFaceCount: 1 })))
+      .not.toBe('selected');
+  });
+
+  it('peste pragul de selectie, persoana inrolata nu schimba nimic', () => {
+    expect(decidePhotoStatus(SELECT_THRESHOLD, baseAnalysis({ faceCount: 1, knownFaceCount: 1 })))
+      .toBe('selected');
+  });
+
+  it('garantia tine si cu praguri adaptate, nu doar cu cele fixe', () => {
+    const adapted = { select: 70, reject: 40, adapted: true };
+    expect(decidePhotoStatus(35, baseAnalysis({ faceCount: 1, knownFaceCount: 1 }), adapted)).toBe('review');
+    expect(decidePhotoStatus(35, baseAnalysis({ faceCount: 1, knownFaceCount: 0 }), adapted)).toBe('rejected');
   });
 
   it('aproba peste SELECT_THRESHOLD cand exista o fata detectata', () => {
