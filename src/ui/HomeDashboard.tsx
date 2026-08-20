@@ -66,6 +66,17 @@ export function HomeDashboard() {
   const openTiktokSortForIds = useStore(s => s.openTiktokSortForIds);
   const setHomeGridOpen = useStore(s => s.setHomeGridOpen);
   const homeGridOpen = useStore(s => s.homeGridOpen);
+  /**
+   * Cat timp analiza inca ruleaza, cardul NU are voie sa anunte o coada gata.
+   *
+   * Raportat de utilizator, cu captura: ecranul de analiza se randeaza SUB
+   * cardul asta (vezi App.tsx), deci amandoua sunt pe ecran in acelasi timp —
+   * sus scria "4 poze de trecut in revista" ca si cum triajul ar fi gata, in
+   * timp ce dedesubt motorul inca citea pozele. Iar numarul era oricum
+   * provizoriu: creste cu fiecare poza terminata.
+   */
+  const progress = useStore(s => s.progress);
+  const analysing = !!progress && progress.phase !== 'finalizat';
   const setDocumentShieldOpen = useStore(s => s.setDocumentShieldOpen);
   const setDuplicatesPanelOpen = useStore(s => s.setDuplicatesPanelOpen);
   const collections = useStore(s => s.collections);
@@ -255,11 +266,15 @@ export function HomeDashboard() {
             <ReviewDeskPreview photo={reviewDeskPhoto} />
             <div className="review-desk-overlay" />
             <div className="review-desk-content">
-              <span className="review-desk-kicker">{tr(hasReviewQueue ? 'reviewDesk.kicker.next' : 'reviewDesk.kicker.ready')}</span>
-              <h2>{hasReviewQueue
-                ? tr(plural(unsortedCount, 'home.sortCta.sub.one', 'home.sortCta.sub.other'), { count: unsortedCount })
-                : tr('reviewDesk.title.ready')}</h2>
-              <p>{tr(hasReviewQueue ? 'reviewDesk.lead.next' : 'reviewDesk.lead.ready')}</p>
+              <span className="review-desk-kicker">{tr(analysing ? 'reviewDesk.kicker.analysing' : hasReviewQueue ? 'reviewDesk.kicker.next' : 'reviewDesk.kicker.ready')}</span>
+              <h2>{analysing
+                ? tr('reviewDesk.title.analysing')
+                : hasReviewQueue
+                  ? tr(plural(unsortedCount, 'home.sortCta.sub.one', 'home.sortCta.sub.other'), { count: unsortedCount })
+                  : tr('reviewDesk.title.ready')}</h2>
+              <p>{analysing
+                ? tr('reviewDesk.lead.analysing', { done: progress.done, total: progress.total || photos.length })
+                : tr(hasReviewQueue ? 'reviewDesk.lead.next' : 'reviewDesk.lead.ready')}</p>
               <div className="review-desk-actions">
                 <button className="review-desk-continue" onClick={() => openQuickSortAll()}>
                   <span>{tr(hasReviewQueue ? 'reviewDesk.continue' : 'reviewDesk.open')}</span>

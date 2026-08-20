@@ -59,6 +59,9 @@ export const ro = {
   // Review Desk — cardul foto dominant de pe Acasa, dupa import.
   'reviewDesk.label': 'MASA DE TRIAJ',
   'reviewDesk.kicker.next': 'URMĂTOAREA DECIZIE',
+  'reviewDesk.kicker.analysing': 'SE ANALIZEAZĂ',
+  'reviewDesk.title.analysing': 'AI-ul citește fotografiile',
+  'reviewDesk.lead.analysing': 'Încă lucrează — {done} din {total}. Coada de triat se completează pe măsură.',
   'reviewDesk.kicker.ready': 'SELECȚIA ESTE PREGĂTITĂ',
   'reviewDesk.title.one': '{count} fotografie de trecut în revistă',
   'reviewDesk.title.other': '{count} poze de trecut în revistă',
