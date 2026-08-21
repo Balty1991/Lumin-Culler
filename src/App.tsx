@@ -483,6 +483,8 @@ export default function App() {
     { key: 'review', label: tr('palette.filter.review'), count: counts.review, icon: <ClockIcon /> },
     { key: 'rejected', label: tr('palette.filter.rejected'), count: counts.rejected, icon: <XIcon /> }
   ];
+  /** Filtrele din grupa "ce caut" — restul cad in grupa "ce nu e in regula". */
+  const FIND_FILTERS: FilterKey[] = ['series', 'highlights', 'goldenHour'];
   const SECONDARY_FILTERS: { key: FilterKey; label: string; count: number; icon: ReactNode }[] = [
     { key: 'series', label: tr('palette.filter.series'), count: counts.series, icon: <LayersIcon /> },
     { key: 'highlights', label: tr('palette.filter.highlights'), count: counts.highlights, icon: <StarIcon /> },
@@ -1023,45 +1025,84 @@ export default function App() {
                 title={f.label}
               >
                 <span className="chip-icon" aria-hidden="true">{f.icon}</span>
+                {/* Eticheta doar pe filtrul ACTIV. Un rand de sapte pastile nu
+                    incape cu toate numele pe un telefon, dar sapte iconite fara
+                    niciun cuvant nu spun ce filtru e pornit — asa randul ramane
+                    scurt si scrie totusi negru pe alb unde te afli. */}
+                {filter === f.key && <span className="chip-label">{f.label}</span>}
                 <b className="chip-count">{f.count}</b>
               </button>
             ))}
             <MoreFiltersMenu active={extraFiltersActive} badgeCount={extraFiltersCount}>
               {close => (
+                /* Panoul era o singura gramada de pastile: filtre de continut,
+                   dropdown-uri de persoana/eticheta/scena/aparat si o actiune
+                   distructiva, toate amestecate cu flex-wrap. Utilizatorul le-a
+                   respins explicit ("nu imi plac cum se vad, cum sunt grupate").
+                   Acum sunt trei grupe cu nume, in ordinea intrebarii pe care
+                   si-o pune omul: ce vreau sa gasesc, ce nu e in regula, dupa
+                   ce anume caut. Actiunea care sterge sta ultima, sub o linie,
+                   niciodata langa un filtru. */
                 <>
-                  {SECONDARY_FILTERS.map(f => (
-                    <button
-                      key={f.key}
-                      className={filter === f.key ? 'chip active' : 'chip'}
-                      onClick={() => { setFilter(f.key); close(); }}
-                      aria-pressed={filter === f.key}
-                    >
-                      <span className="chip-icon" aria-hidden="true">{f.icon}</span>
-                      {f.label}
-                      <b className="chip-count">{f.count}</b>
-                    </button>
-                  ))}
-                  <div className="more-filters-divider" />
-                  {persons.length > 0 && (
-                    <select
-                      className={personFilter ? 'chip person-filter active' : 'chip person-filter'}
-                      value={personFilter ?? ''}
-                      onChange={e => setPersonFilter(e.target.value || null)}
-                      aria-label={tr('app.personFilter.ariaLabel')}
-                    >
-                      <option value="">{tr('app.personFilter.any')}</option>
-                      {persons.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
-                    </select>
-                  )}
-                  <ColorLabelFilter value={colorLabelFilter} onChange={setColorLabelFilter} />
-                  <SceneTagFilter />
-                  <CameraFilter />
-                  <SavedFiltersMenu />
+                  <div className="more-filters-group">
+                    <span className="more-filters-group-head mono">{tr('app.moreFilters.group.find')}</span>
+                    <div className="more-filters-group-body">
+                      {SECONDARY_FILTERS.filter(f => FIND_FILTERS.includes(f.key)).map(f => (
+                        <button
+                          key={f.key}
+                          className={filter === f.key ? 'chip active' : 'chip'}
+                          onClick={() => { setFilter(f.key); close(); }}
+                          aria-pressed={filter === f.key}
+                        >
+                          <span className="chip-icon" aria-hidden="true">{f.icon}</span>
+                          {f.label}
+                          <b className="chip-count">{f.count}</b>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="more-filters-group">
+                    <span className="more-filters-group-head mono">{tr('app.moreFilters.group.problems')}</span>
+                    <div className="more-filters-group-body">
+                      {SECONDARY_FILTERS.filter(f => !FIND_FILTERS.includes(f.key)).map(f => (
+                        <button
+                          key={f.key}
+                          className={filter === f.key ? 'chip active' : 'chip'}
+                          onClick={() => { setFilter(f.key); close(); }}
+                          aria-pressed={filter === f.key}
+                        >
+                          <span className="chip-icon" aria-hidden="true">{f.icon}</span>
+                          {f.label}
+                          <b className="chip-count">{f.count}</b>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="more-filters-group">
+                    <span className="more-filters-group-head mono">{tr('app.moreFilters.group.details')}</span>
+                    <div className="more-filters-group-body">
+                      {persons.length > 0 && (
+                        <select
+                          className={personFilter ? 'chip person-filter active' : 'chip person-filter'}
+                          value={personFilter ?? ''}
+                          onChange={e => setPersonFilter(e.target.value || null)}
+                          aria-label={tr('app.personFilter.ariaLabel')}
+                        >
+                          <option value="">{tr('app.personFilter.any')}</option>
+                          {persons.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+                        </select>
+                      )}
+                      <ColorLabelFilter value={colorLabelFilter} onChange={setColorLabelFilter} />
+                      <SceneTagFilter />
+                      <CameraFilter />
+                      <SavedFiltersMenu />
+                    </div>
+                  </div>
                   {isNativeMediaLibraryAvailable() && (
                     <>
                       <div className="more-filters-divider" />
                       <button
-                        className="chip danger"
+                        className="chip danger more-filters-danger"
                         onClick={() => { setBatchOpsOpen(true); close(); }}
                       >
                         <TrashIcon className="chip-icon" aria-hidden="true" />

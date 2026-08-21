@@ -64,4 +64,9 @@
          nu se trimit nicaieri, ca tot restul analizei. Vezi photoLocations() in
          MediaLibraryPlugin.kt. -->
     <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION" />
+    <!-- Setarea "Notificari inteligente" (vezi plugins/NotificationsPlugin.kt). De la
+         Android 13 (API 33) incoace, o notificare fara permisiunea asta pur si simplu
+         nu apare, fara nicio eroare — exact felul de setare care "nu face nimic".
+         Pe API-uri mai vechi permisiunea nu exista si e ignorata automat. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 </manifest>

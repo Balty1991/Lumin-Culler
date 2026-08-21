@@ -4743,3 +4743,43 @@ input[type="search"] { min-height: 44px; }
   /* Sase unelte pe un rand ingust: textul mai mic, dar tinta ramane 44px. */
   .edit-tool { font-size: .66rem; padding: 0 2px; }
 }
+
+
+/* ── Panoul "Mai multe filtre": trei grupe cu nume, nu o gramada de pastile ──
+   Utilizatorul l-a respins explicit ("nu imi plac cum se vad, cum sunt
+   grupate"). Corpul devine o coloana de grupe; pastilele se aseaza in randuri
+   doar in interiorul grupei lor. */
+.more-filters-menu-body {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 14px;
+}
+.more-filters-group {
+  display: grid;
+  gap: 7px;
+}
+.more-filters-group-head {
+  color: var(--text-faint);
+  font-size: .6rem;
+  font-weight: 800;
+  letter-spacing: .13em;
+}
+.more-filters-group-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.more-filters-divider { flex-basis: auto; margin: 4px 0 0; }
+.more-filters-danger { align-self: start; }
+
+/* Eticheta filtrului activ din randul principal. Restul pastilelor raman doar
+   iconita plus numarul, ca randul sa nu ceara scroll orizontal. */
+.chip-label {
+  max-width: 11ch;
+  overflow: hidden;
+  font-size: .74rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

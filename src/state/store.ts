@@ -65,6 +65,7 @@ import { recordImportDay } from './streak';
 import { stabilizeEta } from '../core/etaEstimate';
 import { readAccessibleMode, applyAccessibleMode } from '../core/accessibleMode';
 import { readSmartNotificationEnabled, writeSmartNotificationEnabled } from './smartNotification';
+import { requestNotificationAccess } from '../core/nativeNotifications';
 import {
   readZenMode, writeZenMode,
   readZenAutoDeleteObvious, writeZenAutoDeleteObvious,
@@ -1759,31 +1760,29 @@ export const useStore = create<AppState>((set, get) => ({
     // daca sistemul o refuza (sau era deja refuzata), comutatorul ramanea
     // pornit si nu se intampla niciodata nimic, fara ca nimeni sa spuna de ce.
     // Acum fiecare cale de iesire raspunde ceva.
-    if (typeof Notification === 'undefined') {
-      set({ notice: t(locale, 'store.smartNotifications.unsupported') });
-      return;
-    }
-    if (Notification.permission === 'granted') {
-      set({ notice: t(locale, 'store.smartNotifications.on') });
-      return;
-    }
-    if (Notification.permission === 'denied') {
-      set({ notice: t(locale, 'store.smartNotifications.blocked') });
-      return;
-    }
-    // Raspuns IMEDIAT, apoi corectat daca sistemul refuza. Cererea de permisiune
-    // deschide un dialog al sistemului si se poate rezolva tarziu — sau, pe unele
-    // platforme, deloc. A astepta raspunsul inseamna ca apasarea nu produce
-    // nimic pe ecran, adica exact senzatia raportata: "nu schimba nimic".
+    //
+    // A doua raportare, de pe telefon: raspunsul era "Browserul de aici nu poate
+    // trimite notificari" — un cuvant care nu inseamna nimic pentru cineva care
+    // a instalat o aplicatie din Play Store, la o setare care chiar nu facea
+    // nimic acolo (WebView-ul Android n-are Notification API). Pe Android
+    // notificarea trece acum prin sistem, printr-un plugin propriu
+    // (core/nativeNotifications.ts). Iar cand platforma chiar nu poate,
+    // comutatorul se stinge singur in loc sa ramana aprins degeaba.
     set({ notice: t(locale, 'store.smartNotifications.asking') });
-    void Notification.requestPermission().then(result => {
-      set({
-        notice: t(get().locale, result === 'granted'
-          ? 'store.smartNotifications.on'
-          : 'store.smartNotifications.blocked')
-      });
-    }).catch(() => {
-      set({ notice: t(get().locale, 'store.smartNotifications.unsupported') });
+    void requestNotificationAccess().then(access => {
+      if (access === 'granted') {
+        set({ notice: t(get().locale, 'store.smartNotifications.on') });
+        return;
+      }
+      if (access === 'unsupported') {
+        writeSmartNotificationEnabled(false);
+        set({
+          smartNotificationsEnabled: false,
+          notice: t(get().locale, 'store.smartNotifications.unsupported')
+        });
+        return;
+      }
+      set({ notice: t(get().locale, 'store.smartNotifications.blocked') });
     });
   },
   zenMode: readZenMode(),

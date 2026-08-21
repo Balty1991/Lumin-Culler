@@ -33,10 +33,30 @@ export function MoreFiltersMenu({ active, badgeCount, children }: Props) {
 
   /** Un singur loc unde se decide pozitia — folosit si la deschidere, si la fiecare
       reancorare (rotire/derulare/redimensionare, vezi useReanchorOnViewportChange). */
-  const place = (rect: DOMRect) => setMenuPos({
-    ...computeMenuPosition(rect, 10, 200),
-    left: Math.max(10, Math.min(rect.left, window.innerWidth - 336))
-  });
+  /**
+   * Bara de navigare de jos e fixa si acopera ultimii ~76px de ecran. Plafonul
+   * intors de computeMenuPosition are un MINIM garantat (minHeight), care poate
+   * fi mai mare decat spatiul chiar disponibil — masurat in browser, panoul
+   * ajungea cu marginea de jos sub marginea ecranului. Aici il taiem la loc.
+   */
+  const BOTTOM_NAV_PX = 76;
+  const place = (rect: DOMRect) => {
+    const pos = computeMenuPosition(rect, 10, 200);
+    const available = pos.top !== undefined
+      ? window.innerHeight - pos.top - BOTTOM_NAV_PX
+      : window.innerHeight - BOTTOM_NAV_PX - 10;
+    setMenuPos({
+      ...pos,
+      // Butonul poate fi partial sub bara de jos (randul de filtre se ascunde la
+      // derulare): atunci ancora calculata iese din ecran — masurat, bottom
+      // ajungea la -2px, adica panoul incepea sub marginea de jos. Ancorele se
+      // tin in ecran indiferent unde a ajuns butonul.
+      top: pos.top !== undefined ? Math.min(pos.top, window.innerHeight - 160) : undefined,
+      bottom: pos.bottom !== undefined ? Math.max(BOTTOM_NAV_PX, pos.bottom) : undefined,
+      maxHeight: Math.max(160, Math.min(pos.maxHeight, available)),
+      left: Math.max(10, Math.min(rect.left, window.innerWidth - 336))
+    });
+  };
   useReanchorOnViewportChange(open, triggerRef, place);
 
   const toggle = () => {

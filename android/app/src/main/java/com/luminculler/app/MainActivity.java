@@ -15,6 +15,7 @@ import com.luminculler.app.plugins.PoseDetectionPlugin;
 import com.luminculler.app.plugins.ImageEmbedderPlugin;
 import com.luminculler.app.plugins.FolderExportPlugin;
 import com.luminculler.app.plugins.MediaLibraryPlugin;
+import com.luminculler.app.plugins.NotificationsPlugin;
 import com.luminculler.app.plugins.BillingPlugin;
 
 public class MainActivity extends BridgeActivity {
@@ -25,7 +26,7 @@ public class MainActivity extends BridgeActivity {
         // inainte de super.onCreate(). Vezi plugins/FaceDetectionPlugin.kt / ImageAnalysisPlugin.kt /
         // ImageLabelingPlugin.kt / FaceMeshPlugin.kt / TextRecognitionPlugin.kt /
         // PoseDetectionPlugin.kt / ImageEmbedderPlugin.kt / FolderExportPlugin.kt /
-        // MediaLibraryPlugin.kt / BillingPlugin.kt.
+        // MediaLibraryPlugin.kt / NotificationsPlugin.kt / BillingPlugin.kt.
         //
         // ImageClassifier (EfficientNet-Lite0) si Segmentation (selfie_multiclass)
         // au fost scoase: erau porturi de proba nelegate niciodata de analiza
@@ -41,6 +42,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(ImageEmbedderPlugin.class);
         registerPlugin(FolderExportPlugin.class);
         registerPlugin(MediaLibraryPlugin.class);
+        registerPlugin(NotificationsPlugin.class);
         registerPlugin(BillingPlugin.class);
         super.onCreate(savedInstanceState);
 
