@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState, lazy, Suspense, type ComponentType, type CSSProperties, type ReactNode } from 'react';
-import { useStore, isAnyOverlayOpen, type FilterKey } from './state/store';
+import { Fragment, useEffect, useMemo, useRef, useState, lazy, Suspense, type ComponentType, type CSSProperties, type ReactNode } from 'react';
+import { useStore, isAnyOverlayOpen, reviewDifficulty, type FilterKey } from './state/store';
 import { PhotoCard } from './ui/PhotoCard';
 import { VirtualPhotoGrid } from './ui/VirtualPhotoGrid';
 import { DetailView } from './ui/DetailView';
@@ -22,6 +22,8 @@ import { MenuIcon, PlusIcon, AlertIcon, ErrorIcon, XIcon, FocusIcon, SearchIcon,
 import { UndoHistoryButton } from './ui/UndoHistoryButton';
 import { selectHighlights, selectBlinks, selectBlurry, selectDeletableRejected } from './state/batchOps';
 import { CARD_MIN_WIDTH } from './state/gridDensity';
+import { bandStarts, planBands, type PlanBand } from './state/reviewPlan';
+import { PlanSeparator } from './ui/PlanSeparator';
 import { SORT_KEY_LABELS, type SortKey } from './state/gridSort';
 import { pickImportFiles } from './core/filePicker';
 import { isNativeMediaLibraryAvailable, pickNativePhotos } from './core/nativeMediaLibrary';
@@ -441,6 +443,20 @@ export default function App() {
   // filtre secundare ca filtered() (grila reala), doar fara axa de status
   // (asta e ce numaram aici). Vezi store.ts pentru detalii.
   const secondaryFiltered = useStore(s => s.secondaryFiltered());
+  /**
+   * Planul de lucru al cozii "de verificat": cat ai de confirmat din mers, cat
+   * de comparat, si unde chiar trebuie sa te uiti tu. Vezi state/reviewPlan.ts.
+   *
+   * Doar pe filtrul 'review', si asta e o alegere: acolo lista e DEJA sortata
+   * dupa cat de greu e cazul, iar benzile se taie pe aceeasi axa. Pe orice alta
+   * ordine (cronologica, dupa scor, dupa nume), separatoarele ar sari inainte
+   * si inapoi prin lista — iar un plan care sare nu mai e un plan.
+   */
+  const planStarts = useMemo(() => {
+    if (filter !== 'review') return new Map<number, PlanBand>();
+    return bandStarts(planBands(filtered.map(reviewDifficulty)));
+  }, [filter, filtered]);
+
   const counts = useMemo(() => ({
     all: secondaryFiltered.length,
     selected: secondaryFiltered.filter(p => p.status === 'selected').length,
@@ -1245,7 +1261,7 @@ export default function App() {
                 <VirtualPhotoGrid
                   photos={filtered} onOpen={onCardOpen} multiSelectIds={multiSelectIds}
                   onCardPointerDown={onCardPointerDown} onContextMenu={onCardContextMenu}
-                  onScroll={handleGridScroll}
+                  onScroll={handleGridScroll} planStarts={planStarts}
                 />
               ) : (
                 <div
@@ -1255,13 +1271,19 @@ export default function App() {
                     '--card-min-narrow': `${CARD_MIN_WIDTH[gridDensity].narrow}px`
                   } as CSSProperties}
                 >
-                  {filtered.map((p, i) => (
-                    <PhotoCard
-                      key={p.id} photo={p} index={i} onOpen={onCardOpen}
-                      multiSelected={multiSelectIds.has(p.id)}
-                      onCardPointerDown={onCardPointerDown} onContextMenu={onCardContextMenu}
-                    />
-                  ))}
+                  {filtered.map((p, i) => {
+                    const band = planStarts.get(i);
+                    return (
+                      <Fragment key={p.id}>
+                        {band && <PlanSeparator band={band} locale={locale} />}
+                        <PhotoCard
+                          photo={p} index={i} onOpen={onCardOpen}
+                          multiSelected={multiSelectIds.has(p.id)}
+                          onCardPointerDown={onCardPointerDown} onContextMenu={onCardContextMenu}
+                        />
+                      </Fragment>
+                    );
+                  })}
                 </div>
               )}
               {filtered.length === 0 && !progress && <EmptyFilterState />}

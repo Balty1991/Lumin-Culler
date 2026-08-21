@@ -1336,7 +1336,7 @@ function reviewProximity(score: number): number {
  * mijlocul ei, la 15, e cazul cel mai greu), ca cele doua sa poata sta
  * amestecate in aceeasi sortare fara ca una din ele sa castige mereu.
  */
-function reviewDifficulty(p: PhotoView): number {
+export function reviewDifficulty(p: PhotoView): number {
   if (p.aiUncertainty !== undefined && Number.isFinite(p.aiUncertainty)) return p.aiUncertainty;
   const halfBand = (SELECT_THRESHOLD - REJECT_THRESHOLD) / 2;
   return Math.max(0, Math.min(1, reviewProximity(p.aiScore) / halfBand));

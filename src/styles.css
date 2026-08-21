@@ -2416,6 +2416,18 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 /* ── Stat-tile-uri compacte (panoul de detaliu) — dashboard, nu paragraf de text ── */
 /* compacte intentionat — DetailView trebuie sa incapa integral fara scroll
    pe cat mai multe device-uri, chiar cu 8 tile-uri + motive + persoana + serie */
+/* Separatoarele planului de lucru din grila. `grid-column: 1/-1` — o celula
+   obisnuita ar aseza titlul intr-o coloana si ar impinge pozele langa el, adica
+   exact contrariul a ce trebuie sa faca un separator. */
+.plan-separator {
+  grid-column: 1 / -1;
+  display: flex; flex-direction: column; gap: 2px;
+  margin: 14px 2px 2px; padding-top: 12px; border-top: 1px solid var(--line);
+}
+.plan-separator:first-child { margin-top: 2px; padding-top: 0; border-top: 0; }
+.plan-separator-title { font-size: .68rem; font-weight: 800; letter-spacing: .12em; color: var(--accent); }
+.plan-separator-sub { font-size: .74rem; color: var(--text-dim); }
+
 /* Cei patru piloni ai verdictului. Nu sunt dale de metrici: sunt raspunsul la
    patru intrebari diferite, si trebuie sa se citeasca dintr-o privire, unul
    langa altul. De asta au bara — comparatia intre ei conteaza mai mult decat

@@ -1,8 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { PhotoCard } from './PhotoCard';
 import { useStore, type PhotoView } from '../state/store';
 import { CARD_MIN_WIDTH } from '../state/gridDensity';
+import { buildRowPlan, type PlanBand } from '../state/reviewPlan';
+import { PlanSeparator } from './PlanSeparator';
+
+/** Referinta stabila: o harta noua la fiecare randare ar reface planul de randuri degeaba. */
+const EMPTY_STARTS: Map<number, PlanBand> = new Map();
 
 /** Sub aceasta latime a containerului, folosim latimea minima "narrow" din CARD_MIN_WIDTH —
     coloanele trebuie calculate in JS pentru virtualizare pe randuri, nu doar CSS auto-fill. */
@@ -39,7 +44,7 @@ function readBottomNavHeight(): number {
  * existent (nu o varianta separata), deci pastreaza insigne/status/click identic
  * cu grid-ul normal — singura diferenta e MECANISMUL de randare, nu aspectul.
  */
-export function VirtualPhotoGrid({ photos, onOpen, multiSelectIds, onCardPointerDown, onContextMenu, onScroll }: {
+export function VirtualPhotoGrid({ photos, onOpen, multiSelectIds, onCardPointerDown, onContextMenu, onScroll, planStarts }: {
   photos: PhotoView[];
   onOpen: (id: string, e: React.MouseEvent) => void;
   multiSelectIds: Set<string>;
@@ -49,9 +54,12 @@ export function VirtualPhotoGrid({ photos, onOpen, multiSelectIds, onCardPointer
       au propriul scroll, separat de fereastra, deci auto-hide-ul antetului (App.tsx) trebuie
       sa asculte aici, nu doar `window.scroll`. */
   onScroll?: (scrollTop: number) => void;
+  /** Inceputurile de banda ale planului de lucru — vezi state/reviewPlan.ts. Gol = nicio impartire. */
+  planStarts?: Map<number, PlanBand>;
 }) {
   const parentRef = useRef<HTMLDivElement>(null);
   const density = useStore(s => s.gridDensity);
+  const locale = useStore(s => s.locale);
   const [columns, setColumns] = useState(4);
   const [scrollHeight, setScrollHeight] = useState(600);
   const computeRef = useRef<() => void>(() => {});
@@ -106,9 +114,18 @@ export function VirtualPhotoGrid({ photos, onOpen, multiSelectIds, onCardPointer
     });
   };
 
-  const rowCount = Math.ceil(photos.length / columns);
+  /**
+   * Randurile, rupte la fiecare inceput de banda — vezi buildRowPlan. Fara
+   * asta, o banda care incepe la mijlocul unui rand ar pune pana la trei poze
+   * sub titlul gresit. Cand nu exista plan (orice alt filtru), iese exact
+   * impartirea de dinainte: cate `columns` poze pe rand.
+   */
+  const rows = useMemo(
+    () => buildRowPlan(photos, columns, planStarts ?? EMPTY_STARTS),
+    [photos, columns, planStarts]
+  );
   const rowVirtualizer = useVirtualizer({
-    count: rowCount,
+    count: rows.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => ROW_HEIGHT_ESTIMATE,
     overscan: 4
@@ -127,20 +144,15 @@ export function VirtualPhotoGrid({ photos, onOpen, multiSelectIds, onCardPointer
             ref={rowVirtualizer.measureElement}
             style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vRow.start}px)` }}
           >
+            {rows[vRow.index]?.band && <PlanSeparator band={rows[vRow.index].band!} locale={locale} />}
             <div className="grid virtual-row" style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>
-              {Array.from({ length: columns }, (_, col) => {
-                const index = vRow.index * columns + col;
-                const photo = photos[index];
-                return photo
-                  ? (
-                    <PhotoCard
-                      key={photo.id} photo={photo} index={index} onOpen={onOpen}
-                      multiSelected={multiSelectIds.has(photo.id)}
-                      onCardPointerDown={onCardPointerDown} onContextMenu={onContextMenu}
-                    />
-                  )
-                  : null;
-              })}
+              {rows[vRow.index]?.items.map((photo, col) => (
+                <PhotoCard
+                  key={photo.id} photo={photo} index={rows[vRow.index].startIndex + col} onOpen={onOpen}
+                  multiSelected={multiSelectIds.has(photo.id)}
+                  onCardPointerDown={onCardPointerDown} onContextMenu={onContextMenu}
+                />
+              ))}
             </div>
           </div>
         ))}
