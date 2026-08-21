@@ -421,6 +421,64 @@ export const ro = {
   'menu.language': 'Limba: Română',
   'menu.language.title': 'Schimbă limba interfeței',
   'menu.section.help': 'Ajutor',
+  // Manualul aplicatiei — vezi ui/GuidePanel.tsx. Textul raspunde la intrebari
+  // pe care si le pune cineva care DEJA foloseste produsul, nu unui cititor
+  // care nu l-a deschis niciodata.
+  'guide.title': 'Cum funcționează',
+  'guide.lead': 'Pe scurt: AI-ul face prima trecere prin poze, tu hotărăști. Mai jos e ce înseamnă fiecare lucru pe care ți-l arată.',
+
+  'guide.basics.title': 'De unde începi',
+  'guide.basics.p1': 'Aduci pozele cu butonul mare de pe ecranul de start sau cu „+". Nimic nu pleacă de pe telefon: analiza rulează integral aici.',
+  'guide.basics.p2': 'După import, AI-ul le trece pe fiecare prin analiză și le împarte singur în „păstrate", „de verificat" și „respinse". Astea sunt propuneri, nu decizii finale — le poți schimba pe toate.',
+  'guide.basics.p3': 'De aici încolo lucrezi din „Continuă": îți dă pozele una câte una, în ordinea în care are sens să le judeci — întâi cele limpezi, la urmă cele grele.',
+
+  'guide.decisions.title': 'Cele patru decizii',
+  'guide.decisions.p1': 'PĂSTREZ — o vrei. Intră în selecție și se exportă.',
+  'guide.decisions.p2': 'ȘTERG — n-o vrei. Rămâne în aplicație până ceri explicit ștergerea de pe telefon; nu dispare nimic pe la spatele tău.',
+  'guide.decisions.p3': 'CANDIDAT — nu te-ai hotărât, dar nu vrei s-o pierzi. E poza pe care o ții deoparte: nu se exportă, dar nici nu poate fi atinsă de nicio operație automată (Auto-Cull, rezolvarea seriilor, ștergerea în masă). Există exact ca să nu fii forțat să alegi „da" sau „nu" când răspunsul tău e „încă nu".',
+  'guide.decisions.p4': 'DE VERIFICAT — nu e o decizie de-a ta, ci o recunoaștere a AI-ului: „nu știu, uită-te tu". Aici ajung pozele pe care nu se poate pronunța.',
+
+  'guide.verdict.title': 'Cum citești verdictul',
+  'guide.verdict.p1': 'Scorul mare (0–100) e rezumatul. Sub el stau patru cifre care spun din ce e făcut, pentru că un singur număr nu se poate contesta.',
+  'guide.verdict.p2': 'TEHNIC — e cadrul utilizabil? Claritate, expunere, lumini tăiate, ochi. E singura cifră care nu se schimbă niciodată în funcție de gusturile tale.',
+  'guide.verdict.p3': 'DIN SERIE — e cel mai bun dintre cadrele aceluiași moment? Lipsește când poza n-are surori. REPARABIL — cât din ce e în neregulă se mai poate repara în editor: claritatea și luminile arse nu se repară, expunerea și orizontul da.',
+  'guide.verdict.p4': 'GUSTUL TĂU — cât din scor vine din deciziile tale și nu din regulile generale de fotografie. Apare doar după ce AI-ul chiar a învățat ceva de la tine. Cifrele se pot contrazice între ele, și e în regulă: TEHNIC mic cu DIN SERIE 100 înseamnă „cel mai bun dintr-o rafală ratată".',
+
+  'guide.why.title': '„De ce acest scor"',
+  'guide.why.p1': 'Fila asta e argumentul complet. Prima linie compară poza cu surorile ei din serie — „cel mai clar dintre cele 4 cadre ale acestui moment" — pentru că în fața unei rafale asta e întrebarea reală.',
+  'guide.why.p2': 'Urmează descrierea tehnică, compoziția, subiectul, și factorii care au cântărit în scor, cu semn: ce a ajutat și ce a tras în jos.',
+  'guide.why.p3': 'Dacă poza n-a trecut la păstrate, îți spune și ce a ținut-o pe loc: „fără «Fără date de aparat foto», ar fi ajuns la 68". Nu e o estimare — e chiar calculul din care a ieșit scorul, citit invers.',
+  'guide.why.p4': 'Când AI-ul nu se poate baza pe ce vede, o spune pe față în loc să rostească scorul cu aceeași siguranță ca pe toate celelalte.',
+
+  'guide.learning.title': 'Cum învață de la tine',
+  'guide.learning.p1': 'Fiecare decizie pe care o iei îl corectează. Când nu ești de acord cu el, pasul e mai mare — un dezacord spune mai mult decât o confirmare.',
+  'guide.learning.p2': 'Când rezolvi o serie, nu învață „A e proastă, B e bună". Învață că B a bătut-o pe A. Sunt lucruri diferite: A poate fi o poză excelentă care a pierdut la mustață.',
+  'guide.learning.p3': 'Începe să se adapteze după vreo 8 decizii pe un tip de scenă și devine stabil pe la 40. Poți vedea oricând ce a învățat, din Meniu → Preferințe AI, și poți reseta.',
+  'guide.learning.p4': 'Nu învață nimic din „Candidat": „o țin deoparte" nu e o părere despre cât de bună e poza.',
+
+  'guide.series.title': 'Seriile și momentele',
+  'guide.series.p1': 'Cadrele făcute la câteva secunde unul de altul, care seamănă între ele, sunt grupate automat într-o serie. Pe card apare eticheta „parte dintr-o serie" — apasă pe ea și se deschide comparația.',
+  'guide.series.p2': 'Acolo alegi câștigătorul dintr-o apăsare. Restul trec la respinse, dar poți păstra mai multe dacă vrei variante.',
+  'guide.series.p3': 'Cel mai bun cadru al unui moment nu se aruncă niciodată automat, nici măcar când toată rafala a ieșit slabă. Dacă totul e puțin mișcat, cel mai bun urcă la „de verificat", ca să-l vezi tu.',
+
+  'guide.editing.title': 'Editarea',
+  'guide.editing.p1': 'AUTO se uită la fața din poză, nu la histogramă. Pe o poză în contralumină — copilul în fața ferestrei — cadrul e strălucitor, dar subiectul e întunecat: Auto luminează, nu întunecă.',
+  'guide.editing.p2': 'Manual ai patru grupe: LUMINĂ (expunere, contrast, lumini, umbre, alburi, negruri), CULOARE, DETALIU și EFECTE. Lumini/umbre recuperează detaliu; alburi/negruri mută capetele scalei — de aia o poză „spălată" se repară cu negruri, nu cu umbre.',
+  'guide.editing.p3': 'Dincolo de slidere: curbe pe fiecare canal, puncte de control selective, vindecare de pete și decupare.',
+  'guide.editing.p4': 'Ține apăsat pe „originalul" ca să vezi poza neatinsă. Nimic nu se scrie peste fișierul tău: editările stau separat și se aplică la export.',
+
+  'guide.cleanup.title': 'Curățenia',
+  'guide.cleanup.p1': 'Chiar în timpul analizei îți spune cât spațiu ocupă copiile identice găsite. Din Meniu ai și „Copii identice" (același fișier, de mai multe ori) și filtrul de poze mișcate.',
+  'guide.cleanup.p2': 'Ștergerea de pe telefon trece prin dialogul sistemului Android și se verifică fișier cu fișier — vezi exact câte au dispărut cu adevărat, nu o estimare.',
+  'guide.cleanup.p3': 'Pozele merg în Coșul sistemului, nu în neant. Tratează totuși ștergerea ca definitivă: multe aplicații de Galerie nu-și arată propriul coș, deci nu te baza pe recuperare.',
+
+  'guide.people.title': 'Persoanele',
+  'guide.people.p1': 'Din „Persoane" îi arăți cine contează pentru tine. Până atunci, AI-ul nu poate deosebi copilul tău de un trecător — și nu se preface că poate.',
+  'guide.people.p2': 'După ce ai înrolat pe cineva, pozele în care apare nu mai sunt niciodată respinse automat. Cel mult ajung la „de verificat", ca să decizi tu.',
+
+  'guide.privacy.title': 'Confidențialitate',
+  'guide.privacy.p1': 'Analiza AI, recunoașterea persoanelor și motorul de învățare rulează integral pe dispozitiv. Pozele nu pleacă nicăieri.',
+  'guide.privacy.p2': 'Singura excepție e explicită și cere apăsarea ta: linkul către hartă din panoul de informații trimite coordonatele poziției către OpenStreetMap. Scrie asta pe buton, înainte să-l apeși.',
   'menu.shortcuts': 'Scurtături tastatură',
   'menu.about': 'Analiza AI, recunoașterea persoanelor și motorul de învățare rulează integral local, în browser — nicio poză nu părăsește dispozitivul.',
 

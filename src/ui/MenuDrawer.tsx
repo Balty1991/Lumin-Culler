@@ -172,6 +172,7 @@ export function MenuDrawer() {
   const setSmartInboxOpen = useStore(s => s.setSmartInboxOpen);
   const setMomentsOpen = useStore(s => s.setMomentsOpen);
   const proMode = useStore(s => s.proMode);
+  const setGuideOpen = useStore(s => s.setGuideOpen);
   const setProMode = useStore(s => s.setProMode);
   const setExactDupesOpen = useStore(s => s.setExactDupesOpen);
   // Cere o citire din baza de date (dHash nu sta in memorie), deci se face o
@@ -837,6 +838,15 @@ export function MenuDrawer() {
         </DrawerGroup>
 
         <DrawerGroup label={tr('menu.section.help')} collapsible defaultOpen={false} expandLabel={tr('menu.expandSection', { section: tr('menu.section.help') })} collapseLabel={tr('menu.collapseSection', { section: tr('menu.section.help') })}>
+          <button
+            className="drawer-item"
+            onClick={() => go(() => setGuideOpen(true))}
+            title={tr('guide.title')}
+          >
+            <span className="drawer-item-icon"><InfoIcon /></span>
+            <span>{tr('guide.title')}</span>
+          </button>
+
           <button className="drawer-item" onClick={() => go(() => setShortcutsOpen(true))}>
             <span className="drawer-item-icon"><KeyboardIcon /></span>
             <span>{tr('menu.shortcuts')}</span>

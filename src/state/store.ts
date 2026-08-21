@@ -486,7 +486,10 @@ interface AppState {
   zenAskOnUncertain: boolean;
   setZenAskOnUncertain: (on: boolean) => void;
   zenPanelOpen: boolean;
+  /** Manualul aplicatiei — vezi ui/GuidePanel.tsx. */
+  guideOpen: boolean;
   setZenPanelOpen: (open: boolean) => void;
+  setGuideOpen: (open: boolean) => void;
   /** "Aspect" — tema + accent, ecran dedicat (vezi ui/AppearancePanel.tsx). */
   appearanceOpen: boolean;
   setAppearanceOpen: (open: boolean) => void;
@@ -1797,6 +1800,8 @@ export const useStore = create<AppState>((set, get) => ({
   setZenAskOnUncertain: on => { writeZenAskOnUncertain(on); set({ zenAskOnUncertain: on }); },
   zenPanelOpen: false,
   setZenPanelOpen: open => set({ zenPanelOpen: open }),
+  guideOpen: false,
+  setGuideOpen: open => set({ guideOpen: open }),
   appearanceOpen: false,
   setAppearanceOpen: open => set({ appearanceOpen: open }),
   premiumOpen: false,
@@ -4103,7 +4108,7 @@ export function isAnyOverlayOpen(): boolean {
     s.appearanceOpen || s.collectionsOpen || s.documentShieldOpen || s.duplicatesPanelOpen ||
     s.rescueQueueOpen || s.smartInboxOpen || s.momentsOpen || s.exactDupesOpen ||
     s.exportDestinationsOpen || s.premiumOpen || s.searchPanelOpen || s.supervisorPanelOpen ||
-    s.tiktokSortOpen || s.locationsOpen || s.vaultOpen || s.zenPanelOpen ||
+    s.tiktokSortOpen || s.locationsOpen || s.vaultOpen || s.zenPanelOpen || s.guideOpen ||
     s.compareGroupId || s.editingPhotoId || s.dialogRequest
   );
 }

@@ -2416,6 +2416,25 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 /* ── Stat-tile-uri compacte (panoul de detaliu) — dashboard, nu paragraf de text ── */
 /* compacte intentionat — DetailView trebuie sa incapa integral fara scroll
    pe cat mai multe device-uri, chiar cu 8 tile-uri + motive + persoana + serie */
+/* Manualul aplicatiei. Sectiuni pliate: un manual deschis tot deodata e un
+   perete de text prin care nimeni nu cauta nimic. */
+.guide-lead { margin: 2px 2px 14px; color: var(--text-dim); font-size: .86rem; line-height: 1.5; }
+.guide-section { border-top: 1px solid var(--line); }
+.guide-section:last-of-type { border-bottom: 1px solid var(--line); }
+.guide-section-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  width: 100%; min-height: 52px; padding: 6px 2px;
+  background: none; border: 0; color: var(--text); text-align: left;
+  font-size: .92rem; font-weight: 650;
+}
+.guide-section-chevron {
+  width: 16px; height: 16px; flex-shrink: 0; color: var(--text-faint);
+  transform: rotate(180deg); transition: transform .2s var(--ease);
+}
+.guide-section.open .guide-section-chevron { transform: rotate(0deg); color: var(--accent); }
+.guide-section-body { padding: 0 2px 14px; display: flex; flex-direction: column; gap: 10px; }
+.guide-section-body p { margin: 0; color: var(--text-dim); font-size: .85rem; line-height: 1.55; }
+
 /* Separatoarele planului de lucru din grila. `grid-column: 1/-1` — o celula
    obisnuita ar aseza titlul intr-o coloana si ar impinge pozele langa el, adica
    exact contrariul a ce trebuie sa faca un separator. */

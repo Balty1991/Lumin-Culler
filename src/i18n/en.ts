@@ -414,6 +414,61 @@ export const en: Record<TranslationKey, string> = {
   'menu.language': 'Language: English',
   'menu.language.title': 'Change the interface language',
   'menu.section.help': 'Help',
+  'guide.title': 'How it works',
+  'guide.lead': 'In short: the AI does the first pass through your photos, you decide. Below is what each thing it shows you means.',
+
+  'guide.basics.title': 'Where you start',
+  'guide.basics.p1': 'Bring photos in with the big button on the start screen or with "+". Nothing leaves your phone: the analysis runs entirely here.',
+  'guide.basics.p2': 'After the import, the AI runs each photo through the analysis and sorts them into "kept", "to check" and "rejected" on its own. These are proposals, not final decisions — you can change every one of them.',
+  'guide.basics.p3': 'From there you work from "Continue": it hands you the photos one by one, in the order that makes sense to judge them — the clear ones first, the hard ones last.',
+
+  'guide.decisions.title': 'The four decisions',
+  'guide.decisions.p1': 'KEEP — you want it. It joins the selection and gets exported.',
+  'guide.decisions.p2': 'DELETE — you do not want it. It stays in the app until you explicitly ask for deletion from the phone; nothing disappears behind your back.',
+  'guide.decisions.p3': 'CANDIDATE — you have not decided, but you do not want to lose it. This is the photo you set aside: it is not exported, but no automatic operation can touch it either (Auto-Cull, series resolution, bulk deletion). It exists precisely so you are not forced to choose "yes" or "no" when your answer is "not yet".',
+  'guide.decisions.p4': 'TO CHECK — this is not your decision but the AI admitting one: "I do not know, you look". This is where the photos it cannot rule on end up.',
+
+  'guide.verdict.title': 'Reading the verdict',
+  'guide.verdict.p1': 'The big score (0–100) is the summary. Below it sit four numbers that say what it is made of, because a single number cannot be argued with.',
+  'guide.verdict.p2': 'TECHNICAL — is the frame usable? Sharpness, exposure, clipped highlights, eyes. It is the only number that never changes with your taste.',
+  'guide.verdict.p3': 'IN SERIES — is it the best of the frames of the same moment? Absent when the photo has no siblings. FIXABLE — how much of what is wrong can still be repaired in the editor: sharpness and blown highlights cannot be, exposure and horizon can.',
+  'guide.verdict.p4': 'YOUR TASTE — how much of the score comes from your decisions rather than from general photography rules. It appears only once the AI has actually learned something from you. The numbers can contradict each other, and that is fine: a low TECHNICAL with IN SERIES 100 means "the best of a botched burst".',
+
+  'guide.why.title': '"Why this score"',
+  'guide.why.p1': 'This tab is the full argument. The first line compares the photo with its siblings in the series — "the sharpest of the 4 frames of this moment" — because in front of a burst that is the real question.',
+  'guide.why.p2': 'Then come the technical description, the composition, the subject, and the factors that weighed on the score, with a sign: what helped and what pulled it down.',
+  'guide.why.p3': 'If the photo did not make it to kept, it also tells you what held it back: "without «No camera data», it would have reached 68". That is not an estimate — it is the very calculation the score came out of, read backwards.',
+  'guide.why.p4': 'When the AI cannot rely on what it sees, it says so instead of stating the score with the same confidence as all the others.',
+
+  'guide.learning.title': 'How it learns from you',
+  'guide.learning.p1': 'Every decision you make corrects it. When you disagree with it, the step is bigger — a disagreement says more than a confirmation.',
+  'guide.learning.p2': 'When you resolve a series, it does not learn "A is bad, B is good". It learns that B beat A. These are different things: A can be an excellent photo that lost by a hair.',
+  'guide.learning.p3': 'It starts adapting after about 8 decisions on a kind of scene and settles around 40. You can see what it learned any time, from Menu → AI preferences, and you can reset it.',
+  'guide.learning.p4': 'It learns nothing from "Candidate": "I am setting this aside" is not an opinion about how good the photo is.',
+
+  'guide.series.title': 'Series and moments',
+  'guide.series.p1': 'Frames taken seconds apart that look alike are grouped into a series automatically. The card shows a "part of a series" label — tap it and the comparison opens.',
+  'guide.series.p2': 'There you pick the winner in one tap. The rest go to rejected, but you can keep several if you want variants.',
+  'guide.series.p3': 'The best frame of a moment is never thrown away automatically, not even when the whole burst came out weak. If everything is a little soft, the best one rises to "to check" so you can see it.',
+
+  'guide.editing.title': 'Editing',
+  'guide.editing.p1': 'AUTO looks at the face in the photo, not at the histogram. On a backlit photo — the child in front of the window — the frame is bright but the subject is dark: Auto lifts, it does not darken.',
+  'guide.editing.p2': 'Manually you get four groups: LIGHT (exposure, contrast, highlights, shadows, whites, blacks), COLOUR, DETAIL and EFFECTS. Highlights/shadows recover detail; whites/blacks move the ends of the scale — that is why a washed-out photo is fixed with blacks, not with shadows.',
+  'guide.editing.p3': 'Beyond the sliders: curves per channel, selective control points, spot healing and cropping.',
+  'guide.editing.p4': 'Hold "the original" to see the untouched photo. Nothing is written over your file: edits are kept separately and applied on export.',
+
+  'guide.cleanup.title': 'Cleaning up',
+  'guide.cleanup.p1': 'Even during the analysis it tells you how much space the identical copies it found take up. From the Menu you also get "Identical copies" (the same file, several times) and the blurry-photo filter.',
+  'guide.cleanup.p2': 'Deleting from the phone goes through the Android system dialog and is verified file by file — you see exactly how many really disappeared, not an estimate.',
+  'guide.cleanup.p3': 'The photos go to the system Trash, not into nothing. Still treat deletion as final: many Gallery apps do not show their own trash, so do not count on recovery.',
+
+  'guide.people.title': 'People',
+  'guide.people.p1': 'From "People" you show it who matters to you. Until then, the AI cannot tell your child from a passer-by — and it does not pretend it can.',
+  'guide.people.p2': 'Once you have enrolled someone, photos they appear in are never rejected automatically. At most they go to "to check", so you decide.',
+
+  'guide.privacy.title': 'Privacy',
+  'guide.privacy.p1': 'The AI analysis, face recognition and the learning engine run entirely on the device. The photos go nowhere.',
+  'guide.privacy.p2': 'The single exception is explicit and needs your tap: the map link in the info panel sends the location coordinates to OpenStreetMap. The button says so before you press it.',
   'menu.shortcuts': 'Keyboard shortcuts',
   'menu.about': 'AI analysis, face recognition and the learning engine run entirely locally, in the browser — no photo ever leaves the device.',
 

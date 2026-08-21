@@ -5,6 +5,7 @@ import { VirtualPhotoGrid } from './ui/VirtualPhotoGrid';
 import { DetailView } from './ui/DetailView';
 import { Workspace } from './ui/Workspace';
 import { MenuDrawer } from './ui/MenuDrawer';
+import { GuidePanel } from './ui/GuidePanel';
 // Nu si CollectionPicker printre panourile lazy de mai jos, desi e folosit tot
 // ocazional — ContextMenu.tsx/DetailView.tsx il importa deja STATIC (eager),
 // asa ca Rollup nu poate sa-l scoata oricum intr-un chunk separat (avertisment
@@ -809,6 +810,7 @@ export default function App() {
         <CommandPalette />
         <ShortcutsPanel />
         <MenuDrawer />
+        <GuidePanel />
         <PersonsPanel />
         <InsightsPanel />
         <BatchOpsPanel />
@@ -1362,6 +1364,7 @@ export default function App() {
       <ExactDupesPanel />
       <GallerySupervisorPanel />
       <MenuDrawer />
+      <GuidePanel />
       <CommandPalette />
       <ShortcutsPanel />
       <ConfirmDialog />
