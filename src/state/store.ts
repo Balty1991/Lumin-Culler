@@ -32,6 +32,9 @@ import { exportOriginalFiles, computeGroupPersonUnion } from '../core/exportPhot
 import { exportXMPSidecars, deriveXmpKeywords, deriveAiScoreKeyword, deriveSeriesKeyword } from '../core/export/xmpGenerator';
 import { analysisPool } from '../core/workerPool';
 import { contextEngine, deriveContextKey, explainFactors, type WeightShift } from '../core/learning/ContextEngine';
+import { dateSearchWords } from './searchDateWords';
+import { findNearestPlace, formatPlace, getLoadedPlaceIndex, loadPlaceIndex } from '../core/placeNames';
+import { hasRealGps } from '../core/gpsCoordinates';
 import { pickBestInGroup } from '../core/groupSelection';
 import {
   pushHistory, popHistory, MAX_HISTORY, type HistoryEvent,
@@ -1220,6 +1223,32 @@ applyAccessibleMode(readAccessibleMode());
  * cazul). normalizeForSearch scoate diacriticele din ambele parti, ca "pisica"
  * tastat fara "ă" tot sa gaseasca "pisică".
  */
+/**
+ * Numele localitatii pentru niste coordonate, cu cache pe coordonata rotunjita.
+ *
+ * Rotunjirea la 3 zecimale (~100 m) e ce face diferenta: pozele dintr-o iesire
+ * au coordonate apropiate, dar nu identice, si fara cache fiecare ar cere o
+ * cautare proprie in lista de localitati, la fiecare litera tastata. Cu ea, o
+ * plimbare intreaga costa cateva cautari, nu cateva sute.
+ *
+ * Intoarce null cat timp lista de localitati nu s-a incarcat (se incarca la
+ * deschiderea cautarii — vezi setSearchPanelOpen): cautarea merge fara
+ * localitati pana atunci, nu asteapta dupa ele.
+ */
+const placeNameCache = new Map<string, string | null>();
+function cachedPlaceName(latitude: number, longitude: number, locale: Locale): string | null {
+  if (!hasRealGps(latitude, longitude)) return null;
+  const index = getLoadedPlaceIndex();
+  if (!index) return null;
+  const key = `${locale}|${latitude.toFixed(3)}|${longitude.toFixed(3)}`;
+  const hit = placeNameCache.get(key);
+  if (hit !== undefined) return hit;
+  const place = findNearestPlace(index, latitude, longitude);
+  const name = place ? formatPlace(place, locale, near => t(locale, 'locations.near', { place: near })) : null;
+  placeNameCache.set(key, name);
+  return name;
+}
+
 function matchesSearch(p: PhotoView, normalizedQuery: string, locale: Locale): boolean {
   // Numele fisierului si etichetele de scena erau SINGURELE campuri cautate.
   // Doua consecinte reale, amandoua raportate sau gasite la revizie:
@@ -1242,6 +1271,14 @@ function matchesSearch(p: PhotoView, normalizedQuery: string, locale: Locale): b
   // core/searchSynonyms.ts pentru de ce nu e un dictionar de sinonime.
   const related = relatedSceneTags(normalizedQuery);
   if (related.size && tags.some(tag => related.has(tag))) return true;
+  // Cand a fost facuta ("iulie", "2026", "29 iul") si unde ("Rosiori") — doua
+  // dintre primele lucruri dupa care cauta cineva, si singurele doua care mai
+  // lipseau din lista de mai sus.
+  if (dateSearchWords(p.capturedAt, locale).includes(normalizedQuery)) return true;
+  if (p.gpsLatitude !== undefined && p.gpsLongitude !== undefined) {
+    const place = cachedPlaceName(p.gpsLatitude, p.gpsLongitude, locale);
+    if (place && normalizeForSearch(place).includes(normalizedQuery)) return true;
+  }
   return false;
 }
 
@@ -1445,7 +1482,12 @@ export const useStore = create<AppState>((set, get) => ({
     return ids.length;
   },
   searchPanelOpen: false,
-  setSearchPanelOpen: open => set({ searchPanelOpen: open }),
+  setSearchPanelOpen: open => {
+    // Lista de localitati se incarca la deschiderea cautarii, nu la pornirea
+    // aplicatiei: e un fisier pe care majoritatea sesiunilor nu-l ating deloc.
+    if (open) void loadPlaceIndex();
+    set({ searchPanelOpen: open });
+  },
   duplicatesPanelOpen: false,
   setDuplicatesPanelOpen: open => set({ duplicatesPanelOpen: open }),
   rescueQueueOpen: false,

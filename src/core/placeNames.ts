@@ -222,12 +222,24 @@ export function formatPlace(
  */
 let indexPromise: Promise<PlaceIndex | null> | null = null;
 
+/**
+ * Indexul, DOAR daca s-a incarcat deja. Pentru apelantii care nu pot astepta —
+ * cautarea trece prin toata biblioteca la fiecare litera tastata, deci nu are
+ * cum sa astepte o promisiune per poza. Cat timp intoarce null, cautarea merge
+ * fara localitati; de indata ce lista e gata, incep sa fie gasite.
+ */
+let loadedIndex: PlaceIndex | null = null;
+export function getLoadedPlaceIndex(): PlaceIndex | null {
+  return loadedIndex;
+}
+
 export function loadPlaceIndex(): Promise<PlaceIndex | null> {
   indexPromise ??= (async () => {
     try {
       const response = await fetch(`${import.meta.env.BASE_URL}places/cities.tsv`);
       if (!response.ok) return null;
-      return parsePlaceIndex(await response.text());
+      loadedIndex = parsePlaceIndex(await response.text());
+      return loadedIndex;
     } catch {
       // Build local fara pasul de CI care genereaza lista: ecranele raman pe
       // distanta si coordonate, fara nicio eroare vizibila.
