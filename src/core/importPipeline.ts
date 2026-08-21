@@ -665,6 +665,7 @@ async function processOne(file: File, genre?: string, project?: string, handle?:
   analysis.aiScore = prediction.score;
   analysis.aiFactors = prediction.topFactors;
   analysis.aiUncertainty = prediction.uncertainty;
+  analysis.aiPersonalDelta = prediction.personalDelta;
 
   const status = decidePhotoStatus(prediction.score, analysis, thresholds);
 

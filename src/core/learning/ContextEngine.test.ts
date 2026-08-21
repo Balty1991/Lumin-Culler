@@ -843,3 +843,39 @@ describe('cat de putin se poate baza cineva pe scorul unei poze', () => {
     expect(p.uncertainty).toBeLessThanOrEqual(1);
   });
 });
+
+describe('cat din scor e gustul tau si cat e manualul', () => {
+  it('pe un motor virgin nu pretinde ca te cunoaste', async () => {
+    // Golim modelele: un context NOU se sprijina pe backbone-ul global (vezi
+    // GLOBAL_BLEND_K), iar acela chiar a invatat ceva de la testele de mai sus.
+    // Ca sa verificam premisa "n-a vazut nicio decizie", trebuie sa fie
+    // adevarata si pentru backbone.
+    await db.contextModels.clear();
+    const engine = new ContextEngine();
+    const p = await engine.predict(baseAnalysis({ photoId: 'virgin', faceCount: 1 }), 'test-virgin');
+    // ponderile invatate SUNT inca ancorele, deci nu exista nimic personal
+    expect(p.personalDelta).toBe(0);
+  });
+
+  it('dupa corectii repetate intr-o directie, are ceva al lui de spus', async () => {
+    const engine = new ContextEngine();
+    // poze moi pastrate in mod repetat: gustul se departeaza de manual
+    const moale = baseAnalysis({ photoId: 'moale', sharpness: 35, faceCount: 1, sceneType: 'portrait' });
+    for (let i = 0; i < 25; i++) {
+      await engine.recordCorrection({
+        photoId: `m${i}`, analysis: { ...moale, photoId: `m${i}` },
+        aiDecision: false, userDecision: true, genre: 'test-gust'
+      });
+    }
+    const p = await engine.predict(moale, 'test-gust');
+    expect(Math.abs(p.personalDelta)).toBeGreaterThan(1);
+  });
+
+  it('ramane in -100..100 si nu se sufoca la date corupte', async () => {
+    const engine = new ContextEngine();
+    const p = await engine.predict(baseAnalysis({ photoId: 'corupt', sharpness: NaN, exposure: Infinity }));
+    expect(p.personalDelta).toBeGreaterThanOrEqual(-100);
+    expect(p.personalDelta).toBeLessThanOrEqual(100);
+    expect(Number.isFinite(p.personalDelta)).toBe(true);
+  });
+});

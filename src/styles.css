@@ -2509,6 +2509,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   padding: 11px 13px; display: flex; flex-direction: column; gap: 8px;
 }
 .why-explanation-card p { margin: 0; font-size: 0.82rem; line-height: 1.55; color: var(--text-dim); }
+/* "Ma cunoaste, sau imi recita reguli generale?" — discret, ca o nota de subsol
+   a rationamentului, nu ca o afirmatie de sine statatoare. */
+.why-explanation-card p.why-personal {
+  margin: 2px 0 1px; font-size: .78rem; color: var(--text-faint);
+}
+
 /* Contrafactualul — "a fost cat pe ce". Aceeasi greutate ca linia de moment,
    pentru ca raspunde la o intrebare de acelasi rang: nu ce E poza, ci de ce
    n-a trecut. */

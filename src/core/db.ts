@@ -227,6 +227,12 @@ export interface AnalysisRecord {
    */
   aiUncertainty?: number;
   /**
+   * Cat din `aiScore` vine din gustul utilizatorului si nu din regulile
+   * generale de fotografie — vezi Prediction.personalDelta. -100..100.
+   * Optional: inregistrarile de dinaintea acestei functii nu-l au.
+   */
+  aiPersonalDelta?: number;
+  /**
    * Scorare de GRUP (toate fetele, nu doar cea mai buna) — problema clasica la
    * poze cu mai multe persoane: mereu cineva clipeste. 0..1, fractiunea de fete
    * cu ochii deschisi / care zambesc. Optional: doar cand faceCount > 0.

@@ -851,6 +851,10 @@ export const ro = {
   // Cum sta poza fata de SURORILE ei din aceeasi serie — vezi core/momentComparison.ts.
   'detail.why.almost.keep': 'A fost cât pe ce: fără „{factor}", ar fi ajuns la {score} și ar fi trecut la păstrate.',
   'detail.why.almost.review': 'Fără „{factor}", ar fi ajuns la {score} și ar fi scăpat de respinse.',
+  // "Ma cunoaste, sau imi recita reguli generale?" — vezi personalDelta.
+  'detail.why.personal.general': 'Verdictul vine din reguli generale de fotografie. Din deciziile tale pe acest tip de cadru am strâns {count} — încă nu destule cât să am o părere proprie.',
+  'detail.why.personal.up': '{points} puncte din scor vin din gustul tău, nu din manual: ții la genul ăsta de cadru mai mult decât regula generală. Bazat pe {count} decizii de-ale tale pe acest tip de cadru.',
+  'detail.why.personal.down': '{points} puncte din scor vin din gustul tău, nu din manual: pe astea le-ai trecut mai des decât ar spune regula generală. Bazat pe {count} decizii de-ale tale pe acest tip de cadru.',
   'detail.why.unsure': 'Pe asta nu mă pot baza. Fie e la mijloc între da și nu, fie nu seamănă cu ce am văzut până acum — decide tu, și învăț din alegerea ta.',
   'detail.why.moment.sharpest': 'Cel mai clar dintre cele {frames} cadre ale acestui moment.',
   'detail.why.moment.softerThanSibling': 'Alt cadru din aceleași {frames} e vizibil mai clar.',

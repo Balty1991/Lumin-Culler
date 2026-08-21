@@ -217,11 +217,21 @@ const AI_SELECT_THRESHOLD = 65;
  */
 const UNSURE_THRESHOLD = 0.75;
 
+/**
+ * Sub atatea puncte, diferenta dintre "ce spune manualul" si "ce ai aratat tu"
+ * e prea mica pentru a fi numita gust. Motorul spune atunci ca inca nu are
+ * nimic al lui de spus — ceea ce e mai onest decat sa prezinte doua puncte de
+ * zgomot drept cunoastere personala.
+ */
+const PERSONAL_MIN = 3;
+
 function WhyExplanation({ photo }: { photo: PhotoView }) {
   const locale = useStore(s => s.locale);
   const openEdit = useStore(s => s.openEdit);
   const groupOf = useStore(s => s.groupOf);
   const [paragraphs, setParagraphs] = useState<string[] | null>(null);
+  /** Pe cate decizii de-ale utilizatorului se sprijina modelul acestui context. */
+  const [decisionCount, setDecisionCount] = useState(0);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
 
   /**
@@ -263,6 +273,7 @@ function WhyExplanation({ photo }: { photo: PhotoView }) {
     void Promise.all([db.analyses.get(photo.id), db.contextModels.get(photo.contextKey)]).then(
       ([analysis, contextModel]) => {
         if (!alive || !analysis) return;
+        setDecisionCount(contextModel?.sampleCount ?? 0);
         const aiDecision = photo.aiScore >= AI_SELECT_THRESHOLD;
         const userDecision = photo.status === 'selected' ? true : photo.status === 'rejected' ? false : null;
         setParagraphs(generateExplanation(analysis as AnalysisRecord, aiDecision, userDecision, contextModel ?? null, locale));
@@ -293,6 +304,19 @@ function WhyExplanation({ photo }: { photo: PhotoView }) {
             contributii, deci scoaterea uneia e o scadere simpla in log-odds —
             chiar aritmetica din care a iesit scorul, citita invers.
             Vezi core/scoreCounterfactual.ts. */}
+        {/* Raspunsul la "ma cunoaste, sau imi recita reguli generale?". Se
+            calculeaza ruland aceleasi trasaturi si cu ponderile din manual, si
+            cu cele invatate din deciziile tale — vezi personalDelta in
+            learning/ContextEngine.ts. Fiecare afirmatie de preferinta isi spune
+            si baza: fara numarul de decizii, "asa iti place tie" e o pretentie,
+            nu o observatie. */}
+        <p className="why-personal">
+          {photo.aiPersonalDelta === undefined || Math.abs(photo.aiPersonalDelta) < PERSONAL_MIN
+            ? t(locale, 'detail.why.personal.general', { count: decisionCount })
+            : t(locale, photo.aiPersonalDelta > 0 ? 'detail.why.personal.up' : 'detail.why.personal.down', {
+                points: Math.abs(photo.aiPersonalDelta), count: decisionCount
+              })}
+        </p>
         {counterfactual && (
           <p className="why-counterfactual">
             {t(locale, counterfactual.verdict === 'selected' ? 'detail.why.almost.keep' : 'detail.why.almost.review', {

@@ -176,6 +176,8 @@ export interface PhotoView {
   aiFactors: { feature: string; contribution: number }[];
   /** Cat de putin se poate baza cineva pe aiScore pentru ACEASTA poza — vezi AnalysisRecord.aiUncertainty. */
   aiUncertainty?: number;
+  /** Cat din aiScore vine din gustul tau, nu din manual — vezi AnalysisRecord.aiPersonalDelta. */
+  aiPersonalDelta?: number;
   personNames: string[];
   /** Persoanele cunoscute recunoscute in ACEASTA poza, cu similaritatea (0..1) cea mai buna dintre fetele care le corespund — "confidence score" (plan 3.2.3). */
   personMatches: { name: string; similarity: number }[];
@@ -875,6 +877,7 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     iptcKeywords: photo.keywordsOverride ?? analysis?.iptcKeywords,
     aiFactors: analysis?.aiFactors ?? [],
     aiUncertainty: analysis?.aiUncertainty,
+    aiPersonalDelta: analysis?.aiPersonalDelta,
     personNames: analysis
       ? Array.from(new Set(analysis.faces.map(f => f.personName).filter((n): n is string => !!n)))
       : [],
@@ -3001,7 +3004,7 @@ export const useStore = create<AppState>((set, get) => ({
       if (!analysis || !photoRecord) return;
       const prediction = await contextEngine.predict(analysis, photoRecord.genre);
       const newStatus = decidePhotoStatus(prediction.score, analysis, thresholds);
-      await db.analyses.update(p.id, { aiScore: prediction.score, aiFactors: prediction.topFactors, aiUncertainty: prediction.uncertainty });
+      await db.analyses.update(p.id, { aiScore: prediction.score, aiFactors: prediction.topFactors, aiUncertainty: prediction.uncertainty, aiPersonalDelta: prediction.personalDelta });
       if (newStatus !== photoRecord.status) {
         changes.push({ photoId: p.id, previousStatus: photoRecord.status });
         await db.photos.update(p.id, { status: newStatus });

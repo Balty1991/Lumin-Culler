@@ -31,6 +31,23 @@ export interface Prediction {
   score: number;          // 0..100, calibrated probability * 100
   probability: number;    // 0..1 P(user selects this photo)
   contextKey: string;
+  /**
+   * Cat din scor vine din GUSTUL TAU si nu din regulile generale de fotografie.
+   *
+   * Se calculeaza ruland aceleasi trasaturi de doua ori: o data cu ponderile
+   * invatate din deciziile tale, o data cu ponderile din manual (priorAnchor) —
+   * adica exact ce ar fi spus un motor care nu te-a vazut niciodata. Diferenta
+   * dintre cele doua scoruri e singurul mod cinstit de a raspunde la intrebarea
+   * "ma cunoaste, sau imi recita reguli generale?".
+   *
+   * Pozitiv = tu tii la genul asta de cadru mai mult decat spune manualul.
+   * Aproape de zero = motorul inca nu are nimic al lui de spus despre poza asta,
+   * si nu trebuie sa pretinda ca are.
+   *
+   * -100..100. Costa un singur produs scalar in plus, pe trasaturi deja
+   * normalizate — nimic nou de calculat si niciun pixel citit in plus.
+   */
+  personalDelta: number;
   confidence: 'cold' | 'warming' | 'trained';  // based on sampleCount
   /**
    * Cat de putin se poate baza cineva pe scorul de mai sus, PENTRU ACEASTA
@@ -856,10 +873,20 @@ export class ContextEngine {
     const alpha = model.sampleCount / (model.sampleCount + GLOBAL_BLEND_K);
 
     let z = alpha * model.bias + (1 - alpha) * globalModel.bias;
+    /**
+     * Acelasi calcul, dar cu ponderile DIN MANUAL (priorAnchor) in locul celor
+     * invatate — adica ce ar fi spus despre poza asta un motor care n-a vazut
+     * niciodata nicio decizie de-a ta. Diferenta dintre cele doua e singurul
+     * mod cinstit de a raspunde la "ma cunoaste, sau imi recita reguli
+     * generale de fotografie?".
+     */
+    let zPrior = 0;
     const contributions: { feature: string; contribution: number }[] = [];
     for (const k of Object.keys(normalized)) {
       const wContext = model.weights[k] ?? 0;
       const wGlobal = globalModel.weights[k] ?? 0;
+      const priorRaw = priorAnchor(k) * normalized[k];
+      if (Number.isFinite(priorRaw)) zPrior += priorRaw;
       const raw = alpha * wContext * normalized[k] + (1 - alpha) * wGlobal * globalNormalized[k];
       // A doua poarta impotriva NaN, dupa cea din normalize(): acolo se opreste
       // o VALOARE corupta, aici o PONDERE corupta (model restaurat dintr-un
@@ -871,10 +898,12 @@ export class ContextEngine {
       contributions.push({ feature: k, contribution });
     }
     const probability = Number.isFinite(z) ? 1 / (1 + Math.exp(-z)) : 0.5;
+    const priorProbability = Number.isFinite(zPrior) ? 1 / (1 + Math.exp(-zPrior)) : 0.5;
     contributions.sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution));
 
     return {
       score: Math.round(probability * 100),
+      personalDelta: Math.round((probability - priorProbability) * 100),
       probability,
       uncertainty: uncertaintyOf(probability, normalized),
       contextKey,
