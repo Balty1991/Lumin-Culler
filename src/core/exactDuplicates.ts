@@ -1,3 +1,4 @@
+import type { PhotoStatus } from './db';
 /**
  * core/exactDuplicates.ts
  *
@@ -35,7 +36,7 @@ export interface DuplicateCandidate {
   capturedAt?: number;
   /** Momentul importului — plasa de rezerva cand nu exista ora capturii. */
   importedAt: number;
-  status: 'selected' | 'review' | 'rejected' | 'pending';
+  status: PhotoStatus;
 }
 
 export interface DuplicateSet {

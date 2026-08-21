@@ -1,3 +1,4 @@
+import type { PhotoStatus } from './db';
 /**
  * core/rescueQueue.ts
  *
@@ -27,7 +28,7 @@ export type RescueFix = 'highlights' | 'shadows' | 'straighten' | 'exposure' | '
 
 export interface RescueCandidate {
   id: string;
-  status: 'selected' | 'review' | 'rejected' | 'pending';
+  status: PhotoStatus;
   aiScore: number;
   sharpness: number;
   exposure: number;

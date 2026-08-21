@@ -444,6 +444,7 @@ export default function App() {
   const counts = useMemo(() => ({
     all: secondaryFiltered.length,
     selected: secondaryFiltered.filter(p => p.status === 'selected').length,
+    candidate: secondaryFiltered.filter(p => p.status === 'candidate').length,
     review: secondaryFiltered.filter(p => p.status === 'review').length,
     rejected: secondaryFiltered.filter(p => p.status === 'rejected').length,
     series: secondaryFiltered.filter(p => p.groupId).length,

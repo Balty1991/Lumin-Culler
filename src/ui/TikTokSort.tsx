@@ -7,7 +7,7 @@ import { explainFactors } from '../core/learning/ContextEngine';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { CollectionPicker } from './CollectionPicker';
 import { AdjustedImage } from './AdjustedImage';
-import { XIcon, HeartIcon, UndoIcon, ChevronUpIcon, SparkleIcon, LayersIcon } from './icons';
+import { XIcon, HeartIcon, UndoIcon, ChevronUpIcon, SparkleIcon, LayersIcon, BookmarkIcon} from './icons';
 import { t, type Locale } from '../i18n';
 
 const SWIPE_COMMIT = 80; // px de tras (sus SAU jos) pentru a schimba pozitia in coada, fara sa decida nimic
@@ -208,7 +208,7 @@ export function TikTokSort() {
 
   const goNext = () => setIndex(i => Math.min(i + 1, total));
   const goPrev = () => setIndex(i => Math.max(i - 1, 0));
-  const decide = (status: 'selected' | 'rejected') => {
+  const decide = (status: 'selected' | 'rejected' | 'candidate') => {
     if (!current) return;
     void setStatus(current.id, status);
     goNext();
@@ -462,6 +462,17 @@ export function TikTokSort() {
             <span className="tiktok-rail-item rail-album">
               <CollectionPicker photoIds={[current.id]} iconOnly triggerClassName="tiktok-rail-btn album" />
               <span className="tiktok-rail-label">{tr('tiktok.rail.album')}</span>
+            </span>
+            {/* A treia decizie. Fara ea, orice cadru la care omul se codeste
+                trebuie fortat intr-un "da" sau intr-un "nu" — iar cadrul afectiv
+                sau comercial pe care nu vrei sa-l pierzi, dar nici nu-l dai inca
+                mai departe, n-avea unde sa mearga. Vezi PhotoStatus in core/db.ts:
+                nicio operatie automata nu-l mai atinge dupa aceea. */}
+            <span className="tiktok-rail-item rail-candidate">
+              <button className="tiktok-rail-btn candidate" onClick={() => decide('candidate')} aria-label={tr('tiktok.rail.candidate')}>
+                <BookmarkIcon />
+              </button>
+              <span className="tiktok-rail-label">{tr('tiktok.rail.candidate')}</span>
             </span>
             <span className="tiktok-rail-item rail-del">
               <button className="tiktok-rail-btn del" onClick={() => decide('rejected')} aria-label={tr('tiktok.rail.delete')}>

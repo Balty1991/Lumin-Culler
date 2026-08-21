@@ -31,8 +31,11 @@ import { getDirectoryPicker, writeTextFile, downloadBlob, downloadZip, dedupeFil
 
 export type XmpDecision = Exclude<PhotoRecord['status'], 'pending'>;
 
-const RATING: Record<XmpDecision, number> = { selected: 5, rejected: -1, review: 0 };
-const LABEL: Record<XmpDecision, string> = { selected: 'Green', rejected: 'Red', review: 'Yellow' };
+// Candidatul primeste 3 stele si eticheta albastra: in Lightroom si Bridge asta
+// e conventia pentru "de revenit", distincta si de verde (ales) si de galben
+// (nedecis inca). Nu 5: nu e o alegere finala. Nu -1: nu e un refuz.
+const RATING: Record<XmpDecision, number> = { selected: 5, candidate: 3, rejected: -1, review: 0 };
+const LABEL: Record<XmpDecision, string> = { selected: 'Green', candidate: 'Blue', rejected: 'Red', review: 'Yellow' };
 
 const SCENE_KEYWORD: Record<string, string> = {
   portrait: 'Portret', child_portrait: 'Portret copil', group: 'Grup', family_group: 'Grup familie',

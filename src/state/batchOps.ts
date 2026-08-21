@@ -14,8 +14,22 @@ import { uncertainty } from '../core/uncertainty';
  * actiune in masa) si pe cele deja RESPINSE (no-op, doar ar antrena inutil
  * modelul a doua oara pe aceeasi decizie).
  */
+/**
+ * Poza asupra careia omul si-a exprimat deja o hotarare — nicio operatie in
+ * masa n-are voie s-o rastoarne.
+ *
+ * `candidate` intra aici alaturi de `selected` si `rejected`, si asta e chiar
+ * rostul lui: e o decizie A OMULUI ("o tin deoparte"), nu o stare de asteptare.
+ * Daca Auto-Cull sau rezolvarea seriilor ar putea trece peste ea, butonul
+ * "Candidat" n-ar insemna nimic — ar fi doar un "poate" pe care masina il
+ * ignora.
+ */
+export function isUserDecided(status: PhotoView['status']): boolean {
+  return status === 'selected' || status === 'rejected' || status === 'candidate';
+}
+
 export function selectBulkRejectTargets(photos: PhotoView[], threshold: number): PhotoView[] {
-  return photos.filter(p => p.status !== 'selected' && p.status !== 'rejected' && p.aiScore < threshold);
+  return photos.filter(p => !isUserDecided(p.status) && p.aiScore < threshold);
 }
 
 export interface GroupResolution {
@@ -48,7 +62,7 @@ export function resolveGroups(photos: PhotoView[]): GroupResolution[] {
     const keep = (manuallySelected.length ? manuallySelected : members)
       .reduce((a, b) => (a.aiScore >= b.aiScore ? a : b));
     const rejectIds = members
-      .filter(m => m.id !== keep.id && m.status !== 'selected' && m.status !== 'rejected')
+      .filter(m => m.id !== keep.id && !isUserDecided(m.status))
       .map(m => m.id);
     return { groupId, keepId: keep.id, rejectIds };
   });
@@ -107,7 +121,7 @@ export interface TopPercentResult {
  * cine ramane in procentul de sus (stable sort).
  */
 export function selectTopPercent(photos: PhotoView[], percent: number): TopPercentResult {
-  const undecided = photos.filter(p => p.status !== 'selected' && p.status !== 'rejected');
+  const undecided = photos.filter(p => !isUserDecided(p.status));
   // Aceeasi ordine ca la highlights: un document nu trebuie sa intre in pozele
   // pastrate doar pentru ca a iesit optic curat, iar o poza cu cineva drag nu
   // trebuie sa cada sub el pentru cateva puncte de claritate.

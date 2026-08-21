@@ -1,3 +1,4 @@
+import type { PhotoStatus } from '../core/db';
 /**
  * state/resumeProject.ts
  *
@@ -19,7 +20,7 @@
 export interface ProjectPhoto {
   /** Numele proiectului. Gol/absent = poze fara proiect. */
   project?: string;
-  status: 'selected' | 'review' | 'rejected' | 'pending';
+  status: PhotoStatus;
 }
 
 export interface ResumeCandidate {
@@ -42,9 +43,13 @@ export const MIN_REMAINING = 3;
  */
 export const MIN_PERCENT = 10;
 
-/** `review` inseamna "am vazut-o, dar nu m-am hotarat" — decizie inceputa, nu luata. */
+/**
+ * `review` inseamna "am vazut-o, dar nu m-am hotarat" — decizie inceputa, nu
+ * luata. `candidate` inseamna in schimb ca omul CHIAR s-a hotarat: sa n-o
+ * arunce si sa n-o dea inca mai departe. Progresul unui proiect o numara.
+ */
 function isDecided(status: ProjectPhoto['status']): boolean {
-  return status === 'selected' || status === 'rejected';
+  return status === 'selected' || status === 'rejected' || status === 'candidate';
 }
 
 /**

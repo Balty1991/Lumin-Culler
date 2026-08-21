@@ -45,13 +45,24 @@ describe('styles.concept.css — corecturile raman dupa regulile pe care le anul
   });
 
   it('ordinea vizuala a barei de decizie trece pe celule, nu pe butoane', () => {
-    for (const cls of ['rail-del', 'rail-album', 'rail-keep', 'rail-undo']) {
+    for (const cls of ['rail-del', 'rail-album', 'rail-candidate', 'rail-keep', 'rail-undo']) {
       expect(css).toContain(`.tiktok-rail .${cls} { order:`);
     }
     expect(winsOver(
-      '.tiktok-rail-btn.keep,\n  .tiktok-rail-btn.del,\n  .tiktok-rail .album,\n  .tiktok-rail-btn.undo { order: 0; }',
-      '.tiktok-rail-btn.keep {\n  order:3;'
+      '.tiktok-rail-btn.keep,\n  .tiktok-rail-btn.del,\n  .tiktok-rail .album,\n  .tiktok-rail-btn.candidate,\n  .tiktok-rail-btn.undo { order: 0; }',
+      '.tiktok-rail-btn.keep {\n  order:4;'
     )).toBe(true);
+  });
+
+  it('bara de decizie are exact atatea coloane cate celule', () => {
+    // Bug real: la adaugarea deciziei "Candidat", numarul de coloane era fixat
+    // cu !important la patru intr-o corectura mai tarzie, iar a cincea celula
+    // ("Anuleaza") cadea pe un al doilea rand, peste continutul de deasupra.
+    // Numarul de celule il da TikTokSort.tsx; testul le tine legate.
+    const celule = ['rail-del', 'rail-album', 'rail-candidate', 'rail-keep', 'rail-undo'];
+    const coloane = css.match(/grid-template-columns: repeat\((\d+), minmax\(0, 1fr\)\) !important;/);
+    expect(coloane).not.toBeNull();
+    expect(Number(coloane![1])).toBe(celule.length);
   });
 
   it('spatiul de lucru e un strat opac, nu o pagina transparenta peste ecranul de acasa', () => {

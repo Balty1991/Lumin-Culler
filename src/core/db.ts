@@ -8,6 +8,21 @@ import type { EditAdjustments } from './imageAdjust';
 
 // ── Domain types ─────────────────────────────────────────────────────────────
 
+/**
+ * Starea unei poze in triaj.
+ *
+ * `candidate` e o decizie A OMULUI, nu a motorului, si de asta e distincta de
+ * `review`: acolo AI-ul spune "nu stiu, uita-te tu", aici omul spune "o tin
+ * deoparte". Opreste alegerea falsa dintre "pastrez" si "arunc" — cadrul
+ * afectiv sau comercial pe care nu vrei sa-l pierzi, dar nici nu-l dai inca
+ * mai departe. Nicio operatie automata nu are voie sa-l atinga.
+ *
+ * Alias exportat ca sa nu mai fie repetat in fiecare modul care primeste o
+ * forma minimala de poza — exact locurile care ramaneau in urma la fiecare
+ * stare noua.
+ */
+export type PhotoStatus = 'pending' | 'selected' | 'candidate' | 'rejected' | 'review';
+
 export interface PhotoRecord {
   id: string;
   fileName: string;
@@ -17,7 +32,7 @@ export interface PhotoRecord {
   height: number;
   dHash: string;
   groupId?: string;         // seria/duplicatele din care face parte
-  status: 'pending' | 'selected' | 'rejected' | 'review';
+  status: PhotoStatus;
   /**
    * Dimensiunea fisierului original (bytes, din File.size la import) — plan
    * modernizare, ecranul Acasa: singurul mod REAL de a arata "X GB ocupate"/

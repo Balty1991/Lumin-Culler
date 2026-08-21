@@ -40,7 +40,7 @@ import {
   pushHistory, popHistory, MAX_HISTORY, type HistoryEvent,
   pushBatchHistory, popBatchHistory, type BatchHistoryEvent, type FieldBatchHistoryEvent
 } from './history';
-import { selectBulkRejectTargets, resolveGroups, selectTopPercent, selectHighlights, selectBlinks, selectBlurry, selectDeletableRejected } from './batchOps';
+import { selectBulkRejectTargets, resolveGroups, selectTopPercent, selectHighlights, selectBlinks, selectBlurry, selectDeletableRejected, isUserDecided } from './batchOps';
 import {
   isNativeMediaLibraryAvailable, deleteNativePhotos, readGalleryOverview, readGalleryDateRange, pickPhotosInRange,
   readGalleryFolders, pickPhotosInFolder, getPhotosAccess, readNativePhotoLocations
@@ -207,7 +207,7 @@ export interface PhotoView {
   mediaUri?: string;
 }
 
-export type FilterKey = 'all' | 'selected' | 'review' | 'rejected' | 'series' | 'blinks' | 'blurry' | 'goldenHour' | 'highlights';
+export type FilterKey = 'all' | 'selected' | 'candidate' | 'review' | 'rejected' | 'series' | 'blinks' | 'blurry' | 'goldenHour' | 'highlights';
 
 /** Cheie de proiectFilter pentru pozele fara proiect ales — un nume de proiect real nu poate coincide cu acest sentinel (spatii, gol dupa trim). */
 export const NO_PROJECT_KEY = 'no-project';
@@ -2568,13 +2568,17 @@ export const useStore = create<AppState>((set, get) => ({
 
   setStatus: async (id, status) => {
     const previousStatus = get().photos.find(p => p.id === id)?.status;
-    const isRealChange = (status === 'selected' || status === 'rejected') && status !== previousStatus;
+    // `candidate` intra si el aici: e o decizie a omului, deci merita aceeasi
+    // confirmare haptica. NU intra insa in ramura de invatare de mai jos —
+    // "o tin deoparte" nu e o judecata absoluta despre poza, si a o antrena ca
+    // pastrare ar invata motorul exact ce omul a refuzat sa spuna.
+    const isRealChange = isUserDecided(status) && status !== previousStatus;
     // Feedback haptic pentru ORICE decizie (tastatura, butoane tap, swipe) — bug real gasit
     // de auditul QA: inainte, doar gestul de swipe din DetailView vibra; utilizatorii care
     // apasa butoanele mari Selecteaza/Respinge (probabil majoritatea pe telefon, swipe-ul
     // cere mai multa precizie) nu primeau niciodata confirmarea haptica.
     if (isRealChange) {
-      vibrate(status === 'selected' ? 14 : [12, 40, 12]);
+      vibrate(status === 'selected' ? 14 : status === 'candidate' ? [10, 30, 10] : [12, 40, 12]);
     }
     await db.photos.update(id, { status });
     set(state => ({ photos: state.photos.map(p => (p.id === id ? { ...p, status } : p)) }));
@@ -3917,6 +3921,7 @@ export const useStore = create<AppState>((set, get) => ({
     let base: PhotoView[];
     switch (filter) {
       case 'selected': base = photosVisible.filter(p => p.status === 'selected'); break;
+      case 'candidate': base = photosVisible.filter(p => p.status === 'candidate'); break;
       // "de verificat" incepe sortat dupa cat de greu e cazul: deciziile
       // limpezi primele, cele cu adevarat ambigue la coada, ca sa treci intai
       // prin cele multe si usoare.

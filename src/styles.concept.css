@@ -1738,7 +1738,8 @@ body:before {
   right:12px;
   bottom:calc(9px + env(safe-area-inset-bottom));
   display:grid;
-  grid-template-columns:1fr auto 1fr auto;
+  /* del · album · candidat · pastrez · anuleaza */
+  grid-template-columns:1fr auto auto 1fr auto;
   align-items:center;
   gap:10px;
   padding:9px;
@@ -1761,7 +1762,7 @@ body:before {
 }
 
 .tiktok-rail-btn.keep {
-  order:3;
+  order:4;
   width:100%;
   color:#06100e;
   background:var(--desk-aqua);
@@ -1780,8 +1781,17 @@ body:before {
   background:#ffffff14;
 }
 
+/* Candidatul nu e nici verde, nici rosu: e "inca nu m-am hotarat sa dau
+   drumul". Chihlimbariul e aceeasi culoare pe care aplicatia o foloseste peste
+   tot pentru "de verificat", deci se citeste fara sa fie invatat. */
+.tiktok-rail-btn.candidate {
+  order:3;
+  color:#0d0a03;
+  background:rgb(var(--review-rgb));
+}
+
 .tiktok-rail-btn.undo {
-  order:4;
+  order:5;
   width:48px;
   height:48px;
   color:#bfc6d4;
@@ -1795,6 +1805,12 @@ body:before {
 @media (max-width: 380px) {
   .tiktok-rail {
     gap:6px;
+  }
+  /* Cu cinci celule, iconitele auto se string primele — butoanele mari de
+     decizie raman late. */
+  .tiktok-rail-btn.candidate,
+  .tiktok-rail .album {
+    width:46px;
   }
   .tiktok-rail-btn {
     height:52px;
@@ -2986,14 +3002,20 @@ body:before {
 /* Preview v3: acțiunea „Toate fotografiile” este o navigare în biblioteca completă. */
 .home-view-all-cta { min-height: 52px; border: 2px solid #c9fff4 !important; box-shadow: 0 0 0 2px rgba(103,228,207,.18), 0 12px 28px rgba(0,0,0,.28); }
 
-/* Preview v3: acțiunile Păstrez / Album / Șterg sunt unități compacte, lizibile și în safe-area. */
+/* Preview v3: acțiunile Șterg / Album / Candidat / Păstrez / Anulează sunt unități
+   compacte, lizibile și în safe-area.
+
+   CINCI coloane, nu patru: la adăugarea deciziei „Candidat" bara avea în continuare
+   patru coloane fixate cu !important aici, iar a cincea celulă („Anulează") cădea pe
+   un al doilea rând, peste conținutul de deasupra. Numărul de coloane trebuie să
+   urmeze numărul de celule, altfel fiecare acțiune nouă rupe bara în tăcere. */
 @media (max-width: 600px) {
   .tiktok-rail {
     left: 14px !important;
     right: 14px !important;
     bottom: calc(10px + env(safe-area-inset-bottom)) !important;
     display: grid !important;
-    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
     align-items: end !important;
     gap: 6px !important;
     padding: 11px 8px 9px !important;
@@ -3615,14 +3637,22 @@ body:before {
    celula. Ordinea vizuala din referinta ramane neschimbata. */
 @media (max-width: 600px) {
   .tiktok-rail-item { display: flex; }
+  /* Cu cinci celule, eticheta poate fi mai lata decat coloana ("Anulează",
+     "Candidat" depasesc butonul de 48px). Se taie eticheta, nu se lateste
+     celula — butonul ramane la dimensiunea lui, deci tinta de atingere nu scade. */
+  .tiktok-rail-label {
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
   .tiktok-rail-btn.keep,
   .tiktok-rail-btn.del,
   .tiktok-rail .album,
+  .tiktok-rail-btn.candidate,
   .tiktok-rail-btn.undo { order: 0; }
   .tiktok-rail .rail-del { order: 1; }
   .tiktok-rail .rail-album { order: 2; }
-  .tiktok-rail .rail-keep { order: 3; }
-  .tiktok-rail .rail-undo { order: 4; }
+  .tiktok-rail .rail-candidate { order: 3; }
+  .tiktok-rail .rail-keep { order: 4; }
+  .tiktok-rail .rail-undo { order: 5; }
 }
 
 /* (4) Spatiul de lucru se deschidea peste ecranul de acasa, transparent.

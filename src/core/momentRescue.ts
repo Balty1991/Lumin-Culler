@@ -1,3 +1,4 @@
+import type { PhotoStatus } from './db';
 /**
  * core/momentRescue.ts
  * Cel mai bun cadru al unui moment nu se arunca niciodata singur.
@@ -22,7 +23,7 @@
 
 export interface MomentMember {
   id: string;
-  status: 'pending' | 'review' | 'selected' | 'rejected';
+  status: PhotoStatus;
 }
 
 /**

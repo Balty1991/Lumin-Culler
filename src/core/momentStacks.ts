@@ -1,3 +1,4 @@
+import type { PhotoStatus } from './db';
 /**
  * core/momentStacks.ts
  *
@@ -29,7 +30,7 @@ export interface MomentPhoto {
   /** Momentul capturii (epoch ms). Fara el, poza nu poate intra in niciun moment. */
   capturedAt?: number;
   aiScore: number;
-  status: 'selected' | 'review' | 'rejected' | 'pending';
+  status: PhotoStatus;
   /** Seria de cadre cvasi-identice din care face parte, daca exista. */
   groupId?: string;
   /** Cate fete s-au detectat. Decide ce se propune dintr-un moment — vezi pickTopFrames. */

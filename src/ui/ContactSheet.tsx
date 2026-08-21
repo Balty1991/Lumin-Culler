@@ -9,6 +9,7 @@ import { t } from '../i18n';
 
 const STATUS_KEY: Record<PhotoRecord['status'], string> = {
   selected: 'contactSheet.status.selected',
+  candidate: 'contactSheet.status.candidate',
   rejected: 'contactSheet.status.rejected',
   review: 'contactSheet.status.review',
   pending: 'contactSheet.status.pending'
