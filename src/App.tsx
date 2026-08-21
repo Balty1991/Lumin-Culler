@@ -38,6 +38,7 @@ import { InstallPrompt } from './ui/InstallPrompt';
 import { BackupReminder } from './ui/BackupReminder';
 import { FreeAllowanceNotice } from './ui/FreeAllowanceNotice';
 import { ImportReminder } from './ui/ImportReminder';
+import { EnrollPeopleNudge } from './ui/EnrollPeopleNudge';
 import { MemoryBanner } from './ui/MemoryBanner';
 import { GallerySupervisorBanner } from './ui/GallerySupervisorBanner';
 import { PhotosAccessNotice } from './ui/PhotosAccessNotice';
@@ -777,6 +778,7 @@ export default function App() {
             <InstallPrompt />
             <BackupReminder />
             <ImportReminder onAddPhotos={() => void onAddPhotosClick()} />
+            <EnrollPeopleNudge />
             <FreeAllowanceNotice />
             <GallerySupervisorBanner />
           </div>
