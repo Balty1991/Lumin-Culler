@@ -456,7 +456,7 @@ export const en: Record<TranslationKey, string> = {
   'guide.editing.title': 'Editing',
   'guide.editing.p1': 'AUTO looks at the face in the photo, not at the histogram. On a backlit photo — the child in front of the window — the frame is bright but the subject is dark: Auto lifts, it does not darken.',
   'guide.editing.p2': 'Manually you get four groups: LIGHT (exposure, contrast, highlights, shadows, whites, blacks), COLOUR, DETAIL and EFFECTS. Highlights/shadows recover detail; whites/blacks move the ends of the scale — that is why a washed-out photo is fixed with blacks, not with shadows.',
-  'guide.editing.p3': 'Beyond the sliders: curves per channel, selective control points, spot healing and cropping.',
+  'guide.editing.p3': 'Beyond the sliders: curves per channel, selective control points, spot retouching and cropping.',
   'guide.editing.p4': 'Hold "the original" to see the untouched photo. Nothing is written over your file: edits are kept separately and applied on export.',
 
   'guide.cleanup.title': 'Cleaning up',
@@ -1233,7 +1233,7 @@ export const en: Record<TranslationKey, string> = {
   'edit.color.magenta': 'Magenta — flowers, clothing',
   'edit.tool.curves': 'Curves',
   'edit.tool.selective': 'Selective',
-  'edit.tool.heal': 'Healing',
+  'edit.tool.heal': 'Retouch',
   'edit.tool.crop': 'Crop',
 
   'edit.curves.channel': 'Channel',
@@ -1263,8 +1263,8 @@ export const en: Record<TranslationKey, string> = {
   'edit.heal.hint': 'Drag your finger over what you want gone. The area fills in with the surrounding texture when you lift your finger.',
   'edit.heal.size': 'Brush',
   'edit.heal.undo': 'Undo last',
-  'edit.heal.count.one': '{count} area healed',
-  'edit.heal.count.other': '{count} areas healed',
+  'edit.heal.count.one': '{count} area retouched',
+  'edit.heal.count.other': '{count} areas retouched',
   'edit.auto.crop': 'crop',
   'edit.auto.straighten': 'horizon straighten',
   'edit.auto.applied': 'Auto applied: {list}.',

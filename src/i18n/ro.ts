@@ -466,7 +466,7 @@ export const ro = {
   'guide.editing.title': 'Editarea',
   'guide.editing.p1': 'AUTO se uită la fața din poză, nu la histogramă. Pe o poză în contralumină — copilul în fața ferestrei — cadrul e strălucitor, dar subiectul e întunecat: Auto luminează, nu întunecă.',
   'guide.editing.p2': 'Manual ai patru grupe: LUMINĂ (expunere, contrast, lumini, umbre, alburi, negruri), CULOARE, DETALIU și EFECTE. Lumini/umbre recuperează detaliu; alburi/negruri mută capetele scalei — de aia o poză „spălată" se repară cu negruri, nu cu umbre.',
-  'guide.editing.p3': 'Dincolo de slidere: curbe pe fiecare canal, puncte de control selective, vindecare de pete și decupare.',
+  'guide.editing.p3': 'Dincolo de slidere: curbe pe fiecare canal, puncte de control selective, retuș de pete și decupare.',
   'guide.editing.p4': 'Ține apăsat pe „originalul" ca să vezi poza neatinsă. Nimic nu se scrie peste fișierul tău: editările stau separat și se aplică la export.',
 
   'guide.cleanup.title': 'Curățenia',
@@ -1263,7 +1263,7 @@ export const ro = {
   'edit.color.magenta': 'Magenta — flori, haine',
   'edit.tool.curves': 'Curbe',
   'edit.tool.selective': 'Selectiv',
-  'edit.tool.heal': 'Vindecare',
+  'edit.tool.heal': 'Retuș',
   'edit.tool.crop': 'Decupare',
 
   // --- Curba tonală ---
@@ -1292,12 +1292,12 @@ export const ro = {
   'edit.selective.structure': 'Structură',
   'edit.selective.limit': 'Maximum {count} puncte de control pe o poză.',
 
-  // --- Vindecare ---
+  // --- Retus ---
   'edit.heal.hint': 'Trage degetul peste ce vrei să dispară. Zona se umple cu textura din jur când ridici degetul.',
   'edit.heal.size': 'Pensulă',
   'edit.heal.undo': 'Anulează ultima',
-  'edit.heal.count.one': '{count} zonă vindecată',
-  'edit.heal.count.other': '{count} zone vindecate',
+  'edit.heal.count.one': '{count} zonă retușată',
+  'edit.heal.count.other': '{count} zone retușate',
   'edit.auto.crop': 'recadrare',
   'edit.auto.straighten': 'îndreptare orizont',
   'edit.auto.applied': 'Auto aplicat: {list}.',
