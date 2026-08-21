@@ -773,6 +773,11 @@ export const ro = {
   'detail.reason.why': 'De ce?',
   'detail.stat.score': 'Scor AI',
   // Rubrica Metrici, pe grupe — vezi core/metricSummary.ts.
+  // Cei patru piloni ai verdictului — vezi core/verdictPillars.ts.
+  'pillar.technical': 'TEHNIC',
+  'pillar.series': 'DIN SERIE',
+  'pillar.personal': 'GUSTUL TĂU',
+  'pillar.delivery': 'REPARABIL',
   'metrics.group.technical': 'TEHNIC',
   'metrics.group.subject': 'SUBIECT',
   'metrics.group.framing': 'ÎNCADRARE',

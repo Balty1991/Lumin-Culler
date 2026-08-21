@@ -2416,6 +2416,26 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 /* ── Stat-tile-uri compacte (panoul de detaliu) — dashboard, nu paragraf de text ── */
 /* compacte intentionat — DetailView trebuie sa incapa integral fara scroll
    pe cat mai multe device-uri, chiar cu 8 tile-uri + motive + persoana + serie */
+/* Cei patru piloni ai verdictului. Nu sunt dale de metrici: sunt raspunsul la
+   patru intrebari diferite, si trebuie sa se citeasca dintr-o privire, unul
+   langa altul. De asta au bara — comparatia intre ei conteaza mai mult decat
+   valoarea fiecaruia. */
+.pillar-row {
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 10px;
+  margin: 12px 0 4px;
+}
+.pillar { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.pillar-value { font-size: 1.1rem; font-weight: 700; color: var(--text); line-height: 1; }
+.pillar-bar {
+  display: block; height: 4px; border-radius: 999px; background: var(--surface-2);
+  border: 1px solid var(--line); overflow: hidden;
+}
+.pillar-bar i { display: block; height: 100%; background: var(--accent); transition: width .25s var(--ease); }
+.pillar-label {
+  font-size: .6rem; font-weight: 800; letter-spacing: .09em; color: var(--text-faint);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
 /* Grupele din rubrica Metrici — titlu discret, rezumat in dreapta. Rezumatul e
    partea care se citeste; dalele de dedesubt sunt pentru cine vrea sa vada de
    unde vine. De asta rezumatul e mai apasat decat titlul grupei. */

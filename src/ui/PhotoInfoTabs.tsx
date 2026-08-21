@@ -6,6 +6,7 @@ import { generateExplanation, generateSuggestions, type Suggestion } from '../co
 import { compareWithinMoment } from '../core/momentComparison';
 import { technicalSummary, subjectSummary, framingSummary } from '../core/metricSummary';
 import { findCounterfactual } from '../core/scoreCounterfactual';
+import { computePillars, type VerdictPillars } from '../core/verdictPillars';
 import { landscapeSharpness, labelForFactor, isLabelledFactor } from '../core/learning/ContextEngine';
 import { Histogram } from './Histogram';
 import { FocusMap } from './FocusMap';
@@ -99,6 +100,49 @@ function StatTile({ label, value, warn, note }: { label: string; value: ReactNod
  * Rezumatul din dreapta e pentru citirea rapida: cat timp nu scrie nimic
  * ingrijorator acolo, grupa poate fi sarita din ochi cu totul.
  */
+/**
+ * Cei patru piloni ai verdictului — vezi core/verdictPillars.ts.
+ *
+ * Stau deasupra dalelor si sub verdict, adica exact acolo unde cineva care nu e
+ * de acord cu scorul se uita ca sa afle CU CE anume nu e de acord. Se pot
+ * contrazice intre ei, si nu incercam sa ascundem asta: un cadru cu TEHNIC mic
+ * si SERIE mare e cel mai bun dintr-o rafala ratata, iar ambele cifre sunt
+ * adevarate deodata.
+ *
+ * `personal` lipseste cat timp motorul n-are o parere proprie, si atunci nu se
+ * randeaza deloc — o dala goala ar sugera "zero", ceea ce ar fi altceva.
+ */
+function VerdictPillarRow({ pillars, locale }: { pillars: VerdictPillars; locale: Locale }) {
+  const tr = (key: string) => t(locale, key);
+  const items: { key: string; label: string; value: string; ratio: number }[] = [
+    { key: 'technical', label: tr('pillar.technical'), value: String(pillars.technical), ratio: pillars.technical / 100 },
+    { key: 'delivery', label: tr('pillar.delivery'), value: String(pillars.delivery), ratio: pillars.delivery / 100 }
+  ];
+  if (pillars.series !== null) {
+    items.splice(1, 0, { key: 'series', label: tr('pillar.series'), value: String(pillars.series), ratio: pillars.series / 100 });
+  }
+  if (pillars.personal !== null) {
+    items.push({
+      key: 'personal',
+      label: tr('pillar.personal'),
+      value: (pillars.personal > 0 ? '+' : '') + pillars.personal,
+      // bara arata CAT de mult conteaza gustul, indiferent de directie
+      ratio: Math.min(1, Math.abs(pillars.personal) / 25)
+    });
+  }
+  return (
+    <div className="pillar-row">
+      {items.map(it => (
+        <div className="pillar" key={it.key}>
+          <span className="pillar-value mono">{it.value}</span>
+          <span className="pillar-bar" aria-hidden="true"><i style={{ width: `${Math.round(it.ratio * 100)}%` }} /></span>
+          <span className="pillar-label">{it.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function MetricGroup(
   { title, summary, tone, children }:
   { title: string; summary?: string; tone?: 'ok' | 'warn'; children: ReactNode }
@@ -397,6 +441,7 @@ export function PhotoInfoTabs({ photo, src, openTab }: {
   const history = useStore(s => s.history);
   const openEdit = useStore(s => s.openEdit);
   const locale = useStore(s => s.locale);
+  const groupOfPhotos = useStore(s => s.groupOf);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const [tab, setTab] = useState<Tab>('metrics');
   /**
@@ -450,6 +495,9 @@ export function PhotoInfoTabs({ photo, src, openTab }: {
   // deja un singur loc in aplicatie: nu-l duplicam aici.
   const effectiveSharpness = photo.faceCount > 0 ? photo.sharpness : landscapeSharpness(photo.sharpness) * 100;
   const techSummary = technicalSummary(photo, effectiveSharpness);
+  // Scorurile surorilor din serie — deja in memorie, nicio citire noua.
+  const siblingScores = photo.groupId ? groupOfPhotos(photo.groupId).map(p => p.aiScore) : [];
+  const pillars = computePillars(photo, effectiveSharpness, photo.aiScore, siblingScores, photo.aiPersonalDelta);
   const subjSummary = subjectSummary(photo);
   const frameSummary = framingSummary(photo);
 
@@ -516,6 +564,7 @@ export function PhotoInfoTabs({ photo, src, openTab }: {
             </div>
             <ScoreRing score={photo.aiScore} />
           </section>
+          <VerdictPillarRow pillars={pillars} locale={locale} />
           <button className="inspector-edit-cta" type="button" onClick={() => openEdit(photo.id)}>
             {tr('inspector.editStudio')} <span aria-hidden="true">→</span>
           </button>
