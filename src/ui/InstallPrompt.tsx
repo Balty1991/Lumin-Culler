@@ -25,8 +25,15 @@ export function InstallPrompt() {
   const tr = (key: string) => t(locale, key);
   const deferredEvent = useSyncExternalStore(subscribeInstallPromptEvent, getInstallPromptEvent);
   const [dismissed, setDismissed] = useState(readInstallPromptDismissed);
+  const libraryEmpty = useStore(s => s.photos.length === 0);
 
-  if (!deferredEvent || dismissed) return null;
+  // Nu inainte de primul import. `beforeinstallprompt` poate sosi in primele
+  // secunde ale primei vizite, iar bannerul aparea atunci peste ecranul gol —
+  // adica exact peste "alege primele fotografii", singurul lucru pe care omul
+  // are ce sa-l faca acolo. Ridicat in feedbackul de produs, si e corect:
+  // "adauga pe ecranul principal" e o cerere care are sens dupa ce aplicatia a
+  // aratat ce stie sa faca, nu inainte.
+  if (!deferredEvent || dismissed || libraryEmpty) return null;
 
   const dismiss = () => { writeInstallPromptDismissed(); setDismissed(true); };
 

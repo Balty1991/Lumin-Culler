@@ -53,6 +53,8 @@ export const ro = {
   'inspector.verdict.keep': 'Păstrează',
   'inspector.verdict.reject': 'Respinge',
   'inspector.verdict.review': 'Verifică',
+  'menu.pro.label.preview': 'LUMIN PRO · PREVIZUALIZARE',
+  'menu.pro.preview': 'Totul e deblocat aici. Abonarea vine în aplicația de Android.',
   'menu.pro.locked': 'Premium disponibil — activează după ce alegi planul',
   'menu.pro.active': 'Planul tău Premium este activ',
   'menu.pro.action': 'VEZI',

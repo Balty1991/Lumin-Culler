@@ -56,6 +56,8 @@ export const en: Record<TranslationKey, string> = {
   'inspector.verdict.keep': 'Keep',
   'inspector.verdict.reject': 'Reject',
   'inspector.verdict.review': 'Check',
+  'menu.pro.label.preview': 'LUMIN PRO · PREVIEW',
+  'menu.pro.preview': 'Everything is unlocked here. Subscribing arrives in the Android app.',
   'menu.pro.locked': 'Premium available — activate it after you pick a plan',
   'menu.pro.active': 'Your Premium plan is active',
   'menu.pro.action': 'VIEW',

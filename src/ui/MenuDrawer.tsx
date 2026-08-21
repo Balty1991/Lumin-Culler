@@ -266,6 +266,7 @@ export function MenuDrawer() {
   // React nu afla ca s-a schimbat. Bug real — cine tocmai cumparase
   // abonamentul ramanea cu lacatele pe randuri. Vezi AppState.premiumLocked.
   const premiumLocked = useStore(s => s.premiumLocked);
+  const premium = useStore(s => s.premium);
   const lockBadge = premiumLocked ? <StarIcon className="drawer-item-lock" aria-hidden="true" /> : null;
 
   // TEMPORAR (Faza 1-6, analiza AI nativa) — doar ca sa poata fi testat direct pe
@@ -395,14 +396,20 @@ export function MenuDrawer() {
             build-ul de referinta. Se arata singura doar peste 15 decizii. */}
         <TrainedProfileStrip onAction={() => setOpen(false)} />
 
+        {/* TREI stari, nu doua. "Nimic nu e blocat" si "esti abonat" erau
+            acelasi lucru pentru cardul asta (doar `!premiumLocked`), si pe web —
+            unde nimic nu e blocat pentru ca NU EXISTA cale de plata — cardul
+            anunta "Planul tau Premium este activ". Adica ii spunea omului ca are
+            un abonament platit pe care nu-l are. Gasit in feedbackul de produs,
+            si e o afirmatie falsa, nu doar o formulare nefericita. */}
         <button
           className={premiumLocked ? 'drawer-pro-card' : 'drawer-pro-card is-active'}
           onClick={() => go(() => setPremiumOpen(true))}
         >
           <span className="drawer-pro-icon"><StarIcon /></span>
           <span className="drawer-pro-copy">
-            <em className="mono">{tr(premiumLocked ? 'menu.pro.label' : 'menu.pro.label.active')}</em>
-            <b>{tr(premiumLocked ? 'menu.pro.locked' : 'menu.pro.active')}</b>
+            <em className="mono">{tr(premiumLocked ? 'menu.pro.label' : premium ? 'menu.pro.label.active' : 'menu.pro.label.preview')}</em>
+            <b>{tr(premiumLocked ? 'menu.pro.locked' : premium ? 'menu.pro.active' : 'menu.pro.preview')}</b>
           </span>
           {premiumLocked
             ? <span className="drawer-pro-action mono">{tr('menu.pro.action')}</span>
