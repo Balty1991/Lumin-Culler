@@ -6,7 +6,7 @@ import { AdjustedImage } from './AdjustedImage';
 import { computeImportStreak } from '../state/streak';
 import { countRealLocations } from '../state/locations';
 import { selectMonthlyRecap } from '../state/monthlyRecap';
-import { selectDeletableRejected } from '../state/batchOps';
+import { selectDeletableRejected, isUserDecided } from '../state/batchOps';
 import { sumKnownSizeBytes, formatGB } from '../state/storageStats';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { selectPendingShieldReview, readShieldDismissedIds } from '../core/documentShield';
@@ -113,7 +113,10 @@ export function HomeDashboard() {
   // (subsetul ambiguu semnalat de AI) — altfel numarul arata mult mai mic
   // decat coada reala de sortat pe care utilizatorul chiar o are.
   const unsortedCount = photos.filter(p => p.status === 'pending' || p.status === 'review').length;
-  const decidedCount = photos.filter(p => p.status === 'selected' || p.status === 'rejected').length;
+  // Candidatul se numara ca decizie luata — omul chiar s-a hotarat sa n-o
+  // arunce si sa n-o dea inca mai departe. Aceeasi regula ca in
+  // state/resumeProject.ts si in inelul din CullGauge.
+  const decidedCount = photos.filter(p => isUserDecided(p.status)).length;
   const donePercent = Math.round((decidedCount / Math.max(1, photos.length)) * 100);
   const knownBytes = sumKnownSizeBytes(photos);
   const totalGB = formatGB(knownBytes);

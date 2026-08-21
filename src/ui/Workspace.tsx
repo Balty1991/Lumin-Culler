@@ -277,7 +277,7 @@ export function Workspace() {
         </button>
         {src && <AdjustedImage key={detailId} src={src} edits={photo.edits} alt={photo.fileName} className="detail-stage-img" />}
         <span className={`status-tag st-${photo.status} workspace-badge`}>
-          {photo.status === 'selected' ? tr('workspace.status.selected') : photo.status === 'rejected' ? tr('workspace.status.rejected') : tr('workspace.status.review')}
+          {photo.status === 'selected' ? tr('workspace.status.selected') : photo.status === 'rejected' ? tr('workspace.status.rejected') : photo.status === 'candidate' ? tr('workspace.status.candidate') : tr('workspace.status.review')}
         </span>
         <div className="workspace-fab-row">
           <button className="detail-fab detail-fab-reject" onClick={() => { void setStatus(photo.id, 'rejected'); stepDetail(1); }} aria-label={tr('workspace.action.reject')}>

@@ -931,6 +931,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .gauge-pct b { font-family: var(--mono); font-size: 1.15rem; font-variant-numeric: tabular-nums; color: var(--text); }
 .gauge-pct span { font-size: 0.52rem; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.08em; margin-top: -2px; }
 .hud-stats { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; min-width: 0; }
+/* Vezi CullGauge.tsx: cu cinci dale, trei coloane pastreaza aceeasi inaltime ca
+   patru dale pe doua coloane. Eticheta se taie in loc sa latesca dala. */
+.hud-stats.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 8px; }
+.hud-stats.cols-3 .stat span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .stat { display: flex; align-items: center; gap: 7px; }
 .stat i { width: 7px; height: 7px; border-radius: 2px; flex-shrink: 0; }
 .stat i.sel { background: var(--pick); box-shadow: 0 0 8px var(--pick); }
@@ -1268,6 +1272,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .card.st-rejected::before { background: var(--reject); opacity: 0.65; }
 .card.st-review { border-color: rgba(251,191,36,0.5); box-shadow: 0 0 0 1px rgba(251,191,36,0.14); }
 .card.st-review::before { background: linear-gradient(90deg, var(--review), #fde68a); opacity: 1; }
+/* Fara asta, un card marcat "candidat" arata in grila exact ca unul nedecis:
+   fara chenar, fara banda de stare. Decizia ta devenea invizibila fix acolo
+   unde te uiti peste tot lotul. Banda e plina, nu in degrade, ca sa se
+   deosebeasca de "de verificat" la o privire pe grila. */
+.card.st-candidate { border-color: rgba(251,191,36,0.5); box-shadow: 0 0 0 1px rgba(251,191,36,0.14); }
+.card.st-candidate::before { background: var(--review); opacity: 1; }
 
 /* check-mark care apare cand poza e selectata — doar iconita (fara casetsa/cerc opac in spate,
    plan "Refactorizare UI/UX"), drop-shadow pentru lizibilitate pe orice fundal de miniatura,
@@ -1296,6 +1306,20 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   filter: drop-shadow(0 1px 2px rgba(0,0,0,0.7)) drop-shadow(0 0 3px rgba(0,0,0,0.45));
 }
 .review-badge svg { width: 15px; height: 15px; }
+
+/* Insigna "candidat": acelasi loc si aceeasi marime ca a celei de "de
+   verificat" (nu pot coexista — sunt doua stari), dar plina, nu conturata.
+   Culoarea e aceeasi chihlimbarie: amandoua inseamna "nedecis inca", diferenta
+   e cine n-a decis — AI-ul sau tu. */
+.candidate-badge {
+  position: absolute; top: 7px; right: 8px; z-index: var(--z-card-badge); width: 15px; height: 15px;
+  display: flex; align-items: center; justify-content: center; color: var(--review);
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.7)) drop-shadow(0 0 3px rgba(0,0,0,0.45));
+}
+.candidate-badge svg { width: 15px; height: 15px; fill: currentColor; }
+
+/* Bulina de legenda a candidatului din CullGauge. */
+.hud-stats .stat i.can { background: var(--review); opacity: .55; }
 
 /* selectie in masa (Ctrl/Shift+Click) — inel de accent distinct de starea pick/reject/review,
    ca sa nu se confunde vizual "e in selectia curenta" cu "AI-ul a decis ca e buna" */
@@ -2183,6 +2207,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .status-tag.st-selected { color: var(--pick); background: rgba(74,222,128,0.14); }
 .status-tag.st-rejected { color: var(--reject); background: rgba(251,113,133,0.14); }
 .status-tag.st-review { color: var(--review); background: rgba(251,191,36,0.14); }
+/* Candidatul foloseste aceeasi familie chihlimbarie ca "de verificat" — amandoua
+   inseamna "nedecis inca" — dar cu fundal mai apasat: diferenta e cine n-a
+   decis, AI-ul sau tu, iar a ta cantareste mai mult. */
+.status-tag.st-candidate { color: var(--review); background: rgba(251,191,36,0.26); }
 
 /* ── DetailView "Refactorizare UI/UX": full-screen edge-to-edge + Bottom Sheet ──
    Fotografia e centrul atentiei — fundal negru, object-fit: contain, fara card

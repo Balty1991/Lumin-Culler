@@ -283,7 +283,7 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
           </button>
           <span className="detail-stage-filename mono">{photo.fileName}</span>
           <span className={`status-tag st-${photo.status}`}>
-            {photo.status === 'selected' ? tr('workspace.status.selected') : photo.status === 'rejected' ? tr('workspace.status.rejected') : tr('workspace.status.review')}
+            {photo.status === 'selected' ? tr('workspace.status.selected') : photo.status === 'rejected' ? tr('workspace.status.rejected') : photo.status === 'candidate' ? tr('workspace.status.candidate') : tr('workspace.status.review')}
           </span>
           <button className="detail-overlay-btn" onClick={() => openEdit(photo.id)} aria-label={tr('edit.open')} title={tr('edit.open')}>
             <EditIcon />

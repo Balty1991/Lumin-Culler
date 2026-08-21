@@ -949,7 +949,8 @@ export default function App() {
             selected={counts.selected}
             review={counts.review}
             rejected={counts.rejected}
-            pending={counts.all - counts.selected - counts.review - counts.rejected}
+            candidate={counts.candidate}
+            pending={counts.all - counts.selected - counts.review - counts.rejected - counts.candidate}
             total={counts.all}
             onClearSession={() => void confirmClearAll()}
           />

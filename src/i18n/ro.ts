@@ -609,6 +609,8 @@ export const ro = {
   'app.cullbar.selected': 'selectate',
   'app.cullbar.review': 'de verificat',
   'app.cullbar.quickReview': 'Verifică rapid — deschide pozele de verificat una câte una, începând cu cele mai ușor de decis',
+  'app.cullbar.candidate': 'candidați',
+  'workspace.status.candidate': 'Candidat',
   'app.cullbar.rejected': 'respinse',
   'app.hud.done': 'decise',
   'app.hud.doneHint': 'din pozele deja analizate, {pct}% au primit un verdict automat (selectat/respins) — restul așteaptă verificare manuală',

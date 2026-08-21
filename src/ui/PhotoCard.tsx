@@ -3,8 +3,7 @@ import { db } from '../core/db';
 import { useStore, type PhotoView } from '../state/store';
 import {
   StarIcon, UserQuestionIcon, UserCheckIcon, EyeClosedIcon, LayersIcon, CheckIcon, SunIcon, ClockIcon, EditIcon,
-  UnderexposedIcon, AwkwardExpressionIcon, RibbonIcon, HeartIcon, HeartOffIcon
-} from './icons';
+  UnderexposedIcon, AwkwardExpressionIcon, RibbonIcon, HeartIcon, HeartOffIcon, BookmarkIcon} from './icons';
 import { isNeutral } from '../core/imageAdjust';
 import { AdjustedImage } from './AdjustedImage';
 import { t, type Locale } from '../i18n';
@@ -120,6 +119,12 @@ function PhotoCardInner({ photo, index, onOpen, multiSelected, onCardPointerDown
       )}
       {!multiSelected && photo.status === 'review' && (
         <span className="review-badge" aria-hidden="true"><ClockIcon /></span>
+      )}
+      {/* Fara insigna proprie, o poza pe care ai pus-o deoparte arata in grila
+          exact ca una nedecisa — adica decizia ta devenea invizibila fix acolo
+          unde te uiti peste tot lotul. */}
+      {!multiSelected && photo.status === 'candidate' && (
+        <span className="candidate-badge" aria-hidden="true"><BookmarkIcon /></span>
       )}
       <span className="card-media" aria-hidden="true">
         {photo.lqip && <img className="card-lqip" src={photo.lqip} alt="" />}

@@ -596,6 +596,8 @@ export const en: Record<TranslationKey, string> = {
   'app.cullbar.selected': 'selected',
   'app.cullbar.review': 'to review',
   'app.cullbar.quickReview': 'Quick review — go through the review photos one by one, starting with the easiest calls',
+  'app.cullbar.candidate': 'candidates',
+  'workspace.status.candidate': 'Candidate',
   'app.cullbar.rejected': 'rejected',
   'app.hud.done': 'decided',
   'app.hud.doneHint': 'of the photos analyzed so far, {pct}% got an automatic verdict (kept/rejected) — the rest are awaiting manual review',
