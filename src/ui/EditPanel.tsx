@@ -24,7 +24,7 @@ import {
   MIN_CONTROL_RADIUS, MAX_CONTROL_RADIUS, type ControlPoint
 } from '../core/selectiveEdit';
 import { DEFAULT_HEAL_RADIUS, MIN_HEAL_RADIUS, MAX_HEAL_RADIUS, type HealStroke } from '../core/spotHeal';
-import { XIcon, UndoIcon, SparkleIcon, LayersIcon, TrashIcon } from './icons';
+import { XIcon, UndoIcon, SparkleIcon, LayersIcon, TrashIcon, EyeIcon } from './icons';
 import { t, plural } from '../i18n';
 
 // Doar cele 10 chei numerice cu slider in UI — rotationDeg (auto-indreptare)
@@ -37,18 +37,55 @@ import { t, plural } from '../i18n';
 // ca restul (poate si inmuia contrastul local, nu doar accentua) — de-aia
 // fiecare slider isi declara propriul interval, nu mai e un singur min/max
 // fix pentru toate.
-const SLIDERS: { key: Exclude<NumericAdjustmentKey, 'rotationDeg'>; min: number; max: number }[] = [
-  { key: 'exposure', min: -100, max: 100 },
-  { key: 'contrast', min: -100, max: 100 },
-  { key: 'saturation', min: -100, max: 100 },
-  { key: 'temperature', min: -100, max: 100 },
-  { key: 'tint', min: -100, max: 100 },
-  { key: 'highlights', min: -100, max: 100 },
-  { key: 'shadows', min: -100, max: 100 },
-  { key: 'clarity', min: -100, max: 100 },
-  { key: 'sharpen', min: 0, max: 100 },
-  { key: 'noiseReduction', min: 0, max: 100 },
-  { key: 'vignette', min: -100, max: 100 }
+/**
+ * Sliderele de baza, pe grupe.
+ *
+ * Erau unsprezece intr-o singura lista, in ordinea in care au fost adaugate de-a
+ * lungul timpului: expunere, contrast, saturatie, temperatura, tinta,
+ * highlights, umbre, claritate, accentuare, zgomot, vinieta. Se puteau folosi,
+ * dar nu se putea NAVIGA printre ele — cine cauta "mai cald" trecea peste
+ * highlights si umbre ca sa ajunga acolo.
+ *
+ * Impartirea de mai jos e cea din orice editor profesionist (Lightroom, Capture
+ * One, Snapseed), si nu din obisnuinta: sunt patru feluri de interventii.
+ * LUMINA muta tonurile, CULOAREA muta nuantele, DETALIUL lucreaza la nivel de
+ * textura, EFECTELE adauga ceva ce nu era in poza.
+ */
+const SLIDER_GROUPS: {
+  labelKey: string;
+  sliders: { key: Exclude<NumericAdjustmentKey, 'rotationDeg'>; min: number; max: number }[];
+}[] = [
+  {
+    labelKey: 'edit.group.light',
+    sliders: [
+      { key: 'exposure', min: -100, max: 100 },
+      { key: 'contrast', min: -100, max: 100 },
+      { key: 'highlights', min: -100, max: 100 },
+      { key: 'shadows', min: -100, max: 100 },
+      { key: 'whites', min: -100, max: 100 },
+      { key: 'blacks', min: -100, max: 100 }
+    ]
+  },
+  {
+    labelKey: 'edit.group.color',
+    sliders: [
+      { key: 'temperature', min: -100, max: 100 },
+      { key: 'tint', min: -100, max: 100 },
+      { key: 'saturation', min: -100, max: 100 }
+    ]
+  },
+  {
+    labelKey: 'edit.group.detail',
+    sliders: [
+      { key: 'clarity', min: -100, max: 100 },
+      { key: 'sharpen', min: 0, max: 100 },
+      { key: 'noiseReduction', min: 0, max: 100 }
+    ]
+  },
+  {
+    labelKey: 'edit.group.effects',
+    sliders: [{ key: 'vignette', min: -100, max: 100 }]
+  }
 ];
 
 /**
@@ -310,6 +347,17 @@ export function EditPanel() {
   // deci 768 (~44% mai putini pixeli fata de 1024) ramane vizibil suficient
   // de clar pe un ecran de telefon, dar taie proportional din costul per cadru.
   const EDIT_PREVIEW_MAX_SIDE = 768;
+  /**
+   * Tine apasat = vezi poza nemodificata. Gestul cel mai folosit din orice
+   * editor, si singurul mod onest de a raspunde la "am imbunatatit-o, sau doar
+   * am schimbat-o?". Nu e o unealta si nu merita un mod: e o apasare.
+   *
+   * Se implementeaza randand NEUTRAL_ADJUSTMENTS pe acelasi canvas, nu punand a
+   * doua imagine peste — asa comparatia e intre exact aceiasi pixeli, trecuti
+   * sau nu prin lantul de ajustari.
+   */
+  const [showingBefore, setShowingBefore] = useState(false);
+
   // Cat timp utilizatorul editeaza manual recadrarea (cropModeActive), preview-ul
   // arata cadrul INTREG (crop: undefined), nu cel deja recadrat — caseta suprapusa
   // (vezi JSX mai jos) se pozitioneaza direct in coordonatele canvas-ului doar daca
@@ -329,11 +377,12 @@ export function EditPanel() {
       canvas.width = Math.max(1, Math.round(imgEl.naturalWidth * scale));
       canvas.height = Math.max(1, Math.round(imgEl.naturalHeight * scale));
       const ctx = canvas.getContext('2d');
-      const drawn = cropModeActive ? { ...adjustments, crop: undefined } : adjustments;
+      const base = showingBefore ? { ...NEUTRAL_ADJUSTMENTS, crop: adjustments.crop, rotationDeg: adjustments.rotationDeg } : adjustments;
+      const drawn = cropModeActive ? { ...base, crop: undefined } : base;
       if (ctx) drawAdjusted(ctx, imgEl, imgEl.naturalWidth, imgEl.naturalHeight, canvas.width, canvas.height, drawn);
     });
     return () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); };
-  }, [imgEl, adjustments, cropModeActive]);
+  }, [imgEl, adjustments, cropModeActive, showingBefore]);
 
   useEffect(() => {
     if (!photo) return;
@@ -756,6 +805,30 @@ export function EditPanel() {
                 + aria-label, exact echivalentul semantic. */}
             <canvas ref={canvasRef} className="edit-canvas" role="img" aria-label={photo.fileName} />
             {!imgEl && <span className="card-loading edit-canvas-loading" aria-hidden="true" />}
+            {/* Tine apasat = poza nemodificata. Apare doar cand chiar exista ce
+                compara; pe o poza neatinsa ar fi un buton care nu face nimic.
+                Ascuns in modul de recadrare: acolo canvas-ul arata oricum cadrul
+                intreg, deci comparatia n-ar mai fi cu ce vede omul.
+                `onPointerLeave`/`onPointerCancel` pe langa `onPointerUp`: degetul
+                poate iesi din buton fara sa se ridice, si atunci poza ar fi ramas
+                blocata pe "inainte". */}
+            {!isNeutral(adjustments) && !cropModeActive && (
+              <button
+                type="button"
+                className={showingBefore ? 'edit-before-btn holding' : 'edit-before-btn'}
+                aria-label={tr('edit.before')}
+                aria-pressed={showingBefore}
+                onPointerDown={() => setShowingBefore(true)}
+                onPointerUp={() => setShowingBefore(false)}
+                onPointerLeave={() => setShowingBefore(false)}
+                onPointerCancel={() => setShowingBefore(false)}
+                // Tastatura nu are "tine apasat": acolo devine un comutator.
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowingBefore(v => !v); } }}
+              >
+                <EyeIcon aria-hidden="true" />
+                <span>{showingBefore ? tr('edit.before.showing') : tr('edit.before')}</span>
+              </button>
+            )}
             {cropDraft && (
               /* Bug real raportat de utilizator: handle-urile de colt erau abia
                  apucabile — stateau exact pe marginea lui .edit-canvas-wrap, care
@@ -884,14 +957,19 @@ export function EditPanel() {
 
           {tool === 'basic' && (
             <div className="edit-sliders">
-              {SLIDERS.map(({ key, min, max }) => (
-                <EditSlider
-                  key={key}
-                  label={tr(`edit.${key}`)}
-                  value={adjustments[key] ?? 0}
-                  min={min} max={max}
-                  onChange={v => update(key, v)}
-                />
+              {SLIDER_GROUPS.map(({ labelKey, sliders }) => (
+                <div className="edit-slider-group" key={labelKey}>
+                  <span className="edit-slider-group-head mono">{tr(labelKey)}</span>
+                  {sliders.map(({ key, min, max }) => (
+                    <EditSlider
+                      key={key}
+                      label={tr(`edit.${key}`)}
+                      value={adjustments[key] ?? 0}
+                      min={min} max={max}
+                      onChange={v => update(key, v)}
+                    />
+                  ))}
+                </div>
               ))}
             </div>
           )}

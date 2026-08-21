@@ -2419,6 +2419,32 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 /* Grupele din rubrica Metrici — titlu discret, rezumat in dreapta. Rezumatul e
    partea care se citeste; dalele de dedesubt sunt pentru cine vrea sa vada de
    unde vine. De asta rezumatul e mai apasat decat titlul grupei. */
+/* Editor: grupele de slidere si comparatia cu originalul.
+
+   `grid-column: 1/-1` + grila proprie inauntru: pe ecran lat, .edit-sliders e o
+   grila de doua coloane, iar fara asta fiecare GRUPA ar fi devenit o celula —
+   "LUMINA" si "CULOARE" ajungeau una langa alta, cu titlurile la inaltimi
+   diferite si sliderele intercalate. Acum banda unei grupe tine toata latimea,
+   iar sliderele DIN EA se aseaza pe doua coloane, deci densitatea ramane. */
+.edit-slider-group { display: grid; gap: inherit; align-content: start; }
+.edit-slider-group + .edit-slider-group { margin-top: 16px; }
+.edit-slider-group-head {
+  display: block; margin: 0 2px 6px; color: var(--text-faint);
+  font-size: .66rem; font-weight: 800; letter-spacing: .13em;
+}
+/* Sta peste poza, in coltul de jos-dreapta: e despre imagine, nu despre unelte.
+   44px inaltime ca orice tinta de atingere din aplicatie. */
+.edit-before-btn {
+  position: absolute; right: 12px; bottom: 12px; z-index: 2;
+  display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 0 14px;
+  border-radius: 14px; border: 1px solid rgb(255 255 255 / .18);
+  background: rgb(10 11 14 / .82); backdrop-filter: blur(10px); color: #f2f5fa;
+  font-size: .76rem; font-weight: 700;
+}
+.edit-before-btn svg { width: 16px; height: 16px; }
+.edit-before-btn.holding { background: var(--accent); color: #06070a; border-color: transparent; }
+.edit-before-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+
 .metric-group { margin-top: 14px; }
 .metric-group-head {
   display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
@@ -3662,6 +3688,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   /* 22px, nu 16: cu valoarea mutata langa nume, cifra din coloana stanga
      ajungea lipita de numele din coloana dreapta ("22 Luminozitate"). */
   .edit-sliders { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 22px; }
+  /* Grupa tine toata latimea; sliderele ei se impart pe cele doua coloane. */
+  .edit-slider-group { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 22px; }
+  .edit-slider-group-head { grid-column: 1 / -1; }
   .edit-body { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; grid-template-columns: none; }
   /* Bug real raportat de utilizator, a doua incercare: fara niciun plafon,
      poza (la latime intreaga) ajungea sa ocupe aproape tot spatiul vertical

@@ -20,6 +20,19 @@ export interface EditAdjustments {
   tint: number;        // -100..100 (verde <-> magenta)
   highlights: number;  // -100..100
   shadows: number;     // -100..100
+  /**
+   * Capetele scalei tonale, separat de highlights/shadows — perechea care
+   * lipsea ca sa existe control tonal complet.
+   *
+   * Diferenta nu e de gust: `highlights`/`shadows` COMPRIMA cele doua zone
+   * (recupereaza detaliu dintr-un cer ars sau dintr-o umbra inecata), pe cand
+   * `whites`/`blacks` MUTA CAPETELE — adica decid unde incepe albul curat si
+   * unde incepe negrul curat. De asta o poza "spalata" nu se repara cu shadows:
+   * n-are nevoie de mai mult detaliu in umbre, ci de un punct de negru.
+   * -100..100. Absente = 0, ca la inregistrarile dinaintea acestui camp.
+   */
+  whites?: number;
+  blacks?: number;
   /** Indreptare unghi mic (grade) — vezi computeAutoStraighten. Absent/0 = fara rotatie. Clamped la ±MAX_ROTATION_DEG. */
   rotationDeg?: number;
   /**
@@ -48,7 +61,7 @@ export interface EditAdjustments {
 
 export const NEUTRAL_ADJUSTMENTS: EditAdjustments = {
   exposure: 0, contrast: 0, saturation: 0, temperature: 0, tint: 0, highlights: 0, shadows: 0, rotationDeg: 0,
-  sharpen: 0, clarity: 0, noiseReduction: 0, vignette: 0
+  whites: 0, blacks: 0, sharpen: 0, clarity: 0, noiseReduction: 0, vignette: 0
 };
 
 /**
@@ -412,7 +425,8 @@ export function drawAdjusted(
   drawGeometry(ctx, healed ?? source, sourceWidth, sourceHeight, width, height, a);
   ctx.filter = 'none';
 
-  const hasColorShift = a.temperature !== 0 || a.tint !== 0 || a.highlights !== 0 || a.shadows !== 0;
+  const hasColorShift = a.temperature !== 0 || a.tint !== 0 || a.highlights !== 0 || a.shadows !== 0
+    || (a.whites ?? 0) !== 0 || (a.blacks ?? 0) !== 0;
   const hasDetailPass = (a.sharpen ?? 0) !== 0 || (a.clarity ?? 0) !== 0 || (a.noiseReduction ?? 0) !== 0;
   const luts = buildChannelLuts(a.curves);
   const activePoints = (a.controlPoints ?? []).filter(p => !isNeutralControlPoint(p));
@@ -427,7 +441,12 @@ export function drawAdjusted(
     const tintShift = (a.tint / 100) * 40;         // pana la ±40 pe G vs R+B (verde/magenta)
     const highlightAmt = (a.highlights / 100) * 60;
     const shadowAmt = (a.shadows / 100) * 60;
-    const hasToneShift = highlightAmt !== 0 || shadowAmt !== 0;
+    // Capetele: ponderi care cresc spre extremele scalei, nu spre mijloc ca la
+    // highlights/shadows. Exponentul 3 le tine departe de tonurile medii —
+    // altfel "punctul de negru" ar intuneca si fetele, nu doar umbrele.
+    const whiteAmt = ((a.whites ?? 0) / 100) * 55;
+    const blackAmt = ((a.blacks ?? 0) / 100) * 55;
+    const hasToneShift = highlightAmt !== 0 || shadowAmt !== 0 || whiteAmt !== 0 || blackAmt !== 0;
 
     for (let i = 0; i < d.length; i += 4) {
       let r = d[i], g = d[i + 1], b = d[i + 2];
@@ -442,7 +461,11 @@ export function drawAdjusted(
         const lum = 0.299 * r + 0.587 * g + 0.114 * b;
         const hiWeight = Math.max(0, (lum - 128) / 127);
         const shWeight = Math.max(0, (128 - lum) / 128);
-        const delta = highlightAmt * hiWeight + shadowAmt * shWeight;
+        const t = Math.max(0, Math.min(1, lum / 255));
+        const whiteWeight = t * t * t;
+        const blackWeight = (1 - t) * (1 - t) * (1 - t);
+        const delta = highlightAmt * hiWeight + shadowAmt * shWeight
+          + whiteAmt * whiteWeight + blackAmt * blackWeight;
         r += delta; g += delta; b += delta;
       }
 
