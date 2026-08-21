@@ -2513,6 +2513,48 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 /* Grupele din rubrica Metrici — titlu discret, rezumat in dreapta. Rezumatul e
    partea care se citeste; dalele de dedesubt sunt pentru cine vrea sa vada de
    unde vine. De asta rezumatul e mai apasat decat titlul grupei. */
+/* Numele sliderului devine buton cand valoarea nu mai e cea de pornire —
+   apasarea o readuce acolo. Cat timp sliderul e neatins, ramane text: un buton
+   care nu face nimic e mai rau decat niciunul. */
+.edit-slider-reset {
+  background: none; border: 0; padding: 0; text-align: left;
+  color: var(--accent); font: inherit; cursor: pointer;
+  text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px;
+}
+.edit-slider-reset:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+/* Reperul de zero pe bara: pe un slider bipolar, mijlocul nu e evident cu ochiul. */
+.edit-slider-row { position: relative; }
+.edit-slider-row::after {
+  content: ""; position: absolute; left: var(--neutral, 50%); bottom: 9px;
+  width: 1px; height: 7px; background: var(--text-faint); opacity: .5; pointer-events: none;
+}
+.edit-slider-row:not([style*="--neutral"])::after { display: none; }
+
+/* Histograma live a editorului. Cele trei canale se suprapun cu amestecare
+   aditiva: unde coincid — o poza neutra — iese alb, unde se despart se vad
+   culorile care ies din rand. E conventia din orice editor serios si spune mai
+   mult decat o singura silueta gri. */
+.histogram {
+  /* `flex: none` + `min-height`: panoul editorului e o coloana flex care isi
+     strange copiii cand nu incape totul, iar histograma ajungea la 18px din 46
+     — adica o dunga in care nu se mai vedea nicio silueta. E un instrument de
+     citit, nu un chenar decorativ: sub o anumita inaltime nu mai spune nimic. */
+  position: relative; flex: none; width: 100%; margin: 10px 0 2px; height: 46px; min-height: 46px;
+  border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+  background: var(--surface-2);
+}
+.histogram svg { display: block; width: 100%; height: 100%; }
+.histogram-channels { mix-blend-mode: screen; }
+/* Capetele se aprind DOAR cand chiar s-a pierdut ceva — un semnal mereu prezent
+   n-ar mai fi un semnal. */
+.histogram-clip {
+  position: absolute; top: 0; bottom: 0; width: 3px;
+  background: var(--reject); box-shadow: 0 0 10px var(--reject);
+}
+.histogram-clip.left { left: 0; }
+.histogram-clip.right { right: 0; }
+:root[data-theme="light"] .histogram { background: #14161c; border-color: #2a2e38; }
+
 /* Editor: grupele de slidere si comparatia cu originalul.
 
    `grid-column: 1/-1` + grila proprie inauntru: pe ecran lat, .edit-sliders e o

@@ -15,6 +15,8 @@ import {
 import { db, type AnalysisRecord } from '../core/db';
 import { CurveEditor } from './CurveEditor';
 import { EditSlider } from './EditSlider';
+import { EditHistogram } from './EditHistogram';
+import { computeHistogram, type Histogram as HistogramData } from '../core/histogram';
 import {
   CURVE_PRESETS, LINEAR_CURVE,
   type CurveChannel, type CurvePoint, type PhotoCurves
@@ -347,6 +349,8 @@ export function EditPanel() {
   // deci 768 (~44% mai putini pixeli fata de 1024) ramane vizibil suficient
   // de clar pe un ecran de telefon, dar taie proportional din costul per cadru.
   const EDIT_PREVIEW_MAX_SIDE = 768;
+  /** Un esantion din opt: histograma e o silueta, nu o numaratoare exacta. */
+  const HISTOGRAM_STRIDE = 8;
   /**
    * Tine apasat = vezi poza nemodificata. Gestul cel mai folosit din orice
    * editor, si singurul mod onest de a raspunde la "am imbunatatit-o, sau doar
@@ -357,6 +361,19 @@ export function EditPanel() {
    * sau nu prin lantul de ajustari.
    */
   const [showingBefore, setShowingBefore] = useState(false);
+
+  /**
+   * Histograma LIVE a previzualizarii — distincta de `histogram` de mai sus,
+   * care e fundalul editorului de curbe. Nu sunt acelasi lucru si nu se pot
+   * uni: aceea are 256 de galeti pentru ca trebuie sa se alinieze cu axa
+   * curbei, si arata SURSA (curbele se aplica peste ea); asta are 64, arata
+   * rezultatul CU ajustari, si se recalculeaza la fiecare cadru.
+   *
+   * Se calculeaza din canvas-ul deja desenat, in aceeasi requestAnimationFrame,
+   * deci nu costa nicio trecere in plus peste imagine. Cand tii apasat pe
+   * "originalul", arata originalul: comparatia e completa, nu doar vizuala.
+   */
+  const [liveHistogram, setLiveHistogram] = useState<HistogramData | null>(null);
 
   // Cat timp utilizatorul editeaza manual recadrarea (cropModeActive), preview-ul
   // arata cadrul INTREG (crop: undefined), nu cel deja recadrat — caseta suprapusa
@@ -379,7 +396,16 @@ export function EditPanel() {
       const ctx = canvas.getContext('2d');
       const base = showingBefore ? { ...NEUTRAL_ADJUSTMENTS, crop: adjustments.crop, rotationDeg: adjustments.rotationDeg } : adjustments;
       const drawn = cropModeActive ? { ...base, crop: undefined } : base;
-      if (ctx) drawAdjusted(ctx, imgEl, imgEl.naturalWidth, imgEl.naturalHeight, canvas.width, canvas.height, drawn);
+      if (ctx) {
+        drawAdjusted(ctx, imgEl, imgEl.naturalWidth, imgEl.naturalHeight, canvas.width, canvas.height, drawn);
+        try {
+          setLiveHistogram(computeHistogram(ctx.getImageData(0, 0, canvas.width, canvas.height), HISTOGRAM_STRIDE));
+        } catch {
+          // canvas "murdarit" de o imagine din alta origine — histograma
+          // dispare, editarea merge mai departe
+          setLiveHistogram(null);
+        }
+      }
     });
     return () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); };
   }, [imgEl, adjustments, cropModeActive, showingBefore]);
@@ -955,6 +981,8 @@ export function EditPanel() {
             </div>
           )}
 
+          {liveHistogram && tool !== 'crop' && <EditHistogram data={liveHistogram} locale={locale} />}
+
           {tool === 'basic' && (
             <div className="edit-sliders">
               {SLIDER_GROUPS.map(({ labelKey, sliders }) => (
@@ -966,6 +994,9 @@ export function EditPanel() {
                       label={tr(`edit.${key}`)}
                       value={adjustments[key] ?? 0}
                       min={min} max={max}
+                      // Toate ajustarile de baza pornesc de la 0 (vezi
+                      // NEUTRAL_ADJUSTMENTS), deci acolo se si intorc.
+                      neutral={0}
                       onChange={v => update(key, v)}
                     />
                   ))}

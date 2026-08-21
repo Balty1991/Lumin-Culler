@@ -1219,6 +1219,12 @@ export const ro = {
   // Grupele de slidere din editor — patru feluri de interventii, nu o lista.
   'edit.before': 'Ține apăsat: originalul',
   'edit.before.showing': 'Originalul',
+  'edit.slider.reset': '{name}: apasă ca să revii la valoarea de pornire',
+  'edit.histogram': 'Histogramă',
+  'edit.histogram.shadows': '{pct}% din poză e negru înecat — ai pierdut detaliul din umbre.',
+  'edit.histogram.highlights': '{pct}% din poză e alb ars — ai pierdut detaliul din lumini.',
+  'edit.histogram.clean': 'Histogramă: nimic lipit de capete.',
+  'edit.histogram.clipped': 'Histogramă: {shadows}% negru înecat, {highlights}% alb ars.',
   'edit.group.light': 'LUMINĂ',
   'edit.group.color': 'CULOARE',
   'edit.group.detail': 'DETALIU',
