@@ -116,7 +116,7 @@ function deviceMemoryGB(): number | undefined {
  * Cate poze in paralel sa trimitem prin lantul de apeluri native secventiale
  * (core/nativeAnalysis.ts). Fiecare apel individual ruleaza deja secvential in
  * interior (nu Promise.all — bug real de OOM gasit la testare pe device cand
- * toate 9 module rulau simultan), deci aceasta limita e despre CATE poze diferite
+ * toate modulele rulau simultan), deci aceasta limita e despre CATE poze diferite
  * pot avea propriul lor lant in zbor deodata, nu despre modele in paralel per poza.
  *
  * Era fixat la 2, valoare aleasa cand fiecare apel ducea imaginea la rezolutie

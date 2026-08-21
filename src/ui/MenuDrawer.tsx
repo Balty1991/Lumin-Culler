@@ -23,10 +23,8 @@ import { detectFacesNative, isNativeFaceDetectionAvailable } from '../core/nativ
 import { analyzeImageNative, isNativeImageAnalysisAvailable } from '../core/nativeImageAnalysis';
 import { labelImageNative, isNativeImageLabelingAvailable } from '../core/nativeImageLabeling';
 import { analyzeFaceMeshNative, isNativeFaceMeshAvailable } from '../core/nativeFaceMesh';
-import { classifyImageNative, isNativeImageClassifierAvailable } from '../core/nativeImageClassifier';
 import { detectTextNative, isNativeTextRecognitionAvailable } from '../core/nativeTextRecognition';
 import { detectPoseNative, isNativePoseDetectionAvailable } from '../core/nativePoseDetection';
-import { segmentSubjectNative, isNativeSegmentationAvailable } from '../core/nativeSegmentation';
 import { embedImageNative, isNativeImageEmbedderAvailable } from '../core/nativeImageEmbedder';
 import { t } from '../i18n';
 import { countRescuable } from '../core/rescueQueue';
@@ -286,8 +284,8 @@ export function MenuDrawer() {
     input.onchange = () => {
       const file = input.files?.[0];
       if (!file) return;
-      // SECVENTIAL, nu Promise.all — bug real gasit la testare pe device: 9
-      // modele grele (ML Kit + TFLite + MediaPipe) incarcate/rulate deodata
+      // SECVENTIAL, nu Promise.all — bug real gasit la testare pe device: toate
+      // modelele grele (ML Kit + TFLite + MediaPipe) incarcate/rulate deodata
       // au impins telefonul in lipsa de memorie si l-au facut sa inchida
       // aplicatia (crash nativ, fara nicio eroare JS prinsa). Rulate pe rand,
       // varful de memorie ramane mult mai mic — mai lent per total, dar
@@ -299,10 +297,8 @@ export function MenuDrawer() {
           ['compozitie/claritate/culoare', () => analyzeImageNative({ blob: file })],
           ['etichete de scena (ML Kit)', () => labelImageNative({ blob: file })],
           ['fata detaliata (MediaPipe)', () => analyzeFaceMeshNative({ blob: file })],
-          ['etichete bogate (ImageNet)', () => classifyImageNative(file)],
           ['text (OCR)', () => detectTextNative({ blob: file })],
           ['postura corp', () => detectPoseNative({ blob: file })],
-          ['separare persoana/fundal', () => segmentSubjectNative(file)],
           ['embedding similaritate', () => embedImageNative({ blob: file })]
         ];
         const results: Record<string, unknown> = {};
@@ -315,7 +311,7 @@ export function MenuDrawer() {
             return;
           }
         }
-        setNotice(`Native OK (toate 9 module): ${JSON.stringify(results)}`);
+        setNotice(`Native OK (toate ${steps.length} module): ${JSON.stringify(results)}`);
       })();
     };
     input.click();
@@ -858,8 +854,8 @@ export function MenuDrawer() {
           </button>
 
           {SHOW_NATIVE_TEST_BUTTON && isNativeFaceDetectionAvailable() && isNativeImageAnalysisAvailable() &&
-            isNativeImageLabelingAvailable() && isNativeFaceMeshAvailable() && isNativeImageClassifierAvailable() &&
-            isNativeTextRecognitionAvailable() && isNativePoseDetectionAvailable() && isNativeSegmentationAvailable() &&
+            isNativeImageLabelingAvailable() && isNativeFaceMeshAvailable() &&
+            isNativeTextRecognitionAvailable() && isNativePoseDetectionAvailable() &&
             isNativeImageEmbedderAvailable() && (
             <button className="drawer-item" onClick={() => go(testNativeFaceDetection)}>
               <span className="drawer-item-icon"><SparkleIcon /></span>

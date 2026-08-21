@@ -10,10 +10,8 @@ import com.luminculler.app.plugins.FaceDetectionPlugin;
 import com.luminculler.app.plugins.ImageAnalysisPlugin;
 import com.luminculler.app.plugins.ImageLabelingPlugin;
 import com.luminculler.app.plugins.FaceMeshPlugin;
-import com.luminculler.app.plugins.ImageClassifierPlugin;
 import com.luminculler.app.plugins.TextRecognitionPlugin;
 import com.luminculler.app.plugins.PoseDetectionPlugin;
-import com.luminculler.app.plugins.SegmentationPlugin;
 import com.luminculler.app.plugins.ImageEmbedderPlugin;
 import com.luminculler.app.plugins.FolderExportPlugin;
 import com.luminculler.app.plugins.MediaLibraryPlugin;
@@ -25,17 +23,21 @@ public class MainActivity extends BridgeActivity {
         // Plugin-urile native LOCALE (nu pachete npm separate, ca @capacitor/filesystem)
         // nu sunt descoperite automat de Capacitor — trebuie inregistrate explicit aici,
         // inainte de super.onCreate(). Vezi plugins/FaceDetectionPlugin.kt / ImageAnalysisPlugin.kt /
-        // ImageLabelingPlugin.kt / FaceMeshPlugin.kt / ImageClassifierPlugin.kt /
-        // TextRecognitionPlugin.kt / PoseDetectionPlugin.kt / SegmentationPlugin.kt / ImageEmbedderPlugin.kt /
-        // FolderExportPlugin.kt / MediaLibraryPlugin.kt / BillingPlugin.kt.
+        // ImageLabelingPlugin.kt / FaceMeshPlugin.kt / TextRecognitionPlugin.kt /
+        // PoseDetectionPlugin.kt / ImageEmbedderPlugin.kt / FolderExportPlugin.kt /
+        // MediaLibraryPlugin.kt / BillingPlugin.kt.
+        //
+        // ImageClassifier (EfficientNet-Lite0) si Segmentation (selfie_multiclass)
+        // au fost scoase: erau porturi de proba nelegate niciodata de analiza
+        // reala (vezi nativeAnalysis.ts), dar cele doua modele lor — 17,7 MB si
+        // 15,6 MB — intrau in FIECARE instalare. 33 MB pentru doua randuri dintr-un
+        // buton de test care nici nu se randeaza in build-ul de productie.
         registerPlugin(FaceDetectionPlugin.class);
         registerPlugin(ImageAnalysisPlugin.class);
         registerPlugin(ImageLabelingPlugin.class);
         registerPlugin(FaceMeshPlugin.class);
-        registerPlugin(ImageClassifierPlugin.class);
         registerPlugin(TextRecognitionPlugin.class);
         registerPlugin(PoseDetectionPlugin.class);
-        registerPlugin(SegmentationPlugin.class);
         registerPlugin(ImageEmbedderPlugin.class);
         registerPlugin(FolderExportPlugin.class);
         registerPlugin(MediaLibraryPlugin.class);

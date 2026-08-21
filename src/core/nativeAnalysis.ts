@@ -1,22 +1,25 @@
 /**
  * core/nativeAnalysis.ts
  * Orchestratorul pipeline-ului REAL de analiza pe Android nativ — inlocuieste
- * workers/faceAnalysis.worker.ts (Human.js/TFJS) cu 5 dintre cele 9 plugin-uri
- * native Capacitor dovedite functionale pe device real (vezi butonul de test
- * DEV din MenuDrawer.tsx): FaceDetection, ImageAnalysis, ImageLabeling,
- * FaceMesh, TextRecognition. Apelat din core/workerPool.ts (AnalysisPool),
+ * workers/faceAnalysis.worker.ts (Human.js/TFJS) cu cele 7 plugin-uri native
+ * Capacitor dovedite functionale pe device real (vezi butonul de test DEV din
+ * MenuDrawer.tsx): FaceDetection, ImageAnalysis, ImageLabeling, FaceMesh,
+ * TextRecognition, PoseDetection, ImageEmbedder. Apelat din core/workerPool.ts (AnalysisPool),
  * NU direct din importPipeline.ts — call site-ul `analysisPool.analyze(id,
  * bitmap)` ramane neschimbat pe ambele platforme.
  *
- * Module native EXCLUSE intentionat din acest pipeline (decizie explicita,
- * vezi planul de la wiring): ImageClassifier (etichete ImageNet netraduse —
- * ar strica UX-ul de cautare/filtrare care presupune sceneTags traduse),
- * PoseDetection (fara consumator de scor definit), Segmentation (necesita
- * schimbare Kotlin ca sa inlocuiasca masca dreptunghiulara, nu doar consum
- * JS), ImageEmbedder (necesita integrare in hashCompare.worker.ts). Raman
- * "revenim dupa" — de conectat separat, cu propriul lor design.
+ * ImageClassifier (EfficientNet-Lite0, etichete ImageNet netraduse) si
+ * Segmentation (selfie_multiclass) au fost STERSE, nu doar excluse: erau
+ * porturi de proba pe care nimic nu le-a consumat vreodata, iar cele doua
+ * modele ale lor — 17,7 MB si 15,6 MB — intrau in fiecare instalare pentru
+ * doua randuri dintr-un buton de test care nici nu se randeaza in productie.
+ * Se pot reface oricand (un plugin Kotlin + o descarcare in workflow), dar
+ * atunci vin cu un consumator real, nu inaintea lui.
  *
- * Recunoasterea faciala nativa NU exista in niciunul din cele 9 module ML
+ * PoseDetection si ImageEmbedder, in schimb, AU fost conectate intre timp —
+ * vezi bodyCroppedAtEdge si imageEmbedding mai jos.
+ *
+ * Recunoasterea faciala nativa NU exista in niciunul din modulele ML
  * Kit/MediaPipe (nu produc embedding de identitate) — dar exista o cale
  * ocolitoare deja folosita in productie pentru inrolare (vezi `recognitionSlot`
  * din core/workerPool.ts): un worker Human.js/TFJS lazy, cu un config redus la

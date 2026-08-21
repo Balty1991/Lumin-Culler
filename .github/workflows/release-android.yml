@@ -100,23 +100,24 @@ jobs:
       # pentru fiecare fata din nativeAnalysis.ts). `-f` face curl sa esueze
       # zgomotos pe orice status HTTP de eroare; verificarea marimii minime
       # prinde in plus un fisier trunchiat/gol care ar fi trecut de `-f`.
-      - name: Bundle native face-mesh and image-classifier models
+      - name: Bundle native face-mesh model
         run: |
           curl -fL -o android/app/src/main/assets/face_landmarker.task https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task
-          curl -fL -o android/app/src/main/assets/efficientnet_lite0.tflite https://storage.googleapis.com/mediapipe-models/image_classifier/efficientnet_lite0/float32/1/efficientnet_lite0.tflite
-          for f in face_landmarker.task efficientnet_lite0.tflite; do
+          for f in face_landmarker.task; do
             size=$(stat -c%s "android/app/src/main/assets/$f")
             if [ "$size" -lt 100000 ]; then echo "::error::$f are doar $size octeti — descarcare esuata/trunchiata" && exit 1; fi
           done
-      # Analiza AI nativa (Faza 5 — vezi plugins/PoseDetectionPlugin.kt / SegmentationPlugin.kt):
-      # doua modele MediaPipe oficiale in plus (pose lite + segmentare selfie
-      # multiclasa), NU committed in git. TextRecognitionPlugin.kt nu are nevoie
-      # de pas separat — modelul lui e bundle-uit direct in dependinta ML Kit.
-      - name: Bundle native pose and segmentation models
+      # Analiza AI nativa (Faza 5 — vezi plugins/PoseDetectionPlugin.kt): modelul
+      # MediaPipe pose lite, NU committed in git. TextRecognitionPlugin.kt nu are
+      # nevoie de pas separat — modelul lui e bundle-uit direct in dependinta ML Kit.
+      #
+      # Modelul de segmentare (selfie_multiclass, 15,6 MB) a fost scos odata cu
+      # SegmentationPlugin.kt: nu era folosit de analiza reala, doar de butonul
+      # de test DEV. Vezi si efficientnet_lite0 (17,7 MB) la pasul de mai sus.
+      - name: Bundle native pose model
         run: |
           curl -fL -o android/app/src/main/assets/pose_landmarker_lite.task https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task
-          curl -fL -o android/app/src/main/assets/selfie_multiclass.tflite https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/latest/selfie_multiclass_256x256.tflite
-          for f in pose_landmarker_lite.task selfie_multiclass.tflite; do
+          for f in pose_landmarker_lite.task; do
             size=$(stat -c%s "android/app/src/main/assets/$f")
             if [ "$size" -lt 100000 ]; then echo "::error::$f are doar $size octeti — descarcare esuata/trunchiata" && exit 1; fi
           done

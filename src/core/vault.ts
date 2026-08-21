@@ -3,7 +3,7 @@
  * "Dosar privat" (plan modernizare, ecran m-vault din mockup) — folder ascuns
  * din Albume/selectorul de foldere, deblocat cu un PIN local. Mockup-ul arata
  * amprenta digitala, dar niciun plugin biometric nu exista inca in proiect
- * (vezi android/ — doar cele 9 module ML Kit/MediaPipe din nativeAnalysis.ts,
+ * (vezi android/ — doar modulele ML Kit/MediaPipe din nativeAnalysis.ts,
  * fara BiometricPrompt) — un PIN e echivalentul realist, fara sa promitem o
  * functie pe care n-o putem livra acum.
  *
