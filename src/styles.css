@@ -2416,6 +2416,18 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 /* ── Stat-tile-uri compacte (panoul de detaliu) — dashboard, nu paragraf de text ── */
 /* compacte intentionat — DetailView trebuie sa incapa integral fara scroll
    pe cat mai multe device-uri, chiar cu 8 tile-uri + motive + persoana + serie */
+/* Grupele din rubrica Metrici — titlu discret, rezumat in dreapta. Rezumatul e
+   partea care se citeste; dalele de dedesubt sunt pentru cine vrea sa vada de
+   unde vine. De asta rezumatul e mai apasat decat titlul grupei. */
+.metric-group { margin-top: 14px; }
+.metric-group-head {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+  margin: 0 2px 8px; color: var(--text-faint);
+  font-size: .68rem; font-weight: 800; letter-spacing: .12em;
+}
+.metric-group-head b { color: var(--text-dim); font-weight: 700; letter-spacing: 0; font-size: .74rem; text-transform: none; }
+.metric-group-head b.warn { color: var(--review); }
+
 .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
 .stat-tile {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;

@@ -4,6 +4,8 @@ import { useStore, type PhotoView } from '../state/store';
 import { explainFactors } from '../core/learning/ContextEngine';
 import { generateExplanation, generateSuggestions, type Suggestion } from '../core/aiExplanationGenerator';
 import { compareWithinMoment } from '../core/momentComparison';
+import { technicalSummary, subjectSummary, framingSummary } from '../core/metricSummary';
+import { landscapeSharpness } from '../core/learning/ContextEngine';
 import { Histogram } from './Histogram';
 import { FocusMap } from './FocusMap';
 import { AnimatedNumber } from './AnimatedNumber';
@@ -79,6 +81,35 @@ function StatTile({ label, value, warn, note }: { label: string; value: ReactNod
       <span className="stat-label">{label}</span>
       {note && <span className="stat-note">{note}</span>}
     </div>
+  );
+}
+
+/**
+ * O grupa de metrici, cu titlu si cu un rezumat de o linie in dreapta.
+ *
+ * De ce grupe si nu o grila plata: pana acum toate dalele stateau amestecate
+ * intr-o singura grila de trei coloane — claritatea langa numarul de fete langa
+ * regula treimilor. Se puteau CITI, dar nu se putea RASPUNDE la intrebarea pe
+ * care si-o pune de fapt cineva care se uita acolo: "e o problema tehnica, sau
+ * de subiect, sau de incadrare?". Uneltele profesioniste (Lightroom, Capture
+ * One, Narrative) despart exact asa, si nu din gust: sunt trei feluri de
+ * probleme cu trei feluri de rezolvari.
+ *
+ * Rezumatul din dreapta e pentru citirea rapida: cat timp nu scrie nimic
+ * ingrijorator acolo, grupa poate fi sarita din ochi cu totul.
+ */
+function MetricGroup(
+  { title, summary, tone, children }:
+  { title: string; summary?: string; tone?: 'ok' | 'warn'; children: ReactNode }
+) {
+  return (
+    <section className="metric-group">
+      <div className="metric-group-head">
+        <span className="mono">{title}</span>
+        {summary && <b className={tone === 'warn' ? 'warn' : undefined}>{summary}</b>}
+      </div>
+      <div className="stat-grid">{children}</div>
+    </section>
   );
 }
 
@@ -366,6 +397,14 @@ export function PhotoInfoTabs({ photo, src, openTab }: {
     [history, photo.id]
   );
 
+  // Rezumatele grupelor de metrici — vezi core/metricSummary.ts pentru reguli.
+  // Claritatea se judeca altfel pe portret decat pe peisaj, si acel calcul are
+  // deja un singur loc in aplicatie: nu-l duplicam aici.
+  const effectiveSharpness = photo.faceCount > 0 ? photo.sharpness : landscapeSharpness(photo.sharpness) * 100;
+  const techSummary = technicalSummary(photo, effectiveSharpness);
+  const subjSummary = subjectSummary(photo);
+  const frameSummary = framingSummary(photo);
+
   const exif = formatExif(photo);
   const verdict = tr(photo.aiScore >= 65 ? 'inspector.verdict.keep' : photo.aiScore <= 35 ? 'inspector.verdict.reject' : 'inspector.verdict.review');
   const verdictFactors = explainFactors(photo.aiFactors, locale).slice(0, 3);
@@ -436,7 +475,10 @@ export function PhotoInfoTabs({ photo, src, openTab }: {
               Motive fixe, nu text liber — vezi core/aiFeedback.ts pentru de ce. */}
           <AiFeedbackButton score={photo.aiScore} locale={locale} />
           <div className="inspector-section-head"><span className="mono">{tr('inspector.frameAnalysis')}</span><b>{photo.aiScore} / 100</b></div>
-          <div className="stat-grid">
+
+          {/* TEHNIC — ce tine de aparat si de lumina care a intrat in el. Sunt
+              problemele care fie se repara in editare, fie nu se repara deloc. */}
+          <MetricGroup title={tr('metrics.group.technical')} summary={tr(techSummary.key)} tone={techSummary.tone}>
             <StatTile
               label={tr('detail.stat.sharpness')} value={photo.sharpness}
               note={photo.sharpness < 40 ? tr('detail.stat.note.sharpness') : undefined}
@@ -446,7 +488,13 @@ export function PhotoInfoTabs({ photo, src, openTab }: {
               note={photo.exposure < 35 ? tr('detail.stat.note.underexposed')
                 : photo.exposure > 70 ? tr('detail.stat.note.overexposed') : undefined}
             />
-            {photo.faceCount > 0 && <StatTile label={tr('detail.stat.faces')} value={photo.faceCount} />}
+          </MetricGroup>
+
+          {/* SUBIECT — cine e in cadru si ce face. Nu se repara in editare:
+              ori s-a prins momentul, ori nu. */}
+          {photo.faceCount > 0 && (
+            <MetricGroup title={tr('metrics.group.subject')} summary={tr(subjSummary.key)} tone={subjSummary.tone}>
+            <StatTile label={tr('detail.stat.faces')} value={photo.faceCount} />
             {photo.faceCount > 0 && (
               // grup (mai multe fete): procent care zambesc, nu doar cea mai buna fata —
               // altfel un singur zambet mare "ascunde" restul grupului serios/nemultumit
@@ -468,6 +516,12 @@ export function PhotoInfoTabs({ photo, src, openTab }: {
                 warn={photo.faceCount > 1 ? (photo.groupEyesOpenRatio ?? 1) < 1 : !photo.allEyesOpen}
               />
             )}
+            </MetricGroup>
+          )}
+
+          {/* INCADRARE — singura grupa la care raspunsul e "data viitoare",
+              nu "acum". De asta sta separat de tehnic. */}
+          <MetricGroup title={tr('metrics.group.framing')} summary={tr(frameSummary.key)} tone={frameSummary.tone}>
             {photo.faceCount > 0 && (
               <StatTile
                 label={tr('detail.stat.thirds')} value={`${Math.round(photo.ruleOfThirds * 100)}%`}
@@ -501,7 +555,13 @@ export function PhotoInfoTabs({ photo, src, openTab }: {
                 note={photo.negativeSpaceScore < 0.35 ? tr('detail.stat.note.negativeSpace') : undefined}
               />
             )}
-          </div>
+          </MetricGroup>
+
+          {/* LUMINA SI CULOARE — nu sunt "metrici" cu note, sunt lucruri de
+              privit. De asta grupa asta n-are dale, ci chiar culorile. */}
+          {(photo.dominantColors?.length || photo.goldenHourDetected || (photo.sceneTags && photo.sceneTags.length > 0)) && (
+            <div className="metric-group-head"><span className="mono">{tr('metrics.group.light')}</span></div>
+          )}
           {(photo.dominantColors?.length || photo.goldenHourDetected) && (
             <div className="color-palette-row">
               {photo.goldenHourDetected && (
@@ -518,6 +578,11 @@ export function PhotoInfoTabs({ photo, src, openTab }: {
                 <span key={tag} className="scene-tag">{translateSceneTag(tag, locale)}</span>
               ))}
             </div>
+          )}
+          {/* FISIER — ce a scris aparatul in poza. Ultimul, pentru ca la el
+              se uita cineva doar cand chiar il cauta. */}
+          {(exif || exifRows.length > 0 || iptcRowsList.length > 0) && (
+            <div className="metric-group-head"><span className="mono">{tr('metrics.group.file')}</span></div>
           )}
           {exif && <p className="detail-exif mono">{exif}</p>}
           {exifRows.length > 0 && (
