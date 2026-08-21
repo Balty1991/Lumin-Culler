@@ -1026,6 +1026,34 @@ export function ratingDecision(rating: number): boolean | null {
   return null;
 }
 
+/**
+ * Invatarea dintr-o serie rezolvata de om: PERECHI de preferinta, nu etichete.
+ *
+ * Bug real, gasit la analiza motorului: alegerea unui cadru dintr-o serie era
+ * codificata ca N decizii absolute independente — "B e buna, A e proasta,
+ * C e proasta". Dar omul n-a spus niciodata ca A e proasta; a spus ca B a
+ * batut-o pe A. A putea fi o poza excelenta care a pierdut la mustata, iar
+ * modelul invata din ea, cu convingere, exact pe dos. Si se intampla fix pe
+ * interactiunea in jurul careia e construita aplicatia.
+ *
+ * Vezi ContextEngine.recordPreference pentru ce se schimba matematic.
+ */
+async function trainPreference(winnerId: string, loserIds: string[]): Promise<void> {
+  if (!loserIds.length) return;
+  const [winnerAnalysis, winnerPhoto] = await Promise.all([db.analyses.get(winnerId), db.photos.get(winnerId)]);
+  if (!winnerAnalysis) return;
+  const loserAnalyses = await db.analyses.bulkGet(loserIds);
+  const losers = loserAnalyses
+    .map((analysis, i) => (analysis ? { photoId: loserIds[i], analysis } : null))
+    .filter((x): x is { photoId: string; analysis: AnalysisRecord } => x !== null);
+  if (!losers.length) return;
+  await contextEngine.recordPreference({
+    winner: { photoId: winnerId, analysis: winnerAnalysis },
+    losers,
+    genre: winnerPhoto?.genre
+  });
+}
+
 async function train(id: string, userDecision: boolean): Promise<{ topShift: WeightShift | null }> {
   const [analysis, photo] = await Promise.all([db.analyses.get(id), db.photos.get(id)]);
   if (!analysis) return { topShift: null };
@@ -2720,8 +2748,9 @@ export const useStore = create<AppState>((set, get) => ({
       await db.photos.update(m.id, { status });
       const res = await syncOriginal(m.id, status);
       if (res.quotaError) quotaError = true;
-      await train(m.id, m.id === keepId);
     }
+    // O singura data pentru toata seria, si ca PERECHI — vezi trainPreference.
+    await trainPreference(keepId, members.filter(m => m.id !== keepId).map(m => m.id));
     const locale = get().locale;
     set(state => ({
       photos: state.photos.map(p =>
@@ -2743,8 +2772,11 @@ export const useStore = create<AppState>((set, get) => ({
       await db.photos.update(m.id, { status });
       const res = await syncOriginal(m.id, status);
       if (res.quotaError) quotaError = true;
-      await train(m.id, keepSet.has(m.id));
     }
+    // Fiecare pastrat a batut fiecare respins din aceeasi serie. Intre doi
+    // pastrati nu exista comparatie: omul nu i-a departajat, deci nici noi.
+    const rejectedIds = members.filter(m => !keepSet.has(m.id)).map(m => m.id);
+    for (const keptId of keepIds) await trainPreference(keptId, rejectedIds);
     const locale = get().locale;
     set(state => ({
       photos: state.photos.map(p =>

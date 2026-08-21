@@ -46,6 +46,21 @@ export interface CorrectionInput {
   locale?: Locale;
 }
 
+/**
+ * O alegere COMPARATIVA: dintr-o serie de cadre aproape identice, omul a ales
+ * unul si a lasat celelalte.
+ *
+ * De ce e un tip separat de CorrectionInput: cele doua spun lucruri diferite.
+ * "Pastrez poza asta" e o judecata ABSOLUTA despre ea. "O pastrez pe B din
+ * {A, B, C}" nu spune nimic despre cat de buna e A — spune doar ca B a batut-o.
+ * A poate fi o poza excelenta care a pierdut la mustata.
+ */
+export interface PreferenceInput {
+  winner: { photoId: string; analysis: AnalysisRecord };
+  losers: { photoId: string; analysis: AnalysisRecord }[];
+  genre?: string;
+}
+
 /** O singura schimbare de pondere, suficient de mare cat sa merite anuntata utilizatorului imediat — vezi recordCorrection. */
 export interface WeightShift {
   feature: string;
@@ -920,6 +935,90 @@ export class ContextEngine {
     model.bias -= lr * error;
     model.sampleCount++;
     model.updatedAt = Date.now();
+  }
+
+  /**
+   * Un pas de invatare dintr-o COMPARATIE (formularea Bradley-Terry / RankNet):
+   * probabilitatea ca un cadru sa-l bata pe altul e sigmoida DIFERENTEI dintre
+   * scorurile lor, iar gradientul se aplica pe diferenta vectorilor.
+   *
+   * Doua consecinte care nu sunt detalii, ci chiar motivul pentru care exista
+   * metoda asta separat de trainOne:
+   *
+   *  - BIAS-UL NU SE ATINGE. El se anuleaza singur in scaderea de mai jos, si
+   *    asa si trebuie: o comparatie nu spune nimic despre pragul de la care o
+   *    poza merita pastrata. Spune doar cine e mai sus. Pragul absolut se
+   *    invata din deciziile individuale (trainOne), unde omul chiar judeca o
+   *    poza in sine.
+   *  - TRASATURILE IDENTICE SE SAR. Doua cadre din aceeasi rafala au aproape
+   *    mereu acelasi aparat, aceeasi lumina, acelasi numar de oameni. Diferenta
+   *    lor e zero, deci comparatia nu spune NIMIC despre ele — si atunci nu au
+   *    ce cauta in gradient. Exact asta se pierdea cand alegerea era codificata
+   *    ca doua etichete absolute: modelul invata ca "lumina de seara e rea"
+   *    dintr-o alegere care nu avusese nicio legatura cu lumina.
+   */
+  private trainPair(model: ContextModelRecord, winner: FeatureVector, loser: FeatureVector): void {
+    // Statisticile cresc cu AMBELE observatii (sunt doua poze reale), si abia
+    // dupa aceea normalizam pe amandoua cu aceleasi statistici — altfel
+    // castigatorul ar fi masurat cu o rigla usor diferita fata de pierzator,
+    // iar diferenta dintre ei ar contine si diferenta dintre rigle.
+    this.normalize(model, winner, /*update=*/ true);
+    this.normalize(model, loser, /*update=*/ true);
+    const w = this.normalize(model, winner, /*update=*/ false);
+    const l = this.normalize(model, loser, /*update=*/ false);
+
+    const keys = new Set([...Object.keys(w), ...Object.keys(l)]);
+    const diff: FeatureVector = {};
+    let z = 0;
+    for (const k of keys) {
+      const d = (w[k] ?? 0) - (l[k] ?? 0);
+      if (d === 0) continue;
+      diff[k] = d;
+      z += (model.weights[k] ?? 0) * d;
+    }
+
+    const p = Number.isFinite(z) ? 1 / (1 + Math.exp(-z)) : 0.5;
+    // Tinta e 1: castigatorul chiar a castigat. Cand modelul deja prezicea asta
+    // cu tarie, p e aproape de 1 si eroarea e aproape zero — nimic de corectat.
+    const error = p - 1;
+    const lr = BASE_LR / Math.sqrt(model.sampleCount + 1);
+    for (const [k, d] of Object.entries(diff)) {
+      model.weights[k] = updateWeight(model.weights[k] ?? 0, error * d, lr, priorAnchor(k));
+    }
+    model.updatedAt = Date.now();
+  }
+
+  /**
+   * Invata dintr-o serie rezolvata de om.
+   *
+   * DELIBERAT nu invata nimic absolut de aici — nici macar ca a castigat
+   * castigatorul. Cine rezolva o serie nu spune "poza asta e buna", spune "asta
+   * e cea mai buna dintre astea". Daca toata rafala a iesit prost, castigatorul
+   * ei nu e o poza buna, si a-l invata ca atare ar strica pragul pentru tot
+   * restul bibliotecii.
+   *
+   * `sampleCount` creste cu UNU per serie rezolvata, nu per pereche: e o
+   * singura decizie de-a omului, si de el atarna atat rata de invatare cat si
+   * eticheta de incredere aratata in UI.
+   */
+  async recordPreference(input: PreferenceInput): Promise<void> {
+    if (!input.losers.length) return;
+    await this.init();
+    const contextKey = deriveContextKey(input.winner.analysis, input.genre);
+    const model = this.getOrCreateModel(contextKey);
+    const globalModel = this.getOrCreateModel(GLOBAL_CONTEXT_KEY);
+    const enrolled = this.enrolledPersonCount > 0;
+    const winnerFeatures = extractFeatures(input.winner.analysis, this.memorySignals(input.winner.analysis), enrolled);
+
+    for (const loser of input.losers) {
+      const loserFeatures = extractFeatures(loser.analysis, this.memorySignals(loser.analysis), enrolled);
+      this.trainPair(model, winnerFeatures, loserFeatures);
+      this.trainPair(globalModel, winnerFeatures, loserFeatures);
+    }
+    model.sampleCount++;
+    globalModel.sampleCount++;
+
+    await db.contextModels.bulkPut([model, globalModel]);
   }
 
   // ── Explainability (feeds the "Preferinte AI" panel in UI) ─────────────────

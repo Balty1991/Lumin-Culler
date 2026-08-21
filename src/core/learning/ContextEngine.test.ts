@@ -739,3 +739,68 @@ describe('ce NU stie motorul nu trebuie sa conteze impotriva pozei', () => {
     expect(extractFeatures(cuOameni).strangerPenalty).toBe(1);
   });
 });
+
+describe('invatarea din comparatii, nu din etichete', () => {
+  /** Doua cadre ale aceleiasi clipe: difera la claritate, identice in rest. */
+  function rafala() {
+    const comun = {
+      faceCount: 1, knownFaceCount: 0, strangerCount: 1, allEyesOpen: true,
+      bestSmile: 0.7, exposure: 50, sceneType: 'portrait' as const,
+      cameraMake: 'Xiaomi', iso: 400
+    };
+    return {
+      bun: baseAnalysis({ photoId: 'bun', sharpness: 88, ...comun }),
+      slab: baseAnalysis({ photoId: 'slab', sharpness: 42, ...comun })
+    };
+  }
+
+  it('dupa cateva serii, cadrul clar e prezis mai sus decat cel moale', async () => {
+    const engine = new ContextEngine();
+    const { bun, slab } = rafala();
+    const inainte = (await engine.predict(bun)).score - (await engine.predict(slab)).score;
+    for (let i = 0; i < 6; i++) {
+      await engine.recordPreference({ winner: { photoId: 'bun', analysis: bun }, losers: [{ photoId: 'slab', analysis: slab }], genre: 'test-directie' });
+    }
+    const dupa = (await engine.predict(bun)).score - (await engine.predict(slab)).score;
+    expect(dupa).toBeGreaterThanOrEqual(inainte);
+  });
+
+  it('NU muta pragul absolut — o comparatie nu spune de la cat in sus merita pastrata o poza', async () => {
+    const engine = new ContextEngine();
+    const { bun, slab } = rafala();
+    await engine.recordPreference({ winner: { photoId: 'bun', analysis: bun }, losers: [{ photoId: 'slab', analysis: slab }], genre: 'test-bias' });
+    const model = await db.contextModels.get(deriveContextKey(bun, 'test-bias'));
+    expect(model?.bias).toBe(0);
+  });
+
+  it('nu atinge trasaturile identice intre cele doua cadre', async () => {
+    // Acelasi aparat in ambele poze: alegerea n-a avut nicio legatura cu el.
+    const engine = new ContextEngine();
+    const { bun, slab } = rafala();
+    await engine.recordPreference({ winner: { photoId: 'bun', analysis: bun }, losers: [{ photoId: 'slab', analysis: slab }], genre: 'test-identice' });
+    const model = await db.contextModels.get(deriveContextKey(bun, 'test-identice'));
+    expect(model?.weights.isoPenalty).toBe(priorAnchor('isoPenalty'));
+    expect(model?.weights.noCameraMetadata).toBe(priorAnchor('noCameraMetadata'));
+  });
+
+  it('o serie rezolvata = O decizie, oricate cadre ar avea', async () => {
+    const engine = new ContextEngine();
+    const { bun, slab } = rafala();
+    const alt = baseAnalysis({ photoId: 'alt', sharpness: 50, faceCount: 1 });
+    await engine.recordPreference({
+      winner: { photoId: 'bun', analysis: bun },
+      losers: [{ photoId: 'slab', analysis: slab }, { photoId: 'alt', analysis: alt }],
+      genre: 'test-numarare'
+    });
+    const model = await db.contextModels.get(deriveContextKey(bun, 'test-numarare'));
+    // doua perechi, dar o singura decizie de-a omului
+    expect(model?.sampleCount).toBe(1);
+  });
+
+  it('fara pierzatori nu are ce invata', async () => {
+    const engine = new ContextEngine();
+    const { bun } = rafala();
+    await engine.recordPreference({ winner: { photoId: 'bun', analysis: bun }, losers: [], genre: 'test-gol' });
+    expect(await db.contextModels.get(deriveContextKey(bun, 'test-gol'))).toBeUndefined();
+  });
+});
