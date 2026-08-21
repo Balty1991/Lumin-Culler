@@ -13,9 +13,11 @@ import { selectPendingShieldReview, readShieldDismissedIds } from '../core/docum
 import { selectUnresolvedGroups } from '../state/duplicateGroups';
 import { AnimatedNumber } from './AnimatedNumber';
 import { GalleryOverviewNote } from './GalleryOverviewNote';
+import { QuickScanFind } from './QuickScanFind';
 import { SessionOutcome } from './SessionOutcome';
 import { SparkleIcon, PinIcon, ChevronUpIcon, ShieldIcon, CopyIcon, TrashIcon } from './icons';
 import { t, plural } from '../i18n';
+import { formatEta } from '../core/formatTime';
 
 const RECAP_TEASER_MIN_PHOTOS = 5; // sub atat, un "recap" nu chiar inseamna nimic
 
@@ -77,6 +79,8 @@ export function HomeDashboard() {
    */
   const progress = useStore(s => s.progress);
   const analysing = !!progress && progress.phase !== 'finalizat';
+  const cancelImport = useStore(s => s.cancelImport);
+  const importCancelling = useStore(s => s.importCancelling);
   const setDocumentShieldOpen = useStore(s => s.setDocumentShieldOpen);
   const setDuplicatesPanelOpen = useStore(s => s.setDuplicatesPanelOpen);
   const collections = useStore(s => s.collections);
@@ -134,6 +138,23 @@ export function HomeDashboard() {
   // fotografiile ambigue. Daca AI a decis tot lotul, pastram cardul vizibil cu
   // prima fotografie din sesiune ca intrare spre revedere si biblioteca completa.
   const reviewDeskPhoto = photos.find(p => p.status === 'pending' || p.status === 'review') ?? photos[0] ?? null;
+  /**
+   * Textul de sub titlu cat timp motorul lucreaza. Raspunde la singurele doua
+   * intrebari pe care le are omul cand se uita la o bara: cate au fost facute
+   * si cat mai dureaza. Fara estimare (la inceput, sau la incarcarea modelelor)
+   * spune doar unde s-a ajuns — o estimare inventata e mai rea decat niciuna.
+   */
+  const analysedTotal = progress ? (progress.total || photos.length) : photos.length;
+  const analysedPercent = progress
+    ? Math.max(3, Math.min(100, Math.round((progress.done / Math.max(1, analysedTotal)) * 100)))
+    : 0;
+  const analysingLead = !progress
+    ? ''
+    : progress.phase === 'incarcare'
+      ? tr('reviewDesk.lead.loading')
+      : progress.etaSeconds !== undefined
+        ? tr('reviewDesk.lead.analysingEta', { done: progress.done, total: analysedTotal, eta: formatEta(progress.etaSeconds) })
+        : tr('reviewDesk.lead.analysing', { done: progress.done, total: analysedTotal });
   const hasReviewQueue = unsortedCount > 0;
 
   const selectedCount = photos.filter(p => p.status === 'selected').length;
@@ -275,14 +296,41 @@ export function HomeDashboard() {
                 : hasReviewQueue
                   ? tr(plural(unsortedCount, 'home.sortCta.sub.one', 'home.sortCta.sub.other'), { count: unsortedCount })
                   : tr('reviewDesk.title.ready')}</h2>
-              <p>{analysing
-                ? tr('reviewDesk.lead.analysing', { done: progress.done, total: progress.total || photos.length })
-                : tr(hasReviewQueue ? 'reviewDesk.lead.next' : 'reviewDesk.lead.ready')}</p>
+              {/* Cerinta directa a utilizatorului: dupa import, acelasi lucru
+                  aparea in doua locuri — cardul asta ("AI-ul citeste
+                  fotografiile") si cardul ANALYSIS STUDIO de dedesubt. Studioul
+                  a ramas doar pentru biblioteca goala (App.tsx), iar tot ce
+                  spunea el — cate poze, cat mai dureaza, cat s-a facut, si
+                  anularea — a venit aici, intr-un singur loc. */}
+              <p>{analysing ? analysingLead : tr(hasReviewQueue ? 'reviewDesk.lead.next' : 'reviewDesk.lead.ready')}</p>
+              {analysing && (
+                <div
+                  className="review-desk-progress"
+                  role="progressbar"
+                  aria-valuenow={progress.done}
+                  aria-valuemin={0}
+                  aria-valuemax={progress.total || photos.length}
+                >
+                  <span style={{ width: `${analysedPercent}%` }} />
+                </div>
+              )}
+              {/* Primul rezultat concret al importului (copii identice gasite,
+                  spatiu irosit) statea pe cardul studio. Se muta odata cu
+                  progresul, altfel al doilea import nu l-ar mai fi aratat. */}
+              {analysing && <QuickScanFind />}
               <div className="review-desk-actions">
                 <button className="review-desk-continue" onClick={() => openQuickSortAll()}>
                   <span>{tr(hasReviewQueue ? 'reviewDesk.continue' : 'reviewDesk.open')}</span>
                   <span aria-hidden="true">→</span>
                 </button>
+                {/* Anularea importului statea pe cardul studio, care nu mai apare
+                    aici — fara ea, un import de mii de poze pornit din greseala
+                    n-ar mai fi avut buton de oprire pe ecranul principal. */}
+                {analysing && progress.phase === 'analiza' && (
+                  <button className="review-desk-cancel" onClick={() => cancelImport()} disabled={importCancelling}>
+                    {importCancelling ? tr('app.progress.cancelling') : tr('app.progress.cancel')}
+                  </button>
+                )}
                 {/* Al doilea buton spre biblioteca a fost scos odata cu bara de
                     navigare pe patru spatii: "Bibliotecă" e acum un tab
                     permanent, iar cardul asta avea deja o a doua usa spre

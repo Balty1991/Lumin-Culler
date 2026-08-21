@@ -287,7 +287,6 @@ export default function App() {
   const askPrompt = useStore(s => s.askPrompt);
   const filtered = useStore(s => s.filtered());
   const workspaceMode = useStore(s => s.workspaceMode);
-  const setWorkspaceMode = useStore(s => s.setWorkspaceMode);
   const homeGridOpen = useStore(s => s.homeGridOpen);
   const setHomeGridOpen = useStore(s => s.setHomeGridOpen);
   const setTiktokSortOpen = useStore(s => s.setTiktokSortOpen);
@@ -865,13 +864,13 @@ export default function App() {
             </Tooltip>
           )}
           <UndoHistoryButton />
-          {photos.length > 0 && (
-            <Tooltip label={tr('app.tooltip.workspace')}>
-              <button className="ghost icon-btn" onClick={() => setWorkspaceMode(true)} aria-label={tr('app.workspace.ariaLabel')}>
-                <FocusIcon />
-              </button>
-            </Tooltip>
-          )}
+          {/* Butonul spre spatiul de lucru a fost scos din antet la cererea
+              directa a utilizatorului ("ma duce tot la sortare"): de cand bara
+              de jos are tab-ul "Revizuiesc", cele doua duceau in acelasi loc
+              din punctul lui de vedere, iar antetul avea un buton in plus fara
+              o destinatie noua. Ramane in paleta de comenzi (Ctrl+K) si acolo
+              unde aplicatia il deschide singura, dupa o actiune care chiar
+              cere spatiul de lucru. */}
           {/* Doar cand exista ceva de exportat. Pe ecranul gol ramanea un buton
               dezactivat care scria "Exporta poze (0)" — ocupa jumatate din
               antet fara sa poata face nimic. Celelalte butoane din antet erau
@@ -956,7 +955,14 @@ export default function App() {
           />
         )}
 
-        {progress && (
+        {/* Cerinta directa a utilizatorului, cu captura: dupa import, progresul
+            aparea de doua ori pe acelasi ecran — sus in masa de triaj ("AI-ul
+            citeste fotografiile"), jos in cardul ANALYSIS STUDIO. Cat timp
+            exista poze, masa de triaj e cea care raporteaza (numar, estimare,
+            bara, anulare — vezi HomeDashboard). Studioul ramane exact pentru
+            cazul in care nu e nimic deasupra lui: primul import, biblioteca
+            goala, unde el E ecranul. */}
+        {progress && photos.length === 0 && (
           progress.phase === 'incarcare' ? (
             <AiBootScreen />
           ) : (

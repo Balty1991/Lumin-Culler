@@ -7,7 +7,7 @@ import { explainFactors } from '../core/learning/ContextEngine';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { CollectionPicker } from './CollectionPicker';
 import { AdjustedImage } from './AdjustedImage';
-import { XIcon, HeartIcon, UndoIcon, ChevronUpIcon, SparkleIcon, LayersIcon, BookmarkIcon} from './icons';
+import { XIcon, HeartIcon, UndoIcon, ChevronUpIcon, SparkleIcon, LayersIcon, BookmarkIcon, BarChartIcon } from './icons';
 import { t, type Locale } from '../i18n';
 
 const SWIPE_COMMIT = 80; // px de tras (sus SAU jos) pentru a schimba pozitia in coada, fara sa decida nimic
@@ -401,12 +401,17 @@ export function TikTokSort() {
           <div className="tiktok-veil-top" aria-hidden="true" />
           <div className="tiktok-veil-bottom" aria-hidden="true" />
 
+          {/* Blocul de informatii, dupa a doua plangere a utilizatorului ("acopera
+              asa mult din imagine"): DOUA randuri, nu patru. Toate scurtaturile
+              — recomandarea AI, seria, metricile — sunt pastile pe acelasi rand,
+              iar motivele si data intra pe un singur rand care se taie cu "..."
+              in loc sa curga pe mai multe. */}
           <div className="tiktok-caption">
             <div className="tiktok-chip-row">
               {recommendation && (
-                <span className={`tiktok-ai-chip rec-${recommendation}`}>
+                <span className={`tiktok-ai-chip rec-${recommendation}`} title={tr(`tiktok.ai.${recommendation}`)}>
                   <SparkleIcon className="inline-icon" aria-hidden="true" />
-                  {tr(`tiktok.ai.${recommendation}`)} · {current.aiScore}
+                  {tr(`tiktok.ai.short.${recommendation}`)} · {current.aiScore}
                 </span>
               )}
               {/* Cerinta directa a utilizatorului: eticheta spunea "parte dintr-o
@@ -421,28 +426,38 @@ export function TikTokSort() {
                   onClick={() => openCompare(current.groupId!)}
                 >
                   <LayersIcon className="inline-icon" aria-hidden="true" />
-                  {tr('tiktok.caption.series', { count: seriesCount })}
+                  {tr('tiktok.caption.seriesShort', { count: seriesCount })}
                 </button>
               )}
+              {/* Cerinta directa: din sortarea rapida trebuie sa se ajunga la
+                  metrici si la editare, fara sa iesi in grila. Deschide aceeasi
+                  foaie de detaliu (Metrici / De ce acest scor / Persoane /
+                  Istoric), peste ecranul de sortare, care ramane montat. */}
+              <button
+                type="button"
+                className="tiktok-ai-chip tiktok-metrics-chip"
+                aria-label={tr('tiktok.metrics')}
+                onClick={() => {
+                  openDetail(current.id, { expandMetrics: true });
+                  // In spatiul de lucru metricile se deschid in foaia LUI, care e
+                  // sub sortarea rapida — daca ramanem aici, utilizatorul apasa si
+                  // nu vede nimic. In ramura principala DetailView se deschide
+                  // PESTE sortare, iar inchiderea lui readuce coada: acolo ramanem.
+                  if (useStore.getState().workspaceMode) setOpen(false);
+                }}
+              >
+                <BarChartIcon className="inline-icon" aria-hidden="true" />
+                {tr('tiktok.metrics.short')}
+              </button>
             </div>
-            {reasonsText && <span className="tiktok-caption-sub">{reasonsText}</span>}
-            <span className="tiktok-caption-sub tiktok-caption-meta">
-              {[captureDate, album].filter(Boolean).join(' · ')}
-            </span>
-            {/* Cerinta directa: din sortarea rapida trebuie sa se ajunga la
-                metrici si la editare, fara sa iesi in grila. Deschide aceeasi
-                foaie de detaliu (Metrici / De ce acest scor / Persoane /
-                Istoric), peste ecranul de sortare, care ramane montat. */}
-            <button className="tiktok-metrics-cta" onClick={() => {
-              openDetail(current.id, { expandMetrics: true });
-              // In spatiul de lucru metricile se deschid in foaia LUI, care e
-              // sub sortarea rapida — daca ramanem aici, utilizatorul apasa si
-              // nu vede nimic. In ramura principala DetailView se deschide
-              // PESTE sortare, iar inchiderea lui readuce coada: acolo ramanem.
-              if (useStore.getState().workspaceMode) setOpen(false);
-            }}>
-              {tr('tiktok.metrics')}
-            </button>
+            {(reasonsText || captureDate || album) && (
+              <p className="tiktok-caption-line">
+                {reasonsText && <span className="tiktok-caption-why">{reasonsText}</span>}
+                {(captureDate || album) && (
+                  <span className="tiktok-caption-meta">{[captureDate, album].filter(Boolean).join(' · ')}</span>
+                )}
+              </p>
+            )}
           </div>
         </>
       )}

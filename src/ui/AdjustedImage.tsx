@@ -1,4 +1,4 @@
-import { useEffect, useRef, type CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { drawAdjusted, isNeutral, type EditAdjustments } from '../core/imageAdjust';
 
 /**
@@ -10,6 +10,14 @@ import { drawAdjusted, isNeutral, type EditAdjustments } from '../core/imageAdju
  * editata fiind o iconita mica de creion. Cazul comun (fara nicio ajustare,
  * marea majoritate a pozelor) ramane exact un <img> simplu, fara nicio
  * schimbare de performanta sau comportament.
+ *
+ * Randam MEREU un <img>, si cand poza are ajustari: versiunea anterioara
+ * punea in DOM un <canvas>, iar toate regulile de asezare din foile de stil
+ * sunt scrise pe `img` (`.compare-img img`, `.card img`, `.workspace-thumb
+ * img`...). Un canvas nu le prindea, deci iesea la dimensiunea lui naturala —
+ * de aici cadrul lung de cateva mii de pixeli vazut in compararea unei serii.
+ * Asa, orice regula existenta sau viitoare scrisa pe `img` se aplica identic
+ * pozelor editate.
  */
 export function AdjustedImage({ src, edits, alt, className, style, loading, decoding }: {
   src: string;
@@ -21,28 +29,49 @@ export function AdjustedImage({ src, edits, alt, className, style, loading, deco
   decoding?: 'async' | 'sync' | 'auto';
 }) {
   const hasEdits = !isNeutral(edits);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  /** URL-ul versiunii ajustate. Cat timp e null aratam originalul — fara gol si fara salt de asezare. */
+  const [adjustedUrl, setAdjustedUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!hasEdits) return;
+    setAdjustedUrl(null);
+    if (!hasEdits || !edits) return;
     let cancelled = false;
+    let objectUrl: string | null = null;
     const img = new Image();
     img.onload = () => {
       if (cancelled) return;
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext('2d');
-      if (!ctx || !edits) return;
-      drawAdjusted(ctx, img, img.naturalWidth, img.naturalHeight, canvas.width, canvas.height, edits);
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        drawAdjusted(ctx, img, img.naturalWidth, img.naturalHeight, canvas.width, canvas.height, edits);
+        canvas.toBlob(blob => {
+          if (cancelled || !blob) return;
+          objectUrl = URL.createObjectURL(blob);
+          setAdjustedUrl(objectUrl);
+        }, 'image/jpeg', 0.92);
+      } catch {
+        // fara canvas (jsdom, memorie epuizata) ramanem pe original — mai bine
+        // originalul decat o poza lipsa
+      }
     };
     img.src = src;
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
   }, [src, hasEdits, edits]);
 
-  if (!hasEdits) {
-    return <img src={src} alt={alt} className={className} style={style} loading={loading} decoding={decoding} />;
-  }
-  return <canvas ref={canvasRef} className={className} style={style} role="img" aria-label={alt} />;
+  return (
+    <img
+      src={adjustedUrl ?? src}
+      alt={alt}
+      className={className}
+      style={style}
+      loading={loading}
+      decoding={decoding}
+    />
+  );
 }

@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'rea
 import { db, type AnalysisRecord } from '../core/db';
 import { useStore, type PhotoView } from '../state/store';
 import { explainFactors } from '../core/learning/ContextEngine';
-import { generateExplanation, generateSuggestions, type Suggestion } from '../core/aiExplanationGenerator';
+import { generateExplanationSections, generateSuggestions, type ExplanationSection, type Suggestion } from '../core/aiExplanationGenerator';
 import { compareWithinMoment } from '../core/momentComparison';
 import { technicalSummary, subjectSummary, framingSummary } from '../core/metricSummary';
 import { findCounterfactual } from '../core/scoreCounterfactual';
@@ -11,7 +11,7 @@ import { landscapeSharpness, labelForFactor, isLabelledFactor } from '../core/le
 import { Histogram } from './Histogram';
 import { FocusMap } from './FocusMap';
 import { AnimatedNumber } from './AnimatedNumber';
-import { XIcon, CheckIcon, EyeClosedIcon, SparkleIcon, ClockIcon, SunIcon } from './icons';
+import { XIcon, CheckIcon, EyeClosedIcon, SparkleIcon, ClockIcon, SunIcon, ChevronUpIcon } from './icons';
 import { t, type Locale } from '../i18n';
 import { FEEDBACK_REASONS, recordFeedback, type FeedbackReason } from '../core/aiFeedback';
 import { translateSceneTag } from '../core/sceneTagLabels';
@@ -76,13 +76,48 @@ function AiFeedbackButton({ score, locale }: { score: number; locale: Locale }) 
   );
 }
 
-function StatTile({ label, value, warn, note }: { label: string; value: ReactNode; warn?: boolean; note?: string }) {
+/**
+ * O dala de metrica. Forma vine din a treia plangere a utilizatorului despre
+ * acest tab ("prea insirat"): eticheta si valoarea stau acum pe ACELASI rand,
+ * nu una sub alta, iar sub ele o bara subtire arata cat de sus e valoarea in
+ * intervalul ei. O cifra ca "43" nu spune singura daca e bine sau rau; bara
+ * spune, dintr-o privire, fara sa mai citesti nimic. Dala a scazut de la 84px
+ * la ~52px, deci toate grupele incap deodata pe ecran.
+ */
+function StatTile({ label, value, warn, note, meter }: { label: string; value: ReactNode; warn?: boolean; note?: string; meter?: number }) {
   return (
     <div className={warn ? 'stat-tile warn' : 'stat-tile'}>
-      <span className="stat-value">{value}</span>
-      <span className="stat-label">{label}</span>
+      <span className="stat-tile-line">
+        <span className="stat-label">{label}</span>
+        <span className="stat-value">{value}</span>
+      </span>
+      {meter !== undefined && (
+        <span className="stat-meter" aria-hidden="true">
+          <i style={{ width: `${Math.max(2, Math.min(100, Math.round(meter * 100)))}%` }} />
+        </span>
+      )}
       {note && <span className="stat-note">{note}</span>}
     </div>
+  );
+}
+
+/**
+ * Sectiune pliata. Tot ce e mai jos de incadrare — culorile, datele scrise de
+ * aparat, histograma, harta de focus — e material de studiat, nu de citit la
+ * fiecare poza. Inainte statea tot desfasurat si facea din tabul Metrici un sul
+ * de trei ecrane; acum sunt patru randuri pe care le deschizi cand chiar te uiti
+ * dupa ele.
+ */
+function MetricFold({ title, children }: { title: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <section className={open ? 'metric-fold open' : 'metric-fold'}>
+      <button type="button" className="metric-fold-head" aria-expanded={open} onClick={() => setOpen(v => !v)}>
+        <span className="mono">{title}</span>
+        <ChevronUpIcon className="metric-fold-chevron" aria-hidden="true" />
+      </button>
+      {open && <div className="metric-fold-body">{children}</div>}
+    </section>
   );
 }
 
@@ -273,7 +308,7 @@ function WhyExplanation({ photo }: { photo: PhotoView }) {
   const locale = useStore(s => s.locale);
   const openEdit = useStore(s => s.openEdit);
   const groupOf = useStore(s => s.groupOf);
-  const [paragraphs, setParagraphs] = useState<string[] | null>(null);
+  const [sections, setSections] = useState<ExplanationSection[] | null>(null);
   /** Pe cate decizii de-ale utilizatorului se sprijina modelul acestui context. */
   const [decisionCount, setDecisionCount] = useState(0);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -312,7 +347,7 @@ function WhyExplanation({ photo }: { photo: PhotoView }) {
 
   useEffect(() => {
     let alive = true;
-    setParagraphs(null);
+    setSections(null);
     setSuggestions([]);
     void Promise.all([db.analyses.get(photo.id), db.contextModels.get(photo.contextKey)]).then(
       ([analysis, contextModel]) => {
@@ -320,14 +355,14 @@ function WhyExplanation({ photo }: { photo: PhotoView }) {
         setDecisionCount(contextModel?.sampleCount ?? 0);
         const aiDecision = photo.aiScore >= AI_SELECT_THRESHOLD;
         const userDecision = photo.status === 'selected' ? true : photo.status === 'rejected' ? false : null;
-        setParagraphs(generateExplanation(analysis as AnalysisRecord, aiDecision, userDecision, contextModel ?? null, locale));
+        setSections(generateExplanationSections(analysis as AnalysisRecord, aiDecision, userDecision, contextModel ?? null, locale));
         setSuggestions(generateSuggestions(analysis as AnalysisRecord, locale));
       }
     );
     return () => { alive = false; };
   }, [photo.id, photo.contextKey, photo.aiScore, photo.status, locale]);
 
-  if (paragraphs === null) return <p className="hint"><SparkleIcon className="inline-icon spin" /> {t(locale, 'detail.why.loading')}</p>;
+  if (sections === null) return <p className="hint"><SparkleIcon className="inline-icon spin" /> {t(locale, 'detail.why.loading')}</p>;
   const now = suggestions.filter(s => s.when === 'now');
   const nextTime = suggestions.filter(s => s.when === 'nextTime');
 
@@ -369,8 +404,20 @@ function WhyExplanation({ photo }: { photo: PhotoView }) {
             })}
           </p>
         )}
-        {paragraphs.map((p, i) => (
-          <p key={i} className={i === paragraphs.length - 1 ? 'why-verdict-line' : undefined}>{p}</p>
+        {/* Peretele de text s-a rupt in blocuri cu nume. Fiecare propozitie stia
+            deja despre ce vorbeste (vezi generateExplanationSections) — pana
+            acum informatia aia se pierdea la afisare, si ramanea un sul de sase
+            paragrafe gri, imposibil de parcurs din ochi. Concluzia sta la urma,
+            scoasa in evidenta: e singura afirmatie, restul sunt observatii. */}
+        {sections.map(section => (
+          section.key === 'verdict' ? (
+            <p key={section.key} className="why-verdict-line">{section.text}</p>
+          ) : (
+            <div className="why-section" key={section.key}>
+              <span className="why-section-label mono">{t(locale, `why.section.${section.key}`)}</span>
+              <p>{section.text}</p>
+            </div>
+          )
         ))}
       </div>
       {(now.length > 0 || nextTime.length > 0) && (
@@ -577,11 +624,11 @@ export function PhotoInfoTabs({ photo, src, openTab }: {
               problemele care fie se repara in editare, fie nu se repara deloc. */}
           <MetricGroup title={tr('metrics.group.technical')} summary={tr(techSummary.key)} tone={techSummary.tone}>
             <StatTile
-              label={tr('detail.stat.sharpness')} value={photo.sharpness}
+              label={tr('detail.stat.sharpness')} value={photo.sharpness} meter={photo.sharpness / 100}
               note={photo.sharpness < 40 ? tr('detail.stat.note.sharpness') : undefined}
             />
             <StatTile
-              label={tr('detail.stat.exposure')} value={photo.exposure}
+              label={tr('detail.stat.exposure')} value={photo.exposure} meter={photo.exposure / 100}
               note={photo.exposure < 35 ? tr('detail.stat.note.underexposed')
                 : photo.exposure > 70 ? tr('detail.stat.note.overexposed') : undefined}
             />
@@ -598,6 +645,7 @@ export function PhotoInfoTabs({ photo, src, openTab }: {
               <StatTile
                 label={photo.faceCount > 1 ? tr('detail.stat.smiles') : tr('detail.stat.smile')}
                 value={`${Math.round((photo.faceCount > 1 ? photo.groupSmileRatio ?? photo.bestSmile : photo.bestSmile) * 100)}%`}
+                meter={photo.faceCount > 1 ? photo.groupSmileRatio ?? photo.bestSmile : photo.bestSmile}
               />
             )}
             {photo.faceCount > 0 && (
@@ -610,6 +658,7 @@ export function PhotoInfoTabs({ photo, src, openTab }: {
                     ? `${Math.round((photo.groupEyesOpenRatio ?? (photo.allEyesOpen ? 1 : 0)) * 100)}%`
                     : (photo.allEyesOpen ? <CheckIcon /> : <EyeClosedIcon />)
                 }
+                meter={photo.faceCount > 1 ? photo.groupEyesOpenRatio ?? (photo.allEyesOpen ? 1 : 0) : undefined}
                 warn={photo.faceCount > 1 ? (photo.groupEyesOpenRatio ?? 1) < 1 : !photo.allEyesOpen}
               />
             )}
@@ -621,13 +670,13 @@ export function PhotoInfoTabs({ photo, src, openTab }: {
           <MetricGroup title={tr('metrics.group.framing')} summary={tr(frameSummary.key)} tone={frameSummary.tone}>
             {photo.faceCount > 0 && (
               <StatTile
-                label={tr('detail.stat.thirds')} value={`${Math.round(photo.ruleOfThirds * 100)}%`}
+                label={tr('detail.stat.thirds')} value={`${Math.round(photo.ruleOfThirds * 100)}%`} meter={photo.ruleOfThirds}
                 note={photo.ruleOfThirds < 0.35 ? tr('detail.stat.note.thirds') : undefined}
               />
             )}
             {photo.faceCount > 0 && (
               <StatTile
-                label={tr('detail.stat.headroom')} value={`${Math.round(photo.headroom * 100)}%`}
+                label={tr('detail.stat.headroom')} value={`${Math.round(photo.headroom * 100)}%`} meter={photo.headroom}
                 note={photo.headroom < 0.35 ? tr('detail.stat.note.headroom') : undefined}
               />
             )}
@@ -648,7 +697,7 @@ export function PhotoInfoTabs({ photo, src, openTab }: {
             )}
             {photo.faceCount === 0 && photo.negativeSpaceScore !== undefined && (
               <StatTile
-                label={tr('detail.stat.negativeSpace')} value={`${Math.round(photo.negativeSpaceScore * 100)}%`}
+                label={tr('detail.stat.negativeSpace')} value={`${Math.round(photo.negativeSpaceScore * 100)}%`} meter={photo.negativeSpaceScore}
                 note={photo.negativeSpaceScore < 0.35 ? tr('detail.stat.note.negativeSpace') : undefined}
               />
             )}
@@ -657,8 +706,7 @@ export function PhotoInfoTabs({ photo, src, openTab }: {
           {/* LUMINA SI CULOARE — nu sunt "metrici" cu note, sunt lucruri de
               privit. De asta grupa asta n-are dale, ci chiar culorile. */}
           {(photo.dominantColors?.length || photo.goldenHourDetected || (photo.sceneTags && photo.sceneTags.length > 0)) && (
-            <div className="metric-group-head"><span className="mono">{tr('metrics.group.light')}</span></div>
-          )}
+            <MetricFold title={tr('metrics.group.light')}>
           {(photo.dominantColors?.length || photo.goldenHourDetected) && (
             <div className="color-palette-row">
               {photo.goldenHourDetected && (
@@ -676,11 +724,12 @@ export function PhotoInfoTabs({ photo, src, openTab }: {
               ))}
             </div>
           )}
+            </MetricFold>
+          )}
           {/* FISIER — ce a scris aparatul in poza. Ultimul, pentru ca la el
               se uita cineva doar cand chiar il cauta. */}
           {(exif || exifRows.length > 0 || iptcRowsList.length > 0) && (
-            <div className="metric-group-head"><span className="mono">{tr('metrics.group.file')}</span></div>
-          )}
+            <MetricFold title={tr('metrics.group.file')}>
           {exif && <p className="detail-exif mono">{exif}</p>}
           {exifRows.length > 0 && (
             <dl className="detail-exif-extended">
@@ -729,26 +778,39 @@ export function PhotoInfoTabs({ photo, src, openTab }: {
               ))}
             </dl>
           )}
-          <Histogram src={src} />
-          <p className="detail-section-label mono">{tr('detail.focusMapLabel')}</p>
-          <FocusMap src={src} />
+            </MetricFold>
+          )}
+          {/* Histograma si harta de focus sunt unelte de inspectie, nu cifre de
+              citit la fiecare poza — deschise la cerere, nu din oficiu. */}
+          <MetricFold title={tr('metrics.group.pixels')}>
+            <Histogram src={src} />
+            <p className="detail-section-label mono">{tr('detail.focusMapLabel')}</p>
+            <FocusMap src={src} />
+          </MetricFold>
         </>
       )}
 
       {tab === 'why' && (
         photo.aiFactors.length > 0 ? (
           <>
-            <WhyExplanation photo={photo} />
-            <div className="factor-row">
-              <span className="factor-row-label mono"><SparkleIcon className="inline-icon" /> {tr('detail.why.factorsShort')}</span>
-              <div className="factor-tags">
-                {explainFactors(photo.aiFactors, locale).map(f => (
-                  <span key={f.label} className={f.positive ? 'factor-tag pos' : 'factor-tag neg'}>
-                    {f.positive ? '+' : '−'} {f.label}
-                  </span>
-                ))}
+            {/* Raspunsul, inainte de explicatie. Pana acum tabul incepea direct
+                cu proza, iar scorul si factorii — adica exact ce cauta cineva
+                care intreaba "de ce?" — erau la capatul celalalt al sulului. */}
+            <div className={`why-head ${photo.aiScore >= 65 ? 'positive' : photo.aiScore <= 35 ? 'negative' : 'review'}`}>
+              <ScoreRing score={photo.aiScore} />
+              <div className="why-head-copy">
+                <span className="mono why-head-kicker">{tr('inspector.verdict.label')}</span>
+                <b>{verdict}</b>
+                <div className="factor-tags">
+                  {explainFactors(photo.aiFactors, locale).map(f => (
+                    <span key={f.label} className={f.positive ? 'factor-tag pos' : 'factor-tag neg'}>
+                      {f.positive ? '+' : '−'} {f.label}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
+            <WhyExplanation photo={photo} />
           </>
         ) : (
           <p className="hint">{tr('detail.why.none')}</p>

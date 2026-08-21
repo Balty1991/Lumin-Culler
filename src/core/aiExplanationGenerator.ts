@@ -239,6 +239,40 @@ function factorsSentence(a: AnalysisRecord, locale: Locale): string | null {
  * @param contextModel modelul invatat pentru contextul acestei poze (null = inca neantrenat/cold start)
  * @param locale       limba textului generat (default 'ro', pentru compatibilitate cu apelantii existenti)
  */
+/** Despre ce vorbeste un paragraf al explicatiei. */
+export type ExplanationKey = 'technical' | 'composition' | 'subject' | 'aesthetic' | 'factors' | 'verdict';
+
+export interface ExplanationSection {
+  key: ExplanationKey;
+  text: string;
+}
+
+/**
+ * Aceleasi propozitii ca `generateExplanation`, dar fiecare stie despre ce
+ * vorbeste. Interfata are nevoie de asta: sase paragrafe fara nume se citesc
+ * ca un perete de text (plangerea directa a utilizatorului), pe cand aceleasi
+ * sase sub etichetele lor — TEHNIC, COMPOZITIE, SUBIECT — se pot parcurge din
+ * ochi si se poate sari direct la cel cautat.
+ */
+export function generateExplanationSections(
+  analysis: AnalysisRecord,
+  aiDecision: boolean,
+  userDecision: boolean | null,
+  contextModel: ContextModelRecord | null,
+  locale: Locale = 'ro'
+): ExplanationSection[] {
+  const confidence = modelConfidence(contextModel);
+  const built: { key: ExplanationKey; text: string | null }[] = [
+    { key: 'technical', text: technicalSentence(analysis, locale) },
+    { key: 'composition', text: compositionSentence(analysis, locale) },
+    { key: 'subject', text: subjectSentence(analysis, locale) },
+    { key: 'aesthetic', text: aestheticSentence(analysis, locale) },
+    { key: 'factors', text: factorsSentence(analysis, locale) },
+    { key: 'verdict', text: verdictSentence(aiDecision, userDecision, confidence, locale) }
+  ];
+  return built.filter((s): s is ExplanationSection => s.text !== null);
+}
+
 export function generateExplanation(
   analysis: AnalysisRecord,
   aiDecision: boolean,
@@ -246,16 +280,7 @@ export function generateExplanation(
   contextModel: ContextModelRecord | null,
   locale: Locale = 'ro'
 ): string[] {
-  const confidence = modelConfidence(contextModel);
-  const paragraphs = [
-    technicalSentence(analysis, locale),
-    compositionSentence(analysis, locale),
-    subjectSentence(analysis, locale),
-    aestheticSentence(analysis, locale),
-    factorsSentence(analysis, locale),
-    verdictSentence(aiDecision, userDecision, confidence, locale)
-  ].filter((p): p is string => p !== null);
-  return paragraphs;
+  return generateExplanationSections(analysis, aiDecision, userDecision, contextModel, locale).map(s => s.text);
 }
 
 // ── Sugestii de imbunatatire ─────────────────────────────────────────────────
