@@ -1194,8 +1194,9 @@ body:before {
   letter-spacing:.08em;
 }
 
+/* A ramas un singur element (numele fisierului) — 45% latime il taia degeaba. */
 .review-desk-stage-footer span:last-child {
-  max-width:45%;
+  max-width:100%;
   overflow:hidden;
   text-align:right;
   text-overflow:ellipsis;
@@ -1717,16 +1718,22 @@ body:before {
   display:none;
 }
 
+/* Spatiul rezervat jos trebuie sa incapa TOT ce sta acolo: bara de decizii
+   (~86px) + blocul de informatii (un rand de pastile de 44px + un rand de text)
+   + aer. Cand era 164px, fotografia cobora sub pastile si utilizatorul le vedea
+   "putin peste imagine" — iar cand pastilele se rupeau pe doua randuri, mult
+   peste. Randul de pastile e acum garantat unul singur (vezi .tiktok-chip-row
+   mai jos), deci inaltimea de jos e fixa si se poate rezerva exact. */
 .tiktok-stage-wrap {
   inset:0;
   display:grid;
   place-items:center;
-  padding:calc(65px + env(safe-area-inset-top)) 0 calc(164px + env(safe-area-inset-bottom));
+  padding:calc(65px + env(safe-area-inset-top)) 0 calc(192px + env(safe-area-inset-bottom));
 }
 
 .tiktok-stage {
   max-width:100%;
-  max-height:calc(100dvh - 230px);
+  max-height:calc(100dvh - 258px);
   object-fit:contain;
 }
 
@@ -1751,13 +1758,26 @@ body:before {
   gap:4px;
 }
 
+/* Un singur rand, mereu. Trei pastile la 44px se rupeau pe doua randuri pe
+   ecrane inguste, si atunci blocul crestea peste fotografie — plangerea
+   "uneori se vad aliniate, alteori nu". Acum pastilele se ingusteaza cu "..."
+   in loc sa treaca pe randul urmator; textul intreg ramane in title/aria-label. */
 .tiktok-chip-row {
-  gap:8px;
+  flex-wrap:nowrap;
+  gap:7px;
+  min-width:0;
+}
+
+.tiktok-chip-row > * {
+  flex:0 1 auto;
+  min-width:0;
+  overflow:hidden;
+  white-space:nowrap;
 }
 
 .tiktok-ai-chip {
   min-height:44px;
-  padding:0 14px;
+  padding:0 12px;
   border:1px solid rgb(255 255 255 / .15);
   border-radius:99px;
   background:#0b0c10a3;
@@ -1765,7 +1785,9 @@ body:before {
   font-size:.78rem;
 }
 
-.tiktok-ai-chip .inline-icon { width:14px; height:14px; }
+.tiktok-ai-chip .inline-icon { width:14px; height:14px; flex:0 0 auto; }
+/* Textul pastilei se taie, pastila nu se rupe si nu iese din rand. */
+.tiktok-ai-chip { gap:6px; font-size:.76rem; }
 
 /* Motivele si data pe UN singur rand, taiat cu "..." — inainte curgeau pe
    doua-trei randuri si impingeau blocul tot mai sus peste imagine. */
@@ -3600,20 +3622,36 @@ body:before {
   background: var(--surface-2);
   overflow: hidden;
 }
+/* Randul pliat arata ca o linie goala pe telefon: titlu de 8,9px, gri pe gri.
+   Utilizatorul a citit asta drept "au disparut datele aparatului". Acum randul
+   arata ca un buton: titlu lizibil, ce contine scris in dreapta, sageata. */
 .metric-fold-head {
   width: 100%;
-  min-height: 46px;
+  min-height: 50px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 10px;
   padding: 0 13px;
-  color: var(--text-faint);
+  color: var(--text);
   background: none;
-  font-size: .68rem;
-  font-weight: 800;
-  letter-spacing: .12em;
   text-align: left;
+}
+.metric-fold-title {
+  flex: 0 0 auto;
+  color: var(--text);
+  font-size: .74rem;
+  font-weight: 800;
+  letter-spacing: .1em;
+}
+.metric-fold-hint {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-faint);
+  font-size: .7rem;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .metric-fold-head:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .metric-fold-chevron {
@@ -4535,3 +4573,173 @@ input[type="search"] { min-height: 44px; }
   letter-spacing: .12em;
 }
 .drawer-pro-card.is-active .drawer-pro-copy em { color: var(--atelier-teal); }
+
+
+/* ── Datele scrise de aparat, ca o fisa tehnica ──
+   Erau doua liste <dl> lipite, cu randuri de 3px si linii peste tot. Acum:
+   randuri de 32px cu eticheta la stanga si valoarea la dreapta, si linia
+   compacta ISO/diafragma/timp/focala scoasa in evidenta deasupra lor, ca un
+   antet — exact ordinea in care un fotograf citeste o fisa. */
+.metric-fold-body .detail-exif {
+  margin: 0 0 10px;
+  padding: 9px 11px;
+  border-radius: 12px;
+  color: var(--text);
+  background: var(--surface-3, rgb(255 255 255 / .05));
+  font-size: .78rem;
+  letter-spacing: .02em;
+}
+.metric-fold-body .detail-exif-extended {
+  margin: 0;
+  padding-top: 0;
+  border-top: none;
+  font-size: .76rem;
+}
+.metric-fold-body .detail-exif-extended + .detail-exif-extended {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.metric-fold-body .detail-exif-row {
+  min-height: 32px;
+  align-items: baseline;
+  padding: 5px 0;
+}
+.metric-fold-body .detail-exif-row + .detail-exif-row { border-top: 1px solid rgb(255 255 255 / .05); }
+:root[data-theme="light"] .metric-fold-body .detail-exif-row + .detail-exif-row { border-top-color: rgb(10 20 30 / .07); }
+.metric-fold-body .detail-exif-row dt { flex: 0 0 auto; }
+.metric-fold-body .detail-exif-row dd { font-weight: 650; }
+
+
+/* ═══════════════════════════════════════════════════════════════════════
+   EDIT STUDIO — coaja refacuta dupa testarea pe telefon
+   ("editorul foto e grav, nu se vede nimic, nu ai cum sa lucrezi asa cu el")
+
+   Ce manca ecranul inainte, masurat: antet cu titlu (70px) + rand de actiuni
+   (60px) + randul de unelte rupt pe DOUA randuri fiindca grila era pe cinci
+   coloane pentru sase unelte (110px) = 240px de crom, plus o poza plafonata
+   rigid la 44vh. Din ce ramanea, sliderele incepeau sub marginea ecranului.
+
+   Acum: o bara subtire sus (56px, inchide · titlu · Auto · Reseteaza), poza
+   ia tot ce ramane pana la plafonul ei, si controalele stau JOS, unde ajunge
+   degetul — mai intai panoul uneltei active, apoi randul celor sase unelte.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.edit-topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 52px;
+}
+.edit-topbar-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: .92rem;
+  font-weight: 750;
+  letter-spacing: -.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.edit-topbar-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.edit-topbar-actions .small-btn {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 13px;
+}
+.edit-topbar .edit-auto-btn {
+  border-color: rgb(var(--accent-rgb) / .5);
+  background: rgb(var(--accent-rgb) / .14);
+  color: var(--text);
+  font-weight: 750;
+}
+.edit-topbar-reset:disabled { opacity: .4; }
+
+.edit-wide-actions {
+  display: grid;
+}
+.edit-wide-actions .small-btn {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+@media (max-width: 760px) {
+  /* Ecran intreg: cei 16px de padding ai scrimului plus coltul rotunjit si
+     chenarul costau ~40px de inaltime intr-un ecran in care fiecare pixel se
+     duce in fotografie. */
+  .edit-scrim { padding: 0; }
+  .edit-modal {
+    width: 100%;
+    max-width: none;
+    height: 100dvh;
+    max-height: 100dvh;
+    padding: 0;
+    gap: 0;
+    border: none;
+    border-radius: 0;
+  }
+  .edit-modal > .edit-topbar {
+    flex: 0 0 auto;
+    padding: 0 6px;
+    border-bottom: 1px solid var(--line);
+  }
+  .edit-body {
+    gap: 10px;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+  }
+
+  /* Ordinea pe verticala: poza, panoul uneltei, actiunile late, uneltele.
+     In DOM randul de unelte ramane INAINTEA panourilor (tablist inaintea
+     continutului, cum se asteapta un cititor de ecran) — se muta doar
+     vizual. */
+  .edit-canvas-wrap { order: 1; }
+  .edit-sliders,
+  .edit-presets,
+  .edit-crop-panel,
+  .edit-tool-panel,
+  .histogram { order: 2; }
+  .edit-wide-actions { order: 3; flex: 0 0 auto; }
+  .edit-tools { order: 4; flex: 0 0 auto; margin-bottom: 0; }
+
+  /* Plafonul pozei creste de la 44vh la 56dvh: cromul de deasupra si de
+     dedesubt s-a injumatatit, deci spatiul castigat se duce unde trebuie.
+     Ramane un PLAFON, nu o inaltime fixa — cutia isi pastreaza raportul
+     fotografiei (de asta depinde asezarea manerelor de decupare si a
+     punctelor de retus), iar panoul de sub ea absoarbe restul. */
+  .edit-canvas-wrap { max-height: 56dvh; }
+  .edit-sliders,
+  .edit-crop-panel,
+  .edit-tool-panel {
+    max-width: calc(56dvh * var(--photo-aspect, 1));
+  }
+  /* Panoul uneltei active scroleaza in dreptunghiul lui, nu impinge poza. */
+  .edit-sliders,
+  .edit-crop-panel,
+  .edit-tool-panel {
+    flex: 1 1 auto;
+    min-height: 96px;
+  }
+  /* Histograma ramane la 46px (sub atat nu se mai vede silueta — vezi
+     comentariul de la .histogram in styles.css), dar nu are voie sa fie
+     strivita de coloana flex. */
+  .edit-body > .histogram { flex: 0 0 auto; }
+  /* Stilurile gata facute erau strivite de la 44px la 22px de flex-shrink:
+     jumatate de pastila, sub orice tinta de atingere. Nu se micsoreaza —
+     randul lor scroleaza orizontal, cum a fost gandit. */
+  .edit-body > .edit-presets { flex: 0 0 auto; margin: 0; }
+
+  /* Sase unelte pe un rand ingust: textul mai mic, dar tinta ramane 44px. */
+  .edit-tool { font-size: .66rem; padding: 0 2px; }
+}

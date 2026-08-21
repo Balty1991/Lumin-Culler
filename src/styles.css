@@ -3735,8 +3735,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
    trebuie sa-l cauti tragand cu degetul e un instrument pe care nimeni nu-l
    gaseste. Textul se micsoreaza pana incap toate, iar zona de tap ramane la
    44px inaltime. */
+/* SASE coloane, cate unelte sunt (Baza/Culoare/Curbe/Selectiv/Retus/Decupare).
+   Ramasese la cinci de pe vremea cand erau cinci, iar a sasea trecea pe un rand
+   nou — de aici "Decupare" singura pe randul doi, in captura utilizatorului,
+   plus inca ~55px furati din inaltimea fotografiei. */
 .edit-tools {
-  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px;
+  display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px;
   margin-bottom: 2px;
 }
 .edit-tool {

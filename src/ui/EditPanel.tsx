@@ -482,7 +482,8 @@ export function EditPanel() {
       faces: analysis?.faces,
       ruleOfThirds: analysis?.ruleOfThirds,
       horizonTiltDeg: analysis?.horizonTiltDeg,
-      colorHarmonyScore: analysis?.colorHarmonyScore
+      colorHarmonyScore: analysis?.colorHarmonyScore,
+      goldenHourDetected: analysis?.goldenHourDetected
     });
     setAdjustments(auto);
     pendingPersistRef.current = null;
@@ -495,6 +496,10 @@ export function EditPanel() {
     if (auto.shadows !== 0) applied.push(tr('edit.shadows').toLowerCase());
     if (auto.contrast !== 0) applied.push(tr('edit.contrast').toLowerCase());
     if (auto.saturation !== 0) applied.push(tr('edit.saturation').toLowerCase());
+    // Corectiile noi trebuie sa apara si in mesaj — altfel Auto face mai mult
+    // decat spune, si utilizatorul nu stie ce sa reglese daca nu-i place ceva.
+    if ((auto.temperature ?? 0) !== 0 || (auto.tint ?? 0) !== 0) applied.push(tr('edit.auto.whiteBalance'));
+    if ((auto.whites ?? 0) !== 0 || (auto.blacks ?? 0) !== 0) applied.push(tr('edit.auto.levels'));
     if (auto.crop) applied.push(tr('edit.auto.crop'));
     if (auto.rotationDeg) applied.push(tr('edit.auto.straighten'));
     setNotice(applied.length ? tr('edit.auto.applied', { list: applied.join(', ') }) : tr('edit.auto.nothingToApply'));
@@ -793,40 +798,41 @@ export function EditPanel() {
             butoanele se rupeau pe doua randuri inegale, iar X-ul ajungea pe al
             doilea rand, alta pozitie de fiecare data. Actiunile au coborat pe
             randul lor, in coloane egale — vezi .edit-actions. */}
-        <header className="detail-head">
-          <span>{tr('edit.title')}</span>
+        {/* UN SINGUR rand de sus, nu doua. Raportat de utilizator dupa testare pe
+            telefon ("nu se vede nimic, nu ai cum sa lucrezi asa"): antetul cu
+            titlu plus randul de actiuni mancau impreuna ~130px, randul de
+            unelte se rupea pe doua randuri, iar din poza mai ramanea o treime
+            de ecran. Acum sus e o bara subtire (inchide · titlu · Auto ·
+            Reseteaza), poza ia TOT restul, iar controalele stau jos, la deget. */}
+        <header className="edit-topbar">
           <button className="ghost icon-btn" onClick={() => setEditingId(null)} aria-label={tr('detail.close')}>
             <XIcon />
           </button>
-        </header>
-
-        <div className="edit-actions">
-          {cropDraft ? (
-            <>
-              <button className="ghost small-btn" onClick={clearCropDraft}>{tr('edit.crop.reset')}</button>
-              <button className="ghost small-btn" onClick={leaveCrop}>{tr('edit.crop.cancel')}</button>
-              <button className="btn-accent small-btn" onClick={applyCrop}>{tr('edit.crop.apply')}</button>
-            </>
-          ) : (
-            <>
-              <button className="ghost small-btn edit-auto-btn" onClick={applyAuto} disabled={!imgEl}>
-                <SparkleIcon className="inline-icon" /> {tr('edit.auto')}
-              </button>
-              <button className="ghost small-btn" onClick={resetAll} disabled={isNeutral(adjustments)}>
-                <UndoIcon className="inline-icon" /> {tr('edit.reset')}
-              </button>
-              {/* Un fix aprobat pe un cadru e aproape sigur bun si pe restul
-                  cadrelor din aceeasi lumina. Apare doar cand chiar exista
-                  alte cadre needitate in acelasi moment — vezi
-                  core/momentStacks.ts si applyEditsToMoment din store. */}
-              {momentSiblings.length > 0 && !isNeutral(adjustments) && (
-                <button className="ghost small-btn edit-actions-wide" onClick={() => void applyToMoment()}>
-                  <LayersIcon className="inline-icon" /> {tr('edit.applyToMoment', { count: momentSiblings.length })}
+          <span className="edit-topbar-title">{tr(cropDraft ? 'edit.crop' : 'edit.title')}</span>
+          <div className="edit-topbar-actions">
+            {cropDraft ? (
+              <>
+                <button className="ghost small-btn" onClick={leaveCrop}>{tr('edit.crop.cancel')}</button>
+                <button className="btn-accent small-btn" onClick={applyCrop}>{tr('edit.crop.apply')}</button>
+              </>
+            ) : (
+              <>
+                <button className="ghost small-btn edit-auto-btn" onClick={applyAuto} disabled={!imgEl}>
+                  <SparkleIcon className="inline-icon" /> {tr('edit.auto')}
                 </button>
-              )}
-            </>
-          )}
-        </div>
+                <button
+                  className="ghost icon-btn edit-topbar-reset"
+                  onClick={resetAll}
+                  disabled={isNeutral(adjustments)}
+                  aria-label={tr('edit.reset')}
+                  title={tr('edit.reset')}
+                >
+                  <UndoIcon />
+                </button>
+              </>
+            )}
+          </div>
+        </header>
 
         <div
           className="edit-body"
@@ -981,6 +987,23 @@ export function EditPanel() {
               </div>
             )}
           </div>
+          {/* Actiunile late care nu incap in bara de sus stau intr-un rand propriu,
+              imediat deasupra uneltelor: apar rar si nu au voie sa fure inaltime
+              din poza cat timp nu exista. */}
+          {(cropDraft || (momentSiblings.length > 0 && !isNeutral(adjustments))) && (
+            <div className="edit-wide-actions">
+              {cropDraft ? (
+                <button className="ghost small-btn" onClick={clearCropDraft}>{tr('edit.crop.reset')}</button>
+              ) : (
+                /* Un fix aprobat pe un cadru e aproape sigur bun si pe restul
+                   cadrelor din aceeasi lumina — vezi core/momentStacks.ts si
+                   applyEditsToMoment din store. */
+                <button className="ghost small-btn" onClick={() => void applyToMoment()}>
+                  <LayersIcon className="inline-icon" /> {tr('edit.applyToMoment', { count: momentSiblings.length })}
+                </button>
+              )}
+            </div>
+          )}
           {/* Bara de instrumente. Pana acum, recadrarea se pornea dintr-un
               buton din antet, iar restul editarii era o singura lista de
               slidere — doua feluri diferite de a intra in doua feluri diferite

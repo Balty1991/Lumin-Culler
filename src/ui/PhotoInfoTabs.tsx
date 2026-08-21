@@ -108,12 +108,19 @@ function StatTile({ label, value, warn, note, meter }: { label: string; value: R
  * de trei ecrane; acum sunt patru randuri pe care le deschizi cand chiar te uiti
  * dupa ele.
  */
-function MetricFold({ title, children }: { title: string; children: ReactNode }) {
-  const [open, setOpen] = useState(false);
+function MetricFold({ title, hint, defaultOpen = false, children }: {
+  title: string;
+  /** Ce contine, cand e inchis — altfel un rand pliat e o promisiune fara continut. */
+  hint?: string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
     <section className={open ? 'metric-fold open' : 'metric-fold'}>
       <button type="button" className="metric-fold-head" aria-expanded={open} onClick={() => setOpen(v => !v)}>
-        <span className="mono">{title}</span>
+        <span className="metric-fold-title mono">{title}</span>
+        {hint && <span className="metric-fold-hint">{hint}</span>}
         <ChevronUpIcon className="metric-fold-chevron" aria-hidden="true" />
       </button>
       {open && <div className="metric-fold-body">{children}</div>}
@@ -706,7 +713,7 @@ export function PhotoInfoTabs({ photo, src, openTab }: {
           {/* LUMINA SI CULOARE — nu sunt "metrici" cu note, sunt lucruri de
               privit. De asta grupa asta n-are dale, ci chiar culorile. */}
           {(photo.dominantColors?.length || photo.goldenHourDetected || (photo.sceneTags && photo.sceneTags.length > 0)) && (
-            <MetricFold title={tr('metrics.group.light')}>
+            <MetricFold title={tr('metrics.group.light')} hint={tr('metrics.fold.hint.light')} defaultOpen>
           {(photo.dominantColors?.length || photo.goldenHourDetected) && (
             <div className="color-palette-row">
               {photo.goldenHourDetected && (
@@ -726,10 +733,15 @@ export function PhotoInfoTabs({ photo, src, openTab }: {
           )}
             </MetricFold>
           )}
-          {/* FISIER — ce a scris aparatul in poza. Ultimul, pentru ca la el
-              se uita cineva doar cand chiar il cauta. */}
+          {/* FISIER — ce a scris aparatul in poza. Deschis din start: utilizatorul
+              a cerut inapoi datele aparatului dupa ce randul pliat, gri si mic,
+              i s-a citit ca "le-ai scos". */}
           {(exif || exifRows.length > 0 || iptcRowsList.length > 0) && (
-            <MetricFold title={tr('metrics.group.file')}>
+            <MetricFold
+              title={tr('metrics.group.file')}
+              hint={[photo.cameraMake, photo.cameraModel].filter(Boolean).join(' ') || tr('metrics.fold.hint.file')}
+              defaultOpen
+            >
           {exif && <p className="detail-exif mono">{exif}</p>}
           {exifRows.length > 0 && (
             <dl className="detail-exif-extended">
@@ -782,7 +794,7 @@ export function PhotoInfoTabs({ photo, src, openTab }: {
           )}
           {/* Histograma si harta de focus sunt unelte de inspectie, nu cifre de
               citit la fiecare poza — deschise la cerere, nu din oficiu. */}
-          <MetricFold title={tr('metrics.group.pixels')}>
+          <MetricFold title={tr('metrics.group.pixels')} hint={tr('metrics.fold.hint.pixels')}>
             <Histogram src={src} />
             <p className="detail-section-label mono">{tr('detail.focusMapLabel')}</p>
             <FocusMap src={src} />

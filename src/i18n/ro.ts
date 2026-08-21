@@ -64,12 +64,15 @@ export const ro = {
   'menu.pro.active': 'Toate uneltele sunt deblocate',
   'menu.pro.action': 'VEZI',
   // Review Desk — cardul foto dominant de pe Acasa, dupa import.
-  'reviewDesk.label': 'MASA DE TRIAJ',
+  // "Masa de triaj" era limbaj de spital, nu de fotografie (cerinta directa a
+  // utilizatorului: "suna urat"). Cardul e locul unde alegi urmatoarea poza, deci
+  // asta si scrie.
+  'reviewDesk.label': 'SELECȚIA TA',
   'reviewDesk.kicker.next': 'URMĂTOAREA DECIZIE',
   'reviewDesk.kicker.analysing': 'SE ANALIZEAZĂ',
   'reviewDesk.title.analysing': 'AI-ul citește fotografiile',
-  'reviewDesk.lead.analysing': 'Încă lucrează — {done} din {total}. Coada de triat se completează pe măsură.',
-  'reviewDesk.lead.analysingEta': 'Încă lucrează — {done} din {total}, cam {eta} rămase. Coada de triat se completează pe măsură.',
+  'reviewDesk.lead.analysing': 'Încă lucrează — {done} din {total}. Lista de ales crește pe măsură.',
+  'reviewDesk.lead.analysingEta': 'Încă lucrează — {done} din {total}, cam {eta} rămase. Lista de ales crește pe măsură.',
   'reviewDesk.lead.loading': 'Pregătesc motorul AI. Analiza pornește în câteva secunde.',
   'reviewDesk.kicker.ready': 'SELECȚIA ESTE PREGĂTITĂ',
   'reviewDesk.title.one': '{count} fotografie de trecut în revistă',
@@ -876,6 +879,9 @@ export const ro = {
   'metrics.group.light': 'LUMINĂ ȘI CULOARE',
   'metrics.group.file': 'FIȘIER',
   'metrics.group.pixels': 'HISTOGRAMĂ ȘI FOCUS',
+  'metrics.fold.hint.light': 'culori și scenă',
+  'metrics.fold.hint.file': 'date din fișier',
+  'metrics.fold.hint.pixels': 'unelte de inspecție',
   'metrics.summary.technical.soft': 'mișcată',
   'metrics.summary.technical.under': 'subexpusă',
   'metrics.summary.technical.over': 'supraexpusă',
@@ -1318,6 +1324,8 @@ export const ro = {
   'edit.heal.count.one': '{count} zonă retușată',
   'edit.heal.count.other': '{count} zone retușate',
   'edit.auto.crop': 'recadrare',
+  'edit.auto.whiteBalance': 'balans de alb',
+  'edit.auto.levels': 'capetele histogramei',
   'edit.auto.straighten': 'îndreptare orizont',
   'edit.auto.applied': 'Auto aplicat: {list}.',
   'edit.auto.nothingToApply': 'Auto: cadrul e deja solid pe criteriile analizate, nimic de corectat.',

@@ -30,12 +30,19 @@ function isGridDensity(v: string | null): v is GridDensity {
   return v === 'compact' || v === 'comfortable' || v === 'large';
 }
 
+/**
+ * Implicit COMPACT, nu confortabil: cerinta directa a utilizatorului dupa ce a
+ * comparat cele doua pe telefonul lui — la 126px latime intra trei coloane
+ * intregi pe un ecran de telefon, adica noua poze deodata in loc de sase, si
+ * exact asta e treaba unei grile de triaj (sa vezi seria, nu o poza). Cine
+ * prefera altfel schimba din meniu, o data, si alegerea ramane salvata.
+ */
 export function readGridDensity(): GridDensity {
   try {
     const v = localStorage.getItem(STORAGE_KEY);
-    return isGridDensity(v) ? v : 'comfortable';
+    return isGridDensity(v) ? v : 'compact';
   } catch {
-    return 'comfortable';
+    return 'compact';
   }
 }
 

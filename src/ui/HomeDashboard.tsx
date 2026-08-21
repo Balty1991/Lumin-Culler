@@ -340,8 +340,10 @@ export function HomeDashboard() {
                     CTA dominant: ce urmeaza de facut. */}
               </div>
             </div>
+            {/* Eticheta cardului aparea de DOUA ori pe acelasi card — o data in
+                antet, o data aici, la 30px distanta. Ramane numele fisierului,
+                singura informatie pe care antetul n-o are deja. */}
             <div className="review-desk-stage-footer">
-              <span>{tr('reviewDesk.label')}</span>
               <span>{reviewDeskPhoto.fileName}</span>
             </div>
           </section>

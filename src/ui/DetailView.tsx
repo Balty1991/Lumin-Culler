@@ -72,6 +72,19 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
   const expandMetricsOnOpen = useStore(s => s.detailExpandMetrics);
   const [sheetExpanded, setSheetExpanded] = useState(expandMetricsOnOpen);
   /**
+   * Deschiderea a venit din pastila "Metrici" a sortarii rapide, si inca suntem
+   * pe aceeasi poza. Atunci strangerea foii inseamna "am terminat, du-ma inapoi
+   * la coada", nu "arata-mi ecranul de dedesubt": raportat de utilizator cu
+   * captura — la minimizare ajungea pe un ecran intermediar cu poza si doua
+   * butoane rotunde, din care doar X-ul il scotea. Se stinge cum navigheaza la
+   * alta poza: de acolo incolo ecranul e al lui, nu o fereastra spre metrici.
+   */
+  const cameFromSortRef = useRef(expandMetricsOnOpen);
+  const collapseSheet = () => {
+    if (cameFromSortRef.current) openDetail(null);
+    else setSheetExpanded(false);
+  };
+  /**
    * Cererea de a deschide rationamentul complet, venita din linia de motiv de
    * deasupra butoanelor de decizie (ScoreReason). Deschide foaia SI pune fila
    * "De ce acest scor" — pana acum, ca sa afli de ce a decis AI-ul asa, trebuia
@@ -105,7 +118,7 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
     setZoomed(false);
     dragXRef.current = 0;
     setDragX(0);
-    if (photoChangedRef.current) setSheetExpanded(false);
+    if (photoChangedRef.current) { setSheetExpanded(false); cameFromSortRef.current = false; }
     photoChangedRef.current = true;
     let alive = true;
     // Curatam src-ul VECHI inainte de a incepe fetch-ul nou — altfel, pana la rezolvarea
@@ -214,13 +227,14 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
     if (!sheetDraggingRef.current) return;
     sheetDraggingRef.current = false;
     if (!sheetExpanded && sheetDragYRef.current < -SHEET_DRAG_COMMIT) setSheetExpanded(true);
-    else if (sheetExpanded && sheetDragYRef.current > SHEET_DRAG_COMMIT) setSheetExpanded(false);
+    else if (sheetExpanded && sheetDragYRef.current > SHEET_DRAG_COMMIT) collapseSheet();
     sheetDragYRef.current = 0;
     setSheetDragY(0);
   };
   const onSheetHandleClick = () => {
     if (sheetMovedRef.current) return; // a fost drag, nu tap — starea deja s-a decis la endSheetDrag
-    setSheetExpanded(v => !v);
+    if (sheetExpanded) collapseSheet();
+    else setSheetExpanded(true);
   };
 
   return (

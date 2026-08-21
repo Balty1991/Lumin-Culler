@@ -598,6 +598,167 @@ export interface AutoAdjustSignals {
   horizonTiltDeg?: number;
   /** AnalysisRecord.colorHarmonyScore — vezi computeAutoSaturation. */
   colorHarmonyScore?: number;
+  /**
+   * AnalysisRecord.goldenHourDetected. Balansul de alb NU corecteaza la maxim o
+   * lumina calda de seara: acolo dominanta portocalie e subiectul fotografiei,
+   * nu un defect. Vezi computeAutoWhiteBalance.
+   */
+  goldenHourDetected?: boolean;
+}
+
+// ── Balans de alb automat ────────────────────────────────────────────────────
+// Pana acum temperatura si tinta ramaneau pe 0 "fiindca nu exista semnal de
+// incredere". Exista: pixelii. Metoda e cea clasica (gray-world aplicata pe un
+// SUBSET robust — doar pixelii aproape neutri si bine expusi), nu pe tot cadrul:
+// o gray-world naiva ar "corecta" o geaca rosie sau o rochie roz, adica ar
+// scoate exact culoarea pentru care a fost facuta poza. Cu subsetul neutru,
+// zapada albastruie (cazul din care a pornit cererea) se indreapta, iar un
+// subiect colorat pe fundal neutru ramane neatins.
+
+/** Sub atatia pixeli aproape-neutri nu exista referinta: mai bine nimic decat o ghiceala. */
+const WB_MIN_NEUTRAL_FRACTION = 0.02;
+/**
+ * Cat de colorat poate fi un pixel ca sa mai conteze drept referinta de gri,
+ * (max-min)/max. 0.28, nu 0.18: masurat pe cazul real, o dominanta calda de
+ * interior (215,195,175) da 0.186 — la 0.18 exact pixelii ATINSI de dominanta
+ * pe care trebuie s-o corectam erau exclusi, si functia tacea. O geaca rosie
+ * sau o rochie roz raman mult peste prag (0.7-0.9), deci filtrul isi face in
+ * continuare treaba: elimina subiectul colorat, nu grizul deviat.
+ */
+const WB_SATURATION_LIMIT = 0.28;
+const WB_MIN_LUM = 55;
+const WB_MAX_LUM = 245;
+/** Plafon pe scara sliderelor (-100..100): o corectie mai mare de atat schimba poza, n-o repara. */
+const WB_MAX_SHIFT = 30;
+/** Cat din corectie se aplica pe o lumina de ora de aur — cat sa se calmeze dominanta, nu sa dispara. */
+const WB_GOLDEN_HOUR_FACTOR = 0.35;
+
+/**
+ * Temperatura/tinta care aduc mediile R/G/B ale pixelilor aproape-neutri la
+ * egalitate. Formulele de mai jos inverseaza EXACT ce face drawAdjusted:
+ * temperatura muta R cu +t si B cu -t (t = temperature/100 * 40), deci diferenta
+ * R-B se schimba cu 2t; tinta muta G cu +s si R,B cu -s/2 fiecare, deci
+ * diferenta G-(R+B)/2 se schimba cu 1.5s.
+ */
+export function computeAutoWhiteBalance(img: ImageData, goldenHour = false): { temperature: number; tint: number } {
+  const { data } = img;
+  const step = 16; // acelasi esantionaj ca in computeAutoContrast
+  let sumR = 0, sumG = 0, sumB = 0, neutral = 0, sampled = 0;
+  for (let i = 0; i < data.length; i += step) {
+    sampled++;
+    const r = data[i], g = data[i + 1], b = data[i + 2];
+    const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+    if (lum < WB_MIN_LUM || lum > WB_MAX_LUM) continue;
+    const max = Math.max(r, g, b);
+    if (max <= 0) continue;
+    if ((max - Math.min(r, g, b)) / max > WB_SATURATION_LIMIT) continue;
+    sumR += r; sumG += g; sumB += b; neutral++;
+  }
+  if (!sampled || neutral / sampled < WB_MIN_NEUTRAL_FRACTION) return { temperature: 0, tint: 0 };
+  const meanR = sumR / neutral, meanG = sumG / neutral, meanB = sumB / neutral;
+  const factor = goldenHour ? WB_GOLDEN_HOUR_FACTOR : 1;
+  const temperature = Math.round(clampRange(-(meanR - meanB) * 1.25 * factor, -WB_MAX_SHIFT, WB_MAX_SHIFT)) || 0;
+  const tint = Math.round(clampRange(-(meanG - (meanR + meanB) / 2) * (5 / 3) * factor, -WB_MAX_SHIFT, WB_MAX_SHIFT)) || 0;
+  return { temperature, tint };
+}
+
+// ── Capetele histogramei ─────────────────────────────────────────────────────
+// Contrastul intinde mijlocul; capetele sunt altceva. O poza in care cel mai
+// deschis pixel e 225 si cel mai inchis 30 arata spalacita oricat contrast pui,
+// fiindca nu are nici alb curat, nici negru. whites/blacks muta exact capetele.
+
+const AUTO_WHITE_TARGET = 248;
+const AUTO_BLACK_TARGET = 6;
+/** Sub distanta asta fata de capat, nu merita atins nimic — poza deja ajunge acolo. */
+const AUTO_LEVELS_WHITE_SLACK = 236;
+const AUTO_LEVELS_BLACK_SLACK = 16;
+/** Doar o parte din corectia teoretica: expunerea si contrastul se aplica INAINTE in drawAdjusted si mai misca si ele capetele. */
+const AUTO_LEVELS_DAMPING = 0.7;
+const AUTO_LEVELS_MAX = 35;
+
+/** Percentila `p` (0..1) a luminantei, pe acelasi esantionaj ca restul functiilor de aici. */
+function luminancePercentile(hist: Uint32Array, count: number, p: number): number {
+  let cum = 0;
+  for (let v = 0; v < 256; v++) {
+    cum += hist[v];
+    if (cum / count >= p) return v;
+  }
+  return 255;
+}
+
+/**
+ * Cat trebuie mutate capetele ca poza sa aiba si alb curat, si negru. Intoarce
+ * valori pe scara sliderelor whites/blacks, inversand ponderile cubice din
+ * drawAdjusted (whiteWeight = t^3, blackWeight = (1-t)^3, ambele inmultite cu
+ * amount/100*55).
+ */
+export function computeAutoLevels(img: ImageData): { whites: number; blacks: number } {
+  const { data } = img;
+  const step = 16;
+  const hist = new Uint32Array(256);
+  let count = 0;
+  for (let i = 0; i < data.length; i += step) {
+    const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    hist[Math.round(clampRange(lum, 0, 255))]++;
+    count++;
+  }
+  if (!count) return { whites: 0, blacks: 0 };
+  const p99 = luminancePercentile(hist, count, 0.99);
+  const p1 = luminancePercentile(hist, count, 0.01);
+
+  // Pragul de pondere e mic (0.03), nu prudent: ponderea cubica se ocupa singura
+  // de cazurile extreme. Pe o poza de noapte cu p99 = 100, corectia teoretica se
+  // izbeste oricum de plafon, iar la t = 0.39 ponderea de 0.06 o reduce la ~1
+  // nivel de luminanta — adica nimic. Un prag mai mare taia in schimb cazuri
+  // reale (o poza spalacita cu p99 = 132 ramanea neatinsa).
+  const MIN_LEVEL_WEIGHT = 0.03;
+  let whites = 0;
+  if (p99 < AUTO_LEVELS_WHITE_SLACK) {
+    const weight = Math.pow(p99 / 255, 3);
+    if (weight > MIN_LEVEL_WEIGHT) {
+      whites = Math.round(clampRange(((AUTO_WHITE_TARGET - p99) / weight / 55) * 100 * AUTO_LEVELS_DAMPING, 0, AUTO_LEVELS_MAX));
+    }
+  }
+  let blacks = 0;
+  if (p1 > AUTO_LEVELS_BLACK_SLACK) {
+    const weight = Math.pow(1 - p1 / 255, 3);
+    if (weight > MIN_LEVEL_WEIGHT) {
+      blacks = Math.round(clampRange(((AUTO_BLACK_TARGET - p1) / weight / 55) * 100 * AUTO_LEVELS_DAMPING, -AUTO_LEVELS_MAX, 0));
+    }
+  }
+  return { whites, blacks };
+}
+
+// ── Vibranta ─────────────────────────────────────────────────────────────────
+/** Sub saturatia medie asta, poza chiar e stearsa (nu o alegere de stil alb-negru: aia are ~0). */
+const DULL_SATURATION = 0.16;
+/** Sub atat consideram ca e intentionat alb-negru si nu atingem nimic. */
+const MONOCHROME_SATURATION = 0.04;
+const AUTO_VIBRANCE_MAX = 16;
+
+/**
+ * Cat sa creasca saturatia unei poze sterse. Alb-negru intentionat (saturatie
+ * aproape zero) ramane neatins — a colora o poza alb-negru nu e o corectie, e
+ * o alta poza.
+ */
+export function computeAutoVibrance(img: ImageData): number {
+  const { data } = img;
+  const step = 16;
+  let sum = 0, count = 0;
+  for (let i = 0; i < data.length; i += step) {
+    const r = data[i], g = data[i + 1], b = data[i + 2];
+    const max = Math.max(r, g, b);
+    if (max <= 0) continue;
+    const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+    if (lum < 30 || lum > 235) continue;
+    sum += (max - Math.min(r, g, b)) / max;
+    count++;
+  }
+  if (!count) return 0;
+  const mean = sum / count;
+  if (mean < MONOCHROME_SATURATION || mean >= DULL_SATURATION) return 0;
+  const shortfall = (DULL_SATURATION - mean) / (DULL_SATURATION - MONOCHROME_SATURATION);
+  return Math.round(clampRange(shortfall * AUTO_VIBRANCE_MAX, 0, AUTO_VIBRANCE_MAX));
 }
 
 const EXPOSURE_BALANCED = 50; // identic cu pragul din aiExplanationGenerator.ts
@@ -899,13 +1060,25 @@ export function computeAutoAdjustments(source: CanvasImageSource, sourceWidth: n
   const ctx = canvas.getContext('2d');
   let contrast = 0;
   let faceExposure = 0;
+  let whiteBalance = { temperature: 0, tint: 0 };
+  let levels = { whites: 0, blacks: 0 };
+  let vibrance = 0;
   if (ctx) {
     ctx.drawImage(source, 0, 0, w, h);
     const data = ctx.getImageData(0, 0, w, h);
     contrast = computeAutoContrast(data);
     faceExposure = computeAutoFaceExposure(data, signals.faces);
+    whiteBalance = computeAutoWhiteBalance(data, signals.goldenHourDetected === true);
+    levels = computeAutoLevels(data);
+    vibrance = computeAutoVibrance(data);
   }
   const { highlights, shadows } = computeAutoHighlightsShadows(signals.highlightClipping, signals.shadowClipping);
+
+  // O poza dezacordata cromatic se calmeaza (computeAutoSaturation, negativ);
+  // una stearsa se ridica (computeAutoVibrance, pozitiv). Nu pot fi amandoua
+  // deodata — cea negativa are prioritate, fiindca "prea multa culoare pusa
+  // alandala" e un defect mai vizibil decat "prea putina".
+  const harmonySaturation = computeAutoSaturation(signals);
 
   // Cand subiectul chiar e prabusit sau ars, el hotaraste — nu histograma
   // intregului cadru. Pe o contralumina cele doua spun exact pe dos, iar omul
@@ -914,11 +1087,13 @@ export function computeAutoAdjustments(source: CanvasImageSource, sourceWidth: n
   return {
     exposure: faceExposure !== 0 ? faceExposure : computeAutoExposureFromScore(signals.exposureScore),
     contrast,
-    saturation: computeAutoSaturation(signals),
-    temperature: 0,
-    tint: 0,
+    saturation: harmonySaturation !== 0 ? harmonySaturation : vibrance,
+    temperature: whiteBalance.temperature,
+    tint: whiteBalance.tint,
     highlights,
     shadows,
+    whites: levels.whites,
+    blacks: levels.blacks,
     rotationDeg: computeAutoStraighten(signals),
     crop: computeAutoCrop(signals)
   };

@@ -3,7 +3,8 @@ import {
   computeAutoContrast, computeAutoExposureFromScore, computeAutoHighlightsShadows,
   computeAutoCrop, computeAutoStraighten, computeAutoSaturation, isNeutral, NEUTRAL_ADJUSTMENTS,
   applyDetailPass, applyVignette, originalToCanvas, canvasToOriginal, cropRadiusScale,
-  type AutoAdjustSignals, type EditAdjustments, computeAutoFaceExposure} from './imageAdjust';
+  type AutoAdjustSignals, type EditAdjustments, computeAutoFaceExposure,
+  computeAutoWhiteBalance, computeAutoLevels, computeAutoVibrance } from './imageAdjust';
 
 function makeImage(w: number, h: number, paint: (x: number, y: number) => [number, number, number]): ImageData {
   const data = new Uint8ClampedArray(w * h * 4);
@@ -519,5 +520,80 @@ describe('expunerea judecata pe subiect, nu pe tot cadrul', () => {
     const doua = computeAutoFaceExposure(img, [{ box }, { box: b2 }]);
     const una = computeAutoFaceExposure(img, [{ box }]);
     expect(doua).toBeLessThan(una);
+  });
+});
+
+
+// ── Auto: balans de alb, capete, vibranta ───────────────────────────────────
+// Cerinta directa a utilizatorului dupa testarea pe telefon: "cand dau mod auto,
+// astept imbunatatiri majore". Pana aici Auto nu atingea deloc culoarea (temp/
+// tinta ramaneau 0) si nu misca deloc capetele histogramei.
+
+describe('computeAutoWhiteBalance', () => {
+  it('incalzeste o zapada albastruie (mai mult albastru decat rosu)', () => {
+    const rece = solid(16, 16, [180, 195, 215]);
+    const { temperature } = computeAutoWhiteBalance(rece);
+    expect(temperature).toBeGreaterThan(0);
+  });
+
+  it('raceste o dominanta calda de interior', () => {
+    const cald = solid(16, 16, [215, 195, 175]);
+    expect(computeAutoWhiteBalance(cald).temperature).toBeLessThan(0);
+  });
+
+  it('nu atinge nimic pe un gri deja neutru', () => {
+    expect(computeAutoWhiteBalance(solid(16, 16, [140, 140, 140]))).toEqual({ temperature: 0, tint: 0 });
+  });
+
+  it('scoate dominanta verde prin tinta', () => {
+    expect(computeAutoWhiteBalance(solid(16, 16, [180, 200, 182])).tint).toBeLessThan(0);
+  });
+
+  it('tace cand nu exista destui pixeli aproape-neutri (cadru puternic colorat)', () => {
+    // rosu saturat: (max-min)/max = 1, cu mult peste limita de referinta neutra
+    expect(computeAutoWhiteBalance(solid(16, 16, [200, 20, 20]))).toEqual({ temperature: 0, tint: 0 });
+  });
+
+  it('la ora de aur corecteaza doar partial — dominanta calda e subiectul, nu defectul', () => {
+    const cald = solid(16, 16, [215, 195, 175]);
+    const normal = computeAutoWhiteBalance(cald, false).temperature;
+    const auriu = computeAutoWhiteBalance(cald, true).temperature;
+    expect(Math.abs(auriu)).toBeLessThan(Math.abs(normal));
+    expect(Math.abs(auriu)).toBeGreaterThan(0);
+  });
+});
+
+describe('computeAutoLevels', () => {
+  it('ridica albul cand cel mai deschis pixel ramane departe de 255', () => {
+    const spalacit = makeImage(16, 16, (x) => { const v = 60 + x * 6; return [v, v, v]; }); // 60..150
+    expect(computeAutoLevels(spalacit).whites).toBeGreaterThan(0);
+  });
+
+  it('coboara negrul cand cel mai inchis pixel e cenusiu', () => {
+    const fumuriu = makeImage(16, 16, (x) => { const v = 70 + x * 8; return [v, v, v]; });
+    expect(computeAutoLevels(fumuriu).blacks).toBeLessThan(0);
+  });
+
+  it('nu atinge o poza care ajunge deja la ambele capete', () => {
+    // Esantionajul ia fiecare al 4-lea pixel (step = 16 octeti), deci pe o
+    // imagine de 16 px latime vede doar x = 0, 4, 8, 12 — degradeul e construit
+    // pe acele coloane ca sa atinga chiar 0 si 255 in ce se masoara.
+    const plina = makeImage(16, 16, (x) => { const v = Math.round((Math.min(x, 12) / 12) * 255); return [v, v, v]; });
+    expect(computeAutoLevels(plina)).toEqual({ whites: 0, blacks: 0 });
+  });
+});
+
+describe('computeAutoVibrance', () => {
+  it('ridica saturatia unei poze sterse', () => {
+    // saturatie ~0.09: sub pragul de "sters", peste pragul de alb-negru
+    expect(computeAutoVibrance(solid(16, 16, [150, 140, 137]))).toBeGreaterThan(0);
+  });
+
+  it('nu coloreaza o poza alb-negru', () => {
+    expect(computeAutoVibrance(solid(16, 16, [140, 140, 140]))).toBe(0);
+  });
+
+  it('nu mai adauga nimic unei poze deja colorate', () => {
+    expect(computeAutoVibrance(solid(16, 16, [200, 90, 60]))).toBe(0);
   });
 });
