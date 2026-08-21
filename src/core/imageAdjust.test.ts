@@ -3,8 +3,7 @@ import {
   computeAutoContrast, computeAutoExposureFromScore, computeAutoHighlightsShadows,
   computeAutoCrop, computeAutoStraighten, computeAutoSaturation, isNeutral, NEUTRAL_ADJUSTMENTS,
   applyDetailPass, applyVignette, originalToCanvas, canvasToOriginal, cropRadiusScale,
-  type AutoAdjustSignals, type EditAdjustments
-} from './imageAdjust';
+  type AutoAdjustSignals, type EditAdjustments, computeAutoFaceExposure} from './imageAdjust';
 
 function makeImage(w: number, h: number, paint: (x: number, y: number) => [number, number, number]): ImageData {
   const data = new Uint8ClampedArray(w * h * 4);
@@ -452,5 +451,73 @@ describe('conversia cadru intreg <-> cadru vizibil', () => {
   it('raza creste odata cu decupajul, si ramane 1 fara decupaj', () => {
     expect(cropRadiusScale(neutru)).toBe(1);
     expect(cropRadiusScale({ ...neutru, crop: { x: 0, y: 0, width: 0.5, height: 0.5 } })).toBeCloseTo(2, 6);
+  });
+});
+
+describe('expunerea judecata pe subiect, nu pe tot cadrul', () => {
+  /** Imagine uniforma cu un dreptunghi de alta luminozitate acolo unde e "fata". */
+  function cadru(fundal: number, fata: number, box: [number, number, number, number]): ImageData {
+    const w = 100, h = 100;
+    const d = new Uint8ClampedArray(w * h * 4);
+    for (let i = 0; i < w * h; i++) {
+      d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = fundal;
+      d[i * 4 + 3] = 255;
+    }
+    const [fx, fy, fw, fh] = box;
+    for (let y = Math.round(fy * h); y < Math.round((fy + fh) * h); y++) {
+      for (let x = Math.round(fx * w); x < Math.round((fx + fw) * w); x++) {
+        const i = (y * w + x) * 4;
+        d[i] = d[i + 1] = d[i + 2] = fata;
+      }
+    }
+    return { data: d, width: w, height: h, colorSpace: 'srgb' } as ImageData;
+  }
+
+  const box: [number, number, number, number] = [0.3, 0.3, 0.4, 0.4];
+
+  it('contralumina: fundal stralucitor, fata in intuneric — lumineaza', () => {
+    // exact cazul in care histograma globala ar spune "supraexpusa" si ar intuneca
+    const e = computeAutoFaceExposure(cadru(250, 20, box), [{ box }]);
+    expect(e).toBeGreaterThan(0);
+  });
+
+  it('fata arsa in alb — intuneca', () => {
+    expect(computeAutoFaceExposure(cadru(30, 254, box), [{ box }])).toBeLessThan(0);
+  });
+
+  it('fata intr-o zona rezonabila — nu se baga', () => {
+    // banda e larga deliberat: Auto n-are nicio parere despre cat de deschis
+    // ar trebui sa fie cineva la fata
+    expect(computeAutoFaceExposure(cadru(128, 90, box), [{ box }])).toBe(0);
+    expect(computeAutoFaceExposure(cadru(128, 150, box), [{ box }])).toBe(0);
+    expect(computeAutoFaceExposure(cadru(128, 200, box), [{ box }])).toBe(0);
+  });
+
+  it('tenul inchis intr-o poza bine expusa NU e tratat ca o eroare', () => {
+    // regula "expune pielea la 70%" ar fi luminat aici; noi nu urmarim nicio tinta
+    expect(computeAutoFaceExposure(cadru(120, 75, box), [{ box }])).toBe(0);
+  });
+
+  it('fara fete nu are ce judeca', () => {
+    expect(computeAutoFaceExposure(cadru(128, 128, box), [])).toBe(0);
+    expect(computeAutoFaceExposure(cadru(128, 128, box), undefined)).toBe(0);
+  });
+
+  it('ignora cutiile degenerate in loc sa cada', () => {
+    expect(computeAutoFaceExposure(cadru(128, 20, box), [{ box: [0.3, 0.3, 0, 0] }])).toBe(0);
+  });
+
+  it('nu depaseste limita de corectie', () => {
+    const e = computeAutoFaceExposure(cadru(255, 0, box), [{ box }]);
+    expect(Math.abs(e)).toBeLessThanOrEqual(30);
+  });
+
+  it('mai multe fete se judeca impreuna', () => {
+    const b2: [number, number, number, number] = [0.05, 0.05, 0.2, 0.2];
+    const img = cadru(250, 20, box);
+    // a doua fata cade pe fundalul stralucitor => media urca, corectia scade
+    const doua = computeAutoFaceExposure(img, [{ box }, { box: b2 }]);
+    const una = computeAutoFaceExposure(img, [{ box }]);
+    expect(doua).toBeLessThan(una);
   });
 });

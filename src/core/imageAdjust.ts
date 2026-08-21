@@ -597,6 +597,77 @@ export function computeAutoHighlightsShadows(highlightClipping: number | undefin
 }
 
 /**
+ * Cat de intunecata poate fi o fata inainte sa fie clar o problema, si cat de
+ * luminoasa inainte sa fie clar arsa. Luminanta relativa, 0..1.
+ *
+ * Banda e LARGA cu buna stiinta, si asta e o decizie, nu o scapare. Regula
+ * clasica din manuale — "expune pielea la ~70%" — e calibrata pe ten deschis,
+ * si aplicata ca atare ar lumina sistematic tenul inchis pana il falsifica.
+ * Aici nu se urmareste nicio tinta de luminozitate a pielii: se corecteaza doar
+ * esecul propriu-zis, adica fata prabusita in negru (tipic contralumina) sau
+ * arsa in alb. Intre cele doua margini, Auto nu are nicio parere despre cat de
+ * deschis ar trebui sa fie cineva la fata.
+ */
+const FACE_TOO_DARK = 0.22;
+const FACE_TOO_BRIGHT = 0.88;
+/** Cat poate corecta expunerea de dragul fetei — aceeasi limita ca la corectia globala. */
+const FACE_EXPOSURE_LIMIT = 30;
+/** Cat se strange cutia fetei spre centru inainte de esantionare — vezi mai jos. */
+const FACE_INSET = 0.18;
+
+/**
+ * Expunerea judecata pe SUBIECT, nu pe tot cadrul.
+ *
+ * De ce era nevoie: `computeAutoExposureFromScore` porneste de la scorul de
+ * expunere al intregii poze. Pe o poza in contralumina — copilul in fata
+ * ferestrei, apusul in spate — cadrul e stralucitor, scorul global spune
+ * "supraexpusa", si Auto INTUNECA, adica exact pe dos fata de ce ar face
+ * oricine cu poza aia in mana. Un om se uita la fata, nu la histograma.
+ *
+ * Esantionarea taie 18% din fiecare margine a cutiei fetei: cutiile detectate
+ * includ mereu putin par si putin fundal, iar pe o contralumina fundalul e
+ * chiar lucrul luminos care ar strica media.
+ *
+ * @returns corectia de expunere (-100..100), sau 0 cand fetele sunt intr-o
+ *   zona rezonabila si n-avem de ce sa ne bagam.
+ */
+export function computeAutoFaceExposure(
+  img: ImageData,
+  faces: { box: [number, number, number, number] }[] | undefined
+): number {
+  if (!faces || !faces.length) return 0;
+  let sum = 0;
+  let count = 0;
+  for (const face of faces) {
+    const [fx, fy, fw, fh] = face.box;
+    if (!(fw > 0) || !(fh > 0)) continue;
+    const x0 = Math.max(0, Math.round((fx + fw * FACE_INSET) * img.width));
+    const x1 = Math.min(img.width, Math.round((fx + fw * (1 - FACE_INSET)) * img.width));
+    const y0 = Math.max(0, Math.round((fy + fh * FACE_INSET) * img.height));
+    const y1 = Math.min(img.height, Math.round((fy + fh * (1 - FACE_INSET)) * img.height));
+    for (let y = y0; y < y1; y++) {
+      for (let x = x0; x < x1; x++) {
+        const i = (y * img.width + x) * 4;
+        // aceiasi coeficienti de luminanta ca in restul fisierului
+        sum += (img.data[i] * 0.299 + img.data[i + 1] * 0.587 + img.data[i + 2] * 0.114) / 255;
+        count++;
+      }
+    }
+  }
+  if (count === 0) return 0;
+
+  const mean = sum / count;
+  if (mean < FACE_TOO_DARK) {
+    // cat lipseste pana la marginea benzii, tradus in pasi de expunere
+    return Math.round(clampRange((FACE_TOO_DARK - mean) * 200, 8, FACE_EXPOSURE_LIMIT));
+  }
+  if (mean > FACE_TOO_BRIGHT) {
+    return Math.round(clampRange(-(mean - FACE_TOO_BRIGHT) * 200, -FACE_EXPOSURE_LIMIT, -8));
+  }
+  return 0;
+}
+
+/**
  * Contrast: singura parte care tot are nevoie de pixelii reali (nu exista
  * niciun scor AI existent pentru "cat de plata e histograma") — intinde
  * histograma de luminanta intre percentila 2% si 98%, spre un interval
@@ -793,14 +864,21 @@ export function computeAutoAdjustments(source: CanvasImageSource, sourceWidth: n
   canvas.height = h;
   const ctx = canvas.getContext('2d');
   let contrast = 0;
+  let faceExposure = 0;
   if (ctx) {
     ctx.drawImage(source, 0, 0, w, h);
-    contrast = computeAutoContrast(ctx.getImageData(0, 0, w, h));
+    const data = ctx.getImageData(0, 0, w, h);
+    contrast = computeAutoContrast(data);
+    faceExposure = computeAutoFaceExposure(data, signals.faces);
   }
   const { highlights, shadows } = computeAutoHighlightsShadows(signals.highlightClipping, signals.shadowClipping);
 
+  // Cand subiectul chiar e prabusit sau ars, el hotaraste — nu histograma
+  // intregului cadru. Pe o contralumina cele doua spun exact pe dos, iar omul
+  // cu poza in mana se ia dupa fata. In rest (faceExposure = 0) nu se schimba
+  // nimic fata de comportamentul de dinainte.
   return {
-    exposure: computeAutoExposureFromScore(signals.exposureScore),
+    exposure: faceExposure !== 0 ? faceExposure : computeAutoExposureFromScore(signals.exposureScore),
     contrast,
     saturation: computeAutoSaturation(signals),
     temperature: 0,
