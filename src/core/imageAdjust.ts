@@ -10,6 +10,7 @@
 
 import { buildChannelLuts, hasNoCurves, type PhotoCurves } from './toneCurve';
 import { applyControlPoint, hasNoControlPoints, isNeutralControlPoint, type ControlPoint } from './selectiveEdit';
+import { applyHslBands, isNeutralBands, type HslBands } from './hslBands';
 import { applyHealStrokes, type HealStroke } from './spotHeal';
 
 export interface EditAdjustments {
@@ -51,6 +52,8 @@ export interface EditAdjustments {
   noiseReduction?: number;
   /** Intunecarea/luminarea colturilor — -100..100. Negativ = colturi mai deschise. */
   vignette?: number;
+  /** Reglaj pe game de culoare (nuanta/saturatie/luminozitate per familie) — vezi core/hslBands.ts. Absent = neatins. */
+  hsl?: HslBands;
   /** Curbele tonale (master + R/G/B) — vezi core/toneCurve.ts. Absent = liniare. */
   curves?: PhotoCurves;
   /** Punctele de control selective — vezi core/selectiveEdit.ts. Absent = niciunul. */
@@ -71,7 +74,7 @@ export const NEUTRAL_ADJUSTMENTS: EditAdjustments = {
  * Tipul e exportat ca sa nu mai fie nevoie ca UI-ul sa repete lista de excluderi
  * (si sa o uite la urmatorul instrument adaugat — exact ce s-a intamplat).
  */
-export type NumericAdjustmentKey = Exclude<keyof EditAdjustments, 'crop' | 'curves' | 'controlPoints' | 'heal'>;
+export type NumericAdjustmentKey = Exclude<keyof EditAdjustments, 'crop' | 'curves' | 'controlPoints' | 'heal' | 'hsl'>;
 const ADJUSTMENT_KEYS = Object.keys(NEUTRAL_ADJUSTMENTS) as NumericAdjustmentKey[];
 
 /**
@@ -88,6 +91,7 @@ export function isNeutral(a: EditAdjustments | undefined): boolean {
     && !a.crop
     && hasNoCurves(a.curves)
     && hasNoControlPoints(a.controlPoints)
+    && isNeutralBands(a.hsl)
     && !a.heal?.length;
 }
 
@@ -431,7 +435,8 @@ export function drawAdjusted(
   const luts = buildChannelLuts(a.curves);
   const activePoints = (a.controlPoints ?? []).filter(p => !isNeutralControlPoint(p));
   const vignette = a.vignette ?? 0;
-  if (!hasColorShift && !hasDetailPass && !luts && activePoints.length === 0 && vignette === 0) return;
+  const hasHsl = !isNeutralBands(a.hsl);
+  if (!hasColorShift && !hasDetailPass && !luts && activePoints.length === 0 && vignette === 0 && !hasHsl) return;
 
   const imgData = ctx.getImageData(0, 0, width, height);
   const d = imgData.data;
@@ -472,6 +477,12 @@ export function drawAdjusted(
       d[i] = clamp255(r); d[i + 1] = clamp255(g); d[i + 2] = clamp255(b);
     }
   }
+
+  // Reglajul pe game de culoare vine DUPA shift-ul global de temperatura/tinta
+  // (acela muta toate culorile deodata, deci trebuie sa se fi asezat inainte de
+  // a decide ce gama e fiecare pixel) si INAINTE de curbe: curbele lucreaza pe
+  // tonuri si trebuie sa vada culorile deja alese.
+  if (hasHsl) applyHslBands(d, a.hsl!);
 
   // Curbele: trei citiri din tablou per pixel, indiferent cate curbe a desenat
   // utilizatorul — toata compunerea s-a facut deja in buildChannelLuts.

@@ -17,6 +17,8 @@ import { CurveEditor } from './CurveEditor';
 import { EditSlider } from './EditSlider';
 import { EditHistogram } from './EditHistogram';
 import { computeHistogram, type Histogram as HistogramData } from '../core/histogram';
+import { BANDS, NEUTRAL_BAND, type BandKey, type BandAdjust } from '../core/hslBands';
+import { PRESETS, applyPreset } from '../core/editPresets';
 import {
   CURVE_PRESETS, LINEAR_CURVE,
   type CurveChannel, type CurvePoint, type PhotoCurves
@@ -98,9 +100,10 @@ const SLIDER_GROUPS: {
  * selective, vindecarea si recadrarea sunt cinci instrumente, nu un panou si
  * patru exceptii.
  */
-type EditTool = 'basic' | 'curves' | 'selective' | 'heal' | 'crop';
+type EditTool = 'basic' | 'color' | 'curves' | 'selective' | 'heal' | 'crop';
 const TOOLS: { key: EditTool; labelKey: string }[] = [
   { key: 'basic', labelKey: 'edit.tool.basic' },
+  { key: 'color', labelKey: 'edit.tool.color' },
   { key: 'curves', labelKey: 'edit.tool.curves' },
   { key: 'selective', labelKey: 'edit.tool.selective' },
   { key: 'heal', labelKey: 'edit.tool.heal' },
@@ -108,6 +111,24 @@ const TOOLS: { key: EditTool; labelKey: string }[] = [
 ];
 
 /** Cheia din PhotoCurves pentru fiecare canal + culoarea liniei din editor. */
+/** Culoarea pastilei fiecarei game — un reper vizual, nu valoarea reala a gamei. */
+const BAND_SWATCH: Record<BandKey, string> = {
+  red: '#ff4d4d', orange: '#ff9a3d', yellow: '#ffe14d', green: '#4ddb6b',
+  aqua: '#3ddbd0', blue: '#4d8cff', purple: '#a86bff', magenta: '#ff5ed2'
+};
+
+/** Cele trei reglaje ale unei game, in ordinea in care se folosesc. */
+const BAND_SLIDERS: { key: keyof BandAdjust; labelKey: string }[] = [
+  { key: 'hue', labelKey: 'edit.color.hue' },
+  { key: 'saturation', labelKey: 'edit.color.saturation' },
+  { key: 'luminance', labelKey: 'edit.color.luminance' }
+];
+
+/** O gama neatinsa — pentru punctul de pe pastila. */
+function isNeutralBand(b: BandAdjust | undefined): boolean {
+  return !b || (b.hue === 0 && b.saturation === 0 && b.luminance === 0);
+}
+
 const CURVE_CHANNEL_UI: { key: CurveChannel; labelKey: string; color: string }[] = [
   { key: 'master', labelKey: 'edit.curves.master', color: '#f2f5fa' },
   { key: 'red', labelKey: 'edit.curves.red', color: '#ff6b6b' },
@@ -273,6 +294,7 @@ export function EditPanel() {
     setCropDraft(null);
     setCropAspect(null);
     setTool('basic');
+    setActivePreset(null);
     setCurveChannel('master');
     setSelectedPointId(null);
     setDrawingStroke(null);
@@ -374,6 +396,14 @@ export function EditPanel() {
    * "originalul", arata originalul: comparatia e completa, nu doar vizuala.
    */
   const [liveHistogram, setLiveHistogram] = useState<HistogramData | null>(null);
+  /** Gama de culoare pe care se lucreaza acum in unealta de culoare. */
+  const [band, setBand] = useState<BandKey>('red');
+  /**
+   * Stilul apasat ultima data — doar pentru a-l arata apasat. NU se persista:
+   * de indata ce misti un slider, ajustarile nu mai sunt ale stilului, iar a
+   * lasa pastila aprinsa ar fi o afirmatie falsa.
+   */
+  const [activePreset, setActivePreset] = useState<string | null>(null);
 
   // Cat timp utilizatorul editeaza manual recadrarea (cropModeActive), preview-ul
   // arata cadrul INTREG (crop: undefined), nu cel deja recadrat — caseta suprapusa
@@ -499,7 +529,15 @@ export function EditPanel() {
     persistTimerRef.current = setTimeout(flushPersist, PERSIST_DEBOUNCE_MS);
   };
 
-  const update = (key: NumericAdjustmentKey, value: number) => commit({ ...adjustments, [key]: value });
+  const update = (key: NumericAdjustmentKey, value: number) => {
+    setActivePreset(null);
+    commit({ ...adjustments, [key]: value });
+  };
+  /** Un singur reglaj dintr-o singura gama de culoare — vezi core/hslBands.ts. */
+  const updateBand = (key: BandKey, field: keyof BandAdjust, value: number) => commit({
+    ...adjustments,
+    hsl: { ...adjustments.hsl, [key]: { ...NEUTRAL_BAND, ...adjustments.hsl?.[key], [field]: value } }
+  });
 
   // --- curbe ---
   const curves: PhotoCurves = adjustments.curves ?? {};
@@ -983,6 +1021,26 @@ export function EditPanel() {
 
           {liveHistogram && tool !== 'crop' && <EditHistogram data={liveHistogram} locale={locale} />}
 
+          {/* Stilurile stau deasupra sliderelor, nu intr-o unealta separata: sunt
+              un PUNCT DE PLECARE pentru reglajul de dedesubt, nu o alternativa
+              la el. Vezi core/editPresets.ts pentru ce atinge fiecare — si ce
+              nu atinge niciunul (decuparea, indreptarea, vindecarea). */}
+          {tool === 'basic' && (
+            <div className="edit-presets" role="group" aria-label={tr('edit.presets')}>
+              {PRESETS.map(preset => (
+                <button
+                  key={preset.key}
+                  type="button"
+                  className={activePreset === preset.key ? 'edit-preset active' : 'edit-preset'}
+                  onClick={() => { setActivePreset(preset.key); commit(applyPreset(adjustments, preset)); }}
+                  aria-pressed={activePreset === preset.key}
+                >
+                  {tr(`edit.preset.${preset.key}`)}
+                </button>
+              ))}
+            </div>
+          )}
+
           {tool === 'basic' && (
             <div className="edit-sliders">
               {SLIDER_GROUPS.map(({ labelKey, sliders }) => (
@@ -1002,6 +1060,45 @@ export function EditPanel() {
                   ))}
                 </div>
               ))}
+            </div>
+          )}
+
+          {tool === 'color' && (
+            <div className="edit-tool-panel">
+              {/* Gamele se aleg dintr-un rand de pastile colorate, nu dintr-o
+                  lista de nume: cine cauta "verdele din frunze" il recunoaste
+                  dupa culoare mai repede decat dupa cuvant. */}
+              <div className="edit-chip-row edit-band-row" role="group" aria-label={tr('edit.color.band')}>
+                {BANDS.map(key => (
+                  <button
+                    key={key}
+                    type="button"
+                    className={band === key ? 'edit-band active' : 'edit-band'}
+                    style={{ '--band': BAND_SWATCH[key] } as CSSProperties}
+                    onClick={() => setBand(key)}
+                    aria-pressed={band === key}
+                    aria-label={tr(`edit.color.${key}`)}
+                    title={tr(`edit.color.${key}`)}
+                  >
+                    {/* Punct plin cand gama chiar a fost atinsa — altfel nu se
+                        poate sti care dintre cele opt au fost reglate. */}
+                    {!isNeutralBand(adjustments.hsl?.[key]) && <i aria-hidden="true" />}
+                  </button>
+                ))}
+              </div>
+              <p className="edit-crop-hint">{tr(`edit.color.${band}`)}</p>
+              <div className="edit-sliders">
+                {BAND_SLIDERS.map(({ key, labelKey }) => (
+                  <EditSlider
+                    key={key}
+                    label={tr(labelKey)}
+                    value={adjustments.hsl?.[band]?.[key] ?? 0}
+                    min={-100} max={100}
+                    neutral={0}
+                    onChange={v => updateBand(band, key, v)}
+                  />
+                ))}
+              </div>
             </div>
           )}
 
