@@ -33,6 +33,8 @@ export const ro = {
   'nav.ariaLabel': 'Navigare principală',
   'nav.home': 'Acasă',
   'nav.albums': 'Albume',
+  'nav.library': 'Bibliotecă',
+  'nav.review': 'Revizuiesc',
   'nav.persons': 'Persoane',
   'nav.me': 'Meniu',
   'menu.title': 'Meniu',

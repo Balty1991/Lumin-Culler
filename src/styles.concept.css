@@ -1141,15 +1141,6 @@ body:before {
   font-size:1.1rem;
 }
 
-.review-desk-secondary {
-  padding:12px 2px;
-  color:#f2f4f8;
-  font-size:.8rem;
-  font-weight:750;
-  text-decoration:underline;
-  text-underline-offset:5px;
-  text-decoration-color:#ffffff57;
-}
 
 .review-desk-stage-footer {
   position:absolute;
@@ -2949,42 +2940,12 @@ body:before {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }}
 
-/* Iterația v2: acțiunea secundară a Review Desk trebuie să fie recunoscută imediat. */
-.review-desk-secondary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 50px;
-  min-width: 174px;
-  padding: 0 17px;
-  border: 1.5px solid rgba(255, 255, 255, .50);
-  border-radius: 15px;
-  color: #ffffff;
-  background: rgba(11, 17, 25, .88);
-  box-shadow: 0 10px 22px rgba(0, 0, 0, .30), inset 0 1px 0 rgba(255,255,255,.08);
-  font-size: .86rem;
-  font-weight: 850;
-  line-height: 1;
-  text-decoration: none;
-}
 
-.review-desk-secondary::before {
-  content: "▦";
-  margin-right: 8px;
-  color: var(--lc-preview-aqua);
-  font-size: 1rem;
-}
 
-.review-desk-secondary:active { transform: scale(.98); }
 
-.review-desk-secondary:focus-visible {
-  outline: 3px solid var(--lc-preview-aqua);
-  outline-offset: 3px;
-}
 
 @media (max-width: 420px) {
-  .review-desk-actions { gap: 12px; }
-  .review-desk-secondary { flex: 1 1 auto; min-width: 0; }}
+  .review-desk-actions { gap: 12px; }}
 
 /* Preview v3: biblioteca completă trebuie să fie vizibilă ca stare activă. */
 .filters .chip.active,

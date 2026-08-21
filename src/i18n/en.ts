@@ -36,6 +36,8 @@ export const en: Record<TranslationKey, string> = {
   'nav.ariaLabel': 'Main navigation',
   'nav.home': 'Home',
   'nav.albums': 'Albums',
+  'nav.library': 'Library',
+  'nav.review': 'Review',
   'nav.persons': 'People',
   'nav.me': 'Menu',
   'menu.title': 'Menu',

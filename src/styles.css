@@ -1594,6 +1594,21 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .bottom-nav-tab svg { width: 20px; height: 20px; }
 .bottom-nav-tab.active { color: var(--accent); }
 .bottom-nav-tab.active svg { filter: drop-shadow(0 0 6px rgb(var(--accent-rgb) / 0.6)); }
+/* Tab inactiv (nimic de revizuit): ramane la locul lui in bara — pozitia unui
+   tab nu are voie sa se mute de la o sesiune la alta — dar se vede ca nu duce
+   nicaieri. */
+.bottom-nav-tab:disabled { opacity: .38; }
+/* Numarul de decis, peste pictograma. `position: absolute` intr-un tab care e
+   deja `flex`: cifra nu trebuie sa impinga eticheta si nici sa schimbe
+   inaltimea barei. */
+.bottom-nav-tab { position: relative; }
+.bottom-nav-badge {
+  position: absolute; top: 2px; left: 50%; transform: translateX(4px);
+  min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--review); color: #0d0a03;
+  font-size: .58rem; font-weight: 800; line-height: 1;
+}
 
 /* ── Stare goala ── */
 /* padding-top mic intentionat (nu 12vh ca inainte) — cerinta directa: intreaga

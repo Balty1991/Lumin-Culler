@@ -280,11 +280,13 @@ export function HomeDashboard() {
                   <span>{tr(hasReviewQueue ? 'reviewDesk.continue' : 'reviewDesk.open')}</span>
                   <span aria-hidden="true">→</span>
                 </button>
-                {hasReviewQueue && (
-                  <button className="review-desk-secondary" onClick={() => setHomeGridOpen(true)} aria-label={tr('reviewDesk.library')}>
-                    {tr('reviewDesk.library')}
-                  </button>
-                )}
+                {/* Al doilea buton spre biblioteca a fost scos odata cu bara de
+                    navigare pe patru spatii: "Bibliotecă" e acum un tab
+                    permanent, iar cardul asta avea deja o a doua usa spre
+                    acelasi loc, imediat sub el. Cu tab-ul, ecranul de acasa
+                    ajunsese sa aiba TREI intrari in aceeasi biblioteca — exact
+                    genul de butoane care fac acelasi lucru. Ramane un singur
+                    CTA dominant: ce urmeaza de facut. */}
               </div>
             </div>
             <div className="review-desk-stage-footer">
