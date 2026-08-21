@@ -664,6 +664,7 @@ async function processOne(file: File, genre?: string, project?: string, handle?:
   const prediction = await contextEngine.predict(analysis, genre);
   analysis.aiScore = prediction.score;
   analysis.aiFactors = prediction.topFactors;
+  analysis.aiUncertainty = prediction.uncertainty;
 
   const status = decidePhotoStatus(prediction.score, analysis, thresholds);
 

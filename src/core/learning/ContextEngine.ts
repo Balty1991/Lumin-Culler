@@ -32,6 +32,19 @@ export interface Prediction {
   probability: number;    // 0..1 P(user selects this photo)
   contextKey: string;
   confidence: 'cold' | 'warming' | 'trained';  // based on sampleCount
+  /**
+   * Cat de putin se poate baza cineva pe scorul de mai sus, PENTRU ACEASTA
+   * POZA. 0 = raspuns limpede, 1 = motorul chiar nu stie.
+   *
+   * Ideea vine din NIMA (Google): un model de estetica nu prezice o nota, ci
+   * DISTRIBUTIA notelor pe care i le-ar da niste oameni — iar latimea acelei
+   * distributii spune cat de mult s-ar certa oamenii intre ei pe poza aia.
+   * `confidence` de mai sus e altceva si ramane: el spune cat a invatat
+   * modelul in acest CONTEXT, nu cat de limpede e cazul de fata.
+   *
+   * Vezi uncertaintyOf() pentru cele doua lucruri din care se compune.
+   */
+  uncertainty: number;
   topFactors: { feature: string; contribution: number }[];
 }
 
@@ -725,6 +738,41 @@ export function deriveContextKey(a: AnalysisRecord, genre?: string): string {
 
 // ── Engine ───────────────────────────────────────────────────────────────────
 
+/**
+ * Peste atata departare de ce a vazut modelul, poza e "necunoscuta" — media
+ * abaterilor normalizate, nu maximul: un singur feature neobisnuit e normal
+ * (orice poza are ceva al ei), mai multe deodata inseamna alt fel de poza.
+ */
+const NOVELTY_FULL_Z = 1.5;
+
+/**
+ * Cat de putin se poate baza cineva pe scorul unei poze anume.
+ *
+ * Doua lucruri diferite, amandoua motive intemeiate de nesiguranta:
+ *
+ *  - AMBIGUITATE: modelul are o parere, dar slaba. O probabilitate de 0,52
+ *    inseamna "cam pe la mijloc" — exact poza pe care un om o intoarce pe
+ *    toate fetele inainte sa se hotarasca.
+ *  - NOUTATE: modelul n-are ce parere sa aiba. Cand trasaturile pozei sunt
+ *    departe de tot ce a vazut pana acum, scorul e o extrapolare, nu o
+ *    judecata — si un scor extrem obtinut asa e mai putin de incredere decat
+ *    unul la mijloc obtinut pe teren cunoscut.
+ *
+ * Se ia cea mai mare dintre ele, nu media: oricare singura ajunge ca sa nu te
+ * poti bizui pe raspuns, si una mica n-are cum sa linisteasca pe cealalta.
+ *
+ * @param probability iesirea sigmoidei
+ * @param normalized trasaturile deja normalizate (z-scoruri) — nu se
+ *   recalculeaza nimic, sunt exact cele folosite la predictie
+ */
+export function uncertaintyOf(probability: number, normalized: FeatureVector): number {
+  const ambiguity = Number.isFinite(probability) ? 1 - 2 * Math.abs(probability - 0.5) : 1;
+  const values = Object.values(normalized).filter(Number.isFinite);
+  const meanAbsZ = values.length ? values.reduce((sum, z) => sum + Math.abs(z), 0) / values.length : 0;
+  const novelty = Math.min(1, meanAbsZ / NOVELTY_FULL_Z);
+  return Math.max(0, Math.min(1, Math.max(ambiguity, novelty)));
+}
+
 export class ContextEngine {
   private models = new Map<string, ContextModelRecord>();
   /** Memoria de continut (vezi learning/embeddingMemory.ts) — tinuta aici ca predict() sa nu citeasca din DB pentru fiecare poza dintr-un import de sute. */
@@ -818,6 +866,7 @@ export class ContextEngine {
     return {
       score: Math.round(probability * 100),
       probability,
+      uncertainty: uncertaintyOf(probability, normalized),
       contextKey,
       confidence:
         model.sampleCount < COLD_START_SAMPLES ? 'cold'

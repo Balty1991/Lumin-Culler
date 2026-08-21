@@ -220,6 +220,13 @@ export interface AnalysisRecord {
   /** topFactors din predictia ContextEngine la momentul importului — "de ce" a primit poza acest scor. */
   aiFactors?: { feature: string; contribution: number }[];
   /**
+   * Cat de putin se poate baza cineva pe `aiScore` PENTRU ACEASTA POZA — vezi
+   * uncertaintyOf() in learning/ContextEngine.ts. 0 = raspuns limpede, 1 =
+   * motorul chiar nu stie. Optional: inregistrarile de dinaintea acestei
+   * functii nu-l au, iar apelantii trateaza absenta ca "nu se stie", nu ca 0.
+   */
+  aiUncertainty?: number;
+  /**
    * Scorare de GRUP (toate fetele, nu doar cea mai buna) — problema clasica la
    * poze cu mai multe persoane: mereu cineva clipeste. 0..1, fractiunea de fete
    * cu ochii deschisi / care zambesc. Optional: doar cand faceCount > 0.

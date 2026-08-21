@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { describe, expect, it, vi } from 'vitest';
-import { deriveContextKey, explainFactors, extractFeatures, FACE_ONLY_FEATURES, LANDSCAPE_ONLY_FEATURES, landscapeSharpness, ContextEngine, updateWeight, priorAnchor, hasProminentSubject, lacksCameraMetadata } from './ContextEngine';
+import { deriveContextKey, explainFactors, extractFeatures, uncertaintyOf, FACE_ONLY_FEATURES, LANDSCAPE_ONLY_FEATURES, landscapeSharpness, ContextEngine, updateWeight, priorAnchor, hasProminentSubject, lacksCameraMetadata } from './ContextEngine';
 import { db, type AnalysisRecord } from '../db';
 import { t } from '../../i18n';
 
@@ -802,5 +802,44 @@ describe('invatarea din comparatii, nu din etichete', () => {
     const { bun } = rafala();
     await engine.recordPreference({ winner: { photoId: 'bun', analysis: bun }, losers: [], genre: 'test-gol' });
     expect(await db.contextModels.get(deriveContextKey(bun, 'test-gol'))).toBeUndefined();
+  });
+});
+
+describe('cat de putin se poate baza cineva pe scorul unei poze', () => {
+  it('un raspuns de la mijloc e nesigur, unul transant nu', () => {
+    expect(uncertaintyOf(0.5, {})).toBe(1);
+    expect(uncertaintyOf(0.98, {})).toBeLessThan(0.1);
+    expect(uncertaintyOf(0.02, {})).toBeLessThan(0.1);
+  });
+
+  it('o poza cum n-a mai vazut modelul e nesigura chiar si cu scor transant', () => {
+    // scor extrem, dar trasaturi departe de tot ce s-a vazut = extrapolare
+    const necunoscuta = { sharpness: 3, bestSmile: -3, exposureBalance: 2.5 };
+    expect(uncertaintyOf(0.97, necunoscuta)).toBeGreaterThan(0.9);
+  });
+
+  it('teren cunoscut plus raspuns transant = incredere', () => {
+    const obisnuita = { sharpness: 0.2, bestSmile: -0.1, exposureBalance: 0.3 };
+    expect(uncertaintyOf(0.95, obisnuita)).toBeLessThan(0.3);
+  });
+
+  it('se ia cea mai mare dintre cele doua, nu media — una mica n-o linisteste pe cealalta', () => {
+    const necunoscuta = { sharpness: 3, bestSmile: 3 };
+    // ambiguitate aproape zero, noutate maxima => rezultatul urmeaza noutatea
+    expect(uncertaintyOf(0.99, necunoscuta)).toBeGreaterThan(0.9);
+  });
+
+  it('ramane in 0..1 si nu se sufoca la valori corupte', () => {
+    expect(uncertaintyOf(NaN, {})).toBe(1);
+    const u = uncertaintyOf(0.5, { a: NaN, b: Infinity, c: 0.5 });
+    expect(u).toBeGreaterThanOrEqual(0);
+    expect(u).toBeLessThanOrEqual(1);
+  });
+
+  it('predictia chiar o intoarce', async () => {
+    const engine = new ContextEngine();
+    const p = await engine.predict(baseAnalysis({ photoId: 'inc', faceCount: 1 }));
+    expect(p.uncertainty).toBeGreaterThanOrEqual(0);
+    expect(p.uncertainty).toBeLessThanOrEqual(1);
   });
 });

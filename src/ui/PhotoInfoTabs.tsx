@@ -178,6 +178,13 @@ const AI_SELECT_THRESHOLD = 65;
  * impartite explicit intre ce se poate repara ACUM (cu buton "Aplica", vezi
  * openEdit autoApply mai jos) si ce ramane sfat pentru urmatorul cadru.
  */
+/**
+ * Peste atata incertitudine, motorul o spune pe fata. Ales sus deliberat: un
+ * avertisment care apare pe jumatate din poze nu mai e un avertisment, e
+ * tapet — si atunci nimeni nu-l mai citeste nici cand chiar conteaza.
+ */
+const UNSURE_THRESHOLD = 0.75;
+
 function WhyExplanation({ photo }: { photo: PhotoView }) {
   const locale = useStore(s => s.locale);
   const openEdit = useStore(s => s.openEdit);
@@ -233,6 +240,12 @@ function WhyExplanation({ photo }: { photo: PhotoView }) {
         {/* Compararea cu surorile din serie sta PRIMA: e raspunsul la intrebarea
             pe care si-o pune omul in fata unei rafale. */}
         {momentLine && <p className="why-moment-line">{momentLine}</p>}
+        {/* Cand motorul chiar nu stie, o spune. Un scor insotit de "nu ma pot
+            baza pe asta" e mai de folos decat unul rostit cu aceeasi siguranta
+            ca toate celelalte — vezi uncertaintyOf in learning/ContextEngine.ts. */}
+        {photo.aiUncertainty !== undefined && photo.aiUncertainty >= UNSURE_THRESHOLD && (
+          <p className="why-unsure">{t(locale, 'detail.why.unsure')}</p>
+        )}
         {paragraphs.map((p, i) => (
           <p key={i} className={i === paragraphs.length - 1 ? 'why-verdict-line' : undefined}>{p}</p>
         ))}

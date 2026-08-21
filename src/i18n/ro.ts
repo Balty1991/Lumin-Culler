@@ -826,6 +826,7 @@ export const ro = {
   'starRating.star': '{n} stea',
   'starRating.stars': '{n} stele',
   // Cum sta poza fata de SURORILE ei din aceeasi serie — vezi core/momentComparison.ts.
+  'detail.why.unsure': 'Pe asta nu mă pot baza. Fie e la mijloc între da și nu, fie nu seamănă cu ce am văzut până acum — decide tu, și învăț din alegerea ta.',
   'detail.why.moment.sharpest': 'Cel mai clar dintre cele {frames} cadre ale acestui moment.',
   'detail.why.moment.softerThanSibling': 'Alt cadru din aceleași {frames} e vizibil mai clar.',
   'detail.why.moment.onlyEyesOpen': 'Singurul dintre cele {frames} cadre în care nu clipește nimeni.',

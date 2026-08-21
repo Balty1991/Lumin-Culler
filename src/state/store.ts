@@ -174,6 +174,8 @@ export interface PhotoView {
   iptcCountry?: string;
   iptcKeywords?: string[];
   aiFactors: { feature: string; contribution: number }[];
+  /** Cat de putin se poate baza cineva pe aiScore pentru ACEASTA poza — vezi AnalysisRecord.aiUncertainty. */
+  aiUncertainty?: number;
   personNames: string[];
   /** Persoanele cunoscute recunoscute in ACEASTA poza, cu similaritatea (0..1) cea mai buna dintre fetele care le corespund — "confidence score" (plan 3.2.3). */
   personMatches: { name: string; similarity: number }[];
@@ -872,6 +874,7 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     iptcCountry: analysis?.iptcCountry,
     iptcKeywords: photo.keywordsOverride ?? analysis?.iptcKeywords,
     aiFactors: analysis?.aiFactors ?? [],
+    aiUncertainty: analysis?.aiUncertainty,
     personNames: analysis
       ? Array.from(new Set(analysis.faces.map(f => f.personName).filter((n): n is string => !!n)))
       : [],
@@ -1319,6 +1322,21 @@ function matchesSearch(p: PhotoView, normalizedQuery: string, locale: Locale): b
  */
 function reviewProximity(score: number): number {
   return Math.min(score - REJECT_THRESHOLD, SELECT_THRESHOLD - score);
+}
+
+/**
+ * Cat de greu e cazul, pe o scara comuna 0..1 — mic = decizie limpede.
+ *
+ * Foloseste incertitudinea per poza cand exista, si distanta pana la prag ca
+ * rezerva pentru pozele analizate inainte de acea functie. Rezerva e adusa pe
+ * aceeasi scara ca incertitudinea (banda dintre praguri are latimea 30, iar
+ * mijlocul ei, la 15, e cazul cel mai greu), ca cele doua sa poata sta
+ * amestecate in aceeasi sortare fara ca una din ele sa castige mereu.
+ */
+function reviewDifficulty(p: PhotoView): number {
+  if (p.aiUncertainty !== undefined && Number.isFinite(p.aiUncertainty)) return p.aiUncertainty;
+  const halfBand = (SELECT_THRESHOLD - REJECT_THRESHOLD) / 2;
+  return Math.max(0, Math.min(1, reviewProximity(p.aiScore) / halfBand));
 }
 
 /**
@@ -2970,7 +2988,7 @@ export const useStore = create<AppState>((set, get) => ({
     // clasifica ultimele poze dupa alte reguli decat primele.
     const thresholds = deriveThresholds(await readLibraryScores());
     const changes: { photoId: string; previousStatus: PhotoRecord['status'] }[] = [];
-    const updates = new Map<string, { aiScore: number; aiFactors: { feature: string; contribution: number }[]; status: PhotoRecord['status'] }>();
+    const updates = new Map<string, { aiScore: number; aiFactors: { feature: string; contribution: number }[]; aiUncertainty: number; status: PhotoRecord['status'] }>();
     let quotaError = false;
 
     // Predictiile (fara efecte secundare — vezi comentariul de mai sus, rescorePhotos
@@ -2983,20 +3001,20 @@ export const useStore = create<AppState>((set, get) => ({
       if (!analysis || !photoRecord) return;
       const prediction = await contextEngine.predict(analysis, photoRecord.genre);
       const newStatus = decidePhotoStatus(prediction.score, analysis, thresholds);
-      await db.analyses.update(p.id, { aiScore: prediction.score, aiFactors: prediction.topFactors });
+      await db.analyses.update(p.id, { aiScore: prediction.score, aiFactors: prediction.topFactors, aiUncertainty: prediction.uncertainty });
       if (newStatus !== photoRecord.status) {
         changes.push({ photoId: p.id, previousStatus: photoRecord.status });
         await db.photos.update(p.id, { status: newStatus });
         const res = await syncOriginal(p.id, newStatus);
         if (res.quotaError) quotaError = true;
       }
-      updates.set(p.id, { aiScore: prediction.score, aiFactors: prediction.topFactors, status: newStatus });
+      updates.set(p.id, { aiScore: prediction.score, aiFactors: prediction.topFactors, aiUncertainty: prediction.uncertainty, status: newStatus });
     }));
 
     set(state => ({
       photos: state.photos.map(p => {
         const u = updates.get(p.id);
-        return u ? { ...p, aiScore: u.aiScore, aiFactors: u.aiFactors, status: u.status } : p;
+        return u ? { ...p, aiScore: u.aiScore, aiFactors: u.aiFactors, aiUncertainty: u.aiUncertainty, status: u.status } : p;
       }),
       batchHistory: changes.length
         ? pushBatchHistory(state.batchHistory, makeBatchEvent(t(locale, 'store.batchEvent.rescore', { count: changes.length }), changes))
@@ -3896,13 +3914,20 @@ export const useStore = create<AppState>((set, get) => ({
     let base: PhotoView[];
     switch (filter) {
       case 'selected': base = photosVisible.filter(p => p.status === 'selected'); break;
-      // "de verificat" incepe sortat dupa cat de aproape e scorul de UN prag
-      // (select sau reject) — pozele aproape de prag sunt decizii rapide/usoare,
-      // cele din mijlocul benzii (aproape de scor 50) sunt cele cu adevarat
-      // ambigue si raman la coada, ca sa treci intai prin cele multe si usoare.
+      // "de verificat" incepe sortat dupa cat de greu e cazul: deciziile
+      // limpezi primele, cele cu adevarat ambigue la coada, ca sa treci intai
+      // prin cele multe si usoare.
+      //
+      // Masura folosita e `aiUncertainty` cand exista (vezi uncertaintyOf in
+      // learning/ContextEngine.ts) si distanta pana la prag ca rezerva, pentru
+      // pozele analizate inainte de aceasta functie. E acelasi sens, dar un
+      // semnal mai bun: distanta pana la prag vede DOAR ambiguitatea (scor pe
+      // la mijloc), pe cand incertitudinea vede si NOUTATEA — o poza cu scor
+      // extrem, dar cu trasaturi cum n-a mai vazut modelul, e o extrapolare,
+      // nu o judecata, si merita privita cu aceeasi rezerva ca una de la mijloc.
       case 'review':
         base = photosVisible.filter(p => p.status === 'review')
-          .sort((a, b) => reviewProximity(a.aiScore) - reviewProximity(b.aiScore));
+          .sort((a, b) => reviewDifficulty(a) - reviewDifficulty(b));
         break;
       case 'rejected': base = photosVisible.filter(p => p.status === 'rejected'); break;
       case 'blinks': base = selectBlinks(photosVisible); break;

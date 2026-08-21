@@ -809,6 +809,7 @@ export const en: Record<TranslationKey, string> = {
   'starRating.ariaLabel': 'Rating',
   'starRating.star': '{n} star',
   'starRating.stars': '{n} stars',
+  'detail.why.unsure': 'I cannot rely on this one. Either it sits between yes and no, or it looks unlike anything I have seen so far — you decide, and I learn from your choice.',
   'detail.why.moment.sharpest': 'The sharpest of the {frames} frames of this moment.',
   'detail.why.moment.softerThanSibling': 'Another of the same {frames} frames is visibly sharper.',
   'detail.why.moment.onlyEyesOpen': 'The only one of the {frames} frames where nobody is blinking.',

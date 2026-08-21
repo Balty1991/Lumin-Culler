@@ -2471,6 +2471,14 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   padding: 11px 13px; display: flex; flex-direction: column; gap: 8px;
 }
 .why-explanation-card p { margin: 0; font-size: 0.82rem; line-height: 1.55; color: var(--text-dim); }
+/* "Nu ma pot baza pe asta" — o nota de rezerva, nu o eroare si nu o concluzie:
+   bara aurie e aceeasi paleta ca sugestiile de imbunatatire de mai jos, adica
+   se citeste ca "atentie la asta", nu ca "ceva e stricat". */
+.why-explanation-card p.why-unsure {
+  margin: 2px 0 1px; padding: 8px 10px; border-left: 3px solid #f59e0b;
+  border-radius: 0 8px 8px 0; background: rgb(245 158 11 / 0.08); color: var(--text-dim);
+}
+
 /* Compararea cu surorile din serie — sta PRIMA in card si e raspunsul la
    intrebarea pe care si-o pune omul in fata unei rafale ("e cea mai buna dintre
    astea?"), deci se distinge de restul rationamentului fara sa tipe: aceeasi
