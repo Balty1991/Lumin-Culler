@@ -825,6 +825,10 @@ export const ro = {
   'starRating.ariaLabel': 'Rating',
   'starRating.star': '{n} stea',
   'starRating.stars': '{n} stele',
+  // Cum sta poza fata de SURORILE ei din aceeasi serie — vezi core/momentComparison.ts.
+  'detail.why.moment.sharpest': 'Cel mai clar dintre cele {frames} cadre ale acestui moment.',
+  'detail.why.moment.softerThanSibling': 'Alt cadru din aceleași {frames} e vizibil mai clar.',
+  'detail.why.moment.onlyEyesOpen': 'Singurul dintre cele {frames} cadre în care nu clipește nimeni.',
   'detail.why.loading': 'Se generează explicația…',
   'detail.why.factorsShort': 'Factori pe scurt',
   'detail.why.none': 'Încă nu există explicații de scor pentru această poză.',

@@ -7,6 +7,7 @@
 import { db, type AnalysisRecord, type PhotoRecord } from './db';
 import { analysisPool, withTimeout } from './workerPool';
 import { contextEngine, landscapeSharpness, type Prediction } from './learning/ContextEngine';
+import { rescueBestOfMoment } from './momentRescue';
 import { groupPhotosByHash } from './hashComparePool';
 import type { HashInput } from '../workers/hashCompare.worker';
 import { parseExif } from './exifParser';
@@ -934,6 +935,15 @@ export async function importFiles(
   // multiplica cu marimea burst-ului.
   const demotedIds: string[] = [];
   for (const g of groupResults) {
+    // Cine trebuie salvat de la disparitia intregii clipe — calculat INAINTE de
+    // bucla, pe starile de dinaintea oricarei schimbari. Vezi core/momentRescue.ts.
+    const rescuedId = rescueBestOfMoment(
+      g.memberIds.map(id => {
+        const rec = recordById.get(id);
+        return { id, status: rec ? rec.status : 'pending' };
+      }),
+      g.bestId
+    );
     for (const memberId of g.memberIds) {
       groups.set(memberId, g.groupId);
       const rec = recordById.get(memberId);
@@ -943,6 +953,7 @@ export async function importFiles(
         next.status = 'review';
         demotedIds.push(memberId);
       }
+      if (memberId === rescuedId) next.status = 'review';
       updates.push(next);
     }
   }

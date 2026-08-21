@@ -3,6 +3,7 @@ import { db, type AnalysisRecord } from '../core/db';
 import { useStore, type PhotoView } from '../state/store';
 import { explainFactors } from '../core/learning/ContextEngine';
 import { generateExplanation, generateSuggestions, type Suggestion } from '../core/aiExplanationGenerator';
+import { compareWithinMoment } from '../core/momentComparison';
 import { Histogram } from './Histogram';
 import { FocusMap } from './FocusMap';
 import { AnimatedNumber } from './AnimatedNumber';
@@ -180,8 +181,31 @@ const AI_SELECT_THRESHOLD = 65;
 function WhyExplanation({ photo }: { photo: PhotoView }) {
   const locale = useStore(s => s.locale);
   const openEdit = useStore(s => s.openEdit);
+  const groupOf = useStore(s => s.groupOf);
   const [paragraphs, setParagraphs] = useState<string[] | null>(null);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+
+  /**
+   * Prima propozitie a explicatiei, cand poza face parte dintr-o serie: cum
+   * sta fata de SURORILE ei, nu fata de restul bibliotecii. Vezi
+   * core/momentComparison.ts — in fata unei rafale, intrebarea omului nu e "e
+   * buna poza asta?", ci "e cea mai buna dintre astea patru?".
+   *
+   * Nu costa nicio citire noua: membrii seriei sunt deja in memorie.
+   */
+  const momentLine = useMemo(() => {
+    if (!photo.groupId) return null;
+    const moment = groupOf(photo.groupId);
+    const frame = (p: PhotoView) => ({
+      id: p.id, sharpness: p.sharpness, faceCount: p.faceCount,
+      allEyesOpen: p.allEyesOpen, groupEyesOpenRatio: p.groupEyesOpenRatio
+    });
+    const verdict = compareWithinMoment(frame(photo), moment.map(frame));
+    // `t(locale, ...)` direct, nu `tr`: `tr` e o functie noua la fiecare randare,
+    // deci ca dependenta ar reface calculul de fiecare data — adica exact ce
+    // memoizarea trebuia sa evite.
+    return verdict ? t(locale, `detail.why.moment.${verdict.key}`, { frames: verdict.frames }) : null;
+  }, [photo, groupOf, locale]);
 
   useEffect(() => {
     let alive = true;
@@ -206,6 +230,9 @@ function WhyExplanation({ photo }: { photo: PhotoView }) {
   return (
     <div className="why-explanation">
       <div className="why-explanation-card">
+        {/* Compararea cu surorile din serie sta PRIMA: e raspunsul la intrebarea
+            pe care si-o pune omul in fata unei rafale. */}
+        {momentLine && <p className="why-moment-line">{momentLine}</p>}
         {paragraphs.map((p, i) => (
           <p key={i} className={i === paragraphs.length - 1 ? 'why-verdict-line' : undefined}>{p}</p>
         ))}

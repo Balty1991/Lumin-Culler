@@ -2471,6 +2471,16 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   padding: 11px 13px; display: flex; flex-direction: column; gap: 8px;
 }
 .why-explanation-card p { margin: 0; font-size: 0.82rem; line-height: 1.55; color: var(--text-dim); }
+/* Compararea cu surorile din serie — sta PRIMA in card si e raspunsul la
+   intrebarea pe care si-o pune omul in fata unei rafale ("e cea mai buna dintre
+   astea?"), deci se distinge de restul rationamentului fara sa tipe: aceeasi
+   greutate ca verdictul de la final, dar linia de separare o are dedesubt, nu
+   deasupra — e o deschidere, nu o concluzie. */
+.why-explanation-card p.why-moment-line {
+  margin-bottom: 1px; padding-bottom: 9px; border-bottom: 1px solid var(--line-strong);
+  color: var(--text); font-weight: 600;
+}
+
 .why-explanation-card p.why-verdict-line {
   margin-top: 1px; padding-top: 9px; border-top: 1px solid var(--line-strong);
   color: var(--text); font-weight: 600;
