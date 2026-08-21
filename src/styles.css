@@ -2483,6 +2483,14 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   padding: 11px 13px; display: flex; flex-direction: column; gap: 8px;
 }
 .why-explanation-card p { margin: 0; font-size: 0.82rem; line-height: 1.55; color: var(--text-dim); }
+/* Contrafactualul — "a fost cat pe ce". Aceeasi greutate ca linia de moment,
+   pentru ca raspunde la o intrebare de acelasi rang: nu ce E poza, ci de ce
+   n-a trecut. */
+.why-explanation-card p.why-counterfactual {
+  margin: 2px 0 1px; padding: 8px 10px; border-left: 3px solid rgb(var(--accent-rgb) / 0.7);
+  border-radius: 0 8px 8px 0; background: rgb(var(--accent-rgb) / 0.07); color: var(--text);
+}
+
 /* "Nu ma pot baza pe asta" — o nota de rezerva, nu o eroare si nu o concluzie:
    bara aurie e aceeasi paleta ca sugestiile de imbunatatire de mai jos, adica
    se citeste ca "atentie la asta", nu ca "ceva e stricat". */

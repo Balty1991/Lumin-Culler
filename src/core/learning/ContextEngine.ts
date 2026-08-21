@@ -436,6 +436,16 @@ const FACTOR_FEATURES = new Set([
  */
 const INVERTED_SENSE_FEATURES = new Set(['highlightClipping', 'shadowClipping', 'strangerPenalty', 'isoPenalty', 'groupAwkwardRatio', 'bodyCroppedAtEdge', 'noCameraMetadata']);
 
+/** Eticheta afisabila a unui singur factor — exportata pentru contrafactual. */
+export function labelForFactor(locale: Locale, feature: string, positive = false): string {
+  return factorLabel(locale, feature, positive);
+}
+
+/** true cand feature-ul are o eticheta pe care merita s-o citeasca cineva. */
+export function isLabelledFactor(feature: string): boolean {
+  return FACTOR_FEATURES.has(feature);
+}
+
 function factorLabel(locale: Locale, feature: string, positive = false): string {
   if (!FACTOR_FEATURES.has(feature)) return feature;
   if (positive && INVERTED_SENSE_FEATURES.has(feature)) return t(locale, `factor.${feature}.pos`);

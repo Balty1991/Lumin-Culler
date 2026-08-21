@@ -5,7 +5,8 @@ import { explainFactors } from '../core/learning/ContextEngine';
 import { generateExplanation, generateSuggestions, type Suggestion } from '../core/aiExplanationGenerator';
 import { compareWithinMoment } from '../core/momentComparison';
 import { technicalSummary, subjectSummary, framingSummary } from '../core/metricSummary';
-import { landscapeSharpness } from '../core/learning/ContextEngine';
+import { findCounterfactual } from '../core/scoreCounterfactual';
+import { landscapeSharpness, labelForFactor, isLabelledFactor } from '../core/learning/ContextEngine';
 import { Histogram } from './Histogram';
 import { FocusMap } from './FocusMap';
 import { AnimatedNumber } from './AnimatedNumber';
@@ -231,6 +232,16 @@ function WhyExplanation({ photo }: { photo: PhotoView }) {
    *
    * Nu costa nicio citire noua: membrii seriei sunt deja in memorie.
    */
+  /**
+   * Singurul factor fara de care verdictul ar fi fost altul. Nu costa nimic:
+   * `aiFactors` sunt deja in memorie pe fiecare poza.
+   */
+  const counterfactual = useMemo(() => {
+    const found = findCounterfactual(photo.aiScore, photo.aiFactors, { select: 65, reject: 35 });
+    // Un feature fara eticheta ar produce un text cu un nume din cod in el.
+    return found && isLabelledFactor(found.feature) ? found : null;
+  }, [photo.aiScore, photo.aiFactors]);
+
   const momentLine = useMemo(() => {
     if (!photo.groupId) return null;
     const moment = groupOf(photo.groupId);
@@ -276,6 +287,19 @@ function WhyExplanation({ photo }: { photo: PhotoView }) {
             ca toate celelalte — vezi uncertaintyOf in learning/ContextEngine.ts. */}
         {photo.aiUncertainty !== undefined && photo.aiUncertainty >= UNSURE_THRESHOLD && (
           <p className="why-unsure">{t(locale, 'detail.why.unsure')}</p>
+        )}
+        {/* Ce a tinut poza pe loc, si cat de aproape a fost. Se poate raspunde
+            EXACT, nu aproximativ: scorul e o sigmoida peste o suma de
+            contributii, deci scoaterea uneia e o scadere simpla in log-odds —
+            chiar aritmetica din care a iesit scorul, citita invers.
+            Vezi core/scoreCounterfactual.ts. */}
+        {counterfactual && (
+          <p className="why-counterfactual">
+            {t(locale, counterfactual.verdict === 'selected' ? 'detail.why.almost.keep' : 'detail.why.almost.review', {
+              factor: labelForFactor(locale, counterfactual.feature),
+              score: counterfactual.score
+            })}
+          </p>
         )}
         {paragraphs.map((p, i) => (
           <p key={i} className={i === paragraphs.length - 1 ? 'why-verdict-line' : undefined}>{p}</p>
