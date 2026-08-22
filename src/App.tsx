@@ -1052,40 +1052,33 @@ export default function App() {
                    ce anume caut. Actiunea care sterge sta ultima, sub o linie,
                    niciodata langa un filtru. */
                 <>
-                  <div className="more-filters-group">
-                    <span className="more-filters-group-head mono">{tr('app.moreFilters.group.find')}</span>
-                    <div className="more-filters-group-body">
-                      {SECONDARY_FILTERS.filter(f => FIND_FILTERS.includes(f.key)).map(f => (
-                        <button
-                          key={f.key}
-                          className={filter === f.key ? 'chip active' : 'chip'}
-                          onClick={() => { setFilter(f.key); close(); }}
-                          aria-pressed={filter === f.key}
-                        >
-                          <span className="chip-icon" aria-hidden="true">{f.icon}</span>
-                          {f.label}
-                          <b className="chip-count">{f.count}</b>
-                        </button>
-                      ))}
+                  {([
+                    ['app.moreFilters.group.find', SECONDARY_FILTERS.filter(f => FIND_FILTERS.includes(f.key))],
+                    ['app.moreFilters.group.problems', SECONDARY_FILTERS.filter(f => !FIND_FILTERS.includes(f.key))]
+                  ] as const).map(([headKey, list]) => (
+                    <div className="more-filters-group" key={headKey}>
+                      <span className="more-filters-group-head mono">{tr(headKey)}</span>
+                      {/* Randuri de lista pe toata latimea, nu pastile: numele la
+                          stanga, numarul la dreapta, o bifa pe cel pornit. */}
+                      <div className="filter-rows">
+                        {list.map(f => (
+                          <button
+                            key={f.key}
+                            type="button"
+                            className={filter === f.key ? 'filter-row active' : 'filter-row'}
+                            onClick={() => { setFilter(f.key); close(); }}
+                            aria-pressed={filter === f.key}
+                            disabled={f.count === 0 && filter !== f.key}
+                          >
+                            <span className="filter-row-icon" aria-hidden="true">{f.icon}</span>
+                            <span className="filter-row-label">{f.label}</span>
+                            <b className="filter-row-count mono">{f.count}</b>
+                            {filter === f.key && <CheckIcon className="filter-row-check" aria-hidden="true" />}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                  <div className="more-filters-group">
-                    <span className="more-filters-group-head mono">{tr('app.moreFilters.group.problems')}</span>
-                    <div className="more-filters-group-body">
-                      {SECONDARY_FILTERS.filter(f => !FIND_FILTERS.includes(f.key)).map(f => (
-                        <button
-                          key={f.key}
-                          className={filter === f.key ? 'chip active' : 'chip'}
-                          onClick={() => { setFilter(f.key); close(); }}
-                          aria-pressed={filter === f.key}
-                        >
-                          <span className="chip-icon" aria-hidden="true">{f.icon}</span>
-                          {f.label}
-                          <b className="chip-count">{f.count}</b>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  ))}
                   <div className="more-filters-group">
                     <span className="more-filters-group-head mono">{tr('app.moreFilters.group.details')}</span>
                     <div className="more-filters-group-body">
@@ -1133,14 +1126,18 @@ export default function App() {
               </button>
             )}
             {multiSelectIds.size === 0 && (
+              /* Isi scrie numele, ca butonul de filtre de langa el. Raportat de
+                 utilizator: o bifa singura in coltul din dreapta, fara nicio
+                 eticheta, nu spunea nimanui ce e acolo si de ce sta mereu
+                 acolo. */
               <button
-                className={selectMode ? 'chip chip-compact active select-mode-toggle' : 'chip chip-compact select-mode-toggle'}
+                className={selectMode ? 'chip select-mode-toggle active' : 'chip select-mode-toggle'}
                 onClick={() => setSelectMode(!selectMode)}
                 aria-pressed={selectMode}
-                aria-label={selectMode ? tr('app.selectMode.active') : tr('app.selectMode.toggle')}
                 title={selectMode ? tr('app.selectMode.active') : tr('app.selectMode.toggle')}
               >
                 <CheckIcon className="chip-icon" aria-hidden="true" />
+                <span className="filters-more-label">{tr('app.selectMode.short')}</span>
               </button>
             )}
             </div>

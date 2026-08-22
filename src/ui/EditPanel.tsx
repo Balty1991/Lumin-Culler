@@ -106,6 +106,16 @@ type EditTool = 'basic' | 'color' | 'curves' | 'selective' | 'heal' | 'crop';
  * bara de sase cuvinte mici, fara niciun semn vizual, era greu de parcurs din
  * ochi si arata a lista de linkuri, nu a unelte.
  */
+/**
+ * Cat timp fara nicio schimbare inseamna "degetul s-a ridicat". 160ms: peste
+ * doua cadre la 60Hz, deci nu se declanseaza intre doua evenimente de drag, dar
+ * sub pragul la care ochiul ar simti o intarziere pana la imaginea clara.
+ */
+const INTERACTION_SETTLE_MS = 160;
+/** Cat de mult se poate apropia lupa din editor. Peste 6x se vad doar pixeli. */
+const MAX_EDIT_ZOOM = 6;
+const DOUBLE_TAP_MS = 300;
+
 const TOOLS: { key: EditTool; labelKey: string; icon: ReactNode }[] = [
   { key: 'basic', labelKey: 'edit.tool.basic', icon: <SunIcon /> },
   { key: 'color', labelKey: 'edit.tool.color', icon: <ApertureIcon /> },
@@ -235,6 +245,38 @@ export function EditPanel() {
   // era limitata deloc. Solutie: persistarea in Dexie e amanata (debounce),
   // starea locala (adjustments) ramane instant — previzualizarea live nu
   // depinde de scrierea in DB.
+  /**
+   * "Se trage un slider ACUM." Raportat de utilizator: "slide-urile merg
+   * sacadat, trebuie sa fie fluenta aplicatia".
+   *
+   * Ce costa un cadru de drag, masurat pe cod: o trecere completa pe pixeli
+   * (drawAdjusted, pana la 768x768) PLUS un getImageData peste tot canvasul
+   * pentru histograma live — o citire inapoi din GPU, cea mai scumpa operatie
+   * din tot lantul — PLUS setLiveHistogram, care re-randeaza tot panoul (poza,
+   * sliderele, uneltele) la fiecare cadru. Adica de trei ori mai mult decat
+   * are nevoie ochiul ca sa vada ca se schimba ceva.
+   *
+   * Cat timp degetul e pe slider: previzualizarea se deseneaza la jumatate de
+   * latura (un sfert din pixeli) si histograma nu se recalculeaza deloc. Cand
+   * degetul se ridica — 160ms fara nicio schimbare — se redeseneaza o data la
+   * calitate intreaga si histograma se pune la zi. Rezultatul afisat e acelasi;
+   * doar drumul pana la el e de patru ori mai scurt.
+   */
+  const [interacting, setInteracting] = useState(false);
+  const interactingRef = useRef(false);
+  const interactEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const markInteracting = () => {
+    if (!interactingRef.current) {
+      interactingRef.current = true;
+      setInteracting(true);
+    }
+    if (interactEndTimerRef.current !== null) clearTimeout(interactEndTimerRef.current);
+    interactEndTimerRef.current = setTimeout(() => {
+      interactEndTimerRef.current = null;
+      interactingRef.current = false;
+      setInteracting(false);
+    }, INTERACTION_SETTLE_MS);
+  };
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingPersistRef = useRef<{ id: string; adjustments: EditAdjustments } | null>(null);
   const flushPersist = () => {
@@ -256,6 +298,7 @@ export function EditPanel() {
   // reinregistra la fiecare randare, fara niciun beneficiu real.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => () => flushPersist(), []);
+  useEffect(() => () => { if (interactEndTimerRef.current !== null) clearTimeout(interactEndTimerRef.current); }, []);
 
   /**
    * Recadrare manuala (tool nou, cerinta directa a utilizatorului): cat timp
@@ -376,6 +419,8 @@ export function EditPanel() {
   // deci 768 (~44% mai putini pixeli fata de 1024) ramane vizibil suficient
   // de clar pe un ecran de telefon, dar taie proportional din costul per cadru.
   const EDIT_PREVIEW_MAX_SIDE = 768;
+  /** Latura previzualizarii cat timp degetul e pe un slider — un sfert din pixeli. */
+  const EDIT_PREVIEW_DRAG_SIDE = 384;
   /** Un esantion din opt: histograma e o silueta, nu o numaratoare exacta. */
   const HISTOGRAM_STRIDE = 8;
   /**
@@ -410,6 +455,77 @@ export function EditPanel() {
    */
   const [activePreset, setActivePreset] = useState<string | null>(null);
 
+  /**
+   * Zoom cu doua degete pe fotografie (cerinta directa: "cu posibilitati de
+   * zoom in-out cu degetele"). Doua degete maresc si plimba, UN deget ramane
+   * al uneltei active — asa retusul, punctele de control si caseta de decupare
+   * continua sa functioneze exact ca inainte, si nu trebuie ales intre "pot
+   * apropia" si "pot lucra".
+   *
+   * Transformarea se pune pe INVELISUL pozei, nu pe canvas: inauntru mai stau
+   * caseta de decupare, punctele de control si urmele de retus, si toate
+   * trebuie sa se miste odata cu imaginea. Iar fiindca getBoundingClientRect()
+   * include transformarile, matematica de coordonate a uneltelor (raport intre
+   * pozitia degetului si dreptunghiul canvasului) ramane corecta la orice zoom,
+   * fara nicio linie schimbata acolo.
+   *
+   * Zoom-ul e doar o lupa: nu intra in ajustari si nu se salveaza nicaieri.
+   */
+  const [zoom, setZoom] = useState(1);
+  const [zoomPan, setZoomPan] = useState({ x: 0, y: 0 });
+  const pointersRef = useRef(new Map<number, { x: number; y: number }>());
+  const pinchRef = useRef<{ dist: number; zoom: number; cx: number; cy: number; pan: { x: number; y: number } } | null>(null);
+  const lastTapRef = useRef(0);
+
+  const pinchCenter = () => {
+    const pts = [...pointersRef.current.values()];
+    return { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
+  };
+  const pinchDistance = () => {
+    const pts = [...pointersRef.current.values()];
+    return Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+  };
+
+  const onZoomPointerDown = (e: ReactPointerEvent) => {
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointersRef.current.size === 2) {
+      const c = pinchCenter();
+      pinchRef.current = { dist: pinchDistance(), zoom, cx: c.x, cy: c.y, pan: zoomPan };
+    }
+  };
+  const onZoomPointerMove = (e: ReactPointerEvent) => {
+    if (!pointersRef.current.has(e.pointerId)) return;
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const pinch = pinchRef.current;
+    if (!pinch || pointersRef.current.size !== 2) return;
+    e.preventDefault();
+    const next = Math.max(1, Math.min(MAX_EDIT_ZOOM, (pinchDistance() / pinch.dist) * pinch.zoom));
+    const c = pinchCenter();
+    setZoom(next);
+    // Plimbarea urmeaza centrul dintre degete, impartita la zoom: o miscare de
+    // X pixeli pe ecran trebuie sa deplaseze imaginea cu X pixeli, indiferent
+    // cat de mult e marita (transformarea scaleaza si translatia).
+    setZoomPan(next <= 1 ? { x: 0, y: 0 } : {
+      x: pinch.pan.x + (c.x - pinch.cx) / next,
+      y: pinch.pan.y + (c.y - pinch.cy) / next
+    });
+  };
+  const endZoomPointer = (e: ReactPointerEvent) => {
+    pointersRef.current.delete(e.pointerId);
+    if (pointersRef.current.size < 2) pinchRef.current = null;
+  };
+  /** Dublu-tap = inapoi la incadrarea intreaga, gestul asteptat in orice vizualizator. */
+  const onZoomTap = () => {
+    const now = Date.now();
+    if (now - lastTapRef.current < DOUBLE_TAP_MS && zoom !== 1) {
+      setZoom(1);
+      setZoomPan({ x: 0, y: 0 });
+    }
+    lastTapRef.current = now;
+  };
+  // O poza noua sau o unealta noua incepe de la incadrarea intreaga.
+  useEffect(() => { setZoom(1); setZoomPan({ x: 0, y: 0 }); }, [photo?.id, tool]);
+
   // Cat timp utilizatorul editeaza manual recadrarea (cropModeActive), preview-ul
   // arata cadrul INTREG (crop: undefined), nu cel deja recadrat — caseta suprapusa
   // (vezi JSX mai jos) se pozitioneaza direct in coordonatele canvas-ului doar daca
@@ -425,7 +541,8 @@ export function EditPanel() {
       rafRef.current = null;
       const canvas = canvasRef.current;
       if (!canvas) return;
-      const scale = Math.min(1, EDIT_PREVIEW_MAX_SIDE / Math.max(imgEl.naturalWidth, imgEl.naturalHeight));
+      const maxSide = interacting ? EDIT_PREVIEW_DRAG_SIDE : EDIT_PREVIEW_MAX_SIDE;
+      const scale = Math.min(1, maxSide / Math.max(imgEl.naturalWidth, imgEl.naturalHeight));
       canvas.width = Math.max(1, Math.round(imgEl.naturalWidth * scale));
       canvas.height = Math.max(1, Math.round(imgEl.naturalHeight * scale));
       const ctx = canvas.getContext('2d');
@@ -433,17 +550,22 @@ export function EditPanel() {
       const drawn = cropModeActive ? { ...base, crop: undefined } : base;
       if (ctx) {
         drawAdjusted(ctx, imgEl, imgEl.naturalWidth, imgEl.naturalHeight, canvas.width, canvas.height, drawn);
-        try {
-          setLiveHistogram(computeHistogram(ctx.getImageData(0, 0, canvas.width, canvas.height), HISTOGRAM_STRIDE));
-        } catch {
-          // canvas "murdarit" de o imagine din alta origine — histograma
-          // dispare, editarea merge mai departe
-          setLiveHistogram(null);
+        // Histograma NU se recalculeaza in timpul tragerii: getImageData peste
+        // tot canvasul e cea mai scumpa operatie din cadru, iar setarea starii
+        // ar re-randa tot panoul. Se pune la zi cand degetul se opreste.
+        if (!interacting) {
+          try {
+            setLiveHistogram(computeHistogram(ctx.getImageData(0, 0, canvas.width, canvas.height), HISTOGRAM_STRIDE));
+          } catch {
+            // canvas "murdarit" de o imagine din alta origine — histograma
+            // dispare, editarea merge mai departe
+            setLiveHistogram(null);
+          }
         }
       }
     });
     return () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); };
-  }, [imgEl, adjustments, cropModeActive, showingBefore]);
+  }, [imgEl, adjustments, cropModeActive, showingBefore, interacting]);
 
   useEffect(() => {
     if (!photo) return;
@@ -533,6 +655,7 @@ export function EditPanel() {
    * scrierea in Dexie e amanata — vezi comentariul de la persistTimerRef.
    */
   const commit = (next: EditAdjustments) => {
+    markInteracting();
     setAdjustments(next);
     pendingPersistRef.current = { id: photo.id, adjustments: next };
     if (persistTimerRef.current !== null) clearTimeout(persistTimerRef.current);
@@ -875,7 +998,17 @@ export function EditPanel() {
           <div className="edit-stage-area">
           <div
             className={cropDraft ? 'edit-canvas-wrap cropping' : 'edit-canvas-wrap'}
-            style={imgEl ? { aspectRatio: `${imgEl.naturalWidth} / ${imgEl.naturalHeight}` } : undefined}
+            style={{
+              ...(imgEl ? { aspectRatio: `${imgEl.naturalWidth} / ${imgEl.naturalHeight}` } : {}),
+              ...(zoom !== 1
+                ? { transform: `scale(${zoom}) translate(${zoomPan.x}px, ${zoomPan.y}px)` }
+                : {})
+            }}
+            onPointerDown={onZoomPointerDown}
+            onPointerMove={onZoomPointerMove}
+            onPointerUp={endZoomPointer}
+            onPointerCancel={endZoomPointer}
+            onClick={onZoomTap}
           >
             {/* Bug real gasit de auditul QA: singurul loc din aplicatie unde poza e
                 afisata fara nicio alternativa text pentru un cititor de ecran —

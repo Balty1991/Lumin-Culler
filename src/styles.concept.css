@@ -4725,10 +4725,15 @@ input[type="search"] { min-height: 44px; }
 
   .edit-stage-area {
     flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
     min-height: 0;
     display: grid;
     place-items: center;
     padding: 10px 12px;
+    /* Lupa (zoom cu doua degete) mareste invelisul pozei peste marginile scenei
+       — fara asta, imaginea marita ar da peste bara de sus si peste doc. */
+    overflow: hidden;
   }
 
   .edit-canvas-wrap {
@@ -4744,6 +4749,18 @@ input[type="search"] { min-height: 44px; }
 
   .edit-dock {
     flex: 0 0 auto;
+    /* Masurat in browser: doc-ul avea 516px pe un ecran de 412, si cinci slidere
+       erau taiate de marginea din dreapta — exact ce se vede in captura
+       utilizatorului, unde bara de Contrast iese din ecran.
+       `min-width: 0` NU e de ajuns aici: latimea doc-ului nu vine din micsorare
+       (pe axa principala, verticala, e flex:0 0 auto), ci din INTINDERE pe axa
+       transversala. Iar intr-un container flex pe coloana, inaltimea liniei pe
+       axa transversala e maximul dintre latimea containerului si latimea de
+       continut a elementelor — deci un continut mai lat umfla linia si, cu ea,
+       toti fratii intinsi. Singurul lucru care opreste asta e o latime data
+       explicit. */
+    width: 100%;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -4766,6 +4783,22 @@ input[type="search"] { min-height: 44px; }
   .edit-dock > .edit-presets,
   .edit-dock > .edit-wide-actions,
   .edit-dock > .edit-tools { flex: 0 0 auto; }
+  /* Acelasi lant, pana jos: fiecare nivel trebuie sa aiba voie sa se ingusteze. */
+  .edit-stage-area,
+  .edit-dock > *,
+  .edit-sliders,
+  .edit-slider-group,
+  .edit-slider-row,
+  .edit-tool-panel,
+  .edit-crop-panel { min-width: 0; }
+  .edit-slider-row input[type="range"] { min-width: 0; width: 100%; }
+
+  /* O SINGURA coloana de slidere, ca in Lightroom mobil si Snapseed. Doua
+     coloane pe un telefon dau bare de ~180px, pe care degetul nu poate regla
+     fin nimic — cerinta directa a utilizatorului: "sliderele mai accesibile".
+     Doc-ul scroleaza pe dinauntru, deci nu se pierde nimic. */
+  .edit-sliders,
+  .edit-slider-group { grid-template-columns: minmax(0, 1fr); column-gap: 0; }
   .edit-dock > .edit-presets { margin: 0; }
   .edit-dock > .edit-tools { margin-bottom: 0; }
   /* Latimea controalelor nu se mai leaga de latimea pozei: pe un cadru portret
@@ -4891,3 +4924,134 @@ input[type="search"] { min-height: 44px; }
   white-space: nowrap;
 }
 .edit-tool.active .edit-tool-icon { color: var(--accent-text, var(--accent)); }
+
+
+/* Fotografia din editor cat timp e marita: fara tranzitie (ar ramane in urma
+   degetelor) si fara text selectabil. */
+.edit-canvas-wrap { touch-action: none; }
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   Foaia de filtre — a doua forma, dupa ce dropdown-ul cu pastile a fost
+   respins de doua ori ("nu imi plac cum se vad", "ai lasat la fel").
+   Urca de jos, tine toata latimea, si fiecare filtru e un rand de lista
+   cu nume, numar si bifa — tiparul din aplicatiile de fotografie.
+   ═══════════════════════════════════════════════════════════════════ */
+.filter-sheet-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-palette-scrim, 60);
+  display: flex;
+  align-items: flex-end;
+  background: rgb(4 5 8 / .62);
+  backdrop-filter: blur(3px);
+  animation: fadeIn .16s var(--ease) both;
+}
+
+.filter-sheet {
+  width: 100%;
+  max-height: 82dvh;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 14px calc(16px + env(safe-area-inset-bottom));
+  border-radius: 22px 22px 0 0;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -18px 44px -20px rgb(0 0 0 / .7);
+  animation: sheetUp .22s var(--ease) both;
+}
+@keyframes sheetUp { from { transform: translateY(14%); opacity: .4; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .filter-sheet, .filter-sheet-scrim { animation: none; }
+}
+
+.filter-sheet-handle {
+  width: 38px;
+  height: 4px;
+  margin: 0 auto 8px;
+  border-radius: 99px;
+  background: var(--line-strong, rgb(255 255 255 / .22));
+}
+
+.filter-sheet-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 750;
+}
+
+.filter-sheet-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* ── Randul de filtru ── */
+.filter-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.filter-row {
+  width: 100%;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 13px;
+  color: var(--text);
+  background: none;
+  font-size: .92rem;
+  font-weight: 600;
+  text-align: left;
+}
+.filter-row:disabled { opacity: .4; }
+.filter-row.active { background: rgb(var(--accent-rgb) / .16); }
+.filter-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.filter-row-icon {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  color: var(--text-dim);
+}
+.filter-row-icon svg { width: 100%; height: 100%; }
+.filter-row.active .filter-row-icon { color: var(--accent-text, var(--accent)); }
+.filter-row-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.filter-row-count {
+  flex: 0 0 auto;
+  color: var(--text-faint);
+  font-size: .82rem;
+  font-variant-numeric: tabular-nums;
+}
+.filter-row-check {
+  flex: 0 0 auto;
+  width: 17px;
+  height: 17px;
+  color: var(--accent-text, var(--accent));
+}
+
+/* Butonul care deschide foaia isi spune numele: un "..." singur in coltul din
+   dreapta nu spunea nimanui ce e acolo. */
+.filters-more-btn { gap: 6px; }
+.filters-more-label { font-size: .82rem; font-weight: 700; }
