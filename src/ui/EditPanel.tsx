@@ -534,8 +534,58 @@ export function EditPanel() {
   // direct, ca dependinta — altfel fiecare tick de drag al casetei (care schimba
   // identitatea obiectului cropDraft) ar redeclansa un pixel-pass complet, desi
   // imaginea de fundal nu se schimba deloc in timpul unui drag de recadrare.
+  /**
+   * Deseneaza previzualizarea din ajustarile PRIMITE, nu din starea React.
+   * Extrasa din efect ca sa poata fi chemata si direct din miscarea degetului
+   * pe slider (vezi liveUpdate) — acolo tocmai drumul prin React era ce facea
+   * imaginea sa sara.
+   */
+  const paint = (adj: EditAdjustments, lowRes: boolean) => {
+    const canvas = canvasRef.current;
+    if (!canvas || !imgEl) return;
+    const maxSide = lowRes ? EDIT_PREVIEW_DRAG_SIDE : EDIT_PREVIEW_MAX_SIDE;
+    const scale = Math.min(1, maxSide / Math.max(imgEl.naturalWidth, imgEl.naturalHeight));
+    canvas.width = Math.max(1, Math.round(imgEl.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(imgEl.naturalHeight * scale));
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const base = showingBefore
+      ? { ...NEUTRAL_ADJUSTMENTS, crop: adj.crop, rotationDeg: adj.rotationDeg }
+      : adj;
+    const drawn = cropModeActive ? { ...base, crop: undefined } : base;
+    drawAdjusted(ctx, imgEl, imgEl.naturalWidth, imgEl.naturalHeight, canvas.width, canvas.height, drawn);
+    // Histograma NU se recalculeaza in timpul tragerii: getImageData peste tot
+    // canvasul e cea mai scumpa operatie din cadru, iar setarea starii ar
+    // re-randa tot panoul. Se pune la zi cand degetul se opreste.
+    if (lowRes) return;
+    try {
+      setLiveHistogram(computeHistogram(ctx.getImageData(0, 0, canvas.width, canvas.height), HISTOGRAM_STRIDE));
+    } catch {
+      // canvas "murdarit" de o imagine din alta origine — histograma dispare,
+      // editarea merge mai departe
+      setLiveHistogram(null);
+    }
+  };
+
+  /**
+   * Miscarea degetului pe un slider: valoarea NU urca in starea panoului (ar
+   * re-randa tot), doar se tine intr-un ref si se deseneaza. Starea reala se
+   * scrie o singura data, la ridicarea degetului (vezi EditSlider.onLive).
+   */
+  const liveAdjustRef = useRef<EditAdjustments | null>(null);
+  const liveUpdate = (key: NumericAdjustmentKey, value: number) => {
+    markInteracting();
+    setActivePreset(null);
+    const next = { ...(liveAdjustRef.current ?? adjustments), [key]: value };
+    liveAdjustRef.current = next;
+    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => { rafRef.current = null; paint(next, true); });
+  };
+
   useEffect(() => {
     if (!imgEl || !canvasRef.current) return;
+    // Ajustarile tocmai s-au asezat in stare — reperul live nu mai are ce pastra.
+    liveAdjustRef.current = null;
     if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(() => {
       rafRef.current = null;
@@ -1194,6 +1244,7 @@ export function EditPanel() {
                       // NEUTRAL_ADJUSTMENTS), deci acolo se si intorc.
                       neutral={0}
                       onChange={v => update(key, v)}
+                      onLive={v => liveUpdate(key, v)}
                     />
                   ))}
                 </div>

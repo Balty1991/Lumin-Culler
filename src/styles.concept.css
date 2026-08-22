@@ -5055,3 +5055,72 @@ input[type="search"] { min-height: 44px; }
    dreapta nu spunea nimanui ce e acolo. */
 .filters-more-btn { gap: 6px; }
 .filters-more-label { font-size: .82rem; font-weight: 700; }
+
+
+/* ── Bara de filtre, forma a treia ──
+   Pe bara raman doar starile plus o singura usa spre restul. Numele se scrie pe
+   starea aleasa; celelalte raman iconita si numar, deci randul incape intreg si
+   nu mai scroleaza — inainte zona care scrola taia pastila activa prin mijlocul
+   cuvantului. */
+.filters-status { overflow: visible; }
+.filters-status .chip { flex: 0 0 auto; }
+
+/* Cautarea, singura pe randul ei: nu mai concureaza cu sase controale. */
+.library-search {
+  margin: 0 5px 10px;
+  padding: 5px;
+  border-radius: 14px;
+  background: #14161df0;
+  box-shadow: 0 10px 30px -22px #000;
+}
+:root[data-theme="light"] .library-search { background: var(--surface); box-shadow: none; border: 1px solid var(--line); }
+.library-search .search-field { width: 100%; min-height: 46px; margin: 0; }
+
+/* ── Reglaje in foaia de filtre ──
+   Rating, sortare si interval de date au coborat din bara in foaie: acolo au
+   loc sa aiba fiecare o eticheta deasupra, in loc sa fie sapte cutii inghesuite
+   pe un rand din care doua ies din ecran. */
+.filter-field {
+  display: grid;
+  gap: 5px;
+  padding: 6px 2px;
+}
+.filter-field-label {
+  color: var(--text-faint);
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+.filter-field select,
+.filter-field input[type="date"] {
+  width: 100%;
+  min-height: 46px;
+}
+.filter-field-pair {
+  display: flex;
+  gap: 8px;
+}
+.filter-field-pair select { flex: 1 1 auto; min-width: 0; }
+.filter-field-pair .sort-dir { flex: 0 0 auto; min-width: 52px; justify-content: center; }
+
+.filter-reset-btn {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  color: var(--text-dim);
+  background: none;
+  font-size: .88rem;
+  font-weight: 700;
+}
+
+
+/* Randul de stari nu scroleaza si nu taie: daca eticheta starii alese chiar nu
+   incape (limbi mai lungi, ecrane foarte inguste), se scurteaza cu "..." — o
+   taiere curata, nu o pastila retezata la jumatatea cuvantului. */
+.filters-status { overflow: hidden; }
+.filters-status .chip.active { flex: 0 1 auto; min-width: 0; }
+.filters-status .chip-label { max-width: 13ch; margin-left: 2px; }
+/* Iconita si numele nu se ating: pastilele compacte au gap 0 in tema, iar acolo
+   unde apare si un nume el are nevoie de aer. */
+.filters-status .chip.chip-compact.active { gap: 6px; padding-right: 10px; }
