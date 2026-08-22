@@ -1015,6 +1015,12 @@ export default function App() {
 
         {photos.length > 0 && homeGridOpen && (
           <nav className="filters" aria-label={tr('app.filters.ariaLabel')}>
+            {/* Doua zone, nu o insiruire care se rupe: starile la stanga (grup
+                segmentat, se poate trage lateral daca nu incap), actiunile la
+                dreapta, lipite de margine. Raportat de utilizator cu captura:
+                ultimul buton trecea singur pe un al doilea rand, iar bara ramanea
+                cu o caseta goala sub ea. */}
+            <div className="filters-status">
             {PRIMARY_FILTERS.map(f => (
               <button
                 key={f.key}
@@ -1033,6 +1039,8 @@ export default function App() {
                 <b className="chip-count">{f.count}</b>
               </button>
             ))}
+            </div>
+            <div className="filters-actions">
             <MoreFiltersMenu active={extraFiltersActive} badgeCount={extraFiltersCount}>
               {close => (
                 /* Panoul era o singura gramada de pastile: filtre de continut,
@@ -1135,6 +1143,7 @@ export default function App() {
                 <CheckIcon className="chip-icon" aria-hidden="true" />
               </button>
             )}
+            </div>
           </nav>
         )}
 

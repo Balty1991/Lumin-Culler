@@ -1243,7 +1243,7 @@ export const ro = {
   'edit.exposure': 'Expunere',
   'edit.contrast': 'Contrast',
   'edit.saturation': 'Saturație',
-  'edit.temperature': 'Temperatura',
+  'edit.temperature': 'Temperatură',
   'edit.tint': 'Nuanță',
   // Grupele de slidere din editor — patru feluri de interventii, nu o lista.
   'edit.before': 'Ține apăsat: originalul',
@@ -1258,8 +1258,12 @@ export const ro = {
   'edit.group.color': 'CULOARE',
   'edit.group.detail': 'DETALIU',
   'edit.group.effects': 'EFECTE',
-  'edit.whites': 'Alburi',
-  'edit.blacks': 'Negruri',
+  // "Alburi"/"Negruri" nu exista in nicio aplicatie de editare (cerinta directa
+  // a utilizatorului: "nu am auzit de termenii astia la alte aplicatii"). In
+  // Lightroom mobil, panoul de lumina are exact: Expunere, Contrast, Lumini,
+  // Umbre, Alb, Negru.
+  'edit.whites': 'Alb',
+  'edit.blacks': 'Negru',
   'edit.highlights': 'Lumini',
   'edit.shadows': 'Umbre',
   'edit.clarity': 'Claritate',

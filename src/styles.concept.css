@@ -3615,7 +3615,16 @@ body:before {
 
 /* Sectiunile de studiat (culori, date din aparat, histograma, focus) — pliate.
    Randul inchis costa 44px in loc de un ecran intreg. */
+/* `.detail-scroll` e o COLOANA FLEX care scroleaza, iar `overflow: hidden` de
+   mai jos anuleaza dimensiunea minima automata a unui element flex (min-content
+   devine 0). Rezultatul, raportat de utilizator cu captura: cele trei sectiuni
+   de la coada tabului erau strivite la cate o dunga de 1-2px — de aceea "nu
+   mi-ai adus inapoi acele info", desi continutul era acolo, in DOM, complet.
+   Nimic dintr-un container care scroleaza n-are voie sa fie micsorat. */
+.detail-scroll > * { flex: 0 0 auto; }
+
 .metric-fold {
+  flex: 0 0 auto;
   margin-top: 10px;
   border: 1px solid var(--line);
   border-radius: 14px;
@@ -4676,69 +4685,94 @@ input[type="search"] { min-height: 44px; }
 }
 
 @media (max-width: 760px) {
-  /* Ecran intreg: cei 16px de padding ai scrimului plus coltul rotunjit si
-     chenarul costau ~40px de inaltime intr-un ecran in care fiecare pixel se
-     duce in fotografie. */
+  /* Ecran intreg, dar nu SUB barele sistemului. Raportat de utilizator cu
+     captura: titlul panoului aparea peste ceasul si iconitele telefonului, iar
+     randul de unelte era taiat de marginea de jos. `100dvh` include zonele de
+     sub bara de stare si sub bara de navigare (pagina declara viewport-fit=cover),
+     deci ele trebuie scazute explicit — restul aplicatiei o face deja peste tot
+     (vezi env(safe-area-inset-*) in styles.css). */
   .edit-scrim { padding: 0; }
   .edit-modal {
+    box-sizing: border-box;
     width: 100%;
     max-width: none;
     height: 100dvh;
     max-height: 100dvh;
-    padding: 0;
+    padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
     gap: 0;
     border: none;
     border-radius: 0;
+    overflow: hidden;
   }
   .edit-modal > .edit-topbar {
     flex: 0 0 auto;
     padding: 0 6px;
     border-bottom: 1px solid var(--line);
   }
+
+  /* Trei zone, ca in Lightroom/Snapseed/Photoshop mobil: bara de sus, scena cu
+     fotografia, doc-ul de jos. Doar doc-ul are voie sa scroleze pe dinauntru;
+     nimic nu poate impinge altceva afara din ecran. */
   .edit-body {
-    gap: 10px;
-    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
-  }
-
-  /* Ordinea pe verticala: poza, panoul uneltei, actiunile late, uneltele.
-     In DOM randul de unelte ramane INAINTEA panourilor (tablist inaintea
-     continutului, cum se asteapta un cititor de ecran) — se muta doar
-     vizual. */
-  .edit-canvas-wrap { order: 1; }
-  .edit-sliders,
-  .edit-presets,
-  .edit-crop-panel,
-  .edit-tool-panel,
-  .histogram { order: 2; }
-  .edit-wide-actions { order: 3; flex: 0 0 auto; }
-  .edit-tools { order: 4; flex: 0 0 auto; margin-bottom: 0; }
-
-  /* Plafonul pozei creste de la 44vh la 56dvh: cromul de deasupra si de
-     dedesubt s-a injumatatit, deci spatiul castigat se duce unde trebuie.
-     Ramane un PLAFON, nu o inaltime fixa — cutia isi pastreaza raportul
-     fotografiei (de asta depinde asezarea manerelor de decupare si a
-     punctelor de retus), iar panoul de sub ea absoarbe restul. */
-  .edit-canvas-wrap { max-height: 56dvh; }
-  .edit-sliders,
-  .edit-crop-panel,
-  .edit-tool-panel {
-    max-width: calc(56dvh * var(--photo-aspect, 1));
-  }
-  /* Panoul uneltei active scroleaza in dreptunghiul lui, nu impinge poza. */
-  .edit-sliders,
-  .edit-crop-panel,
-  .edit-tool-panel {
+    display: flex;
+    flex-direction: column;
     flex: 1 1 auto;
-    min-height: 96px;
+    min-height: 0;
+    gap: 0;
+    padding: 0;
+    overflow: hidden;
   }
-  /* Histograma ramane la 46px (sub atat nu se mai vede silueta — vezi
-     comentariul de la .histogram in styles.css), dar nu are voie sa fie
-     strivita de coloana flex. */
-  .edit-body > .histogram { flex: 0 0 auto; }
-  /* Stilurile gata facute erau strivite de la 44px la 22px de flex-shrink:
-     jumatate de pastila, sub orice tinta de atingere. Nu se micsoreaza —
-     randul lor scroleaza orizontal, cum a fost gandit. */
-  .edit-body > .edit-presets { flex: 0 0 auto; margin: 0; }
+
+  .edit-stage-area {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    place-items: center;
+    padding: 10px 12px;
+  }
+
+  .edit-canvas-wrap {
+    max-width: 100%;
+    /* Mai mica decat inainte, la cererea directa a utilizatorului ("probabil
+       trebuie poza lasata mai mica"): asa incap sub ea doua-trei randuri de
+       slidere fara sa scrolezi, ca in Lightroom mobil. Ramane un PLAFON —
+       cutia isi pastreaza raportul fotografiei, de care depind manerele de
+       decupare si punctele de retus. */
+    max-height: 44dvh;
+    box-shadow: 0 10px 18px -12px rgb(0 0 0 / 0.6);
+  }
+
+  .edit-dock {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 46dvh;
+    padding: 10px 12px 8px;
+    border-top: 1px solid var(--line);
+    background: var(--surface);
+  }
+  /* Controalele scroleaza in doc; randul de unelte NU — el e ancora si ramane
+     mereu pe ecran, exact ca bara de unelte din aplicatiile de referinta. */
+  .edit-dock > .edit-sliders,
+  .edit-dock > .edit-crop-panel,
+  .edit-dock > .edit-tool-panel {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .edit-dock > .histogram,
+  .edit-dock > .edit-presets,
+  .edit-dock > .edit-wide-actions,
+  .edit-dock > .edit-tools { flex: 0 0 auto; }
+  .edit-dock > .edit-presets { margin: 0; }
+  .edit-dock > .edit-tools { margin-bottom: 0; }
+  /* Latimea controalelor nu se mai leaga de latimea pozei: pe un cadru portret
+     ingust, sliderele ajungeau la jumatate de ecran degeaba. */
+  .edit-sliders,
+  .edit-crop-panel,
+  .edit-tool-panel { max-width: none; }
 
   /* Sase unelte pe un rand ingust: textul mai mic, dar tinta ramane 44px. */
   .edit-tool { font-size: .66rem; padding: 0 2px; }
@@ -4783,3 +4817,77 @@ input[type="search"] { min-height: 44px; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+
+/* ── Bara de filtre a bibliotecii ──
+   Era o insiruire cu flex-wrap: pe un ecran ingust, ultimul buton (modul de
+   selectie) trecea singur pe un al doilea rand si bara ramanea cu o caseta
+   goala sub ea — utilizatorul a cerut "o bara mai profesionala de butoane, in
+   ton cu aplicatia". Acum sunt doua zone pe UN rand: starile la stanga, ca un
+   grup segmentat care se poate trage lateral daca nu incap, si actiunile la
+   dreapta, lipite de margine, despartite de o linie subtire. */
+.filters {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.filters-status {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  /* Marginea din dreapta a grupului nu se lipeste de linia despartitoare cand
+     continutul chiar se trage lateral. */
+  scroll-padding-right: 8px;
+}
+.filters-status::-webkit-scrollbar { display: none; }
+.filters-status > * { flex: 0 0 auto; }
+
+.filters-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 7px;
+  margin-left: 1px;
+  border-left: 1px solid var(--line);
+}
+:root[data-theme="light"] .filters-actions { border-left-color: rgb(10 20 30 / .14); }
+
+/* Zona de stari e o singura suprafata: pastilele din ea nu mai au fiecare
+   propriul chenar, ci se disting prin fundal — tiparul de control segmentat. */
+.filters-status .chip { box-shadow: none; }
+
+
+/* ── Bara de unelte a editorului: iconita deasupra numelui ──
+   Tiparul din Lightroom mobil si Snapseed. Sase cuvinte mici, unul langa altul,
+   fara niciun semn vizual, se citeau ca o lista de linkuri. */
+.edit-tool {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 52px;
+}
+.edit-tool-icon {
+  display: grid;
+  place-items: center;
+  width: 19px;
+  height: 19px;
+}
+.edit-tool-icon svg { width: 100%; height: 100%; }
+.edit-tool-label {
+  max-width: 100%;
+  overflow: hidden;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.edit-tool.active .edit-tool-icon { color: var(--accent-text, var(--accent)); }

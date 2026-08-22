@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent , type ReactNode } from 'react';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
 import { useStore } from '../state/store';
 import { buildMomentStacks, momentOf } from '../core/momentStacks';
@@ -28,7 +28,7 @@ import {
   MIN_CONTROL_RADIUS, MAX_CONTROL_RADIUS, type ControlPoint
 } from '../core/selectiveEdit';
 import { DEFAULT_HEAL_RADIUS, MIN_HEAL_RADIUS, MAX_HEAL_RADIUS, type HealStroke } from '../core/spotHeal';
-import { XIcon, UndoIcon, SparkleIcon, LayersIcon, TrashIcon, EyeIcon } from './icons';
+import { XIcon, UndoIcon, SparkleIcon, LayersIcon, TrashIcon, EyeIcon, SunIcon, ApertureIcon, BarChartIcon, FocusIcon, EditIcon, CropIcon } from './icons';
 import { t, plural } from '../i18n';
 
 // Doar cele 10 chei numerice cu slider in UI — rotationDeg (auto-indreptare)
@@ -101,13 +101,18 @@ const SLIDER_GROUPS: {
  * patru exceptii.
  */
 type EditTool = 'basic' | 'color' | 'curves' | 'selective' | 'heal' | 'crop';
-const TOOLS: { key: EditTool; labelKey: string }[] = [
-  { key: 'basic', labelKey: 'edit.tool.basic' },
-  { key: 'color', labelKey: 'edit.tool.color' },
-  { key: 'curves', labelKey: 'edit.tool.curves' },
-  { key: 'selective', labelKey: 'edit.tool.selective' },
-  { key: 'heal', labelKey: 'edit.tool.heal' },
-  { key: 'crop', labelKey: 'edit.tool.crop' }
+/**
+ * Iconita plus nume, ca in bara de unelte din Lightroom mobil si Snapseed — o
+ * bara de sase cuvinte mici, fara niciun semn vizual, era greu de parcurs din
+ * ochi si arata a lista de linkuri, nu a unelte.
+ */
+const TOOLS: { key: EditTool; labelKey: string; icon: ReactNode }[] = [
+  { key: 'basic', labelKey: 'edit.tool.basic', icon: <SunIcon /> },
+  { key: 'color', labelKey: 'edit.tool.color', icon: <ApertureIcon /> },
+  { key: 'curves', labelKey: 'edit.tool.curves', icon: <BarChartIcon /> },
+  { key: 'selective', labelKey: 'edit.tool.selective', icon: <FocusIcon /> },
+  { key: 'heal', labelKey: 'edit.tool.heal', icon: <EditIcon /> },
+  { key: 'crop', labelKey: 'edit.tool.crop', icon: <CropIcon /> }
 ];
 
 /** Cheia din PhotoCurves pentru fiecare canal + culoarea liniei din editor. */
@@ -864,6 +869,10 @@ export function EditPanel() {
               (vezi .edit-canvas-wrap in @media (max-width:760px) din styles.css)
               tine poza fixata sus in timp ce doar lista de slidere scroleaza pe
               sub ea. */}
+          {/* Scena: tot spatiul dintre bara de sus si doc, cu fotografia centrata
+              in el. Fara acest invelis, doc-ul ramanea agatat sub poza si sub el
+              se casca un gol de ~130px pana la marginea ecranului. */}
+          <div className="edit-stage-area">
           <div
             className={cropDraft ? 'edit-canvas-wrap cropping' : 'edit-canvas-wrap'}
             style={imgEl ? { aspectRatio: `${imgEl.naturalWidth} / ${imgEl.naturalHeight}` } : undefined}
@@ -987,43 +996,16 @@ export function EditPanel() {
               </div>
             )}
           </div>
-          {/* Actiunile late care nu incap in bara de sus stau intr-un rand propriu,
-              imediat deasupra uneltelor: apar rar si nu au voie sa fure inaltime
-              din poza cat timp nu exista. */}
-          {(cropDraft || (momentSiblings.length > 0 && !isNeutral(adjustments))) && (
-            <div className="edit-wide-actions">
-              {cropDraft ? (
-                <button className="ghost small-btn" onClick={clearCropDraft}>{tr('edit.crop.reset')}</button>
-              ) : (
-                /* Un fix aprobat pe un cadru e aproape sigur bun si pe restul
-                   cadrelor din aceeasi lumina — vezi core/momentStacks.ts si
-                   applyEditsToMoment din store. */
-                <button className="ghost small-btn" onClick={() => void applyToMoment()}>
-                  <LayersIcon className="inline-icon" /> {tr('edit.applyToMoment', { count: momentSiblings.length })}
-                </button>
-              )}
-            </div>
-          )}
-          {/* Bara de instrumente. Pana acum, recadrarea se pornea dintr-un
-              buton din antet, iar restul editarii era o singura lista de
-              slidere — doua feluri diferite de a intra in doua feluri diferite
-              de editare. Acum toate cinci sunt intrari egale in acelasi loc. */}
-          <div className="edit-tools" role="tablist" aria-label={tr('edit.tools')}>
-            {TOOLS.map(({ key, labelKey }) => (
-              <button
-                key={key}
-                type="button"
-                role="tab"
-                aria-selected={tool === key}
-                className={tool === key ? 'edit-tool active' : 'edit-tool'}
-                onClick={() => selectTool(key)}
-                disabled={!imgEl}
-              >
-                {tr(labelKey)}
-              </button>
-            ))}
           </div>
 
+          {/* Doc-ul de jos, tiparul din Lightroom/Snapseed/Photoshop mobil:
+              controalele uneltei active si randul de unelte stau intr-o cutie
+              cu inaltime PROPRIE, lipita de marginea de jos. Inainte erau frati
+              directi ai fotografiei intr-o singura coloana, deci cand continutul
+              crestea (un panou mai lung, randul "Aplica la inca N") impingea
+              randul de unelte in afara ecranului — raportat de utilizator:
+              "nu am acces la butoane nici sus nici jos". */}
+          <div className="edit-dock">
           {tool === 'crop' && cropDraft && (
             <div className="edit-crop-panel">
               <div className="edit-crop-presets" role="group" aria-label={tr('edit.crop')}>
@@ -1214,6 +1196,45 @@ export function EditPanel() {
               <p className="edit-crop-hint">{tr('edit.heal.hint')}</p>
             </div>
           )}
+          {/* Actiunile late care nu incap in bara de sus stau intr-un rand propriu,
+              imediat deasupra uneltelor: apar rar si nu au voie sa fure inaltime
+              din poza cat timp nu exista. */}
+          {(cropDraft || (momentSiblings.length > 0 && !isNeutral(adjustments))) && (
+            <div className="edit-wide-actions">
+              {cropDraft ? (
+                <button className="ghost small-btn" onClick={clearCropDraft}>{tr('edit.crop.reset')}</button>
+              ) : (
+                /* Un fix aprobat pe un cadru e aproape sigur bun si pe restul
+                   cadrelor din aceeasi lumina — vezi core/momentStacks.ts si
+                   applyEditsToMoment din store. */
+                <button className="ghost small-btn" onClick={() => void applyToMoment()}>
+                  <LayersIcon className="inline-icon" /> {tr('edit.applyToMoment', { count: momentSiblings.length })}
+                </button>
+              )}
+            </div>
+          )}
+          {/* Bara de instrumente. Pana acum, recadrarea se pornea dintr-un
+              buton din antet, iar restul editarii era o singura lista de
+              slidere — doua feluri diferite de a intra in doua feluri diferite
+              de editare. Acum toate cinci sunt intrari egale in acelasi loc. */}
+          <div className="edit-tools" role="tablist" aria-label={tr('edit.tools')}>
+            {TOOLS.map(({ key, labelKey, icon }) => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={tool === key}
+                className={tool === key ? 'edit-tool active' : 'edit-tool'}
+                onClick={() => selectTool(key)}
+                disabled={!imgEl}
+              >
+                <span className="edit-tool-icon" aria-hidden="true">{icon}</span>
+                <span className="edit-tool-label">{tr(labelKey)}</span>
+              </button>
+            ))}
+          </div>
+
+          </div>
         </div>
       </div>
     </div>
