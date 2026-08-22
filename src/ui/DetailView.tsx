@@ -408,11 +408,21 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
             <StarRating rating={photo.rating} onRate={n => void setRating(photo.id, n)} />
           </div>
 
-          {photo.groupId && (
-            <button className="ghost slim" onClick={() => { openDetail(null); openCompare(photo.groupId!); }}>
-              <LayersIcon className="inline-icon" /> {tr('detail.compareSeries')}
+          {/* Editarea, la vedere. Cerinta directa a utilizatorului: pana acum
+              singura cale rapida spre editor era o iconita de creion, fara nume,
+              in coltul din dreapta sus al antetului — nu se vedea si nu se
+              intelegea. Acum sta aici, langa compararea seriei, pe acelasi rand
+              de actiuni si vizibila din orice fila. */}
+          <div className="detail-sheet-actions">
+            <button className="ghost slim detail-edit-action" onClick={() => openEdit(photo.id)}>
+              <EditIcon className="inline-icon" /> {tr('detail.editPhoto')}
             </button>
-          )}
+            {photo.groupId && (
+              <button className="ghost slim" onClick={() => { openDetail(null); openCompare(photo.groupId!); }}>
+                <LayersIcon className="inline-icon" /> {tr('detail.compareSeries')}
+              </button>
+            )}
+          </div>
 
           <PhotoInfoTabs photo={photo} src={src} openTab={openTab} />
         </div>

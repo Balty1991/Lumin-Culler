@@ -60,9 +60,29 @@ export function EditSlider({ label, value, min, max, onChange, display, neutral,
   const shown = dragValue ?? value;
   const commit = (next: number) => {
     draggingRef.current = false;
+    gestureRef.current = null;
     setDragValue(null);
     onChange(next);
   };
+
+  /**
+   * Bug real raportat de utilizator: "cand dau cu degetul sa derulez la
+   * celelalte slidere, se activeaza cand ating ecranul".
+   *
+   * Un input de tip range ia in primire orice atingere care cade pe el si muta
+   * bulina acolo — inclusiv atingerea cu care omul voia doar sa deruleze lista
+   * in jos. Rezultatul: nu puteai ajunge la sliderele de dedesubt fara sa
+   * strici valoarea celui peste care ai trecut.
+   *
+   * Solutia e cea din editoarele mari, si nu cere niciun buton in plus:
+   * gestul se judeca dupa DIRECTIE. Pe verticala e derulare — sliderul isi pune
+   * inapoi valoarea de la inceputul gestului si nu mai asculta pana la
+   * ridicarea degetului. Pe orizontala e reglaj. `touch-action: pan-y` (vezi
+   * styles) lasa browserul sa deruleze mai departe in acelasi timp.
+   */
+  const gestureRef = useRef<{ x: number; y: number; startValue: number; axis: 'nedecis' | 'orizontal' | 'derulare' } | null>(null);
+  /** Cat trebuie sa se miste degetul ca directia sa fie clara (px). */
+  const AXIS_LOCK_PX = 6;
   const pct = max > min ? ((shown - min) / (max - min)) * 100 : 0;
   const canReset = neutral !== undefined && shown !== neutral;
   // Reperul de zero: pe un slider bipolar, mijlocul nu e evident cu ochiul.
@@ -91,8 +111,27 @@ export function EditSlider({ label, value, min, max, onChange, display, neutral,
       <input
         type="range" min={min} max={max} step={1}
         value={shown}
+        onPointerDown={e => {
+          gestureRef.current = { x: e.clientX, y: e.clientY, startValue: shown, axis: 'nedecis' };
+        }}
+        onPointerMove={e => {
+          const g = gestureRef.current;
+          if (!g || g.axis !== 'nedecis') return;
+          const dx = Math.abs(e.clientX - g.x);
+          const dy = Math.abs(e.clientY - g.y);
+          if (dx < AXIS_LOCK_PX && dy < AXIS_LOCK_PX) return;
+          g.axis = dy > dx ? 'derulare' : 'orizontal';
+          if (g.axis === 'derulare') {
+            // Atingerea de start a mutat deja bulina — o punem la loc.
+            draggingRef.current = false;
+            setDragValue(null);
+            onLive?.(g.startValue);
+          }
+        }}
         onChange={e => {
           const next = Number(e.target.value);
+          // Degetul deruleaza lista, nu regleaza sliderul: valoarea nu se schimba.
+          if (gestureRef.current?.axis === 'derulare') return;
           if (!onLive) { onChange(next); return; }
           draggingRef.current = true;
           setDragValue(next);
@@ -100,8 +139,17 @@ export function EditSlider({ label, value, min, max, onChange, display, neutral,
         }}
         // Ridicarea degetului (sau iesirea din camp) e momentul in care valoarea
         // urca in starea panoului si se scrie in baza — o singura data per gest.
-        onPointerUp={e => { if (onLive && draggingRef.current) commit(Number((e.target as HTMLInputElement).value)); }}
-        onPointerCancel={e => { if (onLive && draggingRef.current) commit(Number((e.target as HTMLInputElement).value)); }}
+        onPointerUp={e => {
+          if (onLive && draggingRef.current) commit(Number((e.target as HTMLInputElement).value));
+          gestureRef.current = null;
+        }}
+        onPointerCancel={() => {
+          // Browserul a preluat gestul pentru derulare: valoarea se intoarce de
+          // unde a plecat, ca si cum degetul n-ar fi atins niciodata sliderul.
+          const g = gestureRef.current;
+          if (g && draggingRef.current) { draggingRef.current = false; setDragValue(null); onLive?.(g.startValue); }
+          gestureRef.current = null;
+        }}
         onBlur={e => { if (onLive && draggingRef.current) commit(Number(e.target.value)); }}
         // Tastatura nu genereaza pointerup: acolo fiecare apasare e deja finala.
         onKeyUp={e => { if (onLive && draggingRef.current) commit(Number((e.target as HTMLInputElement).value)); }}

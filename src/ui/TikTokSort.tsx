@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { useStore, type PhotoView } from '../state/store';
-import { selectSortQueue, selectScopedQueue, countSeriesSiblings } from '../state/tiktokSort';
+import { selectSortQueue, selectScopedQueue, selectAllPhotosQueue, countSeriesSiblings } from '../state/tiktokSort';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
 import { SELECT_THRESHOLD, REJECT_THRESHOLD } from '../core/importPipeline';
 import { explainFactors } from '../core/learning/ContextEngine';
@@ -99,8 +99,22 @@ export function TikTokSort() {
     const queue = scopeIds ? selectScopedQueue(photos, scopeIds) : selectSortQueue(photos);
     setQueueIds(queue.map(p => p.id));
     setIndex(0);
+    setReviewingAll(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- coada se "ingheata" DOAR la momentul deschiderii, nu trebuie sa se refaca la fiecare schimbare din `photos`
   }, [open]);
+
+  /**
+   * Coada a fost largita la TOATA biblioteca (vezi butonul "Vezi toate").
+   * Cerinta directa: cu 77 de poze si 22 nedecise, tab-ul "Revizuiesc" arata
+   * doar cele 22 — dar uneori vrei sa treci prin toate, ca sa verifici ce a
+   * decis motorul singur.
+   */
+  const [reviewingAll, setReviewingAll] = useState(false);
+  const reviewAll = () => {
+    setQueueIds(selectAllPhotosQueue(photos).map(p => p.id));
+    setIndex(0);
+    setReviewingAll(true);
+  };
 
   const photosById = useMemo(() => new Map(photos.map(p => [p.id, p])), [photos]);
   const current = photosById.get(queueIds[index]) ?? null;
@@ -356,6 +370,11 @@ export function TikTokSort() {
           <SparkleIcon />
           <h3>{tr('tiktok.empty.title')}</h3>
           <p>{tr('tiktok.empty.sub')}</p>
+          {!reviewingAll && photos.length > 0 && (
+            <button type="button" className="tiktok-review-all" onClick={reviewAll}>
+              {tr('tiktok.reviewAll', { count: photos.length })}
+            </button>
+          )}
         </div>
       )}
 
@@ -371,6 +390,14 @@ export function TikTokSort() {
             </div>
           )}
           <span className="tiktok-progress-count mono" aria-hidden="true">{index + 1}/{total}</span>
+          {/* Trecerea la toata biblioteca, fara sa iesi din ecran. Apare doar cat
+              timp coada e cea scurta (nedecise) si chiar exista mai multe poze
+              decat atat — altfel butonul n-ar duce nicaieri. */}
+          {!reviewingAll && photos.length > total && (
+            <button type="button" className="tiktok-review-all-chip" onClick={reviewAll}>
+              {tr('tiktok.reviewAll.short', { count: photos.length })}
+            </button>
+          )}
           <div className="tiktok-up-hint"><ChevronUpIcon aria-hidden="true" /><span>{tr('tiktok.hint')}</span></div>
 
           <div

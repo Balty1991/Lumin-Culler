@@ -15,6 +15,19 @@ export function selectSortQueue(photos: PhotoView[]): PhotoView[] {
 }
 
 /**
+ * TOATE pozele, in ordine cronologica — inclusiv cele pe care AI-ul le-a decis
+ * deja singur.
+ *
+ * Cerinta directa a utilizatorului: "in foto am 77, dar 22 in revizuire; cand
+ * dau pe revizuire fa un buton sa pot sa le parcurg din nou pe toate daca
+ * vreau". Coada normala (mai sus) arata doar ce n-a fost decis — bun cand
+ * lucrezi, inutil cand vrei sa VERIFICI ce a facut motorul pe restul.
+ */
+export function selectAllPhotosQueue(photos: PhotoView[]): PhotoView[] {
+  return [...photos].sort((a, b) => (a.capturedAt ?? 0) - (b.capturedAt ?? 0));
+}
+
+/**
  * Coada pentru o lista EXPLICITA de poze (tiktokSortScopeIds), pastrand exact
  * ordinea primita.
  *

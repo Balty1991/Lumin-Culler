@@ -299,3 +299,60 @@ describe('HashCompareService.groupPhotos — momente', () => {
     expect(groups).toHaveLength(0);
   });
 });
+
+
+/**
+ * Bug real raportat cu captura: o poza cu o foaie scrisa si o poza cu un copil
+ * si o pisica ajunsesera in aceeasi serie. Amandoua cad in acelasi bucket dHash
+ * (hash-uri apropiate), dar una are fete si cealalta nu — iar exact atunci
+ * niciunul dintre semnalele de subiect nu se putea compara: fetele lipsesc pe o
+ * parte, embedding-ul general se calculeaza doar pentru pozele FARA fete, deci
+ * lipseste pe cealalta.
+ */
+describe('serii: una cu oameni, alta fara', () => {
+  const doc = (id: string, hash: string): HashInput => ({
+    id, hash, score: 90, faceCount: 0, compositionScore: 0.2, colorHarmonyScore: 0.15
+  });
+  const persoana = (id: string, hash: string): HashInput => ({
+    id, hash, score: 90, faceCount: 1,
+    faceEmbeddings: [[1, 0, 0]],
+    compositionScore: 0.75, colorHarmonyScore: 0.8
+  });
+
+  it('nu pune la un loc o poza cu oameni si una fara, chiar cand hash-urile sunt apropiate', async () => {
+    const service = new HashCompareService();
+    const { totalGroups } = await service.groupPhotos([
+      doc('foaie', '0'.repeat(64)),
+      persoana('copil', '0'.repeat(60) + '1111')
+    ]);
+    expect(totalGroups).toBe(0);
+  });
+
+  it('fara niciun semnal de continut, tot nu le pune impreuna daca doar una are oameni', async () => {
+    const service = new HashCompareService();
+    const { totalGroups } = await service.groupPhotos([
+      { id: 'gol', hash: '0'.repeat(64), score: 50, faceCount: 0 },
+      { id: 'cu-om', hash: '0'.repeat(62) + '11', score: 50, faceCount: 2 }
+    ]);
+    expect(totalGroups).toBe(0);
+  });
+
+  it('doua cadre din aceeasi rafala, amandoua fara oameni, raman impreuna', async () => {
+    const service = new HashCompareService();
+    const { totalGroups, groups } = await service.groupPhotos([
+      doc('peisaj-1', '0'.repeat(64)),
+      { ...doc('peisaj-2', '0'.repeat(62) + '11'), compositionScore: 0.22, colorHarmonyScore: 0.18 }
+    ]);
+    expect(totalGroups).toBe(1);
+    expect(groups[0].memberIds).toHaveLength(2);
+  });
+
+  it('doua cadre cu aceeasi persoana raman impreuna', async () => {
+    const service = new HashCompareService();
+    const { totalGroups } = await service.groupPhotos([
+      persoana('a', '0'.repeat(64)),
+      persoana('b', '0'.repeat(62) + '11')
+    ]);
+    expect(totalGroups).toBe(1);
+  });
+});

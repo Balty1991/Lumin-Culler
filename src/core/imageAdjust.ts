@@ -791,6 +791,53 @@ export function computeAutoHighlightsShadows(highlightClipping: number | undefin
   return { highlights, shadows };
 }
 
+// ── Recuperare de umbre si lumini din histograma ─────────────────────────────
+// Regula de mai sus se aprinde DOAR cand exista pixeli chiar arsi sau chiar
+// inecati (peste 6% din cadru). Dar cele mai multe poze de telefon nu au nimic
+// ars: au umbre adunate jos, fara detaliu, si lumini stranse sus — fara sa
+// atinga vreodata 0 sau 255. Pentru ele, Auto nu facea nimic la capitolul asta.
+// Aici se citeste chiar forma histogramei: cat de jos sta partea intunecata si
+// cat de sus cea deschisa.
+
+/** Sub atat, sfertul de jos al imaginii e adunat in negru si merita ridicat. */
+const CRUSHED_SHADOW_LEVEL = 34;
+/** Peste atat, partea deschisa e stransa la varf si merita adusa inapoi. */
+const COMPRESSED_HIGHLIGHT_LEVEL = 226;
+const TONE_RECOVERY_MAX = 34;
+
+/**
+ * Cat sa se ridice umbrele si sa se recupereze luminile, citind percentilele
+ * de luminanta ale imaginii. Intoarce valori pe scara sliderelor (shadows
+ * pozitiv lumineaza, highlights negativ intuneca — vezi drawAdjusted).
+ */
+export function computeAutoToneRecovery(img: ImageData): { highlights: number; shadows: number } {
+  const { data } = img;
+  const step = 16;
+  const hist = new Uint32Array(256);
+  let count = 0;
+  for (let i = 0; i < data.length; i += step) {
+    const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    hist[Math.round(clampRange(lum, 0, 255))]++;
+    count++;
+  }
+  if (!count) return { highlights: 0, shadows: 0 };
+  const p10 = luminancePercentile(hist, count, 0.10);
+  const p90 = luminancePercentile(hist, count, 0.90);
+
+  const shadows = p10 < CRUSHED_SHADOW_LEVEL
+    ? Math.round(clampRange(((CRUSHED_SHADOW_LEVEL - p10) / CRUSHED_SHADOW_LEVEL) * TONE_RECOVERY_MAX, 0, TONE_RECOVERY_MAX))
+    : 0;
+  const highlights = p90 > COMPRESSED_HIGHLIGHT_LEVEL
+    ? -Math.round(clampRange(((p90 - COMPRESSED_HIGHLIGHT_LEVEL) / (255 - COMPRESSED_HIGHLIGHT_LEVEL)) * TONE_RECOVERY_MAX, 0, TONE_RECOVERY_MAX))
+    : 0;
+  return { highlights, shadows };
+}
+
+/** Din doua corectii pe acelasi slider o pastreaza pe cea mai hotarata. */
+function strongerOf(a: number, b: number): number {
+  return Math.abs(a) >= Math.abs(b) ? a : b;
+}
+
 /**
  * Cat de intunecata poate fi o fata inainte sa fie clar o problema, si cat de
  * luminoasa inainte sa fie clar arsa. Luminanta relativa, 0..1.
@@ -1063,6 +1110,7 @@ export function computeAutoAdjustments(source: CanvasImageSource, sourceWidth: n
   let whiteBalance = { temperature: 0, tint: 0 };
   let levels = { whites: 0, blacks: 0 };
   let vibrance = 0;
+  let toneRecovery = { highlights: 0, shadows: 0 };
   if (ctx) {
     ctx.drawImage(source, 0, 0, w, h);
     const data = ctx.getImageData(0, 0, w, h);
@@ -1071,8 +1119,14 @@ export function computeAutoAdjustments(source: CanvasImageSource, sourceWidth: n
     whiteBalance = computeAutoWhiteBalance(data, signals.goldenHourDetected === true);
     levels = computeAutoLevels(data);
     vibrance = computeAutoVibrance(data);
+    toneRecovery = computeAutoToneRecovery(data);
   }
-  const { highlights, shadows } = computeAutoHighlightsShadows(signals.highlightClipping, signals.shadowClipping);
+  const clipped = computeAutoHighlightsShadows(signals.highlightClipping, signals.shadowClipping);
+  // Doua surse pentru aceleasi doua slidere: pragurile de ardere (cand chiar
+  // exista pixeli pierduti) si forma histogramei (cand nu e nimic ars, dar
+  // umbrele stau adunate jos). Se pastreaza corectia mai hotarata din fiecare.
+  const highlights = strongerOf(clipped.highlights, toneRecovery.highlights);
+  const shadows = strongerOf(clipped.shadows, toneRecovery.shadows);
 
   // O poza dezacordata cromatic se calmeaza (computeAutoSaturation, negativ);
   // una stearsa se ridica (computeAutoVibrance, pozitiv). Nu pot fi amandoua

@@ -5124,3 +5124,54 @@ input[type="search"] { min-height: 44px; }
 /* Iconita si numele nu se ating: pastilele compacte au gap 0 in tema, iar acolo
    unde apare si un nume el are nevoie de aer. */
 .filters-status .chip.chip-compact.active { gap: 6px; padding-right: 10px; }
+
+
+/* Derularea listei de slidere are prioritate pe verticala; sliderul asculta doar
+   miscarea pe orizontala. Fara asta, orice atingere cazuta pe o bara in timp ce
+   derulai ii muta bulina — vezi comentariul din EditSlider.tsx. */
+.edit-slider-row input[type="range"] { touch-action: pan-y; }
+
+
+/* ── "Vezi toate" din sortarea rapida ──
+   Tab-ul Revizuiesc arata doar pozele nedecise. Butonul asta largeste coada la
+   toata biblioteca, ca sa poti verifica si ce a decis motorul singur. */
+.tiktok-review-all-chip {
+  position: absolute;
+  top: calc(14px + env(safe-area-inset-top));
+  right: 76px;
+  z-index: var(--z-card-badge);
+  min-height: 40px;
+  padding: 0 13px;
+  border: 1px solid rgb(255 255 255 / .2);
+  border-radius: 99px;
+  color: #f1f4fa;
+  background: #0b0c10c4;
+  backdrop-filter: blur(12px);
+  font-size: .74rem;
+  font-weight: 700;
+}
+.tiktok-review-all {
+  min-height: 48px;
+  margin-top: 16px;
+  padding: 0 20px;
+  border: 1px solid rgb(var(--accent-rgb) / .5);
+  border-radius: 99px;
+  color: var(--text);
+  background: rgb(var(--accent-rgb) / .16);
+  font-size: .9rem;
+  font-weight: 750;
+}
+
+
+/* Randul de actiuni al foii de detaliu: editarea si compararea seriei, egale. */
+.detail-sheet-actions {
+  display: flex;
+  gap: 8px;
+}
+.detail-sheet-actions > * { flex: 1 1 0; min-width: 0; min-height: 46px; justify-content: center; }
+.detail-edit-action {
+  border-color: rgb(var(--accent-rgb) / .45);
+  background: rgb(var(--accent-rgb) / .14);
+  color: var(--text);
+  font-weight: 750;
+}

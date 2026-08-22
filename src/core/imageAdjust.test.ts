@@ -4,7 +4,7 @@ import {
   computeAutoCrop, computeAutoStraighten, computeAutoSaturation, isNeutral, NEUTRAL_ADJUSTMENTS,
   applyDetailPass, applyVignette, originalToCanvas, canvasToOriginal, cropRadiusScale,
   type AutoAdjustSignals, type EditAdjustments, computeAutoFaceExposure,
-  computeAutoWhiteBalance, computeAutoLevels, computeAutoVibrance } from './imageAdjust';
+  computeAutoWhiteBalance, computeAutoLevels, computeAutoVibrance, computeAutoToneRecovery } from './imageAdjust';
 
 function makeImage(w: number, h: number, paint: (x: number, y: number) => [number, number, number]): ImageData {
   const data = new Uint8ClampedArray(w * h * 4);
@@ -595,5 +595,30 @@ describe('computeAutoVibrance', () => {
 
   it('nu mai adauga nimic unei poze deja colorate', () => {
     expect(computeAutoVibrance(solid(16, 16, [200, 90, 60]))).toBe(0);
+  });
+});
+
+
+/**
+ * Pana acum umbrele si luminile se atingeau DOAR cand exista pixeli chiar arsi
+ * sau chiar inecati (peste 6% din cadru). Cele mai multe poze de telefon n-au
+ * nimic ars, dar au umbre adunate jos — si pentru ele Auto nu facea nimic aici.
+ */
+describe('computeAutoToneRecovery', () => {
+  it('ridica umbrele cand partea intunecata sta adunata jos, chiar fara pixeli inecati', () => {
+    // luminante intre 6 si 60: nimic la 0, dar sfertul de jos e strans
+    const inchisa = makeImage(16, 16, (x) => { const v = 6 + (x % 4) * 18; return [v, v, v]; });
+    const { shadows } = computeAutoToneRecovery(inchisa);
+    expect(shadows).toBeGreaterThan(0);
+  });
+
+  it('recupereaza luminile cand partea deschisa e stransa la varf', () => {
+    const deschisa = makeImage(16, 16, (x) => { const v = 236 + (x % 4) * 4; return [v, v, v]; });
+    expect(computeAutoToneRecovery(deschisa).highlights).toBeLessThan(0);
+  });
+
+  it('nu atinge nimic pe o poza cu tonuri asezate normal', () => {
+    const normala = makeImage(16, 16, (x) => { const v = 60 + (x % 4) * 40; return [v, v, v]; });
+    expect(computeAutoToneRecovery(normala)).toEqual({ highlights: 0, shadows: 0 });
   });
 });

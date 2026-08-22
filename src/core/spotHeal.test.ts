@@ -88,9 +88,43 @@ describe('vindecarea petelor', () => {
   it('o pata fix in colt nu poate fi vindecata, si o spune', () => {
     const w = 60, h = 60;
     const d = fundal(w, h);
-    // raza atat de mare incat tot inelul de cautare cade in afara imaginii
-    const ok = applyHealStroke(d, w, h, { points: [{ x: 0.02, y: 0.02 }], radius: 0.45 });
+    // Raza atat de mare incat TOATE inelele de cautare cad in afara imaginii.
+    // 0.45 nu mai ajunge de cand exista si un inel apropiat (1.15 raze): la o
+    // pata din colt, acela chiar incape, iar unealta o vindeca — o imbunatatire,
+    // nu o regresie. Cazul imposibil ramane cel in care pata e cat toata poza.
+    const ok = applyHealStroke(d, w, h, { points: [{ x: 0.02, y: 0.02 }], radius: 0.9 });
     expect(ok).toBe(false);
+  });
+
+  /**
+   * Diferenta dintre "clone stamp" si "healing": peticul trebuie sa intre in
+   * tonul locului in care ajunge, nu sa aduca tonul de unde a fost luat.
+   */
+  it('muta tonul peticului ca sa se potriveasca cu zona in care intra', () => {
+    const w = 80, h = 80;
+    const d = new Uint8ClampedArray(w * h * 4);
+    // gradient pe orizontala: stanga inchisa, dreapta deschisa
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4;
+        const v = 40 + Math.round((x / (w - 1)) * 170);
+        d[i] = v; d[i + 1] = v; d[i + 2] = v; d[i + 3] = 255;
+      }
+    }
+    // pata neagra la dreapta, unde fundalul e deschis
+    const cx = 60, cy = 40, r = 5;
+    for (let y = cy - r; y <= cy + r; y++) {
+      for (let x = cx - r; x <= cx + r; x++) {
+        const i = (y * w + x) * 4;
+        d[i] = 0; d[i + 1] = 0; d[i + 2] = 0;
+      }
+    }
+    const vecin = d[(cy * w + (cx + 12)) * 4];
+    applyHealStroke(d, w, h, { points: [{ x: cx / w, y: cy / h }], radius: (r + 2) / w });
+    const dupa = d[(cy * w + cx) * 4];
+    // vindecat: nu mai e negru, si e in tonul vecinilor de pe acelasi gradient
+    expect(dupa).toBeGreaterThan(120);
+    expect(Math.abs(dupa - vecin)).toBeLessThan(40);
   });
 
   it('mai multe tuse se aplica una dupa alta', () => {

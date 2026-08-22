@@ -190,6 +190,29 @@ function bestFaceSimilarity(a: number[][], b: number[][]): number | null {
  * zgomotos sa nu desparta gresit cadre reale din aceeasi serie. Fara niciun
  * semnal utilizabil, ramane compatibila (comportamentul original, doar-dHash).
  */
+/**
+ * Una are oameni in ea, cealalta nu.
+ *
+ * Bug real raportat cu captura: o poza cu o foaie de hartie scrisa si o poza cu
+ * un copil si o pisica ajunsesera in ACEEASI serie. Cauza nu era pragul de
+ * hash, ci o gaura in logica de mai jos: `bestFaceSimilarity` intoarce `null`
+ * cand VREUNA dintre parti n-are fete, deci semnalul decisiv se sarea cu totul;
+ * iar embedding-ul general se calculeaza (pe Android) DOAR pentru pozele fara
+ * fete, deci nici el nu exista pe ambele parti. Ramanea ultima ramura, care
+ * spunea "nu se bat cap in cap, deci le las impreuna" — un `return true` pe
+ * lipsa de informatie.
+ *
+ * Prezenta oamenilor E informatie. Doua cadre din aceeasi serie nu se pot
+ * deosebi prin "in unul e o persoana, in celalalt niciuna" decat prin accident
+ * de detectie, si atunci raman apropiate in timp si aproape identice vizual —
+ * caz in care raspunde regula stransa de sus, nu aceasta.
+ */
+function facePresenceDiffers(a: HashInput, b: HashInput): boolean {
+  const aHas = (a.faceEmbeddings?.length ?? 0) > 0 || (a.faceCount ?? 0) > 0;
+  const bHas = (b.faceEmbeddings?.length ?? 0) > 0 || (b.faceCount ?? 0) > 0;
+  return aHas !== bHas;
+}
+
 function looksLikeSameSubject(a: HashInput, b: HashInput): boolean {
   const faceSim = bestFaceSimilarity(a.faceEmbeddings ?? [], b.faceEmbeddings ?? []);
   if (faceSim !== null) return faceSim >= FACE_MATCH_THRESHOLD;
@@ -201,9 +224,16 @@ function looksLikeSameSubject(a: HashInput, b: HashInput): boolean {
   if (a.compositionScore != null && b.compositionScore != null && a.colorHarmonyScore != null && b.colorHarmonyScore != null) {
     const compositionDelta = Math.abs(a.compositionScore - b.compositionScore);
     const colorDelta = Math.abs(a.colorHarmonyScore - b.colorHarmonyScore);
-    return !(compositionDelta > COMPOSITION_DELTA_THRESHOLD && colorDelta > COLOR_HARMONY_DELTA_THRESHOLD);
+    // Cand una are oameni si cealalta nu, un singur semnal divergent ajunge ca
+    // sa le desparta; cand amandoua sunt de acelasi fel, ramane regula veche
+    // (cer AMBELE divergente), ca un semnal zgomotos sa nu rupa o serie reala.
+    return facePresenceDiffers(a, b)
+      ? !(compositionDelta > COMPOSITION_DELTA_THRESHOLD || colorDelta > COLOR_HARMONY_DELTA_THRESHOLD)
+      : !(compositionDelta > COMPOSITION_DELTA_THRESHOLD && colorDelta > COLOR_HARMONY_DELTA_THRESHOLD);
   }
-  return true;
+  // Fara niciun semnal comparabil: daca una are oameni si cealalta nu, raspunsul
+  // e "nu", nu "presupunem ca da".
+  return !facePresenceDiffers(a, b);
 }
 
 /**
