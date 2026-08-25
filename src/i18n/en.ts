@@ -187,7 +187,7 @@ export const en: Record<TranslationKey, string> = {
   'tiktok.close': 'Close',
   'tiktok.hint': 'swipe up/down',
   'tiktok.rail.keep': 'Keep',
-  'tiktok.rail.delete': 'Delete',
+  'tiktok.rail.reject': 'Reject',
   'tiktok.rail.candidate': 'Candidate',
   'tiktok.rail.album': 'Album',
   'tiktok.rail.undo': 'Undo last decision',

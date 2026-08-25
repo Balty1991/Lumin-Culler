@@ -2,6 +2,8 @@ package com.luminculler.app;
 
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
+import android.view.WindowInsets;
 import android.webkit.RenderProcessGoneDetail;
 import android.webkit.WebView;
 import com.getcapacitor.BridgeActivity;
@@ -64,6 +66,73 @@ public class MainActivity extends BridgeActivity {
                 Log.e("LuminCuller", "WebView render process gone (didCrash=" + detail.didCrash() + ") — reincarc pagina in loc sa las aplicatia sa cada.");
                 webView.post(webView::reload);
                 return true;
+            }
+        });
+
+        publishSafeAreaInsets();
+    }
+
+    /**
+     * Trece inaltimile REALE ale barelor de sistem catre CSS, ca --safe-top si
+     * --safe-bottom.
+     *
+     * De ce e nevoie, si de ce nu mai ajunge ce era: "manerul lipit de bara de
+     * navigare" a fost raportat de trei ori pe telefon real. Reparatia de atunci
+     * a fost android:windowOptOutEdgeToEdgeEnforcement, declarata "imposibila
+     * structural" — sistemul rezerva el spatiul, deci WebView-ul nu mai putea
+     * desena sub bara.
+     *
+     * Doar ca atributul acela era o portita TEMPORARA din Android 15, si e
+     * IGNORAT pentru aplicatiile care tintesc SDK 36 pe Android 16 — iar
+     * variables.gradle e la 36. Pe telefoanele cu Android 16, WebView-ul deseneaza
+     * din nou sub bare, si problema se intoarce intacta.
+     *
+     * Ce o face greu de reparat din CSS: WebView-ul Capacitor NU propaga
+     * inaltimea barei catre env(safe-area-inset-bottom) — CSS-ul primeste 0 desi
+     * bara chiar acopera continutul. De-aia nicio incrementare de padding n-a
+     * ajuns vreodata: se adauga spatiu peste o valoare care ramanea zero.
+     *
+     * Singurul loc care stie adevarul e Android. Il citim de aici si il scriem in
+     * exact variabilele pe care foaia de stil le foloseste deja (styles.css:143),
+     * deci restul aplicatiei nu se schimba deloc — inclusiv ContextMenu.tsx, care
+     * le citea deja din JS. env() ramane valoarea de rezerva, pentru cazul in care
+     * ascultatorul nu apuca sa ruleze.
+     */
+    private void publishSafeAreaInsets() {
+        final WebView webView = getBridge().getWebView();
+        if (webView == null) return;
+        webView.setOnApplyWindowInsetsListener((view, insets) -> {
+            final float density = getResources().getDisplayMetrics().density;
+            int top;
+            int bottom;
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                // Barele de sistem SI decupajul ecranului (camera in ecran): un
+                // element lipit de marginea de sus trebuie sa le ocoleasca pe
+                // amandoua, nu doar bara de stare.
+                android.graphics.Insets bars = insets.getInsets(
+                    WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+                top = bars.top;
+                bottom = bars.bottom;
+            } else {
+                top = insets.getSystemWindowInsetTop();
+                bottom = insets.getSystemWindowInsetBottom();
+            }
+            final int topPx = Math.round(top / density);
+            final int bottomPx = Math.round(bottom / density);
+            view.post(() -> webView.evaluateJavascript(
+                "document.documentElement.style.setProperty('--safe-top','" + topPx + "px');"
+              + "document.documentElement.style.setProperty('--safe-bottom','" + bottomPx + "px');",
+                null));
+            return insets;
+        });
+        // Insets-urile pot sosi INAINTE ca pagina sa fie gata sa le primeasca
+        // (listenerul ruleaza la primul layout, evaluateJavascript pe un document
+        // gol nu are ce seta). Cererea de mai jos le re-livreaza dupa ce pagina a
+        // terminat de incarcat.
+        getBridge().addWebViewListener(new WebViewListener() {
+            @Override
+            public void onPageLoaded(WebView wv) {
+                wv.post(() -> ((View) wv).requestApplyInsets());
             }
         });
     }

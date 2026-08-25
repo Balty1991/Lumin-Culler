@@ -51,7 +51,7 @@ body:before {
 
 .topbar {
   min-height:78px;
-  padding:calc(12px + env(safe-area-inset-top)) 2px 10px;
+  padding:calc(12px + var(--safe-top)) 2px 10px;
   background:linear-gradient(180deg,var(--atelier-canvas) 67%,transparent);
   backdrop-filter:blur(18px);
 }
@@ -590,7 +590,7 @@ body:before {
 .bottom-nav {
   left:12px;
   right:12px;
-  bottom:calc(10px + env(safe-area-inset-bottom));
+  bottom:calc(10px + var(--safe-bottom));
   height:62px;
   padding:0 7px;
   align-items:center;
@@ -621,7 +621,7 @@ body:before {
 
 .fab {
   right:24px;
-  bottom:calc(82px + env(safe-area-inset-bottom));
+  bottom:calc(82px + var(--safe-bottom));
   width:54px;
   height:54px;
   border:1px solid rgb(255 255 255 / .14);
@@ -630,7 +630,7 @@ body:before {
 
 .drawer {
   width:min(100%,438px);
-  padding:calc(14px + env(safe-area-inset-top)) 16px calc(26px + env(safe-area-inset-bottom));
+  padding:calc(14px + var(--safe-top)) 16px calc(26px + var(--safe-bottom));
   background:#101218;
   border-left:1px solid var(--atelier-line);
   box-shadow:-26px 0 70px #00000080;
@@ -890,7 +890,7 @@ body:before {
 
 .app {
   max-width:1280px;
-  padding:0 12px calc(102px + env(safe-area-inset-bottom));
+  padding:0 12px calc(102px + var(--safe-bottom));
 }
 
 .desk-topbar {
@@ -902,7 +902,7 @@ body:before {
   align-items:center;
   justify-content:space-between;
   gap:10px;
-  padding:calc(10px + env(safe-area-inset-top)) 2px 8px;
+  padding:calc(10px + var(--safe-top)) 2px 8px;
   background:linear-gradient(180deg,#07080bfa 68%,#07080b00);
   backdrop-filter:blur(18px);
 }
@@ -1367,7 +1367,7 @@ body:before {
   right:0;
   z-index:20;
   min-height:56px;
-  padding:calc(8px + env(safe-area-inset-top)) 12px 8px;
+  padding:calc(8px + var(--safe-top)) 12px 8px;
   border:0;
   background:linear-gradient(180deg,rgb(5 6 8 / .94),transparent);
   backdrop-filter:blur(14px);
@@ -1406,7 +1406,7 @@ body:before {
 }
 
 .workspace-badge {
-  top:calc(70px + env(safe-area-inset-top));
+  top:calc(70px + var(--safe-top));
   right:18px;
   border:0;
   border-radius:99px;
@@ -1429,7 +1429,7 @@ body:before {
 
 .workspace-fab-row {
   gap:18px;
-  bottom:calc(119px + env(safe-area-inset-bottom));
+  bottom:calc(119px + var(--safe-bottom));
 }
 
 .detail-fab {
@@ -1452,7 +1452,7 @@ body:before {
   z-index:18;
   left:10px;
   right:10px;
-  bottom:calc(8px + env(safe-area-inset-bottom));
+  bottom:calc(8px + var(--safe-bottom));
   min-height:78px;
   padding:7px 10px;
   border:1px solid rgb(255 255 255 / .11);
@@ -1687,7 +1687,7 @@ body:before {
    el. Aici se alege UN singur asezamant, explicit: X in stanga (ca in restul
    aplicatiei), barele si contorul dupa el. */
 .tiktok-close {
-  top:calc(14px + env(safe-area-inset-top));
+  top:calc(14px + var(--safe-top));
   left:14px;
   right:auto;
   width:42px;
@@ -1702,13 +1702,13 @@ body:before {
    la 35px), si pornind dupa el pe orizontala. */
 .tiktok-progress-dots,
 .tiktok-progress {
-  top:calc(34px + env(safe-area-inset-top));
+  top:calc(34px + var(--safe-top));
   left:68px;
   right:82px;
 }
 
 .tiktok-progress-count {
-  top:calc(24px + env(safe-area-inset-top));
+  top:calc(24px + var(--safe-top));
   left:auto;
   right:14px;
   color:#ffffffb3;
@@ -1728,7 +1728,7 @@ body:before {
   inset:0;
   display:grid;
   place-items:center;
-  padding:calc(65px + env(safe-area-inset-top)) 0 calc(192px + env(safe-area-inset-bottom));
+  padding:calc(65px + var(--safe-top)) 0 calc(192px + var(--safe-bottom));
 }
 
 .tiktok-stage {
@@ -1753,7 +1753,7 @@ body:before {
 .tiktok-caption {
   left:20px;
   right:20px;
-  bottom:calc(104px + env(safe-area-inset-bottom));
+  bottom:calc(104px + var(--safe-bottom));
   display:grid;
   gap:4px;
 }
@@ -1815,7 +1815,7 @@ body:before {
 .tiktok-rail {
   left:12px;
   right:12px;
-  bottom:calc(9px + env(safe-area-inset-bottom));
+  bottom:calc(9px + var(--safe-bottom));
   display:grid;
   /* del · album · candidat · pastrez · anuleaza */
   grid-template-columns:1fr auto auto 1fr auto;
@@ -1905,7 +1905,7 @@ body:before {
   z-index:46;
   left:10px;
   right:10px;
-  bottom:calc(82px + env(safe-area-inset-bottom));
+  bottom:calc(82px + var(--safe-bottom));
   display:flex!important;
   flex-wrap:wrap;
   align-items:center;
@@ -2452,7 +2452,7 @@ body:before {
 }
 
 .tiktok-inspector .detail-scroll {
-  padding:12px 14px calc(30px + env(safe-area-inset-bottom));
+  padding:12px 14px calc(30px + var(--safe-bottom));
 }
 
 @keyframes inspectorRise {
@@ -2738,7 +2738,7 @@ body:before {
   max-width:500px;
   align-content:center;
   gap:9px;
-  padding:30px 22px max(30px,env(safe-area-inset-bottom));
+  padding:30px 22px max(30px,var(--safe-bottom));
 }
 
 .empty:before {
@@ -3057,7 +3057,7 @@ body:before {
   .tiktok-rail {
     left: 14px !important;
     right: 14px !important;
-    bottom: calc(10px + env(safe-area-inset-bottom)) !important;
+    bottom: calc(10px + var(--safe-bottom)) !important;
     display: grid !important;
     grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
     align-items: end !important;
@@ -4022,7 +4022,7 @@ input[type="search"] { min-height: 44px; }
    `left` mostenit din foaia de baza ii intindea cutia invizibila peste tot
    antetul, si acoperea butoanele de sub ea. */
 .tiktok-progress-count {
-  top: calc(24px + env(safe-area-inset-top));
+  top: calc(24px + var(--safe-top));
   left: auto;
   right: 14px;
   width: max-content;
@@ -4695,7 +4695,7 @@ input[type="search"] { min-height: 44px; }
     max-width: none;
     height: 100dvh;
     max-height: 100dvh;
-    padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+    padding: var(--safe-top) 0 var(--safe-bottom);
     gap: 0;
     border: none;
     border-radius: 0;
@@ -4950,7 +4950,7 @@ input[type="search"] { min-height: 44px; }
   max-height: 82dvh;
   display: flex;
   flex-direction: column;
-  padding: 8px 14px calc(16px + env(safe-area-inset-bottom));
+  padding: 8px 14px calc(16px + var(--safe-bottom));
   border-radius: 22px 22px 0 0;
   background: var(--surface);
   border-top: 1px solid var(--line);
@@ -5134,7 +5134,7 @@ input[type="search"] { min-height: 44px; }
    toata biblioteca, ca sa poti verifica si ce a decis motorul singur. */
 .tiktok-review-all-chip {
   position: absolute;
-  top: calc(14px + env(safe-area-inset-top));
+  top: calc(14px + var(--safe-top));
   right: 76px;
   z-index: var(--z-card-badge);
   min-height: 40px;

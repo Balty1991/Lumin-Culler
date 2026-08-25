@@ -195,7 +195,7 @@ export const ro = {
   'tiktok.close': 'Închide',
   'tiktok.hint': 'glisează sus/jos',
   'tiktok.rail.keep': 'Păstrez',
-  'tiktok.rail.delete': 'Șterg',
+  'tiktok.rail.reject': 'Resping',
   'tiktok.rail.candidate': 'Candidat',
   'tiktok.rail.album': 'Album',
   'tiktok.rail.undo': 'Anulează ultima decizie',

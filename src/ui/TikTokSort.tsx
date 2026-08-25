@@ -516,11 +516,18 @@ export function TikTokSort() {
               </button>
               <span className="tiktok-rail-label">{tr('tiktok.rail.candidate')}</span>
             </span>
+            {/* "Resping", nu "Sterg". Butonul apeleaza decide('rejected') — muta
+                poza in "respinse", nu o scoate de pe telefon. Iar aplicatia ARE o
+                stergere adevarata, "Sterge pozele respinse", care chiar cere
+                sistemului sa stearga fisiere. Cat timp cel mai apasat buton rosu
+                de pe ecranul principal de lucru spunea "Sterg", ori omul il ocolea
+                de frica, ori credea ca a sters poze pe care nu le stersese.
+                Gasit la auditul de interfata. */}
             <span className="tiktok-rail-item rail-del">
-              <button className="tiktok-rail-btn del" onClick={() => decide('rejected')} aria-label={tr('tiktok.rail.delete')}>
+              <button className="tiktok-rail-btn del" onClick={() => decide('rejected')} aria-label={tr('tiktok.rail.reject')}>
                 <XIcon />
               </button>
-              <span className="tiktok-rail-label">{tr('tiktok.rail.delete')}</span>
+              <span className="tiktok-rail-label">{tr('tiktok.rail.reject')}</span>
             </span>
           </>
         )}
