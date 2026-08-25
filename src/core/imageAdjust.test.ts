@@ -3,7 +3,7 @@ import {
   computeAutoContrast, computeAutoExposureFromScore, computeAutoHighlightsShadows,
   computeAutoCrop, computeAutoStraighten, computeAutoSaturation, isNeutral, NEUTRAL_ADJUSTMENTS,
   applyDetailPass, applyVignette, originalToCanvas, canvasToOriginal, cropRadiusScale,
-  type AutoAdjustSignals, type EditAdjustments, computeAutoFaceExposure, computeAutoAdjustments,
+  type AutoAdjustSignals, type EditAdjustments, computeAutoFaceExposure, computeAutoAdjustments, computeAutoBacklight, computeAutoToneCurve,
   computeAutoWhiteBalance, computeAutoLevels, computeAutoVibrance, computeAutoToneRecovery } from './imageAdjust';
 
 function makeImage(w: number, h: number, paint: (x: number, y: number) => [number, number, number]): ImageData {
@@ -674,5 +674,172 @@ describe('computeAutoToneRecovery', () => {
   it('nu atinge nimic pe o poza cu tonuri asezate normal', () => {
     const normala = makeImage(16, 16, (x) => { const v = 60 + (x % 4) * 40; return [v, v, v]; });
     expect(computeAutoToneRecovery(normala)).toEqual({ highlights: 0, shadows: 0 });
+  });
+});
+
+/**
+ * Vetoul de expunere opreste Auto sa STRICE o contralumina. Dar a nu strica nu
+ * inseamna a repara: un editor uman ridica umbrele ca sa scoata subiectul din
+ * intuneric si trage luminile ca fundalul sa nu urle, fara sa atinga expunerea
+ * globala (care ar arde si mai tare un fundal deja la limita).
+ */
+describe('computeAutoBacklight', () => {
+  const box: [number, number, number, number] = [0.3, 0.3, 0.4, 0.4];
+
+  /** Cadru cu fundal `bg` si o zona de fata `face`. */
+  const cadru = (bg: number, face: number) => makeImage(100, 100, (x, y) => {
+    const inFace = x >= 30 && x < 70 && y >= 30 && y < 70;
+    const v = inFace ? face : bg;
+    return [v, v, v];
+  });
+
+  it('recunoaste subiectul inchis pe fundal luminos', () => {
+    const r = computeAutoBacklight(cadru(240, 60), [{ box }]);
+    expect(r).not.toBeNull();
+    expect(r!.shadows).toBeGreaterThan(0);   // ridica subiectul din intuneric
+    expect(r!.highlights).toBeLessThan(0);   // si calmeaza fundalul
+  });
+
+  it('corecteaza mai tare cand diferenta e mai mare', () => {
+    const blanda = computeAutoBacklight(cadru(180, 90), [{ box }])!;
+    const dura = computeAutoBacklight(cadru(250, 40), [{ box }])!;
+    expect(dura.shadows).toBeGreaterThan(blanda.shadows);
+  });
+
+  it('tace pe un cadru echilibrat — nu orice cer mai luminos e contralumina', () => {
+    expect(computeAutoBacklight(cadru(150, 120), [{ box }])).toBeNull();
+  });
+
+  it('tace cand subiectul e deja luminos, chiar daca fundalul e si mai luminos', () => {
+    // diferenta e o alegere de compozitie, nu un esec de expunere
+    expect(computeAutoBacklight(cadru(255, 200), [{ box }])).toBeNull();
+  });
+
+  it('fara fata nu are cu ce compara', () => {
+    expect(computeAutoBacklight(cadru(240, 60), [])).toBeNull();
+    expect(computeAutoBacklight(cadru(240, 60), undefined)).toBeNull();
+  });
+
+  it('ramane in limite rezonabile chiar la contrast extrem', () => {
+    const r = computeAutoBacklight(cadru(255, 5), [{ box }])!;
+    expect(r.shadows).toBeLessThanOrEqual(34);
+    expect(r.highlights).toBeGreaterThanOrEqual(-24);
+  });
+});
+
+/**
+ * Pielea nu e neutra, dar trece filtrul de saturatie: un ten obisnuit
+ * (215,195,175) da 0,186, sub pragul de 0,28. Pe orice portret, tenul intra deci
+ * in media care ar trebui sa fie gri, iar grey-world "corecteaza" caldura pielii
+ * tragand toata poza spre rece — cu atat mai tare cu cat fata e mai mare.
+ */
+describe('balansul de alb nu ia pielea drept referinta de gri', () => {
+  const box: [number, number, number, number] = [0.25, 0.25, 0.5, 0.5];
+
+  /** Fundal gri curat, cu o zona mare de ten cald peste. */
+  const portret = () => makeImage(100, 100, (x, y) => {
+    const inFace = x >= 25 && x < 75 && y >= 25 && y < 75;
+    return inFace ? [215, 195, 175] : [128, 128, 128];
+  });
+
+  it('nu raceste poza din cauza tenului, cand restul cadrului e deja neutru', () => {
+    const cuFata = computeAutoWhiteBalance(portret(), false, [{ box }]);
+    expect(cuFata.temperature).toBe(0);
+    expect(cuFata.tint).toBe(0);
+  });
+
+  it('fara sa stie de fata, exact aceeasi poza primeste o corectie inutila', () => {
+    const faraFata = computeAutoWhiteBalance(portret(), false);
+    expect(faraFata.temperature).toBeLessThan(0); // trage spre rece ca sa "neutralizeze" pielea
+  });
+
+  it('dar o dominanta reala din cadru se corecteaza in continuare', () => {
+    // tot cadrul e cald, inclusiv in afara fetei — asta chiar e o dominanta
+    const cald = makeImage(100, 100, () => [200, 180, 160]);
+    const r = computeAutoWhiteBalance(cald, false, [{ box }]);
+    expect(r.temperature).toBeLessThan(0);
+  });
+});
+
+/**
+ * `contrast()` din CSS pivoteaza in jurul lui 0,5 si imprastie liniar, deci
+ * impinge capetele peste 0 si 255: umbre infundate, lumini arse. O curba in S
+ * inclina acelasi mijloc, dar cu capetele ancorate — ce face un om cu o curba
+ * tonala in fata.
+ */
+describe('computeAutoToneCurve', () => {
+  it('nu propune nimic cand nu e nevoie de contrast', () => {
+    expect(computeAutoToneCurve(0)).toBeUndefined();
+    expect(computeAutoToneCurve(-5)).toBeUndefined();
+  });
+
+  it('tine capetele ancorate, ca sa nu poata arde sau infunda', () => {
+    const c = computeAutoToneCurve(20)!;
+    expect(c[0]).toEqual({ x: 0, y: 0 });
+    expect(c[c.length - 1]).toEqual({ x: 1, y: 1 });
+  });
+
+  it('coboara sfertul de jos si ridica sfertul de sus — forma de S', () => {
+    const c = computeAutoToneCurve(20)!;
+    const jos = c.find(p => p.x === 0.25)!;
+    const sus = c.find(p => p.x === 0.75)!;
+    expect(jos.y).toBeLessThan(0.25);
+    expect(sus.y).toBeGreaterThan(0.75);
+  });
+
+  it('inclina mai tare cand lipseste mai mult contrast', () => {
+    const blanda = computeAutoToneCurve(8)!.find(p => p.x === 0.25)!.y;
+    const ferma = computeAutoToneCurve(20)!.find(p => p.x === 0.25)!.y;
+    expect(ferma).toBeLessThan(blanda);
+  });
+
+  it('nu depaseste niciodata o inclinare discreta, oricat de plata ar fi poza', () => {
+    const c = computeAutoToneCurve(100)!;
+    const jos = c.find(p => p.x === 0.25)!;
+    expect(0.25 - jos.y).toBeLessThanOrEqual(0.06);
+  });
+});
+
+describe('Auto trimite punch-ul in curba, nu in contrastul global', () => {
+  const box: [number, number, number, number] = [0.3, 0.3, 0.4, 0.4];
+
+  function cuCadruPlat(): void {
+    // histograma stransa in jurul mijlocului => cere contrast
+    const img = makeImage(100, 100, (x, y) => { const v = 110 + ((x + y) % 30); return [v, v, v]; });
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      drawImage: () => {}, getImageData: () => img
+    } as unknown as CanvasRenderingContext2D);
+  }
+
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('propune o curba, si lasa pe slider doar ce curba nu poate duce', () => {
+    const img = makeImage(100, 100, (x, y) => { const v = 110 + ((x + y) % 30); return [v, v, v]; });
+    const brut = computeAutoContrast(img);
+
+    cuCadruPlat();
+    const auto = computeAutoAdjustments(document.createElement('canvas'), 100, 100, { faces: [{ box }] });
+
+    expect(auto.curves?.master).toBeDefined();
+    // punch-ul a plecat in curba; pe slider ramane doar surplusul peste plafonul ei
+    expect(auto.contrast).toBeLessThan(brut);
+  });
+
+  // Invariantul impartirii: curba duce pana la plafonul ei, sliderul ia restul.
+  // Pentru orice poza care nu cere mai mult decat poate duce curba, sliderul
+  // ramane exact pe zero — adica exact cazul obisnuit.
+  it.each([
+    ['plata', (x: number, y: number) => 110 + ((x + y) % 30)],
+    ['medie', (x: number, y: number) => 40 + ((x * 2 + y) % 170)],
+    ['deja contrastata', (x: number, y: number) => ((x + y) % 2) * 255]
+  ])('imparte corect corectia pe o poza %s', (_nume, paint) => {
+    const img = makeImage(100, 100, (x, y) => { const v = paint(x, y); return [v, v, v]; });
+    const brut = computeAutoContrast(img);
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      drawImage: () => {}, getImageData: () => img
+    } as unknown as CanvasRenderingContext2D);
+
+    const auto = computeAutoAdjustments(document.createElement('canvas'), 100, 100, {});
+    expect(auto.contrast).toBe(Math.max(0, brut - 22));
   });
 });

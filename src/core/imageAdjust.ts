@@ -8,7 +8,7 @@
  * soft de catalogare (Lightroom/Capture One), dar mult mai restrans in scop.
  */
 
-import { buildChannelLuts, hasNoCurves, type PhotoCurves } from './toneCurve';
+import { buildChannelLuts, hasNoCurves, type PhotoCurves, type CurvePoint } from './toneCurve';
 import { applyControlPoint, hasNoControlPoints, isNeutralControlPoint, type ControlPoint } from './selectiveEdit';
 import { applyHslBands, isNeutralBands, type HslBands } from './hslBands';
 import { applyHealStrokes, type HealStroke } from './spotHeal';
@@ -640,12 +640,34 @@ const WB_GOLDEN_HOUR_FACTOR = 0.35;
  * R-B se schimba cu 2t; tinta muta G cu +s si R,B cu -s/2 fiecare, deci
  * diferenta G-(R+B)/2 se schimba cu 1.5s.
  */
-export function computeAutoWhiteBalance(img: ImageData, goldenHour = false): { temperature: number; tint: number } {
+export function computeAutoWhiteBalance(
+  img: ImageData,
+  goldenHour = false,
+  /**
+   * Fetele detectate, ca sa fie EXCLUSE din esantionul de "gri".
+   *
+   * Pielea nu e neutra, dar trece filtrul de saturatie de mai sus: un ten
+   * obisnuit, (215,195,175), da 0,186 — sub pragul de 0,28, exact pragul urcat
+   * anume ca sa prinda dominantele calde. Consecinta, pe orice portret: tenul
+   * intra in media care ar trebui sa fie gri, iar grey-world "corecteaza"
+   * caldura pielii tragand toata poza spre rece. Cu cat fata ocupa mai mult din
+   * cadru, cu atat mai tare.
+   *
+   * Nu incercam sa ghicim in schimb o tinta pentru piele — ar reintroduce fix
+   * problema pentru care banda de luminanta a fetei e lasata larga (vezi
+   * FACE_TOO_DARK): orice tinta e calibrata pe un ten anume si falsifica
+   * restul. Scoatem doar pielea din referinta de gri; neutrul se citeste din
+   * ce chiar e neutru in cadru.
+   */
+  faces?: { box: [number, number, number, number] }[]
+): { temperature: number; tint: number } {
   const { data } = img;
   const step = 16; // acelasi esantionaj ca in computeAutoContrast
+  const skin = buildFaceMask(img, faces, 0)?.mask;
   let sumR = 0, sumG = 0, sumB = 0, neutral = 0, sampled = 0;
   for (let i = 0; i < data.length; i += step) {
     sampled++;
+    if (skin?.[i >> 2]) continue;
     const r = data[i], g = data[i + 1], b = data[i + 2];
     const lum = 0.299 * r + 0.587 * g + 0.114 * b;
     if (lum < WB_MIN_LUM || lum > WB_MAX_LUM) continue;
@@ -858,6 +880,67 @@ const FACE_EXPOSURE_LIMIT = 30;
 const FACE_INSET = 0.18;
 
 /**
+ * Luminanta medie a subiectului si a restului cadrului, dintr-o singura trecere.
+ *
+ * Esantionarea taie 18% din fiecare margine a cutiei fetei: cutiile detectate
+ * includ mereu putin par si putin fundal, iar pe o contralumina fundalul e chiar
+ * lucrul luminos care ar strica media.
+ *
+ * `rest` e tot ce NU e in nicio cutie de fata — nu media intregului cadru.
+ * Diferenta conteaza: pe un prim-plan, fata ocupa jumatate de imagine, si o
+ * medie globala ar contine chiar subiectul cu care vrem s-o comparam.
+ *
+ * `null` cand nu exista nicio fata masurabila (lista goala, sau numai cutii
+ * degenerate/in afara cadrului).
+ */
+function buildFaceMask(
+  img: ImageData,
+  faces: { box: [number, number, number, number] }[] | undefined,
+  /** Cutiile pot fi si LARGITE, nu doar stranse — vezi folosirea din computeAutoWhiteBalance. */
+  inset = FACE_INSET
+): { mask: Uint8Array; count: number } | null {
+  if (!faces || !faces.length) return null;
+  const mask = new Uint8Array(img.width * img.height);
+  let count = 0;
+  for (const face of faces) {
+    const [fx, fy, fw, fh] = face.box;
+    if (!(fw > 0) || !(fh > 0)) continue;
+    const x0 = Math.max(0, Math.round((fx + fw * inset) * img.width));
+    const x1 = Math.min(img.width, Math.round((fx + fw * (1 - inset)) * img.width));
+    const y0 = Math.max(0, Math.round((fy + fh * inset) * img.height));
+    const y1 = Math.min(img.height, Math.round((fy + fh * (1 - inset)) * img.height));
+    for (let y = y0; y < y1; y++) {
+      for (let x = x0; x < x1; x++) {
+        const p = y * img.width + x;
+        if (mask[p]) continue;   // fete suprapuse: pixelul se numara o singura data
+        mask[p] = 1;
+        count++;
+      }
+    }
+  }
+  return count === 0 ? null : { mask, count };
+}
+
+function sampleFaces(
+  img: ImageData,
+  faces: { box: [number, number, number, number] }[] | undefined
+): { mean: number; rest: number } | null {
+  const built = buildFaceMask(img, faces);
+  if (!built) return null;
+  const { mask } = built;
+  const lum = (p: number) => {
+    const i = p * 4;
+    return (img.data[i] * 0.299 + img.data[i + 1] * 0.587 + img.data[i + 2] * 0.114) / 255;
+  };
+  let sum = 0, count = 0, restSum = 0, restCount = 0;
+  for (let p = 0; p < mask.length; p++) {
+    if (mask[p]) { sum += lum(p); count++; } else { restSum += lum(p); restCount++; }
+  }
+  if (count === 0) return null;
+  return { mean: sum / count, rest: restCount ? restSum / restCount : sum / count };
+}
+
+/**
  * Expunerea judecata pe SUBIECT, nu pe tot cadrul.
  *
  * De ce era nevoie: `computeAutoExposureFromScore` porneste de la scorul de
@@ -893,31 +976,10 @@ export function computeAutoFaceExposure(
   img: ImageData,
   faces: { box: [number, number, number, number] }[] | undefined
 ): number | null {
-  if (!faces || !faces.length) return null;
-  let sum = 0;
-  let count = 0;
-  for (const face of faces) {
-    const [fx, fy, fw, fh] = face.box;
-    if (!(fw > 0) || !(fh > 0)) continue;
-    const x0 = Math.max(0, Math.round((fx + fw * FACE_INSET) * img.width));
-    const x1 = Math.min(img.width, Math.round((fx + fw * (1 - FACE_INSET)) * img.width));
-    const y0 = Math.max(0, Math.round((fy + fh * FACE_INSET) * img.height));
-    const y1 = Math.min(img.height, Math.round((fy + fh * (1 - FACE_INSET)) * img.height));
-    for (let y = y0; y < y1; y++) {
-      for (let x = x0; x < x1; x++) {
-        const i = (y * img.width + x) * 4;
-        // aceiasi coeficienti de luminanta ca in restul fisierului
-        sum += (img.data[i] * 0.299 + img.data[i + 1] * 0.587 + img.data[i + 2] * 0.114) / 255;
-        count++;
-      }
-    }
-  }
-  // Cutii degenerate (latime/inaltime 0) sau complet in afara cadrului: n-avem
-  // ce masura, deci nu ne dam cu parerea despre subiect — acelasi raspuns ca la
-  // "nicio fata detectata".
-  if (count === 0) return null;
+  const sample = sampleFaces(img, faces);
+  if (!sample) return null;
 
-  const mean = sum / count;
+  const mean = sample.mean;
   if (mean < FACE_TOO_DARK) {
     // cat lipseste pana la marginea benzii, tradus in pasi de expunere
     return Math.round(clampRange((FACE_TOO_DARK - mean) * 200, 8, FACE_EXPOSURE_LIMIT));
@@ -926,6 +988,98 @@ export function computeAutoFaceExposure(
     return Math.round(clampRange(-(mean - FACE_TOO_BRIGHT) * 200, -FACE_EXPOSURE_LIMIT, -8));
   }
   return 0;
+}
+
+/**
+ * Cat din corectia de contrast poate prelua curba, in unitatile sliderului.
+ * Peste atat, curba ar deveni vizibila ca "efect", nu ca punch.
+ */
+const CURVE_CONTRAST_MAX = 22;
+/** Plafon pe departarea de diagonala, ca sa nu iasa niciodata o curba dramatica. */
+const CURVE_MAX_DEFLECTION = 0.06;
+
+/**
+ * Contrastul pus ca CURBA, nu ca inmultire globala.
+ *
+ * `contrast()` din CSS pivoteaza in jurul lui 0,5 si imprastie valorile liniar,
+ * deci ridicarea contrastului impinge capetele PESTE 0 si 255: umbrele se
+ * infunda in negru plat, luminile se ard. Exact ce nu vrea nimeni pe o poza deja
+ * contrastata — si exact motivul pentru care "auto contrast" arata, in general,
+ * mai prost decat un editor care atinge o curba.
+ *
+ * O curba in S face aceeasi treaba unde conteaza — inclina mijlocul, deci separa
+ * tonurile in care sta subiectul — dar tine capetele ANCORATE in (0,0) si (1,1),
+ * deci nu poate arde si nu poate infunda nimic. Asta face un om cu o curba
+ * tonala in fata, si de-aia rezultatul lui arata altfel.
+ *
+ * Deflexiunea urmareste ce ar fi facut contrastul global la un sfert si trei
+ * sferturi din scala: acolo, un contrast de c% muta valoarea cu ~0,25·c/100.
+ * Curba pleaca deci de la aceeasi intensitate, doar ca fara pretul de la capete.
+ */
+export function computeAutoToneCurve(contrastAmount: number): CurvePoint[] | undefined {
+  const amount = Math.min(Math.max(contrastAmount, 0), CURVE_CONTRAST_MAX);
+  if (amount <= 0) return undefined;
+  const d = Math.min(0.25 * (amount / 100), CURVE_MAX_DEFLECTION);
+  if (d < 0.005) return undefined;   // sub asta nu se vede nimic, nu merita o curba
+  return [
+    { x: 0, y: 0 },
+    { x: 0.25, y: Math.round((0.25 - d) * 1000) / 1000 },
+    { x: 0.75, y: Math.round((0.75 + d) * 1000) / 1000 },
+    { x: 1, y: 1 }
+  ];
+}
+
+/**
+ * De cate ori trebuie sa fie fundalul mai luminos decat subiectul ca sa numim
+ * cadrul contralumina. 1,7 e destul de sus cat sa nu prinda o zi senina
+ * obisnuita (unde cerul e oricum mai luminos decat un chip), dar sub raportul
+ * tipic al unui subiect fotografiat in fata unei ferestre sau a soarelui.
+ */
+const BACKLIGHT_RATIO = 1.7;
+/**
+ * Peste atat subiectul e deja luminos, iar diferenta fata de fundal e o alegere
+ * de compozitie, nu un esec de expunere — nu avem ce "salva".
+ */
+const BACKLIGHT_SUBJECT_MAX = 0.6;
+const BACKLIGHT_SHADOW_MAX = 34;
+const BACKLIGHT_HIGHLIGHT_MAX = 24;
+
+/**
+ * Contralumina, tratata ca situatie proprie.
+ *
+ * Vetoul din computeAutoFaceExposure opreste Auto sa STRICE un asemenea cadru
+ * (nu-l mai intuneca de dragul unui fundal ars). Dar a nu strica nu inseamna a
+ * repara: un editor uman, in fata aceleiasi poze, ridica umbrele ca sa scoata
+ * subiectul din intuneric si trage luminile ca fundalul sa nu urle — si NU
+ * atinge expunerea globala, fiindca ea ar muta si ce e deja bun.
+ *
+ * De ce nu prin expunere: `brightness` inmulteste tot cadrul, deci ridicarea
+ * subiectului ar arde si mai tare un fundal deja la limita. Umbrele si luminile
+ * lucreaza pe zone de tonalitate, exact unde e problema.
+ *
+ * Magnitudinea creste cu cat subiectul e mai inchis fata de fundal, dar ramane
+ * plafonata: o corectie mai mare de atat nu mai recupereaza o poza, o transforma
+ * in altceva (aspectul spalacit, "HDR de telefon", pe care nimeni nu-l cere).
+ *
+ * `null` cand nu exista fata masurabila sau cand cadrul nu e contralumina.
+ */
+export function computeAutoBacklight(
+  img: ImageData,
+  faces: { box: [number, number, number, number] }[] | undefined
+): { highlights: number; shadows: number } | null {
+  const sample = sampleFaces(img, faces);
+  if (!sample) return null;
+  const { mean, rest } = sample;
+  if (mean <= 0 || mean > BACKLIGHT_SUBJECT_MAX) return null;
+  const ratio = rest / mean;
+  if (ratio < BACKLIGHT_RATIO) return null;
+
+  // 0 chiar la prag, 1 la un fundal de trei ori mai luminos si peste
+  const severity = clampRange((ratio - BACKLIGHT_RATIO) / (3 - BACKLIGHT_RATIO), 0, 1);
+  return {
+    shadows: Math.round(clampRange(10 + severity * (BACKLIGHT_SHADOW_MAX - 10), 10, BACKLIGHT_SHADOW_MAX)),
+    highlights: -Math.round(clampRange(8 + severity * (BACKLIGHT_HIGHLIGHT_MAX - 8), 8, BACKLIGHT_HIGHLIGHT_MAX))
+  };
 }
 
 /**
@@ -1130,12 +1284,14 @@ export function computeAutoAdjustments(source: CanvasImageSource, sourceWidth: n
   let levels = { whites: 0, blacks: 0 };
   let vibrance = 0;
   let toneRecovery = { highlights: 0, shadows: 0 };
+  let backlight: { highlights: number; shadows: number } | null = null;
   if (ctx) {
     ctx.drawImage(source, 0, 0, w, h);
     const data = ctx.getImageData(0, 0, w, h);
     contrast = computeAutoContrast(data);
     faceExposure = computeAutoFaceExposure(data, signals.faces);
-    whiteBalance = computeAutoWhiteBalance(data, signals.goldenHourDetected === true);
+    backlight = computeAutoBacklight(data, signals.faces);
+    whiteBalance = computeAutoWhiteBalance(data, signals.goldenHourDetected === true, signals.faces);
     levels = computeAutoLevels(data);
     vibrance = computeAutoVibrance(data);
     toneRecovery = computeAutoToneRecovery(data);
@@ -1144,8 +1300,11 @@ export function computeAutoAdjustments(source: CanvasImageSource, sourceWidth: n
   // Doua surse pentru aceleasi doua slidere: pragurile de ardere (cand chiar
   // exista pixeli pierduti) si forma histogramei (cand nu e nimic ars, dar
   // umbrele stau adunate jos). Se pastreaza corectia mai hotarata din fiecare.
-  const highlights = strongerOf(clipped.highlights, toneRecovery.highlights);
-  const shadows = strongerOf(clipped.shadows, toneRecovery.shadows);
+  // A treia sursa pentru aceleasi doua slidere, cand cadrul e contralumina.
+  // Vetoul de expunere doar opreste Auto sa strice o astfel de poza; asta o si
+  // repara, pe zone de tonalitate, fara sa atinga expunerea globala.
+  const highlights = strongerOf(strongerOf(clipped.highlights, toneRecovery.highlights), backlight?.highlights ?? 0);
+  const shadows = strongerOf(strongerOf(clipped.shadows, toneRecovery.shadows), backlight?.shadows ?? 0);
 
   // O poza dezacordata cromatic se calmeaza (computeAutoSaturation, negativ);
   // una stearsa se ridica (computeAutoVibrance, pozitiv). Nu pot fi amandoua
@@ -1161,9 +1320,16 @@ export function computeAutoAdjustments(source: CanvasImageSource, sourceWidth: n
   // asta nu mai inseamna "n-am nicio parere", ci "am masurat si e sanatos", deci
   // corectia globala nu mai are ce sa suprascrie. Doar cand nu exista nicio fata
   // masurabila (null) se cade inapoi pe scorul intregului cadru.
+  // Punch-ul pleaca in curba, unde capetele raman ancorate; sliderul global
+  // pastreaza doar ce depaseste ce poate duce curba — de obicei, nimic. Asa,
+  // Auto nu mai infunda umbrele si nu mai arde luminile ca sa dea contrast.
+  const toneCurve = computeAutoToneCurve(contrast);
+  const residualContrast = toneCurve ? Math.max(0, contrast - CURVE_CONTRAST_MAX) : contrast;
+
   return {
     exposure: faceExposure !== null ? faceExposure : computeAutoExposureFromScore(signals.exposureScore),
-    contrast,
+    contrast: residualContrast,
+    ...(toneCurve ? { curves: { master: toneCurve } } : {}),
     saturation: harmonySaturation !== 0 ? harmonySaturation : vibrance,
     temperature: whiteBalance.temperature,
     tint: whiteBalance.tint,
