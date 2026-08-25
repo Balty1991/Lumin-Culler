@@ -41,6 +41,13 @@ export interface HashInput extends Partial<Omit<GroupCandidate, 'id'>> {
   imageEmbedding?: number[];
   /** 0..1, vezi AnalysisRecord.colorHarmonyScore — folosit doar ca semnal secundar cand nu exista fete de comparat. */
   colorHarmonyScore?: number;
+  /**
+   * Cele mai frecvente 3 culori din cadru (hex, vezi AnalysisRecord.dominantColors)
+   * — paleta reala a scenei, nu un scor agregat despre ea. Singurul semnal din
+   * HashInput care descrie UNDE a fost facuta poza si care exista si cand poza
+   * are fete; vezi sceneContradicts().
+   */
+  dominantColors?: string[];
   /** Momentul capturii (EXIF, altfel data fisierului) — vezi TIME_CLOSE_SIMILARITY_THRESHOLD. Absent = doar pragul strans de asemanare. */
   capturedAt?: number;
 }
@@ -105,15 +112,30 @@ const BURST_WINDOW_MS = 45_000;
  * ori", dar cad mult peste pragul de rafala: si timpul, si cadrul s-au schimbat
  * prea mult.
  *
- * De ce e sigur sa lasam pragul atat de larg: aici, spre deosebire de celelalte
- * doua nivele, asemanarea vizuala NU mai e argumentul principal — e doar o
- * preselectie ieftina. Ce decide e sameSubjectConfirmed(), care cere DOVADA
- * (aceeasi fata, sau embedding de continut apropiat), nu simpla absenta a unei
- * contraziceri. Fara dovada, poza ramane negrupata, chiar daca timpul si dHash-ul
- * s-ar potrivi — exact invers fata de nivelele de rafala, unde vizualul e strans
- * si verificarea subiectului e permisiva.
+ * Aici, spre deosebire de celelalte doua nivele, asemanarea vizuala nu mai e
+ * argumentul principal — e o preselectie, iar ce decide e sameSubjectConfirmed(),
+ * care cere DOVADA (aceeasi fata, sau embedding de continut apropiat), nu simpla
+ * absenta a unei contraziceri. Fara dovada, poza ramane negrupata, chiar daca
+ * timpul si dHash-ul s-ar potrivi.
+ *
+ * COBORAT DE LA 30 LA 26 — bug raportat cu captura: un cadru cu fetita MERGAND
+ * pe alee si doua cadre cu ea ASEZATA pe o banca, in fata bisericii, ajunsesera
+ * in aceeasi serie, cu "Recomandat AI" pe cel care mergea. Alt loc, alta poza,
+ * dar aplicatia cerea sa fie ales unul singur dintre ele.
+ *
+ * Cauza e aritmetica, nu de reglaj: hash-ul e un sir de 64 de biti, deci doua
+ * imagini FARA NICIO LEGATURA au, in medie, distanta 32 — fiecare bit e practic
+ * dat cu banul. Masurat pe 200.000 de perechi aleatoare, un prag de 30 lasa sa
+ * treaca 35% dintre ele; preselectia "ieftina" nu selecta aproape nimic. Ce mai
+ * ramanea din nivelul 3 era: aceeasi fata + 8 minute — iar intr-o sedinta cu un
+ * singur copil, fata e o constanta, deci nu deosebeste nimic. De aici, o treime
+ * din perechile nepotrivite din acele 8 minute intrau impreuna in serie.
+ *
+ * 26 lasa sa treaca 8,5% in loc de 35%, si pastreaza slabiciunea reala pentru
+ * care exista nivelul 3 (te dai un pas in spate, incerci pe verticala). Restul e
+ * acoperit de vetoul din sceneContradicts(): fata dovedeste CINE, nu UNDE.
  */
-const MOMENT_SIMILARITY_THRESHOLD = 30;
+const MOMENT_SIMILARITY_THRESHOLD = 26;
 /** Cat de lung poate fi un "moment". Peste asta e o alta scena, oricat de mult ar semana. */
 const MOMENT_WINDOW_MS = 8 * 60_000;
 
@@ -256,6 +278,94 @@ function sameSubjectConfirmed(a: HashInput, b: HashInput): boolean {
   return false;
 }
 
+/** Distanta euclidiana intre doua culori hex, normalizata la 0..1. */
+function hexDistance(a: string, b: string): number | null {
+  const parse = (h: string) => {
+    const m = /^#?([0-9a-f]{6})$/i.exec(h.trim());
+    if (!m) return null;
+    const n = parseInt(m[1], 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  };
+  const ca = parse(a), cb = parse(b);
+  if (!ca || !cb) return null;
+  const dr = ca[0] - cb[0], dg = ca[1] - cb[1], db = ca[2] - cb[2];
+  return Math.sqrt(dr * dr + dg * dg + db * db) / Math.sqrt(3 * 255 * 255);
+}
+
+/**
+ * Cat de departe e paleta unei poze de a celeilalte: pentru fiecare culoare
+ * dominanta din `a`, distanta pana la cea mai apropiata din `b`, apoi MEDIA
+ * acelor potriviri. Simetrizat, ca ordinea sa nu conteze.
+ *
+ * Media, nu maximul: intrebarea e "s-a schimbat locul?", iar la o schimbare de
+ * loc se mutà toata paleta. Maximul raspunde la altceva — "exista o culoare
+ * fara pereche?" — si se declanseaza si cand cineva imbracat in rosu intra
+ * intr-un cadru altfel neschimbat.
+ *
+ * `null` cand vreuna dintre parti n-are paleta (inregistrari mai vechi, sau
+ * cadru fara nicio culoare saturata) — vezi sceneContradicts pentru ce se
+ * intampla atunci.
+ */
+function paletteDistance(a: string[], b: string[]): number | null {
+  if (!a.length || !b.length) return null;
+  const meanNearest = (from: string[], to: string[]): number | null => {
+    let sum = 0;
+    for (const c of from) {
+      let nearest = Infinity;
+      for (const d of to) {
+        const dist = hexDistance(c, d);
+        if (dist !== null) nearest = Math.min(nearest, dist);
+      }
+      if (nearest === Infinity) return null;
+      sum += nearest;
+    }
+    return sum / from.length;
+  };
+  const ab = meanNearest(a, b), ba = meanNearest(b, a);
+  if (ab === null || ba === null) return null;
+  return Math.max(ab, ba);
+}
+
+/**
+ * Peste atat, cele doua palete descriu locuri diferite.
+ *
+ * Calibrat pe cazul raportat (alee cu iarba vs. banca rosie langa un zid alb:
+ * 0,20) fata de doua cadre din acelasi loc (0,02) — o separare de aproape zece
+ * ori, deci pragul n-are nevoie sa fie fin. Asezat intentionat spre capatul
+ * permisiv al intervalului: asta e un VETO de rezerva, nu reparatia principala
+ * (aia e pragul coborat la 26), si o serie reala nu trebuie sa se rupa pentru ca
+ * subiectul s-a miscat si a intrat mai mult cer in cadru.
+ */
+const SCENE_PALETTE_DELTA = 0.18;
+
+/**
+ * "Dovada ca NU e acelasi loc", folosita doar la nivelul 3.
+ *
+ * De ce e nevoie de ea: la nivelul 3, dovada de subiect vine aproape mereu din
+ * fete, iar o fata raspunde la intrebarea CINE, nu UNDE. Cine isi fotografiaza
+ * copilul in parc are acelasi chip in absolut fiecare cadru din sedinta —
+ * semnalul e o constanta, deci nu deosebeste doua momente diferite. Paleta
+ * cadrului e singurul lucru din HashInput care descrie scena si care exista si
+ * cand poza are oameni in ea.
+ *
+ * Scris ca veto, nu ca cerinta: intoarce true doar cand semnalele CONTRAZIC,
+ * niciodata cand lipsesc. Asa, o poza mai veche fara paleta salvata se comporta
+ * exact ca inainte, si nicio serie reala nu se rupe din lipsa de date.
+ */
+function sceneContradicts(a: HashInput, b: HashInput): boolean {
+  const paletteDelta = paletteDistance(a.dominantColors ?? [], b.dominantColors ?? []);
+  if (paletteDelta !== null && paletteDelta > SCENE_PALETTE_DELTA) return true;
+
+  // Fara paleta, ramane semnalul mai slab de dinainte: doua scoruri agregate
+  // care trebuie sa diverga AMANDOUA ca sa insemne ceva.
+  if (a.compositionScore != null && b.compositionScore != null
+      && a.colorHarmonyScore != null && b.colorHarmonyScore != null) {
+    return Math.abs(a.compositionScore - b.compositionScore) > COMPOSITION_DELTA_THRESHOLD
+      && Math.abs(a.colorHarmonyScore - b.colorHarmonyScore) > COLOR_HARMONY_DELTA_THRESHOLD;
+  }
+  return false;
+}
+
 /**
  * Imparte un bucket dHash in componente conexe dupa `looksLikeSameSubject`
  * (Union-Find). Fiecare componenta ramane un grup real separat — NU doar cea
@@ -329,9 +439,10 @@ export class HashCompareService {
             // 2. rafala: prag relaxat, dar doar la cateva zeci de secunde distanta
             if (distance <= TIME_CLOSE_SIMILARITY_THRESHOLD && closeInTime(photo, members)) return true;
             // 3. moment: prag larg si minute intregi, DAR numai cu dovada ca e
-            //    acelasi subiect — vezi MOMENT_SIMILARITY_THRESHOLD.
+            //    acelasi subiect SI fara vreo dovada ca e alt loc — o fata
+            //    spune CINE, nu UNDE. Vezi MOMENT_SIMILARITY_THRESHOLD.
             return closeInTime(photo, members, MOMENT_WINDOW_MS)
-              && members.some(m => sameSubjectConfirmed(photo, m));
+              && members.some(m => sameSubjectConfirmed(photo, m) && !sceneContradicts(photo, m));
           });
         // primul bucket creat dintre candidati — aceeasi regula de departajare ca
         // Array.prototype.find de dinainte (scanare in ordinea crearii)

@@ -243,8 +243,8 @@ describe('serii prinse dupa apropierea in timp', () => {
 // pentru pragul de rafala, dar pentru cine sorteaza e tot "aceeasi poza".
 describe('HashCompareService.groupPhotos — momente', () => {
   const t = Date.UTC(2026, 0, 1, 12, 0, 0);
-  /** Hash la distanta ~27 de zero — peste pragul de rafala (24), sub cel de moment (30). */
-  const FAR = '1'.repeat(27) + '0'.repeat(37);
+  /** Hash la distanta 25 de zero — peste pragul de rafala (24), sub cel de moment (26). */
+  const FAR = '1'.repeat(25) + '0'.repeat(39);
   const face = (seed: number) => [Array.from({ length: 8 }, (_, i) => (i === seed ? 1 : 0))];
 
   it('grupeaza doua cadre la minute distanta cand fata dovedeste ca e acelasi om', async () => {
@@ -287,6 +287,53 @@ describe('HashCompareService.groupPhotos — momente', () => {
     const { groups } = await new HashCompareService().groupPhotos([
       { id: 'a', hash: '0'.repeat(64), score: 50, capturedAt: t, imageEmbedding: emb },
       { id: 'b', hash: FAR, score: 50, capturedAt: t + 5 * 60_000, imageEmbedding: emb }
+    ]);
+    expect(groups).toHaveLength(1);
+  });
+
+  // Bug raportat cu captura: un cadru cu fetita mergand pe alee si doua cu ea
+  // asezata pe banca, in fata bisericii, ajunsesera in aceeasi serie — cu
+  // "Recomandat AI" pe cel care mergea. Aceeasi fata, la minute distanta, dar
+  // alt loc: o fata dovedeste CINE, nu UNDE.
+  it('NU grupeaza acelasi om in doua locuri diferite, oricat de sigura ar fi fata', async () => {
+    const { groups } = await new HashCompareService().groupPhotos([
+      { id: 'alee', hash: '0'.repeat(64), score: 92, capturedAt: t, faceEmbeddings: face(0),
+        dominantColors: ['#4a7a3a', '#6d8f57', '#9fb08a'] },   // iarba, frunze
+      { id: 'banca', hash: FAR, score: 58, capturedAt: t + 3 * 60_000, faceEmbeddings: face(0),
+        dominantColors: ['#8a3a2a', '#c9c2b4', '#e8e2d6'] }    // banca rosie, zid alb
+    ]);
+    expect(groups).toHaveLength(0);
+  });
+
+  it('grupeaza acelasi om in acelasi loc — paleta apropiata nu pune veto', async () => {
+    const { groups } = await new HashCompareService().groupPhotos([
+      { id: 'banca1', hash: '0'.repeat(64), score: 58, capturedAt: t, faceEmbeddings: face(0),
+        dominantColors: ['#8a3a2a', '#c9c2b4', '#e8e2d6'] },
+      { id: 'banca2', hash: FAR, score: 44, capturedAt: t + 3 * 60_000, faceEmbeddings: face(0),
+        dominantColors: ['#8f4030', '#c4bdb0', '#e2dccf'] }
+    ]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].memberIds.sort()).toEqual(['banca1', 'banca2']);
+  });
+
+  it('vetoul de scena nu se aplica la rafale stranse — acolo decide vizualul', async () => {
+    // Distanta 10: sub pragul strans (14), acceptat neconditionat. Doua cadre
+    // consecutive dintr-o rafala pot avea palete diferite (cineva imbracat in
+    // rosu intra in cadru) fara sa fie alta scena.
+    const near = '1'.repeat(10) + '0'.repeat(54);
+    const { groups } = await new HashCompareService().groupPhotos([
+      { id: 'a', hash: '0'.repeat(64), score: 50, capturedAt: t, faceEmbeddings: face(0),
+        dominantColors: ['#4a7a3a', '#6d8f57', '#9fb08a'] },
+      { id: 'b', hash: near, score: 50, capturedAt: t + 2000, faceEmbeddings: face(0),
+        dominantColors: ['#8a3a2a', '#c9c2b4', '#e8e2d6'] }
+    ]);
+    expect(groups).toHaveLength(1);
+  });
+
+  it('fara paleta salvata, se comporta ca inainte — lipsa de date nu pune veto', async () => {
+    const { groups } = await new HashCompareService().groupPhotos([
+      { id: 'a', hash: '0'.repeat(64), score: 50, capturedAt: t, faceEmbeddings: face(0) },
+      { id: 'b', hash: FAR, score: 50, capturedAt: t + 4 * 60_000, faceEmbeddings: face(0) }
     ]);
     expect(groups).toHaveLength(1);
   });
