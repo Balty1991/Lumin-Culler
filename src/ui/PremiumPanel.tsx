@@ -163,7 +163,15 @@ export function PremiumPanel() {
               <span className="premium-usage-bar" aria-hidden="true">
                 <span style={{ width: `${Math.min(100, Math.round((photosUsed / FREE_PHOTOS_PER_MONTH) * 100))}%` }} />
               </span>
-              <span>{tr('premium.usage.persons', { count: persons.length, limit: FREE_ENROLLED_PERSONS })}</span>
+              {/* "2 din 1 persoane inrolate" — raportat de utilizator dupa ce a
+                  iesit din abonament. Plafonul isi face treaba (nu se mai poate
+                  adauga nimeni, vezi canEnrollAnotherPersonFree), iar profilurile
+                  facute deja raman ale lui cu buna stiinta: un abonament expirat
+                  n-are voie sa ia ostatica munca omului, acelasi principiu ca la
+                  dosarul privat. Doar propozitia era imposibila. */}
+              <span>{persons.length > FREE_ENROLLED_PERSONS
+                ? tr('premium.usage.persons.over', { count: persons.length, limit: FREE_ENROLLED_PERSONS })
+                : tr('premium.usage.persons', { count: persons.length, limit: FREE_ENROLLED_PERSONS })}</span>
             </>
           )}
         </div>

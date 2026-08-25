@@ -68,6 +68,19 @@ describe('entitlement (freemium local tracking)', () => {
       localStorage.setItem('lumin-premium', '1');
       expect(canEnrollAnotherPersonFree(999)).toBe(true);
     });
+
+    /**
+     * Raportat de utilizator dupa ce a iesit din abonament: ramasese cu 2
+     * persoane inrolate, desi la gratuit e 1. Comportamentul e INTENTIONAT —
+     * profilurile facute deja raman ale lui, dupa acelasi principiu ca la
+     * dosarul privat (un abonament expirat n-are voie sa ia ostatica munca
+     * omului). Ce trebuie garantat e ca plafonul chiar opreste urmatoarea
+     * inrolare; panoul spune restul in cuvinte.
+     */
+    it('opreste inrolarea urmatoare si cand a ramas peste plafon dintr-un abonament expirat', () => {
+      expect(canEnrollAnotherPersonFree(FREE_ENROLLED_PERSONS + 1)).toBe(false);
+      expect(canEnrollAnotherPersonFree(FREE_ENROLLED_PERSONS + 5)).toBe(false);
+    });
   });
 });
 

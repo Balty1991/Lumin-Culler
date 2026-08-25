@@ -324,6 +324,7 @@ export const ro = {
   'premium.perk.local.sub': 'import, scor AI, sortare, grupare, comparare serii — oricâte poze, fără plafon',
   'premium.usage.title': 'Ai scos {count} din {limit} de poze în ultimele 30 de zile',
   'premium.usage.persons': '{count} din {limit} persoane înrolate',
+  'premium.usage.persons.over': '{count} persoane înrolate (gratuit: {limit}). Cele făcute deja rămân ale tale — dar nu mai poți adăuga alta fără abonament.',
   'premium.section.unlock': 'Ce deblochezi',
   'premium.section.free': 'Rămâne gratuit, mereu',
   'premium.usage.label': 'CONSUM ÎN ULTIMELE 30 DE ZILE',

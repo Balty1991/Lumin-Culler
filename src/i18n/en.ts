@@ -309,6 +309,7 @@ export const en: Record<TranslationKey, string> = {
   'premium.perk.local.sub': 'import, AI score, sorting, grouping, comparing bursts — any number of photos, no cap',
   'premium.usage.title': 'You have exported {count} of {limit} photos in the last 30 days',
   'premium.usage.persons': '{count} of {limit} people enrolled',
+  'premium.usage.persons.over': '{count} people enrolled (free: {limit}). The ones you already made stay yours — but you cannot add another without a subscription.',
   'premium.section.unlock': 'What you unlock',
   'premium.section.free': 'Free, always',
   'premium.usage.label': 'USED IN THE LAST 30 DAYS',
