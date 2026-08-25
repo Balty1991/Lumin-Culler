@@ -870,14 +870,30 @@ const FACE_INSET = 0.18;
  * includ mereu putin par si putin fundal, iar pe o contralumina fundalul e
  * chiar lucrul luminos care ar strica media.
  *
- * @returns corectia de expunere (-100..100), sau 0 cand fetele sunt intr-o
- *   zona rezonabila si n-avem de ce sa ne bagam.
+ * Intoarce `null`, NU 0, cand n-a putut masura nicio fata — iar distinctia e
+ * chiar reparatia unui bug raportat cu captura. Inainte, ambele cazuri intorceau
+ * 0, iar apelantul le trata la fel: cadea pe corectia globala. Asa, o fata
+ * PERFECT expusa nu oprea cu nimic histograma intregului cadru.
+ *
+ * Poza raportata: fetita pe alee, in soare, cu fundalul (cer si perete) ars.
+ * Fata era in regula, deci functia asta zicea 0; scorul global vedea cadrul
+ * stralucitor si spunea "supraexpusa", iar Auto a scos expunerea la -10 —
+ * intunecand exact subiectul, ca sa salveze un fundal oricum pierdut.
+ *
+ * Acum `0` inseamna "am masurat subiectul si e in regula", si are drept de VETO
+ * asupra corectiei globale: daca subiectul nu e nici prabusit, nici ars, nu
+ * exista niciun esec de expunere de reparat. Ce vrea histograma pe langa el e
+ * fundalul care vorbeste, iar fundalul nu e fotografia.
+ *
+ * @returns corectia de expunere (-100..100); 0 cand subiectul e masurat si
+ *   sanatos (blocheaza corectia globala); `null` cand nu exista nicio fata
+ *   masurabila (apelantul cade pe corectia globala, ca inainte).
  */
 export function computeAutoFaceExposure(
   img: ImageData,
   faces: { box: [number, number, number, number] }[] | undefined
-): number {
-  if (!faces || !faces.length) return 0;
+): number | null {
+  if (!faces || !faces.length) return null;
   let sum = 0;
   let count = 0;
   for (const face of faces) {
@@ -896,7 +912,10 @@ export function computeAutoFaceExposure(
       }
     }
   }
-  if (count === 0) return 0;
+  // Cutii degenerate (latime/inaltime 0) sau complet in afara cadrului: n-avem
+  // ce masura, deci nu ne dam cu parerea despre subiect — acelasi raspuns ca la
+  // "nicio fata detectata".
+  if (count === 0) return null;
 
   const mean = sum / count;
   if (mean < FACE_TOO_DARK) {
@@ -1106,7 +1125,7 @@ export function computeAutoAdjustments(source: CanvasImageSource, sourceWidth: n
   canvas.height = h;
   const ctx = canvas.getContext('2d');
   let contrast = 0;
-  let faceExposure = 0;
+  let faceExposure: number | null = null;
   let whiteBalance = { temperature: 0, tint: 0 };
   let levels = { whites: 0, blacks: 0 };
   let vibrance = 0;
@@ -1134,12 +1153,16 @@ export function computeAutoAdjustments(source: CanvasImageSource, sourceWidth: n
   // alandala" e un defect mai vizibil decat "prea putina".
   const harmonySaturation = computeAutoSaturation(signals);
 
-  // Cand subiectul chiar e prabusit sau ars, el hotaraste — nu histograma
-  // intregului cadru. Pe o contralumina cele doua spun exact pe dos, iar omul
-  // cu poza in mana se ia dupa fata. In rest (faceExposure = 0) nu se schimba
-  // nimic fata de comportamentul de dinainte.
+  // Cand exista un subiect masurabil, EL hotaraste expunerea — nu histograma
+  // intregului cadru. Pe o contralumina cele doua spun exact pe dos, iar omul cu
+  // poza in mana se ia dupa fata.
+  //
+  // Inclusiv cand raspunsul subiectului e "nu schimba nimic" (faceExposure = 0):
+  // asta nu mai inseamna "n-am nicio parere", ci "am masurat si e sanatos", deci
+  // corectia globala nu mai are ce sa suprascrie. Doar cand nu exista nicio fata
+  // masurabila (null) se cade inapoi pe scorul intregului cadru.
   return {
-    exposure: faceExposure !== 0 ? faceExposure : computeAutoExposureFromScore(signals.exposureScore),
+    exposure: faceExposure !== null ? faceExposure : computeAutoExposureFromScore(signals.exposureScore),
     contrast,
     saturation: harmonySaturation !== 0 ? harmonySaturation : vibrance,
     temperature: whiteBalance.temperature,

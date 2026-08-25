@@ -1,9 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi, afterEach } from 'vitest';
 import {
   computeAutoContrast, computeAutoExposureFromScore, computeAutoHighlightsShadows,
   computeAutoCrop, computeAutoStraighten, computeAutoSaturation, isNeutral, NEUTRAL_ADJUSTMENTS,
   applyDetailPass, applyVignette, originalToCanvas, canvasToOriginal, cropRadiusScale,
-  type AutoAdjustSignals, type EditAdjustments, computeAutoFaceExposure,
+  type AutoAdjustSignals, type EditAdjustments, computeAutoFaceExposure, computeAutoAdjustments,
   computeAutoWhiteBalance, computeAutoLevels, computeAutoVibrance, computeAutoToneRecovery } from './imageAdjust';
 
 function makeImage(w: number, h: number, paint: (x: number, y: number) => [number, number, number]): ImageData {
@@ -499,27 +499,81 @@ describe('expunerea judecata pe subiect, nu pe tot cadrul', () => {
     expect(computeAutoFaceExposure(cadru(120, 75, box), [{ box }])).toBe(0);
   });
 
-  it('fara fete nu are ce judeca', () => {
-    expect(computeAutoFaceExposure(cadru(128, 128, box), [])).toBe(0);
-    expect(computeAutoFaceExposure(cadru(128, 128, box), undefined)).toBe(0);
+  // `null` si `0` sunt raspunsuri DIFERITE, si diferenta e chiar reparatia:
+  // null = "n-am ce masura, decide altcineva", 0 = "am masurat, e sanatos,
+  // nu umbla la expunere". Inainte ambele erau 0, iar o fata perfect expusa
+  // nu oprea cu nimic corectia globala.
+  it('fara fete nu are ce judeca — raspunde null, nu 0', () => {
+    expect(computeAutoFaceExposure(cadru(128, 128, box), [])).toBeNull();
+    expect(computeAutoFaceExposure(cadru(128, 128, box), undefined)).toBeNull();
   });
 
-  it('ignora cutiile degenerate in loc sa cada', () => {
-    expect(computeAutoFaceExposure(cadru(128, 20, box), [{ box: [0.3, 0.3, 0, 0] }])).toBe(0);
+  it('ignora cutiile degenerate in loc sa cada — tot null', () => {
+    expect(computeAutoFaceExposure(cadru(128, 20, box), [{ box: [0.3, 0.3, 0, 0] }])).toBeNull();
   });
 
   it('nu depaseste limita de corectie', () => {
     const e = computeAutoFaceExposure(cadru(255, 0, box), [{ box }]);
-    expect(Math.abs(e)).toBeLessThanOrEqual(30);
+    expect(Math.abs(e ?? 0)).toBeLessThanOrEqual(30);
   });
 
   it('mai multe fete se judeca impreuna', () => {
     const b2: [number, number, number, number] = [0.05, 0.05, 0.2, 0.2];
     const img = cadru(250, 20, box);
     // a doua fata cade pe fundalul stralucitor => media urca, corectia scade
-    const doua = computeAutoFaceExposure(img, [{ box }, { box: b2 }]);
-    const una = computeAutoFaceExposure(img, [{ box }]);
+    const doua = computeAutoFaceExposure(img, [{ box }, { box: b2 }]) ?? 0;
+    const una = computeAutoFaceExposure(img, [{ box }]) ?? 0;
     expect(doua).toBeLessThan(una);
+  });
+});
+
+/**
+ * Bug raportat cu captura: fetita pe alee, in soare, cu fundalul (cer si perete)
+ * ars. Auto a scos expunerea la -10 si a intunecat exact subiectul, ca sa
+ * salveze un fundal oricum pierdut. Un editor uman ar fi facut invers.
+ */
+describe('subiectul sanatos opreste corectia globala de expunere', () => {
+  const box: [number, number, number, number] = [0.3, 0.3, 0.4, 0.4];
+
+  /**
+   * jsdom n-are context 2D, iar computeAutoAdjustments citeste pixelii printr-un
+   * canvas intermediar. Ii dam un context minimal care intoarce exact cadrul
+   * dorit — asa se poate testa chiar CABLAJUL (cine are ultimul cuvant la
+   * expunere), nu doar functiile pure luate separat.
+   */
+  function cuCadru(bg: number, face: number): void {
+    const img = makeImage(100, 100, (x, y) => {
+      const inFace = x >= 30 && x < 70 && y >= 30 && y < 70;
+      const v = inFace ? face : bg;
+      return [v, v, v];
+    });
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      drawImage: () => {},
+      getImageData: () => img
+    } as unknown as CanvasRenderingContext2D);
+  }
+
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  const sursa = () => document.createElement('canvas');
+
+  it('nu intuneca poza cand fata e in regula, desi cadrul global pare supraexpus', () => {
+    // exposureScore 78 = "spre supraexpus" (fundalul ars); fata la ~128 e sanatoasa
+    cuCadru(250, 128);
+    const auto = computeAutoAdjustments(sursa(), 100, 100, { exposureScore: 78, faces: [{ box }] });
+    expect(auto.exposure).toBe(0);
+  });
+
+  it('dar fara nicio fata, scorul global ramane singurul semnal', () => {
+    cuCadru(250, 128);
+    const auto = computeAutoAdjustments(sursa(), 100, 100, { exposureScore: 78 });
+    expect(auto.exposure).toBeLessThan(0);
+  });
+
+  it('iar cand fata chiar e prabusita, o ridica in ciuda cadrului stralucitor', () => {
+    cuCadru(250, 20);
+    const auto = computeAutoAdjustments(sursa(), 100, 100, { exposureScore: 78, faces: [{ box }] });
+    expect(auto.exposure).toBeGreaterThan(0);
   });
 });
 
