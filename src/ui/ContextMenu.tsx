@@ -1,9 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
-import { CheckIcon, ClockIcon, XIcon, SearchIcon } from './icons';
+import { CheckIcon, ClockIcon, XIcon, SearchIcon, LockIcon } from './icons';
 import { StarRating } from './StarRating';
 import { CollectionPicker } from './CollectionPicker';
 import { isInsideAnyMenu } from './dropdownPosition';
 import { COLOR_LABELS, type PhotoRecord, type ColorLabel } from '../core/db';
+import { hasVaultPin } from '../core/vault';
 import { useStore } from '../state/store';
 import { t } from '../i18n';
 
@@ -43,6 +44,27 @@ export function ContextMenu({ x, y, photoIds, count, rating, colorLabel, onSetSt
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const ref = useRef<HTMLDivElement>(null);
+  const moveToVault = useStore(s => s.moveToVault);
+  const setVaultOpen = useStore(s => s.setVaultOpen);
+
+  /**
+   * Bug raportat cu captura: ecranul gol al dosarului privat trimitea omul "in
+   * meniul unei poze", dar acolo nu exista nicio astfel de actiune —
+   * `moveToVault` era apelat DOAR din DocumentShieldPanel. Cine apasa iconita de
+   * folder primea CollectionPicker (albumele obisnuite, alta functie) si un
+   * "Niciun folder creat inca" care n-avea nicio legatura cu ce cauta.
+   *
+   * Fara PIN inca, nu mutam nimic: un folder "privat" pe care oricine il poate
+   * deschide n-ar fi privat. Trimitem intai la configurare — acelasi ocol pe
+   * care il face deja DocumentShieldPanel, si tot acolo se aplica si poarta de
+   * abonament (vezi setVaultOpen in store.ts, unde gateul e pe CREARE, nu pe
+   * deschidere).
+   */
+  const toVault = () => {
+    if (!hasVaultPin()) { onClose(); setVaultOpen(true); return; }
+    void moveToVault(photoIds);
+    onClose();
+  };
 
   useEffect(() => {
     const onPointerDown = (e: PointerEvent) => {
@@ -145,6 +167,9 @@ export function ContextMenu({ x, y, photoIds, count, rating, colorLabel, onSetSt
       {/* NU trece prin act(): CollectionPicker isi deschide propriul popover, iar
           inchiderea meniului la primul tap ar face alegerea folderului imposibila. */}
       <CollectionPicker photoIds={photoIds} triggerClassName="context-menu-item context-menu-folder" />
+      <button className="context-menu-item" role="menuitem" onClick={toVault}>
+        <LockIcon className="inline-icon" /> {tr('contextMenu.moveToVault')}
+      </button>
       {onOpenDetail && (
         <>
           <div className="context-menu-sep" />

@@ -395,7 +395,9 @@ export const en: Record<TranslationKey, string> = {
   'vault.lockNow': 'Lock now',
   'vault.disable.cta': 'Turn off Private vault',
   'vault.disable.confirm': 'Turn off the Private vault? Photos in it return to the normal gallery, visible like any other.',
-  'vault.empty': 'The Private vault is empty. Move photos here from Document protection or from a photo’s menu.',
+  'vault.empty': 'The Private vault is empty. Move photos here from Document protection, or by long-pressing a photo in the library.',
+  'store.vault.moved.one': '{count} photo moved to the private vault.',
+  'store.vault.moved.other': '{count} photos moved to the private vault.',
   'vault.count.one': '{count} photo in the vault',
   'vault.count.other': '{count} photos in the vault',
   'vault.removeOne': 'Remove from Private vault',
@@ -796,6 +798,7 @@ export const en: Record<TranslationKey, string> = {
   'contextMenu.rating': 'Rating',
   'contextMenu.colorLabel': 'Label',
   'contextMenu.openDetail': 'Open details',
+  'contextMenu.moveToVault': 'Move to private vault',
 
   'workspace.emptyHint': 'Adjust the filter to see photos here.',
   'workspace.tooltip.grid': 'View grid',

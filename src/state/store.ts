@@ -1595,10 +1595,17 @@ export const useStore = create<AppState>((set, get) => ({
     // acelasi motiv ca addPhotosToCollection mai jos: fara originalul persistat,
     // o poza neselectata mutata in vault n-ar avea ce exporta ulterior din el
     await Promise.all(photoIds.map(pid => persistOriginalForCollectionMember(pid)));
+    // Mutarea ASCUNDE poza din grila principala (vezi filtered() — colectia
+    // privata e filtrata cat timp nu e deblocata in sesiune). Fara un mesaj,
+    // gestul arata ca o disparitie inexplicabila, mai ales cand vine din meniul
+    // contextual, unde nu se deschide niciun panou care sa confirme ce s-a
+    // intamplat.
+    const locale = get().locale;
     set(state => ({
       collections: state.collections.some(c => c.id === vault.id)
         ? state.collections.map(c => (c.id === vault.id ? updated : c))
-        : [...state.collections, updated]
+        : [...state.collections, updated],
+      notice: t(locale, plural(photoIds.length, 'store.vault.moved.one', 'store.vault.moved.other'), { count: photoIds.length })
     }));
   },
   removeFromVault: async photoIds => {

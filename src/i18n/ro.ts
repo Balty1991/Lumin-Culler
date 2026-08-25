@@ -410,7 +410,9 @@ export const ro = {
   'vault.lockNow': 'Blochează acum',
   'vault.disable.cta': 'Dezactivează Dosarul privat',
   'vault.disable.confirm': 'Dezactivezi Dosarul privat? Pozele din el revin în galeria normală, vizibile ca oricare altele.',
-  'vault.empty': 'Dosarul privat e gol. Mută poze aici din Protecție documente sau din meniul unei poze.',
+  'vault.empty': 'Dosarul privat e gol. Mută poze aici din Protecție documente sau ținând apăsat pe o poză din bibliotecă.',
+  'store.vault.moved.one': '{count} poză mutată în dosarul privat.',
+  'store.vault.moved.other': '{count} poze mutate în dosarul privat.',
   'vault.count.one': '{count} poză în dosar',
   'vault.count.other': '{count} poze în dosar',
   'vault.removeOne': 'Scoate din Dosarul privat',
@@ -822,6 +824,7 @@ export const ro = {
   'contextMenu.rating': 'Rating',
   'contextMenu.colorLabel': 'Eticheta',
   'contextMenu.openDetail': 'Deschide detalii',
+  'contextMenu.moveToVault': 'Mută în dosarul privat',
 
   'workspace.emptyHint': 'Ajustează filtrul ca să vezi poze aici.',
   'workspace.tooltip.grid': 'Vezi grila',

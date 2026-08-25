@@ -147,3 +147,56 @@ describe('ContextMenu — incadrarea in ecran', () => {
     expect(parseFloat(menu.style.left)).toBe(400 - 224 - 8);
   });
 });
+
+/**
+ * Bug raportat cu captura: dupa ce si-a facut PIN-ul, utilizatorul n-a gasit
+ * dosarul privat cand a vrut sa puna poze in el. Ecranul gol al dosarului il
+ * trimitea "in meniul unei poze", dar acolo nu exista nicio astfel de actiune —
+ * `moveToVault` era apelat DOAR din DocumentShieldPanel. Iconita de folder pe
+ * care a apasat-o era CollectionPicker (albumele obisnuite), care i-a raspuns
+ * "Niciun folder creat inca".
+ */
+describe('ContextMenu — mutarea in dosarul privat', () => {
+  const noop = () => {};
+  const baseProps = {
+    x: 40, y: 40, count: 1, rating: 0, colorLabel: 'none' as const,
+    onSetStatus: noop, onSetRating: noop, onSetColorLabel: noop, onClose: noop
+  };
+
+  beforeEach(() => {
+    useStore.setState({ locale: 'ro', collections: [] });
+    localStorage.clear();
+  });
+
+  it('ofera actiunea in meniul unei poze — exact calea promisa de ecranul gol al dosarului', () => {
+    render(<ContextMenu {...baseProps} photoIds={['p1']} />);
+    expect(screen.getByRole('menuitem', { name: /mută în dosarul privat/i })).toBeInTheDocument();
+  });
+
+  it('fara PIN nu muta nimic, ci trimite intai la configurarea dosarului', () => {
+    const moveToVault = vi.fn(async () => {});
+    const setVaultOpen = vi.fn();
+    const onClose = vi.fn();
+    useStore.setState({ moveToVault, setVaultOpen });
+
+    render(<ContextMenu {...baseProps} photoIds={['p1']} onClose={onClose} />);
+    fireEvent.click(screen.getByRole('menuitem', { name: /mută în dosarul privat/i }));
+
+    // Un folder "privat" fara PIN ar fi deschis de oricine — nu mutam nimic acolo.
+    expect(moveToVault).not.toHaveBeenCalled();
+    expect(setVaultOpen).toHaveBeenCalledWith(true);
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('cu PIN pus, muta toata selectia deodata', () => {
+    // acelasi format ca setVaultPin (sha-256 hex), citit de hasVaultPin
+    localStorage.setItem('lumin-vault-pin-hash', 'a'.repeat(64));
+    const moveToVault = vi.fn(async () => {});
+    useStore.setState({ moveToVault });
+
+    render(<ContextMenu {...baseProps} count={3} photoIds={['p1', 'p2', 'p3']} />);
+    fireEvent.click(screen.getByRole('menuitem', { name: /mută în dosarul privat/i }));
+
+    expect(moveToVault).toHaveBeenCalledWith(['p1', 'p2', 'p3']);
+  });
+});
