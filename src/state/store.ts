@@ -1443,6 +1443,32 @@ let secondaryFilteredCache: {
   result: PhotoView[];
 } | null = null;
 
+/**
+ * Pozele pe care au voie sa le atinga operatiile in masa si exporturile.
+ *
+ * Bug gasit la audit, si e unul de INCREDERE, nu de comoditate: `moveToVault`
+ * nu schimba `status`, iar ascunderea dosarului privat traia exclusiv in
+ * filtered()/secondaryFiltered(). Toate celelalte operatii citeau `photos`
+ * brut, deci:
+ *
+ *  - "Exporta selectia" scotea in ZIP si o poza privata marcata candva
+ *    "Selectata", fara s-o arate si fara s-o numere;
+ *  - "Galerie pentru client" o punea intr-un HTML trimis clientului;
+ *  - "Sterge pozele respinse" o putea sterge FIZIC de pe telefon, desi omul
+ *    n-o vedea in niciun ecran si in niciun contor.
+ *
+ * Regula, de acum: nicio operatie pornita din alta parte nu atinge continutul
+ * dosarului privat, nici macar cand e deblocat in sesiunea curenta. Ce ai
+ * ascuns deliberat se atinge doar din ecranul lui (VaultPanel), unde vezi exact
+ * ce faci. Deblocarea serveste privitului, nu maturatului.
+ */
+function outsideVault(photos: PhotoView[], collections: CollectionRecord[]): PhotoView[] {
+  const vault = collections.find(c => c.isPrivate);
+  if (!vault?.memberIds.length) return photos;
+  const hidden = new Set(vault.memberIds);
+  return photos.filter(p => !hidden.has(p.id));
+}
+
 export const useStore = create<AppState>((set, get) => ({
   photos: [],
   persons: [],
@@ -1822,7 +1848,7 @@ export const useStore = create<AppState>((set, get) => ({
   dismissWelcome: () => { writeWelcomeSeen(); set({ welcomeSeen: true }); },
   runZenResolve: async () => {
     const { zenAutoDeleteObvious, zenAskOnUncertain, locale } = get();
-    const resolutions = resolveGroupsWithConfidence(get().photos);
+    const resolutions = resolveGroupsWithConfidence(outsideVault(get().photos, get().collections));
     const confident = resolutions.filter(r => r.confident);
     const uncertain = resolutions.filter(r => !r.confident);
     if (!confident.length) {
@@ -1880,8 +1906,20 @@ export const useStore = create<AppState>((set, get) => ({
               db.originals.bulkDelete(ids), db.fileHandles.bulkDelete(ids), db.analyses.bulkDelete(ids)
             ]);
             for (const id of ids) { originalFiles.delete(id); originalHandles.delete(id); }
+
+            // Bug gasit la audit: se goleau cele 6 tabele, dar nu si apartenenta
+            // la foldere — un folder din care s-au sters poze continua sa le
+            // numere. Aceeasi omisiune ca pe calea manuala de stergere.
+            const zenCollections = await Promise.all(
+              get().collections.map(async c =>
+                c.memberIds.some(pid => idSet.has(pid))
+                  ? (await removePhotosFromCollectionRecord(c.id, ids)) ?? c
+                  : c
+              )
+            );
+            clearPreviewUrlCache();
             deletedCount = ids.length;
-            set(state => ({ photos: state.photos.filter(p => !idSet.has(p.id)) }));
+            set(state => ({ photos: state.photos.filter(p => !idSet.has(p.id)), collections: zenCollections }));
           }
         } catch {
           // esec de stergere nativa aici nu trebuie sa blocheze restul rezultatului Mod Zen
@@ -2286,7 +2324,7 @@ export const useStore = create<AppState>((set, get) => ({
   exportClientGallery: async () => {
     const locale = get().locale;
     const applyEdits = get().applyEditsInGallery;
-    const selected = get().photos.filter(p => p.status === 'selected');
+    const selected = outsideVault(get().photos, get().collections).filter(p => p.status === 'selected');
     if (!selected.length) { set({ notice: t(locale, 'store.clientGallery.noSelection') }); return; }
     try {
       const thumbnails = await Promise.all(selected.map(p => db.thumbnails.get(p.id)));
@@ -2864,7 +2902,7 @@ export const useStore = create<AppState>((set, get) => ({
     // Protectia se aplica DUPA ce operatia si-a ales tintele — un singur filtru,
     // in acelasi loc, in loc sa fie strecurat in fiecare selector si uitat la
     // urmatorul adaugat. Vezi state/protectedPersons.ts.
-    const targets = excludeProtected(selectBulkRejectTargets(get().photos, threshold), get().protectedPersons);
+    const targets = excludeProtected(selectBulkRejectTargets(outsideVault(get().photos, get().collections), threshold), get().protectedPersons);
     const changes = targets.map(p => ({ photoId: p.id, previousStatus: p.status }));
     const { quotaError } = await applyBulkStatusChanges(
       targets.map(p => ({ id: p.id, status: 'rejected' as const })),
@@ -2913,7 +2951,7 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   resolveAllSeries: async () => {
-    const resolutions = resolveGroups(get().photos);
+    const resolutions = resolveGroups(outsideVault(get().photos, get().collections));
     const protectedForSeries = get().protectedPersons;
     // Bug real gasit de auditul QA (bug/low): un Array.find() pe intreaga lista
     // in interiorul buclei (si al buclei imbricate de rejectIds) era O(n) per
@@ -2960,7 +2998,7 @@ export const useStore = create<AppState>((set, get) => ({
 
   /** Ca si celelalte operatii in masa — reversibila dintr-o data cu Ctrl+Z (batchHistory). */
   autoCullTopPercent: async (percent) => {
-    const { selectIds, rejectIds: rawRejectIds } = selectTopPercent(get().photos, percent);
+    const { selectIds, rejectIds: rawRejectIds } = selectTopPercent(outsideVault(get().photos, get().collections), percent);
     // Doar RESPINGERILE se filtreaza: a scoate o poza protejata si din lista de
     // pastrate ar fi absurd — protectia inseamna "nu o arunca", nu "nu o atinge".
     const protectedNames = get().protectedPersons;
@@ -3048,7 +3086,7 @@ export const useStore = create<AppState>((set, get) => ({
 
   deleteRejectedPhotos: async () => {
     const locale = get().locale;
-    const { deletable, skippedCount } = selectDeletableRejected(get().photos);
+    const { deletable, skippedCount } = selectDeletableRejected(outsideVault(get().photos, get().collections));
     if (!deletable.length) return { deleted: 0, skipped: skippedCount, cancelled: false };
     if (!isNativeMediaLibraryAvailable()) return { deleted: 0, skipped: skippedCount + deletable.length, cancelled: false };
 
@@ -3101,6 +3139,24 @@ export const useStore = create<AppState>((set, get) => ({
     ]);
     for (const id of ids) { originalFiles.delete(id); originalHandles.delete(id); }
 
+
+    // Bug gasit la audit: se goleau cele 6 tabele, dar nu si apartenenta la
+    // foldere. Un folder din care ai sters 10 din 30 de poze continua sa scrie
+    // "30 poze", iar butonul de export ramanea aprins pe un folder care putea fi
+    // gol — exportul raportand apoi "N lipsa". `cleanupOrphanedOriginal` era deja
+    // chemat corect la scoaterea MANUALA dintr-un folder; doar calea de stergere
+    // il ocolea.
+    const withoutDeleted = await Promise.all(
+      get().collections.map(async c =>
+        c.memberIds.some(pid => idSet.has(pid))
+          ? (await removePhotosFromCollectionRecord(c.id, ids)) ?? c
+          : c
+      )
+    );
+    // Obiect-URL-urile pozelor sterse ar tine vii blob-uri care nu mai exista in
+    // Dexie — pana la 40 de preview-uri agatate degeaba.
+    clearPreviewUrlCache();
+
     // Se scad din acelasi buget de 150 ca exporturile — vezi plafonul de mai sus.
     recordPhotosUsed(ids.length);
 
@@ -3109,6 +3165,7 @@ export const useStore = create<AppState>((set, get) => ({
     const skippedNotice = totalSkipped > 0 ? t(locale, 'store.deleteRejected.skippedPart', { skipped: totalSkipped }) : '';
     set(state => ({
       photos: state.photos.filter(p => !idSet.has(p.id)),
+      collections: withoutDeleted,
       detailId: state.detailId && idSet.has(state.detailId) ? null : state.detailId,
       multiSelectIds: new Set([...state.multiSelectIds].filter(id => !idSet.has(id))),
       notice: deletedNotice + skippedNotice
@@ -3434,7 +3491,12 @@ export const useStore = create<AppState>((set, get) => ({
     // vezi selectMergedEmbeddings mai sus pentru motivul pentru care nu mai e o
     // simpla concatenare + tail-slice (bug real gasit de auditul QA)
     const merged = selectMergedEmbeddings(toMerge.map(p => p.embeddings), MAX_PERSON_EMBEDDINGS);
-    const survivor: KnownPerson = { id: toMerge[0].id, name: keepName.trim() || toMerge[0].name, embeddings: merged, updatedAt: Date.now() };
+    // enrolledAt: cel mai VECHI dintre profilurile unite. Fara el, persoana
+    // rezultata devenea "cea mai noua" in clasamentul din activePersons.ts si
+    // putea fi impinsa in afara celor active la gratuit — desi utilizatorul doar
+    // a unit doua profiluri pe care le avea de mult.
+    const oldestEnrolled = Math.min(...toMerge.map(p => p.enrolledAt ?? p.updatedAt));
+    const survivor: KnownPerson = { id: toMerge[0].id, name: keepName.trim() || toMerge[0].name, embeddings: merged, updatedAt: Date.now(), enrolledAt: oldestEnrolled };
     // Aceleasi 3 scrieri (persons.put, persons.bulkDelete, relabelAnalyses) intr-o
     // singura tranzactie — o intrerupere la mijloc putea lasa supravietuitorul scris
     // dar profilurile unite nesterse, sau fete inca legate de un id deja disparut.
@@ -3498,9 +3560,19 @@ export const useStore = create<AppState>((set, get) => ({
     if (!trimmedName || !members.length) return;
     const newEmbeddings = members.map(m => m.embedding);
     const existing = get().persons.find(p => p.name.trim().toLowerCase() === trimmedName.toLowerCase());
+    // Aceeasi poarta ca in addPerson. Bug gasit la audit: inrolarea dintr-un
+    // cluster sugerat de AI n-o avea deloc, deci plafonul se ocolea pe aici.
+    // Efectul vizibil era si mai derutant decat un simplu ocol: profilul se
+    // crea, dar ramanea DORMANT (vezi selectActivePersons), deci recunoasterea
+    // nu-l folosea niciodata — iar omul nu primea nici mesajul de plafon, nici
+    // panoul Premium. Adica "am adaugat-o si nu face nimic", fara explicatie.
+    if (!existing && !canEnrollAnotherPersonFree(get().persons.length) && isCapEnforced()) {
+      set({ premiumOpen: true, notice: t(get().locale, 'store.addPerson.capBlocked', { limit: FREE_ENROLLED_PERSONS }) });
+      return;
+    }
     const person: KnownPerson = existing
       ? { ...existing, embeddings: [...existing.embeddings, ...newEmbeddings].slice(-MAX_PERSON_EMBEDDINGS), updatedAt: Date.now() }
-      : { id: crypto.randomUUID(), name: trimmedName, embeddings: newEmbeddings.slice(-MAX_PERSON_EMBEDDINGS), updatedAt: Date.now() };
+      : { id: crypto.randomUUID(), name: trimmedName, embeddings: newEmbeddings.slice(-MAX_PERSON_EMBEDDINGS), updatedAt: Date.now(), enrolledAt: Date.now() };
 
     // re-eticheteaza RETROACTIV exact fetele din cluster (identificate prin
     // faceIndex, stabil - nu prin embedding, care s-ar putea sa nu compare
@@ -3650,7 +3722,7 @@ export const useStore = create<AppState>((set, get) => ({
 
   /** Exporta pozele selectate ca fisiere reale, in formatul original (JPEG/PNG/etc), grupate pe subfoldere. */
   exportSelection: async (destination = 'auto') => {
-    const allPhotos = get().photos;
+    const allPhotos = outsideVault(get().photos, get().collections);
     const selected = allPhotos.filter(p => p.status === 'selected');
     if (!selected.length) return;
     // Plafonul opreste exportul DOAR cand exista o cale reala de plata (vezi
@@ -3739,7 +3811,7 @@ export const useStore = create<AppState>((set, get) => ({
   exportCollection: async id => {
     const locale = get().locale;
     const collection = get().collections.find(c => c.id === id);
-    const allPhotos = get().photos;
+    const allPhotos = outsideVault(get().photos, get().collections);
     const memberSet = new Set(collection?.memberIds ?? []);
     const members = allPhotos.filter(p => memberSet.has(p.id));
     if (!members.length) { set({ notice: t(locale, 'collections.export.empty') }); return; }
@@ -3811,7 +3883,7 @@ export const useStore = create<AppState>((set, get) => ({
 
   /** Lista JSON cu numele fisierelor selectate — util pentru selectie-dupa-nume in Lightroom. */
   exportManifest: async () => {
-    const selected = get().photos.filter(p => p.status === 'selected');
+    const selected = outsideVault(get().photos, get().collections).filter(p => p.status === 'selected');
     const payload = {
       exportedAt: new Date().toISOString(),
       count: selected.length,
@@ -3855,7 +3927,7 @@ export const useStore = create<AppState>((set, get) => ({
    */
   exportXMP: async () => {
     if (get().gatePremium()) return;
-    const allPhotos = get().photos;
+    const allPhotos = outsideVault(get().photos, get().collections);
     const decided = allPhotos.filter(p => p.status !== 'pending');
     const locale = get().locale;
     if (!decided.length) { set({ notice: t(locale, 'store.exportXmp.noDecided') }); return; }

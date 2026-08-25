@@ -4,7 +4,7 @@ import { useStore } from '../state/store';
 import { buildMomentStacks, momentOf } from '../core/momentStacks';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import {
-  computeAutoAdjustments, drawAdjusted, isNeutral, NEUTRAL_ADJUSTMENTS,
+  computeAutoAdjustments, drawAdjusted, isNeutral, NEUTRAL_ADJUSTMENTS, outputSize,
   originalToCanvas, canvasToOriginal, cropRadiusScale,
   type EditAdjustments, type NumericAdjustmentKey
 } from '../core/imageAdjust';
@@ -216,6 +216,13 @@ export function EditPanel() {
 
   const applyToMoment = async () => {
     if (!photo) return;
+    // Bug gasit la audit: actiunea din store citeste `edits` din baza, iar
+    // commit() amana scrierea cu 400 ms. Cine trage un slider si apasa imediat
+    // "Aplica la inca N" copia fie valorile de acum 400 ms, fie — pe o poza
+    // needitata pana atunci — nimic, cu `{ applied: 0 }` si zero reactie
+    // vizibila. applyAuto/resetAll/applyCrop faceau deja flush explicit; doar
+    // calea asta fusese uitata.
+    flushPersist();
     await applyEditsToMoment(photo.id, momentSiblings);
   };
   useModalFocusTrap(containerRef, !!photo);
@@ -544,15 +551,20 @@ export function EditPanel() {
     const canvas = canvasRef.current;
     if (!canvas || !imgEl) return;
     const maxSide = lowRes ? EDIT_PREVIEW_DRAG_SIDE : EDIT_PREVIEW_MAX_SIDE;
-    const scale = Math.min(1, maxSide / Math.max(imgEl.naturalWidth, imgEl.naturalHeight));
-    canvas.width = Math.max(1, Math.round(imgEl.naturalWidth * scale));
-    canvas.height = Math.max(1, Math.round(imgEl.naturalHeight * scale));
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     const base = showingBefore
       ? { ...NEUTRAL_ADJUSTMENTS, crop: adj.crop, rotationDeg: adj.rotationDeg }
       : adj;
     const drawn = cropModeActive ? { ...base, crop: undefined } : base;
+    // Panza urmeaza raportul a CE SE DESENEAZA — altfel un crop 1:1 pe o poza
+    // 4:3 ar fi intins, nu taiat (vezi outputSize()). Se citeste din `drawn`,
+    // nu din `adj`: in modul decupare se deseneaza intentionat fara crop, ca sa
+    // se vada tot cadrul sub caseta, deci acolo panza ramane pe raportul
+    // originalului.
+    const outSize = outputSize(imgEl.naturalWidth, imgEl.naturalHeight, drawn, maxSide);
+    canvas.width = outSize.width;
+    canvas.height = outSize.height;
     drawAdjusted(ctx, imgEl, imgEl.naturalWidth, imgEl.naturalHeight, canvas.width, canvas.height, drawn);
     // Histograma NU se recalculeaza in timpul tragerii: getImageData peste tot
     // canvasul e cea mai scumpa operatie din cadru, iar setarea starii ar
@@ -592,12 +604,12 @@ export function EditPanel() {
       const canvas = canvasRef.current;
       if (!canvas) return;
       const maxSide = interacting ? EDIT_PREVIEW_DRAG_SIDE : EDIT_PREVIEW_MAX_SIDE;
-      const scale = Math.min(1, maxSide / Math.max(imgEl.naturalWidth, imgEl.naturalHeight));
-      canvas.width = Math.max(1, Math.round(imgEl.naturalWidth * scale));
-      canvas.height = Math.max(1, Math.round(imgEl.naturalHeight * scale));
       const ctx = canvas.getContext('2d');
       const base = showingBefore ? { ...NEUTRAL_ADJUSTMENTS, crop: adjustments.crop, rotationDeg: adjustments.rotationDeg } : adjustments;
       const drawn = cropModeActive ? { ...base, crop: undefined } : base;
+      const outSize = outputSize(imgEl.naturalWidth, imgEl.naturalHeight, drawn, maxSide);
+      canvas.width = outSize.width;
+      canvas.height = outSize.height;
       if (ctx) {
         drawAdjusted(ctx, imgEl, imgEl.naturalWidth, imgEl.naturalHeight, canvas.width, canvas.height, drawn);
         // Histograma NU se recalculeaza in timpul tragerii: getImageData peste

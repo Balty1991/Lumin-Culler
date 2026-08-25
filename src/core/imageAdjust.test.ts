@@ -3,7 +3,7 @@ import {
   computeAutoContrast, computeAutoExposureFromScore, computeAutoHighlightsShadows,
   computeAutoCrop, computeAutoStraighten, computeAutoSaturation, isNeutral, NEUTRAL_ADJUSTMENTS,
   applyDetailPass, applyVignette, originalToCanvas, canvasToOriginal, cropRadiusScale,
-  type AutoAdjustSignals, type EditAdjustments, computeAutoFaceExposure, computeAutoAdjustments, computeAutoBacklight, computeAutoToneCurve,
+  type AutoAdjustSignals, type EditAdjustments, computeAutoFaceExposure, computeAutoAdjustments, computeAutoBacklight, computeAutoToneCurve, outputSize,
   computeAutoWhiteBalance, computeAutoLevels, computeAutoVibrance, computeAutoToneRecovery } from './imageAdjust';
 
 function makeImage(w: number, h: number, paint: (x: number, y: number) => [number, number, number]): ImageData {
@@ -841,5 +841,61 @@ describe('Auto trimite punch-ul in curba, nu in contrastul global', () => {
 
     const auto = computeAutoAdjustments(document.createElement('canvas'), 100, 100, {});
     expect(auto.contrast).toBe(Math.max(0, brut - 22));
+  });
+});
+
+/**
+ * Bug gasit la audit: toate cele trei cai de randare isi faceau panza la
+ * dimensiunea ORIGINALULUI, iar drawGeometry mapeaza regiunea de decupare peste
+ * toata panza — deci un crop cu alt raport nu decupa, INTINDEA. Inclusiv in
+ * fisierul exportat.
+ *
+ * N-a prins-o niciun test fiindca `computeAutoCrop` produce mereu o decupare cu
+ * acelasi raport ca originalul, si doar el era acoperit. Presetarile de raport
+ * exista tocmai ca sa schimbe raportul.
+ */
+describe('outputSize — panza urmeaza raportul decuparii', () => {
+  it('fara decupare, ramane exact originalul', () => {
+    expect(outputSize(4000, 3000, {})).toEqual({ width: 4000, height: 3000 });
+  });
+
+  it('un crop 1:1 pe o poza 4:3 da o panza PATRATA, nu una 4:3', () => {
+    // 3000/4000 = 0.75 din latime, toata inaltimea => 3000x3000
+    const out = outputSize(4000, 3000, { crop: { x: 0.125, y: 0, width: 0.75, height: 1 } });
+    expect(out.width).toBe(out.height);
+    expect(out).toEqual({ width: 3000, height: 3000 });
+  });
+
+  it('un crop 16:9 pe o poza 4:3 da o panza lata', () => {
+    const out = outputSize(4000, 3000, { crop: { x: 0, y: 0.125, width: 1, height: 0.75 } });
+    expect(out).toEqual({ width: 4000, height: 2250 });
+    expect(out.width / out.height).toBeCloseTo(16 / 9, 2);
+  });
+
+  it('o decupare libera care schimba doar latimea nu mai intinde nimic', () => {
+    const out = outputSize(4000, 3000, { crop: { x: 0, y: 0, width: 0.5, height: 1 } });
+    expect(out).toEqual({ width: 2000, height: 3000 });
+  });
+
+  it('maxSide micsoreaza pastrand raportul DECUPARII', () => {
+    const out = outputSize(4000, 3000, { crop: { x: 0.125, y: 0, width: 0.75, height: 1 } }, 768);
+    expect(out).toEqual({ width: 768, height: 768 });
+  });
+
+  it('maxSide nu mareste o poza deja mica', () => {
+    expect(outputSize(400, 300, {}, 768)).toEqual({ width: 400, height: 300 });
+  });
+
+  it('o decupare minuscula tot da cel putin un pixel', () => {
+    const out = outputSize(4000, 3000, { crop: { x: 0, y: 0, width: 0.00001, height: 0.00001 } });
+    expect(out.width).toBeGreaterThanOrEqual(1);
+    expect(out.height).toBeGreaterThanOrEqual(1);
+  });
+
+  // computeAutoCrop pastreaza raportul — de-aia bug-ul a stat ascuns.
+  it('decuparea automata ramane, ca inainte, la raportul originalului', () => {
+    const crop = computeAutoCrop({ faceCount: 1, ruleOfThirds: 0.1, faces: [{ box: [0.45, 0.45, 0.1, 0.1] }] })!;
+    const out = outputSize(4000, 3000, { crop });
+    expect(out.width / out.height).toBeCloseTo(4000 / 3000, 2);
   });
 });

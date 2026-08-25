@@ -1042,8 +1042,27 @@ export class FaceAnalysisService {
   /**
    * Analyze one photo. The ImageBitmap MUST be sent as a transferable
    * (Comlink.transfer) — zero copy, and it is closed here after use.
+   *
+   * Inchiderea sta intr-un `finally`, si asta e reparatia unui bug gasit la
+   * audit: bitmapul e TRANSFERAT in worker, deci nimeni din afara nu-l mai
+   * poate inchide. Cand `human.detect()` arunca fara sa fie timeout (context
+   * WebGL pierdut, tensor invalid), worker-ul supravietuieste si nu e
+   * respawnat — dar cei ~16 MB ai unui cadru de 2048px ramaneau agatati pana
+   * la GC, la fiecare esec. `importFiles` trece corect peste poza cazuta si
+   * merge mai departe, deci memoria crestea in tacere pe importurile mari.
+   *
+   * `close()` e idempotent, deci inchiderea timpurie de dinaintea maparii
+   * ramane unde e — acolo elibereaza memoria mai devreme, ceea ce conteaza.
    */
   async analyze(photoId: string, bitmap: ImageBitmap): Promise<AnalysisRecord> {
+    try {
+      return await this.analyzeBitmap(photoId, bitmap);
+    } finally {
+      bitmap.close();
+    }
+  }
+
+  private async analyzeBitmap(photoId: string, bitmap: ImageBitmap): Promise<AnalysisRecord> {
     if (!this.human) throw new Error('FaceAnalysisService not initialized — call init() first');
 
     // Global metrics on a small downsample (cheap, still in this worker)

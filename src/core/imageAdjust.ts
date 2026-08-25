@@ -116,6 +116,44 @@ const MAX_ROTATION_DEG = 8;
  * colt minuscul din imagine — un preview aparent "spart", zoomat gresit intr-o
  * portiune mica si neclara a cadrului, exact ca in captura primita.
  */
+/**
+ * Cat de mare trebuie sa fie panza pe care se deseneaza o poza cu ajustarile
+ * date — adica, in practica, ce RAPORT are rezultatul.
+ *
+ * Bug gasit la audit, sever si tacut: toate cele trei cai de randare
+ * (previzualizarea din editor, repictarea din rAF, si `applyAdjustmentsToBlob`,
+ * care produce FISIERUL EXPORTAT) isi faceau panza la dimensiunea originalului.
+ * `drawGeometry` mapeaza apoi regiunea de decupare peste toata panza, deci un
+ * crop cu alt raport decat originalul nu decupa: INTINDEA.
+ *
+ * Concret: o poza 4000x3000, presetarea "1:1". Caseta desenata peste imagine
+ * arata corect (matematica din cropMath.ts e buna), dar la "Aplica" patratul
+ * era intins pe orizontala cu 33%, iar fisierul exportat ramanea 4:3. La fel
+ * pentru 4:5, 3:4, 16:9 si pentru orice decupare libera care schimba raportul.
+ *
+ * De ce n-a sarit in ochi si de ce n-a prins-o niciun test: `computeAutoCrop`
+ * produce mereu o decupare cu ACELASI raport ca originalul (w = h = scale in
+ * coordonate normalizate), iar el era singurul acoperit de teste. Presetarile
+ * de raport exista tocmai ca sa schimbe raportul — pe ele nu trecea nimeni.
+ *
+ * `maxSide` limiteaza latura lunga (previzualizare), pastrand raportul DECUPARII.
+ */
+export function outputSize(
+  sourceWidth: number,
+  sourceHeight: number,
+  a: Pick<EditAdjustments, 'crop'>,
+  maxSide?: number
+): { width: number; height: number } {
+  const crop = a.crop;
+  const w = crop ? crop.width * sourceWidth : sourceWidth;
+  const h = crop ? crop.height * sourceHeight : sourceHeight;
+  const scale = maxSide ? Math.min(1, maxSide / Math.max(w, h)) : 1;
+  return {
+    width: Math.max(1, Math.round(w * scale)),
+    height: Math.max(1, Math.round(h * scale))
+  };
+}
+
 function drawGeometry(ctx: CanvasRenderingContext2D, source: CanvasImageSource, sourceWidth: number, sourceHeight: number, destWidth: number, destHeight: number, a: EditAdjustments): void {
   const rotationDeg = clampRange(a.rotationDeg ?? 0, -MAX_ROTATION_DEG, MAX_ROTATION_DEG);
   const crop = a.crop;
@@ -1354,8 +1392,11 @@ export async function applyAdjustmentsToBlob(blob: Blob, adjustments: EditAdjust
   const bitmap = await createImageBitmap(blob);
   try {
     const canvas = document.createElement('canvas');
-    canvas.width = bitmap.width;
-    canvas.height = bitmap.height;
+    // Nu bitmap.width/height: la o decupare cu alt raport, panza de marimea
+    // originalului ar INTINDE regiunea in loc s-o taie. Vezi outputSize().
+    const out = outputSize(bitmap.width, bitmap.height, adjustments);
+    canvas.width = out.width;
+    canvas.height = out.height;
     const ctx = canvas.getContext('2d');
     if (!ctx) return blob;
     drawAdjusted(ctx, bitmap, bitmap.width, bitmap.height, canvas.width, canvas.height, adjustments);
