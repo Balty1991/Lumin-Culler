@@ -19,90 +19,89 @@ Lumin Culler Pro
 
 ### Descriere scurta (max 80 caractere)
 ```
-Culling foto AI, 100% local: alege rapid cele mai bune poze din sedinte
+Sute de poze, triate în minute. AI pe telefon, fără upload, fără cont.
 ```
-(71 caractere)
+(70 caractere)
 
 ### Descriere lunga (max 4000 caractere)
 ```
-Lumin Culler Pro e o aplicatie de sortare si selectie a fotografiilor (culling):
-te intorci dintr-o vacanta, o petrecere sau o sedinta foto cu sute sau mii de
-poze pe telefon si nu vrei sa pierzi ore alegand manual cele mai bune cadre.
+Te-ai întors cu 800 de poze și nu ai chef să le treci una câte una.
 
-Toata inteligenta artificiala ruleaza DIRECT PE TELEFON. Nicio poza, nicio fata
-si nicio metadata nu parasesc vreodata dispozitivul tau — nu exista upload catre
-niciun server, nu exista cont obligatoriu, nu exista reclame sau tracking.
+Lumin Culler le trece în locul tău: găsește duplicatele, adună rafalele,
+dă fiecărui cadru un scor și îți spune de ce. Tu confirmi. Nimic nu se
+șterge fără acordul tău.
 
-CE FACE APLICATIA
+Toată analiza rulează pe telefonul tău. Nicio poză, niciun chip și niciun
+fel de date nu pleacă de pe dispozitiv — fără upload, fără cont, fără
+reclame, fără urmărire.
 
-• Analiza AI reala a fetelor — detectie cu retele neuronale (nu simulare):
-  zambete, ochi deschisi sau inchisi, calitatea generala a cadrului.
+CE FACE
 
-• Compozitie foto calculata geometric — regula treimilor, spatiul deasupra
-  capului (headroom) si alte criterii calculate din pozitia reala a subiectului
-  in cadru, nu presupuse.
+• Găsește seriile și duplicatele. Din douăzeci de cadre aproape identice
+  îți propune direct pe cel bun, cu celelalte la un tap distanță.
 
-• Recunoastere persoane cunoscute — inrolezi cateva poze de referinta pentru
-  familie, prieteni sau clienti recurenti, iar aplicatia deosebeste automat
-  pozele cu ei de cele cu straini.
+• Dă un scor și îl explică. Claritate, expunere, compoziție, ochi
+  deschiși, zâmbet, contact vizual — cu ecranul „De ce acest scor", unde
+  vezi ce a cântărit în favoarea cadrului și ce împotriva lui.
 
-• Motor de invatare personalizat — fiecare decizie ta (Selecteaza/Respinge)
-  antreneaza un model care invata exact preferintele tale: poate un portret
-  usor subexpus iti place dramatic, dar la peisaje preferi lumina puternica.
-  Aplicatia retine asta separat, pe tip de scena.
+• Învață cum alegi TU. Fiecare decizie antrenează un model care reține
+  separat, pe tip de scenă: poate la portret îți place puțin subexpus, dar
+  la peisaj vrei lumină plină. După câteva zeci de decizii, scorul începe
+  să semene cu gustul tău, nu cu un manual.
 
-• Grupare automata a seriilor si duplicatelor — dintr-o rafala de 20 de cadre
-  aproape identice, iti propune direct cel mai bun.
+• Recunoaște oamenii tăi. Înrolezi câteva poze de referință pentru copil,
+  familie sau clienți, și aplicația deosebește cadrele cu ei de restul.
 
-• Functioneaza cu mii de poze fara sa se blocheze — procesarea ruleaza pe mai
-  multe fire in paralel, fara sa incarce toata biblioteca in memorie deodata.
+• Editor complet, în aceeași aplicație. Expunere, culoare, curbe, editare
+  selectivă pe zone, retuș, decupare. Plus un buton Auto care judecă
+  subiectul, nu histograma — pe o poză în contralumină ridică omul, nu
+  întunecă tot cadrul ca să salveze un cer oricum ars.
 
-• Export flexibil — poze selectate in formatul original (fara pierdere de
-  calitate), liste pentru Adobe Lightroom, galerie HTML pentru clienti,
-  redenumire in masa dupa sabloane personalizate. Fisierele XMP cu metadate
-  fac parte din Premium (vezi mai jos).
+• Separă ce nu e amintire. Capturi de ecran, documente, poze la ambalaje
+  și facturi — scoase din drum, ca să nu-ți ceară o decizie de fotografie.
 
-• Operatii in masa — Auto-Cull dupa procent, respinge sub un prag de scor,
-  presetari salvate per tip de sedinta (nunta, portret, eveniment...).
+• Predă mai departe. Export în format original, fișiere XMP pentru
+  Lightroom, planșă de contact, galerie HTML pentru client, redenumire în
+  masă.
 
-• Editari de baza optionale — expunere, contrast, culoare — inainte de export.
+• Merge pe mii de poze. Procesare pe mai multe fire, fără să încarce
+  biblioteca în memorie.
 
-PENTRU CINE E
+PENTRU CINE
 
-Pentru oricine se trezeste cu sute de poze dupa o iesire — parinti care
-fotografiaza copiii, calatori, oameni de la evenimente — la fel de bine ca
-pentru fotografi profesionisti si amatori pasionati (nunti, evenimente,
-portrete, sport, peisaj). Un instrument rapid, privat si inteligent care
-invata cum alegi TU, in loc sa aplice o formula generica pentru toata lumea.
+Pentru oricine se trezește cu sute de poze după o ieșire — părinți,
+călători, oameni de la evenimente. Și pentru fotografi de nuntă, portret
+sau eveniment, care predau o selecție și lucrează în Lightroom.
 
-GRATUIT SI PREMIUM
+CE E GRATUIT
 
-Sortarea in sine e gratuita si nelimitata: importi oricate poze, primesti
-scorul AI, sortarea, gruparea seriilor si compararea cadrelor, fara plafon si
-fara cont.
+Triajul, tot. Import fără plafon, scor AI, sortare, grupare, comparare de
+serii — oricâte poze, fără cont.
 
-Abonamentul Premium (optional, lunar, prin Google Play) ridica plafonul pe
-pozele SCOASE din aplicatie si deblocheaza fluxul profesional:
+Premium ridică plafonul pe pozele SCOASE din aplicație și deblochează
+fluxul profesional:
 
-• Gratuit: 150 de poze scoase din aplicatie la fiecare 30 de zile (exportate
-  sau sterse din telefon), o persoana recunoscuta inrolata.
-• Premium: export si stergere nelimitate, oricate persoane recunoscute, plus
-  fisiere XMP pentru Lightroom, plansa de contact, dosar privat, recap lunar,
-  prezentare, calatorii si sugestia de combinare a doua cadre.
+• Gratuit: 150 de poze scoase la fiecare 30 de zile (exportate sau șterse
+  de pe telefon), o persoană recunoscută.
+• Premium: export și ștergere nelimitate, oricâte persoane, plus XMP
+  pentru Lightroom, planșă de contact, dosar privat cu PIN, recap lunar,
+  prezentare, locații și sugestia de combinare a două cadre.
 
-Pretul se vede in aplicatie, in moneda contului tau. Abonamentul se reinnoieste
-automat pana il anulezi din Google Play > Meniu > Abonamente; anularea are efect
-la finalul perioadei deja platite.
+Prețul se vede în aplicație, în moneda contului tău. Abonamentul se
+reînnoiește automat până îl anulezi din Google Play → Meniu → Abonamente;
+anularea are efect la finalul perioadei deja plătite.
 
-CONFIDENTIALITATE
+CONFIDENȚIALITATE
 
-Citeste politica noastra completa de confidentialitate in aplicatie sau la
-adresa indicata in fisa aplicatiei. Pe scurt: procesare 100% locala, fara
-reclame, fara servicii de analytics/tracking ale unor terti.
+Procesare integral locală. Fără reclame, fără analytics, fără servicii de
+urmărire ale unor terți. Politica completă e în aplicație.
 ```
 
-Numar caractere descriere lunga: verifica in Play Console la lipire (variaza usor
-dupa cum sunt normalizate liniile goale) — sub 4000, cu rezerva confortabila.
+Numar caractere descriere lunga: 2937 din 4000.
+
+ATENTIE: textul de mai sus are DIACRITICE. Versiunea publicata initial nu avea,
+si se vedea imediat in fisa din magazin ("aplicatie de sortare si selectie a
+fotografiilor", "gandita pentru fotografi"). Orice editare viitoare le pastreaza.
 
 ---
 
