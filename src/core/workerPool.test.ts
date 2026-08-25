@@ -4,8 +4,12 @@ import { computeWorkerCount, withTimeout } from './workerPool';
 let nativePlatform = false;
 /** Testul fixeaza un dispozitiv cu 6 nuclee: plafonul adaptiv nativ trebuie sa fie 3. */
 const NATIVE_NORMAL_CONCURRENCY = 3;
+// registerPlugin: workerPool filtreaza acum persoanele active (vezi
+// setKnownPersons), iar lantul ala trece prin entitlement.ts, care inregistreaza
+// pluginul de facturare la incarcarea modulului.
 vi.mock('@capacitor/core', () => ({
-  Capacitor: { isNativePlatform: () => nativePlatform, isPluginAvailable: () => true }
+  Capacitor: { isNativePlatform: () => nativePlatform, isPluginAvailable: () => true },
+  registerPlugin: () => ({})
 }));
 
 const analyzeNativeMock = vi.fn();

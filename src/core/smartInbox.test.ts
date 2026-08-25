@@ -91,3 +91,57 @@ describe('countNonPersonal', () => {
     expect(buildSmartInbox(photos).flatMap(g => g.ids)).toHaveLength(2);
   });
 });
+
+/**
+ * Bug raportat cu captura: poze la cutia unei lampi LED si la cutia unei
+ * telecomenzi ajunsesera in banda "COMPARA ATENT", adica aplicatia cerea sa
+ * fie comparate cu alternativele lor, ca doua cadre dintr-o sedinta.
+ */
+describe('lucruri, nu momente', () => {
+  const baza = { id: 'x', fileName: 'IMG_2026.jpg', faceCount: 0 };
+
+  it('o cutie de produs nu mai trece drept amintire', () => {
+    expect(classifyPhoto({
+      ...baza, textCoverage: 0.18, sceneTags: ['box', 'packaging', 'electronics']
+    })).toBe('object');
+  });
+
+  it('nici cu putin text, daca etichetele spun clar ca e un lucru', () => {
+    expect(classifyPhoto({
+      ...baza, textCoverage: 0.07, sceneTags: ['remote control', 'device']
+    })).toBe('object');
+  });
+
+  // Ramura care exista dinainte, si care trebuie sa ramana intacta: etichetele
+  // de fiinta/scena salveaza o poza reala care se intampla sa aiba text in ea.
+  it('un caine langa un panou ramane amintire', () => {
+    expect(classifyPhoto({
+      ...baza, textCoverage: 0.2, sceneTags: ['dog', 'grass', 'park']
+    })).toBe('personal');
+  });
+
+  it('o pagina scrisa ramane document, nu lucru', () => {
+    expect(classifyPhoto({ ...baza, textCoverage: 0.4 })).toBe('document');
+  });
+
+  it('o fata bate orice eticheta de obiect', () => {
+    expect(classifyPhoto({
+      ...baza, faceCount: 1, textCoverage: 0.3, sceneTags: ['box', 'packaging']
+    })).toBe('personal');
+  });
+
+  it('o poza fara text si fara etichete ramane amintire', () => {
+    expect(classifyPhoto({ ...baza })).toBe('personal');
+  });
+
+  it('buildSmartInbox scoate lucrurile ca grup separat', () => {
+    const grupuri = buildSmartInbox([
+      { ...baza, id: 'cutie', textCoverage: 0.18, sceneTags: ['box', 'label'] },
+      { ...baza, id: 'pagina', textCoverage: 0.4 },
+      { ...baza, id: 'copil', faceCount: 1 }
+    ]);
+    expect(grupuri.find(g => g.category === 'object')?.ids).toEqual(['cutie']);
+    expect(grupuri.find(g => g.category === 'document')?.ids).toEqual(['pagina']);
+    expect(grupuri.some(g => g.ids.includes('copil'))).toBe(false);
+  });
+});

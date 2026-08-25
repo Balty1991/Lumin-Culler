@@ -15,6 +15,7 @@ import { readSavedFilters, writeSavedFilters, type SavedFilterPreset } from './s
 import { applyAdjustmentsToBlob, isNeutral, type EditAdjustments } from '../core/imageAdjust';
 import { readApplyEditsInGallery, writeApplyEditsInGallery } from './applyEditsPreference';
 import { readProMode, writeProMode } from './proMode';
+import { readActiveFilter, writeActiveFilter } from './activeFilter';
 import type { QuickScanResult } from '../core/quickDuplicateScan';
 import { clearPreviewUrlCache } from '../core/previewUrlCache';
 import {
@@ -1448,7 +1449,10 @@ export const useStore = create<AppState>((set, get) => ({
   collections: [],
   progress: null,
   importCancelling: false,
-  filter: 'all',
+  // Nu 'all': Android omoara WebView-ul aplicatiilor din fundal, Capacitor
+  // reincarca pagina la revenire, si fara asta omul se intorcea de fiecare data
+  // in alt loc decat il lasase. Vezi state/activeFilter.ts.
+  filter: readActiveFilter(),
   personFilter: null,
   projectFilter: null,
   setProjectFilter: project => set({ projectFilter: project }),
@@ -3144,7 +3148,12 @@ export const useStore = create<AppState>((set, get) => ({
     multiSelectAnchor: on ? state.multiSelectAnchor : null
   })),
 
-  revealInGrid: ids => set({
+  revealInGrid: ids => {
+    // "Arata in grila" trebuie sa poata arata ORICE poza, deci filtrul cade pe
+    // 'all' — si se si salveaza, altfel valoarea pastrata ar ramane in urma
+    // fata de ce vede omul pe ecran.
+    writeActiveFilter('all');
+    return set({
     // Tab-urile Albume/Persoane si meniul acopera grila: fara asta, selectia
     // s-ar face in spatele panoului din care tocmai s-a apasat.
     collectionsOpen: false,
@@ -3155,7 +3164,8 @@ export const useStore = create<AppState>((set, get) => ({
     selectMode: true,
     multiSelectIds: new Set(ids),
     multiSelectAnchor: ids.length ? ids[ids.length - 1] : null
-  }),
+    });
+  },
 
   /** Ca si celelalte operatii in masa — reversibila dintr-o data cu Ctrl+Z (batchHistory). */
   bulkSetStatusForSelection: async status => {
@@ -3274,8 +3284,9 @@ export const useStore = create<AppState>((set, get) => ({
     }));
   },
 
-  setFilter: f => set({ filter: f }),
+  setFilter: f => { writeActiveFilter(f); set({ filter: f }); },
   startQuickReview: () => {
+    writeActiveFilter('review');
     set({ filter: 'review' });
     get().setWorkspaceMode(true);
   },
@@ -3375,7 +3386,7 @@ export const useStore = create<AppState>((set, get) => ({
         set({ premiumOpen: true });
         return { ok: false, message: t(get().locale, 'store.addPerson.capBlocked', { limit: FREE_ENROLLED_PERSONS }) };
       }
-      person = { id: crypto.randomUUID(), name: trimmedName, embeddings, updatedAt: Date.now() };
+      person = { id: crypto.randomUUID(), name: trimmedName, embeddings, updatedAt: Date.now(), enrolledAt: Date.now() };
       const premiumSuffix = canEnrollAnotherPersonFree(get().persons.length)
         ? ''
         : ' ' + t(get().locale, 'store.addPerson.premiumHint');
@@ -3467,7 +3478,7 @@ export const useStore = create<AppState>((set, get) => ({
           person = { ...existing, embeddings: combined, updatedAt: Date.now() };
           merged++;
         } else {
-          person = { id: crypto.randomUUID(), name: incoming.name, embeddings: incoming.embeddings, updatedAt: Date.now() };
+          person = { id: crypto.randomUUID(), name: incoming.name, embeddings: incoming.embeddings, updatedAt: Date.now(), enrolledAt: Date.now() };
           added++;
         }
         await db.persons.put(person);

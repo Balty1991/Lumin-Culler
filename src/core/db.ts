@@ -464,6 +464,13 @@ export interface KnownPerson {
   name: string;
   embeddings: number[][];
   updatedAt: number;
+  /**
+   * Cand a fost inrolata prima data. Separat de `updatedAt`, care se muta la
+   * fiecare referinta adaugata — vezi core/activePersons.ts, unde ordinea de
+   * inrolare decide cine ramane activ fara abonament. Absent pe inregistrarile
+   * de dinainte de camp: acolo se cade pe `updatedAt`, fara migrare.
+   */
+  enrolledAt?: number;
 }
 
 export interface ContextModelRecord {

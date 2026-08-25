@@ -16,6 +16,7 @@ import { Capacitor } from '@capacitor/core';
 import type { FaceAnalysisAPI } from '../workers/faceAnalysis.worker';
 import type { AnalysisRecord, KnownPerson } from './db';
 import { readEconomicMode } from './performanceSettings';
+import { selectActivePersons } from './activePersons';
 import { writeLastModelLoadMs } from './modelLoadTiming';
 import { analyzeNative } from './nativeAnalysis';
 
@@ -261,7 +262,18 @@ export class AnalysisPool {
     writeLastModelLoadMs(performance.now() - startedAt);
   }
 
+  /**
+   * Punctul UNIC prin care ajung persoanele la motorul de recunoastere — de-aia
+   * se filtreaza aici, nu la fiecare apelant (sunt vreo zece, in store.ts,
+   * importPipeline.ts si backupService.ts, si ar fi fost o chestiune de timp
+   * pana cand unul ar fi fost uitat).
+   *
+   * Fara abonament, doar profilurile active ajung mai departe; restul raman in
+   * baza de date, intacte, si se reactiveaza singure la reabonare. Vezi
+   * core/activePersons.ts pentru de ce nu se sterg.
+   */
   async setKnownPersons(persons: KnownPerson[]): Promise<void> {
+    persons = selectActivePersons(persons);
     this.knownPersons = persons;
     await Promise.all(this.slots.map(s => s.api.setKnownPersons(persons)));
     if (this.enrollmentSlot) await this.enrollmentSlot.api.setKnownPersons(persons);

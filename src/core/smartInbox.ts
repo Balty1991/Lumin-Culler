@@ -26,7 +26,7 @@
  * Nu se calculeaza nimic nou: toate semnalele exista deja dupa analiza.
  */
 
-export type InboxCategory = 'screenshot' | 'document' | 'personal';
+export type InboxCategory = 'screenshot' | 'document' | 'object' | 'personal';
 
 export interface InboxCandidate {
   id: string;
@@ -50,6 +50,48 @@ const SCREEN_RECORDING_PREFIXES = ['screenrecord', 'screen_record'];
 
 /** Peste atat din cadru acoperit de text, si fara nicio fata, e un document. */
 export const DOCUMENT_TEXT_COVERAGE = 0.12;
+
+/**
+ * Etichete care descriu un LUCRU FABRICAT, nu un moment.
+ *
+ * Bug raportat cu captura: poze la cutia unei lampi LED si la cutia unei
+ * telecomenzi ajunsesera in banda "COMPARA ATENT", adica aplicatia cerea sa fie
+ * comparate cu alternativele lor, ca doua cadre dintr-o sedinta.
+ *
+ * Cauza era ramura de mai jos care salveaza documentele fals-pozitive: "daca
+ * modelul a vazut un caine sau un tort, e o poza cu text in ea, nu o pagina".
+ * Buna intentie, dar o cutie de produs CHIAR are etichete de obiect — si e
+ * acoperita de text tocmai pentru ca e un ambalaj. Salvarea se declansa exact
+ * pe cazul pe care trebuia sa-l prinda.
+ *
+ * Deci nu orice eticheta de obiect inseamna "amintire". Astea de aici inseamna
+ * "cineva a fotografiat un lucru": ambalaj, aparat, hartie, ecran. Sunt in
+ * engleza fiindca asa vin din ML Kit / COCO.
+ */
+const MANUFACTURED_TAGS = new Set([
+  'box', 'carton', 'packaging', 'package', 'label', 'barcode', 'product',
+  'electronics', 'remote control', 'remote', 'appliance', 'device', 'gadget',
+  'laptop', 'computer', 'keyboard', 'monitor', 'television', 'screen',
+  'book', 'paper', 'document', 'text', 'poster', 'sign', 'receipt', 'ticket',
+  'bottle', 'can', 'container', 'jar', 'brand', 'logo', 'font'
+]);
+
+/**
+ * Peste atat din cadru acoperit de text, alaturi de etichete de lucru fabricat,
+ * e o poza facuta ca sa RETINA ceva (un ambalaj, un manual, un cod), nu ca sa
+ * pastreze un moment. Mai jos decat pragul de document, fiindca aici nu ne mai
+ * bazam pe text singur: are si etichetele langa el.
+ */
+const OBJECT_TEXT_COVERAGE = 0.05;
+
+/** Cat din etichete trebuie sa descrie un lucru fabricat ca sa nu mai fie amintire. */
+const OBJECT_TAG_FRACTION = 0.5;
+
+function looksManufactured(tags: string[] | undefined): boolean {
+  if (!tags?.length) return false;
+  const hits = tags.filter(t => MANUFACTURED_TAGS.has(t.trim().toLowerCase())).length;
+  return hits / tags.length >= OBJECT_TAG_FRACTION;
+}
 /** Peste atat, e text cat pe o captura de ecran chiar daca numele nu spune nimic. */
 export const SCREENSHOT_TEXT_COVERAGE = 0.3;
 
@@ -87,10 +129,18 @@ export function classifyPhoto(p: InboxCandidate): InboxCategory {
 
   if (text >= DOCUMENT_TEXT_COVERAGE) {
     // Etichetele de obiect contrazic ipoteza de document: daca modelul a vazut
-    // un caine sau un tort, e o poza cu text in ea, nu o pagina.
-    if (p.sceneTags?.length) return 'personal';
+    // un caine sau un tort, e o poza cu text in ea, nu o pagina. Dar numai daca
+    // sunt etichete de lucruri VII sau de scena — un ambalaj plin de text nu
+    // devine amintire pentru ca modelul i-a zis "cutie".
+    if (p.sceneTags?.length && !looksManufactured(p.sceneTags)) return 'personal';
+    if (looksManufactured(p.sceneTags)) return 'object';
     return 'document';
   }
+
+  // Sub pragul de document, dar cu ceva text SI cu etichete de lucru fabricat:
+  // poza facuta ca sa retii ceva, nu ca sa pastrezi un moment.
+  if (text >= OBJECT_TEXT_COVERAGE && looksManufactured(p.sceneTags)) return 'object';
+
   return 'personal';
 }
 
@@ -106,14 +156,17 @@ export interface InboxGroup {
 export function buildSmartInbox(photos: InboxCandidate[]): InboxGroup[] {
   const screenshot: string[] = [];
   const document: string[] = [];
+  const object: string[] = [];
   for (const p of photos) {
     const c = classifyPhoto(p);
     if (c === 'screenshot') screenshot.push(p.id);
     else if (c === 'document') document.push(p.id);
+    else if (c === 'object') object.push(p.id);
   }
   const out: InboxGroup[] = [];
   if (screenshot.length) out.push({ category: 'screenshot', ids: screenshot });
   if (document.length) out.push({ category: 'document', ids: document });
+  if (object.length) out.push({ category: 'object', ids: object });
   return out;
 }
 
