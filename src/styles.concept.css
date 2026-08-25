@@ -4426,9 +4426,6 @@ input[type="search"] { min-height: 44px; }
    ferestre, si la inchiderea lor coada continua de unde a ramas. */
 .tiktok-sort { z-index: 19; }
 
-
-}
-
 /* Butonul de iesire din ecranul gol de prezentare avea 40px inaltime — sub
    pragul de 44 (WCAG 2.5.5), si e singura cale de iesire de pe acel ecran.
    Gasit abia acum, cand auditul a ajuns si in starea "prezentare fara poze". */
