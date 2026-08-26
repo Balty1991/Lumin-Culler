@@ -211,6 +211,7 @@ export function MenuDrawer() {
   const duplicateGroupCount = useMemo(() => selectUnresolvedGroups(photos).length, [photos]);
   const persons = useStore(s => s.persons);
   const askConfirm = useStore(s => s.askConfirm);
+  const clearAllIncludingPersons = useStore(s => s.clearAllIncludingPersons);
   const reduceMotion = useReducedMotion();
   const restoreInputRef = useRef<HTMLInputElement>(null);
   const clientFeedbackInputRef = useRef<HTMLInputElement>(null);
@@ -258,6 +259,14 @@ export function MenuDrawer() {
 
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const go = (action: () => void) => { setOpen(false); action(); };
+
+  /** Cele DOUA confirmari sunt pastrate intacte din panoul Persoane: e singura
+      actiune din aplicatie de pe urma careia nu se mai poate reveni in niciun fel. */
+  const confirmClearEverything = async () => {
+    if (!(await askConfirm(tr('persons.confirmClearEverything1'), { danger: true }))) return;
+    if (!(await askConfirm(tr('persons.confirmClearEverything2'), { danger: true }))) return;
+    void clearAllIncludingPersons();
+  };
   /**
    * Doar INSIGNA. Blocarea efectiva sta in store (gatePremium), pentru ca
    * aceleasi functii au si alte intrari — ecranul Acasa, foaia de export,
@@ -836,6 +845,21 @@ export function MenuDrawer() {
               <span>{tr('menu.gridDensity', { density: tr(`menu.gridDensity.${gridDensity}`) })}</span>
             </button>
           )}
+
+          {/* Mutat aici din panoul Persoane, unde statea la un deget distanta de
+              "Inroleaza" si de lista de oameni. Sterge TOT: pozele, profilurile,
+              tot ce e local. In panoul Persoane numele lui era "Sterge tot" —
+              langa o lista de persoane, asta se citea ca "sterge persoanele",
+              ceea ce e cea mai mica parte din ce face. Aici are numele intreg,
+              sta ultimul in Setari, si pastreaza cele DOUA confirmari. */}
+          <button
+            className="drawer-item drawer-item-danger"
+            onClick={() => go(() => void confirmClearEverything())}
+            title={tr('menu.clearEverything.title')}
+          >
+            <span className="drawer-item-icon"><TrashIcon /></span>
+            <span>{tr('menu.clearEverything')}</span>
+          </button>
         </DrawerGroup>
 
         <DrawerGroup label={tr('menu.section.help')} collapsible defaultOpen={false} expandLabel={tr('menu.expandSection', { section: tr('menu.section.help') })} collapseLabel={tr('menu.collapseSection', { section: tr('menu.section.help') })}>

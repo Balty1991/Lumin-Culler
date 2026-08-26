@@ -22,7 +22,6 @@ export function PersonsPanel() {
   const exportPersonProfiles = useStore(s => s.exportPersonProfiles);
   const importPersonProfiles = useStore(s => s.importPersonProfiles);
   const enrollFaceCluster = useStore(s => s.enrollFaceCluster);
-  const clearAllIncludingPersons = useStore(s => s.clearAllIncludingPersons);
   const askConfirm = useStore(s => s.askConfirm);
   const askPrompt = useStore(s => s.askPrompt);
   const locale = useStore(s => s.locale);
@@ -110,13 +109,6 @@ export function PersonsPanel() {
     void mergePersons(Array.from(selected), keepName).then(() => setSelected(new Set()));
   };
 
-  const confirmClearEverything = async () => {
-    if (!(await askConfirm(tr('persons.confirmClearEverything1'), { danger: true }))) return;
-    if (!(await askConfirm(tr('persons.confirmClearEverything2'), { danger: true }))) return;
-    void clearAllIncludingPersons();
-    setOpen(false);
-  };
-
   const submit = async () => {
     const files = Array.from(fileRef.current?.files ?? []);
     if (!name.trim() || !files.length) {
@@ -140,6 +132,15 @@ export function PersonsPanel() {
             <XIcon />
           </button>
         </header>
+
+        {/* Panoul amesteca trei intrebari diferite intr-o singura lista lunga:
+            "cine e deja inrolat", "gaseste-mi tu pe cineva" si "adaug eu pe
+            cineva" — plus, la coada, un buton care sterge TOATA aplicatia.
+            Confirmat de doua audituri independente. Acum fiecare intrebare are
+            titlul ei, in ordinea in care si-o pune omul, iar stergerea totala a
+            plecat de aici cu totul (vezi MenuDrawer.tsx, sectiunea Setari):
+            n-avea ce cauta la un deget distanta de "Inroleaza". */}
+        <h4 className="persons-section-head">{tr('persons.section.enrolled')}</h4>
 
         {persons.length === 0 && (
           <p className="hint">{tr('persons.empty')}</p>
@@ -206,6 +207,9 @@ export function PersonsPanel() {
           </div>
         )}
 
+        <h4 className="persons-section-head">{tr('persons.section.discover')}</h4>
+        <p className="hint persons-section-sub">{tr('persons.section.discover.sub')}</p>
+
         <div className="face-suggestions">
           <div className="face-suggestions-head">
             <span className="hint">
@@ -232,6 +236,9 @@ export function PersonsPanel() {
             </ul>
           )}
         </div>
+
+        <h4 className="persons-section-head">{tr('persons.section.manual')}</h4>
+        <p className="hint persons-section-sub">{tr('persons.section.manual.sub')}</p>
 
         <div className="enroll">
           <input
@@ -293,14 +300,7 @@ export function PersonsPanel() {
           </div>
         )}
 
-        <div className="danger-zone">
-          <p className="hint">
-            {tr('persons.localDataHint')}
-          </p>
-          <button className="ghost small danger" onClick={confirmClearEverything}>
-            <TrashIcon className="inline-icon" /> {tr('persons.deleteEverything')}
-          </button>
-        </div>
+        <p className="hint persons-local-note">{tr('persons.localDataHint')}</p>
       </div>
     </div>
   );

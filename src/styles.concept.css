@@ -5242,3 +5242,31 @@ input[type="search"] { min-height: 44px; }
   font-size: .84rem;
   line-height: 1.45;
 }
+
+
+/* ── Panoul Persoane: trei intrebari, trei titluri ──
+   Panoul era o singura lista lunga in care "cine e inrolat", "gaseste-mi tu pe
+   cineva" si "adaug eu pe cineva" curgeau una in alta, fara nicio granita.
+   Vezi PersonsPanel.tsx. */
+.persons-section-head {
+  margin: 22px 0 6px;
+  color: var(--text-faint);
+  font-family: var(--mono);
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.persons-section-head:first-of-type { margin-top: 6px; }
+.persons-section-sub { margin: 0 0 10px; }
+.persons-local-note { margin: 20px 0 0; opacity: .85; }
+
+/* Randul care sterge tot, in Setari. Tenta rosie e permanenta, nu doar pe
+   :hover — pe telefon nu exista cursor, deci un semnal de hover nu apare
+   niciodata, iar randul ar arata identic cu "Densitatea grilei" de deasupra. */
+.drawer-item.drawer-item-danger { color: var(--reject); }
+.drawer-item.drawer-item-danger .drawer-item-icon { color: var(--reject); }
+.drawer-item.drawer-item-danger:hover,
+.drawer-item.drawer-item-danger:focus-visible {
+  background: rgb(var(--reject-rgb) / .1);
+}
