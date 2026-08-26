@@ -1320,6 +1320,7 @@ export const en: Record<TranslationKey, string> = {
   'edit.clarity': 'Clarity',
   'edit.sharpen': 'Sharpen',
   'edit.noiseReduction': 'Noise reduction',
+  'edit.bokeh': 'Bokeh',
   'edit.vignette': 'Vignette',
 
   'edit.tools': 'Tools',

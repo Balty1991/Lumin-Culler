@@ -4,7 +4,7 @@ import { useStore } from '../state/store';
 import { buildMomentStacks, momentOf } from '../core/momentStacks';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import {
-  computeAutoAdjustments, drawAdjusted, isNeutral, NEUTRAL_ADJUSTMENTS, outputSize,
+  computeAutoAdjustments, drawAdjusted, isNeutral, NEUTRAL_ADJUSTMENTS, outputSize, subjectFromFaces,
   originalToCanvas, canvasToOriginal, cropRadiusScale,
   type EditAdjustments, type NumericAdjustmentKey
 } from '../core/imageAdjust';
@@ -90,7 +90,10 @@ const SLIDER_GROUPS: {
   },
   {
     labelKey: 'edit.group.effects',
-    sliders: [{ key: 'vignette', min: -100, max: 100 }]
+    // "bokeh" apare in lista doar cand poza are un subiect stiut (vezi
+    // bokehAvailable mai jos): un slider care nu poate face nimic pe poza din
+    // fata omului e mai rau decat unul care lipseste.
+    sliders: [{ key: 'bokeh', min: 0, max: 100 }, { key: 'vignette', min: -100, max: 100 }]
   }
 ];
 
@@ -726,6 +729,26 @@ export function EditPanel() {
    * putea trece complet neobservata — utilizatorul nu avea niciun semnal ca
    * "Aplica" chiar facuse ceva, mai ales cand efectul vizual era subtil.
    */
+  /**
+   * Unde e subiectul, pentru bokeh — din fetele deja detectate la import, nu
+   * dintr-o noua detectie. Fara fete e null, si atunci sliderul nici nu apare:
+   * n-am avea ce pastra clar, iar o estompare "de la centru" ar strica exact ce
+   * trebuia salvat. Vezi subjectFromFaces in core/imageAdjust.ts.
+   */
+  const bokehSubject = useMemo(
+    () => (imgEl ? subjectFromFaces(analysis?.faces, imgEl.naturalWidth, imgEl.naturalHeight) : null),
+    [analysis, imgEl]
+  );
+
+  // Subiectul intra in ajustari odata cu prima miscare a sliderului: drawAdjusted
+  // primeste doar EditAdjustments, deci trebuie sa-l gaseasca acolo.
+  useEffect(() => {
+    if (!bokehSubject || !photo) return;
+    if ((adjustments.bokeh ?? 0) === 0) return;
+    if (adjustments.bokehSubject) return;
+    setAdjustments(prev => ({ ...prev, bokehSubject }));
+  }, [bokehSubject, photo, adjustments.bokeh, adjustments.bokehSubject]);
+
   const applyAuto = () => {
     if (!imgEl || !photo) return;
     const auto = computeAutoAdjustments(imgEl, imgEl.naturalWidth, imgEl.naturalHeight, {
@@ -1384,7 +1407,7 @@ export function EditPanel() {
               {SLIDER_GROUPS.map(({ labelKey, sliders }) => (
                 <div className="edit-slider-group" key={labelKey}>
                   <span className="edit-slider-group-head mono">{tr(labelKey)}</span>
-                  {sliders.map(({ key, min, max }) => (
+                  {sliders.filter(({ key }) => key !== 'bokeh' || bokehSubject).map(({ key, min, max }) => (
                     <EditSlider
                       key={key}
                       label={tr(`edit.${key}`)}

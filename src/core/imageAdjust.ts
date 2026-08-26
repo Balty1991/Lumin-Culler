@@ -52,6 +52,30 @@ export interface EditAdjustments {
   noiseReduction?: number;
   /** Intunecarea/luminarea colturilor — -100..100. Negativ = colturi mai deschise. */
   vignette?: number;
+  /**
+   * Bokeh adaugat: cat de tare se estompeaza fundalul, 0..100. Absent/0 = nimic.
+   *
+   * Cerinta utilizatorului: "sa poti adauga bokeh la fotografiile care nu au,
+   * sau daca vrei sa il imbunatatesti — le-ar face mai profesionale".
+   *
+   * CE E SI CE NU E. Nu e o separare adevarata de plan, cum face un telefon in
+   * modul Portret cu doua camere si un model de segmentare. E o estompare care
+   * creste cu distanta fata de SUBIECT, iar subiectul e stiut din casetele
+   * fetelor deja detectate la import. Pe portrete si pe poze cu oameni — adica
+   * exact acolo unde bokeh-ul conteaza — rezultatul e convingator. Pe o poza cu
+   * un obiect in prim-plan si fara fete nu avem de unde sti unde e subiectul,
+   * deci nu se ofera deloc.
+   *
+   * Alternativa "corecta" ar fi fost MediaPipe Image Segmenter: inca un model
+   * in APK, pentru un caz pe care casetele de fata il acopera deja bine.
+   */
+  bokeh?: number;
+  /**
+   * Unde e subiectul, normalizat 0..1 in spatiul imaginii ORIGINALE. Calculat o
+   * data, din fetele detectate, cand omul porneste bokeh-ul — nu la fiecare
+   * randare, si nu re-detectat.
+   */
+  bokehSubject?: { x: number; y: number; width: number; height: number };
   /** Reglaj pe game de culoare (nuanta/saturatie/luminozitate per familie) — vezi core/hslBands.ts. Absent = neatins. */
   hsl?: HslBands;
   /** Curbele tonale (master + R/G/B) — vezi core/toneCurve.ts. Absent = liniare. */
@@ -64,7 +88,7 @@ export interface EditAdjustments {
 
 export const NEUTRAL_ADJUSTMENTS: EditAdjustments = {
   exposure: 0, contrast: 0, saturation: 0, temperature: 0, tint: 0, highlights: 0, shadows: 0, rotationDeg: 0,
-  whites: 0, blacks: 0, sharpen: 0, clarity: 0, noiseReduction: 0, vignette: 0
+  whites: 0, blacks: 0, sharpen: 0, clarity: 0, noiseReduction: 0, vignette: 0, bokeh: 0
 };
 
 /**
@@ -74,7 +98,7 @@ export const NEUTRAL_ADJUSTMENTS: EditAdjustments = {
  * Tipul e exportat ca sa nu mai fie nevoie ca UI-ul sa repete lista de excluderi
  * (si sa o uite la urmatorul instrument adaugat — exact ce s-a intamplat).
  */
-export type NumericAdjustmentKey = Exclude<keyof EditAdjustments, 'crop' | 'curves' | 'controlPoints' | 'heal' | 'hsl'>;
+export type NumericAdjustmentKey = Exclude<keyof EditAdjustments, 'crop' | 'curves' | 'controlPoints' | 'heal' | 'hsl' | 'bokehSubject'>;
 const ADJUSTMENT_KEYS = Object.keys(NEUTRAL_ADJUSTMENTS) as NumericAdjustmentKey[];
 
 /**
@@ -473,7 +497,13 @@ export function drawAdjusted(
   const luts = buildChannelLuts(a.curves);
   const activePoints = (a.controlPoints ?? []).filter(p => !isNeutralControlPoint(p));
   const vignette = a.vignette ?? 0;
+  const bokeh = a.bokeh ?? 0;
   const hasHsl = !isNeutralBands(a.hsl);
+  // Bokeh-ul se face INAINTE de pasul pe pixeli: e o operatie pe canvas
+  // (redesenare estompata plus masca), nu una per pixel, iar tot ce vine dupa —
+  // curbe, vinieta, culoare — trebuie sa cada peste rezultatul lui, nu sub el.
+  if (bokeh > 0) applyBokeh(ctx, healed ?? source, sourceWidth, sourceHeight, width, height, a, bokeh);
+
   if (!hasColorShift && !hasDetailPass && !luts && activePoints.length === 0 && vignette === 0 && !hasHsl) return;
 
   const imgData = ctx.getImageData(0, 0, width, height);
@@ -563,6 +593,112 @@ export function drawAdjusted(
   if (vignette !== 0) applyVignette(d, width, height, vignette);
 
   ctx.putImageData(imgData, 0, 0);
+}
+
+/**
+ * Unde e subiectul, din fetele deja detectate la import.
+ *
+ * Reuniunea casetelor, extinsa IN JOS cu inaltimea unei fete: o caseta de fata
+ * cuprinde capul, nu omul. Fara extinderea asta, umerii si pieptul ar fi cazut
+ * in fundal si s-ar fi estompat — cel mai vizibil defect al unui bokeh fals.
+ *
+ * null cand nu exista fete: atunci nu stim ce sa pastram clar, iar o estompare
+ * "de la centru" pe o poza in care subiectul nu e in centru strica exact ce
+ * trebuia salvat. Apelantul nu ofera unealta deloc in cazul asta.
+ */
+export function subjectFromFaces(
+  faces: readonly { box: [number, number, number, number] }[] | undefined,
+  imageWidth: number,
+  imageHeight: number
+): { x: number; y: number; width: number; height: number } | null {
+  if (!faces?.length || imageWidth <= 0 || imageHeight <= 0) return null;
+  let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity, tallest = 0;
+  for (const [x, y, w, h] of faces.map(f => f.box)) {
+    left = Math.min(left, x);
+    top = Math.min(top, y);
+    right = Math.max(right, x + w);
+    bottom = Math.max(bottom, y + h);
+    tallest = Math.max(tallest, h);
+  }
+  if (!Number.isFinite(left) || right <= left) return null;
+  const extended = Math.min(imageHeight, bottom + tallest);
+  return {
+    x: left / imageWidth,
+    y: top / imageHeight,
+    width: (right - left) / imageWidth,
+    height: (extended - top) / imageHeight
+  };
+}
+
+/**
+ * Bokeh adaugat: fundalul se estompeaza, subiectul ramane clar.
+ *
+ * Cum e facut, in trei pasi de canvas — fara nicio bucla pe pixeli:
+ *
+ *  1. o copie a cadrului, desenata cu `filter: blur()`, pe o panza separata;
+ *  2. pe aceeasi panza, un gradient radial centrat pe subiect, desenat cu
+ *     `destination-out` — adica STERGE copia estompata exact acolo unde e
+ *     subiectul, si o lasa intreaga la margini;
+ *  3. ce a ramas se pune peste cadrul clar.
+ *
+ * Rezultatul e o trecere lina de la clar la estompat, nu o decupare cu contur —
+ * exact ce deosebeste un bokeh care pare real de unul lipit cu foarfeca.
+ *
+ * Raza de blur creste cu latura mare a cadrului, nu e o valoare fixa: acelasi
+ * numar de pixeli inseamna altceva pe o previzualizare de 800px si pe un
+ * export de 4000px, iar fara asta exportul ar fi iesit vizibil mai putin
+ * estompat decat ce a vazut omul in editor.
+ */
+export function applyBokeh(
+  ctx: CanvasRenderingContext2D,
+  source: CanvasImageSource,
+  sourceWidth: number,
+  sourceHeight: number,
+  width: number,
+  height: number,
+  a: EditAdjustments,
+  amount: number
+): void {
+  const subject = a.bokehSubject;
+  // Fara subiect stiut n-avem ce pastra clar, si o estompare "de la centru" pe
+  // o poza in care subiectul nu e in centru ar strica exact ce trebuia salvat.
+  if (!subject) return;
+
+  const scratch = document.createElement('canvas');
+  scratch.width = width;
+  scratch.height = height;
+  const sctx = scratch.getContext('2d');
+  if (!sctx) return;
+
+  const radius = (amount / 100) * Math.max(width, height) * 0.03;
+  sctx.filter = `blur(${radius.toFixed(2)}px)`;
+  drawGeometry(sctx, source, sourceWidth, sourceHeight, width, height, a);
+  sctx.filter = 'none';
+
+  // Subiectul e dat in spatiul imaginii ORIGINALE; pe panza vedem eventual doar
+  // o decupare din ea, deci coordonatele trebuie duse in spatiul decupat.
+  const crop = a.crop;
+  const cx0 = crop ? crop.x : 0;
+  const cy0 = crop ? crop.y : 0;
+  const cw = crop ? crop.width : 1;
+  const ch = crop ? crop.height : 1;
+  const cx = ((subject.x + subject.width / 2) - cx0) / cw * width;
+  const cy = ((subject.y + subject.height / 2) - cy0) / ch * height;
+  // Zona lasata complet clara acopera subiectul cu o marja — un cap taiat exact
+  // pe contur arata decupat, iar umerii fac parte din subiect chiar daca fata
+  // nu ii cuprinde.
+  const inner = Math.max(subject.width / cw * width, subject.height / ch * height) * 1.4;
+  const outer = inner + Math.max(width, height) * 0.55;
+
+  const mask = sctx.createRadialGradient(cx, cy, Math.max(1, inner), cx, cy, Math.max(2, outer));
+  mask.addColorStop(0, 'rgba(0,0,0,1)');
+  mask.addColorStop(1, 'rgba(0,0,0,0)');
+  sctx.globalCompositeOperation = 'destination-out';
+  sctx.fillStyle = mask;
+  sctx.fillRect(0, 0, width, height);
+  sctx.globalCompositeOperation = 'source-over';
+
+  ctx.drawImage(scratch, 0, 0);
 }
 
 /**

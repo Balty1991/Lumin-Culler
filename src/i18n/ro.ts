@@ -1362,6 +1362,7 @@ export const ro = {
   'edit.clarity': 'Claritate',
   'edit.sharpen': 'Accentuare',
   'edit.noiseReduction': 'Reducere zgomot',
+  'edit.bokeh': 'Bokeh',
   'edit.vignette': 'Vinietă',
 
   // --- Instrumentele editorului (bara de sub poză) ---
