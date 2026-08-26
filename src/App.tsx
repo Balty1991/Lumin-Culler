@@ -54,6 +54,7 @@ import { WelcomeOnboarding } from './ui/WelcomeOnboarding';
 import { SmartNotification } from './ui/SmartNotification';
 import { QuickScanFind } from './ui/QuickScanFind';
 import { t } from './i18n';
+import { dismissAiDegradedNotice, isAiDegradedNoticeDismissed } from './state/aiDegradedNotice';
 
 /**
  * Panourile de mai jos sunt randate NECONDITIONAT mai jos in acest fisier
@@ -282,6 +283,13 @@ export default function App() {
   const bannerStackRef = useBannerStackVar<HTMLDivElement>();
   const aiDegraded = useStore(s => s.aiDegraded);
   const aiBackend = useStore(s => s.aiBackend);
+  // Citit la fiecare schimbare de backend, nu o singura data la montare: pe
+  // pornire `aiBackend` e gol si devine cunoscut abia dupa initializarea
+  // pool-ului, deci o citire unica ar fi intrebat mereu pentru cheia gresita.
+  const [aiDegradedDismissed, setAiDegradedDismissed] = useState(false);
+  useEffect(() => {
+    setAiDegradedDismissed(isAiDegradedNoticeDismissed(aiBackend || 'unknown'));
+  }, [aiBackend]);
   const clearAll = useStore(s => s.clearAll);
   const askConfirm = useStore(s => s.askConfirm);
   const askPrompt = useStore(s => s.askPrompt);
@@ -931,10 +939,35 @@ export default function App() {
         </div>
       )}
 
-      {aiDegraded && (
-        <p className="notice warn mono">
-          <AlertIcon className="inline-icon" /> {tr('app.aiDegraded', { backend: aiBackend || tr('app.aiBackend.unknown') })}
-        </p>
+      {/* Anuntul asta apare exact cand omul incearca prima data functia
+          principala, si statea permanent, cu pictograma de avertisment,
+          enumerand ce NU merge — inclusiv numele intern al backendului, care
+          nu-i spune nimic nimanui. Un banner de alerta care nu poate fi inchis
+          si pe care nimeni nu-l poate rezolva nu mai informeaza: repeta, la
+          fiecare deschidere, ca produsul e limitat.
+          Acum incepe cu ce MERGE, spune pe scurt ce nu, si se poate inchide —
+          revine doar daca se schimba situatia de accelerare (vezi
+          state/aiDegradedNotice.ts). Semnalat de auditul extern ca "defect de
+          experienta prioritar"; sugestia lui de acolo era insa sa se ofere
+          "mod economic" ca remediu, ceea ce ar fi fost fals: modul economic
+          reduce numarul de workeri pentru RAM, n-are nicio legatura cu lipsa
+          accelerarii. */}
+      {aiDegraded && !aiDegradedDismissed && (
+        <div className="notice ai-degraded">
+          <div className="ai-degraded-text">
+            <strong>{tr('app.aiDegraded.title')}</strong>
+            <span>{tr('app.aiDegraded')}</span>
+          </div>
+          <button
+            className="ghost small-btn"
+            onClick={() => {
+              dismissAiDegradedNotice(aiBackend || 'unknown');
+              setAiDegradedDismissed(true);
+            }}
+          >
+            {tr('app.aiDegraded.dismiss')}
+          </button>
+        </div>
       )}
 
       {/* Auto-hide la scroll (plan "Refactorizare UI/UX"): progresul, filtrele si statisticile

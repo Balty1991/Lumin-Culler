@@ -5172,3 +5172,39 @@ input[type="search"] { min-height: 44px; }
   color: var(--text);
   font-weight: 750;
 }
+
+/* ── Anuntul "analiza merge, dar fara fete" ───────────────────────────────────
+
+   Statea ca `.notice.warn`, cu pictograma de alerta, permanent, enumerand ce nu
+   merge. Dar nu e o eroare: e o limitare a telefonului, pe care nici omul si
+   nici aplicatia n-o pot repara. Un ton de avertisment acolo spune, la fiecare
+   deschidere, ca produsul e stricat — cand de fapt totul in afara de fete
+   functioneaza normal.
+   Deci: ton neutru, nu galben de alarma, si loc pentru butonul de inchidere. */
+.notice.ai-degraded {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: rgb(255 255 255 / .04);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.ai-degraded-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  /* overflow:hidden ar anula min-size-ul automat al unui element flex si ar
+     strivi textul — vezi aceeasi capcana documentata la .metric-fold. */
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.ai-degraded-text strong { font-size: .95rem; }
+.ai-degraded-text span { font-size: .82rem; color: var(--text-dim); line-height: 1.45; }
+.notice.ai-degraded .ghost { flex: 0 0 auto; min-height: 44px; align-self: center; }
+
+@media (max-width: 520px) {
+  /* Pe telefon, butonul sub text: alaturi ar lasa mesajului o coloana prea
+     ingusta si l-ar rupe in cuvinte de cate doua litere. */
+  .notice.ai-degraded { flex-direction: column; align-items: stretch; }
+  .notice.ai-degraded .ghost { align-self: flex-end; }
+}
