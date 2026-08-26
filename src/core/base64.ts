@@ -13,3 +13,18 @@ export async function blobToBase64(blob: Blob): Promise<string> {
   for (let i = 0; i < bytes.length; i += CHUNK) binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
   return btoa(binary);
 }
+
+/**
+ * base64 -> Blob. Drumul invers, pentru datele care vin DE LA partea nativa
+ * (ex. HEIC-ul decodat de telefon, vezi core/nativeHeicDecoder.ts).
+ *
+ * Aceeasi grija cu bucatile ca mai sus, din acelasi motiv: `atob` intoarce un
+ * binary string, iar transformarea lui in octeti dintr-o data ar duce la
+ * acelasi RangeError pe fisiere de cativa MB.
+ */
+export function base64ToBlob(base64: string, mimeType: string): Blob {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: mimeType });
+}

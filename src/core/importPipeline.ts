@@ -4,6 +4,7 @@
  * -> scor ContextEngine -> persistare IndexedDB -> grupare serii (persistata).
  * Preview-ul de 2048px (standard Lightroom) este cel pe care se judeca claritatea.
  */
+import { decodeHeicToJpegBlob, isHeicDecodingSupported } from './nativeHeicDecoder';
 import { db, type AnalysisRecord, type PhotoRecord } from './db';
 import { analysisPool, withTimeout } from './workerPool';
 import { contextEngine, landscapeSharpness, type Prediction } from './learning/ContextEngine';
@@ -312,7 +313,7 @@ export const originalHandles = new Map<string, FileSystemFileHandleLike>();
 
 const DECODE_TIMEOUT_MS = 30000;
 
-async function decode(file: File): Promise<ImageBitmap> {
+async function decode(file: File, mediaUri?: string): Promise<ImageBitmap> {
   let bitmap: ImageBitmap;
   // `late => late.close()`: un timeout nu anuleaza decodarea de dedesubt, doar
   // inceteaza s-o astepte — fara acest carlig, bitmap-ul care soseste tarziu
@@ -327,7 +328,26 @@ async function decode(file: File): Promise<ImageBitmap> {
       closeLate
     );
   } catch {
-    bitmap = await withTimeout(createImageBitmap(file), DECODE_TIMEOUT_MS, 'Decodarea a durat prea mult.', closeLate);
+    try {
+      bitmap = await withTimeout(createImageBitmap(file), DECODE_TIMEOUT_MS, 'Decodarea a durat prea mult.', closeLate);
+    } catch (err) {
+      // Ultima incercare, si singura care mai poate reusi: HEIC/HEIF.
+      //
+      // Chromium din WebView nu decodeaza HEIC in <canvas>, iar HEIC e formatul
+      // implicit pe iPhone si pe multe telefoane Android moderne — inclusiv cand
+      // telefonul salveaza HEIC dar eticheteaza fisierul .jpg cu MIME
+      // "image/jpeg" (vezi sniffRealFormat mai jos), caz in care nici filtrul de
+      // format nu-l putea opri. Rezultatul, pana acum: poza lipsa din import si
+      // un motiv tehnic pe care nu-l poate folosi nimeni.
+      //
+      // Telefonul stie insa formatul: BitmapFactory decodeaza HEIF de la Android
+      // 9 in sus, pe codecul hardware. Cerem NUMAI dupa ce decodarea normala a
+      // esuat deja si numai daca fisierul chiar e HEIC — deci pe importurile
+      // obisnuite drumul asta nu se atinge niciodata.
+      if ((await sniffRealFormat(file)) !== 'HEIC/HEIF' || !(await isHeicDecodingSupported())) throw err;
+      const jpeg = await decodeHeicToJpegBlob(file, mediaUri);
+      bitmap = await withTimeout(createImageBitmap(jpeg), DECODE_TIMEOUT_MS, 'Decodarea a durat prea mult.', closeLate);
+    }
   }
   return capToPreviewSize(bitmap);
 }
@@ -595,7 +615,7 @@ async function processOne(file: File, genre?: string, project?: string, handle?:
   // date, iar din afara toate arata identic — "e lent".
   const { bitmap, rawMeta } = await timed('decode', async () => isRaw
     ? decodeRawFile(file).then(r => ({ bitmap: r.bitmap, rawMeta: r.meta }))
-    : { bitmap: await decode(file), rawMeta: undefined });
+    : { bitmap: await decode(file, mediaUri), rawMeta: undefined });
   const { preview, thumb, lqip, dHash, w, h } = timedSync('derivatives', () => makeDerivatives(bitmap));
 
   // Bitmap-ul pleaca in worker (transfer, zero-copy) — de aici nu-l mai atingem
@@ -814,8 +834,19 @@ export async function importFiles(
   // dupa format — altfel indexul din `handles` s-ar decala fata de `files`
   // de indata ce un fisier neacceptat (ex. HEIC) e exclus din mijlocul listei.
   const pairs = files.map((file, i) => ({ file, handle: handles?.[i], mediaUri: mediaUris?.[i] }));
+  // HEIC intra in import DOAR daca telefonul chiar stie sa-l decodeze (Android 9+,
+  // prin HeicDecoderPlugin.kt). Intrebarea se pune o singura data pe import, nu
+  // per fisier — raspunsul e memorat oricum in nativeHeicDecoder.ts.
+  //
+  // Pana acum era exclus aici, neconditionat, cu tot cu extensia lui adevarata.
+  // Adica formatul implicit de pe iPhone si de pe multe telefoane Android
+  // moderne nu ajungea niciodata la decodare. Pe un telefon care NU-l poate
+  // decoda ramane exclus, si atunci mesajul de mai jos e cel corect: mai bine
+  // spui din start ca nu se poate, decat sa incerci si sa esuezi pe fiecare.
+  const heicOk = await isHeicDecodingSupported();
   let images = pairs.filter(({ file: f }) =>
     /image\/(jpeg|png|webp|avif)/.test(f.type) || /\.(jpe?g|png|webp|avif)$/i.test(f.name) || RAW_EXTENSIONS.test(f.name)
+    || (heicOk && (/image\/hei[cf]/.test(f.type) || /\.hei[cf]$/i.test(f.name)))
   );
   // Cate au fost lasate deoparte dintr-o selectie MIXTA. Pana acum, un clip
   // video sau un HEIC ales din greseala disparea in tacere: utilizatorul alegea
