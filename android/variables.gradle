@@ -1,5 +1,17 @@
 ext {
-    minSdkVersion = 24
+    // Android 8.0. Ridicat de la 24 (Android 7.0) fiindca
+    // com.google.mlkit:genai-image-description declara el insusi minSdk 26, iar
+    // imbinarea manifestelor refuza sa mearga mai jos — build-ul pica la
+    // `processDebugMainManifest`, nu la compilare.
+    //
+    // Alternativa era `tools:overrideLibrary`, pe care Google o insoteste de
+    // avertismentul "poate duce la erori la rulare". Ar fi mers, cu inregistrarea
+    // plugin-ului pazita de SDK_INT, dar ar fi insemnat sa livram netestat un
+    // drum pe care nu-l putem testa — n-avem un telefon pe Android 7.
+    //
+    // Costul e mic si cunoscut: Android 7.0/7.1 a aparut in 2016 si e sub 1% din
+    // telefoanele active. Decizie luata explicit de utilizator, nu implicita.
+    minSdkVersion = 26
     compileSdkVersion = 36
     targetSdkVersion = 36
     androidxActivityVersion = '1.11.0'
