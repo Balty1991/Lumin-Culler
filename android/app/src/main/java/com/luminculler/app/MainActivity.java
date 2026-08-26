@@ -14,6 +14,7 @@ import com.luminculler.app.plugins.ImageLabelingPlugin;
 import com.luminculler.app.plugins.FaceMeshPlugin;
 import com.luminculler.app.plugins.TextRecognitionPlugin;
 import com.luminculler.app.plugins.PoseDetectionPlugin;
+import com.luminculler.app.plugins.SegmentationPlugin;
 import com.luminculler.app.plugins.HeicDecoderPlugin;
 import com.luminculler.app.plugins.ImageDescriptionPlugin;
 import com.luminculler.app.plugins.ImageEmbedderPlugin;
@@ -32,17 +33,25 @@ public class MainActivity extends BridgeActivity {
         // PoseDetectionPlugin.kt / ImageEmbedderPlugin.kt / FolderExportPlugin.kt /
         // MediaLibraryPlugin.kt / NotificationsPlugin.kt / BillingPlugin.kt.
         //
-        // ImageClassifier (EfficientNet-Lite0) si Segmentation (selfie_multiclass)
-        // au fost scoase: erau porturi de proba nelegate niciodata de analiza
-        // reala (vezi nativeAnalysis.ts), dar cele doua modele lor — 17,7 MB si
-        // 15,6 MB — intrau in FIECARE instalare. 33 MB pentru doua randuri dintr-un
-        // buton de test care nici nu se randeaza in build-ul de productie.
+        // ImageClassifier (EfficientNet-Lite0, 17,7 MB) ramane scos: era un port
+        // de proba nelegat niciodata de analiza reala (vezi nativeAnalysis.ts),
+        // iar modelul lui intra in FIECARE instalare degeaba.
+        //
+        // Segmentation a fost scos atunci din acelasi motiv si s-a intors acum
+        // cu un motiv: bokeh-ul din editor. Bug real, raportat de utilizator de
+        // trei ori ("Bokeh, nu detecteaza persoana, sa o separe de fundal") —
+        // linia de mai jos lipsea, deci Capacitor.isPluginAvailable('Segmentation')
+        // intorcea false pe telefon, orice ar fi facut partea de JS, si bokeh-ul
+        // cadea mereu pe rezerva cu caseta fetei. Modelul care vine cu el nu mai
+        // e selfie_multiclass (16,4 MB), ci selfie_segmenter (249 KB) — vezi
+        // pasul "Bundle native segmentation model" din workflow-urile de build.
         registerPlugin(FaceDetectionPlugin.class);
         registerPlugin(ImageAnalysisPlugin.class);
         registerPlugin(ImageLabelingPlugin.class);
         registerPlugin(FaceMeshPlugin.class);
         registerPlugin(TextRecognitionPlugin.class);
         registerPlugin(PoseDetectionPlugin.class);
+        registerPlugin(SegmentationPlugin.class);
         registerPlugin(HeicDecoderPlugin.class);
         registerPlugin(ImageDescriptionPlugin.class);
         registerPlugin(ImageEmbedderPlugin.class);

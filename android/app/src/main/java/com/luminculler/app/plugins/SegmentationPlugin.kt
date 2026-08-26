@@ -12,24 +12,36 @@ import com.google.mediapipe.tasks.core.BaseOptions
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.imagesegmenter.ImageSegmenter
 
-private const val MODEL_FILE = "selfie_multiclass.tflite"
-// Ordinea claselor modelului selfie_multiclass (verificat din model card-ul
-// oficial): 0=background, 1=hair, 2=body, 3=face, 4=clothes, 5=others.
-private val PERSON_CLASSES = setOf(1, 2, 3, 4)
+private const val MODEL_FILE = "selfie_segmenter.tflite"
 
 /**
- * Analiza AI nativa (Faza 5) — separare subiect/fundal (masca per-pixel,
- * persoana vs. restul cadrului), port catre MediaPipe Image Segmenter
- * (model selfie_multiclass — scopul e persoana, NU un subiect general ca un
- * produs sau un animal).
+ * Modelul e SelfieSegmenter general (249 KB), nu selfie_multiclass (16,4 MB).
+ * Multiclass imparte omul in par/corp/fata/haine — o distinctie de care nimic
+ * din aplicatie n-are nevoie. Aici ne trebuie o singura granita: om sau fundal.
  *
- * De ce util: ImageMath.kt (Faza 2) aproximeaza azi "subiectul" ca o cutie
- * dreptunghiulara de fata (boxesToMask/scoreFocusAndBokeh) — o masca reala pe
- * pixel ar imbunatati real precizia comparatiei claritate subiect-vs-fundal.
- * Aceasta faza doar dovedeste ca detectia functioneaza si intoarce un
- * `personCoverage` derivat (fractiunea din cadru clasificata drept persoana) —
- * inlocuirea efectiva a mastii dreptunghiulare din ImageMath.kt ramane un pas
- * de integrare ulterior, dupa validare, nu parte din acest commit.
+ * Masca de categorii da indexul clasei pe octet. Pentru modelul cu doua clase,
+ * 0 e fundalul si persoana e restul. Testul e "diferit de zero", nu "egal cu 1",
+ * fiindca unele versiuni MediaPipe scot 255 in loc de 1 pentru clasa activa —
+ * ambele trec, si tot ce nu e fundal ramane persoana.
+ */
+private fun isPersonClass(classIndex: Int): Boolean = classIndex != 0
+
+/**
+ * Separare persoana/fundal, masca per-pixel — port catre MediaPipe Image
+ * Segmenter (SelfieSegmenter: omul, NU un subiect general ca un produs sau un
+ * animal).
+ *
+ * Cine il foloseste, azi, pe bune: bokeh-ul din editor (segmentMask mai jos →
+ * core/nativeSegmentation.ts → applyBokeh in core/imageAdjust.ts). Nu mai e un
+ * port de proba — plugin-ul asta e singurul lucru care stie unde se termina
+ * omul si incepe fundalul, iar fara el bokeh-ul cade pe o elipsa in jurul
+ * fetei, ceea ce utilizatorul a si reclamat.
+ *
+ * Ce ramane nefolosit: `personCoverage` NU e legat de scoreFocusAndBokeh din
+ * ImageMath.kt (Faza 2), care aproximeaza in continuare subiectul cu o cutie
+ * dreptunghiulara de fata. Ar fi o imbunatatire reala de precizie, dar
+ * schimba scoruri pe toata biblioteca, inclusiv pe poze deja decise — deci e
+ * o decizie separata, nu un efect secundar al bokeh-ului.
  */
 @CapacitorPlugin(name = "Segmentation")
 class SegmentationPlugin : Plugin() {
@@ -86,7 +98,7 @@ class SegmentationPlugin : Plugin() {
         var total = 0
         while (buffer.hasRemaining()) {
             val classIndex = buffer.get().toInt() and 0xFF
-            if (classIndex in PERSON_CLASSES) personBytes++
+            if (isPersonClass(classIndex)) personBytes++
             total++
         }
 
@@ -133,7 +145,7 @@ class SegmentationPlugin : Plugin() {
             var personPixels = 0
             var i = 0
             while (buffer.hasRemaining() && i < pixels.size) {
-                val isPerson = (buffer.get().toInt() and 0xFF) in PERSON_CLASSES
+                val isPerson = isPersonClass(buffer.get().toInt() and 0xFF)
                 if (isPerson) personPixels++
                 pixels[i++] = if (isPerson) -0x1 else -0x1000000  // alb opac / negru opac
             }

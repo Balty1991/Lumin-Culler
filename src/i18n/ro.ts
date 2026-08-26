@@ -1336,10 +1336,6 @@ export const ro = {
   'edit.tint': 'Nuanță',
   // Grupele de slidere din editor — patru feluri de interventii, nu o lista.
   'edit.auto.yourStyle': 'stilul tău ({list}), învățat din {count} poze editate de tine',
-  'edit.split': 'Compară',
-  'edit.split.aria': 'Trage ca să compari originalul cu rezultatul',
-  'edit.split.before': 'ÎNAINTE',
-  'edit.split.after': 'DUPĂ',
   'edit.before': 'Ține apăsat: originalul',
   'edit.before.showing': 'Originalul',
   'edit.slider.reset': '{name}: apasă ca să revii la valoarea de pornire',

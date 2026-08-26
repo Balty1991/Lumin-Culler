@@ -1,19 +1,17 @@
 /**
  * core/nativeSegmentation.ts
- * Analiza AI nativa (Faza 5) — punte catre plugin-ul Capacitor local
- * Segmentation (vezi android/app/src/main/java/com/luminculler/app/plugins/
- * SegmentationPlugin.kt), separare persoana/fundal pe pixel, MediaPipe Image
- * Segmenter (model selfie_multiclass — scopul e persoana, NU un subiect
- * general ca un produs sau un animal).
+ * Punte catre plugin-ul Capacitor local Segmentation (vezi android/app/src/
+ * main/java/com/luminculler/app/plugins/SegmentationPlugin.kt): separare
+ * persoana/fundal pe pixel, MediaPipe Image Segmenter, model SelfieSegmenter
+ * (omul, NU un subiect general ca un produs sau un animal).
  *
- * De ce util: ImageMath.kt (Faza 2, partea JS: workers/faceAnalysis.worker.ts)
- * aproximeaza azi "subiectul" ca o cutie dreptunghiulara de fata — o masca
- * reala pe pixel ar imbunatati precizia comparatiei claritate subiect-vs-fundal
- * (scoreFocusAndBokeh). `personCoverage` ramane NECONECTAT de acea logica —
- * inlocuirea efectiva a mastii dreptunghiulare e un pas de integrare ulterior.
+ * Nu e un port de proba: segmentPersonMask() e ce face bokeh-ul din editor sa
+ * urmareasca CONTURUL omului in loc de o elipsa in jurul fetei.
  *
- * La fel ca celelalte native*.ts (Faza 1-4): doar dovedeste ca portul
- * functioneaza pe un device real.
+ * `personCoverage` ramane, in schimb, neconectat de scoreFocusAndBokeh din
+ * analiza (workers/faceAnalysis.worker.ts), care aproximeaza subiectul cu o
+ * caseta de fata. Ar fi o imbunatatire reala, dar muta scoruri pe toata
+ * biblioteca — decizie separata.
  */
 import { registerPlugin, Capacitor } from '@capacitor/core';
 import { blobToBase64 } from './base64';

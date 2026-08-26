@@ -450,12 +450,19 @@ export function EditPanel() {
    * oprit. Cerinta utilizatorului dupa reclama Aftershoot, unde exact asta se
    * vede.
    *
-   * "Tine apasat: originalul" exista deja si ramane — dar el iti arata cele
-   * doua stari PE RAND, iar ochiul nu compara bine doua imagini pe care nu le
-   * vede in acelasi timp. Cu cursorul le vezi lipite, si diferenta sare pe
-   * granita.
+   * Comparatorul cu cursor (granita trasa cu degetul peste poza) a fost
+   * INCERCAT si respins de utilizator: "trena cu slide-ul e groaznica" si,
+   * ulterior, "nu imi place cum e cu slide (poza sa fie centrala)". Doua
+   * motive reale, nu de gust: cursorul statea PESTE poza si ii lua jumatate,
+   * iar butonul lui statea LANGA poza in acelasi rand flex, impingand-o din
+   * centrul scenei (se vede in capturi — fotografia lipita spre stanga, cu
+   * butonul in dreapta ei).
+   *
+   * Ramane deci ce era inainte si ce a cerut inapoi: tii apasat, vezi
+   * originalul, ridici degetul, revine rezultatul. Poza ocupa toata scena si
+   * ramane centrata; butonul a coborat sub ea.
    */
-  const [splitAt, setSplitAt] = useState<number | null>(null);
+  const [holdingOriginal, setHoldingOriginal] = useState(false);
 
   /**
    * Histograma LIVE a previzualizarii — distincta de `histogram` de mai sus,
@@ -620,33 +627,26 @@ export function EditPanel() {
       const ctx = canvas.getContext('2d');
       const base = adjustments;
       const drawn = cropModeActive ? { ...base, crop: undefined } : base;
-      const outSize = outputSize(imgEl.naturalWidth, imgEl.naturalHeight, drawn, maxSide);
+      // "Tine apasat": se deseneaza poza NEATINSA, dar cu aceeasi decupare si
+      // aceeasi rotatie. Fara asta, la apasare imaginea ar sari in alt cadru si
+      // omul ar compara doua incadrari, nu doua prelucrari — exact confuzia pe
+      // care butonul trebuie s-o rezolve.
+      const shown = holdingOriginal && !cropModeActive
+        ? { ...NEUTRAL_ADJUSTMENTS, crop: base.crop, rotationDeg: base.rotationDeg }
+        : drawn;
+      const outSize = outputSize(imgEl.naturalWidth, imgEl.naturalHeight, shown, maxSide);
       canvas.width = outSize.width;
       canvas.height = outSize.height;
       if (ctx) {
-        drawAdjusted(ctx, imgEl, imgEl.naturalWidth, imgEl.naturalHeight, canvas.width, canvas.height, drawn);
-        // Comparatorul: peste rezultatul deja desenat se pune ORIGINALUL, taiat
-        // la cursor. Doua treceri, nu doua canvasuri — asa cele doua jumatati
-        // sunt garantat aceeasi decupare, aceeasi rotatie si aceeasi
-        // dimensiune, deci granita cade exact pe acelasi pixel al scenei.
-        if (splitAt !== null && !cropModeActive) {
-          const cut = Math.round(canvas.width * splitAt);
-          if (cut > 0) {
-            ctx.save();
-            ctx.beginPath();
-            ctx.rect(0, 0, cut, canvas.height);
-            ctx.clip();
-            drawAdjusted(
-              ctx, imgEl, imgEl.naturalWidth, imgEl.naturalHeight, canvas.width, canvas.height,
-              { ...NEUTRAL_ADJUSTMENTS, crop: adjustments.crop, rotationDeg: adjustments.rotationDeg }
-            );
-            ctx.restore();
-          }
-        }
+        drawAdjusted(ctx, imgEl, imgEl.naturalWidth, imgEl.naturalHeight, canvas.width, canvas.height, shown);
         // Histograma NU se recalculeaza in timpul tragerii: getImageData peste
         // tot canvasul e cea mai scumpa operatie din cadru, iar setarea starii
         // ar re-randa tot panoul. Se pune la zi cand degetul se opreste.
-        if (!interacting) {
+        //
+        // Nici cat timp se tine apasat: histograma de sub poza descrie
+        // REZULTATUL editarii. Daca ar clipi pe originalul aratat temporar, ar
+        // parea ca ajustarile s-au pierdut. Ramane inghetata pe ce era.
+        if (!interacting && !holdingOriginal) {
           try {
             setLiveHistogram(computeHistogram(ctx.getImageData(0, 0, canvas.width, canvas.height), HISTOGRAM_STRIDE));
           } catch {
@@ -658,7 +658,7 @@ export function EditPanel() {
       }
     });
     return () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); };
-  }, [imgEl, adjustments, cropModeActive, interacting, splitAt]);
+  }, [imgEl, adjustments, cropModeActive, interacting, holdingOriginal]);
 
   /**
    * INVATAREA STILULUI, la iesirea din editor.
@@ -1223,71 +1223,6 @@ export function EditPanel() {
                 + aria-label, exact echivalentul semantic. */}
             <canvas ref={canvasRef} className="edit-canvas" role="img" aria-label={photo.fileName} />
             {!imgEl && <span className="card-loading edit-canvas-loading" aria-hidden="true" />}
-            {/* Tine apasat = poza nemodificata. Apare doar cand chiar exista ce
-                compara; pe o poza neatinsa ar fi un buton care nu face nimic.
-                Ascuns in modul de recadrare: acolo canvas-ul arata oricum cadrul
-                intreg, deci comparatia n-ar mai fi cu ce vede omul.
-                `onPointerLeave`/`onPointerCancel` pe langa `onPointerUp`: degetul
-                poate iesi din buton fara sa se ridice, si atunci poza ar fi ramas
-                blocata pe "inainte". */}
-            {/* Comparatorul cu cursor. Mana lui sta PESTE canvas, pe toata
-                inaltimea, si se trage cu degetul; granita se muta odata cu el.
-                Apare doar cand exista ce compara si nu esti in recadrare, ca si
-                butonul "tine apasat" de mai jos — care ramane, fiindca face
-                altceva: ala arata poza intreaga, asta arata granita. */}
-            {splitAt !== null && !isNeutral(adjustments) && !cropModeActive && (
-              <div
-                className="edit-split"
-                role="slider"
-                tabIndex={0}
-                aria-label={tr('edit.split.aria')}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={Math.round(splitAt * 100)}
-                onPointerDown={e => {
-                  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-                  const move = (clientX: number) => {
-                    const box = e.currentTarget.getBoundingClientRect();
-                    setSplitAt(Math.max(0, Math.min(1, (clientX - box.left) / box.width)));
-                  };
-                  move(e.clientX);
-                  (e.currentTarget as HTMLElement).onpointermove = ev => move(ev.clientX);
-                }}
-                onPointerUp={e => { (e.currentTarget as HTMLElement).onpointermove = null; }}
-                onPointerCancel={e => { (e.currentTarget as HTMLElement).onpointermove = null; }}
-                onKeyDown={e => {
-                  // Tastatura misca granita in pasi de 5% — un slider pe care nu-l
-                  // poti atinge cu degetul trebuie sa ramana folosibil altfel.
-                  if (e.key === 'ArrowLeft') { e.preventDefault(); setSplitAt(v => Math.max(0, (v ?? 0.5) - 0.05)); }
-                  if (e.key === 'ArrowRight') { e.preventDefault(); setSplitAt(v => Math.min(1, (v ?? 0.5) + 0.05)); }
-                }}
-              >
-                <span className="edit-split-line" style={{ left: `${splitAt * 100}%` }} aria-hidden="true">
-                  <span className="edit-split-grip" />
-                </span>
-                <span className="edit-split-tag before" aria-hidden="true">{tr('edit.split.before')}</span>
-                <span className="edit-split-tag after" aria-hidden="true">{tr('edit.split.after')}</span>
-              </div>
-            )}
-            {/* "Tine apasat: originalul" a plecat de aici. Facea acelasi lucru
-                ca "Compara" — arata poza nemodificata — dar pe rand, nu alaturi,
-                iar utilizatorul a semnalat pe drept ca aveam "de doua ori acelasi
-                lucru". Comparatorul cu cursor castiga: ochiul nu compara bine
-                doua imagini pe care nu le vede in acelasi timp. */}
-            {/* Porneste/opreste comparatorul. Sta langa "tine apasat" fiindca
-                raspund la aceeasi intrebare — "ce am schimbat?" — doar ca in
-                doua feluri: unul iti da poza intreaga, celalalt granita. */}
-            {!isNeutral(adjustments) && !cropModeActive && (
-              <button
-                type="button"
-                className={splitAt !== null ? 'edit-split-btn on' : 'edit-split-btn'}
-                aria-pressed={splitAt !== null}
-                onClick={() => setSplitAt(v => (v === null ? 0.5 : null))}
-              >
-                <LayersIcon aria-hidden="true" />
-                <span>{tr('edit.split')}</span>
-              </button>
-            )}
             {cropDraft && (
               /* Bug real raportat de utilizator: handle-urile de colt erau abia
                  apucabile — stateau exact pe marginea lui .edit-canvas-wrap, care
@@ -1376,6 +1311,50 @@ export function EditPanel() {
               </div>
             )}
           </div>
+
+          {/* "Tine apasat: originalul", SUB fotografie.
+              Statea inainte in acelasi rand flex cu canvas-ul, deci ii manca din
+              latime si impingea poza din centrul scenei — reclamat direct:
+              "poza sa fie centrala". Aici, sub ea, scena ramane a fotografiei.
+
+              Apare doar cand chiar exista ce comparat; pe o poza neatinsa ar fi
+              un buton care nu face nimic. Ascuns si in modul de recadrare:
+              acolo canvas-ul arata oricum cadrul intreg.
+
+              onPointerLeave/onPointerCancel pe langa onPointerUp: degetul poate
+              iesi din buton fara sa se ridice, si poza ar ramane blocata pe
+              "inainte". Captura de pointer prinde si cazul invers, cand degetul
+              aluneca in afara si se ridica acolo. */}
+          {!isNeutral(adjustments) && !cropModeActive && (
+            <button
+              type="button"
+              className={holdingOriginal ? 'edit-hold-btn on' : 'edit-hold-btn'}
+              aria-pressed={holdingOriginal}
+              onPointerDown={e => {
+                (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+                setHoldingOriginal(true);
+              }}
+              onPointerUp={() => setHoldingOriginal(false)}
+              onPointerLeave={() => setHoldingOriginal(false)}
+              onPointerCancel={() => setHoldingOriginal(false)}
+              // Apasarea lunga pe Android deschide altfel meniul de selectie
+              // peste buton, exact in secunda in care omul se uita la poza.
+              onContextMenu={e => e.preventDefault()}
+              // Acelasi gest de la tastatura: tii tasta, vezi originalul.
+              // `repeat` se ignora — altfel auto-repeat-ul ar re-seta starea de
+              // zeci de ori pe secunda si ar re-desena canvas-ul degeaba.
+              onKeyDown={e => {
+                if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); setHoldingOriginal(true); }
+              }}
+              onKeyUp={e => {
+                if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); setHoldingOriginal(false); }
+              }}
+              onBlur={() => setHoldingOriginal(false)}
+            >
+              <LayersIcon aria-hidden="true" />
+              <span>{holdingOriginal ? tr('edit.before.showing') : tr('edit.before')}</span>
+            </button>
+          )}
           </div>
 
           {/* Doc-ul de jos, tiparul din Lightroom/Snapseed/Photoshop mobil:

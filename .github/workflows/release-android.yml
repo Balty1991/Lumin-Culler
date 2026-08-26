@@ -126,9 +126,18 @@ jobs:
       # MediaPipe pose lite, NU committed in git. TextRecognitionPlugin.kt nu are
       # nevoie de pas separat — modelul lui e bundle-uit direct in dependinta ML Kit.
       #
-      # Modelul de segmentare (selfie_multiclass, 15,6 MB) a fost scos odata cu
-      # SegmentationPlugin.kt: nu era folosit de analiza reala, doar de butonul
-      # de test DEV. Vezi si efficientnet_lite0 (17,7 MB) la pasul de mai sus.
+      # Modelul de segmentare a REVENIT, dar nu cel scos.
+      #
+      # Scos atunci a fost selfie_multiclass (16,4 MB masurat, nu 15,6): imparte
+      # omul in par/piele/haine, si nimic din aplicatie nu avea nevoie de acea
+      # distinctie. Ce are nevoie bokeh-ul din editor e o singura granita —
+      # persoana vs. fundal — iar pentru asta exista selfie_segmenter, acelasi
+      # model de la Google, 249 KB (verificat prin descarcare, nu estimat).
+      # 66 de ori mai mic, exact aceeasi treaba pentru cazul nostru.
+      #
+      # Cerinta care l-a readus, spusa de utilizator de trei ori: "Bokeh, nu
+      # detecteaza persoana, sa o separe de fundal". Fara model, bokeh-ul avea
+      # doar caseta fetei si un gradient rotund — adica exact ce reclama el.
       - name: Bundle native pose model
         run: |
           curl -fL -o android/app/src/main/assets/pose_landmarker_lite.task https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task
@@ -138,6 +147,15 @@ jobs:
           done
       # Analiza AI nativa (Faza 6 — vezi plugins/ImageEmbedderPlugin.kt): embedding
       # general de similaritate vizuala (MediaPipe, MobileNetV3-small), NU committed in git.
+      # Segmentarea persoanei pentru bokeh (vezi plugins/SegmentationPlugin.kt):
+      # SelfieSegmenter general, 249 KB. Pragul de marime e mai mic decat la
+      # celelalte modele tocmai fiindca asta E mic — 100000 l-ar respinge pe cel
+      # bun; 150000 tot prinde o pagina HTML de eroare sau un fisier trunchiat.
+      - name: Bundle native segmentation model
+        run: |
+          curl -fL -o android/app/src/main/assets/selfie_segmenter.tflite https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/1/selfie_segmenter.tflite
+          size=$(stat -c%s android/app/src/main/assets/selfie_segmenter.tflite)
+          if [ "$size" -lt 150000 ]; then echo "::error::selfie_segmenter.tflite are doar $size octeti — descarcare esuata/trunchiata" && exit 1; fi
       - name: Bundle native image-embedder model
         run: |
           curl -fL -o android/app/src/main/assets/mobilenet_v3_small.tflite https://storage.googleapis.com/mediapipe-models/image_embedder/mobilenet_v3_small/float32/1/mobilenet_v3_small.tflite
