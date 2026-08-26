@@ -17,6 +17,7 @@ import { readApplyEditsInGallery, writeApplyEditsInGallery } from './applyEditsP
 import { readProMode, writeProMode } from './proMode';
 import { readActiveFilter, writeActiveFilter } from './activeFilter';
 import { findSimilarPhotos } from '../core/similarPhotos';
+import { describeImageNative, downloadImageDescriptionModel, imageDescriptionStatus } from '../core/nativeImageDescription';
 import type { QuickScanResult } from '../core/quickDuplicateScan';
 import { clearPreviewUrlCache } from '../core/previewUrlCache';
 import {
@@ -168,6 +169,7 @@ export interface PhotoView {
   gpsLongitude?: number;
   /** Metadate IPTC-IIM (segment Photoshop APP13) — vezi core/iptcParser.ts. */
   iptcByline?: string;
+  aiDescription?: string;
   iptcCaption?: string;
   iptcHeadline?: string;
   iptcCredit?: string;
@@ -736,6 +738,8 @@ interface AppState {
   revealInGrid: (ids: string[]) => void;
   /** "Arata-mi altele ca asta" — vezi core/similarPhotos.ts. */
   showSimilarTo: (photoId: string) => Promise<void>;
+  /** Descriere scrisa de Gemini Nano, pe telefon — vezi core/nativeImageDescription.ts. */
+  describePhoto: (photoId: string) => Promise<void>;
   /** Aplica un status TUTUROR pozelor din selectia curenta (antreneaza AI-ul per poza, ca setStatus). */
   bulkSetStatusForSelection: (status: PhotoRecord['status']) => Promise<void>;
   /** Aplica un rating TUTUROR pozelor din selectia curenta. */
@@ -891,6 +895,7 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     gpsLongitude: analysis?.gpsLongitude,
     iptcByline: analysis?.iptcByline,
     // suprascrierea manuala (editare in masa) precede valoarea parsata din fisier, fara sa o modifice
+    aiDescription: analysis?.aiDescription,
     iptcCaption: photo.captionOverride ?? analysis?.iptcCaption,
     iptcHeadline: analysis?.iptcHeadline,
     iptcCredit: analysis?.iptcCredit,
@@ -1319,6 +1324,10 @@ function matchesSearch(p: PhotoView, normalizedQuery: string, locale: Locale): b
   if (normalizeForSearch(p.fileName).includes(normalizedQuery)) return true;
   if (p.personNames.some(n => normalizeForSearch(n).includes(normalizedQuery))) return true;
   if (p.iptcCaption && normalizeForSearch(p.iptcCaption).includes(normalizedQuery)) return true;
+  // Descrierea scrisa de model, cand exista. Ultima dintre campurile de text
+  // dinadins: e singura care n-a fost scrisa de un om, deci o potrivire in ea
+  // valoreaza mai putin decat una in numele fisierului sau in legenda IPTC.
+  if (p.aiDescription && normalizeForSearch(p.aiDescription).includes(normalizedQuery)) return true;
   if ((p.iptcKeywords ?? []).some(k => normalizeForSearch(k).includes(normalizedQuery))) return true;
   if (p.project && normalizeForSearch(p.project).includes(normalizedQuery)) return true;
   const camera = [p.cameraMake, p.cameraModel, p.lensModel].filter(Boolean).join(' ');
@@ -3246,6 +3255,58 @@ export const useStore = create<AppState>((set, get) => ({
     multiSelectIds: new Set(ids),
     multiSelectAnchor: ids.length ? ids[ids.length - 1] : null
     });
+  },
+
+  describePhoto: async photoId => {
+    const { locale } = get();
+    const status = await imageDescriptionStatus();
+
+    // Nu descarcam niciodata singuri: modelul inseamna trafic si spatiu, si
+    // alea se hotarasc de om. Prima apasare cere voie; a doua chiar descrie.
+    if (status === 'unsupported' || status === 'unavailable') {
+      set({ notice: t(locale, 'store.describe.unavailable') });
+      return;
+    }
+    if (status === 'downloading') {
+      set({ notice: t(locale, 'store.describe.downloading') });
+      return;
+    }
+    if (status === 'downloadable') {
+      // Engleza se spune ACUM, inainte de descarcare — nu dupa, cand omul a
+      // consumat deja traficul si primeste o propozitie pe care n-o astepta.
+      const ok = await get().askConfirm(t(locale, 'store.describe.downloadAsk'), {
+        confirmLabel: t(locale, 'store.describe.downloadConfirm')
+      });
+      if (!ok) return;
+      set({ notice: t(locale, 'store.describe.downloading') });
+      try {
+        await downloadImageDescriptionModel();
+      } catch {
+        set({ notice: t(locale, 'store.describe.downloadFailed') });
+        return;
+      }
+    }
+
+    const photo = get().photos.find(p => p.id === photoId);
+    if (!photo) return;
+    set({ notice: t(locale, 'store.describe.working') });
+    try {
+      // Previzualizarea, nu originalul: modelul lucreaza oricum pe o imagine
+      // redimensionata, iar originalul poate fi un RAW de zeci de MB pe care
+      // n-are rost sa-l trecem peste punte.
+      const rec = (await db.previews.get(photoId)) ?? (await db.thumbnails.get(photoId));
+      if (!rec) { set({ notice: t(locale, 'store.describe.failed') }); return; }
+      const blob = rec.blob;
+      const description = (await describeImageNative({ blob })).trim();
+      if (!description) { set({ notice: t(locale, 'store.describe.failed') }); return; }
+      await db.analyses.update(photoId, { aiDescription: description });
+      set({
+        photos: get().photos.map(p => (p.id === photoId ? { ...p, aiDescription: description } : p)),
+        notice: description
+      });
+    } catch {
+      set({ notice: t(locale, 'store.describe.failed') });
+    }
   },
 
   showSimilarTo: async photoId => {

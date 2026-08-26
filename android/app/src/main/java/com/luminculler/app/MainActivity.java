@@ -15,6 +15,7 @@ import com.luminculler.app.plugins.FaceMeshPlugin;
 import com.luminculler.app.plugins.TextRecognitionPlugin;
 import com.luminculler.app.plugins.PoseDetectionPlugin;
 import com.luminculler.app.plugins.HeicDecoderPlugin;
+import com.luminculler.app.plugins.ImageDescriptionPlugin;
 import com.luminculler.app.plugins.ImageEmbedderPlugin;
 import com.luminculler.app.plugins.FolderExportPlugin;
 import com.luminculler.app.plugins.MediaLibraryPlugin;
@@ -43,6 +44,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(TextRecognitionPlugin.class);
         registerPlugin(PoseDetectionPlugin.class);
         registerPlugin(HeicDecoderPlugin.class);
+        registerPlugin(ImageDescriptionPlugin.class);
         registerPlugin(ImageEmbedderPlugin.class);
         registerPlugin(FolderExportPlugin.class);
         registerPlugin(MediaLibraryPlugin.class);

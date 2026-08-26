@@ -35,6 +35,11 @@ ext {
     // bundle-uit direct in APK (ca ML Kit face-detection, Faza 1), NU prin
     // Play Services — versiune verificata din googlesamples/mlkit (build.gradle).
     mlkitTextRecognitionVersion = '16.0.1'
+    // ML Kit GenAI (Gemini Nano prin AICore). Inca in beta la data adaugarii, si
+    // singura dependinta din proiect care nu e stabila — de aceea tot ce e in
+    // jurul ei e scris ca "poate lipsi", nu ca "va fi acolo". Vezi
+    // plugins/ImageDescriptionPlugin.kt.
+    mlkitGenAiImageDescriptionVersion = '1.0.0-beta1'
     // Abonament Premium (vezi plugins/BillingPlugin.kt). Google Play Billing
     // Library, folosita direct — acelasi tipar ca restul plugin-urilor din
     // proiect, scrise de mana in loc sa se adauge un wrapper Cordova/Capacitor

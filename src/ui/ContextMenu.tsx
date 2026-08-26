@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
-import { CheckIcon, ClockIcon, XIcon, SearchIcon, LockIcon, LayersIcon } from './icons';
+import { CheckIcon, ClockIcon, XIcon, SearchIcon, LockIcon, LayersIcon, SparkleIcon } from './icons';
+import { isNativeImageDescriptionAvailable } from '../core/nativeImageDescription';
 import { StarRating } from './StarRating';
 import { CollectionPicker } from './CollectionPicker';
 import { isInsideAnyMenu } from './dropdownPosition';
@@ -46,6 +47,8 @@ export function ContextMenu({ x, y, photoIds, count, rating, colorLabel, onSetSt
   const ref = useRef<HTMLDivElement>(null);
   const moveToVault = useStore(s => s.moveToVault);
   const showSimilarTo = useStore(s => s.showSimilarTo);
+  const describePhoto = useStore(s => s.describePhoto);
+  const canDescribe = isNativeImageDescriptionAvailable();
   const setVaultOpen = useStore(s => s.setVaultOpen);
 
   /**
@@ -177,6 +180,16 @@ export function ContextMenu({ x, y, photoIds, count, rating, colorLabel, onSetSt
       {photoIds.length === 1 && (
         <button className="context-menu-item" role="menuitem" onClick={() => act(() => void showSimilarTo(photoIds[0]))}>
           <LayersIcon className="inline-icon" /> {tr('contextMenu.similar')}
+        </button>
+      )}
+      {/* Randul apare doar unde functia chiar poate exista. Pe web si pe
+          telefoanele fara AICore nu se ofera deloc, in loc sa se ofere si sa
+          esueze — vezi core/nativeImageDescription.ts. Restul rezervelor
+          (descarcarea modelului, engleza) le spune describePhoto, inainte sa
+          consume ceva. */}
+      {photoIds.length === 1 && canDescribe && (
+        <button className="context-menu-item" role="menuitem" onClick={() => act(() => void describePhoto(photoIds[0]))}>
+          <SparkleIcon className="inline-icon" /> {tr('contextMenu.describe')}
         </button>
       )}
       {onOpenDetail && (

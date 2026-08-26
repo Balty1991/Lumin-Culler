@@ -347,6 +347,19 @@ export interface AnalysisRecord {
    * core/iptcParser.ts. Multe fluxuri profesionale (agentii foto, Photo
    * Mechanic, exporturi Lightroom mai vechi) inca scriu doar IPTC-IIM.
    */
+  /**
+   * Descriere scrisa de Gemini Nano, pe telefon (vezi
+   * core/nativeImageDescription.ts). Ceruta bucata cu bucata, la apasare — NU
+   * la import: e un model de limbaj, nu o masuratoare, si n-are ce cauta pe
+   * drumul critic al unui import de o mie de poze.
+   *
+   * Separata de iptcCaption cu buna stiinta: aia e ce a scris un OM (sau alt
+   * program) in fisier, si nu se suprascrie niciodata cu ce a ghicit o masina.
+   *
+   * E in ENGLEZA — atat suporta API-ul deocamdata. Vezi nota din bridge.
+   */
+  aiDescription?: string;
+
   iptcByline?: string;
   iptcCaption?: string;
   iptcHeadline?: string;
