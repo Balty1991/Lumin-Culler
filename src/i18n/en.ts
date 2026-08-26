@@ -197,6 +197,7 @@ export const en: Record<TranslationKey, string> = {
   'tiktok.ai.select': 'AI suggests: Keep',
   'tiktok.ai.review': 'AI: needs review',
   'tiktok.ai.reject': 'AI suggests: Reject',
+  'tiktok.why.prompt': 'Want to say why?',
   'tiktok.mine.selected': 'You kept it. You can change that anytime.',
   'tiktok.mine.rejected': 'You rejected it. You can change that anytime.',
   'tiktok.mine.candidate': 'You set it aside.',

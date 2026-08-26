@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { useStore } from '../state/store';
 import { HomeIcon, GridIcon, FocusIcon, MenuIcon } from './icons';
 import { t } from '../i18n';
@@ -44,6 +45,8 @@ export function BottomNav() {
   const tiktokSortOpen = useStore(s => s.tiktokSortOpen);
   const setTiktokSortOpen = useStore(s => s.setTiktokSortOpen);
   const setFilter = useStore(s => s.setFilter);
+  /** Doar prima intrare din sesiune impune filtrul — vezi goLibrary. Hook, deci INAINTE de orice return. */
+  const libraryOpenedRef = useRef(false);
 
   if (photos.length === 0) return null;
 
@@ -60,7 +63,29 @@ export function BottomNav() {
   // Un tap pe "Acasa" revine mereu la ecranul curat, la fel ca un tap pe tab-ul
   // activ in alte aplicatii mobile.
   const goHome = () => { closePanels(); setHomeGridOpen(false); };
-  const goLibrary = () => { closePanels(); setHomeGridOpen(true); };
+  /**
+   * Biblioteca se deschide pe "De verificat", nu pe "Toate".
+   *
+   * Cerinta utilizatorului: "cand deschizi biblioteca vreau sa intre direct pe
+   * de verificat, apoi sa schimbe utilizatorul la restul".
+   *
+   * Are dreptate: "Toate" e o arhiva, "De verificat" e treaba nefacuta. Cine
+   * deschide biblioteca vine cel mai des sa termine ce a inceput.
+   *
+   * DAR doar cand chiar mai e ceva de verificat, si doar la PRIMA intrare din
+   * sesiunea asta. Filtrul se pastreaza intre deschideri (vezi
+   * state/activeFilter.ts), iar daca l-am impune la fiecare tap, cine si-a ales
+   * dinadins "Respinse" si iese o clipa in Acasa s-ar trezi mutat inapoi — adica
+   * exact opusul lui "apoi sa schimbe utilizatorul".
+   */
+  const goLibrary = () => {
+    closePanels();
+    if (!libraryOpenedRef.current) {
+      libraryOpenedRef.current = true;
+      if (toReview > 0) setFilter('review');
+    }
+    setHomeGridOpen(true);
+  };
   // Revizuirea porneste pe coada de verificat, nu pe toata biblioteca: filtrul
   // se muta odata cu ea, ca ce ramane pe ecran dupa inchidere sa fie tot despre
   // ce tocmai lucrai.

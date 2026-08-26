@@ -114,6 +114,8 @@ export function TikTokSort() {
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
 
   const [queueIds, setQueueIds] = useState<string[]>([]);
+  /** Poza tocmai decisa, cat timp invitatia "De ce?" e pe ecran. Null = nimic de intrebat. */
+  const [justDecided, setJustDecided] = useState<string | null>(null);
   const [index, setIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   useModalFocusTrap(containerRef, open, true);
@@ -249,13 +251,42 @@ export function TikTokSort() {
   }, [index]);
 
 
+  /**
+   * Invitatia se stinge singura. Sase secunde: destul cat sa apuci sa apesi
+   * daca chiar ai un motiv, prea putin cat sa stea in drum daca nu ai.
+   */
+  useEffect(() => {
+    if (!justDecided) return;
+    const timer = setTimeout(() => setJustDecided(null), 6000);
+    return () => clearTimeout(timer);
+  }, [justDecided]);
+
   if (!open) return null;
 
   const goNext = () => setIndex(i => Math.min(i + 1, total));
   const goPrev = () => setIndex(i => Math.max(i - 1, 0));
+  /**
+   * O decizie, si imediat sansa de a spune DE CE.
+   *
+   * Cerinta utilizatorului, dupa ce a patit-o: "la fotografia cu spray am dat
+   * respinge, a aparut ca a invatat ISO — a trebuit sa revin inapoi ca sa dau
+   * de ce". Adica singurul moment in care stia motivul era exact momentul in
+   * care aplicatia il ducea deja mai departe.
+   *
+   * Acum, dupa "Pastrez" sau "Resping", pastila cu decizia primeste o umbra de
+   * cateva secunde pe care scrie "De ce?". Cine o apasa deschide foaia de
+   * motive; cine n-o apasa nu pierde nimic — se stinge singura si coada merge
+   * mai departe. Deliberat NU un dialog: o intrebare care blocheaza dupa
+   * FIECARE poza ar transforma triajul rapid in exact opusul lui.
+   *
+   * "Candidat" nu primeste invitatia: a pune o poza deoparte inseamna tocmai
+   * ca inca nu te-ai hotarat, deci n-ai ce motiv sa dai.
+   */
   const decide = (status: 'selected' | 'rejected' | 'candidate') => {
     if (!current) return;
-    void setStatus(current.id, status);
+    const decided = current.id;
+    void setStatus(decided, status);
+    if (status !== 'candidate') setJustDecided(decided);
     goNext();
   };
   const doUndo = () => {
@@ -539,6 +570,30 @@ export function TikTokSort() {
       {/* Anuleaza ramane disponibil si dupa ce coada s-a golit (ultima decizie
           luata chiar aici e adesea exact cea pe care utilizatorul vrea sa o
           revizuiasca) — nu doar cat timp mai exista o poza curenta de decis. */}
+      {/* Invitatia de a spune DE CE, imediat dupa decizie. Sta DEASUPRA barei de
+          actiuni, nu peste poza: acolo tocmai s-a intamplat ceva, deci acolo se
+          uita ochiul. Se stinge singura in sase secunde — vezi decide(). */}
+      {justDecided && (
+        <div className="tiktok-why" role="status">
+          <span>{tr('tiktok.why.prompt')}</span>
+          <button
+            type="button"
+            className="tiktok-why-btn"
+            onClick={() => { setExplainPhotoId(justDecided); setJustDecided(null); }}
+          >
+            {tr('explain.open')}
+          </button>
+          <button
+            type="button"
+            className="tiktok-why-close"
+            aria-label={tr('detail.close')}
+            onClick={() => setJustDecided(null)}
+          >
+            <XIcon />
+          </button>
+        </div>
+      )}
+
       <div className="tiktok-rail">
         {current && (
           <>

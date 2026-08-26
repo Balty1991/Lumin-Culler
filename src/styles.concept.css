@@ -5455,3 +5455,50 @@ input[type="search"] { min-height: 44px; }
   font-weight: 700;
 }
 .edit-split-btn.on { background: rgb(var(--accent-rgb) / .85); color: #06100e; }
+
+
+/* ── "Vrei sa spui de ce?", imediat dupa o decizie in sortarea rapida ──
+   Deasupra barei de actiuni, nu peste poza: acolo tocmai s-a intamplat ceva,
+   deci acolo se uita ochiul. Se stinge singura — vezi decide() in TikTokSort. */
+.tiktok-why {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(var(--safe-bottom, 0px) + 108px);
+  z-index: 42;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px 8px 16px;
+  border-radius: 999px;
+  background: rgb(10 14 12 / .92);
+  box-shadow: 0 8px 28px -12px rgb(0 0 0 / .8), inset 0 0 0 1px rgb(255 255 255 / .12);
+  color: #fff;
+  font-size: .86rem;
+  animation: tiktok-why-in .18s var(--ease, ease-out);
+}
+@keyframes tiktok-why-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) { .tiktok-why { animation: none; } }
+
+.tiktok-why-btn {
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: rgb(var(--accent-rgb) / .9);
+  color: #06100e;
+  font-weight: 800;
+  font-size: .82rem;
+}
+.tiktok-why-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: none;
+  color: rgb(255 255 255 / .6);
+}
+.tiktok-why-close svg { width: 16px; height: 16px; }

@@ -598,6 +598,14 @@ export function drawAdjusted(
 /**
  * Unde e subiectul, din fetele deja detectate la import.
  *
+ * CASETELE SUNT DEJA NORMALIZATE 0..1, si asta a fost bug-ul primei versiuni:
+ * mai imparteam o data la latimea imaginii, deci subiectul iesea de cateva mii
+ * de ori mai mic decat e. Zona pastrata clara devenea un punct, masca nu mai
+ * stergea nimic, si se estompa TOATA poza — inclusiv copilul. Raportat cu
+ * captura. Ambele cai de analiza (faceAnalysis.worker.ts:1026 si
+ * nativeAnalysis.ts:190) scriu `x / imgW`, deci functia nu mai primeste si nu
+ * mai are ce face cu dimensiunile imaginii.
+ *
  * Reuniunea casetelor, extinsa IN JOS cu inaltimea unei fete: o caseta de fata
  * cuprinde capul, nu omul. Fara extinderea asta, umerii si pieptul ar fi cazut
  * in fundal si s-ar fi estompat — cel mai vizibil defect al unui bokeh fals.
@@ -607,11 +615,9 @@ export function drawAdjusted(
  * trebuia salvat. Apelantul nu ofera unealta deloc in cazul asta.
  */
 export function subjectFromFaces(
-  faces: readonly { box: [number, number, number, number] }[] | undefined,
-  imageWidth: number,
-  imageHeight: number
+  faces: readonly { box: [number, number, number, number] }[] | undefined
 ): { x: number; y: number; width: number; height: number } | null {
-  if (!faces?.length || imageWidth <= 0 || imageHeight <= 0) return null;
+  if (!faces?.length) return null;
   let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity, tallest = 0;
   for (const [x, y, w, h] of faces.map(f => f.box)) {
     left = Math.min(left, x);
@@ -620,14 +626,9 @@ export function subjectFromFaces(
     bottom = Math.max(bottom, y + h);
     tallest = Math.max(tallest, h);
   }
-  if (!Number.isFinite(left) || right <= left) return null;
-  const extended = Math.min(imageHeight, bottom + tallest);
-  return {
-    x: left / imageWidth,
-    y: top / imageHeight,
-    width: (right - left) / imageWidth,
-    height: (extended - top) / imageHeight
-  };
+  if (!Number.isFinite(left) || right <= left || bottom <= top) return null;
+  const extended = Math.min(1, bottom + tallest);
+  return { x: left, y: top, width: right - left, height: extended - top };
 }
 
 /**

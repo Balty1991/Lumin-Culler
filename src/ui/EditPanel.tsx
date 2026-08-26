@@ -28,7 +28,7 @@ import {
   MIN_CONTROL_RADIUS, MAX_CONTROL_RADIUS, type ControlPoint
 } from '../core/selectiveEdit';
 import { DEFAULT_HEAL_RADIUS, MIN_HEAL_RADIUS, MAX_HEAL_RADIUS, type HealStroke } from '../core/spotHeal';
-import { XIcon, UndoIcon, SparkleIcon, LayersIcon, TrashIcon, EyeIcon, SunIcon, ApertureIcon, BarChartIcon, FocusIcon, EditIcon, CropIcon } from './icons';
+import { XIcon, UndoIcon, SparkleIcon, LayersIcon, TrashIcon, SunIcon, ApertureIcon, BarChartIcon, FocusIcon, EditIcon, CropIcon } from './icons';
 import { applyStyle, foldStyleSample, styleDelta, styleIsReady, styleTopKeys } from '../core/editStyle';
 import { readEditStyle, readEditStyleEnabled, writeEditStyle } from '../state/editStyleStore';
 import { t, plural } from '../i18n';
@@ -444,7 +444,6 @@ export function EditPanel() {
    * doua imagine peste — asa comparatia e intre exact aceiasi pixeli, trecuti
    * sau nu prin lantul de ajustari.
    */
-  const [showingBefore, setShowingBefore] = useState(false);
   /**
    * Comparatorul cu cursor: 0 = numai originalul, 1 = numai rezultatul, null =
    * oprit. Cerinta utilizatorului dupa reclama Aftershoot, unde exact asta se
@@ -569,10 +568,7 @@ export function EditPanel() {
     const maxSide = lowRes ? EDIT_PREVIEW_DRAG_SIDE : EDIT_PREVIEW_MAX_SIDE;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    const base = showingBefore
-      ? { ...NEUTRAL_ADJUSTMENTS, crop: adj.crop, rotationDeg: adj.rotationDeg }
-      : adj;
-    const drawn = cropModeActive ? { ...base, crop: undefined } : base;
+    const drawn = cropModeActive ? { ...adj, crop: undefined } : adj;
     // Panza urmeaza raportul a CE SE DESENEAZA — altfel un crop 1:1 pe o poza
     // 4:3 ar fi intins, nu taiat (vezi outputSize()). Se citeste din `drawn`,
     // nu din `adj`: in modul decupare se deseneaza intentionat fara crop, ca sa
@@ -621,7 +617,7 @@ export function EditPanel() {
       if (!canvas) return;
       const maxSide = interacting ? EDIT_PREVIEW_DRAG_SIDE : EDIT_PREVIEW_MAX_SIDE;
       const ctx = canvas.getContext('2d');
-      const base = showingBefore ? { ...NEUTRAL_ADJUSTMENTS, crop: adjustments.crop, rotationDeg: adjustments.rotationDeg } : adjustments;
+      const base = adjustments;
       const drawn = cropModeActive ? { ...base, crop: undefined } : base;
       const outSize = outputSize(imgEl.naturalWidth, imgEl.naturalHeight, drawn, maxSide);
       canvas.width = outSize.width;
@@ -661,7 +657,7 @@ export function EditPanel() {
       }
     });
     return () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); };
-  }, [imgEl, adjustments, cropModeActive, showingBefore, interacting, splitAt]);
+  }, [imgEl, adjustments, cropModeActive, interacting, splitAt]);
 
   /**
    * INVATAREA STILULUI, la iesirea din editor.
@@ -736,8 +732,8 @@ export function EditPanel() {
    * trebuia salvat. Vezi subjectFromFaces in core/imageAdjust.ts.
    */
   const bokehSubject = useMemo(
-    () => (imgEl ? subjectFromFaces(analysis?.faces, imgEl.naturalWidth, imgEl.naturalHeight) : null),
-    [analysis, imgEl]
+    () => subjectFromFaces(analysis?.faces),
+    [analysis]
   );
 
   // Subiectul intra in ajustari odata cu prima miscare a sliderului: drawAdjusted
@@ -1233,23 +1229,11 @@ export function EditPanel() {
                 <span className="edit-split-tag after" aria-hidden="true">{tr('edit.split.after')}</span>
               </div>
             )}
-            {!isNeutral(adjustments) && !cropModeActive && (
-              <button
-                type="button"
-                className={showingBefore ? 'edit-before-btn holding' : 'edit-before-btn'}
-                aria-label={tr('edit.before')}
-                aria-pressed={showingBefore}
-                onPointerDown={() => setShowingBefore(true)}
-                onPointerUp={() => setShowingBefore(false)}
-                onPointerLeave={() => setShowingBefore(false)}
-                onPointerCancel={() => setShowingBefore(false)}
-                // Tastatura nu are "tine apasat": acolo devine un comutator.
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowingBefore(v => !v); } }}
-              >
-                <EyeIcon aria-hidden="true" />
-                <span>{showingBefore ? tr('edit.before.showing') : tr('edit.before')}</span>
-              </button>
-            )}
+            {/* "Tine apasat: originalul" a plecat de aici. Facea acelasi lucru
+                ca "Compara" — arata poza nemodificata — dar pe rand, nu alaturi,
+                iar utilizatorul a semnalat pe drept ca aveam "de doua ori acelasi
+                lucru". Comparatorul cu cursor castiga: ochiul nu compara bine
+                doua imagini pe care nu le vede in acelasi timp. */}
             {/* Porneste/opreste comparatorul. Sta langa "tine apasat" fiindca
                 raspund la aceeasi intrebare — "ce am schimbat?" — doar ca in
                 doua feluri: unul iti da poza intreaga, celalalt granita. */}

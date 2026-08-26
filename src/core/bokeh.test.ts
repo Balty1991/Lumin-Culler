@@ -1,36 +1,49 @@
 import { describe, it, expect } from 'vitest';
 import { subjectFromFaces, NEUTRAL_ADJUSTMENTS, isNeutral } from './imageAdjust';
 
+/**
+ * Casetele de fata sunt DEJA normalizate 0..1 — vezi faceAnalysis.worker.ts:1026
+ * si nativeAnalysis.ts:190, amandoua scriu `x / imgW`. Prima versiune a
+ * functiei mai impartea o data, deci subiectul iesea de cateva mii de ori mai
+ * mic, masca nu mai stergea nimic si se estompa toata poza. Testele de aici
+ * lucreaza in aceleasi unitati ca datele reale.
+ */
 describe('subjectFromFaces', () => {
   it('extinde IN JOS cu inaltimea unei fete — umerii fac parte din subiect', () => {
-    // Fara extindere, pieptul cadea in fundal si se estompa: cel mai vizibil
-    // defect al unui bokeh fals.
-    const s = subjectFromFaces([{ box: [100, 100, 200, 200] }], 1000, 1000)!;
+    // Fata ocupa 10%..30% pe verticala; subiectul trebuie sa ajunga la 50%.
+    const s = subjectFromFaces([{ box: [0.1, 0.1, 0.2, 0.2] }])!;
     expect(s.y).toBeCloseTo(0.1, 5);
-    expect(s.height).toBeCloseTo(0.4, 5); // 100 -> 300 (fata) + inca 200 (corpul)
+    expect(s.height).toBeCloseTo(0.4, 5);
+  });
+
+  it('pastreaza scara normalizata — nu mai imparte a doua oara', () => {
+    // Bug-ul raportat: aici iesea 0.0002 in loc de 0.2.
+    const s = subjectFromFaces([{ box: [0.4, 0.2, 0.2, 0.25] }])!;
+    expect(s.x).toBeCloseTo(0.4, 5);
+    expect(s.width).toBeCloseTo(0.2, 5);
   });
 
   it('reuneste mai multe fete intr-un singur subiect', () => {
     const s = subjectFromFaces([
-      { box: [100, 100, 100, 100] },
-      { box: [500, 120, 100, 100] }
-    ], 1000, 1000)!;
+      { box: [0.1, 0.1, 0.1, 0.1] },
+      { box: [0.5, 0.12, 0.1, 0.1] }
+    ])!;
     expect(s.x).toBeCloseTo(0.1, 5);
-    expect(s.width).toBeCloseTo(0.5, 5); // 100 -> 600
+    expect(s.width).toBeCloseTo(0.5, 5);
   });
 
   it('nu iese din cadru cand fata e jos de tot', () => {
-    const s = subjectFromFaces([{ box: [0, 800, 100, 150] }], 1000, 1000)!;
+    const s = subjectFromFaces([{ box: [0, 0.8, 0.1, 0.15] }])!;
     expect(s.y + s.height).toBeLessThanOrEqual(1);
   });
 
   it('fara fete, null — nu ghicim unde e subiectul', () => {
-    expect(subjectFromFaces([], 1000, 1000)).toBeNull();
-    expect(subjectFromFaces(undefined, 1000, 1000)).toBeNull();
+    expect(subjectFromFaces([])).toBeNull();
+    expect(subjectFromFaces(undefined)).toBeNull();
   });
 
-  it('dimensiuni invalide nu produc valori absurde', () => {
-    expect(subjectFromFaces([{ box: [0, 0, 10, 10] }], 0, 0)).toBeNull();
+  it('o caseta degenerata nu produce un subiect', () => {
+    expect(subjectFromFaces([{ box: [0.5, 0.5, 0, 0] }])).toBeNull();
   });
 });
 

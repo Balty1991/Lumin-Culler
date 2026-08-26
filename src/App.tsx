@@ -272,6 +272,7 @@ export default function App() {
   const cancelImport = useStore(s => s.cancelImport);
   const importCancelling = useStore(s => s.importCancelling);
   const openDetail = useStore(s => s.openDetail);
+  const openTiktokSortForIds = useStore(s => s.openTiktokSortForIds);
   const openCompare = useStore(s => s.openCompare);
   const setMenuOpen = useStore(s => s.setMenuOpen);
   const setExportDestinationsOpen = useStore(s => s.setExportDestinationsOpen);
@@ -683,8 +684,22 @@ export default function App() {
       return;
     }
     const photo = photos.find(p => p.id === id);
-    if (filter === 'series' && photo?.groupId) openCompare(photo.groupId);
-    else openDetail(id);
+    if (filter === 'series' && photo?.groupId) { openCompare(photo.groupId); return; }
+    // Un tap pe o poza din grila deschide SORTAREA RAPIDA, de la poza atinsa —
+    // cerinta directa a utilizatorului, cu capturi: "cand dau pe o poza din
+    // biblioteca vreau sa apara ca la sortare rapida, nu asa".
+    //
+    // Are dreptate si dincolo de gust: ecranul de detaliu era o fundatura — te
+    // uitai la o poza si trebuia sa iesi ca sa treci la urmatoarea. Sortarea
+    // rapida are aceeasi poza pe tot ecranul, plus decizia la degetul mare si
+    // trecerea la urmatoarea in acelasi gest.
+    //
+    // Coada primeste EXACT ce se vede in grila, in ordinea din grila (`shown`,
+    // deci si gruparea pe persoane), incepand de la poza atinsa: altfel ai fi
+    // sarit intr-o alta ordine decat cea de sub deget.
+    const order = shown.map(p => p.id);
+    const from = order.indexOf(id);
+    openTiktokSortForIds(from > 0 ? [...order.slice(from), ...order.slice(0, from)] : order);
   };
 
   /** Inceputul unei posibile selectii-prin-drag ("vopsire" peste mai multe carduri, plan 3.2.1)
