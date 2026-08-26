@@ -718,7 +718,7 @@ export const en: Record<TranslationKey, string> = {
   'app.selectMode.active': 'Select mode (on)',
   'app.selectMode.short': 'Select many',
   'app.selectMode.toggle': 'Select multiple',
-  'app.search.placeholder': 'Search: name, person, place, what is in the photo…',
+  'app.search.placeholder': 'Search name, person…',
   'app.search.ariaLabel': 'Search photos by file name',
   'app.ratingFilter.ariaLabel': 'Minimum rating',
   'app.ratingFilter.any': 'Any rating',

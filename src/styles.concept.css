@@ -1724,11 +1724,47 @@ body:before {
 
 /* Centrate pe verticala cu butonul de inchidere (14px + 42px inaltime => mijloc
    la 35px), si pornind dupa el pe orizontala. */
-.tiktok-progress-dots,
-.tiktok-progress {
-  top:calc(34px + var(--safe-top));
-  left:68px;
-  right:82px;
+/* ── Bara de sus a sortarii rapide, ca RAND ──
+   Piesele (inchide, progres, "Toate N", contorul) stateau fiecare pozitionata
+   absolut, cu left/right potrivite de mana. Cat timp chipul "Toate N" lipsea,
+   numerele se legau; cand aparea, se suprapunea 69px peste liniuțele de
+   progres — raportat de utilizator, masurat in Chromium. Aceeasi cauza taia si
+   contorul pe ecrane inguste.
+
+   Randul flex face reglajul singur: progresul ia ce ramane (`flex: 1`, cu
+   `min-width: 0` ca sa aiba voie sa se si ingusteze), restul isi cer latimea
+   proprie. `position: static` pe copii anuleaza toate coordonatele fixe
+   mostenite din foile de mai sus — sunt acum treaba randului. */
+.tiktok-topbar {
+  position:absolute;
+  top:calc(14px + var(--safe-top));
+  left:14px;
+  right:14px;
+  z-index:var(--z-card-badge);
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+/* Clasa dublata NU e o scapare: `.tiktok-review-all-chip { position: absolute }`
+   e declarat mai JOS in acelasi fisier, deci la specificitate egala ar fi
+   castigat el, si chipul ar fi ramas plutind peste liniuțe exact ca inainte.
+   (0,2,0) castiga indiferent de ordine. */
+.tiktok-topbar.tiktok-topbar > * {
+  position:static;
+  flex:0 0 auto;
+  top:auto;
+  left:auto;
+  right:auto;
+  bottom:auto;
+}
+.tiktok-topbar.tiktok-topbar > .tiktok-progress-dots,
+.tiktok-topbar.tiktok-topbar > .tiktok-progress {
+  flex:1 1 auto;
+  min-width:24px;
+}
+/* Contorul se duce la capat si nu mai poate fi acoperit de nimic. */
+.tiktok-topbar.tiktok-topbar > .tiktok-progress-count {
+  margin-left:auto;
 }
 
 .tiktok-progress-count {

@@ -742,7 +742,12 @@ export const ro = {
   'app.selectMode.active': 'Mod selecție (activ)',
   'app.selectMode.short': 'Aleg mai multe',
   'app.selectMode.toggle': 'Selectează mai multe',
-  'app.search.placeholder': 'Caută: nume, persoană, loc, ce apare în poză…',
+  // 319px de text intr-un camp de 238 (masurat la 412px latime ecran, si
+  // doar 186 la 360): se taia in "Caută: nume, persoană, loc, ce ap" pe
+  // ORICE telefon. Un indiciu retezat nu invata pe nimeni nimic, ci arata
+  // stricat. Varianta scurta are 168px si incape peste tot; restul a ce
+  // stie cautarea nu se preda oricum dintr-un placeholder.
+  'app.search.placeholder': 'Caută nume, persoană…',
   'app.search.ariaLabel': 'Caută poze după numele fișierului',
   'app.ratingFilter.ariaLabel': 'Rating minim',
   'app.ratingFilter.any': 'Orice rating',

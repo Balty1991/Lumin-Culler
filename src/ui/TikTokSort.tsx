@@ -423,9 +423,20 @@ export function TikTokSort() {
 
   return (
     <div className="tiktok-sort" ref={containerRef} role="dialog" aria-modal="true" aria-label={tr('tiktok.title')} tabIndex={-1}>
-      <button className="tiktok-close" onClick={() => setOpen(false)} aria-label={tr('tiktok.close')}>
-        <XIcon />
-      </button>
+      {/* Bara de sus, ca RAND, nu ca patru piese asezate absolut.
+          Bug real raportat de utilizator ("butonul toate se suprapune peste
+          liniuțe") si masurat: liniuțele de progres tineau `right: 82px`, iar
+          chipul "Toate N" statea la `right: 76px` cu ~75px latime — deci
+          liniuțele se terminau la x=330 si chipul incepea la x=261. 69px unul
+          peste altul. Marginile fixe fusesera potrivite pentru cazul FARA chip,
+          si nimic nu le reajusta cand acesta aparea. La fel se taia si contorul
+          "1/10" pe ecrane mai inguste.
+          Intr-un rand flex problema nu mai poate exista: progresul ia ce ramane,
+          restul isi cer latimea lor, si se imping unele pe altele. */}
+      <div className="tiktok-topbar">
+        <button className="tiktok-close" onClick={() => setOpen(false)} aria-label={tr('tiktok.close')}>
+          <XIcon />
+        </button>
 
       {!current && (
         <div className="tiktok-empty">
@@ -440,26 +451,32 @@ export function TikTokSort() {
         </div>
       )}
 
+        {current && (
+          <>
+            {total <= MAX_PROGRESS_DOTS ? (
+              <div className="tiktok-progress-dots" role="progressbar" aria-valuenow={index + 1} aria-valuemin={1} aria-valuemax={total}>
+                {queueIds.map((id, i) => <i key={id} className={i < index ? 'done' : undefined} />)}
+              </div>
+            ) : (
+              <div className="tiktok-progress" role="progressbar" aria-valuenow={index} aria-valuemin={0} aria-valuemax={total}>
+                <i style={{ width: total > 0 ? `${(index / total) * 100}%` : '0%' }} />
+              </div>
+            )}
+            {/* Trecerea la toata biblioteca, fara sa iesi din ecran. Apare doar
+                cat timp coada e cea scurta (nedecise) si chiar exista mai multe
+                poze decat atat — altfel butonul n-ar duce nicaieri. */}
+            {!reviewingAll && photos.length > total && (
+              <button type="button" className="tiktok-review-all-chip" onClick={reviewAll}>
+                {tr('tiktok.reviewAll.short', { count: photos.length })}
+              </button>
+            )}
+            <span className="tiktok-progress-count mono" aria-hidden="true">{index + 1}/{total}</span>
+          </>
+        )}
+      </div>
+
       {current && (
         <>
-          {total <= MAX_PROGRESS_DOTS ? (
-            <div className="tiktok-progress-dots" role="progressbar" aria-valuenow={index + 1} aria-valuemin={1} aria-valuemax={total}>
-              {queueIds.map((id, i) => <i key={id} className={i < index ? 'done' : undefined} />)}
-            </div>
-          ) : (
-            <div className="tiktok-progress" role="progressbar" aria-valuenow={index} aria-valuemin={0} aria-valuemax={total}>
-              <i style={{ width: total > 0 ? `${(index / total) * 100}%` : '0%' }} />
-            </div>
-          )}
-          <span className="tiktok-progress-count mono" aria-hidden="true">{index + 1}/{total}</span>
-          {/* Trecerea la toata biblioteca, fara sa iesi din ecran. Apare doar cat
-              timp coada e cea scurta (nedecise) si chiar exista mai multe poze
-              decat atat — altfel butonul n-ar duce nicaieri. */}
-          {!reviewingAll && photos.length > total && (
-            <button type="button" className="tiktok-review-all-chip" onClick={reviewAll}>
-              {tr('tiktok.reviewAll.short', { count: photos.length })}
-            </button>
-          )}
           <div className="tiktok-up-hint"><ChevronUpIcon aria-hidden="true" /><span>{tr('tiktok.hint')}</span></div>
 
           <div
