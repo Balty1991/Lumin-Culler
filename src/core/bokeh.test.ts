@@ -54,3 +54,14 @@ describe('bokeh ca ajustare', () => {
     expect(isNeutral({ ...NEUTRAL_ADJUSTMENTS, bokeh: 40 })).toBe(false);
   });
 });
+
+describe('conturul real bate caseta fetei', () => {
+  it('bokehMask e ignorat de isNeutral — e o unealta, nu o ajustare', () => {
+    // Masca se poate reface oricand din poza si nu se salveaza in Dexie; daca
+    // ar conta ca editare, o poza needitata ar aparea ca editata doar fiindca
+    // s-a deschis sliderul.
+    const mask = { width: 8, height: 8 } as unknown as CanvasImageSource;
+    expect(isNeutral({ ...NEUTRAL_ADJUSTMENTS, bokehMask: mask })).toBe(true);
+    expect(isNeutral({ ...NEUTRAL_ADJUSTMENTS, bokehMask: mask, bokeh: 30 })).toBe(false);
+  });
+});

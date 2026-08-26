@@ -76,6 +76,15 @@ export interface EditAdjustments {
    * randare, si nu re-detectat.
    */
   bokehSubject?: { x: number; y: number; width: number; height: number };
+  /**
+   * Conturul REAL al persoanei, ca imagine: alb unde e persoana, negru in rest.
+   * Vine de la MediaPipe Image Segmenter (vezi core/nativeSegmentation.ts).
+   *
+   * Cand exista, `bokehSubject` de mai sus devine simpla rezerva. Nu se salveaza
+   * in Dexie si nu se transfera nicaieri: e o imagine care se poate reface
+   * oricand din poza, deci traieste doar cat sesiunea de editare.
+   */
+  bokehMask?: CanvasImageSource;
   /** Reglaj pe game de culoare (nuanta/saturatie/luminozitate per familie) — vezi core/hslBands.ts. Absent = neatins. */
   hsl?: HslBands;
   /** Curbele tonale (master + R/G/B) — vezi core/toneCurve.ts. Absent = liniare. */
@@ -98,7 +107,7 @@ export const NEUTRAL_ADJUSTMENTS: EditAdjustments = {
  * Tipul e exportat ca sa nu mai fie nevoie ca UI-ul sa repete lista de excluderi
  * (si sa o uite la urmatorul instrument adaugat — exact ce s-a intamplat).
  */
-export type NumericAdjustmentKey = Exclude<keyof EditAdjustments, 'crop' | 'curves' | 'controlPoints' | 'heal' | 'hsl' | 'bokehSubject'>;
+export type NumericAdjustmentKey = Exclude<keyof EditAdjustments, 'crop' | 'curves' | 'controlPoints' | 'heal' | 'hsl' | 'bokehSubject' | 'bokehMask'>;
 const ADJUSTMENT_KEYS = Object.keys(NEUTRAL_ADJUSTMENTS) as NumericAdjustmentKey[];
 
 /**
@@ -661,9 +670,10 @@ export function applyBokeh(
   amount: number
 ): void {
   const subject = a.bokehSubject;
-  // Fara subiect stiut n-avem ce pastra clar, si o estompare "de la centru" pe
-  // o poza in care subiectul nu e in centru ar strica exact ce trebuia salvat.
-  if (!subject) return;
+  // Fara nici masca, nici caseta, n-avem ce pastra clar — iar o estompare "de
+  // la centru" pe o poza in care subiectul nu e in centru ar strica exact ce
+  // trebuia salvat.
+  if (!a.bokehMask && !subject) return;
 
   const scratch = document.createElement('canvas');
   scratch.width = width;
@@ -676,6 +686,33 @@ export function applyBokeh(
   drawGeometry(sctx, source, sourceWidth, sourceHeight, width, height, a);
   sctx.filter = 'none';
 
+  // CALEA PRINCIPALA: conturul real al persoanei, de la segmenter.
+  //
+  // Masca vine ALBA pe persoana, deci desenata cu `destination-out` sterge exact
+  // silueta din copia estompata — fara niciun calcul de raza si fara nicio
+  // presupunere despre forma unui om. Browserul o scaleaza singur de la 256x256
+  // la cadrul intreg, si o face mai bine decat am reesantiona-o noi.
+  //
+  // Un blur mic PE MASCA, inainte: conturul modelului e taiat pixel cu pixel,
+  // iar o trecere brusca de la clar la estompat se vede imediat ca decupaj.
+  // Cateva miimi din latura inmoaie muchia exact cat trebuie — mai mult ar
+  // manca din umeri, mai putin ar lasa contur de foarfeca.
+  if (a.bokehMask) {
+    sctx.globalCompositeOperation = 'destination-out';
+    sctx.filter = `blur(${Math.max(1, Math.max(width, height) * 0.004).toFixed(2)}px)`;
+    sctx.drawImage(a.bokehMask, 0, 0, width, height);
+    sctx.filter = 'none';
+    sctx.globalCompositeOperation = 'source-over';
+    ctx.drawImage(scratch, 0, 0);
+    return;
+  }
+
+  if (!subject) return;
+
+  // REZERVA: caseta fetei plus un gradient radial. Se ajunge aici doar pe web
+  // sau cand segmentarea a esuat pe telefonul asta. Aproximeaza omul cu o
+  // elipsa — acceptabil pe un portret strans, vizibil gresit pe un cadru intreg.
+  //
   // Subiectul e dat in spatiul imaginii ORIGINALE; pe panza vedem eventual doar
   // o decupare din ea, deci coordonatele trebuie duse in spatiul decupat.
   const crop = a.crop;

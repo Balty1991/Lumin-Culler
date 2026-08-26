@@ -31,6 +31,7 @@ import { DEFAULT_HEAL_RADIUS, MIN_HEAL_RADIUS, MAX_HEAL_RADIUS, type HealStroke 
 import { XIcon, UndoIcon, SparkleIcon, LayersIcon, TrashIcon, SunIcon, ApertureIcon, BarChartIcon, FocusIcon, EditIcon, CropIcon } from './icons';
 import { applyStyle, foldStyleSample, styleDelta, styleIsReady, styleTopKeys } from '../core/editStyle';
 import { readEditStyle, readEditStyleEnabled, writeEditStyle } from '../state/editStyleStore';
+import { isNativeSegmentationAvailable, segmentPersonMask } from '../core/nativeSegmentation';
 import { t, plural } from '../i18n';
 
 // Doar cele 10 chei numerice cu slider in UI — rotationDeg (auto-indreptare)
@@ -736,14 +737,53 @@ export function EditPanel() {
     [analysis]
   );
 
-  // Subiectul intra in ajustari odata cu prima miscare a sliderului: drawAdjusted
-  // primeste doar EditAdjustments, deci trebuie sa-l gaseasca acolo.
+  /**
+   * Bokeh-ul se ofera cand avem CUM sa gasim persoana: fie segmentare nativa
+   * (conturul real), fie macar o fata detectata (caseta, ca rezerva). Pe o poza
+   * fara oameni intr-un browser, sliderul nu apare — unul care nu poate face
+   * nimic pe poza din fata omului e mai rau decat unul lipsa.
+   */
+  const bokehAvailable = isNativeSegmentationAvailable() || !!bokehSubject;
+
+
+  /**
+   * Subiectul intra in ajustari odata cu prima miscare a sliderului:
+   * drawAdjusted primeste doar EditAdjustments, deci trebuie sa-l gaseasca acolo.
+   *
+   * Se cere si CONTURUL REAL, de la segmenter — modelul e in APK de luni de zile
+   * (descarcat de CI, incarcat deja de SegmentationPlugin) si pana acum intorcea
+   * doar un procent. Caseta fetei ramane ca rezerva pentru web si pentru cazul
+   * in care segmentarea pica pe un telefon anume.
+   *
+   * Se cere O SINGURA DATA per poza si abia cand omul chiar porneste bokeh-ul:
+   * e o trecere de model pe imagine, n-are ce cauta la deschiderea editorului.
+   */
   useEffect(() => {
-    if (!bokehSubject || !photo) return;
+    if (!photo) return;
     if ((adjustments.bokeh ?? 0) === 0) return;
-    if (adjustments.bokehSubject) return;
-    setAdjustments(prev => ({ ...prev, bokehSubject }));
-  }, [bokehSubject, photo, adjustments.bokeh, adjustments.bokehSubject]);
+    if (adjustments.bokehMask || adjustments.bokehSubject) return;
+
+    let alive = true;
+    // Caseta se pune imediat, ca sa se vada ceva din prima; masca o inlocuieste
+    // cand soseste. Asa sliderul raspunde instant, nu dupa modelul de segmentare.
+    if (bokehSubject) setAdjustments(prev => ({ ...prev, bokehSubject }));
+
+    if (isNativeSegmentationAvailable()) {
+      void (async () => {
+        try {
+          const rec = await db.previews.get(photo.id) ?? await db.thumbnails.get(photo.id);
+          if (!rec || !alive) return;
+          const { image } = await segmentPersonMask(rec.blob);
+          if (alive) setAdjustments(prev => ({ ...prev, bokehMask: image }));
+        } catch {
+          // Segmentarea a picat pe telefonul asta — ramane caseta fetei, care e
+          // deja pusa. Nimic de spus omului: bokeh-ul functioneaza, doar mai
+          // aproximativ.
+        }
+      })();
+    }
+    return () => { alive = false; };
+  }, [bokehSubject, photo, adjustments.bokeh, adjustments.bokehSubject, adjustments.bokehMask]);
 
   const applyAuto = () => {
     if (!imgEl || !photo) return;
@@ -1391,7 +1431,7 @@ export function EditPanel() {
               {SLIDER_GROUPS.map(({ labelKey, sliders }) => (
                 <div className="edit-slider-group" key={labelKey}>
                   <span className="edit-slider-group-head mono">{tr(labelKey)}</span>
-                  {sliders.filter(({ key }) => key !== 'bokeh' || bokehSubject).map(({ key, min, max }) => (
+                  {sliders.filter(({ key }) => key !== 'bokeh' || bokehAvailable).map(({ key, min, max }) => (
                     <EditSlider
                       key={key}
                       label={tr(`edit.${key}`)}
