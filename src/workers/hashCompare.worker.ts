@@ -151,6 +151,12 @@ interface Bucket {
   members: HashInput[];
 }
 
+/** O intrare din BK-tree: un cadru si seria din care face parte. */
+interface Indexed {
+  bucket: number;
+  photo: HashInput;
+}
+
 /**
  * dHash e un semnal STRUCTURAL (gradient de luminanta pe o grila 9x8) — poze
  * cu compozitie/expunere similara dar SUBIECTI DIFERITI (ex. acelasi unghi de
@@ -188,10 +194,10 @@ function cosineSimilarity(a: number[], b: number[]): number {
   return denom > 0 ? dot / denom : 0;
 }
 
-/** true daca poza e la cel mult `windowMs` de VREUN membru al bucket-ului. Fara date de captura pe vreuna dintre parti, nu putem afirma nimic. */
-function closeInTime(photo: HashInput, members: HashInput[], windowMs = BURST_WINDOW_MS): boolean {
-  if (photo.capturedAt === undefined) return false;
-  return members.some(m => m.capturedAt !== undefined && Math.abs(m.capturedAt - photo.capturedAt!) <= windowMs);
+/** true daca cele doua cadre sunt la cel mult `windowMs` unul de altul. Fara data de captura pe vreuna dintre parti, nu putem afirma nimic. */
+function closeInTimeTo(photo: HashInput, other: HashInput, windowMs: number): boolean {
+  if (photo.capturedAt === undefined || other.capturedAt === undefined) return false;
+  return Math.abs(other.capturedAt - photo.capturedAt) <= windowMs;
 }
 
 function bestFaceSimilarity(a: number[][], b: number[][]): number | null {
@@ -419,40 +425,66 @@ export class HashCompareService {
     learnedWeight = 0
   ): Promise<{ groups: GroupResult[]; totalGroups: number }> {
     const buckets: Bucket[] = [];
-    // indexeaza seed-ul fiecarui bucket (BK-tree, distanta Hamming) — plan 2.3.3
-    // ("algoritmi optimizati... LSH"): media O(n) in loc de O(n * buckets) la
-    // biblioteci mari cu multe serii distincte, dar EXACT (nu aproximativ ca LSH
-    // clasic), asa ca rezultatul de grupare ramane identic cu varianta liniara.
-    let seedTree: BKNode<number> | null = null; // valoare = indexul bucket-ului in `buckets`
+    // Indexul tine FIECARE cadru, nu doar seed-ul seriei (BK-tree, distanta
+    // Hamming) — plan 2.3.3 ("algoritmi optimizati... LSH"): exact, nu
+    // aproximativ ca LSH clasic. Vezi comentariul lung de la `matches` mai jos
+    // pentru de ce s-a schimbat din seed in toti membrii.
+    let memberTree: BKNode<Indexed> | null = null;
 
     for (let start = 0; start < photos.length; start += CHUNK_SIZE) {
       const chunk = photos.slice(start, start + CHUNK_SIZE);
       for (const photo of chunk) {
-        // Interogam cu pragul RELAXAT, apoi filtram: distanta stransa e mereu
-        // acceptata, cea relaxata doar cand pozele sunt si apropiate in timp.
-        const candidates = bkQuery(seedTree, photo.hash, MOMENT_SIMILARITY_THRESHOLD, hammingDistance)
-          .filter(index => {
-            const distance = hammingDistance(photo.hash, buckets[index].seedHash);
-            const members = buckets[index].members;
-            // 1. asemanare vizuala stransa — acceptata mereu, indiferent de timp
-            if (distance <= SIMILARITY_THRESHOLD) return true;
-            // 2. rafala: prag relaxat, dar doar la cateva zeci de secunde distanta
-            if (distance <= TIME_CLOSE_SIMILARITY_THRESHOLD && closeInTime(photo, members)) return true;
-            // 3. moment: prag larg si minute intregi, DAR numai cu dovada ca e
-            //    acelasi subiect SI fara vreo dovada ca e alt loc — o fata
-            //    spune CINE, nu UNDE. Vezi MOMENT_SIMILARITY_THRESHOLD.
-            return closeInTime(photo, members, MOMENT_WINDOW_MS)
-              && members.some(m => sameSubjectConfirmed(photo, m) && !sceneContradicts(photo, m));
-          });
+        // Toate cele trei reguli se aplica fata de cadrul VECIN gasit in index,
+        // nu fata de prima poza a seriei.
+        //
+        // BUG RAPORTAT CU CAPTURA: cinci cadre ale aceluiasi colt de camera,
+        // la cateva secunde unul de altul, au primit TREI bife verzi. Nu
+        // scorurile erau gresite (94..97, toate corecte pentru cat de bine e
+        // facut cadrul) — seria s-a rupt in bucati, iar demovarea din
+        // importPipeline lasa cate o bifa in fiecare bucata.
+        //
+        // Cauza e derivă. Comparatia se facea DOAR cu seed-ul, adica prima
+        // poza care a creat seria. Intr-o rafala cadrul se muta putin de
+        // fiecare data; vecinii raman la 8-10 biti unul de altul, dar capatul
+        // ajunge la 30+ fata de inceput. Cadrul 5 nu mai semana cu cadrul 1,
+        // desi semana perfect cu cadrul 4 — si nici macar nu era intrebat
+        // despre cadrul 4, fiindca indexul continea doar seed-uri.
+        //
+        // Acum fiecare cadru intra in index cu bucket-ul lui, deci interogarea
+        // gaseste seria prin ORICARE membru. Legatura ramane la fel de stricta
+        // ca inainte, doar ca se masoara intre vecini: fiecare veriga cere in
+        // continuare <= 14 biti, sau <= 24 SI sub un minut, sau dovada de
+        // acelasi subiect. O serie continua se leaga; doua scene diferite tot
+        // n-au cum, fiindca n-au nicio veriga intre ele.
+        const matches = bkQuery(memberTree, photo.hash, MOMENT_SIMILARITY_THRESHOLD, hammingDistance);
+        const acceptate = new Set<number>();
+        for (const m of matches) {
+          if (acceptate.has(m.bucket)) continue; // bucket-ul e deja luat, nu-l re-evaluam
+          const distance = hammingDistance(photo.hash, m.photo.hash);
+          // 1. asemanare vizuala stransa — acceptata mereu, indiferent de timp
+          if (distance <= SIMILARITY_THRESHOLD) { acceptate.add(m.bucket); continue; }
+          // 2. rafala: prag relaxat, dar doar la cateva zeci de secunde distanta
+          if (distance <= TIME_CLOSE_SIMILARITY_THRESHOLD && closeInTimeTo(photo, m.photo, BURST_WINDOW_MS)) {
+            acceptate.add(m.bucket); continue;
+          }
+          // 3. moment: prag larg si minute intregi, DAR numai cu dovada ca e
+          //    acelasi subiect SI fara vreo dovada ca e alt loc — o fata
+          //    spune CINE, nu UNDE. Vezi MOMENT_SIMILARITY_THRESHOLD.
+          if (closeInTimeTo(photo, m.photo, MOMENT_WINDOW_MS)
+            && sameSubjectConfirmed(photo, m.photo) && !sceneContradicts(photo, m.photo)) {
+            acceptate.add(m.bucket);
+          }
+        }
         // primul bucket creat dintre candidati — aceeasi regula de departajare ca
         // Array.prototype.find de dinainte (scanare in ordinea crearii)
-        const bucketIndex = candidates.length ? Math.min(...candidates) : -1;
+        const bucketIndex = acceptate.size ? Math.min(...acceptate) : -1;
         if (bucketIndex !== -1) {
           buckets[bucketIndex].members.push(photo);
+          memberTree = bkInsert(memberTree, photo.hash, { bucket: bucketIndex, photo }, hammingDistance);
         } else {
           const newIndex = buckets.length;
           buckets.push({ seedHash: photo.hash, members: [photo] });
-          seedTree = bkInsert(seedTree, photo.hash, newIndex, hammingDistance);
+          memberTree = bkInsert(memberTree, photo.hash, { bucket: newIndex, photo }, hammingDistance);
         }
       }
       // elibereaza firul (al worker-ului) intre chunk-uri — pe un fir dedicat

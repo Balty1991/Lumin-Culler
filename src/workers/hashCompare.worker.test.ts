@@ -403,3 +403,54 @@ describe('serii: una cu oameni, alta fara', () => {
     expect(totalGroups).toBe(1);
   });
 });
+
+describe('rafala care se indeparteaza de primul cadru', () => {
+  /** Sir de 64 de biti cu primii `n` pusi pe '1' — distanta Hamming intre doua
+   *  astfel de siruri e exact |n1 - n2|, deci putem construi o deriva masurata. */
+  const drift = (n: number) => '1'.repeat(n) + '0'.repeat(64 - n);
+
+  it('cinci cadre ale aceluiasi colt raman O SINGURA serie', async () => {
+    // Cazul din captura: cinci poze ale aceluiasi colt de camera, la 10 secunde
+    // una de alta, trei cu bifa verde. Vecinii sunt la 8 biti unul de altul, dar
+    // capatul ajunge la 32 fata de inceput — cu comparatie doar fata de primul
+    // cadru, ultimul cadea afara din serie si isi lua propria bifa.
+    const service = new HashCompareService();
+    const t = Date.parse('2026-08-24T11:00:00Z');
+    const { groups } = await service.groupPhotos([0, 1, 2, 3, 4].map(i => ({
+      id: `p${i}`, hash: drift(i * 8), score: 94 + i, capturedAt: t + i * 10_000
+    })));
+
+    expect(groups).toHaveLength(1);
+    expect([...groups[0].memberIds].sort()).toEqual(['p0', 'p1', 'p2', 'p3', 'p4']);
+  });
+
+  it('deriva NU trece prin timp: aceleasi cadre la o zi distanta se rup', async () => {
+    // Verificarea ca legatura ramane la fel de stricta ca inainte. Peste pragul
+    // strans (14) fiecare veriga cere si apropiere in timp; la o zi distanta,
+    // 16 biti intre vecini nu mai leaga nimic.
+    const service = new HashCompareService();
+    const t = Date.parse('2026-08-24T11:00:00Z');
+    const { groups } = await service.groupPhotos([0, 1, 2].map(i => ({
+      id: `z${i}`, hash: drift(i * 16), score: 90, capturedAt: t + i * 86_400_000
+    })));
+
+    expect(groups).toHaveLength(0);
+  });
+
+  it('doua scene fara nicio veriga intre ele raman doua serii', async () => {
+    // Lantul nu are voie sa uneasca tot ce e in biblioteca: intre cele doua
+    // grupuri sunt 40 de biti, adica nicio pereche sub prag.
+    const service = new HashCompareService();
+    const t = Date.parse('2026-08-24T11:00:00Z');
+    const { groups } = await service.groupPhotos([
+      { id: 'a0', hash: drift(0), score: 90, capturedAt: t },
+      { id: 'a1', hash: drift(8), score: 91, capturedAt: t + 10_000 },
+      { id: 'b0', hash: drift(48), score: 92, capturedAt: t + 20_000 },
+      { id: 'b1', hash: drift(56), score: 93, capturedAt: t + 30_000 }
+    ]);
+
+    expect(groups).toHaveLength(2);
+    const serii = groups.map(g => [...g.memberIds].sort().join('+')).sort();
+    expect(serii).toEqual(['a0+a1', 'b0+b1']);
+  });
+});
