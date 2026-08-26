@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { motion } from 'framer-motion';
 import { useStore } from '../state/store';
 import { HomeIcon, GridIcon, FocusIcon, MenuIcon } from './icons';
 import { t } from '../i18n';
@@ -91,13 +92,28 @@ export function BottomNav() {
   // ce tocmai lucrai.
   const goReview = () => { closePanels(); setFilter('review'); setTiktokSortOpen(true); };
 
+  /**
+   * Pastila care marcheaza tabul activ GLISEAZA intre taburi, in loc sa apara
+   * si sa dispara. `layoutId` face framer-motion sa trateze cele patru
+   * aparitii posibile ca pe UN SINGUR element care se muta — de-aia fundalul
+   * propriu al tabului activ a fost scos din CSS: altfel s-ar fi vazut doua
+   * pastile in acelasi timp cat tine tranzitia.
+   *
+   * Miscarea e doar transform, deci nu reasaza bara. La
+   * `prefers-reduced-motion` framer citeste singur setarea si sare direct.
+   */
+  const pastila = <motion.span layoutId="bottom-nav-pill" className="bottom-nav-pill" aria-hidden="true"
+    transition={{ type: 'spring', stiffness: 520, damping: 42, mass: 0.7 }} />;
+
   return (
     <nav className="bottom-nav glass" aria-label={tr('nav.ariaLabel')}>
       <button className={isHomeActive ? 'bottom-nav-tab active' : 'bottom-nav-tab'} onClick={goHome} aria-current={isHomeActive}>
+        {isHomeActive && pastila}
         <HomeIcon />
         <span>{tr('nav.home')}</span>
       </button>
       <button className={isLibraryActive ? 'bottom-nav-tab active' : 'bottom-nav-tab'} onClick={goLibrary} aria-current={isLibraryActive}>
+        {isLibraryActive && pastila}
         <GridIcon />
         <span>{tr('nav.library')}</span>
       </button>
@@ -109,11 +125,13 @@ export function BottomNav() {
         // (locul lui in bara nu se muta de la o sesiune la alta), dar inactiv.
         disabled={toReview === 0}
       >
+        {tiktokSortOpen && pastila}
         <FocusIcon />
         <span>{tr('nav.review')}</span>
         {toReview > 0 && <b className="bottom-nav-badge mono">{toReview > 99 ? '99+' : toReview}</b>}
       </button>
       <button className={menuOpen ? 'bottom-nav-tab active' : 'bottom-nav-tab'} onClick={() => setMenuOpen(true)} aria-current={menuOpen}>
+        {menuOpen && pastila}
         <MenuIcon />
         <span>{tr('nav.me')}</span>
       </button>

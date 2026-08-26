@@ -78,6 +78,20 @@ export interface EditAdjustments {
    * umbrele (umbra, verdeata, betonul) se racesc. Doua slidere de nuanta ar da
    * mai multa libertate si mult mai multe combinatii urate.
    */
+  /**
+   * Dezaburire (0..100). Ceata, pacla de vara, geamul unui tren — toate
+   * ridica NEGRUL local si spala culoarea. Nu e acelasi lucru cu contrastul:
+   * contrastul global intinde toata histograma si arde ce era deja bun, pe
+   * cand asta cauta cat de "alb" e cel mai intunecat canal din fiecare zona si
+   * scoate exact atat.
+   */
+  dehaze?: number;
+  /**
+   * Alb-negru cu mixer de canale (0..100 = cat de mult din conversie se face
+   * dupa mixer). `bwMix` da ponderile pe rosu/verde/albastru.
+   */
+  bw?: number;
+  bwMix?: { red: number; green: number; blue: number };
   grade?: number;
   /**
    * Granulatie de film (0..100). Ultimul pas dinaintea vinietei: se pune peste
@@ -113,7 +127,7 @@ export interface EditAdjustments {
 
 export const NEUTRAL_ADJUSTMENTS: EditAdjustments = {
   exposure: 0, contrast: 0, saturation: 0, temperature: 0, tint: 0, highlights: 0, shadows: 0, rotationDeg: 0,
-  whites: 0, blacks: 0, sharpen: 0, clarity: 0, noiseReduction: 0, vignette: 0, grade: 0, grain: 0, bokeh: 0
+  whites: 0, blacks: 0, sharpen: 0, clarity: 0, noiseReduction: 0, vignette: 0, dehaze: 0, bw: 0, grade: 0, grain: 0, bokeh: 0
 };
 
 /**
@@ -123,7 +137,7 @@ export const NEUTRAL_ADJUSTMENTS: EditAdjustments = {
  * Tipul e exportat ca sa nu mai fie nevoie ca UI-ul sa repete lista de excluderi
  * (si sa o uite la urmatorul instrument adaugat — exact ce s-a intamplat).
  */
-export type NumericAdjustmentKey = Exclude<keyof EditAdjustments, 'crop' | 'curves' | 'controlPoints' | 'heal' | 'hsl' | 'bokehSubject' | 'bokehMask'>;
+export type NumericAdjustmentKey = Exclude<keyof EditAdjustments, 'crop' | 'curves' | 'controlPoints' | 'heal' | 'hsl' | 'bokehSubject' | 'bokehMask' | 'bwMix'>;
 const ADJUSTMENT_KEYS = Object.keys(NEUTRAL_ADJUSTMENTS) as NumericAdjustmentKey[];
 
 /**
@@ -540,6 +554,8 @@ export function drawAdjusted(
   const luts = buildChannelLuts(a.curves);
   const activePoints = (a.controlPoints ?? []).filter(p => !isNeutralControlPoint(p));
   const vignette = a.vignette ?? 0;
+  const dehaze = a.dehaze ?? 0;
+  const bw = a.bw ?? 0;
   const grade = a.grade ?? 0;
   const grain = a.grain ?? 0;
   const bokeh = a.bokeh ?? 0;
@@ -549,7 +565,7 @@ export function drawAdjusted(
   // curbe, vinieta, culoare — trebuie sa cada peste rezultatul lui, nu sub el.
   if (bokeh > 0) applyBokeh(ctx, healed ?? source, sourceWidth, sourceHeight, width, height, a, bokeh);
 
-  if (!hasColorShift && !hasDetailPass && !luts && activePoints.length === 0 && vignette === 0 && grade === 0 && grain === 0 && !hasHsl) return;
+  if (!hasColorShift && !hasDetailPass && !luts && activePoints.length === 0 && vignette === 0 && grade === 0 && grain === 0 && dehaze === 0 && bw === 0 && !hasHsl) return;
 
   const imgData = ctx.getImageData(0, 0, width, height);
   const d = imgData.data;
@@ -638,6 +654,13 @@ export function drawAdjusted(
   // Granulatia pusa INAINTE de gradare ar fi fost colorata si ea, iar vinieta
   // pusa inaintea granulatiei ar fi lasat coltul intunecat fara granulatie —
   // amandoua se vad imediat ca fals.
+  // Dezaburirea INAINTE de orice alegere de look: e o corectie, curata cadrul
+  // pe care apoi se aseaza gradarea. Invers, gradarea ar fi fost si ea
+  // "dezaburita", adica slabita exact dupa ce a fost pusa.
+  if (dehaze !== 0) applyDehaze(d, width, height, dehaze);
+  // Alb-negru inaintea gradarii: altfel gradarea ar colora o poza care tocmai
+  // a fost facuta alb-negru, si ar iesi un vireuj, nu un alb-negru.
+  if (bw !== 0) applyBlackAndWhite(d, bw, a.bwMix);
   if (grade !== 0) applyCinematicGrade(d, grade);
   if (grain !== 0) applyGrain(d, width, grain);
 
@@ -837,6 +860,104 @@ export function applyBokeh(
   sctx.globalCompositeOperation = 'source-over';
 
   ctx.drawImage(scratch, 0, 0);
+}
+
+/**
+ * Ponderile implicite ale mixerului alb-negru.
+ *
+ * NU sunt luminanta perceptuala (0.299/0.587/0.114). Aceea da un alb-negru
+ * corect si plat; ce cauta lumea la alb-negru e altceva — filtrul rosu de pe
+ * obiectiv, cel din fotografia clasica de peisaj si portret: inchide cerul
+ * albastru si deschide pielea. De-aia rosul urca si albastrul coboara.
+ */
+export const DEFAULT_BW_MIX = { red: 0.42, green: 0.44, blue: 0.14 };
+
+/**
+ * Alb-negru cu mixer de canale.
+ *
+ * `amount` e cat de departe se merge spre alb-negru (100 = complet), ca sa
+ * existe si trecerea partiala — o poza desaturata pe jumatate, nu doar
+ * comutatorul pornit/oprit.
+ */
+export function applyBlackAndWhite(
+  d: Uint8ClampedArray,
+  amount: number,
+  mix: { red: number; green: number; blue: number } = DEFAULT_BW_MIX
+): void {
+  const t = amount / 100;
+  if (t <= 0) return;
+  // Ponderile se normalizeaza: altfel un mixer cu suma 1.6 ar lumina toata
+  // poza, si omul ar crede ca a stricat expunerea, nu ca a schimbat filtrul.
+  const suma = mix.red + mix.green + mix.blue;
+  const s = suma === 0 ? 1 : suma;
+  const wr = mix.red / s, wg = mix.green / s, wb = mix.blue / s;
+  for (let i = 0; i < d.length; i += 4) {
+    const gri = wr * d[i] + wg * d[i + 1] + wb * d[i + 2];
+    d[i] = clamp255(d[i] + (gri - d[i]) * t);
+    d[i + 1] = clamp255(d[i + 1] + (gri - d[i + 1]) * t);
+    d[i + 2] = clamp255(d[i + 2] + (gri - d[i + 2]) * t);
+  }
+}
+
+/**
+ * Dezaburire.
+ *
+ * Ce e ceata, in numere: lumina imprastiata se adauga PESTE scena, deci in
+ * fiecare zona ceteasa niciun canal nu mai coboara la zero. Asta se numeste
+ * "dark channel" — minimul dintre R, G si B — si intr-o zona clara e aproape
+ * negru, iar intr-una ceteasa e cenusiu.
+ *
+ * Deci: se masoara canalul intunecat pe o GRILA (nu pe fiecare pixel — costul
+ * ar fi urias si rezultatul aproape identic, fiindca ceata e prin natura ei o
+ * variatie lenta), se interpoleaza inapoi, si din fiecare pixel se scade
+ * partea de ceata proportional cu cat de multa e acolo.
+ *
+ * De ce nu "mai mult contrast": contrastul global intinde toata histograma si
+ * arde ce era deja bun. Asta atinge doar zonele care chiar sunt spalate — pe
+ * un cadru fara ceata, aproape nu face nimic, si asa si trebuie.
+ */
+const DEHAZE_GRID = 24;
+
+export function applyDehaze(d: Uint8ClampedArray, width: number, height: number, amount: number): void {
+  const t = amount / 100;
+  if (t <= 0) return;
+
+  const cols = Math.max(1, Math.min(DEHAZE_GRID, width));
+  const rows = Math.max(1, Math.min(DEHAZE_GRID, height));
+  const cw = width / cols;
+  const ch = height / rows;
+  // Canalul intunecat, minim pe fiecare celula de grila.
+  const dark = new Float32Array(cols * rows).fill(255);
+  for (let y = 0; y < height; y++) {
+    const gy = Math.min(rows - 1, (y / ch) | 0);
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) << 2;
+      const m = Math.min(d[i], d[i + 1], d[i + 2]);
+      const g = gy * cols + Math.min(cols - 1, (x / cw) | 0);
+      if (m < dark[g]) dark[g] = m;
+    }
+  }
+
+  // Lumina atmosferica: cel mai luminos canal intunecat din cadru. E cheia
+  // care spune "cat de alba e ceata aici" — pe o poza fara ceata iese mica,
+  // si atunci corectia de mai jos e aproape nula, singura.
+  let A = 1;
+  for (let g = 0; g < dark.length; g++) if (dark[g] > A) A = dark[g];
+
+  for (let y = 0; y < height; y++) {
+    const fy = Math.min(rows - 1, (y / ch) | 0);
+    for (let x = 0; x < width; x++) {
+      const g = fy * cols + Math.min(cols - 1, (x / cw) | 0);
+      // Transmisia: 1 = aer curat, spre 0 = ceata groasa. Pragul de jos
+      // opreste impartirea sa explodeze in zonele cele mai albe (cerul), unde
+      // altfel ar scoate artefacte violente.
+      const transmisie = Math.max(0.25, 1 - 0.95 * (dark[g] / A) * t);
+      const i = (y * width + x) << 2;
+      for (let c = 0; c < 3; c++) {
+        d[i + c] = clamp255((d[i + c] - A * (1 - transmisie)) / transmisie);
+      }
+    }
+  }
 }
 
 /**

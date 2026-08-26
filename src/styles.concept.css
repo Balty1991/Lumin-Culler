@@ -5508,3 +5508,166 @@ input[type="search"] { min-height: 44px; }
   color: rgb(255 255 255 / .6);
 }
 .tiktok-why-close svg { width: 16px; height: 16px; }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   STRATUL DE MISCARE SI MATERIAL
+   Adaugat DUPA stratul de concept portat, nu peste el: regulile de mai sus
+   sunt copia unei stari aprobate vizual, iar ce urmeaza le imbraca, nu le
+   rescrie. Tot ce e aici e fie compozitor pur (transform/opacity), fie o
+   umbra — nimic care sa forteze reasezarea paginii in timpul unei animatii.
+
+   `prefers-reduced-motion` e deja tratat global mai sus (toate animatiile trec
+   la 0.01ms); pentru fundalul care se misca singur exista si o oprire
+   explicita la finalul sectiunii, fiindca acolo "foarte scurt" ar insemna un
+   salt, nu o oprire.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Fundal viu ──
+   Peste cele doua pete statice din `body:before` vine un al doilea strat care
+   se plimba foarte incet. Nu are blur (un filtru pe tot ecranul e scump pe
+   telefoanele slabe) — doar gradiente radiale, si se misca DOAR prin
+   transform, deci ramane treaba compozitorului, fara repictare.
+
+   Stratul e scalat 1.35: la translatiile de mai jos marginile lui n-au voie
+   sa intre in cadru. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: -18%;
+  z-index: -1;
+  pointer-events: none;
+  opacity: .75;
+  background:
+    radial-gradient(38% 26% at 22% 18%, rgb(101 224 203 / .085), transparent 70%),
+    radial-gradient(34% 30% at 82% 72%, rgb(156 124 255 / .075), transparent 72%),
+    radial-gradient(26% 20% at 60% 8%, rgb(255 118 111 / .035), transparent 74%);
+  animation: ambientDrift 52s var(--ease, cubic-bezier(.4,0,.2,1)) infinite alternate;
+  will-change: transform;
+}
+@keyframes ambientDrift {
+  from { transform: translate3d(-2.5%, -1.5%, 0) scale(1); }
+  to   { transform: translate3d(2.5%, 2%, 0) scale(1.06); }
+}
+
+/* ── Intrarea elementelor dintr-o lista ──
+   `--i` da rangul in lista; intarzierea e PLAFONATA la 10 pasi, ca o lista
+   lunga sa nu ajunga sa se deseneze secunde intregi. Numarul mare de pasi nu
+   se vede oricum: ochiul citeste valul, nu fiecare element. */
+@keyframes riseIn {
+  from { opacity: 0; transform: translate3d(0, 9px, 0); }
+  to   { opacity: 1; transform: none; }
+}
+.rise-in {
+  animation: riseIn .42s cubic-bezier(.22,.9,.3,1) both;
+  animation-delay: calc(min(var(--i, 0), 10) * 26ms);
+}
+
+/* ── Randurile din meniu ──
+   Sertarul se monteaza de la zero la fiecare deschidere, deci e locul in care
+   o intrare esalonata chiar are sens: se vede o data, cand te uiti la ea. */
+.drawer .drawer-item,
+.drawer .drawer-group,
+.drawer .drawer-pro-card,
+.drawer .drawer-about {
+  animation: riseIn .38s cubic-bezier(.22,.9,.3,1) both;
+}
+.drawer .drawer-pro-card { animation-delay: 20ms; }
+.drawer > * + * { animation-delay: 40ms; }
+.drawer .drawer-group:nth-of-type(2) { animation-delay: 70ms; }
+.drawer .drawer-group:nth-of-type(3) { animation-delay: 100ms; }
+.drawer .drawer-group:nth-of-type(4) { animation-delay: 130ms; }
+.drawer .drawer-about { animation-delay: 160ms; }
+
+/* Sectiunea deschisa se ridica din pagina, ca sa se vada CARE e deschisa fara
+   sa numeri chevroanele. */
+.drawer-group:has(.drawer-group-body[data-open="true"]) {
+  background: linear-gradient(180deg, rgb(232 237 248 / .035), transparent 62%);
+  border-radius: 14px;
+}
+
+/* ── Butoane ──
+   Un singur fel de raspuns la atingere in toata aplicatia: se lasa putin si
+   se stinge putin. Pana acum unele aveau scale(.98), altele nimic, si
+   diferenta se simtea ca inconsecventa, nu ca intentie. */
+button:not(:disabled),
+.chip:not(:disabled) {
+  transition:
+    transform .12s cubic-bezier(.22,.9,.3,1),
+    filter .16s ease,
+    background .16s ease,
+    border-color .16s ease,
+    box-shadow .2s ease;
+}
+button:not(:disabled):active,
+.chip:not(:disabled):active {
+  transform: scale(.965);
+  filter: brightness(.93);
+}
+
+/* Inelul de focalizare, acelasi peste tot. Apare doar la navigarea cu tastatura
+   (:focus-visible), deci nu se vede la atingere pe telefon. */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--atelier-teal);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+/* Actiunea principala capata volum: o umbra colorata din propriul ei accent,
+   nu o umbra neagra generica. La apasare umbra se strange, ca butonul sa para
+   ca chiar coboara spre pagina. */
+.btn-accent:not(:disabled) {
+  box-shadow: 0 10px 26px -14px rgb(101 224 203 / .75), 0 2px 8px -4px rgb(0 0 0 / .5);
+}
+.btn-accent:not(:disabled):active {
+  box-shadow: 0 4px 12px -10px rgb(101 224 203 / .6);
+}
+button:disabled,
+.chip:disabled { opacity: .42; }
+
+/* ── Cardurile din grila ──
+   Fara intrare esalonata, dinadins: cardurile se monteaza si se demonteaza in
+   timpul derularii, deci o animatie de intrare ar clipi la fiecare intoarcere
+   in sus. Ce ramane e raspunsul la atingere si o umbra care creste — se simte
+   la fiecare atingere, nu o data pe ecran. */
+.card {
+  transition: transform .16s cubic-bezier(.22,.9,.3,1), box-shadow .2s ease;
+}
+.card:active { transform: scale(.978); }
+.card img,
+.card canvas {
+  transition: opacity .3s ease;
+}
+
+/* ── Bara de jos ──
+   Pastila activa gliseaza intre taburi (vezi layoutId in BottomNav.tsx), deci
+   fundalul propriu al tabului activ dispare — altfel s-ar fi vazut doua
+   pastile in acelasi timp cat tine tranzitia. */
+.bottom-nav-tab.active { background: transparent; }
+.bottom-nav-tab { position: relative; }
+.bottom-nav-pill {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: 14px;
+  background: rgb(101 224 203 / .16);
+  box-shadow: inset 0 0 0 1px rgb(101 224 203 / .22);
+}
+.bottom-nav-tab > svg,
+.bottom-nav-tab > span,
+.bottom-nav-tab > b { position: relative; z-index: 1; }
+
+/* Fundalul care se plimba se OPRESTE, nu se grabeste: la 0.01ms (regula
+   globala de mai sus) ar fi sarit direct in pozitia finala la fiecare ciclu. */
+@media (prefers-reduced-motion: reduce) {
+  body::after { animation: none; transform: none; }
+  .rise-in,
+  .drawer .drawer-item,
+  .drawer .drawer-group,
+  .drawer .drawer-pro-card,
+  .drawer .drawer-about { animation: none; }
+}
