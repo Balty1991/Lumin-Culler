@@ -1319,6 +1319,8 @@ export const en: Record<TranslationKey, string> = {
   'edit.bokeh.source.mask': 'Background separated along the person\'s outline.',
   'edit.bokeh.source.face': 'Background separated roughly, from the face — the exact outline could not be found.',
   'edit.bokeh.source.none': 'No person found in the frame, so there is nothing to keep sharp. The slider has no effect on this photo.',
+  'edit.grade': 'Cinematic tone',
+  'edit.grain': 'Grain',
   'edit.vignette': 'Vignette',
 
   'edit.tools': 'Tools',

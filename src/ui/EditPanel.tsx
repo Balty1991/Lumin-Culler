@@ -98,7 +98,13 @@ const SLIDER_GROUPS: {
     // "bokeh" apare in lista doar cand poza are un subiect stiut (vezi
     // bokehAvailable mai jos): un slider care nu poate face nimic pe poza din
     // fata omului e mai rau decat unul care lipseste.
-    sliders: [{ key: 'bokeh', min: 0, max: 100 }, { key: 'vignette', min: -100, max: 100 }]
+    sliders: [
+      { key: 'bokeh', min: 0, max: 100 },
+      // Ordinea urmeaza developarea: intai culoarea, apoi bobul, apoi obiectivul.
+      { key: 'grade', min: 0, max: 100 },
+      { key: 'grain', min: 0, max: 100 },
+      { key: 'vignette', min: -100, max: 100 }
+    ]
   }
 ];
 

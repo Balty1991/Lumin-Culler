@@ -85,7 +85,7 @@ describe('cum se adauga peste ce e deja pus', () => {
   });
 
   it('se aduna, deci a doua apasare da mai mult', () => {
-    const look = { clarity: 20, contrast: 8, saturation: 10, blacks: -6 };
+    const look = { clarity: 20, contrast: 8, saturation: 10, blacks: -6, grade: 10, grain: 5 };
     const o = addStyleLook({ clarity: 0, contrast: 0, saturation: 0, blacks: 0 }, look);
     const doua = addStyleLook(o, look);
     expect(doua.clarity).toBe(40);
@@ -93,10 +93,11 @@ describe('cum se adauga peste ce e deja pus', () => {
   });
 
   it('se opreste la capatul sliderului, nu trece de el', () => {
-    const o = addStyleLook({ clarity: 95, contrast: 98, saturation: 0, blacks: -97 },
-      { clarity: 30, contrast: 12, saturation: 0, blacks: -14 });
+    const o = addStyleLook({ clarity: 95, contrast: 98, saturation: 0, blacks: -97, grade: 96, grain: 0 },
+      { clarity: 30, contrast: 12, saturation: 0, blacks: -14, grade: 30, grain: 0 });
     expect(o.clarity).toBe(100);
     expect(o.contrast).toBe(100);
     expect(o.blacks).toBe(-100);
+    expect(o.grade).toBe(100);
   });
 });

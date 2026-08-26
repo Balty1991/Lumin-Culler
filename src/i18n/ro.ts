@@ -1366,6 +1366,8 @@ export const ro = {
   'edit.bokeh.source.mask': 'Fundal separat pe conturul persoanei.',
   'edit.bokeh.source.face': 'Fundal separat aproximativ, după față — conturul exact n-a putut fi găsit.',
   'edit.bokeh.source.none': 'N-am găsit nicio persoană în cadru, așa că nu am ce lăsa clar. Sliderul rămâne fără efect pe poza asta.',
+  'edit.grade': 'Ton cinematic',
+  'edit.grain': 'Granulație',
   'edit.vignette': 'Vinietă',
 
   // --- Instrumentele editorului (bara de sub poză) ---

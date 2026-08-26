@@ -49,7 +49,11 @@ export const STYLE_MAX_DELTA = 25;
 /** Sliderele din care se invata stil. Deliberat NU toate. */
 const STYLE_KEYS = [
   'exposure', 'contrast', 'saturation', 'temperature', 'tint',
-  'highlights', 'shadows', 'whites', 'blacks', 'clarity', 'vignette', 'sharpen'
+  'highlights', 'shadows', 'whites', 'blacks', 'clarity', 'vignette', 'sharpen',
+  // Gradarea si bobul stau aici din acelasi motiv ca vinieta: sunt alegeri de
+  // GUST, constante de la o poza la alta la acelasi om, si exact felul de
+  // lucru pe care merita sa-l inveti din ce a facut el de mana.
+  'grade', 'grain'
 ] as const;
 
 export type StyleKey = typeof STYLE_KEYS[number];

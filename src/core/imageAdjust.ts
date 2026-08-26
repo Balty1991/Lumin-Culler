@@ -69,6 +69,22 @@ export interface EditAdjustments {
    * Alternativa "corecta" ar fi fost MediaPipe Image Segmenter: inca un model
    * in APK, pentru un caz pe care casetele de fata il acopera deja bine.
    */
+  /**
+   * Gradare cinematica (0..100): umbrele spre teal, luminile spre chihlimbar.
+   *
+   * De ce EXACT combinatia asta si nu doua slidere de nuanta: teal-orange e
+   * gradarea pe care o recunoaste oricine din filme, si e si cea care merge pe
+   * cele mai multe poze cu oameni — pielea sta in lumini si se incalzeste, iar
+   * umbrele (umbra, verdeata, betonul) se racesc. Doua slidere de nuanta ar da
+   * mai multa libertate si mult mai multe combinatii urate.
+   */
+  grade?: number;
+  /**
+   * Granulatie de film (0..100). Ultimul pas dinaintea vinietei: se pune peste
+   * imaginea deja gradata, ca la developare, nu sub corectii care apoi ar
+   * intinde-o.
+   */
+  grain?: number;
   bokeh?: number;
   /**
    * Unde e subiectul, normalizat 0..1 in spatiul imaginii ORIGINALE. Calculat o
@@ -97,7 +113,7 @@ export interface EditAdjustments {
 
 export const NEUTRAL_ADJUSTMENTS: EditAdjustments = {
   exposure: 0, contrast: 0, saturation: 0, temperature: 0, tint: 0, highlights: 0, shadows: 0, rotationDeg: 0,
-  whites: 0, blacks: 0, sharpen: 0, clarity: 0, noiseReduction: 0, vignette: 0, bokeh: 0
+  whites: 0, blacks: 0, sharpen: 0, clarity: 0, noiseReduction: 0, vignette: 0, grade: 0, grain: 0, bokeh: 0
 };
 
 /**
@@ -524,6 +540,8 @@ export function drawAdjusted(
   const luts = buildChannelLuts(a.curves);
   const activePoints = (a.controlPoints ?? []).filter(p => !isNeutralControlPoint(p));
   const vignette = a.vignette ?? 0;
+  const grade = a.grade ?? 0;
+  const grain = a.grain ?? 0;
   const bokeh = a.bokeh ?? 0;
   const hasHsl = !isNeutralBands(a.hsl);
   // Bokeh-ul se face INAINTE de pasul pe pixeli: e o operatie pe canvas
@@ -531,7 +549,7 @@ export function drawAdjusted(
   // curbe, vinieta, culoare — trebuie sa cada peste rezultatul lui, nu sub el.
   if (bokeh > 0) applyBokeh(ctx, healed ?? source, sourceWidth, sourceHeight, width, height, a, bokeh);
 
-  if (!hasColorShift && !hasDetailPass && !luts && activePoints.length === 0 && vignette === 0 && !hasHsl) return;
+  if (!hasColorShift && !hasDetailPass && !luts && activePoints.length === 0 && vignette === 0 && grade === 0 && grain === 0 && !hasHsl) return;
 
   const imgData = ctx.getImageData(0, 0, width, height);
   const d = imgData.data;
@@ -614,6 +632,14 @@ export function drawAdjusted(
   }
 
   if (hasDetailPass) applyDetailPass(d, width, height, a);
+
+  // Ordinea de la final urmeaza developarea reala, si nu e interschimbabila:
+  // intai culoarea (gradarea), apoi granulatia peste ea, apoi vinieta peste tot.
+  // Granulatia pusa INAINTE de gradare ar fi fost colorata si ea, iar vinieta
+  // pusa inaintea granulatiei ar fi lasat coltul intunecat fara granulatie —
+  // amandoua se vad imediat ca fals.
+  if (grade !== 0) applyCinematicGrade(d, grade);
+  if (grain !== 0) applyGrain(d, width, grain);
 
   // Vinieta ULTIMA: e un efect de obiectiv, se aseaza peste imaginea finita,
   // nu peste una careia urmeaza sa i se mai schimbe contrastul.
@@ -811,6 +837,92 @@ export function applyBokeh(
   sctx.globalCompositeOperation = 'source-over';
 
   ctx.drawImage(scratch, 0, 0);
+}
+
+/**
+ * Gradare cinematica: umbrele spre teal, luminile spre chihlimbar.
+ *
+ * Cum lucreaza: fiecare pixel primeste o pondere dupa cat de luminos e, iar
+ * pondera aceea decide spre ce capat se trage. Pixelii de la MIJLOC raman
+ * aproape neatinsi — acolo sta pielea in majoritatea pozelor cu oameni, si o
+ * gradare care muta si tonurile medii face fetele verzui, cel mai vizibil semn
+ * de "filtru pus".
+ *
+ * Cele doua capete se despart cu o curba neteda (smoothstep), nu cu un prag:
+ * un prag ar fi lasat o granita vizibila exact pe fetele in semiumbra.
+ *
+ * Amplitudinea maxima e mica dinadins (±22 pe canal la 100). Gradarea buna e
+ * cea pe care o simti fara s-o vezi; peste atat, poza devine o captura de
+ * ecran dintr-un trailer.
+ */
+const GRADE_MAX_SHIFT = 22;
+
+export function applyCinematicGrade(d: Uint8ClampedArray, amount: number): void {
+  const k = (amount / 100) * GRADE_MAX_SHIFT;
+  if (k === 0) return;
+  // Tabel pe 256 de intrari: ponderea depinde DOAR de luminanta, deci se
+  // calculeaza o data si se citeste apoi, in loc de doua smoothstep-uri pe
+  // fiecare pixel (peste un milion de pixeli pe o previzualizare obisnuita).
+  const spreUmbre = new Float32Array(256);
+  const spreLumini = new Float32Array(256);
+  for (let v = 0; v < 256; v++) {
+    const t = v / 255;
+    // smoothstep(0, 0.5) descrescator pentru umbre, smoothstep(0.5, 1) crescator
+    const u = clamp01((0.5 - t) / 0.5);
+    const l = clamp01((t - 0.5) / 0.5);
+    spreUmbre[v] = u * u * (3 - 2 * u);
+    spreLumini[v] = l * l * (3 - 2 * l);
+  }
+  for (let i = 0; i < d.length; i += 4) {
+    const lum = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) | 0;
+    const u = spreUmbre[lum];
+    const l = spreLumini[lum];
+    // teal = mai putin rosu, mai mult verde/albastru
+    // chihlimbar = mai mult rosu/verde, mai putin albastru
+    d[i] = clamp255(d[i] + k * (-u + l));
+    d[i + 1] = clamp255(d[i + 1] + k * (0.35 * u + 0.55 * l));
+    d[i + 2] = clamp255(d[i + 2] + k * (u - l));
+  }
+}
+
+function clamp01(v: number): number {
+  return v < 0 ? 0 : v > 1 ? 1 : v;
+}
+
+/**
+ * Granulatie de film.
+ *
+ * Doua lucruri o deosebesc de "zgomot aleator peste tot":
+ *
+ * 1. E DETERMINISTA, legata de pozitia pixelului. Cu Math.random() bobul s-ar
+ *    fi schimbat la fiecare redesenare — deci ar fi FIERBUT sub deget cat timp
+ *    tragi de orice alt slider, si ar fi iesit alt bob la export decat cel
+ *    vazut in editor.
+ * 2. Se stinge in lumini. Filmul are granulatia cea mai vizibila in tonurile
+ *    medii; in albul ars nu mai e nimic de granulat, iar bobul peste o rochie
+ *    alba sau peste cer se vede imediat ca zgomot digital, nu ca film.
+ */
+const GRAIN_MAX_AMPLITUDE = 26;
+
+export function applyGrain(d: Uint8ClampedArray, width: number, amount: number): void {
+  const amp = (amount / 100) * GRAIN_MAX_AMPLITUDE;
+  if (amp === 0) return;
+  const px = d.length >> 2;
+  for (let p = 0; p < px; p++) {
+    const i = p << 2;
+    const x = p % width;
+    const y = (p / width) | 0;
+    // Zgomot pseudo-aleator din coordonate: acelasi pixel da mereu acelasi bob.
+    const n = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+    const bob = (n - Math.floor(n)) * 2 - 1;   // -1..1
+    const lum = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255;
+    // Plin pana la tonurile medii, apoi in scadere pana la zero in alb.
+    const pondere = lum > 0.5 ? clamp01((1 - lum) / 0.5) : 1;
+    const delta = bob * amp * pondere;
+    d[i] = clamp255(d[i] + delta);
+    d[i + 1] = clamp255(d[i + 1] + delta);
+    d[i + 2] = clamp255(d[i + 2] + delta);
+  }
 }
 
 /**

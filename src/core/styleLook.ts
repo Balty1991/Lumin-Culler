@@ -26,9 +26,11 @@ export interface StyleLook {
   contrast: number;
   saturation: number;
   blacks: number;
+  grade: number;
+  grain: number;
 }
 
-export const NO_STYLE_LOOK: StyleLook = { clarity: 0, contrast: 0, saturation: 0, blacks: 0 };
+export const NO_STYLE_LOOK: StyleLook = { clarity: 0, contrast: 0, saturation: 0, blacks: 0, grade: 0, grain: 0 };
 
 /** Esantionaj: acelasi pas ca in computeAutoContrast, din aceleasi motive. */
 const STEP = 4;
@@ -122,12 +124,32 @@ const BLACKS_MIN_DEEPENING = -3;
 const CONTRAST_ON_FLAT = 12;
 const CONTRAST_ON_CRISP = 4;
 
+/**
+ * Gradarea si bobul sunt ce transforma "corectat" in "are un look" — restul
+ * (claritate, contrast, culoare) doar curata poza.
+ *
+ * Amandoua stau JOS. Un stil se aplica de doua ori daca omul vrea mai mult, si
+ * are sliderele lui dedesubt; dar o gradare tare nu se poate lua inapoi decat
+ * cu Reseteaza, care arunca si restul editarii. Bobul e cel mai jos dintre
+ * toate: peste 20 incepe sa se vada ca zgomot, nu ca film.
+ *
+ * Gradarea urmeaza saturatia in sens INVERS: o poza deja incarcata cromatic n-are
+ * nevoie sa i se mai impinga si capetele, una stearsa castiga cel mai mult.
+ */
+const GRADE_ON_DULL = 30;
+const GRADE_ON_RICH = 12;
+const GRAIN_ON_FLAT = 16;
+const GRAIN_ON_CRISP = 6;
+
 export function computeStyleLook(img: ImageData): StyleLook {
   const { microContrast, saturation, blackPoint } = measureStyleSignals(img);
   return {
     clarity: Math.round(mapRange(microContrast, FLAT_MICRO_CONTRAST, CRISP_MICRO_CONTRAST, CLARITY_ON_FLAT, CLARITY_ON_CRISP)),
     contrast: Math.round(mapRange(microContrast, FLAT_MICRO_CONTRAST, CRISP_MICRO_CONTRAST, CONTRAST_ON_FLAT, CONTRAST_ON_CRISP)),
     saturation: Math.round(mapRange(saturation, DULL_SATURATION, RICH_SATURATION, VIBRANCE_ON_DULL, VIBRANCE_ON_RICH)),
+    grade: Math.round(mapRange(saturation, DULL_SATURATION, RICH_SATURATION, GRADE_ON_DULL, GRADE_ON_RICH)),
+    // Bobul urmeaza textura: pe un cadru deja plin de detaliu ar concura cu ea.
+    grain: Math.round(mapRange(microContrast, FLAT_MICRO_CONTRAST, CRISP_MICRO_CONTRAST, GRAIN_ON_FLAT, GRAIN_ON_CRISP)),
     // Un negru deja asezat primeste doar o atingere; unul spalat, mai mult.
     blacks: Math.round(
       blackPoint <= LIFTED_BLACK
@@ -143,15 +165,17 @@ export function computeStyleLook(img: ImageData): StyleLook {
  * apasa de doua ori chiar vrea mai mult, si il primeste, pana la capatul
  * sliderului.
  */
-export function addStyleLook<T extends { clarity?: number; contrast: number; saturation: number; blacks?: number }>(
-  current: T,
-  look: StyleLook
-): T {
+export function addStyleLook<
+  T extends { clarity?: number; contrast: number; saturation: number; blacks?: number; grade?: number; grain?: number }
+>(current: T, look: StyleLook): T {
   return {
     ...current,
     clarity: clamp((current.clarity ?? 0) + look.clarity, -100, 100),
     contrast: clamp(current.contrast + look.contrast, -100, 100),
     saturation: clamp(current.saturation + look.saturation, -100, 100),
-    blacks: clamp((current.blacks ?? 0) + look.blacks, -100, 100)
+    blacks: clamp((current.blacks ?? 0) + look.blacks, -100, 100),
+    // Gradarea si bobul n-au sens negativ — de-aia se opresc la 0, nu la -100.
+    grade: clamp((current.grade ?? 0) + look.grade, 0, 100),
+    grain: clamp((current.grain ?? 0) + look.grain, 0, 100)
   };
 }
