@@ -69,11 +69,22 @@ export const DOCUMENT_TEXT_COVERAGE = 0.12;
  * engleza fiindca asa vin din ML Kit / COCO.
  */
 const MANUFACTURED_TAGS = new Set([
+  // ambalaj si eticheta
   'box', 'carton', 'packaging', 'package', 'label', 'barcode', 'product',
+  'brand', 'logo', 'font', 'price tag', 'wrapper', 'tin',
+  // hartie scrisa
+  'book', 'paper', 'document', 'text', 'poster', 'sign', 'receipt', 'ticket',
+  'invoice', 'bill', 'menu', 'newspaper', 'magazine', 'business card',
+  'envelope', 'note', 'notebook', 'form', 'certificate', 'diploma', 'manual',
+  'banner', 'billboard', 'whiteboard', 'blackboard', 'chalkboard',
+  'bulletin board', 'corkboard', 'poster board',
+  // aparate
   'electronics', 'remote control', 'remote', 'appliance', 'device', 'gadget',
   'laptop', 'computer', 'keyboard', 'monitor', 'television', 'screen',
-  'book', 'paper', 'document', 'text', 'poster', 'sign', 'receipt', 'ticket',
-  'bottle', 'can', 'container', 'jar', 'brand', 'logo', 'font'
+  'printer', 'router', 'charger', 'cable', 'battery', 'calculator',
+  'mobile phone', 'smartphone', 'telephone', 'tablet', 'headphones', 'speaker',
+  // recipiente
+  'bottle', 'can', 'container', 'jar', 'packaging tape'
 ]);
 
 /**
@@ -87,7 +98,14 @@ const OBJECT_TEXT_COVERAGE = 0.05;
 /** Cat din etichete trebuie sa descrie un lucru fabricat ca sa nu mai fie amintire. */
 const OBJECT_TAG_FRACTION = 0.5;
 
-function looksManufactured(tags: string[] | undefined): boolean {
+/**
+ * Etichetele descriu, in majoritate, un lucru fabricat.
+ *
+ * Exportata pentru core/importPipeline.ts: acelasi semnal decide si daca o poza
+ * are voie sa fie APROBATA automat, nu doar in ce grup din "Nu par amintiri"
+ * intra. Un singur loc care stie ce inseamna "lucru fabricat".
+ */
+export function looksManufactured(tags: string[] | undefined): boolean {
   if (!tags?.length) return false;
   const hits = tags.filter(t => MANUFACTURED_TAGS.has(t.trim().toLowerCase())).length;
   return hits / tags.length >= OBJECT_TAG_FRACTION;

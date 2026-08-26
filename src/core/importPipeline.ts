@@ -13,6 +13,7 @@ import type { HashInput } from '../workers/hashCompare.worker';
 import { parseExif } from './exifParser';
 import { timed, timedSync, record } from './stageTiming';
 import { parseIptc } from './iptcParser';
+import { looksManufactured } from './smartInbox';
 import { isRawFile, decodeRawFile, RAW_EXTENSIONS } from './rawDecoder';
 import type { FileSystemFileHandleLike } from './filePicker';
 import { pickFolderSceneTag } from './sceneTagLabels';
@@ -142,6 +143,35 @@ function subjectConfirmedOutOfFocus(analysis: Pick<AnalysisRecord, 'subjectInFoc
 }
 
 /**
+ * Singurul lucru din cadru e un obiect fabricat.
+ *
+ * Bug raportat cu captura, a doua oara: intr-o biblioteca cu un copil, cadrele
+ * aprobate automat cu bifa verde erau un panou de pluta plin de bonuri (98), o
+ * mana tinand cutia unui spray (82) si de doua ori coltul unei camere cu
+ * televizorul (93, 95) — in timp ce o poza cu fetita primea 36. Nimic din
+ * asta nu e o greseala de MASURARE: o coala plata, bine luminata, CHIAR e
+ * clara si CHIAR e bine expusa. Scorul raspunde la "cat de bine e facut
+ * cadrul", si raspunde corect.
+ *
+ * Greseala e ca raspunsul ala singur avea voie sa dea bifa. `hasNoRecognizableSubject`
+ * pazea deja poarta, dar prin `pickFolderSceneTag`, care e o lista de nume
+ * BUNE DE FOLDER, nu un test de subiect fotografic: "cutie", "televizor",
+ * "hartie" trec, fiindca ar fi nume de folder rezonabile.
+ *
+ * Aici se pune intrebarea corecta: daca nu e nimeni in cadru SI etichetele
+ * descriu in majoritate un lucru fabricat, poza nu se aproba singura. NU se
+ * respinge — merge in 'review', adica exact unde utilizatorul cerea sa fie
+ * pusa intrebarea. Un bon fotografiat poate fi lucrul cel mai important din
+ * luna aia; doar nu poate fi asta HOTARAT de un scor de claritate.
+ *
+ * Peisajele, animalele, mancarea, arhitectura nu sunt atinse: niciuna nu are
+ * etichete de lucru fabricat in majoritate.
+ */
+function onlyManufacturedSubject(analysis: Pick<AnalysisRecord, 'faceCount' | 'sceneTags'>): boolean {
+  return analysis.faceCount === 0 && looksManufactured(analysis.sceneTags);
+}
+
+/**
  * In poza apare cineva pe care UTILIZATORUL l-a inrolat el insusi.
  *
  * Oglinda exacta a celor doua garantii de mai sus (hasNoRecognizableSubject,
@@ -238,7 +268,12 @@ export function decidePhotoStatus(
   thresholds: Thresholds = FIXED_THRESHOLDS
 ): PhotoRecord['status'] {
   if (score <= thresholds.reject && !showsKnownPerson(analysis) && hasNamedDefect(analysis)) return 'rejected';
-  if (score >= thresholds.select && !hasNoRecognizableSubject(analysis) && !subjectConfirmedOutOfFocus(analysis)) return 'selected';
+  if (
+    score >= thresholds.select
+    && !hasNoRecognizableSubject(analysis)
+    && !onlyManufacturedSubject(analysis)
+    && !subjectConfirmedOutOfFocus(analysis)
+  ) return 'selected';
   return 'review';
 }
 

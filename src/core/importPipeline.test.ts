@@ -53,6 +53,57 @@ describe('toHashInput', () => {
 });
 
 describe('decidePhotoStatus', () => {
+  describe('obiectul fabricat nu se aproba singur', () => {
+    // Bug raportat cu captura, a doua oara: intr-o biblioteca cu un copil,
+    // cadrele cu bifa verde erau un panou de pluta cu bonuri (98), o mana cu
+    // cutia unui spray (82) si coltul unei camere cu televizorul (93, 95),
+    // in timp ce o poza cu fetita primea 36.
+    it('panoul de pluta cu bonuri, scor mare, ramane la verificat', () => {
+      expect(decidePhotoStatus(SELECT_THRESHOLD + 20, baseAnalysis({
+        faceCount: 0, sceneTags: ['paper', 'receipt', 'note', 'wall']
+      }))).toBe('review');
+    });
+
+    it('cutia produsului, scor mare, ramane la verificat', () => {
+      expect(decidePhotoStatus(SELECT_THRESHOLD + 10, baseAnalysis({
+        faceCount: 0, sceneTags: ['box', 'packaging', 'label', 'hand']
+      }))).toBe('review');
+    });
+
+    // Nu se RESPINGE: un bon fotografiat poate fi lucrul cel mai important din
+    // luna aia. Doar nu poate hotari asta un scor de claritate.
+    it('nu respinge niciodata pentru ca e obiect — doar amana decizia', () => {
+      expect(decidePhotoStatus(SELECT_THRESHOLD + 20, baseAnalysis({
+        faceCount: 0, sceneTags: ['box', 'label']
+      }))).not.toBe('rejected');
+    });
+
+    it('o fata in cadru anuleaza vetoul — cineva langa cutie e tot o poza cu cineva', () => {
+      expect(decidePhotoStatus(SELECT_THRESHOLD + 20, baseAnalysis({
+        faceCount: 1, sceneTags: ['box', 'packaging', 'label']
+      }))).toBe('selected');
+    });
+
+    // Cazul care TREBUIE sa treaca mai departe: peisajele, animalele si
+    // mancarea n-au etichete de lucru fabricat in majoritate.
+    it('peisajul si animalul se aproba in continuare', () => {
+      expect(decidePhotoStatus(SELECT_THRESHOLD + 20, baseAnalysis({
+        faceCount: 0, sceneTags: ['dog', 'grass', 'tree']
+      }))).toBe('selected');
+      expect(decidePhotoStatus(SELECT_THRESHOLD + 20, baseAnalysis({
+        faceCount: 0, sceneTags: ['mountain', 'sky', 'lake']
+      }))).toBe('selected');
+    });
+
+    // O singura eticheta de aparat intr-o scena reala nu face din camera un
+    // obiect fotografiat: fractia (0,5) e acolo tocmai pentru asta.
+    it('un televizor intr-o camera cu plante nu e o poza cu un obiect', () => {
+      expect(decidePhotoStatus(SELECT_THRESHOLD + 20, baseAnalysis({
+        faceCount: 0, sceneTags: ['television', 'houseplant', 'room', 'furniture']
+      }))).toBe('selected');
+    });
+  });
+
   it('respinge sub REJECT_THRESHOLD — o fata oarecare nu opreste respingerea', () => {
     // `knownFaceCount: 0` in baseAnalysis: un trecator nu e un motiv sa nu
     // respingem. Altfel respingerea automata ar disparea pe orice galerie cu

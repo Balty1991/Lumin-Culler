@@ -185,7 +185,12 @@ export function MenuDrawer() {
     exposure: p.exposure, faceCount: p.faceCount, ruleOfThirds: p.ruleOfThirds
   }))));
   const nonPersonalCount = useStore(s => countNonPersonal(s.photos.map(p => ({
-    id: p.id, fileName: p.fileName, faceCount: p.faceCount, textCoverage: p.textCoverage
+    // sceneTags lipsea de aici, deci categoria `object` (ambalaje, aparate,
+    // hartii) nu putea fi returnata NICIODATA pe drumul asta — insigna numara
+    // doar capturi de ecran si documente. Campul e deja in PhotoView (vezi
+    // store.ts), deci nu costa nicio citire din baza de date in plus.
+    id: p.id, fileName: p.fileName, faceCount: p.faceCount, textCoverage: p.textCoverage,
+    sceneTags: p.sceneTags
   }))));
   // Acelasi principiu: doar ora capturii si statusul, ambele deja in memorie.
   const openMomentCount = useStore(s => countOpenMoments(buildMomentStacks(s.photos.map(p => ({

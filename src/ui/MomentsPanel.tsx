@@ -55,8 +55,12 @@ export function MomentsPanel() {
       // din core/momentStacks.ts si bug-ul raportat (urme in zapada si hartii
       // propuse in locul pozelor cu copilul).
       faceCount: p.faceCount,
+      // Fara sceneTags, `classifyPhoto` nu putea intoarce niciodata `object`
+      // aici, deci un ambalaj sau un aparat continua sa fie propus ca "cel mai
+      // bun cadru al momentului". Campul e deja in PhotoView.
       isDocument: classifyPhoto({
-        id: p.id, fileName: p.fileName, faceCount: p.faceCount, textCoverage: p.textCoverage
+        id: p.id, fileName: p.fileName, faceCount: p.faceCount,
+        textCoverage: p.textCoverage, sceneTags: p.sceneTags
       }) !== 'personal'
     })));
   }, [open, photos]);
