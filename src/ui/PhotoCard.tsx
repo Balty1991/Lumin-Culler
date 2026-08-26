@@ -1,5 +1,5 @@
 import { useEffect, useState, memo } from 'react';
-import { db } from '../core/db';
+import { getCachedThumbUrl, peekThumbUrl } from '../core/thumbUrlCache';
 import { useStore, type PhotoView } from '../state/store';
 import {
   StarIcon, UserQuestionIcon, UserCheckIcon, EyeClosedIcon, LayersIcon, CheckIcon, SunIcon, ClockIcon, EditIcon,
@@ -72,18 +72,23 @@ function PhotoCardInner({ photo, index, onOpen, multiSelected, onCardPointerDown
   /** Meniu contextual (click-dreapta / apasare lunga) — pozitionarea si continutul se decid tot la nivelul grilei. */
   onContextMenu?: (id: string, e: React.MouseEvent) => void;
 }) {
-  const [src, setSrc] = useState<string | null>(null);
+  // Pornim DIRECT cu URL-ul din cache daca exista: la derularea inapoi peste
+  // poze deja vazute, cardul apare cu imaginea pe el din prima randare, fara
+  // sa treaca printr-o stare goala si fara nicio citire asincrona.
+  const [src, setSrc] = useState<string | null>(() => peekThumbUrl(photo.id));
   const density = useStore(s => s.gridDensity);
   const locale = useStore(s => s.locale);
   const bestInGroupIds = useStore(s => s.bestInGroupIds());
 
   useEffect(() => {
-    let url: string | null = null;
+    const cached = peekThumbUrl(photo.id);
+    if (cached) { setSrc(cached); return; }
     let alive = true;
-    db.thumbnails.get(photo.id).then(t => {
-      if (t && alive) { url = URL.createObjectURL(t.blob); setSrc(url); }
-    });
-    return () => { alive = false; if (url) URL.revokeObjectURL(url); };
+    // URL-ul NU se mai revoca la demontare: e tinut de cache si refolosit la
+    // urmatoarea trecere. Revocarea la demontare era exact ce facea derularea
+    // sa reia de la zero citirea si decodarea, la fiecare intoarcere.
+    void getCachedThumbUrl(photo.id).then(url => { if (alive && url) setSrc(url); });
+    return () => { alive = false; };
   }, [photo.id]);
 
   const ringColor = scoreColorVar(photo.aiScore);

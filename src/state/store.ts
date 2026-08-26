@@ -21,6 +21,7 @@ import { featuresForReasons } from '../core/decisionReasons';
 import { describeImageNative, startImageDescriptionDownload, imageDescriptionStatus } from '../core/nativeImageDescription';
 import type { QuickScanResult } from '../core/quickDuplicateScan';
 import { clearPreviewUrlCache } from '../core/previewUrlCache';
+import { clearThumbUrlCache } from '../core/thumbUrlCache';
 import {
   importFiles, originalFiles, originalHandles, createCancelToken, SELECT_THRESHOLD, REJECT_THRESHOLD, decidePhotoStatus,
   readLibraryScores, type ImportProgress, type ImportCancelToken, type ImportOutcomeReport
@@ -1976,6 +1977,7 @@ export const useStore = create<AppState>((set, get) => ({
               )
             );
             clearPreviewUrlCache();
+            clearThumbUrlCache();
             deletedCount = ids.length;
             set(state => ({ photos: state.photos.filter(p => !idSet.has(p.id)), collections: zenCollections }));
           }
@@ -3247,6 +3249,7 @@ export const useStore = create<AppState>((set, get) => ({
     // Obiect-URL-urile pozelor sterse ar tine vii blob-uri care nu mai exista in
     // Dexie — pana la 40 de preview-uri agatate degeaba.
     clearPreviewUrlCache();
+    clearThumbUrlCache();
 
     // Se scad din acelasi buget de 150 ca exporturile — vezi plafonul de mai sus.
     recordPhotosUsed(ids.length);
@@ -3840,6 +3843,7 @@ export const useStore = create<AppState>((set, get) => ({
     originalFiles.clear();
     originalHandles.clear();
     clearPreviewUrlCache();
+    clearThumbUrlCache();
     // Foldere personalizate golite ODATA CU sesiunea (cerinta directa a
     // utilizatorului) — spre deosebire de persoane, care raman intentionat pe
     // "Goleste sesiunea" (identitati durabile, invatate din poze anterioare):
@@ -3882,6 +3886,7 @@ export const useStore = create<AppState>((set, get) => ({
     originalFiles.clear();
     originalHandles.clear();
     clearPreviewUrlCache();
+    clearThumbUrlCache();
     await analysisPool.setKnownPersons([]).catch(() => {});
     // Supervizorul galeriei uita si el ce a adus: cursorul lui inseamna "pana
     // unde am adus deja poze IN biblioteca", iar biblioteca tocmai a fost

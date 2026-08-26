@@ -29,6 +29,7 @@ export function AdjustedImage({ src, edits, alt, className, style, loading, deco
   decoding?: 'async' | 'sync' | 'auto';
 }) {
   const hasEdits = !isNeutral(edits);
+  const editsSignature = hasEdits ? JSON.stringify(edits) : '';
   /** URL-ul versiunii ajustate. Cat timp e null aratam originalul — fara gol si fara salt de asezare. */
   const [adjustedUrl, setAdjustedUrl] = useState<string | null>(null);
 
@@ -62,7 +63,13 @@ export function AdjustedImage({ src, edits, alt, className, style, loading, deco
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [src, hasEdits, edits]);
+    // `edits` e un OBIECT: pus direct in dependinte, orice re-randare a
+    // parintelui cu un obiect nou dar identic ca valori relua tot lantul —
+    // incarcare, canvas, toBlob — pentru un rezultat identic. Pe o grila
+    // virtualizata, care re-monteaza carduri la fiecare derulare, asta se
+    // simte. Semnatura serializata compara VALORILE, nu referinta.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `editsSignature` E `edits`, comparat pe valori
+  }, [src, hasEdits, editsSignature]);
 
   return (
     <img
