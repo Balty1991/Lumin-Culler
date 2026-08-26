@@ -5058,16 +5058,30 @@ input[type="search"] { min-height: 44px; }
 .filters-status { overflow: visible; }
 .filters-status .chip { flex: 0 0 auto; }
 
-/* Cautarea, singura pe randul ei: nu mai concureaza cu sase controale. */
+/* Randul cautarii tine acum doua lucruri: campul, si usa spre restul filtrelor.
+   "Filtre" statea pe randul de stari si ii manca ~70px — exact cat lipsea ca
+   numele starii alese sa incapa intreg (raportat cu trei capturi: "Selec...",
+   "Respi...", "De ve...", toate taiate la aceeasi latime, adica pastila activa
+   era stransa de flex, nu de vreun plafon).
+   Campul de cautare avea oricum toata latimea si jumatate din ea goala. Acum
+   cele doua randuri isi impart altfel spatiul: starile primesc tot randul lor,
+   iar usa spre filtre sta langa cautare, unde era loc. */
 .library-search {
   margin: 0 5px 10px;
   padding: 5px;
   border-radius: 14px;
   background: #14161df0;
   box-shadow: 0 10px 30px -22px #000;
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
 :root[data-theme="light"] .library-search { background: var(--surface); box-shadow: none; border: 1px solid var(--line); }
-.library-search .search-field { width: 100%; min-height: 46px; margin: 0; }
+.library-search .search-field { flex: 1 1 auto; min-width: 0; width: auto; min-height: 46px; margin: 0; }
+/* In randul de stari avea o linie despartitoare la stanga; aici nu mai desparte
+   nimic — e al doilea element dintr-un rand de doua. */
+.library-search .filters-actions { border-left: none; padding-left: 0; margin-left: 0; }
+.library-search .filters-actions .chip { min-height: 46px; }
 
 /* ── Reglaje in foaia de filtre ──
    Rating, sortare si interval de date au coborat din bara in foaie: acolo au
@@ -5113,7 +5127,12 @@ input[type="search"] { min-height: 44px; }
    taiere curata, nu o pastila retezata la jumatatea cuvantului. */
 .filters-status { overflow: hidden; }
 .filters-status .chip.active { flex: 0 1 auto; min-width: 0; }
-.filters-status .chip-label { max-width: 13ch; margin-left: 2px; }
+/* Fara plafon fix aici. `.chip-label` are unul de 11ch in regula de baza, pus
+   pe vremea cand randul tinea si "Filtre"; ramane bun pentru orice alta bara,
+   dar in randul de stari taia "De verificat" chiar si cand era loc. Ellipsisul
+   se pastreaza — doar ca acum se declanseaza din lipsa reala de spatiu, prin
+   flex, nu dintr-o cifra scrisa cu mana. */
+.filters-status .chip-label { max-width: none; margin-left: 2px; }
 /* Iconita si numele nu se ating: pastilele compacte au gap 0 in tema, iar acolo
    unde apare si un nume el are nevoie de aer. */
 .filters-status .chip.chip-compact.active { gap: 6px; padding-right: 10px; }

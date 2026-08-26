@@ -1073,166 +1073,6 @@ export default function App() {
               </button>
             ))}
             </div>
-            <div className="filters-actions">
-            <MoreFiltersMenu active={extraFiltersActive || anySecondaryFilterActive} badgeCount={extraFiltersCount}>
-              {close => (
-                /* Panoul era o singura gramada de pastile: filtre de continut,
-                   dropdown-uri de persoana/eticheta/scena/aparat si o actiune
-                   distructiva, toate amestecate cu flex-wrap. Utilizatorul le-a
-                   respins explicit ("nu imi plac cum se vad, cum sunt grupate").
-                   Acum sunt trei grupe cu nume, in ordinea intrebarii pe care
-                   si-o pune omul: ce vreau sa gasesc, ce nu e in regula, dupa
-                   ce anume caut. Actiunea care sterge sta ultima, sub o linie,
-                   niciodata langa un filtru. */
-                <>
-                  {([
-                    ['app.moreFilters.group.find', SECONDARY_FILTERS.filter(f => FIND_FILTERS.includes(f.key))],
-                    ['app.moreFilters.group.problems', SECONDARY_FILTERS.filter(f => !FIND_FILTERS.includes(f.key))]
-                  ] as const).map(([headKey, list]) => (
-                    <div className="more-filters-group" key={headKey}>
-                      <span className="more-filters-group-head mono">{tr(headKey)}</span>
-                      {/* Randuri de lista pe toata latimea, nu pastile: numele la
-                          stanga, numarul la dreapta, o bifa pe cel pornit. */}
-                      <div className="filter-rows">
-                        {list.map(f => (
-                          <button
-                            key={f.key}
-                            type="button"
-                            className={filter === f.key ? 'filter-row active' : 'filter-row'}
-                            onClick={() => { setFilter(f.key); close(); }}
-                            aria-pressed={filter === f.key}
-                            disabled={f.count === 0 && filter !== f.key}
-                          >
-                            <span className="filter-row-icon" aria-hidden="true">{f.icon}</span>
-                            <span className="filter-row-label">{f.label}</span>
-                            <b className="filter-row-count mono">{f.count}</b>
-                            {filter === f.key && <CheckIcon className="filter-row-check" aria-hidden="true" />}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                  <div className="more-filters-group">
-                    <span className="more-filters-group-head mono">{tr('app.moreFilters.group.details')}</span>
-                    <div className="more-filters-group-body">
-                      {persons.length > 0 && (
-                        <select
-                          className={personFilter ? 'chip person-filter active' : 'chip person-filter'}
-                          value={personFilter ?? ''}
-                          onChange={e => setPersonFilter(e.target.value || null)}
-                          aria-label={tr('app.personFilter.ariaLabel')}
-                        >
-                          <option value="">{tr('app.personFilter.any')}</option>
-                          {persons.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
-                        </select>
-                      )}
-                      <ColorLabelFilter value={colorLabelFilter} onChange={setColorLabelFilter} />
-                      <SceneTagFilter />
-                      <CameraFilter />
-                      <SavedFiltersMenu />
-                    </div>
-                  </div>
-                  {/* Ce era pe randul al doilea al bibliotecii — rating, sortare,
-                      interval de date — a coborat aici. Erau sapte controale
-                      inghesuite pe un rand de 412px, din care ultimele doua
-                      ieseau din ecran, tocmai reglaje pe care nu le atingi la
-                      fiecare poza. */}
-                  <div className="more-filters-group">
-                    <span className="more-filters-group-head mono">{tr('app.moreFilters.group.sort')}</span>
-                    <div className="filter-rows">
-                      <label className="filter-field">
-                        <span className="filter-field-label">{tr('app.ratingFilter.ariaLabel')}</span>
-                        <select
-                          className={minRating > 0 ? 'chip rating-filter active' : 'chip rating-filter'}
-                          value={minRating}
-                          onChange={e => setMinRating(Number(e.target.value))}
-                          aria-label={tr('app.ratingFilter.ariaLabel')}
-                        >
-                          <option value={0}>{tr('app.ratingFilter.any')}</option>
-                          {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{'★'.repeat(n)}+ </option>)}
-                        </select>
-                      </label>
-                      <label className="filter-field">
-                        <span className="filter-field-label">{tr('app.sort.ariaLabel')}</span>
-                        <span className="filter-field-pair">
-                          <select
-                            className="chip sort-key"
-                            value={gridSort.key}
-                            disabled={filter === 'series' || filter === 'review'}
-                            onChange={e => setGridSort({ key: e.target.value as SortKey, dir: gridSort.dir })}
-                            aria-label={tr('app.sort.ariaLabel')}
-                          >
-                            {(Object.keys(SORT_KEY_LABELS) as SortKey[]).map(key => (
-                              <option key={key} value={key}>{tr(`app.sort.key.${key}`)}</option>
-                            ))}
-                          </select>
-                          <button
-                            className="chip sort-dir"
-                            disabled={filter === 'series' || filter === 'review'}
-                            onClick={() => setGridSort({ key: gridSort.key, dir: gridSort.dir === 'asc' ? 'desc' : 'asc' })}
-                            aria-label={gridSort.dir === 'asc' ? tr('app.sort.ascToDesc') : tr('app.sort.descToAsc')}
-                            title={gridSort.dir === 'asc' ? tr('app.sort.asc') : tr('app.sort.desc')}
-                          >
-                            {gridSort.dir === 'asc' ? '↑' : '↓'}
-                          </button>
-                        </span>
-                      </label>
-                      <label className="filter-field">
-                        <span className="filter-field-label">{tr('app.dateFrom')}</span>
-                        <input
-                          type="date"
-                          className="chip"
-                          value={epochToDateInput(dateFrom)}
-                          onChange={e => setDateRange(dateInputToEpoch(e.target.value, false), dateTo)}
-                          aria-label={tr('app.dateFrom.ariaLabel')}
-                        />
-                      </label>
-                      <label className="filter-field">
-                        <span className="filter-field-label">{tr('app.dateTo')}</span>
-                        <input
-                          type="date"
-                          className="chip"
-                          value={epochToDateInput(dateTo)}
-                          onChange={e => setDateRange(dateFrom, dateInputToEpoch(e.target.value, true))}
-                          aria-label={tr('app.dateTo.ariaLabel')}
-                        />
-                      </label>
-                      {/* Modul de selectie multipla: un comutator, deci un rand cu
-                          bifa, nu un buton fara nume in coltul barei. */}
-                      <button
-                        type="button"
-                        className={selectMode ? 'filter-row active' : 'filter-row'}
-                        onClick={() => { setSelectMode(!selectMode); close(); }}
-                        aria-pressed={selectMode}
-                      >
-                        <span className="filter-row-icon" aria-hidden="true"><CheckIcon /></span>
-                        <span className="filter-row-label">{tr('app.selectMode.short')}</span>
-                        {selectMode && <CheckIcon className="filter-row-check" aria-hidden="true" />}
-                      </button>
-                    </div>
-                  </div>
-                  {(searchText || dateFrom !== null || dateTo !== null || minRating > 0 || anySecondaryFilterActive) && (
-                    <button className="filter-reset-btn" onClick={() => { clearAdvancedFilters(); clearAllFilters(); close(); }}>
-                      {tr('app.resetFilters')}
-                    </button>
-                  )}
-                  {isNativeMediaLibraryAvailable() && (
-                    <>
-                      <div className="more-filters-divider" />
-                      <button
-                        className="chip danger more-filters-danger"
-                        onClick={() => { setBatchOpsOpen(true); close(); }}
-                      >
-                        <TrashIcon className="chip-icon" aria-hidden="true" />
-                        {tr('menu.deleteRejected')}
-                        {deletableRejectedCount > 0 && <b className="chip-count">{deletableRejectedCount}</b>}
-                      </button>
-                    </>
-                  )}
-                </>
-              )}
-            </MoreFiltersMenu>
-            </div>
           </nav>
         )}
 
@@ -1254,6 +1094,166 @@ export default function App() {
                 aria-label={tr('app.search.ariaLabel')}
               />
             </label>
+          <div className="filters-actions">
+          <MoreFiltersMenu active={extraFiltersActive || anySecondaryFilterActive} badgeCount={extraFiltersCount}>
+            {close => (
+              /* Panoul era o singura gramada de pastile: filtre de continut,
+                 dropdown-uri de persoana/eticheta/scena/aparat si o actiune
+                 distructiva, toate amestecate cu flex-wrap. Utilizatorul le-a
+                 respins explicit ("nu imi plac cum se vad, cum sunt grupate").
+                 Acum sunt trei grupe cu nume, in ordinea intrebarii pe care
+                 si-o pune omul: ce vreau sa gasesc, ce nu e in regula, dupa
+                 ce anume caut. Actiunea care sterge sta ultima, sub o linie,
+                 niciodata langa un filtru. */
+              <>
+                {([
+                  ['app.moreFilters.group.find', SECONDARY_FILTERS.filter(f => FIND_FILTERS.includes(f.key))],
+                  ['app.moreFilters.group.problems', SECONDARY_FILTERS.filter(f => !FIND_FILTERS.includes(f.key))]
+                ] as const).map(([headKey, list]) => (
+                  <div className="more-filters-group" key={headKey}>
+                    <span className="more-filters-group-head mono">{tr(headKey)}</span>
+                    {/* Randuri de lista pe toata latimea, nu pastile: numele la
+                        stanga, numarul la dreapta, o bifa pe cel pornit. */}
+                    <div className="filter-rows">
+                      {list.map(f => (
+                        <button
+                          key={f.key}
+                          type="button"
+                          className={filter === f.key ? 'filter-row active' : 'filter-row'}
+                          onClick={() => { setFilter(f.key); close(); }}
+                          aria-pressed={filter === f.key}
+                          disabled={f.count === 0 && filter !== f.key}
+                        >
+                          <span className="filter-row-icon" aria-hidden="true">{f.icon}</span>
+                          <span className="filter-row-label">{f.label}</span>
+                          <b className="filter-row-count mono">{f.count}</b>
+                          {filter === f.key && <CheckIcon className="filter-row-check" aria-hidden="true" />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                <div className="more-filters-group">
+                  <span className="more-filters-group-head mono">{tr('app.moreFilters.group.details')}</span>
+                  <div className="more-filters-group-body">
+                    {persons.length > 0 && (
+                      <select
+                        className={personFilter ? 'chip person-filter active' : 'chip person-filter'}
+                        value={personFilter ?? ''}
+                        onChange={e => setPersonFilter(e.target.value || null)}
+                        aria-label={tr('app.personFilter.ariaLabel')}
+                      >
+                        <option value="">{tr('app.personFilter.any')}</option>
+                        {persons.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+                      </select>
+                    )}
+                    <ColorLabelFilter value={colorLabelFilter} onChange={setColorLabelFilter} />
+                    <SceneTagFilter />
+                    <CameraFilter />
+                    <SavedFiltersMenu />
+                  </div>
+                </div>
+                {/* Ce era pe randul al doilea al bibliotecii — rating, sortare,
+                    interval de date — a coborat aici. Erau sapte controale
+                    inghesuite pe un rand de 412px, din care ultimele doua
+                    ieseau din ecran, tocmai reglaje pe care nu le atingi la
+                    fiecare poza. */}
+                <div className="more-filters-group">
+                  <span className="more-filters-group-head mono">{tr('app.moreFilters.group.sort')}</span>
+                  <div className="filter-rows">
+                    <label className="filter-field">
+                      <span className="filter-field-label">{tr('app.ratingFilter.ariaLabel')}</span>
+                      <select
+                        className={minRating > 0 ? 'chip rating-filter active' : 'chip rating-filter'}
+                        value={minRating}
+                        onChange={e => setMinRating(Number(e.target.value))}
+                        aria-label={tr('app.ratingFilter.ariaLabel')}
+                      >
+                        <option value={0}>{tr('app.ratingFilter.any')}</option>
+                        {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{'★'.repeat(n)}+ </option>)}
+                      </select>
+                    </label>
+                    <label className="filter-field">
+                      <span className="filter-field-label">{tr('app.sort.ariaLabel')}</span>
+                      <span className="filter-field-pair">
+                        <select
+                          className="chip sort-key"
+                          value={gridSort.key}
+                          disabled={filter === 'series' || filter === 'review'}
+                          onChange={e => setGridSort({ key: e.target.value as SortKey, dir: gridSort.dir })}
+                          aria-label={tr('app.sort.ariaLabel')}
+                        >
+                          {(Object.keys(SORT_KEY_LABELS) as SortKey[]).map(key => (
+                            <option key={key} value={key}>{tr(`app.sort.key.${key}`)}</option>
+                          ))}
+                        </select>
+                        <button
+                          className="chip sort-dir"
+                          disabled={filter === 'series' || filter === 'review'}
+                          onClick={() => setGridSort({ key: gridSort.key, dir: gridSort.dir === 'asc' ? 'desc' : 'asc' })}
+                          aria-label={gridSort.dir === 'asc' ? tr('app.sort.ascToDesc') : tr('app.sort.descToAsc')}
+                          title={gridSort.dir === 'asc' ? tr('app.sort.asc') : tr('app.sort.desc')}
+                        >
+                          {gridSort.dir === 'asc' ? '↑' : '↓'}
+                        </button>
+                      </span>
+                    </label>
+                    <label className="filter-field">
+                      <span className="filter-field-label">{tr('app.dateFrom')}</span>
+                      <input
+                        type="date"
+                        className="chip"
+                        value={epochToDateInput(dateFrom)}
+                        onChange={e => setDateRange(dateInputToEpoch(e.target.value, false), dateTo)}
+                        aria-label={tr('app.dateFrom.ariaLabel')}
+                      />
+                    </label>
+                    <label className="filter-field">
+                      <span className="filter-field-label">{tr('app.dateTo')}</span>
+                      <input
+                        type="date"
+                        className="chip"
+                        value={epochToDateInput(dateTo)}
+                        onChange={e => setDateRange(dateFrom, dateInputToEpoch(e.target.value, true))}
+                        aria-label={tr('app.dateTo.ariaLabel')}
+                      />
+                    </label>
+                    {/* Modul de selectie multipla: un comutator, deci un rand cu
+                        bifa, nu un buton fara nume in coltul barei. */}
+                    <button
+                      type="button"
+                      className={selectMode ? 'filter-row active' : 'filter-row'}
+                      onClick={() => { setSelectMode(!selectMode); close(); }}
+                      aria-pressed={selectMode}
+                    >
+                      <span className="filter-row-icon" aria-hidden="true"><CheckIcon /></span>
+                      <span className="filter-row-label">{tr('app.selectMode.short')}</span>
+                      {selectMode && <CheckIcon className="filter-row-check" aria-hidden="true" />}
+                    </button>
+                  </div>
+                </div>
+                {(searchText || dateFrom !== null || dateTo !== null || minRating > 0 || anySecondaryFilterActive) && (
+                  <button className="filter-reset-btn" onClick={() => { clearAdvancedFilters(); clearAllFilters(); close(); }}>
+                    {tr('app.resetFilters')}
+                  </button>
+                )}
+                {isNativeMediaLibraryAvailable() && (
+                  <>
+                    <div className="more-filters-divider" />
+                    <button
+                      className="chip danger more-filters-danger"
+                      onClick={() => { setBatchOpsOpen(true); close(); }}
+                    >
+                      <TrashIcon className="chip-icon" aria-hidden="true" />
+                      {tr('menu.deleteRejected')}
+                      {deletableRejectedCount > 0 && <b className="chip-count">{deletableRejectedCount}</b>}
+                    </button>
+                  </>
+                )}
+              </>
+            )}
+          </MoreFiltersMenu>
+          </div>
           </div>
         )}
         </div>
