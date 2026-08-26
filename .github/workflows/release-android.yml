@@ -44,7 +44,22 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install --no-audit --no-fund
+      # npm ci, nu npm install: instaleaza EXACT ce scrie in package-lock.json.
+      # `install` are voie sa rezolve altfel decat lockfile-ul, deci un release
+      # putea fi construit peste alt arbore de dependinte decat cel testat.
+      - run: npm ci --no-audit --no-fund
+      # Porti BLOCANTE inainte de orice pas de impachetare. Pana acum, singura
+      # plasa era test.yml, care ruleaza la push pe main si pe claude/** — dar
+      # workflow-ul asta poate porni manual sau pe un tag, deci un AAB semnat
+      # putea fi produs si peste o suita rosie. Semnalat la auditul extern, si e
+      # corect: nu conteaza cat de improbabil e, un artefact de release n-are voie
+      # sa existe fara verificarile care il fac de incredere.
+      - name: Verificare tipuri
+        run: npx tsc --noEmit
+      - name: Lint
+        run: npm run lint
+      - name: Teste
+        run: npm test
       # acelasi pas ca in deploy.yml — modelele AI trebuie incluse in pachetul nativ, nu doar in PWA
       - name: Bundle ML models
         run: |
