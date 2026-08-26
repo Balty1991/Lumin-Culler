@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
-import { CheckIcon, ClockIcon, XIcon, SearchIcon, LockIcon } from './icons';
+import { CheckIcon, ClockIcon, XIcon, SearchIcon, LockIcon, LayersIcon } from './icons';
 import { StarRating } from './StarRating';
 import { CollectionPicker } from './CollectionPicker';
 import { isInsideAnyMenu } from './dropdownPosition';
@@ -45,6 +45,7 @@ export function ContextMenu({ x, y, photoIds, count, rating, colorLabel, onSetSt
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const ref = useRef<HTMLDivElement>(null);
   const moveToVault = useStore(s => s.moveToVault);
+  const showSimilarTo = useStore(s => s.showSimilarTo);
   const setVaultOpen = useStore(s => s.setVaultOpen);
 
   /**
@@ -170,6 +171,14 @@ export function ContextMenu({ x, y, photoIds, count, rating, colorLabel, onSetSt
       <button className="context-menu-item" role="menuitem" onClick={toVault}>
         <LockIcon className="inline-icon" /> {tr('contextMenu.moveToVault')}
       </button>
+      {/* Doar pe o singura poza: "altele ca ASTA" n-are inteles pornind de la
+          zece deodata — n-ar exista niciun reper de la care sa se masoare
+          asemanarea. Vezi core/similarPhotos.ts. */}
+      {photoIds.length === 1 && (
+        <button className="context-menu-item" role="menuitem" onClick={() => act(() => void showSimilarTo(photoIds[0]))}>
+          <LayersIcon className="inline-icon" /> {tr('contextMenu.similar')}
+        </button>
+      )}
       {onOpenDetail && (
         <>
           <div className="context-menu-sep" />

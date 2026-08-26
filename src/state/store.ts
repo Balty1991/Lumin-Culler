@@ -16,6 +16,7 @@ import { applyAdjustmentsToBlob, isNeutral, type EditAdjustments } from '../core
 import { readApplyEditsInGallery, writeApplyEditsInGallery } from './applyEditsPreference';
 import { readProMode, writeProMode } from './proMode';
 import { readActiveFilter, writeActiveFilter } from './activeFilter';
+import { findSimilarPhotos } from '../core/similarPhotos';
 import type { QuickScanResult } from '../core/quickDuplicateScan';
 import { clearPreviewUrlCache } from '../core/previewUrlCache';
 import {
@@ -733,6 +734,8 @@ interface AppState {
    * al treilea.
    */
   revealInGrid: (ids: string[]) => void;
+  /** "Arata-mi altele ca asta" — vezi core/similarPhotos.ts. */
+  showSimilarTo: (photoId: string) => Promise<void>;
   /** Aplica un status TUTUROR pozelor din selectia curenta (antreneaza AI-ul per poza, ca setStatus). */
   bulkSetStatusForSelection: (status: PhotoRecord['status']) => Promise<void>;
   /** Aplica un rating TUTUROR pozelor din selectia curenta. */
@@ -3243,6 +3246,31 @@ export const useStore = create<AppState>((set, get) => ({
     multiSelectIds: new Set(ids),
     multiSelectAnchor: ids.length ? ids[ids.length - 1] : null
     });
+  },
+
+  showSimilarTo: async photoId => {
+    const { locale, collections, photos } = get();
+    const rows = await db.analyses.toArray();
+    const similar = findSimilarPhotos(rows, photoId);
+
+    // Dosarul privat nu iese pe usa asta, ca pe niciuna alta: cine a pus o poza
+    // acolo n-are de ce s-o vada aparand intr-o grila pornita din alta poza.
+    // Aceeasi regula ca la export si la stergerile in masa — vezi outsideVault().
+    const allowed = new Set(outsideVault(photos, collections).map(p => p.id));
+    const visible = similar.filter(id => allowed.has(id));
+
+    if (!visible.length) {
+      // Doua motive foarte diferite pentru aceeasi grila goala, si omul trebuie
+      // sa stie care: ori poza n-a fost analizata cu embedding (web, sau
+      // importata inainte de plugin), ori chiar nu seamana cu nimic.
+      const source = rows.find(r => r.photoId === photoId);
+      set({ notice: t(locale, source?.imageEmbedding?.length ? 'store.similar.none' : 'store.similar.unavailable') });
+      return;
+    }
+
+    // Sursa in fata: e reperul fata de care se citeste tot restul.
+    get().revealInGrid([photoId, ...visible]);
+    set({ notice: t(locale, 'store.similar.found', { count: visible.length }) });
   },
 
   /** Ca si celelalte operatii in masa — reversibila dintr-o data cu Ctrl+Z (batchHistory). */
