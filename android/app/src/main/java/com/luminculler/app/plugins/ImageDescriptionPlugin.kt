@@ -88,24 +88,51 @@ class ImageDescriptionPlugin : Plugin() {
         }
     }
 
-    /** Descarca modelul. Chemat DOAR dupa o apasare — vezi nota 2 din capul fisierului. */
+    /**
+     * PORNESTE descarcarea si raspunde imediat ce a pornit — NU asteapta sa se
+     * termine.
+     *
+     * Bug raportat cu trei capturi: prima versiune rezolva apelul abia pe
+     * `onDownloadCompleted`. Modelul are sute de MB, deci promisiunea din JS
+     * ramanea neterminata minute in sir, cu un mesaj inghetat pe ecran; iar la
+     * urmatoarea apasare starea era deja "downloading", adica o alta fundatura
+     * cu acelasi text. Omul nu avea de unde sti daca se intampla ceva.
+     *
+     * Acum apelul se intoarce la `onDownloadStarted`, cu marimea, ca partea de
+     * JS sa poata spune cat are de asteptat. Descarcarea merge mai departe in
+     * sistem; `status()` spune cand s-a terminat.
+     *
+     * `answered` exista fiindca un PluginCall nu poate fi rezolvat de doua ori.
+     * Daca modelul era deja pe drum de la o apasare anterioara, `onDownloadStarted`
+     * poate sa nu mai fie chemat deloc si vine direct `onDownloadCompleted` —
+     * deci raspundem la oricare dintre ele soseste prima.
+     */
     @PluginMethod
     fun download(call: PluginCall) {
+        var answered = false
+        fun answerOnce(bytes: Long, done: Boolean) {
+            if (answered) return
+            answered = true
+            val result = JSObject()
+            result.put("started", true)
+            result.put("completed", done)
+            result.put("bytesToDownload", bytes)
+            call.resolve(result)
+        }
+
         try {
             describer.downloadFeature(object : DownloadCallback {
-                override fun onDownloadStarted(bytesToDownload: Long) {}
+                override fun onDownloadStarted(bytesToDownload: Long) = answerOnce(bytesToDownload, false)
                 override fun onDownloadProgress(totalBytesDownloaded: Long) {}
-                override fun onDownloadCompleted() {
-                    val result = JSObject()
-                    result.put("downloaded", true)
-                    call.resolve(result)
-                }
+                override fun onDownloadCompleted() = answerOnce(0L, true)
                 override fun onDownloadFailed(e: GenAiException) {
+                    if (answered) return
+                    answered = true
                     call.reject("Model download failed: ${e.message}", e)
                 }
             })
         } catch (e: Throwable) {
-            call.reject("Image description is not available on this device", e as? Exception)
+            if (!answered) call.reject("Image description is not available on this device", e as? Exception)
         }
     }
 

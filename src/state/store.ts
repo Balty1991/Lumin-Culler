@@ -18,7 +18,7 @@ import { readProMode, writeProMode } from './proMode';
 import { readActiveFilter, writeActiveFilter } from './activeFilter';
 import { findSimilarPhotos } from '../core/similarPhotos';
 import { featuresForReasons } from '../core/decisionReasons';
-import { describeImageNative, downloadImageDescriptionModel, imageDescriptionStatus } from '../core/nativeImageDescription';
+import { describeImageNative, startImageDescriptionDownload, imageDescriptionStatus } from '../core/nativeImageDescription';
 import type { QuickScanResult } from '../core/quickDuplicateScan';
 import { clearPreviewUrlCache } from '../core/previewUrlCache';
 import {
@@ -3325,8 +3325,15 @@ export const useStore = create<AppState>((set, get) => ({
       set({ notice: t(locale, 'store.describe.unavailable') });
       return;
     }
+    // Descarcarea modelului merge in sistem, nu aici. Prima versiune astepta
+    // sa se TERMINE inainte sa raspunda ceva — iar modelul are sute de MB, deci
+    // omul ramanea cu un mesaj inghetat si, la a doua apasare, cu acelasi mesaj
+    // pe alta ramura. Raportat cu trei capturi.
+    //
+    // Acum ambele ramuri spun acelasi lucru adevarat: se descarca, dureaza,
+    // revino. Diferenta e ca prima o si porneste.
     if (status === 'downloading') {
-      set({ notice: t(locale, 'store.describe.downloading') });
+      set({ notice: t(locale, 'store.describe.downloadingNow') });
       return;
     }
     if (status === 'downloadable') {
@@ -3336,9 +3343,16 @@ export const useStore = create<AppState>((set, get) => ({
         confirmLabel: t(locale, 'store.describe.downloadConfirm')
       });
       if (!ok) return;
-      set({ notice: t(locale, 'store.describe.downloading') });
       try {
-        await downloadImageDescriptionModel();
+        const { completed, megabytes } = await startImageDescriptionDownload();
+        if (!completed) {
+          set({
+            notice: megabytes > 0
+              ? t(locale, 'store.describe.downloadStartedSize', { mb: megabytes })
+              : t(locale, 'store.describe.downloadingNow')
+          });
+          return;
+        }
       } catch {
         set({ notice: t(locale, 'store.describe.downloadFailed') });
         return;

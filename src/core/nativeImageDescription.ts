@@ -24,7 +24,7 @@ export type ImageDescriptionStatus = 'available' | 'downloadable' | 'downloading
 
 interface ImageDescriptionPluginApi {
   status(): Promise<{ status: ImageDescriptionStatus }>;
-  download(): Promise<{ downloaded: boolean }>;
+  download(): Promise<{ started: boolean; completed: boolean; bytesToDownload: number }>;
   describe(options: NativeImageParams): Promise<{ description: string }>;
 }
 
@@ -49,9 +49,16 @@ export async function imageDescriptionStatus(): Promise<ImageDescriptionStatus> 
   }
 }
 
-/** Descarca modelul. De chemat DOAR dupa o apasare explicita — e trafic si spatiu. */
-export async function downloadImageDescriptionModel(): Promise<void> {
-  await ImageDescriptionNative.download();
+/**
+ * PORNESTE descarcarea modelului si se intoarce imediat — nu asteapta sa se
+ * termine. De chemat DOAR dupa o apasare explicita: e trafic si spatiu.
+ *
+ * Intoarce cat are de descarcat (0 daca era deja gata sau daca sistemul nu
+ * spune), ca partea de UI sa poata zice omului cat asteapta.
+ */
+export async function startImageDescriptionDownload(): Promise<{ completed: boolean; megabytes: number }> {
+  const { completed, bytesToDownload } = await ImageDescriptionNative.download();
+  return { completed, megabytes: Math.round((bytesToDownload || 0) / 1e6) };
 }
 
 export async function describeImageNative(source: NativeImageSource): Promise<string> {
