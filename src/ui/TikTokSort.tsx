@@ -7,7 +7,7 @@ import { explainFactors } from '../core/learning/ContextEngine';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { CollectionPicker } from './CollectionPicker';
 import { AdjustedImage } from './AdjustedImage';
-import { XIcon, HeartIcon, UndoIcon, ChevronUpIcon, SparkleIcon, LayersIcon, BookmarkIcon, BarChartIcon } from './icons';
+import { XIcon, HeartIcon, UndoIcon, ChevronUpIcon, SparkleIcon, LayersIcon, BookmarkIcon, BarChartIcon, CheckIcon } from './icons';
 import { t, type Locale } from '../i18n';
 
 const SWIPE_COMMIT = 80; // px de tras (sus SAU jos) pentru a schimba pozitia in coada, fara sa decida nimic
@@ -35,6 +35,36 @@ function aiRecommendation(score: number): AiRecommendation {
   if (score >= SELECT_THRESHOLD) return 'select';
   if (score <= REJECT_THRESHOLD) return 'reject';
   return 'review';
+}
+
+/**
+ * Ce scrie pe pastila din coltul de jos: ce a hotarat OMUL, daca a hotarat
+ * ceva, si abia altfel ce crede AI-ul.
+ *
+ * BUG RAPORTAT CU PATRU CAPTURI. Utilizatorul avea o serie de 3, a deschis-o
+ * din coada si a apasat "Pastreaza doar acesta". keepOnlyInGroup chiar face ce
+ * spune: cadrul ales devine 'selected', celelalte doua 'rejected', si in baza
+ * de date, si in stare. Dar coada e inghetata la deschidere (vezi comentariul
+ * lung din capul fisierului — ordinea trebuie sa ramana stabila ca sa poti
+ * merge inapoi), deci cele doua respinse tot vin la rand.
+ *
+ * Iar cand veneau, pastila scria "Pastreaza · 74". Nu era o stare gresita in
+ * date: `aiRecommendation` se calcula DOAR din scor si nu se uita niciodata la
+ * `status`. Adica aplicatia ii recomanda calm sa pastreze exact poza pe care
+ * tocmai o respinsese el, prin decizia lui, cu doua ecrane inainte.
+ *
+ * Decizia omului bate parerea masinii, peste tot si mereu. Scorul ramane pe
+ * pastila — e informatie utila si cand te razgandesti.
+ */
+type CaptionVerdict =
+  | { kind: 'mine'; status: 'selected' | 'rejected' | 'candidate' }
+  | { kind: 'ai'; recommendation: AiRecommendation };
+
+function captionVerdict(photo: PhotoView): CaptionVerdict {
+  if (photo.status === 'selected' || photo.status === 'rejected' || photo.status === 'candidate') {
+    return { kind: 'mine', status: photo.status };
+  }
+  return { kind: 'ai', recommendation: aiRecommendation(photo.aiScore) };
 }
 
 /** Motivul scorului AI, pe scurt — reutilizeaza aceiasi factori (topFactors) deja calculati
@@ -356,7 +386,7 @@ export function TikTokSort() {
   const seriesCount = current ? countSeriesSiblings(photos, current) : 0;
   const captureDate = current ? formatCaptureDate(current.capturedAt, locale) : null;
   const album = current ? (collections.find(c => c.memberIds.includes(current.id))?.name ?? current.project) : undefined;
-  const recommendation = current ? aiRecommendation(current.aiScore) : null;
+  const verdict = current ? captionVerdict(current) : null;
   const reasonsText = current ? topReasonsText(current, locale) : null;
 
   return (
@@ -435,12 +465,18 @@ export function TikTokSort() {
               in loc sa curga pe mai multe. */}
           <div className="tiktok-caption">
             <div className="tiktok-chip-row">
-              {recommendation && (
-                <span className={`tiktok-ai-chip rec-${recommendation}`} title={tr(`tiktok.ai.${recommendation}`)}>
-                  <SparkleIcon className="inline-icon" aria-hidden="true" />
-                  {tr(`tiktok.ai.short.${recommendation}`)} · {current.aiScore}
+              {verdict && (verdict.kind === 'mine' ? (
+                <span className={`tiktok-ai-chip mine-${verdict.status}`} title={tr(`tiktok.mine.${verdict.status}`)}>
+                  {/* Fara scanteie: aia inseamna "AI-ul zice", si aici nu el zice. */}
+                  <CheckIcon className="inline-icon" aria-hidden="true" />
+                  {tr(`tiktok.mine.short.${verdict.status}`)} · {current.aiScore}
                 </span>
-              )}
+              ) : (
+                <span className={`tiktok-ai-chip rec-${verdict.recommendation}`} title={tr(`tiktok.ai.${verdict.recommendation}`)}>
+                  <SparkleIcon className="inline-icon" aria-hidden="true" />
+                  {tr(`tiktok.ai.short.${verdict.recommendation}`)} · {current.aiScore}
+                </span>
+              ))}
               {/* Cerinta directa a utilizatorului: eticheta spunea "parte dintr-o
                   serie de 3" si nu facea nimic — ca sa scapi de dubluri trebuia
                   sa iesi din sortare, sa cauti seria, si sa reiei coada de la

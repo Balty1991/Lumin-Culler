@@ -207,6 +207,12 @@ export const ro = {
   'tiktok.ai.reject': 'AI recomandă: Respinge',
   // Variantele scurte stau pe pastilele din sortarea rapida, unde spatiul e al
   // fotografiei, nu al textului. Fraza intreaga ramane in `title`/`aria-label`.
+  'tiktok.mine.selected': 'Ai păstrat-o. Poți schimba oricând.',
+  'tiktok.mine.rejected': 'Ai respins-o. Poți schimba oricând.',
+  'tiktok.mine.candidate': 'Ai pus-o deoparte.',
+  'tiktok.mine.short.selected': 'Ai păstrat-o',
+  'tiktok.mine.short.rejected': 'Ai respins-o',
+  'tiktok.mine.short.candidate': 'Deoparte',
   'tiktok.ai.short.select': 'Păstrează',
   'tiktok.ai.short.review': 'De verificat',
   'tiktok.ai.short.reject': 'Respinge',

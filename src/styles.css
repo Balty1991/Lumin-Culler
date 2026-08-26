@@ -768,6 +768,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .tiktok-ai-chip.rec-select { background: rgb(var(--pick-rgb) / 0.24); border-color: rgb(var(--pick-rgb) / 0.5); }
 .tiktok-ai-chip.rec-review { background: rgb(var(--review-rgb) / 0.24); border-color: rgb(var(--review-rgb) / 0.5); }
 .tiktok-ai-chip.rec-reject { background: rgb(var(--reject-rgb) / 0.24); border-color: rgb(var(--reject-rgb) / 0.5); }
+/* Decizia OMULUI, cand exista una. Aceleasi culori ca recomandarile de mai sus
+   — sensul e acelasi — dar pline, nu transparente: ce a hotarat el nu e o
+   sugestie. Vezi captionVerdict in TikTokSort.tsx. */
+.tiktok-ai-chip.mine-selected { background: rgb(var(--pick-rgb) / 0.5); border-color: var(--pick); color: var(--text); font-weight: 700; }
+.tiktok-ai-chip.mine-rejected { background: rgb(var(--reject-rgb) / 0.5); border-color: var(--reject); color: var(--text); font-weight: 700; }
+.tiktok-ai-chip.mine-candidate { background: rgb(var(--review-rgb) / 0.5); border-color: var(--review); color: var(--text); font-weight: 700; }
 .tiktok-caption-sub { font-size: 0.72rem; color: rgba(255,255,255,0.72); }
 .tiktok-caption-meta { color: rgba(255,255,255,0.55); }
 .tiktok-rail {
