@@ -776,8 +776,22 @@ body:before {
   color:var(--atelier-muted);
 }
 
+/* Sectiunile pliate din meniu lasau 12px de gol sub ele — masurat in Chromium:
+   fiecare .drawer-group iesea 78px inalt, desi capul lui are 63px.
+   Cauza: trucul de pliere e `grid-template-rows: 0fr`, care duce INALTIMEA
+   randului la zero, dar padding-ul copilului nu se supune lui — ramane
+   desenat si iese din randul de 0px. Cu patru sectiuni pliate inseamna 48px
+   de nimic, si linia despartitoare impinsa departe de eticheta ei, de unde si
+   senzatia de randuri prea rarite.
+
+   Padding-ul apare deci doar cand sectiunea e deschisa, si se face in acelasi
+   sfert de secunda ca randul, ca sa nu sara continutul la deschidere. */
 .drawer-group-body-inner {
   gap:5px;
+  padding:0;
+  transition:padding .25s var(--ease);
+}
+.drawer-group-body[data-open="true"] .drawer-group-body-inner {
   padding:1px 0 11px;
 }
 
@@ -804,6 +818,16 @@ body:before {
   padding:14px 2px 0;
   border-top:1px solid var(--atelier-line);
   color:var(--atelier-muted);
+}
+/* Doua linii la 14px una de alta, chiar sub ultima sectiune: .drawer-group are
+   deja border-bottom, iar nota de aici isi adauga inca un border-top peste el.
+   Cand chiar exista o sectiune inaintea ei, linia ei proprie e de prisos.
+   Regula ramane pentru cazul in care nota ajunge prima (grupul [DEV] e
+   conditionat). */
+.drawer-group + .drawer-about {
+  border-top:none;
+  margin-top:10px;
+  padding-top:4px;
 }
 
 @media (min-width: 720px) {

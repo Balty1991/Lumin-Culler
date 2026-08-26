@@ -57,14 +57,42 @@ export default defineConfig({
         // (Space Grotesk, ~52KB) nu erau precache-uite deloc, deci un reload complet
         // offline (dupa golirea cache-ului HTTP normal) cadea pe un font de sistem,
         // contrazicand exact afirmatia "functioneaza offline" de mai sus.
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest,json,bin,wasm,woff2}'],
+        // `bin` si `json` au IESIT de aici. Toate fisierele cu acele extensii din
+        // build sunt modelele Human din dist/models/ — 17 MiB din cei 22 ai
+        // precache-ului. Precache inseamna ca service worker-ul le descarca pe
+        // TOATE inainte sa se declare instalat: pe web, prima vizita platea 22
+        // MiB inainte sa poata face ceva, desi modelele n-au ce face pana nu
+        // exista poze. In aplicatia Android era si mai rau — fisierele sunt deja
+        // locale, deci precache-ul doar le COPIA a doua oara in CacheStorage:
+        // 17 MiB tinuti de doua ori pe telefon, degeaba.
+        //
+        // Trec pe runtimeCaching (CacheFirst, mai jos): se descarca la prima
+        // analiza si raman cache-uite dupa aceea. Promisiunea "merge offline" se
+        // pastreaza — dupa prima rulare a analizei, care oricum e conditia ca
+        // aplicatia sa aiba ce arata offline.
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest,wasm,woff2}'],
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }: { url: URL }) => url.pathname.includes('/models/'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'lumin-modele-ai',
+              // 12 fisiere azi (6 modele x .bin + .json); pragul lasa loc de
+              // crestere fara sa devina o groapa fara fund.
+              expiration: { maxEntries: 40, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              // 0 = raspuns opac; in Capacitor modelele vin de pe schema locala,
+              // unde asta e cazul normal, nu o eroare.
+              cacheableResponse: { statuses: [0, 200] }
+            }
+          }
+        ],
         // Materialele pentru fisa Play Store stau acum in `store/` la radacina
         // repo-ului, nu in `public/` — vezi docs/PLAY_STORE_CHECKLIST.md. Cat
         // timp erau in public/, Vite le copia in dist/, de unde Capacitor le
         // ducea in APK/AAB: 3,3 MiB de capturi si feature graphic in fiecare
         // instalare, pentru ceva ce nu se vede niciodata in aplicatie.
         // Excluderea de mai jos ramane ca plasa de siguranta daca reapar acolo.
-        globIgnores: ['store/**'],
+        globIgnores: ['store/**', 'models/**'],
         // Fara astea, un service worker nou instalat ramane "waiting" pana se
         // inchid TOATE tab-urile/instantele deschise ale aplicatiei — pe un PWA
         // instalat (adaugat pe ecranul principal, ramane rezident) practic nu se
