@@ -17,6 +17,7 @@ import { readApplyEditsInGallery, writeApplyEditsInGallery } from './applyEditsP
 import { readProMode, writeProMode } from './proMode';
 import { readActiveFilter, writeActiveFilter } from './activeFilter';
 import { findSimilarPhotos } from '../core/similarPhotos';
+import { featuresForReasons } from '../core/decisionReasons';
 import { describeImageNative, downloadImageDescriptionModel, imageDescriptionStatus } from '../core/nativeImageDescription';
 import type { QuickScanResult } from '../core/quickDuplicateScan';
 import { clearPreviewUrlCache } from '../core/previewUrlCache';
@@ -169,6 +170,8 @@ export interface PhotoView {
   gpsLongitude?: number;
   /** Metadate IPTC-IIM (segment Photoshop APP13) — vezi core/iptcParser.ts. */
   iptcByline?: string;
+  decisionReasons?: string[];
+  decisionNote?: string;
   aiDescription?: string;
   iptcCaption?: string;
   iptcHeadline?: string;
@@ -651,6 +654,14 @@ interface AppState {
   runImport: (files: File[], handles?: (FileSystemFileHandleLike | undefined)[], mediaUris?: (string | undefined)[]) => Promise<void>;
   setStatus: (id: string, status: PhotoRecord['status']) => Promise<void>;
   /**
+   * DE CE ai decis asa: motive apasate (care antreneaza) plus, optional, o nota
+   * scrisa (care nu antreneaza — vezi core/decisionReasons.ts).
+   */
+  explainDecision: (photoId: string, reasonIds: string[], note: string) => Promise<void>;
+  /** Poza pentru care e deschis panoul "De ce ai decis asa?" — null = inchis. */
+  explainPhotoId: string | null;
+  setExplainPhotoId: (photoId: string | null) => void;
+  /**
    * Rating 1-5 stele — axa SEPARATA de status (pick/respins/de verificat),
    * ca in Lightroom. Click pe aceeasi stea deja setata o sterge (trece la 0).
    * Nu antreneaza ContextEngine (doar Selecteaza/Respinge fac asta) si nu
@@ -895,6 +906,8 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     gpsLongitude: analysis?.gpsLongitude,
     iptcByline: analysis?.iptcByline,
     // suprascrierea manuala (editare in masa) precede valoarea parsata din fisier, fara sa o modifice
+    decisionReasons: photo.decisionReasons,
+    decisionNote: photo.decisionNote,
     aiDescription: analysis?.aiDescription,
     iptcCaption: photo.captionOverride ?? analysis?.iptcCaption,
     iptcHeadline: analysis?.iptcHeadline,
@@ -1089,12 +1102,20 @@ async function trainPreference(winnerId: string, loserIds: string[]): Promise<vo
   });
 }
 
-async function train(id: string, userDecision: boolean): Promise<{ topShift: WeightShift | null }> {
+async function train(
+  id: string,
+  userDecision: boolean,
+  /** Trasaturile numite de om ca motiv — vezi core/decisionReasons.ts. */
+  reasonFeatures?: string[]
+): Promise<{ topShift: WeightShift | null }> {
   const [analysis, photo] = await Promise.all([db.analyses.get(id), db.photos.get(id)]);
   if (!analysis) return { topShift: null };
   const aiDecision = analysis.aiScore >= 65;
   const locale = useStore.getState().locale;
-  return contextEngine.recordCorrection({ photoId: id, analysis, aiDecision, userDecision, genre: photo?.genre, locale });
+  return contextEngine.recordCorrection({
+    photoId: id, analysis, aiDecision, userDecision, genre: photo?.genre, locale,
+    ...(reasonFeatures?.length ? { reasonFeatures } : {})
+  });
 }
 
 /**
@@ -1328,6 +1349,10 @@ function matchesSearch(p: PhotoView, normalizedQuery: string, locale: Locale): b
   // dinadins: e singura care n-a fost scrisa de un om, deci o potrivire in ea
   // valoreaza mai putin decat una in numele fisierului sau in legenda IPTC.
   if (p.aiDescription && normalizeForSearch(p.aiDescription).includes(normalizedQuery)) return true;
+  // Nota scrisa de om cand a explicat o decizie. Motorul n-o poate citi, dar
+  // omul si-o poate cauta — si de multe ori tocmai ea e singurul loc unde scrie
+  // de ce o poza anume nu i-a placut.
+  if (p.decisionNote && normalizeForSearch(p.decisionNote).includes(normalizedQuery)) return true;
   if ((p.iptcKeywords ?? []).some(k => normalizeForSearch(k).includes(normalizedQuery))) return true;
   if (p.project && normalizeForSearch(p.project).includes(normalizedQuery)) return true;
   const camera = [p.cameraMake, p.cameraModel, p.lensModel].filter(Boolean).join(' ');
@@ -2650,6 +2675,39 @@ export const useStore = create<AppState>((set, get) => ({
     if (done > 0 && get().zenMode) {
       await get().runZenResolve();
     }
+  },
+
+  explainPhotoId: null,
+  setExplainPhotoId: photoId => set({ explainPhotoId: photoId }),
+
+  explainDecision: async (photoId, reasonIds, note) => {
+    const photo = get().photos.find(p => p.id === photoId);
+    if (!photo) return;
+    const trimmed = note.trim();
+
+    await db.photos.update(photoId, {
+      ...(reasonIds.length ? { decisionReasons: reasonIds } : { decisionReasons: undefined }),
+      ...(trimmed ? { decisionNote: trimmed } : { decisionNote: undefined })
+    });
+
+    // Motivele apasate re-antreneaza aceeasi decizie, de data asta cu vina pusa
+    // unde a spus omul. Nota scrisa nu intra aici, si nu din lene: n-avem pe
+    // telefon nimic care sa citeasca romana si s-o transforme intr-o pondere.
+    const locale = get().locale;
+    let learned: string | null = null;
+    if (reasonIds.length && (photo.status === 'selected' || photo.status === 'rejected')) {
+      const { topShift } = await train(photoId, photo.status === 'selected', featuresForReasons(reasonIds));
+      learned = topShift?.label ?? null;
+    }
+
+    set(state => ({
+      photos: state.photos.map(p => p.id === photoId
+        ? { ...p, decisionReasons: reasonIds.length ? reasonIds : undefined, decisionNote: trimmed || undefined }
+        : p),
+      notice: learned
+        ? t(locale, 'store.explain.learned', { factor: learned })
+        : t(locale, 'store.explain.saved')
+    }));
   },
 
   setStatus: async (id, status) => {

@@ -72,6 +72,12 @@ export interface CorrectionInput {
   userDecision: boolean;  // what the user actually chose
   /** Genul fotografic activ pentru aceasta poza (PhotoRecord.genre) — vezi deriveContextKey. */
   genre?: string;
+  /**
+   * Trasaturile pe care OMUL le-a numit drept motiv al deciziei (vezi
+   * core/decisionReasons.ts). Absent = decizie fara explicatie, adica exact
+   * comportamentul de dinainte.
+   */
+  reasonFeatures?: string[];
   /** Doar pentru textul lui topShift (vezi recordCorrection) — 'ro' implicit, ca la summarize(). */
   locale?: Locale;
 }
@@ -140,6 +146,26 @@ const TRAINED_SAMPLES = 40;
 const PREF_SHIFT_THRESHOLD = 0.03;
 
 /**
+ * Cat mai tare invata motorul din trasaturile pe care OMUL le-a numit.
+ *
+ * Cerinta utilizatorului: "sa ii spun de ce am respins, ca sa invete din
+ * asta". Pasul normal de gradient imparte vina egal peste tot ce e in cadru —
+ * o poza respinsa pentru fundal isi "invinovateste" si claritatea, si
+ * expunerea, si zambetul, fiindca toate erau acolo.
+ *
+ * Cand omul spune ce a cantarit, semnalul se REDISTRIBUIE: trasaturile numite
+ * primesc un pas mai mare, restul unul mai mic. Nu se adauga semnal din senin
+ * — o singura decizie ramane o singura decizie — doar se duce unde trebuie.
+ *
+ * Damparea e blanda cu buna stiinta (0.6, nu 0). Omul spune motivul PRINCIPAL,
+ * nu face o disectie: daca poza era si neclara, si prost incadrata, iar el
+ * apasa doar "incadrare", claritatea tot a contat. Sa i-o anulam complet ar
+ * insemna sa credem despre om mai mult decat crede el insusi.
+ */
+const REASON_FEATURE_BOOST = 2.0;
+const UNNAMED_FEATURE_DAMPING = 0.6;
+
+/**
  * Model "backbone": antrenat pe FIECARE corectie, indiferent de context —
  * spre deosebire de modelele per-context (izolate intre ele), acesta acumuleaza
  * semnal din toate genurile/scenele deodata, deci devine util mult mai repede
@@ -181,7 +207,7 @@ const GLOBAL_BLEND_K = 12;
 const MIN_FEATURE_VARIANCE = 0.0225;
 
 /** Sensible priors so the engine is useful before any correction exists. */
-const PRIOR_WEIGHTS: FeatureVector = {
+export const PRIOR_WEIGHTS: FeatureVector = {
   sharpness: 0.9,
   exposureBalance: 0.5,
   bestSmile: 0.7,
@@ -1017,8 +1043,14 @@ export class ContextEngine {
     const lr = (BASE_LR / Math.sqrt(model.sampleCount + 1)) * (disagreement ? 1.6 : 1.0);
 
     // Regularizare spre ANCORA (prior), nu spre zero — vezi updateWeight/L2_LAMBDA.
+    //
+    // Cand omul a spus DE CE (reasonFeatures), pasul nu se mai imparte egal:
+    // trasaturile numite invata mai repede, restul mai incet. Vezi
+    // REASON_FEATURE_BOOST pentru de ce damparea e blanda si nu totala.
+    const named = input.reasonFeatures?.length ? new Set(input.reasonFeatures) : null;
     for (const [k, v] of Object.entries(normalized)) {
-      model.weights[k] = updateWeight(model.weights[k] ?? 0, error * v, lr, priorAnchor(k));
+      const featureLr = named ? lr * (named.has(k) ? REASON_FEATURE_BOOST : UNNAMED_FEATURE_DAMPING) : lr;
+      model.weights[k] = updateWeight(model.weights[k] ?? 0, error * v, featureLr, priorAnchor(k));
     }
     model.bias -= lr * error;
     model.sampleCount++;

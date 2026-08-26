@@ -108,6 +108,7 @@ export function TikTokSort() {
   const photos = useStore(s => s.photos);
   const collections = useStore(s => s.collections);
   const setStatus = useStore(s => s.setStatus);
+  const setExplainPhotoId = useStore(s => s.setExplainPhotoId);
   const undo = useStore(s => s.undo);
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
@@ -465,12 +466,22 @@ export function TikTokSort() {
               in loc sa curga pe mai multe. */}
           <div className="tiktok-caption">
             <div className="tiktok-chip-row">
+              {/* Pe o poza DECISA, pastila devine buton: deschide "De ce ai decis
+                  asa?". Cerinta directa a utilizatorului — vrea sa spuna
+                  motivul ca motorul sa invete din el. Locul e cel firesc:
+                  chiar acolo scrie ce a hotarat. */}
               {verdict && (verdict.kind === 'mine' ? (
-                <span className={`tiktok-ai-chip mine-${verdict.status}`} title={tr(`tiktok.mine.${verdict.status}`)}>
+                <button
+                  type="button"
+                  className={`tiktok-ai-chip mine-${verdict.status}`}
+                  title={tr('explain.open')}
+                  onClick={() => setExplainPhotoId(current.id)}
+                >
                   {/* Fara scanteie: aia inseamna "AI-ul zice", si aici nu el zice. */}
                   <CheckIcon className="inline-icon" aria-hidden="true" />
                   {tr(`tiktok.mine.short.${verdict.status}`)} · {current.aiScore}
-                </span>
+                  <b className="tiktok-explain-cue">{tr('explain.open')}</b>
+                </button>
               ) : (
                 <span className={`tiktok-ai-chip rec-${verdict.recommendation}`} title={tr(`tiktok.ai.${verdict.recommendation}`)}>
                   <SparkleIcon className="inline-icon" aria-hidden="true" />

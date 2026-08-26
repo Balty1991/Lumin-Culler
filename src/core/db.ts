@@ -86,6 +86,21 @@ export interface PhotoRecord {
    * parsate din fisier; nu necesita bump de schema Dexie (camp neindexat,
    * exact ca `colorLabel`/`rating`/`genre` de mai sus).
    */
+  /**
+   * DE CE a decis omul asa. Doua lucruri diferite, deliberat separate:
+   *
+   *  - `decisionReasons`: id-uri din core/decisionReasons.ts, apasate. ASTEA
+   *    antreneaza motorul — fiecare trimite catre trasaturi pe care aplicatia
+   *    chiar le masoara, iar pasul de invatare se redistribuie catre ele.
+   *  - `decisionNote`: text scris de mana. NU antreneaza nimic: nu exista pe
+   *    telefon nimic care sa citeasca romana si s-o transforme intr-o pondere.
+   *    Se pastreaza, se vede in istoric si se poate CAUTA.
+   *
+   * Amestecarea lor ar fi fost mai simpla si mincinoasa.
+   */
+  decisionReasons?: string[];
+  decisionNote?: string;
+
   captionOverride?: string;
   keywordsOverride?: string[];
   /**

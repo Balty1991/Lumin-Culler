@@ -5332,3 +5332,51 @@ input[type="search"] { min-height: 44px; }
    oricand un raspuns valid, nu o iesire de avarie. */
 .home-genre-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
 .home-genre-done { min-height: 44px; padding: 0 16px; border-radius: 12px; font-weight: 700; }
+
+
+/* ── "De ce ai decis asa?" ──
+   Doua zone cu roluri diferite, si granita dintre ele trebuie sa se VADA:
+   butoanele antreneaza motorul, nota nu. Vezi ExplainDecisionSheet.tsx. */
+.explain-why { margin: 0 0 14px; }
+.explain-reasons { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+.explain-reason { min-height: 40px; }
+
+.explain-note { display: flex; flex-direction: column; gap: 6px; }
+.explain-note-label {
+  font-family: var(--mono);
+  font-size: .66rem;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.explain-note textarea {
+  width: 100%;
+  padding: 11px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: .92rem;
+  line-height: 1.5;
+  resize: vertical;
+}
+.explain-note textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.explain-note-hint { margin: 7px 0 0; font-size: .78rem; line-height: 1.5; opacity: .9; }
+
+.explain-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+.explain-actions button { min-height: 44px; padding: 0 18px; border-radius: 12px; font-weight: 700; }
+
+/* Pastila deciziei devine buton pe pozele deja hotarate: "De ce?" atarnat de
+   ea, ca sa se vada ca se poate apasa. */
+.tiktok-explain-cue {
+  margin-left: 7px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / .3);
+  font-family: var(--mono);
+  font-size: .62rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+}

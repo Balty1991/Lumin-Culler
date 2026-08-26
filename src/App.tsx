@@ -101,6 +101,7 @@ const TikTokSort = lazyPanel(() => import('./ui/TikTokSort').then(m => ({ defaul
 const ZenModePanel = lazyPanel(() => import('./ui/ZenModePanel').then(m => ({ default: m.ZenModePanel })));
 const AppearancePanel = lazyPanel(() => import('./ui/AppearancePanel').then(m => ({ default: m.AppearancePanel })));
 const PremiumPanel = lazyPanel(() => import('./ui/PremiumPanel').then(m => ({ default: m.PremiumPanel })));
+const ExplainDecisionSheet = lazyPanel(() => import('./ui/ExplainDecisionSheet').then(m => ({ default: m.ExplainDecisionSheet })));
 const ExportDestinations = lazyPanel(() => import('./ui/ExportDestinations').then(m => ({ default: m.ExportDestinations })));
 const SearchPanel = lazyPanel(() => import('./ui/SearchPanel').then(m => ({ default: m.SearchPanel })));
 const DocumentShieldPanel = lazyPanel(() => import('./ui/DocumentShieldPanel').then(m => ({ default: m.DocumentShieldPanel })));
@@ -824,6 +825,7 @@ export default function App() {
         <ZenModePanel />
         <AppearancePanel />
         <PremiumPanel />
+        <ExplainDecisionSheet />
         <ExportDestinations />
         <SearchPanel />
         <DocumentShieldPanel />
@@ -1449,6 +1451,7 @@ export default function App() {
       <ZenModePanel />
       <AppearancePanel />
       <PremiumPanel />
+      <ExplainDecisionSheet />
       <ExportDestinations />
       <SearchPanel />
       <DocumentShieldPanel />
