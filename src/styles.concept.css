@@ -5724,3 +5724,41 @@ button:disabled,
   border-style: dashed;
   color: var(--text-dim);
 }
+
+/* ── Curba de calibrare din Perspective ──
+   Doua bare per banda de scor: cat prezice motorul si cat s-a intamplat. Cand
+   sunt egale, cifra lui inseamna ce spune. Vezi core/learning/calibration.ts. */
+.calibration-bins {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 84px;
+  margin: 10px 0 6px;
+  padding: 0 2px;
+}
+.calibration-bin {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
+}
+.calibration-bars {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  width: 100%;
+  min-height: 0;
+}
+.calibration-bars i { flex: 1 1 0; border-radius: 3px 3px 0 0; }
+/* Prezisul e conturat, observatul e plin: ce spune motorul e o presupunere,
+   ce ai facut tu e un fapt. */
+.calibration-pred { background: rgb(var(--accent-rgb) / .3); box-shadow: inset 0 0 0 1px rgb(var(--accent-rgb) / .55); }
+.calibration-obs { background: var(--atelier-teal); }
+.calibration-label { font-size: .56rem; color: var(--text-faint); }
+.calibration-legend { display: flex; align-items: center; gap: 6px; margin: 0; }
+.calibration-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.calibration-legend i + * { margin-right: 8px; }

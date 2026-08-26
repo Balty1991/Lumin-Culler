@@ -557,6 +557,18 @@ export interface CorrectionRecord {
   features: Record<string, number>;
   aiDecision: boolean;
   userDecision: boolean;
+  /**
+   * Scorul motorului pentru poza asta, 0..100, la momentul deciziei.
+   *
+   * `aiDecision` de mai sus spune doar ce a PROPUS motorul; scorul spune cat de
+   * SIGUR era. Fara el se poate masura cat de des are dreptate, dar nu si daca
+   * "65" inseamna ceva — iar increderea in scor e exact ce hotaraste ce se
+   * decide singur si ce ajunge in coada de verificat (vezi scoreThresholds.ts).
+   *
+   * Optional: corectiile scrise inainte de acest camp n-au cum sa-l aiba, iar
+   * calibrarea le ignora pur si simplu, in loc sa presupuna o valoare.
+   */
+  aiScore?: number;
   ts: number;
 }
 

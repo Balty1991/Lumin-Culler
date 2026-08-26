@@ -989,6 +989,9 @@ export class ContextEngine {
           features,
           aiDecision: input.aiDecision,
           userDecision: input.userDecision,
+          // Scorul, nu doar verdictul: fara el nu se poate sti niciodata daca
+          // "65" chiar inseamna 65% sanse. Vezi learning/calibration.ts.
+          aiScore: input.analysis.aiScore,
           ts: Date.now()
         })
       ]);

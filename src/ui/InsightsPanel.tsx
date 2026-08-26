@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { db } from '../core/db';
 import { summarizeAccuracy, type AccuracySummary } from '../core/learning/accuracy';
+import { computeCalibration, worstBin, type CalibrationSummary } from '../core/learning/calibration';
 import { findHabits, type Habit } from '../core/learning/habits';
 import { translateSceneTag } from '../core/sceneTagLabels';
 import { useStore } from '../state/store';
@@ -53,6 +54,7 @@ export function InsightsPanel() {
   const [summary, setSummary] = useState<Summary[] | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [accuracy, setAccuracy] = useState<AccuracySummary | null>(null);
+  const [calibrare, setCalibrare] = useState<CalibrationSummary | null>(null);
   const [habits, setHabits] = useState<Habit[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
   useModalFocusTrap(containerRef, open);
@@ -77,6 +79,9 @@ export function InsightsPanel() {
     void db.corrections.toArray().then(async rows => {
       if (!alive) return;
       setAccuracy(summarizeAccuracy(rows));
+      // Aceleasi corectii, alta intrebare: nu "cat de des nimereste", ci
+      // "inseamna ceva cifra pe care o arata". Vezi learning/calibration.ts.
+      setCalibrare(computeCalibration(rows));
       // Tiparele au nevoie si de metadatele pozei (ora capturii, subiecte,
       // focala), care nu stau pe corectie — le luam prin photoId. Pozele
       // sterse intre timp cad pur si simplu din analiza.
@@ -162,6 +167,53 @@ export function InsightsPanel() {
               </p>
             )}
             <p className="accuracy-basis hint">{tr('insights.accuracy.basis', { count: accuracy.total })}</p>
+          </section>
+        )}
+
+        {/* CALIBRAREA — alta intrebare decat acordul de mai sus, si de-aia sta
+            separat: acolo scrie cat de des nimereste motorul, aici daca
+            increderea lui inseamna ceva. Conteaza fiindca pragurile care
+            hotarasc ce se decide singur sunt exprimate in scor: un scor
+            decalibrat taie in locul gresit. Vezi core/learning/calibration.ts. */}
+        {calibrare && (
+          <section className="accuracy calibration">
+            <h3>{tr('insights.calibration.title')}</h3>
+            <p>{tr(`insights.calibration.verdict.${calibrare.verdict}`)}</p>
+            {(() => {
+              const banda = worstBin(calibrare);
+              if (!banda) return null;
+              return (
+                <p className="accuracy-trend">
+                  {tr('insights.calibration.worst', {
+                    from: banda.from,
+                    to: banda.to,
+                    predicted: Math.round(banda.predicted * 100),
+                    observed: Math.round(banda.observed * 100)
+                  })}
+                </p>
+              );
+            })()}
+            {/* Curba, ca sa se vada forma, nu doar cuvantul. Fiecare banda are
+                doua bare: cat a prezis motorul si cat s-a intamplat. */}
+            <div className="calibration-bins">
+              {calibrare.bins.map(b => (
+                <div key={b.from} className="calibration-bin" title={tr('insights.calibration.binTitle', {
+                  from: b.from, to: b.to, count: b.count,
+                  predicted: Math.round(b.predicted * 100), observed: Math.round(b.observed * 100)
+                })}>
+                  <span className="calibration-bars" aria-hidden="true">
+                    <i className="calibration-pred" style={{ height: `${Math.max(2, b.predicted * 100)}%` }} />
+                    <i className="calibration-obs" style={{ height: `${Math.max(2, b.observed * 100)}%` }} />
+                  </span>
+                  <span className="calibration-label mono">{b.from}</span>
+                </div>
+              ))}
+            </div>
+            <p className="calibration-legend hint">
+              <i className="calibration-pred" aria-hidden="true" /> {tr('insights.calibration.predicted')}
+              <i className="calibration-obs" aria-hidden="true" /> {tr('insights.calibration.observed')}
+            </p>
+            <p className="accuracy-basis hint">{tr('insights.calibration.basis', { count: calibrare.total })}</p>
           </section>
         )}
 
