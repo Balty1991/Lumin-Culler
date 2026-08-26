@@ -81,3 +81,60 @@ describe('countSeriesSiblings', () => {
     expect(countSeriesSiblings(photos, photos[0])).toBe(3);
   });
 });
+
+describe('selectSortQueue: seriile trec in fata', () => {
+  const t = (min: number) => Date.parse('2026-08-26T10:00:00Z') + min * 60_000;
+
+  it('o serie vine inaintea pozelor singure, chiar daca e mai noua', () => {
+    // Motivul e aritmetic: seria se rezolva cu O atingere si scoate trei poze
+    // din coada; poza singura cere o decizie si scoate una.
+    const queue = selectSortQueue([
+      photo('singura-veche', { capturedAt: t(0) }),
+      photo('s1', { capturedAt: t(50), groupId: 'g' }),
+      photo('s2', { capturedAt: t(51), groupId: 'g' }),
+      photo('s3', { capturedAt: t(52), groupId: 'g' }),
+      photo('singura-noua', { capturedAt: t(90) })
+    ]);
+    expect(queue.map(p => p.id)).toEqual(['s1', 's2', 's3', 'singura-veche', 'singura-noua']);
+  });
+
+  it('seria mare inaintea celei mici', () => {
+    const queue = selectSortQueue([
+      photo('mic1', { capturedAt: t(0), groupId: 'mic' }),
+      photo('mic2', { capturedAt: t(1), groupId: 'mic' }),
+      photo('mare1', { capturedAt: t(30), groupId: 'mare' }),
+      photo('mare2', { capturedAt: t(31), groupId: 'mare' }),
+      photo('mare3', { capturedAt: t(32), groupId: 'mare' })
+    ]);
+    expect(queue.map(p => p.id)).toEqual(['mare1', 'mare2', 'mare3', 'mic1', 'mic2']);
+  });
+
+  it('membrii unei serii raman lipiti si in ordinea in care au fost facuti', () => {
+    const queue = selectSortQueue([
+      photo('b', { capturedAt: t(2), groupId: 'g' }),
+      photo('a', { capturedAt: t(1), groupId: 'g' }),
+      photo('c', { capturedAt: t(3), groupId: 'g' })
+    ]);
+    expect(queue.map(p => p.id)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('o serie din care a mai ramas un singur cadru nedecis nu mai trece in fata', () => {
+    // Nu mai e o comparatie, e o poza obisnuita — vezi undecidedPerGroup.
+    const queue = selectSortQueue([
+      photo('singura', { capturedAt: t(0) }),
+      photo('rest-de-serie', { capturedAt: t(90), groupId: 'g' }),
+      photo('deja-pastrata', { capturedAt: t(91), groupId: 'g', status: 'selected' }),
+      photo('deja-respinsa', { capturedAt: t(92), groupId: 'g', status: 'rejected' })
+    ]);
+    expect(queue.map(p => p.id)).toEqual(['singura', 'rest-de-serie']);
+  });
+
+  it('fara nicio serie, ordinea ramane strict cronologica', () => {
+    const queue = selectSortQueue([
+      photo('c', { capturedAt: t(3) }),
+      photo('a', { capturedAt: t(1) }),
+      photo('b', { capturedAt: t(2) })
+    ]);
+    expect(queue.map(p => p.id)).toEqual(['a', 'b', 'c']);
+  });
+});
