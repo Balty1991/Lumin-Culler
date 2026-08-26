@@ -920,61 +920,38 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
 
 
-/* ── Panou HUD (CullGauge): gauge circular segmentat + statistici + colturi
-   tip "bracket" — concept vizual "LuminCuller — concept HUD", portat pe
-   token-urile de design deja existente (--pick/--review/--reject/--accent). ── */
-.hud {
-  position: relative; margin: 6px 2px 10px; padding: 14px 14px 12px; border-radius: var(--radius-lg);
-  background: linear-gradient(155deg, var(--surface-2), var(--surface)); box-shadow: inset 0 0 0 1px var(--line);
+/* ── Randul de progres de deasupra grilei (CullGauge) ──
+   Inainte: card de 370px cu donut de 76px, cinci dale de statistici si butonul
+   rosu "Goleste sesiunea". Pe 412px latime, prima miniatura din Biblioteca
+   incepea la jumatatea ecranului. Vezi CullGauge.tsx pentru unde a plecat
+   fiecare bucata. Ce a ramas: un rand de ~40px. ── */
+.hud-slim {
+  display: flex; align-items: center; gap: 12px;
+  margin: 6px 2px 10px; padding: 9px 13px;
+  border-radius: var(--radius-lg);
+  background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line);
 }
-.bracket { position: absolute; width: 14px; height: 14px; border: 2px solid var(--line-strong); opacity: 0.9; }
-.bracket.tl { top: -1px; left: -1px; border-right: none; border-bottom: none; border-top-left-radius: 8px; }
-.bracket.tr { top: -1px; right: -1px; border-left: none; border-bottom: none; border-top-right-radius: 8px; }
-.bracket.bl { bottom: -1px; left: -1px; border-right: none; border-top: none; border-bottom-left-radius: 8px; }
-.bracket.br { bottom: -1px; right: -1px; border-left: none; border-top: none; border-bottom-right-radius: 8px; }
-.hud-row { display: flex; align-items: center; gap: 16px; }
-.gauge { position: relative; width: 76px; height: 76px; flex-shrink: 0; }
-.gauge svg { width: 100%; height: 100%; transform: rotate(-90deg); }
-.gauge svg circle { transition: stroke-dasharray var(--duration) var(--ease), stroke-dashoffset var(--duration) var(--ease); }
-.gauge-pct {
-  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column;
+.hud-slim-pct { display: flex; align-items: baseline; gap: 5px; flex-shrink: 0; }
+.hud-slim-pct b {
+  font-family: var(--mono); font-size: 0.98rem; font-variant-numeric: tabular-nums; color: var(--text);
 }
-.gauge-pct b { font-family: var(--mono); font-size: 1.15rem; font-variant-numeric: tabular-nums; color: var(--text); }
-.gauge-pct span { font-size: 0.52rem; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.08em; margin-top: -2px; }
-.hud-stats { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; min-width: 0; }
-/* Vezi CullGauge.tsx: cu cinci dale, trei coloane pastreaza aceeasi inaltime ca
-   patru dale pe doua coloane. Eticheta se taie in loc sa latesca dala. */
-.hud-stats.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 8px; }
-.hud-stats.cols-3 .stat span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.stat { display: flex; align-items: center; gap: 7px; }
-.stat i { width: 7px; height: 7px; border-radius: 2px; flex-shrink: 0; }
-.stat i.sel { background: var(--pick); box-shadow: 0 0 8px var(--pick); }
-.stat i.rev { background: var(--review); box-shadow: 0 0 8px var(--review); }
-.stat i.rej { background: var(--reject); box-shadow: 0 0 8px var(--reject); }
-.stat i.pen { background: var(--text-faint); }
-.stat b { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.92rem; color: var(--text); }
-.stat span { font-size: 0.62rem; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.05em; }
-/* .stat-btn: aceeasi geometrie ca .stat (grid 2x2 din .hud-stats), dar e un
-   <button> real — reset la stilul implicit de buton, ca sa arate identic cu
-   celelalte 3 statistici necliclabile, doar cu afordanta de hover/focus in
-   plus (intra in "Verifica rapid", vezi CullGauge.tsx/startQuickReview). */
-.stat-btn {
-  background: none; border: none; padding: 3px 4px; margin: -3px -4px; border-radius: var(--radius-sm);
-  font: inherit; color: inherit; text-align: left; cursor: pointer;
-  transition: background 0.15s var(--ease);
+.hud-slim-pct span {
+  font-size: 0.56rem; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.08em;
 }
-.stat-btn:hover, .stat-btn:focus-visible { background: var(--surface-3); }
-/* Cea mai distructiva actiune din aplicatie (goleste ireversibil toata
-   sesiunea) — un semnal doar pe :hover nu se declanseaza NICIODATA pe atingere
-   (telefon, fara cursor), deci pe mobil butonul arata identic cu orice alt
-   buton neutru, fara niciun avertisment vizual persistent. Tenta rosie discreta
-   e vizibila din prima, nu doar la interactiune. */
-.hud-clear {
-  margin-top: 14px; width: 100%; padding: 8px; border-radius: var(--radius-sm); background: none;
-  box-shadow: inset 0 0 0 1px rgba(251,113,133,0.28); color: var(--reject); font-size: 0.72rem; font-weight: 700;
-  letter-spacing: 0.03em; text-transform: uppercase; transition: color 0.15s var(--ease), box-shadow 0.15s var(--ease);
+/* Aceleasi culori ca inelul de pe Acasa, pe orizontala. Segmentele stau lipite:
+   e o singura bara impartita, nu patru indicatori alaturati. */
+.hud-slim-bar {
+  flex: 1; min-width: 0; display: flex; height: 6px;
+  border-radius: 999px; overflow: hidden; background: var(--surface-3);
 }
-.hud-clear:hover, .hud-clear:focus-visible { color: var(--reject); box-shadow: inset 0 0 0 1px rgba(251,113,133,0.55); }
+.hud-slim-bar i { display: block; height: 100%; transition: width var(--duration) var(--ease); }
+.hud-slim-bar i.sel { background: var(--pick); }
+.hud-slim-bar i.can { background: var(--review); opacity: 0.55; }
+.hud-slim-bar i.rev { background: var(--review); }
+.hud-slim-bar i.rej { background: var(--reject); }
+.hud-slim-total {
+  flex-shrink: 0; font-size: 0.78rem; font-variant-numeric: tabular-nums; color: var(--text-dim);
+}
 
 /* ── Progres import ── */
 .progress {
@@ -1328,9 +1305,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   filter: drop-shadow(0 1px 2px rgba(0,0,0,0.7)) drop-shadow(0 0 3px rgba(0,0,0,0.45));
 }
 .candidate-badge svg { width: 15px; height: 15px; fill: currentColor; }
-
-/* Bulina de legenda a candidatului din CullGauge. */
-.hud-stats .stat i.can { background: var(--review); opacity: .55; }
 
 /* selectie in masa (Ctrl/Shift+Click) — inel de accent distinct de starea pick/reject/review,
    ca sa nu se confunde vizual "e in selectia curenta" cu "AI-ul a decis ca e buna" */
@@ -1851,10 +1825,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   width: 40px; height: 40px; color: var(--text-faint); opacity: 0.8;
 }
 
-/* ── "Cum functioneaza" — strip in 3 pasi, sub CTA-ul de onboarding ──
-   Randat in interiorul unui panou .hud (aceleasi clase .hud/.bracket ca la
-   CullGauge) — reutilizeaza identitatea vizuala "HUD" deja stabilita, in loc
-   de un simplu divider deasupra unei liste plate. */
+/* ── "Cum functioneaza" — strip in 3 pasi, sub CTA-ul de onboarding ── */
 /* Card calm, cu o singura muchie discreta — vezi nota din App.tsx pentru de ce
    nu mai e un panou HUD cu colturi in paranteze. Mai mult aer inauntru (14px)
    decat avea panoul (10px): descrierile au acum cate un singur rand, deci

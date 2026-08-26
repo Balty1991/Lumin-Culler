@@ -299,7 +299,6 @@ export const en: Record<TranslationKey, string> = {
   'premium.reason.xmp': 'You wanted to hand your selection to Lightroom.',
   'premium.reason.persons': 'You wanted to enrol one more person.',
   'premium.reason.cap': 'You have reached the monthly cap on photos taken out.',
-  'premium.reason.rest': 'It comes together with everything below.',
   'premium.chip': 'Premium',
   'premium.lead': 'Culling stays free, however many photos you have. Premium is for what you do with the result.',
   'premium.perk.export.title': 'Unlimited export',

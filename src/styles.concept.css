@@ -3827,10 +3827,6 @@ body:before {
 .filters .chip.chip-compact.more-filters-trigger,
 .filters .chip.chip-compact.select-mode-toggle { min-width: 44px; }
 
-/* Pastilele de stare din HUD sunt si butoane de filtrare — 27px inaltime. */
-.hud .stat.stat-btn { min-height: 44px; }
-.hud-clear { min-height: 44px; }
-
 /* Inchiderea sortarii rapide si esantioanele de tema erau la 42px: doi pixeli
    sub prag, dar exact colturile ecranului unde degetul e cel mai imprecis. */
 .tiktok-close { width: 44px; height: 44px; }
@@ -5121,6 +5117,15 @@ input[type="search"] { min-height: 44px; }
 /* Iconita si numele nu se ating: pastilele compacte au gap 0 in tema, iar acolo
    unde apare si un nume el are nevoie de aer. */
 .filters-status .chip.chip-compact.active { gap: 6px; padding-right: 10px; }
+/* Cifra sta acum pe TOATE cele patru stari (vezi App.tsx), nu doar pe cea
+   aleasa. Ca sa incapa randul intreg pe 412px, insigna rotunda ramane doar pe
+   pastila activa; pe celelalte trei numarul e scris simplu, langa iconita — o
+   pastila in interiorul unei pastile inactive era oricum zgomot, si costa 14px
+   fiecare, adica exact cat lipsea. */
+.filters-status .chip:not(.active) .chip-count {
+  background: none; padding: 1px 0; min-width: 0; color: var(--text-dim);
+}
+.filters-status .chip.chip-compact:not(.active) { padding-left: 9px; padding-right: 9px; }
 
 
 /* Derularea listei de slidere are prioritate pe verticala; sliderul asculta doar
@@ -5209,17 +5214,12 @@ input[type="search"] { min-height: 44px; }
   .notice.ai-degraded .ghost { align-self: flex-end; }
 }
 
-/* Randul care leaga panoul Premium de functia pentru care s-a deschis — vezi
-   premiumReason in store.ts. Accentuat, dar nu strident: e un raspuns la ce
-   tocmai a apasat omul, nu inca un argument de vanzare. */
-.premium-reason {
-  margin: 4px 0 10px;
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  background: rgb(255 255 255 / .05);
-  border-left: 3px solid var(--accent, #5eead4);
-  font-size: .88rem;
+/* Subtitlul panoului Premium: fraza de pozitionare, cand titlul a fost luat de
+   motivul pentru care s-a deschis panoul (vezi PremiumPanel.tsx). Fara caseta,
+   fara bara de accent — e text de sprijin sub un titlu, nu o notificare. */
+.premium-sub {
+  margin: 5px 0 0;
+  color: var(--text-dim);
+  font-size: .84rem;
   line-height: 1.45;
 }
-.premium-reason strong { color: var(--text); }
-.premium-reason span { color: var(--text-dim); }

@@ -290,8 +290,6 @@ export default function App() {
   useEffect(() => {
     setAiDegradedDismissed(isAiDegradedNoticeDismissed(aiBackend || 'unknown'));
   }, [aiBackend]);
-  const clearAll = useStore(s => s.clearAll);
-  const askConfirm = useStore(s => s.askConfirm);
   const askPrompt = useStore(s => s.askPrompt);
   const filtered = useStore(s => s.filtered());
   const workspaceMode = useStore(s => s.workspaceMode);
@@ -771,14 +769,6 @@ export default function App() {
     };
   }, [setMultiSelected, setStatus]);
 
-  // fara confirmare, un singur clic accidental sterge ireversibil intreaga
-  // sesiune (posibil 1000+ poze deja evaluate) — cea mai distructiva actiune
-  // din aplicatie, singura fara nicio plasa de siguranta
-  const confirmClearAll = async () => {
-    const ok = await askConfirm(tr('app.clearSession.confirm', { count: counts.all }), { danger: true });
-    if (ok) await clearAll();
-  };
-
   // Workspace e ecranul principal implicit — grila (jos) ramane accesibila
   // doar cand exista deja poze SI utilizatorul a comutat explicit la ea
   // (buton dedicat in antetul Workspace-ului); fara poze, ramane onboarding-ul.
@@ -986,7 +976,6 @@ export default function App() {
             candidate={counts.candidate}
             pending={counts.all - counts.selected - counts.review - counts.rejected - counts.candidate}
             total={counts.all}
-            onClearSession={() => void confirmClearAll()}
           />
         )}
 
@@ -1066,21 +1055,21 @@ export default function App() {
                 className={filter === f.key ? 'chip chip-compact active' : 'chip chip-compact'}
                 onClick={() => setFilter(f.key)}
                 aria-pressed={filter === f.key}
-                aria-label={f.label}
+                aria-label={`${f.label}: ${f.count}`}
                 title={f.label}
               >
                 <span className="chip-icon" aria-hidden="true">{f.icon}</span>
-                {/* Numele SI numarul, doar pe starea aleasa. Cifrele celorlalte
-                    trei sunt oricum scrise, mai mari, in cardul de rezumat de
-                    deasupra ("6 SELECTATE · 4 DE VERIFICAT · 0 RESPINSE") — a
-                    le repeta aici umfla randul exact atat cat sa nu mai incapa,
-                    si atunci pastila activa ajungea taiata prin cuvant. */}
-                {filter === f.key && (
-                  <>
-                    <span className="chip-label">{f.label}</span>
-                    <b className="chip-count">{f.count}</b>
-                  </>
-                )}
+                {/* Numarul, pe TOATE. Numele, doar pe starea aleasa.
+                    Inainte cifrele celorlalte trei lipseau, pe motiv ca sunt
+                    scrise mai mari in cardul de rezumat de deasupra. Cardul a
+                    disparut (vezi CullGauge.tsx: tabul Biblioteca incepea cu
+                    370px de statistici), deci motivul a disparut cu el — si
+                    ramanea o bara de filtre pe care nu vedeai cate poze ai
+                    respins fara sa comuti pe respinse ca sa afli.
+                    Randul incape: numele lung se scrie o singura data, pe
+                    pastila activa; celelalte raman iconita + cifra. */}
+                {filter === f.key && <span className="chip-label">{f.label}</span>}
+                <b className="chip-count">{f.count}</b>
               </button>
             ))}
             </div>

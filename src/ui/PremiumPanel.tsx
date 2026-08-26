@@ -83,19 +83,31 @@ export function PremiumPanel() {
         <span className="premium-chip">
           <StarIcon className="inline-icon" aria-hidden="true" /> {tr(premium ? 'premium.chip.active' : 'premium.chip')}
         </span>
-        <h3 className="premium-lead">{tr(premium ? 'premium.lead.active' : 'premium.lead')}</h3>
         {/* Cand panoul s-a deschis pentru ca omul a intins mana dupa o functie
-            anume, se spune ACEEA prima. Portile contextuale existau deja in
-            sapte locuri, dar toate deschideau acelasi catalog de sase functii —
-            deci cine apasa "Plansa de contact" trebuia sa se caute singur in
-            lista, exact cand intrebarea lui era cat se poate de precisa.
-            Deschis din meniu, `premiumReason` e null si nu apare nimic aici. */}
-        {!premium && premiumReason && (
-          <p className="premium-reason">
-            <strong>{tr(`premium.reason.${premiumReason}`)}</strong>{' '}
-            <span>{tr('premium.reason.rest')}</span>
-          </p>
-        )}
+            anume, aceea E titlul. Portile contextuale existau deja in sapte
+            locuri, dar toate deschideau acelasi catalog de sase functii — deci
+            cine apasa "Plansa de contact" trebuia sa se caute singur in lista,
+            exact cand intrebarea lui era cat se poate de precisa.
+
+            Prima incercare punea motivul intr-o caseta gri cu bara de accent,
+            sub titlu, urmata de "Vine la pachet cu restul de mai jos".
+            Utilizatorul a respins-o, si pe drept: o caseta de notificare
+            strecurata intre titlu si pret arata a avertisment de sistem, iar
+            propozitia a doua nu spunea nimic ce nu se vedea deja din lista de
+            dedesubt. Doua titluri unul sub altul, dintre care unul incadrat.
+
+            Acum nu se mai adauga nimic: se SCHIMBA titlul. Motivul sus, unde
+            cade privirea, iar fraza de pozitionare coboara ca subtitlu — tot
+            acolo, tot citita, dar in rolul ei. Deschis din meniu,
+            `premiumReason` e null si titlul e cel generic, ca inainte. */}
+        <h3 className="premium-lead">
+          {premium
+            ? tr('premium.lead.active')
+            : premiumReason
+              ? tr(`premium.reason.${premiumReason}`)
+              : tr('premium.lead')}
+        </h3>
+        {!premium && premiumReason && <p className="premium-sub">{tr('premium.lead')}</p>}
         {!premium && price && (
           <p className="premium-price">{tr('premium.price.tag', { price })}</p>
         )}
