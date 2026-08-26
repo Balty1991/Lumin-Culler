@@ -23,6 +23,17 @@ on:
           fara sa atinga modul de build.
         type: boolean
         default: false
+      minify:
+        description: >-
+          Trece APK-ul de test prin R8, cu EXACT regulile de la release
+          (proguard-rules.pro). Implicit oprit. Porneste-l cand vrei sa
+          verifici pe telefon ca minificarea nu rupe nimic INAINTE sa iasa un
+          release — assembleDebug normal nu trece prin R8, deci altfel
+          rupturile de reflexie (Capacitor isi gaseste plugin-urile pe nume)
+          s-ar vedea abia in magazin. De incercat cu el pornit: pornirea
+          aplicatiei, un import cu analiza, bokeh-ul, si exportul.
+        type: boolean
+        default: false
   push:
     branches:
       - 'claude/**'
@@ -164,7 +175,7 @@ jobs:
           java-version: '21'
       - name: Build debug APK (nesemnat)
         working-directory: android
-        run: ./gradlew assembleDebug
+        run: ./gradlew assembleDebug -PminifyDebug=${{ inputs.minify == true }}
       # Marimea se raporteaza IN rezumatul rularii, nu doar in fisier: altfel
       # singurul mod de a afla cat s-a mai umflat APK-ul era sa-l descarci —
       # exact lucrul care doare pe o legatura mobila. Cu asta se vede din

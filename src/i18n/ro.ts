@@ -1368,6 +1368,8 @@ export const ro = {
   'edit.bokeh.source.none': 'N-am găsit nicio persoană în cadru, așa că nu am ce lăsa clar. Sliderul rămâne fără efect pe poza asta.',
   'edit.grade': 'Ton cinematic',
   'edit.grain': 'Granulație',
+  'edit.dehaze': 'Dezaburire',
+  'edit.bw': 'Alb-negru',
   'edit.vignette': 'Vinietă',
 
   // --- Instrumentele editorului (bara de sub poză) ---

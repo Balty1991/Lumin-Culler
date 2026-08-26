@@ -105,3 +105,107 @@ describe('granulație', () => {
     expect(g - 140).toBeCloseTo(b - 180, 0);
   });
 });
+
+/**
+ * Dezaburire si alb-negru — celelalte doua efecte adaugate in aceeasi trecere.
+ * Amandoua sunt matematica pe pixeli, deci se verifica fara canvas.
+ */
+import { applyDehaze, applyBlackAndWhite, DEFAULT_BW_MIX } from './imageAdjust';
+
+/** Un dreptunghi plin, ca ImageData brut. */
+function plin(w: number, h: number, r: number, g: number, b: number): Uint8ClampedArray {
+  const d = new Uint8ClampedArray(w * h * 4);
+  for (let i = 0; i < d.length; i += 4) { d[i] = r; d[i + 1] = g; d[i + 2] = b; d[i + 3] = 255; }
+  return d;
+}
+const mediaCanal = (d: Uint8ClampedArray, c: number) => {
+  let s = 0; for (let i = c; i < d.length; i += 4) s += d[i];
+  return s / (d.length / 4);
+};
+
+describe('dezaburire', () => {
+  const W = 40, H = 40;
+
+  it('coboara negrul intr-o zona spalata — asta E ceata, in numere', () => {
+    // Ceata inseamna ca niciun canal nu mai ajunge jos: aici minimul e 120.
+    const d = plin(W, H, 150, 155, 120);
+    const inainte = mediaCanal(d, 2);
+    applyDehaze(d, W, H, 100);
+    expect(mediaCanal(d, 2)).toBeLessThan(inainte);
+  });
+
+  it('aproape nu atinge un cadru care are deja negru curat', () => {
+    // Canalul intunecat e 0, deci n-are ce scoate — si asa si trebuie.
+    const d = plin(W, H, 200, 120, 0);
+    const inainte = [...d];
+    applyDehaze(d, W, H, 100);
+    let maxAbatere = 0;
+    for (let i = 0; i < d.length; i++) maxAbatere = Math.max(maxAbatere, Math.abs(d[i] - inainte[i]));
+    expect(maxAbatere).toBeLessThanOrEqual(3);
+  });
+
+  it('creste cu intensitatea', () => {
+    const slab = plin(W, H, 150, 155, 120); applyDehaze(slab, W, H, 30);
+    const tare = plin(W, H, 150, 155, 120); applyDehaze(tare, W, H, 100);
+    expect(mediaCanal(tare, 2)).toBeLessThan(mediaCanal(slab, 2));
+  });
+
+  it('la 0 nu schimba nimic, si nu iese niciodata din 0..255', () => {
+    const d = plin(W, H, 150, 155, 120);
+    const inainte = [...d];
+    applyDehaze(d, W, H, 0);
+    expect([...d]).toEqual(inainte);
+
+    const extrem = plin(W, H, 250, 250, 250);
+    applyDehaze(extrem, W, H, 100);
+    for (const v of extrem) {
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThanOrEqual(255);
+    }
+  });
+});
+
+describe('alb-negru cu mixer', () => {
+  const pix = (r: number, g: number, b: number) => {
+    const d = new Uint8ClampedArray([r, g, b, 255]);
+    return d;
+  };
+
+  it('la 100 aduce cele trei canale la aceeasi valoare', () => {
+    const d = pix(200, 100, 50);
+    applyBlackAndWhite(d, 100);
+    expect(d[0]).toBe(d[1]);
+    expect(d[1]).toBe(d[2]);
+  });
+
+  it('la 50 e la jumatatea drumului, nu tot', () => {
+    const d = pix(200, 100, 50);
+    applyBlackAndWhite(d, 50);
+    expect(d[0]).not.toBe(d[2]);
+    expect(d[0]).toBeLessThan(200);
+    expect(d[2]).toBeGreaterThan(50);
+  });
+
+  it('ponderile implicite inchid cerul si deschid pielea', () => {
+    // Filtrul rosu din fotografia clasica: albastrul iese mai inchis decat ar
+    // iesi cu luminanta perceptuala, rosul mai deschis.
+    const cer = pix(90, 150, 220); applyBlackAndWhite(cer, 100);
+    const piele = pix(220, 160, 130); applyBlackAndWhite(piele, 100);
+    expect(cer[0]).toBeLessThan(piele[0]);
+  });
+
+  it('normalizeaza ponderile — un mixer cu suma mare nu lumineaza poza', () => {
+    // Fara normalizare, omul ar crede ca a stricat expunerea, nu ca a schimbat
+    // filtrul.
+    const normal = pix(128, 128, 128); applyBlackAndWhite(normal, 100, DEFAULT_BW_MIX);
+    const umflat = pix(128, 128, 128); applyBlackAndWhite(umflat, 100, { red: 1.2, green: 1.3, blue: 0.9 });
+    expect(umflat[0]).toBeCloseTo(normal[0], 0);
+    expect(umflat[0]).toBeCloseTo(128, 0);
+  });
+
+  it('la 0 nu schimba nimic', () => {
+    const d = pix(200, 100, 50);
+    applyBlackAndWhite(d, 0);
+    expect([...d]).toEqual([200, 100, 50, 255]);
+  });
+});

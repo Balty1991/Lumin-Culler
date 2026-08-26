@@ -926,23 +926,32 @@ export function applyDehaze(d: Uint8ClampedArray, width: number, height: number,
   const rows = Math.max(1, Math.min(DEHAZE_GRID, height));
   const cw = width / cols;
   const ch = height / rows;
-  // Canalul intunecat, minim pe fiecare celula de grila.
+  // Pe fiecare celula: canalul intunecat (minimul dintre R,G,B) si cel mai
+  // luminos canal. Primul spune CAT de ceata e acolo, al doilea CAT DE ALBA e.
   const dark = new Float32Array(cols * rows).fill(255);
+  const bright = new Float32Array(cols * rows);
   for (let y = 0; y < height; y++) {
     const gy = Math.min(rows - 1, (y / ch) | 0);
     for (let x = 0; x < width; x++) {
       const i = (y * width + x) << 2;
-      const m = Math.min(d[i], d[i + 1], d[i + 2]);
       const g = gy * cols + Math.min(cols - 1, (x / cw) | 0);
+      const m = Math.min(d[i], d[i + 1], d[i + 2]);
+      const M = Math.max(d[i], d[i + 1], d[i + 2]);
       if (m < dark[g]) dark[g] = m;
+      if (M > bright[g]) bright[g] = M;
     }
   }
 
-  // Lumina atmosferica: cel mai luminos canal intunecat din cadru. E cheia
-  // care spune "cat de alba e ceata aici" — pe o poza fara ceata iese mica,
-  // si atunci corectia de mai jos e aproape nula, singura.
-  let A = 1;
-  for (let g = 0; g < dark.length; g++) if (dark[g] > A) A = dark[g];
+  // Lumina atmosferica = cat de LUMINOASA e cea mai ceteasa zona din cadru.
+  //
+  // Aici a fost un bug prins de teste: luasem drept A chiar valoarea canalului
+  // intunecat. Cu A egal cu minimul, formula de mai jos il lasa pe loc exact
+  // pe el — adica singurul lucru pe care dezaburirea trebuie sa-l coboare
+  // ramanea neatins, si efectul se reducea la o crestere de saturatie.
+  // A trebuie sa fie ALBUL cetii, nu pragul ei de jos.
+  let celMaiCetos = 0;
+  for (let g = 1; g < dark.length; g++) if (dark[g] > dark[celMaiCetos]) celMaiCetos = g;
+  const A = Math.max(1, bright[celMaiCetos]);
 
   for (let y = 0; y < height; y++) {
     const fy = Math.min(rows - 1, (y / ch) | 0);

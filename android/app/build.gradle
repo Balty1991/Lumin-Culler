@@ -60,11 +60,32 @@ android {
     }
     buildTypes {
         release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // Optimizarea codului (DEX) e unul dintre cele trei praguri de
+            // calitate anuntate de Google Play pentru februarie 2027; pana
+            // acum era oprita, adica exact ce Play raporteaza drept "limited
+            // DEX optimization". Regulile de pastrare din proguard-rules.pro
+            // sunt obligatorii — Capacitor isi gaseste plugin-urile prin
+            // reflexie, iar R8 le-ar sterge ca pe cod mort.
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             if (hasSigningConfig) {
                 signingConfig signingConfigs.release
             }
+        }
+        // APK-ul de test se construieste cu assembleDebug, care NU trece prin
+        // R8 — deci pornirea lui pe release ar fi ajuns nevalidata direct in
+        // magazin, si tocmai in release se vad rupturile de reflexie.
+        //
+        // Cu `-PminifyDebug=true`, build-ul de debug foloseste ACELEASI reguli
+        // ca release-ul, dar ramane semnat cu cheia de debug, deci se poate
+        // instala si incerca pe telefon. Implicit ramane oprit: un debug
+        // minificat se construieste vizibil mai incet si are urme de stiva mai
+        // greu de citit.
+        debug {
+            def minificaDebug = project.hasProperty('minifyDebug') && project.property('minifyDebug') == 'true'
+            minifyEnabled minificaDebug
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
     // trebuie sa coincida cu sourceCompatibility/targetCompatibility (Java 21) din

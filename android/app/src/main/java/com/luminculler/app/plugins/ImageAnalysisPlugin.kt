@@ -65,9 +65,20 @@ class ImageAnalysisPlugin : Plugin() {
                     call.resolve(runAnalysis(bitmap, faceBoxes))
                 } catch (e: Exception) {
                     call.reject("Image analysis failed: ${e.message}", e)
+                } finally {
+                    // Poza de intrare se elibereaza pe AMBELE cai, si aici si in
+                    // esec. Un import de 500 de cadre inseamna 500 de bitmap-uri
+                    // la dimensiune intreaga lasate in seama colectorului; Google
+                    // masoara de acum exact asta (pragul de memorie bitmap din
+                    // cerintele Play), iar pe telefoanele cu putina memorie nu e
+                    // doar o cifra — e diferenta dintre a merge si a fi inchis.
+                    bitmap.recycle()
                 }
             }
-            .addOnFailureListener { e -> call.reject("Face detection failed: ${e.message}", e) }
+            .addOnFailureListener { e ->
+                bitmap.recycle()
+                call.reject("Face detection failed: ${e.message}", e)
+            }
     }
 
     /**
@@ -87,6 +98,11 @@ class ImageAnalysisPlugin : Plugin() {
         val small = Bitmap.createScaledBitmap(bitmap, SMALL_SIZE, SMALL_SIZE, true)
         val smallPixels = IntArray(SMALL_SIZE * SMALL_SIZE)
         small.getPixels(smallPixels, 0, SMALL_SIZE, 0, 0, SMALL_SIZE, SMALL_SIZE)
+        // Pixelii sunt deja copiati in `smallPixels`; bitmap-ul nu mai e nevoie.
+        // Garda `!=` nu e formalitate: createScaledBitmap intoarce ACELASI obiect
+        // cand dimensiunile se potrivesc deja, iar atunci am recicla chiar poza
+        // de intrare, care mai e folosita mai jos.
+        if (small != bitmap) small.recycle()
 
         val exposure = ImageMath.exposureScore(smallPixels)
         val clipping = ImageMath.clippingScores(smallPixels)
@@ -112,6 +128,7 @@ class ImageAnalysisPlugin : Plugin() {
             val horizonBitmap = Bitmap.createScaledBitmap(bitmap, hw, hh, true)
             val horizonPixels = IntArray(hw * hh)
             horizonBitmap.getPixels(horizonPixels, 0, hw, 0, 0, hw, hh)
+            if (horizonBitmap != bitmap) horizonBitmap.recycle()
             val horizonGray = ImageMath.toGray(horizonPixels)
             horizonTiltDeg = ImageMath.detectHorizonTiltDeg(horizonGray, hw, hh)
         }

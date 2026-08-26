@@ -89,6 +89,9 @@ const SLIDER_GROUPS: {
     labelKey: 'edit.group.detail',
     sliders: [
       { key: 'clarity', min: -100, max: 100 },
+      // Dezaburirea sta la DETALIU, nu la EFECTE: e o corectie (scoate pacla
+      // care spala negrul), nu o alegere de gust ca gradarea sau bobul.
+      { key: 'dehaze', min: 0, max: 100 },
       { key: 'sharpen', min: 0, max: 100 },
       { key: 'noiseReduction', min: 0, max: 100 }
     ]
@@ -101,6 +104,8 @@ const SLIDER_GROUPS: {
     sliders: [
       { key: 'bokeh', min: 0, max: 100 },
       // Ordinea urmeaza developarea: intai culoarea, apoi bobul, apoi obiectivul.
+      // Alb-negru primul dintre ele: el hotaraste daca mai are rost gradarea.
+      { key: 'bw', min: 0, max: 100 },
       { key: 'grade', min: 0, max: 100 },
       { key: 'grain', min: 0, max: 100 },
       { key: 'vignette', min: -100, max: 100 }

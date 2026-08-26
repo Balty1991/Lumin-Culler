@@ -1321,6 +1321,8 @@ export const en: Record<TranslationKey, string> = {
   'edit.bokeh.source.none': 'No person found in the frame, so there is nothing to keep sharp. The slider has no effect on this photo.',
   'edit.grade': 'Cinematic tone',
   'edit.grain': 'Grain',
+  'edit.dehaze': 'Dehaze',
+  'edit.bw': 'Black & white',
   'edit.vignette': 'Vignette',
 
   'edit.tools': 'Tools',

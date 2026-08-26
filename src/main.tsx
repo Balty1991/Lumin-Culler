@@ -7,6 +7,7 @@ import './styles.css';
 // Stratul vizual de concept, dupa foaia de baza — aceeasi ordine ca in
 // build-ul de referinta, unde era o a doua foaie incarcata peste prima.
 import './styles.concept.css';
+import { watchBackgroundMemory } from './core/backgroundMemory';
 
 // registerType: 'autoUpdate' (vite.config.ts) inseamna ca update-urile se aplica
 // singure, fara sa intrebe utilizatorul — dar DOAR daca chiar inregistram service
@@ -16,6 +17,11 @@ import './styles.concept.css';
 // PWA instalat (ramane rezident, rareori inchis complet), asta putea insemna sa
 // ramai blocat pe un build vechi la nesfarsit dupa un deploy nou.
 registerSW({ immediate: true });
+
+// Cand aplicatia iese de pe ecran, imaginile decodate din cache nu mai au cui
+// folosi — dar sistemul continua sa le numere. Vezi core/backgroundMemory.ts
+// pentru de ce nu se golesc imediat.
+watchBackgroundMemory();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
