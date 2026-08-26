@@ -500,8 +500,14 @@ export function MenuDrawer() {
                 </button>
               )}
 
-              {proMode && (
-                <label className="drawer-item drawer-item-select" title={tr('menu.genre.title')}>
+              {/* Nu mai e in spatele Modului profesional. Genul prefixeaza
+                  contextKey (ContextEngine.deriveContextKey), deci antreneaza
+                  modele separate per gen — adica exact lucrul de care are nevoie
+                  un incepator la fel de mult ca un profesionist. Ascuns dupa un
+                  comutator oprit implicit, in plus intr-o sectiune pliata, nu-l
+                  gasea si nu-l seta nimeni: motorul primea `undefined` la
+                  fiecare import si invata un singur model pentru tot. */}
+              <label className="drawer-item drawer-item-select" title={tr('menu.genre.title')}>
                   <span className="drawer-item-icon"><TagIcon /></span>
                   <span>{tr('menu.genre')}</span>
                   <select
@@ -513,7 +519,6 @@ export function MenuDrawer() {
                     {GENRE_PRESETS.map(g => <option key={g} value={g}>{g}</option>)}
                   </select>
                 </label>
-              )}
             </>
           )}
         </DrawerGroup>
