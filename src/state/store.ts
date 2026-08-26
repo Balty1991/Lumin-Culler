@@ -18,6 +18,7 @@ import { readProMode, writeProMode } from './proMode';
 import { readActiveFilter, writeActiveFilter } from './activeFilter';
 import { findSimilarPhotos } from '../core/similarPhotos';
 import { featuresForReasons } from '../core/decisionReasons';
+import { subjectTags } from '../core/descriptionTags';
 import { describeImageNative, startImageDescriptionDownload, imageDescriptionStatus } from '../core/nativeImageDescription';
 import type { QuickScanResult } from '../core/quickDuplicateScan';
 import { clearPreviewUrlCache } from '../core/previewUrlCache';
@@ -3375,9 +3376,25 @@ export const useStore = create<AppState>((set, get) => ({
       const description = (await describeImageNative({ blob })).trim();
       if (!description) { set({ notice: t(locale, 'store.describe.failed') }); return; }
       await db.analyses.update(photoId, { aiDescription: description });
+      // Descrierea NU se mai arata ca atare. Vine in engleza (atat suporta
+      // deocamdata API-ul Google), iar aplicatia e in romana — sa-i punem
+      // omului o propozitie in engleza in fata ar fi fost singurul loc din
+      // produs care nu-i vorbeste limba.
+      //
+      // Alternativa ar fi fost un traducator, dar orice traducator adevarat
+      // cere internet, iar "nimic nu pleaca de pe telefon" e chiar lucrul pe
+      // care concurenta nu-l poate copia. Nu se schimba pentru o propozitie.
+      //
+      // Deci ramane in fundal, unde chiar face treaba: hraneste memoria de
+      // subiecte (vezi core/descriptionTags.ts — "rainbow", "street", "fence"
+      // devin semnal de decizie) si intra in cautare. Confirmarea spune ce a
+      // recunoscut, in romana, fara sa citeze textul englezesc.
+      const recognised = subjectTags({ aiDescription: description }).slice(0, 4);
       set({
         photos: get().photos.map(p => (p.id === photoId ? { ...p, aiDescription: description } : p)),
-        notice: description
+        notice: recognised.length
+          ? t(locale, 'store.describe.learned', { count: recognised.length })
+          : t(locale, 'store.describe.savedQuiet')
       });
     } catch {
       set({ notice: t(locale, 'store.describe.failed') });
