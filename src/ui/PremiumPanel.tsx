@@ -36,6 +36,7 @@ export function PremiumPanel() {
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const premium = useStore(s => s.premium);
+  const premiumReason = useStore(s => s.premiumReason);
   const photosUsed = useStore(s => s.photosUsedThisWindow);
   const containerRef = useRef<HTMLDivElement>(null);
   useModalFocusTrap(containerRef, open);
@@ -83,6 +84,18 @@ export function PremiumPanel() {
           <StarIcon className="inline-icon" aria-hidden="true" /> {tr(premium ? 'premium.chip.active' : 'premium.chip')}
         </span>
         <h3 className="premium-lead">{tr(premium ? 'premium.lead.active' : 'premium.lead')}</h3>
+        {/* Cand panoul s-a deschis pentru ca omul a intins mana dupa o functie
+            anume, se spune ACEEA prima. Portile contextuale existau deja in
+            sapte locuri, dar toate deschideau acelasi catalog de sase functii —
+            deci cine apasa "Plansa de contact" trebuia sa se caute singur in
+            lista, exact cand intrebarea lui era cat se poate de precisa.
+            Deschis din meniu, `premiumReason` e null si nu apare nimic aici. */}
+        {!premium && premiumReason && (
+          <p className="premium-reason">
+            <strong>{tr(`premium.reason.${premiumReason}`)}</strong>{' '}
+            <span>{tr('premium.reason.rest')}</span>
+          </p>
+        )}
         {!premium && price && (
           <p className="premium-price">{tr('premium.price.tag', { price })}</p>
         )}

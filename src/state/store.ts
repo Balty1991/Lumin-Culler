@@ -209,6 +209,9 @@ export interface PhotoView {
   mediaUri?: string;
 }
 
+/** Pentru ce functie s-a lovit omul de poarta Premium — vezi gatePremium. */
+export type PremiumReason = 'locations' | 'vault' | 'contactSheet' | 'presentation' | 'xmp' | 'persons' | 'cap';
+
 export type FilterKey = 'all' | 'selected' | 'candidate' | 'review' | 'rejected' | 'series' | 'blinks' | 'blurry' | 'goldenHour' | 'highlights';
 
 /** Cheie de proiectFilter pentru pozele fara proiect ales — un nume de proiect real nu poate coincide cu acest sentinel (spatii, gol dupa trim). */
@@ -316,7 +319,20 @@ interface AppState {
   setCollectionsOpen: (open: boolean) => void;
   locationsOpen: boolean;
   /** Deschide ecranul Premium in locul functiei cerute cand nu esti abonat. `true` = a preluat actiunea. */
-  gatePremium: () => boolean;
+  /**
+   * Deschide panoul Premium si spune DE CE s-a deschis.
+   *
+   * Portile contextuale existau deja in sapte locuri (locatii, dosar privat,
+   * plansa de contact, prezentare, XMP, a doua persoana, plafonul de 150) — se
+   * declanseaza fix cand omul intinde mana dupa functia respectiva. Ce lipsea
+   * era legatura: panoul se deschidea identic de fiecare data, cu aceeasi lista
+   * de sase functii. Cine apasa "Plansa de contact" primea un catalog, si
+   * trebuia sa se caute singur in el, exact in momentul in care intrebarea lui
+   * era cat se poate de precisa.
+   */
+  gatePremium: (reason?: PremiumReason) => boolean;
+  /** Functia pentru care s-a deschis ultima data panoul; null cand a fost deschis din meniu. */
+  premiumReason: PremiumReason | null;
   /**
    * Oglinda REACTIVA a drepturilor din core/entitlement.ts.
    *
@@ -1498,11 +1514,12 @@ export const useStore = create<AppState>((set, get) => ({
    * devine portita. Intoarce `true` cand a preluat ea actiunea — apelantul nu
    * mai face nimic.
    */
-  gatePremium: () => {
+  gatePremium: reason => {
     if (!isPremiumFeatureLocked()) return false;
-    set({ premiumOpen: true });
+    set({ premiumOpen: true, premiumReason: reason ?? null });
     return true;
   },
+  premiumReason: null,
   premium: isPremium(),
   premiumPurchasable: isPurchasable(),
   premiumLocked: isPremiumFeatureLocked(),
@@ -1523,7 +1540,7 @@ export const useStore = create<AppState>((set, get) => ({
     ) return;
     set(next);
   },
-  setLocationsOpen: open => { if (open && get().gatePremium()) return; set({ locationsOpen: open }); },
+  setLocationsOpen: open => { if (open && get().gatePremium('locations')) return; set({ locationsOpen: open }); },
   tiktokSortOpen: false,
   // Deschiderea "normala" (fara scop explicit) porneste mereu pe toata coada,
   // nu pe ramasitele unui scop anterior (ex. dupa "Sorteaza acum ce ai adus").
@@ -1597,7 +1614,7 @@ export const useStore = create<AppState>((set, get) => ({
   // expirat n-are voie sa incuie pe cineva in afara propriilor poze: alea sunt
   // deja acolo, ascunse din galerie, si singura cale spre ele e ecranul asta.
   // Cine are deja un dosar intra mereu; cine vrea sa-si faca unul, se aboneaza.
-  setVaultOpen: open => { if (open && !hasVaultPin() && get().gatePremium()) return; set({ vaultOpen: open }); },
+  setVaultOpen: open => { if (open && !hasVaultPin() && get().gatePremium('vault')) return; set({ vaultOpen: open }); },
   vaultUnlocked: isVaultUnlockedInSession(),
   setupVault: async pin => {
     await coreSetVaultPin(pin);
@@ -1841,7 +1858,11 @@ export const useStore = create<AppState>((set, get) => ({
   appearanceOpen: false,
   setAppearanceOpen: open => set({ appearanceOpen: open }),
   premiumOpen: false,
-  setPremiumOpen: open => set({ premiumOpen: open }),
+  // premiumReason: null la deschiderea DIN MENIU. Fara asta, cine loveste o
+  // poarta (sa zicem, plansa de contact), inchide panoul, si il redeschide mai
+  // tarziu din meniu, ar fi intampinat de un raspuns la o intrebare pe care n-a
+  // mai pus-o. Portile isi seteaza motivul ele, prin gatePremium.
+  setPremiumOpen: open => set(open ? { premiumOpen: true, premiumReason: null } : { premiumOpen: false }),
   exportDestinationsOpen: false,
   setExportDestinationsOpen: open => set({ exportDestinationsOpen: open }),
   welcomeSeen: readWelcomeSeen(),
@@ -2222,9 +2243,9 @@ export const useStore = create<AppState>((set, get) => ({
   statsOpen: false,
   setStatsOpen: open => set({ statsOpen: open }),
   contactSheetOpen: false,
-  setContactSheetOpen: open => { if (open && get().gatePremium()) return; set({ contactSheetOpen: open }); },
+  setContactSheetOpen: open => { if (open && get().gatePremium('contactSheet')) return; set({ contactSheetOpen: open }); },
   presentationOpen: false,
-  setPresentationOpen: open => { if (open && get().gatePremium()) return; set({ presentationOpen: open }); },
+  setPresentationOpen: open => { if (open && get().gatePremium('presentation')) return; set({ presentationOpen: open }); },
   presentationPhotoIds: null,
   setPresentationPhotoIds: ids => set({ presentationPhotoIds: ids }),
 
@@ -3103,7 +3124,7 @@ export const useStore = create<AppState>((set, get) => ({
         notice: t(locale, 'store.deleteRejected.capBlocked', {
           count: deletable.length, remaining: remainingFreePhotos(), limit: FREE_PHOTOS_PER_MONTH
         }),
-        premiumOpen: true
+        premiumOpen: true, premiumReason: 'cap' as const
       });
       return { deleted: 0, skipped: skippedCount + deletable.length, cancelled: true };
     }
@@ -3440,7 +3461,7 @@ export const useStore = create<AppState>((set, get) => ({
         // { ok: false }, nu un `return` gol: apelantul (PersonsPanel) afiseaza
         // el mesajul si trateaza esecul — un `undefined` ar rupe contractul si
         // ar lasa dialogul de inrolare intr-o stare de "s-a intamplat ceva".
-        set({ premiumOpen: true });
+        set({ premiumOpen: true, premiumReason: 'persons' });
         return { ok: false, message: t(get().locale, 'store.addPerson.capBlocked', { limit: FREE_ENROLLED_PERSONS }) };
       }
       person = { id: crypto.randomUUID(), name: trimmedName, embeddings, updatedAt: Date.now(), enrolledAt: Date.now() };
@@ -3567,7 +3588,7 @@ export const useStore = create<AppState>((set, get) => ({
     // nu-l folosea niciodata — iar omul nu primea nici mesajul de plafon, nici
     // panoul Premium. Adica "am adaugat-o si nu face nimic", fara explicatie.
     if (!existing && !canEnrollAnotherPersonFree(get().persons.length) && isCapEnforced()) {
-      set({ premiumOpen: true, notice: t(get().locale, 'store.addPerson.capBlocked', { limit: FREE_ENROLLED_PERSONS }) });
+      set({ premiumOpen: true, premiumReason: 'persons', notice: t(get().locale, 'store.addPerson.capBlocked', { limit: FREE_ENROLLED_PERSONS }) });
       return;
     }
     const person: KnownPerson = existing
@@ -3734,7 +3755,7 @@ export const useStore = create<AppState>((set, get) => ({
         notice: t(get().locale, 'store.exportSelection.capBlocked', {
           count: selected.length, remaining: remainingFreePhotos(), limit: FREE_PHOTOS_PER_MONTH
         }),
-        premiumOpen: true
+        premiumOpen: true, premiumReason: 'cap' as const
       });
       return;
     }
@@ -3827,7 +3848,7 @@ export const useStore = create<AppState>((set, get) => ({
         notice: t(locale, 'store.exportSelection.capBlocked', {
           count: members.length, remaining: remainingFreePhotos(), limit: FREE_PHOTOS_PER_MONTH
         }),
-        premiumOpen: true
+        premiumOpen: true, premiumReason: 'cap' as const
       });
       return;
     }
@@ -3926,7 +3947,7 @@ export const useStore = create<AppState>((set, get) => ({
    * Lightroom/Bridge sa le asocieze automat.
    */
   exportXMP: async () => {
-    if (get().gatePremium()) return;
+    if (get().gatePremium('xmp')) return;
     const allPhotos = outsideVault(get().photos, get().collections);
     const decided = allPhotos.filter(p => p.status !== 'pending');
     const locale = get().locale;

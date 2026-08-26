@@ -5208,3 +5208,18 @@ input[type="search"] { min-height: 44px; }
   .notice.ai-degraded { flex-direction: column; align-items: stretch; }
   .notice.ai-degraded .ghost { align-self: flex-end; }
 }
+
+/* Randul care leaga panoul Premium de functia pentru care s-a deschis — vezi
+   premiumReason in store.ts. Accentuat, dar nu strident: e un raspuns la ce
+   tocmai a apasat omul, nu inca un argument de vanzare. */
+.premium-reason {
+  margin: 4px 0 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: rgb(255 255 255 / .05);
+  border-left: 3px solid var(--accent, #5eead4);
+  font-size: .88rem;
+  line-height: 1.45;
+}
+.premium-reason strong { color: var(--text); }
+.premium-reason span { color: var(--text-dim); }
