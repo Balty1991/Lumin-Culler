@@ -1,6 +1,7 @@
 package com.luminculler.app.plugins
 
 import android.graphics.Bitmap
+import androidx.core.content.ContextCompat
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
@@ -13,6 +14,7 @@ import com.google.mlkit.genai.imagedescription.ImageDescriber
 import com.google.mlkit.genai.imagedescription.ImageDescriberOptions
 import com.google.mlkit.genai.imagedescription.ImageDescription
 import com.google.mlkit.genai.imagedescription.ImageDescriptionRequest
+import java.util.concurrent.Executor
 
 /**
  * Descriere scrisa a unei poze, generata pe telefon de Gemini Nano prin
@@ -44,28 +46,40 @@ class ImageDescriptionPlugin : Plugin() {
         ImageDescription.getClient(ImageDescriberOptions.builder(context).build())
     }
 
+    /**
+     * `checkFeatureStatus()` si `runInference()` intorc `ListenableFuture`, NU `Task`
+     * — prima versiune a fisierului le trata ca pe Task-uri (`addOnSuccessListener`)
+     * si nu compila.
+     *
+     * Folosim `addListener`, care e metoda proprie a lui ListenableFuture, in loc de
+     * `Futures.addCallback` din Guava: asa nu mai trebuie importat niciun tip in
+     * plus, iar Kotlin deduce singur tipul rezultatului din `future.get()`.
+     * Cand listener-ul ruleaza, future-ul e deja terminat, deci `get()` nu asteapta
+     * nimic — doar arunca daca inferenta a esuat, si de aia sta in try/catch.
+     */
+    private val callbackExecutor: Executor by lazy { ContextCompat.getMainExecutor(context) }
+
     /** "unavailable" | "downloadable" | "downloading" | "available" — sau "unsupported" daca nici clasa nu se poate crea. */
     @PluginMethod
     fun status(call: PluginCall) {
         try {
-            describer.checkFeatureStatus()
-                .addOnSuccessListener { featureStatus ->
-                    val result = JSObject()
-                    result.put("status", when (featureStatus) {
+            val future = describer.checkFeatureStatus()
+            future.addListener({
+                val result = JSObject()
+                result.put("status", try {
+                    when (future.get()) {
                         FeatureStatus.AVAILABLE -> "available"
                         FeatureStatus.DOWNLOADABLE -> "downloadable"
                         FeatureStatus.DOWNLOADING -> "downloading"
                         else -> "unavailable"
-                    })
-                    call.resolve(result)
-                }
-                .addOnFailureListener {
+                    }
+                } catch (e: Exception) {
                     // Un esec la INTREBARE nu e o eroare de raportat omului — e
                     // un raspuns: pe telefonul asta functia nu exista.
-                    val result = JSObject()
-                    result.put("status", "unavailable")
-                    call.resolve(result)
-                }
+                    "unavailable"
+                })
+                call.resolve(result)
+            }, callbackExecutor)
         } catch (e: Throwable) {
             // Inclusiv NoClassDefFoundError, daca dependinta beta dispare de sub noi.
             val result = JSObject()
@@ -100,17 +114,18 @@ class ImageDescriptionPlugin : Plugin() {
         val bitmap: Bitmap = resolveInputBitmap(context, call) ?: return
         try {
             val request = ImageDescriptionRequest.builder(bitmap).build()
-            describer.runInference(request)
-                .addOnSuccessListener { inference ->
+            val future = describer.runInference(request)
+            future.addListener({
+                try {
                     val result = JSObject()
-                    result.put("description", inference.description)
+                    result.put("description", future.get().description)
                     call.resolve(result)
+                } catch (e: Exception) {
+                    call.reject("Image description failed: ${e.message}", e)
+                } finally {
                     bitmap.recycle()
                 }
-                .addOnFailureListener { e ->
-                    call.reject("Image description failed: ${e.message}", e as? Exception)
-                    bitmap.recycle()
-                }
+            }, callbackExecutor)
         } catch (e: Throwable) {
             call.reject("Image description is not available on this device", e as? Exception)
             bitmap.recycle()
