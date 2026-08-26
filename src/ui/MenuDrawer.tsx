@@ -259,6 +259,8 @@ export function MenuDrawer() {
 
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const genreShortlist = readGenreShortlist();
+  const groupByPeople = useStore(s => s.groupByPeople);
+  const setGroupByPeople = useStore(s => s.setGroupByPeople);
   const go = (action: () => void) => { setOpen(false); action(); };
 
   /** Cele DOUA confirmari sunt pastrate intacte din panoul Persoane: e singura
@@ -851,6 +853,22 @@ export function MenuDrawer() {
             <span className="drawer-item-icon"><BatteryIcon /></span>
             <span>{economicMode ? tr('menu.economicMode.active') : tr('menu.economicMode')}</span>
           </button>
+
+          {/* Gruparea din "Toate". Nu se ofera cand n-ai inrolat pe nimeni: acolo
+              comutatorul n-ar schimba nimic, si un comutator care nu face nimic
+              e mai rau decat unul lipsa. */}
+          {persons.length > 0 && (
+            <button
+              className="drawer-item"
+              onClick={() => setGroupByPeople(!groupByPeople)}
+              aria-pressed={groupByPeople}
+              title={tr('menu.groupByPeople.title')}
+            >
+              <span className="drawer-item-icon"><UserCheckIcon /></span>
+              <span>{tr('menu.groupByPeople')}</span>
+              <b className="drawer-count mono">{tr(groupByPeople ? 'menu.proMode.on' : 'menu.proMode.off')}</b>
+            </button>
+          )}
 
           {hasPhotos && (
             <button

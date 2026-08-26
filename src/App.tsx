@@ -24,6 +24,7 @@ import { UndoHistoryButton } from './ui/UndoHistoryButton';
 import { selectHighlights, selectBlinks, selectBlurry, selectDeletableRejected } from './state/batchOps';
 import { CARD_MIN_WIDTH } from './state/gridDensity';
 import { bandStarts, planBands, type PlanBand } from './state/reviewPlan';
+import { groupBySubject, type SubjectBand } from './state/libraryGroups';
 import { PlanSeparator } from './ui/PlanSeparator';
 import { SORT_KEY_LABELS, type SortKey } from './state/gridSort';
 import { pickImportFiles } from './core/filePicker';
@@ -257,6 +258,7 @@ export default function App() {
   const collectionFilter = useStore(s => s.collectionFilter);
   const clearAllFilters = useStore(s => s.clearAllFilters);
   const persons = useStore(s => s.persons);
+  const groupByPeople = useStore(s => s.groupByPeople);
   const searchText = useStore(s => s.searchText);
   const setSearchText = useStore(s => s.setSearchText);
   const dateFrom = useStore(s => s.dateFrom);
@@ -459,10 +461,27 @@ export default function App() {
    * ordine (cronologica, dupa scor, dupa nume), separatoarele ar sari inainte
    * si inapoi prin lista — iar un plan care sare nu mai e un plan.
    */
-  const planStarts = useMemo(() => {
-    if (filter !== 'review') return new Map<number, PlanBand>();
-    return bandStarts(planBands(filtered.map(reviewDifficulty)));
-  }, [filter, filtered]);
+  /**
+   * "Toate" era singurul ecran unde ordinea nu spunea nimic — o grila plata de
+   * zeci de poze, fara niciun reper. Cerinta utilizatorului: "ar trebui grupate
+   * primele persoanele, sau o grupare mai interesanta".
+   *
+   * Se reasaza doar pe filtrul 'all' si doar cand exista persoane inrolate; in
+   * rest, lista ramane exact cum vine din store. Vezi state/libraryGroups.ts
+   * pentru de ce axa e CINE si nu cand/unde.
+   */
+  const grouped = useMemo(
+    () => (filter === 'all' && groupByPeople
+      ? groupBySubject(filtered, persons.map(p => p.name))
+      : { photos: filtered, bands: new Map<number, SubjectBand>() }),
+    [filter, filtered, persons, groupByPeople]
+  );
+  const shown = grouped.photos;
+
+  const planStarts = useMemo<Map<number, PlanBand | SubjectBand>>(() => {
+    if (filter === 'review') return bandStarts(planBands(filtered.map(reviewDifficulty)));
+    return grouped.bands;
+  }, [filter, filtered, grouped]);
 
   const counts = useMemo(() => ({
     all: secondaryFiltered.length,
@@ -1359,7 +1378,7 @@ export default function App() {
             <>
               {filtered.length > VIRTUALIZE_THRESHOLD ? (
                 <VirtualPhotoGrid
-                  photos={filtered} onOpen={onCardOpen} multiSelectIds={multiSelectIds}
+                  photos={shown} onOpen={onCardOpen} multiSelectIds={multiSelectIds}
                   onCardPointerDown={onCardPointerDown} onContextMenu={onCardContextMenu}
                   onScroll={handleGridScroll} planStarts={planStarts}
                 />
@@ -1371,7 +1390,7 @@ export default function App() {
                     '--card-min-narrow': `${CARD_MIN_WIDTH[gridDensity].narrow}px`
                   } as CSSProperties}
                 >
-                  {filtered.map((p, i) => {
+                  {shown.map((p, i) => {
                     const band = planStarts.get(i);
                     return (
                       <Fragment key={p.id}>

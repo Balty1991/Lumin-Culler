@@ -84,18 +84,18 @@ export function bandStarts(bands: PlanBand[], minCount = 2): Map<number, PlanBan
  * Randurile intoarse sunt si unitatea de virtualizare, deci numarul lor e tot
  * ce trebuie sa stie virtualizatorul.
  */
-export interface PlanRow<T> {
+export interface PlanRow<T, B = PlanBand> {
   /** Separatorul care se deseneaza DEASUPRA randului, cand randul incepe o banda. */
-  band?: PlanBand;
+  band?: B;
   items: T[];
   /** Indexul primei poze din rand, in lista intreaga — PhotoCard il foloseste pentru numerotare. */
   startIndex: number;
 }
 
-export function buildRowPlan<T>(items: T[], columns: number, starts: Map<number, PlanBand>): PlanRow<T>[] {
+export function buildRowPlan<T, B>(items: T[], columns: number, starts: Map<number, B>): PlanRow<T, B>[] {
   const cols = Math.max(1, Math.floor(columns));
-  const rows: PlanRow<T>[] = [];
-  let current: PlanRow<T> | null = null;
+  const rows: PlanRow<T, B>[] = [];
+  let current: PlanRow<T, B> | null = null;
   for (let i = 0; i < items.length; i++) {
     const band = starts.get(i);
     if (band || !current || current.items.length === cols) {

@@ -4,6 +4,7 @@ import { PhotoCard } from './PhotoCard';
 import { useStore, type PhotoView } from '../state/store';
 import { CARD_MIN_WIDTH } from '../state/gridDensity';
 import { buildRowPlan, type PlanBand } from '../state/reviewPlan';
+import type { SubjectBand } from '../state/libraryGroups';
 import { PlanSeparator } from './PlanSeparator';
 
 /** Referinta stabila: o harta noua la fiecare randare ar reface planul de randuri degeaba. */
@@ -54,8 +55,12 @@ export function VirtualPhotoGrid({ photos, onOpen, multiSelectIds, onCardPointer
       au propriul scroll, separat de fereastra, deci auto-hide-ul antetului (App.tsx) trebuie
       sa asculte aici, nu doar `window.scroll`. */
   onScroll?: (scrollTop: number) => void;
-  /** Inceputurile de banda ale planului de lucru — vezi state/reviewPlan.ts. Gol = nicio impartire. */
-  planStarts?: Map<number, PlanBand>;
+  /**
+   * Inceputurile de banda. Doua surse posibile, aceeasi forma: planul de lucru
+   * (state/reviewPlan.ts, pe filtrul "de verificat") sau subiectul
+   * (state/libraryGroups.ts, pe "toate"). Gol = nicio impartire.
+   */
+  planStarts?: Map<number, PlanBand | SubjectBand>;
 }) {
   const parentRef = useRef<HTMLDivElement>(null);
   const density = useStore(s => s.gridDensity);

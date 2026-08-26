@@ -23,6 +23,7 @@ import { describeImageNative, startImageDescriptionDownload, imageDescriptionSta
 import type { QuickScanResult } from '../core/quickDuplicateScan';
 import { clearPreviewUrlCache } from '../core/previewUrlCache';
 import { clearThumbUrlCache } from '../core/thumbUrlCache';
+import { readGroupByPeople, writeGroupByPeople } from './groupByPeople';
 import {
   importFiles, originalFiles, originalHandles, createCancelToken, SELECT_THRESHOLD, REJECT_THRESHOLD, decidePhotoStatus,
   readLibraryScores, type ImportProgress, type ImportCancelToken, type ImportOutcomeReport
@@ -836,6 +837,9 @@ interface AppState {
   exportClientGallery: () => Promise<void>;
   filtered: () => PhotoView[];
   /** Id-urile pozelor "cele mai bune" din propriul grup — vezi computeBestInGroupIds, pentru badge-ul "Best of series". */
+  /** Gruparea bibliotecii pe subiect, in "Toate" — vezi state/libraryGroups.ts. */
+  groupByPeople: boolean;
+  setGroupByPeople: (on: boolean) => void;
   bestInGroupIds: () => Set<string>;
   /** Aceeasi biblioteca, cu doar filtrele SECUNDARE aplicate (persoana/eticheta/scena/camera/proiect/cautare/data/rating) — vezi comentariul de la implementare. */
   secondaryFiltered: () => PhotoView[];
@@ -4188,6 +4192,9 @@ export const useStore = create<AppState>((set, get) => ({
       set({ notice: t(locale, 'store.exportXmp.failed', { error: String(err) }) });
     }
   },
+
+  groupByPeople: readGroupByPeople(),
+  setGroupByPeople: on => { writeGroupByPeople(on); set({ groupByPeople: on }); },
 
   bestInGroupIds: () => computeBestInGroupIds(get().photos),
 
