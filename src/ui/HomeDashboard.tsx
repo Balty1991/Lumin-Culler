@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useStore, type PhotoView } from '../state/store';
-import { GENRE_PRESETS, writeGenreShortlist } from '../state/genre';
-import { wasGenreAsked, markGenreAsked } from '../state/genreAsked';
 import { pickResumeTarget } from '../state/resumeProject';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
 import { AdjustedImage } from './AdjustedImage';
@@ -70,10 +68,6 @@ export function HomeDashboard() {
   const openTiktokSortForIds = useStore(s => s.openTiktokSortForIds);
   const setHomeGridOpen = useStore(s => s.setHomeGridOpen);
   const homeGridOpen = useStore(s => s.homeGridOpen);
-  const genre = useStore(s => s.genre);
-  const setGenre = useStore(s => s.setGenre);
-  const [genreAsked, setGenreAsked] = useState(() => wasGenreAsked());
-  const [genrePicks, setGenrePicks] = useState<string[]>([]);
   /**
    * Cat timp analiza inca ruleaza, cardul NU are voie sa anunte o coada gata.
    *
@@ -239,71 +233,16 @@ export function HomeDashboard() {
         )}
       </div>
 
-      {/* O singura intrebare, o singura data. Motorul primeste deja un gen —
-          `contextEngine.predict(analysis, genre)` — si il foloseste ca sa
-          antreneze modele separate: intr-un cadru de sport claritatea conteaza
-          altfel decat intr-un portret. Doar ca singurul loc din care putea fi
-          ales era o lista dintr-o sectiune pliata, in spatele Modului
-          profesional. Motorul avea carligul; ii lipsea intrebarea.
+      {/* Intrebarea despre gen a PLECAT de aici, in meniu (vezi MenuDrawer,
+          "Genurile mele"). Cerinta utilizatorului: "mai bine il selecteaza
+          utilizatorul apoi din meniu... ca sa nu amestece genurile".
 
-          Nu blocheaza nimic si nu sta in calea importului: intreaba dupa ce
-          exista deja poze, se raspunde dintr-o atingere, iar "Sari peste" e un
-          raspuns la fel de valid — vezi state/genreAsked.ts pentru de ce
-          refuzul trebuie tinut minte separat de alegere. */}
-      {!genreAsked && !genre && (
-        <section className="home-genre" aria-labelledby="home-genre-q">
-          <p className="home-genre-q" id="home-genre-q">{tr('home.genre.question')}</p>
-          <p className="home-genre-why">{tr('home.genre.why')}</p>
-          {/* SELECTIE MULTIPLA, cerinta directa a utilizatorului. Raspunsul
-              sincer al majoritatii la "ce fotografiezi de obicei" e "mai
-              multe" — familie, si la munca, si cate un eveniment.
-
-              Ce se intampla cu mai multe alese: se retin toate ca lista scurta
-              (writeGenreShortlist), dar ACTIV ramane primul. Genul prefixeaza
-              contextKey, deci hotaraste pe care model se invata acum; daca
-              le-am amesteca pe toate intr-unul singur, s-ar pierde exact
-              lucrul pentru care exista genul. Lista sta apoi in fruntea
-              selectorului din meniu, deci comutarea e o atingere. */}
-          <div className="home-genre-opts" role="group" aria-labelledby="home-genre-q">
-            {GENRE_PRESETS.map(g => {
-              const picked = genrePicks.includes(g);
-              return (
-                <button
-                  key={g}
-                  className={picked ? 'chip home-genre-chip active' : 'chip home-genre-chip'}
-                  aria-pressed={picked}
-                  onClick={() => setGenrePicks(prev => picked ? prev.filter(x => x !== g) : [...prev, g])}
-                >
-                  {g}
-                </button>
-              );
-            })}
-          </div>
-          <div className="home-genre-actions">
-            {genrePicks.length > 0 && (
-              <button
-                className="btn-accent home-genre-done"
-                onClick={() => {
-                  writeGenreShortlist(genrePicks);
-                  setGenre(genrePicks[0]);
-                  markGenreAsked();
-                  setGenreAsked(true);
-                }}
-              >
-                {genrePicks.length === 1
-                  ? tr('home.genre.done.one', { genre: genrePicks[0] })
-                  : tr('home.genre.done.many', { count: genrePicks.length, genre: genrePicks[0] })}
-              </button>
-            )}
-            <button
-              className="ghost small home-genre-skip"
-              onClick={() => { markGenreAsked(); setGenreAsked(true); }}
-            >
-              {tr('home.genre.skip')}
-            </button>
-          </div>
-        </section>
-      )}
+          Are dreptate si pe fond, nu doar ca asezare: intrebarea aparea peste
+          ecranul de start, inainte ca omul sa fi triat ceva, deci se raspundea
+          la ghici. Genul hotaraste pe ce model se invata; un raspuns dat in
+          graba amesteca invatarea de la prima sesiune. In meniu, alegerea e
+          deliberata si se poate schimba oricand, fara sa fie o poarta prin
+          care treci o singura data. */}
 
       {/* Ce tocmai s-a intamplat, imediat sub salut. Statea la BAZA paginii, sub
           toate butoanele — adica rezumatul unei actiuni terminate acum se citea

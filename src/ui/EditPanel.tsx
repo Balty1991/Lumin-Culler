@@ -6,7 +6,7 @@ import { useModalFocusTrap } from './useModalFocusTrap';
 import {
   computeAutoAdjustments, drawAdjusted, isNeutral, NEUTRAL_ADJUSTMENTS, outputSize, subjectFromFaces,
   originalToCanvas, canvasToOriginal, cropRadiusScale,
-  type EditAdjustments, type NumericAdjustmentKey
+  type EditAdjustments, type NumericAdjustmentKey, persistableAdjustments
 } from '../core/imageAdjust';
 import {
   boxForAspect, moveCropBox, normalizedBoxRatio, resizeCropFree, resizeCropLocked,
@@ -240,6 +240,12 @@ export function EditPanel() {
   // scorurile AI deja calculate pentru poza (acelasi AnalysisRecord afisat in
   // tab-ul "De ce acest scor") — sursa pentru butonul Auto, vezi applyAuto mai jos
   const [analysis, setAnalysis] = useState<AnalysisRecord | null>(null);
+  // Pentru ce poza s-a cerut deja segmentarea (o singura trecere de model per
+  // poza, oricate re-randari) si care poza e deschisa ACUM (ca o masca sosita
+  // tarziu sa nu aterizeze peste alt cadru). Vezi efectul de bokeh mai jos.
+  const bokehRequestedFor = useRef<string | null>(null);
+  const openPhotoIdRef = useRef<string | null>(null);
+  openPhotoIdRef.current = photo?.id ?? null;
   // Distinct de `analysis === null` (care si el poate insemna "inca nu s-a incarcat"
   // SAU "chiar nu exista analiza") — necesar ca sa stim sigur cand ambele surse
   // (imagine + analiza) chiar s-au stabilizat, inainte de auto-aplicarea de mai jos
@@ -360,6 +366,10 @@ export function EditPanel() {
     setSelectedPointId(null);
     setDrawingStroke(null);
     setHistogram(undefined);
+    // Poza noua, deci si segmentarea se cere din nou (masca celei vechi n-are
+    // ce cauta peste alt cadru, iar `bokehMask` nici nu se salveaza).
+    bokehRequestedFor.current = null;
+    setBokehSource(null);
     let alive = true;
     void getCachedPreviewUrl(photo.id).then(url => {
       if (!alive || !url) return;
@@ -745,45 +755,79 @@ export function EditPanel() {
    */
   const bokehAvailable = isNativeSegmentationAvailable() || !!bokehSubject;
 
+  /**
+   * Peste cat "persoana" o masca nu mai e o masca. Peste 95% din cadru sters
+   * inseamna ca nu s-a separat nimic (si poza ar ramane neatinsa); sub 1%
+   * inseamna ca n-a gasit pe nimeni (si s-ar estompa inclusiv omul).
+   */
+  const MAX_USABLE_PERSON_COVERAGE = 0.95;
+  const MIN_USABLE_PERSON_COVERAGE = 0.01;
+
+  /**
+   * Pe ce se sprijina bokeh-ul acum: conturul real, caseta fetei, sau nimic.
+   *
+   * Se arata omului, sub slider. Nu e o preferinta de design — pana acum, cand
+   * bokeh-ul nu facea nimic, nu exista NICIUN semn care sa spuna de ce, nici
+   * pentru utilizator, nici pentru mine: totul cadea in `catch {}` si in
+   * verificari tacute. Trei runde de "nu merge" fara nicio informatie.
+   */
+  const [bokehSource, setBokehSource] = useState<'mask' | 'face' | 'none' | null>(null);
+
 
   /**
    * Subiectul intra in ajustari odata cu prima miscare a sliderului:
    * drawAdjusted primeste doar EditAdjustments, deci trebuie sa-l gaseasca acolo.
    *
-   * Se cere si CONTURUL REAL, de la segmenter — modelul e in APK de luni de zile
-   * (descarcat de CI, incarcat deja de SegmentationPlugin) si pana acum intorcea
-   * doar un procent. Caseta fetei ramane ca rezerva pentru web si pentru cazul
-   * in care segmentarea pica pe un telefon anume.
+   * BUG REAL, motivul pentru care bokeh-ul n-a facut nimic pe telefon doua
+   * build-uri la rand: cererea de segmentare era anulata de propriul ei efect.
+   * `setAdjustments({...prev, bokehSubject})` de mai jos schimba o dependinta a
+   * efectului, efectul se re-executa, iar functia lui de curatare punea
+   * `alive = false` peste cererea abia pornita. Masca sosea si era aruncata,
+   * mereu, tacut.
    *
-   * Se cere O SINGURA DATA per poza si abia cand omul chiar porneste bokeh-ul:
-   * e o trecere de model pe imagine, n-are ce cauta la deschiderea editorului.
+   * Acum cererea nu mai atarna de ciclul de viata al efectului: se tine minte
+   * intr-un ref pentru ce poza s-a cerut deja (deci o singura trecere de model
+   * per poza, oricate re-randari ar fi), iar rezultatul se aplica doar daca
+   * intre timp nu s-a schimbat poza din editor.
    */
   useEffect(() => {
     if (!photo) return;
     if ((adjustments.bokeh ?? 0) === 0) return;
-    if (adjustments.bokehMask || adjustments.bokehSubject) return;
+    if (bokehRequestedFor.current === photo.id) return;
+    bokehRequestedFor.current = photo.id;
 
-    let alive = true;
-    // Caseta se pune imediat, ca sa se vada ceva din prima; masca o inlocuieste
-    // cand soseste. Asa sliderul raspunde instant, nu dupa modelul de segmentare.
+    // Caseta se pune imediat, ca sa se vada ceva din prima; conturul o
+    // inlocuieste cand soseste. Asa sliderul raspunde instant, nu dupa model.
     if (bokehSubject) setAdjustments(prev => ({ ...prev, bokehSubject }));
-
-    if (isNativeSegmentationAvailable()) {
-      void (async () => {
-        try {
-          const rec = await db.previews.get(photo.id) ?? await db.thumbnails.get(photo.id);
-          if (!rec || !alive) return;
-          const { image } = await segmentPersonMask(rec.blob);
-          if (alive) setAdjustments(prev => ({ ...prev, bokehMask: image }));
-        } catch {
-          // Segmentarea a picat pe telefonul asta — ramane caseta fetei, care e
-          // deja pusa. Nimic de spus omului: bokeh-ul functioneaza, doar mai
-          // aproximativ.
-        }
-      })();
+    if (!isNativeSegmentationAvailable()) {
+      if (!bokehSubject) setBokehSource('none');
+      return;
     }
-    return () => { alive = false; };
-  }, [bokehSubject, photo, adjustments.bokeh, adjustments.bokehSubject, adjustments.bokehMask]);
+
+    const forPhoto = photo.id;
+    void (async () => {
+      try {
+        const rec = await db.previews.get(forPhoto) ?? await db.thumbnails.get(forPhoto);
+        if (!rec) { setBokehSource(bokehSubject ? 'face' : 'none'); return; }
+        const { image, personCoverage } = await segmentPersonMask(rec.blob);
+        if (openPhotoIdRef.current !== forPhoto) return;
+        // O masca in care "persoana" e tot cadrul ar sterge complet copia
+        // estompata si poza ar ramane neatinsa — exact simptomul "sliderul nu
+        // face nimic". Una in care nu e nimeni ar estompa inclusiv omul. In
+        // ambele cazuri modelul n-a gasit de fapt o persoana, deci caseta
+        // fetei e o aproximare mai buna decat masca lui.
+        if (personCoverage > MAX_USABLE_PERSON_COVERAGE || personCoverage < MIN_USABLE_PERSON_COVERAGE) {
+          setBokehSource(bokehSubject ? 'face' : 'none');
+          return;
+        }
+        setAdjustments(prev => ({ ...prev, bokehMask: image }));
+        setBokehSource('mask');
+      } catch {
+        // Segmentarea a picat pe telefonul asta — ramane caseta fetei, daca e.
+        if (openPhotoIdRef.current === forPhoto) setBokehSource(bokehSubject ? 'face' : 'none');
+      }
+    })();
+  }, [bokehSubject, photo, adjustments.bokeh]);
 
   const applyAuto = () => {
     if (!imgEl || !photo) return;
@@ -863,7 +907,9 @@ export function EditPanel() {
   const commit = (next: EditAdjustments) => {
     markInteracting();
     setAdjustments(next);
-    pendingPersistRef.current = { id: photo.id, adjustments: next };
+    // Ce se salveaza NU e identic cu ce se deseneaza: masca de bokeh e un
+    // element de DOM, iar IndexedDB nu-l poate clona. Vezi persistableAdjustments.
+    pendingPersistRef.current = { id: photo.id, adjustments: persistableAdjustments(next) };
     if (persistTimerRef.current !== null) clearTimeout(persistTimerRef.current);
     persistTimerRef.current = setTimeout(flushPersist, PERSIST_DEBOUNCE_MS);
   };
@@ -1411,17 +1457,27 @@ export function EditPanel() {
                 <div className="edit-slider-group" key={labelKey}>
                   <span className="edit-slider-group-head mono">{tr(labelKey)}</span>
                   {sliders.filter(({ key }) => key !== 'bokeh' || bokehAvailable).map(({ key, min, max }) => (
-                    <EditSlider
-                      key={key}
-                      label={tr(`edit.${key}`)}
-                      value={adjustments[key] ?? 0}
-                      min={min} max={max}
-                      // Toate ajustarile de baza pornesc de la 0 (vezi
-                      // NEUTRAL_ADJUSTMENTS), deci acolo se si intorc.
-                      neutral={0}
-                      onChange={v => update(key, v)}
-                      onLive={v => liveUpdate(key, v)}
-                    />
+                    <div key={key}>
+                      <EditSlider
+                        label={tr(`edit.${key}`)}
+                        value={adjustments[key] ?? 0}
+                        min={min} max={max}
+                        // Toate ajustarile de baza pornesc de la 0 (vezi
+                        // NEUTRAL_ADJUSTMENTS), deci acolo se si intorc.
+                        neutral={0}
+                        onChange={v => update(key, v)}
+                        onLive={v => liveUpdate(key, v)}
+                      />
+                      {/* Pe ce se sprijina bokeh-ul, spus sub slider. Cand nu
+                          gaseste persoana, sliderul chiar nu poate face nimic —
+                          si atunci omul trebuie sa afle asta de la aplicatie, nu
+                          sa traga degeaba de el. */}
+                      {key === 'bokeh' && (adjustments.bokeh ?? 0) > 0 && bokehSource && (
+                        <p className={bokehSource === 'none' ? 'edit-bokeh-note warn' : 'edit-bokeh-note'}>
+                          {tr(`edit.bokeh.source.${bokehSource}`)}
+                        </p>
+                      )}
+                    </div>
                   ))}
                 </div>
               ))}

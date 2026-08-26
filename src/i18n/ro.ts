@@ -1133,12 +1133,8 @@ export const ro = {
   'library.band.count.one': '1 poză',
   'library.band.count.other': '{count} poze',
   'menu.genre.mine': 'Ce fotografiez',
+  'menu.genre.mine.why': 'Alege tot ce fotografiezi. Rămân la îndemână în lista de sus; activ e mereu unul singur, ca să nu se amestece învățarea.',
   'menu.genre.all': 'Toate',
-  'home.genre.question': 'Ce fel de poze triezi de obicei?',
-  'home.genre.why': 'Într-un cadru de sport momentul contează mai mult decât claritatea. Într-un portret, invers. Alege tot ce ți se potrivește — învăț separat pentru fiecare.',
-  'home.genre.done.one': 'Gata — învăț pentru {genre}',
-  'home.genre.done.many': 'Gata — {count} alese, încep cu {genre}',
-  'home.genre.skip': 'Sari peste — de toate',
   'persons.section.enrolled': 'Persoane înrolate',
   'persons.section.discover': 'Descoperă automat',
   'persons.section.discover.sub': 'Caută fețe care apar de mai multe ori și încă n-au nume.',
@@ -1360,6 +1356,9 @@ export const ro = {
   'edit.sharpen': 'Accentuare',
   'edit.noiseReduction': 'Reducere zgomot',
   'edit.bokeh': 'Bokeh',
+  'edit.bokeh.source.mask': 'Fundal separat pe conturul persoanei.',
+  'edit.bokeh.source.face': 'Fundal separat aproximativ, după față — conturul exact n-a putut fi găsit.',
+  'edit.bokeh.source.none': 'N-am găsit nicio persoană în cadru, așa că nu am ce lăsa clar. Sliderul rămâne fără efect pe poza asta.',
   'edit.vignette': 'Vinietă',
 
   // --- Instrumentele editorului (bara de sub poză) ---

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { subjectFromFaces, NEUTRAL_ADJUSTMENTS, isNeutral } from './imageAdjust';
+import { subjectFromFaces, NEUTRAL_ADJUSTMENTS, isNeutral, persistableAdjustments } from './imageAdjust';
 
 /**
  * Casetele de fata sunt DEJA normalizate 0..1 — vezi faceAnalysis.worker.ts:1026
@@ -63,5 +63,39 @@ describe('conturul real bate caseta fetei', () => {
     const mask = { width: 8, height: 8 } as unknown as CanvasImageSource;
     expect(isNeutral({ ...NEUTRAL_ADJUSTMENTS, bokehMask: mask })).toBe(true);
     expect(isNeutral({ ...NEUTRAL_ADJUSTMENTS, bokehMask: mask, bokeh: 30 })).toBe(false);
+  });
+});
+
+/**
+ * Bug real: cu bokeh pornit, salvarea ajustarilor in Dexie esua tacut. Masca e
+ * un HTMLImageElement, iar IndexedDB scrie prin structured clone, care nu poate
+ * clona un element de DOM — deci se pierdeau TOATE ajustarile pozei, nu doar
+ * masca. Testul foloseste `structuredClone` din Node, acelasi algoritm.
+ */
+describe('ce se salveaza pe disc', () => {
+  const fakeMask = { nodeType: 1, tagName: 'IMG' } as unknown as CanvasImageSource;
+
+  it('scoate masca de bokeh, care nu poate fi clonata', () => {
+    const cu = { ...NEUTRAL_ADJUSTMENTS, bokeh: 82, bokehMask: fakeMask };
+    expect(persistableAdjustments(cu).bokehMask).toBeUndefined();
+  });
+
+  it('pastreaza tot ce trebuie ca bokeh-ul sa poata fi refacut', () => {
+    const subject = { x: 0.2, y: 0.1, width: 0.4, height: 0.6 };
+    const salvat = persistableAdjustments({ ...NEUTRAL_ADJUSTMENTS, bokeh: 82, bokehSubject: subject, bokehMask: fakeMask });
+    expect(salvat.bokeh).toBe(82);
+    expect(salvat.bokehSubject).toEqual(subject);
+  });
+
+  it('nu schimba obiectul cand nu e nicio masca de scos', () => {
+    const fara = { ...NEUTRAL_ADJUSTMENTS, bokeh: 40 };
+    expect(persistableAdjustments(fara)).toBe(fara);
+  });
+
+  it('rezultatul chiar trece prin structured clone', () => {
+    // Fara persistableAdjustments, linia asta arunca DataCloneError pe un
+    // HTMLImageElement real — exact ce se intampla in IndexedDB.
+    const salvat = persistableAdjustments({ ...NEUTRAL_ADJUSTMENTS, bokeh: 82, bokehMask: fakeMask });
+    expect(() => structuredClone(salvat)).not.toThrow();
   });
 });

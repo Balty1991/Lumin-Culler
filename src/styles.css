@@ -3183,6 +3183,22 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .drawer-item span:not(.drawer-item-icon) { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .drawer-count { background: var(--surface-3); color: var(--text-dim); font-size: 0.72rem; padding: 2px 8px; border-radius: 999px; }
 .drawer-item-select { cursor: default; }
+/* Un rand de meniu care NU e o singura linie: iconita si eticheta sus, sub ele
+   o explicatie si un rand de pastile care se aseaza pe cate randuri ii trebuie.
+   Folosit de "Genurile mele" — vezi MenuDrawer. */
+.drawer-item-block {
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  align-items: center;
+  gap: 4px 10px;
+  cursor: default;
+}
+.drawer-item-block > .drawer-item-note,
+.drawer-item-block > .drawer-genre-opts { grid-column: 2; }
+.drawer-item-note { margin: 0; font-size: 0.76rem; line-height: 1.35; color: var(--text-dim); }
+.drawer-genre-opts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+/* Pastilele au nevoie de o tinta de deget, ca oriunde altundeva in aplicatie. */
+.drawer-genre-chip { min-height: 34px; }
 /* Doar starea curenta a accentului, ca pastila mica langa eticheta — alegerea
    propriu-zisa s-a mutat pe ecranul Aspect (ui/AppearancePanel.tsx). */
 .drawer-accent-dot { width: 20px; height: 20px; border-radius: 50%; flex: none !important; }

@@ -4722,6 +4722,13 @@ input[type="search"] { min-height: 44px; }
     min-width: 0;
     min-height: 0;
     display: grid;
+    /* DOUA randuri, explicit: poza ia ce ramane, butonul "tine apasat" isi ia
+       intai inaltimea lui. Cu randuri automate, poza (pana la 44dvh) umplea
+       toata scena si butonul cadea sub marginea de jos, unde `overflow: hidden`
+       de mai jos il taia complet — raportat de utilizator: "la editor nu se
+       vede comparare inainte, dupa". Randul al doilea ramane de 0px cat timp
+       butonul nu se randeaza, deci nu strica nimic pe o poza neatinsa. */
+    grid-template-rows: minmax(0, 1fr) auto;
     place-items: center;
     padding: 10px 12px;
     /* Lupa (zoom cu doua degete) mareste invelisul pozei peste marginile scenei
@@ -4736,7 +4743,12 @@ input[type="search"] { min-height: 44px; }
        slidere fara sa scrolezi, ca in Lightroom mobil. Ramane un PLAFON —
        cutia isi pastreaza raportul fotografiei, de care depind manerele de
        decupare si punctele de retus. */
-    max-height: 44dvh;
+    /* `min(...)`, nu doar 44dvh: randul din grid poate fi mai mic decat atat
+       (ecran scurt, tastatura deschisa), si atunci poza trebuie sa incapa in
+       randul EI, nu sa dea peste butonul de dedesubt. `min-height: 0` anuleaza
+       cei 260px din regula de baza, care altfel ar forta exact acea revarsare. */
+    max-height: min(44dvh, 100%);
+    min-height: 0;
     box-shadow: 0 10px 18px -12px rgb(0 0 0 / 0.6);
   }
 
@@ -5272,34 +5284,6 @@ input[type="search"] { min-height: 44px; }
 }
 
 
-/* ── Intrebarea despre gen, pe Acasa ──
-   Un card care apare o singura data si dispare cu orice raspuns, inclusiv cu
-   refuzul. Deliberat fara buton de accent si fara chenar colorat: e o
-   intrebare, nu un anunt si nici o oferta. Vezi HomeDashboard.tsx. */
-.home-genre {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 4px 0 14px;
-  padding: 15px 16px;
-  border-radius: var(--radius);
-  background: var(--surface-2);
-  box-shadow: inset 0 0 0 1px var(--line);
-}
-.home-genre-q {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 1rem;
-  font-weight: 700;
-  line-height: 1.3;
-  color: var(--text);
-}
-.home-genre-why { margin: 0; font-size: .82rem; line-height: 1.5; color: var(--text-dim); }
-.home-genre-opts { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 3px; }
-.home-genre-chip { min-height: 40px; }
-.home-genre-skip { align-self: flex-start; margin-top: 2px; min-height: 40px; }
-
-
 /* ── Functia pentru care s-a deschis panoul Premium ──
    Marcaj, nu propozitie. Doua incercari anterioare au pus contextul ca text in
    capul panoului; a doua a fost respinsa fiindca ii repeta omului inapoi ce
@@ -5326,13 +5310,6 @@ input[type="search"] { min-height: 44px; }
   text-transform: uppercase;
   vertical-align: middle;
 }
-
-/* Randul de actiuni al cardului de gen. Butonul de confirmare apare doar dupa
-   prima alegere: inainte de ea n-ar avea ce confirma, iar "Sari peste" e
-   oricand un raspuns valid, nu o iesire de avarie. */
-.home-genre-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
-.home-genre-done { min-height: 44px; padding: 0 16px; border-radius: 12px; font-weight: 700; }
-
 
 /* ── "De ce ai decis asa?" ──
    Doua zone cu roluri diferite, si granita dintre ele trebuie sa se VADA:
@@ -5413,6 +5390,17 @@ input[type="search"] { min-height: 44px; }
   touch-action: manipulation;
 }
 .edit-hold-btn.on { background: rgb(var(--accent-rgb) / .85); color: #06100e; }
+
+/* Ce foloseste bokeh-ul ca sa separe omul de fundal, spus sub slider.
+   Cand raspunsul e "nimic", tonul trece pe avertisment: sliderul chiar nu are
+   ce face pe poza aceea, si e mai bine spus decat lasat sa para stricat. */
+.edit-bokeh-note {
+  margin: 2px 0 0;
+  font-size: .72rem;
+  line-height: 1.35;
+  color: var(--text-dim);
+}
+.edit-bokeh-note.warn { color: var(--warn, #e0a33e); }
 
 
 /* ── "Vrei sa spui de ce?", imediat dupa o decizie in sortarea rapida ──

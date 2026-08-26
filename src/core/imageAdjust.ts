@@ -118,6 +118,24 @@ const ADJUSTMENT_KEYS = Object.keys(NEUTRAL_ADJUSTMENTS) as NumericAdjustmentKey
  * conteaza ca editare — altfel simpla deschidere a instrumentului ar marca
  * poza drept editata.
  */
+/**
+ * Aceleasi ajustari, dar fara ce nu poate fi SALVAT.
+ *
+ * `bokehMask` e un HTMLImageElement. IndexedDB scrie prin structured clone,
+ * care nu stie sa cloneze un element de DOM si arunca DataCloneError — deci
+ * salvarea intregului obiect esua tacut de indata ce omul punea bokeh, si
+ * odata cu ea se pierdeau si celelalte ajustari ale pozei.
+ *
+ * Masca nici n-are ce cauta pe disc: se reface din poza in cateva zeci de
+ * milisecunde, iar `bokeh` (numarul) si `bokehSubject` (patru numere) sunt
+ * tot ce trebuie pastrat ca sa se poata reconstrui.
+ */
+export function persistableAdjustments(a: EditAdjustments): EditAdjustments {
+  if (!a.bokehMask) return a;
+  const { bokehMask: _drop, ...rest } = a;
+  return rest;
+}
+
 export function isNeutral(a: EditAdjustments | undefined): boolean {
   if (!a) return true;
   return ADJUSTMENT_KEYS.every(k => (a[k] ?? 0) === 0)

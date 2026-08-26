@@ -16,7 +16,7 @@ import { selectMonthlyRecap } from '../state/monthlyRecap';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { TrainedProfileStrip } from './TrainedProfileStrip';
 import { EASE } from './motion';
-import { GENRE_PRESETS, readGenreShortlist } from '../state/genre';
+import { GENRE_PRESETS, readGenreShortlist, writeGenreShortlist } from '../state/genre';
 import { nextGridDensity } from '../state/gridDensity';
 import { getInstallPromptEvent, subscribeInstallPromptEvent, consumeInstallPromptEvent, isStandalone } from '../core/installPromptEvent';
 import { detectFacesNative, isNativeFaceDetectionAvailable } from '../core/nativeFaceDetection';
@@ -258,7 +258,10 @@ export function MenuDrawer() {
   const installEvent = useSyncExternalStore(subscribeInstallPromptEvent, getInstallPromptEvent);
 
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
-  const genreShortlist = readGenreShortlist();
+  // Lista scurta se tine in stare locala ca pastilele sa raspunda imediat la
+  // atingere; readGenreShortlist() e sursa la deschiderea meniului.
+  const [genrePicks, setGenrePicks] = useState<string[]>(() => readGenreShortlist());
+  const genreShortlist = genrePicks;
   const groupByPeople = useStore(s => s.groupByPeople);
   const setGroupByPeople = useStore(s => s.setGroupByPeople);
   const go = (action: () => void) => { setOpen(false); action(); };
@@ -533,6 +536,48 @@ export function MenuDrawer() {
                     </optgroup>
                   </select>
                 </label>
+
+              {/* "Genurile mele" — alegerea multipla, mutata aici de pe ecranul
+                  de start. Cerinta utilizatorului, care avea dreptate de doua
+                  ori: pe Acasa aparea ca o intrebare peste tot, inainte sa fi
+                  triat ceva (deci se raspundea la ghici), si o data raspunsa nu
+                  se mai putea reface. Aici e o setare: o deschizi cand vrei, o
+                  schimbi cand vrei.
+
+                  Ce fac cele alese: raman lista scurta din capul selectorului
+                  de mai sus. NU se amesteca intre ele — genul prefixeaza
+                  contextKey, deci activ ramane unul singur, iar restul sunt
+                  doar la o atingere distanta. Exact grija pe care a avut-o
+                  utilizatorul: "ca sa nu amestece genurile". */}
+              <div className="drawer-item drawer-item-block">
+                <span className="drawer-item-icon"><TagIcon /></span>
+                <span>{tr('menu.genre.mine')}</span>
+                <p className="drawer-item-note">{tr('menu.genre.mine.why')}</p>
+                <div className="drawer-genre-opts" role="group" aria-label={tr('menu.genre.mine')}>
+                  {GENRE_PRESETS.map(g => {
+                    const picked = genrePicks.includes(g);
+                    return (
+                      <button
+                        key={g}
+                        type="button"
+                        className={picked ? 'chip drawer-genre-chip active' : 'chip drawer-genre-chip'}
+                        aria-pressed={picked}
+                        onClick={() => {
+                          const next = picked ? genrePicks.filter(x => x !== g) : [...genrePicks, g];
+                          setGenrePicks(next);
+                          writeGenreShortlist(next);
+                          // Daca genul activ tocmai a iesit din lista, sau nu era
+                          // niciunul, se alege primul ramas — altfel selectorul de
+                          // deasupra ar arata un gen pe care omul l-a scos.
+                          if (!next.includes(genre)) setGenre(next[0] ?? '');
+                        }}
+                      >
+                        {g}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </>
           )}
         </DrawerGroup>
