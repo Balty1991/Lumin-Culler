@@ -5657,9 +5657,14 @@ button:disabled,
   background: rgb(101 224 203 / .16);
   box-shadow: inset 0 0 0 1px rgb(101 224 203 / .22);
 }
+/* Iconita si eticheta urca peste pastila. Insigna NU e in lista: ea e deja
+   `position: absolute` (vezi .bottom-nav-badge), iar trecerea ei pe `relative`
+   a bagat-o inapoi in randul flex — se vedea in captura ca un al treilea rand
+   care impingea iconita in sus si scotea cifra sub bara. Ii dam doar z-index,
+   care functioneaza si pe un element deja pozitionat. */
 .bottom-nav-tab > svg,
-.bottom-nav-tab > span,
-.bottom-nav-tab > b { position: relative; z-index: 1; }
+.bottom-nav-tab > span { position: relative; z-index: 1; }
+.bottom-nav-tab > b { z-index: 1; }
 
 /* Fundalul care se plimba se OPRESTE, nu se grabeste: la 0.01ms (regula
    globala de mai sus) ar fi sarit direct in pozitia finala la fiecare ciclu. */
@@ -5670,4 +5675,52 @@ button:disabled,
   .drawer .drawer-group,
   .drawer .drawer-pro-card,
   .drawer .drawer-about { animation: none; }
+}
+
+
+/* ── Presetarile SALVATE DE UTILIZATOR, in randul de stiluri ──
+   Trebuie sa se distinga de cele sase ale mele fara sa strige: ale lui sunt
+   scrise cu numele lui si au un punct de accent in fata. Vezi
+   core/userPresets.ts. */
+.edit-preset-mine-wrap {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+.edit-preset-mine {
+  padding-right: 26px;
+  border-color: rgb(var(--accent-rgb) / .35);
+}
+.edit-preset-mine::before {
+  content: "";
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--atelier-teal);
+  vertical-align: middle;
+}
+/* Stergerea sta PESTE pastila, la dreapta. Tinta ei e mica pe ecran, dar zona
+   de atingere e de 28px si nu se suprapune peste jumatatea din stanga, unde
+   cade degetul cand omul vrea sa aplice stilul, nu sa-l stearga. */
+.edit-preset-del {
+  position: absolute;
+  top: 50%;
+  right: 2px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 28px;
+  border-radius: 8px;
+  color: var(--text-faint);
+  background: transparent;
+}
+.edit-preset-del svg { width: 13px; height: 13px; }
+.edit-preset-del:hover { color: var(--atelier-coral); background: rgb(255 118 111 / .12); }
+.edit-preset-save {
+  border-style: dashed;
+  color: var(--text-dim);
 }

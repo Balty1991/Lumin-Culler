@@ -30,6 +30,22 @@ const STYLE_KEYS = [
   'noiseReduction'
 ] as const;
 
+/**
+ * Ce se retine intr-o presetare SALVATA DE UTILIZATOR (vezi core/userPresets.ts).
+ *
+ * E lista de mai sus plus efectele adaugate ulterior — dezaburire, alb-negru,
+ * ton cinematic, granulatie, accentuare. Presetarile MELE (PRESETS, mai jos) nu
+ * le folosesc: ele sunt puncte de plecare sobre, si un preset care porneste cu
+ * bob si gradare n-ar mai fi un punct de plecare, ci o parere. Ale omului sunt
+ * altceva — acolo tocmai combinatia lui e ce merita pastrat.
+ *
+ * Ce lipseste dinadins, aici ca peste tot: decuparea, indreptarea, vindecarea,
+ * curbele si masca de bokeh. Toate depind de CE E in cadru.
+ */
+export const STYLE_KEYS_FOR_PRESETS = [
+  ...STYLE_KEYS, 'dehaze', 'bw', 'grade', 'grain', 'sharpen'
+] as const;
+
 export type PresetStyle = Partial<Pick<EditAdjustments, (typeof STYLE_KEYS)[number]>> & { hsl?: HslBands };
 
 export interface EditPreset {

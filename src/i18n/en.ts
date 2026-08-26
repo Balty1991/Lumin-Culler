@@ -1327,6 +1327,11 @@ export const en: Record<TranslationKey, string> = {
 
   'edit.tools': 'Tools',
   'edit.tool.basic': 'Basic',
+  'edit.preset.save': 'Save style',
+  'edit.preset.namePrompt': 'What is this style called? (e.g. Church christening)',
+  'edit.preset.saved': 'Style "{name}" saved. You will find it in the style row, on any photo.',
+  'edit.preset.delete': 'Delete style "{name}"',
+  'edit.preset.confirmDelete': 'Delete style "{name}"? Photos edited with it are untouched.',
   'edit.presets': 'Styles',
   'edit.preset.natural': 'Natural',
   'edit.preset.portrait': 'Portrait',

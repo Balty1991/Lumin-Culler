@@ -20,6 +20,8 @@ import { EditHistogram } from './EditHistogram';
 import { computeHistogram, type Histogram as HistogramData } from '../core/histogram';
 import { BANDS, NEUTRAL_BAND, type BandKey, type BandAdjust } from '../core/hslBands';
 import { PRESETS, applyPreset } from '../core/editPresets';
+import { presetFromAdjustments, applyUserPreset, addPreset, removePreset, MAX_USER_PRESETS, type UserPreset } from '../core/userPresets';
+import { readUserPresets, writeUserPresets } from '../state/userPresetStore';
 import {
   CURVE_PRESETS, LINEAR_CURVE,
   type CurveChannel, type CurvePoint, type PhotoCurves
@@ -509,6 +511,12 @@ export function EditPanel() {
    * lasa pastila aprinsa ar fi o afirmatie falsa.
    */
   const [activePreset, setActivePreset] = useState<string | null>(null);
+  /**
+   * Presetarile proprii. Se citesc o singura data, la montarea panoului: sunt
+   * in localStorage, deci citirea e sincrona, si nimeni altcineva nu le scrie
+   * cat timp editorul e deschis.
+   */
+  const [userPresets, setUserPresets] = useState<UserPreset[]>(() => readUserPresets());
 
   /**
    * Zoom cu doua degete pe fotografie (cerinta directa: "cu posibilitati de
@@ -1505,6 +1513,56 @@ export function EditPanel() {
                   {tr(`edit.preset.${preset.key}`)}
                 </button>
               ))}
+              {/* Presetarile OMULUI, dupa ale mele si vizibil altfel.
+                  Apasare scurta = aplica; apasarea pe x = sterge, cu
+                  confirmare, fiindca e singurul buton din rand care distruge
+                  ceva ce nu se poate reface dintr-o poza. */}
+              {userPresets.map(preset => (
+                <span key={preset.id} className="edit-preset-mine-wrap">
+                  <button
+                    type="button"
+                    className={activePreset === preset.id ? 'edit-preset edit-preset-mine active' : 'edit-preset edit-preset-mine'}
+                    onClick={() => { setActivePreset(preset.id); commit(applyUserPreset(adjustments, preset)); }}
+                    aria-pressed={activePreset === preset.id}
+                  >
+                    {preset.name}
+                  </button>
+                  <button
+                    type="button"
+                    className="edit-preset-del"
+                    aria-label={tr('edit.preset.delete', { name: preset.name })}
+                    onClick={() => {
+                      if (!confirm(tr('edit.preset.confirmDelete', { name: preset.name }))) return;
+                      const next = removePreset(userPresets, preset.id);
+                      setUserPresets(next);
+                      writeUserPresets(next);
+                      if (activePreset === preset.id) setActivePreset(null);
+                    }}
+                  >
+                    <XIcon aria-hidden="true" />
+                  </button>
+                </span>
+              ))}
+              {/* Salvarea apare doar cand exista ce salva. Pe o poza neatinsa ar
+                  fi un buton care produce o presetare goala. */}
+              {!isNeutral(adjustments) && userPresets.length < MAX_USER_PRESETS && (
+                <button
+                  type="button"
+                  className="edit-preset edit-preset-save"
+                  onClick={() => {
+                    const nume = prompt(tr('edit.preset.namePrompt'))?.trim();
+                    if (!nume) return;
+                    const preset = presetFromAdjustments(nume, adjustments);
+                    const next = addPreset(userPresets, preset);
+                    setUserPresets(next);
+                    writeUserPresets(next);
+                    setActivePreset(preset.id);
+                    setNotice(tr('edit.preset.saved', { name: preset.name }));
+                  }}
+                >
+                  + {tr('edit.preset.save')}
+                </button>
+              )}
             </div>
           )}
 

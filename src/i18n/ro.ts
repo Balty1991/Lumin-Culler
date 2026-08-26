@@ -1375,6 +1375,11 @@ export const ro = {
   // --- Instrumentele editorului (bara de sub poză) ---
   'edit.tools': 'Instrumente',
   'edit.tool.basic': 'Bază',
+  'edit.preset.save': 'Salvează stilul',
+  'edit.preset.namePrompt': 'Cum se numește stilul? (ex. Botez în biserică)',
+  'edit.preset.saved': 'Stilul "{name}" a fost salvat. Îl găsești în rândul de stiluri, la orice poză.',
+  'edit.preset.delete': 'Șterge stilul "{name}"',
+  'edit.preset.confirmDelete': 'Ștergi stilul "{name}"? Pozele editate cu el rămân neatinse.',
   'edit.presets': 'Stiluri',
   'edit.preset.natural': 'Natural',
   'edit.preset.portrait': 'Portret',
