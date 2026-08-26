@@ -1,5 +1,5 @@
 import { beforeEach, describe, it, expect } from 'vitest';
-import { shouldShowSmartNotification, SMART_NOTIFICATION_INTERVAL_MS, readSmartNotificationLastShown } from './smartNotification';
+import { shouldShowSmartNotification, SMART_NOTIFICATION_INTERVAL_MS, readSmartNotificationLastShown, readSmartNotificationEnabled, writeSmartNotificationEnabled } from './smartNotification';
 
 describe('shouldShowSmartNotification', () => {
   it('never shows when disabled', () => {
@@ -59,5 +59,27 @@ describe('smartNotification — marcaj de timp corupt in localStorage', () => {
       now: 1000 + SMART_NOTIFICATION_INTERVAL_MS - 1, enabled: true, unsortedCount: 5,
       lastShown: readSmartNotificationLastShown()
     })).toBe(false);
+  });
+});
+
+describe('pornite din start, oprite de cine nu le vrea', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('fara nicio alegere facuta, sunt pornite', () => {
+    // Erau opt-in, deci practic nimeni nu le vedea: comutatorul statea intr-o
+    // sectiune pliata a meniului.
+    expect(readSmartNotificationEnabled()).toBe(true);
+  });
+
+  it('cine le opreste, ramane cu ele oprite', () => {
+    // Schimbarea implicitului n-are voie sa calce in picioare un refuz explicit.
+    writeSmartNotificationEnabled(false);
+    expect(readSmartNotificationEnabled()).toBe(false);
+  });
+
+  it('si le poate porni inapoi', () => {
+    writeSmartNotificationEnabled(false);
+    writeSmartNotificationEnabled(true);
+    expect(readSmartNotificationEnabled()).toBe(true);
   });
 });

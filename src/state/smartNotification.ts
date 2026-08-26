@@ -12,11 +12,29 @@
 const ENABLED_KEY = 'lumin-smart-notification-enabled';
 const LAST_SHOWN_KEY = 'lumin-smart-notification-last-shown';
 
+/**
+ * PORNITE DIN START, oprite de cine nu le vrea.
+ *
+ * Cerinta utilizatorului dupa ce le-a vazut pe telefon: "cred ca ar trebui din
+ * preset sa vina activare, apoi sa ai posibilitatea sa le dezactivezi".
+ *
+ * Erau opt-in, deci practic nimeni nu le vedea: ca sa ajungi la comutator
+ * trebuia sa deschizi meniul, sa desfaci sectiunea Setari si sa stii ce cauti.
+ * O notificare care spune "mai ai 4 poze de sortat" nu e o reclama — e chiar
+ * treaba pe care omul a lasat-o neterminata.
+ *
+ * Absenta cheii inseamna acum PORNIT. Doar un '0' scris explicit (adica cineva
+ * a apasat comutatorul) le opreste — deci refuzul se tine minte, iar schimbarea
+ * asta nu-l calca in picioare pe cine le oprise deja.
+ *
+ * Nu deschide singura nicio fereastra de permisiuni: Android cere permisiunea
+ * la prima notificare reala, nu la pornirea aplicatiei.
+ */
 export function readSmartNotificationEnabled(): boolean {
   try {
-    return localStorage.getItem(ENABLED_KEY) === '1';
+    return localStorage.getItem(ENABLED_KEY) !== '0';
   } catch {
-    return false;
+    return true;
   }
 }
 
