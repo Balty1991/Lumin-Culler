@@ -16,7 +16,7 @@ import { selectMonthlyRecap } from '../state/monthlyRecap';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { TrainedProfileStrip } from './TrainedProfileStrip';
 import { EASE } from './motion';
-import { GENRE_PRESETS } from '../state/genre';
+import { GENRE_PRESETS, readGenreShortlist } from '../state/genre';
 import { nextGridDensity } from '../state/gridDensity';
 import { getInstallPromptEvent, subscribeInstallPromptEvent, consumeInstallPromptEvent, isStandalone } from '../core/installPromptEvent';
 import { detectFacesNative, isNativeFaceDetectionAvailable } from '../core/nativeFaceDetection';
@@ -258,6 +258,7 @@ export function MenuDrawer() {
   const installEvent = useSyncExternalStore(subscribeInstallPromptEvent, getInstallPromptEvent);
 
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
+  const genreShortlist = readGenreShortlist();
   const go = (action: () => void) => { setOpen(false); action(); };
 
   /** Cele DOUA confirmari sunt pastrate intacte din panoul Persoane: e singura
@@ -516,7 +517,18 @@ export function MenuDrawer() {
                     onChange={e => setGenre(e.target.value)}
                   >
                     <option value="">{tr('menu.genre.none')}</option>
-                    {GENRE_PRESETS.map(g => <option key={g} value={g}>{g}</option>)}
+                    {/* Ce a ales omul pe Acasa vine primul, si separat: cine
+                        fotografiaza familie si munca isi comuta genul des, si
+                        n-are de ce sa caute de fiecare data prin paisprezece
+                        optiuni. Vezi readGenreShortlist in state/genre.ts. */}
+                    {genreShortlist.length > 0 && (
+                      <optgroup label={tr('menu.genre.mine')}>
+                        {genreShortlist.map(g => <option key={'mine-' + g} value={g}>{g}</option>)}
+                      </optgroup>
+                    )}
+                    <optgroup label={tr('menu.genre.all')}>
+                      {GENRE_PRESETS.map(g => <option key={g} value={g}>{g}</option>)}
+                    </optgroup>
                   </select>
                 </label>
             </>

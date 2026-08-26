@@ -37,6 +37,22 @@ export function PremiumPanel() {
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const premium = useStore(s => s.premium);
   const premiumReason = useStore(s => s.premiumReason);
+
+  /**
+   * Care rand din lista se marcheaza, pentru ce a apasat omul. Portile
+   * contextuale (sapte in aplicatie) trimit motivul; aici devine un reper
+   * vizual, nu o propozitie. Deschis din meniu, `premiumReason` e null si nu
+   * se marcheaza nimic — nu exista un "implicit", fiindca n-a cerut nimic.
+   */
+  const highlightedPerk: string | null = premiumReason === null ? null : {
+    cap: 'export',
+    persons: 'persons',
+    xmp: 'pro',
+    contactSheet: 'pro',
+    vault: 'pro',
+    presentation: 'show',
+    locations: 'locations'
+  }[premiumReason];
   const photosUsed = useStore(s => s.photosUsedThisWindow);
   const containerRef = useRef<HTMLDivElement>(null);
   useModalFocusTrap(containerRef, open);
@@ -83,61 +99,65 @@ export function PremiumPanel() {
         <span className="premium-chip">
           <StarIcon className="inline-icon" aria-hidden="true" /> {tr(premium ? 'premium.chip.active' : 'premium.chip')}
         </span>
-        {/* Cand panoul s-a deschis pentru ca omul a intins mana dupa o functie
-            anume, aceea E titlul. Portile contextuale existau deja in sapte
-            locuri, dar toate deschideau acelasi catalog de sase functii — deci
-            cine apasa "Plansa de contact" trebuia sa se caute singur in lista,
-            exact cand intrebarea lui era cat se poate de precisa.
+        {/* PENTRU CE E BUN `premiumReason`, dupa doua incercari gresite.
 
-            Prima incercare punea motivul intr-o caseta gri cu bara de accent,
-            sub titlu, urmata de "Vine la pachet cu restul de mai jos".
-            Utilizatorul a respins-o, si pe drept: o caseta de notificare
-            strecurata intre titlu si pret arata a avertisment de sistem, iar
-            propozitia a doua nu spunea nimic ce nu se vedea deja din lista de
-            dedesubt. Doua titluri unul sub altul, dintre care unul incadrat.
+            A doua a fost sa-l facem TITLU. Utilizatorul l-a respins, si a avut
+            dreptate: "Ai vrut sa prezinti selectia" ii repeta inapoi ce tocmai
+            apasase — nu-i spunea nimic ce nu stia deja. Iar ca sa faca asta,
+            impinsese in gri mic singura fraza care chiar spune ceva ("Triajul
+            ramane gratuit, Premium e pentru ce faci cu rezultatul").
 
-            Acum nu se mai adauga nimic: se SCHIMBA titlul. Motivul sus, unde
-            cade privirea, iar fraza de pozitionare coboara ca subtitlu — tot
-            acolo, tot citita, dar in rolul ei. Deschis din meniu,
-            `premiumReason` e null si titlul e cel generic, ca inainte. */}
-        <h3 className="premium-lead">
-          {premium
-            ? tr('premium.lead.active')
-            : premiumReason
-              ? tr(`premium.reason.${premiumReason}`)
-              : tr('premium.lead')}
-        </h3>
-        {!premium && premiumReason && <p className="premium-sub">{tr('premium.lead')}</p>}
+            (Prima incercare fusese o caseta gri cu bara de accent, sub titlu,
+            plus "Vine la pachet cu restul de mai jos" — respinsa ca inestetica
+            si cu o a doua propozitie care nu spunea nimic.)
+
+            Semnalul era bun, locul era gresit. Titlul ramane mereu propunerea
+            de valoare, iar contextul se muta pe FUNCTIA in cauza, mai jos:
+            randul ei e marcat, deci ochiul cade pe ea fara nicio propozitie in
+            plus. Vezi highlightedPerk. */}
+        <h3 className="premium-lead">{tr(premium ? 'premium.lead.active' : 'premium.lead')}</h3>
         {!premium && price && (
           <p className="premium-price">{tr('premium.price.tag', { price })}</p>
         )}
 
         <h4 className="premium-group-head">{tr('premium.section.unlock')}</h4>
 
-        <div className="premium-perk premium-perk-demo">
+        <div className={highlightedPerk === 'export' ? 'premium-perk premium-perk-demo is-wanted' : 'premium-perk premium-perk-demo'}>
           <span>
-            <b>{tr('premium.perk.export.title')}</b>
+            <b>
+              {tr('premium.perk.export.title')}
+              {highlightedPerk === 'export' && <i className="premium-wanted-tag">{tr('premium.wanted')}</i>}
+            </b>
             <span>{tr('premium.perk.export.sub', { limit: FREE_PHOTOS_PER_MONTH })}</span>
           </span>
           <PremiumProof kind="export" />
         </div>
-        <div className="premium-perk premium-perk-demo">
+        <div className={highlightedPerk === 'persons' ? 'premium-perk premium-perk-demo is-wanted' : 'premium-perk premium-perk-demo'}>
           <span>
-            <b>{tr('premium.perk.persons.title')}</b>
+            <b>
+              {tr('premium.perk.persons.title')}
+              {highlightedPerk === 'persons' && <i className="premium-wanted-tag">{tr('premium.wanted')}</i>}
+            </b>
             <span>{tr('premium.perk.persons.sub', { limit: FREE_ENROLLED_PERSONS })}</span>
           </span>
           <PremiumProof kind="persons" />
         </div>
-        <div className="premium-perk premium-perk-demo">
+        <div className={highlightedPerk === 'pro' ? 'premium-perk premium-perk-demo is-wanted' : 'premium-perk premium-perk-demo'}>
           <span>
-            <b>{tr('premium.perk.pro.title')}</b>
+            <b>
+              {tr('premium.perk.pro.title')}
+              {highlightedPerk === 'pro' && <i className="premium-wanted-tag">{tr('premium.wanted')}</i>}
+            </b>
             <span>{tr('premium.perk.pro.sub')}</span>
           </span>
           <PremiumProof kind="pro" />
         </div>
-        <div className="premium-perk premium-perk-demo">
+        <div className={highlightedPerk === 'show' ? 'premium-perk premium-perk-demo is-wanted' : 'premium-perk premium-perk-demo'}>
           <span>
-            <b>{tr('premium.perk.show.title')}</b>
+            <b>
+              {tr('premium.perk.show.title')}
+              {highlightedPerk === 'show' && <i className="premium-wanted-tag">{tr('premium.wanted')}</i>}
+            </b>
             <span>{tr('premium.perk.show.sub')}</span>
           </span>
           <PremiumProof kind="show" />
@@ -145,16 +165,19 @@ export function PremiumPanel() {
         {/* Rand propriu, nu o vorba in subtitlul de mai sus: era pomenit acolo
             printre altele si utilizatorul, care CHIAR are ecranul blocat, n-a
             observat ca plateste pentru el. */}
-        <div className="premium-perk premium-perk-demo">
+        <div className={highlightedPerk === 'locations' ? 'premium-perk premium-perk-demo is-wanted' : 'premium-perk premium-perk-demo'}>
           <span>
-            <b>{tr('premium.perk.locations.title')}</b>
+            <b>
+              {tr('premium.perk.locations.title')}
+              {highlightedPerk === 'locations' && <i className="premium-wanted-tag">{tr('premium.wanted')}</i>}
+            </b>
             <span>{tr('premium.perk.locations.sub')}</span>
           </span>
           <PremiumProof kind="locations" />
         </div>
         {/* Ultimul, deliberat: e singurul lucru din lista pe care nu-l are
             nimeni altcineva, si se retine mai bine la final decat la mijloc. */}
-        <div className="premium-perk premium-perk-demo">
+        <div className={highlightedPerk === 'composite' ? 'premium-perk premium-perk-demo is-wanted' : 'premium-perk premium-perk-demo'}>
           <span>
             <b>{tr('premium.perk.composite.title')}</b>
             <span>{tr('premium.perk.composite.sub')}</span>

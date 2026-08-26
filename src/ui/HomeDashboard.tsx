@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useStore, type PhotoView } from '../state/store';
-import { GENRE_PRESETS } from '../state/genre';
+import { GENRE_PRESETS, writeGenreShortlist } from '../state/genre';
 import { wasGenreAsked, markGenreAsked } from '../state/genreAsked';
 import { pickResumeTarget } from '../state/resumeProject';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
@@ -73,6 +73,7 @@ export function HomeDashboard() {
   const genre = useStore(s => s.genre);
   const setGenre = useStore(s => s.setGenre);
   const [genreAsked, setGenreAsked] = useState(() => wasGenreAsked());
+  const [genrePicks, setGenrePicks] = useState<string[]>([]);
   /**
    * Cat timp analiza inca ruleaza, cardul NU are voie sa anunte o coada gata.
    *
@@ -253,23 +254,54 @@ export function HomeDashboard() {
         <section className="home-genre" aria-labelledby="home-genre-q">
           <p className="home-genre-q" id="home-genre-q">{tr('home.genre.question')}</p>
           <p className="home-genre-why">{tr('home.genre.why')}</p>
-          <div className="home-genre-opts">
-            {GENRE_PRESETS.map(g => (
-              <button
-                key={g}
-                className="chip home-genre-chip"
-                onClick={() => { setGenre(g); markGenreAsked(); setGenreAsked(true); }}
-              >
-                {g}
-              </button>
-            ))}
+          {/* SELECTIE MULTIPLA, cerinta directa a utilizatorului. Raspunsul
+              sincer al majoritatii la "ce fotografiezi de obicei" e "mai
+              multe" — familie, si la munca, si cate un eveniment.
+
+              Ce se intampla cu mai multe alese: se retin toate ca lista scurta
+              (writeGenreShortlist), dar ACTIV ramane primul. Genul prefixeaza
+              contextKey, deci hotaraste pe care model se invata acum; daca
+              le-am amesteca pe toate intr-unul singur, s-ar pierde exact
+              lucrul pentru care exista genul. Lista sta apoi in fruntea
+              selectorului din meniu, deci comutarea e o atingere. */}
+          <div className="home-genre-opts" role="group" aria-labelledby="home-genre-q">
+            {GENRE_PRESETS.map(g => {
+              const picked = genrePicks.includes(g);
+              return (
+                <button
+                  key={g}
+                  className={picked ? 'chip home-genre-chip active' : 'chip home-genre-chip'}
+                  aria-pressed={picked}
+                  onClick={() => setGenrePicks(prev => picked ? prev.filter(x => x !== g) : [...prev, g])}
+                >
+                  {g}
+                </button>
+              );
+            })}
           </div>
-          <button
-            className="ghost small home-genre-skip"
-            onClick={() => { markGenreAsked(); setGenreAsked(true); }}
-          >
-            {tr('home.genre.skip')}
-          </button>
+          <div className="home-genre-actions">
+            {genrePicks.length > 0 && (
+              <button
+                className="btn-accent home-genre-done"
+                onClick={() => {
+                  writeGenreShortlist(genrePicks);
+                  setGenre(genrePicks[0]);
+                  markGenreAsked();
+                  setGenreAsked(true);
+                }}
+              >
+                {genrePicks.length === 1
+                  ? tr('home.genre.done.one', { genre: genrePicks[0] })
+                  : tr('home.genre.done.many', { count: genrePicks.length, genre: genrePicks[0] })}
+              </button>
+            )}
+            <button
+              className="ghost small home-genre-skip"
+              onClick={() => { markGenreAsked(); setGenreAsked(true); }}
+            >
+              {tr('home.genre.skip')}
+            </button>
+          </div>
         </section>
       )}
 

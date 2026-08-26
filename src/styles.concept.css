@@ -5298,3 +5298,37 @@ input[type="search"] { min-height: 44px; }
 .home-genre-opts { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 3px; }
 .home-genre-chip { min-height: 40px; }
 .home-genre-skip { align-self: flex-start; margin-top: 2px; min-height: 40px; }
+
+
+/* ── Functia pentru care s-a deschis panoul Premium ──
+   Marcaj, nu propozitie. Doua incercari anterioare au pus contextul ca text in
+   capul panoului; a doua a fost respinsa fiindca ii repeta omului inapoi ce
+   tocmai apasase. Vezi PremiumPanel.tsx. */
+.premium-perk.is-wanted {
+  margin: 0 -10px;
+  padding: 10px;
+  border-radius: var(--radius);
+  background: rgb(var(--accent-rgb) / .07);
+  box-shadow: inset 0 0 0 1px rgb(var(--accent-rgb) / .3);
+}
+.premium-wanted-tag {
+  display: inline-block;
+  margin-left: 7px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgb(var(--accent-rgb) / .16);
+  color: var(--accent-text);
+  font-family: var(--mono);
+  font-size: .58rem;
+  font-style: normal;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+/* Randul de actiuni al cardului de gen. Butonul de confirmare apare doar dupa
+   prima alegere: inainte de ea n-ar avea ce confirma, iar "Sari peste" e
+   oricand un raspuns valid, nu o iesire de avarie. */
+.home-genre-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+.home-genre-done { min-height: 44px; padding: 0 16px; border-radius: 12px; font-weight: 700; }
