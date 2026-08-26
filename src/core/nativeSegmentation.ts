@@ -15,6 +15,7 @@
  */
 import { registerPlugin, Capacitor } from '@capacitor/core';
 import { blobToBase64 } from './base64';
+import { luminanceToAlpha } from './imageAdjust';
 
 export interface NativeSegmentationResult {
   /** Fractiune 0..1 din cadru clasificata drept persoana (par/corp/fata/haine, nu fundal/altele). */
@@ -62,18 +63,35 @@ export async function segmentSubjectNative(imageBlob: Blob): Promise<NativeSegme
  * Arunca daca segmentarea nu e disponibila sau esueaza; apelantul decide ce
  * spune omului si daca revine la varianta cu casetele de fata.
  */
-export async function segmentPersonMask(imageBlob: Blob): Promise<{ image: HTMLImageElement; personCoverage: number }> {
+export async function segmentPersonMask(imageBlob: Blob): Promise<{ image: CanvasImageSource; personCoverage: number }> {
   if (!isNativeSegmentationAvailable()) {
     throw new Error('Segmentarea nativa e disponibila doar in aplicatia Android.');
   }
   const imageBase64 = await blobToBase64(imageBlob);
   const { maskBase64, personCoverage } = await SegmentationNative.segmentMask({ imageBase64 });
 
-  const image = new Image();
+  const decoded = new Image();
   await new Promise<void>((resolve, reject) => {
-    image.onload = () => resolve();
-    image.onerror = () => reject(new Error('Masca de segmentare n-a putut fi decodata.'));
-    image.src = `data:image/png;base64,${maskBase64}`;
+    decoded.onload = () => resolve();
+    decoded.onerror = () => reject(new Error('Masca de segmentare n-a putut fi decodata.'));
+    decoded.src = `data:image/png;base64,${maskBase64}`;
   });
-  return { image, personCoverage };
+
+  // Aici se face conversia care lipsea. Masca sosita e DESENATA (alb pe
+  // persoana), iar applyBokeh o foloseste cu `destination-out`, care se uita
+  // doar la ALPHA — vezi luminanceToAlpha. O singura trecere per poza, pe
+  // dimensiunea nativa a mastii (256x256), nu pe cadrul intreg.
+  const w = decoded.naturalWidth || 256;
+  const h = decoded.naturalHeight || 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) throw new Error('Masca de segmentare n-a putut fi pregatita.');
+  ctx.drawImage(decoded, 0, 0);
+  const pixels = ctx.getImageData(0, 0, w, h);
+  luminanceToAlpha(pixels.data);
+  ctx.putImageData(pixels, 0, 0);
+
+  return { image: canvas, personCoverage };
 }

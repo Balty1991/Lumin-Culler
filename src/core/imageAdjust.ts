@@ -677,6 +677,74 @@ export function subjectFromFaces(
  * export de 4000px, iar fara asta exportul ar fi iesit vizibil mai putin
  * estompat decat ce a vazut omul in editor.
  */
+/**
+ * Transforma o masca DESENATA (alb = persoana, negru = fundal) intr-o masca de
+ * TRANSPARENTA (opac = persoana, transparent = fundal). Lucreaza pe loc.
+ *
+ * De ce a fost nevoie, si de ce bokeh-ul n-a facut nimic patru build-uri la
+ * rand: `destination-out` sterge dupa ALPHA, nu dupa culoare. Masca venea de la
+ * segmenter cu fundalul negru OPAC — iar negrul opac sterge exact la fel de
+ * bine ca albul opac. Rezultatul: se stergea tot cadrul din copia estompata,
+ * peste poza clara se desena o panza goala, si nu se schimba nimic. Verificat
+ * in Chromium: fundalul ramanea la aceeasi valoare ca originalul.
+ *
+ * Alpha se inmulteste cu cel existent, deci functia e si idempotenta: o masca
+ * deja corecta (persoana opaca, fundal transparent) trece neatinsa prin ea.
+ * Asa partea de JS nu depinde de conventia plugin-ului nativ.
+ */
+export function luminanceToAlpha(d: Uint8ClampedArray): void {
+  for (let i = 0; i < d.length; i += 4) {
+    const lum = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) * (d[i + 3] / 255);
+    d[i] = 255;
+    d[i + 1] = 255;
+    d[i + 2] = 255;
+    d[i + 3] = lum;
+  }
+}
+
+/**
+ * ATENTIE la `a.bokehMask`: se asteapta o masca de TRANSPARENTA, nu una
+ * desenata in alb-negru. Vezi luminanceToAlpha mai sus si segmentPersonMask
+ * din core/nativeSegmentation.ts, care o normalizeaza o singura data per poza.
+ */
+/**
+ * Zona lasata clara de varianta de REZERVA a bokeh-ului (caseta fetei plus un
+ * gradient radial), in pixeli de panza. Extrasa din applyBokeh ca sa poata fi
+ * verificata fara canvas — bug-ul de mai jos a trait exact fiindca era o
+ * expresie ingropata intr-o functie care deseneaza.
+ *
+ * BUG REAL, gasit masurand in Chromium: se folosea LATURA casetei ca raza, nu
+ * jumatatea ei. Pe un subiect inalt iesea o raza mai mare decat semidiagonala
+ * cadrului, deci gradientul era opac peste tot, `destination-out` stergea toata
+ * copia estompata, si bokeh-ul nu schimba niciun pixel.
+ *
+ * Plafonul de 60% din semidiagonala e a doua plasa: pe un subiect care umple
+ * cadrul tot mai ramane o margine de estompat, in loc sa se anuleze totul.
+ *
+ * `subject` e dat in spatiul imaginii ORIGINALE; pe panza vedem eventual doar o
+ * decupare din ea, deci coordonatele trec prin spatiul decupat.
+ */
+export function radialSharpZone(
+  subject: { x: number; y: number; width: number; height: number },
+  crop: { x: number; y: number; width: number; height: number } | undefined,
+  width: number,
+  height: number
+): { cx: number; cy: number; inner: number; outer: number } {
+  const cx0 = crop ? crop.x : 0;
+  const cy0 = crop ? crop.y : 0;
+  const cw = crop ? crop.width : 1;
+  const ch = crop ? crop.height : 1;
+  const halfDiagonal = Math.hypot(width, height) / 2;
+  const subjectRadius = Math.max(subject.width / cw * width, subject.height / ch * height) / 2;
+  const inner = Math.min(subjectRadius * 1.15, halfDiagonal * 0.6);
+  return {
+    cx: ((subject.x + subject.width / 2) - cx0) / cw * width,
+    cy: ((subject.y + subject.height / 2) - cy0) / ch * height,
+    inner,
+    outer: inner + Math.max(width, height) * 0.35
+  };
+}
+
 export function applyBokeh(
   ctx: CanvasRenderingContext2D,
   source: CanvasImageSource,
@@ -733,19 +801,7 @@ export function applyBokeh(
   //
   // Subiectul e dat in spatiul imaginii ORIGINALE; pe panza vedem eventual doar
   // o decupare din ea, deci coordonatele trebuie duse in spatiul decupat.
-  const crop = a.crop;
-  const cx0 = crop ? crop.x : 0;
-  const cy0 = crop ? crop.y : 0;
-  const cw = crop ? crop.width : 1;
-  const ch = crop ? crop.height : 1;
-  const cx = ((subject.x + subject.width / 2) - cx0) / cw * width;
-  const cy = ((subject.y + subject.height / 2) - cy0) / ch * height;
-  // Zona lasata complet clara acopera subiectul cu o marja — un cap taiat exact
-  // pe contur arata decupat, iar umerii fac parte din subiect chiar daca fata
-  // nu ii cuprinde.
-  const inner = Math.max(subject.width / cw * width, subject.height / ch * height) * 1.4;
-  const outer = inner + Math.max(width, height) * 0.55;
-
+  const { cx, cy, inner, outer } = radialSharpZone(subject, a.crop, width, height);
   const mask = sctx.createRadialGradient(cx, cy, Math.max(1, inner), cx, cy, Math.max(2, outer));
   mask.addColorStop(0, 'rgba(0,0,0,1)');
   mask.addColorStop(1, 'rgba(0,0,0,0)');

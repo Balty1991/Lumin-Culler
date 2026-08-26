@@ -118,12 +118,12 @@ class SegmentationPlugin : Plugin() {
      * incarcat de plugin-ul asta; ii lipsea doar o metoda care sa dea afara
      * pixelii.
      *
-     * Formatul: PNG alb-negru, ALB acolo unde e persoana. Alegerea nu e
-     * arbitrara — pe partea de JS masca intra direct intr-un
-     * `globalCompositeOperation = 'destination-out'`, unde albul opac sterge.
-     * Deci nu mai trebuie nicio prelucrare pe pixeli in JS: se deseneaza si
-     * atat. PNG, nu JPEG, fiindca o masca comprimata cu pierderi capata halouri
-     * exact pe contur, adica fix acolo unde conteaza.
+     * Formatul: PNG cu ALPHA — persoana opaca, fundalul complet transparent.
+     * Pe partea de JS masca intra intr-un
+     * `globalCompositeOperation = 'destination-out'`, care sterge dupa ALPHA,
+     * nu dupa culoare: de-aia fundalul trebuie sa fie transparent, nu negru.
+     * PNG, nu JPEG — si fiindca JPEG n-are canal alpha, si fiindca o masca
+     * comprimata cu pierderi capata halouri exact pe contur.
      */
     @PluginMethod
     fun segmentMask(call: PluginCall) {
@@ -147,7 +147,16 @@ class SegmentationPlugin : Plugin() {
             while (buffer.hasRemaining() && i < pixels.size) {
                 val isPerson = isPersonClass(buffer.get().toInt() and 0xFF)
                 if (isPerson) personPixels++
-                pixels[i++] = if (isPerson) -0x1 else -0x1000000  // alb opac / negru opac
+                // Persoana: alb OPAC. Fundal: complet TRANSPARENT, nu negru.
+                //
+                // Aici era bug-ul care a tinut bokeh-ul mort patru build-uri:
+                // partea de JS foloseste masca cu `destination-out`, care sterge
+                // dupa ALPHA, nu dupa culoare. Negrul opac sterge exact la fel de
+                // bine ca albul opac, deci se stergea tot cadrul si nu ramanea
+                // nimic de compus peste poza. (JS-ul normalizeaza acum oricum
+                // masca — vezi luminanceToAlpha — dar formatul corect se trimite
+                // de aici, nu se repara la celalalt capat.)
+                pixels[i++] = if (isPerson) -0x1 else 0x00000000
             }
 
             val mask = Bitmap.createBitmap(pixels, w, h, Bitmap.Config.ARGB_8888)
