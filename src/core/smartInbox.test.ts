@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  classifyPhoto, buildSmartInbox, countNonPersonal,
+  classifyPhoto, buildSmartInbox, countNonPersonal, hasManufacturedTag,
   DOCUMENT_TEXT_COVERAGE, SCREENSHOT_TEXT_COVERAGE, type InboxCandidate
 } from './smartInbox';
 
@@ -143,5 +143,43 @@ describe('lucruri, nu momente', () => {
     expect(grupuri.find(g => g.category === 'object')?.ids).toEqual(['cutie']);
     expect(grupuri.find(g => g.category === 'document')?.ids).toEqual(['pagina']);
     expect(grupuri.some(g => g.ids.includes('copil'))).toBe(false);
+  });
+  describe('materialul suprafetei nu voteaza in nicio directie', () => {
+    // Cazul real din captura: panou de pluta plin de bonuri si bilete scrise
+    // de mana, scor 98, aprobat automat. ML Kit intoarce pe asa ceva atat
+    // etichete de lucru fabricat ("paper", "text"), cat si de material
+    // ("cork", "wall") — iar materialele, numarate in numitor, coborau
+    // fractia sub prag exact atat cat sa treaca drept amintire.
+    it('panoul de pluta cu bonuri e lucru, nu amintire', () => {
+      expect(classifyPhoto({
+        ...baza, textCoverage: 0.08, sceneTags: ['paper', 'cork', 'wall', 'text']
+      })).toBe('object');
+    });
+
+    it('un bufet de lemn ramane amintire — lemnul nu e o dovada', () => {
+      expect(classifyPhoto({
+        ...baza, textCoverage: 0.08, sceneTags: ['furniture', 'wood', 'room']
+      })).toBe('personal');
+    });
+
+    it('numai etichete de material nu clasifica nimic', () => {
+      expect(classifyPhoto({
+        ...baza, textCoverage: 0.08, sceneTags: ['wood', 'texture', 'surface']
+      })).toBe('personal');
+    });
+  });
+
+  describe('hasManufacturedTag: declansatorul de OCR', () => {
+    it('o singura eticheta de lucru fabricat e de ajuns', () => {
+      expect(hasManufacturedTag(['paper', 'cork', 'wall'])).toBe(true);
+      expect(hasManufacturedTag(['Receipt'])).toBe(true);
+    });
+
+    it('nu se declanseaza pe peisaje, animale sau mancare', () => {
+      expect(hasManufacturedTag(['mountain', 'sky', 'lake'])).toBe(false);
+      expect(hasManufacturedTag(['dog', 'grass'])).toBe(false);
+      expect(hasManufacturedTag(['cake', 'table', 'wood'])).toBe(false);
+      expect(hasManufacturedTag(undefined)).toBe(false);
+    });
   });
 });

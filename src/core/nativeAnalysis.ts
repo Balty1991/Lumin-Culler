@@ -43,6 +43,7 @@ import { detectTextNative } from './nativeTextRecognition';
 import { embedImageNative } from './nativeImageEmbedder';
 import { detectPoseNative, type NativePose } from './nativePoseDetection';
 import { pickFolderSceneTag } from './sceneTagLabels';
+import { hasManufacturedTag } from './smartInbox';
 import type { NativeImageSource } from './nativeImageSource';
 
 /**
@@ -391,20 +392,33 @@ export async function analyzeNative(
       : Promise.resolve(undefined)
   ]);
 
-  // OCR rulat cand nu exista fete SI nu exista nicio eticheta de scena
-  // CONCRETA (pickFolderSceneTag ignora etichetele abstracte/non-subiect, ex.
-  // "Text", "Photography", "Paper" — vezi NON_FOLDER_SCENE_TAGS in
-  // sceneTagLabels.ts) — exact cazul in care hasNoRecognizableSubject
-  // (importPipeline.ts) ar bloca deja auto-selectarea; textCoverage
-  // confirma/intareste acel semnal pentru documente/capturi de ecran.
-  // BUG REAL depistat de audit: conditia veche cerea sceneTags.length===0
-  // (nicio eticheta deloc), dar un document fotografiat primeste des exact o
-  // eticheta abstracta ca "Text"/"Paper"/"Photography" de la ML Kit — OCR nu
-  // mai rula niciodata in cazul concret pentru care a fost construit.
+  // CAND rulam OCR. Doua conditii, si a doua a fost gresita de doua ori.
+  //
+  // Prima varianta cerea `sceneTags.length === 0` — nicio eticheta deloc. Un
+  // document fotografiat primeste insa aproape mereu o eticheta, deci OCR nu
+  // rula niciodata pe cazul pentru care fusese construit.
+  //
+  // A doua varianta (reparatia de la audit) a inlocuit-o cu
+  // `!pickFolderSceneTag(sceneTags)`, si comentariul de aici sustinea ca lista
+  // NON_FOLDER_SCENE_TAGS contine "Text", "Photography", "Paper". Contine
+  // primele doua. NU contine "paper" — verificat. Deci pentru un panou de
+  // pluta plin de bonuri, ML Kit intoarce "Paper" ca eticheta de top,
+  // pickFolderSceneTag o accepta drept subiect concret, OCR-ul e SARIT, iar
+  // hasNoRecognizableSubject nu mai are ce semnal sa citeasca. Bug raportat cu
+  // captura: panoul cu bonuri, scor 98, aprobat automat cu bifa verde.
+  //
+  // Cauza de fond e ca ambele variante intreaba "nu s-a recunoscut nimic?".
+  // Un document CHIAR se recunoaste — ca hartie. A doua conditie, de acum,
+  // intreaba si invers: daca s-a recunoscut ceva si acel ceva e un lucru
+  // fabricat (hartie, bon, ambalaj, aparat), atunci merita citit textul.
+  //
   // OCR cere rezolutie PLINA: e singurul model din lant care chiar depinde de
   // pixeli (text mic pe un buletin/o captura de ecran), si ruleaza rar. Cu URI
-  // cerem doar o latura mai mare — tot fara nimic peste punte.
-  const textCoverage = faces.length === 0 && !pickFolderSceneTag(sceneTags)
+  // cerem doar o latura mai mare — tot fara nimic peste punte. Declansatorul
+  // nou nu-l face sa ruleze pe peisaje, animale sau mancare: niciunul n-are
+  // etichete de lucru fabricat.
+  const textCoverage = faces.length === 0
+    && (!pickFolderSceneTag(sceneTags) || hasManufacturedTag(sceneTags))
     ? (await detectTextNative(
         mediaUri
           ? { uri: mediaUri, maxSide: NATIVE_OCR_MAX_SIDE }

@@ -258,6 +258,12 @@ const NON_FOLDER_SCENE_TAGS = new Set<string>([
   'sleeping', 'eating', 'drinking', 'reading', 'writing', 'playing',
   'pattern', 'texture', 'wood', 'metal', 'glass', 'plastic', 'fabric', 'textile', 'leather', 'silk',
   'cotton', 'wool', 'denim', 'lace',
+  // Materiale si suprafete lipsa din familia de mai sus. "paper" e cel care a
+  // costat: comentariul din nativeAnalysis.ts sustinea ca e aici, nu era, si de
+  // aceea un panou de pluta plin de bonuri trecea drept subiect concret ("hartie"),
+  // OCR-ul nu mai rula, iar poza se aproba singura cu scor 98.
+  'paper', 'cardboard', 'cork', 'stone', 'concrete', 'brick', 'plaster', 'tile',
+  'ceramic', 'rubber', 'foam', 'wall', 'floor', 'ceiling', 'surface', 'material',
   'love', 'romance', 'adventure', 'freedom', 'meditation', 'yoga', 'wellness', 'health', 'medicine',
   'education', 'learning', 'business', 'work', 'meeting', 'conference', 'teamwork', 'success',
   'number', 'letter', 'symbol', 'icon', 'emblem', 'badge', 'stamp', 'coin', 'currency', 'map',

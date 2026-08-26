@@ -95,6 +95,35 @@ const MANUFACTURED_TAGS = new Set([
  */
 const OBJECT_TEXT_COVERAGE = 0.05;
 
+/**
+ * Etichete care spun din CE e facuta suprafata, nu ce e in cadru.
+ *
+ * "lemn", "perete", "pluta", "textura" apar deopotriva pe o poza cu un bufet
+ * vechi si pe o poza cu un panou de bonuri — deci nu sunt dovada nici intr-o
+ * directie, nici in cealalta. Problema e ca in fractia de mai jos ele contau
+ * ca voturi IMPOTRIVA: panoul de pluta primea de la ML Kit ceva de felul
+ * ["paper", "cork", "wall", "text"], adica doua etichete de lucru fabricat si
+ * doua de material — 2/4, exact sub prag, deci trecea drept amintire.
+ *
+ * Acum se scot din numitor. Nu se numara nici intr-o parte, nici in alta.
+ *
+ * Distinct de NON_FOLDER_SCENE_TAGS (sceneTagLabels.ts), care raspunde la altceva:
+ * "merge asta ca nume de folder?". Se suprapun pe alocuri, dar n-au acelasi rost
+ * si n-au voie sa fie acelasi set.
+ */
+const NEUTRAL_SURFACE_TAGS = new Set([
+  'wood', 'metal', 'glass', 'plastic', 'fabric', 'textile', 'leather', 'cork',
+  'stone', 'concrete', 'brick', 'plaster', 'tile', 'ceramic', 'rubber', 'foam',
+  'wall', 'floor', 'ceiling', 'surface', 'material', 'texture', 'pattern',
+  'close-up', 'macro photography', 'still life photography', 'photography'
+]);
+
+function meaningfulTags(tags: string[] | undefined): string[] {
+  return (tags ?? [])
+    .map(t => t.trim().toLowerCase())
+    .filter(t => t && !NEUTRAL_SURFACE_TAGS.has(t));
+}
+
 /** Cat din etichete trebuie sa descrie un lucru fabricat ca sa nu mai fie amintire. */
 const OBJECT_TAG_FRACTION = 0.5;
 
@@ -106,9 +135,22 @@ const OBJECT_TAG_FRACTION = 0.5;
  * intra. Un singur loc care stie ce inseamna "lucru fabricat".
  */
 export function looksManufactured(tags: string[] | undefined): boolean {
-  if (!tags?.length) return false;
-  const hits = tags.filter(t => MANUFACTURED_TAGS.has(t.trim().toLowerCase())).length;
-  return hits / tags.length >= OBJECT_TAG_FRACTION;
+  const meaningful = meaningfulTags(tags);
+  if (!meaningful.length) return false;
+  const hits = meaningful.filter(t => MANUFACTURED_TAGS.has(t)).length;
+  return hits / meaningful.length >= OBJECT_TAG_FRACTION;
+}
+
+/**
+ * Macar o eticheta descrie un lucru fabricat.
+ *
+ * Mai slaba decat `looksManufactured` si folosita in alt scop: nu decide
+ * nimic, doar spune "merita sa ne uitam mai atent". core/nativeAnalysis.ts o
+ * foloseste ca sa porneasca OCR-ul, care e scump si altfel nu s-ar declansa
+ * niciodata pe un panou de pluta plin de bonuri.
+ */
+export function hasManufacturedTag(tags: string[] | undefined): boolean {
+  return !!tags?.some(t => MANUFACTURED_TAGS.has(t.trim().toLowerCase()));
 }
 /** Peste atat, e text cat pe o captura de ecran chiar daca numele nu spune nimic. */
 export const SCREENSHOT_TEXT_COVERAGE = 0.3;
