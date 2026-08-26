@@ -5380,3 +5380,78 @@ input[type="search"] { min-height: 44px; }
   font-weight: 800;
   letter-spacing: .06em;
 }
+
+
+/* ── Comparatorul cu cursor din editor ──
+   Mana sta PESTE canvas, pe toata inaltimea. Zona de apucat e lata de 44px,
+   desi linia e de 2px: pe telefon degetul nu nimereste doi pixeli, iar un
+   cursor pe care nu-l poti apuca e mai rau decat niciunul.
+   Vezi EditPanel.tsx. */
+.edit-split {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  touch-action: none;
+  cursor: ew-resize;
+}
+.edit-split-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / .35), 0 0 12px rgb(0 0 0 / .45);
+}
+.edit-split-grip {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 10px rgb(0 0 0 / .45);
+}
+/* Sagetile din maner, desenate din chenare — fara alt SVG de incarcat. */
+.edit-split-grip::before,
+.edit-split-grip::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 0; height: 0;
+  border: 5px solid transparent;
+  transform: translateY(-50%);
+}
+.edit-split-grip::before { left: 8px; border-right-color: #111; }
+.edit-split-grip::after { right: 8px; border-left-color: #111; }
+
+.edit-split-tag {
+  position: absolute;
+  top: 10px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / .55);
+  color: #fff;
+  font-family: var(--mono);
+  font-size: .58rem;
+  font-weight: 800;
+  letter-spacing: .1em;
+}
+.edit-split-tag.before { left: 10px; }
+.edit-split-tag.after { right: 10px; }
+
+.edit-split-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / .5);
+  color: #fff;
+  font-size: .78rem;
+  font-weight: 700;
+}
+.edit-split-btn.on { background: rgb(var(--accent-rgb) / .85); color: #06100e; }

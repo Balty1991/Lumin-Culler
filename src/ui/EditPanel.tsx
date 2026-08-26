@@ -29,6 +29,8 @@ import {
 } from '../core/selectiveEdit';
 import { DEFAULT_HEAL_RADIUS, MIN_HEAL_RADIUS, MAX_HEAL_RADIUS, type HealStroke } from '../core/spotHeal';
 import { XIcon, UndoIcon, SparkleIcon, LayersIcon, TrashIcon, EyeIcon, SunIcon, ApertureIcon, BarChartIcon, FocusIcon, EditIcon, CropIcon } from './icons';
+import { applyStyle, foldStyleSample, styleDelta, styleIsReady, styleTopKeys } from '../core/editStyle';
+import { readEditStyle, readEditStyleEnabled, writeEditStyle } from '../state/editStyleStore';
 import { t, plural } from '../i18n';
 
 // Doar cele 10 chei numerice cu slider in UI — rotationDeg (auto-indreptare)
@@ -440,6 +442,17 @@ export function EditPanel() {
    * sau nu prin lantul de ajustari.
    */
   const [showingBefore, setShowingBefore] = useState(false);
+  /**
+   * Comparatorul cu cursor: 0 = numai originalul, 1 = numai rezultatul, null =
+   * oprit. Cerinta utilizatorului dupa reclama Aftershoot, unde exact asta se
+   * vede.
+   *
+   * "Tine apasat: originalul" exista deja si ramane — dar el iti arata cele
+   * doua stari PE RAND, iar ochiul nu compara bine doua imagini pe care nu le
+   * vede in acelasi timp. Cu cursorul le vezi lipite, si diferenta sare pe
+   * granita.
+   */
+  const [splitAt, setSplitAt] = useState<number | null>(null);
 
   /**
    * Histograma LIVE a previzualizarii — distincta de `histogram` de mai sus,
@@ -612,6 +625,24 @@ export function EditPanel() {
       canvas.height = outSize.height;
       if (ctx) {
         drawAdjusted(ctx, imgEl, imgEl.naturalWidth, imgEl.naturalHeight, canvas.width, canvas.height, drawn);
+        // Comparatorul: peste rezultatul deja desenat se pune ORIGINALUL, taiat
+        // la cursor. Doua treceri, nu doua canvasuri — asa cele doua jumatati
+        // sunt garantat aceeasi decupare, aceeasi rotatie si aceeasi
+        // dimensiune, deci granita cade exact pe acelasi pixel al scenei.
+        if (splitAt !== null && !cropModeActive) {
+          const cut = Math.round(canvas.width * splitAt);
+          if (cut > 0) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(0, 0, cut, canvas.height);
+            ctx.clip();
+            drawAdjusted(
+              ctx, imgEl, imgEl.naturalWidth, imgEl.naturalHeight, canvas.width, canvas.height,
+              { ...NEUTRAL_ADJUSTMENTS, crop: adjustments.crop, rotationDeg: adjustments.rotationDeg }
+            );
+            ctx.restore();
+          }
+        }
         // Histograma NU se recalculeaza in timpul tragerii: getImageData peste
         // tot canvasul e cea mai scumpa operatie din cadru, iar setarea starii
         // ar re-randa tot panoul. Se pune la zi cand degetul se opreste.
@@ -627,7 +658,41 @@ export function EditPanel() {
       }
     });
     return () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); };
-  }, [imgEl, adjustments, cropModeActive, showingBefore, interacting]);
+  }, [imgEl, adjustments, cropModeActive, showingBefore, interacting, splitAt]);
+
+  /**
+   * INVATAREA STILULUI, la iesirea din editor.
+   *
+   * Momentul e ales: aici stim unde a ajuns omul de fapt. Daca am invata la
+   * fiecare miscare de slider, am invata si drumul — inclusiv valorile prin
+   * care a trecut si de care s-a razgandit.
+   *
+   * Se compara cu ce ar fi facut Auto pe ACEEASI poza, calculat acum, nu cu
+   * zero. Auto rezolva ce cerea poza; diferenta e stilul. Vezi core/editStyle.ts.
+   *
+   * Costa o trecere de computeAutoAdjustments per poza EDITATA — nu per poza
+   * deschisa, si nu la import.
+   */
+  const learnStyleRef = useRef<{ imgEl: HTMLImageElement; adjustments: EditAdjustments } | null>(null);
+  learnStyleRef.current = imgEl && photo && !isNeutral(adjustments) ? { imgEl, adjustments } : null;
+
+  useEffect(() => {
+    // Ruleaza la DEMONTARE (schimbarea pozei sau inchiderea editorului), pe
+    // ultima stare vazuta — de aia trece printr-un ref si nu prin dependinte.
+    return () => {
+      const pending = learnStyleRef.current;
+      if (!pending) return;
+      try {
+        const auto = computeAutoAdjustments(pending.imgEl, pending.imgEl.naturalWidth, pending.imgEl.naturalHeight);
+        const delta = styleDelta(pending.adjustments, auto);
+        writeEditStyle(foldStyleSample(readEditStyle(), delta));
+      } catch {
+        // O imagine dintr-o alta origine "murdareste" canvas-ul si
+        // computeAutoAdjustments nu poate citi pixelii. Editarea omului e deja
+        // salvata; doar nu invatam nimic din ea.
+      }
+    };
+  }, [editingId]);
 
   useEffect(() => {
     if (!photo) return;
@@ -674,10 +739,21 @@ export function EditPanel() {
       colorHarmonyScore: analysis?.colorHarmonyScore,
       goldenHourDetected: analysis?.goldenHourDetected
     });
-    setAdjustments(auto);
+    // STILUL TAU, peste ce a hotarat Auto.
+    //
+    // Auto rezolva ce cerea POZA (era intunecata, avea contralumina, avea un
+    // cast de culoare). Stilul e ce mai adaugi TU peste el, constant, de la o
+    // poza la alta — vezi core/editStyle.ts pentru de ce se invata diferenta
+    // fata de Auto si nu valorile absolute.
+    //
+    // Sub trei poze editate nu se aplica nimic si nici nu se anunta nimic:
+    // profilul se strange in tacere pana are ce spune.
+    const style = readEditStyle();
+    const styled = readEditStyleEnabled() ? applyStyle(auto, style) : auto;
+    setAdjustments(styled);
     pendingPersistRef.current = null;
     if (persistTimerRef.current !== null) { clearTimeout(persistTimerRef.current); persistTimerRef.current = null; }
-    void setEditAdjustments(photo.id, auto);
+    void setEditAdjustments(photo.id, styled);
 
     const applied: string[] = [];
     if (auto.exposure !== 0) applied.push(tr('edit.exposure').toLowerCase());
@@ -691,6 +767,15 @@ export function EditPanel() {
     if ((auto.whites ?? 0) !== 0 || (auto.blacks ?? 0) !== 0) applied.push(tr('edit.auto.levels'));
     if (auto.crop) applied.push(tr('edit.auto.crop'));
     if (auto.rotationDeg) applied.push(tr('edit.auto.straighten'));
+    const styleApplied = readEditStyleEnabled() && styleIsReady(style);
+    if (styleApplied) {
+      // Se spune CE a adus stilul, nu doar ca a fost aplicat: altfel omul vede
+      // slidere miscate pe care nu le-a atins si nu stie de unde vin.
+      applied.push(tr('edit.auto.yourStyle', {
+        list: styleTopKeys(style).map(k => tr(`edit.${k}`).toLowerCase()).join(', '),
+        count: style.samples
+      }));
+    }
     setNotice(applied.length ? tr('edit.auto.applied', { list: applied.join(', ') }) : tr('edit.auto.nothingToApply'));
   };
 
@@ -1086,6 +1171,45 @@ export function EditPanel() {
                 `onPointerLeave`/`onPointerCancel` pe langa `onPointerUp`: degetul
                 poate iesi din buton fara sa se ridice, si atunci poza ar fi ramas
                 blocata pe "inainte". */}
+            {/* Comparatorul cu cursor. Mana lui sta PESTE canvas, pe toata
+                inaltimea, si se trage cu degetul; granita se muta odata cu el.
+                Apare doar cand exista ce compara si nu esti in recadrare, ca si
+                butonul "tine apasat" de mai jos — care ramane, fiindca face
+                altceva: ala arata poza intreaga, asta arata granita. */}
+            {splitAt !== null && !isNeutral(adjustments) && !cropModeActive && (
+              <div
+                className="edit-split"
+                role="slider"
+                tabIndex={0}
+                aria-label={tr('edit.split.aria')}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(splitAt * 100)}
+                onPointerDown={e => {
+                  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+                  const move = (clientX: number) => {
+                    const box = e.currentTarget.getBoundingClientRect();
+                    setSplitAt(Math.max(0, Math.min(1, (clientX - box.left) / box.width)));
+                  };
+                  move(e.clientX);
+                  (e.currentTarget as HTMLElement).onpointermove = ev => move(ev.clientX);
+                }}
+                onPointerUp={e => { (e.currentTarget as HTMLElement).onpointermove = null; }}
+                onPointerCancel={e => { (e.currentTarget as HTMLElement).onpointermove = null; }}
+                onKeyDown={e => {
+                  // Tastatura misca granita in pasi de 5% — un slider pe care nu-l
+                  // poti atinge cu degetul trebuie sa ramana folosibil altfel.
+                  if (e.key === 'ArrowLeft') { e.preventDefault(); setSplitAt(v => Math.max(0, (v ?? 0.5) - 0.05)); }
+                  if (e.key === 'ArrowRight') { e.preventDefault(); setSplitAt(v => Math.min(1, (v ?? 0.5) + 0.05)); }
+                }}
+              >
+                <span className="edit-split-line" style={{ left: `${splitAt * 100}%` }} aria-hidden="true">
+                  <span className="edit-split-grip" />
+                </span>
+                <span className="edit-split-tag before" aria-hidden="true">{tr('edit.split.before')}</span>
+                <span className="edit-split-tag after" aria-hidden="true">{tr('edit.split.after')}</span>
+              </div>
+            )}
             {!isNeutral(adjustments) && !cropModeActive && (
               <button
                 type="button"
@@ -1101,6 +1225,20 @@ export function EditPanel() {
               >
                 <EyeIcon aria-hidden="true" />
                 <span>{showingBefore ? tr('edit.before.showing') : tr('edit.before')}</span>
+              </button>
+            )}
+            {/* Porneste/opreste comparatorul. Sta langa "tine apasat" fiindca
+                raspund la aceeasi intrebare — "ce am schimbat?" — doar ca in
+                doua feluri: unul iti da poza intreaga, celalalt granita. */}
+            {!isNeutral(adjustments) && !cropModeActive && (
+              <button
+                type="button"
+                className={splitAt !== null ? 'edit-split-btn on' : 'edit-split-btn'}
+                aria-pressed={splitAt !== null}
+                onClick={() => setSplitAt(v => (v === null ? 0.5 : null))}
+              >
+                <LayersIcon aria-hidden="true" />
+                <span>{tr('edit.split')}</span>
               </button>
             )}
             {cropDraft && (
