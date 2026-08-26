@@ -1322,6 +1322,8 @@ export const ro = {
   'edit.title': 'Editare de bază',
   'edit.open': 'Editează',
   'edit.auto': 'Auto',
+  'edit.style': 'Stil',
+  'edit.style.title': 'Adaugă claritate, contrast și culoare — peste ce ai deja. Auto repară, Stilul dă caracter.',
   'edit.reset': 'Resetează',
   'edit.applyToMoment': 'Aplică la încă {count} din moment',
   'edit.appliedToMoment': 'Aceleași ajustări, aplicate la {count} cadre din același moment.',

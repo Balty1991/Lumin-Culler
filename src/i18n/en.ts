@@ -1285,6 +1285,8 @@ export const en: Record<TranslationKey, string> = {
   'edit.title': 'Basic edit',
   'edit.open': 'Edit',
   'edit.auto': 'Auto',
+  'edit.style': 'Style',
+  'edit.style.title': 'Adds clarity, contrast and colour — on top of what you already have. Auto fixes, Style gives character.',
   'edit.reset': 'Reset',
   'edit.applyToMoment': 'Apply to {count} more in this moment',
   'edit.appliedToMoment': 'The same adjustments, applied to {count} frames from the same moment.',

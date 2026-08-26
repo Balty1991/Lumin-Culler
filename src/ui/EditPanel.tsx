@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent , type ReactNode } from 'react';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
 import { useStore } from '../state/store';
+import { computeStyleLook, addStyleLook } from '../core/styleLook';
 import { buildMomentStacks, momentOf } from '../core/momentStacks';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import {
@@ -58,6 +59,9 @@ import { t, plural } from '../i18n';
  * LUMINA muta tonurile, CULOAREA muta nuantele, DETALIUL lucreaza la nivel de
  * textura, EFECTELE adauga ceva ce nu era in poza.
  */
+/** Latura pe care se MASOARA poza pentru "Stil" — vezi applyStyleLook. */
+const STYLE_MEASURE_SIDE = 360;
+
 const SLIDER_GROUPS: {
   labelKey: string;
   sliders: { key: Exclude<NumericAdjustmentKey, 'rotationDeg'>; min: number; max: number }[];
@@ -829,6 +833,33 @@ export function EditPanel() {
     })();
   }, [bokehSubject, photo, adjustments.bokeh]);
 
+  /**
+   * "Stil": masoara poza pe o versiune mica si adauga un look peste ce e deja
+   * pus. Aceeasi micsorare la 360px ca la Auto — la rezolutia asta semnalele
+   * (contrast local, saturatie, punctul de negru) nu se schimba vizibil, dar
+   * masuratoarea e de zeci de ori mai ieftina.
+   */
+  const applyStyleLook = () => {
+    if (!imgEl) return;
+    const scale = Math.min(1, STYLE_MEASURE_SIDE / Math.max(imgEl.naturalWidth, imgEl.naturalHeight));
+    const w = Math.max(1, Math.round(imgEl.naturalWidth * scale));
+    const h = Math.max(1, Math.round(imgEl.naturalHeight * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return;
+    ctx.drawImage(imgEl, 0, 0, w, h);
+    let pixels: ImageData;
+    try {
+      pixels = ctx.getImageData(0, 0, w, h);
+    } catch {
+      return; // canvas "murdarit" de o imagine din alta origine
+    }
+    setActivePreset(null);
+    commit(addStyleLook(adjustments, computeStyleLook(pixels)));
+  };
+
   const applyAuto = () => {
     if (!imgEl || !photo) return;
     const auto = computeAutoAdjustments(imgEl, imgEl.naturalWidth, imgEl.naturalHeight, {
@@ -1199,6 +1230,21 @@ export function EditPanel() {
               <>
                 <button className="ghost small-btn edit-auto-btn" onClick={applyAuto} disabled={!imgEl}>
                   <SparkleIcon className="inline-icon" /> {tr('edit.auto')}
+                </button>
+                {/* Fratele lui Auto, si deliberat NU acelasi lucru. Auto repara
+                    ce e gresit; pe o poza de telefon, deja prelucrata de camera,
+                    raspunsul lui corect e adesea "n-am ce repara" — de-aia parea
+                    ca nu face nimic ("functia auto nu aduce mari imbunatatiri").
+                    Stilul nu repara, adauga un look: claritate, contrast, culoare,
+                    negru asezat. Masurat din poza, nu fix. Separat de Auto fiindca
+                    e o alegere de gust, nu o corectie — vezi core/styleLook.ts. */}
+                <button
+                  className="ghost small-btn edit-style-btn"
+                  onClick={applyStyleLook}
+                  disabled={!imgEl}
+                  title={tr('edit.style.title')}
+                >
+                  <LayersIcon className="inline-icon" /> {tr('edit.style')}
                 </button>
                 <button
                   className="ghost icon-btn edit-topbar-reset"

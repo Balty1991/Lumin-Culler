@@ -3726,8 +3726,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .edit-actions .small-btn {
   min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
 }
+/* Trei coloane si pe telefon: de cand exista si "Stil" langa Auto, doua
+   coloane le-ar fi rupt pe doua randuri, cu al treilea buton singur si stramb
+   sub ele. La 412px ies ~124px de coloana — destul si pentru "Resetează". */
+.edit-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 @media (min-width: 761px) {
-  .edit-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .edit-actions-wide { grid-column: auto; }
 }
 
