@@ -17,6 +17,7 @@
  *  - Pure TypeScript, no DOM access → can also run inside a worker if needed.
  */
 
+import { subjectTags } from '../descriptionTags';
 import { db, type AnalysisRecord, type ContextModelRecord, type EmbeddingMemoryRecord, type TagMemoryRecord } from '../db';
 import { affinity, readEmbeddingMemory, recordEmbeddingDecision, resetEmbeddingMemory } from './embeddingMemory';
 import { tagAffinity, readTagMemory, recordTagDecision, resetTagMemory } from './tagMemory';
@@ -877,7 +878,7 @@ export class ContextEngine {
   private memorySignals(analysis: AnalysisRecord): { contentAffinity: number | null; subjectAffinity: number | null } {
     return {
       contentAffinity: analysis.imageEmbedding ? affinity(analysis.imageEmbedding, this.embeddingMemory) : null,
-      subjectAffinity: tagAffinity(analysis.sceneTags, this.tagMemory)
+      subjectAffinity: tagAffinity(subjectTags(analysis), this.tagMemory)
     };
   }
 
@@ -1001,8 +1002,13 @@ export class ContextEngine {
         await recordEmbeddingDecision(input.analysis.imageEmbedding, input.userDecision);
         this.embeddingMemory = await readEmbeddingMemory();
       }
-      if (input.analysis.sceneTags?.length) {
-        await recordTagDecision(input.analysis.sceneTags, input.userDecision);
+      // Etichetele modelului PLUS cuvintele din descriere — vezi
+      // core/descriptionTags.ts. Aceeasi lista si aici, si la predictie: doua
+      // liste calculate separat ar face motorul sa invete pe un set si sa
+      // preziceam pe altul, fara nicio eroare vizibila.
+      const tags = subjectTags(input.analysis);
+      if (tags.length) {
+        await recordTagDecision(tags, input.userDecision);
         this.tagMemory = await readTagMemory();
       }
     } catch (err) {
