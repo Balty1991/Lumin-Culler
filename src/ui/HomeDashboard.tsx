@@ -111,7 +111,22 @@ export function HomeDashboard() {
   }, [photos, collections]);
   const duplicateGroupCount = useMemo(() => selectUnresolvedGroups(photos).length, [photos]);
 
-  if (photos.length === 0) return null;
+  // Bug masurat la auditul de interfata: dupa un tap pe "Biblioteca", prima
+  // miniatura ajungea la 1058px — peste un ecran intreg (915) sub linia de
+  // plutire. Tabul principal spre poze cerea deci o derulare oarba ca sa faca
+  // ce promite, iar ce vedeai imediat era acelasi ecran Acasa, cu tabul
+  // Biblioteca aprins.
+  //
+  // Cauza: `homeGridOpen` ascundea doar sectiunea Review Desk de mai jos, nu si
+  // restul dashboardului — inelul de progres, cardul de sortare rapida, "Vezi
+  // toate fotografiile", chipsurile — care ramaneau stivuite peste grila.
+  //
+  // Dar ele sunt ecranul ACASA. Cand omul a cerut explicit grila, grila e
+  // raspunsul; dashboardul se intoarce la un tap pe "Acasa" (vezi goHome in
+  // BottomNav.tsx). Asta e chiar impartirea pe care o descrie comentariul lui
+  // homeGridOpen din store.ts: Acasa curat, grila la cerere — doar ca pana
+  // acum a doua parte nu se intampla.
+  if (photos.length === 0 || homeGridOpen) return null;
 
   // "de curatat" = tot ce nu e inca decis (pending + review), nu doar 'review'
   // (subsetul ambiguu semnalat de AI) — altfel numarul arata mult mai mic
@@ -259,15 +274,13 @@ export function HomeDashboard() {
                 <span className="review-desk-eyebrow">{tr('reviewDesk.label')}</span>
                 <span className="review-desk-session">{decidedCount}/{photos.length} · {donePercent}%</span>
               </div>
-              {/* Cea mai distructiva actiune din aplicatie aparea de DOUA ori pe
-                  acelasi ecran cand grila e deschisa: aici, in antet, si in
-                  cardul de dedesubt (CullGauge), care o are incadrata in rosu,
-                  langa cifrele pe care le sterge. Ramane una singura, si aia
-                  cea care arata ca ce este. Cu grila inchisa, cardul nu exista,
-                  deci butonul de aici e singurul si ramane. */}
-              {!homeGridOpen && (
-                <button className="review-desk-reset" onClick={() => void confirmClearSession()}>{tr('app.clearSession')}</button>
-              )}
+              {/* Garda `!homeGridOpen` de aici a disparut fiindca nu mai are ce
+                  pazi: dashboardul intreg nu se mai randeaza cand grila e
+                  deschisa (vezi iesirea de sus). Grija de dinainte — ca cea mai
+                  distructiva actiune din aplicatie sa nu apara de doua ori pe
+                  acelasi ecran, si aici, si in CullGauge — se rezolva acum de la
+                  sine: cele doua nu mai coexista niciodata. */}
+              <button className="review-desk-reset" onClick={() => void confirmClearSession()}>{tr('app.clearSession')}</button>
             </div>
             <div className="review-desk-session-rail" aria-label={tr('reviewDesk.sessionSummary')}>
               <span className="review-desk-session-stat is-selected">
