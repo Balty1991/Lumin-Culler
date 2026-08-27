@@ -50,28 +50,54 @@
 -keep class com.luminculler.app.MainActivity { *; }
 # ModelRegistry e un `object` Kotlin chemat din Java ca `ModelRegistry.INSTANCE`
 # (vezi onTrimMemory in MainActivity). Interoperarea aceea trece prin campul
-# static INSTANCE, exact genul de lucru pe care optimizarile de singleton il
-# rescriu — si e printre suspectii pentru inchiderea fortata la pornire.
-# Se pastreaza explicit, indiferent ce mai face R8.
+# static INSTANCE. Scrisesem aici ca ar fi suspect pentru inchiderea fortata —
+# nu era, cauza aceea s-a dovedit a fi reciclarea unui bitmap din cache. Regula
+# ramane pentru ce chiar acopera: un camp static atins doar din Java, pe care
+# R8 nu are de unde sa-l vada legat de restul.
 -keep class com.luminculler.app.ModelRegistry { *; }
 -keep class com.luminculler.app.ReleasableModel { *; }
 
-# Cordova, cat timp puntea capacitor-cordova-android-plugins e in build.
--keep class org.apache.cordova.** { *; }
+# ─────────────────────────────────────────────────────────────────────────────
+# Ce s-a scos de aici, si de ce. Masurat, nu presupus.
+#
+# Raportul R8 al unui release real (mapping.txt, 11441 de clase) arata ca doar
+# 20% dintre clase ajungeau redenumite. Cauza nu era R8, ci regulile astea:
+# 9156 de clase ramaneau neatinse, si 8961 dintre ele erau tinute de `-keep`-uri
+# scrise chiar aici. Pragul de calitate Play cere optimizare, deci regulile mele
+# submineaza fix motivul pentru care am pornit R8.
+#
+# Am deschis apoi `configuration.txt` din acelasi raport, care listeaza TOATE
+# regulile puse cap la cap, cu fisierul din care vine fiecare. De acolo se vede
+# ce trimit bibliotecile singure, in AAR-urile lor:
+#
+#   ML Kit (face-detection, text-recognition, genai-image-description,
+#   vision-internal-vkp, common) — trimit reguli tintite: `native <methods>`,
+#   campurile claselor de protobuf, si tot ce e adnotat @UsedByReflection.
+#   Exact ce aveam eu, doar ca la obiect. `-keep class com.google.mlkit.**` si
+#   `com.google.android.gms.internal.mlkit_**` tineau 7293 de clase degeaba.
+#
+#   Play Billing — isi trimite propriile reguli, inclusiv `-keepnames` pentru
+#   cele doua ProxyBillingActivity, singurele care chiar au nevoie. Regula mea
+#   tinea 271 de clase peste ele.
+#
+#   Capacitor — trimite `-keep public class * extends org.apache.cordova.*`,
+#   deci puntea Cordova e deja acoperita. Regula mea mai tinea 96 de clase.
+#
+# Ce a RAMAS, si de ce nu se scoate: MediaPipe si protobuf-ul lui NU apar deloc
+# in lista de mai sus — nu trimit nicio regula de pastrare. Iar MediaPipe cheama
+# inapoi in Java din codul nativ, pe nume. Fara `-keep` aici, legarea la .so
+# pica in executie, si numai in release. 1221 de clase tinute pentru asta e un
+# pret pe care il platesc.
+# ─────────────────────────────────────────────────────────────────────────────
 
-# ML Kit si MediaPipe isi incarca modelele si delegatii prin reflexie si JNI.
-# Numele native trebuie sa ramana neschimbate, altfel legarea la .so pica in
-# executie — si numai in release, unde e cel mai greu de prins.
--keep class com.google.mlkit.** { *; }
--keep class com.google.android.gms.internal.mlkit_** { *; }
+# MediaPipe si protobuf: JNI cheama inapoi pe nume, si nu vin cu reguli proprii.
 -keep class com.google.mediapipe.** { *; }
 -keep class com.google.protobuf.** { *; }
+
+# Metodele native, oriunde ar fi: numele lor E contractul cu .so-ul.
 -keepclasseswithmembernames class * {
     native <methods>;
 }
-
-# Facturarea Google Play: raspunsurile vin deserializate prin reflexie.
--keep class com.android.billingclient.** { *; }
 
 # Kotlin: metadatele si obiectele companion, folosite tot prin reflexie.
 -keep class kotlin.Metadata { *; }
