@@ -48,6 +48,13 @@
 # MainActivity si apelate din JS dupa numele din @CapacitorPlugin.
 -keep class com.luminculler.app.plugins.** { *; }
 -keep class com.luminculler.app.MainActivity { *; }
+# ModelRegistry e un `object` Kotlin chemat din Java ca `ModelRegistry.INSTANCE`
+# (vezi onTrimMemory in MainActivity). Interoperarea aceea trece prin campul
+# static INSTANCE, exact genul de lucru pe care optimizarile de singleton il
+# rescriu — si e printre suspectii pentru inchiderea fortata la pornire.
+# Se pastreaza explicit, indiferent ce mai face R8.
+-keep class com.luminculler.app.ModelRegistry { *; }
+-keep class com.luminculler.app.ReleasableModel { *; }
 
 # Cordova, cat timp puntea capacitor-cordova-android-plugins e in build.
 -keep class org.apache.cordova.** { *; }
