@@ -74,8 +74,30 @@
 -keepattributes SourceFile,LineNumberTable,*Annotation*,Signature,Exceptions
 -renamesourcefileattribute SourceFile
 
-# R8 se plange de referinte lipsa din dependinte optionale pe care nu le
-# folosim; nu sunt erori, doar cod pe care nimeni nu-l cheama.
+# ─────────────────────────────────────────────────────────────────────────────
+# CLASE LA CARE SE REFERA CINEVA, DAR CARE NU EXISTA IN PACHET
+#
+# R8 opreste buildul cand gaseste o referinta catre o clasa absenta — pe drept,
+# fiindca de obicei inseamna o dependinta uitata. Aici insa sunt referinte care
+# n-au cum sa fie apelate, iar `-keep` nu le rezolva: `-keep` pastreaza ce
+# EXISTA, si astea chiar lipsesc din artefact.
+#
+# Fiecare linie de mai jos vine dintr-o eroare reala de build, nu dintr-o lista
+# copiata de undeva:
+#
+#  - com.google.auto.value.extension.memoized.Memoized — o adnotare AutoValue,
+#    procesata la COMPILARE si nepastrata in bytecode. MPImageProperties.hashCode()
+#    o poarta ca urma. Nu exista la rulare, la nimeni.
+#  - com.google.mediapipe.proto.CalculatorProfileProto / GraphTemplateProto —
+#    protobuf-urile de profilare si de sabloane de graf. Nu vin in tasks-vision,
+#    si sunt atinse doar de GraphProfiler.getCalculatorProfiles() si
+#    Graph.loadBinaryGraphTemplate(), pe care aplicatia asta nu le cheama
+#    niciodata: noi folosim doar ImageSegmenter/FaceLandmarker/PoseLandmarker.
+#
+# Restul (errorprone, javax.annotation, checkerframework) sunt adnotari de
+# analiza statica, tot compile-time.
+-dontwarn com.google.auto.value.**
+-dontwarn com.google.mediapipe.proto.**
 -dontwarn com.google.errorprone.annotations.**
 -dontwarn javax.annotation.**
 -dontwarn org.checkerframework.**

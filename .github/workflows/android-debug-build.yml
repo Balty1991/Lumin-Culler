@@ -176,6 +176,20 @@ jobs:
       - name: Build debug APK (nesemnat)
         working-directory: android
         run: ./gradlew assembleDebug -PminifyDebug=${{ inputs.minify == true }}
+      # Cand R8 pica pe clase lipsa, scrie EXACT regulile care i-ar trebui in
+      # missing_rules.txt. Fara pasul asta ele raman pe runner si dispar odata
+      # cu el, iar reparatia devine ghicit din log — s-a intamplat exact asa
+      # prima data. Se incarca doar la esec, deci nu ingreuneaza nimic in rest.
+      - name: Regulile pe care le cere R8 (doar la esec)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r8-missing-rules
+          path: |
+            android/app/build/outputs/mapping/**/missing_rules.txt
+            android/app/build/outputs/mapping/**/configuration.txt
+          if-no-files-found: ignore
+          retention-days: 7
       # Marimea se raporteaza IN rezumatul rularii, nu doar in fisier: altfel
       # singurul mod de a afla cat s-a mai umflat APK-ul era sa-l descarci —
       # exact lucrul care doare pe o legatura mobila. Cu asta se vede din
