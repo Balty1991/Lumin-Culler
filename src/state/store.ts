@@ -91,6 +91,7 @@ import { buildPersonProfilesExport, personProfilesFileName, parsePersonProfilesF
 import { readStoredLocale, writeStoredLocale, applyLocale, t, plural, type Locale } from '../i18n';
 import { translateSceneTag, normalizeForSearch } from '../core/sceneTagLabels';
 import { relatedSceneTags } from '../core/searchSynonyms';
+import { cuvinteDinText, seGasesteAproape } from '../core/searchFuzzy';
 import { buildBackup, backupFileName, parseBackupFile, restoreBackup } from '../core/backupService';
 import { writeLastBackupAt } from './backupReminder';
 import { buildClientGalleryHtml } from '../core/export/clientGallery';
@@ -1384,7 +1385,43 @@ function matchesToken(p: PhotoView, normalizedQuery: string, locale: Locale): bo
     const place = cachedPlaceName(p.gpsLatitude, p.gpsLongitude, locale);
     if (place && normalizeForSearch(place).includes(normalizedQuery)) return true;
   }
-  return false;
+  // Ultima plasa, incercata DOAR dupa ce tot ce e de sus a dat gres: acelasi
+  // cuvant, scris cu o singura greseala. Vezi core/searchFuzzy.ts — acopera
+  // deopotriva tastarea ("nunat") si cealalta forma a cuvantului
+  // ("copii"/"copil"), fiindca in scris amandoua inseamna aceeasi diferenta.
+  //
+  // Ordinea conteaza: o potrivire exacta nu trebuie sa coste niciodata
+  // parcurgerea de mai jos, iar o cautare care nu gaseste nimic e singurul caz
+  // in care merita platita.
+  return seGasesteAproape(normalizedQuery, cuvinteleCautabile(p, locale));
+}
+
+/**
+ * Cuvintele din care e facuta o poza, pentru potrivirea aproximativa.
+ *
+ * Aceleasi campuri ca mai sus, puse cap la cap o singura data. Rezultatul se
+ * tine minte pe poza: la o cautare, functia asta ar fi chemata pentru fiecare
+ * cuvant al intrebarii, pe fiecare poza din biblioteca, la fiecare apasare de
+ * tasta — iar campurile nu se schimba intre ele.
+ */
+const cuvinteCache = new WeakMap<PhotoView, { locale: Locale; cuvinte: Set<string> }>();
+
+function cuvinteleCautabile(p: PhotoView, locale: Locale): Set<string> {
+  const pastrat = cuvinteCache.get(p);
+  if (pastrat && pastrat.locale === locale) return pastrat.cuvinte;
+  const bucati = [
+    p.fileName,
+    ...p.personNames,
+    p.iptcCaption ?? '',
+    p.aiDescription ?? '',
+    p.decisionNote ?? '',
+    ...(p.iptcKeywords ?? []),
+    p.project ?? '',
+    ...(p.sceneTags ?? []).map(tag => translateSceneTag(tag, locale))
+  ];
+  const cuvinte = cuvinteDinText(normalizeForSearch(bucati.join(' ')));
+  cuvinteCache.set(p, { locale, cuvinte });
+  return cuvinte;
 }
 
 /**

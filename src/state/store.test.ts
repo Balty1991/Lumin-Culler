@@ -452,6 +452,57 @@ describe('secondaryFiltered', () => {
 // Pana acum tot ce se scria mergea ca un SINGUR sir catre fiecare camp, deci
 // orice cautare de doua cuvinte care atingeau doua campuri diferite intorcea
 // zero rezultate — desi aplicatia stia amandoua lucrurile despre acea poza.
+describe('cautare cu o greseala de scris', () => {
+  function pregateste(photos: PhotoView[], searchText: string) {
+    useStore.setState({
+      photos, searchText, filter: 'all', personFilter: null, colorLabelFilter: null,
+      sceneTagFilter: null, cameraFilter: null, projectFilter: null, collectionFilter: null,
+      dateFrom: null, dateTo: null, minRating: 0
+    });
+    return useStore.getState().filtered().map(p => p.id);
+  }
+
+  it('gaseste poza cand cuvantul e tastat gresit', () => {
+    const photos = [
+      { ...makePhoto(0), project: 'nunta' },
+      { ...makePhoto(1), project: 'botez' }
+    ] as PhotoView[];
+    expect(pregateste(photos, 'nunat')).toEqual(['p0']);
+  });
+
+  it('gaseste cealalta forma a cuvantului', () => {
+    const photos = [
+      { ...makePhoto(0), iptcKeywords: ['copil'] },
+      { ...makePhoto(1), iptcKeywords: ['pisica'] }
+    ] as PhotoView[];
+    expect(pregateste(photos, 'copii')).toEqual(['p0']);
+  });
+
+  it('nu se declanseaza cand potrivirea exacta a reusit deja', () => {
+    const photos = [
+      { ...makePhoto(0), project: 'nunta' },
+      { ...makePhoto(1), project: 'nunti' }
+    ] as PhotoView[];
+    // "nunta" se potriveste exact pe p0, dar p1 e la o litera distanta — si el
+    // trebuie sa apara, fiindca plasa se aplica pe fiecare poza in parte.
+    expect(pregateste(photos, 'nunta').sort()).toEqual(['p0', 'p1']);
+  });
+
+  it('nu inventeaza rezultate pentru un cuvant care chiar nu exista', () => {
+    const photos = [
+      { ...makePhoto(0), project: 'nunta' }
+    ] as PhotoView[];
+    expect(pregateste(photos, 'schior')).toEqual([]);
+  });
+
+  it('nu se declanseaza pe cuvinte scurte, unde o litera schimba sensul', () => {
+    const photos = [
+      { ...makePhoto(0), project: 'cana' }
+    ] as PhotoView[];
+    expect(pregateste(photos, 'casa')).toEqual([]);
+  });
+});
+
 describe('cautare pe mai multe cuvinte', () => {
   function pregateste(photos: PhotoView[], searchText: string) {
     useStore.setState({
