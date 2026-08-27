@@ -3,6 +3,7 @@ package com.luminculler.app.plugins
 import android.graphics.Bitmap
 import com.getcapacitor.JSArray
 import com.getcapacitor.JSObject
+import com.luminculler.app.ReleasableModel
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
@@ -27,7 +28,11 @@ import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 @CapacitorPlugin(name = "TextRecognition")
 class TextRecognitionPlugin : Plugin() {
 
-    private val recognizer by lazy { TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) }
+    /** Vezi ModelRegistry. Detectoarele ML Kit sunt ASINCRONE, deci
+     *  eliberarea se leaga de terminarea inferentei (addOnCompleteListener),
+     *  nu de intoarcerea functiei: inchiderea unui detector in timp ce
+     *  ruleaza pe alt fir e un crash, nu o exceptie prinsa. */
+    private val recognizerHolder = ReleasableModel({ TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) }, { it.close() })
 
     @PluginMethod
     fun detectText(call: PluginCall) {
@@ -36,7 +41,8 @@ class TextRecognitionPlugin : Plugin() {
         val bitmap: Bitmap = resolveInputBitmap(context, call) ?: return
 
         val image = InputImage.fromBitmap(bitmap, 0)
-        recognizer.process(image)
+        recognizerHolder.beginUse().process(image)
+            .addOnCompleteListener { recognizerHolder.endUse() }
             .addOnSuccessListener { text ->
                 val blocksArray = JSArray()
                 val frameArea = (bitmap.width * bitmap.height).toDouble()

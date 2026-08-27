@@ -3,6 +3,7 @@ package com.luminculler.app.plugins
 import android.graphics.Bitmap
 import com.getcapacitor.JSArray
 import com.getcapacitor.JSObject
+import com.luminculler.app.ReleasableModel
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
@@ -31,14 +32,17 @@ private const val MODEL_FILE = "mobilenet_v3_small.tflite"
 @CapacitorPlugin(name = "ImageEmbedder")
 class ImageEmbedderPlugin : Plugin() {
 
-    private val imageEmbedder: ImageEmbedder by lazy {
+    /** Vezi ModelRegistry: `by lazy` nu se poate reseta, iar modelul asta
+     *  tinea greutatile in memorie nativa si cat timp aplicatia statea in
+     *  fundal — exact ce masoara Play ca Anonymous RSS. */
+    private val imageEmbedderHolder = ReleasableModel<ImageEmbedder>({
         val baseOptions = BaseOptions.builder().setModelAssetPath(MODEL_FILE).build()
         val options = ImageEmbedder.ImageEmbedderOptions.builder()
             .setBaseOptions(baseOptions)
             .setRunningMode(RunningMode.IMAGE)
             .build()
         ImageEmbedder.createFromOptions(context, options)
-    }
+    }, { it.close() })
 
     @PluginMethod
     fun embedImage(call: PluginCall) {
@@ -55,7 +59,7 @@ class ImageEmbedderPlugin : Plugin() {
 
     private fun embed(bitmap: Bitmap): JSObject {
         val mpImage = BitmapImageBuilder(bitmap).build()
-        val embedding = imageEmbedder.embed(mpImage).embeddingResult().embeddings().first()
+        val embedding = imageEmbedderHolder.use { it.embed(mpImage) }.embeddingResult().embeddings().first()
 
         val embeddingArray = JSArray()
         for (value in embedding.floatEmbedding()) embeddingArray.put(value.toDouble())

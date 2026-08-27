@@ -2,6 +2,7 @@ package com.luminculler.app.plugins
 
 import android.graphics.Bitmap
 import com.getcapacitor.JSObject
+import com.luminculler.app.ReleasableModel
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
@@ -45,7 +46,10 @@ private const val PERSON_CONFIDENCE = 0.5f
 @CapacitorPlugin(name = "Segmentation")
 class SegmentationPlugin : Plugin() {
 
-    private val imageSegmenter: ImageSegmenter by lazy {
+    /** Vezi ModelRegistry: `by lazy` nu se poate reseta, iar modelul asta
+     *  tinea greutatile in memorie nativa si cat timp aplicatia statea in
+     *  fundal — exact ce masoara Play ca Anonymous RSS. */
+    private val imageSegmenterHolder = ReleasableModel<ImageSegmenter>({
         val baseOptions = BaseOptions.builder().setModelAssetPath(MODEL_FILE).build()
         val options = ImageSegmenter.ImageSegmenterOptions.builder()
             .setBaseOptions(baseOptions)
@@ -68,7 +72,7 @@ class SegmentationPlugin : Plugin() {
             .setRunningMode(RunningMode.IMAGE)
             .build()
         ImageSegmenter.createFromOptions(context, options)
-    }
+    }, { it.close() })
 
     @PluginMethod
     fun segmentSubject(call: PluginCall) {
@@ -104,7 +108,7 @@ class SegmentationPlugin : Plugin() {
 
     private fun segment(bitmap: Bitmap): JSObject {
         val mpImage = BitmapImageBuilder(bitmap).build()
-        val result = imageSegmenter.segment(mpImage)
+        val result = imageSegmenterHolder.use { it.segment(mpImage) }
         val out = JSObject()
 
         val maskImage = firstConfidenceMask(result)
@@ -151,7 +155,7 @@ class SegmentationPlugin : Plugin() {
         val bitmap: Bitmap = resolveInputBitmap(context, call) ?: return
         try {
             val mpImage = BitmapImageBuilder(bitmap).build()
-            val result = imageSegmenter.segment(mpImage)
+            val result = imageSegmenterHolder.use { it.segment(mpImage) }
             val maskImage = firstConfidenceMask(result)
             if (maskImage == null) {
                 call.reject("No mask returned for this image")

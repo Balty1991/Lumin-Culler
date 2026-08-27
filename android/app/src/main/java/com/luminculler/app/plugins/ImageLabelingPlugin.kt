@@ -3,6 +3,7 @@ package com.luminculler.app.plugins
 import android.graphics.Bitmap
 import com.getcapacitor.JSArray
 import com.getcapacitor.JSObject
+import com.luminculler.app.ReleasableModel
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
@@ -57,11 +58,15 @@ private const val MAX_RETURNED = 8 // aceeasi valoare ca object.maxDetected din 
 @CapacitorPlugin(name = "ImageLabeling")
 class ImageLabelingPlugin : Plugin() {
 
-    private val labeler by lazy {
+    /** Vezi ModelRegistry. Detectoarele ML Kit sunt ASINCRONE, deci
+     *  eliberarea se leaga de terminarea inferentei (addOnCompleteListener),
+     *  nu de intoarcerea functiei: inchiderea unui detector in timp ce
+     *  ruleaza pe alt fir e un crash, nu o exceptie prinsa. */
+    private val labelerHolder = ReleasableModel({
         ImageLabeling.getClient(
             ImageLabelerOptions.Builder().setConfidenceThreshold(MIN_CONFIDENCE).build()
         )
-    }
+    }, { it.close() })
 
     @PluginMethod
     fun labelImage(call: PluginCall) {
@@ -70,7 +75,8 @@ class ImageLabelingPlugin : Plugin() {
         val bitmap: Bitmap = resolveInputBitmap(context, call) ?: return
 
         val image = InputImage.fromBitmap(bitmap, 0)
-        labeler.process(image)
+        labelerHolder.beginUse().process(image)
+            .addOnCompleteListener { labelerHolder.endUse() }
             .addOnSuccessListener { labels ->
                 val labelsArray = JSArray()
                 labels

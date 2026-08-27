@@ -3,6 +3,7 @@ package com.luminculler.app.plugins
 import android.graphics.Bitmap
 import com.getcapacitor.JSArray
 import com.getcapacitor.JSObject
+import com.luminculler.app.ReleasableModel
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
@@ -36,12 +37,16 @@ private const val HORIZON_MAX_SIDE = 360
 @CapacitorPlugin(name = "ImageAnalysis")
 class ImageAnalysisPlugin : Plugin() {
 
-    private val detector by lazy {
+    /** Vezi ModelRegistry. Detectoarele ML Kit sunt ASINCRONE, deci
+     *  eliberarea se leaga de terminarea inferentei (addOnCompleteListener),
+     *  nu de intoarcerea functiei: inchiderea unui detector in timp ce
+     *  ruleaza pe alt fir e un crash, nu o exceptie prinsa. */
+    private val detectorHolder = ReleasableModel({
         val options = FaceDetectorOptions.Builder()
             .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
             .build()
         FaceDetection.getClient(options)
-    }
+    }, { it.close() })
 
     @PluginMethod
     fun analyze(call: PluginCall) {
@@ -50,7 +55,8 @@ class ImageAnalysisPlugin : Plugin() {
         val bitmap: Bitmap = resolveInputBitmap(context, call) ?: return
 
         val image = InputImage.fromBitmap(bitmap, 0)
-        detector.process(image)
+        detectorHolder.beginUse().process(image)
+            .addOnCompleteListener { detectorHolder.endUse() }
             .addOnSuccessListener { mlFaces ->
                 try {
                     val faceBoxes = mlFaces.map { f ->

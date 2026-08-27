@@ -24,8 +24,19 @@
 import { clearPreviewUrlCache } from './previewUrlCache';
 import { clearThumbUrlCache } from './thumbUrlCache';
 
-/** Cat sta aplicatia ascunsa inainte sa merite golit cache-ul. */
-export const BACKGROUND_RELEASE_DELAY_MS = 12_000;
+/**
+ * Cat sta aplicatia ascunsa inainte sa merite golit cache-ul.
+ *
+ * Scazut de la 12s la 4s dupa citirea cerintei Play: esantionarea memoriei se
+ * face LA SCURT TIMP dupa schimbarea de stare, deci o asteptare lunga inseamna
+ * ca ne masoara exact inainte sa eliberam. Patru secunde tot acopera comutarea
+ * scurta la alta aplicatie (motivul pentru care exista intarzierea), fara sa
+ * ratam fereastra de masurare.
+ *
+ * Pe Android drumul asta e oricum doar rezerva: acolo soseste `luminTrimMemory`
+ * de la sistem (vezi onTrimMemory in MainActivity) si se elibereaza IMEDIAT.
+ */
+export const BACKGROUND_RELEASE_DELAY_MS = 4_000;
 
 let timer: ReturnType<typeof setTimeout> | null = null;
 
@@ -54,12 +65,24 @@ export function resetBackgroundMemory(): void {
   }
 }
 
+function elibereaza(): void {
+  clearPreviewUrlCache();
+  clearThumbUrlCache();
+}
+
 export function watchBackgroundMemory(): void {
   if (typeof document === 'undefined') return;
+
+  // Semnalul BUN, pe Android: sistemul insusi spune ca vrea memoria inapoi, iar
+  // Play masoara fix atunci. Fara intarziere — aici nu mai e vorba de comutari
+  // scurte, aplicatia chiar a iesit de pe ecran.
+  window.addEventListener('luminTrimMemory', () => {
+    resetBackgroundMemory();
+    elibereaza();
+  });
+
+  // Rezerva, si singurul drum pe web: nu exista onTrimMemory in browser.
   document.addEventListener('visibilitychange', () => {
-    onVisibilityChange(document.hidden, () => {
-      clearPreviewUrlCache();
-      clearThumbUrlCache();
-    });
+    onVisibilityChange(document.hidden, elibereaza);
   });
 }

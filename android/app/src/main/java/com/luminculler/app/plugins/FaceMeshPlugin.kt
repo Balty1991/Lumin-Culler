@@ -3,6 +3,7 @@ package com.luminculler.app.plugins
 import android.graphics.Bitmap
 import com.getcapacitor.JSArray
 import com.getcapacitor.JSObject
+import com.luminculler.app.ReleasableModel
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
@@ -27,7 +28,10 @@ private const val MAX_FACES = 15
 @CapacitorPlugin(name = "FaceMesh")
 class FaceMeshPlugin : Plugin() {
 
-    private val faceLandmarker: FaceLandmarker by lazy {
+    /** Vezi ModelRegistry: `by lazy` nu se poate reseta, iar modelul asta
+     *  tinea greutatile in memorie nativa si cat timp aplicatia statea in
+     *  fundal — exact ce masoara Play ca Anonymous RSS. */
+    private val faceLandmarkerHolder = ReleasableModel<FaceLandmarker>({
         val baseOptions = BaseOptions.builder().setModelAssetPath(MODEL_FILE).build()
         val options = FaceLandmarker.FaceLandmarkerOptions.builder()
             .setBaseOptions(baseOptions)
@@ -37,7 +41,7 @@ class FaceMeshPlugin : Plugin() {
             .setRunningMode(RunningMode.IMAGE)
             .build()
         FaceLandmarker.createFromOptions(context, options)
-    }
+    }, { it.close() })
 
     @PluginMethod
     fun analyzeFaceMesh(call: PluginCall) {
@@ -54,7 +58,7 @@ class FaceMeshPlugin : Plugin() {
 
     private fun analyze(bitmap: Bitmap): JSObject {
         val mpImage = BitmapImageBuilder(bitmap).build()
-        val result = faceLandmarker.detect(mpImage)
+        val result = faceLandmarkerHolder.use { it.detect(mpImage) }
         val facesArray = JSArray()
         if (result == null) {
             val empty = JSObject()

@@ -3,6 +3,7 @@ package com.luminculler.app.plugins
 import android.graphics.Bitmap
 import com.getcapacitor.JSArray
 import com.getcapacitor.JSObject
+import com.luminculler.app.ReleasableModel
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
@@ -29,7 +30,10 @@ private const val MAX_POSES = 8 // poze de grup — acelasi ordin de marime ca M
 @CapacitorPlugin(name = "PoseDetection")
 class PoseDetectionPlugin : Plugin() {
 
-    private val poseLandmarker: PoseLandmarker by lazy {
+    /** Vezi ModelRegistry: `by lazy` nu se poate reseta, iar modelul asta
+     *  tinea greutatile in memorie nativa si cat timp aplicatia statea in
+     *  fundal — exact ce masoara Play ca Anonymous RSS. */
+    private val poseLandmarkerHolder = ReleasableModel<PoseLandmarker>({
         val baseOptions = BaseOptions.builder().setModelAssetPath(MODEL_FILE).build()
         val options = PoseLandmarker.PoseLandmarkerOptions.builder()
             .setBaseOptions(baseOptions)
@@ -37,7 +41,7 @@ class PoseDetectionPlugin : Plugin() {
             .setRunningMode(RunningMode.IMAGE)
             .build()
         PoseLandmarker.createFromOptions(context, options)
-    }
+    }, { it.close() })
 
     @PluginMethod
     fun detectPose(call: PluginCall) {
@@ -54,7 +58,7 @@ class PoseDetectionPlugin : Plugin() {
 
     private fun detect(bitmap: Bitmap): JSObject {
         val mpImage = BitmapImageBuilder(bitmap).build()
-        val result = poseLandmarker.detect(mpImage)
+        val result = poseLandmarkerHolder.use { it.detect(mpImage) }
         val peopleArray = JSArray()
 
         result?.landmarks()?.forEach { personLandmarks ->

@@ -24,6 +24,44 @@ import com.luminculler.app.plugins.NotificationsPlugin;
 import com.luminculler.app.plugins.BillingPlugin;
 
 public class MainActivity extends BridgeActivity {
+
+    /**
+     * Cererea explicita din cerintele de calitate Google Play (praguri de
+     * memorie, februarie 2027): aplicatia trebuie sa raspunda la onTrimMemory
+     * eliberand memoria tinuta, iar esantionarea se face LA SCURT TIMP dupa o
+     * schimbare de stare — deci nu e loc de asteptat.
+     *
+     * Ce se elibereaza aici sunt modelele native: noua detectoare
+     * (FaceLandmarker, PoseLandmarker, ImageSegmenter, ImageEmbedder si patru
+     * ML Kit) care isi tineau greutatile in memorie nativa de la prima folosire
+     * pana la oprirea procesului — inclusiv cu ecranul stins, ore intregi. Exact
+     * ce se numara ca "Anonymous RSS + Swap". Se recreeaza singure la
+     * urmatoarea folosire; costa o reincarcare, o data.
+     *
+     * TRIM_MEMORY_UI_HIDDEN e pragul de la care aplicatia nu mai e vizibila.
+     * Sub el (RUNNING_MODERATE si celelalte) aplicatia e pe ecran, si a inchide
+     * modelele fix cand omul le foloseste ar fi mai rau decat memoria pe care o
+     * tin. ModelRegistry sare oricum peste un model aflat in lucru.
+     */
+    @Override
+    public void onTrimMemory(int level) {
+        super.onTrimMemory(level);
+        if (level >= TRIM_MEMORY_UI_HIDDEN) {
+            int ocupate = ModelRegistry.INSTANCE.releaseAll();
+            if (ocupate > 0) {
+                Log.i("LuminCuller", "onTrimMemory: " + ocupate + " modele erau in lucru, raman incarcate");
+            }
+            // Si partea de JS: miniaturile si previzualizarile tinute in cache au
+            // in spate imagini DECODATE, care se numara la pragul de memorie
+            // bitmap. Se anunta aici, nu se asteapta `visibilitychange`, tocmai
+            // fiindca momentul asta e cel in care Play masoara.
+            // Vezi core/backgroundMemory.ts.
+            if (getBridge() != null) {
+                getBridge().triggerWindowJSEvent("luminTrimMemory");
+            }
+        }
+    }
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         // Plugin-urile native LOCALE (nu pachete npm separate, ca @capacitor/filesystem)

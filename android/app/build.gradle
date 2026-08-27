@@ -85,6 +85,12 @@ android {
         debug {
             def minificaDebug = project.hasProperty('minifyDebug') && project.property('minifyDebug') == 'true'
             minifyEnabled minificaDebug
+            // shrinkResources ODATA cu minifyEnabled, ca testul sa acopere EXACT
+            // ce face release-ul. Fara el, APK-ul de proba trecea prin R8 dar nu
+            // si prin curatarea de resurse — iar aceea poate scoate o resursa
+            // ceruta dinamic (prin nume), care s-ar fi vazut abia in AAB-ul din
+            // magazin. Un test care nu acopera aceeasi cale nu e o validare.
+            shrinkResources minificaDebug
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }

@@ -3,6 +3,7 @@ package com.luminculler.app.plugins
 import android.graphics.Bitmap
 import com.getcapacitor.JSArray
 import com.getcapacitor.JSObject
+import com.luminculler.app.ReleasableModel
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
@@ -28,7 +29,11 @@ import com.google.mlkit.vision.face.FaceDetectorOptions
 @CapacitorPlugin(name = "FaceDetection")
 class FaceDetectionPlugin : Plugin() {
 
-    private val detector by lazy {
+    /** Vezi ModelRegistry. Detectoarele ML Kit sunt ASINCRONE, deci
+     *  eliberarea se leaga de terminarea inferentei (addOnCompleteListener),
+     *  nu de intoarcerea functiei: inchiderea unui detector in timp ce
+     *  ruleaza pe alt fir e un crash, nu o exceptie prinsa. */
+    private val detectorHolder = ReleasableModel({
         val options = FaceDetectorOptions.Builder()
             .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
             // necesar ca sa primim smilingProbability / eyeOpenProbability — fara asta,
@@ -36,7 +41,7 @@ class FaceDetectionPlugin : Plugin() {
             .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_ALL)
             .build()
         FaceDetection.getClient(options)
-    }
+    }, { it.close() })
 
     @PluginMethod
     fun detectFaces(call: PluginCall) {
@@ -45,7 +50,8 @@ class FaceDetectionPlugin : Plugin() {
         val bitmap: Bitmap = resolveInputBitmap(context, call) ?: return
 
         val image = InputImage.fromBitmap(bitmap, /* rotationDegrees = */ 0)
-        detector.process(image)
+        detectorHolder.beginUse().process(image)
+            .addOnCompleteListener { detectorHolder.endUse() }
             .addOnSuccessListener { faces ->
                 val result = JSObject()
                 val facesArray = JSArray()

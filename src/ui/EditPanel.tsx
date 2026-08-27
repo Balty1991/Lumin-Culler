@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerE
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
 import { useStore } from '../state/store';
 import { computeStyleLook, addStyleLook } from '../core/styleLook';
+import { bakeEdits } from '../core/bakeEdits';
 import { buildMomentStacks, momentOf } from '../core/momentStacks';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import {
@@ -31,7 +32,7 @@ import {
   MIN_CONTROL_RADIUS, MAX_CONTROL_RADIUS, type ControlPoint
 } from '../core/selectiveEdit';
 import { DEFAULT_HEAL_RADIUS, MIN_HEAL_RADIUS, MAX_HEAL_RADIUS, type HealStroke } from '../core/spotHeal';
-import { XIcon, UndoIcon, SparkleIcon, LayersIcon, TrashIcon, SunIcon, ApertureIcon, BarChartIcon, FocusIcon, EditIcon, CropIcon } from './icons';
+import { XIcon, UndoIcon, SparkleIcon, LayersIcon, TrashIcon, SunIcon, ApertureIcon, BarChartIcon, FocusIcon, EditIcon, CropIcon , CheckIcon } from './icons';
 import { applyStyle, foldStyleSample, styleDelta, styleIsReady, styleTopKeys } from '../core/editStyle';
 import { readEditStyle, readEditStyleEnabled, writeEditStyle } from '../state/editStyleStore';
 import { isNativeSegmentationAvailable, segmentPersonMask } from '../core/nativeSegmentation';
@@ -882,6 +883,33 @@ export function EditPanel() {
     commit(addStyleLook(adjustments, computeStyleLook(pixels)));
   };
 
+  const [baking, setBaking] = useState(false);
+  /**
+   * Coacerea are nevoie de masca de bokeh, care traieste doar aici — de-aia se
+   * trimite separat. Dupa ea, ajustarile locale se duc la neutru odata cu cele
+   * din baza: imaginea de pe ecran e deja cea coapta, si aplicate din nou peste
+   * ea s-ar dubla.
+   */
+  const applyBake = async () => {
+    if (!photo || isNeutral(adjustments) || baking) return;
+    setBaking(true);
+    try {
+      flushPersist();
+      await bakeEdits(photo.id, adjustments, adjustments.bokehMask ? { bokehMask: adjustments.bokehMask } : undefined);
+      pendingPersistRef.current = null;
+      setAdjustments({ ...NEUTRAL_ADJUSTMENTS });
+      bokehRequestedFor.current = null;
+      setBokehSource(null);
+      setActivePreset(null);
+      setImgEl(null);   // previzualizarea se reincarca, acum coapta
+      setNotice(tr('edit.bake.done'));
+    } catch {
+      setNotice(tr('edit.bake.failed'));
+    } finally {
+      setBaking(false);
+    }
+  };
+
   const applyAuto = () => {
     if (!imgEl || !photo) return;
     const auto = computeAutoAdjustments(imgEl, imgEl.naturalWidth, imgEl.naturalHeight, {
@@ -1267,6 +1295,21 @@ export function EditPanel() {
                   title={tr('edit.style.title')}
                 >
                   <LayersIcon className="inline-icon" /> {tr('edit.style')}
+                </button>
+                {/* "Aplica" — coace ajustarile IN imagine.
+                    Cerut dupa ce utilizatorul a observat ca bokeh-ul dispare la
+                    iesirea din editor. Editarile chiar se salvau; ce nu se putea
+                    salva era MASCA persoanei (un element de DOM), fara de care
+                    grila n-avea cu ce reface efectul. Coacerea o rezolva la
+                    radacina: efectul intra in pixeli, o data.
+                    Vezi core/bakeEdits.ts — fisierul original ramane neatins. */}
+                <button
+                  className="ghost small-btn edit-bake-btn"
+                  onClick={() => void applyBake()}
+                  disabled={isNeutral(adjustments) || baking}
+                  title={tr('edit.bake.title')}
+                >
+                  <CheckIcon className="inline-icon" /> {baking ? tr('edit.bake.working') : tr('edit.bake')}
                 </button>
                 <button
                   className="ghost icon-btn edit-topbar-reset"
