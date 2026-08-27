@@ -42,10 +42,46 @@ export function applyLocale(locale: Locale): void {
   document.documentElement.lang = locale;
 }
 
-/** Traduce o cheie in limba data, cu interpolare simpla `{param}` -> valoare. */
+/**
+ * Cand un numar cere particula "de" inaintea substantivului, in romana.
+ *
+ * "2 poze", dar "20 DE poze". Regula nu e "peste 20": conteaza ultimele doua
+ * cifre. 101 ramane "101 poze", fiindca 101 se termina in 1..19; 120 devine
+ * "120 de poze". Iar 100 cere "de", fiindca se termina in 00.
+ *
+ * Sunt exact clasele "few" si "other" din CLDR pentru romana. Nu le-am inventat
+ * eu si nu se aplica englezei, unde numarul sta singur langa substantiv.
+ */
+export function necesitaDe(n: number): boolean {
+  if (!Number.isFinite(n)) return false;
+  const intreg = Math.abs(Math.trunc(n));
+  if (intreg === 0 || intreg === 1) return false;
+  const ultimeleDoua = intreg % 100;
+  return !(ultimeleDoua >= 1 && ultimeleDoua <= 19);
+}
+
+/**
+ * Traduce o cheie in limba data, cu interpolare simpla `{param}` -> valoare.
+ *
+ * Pe langa parametrii primiti, pune la dispozitie si `{countDe}`: acelasi numar
+ * ca `{count}`, dar cu "de" lipit dupa el cand gramatica romaneasca o cere.
+ * Textele romanesti in care dupa numar urmeaza un substantiv folosesc
+ * `{countDe}`; cele englezesti raman pe `{count}`, unde nu exista particula.
+ *
+ * De ce asa si nu o a treia forma in dictionar: intre "few" si "other", in
+ * romana, SUBSTANTIVUL nu se schimba deloc ("2 poze", "20 de poze"). Singura
+ * diferenta e particula. O a treia forma pentru fiecare cheie ar fi insemnat
+ * sute de siruri duplicate ca sa exprime un singur cuvant.
+ */
 export function t(locale: Locale, key: string, params?: Record<string, string | number>): string {
   let str = DICTS[locale][key] ?? DICTS.ro[key] ?? key;
   if (params) {
+    const count = params.count;
+    if (typeof count === 'number') {
+      // `{countDe}` nu contine `{count}` ca subsir (dupa "count" urmeaza "D",
+      // nu acolada), deci ordinea inlocuirilor nu conteaza.
+      params = { ...params, countDe: locale === 'ro' && necesitaDe(count) ? `${count} de` : String(count) };
+    }
     for (const [k, v] of Object.entries(params)) str = str.split(`{${k}}`).join(String(v));
   }
   return str;

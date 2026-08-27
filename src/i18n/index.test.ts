@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { t, plural, readStoredLocale, writeStoredLocale } from './index';
+import { t, plural, necesitaDe, readStoredLocale, writeStoredLocale } from './index';
 import { ro } from './ro';
 import { en } from './en';
 
@@ -72,11 +72,65 @@ describe('dictionary completeness', () => {
    * nu la raportul unui utilizator.
    */
   it('fiecare cheie foloseste aceiasi {parametri} in ambele limbi', () => {
-    const params = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map(m => m[1]).sort();
+    // `countDe` se numara drept `count`: nu e un parametru trimis de apelant,
+    // ci unul fabricat de t() din `count` — numarul plus "de", cand gramatica
+    // romaneasca o cere (vezi i18n/index.ts). Romana scrie `{countDe}` acolo
+    // unde dupa numar urmeaza un substantiv, engleza scrie `{count}`, si
+    // amandoua sunt satisfacute de acelasi apel.
+    const params = (s: string) =>
+      [...s.matchAll(/\{(\w+)\}/g)].map(m => (m[1] === 'countDe' ? 'count' : m[1])).sort();
     const mismatched = Object.keys(ro)
       .filter(k => k in en)
       .filter(k => params(ro[k as keyof typeof ro]).join(',') !== params(en[k as keyof typeof en]).join(','))
       .map(k => `${k}: ro=[${params(ro[k as keyof typeof ro])}] en=[${params(en[k as keyof typeof en])}]`);
     expect(mismatched).toEqual([]);
+  });
+});
+
+/**
+ * Particula "de" din romana: "2 poze", dar "20 de poze".
+ *
+ * Regula NU e "peste 20" — conteaza ultimele doua cifre, si de aceea 101
+ * ramane "101 poze" iar 120 devine "120 de poze". Sunt clasele "few" si
+ * "other" din CLDR pentru romana; testele de mai jos verifica exact granitele
+ * unde o implementare naiva ("n >= 20") ar da gresit.
+ */
+describe('particula "de" (romana)', () => {
+  it('nu se pune la 0 si la 1', () => {
+    expect(necesitaDe(0)).toBe(false);
+    expect(necesitaDe(1)).toBe(false);
+  });
+
+  it('nu se pune de la 2 la 19', () => {
+    for (let n = 2; n <= 19; n++) expect(necesitaDe(n)).toBe(false);
+  });
+
+  it('se pune de la 20 in sus', () => {
+    for (const n of [20, 21, 50, 99, 100]) expect(necesitaDe(n)).toBe(true);
+  });
+
+  it('se uita la ULTIMELE DOUA cifre, nu la marimea numarului', () => {
+    // Capcana clasica: "n >= 20" ar pune "de" si aici, gresit.
+    expect(necesitaDe(101)).toBe(false); // "101 poze"
+    expect(necesitaDe(119)).toBe(false); // "119 poze"
+    expect(necesitaDe(120)).toBe(true);  // "120 de poze"
+    expect(necesitaDe(1001)).toBe(false); // "1001 poze"
+    expect(necesitaDe(1000)).toBe(true);  // "1000 de poze"
+  });
+
+  it('t() pune "de" in romana, si nimic in engleza', () => {
+    expect(t('ro', 'locations.photos.other', { count: 20 })).toBe('20 de poze');
+    expect(t('ro', 'locations.photos.other', { count: 3 })).toBe('3 poze');
+    expect(t('en', 'locations.photos.other', { count: 20 })).toBe('20 photos');
+  });
+
+  it('nu strica textele care nu primesc un numar', () => {
+    expect(t('ro', 'locations.photos.one', { count: 1 })).toBe('1 poză');
+  });
+
+  it('nu atinge {count} acolo unde dupa numar NU urmeaza un substantiv', () => {
+    // "Ai scos 20 din 100 de poze" — "de" e deja in text, dupa {limit}.
+    expect(t('ro', 'premium.usage.title', { count: 20, limit: 100 }))
+      .toBe('Ai scos 20 din 100 de poze în ultimele 30 de zile');
   });
 });

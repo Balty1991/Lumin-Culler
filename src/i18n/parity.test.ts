@@ -14,9 +14,19 @@ import { describe, it, expect } from 'vitest';
 import { ro } from './ro';
 import { en } from './en';
 
-/** Numele parametrilor `{...}` dintr-un text, ca multime sortata. */
+/**
+ * Numele parametrilor `{...}` dintr-un text, ca multime sortata.
+ *
+ * `countDe` se numara drept `count`: nu e un parametru pe care sa-l trimita
+ * cineva, ci unul pe care `t()` il fabrica din `count` (numarul plus "de", cand
+ * gramatica romaneasca o cere — vezi i18n/index.ts). Textul romanesc scrie
+ * `{countDe}` acolo unde dupa numar urmeaza un substantiv, cel englezesc scrie
+ * `{count}`, si amandoua sunt satisfacute de acelasi apel. Fara aceasta
+ * echivalare, testul ar raporta ca nepotrivire chiar perechea corecta.
+ */
 function params(text: string): string[] {
-  return [...new Set([...text.matchAll(/\{(\w+)\}/g)].map(m => m[1]))].sort();
+  const nume = [...text.matchAll(/\{(\w+)\}/g)].map(m => (m[1] === 'countDe' ? 'count' : m[1]));
+  return [...new Set(nume)].sort();
 }
 
 describe('dictionarele de traducere', () => {
