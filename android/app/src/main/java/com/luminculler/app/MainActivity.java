@@ -31,17 +31,25 @@ public class MainActivity extends BridgeActivity {
      * eliberand memoria tinuta, iar esantionarea se face LA SCURT TIMP dupa o
      * schimbare de stare — deci nu e loc de asteptat.
      *
-     * Ce se elibereaza aici sunt modelele native: noua detectoare
-     * (FaceLandmarker, PoseLandmarker, ImageSegmenter, ImageEmbedder si patru
-     * ML Kit) care isi tineau greutatile in memorie nativa de la prima folosire
-     * pana la oprirea procesului — inclusiv cu ecranul stins, ore intregi. Exact
-     * ce se numara ca "Anonymous RSS + Swap". Se recreeaza singure la
-     * urmatoarea folosire; costa o reincarcare, o data.
+     * ATENTIE, si de-aia arata mai sarac decat era: AICI NU SE MAI INCHID
+     * MODELELE NATIVE.
      *
-     * TRIM_MEMORY_UI_HIDDEN e pragul de la care aplicatia nu mai e vizibila.
-     * Sub el (RUNNING_MODERATE si celelalte) aplicatia e pe ecran, si a inchide
-     * modelele fix cand omul le foloseste ar fi mai rau decat memoria pe care o
-     * tin. ModelRegistry sare oricum peste un model aflat in lucru.
+     * Le inchideam, prin ModelRegistry.releaseAll(). Contorul de folosire din
+     * ReleasableModel trebuia sa sara peste un model aflat in lucru, dar are o
+     * cursa reala: release() citeste contorul pe zero, apoi ia lacatul; intre
+     * cele doua, alt fir apuca sa faca use { } — ii creste contorul si primeste
+     * modelul — iar release() il inchide dupa aceea. Inchiderea unei resurse
+     * native folosite pe alt fir nu e o exceptie de prins, e procesul omorat
+     * in tacere. Semnatura se potriveste exact cu ce se vedea: analiza pornea,
+     * si aplicatia disparea fara mesaj.
+     *
+     * Ce mai ramane e cache-ul de bitmap-uri, unde se dau drumul doar
+     * referintelor — fara nimic nativ de inchis, fara cursa.
+     *
+     * Pragul de memorie Play intra in vigoare in februarie 2027. Pana atunci e
+     * loc sa fie facut cum trebuie: fie cu inchidere pe firul care chiar
+     * foloseste modelul, fie cu o stare atomica (LIBER/IN_LUCRU/INCHIS) in loc
+     * de contor plus lacat. Nu inainte de o lansare, si nu fara test pe telefon.
      */
     @Override
     public void onTrimMemory(int level) {
@@ -52,10 +60,10 @@ public class MainActivity extends BridgeActivity {
             // drumul referintelor, NU se recicleaza, fiindca un model poate
             // inca sa tina una.
             com.luminculler.app.plugins.BitmapUtilsKt.releaseBitmapCache();
-            int ocupate = ModelRegistry.INSTANCE.releaseAll();
-            if (ocupate > 0) {
-                Log.i("LuminCuller", "onTrimMemory: " + ocupate + " modele erau in lucru, raman incarcate");
-            }
+            // ModelRegistry.releaseAll() NU se mai cheama de aici. Vezi nota de
+            // mai sus: inchiderea unui model nativ are o cursa pe care
+            // contorul de folosire nu o acopera, iar pretul ei e procesul
+            // omorat in tacere, exact in timpul analizei.
             // Si partea de JS: miniaturile si previzualizarile tinute in cache au
             // in spate imagini DECODATE, care se numara la pragul de memorie
             // bitmap. Se anunta aici, nu se asteapta `visibilitychange`, tocmai

@@ -60,26 +60,26 @@ android {
     }
     buildTypes {
         release {
-            // Optimizarea codului (DEX) e unul dintre cele trei praguri de
-            // calitate anuntate de Google Play pentru februarie 2027; pana
-            // acum era oprita, adica exact ce Play raporteaza drept "limited
-            // DEX optimization". Regulile de pastrare din proguard-rules.pro
-            // sunt obligatorii — Capacitor isi gaseste plugin-urile prin
-            // reflexie, iar R8 le-ar sterge ca pe cod mort.
-            minifyEnabled true
-            shrinkResources true
-            // Varianta `-optimize`, adica CU pasii de optimizare porniti.
+            // R8 e OPRIT pentru release. Deliberat, si nu din comoditate.
             //
-            // Trecusem pe `proguard-android.txt` (fara ei) crezand ca R8 rupe
-            // pornirea in release. Diagnosticul era gresit: aplicatia pornea
-            // normal si murea abia la analiza, iar cauza reala era reciclarea
-            // unui bitmap imprumutat din cache (vezi recycleIfOwned in
-            // BitmapUtils.kt). Nu R8.
+            // L-am pornit pentru unul dintre pragurile de calitate anuntate de
+            // Play pentru februarie 2027 ("limited DEX optimization"). De
+            // atunci, fiecare pachet trimis in magazin a murit la analiza. Ce
+            // spune istoricul, nu presupunerea mea:
             //
-            // Contează: pragul Play de februarie 2027 cere optimizare DEX, nu
-            // doar micsorare si ofuscare, iar varianta neoptimizanta taie exact
-            // pasii care se numara acolo. Cum motivul pentru care fusesera
-            // opriti nu exista, se intorc.
+            //   6c195dd, 54176de  minifyEnabled false  — au mers in magazin
+            //   e80ccf5 si dupa    minifyEnabled true   — se inchid la analiza
+            //
+            // Nu am urma de stiva care sa arate CE anume rupe R8, si fara ea
+            // orice regula in plus e ghicit. Pragul intra in vigoare in
+            // februarie 2027; nu impiedica nicio incarcare azi. Deci se intoarce
+            // la configuratia care chiar a mers, si R8 se reia cand exista o
+            // urma de stiva din Play Console si timp de testat.
+            //
+            // Build-ul de test cu `-PminifyDebug=true` ramane mai jos: cu el se
+            // poate incerca R8 pe telefon fara sa treaca prin magazin.
+            minifyEnabled false
+            shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             if (hasSigningConfig) {
                 signingConfig signingConfigs.release
