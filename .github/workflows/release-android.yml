@@ -206,3 +206,26 @@ jobs:
           name: lumin-culler-release-aab
           path: android/app/build/outputs/bundle/release/app-release.aab
           retention-days: 90
+      # Cat a optimizat R8 — DE AICI, nu din build-ul de debug.
+      #
+      # Pragul Play din februarie 2027 cere 25% optimizare DEX, si singurul
+      # build care spune adevarul despre el e acesta: build-ul de test e
+      # `debuggable`, iar acolo R8 sare peste pasii de optimizare, deci
+      # raportul lui ar arata mereu mai putin decat livram de fapt.
+      #
+      # mapping.txt = ce s-a redenumit, usage.txt = ce s-a sters,
+      # configuration.txt = toate regulile puse cap la cap, inclusiv cele
+      # venite din bibliotecile ML Kit/MediaPipe/billing. Ultimul e cel care
+      # arata daca `-keep`-urile noastre din proguard-rules.pro sunt de fapt
+      # redundante.
+      - name: Cat a optimizat R8
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r8-raport
+          path: |
+            android/app/build/outputs/mapping/**/mapping.txt
+            android/app/build/outputs/mapping/**/configuration.txt
+            android/app/build/outputs/mapping/**/usage.txt
+          if-no-files-found: warn
+          retention-days: 30
