@@ -68,21 +68,19 @@ android {
             // reflexie, iar R8 le-ar sterge ca pe cod mort.
             minifyEnabled true
             shrinkResources true
-            // `proguard-android.txt`, NU varianta `-optimize`.
+            // Varianta `-optimize`, adica CU pasii de optimizare porniti.
             //
-            // Aplicatia se inchidea fortat la pornire, instalata din Play, desi
-            // acelasi cod cu R8 pornit mergea perfect ca APK de test. Diferenta:
-            // build-ul de test e `debuggable`, si acolo R8 SARE peste pasii de
-            // optimizare (inline, contopire de clase, transformari pe
-            // singleton-urile Kotlin). In release ii face pe toti — si unul
-            // dintre ei rupea pornirea.
+            // Trecusem pe `proguard-android.txt` (fara ei) crezand ca R8 rupe
+            // pornirea in release. Diagnosticul era gresit: aplicatia pornea
+            // normal si murea abia la analiza, iar cauza reala era reciclarea
+            // unui bitmap imprumutat din cache (vezi recycleIfOwned in
+            // BitmapUtils.kt). Nu R8.
             //
-            // Varianta neoptimizanta pastreaza MICSORAREA si OFUSCAREA, adica
-            // fix ce se numara la pragul Play de 25%, si scoate exact clasa de
-            // transformari care difera intre ce am testat si ce am livrat. Din
-            // acest moment cele doua build-uri chiar sunt identice, deci un test
-            // trecut inseamna ceva.
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // Contează: pragul Play de februarie 2027 cere optimizare DEX, nu
+            // doar micsorare si ofuscare, iar varianta neoptimizanta taie exact
+            // pasii care se numara acolo. Cum motivul pentru care fusesera
+            // opriti nu exista, se intorc.
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             if (hasSigningConfig) {
                 signingConfig signingConfigs.release
             }
@@ -106,7 +104,7 @@ android {
             // magazin. Un test care nu acopera aceeasi cale nu e o validare.
             shrinkResources minificaDebug
             // Acelasi fisier ca release-ul, ca testul sa insemne ceva.
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
     // trebuie sa coincida cu sourceCompatibility/targetCompatibility (Java 21) din
