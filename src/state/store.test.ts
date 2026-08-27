@@ -447,6 +447,80 @@ describe('secondaryFiltered', () => {
   });
 });
 
+// Cerinta directa a utilizatorului: "cautarea sa gaseasca ce cauta omul".
+//
+// Pana acum tot ce se scria mergea ca un SINGUR sir catre fiecare camp, deci
+// orice cautare de doua cuvinte care atingeau doua campuri diferite intorcea
+// zero rezultate — desi aplicatia stia amandoua lucrurile despre acea poza.
+describe('cautare pe mai multe cuvinte', () => {
+  function pregateste(photos: PhotoView[], searchText: string) {
+    useStore.setState({
+      photos, searchText, filter: 'all', personFilter: null, colorLabelFilter: null,
+      sceneTagFilter: null, cameraFilter: null, projectFilter: null, collectionFilter: null,
+      dateFrom: null, dateTo: null, minRating: 0
+    });
+    return useStore.getState().filtered().map(p => p.id);
+  }
+
+  it('gaseste poza cand cuvintele stau in campuri DIFERITE', () => {
+    const photos = [
+      { ...makePhoto(0), personNames: ['Ana'], project: 'nunta' },
+      { ...makePhoto(1), personNames: ['Ana'], project: 'botez' },
+      { ...makePhoto(2), personNames: ['Radu'], project: 'nunta' }
+    ] as PhotoView[];
+    expect(pregateste(photos, 'ana nunta')).toEqual(['p0']);
+  });
+
+  it('cere TOATE cuvintele, nu oricare dintre ele', () => {
+    const photos = [
+      { ...makePhoto(0), personNames: ['Ana'], project: 'nunta' },
+      { ...makePhoto(1), personNames: ['Ana'], project: 'botez' }
+    ] as PhotoView[];
+    // p1 are "ana" dar nu si "nunta" — nu trebuie sa apara
+    expect(pregateste(photos, 'ana nunta')).toEqual(['p0']);
+  });
+
+  it('incearca fraza intreaga INAINTE sa o sparga, ca un nume din doua cuvinte sa se potriveasca asa cum e', () => {
+    const photos = [
+      { ...makePhoto(0), personNames: ['Ana Maria'] },
+      { ...makePhoto(1), personNames: ['Ana'], project: 'maria' }
+    ] as PhotoView[];
+    const gasite = pregateste(photos, 'ana maria');
+    expect(gasite).toContain('p0');
+  });
+
+  it('un singur cuvant se comporta exact ca inainte', () => {
+    const photos = [
+      { ...makePhoto(0), personNames: ['Ana'] },
+      { ...makePhoto(1), personNames: ['Radu'] }
+    ] as PhotoView[];
+    expect(pregateste(photos, 'ana')).toEqual(['p0']);
+  });
+
+  it('spatiile in plus nu strica nimic', () => {
+    const photos = [
+      { ...makePhoto(0), personNames: ['Ana'], project: 'nunta' }
+    ] as PhotoView[];
+    expect(pregateste(photos, '  ana   nunta  ')).toEqual(['p0']);
+  });
+
+  it('nu se incurca de diacritice, in niciun sens', () => {
+    const photos = [
+      { ...makePhoto(0), personNames: ['Ștefan'], project: 'nuntă' }
+    ] as PhotoView[];
+    expect(pregateste(photos, 'stefan nunta')).toEqual(['p0']);
+    expect(pregateste(photos, 'Ștefan nuntă')).toEqual(['p0']);
+  });
+
+  it('nu inventeaza rezultate cand un cuvant nu exista nicaieri', () => {
+    const photos = [
+      { ...makePhoto(0), personNames: ['Ana'], project: 'nunta' }
+    ] as PhotoView[];
+    expect(pregateste(photos, 'ana schi')).toEqual([]);
+  });
+});
+
+
 function makeDbPhoto(overrides: Partial<PhotoRecord> & { id: string }): PhotoRecord {
   return {
     fileName: `${overrides.id}.jpg`, importedAt: 0, width: 100, height: 100, dHash: '0',

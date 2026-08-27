@@ -1339,7 +1339,14 @@ function cachedPlaceName(latitude: number, longitude: number, locale: Locale): s
   return name;
 }
 
-function matchesSearch(p: PhotoView, normalizedQuery: string, locale: Locale): boolean {
+/**
+ * Potrivirea UNUI singur cuvant, in oricare dintre campurile pozei.
+ *
+ * Vezi matchesSearch mai jos pentru de ce e separata: o cautare de mai multe
+ * cuvinte cere ca FIECARE cuvant sa se potriveasca undeva, nu neaparat in
+ * acelasi camp.
+ */
+function matchesToken(p: PhotoView, normalizedQuery: string, locale: Locale): boolean {
   // Numele fisierului si etichetele de scena erau SINGURELE campuri cautate.
   // Doua consecinte reale, amandoua raportate sau gasite la revizie:
   //
@@ -1378,6 +1385,32 @@ function matchesSearch(p: PhotoView, normalizedQuery: string, locale: Locale): b
     if (place && normalizeForSearch(place).includes(normalizedQuery)) return true;
   }
   return false;
+}
+
+/**
+ * Cautarea, asa cum scrie omul: mai multe cuvinte.
+ *
+ * Pana acum tot ce scria utilizatorul mergea ca un SINGUR sir catre fiecare
+ * camp. "ana iulie" cauta literal secventa "ana iulie" undeva — si nu o gasea
+ * niciodata, fiindca numele persoanei sta intr-un camp si luna in altul.
+ * Aplicatia stia amandoua lucrurile despre acea poza si tot raspundea "niciun
+ * rezultat". Asta e chiar cazul pentru care exista cautarea.
+ *
+ * Acum: fiecare cuvant trebuie sa se potriveasca undeva, nu toate in acelasi
+ * loc. "ana iulie" = pozele in care apare Ana SI care sunt din iulie.
+ * "rosiori nunta", "mare 2026", "canon apus" — la fel.
+ *
+ * Fraza intreaga se incearca PRIMA, si nu doar din economie: un nume de fisier
+ * ("sedinta foto ana.jpg") sau un nume de persoana din doua cuvinte ("Ana
+ * Maria") trebuie sa se potriveasca asa cum e scris, inainte sa spargem in
+ * bucati. Un cuvant singur trece exact pe acelasi drum ca inainte — nimic din
+ * comportamentul de pana acum nu se schimba.
+ */
+function matchesSearch(p: PhotoView, normalizedQuery: string, locale: Locale): boolean {
+  if (matchesToken(p, normalizedQuery, locale)) return true;
+  const cuvinte = normalizedQuery.split(/\s+/).filter(Boolean);
+  if (cuvinte.length < 2) return false;
+  return cuvinte.every(cuvant => matchesToken(p, cuvant, locale));
 }
 
 /**
