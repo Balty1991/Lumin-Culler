@@ -175,6 +175,47 @@ private fun decodeUriCached(context: Context, uriString: String, maxSide: Int): 
 }
 
 /**
+ * Recicleaza bitmap-ul DOAR daca nu apartine cache-ului comun.
+ *
+ * BUG REAL, care inchidea aplicatia in timpul analizei: resolveInputBitmap
+ * intoarce, pentru calea cu `imageUri`, un bitmap din bitmapCache — ACELASI
+ * obiect pentru toate plugin-urile care primesc aceeasi poza. Asa si trebuie:
+ * se decodeaza o data si se folosesc toate.
+ *
+ * Cand am adaugat reciclarea (cerinta Play pe memoria bitmap), am reciclat si
+ * bitmap-ul acela. Lantul: FaceDetection ia poza din cache, ImageAnalysis ia
+ * ACEEASI poza si o recicleaza la final, iar FaceMesh/Pose/Segmentation o
+ * primesc mai departe din cache, dar goala. Codul nativ atinge pixeli care nu
+ * mai exista, si aplicatia moare — nu cu o exceptie prinsa, ci pe loc.
+ *
+ * Cache-ul isi elibereaza singur intrarile la evacuare (vezi removeEldestEntry);
+ * cine imprumuta de acolo nu are ce elibera.
+ */
+fun recycleIfOwned(bitmap: Bitmap) {
+    val esteAlCacheului = synchronized(bitmapCache) { bitmapCache.containsValue(bitmap) }
+    if (!esteAlCacheului) bitmap.recycle()
+}
+
+/**
+ * Renunta la pozele decodate din cache.
+ *
+ * Chemat din onTrimMemory (vezi MainActivity): asta e calea CORECTA de a
+ * respecta pragul Play pe memoria bitmap — cache-ul stie ce detine, spre
+ * deosebire de un plugin care doar imprumuta.
+ *
+ * Se da DRUMUL la referinte, nu se recicleaza: exact motivul scris mai sus, la
+ * CACHE_ENTRIES. Un model poate inca sa tina unul (MediaPipe si ML Kit
+ * lucreaza asincron), iar recycle() pe un bitmap inca folosit inseamna crash,
+ * nu o exceptie. Din Android 8 memoria de bitmap sta pe heap-ul normal, deci
+ * GC-ul o ia cand chiar nu mai e nimeni pe ea — si asta e destul de repede
+ * pentru masuratoarea Play, care se face la scurt timp dupa schimbarea de
+ * stare, nu instantaneu.
+ */
+fun releaseBitmapCache() {
+    synchronized(bitmapCache) { bitmapCache.clear() }
+}
+
+/**
  * Bitmap-ul pe care trebuie sa ruleze acest apel, sau null daca apelul a fost
  * DEJA respins (apelantul trebuie doar sa iasa: `?: return`).
  */

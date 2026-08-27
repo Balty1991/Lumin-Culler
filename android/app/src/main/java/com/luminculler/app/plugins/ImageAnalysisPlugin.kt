@@ -78,11 +78,11 @@ class ImageAnalysisPlugin : Plugin() {
                     // masoara de acum exact asta (pragul de memorie bitmap din
                     // cerintele Play), iar pe telefoanele cu putina memorie nu e
                     // doar o cifra — e diferenta dintre a merge si a fi inchis.
-                    bitmap.recycle()
+                    recycleIfOwned(bitmap)
                 }
             }
             .addOnFailureListener { e ->
-                bitmap.recycle()
+                recycleIfOwned(bitmap)
                 call.reject("Face detection failed: ${e.message}", e)
             }
     }

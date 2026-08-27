@@ -47,6 +47,11 @@ public class MainActivity extends BridgeActivity {
     public void onTrimMemory(int level) {
         super.onTrimMemory(level);
         if (level >= TRIM_MEMORY_UI_HIDDEN) {
+            // Pozele decodate din cache pleaca odata cu modelele — ele sunt
+            // memoria bitmap propriu-zisa. Vezi releaseBitmapCache: se dau
+            // drumul referintelor, NU se recicleaza, fiindca un model poate
+            // inca sa tina una.
+            com.luminculler.app.plugins.BitmapUtilsKt.releaseBitmapCache();
             int ocupate = ModelRegistry.INSTANCE.releaseAll();
             if (ocupate > 0) {
                 Log.i("LuminCuller", "onTrimMemory: " + ocupate + " modele erau in lucru, raman incarcate");

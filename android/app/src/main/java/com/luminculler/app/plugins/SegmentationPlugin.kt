@@ -200,7 +200,7 @@ class SegmentationPlugin : Plugin() {
         } catch (e: Exception) {
             call.reject("Segmentation failed: ${e.message}", e)
         } finally {
-            bitmap.recycle()
+            recycleIfOwned(bitmap)
         }
     }
 }
