@@ -21,6 +21,8 @@
  * exportul "format original" il foloseste pe el.
  */
 import { db } from './db';
+import { forgetThumbUrl } from './thumbUrlCache';
+import { forgetPreviewUrl } from './previewUrlCache';
 import { applyAdjustmentsToBlob, isNeutral, NEUTRAL_ADJUSTMENTS, type EditAdjustments } from './imageAdjust';
 
 /** Calitatea JPEG la re-encodare. Aceeasi ca la generarea initiala a previzualizarii. */
@@ -65,6 +67,20 @@ export async function bakeEdits(
     // peste ea s-ar dubla.
     await db.photos.update(photoId, { edits: { ...NEUTRAL_ADJUSTMENTS } });
   });
+
+  // Fara asta, coacerea reusea si nu se vedea.
+  //
+  // Miniaturile si previzualizarile sunt tinute in memorie ca Object URL-uri
+  // (core/thumbUrlCache.ts, core/previewUrlCache.ts), ca sa nu se reciteasca
+  // din baza de date la fiecare derulare. Un Object URL e insa legat de
+  // bytes-ii de la momentul crearii lui, NU de inregistrarea din baza — deci
+  // dupa ce am rescris blob-urile mai sus, ecranul continua sa arate imaginea
+  // veche. La fel de valida, si complet gresita.
+  //
+  // Exact asta a raportat utilizatorul: "am aplicat editarile, dar cand am
+  // iesit nu se vad pe poza". Se aplicasera. Doar ca nu le vedea nimeni.
+  forgetThumbUrl(photoId);
+  forgetPreviewUrl(photoId);
 
   return { thumbnail: !!(thumb && coapte[0]), preview: !!(preview && coapte[1]) };
 }

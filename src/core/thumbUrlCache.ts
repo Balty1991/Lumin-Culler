@@ -66,6 +66,24 @@ export async function getCachedThumbUrl(photoId: string): Promise<string | null>
 }
 
 /**
+ * Uita O SINGURA poza, fiindca imaginea din spate s-a schimbat.
+ *
+ * Un Object URL e legat de bytes-ii de la momentul crearii lui, nu de
+ * inregistrarea din baza de date. Cand o miniatura e rescrisa (vezi
+ * core/bakeEdits.ts, "Aplica editarile"), URL-ul din cache arata mai departe
+ * poza VECHE — la fel de valid, si complet gresit. Din afara, omul apasa
+ * "Aplica", i se spune ca s-a aplicat, si vede poza neatinsa.
+ *
+ * De aceea cine rescrie o miniatura trebuie sa cheme si asta.
+ */
+export function forgetThumbUrl(photoId: string): void {
+  const url = cache.get(photoId);
+  if (!url) return;
+  cache.delete(photoId);
+  URL.revokeObjectURL(url);
+}
+
+/**
  * Elibereaza tot. De chemat cand pozele dispar de sub cache (golirea sesiunii,
  * stergeri in masa) — altfel URL-urile ar tine in memorie bytes ai unor poze
  * care nu mai exista.

@@ -899,6 +899,12 @@ export function EditPanel() {
       flushPersist();
       await bakeEdits(photo.id, adjustments, adjustments.bokehMask ? { bokehMask: adjustments.bokehMask } : undefined);
       pendingPersistRef.current = null;
+      // Si in store, nu doar in baza de date. bakeEdits scrie direct in Dexie,
+      // dar lista `photos` din memorie ar ramane cu ajustarile VECHI — iar
+      // fiecare ecran care le aplica peste imagine (AdjustedImage) le-ar pune
+      // a doua oara, acum peste imaginea deja coapta. Aceeasi ajustare, de
+      // doua ori.
+      await setEditAdjustments(photo.id, { ...NEUTRAL_ADJUSTMENTS });
       setAdjustments({ ...NEUTRAL_ADJUSTMENTS });
       bokehRequestedFor.current = null;
       setBokehSource(null);

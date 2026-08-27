@@ -52,6 +52,18 @@ export async function getCachedPreviewUrl(photoId: string): Promise<string | nul
   return url;
 }
 
+/**
+ * Uita O SINGURA poza, fiindca imaginea din spate s-a schimbat. Perechea lui
+ * forgetThumbUrl — vezi acolo pentru de ce e nevoie: un Object URL tine
+ * bytes-ii de la momentul crearii, nu inregistrarea din baza de date.
+ */
+export function forgetPreviewUrl(photoId: string): void {
+  const url = cache.get(photoId);
+  if (!url) return;
+  cache.delete(photoId);
+  URL.revokeObjectURL(url);
+}
+
 /** Goleste tot cache-ul si revoca toate URL-urile — apelat la "Goleste sesiunea"/clear all (state/store.ts), ca sa nu ramana URL-uri orfane pentru o biblioteca deja stearsa. */
 export function clearPreviewUrlCache(): void {
   for (const url of cache.values()) URL.revokeObjectURL(url);
