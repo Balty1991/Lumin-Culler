@@ -58,7 +58,8 @@ class FaceMeshPlugin : Plugin() {
 
     private fun analyze(bitmap: Bitmap): JSObject {
         val mpImage = BitmapImageBuilder(bitmap).build()
-        val result = faceLandmarkerHolder.use { it.detect(mpImage) }
+        CrashLog.pas(">FaceMesh")
+        val result = try { faceLandmarkerHolder.use { it.detect(mpImage) } } finally { CrashLog.pas("<FaceMesh") }
         val facesArray = JSArray()
         if (result == null) {
             val empty = JSObject()

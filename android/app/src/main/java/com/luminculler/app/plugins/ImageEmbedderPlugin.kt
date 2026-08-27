@@ -59,7 +59,9 @@ class ImageEmbedderPlugin : Plugin() {
 
     private fun embed(bitmap: Bitmap): JSObject {
         val mpImage = BitmapImageBuilder(bitmap).build()
-        val embedding = imageEmbedderHolder.use { it.embed(mpImage) }.embeddingResult().embeddings().first()
+        CrashLog.pas(">ImageEmbedder")
+        val embedding = try { imageEmbedderHolder.use { it.embed(mpImage) } } finally { CrashLog.pas("<ImageEmbedder") }
+            .embeddingResult().embeddings().first()
 
         val embeddingArray = JSArray()
         for (value in embedding.floatEmbedding()) embeddingArray.put(value.toDouble())

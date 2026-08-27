@@ -155,7 +155,8 @@ class SegmentationPlugin : Plugin() {
         val bitmap: Bitmap = resolveInputBitmap(context, call) ?: return
         try {
             val mpImage = BitmapImageBuilder(bitmap).build()
-            val result = imageSegmenterHolder.use { it.segment(mpImage) }
+            CrashLog.pas(">Segmentation")
+            val result = try { imageSegmenterHolder.use { it.segment(mpImage) } } finally { CrashLog.pas("<Segmentation") }
             val maskImage = firstConfidenceMask(result)
             if (maskImage == null) {
                 call.reject("No mask returned for this image")

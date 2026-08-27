@@ -41,8 +41,9 @@ class TextRecognitionPlugin : Plugin() {
         val bitmap: Bitmap = resolveInputBitmap(context, call) ?: return
 
         val image = InputImage.fromBitmap(bitmap, 0)
+        CrashLog.pas(">TextRecognition")
         recognizerHolder.beginUse().process(image)
-            .addOnCompleteListener { recognizerHolder.endUse() }
+            .addOnCompleteListener { recognizerHolder.endUse(); CrashLog.pas("<TextRecognition") }
             .addOnSuccessListener { text ->
                 val blocksArray = JSArray()
                 val frameArea = (bitmap.width * bitmap.height).toDouble()

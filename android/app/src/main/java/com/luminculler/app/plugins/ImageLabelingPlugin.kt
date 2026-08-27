@@ -75,8 +75,9 @@ class ImageLabelingPlugin : Plugin() {
         val bitmap: Bitmap = resolveInputBitmap(context, call) ?: return
 
         val image = InputImage.fromBitmap(bitmap, 0)
+        CrashLog.pas(">ImageLabeling")
         labelerHolder.beginUse().process(image)
-            .addOnCompleteListener { labelerHolder.endUse() }
+            .addOnCompleteListener { labelerHolder.endUse(); CrashLog.pas("<ImageLabeling") }
             .addOnSuccessListener { labels ->
                 val labelsArray = JSArray()
                 labels

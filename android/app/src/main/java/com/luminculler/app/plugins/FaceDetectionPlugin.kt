@@ -50,8 +50,9 @@ class FaceDetectionPlugin : Plugin() {
         val bitmap: Bitmap = resolveInputBitmap(context, call) ?: return
 
         val image = InputImage.fromBitmap(bitmap, /* rotationDegrees = */ 0)
+        CrashLog.pas(">FaceDetection")
         detectorHolder.beginUse().process(image)
-            .addOnCompleteListener { detectorHolder.endUse() }
+            .addOnCompleteListener { detectorHolder.endUse(); CrashLog.pas("<FaceDetection") }
             .addOnSuccessListener { faces ->
                 val result = JSObject()
                 val facesArray = JSArray()

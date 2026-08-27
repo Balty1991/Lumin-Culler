@@ -15,6 +15,7 @@ import com.luminculler.app.plugins.FaceMeshPlugin;
 import com.luminculler.app.plugins.TextRecognitionPlugin;
 import com.luminculler.app.plugins.PoseDetectionPlugin;
 import com.luminculler.app.plugins.SegmentationPlugin;
+import com.luminculler.app.plugins.DiagnosticsPlugin;
 import com.luminculler.app.plugins.HeicDecoderPlugin;
 import com.luminculler.app.plugins.ImageDescriptionPlugin;
 import com.luminculler.app.plugins.ImageEmbedderPlugin;
@@ -103,6 +104,12 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(TextRecognitionPlugin.class);
         registerPlugin(PoseDetectionPlugin.class);
         registerPlugin(SegmentationPlugin.class);
+        // Jurnalul de pasi. Se porneste PRIMUL, inainte de orice plugin, ca sa
+        // prinda si o cadere survenita in timpul pornirii. Vezi
+        // plugins/CrashLog.kt: singurul lucru care supravietuieste unei
+        // inchideri fortate e ce a apucat sa ajunga pe disc.
+        com.luminculler.app.plugins.CrashLog.INSTANCE.porneste(getApplicationContext());
+        registerPlugin(DiagnosticsPlugin.class);
         registerPlugin(HeicDecoderPlugin.class);
         registerPlugin(ImageDescriptionPlugin.class);
         registerPlugin(ImageEmbedderPlugin.class);

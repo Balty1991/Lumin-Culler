@@ -222,9 +222,15 @@ fun releaseBitmapCache() {
 fun resolveInputBitmap(context: Context, call: PluginCall): Bitmap? {
     val uri = call.getString("imageUri")
     if (!uri.isNullOrEmpty()) {
+        // Decodarea e primul lucru care atinge poza, si cel mai probabil loc de
+        // ramas fara memorie. Vezi CrashLog: daca ultima linie din jurnal e
+        // ">Decodare", acolo a murit procesul.
+        CrashLog.pas(">Decodare")
         return try {
             decodeUriCached(context, uri, call.getInt("maxSide") ?: DEFAULT_MAX_SIDE)
+                .also { CrashLog.pas("<Decodare") }
         } catch (e: Exception) {
+            CrashLog.pas("<Decodare")
             call.reject("Failed to read image from uri: ${e.message}", e)
             null
         }
@@ -235,9 +241,11 @@ fun resolveInputBitmap(context: Context, call: PluginCall): Bitmap? {
         call.reject("imageBase64 or imageUri is required")
         return null
     }
+    CrashLog.pas(">Decodare-base64")
     return try {
-        decodeBase64ToBitmap(base64)
+        decodeBase64ToBitmap(base64).also { CrashLog.pas("<Decodare-base64") }
     } catch (e: Exception) {
+        CrashLog.pas("<Decodare-base64")
         call.reject("Failed to decode image: ${e.message}", e)
         null
     }

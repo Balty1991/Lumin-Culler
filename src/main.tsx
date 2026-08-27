@@ -8,6 +8,8 @@ import './styles.css';
 // build-ul de referinta, unde era o a doua foaie incarcata peste prima.
 import './styles.concept.css';
 import { watchBackgroundMemory } from './core/backgroundMemory';
+import { lastRunReport, forgetLastRun } from './core/nativeDiagnostics';
+import { useStore } from './state/store';
 
 // registerType: 'autoUpdate' (vite.config.ts) inseamna ca update-urile se aplica
 // singure, fara sa intrebe utilizatorul — dar DOAR daca chiar inregistram service
@@ -22,6 +24,19 @@ registerSW({ immediate: true });
 // folosi — dar sistemul continua sa le numere. Vezi core/backgroundMemory.ts
 // pentru de ce nu se golesc imediat.
 watchBackgroundMemory();
+
+// Daca rularea precedenta a fost omorata in timpul unei analize, partea nativa
+// stie in ce model s-a intamplat — vezi core/nativeDiagnostics.ts. Se spune o
+// singura data, la prima pornire de dupa, si se uita imediat: e un ajutor la
+// depanare, nu o functie a produsului.
+void (async () => {
+  const raport = await lastRunReport();
+  if (!raport?.crashed || !raport.crashedAt) return;
+  useStore.setState({
+    notice: `Repornire dupa o inchidere neasteptata. S-a oprit la: ${raport.crashedAt}`
+  });
+  await forgetLastRun();
+})();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

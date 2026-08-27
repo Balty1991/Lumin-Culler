@@ -46,6 +46,23 @@ android {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+            // Modelele AI NU se comprima in pachet.
+            //
+            // MediaPipe si TFLite citesc fisierul modelului direct din assets,
+            // prin descriptor de fisier — o citire care CERE ca fisierul sa fie
+            // stocat necomprimat. Peste un asset comprimat, apelul esueaza in
+            // codul nativ, unde nu exista exceptie de prins in Java.
+            //
+            // Plugin-ul Android adauga singur `.tflite` in lista asta, dar NU si
+            // `.task`, formatul in care vin face_landmarker si pose_landmarker.
+            // Iar impachetarea difera intre un APK construit local si un AAB
+            // trecut prin Play — exact diferenta pe care o vedem: aceeasi
+            // versiune merge instalata ca APK si cade instalata din magazin.
+            //
+            // De spus pe fata: e o ipoteza, nu o cauza dovedita. Nu strica
+            // nimic in niciun caz (pachetul creste cu cativa MB), si daca nu era
+            // asta, jurnalul de pasi din CrashLog.kt ne spune ce era.
+            noCompress 'task', 'tflite', 'bin'
         }
     }
     if (hasSigningConfig) {

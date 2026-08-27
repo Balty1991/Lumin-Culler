@@ -58,7 +58,8 @@ class PoseDetectionPlugin : Plugin() {
 
     private fun detect(bitmap: Bitmap): JSObject {
         val mpImage = BitmapImageBuilder(bitmap).build()
-        val result = poseLandmarkerHolder.use { it.detect(mpImage) }
+        CrashLog.pas(">PoseDetection")
+        val result = try { poseLandmarkerHolder.use { it.detect(mpImage) } } finally { CrashLog.pas("<PoseDetection") }
         val peopleArray = JSArray()
 
         result?.landmarks()?.forEach { personLandmarks ->
