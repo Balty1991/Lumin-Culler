@@ -452,6 +452,33 @@ describe('secondaryFiltered', () => {
 // Pana acum tot ce se scria mergea ca un SINGUR sir catre fiecare camp, deci
 // orice cautare de doua cuvinte care atingeau doua campuri diferite intorcea
 // zero rezultate — desi aplicatia stia amandoua lucrurile despre acea poza.
+/**
+ * Semnalul care lipsea dupa "Aplica editarile".
+ *
+ * bakeEdits rescrie miniatura si previzualizarea si goleste cache-ul de
+ * URL-uri — dar ecranele cer imaginea o SINGURA data, cand se schimba poza.
+ * La intoarcerea din editor poza e aceeasi, deci nimeni nu recerea nimic si pe
+ * ecran ramanea imaginea dinainte. Exact ce a raportat utilizatorul, de doua
+ * ori: "am aplicat editarile, dar nu se vad".
+ */
+describe('imagesRevision', () => {
+  it('porneste de la zero si creste la fiecare semnal', () => {
+    useStore.setState({ imagesRevision: 0 });
+    expect(useStore.getState().imagesRevision).toBe(0);
+    useStore.getState().bumpImagesRevision();
+    expect(useStore.getState().imagesRevision).toBe(1);
+    useStore.getState().bumpImagesRevision();
+    expect(useStore.getState().imagesRevision).toBe(2);
+  });
+
+  it('schimba valoarea, ca un ecran care o are in dependinte sa reactioneze', () => {
+    useStore.setState({ imagesRevision: 7 });
+    const inainte = useStore.getState().imagesRevision;
+    useStore.getState().bumpImagesRevision();
+    expect(useStore.getState().imagesRevision).not.toBe(inainte);
+  });
+});
+
 describe('cautare cu o greseala de scris', () => {
   function pregateste(photos: PhotoView[], searchText: string) {
     useStore.setState({

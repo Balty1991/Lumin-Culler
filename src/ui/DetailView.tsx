@@ -40,6 +40,7 @@ const SHEET_DRAG_COMMIT = 56;
 const SHEET_PEEK_PX = 86;
 
 function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion: boolean }) {
+  const imagesRevision = useStore(s => s.imagesRevision);
   const openDetail = useStore(s => s.openDetail);
   const openCompare = useStore(s => s.openCompare);
   const openEdit = useStore(s => s.openEdit);
@@ -129,7 +130,12 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
     setSrc(null);
     void getCachedPreviewUrl(photo.id).then(url => { if (alive) setSrc(url); });
     return () => { alive = false; };
-  }, [photo.id]);
+    // `imagesRevision` in dependinte: fara el, o poza careia i s-au COPT
+    // editarile (buton "Aplica") ramanea pe ecran asa cum arata inainte —
+    // `photo.id` nu se schimba la intoarcerea din editor, deci efectul asta nu
+    // se mai executa niciodata, si `src` pastra URL-ul vechi. Vezi
+    // imagesRevision in state/store.ts.
+  }, [photo.id, imagesRevision]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

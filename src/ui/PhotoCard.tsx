@@ -77,6 +77,7 @@ function PhotoCardInner({ photo, index, onOpen, multiSelected, onCardPointerDown
   // sa treaca printr-o stare goala si fara nicio citire asincrona.
   const [src, setSrc] = useState<string | null>(() => peekThumbUrl(photo.id));
   const density = useStore(s => s.gridDensity);
+  const imagesRevision = useStore(s => s.imagesRevision);
   const locale = useStore(s => s.locale);
   const bestInGroupIds = useStore(s => s.bestInGroupIds());
 
@@ -89,7 +90,10 @@ function PhotoCardInner({ photo, index, onOpen, multiSelected, onCardPointerDown
     // sa reia de la zero citirea si decodarea, la fiecare intoarcere.
     void getCachedThumbUrl(photo.id).then(url => { if (alive && url) setSrc(url); });
     return () => { alive = false; };
-  }, [photo.id]);
+    // `imagesRevision` in dependinte, ca si in DetailView: dupa "Aplica
+    // editarile" miniatura din baza e alta, dar `photo.id` nu s-a schimbat.
+    // Un card ramas montat ar arata mai departe imaginea dinainte.
+  }, [photo.id, imagesRevision]);
 
   const ringColor = scoreColorVar(photo.aiScore);
   const ringDeg = Math.max(0, Math.min(360, Math.round((photo.aiScore / 100) * 360)));

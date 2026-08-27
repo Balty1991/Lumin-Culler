@@ -351,6 +351,7 @@ export function Workspace() {
 
 function FilmstripThumb({ photoId, fileName, lqip, edits }: { photoId: string; fileName: string; lqip?: string; edits?: EditAdjustments }) {
   const [src, setSrc] = useState<string | null>(null);
+  const imagesRevision = useStore(s => s.imagesRevision);
   useEffect(() => {
     let url: string | null = null;
     let alive = true;
@@ -358,7 +359,9 @@ function FilmstripThumb({ photoId, fileName, lqip, edits }: { photoId: string; f
       if (t && alive) { url = URL.createObjectURL(t.blob); setSrc(url); }
     });
     return () => { alive = false; if (url) URL.revokeObjectURL(url); };
-  }, [photoId]);
+    // `imagesRevision`: vezi PhotoCard.tsx. Miniatura se poate schimba sub o
+    // banda ramasa montata, dupa "Aplica editarile".
+  }, [photoId, imagesRevision]);
   return (
     <span className="card-media">
       {lqip && <img className="card-lqip" src={lqip} alt="" />}

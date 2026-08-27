@@ -392,6 +392,21 @@ interface AppState {
   sessionOutcome: SessionOutcome | null;
   dismissSessionOutcome: () => void;
   /** Cautare vizuala pe ecran intreg (plan modernizare) — reutilizeaza searchText/sceneTagFilter, doar UI dedicat. */
+  /**
+   * Creste de fiecare data cand imaginile PASTRATE ale unei poze sunt rescrise
+   * (miniatura/previzualizare) — practic, doar la "Aplica editarile".
+   *
+   * De ce e nevoie de un numar si nu ajunge golirea cache-ului de URL-uri:
+   * ecranele cer imaginea o singura data, cand se schimba POZA. La intoarcerea
+   * din editor poza e aceeasi, deci nimeni nu recere nimic, si pe ecran ramane
+   * imaginea dinainte — chiar daca in baza de date e deja cea noua.
+   *
+   * Numarul asta e semnalul "ce ai in mana nu mai e bun". Ecranele care tin
+   * minte un URL de imagine il pun in dependinte si recer.
+   */
+  imagesRevision: number;
+  bumpImagesRevision: () => void;
+
   searchPanelOpen: boolean;
   setSearchPanelOpen: (open: boolean) => void;
   /** Grupurile serie/duplicat existente (groupId), prezentate ca o lista de revizuit, nu una cate una din grila. */
@@ -1694,6 +1709,9 @@ export const useStore = create<AppState>((set, get) => ({
     get().openTiktokSortForIds(ids);
     return ids.length;
   },
+  imagesRevision: 0,
+  bumpImagesRevision: () => set(state => ({ imagesRevision: state.imagesRevision + 1 })),
+
   searchPanelOpen: false,
   setSearchPanelOpen: open => {
     // Lista de localitati se incarca la deschiderea cautarii, nu la pornirea

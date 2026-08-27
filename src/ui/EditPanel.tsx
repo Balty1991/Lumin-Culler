@@ -227,6 +227,7 @@ export function EditPanel() {
   // deja in memorie (doar ora capturii si scorul), fara niciun acces la disc:
   // vezi core/momentStacks.ts, care nu se uita deloc la imagini.
   const applyEditsToMoment = useStore(s => s.applyEditsToMoment);
+  const bumpImagesRevision = useStore(s => s.bumpImagesRevision);
   const momentSiblings = useMemo(() => {
     if (!photo) return [];
     const stacks = buildMomentStacks(photos.map(p => ({
@@ -905,6 +906,11 @@ export function EditPanel() {
       // a doua oara, acum peste imaginea deja coapta. Aceeasi ajustare, de
       // doua ori.
       await setEditAdjustments(photo.id, { ...NEUTRAL_ADJUSTMENTS });
+      // Si un semnal catre ecranele deja deschise. bakeEdits a golit cache-ul de
+      // URL-uri, dar ele cer imaginea o SINGURA data, cand se schimba poza — iar
+      // poza e aceeasi. Fara semnalul asta, omul se intoarce din editor si vede
+      // tot imaginea dinainte. Vezi imagesRevision in state/store.ts.
+      bumpImagesRevision();
       setAdjustments({ ...NEUTRAL_ADJUSTMENTS });
       bokehRequestedFor.current = null;
       setBokehSource(null);
