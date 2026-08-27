@@ -71,7 +71,7 @@ export async function segmentPersonMask(
    * masca se ia asa cum vine.
    */
   faceHint?: { x: number; y: number; width: number; height: number }
-): Promise<{ image: CanvasImageSource; personCoverage: number; inverted: boolean }> {
+): Promise<{ image: CanvasImageSource; personCoverage: number; inverted: boolean; focusY: number | null }> {
   if (!isNativeSegmentationAvailable()) {
     throw new Error('Segmentarea nativa e disponibila doar in aplicatia Android.');
   }
@@ -118,7 +118,12 @@ export async function segmentPersonMask(
   }
   ctx.putImageData(pixels, 0, 0);
 
-  return { image: canvas, personCoverage: inverted ? 1 - personCoverage : personCoverage, inverted };
+  return {
+    image: canvas,
+    personCoverage: inverted ? 1 - personCoverage : personCoverage,
+    inverted,
+    focusY: planulDeFocalizare(pixels)
+  };
 }
 
 /** Alpha mediu intr-un dreptunghi dat in pixeli, cu marginile taiate la cadru. */
@@ -159,4 +164,35 @@ function shouldInvert(
     meanAlpha(pixels, w - c, h - c, w, h)
   ) / 4;
   return colturi - fata > INVERSION_MARGIN;
+}
+
+/**
+ * Unde e PLANUL DE FOCALIZARE, ca fractiune 0..1 din inaltime.
+ *
+ * Raspunsul e "acolo unde subiectul atinge pamantul" — adica ultimul rand in
+ * care masca mai are persoana. De ce acolo: intr-o poza obisnuita, solul se
+ * departeaza pe masura ce urci in cadru. Pamantul de langa picioarele
+ * subiectului e la ACEEASI distanta cu el, deci un obiectiv real il lasa clar;
+ * peretele din spate e mai departe si se estompeaza.
+ *
+ * Fara reperul asta, estomparea iesea uniforma pe tot ce nu era persoana — si
+ * exact aia se citea ca fals, fiindca niciun obiectiv nu se poarta asa.
+ * Observat de utilizator inainte sa masor eu: "jos trebuia sa se vada normal".
+ *
+ * Se cauta de jos in sus si se opreste la primul rand cu destula persoana:
+ * cateva pixeli razleti de zgomot nu au voie sa coboare planul pana la marginea
+ * cadrului.
+ */
+const FOCUS_ROW_MIN_FRACTION = 0.01;
+
+function planulDeFocalizare(pixels: ImageData): number | null {
+  const { data, width, height } = pixels;
+  const minim = Math.max(2, Math.round(width * FOCUS_ROW_MIN_FRACTION));
+  for (let y = height - 1; y >= 0; y--) {
+    let n = 0;
+    for (let x = 0; x < width; x++) {
+      if (data[(y * width + x) * 4 + 3] > 128 && ++n >= minim) return y / height;
+    }
+  }
+  return null;
 }

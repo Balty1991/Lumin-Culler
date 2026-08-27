@@ -5780,3 +5780,35 @@ button:disabled,
 .drawer-item-block { grid-template-columns: 1fr; padding-left: 40px; }
 .drawer-item-block > .drawer-item-note,
 .drawer-item-block > .drawer-genre-opts { grid-column: 1; }
+
+
+/* ── Antetul editorului, cu patru actiuni ──
+   De cand exista si "Stil" si "Aplica", cele patru butoane plus X-ul lasau
+   titlului ~30px la 412px latime: se citea "Edi…". Masurat, nu din ochi.
+
+   Nu se sacrifica titlul (utilizatorul l-a cerut inapoi explicit) si nici nu se
+   trece pe doua randuri — ar manca din inaltimea pozei, care e ce conteaza in
+   editor. Se strang butoanele: text mai mic, padding mai mic, iconite mai mici.
+   Recalculat la 412px: X 40 + titlu ~56 + Auto 66 + Stil 56 + Aplica 68 +
+   undo 40, cu 5 spatii de 6px = 356 din 388 disponibili. Incape, cu 32px in
+   plus pentru diacritice si limbi mai lungi. */
+@media (max-width: 480px) {
+  .edit-topbar { gap: 6px; }
+  .edit-topbar-title { font-size: .82rem; }
+  .edit-topbar-actions { gap: 6px; }
+  .edit-topbar-actions .small-btn {
+    padding: 0 9px;
+    font-size: .72rem;
+    gap: 4px;
+  }
+  .edit-topbar-actions .small-btn .inline-icon { width: 14px; height: 14px; }
+  /* Butonul de anulare ramane doar iconita, cat mai stramt — e singurul din
+     rand care se intelege fara text. */
+  .edit-topbar .icon-btn { width: 40px; min-width: 40px; padding: 0; }
+}
+/* Sub 380px (telefoane mici) nu mai incape oricum: titlul pleaca, dar ramane
+   citit de cititoarele de ecran prin aria-label-ul dialogului. Butoanele sunt
+   ce faci, titlul doar spune unde esti — si asta se vede din ce e pe ecran. */
+@media (max-width: 379px) {
+  .edit-topbar-title { display: none; }
+}

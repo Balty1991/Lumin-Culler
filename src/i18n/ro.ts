@@ -1336,7 +1336,7 @@ export const ro = {
   'presentation.source.filtered': 'poze din filtrul curent',
   'presentation.source.recap': 'recapul lunar',
 
-  'edit.title': 'Editare de bază',
+  'edit.title': 'Editare',
   'edit.open': 'Editează',
   'edit.auto': 'Auto',
   'edit.style': 'Stil',

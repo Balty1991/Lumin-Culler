@@ -836,7 +836,7 @@ export function EditPanel() {
         // Caseta fetei merge mai departe ca REPER de orientare: daca masca zice
         // "nu e persoana" fix acolo unde stim ca e fata, se inverseaza singura.
         // Vezi shouldInvert in core/nativeSegmentation.ts.
-        const { image, personCoverage } = await segmentPersonMask(rec.blob, bokehSubject ?? undefined);
+        const { image, personCoverage, focusY } = await segmentPersonMask(rec.blob, bokehSubject ?? undefined);
         if (openPhotoIdRef.current !== forPhoto) return;
         // O masca in care "persoana" e tot cadrul ar sterge complet copia
         // estompata si poza ar ramane neatinsa — exact simptomul "sliderul nu
@@ -847,7 +847,9 @@ export function EditPanel() {
           setBokehSource(bokehSubject ? 'face' : 'none');
           return;
         }
-        setAdjustments(prev => ({ ...prev, bokehMask: image }));
+        // Planul de focalizare merge odata cu masca: fara el, estomparea ar
+        // fi iesit din nou uniforma pe tot fundalul. Vezi applyBokeh.
+        setAdjustments(prev => ({ ...prev, bokehMask: image, bokehFocusY: focusY ?? undefined }));
         setBokehSource('mask');
       } catch {
         // Segmentarea a picat pe telefonul asta — ramane caseta fetei, daca e.

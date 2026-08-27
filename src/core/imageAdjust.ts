@@ -115,6 +115,12 @@ export interface EditAdjustments {
    * oricand din poza, deci traieste doar cat sesiunea de editare.
    */
   bokehMask?: CanvasImageSource;
+  /**
+   * Planul de focalizare, fractiune 0..1 din inaltime — de obicei acolo unde
+   * subiectul atinge pamantul. Ce e la aceeasi inaltime ramane clar, si se
+   * estompeaza tot mai mult cu departarea. Vezi applyBokeh.
+   */
+  bokehFocusY?: number;
   /** Reglaj pe game de culoare (nuanta/saturatie/luminozitate per familie) — vezi core/hslBands.ts. Absent = neatins. */
   hsl?: HslBands;
   /** Curbele tonale (master + R/G/B) — vezi core/toneCurve.ts. Absent = liniare. */
@@ -137,7 +143,7 @@ export const NEUTRAL_ADJUSTMENTS: EditAdjustments = {
  * Tipul e exportat ca sa nu mai fie nevoie ca UI-ul sa repete lista de excluderi
  * (si sa o uite la urmatorul instrument adaugat — exact ce s-a intamplat).
  */
-export type NumericAdjustmentKey = Exclude<keyof EditAdjustments, 'crop' | 'curves' | 'controlPoints' | 'heal' | 'hsl' | 'bokehSubject' | 'bokehMask' | 'bwMix'>;
+export type NumericAdjustmentKey = Exclude<keyof EditAdjustments, 'crop' | 'curves' | 'controlPoints' | 'heal' | 'hsl' | 'bokehSubject' | 'bokehMask' | 'bokehFocusY' | 'bwMix'>;
 const ADJUSTMENT_KEYS = Object.keys(NEUTRAL_ADJUSTMENTS) as NumericAdjustmentKey[];
 
 /**
@@ -817,9 +823,14 @@ export function applyBokeh(
   if (!sctx) return;
 
   const radius = (amount / 100) * Math.max(width, height) * 0.03;
-  sctx.filter = `blur(${radius.toFixed(2)}px)`;
-  drawGeometry(sctx, source, sourceWidth, sourceHeight, width, height, a);
-  sctx.filter = 'none';
+  // Pe calea cu masca, scratch-ul se compune din planurile de mai jos si
+  // porneste GOL. Pe cea de rezerva (gradient radial) ramane o singura
+  // estompare, desenata aici.
+  if (!a.bokehMask) {
+    sctx.filter = `blur(${radius.toFixed(2)}px)`;
+    drawGeometry(sctx, source, sourceWidth, sourceHeight, width, height, a);
+    sctx.filter = 'none';
+  }
 
   // CALEA PRINCIPALA: conturul real al persoanei, de la segmenter.
   //
@@ -833,10 +844,67 @@ export function applyBokeh(
   // Cateva miimi din latura inmoaie muchia exact cat trebuie — mai mult ar
   // manca din umeri, mai putin ar lasa contur de foarfeca.
   if (a.bokehMask) {
+    // ADANCIME IN TREPTE, nu o singura estompare peste tot.
+    //
+    // Un obiectiv nu estompeaza "ce nu e persoana" — estompeaza dupa DISTANTA.
+    // Pamantul de langa picioarele subiectului e la aceeasi distanta cu el si
+    // ramane clar; peretele din spate e mai departe si se duce. Cu o masca
+    // binara ieseau clare doar persoana si nimic altceva, iar rezultatul se
+    // citea imediat ca decupaj — semnalat de utilizator, nu gasit de mine.
+    //
+    // Fara harta de adancime (n-avem senzor si n-ar incapea un model in plus),
+    // reperul e planul de focalizare: randul unde subiectul atinge solul (vezi
+    // planulDeFocalizare in core/nativeSegmentation.ts). De acolo in sus e mai
+    // departe, de acolo in jos e mai aproape — si un obiectiv real estompeaza
+    // in ambele sensuri, doar ca in fata mai putin.
+    //
+    // Trei planuri sunt de-ajuns ca ochiul sa citeasca o trecere continua; mai
+    // multe ar costa cate o trecere de blur pe cadru fara castig vizibil.
+    const focusY = clampRange(a.bokehFocusY ?? 0.82, 0, 1) * height;
+    const planuri: { raza: number; de: number; la: number }[] = [
+      { raza: radius * 0.35, de: 0.0, la: 0.45 },
+      { raza: radius * 0.7, de: 0.3, la: 0.75 },
+      { raza: radius, de: 0.6, la: 1.0 }
+    ];
+
+    for (const plan of planuri) {
+      const strat = document.createElement('canvas');
+      strat.width = width;
+      strat.height = height;
+      const stx = strat.getContext('2d');
+      if (!stx) continue;
+      // Luminile ridicate INAINTE de estompare: intr-un bokeh real punctele
+      // luminoase se umfla in discuri si domina fundalul. Gaussiana simpla le
+      // stinge; un pic de contrast si luminozitate le tine vii.
+      stx.filter = `blur(${plan.raza.toFixed(2)}px) brightness(1.05) contrast(1.08)`;
+      drawGeometry(stx, source, sourceWidth, sourceHeight, width, height, a);
+      stx.filter = 'none';
+
+      // Cat de mult se vede planul asta: zero la linia de focalizare, plin
+      // catre marginile cadrului. In jos rampa e mai scurta — ce e in fata
+      // subiectului iese din focus mai lent decat ce e in spate.
+      stx.globalCompositeOperation = 'destination-in';
+      const g = stx.createLinearGradient(0, 0, 0, height);
+      const sus = Math.max(0.0001, focusY / height);
+      const jos = Math.max(0.0001, 1 - focusY / height);
+      const opreste = (fractie: number) => clampRange(fractie, 0, 1);
+      g.addColorStop(0, `rgba(0,0,0,${plan.la})`);
+      g.addColorStop(opreste(sus * (1 - plan.la)), `rgba(0,0,0,${plan.la})`);
+      g.addColorStop(opreste(sus), 'rgba(0,0,0,0)');
+      g.addColorStop(opreste(sus + jos * 0.55), `rgba(0,0,0,${plan.de * 0.6})`);
+      g.addColorStop(1, `rgba(0,0,0,${plan.de * 0.6})`);
+      stx.fillStyle = g;
+      stx.fillRect(0, 0, width, height);
+      stx.globalCompositeOperation = 'source-over';
+
+      sctx.drawImage(strat, 0, 0);
+    }
+
+    // Persoana iese din teancul estompat si ramane cea clara de dedesubt.
+    // Masca vine cu incredere continua (vezi SegmentationPlugin), deci muchia e
+    // deja moale — nu mai are nevoie de blur peste ea.
     sctx.globalCompositeOperation = 'destination-out';
-    sctx.filter = `blur(${Math.max(1, Math.max(width, height) * 0.004).toFixed(2)}px)`;
     sctx.drawImage(a.bokehMask, 0, 0, width, height);
-    sctx.filter = 'none';
     sctx.globalCompositeOperation = 'source-over';
     ctx.drawImage(scratch, 0, 0);
     return;

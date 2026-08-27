@@ -1294,7 +1294,7 @@ export const en: Record<TranslationKey, string> = {
   'presentation.source.filtered': 'photos from the current filter',
   'presentation.source.recap': 'the monthly recap',
 
-  'edit.title': 'Basic edit',
+  'edit.title': 'Editing',
   'edit.open': 'Edit',
   'edit.auto': 'Auto',
   'edit.style': 'Style',
