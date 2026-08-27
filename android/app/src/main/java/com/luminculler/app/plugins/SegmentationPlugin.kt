@@ -19,12 +19,11 @@ private const val MODEL_FILE = "selfie_segmenter.tflite"
  * Multiclass imparte omul in par/corp/fata/haine — o distinctie de care nimic
  * din aplicatie n-are nevoie. Aici ne trebuie o singura granita: om sau fundal.
  *
- * Masca de categorii da indexul clasei pe octet. Pentru modelul cu doua clase,
- * 0 e fundalul si persoana e restul. Testul e "diferit de zero", nu "egal cu 1",
- * fiindca unele versiuni MediaPipe scot 255 in loc de 1 pentru clasa activa —
- * ambele trec, si tot ce nu e fundal ramane persoana.
+ * Peste atata incredere pixelul se considera persoana. Pragul conteaza doar
+ * pentru `personCoverage` (procentul raportat inapoi); masca propriu-zisa
+ * pastreaza valoarea continua, ca sa aiba contur moale.
  */
-private fun isPersonClass(classIndex: Int): Boolean = classIndex != 0
+private const val PERSON_CONFIDENCE = 0.5f
 
 /**
  * Separare persoana/fundal, masca per-pixel — port catre MediaPipe Image
@@ -50,8 +49,22 @@ class SegmentationPlugin : Plugin() {
         val baseOptions = BaseOptions.builder().setModelAssetPath(MODEL_FILE).build()
         val options = ImageSegmenter.ImageSegmenterOptions.builder()
             .setBaseOptions(baseOptions)
-            .setOutputCategoryMask(true)
-            .setOutputConfidenceMasks(false)
+            // Masca de INCREDERE, nu cea de categorii.
+            //
+            // Aici a fost bug-ul care estompa persoana in loc de fundal:
+            // SelfieSegmenter are UN SINGUR canal de iesire, iar MediaPipe il
+            // trateaza ca increderea pentru categoria 0. Adica persoana iese cu
+            // indexul 0, iar un test "clasa != 0" selecteaza exact fundalul.
+            // Semantica indexilor depinde de cate canale are modelul si nu e
+            // scrisa nicaieri raspicat — pe cand masca de incredere e fara
+            // echivoc: canalul 0 e probabilitatea sa fie persoana.
+            //
+            // Bonus, nu efect secundar: valoarea continua devine direct ALPHA,
+            // deci conturul iese moale de la sine. Inainte se taia dur si se
+            // inmuia dupa aceea cu un blur peste masca — o carpeala pe langa
+            // ce da modelul gratis.
+            .setOutputCategoryMask(false)
+            .setOutputConfidenceMasks(true)
             .setRunningMode(RunningMode.IMAGE)
             .build()
         ImageSegmenter.createFromOptions(context, options)
@@ -79,30 +92,38 @@ class SegmentationPlugin : Plugin() {
         }
     }
 
+    /**
+     * Primul (si singurul) canal de incredere: probabilitatea sa fie persoana.
+     * `null` cand modelul n-a intors nimic — apelantul decide ce spune.
+     */
+    private fun firstConfidenceMask(result: com.google.mediapipe.tasks.vision.imagesegmenter.ImageSegmenterResult?): com.google.mediapipe.framework.image.MPImage? {
+        val masks = result?.confidenceMasks() ?: return null
+        if (!masks.isPresent || masks.get().isEmpty()) return null
+        return masks.get()[0]
+    }
+
     private fun segment(bitmap: Bitmap): JSObject {
         val mpImage = BitmapImageBuilder(bitmap).build()
         val result = imageSegmenter.segment(mpImage)
         val out = JSObject()
 
-        val categoryMask = result?.categoryMask()
-        if (categoryMask == null || !categoryMask.isPresent) {
+        val maskImage = firstConfidenceMask(result)
+        if (maskImage == null) {
             out.put("personCoverage", 0.0)
             out.put("maskWidth", 0)
             out.put("maskHeight", 0)
             return out
         }
 
-        val maskImage = categoryMask.get()
-        val buffer = ByteBufferExtractor.extract(maskImage)
-        var personBytes = 0
+        val buffer = ByteBufferExtractor.extract(maskImage).asFloatBuffer()
+        var personPixels = 0
         var total = 0
         while (buffer.hasRemaining()) {
-            val classIndex = buffer.get().toInt() and 0xFF
-            if (isPersonClass(classIndex)) personBytes++
+            if (buffer.get() >= PERSON_CONFIDENCE) personPixels++
             total++
         }
 
-        out.put("personCoverage", if (total > 0) personBytes.toDouble() / total else 0.0)
+        out.put("personCoverage", if (total > 0) personPixels.toDouble() / total else 0.0)
         out.put("maskWidth", maskImage.width)
         out.put("maskHeight", maskImage.height)
         return out
@@ -131,32 +152,34 @@ class SegmentationPlugin : Plugin() {
         try {
             val mpImage = BitmapImageBuilder(bitmap).build()
             val result = imageSegmenter.segment(mpImage)
-            val categoryMask = result?.categoryMask()
-            if (categoryMask == null || !categoryMask.isPresent) {
+            val maskImage = firstConfidenceMask(result)
+            if (maskImage == null) {
                 call.reject("No mask returned for this image")
                 return
             }
 
-            val maskImage = categoryMask.get()
-            val buffer = ByteBufferExtractor.extract(maskImage)
+            val buffer = ByteBufferExtractor.extract(maskImage).asFloatBuffer()
             val w = maskImage.width
             val h = maskImage.height
             val pixels = IntArray(w * h)
             var personPixels = 0
             var i = 0
             while (buffer.hasRemaining() && i < pixels.size) {
-                val isPerson = isPersonClass(buffer.get().toInt() and 0xFF)
-                if (isPerson) personPixels++
-                // Persoana: alb OPAC. Fundal: complet TRANSPARENT, nu negru.
+                val incredere = buffer.get()
+                if (incredere >= PERSON_CONFIDENCE) personPixels++
+                // ALB peste tot, iar increderea devine ALPHA.
                 //
-                // Aici era bug-ul care a tinut bokeh-ul mort patru build-uri:
-                // partea de JS foloseste masca cu `destination-out`, care sterge
-                // dupa ALPHA, nu dupa culoare. Negrul opac sterge exact la fel de
-                // bine ca albul opac, deci se stergea tot cadrul si nu ramanea
-                // nimic de compus peste poza. (JS-ul normalizeaza acum oricum
-                // masca — vezi luminanceToAlpha — dar formatul corect se trimite
-                // de aici, nu se repara la celalalt capat.)
-                pixels[i++] = if (isPerson) -0x1 else 0x00000000
+                // Doua bug-uri au trecut prin locul asta, si merita amandoua
+                // scrise: intai fundalul era negru OPAC, iar `destination-out`
+                // sterge dupa alpha, nu dupa culoare — deci stergea tot cadrul.
+                // Apoi masca a iesit inversata, fiindca semantica indexilor de
+                // categorie depinde de cate canale are modelul.
+                //
+                // Increderea continua rezolva si a doua problema, si mai da si
+                // conturul moale pe gratis: la marginea persoanei valoarea scade
+                // lin, deci si stergerea e partiala acolo.
+                val alpha = (incredere.coerceIn(0f, 1f) * 255f).toInt()
+                pixels[i++] = (alpha shl 24) or 0x00FFFFFF
             }
 
             val mask = Bitmap.createBitmap(pixels, w, h, Bitmap.Config.ARGB_8888)

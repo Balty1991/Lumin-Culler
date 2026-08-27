@@ -261,6 +261,8 @@ export function MenuDrawer() {
   // Lista scurta se tine in stare locala ca pastilele sa raspunda imediat la
   // atingere; readGenreShortlist() e sursa la deschiderea meniului.
   const [genrePicks, setGenrePicks] = useState<string[]>(() => readGenreShortlist());
+  /** Pastilele stau inchise pana le ceri — vezi randul "Ce fotografiez" mai jos. */
+  const [genrePickerOpen, setGenrePickerOpen] = useState(false);
   const genreShortlist = genrePicks;
   const groupByPeople = useStore(s => s.groupByPeople);
   const setGroupByPeople = useStore(s => s.setGroupByPeople);
@@ -549,9 +551,33 @@ export function MenuDrawer() {
                   contextKey, deci activ ramane unul singur, iar restul sunt
                   doar la o atingere distanta. Exact grija pe care a avut-o
                   utilizatorul: "ca sa nu amestece genurile". */}
-              <div className="drawer-item drawer-item-block">
+              {/* Acelasi rand ca "Gen fotografic" de deasupra: iconita, nume,
+                  valoarea curenta la dreapta. Pastilele apar doar dupa ce
+                  apesi.
+
+                  Inainte statea desfacut permanent — paisprezece pastile
+                  intinse pe patru randuri, imediat sub un rand normal de
+                  meniu. Reclamat direct ("nu asa inestetic"), si pe drept:
+                  aratau ca doua lucruri fara legatura, desi al doilea doar
+                  umple lista primului. Inchis, se citeste ca ce si este — o
+                  setare cu o valoare. */}
+              <button
+                type="button"
+                className="drawer-item"
+                onClick={() => setGenrePickerOpen(o => !o)}
+                aria-expanded={genrePickerOpen}
+              >
                 <span className="drawer-item-icon"><TagIcon /></span>
                 <span>{tr('menu.genre.mine')}</span>
+                <span className="drawer-item-value mono">
+                  {genrePicks.length === 0 ? tr('menu.genre.mine.none')
+                    : genrePicks.length <= 2 ? genrePicks.join(', ')
+                    : tr('menu.genre.mine.summary', { first: genrePicks[0], rest: genrePicks.length - 1 })}
+                </span>
+                <ChevronUpIcon className="drawer-group-chevron" data-open={String(genrePickerOpen)} aria-hidden="true" />
+              </button>
+              {genrePickerOpen && (
+              <div className="drawer-item drawer-item-block">
                 <p className="drawer-item-note">{tr('menu.genre.mine.why')}</p>
                 <div className="drawer-genre-opts" role="group" aria-label={tr('menu.genre.mine')}>
                   {GENRE_PRESETS.map(g => {
@@ -578,6 +604,7 @@ export function MenuDrawer() {
                   })}
                 </div>
               </div>
+              )}
             </>
           )}
         </DrawerGroup>

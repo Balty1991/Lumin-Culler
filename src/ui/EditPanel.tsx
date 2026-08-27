@@ -832,7 +832,10 @@ export function EditPanel() {
       try {
         const rec = await db.previews.get(forPhoto) ?? await db.thumbnails.get(forPhoto);
         if (!rec) { setBokehSource(bokehSubject ? 'face' : 'none'); return; }
-        const { image, personCoverage } = await segmentPersonMask(rec.blob);
+        // Caseta fetei merge mai departe ca REPER de orientare: daca masca zice
+        // "nu e persoana" fix acolo unde stim ca e fata, se inverseaza singura.
+        // Vezi shouldInvert in core/nativeSegmentation.ts.
+        const { image, personCoverage } = await segmentPersonMask(rec.blob, bokehSubject ?? undefined);
         if (openPhotoIdRef.current !== forPhoto) return;
         // O masca in care "persoana" e tot cadrul ar sterge complet copia
         // estompata si poza ar ramane neatinsa — exact simptomul "sliderul nu

@@ -63,7 +63,15 @@ export async function segmentSubjectNative(imageBlob: Blob): Promise<NativeSegme
  * Arunca daca segmentarea nu e disponibila sau esueaza; apelantul decide ce
  * spune omului si daca revine la varianta cu casetele de fata.
  */
-export async function segmentPersonMask(imageBlob: Blob): Promise<{ image: CanvasImageSource; personCoverage: number }> {
+export async function segmentPersonMask(
+  imageBlob: Blob,
+  /**
+   * Unde stim ca e omul, in fractiuni 0..1 — din fetele detectate la import.
+   * Cand e dat, se verifica ORIENTAREA mastii (vezi mai jos). Optional: fara el
+   * masca se ia asa cum vine.
+   */
+  faceHint?: { x: number; y: number; width: number; height: number }
+): Promise<{ image: CanvasImageSource; personCoverage: number; inverted: boolean }> {
   if (!isNativeSegmentationAvailable()) {
     throw new Error('Segmentarea nativa e disponibila doar in aplicatia Android.');
   }
@@ -91,7 +99,64 @@ export async function segmentPersonMask(imageBlob: Blob): Promise<{ image: Canva
   ctx.drawImage(decoded, 0, 0);
   const pixels = ctx.getImageData(0, 0, w, h);
   luminanceToAlpha(pixels.data);
+
+  // VERIFICAREA DE ORIENTARE.
+  //
+  // De ce exista: masca a iesit o data exact pe dos — se estompa persoana si
+  // ramanea clar fundalul. Cauza era semantica indexilor de categorie din
+  // MediaPipe, care depinde de cate canale are modelul si nu e scrisa nicaieri
+  // raspicat. Am reparat-o la sursa (se foloseste acum masca de incredere), dar
+  // o presupunere tacuta care s-a dovedit gresita o data merita o plasa.
+  //
+  // Verificarea nu costa aproape nimic si nu presupune nimic despre model: daca
+  // stim unde e fata, masca TREBUIE sa fie mai "persoana" acolo decat in colturi.
+  // Cand nu e, se inverseaza. Fara fata detectata nu se atinge nimic — n-avem
+  // pe ce sa ne bazam, iar o inversare gresita ar strica o masca buna.
+  const inverted = faceHint ? shouldInvert(pixels, w, h, faceHint) : false;
+  if (inverted) {
+    for (let i = 3; i < pixels.data.length; i += 4) pixels.data[i] = 255 - pixels.data[i];
+  }
   ctx.putImageData(pixels, 0, 0);
 
-  return { image: canvas, personCoverage };
+  return { image: canvas, personCoverage: inverted ? 1 - personCoverage : personCoverage, inverted };
+}
+
+/** Alpha mediu intr-un dreptunghi dat in pixeli, cu marginile taiate la cadru. */
+function meanAlpha(pixels: ImageData, x0: number, y0: number, x1: number, y1: number): number {
+  const w = pixels.width;
+  const sx = Math.max(0, Math.floor(x0)), sy = Math.max(0, Math.floor(y0));
+  const ex = Math.min(pixels.width, Math.ceil(x1)), ey = Math.min(pixels.height, Math.ceil(y1));
+  let sum = 0, n = 0;
+  for (let y = sy; y < ey; y++) {
+    for (let x = sx; x < ex; x++) {
+      sum += pixels.data[(y * w + x) * 4 + 3];
+      n++;
+    }
+  }
+  return n > 0 ? sum / n : 0;
+}
+
+/**
+ * Masca e pe dos? Se compara cat de "persoana" e in dreptul fetei cu cat e in
+ * cele patru colturi, care pe orice cadru normal sunt fundal.
+ *
+ * Pragul cere o diferenta CLARA, nu orice diferenta: pe un prim-plan foarte
+ * strans si colturile pot avea om, iar acolo e mai bine sa nu facem nimic
+ * decat sa inversam din eroare.
+ */
+const INVERSION_MARGIN = 40;
+
+function shouldInvert(
+  pixels: ImageData, w: number, h: number,
+  face: { x: number; y: number; width: number; height: number }
+): boolean {
+  const fata = meanAlpha(pixels, face.x * w, face.y * h, (face.x + face.width) * w, (face.y + face.height) * h);
+  const c = Math.max(2, Math.round(Math.min(w, h) * 0.12));
+  const colturi = (
+    meanAlpha(pixels, 0, 0, c, c) +
+    meanAlpha(pixels, w - c, 0, w, c) +
+    meanAlpha(pixels, 0, h - c, c, h) +
+    meanAlpha(pixels, w - c, h - c, w, h)
+  ) / 4;
+  return colturi - fata > INVERSION_MARGIN;
 }

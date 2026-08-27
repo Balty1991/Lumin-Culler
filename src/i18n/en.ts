@@ -1100,6 +1100,8 @@ export const en: Record<TranslationKey, string> = {
   'library.band.count.one': '1 photo',
   'library.band.count.other': '{count} photos',
   'menu.genre.mine': 'What I shoot',
+  'menu.genre.mine.none': 'none',
+  'menu.genre.mine.summary': '{first} +{rest}',
   'menu.genre.mine.why': 'Pick everything you shoot. They stay at hand in the list above; only one is ever active, so learning never gets mixed up.',
   'menu.genre.all': 'All',
   'persons.section.enrolled': 'Enrolled people',

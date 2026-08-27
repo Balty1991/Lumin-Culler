@@ -1138,6 +1138,8 @@ export const ro = {
   'library.band.count.one': '1 poză',
   'library.band.count.other': '{count} poze',
   'menu.genre.mine': 'Ce fotografiez',
+  'menu.genre.mine.none': 'niciunul',
+  'menu.genre.mine.summary': '{first} +{rest}',
   'menu.genre.mine.why': 'Alege tot ce fotografiezi. Rămân la îndemână în lista de sus; activ e mereu unul singur, ca să nu se amestece învățarea.',
   'menu.genre.all': 'Toate',
   'persons.section.enrolled': 'Persoane înrolate',

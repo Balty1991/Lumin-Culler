@@ -5762,3 +5762,21 @@ button:disabled,
 .calibration-legend { display: flex; align-items: center; gap: 6px; margin: 0; }
 .calibration-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 .calibration-legend i + * { margin-right: 8px; }
+
+/* Valoarea curenta a unui rand de meniu, la dreapta — aceeasi asezare ca la
+   selectorul de gen de deasupra, ca cele doua randuri sa se citeasca drept ce
+   sunt: aceeasi setare, vazuta din doua unghiuri. */
+.drawer-item-value {
+  margin-left: auto;
+  max-width: 46%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: .74rem;
+  color: var(--text-dim);
+}
+/* Blocul cu pastile, cand e deschis: fara iconita proprie si aliniat sub randul
+   care l-a deschis, nu ca inca o intrare de sine statatoare. */
+.drawer-item-block { grid-template-columns: 1fr; padding-left: 40px; }
+.drawer-item-block > .drawer-item-note,
+.drawer-item-block > .drawer-genre-opts { grid-column: 1; }
