@@ -180,6 +180,29 @@ jobs:
       # missing_rules.txt. Fara pasul asta ele raman pe runner si dispar odata
       # cu el, iar reparatia devine ghicit din log — s-a intamplat exact asa
       # prima data. Se incarca doar la esec, deci nu ingreuneaza nimic in rest.
+      # Cat a APUCAT R8 sa optimizeze, ca sa nu ghicim.
+      #
+      # Cerinta Play cere minimum 25% acoperire de optimizare, micsorare si
+      # ofuscare. Regulile din proguard-rules.pro pastreaza insa blocuri intregi
+      # (`-keep class com.google.mlkit.** { *; }` si celelalte), tocmai ca sa nu
+      # se rupa reflexia — iar acele biblioteci sunt majoritatea codului. Exista
+      # deci un risc REAL ca regulile care fac buildul sa mearga sa submineze
+      # chiar pragul pentru care am pornit R8.
+      #
+      # mapping.txt listeaza fiecare clasa redenumita; numarul de linii spune cat
+      # s-a ofuscat de fapt. Se incarca doar la build-urile minificate — la
+      # celelalte fisierul nici nu exista.
+      - name: Cat a optimizat R8
+        if: ${{ inputs.minify == true }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: r8-raport
+          path: |
+            android/app/build/outputs/mapping/**/mapping.txt
+            android/app/build/outputs/mapping/**/configuration.txt
+            android/app/build/outputs/mapping/**/usage.txt
+          if-no-files-found: warn
+          retention-days: 7
       - name: Regulile pe care le cere R8 (doar la esec)
         if: failure()
         uses: actions/upload-artifact@v4
