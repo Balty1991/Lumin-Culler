@@ -150,12 +150,12 @@ class ImageDescriptionPlugin : Plugin() {
                 } catch (e: Exception) {
                     call.reject("Image description failed: ${e.message}", e)
                 } finally {
-                    bitmap.recycle()
+                    recycleIfOwned(bitmap)
                 }
             }, callbackExecutor)
         } catch (e: Throwable) {
             call.reject("Image description is not available on this device", e as? Exception)
-            bitmap.recycle()
+            recycleIfOwned(bitmap)
         }
     }
 }

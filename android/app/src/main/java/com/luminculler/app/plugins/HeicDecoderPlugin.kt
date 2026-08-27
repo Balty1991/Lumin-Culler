@@ -70,7 +70,7 @@ class HeicDecoderPlugin : Plugin() {
         } catch (e: Exception) {
             call.reject("Failed to re-encode as JPEG: ${e.message}", e)
         } finally {
-            bitmap.recycle()
+            recycleIfOwned(bitmap)
         }
     }
 }
