@@ -3,7 +3,7 @@ import { getCachedThumbUrl, peekThumbUrl } from '../core/thumbUrlCache';
 import { useStore, type PhotoView } from '../state/store';
 import {
   StarIcon, UserQuestionIcon, UserCheckIcon, EyeClosedIcon, LayersIcon, CheckIcon, SunIcon, ClockIcon, EditIcon,
-  UnderexposedIcon, AwkwardExpressionIcon, RibbonIcon, HeartIcon, HeartOffIcon, BookmarkIcon} from './icons';
+  UnderexposedIcon, AwkwardExpressionIcon, RibbonIcon, HeartIcon, HeartOffIcon, BookmarkIcon, XIcon} from './icons';
 import { isNeutral } from '../core/imageAdjust';
 import { AdjustedImage } from './AdjustedImage';
 import { t, type Locale } from '../i18n';
@@ -134,6 +134,12 @@ function PhotoCardInner({ photo, index, onOpen, multiSelected, onCardPointerDown
           unde te uiti peste tot lotul. */}
       {!multiSelected && photo.status === 'candidate' && (
         <span className="candidate-badge" aria-hidden="true"><BookmarkIcon /></span>
+      )}
+      {/* Insigna rosie pentru respinse — mockup-urile "Lumin Culler PRO" arata
+          un X plin si pe cardurile respinse, nu doar desaturarea imaginii de
+          dinainte (singurul semnal ramas altfel era conturul cardului). */}
+      {!multiSelected && photo.status === 'rejected' && (
+        <span className="reject-badge" aria-hidden="true"><XIcon /></span>
       )}
       <span className="card-media" aria-hidden="true">
         {photo.lqip && <img className="card-lqip" src={photo.lqip} alt="" />}

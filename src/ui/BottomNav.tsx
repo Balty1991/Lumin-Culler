@@ -1,35 +1,26 @@
 import { useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useStore } from '../state/store';
-import { HomeIcon, GridIcon, FocusIcon, MenuIcon } from './icons';
+import { GridIcon, PersonIcon, UploadIcon, GearIcon } from './icons';
 import { t } from '../i18n';
 
 /**
- * Bara de navigare jos — patru spatii, nu patru sertare.
+ * Bara de navigare jos — Grilă / Persoane / Export / Setări.
  *
- * Inainte era Acasa / Albume / Persoane / Meniu, si avea trei probleme, toate
- * din acelasi motiv: destinatiile erau alese dupa cum e ORGANIZATA aplicatia,
- * nu dupa ce FACE omul cu ea.
+ * Redesign "Lumin Culler PRO" (cerință directă a utilizatorului, cu mockup-uri
+ * aprobate): cele 4 taburi urmează acum exact denumirile din capturile
+ * confirmate, în locul variantei anterioare (Acasă/Bibliotecă/Revizuiesc/
+ * Meniu — vezi istoricul git pentru raționamentul acelei variante, valabil
+ * încă pentru echilibrul "ce se folosește des vs. rar", dar înlocuit aici
+ * de cerința explicită de fidelitate față de mockup).
  *
- *  - Munca principala — trecerea prin poze — n-avea niciun tab. Se ajungea la
- *    ea doar prin butonul "Continua" de pe ecranul de start, adica singurul
- *    lucru pentru care exista aplicatia era la doua taps si depindea de un card.
- *  - Biblioteca, la fel: ascunsa sub "Vezi toate fotografiile".
- *  - Albume si Persoane sunt locuri unde intri rar si cu un scop anume. Un tab
- *    permanent pentru fiecare inseamna doua sferturi din bara ocupate de ce se
- *    foloseste cel mai putin.
- *
- * Acum: ACASA (ce urmeaza), BIBLIOTECA (toate pozele si filtrele), REVIZUIESTE
- * (decizi, cu numarul ramas pe tab) si MENIU. Albume si Persoane raman in
- * Meniu, unde erau si inainte — nu s-a pierdut nimic, doar au coborat de pe
- * bara pe care se sta.
- *
- * NU exista un tab "Studio", desi planul de produs il propune: editorul
- * lucreaza pe O POZA, si un tab care duce la un ecran gol cat timp n-ai ales
- * una ar fi un sfert de bara mort. Se deschide de pe poza, ca pana acum.
- *
- * Vizibila DOAR pe grila principala (nu in Workspace — ramura separata in
- * App.tsx care nu ajunge niciodata la acest component), cat timp exista poze.
+ * Nimic nu s-a pierdut, doar s-a redistribuit:
+ *  - "Acasă" (ce urmează) rămâne ecranul implicit — dispare doar TAB-ul
+ *    dedicat; un tap pe orice tab activ îl închide și revine acolo.
+ *  - "Revizuiesc" (sortarea rapidă) rămâne accesibil din pastila "De
+ *    verificat" de deasupra grilei (Grilă), unde mockup-ul o arată oricum.
+ *  - Persoane și Export au acum tab propriu, ca în mockup, în loc să stea
+ *    sub Meniu.
  */
 export function BottomNav() {
   const photos = useStore(s => s.photos);
@@ -41,45 +32,32 @@ export function BottomNav() {
   const setPersonsOpen = useStore(s => s.setPersonsOpen);
   const menuOpen = useStore(s => s.menuOpen);
   const setMenuOpen = useStore(s => s.setMenuOpen);
+  const exportDestinationsOpen = useStore(s => s.exportDestinationsOpen);
+  const setExportDestinationsOpen = useStore(s => s.setExportDestinationsOpen);
   const homeGridOpen = useStore(s => s.homeGridOpen);
   const setHomeGridOpen = useStore(s => s.setHomeGridOpen);
   const tiktokSortOpen = useStore(s => s.tiktokSortOpen);
-  const setTiktokSortOpen = useStore(s => s.setTiktokSortOpen);
   const setFilter = useStore(s => s.setFilter);
-  /** Doar prima intrare din sesiune impune filtrul — vezi goLibrary. Hook, deci INAINTE de orice return. */
+  /** Doar prima intrare din sesiune impune filtrul — vezi goGrid. Hook, deci INAINTE de orice return. */
   const libraryOpenedRef = useRef(false);
 
   if (photos.length === 0) return null;
 
-  /** Cat mai e de decis — numarul care da sens tab-ului de revizuire. */
   const toReview = photos.filter(p => p.status === 'review' || p.status === 'pending').length;
 
-  const closePanels = () => { setCollectionsOpen(false); setPersonsOpen(false); setMenuOpen(false); };
-  const isHomeActive = !collectionsOpen && !personsOpen && !menuOpen && !homeGridOpen && !tiktokSortOpen;
-  // `!tiktokSortOpen`: revizuirea se deschide PESTE grila, iar fara conditia
-  // asta doua taburi apareau active in acelasi timp — si bara nu mai spunea
+  const closePanels = () => { setCollectionsOpen(false); setPersonsOpen(false); setMenuOpen(false); setExportDestinationsOpen(false); };
+  // `!tiktokSortOpen`: revizuirea se deschide PESTE grila — fara conditia asta,
+  // Grila ramanea marcata activa si sub sortarea rapida, si bara nu mai spunea
   // unde esti, ci unde ai fost.
-  const isLibraryActive = homeGridOpen && !tiktokSortOpen && !collectionsOpen && !personsOpen && !menuOpen;
+  const isGridActive = homeGridOpen && !tiktokSortOpen && !collectionsOpen && !personsOpen && !menuOpen && !exportDestinationsOpen;
 
-  // Un tap pe "Acasa" revine mereu la ecranul curat, la fel ca un tap pe tab-ul
-  // activ in alte aplicatii mobile.
-  const goHome = () => { closePanels(); setHomeGridOpen(false); };
   /**
-   * Biblioteca se deschide pe "De verificat", nu pe "Toate".
-   *
-   * Cerinta utilizatorului: "cand deschizi biblioteca vreau sa intre direct pe
-   * de verificat, apoi sa schimbe utilizatorul la restul".
-   *
-   * Are dreptate: "Toate" e o arhiva, "De verificat" e treaba nefacuta. Cine
-   * deschide biblioteca vine cel mai des sa termine ce a inceput.
-   *
-   * DAR doar cand chiar mai e ceva de verificat, si doar la PRIMA intrare din
-   * sesiunea asta. Filtrul se pastreaza intre deschideri (vezi
-   * state/activeFilter.ts), iar daca l-am impune la fiecare tap, cine si-a ales
-   * dinadins "Respinse" si iese o clipa in Acasa s-ar trezi mutat inapoi — adica
-   * exact opusul lui "apoi sa schimbe utilizatorul".
+   * Grila se deschide pe "De verificat", nu pe "Toate" — cerinta utilizatorului
+   * ("cand deschizi biblioteca vreau sa intre direct pe de verificat"), doar la
+   * PRIMA intrare din sesiune si doar cand chiar mai e ceva de verificat (vezi
+   * ratiunea completa in istoricul git al acestui fisier).
    */
-  const goLibrary = () => {
+  const goGrid = () => {
     closePanels();
     if (!libraryOpenedRef.current) {
       libraryOpenedRef.current = true;
@@ -87,10 +65,9 @@ export function BottomNav() {
     }
     setHomeGridOpen(true);
   };
-  // Revizuirea porneste pe coada de verificat, nu pe toata biblioteca: filtrul
-  // se muta odata cu ea, ca ce ramane pe ecran dupa inchidere sa fie tot despre
-  // ce tocmai lucrai.
-  const goReview = () => { closePanels(); setFilter('review'); setTiktokSortOpen(true); };
+  const goPersons = () => { closePanels(); setPersonsOpen(true); };
+  const goExport = () => { closePanels(); setExportDestinationsOpen(true); };
+  const goSettings = () => { closePanels(); setMenuOpen(true); };
 
   /**
    * Pastila care marcheaza tabul activ GLISEAZA intre taburi, in loc sa apara
@@ -107,33 +84,26 @@ export function BottomNav() {
 
   return (
     <nav className="bottom-nav glass" aria-label={tr('nav.ariaLabel')}>
-      <button className={isHomeActive ? 'bottom-nav-tab active' : 'bottom-nav-tab'} onClick={goHome} aria-current={isHomeActive}>
-        {isHomeActive && pastila}
-        <HomeIcon />
-        <span>{tr('nav.home')}</span>
-      </button>
-      <button className={isLibraryActive ? 'bottom-nav-tab active' : 'bottom-nav-tab'} onClick={goLibrary} aria-current={isLibraryActive}>
-        {isLibraryActive && pastila}
+      <button className={isGridActive ? 'bottom-nav-tab active' : 'bottom-nav-tab'} onClick={goGrid} aria-current={isGridActive}>
+        {isGridActive && pastila}
         <GridIcon />
-        <span>{tr('nav.library')}</span>
+        <span>{tr('nav.grid')}</span>
+        {toReview > 0 && !isGridActive && <b className="bottom-nav-badge mono">{toReview > 99 ? '99+' : toReview}</b>}
       </button>
-      <button
-        className={tiktokSortOpen ? 'bottom-nav-tab active' : 'bottom-nav-tab'}
-        onClick={goReview}
-        aria-current={tiktokSortOpen}
-        // Fara nimic de decis, tab-ul ar deschide un ecran gol. Ramane vizibil
-        // (locul lui in bara nu se muta de la o sesiune la alta), dar inactiv.
-        disabled={toReview === 0}
-      >
-        {tiktokSortOpen && pastila}
-        <FocusIcon />
-        <span>{tr('nav.review')}</span>
-        {toReview > 0 && <b className="bottom-nav-badge mono">{toReview > 99 ? '99+' : toReview}</b>}
+      <button className={personsOpen ? 'bottom-nav-tab active' : 'bottom-nav-tab'} onClick={goPersons} aria-current={personsOpen}>
+        {personsOpen && pastila}
+        <PersonIcon />
+        <span>{tr('nav.persons')}</span>
       </button>
-      <button className={menuOpen ? 'bottom-nav-tab active' : 'bottom-nav-tab'} onClick={() => setMenuOpen(true)} aria-current={menuOpen}>
+      <button className={exportDestinationsOpen ? 'bottom-nav-tab active' : 'bottom-nav-tab'} onClick={goExport} aria-current={exportDestinationsOpen}>
+        {exportDestinationsOpen && pastila}
+        <UploadIcon />
+        <span>{tr('nav.export')}</span>
+      </button>
+      <button className={menuOpen ? 'bottom-nav-tab active' : 'bottom-nav-tab'} onClick={goSettings} aria-current={menuOpen}>
         {menuOpen && pastila}
-        <MenuIcon />
-        <span>{tr('nav.me')}</span>
+        <GearIcon />
+        <span>{tr('nav.settings')}</span>
       </button>
     </nav>
   );

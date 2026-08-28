@@ -133,6 +133,31 @@ export function PersonsPanel() {
           </button>
         </header>
 
+        {/* Rezumat + banda de avatare, ca in mockup-urile "Lumin Culler PRO"
+            (3 persoane · 42 aparitii). Avatarele raman initiale — vezi
+            comentariul de la .person-avatar mai jos: nu pastram fotografiile
+            de inrolare, doar embedding-urile, deci un chip fotografic ar fi
+            o inventie fara acoperire in date. */}
+        {persons.length > 0 && recognitionStats && (
+          <div className="persons-summary">
+            <span className="persons-summary-chip mono">
+              <UserCheckIcon className="inline-icon" aria-hidden="true" />
+              {tr('persons.summary.count', {
+                count: persons.length,
+                appearances: Array.from(recognitionStats.values()).reduce((sum, s) => sum + s.matchCount, 0)
+              })}
+            </span>
+            <div className="persons-avatar-strip">
+              {persons.map(p => (
+                <span key={p.id} className="persons-avatar-strip-item">
+                  <span className="person-avatar lg" aria-hidden="true">{p.name.trim().charAt(0).toUpperCase() || '?'}</span>
+                  <span className="persons-avatar-strip-name">{p.name}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Panoul amesteca trei intrebari diferite intr-o singura lista lunga:
             "cine e deja inrolat", "gaseste-mi tu pe cineva" si "adaug eu pe
             cineva" — plus, la coada, un buton care sterge TOATA aplicatia.

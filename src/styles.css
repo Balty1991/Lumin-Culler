@@ -1311,10 +1311,14 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 /* check-mark care apare cand poza e selectata — doar iconita (fara casetsa/cerc opac in spate,
    plan "Refactorizare UI/UX"), drop-shadow pentru lizibilitate pe orice fundal de miniatura,
    deschis sau inchis, in loc de un disc plin. */
+/* Redesign "Lumin Culler PRO": insigna de decizie devine un disc plin
+   colorat (nu doar o iconita cu umbra) — vizibil dintr-o privire peste
+   grila, ca in mockup-urile aprobate, in loc de tratamentul minimal
+   dinainte. */
 .check-badge {
-  position: absolute; top: 7px; right: 8px; z-index: var(--z-card-badge); width: 15px; height: 15px;
-  display: flex; align-items: center; justify-content: center; color: var(--pick);
-  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.7)) drop-shadow(0 0 3px rgba(0,0,0,0.45));
+  position: absolute; top: 6px; right: 7px; z-index: var(--z-card-badge); width: 26px; height: 26px;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #06170d;
+  background: var(--pick); box-shadow: 0 2px 8px -2px rgba(0,0,0,0.6), 0 0 12px -2px rgb(var(--pick-rgb) / 0.75);
   animation: checkPop var(--duration) var(--ease) both;
 }
 .check-badge svg { width: 15px; height: 15px; }
@@ -1330,22 +1334,28 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
    (culoarea nu poate fi singurul mijloc de a distinge o stare). Acelasi tratament minimal
    ca .check-badge — doar iconita + drop-shadow, fara disc plin in spate. */
 .review-badge {
-  position: absolute; top: 7px; right: 8px; z-index: var(--z-card-badge); width: 15px; height: 15px;
-  display: flex; align-items: center; justify-content: center; color: var(--review);
-  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.7)) drop-shadow(0 0 3px rgba(0,0,0,0.45));
+  position: absolute; top: 6px; right: 7px; z-index: var(--z-card-badge); width: 26px; height: 26px;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #221904;
+  background: var(--review); box-shadow: 0 2px 8px -2px rgba(0,0,0,0.6), 0 0 12px -2px rgb(var(--review-rgb) / 0.7);
 }
-.review-badge svg { width: 15px; height: 15px; }
+.review-badge svg { width: 14px; height: 14px; }
 
 /* Insigna "candidat": acelasi loc si aceeasi marime ca a celei de "de
    verificat" (nu pot coexista — sunt doua stari), dar plina, nu conturata.
    Culoarea e aceeasi chihlimbarie: amandoua inseamna "nedecis inca", diferenta
    e cine n-a decis — AI-ul sau tu. */
 .candidate-badge {
-  position: absolute; top: 7px; right: 8px; z-index: var(--z-card-badge); width: 15px; height: 15px;
-  display: flex; align-items: center; justify-content: center; color: var(--review);
-  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.7)) drop-shadow(0 0 3px rgba(0,0,0,0.45));
+  position: absolute; top: 6px; right: 7px; z-index: var(--z-card-badge); width: 26px; height: 26px;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #221904;
+  background: var(--review); box-shadow: 0 2px 8px -2px rgba(0,0,0,0.6), 0 0 12px -2px rgb(var(--review-rgb) / 0.7);
 }
-.candidate-badge svg { width: 15px; height: 15px; fill: currentColor; }
+.candidate-badge svg { width: 13px; height: 13px; fill: currentColor; }
+.reject-badge {
+  position: absolute; top: 6px; right: 7px; z-index: var(--z-card-badge); width: 26px; height: 26px;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff;
+  background: var(--reject); box-shadow: 0 2px 8px -2px rgba(0,0,0,0.6), 0 0 12px -2px rgb(var(--reject-rgb) / 0.7);
+}
+.reject-badge svg { width: 14px; height: 14px; }
 
 /* selectie in masa (Ctrl/Shift+Click) — inel de accent distinct de starea pick/reject/review,
    ca sa nu se confunde vizual "e in selectia curenta" cu "AI-ul a decis ca e buna" */
@@ -1390,14 +1400,16 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 /* inel de scor mini (aceeasi tehnica ca .score-ring din DetailView, la scara redusa) —
    conic-gradient colorat continuu dupa scor (pick/review/reject), nu doar o cifra plata */
+/* Marit fata de tratamentul dinainte (30px): mockup-urile "PRO" arata scorul
+   ca element dominant al cardului, nu o pastila mica de colt. */
 .mini-score-ring {
-  width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
   flex-shrink: 0; box-shadow: 0 2px 8px -2px rgba(0,0,0,0.5);
 }
 .mini-score-ring-inner {
-  width: 24px; height: 24px; border-radius: 50%; background: rgba(8,9,12,0.78); backdrop-filter: blur(4px);
-  display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.08);
-  font-family: var(--mono); font-weight: 700; font-size: 0.62rem; font-variant-numeric: tabular-nums;
+  width: 33px; height: 33px; border-radius: 50%; background: rgba(8,9,12,0.85); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.1);
+  font-family: var(--mono); font-weight: 800; font-size: 0.82rem; font-variant-numeric: tabular-nums;
 }
 .card.st-rejected .mini-score-ring { opacity: 0.5; filter: grayscale(0.5); }
 .badges i { font-style: normal; margin-left: 6px; font-size: 0.8rem; color: var(--review); text-shadow: 0 1px 3px rgba(0,0,0,0.7); }
@@ -2090,15 +2102,17 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   font-size: 0.78rem; line-height: 1.5; color: var(--text);
 }
 .export-dest-row {
-  width: 100%; display: flex; align-items: center; gap: 11px; text-align: left;
-  padding: 12px 13px; border-radius: var(--radius); margin-bottom: 8px;
+  width: 100%; display: flex; align-items: center; gap: 13px; text-align: left;
+  padding: 14px; border-radius: 18px; margin-bottom: 9px;
   background: var(--surface-2); border: 1px solid var(--line);
+  transition: border-color 0.18s var(--ease), transform 0.18s var(--ease);
 }
-.export-dest-row:hover { border-color: var(--line-strong); }
+.export-dest-row:hover { border-color: rgb(var(--accent-2-rgb) / 0.5); transform: translateY(-1px); }
 .export-dest-icon {
-  width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+  width: 42px; height: 42px; border-radius: 13px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  background: rgb(var(--accent-rgb) / 0.14); color: var(--accent);
+  background: linear-gradient(135deg, rgb(var(--accent-rgb) / 0.22), rgb(var(--accent-2-rgb) / 0.16));
+  color: var(--accent-2); box-shadow: inset 0 0 0 1px rgb(var(--accent-2-rgb) / 0.3);
 }
 .export-dest-icon svg { width: 16px; height: 16px; }
 .export-dest-text { min-width: 0; }
@@ -3032,6 +3046,25 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   display: inline-flex; margin-left: 7px; padding: 2px 7px; border-radius: 999px;
   font-size: 0.66rem; font-weight: 800; color: var(--accent-2);
   background: rgb(var(--accent-2-rgb) / 0.14); border: 1px solid rgb(var(--accent-2-rgb) / 0.35);
+}
+/* Rezumat + banda de avatare din capul panoului Persoane (mockup "PRO"). */
+.persons-summary { display: grid; gap: 12px; margin-bottom: 14px; }
+.persons-summary-chip {
+  justify-self: start; display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: 999px; font-size: 0.72rem; font-weight: 700;
+  color: var(--accent-2); background: rgb(var(--accent-2-rgb) / 0.12);
+  border: 1px solid rgb(var(--accent-2-rgb) / 0.4);
+}
+.persons-summary-chip .inline-icon { width: 13px; height: 13px; }
+.persons-avatar-strip { display: flex; gap: 14px; overflow-x: auto; padding: 2px 2px 4px; }
+.persons-avatar-strip-item { display: grid; justify-items: center; gap: 5px; flex-shrink: 0; width: 60px; }
+.persons-avatar-strip-name {
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 0.68rem; color: var(--text-dim);
+}
+.person-avatar.lg {
+  width: 52px; height: 52px; font-size: 1.15rem;
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px rgb(var(--accent-2-rgb) / 0.5), 0 4px 14px -4px rgb(var(--accent-rgb) / 0.6);
 }
 .persons-bulk-actions {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 0;

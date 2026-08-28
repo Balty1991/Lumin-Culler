@@ -185,6 +185,19 @@ export function PinIcon(p: SVGProps<SVGSVGElement>) {
 export function HomeIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><path d="M4 11.5L12 4l8 7.5" /><path d="M6 9.5V20h12V9.5" /></svg>;
 }
+/** Tab "Persoane" din bara de navigare (redesign PRO) — siluetă simplă de persoană. */
+export function PersonIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg {...base} {...p}><circle cx="12" cy="8" r="3.4" /><path d="M5 20c0-3.9 3.1-6.5 7-6.5s7 2.6 7 6.5" /></svg>;
+}
+/** Tab "Setări" din bara de navigare (redesign PRO) — roată dințată. */
+export function GearIcon(p: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base} {...p}>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 2.5v2.4M12 19.1v2.4M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2.5 12h2.4M19.1 12h2.4M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7" />
+    </svg>
+  );
+}
 export function AccessibilityIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><circle cx="12" cy="5" r="1.7" fill="currentColor" stroke="none" /><path d="M12 7.5v6.5" /><path d="M7 10.5h10" /><path d="M12 14l-4 5" /><path d="M12 14l4 5" /></svg>;
 }
