@@ -33,10 +33,11 @@ const THEMES: { id: Theme; labelKey: string; subKey: string }[] = [
     optiuni simultan, nu de 4 ori accentul activ acum. Vezi :root[data-accent]
     in styles.css pentru valorile chiar aplicate. */
 const ACCENTS: { id: AccentTheme; gradient: string }[] = [
-  { id: 'classic', gradient: 'linear-gradient(135deg, #2dd4bf, #8b5cf6 55%, #6366f1)' },
+  { id: 'classic', gradient: 'linear-gradient(135deg, #8b5cf6, #7c6bff 45%, #22d3ee)' },
   { id: 'teal', gradient: 'linear-gradient(135deg, #2dd4bf, #14b8a6)' },
   { id: 'sunset', gradient: 'linear-gradient(135deg, #ff8a5c, #ff5c8a)' },
-  { id: 'holo', gradient: 'linear-gradient(90deg, #00fff2, #7a5cff)' }
+  { id: 'holo', gradient: 'linear-gradient(90deg, #00fff2, #7a5cff)' },
+  { id: 'legacy', gradient: 'linear-gradient(135deg, #2dd4bf, #8b5cf6 55%, #6366f1)' }
 ];
 
 export function AppearancePanel() {

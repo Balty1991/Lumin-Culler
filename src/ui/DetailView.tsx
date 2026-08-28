@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
+import { db } from '../core/db';
 import { useStore, isAnyOverlayOpen, type PhotoView } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { StarRating } from './StarRating';
@@ -51,6 +52,18 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const [src, setSrc] = useState<string | null>(null);
   const [zoomed, setZoomed] = useState(false);
+  // Cutiile fetelor detectate (date REALE din AnalysisRecord, nu un mesh
+  // decorativ inventat) — vezi core/db.ts FaceInsight.box. Aplicatia nu
+  // expune puncte de landmark catre JS (nici pe nativ, vezi
+  // core/nativeFaceMesh.ts: doar valori agregate per fata, fara coordonate),
+  // deci un contur real in jurul cutiei e limita a ceea ce putem arata cinstit
+  // — nu o plasa de puncte "AI scanning" fara acoperire in date.
+  const [faceBoxes, setFaceBoxes] = useState<[number, number, number, number][]>([]);
+  useEffect(() => {
+    let alive = true;
+    void db.analyses.get(photo.id).then(a => { if (alive) setFaceBoxes(a?.faces.map(f => f.box) ?? []); });
+    return () => { alive = false; };
+  }, [photo.id]);
   const [dragX, setDragX] = useState(0);
   // Aceeasi tehnica (si acelasi bug real, gasit de auditul QA) ca sheetDragYRef
   // mai jos: gestul ORIZONTAL e cel care chiar muta statusul pozei (selectat/
@@ -294,7 +307,17 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
             transition: draggingRef.current ? 'none' : 'transform 0.25s var(--ease)'
           }}
         >
-          {src && <AdjustedImage src={src} edits={photo.edits} alt={photo.fileName} className="detail-stage-img" />}
+          {src && (
+            <span className="detail-face-frame">
+              <AdjustedImage src={src} edits={photo.edits} alt={photo.fileName} className="detail-stage-img" />
+              {!zoomed && faceBoxes.map(([bx, by, bw, bh], i) => (
+                <span
+                  key={i} className="detail-face-box" aria-hidden="true"
+                  style={{ left: `${bx * 100}%`, top: `${by * 100}%`, width: `${bw * 100}%`, height: `${bh * 100}%` }}
+                />
+              ))}
+            </span>
+          )}
         </div>
 
         <div className="detail-stage-topbar" onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>

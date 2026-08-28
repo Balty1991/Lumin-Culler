@@ -14,10 +14,10 @@
  * prezentare (a doua pastila, culoare plina). A alege tu un aspect plat nu e
  * acelasi lucru cu a-l primi impus.
  */
-export type AccentTheme = 'classic' | 'teal' | 'sunset' | 'holo';
+export type AccentTheme = 'classic' | 'teal' | 'sunset' | 'holo' | 'legacy';
 
 const STORAGE_KEY = 'lumin-accent';
-const VALID_ACCENTS: readonly AccentTheme[] = ['classic', 'teal', 'sunset', 'holo'];
+const VALID_ACCENTS: readonly AccentTheme[] = ['classic', 'teal', 'sunset', 'holo', 'legacy'];
 
 export function readStoredAccent(): AccentTheme {
   try {

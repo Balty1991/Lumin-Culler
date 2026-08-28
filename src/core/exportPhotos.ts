@@ -91,6 +91,17 @@ export interface ExportOptions {
    * destinatia o alege sistemul de operare, nu noi.
    */
   destination?: 'auto' | 'folder' | 'apps';
+  /**
+   * Progres REAL, nu simulat: apelat dupa fiecare fotografie procesata (atat
+   * la pregatire — coacerea editarilor, cautarea fisierului original — cat si
+   * la scrierea efectiva pe disc, cand exista un folder de destinatie).
+   * `total` e fix de la primul apel (2x numarul de poze: o "treapta" pentru
+   * pregatire, una pentru scriere), ca bara de progres sa nu sara inapoi la
+   * jumatatea exportului. Pe caile de descarcare/zip (fara API de scriere
+   * incrementala), treptele de scriere se raporteaza dintr-o data la final,
+   * in loc sa pretinda o precizie pe care browserul nu o ofera.
+   */
+  onProgress?: (done: number, total: number) => void;
 }
 
 // ── Grupare pe foldere: persoane cunoscute (si combinatii), apoi scena ─────
@@ -199,7 +210,9 @@ async function bakeEditsIfNeeded(p: ExportPhotoInput, file: File, name: string):
   }
 }
 
-async function copyToDirectory(files: { name: string; file: File; folder: string }[], dir: LocalDirHandle): Promise<void> {
+async function copyToDirectory(
+  files: { name: string; file: File; folder: string }[], dir: LocalDirHandle, onFileWritten?: () => void
+): Promise<void> {
   const subdirs = new Map<string, LocalDirHandle>();
   for (const { name, file, folder } of files) {
     let sub = subdirs.get(folder);
@@ -211,6 +224,7 @@ async function copyToDirectory(files: { name: string; file: File; folder: string
     const writable = await handle.createWritable();
     await writable.write(file);
     await writable.close();
+    onFileWritten?.();
   }
 }
 
@@ -223,7 +237,10 @@ async function copyToDirectory(files: { name: string; file: File; folder: string
  * prefix), nu e o pierdere daca browserul nu suporta subfoldere.
  */
 export async function exportOriginalFiles(photos: ExportPhotoInput[], options: ExportOptions = {}): Promise<ExportResult> {
-  const { renameTemplate, locale = 'ro', zipBaseName = 'lumin-culler-export', folderName, destination = 'auto' } = options;
+  const { renameTemplate, locale = 'ro', zipBaseName = 'lumin-culler-export', folderName, destination = 'auto', onProgress } = options;
+  const totalSteps = Math.max(1, photos.length * 2);
+  let doneSteps = 0;
+  const tick = () => onProgress?.(Math.min(totalSteps, ++doneSteps), totalSteps);
   // Numele vine de la utilizator (l-a tastat la crearea folderului), deci trece
   // prin acelasi filtru ca etichetele derivate — un "/" sau ":" in el ar deveni
   // altfel un nivel de path neintentionat (sau un nume invalid pe disc).
@@ -273,6 +290,7 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[], options: E
     const inMemory = originalFiles.get(p.id);
     if (inMemory) {
       available.push({ ...await exportName(p, inMemory, folder), folder });
+      tick();
       continue;
     }
     // fallback 1: handle File System Access API persistat (poze selectate,
@@ -283,6 +301,7 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[], options: E
       try {
         const file = await reacquireFile(storedHandle.handle);
         available.push({ ...await exportName(p, file, folder), folder });
+        tick();
         continue;
       } catch {
         // permisiune refuzata sau fisierul a fost mutat/sters de pe disc —
@@ -296,13 +315,17 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[], options: E
       const file = new File([stored.blob], stored.fileName, { type: stored.type });
       available.push({ ...await exportName(p, file, folder), folder });
     } else missing.push(p.fileName);
+    tick();
   }
 
   // 'apps' = utilizatorul a cerut explicit alta aplicatie/cloud, nu un folder.
   const pickDirectory = destination === 'apps' ? null : getDirectoryPicker();
   let method: ExportResult['method'] = pickDirectory ? 'folder' : 'downloads';
 
-  if (!available.length) return { exported: 0, missing, method, cancelled: false, grouped: false };
+  if (!available.length) {
+    while (doneSteps < totalSteps) tick();
+    return { exported: 0, missing, method, cancelled: false, grouped: false };
+  }
 
   if (pickDirectory) {
     const startedAt = Date.now();
@@ -311,7 +334,11 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[], options: E
       // rezolva si nu respinge NICIODATA lasa altfel exportul agatat definitiv,
       // cu toast-ul "Se exporta..." pe ecran la infinit.
       const dir = await racePickerTimeout(pickDirectory({ mode: 'readwrite' }), 'directoryPicker', DIRECTORY_PICKER_TIMEOUT_MS);
-      await copyToDirectory(available, dir);
+      await copyToDirectory(available, dir, tick);
+      // fisierele "missing" n-au trecut prin scriere — treptele lor de scriere
+      // raman neconsumate; le inchidem aici, ca bara sa ajunga la 100%, nu sa
+      // ramana blocata la (photos.length*2 - missing.length).
+      for (let i = 0; i < missing.length; i++) tick();
       return { exported: available.length, missing, method, cancelled: false, grouped: true };
     } catch (err) {
       // Anulare REALA (omul a vazut dialogul si l-a inchis) — vezi isRealUserCancel.
@@ -340,6 +367,9 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[], options: E
   if (available.length === 1) {
     const { name, file, folder } = available[0];
     const result = await downloadBlob(`${folder}/${name}`, file);
+    // Descarcarea browserului nu ofera progres incremental — raportam
+    // finalizarea dintr-o data, nu o precizie pe care n-o avem.
+    while (doneSteps < totalSteps) tick();
     return { exported: result.cancelled ? 0 : 1, missing, method, cancelled: result.cancelled, grouped: false };
   }
   // mai multe fisiere: O SINGURA descarcare .zip — descarcarile multiple secventiale
@@ -350,5 +380,6 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[], options: E
   const entries = available.map(({ name, file, folder }) => ({ path: `${folder}/${name}`, data: file }));
   const zipName = `${zipBaseName}-${new Date().toISOString().slice(0, 10)}.zip`;
   const result = await downloadZip(zipName, entries);
+  while (doneSteps < totalSteps) tick();
   return { exported: result.cancelled ? 0 : available.length, missing, method, cancelled: result.cancelled, grouped: !result.cancelled };
 }

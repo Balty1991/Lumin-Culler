@@ -40,3 +40,41 @@ Meniul este un ecran/fundal opac cu titlu mare "Meniu" și buton X de închidere
 6. Meniul are card Premium factual, acțiuni rapide și secțiuni accordion lizibile.
 7. Tema luminoasă trebuie să păstreze contrastul, fără a schimba intenția zonei foto întunecate.
 8. Nicio funcție nu este simulată: toate acțiunile rămân conectate la store, import, scor AI, entitlement și pluginurile native existente.
+
+## Addendum — "Lumin Culler PRO" (28 august 2026)
+
+Al doilea val de mockup-uri confirmate de utilizator (ecran de întâmpinare cu
+marca "LC", grilă cu inele de scor, Persoane, Detaliu cu scor AI mare, Export
+cu progres circular) a devenit **aspectul implicit** al aplicației, nu doar o
+variantă opțională:
+
+- **Accent implicit**: gradient violet→cyan (`--accent`/`--accent-2` în
+  `styles.css`, `--atelier-teal`/`--atelier-violet` în `styles.concept.css`),
+  în locul turcoazului-violet-indigo de dinainte. Vechiul aspect rămâne
+  selectabil instant din Aspect/Meniu sub id-ul `legacy` — cerință directă a
+  utilizatorului ("posibilitatea de anulare"), nu doar o remediere tehnică.
+- **Insigna "PRO"** de lângă wordmark (`brand-pro-badge`) e nume de produs,
+  nu un indicator de drepturi — starea reală de Premium rămâne exclusiv în
+  `drawer-pro-card` (Meniu), unde "cumpărat/nu" chiar contează.
+- **Cutia de față reală** din Detaliu (`detail-face-box`) desenează
+  `FaceInsight.box` (coordonate reale, din analiza pe dispozitiv) cu un
+  contur luminos — NU un mesh de puncte decorativ: aplicația nu expune
+  coordonate de landmark către JS (vezi `core/nativeFaceMesh.ts`), deci un
+  mesh literal ca în mockup ar fi fost simulat, împotriva criteriului 8 de
+  mai sus.
+- **Inelul de progres din Export** (`export-progress-ring`,
+  `ExportDestinations.tsx`) arată procentul REAL al exportului curent, nu o
+  animație — vezi `onProgress` în `core/exportPhotos.ts` și `exportProgress`
+  în `state/store.ts`.
+- Cardurile din grilă capătă contur luminos verde/ambră/roșu după status
+  (nu doar bara subțire de sus de dinainte), iar Persoane primește avatare
+  cu inițială (nu fotografii — profilele salvează doar embedding-uri, nu
+  imaginile de înrolare) și un chip de încredere (%) lângă fiecare persoană.
+
+Onboarding-ul cu trei carduri de valoare ("Privat/Rapid/Control") din primul
+mockup NU a fost reprodus literal ca ecran static: fluxul existent e un
+wizard cu pași reali (permisiuni, scor AI, persoane, Premium), nu un ecran
+de tip paywall — a forța un al treilea model de conținut peste el ar fi
+însemnat fie să inventăm text fără acoperire, fie să rescriem fluxul de
+permisiuni deja testat pe device. Identitatea vizuală (marcă rotundă cu
+halou, titlu în gradient, CTA plin) a fost portată pe pașii existenți.

@@ -36,15 +36,21 @@
   --skeleton-a: #1c1e25;
   --skeleton-b: #272a33;
 
-  --accent: #2dd4bf;
-  --accent-2: #6366f1;
-  /* "Studio Noir" (accent turcoaz plat) a fost testat pe telefon real si
-     respins de utilizator — revenire la gradientul turcoaz->violet->indigo
-     de dinainte, pe care 13 locuri il folosesc (butoane, chip-uri, insigne,
-     bara de comparare). */
-  --accent-gradient: linear-gradient(135deg, var(--accent) 0%, #8b5cf6 55%, var(--accent-2) 100%);
-  --accent-rgb: 45 212 191;
-  --accent-2-rgb: 99 102 241;
+  /* "Lumin Culler PRO" (redesign confirmat de utilizator, august 2026):
+     accentul implicit devine gradientul violet->cyan din mockup-urile
+     aprobate (branding "LC" + titluri, CTA-uri, inele de scor), inlocuind
+     vechiul turcoaz-violet-indigo ca aspect DE BAZA — nu doar ca optiune.
+     Vechea paleta ramane selectabila din Aspect sub id-ul 'legacy'
+     (:root[data-accent="legacy"] mai jos), exact pentru cazul in care
+     cineva prefera aspectul dinainte: comutarea e instanta, fara sa umble
+     in cod. Vezi si nota "Studio Noir" de mai jos, pastrata ca istoric —
+     acolo schimbarea fusese IMPUSA fara sa fie ceruta; aici e cerinta
+     directa a utilizatorului, cu revenire posibila dintr-un singur tap. */
+  --accent: #8b5cf6;
+  --accent-2: #22d3ee;
+  --accent-gradient: linear-gradient(135deg, #8b5cf6 0%, #7c6bff 45%, #22d3ee 100%);
+  --accent-rgb: 139 92 246;
+  --accent-2-rgb: 34 211 238;
 
   --pick: #4ade80;
   --pick-deep: #07230f;
@@ -251,6 +257,14 @@
   --accent-gradient: linear-gradient(90deg, var(--accent) 0%, #7a5cff 100%);
   --accent-rgb: 0 255 242; --accent-2-rgb: 122 92 255;
 }
+/* Aspectul de dinainte de redesign (turcoaz-violet-indigo) — pastrat ca
+   optiune explicita, nu sters, pentru cine vrea inapoi fara sa astepte un
+   revert de cod. Vezi nota de la --accent din :root de mai sus. */
+:root[data-accent="legacy"] {
+  --accent: #2dd4bf; --accent-2: #6366f1;
+  --accent-gradient: linear-gradient(135deg, var(--accent) 0%, #8b5cf6 55%, var(--accent-2) 100%);
+  --accent-rgb: 45 212 191; --accent-2-rgb: 99 102 241;
+}
 
 /* prefers-contrast: more — utilizatori cu vedere redusa care au cerut explicit
    mai mult contrast la nivel de sistem/browser; ignorat complet altfel de
@@ -426,6 +440,18 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .brand-text h1 span {
   font-weight: 800; background: var(--accent-gradient); -webkit-background-clip: text;
   background-clip: text; color: transparent;
+}
+/* Insigna "PRO" din redesign — nume de produs (vezi comentariul din App.tsx),
+   nu un indicator de drepturi: contur discret + text in gradient, fara
+   fundal plin care ar semana cu un buton "cumpara". */
+.brand-pro-badge {
+  font-style: normal; display: inline-flex; align-items: center; vertical-align: super;
+  margin-left: 5px; padding: 2px 6px; border-radius: 6px;
+  font-family: var(--mono); font-size: 0.56rem; font-weight: 800; letter-spacing: 0.08em;
+  border: 1px solid rgb(var(--accent-2-rgb) / 0.55);
+  background: rgb(var(--accent-rgb) / 0.14);
+  background-image: linear-gradient(100deg, rgb(var(--accent-rgb) / 0.16), rgb(var(--accent-2-rgb) / 0.1));
+  color: var(--accent-2);
 }
 .brand-text p {
   color: var(--text-faint); margin-top: 5px; font-size: 0.72rem;
@@ -1259,12 +1285,21 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 /* selectata: border + bara sus + check-badge (semnal propriu) — border-ul e suficient ca
    al doilea contur, fara inca un inel de box-shadow suprapus (redundant cu badge-ul) */
-.card.st-selected { border-color: rgba(74,222,128,0.55); }
+/* Contur luminos pe toata cardul, dupa status — nu doar bara de sus subtire de
+   dinainte. Redesign "Lumin Culler PRO": grila trebuie sa se citeasca de la
+   distanta (verde/ambra/rosu), asa cum arata mockup-urile aprobate. */
+.card.st-selected {
+  border-color: rgba(74,222,128,0.55);
+  box-shadow: 0 0 0 1px rgb(var(--pick-rgb) / 0.3), 0 0 16px -6px rgb(var(--pick-rgb) / 0.65);
+}
 .card.st-selected::before { background: linear-gradient(90deg, var(--pick), #86efac); opacity: 1; }
 .card.st-rejected { border-color: var(--line); }
 .card.st-rejected img { opacity: 0.3; filter: grayscale(0.7); }
 .card.st-rejected::before { background: var(--reject); opacity: 0.65; }
-.card.st-review { border-color: rgba(251,191,36,0.5); box-shadow: 0 0 0 1px rgba(251,191,36,0.14); }
+.card.st-review {
+  border-color: rgba(251,191,36,0.5);
+  box-shadow: 0 0 0 1px rgb(var(--review-rgb) / 0.28), 0 0 14px -6px rgb(var(--review-rgb) / 0.55);
+}
 .card.st-review::before { background: linear-gradient(90deg, var(--review), #fde68a); opacity: 1; }
 /* Fara asta, un card marcat "candidat" arata in grila exact ca unul nedecis:
    fara chenar, fara banda de stare. Decizia ta devenea invizibila fix acolo
@@ -2127,11 +2162,20 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
    discul cu halou rotativ (.core) folosit de AiBootScreen/ecranul gol: acolo
    sugereaza "lucreaza acum", aici nu lucreaza nimic, e doar prima impresie. */
 .welcome-onboarding-icon {
-  width: 68px; height: 68px; border-radius: 22px; display: flex; align-items: center; justify-content: center;
+  position: relative;
+  width: 78px; height: 78px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
   background: var(--accent-gradient); color: #06070a;
-  box-shadow: 0 18px 40px -14px rgb(var(--accent-rgb) / 0.7);
+  box-shadow: 0 18px 40px -14px rgb(var(--accent-rgb) / 0.7), 0 0 34px -6px rgb(var(--accent-2-rgb) / 0.55);
 }
 .welcome-onboarding-icon svg { width: 32px; height: 32px; }
+/* Inel exterior, translucid — "LC" din mockup e un disc cu halou, nu doar o
+   iconita colorata. Un ::before separat (nu box-shadow inset) ca sa ramana
+   subtire si pe fundal deschis, unde un glow prea puternic ar arata murdar. */
+.welcome-onboarding-icon::before {
+  content: ''; position: absolute; inset: -10px; border-radius: 50%;
+  border: 1px solid rgb(var(--accent-2-rgb) / 0.4);
+  background: radial-gradient(circle, rgb(var(--accent-rgb) / 0.14), transparent 70%);
+}
 .welcome-onboarding h2 { font-family: var(--font-display); font-size: 1.35rem; line-height: 1.25; letter-spacing: -0.01em; }
 .welcome-onboarding-actions .btn-accent { border-radius: 999px; padding: 13px 20px; }
 /* Ancorate in colturile ECRANULUI, nu ale blocului de text: blocul e centrat
@@ -2229,6 +2273,22 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
    nu s-ar vedea deloc. Offset negativ = conturul cade in interior, complet vizibil. */
 .swipe-surface:focus-visible { outline: 2px solid var(--accent); outline-offset: -4px; box-shadow: none; }
 .detail-stage-img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; display: block; user-select: none; -webkit-user-drag: none; }
+/* Invelis care se micsoreaza exact la dimensiunea REALA a imaginii randate
+   (nu a scenei, care poate avea benzi negre la un raport de aspect diferit) —
+   necesar ca sa asezam cutiile de fata cu procente si sa cada exact pe fata,
+   nu langa ea. */
+.detail-face-frame { position: relative; display: inline-flex; max-width: 100%; max-height: 100%; line-height: 0; }
+/* Conturul REAL al fetei detectate (FaceInsight.box) — glow discret in
+   accentul de brand, nu un mesh de puncte inventat (vezi comentariul din
+   DetailView.tsx: nu avem coordonate de landmark, doar cutia). */
+.detail-face-box {
+  position: absolute; border-radius: 14px; pointer-events: none;
+  border: 1.5px solid rgb(var(--accent-2-rgb) / 0.85);
+  box-shadow: 0 0 0 1px rgb(var(--accent-rgb) / 0.25), 0 0 16px -2px rgb(var(--accent-2-rgb) / 0.65);
+  animation: faceBoxIn 0.3s var(--ease) both;
+}
+@keyframes faceBoxIn { from { opacity: 0; transform: scale(1.06); } to { opacity: 1; transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .detail-face-box { animation: none; } }
 .detail-stage.zoomed .detail-stage-img { max-width: none; max-height: none; width: auto; height: auto; }
 .zoom-hint {
   position: absolute; bottom: 8px; right: 10px; font-size: 0.66rem; color: var(--text-dim);
@@ -2637,6 +2697,25 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   font-family: var(--mono); font-weight: 700; font-size: 0.66rem; font-variant-numeric: tabular-nums;
 }
 
+/* Inel mare de progres al exportului (ExportDestinations.tsx) — aceeasi
+   tehnica (conic-gradient) ca .score-ring, la alta scara, cu procent REAL
+   (vezi core/exportPhotos.ts onProgress), nu o animatie decorativa. */
+.export-progress-ring {
+  width: 176px; height: 176px; border-radius: 50%; margin: 20px auto;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.06), 0 0 40px -12px rgb(var(--accent-rgb) / 0.55);
+  transition: background 0.3s var(--ease);
+}
+.export-progress-ring-inner {
+  width: 152px; height: 152px; border-radius: 50%; background: var(--bg);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+}
+.export-progress-ring-inner b {
+  font-family: var(--font-display); font-size: 2.2rem; font-weight: 800; letter-spacing: -0.03em;
+  background: var(--accent-gradient); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.export-progress-ring-inner span { color: var(--text-dim); font-size: 0.78rem; }
+
 /* ── Explicabilitate: "de ce acest scor" ── */
 .factor-row {
   display: flex; flex-direction: column; gap: 4px; background: var(--surface-2);
@@ -2940,6 +3019,20 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .persons em { color: var(--text-dim); font-style: normal; }
 .person-select-row { display: flex; align-items: center; gap: 10px; min-width: 0; cursor: pointer; }
 .person-select-row input[type="checkbox"] { flex-shrink: 0; width: 16px; height: 16px; }
+/* Avatar cu initiala — vezi comentariul din PersonsPanel.tsx pentru de ce nu
+   e o fotografie reala. Acelasi gradient de brand ca restul redesign-ului. */
+.person-avatar {
+  flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--accent-gradient); color: #06070a;
+  font-family: var(--font-display); font-weight: 800; font-size: 0.9rem;
+  box-shadow: 0 0 0 1px rgb(var(--accent-2-rgb) / 0.4);
+}
+.person-confidence-chip {
+  display: inline-flex; margin-left: 7px; padding: 2px 7px; border-radius: 999px;
+  font-size: 0.66rem; font-weight: 800; color: var(--accent-2);
+  background: rgb(var(--accent-2-rgb) / 0.14); border: 1px solid rgb(var(--accent-2-rgb) / 0.35);
+}
 .persons-bulk-actions {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 0;
   border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
@@ -2954,7 +3047,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   border-radius: var(--radius); padding: 6px 10px 6px 6px;
 }
 .face-cluster-row .hint { flex: 1; min-width: 0; }
-.face-crop-thumb { width: 56px; height: 56px; border-radius: 8px; flex-shrink: 0; background: var(--surface-3); object-fit: cover; }
+.face-crop-thumb {
+  width: 56px; height: 56px; border-radius: 50%; flex-shrink: 0; background: var(--surface-3); object-fit: cover;
+  border: 1.5px solid rgb(var(--accent-2-rgb) / 0.4);
+}
 .enroll { display: grid; gap: 10px; }
 .enroll input[type="text"] {
   background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius);

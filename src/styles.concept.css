@@ -22,8 +22,13 @@
   --atelier-line-strong: rgb(232 237 248 / .2);
   --atelier-ink: #f5f7fb;
   --atelier-muted: #98a0af;
-  --atelier-teal: #65e0cb;
-  --atelier-violet: #9c7cff;
+  /* Redesign "Lumin Culler PRO" (august 2026): tokenii atelier-* urmeaza acum
+     acelasi violet->cyan ca --accent/--accent-2 din styles.css, in loc de
+     turcoaz-violet separat — cele ~15 selectoare de mai jos (brand-mark,
+     drawer-pro-card, bottom-nav-tab.active, filters.chip.active...) mostenesc
+     schimbarea dintr-un singur loc, fara sa fie umblate individual. */
+  --atelier-teal: #22d3ee;
+  --atelier-violet: #8b5cf6;
   --atelier-coral: #ff766f;
   --bottomnav-h: 72px;
   --radius: 14px;
@@ -71,8 +76,8 @@ body:before {
 
 .brand-mark {
   border-radius:9px;
-  box-shadow:none;
-  background:linear-gradient(145deg,#54dfca,#8d6bff);
+  box-shadow:0 0 14px -2px rgb(139 92 246 / .55);
+  background:linear-gradient(145deg,var(--atelier-violet),var(--atelier-teal));
 }
 
 .brand-text h1 {
@@ -228,7 +233,7 @@ body:before {
   height:100%;
   border-radius:inherit;
   background:linear-gradient(90deg,var(--atelier-teal),var(--atelier-violet));
-  box-shadow:0 0 16px #65e0cb73;
+  box-shadow:0 0 16px #22d3ee73;
 }
 
 .atelier-brief-footer {
@@ -255,7 +260,7 @@ body:before {
 .atelier-primary-action:hover,
 .atelier-primary-action:focus-visible {
   transform:translateY(-2px);
-  border-color:#65e0cb99;
+  border-color:#22d3ee99;
   background:#162123;
 }
 
@@ -370,7 +375,7 @@ body:before {
   height:32px;
   border-radius:10px;
   color:var(--atelier-teal);
-  background:#65e0cb1f;
+  background:#22d3ee1f;
 }
 
 .atelier-maintenance-row span:nth-child(2) {
@@ -551,31 +556,36 @@ body:before {
   height:2px;
 }
 
+/* Mockup-urile "Lumin Culler PRO" (grila) folosesc verde/ambra pentru
+   selectat/de verificat — acelasi limbaj de decizie ca --pick/--review din
+   styles.css, NU accentul violet-cyan (rezervat pentru brand/CTA-uri). Un
+   strat de concept anterior redefinea aici cu turcoaz-ul de atelier, ceea ce
+   nu mai corespunde cu mockup-urile aprobate acum. */
 .card.st-selected {
-  border-color:#65e0cb61;
-  box-shadow:inset 0 -2px var(--atelier-teal),0 14px 34px -30px #000;
+  border-color:rgb(var(--pick-rgb) / .55);
+  box-shadow:inset 0 -2px var(--pick),0 0 0 1px rgb(var(--pick-rgb) / .3),0 0 16px -6px rgb(var(--pick-rgb) / .65),0 14px 34px -30px #000;
 }
 
 .card.st-selected:before {
-  background:var(--atelier-teal);
+  background:var(--pick);
 }
 
 .card.st-review {
-  border-color:#f3c25975;
-  box-shadow:inset 0 -2px #f3c259,0 14px 34px -30px #000;
+  border-color:rgb(var(--review-rgb) / .5);
+  box-shadow:inset 0 -2px var(--review),0 0 0 1px rgb(var(--review-rgb) / .28),0 0 14px -6px rgb(var(--review-rgb) / .55),0 14px 34px -30px #000;
 }
 
 .card.st-review:before {
-  background:#f3c259;
+  background:var(--review);
 }
 
 .card.st-rejected {
-  border-color:#ff766f2b;
+  border-color:rgb(var(--reject-rgb) / .35);
 }
 
 .card.st-rejected:before {
-  background:var(--atelier-coral);
-  opacity:.72;
+  background:var(--reject);
+  opacity:.85;
 }
 
 .card-strip {
@@ -612,7 +622,7 @@ body:before {
 
 .bottom-nav-tab.active {
   color:var(--atelier-teal);
-  background:#65e0cb1a;
+  background:#22d3ee1a;
 }
 
 .bottom-nav-tab.active svg {
@@ -657,17 +667,18 @@ body:before {
   gap:11px;
   align-items:center;
   text-align:left;
-  border:1px solid rgb(156 124 255 / .34);
+  border:1px solid rgb(139 92 246 / .38);
   border-radius:17px;
-  background:linear-gradient(135deg,#3f307285,#161425f0);
+  background:linear-gradient(135deg,#3d2f7291,#161425f0);
+  box-shadow:0 0 22px -14px rgb(139 92 246 / .8);
 }
 
 .drawer-pro-card:hover {
-  border-color:#9c7cffb8;
+  border-color:#8b5cf6c2;
 }
 
 .drawer-pro-card.is-active {
-  border-color:#65e0cb5c;
+  border-color:#22d3ee5c;
   background:linear-gradient(135deg,#18454173,#12191ef0);
 }
 
@@ -697,7 +708,7 @@ body:before {
 }
 
 .drawer-pro-copy small {
-  color:#bbaeff;
+  color:#c4b5fd;
   font-family:var(--mono);
   font-size:.61rem;
   font-weight:800;
@@ -716,7 +727,7 @@ body:before {
 }
 
 .drawer-pro-action {
-  color:#d3caff;
+  color:var(--atelier-teal);
   font-family:var(--mono);
   font-size:.65rem;
   font-weight:800;
@@ -810,7 +821,7 @@ body:before {
   height:32px;
   border-radius:10px;
   color:var(--atelier-teal);
-  background:#65e0cb17;
+  background:#22d3ee17;
 }
 
 .drawer-about {

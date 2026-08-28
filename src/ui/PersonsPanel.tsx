@@ -158,6 +158,11 @@ export function PersonsPanel() {
                     onChange={() => toggleSelected(p.id)}
                     aria-label={tr('persons.selectAriaLabel', { name: p.name })}
                   />
+                  {/* Avatar cu initiala — placeholder onest, nu o poza reala: nu
+                      pastram imaginile de inrolare (doar embedding-urile, vezi
+                      state/store.ts addPerson), deci n-avem un chip fotografic
+                      de aratat aici fara sa inventam unul. */}
+                  <span className="person-avatar" aria-hidden="true">{p.name.trim().charAt(0).toUpperCase() || '?'}</span>
                   <span>
                     <UserCheckIcon className="inline-icon" /> {p.name}{' '}
                     <em className="mono">
@@ -168,6 +173,9 @@ export function PersonsPanel() {
                         percent: Math.round(stats.avgSimilarity * 100)
                       }) : ''})
                     </em>
+                    {stats && (
+                      <span className="person-confidence-chip mono">{Math.round(stats.avgSimilarity * 100)}%</span>
+                    )}
                   </span>
                 </label>
                 {/* Protectia e fata de AUTOMATIZARE, nu fata de utilizator: el

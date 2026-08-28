@@ -48,10 +48,11 @@ const SHOW_NATIVE_TEST_BUTTON = import.meta.env.DEV || import.meta.env.VITE_NATI
     simultan, nu doar cea activa in acest moment (vezi si ui/AppearancePanel.tsx). Vezi :root[data-accent] in styles.css
     pentru valorile reale aplicate. */
 const ACCENT_OPTIONS: { id: AccentTheme; gradient: string }[] = [
-  { id: 'classic', gradient: 'linear-gradient(135deg, #2dd4bf, #8b5cf6 55%, #6366f1)' },
+  { id: 'classic', gradient: 'linear-gradient(135deg, #8b5cf6, #7c6bff 45%, #22d3ee)' },
   { id: 'teal', gradient: 'linear-gradient(135deg, #2dd4bf, #14b8a6)' },
   { id: 'sunset', gradient: 'linear-gradient(135deg, #ff8a5c, #ff5c8a)' },
-  { id: 'holo', gradient: 'linear-gradient(90deg, #00fff2, #7a5cff)' }
+  { id: 'holo', gradient: 'linear-gradient(90deg, #00fff2, #7a5cff)' },
+  { id: 'legacy', gradient: 'linear-gradient(135deg, #2dd4bf, #8b5cf6 55%, #6366f1)' }
 ];
 
 /**

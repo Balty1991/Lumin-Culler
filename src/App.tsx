@@ -886,7 +886,13 @@ export default function App() {
             </span>
           </div>
           <div className="brand-text">
-            <h1>LUMIN<span>CULLER</span></h1>
+            <h1>
+              LUMIN<span>CULLER</span>
+              {/* Nume de produs, nu insigna de drepturi — "Premium disponibil" real
+                  se afla in drawer-pro-card (Meniu), unde starea de cumparare chiar
+                  conteaza. Aici e doar identitatea din redesign, vizibila mereu. */}
+              <em className="brand-pro-badge">PRO</em>
+            </h1>
             <p className="mono"><i className="live-dot" aria-hidden="true" /> {tr('app.tagline')}</p>
             <ProjectNameField />
           </div>

@@ -843,6 +843,14 @@ interface AppState {
   notice: string | null;
   setNotice: (message: string) => void;
   clearNotice: () => void;
+  /**
+   * Progres REAL al exportului curent (nu o animatie decorativa) — vezi
+   * onProgress in core/exportPhotos.ts. Null cand nu exporta nimic acum;
+   * ui/ExportDestinations.tsx il citeste pentru inelul de progres din
+   * redesign. Un singur export activ deodata (ca in restul aplicatiei),
+   * deci un camp simplu ajunge, fara sa tina o coada.
+   */
+  exportProgress: { done: number; total: number } | null;
   /** `destination` vine din foaia de destinatii (ui/ExportDestinations.tsx); absent = comportamentul de dinainte. */
   exportSelection: (destination?: 'auto' | 'folder' | 'apps') => Promise<void>;
   exportManifest: () => Promise<void>;
@@ -2343,6 +2351,7 @@ export const useStore = create<AppState>((set, get) => ({
   aiDegraded: false,
   aiBackend: '',
   notice: null,
+  exportProgress: null,
   history: [],
   multiSelectIds: new Set(),
   multiSelectAnchor: null,
@@ -4042,7 +4051,7 @@ export const useStore = create<AppState>((set, get) => ({
     // lucreze" si "apasarea n-a avut niciun efect", mai ales pe calea nativa
     // (Share.share), unde foaia de partajare a sistemului poate aparea cu o
     // intarziere vizibila fata de tap.
-    set({ notice: t(get().locale, 'store.exportSelection.exporting') });
+    set({ notice: t(get().locale, 'store.exportSelection.exporting'), exportProgress: { done: 0, total: selected.length * 2 } });
     try {
       // vezi computeGroupPersonUnion: un cadru dintr-un burst poate rata o
       // fata pe care alt cadru din ACEEASI serie a recunoscut-o clar —
@@ -4066,7 +4075,10 @@ export const useStore = create<AppState>((set, get) => ({
           location: meta.location,
           edits: p.edits
         };
-      }), { renameTemplate: get().renameTemplate, locale, destination });
+      }), {
+        renameTemplate: get().renameTemplate, locale, destination,
+        onProgress: (done, total) => set({ exportProgress: { done, total } })
+      });
       // Vezi 'store.exportSelection.cancelled' (i18n): o anulare trebuie sa
       // INLOCUIASCA toast-ul de progres, altfel "Se exporta..." ramane agatat
       // pe ecran la infinit — bug real raportat de utilizator.
@@ -4088,6 +4100,8 @@ export const useStore = create<AppState>((set, get) => ({
       set({ notice: parts.join(' ') + freeExportCapNotice(locale) });
     } catch (err) {
       set({ notice: t(get().locale, 'store.exportSelection.failed', { error: String(err) }) });
+    } finally {
+      set({ exportProgress: null });
     }
   },
 

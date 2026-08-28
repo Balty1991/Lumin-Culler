@@ -144,7 +144,10 @@ function PhotoCardInner({ photo, index, onOpen, multiSelected, onCardPointerDown
         <span className="card-strip-row">
           <span
             className="mini-score-ring"
-            style={{ background: `conic-gradient(${ringColor} ${ringDeg}deg, rgba(255,255,255,0.14) 0)` }}
+            style={{
+              background: `conic-gradient(${ringColor} ${ringDeg}deg, rgba(255,255,255,0.14) 0)`,
+              boxShadow: `0 2px 8px -2px rgba(0,0,0,0.5), 0 0 9px -1px ${ringColor}`
+            }}
           >
             <span className="mini-score-ring-inner" style={{ color: ringColor }}>{photo.aiScore}</span>
           </span>
