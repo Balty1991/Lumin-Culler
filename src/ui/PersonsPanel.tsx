@@ -295,7 +295,11 @@ export function PersonsPanel() {
           </p>
           {/* eticheta se schimba deja; lipsea doar aria-busy, care spune explicit
               "asteapta, lucreaza" in loc de "dezactivat, indisponibil". */}
-          <button className="select" onClick={() => void submit()} disabled={busy} aria-busy={busy}>
+          {/* Verde (.select) insemna "pastreaza poza" in restul aplicatiei — un
+              fals-prieten aici, unde nu se decide nimic despre o poza, ci se
+              inroleaza o persoana. Gradientul de brand (mockup-ul "Inroleaza")
+              e si mai corect semantic, nu doar mai aproape vizual. */}
+          <button className="btn-accent" onClick={() => void submit()} disabled={busy} aria-busy={busy}>
             {busy ? <><SparkleIcon className="inline-icon spin" /> {tr('workspace.progress.processing')}</> : tr('persons.enroll')}
           </button>
           {/* role="status" + aria-live — bug real gasit de auditul UI: acesta e

@@ -919,7 +919,7 @@ body:before {
   --desk-line: rgb(240 244 255 / .11);
   --desk-muted: #8c93a2;
   --desk-ink: #f5f7fb;
-  --desk-aqua: #67e4cf;
+  --desk-aqua: #22d3ee;
   --desk-red: #ff686d;
 }
 
@@ -997,9 +997,9 @@ body:before {
 .desk-top-actions>button:hover,
 .desk-icon-action:hover,
 .desk-export.is-ready {
-  border-color:#67e4cf73;
+  border-color:#22d3ee73;
   color:var(--desk-aqua);
-  background:#67e4cf17;
+  background:#22d3ee17;
 }
 
 .desk-top-actions svg,
@@ -1165,7 +1165,7 @@ body:before {
   display:block;
   height:100%;
   border-radius:inherit;
-  background:linear-gradient(90deg,var(--desk-aqua),#8f7bff);
+  background:linear-gradient(90deg,var(--desk-aqua),#8b5cf6);
   transition:width .35s var(--ease, ease);
 }
 
@@ -1208,7 +1208,7 @@ body:before {
   color:#06100f;
   background:var(--desk-aqua);
   font-weight:800;
-  box-shadow:0 12px 34px -18px #67e4cfb3;
+  box-shadow:0 12px 34px -18px #22d3eeb3;
 }
 
 .review-desk-continue span:last-child {
@@ -1261,7 +1261,7 @@ body:before {
   height:7px;
   border-radius:50%;
   background:var(--desk-aqua);
-  box-shadow:0 0 0 5px #67e4cf1a;
+  box-shadow:0 0 0 5px #22d3ee1a;
 }
 
 .review-desk-pulse-stats {
@@ -1306,7 +1306,7 @@ body:before {
   height:25px;
   border-radius:99px;
   color:var(--desk-aqua);
-  background:#67e4cf1a;
+  background:#22d3ee1a;
   font:800 .72rem var(--mono);
 }
 
@@ -2214,7 +2214,7 @@ body:before {
 
 .analysis-studio-orbit.orbit-two {
   inset:25px;
-  border-color:#67e4cf59;
+  border-color:#22d3ee59;
   animation:studioSpin 6s linear infinite reverse;
 }
 
@@ -2223,7 +2223,7 @@ body:before {
   height:21px;
   border-radius:50%;
   background:var(--desk-aqua);
-  box-shadow:0 0 0 10px #67e4cf1a,0 0 31px #67e4cfb8;
+  box-shadow:0 0 0 10px #22d3ee1a,0 0 31px #22d3eeb8;
 }
 
 .analysis-studio-copy {
@@ -2287,8 +2287,8 @@ body:before {
   display:block;
   height:100%;
   border-radius:inherit;
-  background:linear-gradient(90deg,var(--desk-aqua),#9071ff);
-  box-shadow:0 0 18px #67e4cf8a;
+  background:linear-gradient(90deg,var(--desk-aqua),#8b5cf6);
+  box-shadow:0 0 18px #22d3ee8a;
   transition:width .35s var(--ease);
 }
 
@@ -2352,7 +2352,7 @@ body:before {
 .export-dest-primary {
   position:relative;
   min-height:100px;
-  border-color:#67e4cf61;
+  border-color:#22d3ee61;
   background:linear-gradient(135deg,#194e496b,#14171feb);
 }
 
@@ -2405,7 +2405,7 @@ body:before {
   border:1px dashed rgb(103 228 207 / .36);
   border-radius:13px;
   color:#bdebe5;
-  background:#67e4cf0b;
+  background:#22d3ee0b;
   font-size:.76rem;
   font-weight:760;
 }
@@ -2413,7 +2413,7 @@ body:before {
 .review-desk-period-link:hover {
   border-style:solid;
   color:#fff;
-  background:#67e4cf1a;
+  background:#22d3ee1a;
 }
 
 .tiktok-inspector-trigger {
@@ -2819,18 +2819,30 @@ body:before {
   background:radial-gradient(circle at 50% 23%,rgb(var(--accent-rgb) / .16),transparent 57%),radial-gradient(circle at 50% 71%,rgb(var(--accent-2-rgb) / .09),transparent 52%);
 }
 
+/* Medalion circular cu halou — ca marca "LC" din mockup-urile aprobate, in
+   locul patratului rotunjit de dinainte. */
 .empty-badge {
-  width:78px;
-  height:78px;
-  border-radius:26px;
-  margin-bottom:7px;
+  position:relative;
+  width:92px;
+  height:92px;
+  border-radius:50%;
+  margin-bottom:14px;
   background-image:linear-gradient(145deg,#151e2aeb,#0b0e16f5),var(--accent-gradient);
   box-shadow:0 16px 40px -17px rgb(var(--accent-rgb) / .76),inset 0 1px #ffffff1a;
 }
 
+.empty-badge:before {
+  content:"";
+  position:absolute;
+  inset:-12px;
+  border-radius:50%;
+  border:1px solid rgb(var(--accent-2-rgb) / .4);
+  background:radial-gradient(circle,rgb(var(--accent-rgb) / .16),transparent 70%);
+}
+
 .empty-badge svg {
-  width:35px;
-  height:35px;
+  width:38px;
+  height:38px;
 }
 
 .empty-tagline {
@@ -2921,13 +2933,12 @@ body:before {
     padding-top:17px;
   }
   .empty-badge {
-    width:62px;
-    height:62px;
-    border-radius:21px;
+    width:72px;
+    height:72px;
   }
   .empty-badge svg {
-    width:28px;
-    height:28px;
+    width:30px;
+    height:30px;
   }
   .empty h2 {
     font-size:1.85rem;
@@ -3105,7 +3116,7 @@ body:before {
 .filters .chip.active,
 .filters .chip.chip-compact.active {
   color: #06100e !important;
-  background: #67e4cf !important;
+  background: #22d3ee !important;
   border: 2px solid #c9fff4 !important;
   box-shadow: 0 0 0 2px rgba(103,228,207,.22), 0 8px 22px rgba(0,0,0,.30) !important;
   font-weight: 900 !important;
@@ -3679,7 +3690,7 @@ body:before {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--desk-aqua), #8f7bff);
+  background: linear-gradient(90deg, var(--desk-aqua), #8b5cf6);
 }
 .stat-tile.warn .stat-meter i { background: var(--reject); }
 :root[data-theme="light"] .stat-meter { background: rgb(10 20 30 / .12); }
@@ -3981,7 +3992,7 @@ input[type="range"] { height: 44px; }
    scena care ramane intunecata in ambele teme — deci si culoarea lor trebuie
    sa ramana cea de pe intuneric. */
 :root[data-theme="light"] .zoom-hint { color: rgb(255 255 255 / .72); }
-:root[data-theme="light"] .review-desk-kicker { color: #67e4cf; }
+:root[data-theme="light"] .review-desk-kicker { color: #22d3ee; }
 
 /* Butonul principal de pe Review Desk devenise verde-petrol inchis, dar
    pastrase cerneala aproape neagra: 3,53:1 pe cel mai apasat buton din
