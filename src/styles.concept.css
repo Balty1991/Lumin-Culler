@@ -1853,7 +1853,7 @@ body:before {
      intern in loc sa fure spatiu din fotografie). 336, nu 324 (bottom-ul
      exact al .tiktok-caption) — bug real, raportat cu zoom pe o poza
      reala: fara acest mic aer, marginea pastilelor atingea marginea pozei. */
-  padding:calc(65px + var(--safe-top)) 0 calc(346px + var(--safe-bottom));
+  padding:calc(65px + var(--safe-top)) 0 calc(326px + var(--safe-bottom));
 }
 
 .tiktok-stage {
@@ -1865,7 +1865,7 @@ body:before {
   width:auto;
   height:auto;
   max-width:100%;
-  max-height:calc(100svh - 411px);
+  max-height:calc(100svh - 391px);
   object-fit:contain;
 }
 /* Invelis care se micsoreaza la dimensiunea REALA a imaginii — vezi
@@ -1943,7 +1943,7 @@ body:before {
      variabila — inaltimea panoului e aproape CONSTANTA indiferent de poza,
      deci plafonul de mai jos nu mai trebuie sa fie o ghicitoare la fiecare
      bug nou. */
-  max-height:230px;
+  max-height:210px;
   overflow-y:auto;
 }
 
