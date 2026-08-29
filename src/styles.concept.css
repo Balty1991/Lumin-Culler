@@ -1830,7 +1830,16 @@ body:before {
 .tiktok-stage-wrap {
   inset:0;
   display:grid;
-  place-items:center;
+  justify-items:center;
+  /* align-items:end, nu center — bug real raportat cu poze reale: sus se
+     rezerva doar 65px (antetul), jos 346px (panoul de informatii), deci
+     centrarea pe verticala a pozei in acest spatiu ASIMETRIC o impingea
+     vizibil spre partea de sus a ecranului, cu un gol mare de negru intre
+     ea si panou, ori de cate ori poza (dupa raportul ei de aspect) nu
+     umplea toata inaltimea disponibila. Ancorata jos, poza sta lipita de
+     panou, iar spatiul ramas (daca exista) se duce sus, langa antet, unde
+     valul de degrade il ascunde deja vizual. */
+  align-items:end;
   /* Doua bug-uri reale, raportate pe rand, cu poze reale de fiecare data:
      1) prima varianta rezerva TOT panoul de jos exclusiv -> poza portret
         devenea minuscula (inaltimea, nu latimea, era limita la contain).
@@ -4805,10 +4814,14 @@ input[type="search"] { min-height: 44px; }
    arate ca atare — altfel ramane la fel de mut ca inainte, doar ca reactioneaza
    la apasare pentru cine nimereste. */
 .tiktok-series-chip {
+  /* min-height era 44px, ramas de cand toate pastilele erau la acea
+     inaltime — dupa ce .tiktok-ai-chip a fost redus la 32px (cerinta
+     directa: "fa-le mai subtiri"), doar aceasta pastila a ramas mai inalta
+     decat surorile ei ("Pastreaza"/"Metrici"), vizibil dezaliniata —
+     bug real, raportat cu captura. */
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 44px;
   cursor: pointer;
   border: 1px solid rgb(255 255 255 / .28);
   background: rgb(10 11 14 / .78);
