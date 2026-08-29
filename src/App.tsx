@@ -1396,9 +1396,6 @@ export default function App() {
           <button type="button" className="empty-existing-session" onClick={() => restoreSessionInputRef.current?.click()}>
             {tr('app.empty.existingSession')}
           </button>
-          {/* Pur decorativ — un singur pas, nu un carusel real: exista doar ca
-              sa reproduca exact accentul din mockup (primul punct plin). */}
-          <div className="empty-dots" aria-hidden="true"><span className="active" /><span /><span /></div>
           <PhotosAccessNotice />
 
           {/* Aici erau inca 3 blocuri de text sub butoane (formatele acceptate,
