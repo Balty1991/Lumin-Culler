@@ -3164,12 +3164,16 @@ body:before {
 .empty-badge-mark {
   font-family:var(--font-display);
   font-weight:800;
-  font-size:calc(var(--empty-badge-size) * .37);
-  letter-spacing:-.03em;
+  font-size:calc(var(--empty-badge-size) * .46);
+  letter-spacing:-.02em;
   background:var(--accent-gradient);
   -webkit-background-clip:text;
   background-clip:text;
   color:transparent;
+  /* "Space Grotesk Variable" se opreste la 700 — font-weight:800 e deja
+     clampat la maximul fontului. Un contur subtire adauga greutatea vizuala
+     ceruta ("mai gros") pe care font-weight n-o mai poate da. */
+  -webkit-text-stroke:.5px rgb(255 255 255 / .5);
   filter:drop-shadow(0 2px 18px rgb(var(--accent-2-rgb) / .55));
 }
 :root[data-theme="light"] .empty-badge-mark {
