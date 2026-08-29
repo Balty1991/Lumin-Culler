@@ -694,7 +694,6 @@ export function TikTokSort() {
                   {/* Fara scanteie: aia inseamna "AI-ul zice", si aici nu el zice. */}
                   <CheckIcon className="inline-icon" aria-hidden="true" />
                   {tr(`tiktok.mine.short.${verdict.status}`)} · {current.aiScore}
-                  <b className="tiktok-explain-cue">{tr('explain.open')}</b>
                 </button>
               ) : (
                 <span className={`tiktok-ai-chip rec-${verdict.recommendation}`} title={tr(`tiktok.ai.${verdict.recommendation}`)}>
