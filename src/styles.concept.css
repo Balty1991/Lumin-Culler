@@ -3115,8 +3115,11 @@ body:before {
 .app-empty-state .topbar { justify-content:flex-end; }
 
 .empty {
-  /* svh, nu dvh — vezi acelasi bug/fix la .review-desk-stage mai sus. */
-  min-height:min(610px,calc(100svh - var(--header-bottom, 0px) - 44px));
+  /* min-height REALA e mai jos (linia ~3894, o regula ulterioara cu aceeasi
+     specificitate castiga oricum) — nu se repeta aici ca sa nu para ca astea
+     doua ar putea diverge din nou fara sa se observe (exact ce s-a intamplat:
+     valoarea de-aici a ramas 610px moarta multe editari, in timp ce regula de
+     mai jos, singura care conta, folosea alta formula). */
   max-width:500px;
   align-content:center;
   gap:6px;
@@ -3141,15 +3144,16 @@ body:before {
    (altfel creste nelimitat pe tableta/desktop), dar mult mai sus (320px), ca
    sa nu se activeze pe niciun telefon normal. */
 .empty-badge {
-  /* min(52vw, 24svh) — pe telefon ingust si inalt, latimea decide; pe unul
-     mai lat si mai scund, inaltimea disponibila devine limita reala, altfel
-     medalionul singur impinge tot restul sub ecran (bug real raportat:
-     "inainte nu se scrola" - vezi comentariul din App.tsx). Fractiuni scazute
-     din nou fata de versiunea anterioara (60vw/30svh): raportul de 60% cerut
-     initial tot scrola pe un telefon real netestabil aici (nicio combinatie
-     de latime/inaltime/safe-area/scalare font incercata local n-a reprodus-o)
-     — marja mai mare acum, ca sa nu mai depinda de o singura presupunere. */
-  --empty-badge-size:clamp(140px,min(52vw,24svh),260px);
+  /* min(56vw, 27svh) — pe telefon ingust si inalt, latimea decide; pe unul
+     mai lat si mai scund, inaltimea disponibila devine limita reala.
+     Redus de la 52vw/24svh la 56vw/27svh: scroll-ul raportat s-a dovedit sa
+     fie ALTE doua bug-uri reale (o @media(max-width:420px) uitata care marea
+     cardurile la loc, si o regula .empty duplicata care anula plafonul de
+     inaltime) - nu marimea medalionului in sine. Cu alea reparate, cardul
+     poate creste la loc spre raportul cerut initial (60%) fara sa scroleze,
+     si umple mai bine cutia (cerinta directa: "trebuie mai compact" — mai
+     putin spatiu gol, nu un medalion si mai mic). */
+  --empty-badge-size:clamp(150px,min(56vw,27svh),290px);
   position:relative;
   width:var(--empty-badge-size);
   height:var(--empty-badge-size);
@@ -3884,14 +3888,18 @@ body:before {
 }
 @media (prefers-reduced-motion: reduce) { .premium-usage-bar > span { transition: none; } }
 
-/* ── Ecranul gol umple inaltimea disponibila ──
-   Regula din referinta plafoneaza blocul la 610px si centreaza continutul in
-   INTERIORUL acelui plafon, nu in ecran: pe un telefon de 915px cu antetul de
-   doua randuri raman ~270px goi dedesubt, iar primul ecran al aplicatiei arata
-   ca si cum s-ar fi terminat continutul. Plafonul cade; centrarea ramane.
-   Ecranele scunde nu sunt afectate — pentru ele exista deja
-   @media (max-height: 710px) mai sus, care aliniaza sus in loc sa centreze. */
-.empty { min-height: calc(100svh - var(--header-bottom, 0px) - 44px); }
+/* ── Ecranul gol: SINGURA regula de min-height pentru .empty (mai e o valoare
+   la definitia de baza, mai sus in fisier, dar ramane fara efect — asta
+   castiga la egalitate de specificitate, fiind ulterioara in fisier). ──
+   Fara plafon deloc = pe un telefon inalt cu antetul (acum) scurt, boxul
+   umple tot spatiul si centreaza in interior — corect atunci cand continutul
+   aproape ajunge la plafonul vechi de 610px. Dar continutul de-acum (medalion
+   micsorat contra scroll-ului, carduri compactate) e mult mai scund (~620px
+   masurat), deci "fara plafon" lasa ~55px goi SUS SI JOS pe un telefon
+   obisnuit — cerinta directa: "trebuie mai compact". Plafonul revine, dar
+   mult mai jos (650px, aproape de continutul real) — pe un telefon scund,
+   min() tot alege calc()-ul mai mic, deci nu reintroduce scroll-ul. */
+.empty { min-height: min(650px, calc(100svh - var(--header-bottom, 0px) - 44px)); }
 
 /* ═══════════════════════════════════════════════════════════════════════════
  * Accesibilitate: contrast si zone de atingere.
