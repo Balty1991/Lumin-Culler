@@ -5,6 +5,7 @@ import { selectSortQueue, selectScopedQueue, selectAllPhotosQueue, countSeriesSi
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
 import { getCachedThumbUrl, peekThumbUrl } from '../core/thumbUrlCache';
 import { db } from '../core/db';
+import { RAW_EXTENSIONS } from '../core/rawDecoder';
 import { SELECT_THRESHOLD, REJECT_THRESHOLD } from '../core/importPipeline';
 import { explainFactors } from '../core/learning/ContextEngine';
 import { useModalFocusTrap } from './useModalFocusTrap';
@@ -79,6 +80,13 @@ function captionVerdict(photo: PhotoView): CaptionVerdict {
 function topReasonsText(photo: PhotoView, locale: Locale): string | null {
   const factors = explainFactors(photo.aiFactors, locale).slice(0, 2).map(f => f.label);
   return factors.length ? factors.join(', ') : null;
+}
+
+/** Formatul REAL al fisierului (mockup "Lumin Culler Pro" arata un badge "RAW" in coltul pozei) — din numele fisierului, nu ghicit. */
+function photoFormatLabel(fileName: string): string {
+  if (RAW_EXTENSIONS.test(fileName)) return 'RAW';
+  const ext = /\.([a-z0-9]+)$/i.exec(fileName)?.[1];
+  return ext ? ext.toUpperCase() : '';
 }
 
 function formatCaptureDate(ts: number | undefined, locale: Locale): string | null {
@@ -510,6 +518,7 @@ export function TikTokSort() {
   // grup (hash perceptual) ca seriesCount de mai sus, doar ca lista, nu doar numar.
   const seriesMembers = current?.groupId ? groupOf(current.groupId) : [];
   const captureDate = current ? formatCaptureDate(current.capturedAt, locale) : null;
+  const formatLabel = current ? photoFormatLabel(current.fileName) : '';
   const album = current ? (collections.find(c => c.memberIds.includes(current.id))?.name ?? current.project) : undefined;
   const verdict = current ? captionVerdict(current) : null;
   const reasonsText = current ? topReasonsText(current, locale) : null;
@@ -539,19 +548,6 @@ export function TikTokSort() {
         <button className="tiktok-close" onClick={() => setOpen(false)} aria-label={tr('tiktok.close')}>
           <XIcon />
         </button>
-
-      {!current && (
-        <div className="tiktok-empty">
-          <SparkleIcon />
-          <h3>{tr('tiktok.empty.title')}</h3>
-          <p>{tr('tiktok.empty.sub')}</p>
-          {!reviewingAll && photos.length > 0 && (
-            <button type="button" className="tiktok-review-all" onClick={reviewAll}>
-              {tr('tiktok.reviewAll', { count: photos.length })}
-            </button>
-          )}
-        </div>
-      )}
 
         {current && (
           <>
@@ -589,6 +585,26 @@ export function TikTokSort() {
           </>
         )}
       </div>
+
+      {/* Ecranul "totul sortat" traieste in afara .tiktok-topbar — era copil al
+          lui inainte, dar .tiktok-topbar e position:absolute (fara inaltime
+          proprie, doar cat butonul de inchidere), asa ca acest ecran
+          (position:absolute;inset:0, gandit sa acopere tot .tiktok-sort)
+          se ancora de fapt de cutia mica a antetului, nu de ecran — bug real
+          raportat de utilizator ("arata dezordonat", cu X-ul plutind in
+          mijlocul ecranului in loc de coltul din stanga sus). */}
+      {!current && (
+        <div className="tiktok-empty">
+          <SparkleIcon />
+          <h3>{tr('tiktok.empty.title')}</h3>
+          <p>{tr('tiktok.empty.sub')}</p>
+          {!reviewingAll && photos.length > 0 && (
+            <button type="button" className="tiktok-review-all" onClick={reviewAll}>
+              {tr('tiktok.reviewAll', { count: photos.length })}
+            </button>
+          )}
+        </div>
+      )}
 
       {current && moreOpen && moreMenuPos && createPortal(
         <div
@@ -645,6 +661,11 @@ export function TikTokSort() {
                     style={{ left: `${bx * 100}%`, top: `${by * 100}%`, width: `${bw * 100}%`, height: `${bh * 100}%` }}
                   />
                 ))}
+                {/* Formatul real al fisierului (mockup "Lumin Culler Pro") —
+                    ancorat la coltul cutiei care se micsoreaza cu poza (nu al
+                    containerului plin ecran), deci ramane lipit de imagine la
+                    orice raport de aspect. */}
+                {formatLabel && <span className="tiktok-format-badge mono" aria-hidden="true">{formatLabel}</span>}
               </span>
             )}
           </div>
