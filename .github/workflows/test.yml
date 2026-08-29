@@ -20,6 +20,13 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # Plasa de siguranta gasita lipsa dupa un bug real: `npm test` a ramas
+    # agatat (bucla infinita, nu doar o asteptare blocata — vezi fix-ul din
+    # exportPhotos.ts) pe FIECARE push, ore in sir, pana a umplut limita de
+    # execuții paralele a contului si a blocat orice alt build (inclusiv
+    # cel de APK, cerut direct). Fara acest plafon, un asemenea bug tot
+    # blocheaza coada 6h (limita implicita GitHub) inainte sa pice singur.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
