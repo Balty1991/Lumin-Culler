@@ -1844,7 +1844,7 @@ body:before {
      intern in loc sa fure spatiu din fotografie). 336, nu 324 (bottom-ul
      exact al .tiktok-caption) — bug real, raportat cu zoom pe o poza
      reala: fara acest mic aer, marginea pastilelor atingea marginea pozei. */
-  padding:calc(65px + var(--safe-top)) 0 calc(336px + var(--safe-bottom));
+  padding:calc(65px + var(--safe-top)) 0 calc(346px + var(--safe-bottom));
 }
 
 .tiktok-stage {
@@ -1856,7 +1856,7 @@ body:before {
   width:auto;
   height:auto;
   max-width:100%;
-  max-height:calc(100svh - 401px);
+  max-height:calc(100svh - 411px);
   object-fit:contain;
 }
 /* Invelis care se micsoreaza la dimensiunea REALA a imaginii — vezi
@@ -1907,6 +1907,14 @@ body:before {
   right:20px;
   bottom:calc(104px + var(--safe-bottom));
   display:grid;
+  /* minmax(0,1fr), nu doar 1fr implicit — fara asta, coloana unica a
+     grid-ului mostenea min-width:auto (implicit pentru itemi de grid) si un
+     text pe un singur rand (.tiktok-score-insight-text, white-space:nowrap)
+     forta toata coloana sa creasca dupa latimea lui naturala, impingand
+     cardul de scor (si tot ce era langa el) mult peste marginea ecranului —
+     bug real, gasit chiar cand am incercat sa reparam alt bug (textul taiat
+     la mijloc). */
+  grid-template-columns:minmax(0,1fr);
   gap:4px;
   /* Bug real raportat de utilizator, cu poze reale: pastilele si filmstrip-ul
      acopereau subiectul din poza (nu doar un colt gol) — .tiktok-stage-wrap
@@ -1914,14 +1922,19 @@ body:before {
      continutul lui (care creste in sus de la ancora) se suprapunea peste
      fotografie. Acum inaltimea lui e plafonata la EXACT cat rezerva
      .tiktok-stage-wrap in plus (vezi acolo).
-     200px (prima incercare) taia gaugele de scor la jumatate, in mijlocul
-     unui rand de metrici, nu la o margine curata — vizibil urat, raportat cu
-     captura. 290px (a doua incercare) nu mai taia nimic, dar rezervarea
-     corespunzatoare de jos facea fotografia din nou prea mica — raportat cu
-     poze reale. Solutia corecta nu era sa cautam numarul potrivit, ci sa
-     facem panoul insusi mai compact (vezi .tiktok-score-card): la fel de
-     complet, ocupa mult mai putin. 220px ii ajunge acum cu rezerva. */
-  max-height:220px;
+     200px (incercarea 1) taia gaugele de scor la jumatate. 290px (incercarea
+     2) nu mai taia nimic, dar facea fotografia prea mica. Solutia corecta nu
+     era numarul, ci panoul insusi mai compact (.tiktok-score-card) — dar tot
+     mai ramasese o problema: pe o poza FARA fata (o singura metrica, nu
+     trei) sau FARA serie (fara filmstrip), continutul e mai scund, iar
+     acelasi plafon fix cadea atunci in mijlocul motivelor scorului, taind
+     textul la jumatate — bug gasit cu poze reale diferite unele de altele.
+     Fix real: motivul scorului (tiktok-score-insight) e acum un singur
+     rand, cu "..." daca nu incape, nu mai multe randuri de inaltime
+     variabila — inaltimea panoului e aproape CONSTANTA indiferent de poza,
+     deci plafonul de mai jos nu mai trebuie sa fie o ghicitoare la fiecare
+     bug nou. */
+  max-height:230px;
   overflow-y:auto;
 }
 
@@ -1929,16 +1942,21 @@ body:before {
    ecrane inguste, si atunci blocul crestea peste fotografie — plangerea
    "uneori se vad aliniate, alteori nu". Acum pastilele se ingusteaza cu "..."
    in loc sa treaca pe randul urmator; textul intreg ramane in title/aria-label. */
+/* Bug real raportat de utilizator, cu poze reale: cu 3 pastile (verdict +
+   serie + metrici), randul nu mai incapea pe latimea ecranului — inainte,
+   pastilele se MICSORAU (flex-shrink) ca sa incapa, iar textul se taia la
+   mijlocul cuvantului ("Metrici" -> "Metric"). Acum randul se deruleaza
+   orizontal (ca filmstrip-ul de mai jos), iar nicio pastila nu-si mai
+   pierde niciodata din text. */
 .tiktok-chip-row {
   flex-wrap:nowrap;
   gap:7px;
-  min-width:0;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
 }
 
 .tiktok-chip-row > * {
-  flex:0 1 auto;
-  min-width:0;
-  overflow:hidden;
+  flex:0 0 auto;
   white-space:nowrap;
 }
 
@@ -2073,24 +2091,34 @@ body:before {
   display:inline-flex;
   align-items:center;
   gap:4px;
+  max-width:100%;
   padding:2px 8px;
   border-radius:999px;
   background:rgb(255 255 255 / .08);
   font-size:.58rem;
   font-weight:700;
   color:rgb(255 255 255 / .75);
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
 }
 .tiktok-score-context .inline-icon { color:var(--accent-2); }
+/* Un singur rand, cu "...", nu doua-trei — bug real gasit alaturi de cel de
+   la .tiktok-caption mai jos: o poza cu putine metrici (fara fata) facea
+   cardul mai scund, iar plafonul fix al .tiktok-caption taia atunci acest
+   text la mijloc, in loc sa taie inaintea lui — inaltimea cardului nu mai
+   trebuie sa depinda de cat de lung e motivul. */
 .tiktok-score-insight {
   display:flex;
-  align-items:flex-start;
+  align-items:center;
   gap:5px;
   margin:0;
   font-size:.6rem;
   line-height:1.3;
   color:rgb(255 255 255 / .78);
 }
-.tiktok-score-insight .inline-icon { flex:0 0 auto; width:12px; height:12px; margin-top:1px; color:var(--accent-2); }
+.tiktok-score-insight .inline-icon { flex:0 0 auto; width:12px; height:12px; color:var(--accent-2); }
+.tiktok-score-insight-text { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
 /* Filmstrip cu restul seriei (mockup "Lumin Culler Pro") — traieste chiar in
    .tiktok-caption (deja pointer-events:auto pe butoane, vezi mai jos in

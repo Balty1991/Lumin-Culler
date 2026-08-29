@@ -812,7 +812,12 @@ export function TikTokSort() {
               </span>
               {/* Motivele scorului (mockup arata exact acest text sub context) —
                   nu mai apar si in randul de sub pastile, vezi tiktok-caption-line mai jos. */}
-              {reasonsText && <p className="tiktok-score-insight"><SparkleIcon className="inline-icon" aria-hidden="true" /> {reasonsText}</p>}
+              {reasonsText && (
+                <p className="tiktok-score-insight">
+                  <SparkleIcon className="inline-icon" aria-hidden="true" />
+                  <span className="tiktok-score-insight-text">{reasonsText}</span>
+                </p>
+              )}
             </div>
           </div>
         </>
