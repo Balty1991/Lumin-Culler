@@ -1877,7 +1877,6 @@ body:before {
    mai scund — antetul de aici (.tiktok-topbar, mai jos in fisier) ajunge
    acum pana spre ~84px, deci pastila de procent se suprapunea peste el. */
 .tiktok-zoom-hint { top:calc(92px + var(--safe-top)); }
-.tiktok-face-box { border-radius:10px; }
 /* Formatul real al fisierului (mockup "Lumin Culler Pro") — coltul din
    dreapta-sus al pozei, ca in referinta. */
 .tiktok-format-badge {
