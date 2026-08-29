@@ -13,7 +13,7 @@ import { AdjustedImage } from './AdjustedImage';
 import { computeMenuPosition, isInsideAnyMenu, useReanchorOnViewportChange, type MenuPosition } from './dropdownPosition';
 import {
   XIcon, HeartIcon, UndoIcon, ChevronUpIcon, SparkleIcon, LayersIcon, BookmarkIcon, BarChartIcon, CheckIcon,
-  MoreIcon, SmileIcon, EyeIcon, FocusIcon
+  MoreIcon, SmileIcon, EyeIcon, FocusIcon, TagIcon
 } from './icons';
 import { t, type Locale } from '../i18n';
 
@@ -90,11 +90,6 @@ function formatCaptureDate(ts: number | undefined, locale: Locale): string | nul
 /** Aceeasi paleta pick/review/reject ca ScoreRing din PhotoInfoTabs — un singur cod de culoare pentru scor, oriunde apare. */
 function scoreColorOf(score: number): string {
   return score >= 65 ? 'var(--pick)' : score <= 35 ? 'var(--reject)' : 'var(--review)';
-}
-
-/** Eticheta de calitate de sub gauge (mockup "Lumin Culler Pro") — aceleasi praguri ca scoreColorOf/aiRecommendation, doar in cuvinte. */
-function scoreQualityKey(score: number): string {
-  return score >= SELECT_THRESHOLD ? 'tiktok.score.veryGood' : score <= REJECT_THRESHOLD ? 'tiktok.score.weak' : 'tiktok.score.medium';
 }
 
 /**
@@ -617,50 +612,6 @@ export function TikTokSort() {
         <>
           <div className="tiktok-up-hint"><ChevronUpIcon aria-hidden="true" /><span>{tr('tiktok.hint')}</span></div>
 
-          {/* Card persistent de scor (mockup "Lumin Culler Pro") — un gauge mare
-              cu eticheta de calitate, plus procentul REAL langa fiecare bara,
-              vizibil tot timpul cat esti pe o poza, nu doar o pastila mica in
-              coada de jos (care ramane, cu explicatia completa la un tap).
-              Aceleasi date ca fisa de metrici (PhotoInfoTabs): scorul AI, plus
-              zambet/ochi (doar cand exista o fata reala, altfel n-avem niciun
-              semnal onest de aratat) si claritatea. */}
-          <div className="tiktok-score-card">
-            <div className="tiktok-score-head" aria-hidden="true">
-              <div className="tiktok-score-gauge" style={{ background: `conic-gradient(${scoreColorOf(current.aiScore)} ${Math.round((current.aiScore / 100) * 360)}deg, rgba(255,255,255,.16) 0)` }}>
-                <span className="tiktok-score-gauge-inner">
-                  <b style={{ color: scoreColorOf(current.aiScore) }}>{current.aiScore}</b>
-                  <i>/100</i>
-                </span>
-              </div>
-              <span className="tiktok-score-quality" style={{ color: scoreColorOf(current.aiScore) }}>{tr(scoreQualityKey(current.aiScore))}</span>
-            </div>
-            <div className="tiktok-score-metrics" aria-hidden="true">
-              {current.faceCount > 0 && (
-                <>
-                  <div className="tiktok-score-metric">
-                    <SmileIcon aria-hidden="true" />
-                    <i><b style={{ width: `${Math.round((current.faceCount > 1 ? current.groupSmileRatio ?? current.bestSmile : current.bestSmile) * 100)}%` }} /></i>
-                    <span>{Math.round((current.faceCount > 1 ? current.groupSmileRatio ?? current.bestSmile : current.bestSmile) * 100)}%</span>
-                  </div>
-                  <div className="tiktok-score-metric">
-                    <EyeIcon aria-hidden="true" />
-                    <i><b style={{ width: `${Math.round((current.faceCount > 1 ? current.groupEyesOpenRatio ?? (current.allEyesOpen ? 1 : 0) : (current.allEyesOpen ? 1 : 0)) * 100)}%` }} /></i>
-                    <span>{Math.round((current.faceCount > 1 ? current.groupEyesOpenRatio ?? (current.allEyesOpen ? 1 : 0) : (current.allEyesOpen ? 1 : 0)) * 100)}%</span>
-                  </div>
-                </>
-              )}
-              <div className="tiktok-score-metric">
-                <FocusIcon aria-hidden="true" />
-                <i><b style={{ width: `${Math.round(current.sharpness)}%` }} /></i>
-                <span>{Math.round(current.sharpness)}%</span>
-              </div>
-            </div>
-            {/* Motivele scorului, mutate aici din randul de sub pastile (mockup
-                "Lumin Culler Pro" arata exact acest text langa gauge) — nu
-                mai apar in doua locuri deodata, vezi tiktok-caption-line mai jos. */}
-            {reasonsText && <p className="tiktok-score-insight"><SparkleIcon className="inline-icon" aria-hidden="true" /> {reasonsText}</p>}
-          </div>
-
           <div
             className="tiktok-stage-wrap"
             ref={stageWrapRef}
@@ -791,6 +742,58 @@ export function TikTokSort() {
                 ))}
               </div>
             )}
+
+            {/* Card de scor pe toata latimea, sub filmstrip (mockup "Lumin
+                Culler Pro" — nu o pastila plutitoare peste poza). Aceleasi
+                date ca fisa de metrici (PhotoInfoTabs): scorul AI, plus
+                zambet/ochi (doar cand exista o fata reala, altfel n-avem
+                niciun semnal onest de aratat) si claritatea. */}
+            <div className="tiktok-score-card">
+              <span className="tiktok-score-handle" aria-hidden="true" />
+              <div className="tiktok-score-head" aria-hidden="true">
+                <div className="tiktok-score-gauge" style={{ background: `conic-gradient(${scoreColorOf(current.aiScore)} ${Math.round((current.aiScore / 100) * 360)}deg, rgba(255,255,255,.16) 0)` }}>
+                  <span className="tiktok-score-gauge-inner">
+                    <b style={{ color: scoreColorOf(current.aiScore) }}>{current.aiScore}</b>
+                    <i>/100</i>
+                  </span>
+                </div>
+                <div className="tiktok-score-metrics">
+                  {current.faceCount > 0 && (
+                    <>
+                      <div className="tiktok-score-metric">
+                        <SmileIcon aria-hidden="true" />
+                        <span>{tr(current.faceCount > 1 ? 'detail.stat.smiles' : 'detail.stat.smile')}</span>
+                        <i><b style={{ width: `${Math.round((current.faceCount > 1 ? current.groupSmileRatio ?? current.bestSmile : current.bestSmile) * 100)}%` }} /></i>
+                        <b className="tiktok-score-metric-pct">{Math.round((current.faceCount > 1 ? current.groupSmileRatio ?? current.bestSmile : current.bestSmile) * 100)}%</b>
+                      </div>
+                      <div className="tiktok-score-metric">
+                        <EyeIcon aria-hidden="true" />
+                        <span>{tr(current.faceCount > 1 ? 'detail.stat.eyesGroup' : 'detail.stat.eyesOk')}</span>
+                        <i><b style={{ width: `${Math.round((current.faceCount > 1 ? current.groupEyesOpenRatio ?? (current.allEyesOpen ? 1 : 0) : (current.allEyesOpen ? 1 : 0)) * 100)}%` }} /></i>
+                        <b className="tiktok-score-metric-pct">{Math.round((current.faceCount > 1 ? current.groupEyesOpenRatio ?? (current.allEyesOpen ? 1 : 0) : (current.allEyesOpen ? 1 : 0)) * 100)}%</b>
+                      </div>
+                    </>
+                  )}
+                  <div className="tiktok-score-metric">
+                    <FocusIcon aria-hidden="true" />
+                    <span>{tr('detail.stat.sharpness')}</span>
+                    <i><b style={{ width: `${Math.round(current.sharpness)}%` }} /></i>
+                    <b className="tiktok-score-metric-pct">{Math.round(current.sharpness)}%</b>
+                  </div>
+                </div>
+              </div>
+              {/* Context real (tipul de cadru + daca subiectul e o persoana
+                  deja recunoscuta) — aceleasi campuri ca Persoane/Metrici, nu
+                  un text inventat. */}
+              <span className="tiktok-score-context">
+                <TagIcon className="inline-icon" aria-hidden="true" />
+                {tr('tiktok.score.context')}: {tr(`insights.scene.${current.sceneType}`)}
+                {current.faceCount > 0 && ` · ${tr(current.knownFaceCount > 0 ? 'tiktok.score.known' : 'tiktok.score.stranger')}`}
+              </span>
+              {/* Motivele scorului (mockup arata exact acest text sub context) —
+                  nu mai apar si in randul de sub pastile, vezi tiktok-caption-line mai jos. */}
+              {reasonsText && <p className="tiktok-score-insight"><SparkleIcon className="inline-icon" aria-hidden="true" /> {reasonsText}</p>}
+            </div>
           </div>
         </>
       )}
