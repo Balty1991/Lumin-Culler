@@ -2379,15 +2379,17 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   --fb-stroke: 2.5px;
   position: absolute; border-radius: 10px; pointer-events: none;
   background-repeat: no-repeat;
+  /* Fiecare colt e acum un gradient (accent-2 -> accent), nu culoare plina —
+     citeste mai "tehnic"/premium, ca panourile HUD deja existente (CullGauge). */
   background-image:
-    linear-gradient(to right, rgb(var(--accent-2-rgb) / .95), rgb(var(--accent-2-rgb) / .95)),
-    linear-gradient(to bottom, rgb(var(--accent-2-rgb) / .95), rgb(var(--accent-2-rgb) / .95)),
-    linear-gradient(to left, rgb(var(--accent-2-rgb) / .95), rgb(var(--accent-2-rgb) / .95)),
-    linear-gradient(to bottom, rgb(var(--accent-2-rgb) / .95), rgb(var(--accent-2-rgb) / .95)),
-    linear-gradient(to right, rgb(var(--accent-2-rgb) / .95), rgb(var(--accent-2-rgb) / .95)),
-    linear-gradient(to top, rgb(var(--accent-2-rgb) / .95), rgb(var(--accent-2-rgb) / .95)),
-    linear-gradient(to left, rgb(var(--accent-2-rgb) / .95), rgb(var(--accent-2-rgb) / .95)),
-    linear-gradient(to top, rgb(var(--accent-2-rgb) / .95), rgb(var(--accent-2-rgb) / .95));
+    linear-gradient(to right, rgb(var(--accent-2-rgb) / .95), rgb(var(--accent-rgb) / .8)),
+    linear-gradient(to bottom, rgb(var(--accent-2-rgb) / .95), rgb(var(--accent-rgb) / .8)),
+    linear-gradient(to left, rgb(var(--accent-2-rgb) / .95), rgb(var(--accent-rgb) / .8)),
+    linear-gradient(to bottom, rgb(var(--accent-2-rgb) / .95), rgb(var(--accent-rgb) / .8)),
+    linear-gradient(to right, rgb(var(--accent-2-rgb) / .95), rgb(var(--accent-rgb) / .8)),
+    linear-gradient(to top, rgb(var(--accent-2-rgb) / .95), rgb(var(--accent-rgb) / .8)),
+    linear-gradient(to left, rgb(var(--accent-2-rgb) / .95), rgb(var(--accent-rgb) / .8)),
+    linear-gradient(to top, rgb(var(--accent-2-rgb) / .95), rgb(var(--accent-rgb) / .8));
   background-size:
     var(--fb-corner) var(--fb-stroke), var(--fb-stroke) var(--fb-corner),
     var(--fb-corner) var(--fb-stroke), var(--fb-stroke) var(--fb-corner),
@@ -2398,27 +2400,39 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     top right, top right,
     bottom left, bottom left,
     bottom right, bottom right;
-  filter: drop-shadow(0 0 6px rgb(var(--accent-2-rgb) / .75));
-  animation: faceBoxIn 0.3s var(--ease) both, faceBoxPulse 2.6s ease-in-out .3s infinite;
+  filter: drop-shadow(0 0 5px rgb(var(--accent-2-rgb) / .8)) drop-shadow(0 0 14px rgb(var(--accent-2-rgb) / .35));
+  animation: faceBoxIn 0.3s var(--ease) both, faceBoxPulse 2.8s cubic-bezier(.45,0,.55,1) .3s infinite;
 }
-/* Halou ambiental discret, in toata cutia (nu doar coltarele) — citeste ca
-   "zona analizata", fara reveni la un dreptunghi plin. */
+/* Halou ambiental + un punct de "focus" fix in centrul cutiei reale — nu un
+   landmark (nu pretinde sa fie ochiul/nasul), doar centrul geometric al
+   cutiei detectate, ca reticulul de autofocus dintr-o camera. */
 .detail-face-box::after {
-  content: ""; position: absolute; inset: 10%; border-radius: 50%;
-  background: radial-gradient(circle, rgb(var(--accent-rgb) / .16), transparent 72%);
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(circle 3px at 50% 50%, rgb(var(--accent-2-rgb) / .9), transparent 100%),
+    radial-gradient(circle at 50% 50%, rgb(var(--accent-rgb) / .16), transparent 60%);
+  animation: faceBoxFocusPulse 2.8s cubic-bezier(.45,0,.55,1) .3s infinite;
 }
 /* Linia de scanare — matura cutia de sus in jos, la nesfarsit, in interiorul
-   conturului real (nu peste marginile lui). */
+   conturului real (nu peste marginile lui); nucleu deschis + margini in
+   accent, ca un fascicul, nu o singura banda plata de culoare. */
 .detail-face-box::before {
   content: ""; position: absolute; left: 8%; right: 8%; height: 2px; border-radius: 2px;
-  background: linear-gradient(90deg, transparent, rgb(var(--accent-2-rgb) / .95), transparent);
-  box-shadow: 0 0 8px 1px rgb(var(--accent-2-rgb) / .7);
-  animation: faceBoxScan 2.4s ease-in-out infinite;
+  background: linear-gradient(90deg,
+    transparent, rgb(var(--accent-2-rgb) / .9) 20%,
+    rgb(255 255 255 / .95) 50%,
+    rgb(var(--accent-2-rgb) / .9) 80%, transparent);
+  box-shadow: 0 0 10px 1.5px rgb(var(--accent-2-rgb) / .75);
+  animation: faceBoxScan 2.8s cubic-bezier(.45,0,.55,1) infinite;
 }
 @keyframes faceBoxIn { from { opacity: 0; transform: scale(1.06); } to { opacity: 1; transform: scale(1); } }
 @keyframes faceBoxPulse {
-  0%, 100% { filter: drop-shadow(0 0 6px rgb(var(--accent-2-rgb) / .75)); }
-  50% { filter: drop-shadow(0 0 11px rgb(var(--accent-2-rgb) / .95)); }
+  0%, 100% { filter: drop-shadow(0 0 5px rgb(var(--accent-2-rgb) / .8)) drop-shadow(0 0 14px rgb(var(--accent-2-rgb) / .35)); }
+  50% { filter: drop-shadow(0 0 8px rgb(var(--accent-2-rgb) / .95)) drop-shadow(0 0 20px rgb(var(--accent-2-rgb) / .5)); }
+}
+@keyframes faceBoxFocusPulse {
+  0%, 100% { opacity: .55; }
+  50% { opacity: 1; }
 }
 @keyframes faceBoxScan {
   0% { top: 6%; opacity: 0; }
@@ -2430,6 +2444,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 @media (prefers-reduced-motion: reduce) {
   .detail-face-box { animation: faceBoxIn 0.3s var(--ease) both; }
   .detail-face-box::before { display: none; }
+  .detail-face-box::after { animation: none; }
 }
 .detail-stage.zoomed .detail-stage-img { max-width: none; max-height: none; width: auto; height: auto; }
 .zoom-hint {
