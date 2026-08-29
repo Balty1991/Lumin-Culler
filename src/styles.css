@@ -411,6 +411,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   backdrop-filter: blur(10px);
 }
 .brand { display: flex; align-items: center; gap: 10px; }
+/* Reset de buton — marca ramane vizual identica, doar devine apasabila
+   ("Acasa", vezi comentariul din App.tsx). */
+.brand-home-btn { border: none; background: none; padding: 0; cursor: pointer; font: inherit; }
+.brand-home-btn:active { transform: scale(0.94); }
 /* ── Inel rotativ in jurul iconitei de brand (concept HUD) ── */
 .brand-mark-wrap { position: relative; width: 34px; height: 34px; flex-shrink: 0; }
 /* conic-gradient adevarat (nu 3 arce solide) — la fel ca in conceptul HUD,

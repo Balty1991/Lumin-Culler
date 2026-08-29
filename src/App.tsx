@@ -884,12 +884,20 @@ export default function App() {
     <div className="app">
       <header className="topbar" ref={headerBottomRef}>
         <div className="brand">
-          <div className="brand-mark-wrap">
+          {/* Marca devine buton "Acasa" — bug real raportat de utilizator: dupa
+              ce tab-ul dedicat "Acasa" a disparut din bara de jos (redesign
+              PRO, Grila/Persoane/Export/Setari), nu mai exista NICIO cale
+              inapoi la ecranul "Revede selectia ta" odata intrat in Grila.
+              Doar marca (nu tot randul — .brand-text contine ProjectNameField,
+              el insusi interactiv, si nu poate sta intr-un buton parinte) —
+              a doua cale, pe langa tap-ul pe tab-ul Grila deja activ (vezi
+              BottomNav.tsx). */}
+          <button type="button" className="brand-mark-wrap brand-home-btn" onClick={() => setHomeGridOpen(false)} aria-label={tr('nav.grid')}>
             <span className="brand-mark-ring" aria-hidden="true" />
             <span className="brand-mark">
               <ApertureIcon aria-hidden="true" />
             </span>
-          </div>
+          </button>
           <div className="brand-text">
             <h1>
               LUMIN<span>CULLER</span>

@@ -56,8 +56,16 @@ export function BottomNav() {
    * ("cand deschizi biblioteca vreau sa intre direct pe de verificat"), doar la
    * PRIMA intrare din sesiune si doar cand chiar mai e ceva de verificat (vezi
    * ratiunea completa in istoricul git al acestui fisier).
+   *
+   * Bug real raportat de utilizator, gasit chiar dupa ce tab-ul "Acasa" a
+   * disparut din bara (redesign PRO): fara el, NIMIC nu mai apela vreodata
+   * setHomeGridOpen(false) — odata intrat in Grila, ramaneai acolo definitiv,
+   * fara nicio cale inapoi la Acasa (ecranul "Revede selectia ta"). Un tap pe
+   * tab-ul DEJA activ acum inchide grila, la fel cum un tap pe tab-ul activ
+   * din alte aplicatii mobile te duce inapoi la radacina.
    */
   const goGrid = () => {
+    if (isGridActive) { setHomeGridOpen(false); return; }
     closePanels();
     if (!libraryOpenedRef.current) {
       libraryOpenedRef.current = true;
