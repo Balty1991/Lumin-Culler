@@ -240,7 +240,17 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[], options: E
   const { renameTemplate, locale = 'ro', zipBaseName = 'lumin-culler-export', folderName, destination = 'auto', onProgress } = options;
   const totalSteps = Math.max(1, photos.length * 2);
   let doneSteps = 0;
-  const tick = () => onProgress?.(Math.min(totalSteps, ++doneSteps), totalSteps);
+  // Bug real gasit la audit: incrementarea traia in argumentele unui apel
+  // optional (`onProgress?.(++doneSteps, ...)`) — JS NU evalueaza argumentele
+  // unui apel opțional cand tinta e undefined, deci fara onProgress (niciun
+  // apelant din teste nu-l trimite; store.ts il trimite mereu, de aceea
+  // bug-ul nu s-a vazut niciodata pe telefon) doneSteps ramanea 0 la
+  // nesfarsit — orice `while (doneSteps < totalSteps) tick();` de mai jos
+  // devenea o bucla infinita reala (100% CPU), nu doar o asteptare blocata.
+  const tick = () => {
+    doneSteps = Math.min(totalSteps, doneSteps + 1);
+    onProgress?.(doneSteps, totalSteps);
+  };
   // Numele vine de la utilizator (l-a tastat la crearea folderului), deci trece
   // prin acelasi filtru ca etichetele derivate — un "/" sau ":" in el ar deveni
   // altfel un nivel de path neintentionat (sau un nume invalid pe disc).

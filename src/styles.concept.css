@@ -3438,10 +3438,6 @@ body:before {
   gap: 12px;
 }
 
-.tiktok-rail-item {
-  min-width: 82px;
-}
-
 .tiktok-rail-btn.keep,
 .tiktok-rail-btn.del {
   /* min-height era 58px — un rest de cand butoanele astea erau cercuri de

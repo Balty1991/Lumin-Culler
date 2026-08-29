@@ -11,6 +11,11 @@ describe('thumbUrlCache', () => {
   beforeEach(() => {
     clearThumbUrlCache();
     vi.mocked(db.thumbnails.get).mockReset();
+    // jsdom nu implementeaza createObjectURL/revokeObjectURL (blob: URLs)
+    // — fara stub, getCachedThumbUrl arunca la prima citire reala.
+    let n = 0;
+    URL.createObjectURL = vi.fn(() => `blob:mock-url-${++n}`);
+    URL.revokeObjectURL = vi.fn();
   });
 
   it('citeste din baza o singura data pentru aceeasi poza', async () => {

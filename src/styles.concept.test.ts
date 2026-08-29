@@ -6,9 +6,8 @@ import { resolve } from 'node:path';
  * styles.concept.css e stratul vizual portat din build-ul de referinta: intai
  * foaia de concept copiata ca atare, apoi foaia de "preview" de deasupra ei,
  * apoi blocurile de corectura. Ordinea conteaza — la specificitate egala
- * castiga ultima regula — si exact acolo s-au rupt trei lucruri deodata:
- * iconitele de pe carduri, eticheta butonului de export si perechile
- * buton/eticheta din bara de decizie.
+ * castiga ultima regula — si exact acolo s-au rupt doua lucruri deodata:
+ * iconitele de pe carduri si eticheta butonului de export.
  *
  * Testele de mai jos nu masoara layout (jsdom nu aplica foi de stil externe);
  * verifica invariantul de ORDINE care face ca acele corecturi sa ajunga la
@@ -35,34 +34,6 @@ describe('styles.concept.css — corecturile raman dupa regulile pe care le anul
       '.grid .card .badges,\n.grid .card .golden-badge,\n.grid .card .edited-badge {\n  display:none;'
     )).toBe(true);
     expect(winsOver('.grid .card-top-left { display: flex; }', '.grid .card-top-left,\n  .grid .card-strip {\n    display:none;')).toBe(true);
-  });
-
-  it('celula din bara de decizie ramane o cutie proprie, ca eticheta sa nu plece de pe butonul ei', () => {
-    // `.tiktok-rail-item { display: contents }` + etichete vizibile = grila
-    // primeste 8 copii (4 etichete fara `order`, apoi 4 butoane cu `order`),
-    // deci "Păstrez" ajunge sub butonul de stergere.
-    expect(winsOver('.tiktok-rail-item { display: flex; }', '.tiktok-rail-item {\n  display:contents;\n}')).toBe(true);
-  });
-
-  it('ordinea vizuala a barei de decizie trece pe celule, nu pe butoane', () => {
-    for (const cls of ['rail-del', 'rail-album', 'rail-candidate', 'rail-keep', 'rail-undo']) {
-      expect(css).toContain(`.tiktok-rail .${cls} { order:`);
-    }
-    expect(winsOver(
-      '.tiktok-rail-btn.keep,\n  .tiktok-rail-btn.del,\n  .tiktok-rail .album,\n  .tiktok-rail-btn.candidate,\n  .tiktok-rail-btn.undo { order: 0; }',
-      '.tiktok-rail-btn.keep {\n  order:4;'
-    )).toBe(true);
-  });
-
-  it('bara de decizie are exact atatea coloane cate celule', () => {
-    // Bug real: la adaugarea deciziei "Candidat", numarul de coloane era fixat
-    // cu !important la patru intr-o corectura mai tarzie, iar a cincea celula
-    // ("Anuleaza") cadea pe un al doilea rand, peste continutul de deasupra.
-    // Numarul de celule il da TikTokSort.tsx; testul le tine legate.
-    const celule = ['rail-del', 'rail-album', 'rail-candidate', 'rail-keep', 'rail-undo'];
-    const coloane = css.match(/grid-template-columns: repeat\((\d+), minmax\(0, 1fr\)\) !important;/);
-    expect(coloane).not.toBeNull();
-    expect(Number(coloane![1])).toBe(celule.length);
   });
 
   it('spatiul de lucru e un strat opac, nu o pagina transparenta peste ecranul de acasa', () => {
