@@ -1831,16 +1831,18 @@ body:before {
   inset:0;
   display:grid;
   place-items:center;
-  /* Bug real raportat de utilizator, cu captura: la incercarea anterioara,
-     acest padding rezerva spatiu EXCLUSIV pentru tot panoul de jos (filmstrip
-     + card de scor), iar pe o poza portret asta insemna o fotografie minuscula,
-     ingusta, cu goluri mari pe laturi (inaltimea disponibila, nu latimea,
-     devenea limita, la object-fit:contain). Panoul de jos revine sa
-     SUPRAPUNA partea de jos a fotografiei (ca in versiunea originala, care
-     avea poza corect dimensionata) — propriul lui fundal semi-opac + valul
-     de dedesubt ii asigura lizibilitatea. Jos ramane rezervat doar spatiul
-     barei de decizie + indiciul de gest, nu tot panoul. */
-  padding:calc(65px + var(--safe-top)) 0 calc(140px + var(--safe-bottom));
+  /* Doua bug-uri reale, raportate pe rand, cu poze reale de fiecare data:
+     1) prima varianta rezerva TOT panoul de jos exclusiv -> poza portret
+        devenea minuscula (inaltimea, nu latimea, era limita la contain).
+     2) a doua varianta lasa panoul sa SUPRAPUNA poza -> pastilele si
+        filmstrip-ul acopereau subiectul, nu doar un colt gol.
+     Echilibrul: rezervam exclusiv spatiul barei de decizie + indiciul de
+     gest (104px, cat "bottom" al .tiktok-caption) + plafonul de 200px al
+     panoului insusi (vezi .tiktok-caption max-height) — exact cat ii
+     trebuie panoului sa NU mai atinga poza, fara sa-i rezervam cat ar avea
+     nevoie tot continutul lui (care poate depasi acei 200px si derula
+     intern in loc sa fure spatiu din fotografie). */
+  padding:calc(65px + var(--safe-top)) 0 calc(304px + var(--safe-bottom));
 }
 
 .tiktok-stage {
@@ -1852,7 +1854,7 @@ body:before {
   width:auto;
   height:auto;
   max-width:100%;
-  max-height:calc(100svh - 210px);
+  max-height:calc(100svh - 369px);
   object-fit:contain;
 }
 /* Invelis care se micsoreaza la dimensiunea REALA a imaginii — vezi
@@ -1885,11 +1887,12 @@ body:before {
    plangerea utilizatorului ca acopera prea mult din fotografie: un rand de
    pastile si un rand de text, atat. */
 .tiktok-veil-bottom {
-  /* Panoul de jos suprapune din nou fotografia (vezi comentariul de la
-     .tiktok-stage-wrap) — valul trebuie sa acopere din nou o portiune
-     generoasa, ca fundalul lui semi-opac sa fie lizibil pe orice poza. */
-  height:340px;
-  background:linear-gradient(0deg,rgb(3 4 7 / .96) 35%,transparent);
+  /* Panoul de jos NU mai suprapune fotografia (vezi comentariul de la
+     .tiktok-stage-wrap — rezervare exclusiva) — valul ramane doar o
+     tranzitie fina la marginea de jos a pozei, nu un fundal pentru text
+     suprapus. */
+  height:70px;
+  background:linear-gradient(0deg,rgb(3 4 7 / .55),transparent);
 }
 
 .tiktok-caption {
@@ -1898,10 +1901,15 @@ body:before {
   bottom:calc(104px + var(--safe-bottom));
   display:grid;
   gap:4px;
-  /* Plasa de siguranta: pe un ecran scund sau cu mult continut (filmstrip +
-     panoul intreg de scor), blocul nu mai trebuie sa iasa peste antet — se
-     deruleaza intern in loc sa sparga layout-ul. */
-  max-height:calc(100svh - 174px - var(--safe-top) - var(--safe-bottom));
+  /* Bug real raportat de utilizator, cu poze reale: pastilele si filmstrip-ul
+     acopereau subiectul din poza (nu doar un colt gol) — .tiktok-stage-wrap
+     rezerva jos DOAR spatiul barei de decizie, nu si al acestui bloc, deci
+     continutul lui (care creste in sus de la ancora) se suprapunea peste
+     fotografie. Acum inaltimea lui e plafonata la EXACT cat rezerva
+     .tiktok-stage-wrap in plus (vezi acolo) — daca panoul de scor nu incape
+     tot, se deruleaza intern (pastila de verdict + filmstrip raman vizibile
+     sus, fara scroll), dar nu mai iese niciodata peste poza. */
+  max-height:200px;
   overflow-y:auto;
 }
 
@@ -2133,7 +2141,20 @@ body:before {
   white-space:nowrap;
 }
 
-.tiktok-rail-btn svg { width:15px; height:15px; flex:0 0 auto; }
+/* Bifa/X in cerc, ca in mockup "Lumin Culler Pro" — badge rotund cu contur,
+   nu doar o iconita libera: se vede mult mai clar pe fondul plin al
+   butonului decat o linie subtire de 15px, singura. */
+.tiktok-rail-btn-icon {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:22px;
+  height:22px;
+  border-radius:50%;
+  border:1.6px solid currentColor;
+  flex:0 0 auto;
+}
+.tiktok-rail-btn-icon svg { width:12px; height:12px; }
 
 .tiktok-rail-btn.keep {
   order:2;
@@ -2154,7 +2175,11 @@ body:before {
   position:absolute;
   left:0;
   right:0;
-  bottom:calc(96px + var(--safe-bottom));
+  /* Sub .tiktok-caption (ancorata la bottom:104px, creste in sus de acolo),
+     nu peste ea — altfel cele doua cutii se suprapun. Gresit initial: o
+     valoare MAI MARE decat 104 muta indiciul MAI SUS, deci mai adanc in
+     caption, nu mai jos, sub ea. */
+  bottom:calc(78px + var(--safe-bottom));
   margin:0;
   text-align:center;
   font-size:.64rem;

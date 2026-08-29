@@ -13,7 +13,7 @@ import { CollectionPicker } from './CollectionPicker';
 import { AdjustedImage } from './AdjustedImage';
 import { computeMenuPosition, isInsideAnyMenu, useReanchorOnViewportChange, type MenuPosition } from './dropdownPosition';
 import {
-  XIcon, HeartIcon, UndoIcon, ChevronUpIcon, SparkleIcon, LayersIcon, BookmarkIcon, BarChartIcon, CheckIcon,
+  XIcon, UndoIcon, ChevronUpIcon, SparkleIcon, LayersIcon, BookmarkIcon, BarChartIcon, CheckIcon,
   MoreIcon, SmileIcon, EyeIcon, FocusIcon, TagIcon
 } from './icons';
 import { t, type Locale } from '../i18n';
@@ -854,10 +854,16 @@ export function TikTokSort() {
       {current && (
         <div className="tiktok-rail">
           <button className="tiktok-rail-btn del" onClick={() => decide('rejected')}>
-            <XIcon aria-hidden="true" /> <span>{tr('tiktok.rail.reject')}</span>
+            {/* Bifa/X in cerc, ca in mockup "Lumin Culler Pro" — CheckIcon e
+                deja simbolul "pastrat" folosit pe pastila de verdict de mai
+                sus (tiktok-ai-chip.mine-selected), asa ca cele doua butoane
+                mari repeta acelasi cod vizual, nu unul nou (inima). */}
+            <span className="tiktok-rail-btn-icon"><XIcon aria-hidden="true" /></span>
+            <span>{tr('tiktok.rail.reject')}</span>
           </button>
           <button className="tiktok-rail-btn keep" onClick={() => decide('selected')}>
-            <HeartIcon aria-hidden="true" /> <span>{tr('tiktok.rail.keep')}</span>
+            <span className="tiktok-rail-btn-icon"><CheckIcon aria-hidden="true" /></span>
+            <span>{tr('tiktok.rail.keep')}</span>
           </button>
         </div>
       )}
