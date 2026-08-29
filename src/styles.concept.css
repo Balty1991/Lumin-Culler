@@ -1750,9 +1750,37 @@ body:before {
    `min-width: 0` ca sa aiba voie sa se si ingusteze), restul isi cer latimea
    proprie. `position: static` pe copii anuleaza toate coordonatele fixe
    mostenite din foile de mai sus — sunt acum treaba randului. */
-.tiktok-topbar {
+/* Marca, deasupra barei functionale (mockup "Lumin Culler Pro") — vezi
+   comentariul din TikTokSort.tsx pentru motivul randului separat. */
+.tiktok-brand-row {
   position:absolute;
   top:calc(14px + var(--safe-top));
+  left:0;
+  right:0;
+  z-index:var(--z-card-badge);
+  display:flex;
+  justify-content:center;
+  pointer-events:none;
+}
+.tiktok-brand {
+  font-family:var(--font-display);
+  font-weight:800;
+  font-size:.88rem;
+  letter-spacing:-.01em;
+  color:#fff;
+  text-shadow:0 1px 4px rgb(0 0 0 / .7);
+}
+.tiktok-brand b {
+  font-weight:800;
+  background:var(--accent-gradient);
+  -webkit-background-clip:text;
+  background-clip:text;
+  color:transparent;
+}
+
+.tiktok-topbar {
+  position:absolute;
+  top:calc(40px + var(--safe-top));
   left:14px;
   right:14px;
   z-index:var(--z-card-badge);

@@ -433,6 +433,15 @@ export function TikTokSort() {
           "1/10" pe ecrane mai inguste.
           Intr-un rand flex problema nu mai poate exista: progresul ia ce ramane,
           restul isi cer latimea lor, si se imping unele pe altele. */}
+      {/* Marca — mockup "Lumin Culler Pro" arata brand-ul si aici, nu doar pe
+          ecranul gol. Rand separat, nu inclus in bara functionala de mai jos
+          (progres/"Toate N"/contor): acolo fiecare piesa isi are deja
+          latimea ei calculata din bug-uri reale (vezi comentariul de mai
+          sus), si n-a mai ramas loc pentru inca un element pe ecrane
+          inguste. */}
+      <div className="tiktok-brand-row" aria-hidden="true">
+        <span className="tiktok-brand">Lumin<b>Culler</b> Pro</span>
+      </div>
       <div className="tiktok-topbar">
         <button className="tiktok-close" onClick={() => setOpen(false)} aria-label={tr('tiktok.close')}>
           <XIcon />
