@@ -1923,18 +1923,18 @@ body:before {
 }
 
 .tiktok-ai-chip {
-  min-height:36px;
-  padding:0 11px;
+  min-height:32px;
+  padding:0 10px;
   border:1px solid rgb(255 255 255 / .15);
   border-radius:99px;
   background:#0b0c10a3;
   backdrop-filter:blur(12px);
-  font-size:.78rem;
+  font-size:.74rem;
 }
 
 .tiktok-ai-chip .inline-icon { width:14px; height:14px; flex:0 0 auto; }
 /* Textul pastilei se taie, pastila nu se rupe si nu iese din rand. */
-.tiktok-ai-chip { gap:6px; font-size:.76rem; }
+.tiktok-ai-chip { gap:6px; font-size:.74rem; }
 
 /* Motivele si data pe UN singur rand, taiat cu "..." — inainte curgeau pe
    doua-trei randuri si impingeau blocul tot mai sus peste imagine. */
@@ -2121,19 +2121,19 @@ body:before {
      ("PĂSTREZ") se revarsa in afara cercului mic, netaiata — bug real
      raportat de utilizator, cu captura si incercuire pe chiar acest text. */
   width:100%;
-  height:50px;
+  height:44px;
   padding:0 10px;
-  border-radius:16px;
+  border-radius:14px;
   border:0;
   overflow:hidden;
   font-weight:800;
-  font-size:.78rem;
+  font-size:.74rem;
   text-transform:uppercase;
   letter-spacing:.01em;
   white-space:nowrap;
 }
 
-.tiktok-rail-btn svg { width:16px; height:16px; flex:0 0 auto; }
+.tiktok-rail-btn svg { width:15px; height:15px; flex:0 0 auto; }
 
 .tiktok-rail-btn.keep {
   order:2;
@@ -3326,8 +3326,12 @@ body:before {
 
 .tiktok-rail-btn.keep,
 .tiktok-rail-btn.del {
-  min-width: 58px;
-  min-height: 58px;
+  /* min-height era 58px — un rest de cand butoanele astea erau cercuri de
+     58px doar-iconita. Cu height:44px stabilit mai jos (cerinta directa:
+     "fa-le mai subtiri"), acel prag vechi il anula in tacere (min-height
+     bate height cand e mai mare) — bug real, gasit la aceasta cerere. */
+  min-width: 0;
+  min-height: 0;
   border-width: 2px;
 }
 
@@ -3438,7 +3442,7 @@ body:before {
     box-shadow: 0 -10px 34px rgba(0,0,0,.38) !important;
     backdrop-filter: blur(18px) !important;
   }
-  .tiktok-rail-btn { height: 50px !important; box-shadow: 0 8px 22px -8px rgb(0 0 0 / .55) !important; }
+  .tiktok-rail-btn { height: 44px !important; box-shadow: 0 8px 22px -8px rgb(0 0 0 / .55) !important; }
   .tiktok-rail-btn.keep { background: rgb(var(--pick-rgb) / .92) !important; color: #06100e !important; }
   .tiktok-rail-btn.del { background: var(--reject) !important; color: #fff !important; }
 }
