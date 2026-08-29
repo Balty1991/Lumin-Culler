@@ -57,15 +57,13 @@ export function BottomNav() {
    * PRIMA intrare din sesiune si doar cand chiar mai e ceva de verificat (vezi
    * ratiunea completa in istoricul git al acestui fisier).
    *
-   * Bug real raportat de utilizator, gasit chiar dupa ce tab-ul "Acasa" a
-   * disparut din bara (redesign PRO): fara el, NIMIC nu mai apela vreodata
-   * setHomeGridOpen(false) — odata intrat in Grila, ramaneai acolo definitiv,
-   * fara nicio cale inapoi la Acasa (ecranul "Revede selectia ta"). Un tap pe
-   * tab-ul DEJA activ acum inchide grila, la fel cum un tap pe tab-ul activ
-   * din alte aplicatii mobile te duce inapoi la radacina.
+   * Acest buton face UN SINGUR lucru — deschide Grila — dupa ce varianta
+   * anterioara (tap pe tab-ul deja activ = inchide) a fost raportata drept
+   * confuza de utilizator ("o data ma duce la grila, apas iar ma duce
+   * home", doua sensuri pe acelasi buton). Calea inapoi la Acasa e acum un
+   * buton DEDICAT si separat, langa cautare/export in antet — vezi App.tsx.
    */
   const goGrid = () => {
-    if (isGridActive) { setHomeGridOpen(false); return; }
     closePanels();
     if (!libraryOpenedRef.current) {
       libraryOpenedRef.current = true;

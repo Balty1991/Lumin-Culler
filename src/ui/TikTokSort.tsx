@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { useStore, type PhotoView } from '../state/store';
 import { selectSortQueue, selectScopedQueue, selectAllPhotosQueue, countSeriesSiblings } from '../state/tiktokSort';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
+import { db } from '../core/db';
 import { SELECT_THRESHOLD, REJECT_THRESHOLD } from '../core/importPipeline';
 import { explainFactors } from '../core/learning/ContextEngine';
 import { useModalFocusTrap } from './useModalFocusTrap';
@@ -192,6 +193,19 @@ export function TikTokSort() {
     let alive = true;
     setSrc(null);
     void getCachedPreviewUrl(current.id).then(url => { if (alive) setSrc(url); });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- doar id-ul conteaza, ca in DetailView (photo.id)
+  }, [current?.id]);
+
+  // Cutiile fetelor detectate (date REALE, vezi acelasi principiu in
+  // DetailView.tsx) — pentru conturul din jurul fetei pe ecranul de sortare
+  // (mockup "Lumin Culler Pro"). Nicio dependinta de landmark-uri exacte (nu
+  // le avem), doar cutia.
+  const [faceBoxes, setFaceBoxes] = useState<[number, number, number, number][]>([]);
+  useEffect(() => {
+    if (!current) { setFaceBoxes([]); return; }
+    let alive = true;
+    void db.analyses.get(current.id).then(a => { if (alive) setFaceBoxes(a?.faces.map(f => f.box) ?? []); });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- doar id-ul conteaza, ca in DetailView (photo.id)
   }, [current?.id]);
@@ -499,17 +513,29 @@ export function TikTokSort() {
             onClick={onStageClick}
           >
             {src && (
-              <AdjustedImage
-                src={src}
-                alt=""
-                className={zoomScale !== 1 ? 'tiktok-stage zoomed' : 'tiktok-stage'}
-                style={zoomScale !== 1
-                  ? {
-                      transform: `scale(${zoomScale}) translate(${zoomPan.x / zoomScale}px, ${zoomPan.y / zoomScale}px)`,
-                      transition: zoomGestureActiveRef.current ? 'none' : 'transform 0.2s var(--ease)'
-                    }
-                  : undefined}
-              />
+              <span className="tiktok-face-frame">
+                <AdjustedImage
+                  src={src}
+                  alt=""
+                  className={zoomScale !== 1 ? 'tiktok-stage zoomed' : 'tiktok-stage'}
+                  style={zoomScale !== 1
+                    ? {
+                        transform: `scale(${zoomScale}) translate(${zoomPan.x / zoomScale}px, ${zoomPan.y / zoomScale}px)`,
+                        transition: zoomGestureActiveRef.current ? 'none' : 'transform 0.2s var(--ease)'
+                      }
+                    : undefined}
+                />
+                {/* Conturul REAL al fetei (FaceInsight.box) — vezi comentariul de
+                    la faceBoxes mai sus. Ascuns cat timp fotografia e marita: la
+                    zoomScale>1 imaginea nu mai umple invelisul auto-dimensionat,
+                    deci pozitia procentuala nu mai corespunde. */}
+                {zoomScale === 1 && faceBoxes.map(([bx, by, bw, bh], i) => (
+                  <span
+                    key={i} className="detail-face-box tiktok-face-box" aria-hidden="true"
+                    style={{ left: `${bx * 100}%`, top: `${by * 100}%`, width: `${bw * 100}%`, height: `${bh * 100}%` }}
+                  />
+                ))}
+              </span>
             )}
           </div>
           {zoomScale !== 1 && <span className="tiktok-zoom-hint mono">{Math.round(zoomScale * 100)}%</span>}

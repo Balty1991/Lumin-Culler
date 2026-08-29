@@ -1835,10 +1835,22 @@ body:before {
 }
 
 .tiktok-stage {
+  /* width/height AUTO (nu 100%, mostenit altfel din styles.css) — elementul
+     se micsoreaza la dimensiunea REALA cu care il deseneaza object-fit:contain
+     deja, fara "bare" invizibile in jur. Vizual identic cu inainte (contain
+     facea deja exact aceasta incadrare), dar acum cutia de fata (mai jos) se
+     poate ancora la procente care chiar corespund imaginii, nu invelisului. */
+  width:auto;
+  height:auto;
   max-width:100%;
   max-height:calc(100dvh - 258px);
   object-fit:contain;
 }
+/* Invelis care se micsoreaza la dimensiunea REALA a imaginii — vezi
+   .detail-face-frame (acelasi principiu, alt ecran) si comentariul din
+   TikTokSort.tsx. */
+.tiktok-face-frame { position:relative; display:inline-flex; max-width:100%; max-height:100%; line-height:0; }
+.tiktok-face-box { border-radius:10px; }
 
 .tiktok-veil-top {
   height:126px;

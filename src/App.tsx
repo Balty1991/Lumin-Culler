@@ -19,7 +19,7 @@ import { CullGauge } from './ui/CullGauge';
 import { AiBootScreen } from './ui/AiBootScreen';
 import { Tooltip } from './ui/Tooltip';
 import { StarRating } from './ui/StarRating';
-import { MenuIcon, PlusIcon, AlertIcon, ErrorIcon, XIcon, FocusIcon, SearchIcon, ApertureIcon, SparkleIcon, CheckIcon, EditIcon, GridIcon, ClockIcon, LayersIcon, EyeClosedIcon, SunIcon, DownloadIcon, StarIcon, TagIcon, TrashIcon, LockIcon, BoltIcon, TargetIcon } from './ui/icons';
+import { MenuIcon, PlusIcon, AlertIcon, ErrorIcon, XIcon, FocusIcon, SearchIcon, ApertureIcon, SparkleIcon, CheckIcon, EditIcon, GridIcon, ClockIcon, LayersIcon, EyeClosedIcon, SunIcon, DownloadIcon, StarIcon, TagIcon, TrashIcon, LockIcon, BoltIcon, TargetIcon, HomeIcon } from './ui/icons';
 import { UndoHistoryButton } from './ui/UndoHistoryButton';
 import { selectHighlights, selectBlinks, selectBlurry, selectDeletableRejected } from './state/batchOps';
 import { CARD_MIN_WIDTH } from './state/gridDensity';
@@ -911,6 +911,17 @@ export default function App() {
           </div>
         </div>
         <div className="top-actions">
+          {/* Buton "Acasa" DEDICAT si separat de tab-ul "Grila" — bug real
+              raportat de utilizator: un singur tab cu doua sensuri diferite
+              dupa cum era deja activ ("apas o data ma duce la grila, apas
+              iar ma duce home") era confuz, nu o solutie. Vizibil doar cand
+              chiar esti plecat de-acasa (homeGridOpen), ca sa nu ocupe loc
+              degeaba pe ecranul pe care oricum te afli. */}
+          {photos.length > 0 && homeGridOpen && (
+            <button className="ghost icon-btn" onClick={() => setHomeGridOpen(false)} aria-label={tr('nav.home')}>
+              <HomeIcon />
+            </button>
+          )}
           {photos.length > 0 && (
             <Tooltip label={tr('app.tooltip.palette')} shortcut="Ctrl+K">
               <button className="ghost icon-btn" onClick={() => setPaletteOpen(true)} aria-label={`${tr('app.tooltip.palette')} (Ctrl+K)`}>
