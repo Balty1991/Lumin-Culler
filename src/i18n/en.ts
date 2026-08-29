@@ -388,7 +388,7 @@ export const en: Record<TranslationKey, string> = {
   'menu.proMode': 'Professional mode',
   'menu.proMode.on': 'ON',
   'menu.proMode.off': 'OFF',
-  'menu.proMode.title': 'Also show the post-culling tools in the menu: Lightroom tags, contact sheet, client gallery and feedback, watermark, projects, photo genre, locations map. Nothing is removed — they just stop getting in your way.',
+  'menu.proMode.title': 'Also show the post-culling tools in the menu: Lightroom tags, contact sheet, client gallery and feedback, watermark, projects. Nothing is removed — they just stop getting in your way.',
   'menu.zenMode.title': 'The AI resolves clear cases on its own after import, and only asks you about uncertain ones.',
   'zen.title': 'Auto mode',
   'zen.lead': 'The AI resolves clear cases on its own.',

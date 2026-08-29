@@ -501,13 +501,17 @@ export function MenuDrawer() {
                 </button>
               )}
 
-              {proMode && (
-                <button className="drawer-item" onClick={() => go(() => setLocationsOpen(true))}>
-                  <span className="drawer-item-icon"><PinIcon /></span>
-                  <span>{tr('menu.locations')}</span>
-                  {lockBadge}
-                </button>
-              )}
+              {/* Nu mai e in spatele Modului profesional — cerinta directa a
+                  utilizatorului: "nu vad legatura" intre harta cu locatii si
+                  complexitatea profesionala (etichete Lightroom, contact
+                  sheet etc.) pe care Modul profesional le grupeaza. Lacatul
+                  ramane (premiumLocked), doar vizibilitatea in meniu nu mai
+                  depinde de proMode. */}
+              <button className="drawer-item" onClick={() => go(() => setLocationsOpen(true))}>
+                <span className="drawer-item-icon"><PinIcon /></span>
+                <span>{tr('menu.locations')}</span>
+                {lockBadge}
+              </button>
 
               {/* Nu mai e in spatele Modului profesional. Genul prefixeaza
                   contextKey (ContextEngine.deriveContextKey), deci antreneaza

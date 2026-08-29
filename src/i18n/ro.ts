@@ -405,7 +405,7 @@ export const ro = {
   'menu.proMode': 'Mod profesional',
   'menu.proMode.on': 'PORNIT',
   'menu.proMode.off': 'OPRIT',
-  'menu.proMode.title': 'Arată în meniu și uneltele de după triaj: etichete Lightroom, contact sheet, galerie și feedback pentru client, watermark, proiecte, gen fotografic, hartă cu locații. Nimic nu se șterge — doar nu-ți mai stau în drum.',
+  'menu.proMode.title': 'Arată în meniu și uneltele de după triaj: etichete Lightroom, contact sheet, galerie și feedback pentru client, watermark, proiecte. Nimic nu se șterge — doar nu-ți mai stau în drum.',
   'menu.zenMode.title': 'AI-ul rezolvă singur cazurile clare după import, te întreabă doar la incertitudini.',
   'zen.title': 'Mod automat',
   'zen.lead': 'AI-ul rezolvă singur cazurile clare.',
