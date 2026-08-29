@@ -804,7 +804,7 @@ export const ro = {
   'app.empty.proof.fast.kicker': 'Trecere rapidă',
   'app.empty.proof.fast.text': 'AI-ul analizează tot lotul dintr-o dată',
   'app.empty.proof.control.kicker': 'AI care învață',
-  'app.empty.proof.control.text': 'Din alegerile tale',
+  'app.empty.proof.control.text': 'Preferințele tale',
   'app.empty.proof.note': 'Începi cu importul, apoi primești o selecție explicabilă și revizuibilă.',
   'app.empty.safety': 'AI-ul recomandă. Tu ai ultimul cuvânt — nimic nu se șterge fără confirmarea ta.',
   'gallery.overview.cta': 'Vezi câte poze ai pe telefon',

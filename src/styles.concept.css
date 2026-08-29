@@ -3135,18 +3135,28 @@ body:before {
   display:flex;
   align-items:center;
   justify-content:center;
+  border:1.5px solid transparent;
   background-image:linear-gradient(145deg,#151e2aeb,#0b0e16f5),var(--accent-gradient);
+  background-origin:padding-box,border-box;
+  background-clip:padding-box,border-box;
   box-shadow:0 16px 40px -17px rgb(var(--accent-rgb) / .76),inset 0 1px #ffffff1a;
 }
 
-/* Marca "LC" — text real, nu o iconita generica (mockup "Lumin Culler Pro"). */
+/* Marca "LC" — text real, nu o iconita generica (mockup "Lumin Culler Pro").
+   Gradient pe litere, ca in mockup, nu alb plin. */
 .empty-badge-mark {
   font-family:var(--font-display);
   font-weight:800;
   font-size:2.6rem;
   letter-spacing:-.03em;
-  color:#f5f3ff;
-  text-shadow:0 2px 18px rgb(var(--accent-2-rgb) / .55);
+  background:var(--accent-gradient);
+  -webkit-background-clip:text;
+  background-clip:text;
+  color:transparent;
+  filter:drop-shadow(0 2px 18px rgb(var(--accent-2-rgb) / .55));
+}
+:root[data-theme="light"] .empty-badge-mark {
+  background:none; -webkit-background-clip:unset; background-clip:unset; color:var(--accent-text);
 }
 
 /* Titlul-marca, direct sub medalion — inlocuieste eticheta "STUDIO LOCAL"
@@ -3188,13 +3198,16 @@ body:before {
 .empty-dots span { width:7px; height:7px; border-radius:50%; background:var(--line-strong); }
 .empty-dots span.active { background:var(--accent-gradient); box-shadow:0 0 8px -1px rgb(var(--accent-rgb) / .8); }
 
+/* Halou difuz in jurul medalionului — un singur glow moale, nu un al doilea
+   inel cu contur propriu (asta parea "inel dublu" langa marginea badge-ului). */
 .empty-badge:before {
   content:"";
   position:absolute;
-  inset:-12px;
+  inset:-22px;
   border-radius:50%;
-  border:1px solid rgb(var(--accent-2-rgb) / .4);
-  background:radial-gradient(circle,rgb(var(--accent-rgb) / .16),transparent 70%);
+  background:radial-gradient(circle,rgb(var(--accent-rgb) / .22),transparent 68%);
+  filter:blur(6px);
+  z-index:-1;
 }
 
 .empty-badge svg {

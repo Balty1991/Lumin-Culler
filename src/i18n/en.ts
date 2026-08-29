@@ -768,7 +768,7 @@ export const en: Record<TranslationKey, string> = {
   'app.empty.proof.fast.kicker': 'Fast pass',
   'app.empty.proof.fast.text': 'The AI scans the whole batch at once',
   'app.empty.proof.control.kicker': 'AI that learns',
-  'app.empty.proof.control.text': 'From your own choices',
+  'app.empty.proof.control.text': 'Your own preferences',
   'app.empty.proof.note': 'You start with the import, then you get an explainable, reviewable selection.',
   'app.empty.safety': 'The AI recommends. You have the final say — nothing is deleted without your confirmation.',
   'gallery.overview.cta': 'See how many photos are on your phone',

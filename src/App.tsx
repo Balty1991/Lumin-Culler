@@ -1334,10 +1334,10 @@ export default function App() {
           <div className="empty-badge" aria-hidden="true"><span className="empty-badge-mark">LC</span></div>
           <h2 className="empty-brand-title">{tr('app.empty.title')}</h2>
           <p className="empty-lead">{tr('app.empty.description')}</p>
-          {/* Cele trei carduri de valoare — continut real (nu simulat): "1000+
-              poze fara blocare" descrie plafonul gratuit real (vezi
-              core/entitlement.ts FREE_PHOTOS_PER_MONTH * granularitatea lui),
-              nu o promisiune de plata care nu exista inca. */}
+          {/* Cele trei carduri de valoare — continut real (nu simulat): mockup-ul
+              zice "1000+ poze fara blocare", dar plafonul gratuit real e
+              150/luna (FREE_PHOTOS_PER_MONTH in core/entitlement.ts), nelimitat
+              doar la Premium — pastram in schimb "Trecere rapida", adevarat. */}
           <section className="lc-home-proof" aria-label={tr('app.empty.proof.ariaLabel')}>
             <div className="lc-home-proof-item">
               <span className="lc-home-proof-icon"><LockIcon /></span>
