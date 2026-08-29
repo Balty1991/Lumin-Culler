@@ -4,7 +4,6 @@ import { useStore, type PhotoView } from '../state/store';
 import { selectSortQueue, selectScopedQueue, selectAllPhotosQueue, countSeriesSiblings } from '../state/tiktokSort';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
 import { getCachedThumbUrl, peekThumbUrl } from '../core/thumbUrlCache';
-import { db } from '../core/db';
 import { RAW_EXTENSIONS } from '../core/rawDecoder';
 import { SELECT_THRESHOLD, REJECT_THRESHOLD } from '../core/importPipeline';
 import { explainFactors } from '../core/learning/ContextEngine';
@@ -281,18 +280,6 @@ export function TikTokSort() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- doar id-ul conteaza, ca in DetailView (photo.id)
   }, [current?.id]);
 
-  // Cutiile fetelor detectate (date REALE, vezi acelasi principiu in
-  // DetailView.tsx) — pentru conturul din jurul fetei pe ecranul de sortare
-  // (mockup "Lumin Culler Pro"). Nicio dependinta de landmark-uri exacte (nu
-  // le avem), doar cutia.
-  const [faceBoxes, setFaceBoxes] = useState<[number, number, number, number][]>([]);
-  useEffect(() => {
-    if (!current) { setFaceBoxes([]); return; }
-    let alive = true;
-    void db.analyses.get(current.id).then(a => { if (alive) setFaceBoxes(a?.faces.map(f => f.box) ?? []); });
-    return () => { alive = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- doar id-ul conteaza, ca in DetailView (photo.id)
-  }, [current?.id]);
 
   // O poza poate disparea complet din `photos` (stersa nativ — ex. Mod Zen
   // "sterge automat duplicatele") fara sa fi fost decisa AICI — fara acest
@@ -651,16 +638,6 @@ export function TikTokSort() {
                       }
                     : undefined}
                 />
-                {/* Conturul REAL al fetei (FaceInsight.box) — vezi comentariul de
-                    la faceBoxes mai sus. Ascuns cat timp fotografia e marita: la
-                    zoomScale>1 imaginea nu mai umple invelisul auto-dimensionat,
-                    deci pozitia procentuala nu mai corespunde. */}
-                {zoomScale === 1 && faceBoxes.map(([bx, by, bw, bh], i) => (
-                  <span
-                    key={i} className="detail-face-box tiktok-face-box" aria-hidden="true"
-                    style={{ left: `${bx * 100}%`, top: `${by * 100}%`, width: `${bw * 100}%`, height: `${bh * 100}%` }}
-                  />
-                ))}
                 {/* Formatul real al fisierului (mockup "Lumin Culler Pro") —
                     ancorat la coltul cutiei care se micsoreaza cu poza (nu al
                     containerului plin ecran), deci ramane lipit de imagine la

@@ -2360,92 +2360,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .detail-stage-img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; display: block; user-select: none; -webkit-user-drag: none; }
 /* Invelis care se micsoreaza exact la dimensiunea REALA a imaginii randate
    (nu a scenei, care poate avea benzi negre la un raport de aspect diferit) —
-   necesar ca sa asezam cutiile de fata cu procente si sa cada exact pe fata,
-   nu langa ea. */
+   ancora pentru elemente pozitionate procentual fata de poza (ex. formatul
+   fisierului in .tiktok-face-frame). Cutiile de fata detectate au fost
+   scoase (feedback direct: distrageau de la evaluarea pozei, un overlay
+   animat pe fiecare fata, pe fiecare poza, in aplicatia care exista tocmai
+   ca sa judeci rapid poza). */
 .detail-face-frame { position: relative; display: inline-flex; max-width: 100%; max-height: 100%; line-height: 0; }
-/* Conturul REAL al fetei detectate (FaceInsight.box) — reticul cu 4 colturi
-   (stil "AR/scanare") + o linie care matura cutia la nesfarsit, ca sa
-   citeasca "analizeaza acum", nu doar un contur static. Coltul e desenat
-   din 2 straturi de background (o linie orizontala + una verticala) per
-   colt, pe UN SINGUR element — fara markup suplimentar in DetailView.tsx/
-   TikTokSort.tsx, care randeaza deja doar acest span.
-   Deliberat NU un mesh de puncte/linii peste fata (ca in referinta primita):
-   FaceInsight.box e SINGURA coordonata reala pe care o avem (vezi
-   core/db.ts) — niciun landmark per-punct nu ajunge la UI, deci un mesh
-   "precis" ar fi date inventate, exact ce evita explicit tot proiectul asta
-   (vezi principiul "nimic simulat" aplicat deja la scor/metrici). */
-.detail-face-box {
-  --fb-corner: 18px;
-  --fb-stroke: 2.5px;
-  position: absolute; border-radius: 10px; pointer-events: none;
-  background-repeat: no-repeat;
-  /* Fiecare colt e acum un gradient (accent-2 -> accent), nu culoare plina —
-     citeste mai "tehnic"/premium, ca panourile HUD deja existente (CullGauge). */
-  background-image:
-    linear-gradient(to right, rgb(var(--accent-2-rgb) / .95), rgb(var(--accent-rgb) / .8)),
-    linear-gradient(to bottom, rgb(var(--accent-2-rgb) / .95), rgb(var(--accent-rgb) / .8)),
-    linear-gradient(to left, rgb(var(--accent-2-rgb) / .95), rgb(var(--accent-rgb) / .8)),
-    linear-gradient(to bottom, rgb(var(--accent-2-rgb) / .95), rgb(var(--accent-rgb) / .8)),
-    linear-gradient(to right, rgb(var(--accent-2-rgb) / .95), rgb(var(--accent-rgb) / .8)),
-    linear-gradient(to top, rgb(var(--accent-2-rgb) / .95), rgb(var(--accent-rgb) / .8)),
-    linear-gradient(to left, rgb(var(--accent-2-rgb) / .95), rgb(var(--accent-rgb) / .8)),
-    linear-gradient(to top, rgb(var(--accent-2-rgb) / .95), rgb(var(--accent-rgb) / .8));
-  background-size:
-    var(--fb-corner) var(--fb-stroke), var(--fb-stroke) var(--fb-corner),
-    var(--fb-corner) var(--fb-stroke), var(--fb-stroke) var(--fb-corner),
-    var(--fb-corner) var(--fb-stroke), var(--fb-stroke) var(--fb-corner),
-    var(--fb-corner) var(--fb-stroke), var(--fb-stroke) var(--fb-corner);
-  background-position:
-    top left, top left,
-    top right, top right,
-    bottom left, bottom left,
-    bottom right, bottom right;
-  filter: drop-shadow(0 0 5px rgb(var(--accent-2-rgb) / .8)) drop-shadow(0 0 14px rgb(var(--accent-2-rgb) / .35));
-  animation: faceBoxIn 0.3s var(--ease) both, faceBoxPulse 2.8s cubic-bezier(.45,0,.55,1) .3s infinite;
-}
-/* Halou ambiental + un punct de "focus" fix in centrul cutiei reale — nu un
-   landmark (nu pretinde sa fie ochiul/nasul), doar centrul geometric al
-   cutiei detectate, ca reticulul de autofocus dintr-o camera. */
-.detail-face-box::after {
-  content: ""; position: absolute; inset: 0; pointer-events: none;
-  background:
-    radial-gradient(circle 3px at 50% 50%, rgb(var(--accent-2-rgb) / .9), transparent 100%),
-    radial-gradient(circle at 50% 50%, rgb(var(--accent-rgb) / .16), transparent 60%);
-  animation: faceBoxFocusPulse 2.8s cubic-bezier(.45,0,.55,1) .3s infinite;
-}
-/* Linia de scanare — matura cutia de sus in jos, la nesfarsit, in interiorul
-   conturului real (nu peste marginile lui); nucleu deschis + margini in
-   accent, ca un fascicul, nu o singura banda plata de culoare. */
-.detail-face-box::before {
-  content: ""; position: absolute; left: 8%; right: 8%; height: 2px; border-radius: 2px;
-  background: linear-gradient(90deg,
-    transparent, rgb(var(--accent-2-rgb) / .9) 20%,
-    rgb(255 255 255 / .95) 50%,
-    rgb(var(--accent-2-rgb) / .9) 80%, transparent);
-  box-shadow: 0 0 10px 1.5px rgb(var(--accent-2-rgb) / .75);
-  animation: faceBoxScan 2.8s cubic-bezier(.45,0,.55,1) infinite;
-}
-@keyframes faceBoxIn { from { opacity: 0; transform: scale(1.06); } to { opacity: 1; transform: scale(1); } }
-@keyframes faceBoxPulse {
-  0%, 100% { filter: drop-shadow(0 0 5px rgb(var(--accent-2-rgb) / .8)) drop-shadow(0 0 14px rgb(var(--accent-2-rgb) / .35)); }
-  50% { filter: drop-shadow(0 0 8px rgb(var(--accent-2-rgb) / .95)) drop-shadow(0 0 20px rgb(var(--accent-2-rgb) / .5)); }
-}
-@keyframes faceBoxFocusPulse {
-  0%, 100% { opacity: .55; }
-  50% { opacity: 1; }
-}
-@keyframes faceBoxScan {
-  0% { top: 6%; opacity: 0; }
-  12% { opacity: 1; }
-  50% { top: 90%; opacity: 1; }
-  62% { opacity: 0; }
-  100% { top: 6%; opacity: 0; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .detail-face-box { animation: faceBoxIn 0.3s var(--ease) both; }
-  .detail-face-box::before { display: none; }
-  .detail-face-box::after { animation: none; }
-}
 .detail-stage.zoomed .detail-stage-img { max-width: none; max-height: none; width: auto; height: auto; }
 .zoom-hint {
   position: absolute; bottom: 8px; right: 10px; font-size: 0.66rem; color: var(--text-dim);
