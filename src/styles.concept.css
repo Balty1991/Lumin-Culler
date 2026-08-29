@@ -1927,6 +1927,96 @@ body:before {
   color:#f1f4fac7;
 }
 
+/* Card persistent de scor (mockup "Lumin Culler Pro") — ancorat sub bara de
+   sus, in dreapta, unde un portret centrat e cel mai rar acoperit. */
+.tiktok-score-card {
+  position:absolute;
+  top:calc(90px + var(--safe-top));
+  right:14px;
+  z-index:var(--z-card-badge);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:8px;
+  width:88px;
+  padding:10px 8px;
+  border-radius:18px;
+  background:rgb(15 17 23 / .58);
+  border:1px solid rgb(255 255 255 / .14);
+  backdrop-filter:blur(14px);
+}
+.tiktok-score-gauge {
+  width:56px;
+  height:56px;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex:0 0 auto;
+}
+.tiktok-score-gauge-inner {
+  width:76%;
+  height:76%;
+  border-radius:50%;
+  background:rgb(10 11 14 / .88);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:900;
+  font-size:.92rem;
+}
+.tiktok-score-bars {
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  width:100%;
+}
+.tiktok-score-bar {
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  font-size:.56rem;
+  font-weight:700;
+  color:rgb(255 255 255 / .72);
+}
+.tiktok-score-bar span {
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.tiktok-score-bar i {
+  display:block;
+  height:3px;
+  border-radius:2px;
+  background:var(--accent-2);
+}
+
+/* Filmstrip cu restul seriei (mockup "Lumin Culler Pro") — traieste chiar in
+   .tiktok-caption (deja pointer-events:auto pe butoane, vezi mai jos in
+   fisier), ca sa nu mai adauge inca o pozitionare absoluta separata. */
+.tiktok-filmstrip {
+  display:flex;
+  gap:6px;
+  overflow-x:auto;
+  padding-bottom:2px;
+}
+.tiktok-filmstrip-item {
+  flex:0 0 auto;
+  width:40px;
+  height:40px;
+  border-radius:10px;
+  border:2px solid transparent;
+  padding:0;
+  overflow:hidden;
+  background:#1b1e26;
+  opacity:.6;
+}
+.tiktok-filmstrip-item img { width:100%; height:100%; object-fit:cover; display:block; }
+.tiktok-filmstrip-item.active {
+  border-color:var(--accent-2);
+  opacity:1;
+}
+
 .tiktok-rail {
   left:12px;
   right:12px;
@@ -1959,14 +2049,14 @@ body:before {
   order:4;
   width:100%;
   color:#06100e;
-  background:var(--desk-aqua);
+  background:var(--pick);
 }
 
 .tiktok-rail-btn.del {
   order:1;
   width:100%;
   color:#fff;
-  background:var(--desk-red);
+  background:var(--reject);
 }
 
 .tiktok-rail .album {
@@ -3264,9 +3354,17 @@ body:before {
   .tiktok-rail-item { min-width: 0 !important; gap: 4px !important; }
   .tiktok-rail-btn,
   .tiktok-rail-btn.undo { width: 48px !important; height: 48px !important; margin: 0 auto !important; }
+  /* Doua decizii domina vizual bara — cerinta directa a utilizatorului
+     ("2 butoane mari", mockup "Lumin Culler Pro"): pastreaza/resping raman
+     cele mai mari si mai bataitoare la ochi, restul (album/candidat/
+     anuleaza) raman prezente, dar vizibil secundare, ca in mockup. */
+  .tiktok-rail-btn.keep,
+  .tiktok-rail-btn.del { width: 60px !important; height: 60px !important; box-shadow: 0 8px 22px -8px rgb(0 0 0 / .55) !important; }
+  .tiktok-rail-btn.keep svg,
+  .tiktok-rail-btn.del svg { width: 24px !important; height: 24px !important; }
   .tiktok-rail-label { display: block !important; color: #f4f7fb !important; font-size: .68rem !important; font-weight: 800 !important; text-shadow: none !important; white-space: nowrap !important; }
-  .tiktok-rail-btn.keep { background: rgba(103,228,207,.85) !important; color: #06100e !important; }
-  .tiktok-rail-btn.del { background: #ff6370 !important; color: #fff !important; }
+  .tiktok-rail-btn.keep { background: rgb(var(--pick-rgb) / .92) !important; color: #06100e !important; }
+  .tiktok-rail-btn.del { background: var(--reject) !important; color: #fff !important; }
   .tiktok-rail-btn.album { background: #252b35 !important; color: #fff !important; }
   .tiktok-rail-btn.undo { background: #1b2029 !important; color: #e7edf7 !important; }
 }

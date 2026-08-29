@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { useStore, type PhotoView } from '../state/store';
 import { selectSortQueue, selectScopedQueue, selectAllPhotosQueue, countSeriesSiblings } from '../state/tiktokSort';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
+import { getCachedThumbUrl, peekThumbUrl } from '../core/thumbUrlCache';
 import { db } from '../core/db';
 import { SELECT_THRESHOLD, REJECT_THRESHOLD } from '../core/importPipeline';
 import { explainFactors } from '../core/learning/ContextEngine';
@@ -81,6 +82,36 @@ function formatCaptureDate(ts: number | undefined, locale: Locale): string | nul
   return new Date(ts).toLocaleDateString(intlLocale, { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+/** Aceeasi paleta pick/review/reject ca ScoreRing din PhotoInfoTabs — un singur cod de culoare pentru scor, oriunde apare. */
+function scoreColorOf(score: number): string {
+  return score >= 65 ? 'var(--pick)' : score <= 35 ? 'var(--reject)' : 'var(--review)';
+}
+
+/**
+ * O miniatura din filmstrip-ul seriei (mockup "Lumin Culler Pro"). Cache-ul de
+ * thumbnail-uri e comun cu grila — de obicei e deja "cald" cand ajungi aici
+ * din triaj, deci `peekThumbUrl` gaseste direct imaginea, fara sa astepte re-randarea.
+ */
+function FilmstripThumb({ photo, active, onSelect }: { photo: PhotoView; active: boolean; onSelect: () => void }) {
+  const [src, setSrc] = useState<string | null>(() => peekThumbUrl(photo.id));
+  useEffect(() => {
+    if (src) return;
+    let alive = true;
+    void getCachedThumbUrl(photo.id).then(url => { if (alive && url) setSrc(url); });
+    return () => { alive = false; };
+  }, [photo.id, src]);
+  return (
+    <button
+      type="button"
+      className={active ? 'tiktok-filmstrip-item active' : 'tiktok-filmstrip-item'}
+      onClick={onSelect}
+      aria-current={active}
+    >
+      {src && <img src={src} alt="" />}
+    </button>
+  );
+}
+
 /**
  * "Sortare stil TikTok" (plan modernizare) — flux alternativ, plin ecran,
  * peste coada de poze nedecise (pending/review): gest vertical BIDIRECTIONAL
@@ -108,6 +139,7 @@ export function TikTokSort() {
   const scopeIds = useStore(s => s.tiktokSortScopeIds);
   const photos = useStore(s => s.photos);
   const collections = useStore(s => s.collections);
+  const groupOf = useStore(s => s.groupOf);
   const setStatus = useStore(s => s.setStatus);
   const setExplainPhotoId = useStore(s => s.setExplainPhotoId);
   const undo = useStore(s => s.undo);
@@ -430,6 +462,9 @@ export function TikTokSort() {
   };
 
   const seriesCount = current ? countSeriesSiblings(photos, current) : 0;
+  // Membrii reali ai seriei, pentru filmstrip (mockup "Lumin Culler Pro") — acelasi
+  // grup (hash perceptual) ca seriesCount de mai sus, doar ca lista, nu doar numar.
+  const seriesMembers = current?.groupId ? groupOf(current.groupId) : [];
   const captureDate = current ? formatCaptureDate(current.capturedAt, locale) : null;
   const album = current ? (collections.find(c => c.memberIds.includes(current.id))?.name ?? current.project) : undefined;
   const verdict = current ? captionVerdict(current) : null;
@@ -501,6 +536,37 @@ export function TikTokSort() {
       {current && (
         <>
           <div className="tiktok-up-hint"><ChevronUpIcon aria-hidden="true" /><span>{tr('tiktok.hint')}</span></div>
+
+          {/* Card persistent de scor (mockup "Lumin Culler Pro") — un gauge mare,
+              vizibil tot timpul cat esti pe o poza, nu doar o pastila mica in
+              coada de jos (care ramane, cu explicatia completa la un tap).
+              Aceleasi date REALE ca fisa de metrici (PhotoInfoTabs): scorul AI,
+              plus zambet/ochi (doar cand exista o fata reala, altfel n-avem
+              niciun semnal onest de aratat) si claritatea. Marcat aria-hidden:
+              cifrele sunt deja accesibile prin pastila "{tr('tiktok.mine.short.selected')}"/AI din caption. */}
+          <div className="tiktok-score-card" aria-hidden="true">
+            <div className="tiktok-score-gauge" style={{ background: `conic-gradient(${scoreColorOf(current.aiScore)} ${Math.round((current.aiScore / 100) * 360)}deg, rgba(255,255,255,.16) 0)` }}>
+              <span className="tiktok-score-gauge-inner" style={{ color: scoreColorOf(current.aiScore) }}>{current.aiScore}</span>
+            </div>
+            <div className="tiktok-score-bars">
+              {current.faceCount > 0 && (
+                <>
+                  <div className="tiktok-score-bar">
+                    <span>{tr(current.faceCount > 1 ? 'detail.stat.smiles' : 'detail.stat.smile')}</span>
+                    <i style={{ width: `${Math.round((current.faceCount > 1 ? current.groupSmileRatio ?? current.bestSmile : current.bestSmile) * 100)}%` }} />
+                  </div>
+                  <div className="tiktok-score-bar">
+                    <span>{tr(current.faceCount > 1 ? 'detail.stat.eyesGroup' : 'detail.stat.eyesOk')}</span>
+                    <i style={{ width: `${Math.round((current.faceCount > 1 ? current.groupEyesOpenRatio ?? (current.allEyesOpen ? 1 : 0) : (current.allEyesOpen ? 1 : 0)) * 100)}%` }} />
+                  </div>
+                </>
+              )}
+              <div className="tiktok-score-bar">
+                <span>{tr('detail.stat.sharpness')}</span>
+                <i style={{ width: `${Math.round(current.sharpness)}%` }} />
+              </div>
+            </div>
+          </div>
 
           <div
             className="tiktok-stage-wrap"
@@ -614,6 +680,26 @@ export function TikTokSort() {
                   <span className="tiktok-caption-meta">{[captureDate, album].filter(Boolean).join(' · ')}</span>
                 )}
               </p>
+            )}
+            {/* Filmstrip cu restul seriei (mockup "Lumin Culler Pro") — un tap pe
+                un cadru sare direct la el, daca mai e in coada de triaj; daca a
+                fost deja decis in alta parte (nu mai e in coada), deschide
+                compararea completa a seriei, unde tot ramane vizibil. */}
+            {seriesCount > 1 && seriesMembers.length > 0 && (
+              <div className="tiktok-filmstrip" role="list" aria-label={tr('tiktok.caption.seriesShort', { count: seriesCount })}>
+                {seriesMembers.map(m => (
+                  <FilmstripThumb
+                    key={m.id}
+                    photo={m}
+                    active={m.id === current.id}
+                    onSelect={() => {
+                      const qi = queueIds.indexOf(m.id);
+                      if (qi >= 0) setIndex(qi);
+                      else if (current.groupId) openCompare(current.groupId);
+                    }}
+                  />
+                ))}
+              </div>
             )}
           </div>
         </>
