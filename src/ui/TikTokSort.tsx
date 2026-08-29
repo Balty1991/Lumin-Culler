@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { useStore, type PhotoView } from '../state/store';
 import { selectSortQueue, selectScopedQueue, selectAllPhotosQueue, countSeriesSiblings } from '../state/tiktokSort';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
@@ -9,7 +10,11 @@ import { explainFactors } from '../core/learning/ContextEngine';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { CollectionPicker } from './CollectionPicker';
 import { AdjustedImage } from './AdjustedImage';
-import { XIcon, HeartIcon, UndoIcon, ChevronUpIcon, SparkleIcon, LayersIcon, BookmarkIcon, BarChartIcon, CheckIcon } from './icons';
+import { computeMenuPosition, isInsideAnyMenu, useReanchorOnViewportChange, type MenuPosition } from './dropdownPosition';
+import {
+  XIcon, HeartIcon, UndoIcon, ChevronUpIcon, SparkleIcon, LayersIcon, BookmarkIcon, BarChartIcon, CheckIcon,
+  MoreIcon, SmileIcon, EyeIcon, FocusIcon
+} from './icons';
 import { t, type Locale } from '../i18n';
 
 const SWIPE_COMMIT = 80; // px de tras (sus SAU jos) pentru a schimba pozitia in coada, fara sa decida nimic
@@ -87,6 +92,11 @@ function scoreColorOf(score: number): string {
   return score >= 65 ? 'var(--pick)' : score <= 35 ? 'var(--reject)' : 'var(--review)';
 }
 
+/** Eticheta de calitate de sub gauge (mockup "Lumin Culler Pro") — aceleasi praguri ca scoreColorOf/aiRecommendation, doar in cuvinte. */
+function scoreQualityKey(score: number): string {
+  return score >= SELECT_THRESHOLD ? 'tiktok.score.veryGood' : score <= REJECT_THRESHOLD ? 'tiktok.score.weak' : 'tiktok.score.medium';
+}
+
 /**
  * O miniatura din filmstrip-ul seriei (mockup "Lumin Culler Pro"). Cache-ul de
  * thumbnail-uri e comun cu grila — de obicei e deja "cald" cand ajungi aici
@@ -152,6 +162,45 @@ export function TikTokSort() {
   const [index, setIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   useModalFocusTrap(containerRef, open, true);
+
+  /**
+   * "Mai multe" (mockup "Lumin Culler Pro") — Album/Candidat/Anulează, mutate
+   * din bara principala (care acum are DOAR cele doua decizii dominante,
+   * Pastrez/Resping, ca in mockup) intr-un meniu discret, deschis din antet.
+   * Nimic din functionalitate nu s-a pierdut, doar locul s-a schimbat — acelasi
+   * tipar de portal/pozitionare ca CollectionPicker/SceneTagFilter (vezi
+   * dropdownPosition.ts), ca sa nu reinventam bug-urile deja rezolvate acolo
+   * (reancorare la scroll/rotire, meniu taiat de marginea ecranului).
+   */
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [moreMenuPos, setMoreMenuPos] = useState<MenuPosition | null>(null);
+  const moreTriggerRef = useRef<HTMLButtonElement>(null);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
+  const placeMoreMenu = (rect: DOMRect) => setMoreMenuPos(computeMenuPosition(rect));
+  useReanchorOnViewportChange(moreOpen, moreTriggerRef, placeMoreMenu);
+  const toggleMore = () => {
+    if (!moreOpen) {
+      const rect = moreTriggerRef.current?.getBoundingClientRect();
+      if (rect) placeMoreMenu(rect);
+    }
+    setMoreOpen(v => !v);
+  };
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onPointerDown = (e: globalThis.PointerEvent) => {
+      const target = e.target as Node;
+      if (moreTriggerRef.current?.contains(target) || moreMenuRef.current?.contains(target)) return;
+      if (isInsideAnyMenu(e.target)) return;
+      setMoreOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMoreOpen(false); };
+    window.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [moreOpen]);
 
   // Ecranul ramane montat intre deschideri (acelasi tipar ca LocationsPanel/PersonsPanel
   // — vezi `if (!open) return null` mai jos), deci coada/pozitia trebuie resetate
@@ -529,43 +578,87 @@ export function TikTokSort() {
               </button>
             )}
             <span className="tiktok-progress-count mono" aria-hidden="true">{index + 1}/{total}</span>
+            {/* Album/Candidat/Anulează traiesc aici acum, nu mai in bara de jos
+                (mockup "Lumin Culler Pro") — vezi comentariul de la moreOpen. */}
+            <button
+              ref={moreTriggerRef}
+              type="button"
+              className="tiktok-more-trigger"
+              onClick={toggleMore}
+              aria-haspopup="menu"
+              aria-expanded={moreOpen}
+              aria-label={tr('tiktok.more')}
+            >
+              <MoreIcon />
+            </button>
           </>
         )}
       </div>
+
+      {current && moreOpen && moreMenuPos && createPortal(
+        <div
+          ref={moreMenuRef}
+          role="menu"
+          className="scene-tag-filter-menu tiktok-more-menu"
+          style={{ position: 'fixed', left: moreMenuPos.left, right: moreMenuPos.right, top: moreMenuPos.top, bottom: moreMenuPos.bottom, maxHeight: moreMenuPos.maxHeight }}
+        >
+          <CollectionPicker photoIds={[current.id]} triggerClassName="scene-tag-filter-option tiktok-more-item" />
+          <button type="button" className="scene-tag-filter-option tiktok-more-item" onClick={() => { decide('candidate'); setMoreOpen(false); }}>
+            <BookmarkIcon className="inline-icon" aria-hidden="true" /> <span>{tr('tiktok.rail.candidate')}</span>
+          </button>
+          <button type="button" className="scene-tag-filter-option tiktok-more-item" onClick={() => { doUndo(); setMoreOpen(false); }}>
+            <UndoIcon className="inline-icon" aria-hidden="true" /> <span>{tr('tiktok.rail.undoShort')}</span>
+          </button>
+        </div>,
+        document.body
+      )}
 
       {current && (
         <>
           <div className="tiktok-up-hint"><ChevronUpIcon aria-hidden="true" /><span>{tr('tiktok.hint')}</span></div>
 
-          {/* Card persistent de scor (mockup "Lumin Culler Pro") — un gauge mare,
+          {/* Card persistent de scor (mockup "Lumin Culler Pro") — un gauge mare
+              cu eticheta de calitate, plus procentul REAL langa fiecare bara,
               vizibil tot timpul cat esti pe o poza, nu doar o pastila mica in
               coada de jos (care ramane, cu explicatia completa la un tap).
-              Aceleasi date REALE ca fisa de metrici (PhotoInfoTabs): scorul AI,
-              plus zambet/ochi (doar cand exista o fata reala, altfel n-avem
-              niciun semnal onest de aratat) si claritatea. Marcat aria-hidden:
-              cifrele sunt deja accesibile prin pastila "{tr('tiktok.mine.short.selected')}"/AI din caption. */}
-          <div className="tiktok-score-card" aria-hidden="true">
-            <div className="tiktok-score-gauge" style={{ background: `conic-gradient(${scoreColorOf(current.aiScore)} ${Math.round((current.aiScore / 100) * 360)}deg, rgba(255,255,255,.16) 0)` }}>
-              <span className="tiktok-score-gauge-inner" style={{ color: scoreColorOf(current.aiScore) }}>{current.aiScore}</span>
+              Aceleasi date ca fisa de metrici (PhotoInfoTabs): scorul AI, plus
+              zambet/ochi (doar cand exista o fata reala, altfel n-avem niciun
+              semnal onest de aratat) si claritatea. */}
+          <div className="tiktok-score-card">
+            <div className="tiktok-score-head" aria-hidden="true">
+              <div className="tiktok-score-gauge" style={{ background: `conic-gradient(${scoreColorOf(current.aiScore)} ${Math.round((current.aiScore / 100) * 360)}deg, rgba(255,255,255,.16) 0)` }}>
+                <span className="tiktok-score-gauge-inner">
+                  <b style={{ color: scoreColorOf(current.aiScore) }}>{current.aiScore}</b>
+                  <i>/100</i>
+                </span>
+              </div>
+              <span className="tiktok-score-quality" style={{ color: scoreColorOf(current.aiScore) }}>{tr(scoreQualityKey(current.aiScore))}</span>
             </div>
-            <div className="tiktok-score-bars">
+            <div className="tiktok-score-metrics" aria-hidden="true">
               {current.faceCount > 0 && (
                 <>
-                  <div className="tiktok-score-bar">
-                    <span>{tr(current.faceCount > 1 ? 'detail.stat.smiles' : 'detail.stat.smile')}</span>
-                    <i style={{ width: `${Math.round((current.faceCount > 1 ? current.groupSmileRatio ?? current.bestSmile : current.bestSmile) * 100)}%` }} />
+                  <div className="tiktok-score-metric">
+                    <SmileIcon aria-hidden="true" />
+                    <i><b style={{ width: `${Math.round((current.faceCount > 1 ? current.groupSmileRatio ?? current.bestSmile : current.bestSmile) * 100)}%` }} /></i>
+                    <span>{Math.round((current.faceCount > 1 ? current.groupSmileRatio ?? current.bestSmile : current.bestSmile) * 100)}%</span>
                   </div>
-                  <div className="tiktok-score-bar">
-                    <span>{tr(current.faceCount > 1 ? 'detail.stat.eyesGroup' : 'detail.stat.eyesOk')}</span>
-                    <i style={{ width: `${Math.round((current.faceCount > 1 ? current.groupEyesOpenRatio ?? (current.allEyesOpen ? 1 : 0) : (current.allEyesOpen ? 1 : 0)) * 100)}%` }} />
+                  <div className="tiktok-score-metric">
+                    <EyeIcon aria-hidden="true" />
+                    <i><b style={{ width: `${Math.round((current.faceCount > 1 ? current.groupEyesOpenRatio ?? (current.allEyesOpen ? 1 : 0) : (current.allEyesOpen ? 1 : 0)) * 100)}%` }} /></i>
+                    <span>{Math.round((current.faceCount > 1 ? current.groupEyesOpenRatio ?? (current.allEyesOpen ? 1 : 0) : (current.allEyesOpen ? 1 : 0)) * 100)}%</span>
                   </div>
                 </>
               )}
-              <div className="tiktok-score-bar">
-                <span>{tr('detail.stat.sharpness')}</span>
-                <i style={{ width: `${Math.round(current.sharpness)}%` }} />
+              <div className="tiktok-score-metric">
+                <FocusIcon aria-hidden="true" />
+                <i><b style={{ width: `${Math.round(current.sharpness)}%` }} /></i>
+                <span>{Math.round(current.sharpness)}%</span>
               </div>
             </div>
+            {/* Motivele scorului, mutate aici din randul de sub pastile (mockup
+                "Lumin Culler Pro" arata exact acest text langa gauge) — nu
+                mai apar in doua locuri deodata, vezi tiktok-caption-line mai jos. */}
+            {reasonsText && <p className="tiktok-score-insight"><SparkleIcon className="inline-icon" aria-hidden="true" /> {reasonsText}</p>}
           </div>
 
           <div
@@ -673,12 +766,9 @@ export function TikTokSort() {
                 {tr('tiktok.metrics.short')}
               </button>
             </div>
-            {(reasonsText || captureDate || album) && (
+            {(captureDate || album) && (
               <p className="tiktok-caption-line">
-                {reasonsText && <span className="tiktok-caption-why">{reasonsText}</span>}
-                {(captureDate || album) && (
-                  <span className="tiktok-caption-meta">{[captureDate, album].filter(Boolean).join(' · ')}</span>
-                )}
+                <span className="tiktok-caption-meta">{[captureDate, album].filter(Boolean).join(' · ')}</span>
               </p>
             )}
             {/* Filmstrip cu restul seriei (mockup "Lumin Culler Pro") — un tap pe
@@ -732,58 +822,25 @@ export function TikTokSort() {
         </div>
       )}
 
-      <div className="tiktok-rail">
-        {current && (
-          <>
-            <span className="tiktok-rail-item rail-keep">
-              <button className="tiktok-rail-btn keep" onClick={() => decide('selected')} aria-label={tr('tiktok.rail.keep')}>
-                <HeartIcon />
-              </button>
-              <span className="tiktok-rail-label">{tr('tiktok.rail.keep')}</span>
-            </span>
-            <span className="tiktok-rail-item rail-album">
-              <CollectionPicker photoIds={[current.id]} iconOnly triggerClassName="tiktok-rail-btn album" />
-              <span className="tiktok-rail-label">{tr('tiktok.rail.album')}</span>
-            </span>
-            {/* A treia decizie. Fara ea, orice cadru la care omul se codeste
-                trebuie fortat intr-un "da" sau intr-un "nu" — iar cadrul afectiv
-                sau comercial pe care nu vrei sa-l pierzi, dar nici nu-l dai inca
-                mai departe, n-avea unde sa mearga. Vezi PhotoStatus in core/db.ts:
-                nicio operatie automata nu-l mai atinge dupa aceea. */}
-            <span className="tiktok-rail-item rail-candidate">
-              <button className="tiktok-rail-btn candidate" onClick={() => decide('candidate')} aria-label={tr('tiktok.rail.candidate')}>
-                <BookmarkIcon />
-              </button>
-              <span className="tiktok-rail-label">{tr('tiktok.rail.candidate')}</span>
-            </span>
-            {/* "Resping", nu "Sterg". Butonul apeleaza decide('rejected') — muta
-                poza in "respinse", nu o scoate de pe telefon. Iar aplicatia ARE o
-                stergere adevarata, "Sterge pozele respinse", care chiar cere
-                sistemului sa stearga fisiere. Cat timp cel mai apasat buton rosu
-                de pe ecranul principal de lucru spunea "Sterg", ori omul il ocolea
-                de frica, ori credea ca a sters poze pe care nu le stersese.
-                Gasit la auditul de interfata. */}
-            <span className="tiktok-rail-item rail-del">
-              <button className="tiktok-rail-btn del" onClick={() => decide('rejected')} aria-label={tr('tiktok.rail.reject')}>
-                <XIcon />
-              </button>
-              <span className="tiktok-rail-label">{tr('tiktok.rail.reject')}</span>
-            </span>
-          </>
-        )}
-        {/* Aceeasi structura ca celelalte trei celule (buton + eticheta): grila
-            barei aliniaza pe randul de jos, iar o celula fara eticheta isi urca
-            butonul cu inaltimea etichetei lipsa — de aici iesea din rand. */}
-        <span className="tiktok-rail-item rail-undo">
-          <button className="tiktok-rail-btn undo" onClick={doUndo} aria-label={tr('tiktok.rail.undo')}>
-            <UndoIcon />
+      {/* Doar cele doua decizii — mockup "Lumin Culler Pro" arata exact doua
+          butoane mari, nu cinci egale. Album/Candidat/Anulează n-au disparut:
+          traiesc acum in meniul "..." din antet (vezi moreOpen mai sus) —
+          nicio functie reala nu s-a pierdut, doar ierarhia vizuala s-a
+          schimbat, ca decizia principala sa fie evidenta dintr-o privire. */}
+      {current && (
+        <div className="tiktok-rail">
+          <button className="tiktok-rail-btn del" onClick={() => decide('rejected')}>
+            <XIcon aria-hidden="true" /> <span>{tr('tiktok.rail.reject')}</span>
           </button>
-          {/* Eticheta vizibila e scurta: "Anulează ultima decizie" pe o coloana
-              de un sfert din latimea ecranului iesea din bara. Textul complet
-              ramane in aria-label, unde conteaza pentru cititoarele de ecran. */}
-          <span className="tiktok-rail-label">{tr('tiktok.rail.undoShort')}</span>
-        </span>
-      </div>
+          <button className="tiktok-rail-btn keep" onClick={() => decide('selected')}>
+            <HeartIcon aria-hidden="true" /> <span>{tr('tiktok.rail.keep')}</span>
+          </button>
+        </div>
+      )}
+      {/* Acelasi indiciu de gest ca in mockup — textul explica pe scurt ce
+          face swipe-ul orizontal, ramas disponibil pe langa cele doua
+          butoane pentru cine prefera atingerea directa. */}
+      {current && <p className="tiktok-swipe-hint">{tr('tiktok.swipeHint')}</p>}
     </div>
   );
 }

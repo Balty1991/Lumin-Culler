@@ -63,6 +63,10 @@ export function EyeIcon(p: SVGProps<SVGSVGElement>) {
   );
 }
 
+/** Zambet — pentru metrica "Zambet" din cardul de scor (TikTokSort), distincta de EyeIcon/FocusIcon (celelalte doua metrici din acelasi card). */
+export function SmileIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg {...base} {...p}><circle cx="12" cy="12" r="9" /><path d="M8 13.5c1 1.5 2.4 2.3 4 2.3s3-.8 4-2.3" /><circle cx="8.7" cy="9.5" r="0.9" fill="currentColor" stroke="none" /><circle cx="15.3" cy="9.5" r="0.9" fill="currentColor" stroke="none" /></svg>;
+}
 export function EyeClosedIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><path d="M3 12s3.6-6.5 9-6.5S21 12 21 12s-3.6 6.5-9 6.5S3 12 3 12z" opacity="0.35" /><line x1="3" y1="20" x2="21" y2="4" /></svg>;
 }

@@ -1928,7 +1928,9 @@ body:before {
 }
 
 /* Card persistent de scor (mockup "Lumin Culler Pro") — ancorat sub bara de
-   sus, in dreapta, unde un portret centrat e cel mai rar acoperit. */
+   sus, in dreapta, unde un portret centrat e cel mai rar acoperit. Mai lat
+   decat prima versiune, ca sa incapa iconita+bara+procent pe acelasi rand,
+   ca in mockup, nu doar o bara goala. */
 .tiktok-score-card {
   position:absolute;
   top:calc(90px + var(--safe-top));
@@ -1936,14 +1938,18 @@ body:before {
   z-index:var(--z-card-badge);
   display:flex;
   flex-direction:column;
-  align-items:center;
-  gap:8px;
-  width:88px;
-  padding:10px 8px;
+  gap:9px;
+  width:168px;
+  padding:12px;
   border-radius:18px;
-  background:rgb(15 17 23 / .58);
+  background:rgb(15 17 23 / .62);
   border:1px solid rgb(255 255 255 / .14);
   backdrop-filter:blur(14px);
+}
+.tiktok-score-head {
+  display:flex;
+  align-items:center;
+  gap:10px;
 }
 .tiktok-score-gauge {
   width:56px;
@@ -1960,36 +1966,53 @@ body:before {
   border-radius:50%;
   background:rgb(10 11 14 / .88);
   display:flex;
+  flex-direction:column;
   align-items:center;
   justify-content:center;
-  font-weight:900;
-  font-size:.92rem;
+  line-height:1.05;
 }
-.tiktok-score-bars {
+.tiktok-score-gauge-inner b { font-weight:900; font-size:1.05rem; }
+.tiktok-score-gauge-inner i { font-style:normal; font-size:.5rem; color:rgb(255 255 255 / .5); }
+.tiktok-score-quality { font-size:.72rem; font-weight:800; }
+.tiktok-score-metrics {
   display:flex;
   flex-direction:column;
-  gap:5px;
-  width:100%;
+  gap:6px;
 }
-.tiktok-score-bar {
+.tiktok-score-metric {
   display:flex;
-  flex-direction:column;
-  gap:2px;
-  font-size:.56rem;
+  align-items:center;
+  gap:6px;
+  font-size:.66rem;
   font-weight:700;
-  color:rgb(255 255 255 / .72);
+  color:rgb(255 255 255 / .85);
 }
-.tiktok-score-bar span {
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-}
-.tiktok-score-bar i {
+.tiktok-score-metric svg { width:13px; height:13px; flex:0 0 auto; color:var(--accent-2); }
+.tiktok-score-metric i {
+  flex:1 1 auto;
   display:block;
-  height:3px;
+  height:4px;
+  border-radius:2px;
+  background:rgb(255 255 255 / .16);
+  overflow:hidden;
+}
+.tiktok-score-metric i b {
+  display:block;
+  height:100%;
   border-radius:2px;
   background:var(--accent-2);
 }
+.tiktok-score-metric span { flex:0 0 auto; min-width:28px; text-align:right; }
+.tiktok-score-insight {
+  display:flex;
+  align-items:flex-start;
+  gap:5px;
+  margin:0;
+  font-size:.66rem;
+  line-height:1.35;
+  color:rgb(255 255 255 / .78);
+}
+.tiktok-score-insight .inline-icon { flex:0 0 auto; width:12px; height:12px; margin-top:1px; color:var(--accent-2); }
 
 /* Filmstrip cu restul seriei (mockup "Lumin Culler Pro") — traieste chiar in
    .tiktok-caption (deja pointer-events:auto pe butoane, vezi mai jos in
@@ -2017,14 +2040,15 @@ body:before {
   opacity:1;
 }
 
+/* Doar doua decizii, cat mai mari — mockup "Lumin Culler Pro" arata exact doua
+   butoane egale, nu cinci de marimi diferite. Album/Candidat/Anuleaza s-au
+   mutat in meniul "..." din antet (vezi .tiktok-more-menu), fara sa dispara. */
 .tiktok-rail {
   left:12px;
   right:12px;
   bottom:calc(9px + var(--safe-bottom));
   display:grid;
-  /* del · album · candidat · pastrez · anuleaza */
-  grid-template-columns:1fr auto auto 1fr auto;
-  align-items:center;
+  grid-template-columns:1fr 1fr;
   gap:10px;
   padding:9px;
   border:1px solid rgb(255 255 255 / .11);
@@ -2034,75 +2058,75 @@ body:before {
   backdrop-filter:blur(22px);
 }
 
-.tiktok-rail-item {
-  display:contents;
-}
-
 .tiktok-rail-btn {
-  width:58px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
   height:58px;
   border-radius:18px;
   border:0;
+  font-weight:800;
+  font-size:.86rem;
+  text-transform:uppercase;
+  letter-spacing:.02em;
 }
 
+.tiktok-rail-btn svg { width:18px; height:18px; flex:0 0 auto; }
+
 .tiktok-rail-btn.keep {
-  order:4;
-  width:100%;
+  order:2;
   color:#06100e;
   background:var(--pick);
 }
 
 .tiktok-rail-btn.del {
   order:1;
-  width:100%;
   color:#fff;
   background:var(--reject);
 }
 
-.tiktok-rail .album {
-  order:2;
-  color:#e8ebf2;
-  background:#ffffff14;
+/* Indiciul de gest (mockup) — descrie gestul REAL al ecranului (glisare
+   verticala, pentru poza urmatoare/anterioara), nu unul inventat: butoanele
+   de mai sus raman singura cale de a decide, gestul doar navigheaza. */
+.tiktok-swipe-hint {
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:calc(96px + var(--safe-bottom));
+  margin:0;
+  text-align:center;
+  font-size:.64rem;
+  font-weight:700;
+  color:rgb(255 255 255 / .5);
+  pointer-events:none;
 }
 
-/* Candidatul nu e nici verde, nici rosu: e "inca nu m-am hotarat sa dau
-   drumul". Chihlimbariul e aceeasi culoare pe care aplicatia o foloseste peste
-   tot pentru "de verificat", deci se citeste fara sa fie invatat. */
-.tiktok-rail-btn.candidate {
-  order:3;
-  color:#0d0a03;
-  background:rgb(var(--review-rgb));
+/* Butonul "..." din antet si meniul lui (Album/Candidat/Anuleaza) — vezi
+   moreOpen in TikTokSort.tsx. Reutilizeaza .scene-tag-filter-menu/-option
+   (acelasi tipar de portal ca CollectionPicker), doar cu text alb pe fundal
+   intunecat, ca restul antetului de aici, nu tema deschisa implicita. */
+.tiktok-more-trigger {
+  width:36px;
+  height:36px;
+  border-radius:50%;
+  border:0;
+  color:#fff;
+  background:rgb(255 255 255 / .12);
+  display:flex;
+  align-items:center;
+  justify-content:center;
 }
-
-.tiktok-rail-btn.undo {
-  order:5;
-  width:48px;
-  height:48px;
-  color:#bfc6d4;
-  background:transparent;
+.tiktok-more-trigger svg { width:18px; height:18px; }
+.tiktok-more-menu.tiktok-more-menu {
+  background:#181b22;
+  border-color:rgb(255 255 255 / .14);
 }
-
-.tiktok-rail-label {
-  display:none;
+.tiktok-more-menu .tiktok-more-item.tiktok-more-item {
+  color:#f2f4fa;
 }
-
-@media (max-width: 380px) {
-  .tiktok-rail {
-    gap:6px;
-  }
-  /* Cu cinci celule, iconitele auto se string primele — butoanele mari de
-     decizie raman late. */
-  .tiktok-rail-btn.candidate,
-  .tiktok-rail .album {
-    width:46px;
-  }
-  .tiktok-rail-btn {
-    height:52px;
-  }
-  .tiktok-rail-btn.undo {
-    width:42px;
-    height:42px;
-  }
+.tiktok-more-menu .tiktok-more-item.tiktok-more-item:hover {
+  background:rgb(255 255 255 / .08);
 }
 
 .filters-advanced.contact-sheet-filter-sheet {
@@ -2228,8 +2252,13 @@ body:before {
 }
 
 @media (max-width: 520px) {
+  /* svh (nu dvh): bug real raportat de utilizator — la derularea paginii,
+     bara de adresa a browserului se ascunde, dvh creste, si cardul "parea"
+     ca se mareste brusc sub ochii lui in timp ce derula. svh ramane fix la
+     inaltimea cu bara vizibila, deci cardul nu isi mai schimba dimensiunea
+     in timpul unei derulari normale. */
   .review-desk-stage {
-    min-height:min(470px,calc(100dvh - 303px));
+    min-height:min(470px,calc(100svh - 303px));
   }
   .review-desk-stage-footer {
     top:16px;
@@ -2939,7 +2968,8 @@ body:before {
 }
 
 .empty {
-  min-height:min(610px,calc(100dvh - var(--header-bottom, 0px) - 44px));
+  /* svh, nu dvh — vezi acelasi bug/fix la .review-desk-stage mai sus. */
+  min-height:min(610px,calc(100svh - var(--header-bottom, 0px) - 44px));
   max-width:500px;
   align-content:center;
   gap:9px;
@@ -3328,45 +3358,28 @@ body:before {
 /* Preview v3: acțiunea „Toate fotografiile” este o navigare în biblioteca completă. */
 .home-view-all-cta { min-height: 52px; border: 2px solid #c9fff4 !important; box-shadow: 0 0 0 2px rgba(103,228,207,.18), 0 12px 28px rgba(0,0,0,.28); }
 
-/* Preview v3: acțiunile Șterg / Album / Candidat / Păstrez / Anulează sunt unități
-   compacte, lizibile și în safe-area.
-
-   CINCI coloane, nu patru: la adăugarea deciziei „Candidat" bara avea în continuare
-   patru coloane fixate cu !important aici, iar a cincea celulă („Anulează") cădea pe
-   un al doilea rând, peste conținutul de deasupra. Numărul de coloane trebuie să
-   urmeze numărul de celule, altfel fiecare acțiune nouă rupe bara în tăcere. */
+/* Preview v3: cele doua decizii (Pastrez/Resping) raman late si in safe-area
+   pe telefon — DOUA coloane egale, nu cinci: Album/Candidat/Anuleaza s-au
+   mutat in meniul "..." din antet (vezi .tiktok-more-menu), deci bara de jos
+   nu mai are decat cele doua celule reale. */
 @media (max-width: 600px) {
   .tiktok-rail {
     left: 14px !important;
     right: 14px !important;
     bottom: calc(10px + var(--safe-bottom)) !important;
     display: grid !important;
-    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
-    align-items: end !important;
-    gap: 6px !important;
-    padding: 11px 8px 9px !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+    padding: 11px !important;
     border: 1px solid rgba(255,255,255,.16) !important;
     border-radius: 22px !important;
     background: rgba(16,18,25,.96) !important;
     box-shadow: 0 -10px 34px rgba(0,0,0,.38) !important;
     backdrop-filter: blur(18px) !important;
   }
-  .tiktok-rail-item { min-width: 0 !important; gap: 4px !important; }
-  .tiktok-rail-btn,
-  .tiktok-rail-btn.undo { width: 48px !important; height: 48px !important; margin: 0 auto !important; }
-  /* Doua decizii domina vizual bara — cerinta directa a utilizatorului
-     ("2 butoane mari", mockup "Lumin Culler Pro"): pastreaza/resping raman
-     cele mai mari si mai bataitoare la ochi, restul (album/candidat/
-     anuleaza) raman prezente, dar vizibil secundare, ca in mockup. */
-  .tiktok-rail-btn.keep,
-  .tiktok-rail-btn.del { width: 60px !important; height: 60px !important; box-shadow: 0 8px 22px -8px rgb(0 0 0 / .55) !important; }
-  .tiktok-rail-btn.keep svg,
-  .tiktok-rail-btn.del svg { width: 24px !important; height: 24px !important; }
-  .tiktok-rail-label { display: block !important; color: #f4f7fb !important; font-size: .68rem !important; font-weight: 800 !important; text-shadow: none !important; white-space: nowrap !important; }
+  .tiktok-rail-btn { height: 58px !important; box-shadow: 0 8px 22px -8px rgb(0 0 0 / .55) !important; }
   .tiktok-rail-btn.keep { background: rgb(var(--pick-rgb) / .92) !important; color: #06100e !important; }
   .tiktok-rail-btn.del { background: var(--reject) !important; color: #fff !important; }
-  .tiktok-rail-btn.album { background: #252b35 !important; color: #fff !important; }
-  .tiktok-rail-btn.undo { background: #1b2029 !important; color: #e7edf7 !important; }
 }
 
 /* Preview v4: acces explicit la Sortare rapidă după încheierea sesiunii. */
@@ -3477,21 +3490,17 @@ body:before {
 .drawer-pro-check { display: grid; place-items: center; color: var(--accent); }
 .drawer-pro-check svg { width: 22px; height: 22px; }
 
-/* ── Bara de decizie: cele patru butoane au aceeasi marime ──
-   Stratul de preview dadea 58px pe "pastrez" si "sterg" prin min-width/
-   min-height, iar regula de pe mobil incerca sa le puna la 48px prin
-   width/height — dar min-* castiga mereu in fata width, deci doua butoane
-   ramaneau mai mari decat celelalte doua si ieseau din rand. */
+/* Bara de decizie are acum doar doua celule (Pastrez/Resping, ambele 1fr) —
+   nu mai e nevoie sa le fortam la aceeasi latime explicita ca in trecut
+   (cand mai erau si Album/Candidat/Anulează in acelasi rand): grid-ul le
+   intinde deja egal. */
 @media (max-width: 600px) {
   .tiktok-rail-btn.keep,
   .tiktok-rail-btn.del {
     min-width: 0;
     min-height: 0;
-    width: 48px;
-    height: 48px;
     border-width: 1.5px;
   }
-  .tiktok-rail-item { justify-content: flex-end; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -3700,7 +3709,7 @@ body:before {
    ca si cum s-ar fi terminat continutul. Plafonul cade; centrarea ramane.
    Ecranele scunde nu sunt afectate — pentru ele exista deja
    @media (max-height: 710px) mai sus, care aliniaza sus in loc sa centreze. */
-.empty { min-height: calc(100dvh - var(--header-bottom, 0px) - 44px); }
+.empty { min-height: calc(100svh - var(--header-bottom, 0px) - 44px); }
 
 /* ═══════════════════════════════════════════════════════════════════════════
  * Accesibilitate: contrast si zone de atingere.
@@ -4049,41 +4058,6 @@ body:before {
   .topbar .brand-text p,
   .topbar .brand-text .project-name-btn,
   .topbar .brand-text .project-name-input { display: none; }
-}
-
-/* (3) Bara de decizie din sortarea rapida isi punea etichetele pe butoanele
-   gresite. Masurat pe 412x915: eticheta "Păstrez" era centrata pe 66px, iar
-   butonul rosu de stergere tot pe 67px — deci butonul care respinge poza
-   scria dedesubt "Păstrez", si inima verde care o pastreaza scria "Șterg".
-
-   Cauza: in build-ul de referinta `.tiktok-rail-item` e `display: contents`
-   si etichetele sunt ascunse, asa ca grila primea direct cele patru butoane
-   si `order: 1/2/3/4` le aseza sters-album-pastrez-anuleaza. Stratul de
-   preview a reaprins etichetele (`display: block !important`), dar ele nu au
-   `order`, deci grila primea opt copii: intai cele patru etichete in ordinea
-   din DOM, apoi cele patru butoane in ordinea impusa. Perechile s-au rupt.
-
-   Reperechez la sursa: pe ecranele unde se vad etichetele, celula redevine o
-   cutie proprie (buton + eticheta impreuna), iar `order` trece de pe buton pe
-   celula. Ordinea vizuala din referinta ramane neschimbata. */
-@media (max-width: 600px) {
-  .tiktok-rail-item { display: flex; }
-  /* Cu cinci celule, eticheta poate fi mai lata decat coloana ("Anulează",
-     "Candidat" depasesc butonul de 48px). Se taie eticheta, nu se lateste
-     celula — butonul ramane la dimensiunea lui, deci tinta de atingere nu scade. */
-  .tiktok-rail-label {
-    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  .tiktok-rail-btn.keep,
-  .tiktok-rail-btn.del,
-  .tiktok-rail .album,
-  .tiktok-rail-btn.candidate,
-  .tiktok-rail-btn.undo { order: 0; }
-  .tiktok-rail .rail-del { order: 1; }
-  .tiktok-rail .rail-album { order: 2; }
-  .tiktok-rail .rail-candidate { order: 3; }
-  .tiktok-rail .rail-keep { order: 4; }
-  .tiktok-rail .rail-undo { order: 5; }
 }
 
 /* (4) Spatiul de lucru se deschidea peste ecranul de acasa, transparent.
