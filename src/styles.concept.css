@@ -3133,11 +3133,18 @@ body:before {
 /* Medalion circular cu halou — ca marca "LC" din mockup-urile aprobate, in
    locul patratului rotunjit de dinainte. Dominant pe ecran (~60% din latime,
    ca in mockup), nu doar un logo mic — acum ca antetul dispare pe ecranul
-   gol, are loc sa fie piesa centrala reala. */
+   gol, are loc sa fie piesa centrala reala.
+   O SINGURA variabila pentru marime (--empty-badge-size), citita si de
+   litere (calc, nu un al doilea clamp separat) — plafonul de 230px de
+   dinainte se activa pe telefoane mai late (peste ~400px), tinand cercul la
+   doar ~45-50% din latime in loc de 60%; un plafon in sine tot ramane necesar
+   (altfel creste nelimitat pe tableta/desktop), dar mult mai sus (320px), ca
+   sa nu se activeze pe niciun telefon normal. */
 .empty-badge {
+  --empty-badge-size:clamp(160px,60vw,320px);
   position:relative;
-  width:clamp(150px,58vw,230px);
-  height:clamp(150px,58vw,230px);
+  width:var(--empty-badge-size);
+  height:var(--empty-badge-size);
   border-radius:50%;
   margin-bottom:22px;
   display:flex;
@@ -3151,11 +3158,13 @@ body:before {
 }
 
 /* Marca "LC" — text real, nu o iconita generica (mockup "Lumin Culler Pro").
-   Gradient pe litere, ca in mockup, nu alb plin. */
+   Gradient pe litere, ca in mockup, nu alb plin. Marimea vine din
+   --empty-badge-size (calc), nu dintr-un clamp separat — garanteaza aceeasi
+   proportie litere/cerc la orice latime, in loc sa se poata dezacorda. */
 .empty-badge-mark {
   font-family:var(--font-display);
   font-weight:800;
-  font-size:clamp(2.8rem,13vw,5.3rem);
+  font-size:calc(var(--empty-badge-size) * .37);
   letter-spacing:-.03em;
   background:var(--accent-gradient);
   -webkit-background-clip:text;
@@ -3202,16 +3211,18 @@ body:before {
   background:none; -webkit-background-clip:unset; background-clip:unset; color:var(--accent-text);
 }
 
-.empty-dots { display:flex; gap:7px; margin-top:6px; }
-.empty-dots span { width:7px; height:7px; border-radius:50%; background:var(--line-strong); }
-.empty-dots span.active { background:var(--accent-gradient); box-shadow:0 0 8px -1px rgb(var(--accent-rgb) / .8); }
+.empty-dots { display:flex; gap:8px; margin-top:6px; }
+/* Inactive = inel gol (contur, fara umplere), nu punct gri plin — asa arata
+   in mockup, tipar standard de carusel/paginare. */
+.empty-dots span { width:8px; height:8px; border-radius:50%; background:none; border:1.5px solid var(--line-strong); }
+.empty-dots span.active { border-color:transparent; background:var(--accent-gradient); box-shadow:0 0 8px -1px rgb(var(--accent-rgb) / .8); }
 
 /* Halou difuz in jurul medalionului — un singur glow moale, nu un al doilea
    inel cu contur propriu (asta parea "inel dublu" langa marginea badge-ului). */
 .empty-badge:before {
   content:"";
   position:absolute;
-  inset:-32px;
+  inset:calc(var(--empty-badge-size) * -.13);
   border-radius:50%;
   background:radial-gradient(circle,rgb(var(--accent-rgb) / .22),transparent 68%);
   filter:blur(9px);
@@ -3311,12 +3322,8 @@ body:before {
     padding-top:17px;
   }
   .empty-badge {
-    width:clamp(120px,50vw,160px);
-    height:clamp(120px,50vw,160px);
+    --empty-badge-size:clamp(120px,50vw,200px);
     margin-bottom:14px;
-  }
-  .empty-badge-mark {
-    font-size:clamp(2.3rem,11vw,3.4rem);
   }
   .empty h2 {
     font-size:1.85rem;
