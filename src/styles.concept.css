@@ -3108,6 +3108,12 @@ body:before {
   padding-top:10px;
 }
 
+/* Antetul dispare pe ecranul gol (vezi App.tsx) — doar butonul de meniu
+   ramane, si trebuie impins la dreapta manual: .topbar avea un singur copil
+   ("Marca" a disparut), iar justify-content:space-between pe UN singur
+   element il aseaza implicit la stanga, nu la dreapta. */
+.app-empty-state .topbar { justify-content:flex-end; }
+
 .empty {
   /* svh, nu dvh — vezi acelasi bug/fix la .review-desk-stage mai sus. */
   min-height:min(610px,calc(100svh - var(--header-bottom, 0px) - 44px));
@@ -3125,13 +3131,15 @@ body:before {
 }
 
 /* Medalion circular cu halou — ca marca "LC" din mockup-urile aprobate, in
-   locul patratului rotunjit de dinainte. */
+   locul patratului rotunjit de dinainte. Dominant pe ecran (~60% din latime,
+   ca in mockup), nu doar un logo mic — acum ca antetul dispare pe ecranul
+   gol, are loc sa fie piesa centrala reala. */
 .empty-badge {
   position:relative;
-  width:112px;
-  height:112px;
+  width:clamp(150px,58vw,230px);
+  height:clamp(150px,58vw,230px);
   border-radius:50%;
-  margin-bottom:18px;
+  margin-bottom:22px;
   display:flex;
   align-items:center;
   justify-content:center;
@@ -3147,7 +3155,7 @@ body:before {
 .empty-badge-mark {
   font-family:var(--font-display);
   font-weight:800;
-  font-size:2.6rem;
+  font-size:clamp(2.8rem,13vw,5.3rem);
   letter-spacing:-.03em;
   background:var(--accent-gradient);
   -webkit-background-clip:text;
@@ -3203,10 +3211,10 @@ body:before {
 .empty-badge:before {
   content:"";
   position:absolute;
-  inset:-22px;
+  inset:-32px;
   border-radius:50%;
   background:radial-gradient(circle,rgb(var(--accent-rgb) / .22),transparent 68%);
-  filter:blur(6px);
+  filter:blur(9px);
   z-index:-1;
 }
 
@@ -3303,12 +3311,12 @@ body:before {
     padding-top:17px;
   }
   .empty-badge {
-    width:72px;
-    height:72px;
+    width:clamp(120px,50vw,160px);
+    height:clamp(120px,50vw,160px);
+    margin-bottom:14px;
   }
-  .empty-badge svg {
-    width:30px;
-    height:30px;
+  .empty-badge-mark {
+    font-size:clamp(2.3rem,11vw,3.4rem);
   }
   .empty h2 {
     font-size:1.85rem;

@@ -881,8 +881,13 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className={photos.length === 0 && !progress ? 'app app-empty-state' : 'app'}>
       <header className="topbar" ref={headerBottomRef}>
+        {/* Marca+numele produsului dispar pe ecranul gol: se repeta deja, mult
+            mai mare, in medalionul "LC" + titlul de mai jos (cerinta directa,
+            mockup fara antet deasupra). Butonul de meniu ramane singur —
+            e SINGURA cale spre Meniu inainte de import (vezi mai jos). */}
+        {(photos.length > 0 || progress) && (
         <div className="brand">
           {/* Marca devine buton "Acasa" — bug real raportat de utilizator: dupa
               ce tab-ul dedicat "Acasa" a disparut din bara de jos (redesign
@@ -910,6 +915,7 @@ export default function App() {
             <ProjectNameField />
           </div>
         </div>
+        )}
         <div className="top-actions">
           {/* Buton "Acasa" DEDICAT si separat de tab-ul "Grila" — bug real
               raportat de utilizator: un singur tab cu doua sensuri diferite
