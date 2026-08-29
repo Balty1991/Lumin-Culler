@@ -1841,8 +1841,10 @@ body:before {
      panoului insusi (vezi .tiktok-caption max-height) — exact cat ii
      trebuie panoului sa NU mai atinga poza, fara sa-i rezervam cat ar avea
      nevoie tot continutul lui (care poate depasi acei 200px si derula
-     intern in loc sa fure spatiu din fotografie). */
-  padding:calc(65px + var(--safe-top)) 0 calc(324px + var(--safe-bottom));
+     intern in loc sa fure spatiu din fotografie). 336, nu 324 (bottom-ul
+     exact al .tiktok-caption) — bug real, raportat cu zoom pe o poza
+     reala: fara acest mic aer, marginea pastilelor atingea marginea pozei. */
+  padding:calc(65px + var(--safe-top)) 0 calc(336px + var(--safe-bottom));
 }
 
 .tiktok-stage {
@@ -1854,13 +1856,18 @@ body:before {
   width:auto;
   height:auto;
   max-width:100%;
-  max-height:calc(100svh - 389px);
+  max-height:calc(100svh - 401px);
   object-fit:contain;
 }
 /* Invelis care se micsoreaza la dimensiunea REALA a imaginii — vezi
    .detail-face-frame (acelasi principiu, alt ecran) si comentariul din
    TikTokSort.tsx. */
 .tiktok-face-frame { position:relative; display:inline-flex; max-width:100%; max-height:100%; line-height:0; }
+/* Bug real raportat de utilizator, la zoom cu doua degete: top:78px (din
+   styles.css, negschimbat de multe runde) ramasese potrivit pentru un antet
+   mai scund — antetul de aici (.tiktok-topbar, mai jos in fisier) ajunge
+   acum pana spre ~84px, deci pastila de procent se suprapunea peste el. */
+.tiktok-zoom-hint { top:calc(92px + var(--safe-top)); }
 .tiktok-face-box { border-radius:10px; }
 /* Formatul real al fisierului (mockup "Lumin Culler Pro") — coltul din
    dreapta-sus al pozei, ca in referinta. */
