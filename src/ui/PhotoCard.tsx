@@ -62,8 +62,11 @@ function cardExifLine(photo: PhotoView): string {
 }
 
 /** Card "contact sheet": miniatura din IndexedDB, incarcare lenesa, zero logica. */
-function PhotoCardInner({ photo, index, onOpen, multiSelected, onCardPointerDown, onContextMenu }: {
+function PhotoCardInner({ photo, index: _index, onOpen, multiSelected, onCardPointerDown, onContextMenu }: {
   photo: PhotoView;
+  /** Nu mai e afisat pe card (mockup-ul "Lumin Culler PRO" nu are numar de
+      cadru) — ramas in contract pentru apelantii care il folosesc la randare
+      (chei/virtualizare), nu pentru desenul cardului insusi. */
   index: number;
   onOpen: (id: string, e: React.MouseEvent) => void;
   multiSelected: boolean;
@@ -80,6 +83,7 @@ function PhotoCardInner({ photo, index, onOpen, multiSelected, onCardPointerDown
   const imagesRevision = useStore(s => s.imagesRevision);
   const locale = useStore(s => s.locale);
   const bestInGroupIds = useStore(s => s.bestInGroupIds());
+  const groupOf = useStore(s => s.groupOf);
 
   useEffect(() => {
     const cached = peekThumbUrl(photo.id);
@@ -113,8 +117,24 @@ function PhotoCardInner({ photo, index, onOpen, multiSelected, onCardPointerDown
       aria-label={describeCard(photo, locale, isBestOfSeries)}
       aria-pressed={multiSelected}
     >
+      {/* Coltul stang-sus: un singur badge de statut (stea sau necunoscut), plus
+          numarul de duplicate al seriei dedesubt — layout-ul mockup-ului "Lumin
+          Culler PRO", in locul numarului de cadru "#001" de dinainte. */}
       <span className="card-top-left" aria-hidden="true">
-        <span className="frame-no">#{String(index + 1).padStart(3, '0')}</span>
+        {photo.rating > 0 ? (
+          <span className="corner-badge corner-badge-star" title={t(locale, 'photoCard.stars', { count: photo.rating })}>
+            <StarIcon fill="currentColor" />
+          </span>
+        ) : (photo.strangerCount > 0 && photo.personNames.length === 0) ? (
+          <span className="corner-badge corner-badge-question" title={t(locale, 'photoCard.strangers')}>
+            <UserQuestionIcon />
+          </span>
+        ) : null}
+        {photo.groupId && (
+          <span className="corner-badge corner-badge-dupe" title={t(locale, 'photoCard.series')}>
+            <LayersIcon /><b>{groupOf(photo.groupId).length}</b>
+          </span>
+        )}
         {photo.goldenHourDetected && (
           <span className="golden-badge" title={t(locale, 'photoCard.goldenHour')}><SunIcon /></span>
         )}
@@ -122,6 +142,21 @@ function PhotoCardInner({ photo, index, onOpen, multiSelected, onCardPointerDown
           <span className="edited-badge" title={t(locale, 'photoCard.edited')}><EditIcon /></span>
         )}
       </span>
+      {/* Coltul dreapta-sus: inelul de scor, mare — elementul dominant al
+          cardului in mockup, nu o pastila mica de jos. */}
+      <span className="card-top-right" aria-hidden="true">
+        <span
+          className="mini-score-ring"
+          style={{
+            background: `conic-gradient(${ringColor} ${ringDeg}deg, rgba(255,255,255,0.14) 0)`,
+            boxShadow: `0 2px 8px -2px rgba(0,0,0,0.5), 0 0 9px -1px ${ringColor}`
+          }}
+        >
+          <span className="mini-score-ring-inner" style={{ color: ringColor }}>{photo.aiScore}</span>
+        </span>
+      </span>
+      {/* Coltul dreapta-jos: insigna de decizie (bifa/X), mutata din coltul de
+          sus (unde acum sta inelul de scor). */}
       {multiSelected && <span className="multi-select-badge" aria-hidden="true"><CheckIcon /></span>}
       {!multiSelected && photo.status === 'selected' && (
         <span className="check-badge" aria-hidden="true"><CheckIcon /></span>
@@ -147,31 +182,19 @@ function PhotoCardInner({ photo, index, onOpen, multiSelected, onCardPointerDown
         {!src && !photo.lqip && <span className="card-loading" />}
       </span>
       <span className="card-strip" aria-hidden="true">
-        <span className="card-strip-row">
-          <span
-            className="mini-score-ring"
-            style={{
-              background: `conic-gradient(${ringColor} ${ringDeg}deg, rgba(255,255,255,0.14) 0)`,
-              boxShadow: `0 2px 8px -2px rgba(0,0,0,0.5), 0 0 9px -1px ${ringColor}`
-            }}
-          >
-            <span className="mini-score-ring-inner" style={{ color: ringColor }}>{photo.aiScore}</span>
-          </span>
-          {density !== 'compact' && (
+        {density !== 'compact' && (
+          <span className="card-strip-row card-strip-row-badges">
             <span className="badges">
-              {photo.rating > 0 && <span className="rating-chip"><StarIcon fill="currentColor" />{photo.rating}</span>}
               {photo.personNames.length > 0 && <i title={photo.personNames.join(', ')}><UserCheckIcon /></i>}
-              {photo.strangerCount > 0 && <i title={t(locale, 'photoCard.strangers')}><UserQuestionIcon /></i>}
               {photo.faceCount > 0 && !photo.allEyesOpen && <i title={t(locale, 'photoCard.eyesClosed')}><EyeClosedIcon /></i>}
-              {photo.groupId && <i title={t(locale, 'photoCard.series')}><LayersIcon /></i>}
               {isBestOfSeries && <i title={t(locale, 'photoCard.bestOfSeries')}><RibbonIcon /></i>}
               {underexposed && <i title={t(locale, 'photoCard.underexposed')}><UnderexposedIcon /></i>}
               {awkward && <i title={t(locale, 'photoCard.awkward')}><AwkwardExpressionIcon /></i>}
               {photo.clientFeedback === 'like' && <i title={t(locale, 'photoCard.clientLiked')}><HeartIcon /></i>}
               {photo.clientFeedback === 'dislike' && <i title={t(locale, 'photoCard.clientDisliked')}><HeartOffIcon /></i>}
             </span>
-          )}
-        </span>
+          </span>
+        )}
         {density === 'large' && cardExifLine(photo) && (
           <span className="card-exif-line mono">{cardExifLine(photo)}</span>
         )}

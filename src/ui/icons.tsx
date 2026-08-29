@@ -198,6 +198,14 @@ export function GearIcon(p: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+/** Cardul "1000+ poze" din ecranul de start (redesign PRO) — fulger. */
+export function BoltIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg {...base} {...p}><path d="M13 2L4 14h6l-1 8 9-12h-6z" /></svg>;
+}
+/** Cardul "AI care învață" din ecranul de start (redesign PRO) — tinta. */
+export function TargetIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg {...base} {...p}><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="4.5" /><circle cx="12" cy="12" r="0.6" fill="currentColor" /></svg>;
+}
 export function AccessibilityIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><circle cx="12" cy="5" r="1.7" fill="currentColor" stroke="none" /><path d="M12 7.5v6.5" /><path d="M7 10.5h10" /><path d="M12 14l-4 5" /><path d="M12 14l4 5" /></svg>;
 }

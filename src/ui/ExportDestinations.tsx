@@ -1,12 +1,33 @@
-import { useEffect, useRef } from 'react';
-import { useStore } from '../state/store';
+import { useEffect, useRef, useState } from 'react';
+import { useStore, type PhotoView } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
-import { XIcon, FolderIcon, UploadIcon, TagIcon } from './icons';
-import { getDirectoryPicker } from '../core/export/directoryPicker';
+import { XIcon, FolderIcon, UploadIcon, TagIcon, CheckIcon } from './icons';
 import { FREE_PHOTOS_PER_MONTH } from '../core/entitlement';
 import { exportAllowanceWarning } from '../state/freeAllowance';
 import { sumKnownSizeBytes, formatSize } from '../state/storageStats';
+import { getCachedThumbUrl, peekThumbUrl } from '../core/thumbUrlCache';
 import { t, plural } from '../i18n';
+
+/** Rand de fisier din "Fisiere selectate" (mockup "Lumin Culler PRO") — miniatura reala din cache, nu un placeholder. */
+function ExportFileRow({ photo }: { photo: PhotoView }) {
+  const [src, setSrc] = useState<string | null>(() => peekThumbUrl(photo.id));
+  useEffect(() => {
+    if (src) return;
+    let alive = true;
+    void getCachedThumbUrl(photo.id).then(url => { if (alive && url) setSrc(url); });
+    return () => { alive = false; };
+  }, [photo.id, src]);
+  return (
+    <li className="export-file-row">
+      <span className="export-file-thumb" aria-hidden="true">{src && <img src={src} alt="" />}</span>
+      <span className="export-file-name mono">{photo.fileName}</span>
+      <span className="export-file-check" aria-hidden="true"><CheckIcon /></span>
+    </li>
+  );
+}
+
+/** Peste atat, lista devine un perete de miniaturi fara sa mai adauge informatie — un numar ajunge. */
+const EXPORT_FILE_LIST_MAX = 8;
 
 /**
  * ui/ExportDestinations.tsx
@@ -42,6 +63,16 @@ export function ExportDestinations() {
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const containerRef = useRef<HTMLDivElement>(null);
   useModalFocusTrap(containerRef, open);
+  /* Cele trei comutatoare din mockup — actiuni reale, nu decor:
+     "Copiaza in folder" = exportSelection('folder') (cade singur pe
+     descarcare daca platforma n-are selector de folder, vezi
+     core/exportPhotos.ts), "Descarca individual" = exportSelection('apps')
+     (foaia de partajare/descarcare a sistemului), "Lista JSON pentru
+     Lightroom" = exportXMP() — cel mai apropiat echivalent real (sidecar-uri
+     .xmp, nu JSON literal, dar acelasi rol: munca de triaj, nu pozele). */
+  const [toFolder, setToFolder] = useState(true);
+  const [individually, setIndividually] = useState(false);
+  const [xmpList, setXmpList] = useState(true);
 
   useEffect(() => {
     if (!open) return;
@@ -64,9 +95,16 @@ export function ExportDestinations() {
 
   const selected = photos.filter(p => p.status === 'selected');
   const selectedCount = selected.length;
-  const hasFolderPicker = getDirectoryPicker() !== null;
   const allowance = exportAllowanceWarning(selectedCount, photosUsed, FREE_PHOTOS_PER_MONTH, premiumLocked);
-  const send = (destination: 'folder' | 'apps') => { void exportSelection(destination); };
+  const startExport = () => {
+    if (xmpList) void exportXMP();
+    if (toFolder) void exportSelection('folder');
+    else if (individually) void exportSelection('apps');
+    // Doar lista Lightroom bifata (fara Copiaza/Descarca): nimic de aratat in
+    // inelul de progres, deci inchidem sertarul aici — exportXMP isi are
+    // propriul semnal (notice), separat.
+    else setOpen(false);
+  };
 
   if (exportProgress) {
     const percent = Math.round((exportProgress.done / exportProgress.total) * 100);
@@ -110,8 +148,9 @@ export function ExportDestinations() {
           </button>
         </header>
 
-        <p className="export-dest-count">
+        <p className="export-dest-count mono">
           {tr(plural(selectedCount, 'exportDest.count.one', 'exportDest.count.other'), { count: selectedCount })}
+          {selectedCount > 0 && <>{' · '}{formatSize(sumKnownSizeBytes(selected))}</>}
         </p>
 
         {/* Plafonul, spus cat timp omul inca poate alege altfel. Pana acum,
@@ -130,41 +169,51 @@ export function ExportDestinations() {
           </p>
         )}
 
-        <button className="export-dest-row" onClick={() => send('apps')}>
-          <span className="export-dest-icon" aria-hidden="true"><UploadIcon /></span>
-          <span className="export-dest-text">
-            <b>{tr('exportDest.apps.title')}</b>
-            <span>{tr('exportDest.apps.sub')}</span>
-          </span>
-        </button>
+        {/* Trei comutatoare, ca in mockup — fiecare o actiune reala (vezi
+            startExport mai sus), nu o bifa decorativa. "Copiaza in folder"
+            ramane bifat implicit chiar si fara selector de folder pe
+            platforma curenta: exportSelection('folder') cade singur pe
+            descarcare in acel caz (vezi core/exportPhotos.ts), deci
+            comutatorul tot are efect real. */}
+        <div className="export-toggle-list">
+          <label className="export-toggle-row">
+            <span className="export-toggle-icon" aria-hidden="true"><FolderIcon /></span>
+            <span className="export-toggle-text">{tr('exportDest.toggle.folder')}</span>
+            <input type="checkbox" className="export-toggle-switch" checked={toFolder} onChange={e => setToFolder(e.target.checked)} />
+          </label>
+          <label className="export-toggle-row">
+            <span className="export-toggle-icon" aria-hidden="true"><UploadIcon /></span>
+            <span className="export-toggle-text">{tr('exportDest.toggle.individually')}</span>
+            <input type="checkbox" className="export-toggle-switch" checked={individually} onChange={e => setIndividually(e.target.checked)} />
+          </label>
+          <label className="export-toggle-row">
+            <span className="export-toggle-icon export-toggle-icon-xmp" aria-hidden="true"><TagIcon /></span>
+            <span className="export-toggle-text">{tr('exportDest.toggle.xmp')}</span>
+            <input type="checkbox" className="export-toggle-switch" checked={xmpList} onChange={e => setXmpList(e.target.checked)} />
+          </label>
+        </div>
 
-        {hasFolderPicker && (
-          <button className="export-dest-row" onClick={() => send('folder')}>
-            <span className="export-dest-icon" aria-hidden="true"><FolderIcon /></span>
-            <span className="export-dest-text">
-              <b>{tr('exportDest.folder.title')}</b>
-              <span>{tr('exportDest.folder.sub')}</span>
-            </span>
-          </button>
+        {selectedCount > 0 && (
+          <>
+            <p className="export-file-list-label">{tr('exportDest.fileList.label', { count: selectedCount })}</p>
+            <ul className="export-file-list">
+              {selected.slice(0, EXPORT_FILE_LIST_MAX).map(p => <ExportFileRow key={p.id} photo={p} />)}
+            </ul>
+            {selectedCount > EXPORT_FILE_LIST_MAX && (
+              <p className="export-file-list-more">{tr('exportDest.fileList.more', { count: selectedCount - EXPORT_FILE_LIST_MAX })}</p>
+            )}
+          </>
         )}
 
-        {/* A treia destinatie: munca de triaj, nu pozele.
-            Exportul XMP exista de mult si e testat, dar traia intr-o sectiune
-            colapsata din meniu, sub eticheta "Etichete Lightroom (XMP)" — pe
-            care o recunoaste doar cine stie deja ce e un sidecar. Aici, in
-            ecranul in care tocmai ai terminat de ales si te intrebi unde pleaca
-            rezultatul, e exact locul in care are sens: pentru un fotograf,
-            "unde pleaca" nu inseamna intotdeauna fisiere copiate, ci decizia
-            dusa mai departe in programul in care lucreaza. */}
-        <button className="export-dest-row" onClick={() => { setOpen(false); void exportXMP(); }}>
-          <span className="export-dest-icon" aria-hidden="true"><TagIcon /></span>
-          <span className="export-dest-text">
-            <b>{tr('exportDest.xmp.title')}</b>
-            <span>{tr('exportDest.xmp.sub')}</span>
-          </span>
-        </button>
-
         <p className="export-dest-note">{tr('exportDest.note')}</p>
+
+        <button
+          type="button" className="btn-accent big export-start-btn"
+          disabled={selectedCount === 0 || (!toFolder && !individually && !xmpList)}
+          onClick={startExport}
+        >
+          <UploadIcon className="inline-icon" aria-hidden="true" /> {tr('exportDest.start')}
+        </button>
       </div>
     </div>
   );

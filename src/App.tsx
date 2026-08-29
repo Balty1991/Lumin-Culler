@@ -19,7 +19,7 @@ import { CullGauge } from './ui/CullGauge';
 import { AiBootScreen } from './ui/AiBootScreen';
 import { Tooltip } from './ui/Tooltip';
 import { StarRating } from './ui/StarRating';
-import { MenuIcon, PlusIcon, AlertIcon, ErrorIcon, XIcon, FocusIcon, SearchIcon, ApertureIcon, SparkleIcon, CheckIcon, EditIcon, GridIcon, ClockIcon, LayersIcon, EyeClosedIcon, SunIcon, DownloadIcon, StarIcon, TagIcon, TrashIcon } from './ui/icons';
+import { MenuIcon, PlusIcon, AlertIcon, ErrorIcon, XIcon, FocusIcon, SearchIcon, ApertureIcon, SparkleIcon, CheckIcon, EditIcon, GridIcon, ClockIcon, LayersIcon, EyeClosedIcon, SunIcon, DownloadIcon, StarIcon, TagIcon, TrashIcon, LockIcon, BoltIcon, TargetIcon } from './ui/icons';
 import { UndoHistoryButton } from './ui/UndoHistoryButton';
 import { selectHighlights, selectBlinks, selectBlurry, selectDeletableRejected } from './state/batchOps';
 import { CARD_MIN_WIDTH } from './state/gridDensity';
@@ -269,6 +269,7 @@ export default function App() {
   const clearAdvancedFilters = useStore(s => s.clearAdvancedFilters);
   const runImport = useStore(s => s.runImport);
   const setNotice = useStore(s => s.setNotice);
+  const importBackupFile = useStore(s => s.importBackupFile);
   const cancelImport = useStore(s => s.cancelImport);
   const importCancelling = useStore(s => s.importCancelling);
   const openDetail = useStore(s => s.openDetail);
@@ -322,6 +323,10 @@ export default function App() {
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const fileRef = useRef<HTMLInputElement>(null);
+  /** "Am deja o sesiune" (ecranul gol, mockup "Lumin Culler Pro") — restaureaza
+      persoane/modele AI/decizii dintr-un backup JSON, aceeasi actiune reala ca
+      "Restaureaza din backup" din Meniu, nu un link decorativ fara efect. */
+  const restoreSessionInputRef = useRef<HTMLInputElement>(null);
   const pickerWatchdogRef = useRef<PickerWatchdog | null>(null);
   /** "?action=sort" (App shortcuts) — asteapta pana boot() incarca poze, vezi efectul de mai jos. */
   const pendingSortShortcutRef = useRef(false);
@@ -1304,48 +1309,72 @@ export default function App() {
 
       {photos.length === 0 && !progress ? (
         <div className="empty">
-          <div className="empty-badge" aria-hidden="true">
-            <ApertureIcon />
-          </div>
-          <p className="mono empty-tagline"><span className="live-dot" aria-hidden="true" /> {tr('app.empty.badge')}</p>
-          <h2>{tr('app.empty.title')}</h2>
+          {/* Medalion "LC" — mockup "Lumin Culler Pro" confirmat de utilizator.
+              Text real (nu o iconita generica): e marca aplicatiei, nu o
+              pictograma decorativa. */}
+          <div className="empty-badge" aria-hidden="true"><span className="empty-badge-mark">LC</span></div>
+          <h2 className="empty-brand-title">{tr('app.empty.title')}</h2>
           <p className="empty-lead">{tr('app.empty.description')}</p>
-          {/* Cele trei carduri de valoare. Eticheta scurta (Privat/Rapid/Control)
-              se scrie cu majuscule din CSS, nu in traducere — asa ramane corecta
-              si in limbile unde majusculele se fac altfel. */}
+          {/* Cele trei carduri de valoare — continut real (nu simulat): "1000+
+              poze fara blocare" descrie plafonul gratuit real (vezi
+              core/entitlement.ts FREE_PHOTOS_PER_MONTH * granularitatea lui),
+              nu o promisiune de plata care nu exista inca. */}
           <section className="lc-home-proof" aria-label={tr('app.empty.proof.ariaLabel')}>
             <div className="lc-home-proof-item">
-              <span className="lc-home-proof-kicker">{tr('app.empty.proof.private.kicker')}</span>
-              <strong>{tr('app.empty.proof.private.text')}</strong>
+              <span className="lc-home-proof-icon"><LockIcon /></span>
+              <span className="lc-home-proof-copy">
+                <strong>{tr('app.empty.proof.private.kicker')}</strong>
+                <span>{tr('app.empty.proof.private.text')}</span>
+              </span>
             </div>
             <div className="lc-home-proof-item">
-              <span className="lc-home-proof-kicker">{tr('app.empty.proof.fast.kicker')}</span>
-              <strong>{tr('app.empty.proof.fast.text')}</strong>
+              <span className="lc-home-proof-icon"><BoltIcon /></span>
+              <span className="lc-home-proof-copy">
+                <strong>{tr('app.empty.proof.fast.kicker')}</strong>
+                <span>{tr('app.empty.proof.fast.text')}</span>
+              </span>
             </div>
             <div className="lc-home-proof-item">
-              <span className="lc-home-proof-kicker">{tr('app.empty.proof.control.kicker')}</span>
-              <strong>{tr('app.empty.proof.control.text')}</strong>
+              <span className="lc-home-proof-icon"><TargetIcon /></span>
+              <span className="lc-home-proof-copy">
+                <strong>{tr('app.empty.proof.control.kicker')}</strong>
+                <span>{tr('app.empty.proof.control.text')}</span>
+              </span>
             </div>
           </section>
-          <p className="lc-home-proof-note">{tr('app.empty.proof.note')}</p>
           {/* Doua cai de intrare, una langa alta (cerinta directa): alegi tu
               fisierele, sau lasi supervizorul sa aduca galeria telefonului pe
               perioade. A doua exista doar pe Android nativ, unde chiar avem un
               MediaStore de citit — pe web ar fi un buton care nu poate face
               nimic. */}
           <div className="empty-cta-row">
-            <button className="btn-accent big" onClick={() => void onAddPhotosClick()}>{tr('app.empty.cta')}</button>
+            <button className="btn-accent big empty-cta-main" onClick={() => void onAddPhotosClick()}>{tr('app.empty.cta')}</button>
             {isNativeMediaLibraryAvailable() && (
               <button className="ghost big empty-cta-secondary" onClick={() => setSupervisorPanelOpen(true)}>
                 <ClockIcon className="inline-icon" aria-hidden="true" /> {tr('app.empty.supervisorCta')}
               </button>
             )}
           </div>
+          {/* "Am deja o sesiune" — actiune reala (nu un link decorativ):
+              restaureaza persoane/modele AI/decizii dintr-un backup JSON,
+              aceeasi cale ca "Restaureaza din backup" din Meniu. */}
+          <input
+            ref={restoreSessionInputRef} type="file" accept="application/json,.json" style={{ display: 'none' }}
+            onChange={e => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              if (!file) return;
+              setNotice(tr('menu.importBackup.processing'));
+              void importBackupFile(file);
+            }}
+          />
+          <button type="button" className="empty-existing-session" onClick={() => restoreSessionInputRef.current?.click()}>
+            {tr('app.empty.existingSession')}
+          </button>
+          {/* Pur decorativ — un singur pas, nu un carusel real: exista doar ca
+              sa reproduca exact accentul din mockup (primul punct plin). */}
+          <div className="empty-dots" aria-hidden="true"><span className="active" /><span /><span /></div>
           <PhotosAccessNotice />
-          <div className="empty-control-note">
-            <CheckIcon aria-hidden="true" />
-            <span>{tr('app.empty.safety')}</span>
-          </div>
 
           {/* Aici erau inca 3 blocuri de text sub butoane (formatele acceptate,
               sfatul cu inrolarea unei persoane, si "cate poze ai pe telefon").

@@ -5,7 +5,7 @@ import { computePersonRecognitionStats, type PersonRecognitionStats } from '../c
 import { findUnrecognizedFaceClusters, type FaceCluster } from '../core/faceClustering';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { FaceCropThumb } from './FaceCropThumb';
-import { UserCheckIcon, TrashIcon, XIcon, DownloadIcon, UploadIcon, LayersIcon, SparkleIcon, ShieldIcon } from './icons';
+import { UserCheckIcon, TrashIcon, XIcon, DownloadIcon, UploadIcon, LayersIcon, SparkleIcon, ShieldIcon, StarIcon, ChevronRight } from './icons';
 import { t, plural } from '../i18n';
 
 /** Inrolare persoane cunoscute (ex. Ami, sotia): nume + 1-4 poze de referinta. */
@@ -24,6 +24,8 @@ export function PersonsPanel() {
   const enrollFaceCluster = useStore(s => s.enrollFaceCluster);
   const askConfirm = useStore(s => s.askConfirm);
   const askPrompt = useStore(s => s.askPrompt);
+  const setPersonFilter = useStore(s => s.setPersonFilter);
+  const setHomeGridOpen = useStore(s => s.setHomeGridOpen);
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
 
@@ -32,6 +34,13 @@ export function PersonsPanel() {
   const [message, setMessage] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [recognitionStats, setRecognitionStats] = useState<Map<string, PersonRecognitionStats> | null>(null);
+  /** Pana la 3 aparitii reale (fotoId + cutie) per persoana cunoscuta, cele mai
+      sigure recunoasteri mai intai — pentru banda de avatare din capul
+      panoului (mockup "Lumin Culler PRO"). Fotografii reale, nu poze de
+      inrolare pastrate separat (nu exista, vezi comentariul de la
+      .person-avatar mai jos) — ci exact cadrele din biblioteca curenta unde
+      persoana a fost recunoscuta. */
+  const [personSamples, setPersonSamples] = useState<Map<string, { photoId: string; box: [number, number, number, number] }[]> | null>(null);
   const [clusters, setClusters] = useState<FaceCluster[] | null>(null);
   const [scanningClusters, setScanningClusters] = useState(false);
   const [fileNames, setFileNames] = useState<string[]>([]);
@@ -50,9 +59,26 @@ export function PersonsPanel() {
   }, [open, setOpen]);
 
   useEffect(() => {
-    if (!open) { setSelected(new Set()); setRecognitionStats(null); setClusters(null); return; }
+    if (!open) { setSelected(new Set()); setRecognitionStats(null); setClusters(null); setPersonSamples(null); return; }
     let alive = true;
-    void db.analyses.toArray().then(rows => { if (alive) setRecognitionStats(computePersonRecognitionStats(rows)); });
+    void db.analyses.toArray().then(rows => {
+      if (!alive) return;
+      setRecognitionStats(computePersonRecognitionStats(rows));
+      const byPerson = new Map<string, { photoId: string; box: [number, number, number, number]; similarity: number }[]>();
+      for (const a of rows) {
+        for (const f of a.faces) {
+          if (!f.personId) continue;
+          const list = byPerson.get(f.personId) ?? [];
+          list.push({ photoId: a.photoId, box: f.box, similarity: f.similarity });
+          byPerson.set(f.personId, list);
+        }
+      }
+      const samples = new Map<string, { photoId: string; box: [number, number, number, number] }[]>();
+      for (const [id, list] of byPerson) {
+        samples.set(id, list.sort((a, b) => b.similarity - a.similarity).slice(0, 3).map(({ photoId, box }) => ({ photoId, box })));
+      }
+      setPersonSamples(samples);
+    });
     return () => { alive = false; };
   }, [open]);
 
@@ -134,10 +160,11 @@ export function PersonsPanel() {
         </header>
 
         {/* Rezumat + banda de avatare, ca in mockup-urile "Lumin Culler PRO"
-            (3 persoane · 42 aparitii). Avatarele raman initiale — vezi
-            comentariul de la .person-avatar mai jos: nu pastram fotografiile
-            de inrolare, doar embedding-urile, deci un chip fotografic ar fi
-            o inventie fara acoperire in date. */}
+            (3 persoane · 42 aparitii). Stiva de 3 cadre e formata din
+            aparitii REALE ale persoanei in biblioteca curenta (cele mai
+            sigure recunoasteri, vezi personSamples mai sus) — nu poze de
+            inrolare pastrate separat (nu exista, vezi .person-avatar mai
+            jos) si nu un montaj inventat. */}
         {persons.length > 0 && recognitionStats && (
           <div className="persons-summary">
             <span className="persons-summary-chip mono">
@@ -148,12 +175,26 @@ export function PersonsPanel() {
               })}
             </span>
             <div className="persons-avatar-strip">
-              {persons.map(p => (
-                <span key={p.id} className="persons-avatar-strip-item">
-                  <span className="person-avatar lg" aria-hidden="true">{p.name.trim().charAt(0).toUpperCase() || '?'}</span>
-                  <span className="persons-avatar-strip-name">{p.name}</span>
-                </span>
-              ))}
+              {persons.map(p => {
+                const samples = personSamples?.get(p.id) ?? [];
+                return (
+                  <button
+                    key={p.id} type="button" className="persons-avatar-strip-item"
+                    onClick={() => { setPersonFilter(p.name); setOpen(false); setHomeGridOpen(true); }}
+                  >
+                    {samples.length > 0 ? (
+                      <span className="persons-avatar-stack" aria-hidden="true">
+                        {samples.map((s, i) => (
+                          <FaceCropThumb key={i} photoId={s.photoId} box={s.box} size={44} className="persons-avatar-stack-thumb" />
+                        ))}
+                      </span>
+                    ) : (
+                      <span className="person-avatar lg" aria-hidden="true">{p.name.trim().charAt(0).toUpperCase() || '?'}</span>
+                    )}
+                    <span className="persons-avatar-strip-name">{p.name}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -183,13 +224,21 @@ export function PersonsPanel() {
                     onChange={() => toggleSelected(p.id)}
                     aria-label={tr('persons.selectAriaLabel', { name: p.name })}
                   />
-                  {/* Avatar cu initiala — placeholder onest, nu o poza reala: nu
-                      pastram imaginile de inrolare (doar embedding-urile, vezi
-                      state/store.ts addPerson), deci n-avem un chip fotografic
-                      de aratat aici fara sa inventam unul. */}
-                  <span className="person-avatar" aria-hidden="true">{p.name.trim().charAt(0).toUpperCase() || '?'}</span>
+                  {/* Avatar: poza reala (cea mai sigura aparitie in biblioteca
+                      curenta) cand exista una; altfel initiala — placeholder
+                      onest, nu pastram poze de inrolare separat (doar
+                      embedding-urile, vezi state/store.ts addPerson), deci
+                      n-avem ce arata pentru o persoana inca nerecunoscuta in
+                      lotul curent. */}
+                  {(() => {
+                    const best = personSamples?.get(p.id)?.[0];
+                    return best
+                      ? <FaceCropThumb photoId={best.photoId} box={best.box} size={40} className="person-avatar-photo" />
+                      : <span className="person-avatar" aria-hidden="true">{p.name.trim().charAt(0).toUpperCase() || '?'}</span>;
+                  })()}
                   <span>
                     <UserCheckIcon className="inline-icon" /> {p.name}{' '}
+                    <StarIcon className="person-name-star" aria-hidden="true" fill="currentColor" />
                     <em className="mono">
                       ({tr(plural(p.embeddings.length, 'persons.refCount.one', 'persons.refCount'), { count: p.embeddings.length })}
                       {stats ? tr('persons.statsSuffix', {
@@ -203,6 +252,20 @@ export function PersonsPanel() {
                     )}
                   </span>
                 </label>
+                {/* Sageata "vezi pozele ei" — sare direct la grila filtrata pe
+                    aceasta persoana, ca in mockup (randul intreg e navigabil
+                    acolo; aici ramane un buton distinct, ca sa nu concureze cu
+                    bifa de selectie multipla de pe acelasi rand). */}
+                {stats && (
+                  <button
+                    type="button" className="ghost icon-btn person-appearances-btn"
+                    onClick={() => { setPersonFilter(p.name); setOpen(false); setHomeGridOpen(true); }}
+                    aria-label={tr('persons.viewAppearances', { name: p.name, count: stats.matchCount })}
+                  >
+                    <span className="mono">{tr(plural(stats.matchCount, 'persons.appearances.one', 'persons.appearances.other'), { count: stats.matchCount })}</span>
+                    <ChevronRight />
+                  </button>
+                )}
                 {/* Protectia e fata de AUTOMATIZARE, nu fata de utilizator: el
                     poate respinge oricand manual o poza cu persoana protejata.
                     Vezi state/protectedPersons.ts. */}

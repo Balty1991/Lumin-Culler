@@ -49,6 +49,11 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
   const setStatus = useStore(s => s.setStatus);
   const setRating = useStore(s => s.setRating);
   const locale = useStore(s => s.locale);
+  // Pozitia in coada arata la fel de mult cat conteaza pentru stepDetail
+  // (navigheaza prin lista FILTRATA, nu prin toata biblioteca) — vezi
+  // stepDetail in state/store.ts.
+  const photos = useStore(s => s.filtered());
+  const photoIndex = photos.findIndex(p => p.id === photo.id);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const [src, setSrc] = useState<string | null>(null);
   const [zoomed, setZoomed] = useState(false);
@@ -324,9 +329,16 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
           <button className="detail-overlay-btn" onClick={() => openDetail(null)} aria-label={tr('detail.close')}>
             <XIcon />
           </button>
-          <span className="detail-stage-filename mono">{photo.fileName}</span>
-          <span className={`status-tag st-${photo.status}`}>
-            {photo.status === 'selected' ? tr('workspace.status.selected') : photo.status === 'rejected' ? tr('workspace.status.rejected') : photo.status === 'candidate' ? tr('workspace.status.candidate') : tr('workspace.status.review')}
+          {/* Marca + pozitia in coada, ca in mockup "Lumin Culler Pro" — numele
+              real de fisier ramane accesibil (eticheta ARIA a dialogului si
+              tab-ul Metrici), doar nu mai e afisat pe rand aici. Statusul
+              (selectat/respins/...) ramane vizibil prin ScoreReason, chiar
+              deasupra butoanelor de decizie. */}
+          <span className="detail-stage-center">
+            <span className="detail-stage-brand">Lumin<b>Culler</b> Pro</span>
+            {photoIndex >= 0 && (
+              <span className="detail-stage-position mono">{photoIndex + 1} / {photos.length}</span>
+            )}
           </span>
           <button className="detail-overlay-btn" onClick={() => openEdit(photo.id)} aria-label={tr('edit.open')} title={tr('edit.open')}>
             <EditIcon />
@@ -382,19 +394,21 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
             ca sa nu se suprapuna peste continutul lui. */}
         {!zoomed && (
           <div className={sheetExpanded ? 'detail-fab-row hidden' : 'detail-fab-row'} aria-hidden={sheetExpanded}>
-            <button
-              className="detail-fab detail-fab-reject" onPointerDown={e => e.stopPropagation()}
-              onClick={e => { e.stopPropagation(); void setStatus(photo.id, 'rejected'); stepDetail(1); }}
-              aria-label={tr('workspace.action.reject')} tabIndex={sheetExpanded ? -1 : 0}
-            >
-              <XIcon />
-            </button>
+            {/* Butoane mari, cu eticheta — mockup "Lumin Culler Pro" (SELECTEAZA/
+                RESPINGE), in locul celor doua cercuri doar-icon de dinainte. */}
             <button
               className="detail-fab detail-fab-select" onPointerDown={e => e.stopPropagation()}
               onClick={e => { e.stopPropagation(); void setStatus(photo.id, 'selected'); stepDetail(1); }}
-              aria-label={tr('workspace.action.select')} tabIndex={sheetExpanded ? -1 : 0}
+              tabIndex={sheetExpanded ? -1 : 0}
             >
-              <CheckIcon />
+              <CheckIcon /> {tr('workspace.action.select')}
+            </button>
+            <button
+              className="detail-fab detail-fab-reject" onPointerDown={e => e.stopPropagation()}
+              onClick={e => { e.stopPropagation(); void setStatus(photo.id, 'rejected'); stepDetail(1); }}
+              tabIndex={sheetExpanded ? -1 : 0}
+            >
+              <XIcon /> {tr('workspace.action.reject')}
             </button>
           </div>
         )}
