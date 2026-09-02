@@ -6430,6 +6430,10 @@ button:disabled,
   display: grid;
   gap: 1px;
   justify-items: center;
+  /* Copiii unei grile primesc implicit `min-width: auto`, adica nu se lasa mai
+     ingusti decat continutul lor — de-aia un numar prea lat impinge din caseta
+     in loc sa fie stramtorat de ea. */
+  min-width: 0;
   padding: 11px 6px 10px;
   border-radius: 16px;
   background: var(--surface-3);
@@ -6442,7 +6446,12 @@ button:disabled,
    pentru care bara asta ocupa spatiu pe ecranul principal. */
 .cull-strength-kept {
   font-family: var(--font-display);
-  font-size: 1.55rem;
+  /* Cifra se ingusteaza pe ecrane mici. Fixa la 1.55rem, un numar de patru
+     cifre (1268) iesea din caseta pe un telefon de 320px — si patru cifre e
+     cazul NORMAL pentru publicul aplicatiei, nu o exceptie: un fotograf care
+     importa 1500 de poze le vede la prima pornire. Verificat randand bara la
+     320 si 360px cu numere de patru cifre. */
+  font-size: clamp(1.1rem, 5.4vw, 1.55rem);
   font-weight: 800;
   line-height: 1.1;
   color: var(--text);
