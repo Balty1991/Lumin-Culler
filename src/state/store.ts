@@ -210,6 +210,18 @@ export interface PhotoView {
   sceneTags?: string[];
   /** Fractiune din cadru acoperita de text OCR (doar Android nativ) — vezi AnalysisRecord.textCoverage si core/documentShield.ts. */
   textCoverage?: number;
+  /**
+   * Zone arse / infundate, ca fractiune din cadru — vezi AnalysisRecord.
+   *
+   * Sunt aici DOAR ca previzualizarea severitatii (ui/CullStrengthBar.tsx) sa
+   * poata da acelasi raspuns ca motorul, fara sa citeasca baza de date. Erau
+   * singurele doua intrari ale lui hasNamedDefect care nu ajungeau in
+   * PhotoView, iar fara ele previzualizarea ar fi fost aproape corecta —
+   * adica un numar in care nu poti avea incredere, ceea ce e mai rau decat
+   * niciun numar.
+   */
+  highlightClipping?: number;
+  shadowClipping?: number;
   /** Placeholder minuscul blurat, disponibil sincron — vezi PhotoRecord.lqip. Absent pe importuri vechi. */
   lqip?: string;
   /** Ajustari de baza non-destructive (expunere/contrast/...) — vezi core/imageAdjust.ts si PhotoRecord.edits. Absent = fara ajustari. */
@@ -972,7 +984,9 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     dominantColors: analysis?.dominantColors,
     sceneSemantic: analysis?.sceneSemantic,
     sceneTags: analysis?.sceneTags,
-    textCoverage: analysis?.textCoverage
+    textCoverage: analysis?.textCoverage,
+    highlightClipping: analysis?.highlightClipping,
+    shadowClipping: analysis?.shadowClipping
   };
 }
 

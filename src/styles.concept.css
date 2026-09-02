@@ -6406,3 +6406,65 @@ button:disabled,
 @media (prefers-reduced-motion: reduce) {
   .drawer-strictness-pill { transition: none; }
 }
+
+/* ── "Cât de exigent e AI-ul", pe ecranul principal ──
+   Trei coloane care se compara pe verticala: acelasi rand de nume, acelasi rand
+   de cifre mari, acelasi rand de "respinse". Ochiul citeste diferenta dintre
+   trepte dintr-o singura sacada, ceea ce nu s-ar intampla daca ar fi trei
+   randuri unul sub altul. Vezi CullStrengthBar.tsx pentru de ce cifrele sunt
+   calculate, nu estimate. */
+.cull-strength {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0 0;
+  padding: 14px;
+  border-radius: 22px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.cull-strength-head { display: grid; gap: 2px; }
+.cull-strength-eyebrow { font-size: .62rem; font-weight: 800; letter-spacing: .13em; color: var(--text-faint); }
+.cull-strength-sub { font-size: .72rem; color: var(--text-dim); }
+.cull-strength-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.cull-strength-cell {
+  display: grid;
+  gap: 1px;
+  justify-items: center;
+  padding: 11px 6px 10px;
+  border-radius: 16px;
+  background: var(--surface-3);
+  box-shadow: inset 0 0 0 1px transparent;
+  transition: background .18s var(--ease), box-shadow .18s var(--ease), transform .12s var(--ease);
+}
+.cull-strength-cell:active { transform: scale(.97); }
+.cull-strength-name { font-size: .7rem; font-weight: 700; color: var(--text-dim); }
+/* Cifra e eroul cardului: e singurul lucru nou fata de meniu, si singurul motiv
+   pentru care bara asta ocupa spatiu pe ecranul principal. */
+.cull-strength-kept {
+  font-family: var(--font-display);
+  font-size: 1.55rem;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.cull-strength-legend { font-size: .58rem; letter-spacing: .06em; text-transform: uppercase; color: var(--text-faint); }
+/* Detaliul treptei alese, sub rand. Neutru, nu rosu: linia spune si cate se
+   pastreaza, si cate se resping — colorata dupa a doua jumatate, parea o
+   avertizare despre amandoua. */
+.cull-strength-detail {
+  margin: 0;
+  font-size: .68rem;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+.cull-strength-cell.is-on {
+  background: rgb(var(--accent-rgb) / .13);
+  box-shadow: inset 0 0 0 1.5px rgb(var(--accent-rgb) / .55);
+}
+.cull-strength-cell.is-on .cull-strength-name,
+.cull-strength-cell.is-on .cull-strength-kept { color: var(--accent-text); }
+.cull-strength-note { margin: 0; font-size: .64rem; line-height: 1.45; color: var(--text-faint); }
+@media (prefers-reduced-motion: reduce) {
+  .cull-strength-cell { transition: none; }
+}

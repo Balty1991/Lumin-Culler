@@ -14,6 +14,7 @@ import { selectUnresolvedGroups } from '../state/duplicateGroups';
 import { AnimatedNumber } from './AnimatedNumber';
 import { GalleryOverviewNote } from './GalleryOverviewNote';
 import { QuickScanFind } from './QuickScanFind';
+import { CullStrengthBar } from './CullStrengthBar';
 import { SessionOutcome } from './SessionOutcome';
 import { SparkleIcon, PinIcon, ChevronUpIcon, ShieldIcon, CopyIcon, TrashIcon } from './icons';
 import { t, plural } from '../i18n';
@@ -371,6 +372,11 @@ export function HomeDashboard() {
               <span>{reviewDeskPhoto.fileName}</span>
             </div>
           </section>
+
+          {/* IMEDIAT sub cardul cu poza urmatoare, si inaintea bibliotecii:
+              raspunde la intrebarea care apare fix atunci ("de ce imi propune
+              astea?"), nu la una pe care ar trebui s-o cauti in meniu. */}
+          <CullStrengthBar />
 
           <section className="review-desk-library" aria-label={tr('reviewDesk.libraryLabel')}>
             <button onClick={() => setHomeGridOpen(true)}>
