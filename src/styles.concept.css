@@ -6477,3 +6477,81 @@ button:disabled,
 @media (prefers-reduced-motion: reduce) {
   .cull-strength-cell { transition: none; }
 }
+
+/* ── Ecranul de rezultat, dupa analiza ──
+   Cardul spunea corect ce s-a intamplat, dar numai in propozitii. Rezultatul
+   unui import de o mie de poze merita sa fie un lucru la care te uiti. Vezi
+   SessionOutcome.tsx pentru ce s-a adaugat si de ce. */
+.session-outcome-hero {
+  display: grid;
+  gap: 0;
+  margin: 6px 0 2px;
+}
+.session-outcome-hero > b {
+  font-family: var(--font-display);
+  font-weight: 800;
+  /* Aceeasi grija ca la bara de severitate: patru cifre trebuie sa incapa pe un
+     telefon de 320px. */
+  font-size: clamp(2.4rem, 13vw, 3.9rem);
+  line-height: .92;
+  letter-spacing: -.05em;
+  font-variant-numeric: tabular-nums;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+:root[data-theme="light"] .session-outcome-hero > b {
+  background: none; -webkit-background-clip: unset; background-clip: unset; color: var(--accent-text);
+}
+.session-outcome-hero > span { font-size: .95rem; font-weight: 700; color: var(--text); }
+
+/* Banda cu cele mai bune poze: primul lucru din tot ecranul care e o
+   FOTOGRAFIE, nu o cifra despre fotografii. */
+.session-outcome-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin: 11px 0 0;
+}
+.session-outcome-thumb {
+  aspect-ratio: 1;
+  border-radius: 11px;
+  overflow: hidden;
+  background: var(--skeleton-a);
+  display: block;
+}
+.session-outcome-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.session-outcome-saved {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgb(var(--pick-rgb) / .10);
+  box-shadow: inset 0 0 0 1px rgb(var(--pick-rgb) / .26);
+}
+.session-outcome-saved b { display: block; font-size: .92rem; color: var(--pick-text, var(--pick)); }
+/* Baza cifrei ramane lizibila, nu decorativa: e singurul lucru care face
+   diferenta dintre o masuratoare si o reclama. */
+.session-outcome-saved span { font-size: .68rem; color: var(--text-dim); }
+
+.session-outcome-space {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 10px 0 0;
+  font-size: .78rem;
+  color: var(--text-dim);
+}
+.session-outcome-space .inline-icon { width: 14px; height: 14px; color: var(--reject); flex-shrink: 0; }
+
+.session-outcome-actions { display: grid; gap: 8px; margin-top: 12px; }
+.session-outcome-primary { width: 100%; }
+.session-outcome-secondary {
+  width: 100%;
+  padding: 12px;
+  border-radius: 99px;
+  background: var(--surface-3);
+  color: var(--text);
+  font-weight: 700;
+}
