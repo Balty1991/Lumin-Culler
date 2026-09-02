@@ -99,6 +99,26 @@ describe('PremiumPanel — alegerea planului', () => {
     expect(screen.getByRole('button', { name: 'Începe gratuit — apoi 199,99 lei' })).toBeInTheDocument();
   });
 
+  it('spune conditiile de reinnoire sub buton, cu cifra planului bifat', async () => {
+    // Cerinta Play pentru orice aplicatie cu abonamente, si unul dintre motivele
+    // obisnuite de respingere la review: pretul, perioada si faptul ca se
+    // REINNOIESTE SINGUR trebuie sa fie vizibile INAINTE de plata.
+    mockPlay([LUNAR, ANUAL]);
+    render(<PremiumPanel />);
+
+    expect(await screen.findByText(/se reînnoiește automat cu 199,99 lei în fiecare an/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('radio', { name: /Lunar/ }));
+    expect(screen.getByText(/se reînnoiește automat cu 19,99 lei în fiecare lună/)).toBeInTheDocument();
+  });
+
+  it('cu perioada de proba, conditiile spun ca proba devine plata si cu cat', async () => {
+    mockPlay([LUNAR, { ...ANUAL, trialDays: 7 }]);
+    render(<PremiumPanel />);
+
+    expect(await screen.findByText(/Cele 7 zile gratuite se transformă automat în abonament plătit, 199,99 lei/))
+      .toBeInTheDocument();
+  });
+
   it('fara niciun plan si fara pret, nu apare niciun buton de plata', async () => {
     // Produse neconfigurate in Play Console, sau build nesemnat. Un buton care
     // deschide un flux inexistent e mai rau decat un anunt.

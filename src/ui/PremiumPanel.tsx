@@ -336,6 +336,28 @@ export function PremiumPanel() {
                   ? tr('premium.subscribe.trial', { price: picked.price })
                   : tr('premium.subscribe', { price: picked?.price ?? price! })}
             </button>
+            {/* CONDITIILE, sub buton, inainte de plata.
+
+                Nu e o formalitate juridica pusa ca sa fie: Play cere explicit ca
+                pretul, perioada de facturare si faptul ca abonamentul SE
+                REINNOIESTE SINGUR sa fie vizibile inainte de cumparare, iar cand
+                exista o perioada de proba, sa scrie limpede ca ea se transforma
+                in plata si cu cat. E unul dintre motivele obisnuite de respingere
+                la review pentru aplicatiile cu abonament — si, indiferent de
+                Play, un utilizator care afla abia din extrasul de cont ca s-a
+                reinnoit e un utilizator pierdut, plus o recenzie de o stea.
+
+                Textul urmareste planul BIFAT, deci spune mereu cifra pe care
+                chiar o va incasa butonul de deasupra. */}
+            {picked && (
+              <p className="premium-terms">
+                {picked.trialDays
+                  ? tr(plural(picked.trialDays, 'premium.renewal.trial.one', 'premium.renewal.trial.other'),
+                      { count: picked.trialDays, price: picked.price })
+                  : tr(picked.periodDays > 31 ? 'premium.renewal.yearly' : 'premium.renewal.monthly',
+                      { price: picked.price })}
+              </p>
+            )}
             {failed && <p className="premium-soon" role="alert">{tr('premium.failed')}</p>}
             {/* Cerinta Google Play pentru orice aplicatie cu abonamente, si o
                 nevoie reala: dupa reinstalare sau pe un telefon nou, contul are

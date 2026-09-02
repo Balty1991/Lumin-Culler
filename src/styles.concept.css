@@ -6321,3 +6321,14 @@ button:disabled,
 @media (prefers-reduced-motion: reduce) {
   .boot-splash .empty-badge { animation: none; opacity: 1; transform: none; }
 }
+
+/* Conditiile abonamentului, sub butonul de cumparare. Deliberat mai discret
+   decat butonul, dar NU sters: trebuie sa se poata citi fara efort, fiindca
+   spune cat si cand se incaseaza. Vezi PremiumPanel.tsx pentru de ce e
+   obligatoriu sa fie acolo. */
+.premium-terms {
+  margin: 8px 0 0;
+  font-size: .68rem;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
