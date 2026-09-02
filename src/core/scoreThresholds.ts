@@ -62,6 +62,72 @@ export interface Thresholds {
 
 export const FIXED_THRESHOLDS: Thresholds = { select: SELECT_THRESHOLD, reject: REJECT_THRESHOLD, adapted: false };
 
+/**
+ * Cat de exigent vrea UTILIZATORUL sa fie motorul — singurul lucru din acest
+ * fisier pe care nu-l decide matematica, ci omul.
+ *
+ * De ce exista, dupa ce ne uitasem la concurenta: la Aftershoot, alegerea
+ * nivelului de severitate e functia-titlu, iar reclamatia care se repeta in
+ * recenziile TUTUROR uneltelor de culling e ca AI-ul taie prea mult ("closed-eye
+ * detection is aggressive", "flagged sharp photos as blurry"). Aplicatia asta
+ * isi muta deja pragurile singura cand distributia o cere (vezi deriveThresholds),
+ * dar aia raspunde la intrebarea "e stricat ceva?", nu la "asa vreau eu".
+ * Un utilizator convins ca motorul e prea aspru n-avea nicio parghie.
+ *
+ * 'balanced' e IDENTIC cu comportamentul de pana acum, bit cu bit — cine nu
+ * atinge setarea nu vede nicio schimbare.
+ */
+export type CullingStrictness = 'lax' | 'balanced' | 'strict';
+
+/**
+ * Cate puncte se muta AMANDOUA pragurile, in sus la 'strict' si in jos la 'lax'.
+ *
+ * In sus la strict inseamna: mai greu de intrat in "pastrate" (pragul de
+ * selectie urca) SI mai usor de picat in "respinse" (pragul de respingere urca
+ * si el, deci mai multe poze raman sub el). Cele doua merg in aceeasi directie
+ * fiindca descriu acelasi lucru — cat de usor multumesti motorul — nu doua
+ * reglaje independente.
+ *
+ * 8 puncte, nu 20: pe pragurile fixe (65/35) asta inseamna 57/27 la ingaduitor
+ * si 73/43 la sever. Destul cat sa se vada pe o biblioteca reala, prea putin
+ * cat sa transforme setarea intr-un intrerupator "totul/nimic".
+ */
+const STRICTNESS_SHIFT = 8;
+
+/**
+ * Limitele pentru pragurile alese DE UTILIZATOR, mai largi decat cele ale
+ * adaptarii automate (SELECT_MIN/MAX de mai sus).
+ *
+ * Adaptarea automata e o plasa de siguranta care se declanseaza singura, deci
+ * trebuie sa fie prudenta. Asta e o alegere explicita, asumata, si n-are de ce
+ * sa fie tinuta in aceeasi cusca — altfel, pe o biblioteca unde adaptarea a dus
+ * deja pragul la maximul ei, "sever" n-ar face absolut nimic, iar setarea ar
+ * parea stricata.
+ */
+const USER_SELECT_MIN = 50, USER_SELECT_MAX = 85;
+const USER_REJECT_MIN = 18, USER_REJECT_MAX = 50;
+
+/**
+ * Banda "de verificat" nu are voie sa dispara, oricat de departe ar impinge
+ * cineva setarea: intre praguri raman mereu cel putin atatea puncte. Fara
+ * asta, o combinatie de adaptare + severitate putea sa suprapuna pragurile,
+ * si aplicatia ar fi decis singura absolut totul — exact opusul promisiunii
+ * ca tu ramai cel care alege.
+ */
+const MIN_REVIEW_BAND = 10;
+
+/** Pragurile de mai sus, dupa ce se aplica alegerea utilizatorului. */
+export function applyStrictness(base: Thresholds, strictness: CullingStrictness): Thresholds {
+  if (strictness === 'balanced') return base;
+  const shift = strictness === 'strict' ? STRICTNESS_SHIFT : -STRICTNESS_SHIFT;
+  const select = clamp(base.select + shift, USER_SELECT_MIN, USER_SELECT_MAX);
+  // Respingerea se plafoneaza si fata de selectie, nu doar fata de limita ei
+  // absoluta — vezi MIN_REVIEW_BAND.
+  const reject = clamp(base.reject + shift, USER_REJECT_MIN, Math.min(USER_REJECT_MAX, select - MIN_REVIEW_BAND));
+  return { select, reject, adapted: base.adapted };
+}
+
+
 function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
 }

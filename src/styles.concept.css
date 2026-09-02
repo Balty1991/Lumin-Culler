@@ -1106,7 +1106,20 @@ body:before {
   width:100%;
   height:100%;
   object-fit:cover;
-  filter:saturate(.78) contrast(1.06) brightness(.58);
+  /* brightness a fost .58. Cardul exista ca sa-ti arate POZA care urmeaza —
+     ea e motivul pentru care apesi "Continua" — iar la .58, peste care venea
+     si un val intunecat pe toata inaltimea (vezi .review-desk-overlay), poza
+     devenea o textura, nu o fotografie: pe o captura de pe telefon abia se
+     distingea subiectul.
+
+     Contrastul textului NU depindea de acest filtru si nu depinde nici acum:
+     textul sta jos, unde overlay-ul e aproape opac. Filtrul afecteaza mai ales
+     partea de SUS a cadrului, unde nu scrie nimic — de-aia se poate ridica
+     fara sa se piarda nimic din lizibilitate.
+
+     Ramane sub 1: e in continuare un fundal, nu galeria. Doar ca acum se vede
+     ce e in el. */
+  filter:saturate(.86) contrast(1.04) brightness(.74);
   transform:scale(1.025);
 }
 
@@ -1118,7 +1131,22 @@ body:before {
 
 .review-desk-overlay {
   z-index:-1;
-  background:linear-gradient(180deg,#0405081a,#0405081f 35%,#040508eb),linear-gradient(90deg,rgb(5 6 9 / .58),transparent 72%);
+  /* Intunericul se stramuta ACOLO UNDE E TEXTUL, in loc sa fie intins peste tot
+     cadrul.
+
+     Varianta veche pornea de la #0405081a inca din prima linie de pixeli si
+     tinea un val pe verticala pana jos, plus inca unul pe orizontala de la
+     stanga. Adunate peste `brightness(.58)` de mai sus, jumatatea de sus a
+     pozei — exact partea in care de obicei sta capul subiectului — se stingea
+     degeaba: acolo nu scrie nimic care sa aiba nevoie de contrast.
+
+     Acum sus e curat, iar coborarea incepe de pe la 45% si devine aproape opaca
+     sub 78%, adica fix banda in care stau eticheta, titlul si butonul. Textul
+     are acelasi contrast ca inainte (fundalul de sub el e chiar mai inchis),
+     dar poza se vede. */
+  background:
+    linear-gradient(180deg,transparent 0%,rgb(4 5 8 / .06) 45%,rgb(4 5 8 / .72) 74%,rgb(4 5 8 / .95) 100%),
+    linear-gradient(90deg,rgb(5 6 9 / .42),transparent 62%);
 }
 
 .review-desk-content {
@@ -6331,4 +6359,50 @@ button:disabled,
   font-size: .68rem;
   line-height: 1.5;
   color: var(--text-dim);
+}
+
+/* ── Cât de exigent să fie AI-ul (Meniu → Curățare AI) ──
+   Trei trepte, toate pe ecran deodata. Nu un <select> si nu un slider: cu doar
+   trei valori, o lista ascunsa ar cere doua atingeri ca sa afli macar ce
+   optiuni exista, iar un slider ar sugera o scara continua care nu exista.
+   Asa se vede dintr-o privire si unde esti, si intre ce alegi. */
+.drawer-strictness {
+  display: grid;
+  gap: 8px;
+  margin: 4px 0 10px;
+  padding: 12px;
+  border-radius: 16px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.drawer-strictness-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.drawer-strictness-pill {
+  display: grid;
+  gap: 2px;
+  padding: 9px 6px;
+  border-radius: 12px;
+  background: var(--surface-3);
+  box-shadow: inset 0 0 0 1px transparent;
+  color: var(--text-dim);
+  text-align: center;
+  transition: background .16s var(--ease), box-shadow .16s var(--ease), color .16s var(--ease);
+}
+.drawer-strictness-pill b { font-size: .76rem; font-weight: 700; color: var(--text); }
+/* Subtitlul e cel care face alegerea de la sine inteleasa ("pastreaza mai
+   multe" / "doar ce e clar bun") — de-aia ramane lizibil, nu decorativ. */
+.drawer-strictness-pill span { font-size: .6rem; line-height: 1.25; }
+.drawer-strictness-pill.is-on {
+  background: rgb(var(--accent-rgb) / .13);
+  box-shadow: inset 0 0 0 1.5px rgb(var(--accent-rgb) / .55);
+  color: var(--accent-text);
+}
+.drawer-strictness-pill.is-on b { color: var(--accent-text); }
+.drawer-strictness-pill:active { transform: scale(.97); }
+.drawer-strictness-hint { margin: 0; font-size: .66rem; line-height: 1.45; color: var(--text-faint); }
+@media (prefers-reduced-motion: reduce) {
+  .drawer-strictness-pill { transition: none; }
 }

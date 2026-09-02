@@ -28,7 +28,8 @@ import {
   importFiles, originalFiles, originalHandles, createCancelToken, SELECT_THRESHOLD, REJECT_THRESHOLD, decidePhotoStatus,
   readLibraryScores, type ImportProgress, type ImportCancelToken, type ImportOutcomeReport
 } from '../core/importPipeline';
-import { deriveThresholds, type Thresholds } from '../core/scoreThresholds';
+import { deriveThresholds, applyStrictness, type Thresholds, type CullingStrictness } from '../core/scoreThresholds';
+import { readCullingStrictness, writeCullingStrictness } from './cullingStrictness';
 import { pickMostUncertain } from '../core/uncertainty';
 import { selectDecisionInversions } from './decisionInversions';
 import { summarizeSession, type SessionOutcome } from '../core/sessionOutcome';
@@ -731,6 +732,14 @@ interface AppState {
    * nedecise) — de-asta cere confirmare explicita in UI (BatchOpsPanel) si e
    * inregistrata in batchHistory pentru undo.
    */
+  /**
+   * Cat de exigent e motorul, ales de utilizator — vezi
+   * core/scoreThresholds.ts:applyStrictness. 'balanced' = comportamentul
+   * dinainte ca setarea sa existe.
+   */
+  cullingStrictness: CullingStrictness;
+  /** Schimba severitatea SI reeticheteaza pozele pe care nu le-ai decis tu. */
+  setCullingStrictness: (value: CullingStrictness) => Promise<void>;
   rescorePhotos: () => Promise<{ total: number; changed: number }>;
   /**
    * Sterge REAL, de pe telefon, pozele deja RESPINSE care au un URI nativ
@@ -3252,6 +3261,59 @@ export const useStore = create<AppState>((set, get) => ({
    * care ar creste artificial sampleCount si ar polua statisticile de
    * normalizare Welford cu aceeasi analiza numarata a doua oara.
    */
+  cullingStrictness: readCullingStrictness(),
+
+  /**
+   * Schimba severitatea si REETICHETEAZA pe loc pozele nedecise.
+   *
+   * Fara reetichetare, setarea ar fi arata ca o promisiune goala: ai muta-o pe
+   * "mai bland", biblioteca de sub ea ar ramane identica, si ar trebui sa te
+   * increzi ca s-a intamplat ceva. Asa, muti setarea si numerele din capul
+   * ecranului chiar se schimba — care e si singura dovada ca face ceva.
+   *
+   * REGULA care conteaza mai mult decat efectul in sine: se ating DOAR pozele
+   * pe care motorul le-a etichetat singur. `isUserDecided` scoate afara tot ce
+   * ai atins tu — selectate, respinse, candidate. O setare care ar rescrie
+   * deciziile omului ar fi un bug de neiertat intr-o aplicatie al carei intreg
+   * argument e ca tu ramai cel care alege; si e exact tipul de lucru pe care un
+   * utilizator il descopera dupa ce a pierdut o ora de triaj.
+   *
+   * Pozele analizate INAINTE de aceasta schimbare isi pastreaza scorul: se
+   * recalculeaza doar eticheta (pastrat/respins/de verificat), nu se reia
+   * analiza AI. Scorul nu depinde de severitate — doar pragurile.
+   */
+  setCullingStrictness: async value => {
+    const before = get().cullingStrictness;
+    if (before === value) return;
+    writeCullingStrictness(value);
+    set({ cullingStrictness: value });
+
+    const locale = get().locale;
+    const photos = get().photos;
+    const thresholds = applyStrictness(deriveThresholds(await readLibraryScores()), value);
+
+    const updates = new Map<string, PhotoRecord['status']>();
+    await Promise.all(photos.map(async p => {
+      if (isUserDecided(p.status)) return; // decizia ta ramane a ta
+      const [analysis, photoRecord] = await Promise.all([db.analyses.get(p.id), db.photos.get(p.id)]);
+      if (!analysis || !photoRecord) return;
+      if (isUserDecided(photoRecord.status)) return; // s-a decis intre timp
+      const newStatus = decidePhotoStatus(analysis.aiScore, analysis, thresholds);
+      if (newStatus === photoRecord.status) return;
+      await db.photos.update(p.id, { status: newStatus });
+      updates.set(p.id, newStatus);
+    }));
+
+    if (updates.size > 0) {
+      set(state => ({
+        photos: state.photos.map(p => updates.has(p.id) ? { ...p, status: updates.get(p.id)! } : p)
+      }));
+    }
+    set({
+      notice: t(locale, updates.size === 1 ? 'strictness.applied.one' : 'strictness.applied.other', { count: updates.size })
+    });
+  },
+
   rescorePhotos: async () => {
     const locale = get().locale;
     const photos = get().photos;
@@ -3259,7 +3321,7 @@ export const useStore = create<AppState>((set, get) => ({
     // core/scoreThresholds.ts si nota din importFiles. Citite INAINTE de bucla:
     // scorurile se rescriu pe parcurs, iar un prag recalculat la mijloc ar
     // clasifica ultimele poze dupa alte reguli decat primele.
-    const thresholds = deriveThresholds(await readLibraryScores());
+    const thresholds = applyStrictness(deriveThresholds(await readLibraryScores()), get().cullingStrictness);
     const changes: { photoId: string; previousStatus: PhotoRecord['status'] }[] = [];
     const updates = new Map<string, { aiScore: number; aiFactors: { feature: string; contribution: number }[]; aiUncertainty: number; status: PhotoRecord['status'] }>();
     let quotaError = false;

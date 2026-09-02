@@ -124,6 +124,8 @@ export function MenuDrawer() {
   const deletableRejectedCount = useMemo(() => selectDeletableRejected(photos).deletable.length, [photos]);
   const hasPhotos = photos.length > 0;
   const setShortcutsOpen = useStore(s => s.setShortcutsOpen);
+  const cullingStrictness = useStore(s => s.cullingStrictness);
+  const setCullingStrictness = useStore(s => s.setCullingStrictness);
   const theme = useStore(s => s.theme);
   const accentTheme = useStore(s => s.accentTheme);
   const setAppearanceOpen = useStore(s => s.setAppearanceOpen);
@@ -605,6 +607,37 @@ export function MenuDrawer() {
               <span className="drawer-item-icon"><FocusIcon /></span>
               <span>{tr('menu.uncertainReview')}</span>
             </button>
+
+            {/* CAT DE EXIGENT SA FIE MOTORUL — prima si singura parghie prin
+                care utilizatorul poate spune "esti prea aspru" sau "esti prea
+                bland".
+
+                Stă in capul acestui grup, inaintea actiunilor: e o setare care
+                schimba ce vor face TOATE randurile de dedesubt, nu inca o
+                actiune langa ele.
+
+                Nu se inchide meniul la apasare (fara `go`), spre deosebire de
+                restul: ca sa poti incerca doua trepte una dupa alta si sa vezi
+                notificarea cu cate poze s-au mutat, fara sa redeschizi meniul
+                de fiecare data. */}
+            <div className="drawer-strictness" role="group" aria-label={tr('strictness.title')}>
+              <span className="drawer-section-label">{tr('strictness.title')}</span>
+              <div className="drawer-strictness-row">
+                {(['lax', 'balanced', 'strict'] as const).map(level => (
+                  <button
+                    key={level}
+                    type="button"
+                    className={cullingStrictness === level ? 'drawer-strictness-pill is-on' : 'drawer-strictness-pill'}
+                    aria-pressed={cullingStrictness === level}
+                    onClick={() => { void setCullingStrictness(level); }}
+                  >
+                    <b>{tr(`strictness.${level}`)}</b>
+                    <span>{tr(`strictness.${level}.sub`)}</span>
+                  </button>
+                ))}
+              </div>
+              <p className="drawer-strictness-hint">{tr('strictness.hint')}</p>
+            </div>
 
             {/* Imediat dupa verificarea deciziilor la limita, fiindca raspunde
                 la o intrebare vecina: acolo "unde nu stiu sigur eu", aici "unde

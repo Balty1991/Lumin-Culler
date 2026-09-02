@@ -1434,3 +1434,101 @@ describe('isAnyOverlayOpen', () => {
     expect(isAnyOverlayOpen()).toBe(false);
   });
 });
+
+/**
+ * "Cat de exigent sa fie AI-ul" (Meniu -> Curatare AI). Setarea imprumutata de
+ * la concurenta, unde alegerea nivelului de severitate e functia-titlu.
+ *
+ * Testul care conteaza cel mai mult NU e ca reeticheteaza, ci ca NU atinge
+ * deciziile omului: intr-o aplicatie al carei intreg argument e ca tu ramai cel
+ * care alege, o setare care rescrie ce ai apasat tu ar fi de neiertat — si e
+ * exact tipul de bug pe care il descoperi dupa ce ai pierdut o ora de triaj.
+ */
+describe('setCullingStrictness', () => {
+  beforeEach(async () => {
+    await db.photos.clear();
+    await db.analyses.clear();
+    await db.originals.clear();
+    localStorage.clear();
+    useStore.setState({ notice: null, locale: 'ro', cullingStrictness: 'balanced' });
+  });
+
+  /** O poza cu scor `score`, in starea `status`, prezenta si in DB si in store. */
+  async function seed(items: { id: string; score: number; status: PhotoRecord['status'] }[]) {
+    await db.photos.bulkPut(items.map(i => makeDbPhoto({ id: i.id, status: i.status })));
+    for (const i of items) {
+      await db.analyses.put(makeDbAnalysis({
+        photoId: i.id, aiScore: i.score,
+        // Fara defect numit, o poza cu scor mic ramane "de verificat", nu
+        // "respinsa" — vezi decidePhotoStatus. Sharpness mica = defect real.
+        sharpness: i.score < 40 ? 10 : 80,
+        // O fata reala in cadru: fara subiect recunoscut, decidePhotoStatus
+        // refuza sa selecteze ORICAT de generos ar fi pragul (vezi
+        // hasNoRecognizableSubject). Corect ca produs — dar ar face testul de
+        // severitate sa masoare acea regula, nu severitatea.
+        faceCount: 1, knownFaceCount: 1, subjectInFocus: true, sceneType: 'portrait'
+      }));
+    }
+    useStore.setState({
+      photos: items.map((i, n) => ({ ...makePhoto(n), id: i.id, status: i.status, aiScore: i.score }))
+    });
+  }
+
+  it('NU atinge pozele pe care le-ai decis tu, oricat de departe ar fi de praguri', async () => {
+    // p1: ai pastrat-o desi are scor mic. p2: ai respins-o desi are scor mare.
+    // Amandoua sunt exact cazurile in care o reetichetare automata ar durea.
+    await seed([
+      { id: 'p1', score: 12, status: 'selected' },
+      { id: 'p2', score: 95, status: 'rejected' }
+    ]);
+
+    await useStore.getState().setCullingStrictness('strict');
+
+    expect((await db.photos.get('p1'))!.status).toBe('selected');
+    expect((await db.photos.get('p2'))!.status).toBe('rejected');
+    const dupa = useStore.getState().photos;
+    expect(dupa.find(p => p.id === 'p1')!.status).toBe('selected');
+    expect(dupa.find(p => p.id === 'p2')!.status).toBe('rejected');
+  });
+
+  it('"sever" scoate din pastrate o poza aflata la limita', async () => {
+    // 68 trece de pragul implicit (65) dar nu si de cel sever (73).
+    await seed([{ id: 'p1', score: 68, status: 'selected' }]);
+    // Statusul vine de la motor, nu de la om: il punem inapoi pe "review" in
+    // store si DB ca sa nu fie confundat cu o decizie a utilizatorului.
+    await db.photos.update('p1', { status: 'review' });
+    useStore.setState({ photos: useStore.getState().photos.map(p => ({ ...p, status: 'review' as const })) });
+
+    await useStore.getState().setCullingStrictness('strict');
+    expect((await db.photos.get('p1'))!.status).toBe('review');
+  });
+
+  it('"ingaduitor" aduce inapoi in pastrate o poza aflata sub pragul implicit', async () => {
+    // 60 nu trece de 65, dar trece de 57 (ingaduitor).
+    await seed([{ id: 'p1', score: 60, status: 'review' }]);
+    await useStore.getState().setCullingStrictness('lax');
+    expect((await db.photos.get('p1'))!.status).toBe('selected');
+    expect(useStore.getState().photos[0].status).toBe('selected');
+  });
+
+  it('pastreaza alegerea intre sesiuni', async () => {
+    await seed([{ id: 'p1', score: 60, status: 'review' }]);
+    await useStore.getState().setCullingStrictness('strict');
+    expect(localStorage.getItem('lumin-culling-strictness')).toBe('strict');
+  });
+
+  it('reales acelasi nivel nu face nimic si nu anunta nimic', async () => {
+    await seed([{ id: 'p1', score: 60, status: 'review' }]);
+    await useStore.getState().setCullingStrictness('balanced');
+    expect(useStore.getState().notice).toBeNull();
+  });
+
+  it('spune cate poze s-au mutat, ca sa se vada ca setarea chiar a facut ceva', async () => {
+    await seed([
+      { id: 'p1', score: 60, status: 'review' },
+      { id: 'p2', score: 62, status: 'review' }
+    ]);
+    await useStore.getState().setCullingStrictness('lax');
+    expect(useStore.getState().notice).toBe(t('ro', 'strictness.applied.other', { count: 2 }));
+  });
+});

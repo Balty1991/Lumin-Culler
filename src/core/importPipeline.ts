@@ -21,7 +21,8 @@ import { pickFolderSceneTag } from './sceneTagLabels';
 import { detectFacesNative, isNativeFaceDetectionAvailable } from './nativeFaceDetection';
 import type { MediaLocation } from './nativeMediaLibrary';
 import { hasRealGps } from './gpsCoordinates';
-import { deriveThresholds, FIXED_THRESHOLDS, type Thresholds } from './scoreThresholds';
+import { deriveThresholds, FIXED_THRESHOLDS, type Thresholds, applyStrictness } from './scoreThresholds';
+import { readCullingStrictness } from '../state/cullingStrictness';
 import { quickDuplicateScan, type QuickScanResult } from './quickDuplicateScan';
 
 export interface ImportProgress {
@@ -888,7 +889,9 @@ export async function importFiles(
   // toata durata lui: altfel primele poze ar fi clasificate dupa alte reguli
   // decat ultimele, iar rezultatul aceluiasi import ar depinde de ordinea
   // fisierelor. Vezi core/scoreThresholds.ts.
-  const thresholds = deriveThresholds(await readLibraryScores());
+  // ...si peste ele, severitatea aleasa de utilizator (implicit 'balanced', care
+  // nu schimba nimic) — vezi applyStrictness si state/cullingStrictness.ts.
+  const thresholds = applyStrictness(deriveThresholds(await readLibraryScores()), readCullingStrictness());
   if (thresholds.adapted) onProgress({ done: 0, total: files.length, fileName: '', phase: 'incarcare', thresholds });
 
   // Cerinta directa a utilizatorului: la un import mare, pozele cu oameni sa
