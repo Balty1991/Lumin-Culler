@@ -106,6 +106,13 @@ oricate poze. Se plateste pentru ce faci cu rezultatul:
 | Recap lunar, prezentare, calatorii | — | da |
 | Sugestia de combinare a doua cadre | — | da |
 
+Doua planuri, lunar si anual (`lumin_premium_monthly` / `lumin_premium_yearly`).
+Ecranul Premium le arata pe amandoua doar cand Play chiar raspunde cu amandoua;
+eticheta de economie a anualului se calculeaza din preturile REALE primite de la
+Play, si nu se afiseaza deloc sub 5% (vezi `src/core/premiumPlans.ts`) — o
+reducere de rotunjire nu e o oferta. Perioada de proba, daca e configurata ca
+oferta in Play Console, apare singura pe card si pe buton, fara schimbari de cod.
+
 Numerele stau intr-un singur loc, `src/core/entitlement.ts`. Plata merge prin Google Play
 Billing (`android/.../plugins/BillingPlugin.kt`) — nu exista server, deci nici validare de
 chitanta pe partea noastra; vezi comentariul din acel fisier pentru de ce e compromisul

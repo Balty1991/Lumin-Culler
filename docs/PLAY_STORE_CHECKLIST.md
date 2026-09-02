@@ -107,19 +107,36 @@ utilizatorul fara sa-i dea cum sa treaca de el nu e freemium, e un perete.
 
 **Ce a mai ramas de facut, si e in AFARA codului:**
 1. In Play Console, un abonament cu ID-ul **`lumin_premium_monthly`** (exact
-   acesta — vezi `subscriptionId` in BillingPlugin.kt), cu cel putin un plan de
+   acesta — vezi `monthlyId` in BillingPlugin.kt), cu cel putin un plan de
    baza activ. Fara el, `price()` intoarce gol si butonul de cumparare nici nu
    se afiseaza.
-2. Build **semnat cu cheia de release**, incarcat macar pe internal testing.
+2. **`lumin_premium_yearly`** — al doilea abonament, tot cu un plan de baza
+   activ, facturat anual. Codul il cauta deja si arata singur cele doua carduri
+   de plan, cu eticheta de economie calculata din preturile REALE primite de la
+   Play (vezi `core/premiumPlans.ts`). Cat timp nu exista, aplicatia se
+   comporta exact ca inainte, cu un singur plan — nu e nimic de schimbat in cod
+   in ziua in care il creezi.
+   - Pretul anual pe care il pui decide singur eticheta: sub ~5% economie fata
+     de 12 luni, aplicatia n-o mai afiseaza deloc (o reducere de rotunjire nu e
+     o oferta). Reperul obisnuit e 2 luni gratuite, adica 10 x pretul lunar.
+3. Optional, dar e cea mai ieftina crestere de conversie: pe planul de baza
+   lunar, o **oferta cu perioada de proba** (Play Console → abonament → plan de
+   baza → Adauga oferta → Free trial). Nu cere nicio linie de cod: aplicatia
+   citeste faza gratuita si scrie singura "primele 7 zile gratuite" pe card si
+   "Începe gratuit — apoi ..." pe buton. Play trimite oferta doar conturilor
+   eligibile, deci un fost abonat nu o primeste a doua oara.
+4. Build **semnat cu cheia de release**, incarcat macar pe internal testing.
    Play Billing nu raspunde niciodata unui APK de debug instalat cu adb.
-3. Contul de test adaugat ca **licensed tester** in Play Console.
-4. In fisa din Store: mentionarea explicita a abonamentului si a pretului in
+5. Contul de test adaugat ca **licensed tester** in Play Console.
+6. In fisa din Store: mentionarea explicita a abonamentului si a pretului in
    descriere, plus sectiunea de preturi completata. `docs/PLAY_STORE_LISTING.md`
    nu spune azi nimic despre abonament — de completat inainte de publicare.
-5. De testat pe device, in ordinea asta: cumparare → repornire aplicatie
+7. De testat pe device, in ordinea asta: cumparare → repornire aplicatie
    (abonamentul trebuie sa persiste) → "Am deja abonament — restaureaza" pe o
    instalare curata → anulare din Play (dupa expirare, aplicatia trebuie sa
-   revina la gratuit singura, la prima pornire cu retea).
+   revina la gratuit singura, la prima pornire cu retea). Cu doua planuri, de
+   verificat si ca butonul cumpara EXACT planul bifat, si ca trecerea de pe
+   lunar pe anual (upgrade din Play) lasa abonamentul activ.
 
 ## Ordinea recomandata
 

@@ -14,10 +14,25 @@
  */
 import { registerPlugin, Capacitor } from '@capacitor/core';
 
+interface RawPlan {
+  id: string;
+  price: string;
+  /** Sir, nu numar: micro-unitatile depasesc precizia sigura a lui Number pentru monede slabe. */
+  priceMicros: string;
+  currency: string;
+  /** Durata ISO-8601 a ciclului de facturare, exact cum o da Play ("P1M", "P1Y"). */
+  period: string;
+  periodDays: number;
+  offerToken: string;
+  /** Zile gratuite inainte de prima plata, cand oferta aleasa are o perioada de proba. */
+  trialDays?: number;
+}
+
 interface BillingPluginApi {
   status(): Promise<{ active: boolean }>;
   price(): Promise<{ price?: string }>;
-  subscribe(): Promise<{ purchased: boolean; cancelled: boolean }>;
+  plans(): Promise<{ plans: RawPlan[] }>;
+  subscribe(options?: { productId?: string }): Promise<{ purchased: boolean; cancelled: boolean }>;
 }
 
 const BillingNative = registerPlugin<BillingPluginApi>('Billing');
@@ -100,13 +115,81 @@ export async function queryPremiumPrice(): Promise<string | null> {
   return (await queryPremiumPriceAnswer()).price;
 }
 
+/**
+ * Un plan de abonament, asa cum l-a raspuns Play.
+ *
+ * Toate cifrele vin de la Play, niciuna nu e scrisa aici: pretul afisat e
+ * `price` (formatat de Play in moneda si conventiile contului), iar `priceMicros`
+ * exista tocmai ca sa nu fie nevoie sa parsam vreodata acel text ca sa comparam
+ * doua planuri. Un "19,99 lei" si un "$4.99" nu se compara ca siruri.
+ */
+export interface PremiumPlan {
+  id: string;
+  price: string;
+  /** Pretul in micro-unitati de moneda (1 000 000 = o unitate), ca numar. */
+  priceMicros: number;
+  currency: string;
+  /** Durata ciclului de facturare, in zile (30 pentru lunar, 365 pentru anual). */
+  periodDays: number;
+  /** Zile gratuite inainte de prima plata; absent cand oferta nu are perioada de proba. */
+  trialDays?: number;
+}
+
+/** Acelasi tipar cu trei stari ca la pret: „n-am putut intreba" nu e „nu exista planuri". */
+export interface PlansAnswer {
+  answered: boolean;
+  plans: PremiumPlan[];
+}
+
+function toPlan(raw: RawPlan): PremiumPlan | null {
+  const micros = Number(raw.priceMicros);
+  // Un plan fara pret utilizabil n-are ce cauta pe ecran: butonul lui ar
+  // deschide o plata al carei cost nu-l stim, deci nu-l putem nici arata.
+  if (!raw.id || !raw.price || !Number.isFinite(micros) || micros <= 0) return null;
+  return {
+    id: raw.id,
+    price: raw.price,
+    priceMicros: micros,
+    currency: raw.currency,
+    periodDays: Number.isFinite(raw.periodDays) ? raw.periodDays : 0,
+    ...(raw.trialDays && raw.trialDays > 0 ? { trialDays: raw.trialDays } : {})
+  };
+}
+
+/**
+ * Planurile pe care contul acesta chiar le poate cumpara ACUM.
+ *
+ * O lista goala cu `answered: true` inseamna „Play a raspuns si nu exista niciun
+ * produs configurat" — aceeasi stare pe care o descrie si un pret absent, si
+ * singura in care nu se blocheaza nimic (vezi core/entitlement.ts). Un plan care
+ * lipseste doar el (tipic anualul, cat timp nu e creat in Play Console) nu e o
+ * eroare: interfata arata ce a primit.
+ */
+export async function queryPlansAnswer(): Promise<PlansAnswer> {
+  if (!isBillingAvailable()) return { answered: false, plans: [] };
+  try {
+    const raw = (await BillingNative.plans()).plans ?? [];
+    return { answered: true, plans: raw.map(toPlan).filter((p): p is PremiumPlan => p !== null) };
+  } catch (err) {
+    console.error('Nu am putut citi planurile de abonament:', err);
+    return { answered: false, plans: [] };
+  }
+}
+
 export type SubscribeOutcome = 'purchased' | 'cancelled' | 'unavailable';
 
-/** Deschide fluxul de cumparare al lui Play si asteapta rezultatul lui. */
-export async function startSubscription(): Promise<SubscribeOutcome> {
+/**
+ * Deschide fluxul de cumparare al lui Play si asteapta rezultatul lui.
+ *
+ * `productId` lipsa inseamna „planul implicit" (lunar) — asa apelantii care n-au
+ * de ales intre planuri raman neschimbati. Partea nativa respinge un id
+ * necunoscut in loc sa-l inlocuiasca tacut cu altul: a incasa alt abonament
+ * decat cel pe care a apasat omul ar fi mai rau decat o eroare.
+ */
+export async function startSubscription(productId?: string): Promise<SubscribeOutcome> {
   if (!isBillingAvailable()) return 'unavailable';
   try {
-    const result = await BillingNative.subscribe();
+    const result = await BillingNative.subscribe(productId ? { productId } : undefined);
     if (result.purchased) return 'purchased';
     return result.cancelled ? 'cancelled' : 'unavailable';
   } catch (err) {

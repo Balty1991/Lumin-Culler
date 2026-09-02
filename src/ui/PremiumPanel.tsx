@@ -3,8 +3,9 @@ import { useStore } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { XIcon, StarIcon, CheckIcon } from './icons';
 import { FREE_PHOTOS_PER_MONTH, FREE_ENROLLED_PERSONS, refreshEntitlement } from '../core/entitlement';
-import { isBillingAvailable, queryPremiumPrice, startSubscription } from '../core/billing';
-import { t } from '../i18n';
+import { isBillingAvailable, queryPremiumPrice, queryPlansAnswer, startSubscription, type PremiumPlan } from '../core/billing';
+import { annualSavingsPercent, perMonthPrice, defaultPlanId, resolvePlan } from '../core/premiumPlans';
+import { t, plural } from '../i18n';
 import { PremiumProof } from './PremiumProof';
 
 /**
@@ -58,6 +59,14 @@ export function PremiumPanel() {
   useModalFocusTrap(containerRef, open);
   /** null = inca nu stim (Play n-a raspuns, produs neconfigurat, web) — NU inventam un pret. */
   const [price, setPrice] = useState<string | null>(null);
+  /**
+   * Planurile chiar cumparabile ACUM, in ordinea in care le-a dat partea nativa
+   * (lunar, apoi anual). Lista goala = acelasi lucru ca un pret absent: produse
+   * neconfigurate in Play Console, sau build nesemnat.
+   */
+  const [plans, setPlans] = useState<PremiumPlan[]>([]);
+  /** Ce plan e bifat. null pana vin planurile; apoi cel propus de defaultPlanId. */
+  const [pickedPlanId, setPickedPlanId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   /** Rezultatul ultimei restaurari: null = n-a cerut-o inca in sesiunea asta. */
@@ -67,6 +76,14 @@ export function PremiumPanel() {
     if (!open) { setFailed(false); setRestored(null); return; }
     let alive = true;
     void queryPremiumPrice().then(p => { if (alive) setPrice(p); });
+    void queryPlansAnswer().then(({ plans: list }) => {
+      if (!alive) return;
+      setPlans(list);
+      // Bifarea se reface la fiecare deschidere, nu se pastreaza intre ele: un
+      // plan retras din Play Console sau o oferta expirata ar fi lasat butonul
+      // legat de un id pe care partea nativa il respinge. Vezi si resolvePlan.
+      setPickedPlanId(defaultPlanId(list));
+    });
     // Reintrebam Play de fiecare data cand se deschide ecranul: intre timp
     // abonamentul poate fi expirat, anulat sau cumparat pe alt dispozitiv, iar
     // asta e exact ecranul pe care utilizatorul vine sa afle care e situatia.
@@ -80,6 +97,14 @@ export function PremiumPanel() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, setOpen]);
+
+  /**
+   * Planul pe care apasa butonul. `resolvePlan` cade pe implicit daca id-ul
+   * bifat nu mai e in lista — vezi core/premiumPlans.ts.
+   */
+  const picked = resolvePlan(plans, pickedPlanId);
+  /** Reperul fata de care se citeste economia: primul plan, adica lunarul. */
+  const referencePlan = plans[0] ?? null;
 
   if (!open) return null;
 
@@ -116,8 +141,15 @@ export function PremiumPanel() {
             randul ei e marcat, deci ochiul cade pe ea fara nicio propozitie in
             plus. Vezi highlightedPerk. */}
         <h3 className="premium-lead">{tr(premium ? 'premium.lead.active' : 'premium.lead')}</h3>
-        {!premium && price && (
-          <p className="premium-price">{tr('premium.price.tag', { price })}</p>
+        {/* Randul de pret urmareste planul bifat, nu doar lunarul: altfel, cu
+            anualul ales, scria in continuare "19,99 lei pe luna" deasupra unui
+            buton care incaseaza 199,99 lei o data pe an. */}
+        {!premium && (picked ?? price) && (
+          <p className="premium-price">
+            {picked
+              ? tr(picked.periodDays > 31 ? 'premium.price.tagYear' : 'premium.price.tag', { price: picked.price })
+              : tr('premium.price.tag', { price: price! })}
+          </p>
         )}
 
         <h4 className="premium-group-head">{tr('premium.section.unlock')}</h4>
@@ -229,17 +261,63 @@ export function PremiumPanel() {
              abonamentul. Anularea se face DOAR din Google Play — asa cere Play,
              si oricum aplicatia n-are cum s-o faca in locul lui. */
           <p className="premium-soon" role="status">{tr('premium.manage')}</p>
-        ) : isBillingAvailable() && price ? (
+        ) : isBillingAvailable() && (picked ?? price) ? (
           /* Butonul apare doar cand Play chiar a confirmat ca exista ceva de
-             cumparat: `price` nenul inseamna produs configurat SI build semnat.
-             Un buton care deschide un flux inexistent e mai rau decat un anunt. */
+             cumparat: un plan (sau, ca rezerva, un pret) inseamna produs
+             configurat SI build semnat. Un buton care deschide un flux
+             inexistent e mai rau decat un anunt. */
           <>
+            {/* Alegerea planului, chiar deasupra butonului — acolo se ia
+                decizia. Cu un singur plan configurat in Play Console nu se
+                afiseaza nimic aici: doua carduri din care unul e singura optiune
+                nu e o alegere, e un pas in plus. */}
+            {plans.length > 1 && (
+              <fieldset className="premium-plans">
+                <legend className="premium-group-head">{tr('premium.plans.title')}</legend>
+                {plans.map(plan => {
+                  const isPicked = plan.id === picked?.id;
+                  // Economia se raporteaza mereu la PRIMUL plan (lunarul), si
+                  // niciodata la el insusi — vezi core/premiumPlans.ts.
+                  const savings = referencePlan && referencePlan.id !== plan.id
+                    ? annualSavingsPercent(referencePlan, plan) : null;
+                  const monthly = perMonthPrice(plan, locale);
+                  return (
+                    <label key={plan.id} className={isPicked ? 'premium-plan is-picked' : 'premium-plan'}>
+                      <input
+                        type="radio" name="premium-plan" value={plan.id} checked={isPicked}
+                        onChange={() => setPickedPlanId(plan.id)}
+                      />
+                      <span className="premium-plan-body">
+                        <b>
+                          {tr(plan.periodDays > 31 ? 'premium.plan.yearly' : 'premium.plan.monthly')}
+                          {savings !== null && (
+                            <i className="premium-plan-save" title={tr('premium.plan.saveTitle', { percent: savings })}>
+                              {tr('premium.plan.save', { percent: savings })}
+                            </i>
+                          )}
+                        </b>
+                        <span className="premium-plan-price">{plan.price}</span>
+                        {/* Doar cifrele primite de la Play: pretul pe luna e
+                            derivat din priceMicros si formatat cu Intl in moneda
+                            contului, nu taiat din textul de mai sus. */}
+                        {monthly && <span className="premium-plan-permonth mono">{tr('premium.plan.perMonth', { price: monthly })}</span>}
+                        {plan.trialDays && (
+                          <span className="premium-plan-trial">
+                            {tr(plural(plan.trialDays, 'premium.plan.trial.one', 'premium.plan.trial.other'), { count: plan.trialDays })}
+                          </span>
+                        )}
+                      </span>
+                    </label>
+                  );
+                })}
+              </fieldset>
+            )}
             <button
               className="btn-accent big premium-subscribe"
               disabled={busy}
               onClick={() => {
                 setBusy(true); setFailed(false);
-                void startSubscription()
+                void startSubscription(picked?.id)
                   .then(async outcome => {
                     // NU mai inchidem ecranul la cumparare reusita: refreshEntitlement()
                     // comuta starea, iar utilizatorul ramane exact aici si VEDE
@@ -252,7 +330,11 @@ export function PremiumPanel() {
                   .finally(() => setBusy(false));
               }}
             >
-              {busy ? tr('premium.subscribing') : tr('premium.subscribe', { price })}
+              {busy
+                ? tr('premium.subscribing')
+                : picked?.trialDays
+                  ? tr('premium.subscribe.trial', { price: picked.price })
+                  : tr('premium.subscribe', { price: picked?.price ?? price! })}
             </button>
             {failed && <p className="premium-soon" role="alert">{tr('premium.failed')}</p>}
             {/* Cerinta Google Play pentru orice aplicatie cu abonamente, si o

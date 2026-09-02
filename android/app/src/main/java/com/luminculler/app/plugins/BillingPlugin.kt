@@ -6,10 +6,12 @@ import com.android.billingclient.api.BillingClientStateListener
 import com.android.billingclient.api.BillingFlowParams
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.PendingPurchasesParams
+import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchasesUpdatedListener
 import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryPurchasesParams
+import com.getcapacitor.JSArray
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
@@ -34,10 +36,21 @@ import com.getcapacitor.annotation.CapacitorPlugin
  * operatii), iar un wrapper ar aduce un ciclu de intretinere strain pentru
  * exact codul care decide daca utilizatorul a platit.
  *
+ * DOUA produse, nu unul: lunar si anual (vezi PRODUCT_IDS). Anualul e singura
+ * parghie reala de venit care nu cere nicio functie noua — in aplicatiile de
+ * consum acopera de obicei jumatate din incasari si, mai important, muta
+ * decizia de reinnoire de douasprezece ori pe an la o singura data pe an.
+ * Codul NU presupune insa ca amandoua exista: `plans()` intoarce exact ce
+ * raspunde Play, iar interfata arata ce a primit. Cat timp anualul nu e creat in
+ * Play Console, aplicatia se comporta exact ca inainte, cu un singur plan; in
+ * ziua in care e creat, apare singur, fara nicio schimbare de cod.
+ *
  * CE TREBUIE FACUT IN AFARA CODULUI ca sa functioneze, si fara care metodele de
  * mai jos raspund corect dar gol:
- *  1. In Google Play Console, un abonament cu ID-ul din SUBSCRIPTION_ID de mai
- *     jos, cu cel putin un plan de baza activ.
+ *  1. In Google Play Console, cate un abonament cu ID-urile din PRODUCT_IDS de
+ *     mai jos, fiecare cu cel putin un plan de baza activ. Perioada de proba,
+ *     daca o vrei, se adauga ca OFERTA pe planul de baza — nu cere cod: vezi
+ *     `bestOffer` si faza de pret gratuita din `describeOffer`.
  *  2. Aplicatia incarcata (macar pe un canal de test intern) si SEMNATA cu
  *     cheia de release — Play Billing nu raspunde niciodata unui APK de debug
  *     instalat cu adb.
@@ -56,8 +69,16 @@ import com.getcapacitor.annotation.CapacitorPlugin
 @CapacitorPlugin(name = "Billing")
 class BillingPlugin : Plugin() {
 
-    /** Trebuie sa fie IDENTIC cu ID-ul abonamentului din Google Play Console. */
-    private val subscriptionId = "lumin_premium_monthly"
+    /** Trebuie sa fie IDENTIC cu ID-urile abonamentelor din Google Play Console. */
+    private val monthlyId = "lumin_premium_monthly"
+    private val yearlyId = "lumin_premium_yearly"
+
+    /**
+     * Ordinea conteaza: e ordinea in care ajung planurile in interfata, si
+     * lunarul sta primul fiindca e reperul fata de care se citeste economia
+     * anualului.
+     */
+    private val productIds = listOf(monthlyId, yearlyId)
 
     private var pendingPurchaseCall: PluginCall? = null
 
@@ -201,7 +222,7 @@ class BillingPlugin : Plugin() {
                     call.reject("Could not read purchases: ${result.debugMessage} (${result.responseCode})")
                     return@queryPurchasesAsync
                 }
-                val active = purchases.filter { it.isActive() && it.products.contains(subscriptionId) }
+                val active = purchases.filter { p -> p.isActive() && p.products.any { it in productIds } }
                 // O achizitie facuta pe alt dispozitiv ajunge aici neconfirmata.
                 active.forEach { acknowledge(it) }
                 call.resolve(JSObject().put("active", active.isNotEmpty()))
@@ -209,49 +230,188 @@ class BillingPlugin : Plugin() {
         }
     }
 
-    /** Pretul, formatat de Play in moneda si limba contului — niciodata scris de noi in cod. */
+    /**
+     * Oferta pe care o aratam si o cumparam, dintre cele pe care Play le
+     * intoarce pentru acest produs.
+     *
+     * Play trimite DOAR ofertele pentru care contul e eligibil, deci un fost
+     * abonat nu vede a doua oara perioada de proba — nu avem noi de verificat
+     * asta. Ce ramane de ales e intre mai multe oferte valabile simultan (planul
+     * de baza + o promotie): preferam una cu faza gratuita, apoi pe cea mai
+     * ieftina pe termen lung. Ordinea din lista lui Play NU e o ordine de
+     * preferinta, deci `firstOrNull()` (ce era aici inainte) alegea la
+     * intamplare intre ele.
+     */
+    private fun bestOffer(details: ProductDetails): ProductDetails.SubscriptionOfferDetails? {
+        val offers = details.subscriptionOfferDetails ?: return null
+        return offers.minWithOrNull(
+            compareBy<ProductDetails.SubscriptionOfferDetails> { if (freePhase(it) != null) 0 else 1 }
+                .thenBy { recurringPhase(it)?.priceAmountMicros ?: Long.MAX_VALUE }
+        )
+    }
+
+    /**
+     * Faza de pret care se plateste LA NESFARSIT — pretul real al abonamentului.
+     *
+     * NU prima din lista, si asta era un bug care astepta doar sa fie creata o
+     * oferta in Play Console: cu o perioada de proba configurata, prima faza e
+     * chiar proba, cu pretul 0. `price()` intorcea atunci "0,00 lei", iar
+     * ecranul Premium scria, cu litere mari, "Abonează-te — 0,00 lei". Ultima
+     * faza e prin definitie cea recurenta (fazele sunt ordonate cronologic);
+     * `recurrenceMode` o confirma acolo unde e raportat.
+     */
+    private fun recurringPhase(offer: ProductDetails.SubscriptionOfferDetails): ProductDetails.PricingPhase? {
+        val phases = offer.pricingPhases.pricingPhaseList
+        return phases.lastOrNull { it.recurrenceMode == ProductDetails.RecurrenceMode.INFINITE_RECURRING }
+            ?: phases.lastOrNull()
+    }
+
+    /** Faza gratuita de la inceputul ofertei (perioada de proba), daca exista. */
+    private fun freePhase(offer: ProductDetails.SubscriptionOfferDetails): ProductDetails.PricingPhase? {
+        val phases = offer.pricingPhases.pricingPhaseList
+        // `dropLast(1)`: faza recurenta nu e o proba nici daca ar avea pretul 0.
+        return phases.dropLast(1).firstOrNull { it.priceAmountMicros == 0L }
+    }
+
+    /**
+     * Durata ISO-8601 a lui Play ("P7D", "P1W", "P1M", "P1Y") in zile.
+     *
+     * Aproximari deliberate pentru luna si an (30 si 365): numarul ajunge intr-o
+     * propozitie de tipul "7 zile gratuit", unde diferenta dintre 30 si 31 nu
+     * schimba nimic, iar termenul exact il stabileste oricum Play, nu textul
+     * nostru. 0 inseamna "n-am putut citi", si interfata nu afiseaza nimic.
+     */
+    private fun durationDays(period: String?): Int {
+        val m = Regex("^P(?:(\\d+)Y)?(?:(\\d+)M)?(?:(\\d+)W)?(?:(\\d+)D)?$").find(period ?: "") ?: return 0
+        val (y, mo, w, d) = m.destructured
+        return (y.toIntOrNull() ?: 0) * 365 + (mo.toIntOrNull() ?: 0) * 30 +
+            (w.toIntOrNull() ?: 0) * 7 + (d.toIntOrNull() ?: 0)
+    }
+
+    /** Un plan, asa cum il vede partea de JS. Vezi src/core/billing.ts:PremiumPlan. */
+    private fun describePlan(details: ProductDetails): JSObject? {
+        val offer = bestOffer(details) ?: return null
+        val recurring = recurringPhase(offer) ?: return null
+        val out = JSObject()
+            .put("id", details.productId)
+            .put("price", recurring.formattedPrice)
+            // Cifra bruta, ca partea de JS sa poata calcula economia anualului
+            // fara sa incerce vreodata sa parseze un pret formatat de Play (care
+            // vine in moneda si conventiile contului: "19,99 lei", "$4.99").
+            .put("priceMicros", recurring.priceAmountMicros.toString())
+            .put("currency", recurring.priceCurrencyCode)
+            // Perioada bruta ("P1M"/"P1Y"), nu un cuvant tradus de noi: traducerea
+            // e treaba lui i18n, iar aici n-avem limba interfetei.
+            .put("period", recurring.billingPeriod)
+            .put("periodDays", durationDays(recurring.billingPeriod))
+            .put("offerToken", offer.offerToken)
+        freePhase(offer)?.let { trial ->
+            val days = durationDays(trial.billingPeriod) * maxOf(1, trial.billingCycleCount)
+            if (days > 0) out.put("trialDays", days)
+        }
+        return out
+    }
+
+    /**
+     * Produsele pe care Play NU le-a putut da, cu motivul fiecaruia — pentru
+     * mesajele de eroare.
+     *
+     * Exista din Billing 8. Inainte, produsele nereusite pur si simplu lipseau
+     * din lista, deci "produs neconfigurat in Play Console" si "produs fara nicio
+     * oferta valabila pentru contul asta" aratau identic: o lista goala. E
+     * singura diferenta care conteaza cand cineva incearca sa afle de ce nu se
+     * deschide plata, asa ca nu se pierde pe drum.
+     */
+    private var lastUnfetched: String = "none reported"
+
+    private fun queryProducts(call: PluginCall, onResult: (List<ProductDetails>) -> Unit) {
+        val params = QueryProductDetailsParams.newBuilder().setProductList(
+            productIds.map {
+                QueryProductDetailsParams.Product.newBuilder()
+                    .setProductId(it)
+                    .setProductType(BillingClient.ProductType.SUBS)
+                    .build()
+            }
+        ).build()
+        // Din Billing 8, callback-ul primeste un QueryProductDetailsResult, nu
+        // direct List<ProductDetails> — vezi comentariul de la subscribe().
+        client.queryProductDetailsAsync(params) { result, productDetailsResult ->
+            if (result.responseCode != BillingClient.BillingResponseCode.OK) {
+                call.reject("Could not read products: ${result.debugMessage} (${result.responseCode})")
+                return@queryProductDetailsAsync
+            }
+            lastUnfetched = productDetailsResult.unfetchedProductList
+                .joinToString { "${it.productId} (status ${it.statusCode})" }
+                .ifEmpty { "none reported" }
+            // Ordinea din productIds, nu cea in care raspunde Play: interfata
+            // asaza planurile in ordinea primita, si aia n-are voie sa se schimbe
+            // de la o pornire la alta.
+            val byId = productDetailsResult.productDetailsList.associateBy { it.productId }
+            onResult(productIds.mapNotNull { byId[it] })
+        }
+    }
+
+    /**
+     * Toate planurile pe care contul acesta chiar le poate cumpara ACUM.
+     *
+     * O lista goala inseamna acelasi lucru ca un `price()` fara pret: produsele
+     * nu sunt configurate, sau build-ul nu e semnat. Un plan care lipseste
+     * (tipic: anualul, cat timp nu e creat in Play Console) pur si simplu nu
+     * apare — nu e o eroare, si nu impiedica restul.
+     */
+    @PluginMethod
+    fun plans(call: PluginCall) {
+        withConnection(call) {
+            queryProducts(call) { products ->
+                val plans = JSArray()
+                for (details in products) describePlan(details)?.let { plans.put(it) }
+                call.resolve(JSObject().put("plans", plans))
+            }
+        }
+    }
+
+    /**
+     * Pretul planului LUNAR, formatat de Play in moneda si limba contului —
+     * niciodata scris de noi in cod.
+     *
+     * Ramane separat de `plans()` fiindca e intrebarea la care atarna tot
+     * modelul freemium (core/entitlement.ts:isPurchasable — "exista pe acest
+     * telefon o cale reala de plata?"), si acolo un raspuns nul trebuie sa
+     * insemne exact "nu exista produs", nu "lista are alta forma".
+     */
     @PluginMethod
     fun price(call: PluginCall) {
         withConnection(call) {
-            val params = QueryProductDetailsParams.newBuilder().setProductList(
-                listOf(
-                    QueryProductDetailsParams.Product.newBuilder()
-                        .setProductId(subscriptionId)
-                        .setProductType(BillingClient.ProductType.SUBS)
-                        .build()
-                )
-            ).build()
-            // Din Billing 8, callback-ul primeste un QueryProductDetailsResult, nu
-            // direct List<ProductDetails> — vezi comentariul de la subscribe().
-            client.queryProductDetailsAsync(params) { result, productDetailsResult ->
-                if (result.responseCode != BillingClient.BillingResponseCode.OK) {
-                    call.reject("Could not read product: ${result.debugMessage} (${result.responseCode})")
-                    return@queryProductDetailsAsync
-                }
-                val offer = productDetailsResult.productDetailsList.firstOrNull()
-                    ?.subscriptionOfferDetails?.firstOrNull()
-                    ?.pricingPhases?.pricingPhaseList?.firstOrNull()
+            queryProducts(call) { products ->
+                val monthly = products.firstOrNull { it.productId == monthlyId } ?: products.firstOrNull()
                 val out = JSObject()
                 // Absent, nu gol: UI-ul trebuie sa poata deosebi "inca nu stiu
                 // pretul" (produs neconfigurat, build nesemnat) de un pret real.
-                offer?.formattedPrice?.let { out.put("price", it) }
+                monthly?.let { d -> bestOffer(d)?.let { recurringPhase(it) } }
+                    ?.formattedPrice?.let { out.put("price", it) }
                 call.resolve(out)
             }
         }
     }
 
-    /** Deschide fluxul de cumparare al lui Play. Rezultatul vine pe purchasesUpdated, nu de aici. */
+    /**
+     * Deschide fluxul de cumparare al lui Play pentru planul cerut. Rezultatul
+     * vine pe purchasesUpdated, nu de aici.
+     *
+     * `productId` e optional si cade pe lunar cand lipseste — asa apelurile
+     * vechi (si orice ecran care n-are inca de ales) se comporta exact ca
+     * inainte. Un id necunoscut e respins, nu inlocuit tacut cu altul: a incasa
+     * alt abonament decat cel pe care a apasat omul ar fi mai rau decat o
+     * eroare.
+     */
     @PluginMethod
     fun subscribe(call: PluginCall) {
+        val wanted = call.getString("productId") ?: monthlyId
+        if (wanted !in productIds) {
+            call.reject("Unknown subscription plan: $wanted")
+            return
+        }
         withConnection(call) {
-            val params = QueryProductDetailsParams.newBuilder().setProductList(
-                listOf(
-                    QueryProductDetailsParams.Product.newBuilder()
-                        .setProductId(subscriptionId)
-                        .setProductType(BillingClient.ProductType.SUBS)
-                        .build()
-                )
-            ).build()
             /*
              * Din Billing 8, `onProductDetailsResponse` primeste un
              * QueryProductDetailsResult in loc de List<ProductDetails> — singura
@@ -260,21 +420,17 @@ class BillingPlugin : Plugin() {
              * aduse, fiecare cu motivul lui. Inainte pur si simplu lipseau din
              * lista, deci "produs neconfigurat in Play Console" si "produs fara
              * nicio oferta valabila pentru contul asta" aratau identic — o lista
-             * goala. Il punem in mesajul de eroare, ca diagnosticarea sa nu mai
-             * ceara ghicit.
+             * goala. Vezi mesajul de eroare de mai jos.
              */
-            client.queryProductDetailsAsync(params) { result, productDetailsResult ->
-                val details = productDetailsResult.productDetailsList.firstOrNull()
-                val offerToken = details?.subscriptionOfferDetails?.firstOrNull()?.offerToken
-                if (result.responseCode != BillingClient.BillingResponseCode.OK || details == null || offerToken == null) {
-                    val unfetched = productDetailsResult.unfetchedProductList
-                        .joinToString { "${it.productId} (status ${it.statusCode})" }
-                        .ifEmpty { "none reported" }
+            queryProducts(call) { products ->
+                val details = products.firstOrNull { it.productId == wanted }
+                val offerToken = details?.let { bestOffer(it) }?.offerToken
+                if (details == null || offerToken == null) {
                     call.reject(
-                        "Subscription not available — check that '$subscriptionId' exists in Play Console " +
-                            "and the build is signed. Unfetched: $unfetched"
+                        "Subscription not available — check that '$wanted' exists in Play Console " +
+                            "with an active base plan, and that the build is signed. Unfetched: $lastUnfetched"
                     )
-                    return@queryProductDetailsAsync
+                    return@queryProducts
                 }
                 val flowParams = BillingFlowParams.newBuilder().setProductDetailsParamsList(
                     listOf(

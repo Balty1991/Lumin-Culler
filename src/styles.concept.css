@@ -6217,3 +6217,74 @@ button:disabled,
 @media (max-width: 379px) {
   .edit-topbar-title { display: none; }
 }
+
+/* ── Premium: alegerea planului ──
+   Doua carduri unul langa altul, ca diferenta dintre ele sa se citeasca dintr-o
+   privire, nu dintr-o lista verticala pe care trebuie s-o compari din memorie.
+   `fieldset`/`radio` reale, nu butoane cu stare proprie: pe telefon inseamna un
+   grup pe care cititoarele de ecran il anunta ca atare, iar pe desktop se poate
+   trece prin el cu sagetile, gratis. */
+.premium-plans {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 10px;
+  margin: 4px 0 10px;
+  padding: 0;
+  border: none;
+}
+/* `legend` intr-o grila nu se aseaza ca un copil obisnuit — pe toata latimea,
+   explicit, altfel ocupa prima coloana si impinge planurile. */
+.premium-plans > legend { grid-column: 1 / -1; float: left; width: 100%; margin: 0 0 2px; }
+.premium-plan {
+  position: relative;
+  display: block;
+  padding: 11px 12px;
+  border-radius: 16px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+  cursor: pointer;
+  transition: box-shadow .18s var(--ease), background .18s var(--ease), transform .12s var(--ease);
+}
+.premium-plan:active { transform: scale(.985); }
+/* Butonul radio ramane in DOM (focus, tastatura, cititoare de ecran) dar nu se
+   deseneaza: cardul intreg e indicatorul, iar un cerculet in plus langa el ar
+   spune acelasi lucru de doua ori. */
+.premium-plan > input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+}
+.premium-plan.is-picked {
+  background: rgb(var(--accent-rgb) / .1);
+  box-shadow: inset 0 0 0 2px rgb(var(--accent-rgb) / .55);
+}
+/* Conturul de focalizare sta pe CARD, nu pe input-ul invizibil — altfel
+   navigarea cu tastatura nu arata nimic. */
+.premium-plan:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.premium-plan-body { display: grid; gap: 2px; }
+.premium-plan-body > b {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: .82rem;
+  color: var(--text);
+}
+.premium-plan-price { font-size: .95rem; font-weight: 750; color: var(--text); }
+.premium-plan-permonth { font-size: .68rem; color: var(--text-dim); }
+.premium-plan-trial { font-size: .68rem; font-weight: 700; color: var(--pick-text); }
+.premium-plan-save {
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgb(var(--pick-rgb) / .18);
+  color: var(--pick-text);
+  font-family: var(--mono);
+  font-size: .58rem;
+  font-style: normal;
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+@media (prefers-reduced-motion: reduce) {
+  .premium-plan { transition: none; }
+}
