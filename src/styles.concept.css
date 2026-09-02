@@ -6288,3 +6288,36 @@ button:disabled,
 @media (prefers-reduced-motion: reduce) {
   .premium-plan { transition: none; }
 }
+
+/* ── Ecranul de dinainte de JavaScript ──
+   Marcajul sta direct in index.html (vezi comentariul de acolo) si e sters de
+   React la prima randare. Aici e doar asezarea lui: medalionul singur, in
+   mijloc, pe fundalul aplicatiei — ca sa nu existe un moment de ecran negru
+   intre foaia de stil si bundle.
+
+   `position: fixed`, nu un bloc in flux: cat timp e pe ecran nu exista nimic
+   altceva in pagina, iar la disparitie nu are ce sa reaseze. */
+.boot-splash {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+}
+/* Medalionul respira, ca sa se citeasca "se incarca", nu "s-a blocat". Doar
+   opacitate si scalare, adica strict pe compozitor — pe telefonul pe care
+   ecranul asta chiar tine cateva sute de milisecunde, firul principal e ocupat
+   tocmai cu parsarea bundle-ului, si o animatie care i-ar cere ceva ar sacada
+   exact atunci. */
+.boot-splash .empty-badge {
+  margin-bottom: 0;
+  animation: bootBreathe 1.8s var(--ease) infinite;
+}
+@keyframes bootBreathe {
+  0%, 100% { opacity: .82; transform: scale(.985); }
+  50%      { opacity: 1;   transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .boot-splash .empty-badge { animation: none; opacity: 1; transform: none; }
+}

@@ -32,7 +32,34 @@
     <script src="/theme-init.js"></script>
   </head>
   <body>
-    <div id="root"></div>
+    <!--
+      MARCA, desenata inainte de orice JavaScript.
+
+      `#root` era gol, deci intre momentul in care ajunge foaia de stil si
+      momentul in care React face prima randare ecranul ramanea complet negru.
+      Pe telefoanele pe care chiar conteaza (gama medie, unde parsarea
+      bundle-ului principal nu e instantanee) golul acela e citit ca "aplicatia
+      nu porneste", si e prima impresie despre produs.
+
+      Marcajul de mai jos NU e o copie a ecranului de start: foloseste exact
+      clasele lui (.empty-badge / .empty-badge-mark, vezi styles.concept.css),
+      deci nu poate arata altfel decat medalionul real si nu adauga aproape
+      niciun octet de CSS. Se vede din clipa in care foaia de stil e gata —
+      adica inainte de bundle, nu dupa el.
+
+      De ce marcaj static si nu o componenta: o componenta ar avea nevoie tocmai
+      de JS-ul asteptat. Si de ce nu un <style> inline: CSP-ul de mai sus are
+      `style-src 'self'`, fara 'unsafe-inline', si nu merita slabit pentru asta.
+
+      Dispare singur: `createRoot(...).render()` goleste containerul la primul
+      commit — nu e nimic de curatat de mana, si nu poate ramane blocat pe ecran
+      daca randarea intarzie.
+    -->
+    <div id="root">
+      <div class="boot-splash">
+        <div class="empty-badge" aria-hidden="true"><span class="empty-badge-mark">LC</span></div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
