@@ -6555,3 +6555,38 @@ button:disabled,
   color: var(--text);
   font-weight: 700;
 }
+
+/* ── Barele de metrici: culoarea spune ce a contat la scor ──
+   Toate erau de aceeasi culoare, deci "Ochi OK 100%" si "Zâmbet 60%" aratau
+   identic, desi una spune ca poza e in regula si cealalta nu spune nimic —
+   chiar langa un inel de scor care E colorat. Regula: se coloreaza doar
+   metricile la care motorul chiar numara un defect, si exact la pragul lui.
+   Vezi ui/MetricBar.tsx; `neutral` (implicit) pastreaza aspectul de dinainte. */
+.tiktok-score-metric[data-tone="good"] > i > b { background: var(--pick); }
+.tiktok-score-metric[data-tone="bad"] > i > b { background: var(--reject); }
+.tiktok-score-metric[data-tone="good"] > .tiktok-score-metric-pct { color: var(--pick); }
+.tiktok-score-metric[data-tone="bad"] > .tiktok-score-metric-pct { color: var(--reject); }
+/* Iconita urmeaza aceeasi regula: pe un rand ingust, ea se vede inaintea barei. */
+.tiktok-score-metric[data-tone="bad"] > svg { color: var(--reject); }
+
+/* ── Randul de file din panoul de metrici ──
+   Filele aveau latimi EGALE fortate (`flex: 1`), deci eticheta lunga ("De ce
+   acest scor") se rupea pe doua randuri in celula ei, in timp ce "Istoric"
+   plutea singur in a lui: randul iesea inegal si inghesuit (captura de la
+   utilizator).
+
+   Acum fiecare fila e lata cat scrie in ea si nu se mai rupe niciodata; cresc
+   sa umple randul cand e loc (`flex-grow: 1`) dar nu se comprima sub text
+   (`flex-shrink: 0`). Pe un ecran pe care chiar nu incap, randul se deruleaza
+   lateral — o fila taiata pe jumatate se vede ca "mai e ceva acolo", spre
+   deosebire de un text rupt, care arata doar a greseala. */
+.detail-tabs {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.detail-tabs::-webkit-scrollbar { display: none; }
+.detail-tab {
+  flex: 1 0 auto;
+  white-space: nowrap;
+  padding-inline: 10px;
+}

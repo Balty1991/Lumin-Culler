@@ -214,11 +214,21 @@ function showsKnownPerson(analysis: Pick<AnalysisRecord, 'knownFaceCount'>): boo
  * singur adevar: daca explicatia nu gaseste niciun defect de numit, decizia
  * automata n-are voie sa se poarte ca si cum ar fi gasit unul.
  */
-const DEFECT_SHARPNESS = 45;
+/**
+ * EXPORTATE ca interfata sa poata colora barele de metrici EXACT la pragul la
+ * care motorul chiar numara un defect (vezi ui/MetricBar.tsx).
+ *
+ * De ce conteaza ca sunt aceleasi valori, si nu unele alese separat pentru
+ * culoare: o bara rosie la 50 si un motor care considera defect abia sub 45 ar
+ * fi doua opinii diferite in acelasi ecran, iar utilizatorul n-ar avea cum sa
+ * afle care e cea care conteaza. Asa, culoarea nu e o parere despre poza — e
+ * exact afirmatia "asta a contat la scor".
+ */
+export const DEFECT_SHARPNESS = 45;
 const DEFECT_EXPOSURE_OFF = 15;
 const DEFECT_CLIPPING = 0.06;
 /** Sub atatea fete cu ochii deschisi, poza de grup chiar are o problema. */
-const DEFECT_EYES_OPEN_RATIO = 0.8;
+export const DEFECT_EYES_OPEN_RATIO = 0.8;
 
 /**
  * Are poza un defect REAL, care se poate numi?

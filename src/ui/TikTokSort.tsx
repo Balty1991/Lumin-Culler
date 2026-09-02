@@ -15,6 +15,7 @@ import {
   XIcon, UndoIcon, ChevronUpIcon, SparkleIcon, LayersIcon, BookmarkIcon, BarChartIcon, CheckIcon,
   MoreIcon, SmileIcon, EyeIcon, FocusIcon, TagIcon
 } from './icons';
+import { MetricBar, eyesTone, sharpnessTone } from './MetricBar';
 import { t, type Locale } from '../i18n';
 
 const SWIPE_COMMIT = 80; // px de tras (sus SAU jos) pentru a schimba pozitia in coada, fara sa decida nimic
@@ -754,29 +755,39 @@ export function TikTokSort() {
                     <i>/100</i>
                   </span>
                 </div>
+                {/* Fiecare fractiune se calcula de DOUA ori (o data pentru
+                    latimea barei, o data pentru eticheta) — acum o data, aici.
+                    Vezi ui/MetricBar.tsx pentru regula de culoare. */}
                 <div className="tiktok-score-metrics">
-                  {current.faceCount > 0 && (
-                    <>
-                      <div className="tiktok-score-metric">
-                        <SmileIcon aria-hidden="true" />
-                        <span>{tr(current.faceCount > 1 ? 'detail.stat.smiles' : 'detail.stat.smile')}</span>
-                        <i><b style={{ width: `${Math.round((current.faceCount > 1 ? current.groupSmileRatio ?? current.bestSmile : current.bestSmile) * 100)}%` }} /></i>
-                        <b className="tiktok-score-metric-pct">{Math.round((current.faceCount > 1 ? current.groupSmileRatio ?? current.bestSmile : current.bestSmile) * 100)}%</b>
-                      </div>
-                      <div className="tiktok-score-metric">
-                        <EyeIcon aria-hidden="true" />
-                        <span>{tr(current.faceCount > 1 ? 'detail.stat.eyesGroup' : 'detail.stat.eyesOk')}</span>
-                        <i><b style={{ width: `${Math.round((current.faceCount > 1 ? current.groupEyesOpenRatio ?? (current.allEyesOpen ? 1 : 0) : (current.allEyesOpen ? 1 : 0)) * 100)}%` }} /></i>
-                        <b className="tiktok-score-metric-pct">{Math.round((current.faceCount > 1 ? current.groupEyesOpenRatio ?? (current.allEyesOpen ? 1 : 0) : (current.allEyesOpen ? 1 : 0)) * 100)}%</b>
-                      </div>
-                    </>
-                  )}
-                  <div className="tiktok-score-metric">
-                    <FocusIcon aria-hidden="true" />
-                    <span>{tr('detail.stat.sharpness')}</span>
-                    <i><b style={{ width: `${Math.round(current.sharpness)}%` }} /></i>
-                    <b className="tiktok-score-metric-pct">{Math.round(current.sharpness)}%</b>
-                  </div>
+                  {current.faceCount > 0 && (() => {
+                    const smile = current.faceCount > 1 ? current.groupSmileRatio ?? current.bestSmile : current.bestSmile;
+                    const eyes = current.faceCount > 1
+                      ? current.groupEyesOpenRatio ?? (current.allEyesOpen ? 1 : 0)
+                      : (current.allEyesOpen ? 1 : 0);
+                    return (
+                      <>
+                        {/* Zambetul ramane necolorat: un portret serios nu e un
+                            defect, si motorul nu-l trateaza ca atare. */}
+                        <MetricBar
+                          icon={<SmileIcon aria-hidden="true" />}
+                          label={tr(current.faceCount > 1 ? 'detail.stat.smiles' : 'detail.stat.smile')}
+                          percent={smile * 100}
+                        />
+                        <MetricBar
+                          icon={<EyeIcon aria-hidden="true" />}
+                          label={tr(current.faceCount > 1 ? 'detail.stat.eyesGroup' : 'detail.stat.eyesOk')}
+                          percent={eyes * 100}
+                          tone={eyesTone(eyes)}
+                        />
+                      </>
+                    );
+                  })()}
+                  <MetricBar
+                    icon={<FocusIcon aria-hidden="true" />}
+                    label={tr('detail.stat.sharpness')}
+                    percent={current.sharpness}
+                    tone={sharpnessTone(current.sharpness)}
+                  />
                 </div>
               </div>
               {/* Context real (tipul de cadru + daca subiectul e o persoana
