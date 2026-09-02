@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, m, useReducedMotion } from 'framer-motion';
 import { useStore } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import {
@@ -125,7 +125,6 @@ export function MenuDrawer() {
   const hasPhotos = photos.length > 0;
   const setShortcutsOpen = useStore(s => s.setShortcutsOpen);
   const theme = useStore(s => s.theme);
-  const setTheme = useStore(s => s.setTheme);
   const accentTheme = useStore(s => s.accentTheme);
   const setAppearanceOpen = useStore(s => s.setAppearanceOpen);
   const setPremiumOpen = useStore(s => s.setPremiumOpen);
@@ -230,29 +229,11 @@ export function MenuDrawer() {
     return () => window.removeEventListener('keydown', onKey);
   }, [open, setOpen]);
 
-  // "Automat, dupa ora" (plan modernizare) — reaplica periodic tema cat timp
-  // preferinta e 'auto', ca o sesiune care ramane deschisa peste pragul
-  // 7:00/20:00 sa comute fara sa fie nevoie de o repornire a aplicatiei.
-  // MenuDrawer ramane montat permanent in App.tsx (doar continutul e ascuns
-  // cand !open), deci acest efect ruleaza indiferent daca meniul e deschis.
-  useEffect(() => {
-    if (theme !== 'auto') return;
-    const id = setInterval(() => setTheme('auto'), 15 * 60 * 1000);
-    // "Automat" tine cont acum si de setarea de sistem (prefers-color-scheme —
-    // vezi resolveTheme din state/theme.ts), care se poate schimba in orice
-    // clipa, nu doar la un prag orar: pe Android/iOS tema intunecata poate fi
-    // programata sa se activeze la apus sau comutata manual din centrul de
-    // notificari. Fara acest abonament, aplicatia ar ramane pe tema veche pana
-    // la urmatoarea bifa de 15 minute — vizibil gresita, chiar langa restul
-    // sistemului deja comutat.
-    const media = typeof matchMedia === 'function' ? matchMedia('(prefers-color-scheme: dark)') : null;
-    const onSystemChange = () => setTheme('auto');
-    media?.addEventListener('change', onSystemChange);
-    return () => {
-      clearInterval(id);
-      media?.removeEventListener('change', onSystemChange);
-    };
-  }, [theme, setTheme]);
+  // Ceasul temei "Automat" NU mai sta aici: era singurul lucru care obliga
+  // meniul sa fie montat de la pornire, iar meniul e cea mai mare componenta de
+  // UI din bundle-ul principal (~50 KB) pentru un panou pe care multi
+  // utilizatori nu-l deschid deloc. A fost mutat ca atare in
+  // ui/useAutoThemeWatch.ts, montat direct din App — vezi acolo.
   // Acelasi eveniment beforeinstallprompt ca InstallPrompt.tsx (citit dintr-un modul
   // comun, nu recaptat aici) — ramane accesibil din Meniu chiar dupa ce bannerul a
   // fost inchis, ca "nu mai arata asta" sa nu insemne "nu mai pot instala niciodata".
@@ -394,12 +375,12 @@ export function MenuDrawer() {
     />
     <AnimatePresence>
       {open && (
-    <motion.div
+    <m.div
       className="drawer-scrim" onClick={() => setOpen(false)}
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       transition={{ duration: reduceMotion ? 0 : 0.2, ease: EASE }}
     >
-      <motion.nav
+      <m.nav
         className="drawer" onClick={e => e.stopPropagation()}
         ref={containerRef} role="dialog" aria-modal="true" aria-label={tr('menu.title')} tabIndex={-1}
         initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
@@ -1009,8 +990,8 @@ export function MenuDrawer() {
           <InfoIcon />
           <p>{tr('menu.about')}</p>
         </div>
-      </motion.nav>
-    </motion.div>
+      </m.nav>
+    </m.div>
       )}
     </AnimatePresence>
     </>

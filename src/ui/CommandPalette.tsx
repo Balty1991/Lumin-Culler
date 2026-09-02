@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, m, useReducedMotion } from 'framer-motion';
 import { useStore, type FilterKey } from '../state/store';
 import { selectHighlights, selectBlinks, selectBlurry } from '../state/batchOps';
 import {
@@ -208,12 +208,12 @@ export function CommandPalette() {
   return (
     <AnimatePresence>
       {open && (
-        <motion.div
+        <m.div
           className="palette-scrim" onClick={() => setOpen(false)}
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           transition={{ duration: reduceMotion ? 0 : 0.15, ease: EASE }}
         >
-          <motion.div
+          <m.div
             className="palette" onClick={e => e.stopPropagation()}
             ref={containerRef} role="dialog" aria-modal="true" aria-label={tr('palette.ariaLabel')}
             initial={{ opacity: 0, scale: 0.97, y: -8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.98, y: -4 }}
@@ -259,8 +259,8 @@ export function CommandPalette() {
               ))}
               {filtered.length === 0 && <li className="palette-empty">{tr('palette.noResults')}</li>}
             </ul>
-          </motion.div>
-        </motion.div>
+          </m.div>
+        </m.div>
       )}
     </AnimatePresence>
   );

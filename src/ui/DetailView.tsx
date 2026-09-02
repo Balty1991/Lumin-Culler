@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, m, useReducedMotion } from 'framer-motion';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
 import { useStore, isAnyOverlayOpen, type PhotoView } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
@@ -249,7 +249,7 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
   };
 
   return (
-    <motion.div
+    <m.div
       className="detail-fullscreen" ref={containerRef} role="dialog" aria-modal="true"
       aria-label={tr('detail.ariaLabel', { fileName: photo.fileName })} tabIndex={-1}
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -451,7 +451,7 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
           <PhotoInfoTabs photo={photo} src={src} openTab={openTab} />
         </div>
       </div>
-    </motion.div>
+    </m.div>
   );
 }
 

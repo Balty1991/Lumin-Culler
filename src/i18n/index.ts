@@ -12,12 +12,65 @@
  * la schimbarea limbii; `t()` ramane o functie pura care primeste locale explicit.
  */
 import { ro } from './ro';
-import { en } from './en';
 
 export type Locale = 'ro' | 'en';
 
-const DICTS: Record<Locale, Record<string, string>> = { ro, en };
+/**
+ * Doar romana e legata static. Dictionarul englez (~119 KB de cod brut, cat
+ * cel romanesc) se descarca la cerere — vezi ensureLocaleLoaded.
+ *
+ * De ce: cele doua dictionare erau amandoua in bundle-ul principal, desi
+ * aplicatia foloseste exact unul la un moment dat. Adica fiecare pornire, la
+ * orice utilizator, platea parsarea limbii pe care nu o are setata. Romana
+ * ramane statica fiindca e si limba implicita, si plasa de rezerva a lui `t()`
+ * cand o cheie lipseste — fara ea in bundle, un `t()` apelat inainte sa se fi
+ * incarcat ceva n-ar avea ce returna.
+ *
+ * `en` porneste ca obiect gol, nu absent: `t()` il indexeaza direct, iar un
+ * `undefined` acolo ar arunca in loc sa cada pe romana.
+ */
+const DICTS: Record<Locale, Record<string, string>> = { ro, en: {} };
 const STORAGE_KEY = 'lumin-locale';
+
+/** A intrat deja dictionarul englez in DICTS.en? (Romana e mereu prezenta.) */
+let enLoaded = false;
+/** Descarcarea in curs, ca doua apeluri simultane sa nu ceara modulul de doua ori. */
+let enLoading: Promise<void> | null = null;
+
+/**
+ * Limba `locale` are dictionarul incarcat si `t()` poate raspunde in ea ACUM.
+ *
+ * Apelantii care schimba limba (store.setLocale) verifica intai asta: cand
+ * raspunsul e da, comuta sincron, fara sa mai treaca printr-o promisiune —
+ * altfel fiecare revenire la romana ar fi intarziat cu un tick degeaba.
+ */
+export function isLocaleLoaded(locale: Locale): boolean {
+  return locale === 'ro' || enLoaded;
+}
+
+/**
+ * Se asigura ca dictionarul limbii cerute e disponibil pentru `t()`.
+ *
+ * De apelat INAINTE de a arata ceva in acea limba: la pornire (main.tsx, pentru
+ * limba salvata) si la comutarea din meniu. `t()` ramane sincron, deci nu are
+ * cum sa astepte singur — daca s-ar randa mai devreme, un utilizator cu engleza
+ * setata ar vedea o clipa interfata in romana.
+ *
+ * Un esec (offline, la prima pornire dupa instalare, cu chunk-ul necache-uit)
+ * NU arunca: aplicatia porneste in romana, care e oricum plasa de rezerva a lui
+ * `t()`. Mai bine interfata in limba gresita decat un ecran alb.
+ */
+export function ensureLocaleLoaded(locale: Locale): Promise<void> {
+  if (locale !== 'en' || enLoaded) return Promise.resolve();
+  enLoading ??= import('./en')
+    .then(mod => { Object.assign(DICTS.en, mod.en); enLoaded = true; })
+    .catch(err => {
+      console.error('Dictionarul englez nu s-a putut incarca; ramane romana:', err);
+      // Se reincearca la urmatorul apel (ex. urmatoarea comutare din meniu).
+      enLoading = null;
+    });
+  return enLoading;
+}
 
 export function readStoredLocale(): Locale {
   try {

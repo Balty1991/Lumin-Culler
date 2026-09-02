@@ -6028,19 +6028,40 @@ button:disabled,
 }
 
 /* ── Bara de jos ──
-   Pastila activa gliseaza intre taburi (vezi layoutId in BottomNav.tsx), deci
-   fundalul propriu al tabului activ dispare — altfel s-ar fi vazut doua
-   pastile in acelasi timp cat tine tranzitia. */
+   Pastila activa gliseaza intre taburi (vezi BottomNav.tsx), deci fundalul
+   propriu al tabului activ dispare — altfel s-ar fi vazut doua pastile in
+   acelasi timp cat tine tranzitia.
+
+   PISTA, nu pastila per tab: o grila de 4 coloane intinsa peste bara, cu O
+   SINGURA pastila lata cat o coloana. `translateX(N * 100%)` o duce exact peste
+   tabul N, fiindca procentele de pe translate se raporteaza la latimea proprie
+   a elementului — adica fix o coloana. Asta inlocuieste `layoutId` din
+   framer-motion (~107 KB de motor de proiectie in bundle-ul principal, ca sa
+   masoare patru pozitii care erau oricum cunoscute dinainte). */
 .bottom-nav-tab.active { background: transparent; }
 .bottom-nav-tab { position: relative; }
-.bottom-nav-pill {
+.bottom-nav-pill-track {
   position: absolute;
-  inset: 0;
+  /* `bottom` tine cont de bara de sistem: .bottom-nav are padding-bottom egal
+     cu --safe-bottom, iar pista e absoluta fata de ea, deci ignora acel padding. */
+  inset: 6px 0 calc(var(--safe-bottom) + 6px);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  pointer-events: none;
   z-index: 0;
+}
+.bottom-nav-pill {
+  grid-column: 1;
+  margin: 0 6px;
   border-radius: 14px;
   background: rgb(101 224 203 / .16);
   box-shadow: inset 0 0 0 1px rgb(101 224 203 / .22);
+  transform: translateX(calc(var(--nav-active, 0) * 100%));
+  transition: transform .34s var(--ease), opacity .18s ease;
 }
+/* Niciun tab activ (esti pe Acasa): pastila nu se muta nicaieri, doar dispare —
+   altfel ar fi glisat inapoi la tabul 0 si ar fi aratat Grila ca fiind activa. */
+.bottom-nav-pill[data-hidden='true'] { opacity: 0; }
 /* Iconita si eticheta urca peste pastila. Insigna NU e in lista: ea e deja
    `position: absolute` (vezi .bottom-nav-badge), iar trecerea ei pe `relative`
    a bagat-o inapoi in randul flex — se vedea in captura ca un al treilea rand

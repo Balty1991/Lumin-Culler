@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, m, useReducedMotion } from 'framer-motion';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
 import { useStore, type PhotoView } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
@@ -36,7 +36,7 @@ function PresentationSlide({ photo, reduceMotion }: { photo: PhotoView; reduceMo
         <img className="presentation-lqip" src={photo.lqip} alt="" style={{ opacity: src ? 0 : 1 }} />
       )}
       {src && (
-        <motion.img
+        <m.img
           className="presentation-img"
           src={src}
           alt=""
@@ -237,7 +237,7 @@ export function PresentationMode() {
         <>
           <AnimatePresence mode="wait">
             {photo && (
-              <motion.div
+              <m.div
                 key={photo.id}
                 className="presentation-frame"
                 initial={{ opacity: 0 }}
@@ -246,7 +246,7 @@ export function PresentationMode() {
                 transition={{ duration: reduceMotion ? 0 : 0.6, ease: EASE }}
               >
                 <PresentationSlide photo={photo} reduceMotion={reduceMotion} />
-              </motion.div>
+              </m.div>
             )}
           </AnimatePresence>
 

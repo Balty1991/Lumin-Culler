@@ -88,7 +88,7 @@ import { readStoredRenameTemplate, writeStoredRenameTemplate } from '../core/ren
 import { recordUsage, readMonthlyUsage } from './usage';
 import { getProjectMetadata } from './projectMetadata';
 import { buildPersonProfilesExport, personProfilesFileName, parsePersonProfilesFile } from '../core/personProfileTransfer';
-import { readStoredLocale, writeStoredLocale, applyLocale, t, plural, type Locale } from '../i18n';
+import { readStoredLocale, writeStoredLocale, applyLocale, ensureLocaleLoaded, isLocaleLoaded, t, plural, type Locale } from '../i18n';
 import { translateSceneTag, normalizeForSearch } from '../core/sceneTagLabels';
 import { relatedSceneTags } from '../core/searchSynonyms';
 import { cuvinteDinText, seGasesteAproape } from '../core/searchFuzzy';
@@ -2340,7 +2340,25 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
   locale: readStoredLocale(),
-  setLocale: locale => { writeStoredLocale(locale); applyLocale(locale); set({ locale }); },
+  /**
+   * Comutarea asteapta dictionarul, cand acesta inca nu e in memorie.
+   *
+   * Engleza se descarca la cerere (vezi i18n/index.ts) — fara asteptare, `set`
+   * ar fi anuntat limba noua inainte ca `t()` sa aiba ce raspunde in ea, si tot
+   * ecranul ar fi clipit o data prin romana. Cand dictionarul e deja incarcat
+   * (mereu, la romana; a doua oara incolo, la engleza) se comuta sincron, ca
+   * inainte — nicio intarziere adaugata pe drumul obisnuit.
+   *
+   * `writeStoredLocale`/`applyLocale` raman inaintea asteptarii: alegerea e deja
+   * a utilizatorului, iar daca inchide aplicatia in acea fractiune de secunda
+   * trebuie sa se redeschida in limba pe care a ales-o.
+   */
+  setLocale: locale => {
+    writeStoredLocale(locale);
+    applyLocale(locale);
+    if (isLocaleLoaded(locale)) { set({ locale }); return; }
+    void ensureLocaleLoaded(locale).then(() => set({ locale }));
+  },
   projectName: readStoredProjectName(),
   setProjectName: name => { writeProjectName(name); set({ projectName: name }); },
   watermarkText: readStoredWatermarkText(),

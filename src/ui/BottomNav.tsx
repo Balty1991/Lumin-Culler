@@ -1,5 +1,4 @@
-import { useRef } from 'react';
-import { motion } from 'framer-motion';
+import { useRef, type CSSProperties } from 'react';
 import { useStore } from '../state/store';
 import { GridIcon, PersonIcon, UploadIcon, GearIcon } from './icons';
 import { t } from '../i18n';
@@ -77,37 +76,54 @@ export function BottomNav() {
 
   /**
    * Pastila care marcheaza tabul activ GLISEAZA intre taburi, in loc sa apara
-   * si sa dispara. `layoutId` face framer-motion sa trateze cele patru
-   * aparitii posibile ca pe UN SINGUR element care se muta — de-aia fundalul
-   * propriu al tabului activ a fost scos din CSS: altfel s-ar fi vazut doua
-   * pastile in acelasi timp cat tine tranzitia.
+   * si sa dispara.
    *
-   * Miscarea e doar transform, deci nu reasaza bara. La
-   * `prefers-reduced-motion` framer citeste singur setarea si sare direct.
+   * A fost `layoutId` de framer-motion. Miscarea aratata e identica, dar
+   * `layoutId` porneste motorul de PROIECTIE al bibliotecii — masoara elemente,
+   * compara casete intre randari, si tarste in bundle-ul principal
+   * `create-projection-node` + drag + pan: ~107 KB de cod brut incarcat la
+   * fiecare pornire, pentru o pastila care se plimba intre patru pozitii fixe si
+   * cunoscute dinainte. Bara are exact patru taburi de latime egala, deci
+   * pozitia nu are ce sa fie masurata: e indexul tabului activ, iar
+   * `translateX(index * 100%)` pe o pastila lata cat o coloana o duce fix acolo.
+   *
+   * Pista e o grila de 4 coloane suprapusa peste bara (nu un element in
+   * interiorul tabului): pastila ramane UNA singura, deci nu se pot vedea doua
+   * in acelasi timp cat tine tranzitia — exact motivul pentru care fundalul
+   * propriu al tabului activ e transparent in CSS.
+   *
+   * Miscarea e doar transform, deci nu reasaza bara. La `prefers-reduced-motion`
+   * plasa de siguranta din styles.css scurteaza tranzitia la ~0 (nu o anuleaza),
+   * ca inainte.
    */
-  const pastila = <motion.span layoutId="bottom-nav-pill" className="bottom-nav-pill" aria-hidden="true"
-    transition={{ type: 'spring', stiffness: 520, damping: 42, mass: 0.7 }} />;
+  const activeIndex = isGridActive ? 0 : personsOpen ? 1 : exportDestinationsOpen ? 2 : menuOpen ? 3 : -1;
+  const pastila = (
+    <span className="bottom-nav-pill-track" aria-hidden="true">
+      <span
+        className="bottom-nav-pill"
+        data-hidden={activeIndex < 0 ? 'true' : undefined}
+        style={{ '--nav-active': Math.max(0, activeIndex) } as CSSProperties}
+      />
+    </span>
+  );
 
   return (
     <nav className="bottom-nav glass" aria-label={tr('nav.ariaLabel')}>
+      {pastila}
       <button className={isGridActive ? 'bottom-nav-tab active' : 'bottom-nav-tab'} onClick={goGrid} aria-current={isGridActive}>
-        {isGridActive && pastila}
         <GridIcon />
         <span>{tr('nav.grid')}</span>
         {toReview > 0 && !isGridActive && <b className="bottom-nav-badge mono">{toReview > 99 ? '99+' : toReview}</b>}
       </button>
       <button className={personsOpen ? 'bottom-nav-tab active' : 'bottom-nav-tab'} onClick={goPersons} aria-current={personsOpen}>
-        {personsOpen && pastila}
         <PersonIcon />
         <span>{tr('nav.persons')}</span>
       </button>
       <button className={exportDestinationsOpen ? 'bottom-nav-tab active' : 'bottom-nav-tab'} onClick={goExport} aria-current={exportDestinationsOpen}>
-        {exportDestinationsOpen && pastila}
         <UploadIcon />
         <span>{tr('nav.export')}</span>
       </button>
       <button className={menuOpen ? 'bottom-nav-tab active' : 'bottom-nav-tab'} onClick={goSettings} aria-current={menuOpen}>
-        {menuOpen && pastila}
         <GearIcon />
         <span>{tr('nav.settings')}</span>
       </button>

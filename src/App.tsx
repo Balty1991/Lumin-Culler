@@ -4,7 +4,6 @@ import { PhotoCard } from './ui/PhotoCard';
 import { VirtualPhotoGrid } from './ui/VirtualPhotoGrid';
 import { DetailView } from './ui/DetailView';
 import { Workspace } from './ui/Workspace';
-import { MenuDrawer } from './ui/MenuDrawer';
 import { GuidePanel } from './ui/GuidePanel';
 // Nu si CollectionPicker printre panourile lazy de mai jos, desi e folosit tot
 // ocazional — ContextMenu.tsx/DetailView.tsx il importa deja STATIC (eager),
@@ -46,6 +45,7 @@ import { EnrollPeopleNudge } from './ui/EnrollPeopleNudge';
 import { MemoryBanner } from './ui/MemoryBanner';
 import { GallerySupervisorBanner } from './ui/GallerySupervisorBanner';
 import { PhotosAccessNotice } from './ui/PhotosAccessNotice';
+import { useAutoThemeWatch } from './ui/useAutoThemeWatch';
 import { useHeaderBottomVar } from './ui/useHeaderBottomVar';
 import { useBannerStackVar } from './ui/useBannerStackVar';
 import { noticeTone } from './ui/noticeTone';
@@ -90,6 +90,11 @@ function lazyPanel(loader: () => Promise<{ default: ComponentType<Record<string,
   };
 }
 
+// Meniul a fost pana acum importat static — cea mai mare componenta de UI
+// ramasa in bundle-ul principal (~50 KB de cod brut). Statica trebuia sa fie
+// doar din cauza ceasului temei "Automat", care traia in ea si trebuia sa
+// mearga si cu meniul inchis; ceasul e acum useAutoThemeWatch, montat mai jos.
+const MenuDrawer = lazyPanel(() => import('./ui/MenuDrawer').then(m => ({ default: m.MenuDrawer })));
 const GroupCompare = lazyPanel(() => import('./ui/GroupCompare').then(m => ({ default: m.GroupCompare })));
 const PersonsPanel = lazyPanel(() => import('./ui/PersonsPanel').then(m => ({ default: m.PersonsPanel })));
 const InsightsPanel = lazyPanel(() => import('./ui/InsightsPanel').then(m => ({ default: m.InsightsPanel })));
@@ -281,6 +286,9 @@ export default function App() {
   const setSupervisorPanelOpen = useStore(s => s.setSupervisorPanelOpen);
   const notice = useStore(s => s.notice);
   const clearNotice = useStore(s => s.clearNotice);
+  // Ceasul temei "Automat" — mutat aici din MenuDrawer, care era montat de la
+  // pornire DOAR ca sa-l tina in viata. Vezi ui/useAutoThemeWatch.ts.
+  useAutoThemeWatch();
   // Toastul se aseaza sub capul de ecran masurat, nu sub un numar fix — vezi useHeaderBottomVar.
   const headerBottomRef = useHeaderBottomVar<HTMLElement>();
   // Bannerele plutitoare acopereau salutul de pe Acasa (captura de la
