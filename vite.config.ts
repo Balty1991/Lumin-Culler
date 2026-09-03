@@ -116,6 +116,27 @@ export default defineConfig({
               // unde asta e cazul normal, nu o eroare.
               cacheableResponse: { statuses: [0, 200] }
             }
+          },
+          {
+            // Runtime-ul ONNX (~28 MB de wasm), pentru intelegerea semantica —
+            // vezi core/clip/. Exact acelasi tratament ca modelele de mai sus, si
+            // din acelasi motiv, doar ca aici miza e mai mare: precache-ul l-ar
+            // face obligatoriu la prima vizita pentru TOATA lumea, inclusiv
+            // pentru cine nu porneste niciodata functia optionala. Adica exact
+            // ce a fost proiectata integrarea sa evite.
+            //
+            // Build-ul a si picat pe asta (vite-plugin-pwa refuza un fisier de
+            // 27,8 MB in manifestul de precache), ceea ce a fost noroc: fara
+            // eroare, s-ar fi livrat tacut o descarcare obligatorie de 28 MB.
+            urlPattern: ({ url }: { url: URL }) => url.pathname.includes('/ort/'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'lumin-onnx-runtime',
+              // Doua fisiere azi (.wasm + .mjs). Un an, ca la modele: se schimba
+              // doar cand se schimba versiunea pachetului.
+              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheableResponse: { statuses: [0, 200] }
+            }
           }
         ],
         // Materialele pentru fisa Play Store stau acum in `store/` la radacina
@@ -124,7 +145,7 @@ export default defineConfig({
         // ducea in APK/AAB: 3,3 MiB de capturi si feature graphic in fiecare
         // instalare, pentru ceva ce nu se vede niciodata in aplicatie.
         // Excluderea de mai jos ramane ca plasa de siguranta daca reapar acolo.
-        globIgnores: ['store/**', 'models/**'],
+        globIgnores: ['store/**', 'models/**', 'ort/**'],
         // Fara astea, un service worker nou instalat ramane "waiting" pana se
         // inchid TOATE tab-urile/instantele deschise ale aplicatiei — pe un PWA
         // instalat (adaugat pe ecranul principal, ramane rezident) practic nu se
