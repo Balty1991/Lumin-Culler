@@ -34,6 +34,33 @@ jobs:
             cp node_modules/@vladmandic/human/models/$m.json public/models/
             cp node_modules/@vladmandic/human/models/$m.bin public/models/
           done
+      # CLIP — intelegerea semantica a continutului (core/clip/). OPTIONALA in
+      # doua feluri, si amandoua conteaza:
+      #
+      #  1. Pentru BUILD: daca modelul nu se poate descarca, scriptul nu scrie
+      #     manifestul si iese cu 0. Aplicatia construita e atunci exact cea de
+      #     azi, fara functie. O functie in plus n-are voie sa opreasca livrarea
+      #     a tot restul.
+      #  2. Pentru UTILIZATOR: nici runtime-ul, nici modelul nu se descarca pe
+      #     telefon pana cand nu cere el functia. Vezi state/clipOptIn.ts.
+      #
+      # DOAR AICI, nu si in workflow-ul de Android: pe web fisierele se aduc la
+      # cerere, dar Capacitor impacheteaza tot ce e in public/ direct in APK —
+      # deci acolo cei ~40 MB i-ar plati la instalare inclusiv cine nu foloseste
+      # niciodata functia. Se muta si acolo cand masuratorile de pe telefon
+      # justifica marimea.
+      - name: Bundle CLIP model (optional)
+        run: node scripts/fetch-clip-model.mjs
+      - name: Bundle ONNX Runtime wasm
+        run: |
+          if [ -f public/models/clip/manifest.json ]; then
+            mkdir -p public/ort
+            cp node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.wasm public/ort/
+            cp node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.mjs public/ort/
+            echo "ort: $(du -sh public/ort | cut -f1)"
+          else
+            echo "Fara model CLIP — nu are rost sa livram runtime-ul singur."
+          fi
       # "Locatii" — numele localitatilor, ca ecranul sa scrie "Rosiori de Vede,
       # Romania" in loc de "44.114, 24.987", FARA sa intrebe vreun serviciu
       # (cerinta directa a utilizatorului: "sa nu plece nimic deloc"). Lista

@@ -590,6 +590,41 @@ export interface HistoryRecord {
 
 // ── Database ─────────────────────────────────────────────────────────────────
 
+/**
+ * Vectorul CLIP al unei poze — "despre ce e poza asta", intr-un spatiu in care
+ * si cuvintele au coordonate (vezi core/clip/).
+ *
+ * TABELA SEPARATA, si sunt doua motive, amandoua practice:
+ *
+ * 1. AnalysisRecord e deja greu. Contine embedding-ul de continut si cate unul
+ *    pentru fiecare fata, iar comentariile din InsightsPanel/store explica de ce
+ *    `db.analyses.toArray()` pe o biblioteca mare trage zeci de MB in memorie ca
+ *    sa citeasca trei campuri mici. Inca 512 de numere pe rand ar inrautati fix
+ *    problema aia, pe drumuri care n-au nevoie de vector.
+ * 2. Functia e OPTIONALA si se poate opri. Cand utilizatorul o opreste, datele
+ *    ei trebuie sa dispara — iar `db.clipEmbeddings.clear()` e o operatie, nu o
+ *    parcurgere a intregii biblioteci care rescrie fiecare analiza.
+ *
+ * `modelId` sta pe FIECARE rand, nu o singura data undeva global: dupa o
+ * schimbare de model, biblioteca are legitim vectori din doua spatii, iar
+ * cei vechi trebuie sa poata fi recunoscuti si ignorati unul cate unul. Vezi
+ * regula din core/clip/clipVector.ts — vectori din modele diferite nu se
+ * compara niciodata.
+ */
+export interface ClipEmbeddingRecord {
+  photoId: string;
+  /** Vezi ClipManifest.id — identitatea exacta a modelului, cu cuantizare si revizie. */
+  modelId: string;
+  /**
+   * Float32Array, nu number[]: IndexedDB stocheaza tablourile tipizate nativ
+   * (structured clone), deci 512 dimensiuni ocupa 2 KB in loc de ~4-6 KB, si
+   * nu trec prin serializare la fiecare citire.
+   */
+  values: Float32Array;
+  /** Cand a fost calculat — ca sa se poata recalcula cele vechi fara sa le stergi pe toate. */
+  ts: number;
+}
+
 export class LuminDB extends Dexie {
   photos!: Table<PhotoRecord, string>;
   thumbnails!: Table<ThumbnailRecord, string>;
@@ -600,6 +635,7 @@ export class LuminDB extends Dexie {
   persons!: Table<KnownPerson, string>;
   contextModels!: Table<ContextModelRecord, string>;
   embeddingMemory!: Table<EmbeddingMemoryRecord, string>;
+  clipEmbeddings!: Table<ClipEmbeddingRecord, string>;
   tagMemory!: Table<TagMemoryRecord, string>;
   corrections!: Table<CorrectionRecord, number>;
   history!: Table<HistoryRecord, number>;
@@ -746,6 +782,30 @@ export class LuminDB extends Dexie {
       collections: 'id, name',
       embeddingMemory: 'id',
       tagMemory: 'id'
+    });
+
+    // v10: vectorii CLIP, in tabela lor (vezi ClipEmbeddingRecord de ce separat).
+    // Doar o tabela NOUA — nicio tabela existenta nu se atinge, deci upgrade-ul
+    // e instant si nu poate pierde nimic din ce exista deja. Cine nu foloseste
+    // functia ramane cu o tabela goala, adica zero octeti.
+    //
+    // `modelId` e indexat: dupa o schimbare de model trebuie sa putem numara si
+    // sterge vectorii ramasi din spatiul vechi fara sa parcurgem tot.
+    this.version(10).stores({
+      photos: 'id, capturedAt, status, dHash, groupId',
+      thumbnails: 'photoId',
+      previews: 'photoId',
+      originals: 'photoId',
+      fileHandles: 'photoId',
+      analyses: 'photoId, sceneType, aiScore',
+      persons: 'id, name',
+      contextModels: 'contextKey',
+      corrections: '++id, contextKey, ts',
+      history: '++id, ts',
+      collections: 'id, name',
+      embeddingMemory: 'id',
+      tagMemory: 'id',
+      clipEmbeddings: 'photoId, modelId'
     });
   }
 }
