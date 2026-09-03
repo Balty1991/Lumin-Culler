@@ -49,6 +49,68 @@ if (octeti.length > recipe.maxBytes) renunta(`fisier prea mare (${octeti.length}
 // cazul in care am salvat o pagina web cu extensia .onnx.
 if (octeti[0] !== 0x08) renunta(`nu arata a fisier ONNX (primul octet 0x${octeti[0].toString(16)})`);
 
+/**
+ * VERIFICAREA PREPROCESARII, si e cea mai importanta din script.
+ *
+ * `mean`, `std` si `inputSize` din reteta sunt numerele cu care a fost ANTRENAT
+ * modelul. Gresite, modelul nu da eroare — da vectori de forma corecta,
+ * plauzibili si complet gresiti (vezi core/clip/clipPreprocess.ts). Pana acum
+ * erau o afirmatie scrisa de mana, pe care nimeni n-o putea contrazice.
+ *
+ * Fisa de preprocesare publicata langa model le contine. Le aducem si le
+ * comparam: la nepotrivire NU scriem manifestul, deci functia ramane absenta in
+ * loc sa produca gunoi cu aspect respectabil. Cand fisa nu se poate aduce,
+ * mergem mai departe cu un avertisment vizibil — nu putem verifica, dar nici nu
+ * are rost sa oprim un build din acest motiv.
+ */
+async function verificaPreprocesarea() {
+  if (!recipe.preprocessorUrl) return { verificat: false, motiv: 'nicio fisa de preprocesare in reteta' };
+  let fisa;
+  try {
+    const r = await fetch(recipe.preprocessorUrl);
+    if (!r.ok) return { verificat: false, motiv: `HTTP ${r.status} la fisa de preprocesare` };
+    fisa = await r.json();
+  } catch (err) {
+    return { verificat: false, motiv: `retea: ${err.message}` };
+  }
+
+  const aproape = (a, b) => Math.abs(a - b) < 1e-3;
+  const neconcordante = [];
+
+  // `do_normalize: false` inseamna ca modelul primeste pixelii doar scalati la
+  // 0..1 — ceea ce, in formularea noastra, e media 0 si deviatia 1.
+  const normalizeaza = fisa.do_normalize !== false;
+  const meanAsteptat = normalizeaza && Array.isArray(fisa.image_mean) ? fisa.image_mean : [0, 0, 0];
+  const stdAsteptat = normalizeaza && Array.isArray(fisa.image_std) ? fisa.image_std : [1, 1, 1];
+  for (let i = 0; i < 3; i++) {
+    if (!aproape(recipe.mean[i], meanAsteptat[i])) neconcordante.push(`mean[${i}]: reteta ${recipe.mean[i]}, model ${meanAsteptat[i]}`);
+    if (!aproape(recipe.std[i], stdAsteptat[i])) neconcordante.push(`std[${i}]: reteta ${recipe.std[i]}, model ${stdAsteptat[i]}`);
+  }
+
+  // Latura ceruta poate fi scrisa in doua feluri, dupa cum a fost exportat modelul.
+  const latura = fisa.crop_size?.height ?? fisa.crop_size ?? fisa.size?.shortest_edge ?? fisa.size?.height;
+  if (typeof latura === 'number' && latura !== recipe.inputSize) {
+    neconcordante.push(`inputSize: reteta ${recipe.inputSize}, model ${latura}`);
+  }
+
+  return neconcordante.length
+    ? { verificat: true, neconcordante }
+    : { verificat: true, neconcordante: [] };
+}
+
+const preproc = await verificaPreprocesarea();
+if (preproc.verificat && preproc.neconcordante.length) {
+  console.error('[clip] PREPROCESARE GRESITA in scripts/clip-model.json:');
+  for (const n of preproc.neconcordante) console.error(`[clip]   ${n}`);
+  renunta('numerele de preprocesare nu se potrivesc cu fisa modelului — un model rulat asa da vectori plauzibili si gresiti');
+}
+if (!preproc.verificat) {
+  console.warn(`[clip] ATENTIE: preprocesarea NU a putut fi verificata (${preproc.motiv}).`);
+  console.warn('[clip] Numerele din reteta raman o afirmatie neconfirmata.');
+} else {
+  console.log('[clip] Preprocesare confirmata din fisa modelului: mean/std/inputSize se potrivesc.');
+}
+
 const sha = createHash('sha256').update(octeti).digest('hex');
 const manifest = {
   id: `${recipe.name}@${sha.slice(0, 12)}`,

@@ -13,14 +13,28 @@
     "descarcat. Asa, orice schimbare a modelului — alta revizie, alta cuantizare,",
     "alt fisier — schimba automat identitatea, iar vectorii vechi devin",
     "recunoscut-straini fara ca cineva sa trebuiasca sa-si aduca aminte sa",
-    "incrementeze o versiune."
+    "incrementeze o versiune.",
+    "",
+    "`preprocessorUrl` inchide automat exact riscul descris mai sus: scriptul",
+    "aduce fisa de preprocesare a modelului si o COMPARA cu numerele de aici.",
+    "La nepotrivire NU scrie manifestul — adica functia ramane absenta, in loc sa",
+    "produca vectori plauzibili si gresiti."
   ],
   "name": "mobileclip_s0.image.q8",
   "url": "https://huggingface.co/Xenova/mobileclip_s0/resolve/main/onnx/vision_model_quantized.onnx",
   "dim": 512,
   "inputSize": 256,
-  "mean": [0, 0, 0],
-  "std": [1, 1, 1],
+  "mean": [
+    0,
+    0,
+    0
+  ],
+  "std": [
+    1,
+    1,
+    1
+  ],
   "minBytes": 5000000,
-  "maxBytes": 120000000
+  "maxBytes": 120000000,
+  "preprocessorUrl": "https://huggingface.co/Xenova/mobileclip_s0/resolve/main/preprocessor_config.json"
 }
