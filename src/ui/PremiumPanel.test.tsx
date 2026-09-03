@@ -145,3 +145,51 @@ describe('PremiumPanel — alegerea planului', () => {
     await waitFor(() => expect(subscribe).toHaveBeenCalledWith(undefined));
   });
 });
+
+/**
+ * Ce se intampla DUPA plata — bugul gasit auditand drumul complet: omul lovea o
+ * poarta, platea, primea confirmarea, si functia pentru care platise nu pornea.
+ */
+describe('PremiumPanel — calea inapoi dupa plata', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    localStorage.clear();
+    useStore.setState({ locale: 'ro', premiumOpen: true, premium: false, premiumReason: null, persons: [] });
+  });
+
+  it('dupa plata, duce inapoi exact la functia ceruta', () => {
+    useStore.setState({ premium: true, premiumReason: 'contactSheet' });
+    render(<PremiumPanel />);
+    fireEvent.click(screen.getByRole('button', { name: /Deschide planșa de contact/ }));
+    expect(useStore.getState().contactSheetOpen).toBe(true);
+    // Si inchide ecranul de plata: functia ceruta e acum deasupra, iar un panou
+    // de vanzare ramas dedesubt n-are ce cauta acolo.
+    expect(useStore.getState().premiumOpen).toBe(false);
+  });
+
+  it('la plafonul de export redeschide foaia de export, cu selectia intacta', () => {
+    // Singurul caz in care nu se poate relua chiar actiunea: destinatia aleasa
+    // nu s-a retinut. Un pas inapoi, nu zero — pozele sunt tot selectate.
+    useStore.setState({ premium: true, premiumReason: 'cap' });
+    render(<PremiumPanel />);
+    fireEvent.click(screen.getByRole('button', { name: /Reia exportul/ }));
+    expect(useStore.getState().exportDestinationsOpen).toBe(true);
+  });
+
+  it('deschis din meniu, fara nicio poarta lovita, nu propune nicio reluare', () => {
+    // N-a cerut nimic anume; un buton care duce undeva la intamplare ar fi mai
+    // rau decat lipsa lui.
+    useStore.setState({ premium: true, premiumReason: null });
+    render(<PremiumPanel />);
+    expect(screen.queryByRole('button', { name: /→/ })).not.toBeInTheDocument();
+  });
+
+  it('cat timp NU e abonat, nu apare nicio cale inapoi — poarta e inca inchisa', () => {
+    // Bugul in oglinda: un buton "Deschide planșa de contact" langa unul de
+    // cumparare ar promite functia inainte de plata.
+    mockPlay([LUNAR]);
+    useStore.setState({ premium: false, premiumReason: 'contactSheet' });
+    render(<PremiumPanel />);
+    expect(screen.queryByRole('button', { name: /Deschide planșa de contact/ })).not.toBeInTheDocument();
+  });
+});

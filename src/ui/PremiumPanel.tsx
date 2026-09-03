@@ -8,6 +8,7 @@ import { annualSavingsPercent, perMonthPrice, defaultPlanId, resolvePlan } from 
 import { t, plural } from '../i18n';
 import { PremiumProof } from './PremiumProof';
 import { LifetimeProof } from './LifetimeProof';
+import { resumeFor } from './premiumResume';
 
 /**
  * ui/PremiumPanel.tsx
@@ -104,6 +105,11 @@ export function PremiumPanel() {
    * bifat nu mai e in lista — vezi core/premiumPlans.ts.
    */
   const picked = resolvePlan(plans, pickedPlanId);
+  /**
+   * Ce se reia dupa plata. Se citeste si cand omul e DEJA abonat si a lovit o
+   * poarta ramasa dintr-o stare veche — atunci e tot calea corecta inainte.
+   */
+  const resume = premium ? resumeFor(premiumReason) : null;
   /** Reperul fata de care se citeste economia: primul plan, adica lunarul. */
   const referencePlan = plans[0] ?? null;
 
@@ -269,7 +275,21 @@ export function PremiumPanel() {
           /* Starea care lipsea complet: confirmare, si de unde se gestioneaza
              abonamentul. Anularea se face DOAR din Google Play — asa cere Play,
              si oricum aplicatia n-are cum s-o faca in locul lui. */
-          <p className="premium-soon" role="status">{tr('premium.manage')}</p>
+          <>
+            {/* CALEA INAPOI, si e bugul cel mai scump din ecranul asta: cine
+                lovea o poarta, platea, si primea confirmarea... si atat. Functia
+                pentru care tocmai platise nu pornea; trebuia sa inchida ecranul
+                si s-o caute din nou in meniu. Vezi ui/premiumResume.ts. */}
+            {resume && (
+              <button
+                className="btn-accent big premium-resume"
+                onClick={() => { setOpen(false); resume.run(useStore.getState()); }}
+              >
+                {tr(resume.labelKey)}
+              </button>
+            )}
+            <p className="premium-soon" role="status">{tr('premium.manage')}</p>
+          </>
         ) : isBillingAvailable() && (picked ?? price) ? (
           /* Butonul apare doar cand Play chiar a confirmat ca exista ceva de
              cumparat: un plan (sau, ca rezerva, un pret) inseamna produs

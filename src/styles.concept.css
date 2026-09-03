@@ -6672,3 +6672,8 @@ button:disabled,
 .home-ai-card.is-warming .home-ai-num { color: var(--text); }
 .home-ai-num-progress { font-size: clamp(1rem, 5vw, 1.2rem); }
 .home-ai-num-progress i { font-style: normal; color: var(--text-faint); font-size: .82em; }
+
+/* Calea inapoi dupa plata (ui/premiumResume.ts). Accentuat si lat cat butonul
+   de cumparare pe care tocmai l-a apasat: e continuarea aceleiasi actiuni, nu
+   o optiune secundara. */
+.premium-resume { width: 100%; margin-top: 4px; }
