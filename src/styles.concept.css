@@ -6664,3 +6664,11 @@ button:disabled,
 .home-ai-trend[data-dir='up'] { color: var(--pick-text, var(--pick)); }
 .home-ai-trend[data-dir='down'] { color: var(--review-text, var(--review)); }
 .home-ai-go { color: var(--text-faint); font-size: 1rem; }
+
+/* Starea de incalzire a cardului: acelasi card, dar cifra e un CONTOR, nu un
+   procent — si se vede din prima privire ca e altceva (mai mica, in culoarea
+   textului obisnuit, cu numitorul si mai discret). Un "6/20" care arata ca un
+   "87%" ar fi doua lucruri diferite spuse la fel. */
+.home-ai-card.is-warming .home-ai-num { color: var(--text); }
+.home-ai-num-progress { font-size: clamp(1rem, 5vw, 1.2rem); }
+.home-ai-num-progress i { font-style: normal; color: var(--text-faint); font-size: .82em; }

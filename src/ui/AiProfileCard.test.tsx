@@ -35,19 +35,37 @@ beforeEach(async () => {
   useStore.setState({ insightsOpen: false });
 });
 
-describe('cand cifra n-ar insemna nimic, cardul nu apare', () => {
-  it('fara nicio decizie nu randeaza nimic', async () => {
+describe('cand cifra n-ar insemna nimic, nu se arata nicio cifra', () => {
+  it('pe un telefon pe care n-ai decis nimic nu randeaza nimic', async () => {
+    // O promisiune fara nicio acoperire n-are ce cauta pe ecranul principal.
     const { container } = render(<AiProfileCard />);
     // Randare asincrona: asteptam ciclul de citire din baza inainte sa concluzionam.
     await new Promise(r => setTimeout(r, 0));
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('sub pragul motorului tace — un procent din cateva decizii e o coincidenta', async () => {
-    await writeCorrections(MIN_DECISIONS_FOR_ACCURACY - 5, 0);
-    const { container } = render(<AiProfileCard />);
-    await new Promise(r => setTimeout(r, 0));
-    expect(container).toBeEmptyDOMElement();
+  it('sub pragul motorului NU arata niciun procent — arata cat mai lipseste', async () => {
+    // Un procent din cateva decizii e o coincidenta afisata ca statistica. Dar
+    // nici tacerea totala nu era buna: cardul lipsea exact in sesiunea in care
+    // omul hotaraste daca are incredere in aplicatie. Contorul nu e o estimare.
+    await writeCorrections(6, 0);
+    render(<AiProfileCard />);
+    expect(await screen.findByText(/Învăț din deciziile tale/)).toBeInTheDocument();
+    expect(screen.getByText(/încă 14 decizii/)).toBeInTheDocument();
+    expect(screen.queryByText(/%/)).not.toBeInTheDocument();
+  });
+
+  it('la o singura decizie ramasa vorbeste la singular', async () => {
+    await writeCorrections(MIN_DECISIONS_FOR_ACCURACY - 1, 0);
+    render(<AiProfileCard />);
+    expect(await screen.findByText(/încă o decizie/)).toBeInTheDocument();
+  });
+
+  it('contorul arata si numitorul, ca sa se vada ca nu e un procent', async () => {
+    await writeCorrections(6, 0);
+    render(<AiProfileCard />);
+    const contor = await screen.findByText(/^6/);
+    expect(contor.textContent).toBe(`6/${MIN_DECISIONS_FOR_ACCURACY}`);
   });
 });
 

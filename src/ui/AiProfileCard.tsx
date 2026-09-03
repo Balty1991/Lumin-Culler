@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { db } from '../core/db';
-import { summarizeAccuracy, type AccuracySummary } from '../core/learning/accuracy';
+import { summarizeAccuracy, MIN_DECISIONS_FOR_ACCURACY, type AccuracySummary } from '../core/learning/accuracy';
 import { useStore } from '../state/store';
 import { SparkleIcon } from './icons';
 import { AnimatedNumber } from './AnimatedNumber';
-import { t } from '../i18n';
+import { t, plural } from '../i18n';
 
 /**
  * ui/AiProfileCard.tsx
@@ -44,6 +44,12 @@ export function AiProfileCard() {
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const setInsightsOpen = useStore(s => s.setInsightsOpen);
   const [accuracy, setAccuracy] = useState<AccuracySummary | null>(null);
+  /**
+   * Cate decizii ale tale exista, indiferent daca ajung sau nu la un procent.
+   * `summarizeAccuracy` intoarce null sub prag si nu spune CAT lipseste — dar
+   * exact aia e informatia din care se face starea de mai jos.
+   */
+  const [decisions, setDecisions] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -52,10 +58,46 @@ export function AiProfileCard() {
     // e cu ordine de marime mai mica decat biblioteca si, spre deosebire de ea,
     // creste doar cu cat lucrezi efectiv, nu cu fiecare import.
     void db.corrections.toArray()
-      .then(rows => { if (alive) setAccuracy(summarizeAccuracy(rows)); })
+      .then(rows => { if (!alive) return; setDecisions(rows.length); setAccuracy(summarizeAccuracy(rows)); })
       .catch(() => { /* fara date cardul pur si simplu nu apare; nu e o eroare de raportat */ });
     return () => { alive = false; };
   }, []);
+
+  /**
+   * STAREA DE INCALZIRE, si de ce merita sa existe.
+   *
+   * Fara ea, cardul ramanea invizibil pana la a douazecea decizie — adica
+   * lipsea exact in sesiunea in care omul hotaraste daca are incredere in
+   * aplicatie, si aparea abia dupa ce se hotarase deja. Utilizatorul a semnalat
+   * fix asta, uitandu-se la un ecran pe care nu era nimic nou.
+   *
+   * Nu incalca regula: NU se arata niciun procent inventat si niciun "AI
+   * avansat". Se arata ce s-a numarat (cate decizii ai luat), cat mai lipseste,
+   * si ce urmeaza sa spuna cifra. Un contor de progres nu e o estimare, si e
+   * totodata singura dovada vizibila ca motorul chiar strange ceva de la tine.
+   *
+   * De la PRIMA decizie, nu de la zero: pe un telefon pe care n-ai atins inca
+   * nimic, cardul ar fi o promisiune fara nicio acoperire.
+   */
+  const warming = !accuracy && decisions > 0;
+  const remaining = Math.max(0, MIN_DECISIONS_FOR_ACCURACY - decisions);
+
+  if (warming) {
+    return (
+      <button className="home-ai-card is-warming" onClick={() => setInsightsOpen(true)} aria-label={tr('home.aiProfile.warming')}>
+        <span className="home-ai-num home-ai-num-progress">
+          {decisions}<i>/{MIN_DECISIONS_FOR_ACCURACY}</i>
+        </span>
+        <span className="home-ai-text">
+          <b>
+            <SparkleIcon className="inline-icon" aria-hidden="true" /> {tr('home.aiProfile.warming')}
+          </b>
+          <span>{tr(plural(remaining, 'home.aiProfile.warming.sub.one', 'home.aiProfile.warming.sub.other'), { count: remaining })}</span>
+        </span>
+        <span className="home-ai-go" aria-hidden="true">→</span>
+      </button>
+    );
+  }
 
   if (!accuracy) return null;
   const percent = Math.round(accuracy.agreement * 100);
