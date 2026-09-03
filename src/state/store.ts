@@ -70,6 +70,7 @@ import { recordImportOutcome, summariseOutcomes } from '../core/importOutcome';
 import { keepScreenAwake } from '../core/wakeLock';
 import { createActiveElapsed, type ActiveElapsed } from '../core/activeElapsed';
 import { recordImportDay } from './streak';
+import { recordLifetimeSession } from './lifetimeSavings';
 import { stabilizeEta } from '../core/etaEstimate';
 import { readAccessibleMode, applyAccessibleMode } from '../core/accessibleMode';
 import { readSmartNotificationEnabled, writeSmartNotificationEnabled } from './smartNotification';
@@ -2779,6 +2780,14 @@ export const useStore = create<AppState>((set, get) => ({
     // Ziua asta ramane marcata ca zi cu import chiar daca pozele dispar mai
     // tarziu (Goleste sesiunea, stergerea respinselor) — vezi state/streak.ts.
     if (done > 0) recordImportDay();
+    // Acelasi lot, adunat la totalul de-o viata (state/lifetimeSavings.ts).
+    // Din `batch`, exact ca `summarizeSession` de mai sus, si din acelasi motiv:
+    // `done` numara si pozele sarite sau esuate, deci ar umfla un total al carui
+    // singur rost e sa fie crezut. Un lot gol nu se numara nici ca sedinta.
+    recordLifetimeSession({
+      imported: sessionOutcome?.imported ?? 0,
+      autoDecided: sessionOutcome?.autoDecided ?? 0
+    });
     // Ce s-a intamplat la importul asta, pastrat dupa ce dispare notificarea.
     // `imported` se ia din `batch` (pozele chiar ajunse in baza), nu din
     // raportul pipeline-ului: e acelasi numar pe care il raporteaza si cardul

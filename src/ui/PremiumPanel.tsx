@@ -7,6 +7,7 @@ import { isBillingAvailable, queryPremiumPrice, queryPlansAnswer, startSubscript
 import { annualSavingsPercent, perMonthPrice, defaultPlanId, resolvePlan } from '../core/premiumPlans';
 import { t, plural } from '../i18n';
 import { PremiumProof } from './PremiumProof';
+import { LifetimeProof } from './LifetimeProof';
 
 /**
  * ui/PremiumPanel.tsx
@@ -151,6 +152,14 @@ export function PremiumPanel() {
               : tr('premium.price.tag', { price: price! })}
           </p>
         )}
+
+        {/* Dovada inaintea cererii. Blocul se randeaza singur ca nimic atunci
+            cand n-are destule date (sub doua sesiuni) — vezi LifetimeProof.
+            Locul lui e SUS, imediat dupa pret: e singura parte din ecran care
+            nu promite nimic, ci raporteaza ce s-a intamplat deja pe telefonul
+            asta, si tocmai de-aia cantareste mai mult decat cele sapte
+            beneficii de sub ea. */}
+        <LifetimeProof locale={locale} premium={premium} />
 
         <h4 className="premium-group-head">{tr('premium.section.unlock')}</h4>
 

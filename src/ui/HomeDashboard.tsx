@@ -15,6 +15,7 @@ import { AnimatedNumber } from './AnimatedNumber';
 import { GalleryOverviewNote } from './GalleryOverviewNote';
 import { QuickScanFind } from './QuickScanFind';
 import { CullStrengthBar } from './CullStrengthBar';
+import { AiProfileCard } from './AiProfileCard';
 import { SessionOutcome } from './SessionOutcome';
 import { SparkleIcon, PinIcon, ChevronUpIcon, ShieldIcon, CopyIcon, TrashIcon } from './icons';
 import { t, plural } from '../i18n';
@@ -465,6 +466,12 @@ export function HomeDashboard() {
           </span>
         </button>
       )}
+
+      {/* Cat de bine te cunoaste motorul. Sta AICI, dupa actiunile ecranului si
+          inaintea cifrelor marunte: nu e ceva ce faci, e motivul pentru care ai
+          incredere in ce tocmai a facut aplicatia. Se randeaza singur ca nimic
+          sub 20 de decizii ale tale — vezi AiProfileCard. */}
+      <AiProfileCard />
 
       {/* Randul de jos: cifre secundare, intr-un singur rand de pastile, nu in
           carduri late cat ecranul. Erau trei suprafete de aceeasi greutate

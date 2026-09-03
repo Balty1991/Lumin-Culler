@@ -6,7 +6,7 @@ import { medianDecisionSeconds, estimateSecondsSaved } from '../core/decisionPac
 import { selectDeletableRejected } from '../state/batchOps';
 import { sumKnownSizeBytes, formatGB } from '../state/storageStats';
 import { getCachedThumbUrl } from '../core/thumbUrlCache';
-import { formatEta } from '../core/formatTime';
+import { formatSpan } from '../core/formatTime';
 import { SparkleIcon, XIcon, TrashIcon } from './icons';
 import { AnimatedNumber } from './AnimatedNumber';
 import { t, plural } from '../i18n';
@@ -158,7 +158,7 @@ export function SessionOutcome() {
           masuratoare si o reclama. */}
       {savedSeconds !== null && paceSeconds !== null && (
         <div className="session-outcome-saved">
-          <b>{tr('session.saved', { time: formatEta(savedSeconds) })}</b>
+          <b>{tr('session.saved', { time: formatSpan(savedSeconds) })}</b>
           <span>{tr('session.saved.basis', { pace: paceSeconds.toFixed(1) })}</span>
         </div>
       )}

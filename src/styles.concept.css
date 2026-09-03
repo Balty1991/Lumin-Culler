@@ -6595,3 +6595,72 @@ button:disabled,
    informatie de care ai nevoie o data, cand raportezi ceva. */
 .drawer-version { color: var(--text-faint); font-size: .72rem; }
 .drawer-version .drawer-item-icon { opacity: .7; }
+
+/* Dovada cumulata din capul ecranului Premium (ui/LifetimeProof.tsx).
+   Aceeasi gramatica vizuala ca blocul de timp din cardul de sesiune — caseta
+   in culoarea "pastrat", cifra mare, baza mica dedesubt — fiindca spun acelasi
+   lucru, doar la scari diferite. Culoarea NU e cea de accent: accentul e al
+   butonului de cumparare, iar blocul asta trebuie sa se citeasca drept un
+   raport, nu drept inca o parte din reclama. */
+.lifetime-proof {
+  display: grid;
+  gap: 4px;
+  margin: 12px 0 2px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgb(var(--pick-rgb) / .10);
+  box-shadow: inset 0 0 0 1px rgb(var(--pick-rgb) / .26);
+}
+.lifetime-proof-hero {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* clamp, nu o marime fixa: pe 320px o cifra de patru cifre plus textul rupea
+     randul urat. Se strange singura, in loc sa iasa din caseta. */
+  font-size: clamp(.9rem, 4.2vw, 1.02rem);
+  font-weight: 800;
+  color: var(--pick-text, var(--pick));
+  line-height: 1.25;
+}
+.lifetime-proof-hero .inline-icon { width: 16px; height: 16px; flex-shrink: 0; }
+/* Baza si totalul raman lizibile, nu decorative: sunt singurul lucru care face
+   diferenta dintre o masuratoare si o reclama. */
+.lifetime-proof-basis { font-size: .68rem; color: var(--text-dim); }
+.lifetime-proof-tally { font-size: .76rem; color: var(--text-dim); line-height: 1.45; }
+
+/* "Cat de bine te cunoaste" pe ecranul principal (ui/AiProfileCard.tsx).
+   Aceeasi familie vizuala cu home-recap-card — card lat, apasabil, cu sageata
+   in dreapta — fiindca face acelasi lucru: duce intr-un panou. Cifra din stanga
+   e in culoarea de accent, singura de pe ecran care spune ceva despre motor. */
+.home-ai-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: 10px;
+  padding: 13px 15px;
+  border-radius: 18px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+  text-align: left;
+}
+.home-ai-num {
+  font-family: var(--mono);
+  /* clamp: pe 320px, "100%" langa doua randuri de text rupea cardul. */
+  font-size: clamp(1.25rem, 6.4vw, 1.6rem);
+  font-weight: 800;
+  color: var(--accent-text);
+  line-height: 1;
+}
+/* min-width 0: fara el, textul lung din mijloc impinge sageata in afara
+   cardului in loc sa se rupa pe randul urmator. */
+.home-ai-text { display: grid; gap: 2px; min-width: 0; }
+.home-ai-text b { display: flex; align-items: center; gap: 6px; font-size: .84rem; }
+.home-ai-text b .inline-icon { width: 14px; height: 14px; color: var(--accent-text); flex-shrink: 0; }
+.home-ai-text span { font-size: .7rem; color: var(--text-dim); line-height: 1.4; }
+/* Tendinta in jos NU se ascunde si nu se ingroapa in gri: un indicator care nu
+   poate arata rau nu e un indicator. Doar culoarea spune in ce directie. */
+.home-ai-trend[data-dir='up'] { color: var(--pick-text, var(--pick)); }
+.home-ai-trend[data-dir='down'] { color: var(--review-text, var(--review)); }
+.home-ai-go { color: var(--text-faint); font-size: 1rem; }
