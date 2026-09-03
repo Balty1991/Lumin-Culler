@@ -6590,3 +6590,8 @@ button:disabled,
   white-space: nowrap;
   padding-inline: 10px;
 }
+
+/* Randul cu versiunea, ultimul din Ajutor. Discret — nu e o functie, e o
+   informatie de care ai nevoie o data, cand raportezi ceva. */
+.drawer-version { color: var(--text-faint); font-size: .72rem; }
+.drawer-version .drawer-item-icon { opacity: .7; }

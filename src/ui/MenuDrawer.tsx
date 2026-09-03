@@ -12,6 +12,9 @@ import { selectDeletableRejected } from '../state/batchOps';
 import { selectPendingShieldReview, readShieldDismissedIds } from '../core/documentShield';
 import { selectUnresolvedGroups } from '../state/duplicateGroups';
 import { openStoreListing } from '../core/storeListing';
+
+/** Tinut in pas cu package.json — e numarul pe care il vede utilizatorul. */
+const APP_VERSION = '2.0.0';
 import { countDecisionInversions } from '../state/decisionInversions';
 import { selectMonthlyRecap } from '../state/monthlyRecap';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
@@ -157,6 +160,23 @@ export function MenuDrawer() {
   const importBackupFile = useStore(s => s.importBackupFile);
   const importClientFeedback = useStore(s => s.importClientFeedback);
   const setNotice = useStore(s => s.setNotice);
+
+  /**
+   * Copiaza versiunea, pentru rapoartele de bug.
+   *
+   * `navigator.clipboard` lipseste in contexte non-secure si poate fi refuzat de
+   * utilizator; atunci nu se pretinde ca a mers — se spune ce nu s-a putut, si
+   * cifra ramane oricum scrisa pe ecran, de unde se poate citi cu ochiul.
+   */
+  const copyBuildId = async () => {
+    const text = `Lumin Culler Pro ${APP_VERSION} (${__BUILD_ID__})`;
+    try {
+      await navigator.clipboard.writeText(text);
+      setNotice(tr('menu.version.copied'));
+    } catch {
+      setNotice(tr('menu.version.copyFailed', { build: __BUILD_ID__ }));
+    }
+  };
   const setStatsOpen = useStore(s => s.setStatsOpen);
   const setContactSheetOpen = useStore(s => s.setContactSheetOpen);
   const setPresentationOpen = useStore(s => s.setPresentationOpen);
@@ -1013,6 +1033,28 @@ export function MenuDrawer() {
           <button className="drawer-item" onClick={() => go(() => { openStoreListing(); })}>
             <span className="drawer-item-icon"><StarIcon /></span>
             <span>{tr('menu.rateApp')}</span>
+          </button>
+
+          {/* VERSIUNEA, si de ce merita un rand.
+
+              Nu exista nicio cale prin care cineva sa vada ce build ruleaza.
+              Aplicatia e PWA cu service worker, deci dupa un deploy prima
+              reincarcare serveste de multe ori tot ce era in cache, iar
+              versiunea noua intra abia la urmatoarea — "s-a publicat sau nu?"
+              ramanea o intrebare la care nimeni nu putea raspunde uitandu-se la
+              ecran.
+
+              Apasarea o copiaza: un raport de bug de la un tester fara
+              versiunea in el nu se poate lega de un build anume, iar a cere
+              cuiva sa transcrie un sha de sapte caractere de pe telefon e o
+              cale sigura spre o cifra gresita. */}
+          <button
+            className="drawer-item drawer-version"
+            onClick={() => { void copyBuildId(); }}
+            title={tr('menu.version.copy')}
+          >
+            <span className="drawer-item-icon"><InfoIcon /></span>
+            <span>{tr('menu.version', { version: APP_VERSION, build: __BUILD_ID__ })}</span>
           </button>
 
           <button className="drawer-item" onClick={() => go(() => setPremiumOpen(true))}>

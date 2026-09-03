@@ -568,6 +568,10 @@ export const ro = {
   'guide.privacy.p2': 'Singura excepție e explicită și cere apăsarea ta: linkul către hartă din panoul de informații trimite coordonatele poziției către OpenStreetMap. Scrie asta pe buton, înainte să-l apeși.',
   'menu.shortcuts': 'Scurtături tastatură',
   'menu.rateApp': 'Lasă o părere în Google Play',
+  'menu.version': 'Versiunea {version} · {build}',
+  'menu.version.copy': 'Apasă ca să copiezi versiunea (utilă în rapoarte)',
+  'menu.version.copied': 'Versiunea a fost copiată.',
+  'menu.version.copyFailed': 'Nu am putut copia. Versiunea e {build}.',
   'menu.about': 'Analiza AI, recunoașterea persoanelor și motorul de învățare rulează integral pe telefonul tău — nicio poză nu pleacă nicăieri.',
 
   'shortcuts.title': 'Scurtături de tastatură',

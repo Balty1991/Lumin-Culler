@@ -1,6 +1,38 @@
+import { execSync } from 'node:child_process';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+
+/**
+ * Eticheta build-ului, aratata in Meniu -> Ajutor.
+ *
+ * DE CE EXISTA: nu exista nicio cale prin care cineva sa vada ce versiune
+ * ruleaza. Aplicatia e PWA cu service worker, deci dupa un deploy prima
+ * reincarcare serveste de multe ori tot ce era in cache, iar versiunea noua
+ * intra abia la urmatoarea. Fara un marcaj vizibil, "s-a publicat sau nu?"
+ * ramane o intrebare la care nimeni nu poate raspunde uitandu-se la ecran — s-au
+ * pierdut ore intregi pe exact asta.
+ *
+ * Pentru testeri e si mai util: un raport de bug fara versiune nu se poate lega
+ * de un build anume.
+ *
+ * `GITHUB_SHA` inaintea lui git: in CI directorul e un checkout, unde comanda
+ * git merge, dar variabila e sursa oficiala. Local, cand niciuna nu raspunde
+ * (arhiva descarcata, fara git instalat), ramane doar data — mai putin precisa,
+ * dar niciodata gresita.
+ */
+function buildId(): string {
+  const date = new Date().toISOString().slice(0, 10);
+  let sha = process.env.GITHUB_SHA?.slice(0, 7) ?? '';
+  if (!sha) {
+    try {
+      sha = execSync('git rev-parse --short=7 HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+    } catch {
+      sha = '';
+    }
+  }
+  return sha ? `${date}·${sha}` : date;
+}
 
 export default defineConfig({
   plugins: [
@@ -115,6 +147,8 @@ export default defineConfig({
   // Excluderea lui de la pre-bundling il lasa servit direct din node_modules,
   // unde calea relativa e corecta.
   optimizeDeps: { exclude: ['libraw-wasm'] },
+  // Injectat la build, citit in ui/MenuDrawer.tsx — vezi buildId() de mai sus.
+  define: { __BUILD_ID__: JSON.stringify(buildId()) },
   build: {
     target: 'es2020',
     chunkSizeWarningLimit: 4000

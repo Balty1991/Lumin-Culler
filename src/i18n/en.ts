@@ -548,6 +548,10 @@ export const en: Record<TranslationKey, string> = {
   'guide.privacy.p2': 'The single exception is explicit and needs your tap: the map link in the info panel sends the location coordinates to OpenStreetMap. The button says so before you press it.',
   'menu.shortcuts': 'Keyboard shortcuts',
   'menu.rateApp': 'Leave a review on Google Play',
+  'menu.version': 'Version {version} · {build}',
+  'menu.version.copy': 'Tap to copy the version (useful in bug reports)',
+  'menu.version.copied': 'Version copied.',
+  'menu.version.copyFailed': 'Could not copy. The version is {build}.',
   'menu.about': 'AI analysis, face recognition and the learning engine run entirely on your phone — no photo goes anywhere.',
 
   'shortcuts.title': 'Keyboard shortcuts',
