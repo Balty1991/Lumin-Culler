@@ -61,6 +61,22 @@ jobs:
           else
             echo "Fara model CLIP — nu are rost sa livram runtime-ul singur."
           fi
+      # Verificare EXPLICITA, nu dedusa. Pasii de mai sus reusesc si cand nu
+      # descarca nimic (asa sunt proiectati: o functie optionala n-are voie sa
+      # opreasca livrarea). Consecinta e ca "pas verde" NU inseamna "model
+      # livrat" — exact deducerea gresita facuta o data in aceasta sesiune.
+      # Randul asta spune ce s-a livrat de fapt, ca sa nu mai fie nevoie de
+      # ghicit din marimea artefactului.
+      - name: Ce s-a livrat pentru CLIP
+        run: |
+          if [ -f public/models/clip/manifest.json ]; then
+            echo "== CLIP PREZENT =="
+            cat public/models/clip/manifest.json
+            du -sh public/models/clip public/ort
+          else
+            echo "== CLIP ABSENT in acest build =="
+            echo "Aplicatia livrata e cea de azi, fara functia optionala."
+          fi
       # "Locatii" — numele localitatilor, ca ecranul sa scrie "Rosiori de Vede,
       # Romania" in loc de "44.114, 24.987", FARA sa intrebe vreun serviciu
       # (cerinta directa a utilizatorului: "sa nu plece nimic deloc"). Lista

@@ -24,7 +24,7 @@
 
 import * as Comlink from 'comlink';
 import { centerSquare, toTensor } from '../core/clip/clipPreprocess';
-import type { ClipManifest } from '../core/clip/clipManifest';
+import { ORT_WASM_PATH, type ClipManifest } from '../core/clip/clipManifest';
 
 /** Minimul din API-ul ONNX Runtime de care avem nevoie — ca testele sa poata da un dublu. */
 export interface OrtSession {
@@ -57,7 +57,10 @@ export interface ClipInitResult {
  */
 async function loadRealRuntime(): Promise<OrtRuntime> {
   const ort = await import('onnxruntime-web/webgpu');
-  ort.env.wasm.wasmPaths = '/ort/';
+  // Din BASE_URL, nu o cale absoluta: pe GitHub Pages aplicatia sta sub
+  // /Lumin-Culler/, iar '/ort/' ar cauta in radacina domeniului. Vezi
+  // comentariul de la CLIP_BASE_PATH — aceeasi greseala, acelasi remediu.
+  ort.env.wasm.wasmPaths = ORT_WASM_PATH;
   return {
     async createSession(modelUrl, backend) {
       return await ort.InferenceSession.create(modelUrl, {

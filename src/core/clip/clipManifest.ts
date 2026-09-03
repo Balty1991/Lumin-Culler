@@ -44,9 +44,25 @@ export interface ClipManifest {
   bytes: number;
 }
 
-/** Unde sta tot ce tine de CLIP. Acelasi tipar ca /models/ (Human) si /places/. */
-export const CLIP_BASE_PATH = '/models/clip/';
+/**
+ * Unde sta tot ce tine de CLIP.
+ *
+ * NU o cale absoluta, si e o greseala pe care am facut-o deja o data aici:
+ * `/models/clip/` pare corect si merge in dezvoltare (unde aplicatia sta in
+ * radacina), dar pe GitHub Pages site-ul e servit din `/Lumin-Culler/`, deci o
+ * cale absoluta cauta la `balty1991.github.io/models/clip/` — adica nicaieri.
+ * Modul de esec e cel mai inselator posibil: manifestul "lipseste", functia se
+ * dezactiveaza singura exact cum e proiectata s-o faca, si totul pare in regula
+ * desi fisierul chiar e livrat, doua directoare mai incolo.
+ *
+ * `import.meta.env.BASE_URL` e acelasi mecanism prin care core/workerPool.ts
+ * calculeaza deja `modelBase` pentru modelele Human — motivul pentru care ELE
+ * se incarca de ani de zile si pe Pages, si in Capacitor, si in dezvoltare.
+ */
+export const CLIP_BASE_PATH = `${import.meta.env.BASE_URL}models/clip/`;
 export const CLIP_MANIFEST_URL = `${CLIP_BASE_PATH}manifest.json`;
+/** Directorul runtime-ului ONNX, pe acelasi principiu. Vezi clipEmbed.worker.ts. */
+export const ORT_WASM_PATH = `${import.meta.env.BASE_URL}ort/`;
 
 function isFiniteNumber(v: unknown): v is number {
   return typeof v === 'number' && Number.isFinite(v);

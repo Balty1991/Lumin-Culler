@@ -99,3 +99,33 @@ describe('reteta din scripts/clip-model.json', () => {
     expect(reteta.id).toBeUndefined();
   });
 });
+
+describe('adresele se calculeaza din BASE_URL, nu sunt scrise absolut', () => {
+  // Bug real, facut si reparat in aceeasi sesiune: `/models/clip/` merge in
+  // dezvoltare (aplicatia sta in radacina) si cauta in gol pe GitHub Pages,
+  // unde site-ul e servit din /Lumin-Culler/. Esecul e inselator: manifestul
+  // "lipseste", functia se dezactiveaza singura exact cum e proiectata s-o
+  // faca, si nimic nu pare stricat — desi fisierul chiar e livrat.
+  //
+  // Testul citeste SURSA, nu valoarea: sub vitest BASE_URL e "/", deci
+  // constanta ar arata identic si scrisa gresit.
+  const sursa = readFileSync(resolve(__dirname, 'clipManifest.ts'), 'utf8');
+
+  it('CLIP_BASE_PATH pleaca de la BASE_URL', () => {
+    expect(sursa).toMatch(/CLIP_BASE_PATH = `\$\{import\.meta\.env\.BASE_URL\}/);
+  });
+
+  it('ORT_WASM_PATH pleaca de la BASE_URL', () => {
+    expect(sursa).toMatch(/ORT_WASM_PATH = `\$\{import\.meta\.env\.BASE_URL\}/);
+  });
+
+  it('nicio constanta nu incepe cu o cale absoluta scrisa de mana', () => {
+    expect(sursa).not.toMatch(/^export const \w+ = '\//m);
+  });
+
+  it('workerul nu scrie nici el calea wasm absolut', () => {
+    const worker = readFileSync(resolve(__dirname, '..', '..', 'workers', 'clipEmbed.worker.ts'), 'utf8');
+    expect(worker).toContain('ORT_WASM_PATH');
+    expect(worker).not.toContain("wasmPaths = '/ort/'");
+  });
+});

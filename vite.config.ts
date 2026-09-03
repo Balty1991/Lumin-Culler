@@ -146,6 +146,15 @@ export default defineConfig({
         // instalare, pentru ceva ce nu se vede niciodata in aplicatie.
         // Excluderea de mai jos ramane ca plasa de siguranta daca reapar acolo.
         globIgnores: ['store/**', 'models/**', 'ort/**'],
+        // Fara asta, service worker-ul raspunde la ORICE navigare cu index.html
+        // — inclusiv la /models/clip/manifest.json deschis direct in bara de
+        // adrese, care intoarce aplicatia in loc de fisier. Nu strica nimic in
+        // functionare (aplicatia le cere prin fetch, nu prin navigare), dar face
+        // imposibil de verificat, cu ochii, ce a livrat build-ul de fapt — si
+        // exact asta a trebuit verificat cand modelul parea sa lipseasca.
+        // Directoarele astea nu sunt rute ale aplicatiei; nu au ce cauta in
+        // fallback-ul de navigare.
+        navigateFallbackDenylist: [/^\/?([^/]+\/)*(models|ort|places|store)\//],
         // Fara astea, un service worker nou instalat ramane "waiting" pana se
         // inchid TOATE tab-urile/instantele deschise ale aplicatiei — pe un PWA
         // instalat (adaugat pe ecranul principal, ramane rezident) practic nu se
