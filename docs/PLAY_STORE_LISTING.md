@@ -11,7 +11,7 @@ cu numaratoare exacta, nu estimate.
 ```
 Lumin Culler Pro
 ```
-(17 caractere — identic in RO si EN, e un nume propriu)
+(16 caractere — identic in RO si EN, e un nume propriu)
 
 ---
 
@@ -19,9 +19,17 @@ Lumin Culler Pro
 
 ### Descriere scurta (max 80 caractere)
 ```
-Sute de poze, triate în minute. AI pe telefon, fără upload, fără cont.
+Curăță galeria de duplicate și cadre ratate. AI pe telefon, fără cont.
 ```
 (70 caractere)
+
+De ce ASTA si nu "Sute de poze, triate în minute" (varianta dinainte): Play
+indexeaza puternic descrierea scurta, iar varianta veche nu continea NICIUN
+termen pe care oamenii chiar il tasteaza. Cercetarea de piata a aratat ca
+intrarea in masa in categoria asta e "curat galeria / sterg duplicate /
+eliberez spatiu" — "culling" il cauta doar fotografii profesionisti, adica un
+public mult mai mic. Noua varianta pastreaza promisiunea (AI local, fara cont)
+si adauga trei termeni cautati: curata galeria, duplicate, cadre ratate.
 
 ### Descriere lunga (max 4000 caractere)
 ```
@@ -60,6 +68,11 @@ CE FACE
 • Separă ce nu e amintire. Capturi de ecran, documente, poze la ambalaje
   și facturi — scoase din drum, ca să nu-ți ceară o decizie de fotografie.
 
+• Eliberează spațiu. Îți arată câți GB ocupă pozele și câți pot pleca:
+  duplicatele exacte, rafalele din care ai ales deja, cadrele respinse.
+  Ștergerea trece prin dialogul de confirmare al sistemului, deci nimic nu
+  dispare fără să apeși tu.
+
 • Predă mai departe. Export în format original, fișiere XMP pentru
   Lightroom, planșă de contact, galerie HTML pentru client, redenumire în
   masă.
@@ -97,7 +110,7 @@ Procesare integral locală. Fără reclame, fără analytics, fără servicii de
 urmărire ale unor terți. Politica completă e în aplicație.
 ```
 
-Numar caractere descriere lunga: 2937 din 4000.
+Numar caractere descriere lunga: 3183 din 4000 (RO) si 3598 din 4000 (EN).
 
 ATENTIE: textul de mai sus are DIACRITICE. Versiunea publicata initial nu avea,
 si se vedea imediat in fisa din magazin ("aplicatie de sortare si selectie a
@@ -109,9 +122,9 @@ fotografiilor", "gandita pentru fotografi"). Orice editare viitoare le pastreaza
 
 ### Short description (max 80 characters)
 ```
-AI photo culling, 100% on-device: pick your best shots fast, privately
+Clean your gallery: find duplicates, cull bad shots, free up space. On-device.
 ```
-(70 characters)
+(78 characters)
 
 ### Full description (max 4000 characters)
 ```
@@ -147,6 +160,11 @@ WHAT IT DOES
 • Handles thousands of photos without freezing — processing runs across
   multiple threads in parallel, without loading your whole library into
   memory at once.
+
+• Frees up storage — shows how many GB your photos take and how many can
+  go: exact duplicates, bursts you already picked from, rejected frames.
+  Deletion goes through the system's own confirmation dialog, so nothing
+  disappears unless you tap.
 
 • Flexible export — selected photos in their original format (no quality
   loss), Adobe Lightroom selection lists, an HTML gallery for clients, batch

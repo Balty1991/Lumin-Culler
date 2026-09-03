@@ -34,18 +34,49 @@ describe('plural', () => {
 });
 
 describe('locale storage', () => {
-  it('defaults to ro when nothing is stored', () => {
-    expect(readStoredLocale()).toBe('ro');
-  });
+  /** Inlocuieste temporar preferintele de limba ale "telefonului". */
+  function withDeviceLanguages(tags: string[], run: () => void) {
+    const original = Object.getOwnPropertyDescriptor(navigator, 'languages');
+    Object.defineProperty(navigator, 'languages', { value: tags, configurable: true });
+    try { run(); } finally {
+      if (original) Object.defineProperty(navigator, 'languages', original);
+      else Reflect.deleteProperty(navigator as unknown as Record<string, unknown>, 'languages');
+    }
+  }
 
   it('round-trips a written locale', () => {
     writeStoredLocale('en');
     expect(readStoredLocale()).toBe('en');
+    writeStoredLocale('ro');
+    expect(readStoredLocale()).toBe('ro');
   });
 
-  it('treats any unrecognized stored value as ro', () => {
+  // Fara nicio alegere a utilizatorului, aplicatia urmeaza TELEFONUL. Pana la
+  // raportul de testare extern pornea mereu in romana, indiferent de limba
+  // dispozitivului — testerii au notat-o ca "app is offered primarily in one
+  // language", si aveau dreptate din afara: traducerile existau, dar nu le
+  // vedea nimeni fara sa gaseasca singur comutatorul din meniu.
+  it('fara alegere stocata, urmeaza limba telefonului', () => {
+    withDeviceLanguages(['en-US'], () => expect(readStoredLocale()).toBe('en'));
+    withDeviceLanguages(['ro-RO'], () => expect(readStoredLocale()).toBe('ro'));
+    withDeviceLanguages(['de-DE', 'fr-FR'], () => expect(readStoredLocale()).toBe('en'));
+  });
+
+  it('romana de pe locul doi in preferinte tot conteaza', () => {
+    // `navigator.languages` e o lista ORDONATA de preferinte, nu o singura
+    // limba: cine are engleza prima si romana a doua intelege romana.
+    withDeviceLanguages(['en-GB', 'ro'], () => expect(readStoredLocale()).toBe('ro'));
+  });
+
+  it('o alegere explicita bate limba telefonului', () => {
+    writeStoredLocale('ro');
+    withDeviceLanguages(['en-US'], () => expect(readStoredLocale()).toBe('ro'));
+  });
+
+  it('o valoare stocata nerecunoscuta cade pe limba telefonului, nu pe romana fixa', () => {
     localStorage.setItem('lumin-locale', 'fr');
-    expect(readStoredLocale()).toBe('ro');
+    withDeviceLanguages(['en-US'], () => expect(readStoredLocale()).toBe('en'));
+    withDeviceLanguages(['ro-RO'], () => expect(readStoredLocale()).toBe('ro'));
   });
 });
 

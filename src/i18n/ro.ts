@@ -567,6 +567,7 @@ export const ro = {
   'guide.privacy.p1': 'Analiza AI, recunoașterea persoanelor și motorul de învățare rulează integral pe dispozitiv. Pozele nu pleacă nicăieri.',
   'guide.privacy.p2': 'Singura excepție e explicită și cere apăsarea ta: linkul către hartă din panoul de informații trimite coordonatele poziției către OpenStreetMap. Scrie asta pe buton, înainte să-l apeși.',
   'menu.shortcuts': 'Scurtături tastatură',
+  'menu.rateApp': 'Lasă o părere în Google Play',
   'menu.about': 'Analiza AI, recunoașterea persoanelor și motorul de învățare rulează integral pe telefonul tău — nicio poză nu pleacă nicăieri.',
 
   'shortcuts.title': 'Scurtături de tastatură',

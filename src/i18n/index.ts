@@ -72,12 +72,54 @@ export function ensureLocaleLoaded(locale: Locale): Promise<void> {
   return enLoading;
 }
 
-export function readStoredLocale(): Locale {
+/**
+ * Limba telefonului, cand utilizatorul n-a ales inca una.
+ *
+ * BUG REAL, gasit in raportul de testare extern: aplicatia pornea MEREU in
+ * romana, indiferent de limba dispozitivului. Are traduceri englezesti complete
+ * de mult timp, dar nu le folosea niciodata daca omul nu comuta manual din
+ * meniu. Testerii au notat-o ca "app is offered primarily in one language" —
+ * ceea ce, din afara, era exact adevarat.
+ *
+ * Conteaza pentru ca fisa din magazin merge in 177 de tari: un utilizator care
+ * instaleaza cu telefonul in engleza deschidea o aplicatie in romana, fara sa
+ * stie ca exista un comutator si fara sa poata citi meniul in care sta el.
+ *
+ * `navigator.languages` inaintea lui `navigator.language`: prima e lista
+ * ordonata de preferinte a utilizatorului, si e cea corecta cand cineva are
+ * romana pe locul doi.
+ */
+function deviceLocale(): Locale {
   try {
-    return localStorage.getItem(STORAGE_KEY) === 'en' ? 'en' : 'ro';
+    const nav = typeof navigator === 'undefined' ? null : navigator;
+    if (!nav) return 'ro';
+    const preferences = nav.languages?.length ? nav.languages : [nav.language];
+    for (const tag of preferences) {
+      if (typeof tag === 'string' && tag.toLowerCase().startsWith('ro')) return 'ro';
+    }
+    return 'en';
   } catch {
     return 'ro';
   }
+}
+
+/**
+ * Limba de folosit: alegerea EXPLICITA a utilizatorului daca exista, altfel
+ * limba telefonului.
+ *
+ * Consecinta de spus pe fata: cine avea deja aplicatia, n-a atins niciodata
+ * comutatorul si are telefonul in engleza o va vedea de acum in engleza. E
+ * schimbarea corecta — aplicatia urmeaza telefonul — dar e o schimbare, si
+ * ramane la un tap distanta de revenit.
+ */
+export function readStoredLocale(): Locale {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored === 'ro' || stored === 'en') return stored;
+  } catch {
+    // stocare indisponibila — decide limba telefonului, ca la prima pornire
+  }
+  return deviceLocale();
 }
 
 export function writeStoredLocale(locale: Locale): void {

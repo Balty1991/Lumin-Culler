@@ -11,6 +11,7 @@ import type { AccentTheme } from '../state/accentTheme';
 import { selectDeletableRejected } from '../state/batchOps';
 import { selectPendingShieldReview, readShieldDismissedIds } from '../core/documentShield';
 import { selectUnresolvedGroups } from '../state/duplicateGroups';
+import { openStoreListing } from '../core/storeListing';
 import { countDecisionInversions } from '../state/decisionInversions';
 import { selectMonthlyRecap } from '../state/monthlyRecap';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
@@ -1001,6 +1002,17 @@ export function MenuDrawer() {
           <button className="drawer-item" onClick={() => go(() => setShortcutsOpen(true))}>
             <span className="drawer-item-icon"><KeyboardIcon /></span>
             <span>{tr('menu.shortcuts')}</span>
+          </button>
+
+          {/* "Lasa o parere" — cerut de raportul de testare extern, care a notat
+              ca aplicatia n-avea nicio cale spre recenzii.
+
+              Buton, nu pop-up: aplicatia asta nu intrerupe utilizatorul ca sa-i
+              ceara ceva nicaieri, si un dialog "iti place aplicatia?" ar fi fost
+              primul. Vezi core/storeListing.ts. */}
+          <button className="drawer-item" onClick={() => go(() => { openStoreListing(); })}>
+            <span className="drawer-item-icon"><StarIcon /></span>
+            <span>{tr('menu.rateApp')}</span>
           </button>
 
           <button className="drawer-item" onClick={() => go(() => setPremiumOpen(true))}>

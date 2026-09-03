@@ -547,6 +547,7 @@ export const en: Record<TranslationKey, string> = {
   'guide.privacy.p1': 'The AI analysis, face recognition and the learning engine run entirely on the device. The photos go nowhere.',
   'guide.privacy.p2': 'The single exception is explicit and needs your tap: the map link in the info panel sends the location coordinates to OpenStreetMap. The button says so before you press it.',
   'menu.shortcuts': 'Keyboard shortcuts',
+  'menu.rateApp': 'Leave a review on Google Play',
   'menu.about': 'AI analysis, face recognition and the learning engine run entirely on your phone — no photo goes anywhere.',
 
   'shortcuts.title': 'Keyboard shortcuts',
