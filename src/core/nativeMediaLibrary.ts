@@ -20,6 +20,7 @@ interface MediaLibraryPluginApi {
   deletePhotos(options: { uris: string[] }): Promise<{ cancelled: boolean; skippedUris: string[] }>;
   galleryOverview(): Promise<{ granted: boolean; totalCount: number }>;
   galleryDateRange(): Promise<{ granted: boolean; earliestMs?: number; latestMs?: number }>;
+  countPhotosSince(options: { sinceMs: string }): Promise<{ granted: boolean; count: number }>;
   photosInRange(options: { startMs: string; endMs: string }): Promise<{ granted: boolean; photos: { uri: string; name: string; capturedAt: number }[] }>;
   galleryFolders(): Promise<{ granted: boolean; folders: { id: string; name: string; count: number }[] }>;
   photosInFolder(options: { bucketId: string }): Promise<{ granted: boolean; photos: { uri: string; name: string; capturedAt: number }[] }>;
@@ -127,6 +128,30 @@ export async function readGalleryOverview(): Promise<{ granted: boolean; totalCo
  */
 export async function readGalleryDateRange(): Promise<{ granted: boolean; earliestMs?: number; latestMs?: number }> {
   return MediaLibraryNative.galleryDateRange();
+}
+
+/**
+ * Cate poze noi are galeria de la un moment incoace — DOAR numarul, nicio poza
+ * peste punte (vezi countPhotosSince in MediaLibraryPlugin.kt).
+ *
+ * Nu CERE permisiunea daca nu e deja data: singurul apelant e un memento care
+ * apare de la sine, iar o aplicatie care ridica dialogul de permisiuni fara ca
+ * omul sa fi cerut ceva e exact ce aplicatia asta nu vrea sa fie. Fara
+ * permisiune intoarce `granted: false`, si apelantul revine la mesajul care nu
+ * are nevoie de galerie.
+ *
+ * Milisecundele merg ca TEXT: nu incap intr-un Int pe 32 de biti, acelasi motiv
+ * ca la pickPhotosInRange.
+ */
+export async function countGalleryPhotosSince(sinceMs: number): Promise<{ granted: boolean; count: number }> {
+  if (!isNativeMediaLibraryAvailable()) return { granted: false, count: 0 };
+  try {
+    return await MediaLibraryNative.countPhotosSince({ sinceMs: String(Math.floor(sinceMs)) });
+  } catch {
+    // Plugin mai vechi decat aplicatia (metoda inca inexistenta) sau interogare
+    // esuata: un memento n-are voie sa arunce. Necunoscut, nu zero.
+    return { granted: false, count: 0 };
+  }
 }
 
 export interface RangePickedPhoto {

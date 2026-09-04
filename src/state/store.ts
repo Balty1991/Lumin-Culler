@@ -59,6 +59,7 @@ import {
   resetSupervisorProgress,
   type GalleryPeriod, type GalleryPeriodEntry, type PeriodMonths
 } from './gallerySupervisor';
+import { advanceGalleryWatermark } from './galleryWatermark';
 import { readStoredTheme, applyTheme, type Theme } from './theme';
 import { readStoredAccent, applyAccent, type AccentTheme } from './accentTheme';
 import { readWelcomeSeen, writeWelcomeSeen } from './welcomeOnboarding';
@@ -2809,6 +2810,21 @@ export const useStore = create<AppState>((set, get) => ({
         // deja un import — pe telefonul tau, nu in general.
         durationMs: Date.now() - startedAt
       });
+    }
+    // Pana unde a vazut aplicatia galeria — vezi state/galleryWatermark.ts.
+    // Se ia data cea mai noua din galerie IN ACEST MOMENT, nu data ultimei poze
+    // aduse: cine importa "Iulie" dintr-o galerie cu poze de ieri a vazut totusi
+    // galeria pana ieri, si n-are de ce sa fie anuntat maine ca sunt noi tocmai
+    // pozele pe care aplicatia tocmai i le-a aratat.
+    //
+    // Fara `await` in calea de finalizare a importului: e o interogare de
+    // metadate care nu are ce sa intarzie, si oricum nu schimba nimic pe ecranul
+    // asta. Un esec nu se propaga — atunci semnul de carte pur si simplu ramane
+    // cel vechi, iar memento-ul spune varianta fara numar.
+    if (isNativeMediaLibraryAvailable() && done > 0) {
+      void readGalleryDateRange()
+        .then(range => { if (range.granted) advanceGalleryWatermark(range.latestMs); })
+        .catch(() => { /* semnul de carte ramane cel vechi */ });
     }
     const doneNotice = done > 0
       ? t(get().locale, plural(done, 'store.import.done.one', 'store.import.done.other'), { count: done })

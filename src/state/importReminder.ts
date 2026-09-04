@@ -1,12 +1,22 @@
 /**
  * state/importReminder.ts
- * "N-ai mai sortat de X zile" — memento periodic (ui/ImportReminder.tsx),
- * acelasi tipar ca backupReminder.ts. Nu exista nicio citire a galeriei
- * telefonului (ar cere o permisiune noua, in contradictie cu pozitionarea
- * "acces minim" a aplicatiei) — semnalul e strict DIN ISTORICUL PROPRIU al
- * aplicatiei (cel mai recent PhotoRecord.importedAt), deja disponibil fara
- * nimic suplimentar. Nu poate spune "ai N poze noi", doar "a trecut mult timp
- * de la ultimul import" — mai putin precis, dar gratuit din date deja existente.
+ * CAND apare memento-ul periodic de reangajare (ui/ImportReminder.tsx),
+ * acelasi tipar ca backupReminder.ts. Semnalul de aici e strict DIN ISTORICUL
+ * PROPRIU al aplicatiei (cel mai recent PhotoRecord.importedAt), deci nu cere
+ * nimic si merge pe orice platforma.
+ *
+ * Comentariul de aici sustinea, pana acum, si ca aplicatia NU poate spune "ai
+ * N poze noi", fiindca o citire a galeriei "ar cere o permisiune noua, in
+ * contradictie cu pozitionarea «acces minim»". Adevarat cand a fost scris,
+ * fals de mult timp: aplicatia are READ_MEDIA_IMAGES si citeste chiar din
+ * MediaStore in Supervizorul galeriei si in "Adu pe perioade".
+ *
+ * Cifra chiar se spune acum — vezi state/galleryWatermark.ts si
+ * ui/ImportReminder.tsx — dar CE se spune ramane decis acolo, nu aici. Acest
+ * fisier raspunde doar la "e momentul?", iar raspunsul lui nu depinde de
+ * galerie: daca numarul nu se poate afla (fara permisiune completa, fara semn
+ * de carte, prea putine poze), memento-ul apare exact ca inainte, cu mesajul
+ * general.
  */
 const SNOOZED_UNTIL_KEY = 'lumin-import-reminder-snoozed-until';
 

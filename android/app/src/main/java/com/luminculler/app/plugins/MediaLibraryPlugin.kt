@@ -712,6 +712,57 @@ class MediaLibraryPlugin : Plugin() {
     }
 
     /**
+     * CATE poze noi are galeria de la un moment dat incoace. Doar numarul.
+     *
+     * De ce o metoda separata, si nu photosInRange cu un capat deschis:
+     * aceea construieste un JSArray cu uri+nume+data pentru FIECARE poza si
+     * il trece prin punte. Pentru un memento care afiseaza o singura cifra,
+     * asta ar insemna mii de obiecte serializate ca sa se afle un numar.
+     * Aici proiectia e o singura coloana si nu se citeste niciun rand —
+     * `cursor.count` vine direct de la furnizor.
+     *
+     * NU CERE PERMISIUNEA daca nu e deja data, si asta e o decizie, nu o
+     * scapare: singurul apelant e un memento care apare de la sine, iar o
+     * aplicatie care ridica dialogul de permisiuni fara ca omul sa fi cerut
+     * ceva e exact genul de aplicatie pe care asta nu vrea sa fie. Fara
+     * permisiune raspunde `granted: false`, iar partea de JS revine la
+     * mesajul de dinainte, care nu are nevoie de galerie.
+     *
+     * Aceeasi conditie pe date ca photosInRange (DATE_TAKEN, cu DATE_ADDED ca
+     * rezerva pentru pozele fara ea — capturi de ecran, descarcari), doar cu
+     * capatul de sus deschis.
+     */
+    @PluginMethod
+    fun countPhotosSince(call: PluginCall) {
+        if (getPermissionState(photosPermissionAlias) != PermissionState.GRANTED) {
+            call.resolve(JSObject().put("granted", false).put("count", 0))
+            return
+        }
+        // Ca la photosInRange: milisecundele de la epoca nu incap intr-un Int pe
+        // 32 de biti, deci vin ca text.
+        val sinceMs = call.getString("sinceMs")?.toLongOrNull()
+        if (sinceMs == null) {
+            call.reject("sinceMs lipseste sau e invalid")
+            return
+        }
+        try {
+            val selection = "(${MediaStore.Images.Media.DATE_TAKEN} > ?) OR " +
+                "(${MediaStore.Images.Media.DATE_TAKEN} IS NULL AND ${MediaStore.Images.Media.DATE_ADDED} > ?) OR " +
+                "(${MediaStore.Images.Media.DATE_TAKEN} = 0 AND ${MediaStore.Images.Media.DATE_ADDED} > ?)"
+            val addedSinceSec = (sinceMs / 1000).toString()
+            val args = arrayOf(sinceMs.toString(), addedSinceSec, addedSinceSec)
+            val count = context.contentResolver.query(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                arrayOf(MediaStore.Images.Media._ID),
+                selection, args, null
+            )?.use { it.count } ?: 0
+            call.resolve(JSObject().put("granted", true).put("count", count))
+        } catch (e: Exception) {
+            call.reject("Nu am putut numara pozele noi: ${e.message}", e)
+        }
+    }
+
+    /**
      * Foldere (bucket-uri MediaStore, ex. "Camera", "WhatsApp Images",
      * "Screenshots") — cerinta directa a utilizatorului: alternativa la
      * segmentarea cronologica, sortare pe sursa. O singura trecere prin
