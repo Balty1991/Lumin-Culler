@@ -400,6 +400,7 @@ export const ro = {
   'clip.table.perPhoto': 'Pe poză',
   'clip.table.thousand': 'La 1000',
   'clip.unreadable': 'Am găsit fișierul modelului, dar nu-l pot citi — probabil o versiune veche rămasă în memoria telefonului. Reîncarcă pagina de două ori; dacă rămâne așa, trimite rândul de mai jos.',
+  'clip.compare': 'Un import te costă deja ≈ {base} ms pe poză. Cea mai bună variantă de mai sus ar adăuga încă {percent}% peste asta.',
   'clip.title': 'Motorul nou (experimental)',
   'clip.lead': 'Un model care înțelege ce e ÎN poză, nu doar cât e de clară. Pe telefon, fără cont, fără ca poza să plece undeva. Încă nu e pornit pentru nimeni — întâi îl măsori aici.',
   'clip.checking': 'Verific dacă versiunea asta conține modelul…',

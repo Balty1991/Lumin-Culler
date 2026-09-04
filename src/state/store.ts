@@ -2803,7 +2803,11 @@ export const useStore = create<AppState>((set, get) => ({
         imported: batch.length,
         failed: outcomeReport.failed,
         skipped: outcomeReport.skipped,
-        reasons: outcomeReport.reasons
+        reasons: outcomeReport.reasons,
+        // Acelasi interval ca la cardul de sesiune. Serveste ca NUMITOR:
+        // ecranul motorului nou poate spune cat ar adauga el peste ce te costa
+        // deja un import — pe telefonul tau, nu in general.
+        durationMs: Date.now() - startedAt
       });
     }
     const doneNotice = done > 0

@@ -36,6 +36,32 @@ export interface ImportOutcome {
   skipped: number;
   /** Primele motive de esec, deja agregate de pipeline. Fara nume de fisier. */
   reasons?: string;
+  /**
+   * Cat a durat importul, in ms. Optional: inregistrarile scrise inainte de
+   * acest camp n-au cum sa-l aiba.
+   *
+   * DE CE E AICI. Fara el, "motorul nou ar adauga 106 ms pe poza" e o cifra
+   * fara numitor — 106 ms peste ce? Cu el, ecranul de masurare poate spune
+   * cate procente inseamna asta din ce te costa deja un import, pe telefonul
+   * tau. Aceeasi regula ca peste tot: cifra masurata bate cifra argumentata.
+   */
+  durationMs?: number;
+}
+
+/**
+ * Cat a costat, in medie, o poza la ultimele importuri — ms pe poza. `null`
+ * cand inca nu exista nicio inregistrare cu durata.
+ *
+ * Se aduna toate importurile care AU durata, nu doar ultimul: un singur lot de
+ * trei poze e dominat de pornirea modelelor si n-ar descrie deloc un import
+ * obisnuit.
+ */
+export function measuredMsPerPhoto(outcomes = readImportOutcomes()): number | null {
+  const cuDurata = outcomes.filter(o => typeof o.durationMs === 'number' && o.durationMs > 0 && o.imported > 0);
+  if (!cuDurata.length) return null;
+  const ms = cuDurata.reduce((n, o) => n + (o.durationMs ?? 0), 0);
+  const poze = cuDurata.reduce((n, o) => n + o.imported, 0);
+  return poze > 0 ? ms / poze : null;
 }
 
 /**

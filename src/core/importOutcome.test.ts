@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
   readImportOutcomes, recordImportOutcome, resetImportOutcomes, summariseOutcomes,
-  MAX_OUTCOMES, type ImportOutcome
-} from './importOutcome';
+  MAX_OUTCOMES, type ImportOutcome, measuredMsPerPhoto } from './importOutcome';
 
 const o = (over: Partial<ImportOutcome> = {}): ImportOutcome =>
   ({ ts: 1, total: 100, imported: 100, failed: 0, skipped: 0, ...over });
@@ -87,5 +86,39 @@ describe('importOutcome', () => {
     recordImportOutcome(o());
     resetImportOutcomes();
     expect(readImportOutcomes()).toEqual([]);
+  });
+});
+
+describe('measuredMsPerPhoto — numitorul pentru motorul nou', () => {
+  /**
+   * Fara cifra asta, "motorul nou ar adauga 106 ms pe poza" nu inseamna nimic:
+   * 106 peste ce? Ea da termenul de comparatie, masurat la importurile
+   * utilizatorului, nu presupus.
+   */
+  it('aduna toate importurile cu durata, nu doar ultimul', () => {
+    // Un singur lot de trei poze e dominat de pornirea modelelor si n-ar
+    // descrie deloc un import obisnuit.
+    const ms = measuredMsPerPhoto([
+      { ts: 1, total: 3, imported: 3, failed: 0, skipped: 0, durationMs: 30_000 },
+      { ts: 2, total: 100, imported: 100, failed: 0, skipped: 0, durationMs: 70_000 }
+    ]);
+    expect(ms).toBeCloseTo(100_000 / 103, 3);
+  });
+
+  it('ignora inregistrarile fara durata — cele scrise inainte de acest camp', () => {
+    const ms = measuredMsPerPhoto([
+      { ts: 1, total: 50, imported: 50, failed: 0, skipped: 0 },
+      { ts: 2, total: 10, imported: 10, failed: 0, skipped: 0, durationMs: 5_000 }
+    ]);
+    expect(ms).toBe(500);
+  });
+
+  it('fara nicio inregistrare cu durata nu inventeaza un numitor', () => {
+    expect(measuredMsPerPhoto([])).toBeNull();
+    expect(measuredMsPerPhoto([{ ts: 1, total: 5, imported: 5, failed: 0, skipped: 0 }])).toBeNull();
+  });
+
+  it('ignora un import care n-a adus nicio poza — ar fi impartire la zero', () => {
+    expect(measuredMsPerPhoto([{ ts: 1, total: 5, imported: 0, failed: 5, skipped: 0, durationMs: 9_000 }])).toBeNull();
   });
 });

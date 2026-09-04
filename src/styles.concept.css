@@ -6777,3 +6777,7 @@ button:disabled,
 .clip-table td:first-child { color: var(--text-dim); }
 /* Randul picat nu se ascunde si nu se scoate: se stinge. Un esec e un rezultat. */
 .clip-row-failed td { color: var(--text-faint); }
+
+/* Randul care da SENS cifrei din tabel: cat adauga fata de ce te costa deja un
+   import. Fara el, "106 ms pe poza" e un numar fara numitor. */
+.clip-compare { margin: 10px 0 0; font-size: .74rem; color: var(--text-dim); line-height: 1.5; }

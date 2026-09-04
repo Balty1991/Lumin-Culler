@@ -1,18 +1,26 @@
 {
   "_comentariu": [
-    "Retetele modelelor CLIP aduse la build. TOT ce e riscant in integrare sta in",
+    "Reteta modelului CLIP adus la build. TOT ce e riscant in integrare sta in",
     "acest fisier, intr-un singur loc revizuibil.",
     "",
-    "MAI MULTE VARIANTE, si asta e o lectie platita cu o masuratoare pe telefon:",
-    "prima varianta livrata a fost cea CUANTIZATA pe 8 biti, si a iesit 1404 ms pe",
-    "poza pe WebGPU — de zeci de ori mai lent decat ar trebui. Cauza probabila e ca",
-    "un model cuantizat e facut pentru procesor: backend-ul WebGPU nu stie o parte",
-    "din operatiile lui si le trimite inapoi pe procesor, deci fiecare poza face",
-    "drumuri intre placa video si CPU.",
+    "DE CE DOAR fp16, dupa ce au fost masurate amandoua pe un telefon real",
+    "(Xiaomi, WebGPU disponibil), 12 poze per combinatie:",
     "",
-    "Nu se rezolva prin ghicit inca o data. Se aduc AMANDOUA variantele, iar",
-    "ecranul de masurare le ruleaza pe rand si arata tabelul. Alege cifra, nu",
-    "presupunerea.",
+    "    16 biti / webgpu ->  106 ms pe poza   <- castigator, de departe",
+    "    16 biti / wasm   ->  599 ms",
+    "     8 biti / webgpu -> 1437 ms           <- cea mai proasta combinatie",
+    "     8 biti / wasm   ->  640 ms",
+    "",
+    "Modelul cuantizat pe 8 biti pierde pe AMBELE backend-uri, si pierde cel mai",
+    "urat exact acolo unde ar fi trebuit sa fie rapid: pe placa video e de 13 ori",
+    "mai lent decat fp16, si mai lent decat el insusi pe procesor. Cuantizarea e",
+    "facuta pentru CPU; pe WebGPU o parte din operatiile ei nu sunt cunoscute si",
+    "se intorc pe procesor, deci fiecare poza face drumuri intre cele doua.",
+    "",
+    "Prin urmare q8 a fost scos: descarcarea scade de la 34 MB la 22 MB si nimeni",
+    "nu mai plateste pentru o varianta care pierde peste tot. Structura ramane o",
+    "LISTA, ca sa se poata compara din nou cand apare un candidat nou — o singura",
+    "masuratoare, pe un singur telefon, nu e o lege.",
     "",
     "ATENTIE la mean/std si inputSize: sunt preprocesarea cu care a fost ANTRENAT",
     "modelul. Gresite, modelul nu da eroare — da vectori plauzibili si complet",
@@ -40,26 +48,6 @@
       ],
       "minBytes": 5000000,
       "maxBytes": 200000000,
-      "preprocessorUrl": "https://huggingface.co/Xenova/mobileclip_s0/resolve/main/preprocessor_config.json"
-    },
-    {
-      "name": "mobileclip_s0.image.q8",
-      "eticheta": "8 biti (pentru procesor)",
-      "url": "https://huggingface.co/Xenova/mobileclip_s0/resolve/main/onnx/vision_model_quantized.onnx",
-      "dim": 512,
-      "inputSize": 256,
-      "mean": [
-        0,
-        0,
-        0
-      ],
-      "std": [
-        1,
-        1,
-        1
-      ],
-      "minBytes": 5000000,
-      "maxBytes": 120000000,
       "preprocessorUrl": "https://huggingface.co/Xenova/mobileclip_s0/resolve/main/preprocessor_config.json"
     }
   ]

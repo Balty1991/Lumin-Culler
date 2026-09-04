@@ -8,6 +8,7 @@ import type { ClipManifestRead } from '../core/clip/clipManifest';
 import { isClipEnabled, setClipEnabled } from '../state/clipOptIn';
 import { formatSpan } from '../core/formatTime';
 import { db } from '../core/db';
+import { measuredMsPerPhoto } from '../core/importOutcome';
 import { t } from '../i18n';
 
 /**
@@ -45,6 +46,12 @@ export function ClipLabPanel() {
   const [progress, setProgress] = useState({ facut: 0, total: 0 });
   const [rows, setRows] = useState<ClipMatrixRow[] | null>(null);
   const [enabled, setEnabled] = useState(isClipEnabled);
+  /**
+   * Cat te costa deja o poza la import, masurat la importurile tale. `null`
+   * pana exista un import cu durata inregistrata. E NUMITORUL: fara el,
+   * "ar adauga 106 ms" e o cifra fara termen de comparatie.
+   */
+  const [bazaMs] = useState(() => measuredMsPerPhoto());
 
   useEffect(() => {
     if (!open) return;
@@ -169,6 +176,18 @@ export function ClipLabPanel() {
                     ))}
                   </tbody>
                 </table>
+                {/* CE INSEAMNA cifra, raportat la ce te costa deja un import.
+                    Fara randul asta, "106 ms pe poza" e un numar fara numitor —
+                    106 peste ce? Baza e masurata la importurile tale, nu
+                    presupusa. */}
+                {bazaMs !== null && rows.some(r => r.result) && (
+                  <p className="clip-compare">
+                    {tr('clip.compare', {
+                      base: Math.round(bazaMs),
+                      percent: Math.round((Math.min(...rows.flatMap(r => r.result ? [r.result.medianMs] : [])) / bazaMs) * 100)
+                    })}
+                  </p>
+                )}
                 {/* Motivele brute, netraduse: singurul lucru din ecran care poate
                     fi trimis mai departe si chiar reparat. */}
                 {rows.filter(r => r.error).map((r, i) => (
