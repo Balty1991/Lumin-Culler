@@ -592,6 +592,16 @@ body:before {
   background:linear-gradient(180deg,transparent,rgb(0 0 0 / .78));
 }
 
+/* Eticheta "· Premium" de langa "Fa folder" din Locatii: harta locurilor se
+   vede liber, iar plata e pentru transformarea unui loc in album. Discreta
+   dinadins — e o informatie, nu o reclama, si ecranul in care sta e cel mai
+   frumos moment al aplicatiei. */
+.location-folder-premium {
+  color:var(--accent);
+  font-size:.72em;
+  letter-spacing:.04em;
+}
+
 .card-exif-line,
 .card-text-hit,
 .card-score-label {

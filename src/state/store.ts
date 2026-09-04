@@ -1726,7 +1726,25 @@ export const useStore = create<AppState>((set, get) => ({
     ) return;
     set(next);
   },
-  setLocationsOpen: open => { if (open && get().gatePremium('locations')) return; set({ locationsOpen: open }); },
+  /**
+   * Usa NU mai e poarta — vezi `createCollectionFromLocation`, care e.
+   *
+   * Acelasi rationament ca la plansa de contact (setContactSheetOpen): modelul
+   * aplicatiei e plafon pe IESIRE, nu pe intrare, iar functiile rezervate
+   * abonatilor il incalcau exact invers.
+   *
+   * Aici doare cel mai tare. Harta locurilor tale e cel mai puternic moment de
+   * "aa!" din toata aplicatia — oamenii isi recunosc vacantele intr-o lista de
+   * nume de orase — si tocmai el statea in intregime dupa lacat. Omul apasa
+   * "Locatii", primea un ecran care ii cerea bani, si nu afla niciodata ca
+   * aplicatia lui stie in ce orase a fost. Nu se vindea o functie, se vindea un
+   * cuvant din meniu.
+   *
+   * Ce ramane platit e transformarea ei in ceva: "Fa folder" ia un loc si il
+   * scrie in biblioteca ta ca album. Aia e iesirea — pana atunci, e doar
+   * privit.
+   */
+  setLocationsOpen: open => set({ locationsOpen: open }),
   tiktokSortOpen: false,
   // Deschiderea "normala" (fara scop explicit) porneste mereu pe toata coada,
   // nu pe ramasitele unui scop anterior (ex. dupa "Sorteaza acum ce ai adus").
@@ -1906,6 +1924,12 @@ export const useStore = create<AppState>((set, get) => ({
    * "N poze adaugate": se spune ca folderul exista deja.
    */
   createCollectionFromLocation: async (name, photoIds) => {
+    // POARTA Premium pentru ecranul Locatii. Statea pe deschiderea panoului,
+    // deci harta locurilor tale — cel mai puternic moment de "aa!" din
+    // aplicatie — nu se vedea niciodata. Acum se vede; ce se plateste e
+    // transformarea unui loc in album, adica momentul in care rezultatul iese
+    // din ecranul ala si intra in biblioteca. Vezi setLocationsOpen.
+    if (get().gatePremium('locations')) return null;
     const trimmed = name.trim();
     if (!trimmed || !photoIds.length) return null;
     const existing = get().collections.find(c => !c.isPrivate && c.name === trimmed);

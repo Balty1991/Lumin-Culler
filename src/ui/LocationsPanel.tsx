@@ -47,8 +47,10 @@ function LocationThumbImage({ photoId }: { photoId: string }) {
   return src ? <AdjustedImage src={src} alt="" loading="lazy" /> : <span className="memory-thumb-loading" aria-hidden="true" />;
 }
 
-function LocationCard({ group, placeName, locale, onOpenPhoto, onMakeFolder, onReimportGps }: {
+function LocationCard({ group, placeName, locale, premiumLocked, onOpenPhoto, onMakeFolder, onReimportGps }: {
   group: PhotoLocationGroup; placeName?: string; locale: Locale;
+  /** Doar ETICHETA butonului. Blocarea efectiva sta in store (createCollectionFromLocation) — vezi acolo de ce. */
+  premiumLocked: boolean;
   onOpenPhoto: (id: string) => void;
   onMakeFolder: (name: string, photoIds: string[]) => void;
   /** Doar pe Android nativ: acolo exista un MediaStore din care EXIF-ul se poate reciti. */
@@ -116,7 +118,9 @@ function LocationCard({ group, placeName, locale, onOpenPhoto, onMakeFolder, onR
             title={tr('locations.makeFolder.title')}
             onClick={() => onMakeFolder(title, group.photos.map(p => p.id))}
           >
-            <FolderIcon className="inline-icon" aria-hidden="true" /> {tr(group.hasLocation ? 'locations.makeFolder' : 'locations.makeFolder.byDate')}
+            <FolderIcon className="inline-icon" aria-hidden="true" />{' '}
+            {tr(group.hasLocation ? 'locations.makeFolder' : 'locations.makeFolder.byDate')}
+            {premiumLocked && <span className="location-folder-premium"> · {tr('premium.chip')}</span>}
           </button>
           {!group.hasLocation && onReimportGps && (
             <button className="ghost location-card-folder location-reimport-gps" onClick={onReimportGps}>
@@ -150,6 +154,7 @@ export function LocationsPanel() {
   const openDetail = useStore(s => s.openDetail);
   const createCollectionFromLocation = useStore(s => s.createCollectionFromLocation);
   const setSupervisorPanelOpen = useStore(s => s.setSupervisorPanelOpen);
+  const premiumLocked = useStore(s => s.premiumLocked);
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -220,6 +225,7 @@ export function LocationsPanel() {
                   placeName={photoPlaces.get(group.photos[0].id)}
                   locale={locale}
                   onOpenPhoto={openPhoto}
+                  premiumLocked={premiumLocked}
                   onMakeFolder={makeFolder}
                   onReimportGps={isNativeMediaLibraryAvailable()
                     ? () => { setOpen(false); setSupervisorPanelOpen(true); }
