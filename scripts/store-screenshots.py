@@ -33,7 +33,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 W, H = 1080, 1920
 SRC = os.environ.get('LUMIN_SHOTS_SRC', '/root/.claude/uploads/09c12659-4c3c-54cc-87dd-ec28ff8ac38b')
-OUT = 'store/screenshots-new'
+OUT_BASE = 'store/screenshots-new'
 FONTS = '/tmp/fonts'
 
 TEXT = (247, 248, 252)
@@ -135,7 +135,7 @@ def centrat(d, y, text, font, fill, spatiere=0):
         d.text((x, y), text, font=font, fill=fill)
 
 
-def compune(sursa, eticheta, titlu, subtitlu, nume, insigna=None):
+def compune(sursa, eticheta, titlu, subtitlu, nume, insigna=None, limba='ro'):
     bold, med = pregateste_fonturile()
     bg = fundal()
     d = ImageDraw.Draw(bg)
@@ -200,28 +200,67 @@ def compune(sursa, eticheta, titlu, subtitlu, nume, insigna=None):
     f_b = ImageFont.truetype(bold, 27)
     centrat(d, H - 74, 'LUMINCULLER', f_b, (108, 116, 136), spatiere=3)
 
-    os.makedirs(OUT, exist_ok=True)
-    cale = f'{OUT}/{nume}.png'
+    out = f'{OUT_BASE}/{limba}'
+    os.makedirs(out, exist_ok=True)
+    cale = f'{out}/{nume}.png'
     bg.save(cale)
     print(cale, bg.size)
 
 
+# ── Textele, pe limbi ────────────────────────────────────────────────────────
+#
+# ATENTIE, si e o limita reala, nu o scapare: interfata DIN capturi e in
+# romana. Setul englezesc de mai jos pune titluri englezesti peste ecrane
+# romanesti. Nu e inselator (aplicatia chiar face ce scrie), dar un vorbitor
+# de engleza vede diferenta imediat, si asta costa la conversie.
+#
+# Varianta corecta e sa refaci ACELEASI sase capturi cu aplicatia comutata pe
+# EN (Meniu -> Setari -> limba), sa le pui in acelasi folder si sa schimbi doar
+# numele fisierelor din `SURSE_EN`. Restul scriptului nu se atinge.
+SURSE_RO = {
+    'scoruri': '25537cf9-image.jpg', 'cauze': '40e959de-image.jpg',
+    'dece': 'a5734068-image.jpg', 'metrici': '69016b10-image.jpg',
+    'decizie': '0dc65acc-image.jpg', 'privat': '3f64d51d-image.jpg'
+}
+# Cand ai capturile cu aplicatia in engleza, inlocuieste valorile de aici.
+SURSE_EN = dict(SURSE_RO)
+
+TEXTE = {
+    'ro': [
+        ('scoruri', 'Triaj cu AI', 'Un scor pentru fiecare poză',
+         'Import, analiză și sortare — oricâte poze, gratuit.', ('12 poze', 'decise în 83%')),
+        ('cauze', 'Coada de verificat', 'Nu doar cât. Și de ce.',
+         'Grupate pe cauze: un gest, nu o sută.', ('5 cauze', 'nu 17 decizii')),
+        ('dece', 'Explicabilitate', 'Fiecare scor, explicat',
+         'Ce a cântărit pentru și ce împotrivă. Tu confirmi, AI-ul învață.', None),
+        ('metrici', 'Ce măsoară', 'Claritate, ochi, zâmbet',
+         'Măsurate pe telefon, arătate pe înțelesul tău.', None),
+        ('decizie', 'Fluxul de lucru', 'Următoarea decizie, pregătită',
+         'Tu doar confirmi. Nimic nu se șterge fără acordul tău.', None),
+        ('privat', 'Confidențialitate', 'Nicio poză nu pleacă de pe telefon',
+         'Fără cont, fără upload, fără reclame.', ('0 upload', 'nimic nu pleacă'))
+    ],
+    'en': [
+        ('scoruri', 'AI culling', 'A score for every photo',
+         'Import, analysis and sorting — any number of photos, free.', ('12 photos', '83% decided')),
+        ('cauze', 'Your review queue', 'Not just how many. Why.',
+         'Grouped by cause: one gesture, not a hundred.', ('5 causes', 'not 17 calls')),
+        ('dece', 'Explainable', 'Every score, explained',
+         'What counted for it and what against. You confirm, the AI learns.', None),
+        ('metrici', 'What it measures', 'Sharpness, eyes, smile',
+         'Measured on your phone, shown in plain words.', None),
+        ('decizie', 'The workflow', 'Your next decision, ready',
+         'You just confirm. Nothing is deleted without your say-so.', None),
+        ('privat', 'Privacy', 'No photo ever leaves your phone',
+         'No account, no upload, no ads.', ('0 uploads', 'nothing leaves'))
+    ]
+}
+
+
 if __name__ == '__main__':
-    compune('25537cf9-image.jpg', 'Triaj cu AI', 'Un scor pentru fiecare poză',
-            'Import, analiză și sortare — oricâte poze, gratuit.',
-            '01-scoruri', insigna=('12 poze', 'decise în 83%'))
-    compune('40e959de-image.jpg', 'Coada de verificat', 'Nu doar cât. Și de ce.',
-            'Grupate pe cauze: un gest, nu o sută.',
-            '02-cauze', insigna=('5 cauze', 'nu 17 decizii'))
-    compune('a5734068-image.jpg', 'Explicabilitate', 'Fiecare scor, explicat',
-            'Ce a cântărit pentru și ce împotrivă. Tu confirmi, AI-ul învață.',
-            '03-de-ce')
-    compune('69016b10-image.jpg', 'Ce măsoară', 'Claritate, ochi, zâmbet',
-            'Măsurate pe telefon, arătate pe înțelesul tău.',
-            '04-metrici')
-    compune('0dc65acc-image.jpg', 'Fluxul de lucru', 'Următoarea decizie, pregătită',
-            'Tu doar confirmi. Nimic nu se șterge fără acordul tău.',
-            '05-decizie')
-    compune('3f64d51d-image.jpg', 'Confidențialitate', 'Nicio poză nu pleacă de pe telefon',
-            'Fără cont, fără upload, fără reclame.',
-            '06-privat', insigna=('0 upload', 'nimic nu pleacă'))
+    import sys
+    limbi = sys.argv[1:] or ['ro', 'en']
+    for limba in limbi:
+        surse = SURSE_RO if limba == 'ro' else SURSE_EN
+        for i, (cheie, et, ti, su, ins) in enumerate(TEXTE[limba], start=1):
+            compune(surse[cheie], et, ti, su, f'{i:02d}-{cheie}', insigna=ins, limba=limba)
