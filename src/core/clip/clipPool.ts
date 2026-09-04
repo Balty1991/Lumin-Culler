@@ -50,6 +50,21 @@ interface LiveWorker {
 let live: LiveWorker | null = null;
 
 /**
+ * Ultimul motiv pentru care pornirea a esuat, in cuvintele runtime-ului.
+ *
+ * DE CE EXISTA, si e o corectie a unei greseli proprii: prima varianta inghitea
+ * eroarea intr-un `catch {}` si arata "modelul nu a pornit pe acest dispozitiv".
+ * Propozitia aia nu spune nimic — nici utilizatorului, nici mie. Cand functia a
+ * picat pe telefonul real, singurul lucru pe care il stiam era ca a picat, iar
+ * cauza (un fisier .wasm cerut la o adresa gresita) a trebuit gasita prin
+ * reproducere locala, in loc sa fie citita de pe ecran.
+ *
+ * Pentru o functie al carei singur rost, deocamdata, e sa fie MASURATA, un mesaj
+ * de esec fara cauza e o functie fara rost.
+ */
+export let lastClipError: string | null = null;
+
+/**
  * Porneste workerul si incarca modelul. `null` cand nu exista model in build
  * sau cand pornirea esueaza — in ambele cazuri aplicatia merge exact ca acum.
  *
@@ -58,6 +73,7 @@ let live: LiveWorker | null = null;
  */
 export async function ensureClipReady(): Promise<LiveWorker | null> {
   if (live) return live;
+  lastClipError = null;
   const manifest = await clipAvailability();
   if (!manifest) return null;
   try {
@@ -68,9 +84,12 @@ export async function ensureClipReady(): Promise<LiveWorker | null> {
     const res = await api.init(manifest, clipModelUrl(manifest));
     live = { worker, api, manifest, backend: res.backend, loadMs: res.loadMs };
     return live;
-  } catch {
-    // Model corupt, WebGPU si wasm amandoua refuzate, memorie insuficienta —
-    // toate inseamna acelasi lucru pentru utilizator: functia nu porneste.
+  } catch (err) {
+    // Model corupt, wasm negasit, WebGPU si procesor amandoua refuzate, memorie
+    // insuficienta — pentru aplicatie inseamna acelasi lucru (functia nu
+    // porneste), dar pentru cine incearca s-o repare inseamna lucruri complet
+    // diferite. De-aia motivul se pastreaza si se arata.
+    lastClipError = err instanceof Error ? err.message : String(err);
     return null;
   }
 }

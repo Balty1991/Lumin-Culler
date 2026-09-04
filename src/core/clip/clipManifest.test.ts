@@ -70,7 +70,15 @@ describe('readClipManifest', () => {
 
 describe('clipModelUrl', () => {
   it('compune adresa modelului langa manifest', () => {
-    expect(clipModelUrl(VALID)).toBe('/models/clip/model.onnx');
+    expect(clipModelUrl(VALID)).toContain('/models/clip/model.onnx');
+  });
+
+  it('o da ABSOLUTA — o cale relativa s-ar rezolva gresit in worker', () => {
+    // Bug real: `base: './'` face BASE_URL relativ. In firul principal se
+    // rezolva fata de pagina si merge; in worker, care sta in assets/, devine
+    // `assets/models/clip/model.onnx` — 404, si pe telefon doar "modelul nu a
+    // pornit". Acelasi tipar pe care workerPool.ts il foloseste corect de ani.
+    expect(clipModelUrl(VALID)).toMatch(/^https?:\/\//);
   });
 });
 
@@ -115,17 +123,17 @@ describe('adresele se calculeaza din BASE_URL, nu sunt scrise absolut', () => {
     expect(sursa).toMatch(/CLIP_BASE_PATH = `\$\{import\.meta\.env\.BASE_URL\}/);
   });
 
-  it('ORT_WASM_PATH pleaca de la BASE_URL', () => {
-    expect(sursa).toMatch(/ORT_WASM_PATH = `\$\{import\.meta\.env\.BASE_URL\}/);
-  });
-
   it('nicio constanta nu incepe cu o cale absoluta scrisa de mana', () => {
     expect(sursa).not.toMatch(/^export const \w+ = '\//m);
   });
 
-  it('workerul nu scrie nici el calea wasm absolut', () => {
+  it('workerul NU atinge deloc wasmPaths — Vite rezolva fisierul mai bine', () => {
+    // Lectie platita: suprascrierea trimitea ONNX Runtime dupa varianta `jsep`
+    // a fisierului .wasm, cand build-ul lui cere `asyncify` — deci 404, deci
+    // sesiunea nu pornea. Vite emite oricum fisierul corect in assets/, cu hash,
+    // si rescrie referinta catre el: local, fara CDN, cu numele potrivit.
     const worker = readFileSync(resolve(__dirname, '..', '..', 'workers', 'clipEmbed.worker.ts'), 'utf8');
-    expect(worker).toContain('ORT_WASM_PATH');
-    expect(worker).not.toContain("wasmPaths = '/ort/'");
+    const codul = worker.replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(codul).not.toContain('wasmPaths');
   });
 });

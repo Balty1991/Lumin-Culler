@@ -51,16 +51,6 @@ jobs:
       # justifica marimea.
       - name: Bundle CLIP model (optional)
         run: node scripts/fetch-clip-model.mjs
-      - name: Bundle ONNX Runtime wasm
-        run: |
-          if [ -f public/models/clip/manifest.json ]; then
-            mkdir -p public/ort
-            cp node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.wasm public/ort/
-            cp node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.mjs public/ort/
-            echo "ort: $(du -sh public/ort | cut -f1)"
-          else
-            echo "Fara model CLIP — nu are rost sa livram runtime-ul singur."
-          fi
       # Verificare EXPLICITA, nu dedusa. Pasii de mai sus reusesc si cand nu
       # descarca nimic (asa sunt proiectati: o functie optionala n-are voie sa
       # opreasca livrarea). Consecinta e ca "pas verde" NU inseamna "model
@@ -72,7 +62,7 @@ jobs:
           if [ -f public/models/clip/manifest.json ]; then
             echo "== CLIP PREZENT =="
             cat public/models/clip/manifest.json
-            du -sh public/models/clip public/ort
+            du -sh public/models/clip
           else
             echo "== CLIP ABSENT in acest build =="
             echo "Aplicatia livrata e cea de azi, fara functia optionala."

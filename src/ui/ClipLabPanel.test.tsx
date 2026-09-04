@@ -108,6 +108,18 @@ describe('cand modelul exista', () => {
     expect(screen.queryByText(/Pornește motorul nou/)).not.toBeInTheDocument();
   });
 
+  it('ARATA motivul brut al esecului, nu doar ca a esuat', async () => {
+    // Greseala pe care o repara testul asta e a mea: prima varianta inghitea
+    // eroarea si scria doar "modelul nu a pornit pe acest dispozitiv". Cand
+    // functia a picat pe telefonul real, propozitia aia n-a ajutat pe nimeni —
+    // cauza (un .wasm cerut la adresa gresita) a trebuit gasita prin
+    // reproducere locala, in loc sa fie citita de pe ecran.
+    vi.spyOn(pool, 'runClipBenchmark').mockRejectedValue(new Error('no available backend found. ERR: [wasm] 404'));
+    render(<ClipLabPanel />);
+    fireEvent.click(await screen.findByRole('button', { name: /Măsoară/ }));
+    expect(await screen.findByText(/no available backend found/)).toBeInTheDocument();
+  });
+
   it('oprirea STERGE ce a calculat, nu doar ascunde', async () => {
     // De-aia vectorii stau in tabela lor: oprirea e o operatie, nu o
     // parcurgere a intregii biblioteci. Vezi core/db.ts.

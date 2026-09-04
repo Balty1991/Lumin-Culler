@@ -61,8 +61,25 @@ export interface ClipManifest {
  */
 export const CLIP_BASE_PATH = `${import.meta.env.BASE_URL}models/clip/`;
 export const CLIP_MANIFEST_URL = `${CLIP_BASE_PATH}manifest.json`;
-/** Directorul runtime-ului ONNX, pe acelasi principiu. Vezi clipEmbed.worker.ts. */
-export const ORT_WASM_PATH = `${import.meta.env.BASE_URL}ort/`;
+
+/**
+ * Aceeasi adresa, dar ABSOLUTA. Si asta e a doua jumatate a lectiei de mai sus,
+ * platita separat.
+ *
+ * `base: './'` (necesar pe GitHub Pages) face ca BASE_URL sa fie `./` — o cale
+ * RELATIVA. In firul principal se rezolva fata de pagina, deci merge. Dar
+ * adresa modelului e folosita in WORKER, iar fisierul workerului sta in
+ * `assets/` — deci acolo `./models/clip/model.onnx` inseamna
+ * `assets/models/clip/model.onnx`, adica un 404, adica "modelul nu a pornit".
+ *
+ * `new URL(..., location.href)` e chiar tiparul pe care core/workerPool.ts il
+ * foloseste de ani de zile ca sa dea modelele Human workerilor lui. Prima data
+ * am luat din el doar jumatate — BASE_URL, fara absolutizare — si exact
+ * jumatatea lipsa a rupt functia.
+ */
+export function absoluteClipUrl(relative: string): string {
+  return new URL(relative, location.href).href;
+}
 
 function isFiniteNumber(v: unknown): v is number {
   return typeof v === 'number' && Number.isFinite(v);
@@ -116,7 +133,10 @@ export async function readClipManifest(
   }
 }
 
-/** Adresa completa a fisierului .onnx descris de manifest. */
+/**
+ * Adresa fisierului .onnx, ABSOLUTA — fiindca cine o foloseste e workerul, iar
+ * el traieste in alt director decat pagina. Vezi absoluteClipUrl.
+ */
 export function clipModelUrl(manifest: ClipManifest): string {
-  return `${CLIP_BASE_PATH}${manifest.file}`;
+  return absoluteClipUrl(`${CLIP_BASE_PATH}${manifest.file}`);
 }

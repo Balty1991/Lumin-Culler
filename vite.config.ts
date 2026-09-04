@@ -128,13 +128,14 @@ export default defineConfig({
             // Build-ul a si picat pe asta (vite-plugin-pwa refuza un fisier de
             // 27,8 MB in manifestul de precache), ceea ce a fost noroc: fara
             // eroare, s-ar fi livrat tacut o descarcare obligatorie de 28 MB.
-            urlPattern: ({ url }: { url: URL }) => url.pathname.includes('/ort/'),
+            urlPattern: ({ url }: { url: URL }) => /\/ort-wasm[^/]*\.wasm$/.test(url.pathname),
             handler: 'CacheFirst',
             options: {
               cacheName: 'lumin-onnx-runtime',
-              // Doua fisiere azi (.wasm + .mjs). Un an, ca la modele: se schimba
-              // doar cand se schimba versiunea pachetului.
-              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              // Un singur fisier azi. Un an, ca la modele: se schimba doar cand
+              // se schimba versiunea pachetului — si atunci se schimba si hash-ul
+              // din nume, deci vechiul nu mai e cerut niciodata.
+              expiration: { maxEntries: 6, maxAgeSeconds: 60 * 60 * 24 * 365 },
               cacheableResponse: { statuses: [0, 200] }
             }
           }
@@ -145,7 +146,18 @@ export default defineConfig({
         // ducea in APK/AAB: 3,3 MiB de capturi si feature graphic in fiecare
         // instalare, pentru ceva ce nu se vede niciodata in aplicatie.
         // Excluderea de mai jos ramane ca plasa de siguranta daca reapar acolo.
-        globIgnores: ['store/**', 'models/**', 'ort/**'],
+        // `assets/ort-wasm-*`: runtime-ul ONNX, 24,6 MB, emis de Vite langa restul
+        // pachetelor. A SCAPAT o data in precache si a ajuns pe site — adica
+        // fiecare vizitator descarca 24,6 MB inainte ca service worker-ul sa se
+        // declare instalat, pentru o functie optionala, implicit oprita.
+        //
+        // Prima incercare de a preveni asta a exclus doar directorul `ort/`, unde
+        // copiasem eu fisierul de mana. Build-ul a picat atunci fiindca acela
+        // avea 27,8 MB si trecea de plafon — noroc curat. Cel emis de Vite are
+        // 24,6 MB, adica sub plafonul de 25, deci a intrat tacut. De-aia
+        // regula de aici e pe NUME, nu pe director: numele fisierului nu se
+        // schimba cand se schimba locul lui.
+        globIgnores: ['store/**', 'models/**', 'ort/**', 'assets/ort-wasm-*'],
         // Fara asta, service worker-ul raspunde la ORICE navigare cu index.html
         // — inclusiv la /models/clip/manifest.json deschis direct in bara de
         // adrese, care intoarce aplicatia in loc de fisier. Nu strica nimic in

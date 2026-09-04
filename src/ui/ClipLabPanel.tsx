@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { XIcon, SparkleIcon } from './icons';
-import { clipAvailability, runClipBenchmark, releaseClip } from '../core/clip/clipPool';
+import { clipAvailability, runClipBenchmark, releaseClip, lastClipError } from '../core/clip/clipPool';
 import { BENCHMARK_SAMPLES, type ClipBenchmarkResult } from '../core/clip/clipBenchmark';
 import type { ClipManifest } from '../core/clip/clipManifest';
 import { isClipEnabled, setClipEnabled } from '../state/clipOptIn';
@@ -44,6 +44,8 @@ export function ClipLabPanel() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<ClipBenchmarkResult | null>(null);
   const [failed, setFailed] = useState(false);
+  /** Motivul brut, in cuvintele runtime-ului — vezi lastClipError. */
+  const [reason, setReason] = useState<string | null>(null);
   const [enabled, setEnabled] = useState(isClipEnabled);
 
   useEffect(() => {
@@ -67,8 +69,8 @@ export function ClipLabPanel() {
     // cu telefonul.
     const ids = photos.slice(0, BENCHMARK_SAMPLES).map(p => p.id);
     void runClipBenchmark(ids)
-      .then(r => { setResult(r); if (!r) setFailed(true); })
-      .catch(() => setFailed(true))
+      .then(r => { setResult(r); if (!r) { setFailed(true); setReason(lastClipError); } })
+      .catch(err => { setFailed(true); setReason(err instanceof Error ? err.message : String(err)); })
       .finally(() => setBusy(false));
   };
 
@@ -123,7 +125,15 @@ export function ClipLabPanel() {
               {busy ? tr('clip.measuring') : tr('clip.measure', { count: Math.min(BENCHMARK_SAMPLES, photos.length) })}
             </button>
             {photos.length === 0 && <p className="premium-soon">{tr('clip.needPhotos')}</p>}
-            {failed && <p className="premium-soon" role="alert">{tr('clip.failed')}</p>}
+            {failed && (
+              <div role="alert">
+                <p className="premium-soon">{tr('clip.failed')}</p>
+                {/* Motivul brut, netradus si netrunchiat. Nu e frumos, dar e
+                    singurul lucru din ecran care poate fi trimis mai departe si
+                    chiar reparat — vezi lastClipError. */}
+                {reason && <p className="clip-reason mono">{reason}</p>}
+              </div>
+            )}
 
             {result && (
               <div className="clip-result">

@@ -6743,3 +6743,17 @@ button:disabled,
 .clip-toggle span { display: grid; gap: 3px; min-width: 0; }
 .clip-toggle span span { font-size: .72rem; color: var(--text-dim); line-height: 1.45; }
 .clip-note { margin: 14px 0 0; font-size: .72rem; color: var(--text-faint); line-height: 1.5; }
+
+/* Motivul brut al esecului, in ecranul motorului nou. Mic, monospatiat si
+   selectabil: e text de copiat intr-un raport, nu de citit pe indelete. */
+.clip-reason {
+  margin: 6px 0 0;
+  padding: 9px 11px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--text-dim);
+  font-size: .68rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
