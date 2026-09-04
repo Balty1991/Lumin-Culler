@@ -174,7 +174,7 @@ export function PremiumPanel() {
             <b>
               {tr('premium.perk.export.title')}
             </b>
-            {highlightedPerk === 'export' && <i className="premium-wanted-tag">{tr('premium.wanted')}</i>}
+            {highlightedPerk === 'export' && <span className="premium-wanted-tag">{tr('premium.wanted')}</span>}
             <span>{tr('premium.perk.export.sub', { limit: FREE_PHOTOS_PER_MONTH })}</span>
           </span>
           <PremiumProof kind="export" />
@@ -184,7 +184,7 @@ export function PremiumPanel() {
             <b>
               {tr('premium.perk.persons.title')}
             </b>
-            {highlightedPerk === 'persons' && <i className="premium-wanted-tag">{tr('premium.wanted')}</i>}
+            {highlightedPerk === 'persons' && <span className="premium-wanted-tag">{tr('premium.wanted')}</span>}
             <span>{tr('premium.perk.persons.sub', { limit: FREE_ENROLLED_PERSONS })}</span>
           </span>
           <PremiumProof kind="persons" />
@@ -194,7 +194,7 @@ export function PremiumPanel() {
             <b>
               {tr('premium.perk.pro.title')}
             </b>
-            {highlightedPerk === 'pro' && <i className="premium-wanted-tag">{tr('premium.wanted')}</i>}
+            {highlightedPerk === 'pro' && <span className="premium-wanted-tag">{tr('premium.wanted')}</span>}
             <span>{tr('premium.perk.pro.sub')}</span>
           </span>
           <PremiumProof kind="pro" />
@@ -204,7 +204,7 @@ export function PremiumPanel() {
             <b>
               {tr('premium.perk.show.title')}
             </b>
-            {highlightedPerk === 'show' && <i className="premium-wanted-tag">{tr('premium.wanted')}</i>}
+            {highlightedPerk === 'show' && <span className="premium-wanted-tag">{tr('premium.wanted')}</span>}
             <span>{tr('premium.perk.show.sub')}</span>
           </span>
           <PremiumProof kind="show" />
@@ -217,7 +217,7 @@ export function PremiumPanel() {
             <b>
               {tr('premium.perk.locations.title')}
             </b>
-            {highlightedPerk === 'locations' && <i className="premium-wanted-tag">{tr('premium.wanted')}</i>}
+            {highlightedPerk === 'locations' && <span className="premium-wanted-tag">{tr('premium.wanted')}</span>}
             <span>{tr('premium.perk.locations.sub')}</span>
           </span>
           <PremiumProof kind="locations" />
