@@ -146,7 +146,18 @@ export function PremiumPanel() {
             Semnalul era bun, locul era gresit. Titlul ramane mereu propunerea
             de valoare, iar contextul se muta pe FUNCTIA in cauza, mai jos:
             randul ei e marcat, deci ochiul cade pe ea fara nicio propozitie in
-            plus. Vezi highlightedPerk. */}
+            plus. Vezi highlightedPerk.
+
+            A TREIA incercare a fost si ea respinsa, si merita spus de ce: pe
+            randul marcat se adaugase si o eticheta, "asta ai cerut". Adica
+            exact propozitia in plus pe care paragraful de mai sus o declara
+            gresita — scrisa la cateva randuri sub el, in acelasi fisier.
+            Utilizatorul a respins-o cu aceeasi observatie ca la primele doua:
+            nu-i spunea nimic ce nu stia deja, si nici nu ceruse sa i se spuna.
+
+            Deci: DOAR marcarea randului. Fara nicio eticheta. Daca vreodata
+            pare ca lipseste ceva acolo, raspunsul de trei ori incercat e ca nu
+            lipseste. */}
         <h3 className="premium-lead">{tr(premium ? 'premium.lead.active' : 'premium.lead')}</h3>
         {/* Randul de pret urmareste planul bifat, nu doar lunarul: altfel, cu
             anualul ales, scria in continuare "19,99 lei pe luna" deasupra unui
@@ -174,7 +185,6 @@ export function PremiumPanel() {
             <b>
               {tr('premium.perk.export.title')}
             </b>
-            {highlightedPerk === 'export' && <span className="premium-wanted-tag">{tr('premium.wanted')}</span>}
             <span>{tr('premium.perk.export.sub', { limit: FREE_PHOTOS_PER_MONTH })}</span>
           </span>
           <PremiumProof kind="export" />
@@ -184,7 +194,6 @@ export function PremiumPanel() {
             <b>
               {tr('premium.perk.persons.title')}
             </b>
-            {highlightedPerk === 'persons' && <span className="premium-wanted-tag">{tr('premium.wanted')}</span>}
             <span>{tr('premium.perk.persons.sub', { limit: FREE_ENROLLED_PERSONS })}</span>
           </span>
           <PremiumProof kind="persons" />
@@ -194,7 +203,6 @@ export function PremiumPanel() {
             <b>
               {tr('premium.perk.pro.title')}
             </b>
-            {highlightedPerk === 'pro' && <span className="premium-wanted-tag">{tr('premium.wanted')}</span>}
             <span>{tr('premium.perk.pro.sub')}</span>
           </span>
           <PremiumProof kind="pro" />
@@ -204,7 +212,6 @@ export function PremiumPanel() {
             <b>
               {tr('premium.perk.show.title')}
             </b>
-            {highlightedPerk === 'show' && <span className="premium-wanted-tag">{tr('premium.wanted')}</span>}
             <span>{tr('premium.perk.show.sub')}</span>
           </span>
           <PremiumProof kind="show" />
@@ -217,7 +224,6 @@ export function PremiumPanel() {
             <b>
               {tr('premium.perk.locations.title')}
             </b>
-            {highlightedPerk === 'locations' && <span className="premium-wanted-tag">{tr('premium.wanted')}</span>}
             <span>{tr('premium.perk.locations.sub')}</span>
           </span>
           <PremiumProof kind="locations" />

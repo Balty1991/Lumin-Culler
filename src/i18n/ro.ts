@@ -366,7 +366,6 @@ export const ro = {
   'premium.reason.xmp': 'Ai vrut să predai selecția în Lightroom.',
   'premium.reason.persons': 'Ai vrut să înrolezi încă o persoană.',
   'premium.reason.cap': 'Ai atins plafonul lunar de poze scoase din aplicație.',
-  'premium.wanted': 'asta ai cerut',
   'premium.chip': 'Premium',
   'premium.lead': 'Triajul rămâne gratuit, oricâte poze ai. Premium e pentru ce faci cu rezultatul.',
   'premium.perk.export.title': 'Export și ștergere nelimitate',

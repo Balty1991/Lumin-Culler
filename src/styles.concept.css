@@ -5824,49 +5824,6 @@ input[type="search"] { min-height: 44px; }
   background: rgb(var(--accent-rgb) / .07);
   box-shadow: inset 0 0 0 1px rgb(var(--accent-rgb) / .3);
 }
-/* "ASTA AI CERUT" — RAND PROPRIU, si un <span>, nu un <i>.
-
-   A doua oara raportata, si a doua cauza, complet diferita de prima. Dupa ce
-   insigna a fost scoasa de pe randul titlului, ea aparea taiata pe langa
-   MARGINEA DIN STANGA A ECRANULUI ("STA AI CERUT"), peste descriere.
-
-   Motivul: in styles.css exista `.premium-perk i` — o regula pentru ICONITE,
-   care face din orice <i> din randul de beneficii o cutie de 30x30 px, flex,
-   cu continutul centrat. Insigna era un <i>, deci mostenea cutia aia. Textul,
-   cu `white-space: nowrap`, nu incapea in 30 px si se revarsa — iar cum
-   `justify-content: center` revarsa in AMBELE parti, jumatate din el ieseaha
-   din ecran pe stanga. `display: block` scris aici nu avea nicio sansa: regula
-   de iconita e la fel de specifica si vine dupa.
-
-   Reparatia nu e o suprascriere, e alegerea elementului corect: in fisierul
-   asta <i> inseamna "cutie de iconita". O eticheta de text e un <span>. */
-/* Randul propriu, nu lipita de titlu.
-   Bug real, raportat cu trei capturi: era `inline-block` in interiorul lui
-   <b>, deci se aseza pe acelasi rand cu titlul functiei. Pe telefon, coloana
-   de text are ~55% din latimea ecranului, iar dupa "Fluxul profesional" nu mai
-   ramanea loc: insigna se rupea in trei randuri ("ASTA / AI / CERUT"), creand
-   o cutie inalta care se suprapunea peste titlu si peste descrierea de sub el.
-   Exact randul care trebuia sa ajute devenea singurul lucru ilizibil din ecran.
-
-   Acum e bloc, sub titlu, cu `white-space: nowrap` — nu se mai poate rupe
-   indiferent cat de lung e titlul sau cat de ingust e ecranul, si `width:
-   fit-content` o tine stransa pe text in loc s-o intinda pe tot randul. */
-.premium-wanted-tag {
-  display: block;
-  width: fit-content;
-  white-space: nowrap;
-  margin: 5px 0 1px;
-  padding: 2px 7px;
-  border-radius: 999px;
-  background: rgb(var(--accent-rgb) / .16);
-  color: var(--accent-text);
-  font-family: var(--mono);
-  font-size: .58rem;
-  font-style: normal;
-  font-weight: 800;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-}
 
 /* ── "De ce ai decis asa?" ──
    Doua zone cu roluri diferite, si granita dintre ele trebuie sa se VADA:
