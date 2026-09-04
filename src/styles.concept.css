@@ -3237,16 +3237,12 @@ body:before {
    functioneaza pe conturul unui SVG. Aici semnul e desenat cu `stroke:
    currentColor`, iar culoarea vine dintr-un gradient aplicat ca masca — acelasi
    degrade turcoaz-violet, aceeasi stralucire, doar alta tehnica. */
+/* Doar CULOAREA. Marimea si grosimea stau pe `.empty-badge svg` de mai sus —
+   acolo unde regula mai specifica le-ar fi suprascris oricum. */
 .empty-badge-mark {
-  width:calc(var(--empty-badge-size) * .56);
-  height:calc(var(--empty-badge-size) * .56);
   /* Intunecat pe degrade, ca in .brand-mark si ca in iconita din launcher —
      acelasi contrast, deci acelasi semn recunoscut, nu o varianta a lui. */
   color:#06070a;
-  /* Conturul iconitelor e desenat pe o cutie de 24px; intins la ~160px ar
-     ramane un fir de par. Grosimea urca odata cu scara, ca semnul sa aiba
-     greutatea vizuala a literelor groase pe care le inlocuieste. */
-  stroke-width:1.5;
 }
 
 /* Titlul-marca, direct sub medalion — inlocuieste eticheta "STUDIO LOCAL"
@@ -3296,9 +3292,27 @@ body:before {
   z-index:-1;
 }
 
+/* Semnul din medalion — MARIT si INGROSAT, cerut direct dupa ce s-a vazut pe
+   telefon: cercul e mare, iar diafragma dinauntru se pierdea in el.
+
+   Regula asta a fost si cauza. Sta pe `.empty-badge svg` (specificitate 0,1,1)
+   si tinea 38px ficsi, deci batea dimensiunea scrisa pe `.empty-badge-mark`
+   (0,1,0) — semnul ramanea cat o iconita de meniu intr-un cerc de ~470px.
+   Marimea traieste de acum AICI, legata de --empty-badge-size, ca sa nu existe
+   doua reguli care se contrazic.
+
+   .58 din cerc: cam cat ocupa semnul negru in iconita aplicatiei, deci
+   medalionul si iconita se citesc ca acelasi lucru, nu ca doua variante.
+
+   Grosimea: conturul e desenat pe o cutie de 24px si intins la ~270px, adica
+   de vreo 11 ori — la stroke-width 2 ar ramane un fir de par. Ridicata la 2.6
+   spitele aproape se atingeau si semnul citea ca o anvelopa; 2.2 pastreaza
+   golurile deschise si sta cel mai aproape de proportiile din iconita
+   aplicatiei, care e reperul. Verificat pe captura, nu presupus. */
 .empty-badge svg {
-  width:38px;
-  height:38px;
+  width:calc(var(--empty-badge-size) * .58);
+  height:calc(var(--empty-badge-size) * .58);
+  stroke-width:2.2;
 }
 
 .empty-tagline {
