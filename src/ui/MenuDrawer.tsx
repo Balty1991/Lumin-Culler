@@ -1025,14 +1025,6 @@ export function MenuDrawer() {
             <span>{tr('menu.shortcuts')}</span>
           </button>
 
-          {/* Motorul nou, in Ajutor si nu in Setari, cu buna stiinta: nu e o
-              preferinta pe care s-o schimbi in treacat, e ceva ce intai citesti
-              si masori. Ecranul dinauntru nu porneste nimic singur. */}
-          <button className="drawer-item" onClick={() => go(() => setClipLabOpen(true))}>
-            <span className="drawer-item-icon"><SparkleIcon /></span>
-            <span>{tr('clip.title')}</span>
-          </button>
-
           {/* "Lasa o parere" — cerut de raportul de testare extern, care a notat
               ca aplicatia n-avea nicio cale spre recenzii.
 
@@ -1042,6 +1034,11 @@ export function MenuDrawer() {
           <button className="drawer-item" onClick={() => go(() => { openStoreListing(); })}>
             <span className="drawer-item-icon"><StarIcon /></span>
             <span>{tr('menu.rateApp')}</span>
+          </button>
+
+          <button className="drawer-item" onClick={() => go(() => setPremiumOpen(true))}>
+            <span className="drawer-item-icon"><StarIcon /></span>
+            <span>{tr('premium.title')}</span>
           </button>
 
           {/* VERSIUNEA, si de ce merita un rand.
@@ -1056,7 +1053,12 @@ export function MenuDrawer() {
               Apasarea o copiaza: un raport de bug de la un tester fara
               versiunea in el nu se poate lega de un build anume, iar a cere
               cuiva sa transcrie un sha de sapte caractere de pe telefon e o
-              cale sigura spre o cifra gresita. */}
+              cale sigura spre o cifra gresita.
+
+              ULTIMA din grup, sub Premium: nu e o functie, e o eticheta. Pusa
+              intre "Lasa o parere" si "Premium" rupea in doua un sir de lucruri
+              pe care le APESI ca sa se intample ceva, si impingea singurul rand
+              care aduce bani sub un numar de build. */}
           <button
             className="drawer-item drawer-version"
             onClick={() => { void copyBuildId(); }}
@@ -1066,10 +1068,24 @@ export function MenuDrawer() {
             <span>{tr('menu.version', { version: APP_VERSION, build: __BUILD_ID__ })}</span>
           </button>
 
-          <button className="drawer-item" onClick={() => go(() => setPremiumOpen(true))}>
-            <span className="drawer-item-icon"><StarIcon /></span>
-            <span>{tr('premium.title')}</span>
-          </button>
+          {/* Motorul nou (CLIP), mutat de sub ochii testerilor.
+              A stat in Ajutor cat timp intrebarea era "merge pe telefonul tau?"
+              — si a raspuns: 106 ms pe poza pe WebGPU, masurat, deci prea
+              scump ca sa ruleze la fiecare import si nelegat inca de nicio
+              decizie. Pana capata un consumator real, e un ecran de masurat,
+              nu o functie: un tester care il deschide vede un tabel cu
+              milisecunde si un buton care nu schimba nimic in aplicatie.
+
+              Codul ramane intact si ecranul se deschide la fel — doar ca acum
+              in spatele aceleiasi porti ca butonul de test nativ
+              (SHOW_NATIVE_TEST_BUTTON), ca sa fie acolo cand il vrem si sa nu
+              stea in meniul unui om care voia doar sa-si sorteze pozele. */}
+          {SHOW_NATIVE_TEST_BUTTON && (
+            <button className="drawer-item" onClick={() => go(() => setClipLabOpen(true))}>
+              <span className="drawer-item-icon"><SparkleIcon /></span>
+              <span>[DEV] {tr('clip.title')}</span>
+            </button>
+          )}
 
           {SHOW_NATIVE_TEST_BUTTON && isNativeFaceDetectionAvailable() && isNativeImageAnalysisAvailable() &&
             isNativeImageLabelingAvailable() && isNativeFaceMeshAvailable() &&

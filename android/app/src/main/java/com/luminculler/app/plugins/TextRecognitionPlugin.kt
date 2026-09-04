@@ -68,7 +68,20 @@ class TextRecognitionPlugin : Plugin() {
                 // semnificativ, ceea ce e cazul tipic la OCR.
                 result.put("textCoverage", if (frameArea > 0) (textArea / frameArea).coerceIn(0.0, 1.0) else 0.0)
                 call.resolve(result)
+                // Eliberat ABIA aici, dupa ce s-au citit latimea si inaltimea de
+                // mai sus. E cea mai mare imagine din toata aplicatia: OCR-ul e
+                // singurul model care chiar are nevoie de pixeli (text mic pe un
+                // bon/o captura de ecran), deci primeste poza la 2560 px — vreo
+                // 20 MB, fata de ~5 MB cat primesc celelalte la 1280. Nu vine
+                // din cache (vezi sePastreazaInCache in BitmapUtils.kt: nimeni
+                // n-o cere a doua oara), deci recycleIfOwned chiar o elibereaza,
+                // pe loc, in loc s-o lase in seama colectorului — exact memoria
+                // pe care o masoara Play.
+                recycleIfOwned(bitmap)
             }
-            .addOnFailureListener { e -> call.reject("Text recognition failed: ${e.message}", e) }
+            .addOnFailureListener { e ->
+                recycleIfOwned(bitmap)
+                call.reject("Text recognition failed: ${e.message}", e)
+            }
     }
 }

@@ -8,6 +8,8 @@ import android.media.ExifInterface
 import android.net.Uri
 import android.util.Base64
 import com.getcapacitor.PluginCall
+import java.util.Collections
+import java.util.WeakHashMap
 
 /**
  * Partajat intre plugin-urile native de analiza (FaceDetection, ImageAnalysis,
@@ -40,6 +42,12 @@ private const val DEFAULT_MAX_SIDE = 1280
  * zbor s-ar evacua reciproc din cache si am decoda de mai multe ori aceeasi
  * imagine, exact ce incearca acest cache sa evite.
  *
+ * "4 poze" chiar inseamna 4 poze de cand se pastreaza DOAR latura implicita
+ * (vezi sePastreazaInCache): inainte, aceeasi poza putea ocupa pana la trei
+ * intrari — 320 px la pre-scanare, 1280 px la analiza, 2560 px la OCR — deci
+ * cele patru locuri se umpleau cu doua poze, si a treia le arunca pe primele
+ * afara chiar in timp ce erau analizate.
+ *
  * Bitmap-urile evacuate NU se recicleaza explicit: un model poate inca sa
  * tina o referinta la unul (MediaPipe/ML Kit lucreaza asincron), iar
  * recycle() pe un bitmap inca folosit inseamna crash. Din Android 8 memoria de
@@ -51,6 +59,34 @@ private const val CACHE_ENTRIES = 4
 private val bitmapCache = object : LinkedHashMap<String, Bitmap>(CACHE_ENTRIES, 0.75f, true) {
     override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Bitmap>): Boolean = size > CACHE_ENTRIES
 }
+
+/**
+ * TOT ce a iesit vreodata din cache, tinut cu referinte SLABE — nu doar ce e
+ * in cache CHIAR ACUM.
+ *
+ * A doua jumatate a bug-ului descris la recycleIfOwned, si cea care omora
+ * aplicatia in timpul analizei chiar dupa prima reparatie.
+ *
+ * Cele trei apeluri din prima etapa a analizei (detectie de fete, analiza de
+ * imagine, etichetare) pornesc SIMULTAN pe aceeasi poza, deci primesc ACELASI
+ * obiect Bitmap din cache. ImageAnalysis se termina primul si intreaba "e al
+ * cache-ului?" ca sa decida daca are voie sa-l recicleze. Intrebarea era pusa
+ * cache-ului de ATUNCI — iar intre timp intrarea putea sa fie deja evacuata
+ * (cache-ul tine 4 poze, analiza merge pe pana la 4 deodata, si OCR-ul mai
+ * cere o intrare in plus pentru aceeasi poza la alta rezolutie). Evacuata
+ * inseamna doar "nu se mai refoloseste", nu "nu mai e nimeni pe ea": ML Kit
+ * inca citea pixelii pentru etichetare. Raspunsul "nu e al cache-ului" era
+ * deci fals, bitmap-ul se recicla sub un model care rula, si procesul murea
+ * pe loc — fara exceptie, fara mesaj, exact simptomul raportat.
+ *
+ * Setul de mai jos raspunde la intrebarea CORECTA: "l-a produs cache-ul?",
+ * care nu se schimba niciodata dupa evacuare. Referintele sunt slabe, deci
+ * intrarea dispare singura cand chiar nu mai are nimeni bitmap-ul — moment in
+ * care nu mai e nimeni sa intrebe. Cheile sunt Bitmap-uri, care nu suprascriu
+ * equals/hashCode, deci potrivirea e pe IDENTITATE, cum trebuie.
+ */
+private val bitmapuriProduseDeCache: MutableSet<Bitmap> =
+    Collections.newSetFromMap(WeakHashMap<Bitmap, Boolean>())
 
 fun decodeBase64ToBitmap(base64: String): Bitmap {
     val commaIdx = base64.indexOf(",")
@@ -161,7 +197,26 @@ private fun cachedBitmap(key: String): Bitmap? = synchronized(bitmapCache) {
     bitmapCache[key]?.takeIf { !it.isRecycled }
 }
 
+/**
+ * NU se pune in cache orice, si asta nu e o optimizare — e ce tine cache-ul
+ * destul de mare pentru poza in lucru.
+ *
+ * Singurul apel cu alta latura decat cea implicita e OCR-ul (2560 px, vezi
+ * NATIVE_OCR_MAX_SIDE in core/nativeAnalysis.ts). El ruleaza o singura data
+ * per poza, la un singur model, si nimeni nu-i mai cere niciodata acel bitmap
+ * a doua oara — deci cache-ul nu-l refoloseste NICIODATA. In schimb ii ocupa
+ * o intrare din patru, si e cea mai mare alocare din aplicatie (~20 MB fata de
+ * ~5 MB la 1280 px): o poza cu text evacua din cache o alta poza aflata chiar
+ * atunci in analiza, ca sa tina o imagine pe care n-avea s-o mai foloseasca.
+ *
+ * Asa, bitmap-ul mare apartine apelantului, care il elibereaza imediat ce a
+ * terminat (vezi recycleIfOwned in TextRecognitionPlugin) in loc sa zaca intr-o
+ * intrare de cache pana il impinge altcineva afara.
+ */
+private fun sePastreazaInCache(maxSide: Int): Boolean = maxSide == DEFAULT_MAX_SIDE
+
 private fun decodeUriCached(context: Context, uriString: String, maxSide: Int): Bitmap {
+    if (!sePastreazaInCache(maxSide)) return decodeUri(context, Uri.parse(uriString), maxSide)
     val key = "$uriString|$maxSide"
     cachedBitmap(key)?.let { return it }
     synchronized(lockFor(key)) {
@@ -169,7 +224,12 @@ private fun decodeUriCached(context: Context, uriString: String, maxSide: Int): 
         // terminat exact decodarea pe care eram pe cale s-o repetam.
         cachedBitmap(key)?.let { return it }
         val bitmap = decodeUri(context, Uri.parse(uriString), maxSide)
-        synchronized(bitmapCache) { bitmapCache[key] = bitmap }
+        synchronized(bitmapCache) {
+            bitmapCache[key] = bitmap
+            // Marcat ca "al cache-ului" pe viata bitmap-ului, nu doar cat sta
+            // in cache — vezi bitmapuriProduseDeCache.
+            bitmapuriProduseDeCache.add(bitmap)
+        }
         return bitmap
     }
 }
@@ -192,7 +252,9 @@ private fun decodeUriCached(context: Context, uriString: String, maxSide: Int): 
  * cine imprumuta de acolo nu are ce elibera.
  */
 fun recycleIfOwned(bitmap: Bitmap) {
-    val esteAlCacheului = synchronized(bitmapCache) { bitmapCache.containsValue(bitmap) }
+    // Intrebarea e "l-a produs cache-ul?", nu "mai e in cache acum?" — vezi
+    // bitmapuriProduseDeCache pentru ce a costat diferenta.
+    val esteAlCacheului = synchronized(bitmapCache) { bitmapuriProduseDeCache.contains(bitmap) }
     if (!esteAlCacheului) bitmap.recycle()
 }
 

@@ -78,7 +78,19 @@ class FaceDetectionPlugin : Plugin() {
                 result.put("imageWidth", bitmap.width)
                 result.put("imageHeight", bitmap.height)
                 call.resolve(result)
+                // Dupa citirea latimii/inaltimii de mai sus. Pe calea normala de
+                // analiza bitmap-ul vine din cache si e imprumutat de alte trei
+                // modele in acelasi timp, deci recycleIfOwned nu-l atinge (vezi
+                // BitmapUtils.kt). Conteaza pentru PRE-SCANARE, care cere poza la
+                // 320 px (vezi FACE_PRESCAN_SIZE in core/importPipeline.ts): acolo
+                // bitmap-ul e numai al acestui apel, se cere o singura data, si
+                // pana acum ramanea in seama colectorului pentru fiecare poza din
+                // lot, inainte ca importul propriu-zis sa fi inceput.
+                recycleIfOwned(bitmap)
             }
-            .addOnFailureListener { e -> call.reject("Face detection failed: ${e.message}", e) }
+            .addOnFailureListener { e ->
+                recycleIfOwned(bitmap)
+                call.reject("Face detection failed: ${e.message}", e)
+            }
     }
 }
