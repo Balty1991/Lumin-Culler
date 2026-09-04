@@ -22,29 +22,33 @@ Lumin Culler Pro
 
 ---
 
-# Note de versiune (Release notes, max 500 caractere)
+# Note de versiune (Release notes, max 500 caractere PE LIMBA)
 
 Se pun la fiecare incarcare de AAB, in Production/Testing -> Release notes.
+Play accepta ambele limbi intr-un singur camp, cu etichete de limba; asa se
+lipeste o data, nu o data pentru fiecare traducere. Etichetele nu intra in
+numaratoarea de 500.
 
-## Romana (497/500)
 ```
+<ro>
 • Bara de exigență merge acum în ambele sensuri: treci pe Sever și înapoi, iar cifrele revin. Nu atinge pozele decise de tine.
 • Exigența se aplică și pozelor deja din bibliotecă, nu doar lotului curent.
 • Pozele din aceeași serie se grupează după momentul real al declanșării, nu după data fișierului.
 • Timpul rămas se calculează din ritmul de acum, nu din media de la început.
 • „Acasă" a coborât în bara de jos, ca tab propriu.
 • Prezentarea se privește gratuit; plătești doar clipul exportat.
-```
-
-## English (496/500)
-```
+</ro>
+<en-US>
 • The strictness bar now works both ways: switch to Strict and back, and the numbers return. It never touches photos you decided yourself.
 • Strictness now applies to photos already in your library, not just the current batch.
 • Same-burst grouping uses the real moment of capture, not the file date.
 • Time remaining follows your current pace, not the average since the start.
 • Home moved into the bottom bar, as its own tab.
 • Presentation is free to watch; you pay only for the exported clip.
+</en-US>
 ```
+
+(ro: 497/500 · en-US: 496/500)
 
 ---
 
