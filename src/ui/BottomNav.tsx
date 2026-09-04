@@ -1,6 +1,6 @@
 import { useRef, type CSSProperties } from 'react';
 import { useStore } from '../state/store';
-import { GridIcon, PersonIcon, UploadIcon, GearIcon } from './icons';
+import { HomeIcon, GridIcon, PersonIcon, UploadIcon, GearIcon } from './icons';
 import { t } from '../i18n';
 
 /**
@@ -49,6 +49,13 @@ export function BottomNav() {
   // Grila ramanea marcata activa si sub sortarea rapida, si bara nu mai spunea
   // unde esti, ci unde ai fost.
   const isGridActive = homeGridOpen && !tiktokSortOpen && !collectionsOpen && !personsOpen && !menuOpen && !exportDestinationsOpen;
+  /**
+   * "Acasa" e activ cand nu esti nici in grila, nici intr-un panou — adica pe
+   * tabloul de bord. Aceeasi conditie ca la Grila, doar cu `homeGridOpen`
+   * negat, ca cele doua sa nu poata fi niciodata amandoua active sau amandoua
+   * stinse.
+   */
+  const isHomeActive = !homeGridOpen && !tiktokSortOpen && !collectionsOpen && !personsOpen && !menuOpen && !exportDestinationsOpen;
 
   /**
    * Grila se deschide pe "De verificat", nu pe "Toate" — cerinta utilizatorului
@@ -70,6 +77,17 @@ export function BottomNav() {
     }
     setHomeGridOpen(true);
   };
+  /**
+   * ACASA, in bara de jos — cerinta directa a utilizatorului, si are dreptate:
+   * pe telefon navigarea principala tine de degetul mare, iar butonul statea in
+   * coltul din dreapta sus, unde nu ajungi fara sa muti mana.
+   *
+   * NU e o intoarcere la varianta veche, respinsa. Aceea era un SINGUR tab cu
+   * doua sensuri ("apas o data ma duce la grila, apas iar ma duce home"), si
+   * confuzia venea din asta, nu din locul lui. Aici sunt doua taburi distincte,
+   * fiecare cu un singur inteles, si se vede oricand pe care din ele esti.
+   */
+  const goHome = () => { closePanels(); setHomeGridOpen(false); };
   const goPersons = () => { closePanels(); setPersonsOpen(true); };
   const goExport = () => { closePanels(); setExportDestinationsOpen(true); };
   const goSettings = () => { closePanels(); setMenuOpen(true); };
@@ -83,11 +101,16 @@ export function BottomNav() {
    * compara casete intre randari, si tarste in bundle-ul principal
    * `create-projection-node` + drag + pan: ~107 KB de cod brut incarcat la
    * fiecare pornire, pentru o pastila care se plimba intre patru pozitii fixe si
-   * cunoscute dinainte. Bara are exact patru taburi de latime egala, deci
-   * pozitia nu are ce sa fie masurata: e indexul tabului activ, iar
-   * `translateX(index * 100%)` pe o pastila lata cat o coloana o duce fix acolo.
+   * cunoscute dinainte. Bara are taburi de latime egala, deci pozitia nu are ce
+   * sa fie masurata: e indexul tabului activ, iar `translateX(index * 100%)` pe
+   * o pastila lata cat o coloana o duce fix acolo.
    *
-   * Pista e o grila de 4 coloane suprapusa peste bara (nu un element in
+   * NUMARUL de taburi de aici trebuie sa ramana acelasi cu
+   * `grid-template-columns` al pistei, in styles.concept.css. Daca se despart,
+   * pastila se opreste LANGA tabul activ in loc de peste el — o nepotrivire
+   * care nu da nicio eroare, doar arata stramb.
+   *
+   * Pista e o grila suprapusa peste bara (nu un element in
    * interiorul tabului): pastila ramane UNA singura, deci nu se pot vedea doua
    * in acelasi timp cat tine tranzitia — exact motivul pentru care fundalul
    * propriu al tabului activ e transparent in CSS.
@@ -96,7 +119,7 @@ export function BottomNav() {
    * plasa de siguranta din styles.css scurteaza tranzitia la ~0 (nu o anuleaza),
    * ca inainte.
    */
-  const activeIndex = isGridActive ? 0 : personsOpen ? 1 : exportDestinationsOpen ? 2 : menuOpen ? 3 : -1;
+  const activeIndex = isHomeActive ? 0 : isGridActive ? 1 : personsOpen ? 2 : exportDestinationsOpen ? 3 : menuOpen ? 4 : -1;
   const pastila = (
     <span className="bottom-nav-pill-track" aria-hidden="true">
       <span
@@ -110,6 +133,10 @@ export function BottomNav() {
   return (
     <nav className="bottom-nav glass" aria-label={tr('nav.ariaLabel')}>
       {pastila}
+      <button className={isHomeActive ? 'bottom-nav-tab active' : 'bottom-nav-tab'} onClick={goHome} aria-current={isHomeActive}>
+        <HomeIcon />
+        <span>{tr('nav.home')}</span>
+      </button>
       <button className={isGridActive ? 'bottom-nav-tab active' : 'bottom-nav-tab'} onClick={goGrid} aria-current={isGridActive}>
         <GridIcon />
         <span>{tr('nav.grid')}</span>

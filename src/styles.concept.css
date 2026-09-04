@@ -6089,10 +6089,16 @@ button:disabled,
    propriu al tabului activ dispare — altfel s-ar fi vazut doua pastile in
    acelasi timp cat tine tranzitia.
 
-   PISTA, nu pastila per tab: o grila de 4 coloane intinsa peste bara, cu O
-   SINGURA pastila lata cat o coloana. `translateX(N * 100%)` o duce exact peste
-   tabul N, fiindca procentele de pe translate se raporteaza la latimea proprie
-   a elementului — adica fix o coloana. Asta inlocuieste `layoutId` din
+   PISTA, nu pastila per tab: o grila intinsa peste bara, cu O SINGURA pastila
+   lata cat o coloana. `translateX(N * 100%)` o duce exact peste tabul N,
+   fiindca procentele de pe translate se raporteaza la latimea proprie a
+   elementului — adica fix o coloana.
+
+   CINCI coloane de cand "Acasa" are tab propriu (era in coltul din dreapta sus,
+   unde degetul mare nu ajunge). Numarul TREBUIE sa fie acelasi cu numarul de
+   taburi din BottomNav.tsx: daca se despart, pastila se opreste langa tabul
+   activ in loc de peste el — o nepotrivire care nu da nicio eroare, doar arata
+   stramb. Asta inlocuieste `layoutId` din
    framer-motion (~107 KB de motor de proiectie in bundle-ul principal, ca sa
    masoare patru pozitii care erau oricum cunoscute dinainte). */
 .bottom-nav-tab.active { background: transparent; }
@@ -6103,7 +6109,7 @@ button:disabled,
      cu --safe-bottom, iar pista e absoluta fata de ea, deci ignora acel padding. */
   inset: 6px 0 calc(var(--safe-bottom) + 6px);
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   pointer-events: none;
   z-index: 0;
 }

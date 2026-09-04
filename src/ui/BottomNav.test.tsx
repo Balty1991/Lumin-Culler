@@ -6,17 +6,22 @@ import { useStore, type PhotoView } from '../state/store';
 /**
  * ui/BottomNav.test.tsx
  * Pastila care marcheaza tabul activ a fost mutata de pe `layoutId`
- * (framer-motion, cu tot motorul lui de proiectie in bundle) pe o pista CSS de
- * 4 coloane si o variabila `--nav-active`. Miscarea e aceeasi; ce se putea
+ * (framer-motion, cu tot motorul lui de proiectie in bundle) pe o pista CSS cu
+ * o coloana per tab si o variabila `--nav-active`. Miscarea e aceeasi; ce se putea
  * strica in tacere e alinierea — pastila pe alt tab decat cel activ arata exact
  * ca o aplicatie care nu stie unde esti.
  *
  * De-aia testele verifica DOUA lucruri, nu unul:
  *  - exista mereu exact O pastila (bug-ul de care fugea si varianta cu
  *    `layoutId`: doua pastile vizibile in acelasi timp);
- *  - indexul ei e cel al tabului activ, pentru fiecare dintre cele patru
- *    taburi, plus starea "niciun tab activ" (esti pe Acasa), unde se ascunde in
- *    loc sa gliseze inapoi pe Grila.
+ *  - indexul ei e cel al tabului activ, pentru FIECARE tab, plus starile in
+ *    care niciunul nu e activ (un panou deschis peste grila).
+ *
+ * Indicii de mai jos sunt si garda pentru nepotrivirea dintre numarul de taburi
+ * din BottomNav.tsx si `grid-template-columns` al pistei din CSS: cand "Acasa"
+ * a primit tab propriu, testele astea au picat toate cinci pe loc, exact cum
+ * trebuia — o pastila oprita LANGA tabul activ nu da nicio eroare, doar arata
+ * ca o aplicatie care nu stie unde esti.
  */
 function unaPoza(): PhotoView {
   // BottomNav nu se randeaza deloc pe o biblioteca goala.
@@ -46,10 +51,11 @@ describe('BottomNav — pastila tabului activ', () => {
   });
 
   it.each([
-    ['Grila', { homeGridOpen: true }, '0'],
-    ['Persoane', { personsOpen: true }, '1'],
-    ['Export', { exportDestinationsOpen: true }, '2'],
-    ['Setari', { menuOpen: true }, '3']
+    ['Acasa', {}, '0'],
+    ['Grila', { homeGridOpen: true }, '1'],
+    ['Persoane', { personsOpen: true }, '2'],
+    ['Export', { exportDestinationsOpen: true }, '3'],
+    ['Setari', { menuOpen: true }, '4']
   ])('pe %s pastila sta pe coloana corespunzatoare', (_nume, stare, index) => {
     useStore.setState({ ...INCHIS, ...stare });
     const { container } = render(<BottomNav />);
@@ -58,9 +64,25 @@ describe('BottomNav — pastila tabului activ', () => {
     expect(p.dataset.hidden).toBeUndefined();
   });
 
-  it('fara niciun tab deschis (ecranul Acasa) pastila se ascunde, nu gliseaza pe Grila', () => {
+  it('"Acasa" e un tab ca oricare altul, nu absenta tuturor', () => {
+    // A stat in coltul din dreapta sus al antetului, unde degetul mare nu
+    // ajunge fara sa muti mana. Mutat in bara, ecranul Acasa nu mai e "niciun
+    // tab activ" — e tabul zero, marcat ca atare.
     const { container } = render(<BottomNav />);
-    expect(pastila(container).dataset.hidden).toBe('true');
+    expect(pastila(container).dataset.hidden).toBeUndefined();
+    expect(container.querySelectorAll('.bottom-nav-tab')).toHaveLength(5);
+  });
+
+  it('Acasa si Grila nu pot fi active amandoua, si nici stinse amandoua', () => {
+    // Sunt doua fete ale aceleiasi stari (`homeGridOpen`). Daca vreodata s-ar
+    // desparti, bara ar arata doua taburi active sau niciunul, si n-ar mai
+    // spune unde esti.
+    for (const homeGridOpen of [false, true]) {
+      useStore.setState({ ...INCHIS, homeGridOpen });
+      const { container, unmount } = render(<BottomNav />);
+      expect(container.querySelectorAll('.bottom-nav-tab.active')).toHaveLength(1);
+      unmount();
+    }
   });
 
   it('sortarea rapida deschisa peste grila scoate marcajul de pe Grila', () => {
