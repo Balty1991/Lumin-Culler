@@ -128,9 +128,15 @@ utilizatorul fara sa-i dea cum sa treaca de el nu e freemium, e un perete.
 4. Build **semnat cu cheia de release**, incarcat macar pe internal testing.
    Play Billing nu raspunde niciodata unui APK de debug instalat cu adb.
 5. Contul de test adaugat ca **licensed tester** in Play Console.
-6. In fisa din Store: mentionarea explicita a abonamentului si a pretului in
-   descriere, plus sectiunea de preturi completata. `docs/PLAY_STORE_LISTING.md`
-   nu spune azi nimic despre abonament — de completat inainte de publicare.
+6. ~~In fisa din Store: mentionarea explicita a abonamentului in descriere.~~
+   GATA in `docs/PLAY_STORE_LISTING.md`, in ambele limbi: sectiunile "CE E
+   GRATUIT" (RO) si "FREE AND PREMIUM" (EN) spun ce e gratuit, ce aduce
+   Premium, ca se reinnoieste automat si cum se anuleaza. Randul asta a ramas
+   invechit dupa ce textele au fost scrise, si m-a pacalit si pe mine o data —
+   verifica fisa, nu lista.
+   Ce ramane de completat DOAR in Play Console (nu exista in repo): sectiunea
+   de preturi a abonamentelor. Fisa nu scrie o cifra intentionat — pretul se
+   vede in aplicatie, in moneda contului, exact cum il intoarce Play.
 7. De testat pe device, in ordinea asta: cumparare → repornire aplicatie
    (abonamentul trebuie sa persiste) → "Am deja abonament — restaureaza" pe o
    instalare curata → anulare din Play (dupa expirare, aplicatia trebuie sa

@@ -190,7 +190,7 @@ The culling itself is free and unlimited: import as many photos as you like
 and get AI scoring, sorting, burst grouping and frame comparison, with no cap
 and no account.
 
-The optional Premium subscription (monthly, via Google Play) lifts the cap on
+The optional Premium subscription (monthly or yearly, via Google Play) lifts the cap on
 photos taken OUT of the app and unlocks the professional workflow:
 
 • Free: 150 photos taken out of the app every 30 days (exported or deleted
