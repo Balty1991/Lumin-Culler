@@ -30,8 +30,28 @@ object CrashLog {
     /** Peste atatea linii, jurnalul curent o ia de la capat: ne intereseaza sfarsitul, nu istoria. */
     private const val MAX_LINII = 400
 
-    private var fisier: File? = null
+    @Volatile private var fisier: File? = null
     private var linii = 0
+    /**
+     * Lacatul, si de ce a devenit obligatoriu.
+     *
+     * Jurnalul asta e SINGURUL lucru care ramane dupa o cadere nativa — nu
+     * exista exceptie de prins, procesul dispare. Ce se citeste din el e o
+     * singura informatie: ultima linie scrisa. Daca incepe cu ">", acolo s-a
+     * murit.
+     *
+     * De cand analyzeNative() porneste trei apeluri native SIMULTAN pe aceeasi
+     * poza (vezi core/nativeAnalysis.ts), `pas()` e chemat din mai multe fire
+     * in acelasi timp. Fara lacat, doua lucruri se stricau exact cand jurnalul
+     * trebuia sa fie de incredere: `linii++` se pierdea intre fire, iar
+     * taierea de la MAX_LINII (`writeText("")`) putea sa cada intre deschiderea
+     * si scrierea unui `appendText` de pe alt fir — adica sa stearga tocmai
+     * ultima linie, cea pentru care exista tot fisierul.
+     *
+     * Costul e o scriere serializata pe disc. Il platim bucurosi: aici nu
+     * masuram viteza, cautam ultimul cuvant dinainte de tacere.
+     */
+    private val lacat = Any()
 
     /**
      * Se cheama o singura data, din MainActivity.onCreate, INAINTE de orice
@@ -48,8 +68,10 @@ object CrashLog {
                 curent.renameTo(precedent)
             }
         }
-        fisier = curent
-        linii = 0
+        synchronized(lacat) {
+            fisier = curent
+            linii = 0
+        }
         pas("PORNIRE")
 
         val anterior = Thread.getDefaultUncaughtExceptionHandler()
@@ -64,16 +86,23 @@ object CrashLog {
 
     /** Un pas. Se scrie IMEDIAT pe disc — vezi comentariul de sus. */
     fun pas(eticheta: String) {
-        val f = fisier ?: return
-        if (linii >= MAX_LINII) {
-            runCatching { f.writeText("") }
-            linii = 0
+        synchronized(lacat) {
+            val f = fisier ?: return
+            if (linii >= MAX_LINII) {
+                runCatching { f.writeText("") }
+                linii = 0
+            }
+            linii++
+            scrieBrutLaLacat(eticheta)
         }
-        linii++
-        scrieBrut(eticheta)
     }
 
     private fun scrieBrut(text: String) {
+        synchronized(lacat) { scrieBrutLaLacat(text) }
+    }
+
+    /** Doar de sub `lacat` — vezi comentariul lui. */
+    private fun scrieBrutLaLacat(text: String) {
         val f = fisier ?: return
         runCatching { f.appendText(text + "\n") }
     }
