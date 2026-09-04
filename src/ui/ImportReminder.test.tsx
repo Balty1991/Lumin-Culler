@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 
 /**
  * ui/ImportReminder.test.tsx
@@ -110,5 +110,47 @@ describe('memento-ul tace cand nu e momentul', () => {
     writeGalleryWatermark(1000);
     const { container } = render(<ImportReminder onAddPhotos={() => {}} />);
     expect(container).toBeEmptyDOMElement();
+  });
+});
+
+/**
+ * Butonul trebuie sa tina promisiunea de deasupra lui.
+ *
+ * Memento-ul spune "ai 312 poze noi". Daca butonul de sub el deschide
+ * selectorul generic, omul trebuie sa le gaseasca singur pe alea 312 — adica
+ * fix munca pe care propozitia tocmai i-a promis c-o scutteste. O promisiune
+ * pe care butonul n-o tine e mai rea decat lipsa promisiunii, si nimic din
+ * afara acestui test n-ar prinde diferenta: ambele variante deschid ceva.
+ */
+describe('butonul aduce chiar pozele numarate', () => {
+  it('cand stim cifra, cere aducerea lor — nu selectorul generic', async () => {
+    const importNewSinceLastCull = vi.fn(async () => 312);
+    const onAddPhotos = vi.fn();
+    useStore.setState({ importNewSinceLastCull });
+    writeGalleryWatermark(1000);
+    render(<ImportReminder onAddPhotos={onAddPhotos} />);
+    fireEvent.click(await screen.findByText('Sortează-le'));
+    await waitFor(() => expect(importNewSinceLastCull).toHaveBeenCalled());
+    expect(onAddPhotos).not.toHaveBeenCalled();
+  });
+
+  it('daca aducerea nu reuseste, omul primeste totusi selectorul obisnuit', async () => {
+    const importNewSinceLastCull = vi.fn(async () => null);
+    const onAddPhotos = vi.fn();
+    useStore.setState({ importNewSinceLastCull });
+    writeGalleryWatermark(1000);
+    render(<ImportReminder onAddPhotos={onAddPhotos} />);
+    fireEvent.click(await screen.findByText('Sortează-le'));
+    await waitFor(() => expect(onAddPhotos).toHaveBeenCalled());
+  });
+
+  it('fara cifra, butonul ramane cel de dinainte', () => {
+    const importNewSinceLastCull = vi.fn(async () => 312);
+    const onAddPhotos = vi.fn();
+    useStore.setState({ importNewSinceLastCull });
+    render(<ImportReminder onAddPhotos={onAddPhotos} />);
+    fireEvent.click(screen.getByText('Adaugă poze'));
+    expect(onAddPhotos).toHaveBeenCalled();
+    expect(importNewSinceLastCull).not.toHaveBeenCalled();
   });
 });

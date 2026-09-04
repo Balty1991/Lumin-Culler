@@ -59,7 +59,7 @@ import {
   resetSupervisorProgress,
   type GalleryPeriod, type GalleryPeriodEntry, type PeriodMonths
 } from './gallerySupervisor';
-import { advanceGalleryWatermark } from './galleryWatermark';
+import { advanceGalleryWatermark, readGalleryWatermark } from './galleryWatermark';
 import { readStoredTheme, applyTheme, type Theme } from './theme';
 import { readStoredAccent, applyAccent, type AccentTheme } from './accentTheme';
 import { readWelcomeSeen, writeWelcomeSeen } from './welcomeOnboarding';
@@ -603,6 +603,13 @@ interface AppState {
   supervisorImporting: boolean;
   /** Aduce o perioada ANUME (selectata manual sau recomandata) si avanseaza cursorul (fara sa-l dea niciodata inapoi). */
   importGalleryPeriod: (period: GalleryPeriod) => Promise<void>;
+  /**
+   * Aduce exact pozele aparute in galerie de la ultimul triaj — pandantul
+   * memento-ului care spune "ai 312 poze noi" (vezi ui/ImportReminder.tsx si
+   * state/galleryWatermark.ts). Intoarce cate au fost aduse, sau null cand
+   * n-a avut de unde (fara plugin nativ, fara semn de carte, acces limitat).
+   */
+  importNewSinceLastCull: () => Promise<number | null>;
   /** Sare peste o perioada FARA sa o aduca — avanseaza cursorul ca si cum ar fi fost acoperita, ca supervizorul sa nu o mai recomande. */
   skipGalleryPeriod: (period: GalleryPeriod) => void;
   /** Panoul complet (lungime perioada, selector calendaristic, foldere) — vezi GallerySupervisorPanel.tsx. Redeschis oricand din Meniu, chiar daca bannerul de pe Acasa a fost inchis pentru ziua curenta. */
@@ -2240,6 +2247,72 @@ export const useStore = create<AppState>((set, get) => ({
       }
     } catch (err) {
       set({ notice: t(locale, 'gallerySupervisor.failed', { error: String(err) }) });
+    } finally {
+      releaseWakeLock();
+      set({ supervisorImporting: false });
+    }
+  },
+  /**
+   * "Sorteaza-le" din memento — si de ce NU e importGalleryPeriod cu alt interval.
+   *
+   * Fara asta, memento-ul spunea "ai 312 poze noi" si apoi deschidea selectorul
+   * generic, unde omul trebuia sa le gaseasca singur pe alea 312. O promisiune
+   * pe care butonul de sub ea n-o tine e mai rea decat lipsa promisiunii.
+   *
+   * Diferenta fata de Supervizorul galeriei, si e cea care cere o functie
+   * separata: acolo cursorul `supervisorCoveredUntil` inseamna "tot ce e pana
+   * aici a fost acoperit", si se lucreaza de la vechi la nou. Aici se aduce
+   * capatul CEL MAI NOU al galeriei. Daca ar avansa acel cursor pana azi, ar
+   * marca drept acoperite toate perioadele vechi nesortate — adica exact
+   * pozele pentru care Supervizorul exista. Deci nu-l atinge deloc.
+   *
+   * Ce imparte totusi cu el, deliberat: `lastSupervisorImportIds`, care aprinde
+   * butonul "Sorteaza acum ce ai adus". E aceeasi intrebare pentru om
+   * ("tocmai am adus ceva, ce fac cu el?"), deci merita acelasi raspuns.
+   *
+   * Semnul de carte nu se avanseaza aici: o face runImport la finalul oricarui
+   * import reusit, si tot de acolo, dintr-un singur loc.
+   */
+  importNewSinceLastCull: async () => {
+    if (get().supervisorImporting) return null;
+    if (!isNativeMediaLibraryAvailable()) return null;
+    const watermark = readGalleryWatermark();
+    if (watermark === null) return null;
+    // Aceeasi iesire ca la importGalleryPeriod: cu acces partial sistemul nu
+    // mai reafiseaza dialogul de permisiuni, deci apelul nativ ar astepta un
+    // raspuns care nu vine.
+    if ((await getPhotosAccess()) === 'limited') {
+      set({ notice: t(get().locale, 'gallerySupervisor.noAccess') });
+      return null;
+    }
+    set({ supervisorImporting: true });
+    const locale = get().locale;
+    const beforeIds = new Set(get().photos.map(p => p.id));
+    const releaseWakeLock = keepScreenAwake();
+    try {
+      // +1 ms: semnul de carte e data unei poze pe care am VAZUT-o deja.
+      // Intervalul lui pickPhotosInRange include ambele capete (BETWEEN), deci
+      // fara asta poza aia ar fi adusa din nou la fiecare apel.
+      const read = await pickPhotosInRange(watermark + 1, Date.now(), (done, total) =>
+        set({ progress: { done, total, fileName: '', phase: 'citire' } })
+      );
+      set({ progress: null });
+      if (!read.granted) {
+        set({ notice: t(locale, 'gallerySupervisor.noAccess') });
+        return null;
+      }
+      const picked = read.photos;
+      if (!picked.length) {
+        set({ notice: t(locale, 'gallerySupervisor.periodEmpty') });
+        return 0;
+      }
+      await get().runImport(picked.map(p => p.file), undefined, picked.map(p => p.uri));
+      const newIds = get().photos.filter(p => !beforeIds.has(p.id)).map(p => p.id);
+      if (newIds.length) set({ lastSupervisorImportIds: newIds });
+      return newIds.length;
+    } catch (err) {
+      set({ notice: t(locale, 'gallerySupervisor.failed', { error: String(err) }) });
+      return null;
     } finally {
       releaseWakeLock();
       set({ supervisorImporting: false });

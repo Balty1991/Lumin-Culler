@@ -46,6 +46,7 @@ export function ImportReminder({ onAddPhotos }: { onAddPhotos: () => void }) {
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const photos = useStore(s => s.photos);
+  const importNewSinceLastCull = useStore(s => s.importNewSinceLastCull);
   const [hiddenThisSession, setHiddenThisSession] = useState(false);
   /** null = n-am aflat (fara permisiune, fara semn de carte, prea putine, sau inca nu s-a raspuns). */
   const [newPhotos, setNewPhotos] = useState<number | null>(null);
@@ -81,6 +82,21 @@ export function ImportReminder({ onAddPhotos }: { onAddPhotos: () => void }) {
 
   const snooze = () => { writeImportReminderSnoozedUntil(Date.now() + IMPORT_REMINDER_SNOOZE_MS); setHiddenThisSession(true); };
   const addPhotos = () => { onAddPhotos(); setHiddenThisSession(true); };
+  /**
+   * Cand stim CARE sunt pozele noi, butonul le aduce chiar pe alea.
+   *
+   * Altfel memento-ul spunea "ai 312 poze noi" si deschidea selectorul generic,
+   * unde omul trebuia sa le gaseasca singur pe alea 312 — o promisiune pe care
+   * butonul de sub ea n-o tine e mai rea decat lipsa promisiunii.
+   *
+   * Daca aducerea nu reuseste (acces schimbat intre timp, interogare esuata),
+   * store-ul intoarce null si spune el de ce; cadem atunci pe selectorul
+   * obisnuit, ca omul sa aiba totusi o cale inainte.
+   */
+  const sortThem = () => {
+    setHiddenThisSession(true);
+    void importNewSinceLastCull().then(adus => { if (adus === null) onAddPhotos(); });
+  };
 
   return (
     <div className="install-prompt" role="status">
@@ -95,7 +111,7 @@ export function ImportReminder({ onAddPhotos }: { onAddPhotos: () => void }) {
           <XIcon />
         </button>
       </div>
-      <button className="ghost small install-prompt-install" onClick={addPhotos}>
+      <button className="ghost small install-prompt-install" onClick={newPhotos === null ? addPhotos : sortThem}>
         {newPhotos === null ? tr('app.importReminder.addPhotos') : tr('app.importReminder.sortThem')}
       </button>
     </div>
