@@ -36,21 +36,27 @@ public class MainActivity extends BridgeActivity {
      * MODELELE NATIVE.
      *
      * Le inchideam, prin ModelRegistry.releaseAll(). Contorul de folosire din
-     * ReleasableModel trebuia sa sara peste un model aflat in lucru, dar are o
-     * cursa reala: release() citeste contorul pe zero, apoi ia lacatul; intre
-     * cele doua, alt fir apuca sa faca use { } — ii creste contorul si primeste
-     * modelul — iar release() il inchide dupa aceea. Inchiderea unei resurse
-     * native folosite pe alt fir nu e o exceptie de prins, e procesul omorat
-     * in tacere. Semnatura se potriveste exact cu ce se vedea: analiza pornea,
-     * si aplicatia disparea fara mesaj.
+     * ReleasableModel trebuia sa sara peste un model aflat in lucru, dar avea o
+     * cursa reala: release() citea contorul pe zero in afara oricarui lacat, iar
+     * intre citire si inchidere incapea un beginUse() intreg — alt fir isi
+     * crestea contorul si primea modelul, iar release() il inchidea dupa aceea.
+     * Inchiderea unei resurse native folosite pe alt fir nu e o exceptie de
+     * prins, e procesul omorat in tacere. Semnatura se potrivea exact cu ce se
+     * vedea: analiza pornea, si aplicatia disparea fara mesaj.
+     *
+     * CURSA ACEEA NU MAI EXISTA: achizitia (creste contorul + ia modelul) si
+     * verificarea din release() se fac acum sub acelasi lacat, deci sunt
+     * indivizibile una fata de cealalta — vezi ReleasableModel.
+     *
+     * Si totusi linia RAMANE scoasa, deliberat. Un primitiv corect prin
+     * constructie nu e acelasi lucru cu o schimbare de comportament verificata
+     * pe telefon, iar asta e o schimbare care, cand greseste, nu da eroare —
+     * omoara procesul. Pragul de memorie Play intra in vigoare abia in
+     * februarie 2027; nu se reactiveaza inaintea unei lansari, ci dupa, cu un
+     * test pe device (import lung, aplicatia trimisa in fundal la mijloc).
      *
      * Ce mai ramane e cache-ul de bitmap-uri, unde se dau drumul doar
      * referintelor — fara nimic nativ de inchis, fara cursa.
-     *
-     * Pragul de memorie Play intra in vigoare in februarie 2027. Pana atunci e
-     * loc sa fie facut cum trebuie: fie cu inchidere pe firul care chiar
-     * foloseste modelul, fie cu o stare atomica (LIBER/IN_LUCRU/INCHIS) in loc
-     * de contor plus lacat. Nu inainte de o lansare, si nu fara test pe telefon.
      */
     @Override
     public void onTrimMemory(int level) {
@@ -61,10 +67,11 @@ public class MainActivity extends BridgeActivity {
             // drumul referintelor, NU se recicleaza, fiindca un model poate
             // inca sa tina una.
             com.luminculler.app.plugins.BitmapUtilsKt.releaseBitmapCache();
-            // ModelRegistry.releaseAll() NU se mai cheama de aici. Vezi nota de
-            // mai sus: inchiderea unui model nativ are o cursa pe care
-            // contorul de folosire nu o acopera, iar pretul ei e procesul
-            // omorat in tacere, exact in timpul analizei.
+            // ModelRegistry.releaseAll() NU se cheama de aici. Cursa care a
+            // scos-o e reparata (vezi nota de mai sus si ReleasableModel), dar
+            // reintoarcerea ei e o schimbare de comportament care, cand
+            // greseste, omoara procesul in loc sa dea o eroare — deci se face
+            // dupa lansare, cu un test pe device, nu inaintea ei.
             // Si partea de JS: miniaturile si previzualizarile tinute in cache au
             // in spate imagini DECODATE, care se numara la pragul de memorie
             // bitmap. Se anunta aici, nu se asteapta `visibilitychange`, tocmai

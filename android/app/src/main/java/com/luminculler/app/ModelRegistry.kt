@@ -62,30 +62,59 @@ class ReleasableModel<T : Any>(
     @Volatile private var value: T? = null
     private val inUse = AtomicInteger(0)
 
-    fun get(): T {
-        value?.let { return it }
-        return synchronized(this) {
-            value ?: create().also {
-                value = it
-                ModelRegistry.register(this)
-            }
-        }
+    /**
+     * CURSA care a scos releaseAll() din onTrimMemory, si de ce nu mai exista.
+     *
+     * Varianta de dinainte facea "verifica, apoi actioneaza" pe doua lacate
+     * diferite: `release()` citea contorul in afara oricarui lacat, iar
+     * `beginUse()` isi crestea contorul in afara lui si abia apoi lua modelul.
+     * Intre cele doua momente ale lui release() incapea un `beginUse()`
+     * intreg — contorul crestea DUPA ce fusese citit pe zero, si modelul se
+     * inchidea sub un fir care tocmai il primise. Inchiderea unei resurse
+     * native folosite pe alt fir nu e o exceptie de prins, e procesul omorat
+     * in tacere; semnatura se potrivea exact cu ce se vedea (analiza pornea si
+     * aplicatia disparea fara mesaj), asa ca eliberarea a fost pur si simplu
+     * scoasa din MainActivity.
+     *
+     * Acum ACHIZITIA (creste contorul + ia modelul) si VERIFICAREA din
+     * release() se fac sub ACELASI lacat, deci sunt indivizibile una fata de
+     * cealalta: cine a apucat sa-si creasca contorul e vazut de release(), si
+     * cine a trecut de verificarea din release() nu mai poate fi ajuns din
+     * urma. `close()` ramane in afara lacatului, pe obiectul deja scos —
+     * oricine cere modelul dupa aceea creeaza altul, ceea ce e corect.
+     *
+     * Costul e un lacat luat la fiecare inferenta. Fata de o inferenta ML Kit
+     * sau MediaPipe, e zgomot de fond.
+     *
+     * ATENTIE: asta face `release()` sigur, dar NU reactiveaza nimic —
+     * MainActivity.onTrimMemory tot nu cheama ModelRegistry.releaseAll(). Un
+     * primitiv corect nu e acelasi lucru cu o schimbare de comportament
+     * verificata pe telefon, iar a doua ramane de facut.
+     */
+    private fun getLaLacat(): T = value ?: create().also {
+        value = it
+        ModelRegistry.register(this)
     }
+
+    fun get(): T = synchronized(this) { getLaLacat() }
 
     /** Folosire SINCRONA: modelul nu poate fi inchis cat timp blocul ruleaza. */
     fun <R> use(block: (T) -> R): R {
-        inUse.incrementAndGet()
+        val model = beginUse()
         try {
-            return block(get())
+            return block(model)
         } finally {
-            inUse.decrementAndGet()
+            endUse()
         }
     }
 
     /** Folosire ASINCRONA: cheama `endUse()` cand chiar s-a terminat treaba. */
-    fun beginUse(): T {
+    fun beginUse(): T = synchronized(this) {
+        val model = getLaLacat()
+        // Crescut SUB lacat, si dupa ce modelul e in mana: vezi comentariul de
+        // mai sus pentru ce se intampla cand cele doua se pot despica.
         inUse.incrementAndGet()
-        return get()
+        model
     }
 
     fun endUse() {
@@ -94,8 +123,8 @@ class ReleasableModel<T : Any>(
 
     /** `false` daca modelul e in uz si n-a fost inchis. */
     fun release(): Boolean {
-        if (inUse.get() > 0) return false
         val current = synchronized(this) {
+            if (inUse.get() > 0) return false
             val v = value
             value = null
             v
