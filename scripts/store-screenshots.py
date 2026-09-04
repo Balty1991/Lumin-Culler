@@ -258,20 +258,24 @@ def compune(sursa, eticheta, titlu, subtitlu, nume, insigna=None, limba='ro'):
 # dupa aceea vin sugestiile si editorul, care sunt argumente pentru cineva deja
 # interesat, nu carlige pentru cineva care deruleaza.
 SURSE_RO = {
-    'grila': 'd33e3e66-image.jpg', 'decizie': 'e7485339-image.jpg',
-    'dece': '7214895d-image.jpg', 'sugestii': '05d77a1c-image.jpg',
-    'editor': 'c5aedc4f-image.jpg', 'privat': 'd45e2b35-image.jpg'
+    'grila': 'd33e3e66-image.jpg', 'cauze': 'b036489f-image.jpg',
+    'decizie': 'e7485339-image.jpg', 'dece': '7214895d-image.jpg',
+    'sugestii': '05d77a1c-image.jpg', 'editor': 'c5aedc4f-image.jpg',
+    'privat': 'd45e2b35-image.jpg', 'splash': '429b319a-image.jpg'
 }
 SURSE_EN = {
-    'grila': '21b1cf92-image.jpg', 'decizie': '92f1ffb3-image.jpg',
-    'dece': 'dd22cba7-image.jpg', 'sugestii': 'ceb58953-image.jpg',
-    'editor': '4179a11f-image.jpg', 'privat': '2bfb67d4-image.jpg'
+    'grila': '21b1cf92-image.jpg', 'cauze': '35bb9c3c-image.jpg',
+    'decizie': '92f1ffb3-image.jpg', 'dece': 'dd22cba7-image.jpg',
+    'sugestii': 'ceb58953-image.jpg', 'editor': '4179a11f-image.jpg',
+    'privat': '2bfb67d4-image.jpg', 'splash': '3cfca619-image.jpg'
 }
 
 TEXTE = {
     'ro': [
         ('grila', 'Triaj cu AI', 'Un scor pentru fiecare poză',
          'Import, analiză și sortare — oricâte poze, gratuit.', ('12 poze', 'decise în 83%')),
+        ('cauze', 'Coada de verificat', 'Nu doar câte. Și de ce.',
+         'Grupate pe cauze — și tu alegi cât de exigent e AI-ul.', ('5 cauze', 'nu 23 decizii')),
         ('decizie', 'Decizia ta', 'Păstrezi sau respingi, dintr-un gest',
          'Zâmbet, ochi, claritate — măsurate, nu ghicite.', ('3 semnale', 'la vedere')),
         ('dece', 'Explicabilitate', 'Fiecare scor, explicat',
@@ -281,11 +285,15 @@ TEXTE = {
         ('editor', 'Editor inclus', 'Nu pleci din aplicație',
          'Expunere, culoare, curbe, retuș, decupare — toate pe telefon.', None),
         ('privat', 'Confidențialitate', 'Nicio poză nu pleacă de pe telefon',
-         'Fără cont, fără upload, fără reclame.', ('0 upload', 'nimic nu pleacă'))
+         'Fără cont, fără upload, fără reclame.', ('0 upload', 'nimic nu pleacă')),
+        ('splash', 'Fără cont, fără setări', 'O deschizi și pornești',
+         'Nimic de configurat. O apeși și AI-ul se apucă de treabă.', None)
     ],
     'en': [
         ('grila', 'AI culling', 'A score for every photo',
          'Import, analysis and sorting — any number of photos, free.', ('12 photos', '83% decided')),
+        ('cauze', 'Your review queue', 'Not just how many. Why.',
+         'Grouped by cause — and you set how strict the AI is.', ('5 causes', 'not 23 calls')),
         ('decizie', 'Your call', 'Keep or reject, in one gesture',
          'Smile, eyes, sharpness — measured, not guessed.', ('3 signals', 'in plain sight')),
         ('dece', 'Explainable', 'Every score, explained',
@@ -295,7 +303,9 @@ TEXTE = {
         ('editor', 'Editor included', 'You never leave the app',
          'Exposure, colour, curves, retouch, crop — all on your phone.', None),
         ('privat', 'Privacy', 'No photo ever leaves your phone',
-         'No account, no upload, no ads.', ('0 uploads', 'nothing leaves'))
+         'No account, no upload, no ads.', ('0 uploads', 'nothing leaves')),
+        ('splash', 'No account, no setup', 'Open it and go',
+         'Nothing to configure. One tap and the AI gets to work.', None)
     ]
 }
 
