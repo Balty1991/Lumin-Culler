@@ -44,3 +44,73 @@ export function stabilizeEta(shown: number | undefined, raw: number): number {
   if (next <= shown) return next;
   return next > shown * GROWTH_TOLERANCE ? next : shown;
 }
+
+/**
+ * Cate poze inapoi se uita estimarea ca sa afle ritmul CURENT.
+ *
+ * Bug raportat de utilizator, cu doua capturi la un minut distanta: 33 din 77
+ * "cam 50s ramase", apoi 44 din 77 "cam 45s ramase". Refacand calculul, ritmul
+ * din fereastra dintre cele doua era de vreo 2 s/poza, dar estimarea afisata
+ * pornea de la ~1,4 — media de la INCEPUTUL lotului.
+ *
+ * Media aia nu e gresita, e doar veche. Primele poze sunt mereu cele mai
+ * rapide: telefonul e rece, memoria goala, iar pre-scanarea pune la inceput
+ * pozele cu oameni, care nu sunt neaparat cele mai grele. Pe masura ce
+ * procesorul se incalzeste si se strange presiune de memorie, ritmul real
+ * scade — dar media, care are in ea toate pozele rapide de la inceput, coboara
+ * mult mai incet decat adevarul. Rezultatul: un numar care ramane optimist
+ * pana spre final, cand cade brusc. Exact ce se vede pe ecran ca "timerul nu
+ * estimeaza corect".
+ *
+ * 20 de poze: la ritmurile reale masurate pe telefon inseamna vreo zece
+ * secunde de lucru — destul cat sa nu tresara de la o poza grea, destul de
+ * putin cat sa prinda o incetinire adevarata in cateva secunde. Zgomotul de
+ * afisare ramane oricum tratat separat, de stabilizeEta.
+ */
+const WINDOW_PHOTOS = 20;
+
+/**
+ * Sub atatea poze in fereastra, ritmul recent nu inseamna inca nimic si se
+ * revine la media de la inceput — aceeasi de pana acum. La inceputul lotului nu
+ * exista alta informatie, iar o fereastra de doua poze ar face estimarea sa
+ * sara la fiecare poza mai grea.
+ */
+const MIN_WINDOW_PHOTOS = 5;
+
+/**
+ * Estimarea BRUTA de secunde ramase, din ritmul recent — nu din media intregului
+ * lot. Rezultatul trece apoi prin `stabilizeEta`, care se ocupa de afisare.
+ *
+ * Tine minte doar cateva perechi (secunde scurse, poze gata); nu are ceas
+ * propriu si nu atinge DOM-ul, deci se testeaza direct.
+ */
+export interface EtaTracker {
+  /** `undefined` cand inca nu se poate spune nimic onest (prea putine date, sau lotul s-a terminat). */
+  sample(elapsedSec: number, done: number, total: number): number | undefined;
+}
+
+export function createEtaTracker(): EtaTracker {
+  const masuratori: { elapsedSec: number; done: number }[] = [];
+  return {
+    sample(elapsedSec, done, total) {
+      masuratori.push({ elapsedSec, done });
+      // Fereastra gliseaza dupa POZE, nu dupa timp: cand analiza incetineste,
+      // o fereastra masurata in secunde ar contine tot mai putine poze, adica
+      // ar deveni tot mai zgomotoasa exact cand acuratetea conteaza mai mult.
+      while (masuratori.length > 2 && done - masuratori[0].done > WINDOW_PHOTOS) masuratori.shift();
+
+      const remaining = total - done;
+      if (remaining <= 0) return undefined;
+
+      const primul = masuratori[0];
+      const pozeInFereastra = done - primul.done;
+      const secundeInFereastra = elapsedSec - primul.elapsedSec;
+      if (pozeInFereastra >= MIN_WINDOW_PHOTOS && secundeInFereastra > 0) {
+        return (secundeInFereastra / pozeInFereastra) * remaining;
+      }
+      // Inceputul lotului: media de pana acum, ca inainte.
+      if (done > 0 && elapsedSec > 1) return (elapsedSec / done) * remaining;
+      return undefined;
+    }
+  };
+}

@@ -72,7 +72,7 @@ import { keepScreenAwake } from '../core/wakeLock';
 import { createActiveElapsed, type ActiveElapsed } from '../core/activeElapsed';
 import { recordImportDay } from './streak';
 import { recordLifetimeSession } from './lifetimeSavings';
-import { stabilizeEta } from '../core/etaEstimate';
+import { stabilizeEta, createEtaTracker, type EtaTracker } from '../core/etaEstimate';
 import { lockedFromAutoDecision } from '../core/aiDecision';
 import { readAccessibleMode, applyAccessibleMode } from '../core/accessibleMode';
 import { readSmartNotificationEnabled, writeSmartNotificationEnabled } from './smartNotification';
@@ -2764,6 +2764,8 @@ export const useStore = create<AppState>((set, get) => ({
     // umfla estimarea in loc s-o scada (raportat de utilizator, cu doua capturi:
     // 155/839 "~23m ramase", apoi 162/839 "~41m ramase"). Vezi core/activeElapsed.ts.
     let analysisClock: ActiveElapsed | null = null;
+    /** Ritmul recent al analizei — pornit odata cu ceasul, vezi core/etaEstimate.ts. */
+    let etaTracker: EtaTracker | null = null;
     /** Ultima valoare ARATATA, nu ultima calculata — vezi core/etaEstimate.ts pentru de ce difera. */
     let shownEtaSeconds: number | undefined;
     const onAnalysisVisibility = () =>
@@ -2828,15 +2830,17 @@ export const useStore = create<AppState>((set, get) => ({
           if (progress.phase === 'analiza') {
             if (analysisClock === null) {
               analysisClock = createActiveElapsed(document.visibilityState === 'visible', Date.now());
+              etaTracker = createEtaTracker();
             }
             const elapsedSec = analysisClock.elapsedMs(Date.now()) / 1000;
-            const remaining = progress.total - progress.done;
-            // sub 1s scursa sau 0 poze gata => rata nu inseamna inca nimic (ar
-            // da un ETA fals de precis din 1-2 tick-uri) — asteptam date reale
-            if (elapsedSec > 1 && progress.done > 0 && remaining > 0) {
-              // Rata medie de pana acum, trecuta apoi prin filtrul de afisare
-              // (rotunjire + cresterile mici ignorate) — vezi core/etaEstimate.ts.
-              shownEtaSeconds = stabilizeEta(shownEtaSeconds, (elapsedSec / progress.done) * remaining);
+            // Ritmul RECENT, nu media intregului lot: primele poze sunt mereu
+            // cele mai rapide (telefon rece, memorie goala), iar media ramanea
+            // optimista pana spre final. Bug raportat cu doua capturi — vezi
+            // core/etaEstimate.ts. Rezultatul trece apoi prin filtrul de
+            // afisare (rotunjire + cresterile mici ignorate).
+            const raw = etaTracker?.sample(elapsedSec, progress.done, progress.total);
+            if (raw !== undefined) {
+              shownEtaSeconds = stabilizeEta(shownEtaSeconds, raw);
               etaSeconds = shownEtaSeconds;
             }
           }
