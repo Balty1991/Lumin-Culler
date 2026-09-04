@@ -65,6 +65,8 @@ export function PresentationMode() {
   const multiSelectIds = useStore(s => s.multiSelectIds);
   const allPhotos = useStore(s => s.photos);
   const setNotice = useStore(s => s.setNotice);
+  const gatePremium = useStore(s => s.gatePremium);
+  const premiumLocked = useStore(s => s.premiumLocked);
   const filtered = useStore(s => s.filtered());
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
@@ -81,6 +83,11 @@ export function PresentationMode() {
   const canExportVideo = useMemo(() => isRecapVideoSupported(), []);
 
   const exportVideo = async () => {
+    // POARTA Premium a prezentarii. Statea pe deschiderea ecranului, deci un
+    // neabonat nu vedea niciodata prezentarea — si, mai rau, nu facea niciodata
+    // clipul pe care l-ar fi trimis in familie, adica singurul canal prin care
+    // aplicatia se raspandeste singura. Vezi setPresentationOpen in state/store.ts.
+    if (gatePremium('presentation')) return;
     const plan = planRecapVideo(photos.map(p => p.id));
     if (!plan) { setNotice(tr('recapVideo.tooFew')); return; }
     cancelVideoRef.current = false;
@@ -279,7 +286,17 @@ export function PresentationMode() {
               </button>
               {canExportVideo && (
                 videoProgress === null ? (
-                  <button className="ghost icon-btn" onClick={() => void exportVideo()} aria-label={tr('recapVideo.export')} title={tr('recapVideo.export')}>
+                  /* Butonul e doar o iconita, deci eticheta lui e singurul loc in
+                     care se poate spune ca urmeaza o poarta. Fara asta, cine
+                     apasa primeste un ecran de plata fara sa fi cerut ceva —
+                     exact surpriza pe care mutarea portii de pe usa incoace o
+                     evita. Prezentarea ramane libera; clipul e ce se plateste. */
+                  <button
+                    className="ghost icon-btn"
+                    onClick={() => void exportVideo()}
+                    aria-label={tr(premiumLocked ? 'recapVideo.export.premium' : 'recapVideo.export')}
+                    title={tr(premiumLocked ? 'recapVideo.export.premium' : 'recapVideo.export')}
+                  >
                     <DownloadIcon />
                   </button>
                 ) : (

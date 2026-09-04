@@ -1405,6 +1405,7 @@ export const en: Record<TranslationKey, string> = {
 
   'presentation.empty': 'No results for the current filter.',
   'presentation.exit': 'Exit presentation',
+  'recapVideo.export.premium': 'Save the clip (Premium)',
   'recapVideo.export': 'Export as video',
   'recapVideo.cancel': 'Stop',
   'recapVideo.tooFew': 'Too few photos for a clip — you need at least three.',

@@ -2575,7 +2575,26 @@ export const useStore = create<AppState>((set, get) => ({
     window.print();
   },
   presentationOpen: false,
-  setPresentationOpen: open => { if (open && get().gatePremium('presentation')) return; set({ presentationOpen: open }); },
+  /**
+   * Usa NU mai e poarta — exportul clipului e, vezi ui/PresentationMode.tsx.
+   *
+   * Al treilea din acelasi sir (plansa de contact, locatii): modelul aplicatiei
+   * e plafon pe IESIRE, nu pe intrare, iar functiile rezervate abonatilor il
+   * incalcau exact invers.
+   *
+   * Aici lacatul de la usa era cel mai scump dintre toate, si nu din cauza
+   * conversiei. Comentariul de langa export o spune singur: "un clip scurt cu
+   * cele mai bune poze e ceva ce omul trimite in familie, si fiecare trimitere
+   * e reclama pentru aplicatie". Poarta statea insa INAINTEA prezentarii, deci
+   * bloca deopotriva incantarea si singurul canal prin care aplicatia se
+   * raspandea singura. Un neabonat nu vedea prezentarea, deci nu facea niciun
+   * clip, deci nu-l trimitea nimanui.
+   *
+   * Prezentarea se priveste acum liber. Se plateste pentru clipul SCOS din
+   * aplicatie — acelasi criteriu ca la pozele exportate, la printarea plansei
+   * si la transformarea unui loc in album.
+   */
+  setPresentationOpen: open => set({ presentationOpen: open }),
   presentationPhotoIds: null,
   setPresentationPhotoIds: ids => set({ presentationPhotoIds: ids }),
 

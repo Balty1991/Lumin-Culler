@@ -1452,6 +1452,7 @@ export const ro = {
 
   'presentation.empty': 'Niciun rezultat pentru filtrul curent.',
   'presentation.exit': 'Ieși din prezentare',
+  'recapVideo.export.premium': 'Salvează clipul (Premium)',
   'recapVideo.export': 'Exportă ca video',
   'recapVideo.cancel': 'Oprește',
   'recapVideo.tooFew': 'Prea puține poze pentru un clip — îți trebuie măcar trei.',
