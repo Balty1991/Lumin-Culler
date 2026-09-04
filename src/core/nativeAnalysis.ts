@@ -43,6 +43,7 @@ import { detectTextNative } from './nativeTextRecognition';
 import { embedImageNative } from './nativeImageEmbedder';
 import { detectPoseNative, type NativePose } from './nativePoseDetection';
 import { pickFolderSceneTag } from './sceneTagLabels';
+import { photoTextFromBlocks } from './photoText';
 import { hasManufacturedTag } from './smartInbox';
 import type { NativeImageSource } from './nativeImageSource';
 
@@ -417,14 +418,20 @@ export async function analyzeNative(
   // cerem doar o latura mai mare — tot fara nimic peste punte. Declansatorul
   // nou nu-l face sa ruleze pe peisaje, animale sau mancare: niciunul n-are
   // etichete de lucru fabricat.
-  const textCoverage = faces.length === 0
+  // Se pastreaza si CUVINTELE, nu doar cat la suta din cadru acopera. Erau
+  // aruncate: OCR-ul rula, iar din tot ce citea se folosea o singura cifra.
+  // Vezi core/photoText.ts — cuvintele alea sunt exact ce face pozele astea
+  // gasibile mai tarziu ("bonul de la service", "parola de wifi").
+  const ocr = faces.length === 0
     && (!pickFolderSceneTag(sceneTags) || hasManufacturedTag(sceneTags))
-    ? (await detectTextNative(
+    ? await detectTextNative(
         mediaUri
           ? { uri: mediaUri, maxSide: NATIVE_OCR_MAX_SIDE }
           : { blob: await canvasToBlob(canvas) }
-      )).textCoverage
+      )
     : undefined;
+  const textCoverage = ocr?.textCoverage;
+  const ocrText = ocr ? photoTextFromBlocks(ocr.blocks) : undefined;
 
   // Recunoasterea a rulat in paralel cu etapa 2; abia acum avem voie sa numaram
   // cunoscutii/strainii, fiindca ea e cea care completeaza personId pe fete.
@@ -455,6 +462,7 @@ export async function analyzeNative(
     ...meshStats,
     ...(sceneTags.length ? { sceneTags } : {}),
     ...(textCoverage !== undefined ? { textCoverage } : {}),
+    ...(ocrText !== undefined ? { ocrText } : {}),
     ...(imageEmbedding ? { imageEmbedding } : {}),
     ...(bodyCroppedAtEdge !== undefined ? { bodyCroppedAtEdge } : {})
   };

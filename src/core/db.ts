@@ -439,6 +439,19 @@ export interface AnalysisRecord {
    */
   textCoverage?: number;
   /**
+   * TEXTUL citit de OCR, nu doar cat la suta din cadru acopera — vezi
+   * core/photoText.ts pentru de ce merita pastrat si cat.
+   *
+   * Camp simplu, NEINDEXAT: cautarea il parcurge liniar odata cu restul
+   * campurilor de text ale pozei (nume de fisier, persoane, etichete), pe
+   * pozele deja incarcate in memorie, deci un index n-ar avea ce grabi si ar
+   * cere o versiune noua de schema pentru nimic.
+   *
+   * Absent pe web/PWA (nu exista OCR acolo) si absent pe pozele pe care OCR-ul
+   * nici nu ruleaza — adica majoritatea. Nu pleaca nicaieri, ca tot ce e aici.
+   */
+  ocrText?: string;
+  /**
    * Embedding general de similaritate vizuala (continut, NU identitate) —
    * MediaPipe Image Embedder + MobileNetV3-small (core/nativeImageEmbedder.ts).
    * Doar Android nativ, si doar cand faceCount === 0: pentru poze CU fete,

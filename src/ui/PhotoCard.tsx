@@ -1,4 +1,4 @@
-import { useEffect, useState, memo } from 'react';
+import { useEffect, useState, memo, useMemo } from 'react';
 import { getCachedThumbUrl, peekThumbUrl } from '../core/thumbUrlCache';
 import { useStore, type PhotoView } from '../state/store';
 import {
@@ -7,6 +7,8 @@ import {
 import { isNeutral } from '../core/imageAdjust';
 import { AdjustedImage } from './AdjustedImage';
 import { t, type Locale } from '../i18n';
+import { textSnippet } from '../core/photoText';
+import { normalizeForSearch } from '../core/sceneTagLabels';
 
 /** Aceleasi praguri ca SELECT_THRESHOLD/REJECT_THRESHOLD (importPipeline.ts) — culoarea inelului de scor. */
 function scoreColorVar(score: number): string {
@@ -82,6 +84,7 @@ function PhotoCardInner({ photo, index: _index, onOpen, multiSelected, onCardPoi
   const density = useStore(s => s.gridDensity);
   const imagesRevision = useStore(s => s.imagesRevision);
   const locale = useStore(s => s.locale);
+  const searchText = useStore(s => s.searchText);
   const bestInGroupIds = useStore(s => s.bestInGroupIds());
   const groupOf = useStore(s => s.groupOf);
 
@@ -106,6 +109,17 @@ function PhotoCardInner({ photo, index: _index, onOpen, multiSelected, onCardPoi
   const isBestOfSeries = !!photo.groupId && bestInGroupIds.has(photo.id);
   const underexposed = isUnderexposed(photo);
   const awkward = isAwkwardExpression(photo);
+
+  /**
+   * Bucata din textul pozei care contine chiar ce s-a cautat — vezi
+   * core/photoText.ts:textSnippet. Doar cand exista o cautare in curs si
+   * poza chiar are text citit; altfel nu se calculeaza nimic.
+   */
+  const potrivireInText = useMemo(() => {
+    const q = normalizeForSearch(searchText.trim());
+    if (!q || !photo.ocrText) return undefined;
+    return textSnippet(photo.ocrText, normalizeForSearch(photo.ocrText), q);
+  }, [searchText, photo.ocrText]);
 
   return (
     <button
@@ -195,9 +209,19 @@ function PhotoCardInner({ photo, index: _index, onOpen, multiSelected, onCardPoi
             </span>
           </span>
         )}
-        {density === 'large' && cardExifLine(photo) && (
-          <span className="card-exif-line mono">{cardExifLine(photo)}</span>
-        )}
+        {/* DE CE a aparut poza asta in rezultate.
+            Cine cauta "wifi" si primeste inapoi un dreptunghi alb n-are niciun
+            motiv sa creada ca aplicatia a inteles ceva — increderea intr-o
+            cautare nu se cladeste din rezultate corecte, ci din rezultate
+            EXPLICATE. Aici se arata randul din poza in care chiar scrie
+            cuvantul cautat (OCR pe telefon, vezi core/photoText.ts).
+            Are prioritate fata de linia EXIF: cand ai cautat ceva, motivul
+            potrivirii conteaza mai mult decat diafragma. */}
+        {potrivireInText
+          ? <span className="card-text-hit mono" title={potrivireInText}>{potrivireInText}</span>
+          : density === 'large' && cardExifLine(photo) && (
+            <span className="card-exif-line mono">{cardExifLine(photo)}</span>
+          )}
       </span>
     </button>
   );

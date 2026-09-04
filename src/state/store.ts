@@ -213,6 +213,11 @@ export interface PhotoView {
   /** Fractiune din cadru acoperita de text OCR (doar Android nativ) — vezi AnalysisRecord.textCoverage si core/documentShield.ts. */
   textCoverage?: number;
   /**
+   * Textul CITIT din poza (OCR, doar Android nativ) — vezi core/photoText.ts.
+   * Intra in cautare ca orice alt camp de text al pozei; nu pleaca nicaieri.
+   */
+  ocrText?: string;
+  /**
    * Zone arse / infundate, ca fractiune din cadru — vezi AnalysisRecord.
    *
    * Sunt aici DOAR ca previzualizarea severitatii (ui/CullStrengthBar.tsx) sa
@@ -999,6 +1004,7 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     sceneSemantic: analysis?.sceneSemantic,
     sceneTags: analysis?.sceneTags,
     textCoverage: analysis?.textCoverage,
+    ocrText: analysis?.ocrText,
     highlightClipping: analysis?.highlightClipping,
     shadowClipping: analysis?.shadowClipping
   };
@@ -1427,6 +1433,11 @@ function matchesToken(p: PhotoView, normalizedQuery: string, locale: Locale): bo
   // omul si-o poate cauta — si de multe ori tocmai ea e singurul loc unde scrie
   // de ce o poza anume nu i-a placut.
   if (p.decisionNote && normalizeForSearch(p.decisionNote).includes(normalizedQuery)) return true;
+  // TEXTUL DIN POZA, citit de OCR pe telefon (core/photoText.ts). Nimeni nu-si
+  // aminteste ca a fotografiat "un dreptunghi alb pe 12 iulie"; isi aminteste
+  // ca are pe undeva bonul de la service sau parola de wifi de la cabana.
+  // Aplicatia citea deja textul acela si il arunca.
+  if (p.ocrText && normalizeForSearch(p.ocrText).includes(normalizedQuery)) return true;
   if ((p.iptcKeywords ?? []).some(k => normalizeForSearch(k).includes(normalizedQuery))) return true;
   if (p.project && normalizeForSearch(p.project).includes(normalizedQuery)) return true;
   const camera = [p.cameraMake, p.cameraModel, p.lensModel].filter(Boolean).join(' ');
@@ -1475,6 +1486,7 @@ function cuvinteleCautabile(p: PhotoView, locale: Locale): Set<string> {
     p.iptcCaption ?? '',
     p.aiDescription ?? '',
     p.decisionNote ?? '',
+    p.ocrText ?? '',
     ...(p.iptcKeywords ?? []),
     p.project ?? '',
     ...(p.sceneTags ?? []).map(tag => translateSceneTag(tag, locale))
@@ -1503,7 +1515,8 @@ function cuvinteleCautabile(p: PhotoView, locale: Locale): Set<string> {
  * bucati. Un cuvant singur trece exact pe acelasi drum ca inainte — nimic din
  * comportamentul de pana acum nu se schimba.
  */
-function matchesSearch(p: PhotoView, normalizedQuery: string, locale: Locale): boolean {
+/** Exportata doar pentru testabilitate directa (searchInPhotoText.test.ts) — la fel ca decidePhotoStatus/prioritizeFacesFirst. */
+export function matchesSearch(p: PhotoView, normalizedQuery: string, locale: Locale): boolean {
   if (matchesToken(p, normalizedQuery, locale)) return true;
   const cuvinte = normalizedQuery.split(/\s+/).filter(Boolean);
   if (cuvinte.length < 2) return false;

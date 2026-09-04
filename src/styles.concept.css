@@ -593,8 +593,24 @@ body:before {
 }
 
 .card-exif-line,
+.card-text-hit,
 .card-score-label {
   font-family:var(--mono);
+}
+
+/* DE CE a aparut poza in rezultate: randul din ea in care chiar scrie ce ai
+   cautat (OCR pe telefon, vezi core/photoText.ts). Acelasi loc pe card ca
+   linia EXIF, pe care o si inlocuieste cand exista — cand ai cautat ceva,
+   motivul potrivirii conteaza mai mult decat diafragma. Culoarea de accent o
+   deosebeste de metadate: nu e o proprietate a pozei, e raspunsul la
+   intrebarea ta. */
+.card-text-hit {
+  font-size:.6rem;
+  color:var(--accent);
+  text-shadow:0 1px 3px rgb(0 0 0 / .8);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 
 .bottom-nav {
