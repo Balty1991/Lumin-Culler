@@ -3215,34 +3215,38 @@ body:before {
   display:flex;
   align-items:center;
   justify-content:center;
-  border:1.5px solid transparent;
-  background-image:linear-gradient(145deg,#151e2aeb,#0b0e16f5),var(--accent-gradient);
-  background-origin:padding-box,border-box;
-  background-clip:padding-box,border-box;
-  box-shadow:0 16px 40px -17px rgb(var(--accent-rgb) / .76),inset 0 1px #ffffff1a;
+  /* PLIN cu degrade, cu semnul intunecat deasupra — exact iconita aplicatiei.
+     Era un cerc inchis cu doar rama in degrade, ceea ce mergea cat timp
+     inauntru stateau literele "LC". Cu semnul aplicatiei inauntru, versiunea
+     asta face ca lucrul pe care il APESI pe ecranul de start si lucrul care se
+     DESCHIDE sa fie aceeasi imagine — care era tot rostul schimbarii. */
+  border:none;
+  background:var(--accent-gradient);
+  box-shadow:0 16px 40px -17px rgb(var(--accent-rgb) / .76),inset 0 1px #ffffff26;
 }
 
-/* Marca "LC" — text real, nu o iconita generica (mockup "Lumin Culler Pro").
-   Gradient pe litere, ca in mockup, nu alb plin. Marimea vine din
-   --empty-badge-size (calc), nu dintr-un clamp separat — garanteaza aceeasi
-   proportie litere/cerc la orice latime, in loc sa se poata dezacorda. */
+/* Marca din medalion: DIAFRAGMA, acelasi semn ca iconita aplicatiei si ca bara
+   de sus. Erau literele "LC", si aplicatia avea astfel doua marci — pe ecranul
+   de start al telefonului diafragma, inauntru "LC". Recunoasterea se face din
+   repetitie, iar repetitia era rupta exact la prima deschidere.
+
+   Marimea vine tot din --empty-badge-size (calc), nu dintr-un clamp separat —
+   aceeasi proportie semn/cerc la orice latime, exact ca la litere.
+
+   Gradientul: literele il primeau prin `background-clip: text`, care nu
+   functioneaza pe conturul unui SVG. Aici semnul e desenat cu `stroke:
+   currentColor`, iar culoarea vine dintr-un gradient aplicat ca masca — acelasi
+   degrade turcoaz-violet, aceeasi stralucire, doar alta tehnica. */
 .empty-badge-mark {
-  font-family:var(--font-display);
-  font-weight:800;
-  font-size:calc(var(--empty-badge-size) * .46);
-  letter-spacing:-.02em;
-  background:var(--accent-gradient);
-  -webkit-background-clip:text;
-  background-clip:text;
-  color:transparent;
-  /* "Space Grotesk Variable" se opreste la 700 — font-weight:800 e deja
-     clampat la maximul fontului. Un contur subtire adauga greutatea vizuala
-     ceruta ("mai gros") pe care font-weight n-o mai poate da. */
-  -webkit-text-stroke:.5px rgb(255 255 255 / .5);
-  filter:drop-shadow(0 2px 18px rgb(var(--accent-2-rgb) / .55));
-}
-:root[data-theme="light"] .empty-badge-mark {
-  background:none; -webkit-background-clip:unset; background-clip:unset; color:var(--accent-text);
+  width:calc(var(--empty-badge-size) * .56);
+  height:calc(var(--empty-badge-size) * .56);
+  /* Intunecat pe degrade, ca in .brand-mark si ca in iconita din launcher —
+     acelasi contrast, deci acelasi semn recunoscut, nu o varianta a lui. */
+  color:#06070a;
+  /* Conturul iconitelor e desenat pe o cutie de 24px; intins la ~160px ar
+     ramane un fir de par. Grosimea urca odata cu scara, ca semnul sa aiba
+     greutatea vizuala a literelor groase pe care le inlocuieste. */
+  stroke-width:1.5;
 }
 
 /* Titlul-marca, direct sub medalion — inlocuieste eticheta "STUDIO LOCAL"

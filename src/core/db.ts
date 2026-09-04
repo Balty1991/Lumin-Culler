@@ -846,6 +846,51 @@ export class LuminDB extends Dexie {
       tagMemory: 'id',
       clipEmbeddings: 'photoId, modelId'
     });
+
+    /**
+     * v11 — NICIO tabela schimbata. Exista doar pentru migrarea de mai jos:
+     * completeaza `PhotoRecord.aiDecided` pentru pozele deja din biblioteca.
+     *
+     * De ce e nevoie. Campul spune cine a pus eticheta — motorul sau omul — si
+     * fara el bara de severitate era ireversibila (vezi core/aiDecision.ts).
+     * Pozele importate de acum incolo il primesc la import; cele deja acolo
+     * l-ar fi avut absent pentru totdeauna, adica tratate ca decizii ale omului
+     * si niciodata rescrise. Utilizatorul care a raportat bugul ar fi ramas
+     * exact cu el, in propria lui biblioteca.
+     *
+     * DE UNDE STIM, retroactiv. Nu ghicim: `corrections` e jurnalul de
+     * antrenare, si in el se scrie o intrare de fiecare data cand OMUL decide o
+     * poza (vezi ContextEngine.learn, chemat din setStatus si din operatiile in
+     * masa pornite de el). Motorul, cand decide singur la import, nu antreneaza
+     * nimic — n-are de la cine sa invete. Deci:
+     *   poza apare in `corrections`  -> a decis-o omul   -> aiDecided = false
+     *   poza NU apare               -> a decis-o motorul -> aiDecided = true
+     *
+     * Greselile posibile merg intr-o singura directie, si e cea buna: daca o
+     * poza ajunge marcata drept "a omului" fara sa fie, severitatea doar n-o
+     * atinge — exact comportamentul de pana acum. Invers nu se poate intampla,
+     * fiindca o poza decisa de motor nu are cum sa apara in jurnalul de
+     * antrenare.
+     *
+     * `candidate` nu trece prin verificarea de mai sus: statusul asta il pune
+     * NUMAI omul ("o tin deoparte"), niciodata motorul.
+     */
+    this.version(11).stores({}).upgrade(async tx => {
+      const corrections = tx.table('corrections');
+      const photos = tx.table('photos');
+      const deciseDeOm = new Set<string>();
+      // O singura trecere prin jurnal: `photoId` nu e indexat acolo, si oricum
+      // ne trebuie multimea intreaga, nu o cautare per poza.
+      await corrections.each((c: { photoId?: string }) => {
+        if (c.photoId) deciseDeOm.add(c.photoId);
+      });
+      await photos.toCollection().modify((p: PhotoRecord) => {
+        if (p.aiDecided !== undefined) return;
+        if (p.status === 'candidate') { p.aiDecided = false; return; }
+        if (p.status !== 'selected' && p.status !== 'rejected') return;
+        p.aiDecided = !deciseDeOm.has(p.id);
+      });
+    });
   }
 }
 

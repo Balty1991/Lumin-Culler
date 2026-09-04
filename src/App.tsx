@@ -1346,10 +1346,25 @@ export default function App() {
 
       {photos.length === 0 && !progress ? (
         <div className="empty">
-          {/* Medalion "LC" — mockup "Lumin Culler Pro" confirmat de utilizator.
-              Text real (nu o iconita generica): e marca aplicatiei, nu o
-              pictograma decorativa. */}
-          <div className="empty-badge" aria-hidden="true"><span className="empty-badge-mark">LC</span></div>
+          {/* Medalionul poarta ACELASI semn ca iconita aplicatiei si ca bara de
+              sus — diafragma, nu literele "LC".
+
+              Cerinta directa a utilizatorului, si are dreptate: aplicatia avea
+              DOUA marci. Pe ecranul de start al telefonului aparea diafragma;
+              deschideai aplicatia si te intampina "LC". Doua semne pentru
+              acelasi produs nu inseamna doua sanse de a fi tinut minte, ci
+              jumatate de sansa fiecare — recunoasterea se face din repetitie,
+              iar aici repetitia era rupta exact in momentul in care conta cel
+              mai mult, la prima deschidere.
+
+              Ales semnul, nu literele, si asta e partea care nu se poate
+              inversa usor: iconita din magazin si cea de pe ecranul de start
+              sunt deja diafragma, iar acelea nu se schimba fara sa pierzi
+              recunoasterea deja stransa. Ecranul dinauntru e cel care se
+              alinia mai ieftin. */}
+          <div className="empty-badge" aria-hidden="true">
+            <ApertureIcon className="empty-badge-mark" />
+          </div>
           <h2 className="empty-brand-title">{tr('app.empty.title')}</h2>
           <p className="empty-lead">{tr('app.empty.description')}</p>
           {/* Cele trei carduri de valoare — continut real (nu simulat): mockup-ul
