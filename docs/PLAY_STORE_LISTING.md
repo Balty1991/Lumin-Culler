@@ -1,8 +1,15 @@
 # Texte fisa Play Store — Lumin Culler Pro
 
-Gata de copiat direct in Play Console (Store presence -> Main store listing).
-Toate limitele de caractere de mai jos sunt cele impuse de Google Play; verificate
-cu numaratoare exacta, nu estimate.
+Gata de copiat direct in Play Console. Toate limitele de mai jos sunt cele
+impuse de Google Play, verificate cu numaratoare exacta, nu estimate.
+
+Textele au DIACRITICE. Versiunea publicata initial nu avea, si se vedea imediat
+in fisa din magazin. Orice editare viitoare le pastreaza.
+
+Cele doua limbi spun ACELEASI lucruri, in aceeasi ordine. Nu a fost mereu asa:
+textul englezesc a ramas o vreme in urma celui romanesc si ajunsese sa descrie
+editorul complet ca "optional basic edits" — adica sa vanda mai putin decat
+livreaza aplicatia. Cand schimbi unul, schimbi si celalalt.
 
 ---
 
@@ -15,23 +22,48 @@ Lumin Culler Pro
 
 ---
 
+# Note de versiune (Release notes, max 500 caractere)
+
+Se pun la fiecare incarcare de AAB, in Production/Testing -> Release notes.
+
+## Romana (497/500)
+```
+• Bara de exigență merge acum în ambele sensuri: treci pe Sever și înapoi, iar cifrele revin. Nu atinge pozele decise de tine.
+• Exigența se aplică și pozelor deja din bibliotecă, nu doar lotului curent.
+• Pozele din aceeași serie se grupează după momentul real al declanșării, nu după data fișierului.
+• Timpul rămas se calculează din ritmul de acum, nu din media de la început.
+• „Acasă" a coborât în bara de jos, ca tab propriu.
+• Prezentarea se privește gratuit; plătești doar clipul exportat.
+```
+
+## English (496/500)
+```
+• The strictness bar now works both ways: switch to Strict and back, and the numbers return. It never touches photos you decided yourself.
+• Strictness now applies to photos already in your library, not just the current batch.
+• Same-burst grouping uses the real moment of capture, not the file date.
+• Time remaining follows your current pace, not the average since the start.
+• Home moved into the bottom bar, as its own tab.
+• Presentation is free to watch; you pay only for the exported clip.
+```
+
+---
+
+# Fisa principala (Main store listing)
+
 ## Romana (limba principala)
 
-### Descriere scurta (max 80 caractere)
+### Descriere scurta (max 80 caractere) — 70 caractere
 ```
 Curăță galeria de duplicate și cadre ratate. AI pe telefon, fără cont.
 ```
-(70 caractere)
 
-De ce ASTA si nu "Sute de poze, triate în minute" (varianta dinainte): Play
+De ce ASTA si nu "Sute de poze, triate in minute" (varianta dinainte): Play
 indexeaza puternic descrierea scurta, iar varianta veche nu continea NICIUN
-termen pe care oamenii chiar il tasteaza. Cercetarea de piata a aratat ca
-intrarea in masa in categoria asta e "curat galeria / sterg duplicate /
-eliberez spatiu" — "culling" il cauta doar fotografii profesionisti, adica un
-public mult mai mic. Noua varianta pastreaza promisiunea (AI local, fara cont)
-si adauga trei termeni cautati: curata galeria, duplicate, cadre ratate.
+termen pe care oamenii chiar il tasteaza. Intrarea in masa in categoria asta e
+"curat galeria / sterg duplicate / eliberez spatiu" — "culling" il cauta doar
+fotografii profesionisti, adica un public mult mai mic.
 
-### Descriere lunga (max 4000 caractere)
+### Descriere lunga (max 4000 caractere) — 3820 caractere
 ```
 Te-ai întors cu 800 de poze și nu ai chef să le treci una câte una.
 
@@ -51,6 +83,19 @@ CE FACE
 • Dă un scor și îl explică. Claritate, expunere, compoziție, ochi
   deschiși, zâmbet, contact vizual — cu ecranul „De ce acest scor", unde
   vezi ce a cântărit în favoarea cadrului și ce împotriva lui.
+
+• Sparge coada pe cauze. Nu „mai ai 23 de poze", ci 11 la limită, 7 din
+  aceleași serii, 3 cu ochii închiși — intri direct în grupul care te
+  interesează, în loc să iei o sută de decizii la rând.
+
+• Un singur buton pentru cât de sever e AI-ul. Îngăduitor, Echilibrat sau
+  Sever, fiecare cu numărul de poze care ți-ar rămâne, ca să vezi înainte
+  ce alegi. Schimbă doar pozele pe care nu le-ai decis tu; deciziile tale
+  rămân neatinse, oricât ai muta bara.
+
+• Îți spune și ce poți repara. Sub verdict, sugestii concrete: ce se poate
+  corecta acum, cu buton de aplicat pe loc, și ce să faci altfel data
+  viitoare când fotografiezi.
 
 • Învață cum alegi TU. Fiecare decizie antrenează un model care reține
   separat, pe tip de scenă: poate la portret îți place puțin subexpus, dar
@@ -110,104 +155,108 @@ Procesare integral locală. Fără reclame, fără analytics, fără servicii de
 urmărire ale unor terți. Politica completă e în aplicație.
 ```
 
-Numar caractere descriere lunga: 3183 din 4000 (RO) si 3598 din 4000 (EN).
-
-ATENTIE: textul de mai sus are DIACRITICE. Versiunea publicata initial nu avea,
-si se vedea imediat in fisa din magazin ("aplicatie de sortare si selectie a
-fotografiilor", "gandita pentru fotografi"). Orice editare viitoare le pastreaza.
-
 ---
 
-## English (secondary listing language, optional but recommended)
+## English (secondary listing language)
 
-### Short description (max 80 characters)
+### Short description (max 80 characters) — 78 characters
 ```
 Clean your gallery: find duplicates, cull bad shots, free up space. On-device.
 ```
-(78 characters)
 
-### Full description (max 4000 characters)
+### Full description (max 4000 characters) — 3943 characters
 ```
-Lumin Culler Pro is a photo culling and selection app: you come back from a
-trip, a party, or a shoot with hundreds or thousands of photos on your phone,
-and you don't want to spend hours manually picking the best frames.
+You come home with 800 photos and no appetite for going through them one
+by one.
 
-All the AI runs DIRECTLY ON YOUR PHONE. No photo, face, or metadata ever
-leaves your device — no server upload, no mandatory account, no ads, no
-tracking.
+Lumin Culler goes through them for you: it finds the duplicates, groups
+the bursts, gives every frame a score and tells you why. You confirm.
+Nothing is deleted without your say-so.
+
+All the analysis runs on your phone. No photo, no face and no data of any
+kind leaves the device — no upload, no account, no ads, no tracking.
 
 WHAT IT DOES
 
-• Real AI face analysis — actual neural-network detection (not a simulation):
-  smiles, open/closed eyes, overall frame quality.
+• Finds bursts and duplicates. Out of twenty near-identical frames it
+  hands you the good one, with the rest one tap away.
 
-• Geometrically computed composition — rule of thirds, headroom, and other
-  criteria calculated from the subject's real position in the frame, not
-  guessed.
+• Scores every frame and explains the score. Sharpness, exposure,
+  composition, open eyes, smile, eye contact — with a "Why this score"
+  screen showing what counted for the frame and what against it.
 
-• Known-person recognition — enroll a few reference photos for family,
-  friends, or recurring clients, and the app automatically tells them apart
-  from strangers in your photos.
+• Breaks the queue down by cause. Not "23 photos left" but 11 borderline,
+  7 from the same bursts, 3 with eyes closed — so you walk into the group
+  you care about instead of making a hundred calls in a row.
 
-• Personalized learning engine — every decision you make (Select/Reject)
-  trains a model that learns your exact preferences: maybe you like slightly
-  underexposed dramatic portraits, but bright, punchy landscapes. The app
-  remembers this separately, per scene type.
+• One control for how strict the AI is. Lenient, Balanced or Strict, each
+  showing how many photos would be left for you, so you see what you are
+  choosing before you choose it. It only changes photos you have not
+  decided yourself; your own decisions stay untouched, wherever you put
+  the bar.
 
-• Automatic burst/duplicate grouping — out of a burst of 20 near-identical
-  frames, it suggests the single best one.
+• Tells you what to fix, not just what is wrong. Under each verdict:
+  what can be corrected now, with a button to apply it on the spot, and
+  what to do differently next time you shoot.
 
-• Handles thousands of photos without freezing — processing runs across
-  multiple threads in parallel, without loading your whole library into
-  memory at once.
+• Learns how YOU choose. Every decision trains a model that remembers
+  separately, per scene type: maybe you like portraits slightly
+  underexposed but landscapes in full light. After a few dozen decisions
+  the score starts to look like your taste, not a textbook.
 
-• Frees up storage — shows how many GB your photos take and how many can
-  go: exact duplicates, bursts you already picked from, rejected frames.
+• Recognises your people. Enrol a few reference photos for your child,
+  your family or your clients, and the app tells their frames apart from
+  the rest.
+
+• A full editor, in the same app. Exposure, colour, curves, selective
+  edits by area, retouch, crop. Plus an Auto button that judges the
+  subject, not the histogram — on a backlit photo it lifts the person
+  instead of darkening the whole frame to save a sky that is blown anyway.
+
+• Separates what is not a memory. Screenshots, documents, photos of
+  packaging and receipts — moved out of the way, so they never ask you for
+  a photographic decision.
+
+• Frees up space. Shows how many GB your photos take and how many can go:
+  exact duplicates, bursts you have already picked from, rejected frames.
   Deletion goes through the system's own confirmation dialog, so nothing
   disappears unless you tap.
 
-• Flexible export — selected photos in their original format (no quality
-  loss), Adobe Lightroom selection lists, an HTML gallery for clients, batch
-  renaming with custom templates. XMP metadata sidecars are part of Premium
-  (see below).
+• Hands the work on. Export in the original format, XMP sidecars for
+  Lightroom, contact sheet, HTML gallery for the client, batch renaming.
 
-• Batch operations — Auto-Cull by percentage, reject below a score
-  threshold, saved presets per shoot type (wedding, portrait, event...).
+• Works on thousands of photos. Multi-threaded processing, without loading
+  the library into memory.
 
-• Optional basic edits — exposure, contrast, color — before export.
+WHO IT IS FOR
 
-WHO IT'S FOR
+Anyone who ends up with hundreds of photos after a day out — parents,
+travellers, people covering events. And wedding, portrait or event
+photographers who deliver a selection and work in Lightroom.
 
-Anyone who ends up with hundreds of photos after a day out — parents
-photographing their kids, travelers, people covering events — just as much
-as professional and enthusiast photographers doing shoots (weddings, events,
-portraits, sports, landscapes). A fast, private, smart tool that learns how
-YOU choose, instead of applying a generic one-size-fits-all formula.
+WHAT IS FREE
 
-FREE AND PREMIUM
+The culling, all of it. Unlimited import, AI scoring, sorting, grouping,
+burst comparison — any number of photos, no account.
 
-The culling itself is free and unlimited: import as many photos as you like
-and get AI scoring, sorting, burst grouping and frame comparison, with no cap
-and no account.
+Premium lifts the cap on photos taken OUT of the app and unlocks the
+professional workflow:
 
-The optional Premium subscription (monthly or yearly, via Google Play) lifts the cap on
-photos taken OUT of the app and unlocks the professional workflow:
+• Free: 150 photos taken out every 30 days (exported or deleted from the
+  phone), one recognised person.
+• Premium: unlimited export and deletion, as many people as you like, plus
+  XMP for Lightroom, contact sheet, PIN-protected vault, monthly recap,
+  presentation, trips and the two-frame composite suggestion.
 
-• Free: 150 photos taken out of the app every 30 days (exported or deleted
-  from the phone), one enrolled recognised person.
-• Premium: unlimited export and deletion, as many recognised people as you
-  like, plus XMP sidecars for Lightroom, contact sheet, private vault, monthly
-  recap, presentation mode, trips, and the two-frame composite suggestion.
-
-The price is shown in the app, in your account's currency. The subscription
-renews automatically until you cancel it in Google Play > Menu > Subscriptions;
-cancelling takes effect at the end of the period you already paid for.
+The price is shown in the app, in your account's currency. The
+subscription renews automatically until you cancel it in Google Play →
+Menu → Subscriptions; cancelling takes effect at the end of the period you
+already paid for.
 
 PRIVACY
 
-Read our full privacy policy in the app or at the address listed on the
-store page. In short: 100% on-device processing, no ads, no third-party
-analytics/tracking services.
+Processing is entirely local. No ads, no analytics, no third-party
+tracking services. The full policy is in the app.
 ```
 
 ---
