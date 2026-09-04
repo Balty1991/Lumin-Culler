@@ -16,10 +16,22 @@ import type { PhotoView } from '../state/store';
  * cere cuiva sa descarce ~39 MB pe incredere e exact lucrul pe care aplicatia
  * il refuza peste tot in alta parte.
  */
-const MANIFEST: ClipManifest = {
-  id: 'mobileclip_s0.image.q8@fcbd153d1aa1', dim: 512, inputSize: 256,
-  mean: [0, 0, 0], std: [1, 1, 1], file: 'model.onnx', bytes: 11_846_843
+const Q8: ClipManifest = {
+  id: 'mobileclip_s0.image.q8@fcbd153d1aa1', label: '8 biți (pentru procesor)',
+  dim: 512, inputSize: 256, mean: [0, 0, 0], std: [1, 1, 1], file: 'model-1.onnx', bytes: 11_846_843
 };
+const FP16: ClipManifest = { ...Q8, id: 'mobileclip_s0.image.fp16@aaa', label: '16 biți (pentru placa video)', file: 'model-0.onnx', bytes: 22_000_000 };
+
+function rand(variant: ClipManifest, forced: 'webgpu' | 'wasm', medianMs: number | null) {
+  return {
+    variant, forced,
+    result: medianMs === null ? null : {
+      backend: forced, loadMs: 2000, samples: 12,
+      medianMs, slowestMs: medianMs * 2, thousandPhotosSeconds: Math.round(medianMs)
+    },
+    error: medianMs === null ? 'no available backend found' : null
+  };
+}
 
 function pozeFalse(n: number): PhotoView[] {
   return Array.from({ length: n }, (_, i) => ({ id: `p${i}` }) as PhotoView);
@@ -35,7 +47,7 @@ describe('cand build-ul n-are model', () => {
   it('spune ca nu e nimic de masurat, si NU ofera niciun buton', async () => {
     // Stare normala, nu eroare: build-urile fara model sunt chiar aplicatia
     // de pana acum.
-    vi.spyOn(pool, 'clipAvailability').mockResolvedValue(null);
+    vi.spyOn(pool, 'clipAvailability').mockResolvedValue([]);
     render(<ClipLabPanel />);
     expect(await screen.findByText(/nu conține modelul/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Măsoară/ })).not.toBeInTheDocument();
@@ -44,97 +56,77 @@ describe('cand build-ul n-are model', () => {
 
 describe('cand modelul exista', () => {
   beforeEach(() => {
-    vi.spyOn(pool, 'clipAvailability').mockResolvedValue(MANIFEST);
+    vi.spyOn(pool, 'clipAvailability').mockResolvedValue([FP16, Q8]);
   });
 
   it('spune CAT se descarca inainte sa se descarce ceva', async () => {
-    // Marimea nu e ascunsa intr-o nota de subsol: e a doua linie din fisa.
+    // Marimea nu e ascunsa intr-o nota de subsol: e prima parte a fisei, si
+    // fiecare varianta cu cifra ei.
     render(<ClipLabPanel />);
-    expect(await screen.findByText(/11\.3 MB modelul/)).toBeInTheDocument();
-    expect(screen.getByText(MANIFEST.id)).toBeInTheDocument();
+    expect(await screen.findByText(/16 biți/)).toBeInTheDocument();
+    expect(screen.getByText('21.0 MB')).toBeInTheDocument();
+    expect(screen.getByText('11.3 MB')).toBeInTheDocument();
   });
 
   it('NU arata comutatorul de pornire inainte de masuratoare', async () => {
     // Piatra de temelie a ecranului. Fara masuratoare, pornirea ar fi o cerere
-    // de incredere pe 39 MB.
+    // de incredere pe zeci de MB.
     render(<ClipLabPanel />);
     await screen.findByRole('button', { name: /Măsoară/ });
     expect(screen.queryByText(/Pornește motorul nou/)).not.toBeInTheDocument();
   });
 
-  it('dupa masuratoare arata cifra care conteaza si abia apoi comutatorul', async () => {
-    vi.spyOn(pool, 'runClipBenchmark').mockResolvedValue({
-      backend: 'webgpu', loadMs: 2400, samples: 12,
-      medianMs: 25, slowestMs: 380, thousandPhotosSeconds: 25
-    });
+  it('arata un TABEL, nu o cifra — altfel nu se poate sti CE e de vina', async () => {
+    // Intrebarea care conteaza dupa 1404 ms pe poza nu e "cat de lent e", ci
+    // "modelul e greu, sau doar prost potrivit cu backend-ul?". Un singur numar
+    // nu raspunde niciodata la asta.
+    vi.spyOn(pool, 'runClipMatrix').mockResolvedValue([
+      rand(FP16, 'webgpu', 28), rand(FP16, 'wasm', 190),
+      rand(Q8, 'webgpu', 1404), rand(Q8, 'wasm', 210)
+    ]);
     render(<ClipLabPanel />);
     fireEvent.click(await screen.findByRole('button', { name: /Măsoară/ }));
 
-    expect(await screen.findByText(/25 s pentru o mie de poze/)).toBeInTheDocument();
-    expect(screen.getByText(/Pornește motorul nou/)).toBeInTheDocument();
+    expect(await screen.findByText('28 ms')).toBeInTheDocument();
+    expect(screen.getByText('1404 ms')).toBeInTheDocument();
+    expect(screen.getAllByRole('row')).toHaveLength(5); // antet + 4 combinatii
   });
 
-  it('arata si cea mai lenta poza, nu doar mediana favorabila', async () => {
-    // Prima poza plateste compilarea shaderelor. Ascunsa, cifra ar parea mai
-    // buna decat e chiar la pornire — adica exact acolo unde se simte.
-    vi.spyOn(pool, 'runClipBenchmark').mockResolvedValue({
-      backend: 'webgpu', loadMs: 2400, samples: 12,
-      medianMs: 25, slowestMs: 380, thousandPhotosSeconds: 25
-    });
+  it('un rand PICAT ramane in tabel, cu motivul lui', async () => {
+    // "Varianta asta nu porneste pe placa video" e un rezultat, nu o absenta.
+    vi.spyOn(pool, 'runClipMatrix').mockResolvedValue([
+      rand(FP16, 'webgpu', null), rand(FP16, 'wasm', 190)
+    ]);
     render(<ClipLabPanel />);
     fireEvent.click(await screen.findByRole('button', { name: /Măsoară/ }));
-    await screen.findByText(/pentru o mie de poze/);
-    expect(screen.getByText('380 ms')).toBeInTheDocument();
-    expect(screen.getByText('webgpu')).toBeInTheDocument();
-  });
 
-  it('spune raspicat cand a rulat pe procesor, nu pe placa video', async () => {
-    // Un rezultat de pe wasm citit ca si cum ar fi de pe WebGPU ar face functia
-    // sa para mult mai lenta decat e pe telefoanele bune.
-    vi.spyOn(pool, 'runClipBenchmark').mockResolvedValue({
-      backend: 'wasm', loadMs: 5000, samples: 12,
-      medianMs: 210, slowestMs: 900, thousandPhotosSeconds: 210
-    });
-    render(<ClipLabPanel />);
-    fireEvent.click(await screen.findByRole('button', { name: /Măsoară/ }));
-    expect(await screen.findByText(/a rulat pe procesor/i)).toBeInTheDocument();
-  });
-
-  it('cand modelul nu porneste, o spune si nu schimba nimic', async () => {
-    vi.spyOn(pool, 'runClipBenchmark').mockResolvedValue(null);
-    render(<ClipLabPanel />);
-    fireEvent.click(await screen.findByRole('button', { name: /Măsoară/ }));
-    expect(await screen.findByRole('alert')).toHaveTextContent(/nu a pornit/);
-    expect(screen.queryByText(/Pornește motorul nou/)).not.toBeInTheDocument();
-  });
-
-  it('ARATA motivul brut al esecului, nu doar ca a esuat', async () => {
-    // Greseala pe care o repara testul asta e a mea: prima varianta inghitea
-    // eroarea si scria doar "modelul nu a pornit pe acest dispozitiv". Cand
-    // functia a picat pe telefonul real, propozitia aia n-a ajutat pe nimeni —
-    // cauza (un .wasm cerut la adresa gresita) a trebuit gasita prin
-    // reproducere locala, in loc sa fie citita de pe ecran.
-    vi.spyOn(pool, 'runClipBenchmark').mockRejectedValue(new Error('no available backend found. ERR: [wasm] 404'));
-    render(<ClipLabPanel />);
-    fireEvent.click(await screen.findByRole('button', { name: /Măsoară/ }));
     expect(await screen.findByText(/no available backend found/)).toBeInTheDocument();
+    expect(screen.getAllByRole('row')).toHaveLength(3);
+  });
+
+  it('comutatorul apare doar daca MACAR o combinatie a mers', async () => {
+    vi.spyOn(pool, 'runClipMatrix').mockResolvedValue([
+      rand(FP16, 'webgpu', null), rand(FP16, 'wasm', null)
+    ]);
+    render(<ClipLabPanel />);
+    fireEvent.click(await screen.findByRole('button', { name: /Măsoară/ }));
+    await screen.findAllByText(/no available backend/);
+    expect(screen.queryByText(/Pornește motorul nou/)).not.toBeInTheDocument();
   });
 
   it('oprirea STERGE ce a calculat, nu doar ascunde', async () => {
     // De-aia vectorii stau in tabela lor: oprirea e o operatie, nu o
     // parcurgere a intregii biblioteci. Vezi core/db.ts.
     const { db } = await import('../core/db');
-    await db.clipEmbeddings.put({ photoId: 'p1', modelId: MANIFEST.id, values: new Float32Array(512), ts: Date.now() });
-    vi.spyOn(pool, 'runClipBenchmark').mockResolvedValue({
-      backend: 'webgpu', loadMs: 1000, samples: 12, medianMs: 20, slowestMs: 100, thousandPhotosSeconds: 20
-    });
+    await db.clipEmbeddings.put({ photoId: 'p1', modelId: Q8.id, values: new Float32Array(512), ts: Date.now() });
+    vi.spyOn(pool, 'runClipMatrix').mockResolvedValue([rand(FP16, 'webgpu', 28)]);
     const release = vi.spyOn(pool, 'releaseClip').mockImplementation(() => {});
     render(<ClipLabPanel />);
     fireEvent.click(await screen.findByRole('button', { name: /Măsoară/ }));
 
     const comutator = await screen.findByRole('checkbox');
-    fireEvent.click(comutator);           // pornit
-    fireEvent.click(comutator);           // oprit
+    fireEvent.click(comutator);
+    fireEvent.click(comutator);
     await waitFor(async () => expect(await db.clipEmbeddings.count()).toBe(0));
     expect(release).toHaveBeenCalled();
   });

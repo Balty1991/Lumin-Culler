@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { XIcon, SparkleIcon } from './icons';
-import { clipAvailability, runClipBenchmark, releaseClip, lastClipError } from '../core/clip/clipPool';
-import { BENCHMARK_SAMPLES, type ClipBenchmarkResult } from '../core/clip/clipBenchmark';
+import { clipAvailability, runClipMatrix, releaseClip, type ClipMatrixRow } from '../core/clip/clipPool';
+import { BENCHMARK_SAMPLES } from '../core/clip/clipBenchmark';
 import type { ClipManifest } from '../core/clip/clipManifest';
 import { isClipEnabled, setClipEnabled } from '../state/clipOptIn';
 import { formatSpan } from '../core/formatTime';
@@ -39,18 +39,16 @@ export function ClipLabPanel() {
   const containerRef = useRef<HTMLDivElement>(null);
   useModalFocusTrap(containerRef, open);
 
-  /** undefined = inca nu stim; null = build-ul asta n-are model. */
-  const [manifest, setManifest] = useState<ClipManifest | null | undefined>(undefined);
+  /** undefined = inca nu stim; [] = build-ul asta n-are niciun model. */
+  const [variants, setVariants] = useState<ClipManifest[] | undefined>(undefined);
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<ClipBenchmarkResult | null>(null);
-  const [failed, setFailed] = useState(false);
-  /** Motivul brut, in cuvintele runtime-ului — vezi lastClipError. */
-  const [reason, setReason] = useState<string | null>(null);
+  const [progress, setProgress] = useState({ facut: 0, total: 0 });
+  const [rows, setRows] = useState<ClipMatrixRow[] | null>(null);
   const [enabled, setEnabled] = useState(isClipEnabled);
 
   useEffect(() => {
     if (!open) return;
-    void clipAvailability().then(setManifest);
+    void clipAvailability().then(setVariants);
   }, [open]);
 
   useEffect(() => {
@@ -63,14 +61,13 @@ export function ClipLabPanel() {
   if (!open) return null;
 
   const measure = () => {
-    setBusy(true); setFailed(false);
+    setBusy(true); setRows(null); setProgress({ facut: 0, total: 0 });
     // Pozele TALE, nu o imagine de test: o imagine sintetica masoara acelasi
     // numar de operatii, dar nu si costul real de decodare al unui JPEG facut
     // cu telefonul.
     const ids = photos.slice(0, BENCHMARK_SAMPLES).map(p => p.id);
-    void runClipBenchmark(ids)
-      .then(r => { setResult(r); if (!r) { setFailed(true); setReason(lastClipError); } })
-      .catch(err => { setFailed(true); setReason(err instanceof Error ? err.message : String(err)); })
+    void runClipMatrix(ids, (facut, total) => setProgress({ facut, total }))
+      .then(setRows)
       .finally(() => setBusy(false));
   };
 
@@ -102,65 +99,78 @@ export function ClipLabPanel() {
 
         <p className="clip-lead">{tr('clip.lead')}</p>
 
-        {manifest === undefined && <p className="premium-soon" role="status">{tr('clip.checking')}</p>}
+        {variants === undefined && <p className="premium-soon" role="status">{tr('clip.checking')}</p>}
 
-        {manifest === null && (
+        {variants?.length === 0 && (
           /* Stare normala, nu eroare: build-urile fara model sunt exact
              aplicatia de pana acum. */
           <p className="premium-soon" role="status">{tr('clip.absent')}</p>
         )}
 
-        {manifest && (
+        {variants && variants.length > 0 && (
           <>
             <div className="clip-spec">
               <h4 className="premium-group-head">{tr('clip.spec.title')}</h4>
               <dl>
-                <div><dt>{tr('clip.spec.model')}</dt><dd className="mono">{manifest.id}</dd></div>
-                <div><dt>{tr('clip.spec.download')}</dt><dd>{tr('clip.spec.downloadValue', { model: mb(manifest.bytes) })}</dd></div>
-                <div><dt>{tr('clip.spec.vector')}</dt><dd>{tr('clip.spec.vectorValue', { dim: manifest.dim, px: manifest.inputSize })}</dd></div>
+                {variants.map(v => (
+                  <div key={v.id}>
+                    <dt>{v.label}</dt>
+                    <dd>{mb(v.bytes)} MB</dd>
+                  </div>
+                ))}
+                <div><dt>{tr('clip.spec.runtime')}</dt><dd>~25 MB</dd></div>
+                <div><dt>{tr('clip.spec.vector')}</dt><dd>{tr('clip.spec.vectorValue', { dim: variants[0].dim, px: variants[0].inputSize })}</dd></div>
               </dl>
             </div>
 
             <button className="btn-accent big" disabled={busy || photos.length === 0} onClick={measure}>
-              {busy ? tr('clip.measuring') : tr('clip.measure', { count: Math.min(BENCHMARK_SAMPLES, photos.length) })}
+              {busy
+                ? tr('clip.measuringOf', { done: progress.facut, total: progress.total })
+                : tr('clip.measureAll', { count: Math.min(BENCHMARK_SAMPLES, photos.length), combos: variants.length * 2 })}
             </button>
             {photos.length === 0 && <p className="premium-soon">{tr('clip.needPhotos')}</p>}
-            {failed && (
-              <div role="alert">
-                <p className="premium-soon">{tr('clip.failed')}</p>
-                {/* Motivul brut, netradus si netrunchiat. Nu e frumos, dar e
-                    singurul lucru din ecran care poate fi trimis mai departe si
-                    chiar reparat — vezi lastClipError. */}
-                {reason && <p className="clip-reason mono">{reason}</p>}
-              </div>
-            )}
 
-            {result && (
+            {rows && (
               <div className="clip-result">
                 <h4 className="premium-group-head">{tr('clip.result.title')}</h4>
-                {/* Cifra care conteaza cu adevarat nu e milisecunda pe poza, ci
-                    ce inseamna ea la un import obisnuit. */}
-                <b className="clip-result-hero">
-                  {tr('clip.result.thousand', { time: formatSpan(result.thousandPhotosSeconds) })}
-                </b>
-                <dl>
-                  <div><dt>{tr('clip.result.median')}</dt><dd>{Math.round(result.medianMs)} ms</dd></div>
-                  {/* Cea mai lenta poza sta langa mediana cu buna stiinta: de
-                      obicei e prima, care plateste compilarea shaderelor. Ascunsa,
-                      ar face cifra sa para mai buna decat e la pornire. */}
-                  <div><dt>{tr('clip.result.slowest')}</dt><dd>{Math.round(result.slowestMs)} ms</dd></div>
-                  <div><dt>{tr('clip.result.backend')}</dt><dd className="mono">{result.backend}</dd></div>
-                  <div><dt>{tr('clip.result.load')}</dt><dd>{(result.loadMs / 1000).toFixed(1)} s</dd></div>
-                  <div><dt>{tr('clip.result.samples')}</dt><dd>{result.samples}</dd></div>
-                </dl>
-                {result.backend === 'wasm' && <p className="premium-soon">{tr('clip.result.wasmNote')}</p>}
+                {/* TABEL, nu o cifra. Un singur numar nu poate raspunde la
+                    intrebarea care conteaza: modelul e greu, sau doar prost
+                    potrivit cu backend-ul pe care a nimerit? */}
+                <table className="clip-table">
+                  <thead>
+                    <tr>
+                      <th>{tr('clip.table.variant')}</th>
+                      <th>{tr('clip.table.backend')}</th>
+                      <th>{tr('clip.table.perPhoto')}</th>
+                      <th>{tr('clip.table.thousand')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((r, i) => (
+                      <tr key={i} className={r.result ? undefined : 'clip-row-failed'}>
+                        <td>{r.variant.label}</td>
+                        <td className="mono">{r.forced}</td>
+                        {/* Un rand picat ramane IN tabel: "varianta asta nu
+                            porneste pe placa video" e un rezultat, nu o absenta. */}
+                        <td>{r.result ? `${Math.round(r.result.medianMs)} ms` : '—'}</td>
+                        <td>{r.result ? formatSpan(r.result.thousandPhotosSeconds) : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {/* Motivele brute, netraduse: singurul lucru din ecran care poate
+                    fi trimis mai departe si chiar reparat. */}
+                {rows.filter(r => r.error).map((r, i) => (
+                  <p key={i} className="clip-reason mono">{r.variant.label} / {r.forced}: {r.error}</p>
+                ))}
               </div>
             )}
 
-            {/* Comutatorul apare DOAR dupa o masuratoare reusita. Nu ca sa fie
-                greu de pornit — ci fiindca altfel i-am cere omului sa descarce
-                zeci de MB pe incredere, exact ce aplicatia refuza in alta parte. */}
-            {result && (
+            {/* Comutatorul apare DOAR dupa ce o combinatie chiar a mers. Nu ca
+                sa fie greu de pornit — ci fiindca altfel i-am cere omului sa
+                descarce zeci de MB pe incredere, exact ce aplicatia refuza in
+                alta parte. */}
+            {rows?.some(r => r.result) && (
               <label className="clip-toggle">
                 <input type="checkbox" checked={enabled} onChange={e => toggle(e.target.checked)} />
                 <span>

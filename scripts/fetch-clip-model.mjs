@@ -1,135 +1,124 @@
 #!/usr/bin/env node
 /**
  * scripts/fetch-clip-model.mjs
- * Aduce modelul CLIP in build si scrie manifestul pe care il citeste aplicatia.
+ * Aduce variantele modelului CLIP in build si scrie manifestul pe care il
+ * citeste aplicatia.
  *
  * Rulat de CI (unde exista retea), exact ca pasii care aduc modelele Human si
- * lista de localitati. Modelul NU se comite in git.
+ * lista de localitati. Modelele NU se comit in git.
  *
- * NEFATAL CU BUNA STIINTA. Daca descarcarea esueaza — adresa mutata, HuggingFace
- * picat, retea taiata in CI — scriptul se opreste, NU scrie manifestul, si iese
- * cu 0. Aplicatia construita atunci e pur si simplu aplicatia de azi, fara
- * functia optionala. Alternativa (build rosu) ar insemna ca o functie
- * suplimentara poate opri livrarea a tot restul, ceea ce ar fi o prostie.
+ * NEFATAL PE DOUA NIVELURI:
+ *  - o varianta care nu se poate aduce e sarita, si build-ul continua cu
+ *    celelalte;
+ *  - daca NICIUNA nu se poate aduce, nu se scrie manifestul si scriptul iese cu
+ *    0. Aplicatia construita atunci e pur si simplu aplicatia de azi, fara
+ *    functia optionala. O functie in plus n-are voie sa opreasca livrarea a tot
+ *    restul.
  *
- * IDENTITATEA MODELULUI se calculeaza din SHA-256-ul fisierului descarcat, nu
- * se scrie de mana. Consecinta: orice schimbare, oricat de mica, produce alt
- * `id`, iar vectorii calculati cu modelul vechi sunt recunoscuti automat ca
- * straini si ignorati la comparatie (vezi core/clip/clipVector.ts). Nimeni nu
- * trebuie sa-si aminteasca sa incrementeze ceva.
+ * DE CE MAI MULTE VARIANTE. Prima masuratoare pe telefon real a dat 1404 ms pe
+ * poza cu modelul cuantizat pe 8 biti, pe WebGPU — de zeci de ori mai lent
+ * decat ar trebui. Explicatia probabila e ca un model cuantizat e facut pentru
+ * procesor, iar backend-ul WebGPU nu-i cunoaste o parte din operatii si le
+ * trimite inapoi pe CPU. Dar "probabil" nu e o cifra: se aduc amandoua
+ * variantele si le masoara utilizatorul, pe telefonul lui.
+ *
+ * IDENTITATEA fiecarei variante se calculeaza din SHA-256-ul fisierului, nu se
+ * scrie de mana: orice schimbare produce alt `id`, iar vectorii vechi devin
+ * recunoscut-straini la comparatie (vezi core/clip/clipVector.ts).
  */
 import { createHash } from 'node:crypto';
-import { mkdir, writeFile, stat } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const recipe = JSON.parse(readFileSync(resolve(here, 'clip-model.json'), 'utf8'));
+const reteta = JSON.parse(readFileSync(resolve(here, 'clip-model.json'), 'utf8'));
 const outDir = resolve(here, '..', 'public', 'models', 'clip');
 
-/** Iese fara eroare: lipsa modelului e o stare valida, nu un build stricat. */
-function renunta(motiv) {
-  console.warn(`[clip] Model NEadus: ${motiv}`);
-  console.warn('[clip] Build-ul continua fara functia optionala de intelegere semantica.');
-  process.exit(0);
-}
-
-const raspuns = await fetch(recipe.url).catch(err => renunta(`retea: ${err.message}`));
-if (!raspuns?.ok) renunta(`HTTP ${raspuns?.status} pentru ${recipe.url}`);
-
-const octeti = Buffer.from(await raspuns.arrayBuffer());
-
-// `fetch` reuseste si cand primeste o pagina de eroare HTML in loc de model.
-// Trei verificari ieftine care prind exact asta:
-if (octeti.length < recipe.minBytes) renunta(`fisier prea mic (${octeti.length} octeti) — probabil o pagina de eroare`);
-if (octeti.length > recipe.maxBytes) renunta(`fisier prea mare (${octeti.length} octeti) — nu e ce asteptam`);
-// Un .onnx e un protobuf: primul camp (ir_version, varint) da octetul 0x08.
-// Un HTML incepe cu '<'. Verificarea nu valideaza modelul, dar exclude sigur
-// cazul in care am salvat o pagina web cu extensia .onnx.
-if (octeti[0] !== 0x08) renunta(`nu arata a fisier ONNX (primul octet 0x${octeti[0].toString(16)})`);
-
 /**
- * VERIFICAREA PREPROCESARII, si e cea mai importanta din script.
- *
- * `mean`, `std` si `inputSize` din reteta sunt numerele cu care a fost ANTRENAT
- * modelul. Gresite, modelul nu da eroare — da vectori de forma corecta,
- * plauzibili si complet gresiti (vezi core/clip/clipPreprocess.ts). Pana acum
- * erau o afirmatie scrisa de mana, pe care nimeni n-o putea contrazice.
- *
- * Fisa de preprocesare publicata langa model le contine. Le aducem si le
- * comparam: la nepotrivire NU scriem manifestul, deci functia ramane absenta in
- * loc sa produca gunoi cu aspect respectabil. Cand fisa nu se poate aduce,
- * mergem mai departe cu un avertisment vizibil — nu putem verifica, dar nici nu
- * are rost sa oprim un build din acest motiv.
+ * Verifica preprocesarea declarata in reteta fata de fisa publicata langa model.
+ * Numere gresite aici nu dau eroare la rulare — dau vectori plauzibili si
+ * complet gresiti (vezi core/clip/clipPreprocess.ts).
  */
-async function verificaPreprocesarea() {
-  if (!recipe.preprocessorUrl) return { verificat: false, motiv: 'nicio fisa de preprocesare in reteta' };
+async function verificaPreprocesarea(v) {
+  if (!v.preprocessorUrl) return { verificat: false, motiv: 'fara fisa in reteta' };
   let fisa;
   try {
-    const r = await fetch(recipe.preprocessorUrl);
-    if (!r.ok) return { verificat: false, motiv: `HTTP ${r.status} la fisa de preprocesare` };
+    const r = await fetch(v.preprocessorUrl);
+    if (!r.ok) return { verificat: false, motiv: `HTTP ${r.status} la fisa` };
     fisa = await r.json();
   } catch (err) {
     return { verificat: false, motiv: `retea: ${err.message}` };
   }
-
   const aproape = (a, b) => Math.abs(a - b) < 1e-3;
-  const neconcordante = [];
-
-  // `do_normalize: false` inseamna ca modelul primeste pixelii doar scalati la
-  // 0..1 — ceea ce, in formularea noastra, e media 0 si deviatia 1.
+  const nepotriviri = [];
+  // `do_normalize: false` = pixelii doar scalati la 0..1, adica media 0 si deviatia 1.
   const normalizeaza = fisa.do_normalize !== false;
   const meanAsteptat = normalizeaza && Array.isArray(fisa.image_mean) ? fisa.image_mean : [0, 0, 0];
   const stdAsteptat = normalizeaza && Array.isArray(fisa.image_std) ? fisa.image_std : [1, 1, 1];
   for (let i = 0; i < 3; i++) {
-    if (!aproape(recipe.mean[i], meanAsteptat[i])) neconcordante.push(`mean[${i}]: reteta ${recipe.mean[i]}, model ${meanAsteptat[i]}`);
-    if (!aproape(recipe.std[i], stdAsteptat[i])) neconcordante.push(`std[${i}]: reteta ${recipe.std[i]}, model ${stdAsteptat[i]}`);
+    if (!aproape(v.mean[i], meanAsteptat[i])) nepotriviri.push(`mean[${i}]: reteta ${v.mean[i]}, model ${meanAsteptat[i]}`);
+    if (!aproape(v.std[i], stdAsteptat[i])) nepotriviri.push(`std[${i}]: reteta ${v.std[i]}, model ${stdAsteptat[i]}`);
   }
-
-  // Latura ceruta poate fi scrisa in doua feluri, dupa cum a fost exportat modelul.
   const latura = fisa.crop_size?.height ?? fisa.crop_size ?? fisa.size?.shortest_edge ?? fisa.size?.height;
-  if (typeof latura === 'number' && latura !== recipe.inputSize) {
-    neconcordante.push(`inputSize: reteta ${recipe.inputSize}, model ${latura}`);
+  if (typeof latura === 'number' && latura !== v.inputSize) {
+    nepotriviri.push(`inputSize: reteta ${v.inputSize}, model ${latura}`);
   }
-
-  return neconcordante.length
-    ? { verificat: true, neconcordante }
-    : { verificat: true, neconcordante: [] };
+  return { verificat: true, nepotriviri };
 }
 
-const preproc = await verificaPreprocesarea();
-if (preproc.verificat && preproc.neconcordante.length) {
-  console.error('[clip] PREPROCESARE GRESITA in scripts/clip-model.json:');
-  for (const n of preproc.neconcordante) console.error(`[clip]   ${n}`);
-  renunta('numerele de preprocesare nu se potrivesc cu fisa modelului — un model rulat asa da vectori plauzibili si gresiti');
-}
-if (!preproc.verificat) {
-  console.warn(`[clip] ATENTIE: preprocesarea NU a putut fi verificata (${preproc.motiv}).`);
-  console.warn('[clip] Numerele din reteta raman o afirmatie neconfirmata.');
-} else {
-  console.log('[clip] Preprocesare confirmata din fisa modelului: mean/std/inputSize se potrivesc.');
-}
+/** Aduce o varianta. `null` cand nu se poate — si atunci se trece la urmatoarea. */
+async function aduVarianta(v, index) {
+  const sari = motiv => { console.warn(`[clip] "${v.name}" SARIT: ${motiv}`); return null; };
 
-const sha = createHash('sha256').update(octeti).digest('hex');
-const manifest = {
-  id: `${recipe.name}@${sha.slice(0, 12)}`,
-  dim: recipe.dim,
-  inputSize: recipe.inputSize,
-  mean: recipe.mean,
-  std: recipe.std,
-  file: 'model.onnx',
-  bytes: octeti.length
-};
+  let raspuns;
+  try {
+    raspuns = await fetch(v.url);
+  } catch (err) {
+    return sari(`retea: ${err.message}`);
+  }
+  if (!raspuns.ok) return sari(`HTTP ${raspuns.status}`);
+
+  const octeti = Buffer.from(await raspuns.arrayBuffer());
+  // `fetch` reuseste si cand primeste o pagina de eroare HTML in loc de model.
+  if (octeti.length < v.minBytes) return sari(`prea mic (${octeti.length} octeti) — probabil o pagina de eroare`);
+  if (octeti.length > v.maxBytes) return sari(`prea mare (${octeti.length} octeti)`);
+  // Un .onnx e protobuf: primul camp (ir_version, varint) da octetul 0x08. Un HTML incepe cu '<'.
+  if (octeti[0] !== 0x08) return sari(`nu arata a ONNX (primul octet 0x${octeti[0].toString(16)})`);
+
+  const pre = await verificaPreprocesarea(v);
+  if (pre.verificat && pre.nepotriviri.length) {
+    for (const n of pre.nepotriviri) console.error(`[clip]   ${n}`);
+    return sari('preprocesarea nu se potriveste cu fisa modelului — ar da vectori plauzibili si gresiti');
+  }
+  if (!pre.verificat) console.warn(`[clip] "${v.name}": preprocesare NEVERIFICATA (${pre.motiv})`);
+
+  const sha = createHash('sha256').update(octeti).digest('hex');
+  const file = `model-${index}.onnx`;
+  await writeFile(resolve(outDir, file), octeti);
+  console.log(`[clip] ${v.name}@${sha.slice(0, 12)} — ${(octeti.length / 1048576).toFixed(1)} MB${pre.verificat ? ', preprocesare confirmata' : ''}`);
+  return {
+    id: `${v.name}@${sha.slice(0, 12)}`,
+    label: v.eticheta ?? v.name,
+    dim: v.dim, inputSize: v.inputSize, mean: v.mean, std: v.std,
+    file, bytes: octeti.length
+  };
+}
 
 await mkdir(outDir, { recursive: true });
-await writeFile(resolve(outDir, 'model.onnx'), octeti);
-// Manifestul se scrie ULTIMUL: cat timp lipseste, aplicatia considera ca nu
-// exista model — deci un build intrerupt la mijloc nu lasa in urma un model
-// pe jumatate scris pe care cineva sa incerce sa-l foloseasca.
-await writeFile(resolve(outDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
+const variante = [];
+for (const [i, v] of reteta.variants.entries()) {
+  const rezultat = await aduVarianta(v, i);
+  if (rezultat) variante.push(rezultat);
+}
 
-const mb = (octeti.length / 1048576).toFixed(1);
-console.log(`[clip] ${manifest.id} — ${mb} MB, ${manifest.dim} dimensiuni, intrare ${manifest.inputSize}px`);
-console.log(`[clip] sha256 complet: ${sha}`);
-await stat(resolve(outDir, 'model.onnx'));
+if (variante.length === 0) {
+  console.warn('[clip] Nicio varianta adusa. Build-ul continua fara functia optionala.');
+  process.exit(0);
+}
+
+// Manifestul se scrie ULTIMUL: cat timp lipseste, aplicatia considera ca nu
+// exista model, deci un build intrerupt la mijloc nu lasa in urma ceva folosibil pe jumatate.
+await writeFile(resolve(outDir, 'manifest.json'), JSON.stringify({ variants: variante }, null, 2));
+console.log(`[clip] ${variante.length} varianta(e) in manifest.`);

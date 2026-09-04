@@ -12,7 +12,7 @@ import type { ClipManifest } from '../core/clip/clipManifest';
  * refuzul de a intoarce un vector in care nu putem avea incredere.
  */
 const MANIFEST: ClipManifest = {
-  id: 'test-model@v1', dim: 4, inputSize: 2,
+  id: 'test-model@v1', label: 'test', dim: 4, inputSize: 2,
   mean: [0, 0, 0], std: [1, 1, 1], file: 'model.onnx', bytes: 1000
 };
 
@@ -70,6 +70,15 @@ describe('init', () => {
     const rezultat = await new ClipEmbedService().init(MANIFEST, '/m.onnx', runtime);
     expect(runtime.backendsTried).toEqual(['webgpu', 'wasm']);
     expect(rezultat.backend).toBe('wasm');
+  });
+
+  it('cu backend CERUT explicit nu cade pe altul — arunca', async () => {
+    // La masuratoare, un esec ascuns e mai rau decat un esec: cine compara
+    // variantele ar primi cifra procesorului sub numele placii video, si ar
+    // trage exact concluzia gresita.
+    const runtime = stubRuntime({ webgpuFails: true });
+    await expect(new ClipEmbedService().init(MANIFEST, '/m.onnx', runtime, 'webgpu')).rejects.toThrow();
+    expect(runtime.backendsTried).toEqual(['webgpu']);
   });
 
   it('raporteaza cat a durat incarcarea — cifra, nu o promisiune', async () => {

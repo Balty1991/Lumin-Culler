@@ -22,7 +22,7 @@
  * gresite, tacut. De-aia nu se compara nimic fara acelasi `id`.
  */
 
-/** Ce scrie CI-ul in public/models/clip/manifest.json. */
+/** O varianta de model adusa la build (aceeasi retea, alta cuantizare). */
 export interface ClipManifest {
   /**
    * Identitatea EXACTA a modelului, inclusiv cuantizarea si revizia — ex.
@@ -42,6 +42,25 @@ export interface ClipManifest {
   file: string;
   /** Marimea lui in octeti — ca sa putem SPUNE cat descarcam inainte s-o facem. */
   bytes: number;
+  /** Eticheta scurta pentru ecran ("16 biti (pentru placa video)"). */
+  label: string;
+}
+
+/**
+ * Ce scrie CI-ul in manifest.json: variantele chiar aduse, in ordinea din reteta.
+ *
+ * DE CE O LISTA, si nu un singur model. Prima masuratoare pe telefon real a dat
+ * 1404 ms pe poza cu varianta cuantizata pe 8 biti, pe WebGPU — de zeci de ori
+ * mai lent decat ar trebui. Explicatia probabila: un model cuantizat e facut
+ * pentru procesor, iar WebGPU nu-i cunoaste o parte din operatii si le trimite
+ * inapoi pe CPU, deci fiecare poza face drumuri intre placa video si procesor.
+ *
+ * Dar "probabil" nu e o cifra. Se aduc mai multe variante si le masoara
+ * utilizatorul, pe telefonul lui — aceeasi regula ca peste tot in aplicatie:
+ * alege cifra, nu presupunerea.
+ */
+export interface ClipManifestFile {
+  variants: ClipManifest[];
 }
 
 /**
@@ -99,6 +118,7 @@ export function parseClipManifest(raw: unknown): ClipManifest | null {
   if (!raw || typeof raw !== 'object') return null;
   const m = raw as Record<string, unknown>;
   if (typeof m.id !== 'string' || m.id.length === 0) return null;
+  if (typeof m.label !== 'string' || m.label.length === 0) return null;
   if (typeof m.file !== 'string' || m.file.length === 0) return null;
   // Dimensiunile trebuie sa fie intregi pozitivi: un `dim` de 0 sau fractionar
   // ar trece de o verificare lenesa si ar rupe abia la prima inferenta.
@@ -110,9 +130,20 @@ export function parseClipManifest(raw: unknown): ClipManifest | null {
   // Infinity in tensor, si un vector de NaN-uri la iesire.
   if (m.std.some(s => s === 0)) return null;
   return {
-    id: m.id, dim: m.dim, inputSize: m.inputSize,
+    id: m.id, label: m.label, dim: m.dim, inputSize: m.inputSize,
     mean: m.mean, std: m.std, file: m.file, bytes: m.bytes
   };
+}
+
+/**
+ * Variantele valide dintr-un manifest. O varianta stricata e SARITA, nu invalideaza
+ * tot: daca una dintre doua s-a scris prost, cealalta ramane folosibila.
+ */
+export function parseClipManifestFile(raw: unknown): ClipManifest[] {
+  if (!raw || typeof raw !== 'object') return [];
+  const list = (raw as { variants?: unknown }).variants;
+  if (!Array.isArray(list)) return [];
+  return list.map(parseClipManifest).filter((v): v is ClipManifest => v !== null);
 }
 
 /**
@@ -121,15 +152,15 @@ export function parseClipManifest(raw: unknown): ClipManifest | null {
  */
 export async function readClipManifest(
   fetchImpl: typeof fetch = fetch
-): Promise<ClipManifest | null> {
+): Promise<ClipManifest[]> {
   try {
     const res = await fetchImpl(CLIP_MANIFEST_URL);
-    if (!res.ok) return null;
-    return parseClipManifest(await res.json());
+    if (!res.ok) return [];
+    return parseClipManifestFile(await res.json());
   } catch {
     // Fisier absent, JSON stricat, retea taiata la prima pornire — toate
     // inseamna acelasi lucru pentru utilizator: functia nu e disponibila.
-    return null;
+    return [];
   }
 }
 

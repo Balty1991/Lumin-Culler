@@ -1,40 +1,66 @@
 {
   "_comentariu": [
-    "Reteta modelului CLIP adus la build. TOT ce e riscant in integrarea CLIP sta",
-    "in acest fisier, intr-un singur loc revizuibil — restul codului citeste",
-    "manifestul produs, nu presupune nimic.",
+    "Retetele modelelor CLIP aduse la build. TOT ce e riscant in integrare sta in",
+    "acest fisier, intr-un singur loc revizuibil.",
+    "",
+    "MAI MULTE VARIANTE, si asta e o lectie platita cu o masuratoare pe telefon:",
+    "prima varianta livrata a fost cea CUANTIZATA pe 8 biti, si a iesit 1404 ms pe",
+    "poza pe WebGPU — de zeci de ori mai lent decat ar trebui. Cauza probabila e ca",
+    "un model cuantizat e facut pentru procesor: backend-ul WebGPU nu stie o parte",
+    "din operatiile lui si le trimite inapoi pe procesor, deci fiecare poza face",
+    "drumuri intre placa video si CPU.",
+    "",
+    "Nu se rezolva prin ghicit inca o data. Se aduc AMANDOUA variantele, iar",
+    "ecranul de masurare le ruleaza pe rand si arata tabelul. Alege cifra, nu",
+    "presupunerea.",
     "",
     "ATENTIE la mean/std si inputSize: sunt preprocesarea cu care a fost ANTRENAT",
     "modelul. Gresite, modelul nu da eroare — da vectori plauzibili si complet",
-    "gresiti (vezi core/clip/clipPreprocess.ts). Se iau din fisa modelului, nu",
-    "din memorie, si se confirma inainte ca functia sa fie pornita implicit.",
+    "gresiti. Scriptul le compara automat cu fisa publicata langa model si refuza",
+    "varianta la nepotrivire.",
     "",
-    "`id` NU se scrie aici: il calculeaza scriptul din SHA-256-ul fisierului",
-    "descarcat. Asa, orice schimbare a modelului — alta revizie, alta cuantizare,",
-    "alt fisier — schimba automat identitatea, iar vectorii vechi devin",
-    "recunoscut-straini fara ca cineva sa trebuiasca sa-si aduca aminte sa",
-    "incrementeze o versiune.",
-    "",
-    "`preprocessorUrl` inchide automat exact riscul descris mai sus: scriptul",
-    "aduce fisa de preprocesare a modelului si o COMPARA cu numerele de aici.",
-    "La nepotrivire NU scrie manifestul — adica functia ramane absenta, in loc sa",
-    "produca vectori plauzibili si gresiti."
+    "`id` NU se scrie aici: il calculeaza scriptul din SHA-256-ul fisierului."
   ],
-  "name": "mobileclip_s0.image.q8",
-  "url": "https://huggingface.co/Xenova/mobileclip_s0/resolve/main/onnx/vision_model_quantized.onnx",
-  "dim": 512,
-  "inputSize": 256,
-  "mean": [
-    0,
-    0,
-    0
-  ],
-  "std": [
-    1,
-    1,
-    1
-  ],
-  "minBytes": 5000000,
-  "maxBytes": 120000000,
-  "preprocessorUrl": "https://huggingface.co/Xenova/mobileclip_s0/resolve/main/preprocessor_config.json"
+  "variants": [
+    {
+      "name": "mobileclip_s0.image.fp16",
+      "eticheta": "16 biti (pentru placa video)",
+      "url": "https://huggingface.co/Xenova/mobileclip_s0/resolve/main/onnx/vision_model_fp16.onnx",
+      "dim": 512,
+      "inputSize": 256,
+      "mean": [
+        0,
+        0,
+        0
+      ],
+      "std": [
+        1,
+        1,
+        1
+      ],
+      "minBytes": 5000000,
+      "maxBytes": 200000000,
+      "preprocessorUrl": "https://huggingface.co/Xenova/mobileclip_s0/resolve/main/preprocessor_config.json"
+    },
+    {
+      "name": "mobileclip_s0.image.q8",
+      "eticheta": "8 biti (pentru procesor)",
+      "url": "https://huggingface.co/Xenova/mobileclip_s0/resolve/main/onnx/vision_model_quantized.onnx",
+      "dim": 512,
+      "inputSize": 256,
+      "mean": [
+        0,
+        0,
+        0
+      ],
+      "std": [
+        1,
+        1,
+        1
+      ],
+      "minBytes": 5000000,
+      "maxBytes": 120000000,
+      "preprocessorUrl": "https://huggingface.co/Xenova/mobileclip_s0/resolve/main/preprocessor_config.json"
+    }
+  ]
 }

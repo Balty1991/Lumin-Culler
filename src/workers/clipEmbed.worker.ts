@@ -101,15 +101,31 @@ export class ClipEmbedService {
    * Diferenta e ca aici esecul e ieftin — daca amandoua cad, functia lipseste,
    * si aplicatia e exact cea de azi.
    */
-  async init(manifest: ClipManifest, modelUrl: string, runtime?: OrtRuntime): Promise<ClipInitResult> {
+  async init(
+    manifest: ClipManifest,
+    modelUrl: string,
+    runtime?: OrtRuntime,
+    /**
+     * Cand e dat, se foloseste EXACT acel backend, fara cascada. Exista pentru
+     * masuratoare: un model cuantizat pe 8 biti poate fi mult mai rapid pe
+     * procesor decat pe placa video (WebGPU nu-i cunoaste o parte din operatii
+     * si le trimite inapoi pe CPU), iar asta nu se afla decat masurand
+     * amandoua, nu lasand cascada sa aleaga.
+     */
+    forceBackend?: 'webgpu' | 'wasm'
+  ): Promise<ClipInitResult> {
     const started = Date.now();
     const ort = runtime ?? await loadRealRuntime();
-    let backend: 'webgpu' | 'wasm' = 'webgpu';
+    let backend: 'webgpu' | 'wasm' = forceBackend ?? 'webgpu';
     try {
-      this.session = await ort.createSession(modelUrl, 'webgpu');
-    } catch {
+      this.session = await ort.createSession(modelUrl, backend);
+    } catch (err) {
       // Placa video lipsa, driver refuzat, telefon vechi — wasm merge peste tot,
       // mai incet. Un refugiu care merge bate o functie care nu porneste.
+      // Cand backend-ul a fost cerut explicit, esecul NU se ascunde: cine
+      // masoara trebuie sa afle ca acel backend nu merge, nu sa primeasca
+      // cifra altuia sub numele lui.
+      if (forceBackend) throw err;
       backend = 'wasm';
       this.session = await ort.createSession(modelUrl, 'wasm');
     }

@@ -22,19 +22,14 @@ import type { ClipEmbedService } from '../../workers/clipEmbed.worker';
  * presiune de RAM.
  */
 
-/** Ce stie aplicatia despre motorul nou, fara sa-l porneasca. */
-export interface ClipAvailability {
-  /** null = build-ul asta n-are model, deci functia nu exista. Nu e o eroare. */
-  manifest: ClipManifest | null;
-}
-
-let manifestPromise: Promise<ClipManifest | null> | null = null;
+let manifestPromise: Promise<ClipManifest[]> | null = null;
 
 /**
- * Exista un model in build-ul asta? Citit o singura data si tinut minte:
- * raspunsul nu se schimba cat timp pagina traieste.
+ * Ce variante de model exista in build-ul asta. Lista goala = functia nu
+ * exista, si e o stare normala, nu o eroare. Citit o singura data si tinut
+ * minte: raspunsul nu se schimba cat timp pagina traieste.
  */
-export function clipAvailability(): Promise<ClipManifest | null> {
+export function clipAvailability(): Promise<ClipManifest[]> {
   manifestPromise ??= readClipManifest();
   return manifestPromise;
 }
@@ -71,18 +66,25 @@ export let lastClipError: string | null = null;
  * Idempotenta: al doilea apel primeste aceeasi sesiune, nu incarca modelul din
  * nou.
  */
-export async function ensureClipReady(): Promise<LiveWorker | null> {
-  if (live) return live;
+export async function ensureClipReady(
+  variant?: ClipManifest,
+  forceBackend?: 'webgpu' | 'wasm'
+): Promise<LiveWorker | null> {
+  const dorit = variant ?? (await clipAvailability())[0];
+  if (!dorit) return null;
+  // Sesiunea se refoloseste doar daca e chiar aceeasi varianta pe acelasi
+  // backend. Altfel ar raporta cifra unui model sub numele altuia — exact
+  // genul de comparatie falsa pe care masuratoarea exista s-o previna.
+  if (live && live.manifest.id === dorit.id && (!forceBackend || live.backend === forceBackend)) return live;
+  releaseClip();
   lastClipError = null;
-  const manifest = await clipAvailability();
-  if (!manifest) return null;
   try {
     // `new URL(..., import.meta.url)` e forma pe care Vite o recunoaste ca worker
     // si o imparte in chunk separat — vezi si workerPool.ts.
     const worker = new Worker(new URL('../../workers/clipEmbed.worker.ts', import.meta.url), { type: 'module' });
     const api = Comlink.wrap<ClipEmbedService>(worker);
-    const res = await api.init(manifest, clipModelUrl(manifest));
-    live = { worker, api, manifest, backend: res.backend, loadMs: res.loadMs };
+    const res = await api.init(dorit, clipModelUrl(dorit), undefined, forceBackend);
+    live = { worker, api, manifest: dorit, backend: res.backend, loadMs: res.loadMs };
     return live;
   } catch (err) {
     // Model corupt, wasm negasit, WebGPU si procesor amandoua refuzate, memorie
@@ -112,8 +114,12 @@ export function releaseClip(): void {
  * omul decide sa nu porneasca functia, n-are de ce sa ramana cu date de la ea
  * pe telefon.
  */
-export async function runClipBenchmark(photoIds: readonly string[]): Promise<ClipBenchmarkResult | null> {
-  const session = await ensureClipReady();
+export async function runClipBenchmark(
+  photoIds: readonly string[],
+  variant?: ClipManifest,
+  forceBackend?: 'webgpu' | 'wasm'
+): Promise<ClipBenchmarkResult | null> {
+  const session = await ensureClipReady(variant, forceBackend);
   if (!session) return null;
   const perPhoto: number[] = [];
   for (const id of photoIds.slice(0, BENCHMARK_SAMPLES)) {
@@ -135,4 +141,45 @@ export async function runClipBenchmark(photoIds: readonly string[]): Promise<Cli
     }
   }
   return summarizeBenchmark(session.backend, session.loadMs, perPhoto);
+}
+
+/** Un rand din tabelul de comparatie: o varianta, pe un backend. */
+export interface ClipMatrixRow {
+  variant: ClipManifest;
+  forced: 'webgpu' | 'wasm';
+  result: ClipBenchmarkResult | null;
+  /** Motivul, cand randul a picat. */
+  error: string | null;
+}
+
+/**
+ * Masoara FIECARE varianta pe FIECARE backend si intoarce tabelul.
+ *
+ * Exista fiindca prima masuratoare a dat 1404 ms pe poza si nimeni nu putea
+ * spune de ce: modelul e prea greu, sau doar prost potrivit cu backend-ul pe
+ * care a nimerit? Un singur numar nu raspunde niciodata la intrebarea asta —
+ * un tabel de patru celule, da.
+ *
+ * Randurile picate raman IN tabel, cu motivul lor: "varianta X nu porneste pe
+ * WebGPU" e un rezultat, nu o absenta.
+ */
+export async function runClipMatrix(
+  photoIds: readonly string[],
+  onProgress?: (facut: number, total: number) => void
+): Promise<ClipMatrixRow[]> {
+  const variants = await clipAvailability();
+  const backends: ('webgpu' | 'wasm')[] = ['webgpu', 'wasm'];
+  const randuri: ClipMatrixRow[] = [];
+  const total = variants.length * backends.length;
+  for (const variant of variants) {
+    for (const forced of backends) {
+      onProgress?.(randuri.length, total);
+      const result = await runClipBenchmark(photoIds, variant, forced);
+      randuri.push({ variant, forced, result, error: result ? null : lastClipError });
+    }
+  }
+  onProgress?.(total, total);
+  // Sesiunea ultimei combinatii n-are de ce sa ramana in memorie dupa un tabel.
+  releaseClip();
+  return randuri;
 }

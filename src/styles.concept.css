@@ -6757,3 +6757,23 @@ button:disabled,
   overflow-wrap: anywhere;
   user-select: text;
 }
+
+/* Tabelul de comparatie din ecranul motorului nou. Compact cu buna stiinta:
+   patru coloane trebuie sa incapa pe 320 px fara derulare laterala, altfel
+   comparatia — singurul rost al tabelului — nu se poate face dintr-o privire. */
+.clip-table { width: 100%; border-collapse: collapse; margin: 4px 0 2px; font-size: .74rem; }
+.clip-table th {
+  text-align: left;
+  padding: 0 6px 6px 0;
+  color: var(--text-faint);
+  font-family: var(--mono);
+  font-size: .6rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.clip-table th:last-child, .clip-table td:last-child { text-align: right; padding-right: 0; }
+.clip-table td { padding: 7px 6px 7px 0; border-top: 1px solid var(--line); color: var(--text); }
+.clip-table td:first-child { color: var(--text-dim); }
+/* Randul picat nu se ascunde si nu se scoate: se stinge. Un esec e un rezultat. */
+.clip-row-failed td { color: var(--text-faint); }

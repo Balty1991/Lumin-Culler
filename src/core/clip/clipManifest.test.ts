@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { parseClipManifest, readClipManifest, clipModelUrl, CLIP_MANIFEST_URL, type ClipManifest } from './clipManifest';
+import { parseClipManifest, parseClipManifestFile, readClipManifest, clipModelUrl, CLIP_MANIFEST_URL, type ClipManifest } from './clipManifest';
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -12,7 +12,7 @@ import { resolve } from 'node:path';
  * aplicatia de azi), pe cand jumatate inseamna vectori calculati gresit.
  */
 const VALID: ClipManifest = {
-  id: 'mobileclip_s0.image.q8@a1b2c3d4e5f6',
+  id: 'mobileclip_s0.image.q8@a1b2c3d4e5f6', label: '8 biti',
   dim: 512, inputSize: 256,
   mean: [0, 0, 0], std: [1, 1, 1],
   file: 'model.onnx', bytes: 12_345_678
@@ -33,6 +33,7 @@ describe('parseClipManifest', () => {
     ['mean cu doua valori', { ...VALID, mean: [0, 0] }],
     ['std cu text', { ...VALID, std: ['1', 1, 1] }],
     ['nu e obiect', 'model.onnx'],
+    ['fara eticheta', { ...VALID, label: '' }],
     ['null', null]
   ])('respinge un manifest %s', (_nume, intrare) => {
     expect(parseClipManifest(intrare)).toBeNull();
@@ -45,24 +46,44 @@ describe('parseClipManifest', () => {
   });
 });
 
+describe('parseClipManifestFile', () => {
+  it('citeste lista de variante', () => {
+    const doua = parseClipManifestFile({ variants: [VALID, { ...VALID, id: 'x@2', label: '16 biti' }] });
+    expect(doua.map(v => v.label)).toEqual(['8 biti', '16 biti']);
+  });
+
+  it('SARE o varianta stricata si o pastreaza pe cealalta', () => {
+    // Daca una din doua s-a scris prost, cealalta ramane folosibila — nu se
+    // pierde toata functia pentru un rand gresit.
+    const rezultat = parseClipManifestFile({ variants: [{ ...VALID, dim: 0 }, VALID] });
+    expect(rezultat).toHaveLength(1);
+    expect(rezultat[0].id).toBe(VALID.id);
+  });
+
+  it('un fisier fara lista nu e o eroare, e o lista goala', () => {
+    expect(parseClipManifestFile({})).toEqual([]);
+    expect(parseClipManifestFile(null)).toEqual([]);
+  });
+});
+
 describe('readClipManifest', () => {
-  it('intoarce null cand fisierul lipseste — starea normala, nu o eroare', async () => {
+  it('intoarce lista goala cand fisierul lipseste — starea normala, nu o eroare', async () => {
     const fetchImpl = vi.fn().mockResolvedValue({ ok: false, status: 404 });
-    expect(await readClipManifest(fetchImpl as unknown as typeof fetch)).toBeNull();
+    expect(await readClipManifest(fetchImpl as unknown as typeof fetch)).toEqual([]);
   });
 
-  it('intoarce null cand reteaua arunca', async () => {
+  it('intoarce lista goala cand reteaua arunca', async () => {
     const fetchImpl = vi.fn().mockRejectedValue(new Error('offline'));
-    expect(await readClipManifest(fetchImpl as unknown as typeof fetch)).toBeNull();
+    expect(await readClipManifest(fetchImpl as unknown as typeof fetch)).toEqual([]);
   });
 
-  it('intoarce null pe JSON stricat, in loc sa arunce in ecranul care intreaba', async () => {
+  it('intoarce lista goala pe JSON stricat, in loc sa arunce in ecranul care intreaba', async () => {
     const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.reject(new Error('json')) });
-    expect(await readClipManifest(fetchImpl as unknown as typeof fetch)).toBeNull();
+    expect(await readClipManifest(fetchImpl as unknown as typeof fetch)).toEqual([]);
   });
 
   it('citeste de la adresa asteptata', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => VALID });
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ variants: [VALID] }) });
     await readClipManifest(fetchImpl as unknown as typeof fetch);
     expect(fetchImpl).toHaveBeenCalledWith(CLIP_MANIFEST_URL);
   });
@@ -91,12 +112,16 @@ describe('reteta din scripts/clip-model.json', () => {
     // model pe care aplicatia l-ar folosi cu numere gresite.
     expect(existsSync(cale)).toBe(true);
     const reteta = JSON.parse(readFileSync(cale, 'utf8'));
-    for (const camp of ['name', 'url', 'dim', 'inputSize', 'mean', 'std', 'minBytes', 'maxBytes']) {
-      expect(reteta[camp], `lipseste "${camp}"`).toBeDefined();
+    expect(Array.isArray(reteta.variants)).toBe(true);
+    expect(reteta.variants.length).toBeGreaterThan(0);
+    for (const v of reteta.variants) {
+      for (const camp of ['name', 'url', 'dim', 'inputSize', 'mean', 'std', 'minBytes', 'maxBytes']) {
+        expect(v[camp], `lipseste "${camp}" din ${v.name}`).toBeDefined();
+      }
+      expect(v.mean).toHaveLength(3);
+      expect(v.std).toHaveLength(3);
+      expect(v.std.every((s: number) => s !== 0)).toBe(true);
     }
-    expect(reteta.mean).toHaveLength(3);
-    expect(reteta.std).toHaveLength(3);
-    expect(reteta.std.every((s: number) => s !== 0)).toBe(true);
   });
 
   it('NU contine un id scris de mana — el se calculeaza din continutul fisierului', () => {
@@ -104,7 +129,7 @@ describe('reteta din scripts/clip-model.json', () => {
     // sha256 se schimba singur la orice modificare a modelului, iar vectorii
     // vechi devin automat recunoscut-straini.
     const reteta = JSON.parse(readFileSync(cale, 'utf8'));
-    expect(reteta.id).toBeUndefined();
+    for (const v of reteta.variants) expect(v.id).toBeUndefined();
   });
 });
 
