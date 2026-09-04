@@ -622,11 +622,12 @@ async function sniffRealFormat(file: File): Promise<string | null> {
 }
 
 /** Construieste intrarea folosita de gruparea dupa dHash (hashCompare.worker.ts) din campurile deja calculate de analiza AI. */
-export function toHashInput(id: string, dHash: string, a: AnalysisRecord, capturedAt?: number): HashInput {
+export function toHashInput(id: string, dHash: string, a: AnalysisRecord, capturedAt?: number, capturedAtExact?: boolean): HashInput {
   return {
     id,
     hash: dHash,
     ...(capturedAt !== undefined ? { capturedAt } : {}),
+    ...(capturedAtExact !== undefined ? { capturedAtExact } : {}),
     score: a.aiScore,
     sharpness: a.sharpness,
     exposure: a.exposure,
@@ -776,6 +777,10 @@ async function processOne(file: File, genre?: string, project?: string, handle?:
     // sincronizare cloud), care poate diferi mult de momentul declansarii, mai ales cu
     // mai multe aparate/carduri la acelasi eveniment
     capturedAt: capturedAt ?? file.lastModified,
+    // ...si SPUNEM din care dintre cele doua vine. Fara asta, gruparea in
+    // rafale trata data unei descarcari ca pe momentul declansarii — vezi
+    // PhotoRecord.capturedAtExact.
+    capturedAtExact: capturedAt !== undefined,
     importedAt: Date.now(),
     width: w,
     height: h,
@@ -975,7 +980,7 @@ export async function importFiles(
 
         try {
           const item = await processOne(file, genre, project, handle, mediaUri, thresholds, mediaUri ? mediaLocations?.get(mediaUri) : undefined);
-          hashes.push(toHashInput(item.photo.id, item.photo.dHash, item.analysis, item.photo.capturedAt));
+          hashes.push(toHashInput(item.photo.id, item.photo.dHash, item.analysis, item.photo.capturedAt, item.photo.capturedAtExact));
           onPhoto(item);
         } catch (err) {
           if (isQuotaError(err)) { stopReason = stopMessage(done); break; }

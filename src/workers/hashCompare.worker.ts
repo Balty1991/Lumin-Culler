@@ -50,6 +50,8 @@ export interface HashInput extends Partial<Omit<GroupCandidate, 'id'>> {
   dominantColors?: string[];
   /** Momentul capturii (EXIF, altfel data fisierului) — vezi TIME_CLOSE_SIMILARITY_THRESHOLD. Absent = doar pragul strans de asemanare. */
   capturedAt?: number;
+  /** `capturedAt` vine din EXIF, nu din data fisierului — vezi closeInTimeTo. */
+  capturedAtExact?: boolean;
 }
 
 export interface GroupUpdate {
@@ -194,9 +196,28 @@ function cosineSimilarity(a: number[], b: number[]): number {
   return denom > 0 ? dot / denom : 0;
 }
 
-/** true daca cele doua cadre sunt la cel mult `windowMs` unul de altul. Fara data de captura pe vreuna dintre parti, nu putem afirma nimic. */
+/**
+ * true daca cele doua cadre sunt la cel mult `windowMs` unul de altul. Fara
+ * data de captura pe vreuna dintre parti, nu putem afirma nimic.
+ *
+ * SI FARA O DATA SIGURA, la fel. Bug real raportat cu doua capturi: un peisaj
+ * montan insorit si un portret la lumina de lumanare grupate ca "serie de 2
+ * cadre similare". Erau amandoua descarcate, deci fara EXIF, deci `capturedAt`
+ * cazuse pe data fisierului — adica pe momentul DESCARCARII. Descarcate in
+ * acelasi minut, pareau facute in acelasi minut, si asa deblocau pragul de
+ * asemanare LARG de mai jos, cel gandit pentru doua apasari de declansator.
+ *
+ * Intrebarea pe care o pune functia asta e "au fost facute aproape una de
+ * alta?". Data unui fisier nu raspunde la ea. Fara EXIF ramane doar ruta 1,
+ * asemanarea vizuala stransa — care pe doua scene diferite nu trece niciodata.
+ *
+ * `!== false`: pozele de dinaintea campului (absent) raman tratate ca inainte.
+ * Vezi migrarea v12 din core/db.ts, care il deduce retroactiv acolo unde se
+ * poate.
+ */
 function closeInTimeTo(photo: HashInput, other: HashInput, windowMs: number): boolean {
   if (photo.capturedAt === undefined || other.capturedAt === undefined) return false;
+  if (photo.capturedAtExact === false || other.capturedAtExact === false) return false;
   return Math.abs(other.capturedAt - photo.capturedAt) <= windowMs;
 }
 

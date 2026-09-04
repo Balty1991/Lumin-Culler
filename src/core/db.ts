@@ -53,6 +53,28 @@ export interface PhotoRecord {
   aiDecided?: boolean;
   fileName: string;
   capturedAt?: number;
+  /**
+   * `capturedAt` vine din EXIF/RAW (ceasul aparatului), nu din data fisierului.
+   *
+   * Bug real, raportat cu doua capturi: un peisaj montan insorit si un portret
+   * la lumina de lumanare erau grupate ca "serie de 2 cadre similare". N-aveau
+   * nimic in comun — dar erau amandoua descarcate, deci fara EXIF, deci
+   * `capturedAt` cazuse pe `file.lastModified`, adica pe momentul DESCARCARII.
+   * Descarcate in acelasi minut, pareau facute in acelasi minut.
+   *
+   * Regula de rafala din hashCompare.worker.ts accepta un prag de asemanare
+   * mult mai LARG cand doua cadre sunt la sub 45 de secunde unul de altul —
+   * ceea ce e corect pentru doua apasari de declansator si complet gresit
+   * pentru doua descarcari. Comentariul de la `capturedAt ?? file.lastModified`
+   * (importPipeline.ts) avertiza deja ca data fisierului "reflecta adesea
+   * momentul COPIERII pe disc"; doar ca avertismentul nu ajungea nicaieri,
+   * fiindca cele doua proveniente intrau in acelasi camp si deveneau
+   * indistinctibile.
+   *
+   * ABSENT = poze de dinaintea campului. Vezi migrarea v12: se deduce din
+   * prezenta metadatelor de aparat (o poza cu `cameraMake`/`iso` a avut EXIF).
+   */
+  capturedAtExact?: boolean;
   importedAt: number;
   width: number;
   height: number;
@@ -889,6 +911,46 @@ export class LuminDB extends Dexie {
         if (p.status === 'candidate') { p.aiDecided = false; return; }
         if (p.status !== 'selected' && p.status !== 'rejected') return;
         p.aiDecided = !deciseDeOm.has(p.id);
+      });
+    });
+
+    /**
+     * v12 — nicio tabela schimbata. Completeaza `capturedAtExact` pentru pozele
+     * deja din biblioteca.
+     *
+     * De ce e nevoie: fara campul asta, gruparea trata data unui FISIER ca pe
+     * momentul declansarii. Pozele descarcate n-au EXIF, deci data lor e cea a
+     * descarcarii — descarcate in acelasi minut, pareau facute in acelasi
+     * minut, si asa deblocau pragul de asemanare larg gandit pentru rafale. Bug
+     * raportat cu doua capturi: un peisaj montan insorit si un portret la
+     * lumina de lumanare, grupate ca "serie de 2 cadre similare".
+     *
+     * DE UNDE STIM, retroactiv. Din metadatele de aparat deja salvate. Un
+     * fisier care are `cameraMake`/`cameraModel`/`iso`/`fNumber`/`exposureTime`
+     * a avut EXIF citibil, deci `capturedAt` a venit aproape sigur din el.
+     * Fara niciunul dintre ele, EXIF-ul lipsea — cazul tipic al unei poze
+     * descarcate, careia i s-au sters metadatele.
+     *
+     * Directia greselii, si aici e mai delicat decat la migrarea v11: daca
+     * marcam gresit o poza drept "data sigura", pastram comportamentul de pana
+     * acum (inclusiv bugul, pentru acea poza). Daca o marcam gresit drept
+     * nesigura, pierdem gruparea in rafala pentru ea — dar NU si gruparea pe
+     * asemanare vizuala stransa, care ramane activa si care oricum prinde
+     * majoritatea rafalelor adevarate. A doua doare mai putin.
+     */
+    this.version(12).stores({}).upgrade(async tx => {
+      // Metadatele de aparat stau pe `analyses`, nu pe `photos` — o singura
+      // trecere prin ele, apoi o singura trecere prin poze.
+      const cuExif = new Set<string>();
+      await tx.table('analyses').each((a: AnalysisRecord) => {
+        if (a.cameraMake !== undefined || a.cameraModel !== undefined
+          || a.iso !== undefined || a.fNumber !== undefined || a.exposureTime !== undefined) {
+          cuExif.add(a.photoId);
+        }
+      });
+      await tx.table('photos').toCollection().modify((p: PhotoRecord) => {
+        if (p.capturedAtExact !== undefined) return;
+        p.capturedAtExact = cuExif.has(p.id);
       });
     });
   }
