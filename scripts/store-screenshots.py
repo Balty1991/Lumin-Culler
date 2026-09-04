@@ -66,6 +66,22 @@ def taie_bara_de_sistem(im):
     return im.crop((0, CROP_TOP, im.width, y + 1))
 
 
+# Cateva ecrane isi incep continutul chiar sub bara de stare (sertarul de
+# meniu, de exemplu, e pe tot ecranul si isi pune titlul in varf). Taiata,
+# captura ajunge cu titlul lipit de coltul rotunjit al ramei si arata inghesuit
+# — nu e o problema a aplicatiei, e o problema a decupajului nostru, asa ca se
+# rezolva aici: adaugam o banda neagra de aceeasi culoare cu fundalul ecranului.
+PAD_SUS = {'57ce8f4f-image.jpg': 40}
+
+
+def respira_sus(im, inaltime):
+    if inaltime <= 0:
+        return im
+    nou = Image.new('RGB', (im.width, im.height + inaltime), im.getpixel((im.width - 4, 4)))
+    nou.paste(im, (0, inaltime))
+    return nou
+
+
 def pregateste_fonturile():
     """Space Grotesk cu diacritice romanesti — vezi antetul fisierului."""
     bold, med = f'{FONTS}/SG-bold.ttf', f'{FONTS}/SG-med.ttf'
@@ -158,6 +174,7 @@ def compune(sursa, eticheta, titlu, subtitlu, nume, insigna=None, limba='ro'):
     # ── Telefonul ───────────────────────────────────────────────────────────
     im = Image.open(os.path.join(SRC, sursa)).convert('RGB')
     im = taie_bara_de_sistem(im)
+    im = respira_sus(im, PAD_SUS.get(sursa, 0))
 
     sus = y + 54
     disponibil = H - sus - 116          # 116 = loc pentru semnatura de jos
@@ -207,23 +224,29 @@ def compune(sursa, eticheta, titlu, subtitlu, nume, insigna=None, limba='ro'):
     print(cale, bg.size)
 
 
-# ── Textele, pe limbi ────────────────────────────────────────────────────────
+# ── Textele, pe limbi ──────────────────────────────────────────────────────
 #
-# ATENTIE, si e o limita reala, nu o scapare: interfata DIN capturi e in
-# romana. Setul englezesc de mai jos pune titluri englezesti peste ecrane
-# romanesti. Nu e inselator (aplicatia chiar face ce scrie), dar un vorbitor
-# de engleza vede diferenta imediat, si asta costa la conversie.
+# Fiecare set isi are capturile lui, facute cu aplicatia comutata pe limba
+# respectiva. Prima varianta a setului englezesc punea titluri englezesti peste
+# ecrane romanesti; nu era inselator, dar un vorbitor de engleza vedea
+# diferenta din prima si asta costa exact acolo unde nu vrei, la conversie.
 #
-# Varianta corecta e sa refaci ACELEASI sase capturi cu aplicatia comutata pe
-# EN (Meniu -> Setari -> limba), sa le pui in acelasi folder si sa schimbi doar
-# numele fisierelor din `SURSE_EN`. Restul scriptului nu se atinge.
+# Cele doua seturi NU au aceleasi sase ecrane, si e o diferenta reala, nu o
+# scapare: lista "pe cauze" apare doar cand ai destule poze de verificat
+# (sesiunea romaneasca avea 17, cea englezeasca 2), asa ca in engleza locul ei
+# il ia bara de exigenta — alt ecran, dar aceeasi promisiune: nu doar cat, ci
+# si cat de sever. Daca refaci vreodata capturile englezesti cu o sesiune mare,
+# pune ecranul cu cauze inapoi pe pozitia 2 si textele se potrivesc ca atare.
 SURSE_RO = {
     'scoruri': '25537cf9-image.jpg', 'cauze': '40e959de-image.jpg',
     'dece': 'a5734068-image.jpg', 'metrici': '69016b10-image.jpg',
     'decizie': '0dc65acc-image.jpg', 'privat': '3f64d51d-image.jpg'
 }
-# Cand ai capturile cu aplicatia in engleza, inlocuieste valorile de aici.
-SURSE_EN = dict(SURSE_RO)
+SURSE_EN = {
+    'scoruri': 'a7ca390f-image.jpg', 'exigenta': '2ef2faf9-image.jpg',
+    'dece': 'ac3e349c-image.jpg', 'metrici': 'ea529d48-image.jpg',
+    'decizie': '5231550a-image.jpg', 'privat': '57ce8f4f-image.jpg'
+}
 
 TEXTE = {
     'ro': [
@@ -243,8 +266,8 @@ TEXTE = {
     'en': [
         ('scoruri', 'AI culling', 'A score for every photo',
          'Import, analysis and sorting — any number of photos, free.', ('12 photos', '83% decided')),
-        ('cauze', 'Your review queue', 'Not just how many. Why.',
-         'Grouped by cause: one gesture, not a hundred.', ('5 causes', 'not 17 calls')),
+        ('exigenta', 'One control', 'You set how strict it is',
+         'Lenient, balanced or strict — and it never touches what you decided.', ('3 levels', 'your calls stay')),
         ('dece', 'Explainable', 'Every score, explained',
          'What counted for it and what against. You confirm, the AI learns.', None),
         ('metrici', 'What it measures', 'Sharpness, eyes, smile',
