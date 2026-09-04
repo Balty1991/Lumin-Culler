@@ -11,14 +11,15 @@ const facesByFileName = new Map<string, boolean>();
 // Sursa e acum { blob } SAU { uri } — pre-scanarea foloseste URI-ul de galerie
 // cand exista (nicio decodare in JS), altfel calea veche cu blob.
 type Source = { blob?: Blob; uri?: string };
-const detectFacesNative = vi.fn(async (source: Source) => {
+type Options = { fast?: boolean } | undefined;
+const detectFacesNative = vi.fn(async (source: Source, _options?: Options) => {
   const name = source.uri ?? (source.blob ? await source.blob.text() : '');
   const hasFace = facesByFileName.get(name) ?? false;
   return { faces: hasFace ? [{ boundingBox: { left: 0, top: 0, width: 1, height: 1 } }] : [], imageWidth: 1, imageHeight: 1 };
 });
 vi.mock('./nativeFaceDetection', () => ({
   isNativeFaceDetectionAvailable: () => isNativeFaceDetectionAvailable(),
-  detectFacesNative: (source: Source) => detectFacesNative(source)
+  detectFacesNative: (source: Source, options?: Options) => detectFacesNative(source, options)
 }));
 
 const failingDecodeNames = new Set<string>();
@@ -154,5 +155,47 @@ describe('prioritizeFacesFirst', () => {
     const result = await prioritizeFacesFirst(images);
 
     expect(result.map(i => i.file.name)).toEqual(['cu-fata.jpg', 'corupta.jpg', 'fara-fata-1.jpg', 'fara-fata-2.jpg']);
+  });
+});
+
+/**
+ * Detectorul RAPID, si de ce merita un test propriu.
+ *
+ * Pre-scanarea citeste din rezultat exact un lucru: daca lista de fete e goala
+ * sau nu. Pana acum primea totusi detectorul complet — mod ACCURATE plus
+ * clasificare — care calculeaza zambetul si ochii deschisi pe fiecare fata din
+ * lot, ca sa fie apoi aruncate. Cost pur, pe fiecare poza, exact in faza in
+ * care omul se uita la o bara si nu se intampla nimic.
+ *
+ * Steagul `fast` nu se vede in niciun rezultat: daca dispare, totul continua sa
+ * functioneze si sa treaca toate celelalte teste, doar mai incet. De-aia e
+ * pazit aici, si nu altundeva.
+ */
+describe('pre-scanarea cere detectorul rapid', () => {
+  beforeEach(() => {
+    facesByFileName.clear();
+    failingDecodeNames.clear();
+    detectFacesNative.mockClear();
+    isNativeFaceDetectionAvailable.mockReturnValue(true);
+  });
+
+  it('pe calea cu URI de galerie', async () => {
+    const images = [
+      { file: makeFile('a.jpg'), mediaUri: 'content://1' }, { file: makeFile('b.jpg'), mediaUri: 'content://2' },
+      { file: makeFile('c.jpg'), mediaUri: 'content://3' }, { file: makeFile('d.jpg'), mediaUri: 'content://4' }
+    ];
+    await prioritizeFacesFirst(images);
+    expect(detectFacesNative).toHaveBeenCalled();
+    for (const [, options] of detectFacesNative.mock.calls) expect(options).toEqual({ fast: true });
+  });
+
+  it('si pe calea cu blob (selector de fisiere, fara URI)', async () => {
+    const images = [
+      { file: makeFile('a.jpg') }, { file: makeFile('b.jpg') },
+      { file: makeFile('c.jpg') }, { file: makeFile('d.jpg') }
+    ];
+    await prioritizeFacesFirst(images);
+    expect(detectFacesNative).toHaveBeenCalled();
+    for (const [, options] of detectFacesNative.mock.calls) expect(options).toEqual({ fast: true });
   });
 });

@@ -43,16 +43,55 @@ class FaceDetectionPlugin : Plugin() {
         FaceDetection.getClient(options)
     }, { it.close() })
 
+    /**
+     * Al doilea detector, pentru o intrebare mult mai simpla: "e cineva in
+     * poza asta?" — nu "cine, si cum arata".
+     *
+     * Cine intreaba: pre-scanarea de la inceputul importului (vezi
+     * prioritizeFacesFirst in core/importPipeline.ts), care ruleaza pe primele
+     * 150 de poze din lot doar ca sa le puna pe cele cu oameni la inceputul
+     * cozii. Din tot ce intoarce detectorul, ea citeste EXACT un lucru:
+     * `faces.length > 0`.
+     *
+     * Pana acum primea acelasi detector ca analiza reala: mod ACCURATE plus
+     * CLASSIFICATION_MODE_ALL, adica un pas in plus pe fiecare fata pentru
+     * probabilitatea de zambet si de ochi deschisi — rezultate pe care
+     * pre-scanarea le arunca la gunoi, pe fiecare poza din lot, inainte ca
+     * utilizatorul sa vada ceva pe ecran. Faza aceea e exact cea in care omul
+     * se uita la o bara si nu se intampla nimic; a fost si raportata asa
+     * ("~2 minute inainte sa inceapa analiza", pe un lot de 437).
+     *
+     * FAST + fara clasificare + fara contururi: acelasi raspuns la intrebarea
+     * care se pune, fara sa se calculeze si raspunsurile la cele care nu se
+     * pun. Un fals negativ aici nu strica nimic — poza ramane pur si simplu in
+     * grupul neprioritizat, si e oricum re-analizata complet mai tarziu.
+     */
+    private val fastDetectorHolder = ReleasableModel({
+        FaceDetection.getClient(
+            FaceDetectorOptions.Builder()
+                .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
+                .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_NONE)
+                .setContourMode(FaceDetectorOptions.CONTOUR_MODE_NONE)
+                .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_NONE)
+                .build()
+        )
+    }, { it.close() })
+
     @PluginMethod
     fun detectFaces(call: PluginCall) {
         // Preferam `imageUri` (fara nicio imagine peste punte); `imageBase64`
         // ramane pentru pozele care nu vin din galerie. Vezi BitmapUtils.kt.
         val bitmap: Bitmap = resolveInputBitmap(context, call) ?: return
 
+        // `fast` = doar "e cineva in cadru?", vezi fastDetectorHolder. Implicit
+        // fals, deci orice apelant care nu stie de el primeste exact detectorul
+        // de pana acum.
+        val holder = if (call.getBoolean("fast", false) == true) fastDetectorHolder else detectorHolder
+
         val image = InputImage.fromBitmap(bitmap, /* rotationDegrees = */ 0)
         CrashLog.pas(">FaceDetection")
-        detectorHolder.beginUse().process(image)
-            .addOnCompleteListener { detectorHolder.endUse(); CrashLog.pas("<FaceDetection") }
+        holder.beginUse().process(image)
+            .addOnCompleteListener { holder.endUse(); CrashLog.pas("<FaceDetection") }
             .addOnSuccessListener { faces ->
                 val result = JSObject()
                 val facesArray = JSArray()

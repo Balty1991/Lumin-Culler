@@ -399,8 +399,32 @@ function canvasToJpeg(canvas: HTMLCanvasElement, quality: number): Promise<Blob>
   );
 }
 
-/** Mult sub PREVIEW_MAX_SIDE — scop DOAR sa decidem ordinea de procesare, nu sa mai extragem vreun semnal fin. */
-const FACE_PRESCAN_SIZE = 320;
+/**
+ * Latura pozei trimise pre-scanarii. Mult sub PREVIEW_MAX_SIDE — scop DOAR sa
+ * decidem ordinea de procesare, nu sa mai extragem vreun semnal fin.
+ *
+ * A fost 320, si la 320 pasul asta nu-si facea treaba. Documentatia ML Kit cere
+ * imagini de cel putin 480x360 pentru detectia de fete, si spune ca o fata are
+ * nevoie de vreo 100x100 px ca sa fie gasita de incredere. La 320 px latura
+ * lunga, INTREAGA imagine era sub minimul documentat, iar 100 px insemna o fata
+ * cat o treime din cadru — adica se gaseau doar prim-planurile. Un grup, un
+ * copil la cativa metri, orice portret de mediu: ratate. Deci pasul costa timp
+ * pe fiecare poza din lot si intorcea "nu e nimeni" tocmai pentru pozele pe
+ * care utilizatorul ceruse sa le vada primele.
+ *
+ * La 640, aceiasi 100 px inseamna o fata cat ~16% din cadru: intra portretele
+ * si grupurile obisnuite. Pixelii in plus se platesc din ce s-a taiat in
+ * acelasi timp — pre-scanarea foloseste acum detectorul RAPID, fara clasificare
+ * si fara contururi (vezi `fast` in core/nativeFaceDetection.ts), fiindca din
+ * tot ce intorcea citea oricum un singur lucru: daca lista de fete e goala sau
+ * nu. Zambetul si ochii deschisi se calculau pe fiecare fata din lot si se
+ * aruncau.
+ *
+ * Un fals negativ ramane inofensiv prin constructie: poza doar nu e
+ * prioritizata, si e oricum re-analizata complet, la rezolutie mare, mai
+ * tarziu.
+ */
+const FACE_PRESCAN_SIZE = 640;
 /** Cate poze de la inceputul lotului trec prin pre-scanare — vezi prioritizeFacesFirst pentru de ce nu tot lotul. */
 const FACE_PRESCAN_MAX = 150;
 const FACE_PRESCAN_TIMEOUT_MS = 8000;
@@ -422,7 +446,8 @@ const FACE_PRESCAN_MIN_BATCH = 4;
  * opusul scopului — web/PWA ramane neschimbat, ordinea ramane cea din urma
  * (cum a ales-o utilizatorul in selector).
  *
- * Decodare MICA (320px, calitate redusa) + un singur apel ML Kit per poza —
+ * Decodare MICA (vezi FACE_PRESCAN_SIZE, calitate redusa) + un singur apel ML
+ * Kit per poza, in modul RAPID —
  * mult mai ieftin decat decodarea completa (2048px) + restul pipeline-ului
  * din processOne, care oricum va re-detecta fetele la rezolutie completa
  * (necesar pentru cutii precise de compozitie/focus) — cateva zeci de ms in
@@ -444,7 +469,7 @@ async function prescanViaCanvas(file: File) {
   c.height = bitmap.height;
   c.getContext('2d')!.drawImage(bitmap, 0, 0);
   bitmap.close();
-  return detectFacesNative({ blob: await canvasToJpeg(c, 0.7) });
+  return detectFacesNative({ blob: await canvasToJpeg(c, 0.7) }, { fast: true });
 }
 
 /** Exportata doar pentru testabilitate directa (prioritizeFacesFirst.test.ts) — la fel ca toHashInput/decidePhotoStatus mai sus. */
@@ -490,7 +515,7 @@ export async function prioritizeFacesFirst<T extends { file: File; mediaUri?: st
           // in sine e integrala), plus o recodare si un base64.
           const result = await withTimeout(
             mediaUri
-              ? detectFacesNative({ uri: mediaUri, maxSide: FACE_PRESCAN_SIZE })
+              ? detectFacesNative({ uri: mediaUri, maxSide: FACE_PRESCAN_SIZE }, { fast: true })
               : prescanViaCanvas(file),
             FACE_PRESCAN_TIMEOUT_MS,
             'Pre-scanare fete: decodare prea lenta.'
