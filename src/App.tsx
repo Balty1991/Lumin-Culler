@@ -120,6 +120,9 @@ const DuplicatesPanel = lazyPanel(() => import('./ui/DuplicatesPanel').then(m =>
 const GallerySupervisorPanel = lazyPanel(() => import('./ui/GallerySupervisorPanel').then(m => ({ default: m.GallerySupervisorPanel })));
 const CommandPalette = lazyPanel(() => import('./ui/CommandPalette').then(m => ({ default: m.CommandPalette })));
 const ShortcutsPanel = lazyPanel(() => import('./ui/ShortcutsPanel').then(m => ({ default: m.ShortcutsPanel })));
+// Motorul nou: ecranul de masurare. Lazy ca tot restul — si, spre deosebire de
+// ele, nici macar modelul nu se atinge pana nu apesi butonul dinauntru.
+const ClipLabPanel = lazyPanel(() => import('./ui/ClipLabPanel').then(m => ({ default: m.ClipLabPanel })));
 const ContactSheet = lazyPanel(() => import('./ui/ContactSheet').then(m => ({ default: m.ContactSheet })));
 const PresentationMode = lazyPanel(() => import('./ui/PresentationMode').then(m => ({ default: m.PresentationMode })));
 const EditPanel = lazyPanel(() => import('./ui/EditPanel').then(m => ({ default: m.EditPanel })));
@@ -856,6 +859,7 @@ export default function App() {
         <GroupCompare />
         <CommandPalette />
         <ShortcutsPanel />
+        <ClipLabPanel />
         <MenuDrawer />
         <GuidePanel />
         <PersonsPanel />
@@ -1565,6 +1569,7 @@ export default function App() {
       <GuidePanel />
       <CommandPalette />
       <ShortcutsPanel />
+      <ClipLabPanel />
       <ConfirmDialog />
       {contextMenu && (
         <ContextMenu

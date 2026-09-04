@@ -516,6 +516,9 @@ interface AppState {
   batchOpsOpen: boolean;
   paletteOpen: boolean;
   shortcutsOpen: boolean;
+  /** Ecranul motorului nou (CLIP) — masuratoare si pornire. Vezi ui/ClipLabPanel.tsx. */
+  clipLabOpen: boolean;
+  setClipLabOpen: (open: boolean) => void;
   /**
    * Dialog de confirmare/prompt TEMATIZAT (plan "cat mai pro") — inlocuieste
    * window.confirm/window.prompt (popup nativ de browser, nu respecta tema
@@ -1959,6 +1962,7 @@ export const useStore = create<AppState>((set, get) => ({
   batchOpsOpen: false,
   paletteOpen: false,
   shortcutsOpen: false,
+  clipLabOpen: false,
   theme: readStoredTheme(),
   setTheme: theme => { applyTheme(theme); set({ theme }); },
   accentTheme: readStoredAccent(),
@@ -4053,6 +4057,7 @@ export const useStore = create<AppState>((set, get) => ({
   setBatchOpsOpen: open => set({ batchOpsOpen: open }),
   setPaletteOpen: open => set({ paletteOpen: open }),
   setShortcutsOpen: open => set({ shortcutsOpen: open }),
+  setClipLabOpen: open => set({ clipLabOpen: open }),
   setNotice: message => set({ notice: message }),
   clearNotice: () => set({ notice: null }),
 
@@ -4608,7 +4613,7 @@ subscribeEntitlement(() => { useStore.getState().syncEntitlement(); });
 export function isAnyOverlayOpen(): boolean {
   const s = useStore.getState();
   return Boolean(
-    s.paletteOpen || s.shortcutsOpen || s.menuOpen || s.personsOpen || s.insightsOpen ||
+    s.paletteOpen || s.shortcutsOpen || s.clipLabOpen || s.menuOpen || s.personsOpen || s.insightsOpen ||
     s.batchOpsOpen || s.statsOpen || s.projectsOpen || s.contactSheetOpen || s.presentationOpen ||
     s.appearanceOpen || s.collectionsOpen || s.documentShieldOpen || s.duplicatesPanelOpen ||
     s.rescueQueueOpen || s.smartInboxOpen || s.momentsOpen || s.exactDupesOpen ||

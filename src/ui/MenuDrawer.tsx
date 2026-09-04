@@ -128,6 +128,7 @@ export function MenuDrawer() {
   const deletableRejectedCount = useMemo(() => selectDeletableRejected(photos).deletable.length, [photos]);
   const hasPhotos = photos.length > 0;
   const setShortcutsOpen = useStore(s => s.setShortcutsOpen);
+  const setClipLabOpen = useStore(s => s.setClipLabOpen);
   const cullingStrictness = useStore(s => s.cullingStrictness);
   const setCullingStrictness = useStore(s => s.setCullingStrictness);
   const theme = useStore(s => s.theme);
@@ -1022,6 +1023,14 @@ export function MenuDrawer() {
           <button className="drawer-item" onClick={() => go(() => setShortcutsOpen(true))}>
             <span className="drawer-item-icon"><KeyboardIcon /></span>
             <span>{tr('menu.shortcuts')}</span>
+          </button>
+
+          {/* Motorul nou, in Ajutor si nu in Setari, cu buna stiinta: nu e o
+              preferinta pe care s-o schimbi in treacat, e ceva ce intai citesti
+              si masori. Ecranul dinauntru nu porneste nimic singur. */}
+          <button className="drawer-item" onClick={() => go(() => setClipLabOpen(true))}>
+            <span className="drawer-item-icon"><SparkleIcon /></span>
+            <span>{tr('clip.title')}</span>
           </button>
 
           {/* "Lasa o parere" — cerut de raportul de testare extern, care a notat
