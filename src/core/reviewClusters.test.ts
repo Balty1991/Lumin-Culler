@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { clusterReviewQueue, causeOf, worthSummarising, MIN_QUEUE_FOR_SUMMARY, type ClusterablePhoto } from './reviewClusters';
-import { DEFECT_SHARPNESS, DEFECT_EYES_OPEN_RATIO } from './importPipeline';
+import { DEFECT_SHARPNESS, DEFECT_EYES_OPEN_RATIO, hasNoRecognizableSubject } from './importPipeline';
 
 /**
  * core/reviewClusters.test.ts
@@ -11,8 +11,14 @@ import { DEFECT_SHARPNESS, DEFECT_EYES_OPEN_RATIO } from './importPipeline';
  * asta — tot rostul ei e sa fie CREZUTA dintr-o privire, ca sa nu mai deschizi
  * pozele una cate una.
  */
+/**
+ * Poza implicita e una OBISNUITA: fara defect, dar cu un subiect recunoscut
+ * (`sceneTags: ['dog']`). Eticheta nu e decor — fara ea, poza ar cadea in cauza
+ * `noSubject`, iar testele de mai jos care verifica "fara defect => other" ar
+ * masura altceva decat cred ca masoara.
+ */
 function poza(over: Partial<ClusterablePhoto> & { id: string }): ClusterablePhoto {
-  return { sharpness: 80, exposure: 55, faceCount: 0, allEyesOpen: true, ...over };
+  return { sharpness: 80, exposure: 55, faceCount: 0, allEyesOpen: true, sceneTags: ['dog'], ...over };
 }
 
 describe('cauza dominanta', () => {
@@ -124,5 +130,46 @@ describe('worthSummarising — cand rezumatul chiar spune ceva', () => {
       Array.from({ length: 20 }, (_, i) => poza({ id: `${i}`, sharpness: i % 3 ? 80 : 10 }))
     );
     expect(worthSummarising(amestec)).toBe(true);
+  });
+});
+
+/**
+ * Grupul `noSubject` — vezi hasNoRecognizableSubject in core/importPipeline.ts.
+ *
+ * E singurul grup din rezumat care nu descrie un defect al POZEI, ci o limita a
+ * motorului: n-a recunoscut niciun subiect, deci n-a avut voie sa aprobe
+ * singur, oricat de mare i-ar fi fost scorul. Pe web asta se intampla des —
+ * detectorul de obiecte are vocabular COCO-80, fara clase pentru munte, cer,
+ * floare sau apus — asa ca grupul poate fi mare, si tocmai de-aia trebuie
+ * NUMIT: nenumit, ar fi fost cel mai gros teanc din "la limita, fara un defect
+ * anume", adica exact intrebarea fara raspuns pe care rezumatul o inchide.
+ */
+describe('grupul "fara subiect recunoscut"', () => {
+  const fara = new Set<string>();
+
+  it('un peisaj fara fete si fara etichete cade aici, nu in "other"', () => {
+    expect(causeOf(poza({ id: 'a', sceneTags: undefined }), fara)).toBe('noSubject');
+  });
+
+  it('etichetele abstracte NU trec drept subiect — acelasi verdict ca motorul', () => {
+    // "pattern"/"texture" sunt in NON_FOLDER_SCENE_TAGS: motorul nu le
+    // considera subiect, deci nici rezumatul nu are voie.
+    expect(causeOf(poza({ id: 'a', sceneTags: ['pattern', 'texture'] }), fara)).toBe('noSubject');
+  });
+
+  it('o fata e de ajuns, chiar fara nicio eticheta', () => {
+    expect(causeOf(poza({ id: 'a', faceCount: 1, sceneTags: undefined }), fara)).toBe('other');
+  });
+
+  it('vine DUPA defectele reale: o poza si miscata, si nerecunoscuta, e miscata', () => {
+    expect(causeOf(poza({ id: 'a', sharpness: 10, sceneTags: undefined }), fara)).toBe('blurry');
+  });
+
+  it('numara exact pozele pe care le-a oprit motorul', () => {
+    // Aceeasi conditie, importata din motor, nu rescrisa aici: daca cele doua
+    // ar diverge vreodata, rezumatul ar promite o cifra si ar livra alta.
+    const p = poza({ id: 'a', sceneTags: undefined });
+    expect(hasNoRecognizableSubject(p)).toBe(true);
+    expect(causeOf(p, fara)).toBe('noSubject');
   });
 });

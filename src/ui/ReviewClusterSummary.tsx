@@ -33,6 +33,7 @@ const CAUSE_LABEL: Record<ReviewCause, { one: string; other: string }> = {
   eyesClosed: { one: 'review.cluster.eyesClosed.one', other: 'review.cluster.eyesClosed.other' },
   series: { one: 'review.cluster.series.one', other: 'review.cluster.series.other' },
   exposure: { one: 'review.cluster.exposure.one', other: 'review.cluster.exposure.other' },
+  noSubject: { one: 'review.cluster.noSubject.one', other: 'review.cluster.noSubject.other' },
   other: { one: 'review.cluster.other.one', other: 'review.cluster.other.other' }
 };
 

@@ -116,7 +116,14 @@ export { SELECT_THRESHOLD, REJECT_THRESHOLD } from './scoreThresholds';
  */
 export const TEXT_DOMINANT_THRESHOLD = 0.15;
 
-function hasNoRecognizableSubject(analysis: Pick<AnalysisRecord, 'faceCount' | 'sceneTags' | 'textCoverage'>): boolean {
+/**
+ * Exportat pentru core/reviewClusters.ts: rezumatul cozii de verificat trebuie
+ * sa numere EXACT pozele pe care aceasta functie le-a oprit, nu poze care
+ * seamana cu ele. O a doua definitie a aceleiasi conditii ar fi doua pareri in
+ * aceeasi aplicatie — acelasi motiv pentru care DEFECT_SHARPNESS se importa
+ * acolo, nu se copiaza.
+ */
+export function hasNoRecognizableSubject(analysis: Pick<AnalysisRecord, 'faceCount' | 'sceneTags' | 'textCoverage'>): boolean {
   if (analysis.textCoverage !== undefined && analysis.textCoverage >= TEXT_DOMINANT_THRESHOLD) return true;
   // pickFolderSceneTag() ignora etichetele abstracte/non-subiect (ex. "Text",
   // "Photography", "Pattern" — vezi NON_FOLDER_SCENE_TAGS in sceneTagLabels.ts);

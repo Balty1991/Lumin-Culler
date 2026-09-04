@@ -41,6 +41,21 @@ export function CullStrengthBar() {
   }, [photos]);
 
   const undecided = useMemo(() => photos.filter(p => !isUserDecided(p.status)).length, [photos]);
+  /**
+   * Cele trei trepte dau acelasi rezultat? Se intampla cand niciuna dintre
+   * pozele nedecise nu e destul de aproape de praguri cat sa fie mutata de o
+   * deplasare de opt puncte — un lot foarte omogen, sau foarte mic.
+   *
+   * Gasit rezultand aplicatia cap-coada cu poze reale: bara arata "4 / 4 / 4",
+   * adica trei butoane care promit exact acelasi lucru. Cifrele erau corecte, si
+   * tocmai de-aia era mai rau: un om care apasa si nu vede nicio schimbare
+   * invata ca setarea nu face nimic, si n-o mai atinge niciodata — inclusiv
+   * atunci cand ar conta.
+   *
+   * Raspunsul nu e sa ascundem cifrele (sunt adevarate), ci sa spunem de ce
+   * sunt egale.
+   */
+  const sameEverywhere = useMemo(() => new Set(outcomes.map(o => o.review)).size === 1, [outcomes]);
   /** Treapta bifata acum; cade pe prima daca vreodata ar lipsi din lista. */
   const activeOutcome = outcomes.find(o => o.strictness === current) ?? outcomes[0];
   if (undecided === 0) return null;
@@ -93,7 +108,10 @@ export function CullStrengthBar() {
         {tr('strictness.bar.auto', { kept: activeOutcome.kept, rejected: activeOutcome.rejected })}
       </p>
 
-      <p className="cull-strength-note">{tr('strictness.hint')}</p>
+      {/* Cand toate trei dau acelasi numar, explicatia inlocuieste indiciul
+          general: intrebarea pe care si-o pune omul in acel moment nu e "ce
+          atinge setarea", ci "de ce nu se schimba nimic". */}
+      <p className="cull-strength-note">{tr(sameEverywhere ? 'strictness.bar.same' : 'strictness.hint')}</p>
     </section>
   );
 }

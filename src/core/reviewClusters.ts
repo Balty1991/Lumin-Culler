@@ -1,4 +1,4 @@
-import { DEFECT_SHARPNESS, DEFECT_EYES_OPEN_RATIO } from './importPipeline';
+import { DEFECT_SHARPNESS, DEFECT_EYES_OPEN_RATIO, hasNoRecognizableSubject } from './importPipeline';
 
 /**
  * core/reviewClusters.ts
@@ -35,7 +35,7 @@ import { DEFECT_SHARPNESS, DEFECT_EYES_OPEN_RATIO } from './importPipeline';
  */
 
 /** Ordinea conteaza: prima potrivire castiga. Vezi CAUSE_ORDER pentru de ce asta. */
-export type ReviewCause = 'blurry' | 'eyesClosed' | 'series' | 'exposure' | 'other';
+export type ReviewCause = 'blurry' | 'eyesClosed' | 'series' | 'exposure' | 'noSubject' | 'other';
 
 export interface ReviewCluster {
   cause: ReviewCause;
@@ -53,6 +53,9 @@ export interface ClusterablePhoto {
   groupId?: string;
   highlightClipping?: number;
   shadowClipping?: number;
+  /** Vezi cauza `noSubject` — aceleasi campuri pe care le citeste si motorul. */
+  sceneTags?: string[];
+  textCoverage?: number;
 }
 
 /**
@@ -74,10 +77,24 @@ const CLIPPING_LIMIT = 0.12;
  *     toate cadrele sunt miscate nu e o alegere, e un teanc de rebuturi.
  *  4. `exposure` — recuperabila partial din editare, deci ultima intre
  *     probleme.
- *  5. `other` — restul: cazuri la limita fara un defect numit. Astea chiar
+ *  5. `noSubject` — nu e un defect al pozei, e o limita a motorului: n-a
+ *     recunoscut niciun subiect in cadru (nicio fata, nicio eticheta de obiect
+ *     concret), deci n-a avut voie sa aprobe singur, oricat de mare i-ar fi
+ *     fost scorul. Vine dupa toate defectele reale tocmai fiindca nu e un
+ *     defect: o poza si miscata, si fara subiect recunoscut, e in primul rand
+ *     miscata.
+ *
+ *     Vine ULTIMA inaintea lui `other` si din al doilea motiv: pe web
+ *     detectorul de obiecte e CenterNet cu vocabular COCO-80, care n-are clase
+ *     pentru munte, cer, floare sau apus. Un peisaj perfect nu primeste nicio
+ *     eticheta, deci cade aici — si atunci grupul asta poate fi mare. Numit,
+ *     e o explicatie ("nu l-am recunoscut, uita-te tu"); nenumit, ar fi fost
+ *     cel mai mare teanc din `other`, adica exact intrebarea fara raspuns pe
+ *     care rezumatul asta exista ca s-o inchida.
+ *  6. `other` — restul: cazuri la limita fara un defect numit. Astea chiar
  *     cer ochiul omului, si e cinstit sa fie numite asa.
  */
-const CAUSE_ORDER: ReviewCause[] = ['blurry', 'eyesClosed', 'series', 'exposure', 'other'];
+const CAUSE_ORDER: ReviewCause[] = ['blurry', 'eyesClosed', 'series', 'exposure', 'noSubject', 'other'];
 
 /** Cauza dominanta a unei poze. Vezi CAUSE_ORDER pentru ordine. */
 export function causeOf(photo: ClusterablePhoto, seriesIds: ReadonlySet<string>): ReviewCause {
@@ -92,6 +109,9 @@ export function causeOf(photo: ClusterablePhoto, seriesIds: ReadonlySet<string>)
   }
   if (photo.groupId && seriesIds.has(photo.groupId)) return 'series';
   if ((photo.highlightClipping ?? 0) > CLIPPING_LIMIT || (photo.shadowClipping ?? 0) > CLIPPING_LIMIT) return 'exposure';
+  // Aceeasi functie pe care o ruleaza decidePhotoStatus, importata din motor:
+  // grupul asta contine exact pozele oprite de ea, nu poze care ii seamana.
+  if (hasNoRecognizableSubject(photo)) return 'noSubject';
   return 'other';
 }
 
