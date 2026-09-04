@@ -40,3 +40,37 @@ describe('styles.concept.css — corecturile raman dupa regulile pe care le anul
     expect(winsOver('.workspace {\n  position: fixed;\n  inset: 0;', '.workspace {\n  min-height:100dvh;')).toBe(true);
   });
 });
+
+describe('randul de file al foii de metrici nu se poate turti', () => {
+  /**
+   * Bug real, raportat cu captura: "nu mai vad rubrica de ce acest scor".
+   *
+   * Filele erau acolo. Randul lor insa se micsora la ~31 px in loc de 64, iar
+   * butoanele de 54 px ieseau taiate — pe telefon se vedea doar o dunga sub
+   * "Editează". Cauza: `.detail-sheet-content` e o coloana flex cu inaltime
+   * limitata, un element flex se micsoreaza implicit, iar `overflow-x: auto` de
+   * pe acelasi rand il face container cu derulare, deci ce se turteste se TAIE
+   * in loc sa iasa vizibil in afara.
+   *
+   * Nu era o problema cosmetica: filele "De ce acest scor", "Persoane" si
+   * "Istoric" deveneau invizibile, iar butonul "de ce" de deasupra deciziei e
+   * ascuns cat timp foaia e deschisa — deci nu mai exista NICIO cale catre
+   * explicatia scorului.
+   *
+   * jsdom nu aplica foi externe, deci nu se poate masura aici inaltimea; se
+   * verifica invariantul din sursa, care e chiar ce lipsea.
+   */
+  const bloc = css.slice(css.lastIndexOf('.detail-tabs {'), css.length);
+
+  it('randul de file are flex-shrink: 0', () => {
+    expect(bloc.slice(0, bloc.indexOf('}'))).toContain('flex-shrink: 0');
+  });
+
+  it('regula sta pe ACELASI bloc cu overflow-x, care e cealalta jumatate a cauzei', () => {
+    // Separate, cineva le poate muta una fara alta si bugul revine tacut:
+    // overflow fara flex-shrink taie, flex-shrink fara overflow doar deranjeaza.
+    const primaAcolada = bloc.slice(0, bloc.indexOf('}'));
+    expect(primaAcolada).toContain('overflow-x: auto');
+    expect(primaAcolada).toContain('flex-shrink: 0');
+  });
+});

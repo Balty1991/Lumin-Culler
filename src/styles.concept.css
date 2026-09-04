@@ -6583,6 +6583,26 @@ button:disabled,
 .detail-tabs {
   overflow-x: auto;
   scrollbar-width: none;
+  /* BUG REAL, raportat de utilizator cu captura: "nu mai vad rubrica de ce
+     acest scor". Filele erau acolo, dar randul lor se turtea la ~31 px in loc
+     de 64, iar butoanele de 54 px ieseau taiate — se vedea doar o dunga sub
+     "Editează", exact ca in captura trimisa.
+
+     Doua cauze care se potenteaza:
+      - `.detail-sheet-content` e o coloana flex cu inaltime limitata, iar un
+        element flex se micsoreaza implicit (flex-shrink: 1). Cand spatiul e
+        strans — adica pe telefon, cu foaia deschisa — randul de file e primul
+        sacrificat;
+      - `overflow-x: auto` de mai sus face din el un container cu derulare, deci
+        continutul turtit se TAIE in loc sa dea pe dinafara. Fara linia aia,
+        butoanele ar fi iesit vizibil din caseta si greseala s-ar fi observat
+        imediat.
+
+     Consecinta nu era cosmetica: filele "De ce acest scor", "Persoane" si
+     "Istoric" deveneau invizibile, iar butonul "de ce" de deasupra deciziei e
+     ascuns cat timp foaia e deschisa (vezi DetailView, detail-reason-row) — deci
+     nu mai ramanea NICIO cale catre explicatia scorului. */
+  flex-shrink: 0;
 }
 .detail-tabs::-webkit-scrollbar { display: none; }
 .detail-tab {
