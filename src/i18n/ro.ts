@@ -76,6 +76,18 @@ export const ro = {
   // "Masa de triaj" era limbaj de spital, nu de fotografie (cerinta directa a
   // utilizatorului: "suna urat"). Cardul e locul unde alegi urmatoarea poza, deci
   // asta si scrie.
+  'review.cluster.label': 'Ce te așteaptă în coada de verificat',
+  'review.cluster.title': 'CELE {count} DE VERIFICAT, PE CAUZE',
+  'review.cluster.blurry.one': 'neclară',
+  'review.cluster.blurry.other': 'neclare',
+  'review.cluster.eyesClosed.one': 'cu ochii închiși',
+  'review.cluster.eyesClosed.other': 'cu ochii închiși',
+  'review.cluster.series.one': 'din aceeași serie',
+  'review.cluster.series.other': 'din aceleași serii',
+  'review.cluster.exposure.one': 'arsă sau înfundată',
+  'review.cluster.exposure.other': 'arse sau înfundate',
+  'review.cluster.other.one': 'la limită, fără un defect anume',
+  'review.cluster.other.other': 'la limită, fără un defect anume',
   'reviewDesk.label': 'SELECȚIA TA',
   'reviewDesk.kicker.next': 'URMĂTOAREA DECIZIE',
   'reviewDesk.kicker.analysing': 'SE ANALIZEAZĂ',

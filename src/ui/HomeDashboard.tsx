@@ -15,6 +15,7 @@ import { AnimatedNumber } from './AnimatedNumber';
 import { GalleryOverviewNote } from './GalleryOverviewNote';
 import { QuickScanFind } from './QuickScanFind';
 import { CullStrengthBar } from './CullStrengthBar';
+import { ReviewClusterSummary } from './ReviewClusterSummary';
 import { AiProfileCard } from './AiProfileCard';
 import { SessionOutcome } from './SessionOutcome';
 import { SparkleIcon, PinIcon, ChevronUpIcon, ShieldIcon, CopyIcon, TrashIcon } from './icons';
@@ -377,6 +378,12 @@ export function HomeDashboard() {
           {/* IMEDIAT sub cardul cu poza urmatoare, si inaintea bibliotecii:
               raspunde la intrebarea care apare fix atunci ("de ce imi propune
               astea?"), nu la una pe care ar trebui s-o cauti in meniu. */}
+          {/* Ce te asteapta in coada, pe cauze — imediat sub bara de severitate,
+              care spune CATE raman de verificat. Randul urmator raspunde la
+              intrebarea care vine natural dupa aceea: si ce sunt alea? Se
+              randeaza singur ca nimic pe o coada scurta sau omogena. */}
+          <ReviewClusterSummary />
+
           <CullStrengthBar />
 
           <section className="review-desk-library" aria-label={tr('reviewDesk.libraryLabel')}>

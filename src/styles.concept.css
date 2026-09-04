@@ -6786,3 +6786,38 @@ button:disabled,
    neutru pe care il inlocuieste: nu e o contabilitate interna ("cate GB am
    adus"), e raspunsul la intrebarea pentru care omul a instalat aplicatia. */
 .home-hero-freeable { color: var(--pick-text, var(--pick)); font-weight: 750; }
+
+/* Rezumatul cozii de verificat, pe cauze (ui/ReviewClusterSummary.tsx).
+   Randuri apasabile, nu o propozitie: fiecare grup e o bucata de munca pe care
+   o poti lua acum, nu o informatie de citit. */
+.review-clusters { margin: 12px 0 0; }
+.review-clusters-head {
+  margin: 0 0 8px;
+  color: var(--text-faint);
+  font-size: .6rem;
+  font-weight: 800;
+  letter-spacing: .13em;
+}
+.review-clusters-list { display: grid; gap: 6px; }
+.review-cluster {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 13px;
+  border-radius: 14px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+  text-align: left;
+}
+.review-cluster b {
+  font-family: var(--mono);
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--accent-text);
+}
+/* min-width 0: etichetele lungi ("la limită, fără un defect anume") trebuie sa
+   se rupa in loc sa impinga sageata in afara randului. */
+.review-cluster span { min-width: 0; font-size: .8rem; color: var(--text); line-height: 1.35; }
+.review-cluster i { font-style: normal; color: var(--text-faint); }
