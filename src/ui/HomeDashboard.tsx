@@ -403,8 +403,15 @@ export function HomeDashboard() {
           <div className="home-hero-lbl">{tr('home.hero.label')}</div>
           {/* Doar cand chiar stim niste octeti. Pentru cine tocmai a adus sase
               poze, "0.0GB" nu e o informatie, e zgomot — si, pus intr-un inel
-              fara eticheta, arata ca o masura a intregului telefon. */}
-          {hasKnownSize && <div className="home-hero-size">{tr('home.hero.size', { gb: totalGB })}</div>}
+              fara eticheta, arata ca o masura a intregului telefon.
+
+              CAND EXISTA CEVA DE ELIBERAT, aia se spune. "2,4 GB aduse in
+              aplicatie" descrie o contabilitate interna; "poti elibera 2,4 GB"
+              descrie ce castiga omul. Aceeasi cifra, doua propozitii, si numai
+              una raspunde la intrebarea pentru care a instalat aplicatia. */}
+          {hasKnownFreed
+            ? <div className="home-hero-size home-hero-freeable">{tr('home.hero.freeable', { gb: freedGB })}</div>
+            : hasKnownSize && <div className="home-hero-size">{tr('home.hero.size', { gb: totalGB })}</div>}
         </div>
         {/* Inelul arata acelasi progres ca procentul, in cifre absolute: cate
             poze din cate ai decis. */}
@@ -431,10 +438,30 @@ export function HomeDashboard() {
 
       {isNativeMediaLibraryAvailable() && deletableRejected.length > 0 && (
         <div className="home-delete-cta">
+          {/* IERARHIA E INVERSATA FATA DE INAINTE, si e o decizie, nu o
+              rearanjare. Titlul era "37 de poze respinse", iar spatiul eliberat
+              statea sub el, mic. Dar "poze respinse" e vocabularul APLICATIEI:
+              descrie ce a facut ea. "Eliberezi 2,4 GB" e motivul pentru care
+              omul a instalat-o.
+
+              E si singurul teren pe care Google Photos nu poate concura: acolo,
+              "elibereaza spatiu" inseamna "urca pozele la noi si sterge copiile
+              locale" — muta problema si te leaga de abonamentul lor. Aici
+              inseamna ca gunoiul chiar dispare. Cine nu stie cuvantul "triaj"
+              stie exact ce inseamna un telefon plin.
+
+              Cand nu stim octetii (poze importate inainte ca marimea sa fie
+              retinuta), titlul ramane numarul de poze: "eliberezi 0,0 GB" n-ar
+              fi un argument, ar fi o gluma involuntara. */}
           <span className="home-delete-text">
-            <b>{tr(plural(deletableRejected.length, 'home.delete.title.one', 'home.delete.title.other'), { count: deletableRejected.length })}</b>
-            {/* "eliberezi 0.0 GB" nu e un argument, e o gluma involuntara. */}
-            {hasKnownFreed && <span>{tr('home.delete.sub', { gb: freedGB })}</span>}
+            {hasKnownFreed ? (
+              <>
+                <b>{tr('home.delete.titleSpace', { gb: freedGB })}</b>
+                <span>{tr(plural(deletableRejected.length, 'home.delete.sub.one', 'home.delete.sub.other'), { count: deletableRejected.length })}</span>
+              </>
+            ) : (
+              <b>{tr(plural(deletableRejected.length, 'home.delete.title.one', 'home.delete.title.other'), { count: deletableRejected.length })}</b>
+            )}
           </span>
           {/* aria-busy + eticheta care se schimba — bug real gasit de auditul UI:
               stergerea nativa a pozelor respinse poate dura zeci de secunde, iar

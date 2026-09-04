@@ -6781,3 +6781,8 @@ button:disabled,
 /* Randul care da SENS cifrei din tabel: cat adauga fata de ce te costa deja un
    import. Fara el, "106 ms pe poza" e un numar fara numitor. */
 .clip-compare { margin: 10px 0 0; font-size: .74rem; color: var(--text-dim); line-height: 1.5; }
+
+/* Spatiul care se poate elibera, in cardul de sus. Mai apasat decat randul
+   neutru pe care il inlocuieste: nu e o contabilitate interna ("cate GB am
+   adus"), e raspunsul la intrebarea pentru care omul a instalat aplicatia. */
+.home-hero-freeable { color: var(--pick-text, var(--pick)); font-weight: 750; }
