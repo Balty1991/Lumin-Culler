@@ -43,11 +43,22 @@ beforeEach(() => {
   useStore.setState({ locale: 'ro', clipLabOpen: true, photos: pozeFalse(20) });
 });
 
+describe('un manifest PREZENT dar de neinteles nu se confunda cu unul lipsa', () => {
+  it('spune ca l-a gasit si nu-l poate citi, si arata continutul', async () => {
+    // Exact cazul care a costat o runda: format vechi ramas in cache-ul
+    // telefonului. Aratat ca "lipsa", pare ca nu s-a livrat nimic.
+    vi.spyOn(pool, 'clipManifestState').mockResolvedValue({ kind: 'unreadable', raw: '{"id":"vechi"}' });
+    render(<ClipLabPanel />);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/nu-l pot citi/);
+    expect(screen.getByText(/"id":"vechi"/)).toBeInTheDocument();
+  });
+});
+
 describe('cand build-ul n-are model', () => {
   it('spune ca nu e nimic de masurat, si NU ofera niciun buton', async () => {
     // Stare normala, nu eroare: build-urile fara model sunt chiar aplicatia
     // de pana acum.
-    vi.spyOn(pool, 'clipAvailability').mockResolvedValue([]);
+    vi.spyOn(pool, 'clipManifestState').mockResolvedValue({ kind: 'absent' });
     render(<ClipLabPanel />);
     expect(await screen.findByText(/nu conține modelul/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Măsoară/ })).not.toBeInTheDocument();
@@ -56,7 +67,7 @@ describe('cand build-ul n-are model', () => {
 
 describe('cand modelul exista', () => {
   beforeEach(() => {
-    vi.spyOn(pool, 'clipAvailability').mockResolvedValue([FP16, Q8]);
+    vi.spyOn(pool, 'clipManifestState').mockResolvedValue({ kind: 'ok', variants: [FP16, Q8] });
   });
 
   it('spune CAT se descarca inainte sa se descarce ceva', async () => {

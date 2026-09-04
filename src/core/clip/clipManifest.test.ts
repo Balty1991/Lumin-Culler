@@ -66,26 +66,54 @@ describe('parseClipManifestFile', () => {
   });
 });
 
-describe('readClipManifest', () => {
-  it('intoarce lista goala cand fisierul lipseste — starea normala, nu o eroare', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue({ ok: false, status: 404 });
-    expect(await readClipManifest(fetchImpl as unknown as typeof fetch)).toEqual([]);
+describe('readClipManifest — trei stari, nu doua', () => {
+  const raspuns = (text: string, ok = true) => vi.fn().mockResolvedValue({ ok, status: ok ? 200 : 404, text: async () => text });
+
+  it('fisier lipsa = "absent", starea normala a unui build fara model', async () => {
+    const r = await readClipManifest(raspuns('', false) as unknown as typeof fetch);
+    expect(r.kind).toBe('absent');
   });
 
-  it('intoarce lista goala cand reteaua arunca', async () => {
+  it('retea cazuta = tot "absent" — pentru utilizator inseamna acelasi lucru', async () => {
     const fetchImpl = vi.fn().mockRejectedValue(new Error('offline'));
-    expect(await readClipManifest(fetchImpl as unknown as typeof fetch)).toEqual([]);
+    expect((await readClipManifest(fetchImpl as unknown as typeof fetch)).kind).toBe('absent');
   });
 
-  it('intoarce lista goala pe JSON stricat, in loc sa arunce in ecranul care intreaba', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.reject(new Error('json')) });
-    expect(await readClipManifest(fetchImpl as unknown as typeof fetch)).toEqual([]);
+  it('fisier PREZENT dar de neinteles = "unreadable", NU absent', async () => {
+    // Distinctia asta a costat o runda intreaga de testare: un manifest de
+    // format vechi ramas in cache arata exact ca "build-ul n-are model", desi
+    // modelele erau livrate. Primul caz e normal, al doilea e un bug.
+    const r = await readClipManifest(raspuns('{"id":"vechi","dim":512}') as unknown as typeof fetch);
+    expect(r.kind).toBe('unreadable');
+    if (r.kind === 'unreadable') expect(r.raw).toContain('vechi');
+  });
+
+  it('JSON stricat = "unreadable", cu inceputul continutului pastrat', async () => {
+    const r = await readClipManifest(raspuns('{nu e json') as unknown as typeof fetch);
+    expect(r.kind).toBe('unreadable');
+    if (r.kind === 'unreadable') expect(r.raw).toContain('nu e json');
+  });
+
+  it('manifest bun = "ok", cu variantele lui', async () => {
+    const r = await readClipManifest(raspuns(JSON.stringify({ variants: [VALID] })) as unknown as typeof fetch);
+    expect(r.kind).toBe('ok');
+    if (r.kind === 'ok') expect(r.variants).toHaveLength(1);
   });
 
   it('citeste de la adresa asteptata', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ variants: [VALID] }) });
+    const fetchImpl = raspuns(JSON.stringify({ variants: [VALID] }));
     await readClipManifest(fetchImpl as unknown as typeof fetch);
     expect(fetchImpl).toHaveBeenCalledWith(CLIP_MANIFEST_URL);
+  });
+});
+
+describe('adresa manifestului nu poate fi servita din cache la nesfarsit', () => {
+  it('poarta eticheta build-ului, deci se schimba la fiecare livrare', () => {
+    // Bug real: manifestul cadea sub regula `CacheFirst` a modelelor (un an),
+    // desi are numele fix si continutul variabil. Telefonul citea versiunea
+    // veche la nesfarsit, iar ecranul spunea "n-are model" pentru modele care
+    // erau chiar acolo.
+    expect(CLIP_MANIFEST_URL).toContain('manifest.json?b=');
   });
 });
 

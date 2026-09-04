@@ -384,6 +384,7 @@ export const en: Record<TranslationKey, string> = {
   'clip.table.backend': 'Ran on',
   'clip.table.perPhoto': 'Per photo',
   'clip.table.thousand': 'At 1000',
+  'clip.unreadable': 'The model file is there but unreadable — most likely an old version left in the phone cache. Reload twice; if it persists, send the line below.',
   'clip.title': 'The new engine (experimental)',
   'clip.lead': 'A model that understands what is IN the photo, not just how sharp it is. On your phone, no account, nothing leaves the device. Not switched on for anyone yet — you measure it here first.',
   'clip.checking': 'Checking whether this build ships the model…',

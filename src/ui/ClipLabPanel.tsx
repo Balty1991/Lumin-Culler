@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { XIcon, SparkleIcon } from './icons';
-import { clipAvailability, runClipMatrix, releaseClip, type ClipMatrixRow } from '../core/clip/clipPool';
+import { clipManifestState, runClipMatrix, releaseClip, type ClipMatrixRow } from '../core/clip/clipPool';
 import { BENCHMARK_SAMPLES } from '../core/clip/clipBenchmark';
-import type { ClipManifest } from '../core/clip/clipManifest';
+import type { ClipManifestRead } from '../core/clip/clipManifest';
 import { isClipEnabled, setClipEnabled } from '../state/clipOptIn';
 import { formatSpan } from '../core/formatTime';
 import { db } from '../core/db';
@@ -39,8 +39,8 @@ export function ClipLabPanel() {
   const containerRef = useRef<HTMLDivElement>(null);
   useModalFocusTrap(containerRef, open);
 
-  /** undefined = inca nu stim; [] = build-ul asta n-are niciun model. */
-  const [variants, setVariants] = useState<ClipManifest[] | undefined>(undefined);
+  /** undefined = inca nu stim. Vezi ClipManifestRead pentru cele trei stari. */
+  const [stare, setStare] = useState<ClipManifestRead | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState({ facut: 0, total: 0 });
   const [rows, setRows] = useState<ClipMatrixRow[] | null>(null);
@@ -48,7 +48,7 @@ export function ClipLabPanel() {
 
   useEffect(() => {
     if (!open) return;
-    void clipAvailability().then(setVariants);
+    void clipManifestState().then(setStare);
   }, [open]);
 
   useEffect(() => {
@@ -99,34 +99,45 @@ export function ClipLabPanel() {
 
         <p className="clip-lead">{tr('clip.lead')}</p>
 
-        {variants === undefined && <p className="premium-soon" role="status">{tr('clip.checking')}</p>}
+        {stare === undefined && <p className="premium-soon" role="status">{tr('clip.checking')}</p>}
 
-        {variants?.length === 0 && (
+        {stare?.kind === 'absent' && (
           /* Stare normala, nu eroare: build-urile fara model sunt exact
              aplicatia de pana acum. */
           <p className="premium-soon" role="status">{tr('clip.absent')}</p>
         )}
 
-        {variants && variants.length > 0 && (
+        {stare?.kind === 'unreadable' && (
+          /* ALTCEVA decat "lipseste", si distinctia a costat o runda de testare:
+             fisierul E acolo, dar nu-l putem citi — format vechi ramas in cache,
+             JSON trunchiat, camp lipsa. Aratat ca lipsa, arata a "nu s-a livrat
+             nimic"; aratat asa, se vede ca e un bug si se poate repara. */
+          <div role="alert">
+            <p className="premium-soon">{tr('clip.unreadable')}</p>
+            <p className="clip-reason mono">{stare.raw}</p>
+          </div>
+        )}
+
+        {stare?.kind === 'ok' && (
           <>
             <div className="clip-spec">
               <h4 className="premium-group-head">{tr('clip.spec.title')}</h4>
               <dl>
-                {variants.map(v => (
+                {stare.variants.map(v => (
                   <div key={v.id}>
                     <dt>{v.label}</dt>
                     <dd>{mb(v.bytes)} MB</dd>
                   </div>
                 ))}
                 <div><dt>{tr('clip.spec.runtime')}</dt><dd>~25 MB</dd></div>
-                <div><dt>{tr('clip.spec.vector')}</dt><dd>{tr('clip.spec.vectorValue', { dim: variants[0].dim, px: variants[0].inputSize })}</dd></div>
+                <div><dt>{tr('clip.spec.vector')}</dt><dd>{tr('clip.spec.vectorValue', { dim: stare.variants[0].dim, px: stare.variants[0].inputSize })}</dd></div>
               </dl>
             </div>
 
             <button className="btn-accent big" disabled={busy || photos.length === 0} onClick={measure}>
               {busy
                 ? tr('clip.measuringOf', { done: progress.facut, total: progress.total })
-                : tr('clip.measureAll', { count: Math.min(BENCHMARK_SAMPLES, photos.length), combos: variants.length * 2 })}
+                : tr('clip.measureAll', { count: Math.min(BENCHMARK_SAMPLES, photos.length), combos: stare.variants.length * 2 })}
             </button>
             {photos.length === 0 && <p className="premium-soon">{tr('clip.needPhotos')}</p>}
 

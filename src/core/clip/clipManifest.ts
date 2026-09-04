@@ -79,7 +79,25 @@ export interface ClipManifestFile {
  * se incarca de ani de zile si pe Pages, si in Capacitor, si in dezvoltare.
  */
 export const CLIP_BASE_PATH = `${import.meta.env.BASE_URL}models/clip/`;
-export const CLIP_MANIFEST_URL = `${CLIP_BASE_PATH}manifest.json`;
+
+/**
+ * Adresa manifestului, cu eticheta build-ului lipita ca parametru.
+ *
+ * DE CE, si e o greseala pe care am facut-o si am platit-o: modelele sunt
+ * servite cu `CacheFirst` si expirare la un an (vezi vite.config.ts) — corect
+ * pentru ele, fiindca sunt fisiere imuabile care isi schimba numele cand se
+ * schimba continutul. Manifestul insa are numele FIX si continutul variabil: e
+ * un indicator, nu o greutate. Prins de aceeasi regula, ramanea inghetat in
+ * cache-ul telefonului, iar aplicatia citea la nesfarsit versiunea veche —
+ * dupa o schimbare de format, asta arata exact ca "build-ul asta n-are model",
+ * desi modelele erau chiar acolo, livrate.
+ *
+ * Parametrul se schimba la fiecare build, deci adresa e alta, deci niciun cache
+ * nu poate servi ceva vechi. Nu inlocuieste regula corecta de cache (vezi
+ * NetworkFirst in vite.config.ts) — o dubleaza, si repara si telefoanele care
+ * au deja intrarea proasta salvata.
+ */
+export const CLIP_MANIFEST_URL = `${CLIP_BASE_PATH}manifest.json?b=${encodeURIComponent(__BUILD_ID__)}`;
 
 /**
  * Aceeasi adresa, dar ABSOLUTA. Si asta e a doua jumatate a lectiei de mai sus,
@@ -147,20 +165,43 @@ export function parseClipManifestFile(raw: unknown): ClipManifest[] {
 }
 
 /**
- * Citeste manifestul din build. `null` = nu exista model in acest build, si e
- * o stare normala, nu o eroare de raportat nicaieri.
+ * Ce s-a intamplat la citirea manifestului. TREI stari, nu doua, si distinctia
+ * e scumpa: "fisierul lipseste" si "fisierul exista dar nu-l pot citi" arata
+ * identic pentru utilizator ("nu e niciun model"), dar inseamna lucruri opuse
+ * pentru cine repara. Prima e o stare normala; a doua e un bug — si exact pe a
+ * doua am pierdut o runda intreaga, fiindca ecranul le spunea la fel.
+ */
+export type ClipManifestRead =
+  | { kind: 'ok'; variants: ClipManifest[] }
+  | { kind: 'absent' }
+  | { kind: 'unreadable'; raw: string };
+
+/**
+ * Citeste manifestul din build. `absent` = build fara model, si e o stare
+ * normala, nu o eroare de raportat nicaieri.
  */
 export async function readClipManifest(
   fetchImpl: typeof fetch = fetch
-): Promise<ClipManifest[]> {
+): Promise<ClipManifestRead> {
+  let text: string;
   try {
     const res = await fetchImpl(CLIP_MANIFEST_URL);
-    if (!res.ok) return [];
-    return parseClipManifestFile(await res.json());
+    if (!res.ok) return { kind: 'absent' };
+    text = await res.text();
   } catch {
-    // Fisier absent, JSON stricat, retea taiata la prima pornire — toate
-    // inseamna acelasi lucru pentru utilizator: functia nu e disponibila.
-    return [];
+    // Fisier absent, retea taiata la prima pornire — pentru utilizator
+    // inseamna acelasi lucru: functia nu e disponibila.
+    return { kind: 'absent' };
+  }
+  try {
+    const variants = parseClipManifestFile(JSON.parse(text));
+    // Un fisier care exista dar nu produce nicio varianta NU e "absent": e un
+    // manifest pe care nu-l intelegem — format vechi ramas in cache, JSON
+    // trunchiat, camp lipsa. Se raporteaza ca atare, cu inceputul continutului.
+    if (variants.length === 0) return { kind: 'unreadable', raw: text.slice(0, 300) };
+    return { kind: 'ok', variants };
+  } catch {
+    return { kind: 'unreadable', raw: text.slice(0, 300) };
   }
 }
 

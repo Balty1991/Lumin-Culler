@@ -1,6 +1,6 @@
 import * as Comlink from 'comlink';
 import { db } from '../db';
-import { readClipManifest, clipModelUrl, type ClipManifest } from './clipManifest';
+import { readClipManifest, clipModelUrl, type ClipManifest, type ClipManifestRead } from './clipManifest';
 import { summarizeBenchmark, BENCHMARK_SAMPLES, type ClipBenchmarkResult } from './clipBenchmark';
 import type { ClipEmbedService } from '../../workers/clipEmbed.worker';
 
@@ -22,16 +22,25 @@ import type { ClipEmbedService } from '../../workers/clipEmbed.worker';
  * presiune de RAM.
  */
 
-let manifestPromise: Promise<ClipManifest[]> | null = null;
+let manifestPromise: Promise<ClipManifestRead> | null = null;
 
 /**
- * Ce variante de model exista in build-ul asta. Lista goala = functia nu
- * exista, si e o stare normala, nu o eroare. Citit o singura data si tinut
- * minte: raspunsul nu se schimba cat timp pagina traieste.
+ * Ce a iesit la citirea manifestului. Citit o singura data si tinut minte:
+ * raspunsul nu se schimba cat timp pagina traieste.
  */
-export function clipAvailability(): Promise<ClipManifest[]> {
+export function clipManifestState(): Promise<ClipManifestRead> {
   manifestPromise ??= readClipManifest();
   return manifestPromise;
+}
+
+/**
+ * Variantele de model din build. Lista goala = functia nu exista — stare
+ * normala, nu eroare. Cine are nevoie sa stie DE CE e goala (lipsa vs. manifest
+ * necitibil) cheama clipManifestState.
+ */
+export async function clipAvailability(): Promise<ClipManifest[]> {
+  const stare = await clipManifestState();
+  return stare.kind === 'ok' ? stare.variants : [];
 }
 
 interface LiveWorker {

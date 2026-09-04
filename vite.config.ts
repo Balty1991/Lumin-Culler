@@ -105,6 +105,28 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest,wasm,woff2}'],
         runtimeCaching: [
           {
+            /* Manifestul CLIP, INAINTEA regulii de modele de mai jos — workbox
+               ia prima potrivire, iar asta e diferenta dintre un indicator si o
+               greutate.
+
+               Bug real, platit cu o runda de testare: manifestul are numele FIX
+               si continutul variabil, dar cadea sub `CacheFirst` cu expirare la
+               un an, ca modelele. Dupa o schimbare de format, telefonul citea la
+               nesfarsit versiunea veche din cache — iar ecranul spunea "build-ul
+               asta n-are model", desi modelele erau livrate si prezente.
+
+               NetworkFirst: se ia mereu cel proaspat cand exista retea, si se
+               cade pe cache cand nu — deci promisiunea "merge offline" ramane
+               intacta pentru un fisier de cativa octeti. */
+            urlPattern: ({ url }: { url: URL }) => url.pathname.endsWith('/models/clip/manifest.json'),
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'lumin-clip-manifest',
+              expiration: { maxEntries: 4, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheableResponse: { statuses: [0, 200] }
+            }
+          },
+          {
             urlPattern: ({ url }: { url: URL }) => url.pathname.includes('/models/'),
             handler: 'CacheFirst',
             options: {
