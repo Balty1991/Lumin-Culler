@@ -1,5 +1,11 @@
 <!doctype html>
-<html lang="ro">
+<!-- `lang` ramane gol pana cand JS-ul afla limba reala (state/store.ts:applyLocale,
+     din navigator.languages sau din alegerea salvata). Scris "ro" din start, el
+     AFIRMA romana inaintea oricarei verificari: pe un telefon setat pe engleza,
+     asta inseamna un cititor de ecran care pronunta englezeste cu reguli
+     romanesti, si un browser care ofera "tradu pagina" pentru o pagina care e
+     deja in limba lui. Gol e onest: "inca nu stiu". -->
+<html>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />

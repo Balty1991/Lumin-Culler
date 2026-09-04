@@ -12,7 +12,7 @@ import { Histogram } from './Histogram';
 import { FocusMap } from './FocusMap';
 import { AnimatedNumber } from './AnimatedNumber';
 import { XIcon, CheckIcon, EyeClosedIcon, SparkleIcon, ClockIcon, SunIcon, ChevronUpIcon } from './icons';
-import { t, type Locale } from '../i18n';
+import { t, plural, type Locale } from '../i18n';
 import { FEEDBACK_REASONS, recordFeedback, type FeedbackReason } from '../core/aiFeedback';
 import { translateSceneTag } from '../core/sceneTagLabels';
 import { hasRealGps } from '../core/gpsCoordinates';
@@ -613,7 +613,17 @@ export function PhotoInfoTabs({ photo, src, openTab }: {
             <div className="inspector-verdict-copy">
               <span className="mono inspector-verdict-kicker">{tr('inspector.verdict.label')}</span>
               <h3>{verdict}</h3>
-              <p>{photo.faceCount > 0 ? `${photo.faceCount} ${photo.faceCount === 1 ? 'subiect detectat' : 'subiecți detectați'} · ` : ''}{Math.round(photo.sharpness)}/100 claritate · {Math.round(photo.exposure)}/100 expunere</p>
+              {/* Singurul rand din tot panoul care ramasese scris direct in
+                  romana, in loc sa treaca prin dictionar. Pe un telefon setat
+                  pe engleza, restul cardului era tradus si tocmai rezumatul
+                  verdictului — randul cel mai citit din ecran — ramanea in
+                  romana. Gasit cautand text cu diacritice in afara lui `tr`. */}
+              <p>
+                {photo.faceCount > 0
+                  ? tr(plural(photo.faceCount, 'inspector.verdict.subjects.one', 'inspector.verdict.subjects.other'), { count: photo.faceCount }) + ' · '
+                  : ''}
+                {tr('inspector.verdict.metrics', { sharpness: Math.round(photo.sharpness), exposure: Math.round(photo.exposure) })}
+              </p>
               {verdictFactors.length > 0 && <div className="inspector-verdict-factors">{verdictFactors.map(f => <span key={f.label} className={f.positive ? 'pos' : 'neg'}>{f.positive ? '+' : '−'} {f.label}</span>)}</div>}
             </div>
             <ScoreRing score={photo.aiScore} />

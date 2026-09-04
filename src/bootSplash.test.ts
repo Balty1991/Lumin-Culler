@@ -59,3 +59,23 @@ describe('ecranul de dinainte de JavaScript', () => {
     container.remove();
   });
 });
+
+describe('limba paginii nu se afirma inainte sa fie stiuta', () => {
+  /**
+   * `<html lang="ro">` scris static AFIRMA romana inaintea oricarei verificari.
+   * Pe un telefon setat pe engleza asta inseamna doua lucruri concrete: un
+   * cititor de ecran care pronunta engleza cu reguli romanesti, si un browser
+   * care ofera "tradu pagina" pentru o pagina deja in limba utilizatorului.
+   *
+   * Limba reala o pune `applyLocale` imediat ce ruleaza modulul de stare, din
+   * `navigator.languages` sau din alegerea salvata. Pana atunci, gol e onest.
+   */
+  it('index.html nu declara o limba fixa', () => {
+    expect(html).not.toMatch(/<html[^>]*\blang=/);
+  });
+
+  it('limba se pune din cod, la pornire', () => {
+    const store = readFileSync(resolve(root, 'src/state/store.ts'), 'utf8');
+    expect(store).toContain('applyLocale(readStoredLocale())');
+  });
+});
