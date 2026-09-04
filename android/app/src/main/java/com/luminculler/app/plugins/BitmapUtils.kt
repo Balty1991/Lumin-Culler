@@ -201,13 +201,18 @@ private fun cachedBitmap(key: String): Bitmap? = synchronized(bitmapCache) {
  * NU se pune in cache orice, si asta nu e o optimizare — e ce tine cache-ul
  * destul de mare pentru poza in lucru.
  *
- * Singurul apel cu alta latura decat cea implicita e OCR-ul (2560 px, vezi
- * NATIVE_OCR_MAX_SIDE in core/nativeAnalysis.ts). El ruleaza o singura data
- * per poza, la un singur model, si nimeni nu-i mai cere niciodata acel bitmap
- * a doua oara — deci cache-ul nu-l refoloseste NICIODATA. In schimb ii ocupa
- * o intrare din patru, si e cea mai mare alocare din aplicatie (~20 MB fata de
- * ~5 MB la 1280 px): o poza cu text evacua din cache o alta poza aflata chiar
- * atunci in analiza, ca sa tina o imagine pe care n-avea s-o mai foloseasca.
+ * Doua apeluri cer alta latura decat cea implicita, si AMANDOUA o cer o
+ * singura data, pentru un singur model, fara ca nimeni sa mai ceara vreodata
+ * acel bitmap a doua oara — deci cache-ul nu le refoloseste NICIODATA:
+ *
+ *  - pre-scanarea de fete, 320 px (FACE_PRESCAN_SIZE in core/importPipeline.ts)
+ *    — pe FIECARE poza din lot, inainte ca importul propriu-zis sa inceapa,
+ *    doar ca sa decida ordinea;
+ *  - OCR-ul, 2560 px (NATIVE_OCR_MAX_SIDE in core/nativeAnalysis.ts) — cea mai
+ *    mare alocare din aplicatie, ~20 MB fata de ~5 MB la 1280 px.
+ *
+ * Pastrate in cache, ele ocupau locurile poze aflate CHIAR ATUNCI in analiza:
+ * patru locuri, umplute cu doua poze, iar a treia le arunca pe primele afara.
  *
  * Asa, bitmap-ul mare apartine apelantului, care il elibereaza imediat ce a
  * terminat (vezi recycleIfOwned in TextRecognitionPlugin) in loc sa zaca intr-o
