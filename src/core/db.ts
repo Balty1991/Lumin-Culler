@@ -25,6 +25,32 @@ export type PhotoStatus = 'pending' | 'selected' | 'candidate' | 'rejected' | 'r
 
 export interface PhotoRecord {
   id: string;
+  /**
+   * Statusul curent a fost pus de MOTOR, nu de om.
+   *
+   * Lipsa acestui camp era o gaura de model de date cu o consecinta vizibila,
+   * raportata de utilizator cu doua capturi: bara de severitate era
+   * IREVERSIBILA. Apesi "Ingaduitor", 17 poze nedecise primesc eticheta —
+   * corect. Te razgandesti si apesi "Echilibrat": nu se mai intampla nimic.
+   * Fiindca acele 17 poze sunt acum `selected`/`rejected`, iar `isUserDecided`
+   * nu putea deosebi o eticheta pusa de motor acum trei secunde de una pusa de
+   * om acum trei zile — asa ca severitatea le ocolea pe amandoua, "ca sa nu
+   * calce peste decizia ta".
+   *
+   * Comentariul din core/strictnessPreview.ts descria exact aceasta lipsa
+   * ("statusul nu spune DACA a ajuns acolo prin decizia ta sau prin propunerea
+   * motorului — nu exista un asemenea camp") si o trata ca pe un dat. Nu era un
+   * dat, era un camp care lipsea.
+   *
+   * `true` = pus de decidePhotoStatus (import, re-scorare, severitate); poate
+   * fi rescris oricand de motor. `false` = omul a hotarat, si atunci nicio
+   * operatie automata nu-l mai atinge. ABSENT = poze de dinaintea acestui camp,
+   * despre care nu se mai poate sti — tratate ca decizii ALE OMULUI, adica exact
+   * comportamentul de pana acum. Prudenta merge intr-o singura directie aici:
+   * a nu rasturna o alegere reala e mai important decat a putea rasturna o
+   * propunere.
+   */
+  aiDecided?: boolean;
   fileName: string;
   capturedAt?: number;
   importedAt: number;

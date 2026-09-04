@@ -782,6 +782,10 @@ async function processOne(file: File, genre?: string, project?: string, handle?:
     dHash,
     lqip,
     status,
+    // Statusul de la import vine din decidePhotoStatus, deci e al MOTORULUI:
+    // severitatea are voie sa-l rescrie mai tarziu, cat timp omul nu s-a atins
+    // de poza. Vezi core/aiDecision.ts pentru ce a costat lipsa lui.
+    aiDecided: true,
     sizeBytes: file.size,
     // sir gol, NU absent — vezi db.ts v6 pentru motiv (indexul groupId exclude
     // orice inregistrare cu campul absent; '' acopera indexul de la inceput,

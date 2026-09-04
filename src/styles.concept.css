@@ -5806,9 +5806,22 @@ input[type="search"] { min-height: 44px; }
   background: rgb(var(--accent-rgb) / .07);
   box-shadow: inset 0 0 0 1px rgb(var(--accent-rgb) / .3);
 }
+/* "ASTA AI CERUT" — RAND PROPRIU, nu lipita de titlu.
+   Bug real, raportat cu trei capturi: era `inline-block` in interiorul lui
+   <b>, deci se aseza pe acelasi rand cu titlul functiei. Pe telefon, coloana
+   de text are ~55% din latimea ecranului, iar dupa "Fluxul profesional" nu mai
+   ramanea loc: insigna se rupea in trei randuri ("ASTA / AI / CERUT"), creand
+   o cutie inalta care se suprapunea peste titlu si peste descrierea de sub el.
+   Exact randul care trebuia sa ajute devenea singurul lucru ilizibil din ecran.
+
+   Acum e bloc, sub titlu, cu `white-space: nowrap` — nu se mai poate rupe
+   indiferent cat de lung e titlul sau cat de ingust e ecranul, si `width:
+   fit-content` o tine stransa pe text in loc s-o intinda pe tot randul. */
 .premium-wanted-tag {
-  display: inline-block;
-  margin-left: 7px;
+  display: block;
+  width: fit-content;
+  white-space: nowrap;
+  margin: 5px 0 1px;
   padding: 2px 7px;
   border-radius: 999px;
   background: rgb(var(--accent-rgb) / .16);
@@ -5819,7 +5832,6 @@ input[type="search"] { min-height: 44px; }
   font-weight: 800;
   letter-spacing: .08em;
   text-transform: uppercase;
-  vertical-align: middle;
 }
 
 /* ── "De ce ai decis asa?" ──

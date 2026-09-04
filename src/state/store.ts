@@ -73,6 +73,7 @@ import { createActiveElapsed, type ActiveElapsed } from '../core/activeElapsed';
 import { recordImportDay } from './streak';
 import { recordLifetimeSession } from './lifetimeSavings';
 import { stabilizeEta } from '../core/etaEstimate';
+import { lockedFromAutoDecision } from '../core/aiDecision';
 import { readAccessibleMode, applyAccessibleMode } from '../core/accessibleMode';
 import { readSmartNotificationEnabled, writeSmartNotificationEnabled } from './smartNotification';
 import { requestNotificationAccess } from '../core/nativeNotifications';
@@ -121,6 +122,11 @@ export interface PhotoView {
   rating: number;
   /** Eticheta de culoare (vezi core/db.ts) — absent = fara eticheta ('none'). */
   colorLabel?: ColorLabel;
+  /**
+   * Statusul curent a fost pus de motor, nu de om — vezi core/aiDecision.ts.
+   * Absent la pozele de dinaintea campului, tratate ca decizii ale omului.
+   */
+  aiDecided?: boolean;
   aiScore: number;
   sceneType: AnalysisRecord['sceneType'];
   contextKey: string;
@@ -931,6 +937,7 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     fileName: photo.fileName,
     importedAt: photo.importedAt,
     status: photo.status,
+    aiDecided: photo.aiDecided,
     rating: photo.rating ?? 0,
     colorLabel: photo.colorLabel,
     lqip: photo.lqip,
@@ -3037,8 +3044,11 @@ export const useStore = create<AppState>((set, get) => ({
     if (isRealChange) {
       vibrate(status === 'selected' ? 14 : status === 'candidate' ? [10, 30, 10] : [12, 40, 12]);
     }
-    await db.photos.update(id, { status });
-    set(state => ({ photos: state.photos.map(p => (p.id === id ? { ...p, status } : p)) }));
+    // `aiDecided: false` — de aici incolo eticheta e A OMULUI, si nicio
+    // operatie automata (severitate, re-scorare) n-o mai atinge. Vezi
+    // core/aiDecision.ts.
+    await db.photos.update(id, { status, aiDecided: false });
+    set(state => ({ photos: state.photos.map(p => (p.id === id ? { ...p, status, aiDecided: false } : p)) }));
     const { quotaError } = await syncOriginal(id, status);
     if (quotaError) set({ notice: quotaNotice(get().locale) });
     if (status === 'selected' || status === 'rejected') {
@@ -3476,19 +3486,25 @@ export const useStore = create<AppState>((set, get) => ({
 
     const updates = new Map<string, PhotoRecord['status']>();
     await Promise.all(photos.map(async p => {
-      if (isUserDecided(p.status)) return; // decizia ta ramane a ta
+      // `lockedFromAutoDecision`, NU `isUserDecided`: o eticheta pusa de motor
+      // acum trei secunde nu e o decizie a ta. Bug real raportat cu doua
+      // capturi — bara era IREVERSIBILA: dupa prima apasare, toate pozele
+      // nedecise deveneau selected/rejected, iar la a doua apasare erau ocolite
+      // "ca sa nu calce peste decizia ta". Vezi core/aiDecision.ts.
+      if (lockedFromAutoDecision(p)) return;
       const [analysis, photoRecord] = await Promise.all([db.analyses.get(p.id), db.photos.get(p.id)]);
       if (!analysis || !photoRecord) return;
-      if (isUserDecided(photoRecord.status)) return; // s-a decis intre timp
+      if (lockedFromAutoDecision(photoRecord)) return; // s-a decis intre timp
       const newStatus = decidePhotoStatus(analysis.aiScore, analysis, thresholds);
       if (newStatus === photoRecord.status) return;
-      await db.photos.update(p.id, { status: newStatus });
+      // Ramane o decizie a motorului, deci urmatoarea apasare o poate rescrie.
+      await db.photos.update(p.id, { status: newStatus, aiDecided: true });
       updates.set(p.id, newStatus);
     }));
 
     if (updates.size > 0) {
       set(state => ({
-        photos: state.photos.map(p => updates.has(p.id) ? { ...p, status: updates.get(p.id)! } : p)
+        photos: state.photos.map(p => updates.has(p.id) ? { ...p, status: updates.get(p.id)!, aiDecided: true } : p)
       }));
     }
     set({
@@ -3521,7 +3537,8 @@ export const useStore = create<AppState>((set, get) => ({
       await db.analyses.update(p.id, { aiScore: prediction.score, aiFactors: prediction.topFactors, aiUncertainty: prediction.uncertainty, aiPersonalDelta: prediction.personalDelta });
       if (newStatus !== photoRecord.status) {
         changes.push({ photoId: p.id, previousStatus: photoRecord.status });
-        await db.photos.update(p.id, { status: newStatus });
+        // Re-scorarea e tot motorul — vezi core/aiDecision.ts.
+        await db.photos.update(p.id, { status: newStatus, aiDecided: true });
         const res = await syncOriginal(p.id, newStatus);
         if (res.quotaError) quotaError = true;
       }

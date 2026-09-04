@@ -1,7 +1,7 @@
 import type { PhotoView } from '../state/store';
 import { decidePhotoStatus } from './importPipeline';
 import { applyStrictness, type Thresholds, type CullingStrictness } from './scoreThresholds';
-import { isUserDecided } from '../state/batchOps';
+import { lockedFromAutoDecision } from './aiDecision';
 
 /**
  * core/strictnessPreview.ts
@@ -28,15 +28,18 @@ import { isUserDecided } from '../state/batchOps';
  *
  * CE NUMARA, exact: doar teancul "de verificat" (status `review`/`pending`).
  *
- * Nu e o simplificare, e singurul raspuns onest. In modelul de date al
- * aplicatiei, statusul `selected`/`rejected` nu spune DACA a ajuns acolo prin
- * decizia ta sau prin propunerea motorului — nu exista un asemenea camp, iar
- * `isUserDecided` trateaza ambele la fel, ca peste tot in cod. Consecinta e ca
- * severitatea nu poate scoate o poza din teancul deja etichetat fara sa riste
- * sa calce peste o decizie a ta, deci nici nu incearca (vezi
- * store.setCullingStrictness). Previzualizarea trebuie sa numere EXACT ce va
- * face actiunea — altfel promite o cifra si livreaza alta, iar un numar in care
- * nu poti avea incredere e mai rau decat niciun numar.
+ * Paragraful de aici sustinea, pana acum, ca statusul `selected`/`rejected` nu
+ * spune DACA a ajuns acolo prin decizia ta sau prin propunerea motorului, "nu
+ * exista un asemenea camp", si trata asta ca pe un dat. Nu era un dat, era un
+ * camp care lipsea — iar lipsa lui facea bara IREVERSIBILA: dupa prima
+ * apasare, tot ce fusese nedecis devenea etichetat, si a doua apasare nu mai
+ * gasea nimic de mutat. Raportat de utilizator cu doua capturi.
+ *
+ * Campul exista acum (PhotoRecord.aiDecided, vezi core/aiDecision.ts), deci
+ * severitatea rescrie ce a propus motorul si ocoleste doar ce ai hotarat TU.
+ * Numaram exact la fel — previzualizarea trebuie sa numere EXACT ce va face
+ * apasarea, altfel promite o cifra si livreaza alta, iar un numar in care nu
+ * poti avea incredere e mai rau decat niciun numar.
  *
  * De-aia cifra pe care o scoate in fata interfata nu e "cate pastrezi", ci
  * `review`: cate ti-ar RAMANE de trecut prin mana. Aia e si munca pe care o
@@ -66,7 +69,10 @@ export function previewStrictness(
   let kept = 0, rejected = 0, review = 0, changed = 0;
 
   for (const p of photos) {
-    if (isUserDecided(p.status)) continue;
+    // `lockedFromAutoDecision`, NU `isUserDecided` — vezi core/aiDecision.ts.
+    // Previzualizarea trebuie sa numere EXACT ce va face apasarea, iar apasarea
+    // rescrie acum si etichetele puse de motor.
+    if (lockedFromAutoDecision(p)) continue;
     const next = decidePhotoStatus(p.aiScore, p, thresholds);
     if (next === 'selected') kept++;
     else if (next === 'rejected') rejected++;
