@@ -63,6 +63,25 @@ def taie_bara_de_sistem(im):
     y = im.height - 1
     while y > im.height - 320 and px[0, y] > 110:
         y -= 1
+
+    # Bara sta DESENATA PESTE continut, nu sub el: pe ecranul de meniu acopera
+    # ultimul rand din textul despre confidentialitate si, taiata, lasa in loc o
+    # dunga de cativa pixeli cu varfurile literelor. Arata ca o eroare de
+    # decupare, pentru ca este. Daca marginea a nimerit intr-un rand de text,
+    # urcam pana la pauza dinaintea lui.
+    #
+    # Media pe rand nu vede varfurile de litere — cateva zeci de pixeli albi
+    # intr-un rand de 1280 abia misca media. Ne uitam la cel mai luminos pixel
+    # din rand. Si urcam doar daca gasim o pauza aproape: pe grila de poze nu
+    # exista pauze, si acolo nu vrem sa taiem nimic.
+    inalt = im.convert('L')
+    gasit = None
+    for candidat in range(y, max(CROP_TOP, y - 80), -1):
+        if inalt.crop((0, candidat, im.width, candidat + 1)).getextrema()[1] <= 60:
+            gasit = candidat
+            break
+    if gasit is not None:
+        y = gasit
     return im.crop((0, CROP_TOP, im.width, y + 1))
 
 
@@ -227,53 +246,54 @@ def compune(sursa, eticheta, titlu, subtitlu, nume, insigna=None, limba='ro'):
 # ── Textele, pe limbi ──────────────────────────────────────────────────────
 #
 # Fiecare set isi are capturile lui, facute cu aplicatia comutata pe limba
-# respectiva. Prima varianta a setului englezesc punea titluri englezesti peste
-# ecrane romanesti; nu era inselator, dar un vorbitor de engleza vedea
-# diferenta din prima si asta costa exact acolo unde nu vrei, la conversie.
+# respectiva, si de data asta cele doua seturi arata ACELEASI sase ecrane. Nu e
+# cosmetic: primele doua variante au esuat exact aici. Prima punea titluri
+# englezesti peste ecrane romanesti; a doua avea seturi diferite pentru ca lista
+# "pe cauze" nu apare la sesiuni mici. Acum sursele vin din aceeasi sesiune,
+# facuta de doua ori, o data pe fiecare limba.
 #
-# Cele doua seturi NU au aceleasi sase ecrane, si e o diferenta reala, nu o
-# scapare: lista "pe cauze" apare doar cand ai destule poze de verificat
-# (sesiunea romaneasca avea 17, cea englezeasca 2), asa ca in engleza locul ei
-# il ia bara de exigenta — alt ecran, dar aceeasi promisiune: nu doar cat, ci
-# si cat de sever. Daca refaci vreodata capturile englezesti cu o sesiune mare,
-# pune ecranul cu cauze inapoi pe pozitia 2 si textele se potrivesc ca atare.
+# Ordinea nu e intamplatoare — in cautarea din Play se vad primele doua sau
+# trei: intai CE face (scoruri pe grila), apoi CUM se foloseste (gestul de
+# pastrare/respingere), apoi DE CE sa ai incredere (verdictul explicat). Abia
+# dupa aceea vin sugestiile si editorul, care sunt argumente pentru cineva deja
+# interesat, nu carlige pentru cineva care deruleaza.
 SURSE_RO = {
-    'scoruri': '25537cf9-image.jpg', 'cauze': '40e959de-image.jpg',
-    'dece': 'a5734068-image.jpg', 'metrici': '69016b10-image.jpg',
-    'decizie': '0dc65acc-image.jpg', 'privat': '3f64d51d-image.jpg'
+    'grila': 'd33e3e66-image.jpg', 'decizie': 'e7485339-image.jpg',
+    'dece': '7214895d-image.jpg', 'sugestii': '05d77a1c-image.jpg',
+    'editor': 'c5aedc4f-image.jpg', 'privat': 'd45e2b35-image.jpg'
 }
 SURSE_EN = {
-    'scoruri': 'a7ca390f-image.jpg', 'exigenta': '2ef2faf9-image.jpg',
-    'dece': 'ac3e349c-image.jpg', 'metrici': 'ea529d48-image.jpg',
-    'decizie': '5231550a-image.jpg', 'privat': '57ce8f4f-image.jpg'
+    'grila': '21b1cf92-image.jpg', 'decizie': '92f1ffb3-image.jpg',
+    'dece': 'dd22cba7-image.jpg', 'sugestii': 'ceb58953-image.jpg',
+    'editor': '4179a11f-image.jpg', 'privat': '2bfb67d4-image.jpg'
 }
 
 TEXTE = {
     'ro': [
-        ('scoruri', 'Triaj cu AI', 'Un scor pentru fiecare poză',
+        ('grila', 'Triaj cu AI', 'Un scor pentru fiecare poză',
          'Import, analiză și sortare — oricâte poze, gratuit.', ('12 poze', 'decise în 83%')),
-        ('cauze', 'Coada de verificat', 'Nu doar cât. Și de ce.',
-         'Grupate pe cauze: un gest, nu o sută.', ('5 cauze', 'nu 17 decizii')),
+        ('decizie', 'Decizia ta', 'Păstrezi sau respingi, dintr-un gest',
+         'Zâmbet, ochi, claritate — măsurate, nu ghicite.', ('3 semnale', 'la vedere')),
         ('dece', 'Explicabilitate', 'Fiecare scor, explicat',
          'Ce a cântărit pentru și ce împotrivă. Tu confirmi, AI-ul învață.', None),
-        ('metrici', 'Ce măsoară', 'Claritate, ochi, zâmbet',
-         'Măsurate pe telefon, arătate pe înțelesul tău.', None),
-        ('decizie', 'Fluxul de lucru', 'Următoarea decizie, pregătită',
-         'Tu doar confirmi. Nimic nu se șterge fără acordul tău.', None),
+        ('sugestii', 'Nu doar verdicte', 'Îți spune și ce poți repara',
+         'Compoziție, expunere, cadru — cu buton de aplicat pe loc.', ('Aplică', 'dintr-o atingere')),
+        ('editor', 'Editor inclus', 'Nu pleci din aplicație',
+         'Expunere, culoare, curbe, retuș, decupare — toate pe telefon.', None),
         ('privat', 'Confidențialitate', 'Nicio poză nu pleacă de pe telefon',
          'Fără cont, fără upload, fără reclame.', ('0 upload', 'nimic nu pleacă'))
     ],
     'en': [
-        ('scoruri', 'AI culling', 'A score for every photo',
+        ('grila', 'AI culling', 'A score for every photo',
          'Import, analysis and sorting — any number of photos, free.', ('12 photos', '83% decided')),
-        ('exigenta', 'One control', 'You set how strict it is',
-         'Lenient, balanced or strict — and it never touches what you decided.', ('3 levels', 'your calls stay')),
+        ('decizie', 'Your call', 'Keep or reject, in one gesture',
+         'Smile, eyes, sharpness — measured, not guessed.', ('3 signals', 'in plain sight')),
         ('dece', 'Explainable', 'Every score, explained',
          'What counted for it and what against. You confirm, the AI learns.', None),
-        ('metrici', 'What it measures', 'Sharpness, eyes, smile',
-         'Measured on your phone, shown in plain words.', None),
-        ('decizie', 'The workflow', 'Your next decision, ready',
-         'You just confirm. Nothing is deleted without your say-so.', None),
+        ('sugestii', 'Not just verdicts', 'It tells you what to fix',
+         'Composition, exposure, framing — with a button to apply it now.', ('Apply', 'one tap')),
+        ('editor', 'Editor included', 'You never leave the app',
+         'Exposure, colour, curves, retouch, crop — all on your phone.', None),
         ('privat', 'Privacy', 'No photo ever leaves your phone',
          'No account, no upload, no ads.', ('0 uploads', 'nothing leaves'))
     ]
