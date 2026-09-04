@@ -258,13 +258,13 @@ def compune(sursa, eticheta, titlu, subtitlu, nume, insigna=None, limba='ro'):
 # dupa aceea vin sugestiile si editorul, care sunt argumente pentru cineva deja
 # interesat, nu carlige pentru cineva care deruleaza.
 SURSE_RO = {
-    'grila': 'd33e3e66-image.jpg', 'cauze': 'b036489f-image.jpg',
+    'grila': '7d2bfce7-image.jpg', 'cauze': 'b036489f-image.jpg',
     'decizie': 'e7485339-image.jpg', 'dece': '7214895d-image.jpg',
     'sugestii': '05d77a1c-image.jpg', 'editor': 'c5aedc4f-image.jpg',
     'privat': 'd45e2b35-image.jpg', 'splash': '429b319a-image.jpg'
 }
 SURSE_EN = {
-    'grila': '21b1cf92-image.jpg', 'cauze': '35bb9c3c-image.jpg',
+    'grila': 'ac135e57-image.jpg', 'cauze': '35bb9c3c-image.jpg',
     'decizie': '92f1ffb3-image.jpg', 'dece': 'dd22cba7-image.jpg',
     'sugestii': 'ceb58953-image.jpg', 'editor': '4179a11f-image.jpg',
     'privat': '2bfb67d4-image.jpg', 'splash': '3cfca619-image.jpg'
