@@ -30,6 +30,14 @@ function ContactSheetThumb({ photoId, edits }: { photoId: string; edits?: EditAd
 }
 
 /**
+ * SE CITESTE LIBER, SE PRINTEAZA CU ABONAMENT. Aplicatia are un principiu de
+ * monetizare scris peste tot — plafon pe IESIRE, nu pe intrare — pe care
+ * functiile rezervate abonatilor il incalcau exact invers: poarta statea pe
+ * deschiderea panoului, deci nimeni n-a vazut vreodata o plansa de contact, iar
+ * ecranul Premium cerea bani pentru un SUBSTANTIV. Acum grila se vede intreaga,
+ * cu pozele tale; butonul de printare e cel care cere abonament, fiindca acolo
+ * rezultatul chiar pleaca din aplicatie.
+ *
  * Contact sheet printabil (plan "cat mai pro"): grila compacta cu toate
  * miniaturile din filtrul curent + status/rating/scor, gata de window.print()
  * — util pentru revizuire offline cu clientul, fara sa deschizi laptopul.
@@ -44,6 +52,8 @@ function ContactSheetThumb({ photoId, edits }: { photoId: string; edits?: EditAd
 export function ContactSheet() {
   const open = useStore(s => s.contactSheetOpen);
   const setOpen = useStore(s => s.setContactSheetOpen);
+  const printContactSheet = useStore(s => s.printContactSheet);
+  const premiumLocked = useStore(s => s.premiumLocked);
   const filtered = useStore(s => s.filtered());
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
@@ -67,15 +77,23 @@ export function ContactSheet() {
         <header className="detail-head contact-sheet-no-print">
           <span><PrinterIcon className="inline-icon" /> {tr('contactSheet.title', { count: filtered.length })}</span>
           <div className="contact-sheet-header-actions">
-            <button className="select small-btn" onClick={() => window.print()} disabled={!filtered.length}>
-              <PrinterIcon className="inline-icon" /> {tr('contactSheet.print')}
+            {/* Lacatul sta pe PRINTARE, nu pe usa: plansa se citeste liber, cu
+                pozele tale, iar abonamentul se cere abia cand rezultatul chiar
+                pleaca din aplicatie — acelasi criteriu ca la pozele exportate
+                sau sterse. Vezi setContactSheetOpen/printContactSheet in
+                state/store.ts pentru de ce era invers. */}
+            <button className="select small-btn" onClick={printContactSheet} disabled={!filtered.length}>
+              <PrinterIcon className="inline-icon" />{' '}
+              {premiumLocked ? tr('contactSheet.print.premium') : tr('contactSheet.print')}
             </button>
             <button className="ghost icon-btn" onClick={() => setOpen(false)} aria-label={tr('detail.close')}>
               <XIcon />
             </button>
           </div>
         </header>
-        <p className="hint contact-sheet-no-print">{tr('contactSheet.hint')}</p>
+        <p className="hint contact-sheet-no-print">
+          {premiumLocked ? tr('contactSheet.hint.premium') : tr('contactSheet.hint')}
+        </p>
 
         {filtered.length === 0
           ? <p className="hint">{tr('contactSheet.empty')}</p>

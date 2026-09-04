@@ -1391,6 +1391,8 @@ export const en: Record<TranslationKey, string> = {
   'stats.usage.takenOutPremium': '{count} photos taken out of the app in the last 30 days. With Premium, no cap.',
 
   'contactSheet.title': 'Contact sheet ({count} photos)',
+  'contactSheet.print.premium': 'Print (Premium)',
+  'contactSheet.hint.premium': 'The sheet is yours, made from your photos — read it as long as you like. Printing (on paper or to PDF) needs a subscription, like anything else that leaves the app.',
   'contactSheet.print': 'Print',
   'contactSheet.hint': 'Shows the photos from the current filter (same set as the grid). Press "Print" or Ctrl/Cmd+P — the rest of the app won\'t appear on the printed page.',
   'contactSheet.empty': 'No results for the current filter.',

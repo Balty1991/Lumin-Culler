@@ -1438,6 +1438,8 @@ export const ro = {
   'stats.usage.takenOutPremium': '{countDe} poze scoase din aplicație în ultimele 30 de zile. Cu Premium, fără plafon.',
 
   'contactSheet.title': 'Contact sheet ({countDe} poze)',
+  'contactSheet.print.premium': 'Printează (Premium)',
+  'contactSheet.hint.premium': 'Planșa e a ta, cu pozele tale — citește-o cât vrei. Printarea (pe hârtie sau în PDF) cere abonament, ca orice altceva care iese din aplicație.',
   'contactSheet.print': 'Printează',
   'contactSheet.hint': 'Arată pozele din filtrul curent (același set ca în grilă). Apasă "Printează" sau Ctrl/Cmd+P — restul aplicației nu apare pe pagina tipărită.',
   'contactSheet.empty': 'Niciun rezultat pentru filtrul curent.',

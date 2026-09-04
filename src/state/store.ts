@@ -310,6 +310,8 @@ interface AppState {
   /** Contact sheet printabil (plan "cat mai pro") — grila compacta cu toate miniaturile + status/rating, gata de window.print(). */
   contactSheetOpen: boolean;
   setContactSheetOpen: (open: boolean) => void;
+  /** Scoaterea plansei din aplicatie (hartie/PDF) — AICI e poarta Premium, nu pe deschidere. */
+  printContactSheet: () => void;
   /** Prezentare fullscreen cinematica (auto-advance) — pentru aratat pozele clientului pe loc, fara laptop deschis pe grila de lucru. */
   presentationOpen: boolean;
   setPresentationOpen: (open: boolean) => void;
@@ -2504,7 +2506,30 @@ export const useStore = create<AppState>((set, get) => ({
   statsOpen: false,
   setStatsOpen: open => set({ statsOpen: open }),
   contactSheetOpen: false,
-  setContactSheetOpen: open => { if (open && get().gatePremium('contactSheet')) return; set({ contactSheetOpen: open }); },
+  /**
+   * Usa NU mai e poarta — vezi `printContactSheet` mai jos, care e.
+   *
+   * Aplicatia are un principiu de monetizare scris peste tot (core/entitlement.ts,
+   * fisa din magazin, checklist): PLAFON PE IESIRE, NU PE INTRARE. Triezi gratis
+   * oricate poze; platesti pentru ce SCOTI din aplicatie.
+   *
+   * Functiile rezervate abonatilor il incalcau exact invers: poarta statea pe
+   * `setContactSheetOpen`, deci nimeni n-a vazut vreodata o plansa de contact.
+   * Iar ecranul Premium ii cerea omului sa plateasca pentru un SUBSTANTIV —
+   * "plansa de contact" — fara sa-i fi aratat vreodata una facuta din pozele
+   * lui. Cea mai slaba forma de vanzare care exista.
+   *
+   * Acum plansa se deschide si se citeste liber, cu pozele TALE. Printarea
+   * (singurul moment in care rezultatul chiar pleaca din aplicatie, pe hartie
+   * sau in PDF) e cea care cere abonament — exact acelasi criteriu ca la pozele
+   * exportate sau sterse. Nimic nu e ascuns si nimic nu e degradat: vezi fix
+   * ce primesti.
+   */
+  setContactSheetOpen: open => set({ contactSheetOpen: open }),
+  printContactSheet: () => {
+    if (get().gatePremium('contactSheet')) return;
+    window.print();
+  },
   presentationOpen: false,
   setPresentationOpen: open => { if (open && get().gatePremium('presentation')) return; set({ presentationOpen: open }); },
   presentationPhotoIds: null,
