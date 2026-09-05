@@ -177,7 +177,7 @@ Premium lifts the cap on photos taken OUT of the app and unlocks the professiona
 • Free: 150 photos taken out every 30 days (exported or deleted from the phone), one recognized person.
 • Premium: unlimited export and deletion, as many people as you like, plus XMP for Lightroom, contact sheet, PIN-protected vault, monthly recap, presentation, trips and the two-frame composite suggestion.
 
-The price is shown in the app, in your account's currency. The subscription renews automatically until you cancel it in Google Play → Menu → Subscriptions; cancelling takes effect at the end of the period you already paid for.
+The price is shown in the app, in your account's currency. The subscription renews automatically until you cancel it in Google Play → Menu → Subscriptions; canceling takes effect at the end of the period you already paid for.
 
 PRIVACY
 
