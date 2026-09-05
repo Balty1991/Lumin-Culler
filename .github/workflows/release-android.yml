@@ -36,7 +36,17 @@ jobs:
           if [ "$GITHUB_REF_TYPE" = "tag" ]; then
             VERSION_NAME="${GITHUB_REF_NAME#v}"
           else
-            VERSION_NAME="0.0.0-dev.$VERSION_CODE"
+            # Rularea manuala punea "0.0.0-dev.<numar>". Numele asta NU ramane in
+            # CI: e ce scrie in Play Console si ce citeste testerul la "Versiune"
+            # in fisa aplicatiei. O aplicatie care cere bani pe abonament si se
+            # prezinta ca "0.0.0-dev.34" isi taie singura credibilitatea, iar
+            # build-urile manuale sunt exact cele trimise testerilor.
+            #
+            # Sursa adevarului e package.json, tinut in pas cu build.gradle.
+            # Citit cu sed, nu cu node: pasul asta ruleaza inaintea lui
+            # setup-node. Ce distinge doua build-uri ramane versionCode, care
+            # creste oricum la fiecare rulare.
+            VERSION_NAME="$(sed -n 's/.*"version": "\([^"]*\)".*/\1/p' package.json | head -1)"
           fi
           sed -i "s/versionCode [0-9]\+/versionCode $VERSION_CODE/" android/app/build.gradle
           sed -i "s/versionName \"[^\"]*\"/versionName \"$VERSION_NAME\"/" android/app/build.gradle
