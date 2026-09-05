@@ -123,14 +123,14 @@ Procesare integral locală. Fără reclame, fără analytics, fără servicii de
 
 ---
 
-## English (secondary listing language)
+## English — en-US (ortografie americana: color, recognize, enroll)
 
 ### Short description (max 80 characters) — 78 characters
 ```
 Clean your gallery: find duplicates, cull bad shots, free up space. On-device.
 ```
 
-### Full description (max 4000 characters) — 3885 characters
+### Full description (max 4000 characters) — 3884 characters
 ```
 You come home with 800 photos and no appetite for going through them one by one.
 
@@ -152,9 +152,9 @@ WHAT IT DOES
 
 • Learns how YOU choose. Every decision trains a model that remembers separately, per scene type: maybe you like portraits slightly underexposed but landscapes in full light. After a few dozen decisions the score starts to look like your taste, not a textbook.
 
-• Recognises your people. Enrol a few reference photos for your child, your family or your clients, and the app tells their frames apart from the rest.
+• Recognizes your people. Enroll a few reference photos for your child, your family or your clients, and the app tells their frames apart from the rest.
 
-• A full editor, in the same app. Exposure, colour, curves, selective edits by area, retouch, crop. Plus an Auto button that judges the subject, not the histogram — on a backlit photo it lifts the person instead of darkening the whole frame to save a sky that is blown anyway.
+• A full editor, in the same app. Exposure, color, curves, selective edits by area, retouch, crop. Plus an Auto button that judges the subject, not the histogram — on a backlit photo it lifts the person instead of darkening the whole frame to save a sky that is blown anyway.
 
 • Separates what is not a memory. Screenshots, documents, photos of packaging and receipts — moved out of the way, so they never ask you for a photographic decision.
 
@@ -166,7 +166,7 @@ WHAT IT DOES
 
 WHO IT IS FOR
 
-Anyone who ends up with hundreds of photos after a day out — parents, travellers, people covering events. And wedding, portrait or event photographers who deliver a selection and work in Lightroom.
+Anyone who ends up with hundreds of photos after a day out — parents, travelers, people covering events. And wedding, portrait or event photographers who deliver a selection and work in Lightroom.
 
 WHAT IS FREE
 
