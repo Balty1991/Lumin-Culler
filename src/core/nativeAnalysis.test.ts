@@ -97,6 +97,45 @@ describe('analyzeNative', () => {
     expect(result.bestSmile).toBe(0.8);
   });
 
+  // Motivul intregii schimbari: ImageAnalysis isi pornea PROPRIUL detector ML
+  // Kit, in mod FAST, pe fiecare poza — a doua detectie pe acelasi cadru, ale
+  // carei cutii intrau in compozitie, focus/bokeh si orizont. Testele astea
+  // apara faptul ca primeste cutiile detectiei bune si nu mai are motiv sa
+  // caute singur.
+  describe('cutiile de fete ajung la analiza de imagine, ca sa nu se detecteze de doua ori', () => {
+    it('trimite cutiile normalizate, aceleasi cu cele din FaceInsight.box', async () => {
+      detectFacesNative.mockResolvedValue({
+        faces: [{ boundingBox: { left: 10, top: 20, width: 30, height: 40 }, smilingProbability: 0.5, leftEyeOpenProbability: 0.9, rightEyeOpenProbability: 0.9 }],
+        imageWidth: 100,
+        imageHeight: 100
+      });
+      labelImageNative.mockResolvedValue({ labels: [] });
+      analyzeFaceMeshNative.mockResolvedValue({ faces: [] });
+
+      const { analyzeNative } = await import('./nativeAnalysis');
+      const result = await analyzeNative('p1', fakeBitmap(100, 100));
+
+      expect(analyzeImageNative).toHaveBeenCalledWith(
+        expect.anything(),
+        [{ x: 0.1, y: 0.2, w: 0.3, h: 0.4 }]
+      );
+      // Aceleasi cifre pe care le vede si restul aplicatiei — daca cele doua
+      // ar diverge, scorul de compozitie ar descrie alta fata decat cea
+      // raportata.
+      expect(result.faces[0].box).toEqual([0.1, 0.2, 0.3, 0.4]);
+    });
+
+    it('fara fete trimite o lista GOALA, nu nimic — altfel plugin-ul ar cauta singur', async () => {
+      detectFacesNative.mockResolvedValue({ faces: [], imageWidth: 100, imageHeight: 100 });
+      labelImageNative.mockResolvedValue({ labels: [{ label: 'dog', confidence: 0.9 }] });
+
+      const { analyzeNative } = await import('./nativeAnalysis');
+      await analyzeNative('p1', fakeBitmap(100, 100));
+
+      expect(analyzeImageNative).toHaveBeenCalledWith(expect.anything(), []);
+    });
+  });
+
   it('marcheaza isBlinking cand probabilitatea de ochi deschis e sub prag, si trateaza probabilitate absenta ca "deschis"', async () => {
     detectFacesNative.mockResolvedValue({
       faces: [
@@ -496,13 +535,12 @@ describe('analyzeNative — apelurile independente chiar pornesc in paralel', ()
     for (const m of [detectFacesNative, analyzeImageNative, labelImageNative, analyzeFaceMeshNative, detectTextNative, embedImageNative, detectPoseNative]) m.mockReset();
   });
 
-  it('detectia de fete, analiza de imagine si etichetarea pornesc toate trei inainte ca vreuna sa termine', async () => {
+  it('detectia de fete si etichetarea pornesc amandoua inainte ca vreuna sa termine', async () => {
     const faces = gated({ faces: [], imageWidth: 100, imageHeight: 100 });
-    const image = gated(IMAGE_ANALYSIS_FIXTURE);
     const labels = gated({ labels: [{ label: 'dog', confidence: 0.9 }] });
     detectFacesNative.mockImplementation(faces.impl);
-    analyzeImageNative.mockImplementation(image.impl);
     labelImageNative.mockImplementation(labels.impl);
+    analyzeImageNative.mockResolvedValue(IMAGE_ANALYSIS_FIXTURE);
     embedImageNative.mockResolvedValue({ embedding: [0.1] });
     detectTextNative.mockResolvedValue({ textCoverage: 0 });
 
@@ -511,10 +549,40 @@ describe('analyzeNative — apelurile independente chiar pornesc in paralel', ()
     await Promise.resolve(); // lasa microtask-urile sa porneasca apelurile
 
     expect(faces.started).toBe(true);
-    expect(image.started).toBe(true);
     expect(labels.started).toBe(true);
 
-    faces.release(); image.release(); labels.release();
+    faces.release(); labels.release();
+    await running;
+  });
+
+  // Analiza de imagine NU mai porneste in acelasi moment cu celelalte doua, si
+  // asta e intentionat: are nevoie de cutiile detectiei ca sa nu-si porneasca
+  // propriul detector (a doua detectie ML Kit pe aceeasi poza). Testul apara
+  // ordinea, ca sa nu fie "reparata" inapoi in paralel de cineva care vede doar
+  // ca un apel asteapta altul.
+  it('analiza de imagine asteapta detectia, ca sa primeasca cutiile ei', async () => {
+    const faces = gated({ faces: [], imageWidth: 100, imageHeight: 100 });
+    const image = gated(IMAGE_ANALYSIS_FIXTURE);
+    detectFacesNative.mockImplementation(faces.impl);
+    analyzeImageNative.mockImplementation(image.impl);
+    // Fara etichete de scena se declanseaza OCR-ul, deci mock-ul lui trebuie sa
+    // aiba forma intreaga, nu doar acoperirea.
+    labelImageNative.mockResolvedValue({ labels: [] });
+    embedImageNative.mockResolvedValue({ embedding: [0.1] });
+    detectTextNative.mockResolvedValue({ textCoverage: 0, blocks: [] });
+
+    const { analyzeNative } = await import('./nativeAnalysis');
+    const running = analyzeNative('p1', fakeBitmap(100, 100));
+    await Promise.resolve();
+
+    expect(faces.started).toBe(true);
+    expect(image.started).toBe(false);
+
+    faces.release();
+    await Promise.resolve(); await Promise.resolve();
+    expect(image.started).toBe(true);
+
+    image.release();
     await running;
   });
 

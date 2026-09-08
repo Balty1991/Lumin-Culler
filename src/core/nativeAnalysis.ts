@@ -340,27 +340,38 @@ export async function analyzeNative(
   // merge la toate modelele, iar cel mare se genereaza doar daca ajungem la OCR.
   const source: NativeImageSource = mediaUri ? { uri: mediaUri } : { blob: await canvasToModelBlob(canvas) };
 
-  // ── Etapa 1: tot ce nu depinde de nimic, deodata ────────────────────────
-  // Aceste trei modele nu au nevoie unul de rezultatul altuia: ImageAnalysis
-  // isi face propria detectie de fete (vezi ImageAnalysisPlugin.kt), iar
-  // etichetele de scena nu depind de fete deloc. Erau totusi asteptate strict
-  // unul dupa altul, deci timpul per poza era SUMA celor 7 modele, nu maximul
-  // lor — cu tot ce inseamna asta pe un lot de 400 de poze.
+  // ── Etapa 1: detectia de fete si etichetarea, deodata ───────────────────
+  // Nu depind una de alta si nu depind de nimic — pornesc impreuna.
   //
   // Nu multiplica presiunea pe device necontrolat: numarul de poze in zbor
   // ramane plafonat de nativeAnalysisConcurrency() (workerPool.ts), iar toate
   // apelurile pentru aceeasi poza refolosesc UN singur bitmap decodat — vezi
-  // decodeUriCached in BitmapUtils.kt, care de-dublica acum si decodarile
-  // pornite simultan, exact cazul creat de paralelizarea de aici.
-  const [faceResult, imageAnalysis, labelResult] = await Promise.all([
-    detectFacesNative(source),
-    analyzeImageNative(source),
-    labelImageNative(source)
-  ]);
+  // decodeUriCached in BitmapUtils.kt, care de-dublica si decodarile pornite
+  // simultan, exact cazul creat de paralelizarea de aici.
+  const labelPromise = labelImageNative(source);
+  const faceResult = await detectFacesNative(source);
 
   const faces = faceResult.faces.map(f =>
     toFaceInsight(f, faceResult.imageWidth || imageWidth, faceResult.imageHeight || imageHeight)
   );
+
+  // ── Analiza de imagine, cu fetele deja gasite ───────────────────────────
+  // Rula si ea in acelasi val, dar isi PORNEA PROPRIUL detector de fete: a doua
+  // detectie ML Kit pe acelasi cadru, in mod FAST, pe fiecare poza cu oameni.
+  // Din cutiile ei ieseau compozitia, focus/bokeh si orizontul — deci pe unele
+  // poze scorurile veneau din fete pe care detectorul bun le vedea altfel, sau
+  // nu le vedea deloc.
+  //
+  // Acum primeste cutiile ACCURATE. Costul: analiza de imagine nu mai porneste
+  // in acelasi moment, ci dupa detectie, deci o poza LUATA SINGURA se termina cu
+  // o idee mai tarziu. Castigul: o detectie in loc de doua, pe fiecare poza. Cum
+  // ruleaza 2-4 poze in paralel pe acelasi procesor deja saturat, ce conteaza
+  // pentru lot e munca totala, nu drumul critic al unei poze — si munca totala
+  // scade.
+  const [imageAnalysis, labelResult] = await Promise.all([
+    analyzeImageNative(source, faces.map(f => ({ x: f.box[0], y: f.box[1], w: f.box[2], h: f.box[3] }))),
+    labelPromise
+  ]);
   // Acelasi tipar de deduplicare ca faceAnalysis.worker.ts: [...new Set(...)].
   const sceneTags = [...new Set(labelResult.labels.map(l => l.label))];
 

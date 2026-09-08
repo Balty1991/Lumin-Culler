@@ -23,16 +23,20 @@ private const val HORIZON_MAX_SIDE = 360
  * src/core/nativeAnalysis.ts (orchestratorul pipeline-ului de analiza pe
  * Android), el insusi apelat din src/core/workerPool.ts (AnalysisPool).
  *
- * Foloseste propriul detector de fete (mod FAST, fara clasificare) doar ca
- * sa obtina cutiile pentru scorul de compozitie/focus-bokeh — nu si
- * probabilitatile de zambet/ochi, care raman treaba FaceDetectionPlugin.
- * ATENTIE: fiind un detector INDEPENDENT (FAST vs ACCURATE in
- * FaceDetectionPlugin), poate rata o fata pe care celalalt o gaseste —
- * `subjectInFocus`/compositionScore ar putea atunci sa nu reflecte un
- * faceCount>0 raportat in AnalysisRecord. Cunoscut, neconsiderat critic
- * momentan (vezi audit-ul din istoricul git) — de rezolvat intr-o faza
- * viitoare trecand cutiile deja gasite de FaceDetectionPlugin catre acest
- * plugin, in loc sa se re-detecteze.
+ * Cutiile de fete VIN DE LA APELANT (parametrul `faces`), deja gasite de
+ * FaceDetection pe aceeasi poza. Din ele ies compozitia, focus/bokeh si
+ * orizontul.
+ *
+ * Pana acum plugin-ul isi pornea propriul detector, in mod FAST, si comentariul
+ * de aici spunea ca "de rezolvat intr-o faza viitoare trecand cutiile deja
+ * gasite de FaceDetectionPlugin". Faza aia e asta. Erau doua detectii ML Kit pe
+ * fiecare poza cu oameni, iar cele doua puteau sa nu fie de acord: FAST rata
+ * fete pe care ACCURATE le gasea, si atunci `subjectInFocus`/compositionScore
+ * nu reflectau faceCount-ul raportat in AnalysisRecord.
+ *
+ * Detectorul de mai jos ramane, dar ca REZERVA: pentru apelantii care nu trimit
+ * `faces` (calea cu imageBase64, butonul de test din meniu). Nu mai e calea
+ * normala.
  */
 @CapacitorPlugin(name = "ImageAnalysis")
 class ImageAnalysisPlugin : Plugin() {
@@ -48,11 +52,55 @@ class ImageAnalysisPlugin : Plugin() {
         FaceDetection.getClient(options)
     }, { it.close() })
 
+    /**
+     * Cutiile venite de la apelant, deja normalizate 0..1 — sau null daca n-a
+     * trimis niciuna.
+     *
+     * O lista GOALA nu e acelasi lucru cu absenta: inseamna "s-a cautat si nu e
+     * nimeni in cadru", si atunci nu mai cautam a doua oara. Doar cheia lipsa
+     * porneste detectorul propriu.
+     */
+    private fun cutiiPrimite(call: PluginCall): List<ImageMath.FaceBox>? {
+        val array = call.getArray("faces") ?: return null
+        return try {
+            (0 until array.length()).map { i ->
+                val o = array.getJSONObject(i)
+                ImageMath.FaceBox(
+                    x = o.getDouble("x"), y = o.getDouble("y"),
+                    w = o.getDouble("w"), h = o.getDouble("h")
+                )
+            }
+        } catch (e: org.json.JSONException) {
+            // Cutii malformate: mai bine cautam singuri decat sa cadem. Nu se
+            // poate intampla de la apelantul din nativeAnalysis.ts, dar plugin-ul
+            // e o interfata publica, nu o functie privata a acelui fisier.
+            CrashLog.pas("!ImageAnalysis-cutii:${e.message}")
+            null
+        }
+    }
+
     @PluginMethod
     fun analyze(call: PluginCall) {
         // Preferam `imageUri` (fara nicio imagine peste punte); `imageBase64`
         // ramane pentru pozele care nu vin din galerie. Vezi BitmapUtils.kt.
         val bitmap: Bitmap = resolveInputBitmap(context, call) ?: return
+
+        // Calea normala de analiza: fetele vin de la FaceDetection, care a rulat
+        // deja pe ACEEASI poza. Pana acum se detecta din nou aici, in mod FAST —
+        // a doua detectie ML Kit pe acelasi cadru, ale carei cutii intrau in
+        // compozitie, focus si orizont. Doua detectoare care puteau sa nu fie de
+        // acord, si costul unei detectii intregi pe fiecare poza cu oameni.
+        val primite = cutiiPrimite(call)
+        if (primite != null) {
+            try {
+                call.resolve(runAnalysis(bitmap, primite))
+            } catch (e: Exception) {
+                call.reject("Image analysis failed: ${e.message}", e)
+            } finally {
+                recycleIfOwned(bitmap)
+            }
+            return
+        }
 
         val image = InputImage.fromBitmap(bitmap, 0)
         CrashLog.pas(">ImageAnalysis-fete")
