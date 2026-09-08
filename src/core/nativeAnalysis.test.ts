@@ -579,7 +579,11 @@ describe('analyzeNative — apelurile independente chiar pornesc in paralel', ()
     expect(image.started).toBe(false);
 
     faces.release();
-    await Promise.resolve(); await Promise.resolve();
+    // Golim coada de microtask-uri cu un tick de macrotask, nu numarand
+    // `await`-uri: intre detectie si analiza mai sta acum si cronometrul per
+    // model (core/analysisTiming.ts), iar un test care numara straturi se strica
+    // la fiecare strat adaugat, desi ordinea pe care o apara ramane aceeasi.
+    await new Promise(resolve => setTimeout(resolve, 0));
     expect(image.started).toBe(true);
 
     image.release();

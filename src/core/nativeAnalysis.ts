@@ -46,6 +46,7 @@ import { pickFolderSceneTag } from './sceneTagLabels';
 import { photoTextFromBlocks } from './photoText';
 import { hasManufacturedTag } from './smartInbox';
 import type { NativeImageSource } from './nativeImageSource';
+import { timedModel } from './analysisTiming';
 
 /**
  * Acelasi prag ca groupSmileRatio din faceAnalysis.worker.ts (web) — "zambet
@@ -348,8 +349,8 @@ export async function analyzeNative(
   // apelurile pentru aceeasi poza refolosesc UN singur bitmap decodat — vezi
   // decodeUriCached in BitmapUtils.kt, care de-dublica si decodarile pornite
   // simultan, exact cazul creat de paralelizarea de aici.
-  const labelPromise = labelImageNative(source);
-  const faceResult = await detectFacesNative(source);
+  const labelPromise = timedModel('ImageLabeling', () => labelImageNative(source));
+  const faceResult = await timedModel('FaceDetection', () => detectFacesNative(source));
 
   const faces = faceResult.faces.map(f =>
     toFaceInsight(f, faceResult.imageWidth || imageWidth, faceResult.imageHeight || imageHeight)
@@ -369,7 +370,7 @@ export async function analyzeNative(
   // pentru lot e munca totala, nu drumul critic al unei poze — si munca totala
   // scade.
   const [imageAnalysis, labelResult] = await Promise.all([
-    analyzeImageNative(source, faces.map(f => ({ x: f.box[0], y: f.box[1], w: f.box[2], h: f.box[3] }))),
+    timedModel('ImageAnalysis', () => analyzeImageNative(source, faces.map(f => ({ x: f.box[0], y: f.box[1], w: f.box[2], h: f.box[3] })))),
     labelPromise
   ]);
   // Acelasi tipar de deduplicare ca faceAnalysis.worker.ts: [...new Set(...)].
@@ -389,18 +390,18 @@ export async function analyzeNative(
     // FaceMesh e sarit complet cand nu exista fete — nu are ce agrega, si evita
     // un apel MediaPipe intreg (cel mai greu dintre cele 5) fara niciun beneficiu.
     faces.length > 0
-      ? analyzeFaceMeshNative(source).then(r => faceMeshGroupStats(r.faces))
+      ? timedModel('FaceMesh', () => analyzeFaceMeshNative(source)).then(r => faceMeshGroupStats(r.faces))
       : Promise.resolve({}),
     // Embedding general de similaritate — vezi AnalysisRecord.imageEmbedding:
     // doar pentru poze FARA fete (cu fete, embedding-urile faciale sunt deja
     // semnalul puternic pentru rafinarea seriilor in hashCompare.worker.ts).
     faces.length === 0
-      ? embedImageNative(source).then(r => r.embedding)
+      ? timedModel('ImageEmbedder', () => embedImageNative(source)).then(r => r.embedding)
       : Promise.resolve(undefined),
     // Postura — vezi AnalysisRecord.bodyCroppedAtEdge: doar cand exista fete
     // (postura n-are subiect de verificat pe un peisaj/obiect).
     faces.length > 0
-      ? detectPoseNative(source).then(r => hasAwkwardBodyCrop(r.people))
+      ? timedModel('PoseDetection', () => detectPoseNative(source)).then(r => hasAwkwardBodyCrop(r.people))
       : Promise.resolve(undefined)
   ]);
 
@@ -435,11 +436,11 @@ export async function analyzeNative(
   // gasibile mai tarziu ("bonul de la service", "parola de wifi").
   const ocr = faces.length === 0
     && (!pickFolderSceneTag(sceneTags) || hasManufacturedTag(sceneTags))
-    ? await detectTextNative(
+    ? await timedModel('TextRecognition', async () => detectTextNative(
         mediaUri
           ? { uri: mediaUri, maxSide: NATIVE_OCR_MAX_SIDE }
           : { blob: await canvasToBlob(canvas) }
-      )
+      ))
     : undefined;
   const textCoverage = ocr?.textCoverage;
   const ocrText = ocr ? photoTextFromBlocks(ocr.blocks) : undefined;

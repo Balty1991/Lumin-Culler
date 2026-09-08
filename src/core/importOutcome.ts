@@ -37,6 +37,16 @@ export interface ImportOutcome {
   /** Primele motive de esec, deja agregate de pipeline. Fara nume de fisier. */
   reasons?: string;
   /**
+   * Cate milisecunde a mancat fiecare model, adunat pe tot lotul — vezi
+   * core/analysisTiming.ts. Optional: lipseste pe web (unde nu exista modele
+   * native) si la inregistrarile scrise inainte de acest camp.
+   *
+   * Suma DEPASESTE `durationMs`, si asa trebuie sa fie: se analizeaza mai multe
+   * poze deodata, deci se masoara munca totala, nu timpul scurs. Cifra
+   * folositoare e proportia dintre modele.
+   */
+  modelMs?: Record<string, number>;
+  /**
    * Cat a durat importul, in ms. Optional: inregistrarile scrise inainte de
    * acest camp n-au cum sa-l aiba.
    *

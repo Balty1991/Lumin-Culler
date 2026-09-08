@@ -68,6 +68,7 @@ import { readProtectedPersons, writeProtectedPersons, excludeProtected } from '.
 import { readStageStats } from '../core/stageTiming';
 import { summariseFeedback } from '../core/aiFeedback';
 import { recordImportOutcome, summariseOutcomes } from '../core/importOutcome';
+import { resetAnalysisTiming, analysisTimingSnapshot } from '../core/analysisTiming';
 import { keepScreenAwake } from '../core/wakeLock';
 import { createActiveElapsed, type ActiveElapsed } from '../core/activeElapsed';
 import { recordImportDay } from './streak';
@@ -313,7 +314,7 @@ interface AppState {
    */
   importClientFeedback: (file: File) => Promise<void>;
   /** Viteza ultimului import (poze procesate + durata) — afisata in Statistici; null inainte de primul import al sesiunii. */
-  lastImportStats: { count: number; durationMs: number } | null;
+  lastImportStats: { count: number; durationMs: number; modelMs?: Record<string, number> } | null;
   /** Contor informativ de poze procesate in luna curenta — vezi state/usage.ts (NU e o limita reala/blocanta). */
   monthlyUsage: number;
   statsOpen: boolean;
@@ -2775,6 +2776,9 @@ export const useStore = create<AppState>((set, get) => ({
     let outcomeReport: ImportOutcomeReport | undefined;
     let done = 0;
     const startedAt = Date.now();
+    // Cronometrele per model pornesc de la zero la fiecare lot; altfel cifrele
+    // din Statistici ar fi suma tuturor importurilor de la pornirea aplicatiei.
+    resetAnalysisTiming();
     // separat de `startedAt` (folosit pentru lastImportStats, care include si
     // faza 'incarcare' de dinainte de bucla) — vrem rata reala doar din faza
     // 'analiza', altfel primele tick-uri ar subestima rata si ar umfla ETA-ul
@@ -2973,7 +2977,11 @@ export const useStore = create<AppState>((set, get) => ({
         // Acelasi interval ca la cardul de sesiune. Serveste ca NUMITOR:
         // ecranul motorului nou poate spune cat ar adauga el peste ce te costa
         // deja un import — pe telefonul tau, nu in general.
-        durationMs: Date.now() - startedAt
+        durationMs: Date.now() - startedAt,
+        // Cat a mancat fiecare model — vezi core/analysisTiming.ts. Pana acum,
+        // fiecare decizie de optimizare a plecat din citirea codului, nu din
+        // masurat; asta e ce lipsea.
+        modelMs: analysisTimingSnapshot()
       });
     }
     // Pana unde a vazut aplicatia galeria — vezi state/galleryWatermark.ts.
@@ -3002,7 +3010,9 @@ export const useStore = create<AppState>((set, get) => ({
       notice: warning ?? doneNotice ?? state.notice,
       aiDegraded,
       aiBackend: analysisPool.detectedBackend,
-      lastImportStats: done > 0 ? { count: done, durationMs: Date.now() - startedAt } : state.lastImportStats,
+      lastImportStats: done > 0
+        ? { count: done, durationMs: Date.now() - startedAt, modelMs: analysisTimingSnapshot() }
+        : state.lastImportStats,
       sessionOutcome,
       monthlyUsage,
       photos: state.photos.map(p => {

@@ -343,6 +343,27 @@ export function StatsPanel() {
                   : '—'
               })}
             </p>
+            {/* Cat a mancat fiecare model, ordonat descrescator — vezi
+                core/analysisTiming.ts. Suma DEPASESTE durata importului si asa
+                trebuie: se analizeaza mai multe poze deodata, deci e munca
+                totala, nu timp scurs. Utila e proportia, si de asta procentul
+                sta langa secunde. Fara el, "FaceMesh: 41s" nu spune daca merita
+                mutat pe GPU sau nu. */}
+            {lastImportStats.modelMs && (() => {
+              const randuri = Object.entries(lastImportStats.modelMs).sort((a, b) => b[1] - a[1]);
+              const total = randuri.reduce((s, [, ms]) => s + ms, 0);
+              if (total <= 0) return null;
+              return (
+                <ul className="stats-model-breakdown">
+                  {randuri.map(([nume, ms]) => (
+                    <li key={nume}>
+                      <span>{nume}</span>
+                      <span>{(ms / 1000).toFixed(1)}s · {Math.round((ms / total) * 100)}%</span>
+                    </li>
+                  ))}
+                </ul>
+              );
+            })()}
           </div>
         )}
 

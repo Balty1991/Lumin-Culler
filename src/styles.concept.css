@@ -6856,3 +6856,22 @@ button:disabled,
    se rupa in loc sa impinga sageata in afara randului. */
 .review-cluster span { min-width: 0; font-size: .8rem; color: var(--text); line-height: 1.35; }
 .review-cluster i { font-style: normal; color: var(--text-faint); }
+
+/* Defalcarea pe modele din Statistici (vezi core/analysisTiming.ts). Lista de
+   diagnostic, nu element de interfata: cifre aliniate la dreapta ca sa se
+   compare pe verticala dintr-o privire, si font tabular ca sa nu joace. */
+.stats-model-breakdown {
+  list-style: none;
+  margin: .5rem 0 0;
+  padding: 0;
+  font-size: .82rem;
+  color: var(--text-dim, #9ea5b6);
+}
+.stats-model-breakdown li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .18rem 0;
+  font-variant-numeric: tabular-nums;
+}
+.stats-model-breakdown li span:last-child { color: var(--text, #f7f8fc); }
