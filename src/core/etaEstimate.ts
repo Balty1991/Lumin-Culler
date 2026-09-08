@@ -70,12 +70,31 @@ export function stabilizeEta(shown: number | undefined, raw: number): number {
 const WINDOW_PHOTOS = 20;
 
 /**
- * Sub atatea poze in fereastra, ritmul recent nu inseamna inca nimic si se
- * revine la media de la inceput — aceeasi de pana acum. La inceputul lotului nu
- * exista alta informatie, iar o fereastra de doua poze ar face estimarea sa
- * sara la fiecare poza mai grea.
+ * Cat de mare trebuie sa fie fereastra ca sa aiba voie sa spuna ceva.
+ *
+ * Bug raportat cu trei capturi, pe un lot de 111 poze. Refacand calculul din
+ * cifrele afisate: la 5 gata arata 1m30s, la 7 gata arata 4m30s, la 53 gata
+ * iar 1m30s. Adica timpul scurs era 4,2s la 5 poze, 18,2s la 7 si 82s la 53:
+ * CINCI poze in primele patru secunde, apoi DOUA in urmatoarele paisprezece.
+ *
+ * Terminarile nu vin una cate una, vin in ciorchini: se analizeaza 2-4 poze
+ * deodata (vezi nativeAnalysis.ts si nativeAnalysisConcurrency in
+ * workerPool.ts), deci se termina aproape simultan, apoi urmeaza o pauza cat
+ * lucreaza urmatorul grup. O fereastra de cinci poze incape INTREAGA intr-un
+ * ciorchine — si atunci masoara viteza dinauntrul lui, nu ritmul real.
+ *
+ * De aceea fereastra trebuie sa fie mare in AMANDOUA felurile: destule poze cat
+ * sa cuprinda mai multe grupuri, si destule secunde cat sa cuprinda si pauzele
+ * dintre ele. Doar poze nu ajunge — asta era exact greseala de dinainte.
+ *
+ * Pana atunci nu se spune nimic. Interfata stie sa afiseze progresul fara timp
+ * (vezi HomeDashboard.tsx si Workspace.tsx, ramura fara `etaSeconds`), si un
+ * rand fara cifra e mai bun decat o cifra care se tripleaza doua poze mai
+ * tarziu. Media de la inceputul lotului, folosita pana acum ca sa se arate ceva
+ * mai devreme, era chiar sursa numarului gresit.
  */
-const MIN_WINDOW_PHOTOS = 5;
+const MIN_WINDOW_PHOTOS = 12;
+const MIN_WINDOW_SECONDS = 8;
 
 /**
  * Estimarea BRUTA de secunde ramase, din ritmul recent — nu din media intregului
@@ -105,11 +124,9 @@ export function createEtaTracker(): EtaTracker {
       const primul = masuratori[0];
       const pozeInFereastra = done - primul.done;
       const secundeInFereastra = elapsedSec - primul.elapsedSec;
-      if (pozeInFereastra >= MIN_WINDOW_PHOTOS && secundeInFereastra > 0) {
+      if (pozeInFereastra >= MIN_WINDOW_PHOTOS && secundeInFereastra >= MIN_WINDOW_SECONDS) {
         return (secundeInFereastra / pozeInFereastra) * remaining;
       }
-      // Inceputul lotului: media de pana acum, ca inainte.
-      if (done > 0 && elapsedSec > 1) return (elapsedSec / done) * remaining;
       return undefined;
     }
   };

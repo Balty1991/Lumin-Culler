@@ -83,11 +83,33 @@ describe('estimarea urmareste ritmul recent', () => {
     expect(t.sample(sec, 60, 100)!).toBeLessThan(60);
   });
 
-  it('la inceputul lotului cade pe media de pana acum — n-are alta informatie', () => {
+  // Cazul raportat cu trei capturi, reprodus din cifrele afisate atunci: cinci
+  // poze in primele patru secunde (un ciorchine de terminari), apoi doua in
+  // urmatoarele paisprezece. Vechea fereastra de cinci poze incapea intreaga in
+  // ciorchine si spunea 1m30s; doua poze mai tarziu spunea 4m30s.
+  it('nu se lasa pacalita de ciorchinele de terminari de la inceput', () => {
     const t = createEtaTracker();
-    // 2 poze in 4 secunde: sub fereastra minima, deci media: (4/2)*98 = 196.
-    t.sample(2, 1, 100);
-    expect(t.sample(4, 2, 100)).toBeCloseTo(196, 0);
+    for (let done = 1; done <= 5; done++) t.sample(done * 0.85, done, 111);
+    expect(t.sample(4.25, 5, 111)).toBeUndefined();
+    expect(t.sample(11, 6, 111)).toBeUndefined();
+    expect(t.sample(18.2, 7, 111)).toBeUndefined();
+  });
+
+  it('vorbeste abia cand are si destule poze, si destule secunde', () => {
+    const t = createEtaTracker();
+    // Fereastra se masoara de la PRIMA masuratoare retinuta, deci ca sa cuprinda
+    // douasprezece poze e nevoie de treisprezece esantioane.
+    //
+    // Aici sunt destule ca numar, dar toate intr-o secunda si jumatate: prea
+    // putine ca timp. Exact forma unui ciorchine mare.
+    for (let done = 1; done <= 13; done++) t.sample(done * 0.12, done, 100);
+    expect(t.sample(1.56, 13, 100)).toBeUndefined();
+
+    // Aceleasi douasprezece poze, dar intr-un interval care cuprinde si pauzele:
+    // 24 de secunde, adica 2 s/poza, 87 ramase -> ~174s.
+    const u = createEtaTracker();
+    for (let done = 1; done <= 13; done++) u.sample(done * 2, done, 100);
+    expect(u.sample(26, 13, 100)).toBeCloseTo(174, 0);
   });
 
   it('nu spune nimic cat timp n-are nimic de spus', () => {
