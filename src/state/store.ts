@@ -26,7 +26,7 @@ import { clearThumbUrlCache } from '../core/thumbUrlCache';
 import { readGroupByPeople, writeGroupByPeople } from './groupByPeople';
 import {
   importFiles, originalFiles, originalHandles, createCancelToken, SELECT_THRESHOLD, REJECT_THRESHOLD, decidePhotoStatus,
-  readLibraryScores, type ImportProgress, type ImportCancelToken, type ImportOutcomeReport
+  readLibraryScores, type ImportProgress, type ImportCancelToken, type ImportOutcomeReport, type ImportWarning
 } from '../core/importPipeline';
 import { deriveThresholds, applyStrictness, type Thresholds, type CullingStrictness } from '../core/scoreThresholds';
 import { readCullingStrictness, writeCullingStrictness } from './cullingStrictness';
@@ -919,6 +919,13 @@ interface AppState {
 /** Token-ul importului CURENT (daca vreunul ruleaza) — traieste in afara Zustand
     fiindca nu are sens sa fie parte din snapshot-ul de stare serializabil. */
 let activeCancelToken: ImportCancelToken | null = null;
+
+/** Lipeste mesajul principal si sufixele care chiar exista, cu un singur spatiu
+    intre ele — sufixele nu-si mai poarta spatiul din fata prin dictionar, unde
+    era usor de pierdut la traducere. */
+function joinMessage(...parts: string[]): string {
+  return parts.filter(Boolean).join(' ');
+}
 
 /** Cea mai buna similaritate per nume recunoscut — o poza poate avea mai multe fete ale aceleiasi persoane (rar, dar posibil geometric). */
 function bestMatchPerName(faces: AnalysisRecord['faces']): { name: string; similarity: number }[] {
@@ -2770,7 +2777,8 @@ export const useStore = create<AppState>((set, get) => ({
     // 30s-1min de inactivitate, sistemul suspenda WebView-ul si analiza se
     // oprea la jumatate (vezi core/wakeLock.ts pentru ce NU rezolva asta).
     const releaseWakeLock = keepScreenAwake();
-    let warning: string | undefined;
+    /** Avertismentul lotului, ca CHEIE — se traduce la final, vezi ImportWarning. */
+    let warning: ImportWarning | undefined;
     /** Bilantul in cifre al lotului, raportat de pipeline pe ultimul apel — vezi core/importOutcome.ts. */
     let outcomeReport: ImportOutcomeReport | undefined;
     let done = 0;
@@ -2999,7 +3007,7 @@ export const useStore = create<AppState>((set, get) => ({
       : undefined;
     set(state => ({
       progress: null,
-      notice: warning ?? doneNotice ?? state.notice,
+      notice: (warning && t(get().locale, warning.key, warning.params)) ?? doneNotice ?? state.notice,
       aiDegraded,
       aiBackend: analysisPool.detectedBackend,
       lastImportStats: done > 0 ? { count: done, durationMs: Date.now() - startedAt } : state.lastImportStats,
@@ -4019,13 +4027,20 @@ export const useStore = create<AppState>((set, get) => ({
         console.error('Inrolare esuata:', err);
       }
     }
+    // Tot fluxul de inrolare vorbea romaneste indiferent de limba aplicatiei, si
+    // pe alocuri fara diacritice ("referinte adaugate", "per inrolare"). Un
+    // tester cu telefonul in engleza primea singurul raspuns al unui flux
+    // intreg intr-o limba pe care poate n-o citeste.
+    const locale = get().locale;
     if (!embeddings.length) {
-      return { ok: false, message: 'Nicio față detectată în pozele de referință. Alege poze clare, frontale.' };
+      return { ok: false, message: t(locale, 'store.addPerson.noFace') };
     }
     const skipped = Math.max(0, files.length - MAX_PERSON_REFERENCE_FILES);
-    const skippedSuffix = skipped > 0 ? ` (${skipped} poze ignorate, plafon ${MAX_PERSON_REFERENCE_FILES} per inrolare)` : '';
+    const skippedSuffix = skipped > 0
+      ? t(locale, 'store.addPerson.skipped', { count: skipped, limit: MAX_PERSON_REFERENCE_FILES })
+      : '';
     const multifaceSuffix = multiface > 0
-      ? ` Atenție: ${multiface} ${multiface === 1 ? 'poză a conținut' : 'poze au conținut'} mai multe fețe — s-a folosit automat cea mai mare din cadru; verifică dacă e persoana corectă.`
+      ? t(locale, plural(multiface, 'store.addPerson.multiface.one', 'store.addPerson.multiface.other'), { count: multiface })
       : '';
     const trimmedName = name.trim();
     const existing = get().persons.find(p => p.name.trim().toLowerCase() === trimmedName.toLowerCase());
@@ -4036,7 +4051,10 @@ export const useStore = create<AppState>((set, get) => ({
       // vechi de acum multe luni conteaza mai putin decat cele actuale la recunoastere
       const merged = [...existing.embeddings, ...embeddings].slice(-MAX_PERSON_EMBEDDINGS);
       person = { ...existing, embeddings: merged, updatedAt: Date.now() };
-      message = `${trimmedName}: +${embeddings.length} referinte noi adaugate la profilul existent (total ${merged.length}).${skippedSuffix}${multifaceSuffix}`;
+      message = joinMessage(
+        t(locale, 'store.addPerson.merged', { name: trimmedName, added: embeddings.length, total: merged.length }),
+        skippedSuffix, multifaceSuffix
+      );
     } else {
       // Blocant doar cand exista o cale reala de plata (isCapEnforced); altfel
       // ramane hintul informativ de dinainte. Panoul Premium ANUNTA limita asta
@@ -4046,13 +4064,16 @@ export const useStore = create<AppState>((set, get) => ({
         // el mesajul si trateaza esecul — un `undefined` ar rupe contractul si
         // ar lasa dialogul de inrolare intr-o stare de "s-a intamplat ceva".
         set({ premiumOpen: true, premiumReason: 'persons' });
-        return { ok: false, message: t(get().locale, 'store.addPerson.capBlocked', { limit: FREE_ENROLLED_PERSONS }) };
+        return { ok: false, message: t(locale, 'store.addPerson.capBlocked', { limit: FREE_ENROLLED_PERSONS }) };
       }
       person = { id: crypto.randomUUID(), name: trimmedName, embeddings, updatedAt: Date.now(), enrolledAt: Date.now() };
       const premiumSuffix = canEnrollAnotherPersonFree(get().persons.length)
         ? ''
-        : ' ' + t(get().locale, 'store.addPerson.premiumHint');
-      message = trimmedName + ': ' + embeddings.length + ' referinte salvate.' + skippedSuffix + multifaceSuffix + premiumSuffix;
+        : t(locale, 'store.addPerson.premiumHint');
+      message = joinMessage(
+        t(locale, plural(embeddings.length, 'store.addPerson.saved.one', 'store.addPerson.saved.other'), { name: trimmedName, count: embeddings.length }),
+        skippedSuffix, multifaceSuffix, premiumSuffix
+      );
     }
     await db.persons.put(person);
     await rematchPersonInExistingAnalyses(person);

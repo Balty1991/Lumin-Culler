@@ -168,8 +168,8 @@ describe('importFiles — contabilitate si curatenie', () => {
 
     const final = progress[progress.length - 1];
     expect(final.phase).toBe('finalizat');
-    expect(final.warning).toContain('2 din 3');
-    expect(final.warning).toContain('decode esuata (test)');
+    expect(final.warning).toEqual({ key: 'import.warn.someFailed.reason', params: expect.objectContaining({ count: 2, total: 3 }) });
+    expect(final.warning?.params?.reasons).toContain('decode esuata (test)');
   });
 
   it('semnaleaza explicit cand niciun fisier ales nu are format suportat', async () => {
@@ -177,7 +177,7 @@ describe('importFiles — contabilitate si curatenie', () => {
     const groups = await importFiles([new File(['x'], 'clip.mp4', { type: 'video/mp4' })], p => progress.push(p), () => {});
 
     expect(groups.size).toBe(0);
-    expect(progress[progress.length - 1].warning).toContain('format suportat');
+    expect(progress[progress.length - 1].warning?.key).toBe('import.warn.noSupportedFormat');
     expect(originalFiles.size).toBe(0);
   });
 
@@ -190,7 +190,7 @@ describe('importFiles — contabilitate si curatenie', () => {
 
     const final = progress[progress.length - 1];
     expect(final.total).toBe(1); // totalul e al pozelor REALE, nu al fisierelor alese
-    expect(final.warning).toContain('a fost sarit');
+    expect(final.warning?.key).toBe('import.warn.skipped.one');
   });
 
   it('opreste lotul la anulare si raporteaza cate poze apucasera sa fie procesate', async () => {
@@ -204,7 +204,7 @@ describe('importFiles — contabilitate si curatenie', () => {
     }, () => {}, token);
 
     const final = progress[progress.length - 1];
-    expect(final.warning).toContain('Import anulat');
+    expect(final.warning?.key).toBe('import.warn.cancelled');
     expect(analyzedCount).toBeLessThan(files.length);
   });
 

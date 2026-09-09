@@ -25,6 +25,21 @@ import { deriveThresholds, FIXED_THRESHOLDS, type Thresholds, applyStrictness } 
 import { readCullingStrictness } from '../state/cullingStrictness';
 import { quickDuplicateScan, type QuickScanResult } from './quickDuplicateScan';
 
+/**
+ * Un avertisment de import, ca CHEIE + parametri, nu ca propozitie gata scrisa.
+ *
+ * Pana aici, pipeline-ul returna text romanesc codificat direct — fara
+ * diacritice, cu numele exceptiei JavaScript in fata. Un tester cu telefonul in
+ * engleza primea "2 din 5 poze nu au putut fi procesate... Motiv:
+ * InvalidStateError" in mijlocul unei interfete englezesti. Traducerea se face
+ * unde se stie limba (state/store.ts), nu aici: pipeline-ul nu are locale, si
+ * n-are de ce sa aiba.
+ */
+export interface ImportWarning {
+  key: string;
+  params?: Record<string, string | number>;
+}
+
 export interface ImportProgress {
   done: number;
   total: number;
@@ -32,7 +47,7 @@ export interface ImportProgress {
   /** 'citire' = se aduc pozele din galerie, INAINTE de import (vezi nativeMediaLibrary.toFiles). */
   phase: 'citire' | 'incarcare' | 'pregatire' | 'analiza' | 'grupare' | 'finalizat';
   /** setat doar pe ultimul apel, daca importul s-a oprit inainte de a termina toate fisierele */
-  warning?: string;
+  warning?: ImportWarning;
   /**
    * Pragurile de decizie folosite pentru ACEST lot — raportate o singura data,
    * la inceput, pe acelasi canal ca `warning`. Utilizatorul trebuie sa poata
@@ -910,9 +925,8 @@ export async function importFiles(
   // instant, fara nicio poza si fara nicio eroare — utilizatorul vede doar ca
   // "nu s-a intamplat nimic". Semnalam explicit acest caz.
   if (images.length === 0) {
-    const warning = files.length > 0
-      ? `Niciunul dintre cele ${files.length} fisiere alese nu e intr-un format suportat ` +
-        `(JPEG/PNG/WebP/AVIF/RAW). HEIC/HEIF de pe iPhone nu e suportat inca — converteste-le in JPEG.`
+    const warning: ImportWarning | undefined = files.length > 0
+      ? { key: 'import.warn.noSupportedFormat', params: { count: files.length } }
       : undefined;
     onProgress({
       done: 0, total: 0, fileName: '', phase: 'finalizat', warning,
@@ -957,7 +971,7 @@ export async function importFiles(
   let index = 0;
   let failed = 0;
 
-  let stopReason: string | undefined;
+  let stopReason: ImportWarning | undefined;
   const hashes: HashInput[] = [];
   // Motivele reale (distincte) ale esecurilor — altfel "fisier corupt sau
   // format neasteptat" e un mesaj generic care nu spune nimic despre CE
@@ -965,15 +979,14 @@ export async function importFiles(
   // de la distanta fara acces la consola browserului utilizatorului.
   const failureReasons = new Map<string, number>();
 
-  const stopMessage = (n: number) =>
-    `Spatiu de stocare aproape plin — import oprit la ${n}/${images.length}. ` +
-    `Exporta ce ai deja sau elibereaza spatiu (Goleste sesiunea / sterge pozele respinse) ca sa continui.`;
+  const stopMessage = (n: number): ImportWarning =>
+    ({ key: 'import.warn.storageFull', params: { done: n, total: images.length } });
 
   await Promise.all(
     Array.from({ length: concurrency }, async () => {
       while (true) {
         if (stopReason) break;
-        if (cancelToken?.cancelled) { stopReason = `Import anulat — ${done}/${images.length} poze procesate pana la anulare.`; break; }
+        if (cancelToken?.cancelled) { stopReason = { key: 'import.warn.cancelled', params: { done, total: images.length } }; break; }
         const myIndex = index++;
         if (myIndex >= images.length) break;
         const { file, handle, mediaUri } = images[myIndex];
@@ -1097,15 +1110,15 @@ export async function importFiles(
     .slice(0, 2)
     .map(([reason, n]) => `${reason} (x${n})`)
     .join(' · ');
-  const failureWarning = failed > 0
-    ? (failed === images.length
-        ? `Niciuna dintre cele ${images.length} poze nu a putut fi procesata.`
-        : `${failed} din ${images.length} poze nu au putut fi procesate — restul au fost adaugate.`)
-      + (topReasons ? ` Motiv: ${topReasons}` : '')
+  const allFailed = failed === images.length;
+  const failureWarning: ImportWarning | undefined = failed > 0
+    ? {
+        key: (allFailed ? 'import.warn.allFailed' : 'import.warn.someFailed') + (topReasons ? '.reason' : ''),
+        params: { count: allFailed ? images.length : failed, total: images.length, reasons: topReasons }
+      }
     : undefined;
-  const skippedWarning = skippedCount > 0
-    ? `${skippedCount} ${skippedCount === 1 ? 'fisier ales nu e o poza' : 'fisiere alese nu sunt poze'} `
-      + `(video, HEIC etc.) — ${skippedCount === 1 ? 'a fost sarit' : 'au fost sarite'}.`
+  const skippedWarning: ImportWarning | undefined = skippedCount > 0
+    ? { key: skippedCount === 1 ? 'import.warn.skipped.one' : 'import.warn.skipped.other', params: { count: skippedCount } }
     : undefined;
   onProgress({
     done, total: images.length, fileName: '', phase: 'finalizat',

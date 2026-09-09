@@ -1689,6 +1689,18 @@ export const ro = {
   'session.checkUncertain': 'Verifică deciziile la limită',
   'session.exportLimit': 'Ai {kept} poze păstrate, dar îți mai rămân {remaining} poze gratuite de scos luna asta.',
   'session.exportLimit.cta': 'Vezi Premium',
+  // Avertismentele de import — vin din core/importPipeline.ts ca CHEIE + parametri
+  // (vezi ImportWarning): pana la runda asta erau propozitii romanesti codificate
+  // direct in pipeline, pe care un tester cu telefonul in engleza le primea ca atare.
+  'import.warn.cancelled': 'Import anulat — {done}/{total} poze procesate până la anulare.',
+  'import.warn.allFailed': 'Niciuna dintre cele {countDe} poze nu a putut fi procesată.',
+  'import.warn.allFailed.reason': 'Niciuna dintre cele {countDe} poze nu a putut fi procesată. Motiv: {reasons}',
+  'import.warn.someFailed': '{count} din {total} poze nu au putut fi procesate — restul au fost adăugate.',
+  'import.warn.someFailed.reason': '{count} din {total} poze nu au putut fi procesate — restul au fost adăugate. Motiv: {reasons}',
+  'import.warn.skipped.one': 'Un fișier ales nu e o poză (video, HEIC etc.) — a fost sărit.',
+  'import.warn.skipped.other': '{countDe} fișiere alese nu sunt poze (video, HEIC etc.) — au fost sărite.',
+  'import.warn.noSupportedFormat': 'Niciunul dintre cele {countDe} fișiere alese nu e într-un format suportat (JPEG/PNG/WebP/AVIF/RAW). HEIC/HEIF de pe iPhone nu e suportat încă — convertește-le în JPEG.',
+  'import.warn.storageFull': 'Spațiu de stocare aproape plin — import oprit la {done}/{total}. Exportă ce ai deja sau eliberează spațiu (Golește sesiunea / șterge pozele respinse) ca să continui.',
   'store.import.alreadyRunning': 'Un import e deja în curs — așteaptă să se termine înainte să mai adaugi poze.',
   'store.quotaNotice': 'Spațiu de stocare plin — fotografia a fost marcată, dar originalul nu a putut fi salvat pentru export. Eliberează spațiu (Golește sesiunea sau exportă ce ai deja) și reîncearcă.',
   'store.undo.nothing': 'Nimic de anulat.',
@@ -1746,6 +1758,13 @@ export const ro = {
   'store.addPerson.premiumHint': 'Poți înrola gratuit o singură persoană — Premium (în curând) elimină limita.',
   'store.deleteRejected.capBlocked': 'Ai {countDe} poze de șters, dar îți mai rămân {remaining} din cele {limit} gratuite luna asta. Ștergerea și exportul folosesc același plafon. Cu Premium, fără limită.',
   'store.exportSelection.capBlocked': 'Ai {countDe} poze de exportat, dar îți mai rămân {remaining} din cele {limit} gratuite luna asta. Cu Premium exporți fără limită.',
+  'store.addPerson.noFace': 'Nicio față detectată în pozele de referință. Alege poze clare, frontale.',
+  'store.addPerson.skipped': '({countDe} poze ignorate, plafon {limit} per înrolare)',
+  'store.addPerson.multiface.one': 'Atenție: o poză a conținut mai multe fețe — s-a folosit automat cea mai mare din cadru; verifică dacă e persoana corectă.',
+  'store.addPerson.multiface.other': 'Atenție: {countDe} poze au conținut mai multe fețe — s-a folosit automat cea mai mare din cadru; verifică dacă e persoana corectă.',
+  'store.addPerson.merged': '{name}: +{added} referințe noi adăugate la profilul existent (total {total}).',
+  'store.addPerson.saved.one': '{name}: o referință salvată.',
+  'store.addPerson.saved.other': '{name}: {countDe} referințe salvate.',
   'store.addPerson.capBlocked': 'Nivelul gratuit include {limit} persoană recunoscută. Cu Premium poți înrola oricâte.',
   // O anulare TREBUIE sa inlocuiasca toast-ul de progres "Se exporta...", nu doar
   // sa iasa din functie: bug real raportat de utilizator — pe o anulare, exportul
