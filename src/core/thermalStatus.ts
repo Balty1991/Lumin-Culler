@@ -76,10 +76,10 @@ export async function readThermalStatus(): Promise<number | null> {
  * Anunta `onChange` la fiecare schimbare de treapta, si o data cu valoarea
  * curenta. Intoarce o functie de oprire.
  *
- * Ascultator, nu interogare periodica: fiecare apel peste puntea Capacitor
- * trece prin acelasi fir unic prin care trec si modelele (vezi masuratorile
- * din auditul motoarelor), deci o intrebare per poza s-ar aseza exact in gatul
- * sticlei pe care incearca sa-l usureze.
+ * Ascultator, nu interogare periodica: fiecare apel de plugin intra tot prin
+ * firul unic al puntii Capacitor (chiar daca lucrul in sine pleaca de acolo pe
+ * firul plugin-ului — vezi PluginWork.kt), deci o intrebare per poza s-ar aseza
+ * exact in coada pe care incearca s-o scurteze.
  */
 export async function watchThermalStatus(onChange: (status: number) => void): Promise<() => void> {
   if (!isThermalStatusAvailable()) return () => {};

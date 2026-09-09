@@ -98,11 +98,29 @@ class ReleasableModel<T : Any>(
 
     fun get(): T = synchronized(this) { getLaLacat() }
 
-    /** Folosire SINCRONA: modelul nu poate fi inchis cat timp blocul ruleaza. */
+    /**
+     * Lacatul de INFERENTA — altul decat cel de viata a modelului (`this`).
+     *
+     * Nici MediaPipe (`detect`/`embed`/`segment`), nici ML Kit nu garanteaza ca
+     * pot fi chemate concurent pe ACEEASI instanta. `use {}` lua modelul sub
+     * lacat si apoi chema blocul IN AFARA lui — corect ca sa nu tina eliberarea
+     * blocata o inferenta intreaga, gresit ca garantie: doua fire care cereau
+     * acelasi model intrau amandoua in `detect()`. Se vedea rar si prost, ca
+     * proces omorat fara exceptie.
+     *
+     * Doua lacate, nu unul, si in ordinea asta mereu: `this` se ia si se lasa
+     * inainte ca `inferenta` sa fie cerut, iar `release()` nu cere niciodata
+     * `inferenta`. Deci nu exista ciclu de asteptare. `synchronized` e
+     * reintrant, deci un `use` in interiorul altui `use`, pe acelasi fir, merge
+     * ca inainte.
+     */
+    private val inferenta = Any()
+
+    /** Folosire SINCRONA: modelul nu poate fi inchis cat timp blocul ruleaza, si nimeni altcineva nu intra in el in acelasi timp. */
     fun <R> use(block: (T) -> R): R {
         val model = beginUse()
         try {
-            return block(model)
+            return synchronized(inferenta) { block(model) }
         } finally {
             endUse()
         }

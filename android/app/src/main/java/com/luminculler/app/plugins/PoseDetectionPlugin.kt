@@ -29,6 +29,18 @@ private const val MAX_POSES = 8 // poze de grup — acelasi ordin de marime ca M
  */
 @CapacitorPlugin(name = "PoseDetection")
 class PoseDetectionPlugin : Plugin() {
+    /**
+     * Firul propriu al acestui plugin. Vezi PluginWork.kt: toate apelurile de
+     * plugin treceau printr-un singur fir al Capacitor, si de acolo venea
+     * paralelismul efectiv de 1,4 din 4 masurat pe telefon.
+     */
+    private val executor = pluginExecutor("PoseDetection")
+
+    override fun handleOnDestroy() {
+        executor.shutdown()
+        super.handleOnDestroy()
+    }
+
 
     /** Vezi ModelRegistry: `by lazy` nu se poate reseta, iar modelul asta
      *  tinea greutatile in memorie nativa si cat timp aplicatia statea in
@@ -45,14 +57,10 @@ class PoseDetectionPlugin : Plugin() {
 
     @PluginMethod
     fun detectPose(call: PluginCall) {
-        // Preferam `imageUri` (fara nicio imagine peste punte); `imageBase64`
-        // ramane pentru pozele care nu vin din galerie. Vezi BitmapUtils.kt.
-        val bitmap: Bitmap = resolveInputBitmap(context, call) ?: return
-
-        try {
+        // Vezi PluginWork.kt — decodarea si inferenta, pe firul plugin-ului.
+        executor.ruleaza(call, "Pose detection failed") {
+            val bitmap: Bitmap = resolveInputBitmap(context, call) ?: return@ruleaza
             call.resolve(detect(bitmap))
-        } catch (e: Exception) {
-            call.reject("Pose detection failed: ${e.message}", e)
         }
     }
 

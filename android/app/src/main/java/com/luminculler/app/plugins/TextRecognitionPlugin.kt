@@ -27,6 +27,18 @@ import com.google.mlkit.vision.text.latin.TextRecognizerOptions
  */
 @CapacitorPlugin(name = "TextRecognition")
 class TextRecognitionPlugin : Plugin() {
+    /**
+     * Firul propriu al acestui plugin. Vezi PluginWork.kt: toate apelurile de
+     * plugin treceau printr-un singur fir al Capacitor, si de acolo venea
+     * paralelismul efectiv de 1,4 din 4 masurat pe telefon.
+     */
+    private val executor = pluginExecutor("TextRecognition")
+
+    override fun handleOnDestroy() {
+        executor.shutdown()
+        super.handleOnDestroy()
+    }
+
 
     /** Vezi ModelRegistry. Detectoarele ML Kit sunt ASINCRONE, deci
      *  eliberarea se leaga de terminarea inferentei (addOnCompleteListener),
@@ -36,6 +48,15 @@ class TextRecognitionPlugin : Plugin() {
 
     @PluginMethod
     fun detectText(call: PluginCall) {
+        // Vezi PluginWork.kt: decodarea imaginii si trimiterea catre model pleaca
+        // de pe firul unic al puntii. Ascultatorii Task-ului primesc si ei
+        // `executor` mai jos — fara el ruleaza pe firul PRINCIPAL, adica exact
+        // peste WebView.
+        executor.ruleaza(call, "Text recognition failed") { detectTextLaFir(call) }
+    }
+
+    /** Corpul lui `detectText`, pe firul plugin-ului. */
+    private fun detectTextLaFir(call: PluginCall) {
         // Preferam `imageUri` (fara nicio imagine peste punte); `imageBase64`
         // ramane pentru pozele care nu vin din galerie. Vezi BitmapUtils.kt.
         val bitmap: Bitmap = resolveInputBitmap(context, call) ?: return
@@ -43,8 +64,8 @@ class TextRecognitionPlugin : Plugin() {
         val image = InputImage.fromBitmap(bitmap, 0)
         CrashLog.pas(">TextRecognition")
         recognizerHolder.beginUse().process(image)
-            .addOnCompleteListener { recognizerHolder.endUse(); CrashLog.pas("<TextRecognition") }
-            .addOnSuccessListener { text ->
+            .addOnCompleteListener(executor) { recognizerHolder.endUse(); CrashLog.pas("<TextRecognition") }
+            .addOnSuccessListener(executor) { text ->
                 val blocksArray = JSArray()
                 val frameArea = (bitmap.width * bitmap.height).toDouble()
                 var textArea = 0.0
@@ -79,7 +100,7 @@ class TextRecognitionPlugin : Plugin() {
                 // pe care o masoara Play.
                 recycleIfOwned(bitmap)
             }
-            .addOnFailureListener { e ->
+            .addOnFailureListener(executor) { e ->
                 recycleIfOwned(bitmap)
                 call.reject("Text recognition failed: ${e.message}", e)
             }

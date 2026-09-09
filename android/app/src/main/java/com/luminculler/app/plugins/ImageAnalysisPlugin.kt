@@ -36,6 +36,18 @@ private const val HORIZON_MAX_SIDE = 360
  */
 @CapacitorPlugin(name = "ImageAnalysis")
 class ImageAnalysisPlugin : Plugin() {
+    /**
+     * Firul propriu al acestui plugin. Vezi PluginWork.kt: toate apelurile de
+     * plugin treceau printr-un singur fir al Capacitor, si de acolo venea
+     * paralelismul efectiv de 1,4 din 4 masurat pe telefon.
+     */
+    private val executor = pluginExecutor("ImageAnalysis")
+
+    override fun handleOnDestroy() {
+        executor.shutdown()
+        super.handleOnDestroy()
+    }
+
 
     /** Vezi ModelRegistry. Detectoarele ML Kit sunt ASINCRONE, deci
      *  eliberarea se leaga de terminarea inferentei (addOnCompleteListener),
@@ -50,6 +62,15 @@ class ImageAnalysisPlugin : Plugin() {
 
     @PluginMethod
     fun analyze(call: PluginCall) {
+        // Vezi PluginWork.kt: decodarea imaginii si trimiterea catre model pleaca
+        // de pe firul unic al puntii. Ascultatorii Task-ului primesc si ei
+        // `executor` mai jos — fara el ruleaza pe firul PRINCIPAL, adica exact
+        // peste WebView.
+        executor.ruleaza(call, "Image analysis failed") { analyzeLaFir(call) }
+    }
+
+    /** Corpul lui `analyze`, pe firul plugin-ului. */
+    private fun analyzeLaFir(call: PluginCall) {
         // Preferam `imageUri` (fara nicio imagine peste punte); `imageBase64`
         // ramane pentru pozele care nu vin din galerie. Vezi BitmapUtils.kt.
         val bitmap: Bitmap = resolveInputBitmap(context, call) ?: return
@@ -57,8 +78,8 @@ class ImageAnalysisPlugin : Plugin() {
         val image = InputImage.fromBitmap(bitmap, 0)
         CrashLog.pas(">ImageAnalysis-fete")
         detectorHolder.beginUse().process(image)
-            .addOnCompleteListener { detectorHolder.endUse(); CrashLog.pas("<ImageAnalysis-fete") }
-            .addOnSuccessListener { mlFaces ->
+            .addOnCompleteListener(executor) { detectorHolder.endUse(); CrashLog.pas("<ImageAnalysis-fete") }
+            .addOnSuccessListener(executor) { mlFaces ->
                 try {
                     val faceBoxes = mlFaces.map { f ->
                         val box = f.boundingBox
@@ -82,7 +103,7 @@ class ImageAnalysisPlugin : Plugin() {
                     recycleIfOwned(bitmap)
                 }
             }
-            .addOnFailureListener { e ->
+            .addOnFailureListener(executor) { e ->
                 recycleIfOwned(bitmap)
                 call.reject("Face detection failed: ${e.message}", e)
             }

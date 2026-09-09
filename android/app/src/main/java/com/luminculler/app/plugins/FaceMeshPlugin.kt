@@ -27,6 +27,18 @@ private const val MAX_FACES = 15
  */
 @CapacitorPlugin(name = "FaceMesh")
 class FaceMeshPlugin : Plugin() {
+    /**
+     * Firul propriu al acestui plugin. Vezi PluginWork.kt: toate apelurile de
+     * plugin treceau printr-un singur fir al Capacitor, si de acolo venea
+     * paralelismul efectiv de 1,4 din 4 masurat pe telefon.
+     */
+    private val executor = pluginExecutor("FaceMesh")
+
+    override fun handleOnDestroy() {
+        executor.shutdown()
+        super.handleOnDestroy()
+    }
+
 
     /** Vezi ModelRegistry: `by lazy` nu se poate reseta, iar modelul asta
      *  tinea greutatile in memorie nativa si cat timp aplicatia statea in
@@ -45,14 +57,12 @@ class FaceMeshPlugin : Plugin() {
 
     @PluginMethod
     fun analyzeFaceMesh(call: PluginCall) {
-        // Preferam `imageUri` (fara nicio imagine peste punte); `imageBase64`
-        // ramane pentru pozele care nu vin din galerie. Vezi BitmapUtils.kt.
-        val bitmap: Bitmap = resolveInputBitmap(context, call) ?: return
-
-        try {
+        // Decodarea imaginii SI inferenta pleaca amandoua de pe firul puntii —
+        // vezi PluginWork.kt. `resolveInputBitmap` respinge singur apelul cand
+        // nu are ce decoda, deci un `return@ruleaza` gol e raspunsul complet.
+        executor.ruleaza(call, "Face mesh analysis failed") {
+            val bitmap: Bitmap = resolveInputBitmap(context, call) ?: return@ruleaza
             call.resolve(analyze(bitmap))
-        } catch (e: Exception) {
-            call.reject("Face mesh analysis failed: ${e.message}", e)
         }
     }
 

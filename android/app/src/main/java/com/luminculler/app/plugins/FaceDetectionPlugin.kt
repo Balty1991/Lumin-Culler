@@ -28,6 +28,18 @@ import com.google.mlkit.vision.face.FaceDetectorOptions
  */
 @CapacitorPlugin(name = "FaceDetection")
 class FaceDetectionPlugin : Plugin() {
+    /**
+     * Firul propriu al acestui plugin. Vezi PluginWork.kt: toate apelurile de
+     * plugin treceau printr-un singur fir al Capacitor, si de acolo venea
+     * paralelismul efectiv de 1,4 din 4 masurat pe telefon.
+     */
+    private val executor = pluginExecutor("FaceDetection")
+
+    override fun handleOnDestroy() {
+        executor.shutdown()
+        super.handleOnDestroy()
+    }
+
 
     /** Vezi ModelRegistry. Detectoarele ML Kit sunt ASINCRONE, deci
      *  eliberarea se leaga de terminarea inferentei (addOnCompleteListener),
@@ -79,6 +91,15 @@ class FaceDetectionPlugin : Plugin() {
 
     @PluginMethod
     fun detectFaces(call: PluginCall) {
+        // Vezi PluginWork.kt: decodarea imaginii si trimiterea catre model pleaca
+        // de pe firul unic al puntii. Ascultatorii Task-ului primesc si ei
+        // `executor` mai jos — fara el ruleaza pe firul PRINCIPAL, adica exact
+        // peste WebView.
+        executor.ruleaza(call, "Face detection failed") { detectFacesLaFir(call) }
+    }
+
+    /** Corpul lui `detectFaces`, pe firul plugin-ului. */
+    private fun detectFacesLaFir(call: PluginCall) {
         // Preferam `imageUri` (fara nicio imagine peste punte); `imageBase64`
         // ramane pentru pozele care nu vin din galerie. Vezi BitmapUtils.kt.
         val bitmap: Bitmap = resolveInputBitmap(context, call) ?: return
@@ -91,8 +112,8 @@ class FaceDetectionPlugin : Plugin() {
         val image = InputImage.fromBitmap(bitmap, /* rotationDegrees = */ 0)
         CrashLog.pas(">FaceDetection")
         holder.beginUse().process(image)
-            .addOnCompleteListener { holder.endUse(); CrashLog.pas("<FaceDetection") }
-            .addOnSuccessListener { faces ->
+            .addOnCompleteListener(executor) { holder.endUse(); CrashLog.pas("<FaceDetection") }
+            .addOnSuccessListener(executor) { faces ->
                 val result = JSObject()
                 val facesArray = JSArray()
                 for (face in faces) {
@@ -127,7 +148,7 @@ class FaceDetectionPlugin : Plugin() {
                 // lot, inainte ca importul propriu-zis sa fi inceput.
                 recycleIfOwned(bitmap)
             }
-            .addOnFailureListener { e ->
+            .addOnFailureListener(executor) { e ->
                 recycleIfOwned(bitmap)
                 call.reject("Face detection failed: ${e.message}", e)
             }

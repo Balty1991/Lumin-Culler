@@ -57,6 +57,18 @@ private const val MAX_RETURNED = 8 // aceeasi valoare ca object.maxDetected din 
  */
 @CapacitorPlugin(name = "ImageLabeling")
 class ImageLabelingPlugin : Plugin() {
+    /**
+     * Firul propriu al acestui plugin. Vezi PluginWork.kt: toate apelurile de
+     * plugin treceau printr-un singur fir al Capacitor, si de acolo venea
+     * paralelismul efectiv de 1,4 din 4 masurat pe telefon.
+     */
+    private val executor = pluginExecutor("ImageLabeling")
+
+    override fun handleOnDestroy() {
+        executor.shutdown()
+        super.handleOnDestroy()
+    }
+
 
     /** Vezi ModelRegistry. Detectoarele ML Kit sunt ASINCRONE, deci
      *  eliberarea se leaga de terminarea inferentei (addOnCompleteListener),
@@ -70,6 +82,15 @@ class ImageLabelingPlugin : Plugin() {
 
     @PluginMethod
     fun labelImage(call: PluginCall) {
+        // Vezi PluginWork.kt: decodarea imaginii si trimiterea catre model pleaca
+        // de pe firul unic al puntii. Ascultatorii Task-ului primesc si ei
+        // `executor` mai jos — fara el ruleaza pe firul PRINCIPAL, adica exact
+        // peste WebView.
+        executor.ruleaza(call, "Image labeling failed") { labelImageLaFir(call) }
+    }
+
+    /** Corpul lui `labelImage`, pe firul plugin-ului. */
+    private fun labelImageLaFir(call: PluginCall) {
         // Preferam `imageUri` (fara nicio imagine peste punte); `imageBase64`
         // ramane pentru pozele care nu vin din galerie. Vezi BitmapUtils.kt.
         val bitmap: Bitmap = resolveInputBitmap(context, call) ?: return
@@ -77,8 +98,8 @@ class ImageLabelingPlugin : Plugin() {
         val image = InputImage.fromBitmap(bitmap, 0)
         CrashLog.pas(">ImageLabeling")
         labelerHolder.beginUse().process(image)
-            .addOnCompleteListener { labelerHolder.endUse(); CrashLog.pas("<ImageLabeling") }
-            .addOnSuccessListener { labels ->
+            .addOnCompleteListener(executor) { labelerHolder.endUse(); CrashLog.pas("<ImageLabeling") }
+            .addOnSuccessListener(executor) { labels ->
                 val labelsArray = JSArray()
                 labels
                     .sortedByDescending { it.confidence }
@@ -93,6 +114,6 @@ class ImageLabelingPlugin : Plugin() {
                 result.put("labels", labelsArray)
                 call.resolve(result)
             }
-            .addOnFailureListener { e -> call.reject("Image labeling failed: ${e.message}", e) }
+            .addOnFailureListener(executor) { e -> call.reject("Image labeling failed: ${e.message}", e) }
     }
 }

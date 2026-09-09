@@ -375,6 +375,13 @@ export async function analyzeNative(
   // apelurile pentru aceeasi poza refolosesc UN singur bitmap decodat — vezi
   // decodeUriCached in BitmapUtils.kt, care de-dublica acum si decodarile
   // pornite simultan, exact cazul creat de paralelizarea de aici.
+  //
+  // De cand fiecare plugin are firul lui (PluginWork.kt), cele trei chiar
+  // ruleaza in paralel; pana atunci se asezau la coada pe firul unic al puntii,
+  // oricat de paralel le pornea codul de aici. Plafonul de sus ramane acelasi,
+  // NESCHIMBAT si nemasurat inca pe telefon: fiecare model ramane serializat cu
+  // el insusi (un fir per plugin), deci numarul de inferente simultane e
+  // marginit de numarul de plugin-uri, nu de numarul de poze in zbor.
   const [faceResult, imageAnalysis, labelResult] = await Promise.all([
     detectFacesNative(source),
     analyzeImageNative(source),

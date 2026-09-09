@@ -38,6 +38,18 @@ private const val JPEG_QUALITY = 92
 
 @CapacitorPlugin(name = "HeicDecoder")
 class HeicDecoderPlugin : Plugin() {
+    /**
+     * Firul propriu al acestui plugin. Vezi PluginWork.kt: toate apelurile de
+     * plugin treceau printr-un singur fir al Capacitor, si de acolo venea
+     * paralelismul efectiv de 1,4 din 4 masurat pe telefon.
+     */
+    private val executor = pluginExecutor("HeicDecoder")
+
+    override fun handleOnDestroy() {
+        executor.shutdown()
+        super.handleOnDestroy()
+    }
+
 
     @PluginMethod
     fun isSupported(call: PluginCall) {
@@ -53,7 +65,13 @@ class HeicDecoderPlugin : Plugin() {
             call.reject("HEIF decoding needs Android 9 or newer")
             return
         }
+        // Decodarea HEIF si re-encodarea JPEG a unei poze intregi — vezi
+        // PluginWork.kt: nu pe firul unic al puntii.
+        executor.ruleaza(call, "Failed to re-encode as JPEG") { decodeToJpegLaFir(call) }
+    }
 
+    /** Corpul lui `decodeToJpeg`, pe firul plugin-ului. */
+    private fun decodeToJpegLaFir(call: PluginCall) {
         // Acelasi drum ca la restul plugin-urilor: `imageUri` cand poza vine din
         // galerie (nimic peste punte), `imageBase64` altfel. resolveInputBitmap
         // respinge apelul cu un motiv, deci aici doar iesim.

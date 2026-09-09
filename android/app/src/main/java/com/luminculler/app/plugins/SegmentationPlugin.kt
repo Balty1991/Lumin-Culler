@@ -45,6 +45,18 @@ private const val PERSON_CONFIDENCE = 0.5f
  */
 @CapacitorPlugin(name = "Segmentation")
 class SegmentationPlugin : Plugin() {
+    /**
+     * Firul propriu al acestui plugin. Vezi PluginWork.kt: toate apelurile de
+     * plugin treceau printr-un singur fir al Capacitor, si de acolo venea
+     * paralelismul efectiv de 1,4 din 4 masurat pe telefon.
+     */
+    private val executor = pluginExecutor("Segmentation")
+
+    override fun handleOnDestroy() {
+        executor.shutdown()
+        super.handleOnDestroy()
+    }
+
 
     /** Vezi ModelRegistry: `by lazy` nu se poate reseta, iar modelul asta
      *  tinea greutatile in memorie nativa si cat timp aplicatia statea in
@@ -81,18 +93,10 @@ class SegmentationPlugin : Plugin() {
             call.reject("imageBase64 is required")
             return
         }
-
-        val bitmap: Bitmap = try {
-            decodeBase64ToBitmap(base64)
-        } catch (e: Exception) {
-            call.reject("Failed to decode image: ${e.message}", e)
-            return
-        }
-
-        try {
-            call.resolve(segment(bitmap))
-        } catch (e: Exception) {
-            call.reject("Segmentation failed: ${e.message}", e)
+        // Decodarea base64 a unei poze intregi si segmentarea, amandoua pe firul
+        // plugin-ului — vezi PluginWork.kt.
+        executor.ruleaza(call, "Segmentation failed") {
+            call.resolve(segment(decodeBase64ToBitmap(base64)))
         }
     }
 
@@ -152,6 +156,11 @@ class SegmentationPlugin : Plugin() {
      */
     @PluginMethod
     fun segmentMask(call: PluginCall) {
+        executor.ruleaza(call, "Segmentation failed") { segmentMaskLaFir(call) }
+    }
+
+    /** Corpul lui `segmentMask`, pe firul plugin-ului — vezi PluginWork.kt. */
+    private fun segmentMaskLaFir(call: PluginCall) {
         val bitmap: Bitmap = resolveInputBitmap(context, call) ?: return
         try {
             val mpImage = BitmapImageBuilder(bitmap).build()
