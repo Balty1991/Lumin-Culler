@@ -1073,11 +1073,33 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
    motorului nu mai insemna nimic (era peste tot), iar butonul nu era nici cel
    mai puternic lucru de pe ecran — pe un fundal aproape negru, o culoare nu bate
    lumina. Acum e o lespede aproape alba, cu text intunecat. */
+/*
+ * INAPOI PE ACCENT, si e o corectie a unei decizii de-a mele, nu o intoarcere
+ * la ce era din obisnuinta.
+ *
+ * In faza 1 am facut butonul asta LUMINA, pe regula "actiunea principala e
+ * lumina, nu culoare". Regula ramane buna. Aplicarea a fost gresita:
+ * `.btn-accent` nu e "actiunea principala a ecranului", e clasa de buton
+ * accentuat folosita in vreo paisprezece locuri — dialoguri de confirmare,
+ * panouri, export, premium, onboarding. Facandu-l alb, l-am facut alb PESTE
+ * TOT, deci lumina a incetat sa mai insemne "asta e lucrul principal" si a
+ * devenit "asta e un buton". Exact eroarea de care fugeam la gradient, doar
+ * ca mai zgomotoasa: alb pe aproape-negru e cel mai tare contrast posibil,
+ * asa ca cel mai luminos lucru de pe ecran ajunsese sa fie exportul din colt.
+ *
+ * Si mai concret: in Aspect se poate alege accentul (Clasic/Teal/Apus/Holo).
+ * Butonul alb ignora acea alegere — adica dezactivasem in tacere o functie.
+ *
+ * Lumina ramane, dar RARA: doar acolo unde ecranul chiar are o singura
+ * actiune dominanta (vezi .review-desk-continue). O regula care se aplica
+ * peste tot nu mai e o regula.
+ *
+ * Raportat de utilizator, cu captura: "cele 2 butoane albe, inainte erau
+ * colorate".
+ */
 .btn-accent {
-  background: var(--light-primary); color: var(--light-primary-ink); position: relative;
-  box-shadow: var(--light-primary-glow);
+  background: var(--accent-gradient); color: #06070a; position: relative;
 }
-.btn-accent:hover { box-shadow: 0 16px 52px -18px rgb(242 244 248 / 0.7); }
 .select:hover, .reject:hover, .btn-accent:hover { filter: brightness(1.08); }
 .select:active, .reject:active, .btn-accent:active { transform: scale(0.96); }
 .select.big, .btn-accent.big { padding: 15px 30px; font-size: 1.05rem; }

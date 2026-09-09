@@ -94,12 +94,35 @@ describe('spectralul e al motorului, si al nimanui altcuiva', () => {
 });
 
 describe('actiunea principala e lumina, nu culoare', () => {
-  it('butonul principal nu mai poarta semnul motorului', () => {
+  it('butonul accentuat nu poarta semnul motorului', () => {
     const btn = blocks(css).find(b => b.selector === '.btn-accent');
     expect(btn, '.btn-accent a disparut din foaie').toBeTruthy();
-    expect(btn!.body).toContain('var(--light-primary)');
-    expect(btn!.body).not.toContain('--accent-gradient');
+    // Accentul ALES DE UTILIZATOR (Aspect) e binevenit aici — el nu inseamna
+    // "aici a masurat masina". Spectralul motorului nu are ce cauta.
     expect(btn!.body).not.toContain('--engine-grad');
+  });
+
+  /**
+   * LUMINA E RARA, si testul asta exista fiindca eu am incalcat regula primul.
+   *
+   * In faza 1 am pus lespedea de lumina pe `.btn-accent` — clasa folosita in
+   * vreo paisprezece locuri. Rezultatul: alb peste tot, deci lumina a incetat
+   * sa mai insemne "asta e lucrul principal" si a devenit "asta e un buton".
+   * Aceeasi eroare ca un gradient pus pe orice, doar mai zgomotoasa.
+   *
+   * Lista de mai jos e scurta deliberat: fiecare intrare noua trebuie sa fie
+   * un ecran care chiar are o SINGURA actiune dominanta.
+   */
+  it('lespedea de lumina ramane pe cateva suprafete, nu pe clasa de buton', () => {
+    const PERMISE = ['.review-desk-continue'];
+    for (const source of [css, conceptCss]) {
+      const vinovati = blocks(source)
+        .filter(b => !/^:root/.test(b.selector))
+        .filter(b => /background:[^;]*var\(--light-primary\)/.test(b.body))
+        .filter(b => !PERMISE.some(sel => b.selector.includes(sel)))
+        .map(b => b.selector);
+      expect(vinovati).toEqual([]);
+    }
   });
 
   it('textul de pe lespedea de lumina se citeste — cu mult peste pragul AA', () => {

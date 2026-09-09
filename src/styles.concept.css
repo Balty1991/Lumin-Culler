@@ -7051,10 +7051,82 @@ button:disabled,
    `.btn-accent` in faza 1, si acelasi motiv: e actiunea principala a
    ecranului, iar actiunea principala e LUMINA, nu culoare. Spectralul ramane
    doar al motorului — un buton "adauga poze" nu masoara nimic. */
+/* Butonul rotund ramane pe accentul ales in Aspect, din acelasi motiv ca
+   `.btn-accent`: e prezent pe fiecare ecran, deci nu poate fi "actiunea
+   principala a ecranului". Alb, devenea cel mai luminos lucru din pagina —
+   permanent, si peste fotografii. */
 .fab {
-  background: var(--light-primary);
+  border: 1px solid var(--edge-strong);
+}
+
+/* ── Antetul ───────────────────────────────────────────────────────────────
+   Marca isi pastreaza culoarea, si e singura exceptie deliberata de la regula
+   "spectralul e al motorului": un logo E identitate, nu semnal. Nimeni nu
+   citeste sigla ca pe o masuratoare. Ce pleaca e haloul violet din jurul ei —
+   acela nu era identitate, era zgomot in coltul de sus al fiecarui ecran. */
+.brand-mark { box-shadow: none; }
+.brand-pro-badge {
+  font-family: var(--mono);
+  font-size: var(--type-micro);
+  letter-spacing: var(--track-micro);
+  color: var(--text-dim);
+  border-color: var(--edge-strong);
+  background: none;
+}
+
+/* ── Bara de progres a sesiunii ────────────────────────────────────────────
+   Segmentele raman verde/chihlimbar/rosu: aia e limba deciziei, si e chiar
+   ce masoara bara. Se schimba doar cutia din jurul lor si eticheta. */
+.hud-slim {
+  background: var(--veil);
+  box-shadow: inset 0 0 0 1px var(--edge);
+  border-radius: 18px;
+}
+.hud-slim-pct span {
+  font-family: var(--mono);
+  font-size: var(--type-micro);
+  letter-spacing: var(--track-micro);
+  color: var(--text-dim);
+}
+.hud-slim-bar { background: rgb(240 244 255 / .06); }
+
+/* ── Cautarea ──────────────────────────────────────────────────────────────
+   48px si colt de 16px, ca in macheta. */
+.library-search .search-field {
+  min-height: 48px;
+  border-radius: 16px;
+  background: var(--veil);
+  border: 1px solid var(--edge);
+  box-shadow: none;
+}
+.library-search .search-field:focus-within { border-color: var(--edge-strong); }
+
+/* ── Ecranul Acasă ─────────────────────────────────────────────────────────
+   Cele trei turcoazuri de aici — "SELECȚIA TA", "URMĂTOAREA DECIZIE" si
+   butonul "Continuă" — erau, la un loc, tot ce se vedea prima data pe ecranul
+   de start. Doua sunt ETICHETE (se retrag) si unul e ACTIUNEA PRINCIPALA
+   (devine lumina, ca `.btn-accent` si `.fab`). Niciunul nu masoara nimic. */
+.review-desk-eyebrow,
+.review-desk-kicker {
+  font-family: var(--mono);
+  font-size: var(--type-micro);
+  font-weight: 400;
+  letter-spacing: var(--track-micro);
+  color: var(--text-dim);
+}
+.review-desk-session { color: var(--text); font-weight: 500; }
+.review-desk-reset { color: var(--text-dim); }
+
+.review-desk-continue {
   color: var(--light-primary-ink);
+  background: var(--light-primary);
   border: 1px solid var(--edge-strong);
   box-shadow: var(--light-primary-glow);
+  font-weight: 600;
 }
-.fab:hover { box-shadow: 0 16px 52px -18px rgb(242 244 248 / .7); }
+
+/* Panoul de severitate, in acelasi vocabular de suprafete ca restul. */
+.cull-strength {
+  background: var(--veil);
+  box-shadow: inset 0 0 0 1px var(--edge);
+}
