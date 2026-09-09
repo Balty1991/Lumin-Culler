@@ -6,6 +6,7 @@ import { findUnrecognizedFaceClusters, type FaceCluster } from '../core/faceClus
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { FaceCropThumb } from './FaceCropThumb';
 import { UserCheckIcon, TrashIcon, XIcon, DownloadIcon, UploadIcon, LayersIcon, SparkleIcon, ShieldIcon, StarIcon, ChevronRight } from './icons';
+import { canEnrollAnotherPersonFree, FREE_ENROLLED_PERSONS } from '../core/entitlement';
 import { t, plural } from '../i18n';
 
 /** Inrolare persoane cunoscute (ex. Ami, sotia): nume + 1-4 poze de referinta. */
@@ -26,6 +27,8 @@ export function PersonsPanel() {
   const askPrompt = useStore(s => s.askPrompt);
   const setPersonFilter = useStore(s => s.setPersonFilter);
   const setHomeGridOpen = useStore(s => s.setHomeGridOpen);
+  const premiumLocked = useStore(s => s.premiumLocked);
+  const setPremiumOpen = useStore(s => s.setPremiumOpen);
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
 
@@ -335,6 +338,27 @@ export function PersonsPanel() {
 
         <h4 className="persons-section-head">{tr('persons.section.manual')}</h4>
         <p className="hint persons-section-sub">{tr('persons.section.manual.sub')}</p>
+
+        {/* Zidul, spus INAINTE de efort.
+            Pana aici, limita gratuita se afla dupa ce omul scria un nume, alegea
+            patru poze de referinta si apasa "Inroleaza" — adica dupa ce
+            investise exact partea de munca pe care n-o mai poate recupera. Un
+            plafon aflat asa se tine minte ca pacaleala; acelasi plafon citit
+            inainte e o conditie, si e chiar argumentul de vanzare. */}
+        {premiumLocked && (
+          <p className={canEnrollAnotherPersonFree(persons.length) ? 'persons-free-cap' : 'persons-free-cap is-reached'}>
+            {canEnrollAnotherPersonFree(persons.length)
+              ? tr('persons.freeCap', { limit: FREE_ENROLLED_PERSONS })
+              : tr('persons.freeCap.reached', { limit: FREE_ENROLLED_PERSONS })}
+            {!canEnrollAnotherPersonFree(persons.length) && (
+              <>{' '}
+                <button type="button" className="session-outcome-link" onClick={() => { setOpen(false); setPremiumOpen(true); }}>
+                  {tr('persons.freeCap.cta')}
+                </button>
+              </>
+            )}
+          </p>
+        )}
 
         <div className="enroll">
           <input

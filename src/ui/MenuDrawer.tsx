@@ -736,7 +736,7 @@ export function MenuDrawer() {
 
             <button className="drawer-item" onClick={() => go(() => setInsightsOpen(true))}>
               <span className="drawer-item-icon"><SparkleIcon /></span>
-              <span>{tr('menu.aiPreferences')}</span>
+              <span>{tr('engine.name')}</span>
             </button>
 
             <button

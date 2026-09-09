@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { db } from '../core/db';
 import { medianDecisionSeconds, estimateSecondsSaved } from '../core/decisionPace';
+import { summarizeAccuracy, type AccuracySummary } from '../core/learning/accuracy';
 import { readLifetime, hasLifetimeStory, type LifetimeSavings } from '../state/lifetimeSavings';
 import { formatSpan } from '../core/formatTime';
 import { ClockIcon } from './icons';
@@ -40,16 +41,31 @@ export function LifetimeProof({ locale, premium }: { locale: Locale; premium: bo
   const [lifetime] = useState<LifetimeSavings>(() => readLifetime());
   /** `null` = inca nu stim, sau nu sunt destule decizii ale tale. Vezi core/decisionPace.ts. */
   const [paceSeconds, setPaceSeconds] = useState<number | null>(null);
+  /**
+   * Cat de des a propus motorul acelasi lucru ca tine.
+   *
+   * Concurenta scrie pe pagina de vanzare "92-97% acord cu selectia manuala" —
+   * o cifra de laborator, despre pozele altcuiva. Aici cifra e masurata pe
+   * telefonul asta, din deciziile ASTUI om, si tocmai de-aia poate sa fie si
+   * proasta. `summarizeAccuracy` intoarce null sub 20 de decizii judecate de
+   * el, si atunci randul lipseste cu totul: sub prag, un procent nu e un
+   * procent, e o coincidenta.
+   */
+  const [accuracy, setAccuracy] = useState<AccuracySummary | null>(null);
 
   const enough = hasLifetimeStory(lifetime);
   useEffect(() => {
     if (!enough) return;
     let alive = true;
-    // Doar cheile indexului `ts` — nu inregistrarile intregi. Pe o biblioteca
-    // lunga, corectiile sunt multe, iar aici ne trebuie strict momentele.
-    void db.corrections.orderBy('ts').keys().then(keys => {
-      if (alive) setPaceSeconds(medianDecisionSeconds(keys as number[]));
-    }).catch(() => { /* fara ritm se afiseaza doar partea numarata; nu e o eroare */ });
+    // O singura citire pentru amandoua cifrele: ritmul vine din momente
+    // (`ts`), acordul din perechea aiDecision/userDecision. Pana la randul de
+    // acord se citeau doar cheile indexului; a le citi de doua ori, o data ca
+    // chei si o data ca inregistrari, ar fi costat mai mult decat o citire.
+    void db.corrections.orderBy('ts').toArray().then(rows => {
+      if (!alive) return;
+      setPaceSeconds(medianDecisionSeconds(rows.map(r => r.ts)));
+      setAccuracy(summarizeAccuracy(rows));
+    }).catch(() => { /* fara ele se afiseaza doar partea numarata; nu e o eroare */ });
     return () => { alive = false; };
   }, [enough]);
 
@@ -72,6 +88,14 @@ export function LifetimeProof({ locale, premium }: { locale: Locale; premium: bo
         <b className="lifetime-proof-hero">
           {tr('premium.lifetime.headPhotos', { count: lifetime.imported })}
         </b>
+      )}
+      {accuracy && (
+        <span className="lifetime-proof-agreement">
+          {tr('premium.lifetime.agreement', {
+            percent: Math.round(accuracy.agreement * 100),
+            count: accuracy.total
+          })}
+        </span>
       )}
       <span className="lifetime-proof-tally">
         {tr(premium ? 'premium.lifetime.tally.premium' : 'premium.lifetime.tally', {

@@ -369,7 +369,7 @@ export const ro = {
   'premium.chip': 'Premium',
   'premium.lead': 'Triajul rămâne gratuit, oricâte poze ai. Premium e pentru ce faci cu rezultatul.',
   'premium.perk.export.title': 'Export și ștergere nelimitate',
-  'premium.perk.export.sub': 'gratuit: {limit} de poze scoase la fiecare 30 de zile, exportate sau șterse',
+  'premium.perk.export.sub': 'gratuit: {limit} de poze exportate la fiecare 30 de zile. Ștergerea de pe telefon nu intră în plafon — golește oricât',
   'premium.perk.persons.title': 'Oricâte persoane recunoscute',
   'premium.perk.persons.sub': 'gratuit: {limit} persoană înrolată',
   'premium.perk.pro.title': 'Fluxul profesional',
@@ -380,6 +380,8 @@ export const ro = {
   'premium.perk.locations.sub': 'grupate după locul unde au fost făcute, cu numele localității și al țării — căutat pe telefon, fără ca vreo coordonată să plece',
   'premium.perk.composite.title': 'Combinarea a două cadre',
   'premium.perk.composite.sub': 'când niciun cadru nu e bun pentru toți, îți spune care două să le combini',
+  'premium.perk.engine.title': '„{name}" învață gratuit',
+  'premium.perk.engine.sub': 'motorul care se adaptează la gustul tău nu e plătit niciodată. Se plătesc al doilea profil de persoană, exportul peste plafon și predarea către Lightroom',
   'premium.perk.local.title': 'Triajul rămâne gratuit',
   'premium.perk.local.sub': 'import, scor AI, sortare, grupare, comparare serii — oricâte poze, fără plafon',
   'premium.usage.title': 'Ai scos {count} din {limit} de poze în ultimele 30 de zile',
@@ -396,10 +398,17 @@ export const ro = {
   'premium.manage': 'Abonamentul se gestionează din Google Play → Meniu → Abonamente. De acolo îl poți anula sau schimba oricând; aplicația nu îți poate face asta în locul tău.',
   'premium.restore': 'Am deja abonament — restaurează',
   'premium.restore.none': 'Google Play nu găsește niciun abonament activ pe contul de pe acest telefon. Verifică dacă ești logat cu contul cu care ai cumpărat.',
+  // NUMELE MOTORULUI CARE INVATA. Se schimba DIN DOUA LOCURI: aici si in en.ts.
+  // Auditul de dinaintea lansarii: "Ai regresie logistica online, un model per
+  // context, si personalDelta — niciun concurent mobil nu are asa ceva. Il dai
+  // gratis si nici macar nu-l numesti." Un lucru fara nume nu se poate nici
+  // cauta, nici recomanda, nici pune pe fisa din magazin.
+  'engine.name': 'Ochiul tău',
+  'engine.lead': 'Motorul care învață ce alegi TU, nu ce spune un manual de fotografie. Un model separat pentru fiecare tip de scenă, antrenat pe telefonul tău, din deciziile tale. Învățatul e gratuit și rămâne gratuit, oricâte poze.',
   'home.aiProfile.warming': 'Învăț din deciziile tale',
   'home.aiProfile.warming.sub.one': 'încă o decizie și îți spun cât de des suntem de acord',
   'home.aiProfile.warming.sub.other': 'încă {countDe} decizii și îți spun cât de des suntem de acord',
-  'home.aiProfile.aria': 'Cât de bine te cunoaște motorul — deschide ce a învățat',
+  'home.aiProfile.aria': 'Cât de bine te cunoaște {name} — deschide ce a învățat',
   'home.aiProfile.label': 'acord cu deciziile tale',
   'home.aiProfile.learned': 'învățat din {countDe} decizii luate de tine',
   'home.aiProfile.trend.up': 'cu {countDe} puncte mai bine decât la început',
@@ -437,6 +446,7 @@ export const ro = {
   'premium.lifetime.head': '≈ {time} economisite până acum',
   'premium.lifetime.headPhotos': '{countDe} poze triate până acum',
   'premium.lifetime.basis': 'la ritmul tău măsurat, {pace} s pe decizie',
+  'premium.lifetime.agreement': 'Din cele {countDe} decizii pe care le-ai luat tu, motorul propusese același lucru în {percent}% din cazuri.',
   'premium.lifetime.tally': '{countDe} poze triate în {sessions} sesiuni, fără să plătești nimic',
   'premium.lifetime.tally.premium': '{countDe} poze triate în {sessions} sesiuni, de când folosești aplicația',
   'premium.plans.title': 'Alege planul',
@@ -1188,6 +1198,9 @@ export const ro = {
   'compare.overlay.opacityB': 'Opacitate cadru B',
 
   'persons.ariaLabel': 'Persoane cunoscute',
+  'persons.freeCap': 'Gratuit poți înrola {limit} persoană. A doua vine cu Premium.',
+  'persons.freeCap.reached': 'Ai folosit persoana gratuită. Pentru încă una e nevoie de Premium — cea de acum rămâne a ta oricum.',
+  'persons.freeCap.cta': 'Vezi ce include',
   'persons.empty': 'Nicio persoană înrolată. Adaugă-i pe cei dragi (ex. Ami) cu câteva poze clare, frontale — AI-ul îi va recunoaște și va separa străinii automat.',
   'persons.selectAriaLabel': 'Selectează {name}',
   'persons.deleteAriaLabel': 'Șterge {name}',
@@ -1439,7 +1452,7 @@ export const ro = {
   'stats.lastImport.text': '{countDe} poze în {duration} ({rate} poze/secundă).',
   'stats.usage.title': 'Utilizare',
   'stats.usage.analyzed': '{countDe} poze analizate luna aceasta. Triajul e gratuit și nelimitat — importul, scorul AI, sortarea și gruparea nu consumă nimic.',
-  'stats.usage.takenOut': '{count} din {limit} de poze scoase din aplicație în ultimele 30 de zile (exportate sau șterse din telefon). Ăsta e singurul plafon.',
+  'stats.usage.takenOut': '{count} din {limit} de poze exportate din aplicație în ultimele 30 de zile. Ăsta e singurul plafon — ștergerea de pe telefon nu se numără.',
   'stats.usage.takenOutPremium': '{countDe} poze scoase din aplicație în ultimele 30 de zile. Cu Premium, fără plafon.',
 
   'contactSheet.title': 'Contact sheet ({countDe} poze)',
@@ -1764,7 +1777,6 @@ export const ro = {
   'store.exportSelection.failed': 'Export eșuat: {error}',
   'store.exportSelection.freeCapReached': 'Ai trecut de {limit} de poze scoase luna asta — Premium elimină plafonul.',
   'store.addPerson.premiumHint': 'Poți înrola gratuit o singură persoană — Premium (în curând) elimină limita.',
-  'store.deleteRejected.capBlocked': 'Ai {countDe} poze de șters, dar îți mai rămân {remaining} din cele {limit} gratuite luna asta. Ștergerea și exportul folosesc același plafon. Cu Premium, fără limită.',
   'store.exportSelection.capBlocked': 'Ai {countDe} poze de exportat, dar îți mai rămân {remaining} din cele {limit} gratuite luna asta. Cu Premium exporți fără limită.',
   'store.addPerson.noFace': 'Nicio față detectată în pozele de referință. Alege poze clare, frontale.',
   'store.addPerson.skipped': '({countDe} poze ignorate, plafon {limit} per înrolare)',

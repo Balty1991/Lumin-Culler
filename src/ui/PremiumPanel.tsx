@@ -249,6 +249,17 @@ export function PremiumPanel() {
               <span>{tr('premium.perk.local.sub')}</span>
             </span>
           </div>
+          {/* Motorul care invata, numit — si spus pe fata ca nu se plateste.
+              Pana la runda asta, singura functie pe care n-o are niciun
+              concurent mobil nu aparea nicaieri pe ecranul de vanzare, nici
+              macar ca lucru gratuit. Un lucru fara nume nu se recomanda. */}
+          <div className="premium-perk">
+            <i aria-hidden="true"><CheckIcon /></i>
+            <span>
+              <b>{tr('premium.perk.engine.title', { name: tr('engine.name') })}</b>
+              <span>{tr('premium.perk.engine.sub')}</span>
+            </span>
+          </div>
         </section>
 
         <div className="premium-usage">

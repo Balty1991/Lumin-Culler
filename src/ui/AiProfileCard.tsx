@@ -116,7 +116,7 @@ export function AiProfileCard() {
     : 'home.aiProfile.trend.flat';
 
   return (
-    <button className="home-ai-card" onClick={() => setInsightsOpen(true)} aria-label={tr('home.aiProfile.aria')}>
+    <button className="home-ai-card" onClick={() => setInsightsOpen(true)} aria-label={tr('home.aiProfile.aria', { name: tr('engine.name') })}>
       <span className="home-ai-num">
         <AnimatedNumber value={percent} />%
       </span>

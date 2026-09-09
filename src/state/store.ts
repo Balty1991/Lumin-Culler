@@ -3595,23 +3595,21 @@ export const useStore = create<AppState>((set, get) => ({
     if (!deletable.length) return { deleted: 0, skipped: skippedCount, cancelled: false };
     if (!isNativeMediaLibraryAvailable()) return { deleted: 0, skipped: skippedCount + deletable.length, cancelled: false };
 
-    // Acelasi plafon ca la export, si din acelasi buget — observatie a
-    // utilizatorului: a-ti curata galeria stergand respinsele e exact folosul
-    // pentru care se plateste, doar incasat altfel. Un plafon pus doar pe export
-    // ar fi lasat drumul asta liber, iar cine tria 5000 de poze si stergea
-    // respinsele n-ar fi platit niciodata.
+    // STERGEREA NU MAI CONSUMA PLAFONUL. (Aici statea plafonul, si tot aici era
+    // scris de ce trebuie sa stea — argumentul era ca altfel cine tria 5000 de
+    // poze si stergea respinsele n-ar plati niciodata.)
     //
-    // Refuzam tot lotul, nu o parte: dupa un dialog de stergere e cu atat mai
-    // rau sa nu stii care poze au disparut si care nu.
-    if (isCapEnforced() && deletable.length > remainingFreePhotos()) {
-      set({
-        notice: t(locale, 'store.deleteRejected.capBlocked', {
-          count: deletable.length, remaining: remainingFreePhotos(), limit: FREE_PHOTOS_PER_MONTH
-        }),
-        premiumOpen: true, premiumReason: 'cap' as const
-      });
-      return { deleted: 0, skipped: skippedCount + deletable.length, cancelled: true };
-    }
+    // Argumentul e adevarat si nu conteaza. Omul care instaleaza aplicatia ca
+    // sa faca loc pe telefon primea plafonul exact pe singurul lucru pentru
+    // care venise — si il primea DUPA ce triase, adica dupa ce isi daduse ora
+    // de munca. Verdictul auditului, cuvant cu cuvant: "nu, si m-as simti
+    // pacalit". Un om care se simte pacalit nu se razgandeste luna urmatoare;
+    // spune si altora.
+    //
+    // Plafonul ramane pe EXPORT, unde e vorba de a scoate munca din aplicatie
+    // (predare in Lightroom, arhiva pentru client) — acolo valoarea platita e
+    // limpede si nimeni nu se simte santajat. Golirea telefonului ramane
+    // gratuita, oricat de mult ai de golit.
 
     let result: { cancelled: boolean; skippedUris: string[] };
     try {
@@ -3662,9 +3660,6 @@ export const useStore = create<AppState>((set, get) => ({
     // Dexie — pana la 40 de preview-uri agatate degeaba.
     clearPreviewUrlCache();
     clearThumbUrlCache();
-
-    // Se scad din acelasi buget de 150 ca exporturile — vezi plafonul de mai sus.
-    recordPhotosUsed(ids.length);
 
     const totalSkipped = skippedCount + nativeSkippedCount;
     const deletedNotice = t(locale, 'store.deleteRejected.notice', { deleted: ids.length });

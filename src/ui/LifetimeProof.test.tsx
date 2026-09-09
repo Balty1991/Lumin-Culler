@@ -112,3 +112,41 @@ describe('formularea urmeaza starea reala a abonamentului', () => {
     expect(await screen.findByText(/100 photos culled across 2 sessions/)).toBeInTheDocument();
   });
 });
+
+/**
+ * Cifra de acord AI-tu, in ecranul de plata. Concurenta scrie "92-97% acord cu
+ * selectia manuala" — un numar de laborator, despre pozele altcuiva. Aici e
+ * masurat pe telefonul omului, deci are voie sa iasa si prost, si NU are voie
+ * sa apara cat timp nu inseamna inca nimic.
+ */
+describe('acordul dintre motor si om', () => {
+  beforeEach(() => { localStorage.clear(); });
+
+  it('nu apare sub pragul de decizii judecate de om', async () => {
+    recordLifetimeSession({ imported: 100, autoDecided: 80 });
+    recordLifetimeSession({ imported: 100, autoDecided: 80 });
+    await writeDecisions(10, 4000);
+
+    render(<LifetimeProof locale="ro" premium={false} />);
+    expect(await screen.findByText(/200 de poze triate în 2 sesiuni/)).toBeInTheDocument();
+    expect(screen.queryByText(/propusese același lucru/)).not.toBeInTheDocument();
+  });
+
+  it('cu destule decizii, spune procentul si din cate decizii vine', async () => {
+    recordLifetimeSession({ imported: 100, autoDecided: 80 });
+    recordLifetimeSession({ imported: 100, autoDecided: 80 });
+    // 40 de decizii, jumatate in acord cu motorul: 50%.
+    await db.corrections.clear();
+    const base = 1_700_000_000_000;
+    await db.corrections.bulkAdd(
+      Array.from({ length: 40 }, (_, i) => ({
+        photoId: `p${i}`, contextKey: 'x', features: {},
+        aiDecision: true, userDecision: i % 2 === 0, ts: base + i * 4000
+      }))
+    );
+
+    render(<LifetimeProof locale="ro" premium={false} />);
+    expect(await screen.findByText(/Din cele 40 de decizii/)).toBeInTheDocument();
+    expect(screen.getByText(/50% din cazuri/)).toBeInTheDocument();
+  });
+});

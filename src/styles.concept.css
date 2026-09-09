@@ -6681,6 +6681,11 @@ button:disabled,
    diferenta dintre o masuratoare si o reclama. */
 .lifetime-proof-basis { font-size: .68rem; color: var(--text-dim); }
 .lifetime-proof-tally { font-size: .76rem; color: var(--text-dim); line-height: 1.45; }
+/* Randul de acord AI-tu. Marcat cu accentul, nu cu verdele de "pastrat": e o
+   masuratoare despre motor, nu despre pozele tale. Apare doar peste 20 de
+   decizii judecate de om — vezi summarizeAccuracy. */
+.lifetime-proof-agreement { font-size: .78rem; color: var(--text); line-height: 1.45; }
+.lifetime-proof-agreement b { color: var(--accent-text, var(--accent)); font-weight: 800; }
 
 /* "Cat de bine te cunoaste" pe ecranul principal (ui/AiProfileCard.tsx).
    Aceeasi familie vizuala cu home-recap-card — card lat, apasabil, cu sageata

@@ -3,7 +3,8 @@
  * Fundatia LOCALA a modelului freemium: TRIAJUL e gratuit la nesfarsit —
  * import, scor AI, sortare, grupare, oricate poze. Se plateste pentru ce faci
  * cu rezultatul: pentru pozele SCOASE din aplicatie peste un plafon lunar
- * generos (exportate sau sterse din telefon — vezi FREE_PHOTOS_PER_MONTH),
+ * generos (EXPORTATE — stergerea de pe telefon nu se numara, vezi
+ * FREE_PHOTOS_PER_MONTH si deleteRejected in state/store.ts),
  * pentru a doua persoana recunoscuta, si pentru functiile de dupa triaj (vezi
  * isPremiumFeatureLocked).
  *
@@ -62,14 +63,19 @@ function notifyEntitlementChanged(): void {
 }
 
 /**
- * Cate poze poate SCOATE gratuit un utilizator neabonat dintr-o fereastra
+ * Cate poze poate EXPORTA gratuit un utilizator neabonat dintr-o fereastra
  * glisanta de 30 de zile.
  *
- * "A scoate" acopera si exportul, si stergerea din telefon — observatie a
- * utilizatorului, si are dreptate: amandoua incaseaza rezultatul triajului.
- * Cine trage 5000 de poze, sterge respinsele si isi curata galeria a primit
- * exact folosul pentru care se plateste, fara sa exporte nimic. Un plafon doar
- * pe export ar fi fost o portita, nu un model.
+ * A acoperit o vreme si stergerea din telefon, cu argumentul (adevarat) ca si
+ * aia incaseaza rezultatul triajului si ca un plafon doar pe export ar fi o
+ * portita. Argumentul a picat la auditul de dinaintea lansarii, nu pe logica,
+ * ci pe cine plateste pretul lui: omul care instaleaza aplicatia ca sa faca
+ * loc pe telefon lovea plafonul exact pe singurul lucru pentru care venise, si
+ * abia DUPA ce triase. Verdictul lui, cuvant cu cuvant: "nu, si m-as simti
+ * pacalit".
+ *
+ * Portita ramane deschisa, deliberat. Cine isi curata galeria gratis si pleaca
+ * multumit costa mai putin decat cine se simte santajat si spune si altora.
  */
 export const FREE_PHOTOS_PER_MONTH = 150;
 /** Cate persoane poate inrola gratuit un utilizator neabonat (a doua+ cere abonament). */
@@ -323,13 +329,14 @@ function activeEntries(entries: UsageEntry[], now: number): UsageEntry[] {
   return entries.filter(([ts]) => ts > cutoff && ts <= horizon);
 }
 
-/** Cate poze au fost scoase (exportate SAU sterse din telefon) in ultimele 30 de zile — fereastra glisanta, nu "luna calendaristica". */
+/** Cate poze au fost EXPORTATE in ultimele 30 de zile — fereastra glisanta, nu "luna calendaristica". Stergerea de pe telefon nu intra aici (vezi deleteRejected). */
 export function photosUsedInRollingMonth(now = Date.now()): number {
   return activeEntries(readExportLog(), now).reduce((sum, [, count]) => sum + count, 0);
 }
 
 /**
- * Inregistreaza `count` poze scoase ACUM (exportate sau sterse din telefon).
+ * Inregistreaza `count` poze exportate ACUM. Stergerea de pe telefon nu se
+ * inregistreaza: golirea galeriei e gratuita, oricat de mult ai de golit.
  * Apelata neconditionat, chiar si pentru abonati — jurnalul ramane util pentru
  * ecranul de folosire, indiferent de abonament.
  */

@@ -132,13 +132,18 @@ export function InsightsPanel() {
 
   return (
     <div className="detail" onClick={e => { if (e.target === e.currentTarget) setOpen(false); }}>
-      <div className="detail-inner narrow" ref={containerRef} role="dialog" aria-modal="true" aria-label={tr('menu.aiPreferences')} tabIndex={-1}>
+      <div className="detail-inner narrow" ref={containerRef} role="dialog" aria-modal="true" aria-label={tr('engine.name')} tabIndex={-1}>
         <header className="detail-head">
-          <span><SparkleIcon className="inline-icon" /> {tr('menu.aiPreferences')}</span>
+          <span><SparkleIcon className="inline-icon" /> {tr('engine.name')}</span>
           <button className="ghost icon-btn" onClick={() => setOpen(false)} aria-label={tr('detail.close')}>
             <XIcon />
           </button>
         </header>
+
+        {/* Ce e lucrul asta, o data, in capul panoului lui. Panoul arata de mult
+            greutati per context si procente de acord, dar nu spunea niciodata
+            CE anume are omul in fata. */}
+        <p className="insights-lead">{tr('engine.lead')}</p>
 
         {/* Cifra pe care o aplicatie care decide in locul tau ti-o datoreaza, si
             pe care aproape nicio aplicatie AI nu o da: cat de des a avut
