@@ -25,6 +25,17 @@ interface Slot {
   worker: Worker;
   api: Comlink.Remote<FaceAnalysisAPI>;
   busy: boolean;
+  /**
+   * Cu ce configuratie a fost pornit worker-ul asta.
+   *
+   * Se tine minte ca sa poata fi REPORNIT la fel. Fara ea, `respawnSlot` cerea
+   * mereu configuratia completa: un singur timeout la inrolare inlocuia
+   * worker-ul slab cu unul care incearca sa incarce mesh, iris, emotie si
+   * CenterNet — modele pe care pachetul Android nici nu le mai contine (vezi
+   * src/androidModels.test.ts). Adica o inrolare care intarzie o data ramanea
+   * stricata pentru tot restul sesiunii.
+   */
+  leanMode?: LeanFaceMode;
 }
 
 // 60s -> 90s -> 150s: primul worker parcurge acum o cascada WebGPU(6s)->WebGL(20s)->CPU
@@ -208,7 +219,7 @@ export class AnalysisPool {
       'Incarcarea modelelor AI a durat prea mult — verifica conexiunea la internet.'
     );
     if (this.knownPersons.length) await api.setKnownPersons(this.knownPersons);
-    return { slot: { worker, api, busy: false }, backend };
+    return { slot: { worker, api, busy: false, leanMode }, backend };
   }
 
   async init(): Promise<void> {
@@ -367,7 +378,8 @@ export class AnalysisPool {
   private async respawnSlot(slot: Slot): Promise<void> {
     try { slot.worker.terminate(); } catch { /* deja mort, nu conteaza */ }
     try {
-      const { slot: fresh } = await this.spawnSlot(this.detectedBackend);
+      // Aceeasi configuratie ca la prima pornire — vezi Slot.leanMode.
+      const { slot: fresh } = await this.spawnSlot(this.detectedBackend, slot.leanMode);
       slot.worker = fresh.worker;
       slot.api = fresh.api;
     } catch (err) {

@@ -74,7 +74,28 @@ jobs:
       - name: Bundle ML models
         run: |
           mkdir -p public/models
-          for m in blazeface facemesh iris emotion faceres centernet; do
+          # DOAR DOUA din cele sase, si asta e o economie de 8,9 MB in fiecare
+          # instalare — a doua jumatate a lui e5 din auditul motoarelor.
+          #
+          # Pe Android, analiza normala nu atinge deloc Human.js: ruleaza pe
+          # plugin-urile native (vezi core/nativeAnalysis.ts, si gardul
+          # `Capacitor.isNativePlatform()` din workerPool.init(), care se intoarce
+          # inainte sa porneasca vreun worker complet). Singurele doua locuri in
+          # care Human.js chiar ruleaza pe telefon sunt inrolarea si recunoasterea
+          # per fata, si amandoua pornesc de la runda trecuta pe configuratii
+          # SLABE (LeanFaceMode 'enrollment'/'recognition' — mesh, iris, emotie si
+          # CenterNet dezactivate), deci nici nu cer, nici nu descarca modelele
+          # alea. Din tot pachetul le raman blazeface (detectorul) si faceres
+          # (embeddingul de identitate).
+          #
+          # facemesh 1,5 MB + iris 2,6 MB + emotie 0,8 MB + centernet 4,1 MB
+          # intrau pana acum in APK ca sa nu fie citite niciodata.
+          #
+          # PWA-ul (deploy.yml) le pastreaza pe toate sase: acolo Human.js CHIAR
+          # face analiza completa, si fara ele ar ramane fara mesh, fara emotie si
+          # fara etichete de obiect. Cele doua liste trebuie sa ramana diferite —
+          # vezi src/androidModels.test.ts, care apara exact asta.
+          for m in blazeface faceres; do
             cp node_modules/@vladmandic/human/models/$m.json public/models/
             cp node_modules/@vladmandic/human/models/$m.bin public/models/
           done
