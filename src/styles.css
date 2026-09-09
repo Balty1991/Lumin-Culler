@@ -75,6 +75,79 @@
      culoarea plina, unde contrastul e deja bun. */
   --accent-2-text: var(--accent-2);
 
+  /* ═══════════════════════════════════════════════════════════════════════
+   * CAMERA OBSCURĂ — stratul de token-i al redesignului.
+   *
+   * Vezi macheta: https://claude.ai/code/artifact/d895fa1d-f595-48a1-876e-0cfdb679b853
+   *
+   * Ideea de la care pleaca tot: fotografia e singura sursa de lumina din
+   * interfata, iar motorul vorbeste prin lumina, nu prin widget-uri. Trei
+   * consecinte care se vad direct in token-ii de mai jos.
+   *
+   * 1. SPECTRALUL E AL MOTORULUI, SI AL NIMANUI ALTCUIVA.
+   *
+   * Astazi --accent (violet) si --accent-2 (cyan) sunt peste tot: butoane,
+   * pastile, file active, inele de focus, insigne. Fiind peste tot, nu inseamna
+   * nimic. De aici incolo perechea violet->cyan apare DOAR unde vorbeste
+   * motorul: inelul de scor, acordul AI-tu, progresul analizei, pastila de
+   * verdict. Cand o vezi, motorul zice ceva. Nicaieri altundeva.
+   *
+   * 2. ACTIUNEA PRINCIPALA E LUMINA, NU CULOARE.
+   *
+   * Prima varianta a machetelor folosea acelasi gradient si pentru butonul
+   * principal — ceea ce incalca chiar regula de mai sus. Pe un ecran aproape
+   * negru, cel mai puternic lucru nu e o culoare, e LUMINA: o lespede aproape
+   * alba cu text intunecat bate orice gradient, si lasa spectralul sa insemne
+   * un singur lucru. --light-primary e acea lespede.
+   *
+   * 3. PANOURILE SUNT MUCHII, NU CUTII.
+   *
+   * --edge-* nu sunt fundaluri, sunt linii care se sting. Un panou peste o
+   * fotografie se anunta cu o muchie si un halou, nu cu un dreptunghi opac care
+   * acopera cadrul.
+   *
+   * Ce NU schimba stratul asta: culorile semantice (--pick/--reject/--review)
+   * raman exact ce erau si inseamna exact ce inseamnau, iar suprafetele unde se
+   * JUDECA pozele raman aproape negre in ambele teme, ca pana acum.
+   * ═══════════════════════════════════════════════════════════════════════ */
+
+  /* Motorul. Perechea si gradientul — singurele locuri unde au voie sa apara. */
+  --engine-1: #8b5cf6;
+  --engine-2: #22d3ee;
+  --engine-3: #67e4cf;
+  --engine-grad: linear-gradient(135deg, var(--engine-1), var(--engine-2) 55%, var(--engine-3));
+  /* Textul motorului pe fundal inchis. Pe fundal DESCHIS se foloseste
+     --accent-2-text, deja validat la 5,36:1. */
+  --engine-ink: #8fd8c9;
+  --engine-glow: 0 0 24px -4px rgb(103 228 207 / 0.75);
+
+  /* Actiunea principala: lumina. Text intunecat pe ea, mereu. */
+  --light-primary: #f2f4f8;
+  --light-primary-ink: #05070b;
+  --light-primary-glow: 0 14px 44px -18px rgb(242 244 248 / 0.55);
+
+  /* Muchii si haloul lor — panourile nu mai sunt cutii. */
+  --edge: rgb(240 244 255 / 0.09);
+  --edge-strong: rgb(240 244 255 / 0.14);
+  --edge-lit: linear-gradient(90deg, transparent, rgb(103 228 207 / 0.85), transparent);
+  --veil: rgb(240 244 255 / 0.035);
+
+  /* Ancorele de pe fotografie — punctul, firul si eticheta care leaga un motiv
+     de zona reala din cadru. Vezi ecranul de decizie din machete. */
+  --anchor-dot: 5px;
+  --anchor-line: 38px;
+
+  /* Scara tipografica a redesignului. Cifrele sunt tipografie, nu widget-uri:
+     mari, tabulare, cu spatiere negativa pe titluri. */
+  --type-hero: 60px;
+  --type-score: 38px;
+  --type-title: 26px;
+  --type-lead: 19px;
+  --type-body: 13px;
+  --type-micro: 9px;
+  --track-tight: -0.03em;
+  --track-micro: 0.16em;
+
   /* Fundal PLIN pentru butoanele de decizie, unde eticheta e ALBA. Pastelurile
      --pick/--reject de mai sus sunt tunate pentru text colorat pe fundal aproape
      negru; sub alb dau 1,74:1 ("Selecteaza") si 2,82:1 ("Respinge"), adica sub
@@ -962,16 +1035,67 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 /* accent gradient — rezervat pentru actiuni-brand (import/CTA-uri), niciodata pentru decizii pick/reject.
    Feedback la hover: glow-ul se intensifica (umbra mai mare), nu o sclipire animata care matura
    butonul — mai "increzator"/deliberat, mai putin "efect gratuit" (feedback convergent runda 6). */
+/* ACTIUNEA PRINCIPALA E LUMINA, NU CULOARE — vezi stratul "Camera obscura".
+   Butonul asta purta gradientul violet->cyan, adica exact semnul motorului, pe
+   fiecare ecran cu un buton principal. Doua lucruri se stricau deodata: semnul
+   motorului nu mai insemna nimic (era peste tot), iar butonul nu era nici cel
+   mai puternic lucru de pe ecran — pe un fundal aproape negru, o culoare nu bate
+   lumina. Acum e o lespede aproape alba, cu text intunecat. */
 .btn-accent {
-  background: var(--accent-gradient); color: #06070a; position: relative;
-  box-shadow: 0 4px 18px -4px rgb(var(--accent-rgb) / 0.45);
+  background: var(--light-primary); color: var(--light-primary-ink); position: relative;
+  box-shadow: var(--light-primary-glow);
 }
-.btn-accent:hover { box-shadow: 0 6px 26px -6px rgb(var(--accent-rgb) / 0.6); }
+.btn-accent:hover { box-shadow: 0 16px 52px -18px rgb(242 244 248 / 0.7); }
 .select:hover, .reject:hover, .btn-accent:hover { filter: brightness(1.08); }
 .select:active, .reject:active, .btn-accent:active { transform: scale(0.96); }
 .select.big, .btn-accent.big { padding: 15px 30px; font-size: 1.05rem; }
 .export-cta { display: inline-flex; align-items: center; }
 .export-cta .inline-icon { margin-right: 6px; }
+
+/* ── Limbajul de lumina (redesign "Camera obscura") ──
+   Patru primitive, si fiecare inlocuieste un dreptunghi opac cu ceva ce se
+   poarta ca lumina. Se folosesc de ecranele migrate; cele nemigrate nu le vad. */
+
+/* Lespede de lumina: butonul de decizie. Culoarea semantica ramane, dar ca
+   lumina care se stinge in jos, nu ca umplere plina. */
+.lc-slab {
+  border-radius: 20px; border: 1px solid var(--slab-edge, var(--edge-strong));
+  background: linear-gradient(180deg, var(--slab-lit, rgb(240 244 255 / 0.16)), var(--slab-dim, rgb(240 244 255 / 0.03)));
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  min-height: 44px;
+}
+
+/* Muchie, nu cutie: un panou peste fotografie se anunta cu o linie care se
+   stinge la capete si un halou, nu cu un fundal opac care acopera cadrul. */
+.lc-edge { position: relative; background: var(--veil); border-radius: 18px; }
+.lc-edge::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 1px;
+  background: var(--edge-lit); border-radius: inherit;
+}
+
+/* Eticheta tehnica: mono, mica, cu spatiere. Cifrele sunt tipografie. */
+.lc-micro {
+  font-family: var(--mono); font-size: var(--type-micro);
+  letter-spacing: var(--track-micro); text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+/* Ancora de pe fotografie: punct pe zona reala, fir scurt, eticheta. Inlocuieste
+   dala de metrica de langa poza — motivul se vede acolo unde a fost masurat. */
+.lc-anchor { position: absolute; display: flex; align-items: center; gap: 6px; pointer-events: none; }
+.lc-anchor i {
+  width: var(--anchor-dot); height: var(--anchor-dot); border-radius: 50%;
+  background: var(--engine-3); box-shadow: 0 0 10px rgb(103 228 207 / 0.9); flex: 0 0 auto;
+}
+.lc-anchor s {
+  width: var(--anchor-line); height: 1px; text-decoration: none; flex: 0 0 auto;
+  background: linear-gradient(90deg, rgb(103 228 207 / 0.85), rgb(103 228 207 / 0.1));
+}
+.lc-anchor b {
+  font-family: var(--mono); font-size: var(--type-micro); font-weight: 400;
+  letter-spacing: 0.14em; text-transform: uppercase; color: #d3ece6;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.9); white-space: nowrap;
+}
 
 /* ── Antet auto-hide la scroll (plan "Refactorizare UI/UX") — invelisul comun pentru
    statistici/progres/filtre, care se colapseaza la scroll in jos si revine la scroll in sus.
