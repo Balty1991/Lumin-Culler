@@ -1769,6 +1769,14 @@ body:before {
 
 .tiktok-sort {
   background:#050608;
+  /* Inaltimea REALA a panoului de informatii, scrisa din TikTokSort.tsx la
+     fiecare poza. Valoarea de aici e plafonul lui (.tiktok-caption
+     max-height), adica exact ce se rezerva astazi — deci pe o poza cu panoul
+     plin asezarea ramane identica, pixel cu pixel. Pe una cu panoul mai scund
+     (fara fata, fara serie), diferenta se duce in fotografie in loc sa ramana
+     negru gol. Fallback-ul conteaza: fara ResizeObserver (sau inainte de prima
+     masuratoare) ecranul arata exact ca inainte. */
+  --tiktok-panel-h:210px;
 }
 
 /* Bug real raportat de utilizator, cu captura: barele de progres treceau PESTE
@@ -1906,7 +1914,11 @@ body:before {
      intern in loc sa fure spatiu din fotografie). 336, nu 324 (bottom-ul
      exact al .tiktok-caption) — bug real, raportat cu zoom pe o poza
      reala: fara acest mic aer, marginea pastilelor atingea marginea pozei. */
-  padding:calc(65px + var(--safe-top)) 0 calc(326px + var(--safe-bottom));
+  /* 116px = bara de decizie + indiciul de gest (104px, cat "bottom" al
+     .tiktok-caption) + 12px aer, ca marginea pastilelor sa nu atinga poza.
+     Restul urmareste panoul masurat. 116 + 210 = 326, valoarea fixa de pana
+     acum. */
+  padding:calc(65px + var(--safe-top)) 0 calc(116px + var(--tiktok-panel-h) + var(--safe-bottom));
 }
 
 .tiktok-stage {
@@ -1918,7 +1930,9 @@ body:before {
   width:auto;
   height:auto;
   max-width:100%;
-  max-height:calc(100svh - 391px);
+  /* 181 = 65 (antet) + 116 (bara de decizie + aer). 181 + 210 = 391, valoarea
+     fixa de pana acum. */
+  max-height:calc(100svh - 181px - var(--tiktok-panel-h));
   object-fit:contain;
 }
 /* Invelis care se micsoreaza la dimensiunea REALA a imaginii — vezi

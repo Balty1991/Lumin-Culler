@@ -165,7 +165,6 @@ export function TikTokSort() {
   const [index, setIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   useModalFocusTrap(containerRef, open, true);
-
   /**
    * "Mai multe" (mockup "Lumin Culler Pro") — Album/Candidat/Anulează, mutate
    * din bara principala (care acum are DOAR cele doua decizii dominante,
@@ -236,6 +235,45 @@ export function TikTokSort() {
 
   const photosById = useMemo(() => new Map(photos.map(p => [p.id, p])), [photos]);
   const current = photosById.get(queueIds[index]) ?? null;
+
+  /**
+   * SPATIUL REZERVAT JOS, masurat, nu ghicit.
+   *
+   * Fotografia primea ~35% din ecran intr-o aplicatie despre a te uita la
+   * fotografii. Cauza nu era o valoare gresita, ci una FIXA: .tiktok-stage-wrap
+   * rezerva jos plafonul panoului de informatii (210px), indiferent cat de inalt
+   * e el de fapt. Or panoul e mai scund cand poza n-are fata (o metrica, nu
+   * trei) sau n-are serie (fara filmstrip) — si atunci diferenta ramanea negru
+   * gol intre poza si panou.
+   *
+   * Plafonul RAMANE (panoul nu are voie sa creasca peste ce i s-a rezervat,
+   * altfel se intoarce bug-ul cu pastilele peste subiect), doar ca rezervarea il
+   * urmareste in jos. Cand panoul e cat plafonul, asezarea e identica cu cea de
+   * pana acum, pixel cu pixel.
+   */
+  const captionRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const panel = captionRef.current;
+    const root = containerRef.current;
+    if (!open || !panel || !root || typeof ResizeObserver === 'undefined') return;
+    const apply = (height: number) => {
+      // Rotunjit si cu prag: fara ele, o fractiune de pixel din reflow ar
+      // rescrie variabila la fiecare cadru, iar poza ar pulsa.
+      const next = Math.round(height);
+      const shown = Number.parseFloat(root.style.getPropertyValue('--tiktok-panel-h')) || 0;
+      if (Math.abs(next - shown) < 2) return;
+      root.style.setProperty('--tiktok-panel-h', `${next}px`);
+    };
+    apply(panel.offsetHeight);
+    const observer = new ResizeObserver(entries => {
+      for (const entry of entries) apply(entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height);
+    });
+    observer.observe(panel);
+    return () => observer.disconnect();
+    // `current?.id` in dependinte: panoul isi schimba inaltimea de la o poza la
+    // alta (fata/serie), iar observatorul trebuie sa re-masoare imediat, nu la
+    // urmatorul reflow intamplator.
+  }, [open, current?.id]);
   const total = queueIds.length;
 
   const [src, setSrc] = useState<string | null>(null);
@@ -656,7 +694,7 @@ export function TikTokSort() {
               — recomandarea AI, seria, metricile — sunt pastile pe acelasi rand,
               iar motivele si data intra pe un singur rand care se taie cu "..."
               in loc sa curga pe mai multe. */}
-          <div className="tiktok-caption">
+          <div className="tiktok-caption" ref={captionRef}>
             <div className="tiktok-chip-row">
               {/* Pe o poza DECISA, pastila devine buton: deschide "De ce ai decis
                   asa?". Cerinta directa a utilizatorului — vrea sa spuna
