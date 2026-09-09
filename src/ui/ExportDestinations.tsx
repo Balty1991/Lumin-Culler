@@ -188,7 +188,15 @@ export function ExportDestinations() {
           </label>
           <label className="export-toggle-row">
             <span className="export-toggle-icon export-toggle-icon-xmp" aria-hidden="true"><TagIcon /></span>
-            <span className="export-toggle-text">{tr('exportDest.toggle.xmp')}</span>
+            <span className="export-toggle-text">
+              {tr('exportDest.toggle.xmp')}
+              {/* Eticheta spunea doar "Etichete Lightroom", sub un antet care
+                  numara pozele SELECTATE — iar sidecar-urile se scriu pentru tot
+                  ce e decis, si pastrate, si respinse (vezi exportXMP in
+                  state/store.ts). Comportamentul e corect pentru Lightroom, unde
+                  vrei respinsele marcate ca respinse; gresita era doar eticheta. */}
+              <small className="export-toggle-sub">{tr('exportDest.toggle.xmp.scope')}</small>
+            </span>
             <input type="checkbox" className="export-toggle-switch" checked={xmpList} onChange={e => setXmpList(e.target.checked)} />
           </label>
         </div>

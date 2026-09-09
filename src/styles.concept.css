@@ -1529,7 +1529,7 @@ body:before {
 }
 
 .detail-fab-reject {
-  background:var(--desk-red);
+  background:var(--reject-solid);
 }
 
 /* Verde (--pick), nu accentul turcoaz/cyan de atelier: "Selecteaza" e o
@@ -1537,7 +1537,7 @@ body:before {
    (check-badge din grila, conturul cardului selectat) — mockup-ul "Lumin
    Culler PRO" il arata tot verde, nu cyan. */
 .detail-fab-select {
-  background:var(--pick);
+  background:var(--pick-solid);
 }
 
 .workspace-dock {

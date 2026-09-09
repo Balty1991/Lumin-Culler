@@ -22,7 +22,7 @@
  */
 import type { AnalysisRecord, ContextModelRecord } from './db';
 import { explainFactors, landscapeSharpness } from './learning/ContextEngine';
-import { t, type Locale } from '../i18n';
+import { plural, t, type Locale } from '../i18n';
 
 /**
  * Aceeasi curba de perspectiva atmosferica folosita de ContextEngine.extractFeatures
@@ -173,7 +173,7 @@ function subjectSentence(a: AnalysisRecord, locale: Locale): string | null {
     parts.push(t(locale, a.avgEyeContact >= 0.6 ? 'aiExplain.eyeContact.direct' : 'aiExplain.eyeContact.away'));
   }
   if (a.strangerCount > 0 && a.knownFaceCount > 0) {
-    parts.push(t(locale, 'aiExplain.strangers', { count: a.strangerCount }));
+    parts.push(t(locale, plural(a.strangerCount, 'aiExplain.strangers.one', 'aiExplain.strangers.other'), { count: a.strangerCount }));
   }
   const joined = joinNatural(parts, locale);
   return group

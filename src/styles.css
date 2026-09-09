@@ -69,6 +69,22 @@
   --reject-text: var(--reject);
   --review-text: var(--review);
   --accent-text: var(--accent);
+  /* Acelasi motiv ca --accent-text, pentru cyan-ul secundar: #22d3ee ca TEXT pe o
+     suprafata deschisa da 1,8:1 (insigna "PRO" din antet, masurata la 1,66:1 pe
+     tema luminoasa, prezenta pe fiecare ecran). In tema intunecata ramane
+     culoarea plina, unde contrastul e deja bun. */
+  --accent-2-text: var(--accent-2);
+
+  /* Fundal PLIN pentru butoanele de decizie, unde eticheta e ALBA. Pastelurile
+     --pick/--reject de mai sus sunt tunate pentru text colorat pe fundal aproape
+     negru; sub alb dau 1,74:1 ("Selecteaza") si 2,82:1 ("Respinge"), adica sub
+     minimul WCAG AA de 4,5:1 — pe cele mai apasate doua butoane din produs, si in
+     ambele teme. Nuantele astea sunt exact --pick-text/--reject-text din tema
+     luminoasa, deja validate acolo: alb pe ele da 5,43:1 si 6,54:1.
+     NU se schimba per tema: butonul e o suprafata plina cu text alb, deci
+     contrastul lui nu depinde de ce e in spate. */
+  --pick-solid: #0a7a3d;
+  --reject-solid: #b3261e;
 
   /* Paleta "desk" — suprafetele de concept (Analysis Studio, Review Desk,
      Inspector). Vine ca atare din build-ul de referinta, unde era o paleta
@@ -219,6 +235,7 @@
   --reject-text: #b3261e;
   --review-text: #8a6d00;
   --accent-text: #0e7490;
+  --accent-2-text: #0e7490;
 
   /* Pe tema luminoasa, panourile de concept nu raman negre: doar acolo unde
      stau PESTE fotografie isi pastreaza fundalul inchis (vezi regulile de
@@ -413,7 +430,14 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .brand { display: flex; align-items: center; gap: 10px; }
 /* Reset de buton — marca ramane vizual identica, doar devine apasabila
    ("Acasa", vezi comentariul din App.tsx). */
-.brand-home-btn { border: none; background: none; padding: 0; cursor: pointer; font: inherit; }
+.brand-home-btn { position: relative; border: none; background: none; padding: 0; cursor: pointer; font: inherit; }
+/* Marca ramane de 34px, dar tinta de atingere ajunge la 44x44 (WCAG 2.5.5):
+   pseudo-elementul mareste doar zona apasabila. Cu padding, titlul de alaturi
+   ar fi fost impins la dreapta pe fiecare ecran. */
+.brand-home-btn::after {
+  content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 44px; height: 44px; border-radius: 12px;
+}
 .brand-home-btn:active { transform: scale(0.94); }
 /* ── Inel rotativ in jurul iconitei de brand (concept HUD) ── */
 .brand-mark-wrap { position: relative; width: 34px; height: 34px; flex-shrink: 0; }
@@ -455,7 +479,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   border: 1px solid rgb(var(--accent-2-rgb) / 0.55);
   background: rgb(var(--accent-rgb) / 0.14);
   background-image: linear-gradient(100deg, rgb(var(--accent-rgb) / 0.16), rgb(var(--accent-2-rgb) / 0.1));
-  color: var(--accent-2);
+  color: var(--accent-2-text);
 }
 .brand-text p {
   color: var(--text-faint); margin-top: 5px; font-size: 0.72rem;
@@ -2158,6 +2182,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .export-toggle-icon-xmp { background: rgb(var(--accent-2-rgb) / 0.16); color: var(--accent-2); }
 .export-toggle-icon svg { width: 16px; height: 16px; }
 .export-toggle-text { flex: 1; min-width: 0; font-size: 0.86rem; }
+/* Randul al doilea al unui comutator: ce anume face, cand eticheta singura ar minti
+   (vezi "Etichete Lightroom", care nu se opreste la selectie). */
+.export-toggle-sub { display: block; margin-top: 2px; font-size: 0.72rem; line-height: 1.45; color: var(--text-faint); }
 /* Comutator real (checkbox), stilizat ca pastila cu glisor — nu doar o bifa. */
 .export-toggle-switch {
   appearance: none; flex-shrink: 0; width: 42px; height: 25px; border-radius: 999px;
@@ -2503,8 +2530,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .detail-fab:active { transform: scale(0.97); }
 .detail-fab svg { width: 20px; height: 20px; }
 /* culori mate/temperate, intentionat fara gradient (plan "Refactorizare UI/UX", flat design) */
-.detail-fab-reject { background: #E53935; }
-.detail-fab-select { background: #43A047; }
+.detail-fab-reject { background: var(--reject-solid); }
+.detail-fab-select { background: var(--pick-solid); }
 .detail-fab:hover { filter: brightness(1.08); }
 :root[data-a11y="1"] .detail-fab { width: auto; height: auto; min-height: 62px; }
 
@@ -2599,8 +2626,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   padding: 6px 12px; border-radius: 999px; font-weight: 800; font-size: 0.78rem; letter-spacing: 0.04em;
   pointer-events: none; backdrop-filter: blur(6px);
 }
-.swipe-badge-select { right: 14px; color: var(--pick); background: rgba(74,222,128,0.14); border: 1.5px solid var(--pick); }
-.swipe-badge-reject { left: 14px; color: var(--reject); background: rgba(251,113,133,0.14); border: 1.5px solid var(--reject); }
+/* Plin, nu tentat: badge-ul sta PESTE fotografie, deci un fundal translucid ii
+   lasa contrastul la mila pozei de dedesubt (masurat 2,69:1 pe "RESPINGE").
+   Umplerea opaca il face citibil pe orice cadru, iar conturul alb il desprinde
+   de zonele deschise. */
+.swipe-badge-select { right: 14px; color: #fff; background: var(--pick-solid); border: 1.5px solid rgb(255 255 255 / 0.35); }
+.swipe-badge-reject { left: 14px; color: #fff; background: var(--reject-solid); border: 1.5px solid rgb(255 255 255 / 0.35); }
 
 /* ── Stat-tile-uri compacte (panoul de detaliu) — dashboard, nu paragraf de text ── */
 /* compacte intentionat — DetailView trebuie sa incapa integral fara scroll

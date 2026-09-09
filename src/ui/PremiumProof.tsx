@@ -100,7 +100,11 @@ function LocationsProof() {
       <path d="M70 24a11 11 0 0 1 22 0c0 8-11 19-11 19S70 32 70 24z" className="pp-accent-fill" />
       <circle cx="81" cy="24" r="4" className="pp-bg-fill" />
       <rect x="30" y="56" width="92" height="14" rx="7" className="pp-chip" />
-      <text x="38" y="66" className="pp-label">Roșiori · România</text>
+      {/* Numele locului e sugerat prin bare, nu scris: ilustratia asta se vede in
+          toate cele 177 de tari in care e listata aplicatia, iar un oras real acolo
+          spune "nu e pentru tine" oricui nu e din el. */}
+      <rect x="38" y="61" width="34" height="4" rx="2" className="pp-accent-fill" />
+      <rect x="78" y="61" width="26" height="4" rx="2" className="pp-faint-fill" />
     </Frame>
   );
 }
