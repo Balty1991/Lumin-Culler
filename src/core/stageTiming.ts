@@ -37,10 +37,18 @@
  * treimi nu era masurat de nimeni, iar suspectii erau numiti pe rand fara nicio
  * cifra: recunoasterea faciala serializata pe un worker (care chiar n-avea
  * cronometru), canvas-ul la rezolutie plina, si marshalling-ul puntii
- * Capacitor. Primii doi se pot masura de aici; al treilea se afla scazandu-i pe
- * ei si modelele din 'analysis'.
+ * Capacitor. Primele doua se masoara direct.
+ *
+ * 'nativeModels' e timpul de PERETE petrecut asteptand modelele native, nu suma
+ * duratelor lor: pe fiecare poza ele pleaca in doua valuri de `Promise.all`, iar
+ * o suma ar numara de mai multe ori acelasi timp. Asa se poate scadea onest:
+ *
+ *     punte + lipici JS  ~  analysis - canvas - nativeModels
+ *
+ * (recunoasterea ruleaza in paralel cu al doilea val, deci NU se scade a doua
+ * oara — de-aia are stiva ei si nu intra in formula.)
  */
-export const STAGES = ['decode', 'derivatives', 'analysis', 'canvas', 'recognition', 'exif', 'persist', 'grouping'] as const;
+export const STAGES = ['decode', 'derivatives', 'analysis', 'canvas', 'nativeModels', 'recognition', 'exif', 'persist', 'grouping'] as const;
 export type Stage = (typeof STAGES)[number];
 
 /** Cate durate pastram per etapa. 200 e destul pentru un p90 stabil si ramane sub ~2 KB in localStorage. */

@@ -46,7 +46,7 @@ import { pickFolderSceneTag } from './sceneTagLabels';
 import { photoTextFromBlocks } from './photoText';
 import { hasManufacturedTag } from './smartInbox';
 import type { NativeImageSource } from './nativeImageSource';
-import { record, timedSync } from './stageTiming';
+import { record, timed, timedSync } from './stageTiming';
 
 /**
  * Acelasi prag ca groupSmileRatio din faceAnalysis.worker.ts (web) — "zambet
@@ -382,11 +382,14 @@ export async function analyzeNative(
   // NESCHIMBAT si nemasurat inca pe telefon: fiecare model ramane serializat cu
   // el insusi (un fir per plugin), deci numarul de inferente simultane e
   // marginit de numarul de plugin-uri, nu de numarul de poze in zbor.
-  const [faceResult, imageAnalysis, labelResult] = await Promise.all([
+  // Cronometrat ca timp de PERETE, nu ca suma: cele trei pleaca deodata, iar o
+  // suma ar numara acelasi timp de trei ori. Vezi 'nativeModels' in
+  // core/stageTiming.ts pentru scaderea care iese din el.
+  const [faceResult, imageAnalysis, labelResult] = await timed('nativeModels', () => Promise.all([
     detectFacesNative(source),
     analyzeImageNative(source),
     labelImageNative(source)
-  ]);
+  ]));
 
   const faces = faceResult.faces.map(f =>
     toFaceInsight(f, faceResult.imageWidth || imageWidth, faceResult.imageHeight || imageHeight)
@@ -412,7 +415,7 @@ export async function analyzeNative(
         .finally(() => record('recognition', performance.now() - recognitionStart))
     : Promise.resolve();
 
-  const [meshStats, imageEmbedding, bodyCroppedAtEdge] = await Promise.all([
+  const [meshStats, imageEmbedding, bodyCroppedAtEdge] = await timed('nativeModels', () => Promise.all([
     // FaceMesh e sarit complet cand nu exista fete — nu are ce agrega, si evita
     // un apel MediaPipe intreg (cel mai greu dintre cele 5) fara niciun beneficiu.
     faces.length > 0
@@ -429,7 +432,7 @@ export async function analyzeNative(
     faces.length > 0
       ? detectPoseNative(source).then(r => hasAwkwardBodyCrop(r.people))
       : Promise.resolve(undefined)
-  ]);
+  ]));
 
   // CAND rulam OCR. Doua conditii, si a doua a fost gresita de doua ori.
   //
@@ -462,11 +465,11 @@ export async function analyzeNative(
   // gasibile mai tarziu ("bonul de la service", "parola de wifi").
   const ocr = faces.length === 0
     && (!pickFolderSceneTag(sceneTags) || hasManufacturedTag(sceneTags))
-    ? await detectTextNative(
+    ? await timed('nativeModels', async () => detectTextNative(
         mediaUri
           ? { uri: mediaUri, maxSide: NATIVE_OCR_MAX_SIDE }
           : { blob: await canvasToBlob(requireCanvas()) }
-      )
+      ))
     : undefined;
   const textCoverage = ocr?.textCoverage;
   const ocrText = ocr ? photoTextFromBlocks(ocr.blocks) : undefined;

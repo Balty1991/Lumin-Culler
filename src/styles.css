@@ -2238,6 +2238,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .export-alt-text span { font-size: 0.74rem; color: var(--text-dim); line-height: 1.45; }
 .export-alt-go { flex-shrink: 0; color: var(--text-faint); }
 
+/* Defalcarea analizei, sub graficul de etape (vezi StatsPanel). */
+.stage-timing-sub-head {
+  margin: 16px 0 6px; font-size: 0.76rem; font-weight: 700;
+  color: var(--text-dim); letter-spacing: 0.02em;
+}
+
 /* Ce e motorul care invata, spus o data in capul panoului lui. */
 .insights-lead {
   margin: 2px 0 16px; font-size: 0.84rem; line-height: 1.55; color: var(--text-dim);

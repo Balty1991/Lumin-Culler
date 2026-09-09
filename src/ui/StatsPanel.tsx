@@ -15,6 +15,10 @@ function formatDuration(ms: number): string {
   return s < 60 ? `${s.toFixed(1)}s` : `${Math.floor(s / 60)}m ${Math.round(s % 60)}s`;
 }
 
+/** Etapele masurate INAUNTRUL analizei — vezi core/stageTiming.ts. */
+const SUB_ETAPE = ['canvas', 'nativeModels', 'recognition'] as const;
+type SubEtapa = (typeof SUB_ETAPE)[number];
+
 type Tr = (key: string, params?: Record<string, string | number>) => string;
 
 /**
@@ -150,7 +154,28 @@ export function StatsPanel() {
   // import, iar panoul nu e deschis atunci.
   const [stageStats, setStageStats] = useState(() => readStageStats());
   useEffect(() => { if (open) setStageStats(readStageStats()); }, [open]);
-  const stageTotal = Math.max(1, stageStats.reduce((sum, st) => sum + st.totalMs, 0));
+  /**
+   * SUB-ETAPELE nu se aduna la total.
+   *
+   * 'canvas', 'nativeModels' si 'recognition' se petrec INAUNTRUL lui
+   * 'analysis' — puse in aceeasi suma, ar numara acelasi timp de doua ori si ar
+   * face procentele sa minta. Stau intr-un bloc separat, ca defalcare a
+   * analizei, si acolo isi au si rostul: raspund la intrebarea pentru care au
+   * fost adaugate — unde se duc cele doua treimi nemasurate din ea.
+   */
+  const topStages = stageStats.filter(st => !SUB_ETAPE.includes(st.stage as SubEtapa));
+  const subStages = stageStats.filter(st => SUB_ETAPE.includes(st.stage as SubEtapa));
+  const stageTotal = Math.max(1, topStages.reduce((sum, st) => sum + st.totalMs, 0));
+  const analysisMs = stageStats.find(st => st.stage === 'analysis')?.totalMs ?? 0;
+  /**
+   * Ce ramane din analiza dupa ce scazi ce s-a masurat: puntea Capacitor plus
+   * lipiciul JS. Recunoasterea NU se scade — ruleaza in paralel cu al doilea val
+   * de modele, deci timpul ei e deja inauntrul lui 'nativeModels'.
+   */
+  const measuredInAnalysis = subStages
+    .filter(st => st.stage !== 'recognition')
+    .reduce((sum, st) => sum + st.totalMs, 0);
+  const bridgeMs = Math.max(0, analysisMs - measuredInAnalysis);
   const [feedback, setFeedback] = useState(() => summariseFeedback());
   useEffect(() => { if (open) setFeedback(summariseFeedback()); }, [open]);
   // La fel ca mai sus: se schimba doar la sfarsitul unui import.
@@ -241,6 +266,42 @@ export function StatsPanel() {
                 </div>
               ))}
             </div>
+
+            {/* Defalcarea analizei — de aici a plecat intrebarea: din ~9,9 s pe
+                poza petrecute in analiza, doar 3,44 s se regaseau in modele, iar
+                restul nu era masurat de nimeni. */}
+            {analysisMs > 0 && subStages.length > 0 && (
+              <>
+                <h4 className="stage-timing-sub-head">{tr('stats.stages.inside')}</h4>
+                <div className="stage-timing">
+                  {subStages.map(st => (
+                    <div key={st.stage} className="stage-timing-row">
+                      <span className="stage-timing-name">{tr(`stats.stage.${st.stage}`)}</span>
+                      <span className="stage-timing-bar" aria-hidden="true">
+                        <i style={{ width: `${Math.round((st.totalMs / analysisMs) * 100)}%` }} />
+                      </span>
+                      <span className="mono stage-timing-value">
+                        {tr('stats.stages.value', {
+                          share: Math.round((st.totalMs / analysisMs) * 100),
+                          median: formatMs(st.p50Ms),
+                          slow: formatMs(st.p90Ms)
+                        })}
+                      </span>
+                    </div>
+                  ))}
+                  <div className="stage-timing-row">
+                    <span className="stage-timing-name">{tr('stats.stage.bridge')}</span>
+                    <span className="stage-timing-bar" aria-hidden="true">
+                      <i style={{ width: `${Math.round((bridgeMs / analysisMs) * 100)}%` }} />
+                    </span>
+                    <span className="mono stage-timing-value">
+                      {tr('stats.stages.bridgeValue', { share: Math.round((bridgeMs / analysisMs) * 100) })}
+                    </span>
+                  </div>
+                </div>
+              </>
+            )}
+
             <button type="button" className="ghost small danger" onClick={() => { resetStageStats(); setStageStats([]); }}>
               {tr('stats.stages.reset')}
             </button>
