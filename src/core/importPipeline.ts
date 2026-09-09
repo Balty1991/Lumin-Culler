@@ -24,6 +24,7 @@ import { hasRealGps } from './gpsCoordinates';
 import { deriveThresholds, FIXED_THRESHOLDS, type Thresholds, applyStrictness } from './scoreThresholds';
 import { readCullingStrictness } from '../state/cullingStrictness';
 import { quickDuplicateScan, type QuickScanResult } from './quickDuplicateScan';
+import { buildLibraryIndex, partitionAlreadyImported } from './alreadyImported';
 
 /**
  * Un avertisment de import, ca CHEIE + parametri, nu ca propozitie gata scrisa.
@@ -935,6 +936,48 @@ export async function importFiles(
     return new Map();
   }
 
+  // Ce e DEJA in biblioteca nu se mai importa o data.
+  //
+  // Bug reprodus la audit: import de 20 de poze, anulare la a 9-a, aceleasi 20
+  // alese din nou -> 29 de poze, fara niciun avertisment. Scanarea rapida de
+  // mai jos compara lotul doar cu el insusi. Aici se citeste biblioteca.
+  //
+  // Se streamuieste cu `each`, nu cu `toArray`: din fiecare inregistrare ne
+  // trebuie trei campuri, iar o biblioteca de zece mii de poze materializata
+  // intreaga (cu lqip cu tot) ar fi zeci de megaocteti tinuti degeaba exact in
+  // momentul in care urmeaza sa se incarce si modelele AI.
+  const libraryIndex = buildLibraryIndex([]);
+  try {
+    await db.photos.each(rec => {
+      if (rec.mediaUri) libraryIndex.uris.add(rec.mediaUri);
+      if (rec.sizeBytes !== undefined && rec.fileName) {
+        libraryIndex.namesAndSizes.add(rec.fileName.toLowerCase() + ' ' + rec.sizeBytes);
+      }
+    });
+  } catch (err) {
+    // Baza inaccesibila: se importa tot, ca inainte. Mai bine un duplicat decat
+    // un import care nu porneste.
+    console.warn('Nu s-a putut citi biblioteca pentru verificarea duplicatelor:', err);
+  }
+  const partition = partitionAlreadyImported(
+    images.map(({ file, handle, mediaUri }) => ({ name: file.name, size: file.size, mediaUri, file, handle })),
+    libraryIndex
+  );
+  const alreadyInLibrary = partition.alreadyImported;
+  images = partition.fresh.map(({ file, handle, mediaUri }) => ({ file, handle, mediaUri }));
+
+  // Tot lotul era deja importat: nu se porneste nici macar incarcarea
+  // modelelor. Pana acum, cazul asta insemna un import intreg, cu bara de
+  // progres si cu poze duplicate la capat.
+  if (images.length === 0) {
+    onProgress({
+      done: 0, total: 0, fileName: '', phase: 'finalizat',
+      warning: { key: 'import.warn.allAlreadyInLibrary', params: { count: alreadyInLibrary } },
+      outcome: { total: 0, imported: 0, failed: 0, skipped: skippedCount + alreadyInLibrary }
+    });
+    return new Map();
+  }
+
   // Scanarea rapida de copii identice. Sta AICI, inaintea lui analysisPool.init(),
   // si nu se asteapta: incarcarea modelelor AI e cea mai lunga pauza din tot
   // importul, si pana acum era complet goala. Scanarea nu decodeaza nicio
@@ -1157,9 +1200,15 @@ export async function importFiles(
   const skippedWarning: ImportWarning | undefined = skippedCount > 0
     ? { key: skippedCount === 1 ? 'import.warn.skipped.one' : 'import.warn.skipped.other', params: { count: skippedCount } }
     : undefined;
+  const alreadyWarning: ImportWarning | undefined = alreadyInLibrary > 0
+    ? {
+        key: alreadyInLibrary === 1 ? 'import.warn.alreadyInLibrary.one' : 'import.warn.alreadyInLibrary.other',
+        params: { count: alreadyInLibrary, imported: images.length }
+      }
+    : undefined;
   onProgress({
     done, total: images.length, fileName: '', phase: 'finalizat',
-    warning: stopReason ?? failureWarning ?? skippedWarning,
+    warning: stopReason ?? failureWarning ?? alreadyWarning ?? skippedWarning,
     outcome: {
       // `done`, nu `images.length`: la un import anulat la 52/437, denominatorul
       // corect e ce s-a incercat, nu ce s-ar fi incercat. Altfel un import oprit
@@ -1167,7 +1216,7 @@ export async function importFiles(
       total: done,
       imported: done - failed,
       failed,
-      skipped: skippedCount,
+      skipped: skippedCount + alreadyInLibrary,
       reasons: topReasons || undefined
     }
   });

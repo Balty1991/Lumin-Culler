@@ -4,10 +4,10 @@ import { useStore, type PhotoView } from '../state/store';
 import { explainFactors } from '../core/learning/ContextEngine';
 import { generateExplanationSections, generateSuggestions, type ExplanationSection, type Suggestion } from '../core/aiExplanationGenerator';
 import { compareWithinMoment } from '../core/momentComparison';
-import { technicalSummary, subjectSummary, framingSummary } from '../core/metricSummary';
+import { technicalSummary, subjectSummary, framingSummary, effectiveSharpness, SHARP_LOW } from '../core/metricSummary';
 import { findCounterfactual } from '../core/scoreCounterfactual';
 import { computePillars, type VerdictPillars } from '../core/verdictPillars';
-import { landscapeSharpness, labelForFactor, isLabelledFactor } from '../core/learning/ContextEngine';
+import { labelForFactor, isLabelledFactor } from '../core/learning/ContextEngine';
 import { Histogram } from './Histogram';
 import { FocusMap } from './FocusMap';
 import { AnimatedNumber } from './AnimatedNumber';
@@ -547,11 +547,11 @@ export function PhotoInfoTabs({ photo, src, openTab }: {
   // Rezumatele grupelor de metrici — vezi core/metricSummary.ts pentru reguli.
   // Claritatea se judeca altfel pe portret decat pe peisaj, si acel calcul are
   // deja un singur loc in aplicatie: nu-l duplicam aici.
-  const effectiveSharpness = photo.faceCount > 0 ? photo.sharpness : landscapeSharpness(photo.sharpness) * 100;
-  const techSummary = technicalSummary(photo, effectiveSharpness);
+  const sharpness = effectiveSharpness(photo);
+  const techSummary = technicalSummary(photo, sharpness);
   // Scorurile surorilor din serie — deja in memorie, nicio citire noua.
   const siblingScores = photo.groupId ? groupOfPhotos(photo.groupId).map(p => p.aiScore) : [];
-  const pillars = computePillars(photo, effectiveSharpness, photo.aiScore, siblingScores, photo.aiPersonalDelta);
+  const pillars = computePillars(photo, sharpness, photo.aiScore, siblingScores, photo.aiPersonalDelta);
   const subjSummary = subjectSummary(photo);
   const frameSummary = framingSummary(photo);
 
@@ -622,7 +622,7 @@ export function PhotoInfoTabs({ photo, src, openTab }: {
                 {photo.faceCount > 0
                   ? tr(plural(photo.faceCount, 'inspector.verdict.subjects.one', 'inspector.verdict.subjects.other'), { count: photo.faceCount }) + ' · '
                   : ''}
-                {tr('inspector.verdict.metrics', { sharpness: Math.round(photo.sharpness), exposure: Math.round(photo.exposure) })}
+                {tr('inspector.verdict.metrics', { sharpness: Math.round(sharpness), exposure: Math.round(photo.exposure) })}
               </p>
               {verdictFactors.length > 0 && <div className="inspector-verdict-factors">{verdictFactors.map(f => <span key={f.label} className={f.positive ? 'pos' : 'neg'}>{f.positive ? '+' : '−'} {f.label}</span>)}</div>}
             </div>
@@ -641,8 +641,13 @@ export function PhotoInfoTabs({ photo, src, openTab }: {
               problemele care fie se repara in editare, fie nu se repara deloc. */}
           <MetricGroup title={tr('metrics.group.technical')} summary={tr(techSummary.key)} tone={techSummary.tone}>
             <StatTile
-              label={tr('detail.stat.sharpness')} value={photo.sharpness} meter={photo.sharpness / 100}
-              note={photo.sharpness < 40 ? tr('detail.stat.note.sharpness') : undefined}
+              /* Claritatea JUDECATA, nu cea masurata brut — vezi
+                 effectiveSharpness. Pe un peisaj cele doua difera (gamma), si
+                 pana acum dala arata numarul brut cu pragul ei proprie (40) in
+                 timp ce rezumatul de deasupra si textul "De ce" foloseau
+                 numarul judecat cu pragul 45. Aceeasi poza, doua raspunsuri. */
+              label={tr('detail.stat.sharpness')} value={Math.round(sharpness)} meter={sharpness / 100}
+              note={sharpness < SHARP_LOW ? tr('detail.stat.note.sharpness') : undefined}
             />
             <StatTile
               label={tr('detail.stat.exposure')} value={photo.exposure} meter={photo.exposure / 100}

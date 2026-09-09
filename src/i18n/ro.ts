@@ -1697,6 +1697,9 @@ export const ro = {
   // Avertismentele de import — vin din core/importPipeline.ts ca CHEIE + parametri
   // (vezi ImportWarning): pana la runda asta erau propozitii romanesti codificate
   // direct in pipeline, pe care un tester cu telefonul in engleza le primea ca atare.
+  'import.warn.alreadyInLibrary.one': 'O poză era deja în bibliotecă și a fost sărită. Restul de {imported} au intrat.',
+  'import.warn.alreadyInLibrary.other': '{countDe} poze erau deja în bibliotecă și au fost sărite. Restul de {imported} au intrat.',
+  'import.warn.allAlreadyInLibrary': 'Toate cele {countDe} poze erau deja în bibliotecă — nu s-a importat nimic a doua oară.',
   'import.warn.cancelled': 'Import anulat — {done}/{total} poze procesate până la anulare.',
   'import.warn.allFailed': 'Niciuna dintre cele {countDe} poze nu a putut fi procesată.',
   'import.warn.allFailed.reason': 'Niciuna dintre cele {countDe} poze nu a putut fi procesată. Motiv: {reasons}',

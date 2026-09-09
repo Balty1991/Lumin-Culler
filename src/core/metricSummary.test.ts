@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { technicalSummary, subjectSummary, framingSummary } from './metricSummary';
+import { technicalSummary, subjectSummary, framingSummary, effectiveSharpness, SHARP_LOW } from './metricSummary';
 
 describe('rezumatul grupei tehnice', () => {
   const bun = { faceCount: 1, sharpness: 80, exposure: 50 };
@@ -66,5 +66,33 @@ describe('rezumatul incadrarii', () => {
   it('datele lipsa nu produc o alarma falsa', () => {
     expect(framingSummary({ faceCount: 1 }).tone).toBe('ok');
     expect(framingSummary({ faceCount: 0 }).tone).toBe('ok');
+  });
+});
+
+/**
+ * Contradictia raportata la audit: o fila spunea "− Claritate, contur moale",
+ * cea de alaturi "suficient de clara", pe aceeasi poza si pe ecrane vecine.
+ * Cauza: un peisaj are DOUA numere de claritate — cel masurat si cel judecat
+ * (gamma din landscapeSharpness) — iar interfata arata unul si textul vorbea
+ * despre celalalt, fiecare cu pragul lui (40 pe dala, 45 in text).
+ */
+describe('claritatea judecata are un singur numar si un singur prag', () => {
+  it('pe o poza cu fete, judecata e chiar masuratoarea', () => {
+    expect(effectiveSharpness({ faceCount: 2, sharpness: 30 })).toBe(30);
+  });
+
+  it('pe un peisaj, judecata e mai mare decat masuratoarea bruta', () => {
+    const judged = effectiveSharpness({ faceCount: 0, sharpness: 30 });
+    expect(judged).toBeGreaterThan(30);
+    // Exact cazul care se contrazicea: brut 30 (sub vechiul prag 40 al dalei,
+    // deci "contur moale"), judecat peste 45, deci "suficient de clara".
+    expect(judged).toBeGreaterThan(SHARP_LOW);
+  });
+
+  it('rezumatul tehnic foloseste acelasi prag ca dala si ca textul', () => {
+    const soft = technicalSummary({ faceCount: 1, sharpness: 0, exposure: 50 }, SHARP_LOW - 1);
+    expect(soft.key).toBe('metrics.summary.technical.soft');
+    const fine = technicalSummary({ faceCount: 1, sharpness: 0, exposure: 50 }, SHARP_LOW);
+    expect(fine.key).not.toBe('metrics.summary.technical.soft');
   });
 });

@@ -36,8 +36,13 @@ vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
 
 // ── Dexie ───────────────────────────────────────────────────────────────────
 const putCalls: string[] = [];
+/** Ce e deja in biblioteca — citit de importFiles ca sa nu reimporte acelasi fisier. */
+const existingPhotos: { fileName: string; sizeBytes?: number; mediaUri?: string }[] = [];
 vi.mock('./db', () => {
   const table = (name: string) => ({
+    each: vi.fn(async (cb: (row: unknown) => void) => {
+      if (name === 'photos') existingPhotos.forEach(cb);
+    }),
     put: vi.fn(async () => { putCalls.push(name); }),
     get: vi.fn(async () => undefined),
     delete: vi.fn(async () => {}),
@@ -112,6 +117,7 @@ describe('importFiles — contabilitate si curatenie', () => {
   beforeEach(() => {
     failingDecodeNames.clear();
     failingAnalysisNames.clear();
+    existingPhotos.length = 0;
     putCalls.length = 0;
     analyzedCount = 0;
     originalFiles.clear();
@@ -235,6 +241,37 @@ describe('importFiles — contabilitate si curatenie', () => {
     const final = progress[progress.length - 1];
     expect(final.phase).toBe('finalizat');
     expect(final.warning?.key).toBe('import.warn.cancelled');
+  });
+
+  /**
+   * Bug reprodus la audit: 20 de poze, anulare la a 9-a, aceleasi 20 alese din
+   * nou -> 29 de poze in biblioteca. Scanarea rapida compara lotul doar cu el
+   * insusi; biblioteca n-o citea nimeni.
+   */
+  it('sare peste fisierele pe care biblioteca le are deja', async () => {
+    const a = jpeg('a.jpg');
+    existingPhotos.push({ fileName: 'a.jpg', sizeBytes: a.size });
+    const photos: string[] = [];
+    const progress: ImportProgress[] = [];
+
+    await importFiles([a, jpeg('b.jpg')], p => progress.push(p), i => photos.push(i.photo.fileName));
+
+    expect(photos).toEqual(['b.jpg']);
+    const final = progress[progress.length - 1];
+    expect(final.warning?.key).toBe('import.warn.alreadyInLibrary.one');
+    expect(final.outcome?.skipped).toBe(1);
+  });
+
+  it('cu tot lotul deja importat nu porneste nici macar analiza', async () => {
+    const a = jpeg('a.jpg');
+    existingPhotos.push({ fileName: 'a.jpg', sizeBytes: a.size });
+    const progress: ImportProgress[] = [];
+
+    const groups = await importFiles([a], p => progress.push(p), () => {});
+
+    expect(analyzedCount).toBe(0);
+    expect(groups.size).toBe(0);
+    expect(progress[progress.length - 1].warning?.key).toBe('import.warn.allAlreadyInLibrary');
   });
 
   it('scrie toate tabelele unei poze in aceeasi tranzactie (photo + miniatura + preview + analiza)', async () => {

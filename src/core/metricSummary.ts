@@ -15,14 +15,35 @@
  * Intoarce CHEI de traducere, nu text: traducerea traieste in i18n.
  */
 
-/** Aceleasi praguri ca aiExplanationGenerator si hasNamedDefect — un singur adevar. */
-const SHARP_LOW = 45;
-const SHARP_HIGH = 70;
+import { landscapeSharpness } from './learning/ContextEngine';
+
+/**
+ * Pragurile de claritate, EXPORTATE — pana acum comentariul de aici promitea
+ * "un singur adevar", dar aiExplanationGenerator si dala din Inspector aveau
+ * fiecare numerele lor scrise de mana (45/70 acolo, 40 pe dala). De acolo
+ * venea contradictia raportata la audit: o fila spunea "Contur moale", cea de
+ * alaturi "suficient de clara", pe aceeasi poza.
+ */
+export const SHARP_LOW = 45;
+export const SHARP_HIGH = 70;
 const EXPOSURE_OFF = 15;
 const CLIPPING = 0.06;
 const EYES_OPEN_OK = 0.999;
 const FRAMING_LOW = 0.35;
 const FRAMING_GOOD = 0.6;
+
+/**
+ * Claritatea pe care o JUDECA aplicatia, nu cea masurata brut.
+ *
+ * Un peisaj nu poate atinge varianta Laplace a unui portret, si de-asta scorul
+ * trece claritatea peisajelor printr-o gamma. Consecinta e ca o poza fara fete
+ * are DOUA numere: cel masurat si cel judecat. Cand interfata arata unul si
+ * textul explicativ vorbeste despre celalalt, cele doua ecrane se contrazic —
+ * exact ce s-a raportat. Aici e singurul loc in care se alege intre ele.
+ */
+export function effectiveSharpness(a: { faceCount: number; sharpness: number }): number {
+  return a.faceCount > 0 ? a.sharpness : landscapeSharpness(a.sharpness) * 100;
+}
 
 export interface MetricSummary {
   key: string;

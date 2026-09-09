@@ -21,7 +21,8 @@
  * increderea e minima si recomandarea se bazeaza pe reguli generale.
  */
 import type { AnalysisRecord, ContextModelRecord } from './db';
-import { explainFactors, landscapeSharpness } from './learning/ContextEngine';
+import { explainFactors } from './learning/ContextEngine';
+import { effectiveSharpness, SHARP_HIGH, SHARP_LOW } from './metricSummary';
 import { plural, t, type Locale } from '../i18n';
 
 /**
@@ -34,9 +35,7 @@ import { plural, t, type Locale } from '../i18n';
  * acelasi cadru. Pentru poze cu cel putin o fata, comportamentul ramane
  * neschimbat (claritatea bruta, ca inainte).
  */
-function effectiveSharpness(a: AnalysisRecord): number {
-  return a.faceCount > 0 ? a.sharpness : landscapeSharpness(a.sharpness) * 100;
-}
+
 
 const COLD_START_SAMPLES = 8;   // acelasi prag ca in ContextEngine.ts
 const TRAINED_SAMPLES = 40;
@@ -83,8 +82,8 @@ function joinNatural(parts: string[], locale: Locale): string {
 function technicalSentence(a: AnalysisRecord, locale: Locale): string {
   const sharpness = effectiveSharpness(a);
   const clarity =
-    sharpness >= 70 ? t(locale, 'aiExplain.clarity.high')
-    : sharpness >= 45 ? t(locale, 'aiExplain.clarity.mid')
+    sharpness >= SHARP_HIGH ? t(locale, 'aiExplain.clarity.high')
+    : sharpness >= SHARP_LOW ? t(locale, 'aiExplain.clarity.mid')
     : t(locale, 'aiExplain.clarity.low');
 
   const exposureDiff = a.exposure - 50;
