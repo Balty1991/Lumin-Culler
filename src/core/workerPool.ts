@@ -169,6 +169,14 @@ export class AnalysisPool {
    * effectiveNativeLimit.
    */
   private thermalCap: number | null = null;
+  /**
+   * Anuntat cand plafonul termic EFECTIV se schimba — vezi startThermalWatch.
+   * Exista pentru un motiv de interfata, nu de motor: cat timp telefonul e
+   * cald, importul incetineste vizibil si estimarea se lungeste, fara ca nimic
+   * de pe ecran sa spuna de ce. Fara semnalul asta, singura explicatie pe care
+   * o are omul e "aplicatia s-a stricat".
+   */
+  onThermalChange: ((info: { cap: number; normal: number } | null) => void) | null = null;
   /** Oprirea ascultatorului termic, cand exista unul. */
   private stopThermalWatch: (() => void) | null = null;
 
@@ -414,6 +422,12 @@ export class AnalysisPool {
       const cap = thermalConcurrencyCap(status);
       if (cap === this.thermalCap) return;
       this.thermalCap = cap;
+      // Doar cand plafonul termic chiar STRANGE ceva: pe un telefon deja pus pe
+      // un singur lucrator (mod economic), o treapta termica nu schimba nimic,
+      // deci n-are ce anunta — un mesaj care spune "am incetinit" cand nu s-a
+      // incetinit nimic e mai rau decat tacerea.
+      const strange = cap !== null && cap < this.nativeConcurrencyLimit;
+      this.onThermalChange?.(strange ? { cap, normal: this.nativeConcurrencyLimit } : null);
       // Racire: locurile eliberate se dau imediat celor care asteapta, altfel
       // coada ar ramane blocata pana la urmatoarea analiza terminata.
       while (this.nativeInFlight < this.effectiveNativeLimit() && this.nativeWaiters.length > 0) {

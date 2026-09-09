@@ -153,6 +153,15 @@ export function InsightsPanel() {
         {accuracy && (
           <section className="accuracy">
             <h3>{tr('insights.accuracy.title')}</h3>
+            {/* Cifra care da raspunsul, la marimea intrebarii — redesign
+                "Camera obscura". Statea in aceeasi greutate ca restul randurilor,
+                desi ea e singurul motiv pentru care se deschide ecranul asta:
+                cat de des a avut motorul dreptate. Nu e o cifra noua, e aceeasi
+                pe care o poarta si cardul de pe Acasa. */}
+            <p className="accuracy-hero">
+              <b>{Math.round(accuracy.agreement * 100)}</b><i>%</i>
+            </p>
+            <p className="accuracy-hero-micro lc-micro">{tr('home.aiProfile.label')}</p>
             <div className="accuracy-rows">
               {accuracy.keepPrecision !== null && (
                 <p>{tr('insights.accuracy.keep', { percent: Math.round(accuracy.keepPrecision * 100) })}</p>

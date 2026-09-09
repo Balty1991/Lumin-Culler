@@ -102,6 +102,7 @@ export const ro = {
   'reviewDesk.title.other': '{countDe} poze de trecut în revistă',
   'reviewDesk.title.ready': 'Revede selecția ta',
   'reviewDesk.lead.next': 'AI-ul a pregătit fotografia următoare pentru alegerea ta.',
+  'reviewDesk.thermal': 'Telefonul s-a încălzit — {cap} poze deodată în loc de {normal}. Merge mai departe, doar mai încet.',
   'reviewDesk.lead.ready': 'AI-ul a pregătit selecția pentru acest lot. Tu confirmi — deschide orice fotografie și schimbă alegerea.',
   'reviewDesk.continue': 'Continuă',
   'reviewDesk.open': 'Deschide selecția',

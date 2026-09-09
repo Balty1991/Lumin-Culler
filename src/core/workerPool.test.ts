@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { computeWorkerCount, withTimeout } from './workerPool';
+import { THERMAL_THROTTLED_CONCURRENCY } from './thermalStatus';
 
 let nativePlatform = false;
 /** Testul fixeaza un dispozitiv cu 6 nuclee: plafonul adaptiv nativ trebuie sa fie 3. */
@@ -21,6 +22,24 @@ vi.mock('./performanceSettings', () => ({
   readEconomicMode: () => false,
   writeEconomicMode: () => {}
 }));
+
+/**
+ * Ascultatorul termic, sub control: in jsdom pluginul nu exista, deci fara mock
+ * `watchThermalStatus` nu cheama niciodata inapoi si treapta termica ar ramane
+ * netestabila. `thermalConcurrencyCap` ramane cel adevarat — pragurile lui sunt
+ * exact ce vrem sa verificam, nu ce vrem sa inlocuim.
+ */
+let emiteTermic: ((status: number | null) => void) | null = null;
+vi.mock('./thermalStatus', async () => {
+  const real = await vi.importActual<typeof import('./thermalStatus')>('./thermalStatus');
+  return {
+    ...real,
+    watchThermalStatus: (cb: (status: number | null) => void) => {
+      emiteTermic = cb;
+      return Promise.resolve(() => { emiteTermic = null; });
+    }
+  };
+});
 
 describe('computeWorkerCount', () => {
   it('caps at 4 when deviceMemory is unknown (Firefox/Safari)', () => {
@@ -221,6 +240,58 @@ describe('AnalysisPool native mode (Capacitor Android)', () => {
  * pentru createImageBitmap (importPipeline.decode / rawDecoder.decodeRawFile)
  * asta insemna un ImageBitmap de pana la ~16 MB pe care nimeni nu-l mai inchide.
  */
+/**
+ * Cand telefonul se incalzeste, pool-ul chiar incetineste — dar pana acum o
+ * facea in tacere, iar de pe ecran importul arata doar ca a devenit inexplicabil
+ * mai lent. Semnalul de aici e ce transforma incetinirea intr-o explicatie.
+ */
+describe('AnalysisPool — anuntul de incalzire', () => {
+  beforeEach(() => {
+    nativePlatform = true;
+    Object.defineProperty(navigator, 'hardwareConcurrency', { configurable: true, value: 6 });
+    emiteTermic = null;
+  });
+
+  it('anunta cand plafonul termic chiar strange, cu ambele numere', async () => {
+    const { AnalysisPool } = await import('./workerPool');
+    const pool = new AnalysisPool();
+    const anunturi: ({ cap: number; normal: number } | null)[] = [];
+    pool.onThermalChange = info => anunturi.push(info);
+    await pool.init();
+    expect(emiteTermic).not.toBeNull();
+
+    emiteTermic!(3); // treapta severa
+    expect(anunturi).toHaveLength(1);
+    expect(anunturi[0]).toEqual({ cap: THERMAL_THROTTLED_CONCURRENCY, normal: NATIVE_NORMAL_CONCURRENCY });
+    // ...si plafonul chiar s-a aplicat, nu doar s-a anuntat.
+    expect(pool.size).toBe(THERMAL_THROTTLED_CONCURRENCY);
+  });
+
+  it('la racire anunta ca s-a terminat, si redeschide plafonul', async () => {
+    const { AnalysisPool } = await import('./workerPool');
+    const pool = new AnalysisPool();
+    const anunturi: ({ cap: number; normal: number } | null)[] = [];
+    pool.onThermalChange = info => anunturi.push(info);
+    await pool.init();
+
+    emiteTermic!(3);
+    emiteTermic!(0);
+    expect(anunturi).toEqual([{ cap: THERMAL_THROTTLED_CONCURRENCY, normal: NATIVE_NORMAL_CONCURRENCY }, null]);
+    expect(pool.size).toBe(NATIVE_NORMAL_CONCURRENCY);
+  });
+
+  it('o treapta care nu schimba plafonul nu spune nimic', async () => {
+    const { AnalysisPool } = await import('./workerPool');
+    const pool = new AnalysisPool();
+    const anunturi: unknown[] = [];
+    pool.onThermalChange = info => anunturi.push(info);
+    await pool.init();
+
+    emiteTermic!(0); // rece: acelasi plafon ca la pornire
+    expect(anunturi).toHaveLength(0);
+  });
+});
+
 describe('withTimeout — resursa care soseste dupa timeout', () => {
   it('preda apelantului valoarea cand promisiunea castiga cursa (comportament neschimbat)', async () => {
     await expect(withTimeout(Promise.resolve('gata'), 1000, 'prea lent')).resolves.toBe('gata');

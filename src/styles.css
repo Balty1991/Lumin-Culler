@@ -1994,6 +1994,32 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   border-radius: var(--radius); background: var(--surface); border: 1px solid var(--border);
 }
 .accuracy h3 { margin: 0 0 8px; font-size: 0.8rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-faint); font-weight: 650; }
+/* Cifra de acord, la marimea intrebarii pe care o raspunde (macheta "Ochiul
+   tau"). Semnul procent ramane mic si stins: unitatea nu e informatia.
+   `clamp` fiindca 60px e marimea de pe macheta la 390px latime — pe ecrane mai
+   inguste, cifra plus semnul ar atinge marginile panoului. */
+/* Randul termic de pe cardul de analiza. Discret, dar nu ascuns: e o
+   explicatie, nu o alarma — telefonul face exact ce trebuie. */
+.review-desk-thermal {
+  margin: 6px 0 0; line-height: 1.45; color: var(--text-dim);
+  text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+}
+
+.accuracy-hero {
+  margin: 2px 0 0; display: flex; align-items: baseline; gap: 3px;
+  line-height: 1; color: var(--text);
+}
+.accuracy-hero b {
+  font-family: var(--mono); font-size: clamp(2.6rem, 15vw, 3.75rem); font-weight: 700;
+  letter-spacing: -0.04em; font-variant-numeric: tabular-nums;
+}
+.accuracy-hero i { font-style: normal; font-size: 1.5rem; color: var(--text-dim); }
+/* Eticheta ramane pe vocea obisnuita a etichetelor (.lc-micro, --text-dim).
+   Ii pusesem tenta motorului si testul de viziune a oprit-o, pe buna dreptate:
+   masuratoarea e CIFRA, eticheta doar o numeste. Colorat invers — legenda in
+   culoarea motorului, numarul in gri — semnul ar fi ajuns pe partea decorativa,
+   exact ce apara regula. */
+.accuracy-hero-micro { display: block; margin: 4px 0 12px; }
 .accuracy-rows { display: grid; gap: 5px; }
 .accuracy-rows p { margin: 0; font-size: 0.92rem; line-height: 1.45; }
 .accuracy-trend { margin: 9px 0 0; font-size: 0.84rem; color: var(--accent); }

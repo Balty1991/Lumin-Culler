@@ -566,6 +566,11 @@ interface AppState {
    * Ancorele desenate peste fotografie — vezi core/showAnchors.ts pentru de ce
    * are propriul comutator si nu e doar pornit.
    */
+  /**
+   * Telefonul s-a incalzit si pool-ul analizeaza mai putine poze deodata —
+   * vezi onThermalChange in core/workerPool.ts. null = nimic de spus.
+   */
+  thermalThrottle: { cap: number; normal: number } | null;
   showAnchors: boolean;
   setShowAnchors: (on: boolean) => void;
   zenMode: boolean;
@@ -2082,6 +2087,7 @@ export const useStore = create<AppState>((set, get) => ({
       set({ notice: t(get().locale, 'store.smartNotifications.blocked') });
     });
   },
+  thermalThrottle: null,
   showAnchors: readShowAnchors(),
   setShowAnchors: on => { writeShowAnchors(on); set({ showAnchors: on }); },
   zenMode: readZenMode(),
@@ -4841,6 +4847,18 @@ export const useStore = create<AppState>((set, get) => ({
   groupOf: groupId =>
     get().photos.filter(p => p.groupId === groupId).sort((a, b) => b.aiScore - a.aiScore)
 }));
+
+/**
+ * Starea termica a telefonului, adusa in store — vezi onThermalChange in
+ * core/workerPool.ts si ui/HomeDashboard.tsx pentru unde se citeste.
+ *
+ * Se leaga O SINGURA DATA, la incarcarea modulului, si nu la fiecare import:
+ * pool-ul e un singleton, iar ascultatorul lui termic porneste la primul init
+ * nativ si traieste cat aplicatia. Legat in `runImport` s-ar suprascrie la
+ * fiecare import si ar pierde ultima treapta cunoscuta intre doua importuri.
+ */
+analysisPool.onThermalChange = info => useStore.setState({ thermalThrottle: info });
+
 
 /**
  * Legatura dintre drepturile din core/entitlement.ts si starea reactiva de mai

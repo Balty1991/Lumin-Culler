@@ -98,6 +98,7 @@ export const en: Record<TranslationKey, string> = {
   'reviewDesk.title.other': '{count} photos to review',
   'reviewDesk.title.ready': 'Review your selection',
   'reviewDesk.lead.next': 'The AI has lined up the next photo for your decision.',
+  'reviewDesk.thermal': 'Your phone got warm — {cap} photos at a time instead of {normal}. Still going, just slower.',
   'reviewDesk.lead.ready': 'The AI has prepared the selection for this batch. You confirm it — open any photo and change the call.',
   'reviewDesk.continue': 'Continue',
   'reviewDesk.open': 'Open the selection',

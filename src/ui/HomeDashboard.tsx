@@ -85,6 +85,13 @@ export function HomeDashboard({ onAddPhotos }: { onAddPhotos: () => void }) {
   const analysing = !!progress && progress.phase !== 'finalizat';
   const cancelImport = useStore(s => s.cancelImport);
   const importCancelling = useStore(s => s.importCancelling);
+  /**
+   * Telefonul s-a incalzit si motorul a coborat cate poze ia deodata. Fara
+   * randul asta, singurul semn era ca importul incetineste si estimarea se
+   * lungeste — iar explicatia pe care si-o da omul atunci nu e "telefonul s-a
+   * incalzit", e "aplicatia s-a stricat".
+   */
+  const thermalThrottle = useStore(s => s.thermalThrottle);
   const setDocumentShieldOpen = useStore(s => s.setDocumentShieldOpen);
   const setDuplicatesPanelOpen = useStore(s => s.setDuplicatesPanelOpen);
   const collections = useStore(s => s.collections);
@@ -390,6 +397,11 @@ export function HomeDashboard({ onAddPhotos }: { onAddPhotos: () => void }) {
               {/* Primul rezultat concret al importului (copii identice gasite,
                   spatiu irosit) statea pe cardul studio. Se muta odata cu
                   progresul, altfel al doilea import nu l-ar mai fi aratat. */}
+              {analysing && thermalThrottle && (
+                <p className="review-desk-thermal lc-micro">
+                  {tr('reviewDesk.thermal', { cap: thermalThrottle.cap, normal: thermalThrottle.normal })}
+                </p>
+              )}
               {analysing && <QuickScanFind />}
               <div className="review-desk-actions">
                 <button className="review-desk-continue" onClick={() => openQuickSortAll()}>
