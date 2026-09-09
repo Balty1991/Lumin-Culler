@@ -51,6 +51,39 @@ describe('ancora sta unde a masurat motorul, nu unde arata bine', () => {
     expect(Math.abs(a.topPct - naiv)).toBeGreaterThan(1);
   });
 
+  /**
+   * Raportat de utilizator, cu captura: pe o poza INALTA, eticheta ajungea in
+   * banda neagra de langa fotografie. Presupusesem ca ecranul de detaliu isi
+   * stramteaza cadrul exact pe imaginea desenata si nu-i dadeam dimensiunea
+   * naturala; cand cadrul ramane mai lat, ancora arata spre nimic.
+   */
+  it('poza inalta intr-un cadru lat: ancora ramane PE fotografie, nu langa ea', () => {
+    // Cadru 400x600, poza 3:4 verticala -> desenata 450 inaltime? nu incape:
+    // scara = min(400/900, 600/1200) = 0.5 -> 450x600, banda de 25px pe laturi.
+    const cadru = { boxW: 500, boxH: 600, imageW: 900, imageH: 1200 };
+    const [a] = anchorsFor(rec([face({ box: [0.5, 0.4, 0.2, 0.2] })]), cadru);
+    // Imaginea ocupa x 25..475 din 500; centrul fetei (0.6 din imagine) cade la
+    // 25 + 0.6*450 = 295, adica 59% din cadru — nu 60%.
+    expect(a.leftPct).toBeCloseTo((295 / 500) * 100, 5);
+    // Si, mai important, punctul e INAUNTRUL benzii desenate.
+    const stanga = (25 / 500) * 100;
+    const dreapta = (475 / 500) * 100;
+    expect(a.leftPct).toBeGreaterThan(stanga);
+    expect(a.leftPct).toBeLessThan(dreapta);
+  });
+
+  it('o fata la marginea unei poze inguste nu impinge eticheta in banda neagra', () => {
+    // Poza foarte ingusta (9:16) intr-un cadru lat: banda ocupa mai mult decat
+    // poza. O fata la marginea DIN DREAPTA a pozei e inca in stanga cadrului.
+    const cadru = { boxW: 800, boxH: 600, imageW: 900, imageH: 1600 };
+    const [a] = anchorsFor(rec([face({ box: [0.9, 0.4, 0.08, 0.08] })]), cadru);
+    // scara = 600/1600 = 0.375 -> latime desenata 337.5, banda 231.25 pe laturi
+    const dreaptaPozei = ((231.25 + 337.5) / 800) * 100;
+    expect(a.leftPct).toBeLessThanOrEqual(dreaptaPozei);
+    // ...si mai are loc la dreapta, deci eticheta pleaca intr-acolo
+    expect(a.side).toBe('right');
+  });
+
   it('fara fete nu exista nicio ancora — masuratorile pe tot cadrul nu au loc', () => {
     expect(anchorsFor(rec([]), CADRU)).toEqual([]);
     expect(anchorsFor(null, CADRU)).toEqual([]);

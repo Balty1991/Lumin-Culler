@@ -10,7 +10,7 @@ import { XIcon, ChevronLeft, ChevronRight, ChevronUpIcon, LayersIcon, CheckIcon,
 import { CollectionPicker } from './CollectionPicker';
 import { EASE } from './motion';
 import { AdjustedImage } from './AdjustedImage';
-import { PhotoAnchors } from './PhotoAnchors';
+import { PhotoAnchors, useNaturalSize } from './PhotoAnchors';
 import { t } from '../i18n';
 
 const SWIPE_COMMIT = 96;       // px de tras pentru a declansa decizia
@@ -64,6 +64,21 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
   const photoIndex = photos.findIndex(p => p.id === photo.id);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const [src, setSrc] = useState<string | null>(null);
+  /**
+   * Dimensiunea naturala a pozei, pentru ancore.
+   *
+   * Presupusesem ca `.detail-face-frame` (inline-flex, max-width/max-height
+   * 100%) se stramteaza mereu exact pe imaginea desenata, deci ca procentele
+   * SUNT coordonate de imagine. Raportat de utilizator, cu captura: la o poza
+   * inalta intr-un ecran mai lat, cadrul ramane mai lat decat poza, iar
+   * eticheta ajungea in banda neagra de langa fotografie — o ancora care arata
+   * spre nimic.
+   *
+   * Cu dimensiunea naturala, `containedRect` calculeaza singur banda goala si
+   * raspunde corect in AMBELE cazuri: cand cadrul chiar se stramteaza,
+   * raportul se potriveste si banda iese zero.
+   */
+  const natural = useNaturalSize(src);
   const [zoomed, setZoomed] = useState(false);
   const [dragX, setDragX] = useState(0);
   // Aceeasi tehnica (si acelasi bug real, gasit de auditul QA) ca sheetDragYRef
@@ -312,7 +327,10 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
         >
           {src && (
             <span className="detail-face-frame" ref={frameRef}>
-              <AdjustedImage src={src} edits={photo.edits} alt={photo.fileName} className="detail-stage-img" />
+              <AdjustedImage
+                src={src} edits={photo.edits} alt={photo.fileName}
+                className="detail-stage-img" onLoad={natural.onLoad}
+              />
               {/* Ancorele stau INAUNTRUL cadrului, nu peste scena: cadrul se
                   stramteaza chiar pe imaginea desenata (vezi .detail-face-frame
                   in styles.css), deci procentele sunt direct coordonate de
@@ -324,6 +342,8 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
                 <PhotoAnchors
                   photoId={photo.id}
                   containerRef={frameRef}
+                  imageW={natural.w}
+                  imageH={natural.h}
                   safeTop={CHROME_TOP_PX}
                   safeBottom={sheetExpanded ? undefined : CHROME_BOTTOM_PX}
                 />
