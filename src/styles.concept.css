@@ -3639,18 +3639,24 @@ body:before {
 @media (max-width: 420px) {
   .review-desk-actions { gap: 12px; }}
 
-/* Preview v3: biblioteca completă trebuie să fie vizibilă ca stare activă. */
+/* Filtrul activ trebuie sa se vada — asta ramane. Dar se vedea cu cyan plin,
+   contur alb de 2px si font 900, adica era lucrul cel mai zgomotos de pe un
+   ecran plin de fotografii. Un filtru e alegerea TA, nu o masuratoare si nici
+   actiunea principala; nu are de ce sa strige mai tare decat pozele.
+
+   Acum starea se citeste din lumina, nu din culoare: suprafata urca, muchia se
+   aprinde, textul devine alb plin. Aceeasi ierarhie, la o zecime din volum. */
 .filters .chip.active,
 .filters .chip.chip-compact.active {
-  color: #06100e !important;
-  background: #22d3ee !important;
-  border: 2px solid #c9fff4 !important;
-  box-shadow: 0 0 0 2px rgba(103,228,207,.22), 0 8px 22px rgba(0,0,0,.30) !important;
-  font-weight: 900 !important;
+  color: var(--text) !important;
+  background: rgb(240 244 255 / .10) !important;
+  border: 1px solid var(--edge-strong) !important;
+  box-shadow: 0 8px 22px -12px rgb(0 0 0 / .5) !important;
+  font-weight: 600 !important;
 }
 
-.filters .chip.active .chip-count,
-.filters .chip.active .chip-icon { color: #06100e !important; }
+.filters .chip.active .chip-count { color: var(--text) !important; background: rgb(240 244 255 / .12) !important; }
+.filters .chip.active .chip-icon { color: var(--text) !important; }
 
 /* Preview v3: acțiunea „Toate fotografiile” este o navigare în biblioteca completă. */
 .home-view-all-cta { min-height: 52px; border: 2px solid #c9fff4 !important; box-shadow: 0 0 0 2px rgba(103,228,207,.18), 0 12px 28px rgba(0,0,0,.28); }
@@ -6934,3 +6940,79 @@ button:disabled,
    se rupa in loc sa impinga sageata in afara randului. */
 .review-cluster span { min-width: 0; font-size: .8rem; color: var(--text); line-height: 1.35; }
 .review-cluster i { font-style: normal; color: var(--text-faint); }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CAMERA OBSCURĂ — STRATUL DE CROMĂ
+
+   Placuta si butoanele de decizie s-au mutat deja in limbajul nou, dar ecranul
+   arata mai departe la fel, si pe buna dreptate: impresia unui ecran nu vine
+   din elementele lui, ci din ce le tine laolalta — etichetele de sectiune,
+   pastilele, cautarea, bara de jos, butonul rotund. Alea erau neatinse, si
+   alea vorbeau cel mai tare.
+
+   Stratul asta sta la SFARSITUL foii intentionat: regulile pe care le
+   inlocuieste sunt raspandite prin sase mii de linii, unele in blocuri @media
+   cu !important. A le cauta pe fiecare la locul ei ar fi insemnat sase
+   interventii care se pot rata una cate una; aici e un singur loc de citit si
+   de intors.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Eticheta de sectiune: violet gros -> vocea mono a redesignului. Era singurul
+   violet de pe ecran si il purta un TITLU DE SECTIUNE, adica exact genul de
+   element care trebuie sa se retraga, nu sa conduca. */
+.plan-separator-title {
+  font-family: var(--mono);
+  font-size: var(--type-micro);
+  font-weight: 400;
+  letter-spacing: var(--track-micro);
+  color: var(--text-dim);
+}
+.plan-separator { border-top-color: var(--edge); }
+.plan-separator-sub { color: var(--text-dim); }
+
+/* Pastilele: din pilule cu umbra in lespezi cu muchie, la talia din macheta
+   (44px, colt de 14px). Numaratorul ramane mono — o cifra langa un cuvant se
+   citeste mai repede cand nu incearca sa arate ca un cuvant. */
+.chip {
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 14px;
+  background: var(--veil);
+  border: 1px solid var(--edge);
+  box-shadow: none;
+  font-size: .78rem;
+  font-weight: 500;
+  color: var(--text-dim);
+}
+.chip:hover { border-color: var(--edge-strong); transform: none; box-shadow: none; }
+.chip-count {
+  background: rgb(240 244 255 / .06);
+  color: var(--text-dim);
+  font-size: .72em;
+}
+
+/* Bara de jos: fila activa se aprinde in loc sa se coloreze. Turcoazul de
+   acolo era a doua culoare tare de pe ecran, pe un element care spune doar
+   "esti aici". */
+.bottom-nav {
+  border-color: var(--edge);
+  background: rgb(9 11 15 / .92);
+}
+.bottom-nav-tab { color: var(--text-dim); font-weight: 500; }
+.bottom-nav-tab.active {
+  color: var(--text);
+  background: rgb(240 244 255 / .07);
+}
+
+/* Butonul rotund: gradientul spectral -> lumina. Aceeasi regula ca la
+   `.btn-accent` in faza 1, si acelasi motiv: e actiunea principala a
+   ecranului, iar actiunea principala e LUMINA, nu culoare. Spectralul ramane
+   doar al motorului — un buton "adauga poze" nu masoara nimic. */
+.fab {
+  background: var(--light-primary);
+  color: var(--light-primary-ink);
+  border: 1px solid var(--edge-strong);
+  box-shadow: var(--light-primary-glow);
+}
+.fab:hover { box-shadow: 0 16px 52px -18px rgb(242 244 248 / .7); }
