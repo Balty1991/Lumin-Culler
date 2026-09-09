@@ -69,6 +69,7 @@ import { readStageStats } from '../core/stageTiming';
 import { summariseFeedback } from '../core/aiFeedback';
 import { recordImportOutcome, summariseOutcomes } from '../core/importOutcome';
 import { keepScreenAwake } from '../core/wakeLock';
+import { startBackgroundAnalysis, updateBackgroundAnalysis, stopBackgroundAnalysis } from '../core/backgroundAnalysis';
 import { createActiveElapsed, type ActiveElapsed } from '../core/activeElapsed';
 import { recordImportDay } from './streak';
 import { recordLifetimeSession } from './lifetimeSavings';
@@ -2775,8 +2776,14 @@ export const useStore = create<AppState>((set, get) => ({
     set({ progress: { done: 0, total: files.length, fileName: '', phase: 'incarcare' }, importCancelling: false, quickScan: null });
     // Ecranul ramane aprins cat dureaza importul: altfel se stingea singur dupa
     // 30s-1min de inactivitate, sistemul suspenda WebView-ul si analiza se
-    // oprea la jumatate (vezi core/wakeLock.ts pentru ce NU rezolva asta).
+    // oprea la jumatate (vezi core/wakeLock.ts).
     const releaseWakeLock = keepScreenAwake();
+    // ...si, pe Android, importul merge mai departe CHIAR daca ecranul se stinge:
+    // un serviciu de prim-plan tine procesul afara din cache, unde altfel ar fi
+    // inghetat. Vezi core/backgroundAnalysis.ts. Pornirea poate fi refuzata de
+    // sistem, si atunci nu se schimba nimic fata de pana acum — de-aia nu se
+    // asteapta si nu se verifica nimic aici.
+    void startBackgroundAnalysis(0, files.length, t(get().locale, 'store.background.starting'));
     /** Avertismentul lotului, ca CHEIE — se traduce la final, vezi ImportWarning. */
     let warning: ImportWarning | undefined;
     /** Bilantul in cifre al lotului, raportat de pipeline pe ultimul apel — vezi core/importOutcome.ts. */
@@ -2872,6 +2879,17 @@ export const useStore = create<AppState>((set, get) => ({
             }
           }
           set({ progress: { ...progress, etaSeconds } });
+          // Bara din notificarea de fundal. Rar, nu la fiecare poza: fiecare
+          // actualizare e un apel peste punte SI o notificare redesenata de
+          // sistem, iar omul cu telefonul in buzunar n-o vede oricum. Din 10 in
+          // 10 poze, plus prima si ultima.
+          if (progress.phase === 'analiza' && (progress.done % 10 === 0 || progress.done === progress.total)) {
+            void updateBackgroundAnalysis(
+              progress.done,
+              progress.total,
+              t(get().locale, 'store.background.progress', { done: progress.done, total: progress.total })
+            );
+          }
         },
         item => {
           importedIds.push(item.photo.id);
@@ -2903,6 +2921,9 @@ export const useStore = create<AppState>((set, get) => ({
       if (activeCancelToken === cancelToken) activeCancelToken = null;
       set({ importCancelling: false });
       releaseWakeLock();
+      // Neconditionat, pe orice cale de iesire: un lacat de procesor ramas in
+      // urma dupa un import esuat ar goli bateria fara nicio explicatie.
+      void stopBackgroundAnalysis();
     }
     // reincarca statusurile si groupId-urile persistate dupa gruparea seriilor
     const fresh = await db.photos.toArray();

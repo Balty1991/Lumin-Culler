@@ -4,4 +4,12 @@
     <string name="title_activity_main">Lumin Culler Pro</string>
     <string name="package_name">com.luminculler.app</string>
     <string name="custom_url_scheme">com.luminculler.app</string>
+
+    <!-- Analiza in fundal (BackgroundAnalysisService.kt). Textul REAL al
+         notificarii vine din partea de JS, care stie limba aleasa de om; astea
+         sunt plasa de rezerva pentru clipa dintre pornirea serviciului si primul
+         update, si numele canalului din setarile sistemului. -->
+    <string name="analiza_titlu">Se analizeaza pozele</string>
+    <string name="analiza_canal_nume">Analiza in curs</string>
+    <string name="analiza_canal_descriere">Bara de progres cat timp aplicatia trece pozele prin analiza, inclusiv cu ecranul stins.</string>
 </resources>

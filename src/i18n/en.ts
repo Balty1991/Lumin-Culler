@@ -1660,6 +1660,8 @@ export const en: Record<TranslationKey, string> = {
   'import.warn.skipped.other': '{count} selected files are not photos (video, HEIC and the like) — they were skipped.',
   'import.warn.noSupportedFormat': 'None of the {count} selected files is in a supported format (JPEG/PNG/WebP/AVIF/RAW). HEIC/HEIF from iPhone is not supported yet — convert them to JPEG.',
   'import.warn.storageFull': 'Storage is nearly full — import stopped at {done}/{total}. Export what you have or free up space (Clear session / delete the rejected photos) to continue.',
+  'store.background.starting': 'Getting the analysis ready…',
+  'store.background.progress': '{done} of {total} photos analysed',
   'store.import.alreadyRunning': 'An import is already running — wait for it to finish before adding more photos.',
   'store.quotaNotice': 'Storage full — the photo was marked, but the original couldn\'t be saved for export. Free up space (Clear session or export what you already have) and try again.',
   'store.undo.nothing': 'Nothing to undo.',

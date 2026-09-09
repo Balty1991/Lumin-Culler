@@ -28,6 +28,16 @@
 
         </activity>
 
+        <!-- Analiza cu ecranul stins. Vezi plugins/BackgroundAnalysisService.kt:
+             din Android 12 incoace un proces ajuns in cache e INGHETAT, deci
+             WebView-ul in care ruleaza analiza nu mai primeste timp de procesor
+             si importul se opreste fara nicio eroare. `dataSync` e tipul care
+             descrie ce face: prelucreaza fisierele utilizatorului, local. -->
+        <service
+            android:name=".plugins.BackgroundAnalysisService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -69,4 +79,11 @@
          nu apare, fara nicio eroare — exact felul de setare care "nu face nimic".
          Pe API-uri mai vechi permisiunea nu exista si e ignorata automat. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Analiza care merge mai departe cu ecranul stins (vezi
+         plugins/BackgroundAnalysisService.kt). FOREGROUND_SERVICE_DATA_SYNC e
+         ceruta de la Android 14 incoace pentru tipul declarat in <service>;
+         WAKE_LOCK tine procesorul treaz intre poze, cu termen, nu la nesfarsit. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
 </manifest>

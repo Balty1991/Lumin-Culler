@@ -11,11 +11,16 @@
  * pana la capat fara sa stai cu degetul pe telefon.
  *
  * CE NU REZOLVA: nu face analiza sa mearga cu ecranul CHIAR stins. Asta nu se
- * poate obtine din JS — cand Android stinge ecranul si suspenda activitatea,
- * WebView-ul nu mai primeste timp de procesor, indiferent ce cere pagina.
- * Singura cale reala e un foreground service nativ (Kotlin, cu notificare
- * permanenta) care sa tina procesul viu; e o bucata de lucru pe partea
- * Android, separata de aplicatia web.
+ * poate obtine din JS — cand Android stinge ecranul si trece activitatea in
+ * fundal, procesul ajunge in cache si e inghetat, deci WebView-ul nu mai
+ * primeste timp de procesor, indiferent ce cere pagina.
+ *
+ * Bucata aia exista acum, si e exact ce scria aici ca ar trebui: un serviciu de
+ * prim-plan nativ, cu notificare permanenta, care tine procesul afara din cache
+ * — vezi core/backgroundAnalysis.ts si BackgroundAnalysisService.kt. Fisierul
+ * de fata NU devine inutil: pe web nu exista serviciul, pe Android pornirea lui
+ * poate fi refuzata de sistem, iar cand omul se uita la ecran e mai bine ca el
+ * sa nu se stinga deloc decat sa se stinga si analiza sa continue nevazuta.
  *
  * Blocarea se re-cere automat cand utilizatorul revine in aplicatie: sistemul
  * elibereaza wake lock-ul de fiecare data cand pagina devine ascunsa (regula

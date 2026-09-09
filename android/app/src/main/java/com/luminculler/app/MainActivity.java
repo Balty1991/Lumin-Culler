@@ -24,6 +24,7 @@ import com.luminculler.app.plugins.MediaLibraryPlugin;
 import com.luminculler.app.plugins.NotificationsPlugin;
 import com.luminculler.app.plugins.BillingPlugin;
 import com.luminculler.app.plugins.ThermalPlugin;
+import com.luminculler.app.plugins.BackgroundAnalysisPlugin;
 
 public class MainActivity extends BridgeActivity {
 
@@ -129,6 +130,11 @@ public class MainActivity extends BridgeActivity {
         // pana la auditul de dinaintea lansarii, aplicatia impingea la fel de
         // tare si la rece, si la fierbinte.
         registerPlugin(ThermalPlugin.class);
+        // Analiza care merge mai departe cu ecranul stins. Vezi
+        // plugins/BackgroundAnalysisService.kt: din Android 12 incoace un proces
+        // ajuns in cache e inghetat, deci importul se oprea in tacere de indata
+        // ce omul incuia telefonul.
+        registerPlugin(BackgroundAnalysisPlugin.class);
         super.onCreate(savedInstanceState);
 
         // Fara acest listener, un crash al PROCESULUI DE RANDARE al WebView-ului

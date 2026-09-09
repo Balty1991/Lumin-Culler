@@ -1733,6 +1733,10 @@ export const ro = {
   'import.warn.skipped.other': '{countDe} fișiere alese nu sunt poze (video, HEIC etc.) — au fost sărite.',
   'import.warn.noSupportedFormat': 'Niciunul dintre cele {countDe} fișiere alese nu e într-un format suportat (JPEG/PNG/WebP/AVIF/RAW). HEIC/HEIF de pe iPhone nu e suportat încă — convertește-le în JPEG.',
   'import.warn.storageFull': 'Spațiu de stocare aproape plin — import oprit la {done}/{total}. Exportă ce ai deja sau eliberează spațiu (Golește sesiunea / șterge pozele respinse) ca să continui.',
+  // Notificarea de analiza in fundal (core/backgroundAnalysis.ts). Textul se
+  // scrie AICI, nu in Kotlin, ca sa fie in limba aleasa de om.
+  'store.background.starting': 'Se pregătește analiza…',
+  'store.background.progress': '{done} din {total} poze analizate',
   'store.import.alreadyRunning': 'Un import e deja în curs — așteaptă să se termine înainte să mai adaugi poze.',
   'store.quotaNotice': 'Spațiu de stocare plin — fotografia a fost marcată, dar originalul nu a putut fi salvat pentru export. Eliberează spațiu (Golește sesiunea sau exportă ce ai deja) și reîncearcă.',
   'store.undo.nothing': 'Nimic de anulat.',
