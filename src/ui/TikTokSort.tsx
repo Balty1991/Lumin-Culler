@@ -533,7 +533,7 @@ export function TikTokSort() {
         <span className="tiktok-brand">Lumin<b>Culler</b> Pro</span>
       </div>
       <div className="tiktok-topbar">
-        <button className="tiktok-close" onClick={() => setOpen(false)} aria-label={tr('tiktok.close')}>
+        <button className="tiktok-close tap-44" onClick={() => setOpen(false)} aria-label={tr('tiktok.close')}>
           <XIcon />
         </button>
 
@@ -552,7 +552,7 @@ export function TikTokSort() {
                 cat timp coada e cea scurta (nedecise) si chiar exista mai multe
                 poze decat atat — altfel butonul n-ar duce nicaieri. */}
             {!reviewingAll && photos.length > total && (
-              <button type="button" className="tiktok-review-all-chip" onClick={reviewAll}>
+              <button type="button" className="tiktok-review-all-chip tap-44" onClick={reviewAll}>
                 {tr('tiktok.reviewAll.short', { count: photos.length })}
               </button>
             )}
@@ -562,7 +562,7 @@ export function TikTokSort() {
             <button
               ref={moreTriggerRef}
               type="button"
-              className="tiktok-more-trigger"
+              className="tiktok-more-trigger tap-44"
               onClick={toggleMore}
               aria-haspopup="menu"
               aria-expanded={moreOpen}
@@ -665,7 +665,7 @@ export function TikTokSort() {
               {verdict && (verdict.kind === 'mine' ? (
                 <button
                   type="button"
-                  className={`tiktok-ai-chip mine-${verdict.status}`}
+                  className={`tiktok-ai-chip mine-${verdict.status} tap-44`}
                   title={tr('explain.open')}
                   onClick={() => setExplainPhotoId(current.id)}
                 >
@@ -687,7 +687,7 @@ export function TikTokSort() {
               {seriesCount > 1 && current.groupId && (
                 <button
                   type="button"
-                  className="tiktok-ai-chip tiktok-series-chip"
+                  className="tiktok-ai-chip tiktok-series-chip tap-44"
                   onClick={() => openCompare(current.groupId!)}
                 >
                   <LayersIcon className="inline-icon" aria-hidden="true" />
@@ -700,7 +700,7 @@ export function TikTokSort() {
                   Istoric), peste ecranul de sortare, care ramane montat. */}
               <button
                 type="button"
-                className="tiktok-ai-chip tiktok-metrics-chip"
+                className="tiktok-ai-chip tiktok-metrics-chip tap-44"
                 aria-label={tr('tiktok.metrics')}
                 onClick={() => {
                   openDetail(current.id, { expandMetrics: true });
@@ -822,14 +822,14 @@ export function TikTokSort() {
           <span>{tr('tiktok.why.prompt')}</span>
           <button
             type="button"
-            className="tiktok-why-btn"
+            className="tiktok-why-btn tap-44"
             onClick={() => { setExplainPhotoId(justDecided); setJustDecided(null); }}
           >
             {tr('explain.open')}
           </button>
           <button
             type="button"
-            className="tiktok-why-close"
+            className="tiktok-why-close tap-44"
             aria-label={tr('detail.close')}
             onClick={() => setJustDecided(null)}
           >

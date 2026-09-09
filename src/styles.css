@@ -431,6 +431,26 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 /* Reset de buton — marca ramane vizual identica, doar devine apasabila
    ("Acasa", vezi comentariul din App.tsx). */
 .brand-home-btn { position: relative; border: none; background: none; padding: 0; cursor: pointer; font: inherit; }
+/* ── Tinta de atingere de 44x44, fara sa creasca butonul ──
+   WCAG 2.5.5 / Material cer 44x44 (48dp) pentru orice control apasat cu degetul.
+   Ecranele pe care se decide (sortarea rapida, spatiul de lucru) au controale
+   desenate mai mici din motive de asezare — auditul a numarat sapte sub prag
+   doar pe ecranul de decizie.
+   Pseudo-elementul mareste ZONA APASABILA, nu elementul: nimic din asezare nu
+   se schimba, deci niciuna dintre potrivirile de pixeli facute in rundele
+   trecute (si raportate de utilizator de fiecare data) nu se strica. Elementele
+   de sub el raman apasabile in afara acestei zone; se suprapune doar cu golul
+   din jurul butonului.
+   `border-radius: inherit` ca zona sa urmeze forma butonului; `max(100%, 44px)`
+   ca sa nu MICSOREZE niciodata un buton deja destul de mare. */
+.tap-44 { position: relative; }
+.tap-44::after {
+  content: ""; position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: max(100%, 44px); height: max(100%, 44px);
+  border-radius: inherit;
+}
+
 /* Marca ramane de 34px, dar tinta de atingere ajunge la 44x44 (WCAG 2.5.5):
    pseudo-elementul mareste doar zona apasabila. Cu padding, titlul de alaturi
    ar fi fost impins la dreapta pe fiecare ecran. */

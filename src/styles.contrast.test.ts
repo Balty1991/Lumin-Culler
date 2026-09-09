@@ -84,6 +84,25 @@ describe('paleta "desk" are o singura definitie', () => {
   });
 });
 
+describe('ecranele pe care se judeca pozele', () => {
+  /**
+   * Regula e scrisa in styles.css, la tema luminoasa: zonele unde se JUDECA
+   * pozele raman aproape negre in ambele teme. Spatiul de lucru — ecranul cel
+   * mai folosit din aplicatie — era singurul care n-o respecta: antetul si bara
+   * de jos sunt inchise si fixe, dar fundalul urma tema, deci pe lumina ieseau
+   * doua benzi inchise pe un fond deschis.
+   */
+  it('spatiul de lucru si sortarea rapida nu urmeaza tema pe fundal', () => {
+    expect(conceptCss).toMatch(/\.workspace \{[^}]*background: #050608/);
+    expect(conceptCss).toMatch(/\.tiktok-sort \{[^}]*background:#050608/);
+  });
+
+  it('exista o zona de atingere de 44px care nu misca asezarea', () => {
+    expect(css).toMatch(/\.tap-44::after \{[^}]*width: max\(100%, 44px\)/);
+    expect(css).toMatch(/\.tap-44::after \{[^}]*height: max\(100%, 44px\)/);
+  });
+});
+
 describe('insigna PRO din antet', () => {
   it('foloseste nuanta de TEXT a accentului secundar, nu culoarea plina', () => {
     expect(css).toMatch(/\.brand-pro-badge\s*\{[^}]*color:\s*var\(--accent-2-text\)/);

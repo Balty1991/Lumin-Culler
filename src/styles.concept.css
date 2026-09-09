@@ -4327,7 +4327,17 @@ body:before {
   inset: 0;
   z-index: 10;
   overflow: auto;
-  background: var(--bg);
+  /* Fundal INCHIS in ambele teme, ca ecranul de sortare rapida si ca detaliul.
+     Regula e scrisa de mult in styles.css, la tema luminoasa: zonele unde se
+     JUDECA pozele raman aproape negre indiferent de tema, ca la orice unealta
+     foto serioasa — luminozitatea din jur denatureaza perceptia de expunere si
+     contrast. Doar ca aici scria `var(--bg)`, deci ecranul de decizie era
+     singurul care n-o respecta: antetul (--glass-bg) si bara de jos
+     (.workspace-dock) sunt amandoua inchise si fixe, iar pe tema luminoasa
+     stateau pe un fond deschis. Panourile care NU stau peste fotografie
+     (metricile) isi pastreaza suprafata deschisa — au deja regulile lor in
+     styles.css. */
+  background: #050608;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
