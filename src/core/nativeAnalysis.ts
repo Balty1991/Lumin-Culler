@@ -46,6 +46,7 @@ import { pickFolderSceneTag } from './sceneTagLabels';
 import { photoTextFromBlocks } from './photoText';
 import { hasManufacturedTag } from './smartInbox';
 import type { NativeImageSource } from './nativeImageSource';
+import { record, timedSync } from './stageTiming';
 
 /**
  * Acelasi prag ca groupSmileRatio din faceAnalysis.worker.ts (web) — "zambet
@@ -333,12 +334,34 @@ export async function analyzeNative(
 ): Promise<AnalysisRecord> {
   const imageWidth = bitmap.width;
   const imageHeight = bitmap.height;
-  const canvas = drawToCanvas(bitmap);
+  /**
+   * Canvas-ul la REZOLUTIE PLINA, construit doar cand chiar il cere cineva.
+   *
+   * Se construia pe fiecare poza, neconditionat, pe firul principal — un
+   * OffscreenCanvas cat imaginea intreaga, plus un drawImage complet. Iar pe
+   * calea cu URI de galerie (adica pe Android, calea normala) el are exact doi
+   * clienti: decupajele de fata pentru recunoastere si blob-ul pentru OCR. Fara
+   * nicio persoana inrolata, recunoasterea nu ruleaza deloc, iar OCR-ul citeste
+   * direct din URI — deci canvas-ul se construia si se arunca, pe fiecare poza
+   * din lot.
+   *
+   * `faces.length` inca nu se stie aici, deci conditia ramane putin mai larga
+   * decat folosinta reala: cu persoane inrolate si o poza fara nicio fata, tot
+   * se construieste degeaba. Cazul care conta — omul care n-a inrolat pe nimeni
+   * — nu-l mai construieste niciodata.
+   */
+  const needsFullCanvas = !mediaUri || !!(recognize && knownPersons && knownPersons.length > 0);
+  const canvas = needsFullCanvas ? timedSync('canvas', () => drawToCanvas(bitmap)) : undefined;
   bitmap.close();
+  /** Canvas-ul, acolo unde codul stie deja ca `needsFullCanvas` a fost adevarat. */
+  const requireCanvas = (): OffscreenCanvas => {
+    if (!canvas) throw new Error('Canvas-ul la rezolutie plina a fost cerut fara sa fi fost pregatit (analiza nativa).');
+    return canvas;
+  };
   // Cu URI, nu codam nimic: partea nativa decodeaza o singura data si
   // refoloseste acelasi bitmap pentru toate modelele. Fara URI, blob-ul MIC
   // merge la toate modelele, iar cel mare se genereaza doar daca ajungem la OCR.
-  const source: NativeImageSource = mediaUri ? { uri: mediaUri } : { blob: await canvasToModelBlob(canvas) };
+  const source: NativeImageSource = mediaUri ? { uri: mediaUri } : { blob: await canvasToModelBlob(requireCanvas()) };
 
   // ── Etapa 1: tot ce nu depinde de nimic, deodata ────────────────────────
   // Aceste trei modele nu au nevoie unul de rezultatul altuia: ImageAnalysis
@@ -370,8 +393,16 @@ export async function analyzeNative(
   // asteptata la rand ii adauga latenta la fiecare poza fara niciun motiv.
   // E singura care MUTA ceva in `faces` (personId/personName), asa ca o
   // asteptam inainte sa numaram cunoscutii/strainii mai jos.
+  // Cronometrata separat: recunoasterea ruleaza serializat pe worker-ul
+  // Human.js si era, pana la auditul motoarelor, singura bucata mare din
+  // analiza fara niciun cronometru — adica primul suspect pentru cele doua
+  // treimi de timp nemasurat. Se masoara de la pornire pana la rezultat, nu
+  // doar `await`-ul de la sfarsit: ruleaza in paralel cu etapa 2, deci timpul
+  // petrecut in ultimul await ar raporta aproape zero.
+  const recognitionStart = performance.now();
   const recognition = recognize && knownPersons?.length && faces.length > 0
-    ? recognizeFaces(canvas, faceResult, faces, imageWidth, imageHeight, recognize, knownPersons)
+    ? recognizeFaces(requireCanvas(), faceResult, faces, imageWidth, imageHeight, recognize, knownPersons)
+        .finally(() => record('recognition', performance.now() - recognitionStart))
     : Promise.resolve();
 
   const [meshStats, imageEmbedding, bodyCroppedAtEdge] = await Promise.all([
@@ -427,7 +458,7 @@ export async function analyzeNative(
     ? await detectTextNative(
         mediaUri
           ? { uri: mediaUri, maxSide: NATIVE_OCR_MAX_SIDE }
-          : { blob: await canvasToBlob(canvas) }
+          : { blob: await canvasToBlob(requireCanvas()) }
       )
     : undefined;
   const textCoverage = ocr?.textCoverage;

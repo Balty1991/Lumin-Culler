@@ -5,10 +5,12 @@ import type { KnownPerson } from './db';
 // TREBUIE sa functioneze cu adevarat (spre deosebire de faceAnalysis.worker.test.ts,
 // unde ramane neatins): analyzeNative() foloseste bitmapToBlob() la primul pas,
 // necondiționat.
+/** Cate canvas-uri la rezolutie plina s-au construit — vezi `needsFullCanvas`. */
+let canvasesBuilt = 0;
 class StubOffscreenCanvas {
   width: number;
   height: number;
-  constructor(width: number, height: number) { this.width = width; this.height = height; }
+  constructor(width: number, height: number) { this.width = width; this.height = height; canvasesBuilt++; }
   getContext() { return { drawImage: () => {} }; }
   convertToBlob() { return Promise.resolve(new Blob(['fake-jpeg'], { type: 'image/jpeg' })); }
 }
@@ -561,5 +563,52 @@ describe('analyzeNative — apelurile independente chiar pornesc in paralel', ()
     expect(result.imageEmbedding).toBeUndefined();     // exista fete -> fara embedding de continut
     expect(embedImageNative).not.toHaveBeenCalled();
     expect(detectTextNative).not.toHaveBeenCalled();   // exista fete -> fara OCR
+  });
+});
+
+/**
+ * Canvas-ul la rezolutie plina se construia pe fiecare poza, neconditionat, pe
+ * firul principal — desi pe calea cu URI de galerie are exact doi clienti:
+ * decupajele de fata pentru recunoastere si blob-ul pentru OCR. Fara nicio
+ * persoana inrolata, niciunul nu apare.
+ */
+describe('analyzeNative — canvas-ul la rezolutie plina, doar cand e cerut', () => {
+  beforeEach(() => {
+    detectFacesNative.mockReset();
+    analyzeImageNative.mockReset();
+    labelImageNative.mockReset();
+    analyzeFaceMeshNative.mockReset();
+    detectTextNative.mockReset();
+    embedImageNative.mockReset();
+    detectPoseNative.mockReset();
+    analyzeImageNative.mockResolvedValue(IMAGE_ANALYSIS_FIXTURE);
+    embedImageNative.mockResolvedValue({ embedding: [0.1] });
+    detectPoseNative.mockResolvedValue({ people: [] });
+    detectFacesNative.mockResolvedValue({ faces: [], imageWidth: 1000, imageHeight: 500 });
+    labelImageNative.mockResolvedValue({ labels: [{ label: 'beach' }] });
+    analyzeFaceMeshNative.mockResolvedValue({ faces: [] });
+    canvasesBuilt = 0;
+  });
+
+  it('cu URI de galerie si nicio persoana inrolata, nu construieste niciunul', async () => {
+    const { analyzeNative } = await import('./nativeAnalysis');
+    await analyzeNative('p1', fakeBitmap(4000, 3000), undefined, [], 'content://media/1');
+
+    expect(canvasesBuilt).toBe(0);
+  });
+
+  it('fara URI (selector de fisiere) il construieste, ca inainte — blob-ul e singura cale spre modele', async () => {
+    const { analyzeNative } = await import('./nativeAnalysis');
+    await analyzeNative('p1', fakeBitmap(4000, 3000));
+
+    expect(canvasesBuilt).toBeGreaterThan(0);
+  });
+
+  it('cu persoane inrolate il construieste, chiar si cu URI — recunoasterea decupeaza din el', async () => {
+    const persons: KnownPerson[] = [{ id: 'x', name: 'Ami', embeddings: [[0.1]], updatedAt: 0 }];
+    const { analyzeNative } = await import('./nativeAnalysis');
+    await analyzeNative('p1', fakeBitmap(4000, 3000), async () => null, persons, 'content://media/1');
+
+    expect(canvasesBuilt).toBeGreaterThan(0);
   });
 });

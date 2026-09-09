@@ -1,7 +1,9 @@
 package com.luminculler.app.plugins
 
 import android.content.Context
+import java.io.BufferedWriter
 import java.io.File
+import java.io.FileWriter
 import java.io.PrintWriter
 import java.io.StringWriter
 
@@ -14,8 +16,20 @@ import java.io.StringWriter
  * in Java — procesul dispare, si cu el orice log tinut in memorie.
  *
  * Singurul lucru care ramane e ce s-a apucat sa ajunga pe DISC inainte. De
- * aceea fiecare pas se scrie imediat, cu flush, chiar daca asta costa: nu
- * masuram performanta aici, cautam ultima linie scrisa inainte de tacere.
+ * aceea fiecare pas pleaca imediat din proces, cu flush, chiar daca asta costa:
+ * nu masuram performanta aici, cautam ultima linie scrisa inainte de tacere.
+ *
+ * CE S-A SCHIMBAT, si de ce nu slabeste garantia. Pana la auditul de dinaintea
+ * lansarii, fiecare linie era scrisa cu `appendText`, care DESCHIDE fisierul, il
+ * scrie si il inchide — de vreo 26 de ori pe poza, fiecare sub lacatul global.
+ * Nu era gatul sticlei (sub 1% din timpul unei poze), dar era un tipar gresit pe
+ * calea fierbinte. Acum fluxul se deschide o singura data si ramane deschis, iar
+ * fiecare linie se termina cu `flush()`.
+ *
+ * Flush, nu sync: dupa flush datele sunt in nucleu, nu in procesul nostru. Un
+ * SIGSEGV in MediaPipe omoara procesul, nu nucleul — deci ultima linie e tot
+ * acolo la urmatoarea pornire. Doar o cadere de curent ar mai putea-o pierde, si
+ * aia nu e caderea pe care o vanam.
  *
  * Cum se citeste: fiecare apel nativ scrie ">NUME" la intrare si "<NUME" la
  * iesire. Daca ultima linie din rularea precedenta incepe cu ">", ACOLO a
@@ -31,6 +45,8 @@ object CrashLog {
     private const val MAX_LINII = 400
 
     @Volatile private var fisier: File? = null
+    /** Fluxul deschis peste `fisier`. Se inchide doar la taierea jurnalului. */
+    private var scriitor: BufferedWriter? = null
     private var linii = 0
     /**
      * Lacatul, si de ce a devenit obligatoriu.
@@ -71,6 +87,7 @@ object CrashLog {
         synchronized(lacat) {
             fisier = curent
             linii = 0
+            deschideLaLacat()
         }
         pas("PORNIRE")
 
@@ -84,17 +101,31 @@ object CrashLog {
         }
     }
 
-    /** Un pas. Se scrie IMEDIAT pe disc — vezi comentariul de sus. */
+    /** Un pas. Pleaca IMEDIAT din proces (flush) — vezi comentariul de sus. */
     fun pas(eticheta: String) {
         synchronized(lacat) {
-            val f = fisier ?: return
+            if (fisier == null) return
             if (linii >= MAX_LINII) {
-                runCatching { f.writeText("") }
+                deschideLaLacat()
                 linii = 0
             }
             linii++
             scrieBrutLaLacat(eticheta)
         }
+    }
+
+    /**
+     * (Re)deschide fluxul peste jurnalul curent, GOLIT.
+     *
+     * Amandoua apelurile vor exact asta: la pornire fisierul precedent a fost
+     * deja mutat deoparte, iar la MAX_LINII taierea e chiar scopul. Asa dispare
+     * si vechiul `writeText("")`, care putea cadea peste un flux deschis.
+     * Doar de sub `lacat`.
+     */
+    private fun deschideLaLacat() {
+        val f = fisier ?: return
+        runCatching { scriitor?.close() }
+        scriitor = runCatching { FileWriter(f, false).buffered() }.getOrNull()
     }
 
     private fun scrieBrut(text: String) {
@@ -103,8 +134,15 @@ object CrashLog {
 
     /** Doar de sub `lacat` — vezi comentariul lui. */
     private fun scrieBrutLaLacat(text: String) {
-        val f = fisier ?: return
-        runCatching { f.appendText(text + "\n") }
+        val w = scriitor ?: return
+        runCatching {
+            w.write(text)
+            w.write("\n")
+            // Obligatoriu, si e chiar rostul fisierului: fara flush, ultima linie
+            // ar sta in tamponul PROCESULUI, adica exact acolo unde o pierde o
+            // cadere nativa.
+            w.flush()
+        }
     }
 
     /**

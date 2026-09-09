@@ -441,8 +441,23 @@ function canvasToJpeg(canvas: HTMLCanvasElement, quality: number): Promise<Blob>
  * tarziu.
  */
 const FACE_PRESCAN_SIZE = 640;
-/** Cate poze de la inceputul lotului trec prin pre-scanare — vezi prioritizeFacesFirst pentru de ce nu tot lotul. */
-const FACE_PRESCAN_MAX = 150;
+/**
+ * Cate poze de la inceputul lotului trec prin pre-scanare — vezi
+ * prioritizeFacesFirst pentru de ce nu tot lotul.
+ *
+ * 150 -> 50. Plafonul de 150 a fost pus ca sa opreasca cele ~2 minute de
+ * pre-scanare completa pe un lot de 437 de poze, si a fost ales fara nicio
+ * masuratoare a folosului. Folosul insa se epuizeaza mult mai devreme decat
+ * costul: rostul ordonarii e sa ai poze cu OAMENI de triat imediat ce se
+ * termina primele analize, iar coada de triaj nu apuca sa consume nici pe
+ * departe 50 de poze in timpul ala. Restul de 100 de pre-scanari erau munca
+ * facuta pentru o ordine pe care nimeni n-o vede.
+ *
+ * Nu schimba NICIUN scor si niciun verdict: pre-scanarea decide exclusiv
+ * ordinea in care pozele intra la coada. O poza cu fete aflata pe locul 120
+ * ramane, ca inainte de plafon, acolo unde a pus-o utilizatorul.
+ */
+const FACE_PRESCAN_MAX = 50;
 const FACE_PRESCAN_TIMEOUT_MS = 8000;
 /** Independent de analysisPool.size — pasul e usor (un decode mic + un apel ML Kit), poate rula cu mai mult paralelism decat analiza completa. */
 const FACE_PRESCAN_CONCURRENCY = 4;

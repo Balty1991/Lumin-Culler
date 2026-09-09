@@ -23,6 +23,7 @@ import com.luminculler.app.plugins.FolderExportPlugin;
 import com.luminculler.app.plugins.MediaLibraryPlugin;
 import com.luminculler.app.plugins.NotificationsPlugin;
 import com.luminculler.app.plugins.BillingPlugin;
+import com.luminculler.app.plugins.ThermalPlugin;
 
 public class MainActivity extends BridgeActivity {
 
@@ -124,6 +125,10 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(MediaLibraryPlugin.class);
         registerPlugin(NotificationsPlugin.class);
         registerPlugin(BillingPlugin.class);
+        // Treapta termica a telefonului (PowerManager). Vezi ThermalPlugin.kt:
+        // pana la auditul de dinaintea lansarii, aplicatia impingea la fel de
+        // tare si la rece, si la fierbinte.
+        registerPlugin(ThermalPlugin.class);
         super.onCreate(savedInstanceState);
 
         // Fara acest listener, un crash al PROCESULUI DE RANDARE al WebView-ului

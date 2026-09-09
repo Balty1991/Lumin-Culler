@@ -1388,6 +1388,8 @@ export const en: Record<TranslationKey, string> = {
   'stats.stage.decode': 'Decoding',
   'stats.stage.derivatives': 'Thumbnails',
   'stats.stage.analysis': 'AI analysis',
+  'stats.stage.canvas': 'Full-resolution canvas (within analysis)',
+  'stats.stage.recognition': 'Person recognition (within analysis)',
   'stats.stage.exif': 'EXIF metadata',
   'stats.stage.persist': 'Saving to disk',
   'stats.stage.grouping': 'Series grouping',

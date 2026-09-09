@@ -26,8 +26,21 @@
  * la memorie constanta.
  */
 
-/** Etapele masurate. Ordinea e cea in care ruleaza, si e ordinea de afisare. */
-export const STAGES = ['decode', 'derivatives', 'analysis', 'exif', 'persist', 'grouping'] as const;
+/**
+ * Etapele masurate. Ordinea e cea in care ruleaza, si e ordinea de afisare.
+ *
+ * 'canvas' si 'recognition' sunt SUB-etape ale lui 'analysis', nu etape noi
+ * langa el: se scad din el, nu se aduna la total.
+ *
+ * De ce exista. Auditul motoarelor a masurat ~9,9 s pe poza petrecute in
+ * analiza, din care doar 3,44 s se regasesc in modele. Restul de aproape doua
+ * treimi nu era masurat de nimeni, iar suspectii erau numiti pe rand fara nicio
+ * cifra: recunoasterea faciala serializata pe un worker (care chiar n-avea
+ * cronometru), canvas-ul la rezolutie plina, si marshalling-ul puntii
+ * Capacitor. Primii doi se pot masura de aici; al treilea se afla scazandu-i pe
+ * ei si modelele din 'analysis'.
+ */
+export const STAGES = ['decode', 'derivatives', 'analysis', 'canvas', 'recognition', 'exif', 'persist', 'grouping'] as const;
 export type Stage = (typeof STAGES)[number];
 
 /** Cate durate pastram per etapa. 200 e destul pentru un p90 stabil si ramane sub ~2 KB in localStorage. */

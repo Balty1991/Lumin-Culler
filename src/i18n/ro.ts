@@ -1441,6 +1441,8 @@ export const ro = {
   'stats.stage.decode': 'Decodare',
   'stats.stage.derivatives': 'Miniaturi',
   'stats.stage.analysis': 'Analiză AI',
+  'stats.stage.canvas': 'Canvas rezoluție plină (din analiză)',
+  'stats.stage.recognition': 'Recunoaștere persoane (din analiză)',
   'stats.stage.exif': 'Metadate EXIF',
   'stats.stage.persist': 'Salvare pe disc',
   'stats.stage.grouping': 'Grupare serii',

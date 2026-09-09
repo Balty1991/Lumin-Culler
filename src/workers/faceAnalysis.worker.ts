@@ -42,6 +42,16 @@ import { isAwkwardExpression } from '../core/faceExpression';
  */
 const EXPERIMENTAL_WEBGL_F16_TEXTURES = false;
 
+/**
+ * Configuratiile "slabe" ale worker-ului de fete: doar ce chiar se consuma.
+ *
+ * 'recognition' — decupaj cu o singura fata, se citeste doar embedding-ul.
+ * 'enrollment'  — poza de referinta intreaga, se citeste embedding-ul fetei
+ *                 celei mai mari SI cate fete are poza.
+ * Absent — analiza completa, cu tot ce stie modelul.
+ */
+export type LeanFaceMode = 'recognition' | 'enrollment';
+
 const HUMAN_CONFIG: Partial<Config> = {
   // Models served locally from /public/models (copied from @vladmandic/human/models)
   // so the app works offline and on GitHub Pages without third-party CDNs.
@@ -862,7 +872,7 @@ export class FaceAnalysisService {
    * eroare vizibila) — desi fiecare timeout individual e finit. Doar primul
    * worker face detectia completa; restul primesc direct backend-ul gasit.
    */
-  async init(modelBasePath?: string, economicMode?: boolean, forcedBackend?: string, recognitionOnly?: boolean): Promise<string> {
+  async init(modelBasePath?: string, economicMode?: boolean, forcedBackend?: string, leanMode?: LeanFaceMode): Promise<string> {
     if (this.human) return this.backend;
     const overrides: Partial<Config> = {
       ...(modelBasePath ? { modelBasePath } : {}),
@@ -876,13 +886,33 @@ export class FaceAnalysisService {
         face: { ...HUMAN_CONFIG.face, iris: { enabled: false }, emotion: { enabled: false } },
         object: { ...HUMAN_CONFIG.object, enabled: false }
       } : {}),
-      // recognitionOnly: worker dedicat exclusiv recunoasterii per-fata pe native
+      // 'recognition': worker dedicat exclusiv recunoasterii per-fata pe native
       // (vezi core/nativeAnalysis.ts) — primeste DOAR decupaje mici, cu o singura
       // fata deja localizata de ML Kit, deci mesh/iris/emotie/CenterNet (niciunul
       // consumat de matchPerson) sunt cost pur, fara beneficiu; maxDetected:1
       // fiindca decupajul contine mereu o singura fata tinta.
-      ...(recognitionOnly ? {
+      ...(leanMode === 'recognition' ? {
         face: { ...HUMAN_CONFIG.face, detector: { ...HUMAN_CONFIG.face!.detector, maxDetected: 1 }, mesh: { enabled: false }, iris: { enabled: false }, emotion: { enabled: false } },
+        object: { ...HUMAN_CONFIG.object, enabled: false }
+      } : {}),
+      // 'enrollment': acelasi lucru, cu O SINGURA diferenta — `maxDetected`
+      // ramane cel implicit.
+      //
+      // Inrolarea pornea pe configuratia COMPLETA, desi din tot ce calcula
+      // foloseste exact un camp: embedding-ul fetei celei mai mari. Mesh, iris,
+      // emotie si CenterNet erau incarcate si rulate degeaba pe fiecare poza de
+      // referinta. Efectul secundar, care conteaza mai mult decat timpul: pe
+      // Android, dupa corectia asta, nimic nu mai cere centernet/iris/facemesh/
+      // emotion, deci cele ~8,7 MB pot fi excluse din pachet (excluderea din
+      // build e o schimbare separata, nu se face singura de aici).
+      //
+      // maxDetected NU se coboara la 1: numarul de fete din poza de referinta e
+      // chiar avertismentul "poza asta are mai multe fete, s-a folosit cea mai
+      // mare" (vezi computeEnrollmentEmbedding si addPerson). Cu maxDetected:1
+      // ar raporta mereu o singura fata, adica avertismentul ar disparea in
+      // tacere — exact bug-ul pe care il repara.
+      ...(leanMode === 'enrollment' ? {
+        face: { ...HUMAN_CONFIG.face, mesh: { enabled: false }, iris: { enabled: false }, emotion: { enabled: false } },
         object: { ...HUMAN_CONFIG.object, enabled: false }
       } : {})
     };

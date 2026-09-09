@@ -13,12 +13,13 @@
  */
 import * as Comlink from 'comlink';
 import { Capacitor } from '@capacitor/core';
-import type { FaceAnalysisAPI } from '../workers/faceAnalysis.worker';
+import type { FaceAnalysisAPI, LeanFaceMode } from '../workers/faceAnalysis.worker';
 import type { AnalysisRecord, KnownPerson } from './db';
 import { readEconomicMode } from './performanceSettings';
 import { selectActivePersons } from './activePersons';
 import { writeLastModelLoadMs } from './modelLoadTiming';
 import { analyzeNative } from './nativeAnalysis';
+import { watchThermalStatus, thermalConcurrencyCap } from './thermalStatus';
 
 interface Slot {
   worker: Worker;
@@ -147,6 +148,18 @@ export class AnalysisPool {
   private nativeConcurrencyLimit = nativeAnalysisConcurrency();
   private nativeInFlight = 0;
   private nativeWaiters: (() => void)[] = [];
+  /**
+   * Plafonul impus de TEMPERATURA, cand sistemul spune ca telefonul e cald.
+   *
+   * `null` = temperatura n-are nimic de spus (rece, sub Android 10, sau pe
+   * web). Se tine separat de `nativeConcurrencyLimit` fiindca cele doua vin din
+   * surse diferite si se pot schimba independent: modul economic e alegerea
+   * omului, asta e starea telefonului. Se aplica cel mai mic dintre ele — vezi
+   * effectiveNativeLimit.
+   */
+  private thermalCap: number | null = null;
+  /** Oprirea ascultatorului termic, cand exista unul. */
+  private stopThermalWatch: (() => void) | null = null;
 
   /**
    * Worker Human.js lazy, folosit DOAR de computeEnrollmentEmbedding() pe
@@ -172,7 +185,8 @@ export class AnalysisPool {
   private recognitionSlot: Slot | undefined;
   private recognitionSlotPromise: Promise<Slot> | undefined;
 
-  get size(): number { return this.nativeMode ? this.nativeConcurrencyLimit : this.slots.length; }
+  /** Cati "lucratori" are pool-ul acum. Pe native, plafonul EFECTIV — cel termic inclus: importFiles isi calculeaza concurenta din el. */
+  get size(): number { return this.nativeMode ? this.effectiveNativeLimit() : this.slots.length; }
 
   /** false = fara accelerare WebGL/WASM — analiza ruleaza dar fara detectie reala de fete. 'native' e mereu accelerat (NNAPI/GPU delegate pe device). */
   get isAccelerated(): boolean {
@@ -182,14 +196,14 @@ export class AnalysisPool {
   /** true dupa primul init() reusit — util ca sa stim daca resizeForEconomicMode() are ce redimensiona acum sau doar la urmatorul import. */
   get isReady(): boolean { return this.ready; }
 
-  private async spawnSlot(forcedBackend?: string, recognitionOnly = false): Promise<{ slot: Slot; backend: string }> {
+  private async spawnSlot(forcedBackend?: string, leanMode?: LeanFaceMode): Promise<{ slot: Slot; backend: string }> {
     const worker = new Worker(
       new URL('../workers/faceAnalysis.worker.ts', import.meta.url),
       { type: 'module' }
     );
     const api = Comlink.wrap<FaceAnalysisAPI>(worker);
     const backend = await withTimeout(
-      api.init(this.modelBase, readEconomicMode(), forcedBackend, recognitionOnly),
+      api.init(this.modelBase, readEconomicMode(), forcedBackend, leanMode),
       MODEL_INIT_TIMEOUT_MS,
       'Incarcarea modelelor AI a durat prea mult — verifica conexiunea la internet.'
     );
@@ -225,6 +239,7 @@ export class AnalysisPool {
       this.nativeConcurrencyLimit = readEconomicMode() ? 1 : nativeAnalysisConcurrency();
       this.detectedBackend = 'native';
       this.ready = true;
+      this.startThermalWatch();
       writeLastModelLoadMs(performance.now() - startedAt);
       return;
     }
@@ -304,7 +319,7 @@ export class AnalysisPool {
     if (!this.ready) return; // inca nepornit — init() va citi setarea curenta la primul import
     if (this.nativeMode) {
       this.nativeConcurrencyLimit = economic ? 1 : nativeAnalysisConcurrency();
-      while (this.nativeInFlight < this.nativeConcurrencyLimit && this.nativeWaiters.length > 0) {
+      while (this.nativeInFlight < this.effectiveNativeLimit() && this.nativeWaiters.length > 0) {
         const next = this.nativeWaiters.shift();
         if (!next) break;
         this.nativeInFlight++;
@@ -360,8 +375,46 @@ export class AnalysisPool {
     }
   }
 
+  /**
+   * Cate poze au voie sa fie in zbor ACUM: cel mai mic dintre plafonul ales
+   * (implicit sau mod economic) si cel impus de temperatura.
+   *
+   * Cele doua nu se suprascriu, se compun: modul economic e alegerea omului si
+   * ramane in vigoare cand telefonul se raceste, iar plafonul termic dispare de
+   * la sine cand SoC-ul coboara sub "moderata", fara sa atinga setarea.
+   */
+  private effectiveNativeLimit(): number {
+    return this.thermalCap === null
+      ? this.nativeConcurrencyLimit
+      : Math.min(this.nativeConcurrencyLimit, this.thermalCap);
+  }
+
+  /**
+   * Asculta treapta termica si coboara plafonul cat timp telefonul e cald.
+   *
+   * Se porneste o singura data, la primul init() nativ. Ascultatorul e ieftin
+   * (nu se intreaba nimic per poza — vezi core/thermalStatus.ts), iar cand
+   * telefonul se raceste, coada blocata se elibereaza pe loc.
+   */
+  private startThermalWatch(): void {
+    if (this.stopThermalWatch) return;
+    void watchThermalStatus(status => {
+      const cap = thermalConcurrencyCap(status);
+      if (cap === this.thermalCap) return;
+      this.thermalCap = cap;
+      // Racire: locurile eliberate se dau imediat celor care asteapta, altfel
+      // coada ar ramane blocata pana la urmatoarea analiza terminata.
+      while (this.nativeInFlight < this.effectiveNativeLimit() && this.nativeWaiters.length > 0) {
+        const next = this.nativeWaiters.shift();
+        if (!next) break;
+        this.nativeInFlight++;
+        next();
+      }
+    }).then(stop => { this.stopThermalWatch = stop; });
+  }
+
   private acquireNativePermit(): Promise<void> {
-    if (this.nativeInFlight < this.nativeConcurrencyLimit) { this.nativeInFlight++; return Promise.resolve(); }
+    if (this.nativeInFlight < this.effectiveNativeLimit()) { this.nativeInFlight++; return Promise.resolve(); }
     return new Promise(resolve => this.nativeWaiters.push(resolve));
   }
 
@@ -384,7 +437,7 @@ export class AnalysisPool {
    */
   private releaseNativePermit(): void {
     this.nativeInFlight--;
-    if (this.nativeInFlight >= this.nativeConcurrencyLimit) return; // plafon coborat intre timp — nu mai admitem pe nimeni
+    if (this.nativeInFlight >= this.effectiveNativeLimit()) return; // plafon coborat intre timp (setare sau temperatura) — nu mai admitem pe nimeni
     const next = this.nativeWaiters.shift();
     if (next) { this.nativeInFlight++; next(); }
   }
@@ -435,7 +488,11 @@ export class AnalysisPool {
   private ensureEnrollmentSlot(): Promise<Slot> {
     if (this.enrollmentSlot) return Promise.resolve(this.enrollmentSlot);
     if (!this.enrollmentSlotPromise) {
-      this.enrollmentSlotPromise = this.spawnSlot().then(async ({ slot }) => {
+      // 'enrollment', nu configuratia completa: din tot ce calcula worker-ul
+      // asta se citeste embedding-ul fetei celei mai mari si cate fete are poza.
+      // Mesh/iris/emotie/CenterNet erau cost pur. Fratele lui de mai jos
+      // (recunoasterea) pasa deja modul slab; asta nu.
+      this.enrollmentSlotPromise = this.spawnSlot(undefined, 'enrollment').then(async ({ slot }) => {
         // Bug real gasit de auditul QA: acest apel Comlink NU avea niciun timeout,
         // spre deosebire de restul apelurilor din acest fisier — daca se bloca din
         // orice motiv (worker ocupat/raspuns pierdut), intreaga inrolare ramanea
@@ -495,7 +552,7 @@ export class AnalysisPool {
   private ensureRecognitionSlot(): Promise<Slot> {
     if (this.recognitionSlot) return Promise.resolve(this.recognitionSlot);
     if (!this.recognitionSlotPromise) {
-      this.recognitionSlotPromise = this.spawnSlot(undefined, true).then(async ({ slot }) => {
+      this.recognitionSlotPromise = this.spawnSlot(undefined, 'recognition').then(async ({ slot }) => {
         // Acelasi bug real (fara timeout) ca la ensureEnrollmentSlot — vezi comentariul de acolo.
         if (this.knownPersons.length) {
           await withTimeout(slot.api.setKnownPersons(this.knownPersons), MODEL_INIT_TIMEOUT_MS, 'Configurarea persoanelor cunoscute a durat prea mult.');
