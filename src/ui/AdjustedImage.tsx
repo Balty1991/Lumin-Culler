@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties, type SyntheticEvent } from 'react';
 import { drawAdjusted, isNeutral, type EditAdjustments } from '../core/imageAdjust';
 
 /**
@@ -19,7 +19,7 @@ import { drawAdjusted, isNeutral, type EditAdjustments } from '../core/imageAdju
  * Asa, orice regula existenta sau viitoare scrisa pe `img` se aplica identic
  * pozelor editate.
  */
-export function AdjustedImage({ src, edits, alt, className, style, loading, decoding }: {
+export function AdjustedImage({ src, edits, alt, className, style, loading, decoding, onLoad }: {
   src: string;
   edits?: EditAdjustments;
   alt: string;
@@ -27,6 +27,13 @@ export function AdjustedImage({ src, edits, alt, className, style, loading, deco
   style?: CSSProperties;
   loading?: 'lazy' | 'eager';
   decoding?: 'async' | 'sync' | 'auto';
+  /**
+   * Trecut mai departe catre <img>. Se declanseaza si pentru versiunea
+   * ajustata, care are aceleasi dimensiuni naturale ca originalul (canvas-ul
+   * de mai sus se face exact la naturalWidth/naturalHeight), deci un apelant
+   * care masoara imaginea primeste acelasi raspuns de ambele ori.
+   */
+  onLoad?: (e: SyntheticEvent<HTMLImageElement>) => void;
 }) {
   const hasEdits = !isNeutral(edits);
   const editsSignature = hasEdits ? JSON.stringify(edits) : '';
@@ -79,6 +86,7 @@ export function AdjustedImage({ src, edits, alt, className, style, loading, deco
       style={style}
       loading={loading}
       decoding={decoding}
+      onLoad={onLoad}
     />
   );
 }

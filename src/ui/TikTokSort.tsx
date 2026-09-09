@@ -10,6 +10,7 @@ import { explainFactors } from '../core/learning/ContextEngine';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { CollectionPicker } from './CollectionPicker';
 import { AdjustedImage } from './AdjustedImage';
+import { PhotoAnchors, useNaturalSize } from './PhotoAnchors';
 import { computeMenuPosition, isInsideAnyMenu, useReanchorOnViewportChange, type MenuPosition } from './dropdownPosition';
 import {
   XIcon, UndoIcon, ChevronUpIcon, SparkleIcon, LayersIcon, BookmarkIcon, BarChartIcon, CheckIcon,
@@ -19,6 +20,20 @@ import { MetricBar, eyesTone, sharpnessTone } from './MetricBar';
 import { t, type Locale } from '../i18n';
 
 const SWIPE_COMMIT = 80; // px de tras (sus SAU jos) pentru a schimba pozitia in coada, fara sa decida nimic
+
+/**
+ * Cat acopera comenzile, sus si jos. Sunt chiar inaltimile valurilor de umbra
+ * din foaie (.tiktok-veil-top / .tiktok-veil-bottom) — nu inca doua numere
+ * alese separat, ci aceleasi zone pe care ecranul le declara deja acoperite.
+ * O ancora desenata sub ele n-ar fi discreta, ar fi ilizibila.
+ *
+ * Exportate ca sa poata fi VERIFICATE fata de foaie (vezi photoAnchors.chrome.test.ts):
+ * doua numere care trebuie sa ramana egale, in doua fisiere diferite, se despart
+ * in tacere — si semnul ca s-au despartit ar fi doar o eticheta care dispare
+ * uneori, adica exact genul de defect pe care nu-l cauta nimeni.
+ */
+export const VEIL_TOP_PX = 90;
+export const VEIL_BOTTOM_PX = 200;
 /** Peste acest numar de poze in coada, punctele individuale de progres (un <i> per poza) ar
     deveni fire de par nefolositoare vizual — cade pe bara continua clasica, cu numarator text. */
 const MAX_PROGRESS_DOTS = 60;
@@ -251,6 +266,8 @@ export function TikTokSort() {
    * urmareste in jos. Cand panoul e cat plafonul, asezarea e identica cu cea de
    * pana acum, pixel cu pixel.
    */
+  /** Cadrul imaginii — containerul ancorelor analizei (vezi ui/PhotoAnchors.tsx). */
+  const frameRef = useRef<HTMLSpanElement>(null);
   const captionRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const panel = captionRef.current;
@@ -277,6 +294,13 @@ export function TikTokSort() {
   const total = queueIds.length;
 
   const [src, setSrc] = useState<string | null>(null);
+  /**
+   * Dimensiunea naturala a pozei, pentru ancore. Aici chiar e nevoie de ea,
+   * spre deosebire de ecranul de decizie: acolo cadrul se stramteaza pe imaginea
+   * desenata, aici imaginea umple cutia (`.tiktok-stage`, width/height 100%) si
+   * `object-fit: contain` lasa benzi pe care doar raportul de aspect le explica.
+   */
+  const natural = useNaturalSize(src);
   const [dragY, setDragY] = useState(0);
   const stageWrapRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
@@ -665,10 +689,11 @@ export function TikTokSort() {
             onClick={onStageClick}
           >
             {src && (
-              <span className="tiktok-face-frame">
+              <span className="tiktok-face-frame" ref={frameRef}>
                 <AdjustedImage
                   src={src}
                   alt=""
+                  onLoad={natural.onLoad}
                   className={zoomScale !== 1 ? 'tiktok-stage zoomed' : 'tiktok-stage'}
                   style={zoomScale !== 1
                     ? {
@@ -682,6 +707,21 @@ export function TikTokSort() {
                     containerului plin ecran), deci ramane lipit de imagine la
                     orice raport de aspect. */}
                 {formatLabel && <span className="tiktok-format-badge mono" aria-hidden="true">{formatLabel}</span>}
+                {/* Ancorele analizei — ascunse la zoom, unde transformarea de
+                    scalare/panoramare sta pe IMAGINE, nu pe cadru: punctele ar
+                    ramane pe loc in timp ce fetele se muta sub ele. Benzile sunt
+                    chiar valurile de umbra (.tiktok-veil-*), adica exact zonele
+                    pe care ecranul le declara deja acoperite. */}
+                {zoomScale === 1 && (
+                  <PhotoAnchors
+                    photoId={current.id}
+                    containerRef={frameRef}
+                    imageW={natural.w}
+                    imageH={natural.h}
+                    safeTop={VEIL_TOP_PX}
+                    safeBottom={VEIL_BOTTOM_PX}
+                  />
+                )}
               </span>
             )}
           </div>
