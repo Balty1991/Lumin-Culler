@@ -4,6 +4,7 @@ import { summarizeAccuracy, MIN_DECISIONS_FOR_ACCURACY, type AccuracySummary } f
 import { useStore } from '../state/store';
 import { SparkleIcon } from './icons';
 import { AnimatedNumber } from './AnimatedNumber';
+import { EngineRing } from './EngineRing';
 import { t, plural } from '../i18n';
 
 /**
@@ -117,9 +118,11 @@ export function AiProfileCard() {
 
   return (
     <button className="home-ai-card" onClick={() => setInsightsOpen(true)} aria-label={tr('home.aiProfile.aria', { name: tr('engine.name') })}>
-      <span className="home-ai-num">
-        <AnimatedNumber value={percent} />%
-      </span>
+      {/* Inelul motorului, nu inca o cifra: procentul asta e afirmatia
+          motorului despre el insusi, deci e chiar locul unde spectralul
+          inseamna ceva (vezi ui/EngineRing.tsx). Cifra ramane citibila in
+          mijloc — inelul o insoteste, nu o inlocuieste. */}
+      <EngineRing percent={percent} label={<><AnimatedNumber value={percent} />%</>} />
       <span className="home-ai-text">
         <b>
           <SparkleIcon className="inline-icon" aria-hidden="true" /> {tr('home.aiProfile.label')}

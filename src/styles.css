@@ -755,19 +755,35 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 /* Cifre secundare: un rand de pastile, nu carduri cat ecranul. Aveau aceeasi
    greutate vizuala ca actiunea principala, pentru informatii citite din coltul
    ochiului. Se infasoara pe telefoane inguste in loc sa se stivuiasca. */
-.home-stat-row { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Cifrele marunte, ca lespezi egale — redesign "Camera obscura". Erau pastile
+   de latimi diferite, asezate pe un rand care se rupea: trei informatii de
+   aceeasi importanta aratau ca trei lucruri diferite. Acum au aceeasi greutate
+   si aceeasi latime, iar cifra sta deasupra numelui ei, nu langa el. */
+.home-stat-row { display: flex; gap: 9px; }
 .home-mini-chip {
-  display: inline-flex; align-items: baseline; gap: 5px;
-  padding: 6px 11px; border-radius: 999px; text-align: left;
-  background: var(--surface-2); border: 1px solid var(--line); cursor: pointer;
+  flex: 1 1 0; min-width: 0;
+  display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 5px;
+  min-height: 70px; padding: 0 14px; border-radius: 18px; text-align: left;
+  background: var(--veil); border: 1px solid var(--edge); cursor: pointer;
 }
-.home-mini-chip:hover { border-color: var(--line-strong); }
-/* Pastila care nu se apasa: fara contur si fara cursor de buton, ca sa nu mai
+.home-mini-chip:hover { border-color: var(--edge-strong); }
+/* Lespedea care nu se apasa: fara contur si fara cursor de buton, ca sa nu mai
    promita o apasare care nu face nimic. */
 .home-mini-chip-static { background: none; border-color: transparent; cursor: default; }
-.home-mini-num { font-size: 0.82rem; font-weight: 700; color: var(--text); display: inline-flex; align-items: center; gap: 4px; }
-.home-mini-num .inline-icon { width: 13px; height: 13px; color: var(--accent); }
-.home-mini-lbl { font-size: 0.7rem; color: var(--text-dim); }
+.home-mini-num {
+  font-family: var(--mono); font-size: 20px; font-weight: 500; color: var(--text);
+  display: inline-flex; align-items: center; gap: 5px; line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.home-mini-num .inline-icon { width: 14px; height: 14px; color: var(--accent); }
+/* Eticheta e aceeasi voce ca peste tot in redesign (.lc-micro), doar ca aici
+   trebuie sa incapa: pe un ecran de 320px trei nume in majuscule cu urmarire
+   larga nu au loc pe cate un rand, deci se lasa sa curga. */
+.home-mini-lbl {
+  font-family: var(--mono); font-size: var(--type-micro);
+  letter-spacing: var(--track-micro); text-transform: uppercase;
+  color: var(--text-dim); line-height: 1.3;
+}
 
 /* "Acum X ani" (plan modernizare) — tratament mai premium decat bannerele
    utilitare de mai sus (glass + contur cu gradient, acelasi truc dublu-background
@@ -1082,6 +1098,16 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
 /* Ancora de pe fotografie: punct pe zona reala, fir scurt, eticheta. Inlocuieste
    dala de metrica de langa poza — motivul se vede acolo unde a fost masurat. */
+/* Inelul motorului — vezi ui/EngineRing.tsx. Una dintre cele patru suprafete
+   care au voie sa poarte spectralul (styles.vision.test.ts). */
+.engine-ring { position: relative; display: inline-flex; flex: 0 0 auto; }
+.engine-ring svg { display: block; }
+.engine-ring b {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 0.8rem; font-weight: 500; color: var(--engine-ink);
+  font-variant-numeric: tabular-nums; letter-spacing: 0;
+}
+
 /* Stratul de ancore, exact peste imaginea desenata — vezi ui/PhotoAnchors.tsx.
    `pointer-events: none` pe TOT stratul, nu doar pe ancore: el acopera suprafata
    care primeste swipe-ul de decizie. */
@@ -1460,11 +1486,18 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 
 /* starea cadrului: contur colorat + linie de glow sus, discret */
+/* Starea, ca INEL interior pe toata miniatura, nu ca o bara de 3px pe muchia
+   de sus — redesign "Camera obscura". Bara se vedea doar daca te uitai fix la
+   marginea de sus a cardului; inelul se vede din orice colt al grilei, si
+   suprapus peste haloul de jos citesti decizia inainte sa citesti poza.
+   Doar box-shadow, niciun fundal: stratul acopera tot cardul, deci orice
+   umplere ar sterge miniatura de dedesubt. */
 .card::before {
-  content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; z-index: var(--z-card-badge);
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  z-index: var(--z-card-badge); pointer-events: none;
   opacity: 0; transition: opacity 0.2s var(--ease);
 }
-/* selectata: border + bara sus + check-badge (semnal propriu) — border-ul e suficient ca
+/* selectata: border + inel interior + check-badge (semnal propriu) — border-ul e suficient ca
    al doilea contur, fara inca un inel de box-shadow suprapus (redundant cu badge-ul) */
 /* Contur luminos pe toata cardul, dupa status — nu doar bara de sus subtire de
    dinainte. Redesign "Lumin Culler PRO": grila trebuie sa se citeasca de la
@@ -1473,21 +1506,34 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   border-color: rgba(74,222,128,0.55);
   box-shadow: 0 0 0 1px rgb(var(--pick-rgb) / 0.3), 0 0 16px -6px rgb(var(--pick-rgb) / 0.65);
 }
-.card.st-selected::before { background: linear-gradient(90deg, var(--pick), #86efac); opacity: 1; }
+.card.st-selected::before {
+  box-shadow: inset 0 0 0 1.5px rgb(var(--pick-rgb) / 0.75), inset 0 -22px 26px -18px rgb(var(--pick-rgb) / 0.6);
+  opacity: 1;
+}
 .card.st-rejected { border-color: var(--line); }
 .card.st-rejected img { opacity: 0.3; filter: grayscale(0.7); }
-.card.st-rejected::before { background: var(--reject); opacity: 0.65; }
+.card.st-rejected::before {
+  box-shadow: inset 0 0 0 1.5px rgb(var(--reject-rgb) / 0.6);
+  opacity: 1;
+}
 .card.st-review {
   border-color: rgba(251,191,36,0.5);
   box-shadow: 0 0 0 1px rgb(var(--review-rgb) / 0.28), 0 0 14px -6px rgb(var(--review-rgb) / 0.55);
 }
-.card.st-review::before { background: linear-gradient(90deg, var(--review), #fde68a); opacity: 1; }
+.card.st-review::before {
+  box-shadow: inset 0 0 0 1.5px rgb(var(--review-rgb) / 0.7), inset 0 -22px 26px -18px rgb(var(--review-rgb) / 0.5);
+  opacity: 1;
+}
 /* Fara asta, un card marcat "candidat" arata in grila exact ca unul nedecis:
-   fara chenar, fara banda de stare. Decizia ta devenea invizibila fix acolo
-   unde te uiti peste tot lotul. Banda e plina, nu in degrade, ca sa se
-   deosebeasca de "de verificat" la o privire pe grila. */
+   fara chenar, fara semn de stare. Decizia ta devenea invizibila fix acolo
+   unde te uiti peste tot lotul. Inelul e curat, fara haloul de jos pe care il
+   are "de verificat" — aceeasi familie chihlimbarie, doua greutati, ca sa se
+   deosebeasca la o privire pe grila fara sa citesti insignele din colt. */
 .card.st-candidate { border-color: rgba(251,191,36,0.5); box-shadow: 0 0 0 1px rgba(251,191,36,0.14); }
-.card.st-candidate::before { background: var(--review); opacity: 1; }
+.card.st-candidate::before {
+  box-shadow: inset 0 0 0 1.5px rgb(var(--review-rgb) / 0.7);
+  opacity: 1;
+}
 
 /* check-mark care apare cand poza e selectata — doar iconita (fara casetsa/cerc opac in spate,
    plan "Refactorizare UI/UX"), drop-shadow pentru lizibilitate pe orice fundal de miniatura,
@@ -2343,12 +2389,28 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
    (vezi "Etichete Lightroom", care nu se opreste la selectie). */
 .export-toggle-sub { display: block; margin-top: 2px; font-size: 0.72rem; line-height: 1.45; color: var(--text-faint); }
 /* "De la ultima vizita" — un rand si o usa, in capul ecranului principal. */
+/* Randul de a doua deschidere e ENUNTUL ecranului, nu inca un card — redesign
+   "Camera obscura". Raspunde la "de ce am deschis aplicatia", adica la
+   intrebarea dinaintea tuturor celorlalte, deci nu are de ce sa se prezinte ca
+   o notificare intr-o cutie, la aceeasi greutate cu "6 duplicate".
+
+   Fara supratitlu: dintre cele patru propozitii pe care le poate spune
+   (state/returnVisit.ts), doua nu incep de la ultima vizita, iar o eticheta
+   care minte in jumatate din cazuri e mai rea decat niciuna. Propozitia se
+   sustine singura.
+
+   `clamp`: 31px e marimea de pe macheta, la 390px latime. Pe 320 ar rupe
+   cuvintele lungi din romana ("fotografiile"), deci scade cu ecranul. */
 .return-visit-card {
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  padding: 12px 14px; margin: 0 0 12px; border-radius: 18px;
-  background: var(--surface-2); border: 1px solid var(--line);
+  display: flex; flex-direction: column; align-items: flex-start; gap: 16px;
+  padding: 4px 0 6px; margin: 0 0 18px;
 }
-.return-visit-card p { margin: 0; flex: 1; min-width: 180px; font-size: 0.86rem; line-height: 1.5; color: var(--text); }
+.return-visit-card p {
+  margin: 0; color: var(--text);
+  font-size: clamp(1.5rem, 7vw, 1.95rem); font-weight: 700;
+  letter-spacing: var(--track-tight); line-height: 1.16;
+  text-wrap: balance;
+}
 .return-visit-card .btn-accent { flex-shrink: 0; }
 
 /* A doua usa din foaia de export: ce ALTCEVA se face cu selectia. Rand, nu
