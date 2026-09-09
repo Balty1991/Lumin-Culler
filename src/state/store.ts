@@ -84,6 +84,7 @@ import {
   readZenAutoDeleteObvious, writeZenAutoDeleteObvious,
   readZenAskOnUncertain, writeZenAskOnUncertain
 } from '../core/zenMode';
+import { readShowAnchors, writeShowAnchors } from '../core/showAnchors';
 import { resolveGroupsWithConfidence } from './zenResolve';
 import { readStoredProjectName, writeProjectName } from './projectName';
 import { readStoredWatermarkText, writeWatermarkText } from './watermarkText';
@@ -561,6 +562,12 @@ interface AppState {
   /** "Notificare inteligenta" (vezi state/smartNotification.ts) — opt-in, cere permisiune de notificare cand e pornita. */
   smartNotificationsEnabled: boolean;
   setSmartNotificationsEnabled: (on: boolean) => void;
+  /**
+   * Ancorele desenate peste fotografie — vezi core/showAnchors.ts pentru de ce
+   * are propriul comutator si nu e doar pornit.
+   */
+  showAnchors: boolean;
+  setShowAnchors: (on: boolean) => void;
   zenMode: boolean;
   setZenMode: (on: boolean) => void;
   zenAutoDeleteObvious: boolean;
@@ -2075,6 +2082,8 @@ export const useStore = create<AppState>((set, get) => ({
       set({ notice: t(get().locale, 'store.smartNotifications.blocked') });
     });
   },
+  showAnchors: readShowAnchors(),
+  setShowAnchors: on => { writeShowAnchors(on); set({ showAnchors: on }); },
   zenMode: readZenMode(),
   setZenMode: on => {
     writeZenMode(on);

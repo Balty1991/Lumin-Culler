@@ -1082,7 +1082,16 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
 /* Ancora de pe fotografie: punct pe zona reala, fir scurt, eticheta. Inlocuieste
    dala de metrica de langa poza — motivul se vede acolo unde a fost masurat. */
+/* Stratul de ancore, exact peste imaginea desenata — vezi ui/PhotoAnchors.tsx.
+   `pointer-events: none` pe TOT stratul, nu doar pe ancore: el acopera suprafata
+   care primeste swipe-ul de decizie. */
+.lc-anchors { position: absolute; inset: 0; pointer-events: none; z-index: var(--z-card-badge); }
 .lc-anchor { position: absolute; display: flex; align-items: center; gap: 6px; pointer-events: none; }
+/* Ancora din jumatatea dreapta pleaca invers, ca eticheta sa ramana in cadru:
+   ordinea vizuala se rastoarna, punctul ramane pe masuratoare (`translateX(-100%)`
+   muta desenul, nu ancora), iar linia se stinge tot dinspre punct. */
+.lc-anchor.left { flex-direction: row-reverse; transform: translateX(-100%); }
+.lc-anchor.left s { background: linear-gradient(270deg, rgb(103 228 207 / 0.85), rgb(103 228 207 / 0.1)); }
 .lc-anchor i {
   width: var(--anchor-dot); height: var(--anchor-dot); border-radius: 50%;
   background: var(--engine-3); box-shadow: 0 0 10px rgb(103 228 207 / 0.9); flex: 0 0 auto;

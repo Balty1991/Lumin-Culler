@@ -10,6 +10,7 @@ import { XIcon, ChevronLeft, ChevronRight, ChevronUpIcon, LayersIcon, CheckIcon,
 import { CollectionPicker } from './CollectionPicker';
 import { EASE } from './motion';
 import { AdjustedImage } from './AdjustedImage';
+import { PhotoAnchors } from './PhotoAnchors';
 import { t } from '../i18n';
 
 const SWIPE_COMMIT = 96;       // px de tras pentru a declansa decizia
@@ -38,6 +39,14 @@ const SHEET_DRAG_COMMIT = 56;
  * generos peste acel fix structural, nu ca inca o incercare-ghici izolata.
  */
 const SHEET_PEEK_PX = 86;
+
+/**
+ * Cat din ecran acopera comenzile, masurat de la marginile FERESTREI — o ancora
+ * desenata dedesubt n-ar fi discreta, ar fi invizibila. Sus: antetul plutitor.
+ * Jos: manerul foii, randul de butoane si linia de motiv, cu respiro.
+ */
+const CHROME_TOP_PX = 76;
+const CHROME_BOTTOM_PX = 208;
 
 function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion: boolean }) {
   const imagesRevision = useStore(s => s.imagesRevision);
@@ -70,6 +79,8 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
   const movedRef = useRef(false);
   const startXRef = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  /** Cadrul stramt pe imaginea desenata — containerul ancorelor (vezi PhotoAnchors). */
+  const frameRef = useRef<HTMLSpanElement>(null);
   // Bottom Sheet (plan "Refactorizare UI/UX"): metricile/tab-urile nu mai stau permanent
   // pe ecran — traiesc intr-un panou retractabil, deschis explicit (tap pe maner sau swipe up).
   // Cand deschiderea a cerut explicit metricile (butonul din sortarea rapida),
@@ -300,8 +311,23 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
           }}
         >
           {src && (
-            <span className="detail-face-frame">
+            <span className="detail-face-frame" ref={frameRef}>
               <AdjustedImage src={src} edits={photo.edits} alt={photo.fileName} className="detail-stage-img" />
+              {/* Ancorele stau INAUNTRUL cadrului, nu peste scena: cadrul se
+                  stramteaza chiar pe imaginea desenata (vezi .detail-face-frame
+                  in styles.css), deci procentele sunt direct coordonate de
+                  imagine — si, mai important, cadrul e cel care se misca si se
+                  inclina in timpul swipe-ului, asa ca ancorele raman lipite de
+                  fetele pe care le arata. Ascunse la zoom: acolo cadrul iese din
+                  scena, si punctele n-ar mai cadea unde trebuie. */}
+              {!zoomed && (
+                <PhotoAnchors
+                  photoId={photo.id}
+                  containerRef={frameRef}
+                  safeTop={CHROME_TOP_PX}
+                  safeBottom={sheetExpanded ? undefined : CHROME_BOTTOM_PX}
+                />
+              )}
             </span>
           )}
         </div>

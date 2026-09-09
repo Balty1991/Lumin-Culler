@@ -1,0 +1,206 @@
+import type { AnalysisRecord, FaceInsight } from './db';
+
+/**
+ * core/photoAnchors.ts
+ * Ancorele de pe fotografie: motorul arata UNDE anume a masurat.
+ *
+ * Redesign "Camera obscura", faza 2. Pana acum, tot ce aflase analiza despre o
+ * poza ajungea la om ca text intr-o foaie: "zambet 0,81", "ochi deschisi". Cifra
+ * era corecta, dar plutea — nu spunea pe CINE. Ancora leaga masuratoarea de
+ * locul din cadru de unde a fost luata: un punct, o linie scurta care se stinge,
+ * si eticheta.
+ *
+ * REGULA CARE TINE TOT MODULUL, si singurul motiv pentru care e un modul si nu
+ * cateva div-uri: se ancoreaza DOAR masuratorile care au un loc.
+ *
+ * `faces[i].box` are unul — de acolo a fost citit zambetul, clipitul, numele.
+ * `highlightClipping`, `shadowClipping`, `sharpness`, `horizonTiltDeg` NU au:
+ * sunt numere pe tot cadrul. Un punct desenat pentru ele ar fi asezat undeva
+ * ales de mine, nu de motor, iar ancora ar deveni exact ce nu trebuie sa fie —
+ * decor care mimeaza o dovada. Raman in foaia de metrici, unde sunt adevarate.
+ * (Inclinarea orizontului e cazul cel mai ispititor: e o DIRECTIE masurata real,
+ * dar fara pozitie — stim cu cate grade e stramb, nu pe unde trece.)
+ */
+
+/** Dreptunghi in pixeli, relativ la coltul stanga-sus al containerului. */
+export interface Rect { x: number; y: number; w: number; h: number }
+
+/**
+ * Unde ajunge efectiv imaginea in cutia ei, cu `object-fit: contain` — adica
+ * fara benzile goale de pe laturi. Casetele fetelor sunt normalizate fata de
+ * IMAGINE, nu fata de container; fara pasul asta, orice ancora s-ar aseza
+ * gresit exact cat de neincadrata e poza (o verticala intr-un ecran lat poate
+ * greşi cu jumatate de latime).
+ */
+export function containedRect(imageW: number, imageH: number, boxW: number, boxH: number): Rect {
+  if (imageW <= 0 || imageH <= 0 || boxW <= 0 || boxH <= 0) return { x: 0, y: 0, w: boxW, h: boxH };
+  const scale = Math.min(boxW / imageW, boxH / imageH);
+  const w = imageW * scale;
+  const h = imageH * scale;
+  return { x: (boxW - w) / 2, y: (boxH - h) / 2, w, h };
+}
+
+export type AnchorSide = 'right' | 'left';
+
+export interface Anchor {
+  /** Stabil pe aceeasi poza: indicele fetei. Cheie de randare, nu identitate globala. */
+  id: string;
+  /** Cheia de traducere a etichetei si parametrii ei — traducerea se face in componenta. */
+  labelKey: string;
+  params?: Record<string, string | number>;
+  /** Textul deja gata, cand eticheta e un nume propriu (nu se traduce). */
+  literal?: string;
+  /** Procente fata de container — direct in `style`, deci rezista la redimensionare. */
+  leftPct: number;
+  topPct: number;
+  side: AnchorSide;
+  /** Cat de mult schimba verdictul. Ordoneaza selectia si decide cine cade la coliziune. */
+  weight: number;
+}
+
+/**
+ * Cel mult trei. Nu e o limita de spatiu — patru incap pe ecran. E ca ancorele
+ * sa ramana ce sustin ca sunt: dovezile care conteaza. Daca fiecare fata dintr-o
+ * poza de grup isi primeste eticheta, ecranul devine o diagrama, iar ochiul
+ * inceteaza sa le mai citeasca.
+ */
+export const MAX_ANCHORS = 3;
+
+/** Sub atat, doua etichete se ating. Masurat pe randul de 9px + respiro. */
+const MIN_SEPARATION_PX = 34;
+
+/** Latimea desenului fara eticheta: bulina + spatiu + linie + spatiu (vezi .lc-anchor). */
+const ANCHOR_STEM_PX = 5 + 6 + 38 + 6;
+
+/**
+ * Latimea unei etichete micro, estimata din numarul de caractere. Estimata, nu
+ * masurata: masurarea ar cere un pas de layout per ancora, la fiecare poza si
+ * la fiecare redimensionare, ca sa alegem o latura — mult prea scump pentru
+ * ceva ce se poate gresi cu cateva pixeli fara nicio consecinta (partea proasta
+ * a unei estimari gresite e o eticheta cu 3px mai aproape de margine).
+ * 9px mono, majuscule, urmarire 0.14em.
+ */
+export function estimateLabelPx(text: string): number {
+  return text.length * 7.4;
+}
+
+/**
+ * Cate caractere presupunem cand apelantul nu ne da textul tradus. E lungimea
+ * celei mai lungi etichete din dictionar ("PRIVIRE ÎN OBIECTIV"), adica partea
+ * prudenta a greselii: supraestimarea impinge ancora spre latura larga, unde
+ * oricum incape.
+ */
+const FALLBACK_LABEL_CHARS = 19;
+
+/** Zambetul, cu virgula zecimala — asa cum arata si pe macheta ("zâmbet 0,81"). */
+export function formatSmile(smile: number, locale: string): string {
+  return smile.toFixed(2).replace('.', locale === 'ro' ? ',' : '.');
+}
+
+/**
+ * Ce are de spus motorul despre ACEASTA fata, in ordinea in care merita spus.
+ *
+ * Un nume bate orice cifra: recunoasterea persoanei e afirmatia cea mai tare pe
+ * care o face aplicatia, si singura care nu se poate deduce uitandu-te la poza.
+ * Apoi defectul (ochii inchisi explica un scor mic — omul vrea sa stie de ce),
+ * apoi dovada pozitiva cea mai puternica.
+ */
+function labelFor(face: FaceInsight): { labelKey: string; literal?: string; params?: Record<string, string | number>; weight: number } {
+  if (face.personName) return { labelKey: 'anchor.person', literal: face.personName, weight: 100 };
+  if (face.isBlinking) return { labelKey: 'anchor.blink', weight: 90 };
+  // Pragul e cel de la care un zambet chiar e vizibil ca zambet, nu o gura
+  // relaxata — sub el, "zâmbet 0,12" ar fi o cifra adevarata care spune ceva fals.
+  if (face.smile >= 0.5) return { labelKey: 'anchor.smile', params: { value: face.smile }, weight: 60 + face.smile * 10 };
+  if (face.catchlight) return { labelKey: 'anchor.catchlight', weight: 55 };
+  if (face.eyeContact !== undefined && face.eyeContact >= 0.7) return { labelKey: 'anchor.eyeContact', weight: 50 };
+  return { labelKey: 'anchor.eyesOpen', weight: 30 };
+}
+
+export interface AnchorOptions {
+  /** Dimensiunea containerului in care se deseneaza (px). */
+  boxW: number;
+  boxH: number;
+  /**
+   * Dimensiunea NATURALA a imaginii — pentru banda goala lasata de `contain`.
+   * Optionale: pe ecranele unde containerul se stramteaza chiar pe imaginea
+   * desenata (`.detail-face-frame`, inline-flex peste un img cu max-width),
+   * banda nu exista, iar containerul ESTE imaginea. Unde imaginea umple o
+   * cutie fixa (`.tiktok-stage`, width/height 100%), sunt obligatorii.
+   */
+  imageW?: number;
+  imageH?: number;
+  /** Benzi acoperite de comenzi (antet sus, motiv + butoane jos), in px. */
+  safeTop?: number;
+  safeBottom?: number;
+  /**
+   * Textul final al etichetei, deja tradus — doar pentru latimea reala la
+   * alegerea laturii. Optional pentru ca geometria sa nu depinda de i18n:
+   * fara el se foloseste FALLBACK_LABEL_CHARS, si singura urmare e ca o ancora
+   * poate alege latura larga cand ar fi incaput si pe cealalta.
+   */
+  label?: (a: Pick<Anchor, 'labelKey' | 'literal' | 'params'>) => string;
+}
+
+/**
+ * Ancorele pentru o poza, gata de asezat.
+ *
+ * Ordinea operatiilor conteaza: alegem eticheta -> asezam punctul -> aruncam ce
+ * cade sub comenzi -> sortam dupa greutate -> deconflictam -> taiem la
+ * MAX_ANCHORS. Taierea la sfarsit, nu la inceput: altfel trei ancore care se
+ * suprapun ar consuma toate locurile si am ramane cu una singura pe ecran.
+ */
+export function anchorsFor(analysis: AnalysisRecord | null | undefined, opts: AnchorOptions): Anchor[] {
+  if (!analysis?.faces?.length) return [];
+  const { boxW, boxH, imageW = 0, imageH = 0, safeTop = 0, safeBottom = 0, label } = opts;
+  if (boxW <= 0 || boxH <= 0) return [];
+  // Fara dimensiuni naturale, containerul e chiar imaginea (vezi AnchorOptions).
+  const drawn = imageW && imageH ? containedRect(imageW, imageH, boxW, boxH) : { x: 0, y: 0, w: boxW, h: boxH };
+
+  const candidates = analysis.faces.map((face, i) => {
+    const [fx, fy, fw, fh] = face.box;
+    // Punctul de agatare: centrul pe orizontala, ochii pe verticala (o treime
+    // de sus din caseta) — acolo se uita omul oricum, si acolo au fost citite
+    // aproape toate semnalele care ajung in eticheta.
+    const px = drawn.x + (fx + fw / 2) * drawn.w;
+    const py = drawn.y + (fy + fh / 3) * drawn.h;
+    const chosen = labelFor(face);
+    const parte = { labelKey: chosen.labelKey, literal: chosen.literal, params: chosen.params };
+    const text = label ? label(parte) : 'x'.repeat(FALLBACK_LABEL_CHARS);
+    const needPx = ANCHOR_STEM_PX + estimateLabelPx(text) + 12;
+    // Implicit spre dreapta (ca pe macheta, si in sensul citirii); spre stanga
+    // doar cand acolo chiar incape si la dreapta nu. Cand nu incape nicaieri —
+    // container ingust, fata langa margine — ramane latura mai larga: o
+    // eticheta stramtorata spune totusi ceva, una aruncata nu spune nimic.
+    const roomRight = boxW - px;
+    const roomLeft = px;
+    const side: AnchorSide = roomRight >= needPx || roomRight >= roomLeft ? 'right' : 'left';
+    return {
+      id: String(i),
+      ...parte,
+      leftPct: (px / boxW) * 100,
+      topPct: (py / boxH) * 100,
+      side,
+      weight: chosen.weight,
+      py,
+      // Cat loc ocupa desenul pe orizontala — pentru coliziuni, mai jos.
+      x0: side === 'right' ? px : px - needPx,
+      x1: side === 'right' ? px + needPx : px
+    };
+  });
+
+  const vizibile = candidates.filter(a => a.py >= safeTop && a.py <= boxH - safeBottom);
+  vizibile.sort((a, b) => b.weight - a.weight);
+
+  const pastrate: typeof vizibile = [];
+  for (const a of vizibile) {
+    if (pastrate.length >= MAX_ANCHORS) break;
+    // Doua etichete aproape pe aceeasi linie se acopera daca desenele lor se
+    // suprapun si pe orizontala. Nu ajunge sa comparam latura: o ancora care
+    // pleaca spre stanga dintr-un punct si una care pleaca spre dreapta dintr-un
+    // punct mai la stanga se intalnesc la mijloc, desi lateralele difera.
+    // Cade cea mai slaba — lista e deja sortata, deci "cea de acum".
+    if (pastrate.some(p => Math.abs(p.py - a.py) < MIN_SEPARATION_PX && p.x0 < a.x1 && a.x0 < p.x1)) continue;
+    pastrate.push(a);
+  }
+  return pastrate.map(({ py: _py, x0: _x0, x1: _x1, ...rest }) => rest);
+}

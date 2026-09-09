@@ -47,6 +47,8 @@ export function AppearancePanel() {
   const setTheme = useStore(s => s.setTheme);
   const accentTheme = useStore(s => s.accentTheme);
   const setAccentTheme = useStore(s => s.setAccentTheme);
+  const showAnchors = useStore(s => s.showAnchors);
+  const setShowAnchors = useStore(s => s.setShowAnchors);
   const locale = useStore(s => s.locale);
   const tr = (key: string) => t(locale, key);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -118,6 +120,27 @@ export function AppearancePanel() {
             </button>
           ))}
         </div>
+
+        {/* Ancorele de pe fotografie — vezi core/showAnchors.ts pentru de ce au
+            comutator si nu sunt doar pornite: pe acelasi ecran au mai fost
+            odata desene peste poza, si au fost scoase dupa feedback direct.
+            Randul INTREG e comutatorul, iar comutatorul desenat e doar un
+            <span>: un <button role="switch"> inauntrul altui <button> e HTML
+            invalid (vezi ZenSwitchVisual in ZenModePanel.tsx). */}
+        <div className="appearance-section-label">{tr('appearance.anchors.label')}</div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={showAnchors}
+          className={showAnchors ? 'appearance-option on' : 'appearance-option'}
+          onClick={() => setShowAnchors(!showAnchors)}
+        >
+          <span className="appearance-option-text">
+            <b>{tr('appearance.anchors.title')}</b>
+            <span>{tr('appearance.anchors.sub')}</span>
+          </span>
+          <span className={showAnchors ? 'zen-switch on' : 'zen-switch off'} aria-hidden="true"><i /></span>
+        </button>
       </div>
     </div>
   );
