@@ -1164,11 +1164,26 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   width: var(--anchor-line); height: 1px; text-decoration: none; flex: 0 0 auto;
   background: linear-gradient(90deg, rgb(103 228 207 / 0.85), rgb(103 228 207 / 0.1));
 }
+/* Eticheta sta PE fotografie, deci nu se poate baza pe ce e dedesubt.
+   Umbra singura era destula pe machetele mele (toate cu poze intunecate) si
+   raportata ca ilizibila pe poze reale luminate din spate: "textele de pe foto
+   abia se vad uneori pe anumite fundale". Aceeasi lectie ca la butoanele de
+   decizie — un strat opac propriu, subtire, in loc de speranta ca fundalul e
+   inchis. Ramane discret: 6px de respiro si un fundal aproape negru, nu o
+   cutie. */
 .lc-anchor b {
   font-family: var(--mono); font-size: var(--type-micro); font-weight: 400;
-  letter-spacing: 0.14em; text-transform: uppercase; color: #d3ece6;
-  text-shadow: 0 1px 6px rgba(0,0,0,0.9); white-space: nowrap;
+  letter-spacing: 0.14em; text-transform: uppercase; color: #eaf6f3;
+  white-space: nowrap;
+  padding: 3px 7px; border-radius: 6px;
+  background: rgb(6 8 12 / 0.72);
+  box-shadow: inset 0 0 0 1px rgb(240 244 255 / 0.10);
+  backdrop-filter: blur(6px);
 }
+/* Punctul si linia au nevoie de acelasi ajutor pe un fundal deschis: un contur
+   intunecat in jurul lor, altfel bulina turcoaz dispare intr-un cer luminos. */
+.lc-anchor i { box-shadow: 0 0 10px rgb(103 228 207 / 0.9), 0 0 0 1.5px rgb(6 8 12 / 0.55); }
+.lc-anchor s { box-shadow: 0 0 0 0.5px rgb(6 8 12 / 0.45); }
 
 /* ── Antet auto-hide la scroll (plan "Refactorizare UI/UX") — invelisul comun pentru
    statistici/progres/filtre, care se colapseaza la scroll in jos si revine la scroll in sus.

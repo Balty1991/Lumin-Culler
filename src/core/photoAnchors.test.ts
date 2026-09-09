@@ -97,6 +97,35 @@ describe('ancora sta unde a masurat motorul, nu unde arata bine', () => {
   });
 });
 
+/**
+ * Raportat de utilizator, cu captura: "scrie zambet si pune punctul spre ochi".
+ * O ancora care arata spre altceva decat spune e mai rea decat nicio ancora —
+ * invata omul sa n-o creada, si atunci nici celelalte nu mai valoreaza nimic.
+ */
+describe('punctul cade pe partea despre care vorbeste eticheta', () => {
+  /** Caseta ocupa jumatatea de sus a unei imagini patrate, ca sa se vada usor unde cade. */
+  const CASETA: [number, number, number, number] = [0.4, 0.0, 0.2, 0.5];
+  const patrat = { boxW: 400, boxH: 400, imageW: 1000, imageH: 1000 };
+  const punct = (f: Partial<FaceInsight>) => anchorsFor(rec([face({ box: CASETA, ...f })]), patrat)[0].topPct;
+
+  it('zambetul arata spre GURA, nu spre ochi', () => {
+    const gura = punct({ smile: 0.99 });
+    const ochi = punct({ isBlinking: true });
+    expect(gura).toBeGreaterThan(ochi);
+    // Gura e in treimea de jos a fetei: peste 60% din inaltimea casetei.
+    expect(gura).toBeGreaterThan(0.6 * 50);
+  });
+
+  it('clipitul si privirea arata spre ochi', () => {
+    expect(punct({ isBlinking: true })).toBeCloseTo((0.5 / 3) * 100, 5);
+    expect(punct({ eyeContact: 0.9 })).toBeCloseTo((0.5 / 3) * 100, 5);
+  });
+
+  it('un nume arata spre mijlocul fetei — el nu e o trasatura, e persoana', () => {
+    expect(punct({ personId: 'p', personName: 'Ana' })).toBeCloseTo(25, 5);
+  });
+});
+
 describe('eticheta spune lucrul cel mai tare pe care il stie motorul', () => {
   const eticheta = (f: Partial<FaceInsight>) => anchorsFor(rec([face(f)]), CADRU)[0];
 

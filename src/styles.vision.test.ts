@@ -50,7 +50,13 @@ const SUPRAFETE_MOTOR = [
   '.lc-anchor',           // ancora de pe fotografie — motorul arata unde a masurat
   '.engine-ring',         // inelul de scor
   '.engine-chip',         // pastila de verdict AI
-  '.engine-progress'      // progresul analizei
+  '.engine-progress',     // progresul analizei
+  // Ecranul de incarcare a modelelor. Intrare adaugata cu motiv, nu din
+  // comoditate: aici nu e o suprafata care VORBESTE DESPRE motor, e motorul
+  // insusi, vizibil lucrand — singurul moment din aplicatie cand nu se
+  // intampla nimic altceva. Daca spectralul nu are ce cauta aici, atunci nu
+  // are ce cauta nicaieri, si regula n-ar mai avea niciun continut.
+  '.analysis-studio'
 ];
 
 /**

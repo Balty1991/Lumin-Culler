@@ -71,7 +71,10 @@ export function AiBootScreen() {
       <QuickScanFind />
       {/* Bara nu are procent real aici — durata incarcarii modelelor nu se stie
           dinainte — deci se misca singura, ca semn ca lucreaza. */}
-      <div className="analysis-studio-progress is-indeterminate" aria-hidden="true"><span /></div>
+      {/* `engine-progress` nu e decorativ: e una din suprafetele care au voie sa
+          poarte spectralul (vezi styles.vision.test.ts). Aici clasa isi
+          primeste, in sfarsit, elementul. */}
+      <div className="analysis-studio-progress engine-progress is-indeterminate" aria-hidden="true"><span /></div>
       <div className="analysis-studio-steps" aria-hidden="true">
         <span className="active">{tr('app.boot.pill.faces')}</span>
         <span>{tr('app.boot.pill.composition')}</span>

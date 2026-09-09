@@ -105,15 +105,28 @@ export function formatSmile(smile: number, locale: string): string {
  * Apoi defectul (ochii inchisi explica un scor mic — omul vrea sa stie de ce),
  * apoi dovada pozitiva cea mai puternica.
  */
-function labelFor(face: FaceInsight): { labelKey: string; literal?: string; params?: Record<string, string | number>; weight: number } {
-  if (face.personName) return { labelKey: 'anchor.person', literal: face.personName, weight: 100 };
-  if (face.isBlinking) return { labelKey: 'anchor.blink', weight: 90 };
+/**
+ * Pe ce parte a fetei se citeste semnalul, ca fractiune din inaltimea casetei.
+ *
+ * Exista fiindca ancora promite un lucru foarte precis — "AICI am masurat" —
+ * iar pana acum minta: punctul cadea mereu la nivelul ochilor, si pe o
+ * eticheta care scria "zambet 0,99". Raportat de utilizator exact asa: "scrie
+ * zambet si pune punctul spre ochi". O ancora care arata spre altceva decat
+ * spune e mai rea decat nicio ancora, fiindca invata omul sa n-o creada.
+ */
+const NIVEL_OCHI = 1 / 3;
+const NIVEL_GURA = 0.72;
+const NIVEL_FATA = 0.5;
+
+function labelFor(face: FaceInsight): { labelKey: string; literal?: string; params?: Record<string, string | number>; weight: number; nivel: number } {
+  if (face.personName) return { labelKey: 'anchor.person', literal: face.personName, weight: 100, nivel: NIVEL_FATA };
+  if (face.isBlinking) return { labelKey: 'anchor.blink', weight: 90, nivel: NIVEL_OCHI };
   // Pragul e cel de la care un zambet chiar e vizibil ca zambet, nu o gura
   // relaxata — sub el, "zâmbet 0,12" ar fi o cifra adevarata care spune ceva fals.
-  if (face.smile >= 0.5) return { labelKey: 'anchor.smile', params: { value: face.smile }, weight: 60 + face.smile * 10 };
-  if (face.catchlight) return { labelKey: 'anchor.catchlight', weight: 55 };
-  if (face.eyeContact !== undefined && face.eyeContact >= 0.7) return { labelKey: 'anchor.eyeContact', weight: 50 };
-  return { labelKey: 'anchor.eyesOpen', weight: 30 };
+  if (face.smile >= 0.5) return { labelKey: 'anchor.smile', params: { value: face.smile }, weight: 60 + face.smile * 10, nivel: NIVEL_GURA };
+  if (face.catchlight) return { labelKey: 'anchor.catchlight', weight: 55, nivel: NIVEL_OCHI };
+  if (face.eyeContact !== undefined && face.eyeContact >= 0.7) return { labelKey: 'anchor.eyeContact', weight: 50, nivel: NIVEL_OCHI };
+  return { labelKey: 'anchor.eyesOpen', weight: 30, nivel: NIVEL_OCHI };
 }
 
 export interface AnchorOptions {
@@ -158,12 +171,12 @@ export function anchorsFor(analysis: AnalysisRecord | null | undefined, opts: An
 
   const candidates = analysis.faces.map((face, i) => {
     const [fx, fy, fw, fh] = face.box;
-    // Punctul de agatare: centrul pe orizontala, ochii pe verticala (o treime
-    // de sus din caseta) — acolo se uita omul oricum, si acolo au fost citite
-    // aproape toate semnalele care ajung in eticheta.
-    const px = drawn.x + (fx + fw / 2) * drawn.w;
-    const py = drawn.y + (fy + fh / 3) * drawn.h;
     const chosen = labelFor(face);
+    // Centrul pe orizontala, iar pe verticala EXACT partea despre care vorbeste
+    // eticheta (vezi NIVEL_*): ochii pentru clipit/privire, gura pentru zambet,
+    // mijlocul fetei pentru un nume.
+    const px = drawn.x + (fx + fw / 2) * drawn.w;
+    const py = drawn.y + (fy + fh * chosen.nivel) * drawn.h;
     const parte = { labelKey: chosen.labelKey, literal: chosen.literal, params: chosen.params };
     const text = label ? label(parte) : 'x'.repeat(FALLBACK_LABEL_CHARS);
     const needPx = ANCHOR_STEM_PX + estimateLabelPx(text) + 12;

@@ -7065,14 +7065,10 @@ button:disabled,
    citeste sigla ca pe o masuratoare. Ce pleaca e haloul violet din jurul ei —
    acela nu era identitate, era zgomot in coltul de sus al fiecarui ecran. */
 .brand-mark { box-shadow: none; }
-.brand-pro-badge {
-  font-family: var(--mono);
-  font-size: var(--type-micro);
-  letter-spacing: var(--track-micro);
-  color: var(--text-dim);
-  border-color: var(--edge-strong);
-  background: none;
-}
+/* Insigna PRO ramane pe accent, cu culoarea ei. O stinsesem pe gri odata cu
+   restul cromei, dar ea nu e croma: e o eticheta de produs, singura de pe
+   ecran, si tine de identitate — la fel ca sigla de langa ea. Raportat de
+   utilizator, care i-a observat lipsa culorii imediat. */
 
 /* ── Bara de progres a sesiunii ────────────────────────────────────────────
    Segmentele raman verde/chihlimbar/rosu: aia e limba deciziei, si e chiar
@@ -7130,3 +7126,81 @@ button:disabled,
   background: var(--veil);
   box-shadow: inset 0 0 0 1px var(--edge);
 }
+
+/* ── Ecranul de încărcare a motorului ──────────────────────────────────────
+   Singurul loc din aplicatie unde spectralul e neindoielnic la locul lui: nu
+   e o suprafata care vorbeste DESPRE motor, e motorul insusi, vizibil
+   lucrand. Trece pe token-ii lui, ca sa fie aceeasi limba ca inelul de scor
+   si ca ancorele de pe fotografie — pana acum erau trei turcoazuri scrise de
+   mana, care semanau intamplator. */
+.analysis-studio-glow {
+  background:
+    radial-gradient(circle at 50% 45%, rgb(103 228 207 / .16), transparent 24%),
+    radial-gradient(circle at 62% 52%, rgb(139 92 246 / .16), transparent 35%);
+}
+.analysis-studio-core {
+  background: var(--engine-3);
+  box-shadow: 0 0 0 10px rgb(103 228 207 / .10), var(--engine-glow);
+}
+.analysis-studio-progress { background: rgb(240 244 255 / .08); }
+.analysis-studio-progress span {
+  background: var(--engine-grad);
+  box-shadow: var(--engine-glow);
+}
+/* Eticheta se retrage, ca toate etichetele; cronometrul ramane in cerneala
+   motorului, fiindca el chiar raporteaza despre motor. */
+.analysis-studio-kicker {
+  color: var(--text-dim);
+  font: 400 var(--type-micro) var(--mono);
+  letter-spacing: var(--track-micro);
+}
+.analysis-studio-count {
+  color: var(--engine-ink);
+  font: 400 var(--type-micro) var(--mono);
+  letter-spacing: var(--track-micro);
+}
+.analysis-studio-steps span.active { color: var(--engine-ink); }
+
+/* ── Exportul ──────────────────────────────────────────────────────────────
+   Randurile de destinatie devin lespezi cu muchie, ca restul suprafetelor.
+   Iconita isi pastreaza accentul: acolo culoarea chiar deosebeste destinatiile
+   una de alta, deci face o treaba, nu decoreaza. */
+.export-dest-row {
+  background: var(--veil);
+  border: 1px solid var(--edge);
+}
+.export-dest-row:hover { border-color: var(--edge-strong); transform: none; }
+.export-dest-text span,
+.export-dest-count { color: var(--text-dim); }
+/* Plafonul lunar: ramane marcat, dar cu muchie, nu cu o tenta pe toata
+   suprafata — e ceva de stiut inainte de a apasa, nu o alarma. */
+.export-dest-allowance {
+  border: 1px solid var(--edge-strong);
+  background: var(--veil);
+}
+
+/* ── Ochiul tău ────────────────────────────────────────────────────────────
+   Sectiunile isi pierd cutiile grele si raman despartite de muchii. Titlurile
+   trec pe vocea mono a etichetelor: intr-un ecran care nu face decat sa
+   raporteze cifre, titlul de sectiune e ultimul lucru care trebuie sa strige. */
+.accuracy,
+.habits {
+  background: var(--veil);
+  border: 1px solid var(--edge);
+  border-radius: 20px;
+}
+.accuracy h3,
+.habits h3 {
+  font-family: var(--mono);
+  font-size: var(--type-micro);
+  font-weight: 400;
+  letter-spacing: var(--track-micro);
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+/* Randul de tendinta ramane pe accent, nu pe cerneala motorului. E a doua oara
+   in aceeasi sesiune cand am vrut sa-l colorez asa si a doua oara cand testul
+   m-a oprit — semn ca merita scris: tenta motorului e pentru SUPRAFETE CARE
+   SUNT motorul (inelul, ancorele, progresul, ecranul de incarcare), nu pentru
+   fiecare propozitie DESPRE el. Un text de pe ecranul motorului e tot text. */
+.insights-lead { color: var(--text-dim); }
