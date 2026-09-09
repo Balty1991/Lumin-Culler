@@ -77,6 +77,15 @@ describe('analiza in fundal', () => {
     await expect(stopBackgroundAnalysis()).resolves.toBeUndefined();
   });
 
+  it('un lot mic nu porneste niciun serviciu — nimeni nu incuie telefonul pentru cinci poze', async () => {
+    plugin.start.mockResolvedValue({ started: true });
+    const { startBackgroundAnalysis, MIN_PHOTOS_FOR_BACKGROUND } = await modul();
+
+    expect(await startBackgroundAnalysis(0, MIN_PHOTOS_FOR_BACKGROUND - 1)).toBe(false);
+    expect(plugin.start).not.toHaveBeenCalled();
+    expect(await startBackgroundAnalysis(0, MIN_PHOTOS_FOR_BACKGROUND)).toBe(true);
+  });
+
   it('cand chiar porneste, spune ca a pornit si trimite cifrele', async () => {
     plugin.start.mockResolvedValue({ started: true });
     const { startBackgroundAnalysis } = await modul();

@@ -32,6 +32,17 @@ interface BackgroundAnalysisApi {
 
 const BackgroundAnalysis = registerPlugin<BackgroundAnalysisApi>('BackgroundAnalysis');
 
+/**
+ * Sub atatea poze, serviciul nu merita pornit.
+ *
+ * Un import de cinci poze se termina in cateva secunde — omul se uita la ecran,
+ * nu incuie telefonul. O notificare permanenta aparuta si disparuta in trei
+ * secunde nu apara nimic si arata ca un gunoi. La 25 de poze, la 2,46 s
+ * fiecare, vorbim deja de un minut, adica de timpul in care cineva chiar lasa
+ * telefonul din mana.
+ */
+export const MIN_PHOTOS_FOR_BACKGROUND = 25;
+
 export function isBackgroundAnalysisAvailable(): boolean {
   return Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('BackgroundAnalysis');
 }
@@ -44,6 +55,7 @@ export function isBackgroundAnalysisAvailable(): boolean {
  */
 export async function startBackgroundAnalysis(done: number, total: number, text?: string): Promise<boolean> {
   if (!isBackgroundAnalysisAvailable()) return false;
+  if (total < MIN_PHOTOS_FOR_BACKGROUND) return false;
   try {
     const answer = await BackgroundAnalysis.start({ done, total, text });
     return answer.started === true;
