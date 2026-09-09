@@ -552,41 +552,17 @@ body:before {
   box-shadow:0 18px 38px -24px #000;
 }
 
-.card:before {
-  height:2px;
-}
+/* Inaltimea de aici a disparut odata cu bara de stare — pseudo-elementul e
+   acum un inel pe toata placuta (vezi mai jos). */
 
 /* Mockup-urile "Lumin Culler PRO" (grila) folosesc verde/ambra pentru
    selectat/de verificat — acelasi limbaj de decizie ca --pick/--review din
    styles.css, NU accentul violet-cyan (rezervat pentru brand/CTA-uri). Un
    strat de concept anterior redefinea aici cu turcoaz-ul de atelier, ceea ce
    nu mai corespunde cu mockup-urile aprobate acum. */
-.card.st-selected {
-  border-color:rgb(var(--pick-rgb) / .55);
-  box-shadow:inset 0 -2px var(--pick),0 0 0 1px rgb(var(--pick-rgb) / .3),0 0 16px -6px rgb(var(--pick-rgb) / .65),0 14px 34px -30px #000;
-}
-
-.card.st-selected:before {
-  background:var(--pick);
-}
-
-.card.st-review {
-  border-color:rgb(var(--review-rgb) / .5);
-  box-shadow:inset 0 -2px var(--review),0 0 0 1px rgb(var(--review-rgb) / .28),0 0 14px -6px rgb(var(--review-rgb) / .55),0 14px 34px -30px #000;
-}
-
-.card.st-review:before {
-  background:var(--review);
-}
-
-.card.st-rejected {
-  border-color:rgb(var(--reject-rgb) / .35);
-}
-
-.card.st-rejected:before {
-  background:var(--reject);
-  opacity:.85;
-}
+.card.st-selected { border-color:rgb(var(--pick-rgb) / .3); }
+.card.st-review { border-color:rgb(var(--review-rgb) / .28); }
+.card.st-rejected { border-color:rgb(var(--reject-rgb) / .25); }
 
 .card-strip {
   background:linear-gradient(180deg,transparent,rgb(0 0 0 / .78));
@@ -1415,23 +1391,67 @@ body:before {
   box-shadow:none;
 }
 
+/* Placuta din macheta "Camera obscura": starea e un INEL interior pe toata
+   miniatura, plus un halou jos — nu o bara de 3px pe o singura muchie.
+
+   Bara se vedea doar daca te uitai fix la marginea cardului; intr-o grila de
+   trei pe rand, ce citesti primul e forma intreaga. Inelul se vede din orice
+   colt, si suprapus peste haloul de jos spune decizia inainte sa apuci sa
+   citesti scorul. Vezi si .card::before in styles.css — aici se pastreaza
+   `inset:0`, nu se mai taie inaltimea. */
 .card:before {
-  top:auto;
-  bottom:0;
-  height:3px;
+  inset:0;
+  height:auto;
+  background:none;
+  border-radius:inherit;
 }
 
-.card.st-selected {
-  box-shadow:inset 0 -3px var(--desk-aqua);
+.card.st-selected { box-shadow:none; }
+.card.st-selected:before {
+  background:none;
+  box-shadow:inset 0 0 0 1.5px rgb(var(--pick-rgb) / .75), inset 0 -22px 26px -18px rgb(var(--pick-rgb) / .6);
+  opacity:1;
 }
 
-.card.st-review {
-  box-shadow:inset 0 -3px #f2bc52;
+.card.st-review { box-shadow:none; }
+.card.st-review:before {
+  background:none;
+  box-shadow:inset 0 0 0 1.5px rgb(var(--review-rgb) / .7), inset 0 -22px 26px -18px rgb(var(--review-rgb) / .5);
+  opacity:1;
 }
 
-.card.st-rejected {
-  box-shadow:inset 0 -3px var(--desk-red);
+.card.st-rejected { box-shadow:none; }
+.card.st-rejected:before {
+  background:none;
+  box-shadow:inset 0 0 0 1.5px rgb(var(--reject-rgb) / .6);
+  opacity:1;
 }
+
+.card.st-candidate { box-shadow:none; }
+.card.st-candidate:before {
+  background:none;
+  box-shadow:inset 0 0 0 1.5px rgb(var(--review-rgb) / .7);
+  opacity:1;
+}
+
+/* Scorul, ca cifra mono jos-stanga — nu ca inel chihlimbariu mare in coltul
+   dreapta-sus. Inelul era elementul cel mai greu de pe placuta si spunea cel
+   mai putin: culoarea lui repeta starea, pe care inelul de mai sus o spune
+   deja, iar marimea lui il facea sa concureze cu fotografia. */
+.card-score {
+  position:absolute;
+  left:8px;
+  bottom:7px;
+  z-index:var(--z-card-badge);
+  font-family:var(--mono);
+  font-size:11px;
+  font-variant-numeric:tabular-nums;
+  color:#dfe5ef;
+  text-shadow:0 1px 6px rgb(0 0 0 / .9);
+  pointer-events:none;
+}
+.card.st-selected .card-score { color:var(--pick-ink); }
+.card.st-rejected .card-score { color:var(--reject-ink); }
 
 .card-strip {
   padding:5px;
@@ -1528,7 +1548,9 @@ body:before {
 }
 
 .detail-fab-reject {
-  background:var(--reject-solid);
+  background:linear-gradient(180deg, rgb(var(--reject-rgb) / .19), rgb(var(--reject-rgb) / .05)), var(--decision-base);
+  border:1px solid rgb(var(--reject-rgb) / .42);
+  color:var(--reject-ink);
 }
 
 /* Verde (--pick), nu accentul turcoaz/cyan de atelier: "Selecteaza" e o
@@ -1536,7 +1558,10 @@ body:before {
    (check-badge din grila, conturul cardului selectat) — mockup-ul "Lumin
    Culler PRO" il arata tot verde, nu cyan. */
 .detail-fab-select {
-  background:var(--pick-solid);
+  background:linear-gradient(180deg, rgb(var(--pick-rgb) / .21), rgb(var(--pick-rgb) / .05)), var(--decision-base);
+  border:1px solid rgb(var(--pick-rgb) / .45);
+  color:var(--pick-ink);
+  box-shadow:0 0 40px -14px rgb(var(--pick-rgb) / .55);
 }
 
 .workspace-dock {
@@ -2250,15 +2275,18 @@ body:before {
      ("PĂSTREZ") se revarsa in afara cercului mic, netaiata — bug real
      raportat de utilizator, cu captura si incercuire pe chiar acest text. */
   width:100%;
-  height:44px;
+  /* Talia din macheta: 68px si colt de 20px. Butonul e cea mai apasata
+     suprafata din aplicatie — pe el se sprijina tot triajul — si arata acum
+     ca atare, nu ca inca un rand de comenzi. */
+  height:68px;
   padding:0 10px;
-  border-radius:14px;
+  border-radius:20px;
   border:0;
   overflow:hidden;
-  font-weight:800;
-  font-size:.74rem;
+  font-weight:700;
+  font-size:.72rem;
   text-transform:uppercase;
-  letter-spacing:.01em;
+  letter-spacing:.14em;
   white-space:nowrap;
 }
 
@@ -2279,14 +2307,17 @@ body:before {
 
 .tiktok-rail-btn.keep {
   order:2;
-  color:#06100e;
-  background:var(--pick);
+  color:var(--pick-ink);
+  background:linear-gradient(180deg, rgb(var(--pick-rgb) / .21), rgb(var(--pick-rgb) / .05)), var(--decision-base);
+  border:1px solid rgb(var(--pick-rgb) / .45);
+  box-shadow:0 0 40px -14px rgb(var(--pick-rgb) / .55);
 }
 
 .tiktok-rail-btn.del {
   order:1;
-  color:#fff;
-  background:var(--reject);
+  color:var(--reject-ink);
+  background:linear-gradient(180deg, rgb(var(--reject-rgb) / .19), rgb(var(--reject-rgb) / .05)), var(--decision-base);
+  border:1px solid rgb(var(--reject-rgb) / .42);
 }
 
 /* Indiciul de gest (mockup) — descrie gestul REAL al ecranului (glisare
@@ -3643,9 +3674,28 @@ body:before {
     box-shadow: 0 -10px 34px rgba(0,0,0,.38) !important;
     backdrop-filter: blur(18px) !important;
   }
-  .tiktok-rail-btn { height: 44px !important; box-shadow: 0 8px 22px -8px rgb(0 0 0 / .55) !important; }
-  .tiktok-rail-btn.keep { background: rgb(var(--pick-rgb) / .92) !important; color: #06100e !important; }
-  .tiktok-rail-btn.del { background: var(--reject) !important; color: #fff !important; }
+  /* Tratamentul din macheta "Camera obscura" trebuie repetat AICI, cu
+     !important, fiindca regulile de mai sus (.tiktok-rail-btn.keep/.del) sunt
+     invinse pe telefon de blocul asta — adica exact pe singurul ecran care
+     conteaza. Prima incercare le-a schimbat doar pe cele de sus si n-a mutat
+     nimic pe telefon; s-a vazut abia la o captura a foii construite.
+
+     Doza de sticla e putin mai mare decat pe desktop (.28/.24 fata de
+     .21/.19): butonul e mai scund aici, deci suprafata colorata e mai mica si
+     are nevoie de mai multa densitate ca sa citeasca la fel de tare. Docul de
+     dedesubt e opac (rgba(16,18,25,.96)), deci compozitia ramane previzibila,
+     la fel ca pe --decision-base. */
+  .tiktok-rail-btn { height: 56px !important; box-shadow: 0 8px 22px -8px rgb(0 0 0 / .55) !important; }
+  .tiktok-rail-btn.keep {
+    background: linear-gradient(180deg, rgb(var(--pick-rgb) / .28), rgb(var(--pick-rgb) / .07)), var(--decision-base) !important;
+    border: 1px solid rgb(var(--pick-rgb) / .45) !important;
+    color: var(--pick-ink) !important;
+  }
+  .tiktok-rail-btn.del {
+    background: linear-gradient(180deg, rgb(var(--reject-rgb) / .24), rgb(var(--reject-rgb) / .06)), var(--decision-base) !important;
+    border: 1px solid rgb(var(--reject-rgb) / .42) !important;
+    color: var(--reject-ink) !important;
+  }
 }
 
 /* Preview v4: acces explicit la Sortare rapidă după încheierea sesiunii. */

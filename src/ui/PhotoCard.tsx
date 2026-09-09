@@ -2,18 +2,18 @@ import { useEffect, useState, memo, useMemo } from 'react';
 import { getCachedThumbUrl, peekThumbUrl } from '../core/thumbUrlCache';
 import { useStore, type PhotoView } from '../state/store';
 import {
-  StarIcon, UserQuestionIcon, UserCheckIcon, EyeClosedIcon, LayersIcon, CheckIcon, SunIcon, ClockIcon, EditIcon,
+  UserCheckIcon, EyeClosedIcon, CheckIcon, ClockIcon,
   UnderexposedIcon, AwkwardExpressionIcon, RibbonIcon, HeartIcon, HeartOffIcon, BookmarkIcon, XIcon} from './icons';
-import { isNeutral } from '../core/imageAdjust';
 import { AdjustedImage } from './AdjustedImage';
 import { t, type Locale } from '../i18n';
 import { textSnippet } from '../core/photoText';
 import { normalizeForSearch } from '../core/sceneTagLabels';
 
-/** Aceleasi praguri ca SELECT_THRESHOLD/REJECT_THRESHOLD (importPipeline.ts) — culoarea inelului de scor. */
-function scoreColorVar(score: number): string {
-  return score >= 65 ? 'var(--pick)' : score <= 35 ? 'var(--reject)' : 'var(--review)';
-}
+/* `scoreColorVar` a plecat odata cu inelul de scor. Culoarea cifrei se decide
+   acum din foaie, dupa STARE (.card.st-selected .card-score), nu dupa scor —
+   si e o schimbare de inteles, nu doar de loc. Inainte, si cifra si culoarea
+   ei spuneau acelasi lucru: parerea motorului. Acum cifra spune ce a crezut
+   motorul, iar culoarea ce ai hotarat tu. Doua fapte, doua canale. */
 
 /** Acelasi prag ca aiSuggest.underexposed (aiExplanationGenerator.ts: exposure - 50 < -15). */
 function isUnderexposed(photo: PhotoView): boolean {
@@ -86,7 +86,6 @@ function PhotoCardInner({ photo, index: _index, onOpen, multiSelected, onCardPoi
   const locale = useStore(s => s.locale);
   const searchText = useStore(s => s.searchText);
   const bestInGroupIds = useStore(s => s.bestInGroupIds());
-  const groupOf = useStore(s => s.groupOf);
 
   useEffect(() => {
     const cached = peekThumbUrl(photo.id);
@@ -101,9 +100,6 @@ function PhotoCardInner({ photo, index: _index, onOpen, multiSelected, onCardPoi
     // editarile" miniatura din baza e alta, dar `photo.id` nu s-a schimbat.
     // Un card ramas montat ar arata mai departe imaginea dinainte.
   }, [photo.id, imagesRevision]);
-
-  const ringColor = scoreColorVar(photo.aiScore);
-  const ringDeg = Math.max(0, Math.min(360, Math.round((photo.aiScore / 100) * 360)));
 
   const colorLabelClass = photo.colorLabel && photo.colorLabel !== 'none' ? ` label-${photo.colorLabel}` : '';
   const isBestOfSeries = !!photo.groupId && bestInGroupIds.has(photo.id);
@@ -131,46 +127,22 @@ function PhotoCardInner({ photo, index: _index, onOpen, multiSelected, onCardPoi
       aria-label={describeCard(photo, locale, isBestOfSeries)}
       aria-pressed={multiSelected}
     >
-      {/* Coltul stang-sus: un singur badge de statut (stea sau necunoscut), plus
-          numarul de duplicate al seriei dedesubt — layout-ul mockup-ului "Lumin
-          Culler PRO", in locul numarului de cadru "#001" de dinainte. */}
-      <span className="card-top-left" aria-hidden="true">
-        {photo.rating > 0 ? (
-          <span className="corner-badge corner-badge-star" title={t(locale, 'photoCard.stars', { count: photo.rating })}>
-            <StarIcon fill="currentColor" />
-          </span>
-        ) : (photo.strangerCount > 0 && photo.personNames.length === 0) ? (
-          <span className="corner-badge corner-badge-question" title={t(locale, 'photoCard.strangers')}>
-            <UserQuestionIcon />
-          </span>
-        ) : null}
-        {photo.groupId && (
-          <span className="corner-badge corner-badge-dupe" title={t(locale, 'photoCard.series')}>
-            <LayersIcon /><b>{groupOf(photo.groupId).length}</b>
-          </span>
-        )}
-        {photo.goldenHourDetected && (
-          <span className="golden-badge" title={t(locale, 'photoCard.goldenHour')}><SunIcon /></span>
-        )}
-        {!isNeutral(photo.edits) && (
-          <span className="edited-badge" title={t(locale, 'photoCard.edited')}><EditIcon /></span>
-        )}
-      </span>
-      {/* Coltul dreapta-sus: inelul de scor, mare — elementul dominant al
-          cardului in mockup, nu o pastila mica de jos. */}
-      <span className="card-top-right" aria-hidden="true">
-        <span
-          className="mini-score-ring"
-          style={{
-            background: `conic-gradient(${ringColor} ${ringDeg}deg, rgba(255,255,255,0.14) 0)`,
-            boxShadow: `0 2px 8px -2px rgba(0,0,0,0.5), 0 0 9px -1px ${ringColor}`
-          }}
-        >
-          <span className="mini-score-ring-inner" style={{ color: ringColor }}>{photo.aiScore}</span>
-        </span>
-      </span>
-      {/* Coltul dreapta-jos: insigna de decizie (bifa/X), mutata din coltul de
-          sus (unde acum sta inelul de scor). */}
+      {/* PLACUTA DIN MACHETA "CAMERA OBSCURA".
+          Cele patru insigne din colturi (nota, necunoscut, serie, ora aurie,
+          editat) si inelul mare de scor din dreapta-sus au plecat de aici.
+          Inelul era elementul cel mai greu si spunea cel mai putin: culoarea
+          lui repeta starea, pe care inelul de stare o spune deja, iar marimea
+          lui concura cu fotografia — intr-un ecran facut ca sa te uiti la
+          fotografii.
+
+          Ce spuneau insignele se citeste in continuare: nota si editarea in
+          foaia de detaliu, seria si ora aurie in fila de metrici, persoanele
+          in fila lor. Ce ramane pe placuta e strictul necesar la o privire
+          peste tot lotul: cat a dat motorul, ce s-a decis (inelul), si randul
+          de defecte de mai jos — semnalul pentru care exista aplicatia. */}
+      <span className="card-score mono" aria-hidden="true">{photo.aiScore}</span>
+      {/* Coltul dreapta-jos: insigna de decizie (bifa/X). Ramane, si peste
+          inelul de stare: inelul spune "s-a decis ceva", forma spune CE. */}
       {multiSelected && <span className="multi-select-badge" aria-hidden="true"><CheckIcon /></span>}
       {!multiSelected && photo.status === 'selected' && (
         <span className="check-badge" aria-hidden="true"><CheckIcon /></span>
@@ -178,15 +150,9 @@ function PhotoCardInner({ photo, index: _index, onOpen, multiSelected, onCardPoi
       {!multiSelected && photo.status === 'review' && (
         <span className="review-badge" aria-hidden="true"><ClockIcon /></span>
       )}
-      {/* Fara insigna proprie, o poza pe care ai pus-o deoparte arata in grila
-          exact ca una nedecisa — adica decizia ta devenea invizibila fix acolo
-          unde te uiti peste tot lotul. */}
       {!multiSelected && photo.status === 'candidate' && (
         <span className="candidate-badge" aria-hidden="true"><BookmarkIcon /></span>
       )}
-      {/* Insigna rosie pentru respinse — mockup-urile "Lumin Culler PRO" arata
-          un X plin si pe cardurile respinse, nu doar desaturarea imaginii de
-          dinainte (singurul semnal ramas altfel era conturul cardului). */}
       {!multiSelected && photo.status === 'rejected' && (
         <span className="reject-badge" aria-hidden="true"><XIcon /></span>
       )}

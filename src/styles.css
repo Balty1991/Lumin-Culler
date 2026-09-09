@@ -156,6 +156,16 @@
      luminoasa, deja validate acolo: alb pe ele da 5,43:1 si 6,54:1.
      NU se schimba per tema: butonul e o suprafata plina cu text alb, deci
      contrastul lui nu depinde de ce e in spate. */
+  /* Butoanele de decizie, tratamentul din macheta "Camera obscura": sticla
+     colorata, nu umplere plina. Cerneala e deschisa, iar suprafata e un strat
+     de culoare peste o BAZA OPACA — nu peste fotografie. Distinctia nu e
+     estetica: butoanele stau peste poza, iar o tenta translucida peste un cadru
+     deschis a dat deja un contrast masurat de 2,69:1 pe "RESPINGE". Cu baza
+     opaca, compozitia e aceeasi indiferent ce e dedesubt, deci se poate masura
+     (vezi styles.contrast.test.ts). */
+  --decision-base: #0d1016;
+  --pick-ink: #b6f5cf;
+  --reject-ink: #ffc2cb;
   --pick-solid: #0a7a3d;
   --reject-solid: #b3261e;
 
@@ -2834,8 +2844,15 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .detail-fab:active { transform: scale(0.97); }
 .detail-fab svg { width: 20px; height: 20px; }
 /* culori mate/temperate, intentionat fara gradient (plan "Refactorizare UI/UX", flat design) */
-.detail-fab-reject { background: var(--reject-solid); }
-.detail-fab-select { background: var(--pick-solid); }
+.detail-fab-reject {
+  background: linear-gradient(180deg, rgb(var(--reject-rgb) / 0.19), rgb(var(--reject-rgb) / 0.05)), var(--decision-base);
+  border: 1px solid rgb(var(--reject-rgb) / 0.42); color: var(--reject-ink);
+}
+.detail-fab-select {
+  background: linear-gradient(180deg, rgb(var(--pick-rgb) / 0.21), rgb(var(--pick-rgb) / 0.05)), var(--decision-base);
+  border: 1px solid rgb(var(--pick-rgb) / 0.45); color: var(--pick-ink);
+  box-shadow: 0 0 40px -14px rgb(var(--pick-rgb) / 0.55);
+}
 .detail-fab:hover { filter: brightness(1.08); }
 :root[data-a11y="1"] .detail-fab { width: auto; height: auto; min-height: 62px; }
 

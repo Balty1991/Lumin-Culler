@@ -38,6 +38,21 @@ function token(source: string, name: string): string {
   return match![1];
 }
 
+/**
+ * `sus` peste `jos` la opacitatea data — compunere alfa simpla in sRGB.
+ * Aproximativa fata de compunerea reala a browserului (care lucreaza tot pe
+ * canale sRGB negamma-corectate, deci diferenta e neglijabila aici), si
+ * suficienta ca sa prinda ce trebuie: o tenta care deschide prea mult
+ * suprafata de sub un text deschis.
+ */
+function compose(sus: string, jos: string, alpha: number): string {
+  const canale = (hex: string) => [0, 2, 4].map(i => parseInt(hex.replace('#', '').slice(i, i + 2), 16));
+  const [rs, gs, bs] = canale(sus);
+  const [rj, gj, bj] = canale(jos);
+  const mix = (a: number, b: number) => Math.round(a * alpha + b * (1 - alpha));
+  return `#${[mix(rs, rj), mix(gs, gj), mix(bs, bj)].map(v => v.toString(16).padStart(2, '0')).join('')}`;
+}
+
 /** Minimul WCAG AA pentru text normal. */
 const AA = 4.5;
 
@@ -52,11 +67,41 @@ describe('butoanele de decizie — eticheta alba pe fundal plin', () => {
     expect(contrast(token(css, '--reject'), '#ffffff')).toBeLessThan(AA);
   });
 
-  it('ambele foi pun tokenii pe butoane, nu culoarea pastel', () => {
+  /**
+   * Butoanele de decizie au trecut de la umplere plina la sticla colorata
+   * (redesign "Camera obscura"). Garda nu dispare odata cu mecanismul vechi —
+   * ea apara LIZIBILITATEA, care e acelasi lucru de aparat si acum, doar ca se
+   * masoara altfel: cerneala deschisa peste tenta compusa pe baza opaca.
+   *
+   * Baza opaca e tot ce tine masuratoarea asta onesta. Butoanele stau peste
+   * fotografie; fara ea, "fundalul" ar fi poza, iar contrastul ar fi orice —
+   * exact cazul masurat candva la 2,69:1 pe "RESPINGE".
+   */
+  it('cerneala deciziei se citeste peste tenta compusa, nu doar peste presupuneri', () => {
+    const baza = token(css, '--decision-base');
+    // Punctul cel mai defavorabil e capatul de SUS al degradeului: acolo tenta
+    // e cea mai densa, deci suprafata cea mai deschisa sub un text deschis.
+    // Dozele: .21/.19 pe desktop, .28/.24 pe telefon (blocul @media din foaia
+    // de concept). Se verifica cea MAI MARE — cea mai deschisa suprafata sub
+    // un text deschis, deci cazul cel mai greu.
+    expect(contrast(compose(token(css, '--pick'), baza, 0.28), token(css, '--pick-ink'))).toBeGreaterThanOrEqual(AA);
+    expect(contrast(compose(token(css, '--reject'), baza, 0.24), token(css, '--reject-ink'))).toBeGreaterThanOrEqual(AA);
+  });
+
+  it('nicio foaie nu se intoarce la umplerea plina sub cerneala deschisa', () => {
     for (const source of [css, conceptCss]) {
-      expect(source).toMatch(/\.detail-fab-select\s*\{[^}]*var\(--pick-solid\)/);
-      expect(source).toMatch(/\.detail-fab-reject\s*\{[^}]*var\(--reject-solid\)/);
+      expect(source).not.toMatch(/\.detail-fab-select\s*\{[^}]*background:\s*var\(--pick-solid\)/);
+      expect(source).not.toMatch(/\.detail-fab-reject\s*\{[^}]*background:\s*var\(--reject-solid\)/);
     }
+  });
+
+  it('sticla sta pe o baza OPACA, nu direct peste fotografie', () => {
+    for (const source of [css, conceptCss]) {
+      expect(source).toMatch(/\.detail-fab-select\s*\{[^}]*var\(--decision-base\)/);
+      expect(source).toMatch(/\.detail-fab-reject\s*\{[^}]*var\(--decision-base\)/);
+    }
+    expect(conceptCss).toMatch(/\.tiktok-rail-btn\.keep\s*\{[^}]*var\(--decision-base\)/);
+    expect(conceptCss).toMatch(/\.tiktok-rail-btn\.del\s*\{[^}]*var\(--decision-base\)/);
   });
 
   it('badge-urile de swipe stau pe umplere opaca, nu pe o tenta peste fotografie', () => {
