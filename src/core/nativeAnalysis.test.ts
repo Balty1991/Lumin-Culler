@@ -612,3 +612,122 @@ describe('analyzeNative — canvas-ul la rezolutie plina, doar cand e cerut', ()
     expect(canvasesBuilt).toBeGreaterThan(0);
   });
 });
+
+/**
+ * Calea 'landmarker' (e7 din auditul motoarelor): un singur model da si
+ * casetele, si zambetul, si ochii. Testele de aici apara exact ce se schimba
+ * fata de calea ML Kit — si ce NU are voie sa se schimbe.
+ */
+describe('analyzeNative — motorul de fete FaceLandmarker', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    detectFacesNative.mockReset();
+    analyzeImageNative.mockReset();
+    labelImageNative.mockReset();
+    analyzeFaceMeshNative.mockReset();
+    detectTextNative.mockReset();
+    embedImageNative.mockReset();
+    detectPoseNative.mockReset();
+    analyzeImageNative.mockResolvedValue(IMAGE_ANALYSIS_FIXTURE);
+    labelImageNative.mockResolvedValue({ labels: [] });
+    embedImageNative.mockResolvedValue({ embedding: [0.1] });
+    detectPoseNative.mockResolvedValue({ people: [] });
+  });
+
+  const meshFace = (over: Record<string, unknown> = {}) => ({
+    boundingBox: { left: 100, top: 50, width: 200, height: 250 },
+    smile: 0.8,
+    emotionSurprise: 0.1,
+    emotionNegative: 0.05,
+    eyesOpen: { left: 0.9, right: 0.85 },
+    mouthOpen: false,
+    genuineSmile: true,
+    awkwardExpression: false,
+    engagement: 0.7,
+    eyeContact: 0.6,
+    ...over
+  });
+
+  it('nu mai cheama deloc ML Kit — de acolo vin cele 33% din timpul unei poze', async () => {
+    localStorage.setItem('lumin-face-engine', 'landmarker');
+    analyzeFaceMeshNative.mockResolvedValue({ faces: [meshFace()], imageWidth: 1000, imageHeight: 500 });
+
+    const { analyzeNative } = await import('./nativeAnalysis');
+    const result = await analyzeNative('p1', fakeBitmap(1000, 500));
+
+    expect(detectFacesNative).not.toHaveBeenCalled();
+    // Si un singur apel de mesh, nu doua: statisticile de grup vin din acelasi rezultat.
+    expect(analyzeFaceMeshNative).toHaveBeenCalledTimes(1);
+    expect(result.faceCount).toBe(1);
+    expect(result.faceEngine).toBe('landmarker');
+  });
+
+  it('caseta vine din mesh, normalizata cu dimensiunile pe care s-a masurat', async () => {
+    localStorage.setItem('lumin-face-engine', 'landmarker');
+    analyzeFaceMeshNative.mockResolvedValue({ faces: [meshFace()], imageWidth: 1000, imageHeight: 500 });
+
+    const { analyzeNative } = await import('./nativeAnalysis');
+    const result = await analyzeNative('p1', fakeBitmap(1000, 500));
+
+    expect(result.faces[0].box).toEqual([0.1, 0.1, 0.2, 0.5]);
+  });
+
+  /**
+   * Aici e diferenta care conta: pe calea ML Kit, cele doua modele gasesc liste
+   * de fete care nu se pot potrivi 1:1, deci semnalele fine ajungeau doar ca
+   * medie pe grup. Cu un singur detector, potrivirea e chiar identitatea.
+   */
+  it('semnalele fine ajung PER FATA, nu doar ca medie pe grup', async () => {
+    localStorage.setItem('lumin-face-engine', 'landmarker');
+    analyzeFaceMeshNative.mockResolvedValue({ faces: [meshFace()], imageWidth: 1000, imageHeight: 500 });
+
+    const { analyzeNative } = await import('./nativeAnalysis');
+    const result = await analyzeNative('p1', fakeBitmap(1000, 500));
+
+    expect(result.faces[0].eyeContact).toBe(0.6);
+    expect(result.faces[0].mouthOpen).toBe(false);
+    expect(result.faces[0].emotion?.happy).toBe(0.8);
+    // ...si statisticile de grup raman calculate, din acelasi rezultat.
+    expect(result.groupGenuineSmileRatio).toBe(1);
+  });
+
+  it('ochii se judeca pe pragul build-ului web, nu pe cel al ML Kit', async () => {
+    localStorage.setItem('lumin-face-engine', 'landmarker');
+    // 0.35 e sub MESH_BLINK_THRESHOLD (0.4), dar PESTE pragul ML Kit (0.5) ar fi
+    // fost tot "clipit" — testul apara ca se foloseste scara potrivita.
+    analyzeFaceMeshNative.mockResolvedValue({
+      faces: [meshFace({ eyesOpen: { left: 0.35, right: 0.9 } })],
+      imageWidth: 1000, imageHeight: 500
+    });
+
+    const { analyzeNative } = await import('./nativeAnalysis');
+    const result = await analyzeNative('p1', fakeBitmap(1000, 500));
+
+    expect(result.faces[0].isBlinking).toBe(true);
+    expect(result.allEyesOpen).toBe(false);
+  });
+
+  it('o fata fara caseta (plugin mai vechi) e sarita, nu presupusa la zero', async () => {
+    localStorage.setItem('lumin-face-engine', 'landmarker');
+    analyzeFaceMeshNative.mockResolvedValue({
+      faces: [meshFace(), meshFace({ boundingBox: undefined })],
+      imageWidth: 1000, imageHeight: 500
+    });
+
+    const { analyzeNative } = await import('./nativeAnalysis');
+    const result = await analyzeNative('p1', fakeBitmap(1000, 500));
+
+    expect(result.faceCount).toBe(1);
+  });
+
+  it('implicit, nimic nu se schimba: ML Kit ramane detectorul', async () => {
+    detectFacesNative.mockResolvedValue({ faces: [], imageWidth: 1000, imageHeight: 500 });
+    analyzeFaceMeshNative.mockResolvedValue({ faces: [] });
+
+    const { analyzeNative } = await import('./nativeAnalysis');
+    const result = await analyzeNative('p1', fakeBitmap(1000, 500));
+
+    expect(detectFacesNative).toHaveBeenCalledTimes(1);
+    expect(result.faceEngine).toBe('mlkit');
+  });
+});

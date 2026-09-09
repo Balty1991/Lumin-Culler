@@ -74,6 +74,8 @@ class FaceMeshPlugin : Plugin() {
         if (result == null) {
             val empty = JSObject()
             empty.put("faces", facesArray)
+            empty.put("imageWidth", bitmap.width)
+            empty.put("imageHeight", bitmap.height)
             return empty
         }
 
@@ -97,6 +99,25 @@ class FaceMeshPlugin : Plugin() {
             val mouthOpen = FaceMeshMath.isMouthOpen(mesh)
 
             val faceObj = JSObject()
+            // CASETA fetei, dedusa din mesh. Pana acum lipsea, si de-aia FaceMesh
+            // nu putea fi decat un al doilea detector, agregat pe grup: fara
+            // caseta nu exista compozitie, incadrare, spatiu deasupra capului sau
+            // decupaj pentru recunoastere. Cu ea, un singur model da tot ce da
+            // acum doua (vezi core/faceEngine.ts).
+            //
+            // Min/max peste toate cele 478 de puncte: FaceLandmarker nu intoarce
+            // o caseta, iar mesh-ul o descrie mai exact decat ar face-o oricum un
+            // dreptunghi de detector — punctele urmaresc conturul real al fetei.
+            val stanga = mesh.minOf { it.x }
+            val sus = mesh.minOf { it.y }
+            val dreapta = mesh.maxOf { it.x }
+            val jos = mesh.maxOf { it.y }
+            val boxObj = JSObject()
+            boxObj.put("left", stanga)
+            boxObj.put("top", sus)
+            boxObj.put("width", dreapta - stanga)
+            boxObj.put("height", jos - sus)
+            faceObj.put("boundingBox", boxObj)
             faceObj.put("smile", emotion.happy)
             faceObj.put("emotionSurprise", emotion.surprise)
             faceObj.put("emotionNegative", emotion.negative)
@@ -119,6 +140,11 @@ class FaceMeshPlugin : Plugin() {
 
         val out = JSObject()
         out.put("faces", facesArray)
+        // Dimensiunile pe care s-au masurat casetele — partea de JS le
+        // normalizeaza cu ele, exact ca la FaceDetection. Pe calea cu URI,
+        // bitmap-ul poate fi subesantionat, deci nu se pot presupune.
+        out.put("imageWidth", bitmap.width)
+        out.put("imageHeight", bitmap.height)
         return out
     }
 }

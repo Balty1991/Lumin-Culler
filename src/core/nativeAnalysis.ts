@@ -47,6 +47,7 @@ import { photoTextFromBlocks } from './photoText';
 import { hasManufacturedTag } from './smartInbox';
 import type { NativeImageSource } from './nativeImageSource';
 import { record, timed, timedSync } from './stageTiming';
+import { readFaceEngine, MESH_BLINK_THRESHOLD, type FaceEngine } from './faceEngine';
 
 /**
  * Acelasi prag ca groupSmileRatio din faceAnalysis.worker.ts (web) — "zambet
@@ -214,6 +215,97 @@ function toFaceInsight(f: NativeFaceResult, imageWidth: number, imageHeight: num
   };
 }
 
+/**
+ * Fetele unei poze, ADUSE LA ACELASI NUMITOR, oricare ar fi detectorul.
+ *
+ * Restul pipeline-ului nu trebuie sa stie de pe ce cale au venit: are nevoie de
+ * insight-uri, de casete in pixeli pentru decupaje si de dimensiunile pe care
+ * s-au masurat casetele. Vezi core/faceEngine.ts pentru cele doua cai.
+ */
+interface DetectedFaces {
+  faces: FaceInsight[];
+  /** Casetele in PIXELI, in aceeasi ordine ca `faces` — pentru cropFaceBitmap. */
+  boxes: NativeFaceBoundingBox[];
+  sourceWidth: number;
+  sourceHeight: number;
+  /**
+   * Statisticile de grup ale FaceMesh, cand ele vin DE LA ACELASI detector.
+   * `null` pe calea ML Kit, unde FaceMesh e un al doilea model, chemat separat.
+   */
+  meshStats: MeshGroupStats | null;
+}
+
+type MeshGroupStats = Pick<AnalysisRecord, 'groupGenuineSmileRatio' | 'groupAwkwardRatio' | 'avgEngagement' | 'avgEyeContact'>;
+
+/** Calea ML Kit: casete si probabilitati de la FaceDetection, mesh separat. */
+function fromMlKit(result: NativeFaceDetectionResult, fallbackWidth: number, fallbackHeight: number): DetectedFaces {
+  const sourceWidth = result.imageWidth || fallbackWidth;
+  const sourceHeight = result.imageHeight || fallbackHeight;
+  return {
+    faces: result.faces.map(f => toFaceInsight(f, sourceWidth, sourceHeight)),
+    boxes: result.faces.map(f => f.boundingBox),
+    sourceWidth,
+    sourceHeight,
+    meshStats: null
+  };
+}
+
+/**
+ * Calea FaceLandmarker: un singur model da tot — casete (min/max peste cele 478
+ * de puncte), zambet (blendshape-uri) si ochi (EAR normalizat).
+ *
+ * Aici semnalele fine ajung PER FATA, nu doar ca medie pe grup: pe calea ML Kit
+ * cele doua modele gasesc liste de fete care nu se pot potrivi 1:1, de unde si
+ * comentariul din toFaceInsight despre emotion/eyeContact/mouthOpen lasate
+ * absente. Cu un singur detector, potrivirea e chiar identitatea.
+ *
+ * Scara si pragul sunt cele ale build-ului WEB, nu unele noi — vezi
+ * MESH_BLINK_THRESHOLD in core/faceEngine.ts.
+ *
+ * Fetele fara caseta (plugin mai vechi) sunt SARITE, nu presupuse la zero: o
+ * caseta gresita ar strica incadrarea si decupajul de recunoastere, iar o fata
+ * lipsa e o pierdere pe care restul pipeline-ului o trateaza deja.
+ */
+function fromLandmarker(
+  result: { faces: NativeFaceMeshInsight[]; imageWidth?: number; imageHeight?: number },
+  fallbackWidth: number,
+  fallbackHeight: number
+): DetectedFaces {
+  const sourceWidth = result.imageWidth || fallbackWidth;
+  const sourceHeight = result.imageHeight || fallbackHeight;
+  const usable = result.faces.filter(f => f.boundingBox !== undefined);
+  const faces: FaceInsight[] = usable.map(f => {
+    const box = f.boundingBox!;
+    return {
+      box: [box.left / sourceWidth, box.top / sourceHeight, box.width / sourceWidth, box.height / sourceHeight],
+      // FaceLandmarker nu intoarce un scor de detectie per fata; 1 e acelasi
+      // neutru sigur ca pe calea ML Kit, nu o masuratoare.
+      faceScore: 1,
+      smile: f.smile,
+      eyesOpen: f.eyesOpen,
+      isBlinking: f.eyesOpen.left < MESH_BLINK_THRESHOLD || f.eyesOpen.right < MESH_BLINK_THRESHOLD,
+      mouthOpen: f.mouthOpen,
+      eyeContact: f.eyeContact,
+      emotion: {
+        happy: f.smile,
+        surprise: f.emotionSurprise,
+        neutral: Math.max(0, 1 - f.smile - f.emotionSurprise - f.emotionNegative),
+        negative: f.emotionNegative
+      },
+      personId: null,
+      personName: null,
+      similarity: 0
+    };
+  });
+  return {
+    faces,
+    boxes: usable.map(f => f.boundingBox!),
+    sourceWidth,
+    sourceHeight,
+    meshStats: faceMeshGroupStats(usable)
+  };
+}
+
 function average(values: number[]): number | undefined {
   if (values.length === 0) return undefined;
   return values.reduce((a, b) => a + b, 0) / values.length;
@@ -279,24 +371,22 @@ function hasAwkwardBodyCrop(people: NativePose[]): boolean {
 /**
  * Ruleaza recunoasterea per-fata (vezi header-ul fisierului) si muteaza
  * FIECARE FaceInsight din `faces` in-place cu rezultatul — index-uri identice
- * cu `faceResult.faces` (ambele construite din aceeasi lista ML Kit, in
- * aceeasi ordine). Esecul unei fete individuale (timeout/eroare worker) nu
- * intrerupe restul — acea fata ramane pur si simplu neidentificata.
+ * cu `detected.boxes` (ambele construite din aceeasi lista de fete, in aceeasi
+ * ordine, oricare ar fi detectorul). Esecul unei fete individuale
+ * (timeout/eroare worker) nu intrerupe restul — acea fata ramane pur si simplu
+ * neidentificata.
  */
 async function recognizeFaces(
   canvas: OffscreenCanvas,
-  faceResult: NativeFaceDetectionResult,
+  detected: DetectedFaces,
   faces: FaceInsight[],
-  fallbackWidth: number,
-  fallbackHeight: number,
   recognize: (crop: ImageBitmap) => Promise<{ embedding: number[]; faceCount: number } | null>,
   knownPersons: KnownPerson[]
 ): Promise<void> {
-  const sourceWidth = faceResult.imageWidth || fallbackWidth;
-  const sourceHeight = faceResult.imageHeight || fallbackHeight;
-  const candidates = faceResult.faces.slice(0, MAX_RECOGNIZED_FACES_PER_PHOTO);
+  const { sourceWidth, sourceHeight } = detected;
+  const candidates = detected.boxes.slice(0, MAX_RECOGNIZED_FACES_PER_PHOTO);
   for (let i = 0; i < candidates.length; i++) {
-    const cropPromise = cropFaceBitmap(canvas, candidates[i].boundingBox, sourceWidth, sourceHeight);
+    const cropPromise = cropFaceBitmap(canvas, candidates[i], sourceWidth, sourceHeight);
     if (!cropPromise) continue;
     try {
       const crop = await cropPromise;
@@ -385,15 +475,21 @@ export async function analyzeNative(
   // Cronometrat ca timp de PERETE, nu ca suma: cele trei pleaca deodata, iar o
   // suma ar numara acelasi timp de trei ori. Vezi 'nativeModels' in
   // core/stageTiming.ts pentru scaderea care iese din el.
-  const [faceResult, imageAnalysis, labelResult] = await timed('nativeModels', () => Promise.all([
-    detectFacesNative(source),
+  // CARE detector raspunde la "cine e in cadru" — vezi core/faceEngine.ts.
+  // 'landmarker' scoate cu totul apelul ML Kit (masurat la 33% din timpul unei
+  // poze) si aduce semnalele fine per fata, nu doar ca medie pe grup.
+  const faceEngine: FaceEngine = readFaceEngine();
+  const faceProbe = faceEngine === 'landmarker'
+    ? analyzeFaceMeshNative(source).then(r => fromLandmarker(r, imageWidth, imageHeight))
+    : detectFacesNative(source).then(r => fromMlKit(r, imageWidth, imageHeight));
+
+  const [detected, imageAnalysis, labelResult] = await timed('nativeModels', () => Promise.all([
+    faceProbe,
     analyzeImageNative(source),
     labelImageNative(source)
   ]));
 
-  const faces = faceResult.faces.map(f =>
-    toFaceInsight(f, faceResult.imageWidth || imageWidth, faceResult.imageHeight || imageHeight)
-  );
+  const faces = detected.faces;
   // Acelasi tipar de deduplicare ca faceAnalysis.worker.ts: [...new Set(...)].
   const sceneTags = [...new Set(labelResult.labels.map(l => l.label))];
 
@@ -411,16 +507,22 @@ export async function analyzeNative(
   // petrecut in ultimul await ar raporta aproape zero.
   const recognitionStart = performance.now();
   const recognition = recognize && knownPersons?.length && faces.length > 0
-    ? recognizeFaces(requireCanvas(), faceResult, faces, imageWidth, imageHeight, recognize, knownPersons)
+    ? recognizeFaces(requireCanvas(), detected, faces, recognize, knownPersons)
         .finally(() => record('recognition', performance.now() - recognitionStart))
     : Promise.resolve();
 
   const [meshStats, imageEmbedding, bodyCroppedAtEdge] = await timed('nativeModels', () => Promise.all([
     // FaceMesh e sarit complet cand nu exista fete — nu are ce agrega, si evita
     // un apel MediaPipe intreg (cel mai greu dintre cele 5) fara niciun beneficiu.
-    faces.length > 0
-      ? analyzeFaceMeshNative(source).then(r => faceMeshGroupStats(r.faces))
-      : Promise.resolve({}),
+    // Pe calea 'landmarker' statisticile de grup vin din ACELASI rezultat, deci
+    // nu se mai cheama nimic aici. Pe calea ML Kit, FaceMesh ramane al doilea
+    // model, sarit complet cand nu exista fete — n-are ce agrega, si evita un
+    // apel MediaPipe intreg (cel mai greu dintre cele 5) fara niciun beneficiu.
+    detected.meshStats !== null
+      ? Promise.resolve(detected.meshStats)
+      : faces.length > 0
+        ? analyzeFaceMeshNative(source).then(r => faceMeshGroupStats(r.faces))
+        : Promise.resolve({}),
     // Embedding general de similaritate — vezi AnalysisRecord.imageEmbedding:
     // doar pentru poze FARA fete (cu fete, embedding-urile faciale sunt deja
     // semnalul puternic pentru rafinarea seriilor in hashCompare.worker.ts).
@@ -499,6 +601,7 @@ export async function analyzeNative(
     sceneType,
     aiScore: 0, // completat ulterior de ContextEngine.predict() in importPipeline.ts, la fel ca pe web
     analyzedAt: Date.now(),
+    faceEngine,
     ...imageAnalysis,
     ...meshStats,
     ...(sceneTags.length ? { sceneTags } : {}),

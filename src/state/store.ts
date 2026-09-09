@@ -35,6 +35,7 @@ import { selectDecisionInversions } from './decisionInversions';
 import { summarizeSession, type SessionOutcome } from '../core/sessionOutcome';
 import type { FileSystemFileHandleLike } from '../core/filePicker';
 import { readEconomicMode, writeEconomicMode } from '../core/performanceSettings';
+import { readFaceEngine, writeFaceEngine, hasMixedFaceEngines, type FaceEngine } from '../core/faceEngine';
 import { vibrate } from '../ui/haptics';
 import { exportOriginalFiles, computeGroupPersonUnion } from '../core/exportPhotos';
 import { exportXMPSidecars, deriveXmpKeywords, deriveAiScoreKeyword, deriveSeriesKeyword } from '../core/export/xmpGenerator';
@@ -283,6 +284,12 @@ interface AppState {
   cancelImport: () => void;
   /** Mod economic: pool de un singur worker + fara iris/emotie — mai putina presiune pe CPU/RAM, pe hardware slab. */
   economicMode: boolean;
+  /**
+   * Care model raspunde la "cine e in cadru" pe Android — vezi core/faceEngine.ts.
+   * Implicit 'mlkit', calea de pana acum.
+   */
+  faceEngine: FaceEngine;
+  setFaceEngine: (engine: FaceEngine) => Promise<void>;
   setEconomicMode: (on: boolean) => void;
   /** Genul fotografic activ pentru urmatorul import ("Nunta", "Portret", ...) — vezi state/genre.ts. */
   genre: string;
@@ -2532,6 +2539,22 @@ export const useStore = create<AppState>((set, get) => ({
   selectMode: false,
   batchHistory: [],
   fieldBatchHistory: [],
+  faceEngine: readFaceEngine(),
+  setFaceEngine: async engine => {
+    writeFaceEngine(engine);
+    const locale = get().locale;
+    set({ faceEngine: engine });
+    // Amestecul e ce doare, nu schimbarea in sine: intr-o serie cu poze scorate
+    // pe ambele cai, "cel mai bun cadru" compara doua scari fara sa dea nicio
+    // eroare. Se numara pe loc si se spune, cu drumul spre re-analiza — nu se
+    // porneste singura, ca e o operatie lunga si e alegerea omului.
+    const analyses = await db.analyses.toArray().catch(() => []);
+    const amestec = hasMixedFaceEngines(analyses, engine);
+    set({
+      notice: t(locale, 'store.faceEngine.changed', { engine: t(locale, `menu.faceEngine.${engine}`) })
+        + (amestec ? ' ' + t(locale, 'store.faceEngine.mixed') : '')
+    });
+  },
   economicMode: readEconomicMode(),
   setEconomicMode: on => {
     writeEconomicMode(on);

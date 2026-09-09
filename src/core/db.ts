@@ -287,6 +287,19 @@ export interface AnalysisRecord {
   aiScore: number;
   analyzedAt: number;
   /**
+   * CU CE motor de fete au fost masurate semnalele faciale ale acestei poze.
+   *
+   * Exista pentru un singur motiv, si e unul serios: cele doua cai
+   * (core/faceEngine.ts) produc `smile`/`eyesOpen`/casete pe scari diferite, iar
+   * intr-o serie care le amesteca "cel mai bun cadru" ar compara mere cu pere
+   * fara sa dea nicio eroare. Cu campul asta, amestecul se poate MASURA (vezi
+   * hasMixedFaceEngines) si reparat printr-o re-analiza.
+   *
+   * ABSENT = 'mlkit': inregistrarile de dinaintea campului vin, prin definitie,
+   * de pe singura cale care exista atunci.
+   */
+  faceEngine?: import('./faceEngine').FaceEngine;
+  /**
    * Compozitie, calculata geometric din pozitia subiectului principal (fata
    * cea mai mare) fata de cadru — 0..1, 1 = aliniere ideala. Optionale: pozele
    * fara fete nu au subiect detectabil, iar inregistrarile mai vechi (dinainte

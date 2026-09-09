@@ -22,6 +22,14 @@ import { registerPlugin, Capacitor } from '@capacitor/core';
 import { nativeImageParams, type NativeImageParams, type NativeImageSource } from './nativeImageSource';
 
 export interface NativeFaceMeshInsight {
+  /**
+   * Caseta fetei, in PIXELI, dedusa din min/max peste cele 478 de puncte.
+   *
+   * Absenta pe inregistrarile venite dintr-o versiune mai veche a plugin-ului —
+   * de-aia e optionala si de-aia calea "landmarker" din nativeAnalysis.ts sare
+   * peste fetele fara ea in loc sa presupuna zero.
+   */
+  boundingBox?: { left: number; top: number; width: number; height: number };
   /** = emotion.happy aproximat (acelasi lucru ca FaceInsight.smile din JS). */
   smile: number;
   emotionSurprise: number;
@@ -37,6 +45,9 @@ export interface NativeFaceMeshInsight {
 
 export interface NativeFaceMeshResult {
   faces: NativeFaceMeshInsight[];
+  /** Dimensiunile pe care s-au masurat casetele. Absente pe plugin-uri mai vechi. */
+  imageWidth?: number;
+  imageHeight?: number;
 }
 
 interface FaceMeshPluginApi {

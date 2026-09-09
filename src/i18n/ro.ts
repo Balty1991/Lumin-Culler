@@ -506,6 +506,16 @@ export const ro = {
   'exportDest.start': 'START EXPORT',
   'exportDest.note': 'Fișierele pleacă în formatul original, cu editările coapte în ele. Nu ne conectăm la niciun cont și nu păstrăm niciun token — destinația o alege sistemul, nu aplicația.',
   'exportDest.progress.label': 'Progres export',
+  // Motorul de fete (core/faceEngine.ts). "Doua modele" e calea de pana acum:
+  // ML Kit pentru casete si zambet, MediaPipe separat pentru semnalele fine.
+  // "Un singur model" e FaceLandmarker pentru tot — mai ieftin, dar pe alta
+  // scara de scoruri, deci cere o re-analiză a bibliotecii.
+  'menu.faceEngine': 'Motorul de fețe',
+  'menu.faceEngine.title': 'Un singur model face tot ce fac acum două: casetele, zâmbetul și ochii. Scoate cel mai scump apel de pe telefon, dar scorurile de zâmbet și ochi ies pe altă scară — biblioteca deja triată are nevoie de o re-analiză.',
+  'menu.faceEngine.mlkit': 'două modele',
+  'menu.faceEngine.landmarker': 'un singur model',
+  'store.faceEngine.changed': 'Motorul de fețe: {engine}. Se aplică de la următorul import.',
+  'store.faceEngine.mixed': 'Ai poze analizate cu celălalt motor — scorurile lor de zâmbet și ochi sunt pe altă scară. Meniu → „Recalculează scorul AI" le aduce pe toate la fel.',
   'menu.economicMode': 'Mod economic',
   'menu.economicMode.active': 'Mod economic (activ)',
   'menu.economicMode.title': 'Pool de un singur worker + fără iris/emoție — mai puțină presiune pe CPU/RAM la import, pe hardware slab.',

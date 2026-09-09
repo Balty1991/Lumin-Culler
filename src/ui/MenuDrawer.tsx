@@ -6,7 +6,7 @@ import {
   UserCheckIcon, SparkleIcon, ListIcon, InfoIcon, XIcon, TagIcon, LayersIcon, KeyboardIcon,
   SunIcon, MoonIcon, ClockIcon, BatteryIcon, GridIcon, DownloadIcon, UploadIcon, BarChartIcon, GlobeIcon, PrinterIcon,
   ApertureIcon, PlayIcon, EditIcon, FolderIcon, HeartIcon, TrashIcon, PinIcon, AccessibilityIcon,
-  ChevronUpIcon, SearchIcon, ShieldIcon, LockIcon, CopyIcon, StarIcon, FocusIcon, CheckIcon, UndoIcon } from './icons';
+  ChevronUpIcon, SearchIcon, ShieldIcon, LockIcon, CopyIcon, StarIcon, FocusIcon, CheckIcon, UndoIcon, SmileIcon } from './icons';
 import type { AccentTheme } from '../state/accentTheme';
 import { selectDeletableRejected } from '../state/batchOps';
 import { selectPendingShieldReview, readShieldDismissedIds } from '../core/documentShield';
@@ -138,6 +138,8 @@ export function MenuDrawer() {
   const locale = useStore(s => s.locale);
   const setLocale = useStore(s => s.setLocale);
   const economicMode = useStore(s => s.economicMode);
+  const faceEngine = useStore(s => s.faceEngine);
+  const setFaceEngine = useStore(s => s.setFaceEngine);
   const setEconomicMode = useStore(s => s.setEconomicMode);
   const accessibleMode = useStore(s => s.accessibleMode);
   const setAccessibleMode = useStore(s => s.setAccessibleMode);
@@ -966,6 +968,25 @@ export function MenuDrawer() {
             <span className="drawer-item-icon"><BatteryIcon /></span>
             <span>{economicMode ? tr('menu.economicMode.active') : tr('menu.economicMode')}</span>
           </button>
+
+          {/* Care model raspunde la "cine e in cadru" (vezi core/faceEngine.ts).
+              Sta aici, langa modul economic, fiindca e acelasi fel de setare: nu
+              schimba ce face aplicatia, ci cat o costa.
+              Doar pe Android: pe web nu exista niciunul dintre cele doua
+              plugin-uri native, iar un comutator care nu face nimic e mai rau
+              decat unul lipsa. */}
+          {isNativeFaceMeshAvailable() && (
+            <button
+              className="drawer-item"
+              onClick={() => go(() => { void setFaceEngine(faceEngine === 'landmarker' ? 'mlkit' : 'landmarker'); })}
+              aria-pressed={faceEngine === 'landmarker'}
+              title={tr('menu.faceEngine.title')}
+            >
+              <span className="drawer-item-icon"><SmileIcon /></span>
+              <span>{tr('menu.faceEngine')}</span>
+              <b className="drawer-count mono">{tr(`menu.faceEngine.${faceEngine}`)}</b>
+            </button>
+          )}
 
           {/* Gruparea din "Toate". Nu se ofera cand n-ai inrolat pe nimeni: acolo
               comutatorul n-ar schimba nimic, si un comutator care nu face nimic
