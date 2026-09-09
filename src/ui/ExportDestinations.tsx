@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore, type PhotoView } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
-import { XIcon, FolderIcon, UploadIcon, TagIcon, CheckIcon, LockIcon } from './icons';
+import { XIcon, FolderIcon, UploadIcon, TagIcon, CheckIcon, LockIcon, PrinterIcon } from './icons';
 import { FREE_PHOTOS_PER_MONTH } from '../core/entitlement';
 import { exportAllowanceWarning } from '../state/freeAllowance';
 import { sumKnownSizeBytes, formatSize } from '../state/storageStats';
@@ -60,6 +60,8 @@ export function ExportDestinations() {
   const premiumLocked = useStore(s => s.premiumLocked);
   const setPremiumOpen = useStore(s => s.setPremiumOpen);
   const gatePremium = useStore(s => s.gatePremium);
+  const setFilter = useStore(s => s.setFilter);
+  const setContactSheetOpen = useStore(s => s.setContactSheetOpen);
   const exportProgress = useStore(s => s.exportProgress);
   const openTiktokSortForIds = useStore(s => s.openTiktokSortForIds);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
@@ -257,6 +259,27 @@ export function ExportDestinations() {
               <p className="export-file-list-more">{tr('exportDest.fileList.more', { count: selectedCount - EXPORT_FILE_LIST_MAX })}</p>
             )}
           </>
+        )}
+
+        {/* Plansa de contact, LANGA SELECTIE.
+            Traia doar in sertarul din Setari, in spatele a sase acordeoane
+            inchise — adica singurul drum vizibil spre ea trecea prin ecranul de
+            plata, unde i se cerea omului sa cumpere ceva ce nu vazuse niciodata
+            functionand. Aici e la locul ei: ce faci cu selectia, langa celelalte
+            lucruri pe care le faci cu selectia. Filtrul se pune pe "selectate",
+            fiindca plansa arata ce e in grila. */}
+        {selectedCount > 0 && (
+          <button
+            type="button" className="export-alt-action"
+            onClick={() => { setOpen(false); setFilter('selected'); setContactSheetOpen(true); }}
+          >
+            <span className="export-alt-icon" aria-hidden="true"><PrinterIcon /></span>
+            <span className="export-alt-text">
+              <b>{tr('exportDest.contactSheet.title')}</b>
+              <span>{tr('exportDest.contactSheet.sub', { count: selectedCount })}</span>
+            </span>
+            <span className="export-alt-go" aria-hidden="true">&rarr;</span>
+          </button>
         )}
 
         {(selectedCount > 0 || decidedCount > 0) && (

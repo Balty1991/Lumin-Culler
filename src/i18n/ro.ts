@@ -208,6 +208,13 @@ export const ro = {
   'inbox.count.one': 'Un cadru',
   'inbox.count.other': '{countDe} cadre',
   'inbox.review': 'Selectează-le pe toate, să decid eu',
+  // A doua deschidere — vezi state/returnVisit.ts. Un rand, ales dintre patru.
+  'returnVisit.newImported': 'De la ultima vizită ai adus {countDe} poze și încă n-ai trecut prin ele.',
+  'returnVisit.leftOver': 'Ți-au rămas {countDe} poze de trecut în revistă de data trecută.',
+  'returnVisit.galleryNew': 'De la ultima vizită s-au adunat {countDe} poze noi în galeria telefonului.',
+  'returnVisit.allClear': 'Totul e trecut în revistă. Când aduci poze noi, sunt gata în câteva minute.',
+  'returnVisit.cta.sort': 'Continuă de unde ai rămas',
+  'returnVisit.cta.import': 'Adu poze',
   'resume.title': 'Ai lăsat ceva neterminat',
   'resume.body': '{project} — {remaining} de trecut în revistă, {percent}% gata.',
   'resume.cta': 'Reia',
@@ -485,6 +492,8 @@ export const ro = {
   'exportDest.toggle.individually': 'Descarcă individual',
   // "Lista JSON" din mockup nu exista ca atare — sidecar-urile .xmp reale
   // (Lightroom/Capture One) sunt echivalentul functional, nu o lista JSON.
+  'exportDest.contactSheet.title': 'Planșă de contact',
+  'exportDest.contactSheet.sub': 'o pagină cu miniaturile celor {countDe} poze păstrate, de printat sau de arătat clientului',
   'exportDest.empty.lead': 'Nimic de trimis încă. Exportul scoate din aplicație pozele pe care le-ai păstrat — mai întâi treci lotul prin triaj și marchează ce rămâne.',
   'exportDest.empty.decidedOnly': 'Nicio poză păstrată în lotul curent. Etichetele Lightroom se pot scrie totuși: ele merg pe tot ce e decis, și păstrat, și respins.',
   'exportDest.empty.cta.one': 'Treci prin poza rămasă',

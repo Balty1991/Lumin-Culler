@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useStore, type PhotoView } from '../state/store';
+import { returnVisitPrompt, readLastVisit, writeLastVisit } from '../state/returnVisit';
 import { pickResumeTarget } from '../state/resumeProject';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
 import { AdjustedImage } from './AdjustedImage';
@@ -61,7 +62,7 @@ function ReviewDeskPreview({ photo }: { photo: PhotoView }) {
   );
 }
 
-export function HomeDashboard() {
+export function HomeDashboard({ onAddPhotos }: { onAddPhotos: () => void }) {
   const photos = useStore(s => s.photos);
   const locale = useStore(s => s.locale);
   const setPresentationPhotoIds = useStore(s => s.setPresentationPhotoIds);
@@ -94,6 +95,12 @@ export function HomeDashboard() {
   /** Cardul de rezumat e pe ecran — sub-randul din salut ar spune acelasi lucru. */
   const hasOutcome = useStore(s => s.sessionOutcome !== null);
   const [deleting, setDeleting] = useState(false);
+  const [lastVisitAt] = useState<number | null>(() => {
+    const previous = readLastVisit();
+    writeLastVisit();
+    return previous;
+  });
+
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const setProjectFilter = useStore(s => s.setProjectFilter);
   const setFilter = useStore(s => s.setFilter);
@@ -135,6 +142,30 @@ export function HomeDashboard() {
   // (subsetul ambiguu semnalat de AI) — altfel numarul arata mult mai mic
   // decat coada reala de sortat pe care utilizatorul chiar o are.
   const unsortedCount = photos.filter(p => p.status === 'pending' || p.status === 'review').length;
+
+  /**
+   * A DOUA DESCHIDERE, si de ce are nevoie de un rand al ei.
+   *
+   * Memento-ul de reimport apare abia dupa 14 zile — e facut pentru cine a
+   * uitat de aplicatie. Omul care se intoarce a doua zi nu primea nimic care
+   * sa-i spuna ce s-a schimbat sau ce merita facut acum.
+   *
+   * Momentul ultimei vizite se citeste O SINGURA DATA, la montare, si se
+   * rescrie imediat: altfel randul ar disparea singur in mijlocul sesiunii,
+   * cand starea din spatele lui se schimba. Vezi state/returnVisit.ts pentru
+   * ordinea intrebarilor.
+   */
+  const returnPrompt = returnVisitPrompt({
+    now: Date.now(),
+    lastVisitAt,
+    importedSinceLastVisit: lastVisitAt === null
+      ? 0
+      : photos.filter(p => p.importedAt > lastVisitAt && (p.status === 'pending' || p.status === 'review')).length,
+    undecided: unsortedCount,
+    // Cifra din galerie cere o citire din MediaStore; supervizorul o face deja
+    // cand e cazul, si nu se dubleaza aici doar pentru un rand.
+    galleryNew: null
+  });
   // Candidatul se numara ca decizie luata — omul chiar s-a hotarat sa n-o
   // arunce si sa n-o dea inca mai departe. Aceeasi regula ca in
   // state/resumeProject.ts si in inelul din CullGauge.
@@ -251,6 +282,21 @@ export function HomeDashboard() {
           toate butoanele — adica rezumatul unei actiuni terminate acum se citea
           ultimul, dupa ce parcurgeai tot ce ai de facut. */}
       <SessionOutcome />
+
+      {/* Ce s-a schimbat de la ultima vizita — un rand, si o usa. Sta INAINTEA
+          reluarii de proiect fiindca raspunde la o intrebare mai devreme: nu
+          "unde ramasesem in proiectul X", ci "de ce am deschis aplicatia". */}
+      {returnPrompt && !analysing && (
+        <div className="return-visit-card">
+          <p>{tr(returnPrompt.key, returnPrompt.params)}</p>
+          <button
+            className="btn-accent"
+            onClick={() => { if (returnPrompt.action === 'sort') openQuickSortAll(); else onAddPhotos(); }}
+          >
+            {tr(returnPrompt.action === 'sort' ? 'returnVisit.cta.sort' : 'returnVisit.cta.import')}
+          </button>
+        </div>
+      )}
 
       {/* Reluarea unui proiect intrerupt. Costul care lasa sesiunile
           neterminate nu e efortul, ci REINTRAREA: la revenire, aplicatia arata

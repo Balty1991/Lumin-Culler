@@ -994,7 +994,7 @@ export default function App() {
 
       <Toast />
       <WelcomeOnboarding />
-      <HomeDashboard />
+      <HomeDashboard onAddPhotos={() => void onAddPhotosClick()} />
       {/* Nimic nu se desenează peste ecranul de bun venit: .banner-stack are
           z-index de toast, deci bannerele acopereau comutatorul de limbă și
           butonul de închidere. Reapar imediat ce ecranul e închis. */}
