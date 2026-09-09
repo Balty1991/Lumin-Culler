@@ -129,7 +129,13 @@
   /* Muchii si haloul lor — panourile nu mai sunt cutii. */
   --edge: rgb(240 244 255 / 0.09);
   --edge-strong: rgb(240 244 255 / 0.14);
-  --edge-lit: linear-gradient(90deg, transparent, rgb(103 228 207 / 0.85), transparent);
+  /* Muchia aprinsa e LUMINA, nu culoare. Am definit-o intai in turcoaz (adica
+     exact --engine-3) si am prins greseala abia uitandu-ma la bara de
+     navigare: acolo o linie turcoaz spunea "aici a masurat motorul" deasupra
+     unui buton care doar te duce la o fila. Testul de viziune n-avea cum s-o
+     prinda — culoarea era scrisa literal, nu prin token. Regula e a
+     intelesului, nu a sintaxei. */
+  --edge-lit: linear-gradient(90deg, transparent, rgb(240 244 255 / 0.75), transparent);
   --veil: rgb(240 244 255 / 0.035);
 
   /* Ancorele de pe fotografie — punctul, firul si eticheta care leaga un motiv

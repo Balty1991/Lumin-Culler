@@ -604,7 +604,11 @@ body:before {
   right:12px;
   bottom:calc(10px + var(--safe-bottom));
   height:62px;
-  padding:0 7px;
+  /* Variabila, nu numar: pista pastilei TREBUIE sa foloseasca exact aceeasi
+     valoare (vezi .bottom-nav-pill-track). Cat au fost doua numere scrise
+     separat, s-au despartit — si asa a aparut decalajul de mai jos. */
+  --nav-pad:7px;
+  padding:0 var(--nav-pad);
   align-items:center;
   border:1px solid rgb(255 255 255 / .1);
   border-radius:20px;
@@ -6185,8 +6189,17 @@ button:disabled,
 .bottom-nav-pill-track {
   position: absolute;
   /* `bottom` tine cont de bara de sistem: .bottom-nav are padding-bottom egal
-     cu --safe-bottom, iar pista e absoluta fata de ea, deci ignora acel padding. */
-  inset: 6px 0 calc(var(--safe-bottom) + 6px);
+     cu --safe-bottom, iar pista e absoluta fata de ea, deci ignora acel padding.
+   *
+   * PE ORIZONTALA insa nu-l putea ignora, si o vreme l-a ignorat: pista statea
+   * pe `0`, adica pe cutia CU padding, in timp ce filele traiesc in cutia de
+   * continut, dupa cele 7px. Cinci coloane egale pe o latime mai mare decat
+   * cele cinci file inseamna un decalaj care creste cu indexul — pastila se
+   * aseza tot mai la stanga fata de iconita pe care o insoteste. Raportat de
+   * utilizator ("iconita nu e centrata in casuta") dupa ce pastila s-a facut
+   * destul de luminoasa cat sa se vada; nepotrivirea era acolo si inainte,
+   * doar ca palida. Acum amandoua citesc acelasi --nav-pad. */
+  inset: 6px var(--nav-pad, 7px) calc(var(--safe-bottom) + 6px);
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   pointer-events: none;
@@ -6194,12 +6207,35 @@ button:disabled,
 }
 .bottom-nav-pill {
   grid-column: 1;
-  margin: 0 6px;
+  /* Distanta pana la marginile coloanei. Variabila, fiindca intra si in
+     formula de deplasare de mai jos — cele doua NU au voie sa se desparta. */
+  --pill-gap: 6px;
+  margin: 0 var(--pill-gap);
   border-radius: 14px;
-  background: rgb(101 224 203 / .16);
-  box-shadow: inset 0 0 0 1px rgb(101 224 203 / .22);
-  transform: translateX(calc(var(--nav-active, 0) * 100%));
+  position: relative;
+  /* Lumina, nu turcoaz — dar destul de multa cat sa se vada. Prima incercare
+     a scos culoarea si a pus 7% alb in loc: raportat de utilizator, cu tabul
+     incercuit, fiindca nu se mai vedea unde esti. O stare de navigare care se
+     ghiceste nu e o stare de navigare. */
+  background: rgb(240 244 255 / .14);
+  box-shadow: inset 0 0 0 1px rgb(240 244 255 / .28), 0 10px 26px -14px rgb(0 0 0 / .7);
+  /* `100%` intr-un translate inseamna latimea ELEMENTULUI, nu a coloanei — iar
+     marginea de mai sus face pastila mai ingusta decat coloana cu exact
+     2 x --pill-gap. Deci fiecare pas ramanea in urma cu atat: 12px la prima
+     fila, 48px la a patra. Raportat de utilizator ("iconita nu e centrata in
+     casuta"), masurat in browser la -12px pe fila 1, si asta e chiar numarul
+     pe care il repara formula. */
+  transform: translateX(calc(var(--nav-active, 0) * (100% + var(--pill-gap) * 2)));
   transition: transform .34s var(--ease), opacity .18s ease;
+}
+/* Muchia aprinsa de sus — primitiva limbajului (--edge-lit): o linie care se
+   stinge la capete. Ea face diferenta la 0,62rem, unde o simpla schimbare de
+   gri nu se citeste dintr-o privire. */
+.bottom-nav-pill::before {
+  content: "";
+  position: absolute;
+  left: 12%; right: 12%; top: 0; height: 1px;
+  background: var(--edge-lit);
 }
 /* Niciun tab activ (esti pe Acasa): pastila nu se muta nicaieri, doar dispare —
    altfel ar fi glisat inapoi la tabul 0 si ar fi aratat Grila ca fiind activa. */
@@ -7000,10 +7036,16 @@ button:disabled,
   background: rgb(9 11 15 / .92);
 }
 .bottom-nav-tab { color: var(--text-dim); font-weight: 500; }
+/* FARA fundal propriu, si nu din gust: pastila glisanta e UN singur element
+   care se plimba peste bara (vezi BottomNav.tsx). Un fundal si pe tab ar face
+   sa se vada DOUA evidentieri cat tine tranzitia — exact ce spune comentariul
+   de acolo ca nu trebuie sa se intample. Pusesem unul; l-am scos. */
 .bottom-nav-tab.active {
   color: var(--text);
-  background: rgb(240 244 255 / .07);
+  font-weight: 700;
+  background: none;
 }
+.bottom-nav-tab.active svg { opacity: 1; }
 
 /* Butonul rotund: gradientul spectral -> lumina. Aceeasi regula ca la
    `.btn-accent` in faza 1, si acelasi motiv: e actiunea principala a
