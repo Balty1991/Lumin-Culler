@@ -65,6 +65,25 @@ describe('butoanele de decizie — eticheta alba pe fundal plin', () => {
   });
 });
 
+describe('paleta "desk" are o singura definitie', () => {
+  /**
+   * styles.concept.css se importa DUPA styles.css, deci orice token redefinit
+   * acolo castiga in tema intunecata si pierde in cea luminoasa (unde
+   * :root[data-theme="light"] are specificitate mai mare). Asa a ajuns
+   * --desk-aqua sa fie cyan pe intuneric si teal pe lumina, fara ca nimeni sa
+   * fi ales asta.
+   */
+  it('foaia de concept nu redefineste tokenii --desk-*', () => {
+    expect(conceptCss).not.toMatch(/--desk-(bg|panel|panel-soft|line|ink|muted|aqua|red)\s*:/);
+  });
+
+  it('styles.css ii defineste pentru ambele teme', () => {
+    expect(css).toMatch(/--desk-aqua:\s*#67e4cf/);
+    const light = css.slice(css.indexOf(':root[data-theme="light"]'));
+    expect(light).toMatch(/--desk-aqua:\s*#0e7490/);
+  });
+});
+
 describe('insigna PRO din antet', () => {
   it('foloseste nuanta de TEXT a accentului secundar, nu culoarea plina', () => {
     expect(css).toMatch(/\.brand-pro-badge\s*\{[^}]*color:\s*var\(--accent-2-text\)/);

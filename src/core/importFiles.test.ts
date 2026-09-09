@@ -206,6 +206,35 @@ describe('importFiles — contabilitate si curatenie', () => {
     const final = progress[progress.length - 1];
     expect(final.warning?.key).toBe('import.warn.cancelled');
     expect(analyzedCount).toBeLessThan(files.length);
+    // Bug raportat: notificarea spunea 6 cand pe ecran erau 9. Cifra din mesaj
+    // trebuie sa fie exact ultimul `done` raportat prin progres, nu cel de la
+    // momentul in care primul fir a observat anularea.
+    const analysisTicks = progress.filter(p => p.phase === 'analiza');
+    const lastAnalysisDone = analysisTicks[analysisTicks.length - 1]?.done;
+    expect(final.warning?.params?.done).toBe(lastAnalysisDone);
+    expect(final.outcome?.total).toBe(lastAnalysisDone);
+  });
+
+  /**
+   * Anularea apasata cat timp se incarca modelele AI (~105 s la prima pornire).
+   * Pana la runda asta, `cancelled` se citea DOAR in bucla de analiza: omul
+   * apasa si nu se intampla nimic pana cand modelele terminau oricum. Aici
+   * token-ul e deja anulat inainte de apel — echivalentul unei apasari in prima
+   * secunda — si nicio poza nu are voie sa mai fie analizata.
+   */
+  it('anularea din faza de incarcare opreste importul inainte de analiza', async () => {
+    const token = createCancelToken();
+    token.cancelled = true;
+    const progress: ImportProgress[] = [];
+    const files = Array.from({ length: 5 }, (_, i) => jpeg(`p${i}.jpg`));
+
+    const groups = await importFiles(files, p => progress.push(p), () => {}, token);
+
+    expect(analyzedCount).toBe(0);
+    expect(groups.size).toBe(0);
+    const final = progress[progress.length - 1];
+    expect(final.phase).toBe('finalizat');
+    expect(final.warning?.key).toBe('import.warn.cancelled');
   });
 
   it('scrie toate tabelele unei poze in aceeasi tranzactie (photo + miniatura + preview + analiza)', async () => {

@@ -258,7 +258,7 @@ export function Workspace() {
             </button>
           </Tooltip>
         </div>
-        {progress?.phase === 'analiza' && (
+        {progress && progress.phase !== 'finalizat' && (
           // flex-basis:100% (.workspace-cancel-btn) — forteaza acest buton pe
           // PROPRIUL rand mereu, in loc sa concureze cu iconitele de navigare
           // (grila/meniu) pentru spatiu pe primul rand cand containerul da pe

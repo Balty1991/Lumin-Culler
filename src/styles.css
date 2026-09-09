@@ -2166,6 +2166,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .export-dest-text b { display: block; font-size: 0.84rem; color: var(--text); }
 .export-dest-text span { font-size: 0.72rem; color: var(--text-dim); }
 .export-dest-note { font-size: 0.72rem; color: var(--text-faint); margin: 0; line-height: 1.5; }
+/* Tabul Export deschis fara nicio selectie: o explicatie si o iesire, nu trei
+   comutatoare peste "0 poze" si un buton stins. */
+.export-empty { display: grid; gap: 12px; margin: 4px 0 14px; }
+.export-empty p { margin: 0; font-size: 0.84rem; line-height: 1.55; color: var(--text-dim); }
 
 /* ── Comutatoare + lista de fisiere din ecranul de Export (mockup "Lumin
    Culler PRO") — inlocuiesc randurile "alege O destinatie" de dinainte. ── */
@@ -2185,6 +2189,14 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 /* Randul al doilea al unui comutator: ce anume face, cand eticheta singura ar minti
    (vezi "Etichete Lightroom", care nu se opreste la selectie). */
 .export-toggle-sub { display: block; margin-top: 2px; font-size: 0.72rem; line-height: 1.45; color: var(--text-faint); }
+/* Semnul ca randul e o functie platita, pe rand, nu descoperit dupa apasare. */
+.export-toggle-lock {
+  display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
+  padding: 2px 7px; border-radius: 999px;
+  font-family: var(--mono); font-size: 0.62rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--accent-2-text); border: 1px solid rgb(var(--accent-2-rgb) / 0.45); background: rgb(var(--accent-rgb) / 0.1);
+}
+.export-toggle-lock svg { width: 11px; height: 11px; }
 /* Comutator real (checkbox), stilizat ca pastila cu glisor — nu doar o bifa. */
 .export-toggle-switch {
   appearance: none; flex-shrink: 0; width: 42px; height: 25px; border-radius: 999px;

@@ -109,7 +109,15 @@ export function createEtaTracker(): EtaTracker {
         return (secundeInFereastra / pozeInFereastra) * remaining;
       }
       // Inceputul lotului: media de pana acum, ca inainte.
-      if (done > 0 && elapsedSec > 1) return (elapsedSec / done) * remaining;
+      //
+      // Pragul era `elapsedSec > 1`, adica o secunda de asteptat inainte sa
+      // apara vreo cifra. Pe un lot mic si rapid (auditul a testat cu 20 de poze
+      // pe web) intregul import putea incapea sub pragul ala, si atunci ecranul
+      // nu arata NICIODATA cat mai dureaza — exact ce s-a raportat. Doua poze
+      // gata sunt insa deja o medie, oricat de scurt ar fi trecut: cifra iese
+      // rotunjita la 5 secunde de `quantize`, deci nici nu se poate pretinde
+      // mai multa precizie decat exista.
+      if (done >= 2 && elapsedSec > 0) return (elapsedSec / done) * remaining;
       return undefined;
     }
   };

@@ -938,16 +938,15 @@ body:before {
   background:#fafbff;
 }
 
-:root {
-  --desk-bg: #07080b;
-  --desk-panel: #12141a;
-  --desk-panel-soft: #181b22;
-  --desk-line: rgb(240 244 255 / .11);
-  --desk-muted: #8c93a2;
-  --desk-ink: #f5f7fb;
-  --desk-aqua: #22d3ee;
-  --desk-red: #ff686d;
-}
+/* Paleta "desk" NU se mai redefineste aici.
+   Blocul asta repeta token cu token ce sta deja in styles.css — identic peste
+   tot, in afara de --desk-aqua (#22d3ee aici, #67e4cf acolo). Cum foaia asta se
+   importa dupa, castiga ea; adica in tema intunecata ajungea pe ecran cyan-ul,
+   iar in cea luminoasa ajungea tot ce scrie in styles.css, fiindca
+   :root[data-theme="light"] are specificitate mai mare decat :root. Doua
+   directii cromatice suprapuse, cu invingatorul ales de ordinea importurilor —
+   de asta aplicatia arata neterminata. Sursa unica e acum styles.css, care are
+   si varianta pentru tema luminoasa. */
 
 .app {
   max-width:1280px;

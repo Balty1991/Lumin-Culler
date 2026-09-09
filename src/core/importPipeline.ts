@@ -946,10 +946,31 @@ export async function importFiles(
     // o cifra in plus care lipseste nu e un motiv sa se opreasca importul
   });
 
+  // Anularea, verificata INAINTE de bucla, nu doar in ea.
+  //
+  // Incarcarea modelelor AI e cea mai lunga pauza din tot importul (~105 s la
+  // prima pornire, masurat). Pana acum, singurul loc in care se citea
+  // `cancelToken.cancelled` era bucla de analiza — adica omul care se
+  // razgandea in minutul ala apasa "Anulează" si nu se intampla nimic vizibil
+  // pana cand modelele terminau oricum de incarcat. Fiecare `await` lung de mai
+  // jos are acum in fata lui o iesire.
+  const cancelledEarly = (): boolean => cancelToken?.cancelled === true;
+  const finishCancelled = (): Map<string, string> => {
+    onProgress({
+      done: 0, total: images.length, fileName: '', phase: 'finalizat',
+      warning: { key: 'import.warn.cancelled', params: { done: 0, total: images.length } },
+      outcome: { total: 0, imported: 0, failed: 0, skipped: skippedCount }
+    });
+    return new Map();
+  };
+
+  if (cancelledEarly()) return finishCancelled();
   await analysisPool.init();
+  if (cancelledEarly()) return finishCancelled();
   await contextEngine.init();
   const persons = await db.persons.toArray();
   await analysisPool.setKnownPersons(persons);
+  if (cancelledEarly()) return finishCancelled();
   // Pragurile se calculeaza O SINGURA DATA, inainte de lot, si raman fixe pe
   // toata durata lui: altfel primele poze ar fi clasificate dupa alte reguli
   // decat ultimele, iar rezultatul aceluiasi import ar depinde de ordinea
@@ -965,13 +986,25 @@ export async function importFiles(
   images = await prioritizeFacesFirst(images, (done, total) =>
     onProgress({ done, total, fileName: '', phase: 'pregatire' })
   );
+  if (cancelledEarly()) return finishCancelled();
 
   const concurrency = analysisPool.size + 1;
   let done = 0;
   let index = 0;
   let failed = 0;
 
-  let stopReason: ImportWarning | undefined;
+  /**
+   * De ce s-a oprit lotul, ca ETICHETA, nu ca mesaj gata compus.
+   *
+   * Bug raportat: notificarea de anulare spunea 6 cand pe ecran erau 9.
+   * Mesajul se construia in momentul in care PRIMUL fir observa anularea,
+   * fotografiind `done` atunci — dar celelalte trei fire isi terminau poza
+   * din mana si mai incrementau `done` inainte sa iasa si ele. Numarul din
+   * notificare era deci mereu mai mic decat ultimul numar afisat. Acum se
+   * compune dupa bucla, din `done`-ul final: acelasi numar pe ecran si in
+   * notificare.
+   */
+  let stopKind: 'cancelled' | 'storageFull' | undefined;
   const hashes: HashInput[] = [];
   // Motivele reale (distincte) ale esecurilor — altfel "fisier corupt sau
   // format neasteptat" e un mesaj generic care nu spune nimic despre CE
@@ -979,14 +1012,11 @@ export async function importFiles(
   // de la distanta fara acces la consola browserului utilizatorului.
   const failureReasons = new Map<string, number>();
 
-  const stopMessage = (n: number): ImportWarning =>
-    ({ key: 'import.warn.storageFull', params: { done: n, total: images.length } });
-
   await Promise.all(
     Array.from({ length: concurrency }, async () => {
       while (true) {
-        if (stopReason) break;
-        if (cancelToken?.cancelled) { stopReason = { key: 'import.warn.cancelled', params: { done, total: images.length } }; break; }
+        if (stopKind) break;
+        if (cancelToken?.cancelled) { stopKind = 'cancelled'; break; }
         const myIndex = index++;
         if (myIndex >= images.length) break;
         const { file, handle, mediaUri } = images[myIndex];
@@ -996,7 +1026,7 @@ export async function importFiles(
           hashes.push(toHashInput(item.photo.id, item.photo.dHash, item.analysis, item.photo.capturedAt, item.photo.capturedAtExact));
           onPhoto(item);
         } catch (err) {
-          if (isQuotaError(err)) { stopReason = stopMessage(done); break; }
+          if (isQuotaError(err)) { stopKind = 'storageFull'; break; }
           console.error('Analiza a esuat pentru ' + file.name + ':', err);
           failed++;
           let reason = err instanceof Error ? (err.name + ': ' + err.message) : String(err);
@@ -1009,6 +1039,13 @@ export async function importFiles(
       }
     })
   );
+
+  const stopReason: ImportWarning | undefined = stopKind
+    ? {
+        key: stopKind === 'cancelled' ? 'import.warn.cancelled' : 'import.warn.storageFull',
+        params: { done, total: images.length }
+      }
+    : undefined;
 
   // Grupare serii/duplicate (dHash), PERSISTATA in DB: cea mai buna ramane propusa,
   // restul trec la "review" ca variante de comparat. Comparatia O(n^2) ruleaza

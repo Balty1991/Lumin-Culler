@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore, type PhotoView } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
-import { XIcon, FolderIcon, UploadIcon, TagIcon, CheckIcon } from './icons';
+import { XIcon, FolderIcon, UploadIcon, TagIcon, CheckIcon, LockIcon } from './icons';
 import { FREE_PHOTOS_PER_MONTH } from '../core/entitlement';
 import { exportAllowanceWarning } from '../state/freeAllowance';
 import { sumKnownSizeBytes, formatSize } from '../state/storageStats';
@@ -59,7 +59,9 @@ export function ExportDestinations() {
   const photosUsed = useStore(s => s.photosUsedThisWindow);
   const premiumLocked = useStore(s => s.premiumLocked);
   const setPremiumOpen = useStore(s => s.setPremiumOpen);
+  const gatePremium = useStore(s => s.gatePremium);
   const exportProgress = useStore(s => s.exportProgress);
+  const openTiktokSortForIds = useStore(s => s.openTiktokSortForIds);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const containerRef = useRef<HTMLDivElement>(null);
   useModalFocusTrap(containerRef, open);
@@ -95,8 +97,30 @@ export function ExportDestinations() {
 
   const selected = photos.filter(p => p.status === 'selected');
   const selectedCount = selected.length;
+  /* Ce vede aici cineva care n-a triat inca nimic.
+     "Export" e unul dintre cele patru taburi permanente, deci se deschide si
+     inainte sa existe vreo selectie — si pana la runda asta arata trei
+     comutatoare peste "0 poze" si un buton stins, fara sa spuna nicaieri de
+     unde vine o selectie. Fundatura, la un tap distanta de ecranul principal.
+     Etichetele Lightroom sunt exceptia care conteaza: ele se scriu pentru tot ce
+     e DECIS (vezi exportXMP), deci un om care a respins 20 de poze si n-a
+     pastrat niciuna are ce exporta chiar cu selectia goala. */
+  const undecided = photos.filter(p => p.status === 'pending' || p.status === 'review');
+  const decidedCount = photos.length - undecided.length;
   const allowance = exportAllowanceWarning(selectedCount, photosUsed, FREE_PHOTOS_PER_MONTH, premiumLocked);
+  /** Sortarea rapida peste pozele nedecise — aceeasi coada ca butonul de pe ecranul principal. */
+  const goSort = () => {
+    setOpen(false);
+    openTiktokSortForIds(undecided.slice().sort((a, b) => (a.capturedAt ?? 0) - (b.capturedAt ?? 0)).map(p => p.id));
+  };
   const startExport = () => {
+    // Poarta Premium, verificata INAINTE sa porneasca ceva.
+    //
+    // Pana aici, apasarea pornea toate exporturile bifate, iar exportXMP se
+    // oprea singur in gatePremium si deschidea panoul de plata — peste un
+    // export care rula deja. Omul vedea ecranul de abonament aparand peste o
+    // bara de progres, fara sa inteleaga ce a fost blocat si ce nu.
+    if (xmpList && gatePremium('xmp')) { setOpen(false); return; }
     if (xmpList) void exportXMP();
     if (toFolder) void exportSelection('folder');
     else if (individually) void exportSelection('apps');
@@ -175,6 +199,9 @@ export function ExportDestinations() {
             platforma curenta: exportSelection('folder') cade singur pe
             descarcare in acel caz (vezi core/exportPhotos.ts), deci
             comutatorul tot are efect real. */}
+        {/* Fara nimic selectat SI fara nimic decis n-are ce face niciun
+            comutator: foaia ramane doar cu explicatia si iesirea de mai jos. */}
+        {(selectedCount > 0 || decidedCount > 0) && (
         <div className="export-toggle-list">
           <label className="export-toggle-row">
             <span className="export-toggle-icon" aria-hidden="true"><FolderIcon /></span>
@@ -197,9 +224,28 @@ export function ExportDestinations() {
                   vrei respinsele marcate ca respinse; gresita era doar eticheta. */}
               <small className="export-toggle-sub">{tr('exportDest.toggle.xmp.scope')}</small>
             </span>
+            {/* Lacatul, pe comutator. Fara el, singurul semn ca functia e
+                platita era panoul de abonament aparut dupa apasare. */}
+            {premiumLocked && (
+              <span className="export-toggle-lock" title={tr('exportDest.toggle.xmp.locked')}>
+                <LockIcon aria-hidden="true" /> {tr('exportDest.toggle.xmp.locked')}
+              </span>
+            )}
             <input type="checkbox" className="export-toggle-switch" checked={xmpList} onChange={e => setXmpList(e.target.checked)} />
           </label>
         </div>
+        )}
+
+        {selectedCount === 0 && (
+          <div className="export-empty">
+            <p>{tr(decidedCount > 0 ? 'exportDest.empty.decidedOnly' : 'exportDest.empty.lead')}</p>
+            {undecided.length > 0 && (
+              <button type="button" className="btn-accent big" onClick={goSort}>
+                {tr(plural(undecided.length, 'exportDest.empty.cta.one', 'exportDest.empty.cta.other'), { count: undecided.length })}
+              </button>
+            )}
+          </div>
+        )}
 
         {selectedCount > 0 && (
           <>
@@ -213,15 +259,25 @@ export function ExportDestinations() {
           </>
         )}
 
+        {(selectedCount > 0 || decidedCount > 0) && (
+          <>
         <p className="export-dest-note">{tr('exportDest.note')}</p>
 
         <button
           type="button" className="btn-accent big export-start-btn"
-          disabled={selectedCount === 0 || (!toFolder && !individually && !xmpList)}
+          /* Etichetele Lightroom nu au nevoie de selectie, ci de decizii: cu
+             butonul stins pe selectedCount===0, un fotograf care tocmai a
+             respins tot lotul nu putea sa-si scoata sidecar-urile. */
+          disabled={
+            (selectedCount === 0 || (!toFolder && !individually))
+            && !(xmpList && decidedCount > 0)
+          }
           onClick={startExport}
         >
           <UploadIcon className="inline-icon" aria-hidden="true" /> {tr('exportDest.start')}
         </button>
+          </>
+        )}
       </div>
     </div>
   );

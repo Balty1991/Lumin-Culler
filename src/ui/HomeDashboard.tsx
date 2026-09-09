@@ -353,7 +353,7 @@ export function HomeDashboard() {
                 {/* Anularea importului statea pe cardul studio, care nu mai apare
                     aici — fara ea, un import de mii de poze pornit din greseala
                     n-ar mai fi avut buton de oprire pe ecranul principal. */}
-                {analysing && progress.phase === 'analiza' && (
+                {analysing && (
                   <button className="review-desk-cancel" onClick={() => cancelImport()} disabled={importCancelling}>
                     {importCancelling ? tr('app.progress.cancelling') : tr('app.progress.cancel')}
                   </button>

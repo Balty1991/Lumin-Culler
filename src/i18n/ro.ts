@@ -475,8 +475,13 @@ export const ro = {
   'exportDest.toggle.individually': 'Descarcă individual',
   // "Lista JSON" din mockup nu exista ca atare — sidecar-urile .xmp reale
   // (Lightroom/Capture One) sunt echivalentul functional, nu o lista JSON.
+  'exportDest.empty.lead': 'Nimic de trimis încă. Exportul scoate din aplicație pozele pe care le-ai păstrat — mai întâi treci lotul prin triaj și marchează ce rămâne.',
+  'exportDest.empty.decidedOnly': 'Nicio poză păstrată în lotul curent. Etichetele Lightroom se pot scrie totuși: ele merg pe tot ce e decis, și păstrat, și respins.',
+  'exportDest.empty.cta.one': 'Treci prin poza rămasă',
+  'exportDest.empty.cta.other': 'Treci prin cele {countDe} poze rămase',
   'exportDest.toggle.xmp': 'Etichete Lightroom (.xmp)',
   'exportDest.toggle.xmp.scope': 'pentru toate pozele decise — și păstrate, și respinse — nu doar pentru cele selectate',
+  'exportDest.toggle.xmp.locked': 'Premium',
   'exportDest.fileList.label': 'Fișiere selectate ({count})',
   'exportDest.fileList.more': '+ încă {count}',
   'exportDest.start': 'START EXPORT',

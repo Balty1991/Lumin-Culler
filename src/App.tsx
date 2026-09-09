@@ -1106,7 +1106,13 @@ export default function App() {
                 <span className={progress.phase === 'analiza' ? 'active' : ''}>{tr('app.progress.step.analyze')}</span>
                 <span className={progress.phase === 'grupare' ? 'active' : ''}>{tr('app.progress.step.series')}</span>
               </div>
-              {progress.phase === 'analiza' && (
+              {/* Butonul de anulare, din PRIMA secunda a importului, nu doar din
+                  faza de analiza. Primele ~105 s sunt "Se încarcă modelele AI",
+                  si pana acum omul care se razgandea in ele nu avea ce apasa.
+                  Token-ul de anulare exista de dinainte de importFiles (vezi
+                  runImport), iar pipeline-ul il verifica acum inaintea fiecarui
+                  pas lung. */}
+              {progress.phase !== 'finalizat' && (
                 <button className="analysis-studio-cancel" onClick={() => cancelImport()} disabled={importCancelling}>
                   {importCancelling ? tr('app.progress.cancelling') : tr('app.progress.cancel')}
                 </button>

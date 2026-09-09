@@ -90,6 +90,23 @@ describe('estimarea urmareste ritmul recent', () => {
     expect(t.sample(4, 2, 100)).toBeCloseTo(196, 0);
   });
 
+  /**
+   * Auditul a raportat ca ecranul nu arata niciodata timpul ramas; pe telefon,
+   * la 425 de poze, il arata. Diferenta e lotul mic si rapid: cu pragul vechi
+   * de o secunda, un import care se termina in sub o secunda nu apuca sa
+   * produca nicio cifra.
+   */
+  it('un lot mic si rapid primeste totusi o estimare, de la a doua poza', () => {
+    const t = createEtaTracker();
+    expect(t.sample(0.2, 1, 20)).toBeUndefined();
+    expect(t.sample(0.4, 2, 20)).toBeCloseTo(3.6, 1);
+  });
+
+  it('o singura poza gata nu e inca o medie', () => {
+    const t = createEtaTracker();
+    expect(t.sample(0.9, 1, 20)).toBeUndefined();
+  });
+
   it('nu spune nimic cat timp n-are nimic de spus', () => {
     const t = createEtaTracker();
     expect(t.sample(0.5, 0, 100)).toBeUndefined();
