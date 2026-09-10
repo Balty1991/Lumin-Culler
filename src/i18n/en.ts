@@ -1397,6 +1397,7 @@ export const en: Record<TranslationKey, string> = {
   'stats.stages.hint': 'How long each import stage took on this phone. Durations only — nothing about photo content, and nothing leaves the device.',
   'stats.stages.value': '{share}% · usually {median}, worst case {slow}',
   'stats.stages.inside': 'Inside the analysis, in more detail',
+  'stats.stage.queue': 'Waiting in line (concurrency cap)',
   'stats.stage.bridge': 'The bridge and the JS glue (by subtraction)',
   'stats.stages.bridgeValue': '{share}% — what is left after subtracting what was measured',
   'stats.stages.reset': 'Clear the measurements',

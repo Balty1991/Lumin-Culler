@@ -16,7 +16,10 @@ function formatDuration(ms: number): string {
 }
 
 /** Etapele masurate INAUNTRUL analizei — vezi core/stageTiming.ts. */
-const SUB_ETAPE = ['canvas', 'nativeModels', 'recognition'] as const;
+/* Etapele care traiesc INAUNTRUL analizei: se scad din ea, nu se aduna langa
+   ea. 'queue' e cea mai noua si cea care lipsea — vezi comentariul de la
+   `measuredInAnalysis` mai jos pentru ce a costat absenta ei. */
+const SUB_ETAPE = ['queue', 'canvas', 'nativeModels', 'recognition'] as const;
 type SubEtapa = (typeof SUB_ETAPE)[number];
 
 type Tr = (key: string, params?: Record<string, string | number>) => string;
@@ -168,9 +171,15 @@ export function StatsPanel() {
   const stageTotal = Math.max(1, topStages.reduce((sum, st) => sum + st.totalMs, 0));
   const analysisMs = stageStats.find(st => st.stage === 'analysis')?.totalMs ?? 0;
   /**
-   * Ce ramane din analiza dupa ce scazi ce s-a masurat: puntea Capacitor plus
-   * lipiciul JS. Recunoasterea NU se scade — ruleaza in paralel cu al doilea val
-   * de modele, deci timpul ei e deja inauntrul lui 'nativeModels'.
+   * Ce ramane din analiza dupa ce scazi ce s-a masurat. Recunoasterea NU se
+   * scade — ruleaza in paralel cu al doilea val de modele, deci timpul ei e
+   * deja inauntrul lui 'nativeModels'.
+   *
+   * 'queue' SE SCADE, si abia de cand exista. Pana atunci reziduul raporta 74%
+   * pe un import real de 201 de poze si se numea "puntea si lipiciul JS" — dar
+   * cea mai mare parte era poza care astepta un permis de concurenta, nu octeti
+   * pe punte. Un reziduu poarta numele banuielii tale, si banuiala se poate
+   * insela.
    */
   const measuredInAnalysis = subStages
     .filter(st => st.stage !== 'recognition')

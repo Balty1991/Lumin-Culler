@@ -245,6 +245,51 @@ describe('AnalysisPool native mode (Capacitor Android)', () => {
  * facea in tacere, iar de pe ecran importul arata doar ca a devenit inexplicabil
  * mai lent. Semnalul de aici e ce transforma incetinirea intr-o explicatie.
  */
+/**
+ * Asteptarea la rand se masoara, si de-aia exista testul asta.
+ *
+ * `record('analysis')` din importPipeline porneste INAINTE de acest apel, deci
+ * inainte de a exista etapa 'queue' timpul petrecut la coada intra in analiza
+ * fara sa fie al nimanui — si iesea la scadere drept "puntea si lipiciul JS".
+ * Pe un import real de 201 de poze acel reziduu arata 74%, adica exact numarul
+ * care ar fi trimis munca de optimizare in partea gresita.
+ */
+describe('AnalysisPool — asteptarea la rand se masoara', () => {
+  beforeEach(() => {
+    nativePlatform = true;
+    Object.defineProperty(navigator, 'hardwareConcurrency', { configurable: true, value: 6 });
+    analyzeNativeMock.mockReset();
+  });
+
+  it('poza care asteapta un permis isi inregistreaza asteptarea in etapa ei', async () => {
+    const { AnalysisPool } = await import('./workerPool');
+    const { readStageStats, resetStageStats } = await import('./stageTiming');
+    resetStageStats();
+    const pool = new AnalysisPool();
+    await pool.init();
+
+    const eliberatori: (() => void)[] = [];
+    analyzeNativeMock.mockImplementation(
+      () => new Promise(resolve => eliberatori.push(() => resolve({ photoId: 'x' })))
+    );
+    const bitmap = {} as unknown as ImageBitmap;
+    // Cu una peste plafon, ULTIMA chiar asteapta.
+    const apeluri = Array.from({ length: NATIVE_NORMAL_CONCURRENCY + 1 }, (_, i) => pool.analyze(String(i), bitmap));
+    await new Promise(r => setTimeout(r, 0));
+
+    for (let i = 0; i < 10 && eliberatori.length > 0; i++) {
+      eliberatori.shift()?.();
+      await new Promise(r => setTimeout(r, 0));
+    }
+    await Promise.all(apeluri);
+
+    const coada = readStageStats().find(st => st.stage === 'queue');
+    expect(coada, "etapa 'queue' nu s-a inregistrat deloc").toBeTruthy();
+    // Toate cele patru trec pe aici; cele dintai cu asteptare ~0, ultima cu ceva.
+    expect(coada!.count).toBe(NATIVE_NORMAL_CONCURRENCY + 1);
+  });
+});
+
 describe('AnalysisPool — anuntul de incalzire', () => {
   beforeEach(() => {
     nativePlatform = true;

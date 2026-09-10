@@ -43,12 +43,23 @@
  * duratelor lor: pe fiecare poza ele pleaca in doua valuri de `Promise.all`, iar
  * o suma ar numara de mai multe ori acelasi timp. Asa se poate scadea onest:
  *
- *     punte + lipici JS  ~  analysis - canvas - nativeModels
+ *     punte + lipici JS  ~  analysis - queue - canvas - nativeModels
+ *
+ * 'queue' e ASTEPTAREA LA RAND, si lipsea. Fara ea, scaderea de mai sus a
+ * raportat 74% "punte si lipici" pe un import real de 201 de poze — un numar
+ * care aproape m-a pus sa optimizez marshalling-ul. De fapt `record('analysis')`
+ * porneste INAINTE de `acquireNativePermit()` (vezi workerPool.analyze), deci
+ * masura si timpul in care poza doar statea la coada dupa un permis. Cu un
+ * plafon de 2-4 poze deodata si sute in lot, aia e majoritatea.
+ *
+ * Lectia, scrisa aici fiindca e usor de repetat: un REZIDUU nu e o masuratoare.
+ * Poarta numele a ceea ce banuiesti ca a ramas in el, iar bănuiala se poate
+ * insela — si atunci trimite munca exact in partea gresita.
  *
  * (recunoasterea ruleaza in paralel cu al doilea val, deci NU se scade a doua
  * oara — de-aia are stiva ei si nu intra in formula.)
  */
-export const STAGES = ['decode', 'derivatives', 'analysis', 'canvas', 'nativeModels', 'recognition', 'exif', 'persist', 'grouping'] as const;
+export const STAGES = ['decode', 'derivatives', 'analysis', 'queue', 'canvas', 'nativeModels', 'recognition', 'exif', 'persist', 'grouping'] as const;
 export type Stage = (typeof STAGES)[number];
 
 /** Cate durate pastram per etapa. 200 e destul pentru un p90 stabil si ramane sub ~2 KB in localStorage. */

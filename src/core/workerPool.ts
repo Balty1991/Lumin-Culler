@@ -16,6 +16,7 @@ import { Capacitor } from '@capacitor/core';
 import type { FaceAnalysisAPI, LeanFaceMode } from '../workers/faceAnalysis.worker';
 import type { AnalysisRecord, KnownPerson } from './db';
 import { readEconomicMode } from './performanceSettings';
+import { record } from './stageTiming';
 import { selectActivePersons } from './activePersons';
 import { writeLastModelLoadMs } from './modelLoadTiming';
 import { analyzeNative } from './nativeAnalysis';
@@ -471,7 +472,12 @@ export class AnalysisPool {
   /** Analizează o fotografie. Bitmap-ul e transferat (nu copiat) și închis în worker — sau, pe native, închis direct în nativeAnalysis.ts. `mediaUri` (Android, poze din galerie) lasa partea nativa sa citeasca imaginea singura, fara nimic peste punte. */
   async analyze(photoId: string, bitmap: ImageBitmap, mediaUri?: string): Promise<AnalysisRecord> {
     if (this.nativeMode) {
+      // Asteptarea la rand, masurata separat — vezi 'queue' in core/stageTiming.ts.
+      // Statea inauntrul lui 'analysis' fara sa fie a nimanui, si iesea la
+      // scadere drept "puntea si lipiciul JS".
+      const queueStart = performance.now();
       await this.acquireNativePermit();
+      record('queue', performance.now() - queueStart);
       try {
         return await withTimeout(
           analyzeNative(
