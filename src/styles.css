@@ -1034,7 +1034,23 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .toast.tone-success .toast-icon { color: var(--pick); }
 .toast.tone-warn .toast-icon { color: var(--review); }
 .toast.tone-error .toast-icon { color: var(--reject); }
-.toast-text { flex: 1; }
+/* `min-width: 0` nu e o subtilitate, e ce face butonul de inchidere sa existe.
+   Un element flex are implicit `min-width: auto`, adica refuza sa se stranga
+   sub latimea continutului lui. Cu un text scurt nu se vede niciodata; cu o
+   urma de stiva MediaPipe de doua sute de caractere, toast-ul se lateste peste
+   ecran si `.toast-close` (flex-shrink: 0) e impins DINCOLO de marginea din
+   dreapta. Raportat de utilizator asa cum se si traieste: "a fost o eroare de
+   poza si nu am putut sa o inchid".
+
+   Plus o limita de randuri: o notificare e o propozitie, nu un jurnal. Ce nu
+   incape se citeste in Setari, la "Poze care n-au intrat", unde motivul tehnic
+   are oricum locul lui. */
+.toast-text {
+  flex: 1; min-width: 0;
+  overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4;
+  overflow: hidden;
+}
 @keyframes toastIn { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
 .toast-close {
   /* 32px (nu 22px) — zona de tap mai mare pe un toast tranzitoriu, plutitor, unde o
@@ -1175,6 +1191,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   font-family: var(--mono); font-size: var(--type-micro); font-weight: 400;
   letter-spacing: 0.14em; text-transform: uppercase; color: #eaf6f3;
   white-space: nowrap;
+  /* Acelasi motiv ca la `.toast-text` de mai sus, si acelasi tipar de defect:
+     fara asta eticheta se strange sub textul ei (care e `nowrap`, deci iese in
+     afara), iar fundalul intunecat ramane mai INGUST decat literele — raportat
+     ca "textul e mai mare decat chenarul informativ". */
+  flex: 0 0 auto;
   padding: 3px 7px; border-radius: 6px;
   background: rgb(6 8 12 / 0.72);
   box-shadow: inset 0 0 0 1px rgb(240 244 255 / 0.10);

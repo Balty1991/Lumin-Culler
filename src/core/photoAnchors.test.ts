@@ -4,7 +4,7 @@ import type { AnalysisRecord, FaceInsight } from './db';
 
 function face(over: Partial<FaceInsight> = {}): FaceInsight {
   return {
-    box: [0.4, 0.3, 0.2, 0.2], faceScore: 0.9, smile: 0.2,
+    box: [0.4, 0.3, 0.2, 0.2], faceScore: 0.9, smile: 0.8,
     eyesOpen: { left: 0.9, right: 0.9 }, isBlinking: false,
     personId: null, personName: null, similarity: 0,
     ...over
@@ -39,7 +39,7 @@ describe('banda goala de la object-fit: contain', () => {
 describe('ancora sta unde a masurat motorul, nu unde arata bine', () => {
   it('caseta e normalizata fata de IMAGINE, deci punctul cade in banda desenata', () => {
     // Fata in centrul imaginii patrate; imaginea ocupa y 200..600 din 800.
-    const [a] = anchorsFor(rec([face({ box: [0.4, 0.4, 0.2, 0.2] })]), CADRU);
+    const [a] = anchorsFor(rec([face({ box: [0.4, 0.4, 0.2, 0.2], isBlinking: true })]), CADRU);
     expect(a.leftPct).toBeCloseTo(50, 5);
     // centrul pe verticala al fetei e la 0.4 + 0.2/3 din imagine
     const asteptat = ((200 + (0.4 + 0.2 / 3) * 400) / 800) * 100;
@@ -61,7 +61,7 @@ describe('ancora sta unde a masurat motorul, nu unde arata bine', () => {
     // Cadru 400x600, poza 3:4 verticala -> desenata 450 inaltime? nu incape:
     // scara = min(400/900, 600/1200) = 0.5 -> 450x600, banda de 25px pe laturi.
     const cadru = { boxW: 500, boxH: 600, imageW: 900, imageH: 1200 };
-    const [a] = anchorsFor(rec([face({ box: [0.5, 0.4, 0.2, 0.2] })]), cadru);
+    const [a] = anchorsFor(rec([face({ box: [0.5, 0.4, 0.2, 0.2], isBlinking: true })]), cadru);
     // Imaginea ocupa x 25..475 din 500; centrul fetei (0.6 din imagine) cade la
     // 25 + 0.6*450 = 295, adica 59% din cadru — nu 60%.
     expect(a.leftPct).toBeCloseTo((295 / 500) * 100, 5);
@@ -76,7 +76,7 @@ describe('ancora sta unde a masurat motorul, nu unde arata bine', () => {
     // Poza foarte ingusta (9:16) intr-un cadru lat: banda ocupa mai mult decat
     // poza. O fata la marginea DIN DREAPTA a pozei e inca in stanga cadrului.
     const cadru = { boxW: 800, boxH: 600, imageW: 900, imageH: 1600 };
-    const [a] = anchorsFor(rec([face({ box: [0.9, 0.4, 0.08, 0.08] })]), cadru);
+    const [a] = anchorsFor(rec([face({ box: [0.9, 0.4, 0.1, 0.1] })]), cadru);
     // scara = 600/1600 = 0.375 -> latime desenata 337.5, banda 231.25 pe laturi
     const dreaptaPozei = ((231.25 + 337.5) / 800) * 100;
     expect(a.leftPct).toBeLessThanOrEqual(dreaptaPozei);
@@ -118,7 +118,7 @@ describe('punctul cade pe partea despre care vorbeste eticheta', () => {
 
   it('clipitul si privirea arata spre ochi', () => {
     expect(punct({ isBlinking: true })).toBeCloseTo((0.5 / 3) * 100, 5);
-    expect(punct({ eyeContact: 0.9 })).toBeCloseTo((0.5 / 3) * 100, 5);
+    expect(punct({ smile: 0.1, eyeContact: 0.9 })).toBeCloseTo((0.5 / 3) * 100, 5);
   });
 
   it('un nume arata spre mijlocul fetei — el nu e o trasatura, e persoana', () => {
@@ -140,8 +140,9 @@ describe('eticheta spune lucrul cel mai tare pe care il stie motorul', () => {
   });
 
   it('un zambet slab nu se anunta ca zambet', () => {
-    expect(eticheta({ smile: 0.49 }).labelKey).not.toBe('anchor.smile');
     expect(eticheta({ smile: 0.5 }).labelKey).toBe('anchor.smile');
+    // Sub prag nu mai ramane nimic de spus despre fata asta, deci nicio ancora.
+    expect(anchorsFor(rec([face({ smile: 0.49 })]), CADRU)).toEqual([]);
   });
 
   it('zambetul isi poarta cifra, iar ea se formateaza dupa limba', () => {
@@ -150,8 +151,21 @@ describe('eticheta spune lucrul cel mai tare pe care il stie motorul', () => {
     expect(formatSmile(0.81, 'en')).toBe('0.81');
   });
 
-  it('fara nimic de spus, ramane ce e adevarat si util: ochii sunt deschisi', () => {
-    expect(eticheta({}).labelKey).toBe('anchor.eyesOpen');
+  /**
+   * Raportat de utilizator pe o fata cu OCHELARI DE SOARE opaci si pe un
+   * trecator din fundal, cu spatele: ancora scria "ochi deschisi". Era eticheta
+   * de rezerva — cea mai slaba afirmatie posibila si singura care se putea
+   * insela, fiindca EAR-ul din mesh doar ghiceste cand ochii nu se vad.
+   */
+  it('fara nimic de spus, motorul TACE — nu inventeaza cea mai ieftina propozitie', () => {
+    expect(anchorsFor(rec([face({ smile: 0.1 })]), CADRU)).toEqual([]);
+  });
+
+  it('o fata prea mica nu e subiect, oricat de bine ar zambi', () => {
+    // Un trecator la douazeci de metri: motorul chiar l-a detectat, dar el nu
+    // face parte din raspunsul la "de ce arata poza asta asa".
+    expect(anchorsFor(rec([face({ box: [0.8, 0.1, 0.05, 0.05], smile: 0.95 })]), CADRU)).toEqual([]);
+    expect(anchorsFor(rec([face({ box: [0.8, 0.1, 0.12, 0.12], smile: 0.95 })]), CADRU)).toHaveLength(1);
   });
 });
 
@@ -174,8 +188,8 @@ describe('ancorele nu ies din cadru si nu se calca', () => {
 
   it('doua fete lipite pe verticala pastreaza doar eticheta mai grea', () => {
     const rezultat = anchorsFor(rec([
-      face({ box: [0.4, 0.4, 0.08, 0.08] }),                                  // "ochi deschisi", slaba
-      face({ box: [0.42, 0.41, 0.08, 0.08], personName: 'Ana', personId: 'x' }) // numele, grea
+      face({ box: [0.4, 0.4, 0.1, 0.1] }),                                  // "ochi deschisi", slaba
+      face({ box: [0.42, 0.41, 0.1, 0.1], personName: 'Ana', personId: 'x' }) // numele, grea
     ]), CADRU);
     expect(rezultat).toHaveLength(1);
     expect(rezultat[0].literal).toBe('Ana');
@@ -185,45 +199,45 @@ describe('ancorele nu ies din cadru si nu se calca', () => {
     // Una pleaca spre dreapta din stanga, cealalta spre stanga din dreapta,
     // la aceeasi inaltime: lateralele difera, dar desenele se suprapun.
     const rezultat = anchorsFor(rec([
-      face({ box: [0.05, 0.4, 0.06, 0.06], personName: 'Ana', personId: 'x' }),
-      face({ box: [0.80, 0.4, 0.06, 0.06] })
+      face({ box: [0.05, 0.4, 0.1, 0.1], personName: 'Ana', personId: 'x' }),
+      face({ box: [0.80, 0.4, 0.1, 0.1] })
     ]), { ...CADRU, label: () => 'X'.repeat(30) });
     expect(rezultat).toHaveLength(1);
   });
 
   it('fete departate una de alta isi pastreaza fiecare eticheta', () => {
     const rezultat = anchorsFor(rec([
-      face({ box: [0.1, 0.05, 0.08, 0.08] }),
-      face({ box: [0.1, 0.5, 0.08, 0.08] }),
-      face({ box: [0.1, 0.9, 0.08, 0.08] })
+      face({ box: [0.1, 0.05, 0.1, 0.1] }),
+      face({ box: [0.1, 0.5, 0.1, 0.1] }),
+      face({ box: [0.1, 0.9, 0.1, 0.1] })
     ]), CADRU);
     expect(rezultat).toHaveLength(3);
   });
 
   it('nu trece niciodata de trei, oricat de multa lume ar fi in poza', () => {
-    const multi = Array.from({ length: 9 }, (_, i) => face({ box: [0.1, i * 0.11, 0.05, 0.05] }));
+    const multi = Array.from({ length: 9 }, (_, i) => face({ box: [0.1, i * 0.11, 0.1, 0.1] }));
     expect(anchorsFor(rec(multi), CADRU).length).toBeLessThanOrEqual(MAX_ANCHORS);
   });
 
   it('taierea la trei vine DUPA deconflictare, altfel ecranul ramane aproape gol', () => {
     // Trei fete ingramadite sus (din care trece una) si trei raspandite jos.
     const rezultat = anchorsFor(rec([
-      face({ box: [0.1, 0.10, 0.04, 0.04] }),
-      face({ box: [0.1, 0.11, 0.04, 0.04] }),
-      face({ box: [0.1, 0.12, 0.04, 0.04] }),
-      face({ box: [0.1, 0.45, 0.04, 0.04] }),
-      face({ box: [0.1, 0.80, 0.04, 0.04] })
+      face({ box: [0.1, 0.10, 0.1, 0.1] }),
+      face({ box: [0.1, 0.11, 0.1, 0.1] }),
+      face({ box: [0.1, 0.12, 0.1, 0.1] }),
+      face({ box: [0.1, 0.45, 0.1, 0.1] }),
+      face({ box: [0.1, 0.80, 0.1, 0.1] })
     ]), CADRU);
     expect(rezultat).toHaveLength(3);
   });
 
   it('ancorele ascunse sub antet sau sub butoanele de decizie sunt aruncate, nu desenate dedesubt', () => {
-    const sus = rec([face({ box: [0.4, 0.0, 0.04, 0.04] })]);
-    const jos = rec([face({ box: [0.4, 0.97, 0.04, 0.04] })]);
+    const sus = rec([face({ box: [0.4, 0.0, 0.1, 0.1] })]);
+    const jos = rec([face({ box: [0.4, 0.97, 0.1, 0.1] })]);
     const benzi = { ...CADRU, imageH: 2000, imageW: 1000, safeTop: 220, safeBottom: 220 };
     expect(anchorsFor(sus, benzi)).toEqual([]);
     expect(anchorsFor(jos, benzi)).toEqual([]);
-    expect(anchorsFor(rec([face({ box: [0.4, 0.5, 0.04, 0.04] })]), benzi)).toHaveLength(1);
+    expect(anchorsFor(rec([face({ box: [0.4, 0.5, 0.1, 0.1] })]), benzi)).toHaveLength(1);
   });
 });
 

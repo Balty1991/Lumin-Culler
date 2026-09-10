@@ -59,6 +59,20 @@ export interface Anchor {
 }
 
 /**
+ * Sub atat dintr-o latura a cadrului, o fata nu e subiectul pozei.
+ *
+ * Raportat de utilizator: o ancora aterizase pe un trecator din fundal, cu
+ * spatele. Motorul chiar detectase acolo o fata — deci nu e o eroare de
+ * masurare — dar ancora nu e o lista de detectii, e un raspuns la "de ce arata
+ * poza asta asa". Un om la douazeci de metri nu face parte din raspuns.
+ *
+ * 9% din latura mai scurta: un portret are fata la 25-60%, un grup de cinci la
+ * 12-20%, iar un trecator sub 6%. Pragul taie clar intre ele fara sa fie atat
+ * de sus incat sa piarda pe cineva dintr-o poza de grup mare.
+ */
+const SUBIECT_MIN_LATURA = 0.09;
+
+/**
  * Cel mult trei. Nu e o limita de spatiu — patru incap pe ecran. E ca ancorele
  * sa ramana ce sustin ca sunt: dovezile care conteaza. Daca fiecare fata dintr-o
  * poza de grup isi primeste eticheta, ecranul devine o diagrama, iar ochiul
@@ -118,7 +132,7 @@ const NIVEL_OCHI = 1 / 3;
 const NIVEL_GURA = 0.72;
 const NIVEL_FATA = 0.5;
 
-function labelFor(face: FaceInsight): { labelKey: string; literal?: string; params?: Record<string, string | number>; weight: number; nivel: number } {
+function labelFor(face: FaceInsight): { labelKey: string; literal?: string; params?: Record<string, string | number>; weight: number; nivel: number } | null {
   if (face.personName) return { labelKey: 'anchor.person', literal: face.personName, weight: 100, nivel: NIVEL_FATA };
   if (face.isBlinking) return { labelKey: 'anchor.blink', weight: 90, nivel: NIVEL_OCHI };
   // Pragul e cel de la care un zambet chiar e vizibil ca zambet, nu o gura
@@ -126,7 +140,16 @@ function labelFor(face: FaceInsight): { labelKey: string; literal?: string; para
   if (face.smile >= 0.5) return { labelKey: 'anchor.smile', params: { value: face.smile }, weight: 60 + face.smile * 10, nivel: NIVEL_GURA };
   if (face.catchlight) return { labelKey: 'anchor.catchlight', weight: 55, nivel: NIVEL_OCHI };
   if (face.eyeContact !== undefined && face.eyeContact >= 0.7) return { labelKey: 'anchor.eyeContact', weight: 50, nivel: NIVEL_OCHI };
-  return { labelKey: 'anchor.eyesOpen', weight: 30, nivel: NIVEL_OCHI };
+  // FARA REZERVA. Pana acum, o fata despre care nu stiam nimic anume primea
+  // totusi "ochi deschisi" — cea mai slaba afirmatie posibila, si singura care
+  // se putea si insela: raportat de utilizator pe o fata cu OCHELARI DE SOARE
+  // opaci (unde ochii nu se vad deloc, iar EAR-ul din mesh doar ghiceste) si pe
+  // un trecator din fundal, cu spatele.
+  //
+  // O ancora exista ca sa arate ce a masurat motorul. Cand n-a masurat nimic
+  // care sa merite spus, raspunsul onest e tacerea, nu cea mai ieftina
+  // propozitie adevarata-in-medie. Mai putine ancore, dar niciuna de necrezut.
+  return null;
 }
 
 export interface AnchorOptions {
@@ -169,9 +192,13 @@ export function anchorsFor(analysis: AnalysisRecord | null | undefined, opts: An
   // Fara dimensiuni naturale, containerul e chiar imaginea (vezi AnchorOptions).
   const drawn = imageW && imageH ? containedRect(imageW, imageH, boxW, boxH) : { x: 0, y: 0, w: boxW, h: boxH };
 
-  const candidates = analysis.faces.map((face, i) => {
+  const candidates = analysis.faces.flatMap((face, i) => {
     const [fx, fy, fw, fh] = face.box;
+    // Prea mica pentru a fi subiect (vezi SUBIECT_MIN_LATURA), sau motorul
+    // n-are nimic de spus despre ea (vezi labelFor): nicio ancora.
+    if (Math.max(fw, fh) < SUBIECT_MIN_LATURA) return [];
     const chosen = labelFor(face);
+    if (!chosen) return [];
     // Centrul pe orizontala, iar pe verticala EXACT partea despre care vorbeste
     // eticheta (vezi NIVEL_*): ochii pentru clipit/privire, gura pentru zambet,
     // mijlocul fetei pentru un nume.
@@ -187,7 +214,7 @@ export function anchorsFor(analysis: AnalysisRecord | null | undefined, opts: An
     const roomRight = boxW - px;
     const roomLeft = px;
     const side: AnchorSide = roomRight >= needPx || roomRight >= roomLeft ? 'right' : 'left';
-    return {
+    return [{
       id: String(i),
       ...parte,
       leftPct: (px / boxW) * 100,
@@ -198,7 +225,7 @@ export function anchorsFor(analysis: AnalysisRecord | null | undefined, opts: An
       // Cat loc ocupa desenul pe orizontala — pentru coliziuni, mai jos.
       x0: side === 'right' ? px : px - needPx,
       x1: side === 'right' ? px + needPx : px
-    };
+    }];
   });
 
   const vizibile = candidates.filter(a => a.py >= safeTop && a.py <= boxH - safeBottom);

@@ -8,7 +8,9 @@ import { db, type AnalysisRecord, type FaceInsight } from '../core/db';
 
 function face(over: Partial<FaceInsight> = {}): FaceInsight {
   return {
-    box: [0.4, 0.3, 0.2, 0.2], faceScore: 0.9, smile: 0.2,
+    // Zambet peste prag: de cand eticheta de rezerva a disparut (vezi
+    // labelFor), o fata fara nimic de spus nu mai produce nicio ancora.
+    box: [0.4, 0.3, 0.2, 0.2], faceScore: 0.9, smile: 0.8,
     eyesOpen: { left: 0.9, right: 0.9 }, isBlinking: false,
     personId: null, personName: null, similarity: 0, ...over
   };
