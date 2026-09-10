@@ -145,10 +145,20 @@ describe('eticheta spune lucrul cel mai tare pe care il stie motorul', () => {
     expect(anchorsFor(rec([face({ smile: 0.49 })]), CADRU)).toEqual([]);
   });
 
-  it('zambetul isi poarta cifra, iar ea se formateaza dupa limba', () => {
+  /**
+   * Procent intreg, nu doua zecimale.
+   *
+   * Era "0,81". Pe telefon, un zambet deplin iesea "ZÂMBET 1,00" — care nu se
+   * citeste ca "cat de mult", ci ca un cod. Restul aplicatiei vorbeste in
+   * procente (Zâmbete 100%, Claritate 100%), deci ancora vorbea singura alta
+   * limba.
+   */
+  it('zambetul isi poarta cifra, si se scrie ca procent intreg', () => {
     expect(eticheta({ smile: 0.81 }).params).toEqual({ value: 0.81 });
-    expect(formatSmile(0.81, 'ro')).toBe('0,81');
-    expect(formatSmile(0.81, 'en')).toBe('0.81');
+    expect(formatSmile(0.81, 'ro')).toBe('81%');
+    expect(formatSmile(0.81, 'en')).toBe('81%');
+    // Cazul care a starnit schimbarea: 1,00 arata ca un cod, 100% ca o masura.
+    expect(formatSmile(1, 'ro')).toBe('100%');
   });
 
   /**
@@ -206,10 +216,12 @@ describe('ancorele nu ies din cadru si nu se calca', () => {
   });
 
   it('fete departate una de alta isi pastreaza fiecare eticheta', () => {
+    // Nume diferite, nu trei zambete identice: testul asta e despre ASEZARE, iar
+    // trei etichete cu acelasi text cad acum la dedublare inainte de coliziuni.
     const rezultat = anchorsFor(rec([
-      face({ box: [0.1, 0.05, 0.1, 0.1] }),
-      face({ box: [0.1, 0.5, 0.1, 0.1] }),
-      face({ box: [0.1, 0.9, 0.1, 0.1] })
+      face({ box: [0.1, 0.05, 0.1, 0.1], personName: 'Ana', personId: 'a' }),
+      face({ box: [0.1, 0.5, 0.1, 0.1], personName: 'Ion', personId: 'b' }),
+      face({ box: [0.1, 0.9, 0.1, 0.1], personName: 'Maria', personId: 'c' })
     ]), CADRU);
     expect(rezultat).toHaveLength(3);
   });
@@ -222,13 +234,35 @@ describe('ancorele nu ies din cadru si nu se calca', () => {
   it('taierea la trei vine DUPA deconflictare, altfel ecranul ramane aproape gol', () => {
     // Trei fete ingramadite sus (din care trece una) si trei raspandite jos.
     const rezultat = anchorsFor(rec([
-      face({ box: [0.1, 0.10, 0.1, 0.1] }),
-      face({ box: [0.1, 0.11, 0.1, 0.1] }),
-      face({ box: [0.1, 0.12, 0.1, 0.1] }),
-      face({ box: [0.1, 0.45, 0.1, 0.1] }),
-      face({ box: [0.1, 0.80, 0.1, 0.1] })
+      face({ box: [0.1, 0.10, 0.1, 0.1], personName: 'Ana', personId: 'a' }),
+      face({ box: [0.1, 0.11, 0.1, 0.1], personName: 'Ion', personId: 'b' }),
+      face({ box: [0.1, 0.12, 0.1, 0.1], personName: 'Maria', personId: 'c' }),
+      face({ box: [0.1, 0.45, 0.1, 0.1], personName: 'Dan', personId: 'd' }),
+      face({ box: [0.1, 0.80, 0.1, 0.1], personName: 'Elena', personId: 'e' })
     ]), CADRU);
     expect(rezultat).toHaveLength(3);
+  });
+
+  /**
+   * Aceeasi propozitie de doua ori nu e de doua ori mai multa informatie.
+   *
+   * Raportat cu captura: o poza de familie cu doua ancore, amandoua scriind
+   * "ZÂMBET 100%". A doua masoara alta fata, dar spune exact ce spune prima —
+   * si in schimb acopera inca o bucata din poza.
+   */
+  it('doua etichete identice devin una singura, dar doua nume raman doua', () => {
+    const departe: [number, number, number, number][] = [[0.1, 0.15, 0.1, 0.1], [0.1, 0.6, 0.1, 0.1]];
+    const acelasiText = anchorsFor(rec([
+      face({ box: departe[0], smile: 0.9 }),
+      face({ box: departe[1], smile: 0.9 })
+    ]), { ...CADRU, label: a => `zâmbet ${a.params?.value}` });
+    expect(acelasiText).toHaveLength(1);
+
+    const numeDiferite = anchorsFor(rec([
+      face({ box: departe[0], personName: 'Ana', personId: 'a' }),
+      face({ box: departe[1], personName: 'Maria', personId: 'b' })
+    ]), { ...CADRU, label: a => a.literal ?? '' });
+    expect(numeDiferite).toHaveLength(2);
   });
 
   it('ancorele ascunse sub antet sau sub butoanele de decizie sunt aruncate, nu desenate dedesubt', () => {

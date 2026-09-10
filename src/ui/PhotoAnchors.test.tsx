@@ -77,10 +77,18 @@ describe('PhotoAnchors', () => {
     await waitFor(() => expect(container.querySelector('.lc-anchor b')?.textContent).toBe('Ana'));
   });
 
-  it('zambetul isi primeste virgula zecimala romaneasca', async () => {
+  /**
+   * Procent intreg, ca in restul aplicatiei.
+   *
+   * Era "0,81", cu virgula zecimala. Pe telefon, un zambet deplin iesea
+   * "ZÂMBET 1,00" — care nu se citeste ca "cat de mult", ci ca un cod, iar
+   * fisele de scor de dedesubt spun oricum "Zâmbete 100%". Ancora vorbea
+   * singura alta limba decat tot ecranul.
+   */
+  it('zambetul se scrie ca procent intreg, ca peste tot in aplicatie', async () => {
     await pune('a', [face({ smile: 0.81 })]);
     const { container } = render(<Gazda photoId="a" />);
-    await waitFor(() => expect(container.querySelector('.lc-anchor b')?.textContent).toBe('zâmbet 0,81'));
+    await waitFor(() => expect(container.querySelector('.lc-anchor b')?.textContent).toBe('zâmbet 81%'));
   });
 
   it('comutatorul le stinge de tot — vezi core/showAnchors.ts pentru de ce exista', async () => {

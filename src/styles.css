@@ -159,8 +159,10 @@
 
   /* Ancorele de pe fotografie — punctul, firul si eticheta care leaga un motiv
      de zona reala din cadru. Vezi ecranul de decizie din machete. */
-  --anchor-dot: 5px;
-  --anchor-line: 38px;
+  --anchor-dot: 7px;
+  /* Era 38px. O linie atat de lunga trecea peste fata vecinului pana ajungea la
+     eticheta; acum eticheta sta LANGA masuratoare. Vezi ANCHOR_STEM_PX. */
+  --anchor-line: 14px;
 
   /* Scara tipografica a redesignului. Cifrele sunt tipografie, nu widget-uri:
      mari, tabulare, cu spatiere negativa pe titluri. */
@@ -1191,45 +1193,52 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
    `pointer-events: none` pe TOT stratul, nu doar pe ancore: el acopera suprafata
    care primeste swipe-ul de decizie. */
 .lc-anchors { position: absolute; inset: 0; pointer-events: none; z-index: var(--z-card-badge); }
-.lc-anchor { position: absolute; display: flex; align-items: center; gap: 6px; pointer-events: none; }
+.lc-anchor { position: absolute; display: flex; align-items: center; gap: 5px; pointer-events: none; }
 /* Ancora din jumatatea dreapta pleaca invers, ca eticheta sa ramana in cadru:
    ordinea vizuala se rastoarna, punctul ramane pe masuratoare (`translateX(-100%)`
    muta desenul, nu ancora), iar linia se stinge tot dinspre punct. */
 .lc-anchor.left { flex-direction: row-reverse; transform: translateX(-100%); }
-.lc-anchor.left s { background: linear-gradient(270deg, rgb(103 228 207 / 0.85), rgb(103 228 207 / 0.1)); }
+/* RETICUL, nu bulina plina.
+   Bulina era un disc turcoaz asezat chiar peste ce masura — pe un zambet, exact
+   peste gura. Un instrument care arata spre ceva nu are voie sa-l acopere, deci
+   centrul ramane gol si cercul se subtiaza la un fir. */
 .lc-anchor i {
   width: var(--anchor-dot); height: var(--anchor-dot); border-radius: 50%;
-  background: var(--engine-3); box-shadow: 0 0 10px rgb(103 228 207 / 0.9); flex: 0 0 auto;
+  background: transparent; flex: 0 0 auto;
+  box-shadow:
+    inset 0 0 0 1.5px var(--engine-3),
+    0 0 7px rgb(103 228 207 / 0.5),
+    0 0 0 1px rgb(6 8 12 / 0.5);
 }
 .lc-anchor s {
   width: var(--anchor-line); height: 1px; text-decoration: none; flex: 0 0 auto;
-  background: linear-gradient(90deg, rgb(103 228 207 / 0.85), rgb(103 228 207 / 0.1));
+  background: linear-gradient(90deg, rgb(103 228 207 / 0.9), rgb(103 228 207 / 0.3));
+  box-shadow: 0 0 0 0.5px rgb(6 8 12 / 0.45);
 }
+.lc-anchor.left s { background: linear-gradient(270deg, rgb(103 228 207 / 0.9), rgb(103 228 207 / 0.3)); }
 /* Eticheta sta PE fotografie, deci nu se poate baza pe ce e dedesubt.
    Umbra singura era destula pe machetele mele (toate cu poze intunecate) si
    raportata ca ilizibila pe poze reale luminate din spate: "textele de pe foto
-   abia se vad uneori pe anumite fundale". Aceeasi lectie ca la butoanele de
-   decizie — un strat opac propriu, subtire, in loc de speranta ca fundalul e
-   inchis. Ramane discret: 6px de respiro si un fundal aproape negru, nu o
-   cutie. */
+   abia se vad uneori pe anumite fundale". Stratul opac ramane — dar nu mai e o
+   pastila rotunjita lipita de un fir lung, ci un afisaj: colturi aproape drepte
+   si o singura muchie aprinsa, pe partea dinspre masuratoare. */
 .lc-anchor b {
   font-family: var(--mono); font-size: var(--type-micro); font-weight: 400;
-  letter-spacing: 0.14em; text-transform: uppercase; color: #eaf6f3;
+  letter-spacing: 0.12em; text-transform: uppercase; color: #eaf6f3;
   white-space: nowrap;
   /* Acelasi motiv ca la `.toast-text` de mai sus, si acelasi tipar de defect:
      fara asta eticheta se strange sub textul ei (care e `nowrap`, deci iese in
      afara), iar fundalul intunecat ramane mai INGUST decat literele — raportat
      ca "textul e mai mare decat chenarul informativ". */
   flex: 0 0 auto;
-  padding: 3px 7px; border-radius: 6px;
-  background: rgb(6 8 12 / 0.72);
-  box-shadow: inset 0 0 0 1px rgb(240 244 255 / 0.10);
-  backdrop-filter: blur(6px);
+  padding: 3px 8px; border-radius: 2px;
+  background: rgb(6 8 12 / 0.66);
+  box-shadow: inset 2px 0 0 var(--engine-3), inset 0 0 0 1px rgb(240 244 255 / 0.09);
+  backdrop-filter: blur(8px);
 }
-/* Punctul si linia au nevoie de acelasi ajutor pe un fundal deschis: un contur
-   intunecat in jurul lor, altfel bulina turcoaz dispare intr-un cer luminos. */
-.lc-anchor i { box-shadow: 0 0 10px rgb(103 228 207 / 0.9), 0 0 0 1.5px rgb(6 8 12 / 0.55); }
-.lc-anchor s { box-shadow: 0 0 0 0.5px rgb(6 8 12 / 0.45); }
+/* Muchia aprinsa ramane mereu spre punctul masurat, deci se muta pe cealalta
+   parte cand ancora pleaca spre stanga. */
+.lc-anchor.left b { box-shadow: inset -2px 0 0 var(--engine-3), inset 0 0 0 1px rgb(240 244 255 / 0.09); }
 
 /* ── Antet auto-hide la scroll (plan "Refactorizare UI/UX") — invelisul comun pentru
    statistici/progres/filtre, care se colapseaza la scroll in jos si revine la scroll in sus.

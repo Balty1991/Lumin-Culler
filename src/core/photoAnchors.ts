@@ -83,8 +83,15 @@ export const MAX_ANCHORS = 3;
 /** Sub atat, doua etichete se ating. Masurat pe randul de 9px + respiro. */
 const MIN_SEPARATION_PX = 34;
 
-/** Latimea desenului fara eticheta: bulina + spatiu + linie + spatiu (vezi .lc-anchor). */
-const ANCHOR_STEM_PX = 5 + 6 + 38 + 6;
+/**
+ * Latimea desenului fara eticheta: reticul + spatiu + linie + spatiu (vezi
+ * .lc-anchor).
+ *
+ * Linia era de 38px si traversa fata pana ajungea la eticheta — pe o poza de
+ * grup, doua ancore isi trimiteau etichetele peste obrazul vecinului. Acum e
+ * scurta: eticheta sta LANGA masuratoare, nu la capatul unui fir.
+ */
+const ANCHOR_STEM_PX = 7 + 5 + 14 + 5;
 
 /**
  * Latimea unei etichete micro, estimata din numarul de caractere. Estimata, nu
@@ -106,9 +113,19 @@ export function estimateLabelPx(text: string): number {
  */
 const FALLBACK_LABEL_CHARS = 19;
 
-/** Zambetul, cu virgula zecimala — asa cum arata si pe macheta ("zâmbet 0,81"). */
-export function formatSmile(smile: number, locale: string): string {
-  return smile.toFixed(2).replace('.', locale === 'ro' ? ',' : '.');
+/**
+ * Zambetul, ca PROCENT intreg.
+ *
+ * Era "0,81" — doua zecimale si virgula, cum arata pe macheta. Pe telefon, un
+ * zambet deplin iesea "ZÂMBET 1,00", care nu se citeste ca "cat de mult", ci ca
+ * un cod. Restul aplicatiei vorbeste in procente (Zâmbete 100%, Claritate
+ * 100%), deci ancora vorbea singura alta limba.
+ *
+ * `locale` ramane in semnatura: procentul se scrie la fel in ambele limbi acum,
+ * dar apelantul nu trebuie sa afle asta si sa inceteze sa-l trimita.
+ */
+export function formatSmile(smile: number, _locale: string): string {
+  return `${Math.round(smile * 100)}%`;
 }
 
 /**
@@ -222,6 +239,19 @@ export function anchorsFor(analysis: AnalysisRecord | null | undefined, opts: An
       side,
       weight: chosen.weight,
       py,
+      /**
+       * Cheia de dedublare — vezi bucla de mai jos.
+       *
+       * Textul randat cand apelantul chiar il da; altfel identitatea semantica
+       * a etichetei. Distinctia conteaza: fara `label`, `text` e un sir de
+       * umplutura, IDENTIC pentru toate ancorele (serveste doar la estimarea
+       * latimii), deci dedublarea pe el ar sterge orice a doua ancora indiferent
+       * ce spune. Doua zambete de 0,812 si 0,814 se scriu la fel — "81%" — deci
+       * pe text cad corect; pe parametri bruti n-ar cadea.
+       */
+      cheie: label
+        ? text
+        : `${chosen.labelKey}|${chosen.literal ?? ''}|${JSON.stringify(chosen.params ?? {})}`,
       // Cat loc ocupa desenul pe orizontala — pentru coliziuni, mai jos.
       x0: side === 'right' ? px : px - needPx,
       x1: side === 'right' ? px + needPx : px
@@ -232,8 +262,21 @@ export function anchorsFor(analysis: AnalysisRecord | null | undefined, opts: An
   vizibile.sort((a, b) => b.weight - a.weight);
 
   const pastrate: typeof vizibile = [];
+  /**
+   * Aceeasi propozitie de doua ori nu e de doua ori mai multa informatie.
+   *
+   * Raportat cu captura: o poza de familie cu doua ancore, amandoua scriind
+   * "ZÂMBET 100%". A doua nu adauga nimic — masoara alta fata, dar spune exact
+   * ce spune prima, si in schimb acopera inca o bucata de poza. Ramane cea mai
+   * puternica (lista e deja sortata dupa greutate).
+   *
+   * Numele NU cad aici: "ANA" si "MARIA" sunt texte diferite, deci amandoua
+   * raman — si acolo chiar sunt doua afirmatii diferite.
+   */
+  const texteFolosite = new Set<string>();
   for (const a of vizibile) {
     if (pastrate.length >= MAX_ANCHORS) break;
+    if (texteFolosite.has(a.cheie)) continue;
     // Doua etichete aproape pe aceeasi linie se acopera daca desenele lor se
     // suprapun si pe orizontala. Nu ajunge sa comparam latura: o ancora care
     // pleaca spre stanga dintr-un punct si una care pleaca spre dreapta dintr-un
@@ -241,6 +284,7 @@ export function anchorsFor(analysis: AnalysisRecord | null | undefined, opts: An
     // Cade cea mai slaba — lista e deja sortata, deci "cea de acum".
     if (pastrate.some(p => Math.abs(p.py - a.py) < MIN_SEPARATION_PX && p.x0 < a.x1 && a.x0 < p.x1)) continue;
     pastrate.push(a);
+    texteFolosite.add(a.cheie);
   }
-  return pastrate.map(({ py: _py, x0: _x0, x1: _x1, ...rest }) => rest);
+  return pastrate.map(({ py: _py, x0: _x0, x1: _x1, cheie: _cheie, ...rest }) => rest);
 }

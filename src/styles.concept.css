@@ -1444,26 +1444,42 @@ body:before {
    deja, iar marimea lui il facea sa concureze cu fotografia. */
 .card-score {
   position:absolute;
-  left:8px;
+  left:7px;
   bottom:7px;
   z-index:var(--z-card-badge);
   font-family:var(--mono);
   font-size:11px;
+  line-height:1;
   font-variant-numeric:tabular-nums;
-  color:#dfe5ef;
-  text-shadow:0 1px 6px rgb(0 0 0 / .9);
+  letter-spacing:.06em;
+  color:#e8edf6;
   pointer-events:none;
+  /* CIFRA ARE NEVOIE DE SUPRAFATA PROPRIE, nu doar de o umbra.
+     Statea ca text gol peste fotografie, cu o umbra dedesubt — destul pe un
+     cadru intunecat, ilizibil pe o cutie alba sau pe o lampa aprinsa.
+     Semnalat cu captura, cu doua scoruri incercuite exact pe fundalurile alea.
+     Acelasi raspuns ca la ancore si la butoanele de decizie: un strat opac
+     subtire al lui, nu speranta ca fundalul e inchis. */
+  padding:3px 6px;
+  border-radius:2px;
+  background:rgb(6 8 12 / .68);
+  backdrop-filter:blur(8px);
+  /* Muchia din stanga poarta starea, ca pe un afisaj de aparat: verdictul se
+     citeste din coltul ochiului, fara sa mai cauti bifa. */
+  box-shadow:inset 2px 0 0 rgb(240 244 255 / .45), inset 0 0 0 1px rgb(240 244 255 / .09);
 }
-.card.st-selected .card-score { color:var(--pick-ink); }
-.card.st-rejected .card-score { color:var(--reject-ink); }
+.card.st-selected .card-score {
+  color:var(--pick-ink);
+  box-shadow:inset 2px 0 0 var(--pick-ink), inset 0 0 0 1px rgb(182 245 207 / .16);
+}
+.card.st-rejected .card-score {
+  color:var(--reject-ink);
+  box-shadow:inset 2px 0 0 var(--reject-ink), inset 0 0 0 1px rgb(255 194 203 / .16);
+}
 
 .card-strip {
   padding:5px;
   background:linear-gradient(180deg,transparent 35%,rgb(3 4 6 / .8));
-}
-
-.card-score {
-  box-shadow:none;
 }
 
 .workspace {
