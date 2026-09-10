@@ -47,7 +47,6 @@ function token(source: string, name: string): string {
  * impreuna cu motivul pentru care acel element chiar e motorul care vorbeste.
  */
 const SUPRAFETE_MOTOR = [
-  '.lc-anchor',           // ancora de pe fotografie — motorul arata unde a masurat
   '.engine-ring',         // inelul de scor
   '.engine-chip',         // pastila de verdict AI
   '.engine-progress',     // progresul analizei
@@ -154,7 +153,10 @@ describe('actiunea principala e lumina, nu culoare', () => {
 });
 
 describe('primitivele limbajului de lumina exista', () => {
-  it.each(['.lc-slab', '.lc-edge', '.lc-micro', '.lc-anchor'])('%s e definit', sel => {
+  // '.lc-anchor' a iesit din lista odata cu stratul de pe fotografie: patru
+  // incercari de a-l face sa arate bine, si raspunsul utilizatorului a ramas
+  // acelasi. Ce spunea el spune deja panoul de scor de sub poza.
+  it.each(['.lc-slab', '.lc-edge', '.lc-micro'])('%s e definit', sel => {
     expect(blocks(css).some(b => b.selector.split(',').some(s => s.trim() === sel))).toBe(true);
   });
 

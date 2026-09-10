@@ -84,7 +84,6 @@ import {
   readZenAutoDeleteObvious, writeZenAutoDeleteObvious,
   readZenAskOnUncertain, writeZenAskOnUncertain
 } from '../core/zenMode';
-import { readShowAnchors, writeShowAnchors } from '../core/showAnchors';
 import { resolveGroupsWithConfidence } from './zenResolve';
 import { readStoredProjectName, writeProjectName } from './projectName';
 import { readStoredWatermarkText, writeWatermarkText } from './watermarkText';
@@ -564,16 +563,10 @@ interface AppState {
   smartNotificationsEnabled: boolean;
   setSmartNotificationsEnabled: (on: boolean) => void;
   /**
-   * Ancorele desenate peste fotografie — vezi core/showAnchors.ts pentru de ce
-   * are propriul comutator si nu e doar pornit.
-   */
-  /**
    * Telefonul s-a incalzit si pool-ul analizeaza mai putine poze deodata —
    * vezi onThermalChange in core/workerPool.ts. null = nimic de spus.
    */
   thermalThrottle: { cap: number; normal: number } | null;
-  showAnchors: boolean;
-  setShowAnchors: (on: boolean) => void;
   zenMode: boolean;
   setZenMode: (on: boolean) => void;
   zenAutoDeleteObvious: boolean;
@@ -2089,8 +2082,6 @@ export const useStore = create<AppState>((set, get) => ({
     });
   },
   thermalThrottle: null,
-  showAnchors: readShowAnchors(),
-  setShowAnchors: on => { writeShowAnchors(on); set({ showAnchors: on }); },
   zenMode: readZenMode(),
   setZenMode: on => {
     writeZenMode(on);

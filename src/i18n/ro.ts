@@ -334,9 +334,6 @@ export const ro = {
   'menu.accent.legacy': 'Clasic — turcoaz-violet-indigo (aspectul dinainte)',
   'appearance.title': 'Aspect',
   'appearance.accent.label': 'Accentul aplicației',
-  'appearance.anchors.label': 'PE FOTOGRAFIE',
-  'appearance.anchors.title': 'Ancorele analizei',
-  'appearance.anchors.sub': 'Puncte discrete peste poză, care arată unde a măsurat AI-ul: un nume, un zâmbet, ochii închiși. Cel mult trei, niciodată animate.',
   'appearance.theme.label': 'Temă',
   'appearance.theme.light': 'Luminos',
   'appearance.theme.light.sub': 'fundal deschis, mereu',
@@ -1052,13 +1049,6 @@ export const ro = {
   // Ancorele de pe fotografie (redesign "Camera obscura") — vezi core/photoAnchors.ts.
   // Scurte pentru ca stau PESTE poza: fiecare cuvant in plus acopera imaginea
   // pe care tocmai o judeca omul.
-  'anchor.person': '{name}',
-  'anchor.blink': 'ochi închiși',
-  'anchor.smile': 'zâmbet {value}',
-  'anchor.catchlight': 'lumină în ochi',
-  'anchor.eyeContact': 'privire în obiectiv',
-  'anchor.eyesOpen': 'ochi deschiși',
-  'anchor.groupLabel': 'ce a măsurat analiza pe această fotografie',
   'detail.swipe.select': 'SELECTEAZĂ',
   'detail.swipe.reject': 'RESPINGE',
   'detail.editPhoto': 'Editează',
