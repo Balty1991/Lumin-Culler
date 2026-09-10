@@ -96,11 +96,13 @@ describe('AnalysisPool native mode (Capacitor Android)', () => {
     const bitmap = {} as unknown as ImageBitmap;
     const result = await pool.analyze('p1', bitmap);
     expect(result).toBe(fakeRecord);
-    // Al 3-lea arg (recognize) ramane undefined cand nu e nicio persoana
-    // inrolata (this.knownPersons gol) — vezi gardul din analyze()/workerPool.ts.
+    // Al 3-lea arg (recognize) se trimite MEREU, si fara nicio persoana
+    // inrolata: embedding-urile faciale sunt semnalul de care are nevoie
+    // gruparea ca sa spuna "acelasi om", iar aceea e o comparatie intre doua
+    // poze, nu cu o referinta inrolata. Vezi analyze()/workerPool.ts.
     // Al 5-lea (mediaUri) e undefined aici: fara URI de galerie, analiza cade pe
     // calea cu blob, ca inainte.
-    expect(analyzeNativeMock).toHaveBeenCalledWith('p1', bitmap, undefined, [], undefined);
+    expect(analyzeNativeMock).toHaveBeenCalledWith('p1', bitmap, expect.any(Function), [], undefined);
   });
 
   // Bug real gasit de auditul QA: analyze() pe native nu trimitea niciodata un

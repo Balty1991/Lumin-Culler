@@ -1432,7 +1432,7 @@ export const en: Record<TranslationKey, string> = {
   'stats.stage.analysis': 'AI analysis',
   'stats.stage.canvas': 'Full-resolution canvas (within analysis)',
   'stats.stage.nativeModels': 'Native models, wall time (within analysis)',
-  'stats.stage.recognition': 'Person recognition (within analysis)',
+  'stats.stage.recognition': 'Face signatures — series + people (within analysis)',
   'stats.stage.exif': 'EXIF metadata',
   'stats.stage.persist': 'Saving to disk',
   'stats.stage.grouping': 'Series grouping',

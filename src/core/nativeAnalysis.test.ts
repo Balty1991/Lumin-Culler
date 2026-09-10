@@ -332,14 +332,30 @@ describe('analyzeNative', () => {
       expect(result.strangerCount).toBe(1);
     });
 
-    it('nu apeleaza deloc recognize() cand nu exista nicio persoana inrolata (gard redundant fata de AnalysisPool)', async () => {
+    /**
+     * Fara nicio persoana inrolata, recunoasterea TOT ruleaza — pentru grupare,
+     * nu pentru nume.
+     *
+     * Poarta cerea `knownPersons.length`, ceea ce e logica pentru NUMIT pe
+     * cineva: fara referinta, n-ai cu ce compara. Gruparea insa compara doua
+     * poze intre ele ("e acelasi om ca in cadrul de alaturi?"), deci n-are
+     * nevoie de nicio inrolare. Masurat pe 200 de poze cu poarta pusa: ZERO
+     * din 143 de perechi candidate au fost judecate dupa fete.
+     *
+     * Fata ramane neidentificata (n-are cu cine fi comparata), dar embedding-ul
+     * ei exista si ajunge la hashCompare.worker.ts.
+     */
+    it('ruleaza recognize() si fara nicio persoana inrolata — embedding-ul e pentru grupare, nu pentru nume', async () => {
       mockOneFace();
-      const recognize = vi.fn();
+      const recognize = vi.fn().mockResolvedValue({ embedding: [1, 0], faceCount: 1 });
 
       const { analyzeNative } = await import('./nativeAnalysis');
-      await analyzeNative('p1', fakeBitmap(200, 200), recognize, []);
+      const result = await analyzeNative('p1', fakeBitmap(200, 200), recognize, []);
 
-      expect(recognize).not.toHaveBeenCalled();
+      expect(recognize).toHaveBeenCalledTimes(1);
+      expect(result.faces[0].embedding).toEqual([1, 0]);
+      expect(result.faces[0].personId).toBeNull();
+      expect(result.faces[0].personName).toBeNull();
     });
 
     it('un esec al recognize() pentru o fata nu opreste restul analizei pozei (fata ramane neidentificata)', async () => {
@@ -438,6 +454,8 @@ describe('analyzeNative', () => {
     });
 
     it('cu fete si o lista GOALA de persoane inrolate, nici atunci nu il calculeaza', async () => {
+      // recognize ruleaza acum si fara inrolari (vezi mai sus), dar embedding-ul
+      // GENERAL tot nu: pe poze cu oameni raspunde la alta intrebare.
       detectFacesNative.mockResolvedValue({
         faces: [{ boundingBox: { left: 0, top: 0, width: 50, height: 50 }, smilingProbability: 0.5, leftEyeOpenProbability: 0.9, rightEyeOpenProbability: 0.9 }],
         imageWidth: 200, imageHeight: 200
@@ -451,7 +469,6 @@ describe('analyzeNative', () => {
       const { analyzeNative } = await import('./nativeAnalysis');
       await analyzeNative('p1', fakeBitmap(200, 200), recognize, []);
 
-      expect(recognize).not.toHaveBeenCalled();
       expect(embedImageNative).not.toHaveBeenCalled();
     });
   });
@@ -650,11 +667,29 @@ describe('analyzeNative — canvas-ul la rezolutie plina, doar cand e cerut', ()
     canvasesBuilt = 0;
   });
 
-  it('cu URI de galerie si nicio persoana inrolata, nu construieste niciunul', async () => {
+  it('cu URI de galerie si fara callback de recunoastere, nu construieste niciunul', async () => {
     const { analyzeNative } = await import('./nativeAnalysis');
     await analyzeNative('p1', fakeBitmap(4000, 3000), undefined, [], 'content://media/1');
 
     expect(canvasesBuilt).toBe(0);
+  });
+
+  /**
+   * Scutirea de canvas NU mai depinde de inrolari, si asta e un COST, nu o
+   * imbunatatire — trecut prin test ca sa nu se piarda din vedere.
+   *
+   * Cat timp recunoasterea rula doar cu persoane inrolate, omul care nu
+   * folosea "Persoane cunoscute" nu platea niciun canvas. Acum embedding-urile
+   * faciale se calculeaza pentru toata lumea, fiindca gruparea are nevoie de
+   * ele ca sa spuna "acelasi om" — deci canvas-ul revine, si e cronometrat
+   * ('canvas' in core/stageTiming.ts) tocmai ca sa se poata decide pe cifre
+   * daca merita.
+   */
+  it('cu URI dar CU callback de recunoastere, il construieste chiar fara nicio persoana inrolata', async () => {
+    const { analyzeNative } = await import('./nativeAnalysis');
+    await analyzeNative('p1', fakeBitmap(4000, 3000), async () => null, [], 'content://media/1');
+
+    expect(canvasesBuilt).toBeGreaterThan(0);
   });
 
   it('fara URI (selector de fisiere) il construieste, ca inainte — blob-ul e singura cale spre modele', async () => {

@@ -1491,7 +1491,7 @@ export const ro = {
   'stats.stage.analysis': 'Analiză AI',
   'stats.stage.canvas': 'Canvas rezoluție plină (din analiză)',
   'stats.stage.nativeModels': 'Modele native, timp de perete (din analiză)',
-  'stats.stage.recognition': 'Recunoaștere persoane (din analiză)',
+  'stats.stage.recognition': 'Amprente de față — serii + persoane (din analiză)',
   'stats.stage.exif': 'Metadate EXIF',
   'stats.stage.persist': 'Salvare pe disc',
   'stats.stage.grouping': 'Grupare serii',

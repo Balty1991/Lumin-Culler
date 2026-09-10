@@ -203,7 +203,8 @@ function toFaceInsight(f: NativeFaceResult, imageWidth: number, imageHeight: num
     eyesOpen: { left: leftEyeOpen, right: rightEyeOpen },
     isBlinking: leftEyeOpen < ML_KIT_EYE_OPEN_THRESHOLD || rightEyeOpen < ML_KIT_EYE_OPEN_THRESHOLD,
     // Valori implicite "necunoscut" — recognizeFaces() (mai jos) le suprascrie
-    // DUPA acest pas, per fata, cand exista cel putin o persoana inrolata.
+    // DUPA acest pas, per fata. `personId`/`personName` raman null cand nu e
+    // nimeni inrolat; `embedding` se calculeaza oricum, pentru grupare.
     personId: null,
     personName: null,
     similarity: 0
@@ -437,12 +438,16 @@ export async function analyzeNative(
    * direct din URI — deci canvas-ul se construia si se arunca, pe fiecare poza
    * din lot.
    *
-   * `faces.length` inca nu se stie aici, deci conditia ramane putin mai larga
-   * decat folosinta reala: cu persoane inrolate si o poza fara nicio fata, tot
-   * se construieste degeaba. Cazul care conta — omul care n-a inrolat pe nimeni
-   * — nu-l mai construieste niciodata.
+   * `faces.length` inca nu se stie aici, deci conditia ramane mai larga decat
+   * folosinta reala: pe o poza fara nicio fata se construieste degeaba.
+   *
+   * Scutirea de dinainte — "fara nimeni inrolat nu ruleaza recunoasterea, deci
+   * nu trebuie canvas" — a picat odata cu poarta de la recunoastere: acum
+   * embedding-urile faciale se calculeaza si fara inrolari, fiindca gruparea
+   * are nevoie de ele ca sa poata spune "acelasi om". Deci canvas-ul revine pe
+   * calea cu URI, si e cronometrat ('canvas') tocmai ca sa se vada cat costa.
    */
-  const needsFullCanvas = !mediaUri || !!(recognize && knownPersons && knownPersons.length > 0);
+  const needsFullCanvas = !mediaUri || !!recognize;
   const canvas = needsFullCanvas ? timedSync('canvas', () => drawToCanvas(bitmap)) : undefined;
   bitmap.close();
   /** Canvas-ul, acolo unde codul stie deja ca `needsFullCanvas` a fost adevarat. */
@@ -508,9 +513,35 @@ export async function analyzeNative(
   // treimi de timp nemasurat. Se masoara de la pornire pana la rezultat, nu
   // doar `await`-ul de la sfarsit: ruleaza in paralel cu etapa 2, deci timpul
   // petrecut in ultimul await ar raporta aproape zero.
+  //
+  // NU MAI CERE PERSOANE INROLATE, si asta e o schimbare de cost, luata cu
+  // masuratoarea de fata.
+  //
+  // Poarta era `knownPersons?.length` — logica pentru NUMIT pe cineva: fara
+  // nicio referinta, n-ai cu ce compara, deci nu rula. Corect pentru nume,
+  // gresit pentru SERII: gruparea nu intreaba "cine e?", ci "e acelasi om ca
+  // in cadrul de alaturi?" — o comparatie intre doua poze, care n-are nevoie
+  // de nicio referinta inrolata.
+  //
+  // Consecinta, masurata pe un import de 200 de poze: din 143 de perechi
+  // ajunse in fereastra de moment, ZERO au fost judecate dupa fete. Semnalul
+  // de identitate lipsea cu totul, iar in locul lui raspundea embedding-ul de
+  // continut — care spune "ce fel de scena e", nu "e acelasi om" (108 din 138
+  // de respingeri au picat cu peste 0.25 sub prag).
+  //
+  // Embedding-urile raman pe telefon, ca si pana acum, si aduc pe deasupra
+  // numirea retroactiva: cand omul inroleaza pe cineva mai tarziu, pozele
+  // vechi au deja cu ce fi comparate (vezi RETROACTIVE_MATCH_THRESHOLD in
+  // state/store.ts).
+  //
+  // Costul e REAL si nemasurat inca pe telefon: un canvas la rezolutie plina
+  // per poza cu fete, plus un apel de recunoastere per fata pe worker-ul
+  // Human.js. De-aia cronometrele de mai jos ('recognition') si de la canvas
+  // ('canvas') raman aprinse si ies in Statistici: daca pretul nu merita,
+  // se vede in cifre, nu se banuieste.
   const recognitionStart = performance.now();
-  const recognition = recognize && knownPersons?.length && faces.length > 0
-    ? recognizeFaces(requireCanvas(), detected, faces, recognize, knownPersons)
+  const recognition = recognize && faces.length > 0
+    ? recognizeFaces(requireCanvas(), detected, faces, recognize, knownPersons ?? [])
         .finally(() => record('recognition', performance.now() - recognitionStart))
     : Promise.resolve();
 

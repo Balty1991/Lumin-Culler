@@ -484,11 +484,15 @@ export class AnalysisPool {
           analyzeNative(
             photoId,
             bitmap,
-            // Recunoasterea per-fata e utila (si platita ca timp) doar cand exista
-            // cel putin o persoana inrolata — fara acest gard, fiecare fata din
-            // fiecare poza ar trece prin worker-ul de recunoastere chiar si pentru
-            // utilizatorii care nu folosesc deloc "Persoane cunoscute".
-            this.knownPersons.length ? crop => this.computeFaceRecognitionEmbedding(crop) : undefined,
+            // Gardul era `this.knownPersons.length`, pe motivul ca fara nicio
+            // persoana inrolata recunoasterea n-are ce numi. Adevarat pentru
+            // NUME — fals pentru SERII: gruparea compara doua poze intre ele
+            // ("e acelasi om?"), nu o poza cu o referinta inrolata, deci n-are
+            // nevoie de nicio inrolare. Cu gardul pus, pozele cu oameni ale
+            // celor care n-au inrolat pe nimeni ramaneau fara niciun semnal de
+            // identitate: masurat pe 200 de poze, ZERO din 143 de perechi
+            // candidate au fost judecate dupa fete. Vezi nativeAnalysis.ts.
+            crop => this.computeFaceRecognitionEmbedding(crop),
             this.knownPersons,
             // content:// din galerie, cand exista — vezi analyzeNative: cu el,
             // imaginea nu mai trece deloc peste puntea Capacitor.
