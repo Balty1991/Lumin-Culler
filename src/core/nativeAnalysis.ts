@@ -528,27 +528,33 @@ export async function analyzeNative(
         : Promise.resolve({}),
     // Embedding general de similaritate — vezi AnalysisRecord.imageEmbedding.
     //
-    // Conditia era `faces.length === 0`, pe motivul scris aici: "cu fete,
-    // embedding-urile faciale sunt deja semnalul puternic". Presupunerea s-a
-    // rupt in tacere, si abia numaratoarea de motive a scos-o la iveala:
-    // embedding-urile FACIALE se calculeaza doar cand exista cel putin o
-    // persoana INROLATA (vezi `recognize` in workerPool.analyze). Fara nimeni
-    // inrolat — cazul obisnuit — o poza cu fete ramanea fara NICIUN semnal de
-    // subiect, iar `sameSubjectConfirmed` (hashCompare.worker.ts) intorcea
-    // mereu false.
+    // AICI S-A INTORS O SCHIMBARE, PE MASURATOARE, NU PE GUST.
     //
-    // Consecinta masurata pe un import real de 200 de poze: calea "acelasi
-    // moment si acelasi subiect" s-a aprins de 0 ori, desi 143 de perechi
-    // ajunsesera pana la ea. Adica orice serie facuta la mai mult de 45 de
-    // secunde distanta (peste fereastra de rafala) se pierdea — exact pozele
-    // de familie. Seriile care functionau erau cele FARA fete, unde embedding-ul
-    // se calcula.
+    // Conditia fusese largita la "si cand exista fete, dar nu si dovada
+    // faciala", fiindca embedding-urile FACIALE se calculeaza doar cu cel
+    // putin o persoana INROLATA (vezi `recognize` in workerPool.analyze), deci
+    // fara nimeni inrolat o poza cu fete ramanea fara NICIUN semnal de subiect.
+    // Diagnosticul acela era corect. Reparatia, nu.
     //
-    // Acum se calculeaza si cand exista fete, dar nu si dovada faciala. Costa
-    // un apel in plus (MobileNetV3-small, cel mai ieftin model din lot) pe
-    // pozele cu oameni ale utilizatorilor care n-au inrolat pe nimeni, si
-    // pleaca de la sine cand inroleaza.
-    faces.length === 0 || !(recognize && knownPersons?.length)
+    // Ce a aratat importul de 200 de poze cu numaratoarea de benzi pornita
+    // (vezi DovadaBanda in hashCompare.worker.ts): din 143 de perechi ajunse in
+    // fereastra de moment, 138 tot au picat, iar 108 dintre ele au picat cu
+    // PESTE 0.25 sub prag. Doar 9 erau la mai putin de 0.10. Adica nu pragul e
+    // prost calibrat: embedding-ul de CONTINUT (MobileNetV3 pe ImageNet)
+    // raspunde la "ce fel de scena e asta", nu la "e acelasi om". Doi frati
+    // fotografiati la un minut distanta, cu cadrul mutat, sunt pentru el doua
+    // scene diferite — si chiar sunt, ca scene.
+    //
+    // Pretul masurat pentru cele 5 perechi castigate: importul a trecut de la
+    // 4m54s la 6m37s pe aceleasi 200 de poze. ~140ms per poza pentru un semnal
+    // care, pe poze cu oameni, raspunde la alta intrebare decat cea pusa.
+    //
+    // Deci ramane unde a fost si unde chiar functioneaza: pe cadrele FARA
+    // oameni (peisaje, obiecte, animale), unde nu exista alta a doua opinie si
+    // unde "aceeasi scena" CHIAR e intrebarea corecta. Pentru pozele cu fete,
+    // raspunsul e semnalul de identitate, nu unul de continut — si acela e o
+    // discutie separata, cu alt cost.
+    faces.length === 0
       ? embedImageNative(source).then(r => r.embedding)
       : Promise.resolve(undefined),
     // Postura — vezi AnalysisRecord.bodyCroppedAtEdge: doar cand exista fete
