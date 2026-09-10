@@ -526,10 +526,29 @@ export async function analyzeNative(
       : faces.length > 0
         ? analyzeFaceMeshNative(source).then(r => faceMeshGroupStats(r.faces))
         : Promise.resolve({}),
-    // Embedding general de similaritate — vezi AnalysisRecord.imageEmbedding:
-    // doar pentru poze FARA fete (cu fete, embedding-urile faciale sunt deja
-    // semnalul puternic pentru rafinarea seriilor in hashCompare.worker.ts).
-    faces.length === 0
+    // Embedding general de similaritate — vezi AnalysisRecord.imageEmbedding.
+    //
+    // Conditia era `faces.length === 0`, pe motivul scris aici: "cu fete,
+    // embedding-urile faciale sunt deja semnalul puternic". Presupunerea s-a
+    // rupt in tacere, si abia numaratoarea de motive a scos-o la iveala:
+    // embedding-urile FACIALE se calculeaza doar cand exista cel putin o
+    // persoana INROLATA (vezi `recognize` in workerPool.analyze). Fara nimeni
+    // inrolat — cazul obisnuit — o poza cu fete ramanea fara NICIUN semnal de
+    // subiect, iar `sameSubjectConfirmed` (hashCompare.worker.ts) intorcea
+    // mereu false.
+    //
+    // Consecinta masurata pe un import real de 200 de poze: calea "acelasi
+    // moment si acelasi subiect" s-a aprins de 0 ori, desi 143 de perechi
+    // ajunsesera pana la ea. Adica orice serie facuta la mai mult de 45 de
+    // secunde distanta (peste fereastra de rafala) se pierdea — exact pozele
+    // de familie. Seriile care functionau erau cele FARA fete, unde embedding-ul
+    // se calcula.
+    //
+    // Acum se calculeaza si cand exista fete, dar nu si dovada faciala. Costa
+    // un apel in plus (MobileNetV3-small, cel mai ieftin model din lot) pe
+    // pozele cu oameni ale utilizatorilor care n-au inrolat pe nimeni, si
+    // pleaca de la sine cand inroleaza.
+    faces.length === 0 || !(recognize && knownPersons?.length)
       ? embedImageNative(source).then(r => r.embedding)
       : Promise.resolve(undefined),
     // Postura — vezi AnalysisRecord.bodyCroppedAtEdge: doar cand exista fete

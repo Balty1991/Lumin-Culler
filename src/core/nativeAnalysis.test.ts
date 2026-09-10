@@ -385,20 +385,69 @@ describe('analyzeNative', () => {
       expect(result.imageEmbedding).toEqual([0.4, 0.5, 0.6]);
     });
 
-    it('nu calculeaza deloc embedding-ul general cand exista cel putin o fata (embedding-urile faciale sunt deja semnalul puternic)', async () => {
+    it('cu fete SI persoane inrolate, sare peste el — embedding-urile faciale sunt semnalul puternic', async () => {
       detectFacesNative.mockResolvedValue({
-        faces: [{ boundingBox: { left: 0, top: 0, width: 10, height: 10 } }],
-        imageWidth: 100,
-        imageHeight: 100
+        faces: [{ boundingBox: { left: 0, top: 0, width: 50, height: 50 }, smilingProbability: 0.5, leftEyeOpenProbability: 0.9, rightEyeOpenProbability: 0.9 }],
+        imageWidth: 200, imageHeight: 200
       });
       labelImageNative.mockResolvedValue({ labels: [] });
       analyzeFaceMeshNative.mockResolvedValue({ faces: [] });
+      detectPoseNative.mockResolvedValue({ people: [] });
+      const recognize = vi.fn().mockResolvedValue({ embedding: [1, 0], faceCount: 1 });
+      const inrolat: KnownPerson = { id: 'ami-id', name: 'Ami', embeddings: [[1, 0]], updatedAt: 0 };
 
       const { analyzeNative } = await import('./nativeAnalysis');
-      const result = await analyzeNative('p1', fakeBitmap(100, 100));
+      await analyzeNative('p1', fakeBitmap(200, 200), recognize, [inrolat]);
 
       expect(embedImageNative).not.toHaveBeenCalled();
-      expect(result.imageEmbedding).toBeUndefined();
+    });
+
+    /**
+     * Regresia care a omorat gruparea "acelasi moment" pentru toata lumea care
+     * n-a inrolat pe nimeni — adica pentru cazul obisnuit.
+     *
+     * Conditia era doar `faces.length === 0`, pe presupunerea ca o poza cu fete
+     * are oricum embedding-uri FACIALE. Are — dar numai cand exista cel putin o
+     * persoana inrolata, fiindca doar atunci ruleaza `recognize`. Fara nimeni
+     * inrolat, poza cu fete ramanea fara NICIUN semnal de subiect, iar
+     * `sameSubjectConfirmed` (hashCompare.worker.ts) intorcea mereu false.
+     *
+     * Masurat pe un import real de 200 de poze: calea "acelasi moment" s-a
+     * aprins de 0 ori, desi 143 de perechi ajunsesera la ea.
+     */
+    it('cu fete DAR fara nimeni inrolat, il calculeaza — altfel seria nu are nicio dovada de subiect', async () => {
+      detectFacesNative.mockResolvedValue({
+        faces: [{ boundingBox: { left: 0, top: 0, width: 50, height: 50 }, smilingProbability: 0.5, leftEyeOpenProbability: 0.9, rightEyeOpenProbability: 0.9 }],
+        imageWidth: 200, imageHeight: 200
+      });
+      labelImageNative.mockResolvedValue({ labels: [] });
+      analyzeFaceMeshNative.mockResolvedValue({ faces: [] });
+      detectPoseNative.mockResolvedValue({ people: [] });
+      embedImageNative.mockResolvedValue({ embedding: [0.7, 0.8] });
+
+      const { analyzeNative } = await import('./nativeAnalysis');
+      const result = await analyzeNative('p1', fakeBitmap(200, 200));
+
+      expect(embedImageNative).toHaveBeenCalledTimes(1);
+      expect(result.imageEmbedding).toEqual([0.7, 0.8]);
+    });
+
+    it('cu fete si o lista GOALA de persoane inrolate, tot il calculeaza', async () => {
+      detectFacesNative.mockResolvedValue({
+        faces: [{ boundingBox: { left: 0, top: 0, width: 50, height: 50 }, smilingProbability: 0.5, leftEyeOpenProbability: 0.9, rightEyeOpenProbability: 0.9 }],
+        imageWidth: 200, imageHeight: 200
+      });
+      labelImageNative.mockResolvedValue({ labels: [] });
+      analyzeFaceMeshNative.mockResolvedValue({ faces: [] });
+      detectPoseNative.mockResolvedValue({ people: [] });
+      const recognize = vi.fn();
+      embedImageNative.mockResolvedValue({ embedding: [0.7, 0.8] });
+
+      const { analyzeNative } = await import('./nativeAnalysis');
+      await analyzeNative('p1', fakeBitmap(200, 200), recognize, []);
+
+      expect(recognize).not.toHaveBeenCalled();
+      expect(embedImageNative).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -527,6 +576,9 @@ describe('analyzeNative — apelurile independente chiar pornesc in paralel', ()
     });
     analyzeImageNative.mockResolvedValue(IMAGE_ANALYSIS_FIXTURE);
     labelImageNative.mockResolvedValue({ labels: [] });
+    // Fara nimeni inrolat, poza cu fete primeste acum si embedding-ul general
+    // (vezi nativeAnalysis: e singura dovada de subiect ramasa).
+    embedImageNative.mockResolvedValue({ embedding: [0.1, 0.2] });
     const mesh = gated({ faces: [] });
     const pose = gated({ people: [] });
     analyzeFaceMeshNative.mockImplementation(mesh.impl);
@@ -553,6 +605,8 @@ describe('analyzeNative — apelurile independente chiar pornesc in paralel', ()
     labelImageNative.mockResolvedValue({ labels: [{ label: 'dog', confidence: 0.9 }, { label: 'dog', confidence: 0.8 }] });
     analyzeFaceMeshNative.mockResolvedValue({ faces: [] });
     detectPoseNative.mockResolvedValue({ people: [] });
+    // Vezi mai sus: fara nimeni inrolat, poza cu fete primeste si embedding-ul general.
+    embedImageNative.mockResolvedValue({ embedding: [0.1, 0.2] });
 
     const { analyzeNative } = await import('./nativeAnalysis');
     const result = await analyzeNative('p1', fakeBitmap(100, 100));
@@ -560,8 +614,10 @@ describe('analyzeNative — apelurile independente chiar pornesc in paralel', ()
     expect(result.faceCount).toBe(1);
     expect(result.sceneTags).toEqual(['dog']);        // dedupe pastrat
     expect(result.sharpness).toBe(IMAGE_ANALYSIS_FIXTURE.sharpness);
-    expect(result.imageEmbedding).toBeUndefined();     // exista fete -> fara embedding de continut
-    expect(embedImageNative).not.toHaveBeenCalled();
+    // Exista fete, dar nimeni inrolat -> embedding-ul general E singura dovada
+    // de subiect ramasa pentru grupare (vezi nativeAnalysis).
+    expect(result.imageEmbedding).toEqual([0.1, 0.2]);
+    expect(embedImageNative).toHaveBeenCalledTimes(1);
     expect(detectTextNative).not.toHaveBeenCalled();   // exista fete -> fara OCR
   });
 });
