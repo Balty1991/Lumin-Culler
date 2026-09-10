@@ -939,11 +939,14 @@ describe('analyzeNative — cronometru pe fiecare model', () => {
   });
 
   /**
-   * OCR ruleaza SECVENTIAL dupa al doilea val, deci timpul lui e parte din
-   * peretele masurat de 'nativeModels'. Scos de acolo, ar reaparea in reziduu
-   * ca timp nemasurat — exact eroarea pe care o descrie stageTiming.ts.
+   * OCR ruleaza ODATA CU al doilea val, si timpul lui ramane parte din peretele
+   * masurat de 'nativeModels'. Scos de acolo, ar reaparea in reziduu ca timp
+   * nemasurat — exact eroarea pe care o descrie stageTiming.ts.
+   *
+   * Doua masuratori de perete, nu trei: valul 1, apoi valul 2 impreuna cu OCR.
+   * A treia ar fi insemnat ca OCR-ul asteapta din nou la coada.
    */
-  it('OCR-ul ramane si inauntrul peretelui, nu doar in cronometrul lui', async () => {
+  it('OCR-ul ramane inauntrul peretelui, si in ACELASI perete cu valul 2', async () => {
     detectFacesNative.mockResolvedValue({ faces: [], imageWidth: 200, imageHeight: 200 });
     labelImageNative.mockResolvedValue({ labels: [] });
 
@@ -953,8 +956,9 @@ describe('analyzeNative — cronometru pe fiecare model', () => {
     const { readStageStats } = await import('./stageTiming');
     const stats = readStageStats();
     const perete = stats.find(st => st.stage === 'nativeModels');
-    // Doua valuri + OCR — daca OCR-ul ar fi iesit din perete, ar fi ramas doua.
-    expect(perete?.count).toBe(3);
+    // Valul 1, apoi valul 2 impreuna cu OCR. Trei ar fi insemnat ca OCR-ul si-a
+    // luat iar rand separat; una singura, ca a iesit din perete cu totul.
+    expect(perete?.count).toBe(2);
   });
 
   it('pe motorul landmarker, detectia ML Kit nu mai ruleaza deloc', async () => {
@@ -968,5 +972,55 @@ describe('analyzeNative — cronometru pe fiecare model', () => {
     const etape = await etapeMasurate();
     expect(etape).toContain('mFaceMesh');
     expect(etape).not.toContain('mFaceDetect');
+  });
+});
+
+/**
+ * OCR-ul nu mai asteapta valul 2.
+ *
+ * Nu depinde de nimic din el — se decide din `faces` si `sceneTags`, amandoua
+ * din valul 1 — dar statea dupa, cu `await`, deci pe pozele unde se aprinde isi
+ * adauga tot timpul la coada: masurat 1,4s de obicei, pe 49 de poze din 200.
+ */
+describe('analyzeNative — OCR ruleaza odata cu valul 2', () => {
+  beforeEach(() => {
+    for (const m of [detectFacesNative, analyzeImageNative, labelImageNative, analyzeFaceMeshNative, detectTextNative, embedImageNative, detectPoseNative]) m.mockReset();
+    analyzeImageNative.mockResolvedValue(IMAGE_ANALYSIS_FIXTURE);
+    analyzeFaceMeshNative.mockResolvedValue({ faces: [] });
+    detectPoseNative.mockResolvedValue({ people: [] });
+    detectFacesNative.mockResolvedValue({ faces: [], imageWidth: 200, imageHeight: 200 });
+    labelImageNative.mockResolvedValue({ labels: [] });
+  });
+
+  it('porneste OCR-ul INAINTE ca embedding-ul din valul 2 sa se termine', async () => {
+    let embeddingRezolvat = false;
+    let ocrPornitInainteDeEmbedding = false;
+    embedImageNative.mockImplementation(() => new Promise(resolve => {
+      setTimeout(() => { embeddingRezolvat = true; resolve({ embedding: [0.1] }); }, 20);
+    }));
+    detectTextNative.mockImplementation(() => {
+      ocrPornitInainteDeEmbedding = !embeddingRezolvat;
+      return Promise.resolve({ blocks: [], textCoverage: 0 });
+    });
+
+    const { analyzeNative } = await import('./nativeAnalysis');
+    await analyzeNative('p1', fakeBitmap(200, 200));
+
+    expect(detectTextNative).toHaveBeenCalledTimes(1);
+    expect(ocrPornitInainteDeEmbedding, 'OCR-ul a asteptat valul 2 in loc sa ruleze odata cu el').toBe(true);
+  });
+
+  it('rezultatul OCR ajunge in inregistrare la fel ca inainte', async () => {
+    detectTextNative.mockResolvedValue({
+      blocks: [{ text: 'parola de wifi este LuminCuller2026', boundingBox: { left: 0, top: 0, width: 10, height: 10 } }],
+      textCoverage: 0.4
+    });
+    embedImageNative.mockResolvedValue({ embedding: [0.1] });
+
+    const { analyzeNative } = await import('./nativeAnalysis');
+    const result = await analyzeNative('p1', fakeBitmap(200, 200));
+
+    expect(result.textCoverage).toBe(0.4);
+    expect(result.ocrText).toContain('LuminCuller2026');
   });
 });

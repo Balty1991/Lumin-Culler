@@ -575,7 +575,59 @@ export async function analyzeNative(
         .finally(() => record('recognition', performance.now() - recognitionStart))
     : Promise.resolve();
 
-  const [meshStats, imageEmbedding, bodyCroppedAtEdge] = await timed('nativeModels', () => Promise.all([
+  // CAND rulam OCR. Doua conditii, si a doua a fost gresita de doua ori.
+  //
+  // Prima varianta cerea `sceneTags.length === 0` — nicio eticheta deloc. Un
+  // document fotografiat primeste insa aproape mereu o eticheta, deci OCR nu
+  // rula niciodata pe cazul pentru care fusese construit.
+  //
+  // A doua varianta (reparatia de la audit) a inlocuit-o cu
+  // `!pickFolderSceneTag(sceneTags)`, si comentariul de aici sustinea ca lista
+  // NON_FOLDER_SCENE_TAGS contine "Text", "Photography", "Paper". Contine
+  // primele doua. NU contine "paper" — verificat. Deci pentru un panou de
+  // pluta plin de bonuri, ML Kit intoarce "Paper" ca eticheta de top,
+  // pickFolderSceneTag o accepta drept subiect concret, OCR-ul e SARIT, iar
+  // hasNoRecognizableSubject nu mai are ce semnal sa citeasca. Bug raportat cu
+  // captura: panoul cu bonuri, scor 98, aprobat automat cu bifa verde.
+  //
+  // Cauza de fond e ca ambele variante intreaba "nu s-a recunoscut nimic?".
+  // Un document CHIAR se recunoaste — ca hartie. A doua conditie, de acum,
+  // intreaba si invers: daca s-a recunoscut ceva si acel ceva e un lucru
+  // fabricat (hartie, bon, ambalaj, aparat), atunci merita citit textul.
+  //
+  // PORNESTE ODATA CU VALUL 2, nu dupa el.
+  //
+  // OCR nu depinde de nimic din valul 2: se decide din `faces` si `sceneTags`,
+  // amandoua venite din valul 1. Statea totusi dupa, cu `await`, deci pe pozele
+  // unde se aprinde isi adauga intreg timpul la coada — masurat 1,4s de obicei
+  // (2,7s in cel mai rau caz), pe 49 de poze din 200. Acum se suprapune cu
+  // valul 2, care oricum e cel ieftin.
+  //
+  // Nu se schimba NICIUN semnal: acelasi model, aceeasi rezolutie, acelasi
+  // declansator. Doar nu mai asteapta degeaba.
+  //
+  // OCR cere rezolutie PLINA: e singurul model din lant care chiar depinde de
+  // pixeli (text mic pe un buletin/o captura de ecran), si ruleaza rar. Cu URI
+  // cerem doar o latura mai mare — tot fara nimic peste punte. Declansatorul
+  // nou nu-l face sa ruleze pe peisaje, animale sau mancare: niciunul n-are
+  // etichete de lucru fabricat.
+  // Se pastreaza si CUVINTELE, nu doar cat la suta din cadru acopera. Erau
+  // aruncate: OCR-ul rula, iar din tot ce citea se folosea o singura cifra.
+  // Vezi core/photoText.ts — cuvintele alea sunt exact ce face pozele astea
+  // gasibile mai tarziu ("bonul de la service", "parola de wifi").
+  const ocrPromise = faces.length === 0
+    && (!pickFolderSceneTag(sceneTags) || hasManufacturedTag(sceneTags))
+    ? timed('mOcr', async () => detectTextNative(
+        mediaUri
+          ? { uri: mediaUri, maxSide: NATIVE_OCR_MAX_SIDE }
+          : { blob: await canvasToBlob(requireCanvas()) }
+      ))
+    : Promise.resolve(undefined);
+
+  // Peretele acopera acum si OCR-ul, fiindca ruleaza in acelasi timp cu valul
+  // 2 — o suma i-ar numara de doua ori suprapunerea.
+  const [[meshStats, imageEmbedding, bodyCroppedAtEdge], ocr] = await timed('nativeModels', () => Promise.all([
+    Promise.all([
     // FaceMesh e sarit complet cand nu exista fete — nu are ce agrega, si evita
     // un apel MediaPipe intreg (cel mai greu dintre cele 5) fara niciun beneficiu.
     // Pe calea 'landmarker' statisticile de grup vin din ACELASI rezultat, deci
@@ -623,45 +675,10 @@ export async function analyzeNative(
     faces.length > 0
       ? timed('mPose', () => detectPoseNative(source)).then(r => hasAwkwardBodyCrop(r.people))
       : Promise.resolve(undefined)
+    ]),
+    ocrPromise
   ]));
 
-  // CAND rulam OCR. Doua conditii, si a doua a fost gresita de doua ori.
-  //
-  // Prima varianta cerea `sceneTags.length === 0` — nicio eticheta deloc. Un
-  // document fotografiat primeste insa aproape mereu o eticheta, deci OCR nu
-  // rula niciodata pe cazul pentru care fusese construit.
-  //
-  // A doua varianta (reparatia de la audit) a inlocuit-o cu
-  // `!pickFolderSceneTag(sceneTags)`, si comentariul de aici sustinea ca lista
-  // NON_FOLDER_SCENE_TAGS contine "Text", "Photography", "Paper". Contine
-  // primele doua. NU contine "paper" — verificat. Deci pentru un panou de
-  // pluta plin de bonuri, ML Kit intoarce "Paper" ca eticheta de top,
-  // pickFolderSceneTag o accepta drept subiect concret, OCR-ul e SARIT, iar
-  // hasNoRecognizableSubject nu mai are ce semnal sa citeasca. Bug raportat cu
-  // captura: panoul cu bonuri, scor 98, aprobat automat cu bifa verde.
-  //
-  // Cauza de fond e ca ambele variante intreaba "nu s-a recunoscut nimic?".
-  // Un document CHIAR se recunoaste — ca hartie. A doua conditie, de acum,
-  // intreaba si invers: daca s-a recunoscut ceva si acel ceva e un lucru
-  // fabricat (hartie, bon, ambalaj, aparat), atunci merita citit textul.
-  //
-  // OCR cere rezolutie PLINA: e singurul model din lant care chiar depinde de
-  // pixeli (text mic pe un buletin/o captura de ecran), si ruleaza rar. Cu URI
-  // cerem doar o latura mai mare — tot fara nimic peste punte. Declansatorul
-  // nou nu-l face sa ruleze pe peisaje, animale sau mancare: niciunul n-are
-  // etichete de lucru fabricat.
-  // Se pastreaza si CUVINTELE, nu doar cat la suta din cadru acopera. Erau
-  // aruncate: OCR-ul rula, iar din tot ce citea se folosea o singura cifra.
-  // Vezi core/photoText.ts — cuvintele alea sunt exact ce face pozele astea
-  // gasibile mai tarziu ("bonul de la service", "parola de wifi").
-  const ocr = faces.length === 0
-    && (!pickFolderSceneTag(sceneTags) || hasManufacturedTag(sceneTags))
-    ? await timed('nativeModels', () => timed('mOcr', async () => detectTextNative(
-        mediaUri
-          ? { uri: mediaUri, maxSide: NATIVE_OCR_MAX_SIDE }
-          : { blob: await canvasToBlob(requireCanvas()) }
-      )))
-    : undefined;
   const textCoverage = ocr?.textCoverage;
   const ocrText = ocr ? photoTextFromBlocks(ocr.blocks) : undefined;
 
