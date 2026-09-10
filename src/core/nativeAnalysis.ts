@@ -141,6 +141,26 @@ const MIN_FACE_CROP_PX = 60;
  * peste plafon raman pur si simplu neidentificate (degradare sigura, nu eroare).
  */
 const MAX_RECOGNIZED_FACES_PER_PHOTO = 6;
+/**
+ * Plafon mult mai mic cand NIMENI nu e inrolat — atunci embedding-urile nu
+ * servesc la numit pe cineva, ci doar la intrebarea gruparii: "e acelasi
+ * subiect ca in cadrul de alaturi?".
+ *
+ * Doua motive, si al doilea nu e despre viteza:
+ *
+ *  1. cost. Fiecare fata inseamna un apel SERIALIZAT catre worker-ul de
+ *     recunoastere. La o poza de grup, sase apeluri pentru un raspuns pe care
+ *     il da subiectul principal.
+ *  2. zgomot. `bestFaceSimilarity` ia MAXIMUL peste toate perechile de fete.
+ *     Cu toate fetele din cadru inauntru, doi trecatori din fundal care
+ *     seamana intre ei pot lega doua cadre care n-au nicio legatura — exact
+ *     tiparul semnalat deja pe ancore ("cineva din fundal care nu era subiect
+ *     si era cu spatele"). Subiectul unei poze e, aproape mereu, fata mare.
+ *
+ * Cu persoane inrolate ramane plafonul mare: acolo fiecare fata poate fi
+ * cineva de numit, iar un invitat din planul doi merita si el numele lui.
+ */
+const MAX_GROUPING_FACES_PER_PHOTO = 2;
 
 function cropFaceBitmap(
   canvas: OffscreenCanvas,
@@ -385,9 +405,19 @@ async function recognizeFaces(
   knownPersons: KnownPerson[]
 ): Promise<void> {
   const { sourceWidth, sourceHeight } = detected;
-  const candidates = detected.boxes.slice(0, MAX_RECOGNIZED_FACES_PER_PHOTO);
-  for (let i = 0; i < candidates.length; i++) {
-    const cropPromise = cropFaceBitmap(canvas, candidates[i], sourceWidth, sourceHeight);
+  // CARE fete, si cate. Cu persoane inrolate: primele sase, in ordinea
+  // detectorului, fiindca oricare poate fi cineva de numit. Fara nicio
+  // inrolare: doar cele mai MARI doua — vezi MAX_GROUPING_FACES_PER_PHOTO.
+  // Se pastreaza indicii, nu casetele: `faces[i]` se muteaza dupa pozitie.
+  const indici = knownPersons.length
+    ? detected.boxes.map((_, i) => i).slice(0, MAX_RECOGNIZED_FACES_PER_PHOTO)
+    : detected.boxes
+        .map((b, i) => ({ i, arie: b.width * b.height }))
+        .sort((a, b) => b.arie - a.arie)
+        .slice(0, MAX_GROUPING_FACES_PER_PHOTO)
+        .map(x => x.i);
+  for (const i of indici) {
+    const cropPromise = cropFaceBitmap(canvas, detected.boxes[i], sourceWidth, sourceHeight);
     if (!cropPromise) continue;
     try {
       const crop = await cropPromise;

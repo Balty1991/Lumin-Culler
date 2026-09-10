@@ -826,3 +826,58 @@ describe('analyzeNative — motorul de fete FaceLandmarker', () => {
     expect(result.faceEngine).toBe('mlkit');
   });
 });
+
+/**
+ * CATE fete trec prin recunoastere, si care.
+ *
+ * Fara nicio inrolare, embedding-urile nu servesc la numit pe cineva, ci doar
+ * la intrebarea gruparii ("acelasi subiect?"). Acolo fetele mici din fundal
+ * costa doua lucruri: apeluri serializate in plus, si zgomot — pentru ca
+ * `bestFaceSimilarity` (hashCompare.worker.ts) ia MAXIMUL peste toate
+ * perechile, deci doi trecatori care seamana intre ei pot lega doua cadre
+ * fara nicio legatura.
+ */
+describe('analyzeNative — cate fete trec prin recunoastere', () => {
+  const cutie = (left: number, latura: number) => ({
+    boundingBox: { left, top: 0, width: latura, height: latura },
+    smilingProbability: 0.5, leftEyeOpenProbability: 0.9, rightEyeOpenProbability: 0.9
+  });
+
+  beforeEach(() => {
+    for (const m of [detectFacesNative, analyzeImageNative, labelImageNative, analyzeFaceMeshNative, detectTextNative, embedImageNative, detectPoseNative]) m.mockReset();
+    analyzeImageNative.mockResolvedValue(IMAGE_ANALYSIS_FIXTURE);
+    labelImageNative.mockResolvedValue({ labels: [] });
+    analyzeFaceMeshNative.mockResolvedValue({ faces: [] });
+    detectPoseNative.mockResolvedValue({ people: [] });
+    // Patru fete: doua mari (indicii 1 si 3) si doua mici de fundal (0 si 2).
+    detectFacesNative.mockResolvedValue({
+      faces: [cutie(0, 70), cutie(100, 300), cutie(500, 80), cutie(700, 200)],
+      imageWidth: 1000, imageHeight: 1000
+    });
+  });
+
+  it('fara nicio inrolare, recunoaste doar cele mai mari doua fete', async () => {
+    const recognize = vi.fn().mockResolvedValue({ embedding: [1, 0], faceCount: 1 });
+
+    const { analyzeNative } = await import('./nativeAnalysis');
+    const result = await analyzeNative('p1', fakeBitmap(1000, 1000), recognize, []);
+
+    expect(recognize).toHaveBeenCalledTimes(2);
+    // Cele mari (300px si 200px) au embedding; cele de fundal, nu.
+    expect(result.faces[1].embedding).toEqual([1, 0]);
+    expect(result.faces[3].embedding).toEqual([1, 0]);
+    expect(result.faces[0].embedding).toBeUndefined();
+    expect(result.faces[2].embedding).toBeUndefined();
+  });
+
+  it('cu persoane inrolate le ia pe toate — oricare poate fi cineva de numit', async () => {
+    const recognize = vi.fn().mockResolvedValue({ embedding: [1, 0], faceCount: 1 });
+    const inrolat: KnownPerson = { id: 'ami-id', name: 'Ami', embeddings: [[1, 0]], updatedAt: 0 };
+
+    const { analyzeNative } = await import('./nativeAnalysis');
+    const result = await analyzeNative('p1', fakeBitmap(1000, 1000), recognize, [inrolat]);
+
+    expect(recognize).toHaveBeenCalledTimes(4);
+    expect(result.faces.every(f => f.embedding !== undefined)).toBe(true);
+  });
+});
