@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { readStageStats, resetStageStats } from '../core/stageTiming';
 import { readGroupingMotive } from '../core/groupingDiagnostics';
+import { THERMAL_THROTTLED_CONCURRENCY } from '../core/thermalStatus';
 import { summariseOutcomes, resetImportOutcomes } from '../core/importOutcome';
 import { summariseFeedback, resetFeedback } from '../core/aiFeedback';
 import { db } from '../core/db';
@@ -513,6 +514,19 @@ export function StatsPanel() {
                   : '—'
               })}
             </p>
+            {/* DE CE a durat atat, cand a durat mai mult decat data trecuta.
+                Fara randul asta, un import mai lung nu se poate deosebi de o
+                regresie — s-a intamplat, pe acelasi lot de 200 de poze, cu
+                modelele masurate la fel si bateria la 27%. */}
+            {lastImportStats.throttledMs > 0 && lastImportStats.durationMs > 0 && (
+              <p className="hint">
+                {tr('stats.lastImport.thermal', {
+                  share: Math.max(1, Math.round((lastImportStats.throttledMs / lastImportStats.durationMs) * 100)),
+                  cap: lastImportStats.throttledCap ?? THERMAL_THROTTLED_CONCURRENCY,
+                  normal: lastImportStats.normalCap
+                })}
+              </p>
+            )}
           </div>
         )}
 

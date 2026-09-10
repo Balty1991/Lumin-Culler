@@ -1451,6 +1451,7 @@ export const en: Record<TranslationKey, string> = {
   'stats.agreement.trend.label': 'Evolution (start -> now)',
   'stats.lastImport.title': 'Last import',
   'stats.lastImport.text': '{count} photos in {duration} ({rate} photos/second).',
+  'stats.lastImport.thermal': 'The phone ran hot for {share}% of the import — {cap} photos at a time instead of {normal}. Scores are unaffected; only how many photos are in flight changes.',
   'stats.usage.title': 'Usage',
   'stats.usage.analyzed': '{count} photos analysed this month. Culling is free and unlimited — importing, AI scoring, sorting and grouping cost you nothing.',
   'stats.usage.takenOut': '{count} of {limit} photos exported from the app in the last 30 days. This is the only cap — deleting from the phone does not count.',

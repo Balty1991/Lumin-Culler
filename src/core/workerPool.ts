@@ -180,6 +180,21 @@ export class AnalysisPool {
   onThermalChange: ((info: { cap: number; normal: number } | null) => void) | null = null;
   /** Oprirea ascultatorului termic, cand exista unul. */
   private stopThermalWatch: (() => void) | null = null;
+  /**
+   * CAT a durat importul cu plafonul strans de temperatura.
+   *
+   * Exista pentru o intrebare care s-a pus de patru ori la rand pe acelasi lot
+   * de 200 de poze: importul a durat 6m22s, apoi 7m5s, cu modelele masurate la
+   * fel sau chiar mai rapide, si cu bateria la 27% in loc de 43%. Fara cifra
+   * asta, singurul raspuns posibil e "probabil s-a incalzit" — adica exact
+   * genul de banuiala care a iesit prost de trei ori pe viteza.
+   *
+   * `thermalSince` e momentul in care plafonul a inceput sa STRANGA ceva (nu
+   * doar sa existe), `thermalMs` timpul inchis deja. Intervalul deschis se
+   * adauga la citire, ca un import inca in curs sa nu raporteze zero.
+   */
+  private thermalSince: number | null = null;
+  private thermalMs = 0;
 
   /**
    * Worker Human.js lazy, folosit DOAR de computeEnrollmentEmbedding() pe
@@ -428,6 +443,14 @@ export class AnalysisPool {
       // deci n-are ce anunta — un mesaj care spune "am incetinit" cand nu s-a
       // incetinit nimic e mai rau decat tacerea.
       const strange = cap !== null && cap < this.nativeConcurrencyLimit;
+      // Pontajul se schimba pe TRANZITIE, nu pe fiecare raport: treptele termice
+      // vin repetat cu aceeasi valoare, iar `cap === this.thermalCap` de mai sus
+      // le-a filtrat deja pe cele care nu schimba nimic.
+      if (strange && this.thermalSince === null) this.thermalSince = Date.now();
+      else if (!strange && this.thermalSince !== null) {
+        this.thermalMs += Date.now() - this.thermalSince;
+        this.thermalSince = null;
+      }
       this.onThermalChange?.(strange ? { cap, normal: this.nativeConcurrencyLimit } : null);
       // Racire: locurile eliberate se dau imediat celor care asteapta, altfel
       // coada ar ramane blocata pana la urmatoarea analiza terminata.
@@ -438,6 +461,32 @@ export class AnalysisPool {
         next();
       }
     }).then(stop => { this.stopThermalWatch = stop; });
+  }
+
+  /** Porneste pontajul termic de la zero — chemat la inceputul unui import. */
+  resetThermalTally(): void {
+    this.thermalMs = 0;
+    // Daca telefonul e DEJA cald cand incepe importul, ceasul porneste acum, nu
+    // de la ultima tranzitie: altfel primul import de dupa unul lung ar mosteni
+    // un interval care nu-i apartine.
+    this.thermalSince = this.thermalCap !== null && this.thermalCap < this.nativeConcurrencyLimit
+      ? Date.now()
+      : null;
+  }
+
+  /**
+   * Cat s-a lucrat cu plafonul strans, si care era plafonul. `cap` e null cand
+   * temperatura nu strange nimic ACUM (poate a strans mai devreme — de-aia
+   * `throttledMs` se citeste separat).
+   */
+  readThermalTally(): { throttledMs: number; cap: number | null; normal: number } {
+    const deschis = this.thermalSince === null ? 0 : Date.now() - this.thermalSince;
+    const strange = this.thermalCap !== null && this.thermalCap < this.nativeConcurrencyLimit;
+    return {
+      throttledMs: this.thermalMs + deschis,
+      cap: strange ? this.thermalCap : null,
+      normal: this.nativeConcurrencyLimit
+    };
   }
 
   private acquireNativePermit(): Promise<void> {

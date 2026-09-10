@@ -1510,6 +1510,7 @@ export const ro = {
   'stats.agreement.trend.label': 'Evoluție (început -> acum)',
   'stats.lastImport.title': 'Ultimul import',
   'stats.lastImport.text': '{countDe} poze în {duration} ({rate} poze/secundă).',
+  'stats.lastImport.thermal': 'Telefonul s-a încălzit pentru {share}% din import — {cap} poze deodată în loc de {normal}. Scorurile rămân aceleași; se schimbă doar câte poze sunt în lucru simultan.',
   'stats.usage.title': 'Utilizare',
   'stats.usage.analyzed': '{countDe} poze analizate luna aceasta. Triajul e gratuit și nelimitat — importul, scorul AI, sortarea și gruparea nu consumă nimic.',
   'stats.usage.takenOut': '{count} din {limit} de poze exportate din aplicație în ultimele 30 de zile. Ăsta e singurul plafon — ștergerea de pe telefon nu se numără.',

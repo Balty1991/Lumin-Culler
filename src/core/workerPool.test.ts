@@ -327,6 +327,59 @@ describe('AnalysisPool — anuntul de incalzire', () => {
     expect(pool.size).toBe(NATIVE_NORMAL_CONCURRENCY);
   });
 
+  /**
+   * PONTAJUL termic, nu doar anuntul.
+   *
+   * Exista pentru o intrebare pusa de patru ori la rand pe acelasi lot de 200
+   * de poze: importul a durat 6m22s, apoi 7m5s, cu modelele masurate la fel sau
+   * mai rapide, si cu bateria la 27% in loc de 43%. Fara cifra, singurul
+   * raspuns posibil era "probabil s-a incalzit" — adica exact genul de banuiala
+   * care a iesit prost de trei ori pe viteza.
+   */
+  it('ponteaza cat timp a strans plafonul, si se opreste la racire', async () => {
+    vi.useFakeTimers();
+    try {
+      const { AnalysisPool } = await import('./workerPool');
+      const pool = new AnalysisPool();
+      await pool.init();
+      pool.resetThermalTally();
+      expect(pool.readThermalTally().throttledMs).toBe(0);
+
+      emiteTermic!(3);                      // se incinge
+      vi.advanceTimersByTime(4000);
+      // Intervalul DESCHIS se vede deja: un import inca in curs nu raporteaza zero.
+      expect(pool.readThermalTally().throttledMs).toBe(4000);
+      expect(pool.readThermalTally().cap).toBe(THERMAL_THROTTLED_CONCURRENCY);
+
+      emiteTermic!(0);                      // se raceste
+      vi.advanceTimersByTime(9000);         // timpul de dupa NU se mai ponteaza
+      const final = pool.readThermalTally();
+      expect(final.throttledMs).toBe(4000);
+      expect(final.cap).toBeNull();
+      expect(final.normal).toBe(NATIVE_NORMAL_CONCURRENCY);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('un import care incepe cu telefonul deja cald ponteaza de la zero, nu de la tranzitia veche', async () => {
+    vi.useFakeTimers();
+    try {
+      const { AnalysisPool } = await import('./workerPool');
+      const pool = new AnalysisPool();
+      await pool.init();
+
+      emiteTermic!(3);
+      vi.advanceTimersByTime(30_000);       // caldura de la importul DINAINTE
+      pool.resetThermalTally();             // incepe importul nou
+      expect(pool.readThermalTally().throttledMs).toBe(0);
+      vi.advanceTimersByTime(5000);
+      expect(pool.readThermalTally().throttledMs).toBe(5000);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('o treapta care nu schimba plafonul nu spune nimic', async () => {
     const { AnalysisPool } = await import('./workerPool');
     const pool = new AnalysisPool();

@@ -321,8 +321,16 @@ interface AppState {
    * fotografului, ca AI-ul sa invete si din alegerile clientului.
    */
   importClientFeedback: (file: File) => Promise<void>;
-  /** Viteza ultimului import (poze procesate + durata) — afisata in Statistici; null inainte de primul import al sesiunii. */
-  lastImportStats: { count: number; durationMs: number } | null;
+  /**
+   * Viteza ultimului import (poze procesate + durata) — afisata in Statistici;
+   * null inainte de primul import al sesiunii.
+   *
+   * `throttledMs` e cat din el a rulat cu plafonul strans de temperatura (vezi
+   * readThermalTally in core/workerPool.ts). Fara el, un import mai lung decat
+   * cel dinainte nu se poate deosebi de o regresie — s-a intamplat, pe acelasi
+   * lot de 200 de poze, cu modelele masurate la fel si bateria la 27%.
+   */
+  lastImportStats: { count: number; durationMs: number; throttledMs: number; throttledCap: number | null; normalCap: number } | null;
   /** Contor informativ de poze procesate in luna curenta — vezi state/usage.ts (NU e o limita reala/blocanta). */
   monthlyUsage: number;
   statsOpen: boolean;
@@ -2820,6 +2828,8 @@ export const useStore = create<AppState>((set, get) => ({
     let outcomeReport: ImportOutcomeReport | undefined;
     let done = 0;
     const startedAt = Date.now();
+    // Pontajul termic al ACESTUI import — vezi lastImportStats.
+    analysisPool.resetThermalTally();
     // separat de `startedAt` (folosit pentru lastImportStats, care include si
     // faza 'incarcare' de dinainte de bucla) — vrem rata reala doar din faza
     // 'analiza', altfel primele tick-uri ar subestima rata si ar umfla ETA-ul
@@ -3061,7 +3071,12 @@ export const useStore = create<AppState>((set, get) => ({
       notice: (warning && t(get().locale, warning.key, warning.params)) ?? doneNotice ?? state.notice,
       aiDegraded,
       aiBackend: analysisPool.detectedBackend,
-      lastImportStats: done > 0 ? { count: done, durationMs: Date.now() - startedAt } : state.lastImportStats,
+      lastImportStats: done > 0
+        ? (() => {
+            const t = analysisPool.readThermalTally();
+            return { count: done, durationMs: Date.now() - startedAt, throttledMs: t.throttledMs, throttledCap: t.cap, normalCap: t.normal };
+          })()
+        : state.lastImportStats,
       sessionOutcome,
       monthlyUsage,
       photos: state.photos.map(p => {
