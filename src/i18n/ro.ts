@@ -1459,6 +1459,7 @@ export const ro = {
   'stats.stage.nativeBody': 'Analiza nativă, cap-coadă',
   'stats.stage.nativePrep': 'Pregătire, înainte de modele',
   'stats.stage.nativeAssemble': 'Asamblarea înregistrării',
+  'stats.stages.overlapNote': 'Etapele se SUPRAPUN — importul lucrează la mai multe poze deodată, iar „Analiză AI” măsoară cât durează o poză de la pornire până la rezultat, timp în care telefonul lucrează și la altele. Procentele sunt părți din munca însumată, nu din timpul scurs. Cifra de citit e „Analiza nativă, cap-coadă”: atât costă cu adevărat o poză.',
   'stats.stage.queue': 'Așteptare la rând (plafon de concurență)',
   'stats.stage.bridge': 'Puntea și lipiciul JS (prin scădere)',
   'stats.stages.bridgeValue': '{share}% — ce rămâne după ce scazi ce s-a măsurat',

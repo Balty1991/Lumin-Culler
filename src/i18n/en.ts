@@ -1400,6 +1400,7 @@ export const en: Record<TranslationKey, string> = {
   'stats.stage.nativeBody': 'Native analysis, end to end',
   'stats.stage.nativePrep': 'Prep, before the models',
   'stats.stage.nativeAssemble': 'Assembling the record',
+  'stats.stages.overlapNote': 'Stages OVERLAP — the import works on several photos at once, and "AI analysis" measures one photo from start to result, while the phone also works on others. The percentages are shares of summed work, not of elapsed time. The number to read is "Native analysis, end to end": that is what a photo really costs.',
   'stats.stage.queue': 'Waiting in line (concurrency cap)',
   'stats.stage.bridge': 'The bridge and the JS glue (by subtraction)',
   'stats.stages.bridgeValue': '{share}% — what is left after subtracting what was measured',

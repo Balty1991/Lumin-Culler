@@ -188,10 +188,7 @@ export function StatsPanel() {
    * workerPool, iar diferenta dintre el si sumele dinauntru arata golurile
    * dintre valuri.
    */
-  const measuredInAnalysis = subStages
-    .filter(st => st.stage !== 'recognition' && st.stage !== 'nativeBody')
-    .reduce((sum, st) => sum + st.totalMs, 0);
-  const bridgeMs = Math.max(0, analysisMs - measuredInAnalysis);
+
   const [feedback, setFeedback] = useState(() => summariseFeedback());
   useEffect(() => { if (open) setFeedback(summariseFeedback()); }, [open]);
   // La fel ca mai sus: se schimba doar la sfarsitul unui import.
@@ -305,15 +302,24 @@ export function StatsPanel() {
                       </span>
                     </div>
                   ))}
-                  <div className="stage-timing-row">
-                    <span className="stage-timing-name">{tr('stats.stage.bridge')}</span>
-                    <span className="stage-timing-bar" aria-hidden="true">
-                      <i style={{ width: `${Math.round((bridgeMs / analysisMs) * 100)}%` }} />
-                    </span>
-                    <span className="mono stage-timing-value">
-                      {tr('stats.stages.bridgeValue', { share: Math.round((bridgeMs / analysisMs) * 100) })}
-                    </span>
-                  </div>
+                  {/* Randul "punte si lipici (prin scadere)" A DISPARUT DE AICI, si
+                      merita spus de ce, fiindca a costat.
+
+                      Scaderea `analiza - ce s-a masurat` a raportat pe rand 74%,
+                      75% si 79% "punte si lipici JS", si a produs trei
+                      diagnostice gresite la rand. Masuratoarea care a lamurit-o:
+                      analyzeNative cap-coada dureaza ~960ms, in timp ce 'analiza'
+                      raporta 4,9s — iar asteptarea la rand era 0.
+                      Diferenta nu era nicaieri IN analiza: 'analiza' masoara
+                      latenta unei poze de la pornire pana la rezultat, iar in
+                      acel rastimp firul principal lucreaza la ALTE poze. Suma
+                      etapelor pe 200 de poze da 459s, importul a durat 294 —
+                      adica se suprapun, si atunci un reziduu din scadere nu
+                      inseamna nimic.
+
+                      Nu se inlocuieste cu alt reziduu. Randul de mai jos spune
+                      cat lucru REAL e pe o poza, masurat direct. */}
+                  <p className="stage-timing-note">{tr('stats.stages.overlapNote')}</p>
                 </div>
               </>
             )}
