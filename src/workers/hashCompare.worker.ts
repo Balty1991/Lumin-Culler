@@ -92,13 +92,52 @@ export interface MotiveGrupare {
   respinsAltSubiect: number;
   /** In fereastra de moment si acelasi subiect, dar semne ca e alt loc. */
   respinsAltLoc: number;
+  /**
+   * CAT DE APROAPE au fost de dovada, nu doar daca au trecut.
+   *
+   * Numaratoarea de sus spune ca 136 de perechi au picat pe "fara dovada de
+   * subiect" — dar nu si daca au picat la mustata sau de la distanta, iar de
+   * raspunsul asta depinde daca pragul e prost calibrat sau daca perechile
+   * chiar sunt scene diferite. Am invatat deja de trei ori, pe viteza, ce
+   * costa o a patra banuiala.
+   *
+   * Optional dinadins: o intrare scrisa de o versiune fara masuratoarea asta
+   * nu are voie sa scoata restul diagnosticului din functiune, si nici sa
+   * arate zerouri care ar minti ca "n-a existat niciun semnal".
+   */
+  dovada?: DovadaBanda;
+}
+
+/**
+ * Perechile ajunse in fereastra de moment, dupa semnalul care le-a judecat si
+ * cat de departe au fost de pragul acelui semnal.
+ *
+ * Benzile se masoara FATA DE PRAGUL PROPRIU al semnalului (0.5 la fete, 0.75
+ * la embedding-ul general), nu pe o scara absoluta: intrebarea e "cat ar
+ * trebui coborat pragul ca sa treaca", iar aceea are acelasi inteles pe
+ * amandoua.
+ */
+export interface DovadaBanda {
+  /** N-a existat nimic de comparat pe ambele parti. */
+  faraSemnal: number;
+  /** Perechi judecate de fete (indiferent de rezultat). */
+  peFete: number;
+  /** Perechi judecate de embedding-ul general de imagine (indiferent de rezultat). */
+  peImagine: number;
+  /** Sub prag cu cel mult 0.10 — ar trece la o coborare mica. */
+  subPragAproape: number;
+  /** Sub prag cu 0.10..0.25. */
+  subPragMediu: number;
+  /** Sub prag cu peste 0.25 — scene diferite, nu o chestiune de calibrare. */
+  subPragDeparte: number;
 }
 
 function motiveGoale(): MotiveGrupare {
   return {
     legatVizual: 0, legatRafala: 0, legatMoment: 0,
     respinsPreaDiferit: 0, respinsPreaDeparteInTimp: 0,
-    respinsAltSubiect: 0, respinsAltLoc: 0
+    respinsAltSubiect: 0, respinsAltLoc: 0,
+    dovada: { faraSemnal: 0, peFete: 0, peImagine: 0, subPragAproape: 0, subPragMediu: 0, subPragDeparte: 0 }
   };
 }
 
@@ -151,7 +190,7 @@ const BURST_WINDOW_MS = 45_000;
  * prea mult.
  *
  * Aici, spre deosebire de celelalte doua nivele, asemanarea vizuala nu mai e
- * argumentul principal — e o preselectie, iar ce decide e sameSubjectConfirmed(),
+ * argumentul principal — e o preselectie, iar ce decide e subjectEvidence(),
  * care cere DOVADA (aceeasi fata, sau embedding de continut apropiat), nu simpla
  * absenta a unei contraziceri. Fara dovada, poza ramane negrupata, chiar daca
  * timpul si dHash-ul s-ar potrivi.
@@ -332,14 +371,48 @@ function looksLikeSameSubject(a: HashInput, b: HashInput): boolean {
  * accepta niciodata semnalul slab compozitie+armonie-culori, care spune doar ca
  * doua poze nu se bat cap in cap, nu ca arata acelasi lucru.
  */
-function sameSubjectConfirmed(a: HashInput, b: HashInput): boolean {
-  const faceSim = bestFaceSimilarity(a.faceEmbeddings ?? [], b.faceEmbeddings ?? []);
-  if (faceSim !== null) return faceSim >= FACE_MATCH_THRESHOLD;
-  if (a.imageEmbedding && b.imageEmbedding) {
-    return cosineSimilarity(a.imageEmbedding, b.imageEmbedding) >= IMAGE_EMBEDDING_MATCH_THRESHOLD;
-  }
-  return false;
+interface DovadaSubiect {
+  /** Semnalul care a raspuns, sau `null` daca n-a existat niciunul. */
+  sursa: 'fete' | 'imagine' | null;
+  /** Similaritatea cosinus masurata si pragul ei — `null` cand n-a existat semnal. */
+  scor: number | null;
+  prag: number | null;
+  confirmat: boolean;
 }
+
+/**
+ * Decide daca doua cadre arata acelasi subiect, CU masuratoarea la vedere.
+ *
+ * Verdictul singur nu spune daca o pereche a picat la mustata sau de la
+ * distanta, iar `IMAGE_EMBEDDING_MATCH_THRESHOLD` e, prin propriul comentariu,
+ * "un prim ghicit rezonabil, de recalibrat" — deci exact intrebarea la care
+ * un boolean nu poate raspunde. Se calculeaza O SINGURA DATA per pereche in
+ * bucla de grupare si se refoloseste si pentru decizie, si pentru numaratoare.
+ */
+function subjectEvidence(a: HashInput, b: HashInput): DovadaSubiect {
+  const faceSim = bestFaceSimilarity(a.faceEmbeddings ?? [], b.faceEmbeddings ?? []);
+  if (faceSim !== null) {
+    return { sursa: 'fete', scor: faceSim, prag: FACE_MATCH_THRESHOLD, confirmat: faceSim >= FACE_MATCH_THRESHOLD };
+  }
+  if (a.imageEmbedding && b.imageEmbedding) {
+    const scor = cosineSimilarity(a.imageEmbedding, b.imageEmbedding);
+    return { sursa: 'imagine', scor, prag: IMAGE_EMBEDDING_MATCH_THRESHOLD, confirmat: scor >= IMAGE_EMBEDDING_MATCH_THRESHOLD };
+  }
+  return { sursa: null, scor: null, prag: null, confirmat: false };
+}
+
+/** Cat de departe de prag a picat perechea — pe scara pragului ei, nu pe una absoluta. */
+function numaraDovada(banda: DovadaBanda, d: DovadaSubiect): void {
+  if (d.sursa === 'fete') banda.peFete++;
+  else if (d.sursa === 'imagine') banda.peImagine++;
+  else { banda.faraSemnal++; return; }
+  if (d.confirmat) return;
+  const lipsa = d.prag! - d.scor!;
+  if (lipsa <= 0.10) banda.subPragAproape++;
+  else if (lipsa <= 0.25) banda.subPragMediu++;
+  else banda.subPragDeparte++;
+}
+
 
 /** Distanta euclidiana intre doua culori hex, normalizata la 0..1. */
 function hexDistance(a: string, b: string): number | null {
@@ -529,7 +602,11 @@ export class HashCompareService {
           //    acelasi subiect SI fara vreo dovada ca e alt loc — o fata
           //    spune CINE, nu UNDE. Vezi MOMENT_SIMILARITY_THRESHOLD.
           const inMoment = closeInTimeTo(photo, m.photo, MOMENT_WINDOW_MS);
-          if (inMoment && sameSubjectConfirmed(photo, m.photo) && !sceneContradicts(photo, m.photo)) {
+          // O singura evaluare per pereche, folosita si de decizie, si de
+          // numaratoare — inainte se chema de doua ori, iar acum masoara.
+          const dovada = inMoment ? subjectEvidence(photo, m.photo) : null;
+          if (dovada && motive.dovada) numaraDovada(motive.dovada, dovada);
+          if (dovada?.confirmat && !sceneContradicts(photo, m.photo)) {
             acceptate.add(m.bucket); motive.legatMoment++; continue;
           }
           // De ce a picat — pe ramura care a decis, nu pe prima care vine la
@@ -537,7 +614,7 @@ export class HashCompareService {
           // evalueaza mai sus.
           if (distance > TIME_CLOSE_SIMILARITY_THRESHOLD && !inMoment) motive.respinsPreaDiferit++;
           else if (!inMoment) motive.respinsPreaDeparteInTimp++;
-          else if (!sameSubjectConfirmed(photo, m.photo)) motive.respinsAltSubiect++;
+          else if (!dovada!.confirmat) motive.respinsAltSubiect++;
           else motive.respinsAltLoc++;
         }
         // primul bucket creat dintre candidati — aceeasi regula de departajare ca

@@ -1,4 +1,4 @@
-import type { MotiveGrupare } from '../workers/hashCompare.worker';
+import type { MotiveGrupare, DovadaBanda } from '../workers/hashCompare.worker';
 
 /**
  * core/groupingDiagnostics.ts
@@ -34,7 +34,17 @@ export function readGroupingMotive(): MotiveGrupare | null {
       'respinsPreaDiferit', 'respinsPreaDeparteInTimp', 'respinsAltSubiect', 'respinsAltLoc'
     ];
     if (!chei.every(k => typeof m[k] === 'number' && Number.isFinite(m[k]))) return null;
-    return m as MotiveGrupare;
+    // Banda de dovada e OPTIONALA: lipseste din intrarile scrise inainte de ea.
+    // Daca e prezenta dar stricata, o scoatem in loc sa aruncam tot — restul
+    // motivelor raman citibile, iar zerourile n-ar spune "n-a existat semnal",
+    // ci ar minti ca s-a masurat si n-a gasit nimic.
+    const cheiDovada: (keyof DovadaBanda)[] = [
+      'faraSemnal', 'peFete', 'peImagine', 'subPragAproape', 'subPragMediu', 'subPragDeparte'
+    ];
+    const d = m.dovada as Partial<DovadaBanda> | undefined;
+    const dovadaValida = !!d && typeof d === 'object'
+      && cheiDovada.every(k => typeof d[k] === 'number' && Number.isFinite(d[k]));
+    return { ...(m as MotiveGrupare), dovada: dovadaValida ? (d as DovadaBanda) : undefined };
   } catch {
     return null;
   }

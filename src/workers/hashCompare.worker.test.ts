@@ -454,3 +454,69 @@ describe('rafala care se indeparteaza de primul cadru', () => {
     expect(serii).toEqual(['a0+a1', 'b0+b1']);
   });
 });
+
+/**
+ * CAT DE APROAPE au fost de dovada, nu doar daca au trecut.
+ *
+ * Exista fiindca dupa reparatia embedding-urilor raportul aratat de
+ * utilizator spunea "136 de perechi respinse — fara dovada de subiect" si
+ * atat, iar din numarul ala nu se poate afla daca pragul e prost calibrat sau
+ * daca perechile chiar sunt scene diferite. Aceeasi metoda ca la viteza:
+ * se masoara, nu se presupune.
+ */
+describe('HashCompareService.groupPhotos — cat a lipsit pana la dovada', () => {
+  const t = Date.UTC(2026, 0, 1, 12, 0, 0);
+  const FAR = '1'.repeat(25) + '0'.repeat(39);
+  /** Doua vectori unitari la unghiul cerut: similaritatea cosinus e chiar `cos`. */
+  const laCosinus = (cos: number) => [cos, Math.sqrt(1 - cos * cos)];
+
+  async function bandaPentru(a: Partial<HashInput>, b: Partial<HashInput>) {
+    const { motive } = await new HashCompareService().groupPhotos([
+      { id: 'a', hash: '0'.repeat(64), score: 50, capturedAt: t, ...a },
+      { id: 'b', hash: FAR, score: 50, capturedAt: t + 4 * 60_000, ...b }
+    ]);
+    return motive!.dovada!;
+  }
+
+  it('o pereche care trece pragul se numara la semnalul ei, fara banda de lipsa', async () => {
+    const banda = await bandaPentru({ imageEmbedding: [1, 0] }, { imageEmbedding: laCosinus(0.9) });
+    expect(banda.peImagine).toBe(1);
+    expect(banda.subPragAproape + banda.subPragMediu + banda.subPragDeparte).toBe(0);
+  });
+
+  it('la mustata de prag (0.70 fata de 0.75) intra in prima banda', async () => {
+    const banda = await bandaPentru({ imageEmbedding: [1, 0] }, { imageEmbedding: laCosinus(0.7) });
+    expect(banda).toMatchObject({ peImagine: 1, subPragAproape: 1, subPragMediu: 0, subPragDeparte: 0 });
+  });
+
+  it('sub prag cu 0.15 intra in banda de mijloc', async () => {
+    const banda = await bandaPentru({ imageEmbedding: [1, 0] }, { imageEmbedding: laCosinus(0.6) });
+    expect(banda).toMatchObject({ subPragAproape: 0, subPragMediu: 1, subPragDeparte: 0 });
+  });
+
+  it('sub prag cu mult inseamna scene diferite, nu prag prost calibrat', async () => {
+    const banda = await bandaPentru({ imageEmbedding: [1, 0] }, { imageEmbedding: laCosinus(0.3) });
+    expect(banda).toMatchObject({ subPragAproape: 0, subPragMediu: 0, subPragDeparte: 1 });
+  });
+
+  it('fetele se masoara fata de pragul LOR (0.5), nu de al embedding-ului', async () => {
+    // 0.45 e sub 0.5 cu 0.05 — la mustata. Pe scara embedding-ului de imagine
+    // ar fi fost "departe", si tocmai de-aia banda se raporteaza la pragul propriu.
+    const banda = await bandaPentru({ faceEmbeddings: [[1, 0]] }, { faceEmbeddings: [laCosinus(0.45)] });
+    expect(banda).toMatchObject({ peFete: 1, peImagine: 0, subPragAproape: 1 });
+  });
+
+  it('fara niciun semnal pe ambele parti, perechea se numara separat — nu ca „prag ratat”', async () => {
+    const banda = await bandaPentru({}, {});
+    expect(banda).toMatchObject({ faraSemnal: 1, peFete: 0, peImagine: 0, subPragAproape: 0 });
+  });
+
+  it('perechile legate vizual sau ca rafala nici nu ajung sa fie masurate aici', async () => {
+    const { motive } = await new HashCompareService().groupPhotos([
+      { id: 'a', hash: '0'.repeat(64), score: 50, capturedAt: t },
+      { id: 'b', hash: '0'.repeat(63) + '1', score: 50, capturedAt: t + 1000 }
+    ]);
+    expect(motive!.legatVizual).toBe(1);
+    expect(motive!.dovada).toMatchObject({ faraSemnal: 0, peFete: 0, peImagine: 0 });
+  });
+});

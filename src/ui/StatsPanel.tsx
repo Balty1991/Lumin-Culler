@@ -348,6 +348,28 @@ export function StatsPanel() {
                     <span className="mono stage-timing-value">{valoare}</span>
                   </div>
                 ))}
+                {/* CAT DE APROAPE au fost de dovada. Randul de mai sus spune
+                    cate perechi au picat pe lipsa de dovada; astea spun daca
+                    au picat la mustata (prag prost calibrat) sau de la
+                    distanta (chiar sunt scene diferite). */}
+                {motive.dovada && (
+                  <>
+                    <p className="stage-timing-note">{tr('stats.grouping.dovada.lead')}</p>
+                    {([
+                      ['stats.grouping.dovada.peFete', motive.dovada.peFete],
+                      ['stats.grouping.dovada.peImagine', motive.dovada.peImagine],
+                      ['stats.grouping.dovada.faraSemnal', motive.dovada.faraSemnal],
+                      ['stats.grouping.dovada.subPragAproape', motive.dovada.subPragAproape],
+                      ['stats.grouping.dovada.subPragMediu', motive.dovada.subPragMediu],
+                      ['stats.grouping.dovada.subPragDeparte', motive.dovada.subPragDeparte]
+                    ] as const).map(([cheie, valoare]) => (
+                      <div className="stage-timing-row" key={cheie}>
+                        <span className="stage-timing-name">{tr(cheie)}</span>
+                        <span className="mono stage-timing-value">{valoare}</span>
+                      </div>
+                    ))}
+                  </>
+                )}
               </div>
             )}
 
