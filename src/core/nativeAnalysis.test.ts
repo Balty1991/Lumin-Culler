@@ -881,3 +881,92 @@ describe('analyzeNative — cate fete trec prin recunoastere', () => {
     expect(result.faces.every(f => f.embedding !== undefined)).toBe(true);
   });
 });
+
+/**
+ * FIECARE model, cu cronometrul lui.
+ *
+ * Pana acum toate sapte stateau intr-o singura cifra ('nativeModels'), din
+ * care se putea afla ca modelele costa ~592ms, dar nu si CARE dintre ele. Fara
+ * asta, orice taiere e o banuiala — si banuielile au iesit prost de trei ori
+ * la rand pe viteza.
+ */
+describe('analyzeNative — cronometru pe fiecare model', () => {
+  beforeEach(async () => {
+    localStorage.clear();
+    for (const m of [detectFacesNative, analyzeImageNative, labelImageNative, analyzeFaceMeshNative, detectTextNative, embedImageNative, detectPoseNative]) m.mockReset();
+    analyzeImageNative.mockResolvedValue(IMAGE_ANALYSIS_FIXTURE);
+    analyzeFaceMeshNative.mockResolvedValue({ faces: [] });
+    detectPoseNative.mockResolvedValue({ people: [] });
+    embedImageNative.mockResolvedValue({ embedding: [0.1] });
+    detectTextNative.mockResolvedValue({ blocks: [], textCoverage: 0 });
+    const { resetStageStats } = await import('./stageTiming');
+    resetStageStats();
+  });
+
+  /** Etapele care chiar au primit masuratori, ca nume. */
+  async function etapeMasurate(): Promise<string[]> {
+    const { readStageStats } = await import('./stageTiming');
+    return readStageStats().filter(st => st.count > 0).map(st => st.stage);
+  }
+
+  it('o poza cu fete masoara detectia, mesh-ul, imaginea, etichetele si postura — nu embedding-ul si nu OCR-ul', async () => {
+    detectFacesNative.mockResolvedValue({
+      faces: [{ boundingBox: { left: 0, top: 0, width: 50, height: 50 }, smilingProbability: 0.5, leftEyeOpenProbability: 0.9, rightEyeOpenProbability: 0.9 }],
+      imageWidth: 200, imageHeight: 200
+    });
+    labelImageNative.mockResolvedValue({ labels: [] });
+
+    const { analyzeNative } = await import('./nativeAnalysis');
+    await analyzeNative('p1', fakeBitmap(200, 200));
+
+    const etape = await etapeMasurate();
+    expect(etape).toEqual(expect.arrayContaining(['mFaceDetect', 'mFaceMesh', 'mImageAnalysis', 'mLabels', 'mPose']));
+    expect(etape).not.toContain('mEmbed');
+    expect(etape).not.toContain('mOcr');
+  });
+
+  it('o poza fara fete masoara embedding-ul si OCR-ul — nu mesh-ul si nu postura', async () => {
+    detectFacesNative.mockResolvedValue({ faces: [], imageWidth: 200, imageHeight: 200 });
+    labelImageNative.mockResolvedValue({ labels: [] });
+
+    const { analyzeNative } = await import('./nativeAnalysis');
+    await analyzeNative('p1', fakeBitmap(200, 200));
+
+    const etape = await etapeMasurate();
+    expect(etape).toEqual(expect.arrayContaining(['mFaceDetect', 'mImageAnalysis', 'mLabels', 'mEmbed', 'mOcr']));
+    expect(etape).not.toContain('mFaceMesh');
+    expect(etape).not.toContain('mPose');
+  });
+
+  /**
+   * OCR ruleaza SECVENTIAL dupa al doilea val, deci timpul lui e parte din
+   * peretele masurat de 'nativeModels'. Scos de acolo, ar reaparea in reziduu
+   * ca timp nemasurat — exact eroarea pe care o descrie stageTiming.ts.
+   */
+  it('OCR-ul ramane si inauntrul peretelui, nu doar in cronometrul lui', async () => {
+    detectFacesNative.mockResolvedValue({ faces: [], imageWidth: 200, imageHeight: 200 });
+    labelImageNative.mockResolvedValue({ labels: [] });
+
+    const { analyzeNative } = await import('./nativeAnalysis');
+    await analyzeNative('p1', fakeBitmap(200, 200));
+
+    const { readStageStats } = await import('./stageTiming');
+    const stats = readStageStats();
+    const perete = stats.find(st => st.stage === 'nativeModels');
+    // Doua valuri + OCR — daca OCR-ul ar fi iesit din perete, ar fi ramas doua.
+    expect(perete?.count).toBe(3);
+  });
+
+  it('pe motorul landmarker, detectia ML Kit nu mai ruleaza deloc', async () => {
+    localStorage.setItem('lumin-face-engine', 'landmarker');
+    analyzeFaceMeshNative.mockResolvedValue({ faces: [], imageWidth: 200, imageHeight: 200 });
+    labelImageNative.mockResolvedValue({ labels: [] });
+
+    const { analyzeNative } = await import('./nativeAnalysis');
+    await analyzeNative('p1', fakeBitmap(200, 200));
+
+    const etape = await etapeMasurate();
+    expect(etape).toContain('mFaceMesh');
+    expect(etape).not.toContain('mFaceDetect');
+  });
+});

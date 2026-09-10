@@ -517,14 +517,14 @@ export async function analyzeNative(
   // poze) si aduce semnalele fine per fata, nu doar ca medie pe grup.
   const faceEngine: FaceEngine = readFaceEngine();
   const faceProbe = faceEngine === 'landmarker'
-    ? analyzeFaceMeshNative(source).then(r => fromLandmarker(r, imageWidth, imageHeight))
-    : detectFacesNative(source).then(r => fromMlKit(r, imageWidth, imageHeight));
+    ? timed('mFaceMesh', () => analyzeFaceMeshNative(source)).then(r => fromLandmarker(r, imageWidth, imageHeight))
+    : timed('mFaceDetect', () => detectFacesNative(source)).then(r => fromMlKit(r, imageWidth, imageHeight));
 
   record('nativePrep', performance.now() - bodyStart);
   const [detected, imageAnalysis, labelResult] = await timed('nativeModels', () => Promise.all([
     faceProbe,
-    analyzeImageNative(source),
-    labelImageNative(source)
+    timed('mImageAnalysis', () => analyzeImageNative(source)),
+    timed('mLabels', () => labelImageNative(source))
   ]));
 
   const faces = detected.faces;
@@ -585,7 +585,7 @@ export async function analyzeNative(
     detected.meshStats !== null
       ? Promise.resolve(detected.meshStats)
       : faces.length > 0
-        ? analyzeFaceMeshNative(source).then(r => faceMeshGroupStats(r.faces))
+        ? timed('mFaceMesh', () => analyzeFaceMeshNative(source)).then(r => faceMeshGroupStats(r.faces))
         : Promise.resolve({}),
     // Embedding general de similaritate — vezi AnalysisRecord.imageEmbedding.
     //
@@ -616,12 +616,12 @@ export async function analyzeNative(
     // raspunsul e semnalul de identitate, nu unul de continut — si acela e o
     // discutie separata, cu alt cost.
     faces.length === 0
-      ? embedImageNative(source).then(r => r.embedding)
+      ? timed('mEmbed', () => embedImageNative(source)).then(r => r.embedding)
       : Promise.resolve(undefined),
     // Postura — vezi AnalysisRecord.bodyCroppedAtEdge: doar cand exista fete
     // (postura n-are subiect de verificat pe un peisaj/obiect).
     faces.length > 0
-      ? detectPoseNative(source).then(r => hasAwkwardBodyCrop(r.people))
+      ? timed('mPose', () => detectPoseNative(source)).then(r => hasAwkwardBodyCrop(r.people))
       : Promise.resolve(undefined)
   ]));
 
@@ -656,11 +656,11 @@ export async function analyzeNative(
   // gasibile mai tarziu ("bonul de la service", "parola de wifi").
   const ocr = faces.length === 0
     && (!pickFolderSceneTag(sceneTags) || hasManufacturedTag(sceneTags))
-    ? await timed('nativeModels', async () => detectTextNative(
+    ? await timed('nativeModels', () => timed('mOcr', async () => detectTextNative(
         mediaUri
           ? { uri: mediaUri, maxSide: NATIVE_OCR_MAX_SIDE }
           : { blob: await canvasToBlob(requireCanvas()) }
-      ))
+      )))
     : undefined;
   const textCoverage = ocr?.textCoverage;
   const ocrText = ocr ? photoTextFromBlocks(ocr.blocks) : undefined;

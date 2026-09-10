@@ -73,7 +73,19 @@
  * (recunoasterea ruleaza in paralel cu al doilea val, deci NU se scade a doua
  * oara — de-aia are stiva ei si nu intra in formula.)
  */
-export const STAGES = ['decode', 'derivatives', 'analysis', 'queue', 'nativeBody', 'nativePrep', 'nativeAssemble', 'canvas', 'nativeModels', 'recognition', 'exif', 'persist', 'grouping'] as const;
+/**
+ * Etapele 'm*' sunt MODELELE NATIVE, unul cate unul.
+ *
+ * Pana acum toate sapte stateau intr-o singura cifra ('nativeModels'), iar de
+ * acolo se putea spune doar "modelele costa 592ms" — nu si CARE dintre ele.
+ * Fara asta, orice taiere e o banuiala, si banuielile au iesit prost de trei
+ * ori la rand pe viteza. Cu ele, urmatoarea taiere se alege din raport.
+ *
+ * NU se aduna la nimic: modelele pleaca in valuri de `Promise.all`, deci suma
+ * lor depaseste timpul de perete al valului. Fiecare e timpul propriu, de
+ * comparat intre ele — cel mai scump model e cel de atacat.
+ */
+export const STAGES = ['decode', 'derivatives', 'analysis', 'queue', 'nativeBody', 'nativePrep', 'nativeAssemble', 'canvas', 'nativeModels', 'recognition', 'exif', 'persist', 'grouping', 'mFaceDetect', 'mFaceMesh', 'mImageAnalysis', 'mLabels', 'mEmbed', 'mPose', 'mOcr'] as const;
 export type Stage = (typeof STAGES)[number];
 
 /** Cate durate pastram per etapa. 200 e destul pentru un p90 stabil si ramane sub ~2 KB in localStorage. */

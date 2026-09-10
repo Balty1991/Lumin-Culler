@@ -21,6 +21,12 @@ function formatDuration(ms: number): string {
    ea. 'queue' e cea mai noua si cea care lipsea — vezi comentariul de la
    `measuredInAnalysis` mai jos pentru ce a costat absenta ei. */
 const SUB_ETAPE = ['queue', 'nativeBody', 'nativePrep', 'nativeAssemble', 'canvas', 'nativeModels', 'recognition'] as const;
+/* Modelele native, unul cate unul. Stau si mai jos decat sub-etapele: ele nu
+   sunt o defalcare a analizei, ci a lui 'nativeModels' — si nici acolo nu se
+   aduna, fiindca pleaca in valuri paralele. Puse in vreuna dintre sumele de
+   sus, ar numara al treilea rand acelasi timp. */
+const ETAPE_MODEL = ['mFaceDetect', 'mFaceMesh', 'mImageAnalysis', 'mLabels', 'mEmbed', 'mPose', 'mOcr'] as const;
+type EtapaModel = (typeof ETAPE_MODEL)[number];
 type SubEtapa = (typeof SUB_ETAPE)[number];
 
 type Tr = (key: string, params?: Record<string, string | number>) => string;
@@ -167,8 +173,12 @@ export function StatsPanel() {
    * analizei, si acolo isi au si rostul: raspund la intrebarea pentru care au
    * fost adaugate — unde se duc cele doua treimi nemasurate din ea.
    */
-  const topStages = stageStats.filter(st => !SUB_ETAPE.includes(st.stage as SubEtapa));
+  const esteModel = (stage: string) => ETAPE_MODEL.includes(stage as EtapaModel);
+  const topStages = stageStats.filter(st => !SUB_ETAPE.includes(st.stage as SubEtapa) && !esteModel(st.stage));
   const subStages = stageStats.filter(st => SUB_ETAPE.includes(st.stage as SubEtapa));
+  /** Modelele, de la cel mai scump la cel mai ieftin — intrebarea e "pe care il atac". */
+  const modelStages = stageStats.filter(st => esteModel(st.stage)).sort((a, b) => b.p50Ms - a.p50Ms);
+  const modelMax = Math.max(1, ...modelStages.map(st => st.p50Ms));
   const stageTotal = Math.max(1, topStages.reduce((sum, st) => sum + st.totalMs, 0));
   const analysisMs = stageStats.find(st => st.stage === 'analysis')?.totalMs ?? 0;
   /**
@@ -323,6 +333,34 @@ export function StatsPanel() {
                       Nu se inlocuieste cu alt reziduu. Randul de mai jos spune
                       cat lucru REAL e pe o poza, masurat direct. */}
                   <p className="stage-timing-note">{tr('stats.stages.overlapNote')}</p>
+                </div>
+              </>
+            )}
+
+            {/* CARE model costa, nu doar cat costa toate. Blocul asta exista
+                fiindca "modelele = 592ms" nu spune pe care sa-l ataci, iar
+                banuielile despre viteza au iesit prost de trei ori la rand.
+                Sortat de la scump la ieftin: primul rand e urmatoarea taiere. */}
+            {modelStages.length > 0 && (
+              <>
+                <h4 className="stage-timing-sub-head">{tr('stats.models.head')}</h4>
+                <p className="stage-timing-note">{tr('stats.models.lead')}</p>
+                <div className="stage-timing">
+                  {modelStages.map(st => (
+                    <div key={st.stage} className="stage-timing-row">
+                      <span className="stage-timing-name">{tr(`stats.stage.${st.stage}`)}</span>
+                      <span className="stage-timing-bar" aria-hidden="true">
+                        <i style={{ width: `${Math.round((st.p50Ms / modelMax) * 100)}%` }} />
+                      </span>
+                      <span className="mono stage-timing-value">
+                        {tr('stats.models.value', {
+                          median: formatMs(st.p50Ms),
+                          slow: formatMs(st.p90Ms),
+                          count: st.count
+                        })}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </>
             )}
