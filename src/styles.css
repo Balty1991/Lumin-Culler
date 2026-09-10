@@ -22,11 +22,30 @@
 
 :root {
   --bg: #0a0b0d;
-  --surface: #16171c;
-  --surface-2: #1c1e25;
-  --surface-3: #272a33;
-  --line: #26282f;
-  --line-strong: #3a3e4a;
+  /*
+   * SUPRAFETELE, mutate in "Camera obscura" — si mutate AICI, nu selector cu
+   * selector.
+   *
+   * Cele patru token-uri de mai jos sunt folosite de vreo 270 de ori in cele
+   * doua foi. Am inceput prin a rescrie suprafetele una cate una in stratul de
+   * croma, ceea ce a mers pentru cateva ecrane si ar fi fost o munca fara
+   * capat pentru restul — plus o garantie ca undeva raman insule vechi. Aici e
+   * un singur loc, se schimba tot deodata, si nu se poate desincroniza.
+   *
+   * Ce se schimba: fundalurile coboara spre negru si se racesc (aceeasi familie
+   * ca --bg), iar liniile devin MUCHII — alfa peste fundal, nu un gri opac.
+   * Diferenta se vede cel mai bine peste fotografii, unde un gri opac arata ca
+   * o cutie lipita pe imagine, iar o muchie arata ca marginea unui panou.
+   *
+   * Tema luminoasa NU se atinge (vezi :root[data-theme="light"] mai jos): acolo
+   * suprafetele albe si liniile gri sunt deja raspunsul corect, iar contrastul
+   * lor e aparat de styles.contrast.test.ts.
+   */
+  --surface: #101217;
+  --surface-2: #14161c;
+  --surface-3: #1b1e26;
+  --line: rgb(240 244 255 / 0.09);
+  --line-strong: rgb(240 244 255 / 0.16);
   --text: #f2f2f5;
   --text-dim: #a3a7b3;
   --text-faint: #868a96;   /* >=5.2:1 pe --surface, >=5.7:1 pe --bg (WCAG AA) — vezi audit-ul de accesibilitate */
@@ -1161,6 +1180,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   font-size: 0.8rem; font-weight: 500; color: var(--engine-ink);
   font-variant-numeric: tabular-nums; letter-spacing: 0;
 }
+/* Pe tema luminoasa, cerneala motorului (#8fd8c9) sta pe alb la ~1,4:1 — adica
+   nu se citeste deloc. Semnul ramane al motorului prin ARC, care e gradientul
+   spectral si se vede oricum; cifra din mijloc trece pe un teal inchis care
+   trece pragul. Gasit uitandu-ma la tema luminoasa dupa mutarea suprafetelor,
+   nu de un test — de-aia are acum si test. */
+:root[data-theme="light"] .engine-ring b { color: #0f766e; }
 
 /* Stratul de ancore, exact peste imaginea desenata — vezi ui/PhotoAnchors.tsx.
    `pointer-events: none` pe TOT stratul, nu doar pe ancore: el acopera suprafata

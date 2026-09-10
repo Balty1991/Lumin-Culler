@@ -110,6 +110,21 @@ describe('butoanele de decizie — eticheta alba pe fundal plin', () => {
   });
 });
 
+describe('cifra din inelul motorului se citeste in ambele teme', () => {
+  it('pe intuneric, cerneala motorului pe fundalul aplicatiei', () => {
+    expect(contrast(token(css, '--engine-ink'), token(css, '--bg'))).toBeGreaterThanOrEqual(AA);
+  });
+
+  it('pe lumina, NU cerneala motorului — ea sta pe alb la ~1,4:1', () => {
+    // Regresia pe care o repara: `--engine-ink` e gandita pentru fundal
+    // intunecat. Pe tema luminoasa inelul isi pastreaza arcul spectral (semnul
+    // motorului) dar cifra trece pe un teal inchis.
+    const potrivire = /:root\[data-theme="light"\] \.engine-ring b \{[^}]*color:\s*(#[0-9a-fA-F]{6})/.exec(css);
+    expect(potrivire, 'cifra inelului n-are cerneala proprie pe tema luminoasa').not.toBeNull();
+    expect(contrast(potrivire![1], '#ffffff')).toBeGreaterThanOrEqual(AA);
+  });
+});
+
 describe('paleta "desk" are o singura definitie', () => {
   /**
    * styles.concept.css se importa DUPA styles.css, deci orice token redefinit
