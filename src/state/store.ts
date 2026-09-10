@@ -90,6 +90,7 @@ import { readStoredProjectName, writeProjectName } from './projectName';
 import { readStoredWatermarkText, writeWatermarkText } from './watermarkText';
 import { readStoredGenre, writeStoredGenre } from './genre';
 import { readGridDensity, writeGridDensity, type GridDensity } from './gridDensity';
+import { keepSeriesTogether } from './keepSeriesTogether';
 import { readGridSort, writeGridSort, compareBy, type GridSort } from './gridSort';
 import { readStoredRenameTemplate, writeStoredRenameTemplate } from '../core/renameTemplate';
 import { recordUsage, readMonthlyUsage } from './usage';
@@ -4777,6 +4778,12 @@ export const useStore = create<AppState>((set, get) => ({
         const cmp = compareBy(gridSort.key, a, b);
         return gridSort.dir === 'asc' ? cmp : -cmp;
       });
+      // O serie e o UNITATE, nu trei poze care se nimeresc aproape. Sortarea de
+      // mai sus le poate despărți — între două cadre ale aceluiași moment
+      // încape orice altă poză făcută atunci — iar atunci exact cadrele care
+      // trebuie comparate ajung pe rânduri diferite. Vezi keepSeriesTogether:
+      // seria rămâne unde era primul ei membru, deci firul general nu se rupe.
+      base = keepSeriesTogether(base);
     }
     filteredCache = {
       photos, filter, personFilter, colorLabelFilter, sceneTagFilter, cameraFilter, projectFilter,
