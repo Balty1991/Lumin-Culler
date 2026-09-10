@@ -25,6 +25,7 @@ import { deriveThresholds, FIXED_THRESHOLDS, type Thresholds, applyStrictness } 
 import { readCullingStrictness } from '../state/cullingStrictness';
 import { quickDuplicateScan, type QuickScanResult } from './quickDuplicateScan';
 import { buildLibraryIndex, partitionAlreadyImported } from './alreadyImported';
+import { writeGroupingMotive } from './groupingDiagnostics';
 
 /**
  * Un avertisment de import, ca CHEIE + parametri, nu ca propozitie gata scrisa.
@@ -1140,9 +1141,13 @@ export async function importFiles(
   // Alegerea celui mai bun cadru din serie tine cont si de ce a invatat motorul
   // din deciziile utilizatorului, proportional cu cat de antrenat e — vezi
   // groupScore in core/groupSelection.ts.
-  const { groups: groupResults } = await groupPhotosByHash(
+  const { groups: groupResults, motive } = await groupPhotosByHash(
     [...hashes, ...existingHashes], undefined, await contextEngine.learnedWeight()
   );
+  // De ce n-au ajuns unele poze in aceeasi serie — vezi core/groupingDiagnostics.ts.
+  // Se scrie dupa fiecare import, fiindca intrebarea e mereu despre importul
+  // care tocmai s-a terminat.
+  if (motive) writeGroupingMotive(motive);
   // Bug real gasit de auditul QA (bug/low-medium): bucla de mai jos facea, per
   // membru de grup, un db.photos.get() (pentru membrii non-best) urmat de un
   // db.photos.update() — pentru un import de 1000 de poze cu multe burst-uri

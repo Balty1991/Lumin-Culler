@@ -6,7 +6,7 @@
  * prima folosire si refolosit pentru toate importurile ulterioare din sesiune.
  */
 import * as Comlink from 'comlink';
-import type { HashCompareAPI, HashInput, GroupUpdate, GroupResult } from '../workers/hashCompare.worker';
+import type { HashCompareAPI, HashInput, GroupUpdate, GroupResult, MotiveGrupare } from '../workers/hashCompare.worker';
 import { withTimeout } from './workerPool';
 
 let api: Comlink.Remote<HashCompareAPI> | null = null;
@@ -38,7 +38,7 @@ export async function groupPhotosByHash(
   onUpdate?: (update: GroupUpdate) => void,
   /** Vezi ContextEngine.learnedWeight() — cat cantareste modelul invatat la alegerea celui mai bun cadru din serie. */
   learnedWeight = 0
-): Promise<{ groups: GroupResult[]; totalGroups: number }> {
+): Promise<{ groups: GroupResult[]; totalGroups: number; motive?: MotiveGrupare }> {
   try {
     return await withTimeout(
       getApi().groupPhotos(photos, onUpdate ? Comlink.proxy(onUpdate) : undefined, learnedWeight),

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { readStageStats, resetStageStats } from '../core/stageTiming';
+import { readGroupingMotive } from '../core/groupingDiagnostics';
 import { summariseOutcomes, resetImportOutcomes } from '../core/importOutcome';
 import { summariseFeedback, resetFeedback } from '../core/aiFeedback';
 import { db } from '../core/db';
@@ -189,6 +190,8 @@ export function StatsPanel() {
    * dintre valuri.
    */
 
+  const [motive, setMotive] = useState(() => readGroupingMotive());
+  useEffect(() => { if (open) setMotive(readGroupingMotive()); }, [open]);
   const [feedback, setFeedback] = useState(() => summariseFeedback());
   useEffect(() => { if (open) setFeedback(summariseFeedback()); }, [open]);
   // La fel ca mai sus: se schimba doar la sfarsitul unui import.
@@ -322,6 +325,30 @@ export function StatsPanel() {
                   <p className="stage-timing-note">{tr('stats.stages.overlapNote')}</p>
                 </div>
               </>
+            )}
+
+            {/* DE CE n-au ajuns pozele in aceeasi serie. Raportat de utilizator
+                ("nu mai detecteaza corect toate seriile"), si pus aici in loc
+                de a patra banuiala: doua verificate deja cazusera. */}
+            {motive && (
+              <div className="stage-timing-group">
+                <h4 className="stage-timing-head mono">{tr('stats.grouping.head')}</h4>
+                <p className="stage-timing-note">{tr('stats.grouping.lead')}</p>
+                {([
+                  ['stats.grouping.legatVizual', motive.legatVizual],
+                  ['stats.grouping.legatRafala', motive.legatRafala],
+                  ['stats.grouping.legatMoment', motive.legatMoment],
+                  ['stats.grouping.respinsPreaDiferit', motive.respinsPreaDiferit],
+                  ['stats.grouping.respinsPreaDeparteInTimp', motive.respinsPreaDeparteInTimp],
+                  ['stats.grouping.respinsAltSubiect', motive.respinsAltSubiect],
+                  ['stats.grouping.respinsAltLoc', motive.respinsAltLoc]
+                ] as const).map(([cheie, valoare]) => (
+                  <div className="stage-timing-row" key={cheie}>
+                    <span className="stage-timing-name">{tr(cheie)}</span>
+                    <span className="mono stage-timing-value">{valoare}</span>
+                  </div>
+                ))}
+              </div>
             )}
 
             <button type="button" className="ghost small danger" onClick={() => { resetStageStats(); setStageStats([]); }}>

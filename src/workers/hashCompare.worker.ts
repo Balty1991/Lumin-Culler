@@ -66,6 +66,42 @@ export interface GroupResult {
   bestId: string;
 }
 
+/**
+ * DE CE n-a fost legata o pereche, numarat pe motive.
+ *
+ * Raportat de utilizator: "nu mai detecteaza corect toate seriile", cu 25 de
+ * serii din 200 de poze dintr-o zi de familie. Am verificat doua banuieli
+ * (pragul de timp, `capturedAtExact`) si amandoua au cazut — asa ca nu mai
+ * emit o a treia. Aceeasi metoda care a lamurit viteza: se masoara, nu se
+ * presupune.
+ *
+ * Se numara doar PERECHILE CANDIDATE — cele pe care cautarea le-a adus destul
+ * de aproape ca sa merite intrebate. O pereche din doua capete diferite ale
+ * zilei nici nu ajunge aici, si nici nu trebuie.
+ */
+export interface MotiveGrupare {
+  /** Perechi legate, pe fiecare din cele trei cai. */
+  legatVizual: number;
+  legatRafala: number;
+  legatMoment: number;
+  /** Prea diferite vizual ca sa mai conteze timpul (peste pragul relaxat). */
+  respinsPreaDiferit: number;
+  /** Destul de asemanatoare, dar prea departate in timp (sau fara ora exacta). */
+  respinsPreaDeparteInTimp: number;
+  /** In fereastra de moment, dar fara dovada ca e acelasi subiect. */
+  respinsAltSubiect: number;
+  /** In fereastra de moment si acelasi subiect, dar semne ca e alt loc. */
+  respinsAltLoc: number;
+}
+
+function motiveGoale(): MotiveGrupare {
+  return {
+    legatVizual: 0, legatRafala: 0, legatMoment: 0,
+    respinsPreaDiferit: 0, respinsPreaDeparteInTimp: 0,
+    respinsAltSubiect: 0, respinsAltLoc: 0
+  };
+}
+
 const CHUNK_SIZE = 50;
 /**
  * Ridicat de la 8 la 14 dupa feedback direct pe device real: mai multe serii
@@ -444,7 +480,8 @@ export class HashCompareService {
     onUpdate?: (update: GroupUpdate) => void,
     /** Cat de mult sa cantareasca scorul invatat la alegerea celui mai bun cadru — vezi ContextEngine.learnedWeight(). 0 = doar ierarhia fixa, ca inainte. */
     learnedWeight = 0
-  ): Promise<{ groups: GroupResult[]; totalGroups: number }> {
+  ): Promise<{ groups: GroupResult[]; totalGroups: number; motive?: MotiveGrupare }> {
+    const motive = motiveGoale();
     const buckets: Bucket[] = [];
     // Indexul tine FIECARE cadru, nu doar seed-ul seriei (BK-tree, distanta
     // Hamming) — plan 2.3.3 ("algoritmi optimizati... LSH"): exact, nu
@@ -483,18 +520,25 @@ export class HashCompareService {
           if (acceptate.has(m.bucket)) continue; // bucket-ul e deja luat, nu-l re-evaluam
           const distance = hammingDistance(photo.hash, m.photo.hash);
           // 1. asemanare vizuala stransa — acceptata mereu, indiferent de timp
-          if (distance <= SIMILARITY_THRESHOLD) { acceptate.add(m.bucket); continue; }
+          if (distance <= SIMILARITY_THRESHOLD) { acceptate.add(m.bucket); motive.legatVizual++; continue; }
           // 2. rafala: prag relaxat, dar doar la cateva zeci de secunde distanta
           if (distance <= TIME_CLOSE_SIMILARITY_THRESHOLD && closeInTimeTo(photo, m.photo, BURST_WINDOW_MS)) {
-            acceptate.add(m.bucket); continue;
+            acceptate.add(m.bucket); motive.legatRafala++; continue;
           }
           // 3. moment: prag larg si minute intregi, DAR numai cu dovada ca e
           //    acelasi subiect SI fara vreo dovada ca e alt loc — o fata
           //    spune CINE, nu UNDE. Vezi MOMENT_SIMILARITY_THRESHOLD.
-          if (closeInTimeTo(photo, m.photo, MOMENT_WINDOW_MS)
-            && sameSubjectConfirmed(photo, m.photo) && !sceneContradicts(photo, m.photo)) {
-            acceptate.add(m.bucket);
+          const inMoment = closeInTimeTo(photo, m.photo, MOMENT_WINDOW_MS);
+          if (inMoment && sameSubjectConfirmed(photo, m.photo) && !sceneContradicts(photo, m.photo)) {
+            acceptate.add(m.bucket); motive.legatMoment++; continue;
           }
+          // De ce a picat — pe ramura care a decis, nu pe prima care vine la
+          // indemana. Ordinea de aici e ordinea in care conditiile chiar se
+          // evalueaza mai sus.
+          if (distance > TIME_CLOSE_SIMILARITY_THRESHOLD && !inMoment) motive.respinsPreaDiferit++;
+          else if (!inMoment) motive.respinsPreaDeparteInTimp++;
+          else if (!sameSubjectConfirmed(photo, m.photo)) motive.respinsAltSubiect++;
+          else motive.respinsAltLoc++;
         }
         // primul bucket creat dintre candidati — aceeasi regula de departajare ca
         // Array.prototype.find de dinainte (scanare in ordinea crearii)
@@ -544,7 +588,7 @@ export class HashCompareService {
       }
     }
 
-    return { groups, totalGroups: groups.length };
+    return { groups, totalGroups: groups.length, motive };
   }
 }
 
