@@ -479,6 +479,7 @@ export class AnalysisPool {
       await this.acquireNativePermit();
       record('queue', performance.now() - queueStart);
       try {
+        const bodyStart = performance.now();
         return await withTimeout(
           analyzeNative(
             photoId,
@@ -495,7 +496,7 @@ export class AnalysisPool {
           ),
           ANALYZE_TIMEOUT_MS,
           'Analiza acestei fotografii a durat prea mult (posibil fisier problematic) — sarita.'
-        );
+        ).finally(() => record('nativeBody', performance.now() - bodyStart));
       } finally {
         this.releaseNativePermit();
       }

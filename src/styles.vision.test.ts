@@ -119,8 +119,23 @@ describe('actiunea principala e lumina, nu culoare', () => {
    * Lista de mai jos e scurta deliberat: fiecare intrare noua trebuie sa fie
    * un ecran care chiar are o SINGURA actiune dominanta.
    */
-  it('lespedea de lumina ramane pe cateva suprafete, nu pe clasa de buton', () => {
-    const PERMISE = ['.review-desk-continue'];
+  /**
+   * Lista e GOALA acum, si asta e raspunsul real, nu o omisiune.
+   *
+   * Am mutat intai `.btn-accent` pe lumina; utilizatorul a semnalat butoanele
+   * albe. Am corectat, dar am pastrat lumina pe "singura actiune dominanta a
+   * ecranului" (butonul Continua de pe Acasa). A semnalat-o si pe aceea.
+   *
+   * Doua semnalari la rand pe acelasi lucru nu mai sunt o preferinta de
+   * detaliu: regula "actiunea principala e LUMINA" nu e regula acestei
+   * aplicatii. Ea are un accent pe care omul si-l alege din Aspect, iar
+   * actiunea principala e exact locul unde acel accent se vede.
+   *
+   * Testul ramane, cu lista goala, ca lumina sa nu se strecoare inapoi din
+   * inertie — inclusiv de la mine.
+   */
+  it('lespedea de lumina nu se mai foloseste ca fundal de buton', () => {
+    const PERMISE: string[] = [];
     for (const source of [css, conceptCss]) {
       const vinovati = blocks(source)
         .filter(b => !/^:root/.test(b.selector))

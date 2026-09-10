@@ -45,6 +45,20 @@
  *
  *     punte + lipici JS  ~  analysis - queue - canvas - nativeModels
  *
+ * ATENTIE la ce a aratat masuratoarea reala, fiindca e o lectie: 'queue' a
+ * iesit 0ms. Ipoteza mea — ca reziduul e coada — era gresita, iar importFiles
+ * isi calculeaza oricum concurenta din analysisPool.size, deci permisul e mereu
+ * liber cand se cere. Cele trei etape 'native*' de mai jos exista tocmai ca sa
+ * nu mai fie nevoie de nicio ipoteza:
+ *
+ *   nativeBody     — cat dureaza analyzeNative() cap-coada
+ *   nativePrep     — de la intrare pana inainte de primul val de modele
+ *   nativeAssemble — de la ultimul val pana la inregistrarea intoarsa
+ *
+ * Cu ele, timpul lipsa nu mai are unde sa se ascunda: ori e in invelisul din
+ * workerPool (analysis - queue - nativeBody), ori intre valuri
+ * (nativeBody - nativeModels - prep - assemble), ori chiar in prep/assemble.
+ *
  * 'queue' e ASTEPTAREA LA RAND, si lipsea. Fara ea, scaderea de mai sus a
  * raportat 74% "punte si lipici" pe un import real de 201 de poze — un numar
  * care aproape m-a pus sa optimizez marshalling-ul. De fapt `record('analysis')`
@@ -59,7 +73,7 @@
  * (recunoasterea ruleaza in paralel cu al doilea val, deci NU se scade a doua
  * oara — de-aia are stiva ei si nu intra in formula.)
  */
-export const STAGES = ['decode', 'derivatives', 'analysis', 'queue', 'canvas', 'nativeModels', 'recognition', 'exif', 'persist', 'grouping'] as const;
+export const STAGES = ['decode', 'derivatives', 'analysis', 'queue', 'nativeBody', 'nativePrep', 'nativeAssemble', 'canvas', 'nativeModels', 'recognition', 'exif', 'persist', 'grouping'] as const;
 export type Stage = (typeof STAGES)[number];
 
 /** Cate durate pastram per etapa. 200 e destul pentru un p90 stabil si ramane sub ~2 KB in localStorage. */

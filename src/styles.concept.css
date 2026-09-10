@@ -7113,12 +7113,19 @@ button:disabled,
 .review-desk-session { color: var(--text); font-weight: 500; }
 .review-desk-reset { color: var(--text-dim); }
 
+/* ÎNAPOI PE ACCENT, a doua oară. Prima dată am mutat `.btn-accent` pe lumină și
+   utilizatorul a semnalat butoanele albe; am corectat, dar am păstrat lumina
+   aici, pe "singura acțiune dominantă a ecranului". A semnalat-o și pe asta.
+   Două semnalări la rând pe același lucru nu mai sunt o preferință de detaliu:
+   regula "acțiunea principală e lumină" pur și simplu nu e regula acestei
+   aplicații. Aplicația are un accent pe care omul și-l alege din Aspect, iar
+   acțiunea principală e locul unde acel accent chiar se vede.
+   Lespedea de lumină rămâne în token-i, nefolosită — vezi styles.vision.test.ts. */
 .review-desk-continue {
-  color: var(--light-primary-ink);
-  background: var(--light-primary);
-  border: 1px solid var(--edge-strong);
-  box-shadow: var(--light-primary-glow);
-  font-weight: 600;
+  color: #06070a;
+  background: var(--accent-gradient);
+  border: 0;
+  font-weight: 700;
 }
 
 /* Panoul de severitate, in acelasi vocabular de suprafete ca restul. */

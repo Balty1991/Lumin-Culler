@@ -19,7 +19,7 @@ function formatDuration(ms: number): string {
 /* Etapele care traiesc INAUNTRUL analizei: se scad din ea, nu se aduna langa
    ea. 'queue' e cea mai noua si cea care lipsea — vezi comentariul de la
    `measuredInAnalysis` mai jos pentru ce a costat absenta ei. */
-const SUB_ETAPE = ['queue', 'canvas', 'nativeModels', 'recognition'] as const;
+const SUB_ETAPE = ['queue', 'nativeBody', 'nativePrep', 'nativeAssemble', 'canvas', 'nativeModels', 'recognition'] as const;
 type SubEtapa = (typeof SUB_ETAPE)[number];
 
 type Tr = (key: string, params?: Record<string, string | number>) => string;
@@ -181,8 +181,15 @@ export function StatsPanel() {
    * pe punte. Un reziduu poarta numele banuielii tale, si banuiala se poate
    * insela.
    */
+  /**
+   * 'nativeBody' NU se scade: el CONTINE prep/valuri/assemble, deci scazut
+   * langa ele ar numara acelasi timp de doua ori. E aici ca sa se poata citi
+   * separat — diferenta dintre 'analiza' si el arata cat costa invelisul din
+   * workerPool, iar diferenta dintre el si sumele dinauntru arata golurile
+   * dintre valuri.
+   */
   const measuredInAnalysis = subStages
-    .filter(st => st.stage !== 'recognition')
+    .filter(st => st.stage !== 'recognition' && st.stage !== 'nativeBody')
     .reduce((sum, st) => sum + st.totalMs, 0);
   const bridgeMs = Math.max(0, analysisMs - measuredInAnalysis);
   const [feedback, setFeedback] = useState(() => summariseFeedback());

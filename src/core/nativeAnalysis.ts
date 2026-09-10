@@ -422,6 +422,8 @@ export async function analyzeNative(
    */
   mediaUri?: string
 ): Promise<AnalysisRecord> {
+  /** Cap-coada, ca sa se poata scadea prep/valuri/assemble — vezi core/stageTiming.ts. */
+  const bodyStart = performance.now();
   const imageWidth = bitmap.width;
   const imageHeight = bitmap.height;
   /**
@@ -483,6 +485,7 @@ export async function analyzeNative(
     ? analyzeFaceMeshNative(source).then(r => fromLandmarker(r, imageWidth, imageHeight))
     : detectFacesNative(source).then(r => fromMlKit(r, imageWidth, imageHeight));
 
+  record('nativePrep', performance.now() - bodyStart);
   const [detected, imageAnalysis, labelResult] = await timed('nativeModels', () => Promise.all([
     faceProbe,
     analyzeImageNative(source),
@@ -580,9 +583,11 @@ export async function analyzeNative(
   // cunoscutii/strainii, fiindca ea e cea care completeaza personId pe fete.
   await recognition;
 
+  /** De aici incolo e doar JS de asamblare — vezi 'nativeAssemble' in core/stageTiming.ts. */
+  const assembleStart = performance.now();
   const sceneType = classifyScene(faces, imageWidth, imageHeight);
 
-  return {
+  const inregistrare: AnalysisRecord = {
     photoId,
     faces,
     faceCount: faces.length,
@@ -610,4 +615,6 @@ export async function analyzeNative(
     ...(imageEmbedding ? { imageEmbedding } : {}),
     ...(bodyCroppedAtEdge !== undefined ? { bodyCroppedAtEdge } : {})
   };
+  record('nativeAssemble', performance.now() - assembleStart);
+  return inregistrare;
 }
