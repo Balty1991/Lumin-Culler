@@ -9,6 +9,8 @@
  * in afara scopului acestei schimbari). Cel mai apropiat de "true background
  * push" fara acel efort e strict opt-in si nu promite nimic ce nu poate livra.
  */
+import type { NotificationAccess } from '../core/nativeNotifications';
+
 const ENABLED_KEY = 'lumin-smart-notification-enabled';
 const LAST_SHOWN_KEY = 'lumin-smart-notification-last-shown';
 
@@ -36,6 +38,32 @@ export function readSmartNotificationEnabled(): boolean {
   } catch {
     return true;
   }
+}
+
+/**
+ * Ce ARATA comutatorul: dorinta omului, pusa langa ce permite sistemul.
+ *
+ * Raportat de utilizator: setarea aparea PORNITA pe un telefon pe care
+ * permisiunea nu fusese ceruta niciodata. "Oricum nu era funcțional, dar era
+ * info eronat" — exact asta e defectul, un comutator care promite ceva ce nu
+ * poate ajunge nicaieri. Dorinta e pornit din start (vezi mai sus), si asa
+ * ramane; doar afisarea nu mai are voie s-o dea drept fapt.
+ *
+ * `nativ` conteaza. Pe web, "nu s-a cerut inca" si "a fost refuzata" arata la
+ * fel din Notification API, iar permisiunea se cere acolo la prima notificare
+ * reala — a stinge comutatorul ar rupe "pornite din start" pentru cineva caruia
+ * nu i s-a refuzat nimic. Pe Android permisiunea e o poarta adevarata: fara ea
+ * nu apare nimic, niciodata.
+ *
+ * Nimic din ce se decide aici nu se scrie in stocare: cand permisiunea chiar
+ * vine (de pilda ceruta de primul import, vezi core/backgroundAnalysis.ts),
+ * comutatorul se intoarce singur pe pornit.
+ */
+export function smartNotificationShown(
+  dorinta: boolean, acces: NotificationAccess, nativ: boolean
+): boolean {
+  if (!nativ) return dorinta;
+  return dorinta && acces === 'granted';
 }
 
 export function writeSmartNotificationEnabled(on: boolean): void {

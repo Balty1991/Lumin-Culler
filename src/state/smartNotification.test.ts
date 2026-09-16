@@ -1,5 +1,5 @@
 import { beforeEach, describe, it, expect } from 'vitest';
-import { shouldShowSmartNotification, SMART_NOTIFICATION_INTERVAL_MS, readSmartNotificationLastShown, readSmartNotificationEnabled, writeSmartNotificationEnabled } from './smartNotification';
+import { shouldShowSmartNotification, SMART_NOTIFICATION_INTERVAL_MS, readSmartNotificationLastShown, readSmartNotificationEnabled, writeSmartNotificationEnabled, smartNotificationShown } from './smartNotification';
 
 describe('shouldShowSmartNotification', () => {
   it('never shows when disabled', () => {
@@ -81,5 +81,34 @@ describe('pornite din start, oprite de cine nu le vrea', () => {
     writeSmartNotificationEnabled(false);
     writeSmartNotificationEnabled(true);
     expect(readSmartNotificationEnabled()).toBe(true);
+  });
+});
+
+describe('smartNotificationShown', () => {
+  // Raportat de utilizator: comutatorul aparea PORNIT pe un telefon pe care
+  // permisiunea nu fusese ceruta niciodata. "Oricum nu era funcțional, dar era
+  // info eronat."
+  it('pe Android, fara permisiune nu are voie sa arate pornit', () => {
+    expect(smartNotificationShown(true, 'denied', true)).toBe(false);
+    expect(smartNotificationShown(true, 'blocked', true)).toBe(false);
+    expect(smartNotificationShown(true, 'unsupported', true)).toBe(false);
+  });
+
+  it('pe Android, cu permisiune data arata dorinta omului', () => {
+    expect(smartNotificationShown(true, 'granted', true)).toBe(true);
+    expect(smartNotificationShown(false, 'granted', true)).toBe(false);
+  });
+
+  it('un refuz nu porneste ceva ce omul a oprit', () => {
+    expect(smartNotificationShown(false, 'denied', true)).toBe(false);
+  });
+
+  it('pe web ramane dorinta, oricare ar fi starea permisiunii', () => {
+    // Acolo "nu s-a cerut inca" si "a fost refuzata" arata la fel, iar
+    // permisiunea se cere la prima notificare reala — a stinge comutatorul ar
+    // rupe degeaba "pornite din start".
+    expect(smartNotificationShown(true, 'denied', false)).toBe(true);
+    expect(smartNotificationShown(true, 'granted', false)).toBe(true);
+    expect(smartNotificationShown(false, 'granted', false)).toBe(false);
   });
 });

@@ -23,6 +23,7 @@
  * pana la runda asta. Nimic din fisierul asta n-are voie sa arunce.
  */
 import { registerPlugin, Capacitor } from '@capacitor/core';
+import { checkNotificationAccess, requestNotificationAccess } from './nativeNotifications';
 
 interface BackgroundAnalysisApi {
   start(options: BackgroundAnalysisState): Promise<{ started: boolean; reason?: string }>;
@@ -108,6 +109,37 @@ export function isBackgroundAnalysisAvailable(): boolean {
 }
 
 /**
+ * Declansatorul natural al permisiunii de notificari: chiar importul.
+ *
+ * Raportat de utilizator: daca inchizi ecranul de intampinare cu X fara sa
+ * citesti, permisiunea de galerie tot apare, dar cea de notificari nu mai apare
+ * NICIODATA. Butonul X cheama direct `dismissWelcome`, deci sare peste pasul
+ * care o cerea — si ala era singurul loc din aplicatie care o cerea.
+ *
+ * Galeria n-avea problema asta fiindca are un declansator natural: prima citire
+ * din galerie. Notificarile primesc acum unul la fel de firesc — momentul in
+ * care porneste un import destul de lung cat sa lasi telefonul din mana. E si
+ * singurul moment in care permisiunea chiar schimba ceva.
+ *
+ * Acopera si cazurile pe care ecranul de intampinare nu le poate acoperi
+ * niciodata: cine a instalat o versiune mai veche si l-a vazut deja, si cine
+ * inchide aplicatia la primul ecran.
+ *
+ * Se cere doar daca lipseste. Nu e nevoie de niciun steag tinut minte: dupa un
+ * refuz definitiv, Android raspunde pe loc si fara dialog, deci nu exista
+ * insistenta la fiecare import. Raspunsul nu se verifica — un refuz e o
+ * alegere, iar analiza merge mai departe oricum, doar fara sa spuna cat a ajuns.
+ */
+async function ceriVoieDeNotificare(): Promise<void> {
+  try {
+    if (await checkNotificationAccess() === 'granted') return;
+    await requestNotificationAccess();
+  } catch {
+    // Regula fisierului: nimic de aici n-are voie sa opreasca un import.
+  }
+}
+
+/**
  * Porneste serviciul pentru un import. Intoarce `false` cand nu s-a putut —
  * apelantul nu trebuie sa faca nimic cu raspunsul in afara de a-l tine minte:
  * nu exista nicio cale de rezerva de incercat, si nu e nimic de spus omului
@@ -116,6 +148,7 @@ export function isBackgroundAnalysisAvailable(): boolean {
 export async function startBackgroundAnalysis(done: number, total: number, text?: string): Promise<boolean> {
   if (!isBackgroundAnalysisAvailable()) return false;
   if (total < MIN_PHOTOS_FOR_BACKGROUND) return false;
+  await ceriVoieDeNotificare();
   try {
     // `total` e aici pragul de pornire, nu o bara: la pornire nu s-a analizat
     // inca nicio poza, iar o bara reala goala e doar o bara care pare inghetata.

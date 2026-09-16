@@ -7,6 +7,10 @@ import {
   SunIcon, MoonIcon, ClockIcon, BatteryIcon, GridIcon, DownloadIcon, UploadIcon, BarChartIcon, GlobeIcon, PrinterIcon,
   ApertureIcon, PlayIcon, EditIcon, FolderIcon, HeartIcon, TrashIcon, PinIcon, AccessibilityIcon,
   ChevronUpIcon, SearchIcon, ShieldIcon, LockIcon, CopyIcon, StarIcon, FocusIcon, CheckIcon, UndoIcon, SmileIcon } from './icons';
+import {
+  readAppPermissions, requestMissingPermissions, permisiuniRelevante, toatePermisiunileDate,
+  numaraPermisiuni, openAppSettings, type StarePermisiuni
+} from '../core/appPermissions';
 import type { AccentTheme } from '../state/accentTheme';
 import { selectDeletableRejected } from '../state/batchOps';
 import { selectPendingShieldReview, readShieldDismissedIds } from '../core/documentShield';
@@ -163,6 +167,40 @@ export function MenuDrawer() {
   const importBackupFile = useStore(s => s.importBackupFile);
   const importClientFeedback = useStore(s => s.importClientFeedback);
   const setNotice = useStore(s => s.setNotice);
+
+  /**
+   * Starea permisiunilor, pentru rubrica "Permisiuni" din Setari.
+   *
+   * Recitita la fiecare revenire in prim-plan, ca in ui/PhotosAccessNotice.tsx:
+   * o permisiune se poate schimba IN AFARA aplicatiei (Setarile sistemului),
+   * deci intoarcerea omului e singurul moment in care putem afla ca s-a
+   * rezolvat. Fara asta rubrica ar raporta mai departe o lipsa deja reparata.
+   */
+  const [permisiuni, setPermisiuni] = useState<StarePermisiuni | null>(null);
+  useEffect(() => {
+    let anulat = false;
+    const citeste = () => { void readAppPermissions().then(p => { if (!anulat) setPermisiuni(p); }); };
+    citeste();
+    const laRevenire = () => { if (document.visibilityState === 'visible') citeste(); };
+    document.addEventListener('visibilitychange', laRevenire);
+    return () => { anulat = true; document.removeEventListener('visibilitychange', laRevenire); };
+  }, []);
+
+  /**
+   * Cere ce lipseste; daca tot lipseste ceva, duce in Setarile sistemului.
+   *
+   * Dupa un refuz definitiv Android nu mai arata niciodata dialogul si raspunde
+   * pe loc, deci ajungem in Setari exact cand ele chiar sunt singurul drum ramas
+   * — nu inainte. Sertarul NU se inchide: la fel ca la celelalte comutatoare,
+   * omul trebuie sa vada rezultatul apasarii lui.
+   */
+  const reparaPermisiunile = async () => {
+    const { stare, complet } = await requestMissingPermissions();
+    setPermisiuni(stare);
+    if (complet) { setNotice(tr('menu.permissions.allGranted')); return; }
+    setNotice(tr('menu.permissions.openingSettings'));
+    await openAppSettings();
+  };
 
   /**
    * Copiaza versiunea, pentru rapoartele de bug.
@@ -942,6 +980,30 @@ export function MenuDrawer() {
             <span className="drawer-item-icon"><AccessibilityIcon /></span>
             <span>{accessibleMode ? tr('menu.accessibleMode.active') : tr('menu.accessibleMode')}</span>
           </button>
+
+          {/* Drumul inapoi catre permisiuni.
+              Raportat de utilizator: "la prima instalare, daca dau x fara sa
+              citesc, nu mai imi apare permisiuni de notificare, doar cele de
+              galerie" — X-ul de pe ecranul de intampinare sare peste pasul care
+              le cerea, iar acela era singurul loc care o facea. Cuvintele lui
+              pentru rubrica asta: "sa le poata activa usor dupa".
+              Ascunsa pe web, unde niciuna dintre cele doua permisiuni nu exista:
+              o rubrica ce ar raporta acolo o lipsa ar inventa o problema. */}
+          {permisiuni && permisiuniRelevante(permisiuni) && (
+            <button
+              className="drawer-item"
+              onClick={() => { void reparaPermisiunile(); }}
+              title={tr('menu.permissions.title')}
+            >
+              <span className="drawer-item-icon"><ShieldIcon /></span>
+              <span>{tr('menu.permissions')}</span>
+              <b className="drawer-count mono">
+                {toatePermisiunileDate(permisiuni)
+                  ? tr('menu.permissions.all')
+                  : tr('menu.permissions.some', numaraPermisiuni(permisiuni))}
+              </b>
+            </button>
+          )}
 
           {/* Fara `go`, ca la Mod profesional: un comutator care inchide sertarul
               nu-si arata niciodata starea noua, si pare ca n-a facut nimic.

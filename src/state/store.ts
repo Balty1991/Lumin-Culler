@@ -80,8 +80,12 @@ import { recordLifetimeSession } from './lifetimeSavings';
 import { stabilizeEta, createEtaTracker, type EtaTracker } from '../core/etaEstimate';
 import { lockedFromAutoDecision } from '../core/aiDecision';
 import { readAccessibleMode, applyAccessibleMode } from '../core/accessibleMode';
-import { readSmartNotificationEnabled, writeSmartNotificationEnabled } from './smartNotification';
-import { requestNotificationAccess } from '../core/nativeNotifications';
+import {
+  readSmartNotificationEnabled, writeSmartNotificationEnabled, smartNotificationShown
+} from './smartNotification';
+import {
+  requestNotificationAccess, checkNotificationAccess, isNativeNotificationsAvailable
+} from '../core/nativeNotifications';
 import {
   readZenMode, writeZenMode,
   readZenAutoDeleteObvious, writeZenAutoDeleteObvious,
@@ -2792,6 +2796,31 @@ export const useStore = create<AppState>((set, get) => ({
     // `isPurchasable()` fals o sesiune intreaga, adica toate functiile platite
     // deschise (bug raportat de utilizator). Vezi refreshEntitlementAtStartup.
     void refreshEntitlementAtStartup();
+    // Comutatorul "Notificari inteligente" spune ce VREA omul; sistemul spune ce
+    // se POATE. Pana acum nimeni nu le punea fata in fata, iar dorinta e PORNIT
+    // din start (vezi state/smartNotification.ts) — deci pe un telefon pe care
+    // permisiunea nu fusese ceruta niciodata, setarea arata "pornit" pentru ceva
+    // ce nu putea ajunge nicaieri. Raportat de utilizator, in aceleasi cuvinte:
+    // "apărea pornit în setări, dar mie nu îmi ceruse permisiuni. Oricum nu era
+    // funcțional, dar era info eronat".
+    //
+    // NU se scrie nimic in stocare: dorinta ramane a omului. Doar afisarea se
+    // alinia la ce poate sistemul, si se intoarce singura pe "pornit" cand
+    // permisiunea chiar e data — de pilda dupa ce o cere primul import
+    // (core/backgroundAnalysis.ts).
+    //
+    // Doar pe native. Pe web, "nu e inca acordata" si "e refuzata" se citesc la
+    // fel din Notification API, iar acolo permisiunea se cere la prima
+    // notificare reala — a stinge comutatorul ar rupe degeaba "pornite din
+    // start" pentru cineva caruia nu i s-a refuzat nimic.
+    if (get().smartNotificationsEnabled) {
+      void checkNotificationAccess()
+        .then(access => {
+          const aratat = smartNotificationShown(true, access, isNativeNotificationsAvailable());
+          if (!aratat) set({ smartNotificationsEnabled: false });
+        })
+        .catch(() => { /* o setare afisata gresit nu are voie sa strice pornirea */ });
+    }
     if (get().booted) return;
     try {
       const [views, persons, history, collections] = await Promise.all([

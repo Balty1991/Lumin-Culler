@@ -26,7 +26,23 @@ vi.mock('@capacitor/core', () => ({
   }
 }));
 
+/**
+ * Permisiunea de notificari, ceruta de la primul import destul de mare — vezi
+ * `ceriVoieDeNotificare`. Mock separat de plugin: aici se verifica CINE cere si
+ * cand, nu ce raspunde sistemul.
+ */
+const acces = {
+  check: vi.fn(async () => 'granted' as string),
+  request: vi.fn(async () => 'granted' as string)
+};
+vi.mock('./nativeNotifications', () => ({
+  checkNotificationAccess: () => acces.check(),
+  requestNotificationAccess: () => acces.request()
+}));
+
 beforeEach(() => {
+  acces.check.mockReset().mockResolvedValue('granted');
+  acces.request.mockReset().mockResolvedValue('granted');
   plugin.start.mockReset();
   plugin.update.mockReset();
   plugin.stop.mockReset();
@@ -144,5 +160,63 @@ describe('backgroundPhaseNotice', () => {
     expect(plugin.start).toHaveBeenCalledWith(
       expect.objectContaining({ determinate: false })
     );
+  });
+});
+
+describe('permisiunea de notificari la pornirea importului', () => {
+  it('o cere cand lipseste', async () => {
+    // Raportat de utilizator: cu X pe ecranul de intampinare, permisiunea de
+    // galerie tot apare (are un declansator natural), dar cea de notificari nu
+    // mai apare niciodata. Importul e declansatorul ei natural.
+    acces.check.mockResolvedValue('denied');
+    plugin.start.mockResolvedValue({ started: true });
+    const { startBackgroundAnalysis } = await modul();
+
+    expect(await startBackgroundAnalysis(0, 86)).toBe(true);
+    expect(acces.request).toHaveBeenCalled();
+  });
+
+  it('nu insista cand e deja data', async () => {
+    plugin.start.mockResolvedValue({ started: true });
+    const { startBackgroundAnalysis } = await modul();
+
+    await startBackgroundAnalysis(0, 86);
+    expect(acces.request).not.toHaveBeenCalled();
+  });
+
+  it('un refuz nu opreste serviciul — analiza merge, doar fara sa spuna cat', async () => {
+    acces.check.mockResolvedValue('denied');
+    acces.request.mockResolvedValue('blocked');
+    plugin.start.mockResolvedValue({ started: true });
+    const { startBackgroundAnalysis } = await modul();
+
+    expect(await startBackgroundAnalysis(0, 86)).toBe(true);
+    expect(plugin.start).toHaveBeenCalled();
+  });
+
+  it('o eroare la verificare nu opreste nimic', async () => {
+    acces.check.mockRejectedValue(new Error('plugin lipsa'));
+    plugin.start.mockResolvedValue({ started: true });
+    const { startBackgroundAnalysis } = await modul();
+
+    await expect(startBackgroundAnalysis(0, 86)).resolves.toBe(true);
+  });
+
+  it('sub prag nu deranjeaza pe nimeni: fara serviciu, fara dialog', async () => {
+    acces.check.mockResolvedValue('denied');
+    const { startBackgroundAnalysis, MIN_PHOTOS_FOR_BACKGROUND } = await modul();
+
+    expect(await startBackgroundAnalysis(0, MIN_PHOTOS_FOR_BACKGROUND - 1)).toBe(false);
+    expect(acces.check).not.toHaveBeenCalled();
+    expect(acces.request).not.toHaveBeenCalled();
+  });
+
+  it('pe web nu se cere nimic', async () => {
+    nativePlatform = false;
+    acces.check.mockResolvedValue('denied');
+    const { startBackgroundAnalysis } = await modul();
+
+    expect(await startBackgroundAnalysis(0, 86)).toBe(false);
+    expect(acces.request).not.toHaveBeenCalled();
   });
 });
