@@ -1,7 +1,8 @@
 import { useRef, useState, type SVGProps } from 'react';
 import { useStore } from '../state/store';
+import { requestNotificationAccess, isNativeNotificationsAvailable } from '../core/nativeNotifications';
 import { useModalFocusTrap } from './useModalFocusTrap';
-import { ApertureIcon, SparkleIcon, UserCheckIcon, StarIcon, XIcon, ShieldIcon, CheckIcon } from './icons';
+import { ApertureIcon, SparkleIcon, UserCheckIcon, StarIcon, XIcon, ShieldIcon, CheckIcon, InfoIcon } from './icons';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { LocaleToggle } from './LocaleToggle';
 import { t } from '../i18n';
@@ -76,10 +77,34 @@ const PERMISSION_STEP: Step = {
  */
 const PERMISSION_STEP_INDEX = 1;
 
+/**
+ * Pasul despre notificari — si singurul loc din care permisiunea chiar se CERE.
+ *
+ * Raportat de utilizator, cu capturi: comutatorul "Notificari inteligente"
+ * arata PORNIT, dar bara de stare nu afisa nimic in timpul unui import in
+ * fundal. Cauza: `POST_NOTIFICATIONS` se cerea DOAR din acel comutator, iar pe
+ * Android 13+ o permisiune necerută e refuzata implicit. Serviciul de analiza
+ * pornea si lucra, doar ca notificarea lui era invizibila — adica exact
+ * singurul lucru care ii spune omului ca importul merge mai departe.
+ *
+ * Cuvintele lui: "trebuie pus in info de start cand accesezi prima data
+ * aplicatia, cum se da aprobare pentru galerie poze, sa se dea si pentru
+ * notificari". Asa e — permisiunea de galerie are un declansator natural
+ * (prima citire din galerie), notificarile n-aveau niciunul.
+ *
+ * Sta imediat DUPA pasul de galerie: cele doua ecrane despre permisiuni raman
+ * impreuna, iar dialogul de sistem apare dupa ce omul a citit de ce.
+ */
+const NOTIFICATION_STEP: Step = {
+  Icon: InfoIcon, titleKey: 'welcome.notifications.title', bodyKey: 'welcome.notifications.body'
+};
+
 function buildSteps(): Step[] {
-  if (!isNativeMediaLibraryAvailable()) return BASE_STEPS;
   const steps = [...BASE_STEPS];
-  steps.splice(PERMISSION_STEP_INDEX, 0, PERMISSION_STEP);
+  // Ordinea insertiilor conteaza: notificarile intai, ca dupa a doua insertie
+  // (galeria, pe acelasi index) sa ajunga imediat DUPA ea.
+  if (isNativeNotificationsAvailable()) steps.splice(PERMISSION_STEP_INDEX, 0, NOTIFICATION_STEP);
+  if (isNativeMediaLibraryAvailable()) steps.splice(PERMISSION_STEP_INDEX, 0, PERMISSION_STEP);
   return steps;
 }
 
@@ -100,6 +125,21 @@ export function WelcomeOnboarding() {
   if (!open) return null;
 
   const finish = () => dismissWelcome();
+  /**
+   * Plecarea de pe pasul curent. Pe pasul de notificari cere permisiunea
+   * INAINTE de a merge mai departe: dialogul de sistem apare dupa ce omul a
+   * citit la ce foloseste, nu peste un ecran pe care nu l-a vazut.
+   *
+   * Raspunsul nu se verifica si nu opreste nimic. Un refuz e o alegere, iar
+   * ecranul de intampinare nu e locul in care sa insisti — analiza merge mai
+   * departe oricum, doar fara sa spuna cat a ajuns.
+   */
+  const leaveStep = async () => {
+    if (steps[step] === NOTIFICATION_STEP) {
+      try { await requestNotificationAccess(); } catch { /* un refuz nu opreste intampinarea */ }
+    }
+    if (isLast) finish(); else setStep(s => s + 1);
+  };
   const isLast = step === steps.length - 1;
   const { Icon, titleKey, bodyKey, visual } = steps[step];
 
@@ -161,7 +201,7 @@ export function WelcomeOnboarding() {
 
         <div className="welcome-onboarding-actions">
           {step > 0 && <button className="ghost" onClick={() => setStep(s => s - 1)}>{tr('welcome.back')}</button>}
-          <button className="btn-accent" onClick={() => (isLast ? finish() : setStep(s => s + 1))}>
+          <button className="btn-accent" onClick={() => { void leaveStep(); }}>
             {isLast ? tr('welcome.start') : tr('welcome.next')}
           </button>
         </div>

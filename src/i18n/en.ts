@@ -917,6 +917,8 @@ export const en: Record<TranslationKey, string> = {
   'welcome.step4.title': "Premium, when you're ready",
   'welcome.step4.body': 'Cull as many photos as you like, free. Premium lifts the export cap and adds the tools that come after.',
   'welcome.permission.title': 'Choose "Allow all"',
+  'welcome.notifications.title': 'Analysis keeps going with the phone in your pocket',
+  'welcome.notifications.body': 'On a large import you can put the phone down — analysis carries on, and the status bar shows how many photos are done. Without notification permission the work still continues, but nothing tells you how far along it is.',
   'welcome.permission.body': 'Android will ask what the app can see. With limited access, "Import by period" and the Gallery supervisor have nothing to read. Your photos stay on the phone either way.',
   'welcome.permission.limited': 'Select photos',
   'welcome.permission.all': 'Allow all',

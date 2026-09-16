@@ -2086,7 +2086,16 @@ export const useStore = create<AppState>((set, get) => ({
         });
         return;
       }
-      set({ notice: t(get().locale, 'store.smartNotifications.blocked') });
+      // Refuzat de om sau de sistem: comutatorul NU are voie sa ramana aprins.
+      // Raportat cu capturi — arata PORNIT, iar bara de stare nu afisa nimic,
+      // fiindca permisiunea nu fusese acordata niciodata. Un comutator care
+      // spune "pornit" pentru ceva ce sistemul refuza minte, si l-a costat pe om
+      // un import intreg pana sa-si dea seama.
+      writeSmartNotificationEnabled(false);
+      set({
+        smartNotificationsEnabled: false,
+        notice: t(get().locale, 'store.smartNotifications.blocked')
+      });
     });
   },
   thermalThrottle: null,

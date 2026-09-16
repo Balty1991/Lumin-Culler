@@ -963,6 +963,8 @@ export const ro = {
   'welcome.step4.title': 'Premium, când ești pregătit',
   'welcome.step4.body': 'Triezi gratuit oricâte poze. Premium ridică exportul și adaugă uneltele de după triaj.',
   'welcome.permission.title': 'Alege „Permite-le pe toate”',
+  'welcome.notifications.title': 'Analiza merge și cu telefonul în buzunar',
+  'welcome.notifications.body': 'La un import mare poți pune telefonul jos — analiza continuă, iar în bara de sus vezi câte poze s-au terminat. Fără permisiunea de notificări, lucrul merge mai departe, dar nu-ți mai spune nimic cât ai ajuns.',
   'welcome.permission.body': 'Android te va întreba ce poate vedea aplicația. Cu acces limitat, „Adu pe perioade” și Supervizorul galeriei nu au ce citi. Pozele rămân pe telefon oricum.',
   'welcome.permission.limited': 'Permite cu acces limitat',
   'welcome.permission.all': 'Permite-le pe toate',

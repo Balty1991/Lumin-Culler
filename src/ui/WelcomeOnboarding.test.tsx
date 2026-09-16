@@ -1,4 +1,13 @@
-import { describe, expect, it, beforeEach } from 'vitest';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
+
+/** Cererile de permisiune plecate, si raspunsul pe care il primesc. */
+const cereri: string[] = [];
+let notificariNative = false;
+let raspuns = 'granted';
+vi.mock('../core/nativeNotifications', () => ({
+  isNativeNotificationsAvailable: () => notificariNative,
+  requestNotificationAccess: () => { cereri.push('cerut'); return Promise.resolve(raspuns); }
+}));
 import { render, screen, fireEvent } from '@testing-library/react';
 import { WelcomeOnboarding } from './WelcomeOnboarding';
 import { useStore } from '../state/store';
@@ -72,5 +81,55 @@ describe('WelcomeOnboarding', () => {
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(localStorage.getItem('lumin-welcome-seen')).toBe('1');
+  });
+});
+
+/**
+ * Permisiunea de notificari se CERE, nu se presupune.
+ *
+ * Raportat de utilizator, cu capturi: comutatorul "Notificari inteligente"
+ * arata PORNIT, dar bara de stare nu afisa nimic in timpul unui import in
+ * fundal. `POST_NOTIFICATIONS` se cerea doar din acel comutator, iar pe
+ * Android 13+ o permisiune necerută e refuzata implicit — deci serviciul de
+ * analiza lucra, dar notificarea lui era invizibila.
+ *
+ * Permisiunea de galerie are un declansator natural (prima citire din
+ * galerie). Notificarile n-aveau niciunul, si de-aia le trebuie un pas.
+ */
+describe('WelcomeOnboarding — pasul de notificari', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    useStore.setState({ locale: 'ro', welcomeSeen: false });
+    cereri.length = 0;
+  });
+
+  it('pe o platforma fara notificari native, pasul nu exista deloc', () => {
+    // Implicit in teste: plugin-ul nativ nu e disponibil (vezi mock-ul de sus).
+    render(<WelcomeOnboarding />);
+    expect(screen.queryByText(/Analiza merge și cu telefonul în buzunar/)).not.toBeInTheDocument();
+  });
+
+  it('cand pasul exista, plecarea de pe el cere permisiunea O SINGURA DATA', async () => {
+    notificariNative = true;
+    render(<WelcomeOnboarding />);
+    // Pasul 1 -> pasul de notificari
+    fireEvent.click(screen.getByRole('button', { name: 'Următorul' }));
+    expect(screen.getByText(/Analiza merge și cu telefonul în buzunar/)).toBeInTheDocument();
+    expect(cereri).toHaveLength(0); // inca n-a plecat de pe el
+
+    fireEvent.click(screen.getByRole('button', { name: 'Următorul' }));
+    await screen.findByText(/Totul rămâne pe telefonul tău/);
+    expect(cereri).toHaveLength(1);
+  });
+
+  it('un refuz nu opreste intampinarea — se merge mai departe oricum', async () => {
+    notificariNative = true;
+    raspuns = 'blocked';
+    render(<WelcomeOnboarding />);
+    fireEvent.click(screen.getByRole('button', { name: 'Următorul' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Următorul' }));
+    // A avansat, desi permisiunea a fost refuzata.
+    await screen.findByText(/Totul rămâne pe telefonul tău/);
+    expect(cereri).toHaveLength(1);
   });
 });
