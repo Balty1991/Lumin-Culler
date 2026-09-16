@@ -70,7 +70,10 @@ import { readStageStats } from '../core/stageTiming';
 import { summariseFeedback } from '../core/aiFeedback';
 import { recordImportOutcome, summariseOutcomes } from '../core/importOutcome';
 import { keepScreenAwake } from '../core/wakeLock';
-import { startBackgroundAnalysis, updateBackgroundAnalysis, stopBackgroundAnalysis } from '../core/backgroundAnalysis';
+import {
+  startBackgroundAnalysis, updateBackgroundAnalysis, stopBackgroundAnalysis,
+  backgroundPhaseKey, BACKGROUND_NOTIFY_INTERVAL_MS
+} from '../core/backgroundAnalysis';
 import { createActiveElapsed, type ActiveElapsed } from '../core/activeElapsed';
 import { recordImportDay } from './streak';
 import { recordLifetimeSession } from './lifetimeSavings';
@@ -2831,6 +2834,9 @@ export const useStore = create<AppState>((set, get) => ({
     // sistem, si atunci nu se schimba nimic fata de pana acum — de-aia nu se
     // asteapta si nu se verifica nimic aici.
     void startBackgroundAnalysis(0, files.length, t(get().locale, 'store.background.starting'));
+    /** Ultima reimprospatare a notificarii — vezi BACKGROUND_NOTIFY_INTERVAL_MS. */
+    let notificatLa = Date.now();
+    let notificatFaza: string | null = 'incarcare';
     /** Avertismentul lotului, ca CHEIE — se traduce la final, vezi ImportWarning. */
     let warning: ImportWarning | undefined;
     /** Bilantul in cifre al lotului, raportat de pipeline pe ultimul apel — vezi core/importOutcome.ts. */
@@ -2928,16 +2934,32 @@ export const useStore = create<AppState>((set, get) => ({
             }
           }
           set({ progress: { ...progress, etaSeconds } });
-          // Bara din notificarea de fundal. Rar, nu la fiecare poza: fiecare
-          // actualizare e un apel peste punte SI o notificare redesenata de
-          // sistem, iar omul cu telefonul in buzunar n-o vede oricum. Din 10 in
-          // 10 poze, plus prima si ultima.
-          if (progress.phase === 'analiza' && (progress.done % 10 === 0 || progress.done === progress.total)) {
-            void updateBackgroundAnalysis(
-              progress.done,
-              progress.total,
-              t(get().locale, 'store.background.progress', { done: progress.done, total: progress.total })
-            );
+          // Bara din notificarea de fundal. TOATE fazele care raporteaza ceva,
+          // nu doar 'analiza': pregatirea (cautarea pozelor cu oameni) si
+          // gruparea seriilor tin si ele minute intregi la un lot mare, iar cat
+          // timp erau sarite notificarea arata exact ca o analiza inghetata —
+          // bug raportat cu o captura de pe ecranul de blocare.
+          //
+          // Pragul e de TIMP, nu din 10 in 10 poze: singurul care merge la fel
+          // in fazele care numara poze si in cele care nu numara. Vezi
+          // BACKGROUND_NOTIFY_INTERVAL_MS pentru cost.
+          const cheieFundal = backgroundPhaseKey(progress.phase);
+          if (cheieFundal) {
+            const acum = Date.now();
+            // Schimbarea de faza trece imediat: e singura data cand se schimba
+            // si CE scrie, nu doar cifra.
+            const datorat = progress.phase !== notificatFaza
+              || progress.done === progress.total
+              || acum - notificatLa >= BACKGROUND_NOTIFY_INTERVAL_MS;
+            if (datorat) {
+              notificatLa = acum;
+              notificatFaza = progress.phase;
+              void updateBackgroundAnalysis(
+                progress.done,
+                progress.total,
+                t(get().locale, cheieFundal, { done: progress.done, total: progress.total })
+              );
+            }
           }
         },
         item => {

@@ -94,3 +94,34 @@ describe('analiza in fundal', () => {
     expect(plugin.start).toHaveBeenCalledWith({ done: 0, total: 437, text: 'Se pregătește analiza…' });
   });
 });
+
+describe('backgroundPhaseKey', () => {
+  it('da un text pentru fiecare faza care inca lucreaza', async () => {
+    const { backgroundPhaseKey } = await modul();
+    // Bug raportat: notificarea se actualiza doar in faza 'analiza', asa ca
+    // pregatirea si gruparea — minute intregi la un lot mare — aratau ca o
+    // analiza inghetata.
+    expect(backgroundPhaseKey('citire')).toBe('store.background.starting');
+    expect(backgroundPhaseKey('incarcare')).toBe('store.background.starting');
+    expect(backgroundPhaseKey('pregatire')).toBe('store.background.preparing');
+    expect(backgroundPhaseKey('analiza')).toBe('store.background.progress');
+    expect(backgroundPhaseKey('grupare')).toBe('store.background.grouping');
+  });
+
+  it('nu atinge notificarea la final — oricum urmeaza oprirea serviciului', async () => {
+    const { backgroundPhaseKey } = await modul();
+    expect(backgroundPhaseKey('finalizat')).toBeNull();
+  });
+
+  it('toate cheile exista in ambele limbi', async () => {
+    const { backgroundPhaseKey } = await modul();
+    const { ro } = await import('../i18n/ro');
+    const { en } = await import('../i18n/en');
+    const faze = ['citire', 'incarcare', 'pregatire', 'analiza', 'grupare'] as const;
+    for (const faza of faze) {
+      const cheie = backgroundPhaseKey(faza)!;
+      expect(ro, faza).toHaveProperty(cheie);
+      expect(en, faza).toHaveProperty(cheie);
+    }
+  });
+});

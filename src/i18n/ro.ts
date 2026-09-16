@@ -1789,6 +1789,8 @@ export const ro = {
   // scrie AICI, nu in Kotlin, ca sa fie in limba aleasa de om.
   'store.background.starting': 'Se pregătește analiza…',
   'store.background.progress': '{done} din {total} poze analizate',
+  'store.background.preparing': 'Se caută pozele cu oameni… {done} din {total}',
+  'store.background.grouping': 'Se caută seriile…',
   'store.import.alreadyRunning': 'Un import e deja în curs — așteaptă să se termine înainte să mai adaugi poze.',
   'store.quotaNotice': 'Spațiu de stocare plin — fotografia a fost marcată, dar originalul nu a putut fi salvat pentru export. Eliberează spațiu (Golește sesiunea sau exportă ce ai deja) și reîncearcă.',
   'store.undo.nothing': 'Nimic de anulat.',

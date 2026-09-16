@@ -145,16 +145,25 @@ class BackgroundAnalysisService : Service() {
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+        // TITLU, nu text. Bug raportat cu o captura de pe ecranul de blocare:
+        // se vedea doar titlul fix "Se analizeaza pozele" si o bara care parea
+        // inghetata. Cauza: cand notificarea are bara de progres, Android ii da
+        // barei exact randul pe care l-ar fi ocupat contentText — deci linia vie
+        // trimisa din JS ("84 din 312 poze analizate") nu se vedea NICIODATA in
+        // starea stransa, care e singura in care se uita cineva. Numarul trebuie
+        // sa stea in titlu ca sa existe.
+        //
+        // Textul vine din partea de JS, care stie limba aleasa de om; sirul din
+        // resurse e doar plasa de rezerva pentru clipa dintre pornirea
+        // serviciului si primul update.
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_download)
-            .setContentTitle(getString(R.string.analiza_titlu))
-            .setContentText(text ?: getString(R.string.analiza_titlu))
+            .setContentTitle(text ?: getString(R.string.analiza_titlu))
+            .setSubText(getString(R.string.analiza_subtext))
             .setOngoing(true)
             .setSilent(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setContentIntent(deschide)
-        // Textul vine din partea de JS, care stie limba aleasa de om; sirul din
-        // resurse e doar plasa de rezerva.
         if (total > 0) builder.setProgress(total, done.coerceIn(0, total), false)
         else builder.setProgress(0, 0, true)
         return builder.build()

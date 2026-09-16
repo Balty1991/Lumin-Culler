@@ -43,6 +43,48 @@ const BackgroundAnalysis = registerPlugin<BackgroundAnalysisApi>('BackgroundAnal
  */
 export const MIN_PHOTOS_FOR_BACKGROUND = 25;
 
+/**
+ * Cat de des se reimprospateaza notificarea, cel mult.
+ *
+ * Era "din 10 in 10 poze", si de-acolo venea jumatate din bug-ul raportat: la
+ * 2,46 s pe poza inseamna un semn de viata la 25 de secunde, iar in fazele
+ * care nu numara poze (pregatirea, gruparea) nu venea NICIUN semn. Omul vedea
+ * o bara inghetata si credea ca s-a blocat analiza.
+ *
+ * Un prag de timp merge in toate fazele, indiferent cat de repede numara
+ * fiecare. Iar costul e ce era si inainte, doar altfel asezat: un apel peste
+ * punte si o notificare redesenata la doua secunde, langa secunde intregi de
+ * lucru pe fiecare poza.
+ */
+export const BACKGROUND_NOTIFY_INTERVAL_MS = 2000;
+
+/** Fazele importului, asa cum le raporteaza core/importPipeline.ts. */
+export type BackgroundPhase = 'citire' | 'incarcare' | 'pregatire' | 'analiza' | 'grupare' | 'finalizat';
+
+/**
+ * Ce scrie in notificare la faza asta — ca CHEIE i18n, ca textul sa se compuna
+ * in limba aleasa de om, nu aici.
+ *
+ * `null` inseamna "nu atinge notificarea": la 'finalizat' importul oricum
+ * cheama `stopBackgroundAnalysis`, iar o ultima redesenare inainte sa dispara
+ * ar fi doar palpaire.
+ */
+export function backgroundPhaseKey(phase: BackgroundPhase): string | null {
+  switch (phase) {
+    case 'citire':
+    case 'incarcare':
+      return 'store.background.starting';
+    case 'pregatire':
+      return 'store.background.preparing';
+    case 'analiza':
+      return 'store.background.progress';
+    case 'grupare':
+      return 'store.background.grouping';
+    default:
+      return null;
+  }
+}
+
 export function isBackgroundAnalysisAvailable(): boolean {
   return Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('BackgroundAnalysis');
 }

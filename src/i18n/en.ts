@@ -1708,6 +1708,8 @@ export const en: Record<TranslationKey, string> = {
   'import.warn.storageFull': 'Storage is nearly full — import stopped at {done}/{total}. Export what you have or free up space (Clear session / delete the rejected photos) to continue.',
   'store.background.starting': 'Getting the analysis ready…',
   'store.background.progress': '{done} of {total} photos analysed',
+  'store.background.preparing': 'Looking for photos with people… {done} of {total}',
+  'store.background.grouping': 'Looking for series…',
   'store.import.alreadyRunning': 'An import is already running — wait for it to finish before adding more photos.',
   'store.quotaNotice': 'Storage full — the photo was marked, but the original couldn\'t be saved for export. Free up space (Clear session or export what you already have) and try again.',
   'store.undo.nothing': 'Nothing to undo.',
