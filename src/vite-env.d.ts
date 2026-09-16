@@ -7,3 +7,5 @@
  * data, deci codul care o afiseaza n-are un caz "lipseste" de tratat.
  */
 declare const __BUILD_ID__: string;
+/** Versiunea din package.json, injectata la build — vezi vite.config.ts. */
+declare const __APP_VERSION__: string;

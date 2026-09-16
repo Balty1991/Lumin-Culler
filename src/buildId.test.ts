@@ -29,7 +29,25 @@ describe('eticheta build-ului', () => {
     // istoric), si atunci ramane doar data — niciodata gol.
     expect(config).toContain("new Date().toISOString().slice(0, 10)");
     expect(config).toMatch(/rev-parse --short=7 HEAD/);
-    expect(config).toContain('define: { __BUILD_ID__:');
+    // Injectarea, nu forma ei: `define` a crescut de la o linie la un bloc cand
+    // i s-a alaturat __APP_VERSION__, si un test care cere asezarea exacta se
+    // rupe la fiecare reformatare fara sa apere nimic.
+    expect(config).toMatch(/__BUILD_ID__:\s*JSON\.stringify\(buildId\(\)\)/);
+  });
+
+  /**
+   * Versiunea afisata vine din package.json, nu scrisa de mana.
+   *
+   * Neconcordanta reala gasita pe telefon: Setarile aplicatiei aratau "2.0.0"
+   * cat timp magazinul si build.gradle erau la 2.1.0 — adica exact cifra pe
+   * care omul o copiaza intr-un raport de bug era gresita.
+   */
+  it('versiunea afisata vine din package.json', () => {
+    expect(config).toMatch(/__APP_VERSION__:\s*JSON\.stringify\(pkg\.version\)/);
+
+    const meniu = readFileSync(resolve(__dirname, 'ui/MenuDrawer.tsx'), 'utf8');
+    expect(meniu).toContain('const APP_VERSION = __APP_VERSION__;');
+    expect(meniu, 'versiune scrisa de mana in MenuDrawer').not.toMatch(/const APP_VERSION = '/);
   });
 
   it('vite.config.ts prefera GITHUB_SHA, care in CI e sursa oficiala', () => {

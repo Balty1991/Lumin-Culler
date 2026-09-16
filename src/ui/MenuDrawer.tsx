@@ -21,7 +21,14 @@ import { selectUnresolvedGroups } from '../state/duplicateGroups';
 import { openStoreListing } from '../core/storeListing';
 
 /** Tinut in pas cu package.json — e numarul pe care il vede utilizatorul. */
-const APP_VERSION = '2.0.0';
+/**
+ * Din package.json, prin vite.config.ts — nu scrisa de mana.
+ *
+ * Era '2.0.0' cat timp magazinul si build.gradle erau la 2.1.0. Cifra asta e
+ * exact ce copiaza omul in "Copiaza versiunea" cand raporteaza ceva, deci o
+ * cifra gresita aici trimite pe drumul gresit tocmai cand conteaza.
+ */
+const APP_VERSION = __APP_VERSION__;
 import { countDecisionInversions } from '../state/decisionInversions';
 import { selectMonthlyRecap } from '../state/monthlyRecap';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';

@@ -1,4 +1,5 @@
 import { execSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -33,6 +34,9 @@ function buildId(): string {
   }
   return sha ? `${date}·${sha}` : date;
 }
+
+/** Sursa de adevar pentru versiune, aceeasi pe care o citeste si release-android.yml. */
+const pkg = createRequire(import.meta.url)('./package.json') as { version: string };
 
 export default defineConfig({
   plugins: [
@@ -212,7 +216,18 @@ export default defineConfig({
   // unde calea relativa e corecta.
   optimizeDeps: { exclude: ['libraw-wasm'] },
   // Injectat la build, citit in ui/MenuDrawer.tsx — vezi buildId() de mai sus.
-  define: { __BUILD_ID__: JSON.stringify(buildId()) },
+  // Injectate la build, citite in ui/MenuDrawer.tsx.
+  //
+  // Versiunea vine din package.json, NU scrisa de mana. Gasita ca neconcordanta
+  // reala: aplicatia arata "2.0.0" in Setari cat timp magazinul arata "2.1.0" —
+  // adica exact cifra pe care omul o copiaza intr-un raport de bug era gresita,
+  // si nimeni n-avea de unde sti. package.json e deja sursa de adevar si pentru
+  // versionName-ul din .aab (vezi release-android.yml), deci acum sunt aceeasi
+  // cifra prin constructie, nu prin disciplina.
+  define: {
+    __BUILD_ID__: JSON.stringify(buildId()),
+    __APP_VERSION__: JSON.stringify(pkg.version)
+  },
   build: {
     target: 'es2020',
     chunkSizeWarningLimit: 4000
