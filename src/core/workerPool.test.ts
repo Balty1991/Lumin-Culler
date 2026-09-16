@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { computeWorkerCount, withTimeout } from './workerPool';
 import { THERMAL_THROTTLED_CONCURRENCY } from './thermalStatus';
 
@@ -432,5 +432,61 @@ describe('withTimeout — resursa care soseste dupa timeout', () => {
     const slow = new Promise(resolve => setTimeout(() => resolve('x'), 20));
     await expect(withTimeout(slow, 5, 'prea lent', () => { throw new Error('close a esuat'); })).rejects.toThrow('prea lent');
     await new Promise(r => setTimeout(r, 40));
+  });
+});
+
+/**
+ * Plafonul masoara timp LUCRAT, nu timp de ceas.
+ *
+ * Raportat de utilizator de doua ori, cu cifre: "3 din 86", apoi "6 din 72
+ * poze nu au putut fi procesate". In acelasi import, analiza se oprea de
+ * fiecare data cand trecea in alta aplicatie si repornea cand se intorcea.
+ * Cele doua sunt aceeasi poveste: cat telefonul tine aplicatia inghetata,
+ * pozele din lucru nu executa nicio instructiune, dar plafonul lor curgea mai
+ * departe. Se intorcea si le gasea moarte cu "a durat prea mult". Nu durase —
+ * fusese oprita.
+ */
+describe('withTimeout — timpul in care aplicatia a stat inghetata nu se numara', () => {
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it('o pauza lunga a sistemului nu consuma plafonul', async () => {
+    const niciodata = new Promise(() => { /* nu se aseaza niciodata */ });
+    const respins = vi.fn();
+    void withTimeout(niciodata, 40_000, 'prea lent').catch(respins);
+
+    // 30 de secunde de lucru adevarat.
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(respins).not.toHaveBeenCalled();
+
+    // ...apoi sistemul tine aplicatia oprita zece minute: ceasul merge, dar
+    // niciun tic nu apuca sa ruleze. Cu plafonul vechi, poza era deja moarta.
+    vi.setSystemTime(Date.now() + 600_000);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(respins, 'pauza sistemului a fost numarata ca lucru').not.toHaveBeenCalled();
+
+    // Lucrul reia, si plafonul se termina normal de unde ramasese.
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(respins).toHaveBeenCalled();
+  });
+
+  it('o operatie chiar blocata tot moare, la timpul ei', async () => {
+    const niciodata = new Promise(() => { /* nu se aseaza niciodata */ });
+    const respins = vi.fn();
+    void withTimeout(niciodata, 40_000, 'prea lent').catch(respins);
+
+    await vi.advanceTimersByTimeAsync(39_000);
+    expect(respins).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1_500);
+    expect(respins).toHaveBeenCalled();
+  });
+
+  it('ce se termina la timp nu e atins', async () => {
+    const respins = vi.fn();
+    const p = withTimeout(Promise.resolve('gata'), 40_000, 'prea lent');
+    p.catch(respins);
+
+    await expect(p).resolves.toBe('gata');
+    expect(respins).not.toHaveBeenCalled();
   });
 });

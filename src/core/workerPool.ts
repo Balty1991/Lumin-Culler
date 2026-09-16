@@ -89,17 +89,62 @@ const ANALYZE_TIMEOUT_MS = 40000;
  *   depaseasca timeout-ul: exact spirala de OOM pe care timeout-ul incerca s-o
  *   previna.
  */
+/**
+ * Cat de des isi numara plafonul timpul scurs, si cat are voie sa recupereze
+ * dintr-un singur tic.
+ *
+ * DE CE NU MAI E UN SINGUR setTimeout. Raportat de utilizator, de doua ori: "6
+ * din 72 poze nu au putut fi procesate", pe o versiune care AVEA deja plafonul
+ * pentru OCR — deci nu OCR-ul le omora. In acelasi import, analiza se oprea de
+ * fiecare data cand omul trecea in alta aplicatie si repornea cand se intorcea.
+ *
+ * Cele doua sunt acelasi lucru. Un `setTimeout(40s)` masoara timpul CEASULUI,
+ * nu timpul LUCRAT. Cat telefonul tine aplicatia inghetata, pozele aflate in
+ * lucru nu executa nicio instructiune — dar plafonul lor curge mai departe.
+ * Omul statea doua minute in altceva, se intorcea, si gasea pozele din mana
+ * moarte cu "Analiza acestei fotografii a durat prea mult". Nu durase: fusese
+ * oprita. Cu cat statea mai mult in alta aplicatie, cu atat pierdea mai multe —
+ * si exact asta s-a vazut, 3 din 86 intai, apoi 6 din 72.
+ *
+ * Un tic care soseste mult mai tarziu decat era programat e dovada ca procesul
+ * a stat oprit. Atunci se numara doar cat era programat, nu cat arata ceasul.
+ * Plafonul redevine ce trebuia sa fie de la inceput: "operatia asta a lucrat
+ * prea mult", nu "a trecut prea mult timp prin lume".
+ *
+ * Recuperarea e marginita, nu zero: daca sistemul doar RARESTE ticurile in loc
+ * sa le opreasca (throttling de pagina ascunsa), trei pasi pe tic tin plafonul
+ * functional, doar mai ingaduitor. O poza chiar blocata tot moare, doar mai
+ * tarziu — ordinea buna a greselilor.
+ */
+const PAS_PLAFON_MS = 1000;
+const SALT_MAXIM_PASI = 3;
+
 export function withTimeout<T>(promise: Promise<T>, ms: number, message: string, onAbandoned?: (value: T) => void): Promise<T> {
   return new Promise((resolve, reject) => {
     let timedOut = false;
-    const timer = setTimeout(() => { timedOut = true; reject(new Error(message)); }, ms);
+    // Plafoanele scurte (teste, pasi mici) isi pastreaza precizia: pasul nu
+    // poate fi mai mare decat plafonul insusi.
+    const pas = Math.max(1, Math.min(ms, PAS_PLAFON_MS));
+    let lucrat = 0;
+    let ultimul = Date.now();
+    const ceas = setInterval(() => {
+      const acum = Date.now();
+      // Cel putin un pas — ticul chiar a sosit, deci atata s-a scurs. Cel mult
+      // trei — restul e timp in care nu s-a executat nimic.
+      lucrat += Math.min(Math.max(acum - ultimul, pas), pas * SALT_MAXIM_PASI);
+      ultimul = acum;
+      if (lucrat < ms) return;
+      clearInterval(ceas);
+      timedOut = true;
+      reject(new Error(message));
+    }, pas);
     promise.then(
       v => {
-        clearTimeout(timer);
+        clearInterval(ceas);
         if (timedOut) { try { onAbandoned?.(v); } catch { /* curatenie best-effort, nu are ce raporta */ } return; }
         resolve(v);
       },
-      e => { clearTimeout(timer); if (!timedOut) reject(e); }
+      e => { clearInterval(ceas); if (!timedOut) reject(e); }
     );
   });
 }
