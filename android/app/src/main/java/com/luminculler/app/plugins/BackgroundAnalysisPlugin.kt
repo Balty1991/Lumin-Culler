@@ -1,6 +1,7 @@
 package com.luminculler.app.plugins
 
 import android.content.Intent
+import android.webkit.WebView
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
@@ -21,6 +22,39 @@ import com.getcapacitor.annotation.CapacitorPlugin
  */
 @CapacitorPlugin(name = "BackgroundAnalysis")
 class BackgroundAnalysisPlugin : Plugin() {
+
+    /**
+     * Piesa care lipsea, si fara de care serviciul de prim-plan nu era de ajuns.
+     *
+     * Raportat de utilizator, cu o captura: cu ecranul stins analiza mergea, dar
+     * cu aplicatia minimizata si el lucrand in ALTE aplicatii, bara ramanea la
+     * 83 din 87. Iar la reintrarea in aplicatie "a reluat" — deci nimic nu
+     * murise si nimic nu crapase: procesul de randare fusese INGHETAT, si a
+     * pornit inapoi din locul in care ramasese.
+     *
+     * DE CE. Serviciul de prim-plan tine in afara cache-ului procesul
+     * APLICATIEI. Dar WebView-ul isi ruleaza randarea intr-un proces separat,
+     * izolat, iar importanta ACELUIA e legata implicit de cat se vede WebView-ul
+     * pe ecran: politica implicita e (RENDERER_PRIORITY_IMPORTANT, waived =
+     * true), unde `waived` inseamna "cand nu se vede, cade la cea mai mica
+     * prioritate". Cu ecranul stins si telefonul nefacand nimic altceva, un
+     * proces de prioritate mica tot apuca sa ruleze, si de-aia testul acela
+     * trecea. Cu alte aplicatii cerand procesor si memorie, nu mai apuca — si
+     * analiza statea, fara nicio eroare nicaieri.
+     *
+     * Se pune DOAR pe durata importului si se scoate la sfarsit. Prioritatea asta
+     * e ceruta de la sistem in dauna celorlalte aplicatii; o aplicatie de poze
+     * care si-ar tine randarea "importanta" non-stop, stand degeaba in fundal, ar
+     * lua ceva ce nu-i trebuie.
+     */
+    private fun tinePrioritateaRandarii(tine: Boolean) {
+        val webView = bridge?.webView ?: return
+        activity?.runOnUiThread {
+            // Al doilea parametru e `waivedWhenNotVisible`: cat timp lucram, NU
+            // vrem sa fie cedata. minSdk 26, iar metoda exista de la 26.
+            runCatching { webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, !tine) }
+        }
+    }
 
     private fun trimite(actiune: String, done: Int, total: Int, text: String?, determinat: Boolean) {
         val intent = Intent(context, BackgroundAnalysisService::class.java).apply {
@@ -47,6 +81,7 @@ class BackgroundAnalysisPlugin : Plugin() {
                 call.getString("text"),
                 call.getBoolean("determinate", true) ?: true
             )
+            tinePrioritateaRandarii(true)
             rezultat.put("started", true)
         } catch (e: Exception) {
             // Un serviciu de prim-plan poate fi refuzat de sistem (restrictii de
@@ -76,6 +111,7 @@ class BackgroundAnalysisPlugin : Plugin() {
 
     @PluginMethod
     fun stop(call: PluginCall) {
+        tinePrioritateaRandarii(false)
         runCatching {
             context.startService(
                 Intent(context, BackgroundAnalysisService::class.java)
