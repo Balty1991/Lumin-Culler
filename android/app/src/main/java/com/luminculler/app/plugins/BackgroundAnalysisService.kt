@@ -172,6 +172,19 @@ class BackgroundAnalysisService : Service() {
             .setOngoing(true)
             .setSilent(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
+            // PUBLIC pe ecranul de blocare. Raportat de utilizator: pe ecranul
+            // de blocare CURAT nu aparea nimic — se vedea doar tragand panoul de
+            // notificari in jos. Implicit, o notificare e VISIBILITY_PRIVATE,
+            // adica sistemul are voie sa-i ascunda continutul (sau pe ea cu
+            // totul) cat timp telefonul e incuiat.
+            //
+            // Aici nu e nimic de ascuns: textul e "14 din 72 poze analizate", o
+            // cifra despre propriul import al omului. Iar ecranul incuiat e FIX
+            // situatia pentru care exista notificarea asta — cine si-a pus
+            // telefonul in buzunar nu deschide panouri, se uita o secunda la
+            // ecran. O notificare de progres ascunsa exact cand trebuia citita
+            // nu apara nimic.
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setContentIntent(deschide)
         // Bara REALA doar unde exista un numar care creste monoton pana la capat.
         // Fazele dinainte si de dupa analiza isi numara propriile lucruri, iar o
