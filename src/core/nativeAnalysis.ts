@@ -96,6 +96,56 @@ const NATIVE_ANALYZE_JPEG_QUALITY = 0.92;
 const NATIVE_ANALYZE_MAX_SIDE = 1280;
 /** Doar pentru OCR, si doar pe calea cu URI (unde marirea nu costa nimic in plus peste punte). */
 const NATIVE_OCR_MAX_SIDE = 2560;
+
+/**
+ * Plafonul OCR-ului, si de ce a trebuit sa existe.
+ *
+ * Masurat pe telefonul utilizatorului, in Statistici: "Citire text din imagine
+ * — de obicei 80,0s, in cel mai rau caz 80,0s, 1 rulari". Optzeci de secunde,
+ * la un model masurat inainte la 1,4s de obicei si 2,7s in cel mai rau caz.
+ *
+ * Nu asta e partea proasta. Partea proasta e ce a costat: in acelasi import,
+ * "3 esuate la analiza (3%)", toate cu acelasi motiv — "Analiza acestei
+ * fotografii a durat prea mult (posibil fisier problematic) — sarita". OCR-ul
+ * astepta in acelasi `Promise.all` cu restul valului, deci o singura citire de
+ * text imposibil de lunga trecea POZA INTREAGA peste ANALYZE_TIMEOUT_MS
+ * (workerPool.ts, 40s), iar poza pica cu tot ce se calculase deja pentru ea —
+ * fete, claritate, etichete, toate gata si toate aruncate.
+ *
+ * Un semnal OPTIONAL n-are voie sa doboare unul obligatoriu. Textul citit din
+ * poza e util (face gasibil "bonul de la service", "parola de wifi"), dar e
+ * singurul lucru din tot lantul fara de care o poza se poate tria perfect. Deci
+ * el cedeaza primul, si cedeaza singur.
+ *
+ * Zece secunde: de trei ori peste cel mai rau caz masurat vreodata cand merge
+ * normal, si de patru ori sub plafonul pozei. Cine iese din ele nu strica
+ * nimic, doar nu contribuie.
+ */
+const NATIVE_OCR_TIMEOUT_MS = 10000;
+
+/**
+ * Plafon care nu ARUNCA, ci raspunde cu `undefined`.
+ *
+ * Deliberat altul decat `withTimeout` din core/workerPool.ts, si nu din lene:
+ * acela respinge, fiindca acolo un timeout chiar inseamna "poza asta nu se
+ * poate analiza". Aici inseamna "n-am apucat sa citesc textul", ceea ce nu e o
+ * eroare si n-are ce intrerupe. Importat de acolo ar fi si un ciclu —
+ * workerPool importa fisierul asta, nu invers.
+ *
+ * Apelul nativ abandonat isi vede mai departe de treaba si se incheie singur;
+ * rezultatul lui nu mai intereseaza pe nimeni. `timed` il inregistreaza insa
+ * cand chiar se termina, deci cifra adevarata ramane vizibila in Statistici —
+ * exact cifra care a facut defectul asta gasibil.
+ */
+function cuPlafon<T>(promisiune: Promise<T>, ms: number): Promise<T | undefined> {
+  return new Promise(resolve => {
+    const ceas = setTimeout(() => resolve(undefined), ms);
+    promisiune.then(
+      valoare => { clearTimeout(ceas); resolve(valoare); },
+      () => { clearTimeout(ceas); resolve(undefined); }
+    );
+  });
+}
 const NATIVE_ANALYZE_SMALL_JPEG_QUALITY = 0.85;
 
 function drawToCanvas(bitmap: ImageBitmap): OffscreenCanvas {
@@ -615,13 +665,20 @@ export async function analyzeNative(
   // aruncate: OCR-ul rula, iar din tot ce citea se folosea o singura cifra.
   // Vezi core/photoText.ts — cuvintele alea sunt exact ce face pozele astea
   // gasibile mai tarziu ("bonul de la service", "parola de wifi").
+  //
+  // ...si cu un plafon al lui, sub cel al pozei. Vezi NATIVE_OCR_TIMEOUT_MS:
+  // fara el, o singura citire de text lunga trecea poza intreaga peste
+  // ANALYZE_TIMEOUT_MS si o pierdea cu tot ce se calculase deja.
   const ocrPromise = faces.length === 0
     && (!pickFolderSceneTag(sceneTags) || hasManufacturedTag(sceneTags))
-    ? timed('mOcr', async () => detectTextNative(
-        mediaUri
-          ? { uri: mediaUri, maxSide: NATIVE_OCR_MAX_SIDE }
-          : { blob: await canvasToBlob(requireCanvas()) }
-      ))
+    ? cuPlafon(
+        timed('mOcr', async () => detectTextNative(
+          mediaUri
+            ? { uri: mediaUri, maxSide: NATIVE_OCR_MAX_SIDE }
+            : { blob: await canvasToBlob(requireCanvas()) }
+        )),
+        NATIVE_OCR_TIMEOUT_MS
+      )
     : Promise.resolve(undefined);
 
   // Peretele acopera acum si OCR-ul, fiindca ruleaza in acelasi timp cu valul

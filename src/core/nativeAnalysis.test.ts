@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { KnownPerson } from './db';
 
 // jsdom nu implementeaza OffscreenCanvas — stub minimal, dar de data asta
@@ -1022,5 +1022,63 @@ describe('analyzeNative — OCR ruleaza odata cu valul 2', () => {
 
     expect(result.textCoverage).toBe(0.4);
     expect(result.ocrText).toContain('LuminCuller2026');
+  });
+});
+
+/**
+ * Plafonul OCR-ului.
+ *
+ * Gasit in Statistici, pe telefonul utilizatorului: "Citire text din imagine —
+ * de obicei 80,0s, in cel mai rau caz 80,0s". In acelasi import, 3 poze din 86
+ * pierdute cu "Analiza acestei fotografii a durat prea mult". OCR-ul astepta in
+ * acelasi `Promise.all` cu restul valului, deci o citire de text imposibil de
+ * lunga trecea POZA INTREAGA peste plafonul ei si o arunca cu tot ce se
+ * calculase deja pentru ea.
+ */
+describe('analyzeNative — OCR lent nu mai doboara poza', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    detectFacesNative.mockResolvedValue({ faces: [], imageWidth: 200, imageHeight: 200 });
+    labelImageNative.mockResolvedValue({ labels: [] });
+    embedImageNative.mockResolvedValue({ embedding: [0.1] });
+  });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it('un OCR care nu se mai termina lasa restul analizei sa iasa intreaga', async () => {
+    // Nu se rezolva NICIODATA — cazul care pierdea poza.
+    detectTextNative.mockImplementation(() => new Promise(() => {}));
+
+    const { analyzeNative } = await import('./nativeAnalysis');
+    const promisiune = analyzeNative('p1', fakeBitmap(200, 200));
+    await vi.advanceTimersByTimeAsync(11000);
+    const result = await promisiune;
+
+    // Textul lipseste, si atat. Restul inregistrarii exista.
+    expect(result.textCoverage).toBeUndefined();
+    expect(result.ocrText).toBeUndefined();
+    expect(result.imageEmbedding).toBeDefined();
+  });
+
+  it('un OCR care esueaza e la fel de inofensiv', async () => {
+    detectTextNative.mockRejectedValue(new Error('model indisponibil'));
+
+    const { analyzeNative } = await import('./nativeAnalysis');
+    const result = await analyzeNative('p1', fakeBitmap(200, 200));
+
+    expect(result.textCoverage).toBeUndefined();
+    expect(result.imageEmbedding).toBeDefined();
+  });
+
+  it('un OCR normal trece neatins prin plafon', async () => {
+    detectTextNative.mockResolvedValue({
+      blocks: [{ text: 'bonul de la service', boundingBox: { left: 0, top: 0, width: 10, height: 10 } }],
+      textCoverage: 0.4
+    });
+
+    const { analyzeNative } = await import('./nativeAnalysis');
+    const result = await analyzeNative('p1', fakeBitmap(200, 200));
+
+    expect(result.textCoverage).toBe(0.4);
+    expect(result.ocrText).toContain('service');
   });
 });
