@@ -1,6 +1,7 @@
 import { useRef, useState, type SVGProps } from 'react';
 import { useStore } from '../state/store';
 import { requestNotificationAccess, isNativeNotificationsAvailable } from '../core/nativeNotifications';
+import { requestMissingPermissions } from '../core/appPermissions';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { ApertureIcon, SparkleIcon, UserCheckIcon, StarIcon, XIcon, ShieldIcon, CheckIcon, InfoIcon } from './icons';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
@@ -124,7 +125,33 @@ export function WelcomeOnboarding() {
 
   if (!open) return null;
 
-  const finish = () => dismissWelcome();
+  /**
+   * Inchiderea ecranului, pe ORICE drum: X, Escape, sau ultimul pas.
+   *
+   * Cere permisiunile ramase, si o face mai ales pentru drumul cu X. Raportat de
+   * utilizator de doua ori, a doua oara dupa ce pasul dedicat exista deja: "cand
+   * am dat x la info start tot nu mi-a aparut sa dau acord permisiuni notificare,
+   * decat cele de galerie". Fireste — X sare peste pasul care le cerea, iar
+   * galeria scapa fiindca si-o cere singura la prima citire. Cuvintele lui: "fa
+   * o singura permisiune dupa instalare chiar daca dau x, sa le actualizeze pe
+   * toate".
+   *
+   * `requestMissingPermissions` cere DOAR ce lipseste, una dupa alta: cine a
+   * trecut prin pasul de notificari si a acceptat nu mai e intrebat a doua oara,
+   * iar doua dialoguri cerute odata s-ar calca pe picioare.
+   *
+   * Nu duce nimeni in Setarile sistemului de aici, desi acolo se ajunge din
+   * rubrica Permisiuni: la prima instalare nimic nu e refuzat definitiv, iar un
+   * om abia intrat in aplicatie n-are ce cauta in Setarile telefonului.
+   *
+   * Inchiderea se face INTAI: ecranul dispare pe loc, ca pana acum, si dialogul
+   * de sistem vine peste aplicatia adevarata, nu peste o pagina de intampinare
+   * pe care omul tocmai a inchis-o.
+   */
+  const finish = () => {
+    dismissWelcome();
+    void requestMissingPermissions().catch(() => { /* un refuz nu e o eroare */ });
+  };
   /**
    * Plecarea de pe pasul curent. Pe pasul de notificari cere permisiunea
    * INAINTE de a merge mai departe: dialogul de sistem apare dupa ce omul a

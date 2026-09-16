@@ -8,6 +8,14 @@ vi.mock('../core/nativeNotifications', () => ({
   isNativeNotificationsAvailable: () => notificariNative,
   requestNotificationAccess: () => { cereri.push('cerut'); return Promise.resolve(raspuns); }
 }));
+/** Cererea "ce lipseste", plecata pe ORICE drum de inchidere — inclusiv X. */
+const cereriLipsa: number[] = [];
+vi.mock('../core/appPermissions', () => ({
+  requestMissingPermissions: () => {
+    cereriLipsa.push(1);
+    return Promise.resolve({ stare: { galerie: 'full', notificari: 'granted' }, complet: true });
+  }
+}));
 import { render, screen, fireEvent } from '@testing-library/react';
 import { WelcomeOnboarding } from './WelcomeOnboarding';
 import { useStore } from '../state/store';
@@ -15,6 +23,8 @@ import { useStore } from '../state/store';
 describe('WelcomeOnboarding', () => {
   beforeEach(() => {
     localStorage.clear();
+    cereri.length = 0;
+    cereriLipsa.length = 0;
     // welcomeSeen e citit din localStorage O SINGURA DATA, la crearea store-ului
     // (modul singleton), deci fiecare test trebuie sa il reaseze explicit — altfel
     // primul test care inchide ecranul l-ar tine inchis pentru toate urmatoarele.
@@ -101,6 +111,7 @@ describe('WelcomeOnboarding — pasul de notificari', () => {
     localStorage.clear();
     useStore.setState({ locale: 'ro', welcomeSeen: false });
     cereri.length = 0;
+    cereriLipsa.length = 0;
   });
 
   it('pe o platforma fara notificari native, pasul nu exista deloc', () => {
@@ -131,5 +142,27 @@ describe('WelcomeOnboarding — pasul de notificari', () => {
     // A avansat, desi permisiunea a fost refuzata.
     await screen.findByText(/Totul rămâne pe telefonul tău/);
     expect(cereri).toHaveLength(1);
+  });
+
+  /**
+   * Raportat de utilizator de doua ori, a doua oara dupa ce pasul dedicat
+   * notificarilor exista deja: "cand am dat x la info start tot nu mi-a aparut
+   * sa dau acord permisiuni notificare, decat cele de galerie". X-ul sare peste
+   * pasul care le cerea; galeria scapa fiindca si-o cere singura la prima
+   * citire.
+   */
+  it('X-ul cere si el permisiunile ramase, nu doar inchide', () => {
+    render(<WelcomeOnboarding />);
+    fireEvent.click(screen.getByRole('button', { name: 'Sari peste' }));
+
+    expect(useStore.getState().welcomeSeen).toBe(true);
+    expect(cereriLipsa).toHaveLength(1);
+  });
+
+  it('si Escape, care e acelasi drum de iesire', () => {
+    render(<WelcomeOnboarding />);
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+
+    expect(cereriLipsa).toHaveLength(1);
   });
 });
