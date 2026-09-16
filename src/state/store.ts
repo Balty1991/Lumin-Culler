@@ -72,7 +72,7 @@ import { recordImportOutcome, summariseOutcomes } from '../core/importOutcome';
 import { keepScreenAwake } from '../core/wakeLock';
 import {
   startBackgroundAnalysis, updateBackgroundAnalysis, stopBackgroundAnalysis,
-  backgroundPhaseKey, BACKGROUND_NOTIFY_INTERVAL_MS
+  backgroundPhaseNotice, BACKGROUND_NOTIFY_INTERVAL_MS
 } from '../core/backgroundAnalysis';
 import { createActiveElapsed, type ActiveElapsed } from '../core/activeElapsed';
 import { recordImportDay } from './streak';
@@ -2943,8 +2943,8 @@ export const useStore = create<AppState>((set, get) => ({
           // Pragul e de TIMP, nu din 10 in 10 poze: singurul care merge la fel
           // in fazele care numara poze si in cele care nu numara. Vezi
           // BACKGROUND_NOTIFY_INTERVAL_MS pentru cost.
-          const cheieFundal = backgroundPhaseKey(progress.phase);
-          if (cheieFundal) {
+          const fundal = backgroundPhaseNotice(progress.phase);
+          if (fundal) {
             const acum = Date.now();
             // Schimbarea de faza trece imediat: e singura data cand se schimba
             // si CE scrie, nu doar cifra.
@@ -2957,7 +2957,8 @@ export const useStore = create<AppState>((set, get) => ({
               void updateBackgroundAnalysis(
                 progress.done,
                 progress.total,
-                t(get().locale, cheieFundal, { done: progress.done, total: progress.total })
+                t(get().locale, fundal.key, { done: progress.done, total: progress.total }),
+                fundal.determinate
               );
             }
           }

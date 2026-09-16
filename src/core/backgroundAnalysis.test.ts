@@ -91,37 +91,58 @@ describe('analiza in fundal', () => {
     const { startBackgroundAnalysis } = await modul();
 
     expect(await startBackgroundAnalysis(0, 437, 'Se pregătește analiza…')).toBe(true);
-    expect(plugin.start).toHaveBeenCalledWith({ done: 0, total: 437, text: 'Se pregătește analiza…' });
+    expect(plugin.start).toHaveBeenCalledWith(
+      { done: 0, total: 437, text: 'Se pregătește analiza…', determinate: false }
+    );
   });
 });
 
-describe('backgroundPhaseKey', () => {
+describe('backgroundPhaseNotice', () => {
   it('da un text pentru fiecare faza care inca lucreaza', async () => {
-    const { backgroundPhaseKey } = await modul();
+    const { backgroundPhaseNotice } = await modul();
     // Bug raportat: notificarea se actualiza doar in faza 'analiza', asa ca
     // pregatirea si gruparea — minute intregi la un lot mare — aratau ca o
     // analiza inghetata.
-    expect(backgroundPhaseKey('citire')).toBe('store.background.starting');
-    expect(backgroundPhaseKey('incarcare')).toBe('store.background.starting');
-    expect(backgroundPhaseKey('pregatire')).toBe('store.background.preparing');
-    expect(backgroundPhaseKey('analiza')).toBe('store.background.progress');
-    expect(backgroundPhaseKey('grupare')).toBe('store.background.grouping');
+    expect(backgroundPhaseNotice('citire')?.key).toBe('store.background.starting');
+    expect(backgroundPhaseNotice('incarcare')?.key).toBe('store.background.starting');
+    expect(backgroundPhaseNotice('pregatire')?.key).toBe('store.background.preparing');
+    expect(backgroundPhaseNotice('analiza')?.key).toBe('store.background.progress');
+    expect(backgroundPhaseNotice('grupare')?.key).toBe('store.background.grouping');
+  });
+
+  it('bara reala doar la analiza — altfel ar merge inapoi', async () => {
+    const { backgroundPhaseNotice } = await modul();
+    // Vazut pe telefon: pregatirea umplea bara pana la jumatate, apoi analiza o
+    // lua de la 2%. O bara care merge inapoi inseamna, pentru oricine, "a luat-o
+    // de la capat".
+    expect(backgroundPhaseNotice('analiza')?.determinate).toBe(true);
+    for (const faza of ['citire', 'incarcare', 'pregatire', 'grupare'] as const) {
+      expect(backgroundPhaseNotice(faza)?.determinate, faza).toBe(false);
+    }
   });
 
   it('nu atinge notificarea la final — oricum urmeaza oprirea serviciului', async () => {
-    const { backgroundPhaseKey } = await modul();
-    expect(backgroundPhaseKey('finalizat')).toBeNull();
+    const { backgroundPhaseNotice } = await modul();
+    expect(backgroundPhaseNotice('finalizat')).toBeNull();
   });
 
   it('toate cheile exista in ambele limbi', async () => {
-    const { backgroundPhaseKey } = await modul();
+    const { backgroundPhaseNotice } = await modul();
     const { ro } = await import('../i18n/ro');
     const { en } = await import('../i18n/en');
-    const faze = ['citire', 'incarcare', 'pregatire', 'analiza', 'grupare'] as const;
-    for (const faza of faze) {
-      const cheie = backgroundPhaseKey(faza)!;
+    for (const faza of ['citire', 'incarcare', 'pregatire', 'analiza', 'grupare'] as const) {
+      const cheie = backgroundPhaseNotice(faza)!.key;
       expect(ro, faza).toHaveProperty(cheie);
       expect(en, faza).toHaveProperty(cheie);
     }
+  });
+
+  it('pornirea nu arata o bara reala goala', async () => {
+    const { startBackgroundAnalysis } = await modul();
+    plugin.start.mockResolvedValue({ started: true });
+    await startBackgroundAnalysis(0, 86, 'Se pregătește analiza…');
+    expect(plugin.start).toHaveBeenCalledWith(
+      expect.objectContaining({ determinate: false })
+    );
   });
 });

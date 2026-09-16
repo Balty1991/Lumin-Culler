@@ -22,11 +22,12 @@ import com.getcapacitor.annotation.CapacitorPlugin
 @CapacitorPlugin(name = "BackgroundAnalysis")
 class BackgroundAnalysisPlugin : Plugin() {
 
-    private fun trimite(actiune: String, done: Int, total: Int, text: String?) {
+    private fun trimite(actiune: String, done: Int, total: Int, text: String?, determinat: Boolean) {
         val intent = Intent(context, BackgroundAnalysisService::class.java).apply {
             action = actiune
             putExtra(BackgroundAnalysisService.EXTRA_DONE, done)
             putExtra(BackgroundAnalysisService.EXTRA_TOTAL, total)
+            putExtra(BackgroundAnalysisService.EXTRA_DETERMINAT, determinat)
             if (text != null) putExtra(BackgroundAnalysisService.EXTRA_TEXT, text)
         }
         // startForegroundService, nu startService: serviciul e obligat sa cheme
@@ -43,7 +44,8 @@ class BackgroundAnalysisPlugin : Plugin() {
                 BackgroundAnalysisService.ACTION_START,
                 call.getInt("done") ?: 0,
                 call.getInt("total") ?: 0,
-                call.getString("text")
+                call.getString("text"),
+                call.getBoolean("determinate", true) ?: true
             )
             rezultat.put("started", true)
         } catch (e: Exception) {
@@ -65,7 +67,8 @@ class BackgroundAnalysisPlugin : Plugin() {
                 BackgroundAnalysisService.ACTION_UPDATE,
                 call.getInt("done") ?: 0,
                 call.getInt("total") ?: 0,
-                call.getString("text")
+                call.getString("text"),
+                call.getBoolean("determinate", true) ?: true
             )
         }
         call.resolve()

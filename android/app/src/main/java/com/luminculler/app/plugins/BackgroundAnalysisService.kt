@@ -53,6 +53,7 @@ class BackgroundAnalysisService : Service() {
         const val EXTRA_DONE = "done"
         const val EXTRA_TOTAL = "total"
         const val EXTRA_TEXT = "text"
+        const val EXTRA_DETERMINAT = "determinat"
 
         private const val CHANNEL_ID = "lumin-culler-analiza"
         private const val NOTIFICATION_ID = 4202
@@ -77,7 +78,10 @@ class BackgroundAnalysisService : Service() {
                 val done = intent?.getIntExtra(EXTRA_DONE, 0) ?: 0
                 val total = intent?.getIntExtra(EXTRA_TOTAL, 0) ?: 0
                 val text = intent?.getStringExtra(EXTRA_TEXT)
-                porneste(done, total, text)
+                // Implicit ADEVARAT: o notificare pornita fara extra (repornire,
+                // apel vechi) arata bara reala, nu dunga fara sfarsit.
+                val determinat = intent?.getBooleanExtra(EXTRA_DETERMINAT, true) ?: true
+                porneste(done, total, text, determinat)
             }
         }
         // NU sticky: daca sistemul omoara procesul, importul din WebView oricum
@@ -86,9 +90,9 @@ class BackgroundAnalysisService : Service() {
         return START_NOT_STICKY
     }
 
-    private fun porneste(done: Int, total: Int, text: String?) {
+    private fun porneste(done: Int, total: Int, text: String?, determinat: Boolean) {
         creeazaCanalul()
-        val notificare = construiesteNotificarea(done, total, text)
+        val notificare = construiesteNotificarea(done, total, text, determinat)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startForeground(NOTIFICATION_ID, notificare, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
         } else {
@@ -136,7 +140,7 @@ class BackgroundAnalysisService : Service() {
         manager.createNotificationChannel(canal)
     }
 
-    private fun construiesteNotificarea(done: Int, total: Int, text: String?): Notification {
+    private fun construiesteNotificarea(done: Int, total: Int, text: String?, determinat: Boolean): Notification {
         val deschide = PendingIntent.getActivity(
             this,
             0,
@@ -156,15 +160,25 @@ class BackgroundAnalysisService : Service() {
         // Textul vine din partea de JS, care stie limba aleasa de om; sirul din
         // resurse e doar plasa de rezerva pentru clipa dintre pornirea
         // serviciului si primul update.
+        //
+        // FARA setSubText. A fost incercat, si a iesit invers: titlul, subtextul
+        // si ora impart UN SINGUR rand, asa ca eticheta fixa a taiat titlul la
+        // jumatate — "2 din 86 poze..." in loc de "2 din 86 poze analizate".
+        // Raportat cu doua capturi. Randul e ingust; cine il umple cu o eticheta
+        // care nu se schimba niciodata plateste cu singura parte care conteaza.
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_download)
             .setContentTitle(text ?: getString(R.string.analiza_titlu))
-            .setSubText(getString(R.string.analiza_subtext))
             .setOngoing(true)
             .setSilent(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setContentIntent(deschide)
-        if (total > 0) builder.setProgress(total, done.coerceIn(0, total), false)
+        // Bara REALA doar unde exista un numar care creste monoton pana la capat.
+        // Fazele dinainte si de dupa analiza isi numara propriile lucruri, iar o
+        // bara pe fiecare inseamna o bara care se umple la jumatate, se intoarce
+        // la zero si se umple iar — adica exact semnalul "a luat-o de la capat".
+        // Dunga fara sfarsit spune adevarul: lucrez, nu stiu sa spun cat mai e.
+        if (determinat && total > 0) builder.setProgress(total, done.coerceIn(0, total), false)
         else builder.setProgress(0, 0, true)
         return builder.build()
     }

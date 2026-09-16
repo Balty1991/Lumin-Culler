@@ -25,9 +25,17 @@
 import { registerPlugin, Capacitor } from '@capacitor/core';
 
 interface BackgroundAnalysisApi {
-  start(options: { done: number; total: number; text?: string }): Promise<{ started: boolean; reason?: string }>;
-  update(options: { done: number; total: number; text?: string }): Promise<void>;
+  start(options: BackgroundAnalysisState): Promise<{ started: boolean; reason?: string }>;
+  update(options: BackgroundAnalysisState): Promise<void>;
   stop(): Promise<void>;
+}
+
+interface BackgroundAnalysisState {
+  done: number;
+  total: number;
+  text?: string;
+  /** `false` cere dunga fara sfarsit in locul barei reale — vezi backgroundPhaseNotice. */
+  determinate?: boolean;
 }
 
 const BackgroundAnalysis = registerPlugin<BackgroundAnalysisApi>('BackgroundAnalysis');
@@ -62,24 +70,34 @@ export const BACKGROUND_NOTIFY_INTERVAL_MS = 2000;
 export type BackgroundPhase = 'citire' | 'incarcare' | 'pregatire' | 'analiza' | 'grupare' | 'finalizat';
 
 /**
- * Ce scrie in notificare la faza asta — ca CHEIE i18n, ca textul sa se compuna
- * in limba aleasa de om, nu aici.
+ * Ce arata notificarea la faza asta: textul ca CHEIE i18n (ca sa se compuna in
+ * limba aleasa de om, nu aici) si ce fel de bara i se potriveste.
  *
  * `null` inseamna "nu atinge notificarea": la 'finalizat' importul oricum
  * cheama `stopBackgroundAnalysis`, iar o ultima redesenare inainte sa dispara
  * ar fi doar palpaire.
+ *
+ * BARA REALA DOAR LA 'analiza'. Prima incercare a dat fiecarei faze bara ei, si
+ * s-a vazut imediat pe telefon de ce e gresit: pregatirea umplea bara pana la
+ * jumatate, apoi analiza o lua de la 2%. Bara mergea INAPOI — semnalul universal
+ * pentru "s-a intamplat ceva rau, a luat-o de la capat". Singurul numar care
+ * creste monoton de la zero pana la capatul importului e cel din analiza; restul
+ * isi numara propriile lucruri, si merita dunga fara sfarsit, care spune exact
+ * atat cat se stie: lucrez, nu pot spune cat mai e.
  */
-export function backgroundPhaseKey(phase: BackgroundPhase): string | null {
+export function backgroundPhaseNotice(
+  phase: BackgroundPhase
+): { key: string; determinate: boolean } | null {
   switch (phase) {
     case 'citire':
     case 'incarcare':
-      return 'store.background.starting';
+      return { key: 'store.background.starting', determinate: false };
     case 'pregatire':
-      return 'store.background.preparing';
+      return { key: 'store.background.preparing', determinate: false };
     case 'analiza':
-      return 'store.background.progress';
+      return { key: 'store.background.progress', determinate: true };
     case 'grupare':
-      return 'store.background.grouping';
+      return { key: 'store.background.grouping', determinate: false };
     default:
       return null;
   }
@@ -99,7 +117,9 @@ export async function startBackgroundAnalysis(done: number, total: number, text?
   if (!isBackgroundAnalysisAvailable()) return false;
   if (total < MIN_PHOTOS_FOR_BACKGROUND) return false;
   try {
-    const answer = await BackgroundAnalysis.start({ done, total, text });
+    // `total` e aici pragul de pornire, nu o bara: la pornire nu s-a analizat
+    // inca nicio poza, iar o bara reala goala e doar o bara care pare inghetata.
+    const answer = await BackgroundAnalysis.start({ done, total, text, determinate: false });
     return answer.started === true;
   } catch {
     return false;
@@ -107,10 +127,12 @@ export async function startBackgroundAnalysis(done: number, total: number, text?
 }
 
 /** Actualizeaza bara din notificare. Ieftina, dar nu gratuita — vezi apelantul pentru cat de des. */
-export async function updateBackgroundAnalysis(done: number, total: number, text?: string): Promise<void> {
+export async function updateBackgroundAnalysis(
+  done: number, total: number, text?: string, determinate = true
+): Promise<void> {
   if (!isBackgroundAnalysisAvailable()) return;
   try {
-    await BackgroundAnalysis.update({ done, total, text });
+    await BackgroundAnalysis.update({ done, total, text, determinate });
   } catch {
     // O bara de progres nereimprospatata nu opreste nimic.
   }
