@@ -11,6 +11,9 @@ import {
   readAppPermissions, requestMissingPermissions, permisiuniRelevante, toatePermisiunileDate,
   numaraPermisiuni, openAppSettings, type StarePermisiuni
 } from '../core/appPermissions';
+import {
+  readBatteryRestriction, openBatterySettings, type BatteryRestriction
+} from '../core/backgroundAnalysis';
 import type { AccentTheme } from '../state/accentTheme';
 import { selectDeletableRejected } from '../state/batchOps';
 import { selectPendingShieldReview, readShieldDismissedIds } from '../core/documentShield';
@@ -180,6 +183,21 @@ export function MenuDrawer() {
   useEffect(() => {
     let anulat = false;
     const citeste = () => { void readAppPermissions().then(p => { if (!anulat) setPermisiuni(p); }); };
+    citeste();
+    const laRevenire = () => { if (document.visibilityState === 'visible') citeste(); };
+    document.addEventListener('visibilitychange', laRevenire);
+    return () => { anulat = true; document.removeEventListener('visibilitychange', laRevenire); };
+  }, []);
+
+  /**
+   * Restrictia de baterie. Aceeasi recitire la revenirea in prim-plan: se
+   * schimba doar din Setarile sistemului, deci intoarcerea omului e singurul
+   * moment in care putem afla ca s-a rezolvat.
+   */
+  const [baterie, setBaterie] = useState<BatteryRestriction>('unknown');
+  useEffect(() => {
+    let anulat = false;
+    const citeste = () => { void readBatteryRestriction().then(b => { if (!anulat) setBaterie(b); }); };
     citeste();
     const laRevenire = () => { if (document.visibilityState === 'visible') citeste(); };
     document.addEventListener('visibilitychange', laRevenire);
@@ -1001,6 +1019,26 @@ export function MenuDrawer() {
                 {toatePermisiunileDate(permisiuni)
                   ? tr('menu.permissions.all')
                   : tr('menu.permissions.some', numaraPermisiuni(permisiuni))}
+              </b>
+            </button>
+          )}
+
+          {/* Restrictia de baterie, dupa ce prioritatea randarii n-a ajuns singura.
+              Raportat cu o captura: 82 din 87, oprit de sapte minute cat omul a
+              stat in alta aplicatie. Peste ce poate face aplicatia sta managerul
+              de baterie al producatorului, iar el se convinge doar din Setari.
+              'unknown' nu se arata: pe web nu exista, iar "nu stiu" afisat ca
+              stare ar arata exact ca o problema. */}
+          {baterie !== 'unknown' && (
+            <button
+              className="drawer-item"
+              onClick={() => { void openBatterySettings(); }}
+              title={tr('menu.battery.title')}
+            >
+              <span className="drawer-item-icon"><BatteryIcon /></span>
+              <span>{tr('menu.battery')}</span>
+              <b className="drawer-count mono">
+                {tr(baterie === 'unrestricted' ? 'menu.battery.free' : 'menu.battery.limited')}
               </b>
             </button>
           )}

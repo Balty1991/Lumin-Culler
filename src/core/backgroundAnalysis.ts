@@ -29,6 +29,8 @@ interface BackgroundAnalysisApi {
   start(options: BackgroundAnalysisState): Promise<{ started: boolean; reason?: string }>;
   update(options: BackgroundAnalysisState): Promise<void>;
   stop(): Promise<void>;
+  batteryUnrestricted(): Promise<{ available: boolean; unrestricted: boolean }>;
+  openBatterySettings(): Promise<void>;
 }
 
 interface BackgroundAnalysisState {
@@ -185,5 +187,44 @@ export async function stopBackgroundAnalysis(): Promise<void> {
     await BackgroundAnalysis.stop();
   } catch {
     // Serviciul are si un termen pe lacat, tocmai pentru cazul asta.
+  }
+}
+
+/**
+ * Restrictia de baterie, ca stare: 'unrestricted' merge, 'restricted' inseamna
+ * ca sistemul are voie sa opreasca lucrul in fundal, 'unknown' inseamna ca nu
+ * avem de unde sti (web, sau plugin vechi).
+ *
+ * Raportat cu o captura: 82 din 87, oprit de SAPTE minute cat omul a stat in
+ * alta aplicatie. Prioritatea randarii a scurtat blocajele de la minute la
+ * secunde, dar peste ea sta managerul de baterie al producatorului, si el nu se
+ * convinge din cod — doar din Setari, de mana omului.
+ *
+ * 'unrestricted' NU e o garantie si nu trebuie prezentat ca una: multe telefoane
+ * au pe deasupra restrictii proprii (pornire automata, "economisire" per
+ * aplicatie) despre care Android nu stie nimic.
+ */
+export type BatteryRestriction = 'unrestricted' | 'restricted' | 'unknown';
+
+export async function readBatteryRestriction(): Promise<BatteryRestriction> {
+  if (!isBackgroundAnalysisAvailable()) return 'unknown';
+  try {
+    const raspuns = await BackgroundAnalysis.batteryUnrestricted();
+    if (!raspuns.available) return 'unknown';
+    return raspuns.unrestricted ? 'unrestricted' : 'restricted';
+  } catch {
+    // Plugin mai vechi decat metoda (build instalat peste): nu stim, si "nu stim"
+    // nu are voie sa arate ca o problema.
+    return 'unknown';
+  }
+}
+
+/** Deschide ecranul de unde se scoate restrictia. Nu cere nimic singura — vezi plugin. */
+export async function openBatterySettings(): Promise<void> {
+  if (!isBackgroundAnalysisAvailable()) return;
+  try {
+    await BackgroundAnalysis.openBatterySettings();
+  } catch {
+    // Un ecran de setari care nu se deschide nu are voie sa arunce in UI.
   }
 }

@@ -1,6 +1,10 @@
 package com.luminculler.app.plugins
 
+import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.os.PowerManager
+import android.provider.Settings
 import android.webkit.WebView
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
@@ -105,6 +109,68 @@ class BackgroundAnalysisPlugin : Plugin() {
                 call.getString("text"),
                 call.getBoolean("determinate", true) ?: true
             )
+        }
+        call.resolve()
+    }
+
+    /**
+     * E aplicatia scutita de optimizarea bateriei?
+     *
+     * Raportat cu o captura: 82 din 87, oprit de SAPTE minute, cat omul a stat in
+     * alta aplicatie. Prioritatea randarii (vezi mai sus) a facut din blocaje de
+     * minute blocaje de secunde, dar peste ea mai sta managerul de baterie al
+     * producatorului, care poate opri de tot lucrul in fundal — si el nu se lasa
+     * convins din cod.
+     *
+     * `isIgnoringBatteryOptimizations` NU cere nicio permisiune, deci intrebarea
+     * e gratuita. RASPUNSUL insa nu e o garantie: pe multe telefoane exista pe
+     * deasupra si restrictii proprii ale producatorului (pornire automata,
+     * "economisire" per aplicatie) despre care Android nu stie nimic, si care pot
+     * opri analiza chiar si cu raspunsul "scutita". Textul din aplicatie nu are
+     * voie sa promita mai mult decat atat.
+     */
+    @PluginMethod
+    fun batteryUnrestricted(call: PluginCall) {
+        val rezultat = JSObject()
+        val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+        if (pm == null) {
+            rezultat.put("available", false)
+            rezultat.put("unrestricted", false)
+        } else {
+            rezultat.put("available", true)
+            rezultat.put(
+                "unrestricted",
+                runCatching { pm.isIgnoringBatteryOptimizations(context.packageName) }.getOrDefault(false)
+            )
+        }
+        call.resolve(rezultat)
+    }
+
+    /**
+     * Duce omul la ecranul de unde poate scoate restrictia. NU o cere singura.
+     *
+     * DELIBERAT, si merita spus de ce: exista si un dialog care cere scutirea pe
+     * loc (ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS), dar el are nevoie de
+     * permisiunea REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, iar Google Play o accepta
+     * doar pentru cateva categorii de aplicatii — alarme, apeluri, automatizari.
+     * O aplicatie de triat poze nu e printre ele, si declararea ei e un motiv de
+     * respingere. Ecranul de setari se deschide fara nicio permisiune.
+     *
+     * Rezerva e pagina aplicatiei din Setari: pe telefoanele cu interfata proprie,
+     * acolo sta oricum si comutatorul producatorului, cel care chiar decide.
+     */
+    @PluginMethod
+    fun openBatterySettings(call: PluginCall) {
+        val incercari = listOf(
+            Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS),
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
+        )
+        for (intent in incercari) {
+            val pornit = runCatching {
+                context.startActivity(intent.apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) })
+                true
+            }.getOrDefault(false)
+            if (pornit) { call.resolve(); return }
         }
         call.resolve()
     }
