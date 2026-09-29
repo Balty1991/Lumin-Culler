@@ -70,6 +70,7 @@ import { readStageStats } from '../core/stageTiming';
 import { summariseFeedback } from '../core/aiFeedback';
 import { recordImportOutcome, summariseOutcomes } from '../core/importOutcome';
 import { keepScreenAwake } from '../core/wakeLock';
+import { createStallTracker, type StallTracker, type StallTally } from '../core/stallTally';
 import {
   startBackgroundAnalysis, updateBackgroundAnalysis, stopBackgroundAnalysis,
   backgroundPhaseNotice, BACKGROUND_NOTIFY_INTERVAL_MS
@@ -336,8 +337,15 @@ interface AppState {
    * readThermalTally in core/workerPool.ts). Fara el, un import mai lung decat
    * cel dinainte nu se poate deosebi de o regresie — s-a intamplat, pe acelasi
    * lot de 200 de poze, cu modelele masurate la fel si bateria la 27%.
+   *
+   * `stalls` e cat a stat analiza PE LOC, impartit dupa unde era aplicatia —
+   * vezi core/stallTally.ts. Pentru blocajele din fundal nu aveam pana acum
+   * decat capturi cu o bara care nu se misca.
    */
-  lastImportStats: { count: number; durationMs: number; throttledMs: number; throttledCap: number | null; normalCap: number } | null;
+  lastImportStats: {
+    count: number; durationMs: number; throttledMs: number; throttledCap: number | null; normalCap: number;
+    stalls: StallTally;
+  } | null;
   /** Contor informativ de poze procesate in luna curenta — vezi state/usage.ts (NU e o limita reala/blocanta). */
   monthlyUsage: number;
   statsOpen: boolean;
@@ -2886,8 +2894,12 @@ export const useStore = create<AppState>((set, get) => ({
     let etaTracker: EtaTracker | null = null;
     /** Ultima valoare ARATATA, nu ultima calculata — vezi core/etaEstimate.ts pentru de ce difera. */
     let shownEtaSeconds: number | undefined;
-    const onAnalysisVisibility = () =>
+    /** Cat a stat analiza pe loc, si unde era aplicatia — vezi core/stallTally.ts. */
+    let stallTracker: StallTracker | null = null;
+    const onAnalysisVisibility = () => {
       analysisClock?.setVisible(document.visibilityState === 'visible', Date.now());
+      stallTracker?.visibility(document.visibilityState !== 'visible');
+    };
     document.addEventListener('visibilitychange', onAnalysisVisibility);
     const cancelToken = createCancelToken();
     activeCancelToken = cancelToken;
@@ -2946,6 +2958,11 @@ export const useStore = create<AppState>((set, get) => ({
           if (progress.thresholds) adaptedThresholds = progress.thresholds;
           let etaSeconds: number | undefined;
           if (progress.phase === 'analiza') {
+            // Pornit la prima poza terminata, nu la inceputul importului:
+            // incarcarea modelelor si pregatirea nu sunt "analiza care sta".
+            const ascunsa = document.visibilityState !== 'visible';
+            if (stallTracker === null) stallTracker = createStallTracker(Date.now(), ascunsa);
+            else stallTracker.progress(Date.now(), ascunsa);
             if (analysisClock === null) {
               analysisClock = createActiveElapsed(document.visibilityState === 'visible', Date.now());
               etaTracker = createEtaTracker();
@@ -3135,7 +3152,11 @@ export const useStore = create<AppState>((set, get) => ({
       lastImportStats: done > 0
         ? (() => {
             const t = analysisPool.readThermalTally();
-            return { count: done, durationMs: Date.now() - startedAt, throttledMs: t.throttledMs, throttledCap: t.cap, normalCap: t.normal };
+            return {
+              count: done, durationMs: Date.now() - startedAt,
+              throttledMs: t.throttledMs, throttledCap: t.cap, normalCap: t.normal,
+              stalls: stallTracker?.read() ?? { hiddenMs: 0, hiddenCount: 0, visibleMs: 0, visibleCount: 0 }
+            };
           })()
         : state.lastImportStats,
       sessionOutcome,

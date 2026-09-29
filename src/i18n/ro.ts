@@ -1522,6 +1522,8 @@ export const ro = {
   'stats.agreement.trend.label': 'Evoluție (început -> acum)',
   'stats.lastImport.title': 'Ultimul import',
   'stats.lastImport.text': '{countDe} poze în {duration} ({rate} poze/secundă).',
+  'stats.lastImport.stalledHidden': 'Analiza a stat pe loc cât aplicația nu era pe ecran — {duration} în total (opriri: {count}). Vine de obicei de la economisirea bateriei a telefonului; vezi Setări → Analiză în fundal.',
+  'stats.lastImport.stalledVisible': 'Analiza a stat pe loc și cu aplicația deschisă — {duration} în total (opriri: {count}). Asta n-ar trebui să se întâmple; merită raportat, cu captura asta.',
   'stats.lastImport.thermal': 'Telefonul s-a încălzit pentru {share}% din import — {cap} poze deodată în loc de {normal}. Scorurile rămân aceleași; se schimbă doar câte poze sunt în lucru simultan.',
   'stats.usage.title': 'Utilizare',
   'stats.usage.analyzed': '{countDe} poze analizate luna aceasta. Triajul e gratuit și nelimitat — importul, scorul AI, sortarea și gruparea nu consumă nimic.',

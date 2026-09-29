@@ -1463,6 +1463,8 @@ export const en: Record<TranslationKey, string> = {
   'stats.agreement.trend.label': 'Evolution (start -> now)',
   'stats.lastImport.title': 'Last import',
   'stats.lastImport.text': '{count} photos in {duration} ({rate} photos/second).',
+  'stats.lastImport.stalledHidden': 'The analysis stood still while the app was off screen — {duration} in total (stops: {count}). This usually comes from the phone\'s battery saving; see Settings → Background analysis.',
+  'stats.lastImport.stalledVisible': 'The analysis also stood still with the app open — {duration} in total (stops: {count}). That shouldn\'t happen; worth reporting, with this screenshot.',
   'stats.lastImport.thermal': 'The phone ran hot for {share}% of the import — {cap} photos at a time instead of {normal}. Scores are unaffected; only how many photos are in flight changes.',
   'stats.usage.title': 'Usage',
   'stats.usage.analyzed': '{count} photos analysed this month. Culling is free and unlimited — importing, AI scoring, sorting and grouping cost you nothing.',

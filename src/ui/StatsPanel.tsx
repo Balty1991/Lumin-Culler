@@ -527,6 +527,27 @@ export function StatsPanel() {
                 })}
               </p>
             )}
+            {/* Cat a stat analiza pe loc, impartit dupa ce se poate face cu
+                cifra — vezi core/stallTally.ts. In fundal: de la telefon, se
+                trateaza din Setari. Cu aplicatia pe ecran: de la noi, si n-ar
+                trebui sa existe deloc. Ambele ascunse cand sunt zero: un rand
+                care spune "0 opriri" la fiecare import e doar zgomot. */}
+            {lastImportStats.stalls.hiddenCount > 0 && (
+              <p className="hint">
+                {tr('stats.lastImport.stalledHidden', {
+                  duration: formatDuration(lastImportStats.stalls.hiddenMs),
+                  count: lastImportStats.stalls.hiddenCount
+                })}
+              </p>
+            )}
+            {lastImportStats.stalls.visibleCount > 0 && (
+              <p className="hint">
+                {tr('stats.lastImport.stalledVisible', {
+                  duration: formatDuration(lastImportStats.stalls.visibleMs),
+                  count: lastImportStats.stalls.visibleCount
+                })}
+              </p>
+            )}
           </div>
         )}
 
