@@ -25,6 +25,7 @@ import com.luminculler.app.plugins.NotificationsPlugin;
 import com.luminculler.app.plugins.BillingPlugin;
 import com.luminculler.app.plugins.ThermalPlugin;
 import com.luminculler.app.plugins.BackgroundAnalysisPlugin;
+import com.luminculler.app.plugins.InAppReviewPlugin;
 
 public class MainActivity extends BridgeActivity {
 
@@ -135,6 +136,9 @@ public class MainActivity extends BridgeActivity {
         // ajuns in cache e inghetat, deci importul se oprea in tacere de indata
         // ce omul incuia telefonul.
         registerPlugin(BackgroundAnalysisPlugin.class);
+        // Fereastra oficiala de recenzie Play, ceruta o singura data, dupa primul
+        // export reusit. Vezi plugins/InAppReviewPlugin.kt si state/reviewPrompt.ts.
+        registerPlugin(InAppReviewPlugin.class);
         super.onCreate(savedInstanceState);
 
         // Fara acest listener, un crash al PROCESULUI DE RANDARE al WebView-ului

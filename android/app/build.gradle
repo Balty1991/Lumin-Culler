@@ -165,6 +165,9 @@ dependencies {
     // proiect care chiar are nevoie de retea: verificarea abonamentului se face
     // prin Google Play, restul aplicatiei ramane complet offline.
     implementation "com.android.billingclient:billing-ktx:$billingVersion"
+    // Fereastra oficiala de recenzie Google Play — vezi plugins/InAppReviewPlugin.kt.
+    // Nu trimite nimic de-al aplicatiei: doar deschide ecranul de nota al Play.
+    implementation "com.google.android.play:review:$playReviewVersion"
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"

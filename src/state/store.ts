@@ -71,6 +71,7 @@ import { summariseFeedback } from '../core/aiFeedback';
 import { recordImportOutcome, summariseOutcomes } from '../core/importOutcome';
 import { keepScreenAwake } from '../core/wakeLock';
 import { createStallTracker, type StallTracker, type StallTally } from '../core/stallTally';
+import { maybeAskForReview } from './reviewPrompt';
 import {
   startBackgroundAnalysis, updateBackgroundAnalysis, stopBackgroundAnalysis,
   backgroundPhaseNotice, BACKGROUND_NOTIFY_INTERVAL_MS
@@ -4565,6 +4566,9 @@ export const useStore = create<AppState>((set, get) => ({
         parts.push(t(locale, 'store.exportSelection.missing', { count: result.missing.length }));
       }
       set({ notice: parts.join(' ') + freeExportCapNotice(locale) });
+      // Momentul in care omul chiar a scos ceva util din aplicatie — singurul
+      // in care ii cerem o nota, si o singura data. Vezi state/reviewPrompt.ts.
+      maybeAskForReview(result.exported);
     } catch (err) {
       set({ notice: t(get().locale, 'store.exportSelection.failed', { error: String(err) }) });
     } finally {

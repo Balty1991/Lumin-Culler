@@ -66,4 +66,6 @@ ext {
     // v9 cere androidx.core 1.9+ pentru codul de eroare al Play Store-ului
     // blocat; proiectul e deja pe 1.17.0 (androidxCoreVersion, mai sus).
     billingVersion = '9.0.0'
+    // Fereastra de recenzie din aplicatie — vezi plugins/InAppReviewPlugin.kt.
+    playReviewVersion = '2.0.2'
 }
