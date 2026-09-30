@@ -19,3 +19,4 @@ android/app/keystore.properties
 # e payload-ul compilat al dependentei, nu un artefact de build al PROIECTULUI nostru
 # (cel ignorat de regula "dist/" de mai sus), deci trebuie commis in git.
 !vendor/libraw-wasm-patched/dist/
+__pycache__/
