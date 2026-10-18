@@ -129,6 +129,8 @@ export type DialogRequest =
 export interface PhotoView {
   id: string;
   fileName: string;
+  /** Amprentă perceptivă, când importul a măsurat-o. O folosește coșul de duplicate. */
+  dHash?: string;
   /** Momentul importului in aplicatie (nu data capturii — vezi capturedAt), folosit pentru raportul de sesiune. */
   importedAt: number;
   status: PhotoRecord['status'];
@@ -983,6 +985,7 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
   return {
     id: photo.id,
     fileName: photo.fileName,
+    dHash: photo.dHash,
     importedAt: photo.importedAt,
     status: photo.status,
     aiDecided: photo.aiDecided,

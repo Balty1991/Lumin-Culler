@@ -85,6 +85,7 @@ export interface CleanBasket {
 
 const SCREENSHOT_RE = /screenshot|screen[\s_-]?shots?|capturi|bildschirmfoto|bildschirmaufnahme|capturas? de pantalla|screen\s*captures?/i;
 const MESSENGER_RE = /whatsapp|telegram|messenger|signal|viber/i;
+const VIDEO_EXT_RE = /\.(mp4|mov|m4v|webm)$/i;
 
 export function isScreenshotBucket(name: string): boolean {
   return SCREENSHOT_RE.test(name);
@@ -267,6 +268,12 @@ export interface LibraryCleanPhoto {
   /** Pragul de claritate folosit de motor, ca să nu existe două definiții de „neclar”. */
   blurBelow: number;
   eyesOpenBelow: number;
+  /**
+   * Amprentă perceptivă (dHash), când biblioteca o are. Fără ea, două fișiere
+   * nu sunt duplicate: o rafală nu împarte mărimea, dar două copii ale aceluiași
+   * fișier da. Aceeași regulă ca la scanarea nativă.
+   */
+  hash?: string;
 }
 
 function libraryItem(photo: LibraryCleanPhoto): CleanItem {
@@ -287,6 +294,11 @@ function eyesClosed(photo: LibraryCleanPhoto): boolean {
   return !photo.allEyesOpen;
 }
 
+function libraryDuplicateKey(photo: LibraryCleanPhoto): string {
+  if (!photo.hash || !photo.sizeBytes || photo.sizeBytes <= 0) return '';
+  return `h:${photo.sizeBytes}:${photo.hash}`;
+}
+
 /**
  * Coșuri din biblioteca deja analizată, când telefonul n-a putut fi scanat
  * (web) sau pe lângă scanare, pentru ochii închiși — semnal pe care o
@@ -294,8 +306,9 @@ function eyesClosed(photo: LibraryCleanPhoto): boolean {
  *
  * Seriile de aici sunt groupId-ul motorului (rafală sau aproape-duplicate),
  * nu o potrivire de mărime: două cadre din aceeași rafală nu au același număr
- * de octeți. Se păstrează cadrul cel mai bun: ochi deschiși, expunere de
- * mijloc, apoi claritate.
+ * de octeți. Duplicatele cer amprenta. Se păstrează cadrul cel mai bun: ochi
+ * deschiși, expunere de mijloc, apoi claritate. Videoclipurile mari nu intră
+ * în coșurile de poze.
  */
 export function basketsFromLibrary(photos: readonly LibraryCleanPhoto[]): CleanBasket[] {
   const open = photos.filter(photo => photo.status !== 'rejected');
@@ -306,11 +319,52 @@ export function basketsFromLibrary(photos: readonly LibraryCleanPhoto[]): CleanB
     return libraryItem(photo);
   };
 
+  const videos: CleanItem[] = [];
+  for (const photo of open) {
+    if (!VIDEO_EXT_RE.test(photo.fileName)) continue;
+    if ((photo.sizeBytes ?? 0) >= LARGE_VIDEO_BYTES) {
+      const item = take(photo);
+      if (item) videos.push(item);
+    } else {
+      claimed.add(photo.id);
+    }
+  }
+  videos.sort((a, b) => b.bytes - a.bytes);
+
+  const duplicateExtras: CleanItem[] = [];
+  let duplicateKeeper: CleanKeeper | undefined;
+  const byHash = new Map<string, LibraryCleanPhoto[]>();
+  for (const photo of open) {
+    if (claimed.has(photo.id)) continue;
+    const key = libraryDuplicateKey(photo);
+    if (!key) continue;
+    const list = byHash.get(key);
+    if (list) list.push(photo);
+    else byHash.set(key, [photo]);
+  }
+  for (const group of byHash.values()) {
+    if (group.length < 2) continue;
+    const { keeper, extras, reason } = keepBest(group, photo => ({
+      id: photo.id,
+      sharpness: photo.sharpness,
+      eyesOpen: photo.faceCount > 0 ? !eyesClosed(photo) : null,
+      exposure: photo.exposure ?? null,
+      bytes: photo.sizeBytes ?? 0,
+      taken: photo.capturedAt ?? 0
+    }));
+    claimed.add(keeper.id);
+    duplicateKeeper = rememberKeeper(duplicateKeeper, keeper.fileName, reason);
+    for (const photo of extras) {
+      const item = take(photo);
+      if (item) duplicateExtras.push(item);
+    }
+  }
+
   const burstExtras: CleanItem[] = [];
   let burstKeeper: CleanKeeper | undefined;
   const byGroup = new Map<string, LibraryCleanPhoto[]>();
   for (const photo of open) {
-    if (!photo.groupId) continue;
+    if (!photo.groupId || claimed.has(photo.id)) continue;
     const list = byGroup.get(photo.groupId);
     if (list) list.push(photo);
     else byGroup.set(photo.groupId, [photo]);
@@ -361,12 +415,12 @@ export function basketsFromLibrary(photos: readonly LibraryCleanPhoto[]): CleanB
   }
 
   return [
-    basket('duplicates', []),
+    basket('duplicates', duplicateExtras, duplicateExtras.length > 0 && duplicateKeeper ? { keeper: duplicateKeeper, premark: true } : undefined),
     basket('bursts', burstExtras, burstExtras.length > 0 && burstKeeper ? { keeper: burstKeeper, premark: true } : undefined),
     basket('blurry', blurry),
     basket('screenshots', screenshots),
     basket('messengers', messengers),
     basket('eyes', eyes),
-    basket('videos', [])
+    basket('videos', videos)
   ];
 }
