@@ -800,6 +800,8 @@ export const en: Record<TranslationKey, string> = {
   'app.boot.elapsedWithEstimate': 'Loading models: {time} (usually takes ~{estimate} on this device — once per session, regardless of how many photos you have)',
   'app.progress.analyzing': 'AI analysis {done}/{total} — {fileName}',
   'app.progress.analyzingEta': 'AI analysis {done}/{total} — {fileName} · ~{eta} left',
+  'app.progress.scanning': 'Scanning {done}/{total} — {fileName}',
+  'app.progress.scanningEta': 'Scanning {done}/{total} — {fileName} · ~{eta} left',
   'app.progress.grouping': 'Grouping series and duplicates…',
   'app.progress.reading': 'Reading photos from the gallery {done}/{total}…',
   'app.progress.readingUnknown': 'Reading photos from the gallery… {done}',

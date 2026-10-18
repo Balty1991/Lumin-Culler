@@ -1,6 +1,8 @@
 /** Español. Las claves que faltan caen al inglés y después al rumano. */
 export const es: Record<string, string> = {
   'app.tagline.clean': 'IA en el teléfono · sin anuncios · sin cuenta',
+  'app.progress.scanning': 'Escaneando {done}/{total} — {fileName}',
+  'app.progress.scanningEta': 'Escaneando {done}/{total} — {fileName} · ~{eta} restantes',
   'welcome.clean1.title': '¿Almacenamiento lleno? Veamos cuánto puedes liberar.',
   'welcome.clean1.body': 'La IA del teléfono ya agrupó ráfagas, duplicados, fotos borrosas, capturas y vídeos grandes. Tú solo deslizas.',
   'welcome.clean2.title': 'Todo se queda en tu teléfono',

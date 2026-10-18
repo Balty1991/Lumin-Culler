@@ -1,6 +1,8 @@
 /** Deutsch. Fehlende Schlüssel fallen auf Englisch zurück, dann auf Rumänisch. */
 export const de: Record<string, string> = {
   'app.tagline.clean': 'KI auf dem Handy · keine Werbung · kein Konto',
+  'app.progress.scanning': 'Scan {done}/{total} — {fileName}',
+  'app.progress.scanningEta': 'Scan {done}/{total} — {fileName} · noch ~{eta}',
   'welcome.clean1.title': 'Speicher voll? Schauen wir, wie viel du freimachen kannst.',
   'welcome.clean1.body': 'Die KI auf dem Handy hat Serien, Duplikate, unscharfe Fotos, Screenshots und große Videos schon gruppiert. Du wischst nur.',
   'welcome.clean2.title': 'Alles bleibt auf deinem Handy',

@@ -19,6 +19,9 @@ import { addFreedBytes, addFreedFiles, readFreedBytes, readFreedFiles } from '..
 import { formatSize } from '../state/storageStats';
 import { maybeAskForReviewAfterFreed } from '../state/reviewPrompt';
 import { CleanSwipe } from './CleanSwipe';
+import { StorageOrb } from './StorageOrb';
+import { getCachedThumbUrl, peekThumbUrl } from '../core/thumbUrlCache';
+import { formatEta } from '../core/formatTime';
 import './cleanHome.css';
 
 export function CleanHome() {
@@ -245,11 +248,25 @@ export function CleanHome() {
 
   const ring = freed + reclaimable;
   const ringRatio = ring > 0 ? Math.min(1, freed / ring) : 0.08;
+  const [celebrate, setCelebrate] = useState<string | null>(null);
+  const freedBefore = useRef(freed);
+  useEffect(() => {
+    if (freed > freedBefore.current) {
+      setCelebrate(formatSize(freed - freedBefore.current));
+      const timer = window.setTimeout(() => setCelebrate(null), 1600);
+      freedBefore.current = freed;
+      return () => window.clearTimeout(timer);
+    }
+    freedBefore.current = freed;
+  }, [freed]);
 
   return (
     <section className="clean-home orbit-clean" aria-label={tr('clean.title')}>
+      <div className="orbit-aurora" aria-hidden="true" />
+      {celebrate && <CleanCelebrate label={tr('clean.freed', { size: celebrate })} />}
+      <ScanBar />
       <header className="orbit-hero">
-        <StorageRing ratio={ringRatio} label={freed > 0 ? formatSize(freed) : '0'} />
+        <StorageOrb ratio={ringRatio} label={freed > 0 ? formatSize(freed) : '0'} caption={tr('clean.share.kicker')} />
         <div className="orbit-hero-copy">
           <p className="orbit-kicker">{tr('clean.privacy')}</p>
           <h2>{tr('clean.title')}</h2>
@@ -263,6 +280,11 @@ export function CleanHome() {
       </header>
 
       {scanning && <p className="clean-muted" role="status">{tr('clean.scanning')}</p>}
+      {scanning && photoBaskets.length === 0 && (
+        <ul className="orbit-baskets" aria-hidden="true">
+          {Array.from({ length: 4 }, (_, i) => <li key={i} className="orbit-skeleton" />)}
+        </ul>
+      )}
       {scanError && (
         <p className="clean-muted" role="alert">
           {tr('clean.scanFailed')} <button type="button" className="ghost" onClick={() => { void refresh(); }}>{tr('clean.retry')}</button>
@@ -301,6 +323,7 @@ export function CleanHome() {
               <b>{formatSize(basket.bytes)}</b>
             </div>
             <span>{tr('clean.items', { count: basket.items.length })}</span>
+            <BasketStrip items={basket.items} compare={!!basket.keeper} />
             {basket.keeper && (
               <span className="clean-keeper">
                 {basket.keeper.groups > 1
@@ -371,28 +394,65 @@ export function CleanHome() {
   );
 }
 
-function StorageRing({ ratio, label }: { ratio: number; label: string }) {
-  const radius = 46;
-  const circ = 2 * Math.PI * radius;
-  const offset = circ * (1 - Math.max(0.04, Math.min(1, ratio)));
+function ScanBar() {
+  const progress = useStore(s => s.progress);
+  const cancelImport = useStore(s => s.cancelImport);
+  const importCancelling = useStore(s => s.importCancelling);
+  const locale = useStore(s => s.locale);
+  if (!progress || progress.phase === 'finalizat') return null;
+  const pct = progress.total ? Math.round((progress.done / progress.total) * 100) : 8;
+  const label = progress.phase === 'grupare'
+    ? t(locale, 'app.progress.grouping')
+    : progress.fileName
+      ? (progress.etaSeconds !== undefined
+        ? t(locale, 'app.progress.scanningEta', { done: progress.done, total: progress.total, fileName: progress.fileName, eta: formatEta(progress.etaSeconds) })
+        : t(locale, 'app.progress.scanning', { done: progress.done, total: progress.total, fileName: progress.fileName }))
+      : (progress.total
+        ? t(locale, 'app.progress.reading', { done: progress.done, total: progress.total })
+        : t(locale, 'app.progress.readingUnknown', { done: progress.done }));
   return (
-    <figure className="orbit-ring" aria-hidden="true">
-      <svg viewBox="0 0 120 120">
-        <defs>
-          <linearGradient id="orbit-ring-stroke" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#ff4d9a" />
-            <stop offset="1" stopColor="#3dfff2" />
-          </linearGradient>
-        </defs>
-        <circle className="orbit-ring-track" cx="60" cy="60" r={radius} />
-        <circle
-          className="orbit-ring-value"
-          cx="60" cy="60" r={radius}
-          strokeDasharray={`${circ} ${circ}`}
-          strokeDashoffset={offset}
-        />
-      </svg>
-      <figcaption><b>{label}</b></figcaption>
-    </figure>
+    <div className="orbit-progress" role="status" aria-live="polite">
+      <div className="orbit-progress-row">
+        <span>{label}</span>
+        <b>{progress.total ? `${progress.done}/${progress.total}` : '…'}</b>
+      </div>
+      <div className="orbit-progress-track" aria-hidden="true">
+        <span style={{ width: `${Math.max(4, Math.min(100, pct))}%` }} />
+      </div>
+      <button type="button" className="ghost" onClick={() => cancelImport()} disabled={importCancelling}>
+        {t(locale, importCancelling ? 'app.progress.cancelling' : 'app.progress.cancel')}
+      </button>
+    </div>
   );
+}
+
+function CleanCelebrate({ label }: { label: string }) {
+  return (
+    <div className="orbit-celebrate" role="status">
+      <strong>{label}</strong>
+      {Array.from({ length: 16 }, (_, i) => <i key={i} style={{ ['--i' as string]: i }} />)}
+    </div>
+  );
+}
+
+function BasketStrip({ items, compare }: { items: CleanItem[]; compare: boolean }) {
+  const shown = items.slice(0, compare ? 2 : 5);
+  return (
+    <div className={compare ? 'orbit-masonry orbit-compare' : 'orbit-masonry'}>
+      {shown.map(item => <BasketThumb key={item.uri} item={item} />)}
+    </div>
+  );
+}
+
+function BasketThumb({ item }: { item: CleanItem }) {
+  const lqip = useStore(s => item.photoId ? s.photos.find(photo => photo.id === item.photoId)?.lqip : undefined);
+  const [src, setSrc] = useState<string | null>(lqip ?? peekThumbUrl(item.photoId ?? '') ?? null);
+  useEffect(() => {
+    if (!item.photoId) return;
+    let alive = true;
+    void getCachedThumbUrl(item.photoId).then(url => { if (alive && url) setSrc(url); }).catch(() => {});
+    return () => { alive = false; };
+  }, [item.photoId]);
+  if (!src) return <span className="orbit-skel-thumb" />;
+  return <img src={src} alt="" />;
 }

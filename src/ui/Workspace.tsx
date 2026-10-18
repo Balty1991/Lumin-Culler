@@ -222,7 +222,11 @@ export function Workspace() {
           <span className="mono">{photo.fileName}</span>
           <span className="mono workspace-hint" role={progress ? 'status' : undefined} aria-live={progress ? 'polite' : undefined}>
             {progress
-              ? (progress.phase === 'analiza'
+              ? (progress.phase === 'citire' && progress.fileName
+                ? (progress.etaSeconds !== undefined
+                  ? tr('app.progress.scanningEta', { done: progress.done, total: progress.total, fileName: progress.fileName, eta: formatEta(progress.etaSeconds) })
+                  : tr('app.progress.scanning', { done: progress.done, total: progress.total, fileName: progress.fileName }))
+                : progress.phase === 'analiza'
                 ? (progress.etaSeconds !== undefined
                   ? tr('workspace.progress.analyzingEta', { done: progress.done, total: progress.total, eta: formatEta(progress.etaSeconds) })
                   : tr('workspace.progress.analyzing', { done: progress.done, total: progress.total }))

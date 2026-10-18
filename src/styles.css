@@ -4,6 +4,7 @@
    inlocuieste fontul de sistem generic DOAR la titluri/brand (vezi --font-display
    mai jos), textul normal ramane pe --sans pentru performanta si familiaritate. */
 @import '@fontsource-variable/space-grotesk';
+@import '@fontsource-variable/syne';
 
 /* ── Lumin Culler Pro v3 — "Obsidian Studio" ─────────────────────────────────
    Directie: consola de culling premium, cu identitate proprie — obsidian

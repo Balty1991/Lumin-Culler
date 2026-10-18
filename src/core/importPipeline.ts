@@ -1,8 +1,8 @@
 /**
  * core/importPipeline.ts
- * Import: decodare la 2048px -> preview + miniatura + dHash -> analiza ML (worker)
- * -> scor ContextEngine -> persistare IndexedDB -> grupare serii (persistata).
- * Preview-ul de 2048px (standard Lightroom) este cel pe care se judeca claritatea.
+ * Import: decodare la 384px -> miniatura + dHash + claritate pe 48px
+ * -> scor ContextEngine -> persistare. Fețele pornesc după, doar pentru
+ * rafale și duplicate (deepAnalysis.ts). processOne rămâne calea de 2048px.
  */
 import { decodeHeicToJpegBlob, isHeicDecodingSupported } from './nativeHeicDecoder';
 import { db, type AnalysisRecord, type PhotoRecord } from './db';
@@ -26,6 +26,10 @@ import { readCullingStrictness } from '../state/cullingStrictness';
 import { quickDuplicateScan, type QuickScanResult } from './quickDuplicateScan';
 import { buildLibraryIndex, partitionAlreadyImported } from './alreadyImported';
 import { writeGroupingMotive } from './groupingDiagnostics';
+import { enqueueDeepAnalysis } from './deepAnalysis';
+import {
+  exposureFromPixels, FAST_DECODE_SIDE, laplacianVariance, looksLikeScreenshot, sharpnessFromVariance
+} from './fastSignals';
 
 /**
  * Un avertisment de import, ca CHEIE + parametri, nu ca propozitie gata scrisa.
@@ -48,6 +52,8 @@ export interface ImportProgress {
   fileName: string;
   /** 'citire' = se aduc pozele din galerie, INAINTE de import (vezi nativeMediaLibrary.toFiles). */
   phase: 'citire' | 'incarcare' | 'pregatire' | 'analiza' | 'grupare' | 'finalizat';
+  /** Secunde rămase, calculate din ritmul pasului care tocmai rulează. */
+  etaSeconds?: number;
   /** setat doar pe ultimul apel, daca importul s-a oprit inainte de a termina toate fisierele */
   warning?: ImportWarning;
   /**
@@ -348,16 +354,17 @@ export const originalHandles = new Map<string, FileSystemFileHandleLike>();
 
 const DECODE_TIMEOUT_MS = 30000;
 
-async function decode(file: File, mediaUri?: string): Promise<ImageBitmap> {
+async function decode(file: File, mediaUri?: string, maxSide = PREVIEW_MAX_SIDE): Promise<ImageBitmap> {
   let bitmap: ImageBitmap;
   // `late => late.close()`: un timeout nu anuleaza decodarea de dedesubt, doar
   // inceteaza s-o astepte — fara acest carlig, bitmap-ul care soseste tarziu
   // (pana la ~16 MB la 2048px) nu mai era inchis de nimeni, niciodata. Vezi
   // comentariul lung de la withTimeout in core/workerPool.ts.
   const closeLate = (late: ImageBitmap) => late.close();
+  const quality = maxSide <= 512 ? 'low' : 'high';
   try {
     bitmap = await withTimeout(
-      createImageBitmap(file, { resizeWidth: PREVIEW_MAX_SIDE, resizeQuality: 'high' } as ImageBitmapOptions),
+      createImageBitmap(file, { resizeWidth: maxSide, resizeQuality: quality } as ImageBitmapOptions),
       DECODE_TIMEOUT_MS,
       'Decodarea a durat prea mult.',
       closeLate
@@ -381,10 +388,15 @@ async function decode(file: File, mediaUri?: string): Promise<ImageBitmap> {
       // obisnuite drumul asta nu se atinge niciodata.
       if ((await sniffRealFormat(file)) !== 'HEIC/HEIF' || !(await isHeicDecodingSupported())) throw err;
       const jpeg = await decodeHeicToJpegBlob(file, mediaUri);
-      bitmap = await withTimeout(createImageBitmap(jpeg), DECODE_TIMEOUT_MS, 'Decodarea a durat prea mult.', closeLate);
+      bitmap = await withTimeout(
+        createImageBitmap(jpeg, { resizeWidth: maxSide, resizeQuality: 'low' } as ImageBitmapOptions),
+        DECODE_TIMEOUT_MS,
+        'Decodarea a durat prea mult.',
+        closeLate
+      );
     }
   }
-  return capToPreviewSize(bitmap);
+  return capToPreviewSize(bitmap, maxSide);
 }
 
 /**
@@ -398,10 +410,10 @@ async function decode(file: File, mediaUri?: string): Promise<ImageBitmap> {
  * 2048px pe latura cea mai lunga" asumat in tot restul aplicatiei (buget de stocare,
  * scorarea claritatii).
  */
-async function capToPreviewSize(bitmap: ImageBitmap): Promise<ImageBitmap> {
+async function capToPreviewSize(bitmap: ImageBitmap, maxSide = PREVIEW_MAX_SIDE): Promise<ImageBitmap> {
   const longest = Math.max(bitmap.width, bitmap.height);
-  if (longest <= PREVIEW_MAX_SIDE) return bitmap;
-  const scale = PREVIEW_MAX_SIDE / longest;
+  if (longest <= maxSide) return bitmap;
+  const scale = maxSide / longest;
   const c = document.createElement('canvas');
   c.width = Math.max(1, Math.round(bitmap.width * scale));
   c.height = Math.max(1, Math.round(bitmap.height * scale));
@@ -680,7 +692,8 @@ export function toHashInput(id: string, dHash: string, a: AnalysisRecord, captur
   };
 }
 
-async function processOne(file: File, genre?: string, project?: string, handle?: FileSystemFileHandleLike, mediaUri?: string, thresholds: Thresholds = FIXED_THRESHOLDS, mediaLocation?: MediaLocation): Promise<ImportedPhoto> {
+/** Calea de studio: 2048px și fețe pe fiecare poză. Importul ocolește funcția și folosește processFast. */
+export async function processOne(file: File, genre?: string, project?: string, handle?: FileSystemFileHandleLike, mediaUri?: string, thresholds: Thresholds = FIXED_THRESHOLDS, mediaLocation?: MediaLocation): Promise<ImportedPhoto> {
   const id = crypto.randomUUID();
   const isRaw = isRawFile(file);
   // RAW (CR2/NEF/ARW/DNG/...) nu se decodeaza cu createImageBitmap — folosim
@@ -878,6 +891,164 @@ async function processOne(file: File, genre?: string, project?: string, handle?:
 }
 
 /**
+ * EXIF, IPTC și GPS, fără decodarea imaginii.
+ *
+ * Primii 128 KB ajung pentru JPEG. RAW-ul își aduce metadatele din LibRaw.
+ * Fețele nu stau aici: coșurile de claritate și de capturi nu au nevoie de ele.
+ */
+async function applyCaptureMeta(
+  file: File,
+  analysis: AnalysisRecord,
+  rawMeta: Awaited<ReturnType<typeof decodeRawFile>>['meta'] | undefined,
+  mediaLocation?: MediaLocation
+): Promise<number | undefined> {
+  let capturedAt: number | undefined;
+  if (rawMeta) {
+    if (rawMeta.iso !== undefined) analysis.iso = rawMeta.iso;
+    if (rawMeta.fNumber !== undefined) analysis.fNumber = rawMeta.fNumber;
+    if (rawMeta.exposureTime !== undefined) analysis.exposureTime = rawMeta.exposureTime;
+    if (rawMeta.focalLength !== undefined) analysis.focalLength = rawMeta.focalLength;
+    if (rawMeta.make !== undefined) analysis.cameraMake = rawMeta.make;
+    if (rawMeta.model !== undefined) analysis.cameraModel = rawMeta.model;
+    if (rawMeta.lensModel !== undefined) analysis.lensModel = rawMeta.lensModel;
+    if (rawMeta.software !== undefined) analysis.exifSoftware = rawMeta.software;
+    if (rawMeta.artist !== undefined) analysis.exifArtist = rawMeta.artist;
+    if (rawMeta.focalLength35mm !== undefined) analysis.focalLength35mm = rawMeta.focalLength35mm;
+    if (rawMeta.gpsLatitude !== undefined) analysis.gpsLatitude = rawMeta.gpsLatitude;
+    if (rawMeta.gpsLongitude !== undefined) analysis.gpsLongitude = rawMeta.gpsLongitude;
+    capturedAt = rawMeta.capturedAt;
+  } else {
+    try {
+      const exifBuf = await file.slice(0, EXIF_SNIFF_BYTES).arrayBuffer();
+      const exif = parseExif(exifBuf);
+      if (exif.iso !== undefined) analysis.iso = exif.iso;
+      if (exif.fNumber !== undefined) analysis.fNumber = exif.fNumber;
+      if (exif.exposureTime !== undefined) analysis.exposureTime = exif.exposureTime;
+      if (exif.focalLength !== undefined) analysis.focalLength = exif.focalLength;
+      if (exif.make !== undefined) analysis.cameraMake = exif.make;
+      if (exif.model !== undefined) analysis.cameraModel = exif.model;
+      if (exif.lensModel !== undefined) analysis.lensModel = exif.lensModel;
+      if (exif.software !== undefined) analysis.exifSoftware = exif.software;
+      if (exif.artist !== undefined) analysis.exifArtist = exif.artist;
+      if (exif.copyright !== undefined) analysis.exifCopyright = exif.copyright;
+      if (exif.exposureBias !== undefined) analysis.exposureBias = exif.exposureBias;
+      if (exif.meteringMode !== undefined) analysis.meteringMode = exif.meteringMode;
+      if (exif.flashFired !== undefined) analysis.flashFired = exif.flashFired;
+      if (exif.whiteBalance !== undefined) analysis.whiteBalance = exif.whiteBalance;
+      if (exif.focalLength35mm !== undefined) analysis.focalLength35mm = exif.focalLength35mm;
+      if (exif.gpsAccuracyM !== undefined) analysis.gpsAccuracyM = exif.gpsAccuracyM;
+      if (exif.gpsLatitude !== undefined) analysis.gpsLatitude = exif.gpsLatitude;
+      if (exif.gpsLongitude !== undefined) analysis.gpsLongitude = exif.gpsLongitude;
+      capturedAt = exif.capturedAt;
+      const iptc = parseIptc(exifBuf);
+      if (iptc.byline !== undefined) analysis.iptcByline = iptc.byline;
+      if (iptc.caption !== undefined) analysis.iptcCaption = iptc.caption;
+      if (iptc.headline !== undefined) analysis.iptcHeadline = iptc.headline;
+      if (iptc.credit !== undefined) analysis.iptcCredit = iptc.credit;
+      if (iptc.source !== undefined) analysis.iptcSource = iptc.source;
+      if (iptc.copyright !== undefined) analysis.iptcCopyright = iptc.copyright;
+      if (iptc.city !== undefined) analysis.iptcCity = iptc.city;
+      if (iptc.country !== undefined) analysis.iptcCountry = iptc.country;
+      if (iptc.keywords !== undefined) analysis.iptcKeywords = iptc.keywords;
+    } catch (err) {
+      console.error('Citire EXIF esuata pentru ' + file.name + ':', err);
+    }
+  }
+  if (!hasRealGps(analysis.gpsLatitude, analysis.gpsLongitude)) {
+    delete analysis.gpsLatitude;
+    delete analysis.gpsLongitude;
+    if (mediaLocation) {
+      analysis.gpsLatitude = mediaLocation.latitude;
+      analysis.gpsLongitude = mediaLocation.longitude;
+    }
+  }
+  return capturedAt;
+}
+
+/**
+ * Aceeași poză, fără modele.
+ *
+ * Decodarea e la 384px, nu la 2048. Claritatea e varianța Laplacian pe 48px.
+ * Capturile se recunosc din nume. Fețele vin mai târziu, și numai pentru grupuri.
+ */
+async function processFast(file: File, genre?: string, project?: string, handle?: FileSystemFileHandleLike, mediaUri?: string, thresholds: Thresholds = FIXED_THRESHOLDS, mediaLocation?: MediaLocation): Promise<ImportedPhoto> {
+  const id = crypto.randomUUID();
+  const isRaw = isRawFile(file);
+  const { bitmap, rawMeta } = await timed('decode', async () => isRaw
+    ? decodeRawFile(file).then(r => ({ bitmap: r.bitmap, rawMeta: r.meta }))
+    : { bitmap: await decode(file, mediaUri, FAST_DECODE_SIDE), rawMeta: undefined });
+  const { preview, thumb, lqip, dHash, w, h } = timedSync('derivatives', () => makeDerivatives(bitmap));
+  const sample = document.createElement('canvas');
+  sample.width = 48;
+  sample.height = 48;
+  const sctx = sample.getContext('2d', { willReadFrequently: true })!;
+  sctx.drawImage(bitmap, 0, 0, 48, 48);
+  const pixels = sctx.getImageData(0, 0, 48, 48).data;
+  if (typeof bitmap.close === 'function') bitmap.close();
+  const variance = laplacianVariance(pixels, 48, 48);
+  const sharpness = sharpnessFromVariance(variance);
+  const exposure = exposureFromPixels(pixels);
+  const [previewBlob, thumbBlob] = await Promise.all([preview, thumb]);
+
+  const analysis: AnalysisRecord = {
+    photoId: id,
+    faces: [],
+    faceCount: 0,
+    knownFaceCount: 0,
+    strangerCount: 0,
+    bestSmile: 0,
+    allEyesOpen: true,
+    sharpness,
+    exposure,
+    sceneType: 'detail',
+    aiScore: 0,
+    analyzedAt: Date.now(),
+    ...(looksLikeScreenshot(file.name) ? { sceneTags: ['screenshot'] } : {})
+  };
+  const capturedAt = await applyCaptureMeta(file, analysis, rawMeta, mediaLocation);
+  const prediction = await contextEngine.predict(analysis, genre);
+  analysis.aiScore = prediction.score;
+  analysis.aiFactors = prediction.topFactors;
+  analysis.aiUncertainty = prediction.uncertainty;
+  analysis.aiPersonalDelta = prediction.personalDelta;
+  const status = decidePhotoStatus(prediction.score, analysis, thresholds);
+  const photo: PhotoRecord = {
+    id,
+    fileName: file.name,
+    capturedAt: capturedAt ?? file.lastModified,
+    capturedAtExact: capturedAt !== undefined,
+    importedAt: Date.now(),
+    width: w,
+    height: h,
+    dHash,
+    lqip,
+    status,
+    aiDecided: true,
+    sizeBytes: file.size,
+    groupId: '',
+    ...(genre?.trim() ? { genre: genre.trim() } : {}),
+    ...(project?.trim() ? { project: project.trim() } : {}),
+    ...(mediaUri ? { mediaUri } : {})
+  };
+  await db.transaction('rw', [db.photos, db.thumbnails, db.previews, db.analyses, db.fileHandles, db.originals], async () => {
+    await Promise.all([
+      db.photos.put(photo),
+      db.thumbnails.put({ photoId: id, blob: thumbBlob }),
+      db.previews.put({ photoId: id, blob: previewBlob }),
+      db.analyses.put(analysis),
+      ...(status === 'selected'
+        ? [handle
+            ? db.fileHandles.put({ photoId: id, handle })
+            : db.originals.put({ photoId: id, blob: file, fileName: file.name, type: file.type })]
+        : [])
+    ]);
+  });
+  originalFiles.set(id, file);
+  if (handle) originalHandles.set(id, handle);
+  return { photo, analysis, prediction };
+}
+
+/**
  * Token de anulare simplu (mutabil, verificat in bucla de import) — un
  * AbortController ar fi mai idiomatic, dar bucla e un pool manual de
  * "workeri" (Promise.all peste N task-uri concurente), nu un singur fetch:
@@ -1024,11 +1195,11 @@ export async function importFiles(
   };
 
   if (cancelledEarly()) return finishCancelled();
-  await analysisPool.init();
+  // Modelele se încălzesc în fundal. Importul nu le așteaptă: prima poză
+  // trebuie să apară în câteva secunde, nu după timeout-ul de încărcare.
+  void analysisPool.init().catch(() => {});
   if (cancelledEarly()) return finishCancelled();
   await contextEngine.init();
-  const persons = await db.persons.toArray();
-  await analysisPool.setKnownPersons(persons);
   if (cancelledEarly()) return finishCancelled();
   // Pragurile se calculeaza O SINGURA DATA, inainte de lot, si raman fixe pe
   // toata durata lui: altfel primele poze ar fi clasificate dupa alte reguli
@@ -1038,16 +1209,10 @@ export async function importFiles(
   // nu schimba nimic) — vezi applyStrictness si state/cullingStrictness.ts.
   const thresholds = applyStrictness(deriveThresholds(await readLibraryScores()), readCullingStrictness());
   if (thresholds.adapted) onProgress({ done: 0, total: files.length, fileName: '', phase: 'incarcare', thresholds });
-
-  // Cerinta directa a utilizatorului: la un import mare, pozele cu oameni sa
-  // fie gata de triat primele — vezi comentariul de la prioritizeFacesFirst
-  // (doar Android, no-op si instant pe web/PWA).
-  images = await prioritizeFacesFirst(images, (done, total) =>
-    onProgress({ done, total, fileName: '', phase: 'pregatire' })
-  );
   if (cancelledEarly()) return finishCancelled();
 
-  const concurrency = analysisPool.size + 1;
+  const cores = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency : 4;
+  const concurrency = Math.max(2, Math.min(4, cores || 4));
   let done = 0;
   let index = 0;
   let failed = 0;
@@ -1071,6 +1236,7 @@ export async function importFiles(
   // de la distanta fara acces la consola browserului utilizatorului.
   const failureReasons = new Map<string, number>();
 
+  const scanStarted = performance.now();
   await Promise.all(
     Array.from({ length: concurrency }, async () => {
       while (true) {
@@ -1081,7 +1247,7 @@ export async function importFiles(
         const { file, handle, mediaUri } = images[myIndex];
 
         try {
-          const item = await processOne(file, genre, project, handle, mediaUri, thresholds, mediaUri ? mediaLocations?.get(mediaUri) : undefined);
+          const item = await processFast(file, genre, project, handle, mediaUri, thresholds, mediaUri ? mediaLocations?.get(mediaUri) : undefined);
           hashes.push(toHashInput(item.photo.id, item.photo.dHash, item.analysis, item.photo.capturedAt, item.photo.capturedAtExact));
           onPhoto(item);
         } catch (err) {
@@ -1094,7 +1260,10 @@ export async function importFiles(
           failureReasons.set(reason, (failureReasons.get(reason) ?? 0) + 1);
         }
         done++;
-        onProgress({ done, total: images.length, fileName: file.name, phase: 'analiza' });
+        const elapsed = (performance.now() - scanStarted) / 1000;
+        const remaining = images.length - done;
+        const etaSeconds = done > 0 && remaining > 0 ? Math.max(1, Math.round((elapsed / done) * remaining)) : undefined;
+        onProgress({ done, total: images.length, fileName: file.name, phase: 'citire', etaSeconds });
       }
     })
   );
@@ -1195,6 +1364,15 @@ export async function importFiles(
   }
   if (updates.length) await db.photos.bulkPut(updates);
   record('grouping', performance.now() - groupingStart);
+  const deepen: { id: string; file: File }[] = [];
+  for (const g of groupResults) {
+    if (g.memberIds.length < 2) continue;
+    for (const memberId of g.memberIds) {
+      const groupedFile = originalFiles.get(memberId);
+      if (groupedFile) deepen.push({ id: memberId, file: groupedFile });
+    }
+  }
+  if (deepen.length) enqueueDeepAnalysis(deepen);
   if (demotedIds.length) {
     await Promise.all(demotedIds.map(id => Promise.all([db.originals.delete(id), db.fileHandles.delete(id)])));
   }

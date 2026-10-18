@@ -1,6 +1,8 @@
 /** Português (Brasil). Chaves ausentes caem no inglês, depois no romeno. */
 export const ptBR: Record<string, string> = {
   'app.tagline.clean': 'IA no celular · sem anúncios · sem conta',
+  'app.progress.scanning': 'Lendo {done}/{total} — {fileName}',
+  'app.progress.scanningEta': 'Lendo {done}/{total} — {fileName} · ~{eta} restantes',
   'welcome.clean1.title': 'Celular cheio? Vamos ver quanto você pode liberar.',
   'welcome.clean1.body': 'A IA no celular já agrupou rajadas, duplicatas, fotos borradas, capturas de tela e vídeos grandes. Você só desliza.',
   'welcome.clean2.title': 'Tudo fica no seu celular',

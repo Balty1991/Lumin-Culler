@@ -1096,7 +1096,11 @@ export default function App() {
               <h2>{tr(progress.phase === 'analiza' ? 'app.progress.studioTitleReading' : 'app.progress.studioTitle')}</h2>
               <p>
                 {progress.phase === 'citire'
-                  ? (progress.total ? tr('app.progress.reading', { done: progress.done, total: progress.total }) : tr('app.progress.readingUnknown', { done: progress.done }))
+                  ? (progress.fileName
+                    ? (progress.etaSeconds !== undefined
+                      ? tr('app.progress.scanningEta', { done: progress.done, total: progress.total, fileName: progress.fileName, eta: formatEta(progress.etaSeconds) })
+                      : tr('app.progress.scanning', { done: progress.done, total: progress.total, fileName: progress.fileName }))
+                    : progress.total ? tr('app.progress.reading', { done: progress.done, total: progress.total }) : tr('app.progress.readingUnknown', { done: progress.done }))
                   : progress.phase === 'analiza'
                     ? (progress.etaSeconds !== undefined ? tr('app.progress.analyzingEta', { done: progress.done, total: progress.total, fileName: progress.fileName, eta: formatEta(progress.etaSeconds) }) : tr('app.progress.analyzing', { done: progress.done, total: progress.total, fileName: progress.fileName }))
                     : progress.phase === 'pregatire' ? tr('app.progress.prescan')

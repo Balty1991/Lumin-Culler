@@ -40,6 +40,17 @@ describe('CleanHome', () => {
     expect(useStore.getState().tiktokSortScopeIds).toEqual(['blur']);
   });
 
+  it('shows how many photos are scanned, with a cancel control', () => {
+    useStore.setState({
+      photos: [poza({ id: 'blur', sharpness: 10 })],
+      progress: { done: 4, total: 14, fileName: 'd.jpg', phase: 'citire', etaSeconds: 3 }
+    });
+    render(<CleanHome />);
+    const cancel = screen.getByRole('button', { name: 'Cancel' });
+    expect(cancel).toBeEnabled();
+    expect(cancel.closest('.orbit-progress')?.textContent).toContain('4/14');
+  });
+
   it('sends clean-all of imported photos to the same free swipe, without opening Premium', () => {
     useStore.setState({
       photos: [poza({ id: 'blur', sharpness: 10 })],

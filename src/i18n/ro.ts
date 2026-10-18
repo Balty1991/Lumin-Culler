@@ -833,6 +833,8 @@ export const ro = {
   'app.boot.elapsedWithEstimate': 'Încărcarea modelelor: {time} (durează de obicei ~{estimate} pe acest dispozitiv — o singură dată per sesiune, indiferent de câte poze ai)',
   'app.progress.analyzing': 'Analiza AI {done}/{total} — {fileName}',
   'app.progress.analyzingEta': 'Analiza AI {done}/{total} — {fileName} · ~{eta} rămase',
+  'app.progress.scanning': 'Scanare {done}/{total} — {fileName}',
+  'app.progress.scanningEta': 'Scanare {done}/{total} — {fileName} · ~{eta} rămase',
   'app.progress.grouping': 'Grupare serii și duplicate…',
   'app.progress.reading': 'Aduc pozele din galerie {done}/{total}…',
   'app.progress.readingUnknown': 'Aduc pozele din galerie… {done}',
