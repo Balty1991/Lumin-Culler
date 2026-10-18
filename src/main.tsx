@@ -9,6 +9,8 @@ import './styles.css';
 // build-ul de referinta, unde era o a doua foaie incarcata peste prima.
 import './styles.concept.css';
 import './ui/lumin.css';
+import './ui/orbit.css';
+document.documentElement.classList.add('lumin-orbit');
 import { watchBackgroundMemory } from './core/backgroundMemory';
 import { lastRunReport, forgetLastRun } from './core/nativeDiagnostics';
 import { useStore } from './state/store';

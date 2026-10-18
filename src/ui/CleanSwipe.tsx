@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import type { CleanBasket, CleanItem } from '../core/cleanScan';
 import { getCachedThumbUrl, peekThumbUrl } from '../core/thumbUrlCache';
@@ -7,6 +7,7 @@ import { shareCleanResult } from './shareResultCard';
 import { t } from '../i18n';
 import { useStore } from '../state/store';
 import { XIcon } from './icons';
+import { motionAllowed, tickHaptic } from './haptics';
 
 /**
  * Un coș, un cadru, o decizie. Stânga îl pune în coșul de șters, dreapta îl
@@ -27,6 +28,10 @@ export function CleanSwipe(props: {
   const [history, setHistory] = useState<Array<'keep' | 'delete'>>([]);
   const [drag, setDrag] = useState(0);
   const [origin, setOrigin] = useState<number | null>(null);
+  const [leaving, setLeaving] = useState<-1 | 0 | 1>(0);
+  const velocity = useRef(0);
+  const lastPoint = useRef({ x: 0, t: 0 });
+  const crossed = useRef(false);
   const [busy, setBusy] = useState(false);
   const [freed, setFreed] = useState<CleanItem[] | null>(null);
   const item = basket.items[index];
@@ -34,12 +39,22 @@ export function CleanSwipe(props: {
   const marked = reviewing ? bin : basket.items;
 
   const decide = (direction: 'keep' | 'delete') => {
-    if (!item || done) return;
-    if (direction === 'delete') setBin(list => [...list, item]);
-    setHistory(list => [...list, direction]);
-    setIndex(value => value + 1);
-    setDrag(0);
-    setOrigin(null);
+    if (!item || done || leaving !== 0) return;
+    const go = () => {
+      if (direction === 'delete') setBin(list => [...list, item]);
+      setHistory(list => [...list, direction]);
+      setIndex(value => value + 1);
+      setDrag(0);
+      setOrigin(null);
+      setLeaving(0);
+    };
+    if (!motionAllowed()) {
+      go();
+      return;
+    }
+    setLeaving(direction === 'delete' ? -1 : 1);
+    tickHaptic('medium');
+    window.setTimeout(go, 200);
   };
 
   const undo = () => {
@@ -126,16 +141,43 @@ export function CleanSwipe(props: {
             <p className="clean-keeper-note">{tr('clean.best.line', { name: basket.keeper.name })} · {reason}</p>
           )}
           <p className="clean-muted clean-swipe-hint">{tr('clean.swipe.hint')}</p>
+          <div className="orbit-stack" aria-hidden="true">
+            <span className="orbit-stack-card back" />
+            <span className="orbit-stack-card mid" style={{ transform: `scale(${0.96 + Math.min(0.04, Math.abs(drag) / 2000)})` }} />
+          </div>
           <div
-            className={`clean-card${origin !== null ? ' dragging' : ''}`}
-            style={{ transform: `translateX(${drag}px) rotate(${drag / 28}deg)` }}
-            onPointerDown={event => { setOrigin(event.clientX); (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId); }}
-            onPointerMove={event => { if (origin !== null) setDrag(event.clientX - origin); }}
+            className={`clean-card orbit-card${origin !== null ? ' dragging' : ''}${leaving < 0 ? ' leaving-left' : leaving > 0 ? ' leaving-right' : ''}`}
+            style={leaving === 0 ? { transform: `translate3d(${drag}px, ${Math.abs(drag) * 0.04}px, 0) rotate(${drag / 18}deg)` } : undefined}
+            onPointerDown={event => {
+              if (leaving !== 0) return;
+              setOrigin(event.clientX);
+              velocity.current = 0;
+              crossed.current = false;
+              lastPoint.current = { x: event.clientX, t: performance.now() };
+              (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+            }}
+            onPointerMove={event => {
+              if (origin === null || leaving !== 0) return;
+              const now = performance.now();
+              const dx = event.clientX - lastPoint.current.x;
+              const dt = Math.max(1, now - lastPoint.current.t);
+              velocity.current = dx / dt;
+              lastPoint.current = { x: event.clientX, t: now };
+              const next = event.clientX - origin;
+              if (!crossed.current && Math.abs(next) >= 80) {
+                crossed.current = true;
+                tickHaptic('light');
+              }
+              if (Math.abs(next) < 60) crossed.current = false;
+              setDrag(next);
+            }}
             onPointerUp={() => {
-              if (drag <= -80) decide('delete');
-              else if (drag >= 80) decide('keep');
+              const projected = drag + velocity.current * 160;
+              if (projected <= -80) decide('delete');
+              else if (projected >= 80) decide('keep');
               else { setDrag(0); setOrigin(null); }
             }}
+            onPointerCancel={() => { setDrag(0); setOrigin(null); }}
           >
             <span className={`clean-stamp delete${drag < -36 ? ' on' : ''}`}>{tr('clean.swipe.delete')}</span>
             <span className={`clean-stamp keep${drag > 36 ? ' on' : ''}`}>{tr('clean.swipe.keep')}</span>

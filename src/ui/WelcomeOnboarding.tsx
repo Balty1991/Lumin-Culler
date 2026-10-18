@@ -116,9 +116,9 @@ export function WelcomeOnboarding() {
   const { Icon, titleKey, bodyKey, visual } = steps[step];
 
   return (
-    <div className="welcome-screen">
+    <div className="welcome-screen orbit-welcome">
       <div
-        className="welcome-onboarding" ref={containerRef} role="dialog" aria-modal="true"
+        className="welcome-onboarding orbit-stage" ref={containerRef} role="dialog" aria-modal="true"
         aria-label={tr(titleKey)} tabIndex={-1}
         onKeyDown={e => { if (e.key === 'Escape') { e.preventDefault(); finish(); } }}
       >

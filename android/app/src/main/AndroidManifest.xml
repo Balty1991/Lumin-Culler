@@ -87,6 +87,8 @@
          nu apare, fara nicio eroare — exact felul de setare care "nu face nimic".
          Pe API-uri mai vechi permisiunea nu exista si e ignorata automat. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Bătaia scurtă de la pragul unui swipe. Permisiune normală, acordată la instalare. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
     <!-- Analiza care merge mai departe cu ecranul stins (vezi
          plugins/BackgroundAnalysisService.kt). FOREGROUND_SERVICE_DATA_SYNC e
          ceruta de la Android 14 incoace pentru tipul declarat in <service>;

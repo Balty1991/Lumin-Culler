@@ -6217,7 +6217,7 @@ button:disabled,
    * doar ca palida. Acum amandoua citesc acelasi --nav-pad. */
   inset: 6px var(--nav-pad, 7px) calc(var(--safe-bottom) + 6px);
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   pointer-events: none;
   z-index: 0;
 }

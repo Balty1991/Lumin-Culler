@@ -133,6 +133,9 @@ export function PremiumPanel() {
           </button>
         </header>
 
+        <div className="orbit-pay-hero">
+          <p className="orbit-kicker">LUMIN</p>
+        </div>
         <span className="premium-chip">
           <StarIcon className="inline-icon" aria-hidden="true" /> {tr(premium ? 'premium.chip.active' : 'premium.chip')}
         </span>

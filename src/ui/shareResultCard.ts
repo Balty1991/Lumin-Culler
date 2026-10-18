@@ -31,20 +31,20 @@ export function shareCardCopy(locale: Locale, size: string, count: number): Shar
 export function paintShareCard(ctx: CanvasRenderingContext2D, copy: ShareCardCopy, width = 1080, height = 1350): void {
   ctx.clearRect(0, 0, width, height);
   const bg = ctx.createLinearGradient(0, 0, width, height);
-  bg.addColorStop(0, '#090b12');
-  bg.addColorStop(1, '#07080d');
+  bg.addColorStop(0, '#120814');
+  bg.addColorStop(1, '#05060f');
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, width, height);
 
   const glowA = ctx.createRadialGradient(180, 160, 20, 180, 160, 520);
-  glowA.addColorStop(0, 'rgba(139, 92, 246, 0.55)');
-  glowA.addColorStop(1, 'rgba(139, 92, 246, 0)');
+  glowA.addColorStop(0, 'rgba(255, 77, 154, 0.5)');
+  glowA.addColorStop(1, 'rgba(255, 77, 154, 0)');
   ctx.fillStyle = glowA;
   ctx.fillRect(0, 0, width, height);
 
   const glowB = ctx.createRadialGradient(920, 1180, 20, 920, 1180, 560);
-  glowB.addColorStop(0, 'rgba(34, 211, 238, 0.38)');
-  glowB.addColorStop(1, 'rgba(34, 211, 238, 0)');
+  glowB.addColorStop(0, 'rgba(61, 255, 242, 0.32)');
+  glowB.addColorStop(1, 'rgba(61, 255, 242, 0)');
   ctx.fillStyle = glowB;
   ctx.fillRect(0, 0, width, height);
 
@@ -62,9 +62,9 @@ export function paintShareCard(ctx: CanvasRenderingContext2D, copy: ShareCardCop
   ctx.fillText(copy.kicker, 120, 520);
 
   const gradient = ctx.createLinearGradient(120, 560, 900, 760);
-  gradient.addColorStop(0, '#c4b5fd');
+  gradient.addColorStop(0, '#ff4d9a');
   gradient.addColorStop(0.55, '#ffffff');
-  gradient.addColorStop(1, '#67e8f9');
+  gradient.addColorStop(1, '#3dfff2');
   ctx.fillStyle = gradient;
   ctx.font = '700 132px "Space Grotesk", sans-serif';
   ctx.fillText(copy.size, 120, 690);

@@ -1,0 +1,342 @@
+/**
+ * Orbit — sistemul vizual al ecranului de curățare.
+ *
+ * Tokens: fundal de spațiu, sticlă, accent magenta→cyan.
+ * Tipografie: Space Grotesk pentru cifre și titluri, sans pentru corp.
+ * Spațiu: 8 / 12 / 16 / 24. Raze: 22 card, 28 dock.
+ * Mișcare: aruncarea cardului 200ms cubic-bezier(.2,.9,.2,1);
+ *   inelul 700ms; dock-ul .34s (pastila existentă).
+ *   prefers-reduced-motion anulează deplasările, nu culoarea.
+ */
+
+html.lumin-orbit {
+  --bg: #05060f;
+  --bg-elev: #0c1020;
+  --surface: rgb(12 16 32 / .72);
+  --line: rgb(255 255 255 / .12);
+  --text: #f4f7ff;
+  --text-dim: #c5cede;
+  --accent: #ff4d9a;
+  --accent-2: #3dfff2;
+  --good: #3dfff2;
+  --bad: #ff5d73;
+  --radius: 22px;
+  background:
+    radial-gradient(900px 420px at 10% -10%, rgb(255 77 154 / .18), transparent 60%),
+    radial-gradient(700px 380px at 110% 0%, rgb(61 255 242 / .12), transparent 55%),
+    var(--bg);
+  color: var(--text);
+}
+
+html.lumin-orbit body,
+html.lumin-orbit #root,
+html.lumin-orbit .app {
+  background: transparent;
+  color: var(--text);
+}
+
+.orbit-kicker {
+  margin: 0;
+  color: #9ad8ff;
+  font-family: var(--mono);
+  font-size: .72rem;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.orbit-clean {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 22px 16px 120px;
+}
+
+.orbit-hero {
+  display: grid;
+  grid-template-columns: 148px 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 16px;
+  border-radius: 28px;
+  background: linear-gradient(160deg, rgb(255 77 154 / .16), rgb(12 16 32 / .8) 42%, rgb(61 255 242 / .08));
+  border: 1px solid var(--line);
+  box-shadow: 0 24px 60px -36px rgb(255 77 154 / .8);
+}
+
+.orbit-ring {
+  position: relative;
+  margin: 0;
+  width: 148px;
+  height: 148px;
+}
+
+.orbit-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.orbit-ring-track { fill: none; stroke: rgb(255 255 255 / .12); stroke-width: 8; }
+.orbit-ring-value {
+  fill: none;
+  stroke: url(#orbit-ring-stroke);
+  stroke-width: 8;
+  stroke-linecap: round;
+  transition: stroke-dashoffset .7s cubic-bezier(.2, .9, .2, 1);
+}
+.orbit-ring figcaption {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: "Space Grotesk", var(--sans);
+}
+.orbit-ring b { font-size: 1.15rem; }
+
+.orbit-hero-copy h2 {
+  margin: 4px 0;
+  font-family: "Space Grotesk", var(--sans);
+  font-size: 1.7rem;
+  line-height: 1.05;
+  letter-spacing: -.03em;
+}
+.orbit-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.orbit-actions .ghost, .orbit-actions .btn-accent { min-height: 44px; }
+
+.orbit-baskets {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.orbit-basket {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 168px;
+  padding: 14px;
+  border-radius: 22px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(16px);
+}
+.orbit-basket-top { display: flex; justify-content: space-between; gap: 8px; }
+.orbit-basket b { font-family: "Space Grotesk", var(--sans); color: #3dfff2; }
+.orbit-basket-actions { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
+.orbit-basket-actions button { min-height: 44px; width: 100%; }
+
+.orbit-film h3 { margin: 8px 0 4px; font-family: "Space Grotesk", var(--sans); }
+.orbit-filmstrip {
+  list-style: none;
+  display: flex;
+  gap: 12px;
+  margin: 12px 0 0;
+  padding: 0 0 8px;
+  overflow-x: auto;
+}
+.orbit-video {
+  flex: 0 0 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 22px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.orbit-video button { min-height: 44px; }
+
+.orbit-stack { position: relative; height: 0; }
+.orbit-stack-card {
+  position: absolute;
+  left: 18px; right: 18px;
+  height: 280px;
+  border-radius: 28px;
+  background: rgb(255 255 255 / .05);
+  border: 1px solid var(--line);
+}
+.orbit-stack-card.back { top: -18px; transform: scale(.9); }
+.orbit-stack-card.mid { top: -9px; }
+.orbit-card {
+  position: relative;
+  z-index: 1;
+  touch-action: none;
+  border-radius: 28px;
+  transition: transform .22s cubic-bezier(.2, .9, .2, 1);
+}
+.orbit-card.dragging { transition: none; }
+.orbit-card.leaving-left { animation: orbit-throw-left .2s cubic-bezier(.2, .9, .2, 1) forwards; }
+.orbit-card.leaving-right { animation: orbit-throw-right .2s cubic-bezier(.2, .9, .2, 1) forwards; }
+@keyframes orbit-throw-left { to { transform: translate3d(-120%, 40px, 0) rotate(-18deg); opacity: .2; } }
+@keyframes orbit-throw-right { to { transform: translate3d(120%, 40px, 0) rotate(18deg); opacity: .2; } }
+
+.orbit-dock {
+  height: 74px !important;
+  border-radius: 28px !important;
+  background: rgb(8 10 20 / .82) !important;
+  border: 1px solid rgb(255 255 255 / .14) !important;
+  box-shadow: 0 18px 50px -24px rgb(255 77 154 / .7), inset 0 1px 0 rgb(255 255 255 / .16) !important;
+}
+html.lumin-orbit .bottom-nav-tab { min-height: 44px; min-width: 44px; color: #c5cede; }
+html.lumin-orbit .bottom-nav-tab.active { color: #f4f7ff; background: none; }
+
+.orbit-settings {
+  position: fixed;
+  z-index: 6;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: calc(86px + var(--safe-bottom));
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 22px 16px 24px;
+  background:
+    radial-gradient(600px 240px at 0 0, rgb(255 77 154 / .16), transparent 60%),
+    #05060f;
+}
+.orbit-settings-head h2 {
+  margin: 4px 0;
+  font-family: "Space Grotesk", var(--sans);
+  font-size: 2rem;
+  letter-spacing: -.04em;
+}
+.orbit-setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 64px;
+  padding: 14px 16px;
+  border-radius: 22px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: inherit;
+  text-align: left;
+}
+.orbit-setting-btn { width: 100%; }
+.orbit-setting-stack { flex-direction: column; align-items: stretch; }
+.orbit-setting small, .orbit-setting-stack small { display: block; color: var(--text-dim); }
+.orbit-setting input[type="checkbox"] { width: 44px; height: 26px; }
+
+html.lumin-orbit .orbit-welcome {
+  background:
+    radial-gradient(500px 280px at 50% 0%, rgb(255 77 154 / .2), transparent 70%),
+    #05060f;
+}
+html.lumin-orbit .orbit-stage {
+  width: min(560px, 100%);
+  min-height: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 28px 22px calc(28px + var(--safe-bottom));
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+html.lumin-orbit .welcome-onboarding-icon {
+  width: 72px;
+  height: 72px;
+  margin: auto 0 18px;
+  border-radius: 24px;
+  background: linear-gradient(140deg, rgb(255 77 154 / .35), rgb(61 255 242 / .18));
+}
+html.lumin-orbit .welcome-onboarding-dots {
+  display: flex;
+  gap: 8px;
+  margin: 18px 0 0;
+}
+html.lumin-orbit .welcome-onboarding-dot {
+  width: 42px;
+  height: 4px;
+  border-radius: 99px;
+}
+html.lumin-orbit .orbit-stage h2 {
+  font-family: "Space Grotesk", var(--sans);
+  font-size: clamp(1.8rem, 6vw, 2.6rem);
+  letter-spacing: -.04em;
+  line-height: 1.05;
+}
+html.lumin-orbit .welcome-onboarding-actions { margin-top: 22px; }
+html.lumin-orbit .welcome-onboarding-actions button { min-height: 48px; flex: 1; }
+
+html.lumin-orbit .premium-sheet {
+  background: #070a14;
+  border-radius: 28px 28px 0 0;
+}
+.orbit-pay-hero {
+  height: 72px;
+  margin: -8px -8px 12px;
+  border-radius: 22px;
+  background: linear-gradient(120deg, rgb(255 77 154 / .35), rgb(61 255 242 / .2));
+  display: flex;
+  align-items: flex-end;
+  padding: 14px;
+}
+
+html.lumin-orbit .home-dash.concept-home {
+  display: grid;
+  gap: 14px;
+  padding: 18px 16px 120px;
+}
+html.lumin-orbit .home-hero-card {
+  display: grid;
+  grid-template-columns: 132px 1fr;
+  align-items: center;
+  border-radius: 28px;
+  background: linear-gradient(160deg, rgb(255 77 154 / .14), rgb(12 16 32 / .9));
+}
+html.lumin-orbit .app-empty-state .empty {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: calc(100dvh - 96px);
+  padding: 28px 18px 120px;
+  text-align: left;
+}
+html.lumin-orbit .empty-badge { display: none; }
+html.lumin-orbit .empty-brand-title {
+  font-family: "Space Grotesk", var(--sans);
+  font-size: 2.4rem;
+  letter-spacing: -.05em;
+  margin: 0 0 8px;
+}
+html.lumin-orbit .lc-home-proof {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+html.lumin-orbit .lc-home-proof-item {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  min-height: 72px;
+  padding: 14px;
+  border-radius: 22px;
+  background: rgb(12 16 32 / .8);
+  border: 1px solid rgb(255 255 255 / .12);
+}
+html.lumin-orbit .topbar {
+  margin: 10px 12px 0;
+  border-radius: 22px;
+  background: rgb(8 10 20 / .8);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(16px);
+}
+
+@media (max-width: 720px) {
+  .orbit-hero { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+  .orbit-actions { justify-content: center; }
+  .orbit-baskets { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orbit-ring-value,
+  .orbit-card,
+  .orbit-card.leaving-left,
+  .orbit-card.leaving-right {
+    transition: none;
+    animation: none;
+  }
+}

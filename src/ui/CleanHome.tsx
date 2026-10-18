@@ -4,7 +4,7 @@ import { t } from '../i18n';
 import {
   basketsFromLibrary, basketsFromScan, estimateSavedBytes, type CleanBasket, type CleanItem
 } from '../core/cleanScan';
-import { expiredShots, readAutoClean, reminderDaysOf, reminderDue, writeAutoClean, type AutoCleanSettings, type ReminderDays } from '../core/autoClean';
+import { expiredShots, readAutoClean, reminderDue, writeAutoClean, type AutoCleanSettings } from '../core/autoClean';
 import {
   commitAiClean, decideAiClean, readAiCleanState, writeAiCleanState, type AiCleanDecision, type AiCleanState
 } from '../core/aiCleanAllowance';
@@ -63,6 +63,12 @@ export function CleanHome() {
   const reminded = useRef(false);
   const reminderDaysRef = useRef(auto.reminderDays);
 
+  useEffect(() => {
+    const sync = () => setAuto(readAutoClean());
+    window.addEventListener('lumin-auto-clean', sync);
+    return () => window.removeEventListener('lumin-auto-clean', sync);
+  }, []);
+
   const library = useMemo(() => basketsFromLibrary(photos.map(photo => ({
     id: photo.id,
     fileName: photo.fileName,
@@ -96,6 +102,9 @@ export function CleanHome() {
   const videos = baskets.find(basket => basket.id === 'videos') ?? { id: 'videos' as const, items: [], bytes: 0 };
   const photoBaskets = baskets.filter(basket => basket.id !== 'videos' && basket.items.length > 0);
   const reclaimable = baskets.reduce((sum, basket) => sum + basket.bytes, 0);
+  useEffect(() => {
+    try { sessionStorage.setItem('lumin-reclaimable', String(reclaimable)); } catch { /* sesiunea ține cifra doar pentru setări */ }
+  }, [reclaimable]);
 
   useEffect(() => {
     if (premiumLocked || !auto.monthlyReminder) {
@@ -201,37 +210,6 @@ export function CleanHome() {
     setSwipe(basket);
   };
 
-  const setAutoFlag = (key: 'monthlyReminder' | 'expireScreenshots', value: boolean) => {
-    if (value && premiumLocked) {
-      gatePremium('autoClean');
-      setNotice(tr('clean.auto.locked'));
-      return;
-    }
-    const next = { ...auto, [key]: value };
-    if (key === 'monthlyReminder' && value) {
-      next.lastMonthlyReminderAt = Date.now();
-      void requestNotificationAccess();
-      const body = reclaimable > 0
-        ? tr('clean.reminder.body', { size: formatSize(reclaimable) })
-        : tr('clean.reminder.empty');
-      void showNotification({ title: 'Lumin', body, channelName: 'Lumin' });
-      void markCleanReminderShown();
-    }
-    writeAutoClean(next);
-    setAuto(next);
-  };
-
-  const setReminderDays = (days: ReminderDays) => {
-    if (premiumLocked) {
-      gatePremium('autoClean');
-      setNotice(tr('clean.auto.locked'));
-      return;
-    }
-    const next = { ...auto, reminderDays: days };
-    writeAutoClean(next);
-    setAuto(next);
-  };
-
   const compress = async (item: CleanItem) => {
     const estimate = estimateSavedBytes(item.bytes, item.width, item.height);
     if (premiumLocked || !isVideoCompressAvailable()) {
@@ -265,16 +243,22 @@ export function CleanHome() {
     Date.now()
   );
 
+  const ring = freed + reclaimable;
+  const ringRatio = ring > 0 ? Math.min(1, freed / ring) : 0.08;
+
   return (
-    <section className="clean-home" aria-label={tr('clean.title')}>
-      <header className="clean-hero">
-        <p className="clean-kicker">{tr('clean.privacy')}</p>
-        <h2>{tr('clean.title')}</h2>
-        <p className="clean-freed-value">{freed > 0 ? tr('clean.freed', { size: formatSize(freed) }) : tr('clean.freed.none')}</p>
-        <p className="clean-lead">{tr('clean.lead')}</p>
-        <div className="clean-hero-actions">
-          <button type="button" className="ghost" disabled={freed <= 0} onClick={() => { void share(); }}>{tr('clean.share.card')}</button>
-          <button type="button" className="ghost" onClick={() => setProMode(true)}>{tr('clean.pro')}</button>
+    <section className="clean-home orbit-clean" aria-label={tr('clean.title')}>
+      <header className="orbit-hero">
+        <StorageRing ratio={ringRatio} label={freed > 0 ? formatSize(freed) : '0'} />
+        <div className="orbit-hero-copy">
+          <p className="orbit-kicker">{tr('clean.privacy')}</p>
+          <h2>{tr('clean.title')}</h2>
+          <p className="clean-freed-value">{freed > 0 ? tr('clean.freed', { size: formatSize(freed) }) : tr('clean.freed.none')}</p>
+          <p className="clean-lead">{tr('clean.lead')}</p>
+          <div className="orbit-actions">
+            <button type="button" className="ghost" disabled={freed <= 0} onClick={() => { void share(); }}>{tr('clean.share.card')}</button>
+            <button type="button" className="ghost" onClick={() => setProMode(true)}>{tr('clean.pro')}</button>
+          </div>
         </div>
       </header>
 
@@ -309,21 +293,22 @@ export function CleanHome() {
         </div>
       )}
 
-      <ul className="clean-baskets">
+      <ul className="orbit-baskets">
         {photoBaskets.map(basket => (
-          <li key={basket.id} className="clean-basket">
-            <div>
+          <li key={basket.id} className="orbit-basket">
+            <div className="orbit-basket-top">
               <strong>{tr(`clean.basket.${basket.id}`)}</strong>
-              <span>{tr('clean.items', { count: basket.items.length })} · {formatSize(basket.bytes)}</span>
-              {basket.keeper && (
-                <span className="clean-keeper">
-                  {basket.keeper.groups > 1
-                    ? tr('clean.best.groups', { count: basket.keeper.groups })
-                    : tr('clean.best.line', { name: basket.keeper.name })}
-                </span>
-              )}
+              <b>{formatSize(basket.bytes)}</b>
             </div>
-            <div className="clean-basket-actions">
+            <span>{tr('clean.items', { count: basket.items.length })}</span>
+            {basket.keeper && (
+              <span className="clean-keeper">
+                {basket.keeper.groups > 1
+                  ? tr('clean.best.groups', { count: basket.keeper.groups })
+                  : tr('clean.best.line', { name: basket.keeper.name })}
+              </span>
+            )}
+            <div className="orbit-basket-actions">
               <button type="button" className="ghost" onClick={() => review(basket)}>{tr('clean.review')}</button>
               <button type="button" className="btn-accent" onClick={() => cleanAll(basket)}>{tr('clean.cleanAll')}</button>
             </div>
@@ -332,7 +317,7 @@ export function CleanHome() {
       </ul>
       {photoBaskets.length === 0 && !scanning && <p className="clean-muted">{tr('clean.empty')}</p>}
 
-      <section className="clean-videos" aria-label={tr('clean.basket.videos')}>
+      <section className="orbit-film" aria-label={tr('clean.basket.videos')}>
         <h3>{tr('clean.basket.videos')}</h3>
         <p className="clean-muted">{tr('clean.videos.lead')}</p>
         {scan && !scan.videosGranted && (
@@ -349,9 +334,9 @@ export function CleanHome() {
           <input type="checkbox" checked={keepOriginal} onChange={event => setKeepOriginal(event.target.checked)} />
           {tr('clean.videos.keepOriginal')}
         </label>
-        <ul>
+        <ul className="orbit-filmstrip">
           {videos.items.map(item => (
-            <li key={item.uri} className="clean-video">
+            <li key={item.uri} className="orbit-video">
               <div>
                 <strong>{item.name}</strong>
                 <span>{formatSize(item.bytes)}</span>
@@ -369,36 +354,13 @@ export function CleanHome() {
         </ul>
       </section>
 
-      <section className="clean-auto" aria-label={tr('clean.auto.title')}>
-        <h3>{tr('clean.auto.title')}</h3>
-        <label>
-          <input type="checkbox" checked={auto.monthlyReminder} onChange={event => setAutoFlag('monthlyReminder', event.target.checked)} />
-          <span><strong>{tr('clean.auto.monthly')}</strong><small>{tr('clean.auto.monthly.sub')}</small></span>
-        </label>
-        <label className="clean-reminder-days">
-          <span>{tr('clean.reminder.days')}</span>
-          <select
-            value={auto.reminderDays}
-            aria-label={tr('clean.reminder.days')}
-            onChange={event => setReminderDays(reminderDaysOf(Number(event.target.value)))}
-          >
-            <option value={7}>{tr('clean.reminder.7')}</option>
-            <option value={14}>{tr('clean.reminder.14')}</option>
-            <option value={30}>{tr('clean.reminder.30')}</option>
-          </select>
-        </label>
-        <label>
-          <input type="checkbox" checked={auto.expireScreenshots} onChange={event => setAutoFlag('expireScreenshots', event.target.checked)} />
-          <span><strong>{tr('clean.auto.screenshots')}</strong><small>{tr('clean.auto.screenshots.sub')}</small></span>
-        </label>
-        {auto.expireScreenshots && oldShots.length > 0 && (
-          <button type="button" className="ghost" onClick={() => review({ id: 'screenshots', items: oldShots, bytes: oldShots.reduce((sum, item) => sum + item.bytes, 0) })}>
-            {tr('clean.review')} · {oldShots.length}
-          </button>
-        )}
-      </section>
+      {auto.expireScreenshots && oldShots.length > 0 && (
+        <button type="button" className="ghost orbit-expire" onClick={() => review({ id: 'screenshots', items: oldShots, bytes: oldShots.reduce((sum, item) => sum + item.bytes, 0) })}>
+          {tr('clean.auto.screenshots')} · {oldShots.length}
+        </button>
+      )}
 
-      {swipe && (
+        {swipe && (
         <CleanSwipe
           basket={swipe}
           onClose={() => setSwipe(null)}
@@ -406,5 +368,31 @@ export function CleanHome() {
         />
       )}
     </section>
+  );
+}
+
+function StorageRing({ ratio, label }: { ratio: number; label: string }) {
+  const radius = 46;
+  const circ = 2 * Math.PI * radius;
+  const offset = circ * (1 - Math.max(0.04, Math.min(1, ratio)));
+  return (
+    <figure className="orbit-ring" aria-hidden="true">
+      <svg viewBox="0 0 120 120">
+        <defs>
+          <linearGradient id="orbit-ring-stroke" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor="#ff4d9a" />
+            <stop offset="1" stopColor="#3dfff2" />
+          </linearGradient>
+        </defs>
+        <circle className="orbit-ring-track" cx="60" cy="60" r={radius} />
+        <circle
+          className="orbit-ring-value"
+          cx="60" cy="60" r={radius}
+          strokeDasharray={`${circ} ${circ}`}
+          strokeDashoffset={offset}
+        />
+      </svg>
+      <figcaption><b>{label}</b></figcaption>
+    </figure>
   );
 }
