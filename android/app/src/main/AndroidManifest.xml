@@ -13,20 +13,27 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
+        <!-- Curățarea pornește nativ. WebView-ul Capacitor rămâne pentru
+             uneltele Pro, deschis din butonul Pro al ecranului nativ. -->
+        <activity
+            android:name=".cleaner.CleanerActivity"
+            android:exported="true"
+            android:label="@string/title_activity_main"
+            android:theme="@style/AppTheme.Cleaner"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
             android:name=".MainActivity"
             android:label="@string/title_activity_main"
             android:theme="@style/AppTheme.NoActionBarLaunch"
             android:launchMode="singleTask"
-            android:exported="true">
-
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-
-        </activity>
+            android:exported="true" />
 
         <!-- Analiza cu ecranul stins. Vezi plugins/BackgroundAnalysisService.kt:
              din Android 12 incoace un proces ajuns in cache e INGHETAT, deci

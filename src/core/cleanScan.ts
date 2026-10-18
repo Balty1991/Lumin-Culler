@@ -335,12 +335,18 @@ export function basketsFromLibrary(photos: readonly LibraryCleanPhoto[]): CleanB
 
   const blurry: CleanItem[] = [];
   const screenshots: CleanItem[] = [];
+  const messengers: CleanItem[] = [];
   const eyes: CleanItem[] = [];
   for (const photo of open) {
-    const shot = (photo.sceneTags ?? []).some(tag => /screenshot/i.test(tag));
+    const shot = (photo.sceneTags ?? []).some(tag => /screenshot/i.test(tag)) || isScreenshotBucket(photo.fileName);
     if (shot) {
       const item = take(photo);
       if (item) screenshots.push(item);
+      continue;
+    }
+    if (isMessengerBucket(photo.fileName)) {
+      const item = take(photo);
+      if (item) messengers.push(item);
       continue;
     }
     if (photo.sharpness < photo.blurBelow) {
@@ -359,7 +365,7 @@ export function basketsFromLibrary(photos: readonly LibraryCleanPhoto[]): CleanB
     basket('bursts', burstExtras, burstExtras.length > 0 && burstKeeper ? { keeper: burstKeeper, premark: true } : undefined),
     basket('blurry', blurry),
     basket('screenshots', screenshots),
-    basket('messengers', []),
+    basket('messengers', messengers),
     basket('eyes', eyes),
     basket('videos', [])
   ];

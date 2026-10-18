@@ -33,11 +33,23 @@ describe('CleanHome', () => {
     useStore.setState({ photos: [poza({ id: 'blur', sharpness: 10, fileName: 'soft.jpg' })] });
     render(<CleanHome />);
     expect(screen.getByRole('heading', { name: 'Clean your gallery' })).toBeInTheDocument();
-    expect(screen.getByText('Blurry')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Blurry' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText('soft.jpg')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Review with swipe' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
     expect(useStore.getState().tiktokSortOpen).toBe(true);
     expect(useStore.getState().tiktokSortScopeIds).toEqual(['blur']);
+  });
+
+  it('shows how many photos are scanned, with a cancel control', () => {
+    useStore.setState({
+      photos: [poza({ id: 'blur', sharpness: 10 })],
+      progress: { done: 4, total: 14, fileName: 'd.jpg', phase: 'citire', etaSeconds: 3 }
+    });
+    render(<CleanHome />);
+    const cancel = screen.getByRole('button', { name: 'Cancel' });
+    expect(cancel).toBeEnabled();
+    expect(cancel.closest('.orbit-progress')?.textContent).toContain('4/14');
   });
 
   it('sends clean-all of imported photos to the same free swipe, without opening Premium', () => {

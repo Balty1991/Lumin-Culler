@@ -13,6 +13,7 @@ buildscript {
         // variables.gradle): "apply from: variables.gradle" ruleaza DUPA acest buildscript{},
         // deci acele variabile ext inca nu exista cand se evalueaza acest bloc.
         classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.10'
+        classpath 'org.jetbrains.kotlin:compose-compiler-gradle-plugin:2.4.10'
 
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files

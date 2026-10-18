@@ -183,6 +183,11 @@ export function CleanSwipe(props: {
             <span className={`clean-stamp keep${drag > 36 ? ' on' : ''}`}>{tr('clean.swipe.keep')}</span>
             <ItemImage item={item} />
             <span className="clean-card-meta">{item.name} · {formatSize(item.bytes)}</span>
+            {leaving < 0 && (
+              <span className="orbit-burst" aria-hidden="true">
+                {Array.from({ length: 10 }, (_, i) => <i key={i} style={{ ['--i' as string]: i }} />)}
+              </span>
+            )}
           </div>
           <div className="clean-swipe-actions">
             <button type="button" className="clean-choice delete" onClick={() => decide('delete')}>{tr('clean.swipe.delete')}</button>

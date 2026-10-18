@@ -151,4 +151,13 @@ describe('basketsFromLibrary', () => {
     expect(bursts.premark).toBe(true);
     expect(bursts.items.map(i => i.photoId)).toEqual(['shut']);
   });
+
+  it('pune capturile și mesageria după numele fișierului, nu doar după etichetă', () => {
+    const baskets = basketsFromLibrary([
+      { id: 's', fileName: 'Screenshot_1.png', sharpness: 90, faceCount: 0, allEyesOpen: true, status: 'pending', blurBelow: 40, eyesOpenBelow: 0.5 },
+      { id: 'w', fileName: 'WhatsApp Image.jpg', sharpness: 90, faceCount: 0, allEyesOpen: true, status: 'pending', blurBelow: 40, eyesOpenBelow: 0.5 }
+    ]);
+    expect(baskets.find(b => b.id === 'screenshots')!.items.map(i => i.photoId)).toEqual(['s']);
+    expect(baskets.find(b => b.id === 'messengers')!.items.map(i => i.photoId)).toEqual(['w']);
+  });
 });

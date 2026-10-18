@@ -3,6 +3,7 @@ import { useStore } from '../state/store';
 import { t } from '../i18n';
 import { setLuminSettingsOpen, useLuminSettingsOpen } from './shellState';
 import { OrbitCleanIcon, OrbitLibraryIcon, OrbitSettingsIcon } from './icons';
+import { withViewTransition } from './viewTransition';
 
 /**
  * Trei destinații, fiecare cu un singur sens.
@@ -37,22 +38,22 @@ export function BottomNav() {
     setExportDestinationsOpen(false);
   };
 
-  const goClean = () => {
+  const goClean = () => withViewTransition(() => {
     closePanels();
     setLuminSettingsOpen(false);
     setProMode(false);
     setHomeGridOpen(false);
-  };
-  const goLibrary = () => {
+  });
+  const goLibrary = () => withViewTransition(() => {
     closePanels();
     setLuminSettingsOpen(false);
     setProMode(true);
     setHomeGridOpen(photos.length > 0);
-  };
-  const goSettings = () => {
+  });
+  const goSettings = () => withViewTransition(() => {
     closePanels();
     setLuminSettingsOpen(true);
-  };
+  });
 
   const inLibrary = proMode || homeGridOpen || personsOpen || exportDestinationsOpen || menuOpen || collectionsOpen;
   const activeIndex = tiktokSortOpen ? -1 : settingsOpen ? 2 : inLibrary ? 1 : 0;
