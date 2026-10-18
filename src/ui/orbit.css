@@ -507,6 +507,134 @@ html.lumin-orbit .topbar {
   to { transform: rotate(calc(var(--i) * 36deg)) translate3d(0, -78px, 0); opacity: 0; }
 }
 
+.app.deck-mode > .topbar { display: none; }
+
+.deck-app {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - 86px - var(--safe-bottom));
+  padding-top: var(--safe-top);
+  overflow: hidden;
+}
+.deck-bar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  padding: 6px 12px 0;
+  background: linear-gradient(to bottom, rgb(5 6 15 / .94), rgb(5 6 15 / .72) 78%, transparent);
+}
+.deck-bar-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; }
+.deck-bar h1 {
+  margin: 0;
+  font-family: "Syne Variable", var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -.03em;
+}
+.deck-freed {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgb(255 255 255 / .16);
+  background: rgb(255 255 255 / .08);
+  color: inherit;
+}
+.deck-freed b { font-family: "Space Grotesk Variable", var(--sans); color: #7dfff4; }
+.deck-freed span { font-size: .62rem; letter-spacing: .12em; text-transform: uppercase; color: #c5cede; }
+.deck-chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 8px 0 6px;
+  scrollbar-width: none;
+}
+.deck-chips button {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgb(255 255 255 / .14);
+  background: rgb(255 255 255 / .06);
+  color: #e8eefc;
+}
+.deck-chips button[aria-selected="true"] { background: #f4f7ff; color: #12141c; border-color: transparent; }
+.deck-chips button span { font-family: "Space Grotesk Variable", var(--sans); font-size: .75rem; opacity: .7; }
+.deck-stage { position: relative; flex: 1; min-height: 0; }
+.deck-photo-wrap { position: absolute; inset: 0; }
+.deck-hint {
+  position: absolute;
+  z-index: 2;
+  top: 8px;
+  left: 0;
+  right: 0;
+  margin: 0;
+  text-align: center;
+  font-size: .75rem;
+  color: #fff;
+  text-shadow: 0 1px 6px rgb(0 0 0 / .6);
+  pointer-events: none;
+}
+.deck-photo {
+  position: absolute;
+  inset: 0 0 64px;
+  overflow: hidden;
+  touch-action: none;
+  background: #10131c;
+}
+.deck-photo img, .deck-fallback {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: grid;
+  place-items: center;
+}
+.deck-choices {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 8px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.deck-choices button { min-height: 48px; border-radius: 16px; }
+.deck-sheet {
+  position: relative;
+  z-index: 4;
+  margin-top: auto;
+  padding: 8px 14px 10px;
+  border-radius: 22px 22px 0 0;
+  background: rgb(10 12 20 / .94);
+  border-top: 1px solid rgb(255 255 255 / .12);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.deck-sheet-handle {
+  min-height: 44px;
+  background: none;
+  border: 0;
+  color: inherit;
+  text-align: left;
+  font-weight: 650;
+}
+.deck-sheet .btn-accent, .deck-sheet .ghost { min-height: 44px; }
+.deck-videos { list-style: none; margin: 0; padding: 8px 12px 12px; display: flex; flex-direction: column; gap: 10px; height: 100%; overflow: auto; }
+.deck-videos li { display: grid; grid-template-columns: 72px 1fr; gap: 8px; align-items: center; }
+.deck-videos img, .deck-videos .deck-fallback { width: 72px; height: 72px; border-radius: 12px; object-fit: cover; }
+.deck-empty { margin: 24px 16px; color: #c5cede; }
+.deck-skeleton { position: absolute; inset: 12px 12px 80px; border-radius: 18px; background: linear-gradient(100deg, rgb(255 255 255 / .05), rgb(255 255 255 / .16), rgb(255 255 255 / .05)); background-size: 200% 100%; animation: orbit-shimmer 1.3s ease-in-out infinite; }
+.deck-photo.leaving-left { animation: orbit-throw-left .22s ease-out forwards; }
+.deck-photo.leaving-right { animation: orbit-throw-right .22s ease-out forwards; }
+
 @media (prefers-reduced-motion: reduce) {
   .orbit-ring-value,
   .orbit-card,
@@ -521,7 +649,10 @@ html.lumin-orbit .topbar {
   .orbit-celebrate strong,
   .orbit-celebrate i,
   .orbit-burst i,
-  .orbit-progress-track span {
+  .orbit-progress-track span,
+  .deck-photo.leaving-left,
+  .deck-photo.leaving-right,
+  .deck-skeleton {
     transition: none;
     animation: none;
   }

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { t } from '../i18n';
 import {
-  basketsFromLibrary, basketsFromScan, estimateSavedBytes, type CleanBasket, type CleanItem
+  basketsFromLibrary, basketsFromScan, estimateSavedBytes, type BasketId, type CleanBasket, type CleanItem
 } from '../core/cleanScan';
 import { expiredShots, readAutoClean, reminderDue, writeAutoClean, type AutoCleanSettings } from '../core/autoClean';
 import {
@@ -18,10 +18,10 @@ import { DEFECT_EYES_OPEN_RATIO, DEFECT_SHARPNESS } from '../core/importPipeline
 import { addFreedBytes, addFreedFiles, readFreedBytes, readFreedFiles } from '../state/storageFreed';
 import { formatSize } from '../state/storageStats';
 import { maybeAskForReviewAfterFreed } from '../state/reviewPrompt';
-import { CleanSwipe } from './CleanSwipe';
-import { StorageOrb } from './StorageOrb';
+import { Capacitor } from '@capacitor/core';
 import { getCachedThumbUrl, peekThumbUrl } from '../core/thumbUrlCache';
 import { formatEta } from '../core/formatTime';
+import { motionAllowed, tickHaptic } from './haptics';
 import './cleanHome.css';
 
 export function CleanHome() {
@@ -42,7 +42,6 @@ export function CleanHome() {
   const [files, setFiles] = useState(readFreedFiles);
   const [ai, setAi] = useState<AiCleanState>(readAiCleanState);
   const [auto, setAuto] = useState<AutoCleanSettings>(readAutoClean);
-  const [swipe, setSwipe] = useState<CleanBasket | null>(null);
   const [partial, setPartial] = useState<{ basket: CleanBasket; decision: Extract<AiCleanDecision, { kind: 'partial' }> } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [keepOriginal, setKeepOriginal] = useState(true);
@@ -102,8 +101,6 @@ export function CleanHome() {
     });
   }, [scan, library, gone]);
 
-  const videos = baskets.find(basket => basket.id === 'videos') ?? { id: 'videos' as const, items: [], bytes: 0 };
-  const photoBaskets = baskets.filter(basket => basket.id !== 'videos' && basket.items.length > 0);
   const reclaimable = baskets.reduce((sum, basket) => sum + basket.bytes, 0);
   useEffect(() => {
     try { sessionStorage.setItem('lumin-reclaimable', String(reclaimable)); } catch { /* sesiunea ține cifra doar pentru setări */ }
@@ -204,15 +201,6 @@ export function CleanHome() {
     void performDelete(basket.items, decision);
   };
 
-  const review = (basket: CleanBasket) => {
-    const imported = basket.items.every(item => item.uri.startsWith('app:'));
-    if (imported) {
-      openTiktokSortForIds(basket.items.map(item => item.photoId!).filter(Boolean));
-      return;
-    }
-    setSwipe(basket);
-  };
-
   const compress = async (item: CleanItem) => {
     const estimate = estimateSavedBytes(item.bytes, item.width, item.height);
     if (premiumLocked || !isVideoCompressAvailable()) {
@@ -246,8 +234,6 @@ export function CleanHome() {
     Date.now()
   );
 
-  const ring = freed + reclaimable;
-  const ringRatio = ring > 0 ? Math.min(1, freed / ring) : 0.08;
   const [celebrate, setCelebrate] = useState<string | null>(null);
   const freedBefore = useRef(freed);
   useEffect(() => {
@@ -260,136 +246,146 @@ export function CleanHome() {
     freedBefore.current = freed;
   }, [freed]);
 
+  const chips: BasketId[] = ['duplicates', 'bursts', 'blurry', 'screenshots', 'videos', 'messengers'];
+  const eyes = baskets.find(basket => basket.id === 'eyes');
+  if (eyes && eyes.items.length > 0) chips.splice(4, 0, 'eyes');
+  const [chip, setChip] = useState<BasketId>('blurry');
+  const active = baskets.find(basket => basket.id === chip) ?? { id: chip, items: [] as CleanItem[], bytes: 0 };
+  const [index, setIndex] = useState(0);
+  const [sheet, setSheet] = useState(false);
+  useEffect(() => { setIndex(0); setSheet(false); }, [chip]);
+  const item = active.items[Math.min(index, Math.max(0, active.items.length - 1))];
+  const chipName = (id: BasketId) => (id === 'messengers' || id === 'videos') ? tr(`clean.chip.${id}`) : tr(`clean.basket.${id}`);
+
+  const onDeckDelete = () => {
+    if (!item) return;
+    if (item.photoId && item.uri.startsWith('app:')) {
+      openTiktokSortForIds([item.photoId]);
+      return;
+    }
+    void performDelete([item], { kind: 'all', consumesFull: false, consumesDaily: 0 });
+    setIndex(value => value + 1);
+  };
+  const onDeckKeep = () => setIndex(value => value + 1);
+
   return (
-    <section className="clean-home orbit-clean" aria-label={tr('clean.title')}>
+    <section className="deck-app" aria-label={tr('clean.title')}>
       <div className="orbit-aurora" aria-hidden="true" />
       {celebrate && <CleanCelebrate label={tr('clean.freed', { size: celebrate })} />}
-      <ScanBar />
-      <header className="orbit-hero">
-        <StorageOrb ratio={ringRatio} label={freed > 0 ? formatSize(freed) : '0'} caption={tr('clean.share.kicker')} />
-        <div className="orbit-hero-copy">
-          <p className="orbit-kicker">{tr('clean.privacy')}</p>
-          <h2>{tr('clean.title')}</h2>
-          <p className="clean-freed-value">{freed > 0 ? tr('clean.freed', { size: formatSize(freed) }) : tr('clean.freed.none')}</p>
-          <p className="clean-lead">{tr('clean.lead')}</p>
-          <div className="orbit-actions">
-            <button type="button" className="ghost" disabled={freed <= 0} onClick={() => { void share(); }}>{tr('clean.share.card')}</button>
-            <button type="button" className="ghost" onClick={() => setProMode(true)}>{tr('clean.pro')}</button>
-          </div>
+      <header className="deck-bar">
+        <div className="deck-bar-row">
+          <h1>{tr('clean.title')}</h1>
+          <button type="button" className="deck-freed" onClick={() => { void share(); }} disabled={freed <= 0}>
+            <b>{freed > 0 ? formatSize(freed) : '0'}</b>
+            <span>{tr('clean.share.kicker')}</span>
+          </button>
         </div>
+        <div className="deck-chips" role="tablist" aria-label={tr('clean.title')}>
+          {chips.map(id => {
+            const basket = baskets.find(entry => entry.id === id);
+            const count = basket?.items.length ?? 0;
+            return (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={chip === id}
+                onClick={() => setChip(id)}
+              >
+                {chipName(id)}
+                <span aria-hidden="true">{count}</span>
+              </button>
+            );
+          })}
+        </div>
+        <ScanBar />
       </header>
 
-      {scanning && <p className="clean-muted" role="status">{tr('clean.scanning')}</p>}
-      {scanning && photoBaskets.length === 0 && (
-        <ul className="orbit-baskets" aria-hidden="true">
-          {Array.from({ length: 4 }, (_, i) => <li key={i} className="orbit-skeleton" />)}
-        </ul>
-      )}
-      {scanError && (
-        <p className="clean-muted" role="alert">
-          {tr('clean.scanFailed')} <button type="button" className="ghost" onClick={() => { void refresh(); }}>{tr('clean.retry')}</button>
-        </p>
-      )}
-      {!isCleanScanAvailable() && <p className="clean-muted">{tr('clean.webNote')}</p>}
-      {scan && !scan.granted && (
-        <p className="clean-muted">
-          {tr('clean.permission')} <button type="button" className="ghost" onClick={() => { void refresh(); }}>{tr('clean.grant')}</button>
-        </p>
-      )}
-      {notice && <p className="clean-notice" role="status">{notice}</p>}
-      {partial && (
-        <div className="clean-partial">
-          <p>{tr('clean.ai.partial', { take: partial.decision.take, count: partial.basket.items.length })}</p>
-          <button
-            type="button"
-            className="btn-accent"
-            onClick={() => {
-              const slice = partial.basket.items.slice(0, partial.decision.take);
-              setPartial(null);
-              void performDelete(slice, partial.decision);
-            }}
-          >
-            {tr('clean.ai.partialGo', { take: partial.decision.take })}
-          </button>
-          <button type="button" className="ghost" onClick={() => setPartial(null)}>{tr('clean.continueFree')}</button>
-        </div>
-      )}
-
-      <ul className="orbit-baskets">
-        {photoBaskets.map(basket => (
-          <li key={basket.id} className="orbit-basket">
-            <div className="orbit-basket-top">
-              <strong>{tr(`clean.basket.${basket.id}`)}</strong>
-              <b>{formatSize(basket.bytes)}</b>
-            </div>
-            <span>{tr('clean.items', { count: basket.items.length })}</span>
-            <BasketStrip items={basket.items} compare={!!basket.keeper} />
-            {basket.keeper && (
-              <span className="clean-keeper">
-                {basket.keeper.groups > 1
-                  ? tr('clean.best.groups', { count: basket.keeper.groups })
-                  : tr('clean.best.line', { name: basket.keeper.name })}
-              </span>
+      <div className="deck-stage">
+        {scanning && active.items.length === 0 && <div className="deck-skeleton" aria-hidden="true" />}
+        {chip === 'videos' ? (
+          <ul className="deck-videos">
+            {scan && !scan.videosGranted && (
+              <li>
+                <button type="button" className="ghost" onClick={() => { void requestVideoAccess().then(() => refresh()); }}>
+                  {tr('clean.videos.needPermission')}
+                </button>
+              </li>
             )}
-            <div className="orbit-basket-actions">
-              <button type="button" className="ghost" onClick={() => review(basket)}>{tr('clean.review')}</button>
-              <button type="button" className="btn-accent" onClick={() => cleanAll(basket)}>{tr('clean.cleanAll')}</button>
-            </div>
-          </li>
-        ))}
-      </ul>
-      {photoBaskets.length === 0 && !scanning && <p className="clean-muted">{tr('clean.empty')}</p>}
-
-      <section className="orbit-film" aria-label={tr('clean.basket.videos')}>
-        <h3>{tr('clean.basket.videos')}</h3>
-        <p className="clean-muted">{tr('clean.videos.lead')}</p>
-        {scan && !scan.videosGranted && (
-          <button
-            type="button"
-            className="ghost"
-            onClick={() => { void requestVideoAccess().then(() => refresh()); }}
-          >
-            {tr('clean.videos.needPermission')}
-          </button>
-        )}
-        {videos.items.length === 0 && <p className="clean-muted">{tr('clean.videos.empty')}</p>}
-        <label className="clean-keep">
-          <input type="checkbox" checked={keepOriginal} onChange={event => setKeepOriginal(event.target.checked)} />
-          {tr('clean.videos.keepOriginal')}
-        </label>
-        <ul className="orbit-filmstrip">
-          {videos.items.map(item => (
-            <li key={item.uri} className="orbit-video">
-              <div>
-                <strong>{item.name}</strong>
-                <span>{formatSize(item.bytes)}</span>
-              </div>
-              <div className="clean-basket-actions">
-                <button type="button" className="ghost" onClick={() => { void performDelete([item], { kind: 'all', consumesFull: false, consumesDaily: 0 }); }}>
+            {active.items.length === 0 && <li className="deck-empty">{tr('clean.videos.empty')}</li>}
+            {active.items.map(video => (
+              <li key={video.uri}>
+                <DeckImage item={video} />
+                <div>
+                  <strong>{video.name}</strong>
+                  <span>{formatSize(video.bytes)}</span>
+                </div>
+                <button type="button" className="ghost" onClick={() => { void performDelete([video], { kind: 'all', consumesFull: false, consumesDaily: 0 }); }}>
                   {tr('clean.videos.delete')}
                 </button>
-                <button type="button" className="btn-accent" disabled={compressing === item.uri} onClick={() => { void compress(item); }}>
-                  {compressing === item.uri ? tr('clean.videos.compressing') : tr('clean.videos.compress')}
+                <button type="button" className="btn-accent" disabled={compressing === video.uri} onClick={() => { void compress(video); }}>
+                  {compressing === video.uri ? tr('clean.videos.compressing') : tr('clean.videos.compress')}
                 </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </section>
+              </li>
+            ))}
+          </ul>
+        ) : item ? (
+          <PhotoDeck key={item.uri} item={item} onDelete={onDeckDelete} onKeep={onDeckKeep} deleteLabel={tr('clean.swipe.delete')} keepLabel={tr('clean.swipe.keep')} hint={tr('clean.swipe.hint')} />
+        ) : (
+          <p className="deck-empty">{scanning ? tr('clean.scanning') : tr('clean.empty')}</p>
+        )}
+      </div>
 
-      {auto.expireScreenshots && oldShots.length > 0 && (
-        <button type="button" className="ghost orbit-expire" onClick={() => review({ id: 'screenshots', items: oldShots, bytes: oldShots.reduce((sum, item) => sum + item.bytes, 0) })}>
-          {tr('clean.auto.screenshots')} · {oldShots.length}
+      <div className={sheet ? 'deck-sheet open' : 'deck-sheet'}>
+        <button type="button" className="deck-sheet-handle" aria-expanded={sheet} onClick={() => setSheet(open => !open)}>
+          {item ? `${item.name} · ${formatSize(item.bytes)}` : chipName(chip)}
         </button>
-      )}
-
-        {swipe && (
-        <CleanSwipe
-          basket={swipe}
-          onClose={() => setSwipe(null)}
-          onDeleted={items => performDelete(items, { kind: 'all', consumesFull: false, consumesDaily: 0 })}
-        />
-      )}
+        {notice && <p className="clean-notice" role="status">{notice}</p>}
+        {scanError && (
+          <p role="alert">{tr('clean.scanFailed')} <button type="button" className="ghost" onClick={() => { void refresh(); }}>{tr('clean.retry')}</button></p>
+        )}
+        {scan && !scan.granted && (
+          <p>{tr('clean.permission')} <button type="button" className="ghost" onClick={() => { void refresh(); }}>{tr('clean.grant')}</button></p>
+        )}
+        {'keeper' in active && active.keeper && (
+          <p className="clean-keeper">
+            {active.keeper.groups > 1 ? tr('clean.best.groups', { count: active.keeper.groups }) : tr('clean.best.line', { name: active.keeper.name })}
+          </p>
+        )}
+        {chip !== 'videos' && active.items.length > 0 && (
+          <button type="button" className="btn-accent" onClick={() => cleanAll(active as CleanBasket)}>{tr('clean.cleanAll')}</button>
+        )}
+        {sheet && (
+          <div className="deck-sheet-body">
+            {!isCleanScanAvailable() && <p>{tr('clean.webNote')}</p>}
+            {chip === 'videos' && <p>{tr('clean.videos.lead')}</p>}
+            {chip === 'videos' && (
+              <label className="clean-keep">
+                <input type="checkbox" checked={keepOriginal} onChange={event => setKeepOriginal(event.target.checked)} />
+                {tr('clean.videos.keepOriginal')}
+              </label>
+            )}
+            <button type="button" className="ghost" disabled={freed <= 0} onClick={() => { void share(); }}>{tr('clean.share.card')}</button>
+            <button type="button" className="ghost" onClick={() => setProMode(true)}>{tr('clean.pro')}</button>
+            {partial && (
+              <div className="clean-partial">
+                <p>{tr('clean.ai.partial', { take: partial.decision.take, count: partial.basket.items.length })}</p>
+                <button type="button" className="btn-accent" onClick={() => {
+                  const slice = partial.basket.items.slice(0, partial.decision.take);
+                  setPartial(null);
+                  void performDelete(slice, partial.decision);
+                }}>{tr('clean.ai.partialGo', { take: partial.decision.take })}</button>
+                <button type="button" className="ghost" onClick={() => setPartial(null)}>{tr('clean.continueFree')}</button>
+              </div>
+            )}
+            {auto.expireScreenshots && oldShots.length > 0 && (
+              <button type="button" className="ghost" onClick={() => setChip('screenshots')}>
+                {tr('clean.auto.screenshots')} · {oldShots.length}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
     </section>
   );
 }
@@ -435,24 +431,88 @@ function CleanCelebrate({ label }: { label: string }) {
   );
 }
 
-function BasketStrip({ items, compare }: { items: CleanItem[]; compare: boolean }) {
-  const shown = items.slice(0, compare ? 2 : 5);
+function PhotoDeck(props: {
+  item: CleanItem;
+  onDelete: () => void;
+  onKeep: () => void;
+  deleteLabel: string;
+  keepLabel: string;
+  hint: string;
+}) {
+  const { item, onDelete, onKeep, deleteLabel, keepLabel, hint } = props;
+  const [drag, setDrag] = useState(0);
+  const [origin, setOrigin] = useState<number | null>(null);
+  const [leaving, setLeaving] = useState<-1 | 0 | 1>(0);
+  const velocity = useRef(0);
+  const lastPoint = useRef({ x: 0, t: 0 });
+
+  const go = (direction: 'keep' | 'delete') => {
+    if (motionAllowed()) {
+      setLeaving(direction === 'delete' ? -1 : 1);
+      tickHaptic('medium');
+    }
+    if (direction === 'delete') onDelete();
+    else onKeep();
+  };
+
   return (
-    <div className={compare ? 'orbit-masonry orbit-compare' : 'orbit-masonry'}>
-      {shown.map(item => <BasketThumb key={item.uri} item={item} />)}
+    <div className="deck-photo-wrap">
+      <p className="deck-hint">{hint}</p>
+      <div
+        className={`deck-photo${leaving < 0 ? ' leaving-left' : leaving > 0 ? ' leaving-right' : ''}`}
+        style={leaving === 0 ? { transform: `translate3d(${drag}px, ${Math.abs(drag) * 0.03}px, 0) rotate(${drag / 22}deg)` } : undefined}
+        onPointerDown={event => {
+          if (leaving !== 0) return;
+          setOrigin(event.clientX);
+          velocity.current = 0;
+          lastPoint.current = { x: event.clientX, t: performance.now() };
+          (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+        }}
+        onPointerMove={event => {
+          if (origin === null || leaving !== 0) return;
+          const now = performance.now();
+          velocity.current = (event.clientX - lastPoint.current.x) / Math.max(1, now - lastPoint.current.t);
+          lastPoint.current = { x: event.clientX, t: now };
+          setDrag(event.clientX - origin);
+        }}
+        onPointerUp={() => {
+          const projected = drag + velocity.current * 160;
+          if (projected <= -80) go('delete');
+          else if (projected >= 80) go('keep');
+          else { setDrag(0); setOrigin(null); }
+        }}
+        onPointerCancel={() => { setDrag(0); setOrigin(null); }}
+      >
+        <span className={`clean-stamp delete${drag < -36 ? ' on' : ''}`}>{deleteLabel}</span>
+        <span className={`clean-stamp keep${drag > 36 ? ' on' : ''}`}>{keepLabel}</span>
+        <DeckImage item={item} />
+        {leaving < 0 && (
+          <span className="orbit-burst" aria-hidden="true">
+            {Array.from({ length: 10 }, (_, i) => <i key={i} style={{ ['--i' as string]: i }} />)}
+          </span>
+        )}
+      </div>
+      <div className="deck-choices">
+        <button type="button" className="clean-choice delete" onClick={() => go('delete')}>{deleteLabel}</button>
+        <button type="button" className="clean-choice keep" onClick={() => go('keep')}>{keepLabel}</button>
+      </div>
     </div>
   );
 }
 
-function BasketThumb({ item }: { item: CleanItem }) {
+function DeckImage({ item }: { item: CleanItem }) {
   const lqip = useStore(s => item.photoId ? s.photos.find(photo => photo.id === item.photoId)?.lqip : undefined);
-  const [src, setSrc] = useState<string | null>(lqip ?? peekThumbUrl(item.photoId ?? '') ?? null);
+  const [src, setSrc] = useState<string | null>(lqip ?? (item.photoId ? peekThumbUrl(item.photoId) : null));
   useEffect(() => {
-    if (!item.photoId) return;
     let alive = true;
+    if (item.uri.startsWith('content:') || item.uri.startsWith('file:')) {
+      setSrc(Capacitor.convertFileSrc(item.uri));
+      return;
+    }
+    if (!item.photoId) return;
     void getCachedThumbUrl(item.photoId).then(url => { if (alive && url) setSrc(url); }).catch(() => {});
     return () => { alive = false; };
-  }, [item.photoId]);
-  if (!src) return <span className="orbit-skel-thumb" />;
-  return <img src={src} alt="" />;
+  }, [item.uri, item.photoId]);
+  if (!src) return <div className="deck-fallback">{item.name}</div>;
+  return <img src={src} alt={item.name} />;
 }

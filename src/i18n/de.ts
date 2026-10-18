@@ -46,6 +46,8 @@ export const de: Record<string, string> = {
   'clean.basket.blurry': 'Unscharf',
   'clean.basket.screenshots': 'Screenshots',
   'clean.basket.messengers': 'WhatsApp und Telegram',
+  'clean.chip.messengers': 'Chats',
+  'clean.chip.videos': 'Videos',
   'clean.basket.eyes': 'Augen zu',
   'clean.basket.videos': 'Große Videos',
   'clean.items': '{count}',

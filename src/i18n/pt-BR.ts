@@ -46,6 +46,8 @@ export const ptBR: Record<string, string> = {
   'clean.basket.blurry': 'Borradas',
   'clean.basket.screenshots': 'Capturas de tela',
   'clean.basket.messengers': 'WhatsApp e Telegram',
+  'clean.chip.messengers': 'Mensagens',
+  'clean.chip.videos': 'Vídeos',
   'clean.basket.eyes': 'Olhos fechados',
   'clean.basket.videos': 'Vídeos grandes',
   'clean.items': '{count}',

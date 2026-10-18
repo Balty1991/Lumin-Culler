@@ -2046,6 +2046,8 @@ export const en: Record<TranslationKey, string> = {
   'clean.basket.blurry': 'Blurry',
   'clean.basket.screenshots': 'Screenshots',
   'clean.basket.messengers': 'WhatsApp and Telegram',
+  'clean.chip.messengers': 'Messengers',
+  'clean.chip.videos': 'Videos',
   'clean.basket.eyes': 'Eyes closed',
   'clean.basket.videos': 'Large videos',
   'clean.items': '{count}',

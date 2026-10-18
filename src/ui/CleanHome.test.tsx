@@ -33,9 +33,10 @@ describe('CleanHome', () => {
     useStore.setState({ photos: [poza({ id: 'blur', sharpness: 10, fileName: 'soft.jpg' })] });
     render(<CleanHome />);
     expect(screen.getByRole('heading', { name: 'Clean your gallery' })).toBeInTheDocument();
-    expect(screen.getByText('Blurry')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Blurry' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText('soft.jpg')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Review with swipe' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
     expect(useStore.getState().tiktokSortOpen).toBe(true);
     expect(useStore.getState().tiktokSortScopeIds).toEqual(['blur']);
   });

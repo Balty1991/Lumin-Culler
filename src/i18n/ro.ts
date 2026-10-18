@@ -2132,6 +2132,8 @@ export const ro = {
   'clean.basket.blurry': 'Neclare',
   'clean.basket.screenshots': 'Capturi',
   'clean.basket.messengers': 'WhatsApp și Telegram',
+  'clean.chip.messengers': 'Mesagerie',
+  'clean.chip.videos': 'Video',
   'clean.basket.eyes': 'Ochi închiși',
   'clean.basket.videos': 'Videoclipuri mari',
   'clean.items': '{count}',

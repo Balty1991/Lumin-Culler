@@ -46,6 +46,8 @@ export const es: Record<string, string> = {
   'clean.basket.blurry': 'Borrosas',
   'clean.basket.screenshots': 'Capturas',
   'clean.basket.messengers': 'WhatsApp y Telegram',
+  'clean.chip.messengers': 'Mensajes',
+  'clean.chip.videos': 'Vídeos',
   'clean.basket.eyes': 'Ojos cerrados',
   'clean.basket.videos': 'Vídeos grandes',
   'clean.items': '{count}',

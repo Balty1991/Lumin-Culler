@@ -903,7 +903,7 @@ export default function App() {
   }
 
   return (
-    <div className={photos.length === 0 && !progress ? 'app app-empty-state lumin-orbit' : 'app lumin-orbit'}>
+    <div className={`${photos.length === 0 && !progress ? 'app app-empty-state lumin-orbit' : 'app lumin-orbit'}${showCleaner ? ' deck-mode' : ''}`}>
       <header className="topbar" ref={headerBottomRef}>
         {/* Marca+numele produsului dispar pe ecranul gol: se repeta deja, mult
             mai mare, in medalionul "LC" + titlul de mai jos (cerinta directa,
