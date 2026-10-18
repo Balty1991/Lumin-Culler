@@ -41,6 +41,18 @@ const pkg = createRequire(import.meta.url)('./package.json') as { version: strin
 export default defineConfig({
   plugins: [
     react(),
+    // În `vite` dev, foile de stil sunt injectate ca <style>. CSP-ul din
+    // index.html (`style-src 'self'`, fără 'unsafe-inline') le blochează, și
+    // pagina rămâne cu fontul serif și butoanele native. Build-ul de producție
+    // scoate un fișier .css legat cu <link>, pe care aceeași politică îl
+    // permite — de-asta slăbirea e doar pe serverul de dezvoltare.
+    {
+      name: 'dev-style-csp',
+      apply: 'serve',
+      transformIndexHtml(html) {
+        return html.replace("style-src 'self'", "style-src 'self' 'unsafe-inline'");
+      }
+    },
     // Aplicatia se declara "AI local, functioneaza offline" — fara asta, afirmatia
     // era falsa in practica: nu exista niciun manifest/service worker, un reload
     // fara retea pierdea totul. Precache-uieste shell-ul + workerii + modelele TFJS
