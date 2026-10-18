@@ -152,6 +152,21 @@ describe('basketsFromLibrary', () => {
     expect(bursts.items.map(i => i.photoId)).toEqual(['shut']);
   });
 
+  it('grupează copiile cu aceeași amprentă și ține videoclipurile mari separat', () => {
+    const baskets = basketsFromLibrary([
+      { id: 'a', fileName: 'IMG_1.jpg', sharpness: 80, faceCount: 0, allEyesOpen: true, status: 'pending', blurBelow: 40, eyesOpenBelow: 0.5, sizeBytes: 1000, hash: 'abc' },
+      { id: 'b', fileName: 'IMG_1 (1).jpg', sharpness: 40, faceCount: 0, allEyesOpen: true, status: 'pending', blurBelow: 40, eyesOpenBelow: 0.5, sizeBytes: 1000, hash: 'abc' },
+      { id: 'v', fileName: 'clip.mp4', sharpness: 10, faceCount: 0, allEyesOpen: true, status: 'pending', blurBelow: 40, eyesOpenBelow: 0.5, sizeBytes: LARGE_VIDEO_BYTES + 5 },
+      { id: 'tiny', fileName: 'small.mp4', sharpness: 10, faceCount: 0, allEyesOpen: true, status: 'pending', blurBelow: 40, eyesOpenBelow: 0.5, sizeBytes: 1000 }
+    ]);
+    const dups = baskets.find(b => b.id === 'duplicates')!;
+    expect(dups.items.map(i => i.photoId)).toEqual(['b']);
+    expect(dups.keeper?.name).toBe('IMG_1.jpg');
+    expect(dups.premark).toBe(true);
+    expect(baskets.find(b => b.id === 'videos')!.items.map(i => i.photoId)).toEqual(['v']);
+    expect(baskets.find(b => b.id === 'blurry')!.items).toEqual([]);
+  });
+
   it('pune capturile și mesageria după numele fișierului, nu doar după etichetă', () => {
     const baskets = basketsFromLibrary([
       { id: 's', fileName: 'Screenshot_1.png', sharpness: 90, faceCount: 0, allEyesOpen: true, status: 'pending', blurBelow: 40, eyesOpenBelow: 0.5 },

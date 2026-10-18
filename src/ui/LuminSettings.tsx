@@ -76,6 +76,7 @@ export function LuminSettings() {
         <p className="orbit-kicker">LUMIN</p>
         <h2>{tr('settings.title')}</h2>
         <p>{tr('settings.lead')}</p>
+        <p className="orbit-privacy">{tr('clean.privacy')}</p>
       </header>
 
       <div className="orbit-setting">

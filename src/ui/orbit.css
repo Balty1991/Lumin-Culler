@@ -284,6 +284,12 @@ html.lumin-orbit .bottom-nav-tab.active { color: #f4f7ff; background: none; }
   font-size: 2rem;
   letter-spacing: -.04em;
 }
+.orbit-privacy {
+  margin: 8px 0 0;
+  color: #7dfff4;
+  font-size: .95rem;
+  letter-spacing: -.01em;
+}
 .orbit-setting {
   display: flex;
   align-items: center;

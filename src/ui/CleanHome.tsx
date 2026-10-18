@@ -89,6 +89,7 @@ export function CleanHome() {
     groupId: photo.groupId,
     sceneTags: photo.sceneTags,
     status: photo.status,
+    hash: photo.dHash,
     blurBelow: DEFECT_SHARPNESS,
     eyesOpenBelow: DEFECT_EYES_OPEN_RATIO
   }))), [photos]);
