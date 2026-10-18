@@ -28,6 +28,12 @@ html.lumin-orbit {
     var(--bg);
   color: var(--text);
 }
+/* Syne's latin-ext draws ă, ș and ț with a breve/comma that collides at
+   display weights (Curăță, Eliberează). Romanian titles fall back to
+   Space Grotesk, which draws those letters. */
+html.lumin-orbit[lang="ro"] {
+  --font-display: "Space Grotesk Variable", var(--sans);
+}
 
 html.lumin-orbit body,
 html.lumin-orbit #root,
@@ -132,7 +138,7 @@ html.lumin-orbit .app {
   pointer-events: none;
 }
 .orbit-orb b {
-  font-family: "Syne Variable", "Space Grotesk Variable", var(--sans);
+  font-family: var(--font-display);
   font-size: 1.35rem;
   letter-spacing: -.04em;
   line-height: 1;
@@ -173,7 +179,7 @@ html.lumin-orbit .app {
 
 .orbit-hero-copy h2 {
   margin: 4px 0;
-  font-family: "Syne Variable", "Space Grotesk Variable", var(--sans);
+  font-family: var(--font-display);
   font-size: 1.85rem;
   font-weight: 700;
   line-height: 1.05;
@@ -478,7 +484,7 @@ html.lumin-orbit .topbar {
   place-items: center;
 }
 .orbit-celebrate strong {
-  font-family: "Syne Variable", var(--font-display);
+  font-family: var(--font-display);
   font-size: clamp(2rem, 8vw, 3.2rem);
   letter-spacing: -.04em;
   text-align: center;
@@ -541,11 +547,15 @@ html.lumin-orbit .topbar {
 .deck-meter { display: flex; align-items: center; gap: 8px; }
 .deck-bar h1 {
   margin: 0;
-  font-family: "Syne Variable", var(--font-display);
+  font-family: var(--font-display);
   font-size: 1.02rem;
   font-weight: 700;
   letter-spacing: -.03em;
   line-height: 1.1;
+}
+html.lumin-orbit[lang="ro"] .deck-bar h1 {
+  letter-spacing: -0.01em;
+  line-height: 1.25;
 }
 .deck-freed {
   display: flex;
