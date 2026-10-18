@@ -5,8 +5,10 @@
  */
 import { Capacitor, registerPlugin } from '@capacitor/core';
 
+export type HapticStyle = 'light' | 'medium' | 'keep' | 'delete' | 'undo' | 'chip';
+
 interface LuminHapticsPlugin {
-  impact(options: { style: 'light' | 'medium' }): Promise<void>;
+  impact(options: { style: HapticStyle }): Promise<void>;
 }
 
 const LuminHaptics = registerPlugin<LuminHapticsPlugin>('LuminHaptics');
@@ -21,11 +23,20 @@ export function vibrate(pattern: number | number[]): void {
   try { navigator.vibrate?.(pattern); } catch { /* API opțională */ }
 }
 
-export function tickHaptic(style: 'light' | 'medium' = 'light'): void {
+const WEB_PATTERN: Record<HapticStyle, number | number[]> = {
+  light: 10,
+  medium: 18,
+  keep: 8,
+  delete: [10, 28, 16],
+  undo: [8, 24, 12],
+  chip: 6
+};
+
+export function tickHaptic(style: HapticStyle = 'light'): void {
   if (!motionAllowed()) return;
   if (Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('LuminHaptics')) {
     void LuminHaptics.impact({ style }).catch(() => undefined);
     return;
   }
-  vibrate(style === 'medium' ? 18 : 10);
+  vibrate(WEB_PATTERN[style]);
 }

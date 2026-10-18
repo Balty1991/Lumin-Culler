@@ -11,7 +11,8 @@ data class Shot(
     val bytes: Long,
     val folder: String,
     val taken: Long,
-    val blur: Double? = null
+    val blur: Double? = null,
+    val hash: Long? = null
 )
 
 enum class Basket {
@@ -62,7 +63,52 @@ fun duplicateExtras(shots: List<Shot>): Set<String> {
             val keeper = group.maxBy { it.taken }
             group.filter { it.uri != keeper.uri }.forEach { extras.add(it.uri) }
         }
+    val hashed = shots.filter { it.hash != null }
+    if (hashed.size >= 2) {
+        val parent = IntArray(hashed.size) { it }
+        fun find(index: Int): Int {
+            var cursor = index
+            while (parent[cursor] != cursor) {
+                parent[cursor] = parent[parent[cursor]]
+                cursor = parent[cursor]
+            }
+            return cursor
+        }
+        for (left in hashed.indices) {
+            for (right in left + 1 until hashed.size) {
+                val a = hashed[left].hash ?: continue
+                val b = hashed[right].hash ?: continue
+                if (hamming(a, b) <= HASH_DISTANCE) parent[find(left)] = find(right)
+            }
+        }
+        hashed.indices.groupBy { find(it) }.values.filter { it.size >= 2 }.forEach { group ->
+            val members = group.map { hashed[it] }
+            val keeper = members.maxBy { it.taken }
+            members.filter { it.uri != keeper.uri }.forEach { extras.add(it.uri) }
+        }
+    }
     return extras
+}
+
+/** Numele cadrului păstrat din cea mai clară rafală. Extra-urile stau în coș. */
+fun bestShotName(shots: List<Shot>): String? {
+    val ordered = shots.filter { it.taken > 0 }.sortedBy { it.taken }
+    var cluster = ArrayList<Shot>()
+    var best: Shot? = null
+    fun flush() {
+        if (cluster.size >= 2) {
+            val keeper = cluster.maxWith(compareBy<Shot> { it.blur ?: 0.0 }.thenBy { it.bytes })
+            if (best == null || (keeper.blur ?: 0.0) > (best?.blur ?: 0.0)) best = keeper
+        }
+        cluster = ArrayList()
+    }
+    for (shot in ordered) {
+        val prev = cluster.lastOrNull()
+        if (prev != null && (shot.folder != prev.folder || shot.taken - prev.taken > BURST_GAP_MS)) flush()
+        cluster.add(shot)
+    }
+    flush()
+    return best?.name
 }
 
 fun assign(shots: List<Shot>, videos: List<Shot> = emptyList()): Map<Basket, List<Shot>> {

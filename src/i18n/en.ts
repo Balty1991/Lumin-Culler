@@ -2036,6 +2036,7 @@ export const en: Record<TranslationKey, string> = {
   'clean.review': 'Review with swipe',
   'clean.cleanAll': 'Clean all (AI)',
   'clean.undo': 'Undo',
+  'clean.undo.removed': '{name} removed',
   'clean.done': 'Ready to delete: {count}',
   'clean.empty': 'Nothing to clean in this basket.',
   'clean.webNote': 'Scanning the whole gallery runs in the Android app. Here you see what you already imported.',

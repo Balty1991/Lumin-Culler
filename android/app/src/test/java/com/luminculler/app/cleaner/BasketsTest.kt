@@ -28,4 +28,30 @@ class BasketsTest {
         )
         assertEquals(setOf("old"), duplicateExtras(shots))
     }
+
+    @Test
+    fun samePerceptualHashIsADuplicateEvenWhenTheNameDiffers() {
+        val shots = listOf(
+            Shot("a", "one.jpg", 10, "Camera", 1, hash = 0b1111L),
+            Shot("b", "two.jpg", 99, "Camera", 5, hash = 0b1111L)
+        )
+        assertEquals(setOf("a"), duplicateExtras(shots))
+    }
+
+    @Test
+    fun bestShotIsTheSharpestFrameInTheBurst() {
+        val shots = listOf(
+            Shot("c", "IMG_1.jpg", 90, "Camera", 5_000, blur = 90.0),
+            Shot("d", "IMG_2.jpg", 90, "Camera", 6_000, blur = 40.0)
+        )
+        assertEquals("IMG_1.jpg", bestShotName(shots))
+    }
+
+    @Test
+    fun dHashSetsABitWhenTheLeftPixelIsBrighter() {
+        val gray = IntArray(9 * 8) { index -> 9 - (index % 9) }
+        assertEquals(64, java.lang.Long.bitCount(dHashFromGray(gray, 9)))
+        assertEquals(0, hamming(1L, 1L))
+        assertEquals(1, hamming(1L, 0L))
+    }
 }

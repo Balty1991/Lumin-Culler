@@ -14,8 +14,12 @@ import { deleteNativePhotos } from '../core/nativeMediaLibrary';
 import { requestNotificationAccess, showNotification } from '../core/nativeNotifications';
 import { cancelCleanReminder, cleanReminderIsDue, markCleanReminderShown, scheduleCleanReminder } from '../core/cleanReminder';
 import { shareCleanResult } from './shareResultCard';
+import { StorageOrb } from './StorageOrb';
+import { accentFromPixels, inkForAccent } from './palette';
+import { withViewTransition } from './viewTransition';
+import { ApertureIcon, CheckIcon, CopyIcon, CropIcon, EyeClosedIcon, FocusIcon, LayersIcon, OrbitCleanIcon, PlayIcon, TrashIcon, UndoIcon } from './icons';
 import { DEFECT_EYES_OPEN_RATIO, DEFECT_SHARPNESS } from '../core/importPipeline';
-import { addFreedBytes, addFreedFiles, readFreedBytes, readFreedFiles } from '../state/storageFreed';
+import { addFreedBytes, addFreedFiles, readFreedBytes, readFreedFiles, subtractFreedBytes, subtractFreedFiles } from '../state/storageFreed';
 import { formatSize } from '../state/storageStats';
 import { maybeAskForReviewAfterFreed } from '../state/reviewPrompt';
 import { Capacitor } from '@capacitor/core';
@@ -144,6 +148,8 @@ export function CleanHome() {
     })();
   }, [scanning, premiumLocked, auto, locale, reclaimable]);
 
+  const [undo, setUndo] = useState<{ items: CleanItem[] } | null>(null);
+  const undoTimer = useRef<number | null>(null);
   const rememberFreed = (items: CleanItem[]) => {
     const bytes = items.reduce((sum, item) => sum + item.bytes, 0);
     const total = addFreedBytes(bytes);
@@ -155,7 +161,23 @@ export function CleanHome() {
       for (const item of items) next.add(item.uri);
       return next;
     });
+    setUndo({ items });
+    if (undoTimer.current) window.clearTimeout(undoTimer.current);
+    undoTimer.current = window.setTimeout(() => setUndo(null), 6000);
     maybeAskForReviewAfterFreed(total);
+  };
+  const restoreUndo = () => {
+    if (!undo) return;
+    tickHaptic('undo');
+    const bytes = undo.items.reduce((sum, item) => sum + item.bytes, 0);
+    setGone(prev => {
+      const next = new Set(prev);
+      for (const item of undo.items) next.delete(item.uri);
+      return next;
+    });
+    setFreed(subtractFreedBytes(bytes));
+    setFiles(subtractFreedFiles(undo.items.length));
+    setUndo(null);
   };
 
   const performDelete = async (items: CleanItem[], decision: AiCleanDecision): Promise<boolean> => {
@@ -250,15 +272,27 @@ export function CleanHome() {
   const eyes = baskets.find(basket => basket.id === 'eyes');
   if (eyes && eyes.items.length > 0) chips.splice(4, 0, 'eyes');
   const [chip, setChip] = useState<BasketId>('blurry');
+  const [accent, setAccent] = useState('#7dfff4');
+  const shownFreed = useRolled(freed);
   const active = baskets.find(basket => basket.id === chip) ?? { id: chip, items: [] as CleanItem[], bytes: 0 };
   const [index, setIndex] = useState(0);
   const [sheet, setSheet] = useState(false);
   useEffect(() => { setIndex(0); setSheet(false); }, [chip]);
+  useEffect(() => {
+    document.documentElement.style.setProperty('--deck-accent', accent);
+    document.documentElement.style.setProperty('--deck-ink', inkForAccent(accent));
+  }, [accent]);
+  const selectChip = (id: BasketId) => {
+    if (id === chip) return;
+    tickHaptic('chip');
+    withViewTransition(() => setChip(id));
+  };
   const item = active.items[Math.min(index, Math.max(0, active.items.length - 1))];
   const chipName = (id: BasketId) => (id === 'messengers' || id === 'videos') ? tr(`clean.chip.${id}`) : tr(`clean.basket.${id}`);
 
   const onDeckDelete = () => {
     if (!item) return;
+    tickHaptic('delete');
     if (item.photoId && item.uri.startsWith('app:')) {
       openTiktokSortForIds([item.photoId]);
       return;
@@ -266,7 +300,10 @@ export function CleanHome() {
     void performDelete([item], { kind: 'all', consumesFull: false, consumesDaily: 0 });
     setIndex(value => value + 1);
   };
-  const onDeckKeep = () => setIndex(value => value + 1);
+  const onDeckKeep = () => {
+    tickHaptic('keep');
+    setIndex(value => value + 1);
+  };
 
   return (
     <section className="deck-app" aria-label={tr('clean.title')}>
@@ -275,10 +312,13 @@ export function CleanHome() {
       <header className="deck-bar">
         <div className="deck-bar-row">
           <h1>{tr('clean.title')}</h1>
-          <button type="button" className="deck-freed" onClick={() => { void share(); }} disabled={freed <= 0}>
-            <b>{freed > 0 ? formatSize(freed) : '0'}</b>
-            <span>{tr('clean.share.kicker')}</span>
-          </button>
+          <div className="deck-meter">
+            <StorageOrb compact ratio={Math.min(1, shownFreed / 8_000_000_000)} accent={accent} />
+            <button type="button" className="deck-freed" onClick={() => { void share(); }} disabled={freed <= 0}>
+              <b>{freed > 0 ? formatSize(shownFreed) : '0'}</b>
+              <span>{tr('clean.share.kicker')}</span>
+            </button>
+          </div>
         </div>
         <div className="deck-chips" role="tablist" aria-label={tr('clean.title')}>
           {chips.map(id => {
@@ -290,8 +330,9 @@ export function CleanHome() {
                 type="button"
                 role="tab"
                 aria-selected={chip === id}
-                onClick={() => setChip(id)}
+                onClick={() => selectChip(id)}
               >
+                <ChipMark id={id} />
                 {chipName(id)}
                 <span aria-hidden="true">{count}</span>
               </button>
@@ -330,9 +371,12 @@ export function CleanHome() {
             ))}
           </ul>
         ) : item ? (
-          <PhotoDeck key={item.uri} item={item} onDelete={onDeckDelete} onKeep={onDeckKeep} deleteLabel={tr('clean.swipe.delete')} keepLabel={tr('clean.swipe.keep')} hint={tr('clean.swipe.hint')} />
+          <PhotoDeck key={item.uri} item={item} onDelete={onDeckDelete} onKeep={onDeckKeep} onAccent={setAccent} deleteLabel={tr('clean.swipe.delete')} keepLabel={tr('clean.swipe.keep')} hint={tr('clean.swipe.hint')} />
         ) : (
-          <p className="deck-empty">{scanning ? tr('clean.scanning') : tr('clean.empty')}</p>
+          <div className="deck-empty">
+            <OrbitCleanIcon />
+            <p>{scanning ? tr('clean.scanning') : tr('clean.empty')}</p>
+          </div>
         )}
       </div>
 
@@ -354,6 +398,12 @@ export function CleanHome() {
         )}
         {chip !== 'videos' && active.items.length > 0 && (
           <button type="button" className="btn-accent" onClick={() => cleanAll(active as CleanBasket)}>{tr('clean.cleanAll')}</button>
+        )}
+        {undo && (
+          <div className="deck-undo" role="status">
+            <span>{tr('clean.undo.removed', { name: undo.items[0]?.name ?? '' })}</span>
+            <button type="button" onClick={restoreUndo}><UndoIcon />{tr('clean.undo')}</button>
+          </div>
         )}
         {sheet && (
           <div className="deck-sheet-body">
@@ -435,11 +485,12 @@ function PhotoDeck(props: {
   item: CleanItem;
   onDelete: () => void;
   onKeep: () => void;
+  onAccent: (accent: string) => void;
   deleteLabel: string;
   keepLabel: string;
   hint: string;
 }) {
-  const { item, onDelete, onKeep, deleteLabel, keepLabel, hint } = props;
+  const { item, onDelete, onKeep, onAccent, deleteLabel, keepLabel, hint } = props;
   const [drag, setDrag] = useState(0);
   const [origin, setOrigin] = useState<number | null>(null);
   const [leaving, setLeaving] = useState<-1 | 0 | 1>(0);
@@ -447,10 +498,7 @@ function PhotoDeck(props: {
   const lastPoint = useRef({ x: 0, t: 0 });
 
   const go = (direction: 'keep' | 'delete') => {
-    if (motionAllowed()) {
-      setLeaving(direction === 'delete' ? -1 : 1);
-      tickHaptic('medium');
-    }
+    if (motionAllowed()) setLeaving(direction === 'delete' ? -1 : 1);
     if (direction === 'delete') onDelete();
     else onKeep();
   };
@@ -485,7 +533,7 @@ function PhotoDeck(props: {
       >
         <span className={`clean-stamp delete${drag < -36 ? ' on' : ''}`}>{deleteLabel}</span>
         <span className={`clean-stamp keep${drag > 36 ? ' on' : ''}`}>{keepLabel}</span>
-        <DeckImage item={item} />
+        <DeckImage item={item} onAccent={onAccent} />
         {leaving < 0 && (
           <span className="orbit-burst" aria-hidden="true">
             {Array.from({ length: 10 }, (_, i) => <i key={i} style={{ ['--i' as string]: i }} />)}
@@ -493,14 +541,14 @@ function PhotoDeck(props: {
         )}
       </div>
       <div className="deck-choices">
-        <button type="button" className="clean-choice delete" onClick={() => go('delete')}>{deleteLabel}</button>
-        <button type="button" className="clean-choice keep" onClick={() => go('keep')}>{keepLabel}</button>
+        <button type="button" className="clean-choice delete" onClick={() => go('delete')}><TrashIcon />{deleteLabel}</button>
+        <button type="button" className="clean-choice keep" onClick={() => go('keep')}><CheckIcon />{keepLabel}</button>
       </div>
     </div>
   );
 }
 
-function DeckImage({ item }: { item: CleanItem }) {
+function DeckImage({ item, onAccent }: { item: CleanItem; onAccent?: (accent: string) => void }) {
   const lqip = useStore(s => item.photoId ? s.photos.find(photo => photo.id === item.photoId)?.lqip : undefined);
   const [src, setSrc] = useState<string | null>(lqip ?? (item.photoId ? peekThumbUrl(item.photoId) : null));
   useEffect(() => {
@@ -514,5 +562,65 @@ function DeckImage({ item }: { item: CleanItem }) {
     return () => { alive = false; };
   }, [item.uri, item.photoId]);
   if (!src) return <div className="deck-fallback">{item.name}</div>;
-  return <img src={src} alt={item.name} />;
+  return (
+    <img
+      src={src}
+      alt={item.name}
+      onLoad={event => {
+        if (!onAccent) return;
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = 16;
+          canvas.height = 16;
+          const ctx = canvas.getContext('2d', { willReadFrequently: true });
+          if (!ctx) return;
+          ctx.drawImage(event.currentTarget, 0, 0, 16, 16);
+          onAccent(accentFromPixels(ctx.getImageData(0, 0, 16, 16).data));
+        } catch {
+          // O poză din alt origin nu lasă pixelii să iasă din canvas.
+        }
+      }}
+    />
+  );
+}
+
+const CHIP_ICON: Record<BasketId, typeof CopyIcon> = {
+  duplicates: CopyIcon,
+  bursts: ApertureIcon,
+  blurry: FocusIcon,
+  screenshots: CropIcon,
+  videos: PlayIcon,
+  messengers: LayersIcon,
+  eyes: EyeClosedIcon
+};
+
+function ChipMark({ id }: { id: BasketId }) {
+  const Icon = CHIP_ICON[id];
+  return <Icon width={14} height={14} />;
+}
+
+function useRolled(value: number): number {
+  const [shown, setShown] = useState(value);
+  const from = useRef(value);
+  useEffect(() => {
+    if (!motionAllowed()) {
+      from.current = value;
+      setShown(value);
+      return;
+    }
+    const startValue = from.current;
+    const started = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - started) / 720);
+      const eased = 1 - (1 - t) ** 3;
+      const next = Math.round(startValue + (value - startValue) * eased);
+      setShown(next);
+      if (t < 1) raf = requestAnimationFrame(tick);
+      else from.current = value;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value]);
+  return shown;
 }

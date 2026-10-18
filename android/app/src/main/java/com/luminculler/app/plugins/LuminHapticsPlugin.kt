@@ -15,7 +15,15 @@ import com.getcapacitor.annotation.CapacitorPlugin
 class LuminHapticsPlugin : Plugin() {
     @PluginMethod
     fun impact(call: PluginCall) {
-        val ms = if (call.getString("style") == "medium") 20L else 12L
+        val style = call.getString("style")
+        val waveform = when (style) {
+            "delete" -> longArrayOf(0, 12, 28, 18)
+            "undo" -> longArrayOf(0, 8, 24, 14)
+            "keep" -> longArrayOf(0, 9)
+            "chip" -> longArrayOf(0, 6)
+            "medium" -> longArrayOf(0, 20)
+            else -> longArrayOf(0, 12)
+        }
         val vibrator = if (Build.VERSION.SDK_INT >= 31) {
             val manager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
             manager.defaultVibrator
@@ -24,10 +32,10 @@ class LuminHapticsPlugin : Plugin() {
             context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
         }
         if (Build.VERSION.SDK_INT >= 26) {
-            vibrator.vibrate(VibrationEffect.createOneShot(ms, VibrationEffect.DEFAULT_AMPLITUDE))
+            vibrator.vibrate(VibrationEffect.createWaveform(waveform, -1))
         } else {
             @Suppress("DEPRECATION")
-            vibrator.vibrate(ms)
+            vibrator.vibrate(waveform[1])
         }
         call.resolve()
     }

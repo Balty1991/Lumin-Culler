@@ -24,11 +24,21 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -47,6 +57,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -75,11 +86,10 @@ import kotlin.math.roundToInt
  * cadru din rafală, trash prin MediaStore, ecranul de plată (aceleași id-uri
  * Play), setări și mementoul WorkManager.
  *
- * Ce rămâne: o singură scanare folosită și de CleanScanPlugin (hash SHA pe
- * coliziuni, claritate pe tot lotul, nu doar 80), ochii închiși prin ML Kit
- * doar pe rafale, comprimarea video, cardul de share, revizuirea Play, și
- * mutarea întregii biblioteci Pro din WebView. Nu se lansează fluxul de
- * cumpărare până când un build semnat e pe un dispozitiv cu Play.
+ * Scanarea are dHash și claritate pe tot lotul citit, cel mai bun cadru
+ * din rafală și cartonașul de share. Ce rămâne: ochii închiși prin ML Kit
+ * doar pe rafale, comprimarea video, revizuirea Play, lansarea cumpărării,
+ * și mutarea uneltelor Pro din WebView.
  */
 class CleanerActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -111,6 +121,12 @@ private fun CleanerRoot() {
     var index by remember { mutableIntStateOf(0) }
     var sheet by remember { mutableStateOf(false) }
     var freed by remember { mutableStateOf(readFreed(context)) }
+    var ready by remember { mutableStateOf(false) }
+    var bestShot by remember { mutableStateOf<String?>(null) }
+    var undo by remember { mutableStateOf<Shot?>(null) }
+    var accent by remember { mutableStateOf(Color(0xFF7DFFF4)) }
+    var celebrated by remember { mutableStateOf<Long?>(null) }
+    val reduce = reduceMotion(context)
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         granted = hasImages(context)
     }
@@ -118,46 +134,101 @@ private fun CleanerRoot() {
         if (result.resultCode == Activity.RESULT_OK) {
             val shot = baskets[chip]?.getOrNull(index)
             if (shot != null) {
-                freed = addFreed(context, shot.bytes)
+                val next = addFreed(context, shot.bytes)
+                celebrated = next - freed
+                freed = next
+                undo = shot
                 baskets = baskets.mapValues { (key, list) -> if (key == chip) list.filter { it.uri != shot.uri } else list }
             }
         }
     }
+    val restore = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+        val shot = undo
+        if (result.resultCode == Activity.RESULT_OK && shot != null) {
+            freed = subtractFreed(context, shot.bytes)
+            baskets = baskets.mapValues { (key, list) -> if (key == chip) listOf(shot) + list else list }
+            index = 0
+            undo = null
+            gestureHaptic(context, "undo")
+        }
+    }
 
     LaunchedEffect(granted) {
-        if (!granted) return@LaunchedEffect
-        baskets = withContext(Dispatchers.IO) { GalleryRepository(context).load() }
+        if (!granted) {
+            ready = false
+            return@LaunchedEffect
+        }
+        val loaded = withContext(Dispatchers.IO) { GalleryRepository(context).load() }
+        baskets = loaded.baskets
+        bestShot = loaded.bestShot
+        ready = true
         index = 0
+    }
+    LaunchedEffect(shotUri(baskets, chip, index)) {
+        val uri = shotUri(baskets, chip, index) ?: return@LaunchedEffect
+        val next = withContext(Dispatchers.IO) { accentOf(context, uri) } ?: return@LaunchedEffect
+        accent = Color(next)
+    }
+    LaunchedEffect(celebrated) {
+        if (celebrated != null) {
+            kotlinx.coroutines.delay(1600)
+            celebrated = null
+        }
     }
 
     val items = baskets[chip].orEmpty()
     val shot = items.getOrNull(index)
     var drag by remember(shot?.uri) { mutableStateOf(0f) }
+    val turn = remember { Animatable(0f) }
+    LaunchedEffect(chip) {
+        if (reduce) return@LaunchedEffect
+        turn.snapTo(-16f)
+        turn.animateTo(0f, spring(dampingRatio = 0.72f, stiffness = 320f))
+    }
+    val askTrash = { target: Shot ->
+        val pending = GalleryRepository(context).trash(listOf(target.uri))
+        if (pending != null) trash.launch(androidx.activity.result.IntentSenderRequest.Builder(pending.intentSender).build())
+    }
 
     Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
-        when (page) {
+        AnimatedContent(
+            targetState = page,
+            transitionSpec = { (fadeIn() + scaleIn(initialScale = if (reduce) 1f else 0.94f)).togetherWith(fadeOut()) },
+            label = "cleaner-page"
+        ) { current ->
+        when (current) {
             Page.Settings -> SettingsPage(onBack = { page = Page.Deck })
             Page.Paywall -> PaywallPage(onBack = { page = Page.Deck })
             Page.Deck -> Column(Modifier.fillMaxSize().padding(padding).statusBarsPadding()) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text("Clean", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    FreedOrb(freed, accent, reduce, Modifier.size(40.dp))
                     TextButton(onClick = { page = Page.Paywall }) { Text(formatBytes(freed)) }
                     TextButton(onClick = {
                         context.startActivity(Intent(context, MainActivity::class.java))
                     }) { Text("Pro") }
                     TextButton(onClick = { page = Page.Settings }) { Text("Settings") }
                 }
+                if (celebrated != null) {
+                    Text("Freed ${formatBytes(celebrated ?: 0)}", Modifier.padding(horizontal = 16.dp), color = accent)
+                }
                 Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Basket.entries.forEach { basket ->
                         FilterChip(
                             selected = chip == basket,
-                            onClick = { chip = basket; index = 0 },
+                            onClick = {
+                                if (chip != basket) gestureHaptic(context, "chip")
+                                chip = basket
+                                index = 0
+                            },
                             label = { Text("${label(basket)} ${baskets[basket]?.size ?: 0}") }
                         )
                     }
                 }
                 Box(Modifier.weight(1f).fillMaxWidth()) {
-                    if (!granted) {
+                    if (granted && !ready) {
+                        CircularProgressIndicator(Modifier.align(Alignment.Center), color = accent)
+                    } else if (!granted) {
                         Column(Modifier.align(Alignment.Center).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             Text("Photos stay on this phone. Allow access to sort them.")
                             Spacer(Modifier.height(12.dp))
@@ -179,6 +250,10 @@ private fun CleanerRoot() {
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
                                 .fillMaxSize()
+                                .graphicsLayer {
+                                    rotationY = turn.value
+                                    cameraDistance = 12 * density
+                                }
                                 .offset { IntOffset(drag.roundToInt(), 0) }
                                 .pointerInput(shot.uri) {
                                     detectHorizontalDragGestures(
@@ -186,10 +261,13 @@ private fun CleanerRoot() {
                                         onDragEnd = {
                                             when {
                                                 drag < -120f -> {
-                                                    val pending = GalleryRepository(context).trash(listOf(shot.uri))
-                                                    if (pending != null) trash.launch(androidx.activity.result.IntentSenderRequest.Builder(pending.intentSender).build())
+                                                    gestureHaptic(context, "delete")
+                                                    askTrash(shot)
                                                 }
-                                                drag > 120f -> index += 1
+                                                drag > 120f -> {
+                                                    gestureHaptic(context, "keep")
+                                                    index += 1
+                                                }
                                             }
                                             drag = 0f
                                         }
@@ -202,14 +280,27 @@ private fun CleanerRoot() {
                     TextButton(onClick = { sheet = true }) {
                         Text(shot?.let { "${it.name} · ${formatBytes(it.bytes)}" } ?: label(chip))
                     }
-                    if (shot != null && chip == Basket.Bursts) Text("Best shot stays. This one is an extra.")
+                    if (shot != null && chip == Basket.Bursts && bestShot != null) Text("Best shot stays: $bestShot")
+                    if (undo != null) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                            Text("${undo?.name} removed")
+                            TextButton(onClick = {
+                                val shot = undo ?: return@TextButton
+                                val pending = GalleryRepository(context).untrash(listOf(shot.uri))
+                                if (pending != null) restore.launch(androidx.activity.result.IntentSenderRequest.Builder(pending.intentSender).build())
+                            }) { Text("Undo") }
+                        }
+                    }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (shot != null) {
                             Button(onClick = {
-                                val pending = GalleryRepository(context).trash(listOf(shot.uri))
-                                if (pending != null) trash.launch(androidx.activity.result.IntentSenderRequest.Builder(pending.intentSender).build())
-                            }) { Text("Delete") }
-                            Button(onClick = { index += 1 }) { Text("Keep") }
+                                gestureHaptic(context, "delete")
+                                askTrash(shot)
+                            }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3A1518), contentColor = Color(0xFFFFD0D0))) { Text("Delete") }
+                            Button(onClick = {
+                                gestureHaptic(context, "keep")
+                                index += 1
+                            }, colors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = Color(0xFF06211E))) { Text("Keep") }
                         }
                     }
                 }
@@ -219,11 +310,16 @@ private fun CleanerRoot() {
                             Text(label(chip), style = MaterialTheme.typography.titleMedium)
                             Text("Swipe left to trash, right to keep. Nothing leaves without the system dialog.")
                             TextButton(onClick = { page = Page.Paywall; sheet = false }) { Text("Premium") }
+                            TextButton(onClick = {
+                                val activity = context as? Activity
+                                if (activity != null && freed > 0) shareFreedCard(activity, freed)
+                            }) { Text("Share card") }
                             TextButton(onClick = { page = Page.Settings; sheet = false }) { Text("Reminder and settings") }
                         }
                     }
                 }
             }
+        }
         }
     }
 }
@@ -320,6 +416,15 @@ private const val FREED_PREFS = "lumin_native_freed"
 
 private fun readFreed(context: Context): Long =
     context.getSharedPreferences(FREED_PREFS, Context.MODE_PRIVATE).getLong("bytes", 0L)
+
+private fun shotUri(baskets: Map<Basket, List<Shot>>, chip: Basket, index: Int): String? =
+    baskets[chip].orEmpty().getOrNull(index)?.uri
+
+private fun subtractFreed(context: Context, bytes: Long): Long {
+    val next = (readFreed(context) - bytes).coerceAtLeast(0L)
+    context.getSharedPreferences(FREED_PREFS, Context.MODE_PRIVATE).edit().putLong("bytes", next).apply()
+    return next
+}
 
 private fun addFreed(context: Context, bytes: Long): Long {
     val next = readFreed(context) + bytes

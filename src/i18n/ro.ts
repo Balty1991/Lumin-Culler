@@ -2122,6 +2122,7 @@ export const ro = {
   'clean.review': 'Revizuiește cu swipe',
   'clean.cleanAll': 'Curăță tot (AI)',
   'clean.undo': 'Anulează',
+  'clean.undo.removed': 'Am scos {name}',
   'clean.done': 'Gata de șters: {count}',
   'clean.empty': 'Nimic de curățat în coșul ăsta.',
   'clean.webNote': 'Scanarea întregii galerii merge în aplicația Android. Aici vezi ce ai importat deja.',

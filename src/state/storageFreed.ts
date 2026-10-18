@@ -31,6 +31,18 @@ export function addFreedBytes(bytes: number): number {
   return next;
 }
 
+/** Undo: scoate octeții unui cadru pus înapoi. Nu coboară sub zero. */
+export function subtractFreedBytes(bytes: number): number {
+  if (!Number.isFinite(bytes) || bytes <= 0) return readFreedBytes();
+  const next = Math.max(0, readFreedBytes() - Math.floor(bytes));
+  try {
+    localStorage.setItem(STORAGE_KEY, String(next));
+  } catch {
+    // vezi addFreedBytes
+  }
+  return next;
+}
+
 export function readFreedFiles(): number {
   try {
     const n = Number(localStorage.getItem(COUNT_KEY));
@@ -44,6 +56,18 @@ export function readFreedFiles(): number {
 export function addFreedFiles(count: number): number {
   if (!Number.isFinite(count) || count <= 0) return readFreedFiles();
   const next = readFreedFiles() + Math.floor(count);
+  try {
+    localStorage.setItem(COUNT_KEY, String(next));
+  } catch {
+    // vezi addFreedBytes
+  }
+  return next;
+}
+
+/** Undo: câte fișiere au revenit. */
+export function subtractFreedFiles(count: number): number {
+  if (!Number.isFinite(count) || count <= 0) return readFreedFiles();
+  const next = Math.max(0, readFreedFiles() - Math.floor(count));
   try {
     localStorage.setItem(COUNT_KEY, String(next));
   } catch {

@@ -9,15 +9,15 @@ import android.os.Build
 import android.provider.MediaStore
 
 /**
- * Citire MediaStore pentru ecranul nativ. Nu înlocuiește încă
- * CleanScanPlugin: acela rămâne calea web. Următorul pas e o singură
- * funcție folosită de amândouă, inclusiv amprenta SHA pe coliziuni de mărime.
+ * Citire MediaStore pentru ecranul nativ. Fiecare poză primește claritate
+ * și un dHash, nu doar primele 80. CleanScanPlugin rămâne calea web.
  */
+data class GalleryLoad(val baskets: Map<Basket, List<Shot>>, val bestShot: String?)
+
 class GalleryRepository(private val context: Context) {
-    fun load(): Map<Basket, List<Shot>> {
+    fun load(): GalleryLoad {
         val images = readImages()
-        val videos = readVideos()
-        return assign(images, videos)
+        return GalleryLoad(assign(images, readVideos()), bestShotName(images))
     }
 
     private fun readImages(): List<Shot> {
@@ -50,8 +50,8 @@ class GalleryRepository(private val context: Context) {
                 val name = cursor.getString(nameCol) ?: "photo_$id.jpg"
                 val folder = cursor.getString(folderCol) ?: ""
                 val uri = Uri.withAppendedPath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id.toString()).toString()
-                val blur = if (rows.size < 80 && !folder.contains("screenshot", true)) laplacian(context.contentResolver, Uri.parse(uri)) else null
-                rows.add(Shot(uri, name, cursor.getLong(sizeCol), folder, if (taken > 0) taken else added * 1000, blur))
+                val signals = signals(context.contentResolver, Uri.parse(uri))
+                rows.add(Shot(uri, name, cursor.getLong(sizeCol), folder, if (taken > 0) taken else added * 1000, signals.blur, signals.hash))
             }
         }
         return rows
@@ -90,29 +90,53 @@ class GalleryRepository(private val context: Context) {
         return rows
     }
 
-    fun trash(uris: List<String>): android.app.PendingIntent? {
+    fun trash(uris: List<String>): android.app.PendingIntent? = trashRequest(uris, true)
+
+    fun untrash(uris: List<String>): android.app.PendingIntent? = trashRequest(uris, false)
+
+    private fun trashRequest(uris: List<String>, trashing: Boolean): android.app.PendingIntent? {
         if (Build.VERSION.SDK_INT < 30 || uris.isEmpty()) return null
         val parsed = uris.map { Uri.parse(it) }
-        return MediaStore.createTrashRequest(context.contentResolver, parsed, true)
+        return MediaStore.createTrashRequest(context.contentResolver, parsed, trashing)
     }
 }
 
-private fun laplacian(resolver: ContentResolver, uri: Uri): Double? {
+private data class Signals(val blur: Double?, val hash: Long?)
+
+private fun signals(resolver: ContentResolver, uri: Uri): Signals {
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
     val sample = 48
     val longest = maxOf(bounds.outWidth, bounds.outHeight)
-    if (longest <= 0) return null
+    if (longest <= 0) return Signals(null, null)
     var sampleSize = 1
     while (longest / sampleSize > sample * 2) sampleSize *= 2
     val opts = BitmapFactory.Options().apply { inSampleSize = sampleSize }
-    val bitmap = resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, opts) } ?: return null
+    val bitmap = resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, opts) } ?: return Signals(null, null)
+    val hash = dHash(bitmap)
+    val blur = laplacian(bitmap)
+    bitmap.recycle()
+    return Signals(blur, hash)
+}
+
+private fun dHash(bitmap: android.graphics.Bitmap): Long? {
+    if (bitmap.width < 2 || bitmap.height < 2) return null
+    val small = android.graphics.Bitmap.createScaledBitmap(bitmap, 9, 8, true)
+    val gray = IntArray(9 * 8)
+    for (y in 0 until 8) {
+        for (x in 0 until 9) {
+            val pixel = small.getPixel(x, y)
+            gray[y * 9 + x] = (Color.red(pixel) + Color.green(pixel) + Color.blue(pixel)) / 3
+        }
+    }
+    if (small !== bitmap) small.recycle()
+    return dHashFromGray(gray, 9)
+}
+
+private fun laplacian(bitmap: android.graphics.Bitmap): Double? {
     val w = bitmap.width
     val h = bitmap.height
-    if (w < 3 || h < 3) {
-        bitmap.recycle()
-        return null
-    }
+    if (w < 3 || h < 3) return null
     var sum = 0.0
     var sumSq = 0.0
     var n = 0
@@ -129,7 +153,6 @@ private fun laplacian(resolver: ContentResolver, uri: Uri): Double? {
             n++
         }
     }
-    bitmap.recycle()
     if (n == 0) return null
     val mean = sum / n
     return sumSq / n - mean * mean
