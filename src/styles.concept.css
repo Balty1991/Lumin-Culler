@@ -7296,3 +7296,21 @@ button:disabled,
   letter-spacing: var(--track-micro);
   color: var(--text-dim);
 }
+
+/* Faza 2: bara de jos rămâne o bandă de sticlă, cu un fir de lumină pe fila activă. */
+.bottom-nav {
+  background: rgb(10 12 16 / 0.84);
+  backdrop-filter: blur(22px) saturate(1.4);
+  border-top: 1px solid rgb(180 200 255 / 0.16);
+  box-shadow: 0 -18px 40px rgb(0 0 0 / 0.35);
+}
+.bottom-nav-tab.active { color: #f4fbff; }
+.bottom-nav-tab.active::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  width: 22px;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #8b5cf6, #22d3ee);
+}

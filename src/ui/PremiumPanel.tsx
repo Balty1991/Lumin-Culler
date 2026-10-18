@@ -123,7 +123,7 @@ export function PremiumPanel() {
   return (
     <div className="detail" onClick={e => { if (e.target === e.currentTarget) setOpen(false); }}>
       <div
-        className="detail-inner narrow" ref={containerRef}
+        className="detail-inner narrow premium-sheet" ref={containerRef}
         role="dialog" aria-modal="true" aria-label={tr('premium.title')} tabIndex={-1}
       >
         <header className="detail-head">

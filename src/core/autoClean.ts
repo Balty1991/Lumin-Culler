@@ -11,21 +11,35 @@
 
 export const SCREENSHOT_EXPIRE_MS = 30 * 24 * 60 * 60 * 1000;
 export const MONTHLY_REMINDER_MS = 30 * 24 * 60 * 60 * 1000;
+export const REMINDER_DAY_CHOICES = [7, 14, 30] as const;
+export type ReminderDays = (typeof REMINDER_DAY_CHOICES)[number];
 
 const STORAGE_KEY = 'lumin-auto-clean';
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 export interface AutoCleanSettings {
   monthlyReminder: boolean;
   expireScreenshots: boolean;
   /** 0 = nu s-a trimis încă niciun memento. */
   lastMonthlyReminderAt: number;
+  /** Cât de des poate apărea notificarea. 30 e luna. */
+  reminderDays: ReminderDays;
 }
 
 export const AUTO_CLEAN_OFF: AutoCleanSettings = {
   monthlyReminder: false,
   expireScreenshots: false,
-  lastMonthlyReminderAt: 0
+  lastMonthlyReminderAt: 0,
+  reminderDays: 30
 };
+
+export function reminderDaysOf(value: unknown): ReminderDays {
+  return value === 7 || value === 14 || value === 30 ? value : 30;
+}
+
+export function reminderIntervalMs(settings: Pick<AutoCleanSettings, 'reminderDays'>): number {
+  return reminderDaysOf(settings.reminderDays) * DAY_MS;
+}
 
 export function readAutoClean(): AutoCleanSettings {
   try {
@@ -37,7 +51,8 @@ export function readAutoClean(): AutoCleanSettings {
       expireScreenshots: parsed.expireScreenshots === true,
       lastMonthlyReminderAt: typeof parsed.lastMonthlyReminderAt === 'number' && parsed.lastMonthlyReminderAt > 0
         ? parsed.lastMonthlyReminderAt
-        : 0
+        : 0,
+      reminderDays: reminderDaysOf(parsed.reminderDays)
     };
   } catch {
     return { ...AUTO_CLEAN_OFF };
@@ -55,7 +70,7 @@ export function writeAutoClean(settings: AutoCleanSettings): void {
 export function reminderDue(settings: AutoCleanSettings, now: number): boolean {
   if (!settings.monthlyReminder) return false;
   if (!settings.lastMonthlyReminderAt) return true;
-  return now - settings.lastMonthlyReminderAt >= MONTHLY_REMINDER_MS;
+  return now - settings.lastMonthlyReminderAt >= reminderIntervalMs(settings);
 }
 
 /** Capturi suficient de vechi ca să intre în coșul de expirare. Fără dată, nu expiră. */

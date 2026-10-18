@@ -172,6 +172,7 @@ dependencies {
     // Fereastra oficiala de recenzie Google Play — vezi plugins/InAppReviewPlugin.kt.
     // Nu trimite nimic de-al aplicatiei: doar deschide ecranul de nota al Play.
     implementation "com.google.android.play:review:$playReviewVersion"
+    implementation "androidx.work:work-runtime-ktx:$androidxWorkVersion"
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"

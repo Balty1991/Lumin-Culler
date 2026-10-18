@@ -1,17 +1,19 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { t } from '../i18n';
 import {
   basketsFromLibrary, basketsFromScan, estimateSavedBytes, type CleanBasket, type CleanItem
 } from '../core/cleanScan';
-import { expiredShots, readAutoClean, reminderDue, writeAutoClean, type AutoCleanSettings } from '../core/autoClean';
+import { expiredShots, readAutoClean, reminderDaysOf, reminderDue, writeAutoClean, type AutoCleanSettings, type ReminderDays } from '../core/autoClean';
 import {
   commitAiClean, decideAiClean, readAiCleanState, writeAiCleanState, type AiCleanDecision, type AiCleanState
 } from '../core/aiCleanAllowance';
 import { isCleanScanAvailable, requestVideoAccess, scanGallery, type GalleryScan } from '../core/nativeCleanScan';
 import { compressVideo, isVideoCompressAvailable } from '../core/nativeVideoCompress';
 import { deleteNativePhotos } from '../core/nativeMediaLibrary';
-import { showNotification } from '../core/nativeNotifications';
+import { requestNotificationAccess, showNotification } from '../core/nativeNotifications';
+import { cancelCleanReminder, cleanReminderIsDue, markCleanReminderShown, scheduleCleanReminder } from '../core/cleanReminder';
+import { shareCleanResult } from './shareResultCard';
 import { DEFECT_EYES_OPEN_RATIO, DEFECT_SHARPNESS } from '../core/importPipeline';
 import { addFreedBytes, addFreedFiles, readFreedBytes, readFreedFiles } from '../state/storageFreed';
 import { formatSize } from '../state/storageStats';
@@ -30,7 +32,7 @@ export function CleanHome() {
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
 
   const [scan, setScan] = useState<GalleryScan | null>(null);
-  const [scanning, setScanning] = useState(false);
+  const [scanning, setScanning] = useState(isCleanScanAvailable);
   const [scanError, setScanError] = useState(false);
   const [gone, setGone] = useState<Set<string>>(() => new Set());
   const [freed, setFreed] = useState(readFreedBytes);
@@ -58,19 +60,8 @@ export function CleanHome() {
 
   useEffect(() => { void refresh(); }, []);
 
-  useEffect(() => {
-    if (!reminderDue(auto, Date.now())) return;
-    void showNotification({
-      title: 'Lumin',
-      body: t(locale, 'clean.auto.monthly.sub'),
-      channelName: 'Lumin'
-    });
-    const next = { ...auto, lastMonthlyReminderAt: Date.now() };
-    writeAutoClean(next);
-    setAuto(next);
-    // o singură dată la deschiderea ecranului
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const reminded = useRef(false);
+  const reminderDaysRef = useRef(auto.reminderDays);
 
   const library = useMemo(() => basketsFromLibrary(photos.map(photo => ({
     id: photo.id,
@@ -81,6 +72,7 @@ export function CleanHome() {
     sharpness: photo.sharpness ?? 0,
     faceCount: photo.faceCount ?? 0,
     allEyesOpen: photo.allEyesOpen ?? true,
+    exposure: photo.exposure,
     groupEyesOpenRatio: photo.groupEyesOpenRatio,
     groupId: photo.groupId,
     sceneTags: photo.sceneTags,
@@ -103,6 +95,45 @@ export function CleanHome() {
 
   const videos = baskets.find(basket => basket.id === 'videos') ?? { id: 'videos' as const, items: [], bytes: 0 };
   const photoBaskets = baskets.filter(basket => basket.id !== 'videos' && basket.items.length > 0);
+  const reclaimable = baskets.reduce((sum, basket) => sum + basket.bytes, 0);
+
+  useEffect(() => {
+    if (premiumLocked || !auto.monthlyReminder) {
+      void cancelCleanReminder();
+      return;
+    }
+    const reset = reminderDaysRef.current !== auto.reminderDays;
+    reminderDaysRef.current = auto.reminderDays;
+    void scheduleCleanReminder({
+      intervalDays: auto.reminderDays,
+      locale,
+      reclaimableBytes: reclaimable,
+      reset
+    });
+  }, [premiumLocked, auto.monthlyReminder, auto.reminderDays, locale, reclaimable]);
+
+  useEffect(() => {
+    if (reminded.current || scanning || premiumLocked || !auto.monthlyReminder) return;
+    if (!reminderDue(auto, Date.now())) return;
+    reminded.current = true;
+    void (async () => {
+      const nativeDue = await cleanReminderIsDue(auto.reminderDays);
+      if (nativeDue === false) {
+        const next = { ...auto, lastMonthlyReminderAt: Date.now() };
+        writeAutoClean(next);
+        setAuto(next);
+        return;
+      }
+      const body = reclaimable > 0
+        ? t(locale, 'clean.reminder.body', { size: formatSize(reclaimable) })
+        : t(locale, 'clean.reminder.empty');
+      await showNotification({ title: 'Lumin', body, channelName: 'Lumin' });
+      await markCleanReminderShown();
+      const next = { ...auto, lastMonthlyReminderAt: Date.now() };
+      writeAutoClean(next);
+      setAuto(next);
+    })();
+  }, [scanning, premiumLocked, auto, locale, reclaimable]);
 
   const rememberFreed = (items: CleanItem[]) => {
     const bytes = items.reduce((sum, item) => sum + item.bytes, 0);
@@ -177,6 +208,26 @@ export function CleanHome() {
       return;
     }
     const next = { ...auto, [key]: value };
+    if (key === 'monthlyReminder' && value) {
+      next.lastMonthlyReminderAt = Date.now();
+      void requestNotificationAccess();
+      const body = reclaimable > 0
+        ? tr('clean.reminder.body', { size: formatSize(reclaimable) })
+        : tr('clean.reminder.empty');
+      void showNotification({ title: 'Lumin', body, channelName: 'Lumin' });
+      void markCleanReminderShown();
+    }
+    writeAutoClean(next);
+    setAuto(next);
+  };
+
+  const setReminderDays = (days: ReminderDays) => {
+    if (premiumLocked) {
+      gatePremium('autoClean');
+      setNotice(tr('clean.auto.locked'));
+      return;
+    }
+    const next = { ...auto, reminderDays: days };
     writeAutoClean(next);
     setAuto(next);
   };
@@ -205,12 +256,8 @@ export function CleanHome() {
     }
   };
 
-  const share = async () => {
-    const text = tr('clean.share.text', { size: formatSize(freed), count: files });
-    if (typeof navigator !== 'undefined' && navigator.share) {
-      try { await navigator.share({ text }); return; } catch { /* anulare */ }
-    }
-    try { await navigator.clipboard.writeText(text); } catch { /* fără clipboard */ }
+  const share = () => {
+    void shareCleanResult(locale, formatSize(freed), files);
   };
 
   const oldShots = expiredShots(
@@ -226,7 +273,7 @@ export function CleanHome() {
         <p className="clean-freed-value">{freed > 0 ? tr('clean.freed', { size: formatSize(freed) }) : tr('clean.freed.none')}</p>
         <p className="clean-lead">{tr('clean.lead')}</p>
         <div className="clean-hero-actions">
-          <button type="button" className="ghost" disabled={freed <= 0} onClick={() => { void share(); }}>{tr('clean.share')}</button>
+          <button type="button" className="ghost" disabled={freed <= 0} onClick={() => { void share(); }}>{tr('clean.share.card')}</button>
           <button type="button" className="ghost" onClick={() => setProMode(true)}>{tr('clean.pro')}</button>
         </div>
       </header>
@@ -268,6 +315,13 @@ export function CleanHome() {
             <div>
               <strong>{tr(`clean.basket.${basket.id}`)}</strong>
               <span>{tr('clean.items', { count: basket.items.length })} · {formatSize(basket.bytes)}</span>
+              {basket.keeper && (
+                <span className="clean-keeper">
+                  {basket.keeper.groups > 1
+                    ? tr('clean.best.groups', { count: basket.keeper.groups })
+                    : tr('clean.best.line', { name: basket.keeper.name })}
+                </span>
+              )}
             </div>
             <div className="clean-basket-actions">
               <button type="button" className="ghost" onClick={() => review(basket)}>{tr('clean.review')}</button>
@@ -320,6 +374,18 @@ export function CleanHome() {
         <label>
           <input type="checkbox" checked={auto.monthlyReminder} onChange={event => setAutoFlag('monthlyReminder', event.target.checked)} />
           <span><strong>{tr('clean.auto.monthly')}</strong><small>{tr('clean.auto.monthly.sub')}</small></span>
+        </label>
+        <label className="clean-reminder-days">
+          <span>{tr('clean.reminder.days')}</span>
+          <select
+            value={auto.reminderDays}
+            aria-label={tr('clean.reminder.days')}
+            onChange={event => setReminderDays(reminderDaysOf(Number(event.target.value)))}
+          >
+            <option value={7}>{tr('clean.reminder.7')}</option>
+            <option value={14}>{tr('clean.reminder.14')}</option>
+            <option value={30}>{tr('clean.reminder.30')}</option>
+          </select>
         </label>
         <label>
           <input type="checkbox" checked={auto.expireScreenshots} onChange={event => setAutoFlag('expireScreenshots', event.target.checked)} />

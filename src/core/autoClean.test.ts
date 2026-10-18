@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MONTHLY_REMINDER_MS, SCREENSHOT_EXPIRE_MS, expiredShots, reminderDue, type AutoCleanSettings } from './autoClean';
 
-const off: AutoCleanSettings = { monthlyReminder: false, expireScreenshots: false, lastMonthlyReminderAt: 0 };
+const off: AutoCleanSettings = { monthlyReminder: false, expireScreenshots: false, lastMonthlyReminderAt: 0, reminderDays: 30 };
 
 describe('autoClean', () => {
   it('nu trimite memento cât timp comutatorul e oprit', () => {
@@ -14,6 +14,12 @@ describe('autoClean', () => {
     const sent: AutoCleanSettings = { ...on, lastMonthlyReminderAt: 5_000 };
     expect(reminderDue(sent, 5_000 + MONTHLY_REMINDER_MS - 1)).toBe(false);
     expect(reminderDue(sent, 5_000 + MONTHLY_REMINDER_MS)).toBe(true);
+  });
+
+  it('respectă intervalul ales, nu doar luna', () => {
+    const weekly: AutoCleanSettings = { ...off, monthlyReminder: true, reminderDays: 7, lastMonthlyReminderAt: 1_000 };
+    expect(reminderDue(weekly, 1_000 + 7 * 24 * 60 * 60 * 1000 - 1)).toBe(false);
+    expect(reminderDue(weekly, 1_000 + 7 * 24 * 60 * 60 * 1000)).toBe(true);
   });
 
   it('expiră doar capturile mai vechi de 30 de zile, nu pe cele fără dată', () => {

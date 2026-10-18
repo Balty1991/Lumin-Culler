@@ -72,4 +72,7 @@ ext {
     media3Version = '1.5.1'
     // Fereastra de recenzie din aplicatie — vezi plugins/InAppReviewPlugin.kt.
     playReviewVersion = '2.0.2'
+    // Mementoul lunar (plugins/CleanReminderWorker.kt). PeriodicWorkRequest
+    // acceptă zile; sub 15 minute platforma refuză, noi nu cerem minute.
+    androidxWorkVersion = '2.10.1'
 }

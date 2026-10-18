@@ -48,6 +48,8 @@ describe('basketsFromScan', () => {
     ], []);
     expect(basket('duplicates', baskets).items.map(i => i.uri)).toEqual(['c', 'a']);
     expect(basket('duplicates', baskets).bytes).toBe(10000);
+    expect(basket('duplicates', baskets).premark).toBe(true);
+    expect(basket('duplicates', baskets).keeper?.name).toBe('b');
   });
 
   it('nu confundă două fișiere de aceeași mărime cu amprente diferite', () => {
@@ -66,7 +68,21 @@ describe('basketsFromScan', () => {
       image({ uri: 'c', taken: t + BURST_GAP_MS * 2, blur: 90, bytes: 100 })
     ], []);
     expect(basket('bursts', baskets).items.map(i => i.uri).sort()).toEqual(['a', 'c']);
+    expect(basket('bursts', baskets).premark).toBe(true);
+    expect(basket('bursts', baskets).keeper?.reason).toBe('sharpness');
     expect(basket('blurry', baskets).items).toHaveLength(0);
+  });
+
+  it('într-o rafală păstrează ochii deschiși, nu cadrul mai clar dar clipit', () => {
+    const t0 = 1_700_000_000_000;
+    const baskets = basketsFromScan([
+      image({ uri: 'blink', blur: 900, eyesOpen: false, exposure: 50, taken: t0 }),
+      image({ uri: 'open', blur: 420, eyesOpen: true, exposure: 50, taken: t0 + 400 }),
+      image({ uri: 'soft', blur: 30, taken: t0 + 800 })
+    ], []);
+    expect(basket('bursts', baskets).keeper?.name).toBe('open');
+    expect(basket('bursts', baskets).keeper?.reason).toBe('eyes');
+    expect(basket('bursts', baskets).items.map(i => i.uri).sort()).toEqual(['blink', 'soft']);
   });
 
   it('pune la neclare doar ce e sub prag și nu e deja într-o rafală sau captură', () => {
@@ -122,5 +138,17 @@ describe('basketsFromLibrary', () => {
     expect(baskets.find(b => b.id === 'bursts')!.items.map(i => i.photoId)).toEqual(['1']);
     expect(baskets.find(b => b.id === 'blurry')!.items.map(i => i.photoId)).toEqual(['3']);
     expect(baskets.find(b => b.id === 'eyes')!.items.map(i => i.photoId)).toEqual(['4']);
+  });
+
+  it('din două portrete păstrează ochii deschiși și marchează restul', () => {
+    const baskets = basketsFromLibrary([
+      { id: 'open', fileName: 'open.jpg', sharpness: 62, exposure: 50, faceCount: 1, allEyesOpen: true, groupId: 'p', status: 'pending', blurBelow: 40, eyesOpenBelow: 0.5, sizeBytes: 10 },
+      { id: 'shut', fileName: 'shut.jpg', sharpness: 84, exposure: 50, faceCount: 1, allEyesOpen: false, groupId: 'p', status: 'pending', blurBelow: 40, eyesOpenBelow: 0.5, sizeBytes: 10 }
+    ]);
+    const bursts = baskets.find(b => b.id === 'bursts')!;
+    expect(bursts.keeper?.name).toBe('open.jpg');
+    expect(bursts.keeper?.reason).toBe('eyes');
+    expect(bursts.premark).toBe(true);
+    expect(bursts.items.map(i => i.photoId)).toEqual(['shut']);
   });
 });

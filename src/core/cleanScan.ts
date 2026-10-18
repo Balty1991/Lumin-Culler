@@ -13,7 +13,13 @@
  * apoi extra-urile din rafală, apoi neclarele rămase, apoi capturile, apoi
  * dosarele de mesagerie. Videoclipurile sunt un alt mediu și nu concurează
  * cu pozele.
+ *
+ * Într-o rafală sau într-un grup de duplicate se păstrează cadrul cel mai bun
+ * (ochi, expunere, claritate — vezi bestShot.ts), nu pur și simplu cel mai nou.
+ * Restul vin deja marcate: omul confirmă, nu le alege de la zero.
  */
+
+import { bestShotReason, rankShots, type BestReason, type ShotSignals } from './bestShot';
 
 export const BURST_GAP_MS = 2500;
 export const BURST_MIN_FRAMES = 3;
@@ -34,6 +40,10 @@ export interface CleanImageRow {
   hash: string | null;
   /** Varianța Laplacian pe miniatură. null = nu s-a măsurat. */
   blur: number | null;
+  /** 0–100, 50 e mijlocul. null sau absent = nu s-a măsurat. */
+  exposure?: number | null;
+  /** null sau absent = nu e portret, sau scanarea n-a citit ochii. */
+  eyesOpen?: boolean | null;
 }
 
 export interface CleanVideoRow {
@@ -57,10 +67,20 @@ export interface CleanItem {
   photoId?: string;
 }
 
+export interface CleanKeeper {
+  name: string;
+  reason: BestReason;
+  groups: number;
+}
+
 export interface CleanBasket {
   id: BasketId;
   items: CleanItem[];
   bytes: number;
+  /** Cadrul păstrat, când coșul e făcut din extra-urile unei rafale sau ale unor duplicate. */
+  keeper?: CleanKeeper;
+  /** Extra-urile vin deja bifate. Ștergerea tot cere confirmarea sistemului. */
+  premark?: boolean;
 }
 
 const SCREENSHOT_RE = /screenshot|screen[\s_-]?shots?|capturi|bildschirmfoto|bildschirmaufnahme|capturas? de pantalla|screen\s*captures?/i;
@@ -85,8 +105,34 @@ function itemOf(row: CleanImageRow): CleanItem {
   };
 }
 
-function basket(id: BasketId, items: CleanItem[]): CleanBasket {
-  return { id, items, bytes: items.reduce((sum, item) => sum + item.bytes, 0) };
+function basket(id: BasketId, items: CleanItem[], extra?: Pick<CleanBasket, 'keeper' | 'premark'>): CleanBasket {
+  return { id, items, bytes: items.reduce((sum, item) => sum + item.bytes, 0), ...extra };
+}
+
+function scanSignals(row: CleanImageRow): ShotSignals {
+  return {
+    id: row.uri,
+    sharpness: row.blur === null || row.blur === undefined ? null : Math.min(100, row.blur / 15),
+    eyesOpen: row.eyesOpen ?? null,
+    exposure: row.exposure ?? null,
+    bytes: row.bytes,
+    taken: row.taken
+  };
+}
+
+function keepBest<T>(group: readonly T[], signals: (item: T) => ShotSignals): { keeper: T; extras: T[]; reason: BestReason } {
+  const ranked = rankShots(group, signals);
+  const keeper = ranked[0];
+  return {
+    keeper,
+    extras: ranked.slice(1),
+    reason: bestShotReason(signals(keeper), ranked[1] ? signals(ranked[1]) : undefined)
+  };
+}
+
+function rememberKeeper(current: CleanKeeper | undefined, name: string, reason: BestReason): CleanKeeper {
+  if (!current) return { name, reason, groups: 1 };
+  return { ...current, groups: current.groups + 1 };
 }
 
 function duplicateKey(row: CleanImageRow): string {
@@ -125,6 +171,7 @@ export function basketsFromScan(images: readonly CleanImageRow[], videos: readon
   };
 
   const duplicateExtras: CleanImageRow[] = [];
+  let duplicateKeeper: CleanKeeper | undefined;
   const byKey = new Map<string, CleanImageRow[]>();
   for (const row of images) {
     const key = duplicateKey(row);
@@ -135,13 +182,15 @@ export function basketsFromScan(images: readonly CleanImageRow[], videos: readon
   }
   for (const group of byKey.values()) {
     if (group.length < 2) continue;
-    const ranked = [...group].sort((a, b) => b.taken - a.taken || b.bytes - a.bytes);
+    const { keeper, extras, reason } = keepBest(group, scanSignals);
     // Copia păstrată nu mai intră și la capturi sau neclare: un fișier, un coș.
-    claimed.add(ranked[0].uri);
-    duplicateExtras.push(...ranked.slice(1));
+    claimed.add(keeper.uri);
+    duplicateExtras.push(...extras);
+    duplicateKeeper = rememberKeeper(duplicateKeeper, keeper.name, reason);
   }
 
   const burstExtras: CleanImageRow[] = [];
+  let burstKeeper: CleanKeeper | undefined;
   const burstMembers = new Set<string>();
   const burstCandidates = images
     .filter(row => row.taken > 0 && !isScreenshotBucket(row.bucket))
@@ -149,16 +198,11 @@ export function basketsFromScan(images: readonly CleanImageRow[], videos: readon
   let cluster: CleanImageRow[] = [];
   const flush = () => {
     if (cluster.length >= BURST_MIN_FRAMES) {
-      const keeper = [...cluster].sort((a, b) => {
-        const blurA = a.blur ?? -1;
-        const blurB = b.blur ?? -1;
-        if (blurA !== blurB) return blurB - blurA;
-        return b.bytes - a.bytes;
-      })[0];
-      for (const row of cluster) {
-        burstMembers.add(row.uri);
-        if (row.uri !== keeper.uri) burstExtras.push(row);
-      }
+      const { keeper, extras, reason } = keepBest(cluster, scanSignals);
+      claimed.add(keeper.uri);
+      burstKeeper = rememberKeeper(burstKeeper, keeper.name, reason);
+      for (const row of cluster) burstMembers.add(row.uri);
+      burstExtras.push(...extras);
     }
     cluster = [];
   };
@@ -189,9 +233,14 @@ export function basketsFromScan(images: readonly CleanImageRow[], videos: readon
       durationMs: video.durationMs
     }));
 
+  const marked = (keeper: CleanKeeper | undefined, items: CleanItem[]): Pick<CleanBasket, 'keeper' | 'premark'> | undefined =>
+    keeper && items.length > 0 ? { keeper, premark: true } : undefined;
+
+  const duplicateItems = claim(duplicateExtras);
+  const burstItems = claim(burstExtras);
   return [
-    basket('duplicates', claim(duplicateExtras)),
-    basket('bursts', claim(burstExtras)),
+    basket('duplicates', duplicateItems, marked(duplicateKeeper, duplicateItems)),
+    basket('bursts', burstItems, marked(burstKeeper, burstItems)),
     basket('blurry', claim(blurry)),
     basket('screenshots', claim(screenshots)),
     basket('messengers', claim(messengers)),
@@ -210,6 +259,8 @@ export interface LibraryCleanPhoto {
   faceCount: number;
   allEyesOpen: boolean;
   groupEyesOpenRatio?: number;
+  /** 0–100, din analiza deja făcută. Absent = nu intră în scor. */
+  exposure?: number;
   groupId?: string;
   sceneTags?: string[];
   status: string;
@@ -243,7 +294,8 @@ function eyesClosed(photo: LibraryCleanPhoto): boolean {
  *
  * Seriile de aici sunt groupId-ul motorului (rafală sau aproape-duplicate),
  * nu o potrivire de mărime: două cadre din aceeași rafală nu au același număr
- * de octeți. Se păstrează cadrul cu claritatea cea mai mare.
+ * de octeți. Se păstrează cadrul cel mai bun: ochi deschiși, expunere de
+ * mijloc, apoi claritate.
  */
 export function basketsFromLibrary(photos: readonly LibraryCleanPhoto[]): CleanBasket[] {
   const open = photos.filter(photo => photo.status !== 'rejected');
@@ -255,6 +307,7 @@ export function basketsFromLibrary(photos: readonly LibraryCleanPhoto[]): CleanB
   };
 
   const burstExtras: CleanItem[] = [];
+  let burstKeeper: CleanKeeper | undefined;
   const byGroup = new Map<string, LibraryCleanPhoto[]>();
   for (const photo of open) {
     if (!photo.groupId) continue;
@@ -264,9 +317,17 @@ export function basketsFromLibrary(photos: readonly LibraryCleanPhoto[]): CleanB
   }
   for (const group of byGroup.values()) {
     if (group.length < 2) continue;
-    const keeper = [...group].sort((a, b) => b.sharpness - a.sharpness || (b.sizeBytes ?? 0) - (a.sizeBytes ?? 0))[0];
-    for (const photo of group) {
-      if (photo.id === keeper.id) { claimed.add(photo.id); continue; }
+    const { keeper, extras, reason } = keepBest(group, photo => ({
+      id: photo.id,
+      sharpness: photo.sharpness,
+      eyesOpen: photo.faceCount > 0 ? !eyesClosed(photo) : null,
+      exposure: photo.exposure ?? null,
+      bytes: photo.sizeBytes ?? 0,
+      taken: photo.capturedAt ?? 0
+    }));
+    claimed.add(keeper.id);
+    burstKeeper = rememberKeeper(burstKeeper, keeper.fileName, reason);
+    for (const photo of extras) {
       const item = take(photo);
       if (item) burstExtras.push(item);
     }
@@ -295,7 +356,7 @@ export function basketsFromLibrary(photos: readonly LibraryCleanPhoto[]): CleanB
 
   return [
     basket('duplicates', []),
-    basket('bursts', burstExtras),
+    basket('bursts', burstExtras, burstExtras.length > 0 && burstKeeper ? { keeper: burstKeeper, premark: true } : undefined),
     basket('blurry', blurry),
     basket('screenshots', screenshots),
     basket('messengers', []),

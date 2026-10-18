@@ -103,7 +103,8 @@ class CleanScanPlugin : Plugin() {
         val taken: Long,
         val bucket: String,
         var hash: String?,
-        var blur: Double?
+        var blur: Double?,
+        var exposure: Double? = null
     )
 
     private fun resolveScan(call: PluginCall) {
@@ -125,6 +126,7 @@ class CleanScanPlugin : Plugin() {
                     .put("bucket", row.bucket)
                 row.hash?.let { obj.put("hash", it) }
                 row.blur?.let { obj.put("blur", it) }
+                row.exposure?.let { obj.put("exposure", it) }
                 payload.put(obj)
             }
             call.resolve(
@@ -245,10 +247,21 @@ class CleanScanPlugin : Plugin() {
             if (row.bucket.contains("screenshot", ignoreCase = true)) continue
             wanted.add(row)
         }
-        for (row in wanted) row.blur = blurVariance(Uri.parse(row.uri))
+        for (row in wanted) {
+            val score = scoreFrame(Uri.parse(row.uri)) ?: continue
+            row.blur = score.blur
+            row.exposure = score.exposure
+        }
     }
 
-    private fun blurVariance(uri: Uri): Double? {
+    private class FrameScore(val blur: Double, val exposure: Double)
+
+    /**
+     * Aceeași miniatură dă și claritatea, și expunerea (luma medie, 0–100).
+     * Ochii nu se citesc aici: ar însemna un model pe fiecare poză, iar
+     * scanarea trebuie să rămână o măsurătoare, nu o analiză.
+     */
+    private fun scoreFrame(uri: Uri): FrameScore? {
         val bitmap = loadSmall(uri) ?: return null
         return try {
             val w = bitmap.width
@@ -256,6 +269,7 @@ class CleanScanPlugin : Plugin() {
             if (w < 3 || h < 3) return null
             var sum = 0.0
             var sumSq = 0.0
+            var luma = 0.0
             var n = 0
             fun gray(x: Int, y: Int): Int {
                 val pixel = bitmap.getPixel(x, y)
@@ -263,13 +277,18 @@ class CleanScanPlugin : Plugin() {
             }
             for (y in 1 until h - 1) {
                 for (x in 1 until w - 1) {
-                    val lap = gray(x, y - 1) + gray(x, y + 1) + gray(x - 1, y) + gray(x + 1, y) - 4 * gray(x, y)
+                    val center = gray(x, y)
+                    val lap = gray(x, y - 1) + gray(x, y + 1) + gray(x - 1, y) + gray(x + 1, y) - 4 * center
                     sum += lap
                     sumSq += lap.toDouble() * lap
+                    luma += center
                     n++
                 }
             }
-            if (n == 0) null else sumSq / n - (sum / n) * (sum / n)
+            if (n == 0) null else FrameScore(
+                sumSq / n - (sum / n) * (sum / n),
+                (luma / n) / 255.0 * 100.0
+            )
         } catch (_: Exception) {
             null
         } finally {
