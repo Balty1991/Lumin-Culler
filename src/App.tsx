@@ -50,7 +50,10 @@ import { useHeaderBottomVar } from './ui/useHeaderBottomVar';
 import { useBannerStackVar } from './ui/useBannerStackVar';
 import { noticeTone } from './ui/noticeTone';
 import { HomeDashboard } from './ui/HomeDashboard';
+import { CleanHome } from './ui/CleanHome';
 import { BottomNav } from './ui/BottomNav';
+import { LuminSettings } from './ui/LuminSettings';
+import { useLuminSettingsOpen } from './ui/shellState';
 import { WelcomeOnboarding } from './ui/WelcomeOnboarding';
 import { SmartNotification } from './ui/SmartNotification';
 import { QuickScanFind } from './ui/QuickScanFind';
@@ -310,6 +313,8 @@ export default function App() {
   const filtered = useStore(s => s.filtered());
   const workspaceMode = useStore(s => s.workspaceMode);
   const homeGridOpen = useStore(s => s.homeGridOpen);
+  const proMode = useStore(s => s.proMode);
+  const settingsOpen = useLuminSettingsOpen();
   const setHomeGridOpen = useStore(s => s.setHomeGridOpen);
   const setTiktokSortOpen = useStore(s => s.setTiktokSortOpen);
   const undo = useStore(s => s.undo);
@@ -825,6 +830,9 @@ export default function App() {
   // (buton dedicat in antetul Workspace-ului); fara poze, ramane onboarding-ul.
   // Montam si panourile deschise din meniu (Persoane/Preferinte AI/Operatii in
   // masa) — altfel butonul Meniu din Workspace n-ar avea ce deschide.
+  const importingEmpty = !!progress && photos.length === 0 && progress.phase !== 'finalizat';
+  const showCleaner = welcomeSeen && !proMode && !homeGridOpen && !workspaceMode && !importingEmpty && !settingsOpen;
+
   if (photos.length > 0 && workspaceMode) {
     return (
       <>
@@ -888,18 +896,20 @@ export default function App() {
         <ExactDupesPanel />
         <GallerySupervisorPanel />
         <ConfirmDialog />
+        {settingsOpen && <LuminSettings />}
+        <BottomNav />
       </>
     );
   }
 
   return (
-    <div className={photos.length === 0 && !progress ? 'app app-empty-state' : 'app'}>
+    <div className={photos.length === 0 && !progress ? 'app app-empty-state lumin-orbit' : 'app lumin-orbit'}>
       <header className="topbar" ref={headerBottomRef}>
         {/* Marca+numele produsului dispar pe ecranul gol: se repeta deja, mult
             mai mare, in medalionul "LC" + titlul de mai jos (cerinta directa,
             mockup fara antet deasupra). Butonul de meniu ramane singur —
             e SINGURA cale spre Meniu inainte de import (vezi mai jos). */}
-        {(photos.length > 0 || progress) && (
+        {(photos.length > 0 || progress) && !showCleaner && !settingsOpen && (
         <div className="brand">
           {/* Marca devine buton "Acasa" — bug real raportat de utilizator: dupa
               ce tab-ul dedicat "Acasa" a disparut din bara de jos (redesign
@@ -917,14 +927,11 @@ export default function App() {
           </button>
           <div className="brand-text">
             <h1>
-              LUMIN<span>CULLER</span>
-              {/* Nume de produs, nu insigna de drepturi — "Premium disponibil" real
-                  se afla in drawer-pro-card (Meniu), unde starea de cumparare chiar
-                  conteaza. Aici e doar identitatea din redesign, vizibila mereu. */}
-              <em className="brand-pro-badge">PRO</em>
+              LUMIN
+              {proMode && <em className="brand-pro-badge">PRO</em>}
             </h1>
-            <p className="mono"><i className="live-dot" aria-hidden="true" /> {tr('app.tagline')}</p>
-            <ProjectNameField />
+            <p className="mono"><i className="live-dot" aria-hidden="true" /> {tr(proMode ? 'app.tagline' : 'app.tagline.clean')}</p>
+            {proMode && <ProjectNameField />}
           </div>
         </div>
         )}
@@ -994,11 +1001,12 @@ export default function App() {
 
       <Toast />
       <WelcomeOnboarding />
-      <HomeDashboard onAddPhotos={() => void onAddPhotosClick()} />
+      {!showCleaner && !settingsOpen && <HomeDashboard onAddPhotos={() => void onAddPhotosClick()} />}
       {/* Nimic nu se desenează peste ecranul de bun venit: .banner-stack are
           z-index de toast, deci bannerele acopereau comutatorul de limbă și
-          butonul de închidere. Reapar imediat ce ecranul e închis. */}
-      {welcomeSeen && (
+          butonul de închidere. Reapar imediat ce ecranul e închis.
+          Pe ecranul de curățare stau jos: coșurile sunt ecranul, nu un banner. */}
+      {welcomeSeen && !showCleaner && (
         <div className="banner-stack" ref={bannerStackRef}>
           <MemoryBanner />
           <InstallPrompt />
@@ -1346,7 +1354,11 @@ export default function App() {
       </div>
 
 
-      {photos.length === 0 && !progress ? (
+      {settingsOpen ? (
+        <LuminSettings />
+      ) : showCleaner ? (
+        <CleanHome />
+      ) : photos.length === 0 && !progress ? (
         <div className="empty">
           {/* Medalionul poarta ACELASI semn ca iconita aplicatiei si ca bara de
               sus — diafragma, nu literele "LC".

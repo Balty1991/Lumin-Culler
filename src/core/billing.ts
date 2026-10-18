@@ -26,6 +26,8 @@ interface RawPlan {
   offerToken: string;
   /** Zile gratuite inainte de prima plata, cand oferta aleasa are o perioada de proba. */
   trialDays?: number;
+  /** `lifetime` pentru achiziția unică. Absent la planurile vechi: se deduce din periodDays. */
+  kind?: 'monthly' | 'yearly' | 'lifetime';
 }
 
 interface BillingPluginApi {
@@ -129,10 +131,12 @@ export interface PremiumPlan {
   /** Pretul in micro-unitati de moneda (1 000 000 = o unitate), ca numar. */
   priceMicros: number;
   currency: string;
-  /** Durata ciclului de facturare, in zile (30 pentru lunar, 365 pentru anual). */
+  /** Durata ciclului de facturare, in zile (30 pentru lunar, 365 pentru anual, 0 pentru lifetime). */
   periodDays: number;
   /** Zile gratuite inainte de prima plata; absent cand oferta nu are perioada de proba. */
   trialDays?: number;
+  /** Lifetime nu se reînnoiește. Lunarul și anualul sunt abonamente. */
+  kind: 'monthly' | 'yearly' | 'lifetime';
 }
 
 /** Acelasi tipar cu trei stari ca la pret: „n-am putut intreba" nu e „nu exista planuri". */
@@ -146,12 +150,17 @@ function toPlan(raw: RawPlan): PremiumPlan | null {
   // Un plan fara pret utilizabil n-are ce cauta pe ecran: butonul lui ar
   // deschide o plata al carei cost nu-l stim, deci nu-l putem nici arata.
   if (!raw.id || !raw.price || !Number.isFinite(micros) || micros <= 0) return null;
+  const periodDays = Number.isFinite(raw.periodDays) ? raw.periodDays : 0;
+  const kind = raw.kind === 'lifetime' || raw.kind === 'yearly' || raw.kind === 'monthly'
+    ? raw.kind
+    : periodDays === 0 ? 'lifetime' : periodDays > 31 ? 'yearly' : 'monthly';
   return {
     id: raw.id,
     price: raw.price,
     priceMicros: micros,
     currency: raw.currency,
-    periodDays: Number.isFinite(raw.periodDays) ? raw.periodDays : 0,
+    periodDays,
+    kind,
     ...(raw.trialDays && raw.trialDays > 0 ? { trialDays: raw.trialDays } : {})
   };
 }

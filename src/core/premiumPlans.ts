@@ -23,9 +23,12 @@
  */
 import type { PremiumPlan } from './billing';
 
-/** ID-urile din Play Console. Aceleasi siruri ca in BillingPlugin.kt. */
-export const MONTHLY_PLAN_ID = 'lumin_premium_monthly';
-export const YEARLY_PLAN_ID = 'lumin_premium_yearly';
+/** ID-urile din Play Console. Aceleași șiruri ca în BillingPlugin.kt și suggestedPrices.ts. */
+export {
+  MONTHLY_PRODUCT_ID as MONTHLY_PLAN_ID,
+  YEARLY_PRODUCT_ID as YEARLY_PLAN_ID,
+  LIFETIME_PRODUCT_ID as LIFETIME_PLAN_ID
+} from './suggestedPrices';
 
 /**
  * Sub atat, "economisesti X%" nu merita spus.

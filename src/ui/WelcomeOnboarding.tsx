@@ -1,9 +1,8 @@
 import { useRef, useState, type SVGProps } from 'react';
 import { useStore } from '../state/store';
-import { requestNotificationAccess, isNativeNotificationsAvailable } from '../core/nativeNotifications';
 import { requestMissingPermissions } from '../core/appPermissions';
 import { useModalFocusTrap } from './useModalFocusTrap';
-import { ApertureIcon, SparkleIcon, UserCheckIcon, StarIcon, XIcon, ShieldIcon, CheckIcon, InfoIcon } from './icons';
+import { SparkleIcon, XIcon, ShieldIcon, CheckIcon } from './icons';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { LocaleToggle } from './LocaleToggle';
 import { t } from '../i18n';
@@ -34,79 +33,28 @@ interface Step {
   visual?: 'permission';
 }
 
-const BASE_STEPS: Step[] = [
-  { Icon: ApertureIcon, titleKey: 'welcome.step1.title', bodyKey: 'welcome.step1.body' },
-  { Icon: SparkleIcon, titleKey: 'welcome.step2.title', bodyKey: 'welcome.step2.body' },
-  { Icon: UserCheckIcon, titleKey: 'welcome.step3.title', bodyKey: 'welcome.step3.body' },
-  { Icon: StarIcon, titleKey: 'welcome.step4.title', bodyKey: 'welcome.step4.body' }
+/**
+ * Trei ecrane, și atât. Telefon plin, permisiunea (doar pe telefon), recompensa
+ * de spațiu eliberat. Persoanele și Premium nu mai stau în drumul de intrare:
+ * swipe-ul e ecranul următor, iar plata apare când omul cere curățarea în masă.
+ */
+const CLEAN_STEPS: Step[] = [
+  { Icon: SparkleIcon, titleKey: 'welcome.clean1.title', bodyKey: 'welcome.clean1.body' },
+  { Icon: ShieldIcon, titleKey: 'welcome.clean2.title', bodyKey: 'welcome.clean2.body', visual: 'permission' },
+  { Icon: CheckIcon, titleKey: 'welcome.clean3.title', bodyKey: 'welcome.clean3.body' }
 ];
 
 /**
- * Pasul despre permisiunea de galerie.
- *
- * Android 14+ arata trei optiuni, iar cea evidentiata vizual ("Permite cu acces
- * limitat") e exact cea GRESITA pentru aplicatia asta: cu acces partial vedem
- * doar pozele bifate manual atunci, deci "Adu pe perioade" si Supervizorul
- * galeriei (care numara ce ai de sortat pe fiecare luna) nu mai au ce citi.
- * Utilizatorul apasa butonul albastru, fiindca asa arata un buton principal, si
- * ajunge intr-o aplicatie care pare stricata fara sa inteleaga de ce.
- *
- * Doar pe native: pe web/PWA nu exista dialogul asta, iar un pas care ar
- * explica ceva ce nu se intampla ar fi doar zgomot.
+ * Ilustrația cu cele trei opțiuni Android apare doar pe telefon. Pe web nu
+ * există dialogul, iar un desen al lui ar explica ceva ce nu se întâmplă.
+ * Permisiunile (galerie, video, notificări) se cer la închidere, inclusiv pe X.
  */
-const PERMISSION_STEP: Step = {
-  Icon: ShieldIcon, titleKey: 'welcome.permission.title', bodyKey: 'welcome.permission.body', visual: 'permission'
-};
-
-/**
- * Pozitia pasului de permisiuni: AL DOILEA, imediat dupa "ce face aplicatia".
- *
- * A fost ultimul, cu un motiv real — asa era ultimul lucru citit inainte de
- * dialogul de sistem, deci cel mai proaspat in minte. Cerinta directa a
- * utilizatorului l-a mutat in fata, si compromisul e acceptat constient: cine
- * inchide ecranul dupa doua pasi (cazul frecvent) vedea inainte fix zero
- * informatii despre alegerea care poate strica aplicatia. Trei ecrane de
- * distanta pana la dialog costa putina prospetime; a nu ajunge niciodata la el
- * costa tot.
- *
- * Nu-l punem PRIMUL: un ecran care cere permisiuni inainte sa fi spus ce e
- * aplicatia e exact tiparul pe care oamenii au invatat sa-l refuze.
- *
- * Plasa de siguranta ramane oricum ui/PhotosAccessNotice.tsx, care apare cand
- * accesul chiar E limitat — singurul moment in care sfatul e verificabil, nu
- * doar prevenit.
- */
-const PERMISSION_STEP_INDEX = 1;
-
-/**
- * Pasul despre notificari — si singurul loc din care permisiunea chiar se CERE.
- *
- * Raportat de utilizator, cu capturi: comutatorul "Notificari inteligente"
- * arata PORNIT, dar bara de stare nu afisa nimic in timpul unui import in
- * fundal. Cauza: `POST_NOTIFICATIONS` se cerea DOAR din acel comutator, iar pe
- * Android 13+ o permisiune necerută e refuzata implicit. Serviciul de analiza
- * pornea si lucra, doar ca notificarea lui era invizibila — adica exact
- * singurul lucru care ii spune omului ca importul merge mai departe.
- *
- * Cuvintele lui: "trebuie pus in info de start cand accesezi prima data
- * aplicatia, cum se da aprobare pentru galerie poze, sa se dea si pentru
- * notificari". Asa e — permisiunea de galerie are un declansator natural
- * (prima citire din galerie), notificarile n-aveau niciunul.
- *
- * Sta imediat DUPA pasul de galerie: cele doua ecrane despre permisiuni raman
- * impreuna, iar dialogul de sistem apare dupa ce omul a citit de ce.
- */
-const NOTIFICATION_STEP: Step = {
-  Icon: InfoIcon, titleKey: 'welcome.notifications.title', bodyKey: 'welcome.notifications.body'
-};
-
 function buildSteps(): Step[] {
-  const steps = [...BASE_STEPS];
-  // Ordinea insertiilor conteaza: notificarile intai, ca dupa a doua insertie
-  // (galeria, pe acelasi index) sa ajunga imediat DUPA ea.
-  if (isNativeNotificationsAvailable()) steps.splice(PERMISSION_STEP_INDEX, 0, NOTIFICATION_STEP);
-  if (isNativeMediaLibraryAvailable()) steps.splice(PERMISSION_STEP_INDEX, 0, PERMISSION_STEP);
-  return steps;
+  return CLEAN_STEPS.map(step => (
+    step.visual === 'permission' && !isNativeMediaLibraryAvailable()
+      ? { ...step, visual: undefined }
+      : step
+  ));
 }
 
 export function WelcomeOnboarding() {
@@ -161,19 +109,16 @@ export function WelcomeOnboarding() {
    * ecranul de intampinare nu e locul in care sa insisti — analiza merge mai
    * departe oricum, doar fara sa spuna cat a ajuns.
    */
-  const leaveStep = async () => {
-    if (steps[step] === NOTIFICATION_STEP) {
-      try { await requestNotificationAccess(); } catch { /* un refuz nu opreste intampinarea */ }
-    }
+  const leaveStep = () => {
     if (isLast) finish(); else setStep(s => s + 1);
   };
   const isLast = step === steps.length - 1;
   const { Icon, titleKey, bodyKey, visual } = steps[step];
 
   return (
-    <div className="welcome-screen">
+    <div className="welcome-screen orbit-welcome">
       <div
-        className="welcome-onboarding" ref={containerRef} role="dialog" aria-modal="true"
+        className="welcome-onboarding orbit-stage" ref={containerRef} role="dialog" aria-modal="true"
         aria-label={tr(titleKey)} tabIndex={-1}
         onKeyDown={e => { if (e.key === 'Escape') { e.preventDefault(); finish(); } }}
       >

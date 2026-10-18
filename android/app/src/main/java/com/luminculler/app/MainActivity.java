@@ -21,6 +21,10 @@ import com.luminculler.app.plugins.ImageDescriptionPlugin;
 import com.luminculler.app.plugins.ImageEmbedderPlugin;
 import com.luminculler.app.plugins.FolderExportPlugin;
 import com.luminculler.app.plugins.MediaLibraryPlugin;
+import com.luminculler.app.plugins.CleanScanPlugin;
+import com.luminculler.app.plugins.CleanReminderPlugin;
+import com.luminculler.app.plugins.LuminHapticsPlugin;
+import com.luminculler.app.plugins.VideoCompressPlugin;
 import com.luminculler.app.plugins.NotificationsPlugin;
 import com.luminculler.app.plugins.BillingPlugin;
 import com.luminculler.app.plugins.ThermalPlugin;
@@ -125,6 +129,10 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(ImageEmbedderPlugin.class);
         registerPlugin(FolderExportPlugin.class);
         registerPlugin(MediaLibraryPlugin.class);
+        registerPlugin(CleanScanPlugin.class);
+        registerPlugin(CleanReminderPlugin.class);
+        registerPlugin(LuminHapticsPlugin.class);
+        registerPlugin(VideoCompressPlugin.class);
         registerPlugin(NotificationsPlugin.class);
         registerPlugin(BillingPlugin.class);
         // Treapta termica a telefonului (PowerManager). Vezi ThermalPlugin.kt:

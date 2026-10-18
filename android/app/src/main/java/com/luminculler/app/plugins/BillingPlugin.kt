@@ -36,14 +36,15 @@ import com.getcapacitor.annotation.CapacitorPlugin
  * operatii), iar un wrapper ar aduce un ciclu de intretinere strain pentru
  * exact codul care decide daca utilizatorul a platit.
  *
- * DOUA produse, nu unul: lunar si anual (vezi PRODUCT_IDS). Anualul e singura
- * parghie reala de venit care nu cere nicio functie noua — in aplicatiile de
- * consum acopera de obicei jumatate din incasari si, mai important, muta
- * decizia de reinnoire de douasprezece ori pe an la o singura data pe an.
- * Codul NU presupune insa ca amandoua exista: `plans()` intoarce exact ce
- * raspunde Play, iar interfata arata ce a primit. Cat timp anualul nu e creat in
- * Play Console, aplicatia se comporta exact ca inainte, cu un singur plan; in
- * ziua in care e creat, apare singur, fara nicio schimbare de cod.
+ * TREI produse, nu unul: lunar, anual si lifetime (vezi id-urile de mai jos,
+ * aceleasi siruri ca in src/core/suggestedPrices.ts). Nu exista plan
+ * saptamanal, intenționat. Anualul e planul implicit; perioada de proba de 7
+ * zile se configureaza ca oferta pe planul lui de baza, nu ca un produs separat.
+ * Lifetime e o achizitie unica (INAPP), nu un abonament.
+ *
+ * Codul NU presupune ca toate trei exista: `plans()` intoarce exact ce
+ * raspunde Play, iar interfata arata ce a primit. Un produs inca necreat in
+ * Play Console pur si simplu nu apare.
  *
  * CE TREBUIE FACUT IN AFARA CODULUI ca sa functioneze, si fara care metodele de
  * mai jos raspund corect dar gol:
@@ -69,16 +70,19 @@ import com.getcapacitor.annotation.CapacitorPlugin
 @CapacitorPlugin(name = "Billing")
 class BillingPlugin : Plugin() {
 
-    /** Trebuie sa fie IDENTIC cu ID-urile abonamentelor din Google Play Console. */
+    /** Trebuie sa fie IDENTIC cu ID-urile din Google Play Console si din suggestedPrices.ts. */
     private val monthlyId = "lumin_premium_monthly"
     private val yearlyId = "lumin_premium_yearly"
+    /** Achiziție unică. Nu se reînnoiește și nu are perioadă de probă. */
+    private val lifetimeId = "lumin_premium_lifetime"
 
     /**
      * Ordinea conteaza: e ordinea in care ajung planurile in interfata, si
      * lunarul sta primul fiindca e reperul fata de care se citeste economia
-     * anualului.
+     * anualului. Lifetime sta la final: e ancora, nu planul implicit.
      */
-    private val productIds = listOf(monthlyId, yearlyId)
+    private val subscriptionIds = listOf(monthlyId, yearlyId)
+    private val productIds = listOf(monthlyId, yearlyId, lifetimeId)
 
     private var pendingPurchaseCall: PluginCall? = null
 
@@ -222,10 +226,21 @@ class BillingPlugin : Plugin() {
                     call.reject("Could not read purchases: ${result.debugMessage} (${result.responseCode})")
                     return@queryPurchasesAsync
                 }
-                val active = purchases.filter { p -> p.isActive() && p.products.any { it in productIds } }
-                // O achizitie facuta pe alt dispozitiv ajunge aici neconfirmata.
-                active.forEach { acknowledge(it) }
-                call.resolve(JSObject().put("active", active.isNotEmpty()))
+                val subs = purchases.filter { p -> p.isActive() && p.products.any { it in subscriptionIds } }
+                subs.forEach { acknowledge(it) }
+                client.queryPurchasesAsync(
+                    QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.INAPP).build()
+                ) { inAppResult, inAppPurchases ->
+                    if (inAppResult.responseCode != BillingClient.BillingResponseCode.OK) {
+                        // Abonamentul l-am citit. Lifetime necunoscut nu e un motiv
+                        // să spunem „neabonat” unui om care tocmai a plătit lunarul.
+                        call.resolve(JSObject().put("active", subs.isNotEmpty()))
+                        return@queryPurchasesAsync
+                    }
+                    val lifetime = inAppPurchases.filter { p -> p.isActive() && p.products.any { it == lifetimeId } }
+                    lifetime.forEach { acknowledge(it) }
+                    call.resolve(JSObject().put("active", subs.isNotEmpty() || lifetime.isNotEmpty()))
+                }
             }
         }
     }
@@ -294,6 +309,7 @@ class BillingPlugin : Plugin() {
         val recurring = recurringPhase(offer) ?: return null
         val out = JSObject()
             .put("id", details.productId)
+            .put("kind", if (durationDays(recurring.billingPeriod) > 31) "yearly" else "monthly")
             .put("price", recurring.formattedPrice)
             // Cifra bruta, ca partea de JS sa poata calcula economia anualului
             // fara sa incerce vreodata sa parseze un pret formatat de Play (care
@@ -324,31 +340,66 @@ class BillingPlugin : Plugin() {
      */
     private var lastUnfetched: String = "none reported"
 
-    private fun queryProducts(call: PluginCall, onResult: (List<ProductDetails>) -> Unit) {
+    private fun queryTyped(
+        call: PluginCall,
+        ids: List<String>,
+        type: String,
+        required: Boolean,
+        onResult: (List<ProductDetails>) -> Unit
+    ) {
+        if (ids.isEmpty()) { onResult(emptyList()); return }
         val params = QueryProductDetailsParams.newBuilder().setProductList(
-            productIds.map {
+            ids.map {
                 QueryProductDetailsParams.Product.newBuilder()
                     .setProductId(it)
-                    .setProductType(BillingClient.ProductType.SUBS)
+                    .setProductType(type)
                     .build()
             }
         ).build()
-        // Din Billing 8, callback-ul primeste un QueryProductDetailsResult, nu
-        // direct List<ProductDetails> — vezi comentariul de la subscribe().
         client.queryProductDetailsAsync(params) { result, productDetailsResult ->
             if (result.responseCode != BillingClient.BillingResponseCode.OK) {
-                call.reject("Could not read products: ${result.debugMessage} (${result.responseCode})")
+                if (required) call.reject("Could not read products: ${result.debugMessage} (${result.responseCode})")
+                else onResult(emptyList())
                 return@queryProductDetailsAsync
             }
-            lastUnfetched = productDetailsResult.unfetchedProductList
+            val unfetched = productDetailsResult.unfetchedProductList
                 .joinToString { "${it.productId} (status ${it.statusCode})" }
                 .ifEmpty { "none reported" }
-            // Ordinea din productIds, nu cea in care raspunde Play: interfata
-            // asaza planurile in ordinea primita, si aia n-are voie sa se schimbe
-            // de la o pornire la alta.
+            lastUnfetched = if (lastUnfetched == "none reported") unfetched else "$lastUnfetched; $unfetched"
             val byId = productDetailsResult.productDetailsList.associateBy { it.productId }
-            onResult(productIds.mapNotNull { byId[it] })
+            onResult(ids.mapNotNull { byId[it] })
         }
+    }
+
+    /**
+     * Abonamentele și lifetime-ul, în ordinea din productIds.
+     *
+     * Sunt două interogări pentru că Play nu amestecă SUBS cu INAPP în aceeași
+     * cerere. Un eșec la lifetime nu ascunde abonamentele deja citite: plans()
+     * le adună și arată ce a primit.
+     */
+    private fun queryProducts(call: PluginCall, onResult: (List<ProductDetails>) -> Unit) {
+        lastUnfetched = "none reported"
+        queryTyped(call, subscriptionIds, BillingClient.ProductType.SUBS, required = true) { subs ->
+            queryTyped(call, listOf(lifetimeId), BillingClient.ProductType.INAPP, required = false) { lifetime ->
+                val byId = (subs + lifetime).associateBy { it.productId }
+                onResult(productIds.mapNotNull { byId[it] })
+            }
+        }
+    }
+
+    /** Achiziția unică, în aceeași formă cu un abonament, ca JS să nu aibă două parsere. */
+    private fun describeLifetime(details: ProductDetails): JSObject? {
+        val offer = details.oneTimePurchaseOfferDetailsList?.firstOrNull() ?: return null
+        return JSObject()
+            .put("id", details.productId)
+            .put("kind", "lifetime")
+            .put("price", offer.formattedPrice)
+            .put("priceMicros", offer.priceAmountMicros.toString())
+            .put("currency", offer.priceCurrencyCode)
+            .put("period", "lifetime")
+            .put("periodDays", 0)
+            .put("offerToken", offer.offerToken ?: "")
     }
 
     /**
@@ -364,7 +415,10 @@ class BillingPlugin : Plugin() {
         withConnection(call) {
             queryProducts(call) { products ->
                 val plans = JSArray()
-                for (details in products) describePlan(details)?.let { plans.put(it) }
+                for (details in products) {
+                    val described = if (details.productId == lifetimeId) describeLifetime(details) else describePlan(details)
+                    described?.let { plans.put(it) }
+                }
                 call.resolve(JSObject().put("plans", plans))
             }
         }
@@ -383,12 +437,16 @@ class BillingPlugin : Plugin() {
     fun price(call: PluginCall) {
         withConnection(call) {
             queryProducts(call) { products ->
-                val monthly = products.firstOrNull { it.productId == monthlyId } ?: products.firstOrNull()
+                val monthly = products.firstOrNull { it.productId == monthlyId }
                 val out = JSObject()
                 // Absent, nu gol: UI-ul trebuie sa poata deosebi "inca nu stiu
                 // pretul" (produs neconfigurat, build nesemnat) de un pret real.
-                monthly?.let { d -> bestOffer(d)?.let { recurringPhase(it) } }
-                    ?.formattedPrice?.let { out.put("price", it) }
+                // Lifetime contează și el: un telefon pe care există doar
+                // achiziția unică tot are o cale de plată.
+                val formatted = monthly?.let { d -> bestOffer(d)?.let { recurringPhase(it)?.formattedPrice } }
+                    ?: products.firstOrNull { it.productId == lifetimeId }?.let { describeLifetime(it)?.getString("price") }
+                    ?: products.firstNotNullOfOrNull { d -> bestOffer(d)?.let { recurringPhase(it)?.formattedPrice } }
+                formatted?.let { out.put("price", it) }
                 call.resolve(out)
             }
         }
@@ -424,8 +482,12 @@ class BillingPlugin : Plugin() {
              */
             queryProducts(call) { products ->
                 val details = products.firstOrNull { it.productId == wanted }
-                val offerToken = details?.let { bestOffer(it) }?.offerToken
-                if (details == null || offerToken == null) {
+                val offerToken = if (wanted == lifetimeId) {
+                    details?.oneTimePurchaseOfferDetailsList?.firstOrNull()?.offerToken
+                } else {
+                    details?.let { bestOffer(it) }?.offerToken
+                }
+                if (details == null || offerToken.isNullOrBlank()) {
                     call.reject(
                         "Subscription not available — check that '$wanted' exists in Play Console " +
                             "with an active base plan, and that the build is signed. Unfetched: $lastUnfetched"

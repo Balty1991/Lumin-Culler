@@ -83,7 +83,7 @@ describe('buildClientGalleryHtml', () => {
       [{ id: 'p1', fileName: 'a.jpg', thumbnail: new Blob(['x'], { type: 'image/jpeg' }) }],
       'Galerie'
     );
-    expect(html).toContain('Lumin Culler Pro');
+    expect(html).toContain('Galerie generata cu Lumin');
   });
 
   it('embeds each photo id, escaped, for matching client feedback back to the right photo', async () => {

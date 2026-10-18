@@ -109,7 +109,7 @@ export async function buildClientGalleryHtml(
   </div>
   <div class="grid">${cards}
   </div>
-  <footer class="credit">Galerie generata cu Lumin Culler Pro — o aplicatie de sortare foto cu AI, 100% locala.</footer>
+  <footer class="credit">Galerie generata cu Lumin — o aplicatie de sortare foto cu AI, 100% locala.</footer>
 <script>
 (function() {
   var KEY = '${galleryId}-choices';

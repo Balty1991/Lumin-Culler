@@ -226,8 +226,8 @@ const SCENE_TAG_LABELS_RO: Record<string, string> = {
  * cheia lowercase din SCENE_TAG_LABELS_RO, chiar daca exista (bug real gasit
  * de feedback direct: toate etichetele native aparea netraduse).
  */
-export function translateSceneTag(tag: string, locale: 'ro' | 'en'): string {
-  if (locale === 'en') return tag;
+export function translateSceneTag(tag: string, locale: string): string {
+  if (locale !== 'ro') return tag;
   return SCENE_TAG_LABELS_RO[tag.toLowerCase()] ?? tag;
 }
 

@@ -44,7 +44,7 @@ export function SmartNotification() {
         ? t(locale, plural(unsortedCount, 'notif.body.one', 'notif.body.other'), { count: unsortedCount })
         : t(locale, 'notif.body.nextPeriod');
       const shown = await showNotification({
-        title: 'Lumin Culler',
+        title: 'Lumin',
         body,
         channelName: t(locale, 'notif.channel'),
         onClick: () => { window.focus(); setSupervisorPanelOpen(true); }

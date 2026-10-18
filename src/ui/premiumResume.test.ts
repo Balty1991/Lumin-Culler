@@ -13,7 +13,10 @@ import { en } from '../i18n/en';
  * cineva care tocmai a scos banii. De-aia fiecare motiv e verificat individual,
  * nu "o data, generic".
  */
-const REASONS: PremiumReason[] = ['locations', 'vault', 'contactSheet', 'presentation', 'xmp', 'persons', 'cap'];
+const REASONS: PremiumReason[] = [
+  'locations', 'vault', 'contactSheet', 'presentation', 'xmp', 'persons', 'cap',
+  'aiClean', 'videoCompress', 'autoClean'
+];
 
 function spyStore(): ResumeStore & { calls: string[] } {
   const calls: string[] = [];
@@ -25,6 +28,7 @@ function spyStore(): ResumeStore & { calls: string[] } {
     setVaultOpen: () => calls.push('vault'),
     setPersonsOpen: () => calls.push('persons'),
     setExportDestinationsOpen: () => calls.push('export'),
+    setHomeGridOpen: () => calls.push('home'),
     exportXMP: () => { calls.push('xmp'); return Promise.resolve(); }
   };
 }
@@ -50,7 +54,10 @@ describe('resumeFor', () => {
       // Plafonul e singurul care nu poate relua chiar actiunea: foaia de export
       // a fost inchisa de poarta si nu s-a retinut destinatia. Un pas inapoi,
       // cu selectia intacta — nu zero.
-      cap: 'export'
+      cap: 'export',
+      aiClean: 'home',
+      videoCompress: 'home',
+      autoClean: 'home'
     };
     for (const reason of REASONS) {
       const store = spyStore();
