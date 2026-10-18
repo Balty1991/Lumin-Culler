@@ -3,6 +3,8 @@ import { useStore } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { XIcon, StarIcon, CheckIcon } from './icons';
 import { FREE_PHOTOS_PER_MONTH, FREE_ENROLLED_PERSONS, refreshEntitlement } from '../core/entitlement';
+import { FREE_AI_CLEAN_PER_DAY } from '../core/aiCleanAllowance';
+import { openSubscriptionManagement } from '../core/subscriptionManage';
 import { isBillingAvailable, queryPremiumPrice, queryPlansAnswer, startSubscription, type PremiumPlan } from '../core/billing';
 import { annualSavingsPercent, perMonthPrice, defaultPlanId, resolvePlan } from '../core/premiumPlans';
 import { t, plural } from '../i18n';
@@ -54,7 +56,10 @@ export function PremiumPanel() {
     contactSheet: 'pro',
     vault: 'pro',
     presentation: 'show',
-    locations: 'locations'
+    locations: 'locations',
+    aiClean: 'ai',
+    videoCompress: 'video',
+    autoClean: 'auto'
   }[premiumReason];
   const photosUsed = useStore(s => s.photosUsedThisWindow);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -165,7 +170,7 @@ export function PremiumPanel() {
         {!premium && (picked ?? price) && (
           <p className="premium-price">
             {picked
-              ? tr(picked.periodDays > 31 ? 'premium.price.tagYear' : 'premium.price.tag', { price: picked.price })
+              ? tr(planPriceKey(picked), { price: picked.price })
               : tr('premium.price.tag', { price: price! })}
           </p>
         )}
@@ -179,6 +184,11 @@ export function PremiumPanel() {
         <LifetimeProof locale={locale} premium={premium} />
 
         <h4 className="premium-group-head">{tr('premium.section.unlock')}</h4>
+
+        <PerkRow wanted={highlightedPerk === 'swipe'} title={tr('premium.perk.swipe.title')} sub={tr('premium.perk.swipe.sub')} />
+        <PerkRow wanted={highlightedPerk === 'ai'} title={tr('premium.perk.ai.title')} sub={tr('premium.perk.ai.sub', { daily: FREE_AI_CLEAN_PER_DAY })} />
+        <PerkRow wanted={highlightedPerk === 'video'} title={tr('premium.perk.video.title')} sub={tr('premium.perk.video.sub')} />
+        <PerkRow wanted={highlightedPerk === 'auto'} title={tr('premium.perk.auto.title')} sub={tr('premium.perk.auto.sub')} />
 
         <div className={highlightedPerk === 'export' ? 'premium-perk premium-perk-demo is-wanted' : 'premium-perk premium-perk-demo'}>
           <span>
@@ -335,7 +345,7 @@ export function PremiumPanel() {
                       />
                       <span className="premium-plan-body">
                         <b>
-                          {tr(plan.periodDays > 31 ? 'premium.plan.yearly' : 'premium.plan.monthly')}
+                          {tr(planLabelKey(plan))}
                           {savings !== null && (
                             <i className="premium-plan-save" title={tr('premium.plan.saveTitle', { percent: savings })}>
                               {tr('premium.plan.save', { percent: savings })}
@@ -378,7 +388,9 @@ export function PremiumPanel() {
             >
               {busy
                 ? tr('premium.subscribing')
-                : picked?.trialDays
+                : picked && isLifetimePlan(picked)
+                  ? tr('premium.subscribe.lifetime', { price: picked.price })
+                  : picked?.trialDays
                   ? tr('premium.subscribe.trial', { price: picked.price })
                   : tr('premium.subscribe', { price: picked?.price ?? price! })}
             </button>
@@ -397,10 +409,12 @@ export function PremiumPanel() {
                 chiar o va incasa butonul de deasupra. */}
             {picked && (
               <p className="premium-terms">
-                {picked.trialDays
+                {isLifetimePlan(picked)
+                  ? tr('premium.renewal.lifetime', { price: picked.price })
+                  : picked.trialDays
                   ? tr(plural(picked.trialDays, 'premium.renewal.trial.one', 'premium.renewal.trial.other'),
                       { count: picked.trialDays, price: picked.price })
-                  : tr(picked.periodDays > 31 ? 'premium.renewal.yearly' : 'premium.renewal.monthly',
+                  : tr(isYearlyPlan(picked) ? 'premium.renewal.yearly' : 'premium.renewal.monthly',
                       { price: picked.price })}
               </p>
             )}
@@ -426,7 +440,42 @@ export function PremiumPanel() {
         ) : (
           <p className="premium-soon">{tr('premium.soon')}</p>
         )}
+        <button type="button" className="ghost premium-cancel" onClick={() => openSubscriptionManagement()}>
+          {tr('premium.cancel')}
+        </button>
+        <p className="premium-soon">{tr('premium.cancel.note')}</p>
       </div>
+    </div>
+  );
+}
+
+function isLifetimePlan(plan: PremiumPlan): boolean {
+  return plan.kind === 'lifetime' || plan.periodDays === 0;
+}
+
+function isYearlyPlan(plan: PremiumPlan): boolean {
+  return !isLifetimePlan(plan) && (plan.kind === 'yearly' || plan.periodDays > 31);
+}
+
+function planLabelKey(plan: PremiumPlan): string {
+  if (isLifetimePlan(plan)) return 'premium.plan.lifetime';
+  if (isYearlyPlan(plan)) return 'premium.plan.yearly';
+  return 'premium.plan.monthly';
+}
+
+function planPriceKey(plan: PremiumPlan): string {
+  if (isLifetimePlan(plan)) return 'premium.price.tagLifetime';
+  if (isYearlyPlan(plan)) return 'premium.price.tagYear';
+  return 'premium.price.tag';
+}
+
+function PerkRow(props: { wanted: boolean; title: string; sub: string }) {
+  return (
+    <div className={props.wanted ? 'premium-perk premium-perk-demo is-wanted' : 'premium-perk premium-perk-demo'}>
+      <span>
+        <b>{props.title}</b>
+        <span>{props.sub}</span>
+      </span>
     </div>
   );
 }

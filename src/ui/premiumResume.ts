@@ -49,6 +49,7 @@ export interface ResumeStore {
   setVaultOpen: (open: boolean) => void;
   setPersonsOpen: (open: boolean) => void;
   setExportDestinationsOpen: (open: boolean) => void;
+  setHomeGridOpen: (open: boolean) => void;
   exportXMP: () => Promise<void>;
 }
 
@@ -66,7 +67,11 @@ const ACTIONS: Record<PremiumReason, ResumeAction> = {
    * reluarea e un pas mai devreme — foaia se redeschide, cu selectia intacta.
    * Un pas inapoi, nu zero.
    */
-  cap: { labelKey: 'premium.resume.cap', run: s => s.setExportDestinationsOpen(true) }
+  cap: { labelKey: 'premium.resume.cap', run: s => s.setExportDestinationsOpen(true) },
+  /** Curățarea, comprimarea și mementoul trăiesc pe ecranul de acasă. */
+  aiClean: { labelKey: 'premium.resume.aiClean', run: s => s.setHomeGridOpen(false) },
+  videoCompress: { labelKey: 'premium.resume.videoCompress', run: s => s.setHomeGridOpen(false) },
+  autoClean: { labelKey: 'premium.resume.autoClean', run: s => s.setHomeGridOpen(false) }
 };
 
 /** Ce se poate relua pentru motivul dat. `null` cand ecranul a fost deschis din meniu (fara motiv). */

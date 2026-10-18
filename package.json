@@ -1,6 +1,6 @@
 {
   "name": "lumin-culler-pro",
-  "version": "2.1.2",
+  "version": "3.0.0",
   "private": true,
   "type": "module",
   "description": "Sortare si alegere fotografii cu AI real (TensorFlow.js). Web-first, impachetabil in Tauri sau Electron (desktop) si Capacitor sau React Native (mobil).",
@@ -23,7 +23,7 @@
   },
   "build": {
     "appId": "com.luminculler.app",
-    "productName": "Lumin Culler Pro",
+    "productName": "Lumin",
     "files": [
       "dist/**/*",
       "electron/**/*"

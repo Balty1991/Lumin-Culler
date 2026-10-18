@@ -25,10 +25,13 @@ import { getPhotosAccess, openAppSettings, readGalleryOverview, type PhotosAcces
 import {
   checkNotificationAccess, requestNotificationAccess, type NotificationAccess
 } from './nativeNotifications';
+import { readVideoAccess, requestVideoAccess, type VideoAccess } from './nativeCleanScan';
 
 export interface StarePermisiuni {
   galerie: PhotosAccess;
   notificari: NotificationAccess;
+  /** READ_MEDIA_VIDEO pe Android 13+, sau stocarea veche pe versiunile anterioare. */
+  video: VideoAccess;
 }
 
 /**
@@ -52,12 +55,17 @@ function notificariSeAplica(acces: NotificationAccess): boolean {
   return acces !== 'unsupported';
 }
 
+function videoSeAplica(acces: VideoAccess): boolean {
+  return acces !== 'unavailable';
+}
+
 /** Cate permisiuni APLICABILE exista pe platforma asta, si cate dintre ele sunt date. */
 export function numaraPermisiuni(stare: StarePermisiuni): { date: number; total: number } {
   let date = 0;
   let total = 0;
   if (galerieSeAplica(stare.galerie)) { total++; if (galerieEsteData(stare.galerie)) date++; }
   if (notificariSeAplica(stare.notificari)) { total++; if (stare.notificari === 'granted') date++; }
+  if (videoSeAplica(stare.video)) { total++; if (stare.video === 'full') date++; }
   return { date, total };
 }
 
@@ -72,11 +80,12 @@ export function toatePermisiunileDate(stare: StarePermisiuni): boolean {
 }
 
 export async function readAppPermissions(): Promise<StarePermisiuni> {
-  const [galerie, notificari] = await Promise.all([
+  const [galerie, notificari, video] = await Promise.all([
     getPhotosAccess().catch((): PhotosAccess => 'unavailable'),
-    checkNotificationAccess().catch((): NotificationAccess => 'unsupported')
+    checkNotificationAccess().catch((): NotificationAccess => 'unsupported'),
+    readVideoAccess().catch((): VideoAccess => 'unavailable')
   ]);
-  return { galerie, notificari };
+  return { galerie, notificari, video };
 }
 
 /**
@@ -103,6 +112,9 @@ export async function requestMissingPermissions(): Promise<{ stare: StarePermisi
   }
   if (notificariSeAplica(inainte.notificari) && inainte.notificari !== 'granted') {
     await requestNotificationAccess().catch(() => undefined);
+  }
+  if (videoSeAplica(inainte.video) && inainte.video !== 'full') {
+    await requestVideoAccess().catch(() => undefined);
   }
 
   const dupa = await readAppPermissions();

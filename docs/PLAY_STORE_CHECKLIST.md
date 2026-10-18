@@ -82,7 +82,10 @@ serii, oricate poze. Se plateste pentru ce faci cu rezultatul:
 
 | Ce | Gratuit | Premium |
 |---|---|---|
-| Poze scoase din aplicatie (exportate **sau** sterse din telefon) | 150 la fiecare 30 de zile (fereastra glisanta) | nelimitat |
+| Swipe manual si stergere din telefon | nelimitat (nu intra in plafon) | nelimitat |
+| „Curata tot” cu AI | primul cos, apoi 50/zi | nelimitat |
+| Export din aplicatie | 150 la fiecare 30 de zile | nelimitat |
+| Comprimare video, memento lunar, capturi > 30 zile | — | da |
 | Persoane recunoscute inrolate | 1 | oricate |
 | Predare Lightroom (XMP), plansa de contact, dosar privat | — | da |
 | Recap lunar, prezentare, calatorii | — | da |
@@ -110,21 +113,13 @@ utilizatorul fara sa-i dea cum sa treaca de el nu e freemium, e un perete.
    acesta — vezi `monthlyId` in BillingPlugin.kt), cu cel putin un plan de
    baza activ. Fara el, `price()` intoarce gol si butonul de cumparare nici nu
    se afiseaza.
-2. **`lumin_premium_yearly`** — al doilea abonament, tot cu un plan de baza
-   activ, facturat anual. Codul il cauta deja si arata singur cele doua carduri
-   de plan, cu eticheta de economie calculata din preturile REALE primite de la
-   Play (vezi `core/premiumPlans.ts`). Cat timp nu exista, aplicatia se
-   comporta exact ca inainte, cu un singur plan — nu e nimic de schimbat in cod
-   in ziua in care il creezi.
-   - Pretul anual pe care il pui decide singur eticheta: sub ~5% economie fata
-     de 12 luni, aplicatia n-o mai afiseaza deloc (o reducere de rotunjire nu e
-     o oferta). Reperul obisnuit e 2 luni gratuite, adica 10 x pretul lunar.
-3. Optional, dar e cea mai ieftina crestere de conversie: pe planul de baza
-   lunar, o **oferta cu perioada de proba** (Play Console → abonament → plan de
-   baza → Adauga oferta → Free trial). Nu cere nicio linie de cod: aplicatia
-   citeste faza gratuita si scrie singura "primele 7 zile gratuite" pe card si
-   "Începe gratuit — apoi ..." pe buton. Play trimite oferta doar conturilor
-   eligibile, deci un fost abonat nu o primeste a doua oara.
+2. **`lumin_premium_yearly`** — abonament anual. Pe planul de baza, o oferta
+   **Free trial de 7 zile**. Pret sugerat: 29,99 USD / 99,99 RON. Aplicatia
+   citeste faza gratuita si scrie singura perioada de proba. Nu exista produs
+   saptamanal.
+3. **`lumin_premium_lifetime`** — achizitie unica (INAPP, nu abonament). Pret
+   sugerat: 49,99 USD / 179,99 RON. Preturile sugerate stau in
+   `src/core/suggestedPrices.ts` si nu se afiseaza ca si cum ar fi pretul Play.
 4. Build **semnat cu cheia de release**, incarcat macar pe internal testing.
    Play Billing nu raspunde niciodata unui APK de debug instalat cu adb.
 5. Contul de test adaugat ca **licensed tester** in Play Console.

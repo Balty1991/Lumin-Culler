@@ -1,4 +1,33 @@
-# Texte fisa Play Store — Lumin Culler Pro
+# Texte fisa Play Store — Lumin: AI Photo Cleaner
+
+Numele din launcher e **Lumin**. Titlurile de cautare de mai jos sunt cele de
+pus in Play Console (limba principala: engleza). Pachetul ramane
+`com.luminculler.app`.
+
+| Limba | Titlu (≤30) | Descriere scurta (≤80) |
+|---|---|---|
+| en-US | `Lumin: Photo Cleaner & Swipe` | `Swipe to clean your gallery. AI finds duplicates, blurry shots & big videos.` |
+| ro-RO | `Lumin: Curăță Poze și Spațiu` | `Telefon plin? AI găsește poze duplicate, neclare și capturi. Swipe și eliberezi.` |
+| pt-BR | `Lumin: Limpar Fotos e Espaço` | `Celular cheio? A IA acha fotos duplicadas, borradas e vídeos grandes. Deslize!` |
+| es | `Lumin: Limpiar Fotos y Espacio` | `¿Almacenamiento lleno? La IA encuentra fotos duplicadas y borrosas. ¡Desliza!` |
+| de-DE | `Lumin: Fotos löschen, Speicher` | `Speicher voll? KI findet doppelte & unscharfe Fotos und große Videos. Wischen!` |
+
+Alternativa de titlu EN, daca experimentul de cautare o cere: `Lumin: AI Photo Cleaner`.
+
+**Limite gratuite, de scris identic in fisa si in aplicatie:**
+
+- swipe manual si stergere: gratuite, nelimitate; stergerea NU intra in plafonul de 150;
+- „curata tot” cu AI: primul cos complet gratuit, apoi 50 de poze pe zi;
+- export: 150 la 30 de zile;
+- comprimare video, memento lunar, expirare capturi: Premium;
+- fara plan saptamanal; anualul are 7 zile de proba; anularea e in Google Play.
+
+Textele lungi de mai jos pastreaza detaliul de fotograf. Frazele despre
+„exportate sau sterse” au fost corectate: stergerea nu se numara.
+
+---
+
+# Texte fisa (varianta anterioara, cu limita corectata)
 
 Gata de copiat direct in Play Console (Store presence -> Main store listing).
 Toate limitele de caractere de mai jos sunt cele impuse de Google Play; verificate
@@ -94,9 +123,11 @@ serii — oricâte poze, fără cont.
 Premium ridică plafonul pe pozele SCOASE din aplicație și deblochează
 fluxul profesional:
 
-• Gratuit: 150 de poze scoase la fiecare 30 de zile (exportate sau șterse
-  de pe telefon), o persoană recunoscută.
-• Premium: export și ștergere nelimitate, oricâte persoane, plus XMP
+• Gratuit: swipe și ștergere nelimitate (ștergerea nu se numără), primul coș
+  „Curăță tot” cu AI, apoi 50 de poze pe zi, 150 de exporturi la 30 de zile,
+  o persoană recunoscută.
+• Premium: curățare AI fără plafon, comprimare video, mementouri, export
+  nelimitat, oricâte persoane, plus XMP
   pentru Lightroom, planșă de contact, dosar privat cu PIN, recap lunar,
   prezentare, locații și sugestia de combinare a două cadre.
 
@@ -193,10 +224,11 @@ and no account.
 The optional Premium subscription (monthly or yearly, via Google Play) lifts the cap on
 photos taken OUT of the app and unlocks the professional workflow:
 
-• Free: 150 photos taken out of the app every 30 days (exported or deleted
-  from the phone), one enrolled recognised person.
-• Premium: unlimited export and deletion, as many recognised people as you
-  like, plus XMP sidecars for Lightroom, contact sheet, private vault, monthly
+• Free: unlimited swipe and deletion (deletion does not count), the first
+  full AI clean, then 50 photos a day, 150 exports every 30 days, one
+  enrolled recognised person.
+• Premium: unlimited AI clean-all, video compression, reminders, unlimited
+  export, as many recognised people as you like, plus XMP sidecars for Lightroom, contact sheet, private vault, monthly
   recap, presentation mode, trips, and the two-frame composite suggestion.
 
 The price is shown in the app, in your account's currency. The subscription

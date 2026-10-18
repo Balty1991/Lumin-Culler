@@ -56,8 +56,11 @@ async function sampleDigest(file: ScannableFile): Promise<string | null> {
     const tail = file.size > SAMPLE_BYTES
       ? file.slice(Math.max(0, file.size - SAMPLE_BYTES), file.size)
       : new Blob([]);
-    const buf = await new Blob([head, tail]).arrayBuffer();
-    const digest = await crypto.subtle.digest('SHA-256', buf);
+    const raw = await new Blob([head, tail]).arrayBuffer();
+    // O copie în realm-ul curent: Blob-ul din jsdom poate întoarce un
+    // ArrayBuffer din alt realm, pe care SubtleCrypto îl refuză.
+    const bytes = Uint8Array.from(new Uint8Array(raw));
+    const digest = await crypto.subtle.digest('SHA-256', bytes);
     return [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
   } catch {
     // Fisier ilizibil (permisiune retrasa, sters intre timp) sau crypto.subtle

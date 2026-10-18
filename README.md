@@ -95,30 +95,42 @@ Orice modificare ulterioara: editezi fisierul in web editor → Commit → Actio
 
 ## Model de monetizare
 
-Triajul e **gratuit si nelimitat** — import, scor AI, sortare, grupare, comparare serii,
-oricate poze. Se plateste pentru ce faci cu rezultatul:
+Produsul e **Lumin: AI Photo Cleaner**. Swipe-ul manual prin galerie e primul ecran
+si ramane gratuit. AI-ul de pe telefon grupeaza duplicate, rafale, poze neclare,
+capturi si videoclipuri mari. Nimic nu se sterge fara confirmarea sistemului.
+
+Limitele de mai jos sunt cele din aplicatie. Fisa din magazin trebuie sa spuna
+acelasi lucru: **stergerea nu intra in plafonul de 150**. Plafonul acela e doar
+pentru export.
 
 | | Gratuit | Premium |
 |---|---|---|
-| Poze scoase din aplicatie (exportate **sau** sterse din telefon) | 150 la 30 de zile | nelimitat |
-| Persoane recunoscute inrolate | 1 | oricate |
-| Predare Lightroom (XMP), plansa de contact, dosar privat | — | da |
-| Recap lunar, prezentare, calatorii | — | da |
-| Sugestia de combinare a doua cadre | — | da |
+| Scanare si raport de spatiu | nelimitat | nelimitat |
+| Swipe manual si stergere din telefon | nelimitat, nu se numara | nelimitat |
+| „Curata tot” cu AI | primul cos complet, apoi 50 de poze pe zi | nelimitat |
+| Videoclipuri mari (lista, sortate dupa marime, stergere) | da | da |
+| Comprimare video | nu (estimarea se vede inainte) | da |
+| Memento lunar si expirarea capturilor (30 de zile) | nu | da |
+| Export din aplicatie | 150 la 30 de zile | nelimitat |
+| Persoane inrolate | 1 | oricate |
+| XMP, plansa de contact, dosar privat, recap, prezentare, locatii, combinare | — | da |
 
-Doua planuri, lunar si anual (`lumin_premium_monthly` / `lumin_premium_yearly`).
-Ecranul Premium le arata pe amandoua doar cand Play chiar raspunde cu amandoua;
-eticheta de economie a anualului se calculeaza din preturile REALE primite de la
-Play, si nu se afiseaza deloc sub 5% (vezi `src/core/premiumPlans.ts`) — o
-reducere de rotunjire nu e o oferta. Perioada de proba, daca e configurata ca
-oferta in Play Console, apare singura pe card si pe buton, fara schimbari de cod.
+Trei produse in Play Console, fara plan saptamanal:
 
-Numerele stau intr-un singur loc, `src/core/entitlement.ts`. Plata merge prin Google Play
-Billing (`android/.../plugins/BillingPlugin.kt`) — nu exista server, deci nici validare de
-chitanta pe partea noastra; vezi comentariul din acel fisier pentru de ce e compromisul
-corect aici. Regula care tine tot modelul: **nimic nu se blocheaza cat timp nu exista o
-cale reala de plata pe dispozitiv** (`isPurchasable()`), deci pe web/PWA plafoanele doar
-informeaza.
+| Produs | ID | Tip | Pret sugerat (nu e pretul afisat) |
+|---|---|---|---|
+| Lunar | `lumin_premium_monthly` | abonament | 4,99 USD / 19,99 RON |
+| Anual, cu oferta de 7 zile gratuite pe planul de baza | `lumin_premium_yearly` | abonament | 29,99 USD / 99,99 RON |
+| Pe viata | `lumin_premium_lifetime` | achizitie unica (INAPP) | 49,99 USD / 179,99 RON |
+
+Ecranul arata doar pretul pe care il intoarce Play. Cifrele din tabel sunt
+reperul din `src/core/suggestedPrices.ts`, de pus in consola, nu de desenat
+in UI. Anularea e un buton care deschide
+`https://play.google.com/store/account/subscriptions?package=com.luminculler.app`.
+
+Regula care tine modelul: **nimic nu se blocheaza cat timp nu exista o cale
+reala de plata** (`isPurchasable()`). Pe web, plafoanele doar informeaza.
+Fara reclame, fara analytics, fara cont.
 
 ## Drumul spre Desktop si Mobil
 

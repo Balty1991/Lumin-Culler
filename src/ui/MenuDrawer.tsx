@@ -44,7 +44,7 @@ import { analyzeFaceMeshNative, isNativeFaceMeshAvailable } from '../core/native
 import { detectTextNative, isNativeTextRecognitionAvailable } from '../core/nativeTextRecognition';
 import { detectPoseNative, isNativePoseDetectionAvailable } from '../core/nativePoseDetection';
 import { embedImageNative, isNativeImageEmbedderAvailable } from '../core/nativeImageEmbedder';
-import { t } from '../i18n';
+import { LOCALE_OPTIONS, t, type Locale } from '../i18n';
 import { countRescuable } from '../core/rescueQueue';
 import { countNonPersonal } from '../core/smartInbox';
 import { buildMomentStacks, countOpenMoments } from '../core/momentStacks';
@@ -235,7 +235,7 @@ export function MenuDrawer() {
    * cifra ramane oricum scrisa pe ecran, de unde se poate citi cu ochiul.
    */
   const copyBuildId = async () => {
-    const text = `Lumin Culler Pro ${APP_VERSION} (${__BUILD_ID__})`;
+    const text = `Lumin ${APP_VERSION} (${__BUILD_ID__})`;
     try {
       await navigator.clipboard.writeText(text);
       setNotice(tr('menu.version.copied'));
@@ -956,14 +956,20 @@ export function MenuDrawer() {
             />
           </button>
 
-          <button
-            className="drawer-item"
-            onClick={() => go(() => setLocale(locale === 'ro' ? 'en' : 'ro'))}
-            title={tr('menu.language.title')}
-          >
+          <label className="drawer-item" title={tr('menu.language.title')}>
             <span className="drawer-item-icon"><GlobeIcon /></span>
             <span>{tr('menu.language')}</span>
-          </button>
+            <select
+              className="locale-select"
+              aria-label={tr('menu.language.title')}
+              value={locale}
+              onChange={event => setLocale(event.target.value as Locale)}
+            >
+              {LOCALE_OPTIONS.map(option => (
+                <option key={option.id} value={option.id}>{option.label}</option>
+              ))}
+            </select>
+          </label>
 
           {/* Comutatorul care decide daca meniul arata si uneltele de dupa triaj.
               Oprit implicit — vezi state/proMode.ts. Nu inchide sertarul (fara

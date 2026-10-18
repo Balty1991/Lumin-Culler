@@ -258,7 +258,9 @@ export interface PhotoView {
 }
 
 /** Pentru ce functie s-a lovit omul de poarta Premium — vezi gatePremium. */
-export type PremiumReason = 'locations' | 'vault' | 'contactSheet' | 'presentation' | 'xmp' | 'persons' | 'cap';
+export type PremiumReason =
+  | 'locations' | 'vault' | 'contactSheet' | 'presentation' | 'xmp' | 'persons' | 'cap'
+  | 'aiClean' | 'videoCompress' | 'autoClean';
 
 export type FilterKey = 'all' | 'selected' | 'candidate' | 'review' | 'rejected' | 'series' | 'blinks' | 'blurry' | 'goldenHour' | 'highlights';
 
