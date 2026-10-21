@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="lumin_onb_title">Galerie curată în 2 minute pe zi</string>
+    <string name="lumin_onb_sub">În fiecare zi, Lumin îți pregătește un teanc mic de poze: o amintire de acum câțiva ani, duplicatele și pozele neclare găsite, și cele mai noi poze. Glisezi ca să păstrezi sau să ștergi.</string>
+    <string name="lumin_onb_b1">Amintiri din ziua de azi, din anii trecuți</string>
+    <string name="lumin_onb_b2">Găsește duplicate, rafale, poze neclare și videoclipuri mari</string>
+    <string name="lumin_onb_b3">Nimic nu pleacă de pe telefon. Fără cont, fără reclame.</string>
+    <string name="lumin_onb_privacy">Pozele se analizează doar pe acest telefon. Nu se încarcă nicăieri.</string>
+    <string name="lumin_allow_photos">Permite accesul la poze</string>
+
+    <string name="lumin_settings">Setări</string>
+    <string name="lumin_close">Închide</string>
+    <string name="lumin_back">Înapoi</string>
+    <string name="lumin_undo">Anulează</string>
+    <string name="lumin_keep">Păstrează</string>
+    <string name="lumin_delete">Șterge</string>
+    <string name="lumin_finish">Termină</string>
+    <string name="lumin_start">Începe</string>
+    <string name="lumin_continue">Continuă</string>
+    <string name="lumin_preparing">Îți pregătesc teancul…</string>
+    <string name="lumin_today_stack">Teancul de azi</string>
+    <string name="lumin_done_today">Gata pe azi</string>
+    <string name="lumin_done_today_hint">Mâine te așteaptă un teanc nou.</string>
+    <string name="lumin_another_stack">Încă un teanc</string>
+    <string name="lumin_deck_hint">Glisează la dreapta ca să păstrezi, la stânga ca să ștergi. Atinge ca să vezi toată poza.</string>
+
+    <string name="lumin_stat_freed">eliberat până acum</string>
+    <string name="lumin_stat_reclaimable">se poate elibera</string>
+    <string name="lumin_stat_total">eliberat în total</string>
+    <string name="lumin_stat_streak">serie</string>
+    <string name="lumin_scanning">Analizez galeria… %1$d / %2$d</string>
+    <string name="lumin_partial_access">Ai dat acces doar la o parte din poze. Permite toate pozele ca să cureți toată galeria.</string>
+    <string name="lumin_full_access">Permite toate pozele</string>
+
+    <string name="lumin_quick_clean">Curățenie rapidă</string>
+    <string name="lumin_quick_clean_hint">Ce a găsit AI-ul. Totul e bifat dinainte; tu decizi.</string>
+    <string name="lumin_all_clean">Nimic de curățat acum. Bravo.</string>
+
+    <string name="lumin_kind_duplicates">Duplicate</string>
+    <string name="lumin_kind_similar">Poze asemănătoare</string>
+    <string name="lumin_kind_blurry">Neclare</string>
+    <string name="lumin_kind_screenshots">Capturi de ecran</string>
+    <string name="lumin_kind_chats">Din aplicații de chat</string>
+    <string name="lumin_kind_videos">Videoclipuri mari</string>
+    <string name="lumin_kind_duplicates_hint">Copii ale aceleiași poze. Originalul rămâne.</string>
+    <string name="lumin_kind_similar_hint">Rafale și cadre aproape identice. Cea mai clară rămâne, marcată cu verde.</string>
+    <string name="lumin_kind_blurry_hint">Poze care par mișcate sau nefocalizate. Verifică-le înainte să ștergi.</string>
+    <string name="lumin_kind_screenshots_hint">Capturile se adună repede și rareori mai trebuie după aceea.</string>
+    <string name="lumin_kind_chats_hint">Imagini salvate din WhatsApp, Telegram și alte aplicații de chat.</string>
+    <string name="lumin_kind_videos_hint">Videoclipuri de peste 30 MB, cele mai mari primele.</string>
+    <string name="lumin_reason_suggested">Propusă</string>
+    <string name="lumin_reason_recent">Nouă</string>
+    <string name="lumin_reason_older">Din galerie</string>
+    <string name="lumin_stays">Rămâne</string>
+    <string name="lumin_select_all">Bifează tot</string>
+    <string name="lumin_select_none">Debifează tot</string>
+    <string name="lumin_select_some">Alege pozele de șters</string>
+    <string name="lumin_bulk_first_free">Prima curățare e gratuită.</string>
+    <string name="lumin_bulk_locked">Curățarea unei categorii întregi e Premium. Teancul zilnic rămâne gratuit.</string>
+
+    <string name="lumin_review_sub">Se eliberează %s</string>
+    <string name="lumin_review_recoverable">Pozele merg în coșul de gunoi al telefonului. Le poți recupera din Galerie timp de 30 de zile.</string>
+    <string name="lumin_review_permanent">Pe această versiune de Android nu există coș de gunoi: pozele șterse nu se mai pot recupera.</string>
+    <string name="lumin_review_confirm">Șterge · %s</string>
+    <string name="lumin_review_confirm_permanent">Da, șterge definitiv · %s</string>
+    <string name="lumin_review_keep_all">Păstrează-le pe toate</string>
+    <string name="lumin_delete_none">Nu s-a șters nimic.</string>
+
+    <string name="lumin_done_freed">Ai eliberat %s</string>
+    <string name="lumin_done_kept">Teanc terminat</string>
+    <string name="lumin_done_upsell">Se mai pot elibera %s. Curăță tot cu Premium →</string>
+    <string name="lumin_share">Distribuie</string>
+    <string name="lumin_back_home">Gata</string>
+    <string name="lumin_share_line1">Tocmai am eliberat</string>
+    <string name="lumin_share_line2">pe telefon, cu Lumin</string>
+    <string name="lumin_share_text">Am eliberat %s pe telefon cu Lumin</string>
+
+    <string name="lumin_premium">Lumin Premium</string>
+    <string name="lumin_premium_banner">Curăță tot dintr-o atingere, oricâte teancuri vrei.</string>
+    <string name="lumin_premium_active">Premium e activ</string>
+    <string name="lumin_manage_sub">Gestionează sau anulează în Google Play</string>
+    <string name="lumin_pay_reason_stack">Ai terminat teancul gratuit de azi. Continuă cu Premium.</string>
+    <string name="lumin_pay_reason_bulk">Eliberează %s dintr-o atingere, nu poză cu poză.</string>
+    <string name="lumin_pay_reason_browse">Lumin a găsit %s pe care le poți elibera.</string>
+    <string name="lumin_pay_b1">Curăță categorii întregi dintr-o atingere</string>
+    <string name="lumin_pay_b2">Teancuri nelimitate în fiecare zi</string>
+    <string name="lumin_pay_b3">Videoclipuri mari, duplicate, rafale, capturi</string>
+    <string name="lumin_pay_b4">Tot 100% pe telefonul tău. Fără reclame, niciodată.</string>
+    <string name="lumin_pay_cta">Continuă</string>
+    <string name="lumin_pay_none">Abonamentele nu sunt disponibile acum pe acest telefon. Până atunci, totul rămâne deblocat.</string>
+    <string name="lumin_pay_terms">%1$s %2$s. Se reînnoiește automat. Anulezi oricând din Google Play → Abonamente.</string>
+    <string name="lumin_pay_terms_lifetime">O singură plată de %s. Fără abonament.</string>
+    <string name="lumin_pay_thanks">Mulțumim! Premium e activ.</string>
+    <string name="lumin_pay_unavailable">Google Play nu e pregătit. Încearcă din nou peste câteva clipe.</string>
+    <string name="lumin_per_month">/ lună</string>
+    <string name="lumin_per_year">/ an</string>
+    <string name="lumin_plan_monthly">Lunar</string>
+    <string name="lumin_plan_yearly">Anual</string>
+    <string name="lumin_plan_lifetime">Pe viață</string>
+    <string name="lumin_plan_once">Plătești o singură dată</string>
+    <string name="lumin_plan_save">−%d%%</string>
+    <string name="lumin_restore">Restaurează achiziția</string>
+    <string name="lumin_restore_ok">Premium restaurat.</string>
+    <string name="lumin_restore_none">Nu am găsit nicio achiziție pe acest cont Google.</string>
+    <string name="lumin_privacy">Politica de confidențialitate</string>
+
+    <string name="lumin_reminder">Memento de seară</string>
+    <string name="lumin_reminder_hint">La 19:00, doar dacă teancul de azi nu e gata.</string>
+    <string name="lumin_reminder_channel">Teancul zilnic</string>
+    <string name="lumin_reminder_title">Teancul tău e gata</string>
+    <string name="lumin_reminder_body">2 minute: o amintire, câteva poze de sortat și puțin spațiu înapoi.</string>
+    <string name="lumin_pro_tools">Unelte pentru fotografi (beta)</string>
+    <string name="lumin_pro_tools_hint">RAW, scoruri AI, export Lightroom</string>
+    <string name="lumin_stats_line">Eliberat cu Lumin până acum: %1$s (%2$d elemente)</string>
+
+    <plurals name="lumin_years_ago">
+        <item quantity="one">Acum %d an</item>
+        <item quantity="few">Acum %d ani</item>
+        <item quantity="other">Acum %d de ani</item>
+    </plurals>
+    <plurals name="lumin_streak_days">
+        <item quantity="one">%d zi</item>
+        <item quantity="few">%d zile</item>
+        <item quantity="other">%d de zile</item>
+    </plurals>
+    <plurals name="lumin_stack_left">
+        <item quantity="one">%d poză te așteaptă · sub un minut</item>
+        <item quantity="few">%d poze te așteaptă · cam 2 minute</item>
+        <item quantity="other">%d de poze te așteaptă · cam 2 minute</item>
+    </plurals>
+    <plurals name="lumin_memory_inside">
+        <item quantity="one">Include o amintire de acum %d an</item>
+        <item quantity="few">Include o amintire de acum %d ani</item>
+        <item quantity="other">Include o amintire de acum %d de ani</item>
+    </plurals>
+    <plurals name="lumin_items">
+        <item quantity="one">%d element</item>
+        <item quantity="few">%d elemente</item>
+        <item quantity="other">%d de elemente</item>
+    </plurals>
+    <plurals name="lumin_marked">
+        <item quantity="one">%1$d de șters · %2$s</item>
+        <item quantity="few">%1$d de șters · %2$s</item>
+        <item quantity="other">%1$d de șters · %2$s</item>
+    </plurals>
+    <plurals name="lumin_delete_n">
+        <item quantity="one">Șterge %1$d · %2$s</item>
+        <item quantity="few">Șterge %1$d · %2$s</item>
+        <item quantity="other">Șterge %1$d · %2$s</item>
+    </plurals>
+    <plurals name="lumin_review_title">
+        <item quantity="one">Ștergi %d poză?</item>
+        <item quantity="few">Ștergi %d poze?</item>
+        <item quantity="other">Ștergi %d de poze?</item>
+    </plurals>
+    <plurals name="lumin_done_count">
+        <item quantity="one">%d element șters</item>
+        <item quantity="few">%d elemente șterse</item>
+        <item quantity="other">%d de elemente șterse</item>
+    </plurals>
+    <plurals name="lumin_pay_trial_cta">
+        <item quantity="one">Încearcă gratuit %d zi</item>
+        <item quantity="few">Încearcă gratuit %d zile</item>
+        <item quantity="other">Încearcă gratuit %d de zile</item>
+    </plurals>
+    <plurals name="lumin_plan_trial">
+        <item quantity="one">%d zi gratuit</item>
+        <item quantity="few">%d zile gratuit</item>
+        <item quantity="other">%d de zile gratuit</item>
+    </plurals>
+    <plurals name="lumin_pay_terms_trial">
+        <item quantity="one">Gratuit %1$d zi, apoi %2$s %3$s. Se reînnoiește automat. Anulezi oricând din Google Play → Abonamente.</item>
+        <item quantity="few">Gratuit %1$d zile, apoi %2$s %3$s. Se reînnoiește automat. Anulezi oricând din Google Play → Abonamente.</item>
+        <item quantity="other">Gratuit %1$d de zile, apoi %2$s %3$s. Se reînnoiește automat. Anulezi oricând din Google Play → Abonamente.</item>
+    </plurals>
+</resources>

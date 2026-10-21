@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Textele ecranului nativ (cleaner/). Engleza e implicita; româna e în values-ro. -->
+<resources>
+    <string name="lumin_onb_title">A clean gallery in 2 minutes a day</string>
+    <string name="lumin_onb_sub">Every day, Lumin hands you a small stack of photos: a memory from years ago, the duplicates and blurry shots it found, and your newest pictures. Swipe to keep or delete.</string>
+    <string name="lumin_onb_b1">Memories from this day, years ago</string>
+    <string name="lumin_onb_b2">Finds duplicates, bursts, blurry shots and big videos</string>
+    <string name="lumin_onb_b3">Nothing leaves your phone. No account, no ads.</string>
+    <string name="lumin_onb_privacy">Your photos are analyzed only on this phone. Nothing is uploaded.</string>
+    <string name="lumin_allow_photos">Allow access to photos</string>
+
+    <string name="lumin_settings">Settings</string>
+    <string name="lumin_close">Close</string>
+    <string name="lumin_back">Back</string>
+    <string name="lumin_undo">Undo</string>
+    <string name="lumin_keep">Keep</string>
+    <string name="lumin_delete">Delete</string>
+    <string name="lumin_finish">Finish</string>
+    <string name="lumin_start">Start</string>
+    <string name="lumin_continue">Continue</string>
+    <string name="lumin_preparing">Preparing your stack…</string>
+    <string name="lumin_today_stack">Today\'s stack</string>
+    <string name="lumin_done_today">All done for today</string>
+    <string name="lumin_done_today_hint">A new stack is waiting for you tomorrow.</string>
+    <string name="lumin_another_stack">Another stack</string>
+    <string name="lumin_deck_hint">Swipe right to keep, left to delete. Tap to see the whole photo.</string>
+
+    <string name="lumin_stat_freed">freed so far</string>
+    <string name="lumin_stat_reclaimable">can be freed</string>
+    <string name="lumin_stat_total">freed in total</string>
+    <string name="lumin_stat_streak">streak</string>
+    <string name="lumin_scanning">Analyzing your gallery… %1$d / %2$d</string>
+    <string name="lumin_partial_access">You gave access to only some photos. Allow all photos to clean the whole gallery.</string>
+    <string name="lumin_full_access">Allow all photos</string>
+
+    <string name="lumin_quick_clean">Quick clean</string>
+    <string name="lumin_quick_clean_hint">What the AI found. Everything is pre-selected; you decide.</string>
+    <string name="lumin_all_clean">Nothing to clean right now. Nice.</string>
+
+    <string name="lumin_kind_duplicates">Duplicates</string>
+    <string name="lumin_kind_similar">Similar shots</string>
+    <string name="lumin_kind_blurry">Blurry</string>
+    <string name="lumin_kind_screenshots">Screenshots</string>
+    <string name="lumin_kind_chats">From chat apps</string>
+    <string name="lumin_kind_videos">Large videos</string>
+    <string name="lumin_kind_duplicates_hint">Copies of the same photo. The original stays.</string>
+    <string name="lumin_kind_similar_hint">Bursts and near-identical shots. The sharpest one stays, marked in green.</string>
+    <string name="lumin_kind_blurry_hint">Shots that look out of focus or shaken. Check them before you delete.</string>
+    <string name="lumin_kind_screenshots_hint">Screenshots pile up fast and are rarely needed later.</string>
+    <string name="lumin_kind_chats_hint">Images saved from WhatsApp, Telegram and other chat apps.</string>
+    <string name="lumin_kind_videos_hint">Videos over 30 MB, largest first.</string>
+    <string name="lumin_reason_suggested">Suggested</string>
+    <string name="lumin_reason_recent">New</string>
+    <string name="lumin_reason_older">From your gallery</string>
+    <string name="lumin_stays">Stays</string>
+    <string name="lumin_select_all">Select all</string>
+    <string name="lumin_select_none">Select none</string>
+    <string name="lumin_select_some">Select photos to delete</string>
+    <string name="lumin_bulk_first_free">Your first clean is free.</string>
+    <string name="lumin_bulk_locked">Cleaning a whole category is a Premium feature. Your daily stack stays free.</string>
+
+    <string name="lumin_review_sub">%s will be freed</string>
+    <string name="lumin_review_recoverable">Photos go to the system trash. You can restore them from your Gallery for 30 days.</string>
+    <string name="lumin_review_permanent">On this Android version there is no trash: deleted photos cannot be restored.</string>
+    <string name="lumin_review_confirm">Delete · %s</string>
+    <string name="lumin_review_confirm_permanent">Yes, delete permanently · %s</string>
+    <string name="lumin_review_keep_all">Keep them all</string>
+    <string name="lumin_delete_none">Nothing was deleted.</string>
+
+    <string name="lumin_done_freed">You freed %s</string>
+    <string name="lumin_done_kept">Stack finished</string>
+    <string name="lumin_done_upsell">%s more can be freed. Clean it all with Premium →</string>
+    <string name="lumin_share">Share</string>
+    <string name="lumin_back_home">Done</string>
+    <string name="lumin_share_line1">I just freed</string>
+    <string name="lumin_share_line2">on my phone with Lumin</string>
+    <string name="lumin_share_text">I freed %s on my phone with Lumin</string>
+
+    <string name="lumin_premium">Lumin Premium</string>
+    <string name="lumin_premium_banner">Clean everything with one tap, as many stacks as you like.</string>
+    <string name="lumin_premium_active">Premium is active</string>
+    <string name="lumin_manage_sub">Manage or cancel in Google Play</string>
+    <string name="lumin_pay_reason_stack">You finished today\'s free stack. Keep going with Premium.</string>
+    <string name="lumin_pay_reason_bulk">Free up %s in one tap instead of photo by photo.</string>
+    <string name="lumin_pay_reason_browse">Lumin found %s you can free.</string>
+    <string name="lumin_pay_b1">Clean whole categories with one tap</string>
+    <string name="lumin_pay_b2">Unlimited stacks every day</string>
+    <string name="lumin_pay_b3">Large videos, duplicates, bursts, screenshots</string>
+    <string name="lumin_pay_b4">Still 100% on your phone. No ads, ever.</string>
+    <string name="lumin_pay_cta">Continue</string>
+    <string name="lumin_pay_none">Subscriptions are not available on this phone right now. Everything stays unlocked until they are.</string>
+    <string name="lumin_pay_terms">%1$s %2$s. Renews automatically. Cancel anytime in Google Play → Subscriptions.</string>
+    <string name="lumin_pay_terms_lifetime">One payment of %s. No subscription.</string>
+    <string name="lumin_pay_thanks">Thank you! Premium is active.</string>
+    <string name="lumin_pay_unavailable">Google Play is not ready. Try again in a moment.</string>
+    <string name="lumin_per_month">/ month</string>
+    <string name="lumin_per_year">/ year</string>
+    <string name="lumin_plan_monthly">Monthly</string>
+    <string name="lumin_plan_yearly">Yearly</string>
+    <string name="lumin_plan_lifetime">Lifetime</string>
+    <string name="lumin_plan_once">Pay once</string>
+    <string name="lumin_plan_save">Save %d%%</string>
+    <string name="lumin_restore">Restore purchase</string>
+    <string name="lumin_restore_ok">Premium restored.</string>
+    <string name="lumin_restore_none">No purchase found on this Google account.</string>
+    <string name="lumin_privacy">Privacy policy</string>
+
+    <string name="lumin_reminder">Evening reminder</string>
+    <string name="lumin_reminder_hint">At 7 PM, only if today\'s stack is not done.</string>
+    <string name="lumin_reminder_channel">Daily stack</string>
+    <string name="lumin_reminder_title">Your stack is ready</string>
+    <string name="lumin_reminder_body">2 minutes: a memory, a few photos to sort, and some space back.</string>
+    <string name="lumin_pro_tools">Photographer tools (beta)</string>
+    <string name="lumin_pro_tools_hint">RAW, AI scores, Lightroom export</string>
+    <string name="lumin_stats_line">Freed with Lumin so far: %1$s (%2$d items)</string>
+
+    <plurals name="lumin_years_ago">
+        <item quantity="one">%d year ago</item>
+        <item quantity="other">%d years ago</item>
+    </plurals>
+    <plurals name="lumin_streak_days">
+        <item quantity="one">%d day</item>
+        <item quantity="other">%d days</item>
+    </plurals>
+    <plurals name="lumin_stack_left">
+        <item quantity="one">%d photo waiting · under a minute</item>
+        <item quantity="other">%d photos waiting · about 2 minutes</item>
+    </plurals>
+    <plurals name="lumin_memory_inside">
+        <item quantity="one">Includes a memory from %d year ago</item>
+        <item quantity="other">Includes a memory from %d years ago</item>
+    </plurals>
+    <plurals name="lumin_items">
+        <item quantity="one">%d item</item>
+        <item quantity="other">%d items</item>
+    </plurals>
+    <plurals name="lumin_marked">
+        <item quantity="one">%1$d to delete · %2$s</item>
+        <item quantity="other">%1$d to delete · %2$s</item>
+    </plurals>
+    <plurals name="lumin_delete_n">
+        <item quantity="one">Delete %1$d · %2$s</item>
+        <item quantity="other">Delete %1$d · %2$s</item>
+    </plurals>
+    <plurals name="lumin_review_title">
+        <item quantity="one">Delete %d photo?</item>
+        <item quantity="other">Delete %d photos?</item>
+    </plurals>
+    <plurals name="lumin_done_count">
+        <item quantity="one">%d item deleted</item>
+        <item quantity="other">%d items deleted</item>
+    </plurals>
+    <plurals name="lumin_pay_trial_cta">
+        <item quantity="one">Try free for %d day</item>
+        <item quantity="other">Try free for %d days</item>
+    </plurals>
+    <plurals name="lumin_plan_trial">
+        <item quantity="one">%d day free</item>
+        <item quantity="other">%d days free</item>
+    </plurals>
+    <plurals name="lumin_pay_terms_trial">
+        <item quantity="one">Free for %1$d day, then %2$s %3$s. Renews automatically. Cancel anytime in Google Play → Subscriptions.</item>
+        <item quantity="other">Free for %1$d days, then %2$s %3$s. Renews automatically. Cancel anytime in Google Play → Subscriptions.</item>
+    </plurals>
+</resources>

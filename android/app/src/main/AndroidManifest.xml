@@ -7,11 +7,27 @@
          niciodata dispozitivul"). Bug real gasit de auditul QA. -->
     <application
         android:allowBackup="false"
+        android:requestLegacyExternalStorage="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
+
+        <!-- Lumin pornește nativ: teancul zilnic și curățenia galeriei
+             (cleaner/). WebView-ul Capacitor rămâne pentru uneltele de
+             fotograf și se deschide din Setări. -->
+        <activity
+            android:name=".cleaner.CleanerActivity"
+            android:exported="true"
+            android:label="@string/title_activity_main"
+            android:theme="@style/AppTheme.Cleaner"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
 
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
@@ -19,28 +35,7 @@
             android:label="@string/title_activity_main"
             android:theme="@style/AppTheme.NoActionBarLaunch"
             android:launchMode="singleTask"
-            android:exported="true">
-
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-
-        </activity>
-
-        <!-- Ecranul nativ de curățare, ținut DEOCAMDATĂ în afara launcher-ului.
-             Nu e gata de lansare: textele sunt doar în engleză, ecranul Premium
-             n-are buton de cumpărare, ștergerea nu merge sub Android 11 (minSdk
-             e 26), accesul limitat la poze de pe Android 14 îl blochează la
-             „Allow photos", iar comutatorul de memento nu programează nimic.
-             Capturile din magazin arată ecranul web, nu pe acesta. Revine ca
-             LAUNCHER doar după ce lipsurile astea sunt închise. -->
-        <activity
-            android:name=".cleaner.CleanerActivity"
-            android:exported="false"
-            android:label="@string/title_activity_main"
-            android:theme="@style/AppTheme.Cleaner"
-            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density" />
+            android:exported="false" />
 
         <!-- Analiza cu ecranul stins. Vezi plugins/BackgroundAnalysisService.kt:
              din Android 12 incoace un proces ajuns in cache e INGHETAT, deci
@@ -83,9 +78,12 @@
          refuz total — vezi photosAccess() in MediaLibraryPlugin.kt. -->
     <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
-    <!-- Doar ca să publicăm videoclipul comprimat în Movies/Lumin pe Android 8–9.
-         De la Android 10, MediaStore nu mai cere permisiunea asta. -->
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+    <!-- Android 8–10: fără coșul de gunoi al sistemului (vine abia în 11),
+         ștergerea pozelor făcute de cameră cere permisiunea de scriere; pe
+         Android 10 merge doar împreună cu requestLegacyExternalStorage de pe
+         <application>, ignorat de la Android 11 încolo. Tot ea publică
+         videoclipul comprimat în Movies/Lumin pe Android 8–9. -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
     <!-- Coordonatele GPS din EXIF-ul pozelor. Incepand cu Android 10, sistemul le
          STERGE din fisierul servit oricarei aplicatii, oricat acces la galerie ar
          avea; fara permisiunea asta (plus MediaStore.setRequireOriginal la citire)
