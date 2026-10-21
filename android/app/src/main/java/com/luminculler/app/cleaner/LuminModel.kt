@@ -101,7 +101,7 @@ class LuminModel(private val context: Context, private val scope: CoroutineScope
         val now = galleryAccess(context)
         val changed = now != access
         access = now
-        if (now != Access.None && (changed || photos.isEmpty())) load()
+        if (now != Access.None && (changed || scanJob == null)) load()
     }
 
     fun load() {
@@ -152,7 +152,10 @@ class LuminModel(private val context: Context, private val scope: CoroutineScope
         if (savedIds.isNotEmpty()) {
             val suggested = suggestionKinds()
             stack = savedIds.mapNotNull { id -> byId[id]?.let { restoreItem(it, suggested) } }
-            position = store.stackPosition.coerceIn(0, stack.size)
+            // Pozele deja șterse lipsesc din listă: poziția se numără doar pe cele rămase.
+            position = savedIds.take(store.stackPosition).count { it in byId }.coerceIn(0, stack.size)
+            val pending = store.pendingDelete.toSet()
+            marked = stack.map { it.media }.filter { it.id in pending }
         } else {
             buildStack(exclude = emptySet())
         }

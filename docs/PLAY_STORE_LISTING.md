@@ -1,29 +1,83 @@
-# Texte fisa Play Store — Lumin: AI Photo Cleaner
+# Texte fisa Play Store — Lumin (v4, teancul zilnic)
 
-Numele din launcher e **Lumin**. Titlurile de cautare de mai jos sunt cele de
-pus in Play Console (limba principala: engleza). Pachetul ramane
-`com.luminculler.app`.
+Numele din launcher e **Lumin**. Pachetul ramane `com.luminculler.app`.
+Aplicatia nativa e tradusa in **romana si engleza**; publica fisa doar in
+aceste doua limbi pana exista traducerile aplicatiei (o fisa in germana
+care deschide o aplicatie in engleza aduce note de o stea).
 
 | Limba | Titlu (≤30) | Descriere scurta (≤80) |
 |---|---|---|
-| en-US | `Lumin: Photo Cleaner & Swipe` | `Swipe to clean your gallery. AI finds duplicates, blurry shots & big videos.` |
-| ro-RO | `Lumin: Curăță Poze și Spațiu` | `Telefon plin? AI găsește poze duplicate, neclare și capturi. Swipe și eliberezi.` |
-| pt-BR | `Lumin: Limpar Fotos e Espaço` | `Celular cheio? A IA acha fotos duplicadas, borradas e vídeos grandes. Deslize!` |
-| es | `Lumin: Limpiar Fotos y Espacio` | `¿Almacenamiento lleno? La IA encuentra fotos duplicadas y borrosas. ¡Desliza!` |
-| de-DE | `Lumin: Fotos löschen, Speicher` | `Speicher voll? KI findet doppelte & unscharfe Fotos und große Videos. Wischen!` |
+| ro-RO | `Lumin: Curăță Poze și Spațiu` | `Telefon plin? În 2 minute pe zi, AI găsește duplicate, poze neclare și capturi.` |
+| en-US | `Lumin: Photo Cleaner & Swipe` | `2 minutes a day: AI finds duplicates, blurry shots & big videos. Swipe to clean.` |
 
-Alternativa de titlu EN, daca experimentul de cautare o cere: `Lumin: AI Photo Cleaner`.
+**Ce e gratuit si ce e Premium — identic in fisa, in aplicatie si in
+`cleaner/core/Plan.kt`:**
 
-**Limite gratuite, de scris identic in fisa si in aplicatie:**
+- gratuit: teancul zilnic (30 de poze), oricate stergeri din el; toate
+  cosurile vizibile, cu cati GB ocupa; PRIMA curatare completa a unui cos;
+- Premium: teancuri in plus in aceeasi zi; curatarea cosurilor oricand;
+- planuri: lunar (`lumin_premium_monthly`), anual cu 7 zile de proba
+  (`lumin_premium_yearly`), pe viata (`lumin_premium_lifetime`); fara plan
+  saptamanal; anularea e in Google Play.
 
-- swipe manual si stergere: gratuite, nelimitate; stergerea NU intra in plafonul de 150;
-- „curata tot” cu AI: primul cos complet gratuit, apoi 50 de poze pe zi;
-- export: 150 la 30 de zile;
-- comprimare video, memento lunar, expirare capturi: Premium;
-- fara plan saptamanal; anualul are 7 zile de proba; anularea e in Google Play.
+## Descriere lunga — romana
 
-Textele lungi de mai jos pastreaza detaliul de fotograf. Frazele despre
-„exportate sau sterse” au fost corectate: stergerea nu se numara.
+```
+Telefonul plin de poze pe care nu le mai vezi niciodată? Lumin te ajută să faci ordine în 2 minute pe zi.
+
+În fiecare zi primești un teanc mic de poze: o amintire din ziua de azi, de acum câțiva ani, pozele pe care AI-ul le-a găsit ca duplicate, rafale sau neclare, și cele mai noi poze. Glisezi la dreapta ca să păstrezi, la stânga ca să ștergi. La final confirmi o singură dată, iar pozele merg în coșul de gunoi al telefonului, de unde le poți recupera 30 de zile.
+
+CE GĂSEȘTE
+• Duplicate – copii ale aceleiași poze, chiar dacă sunt în foldere diferite. Originalul rămâne.
+• Poze asemănătoare – rafale și cadre aproape identice. Cea mai clară rămâne, marcată cu verde.
+• Poze neclare – mișcate sau nefocalizate.
+• Capturi de ecran și imagini din WhatsApp, Telegram și alte aplicații de chat.
+• Videoclipuri mari, cele mai mari primele.
+
+DE CE LUMIN
+• Amintiri: „Acum 3 ani” – fiecare teanc începe cu o poză din aceeași zi, din anii trecuți.
+• Vezi mereu ce rămâne: la duplicate și rafale, poza păstrată stă lângă cele propuse.
+• Ții minte ce ai ales: o poză păstrată nu îți mai e propusă.
+• Serie de zile și memento de seară, doar dacă vrei.
+• Confidențialitate: totul se analizează pe telefon. Fără cont, fără reclame, nimic nu se încarcă nicăieri.
+
+GRATUIT ȘI PREMIUM
+Teancul zilnic e gratuit, oricâte poze ștergi din el. Vezi gratuit toate categoriile și câți GB poți elibera, iar prima curățare completă a unei categorii e gratuită.
+Lumin Premium curăță categorii întregi dintr-o atingere și îți dă teancuri nelimitate în fiecare zi. Planuri: lunar, anual (cu 7 zile gratuite) sau o singură plată pe viață. Prețul se vede în aplicație, în moneda contului tău. Abonamentul se reînnoiește automat până îl anulezi din Google Play → Abonamente.
+```
+
+## Full description — English
+
+```
+Is your phone full of photos you never look at? Lumin helps you clean up in 2 minutes a day.
+
+Every day you get a small stack of photos: a memory from this day years ago, the duplicates, bursts and blurry shots the AI found, and your newest pictures. Swipe right to keep, left to delete. At the end you confirm once, and the photos go to your phone's trash, where you can restore them for 30 days.
+
+WHAT IT FINDS
+• Duplicates – copies of the same photo, even in different folders. The original stays.
+• Similar shots – bursts and near-identical frames. The sharpest one stays, marked in green.
+• Blurry photos – shaken or out of focus.
+• Screenshots and images saved from WhatsApp, Telegram and other chat apps.
+• Large videos, biggest first.
+
+WHY LUMIN
+• Memories: "3 years ago" – every stack starts with a photo from this day in past years.
+• You always see what stays: for duplicates and bursts, the kept photo sits next to the suggestions.
+• It remembers your choices: a photo you kept is never suggested again.
+• Daily streak and an optional evening reminder.
+• Privacy: everything is analyzed on your phone. No account, no ads, nothing is uploaded.
+
+FREE AND PREMIUM
+The daily stack is free, delete as many photos from it as you like. You can see every category and how many GB you can free for free, and your first full clean of a category is free.
+Lumin Premium cleans whole categories with one tap and gives you unlimited stacks every day. Plans: monthly, yearly (with a 7-day free trial) or a one-time lifetime purchase. The price is shown in the app in your account's currency. Subscriptions renew automatically until you cancel in Google Play → Subscriptions.
+```
+
+## Capturi de ecran
+
+Capturile din `store-assets/v3/` arata interfata web veche (taburi
+Curata/Biblioteca/Setari) si NU mai corespund aplicatiei. Fa capturi noi din
+aplicatia nativa: ecranul Azi (teancul + GB), swipe-ul cu o amintire, un cos
+de duplicate cu poza „Ramane”, ecranul de final cu GB eliberati, Premium.
 
 ---
 

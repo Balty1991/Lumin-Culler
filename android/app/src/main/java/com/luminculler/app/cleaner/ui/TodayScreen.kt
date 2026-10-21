@@ -168,6 +168,17 @@ private fun StackHero(model: LuminModel) {
                         { model.openDeck() }
                     )
                 }
+                model.marked.isNotEmpty() -> {
+                    // Teancul e parcurs, dar ștergerea n-a fost confirmată (ex. omul a ieșit din ecranul de confirmare).
+                    Text(stringResource(R.string.lumin_today_stack), style = MaterialTheme.typography.headlineSmall, color = Lumin.Text)
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        pluralStringResource(R.plurals.lumin_marked, model.marked.size, model.marked.size, bytes(model.marked.sumOf { it.bytes })),
+                        style = MaterialTheme.typography.bodyLarge, color = Lumin.Muted
+                    )
+                    Spacer(Modifier.height(18.dp))
+                    BigButton(stringResource(R.string.lumin_finish), { model.finishStack() })
+                }
                 else -> {
                     Text(stringResource(R.string.lumin_done_today), style = MaterialTheme.typography.headlineSmall, color = Lumin.Text)
                     Spacer(Modifier.height(4.dp))

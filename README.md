@@ -1,3 +1,23 @@
+# Lumin
+
+**Aplicatia din Google Play (Android) e nativa**: `android/app/src/main/java/com/luminculler/app/cleaner/`
+(Kotlin + Jetpack Compose). Teancul zilnic de 30 de poze (o amintire „acum N ani”,
+propunerile AI, pozele noi), swipe pastreaza/sterge, cosuri de curatat (duplicate,
+rafale, neclare, capturi, chat, video mari), Premium prin Google Play.
+
+- `cleaner/core/` — logica, Kotlin pur, testata pe JVM (`android/app/src/test/.../core/`):
+  grupare (`Grouping.kt`), teancul zilnic (`DailyStack.kt`), ce e gratuit (`Plan.kt`).
+- `cleaner/` — MediaStore (`Library.kt`), stergere pe Android 8+ (`Trash.kt`),
+  plata (`PlayBilling.kt`), starea (`LuminModel.kt`), ecranele (`ui/`).
+- Textele: `res/values/strings_lumin.xml` (engleza) si `res/values-ro/` (romana).
+- Gratuit: teancul zilnic si prima curatare completa a unui cos. Premium: teancuri
+  in plus si curatarea cosurilor oricand. Fara plan saptamanal.
+
+Aplicatia web de mai jos (Lumin Culler Pro) ramane in acelasi APK ca „Unelte pentru
+fotografi (beta)”, deschisa din Setari, si ca site pe GitHub Pages.
+
+---
+
 # Lumin Culler Pro v2.0
 
 Aplicatie profesionala de **sortare si alegere fotografii** (culling) pentru fotografi.
