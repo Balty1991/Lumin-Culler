@@ -29,6 +29,11 @@ Textele lungi de mai jos pastreaza detaliul de fotograf. Frazele despre
 
 # Texte fisa (varianta anterioara, cu limita corectata)
 
+> **ATENTIE — de aici in jos e fisa VECHE („Lumin Culler Pro”).** Titlul si
+> descrierea scurta se iau DOAR din tabelul de mai sus. Descrierile lungi de
+> mai jos se pot refolosi doar dupa ce le aliniezi la limitele noi (swipe si
+> stergere gratuite, „Curata tot” 1 cos + 50/zi, fara plafon pe stergere).
+
 Gata de copiat direct in Play Console (Store presence -> Main store listing).
 Toate limitele de caractere de mai jos sunt cele impuse de Google Play; verificate
 cu numaratoare exacta, nu estimate.

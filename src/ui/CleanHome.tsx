@@ -11,7 +11,7 @@ import {
 import { isCleanScanAvailable, requestVideoAccess, scanGallery, type GalleryScan } from '../core/nativeCleanScan';
 import { compressVideo, isVideoCompressAvailable } from '../core/nativeVideoCompress';
 import { deleteNativePhotos } from '../core/nativeMediaLibrary';
-import { requestNotificationAccess, showNotification } from '../core/nativeNotifications';
+import { showNotification } from '../core/nativeNotifications';
 import { cancelCleanReminder, cleanReminderIsDue, markCleanReminderShown, scheduleCleanReminder } from '../core/cleanReminder';
 import { shareCleanResult } from './shareResultCard';
 import { StorageOrb } from './StorageOrb';
