@@ -37,6 +37,10 @@ on:
   push:
     branches:
       - 'claude/**'
+      # Ramurile sesiunilor Claude Code din cloud (ccr-...) nu pot porni
+      # workflow_dispatch; fara asta, codul nativ de pe ele n-ar fi compilat
+      # de nimeni inainte de PR.
+      - 'ccr-**'
     paths:
       - 'android/**'
       - 'src/**'
@@ -196,7 +200,7 @@ jobs:
           java-version: '21'
       - name: Build debug APK (nesemnat)
         working-directory: android
-        run: ./gradlew assembleDebug -PminifyDebug=${{ inputs.minify == true }}
+        run: ./gradlew assembleDebug testDebugUnitTest -PminifyDebug=${{ inputs.minify == true }}
       # Cand R8 pica pe clase lipsa, scrie EXACT regulile care i-ar trebui in
       # missing_rules.txt. Fara pasul asta ele raman pe runner si dispar odata
       # cu el, iar reparatia devine ghicit din log — s-a intamplat exact asa
