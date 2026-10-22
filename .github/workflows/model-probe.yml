@@ -1,6 +1,6 @@
 # Verificare temporară a modelului de adâncime (Depth Anything V2 Small,
-# Apache-2.0) înainte să intre în aplicație: amprenta fișierului, intrările și
-# ieșirile, și o hartă de adâncime în text pe o poză publică. Se șterge după.
+# Apache-2.0): prototipul neclarității în profunzime și al Foto 3D pe o poză
+# publică, cu imaginile în jurnal. Se șterge după.
 name: Model probe
 
 on:
@@ -9,46 +9,22 @@ on:
       - 'ccr-**'
     paths:
       - '.github/workflows/model-probe.yml'
+      - '.github/probe/**'
 
 jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: pip install -q onnxruntime pillow numpy
-      - name: Download candidates
+      - run: pip install -q onnxruntime pillow numpy opencv-python-headless ai-edge-litert
+      - name: Download
         run: |
           mkdir m && cd m
-          base=https://huggingface.co/onnx-community/depth-anything-v2-small/resolve/main/onnx
-          for f in model_quantized.onnx model_fp16.onnx; do
-            curl -sSfL -o "$f" "$base/$f" && ls -la "$f" && sha256sum "$f" || echo "missing $f"
-          done
-          curl -sSfL -o test.jpg "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Camponotus_flavomarginatus_ant.jpg/640px-Camponotus_flavomarginatus_ant.jpg" || true
-          curl -sSfL -o street.jpg "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/280px-PNG_transparency_demonstration_1.png" || true
-          ls -la
-      - name: Run
-        shell: python
-        run: |
-          import numpy as np, onnxruntime as ort, time, os
-          from PIL import Image
-          os.chdir("m")
-          # Poză sintetică cu adâncime cunoscută: sus departe (mic, șters), jos aproape (mare, contrast).
-          img = Image.open("test.jpg").convert("RGB") if os.path.exists("test.jpg") else Image.new("RGB", (640, 480), "gray")
-          for f in ["model_quantized.onnx", "model_fp16.onnx"]:
-              if not os.path.exists(f): continue
-              s = ort.InferenceSession(f)
-              for i in s.get_inputs(): print(f, "in", i.name, i.shape, i.type)
-              for o in s.get_outputs(): print(f, "out", o.name, o.shape, o.type)
-              size = 518
-              x = np.asarray(img.resize((size, size), Image.BICUBIC), np.float32) / 255.0
-              x = (x - [0.485, 0.456, 0.406]) / [0.229, 0.224, 0.225]
-              x = x.transpose(2, 0, 1)[None].astype(np.float32 if "fp16" not in f or s.get_inputs()[0].type == "tensor(float)" else np.float16)
-              t = time.time(); y = s.run(None, {s.get_inputs()[0].name: x})[0]; dt = time.time() - t
-              y = np.asarray(y, np.float32).squeeze()
-              print(f, "shape", y.shape, "min", y.min(), "max", y.max(), "time", round(dt, 2))
-              d = (y - y.min()) / (y.max() - y.min() + 1e-6)
-              chars = " .:-=+*#%@"
-              small = np.asarray(Image.fromarray((d * 255).astype(np.uint8)).resize((64, 24)))
-              for row in small: print("".join(chars[min(9, v * 10 // 256)] for v in row))
+          curl -sSfL -o model_quantized.onnx https://huggingface.co/onnx-community/depth-anything-v2-small/resolve/main/onnx/model_quantized.onnx
+          sha256sum model_quantized.onnx
+          curl -sSfL -o selfie_segmenter.tflite https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/1/selfie_segmenter.tflite
+          curl -sSfL -o portrait.jpg https://storage.googleapis.com/mediapipe-assets/portrait.jpg
+      - run: python .github/probe/lens.py
