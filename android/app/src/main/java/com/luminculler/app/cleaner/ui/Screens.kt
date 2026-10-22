@@ -221,15 +221,17 @@ fun PaywallScreen(model: LuminModel, reason: PaywallReason) {
                         PaywallReason.ExtraStack -> R.string.lumin_pay_reason_stack
                         PaywallReason.BulkClean -> R.string.lumin_pay_reason_bulk
                         PaywallReason.Browse -> R.string.lumin_pay_reason_browse
+                        PaywallReason.Magic -> R.string.lumin_pay_reason_magic
                     },
                     bytes(model.reclaimableBytes)
                 ),
                 style = MaterialTheme.typography.bodyLarge, color = Lumin.Muted
             )
             Spacer(Modifier.height(20.dp))
+            Bullet(LIcons.Sparkle, stringResource(R.string.lumin_pay_b_ai))
+            Bullet(LIcons.Play, stringResource(R.string.lumin_pay_b_alive))
+            Bullet(LIcons.Movie, stringResource(R.string.lumin_pay_b_films))
             Bullet(LIcons.Delete, stringResource(R.string.lumin_pay_b1))
-            Bullet(LIcons.Layers, stringResource(R.string.lumin_pay_b2))
-            Bullet(LIcons.Video, stringResource(R.string.lumin_pay_b3))
             Bullet(LIcons.Lock, stringResource(R.string.lumin_pay_b4))
             Spacer(Modifier.height(20.dp))
 

@@ -89,6 +89,23 @@ class PhotoMagic(private val context: Context) {
      * moale pe contur. Întoarce null dacă modelul nu vede nicio persoană.
      */
     fun portrait(src: Bitmap): Bitmap? {
+        val mask = personMask(src) ?: return null
+        val blurred = blur(src)
+        val out = blurred.copy(Bitmap.Config.ARGB_8888, true)
+        blurred.recycle()
+        // Persoana clară peste fundalul estompat, prin masca de transparență.
+        val personLayer = cutout(src, mask)
+        Canvas(out).drawBitmap(personLayer, 0f, 0f, null)
+        personLayer.recycle()
+        mask.recycle()
+        return out
+    }
+
+    /**
+     * Masca persoanei, la dimensiunea pozei: alfa = probabilitatea să fie om.
+     * Null dacă modelul nu vede pe nimeni (sub 2% din cadru).
+     */
+    fun personMask(src: Bitmap): Bitmap? {
         val result = segmenter.segment(BitmapImageBuilder(src).build())
         val masks = result.confidenceMasks()
         if (!masks.isPresent || masks.get().isEmpty()) return null
@@ -104,24 +121,47 @@ class PhotoMagic(private val context: Context) {
             maskPx[k] = ((v * 255).toInt() shl 24)
         }
         if (person < maskPx.size * 0.02f) return null
-        // Masca mărită lin la dimensiunea pozei: conturul iese moale de la sine.
         val maskSmall = Bitmap.createBitmap(maskPx, mw, mh, Bitmap.Config.ARGB_8888)
         val mask = Bitmap.createScaledBitmap(maskSmall, src.width, src.height, true)
         maskSmall.recycle()
+        return mask
+    }
 
-        val blurred = blur(src)
-        val out = blurred.copy(Bitmap.Config.ARGB_8888, true)
-        blurred.recycle()
-        // Persoana clară peste fundalul estompat, prin masca de transparență.
-        val personLayer = Bitmap.createBitmap(src.width, src.height, Bitmap.Config.ARGB_8888)
-        Canvas(personLayer).apply {
+    /** Doar persoana, pe transparent. */
+    fun cutout(src: Bitmap, mask: Bitmap): Bitmap {
+        val layer = Bitmap.createBitmap(src.width, src.height, Bitmap.Config.ARGB_8888)
+        Canvas(layer).apply {
             drawBitmap(mask, 0f, 0f, null)
             drawBitmap(src, 0f, 0f, Paint().apply { xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.SRC_IN) })
         }
-        Canvas(out).drawBitmap(personLayer, 0f, 0f, null)
-        personLayer.recycle()
-        mask.recycle()
+        return layer
+    }
+
+    /** Fundalul fără persoană: locul ei acoperit cu o versiune foarte estompată, ca mișcarea 3D să nu lase „fantome”. */
+    fun background(src: Bitmap, mask: Bitmap): Bitmap {
+        val soft = blur(src)
+        val out = src.copy(Bitmap.Config.ARGB_8888, true)
+        val c = Canvas(out)
+        // Masca puțin lățită, ca marginea persoanei să nu rămână în fundal.
+        val wide = Bitmap.createScaledBitmap(mask, (mask.width * 1.04f).toInt(), (mask.height * 1.04f).toInt(), true)
+        val fill = Bitmap.createBitmap(src.width, src.height, Bitmap.Config.ARGB_8888)
+        Canvas(fill).apply {
+            drawBitmap(wide, -(wide.width - mask.width) / 2f, -(wide.height - mask.height) / 2f, null)
+            drawBitmap(soft, 0f, 0f, Paint().apply { xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.SRC_IN) })
+        }
+        c.drawBitmap(fill, 0f, 0f, null)
+        wide.recycle(); fill.recycle(); soft.recycle()
         return out
+    }
+
+    /** Stil clasic (gratuit), pe pixeli. */
+    fun filter(src: Bitmap, style: com.luminculler.app.cleaner.core.Style): Bitmap {
+        val w = src.width
+        val h = src.height
+        val px = IntArray(w * h)
+        src.getPixels(px, 0, w, 0, 0, w, h)
+        val out = com.luminculler.app.cleaner.core.Styles.apply(style, px, w, h)
+        return Bitmap.createBitmap(out, w, h, Bitmap.Config.ARGB_8888)
     }
 
     /** Estompare rapidă: micșorare de 12 ori, două treceri de box blur, mărire lină. */

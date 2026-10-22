@@ -84,6 +84,29 @@ class Store(context: Context) {
             prefs.edit().putString("names", o.toString()).apply()
         }
 
+    /** Identificator aleator al instalării, doar pentru limitele zilnice ale serverului AI. Nu e legat de nimic personal. */
+    val installId: String
+        get() = prefs.getString("installId", null) ?: java.util.UUID.randomUUID().toString().also {
+            prefs.edit().putString("installId", it).apply()
+        }
+
+    /** Contoarele efectelor AI pe server, pe luna curentă (vezi core/AiCredits.kt). */
+    fun aiUsed(kind: com.luminculler.app.cleaner.core.AiCredits.Kind, month: String): Int =
+        if (prefs.getString("aiMonth", "") == month) prefs.getInt("ai_${kind.name}", 0) else 0
+
+    fun aiAliveTrialUsed(): Int = prefs.getInt("aiAliveTrial", 0)
+
+    fun countAi(kind: com.luminculler.app.cleaner.core.AiCredits.Kind, month: String, premium: Boolean) {
+        val e = prefs.edit()
+        if (prefs.getString("aiMonth", "") != month) {
+            e.putString("aiMonth", month)
+            com.luminculler.app.cleaner.core.AiCredits.Kind.entries.forEach { e.putInt("ai_${it.name}", 0) }
+        }
+        e.putInt("ai_${kind.name}", aiUsed(kind, month) + 1)
+        if (kind == com.luminculler.app.cleaner.core.AiCredits.Kind.Alive && !premium) e.putInt("aiAliveTrial", aiAliveTrialUsed() + 1)
+        e.apply()
+    }
+
     fun keep(ids: Collection<Long>) {
         if (kept.addAll(ids)) saveKept()
     }

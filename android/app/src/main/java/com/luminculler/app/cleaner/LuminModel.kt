@@ -44,7 +44,7 @@ sealed interface Route {
     data class Magic(val media: Media, val from: Route) : Route
 }
 
-enum class PaywallReason { ExtraStack, BulkClean, Browse }
+enum class PaywallReason { ExtraStack, BulkClean, Browse, Magic }
 
 data class ScanProgress(val done: Int, val total: Int) {
     val running: Boolean get() = total > 0 && done < total
@@ -62,7 +62,11 @@ class LuminModel(val context: Context, private val scope: CoroutineScope, privat
     val billing = PlayBilling(context) { bought -> onPurchaseResult(bought) }
     val grow = com.luminculler.app.cleaner.grow.GrowModel(context, scope).also { g -> g.onPeople = { refreshMoments() } }
     val movie = com.luminculler.app.cleaner.grow.MovieModel(context, scope)
-    val magic = com.luminculler.app.cleaner.magic.MagicModel(context, scope)
+    val magic = com.luminculler.app.cleaner.magic.MagicModel(
+        context, scope, store,
+        isPremium = { premium },
+        onNeedPremium = { openPaywall(PaywallReason.Magic) }
+    )
     private val zone: ZoneId = ZoneId.systemDefault()
 
     var route by mutableStateOf<Route>(if (store.onboarded && galleryAccess(context) != Access.None) Route.Moments else Route.Onboarding)

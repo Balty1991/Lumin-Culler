@@ -43,6 +43,24 @@ describe('fal requests and results', () => {
   });
 });
 
+describe('restore and edit', () => {
+  it('validates edit prompts and builds restore/edit requests on the image model', () => {
+    expect(validateCreate({ kind: 'edit', image: jpeg, installId: install })).toEqual({ ok: false, error: 'bad_prompt' });
+    expect(validateCreate({ kind: 'edit', prompt: 'x'.repeat(301), image: jpeg, installId: install })).toEqual({ ok: false, error: 'bad_prompt' });
+    const e = validateCreate({ kind: 'edit', prompt: '  put us on a beach ', image: jpeg, installId: install });
+    expect(e.ok).toBe(true);
+    if (e.ok) {
+      const r = falRequest(e.req, DEFAULT_MODELS);
+      expect(r.model).toBe(DEFAULT_MODELS.style);
+      expect(String(r.input.prompt).startsWith('put us on a beach.')).toBe(true);
+      expect(String(r.input.prompt)).toContain('identity');
+    }
+    const r = falRequest({ kind: 'restore', image: jpeg, installId: install }, DEFAULT_MODELS);
+    expect(String(r.input.prompt)).toContain('Restore');
+    expect(resultUrl('restore', { images: [{ url: 'https://r' }] })).toBe('https://r');
+  });
+});
+
 describe('limits', () => {
   it('stops at the per-install daily limit and at the global budget', () => {
     expect(admit('alive', DAILY_LIMIT.alive, 0, 100)).toEqual({ ok: false, error: 'daily_limit' });

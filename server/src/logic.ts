@@ -5,7 +5,7 @@
  * are voie să ceară fiecare instalare pe zi.
  */
 
-export type Kind = 'alive' | 'style';
+export type Kind = 'alive' | 'style' | 'restore' | 'edit';
 
 /** Stilurile artistice. Prompturile cer explicit păstrarea persoanei: un stil nu are voie să schimbe cine e în poză. */
 export const STYLES: Record<string, string> = {
@@ -17,20 +17,28 @@ export const STYLES: Record<string, string> = {
   cartoon3d: 'Redraw this photo as a soft 3D animated movie still. Keep every person recognizable, with the same pose and clothes.'
 };
 
+export const RESTORE_PROMPT =
+  'Restore this old photograph: remove scratches, dust, stains and tears, fix fading, gently sharpen the faces and colorize it with natural, realistic colors. Keep every person, face, pose and the composition exactly the same.';
+
+/** Ce se adaugă la orice editare cerută în cuvinte: schimbarea cerută, nimic altceva. */
+export const EDIT_GUARD = ' Change only what is asked. Keep everyone\'s face and identity exactly the same.';
+
 export const ALIVE_PROMPT =
   'Natural, gentle motion: the people breathe, blink and smile softly, hair moves slightly, subtle slow camera push-in. Realistic, no new people, no text.';
 
 /** Cât cere fiecare instalare pe zi, ca plasă de siguranță (creditele lunare le ține aplicația). */
-export const DAILY_LIMIT: Record<Kind, number> = { alive: 3, style: 20 };
+export const DAILY_LIMIT: Record<Kind, number> = { alive: 3, style: 20, restore: 20, edit: 20 };
 
 /** Cost estimat per lucrare, în dolari: pentru bugetul zilnic total. */
-export const COST_USD: Record<Kind, number> = { alive: 0.45, style: 0.05 };
+export const COST_USD: Record<Kind, number> = { alive: 0.45, style: 0.05, restore: 0.05, edit: 0.05 };
 
 export const MAX_IMAGE_BYTES = 1_500_000;
 
 export interface CreateRequest {
   kind: Kind;
   style?: string;
+  /** Doar la `edit`: ce vrea omul să schimbe, în cuvintele lui. */
+  prompt?: string;
   /** JPEG, base64 simplu (fără prefix data:). */
   image: string;
   installId: string;
@@ -41,14 +49,24 @@ export type Validation = { ok: true; req: CreateRequest } | { ok: false; error: 
 export function validateCreate(body: unknown): Validation {
   if (typeof body !== 'object' || body === null) return { ok: false, error: 'bad_json' };
   const b = body as Record<string, unknown>;
-  if (b.kind !== 'alive' && b.kind !== 'style') return { ok: false, error: 'bad_kind' };
+  if (b.kind !== 'alive' && b.kind !== 'style' && b.kind !== 'restore' && b.kind !== 'edit') return { ok: false, error: 'bad_kind' };
+  if (b.kind === 'edit' && (typeof b.prompt !== 'string' || b.prompt.trim().length < 3 || b.prompt.length > 300)) return { ok: false, error: 'bad_prompt' };
   if (b.kind === 'style' && (typeof b.style !== 'string' || !(b.style in STYLES))) return { ok: false, error: 'bad_style' };
   if (typeof b.installId !== 'string' || !/^[A-Za-z0-9-]{16,64}$/.test(b.installId)) return { ok: false, error: 'bad_install' };
   if (typeof b.image !== 'string' || b.image.length < 100) return { ok: false, error: 'bad_image' };
   // base64 → octeți: 3 la fiecare 4 caractere.
   if ((b.image.length * 3) / 4 > MAX_IMAGE_BYTES) return { ok: false, error: 'image_too_big' };
   if (!/^\/9j\//.test(b.image)) return { ok: false, error: 'not_jpeg' }; // începutul base64 al unui JPEG (FF D8 FF)
-  return { ok: true, req: { kind: b.kind, style: b.style as string | undefined, image: b.image, installId: b.installId } };
+  return {
+    ok: true,
+    req: {
+      kind: b.kind,
+      style: b.style as string | undefined,
+      prompt: typeof b.prompt === 'string' ? b.prompt.trim() : undefined,
+      image: b.image,
+      installId: b.installId
+    }
+  };
 }
 
 export interface Models {
@@ -67,7 +85,10 @@ export function falRequest(req: CreateRequest, models: Models): { model: string;
   if (req.kind === 'alive') {
     return { model: models.alive, input: { image_url: imageUrl, prompt: ALIVE_PROMPT, duration: '5' } };
   }
-  return { model: models.style, input: { image_url: imageUrl, prompt: STYLES[req.style as string] } };
+  const prompt = req.kind === 'restore' ? RESTORE_PROMPT
+    : req.kind === 'edit' ? `${req.prompt}.${EDIT_GUARD}`
+    : STYLES[req.style as string];
+  return { model: models.style, input: { image_url: imageUrl, prompt } };
 }
 
 /** Adresa rezultatului din răspunsul lui fal.ai, după tipul lucrării. */
