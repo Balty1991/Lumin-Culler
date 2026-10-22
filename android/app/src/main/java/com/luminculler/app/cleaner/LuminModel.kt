@@ -44,6 +44,8 @@ sealed interface Route {
     data object Lookalike : Route
     /** „Anul tău în poze”, ca povești. */
     data object Recap : Route
+    /** Jocul „Ghicește anul”. */
+    data object Guess : Route
     /** „Magie AI” pe o poză; înapoi se întoarce de unde a venit. */
     data class Magic(val media: Media, val from: Route) : Route
 }
@@ -453,6 +455,9 @@ class LuminModel(val context: Context, private val scope: CoroutineScope, privat
     fun buildRecap(year: Int): com.luminculler.app.cleaner.core.Recap? =
         com.luminculler.app.cleaner.core.Recaps.build(year, zone, photos, videos, signals, grow.people)
 
+    /** Pozele bune de joc: fără capturi, conversații sau poze ratate. */
+    fun gamePhotos(): List<Media> = com.luminculler.app.cleaner.core.Moments.usable(photos, signals, baskets)
+
     fun openRecap() {
         grow.ensureScan(photos)
         route = Route.Recap
@@ -474,7 +479,7 @@ class LuminModel(val context: Context, private val scope: CoroutineScope, privat
         if (r is Route.Movie && movie.back()) return true
         route = when (r) {
             Route.Moments, Route.Onboarding -> return false
-            Route.Today, Route.Settings, Route.Grow, Route.Lookalike, Route.Recap, is Route.Story -> Route.Moments
+            Route.Today, Route.Settings, Route.Grow, Route.Lookalike, Route.Recap, Route.Guess, is Route.Story -> Route.Moments
             is Route.Movie -> Route.Story(r.moment)
             is Route.Magic -> r.from
             is Route.Review -> if (r.fromBasket != null) Route.BasketView(r.fromBasket) else Route.Today

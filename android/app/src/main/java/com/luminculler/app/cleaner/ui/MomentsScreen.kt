@@ -176,6 +176,8 @@ fun MomentsScreen(model: LuminModel) {
 
             Box(Modifier.padding(horizontal = 20.dp)) { LookalikeEntry { model.openLookalike() } }
             Spacer(Modifier.height(12.dp))
+            Box(Modifier.padding(horizontal = 20.dp)) { GuessEntry { model.route = Route.Guess } }
+            Spacer(Modifier.height(12.dp))
             Box(Modifier.padding(horizontal = 20.dp)) { GrowEntry { model.openGrow() } }
         }
     }
@@ -287,5 +289,27 @@ private fun RecapEntry(onClick: () -> Unit) {
             Text(stringResource(R.string.lumin_recap_entry), style = MaterialTheme.typography.bodySmall, color = Color(0xE6FFFFFF))
         }
         Icon(LIcons.Chevron, null, tint = Color.White)
+    }
+}
+
+@Composable
+private fun GuessEntry(onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(Lumin.Surface)
+            .border(1.dp, Lumin.Line, RoundedCornerShape(24.dp))
+            .clickable(onClick = onClick)
+            .padding(18.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("🎲", style = MaterialTheme.typography.headlineMedium)
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.lumin_guess_title), style = MaterialTheme.typography.titleLarge, color = Lumin.Text)
+            Text(stringResource(R.string.lumin_guess_entry), style = MaterialTheme.typography.bodyMedium, color = Lumin.Muted)
+        }
+        Icon(LIcons.Chevron, null, tint = Lumin.Muted)
     }
 }

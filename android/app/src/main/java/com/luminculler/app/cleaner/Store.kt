@@ -58,6 +58,11 @@ class Store(context: Context) {
         get() = prefs.getBoolean("onboarded", false)
         set(v) = prefs.edit().putBoolean("onboarded", v).apply()
 
+    /** Cel mai bun scor la „Ghicește anul”. */
+    var guessBest: Int
+        get() = prefs.getInt("guessBest", 0)
+        set(v) = prefs.edit().putInt("guessBest", v).apply()
+
     var dailyReminder: Boolean
         get() = prefs.getBoolean("dailyReminder", false)
         set(v) = prefs.edit().putBoolean("dailyReminder", v).apply()
