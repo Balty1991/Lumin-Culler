@@ -40,6 +40,8 @@ sealed interface Route {
     data class Paywall(val reason: PaywallReason) : Route
     data object Settings : Route
     data object Grow : Route
+    /** „Magie AI” pe o poză; înapoi se întoarce de unde a venit. */
+    data class Magic(val media: Media, val from: Route) : Route
 }
 
 enum class PaywallReason { ExtraStack, BulkClean, Browse }
@@ -53,13 +55,14 @@ data class ScanProgress(val done: Int, val total: Int) {
  * funcțiile de aici; ștergerea propriu-zisă și plata au nevoie de Activity,
  * pe care o primesc prin [LuminHost].
  */
-class LuminModel(private val context: Context, private val scope: CoroutineScope, private val host: LuminHost) {
+class LuminModel(val context: Context, private val scope: CoroutineScope, private val host: LuminHost) {
     val store = Store(context)
     private val library = Library(context)
     val trash = Trash(context)
     val billing = PlayBilling(context) { bought -> onPurchaseResult(bought) }
     val grow = com.luminculler.app.cleaner.grow.GrowModel(context, scope).also { g -> g.onPeople = { refreshMoments() } }
     val movie = com.luminculler.app.cleaner.grow.MovieModel(context, scope)
+    val magic = com.luminculler.app.cleaner.magic.MagicModel(context, scope)
     private val zone: ZoneId = ZoneId.systemDefault()
 
     var route by mutableStateOf<Route>(if (store.onboarded && galleryAccess(context) != Access.None) Route.Moments else Route.Onboarding)
@@ -411,6 +414,10 @@ class LuminModel(private val context: Context, private val scope: CoroutineScope
         route = Route.Movie(moment)
     }
 
+    fun openMagic(media: Media) {
+        route = Route.Magic(media, route)
+    }
+
     fun openGrow() {
         grow.open(photos)
         route = Route.Grow
@@ -424,6 +431,7 @@ class LuminModel(private val context: Context, private val scope: CoroutineScope
             Route.Moments, Route.Onboarding -> return false
             Route.Today, Route.Settings, Route.Grow, is Route.Story -> Route.Moments
             is Route.Movie -> Route.Story(r.moment)
+            is Route.Magic -> r.from
             is Route.Review -> if (r.fromBasket != null) Route.BasketView(r.fromBasket) else Route.Today
             else -> Route.Today
         }
@@ -431,6 +439,7 @@ class LuminModel(private val context: Context, private val scope: CoroutineScope
     }
 
     fun close() {
+        magic.close()
         grow.close()
         scanJob?.cancel()
         billing.close()

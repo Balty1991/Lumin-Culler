@@ -223,4 +223,16 @@
     <string name="lumin_fmt_story">Story · Reels</string>
     <string name="lumin_fmt_square">Square</string>
     <string name="lumin_fmt_wide">Wide · YouTube</string>
+    <string name="lumin_magic_short">AI magic</string>
+    <string name="lumin_magic_title">AI magic</string>
+    <string name="lumin_magic_hold">Hold the photo to see the original</string>
+    <string name="lumin_magic_enhance">Auto enhance</string>
+    <string name="lumin_magic_portrait">Portrait blur</string>
+    <string name="lumin_magic_alive">Bring to life</string>
+    <string name="lumin_magic_styles">Art styles</string>
+    <string name="lumin_magic_soon">Soon</string>
+    <string name="lumin_magic_server">This effect needs Lumin's AI servers, which are not live yet. The free effects run on your phone.</string>
+    <string name="lumin_magic_save">Save as a new photo</string>
+    <string name="lumin_magic_saved">Saved in Pictures/Lumin. The original stays untouched.</string>
+    <string name="lumin_magic_no_person">No person found in this photo, so there is nothing to keep sharp.</string>
 </resources>

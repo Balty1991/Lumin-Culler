@@ -142,9 +142,12 @@ fun StoryScreen(model: LuminModel, moment: Moment) {
                 StoryAction(LIcons.Movie, stringResource(R.string.lumin_story_make_movie), Modifier.weight(1f)) {
                     model.openMovie(moment, title)
                 }
+                StoryAction(LIcons.Sparkle, stringResource(R.string.lumin_magic_short), Modifier.weight(1f)) {
+                    photos.getOrNull(index)?.let { model.openMagic(it) }
+                }
                 val person = moment.person
                 if (moment.kind == MomentKind.Person && person != null) {
-                    StoryAction(LIcons.Sparkle, stringResource(R.string.lumin_grow_title), Modifier.weight(1f)) {
+                    StoryAction(LIcons.Layers, stringResource(R.string.lumin_grow_title), Modifier.weight(1f)) {
                         model.grow.ensureScan(model.photos)
                         model.grow.choose(person)
                         model.route = Route.Grow

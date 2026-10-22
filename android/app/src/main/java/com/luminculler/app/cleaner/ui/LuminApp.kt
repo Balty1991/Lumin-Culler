@@ -51,6 +51,7 @@ fun LuminApp(model: LuminModel, onAllowPhotos: () -> Unit) {
                     Route.Moments -> MomentsScreen(model)
                     is Route.Story -> StoryScreen(model, route.moment)
                     is Route.Movie -> MovieScreen(model, route.moment)
+                    is Route.Magic -> MagicScreen(model, route.media)
                     Route.Today -> TodayScreen(model)
                     Route.Deck -> DeckScreen(model)
                     is Route.BasketView -> BasketScreen(model, route.kind)
@@ -64,6 +65,13 @@ fun LuminApp(model: LuminModel, onAllowPhotos: () -> Unit) {
             val r = model.route
             if (r == Route.Moments || r == Route.Today || r == Route.Settings) {
                 BottomBar(model, Modifier.align(Alignment.BottomCenter))
+            }
+            val magicMessage = model.magic.message
+            LaunchedEffect(magicMessage) {
+                if (magicMessage != null) {
+                    model.message = magicMessage
+                    model.magic.message = null
+                }
             }
             val movieMessage = model.movie.message
             LaunchedEffect(movieMessage) {

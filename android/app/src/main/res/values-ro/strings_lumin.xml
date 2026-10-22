@@ -236,4 +236,16 @@
     <string name="lumin_fmt_story">Story · Reels</string>
     <string name="lumin_fmt_square">Pătrat</string>
     <string name="lumin_fmt_wide">Lat · YouTube</string>
+    <string name="lumin_magic_short">Magie AI</string>
+    <string name="lumin_magic_title">Magie AI</string>
+    <string name="lumin_magic_hold">Ține apăsat pe poză ca să vezi originalul</string>
+    <string name="lumin_magic_enhance">Îmbunătățire automată</string>
+    <string name="lumin_magic_portrait">Portret (fundal neclar)</string>
+    <string name="lumin_magic_alive">Prinde viață</string>
+    <string name="lumin_magic_styles">Stiluri artistice</string>
+    <string name="lumin_magic_soon">În curând</string>
+    <string name="lumin_magic_server">Efectul ăsta are nevoie de serverele AI Lumin, care nu sunt încă pornite. Efectele gratuite merg direct pe telefon.</string>
+    <string name="lumin_magic_save">Salvează ca poză nouă</string>
+    <string name="lumin_magic_saved">Salvată în Pictures/Lumin. Originalul rămâne neatins.</string>
+    <string name="lumin_magic_no_person">N-am găsit nicio persoană în poză, deci n-am ce păstra clar.</string>
 </resources>
