@@ -244,6 +244,12 @@
     <string name="lumin_magic_alive">Prinde viață</string>
     <string name="lumin_magic_styles">Stiluri artistice</string>
     <string name="lumin_magic_failed">Efectul n-a reușit pe poza asta. Încearcă altă poză.</string>
+    <string name="lumin_magic_erase">Radieră magică</string>
+    <string name="lumin_erase_hint">Trage cu degetul peste ce vrei să dispară: o persoană din spate, un coș, un fir. AI-ul reface ce era în spate.</string>
+    <string name="lumin_erase_apply">Șterge</string>
+    <string name="lumin_erase_undo">Anulează ultima tușă</string>
+    <string name="lumin_erase_unlimited">radieră: nelimitat</string>
+    <string name="lumin_erase_left">radieră: mai ai %1$d luna asta</string>
     <string name="lumin_magic_soon">În curând</string>
     <string name="lumin_magic_server">Efectele AI super nu sunt încă pornite în această versiune. Efectele gratuite merg direct pe telefon.</string>
     <string name="lumin_magic_save">Salvează ca poză nouă</string>

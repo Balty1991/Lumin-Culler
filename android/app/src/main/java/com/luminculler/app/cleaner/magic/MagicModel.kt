@@ -40,6 +40,7 @@ class MagicModel(
 ) {
     private val magic = PhotoMagic(context)
     private val photo3d = Photo3D(context, magic)
+    private val eraser = Eraser(context)
     val ai = AiClient()
     private var media: Media? = null
     /** Poza peste care se aplică efectele gratuite: originalul, sau ultimul rezultat AI. */
@@ -59,6 +60,11 @@ class MagicModel(
     var aiJobId by mutableStateOf<String?>(null)
     var message by mutableStateOf<String?>(null)
 
+    /** Radiera: tușele trase cu degetul, în coordonate 0..1 ale pozei. */
+    class Stroke(val points: List<androidx.compose.ui.geometry.Offset>, val radius: Float)
+    var erasing by mutableStateOf(false)
+    val strokes = androidx.compose.runtime.mutableStateListOf<Stroke>()
+
     fun open(m: Media) {
         if (media?.id == m.id && base != null) return
         media = m
@@ -75,6 +81,7 @@ class MagicModel(
     }
 
     private fun reset() {
+        erasing = false; strokes.clear()
         enhance = false; portrait = false; filter = null
         shown = null; before = null; base = null; video = null; aiJobId = null
     }
@@ -136,6 +143,76 @@ class MagicModel(
             }
             working = false
             if (file != null) video = file
+        }
+    }
+
+    // ---- radiera magică, pe telefon ----
+
+    fun startErase() {
+        if (shown == null || working) return
+        if (remaining(AiCredits.Kind.Erase) <= 0) {
+            onNeedPremium()
+            return
+        }
+        strokes.clear()
+        erasing = true
+    }
+
+    fun cancelErase() { erasing = false; strokes.clear() }
+
+    fun undoStroke() { if (strokes.isNotEmpty()) strokes.removeAt(strokes.lastIndex) }
+
+    /** [radius] e relativ la lățimea pozei, ca pensula să fie la fel pe ecran oricât de mare e poza. */
+    fun beginStroke(at: androidx.compose.ui.geometry.Offset, radius: Float) { strokes.add(Stroke(listOf(at), radius)) }
+
+    fun extendStroke(to: androidx.compose.ui.geometry.Offset) {
+        val last = strokes.lastOrNull() ?: return
+        strokes[strokes.lastIndex] = Stroke(last.points + to, last.radius)
+    }
+
+    /** Șterge ce acoperă tușele; rezultatul devine noua bază, ca la efectele AI. */
+    fun applyErase() {
+        val src = shown ?: return
+        if (strokes.isEmpty()) return
+        val drawn = strokes.toList()
+        job?.cancel()
+        working = true
+        job = scope.launch {
+            try {
+                val result = withContext(Dispatchers.Default) {
+                    val mask = Bitmap.createBitmap(src.width, src.height, Bitmap.Config.ARGB_8888)
+                    val c = android.graphics.Canvas(mask)
+                    val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                        color = android.graphics.Color.BLACK
+                        style = android.graphics.Paint.Style.STROKE
+                        strokeCap = android.graphics.Paint.Cap.ROUND
+                        strokeJoin = android.graphics.Paint.Join.ROUND
+                    }
+                    for (st in drawn) {
+                        paint.strokeWidth = st.radius * 2 * src.width
+                        val path = android.graphics.Path()
+                        st.points.forEachIndexed { i, p ->
+                            val x = p.x * src.width; val y = p.y * src.height
+                            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                        }
+                        // Un punct singur (o atingere) trebuie să lase și el o pată rotundă.
+                        if (st.points.size == 1) path.lineTo(st.points[0].x * src.width + 0.5f, st.points[0].y * src.height)
+                        c.drawPath(path, paint)
+                    }
+                    try { eraser.erase(src, mask) } finally { mask.recycle() }
+                }
+                store.countAi(AiCredits.Kind.Erase, month(), isPremium())
+                base = result
+                enhance = false; portrait = false; filter = null
+                shown = result
+                erasing = false
+                strokes.clear()
+            } catch (t: Throwable) {
+                if (t is kotlinx.coroutines.CancellationException) throw t
+                message = context.getString(R.string.lumin_magic_failed)
+            } finally {
+                working = false
+            }
         }
     }
 
@@ -236,5 +313,5 @@ class MagicModel(
 
     val canSave: Boolean get() = !working && (enhance || portrait || filter != null || shown !== before)
 
-    fun close() = magic.close()
+    fun close() { magic.close(); eraser.close() }
 }

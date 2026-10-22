@@ -231,6 +231,12 @@
     <string name="lumin_magic_alive">Bring to life</string>
     <string name="lumin_magic_styles">Art styles</string>
     <string name="lumin_magic_failed">Something went wrong with this effect. Try another photo.</string>
+    <string name="lumin_magic_erase">Magic eraser</string>
+    <string name="lumin_erase_hint">Paint over whatever should disappear: a person in the back, a bin, a wire. AI rebuilds what was behind it.</string>
+    <string name="lumin_erase_apply">Erase</string>
+    <string name="lumin_erase_undo">Undo stroke</string>
+    <string name="lumin_erase_unlimited">eraser: unlimited</string>
+    <string name="lumin_erase_left">eraser: %1$d left this month</string>
     <string name="lumin_magic_soon">Soon</string>
     <string name="lumin_magic_server">Super AI effects are not switched on yet in this version. The free effects run on your phone.</string>
     <string name="lumin_magic_save">Save as a new photo</string>

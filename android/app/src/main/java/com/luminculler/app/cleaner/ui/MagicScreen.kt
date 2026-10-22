@@ -3,6 +3,17 @@ package com.luminculler.app.cleaner.ui
 import android.content.Intent
 import android.widget.VideoView
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -78,14 +89,42 @@ fun MagicScreen(model: LuminModel, media: Media) {
     val context = LocalContext.current
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
-        Box(
-            Modifier.fillMaxSize().pointerInput(Unit) {
-                detectTapGestures(onPress = { comparing = true; tryAwaitRelease(); comparing = false })
-            },
-            contentAlignment = Alignment.Center
-        ) {
+        var area by remember { mutableStateOf(IntSize.Zero) }
+        val brush = with(LocalDensity.current) { 22.dp.toPx() }
+        Box(Modifier.fillMaxSize().padding(bottom = 200.dp).onSizeChanged { area = it }) {
             val bmp = if (comparing) magic.before else magic.shown
-            if (bmp != null) Image(bmp.asImageBitmap(), null, Modifier.fillMaxSize().padding(bottom = 200.dp), contentScale = ContentScale.Fit)
+            // Unde stă poza pe ecran (ContentScale.Fit): de aici trecem din pixeli de ecran în 0..1 ai pozei.
+            val fit = bmp?.let { fitRect(area, it.width, it.height) }
+            Box(
+                Modifier.fillMaxSize().pointerInput(magic.erasing, fit) {
+                    if (magic.erasing && fit != null) {
+                        fun norm(o: Offset) = Offset(((o.x - fit.left) / fit.width).coerceIn(0f, 1f), ((o.y - fit.top) / fit.height).coerceIn(0f, 1f))
+                        detectDragGestures(
+                            onDragStart = { magic.beginStroke(norm(it), brush / fit.width) },
+                            onDrag = { change, _ -> magic.extendStroke(norm(change.position)) }
+                        )
+                    } else {
+                        detectTapGestures(onPress = { comparing = true; tryAwaitRelease(); comparing = false })
+                    }
+                }
+            ) {
+                if (bmp != null) Image(bmp.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                if (magic.erasing && fit != null) {
+                    Canvas(Modifier.fillMaxSize()) {
+                        for (st in magic.strokes) {
+                            val pts = st.points.map { Offset(fit.left + it.x * fit.width, fit.top + it.y * fit.height) }
+                            val path = Path().apply {
+                                moveTo(pts[0].x, pts[0].y)
+                                for (p in pts.drop(1)) lineTo(p.x, p.y)
+                                if (pts.size == 1) lineTo(pts[0].x + 0.5f, pts[0].y)
+                            }
+                            drawPath(path, Color(0x99FF3B5C), style = Stroke(width = st.radius * 2 * fit.width, cap = StrokeCap.Round, join = StrokeJoin.Round))
+                        }
+                    }
+                }
+            }
+        }
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             if (magic.working) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator(color = Lumin.Accent)
@@ -124,48 +163,55 @@ fun MagicScreen(model: LuminModel, media: Media) {
                 .navigationBarsPadding()
                 .padding(vertical = 12.dp)
         ) {
-            when (panel) {
-                Panel.Filters -> ChipRow(
-                    Style.entries.map { it to filterLabel(it) },
-                    selected = magic.filter
-                ) { magic.pickFilter(it) }
-                Panel.AiStyles -> ChipRow(
-                    AiStyle.entries.map { it to aiStyleLabel(it) },
-                    selected = null
-                ) { magic.superStyle(it); panel = Panel.None }
-                Panel.None -> {}
-            }
-
-            SectionLabel(stringResource(R.string.lumin_magic_free))
-            Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Effect(LIcons.Bolt, stringResource(R.string.lumin_magic_enhance), magic.enhance) { magic.toggleEnhance() }
-                Effect(LIcons.Blur, stringResource(R.string.lumin_magic_portrait), magic.portrait) { magic.togglePortrait() }
-                Effect(LIcons.Edit, stringResource(R.string.lumin_magic_filters), magic.filter != null || panel == Panel.Filters) {
-                    panel = if (panel == Panel.Filters) Panel.None else Panel.Filters
+            if (magic.erasing) {
+                ErasePanel(model)
+            } else {
+                when (panel) {
+                    Panel.Filters -> ChipRow(
+                        Style.entries.map { it to filterLabel(it) },
+                        selected = magic.filter
+                    ) { magic.pickFilter(it) }
+                    Panel.AiStyles -> ChipRow(
+                        AiStyle.entries.map { it to aiStyleLabel(it) },
+                        selected = null
+                    ) { magic.superStyle(it); panel = Panel.None }
+                    Panel.None -> {}
                 }
-                Effect(LIcons.Layers, stringResource(R.string.lumin_magic_3d), false) { magic.make3d() }
-            }
 
-            val live = magic.ai.enabled
-            SectionLabel(
-                stringResource(R.string.lumin_magic_super) + "  ·  " +
-                    if (live) stringResource(R.string.lumin_ai_credits, magic.remaining(AiCredits.Kind.Style), magic.remaining(AiCredits.Kind.Alive))
-                    else stringResource(R.string.lumin_magic_soon),
-                gold = true
-            )
-            // Fără server, atingerea explică de ce nu merg încă, în loc să deschidă panouri sau dialoguri.
-            val notYet = { magic.message = context.getString(R.string.lumin_magic_server) }
-            Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Effect(LIcons.Sparkle, stringResource(R.string.lumin_magic_styles), panel == Panel.AiStyles, premium = true, dim = !live) {
-                    if (live) { panel = if (panel == Panel.AiStyles) Panel.None else Panel.AiStyles } else { notYet() }
+                SectionLabel(stringResource(R.string.lumin_magic_free))
+                Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Effect(LIcons.Bolt, stringResource(R.string.lumin_magic_enhance), magic.enhance) { magic.toggleEnhance() }
+                    Effect(LIcons.Blur, stringResource(R.string.lumin_magic_portrait), magic.portrait) { magic.togglePortrait() }
+                    Effect(LIcons.Edit, stringResource(R.string.lumin_magic_filters), magic.filter != null || panel == Panel.Filters) {
+                        panel = if (panel == Panel.Filters) Panel.None else Panel.Filters
+                    }
+                    Effect(LIcons.Layers, stringResource(R.string.lumin_magic_3d), false) { magic.make3d() }
                 }
-                Effect(LIcons.Star, stringResource(R.string.lumin_magic_restore), false, premium = true, dim = !live) { magic.restore() }
-                Effect(LIcons.Edit, stringResource(R.string.lumin_magic_edit), false, premium = true, dim = !live) { if (live) { editing = true } else { notYet() } }
-                Effect(LIcons.Play, stringResource(R.string.lumin_magic_alive), false, premium = true, dim = !live) { magic.alive() }
-            }
-            Spacer(Modifier.height(12.dp))
-            Box(Modifier.padding(horizontal = 16.dp)) {
-                BigButton(stringResource(R.string.lumin_magic_save), { magic.save() }, enabled = magic.canSave)
+
+                val live = magic.ai.enabled
+                val erases = magic.remaining(AiCredits.Kind.Erase)
+                SectionLabel(
+                    stringResource(R.string.lumin_magic_super) + "  ·  " +
+                        if (live) stringResource(R.string.lumin_ai_credits, magic.remaining(AiCredits.Kind.Style), magic.remaining(AiCredits.Kind.Alive))
+                        else if (erases == AiCredits.UNLIMITED) stringResource(R.string.lumin_erase_unlimited)
+                        else stringResource(R.string.lumin_erase_left, erases),
+                    gold = true
+                )
+                // Fără server, atingerea explică de ce nu merg încă, în loc să deschidă panouri sau dialoguri.
+                val notYet = { magic.message = context.getString(R.string.lumin_magic_server) }
+                Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Effect(LIcons.Wand, stringResource(R.string.lumin_magic_erase), false, premium = true) { panel = Panel.None; magic.startErase() }
+                    Effect(LIcons.Sparkle, stringResource(R.string.lumin_magic_styles), panel == Panel.AiStyles, premium = true, dim = !live) {
+                        if (live) { panel = if (panel == Panel.AiStyles) Panel.None else Panel.AiStyles } else { notYet() }
+                    }
+                    Effect(LIcons.Star, stringResource(R.string.lumin_magic_restore), false, premium = true, dim = !live) { magic.restore() }
+                    Effect(LIcons.Edit, stringResource(R.string.lumin_magic_edit), false, premium = true, dim = !live) { if (live) { editing = true } else { notYet() } }
+                    Effect(LIcons.Play, stringResource(R.string.lumin_magic_alive), false, premium = true, dim = !live) { magic.alive() }
+                }
+                Spacer(Modifier.height(12.dp))
+                Box(Modifier.padding(horizontal = 16.dp)) {
+                    BigButton(stringResource(R.string.lumin_magic_save), { magic.save() }, enabled = magic.canSave)
+                }
             }
         }
 
@@ -200,6 +246,35 @@ fun MagicScreen(model: LuminModel, media: Media) {
 
         if (editing) {
             EditDialog(onDismiss = { editing = false }) { text -> editing = false; magic.edit(text) }
+        }
+    }
+}
+
+/** Dreptunghiul în care ContentScale.Fit așază o poză [w]x[h] într-o zonă [area]. */
+private fun fitRect(area: IntSize, w: Int, h: Int): Rect? {
+    if (area.width == 0 || area.height == 0 || w == 0 || h == 0) return null
+    val scale = minOf(area.width / w.toFloat(), area.height / h.toFloat())
+    val dw = w * scale
+    val dh = h * scale
+    val left = (area.width - dw) / 2f
+    val top = (area.height - dh) / 2f
+    return Rect(left, top, left + dw, top + dh)
+}
+
+@Composable
+private fun ErasePanel(model: LuminModel) {
+    val magic = model.magic
+    Column(Modifier.padding(horizontal = 16.dp)) {
+        Text(stringResource(R.string.lumin_magic_erase), style = MaterialTheme.typography.titleMedium, color = Lumin.Text)
+        Spacer(Modifier.height(4.dp))
+        Text(stringResource(R.string.lumin_erase_hint), style = MaterialTheme.typography.bodyMedium, color = Lumin.Muted)
+        Spacer(Modifier.height(12.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            RoundIcon(LIcons.Close, stringResource(R.string.lumin_grow_cancel), { magic.cancelErase() })
+            RoundIcon(LIcons.Undo, stringResource(R.string.lumin_erase_undo), { magic.undoStroke() }, enabled = magic.strokes.isNotEmpty())
+            Box(Modifier.weight(1f)) {
+                BigButton(stringResource(R.string.lumin_erase_apply), { magic.applyErase() }, enabled = magic.strokes.isNotEmpty() && !magic.working, icon = LIcons.Wand)
+            }
         }
     }
 }

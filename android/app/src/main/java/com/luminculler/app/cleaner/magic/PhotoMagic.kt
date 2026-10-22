@@ -231,8 +231,8 @@ class PhotoMagic(private val context: Context) {
         }
     }
 
-    fun close() = synchronized(this) {
-        try { segmenter.close() } catch (_: Throwable) { }
+    fun close() {
+        synchronized(this) { try { segmenter.close() } catch (_: Throwable) { } }
     }
 
     companion object {

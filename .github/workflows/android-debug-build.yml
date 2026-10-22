@@ -188,6 +188,24 @@ jobs:
           curl -fL -o android/app/src/main/assets/selfie_segmenter.tflite https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/1/selfie_segmenter.tflite
           size=$(stat -c%s android/app/src/main/assets/selfie_segmenter.tflite)
           if [ "$size" -lt 150000 ]; then echo "::error::selfie_segmenter.tflite are doar $size octeti — descarcare esuata/trunchiata" && exit 1; fi
+      # Radiera magica (cleaner/magic/Eraser.kt): MI-GAN, Picsart AI Research,
+      # licenta MIT. Fisierul e fixat prin amprenta SHA-256 a variantei testate
+      # pe poze reale; sursa principala e pagina autorului pe Hugging Face, iar
+      # pachetul npm migan-onnx (aceeasi amprenta) e doar rezerva.
+      - name: Bundle magic eraser model
+        run: |
+          f=android/app/src/main/assets/migan_pipeline_v2.onnx
+          want=6f1f3530a1a2324b19752018ce756088b07973cda8d7d890034ace5c8a48c40b
+          curl -fL -o "$f" https://huggingface.co/andraniksargsyan/migan/resolve/main/migan_pipeline_v2.onnx || true
+          if [ "$(sha256sum "$f" 2>/dev/null | cut -d' ' -f1)" != "$want" ]; then
+            echo "Hugging Face nu a dat fisierul asteptat; incerc pachetul npm"
+            tmp=$(mktemp -d)
+            curl -fL -o "$tmp/p.tgz" https://registry.npmjs.org/migan-onnx/-/migan-onnx-1.0.0.tgz
+            tar xzf "$tmp/p.tgz" -C "$tmp" package/models/migan_pipeline_v2.onnx
+            mv "$tmp/package/models/migan_pipeline_v2.onnx" "$f"
+          fi
+          got=$(sha256sum "$f" | cut -d' ' -f1)
+          if [ "$got" != "$want" ]; then echo "::error::migan_pipeline_v2.onnx are amprenta $got, nu $want" && exit 1; fi
       - name: Bundle native image-embedder model
         run: |
           curl -fL -o android/app/src/main/assets/mobilenet_v3_small.tflite https://storage.googleapis.com/mediapipe-models/image_embedder/mobilenet_v3_small/float32/1/mobilenet_v3_small.tflite

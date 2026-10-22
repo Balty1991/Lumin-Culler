@@ -18,4 +18,11 @@ class AiCreditsTest {
         assertEquals(85, AiCredits.remaining(AiCredits.Kind.Style, true, 15, 0))
         assertEquals("2026-03", AiCredits.month(2026, 3))
     }
+
+    @Test
+    fun eraserIsFiveAMonthFreeAndUnlimitedForPremium() {
+        assertEquals(5, AiCredits.remaining(AiCredits.Kind.Erase, false, 0, 0))
+        assertEquals(0, AiCredits.remaining(AiCredits.Kind.Erase, false, 7, 0))
+        assertEquals(AiCredits.UNLIMITED, AiCredits.remaining(AiCredits.Kind.Erase, true, 500, 0))
+    }
 }

@@ -66,7 +66,7 @@ android {
             // De spus pe fata: e o ipoteza, nu o cauza dovedita. Nu strica
             // nimic in niciun caz (pachetul creste cu cativa MB), si daca nu era
             // asta, jurnalul de pasi din CrashLog.kt ne spune ce era.
-            noCompress 'task', 'tflite', 'bin'
+            noCompress 'task', 'tflite', 'bin', 'onnx'
         }
     }
     if (hasSigningConfig) {
@@ -191,6 +191,8 @@ dependencies {
     implementation 'io.coil-kt:coil-compose:2.7.0'
     // FaceRes (recunoașterea fețelor din „Cum a crescut”), vezi cleaner/grow/FaceRes.kt.
     implementation 'org.tensorflow:tensorflow-lite:2.16.1'
+    // Radiera magică (MI-GAN, ONNX) — vezi cleaner/magic/Eraser.kt.
+    implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.22.0'
     // Cadre din videoclipuri pentru grila „Videoclipuri mari”.
     implementation 'io.coil-kt:coil-video:2.7.0'
     implementation project(':capacitor-android')
