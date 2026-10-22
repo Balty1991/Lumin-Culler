@@ -156,7 +156,7 @@ export function modelUnavailable(detail: string): boolean {
 }
 
 /** Cât de mult redesenează modelul: destul cât să se vadă stilul, puțin cât fața să rămână a omului. */
-export const CF_STRENGTH = 0.5;
+export const CF_STRENGTH = 0.38;
 
 const CF_STYLE_PROMPTS: Record<string, string> = {
   watercolor: 'soft watercolor painting, delicate brush washes, paper texture',
