@@ -208,10 +208,10 @@ export function cfRequest(req: CreateRequest, bytes: Uint8Array): Record<string,
 // ---- Fundal nou, descrieri și texte (Workers AI, gratuit) ----
 
 /** Ce face serverul pe lângă lucrările cu poze întregi; merg gratuit pe Workers AI. */
-export const EXTRA_KINDS = ['background', 'describe', 'caption'] as const;
+export const EXTRA_KINDS = ['background', 'describe', 'caption', 'greeting'] as const;
 export type ExtraKind = typeof EXTRA_KINDS[number];
 
-export const EXTRA_DAILY_LIMIT: Record<ExtraKind, number> = { background: 15, describe: 60, caption: 30 };
+export const EXTRA_DAILY_LIMIT: Record<ExtraKind, number> = { background: 15, describe: 60, caption: 30, greeting: 30 };
 
 export const CF_TEXT2IMG_MODELS = ['@cf/black-forest-labs/flux-1-schnell', '@cf/bytedance/stable-diffusion-xl-lightning'];
 export const CF_VISION_MODELS = ['@cf/meta/llama-3.2-11b-vision-instruct', '@cf/llava-hf/llava-1.5-7b-hf'];
@@ -236,8 +236,8 @@ export function validateBackground(body: unknown): { ok: true; prompt: string; i
 }
 
 export interface DescribeRequest {
-  kind: 'describe' | 'caption';
-  /** JPEG-uri mici (base64), cel mult 4. */
+  kind: 'describe' | 'caption' | 'greeting';
+  /** JPEG-uri mici (base64), cel mult 4 (la felicitare, poate lipsi). */
   images: string[];
   installId: string;
   lang: string;
@@ -247,8 +247,9 @@ export interface DescribeRequest {
 
 export function validateDescribe(body: unknown): { ok: true; req: DescribeRequest } | { ok: false; error: string } {
   const b = (body ?? {}) as Record<string, unknown>;
-  if (b.kind !== 'describe' && b.kind !== 'caption') return { ok: false, error: 'bad_kind' };
-  if (!Array.isArray(b.images) || b.images.length < 1 || b.images.length > 4) return { ok: false, error: 'bad_images' };
+  if (b.kind !== 'describe' && b.kind !== 'caption' && b.kind !== 'greeting') return { ok: false, error: 'bad_kind' };
+  const minImages = b.kind === 'greeting' ? 0 : 1;
+  if (!Array.isArray(b.images) || b.images.length < minImages || b.images.length > 4) return { ok: false, error: 'bad_images' };
   for (const im of b.images) {
     if (typeof im !== 'string' || !/^\/9j\//.test(im) || (im.length * 3) / 4 > 300_000) return { ok: false, error: 'bad_image' };
   }
@@ -267,6 +268,9 @@ export function writerPrompt(req: DescribeRequest, descriptions: string[]): stri
   const language = LANGUAGE_NAMES[req.lang] ?? 'English';
   const facts = descriptions.map((d, i) => `Photo ${i + 1}: ${d}`).join('\n');
   const ctx = req.context ? `\nKnown context: ${req.context}` : '';
+  if (req.kind === 'greeting') {
+    return `You write greeting card messages for a family photo app.${ctx}\n${facts}\n\nWrite in ${language}, warm, personal and natural, like a close family member would write, never generic or cheesy. Use the occasion and the name from the context if given. Return only JSON: {"texts": ["...", "...", "..."]} with three different messages: one heartfelt (max 45 words), one cheerful and playful (max 35 words), one short (max 15 words).`;
+  }
   if (req.kind === 'describe') {
     return `You write titles for a family photo memories app.${ctx}\n${facts}\n\nWrite in ${language}, warm and natural, never cheesy. Return only JSON: {"title": "max 6 words, no date", "line": "one sentence, max 18 words, like a caption in a photo album"}.`;
   }

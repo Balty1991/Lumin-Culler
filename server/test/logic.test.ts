@@ -117,3 +117,11 @@ describe('background, describe and captions', () => {
     expect(parseJsonReply('no json')).toBeNull();
   });
 });
+
+describe('greetings', () => {
+  it('needs no photo and asks for three messages', () => {
+    const v = validateDescribe({ kind: 'greeting', images: [], installId: install, lang: 'ro', context: 'Ocazia: zi de naștere. Pentru: Ana, 5 ani.' });
+    expect(v.ok).toBe(true);
+    if (v.ok) expect(writerPrompt(v.req, [])).toContain('"texts"');
+  });
+});
