@@ -261,20 +261,22 @@ export function validateDescribe(body: unknown): { ok: true; req: DescribeReques
 
 export const LANGUAGE_NAMES: Record<string, string> = { ro: 'Romanian', en: 'English', it: 'Italian', es: 'Spanish', fr: 'French', de: 'German' };
 
-export const VISION_PROMPT = 'Describe this photo in one short sentence: where it is, what people are doing, the mood. No names, no guesses about identity.';
+export const VISION_PROMPT = 'Describe this photo in one short sentence: the place, what the people are doing, the mood. Never name or identify anyone, not even famous people: say "a man", "a girl", "a family".';
 
 /** Cererea pentru modelul de text, din descrierile pozelor. Răspunsul trebuie să fie JSON. */
 export function writerPrompt(req: DescribeRequest, descriptions: string[]): string {
   const language = LANGUAGE_NAMES[req.lang] ?? 'English';
+  // Reguli comune: doar limba omului, iar nume de oameni doar din ce a dat el (nu ghicite din poză).
+  const rules = ` Write only in ${language}, with no words from other languages. Never name or identify people from the photos; use a name only if it appears in the known context.`;
   const facts = descriptions.map((d, i) => `Photo ${i + 1}: ${d}`).join('\n');
   const ctx = req.context ? `\nKnown context: ${req.context}` : '';
   if (req.kind === 'greeting') {
-    return `You write greeting card messages for a family photo app.${ctx}\n${facts}\n\nWrite in ${language}, warm, personal and natural, like a close family member would write, never generic or cheesy. Use the occasion and the name from the context if given. Return only JSON: {"texts": ["...", "...", "..."]} with three different messages: one heartfelt (max 45 words), one cheerful and playful (max 35 words), one short (max 15 words).`;
+    return `You write greeting card messages for a family photo app.${ctx}\n${facts}\n\nWrite in ${language}, warm, personal and natural, like a close family member would write, never generic or cheesy. Use the occasion and the name from the context if given. ${rules} Return only JSON: {"texts": ["...", "...", "..."]} with three different messages: one heartfelt (max 45 words), one cheerful and playful (max 35 words), one short (max 15 words).`;
   }
   if (req.kind === 'describe') {
-    return `You write titles for a family photo memories app.${ctx}\n${facts}\n\nWrite in ${language}, warm and natural, never cheesy. Return only JSON: {"title": "max 6 words, no date", "line": "one sentence, max 18 words, like a caption in a photo album"}.`;
+    return `You write titles for a family photo memories app.${ctx}\n${facts}\n\nWrite in ${language}, warm and natural, never cheesy.${rules} Return only JSON: {"title": "max 6 words, no date", "line": "one sentence, max 18 words, like a caption in a photo album"}.`;
   }
-  return `You write social media captions for someone sharing their own photos.${ctx}\n${facts}\n\nWrite in ${language}. Return only JSON: {"captions": ["...", "...", "..."]} with three different captions: one heartfelt, one funny, one short with 2-3 fitting emoji. Max 25 words each. No hashtags spam (at most 2).`;
+  return `You write social media captions for someone sharing their own photos.${ctx}\n${facts}\n\nWrite in ${language}.${rules} Return only JSON: {"captions": ["...", "...", "..."]} with three different captions: one heartfelt, one funny, one short with 2-3 fitting emoji. Max 25 words each. No hashtags spam (at most 2).`;
 }
 
 /** Scoate obiectul JSON din răspunsul modelului (care uneori pune text în jur). */

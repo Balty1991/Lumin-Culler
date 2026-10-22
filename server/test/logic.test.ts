@@ -125,3 +125,15 @@ describe('greetings', () => {
     if (v.ok) expect(writerPrompt(v.req, [])).toContain('"texts"');
   });
 });
+
+describe('privacy and language rules', () => {
+  it('forbids naming people and mixing languages in every text prompt', () => {
+    for (const kind of ['describe', 'caption', 'greeting'] as const) {
+      const v = validateDescribe({ kind, images: [jpeg], installId: install, lang: 'ro' });
+      if (!v.ok) throw new Error('invalid');
+      const p = writerPrompt(v.req, ['a man smiling']);
+      expect(p).toContain('Never name or identify people');
+      expect(p).toContain('Write only in Romanian');
+    }
+  });
+});
