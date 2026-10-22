@@ -40,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -49,6 +50,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.FileProvider
@@ -95,7 +97,13 @@ fun MagicScreen(model: LuminModel, media: Media) {
             }
         }
 
-        Row(Modifier.statusBarsPadding().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        // Bandă întunecată sub titlu: altfel textul alb se pierde pe pozele luminoase.
+        Row(
+            Modifier.fillMaxWidth()
+                .background(Brush.verticalGradient(listOf(Color(0xCC000000), Color(0x00000000))))
+                .statusBarsPadding().padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 28.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             RoundIcon(LIcons.Back, stringResource(R.string.lumin_back), { model.back() }, background = Color(0x55000000), tint = Color.White)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
@@ -138,18 +146,22 @@ fun MagicScreen(model: LuminModel, media: Media) {
                 Effect(LIcons.Layers, stringResource(R.string.lumin_magic_3d), false) { magic.make3d() }
             }
 
+            val live = magic.ai.enabled
             SectionLabel(
                 stringResource(R.string.lumin_magic_super) + "  ·  " +
-                    stringResource(R.string.lumin_ai_credits, magic.remaining(AiCredits.Kind.Style), magic.remaining(AiCredits.Kind.Alive)),
+                    if (live) stringResource(R.string.lumin_ai_credits, magic.remaining(AiCredits.Kind.Style), magic.remaining(AiCredits.Kind.Alive))
+                    else stringResource(R.string.lumin_magic_soon),
                 gold = true
             )
+            // Fără server, atingerea explică de ce nu merg încă, în loc să deschidă panouri sau dialoguri.
+            val notYet = { magic.message = context.getString(R.string.lumin_magic_server) }
             Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Effect(LIcons.Sparkle, stringResource(R.string.lumin_magic_styles), panel == Panel.AiStyles, premium = true) {
-                    panel = if (panel == Panel.AiStyles) Panel.None else Panel.AiStyles
+                Effect(LIcons.Sparkle, stringResource(R.string.lumin_magic_styles), panel == Panel.AiStyles, premium = true, dim = !live) {
+                    if (live) { panel = if (panel == Panel.AiStyles) Panel.None else Panel.AiStyles } else { notYet() }
                 }
-                Effect(LIcons.Star, stringResource(R.string.lumin_magic_restore), false, premium = true) { magic.restore() }
-                Effect(LIcons.Edit, stringResource(R.string.lumin_magic_edit), false, premium = true) { editing = true }
-                Effect(LIcons.Play, stringResource(R.string.lumin_magic_alive), false, premium = true) { magic.alive() }
+                Effect(LIcons.Star, stringResource(R.string.lumin_magic_restore), false, premium = true, dim = !live) { magic.restore() }
+                Effect(LIcons.Edit, stringResource(R.string.lumin_magic_edit), false, premium = true, dim = !live) { if (live) { editing = true } else { notYet() } }
+                Effect(LIcons.Play, stringResource(R.string.lumin_magic_alive), false, premium = true, dim = !live) { magic.alive() }
             }
             Spacer(Modifier.height(12.dp))
             Box(Modifier.padding(horizontal = 16.dp)) {
@@ -247,10 +259,11 @@ private fun aiStyleLabel(s: AiStyle): String = stringResource(
 )
 
 @Composable
-private fun Effect(icon: ImageVector, label: String, on: Boolean, premium: Boolean = false, onClick: () -> Unit) {
+private fun Effect(icon: ImageVector, label: String, on: Boolean, premium: Boolean = false, dim: Boolean = false, onClick: () -> Unit) {
     Column(
         Modifier
             .width(88.dp)
+            .alpha(if (dim) 0.45f else 1f)
             .clip(RoundedCornerShape(18.dp))
             .background(if (on) Color(0x33A78BFA) else Lumin.Surface)
             .border(if (on) 2.dp else 1.dp, if (on) Lumin.Accent else if (premium) Color(0x66FFC857) else Lumin.Line, RoundedCornerShape(18.dp))
@@ -264,7 +277,7 @@ private fun Effect(icon: ImageVector, label: String, on: Boolean, premium: Boole
             contentAlignment = Alignment.Center
         ) { Icon(icon, null, tint = if (premium) Color(0xFF2A1400) else Color.White, modifier = Modifier.size(19.dp)) }
         Spacer(Modifier.height(6.dp))
-        Text(label, style = MaterialTheme.typography.labelMedium, color = Lumin.Text, maxLines = 2)
+        Text(label, style = MaterialTheme.typography.labelMedium, color = Lumin.Text, maxLines = 2, textAlign = TextAlign.Center)
     }
 }
 

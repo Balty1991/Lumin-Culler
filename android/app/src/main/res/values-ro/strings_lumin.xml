@@ -240,9 +240,10 @@
     <string name="lumin_magic_title">Magie AI</string>
     <string name="lumin_magic_hold">Ține apăsat pe poză ca să vezi originalul</string>
     <string name="lumin_magic_enhance">Îmbunătățire automată</string>
-    <string name="lumin_magic_portrait">Portret (fundal neclar)</string>
+    <string name="lumin_magic_portrait">Fundal neclar</string>
     <string name="lumin_magic_alive">Prinde viață</string>
     <string name="lumin_magic_styles">Stiluri artistice</string>
+    <string name="lumin_magic_failed">Efectul n-a reușit pe poza asta. Încearcă altă poză.</string>
     <string name="lumin_magic_soon">În curând</string>
     <string name="lumin_magic_server">Efectele AI super nu sunt încă pornite în această versiune. Efectele gratuite merg direct pe telefon.</string>
     <string name="lumin_magic_save">Salvează ca poză nouă</string>

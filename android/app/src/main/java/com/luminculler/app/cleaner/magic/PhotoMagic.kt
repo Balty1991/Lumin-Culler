@@ -106,20 +106,32 @@ class PhotoMagic(private val context: Context) {
      * Null dacă modelul nu vede pe nimeni (sub 2% din cadru).
      */
     fun personMask(src: Bitmap): Bitmap? {
-        val result = segmenter.segment(BitmapImageBuilder(src).build())
-        val masks = result.confidenceMasks()
-        if (!masks.isPresent || masks.get().isEmpty()) return null
-        val maskImage = masks.get()[0]
-        val mw = maskImage.width
-        val mh = maskImage.height
-        val buf = ByteBufferExtractor.extract(maskImage).asFloatBuffer()
-        val maskPx = IntArray(mw * mh)
+        // MediaPipe primește doar ARGB_8888; pozele HDR vin ca RGBA_F16 și îl făceau să arunce.
+        // Modelul lucrează oricum la 256 px, deci o copie mică ajunge.
+        val scale = minOf(1f, 1024f / maxOf(src.width, src.height))
+        val input = Bitmap.createBitmap(maxOf(1, (src.width * scale).toInt()), maxOf(1, (src.height * scale).toInt()), Bitmap.Config.ARGB_8888)
+        Canvas(input).drawBitmap(src, null, android.graphics.Rect(0, 0, input.width, input.height), Paint(Paint.FILTER_BITMAP_FLAG))
+        val maskPx: IntArray
+        val mw: Int
+        val mh: Int
         var person = 0
-        for (k in maskPx.indices) {
-            val v = buf.get(k).coerceIn(0f, 1f)
-            if (v > 0.5f) person++
-            maskPx[k] = ((v * 255).toInt() shl 24)
+        // Un singur apel odată: o atingere nouă nu oprește calculul pornit, iar segmenterul nu suportă apeluri paralele.
+        synchronized(this) {
+            val result = segmenter.segment(BitmapImageBuilder(input).build())
+            val masks = result.confidenceMasks()
+            if (!masks.isPresent || masks.get().isEmpty()) { input.recycle(); return null }
+            val maskImage = masks.get()[0]
+            mw = maskImage.width
+            mh = maskImage.height
+            val buf = ByteBufferExtractor.extract(maskImage).asFloatBuffer()
+            maskPx = IntArray(mw * mh)
+            for (k in maskPx.indices) {
+                val v = buf.get(k).coerceIn(0f, 1f)
+                if (v > 0.5f) person++
+                maskPx[k] = ((v * 255).toInt() shl 24)
+            }
         }
+        input.recycle()
         if (person < maskPx.size * 0.02f) return null
         val maskSmall = Bitmap.createBitmap(maskPx, mw, mh, Bitmap.Config.ARGB_8888)
         val mask = Bitmap.createScaledBitmap(maskSmall, src.width, src.height, true)
@@ -196,7 +208,7 @@ class PhotoMagic(private val context: Context) {
         }
     }
 
-    fun close() {
+    fun close() = synchronized(this) {
         try { segmenter.close() } catch (_: Throwable) { }
     }
 

@@ -230,6 +230,7 @@
     <string name="lumin_magic_portrait">Portrait blur</string>
     <string name="lumin_magic_alive">Bring to life</string>
     <string name="lumin_magic_styles">Art styles</string>
+    <string name="lumin_magic_failed">Something went wrong with this effect. Try another photo.</string>
     <string name="lumin_magic_soon">Soon</string>
     <string name="lumin_magic_server">Super AI effects are not switched on yet in this version. The free effects run on your phone.</string>
     <string name="lumin_magic_save">Save as a new photo</string>

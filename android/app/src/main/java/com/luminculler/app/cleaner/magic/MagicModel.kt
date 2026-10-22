@@ -66,7 +66,7 @@ class MagicModel(
         working = true
         job?.cancel()
         job = scope.launch {
-            val bmp = withContext(Dispatchers.IO) { decodeOriented(context, Uri.parse(m.uri), 2048) }
+            val bmp = withContext(Dispatchers.IO) { decodeOriented(context, Uri.parse(m.uri), 2048)?.let(::toArgb) }
             base = bmp
             before = bmp
             shown = bmp
@@ -90,16 +90,24 @@ class MagicModel(
         val e = enhance; val p = portrait; val f = filter
         job = scope.launch {
             var noPerson = false
-            val result = withContext(Dispatchers.Default) {
-                var cur = src
-                fun swap(next: Bitmap) { if (cur !== src) cur.recycle(); cur = next }
-                if (e) swap(magic.enhance(cur))
-                if (f != null) swap(magic.filter(cur, f))
-                if (p) {
-                    val withBlur = magic.portrait(cur)
-                    if (withBlur == null) noPerson = true else swap(withBlur)
+            val result = try {
+                withContext(Dispatchers.Default) {
+                    var cur = src
+                    fun swap(next: Bitmap) { if (cur !== src) cur.recycle(); cur = next }
+                    if (e) swap(magic.enhance(cur))
+                    if (f != null) swap(magic.filter(cur, f))
+                    if (p) {
+                        val withBlur = magic.portrait(cur)
+                        if (withBlur == null) noPerson = true else swap(withBlur)
+                    }
+                    cur
                 }
-                cur
+            } catch (t: Throwable) {
+                if (t is kotlinx.coroutines.CancellationException) throw t
+                // Un efect care nu reușește nu are voie să închidă aplicația.
+                enhance = false; portrait = false; filter = null
+                message = context.getString(R.string.lumin_magic_failed)
+                src
             }
             if (noPerson) {
                 portrait = false
@@ -208,6 +216,14 @@ class MagicModel(
             val uri = withContext(Dispatchers.IO) { Renderer.saveToGallery(context, file) }
             message = context.getString(if (uri != null) R.string.lumin_grow_saved else R.string.lumin_grow_save_failed)
         }
+    }
+
+    /** Copie ARGB_8888 dacă poza vine în alt format (de ex. RGBA_F16 la pozele HDR). */
+    private fun toArgb(b: Bitmap): Bitmap {
+        if (b.config == Bitmap.Config.ARGB_8888) return b
+        val c = b.copy(Bitmap.Config.ARGB_8888, false) ?: return b
+        b.recycle()
+        return c
     }
 
     val canSave: Boolean get() = !working && (enhance || portrait || filter != null || shown !== before)
