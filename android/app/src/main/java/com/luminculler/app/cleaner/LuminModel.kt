@@ -24,6 +24,13 @@ import java.time.ZoneId
 
 sealed interface Route {
     data object Onboarding : Route
+    /** Ecranul principal: momentele, oamenii, filmele. */
+    data object Moments : Route
+    /** Povestea unui moment, pe tot ecranul. */
+    data class Story(val moment: com.luminculler.app.cleaner.core.Moment) : Route
+    /** Filmul unui moment: șablon, format, titlu, montaj. */
+    data class Movie(val moment: com.luminculler.app.cleaner.core.Moment) : Route
+    /** Fila „Curăță”: teancul zilnic și coșurile. */
     data object Today : Route
     data object Deck : Route
     data class BasketView(val kind: Kind) : Route
@@ -51,10 +58,11 @@ class LuminModel(private val context: Context, private val scope: CoroutineScope
     private val library = Library(context)
     val trash = Trash(context)
     val billing = PlayBilling(context) { bought -> onPurchaseResult(bought) }
-    val grow = com.luminculler.app.cleaner.grow.GrowModel(context, scope)
+    val grow = com.luminculler.app.cleaner.grow.GrowModel(context, scope).also { g -> g.onPeople = { refreshMoments() } }
+    val movie = com.luminculler.app.cleaner.grow.MovieModel(context, scope)
     private val zone: ZoneId = ZoneId.systemDefault()
 
-    var route by mutableStateOf<Route>(if (store.onboarded && galleryAccess(context) != Access.None) Route.Today else Route.Onboarding)
+    var route by mutableStateOf<Route>(if (store.onboarded && galleryAccess(context) != Access.None) Route.Moments else Route.Onboarding)
     var access by mutableStateOf(galleryAccess(context))
     var loading by mutableStateOf(true)
     var photos by mutableStateOf<List<Media>>(emptyList())
@@ -73,6 +81,8 @@ class LuminModel(private val context: Context, private val scope: CoroutineScope
     var plansLoaded by mutableStateOf(false)
     var message by mutableStateOf<String?>(null)
     var dailyReminder by mutableStateOf(store.dailyReminder)
+    var moments by mutableStateOf<List<com.luminculler.app.cleaner.core.Moment>>(emptyList())
+    private var momentsJob: Job? = null
 
     private var signals: Map<Long, Signals> = emptyMap()
     private var scanJob: Job? = null
@@ -93,7 +103,7 @@ class LuminModel(private val context: Context, private val scope: CoroutineScope
         access = galleryAccess(context)
         if (access != Access.None) {
             store.onboarded = true
-            route = Route.Today
+            route = Route.Moments
             load()
         }
     }
@@ -117,6 +127,8 @@ class LuminModel(private val context: Context, private val scope: CoroutineScope
             regroup()
             ensureStack()
             loading = false
+            refreshMoments()
+            grow.ensureScan(photos)
             var lastGroup = System.currentTimeMillis()
             library.computeMissing(snap.photos) { done, total, partial ->
                 scope.launch {
@@ -126,6 +138,7 @@ class LuminModel(private val context: Context, private val scope: CoroutineScope
                         lastGroup = now
                         signals = partial
                         regroup()
+                        if (done == total) refreshMoments()
                     }
                 }
             }
@@ -373,6 +386,31 @@ class LuminModel(private val context: Context, private val scope: CoroutineScope
         DailyReminderWorker.schedule(context, on)
     }
 
+    /** Recalculează momentele din poze, semnale și oamenii găsiți până acum. */
+    fun refreshMoments() {
+        momentsJob?.cancel()
+        val p = photos
+        val s = signals
+        val b = baskets
+        val people = grow.people
+        val t = today()
+        momentsJob = scope.launch {
+            moments = withContext(Dispatchers.Default) {
+                val usable = com.luminculler.app.cleaner.core.Moments.usable(p, s, b)
+                com.luminculler.app.cleaner.core.Moments.build(t, zone, usable, s, people)
+            }
+        }
+    }
+
+    fun openStory(moment: com.luminculler.app.cleaner.core.Moment) {
+        route = Route.Story(moment)
+    }
+
+    fun openMovie(moment: com.luminculler.app.cleaner.core.Moment, title: String) {
+        movie.prepare(moment, title)
+        route = Route.Movie(moment)
+    }
+
     fun openGrow() {
         grow.open(photos)
         route = Route.Grow
@@ -380,8 +418,12 @@ class LuminModel(private val context: Context, private val scope: CoroutineScope
 
     fun back(): Boolean {
         if (route == Route.Grow && grow.back()) return true
-        route = when (val r = route) {
-            Route.Today, Route.Onboarding -> return false
+        val r = route
+        if (r is Route.Movie && movie.back()) return true
+        route = when (r) {
+            Route.Moments, Route.Onboarding -> return false
+            Route.Today, Route.Settings, Route.Grow, is Route.Story -> Route.Moments
+            is Route.Movie -> Route.Story(r.moment)
             is Route.Review -> if (r.fromBasket != null) Route.BasketView(r.fromBasket) else Route.Today
             else -> Route.Today
         }

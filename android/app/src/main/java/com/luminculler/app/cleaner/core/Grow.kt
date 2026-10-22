@@ -37,7 +37,7 @@ object Grow {
     /** Între asta și MATCH: propuse, dar nebifate. Omul decide. */
     const val MAYBE = 0.50f
     /** Pentru gruparea pe persoane fără om în buclă, mai strict. */
-    const val CLUSTER = 0.65f
+    const val CLUSTER = 0.60f
     /** O persoană se schimbă în timp: comparăm doar cu fețe acceptate din jurul aceleiași perioade. */
     const val WINDOW_MS = 2L * 365 * 24 * 3600 * 1000
     const val MAX_ACCEPTED = 400

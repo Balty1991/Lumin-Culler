@@ -205,4 +205,35 @@
         <item quantity="few">%d poze</item>
         <item quantity="other">%d de poze</item>
     </plurals>
+    <string name="lumin_tab_moments">Momente</string>
+    <string name="lumin_tab_clean">Curăță</string>
+    <string name="lumin_moments_sub">Amintirile tale, găsite de AI pe telefon</string>
+    <string name="lumin_moments_title">Alte momente</string>
+    <string name="lumin_people_title">Oameni</string>
+    <string name="lumin_people_empty">Lumin caută oamenii din pozele tale…</string>
+    <string name="lumin_moments_preparing">Lumin se uită prin galerie…</string>
+    <string name="lumin_moments_empty">Încă nu sunt momente</string>
+    <string name="lumin_moments_empty_hint">Momentele apar din excursii, zile cu multe poze, săptămâna de azi din anii trecuți și oamenii pe care îi fotografiezi cel mai des.</string>
+    <string name="lumin_moment_today">În ziua de azi</string>
+    <string name="lumin_moment_label">Amintire</string>
+    <string name="lumin_moment_play">Privește</string>
+    <string name="lumin_moment_together">Momente împreună</string>
+    <string name="lumin_story_make_movie">Fă un film</string>
+    <string name="lumin_movie_style">Stil</string>
+    <string name="lumin_movie_format">Format</string>
+    <string name="lumin_movie_text">Text</string>
+    <string name="lumin_movie_title">Titlu</string>
+    <string name="lumin_movie_dates">Arată data pe fiecare poză</string>
+    <string name="lumin_movie_make">Fă filmul</string>
+    <string name="lumin_movie_rendering">Montez filmul… %1$d%%</string>
+    <string name="lumin_movie_other_style">Alt stil</string>
+    <string name="lumin_tpl_cinematic">Cinematic</string>
+    <string name="lumin_tpl_cinematic_hint">Lent, cu mișcări line de cameră</string>
+    <string name="lumin_tpl_flash">Flash</string>
+    <string name="lumin_tpl_flash_hint">Tăieturi rapide, zoom puternic</string>
+    <string name="lumin_tpl_mosaic">Mozaic</string>
+    <string name="lumin_tpl_mosaic_hint">Câte patru poze, în grilă</string>
+    <string name="lumin_fmt_story">Story · Reels</string>
+    <string name="lumin_fmt_square">Pătrat</string>
+    <string name="lumin_fmt_wide">Lat · YouTube</string>
 </resources>

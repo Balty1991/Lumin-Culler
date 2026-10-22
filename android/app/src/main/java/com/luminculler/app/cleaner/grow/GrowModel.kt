@@ -58,15 +58,28 @@ class GrowModel(private val context: Context, private val scope: CoroutineScope)
         val all = faces
         clusterJob = scope.launch {
             people = withContext(Dispatchers.Default) { People.cluster(all).take(60) }
+            onPeople?.invoke()
         }
     }
+
+    /** Anunțat când se schimbă lista de oameni (pentru momentele „cu o persoană”). */
+    var onPeople: (() -> Unit)? = null
+
+    /** Fața cea mai mare din fiecare poză, ca filmele să țină subiectul în cadru. */
+    fun facesByMedia(): Map<Long, FaceHit> =
+        faces.groupBy { it.mediaId }.mapValues { (_, list) -> list.maxBy { it.width } }
 
     fun crop(face: FaceHit): File = scanner.cropFile(face, scanner.indexInPhoto(face))
 
     fun open(photos: List<Media>) {
         step = if (video != null && step == GrowStep.Done) GrowStep.Done else GrowStep.Pick
+        ensureScan(photos)
+    }
+
+    /** Pornește (o dată) căutarea fețelor în fundal; o folosesc și momentele cu oameni. */
+    fun ensureScan(photos: List<Media>) {
         media = photos.associateBy { it.id }
-        if (scanJob?.isActive == true) return
+        if (scanJob != null) return
         val candidates = photos.filter { !Grouping.isScreenshot(it) && !Grouping.isChat(it) }
         scanJob = scope.launch {
             scanning = true
@@ -136,7 +149,8 @@ class GrowModel(private val context: Context, private val scope: CoroutineScope)
         renderJob = scope.launch {
             try {
                 val frames = Grow.frames(chosen)
-                video = renderer.render(frames, media, Renderer.Options(title.trim(), watermark)) { p ->
+                val shots = frames.mapNotNull { f -> media[f.mediaId]?.let { Shot(it, f) } }
+                video = renderer.render(shots, Renderer.Options(Template.Timelapse, Format.Story, title.trim(), watermark = watermark)) { p ->
                     scope.launch { progress = p }
                 }
                 step = GrowStep.Done

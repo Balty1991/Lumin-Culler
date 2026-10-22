@@ -192,4 +192,35 @@
         <item quantity="one">%d photo</item>
         <item quantity="other">%d photos</item>
     </plurals>
+    <string name="lumin_tab_moments">Moments</string>
+    <string name="lumin_tab_clean">Clean</string>
+    <string name="lumin_moments_sub">Your memories, found by AI on your phone</string>
+    <string name="lumin_moments_title">More moments</string>
+    <string name="lumin_people_title">People</string>
+    <string name="lumin_people_empty">Lumin is looking for the people in your photos…</string>
+    <string name="lumin_moments_preparing">Lumin is looking through your gallery…</string>
+    <string name="lumin_moments_empty">No moments yet</string>
+    <string name="lumin_moments_empty_hint">Moments appear from trips, days with many photos, this week in past years and the people you photograph most.</string>
+    <string name="lumin_moment_today">On this day</string>
+    <string name="lumin_moment_label">Memory</string>
+    <string name="lumin_moment_play">Watch</string>
+    <string name="lumin_moment_together">Moments together</string>
+    <string name="lumin_story_make_movie">Make a movie</string>
+    <string name="lumin_movie_style">Style</string>
+    <string name="lumin_movie_format">Format</string>
+    <string name="lumin_movie_text">Text</string>
+    <string name="lumin_movie_title">Title</string>
+    <string name="lumin_movie_dates">Show the date on each photo</string>
+    <string name="lumin_movie_make">Make the movie</string>
+    <string name="lumin_movie_rendering">Editing your movie… %1$d%%</string>
+    <string name="lumin_movie_other_style">Another style</string>
+    <string name="lumin_tpl_cinematic">Cinematic</string>
+    <string name="lumin_tpl_cinematic_hint">Slow, with gentle camera moves</string>
+    <string name="lumin_tpl_flash">Flash</string>
+    <string name="lumin_tpl_flash_hint">Fast cuts, punchy zoom</string>
+    <string name="lumin_tpl_mosaic">Mosaic</string>
+    <string name="lumin_tpl_mosaic_hint">Four photos at a time, in a grid</string>
+    <string name="lumin_fmt_story">Story · Reels</string>
+    <string name="lumin_fmt_square">Square</string>
+    <string name="lumin_fmt_wide">Wide · YouTube</string>
 </resources>

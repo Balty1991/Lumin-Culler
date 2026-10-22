@@ -55,7 +55,7 @@ fun TodayScreen(model: LuminModel) {
         ) {
             Spacer(Modifier.height(12.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Lumin", style = MaterialTheme.typography.headlineMedium, color = Lumin.Text, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.lumin_tab_clean), style = MaterialTheme.typography.headlineMedium, color = Lumin.Text, modifier = Modifier.weight(1f))
                 if (model.streak > 0) {
                     Pill(pluralStringResource(R.plurals.lumin_streak_days, model.streak, model.streak), Color(0x33FFC857), Lumin.Gold, LIcons.Bolt)
                     Spacer(Modifier.width(8.dp))
@@ -65,8 +65,6 @@ fun TodayScreen(model: LuminModel) {
             Spacer(Modifier.height(20.dp))
 
             StackHero(model)
-            Spacer(Modifier.height(16.dp))
-            GrowEntry { model.openGrow() }
             Spacer(Modifier.height(16.dp))
 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -115,7 +113,8 @@ fun TodayScreen(model: LuminModel) {
                 Spacer(Modifier.height(20.dp))
                 PremiumBanner { model.openPaywall() }
             }
-            Spacer(Modifier.height(32.dp))
+            // Loc pentru bara de file de jos.
+            Spacer(Modifier.height(110.dp))
         }
     }
 }
