@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -143,7 +145,7 @@ fun StoryScreen(model: LuminModel, moment: Moment) {
         }
 
         Column(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(20.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.height(androidx.compose.foundation.layout.IntrinsicSize.Min)) {
                 StoryAction(LIcons.Movie, stringResource(R.string.lumin_story_make_movie), Modifier.weight(1f)) {
                     model.openMovie(moment, title)
                 }
@@ -173,14 +175,17 @@ fun StoryScreen(model: LuminModel, moment: Moment) {
 
 @Composable
 private fun StoryAction(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String, modifier: Modifier, onClick: () -> Unit) {
-    Row(
-        modifier.clip(CircleShape).background(Color.White).clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 14.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
+    // Iconița deasupra textului și aceeași înălțime pentru toate: trei butoane încap
+    // pe orice ecran fără ca vreun text să se rupă pe trei rânduri.
+    Column(
+        modifier.fillMaxHeight().clip(RoundedCornerShape(22.dp)).background(Color.White).clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
-        Icon(icon, null, tint = Color.Black, modifier = Modifier.size(20.dp))
-        Spacer(Modifier.width(8.dp))
-        Text(text, color = Color.Black, style = MaterialTheme.typography.labelLarge)
+        Icon(icon, null, tint = Color.Black, modifier = Modifier.size(22.dp))
+        Spacer(Modifier.height(6.dp))
+        Text(text, color = Color.Black, style = MaterialTheme.typography.labelLarge, textAlign = androidx.compose.ui.text.style.TextAlign.Center, maxLines = 2)
     }
 }
 
