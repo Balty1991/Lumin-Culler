@@ -27,8 +27,11 @@ data class Basket(val kind: Kind, val groups: List<Group>) {
 object Grouping {
     /** Copii practic identice (re-salvări, descărcări duble): amprentă aproape egală, oricât de departe în timp. */
     const val DUPLICATE_DISTANCE = 3
+    /** Și pe amprenta fină (din 256 de biți): o copie re-salvată rămâne sub prag, o captură cu alt text nu. */
+    const val FINE_DUPLICATE_DISTANCE = 14
     /** Cadre din aceeași scenă: apropiate în timp și cu amprentă asemănătoare. */
     const val SIMILAR_DISTANCE = 12
+    const val FINE_SIMILAR_DISTANCE = 70
     /** Sub atât, cadrele sunt rafală oricum ar arăta. */
     const val BURST_GAP_MS = 3_000L
     /** Până la atât, cadrele apropiate ca amprentă sunt aceeași scenă. */
@@ -61,7 +64,10 @@ object Grouping {
         val used = HashSet<Long>()
         val duplicates = duplicateGroups(photos, signals, kept)
         duplicates.forEach { g -> g.extras.forEach { used.add(it.id) }; g.keeper?.let { used.add(it.id) } }
-        val similar = similarGroups(photos.filter { it.id !in used }, signals, kept)
+        // Capturile și pozele din chat nu intră la „asemănătoare”: zece capturi din
+        // aceeași aplicație sau zece poze primite în același minut arată la fel
+        // și sunt totuși lucruri diferite. Au coșurile lor, unde omul alege.
+        val similar = similarGroups(photos.filter { it.id !in used && !isScreenshot(it) && !isChat(it) }, signals, kept)
         similar.forEach { g -> g.extras.forEach { used.add(it.id) } }
 
         val screenshots = ArrayList<Media>()
@@ -115,7 +121,12 @@ object Grouping {
         // Amprente aproape egale. Cu distanța ≤ 3 din 64 de biți, cel puțin una
         // din cele 4 felii de 16 biți e identică: căutăm doar în felia comună,
         // nu fiecare cu fiecare (20 000 de poze ar fi 200 de milioane de perechi).
-        val hashed = photos.filter { signals[it.id]?.let { s -> !s.flat } == true }
+        // Capturile de ecran nu sunt comparate după imagine: același ecran al unei
+        // aplicații, cu alte cifre, iese aproape identic chiar și pe amprenta fină.
+        // O captură e duplicat doar ca fișier identic (regula de mai sus).
+        val hashed = photos.filter { m ->
+            !isScreenshot(m) && signals[m.id]?.let { s -> !s.flat && s.fine.size == 4 } == true
+        }
         for (slice in 0 until 4) {
             val buckets = HashMap<Int, MutableList<Media>>()
             for (m in hashed) {
@@ -127,7 +138,10 @@ object Grouping {
                 for (i in bucket.indices) {
                     val a = signals.getValue(bucket[i].id).hash
                     for (j in i + 1 until bucket.size) {
-                        if (ImageMath.hamming(a, signals.getValue(bucket[j].id).hash) <= DUPLICATE_DISTANCE) {
+                        val sb = signals.getValue(bucket[j].id)
+                        if (ImageMath.hamming(a, sb.hash) <= DUPLICATE_DISTANCE &&
+                            ImageMath.fineDistance(signals.getValue(bucket[i].id).fine, sb.fine) <= FINE_DUPLICATE_DISTANCE
+                        ) {
                             uf.union(index.getValue(bucket[i].id), index.getValue(bucket[j].id))
                         }
                     }
@@ -175,7 +189,9 @@ object Grouping {
         val sa = signals[a.id] ?: return false
         val sb = signals[b.id] ?: return false
         if (sa.flat || sb.flat) return false
-        return ImageMath.hamming(sa.hash, sb.hash) <= SIMILAR_DISTANCE
+        if (ImageMath.hamming(sa.hash, sb.hash) > SIMILAR_DISTANCE) return false
+        // Fără amprentă fină (cache vechi), ne bazăm pe cea grosieră, ca înainte.
+        return sa.fine.size != 4 || sb.fine.size != 4 || ImageMath.fineDistance(sa.fine, sb.fine) <= FINE_SIMILAR_DISTANCE
     }
 
     private class UnionFind(n: Int) {

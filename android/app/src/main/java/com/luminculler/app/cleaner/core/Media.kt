@@ -27,4 +27,20 @@ data class Media(
  * neagră), la care și claritatea și amprenta sunt zgomot: nu le punem la
  * neclare și nu le comparăm ca duplicate.
  */
-data class Signals(val blur: Float, val hash: Long, val flat: Boolean)
+data class Signals(
+    val blur: Float,
+    val hash: Long,
+    val flat: Boolean,
+    /**
+     * dHash 16×16 (256 de biți, în 4 Long-uri). Amprenta de 64 de biți e prea
+     * grosieră ca dovadă de duplicat: două capturi din aceeași aplicație, cu
+     * cifre diferite, ies identice pe 9×8. Pe cea fină, diferențele de text și
+     * de cadru se văd.
+     */
+    val fine: LongArray = LongArray(0)
+) {
+    override fun equals(other: Any?): Boolean =
+        other is Signals && blur == other.blur && hash == other.hash && flat == other.flat && fine.contentEquals(other.fine)
+
+    override fun hashCode(): Int = (hash xor fine.contentHashCode().toLong()).hashCode()
+}

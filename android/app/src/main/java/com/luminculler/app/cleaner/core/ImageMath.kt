@@ -30,14 +30,17 @@ object ImageMath {
     }
 
     /** Reduce un tablou de gri w×h la 9×8 prin medie pe zone. */
-    fun downscaleTo9x8(gray: IntArray, w: Int, h: Int): IntArray {
-        val out = IntArray(72)
-        for (y in 0 until 8) {
-            val y0 = y * h / 8
-            val y1 = maxOf(y0 + 1, (y + 1) * h / 8)
-            for (x in 0 until 9) {
-                val x0 = x * w / 9
-                val x1 = maxOf(x0 + 1, (x + 1) * w / 9)
+    fun downscaleTo9x8(gray: IntArray, w: Int, h: Int): IntArray = downscale(gray, w, h, 9, 8)
+
+    /** Reduce un tablou de gri w×h la ow×oh prin medie pe zone. */
+    fun downscale(gray: IntArray, w: Int, h: Int, ow: Int, oh: Int): IntArray {
+        val out = IntArray(ow * oh)
+        for (y in 0 until oh) {
+            val y0 = y * h / oh
+            val y1 = maxOf(y0 + 1, (y + 1) * h / oh)
+            for (x in 0 until ow) {
+                val x0 = x * w / ow
+                val x1 = maxOf(x0 + 1, (x + 1) * w / ow)
                 var sum = 0L
                 var n = 0
                 for (yy in y0 until minOf(y1, h)) {
@@ -46,10 +49,31 @@ object ImageMath {
                         n++
                     }
                 }
-                out[y * 9 + x] = if (n == 0) 0 else (sum / n).toInt()
+                out[y * ow + x] = if (n == 0) 0 else (sum / n).toInt()
             }
         }
         return out
+    }
+
+    /** dHash 16×16 = 256 de biți, din grila 17×16. */
+    fun fineHash(gray: IntArray, w: Int, h: Int): LongArray {
+        val g = downscale(gray, w, h, 17, 16)
+        val out = LongArray(4)
+        var bit = 0
+        for (y in 0 until 16) {
+            for (x in 0 until 16) {
+                if (g[y * 17 + x] > g[y * 17 + x + 1]) out[bit / 64] = out[bit / 64] or (1L shl (bit % 64))
+                bit++
+            }
+        }
+        return out
+    }
+
+    fun fineDistance(a: LongArray, b: LongArray): Int {
+        if (a.size != 4 || b.size != 4) return Int.MAX_VALUE
+        var d = 0
+        for (i in 0 until 4) d += java.lang.Long.bitCount(a[i] xor b[i])
+        return d
     }
 
     /** Varianța laplacianului 4-vecini. */
@@ -90,7 +114,8 @@ object ImageMath {
         return Signals(
             blur = laplacianVariance(gray, w, h).toFloat(),
             hash = dHash(downscaleTo9x8(gray, w, h)),
-            flat = flat
+            flat = flat,
+            fine = fineHash(gray, w, h)
         )
     }
 

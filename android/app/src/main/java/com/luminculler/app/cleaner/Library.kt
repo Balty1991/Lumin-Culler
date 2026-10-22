@@ -264,7 +264,8 @@ class Library(private val context: Context) {
                     val blur = input.readFloat()
                     val hash = input.readLong()
                     val flat = input.readBoolean()
-                    cache[id] = CachedSignals(modified, Signals(blur, hash, flat))
+                    val fine = LongArray(4) { input.readLong() }
+                    cache[id] = CachedSignals(modified, Signals(blur, hash, flat, fine))
                 }
             }
         } catch (_: Throwable) {
@@ -285,6 +286,7 @@ class Library(private val context: Context) {
                     out.writeFloat(c.signals.blur)
                     out.writeLong(c.signals.hash)
                     out.writeBoolean(c.signals.flat)
+                    for (i in 0 until 4) out.writeLong(c.signals.fine.getOrElse(i) { 0L })
                 }
             }
             tmp.renameTo(cacheFile)
@@ -294,7 +296,7 @@ class Library(private val context: Context) {
     }
 
     companion object {
-        private const val CACHE_VERSION = 1
+        private const val CACHE_VERSION = 2
         private const val THUMB = 160
         private const val SIDE = 96
         private const val BATCH = 120

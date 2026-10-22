@@ -14,7 +14,8 @@ class GroupingTest {
     private fun photo(id: Long, taken: Long, bytes: Long = 1000L + id, name: String = "IMG_$id.jpg", folder: String = "Camera") =
         Media(id, "content://media/$id", name, bytes, folder, taken)
 
-    private fun sig(blur: Float, hash: Long, flat: Boolean = false) = Signals(blur, hash, flat)
+    private fun sig(blur: Float, hash: Long, flat: Boolean = false, fine: LongArray = longArrayOf(hash, hash, hash, hash)) =
+        Signals(blur, hash, flat, fine)
 
     @Test
     fun burstKeepsTheSharpestFrame() {
@@ -45,6 +46,32 @@ class GroupingTest {
         assertEquals(1, dup.groups.size)
         assertEquals(1L, dup.groups[0].keeper?.id)
         assertEquals(listOf(2L), dup.extras.map { it.id })
+    }
+
+    @Test
+    fun screenshotsOfTheSameAppAreNotDuplicates() {
+        val h = 0x0F0F_0F0F_0F0F_0F0FL
+        val photos = listOf(
+            photo(1, 1_000, name = "Screenshot_1.png", folder = "Screenshots"),
+            photo(2, 900_000, name = "Screenshot_2.png", folder = "Screenshots"),
+            photo(3, 1_500, name = "Screenshot_3.png", folder = "Screenshots")
+        )
+        val signals = photos.associate { it.id to sig(300f, h) }
+        val b = Grouping.build(photos, signals)
+        assertEquals(0, b.getValue(Kind.Duplicates).count)
+        assertEquals(0, b.getValue(Kind.Similar).count)
+        assertEquals(3, b.getValue(Kind.Screenshots).count)
+    }
+
+    @Test
+    fun sameCoarseHashButDifferentDetailIsNotADuplicate() {
+        val h = 0x1234_5678_9ABC_DEF0L
+        val photos = listOf(photo(1, 1_000), photo(2, 900_000_000))
+        val signals = mapOf(
+            1L to sig(200f, h, fine = longArrayOf(0L, 0L, 0L, 0L)),
+            2L to sig(200f, h, fine = longArrayOf(0xFFFFL, 0L, 0L, 0L))
+        )
+        assertEquals(0, Grouping.build(photos, signals).getValue(Kind.Duplicates).count)
     }
 
     @Test
@@ -186,7 +213,7 @@ class PlanTest {
 
     @Test
     fun bytesFormatFollowsLocale() {
-        assertEquals("2,4 GB", Bytes.format((2.4 * 1024 * 1024 * 1024).toLong(), Locale("ro")))
+        assertEquals("2,4 GB", Bytes.format((2.4 * 1024 * 1024 * 1024).toLong(), Locale.forLanguageTag("ro")))
         assertEquals("2.4 GB", Bytes.format((2.4 * 1024 * 1024 * 1024).toLong(), Locale.US))
         assertEquals("512 MB", Bytes.format(512L * 1024 * 1024, Locale.US))
     }
