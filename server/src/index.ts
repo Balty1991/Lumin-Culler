@@ -184,8 +184,10 @@ export default {
           messages: [{ role: 'user', content: writerPrompt(req, descriptions) }],
           max_tokens: 300
         }));
-        const parsed = parseJsonReply(textOf(w.out));
-        if (!parsed) return json({ error: 'provider', detail: 'bad_reply' }, 502);
+        // Unele modele dau deja obiectul JSON în `response`, altele text cu JSON în el.
+        const resp = (w.out as { response?: unknown })?.response;
+        const parsed = resp && typeof resp === 'object' ? resp as Record<string, unknown> : parseJsonReply(textOf(w.out));
+        if (!parsed) return json({ error: 'provider', detail: 'bad_reply: ' + JSON.stringify(w.out).slice(0, 200) }, 502);
         return json(parsed);
       } catch (e) {
         return aiError(e);
