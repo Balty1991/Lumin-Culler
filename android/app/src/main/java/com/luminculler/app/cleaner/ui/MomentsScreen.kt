@@ -114,7 +114,7 @@ fun MomentsScreen(model: LuminModel) {
             Box(Modifier.padding(horizontal = 20.dp)) { RecapEntry { model.openRecap() } }
             Spacer(Modifier.height(16.dp))
             if (hero != null) {
-                HeroMoment(hero, model.personName(hero.person)) { model.openStory(hero) }
+                HeroMoment(hero, model.personName(hero.person), model.aiTitles[hero.id]) { model.openStory(hero) }
                 Spacer(Modifier.height(24.dp))
             } else {
                 EmptyMoments(model.loading || model.scan.running)
@@ -127,7 +127,7 @@ fun MomentsScreen(model: LuminModel) {
                     contentPadding = PaddingValues(horizontal = 20.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(moments.drop(1)) { m -> MomentCard(m, model.personName(m.person)) { model.openStory(m) } }
+                    items(moments.drop(1)) { m -> MomentCard(m, model.personName(m.person), model.aiTitles[m.id]) { model.openStory(m) } }
                 }
                 Spacer(Modifier.height(28.dp))
             }
@@ -195,7 +195,7 @@ private fun SectionTitle(text: String) {
 }
 
 @Composable
-private fun HeroMoment(m: Moment, name: String?, onClick: () -> Unit) {
+private fun HeroMoment(m: Moment, name: String?, ai: Pair<String, String>?, onClick: () -> Unit) {
     Box(
         Modifier
             .padding(horizontal = 20.dp)
@@ -209,8 +209,9 @@ private fun HeroMoment(m: Moment, name: String?, onClick: () -> Unit) {
         Column(Modifier.align(Alignment.BottomStart).padding(22.dp)) {
             Pill(stringResource(if (m.kind == MomentKind.YearsAgo) R.string.lumin_moment_today else R.string.lumin_moment_label), Color(0x33FFFFFF), Color.White)
             Spacer(Modifier.height(10.dp))
-            Text(momentTitle(m, name), style = MaterialTheme.typography.displaySmall, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Text(momentSubtitle(m), style = MaterialTheme.typography.bodyLarge, color = Color(0xD9FFFFFF))
+            Text(ai?.first ?: momentTitle(m, name), style = MaterialTheme.typography.displaySmall, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            if (!ai?.second.isNullOrBlank()) Text(ai!!.second, style = MaterialTheme.typography.bodyMedium, color = Color(0xE6FFFFFF), maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(if (ai != null) momentTitle(m, name) + " · " + momentSubtitle(m) else momentSubtitle(m), style = MaterialTheme.typography.bodyLarge, color = Color(0xD9FFFFFF), maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(14.dp))
             Row(
                 Modifier.clip(CircleShape).background(Color.White).padding(horizontal = 18.dp, vertical = 10.dp),
@@ -225,7 +226,7 @@ private fun HeroMoment(m: Moment, name: String?, onClick: () -> Unit) {
 }
 
 @Composable
-private fun MomentCard(m: Moment, name: String?, onClick: () -> Unit) {
+private fun MomentCard(m: Moment, name: String?, ai: Pair<String, String>?, onClick: () -> Unit) {
     Box(
         Modifier
             .width(168.dp)
@@ -236,7 +237,7 @@ private fun MomentCard(m: Moment, name: String?, onClick: () -> Unit) {
         Thumb(m.cover, Modifier.fillMaxSize(), size = 600)
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.4f to Color.Transparent, 1f to Color(0xD0000000))))
         Column(Modifier.align(Alignment.BottomStart).padding(14.dp)) {
-            Text(momentTitle(m, name), style = MaterialTheme.typography.titleMedium, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(ai?.first ?: momentTitle(m, name), style = MaterialTheme.typography.titleMedium, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(momentSubtitle(m), style = MaterialTheme.typography.labelMedium, color = Color(0xCCFFFFFF), maxLines = 1)
         }
     }

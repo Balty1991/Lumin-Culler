@@ -235,6 +235,43 @@ class MagicModel(
         }
     }
 
+    // ---- fundal nou: persoana decupată pe telefon, decorul desenat pe server ----
+
+    fun newBackground(prompt: String) {
+        val src = shown ?: return
+        if (remaining(AiCredits.Kind.Style) <= 0) { onNeedPremium(); return }
+        job?.cancel()
+        working = true
+        waiting = 1
+        job = scope.launch {
+            try {
+                val mask = withContext(Dispatchers.Default) { magic.personMask(src) }
+                if (mask == null) {
+                    message = context.getString(R.string.lumin_magic_no_person)
+                    return@launch
+                }
+                val scene = ai.background(prompt, src.width, src.height, store.installId)
+                val result = withContext(Dispatchers.Default) { magic.composite(src, mask, scene).also { mask.recycle(); scene.recycle() } }
+                store.countAi(AiCredits.Kind.Style, month(), isPremium())
+                base = result
+                enhance = false; portrait = false; filter = null
+                shown = result
+            } catch (e: Throwable) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                message = context.getString(aiErrorText(e))
+            } finally {
+                working = false
+                waiting = 0
+            }
+        }
+    }
+
+    private fun aiErrorText(e: Throwable): Int = when ((e as? AiException)?.code) {
+        "daily_limit" -> R.string.lumin_ai_err_daily
+        "budget" -> R.string.lumin_ai_err_busy
+        else -> R.string.lumin_ai_err_generic
+    }
+
     // ---- efectele „super”, pe server ----
 
     private fun month(): String = LocalDate.now().let { AiCredits.month(it.year, it.monthValue) }

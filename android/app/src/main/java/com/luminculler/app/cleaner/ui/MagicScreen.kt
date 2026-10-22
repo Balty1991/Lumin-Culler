@@ -87,6 +87,7 @@ fun MagicScreen(model: LuminModel, media: Media) {
     var comparing by remember { mutableStateOf(false) }
     var panel by remember { mutableStateOf(Panel.None) }
     var editing by remember { mutableStateOf(false) }
+    var scening by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
@@ -203,6 +204,7 @@ fun MagicScreen(model: LuminModel, media: Media) {
                 Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Effect(LIcons.Wand, stringResource(R.string.lumin_magic_erase), false, premium = true) { panel = Panel.None; magic.startErase() }
                     // Efectele de pe server apar doar când serverul e pornit: un buton care nu face nimic e mai rău decât niciunul.
+                    if (AiJob.Background in kinds) Effect(LIcons.Layers, stringResource(R.string.lumin_bg_title), false, premium = true) { panel = Panel.None; scening = true }
                     if (AiJob.Style in kinds) Effect(LIcons.Sparkle, stringResource(R.string.lumin_magic_styles), panel == Panel.AiStyles, premium = true) {
                         panel = if (panel == Panel.AiStyles) Panel.None else Panel.AiStyles
                     }
@@ -244,6 +246,10 @@ fun MagicScreen(model: LuminModel, media: Media) {
                 Spacer(Modifier.height(8.dp))
                 GhostButton(stringResource(R.string.lumin_grow_save), { magic.saveVideo() })
             }
+        }
+
+        if (scening) {
+            BackgroundDialog(onDismiss = { scening = false }) { text -> scening = false; magic.newBackground(text) }
         }
 
         if (editing) {
@@ -373,6 +379,39 @@ private fun EditDialog(onDismiss: () -> Unit, onApply: (String) -> Unit) {
             }
         },
         confirmButton = { TextButton(onClick = { if (text.trim().length >= 3) onApply(text.trim()) }) { Text(stringResource(R.string.lumin_edit_apply), color = Lumin.Accent) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.lumin_grow_cancel), color = Lumin.Muted) } }
+    )
+}
+
+@Composable
+private fun BackgroundDialog(onDismiss: () -> Unit, onApply: (String) -> Unit) {
+    var text by remember { mutableStateOf("") }
+    val ideas = listOf(
+        stringResource(R.string.lumin_bg_idea_beach), stringResource(R.string.lumin_bg_idea_paris),
+        stringResource(R.string.lumin_bg_idea_space), stringResource(R.string.lumin_bg_idea_forest),
+        stringResource(R.string.lumin_bg_idea_snow), stringResource(R.string.lumin_bg_idea_castle)
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Lumin.Surface,
+        title = { Text(stringResource(R.string.lumin_bg_title), color = Lumin.Text) },
+        text = {
+            Column {
+                Text(stringResource(R.string.lumin_bg_hint), color = Lumin.Muted, style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.height(10.dp))
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    for (idea in ideas) {
+                        Text(
+                            idea, color = Lumin.Text, style = MaterialTheme.typography.labelLarge,
+                            modifier = Modifier.clip(CircleShape).background(Lumin.SurfaceHigh).clickable { text = idea }.padding(horizontal = 12.dp, vertical = 8.dp)
+                        )
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+                OutlinedTextField(value = text, onValueChange = { text = it.take(200) }, placeholder = { Text(stringResource(R.string.lumin_bg_example)) })
+            }
+        },
+        confirmButton = { TextButton(onClick = { if (text.trim().length >= 3) onApply(text.trim()) }) { Text(stringResource(R.string.lumin_bg_apply), color = Lumin.Accent) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.lumin_grow_cancel), color = Lumin.Muted) } }
     )
 }

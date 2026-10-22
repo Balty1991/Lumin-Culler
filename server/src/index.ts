@@ -58,7 +58,7 @@ async function readNumber(kv: KVNamespace, key: string): Promise<number> {
 }
 
 /** Rulează primul model disponibil pentru cont; modelele scoase din ofertă sunt sărite. */
-async function runFirst(env: Env, models: string[], input: (model: string) => Record<string, unknown>): Promise<{ out: unknown; model: string }> {
+async function runFirst(env: Env, models: string[], input: (model: string) => Record<string, unknown>, anyErrorFallsThrough = false): Promise<{ out: unknown; model: string }> {
   let last = 'no_model';
   for (const model of models) {
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -75,7 +75,9 @@ async function runFirst(env: Env, models: string[], input: (model: string) => Re
         break;
       }
     }
-    if (!modelUnavailable(last)) throw new Error(last);
+    // Cota terminată nu se rezolvă cu alt model; un format respins (modele de vedere) se poate.
+    const quota = /quota|neuron|429|capacity/i.test(last);
+    if (quota || (!anyErrorFallsThrough && !modelUnavailable(last))) throw new Error(last);
   }
   throw new Error(last);
 }
@@ -163,9 +165,19 @@ export default {
         const descriptions: string[] = [];
         for (const image of req.images) {
           const bytes = Array.from(Uint8Array.from(atob(image), (c) => c.charCodeAt(0)));
+          // Llama Vision vrea poza în mesaj (stil OpenAI); LLaVA o vrea separat, ca octeți.
           const r = await runFirst(env, CF_VISION_MODELS, (model) => model.includes('llava')
             ? { image: bytes, prompt: VISION_PROMPT, max_tokens: 80 }
-            : { messages: [{ role: 'user', content: VISION_PROMPT }], image: bytes, max_tokens: 80 });
+            : {
+                messages: [{
+                  role: 'user',
+                  content: [
+                    { type: 'text', text: VISION_PROMPT },
+                    { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${image}` } }
+                  ]
+                }],
+                max_tokens: 80
+              }, true);
           descriptions.push(textOf(r.out));
         }
         const w = await runFirst(env, CF_TEXT_MODELS, () => ({

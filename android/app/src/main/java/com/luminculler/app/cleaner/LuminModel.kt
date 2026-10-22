@@ -119,8 +119,18 @@ class LuminModel(val context: Context, private val scope: CoroutineScope, privat
 
     fun today(): LocalDate = LocalDate.now(zone)
 
+    /** Ce poate face serverul AI acum (vezi server/); gol = nimic pe server. */
+    var aiKinds by mutableStateOf<Set<com.luminculler.app.cleaner.magic.AiJob>>(emptySet())
+    var aiTitles by mutableStateOf(store.aiTitles)
+    private val titling = HashSet<String>()
+
     fun start() {
         scope.launch { refreshBilling() }
+        scope.launch {
+            aiKinds = magic.ai.capabilities()
+            magic.serverKinds = aiKinds
+            moments.take(3).forEach { ensureAiTitle(it) }
+        }
         if (access != Access.None) load()
     }
 
@@ -428,6 +438,48 @@ class LuminModel(val context: Context, private val scope: CoroutineScope, privat
             moments = withContext(Dispatchers.Default) {
                 val usable = com.luminculler.app.cleaner.core.Moments.usable(p, s, b)
                 com.luminculler.app.cleaner.core.Moments.build(t, zone, usable, s, people)
+            }
+            // Titlurile AI pentru primele amintiri de pe ecran (cele deja scrise vin din memorie).
+            moments.take(3).forEach { ensureAiTitle(it) }
+        }
+    }
+
+    /**
+     * Cere de la AI un titlu și o frază pentru o amintire, din trei poze mici
+     * ale ei (prima, de la mijloc și de la sfârșit). Se face o singură dată
+     * pe amintire; fără server sau la eroare, rămâne titlul calculat.
+     */
+    fun ensureAiTitle(m: com.luminculler.app.cleaner.core.Moment) {
+        if (com.luminculler.app.cleaner.magic.AiJob.Describe !in aiKinds) return
+        if (m.id in aiTitles || !titling.add(m.id)) return
+        scope.launch {
+            try {
+                val picks = listOf(m.cover, m.photos.getOrNull(m.photos.size / 2), m.photos.lastOrNull()).filterNotNull().distinctBy { it.id }
+                val images = withContext(Dispatchers.IO) {
+                    picks.mapNotNull { com.luminculler.app.cleaner.grow.decodeOriented(context, android.net.Uri.parse(it.uri), 384) }
+                }
+                if (images.isEmpty()) return@launch
+                val fmt = java.time.format.DateTimeFormatter.ofPattern("d MMMM yyyy", java.util.Locale.getDefault())
+                val from = java.time.Instant.ofEpochMilli(m.start).atZone(zone).toLocalDate()
+                val name = personName(m.person)
+                val ctx = buildString {
+                    append("Date: ").append(fmt.format(from))
+                    if (m.end - m.start > 24 * 3600 * 1000L) append(" – ").append(fmt.format(java.time.Instant.ofEpochMilli(m.end).atZone(zone).toLocalDate()))
+                    append(". ").append(m.total).append(" photos.")
+                    if (m.kind == com.luminculler.app.cleaner.core.MomentKind.YearsAgo) append(" It happened ").append(m.yearsAgo).append(" years ago today.")
+                    if (name != null) append(" Main person: ").append(name).append('.')
+                }
+                val r = magic.ai.describe(com.luminculler.app.cleaner.magic.AiJob.Describe, images, java.util.Locale.getDefault().language, ctx, store.installId)
+                images.forEach { it.recycle() }
+                val title = r.optString("title").trim()
+                if (title.isNotEmpty()) {
+                    aiTitles = aiTitles + (m.id to (title to r.optString("line").trim()))
+                    store.aiTitles = aiTitles
+                }
+            } catch (e: Throwable) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+            } finally {
+                titling.remove(m.id)
             }
         }
     }

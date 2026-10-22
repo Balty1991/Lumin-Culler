@@ -13,7 +13,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /** Efectele „super”, pe serverul Lumin (server/). */
-enum class AiJob(val wire: String) { Alive("alive"), Style("style"), Restore("restore"), Edit("edit") }
+enum class AiJob(val wire: String) { Alive("alive"), Style("style"), Restore("restore"), Edit("edit"), Background("background"), Describe("describe"), Caption("caption"), Greeting("greeting") }
 
 /** Stilurile AI de pe server; id-urile sunt cele din server/src/logic.ts. */
 enum class AiStyle(val wire: String) { Cartoon3d("cartoon3d"), Anime("anime"), Oil("oil"), Watercolor("watercolor"), Sketch("sketch"), Vintage("vintage") }
@@ -68,6 +68,29 @@ class AiClient(private val base: String = BuildConfig.LUMIN_AI_URL.trimEnd('/'))
         }
     }
 
+    /**
+     * Un decor nou, desenat de AI după ce a scris omul (în limba lui), fără
+     * oameni în el: persoana decupată pe telefon se pune apoi peste.
+     */
+    suspend fun background(prompt: String, width: Int, height: Int, installId: String): Bitmap = withContext(Dispatchers.IO) {
+        val body = JSONObject().put("prompt", prompt).put("width", width).put("height", height).put("installId", installId)
+        val r = request("POST", "$base/v1/background", body.toString(), readTimeoutMs = 120_000)
+        val bytes = Base64.decode(r.optString("image"), Base64.DEFAULT)
+        android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: throw AiException("decode")
+    }
+
+    /**
+     * Texte scrise de AI din câteva poze mici: titlul și fraza unei amintiri
+     * ([AiJob.Describe]), trei texte de postare ([AiJob.Caption]) sau trei
+     * felicitări ([AiJob.Greeting]). Pozele pleacă micșorate la 384 px.
+     */
+    suspend fun describe(kind: AiJob, images: List<Bitmap>, lang: String, context: String, installId: String): JSONObject = withContext(Dispatchers.IO) {
+        val arr = org.json.JSONArray()
+        for (im in images.take(4)) arr.put(encode(im, 384, 80))
+        val body = JSONObject().put("kind", kind.wire).put("images", arr).put("lang", lang).put("context", context).put("installId", installId)
+        request("POST", "$base/v1/describe", body.toString(), readTimeoutMs = 120_000)
+    }
+
     suspend fun download(url: String, target: File): File = withContext(Dispatchers.IO) {
         val c = URL(url).openConnection() as HttpURLConnection
         c.connectTimeout = 20_000
@@ -86,23 +109,23 @@ class AiClient(private val base: String = BuildConfig.LUMIN_AI_URL.trimEnd('/'))
         try { request("POST", "$base/v1/report", JSONObject().put("id", id).put("reason", reason).toString()) } catch (_: Throwable) { }
     }
 
-    private fun encode(image: Bitmap): String {
+    private fun encode(image: Bitmap, maxSide: Int = MAX_SIDE, quality: Int = 86): String {
         val longest = maxOf(image.width, image.height)
-        val scaled = if (longest > MAX_SIDE) {
-            val f = MAX_SIDE.toFloat() / longest
+        val scaled = if (longest > maxSide) {
+            val f = maxSide.toFloat() / longest
             Bitmap.createScaledBitmap(image, (image.width * f).toInt(), (image.height * f).toInt(), true)
         } else image
         val out = ByteArrayOutputStream()
-        scaled.compress(Bitmap.CompressFormat.JPEG, 86, out)
+        scaled.compress(Bitmap.CompressFormat.JPEG, quality, out)
         if (scaled !== image) scaled.recycle()
         return Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP)
     }
 
-    private fun request(method: String, url: String, body: String?): JSONObject {
+    private fun request(method: String, url: String, body: String?, readTimeoutMs: Int = 60_000): JSONObject {
         val c = URL(url).openConnection() as HttpURLConnection
         c.requestMethod = method
         c.connectTimeout = 20_000
-        c.readTimeout = 60_000
+        c.readTimeout = readTimeoutMs
         c.setRequestProperty("content-type", "application/json")
         // Cloudflare respinge clienții fără un user-agent recunoscut (eroarea 1010).
         c.setRequestProperty("user-agent", USER_AGENT)

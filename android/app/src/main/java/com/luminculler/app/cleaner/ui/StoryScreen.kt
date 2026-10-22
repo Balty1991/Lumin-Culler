@@ -63,7 +63,9 @@ fun StoryScreen(model: LuminModel, moment: Moment) {
     val progress = remember(moment.id, index) { Animatable(0f) }
     val context = LocalContext.current
     val reduce = remember { reduceMotion(context) }
-    val title = momentTitle(moment, model.personName(moment.person))
+    val ai = model.aiTitles[moment.id]
+    val title = ai?.first ?: momentTitle(moment, model.personName(moment.person))
+    LaunchedEffect(moment.id) { model.ensureAiTitle(moment) }
     var naming by remember { mutableStateOf(false) }
 
     LaunchedEffect(moment.id, index, paused) {
@@ -134,6 +136,9 @@ fun StoryScreen(model: LuminModel, moment: Moment) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(title, style = MaterialTheme.typography.titleLarge, color = Color.White)
+                    if (!ai?.second.isNullOrBlank()) {
+                        Text(ai!!.second, style = MaterialTheme.typography.bodyMedium, color = Color(0xE6FFFFFF), fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
+                    }
                     photos.getOrNull(index)?.let { if (it.taken > 0) Text(formatDate(it.taken), style = MaterialTheme.typography.bodyMedium, color = Color(0xCCFFFFFF)) }
                 }
                 if (moment.person != null) {

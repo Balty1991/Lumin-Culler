@@ -282,6 +282,42 @@ class PhotoMagic(private val context: Context) {
         return IntArray(src.width * src.height).also { big.getPixels(it, 0, src.width, 0, 0, src.width, src.height); big.recycle() }
     }
 
+    /**
+     * Persoana din [src] (după [mask]) pusă într-un decor nou. Decorul acoperă
+     * cadrul ca ContentScale.Crop, iar persoana e adusă puțin spre lumina
+     * decorului, ca să nu pară lipită.
+     */
+    fun composite(src: Bitmap, mask: Bitmap, scene: Bitmap): Bitmap {
+        val w = src.width
+        val h = src.height
+        val out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val c = Canvas(out)
+        val scale = maxOf(w / scene.width.toFloat(), h / scene.height.toFloat())
+        val sw = scene.width * scale
+        val sh = scene.height * scale
+        c.drawBitmap(scene, null, android.graphics.RectF((w - sw) / 2f, (h - sh) / 2f, (w + sw) / 2f, (h + sh) / 2f), Paint(Paint.FILTER_BITMAP_FLAG))
+        // Luminozitatea medie: a decorului și a fundalului vechi (unde nu e persoana).
+        fun meanLum(b: Bitmap, outsideMask: Bitmap?): Float {
+            val s2 = Bitmap.createScaledBitmap(b, 48, 48, true)
+            val m2 = outsideMask?.let { Bitmap.createScaledBitmap(it, 48, 48, true) }
+            var sum = 0f; var n = 0
+            for (y in 0 until 48) for (x in 0 until 48) {
+                if (m2 != null && (m2.getPixel(x, y) ushr 24) > 80) continue
+                val p = s2.getPixel(x, y)
+                sum += (0.3f * ((p shr 16) and 0xFF) + 0.59f * ((p shr 8) and 0xFF) + 0.11f * (p and 0xFF)); n++
+            }
+            s2.recycle(); m2?.recycle()
+            return if (n == 0) 128f else sum / n
+        }
+        val gain = (meanLum(out, null) / meanLum(src, mask).coerceAtLeast(1f)).let { 1f + (it - 1f) * 0.35f }.coerceIn(0.85f, 1.15f)
+        val person = cutout(src, mask)
+        c.drawBitmap(person, 0f, 0f, Paint(Paint.FILTER_BITMAP_FLAG).apply {
+            colorFilter = ColorMatrixColorFilter(ColorMatrix().apply { setScale(gain, gain, gain, 1f) })
+        })
+        person.recycle()
+        return out
+    }
+
     /** Stil clasic (gratuit), pe pixeli. */
     fun filter(src: Bitmap, style: com.luminculler.app.cleaner.core.Style): Bitmap {
         val w = src.width

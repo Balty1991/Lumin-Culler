@@ -343,6 +343,16 @@
         <item quantity="other">Am adus %d de poze. Caut fețele și amintirile din ele.</item>
     </plurals>
     <string name="lumin_ai_credits_photos">mai ai %1$d poze AI luna asta</string>
+    <string name="lumin_bg_title">Fundal nou</string>
+    <string name="lumin_bg_hint">Persoana rămâne, iar AI-ul desenează în jur locul pe care îl scrii.</string>
+    <string name="lumin_bg_example">de ex. pe o plajă la apus</string>
+    <string name="lumin_bg_apply">Desenează</string>
+    <string name="lumin_bg_idea_beach">Plajă la apus</string>
+    <string name="lumin_bg_idea_paris">Paris, lângă Turnul Eiffel</string>
+    <string name="lumin_bg_idea_space">În spațiu, cu Pământul</string>
+    <string name="lumin_bg_idea_forest">Pădure de basm</string>
+    <string name="lumin_bg_idea_snow">Munți cu zăpadă</string>
+    <string name="lumin_bg_idea_castle">Castel de poveste</string>
     <string name="lumin_magic_soon">În curând</string>
     <string name="lumin_magic_server">Efectele AI super nu sunt încă pornite în această versiune. Efectele gratuite merg direct pe telefon.</string>
     <string name="lumin_magic_save">Salvează ca poză nouă</string>

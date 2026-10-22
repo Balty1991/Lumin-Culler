@@ -76,6 +76,21 @@ class Store(context: Context) {
      * MediaStore). Grupurile se recalculează la fiecare scanare, dar pozele
      * rămân: un nume se regăsește în grupul care conține poza lui.
      */
+    /** Titlurile și frazele scrise de AI pentru amintiri, după id-ul momentului. */
+    var aiTitles: Map<String, Pair<String, String>>
+        get() = try {
+            val o = org.json.JSONObject(prefs.getString("aiTitles", "{}") ?: "{}")
+            o.keys().asSequence().associateWith { k -> o.getJSONArray(k).let { it.getString(0) to it.optString(1) } }
+        } catch (_: Throwable) {
+            emptyMap()
+        }
+        set(v) {
+            val o = org.json.JSONObject()
+            // Doar cele mai recente 200, ca preferințele să rămână mici.
+            for ((k, t) in v.entries.toList().takeLast(200)) o.put(k, org.json.JSONArray().put(t.first).put(t.second))
+            prefs.edit().putString("aiTitles", o.toString()).apply()
+        }
+
     var names: Map<Long, String>
         get() = try {
             val o = org.json.JSONObject(prefs.getString("names", "{}") ?: "{}")

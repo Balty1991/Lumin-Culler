@@ -328,6 +328,16 @@
         <item quantity="other">Added %d photos. Looking for faces and memories in them.</item>
     </plurals>
     <string name="lumin_ai_credits_photos">%1$d AI photos left this month</string>
+    <string name="lumin_bg_title">New background</string>
+    <string name="lumin_bg_hint">The person stays; AI paints the place you describe around them.</string>
+    <string name="lumin_bg_example">e.g. on a beach at sunset</string>
+    <string name="lumin_bg_apply">Paint it</string>
+    <string name="lumin_bg_idea_beach">Beach at sunset</string>
+    <string name="lumin_bg_idea_paris">Paris, by the Eiffel Tower</string>
+    <string name="lumin_bg_idea_space">In space, with the Earth</string>
+    <string name="lumin_bg_idea_forest">Fairy-tale forest</string>
+    <string name="lumin_bg_idea_snow">Snowy mountains</string>
+    <string name="lumin_bg_idea_castle">Fairy-tale castle</string>
     <string name="lumin_magic_soon">Soon</string>
     <string name="lumin_magic_server">Super AI effects are not switched on yet in this version. The free effects run on your phone.</string>
     <string name="lumin_magic_save">Save as a new photo</string>
