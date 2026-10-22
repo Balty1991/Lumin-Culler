@@ -4,7 +4,6 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.Matrix
 import android.graphics.Paint
 import android.media.MediaCodec
 import android.media.MediaCodecInfo
@@ -16,19 +15,32 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
- * „Foto 3D”: persoana și fundalul se mișcă diferit, ca în „Fotografiile
- * cinematice” din Google Foto. Gratuit și pe telefon: masca persoanei vine
- * din segmentare, fundalul are locul persoanei acoperit, iar camera „se
- * apropie” mai repede de persoană decât de fundal — de aici adâncimea.
+ * „Foto 3D”, ca „Fotografiile cinematice” din Google Foto: o hartă de
+ * adâncime (Depth Anything) face din poză o suprafață în relief, iar camera
+ * se apropie și alunecă puțin. Fiecare punct se mișcă după cât e de aproape,
+ * deci și fundalul are adâncime (pământul din față se mișcă mai mult decât
+ * stâlpii din spate), nu doar persoana. Persoana e un strat separat, iar
+ * locul ei din fundal e refăcut de radiera AI, ca mișcarea să nu lase fantome.
  */
-class Photo3D(private val context: Context, private val magic: PhotoMagic) {
+class Photo3D(private val context: Context, private val magic: PhotoMagic, private val depth: Depth, private val eraser: Eraser) {
 
-    /** Null dacă nu e nicio persoană în poză (efectul are nevoie de un prim-plan). */
+    /** Clipul de 5 s; null doar dacă modelul de adâncime nu poate rula. */
     suspend fun render(src: Bitmap, onProgress: (Float) -> Unit): File? = withContext(Dispatchers.Default) {
-        val mask = magic.personMask(src) ?: return@withContext null
-        val person = magic.cutout(src, mask)
-        val back = magic.background(src, mask)
-        mask.recycle()
+        val map = try { depth.estimate(src) } catch (_: Throwable) { return@withContext null }
+        onProgress(0.05f)
+        val mask = try { magic.personMask(src) } catch (_: Throwable) { null }
+        val person = mask?.let { magic.cutout(src, it) }
+        // Fundalul fără persoană: locul ei (puțin lățit) refăcut de radieră; fără radieră, varianta estompată.
+        val plate = if (mask == null) src else try {
+            eraser.erase(src, widen(mask))
+        } catch (_: Throwable) {
+            magic.background(src, mask)
+        }
+        mask?.recycle()
+        onProgress(0.15f)
+
+        // Adâncimea fundalului în spatele persoanei: nu are voie să „iasă în față” odată cu ea.
+        val behind = if (person == null) null else backgroundLevel(map, src, person)
 
         // Cadru vertical sau orizontal, după poză; latura lungă 1280.
         val portrait = src.height >= src.width
@@ -75,27 +87,47 @@ class Photo3D(private val context: Context, private val magic: PhotoMagic) {
             }
         }
 
-        val paint = Paint(Paint.FILTER_BITMAP_FLAG)
+        val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
         val frames = FPS * SECONDS
+        val gx = GRID
+        val gy = (GRID * src.height / src.width.toFloat()).toInt().coerceIn(8, 96)
+        val verts = FloatArray((gx + 1) * (gy + 1) * 2)
+        // Adâncimea în fiecare vârf, calculată o dată: pentru fundal, locul persoanei e coborât
+        // la nivelul fundalului din jur (altfel fundalul refăcut s-ar mișca odată cu ea).
+        val dPerson = FloatArray((gx + 1) * (gy + 1))
+        val dPlate = FloatArray((gx + 1) * (gy + 1))
+        for (j in 0..gy) for (i in 0..gx) {
+            val u = i / gx.toFloat(); val t = j / gy.toFloat()
+            val d = map.at(u, t)
+            val k = j * (gx + 1) + i
+            dPerson[k] = d
+            val inside = person != null && (person.getPixel(
+                (u * (person.width - 1)).toInt(), (t * (person.height - 1)).toInt()
+            ) ushr 24) > 40
+            dPlate[k] = if (inside && behind != null) minOf(d, behind) else d
+        }
         try {
             for (f in 0 until frames) {
                 ensureActive()
                 // Dus-întors lin: clipul se poate pune pe repeat fără „săritură”.
                 val x = f.toFloat() / (frames - 1)
-                val t = 0.5f - 0.5f * kotlin.math.cos(x * Math.PI.toFloat() * 2f)
+                val e = 0.5f - 0.5f * kotlin.math.cos(x * Math.PI.toFloat() * 2f)
+                val pan = kotlin.math.sin(x * Math.PI.toFloat() * 2f)
                 drain(false)
                 val c = surface.lockHardwareCanvas()
                 try {
                     c.drawColor(Color.BLACK)
-                    // Fundalul: apropiere mică, alunecă puțin în sus.
-                    c.drawBitmap(back, place(src, w, h, cover * (1.04f + 0.05f * t), dy = -0.010f * h * t), paint)
-                    // Persoana: apropiere mai mare, alunecă puțin în jos — paralaxa care dă adâncimea.
-                    c.drawBitmap(person, place(src, w, h, cover * (1.04f + 0.11f * t), dy = 0.012f * h * t), paint)
+                    mesh(verts, gx, gy, src, dPlate, w, h, cover, e, pan)
+                    c.drawBitmapMesh(plate, gx, gy, verts, 0, null, 0, paint)
+                    if (person != null) {
+                        mesh(verts, gx, gy, src, dPerson, w, h, cover, e, pan)
+                        c.drawBitmapMesh(person, gx, gy, verts, 0, null, 0, paint)
+                    }
                 } finally {
                     surface.unlockCanvasAndPost(c)
                 }
                 drain(false)
-                if (f % 15 == 0) onProgress(f / frames.toFloat())
+                if (f % 15 == 0) onProgress(0.15f + 0.85f * f / frames.toFloat())
             }
             codec.signalEndOfInputStream()
             drain(true)
@@ -105,21 +137,65 @@ class Photo3D(private val context: Context, private val magic: PhotoMagic) {
             surface.release()
             try { if (started) muxer.stop() } catch (_: Throwable) { }
             muxer.release()
-            person.recycle()
-            back.recycle()
+            person?.recycle()
+            if (plate !== src) plate.recycle()
         }
         onProgress(1f)
         out
     }
 
-    /** Poza centrată, scalată cu [scale], deplasată vertical cu [dy]. */
-    private fun place(src: Bitmap, w: Int, h: Int, scale: Float, dy: Float): Matrix = Matrix().apply {
-        setScale(scale, scale)
-        postTranslate((w - src.width * scale) / 2f, (h - src.height * scale) / 2f + dy)
+    /**
+     * Vârfurile grilei pentru un cadru: fiecare punct al pozei, pus pe ecran
+     * după cât e de aproape. [e] e apropierea camerei (0..1), [pan] alunecarea
+     * laterală (-1..1); [depths] are adâncimea fiecărui vârf.
+     */
+    private fun mesh(v: FloatArray, gx: Int, gy: Int, src: Bitmap, depths: FloatArray, w: Int, h: Int, cover: Float, e: Float, pan: Float) {
+        var k = 0
+        for (j in 0..gy) for (i in 0..gx) {
+            val u = i / gx.toFloat()
+            val t = j / gy.toFloat()
+            val d = depths[j * (gx + 1) + i]
+            // Mai aproape = mărit mai tare și deplasat mai mult: asta e paralaxa.
+            val zoom = cover * (1.03f + 0.09f * e * d)
+            val bx = (u - 0.5f) * src.width
+            val by = (t - 0.5f) * src.height
+            v[k++] = w / 2f + bx * zoom + pan * 0.028f * w * (d - 0.35f)
+            v[k++] = h / 2f + by * zoom - 0.012f * h * e * (d - 0.35f)
+        }
+    }
+
+    /** Masca lățită cu câțiva pixeli, ca radiera să ia și conturul persoanei. */
+    private fun widen(mask: Bitmap): Bitmap {
+        val r = maxOf(4f, mask.width / 90f)
+        val out = Bitmap.createBitmap(mask.width, mask.height, Bitmap.Config.ARGB_8888)
+        val c = Canvas(out)
+        val p = Paint()
+        for (a in 0 until 12) {
+            val ang = a * Math.PI.toFloat() / 6f
+            c.drawBitmap(mask, r * kotlin.math.cos(ang), r * kotlin.math.sin(ang), p)
+        }
+        c.drawBitmap(mask, 0f, 0f, p)
+        return out
+    }
+
+    /** Adâncimea tipică a fundalului din jurul persoanei (percentila 70 din afara ei). */
+    private fun backgroundLevel(map: DepthMap, src: Bitmap, person: Bitmap): Float {
+        val vals = ArrayList<Float>()
+        val step = 6
+        for (j in 0 until map.height step step) for (i in 0 until map.width step step) {
+            val x = (i * src.width / map.width).coerceIn(0, person.width - 1)
+            val y = (j * src.height / map.height).coerceIn(0, person.height - 1)
+            if ((person.getPixel(x, y) ushr 24) < 40) vals.add(map.near[j * map.width + i])
+        }
+        if (vals.isEmpty()) return 0.6f
+        vals.sort()
+        return vals[(vals.size * 0.7f).toInt().coerceAtMost(vals.size - 1)]
     }
 
     companion object {
         const val FPS = 30
         const val SECONDS = 5
+        /** Câte coloane are grila de relief; destul de fină pentru contururi, destul de mică pentru viteză. */
+        const val GRID = 64
     }
 }

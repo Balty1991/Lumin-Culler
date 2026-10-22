@@ -205,6 +205,16 @@ jobs:
           fi
           got=$(sha256sum "$f" | cut -d' ' -f1)
           if [ "$got" != "$want" ]; then echo "::error::migan_pipeline_v2.onnx are amprenta $got, nu $want" && exit 1; fi
+      # Harta de adâncime (cleaner/magic/Depth.kt): Depth Anything V2 Small,
+      # licenta Apache-2.0, varianta cuantizata (27 MB) de la onnx-community.
+      # Fixat prin amprenta SHA-256 a fisierului verificat in CI.
+      - name: Bundle depth model
+        run: |
+          f=android/app/src/main/assets/depth_anything_v2_small_q.onnx
+          want=fcf51f1b230362b28690bb9d1809bf0431f29cad20534e3f589bd7285547f20d
+          curl -fL -o "$f" https://huggingface.co/onnx-community/depth-anything-v2-small/resolve/main/onnx/model_quantized.onnx
+          got=$(sha256sum "$f" | cut -d' ' -f1)
+          if [ "$got" != "$want" ]; then echo "::error::modelul de adancime are amprenta $got, nu $want" && exit 1; fi
       - name: Bundle native image-embedder model
         run: |
           curl -fL -o android/app/src/main/assets/mobilenet_v3_small.tflite https://storage.googleapis.com/mediapipe-models/image_embedder/mobilenet_v3_small/float32/1/mobilenet_v3_small.tflite

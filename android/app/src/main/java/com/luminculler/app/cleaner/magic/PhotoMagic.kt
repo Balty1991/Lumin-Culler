@@ -189,6 +189,99 @@ class PhotoMagic(private val context: Context) {
         return out
     }
 
+    /**
+     * Neclaritate „ca la aparat”: subiectul (masca persoanei, dacă există, și
+     * tot ce e la aceeași distanță) rămâne clar, iar restul se estompează în
+     * trepte, cu atât mai tare cu cât e mai departe de planul focalizat. Ce e
+     * în fața subiectului se estompează și el, dar mai puțin, ca la un obiectiv.
+     */
+    fun lensBlur(original: Bitmap, depth: DepthMap, mask: Bitmap?): Bitmap {
+        val scale = minOf(1f, LENS_SIDE / maxOf(original.width, original.height))
+        val src = if (scale < 1f) Bitmap.createScaledBitmap(original, (original.width * scale).toInt(), (original.height * scale).toInt(), true) else original
+        val w = src.width
+        val h = src.height
+        val n = w * h
+
+        // Harta de adâncime, adusă lin la mărimea pozei (filtrarea bitmap-ului face interpolarea).
+        val dpx = IntArray(depth.width * depth.height) { val v = (depth.near[it] * 255).toInt(); (0xFF shl 24) or (v shl 16) or (v shl 8) or v }
+        val dSmall = Bitmap.createBitmap(dpx, depth.width, depth.height, Bitmap.Config.ARGB_8888)
+        val dBig = Bitmap.createScaledBitmap(dSmall, w, h, true)
+        dSmall.recycle()
+        val d = IntArray(n).also { dBig.getPixels(it, 0, w, 0, 0, w, h) }
+        dBig.recycle()
+
+        val m = mask?.let { mk ->
+            val big = if (mk.width == w && mk.height == h) mk else Bitmap.createScaledBitmap(mk, w, h, true)
+            IntArray(n).also { big.getPixels(it, 0, w, 0, 0, w, h); if (big !== mk) big.recycle() }
+        }
+
+        // Planul focalizat: adâncimea medie a persoanei, sau a celui mai apropiat sfert din poză.
+        val focus = if (m != null) {
+            var sum = 0L; var cnt = 0
+            for (k in 0 until n step 7) if ((m[k] ushr 24) > 160) { sum += d[k] and 0xFF; cnt++ }
+            if (cnt > 0) (sum / cnt).toInt() else 200
+        } else {
+            val hist = IntArray(256)
+            for (k in 0 until n step 7) hist[d[k] and 0xFF]++
+            var acc = 0; val target = (n / 7) / 4; var v = 255
+            while (v > 0 && acc + hist[v] < target) { acc += hist[v]; v-- }
+            v
+        }
+
+        val px = IntArray(n).also { src.getPixels(it, 0, w, 0, 0, w, h) }
+        // Luminile puternice „înfloresc” în cercuri, ca bokeh-ul unui obiectiv deschis.
+        val glow = IntArray(n) { k ->
+            val p = px[k]
+            val r = (p shr 16) and 0xFF; val g = (p shr 8) and 0xFF; val b = p and 0xFF
+            val lum = (r * 3 + g * 6 + b) / 10
+            if (lum < 200) p else {
+                val f = 1f + (lum - 200) / 55f * 0.5f
+                (0xFF shl 24) or ((r * f).toInt().coerceAtMost(255) shl 16) or ((g * f).toInt().coerceAtMost(255) shl 8) or (b * f).toInt().coerceAtMost(255)
+            }
+        }
+        val glowBmp = Bitmap.createBitmap(glow, w, h, Bitmap.Config.ARGB_8888)
+        val levels = arrayOf(px, blurLevel(glowBmp, 5, 1), blurLevel(glowBmp, 10, 2), blurLevel(glowBmp, 18, 2))
+        glowBmp.recycle()
+        if (src !== original) src.recycle()
+
+        val out = IntArray(n)
+        for (k in 0 until n) {
+            val dk = d[k] and 0xFF
+            val diff = dk - focus
+            // În spate: neclaritatea crește repede cu distanța; în față: mai încet.
+            var a = if (diff < 0) -diff / 70f else diff / 140f
+            if (m != null) a *= 1f - (m[k] ushr 24) / 255f
+            a = a.coerceIn(0f, 1f) * 3f
+            val i = a.toInt().coerceAtMost(2)
+            val f = a - i
+            out[k] = mix(levels[i][k], levels[i + 1][k], f)
+        }
+        return Bitmap.createBitmap(out, w, h, Bitmap.Config.ARGB_8888)
+    }
+
+    private fun mix(a: Int, b: Int, f: Float): Int {
+        if (f <= 0f) return a
+        val g = 1f - f
+        val r = (((a shr 16) and 0xFF) * g + ((b shr 16) and 0xFF) * f).toInt()
+        val gr = (((a shr 8) and 0xFF) * g + ((b shr 8) and 0xFF) * f).toInt()
+        val bl = ((a and 0xFF) * g + (b and 0xFF) * f).toInt()
+        return (0xFF shl 24) or (r shl 16) or (gr shl 8) or bl
+    }
+
+    /** O treaptă de neclaritate: micșorare de [div] ori, box blur, mărire lină; întoarce pixelii la mărimea inițială. */
+    private fun blurLevel(src: Bitmap, div: Int, passes: Int): IntArray {
+        val sw = maxOf(4, src.width / div)
+        val sh = maxOf(4, src.height / div)
+        val small = Bitmap.createScaledBitmap(src, sw, sh, true)
+        val px = IntArray(sw * sh)
+        small.getPixels(px, 0, sw, 0, 0, sw, sh)
+        repeat(passes) { boxBlur(px, sw, sh, 1) }
+        small.setPixels(px, 0, sw, 0, 0, sw, sh)
+        val big = Bitmap.createScaledBitmap(small, src.width, src.height, true)
+        small.recycle()
+        return IntArray(src.width * src.height).also { big.getPixels(it, 0, src.width, 0, 0, src.width, src.height); big.recycle() }
+    }
+
     /** Stil clasic (gratuit), pe pixeli. */
     fun filter(src: Bitmap, style: com.luminculler.app.cleaner.core.Style): Bitmap {
         val w = src.width
@@ -236,6 +329,9 @@ class PhotoMagic(private val context: Context) {
     }
 
     companion object {
+        /** Latura lungă la care se calculează neclaritatea în profunzime (memorie vs. detaliu). */
+        private const val LENS_SIDE = 1600f
+
         /** Salvează ca poză NOUĂ în Pictures/Lumin; originalul rămâne neatins. */
         fun saveImage(context: Context, bmp: Bitmap): Uri? = try {
             val name = "Lumin_${System.currentTimeMillis()}.jpg"

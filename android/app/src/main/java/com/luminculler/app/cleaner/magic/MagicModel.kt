@@ -39,8 +39,16 @@ class MagicModel(
     private val onNeedPremium: () -> Unit
 ) {
     private val magic = PhotoMagic(context)
-    private val photo3d = Photo3D(context, magic)
     private val eraser = Eraser(context)
+    private val depth = Depth(context)
+    private val photo3d = Photo3D(context, magic, depth, eraser)
+    /** Harta de adâncime a pozei de lucru, calculată o dată (durează ~1 s). */
+    private var depthOf: Pair<Bitmap, DepthMap>? = null
+
+    private fun depthFor(b: Bitmap): DepthMap? {
+        depthOf?.let { (src, map) -> if (src === b) return map }
+        return try { depth.estimate(b).also { depthOf = b to it } } catch (_: Throwable) { null }
+    }
     val ai = AiClient()
     private var media: Media? = null
     /** Poza peste care se aplică efectele gratuite: originalul, sau ultimul rezultat AI. */
@@ -83,7 +91,7 @@ class MagicModel(
     private fun reset() {
         erasing = false; strokes.clear()
         enhance = false; portrait = false; filter = null
-        shown = null; before = null; base = null; video = null; aiJobId = null
+        shown = null; before = null; base = null; video = null; aiJobId = null; depthOf = null
     }
 
     fun toggleEnhance() { enhance = !enhance; apply() }
@@ -104,7 +112,11 @@ class MagicModel(
                     if (e) swap(magic.enhance(cur))
                     if (f != null) swap(magic.filter(cur, f))
                     if (p) {
-                        val withBlur = magic.portrait(cur)
+                        // Neclaritate în profunzime (cu harta de adâncime); fără model, varianta simplă cu masca.
+                        val map = depthFor(src)
+                        val mask = magic.personMask(cur)
+                        val withBlur = if (map != null) magic.lensBlur(cur, map, mask) else magic.portrait(cur)
+                        mask?.recycle()
                         if (withBlur == null) noPerson = true else swap(withBlur)
                     }
                     cur
@@ -132,10 +144,10 @@ class MagicModel(
         working = true
         progress = 0f
         job = scope.launch {
-            // Null = nicio persoană; o excepție = altă problemă (codor video etc.), cu mesaj separat.
+            // Null = modelul de adâncime n-a putut rula; o excepție = altă problemă (codor video etc.).
             val file = try {
                 photo3d.render(src) { p -> scope.launch { progress = p } } ?: run {
-                    message = context.getString(R.string.lumin_magic_no_person); null
+                    message = context.getString(R.string.lumin_magic_failed); null
                 }
             } catch (t: Throwable) {
                 if (t is kotlinx.coroutines.CancellationException) throw t
@@ -313,5 +325,5 @@ class MagicModel(
 
     val canSave: Boolean get() = !working && (enhance || portrait || filter != null || shown !== before)
 
-    fun close() { magic.close(); eraser.close() }
+    fun close() { magic.close(); eraser.close(); depth.close() }
 }

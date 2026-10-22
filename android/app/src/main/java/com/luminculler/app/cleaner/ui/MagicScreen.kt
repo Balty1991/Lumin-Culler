@@ -197,16 +197,17 @@ fun MagicScreen(model: LuminModel, media: Media) {
                         else stringResource(R.string.lumin_erase_left, erases),
                     gold = true
                 )
-                // Fără server, atingerea explică de ce nu merg încă, în loc să deschidă panouri sau dialoguri.
-                val notYet = { magic.message = context.getString(R.string.lumin_magic_server) }
                 Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Effect(LIcons.Wand, stringResource(R.string.lumin_magic_erase), false, premium = true) { panel = Panel.None; magic.startErase() }
-                    Effect(LIcons.Sparkle, stringResource(R.string.lumin_magic_styles), panel == Panel.AiStyles, premium = true, dim = !live) {
-                        if (live) { panel = if (panel == Panel.AiStyles) Panel.None else Panel.AiStyles } else { notYet() }
+                    // Efectele de pe server apar doar când serverul e pornit: un buton care nu face nimic e mai rău decât niciunul.
+                    if (live) {
+                        Effect(LIcons.Sparkle, stringResource(R.string.lumin_magic_styles), panel == Panel.AiStyles, premium = true) {
+                            panel = if (panel == Panel.AiStyles) Panel.None else Panel.AiStyles
+                        }
+                        Effect(LIcons.Star, stringResource(R.string.lumin_magic_restore), false, premium = true) { magic.restore() }
+                        Effect(LIcons.Edit, stringResource(R.string.lumin_magic_edit), false, premium = true) { editing = true }
+                        Effect(LIcons.Play, stringResource(R.string.lumin_magic_alive), false, premium = true) { magic.alive() }
                     }
-                    Effect(LIcons.Star, stringResource(R.string.lumin_magic_restore), false, premium = true, dim = !live) { magic.restore() }
-                    Effect(LIcons.Edit, stringResource(R.string.lumin_magic_edit), false, premium = true, dim = !live) { if (live) { editing = true } else { notYet() } }
-                    Effect(LIcons.Play, stringResource(R.string.lumin_magic_alive), false, premium = true, dim = !live) { magic.alive() }
                 }
                 Spacer(Modifier.height(12.dp))
                 Box(Modifier.padding(horizontal = 16.dp)) {
