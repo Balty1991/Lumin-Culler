@@ -48,6 +48,8 @@ sealed interface Route {
     data object Guess : Route
     /** „Atunci și acum”: refaci o poză veche, cu ea transparentă peste cameră. */
     data object ThenNow : Route
+    /** Felicitare cu poză și text scris de AI. */
+    data object Greeting : Route
     /** „Magie AI” pe o poză; înapoi se întoarce de unde a venit. */
     data class Magic(val media: Media, val from: Route) : Route
 }
@@ -484,6 +486,29 @@ class LuminModel(val context: Context, private val scope: CoroutineScope, privat
         }
     }
 
+    /**
+     * Trei texte scrise de AI din câteva poze: de postare ([AiJob.Caption])
+     * sau de felicitare ([AiJob.Greeting]). Aruncă [com.luminculler.app.cleaner.magic.AiException] la eroare.
+     */
+    suspend fun aiTexts(kind: com.luminculler.app.cleaner.magic.AiJob, photos: List<Media>, extra: String = ""): List<String> {
+        val images = withContext(Dispatchers.IO) {
+            photos.take(3).mapNotNull { com.luminculler.app.cleaner.grow.decodeOriented(context, android.net.Uri.parse(it.uri), 384) }
+        }
+        val ctx = buildString {
+            photos.firstOrNull()?.taken?.takeIf { it > 0 }?.let {
+                append("Photo date: ").append(java.time.format.DateTimeFormatter.ofPattern("MMMM yyyy", java.util.Locale.getDefault()).format(java.time.Instant.ofEpochMilli(it).atZone(zone))).append(". ")
+            }
+            append(extra)
+        }
+        try {
+            val r = magic.ai.describe(kind, images, java.util.Locale.getDefault().language, ctx, store.installId)
+            val arr = r.optJSONArray(if (kind == com.luminculler.app.cleaner.magic.AiJob.Greeting) "texts" else "captions") ?: return emptyList()
+            return (0 until arr.length()).map { arr.optString(it).trim() }.filter { it.isNotEmpty() }
+        } finally {
+            images.forEach { it.recycle() }
+        }
+    }
+
     /** Numele unei persoane, dacă i l-a dat omul: căutat după oricare poză a ei. */
     fun personName(person: com.luminculler.app.cleaner.core.Person?): String? {
         if (person == null) return null
@@ -570,7 +595,7 @@ class LuminModel(val context: Context, private val scope: CoroutineScope, privat
         if (r is Route.Movie && movie.back()) return true
         route = when (r) {
             Route.Moments, Route.Onboarding -> return false
-            Route.Today, Route.Settings, Route.Grow, Route.Lookalike, Route.Recap, Route.Guess, Route.ThenNow, is Route.Story -> Route.Moments
+            Route.Today, Route.Settings, Route.Grow, Route.Lookalike, Route.Recap, Route.Guess, Route.ThenNow, Route.Greeting, is Route.Story -> Route.Moments
             is Route.Movie -> Route.Story(r.moment)
             is Route.Magic -> r.from
             is Route.Review -> if (r.fromBasket != null) Route.BasketView(r.fromBasket) else Route.Today

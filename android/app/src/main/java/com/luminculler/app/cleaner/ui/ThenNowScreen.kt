@@ -349,6 +349,8 @@ private fun ThenNowResult(model: LuminModel, old: Media, now: Bitmap, onRetake: 
                         message = context.getString(if (uri != null) R.string.lumin_grow_saved else R.string.lumin_grow_save_failed)
                     }
                 })
+                Spacer(Modifier.height(8.dp))
+                CaptionButton(model, listOf(old))
             }
         }
     }

@@ -71,7 +71,7 @@ fun MovieScreen(model: LuminModel, moment: Moment) {
                     Spacer(Modifier.height(24.dp))
                     GhostButton(stringResource(R.string.lumin_grow_cancel), { movie.cancel() })
                 }
-                MovieStep.Done -> MovieDone(model)
+                MovieStep.Done -> MovieDone(model, moment)
             }
         }
     }
@@ -196,7 +196,7 @@ private fun FormatTile(f: Format, label: String, selected: Boolean, modifier: Mo
 }
 
 @Composable
-private fun MovieDone(model: LuminModel) {
+private fun MovieDone(model: LuminModel, moment: Moment) {
     val movie = model.movie
     val file = movie.video ?: return
     val context = LocalContext.current
@@ -227,5 +227,7 @@ private fun MovieDone(model: LuminModel) {
             GhostButton(stringResource(R.string.lumin_grow_save), { movie.save() }, Modifier.weight(1f))
             GhostButton(stringResource(R.string.lumin_movie_other_style), { movie.back() }, Modifier.weight(1f))
         }
+        Spacer(Modifier.height(10.dp))
+        CaptionButton(model, moment.photos.take(3))
     }
 }

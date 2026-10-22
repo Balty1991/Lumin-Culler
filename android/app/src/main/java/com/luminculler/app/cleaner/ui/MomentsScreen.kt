@@ -183,6 +183,10 @@ fun MomentsScreen(model: LuminModel) {
             Box(Modifier.padding(horizontal = 20.dp)) { LookalikeEntry { model.openLookalike() } }
             Spacer(Modifier.height(12.dp))
             Box(Modifier.padding(horizontal = 20.dp)) { GuessEntry { model.route = Route.Guess } }
+            if (com.luminculler.app.cleaner.magic.AiJob.Greeting in model.aiKinds) {
+                Spacer(Modifier.height(12.dp))
+                Box(Modifier.padding(horizontal = 20.dp)) { GreetingEntry { model.route = Route.Greeting } }
+            }
             Spacer(Modifier.height(12.dp))
             Box(Modifier.padding(horizontal = 20.dp)) { GrowEntry { model.openGrow() } }
         }
@@ -339,5 +343,26 @@ private fun ThenNowEntry(onClick: () -> Unit) {
             Text(stringResource(R.string.lumin_then_entry), style = MaterialTheme.typography.bodyMedium, color = Color(0xE6FFFFFF))
         }
         Icon(LIcons.Chevron, null, tint = Color.White)
+    }
+}
+
+@Composable
+private fun GreetingEntry(onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(Brush.linearGradient(listOf(Color(0xFFFFE1EC), Color(0xFFFFF4E6))))
+            .clickable(onClick = onClick)
+            .padding(18.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("💌", style = MaterialTheme.typography.headlineMedium)
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.lumin_greet_title), style = MaterialTheme.typography.titleLarge, color = Color(0xFFB4235A))
+            Text(stringResource(R.string.lumin_greet_entry), style = MaterialTheme.typography.bodyMedium, color = Color(0xCC3A2A33))
+        }
+        Icon(LIcons.Chevron, null, tint = Color(0xFFB4235A))
     }
 }
