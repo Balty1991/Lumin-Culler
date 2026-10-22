@@ -18,10 +18,12 @@
  *   GET  /v1/capabilities → { kinds: [...] }
  *   POST /v1/jobs        { kind, style?, image, installId } → { id }
  *   GET  /v1/results/:id → poza făcută de Workers AI (păstrată o oră)
+ *   POST /v1/background  { prompt, width, height, installId } → { image (base64), mime }
+ *   POST /v1/describe    { kind: describe|caption, images[], lang, context, installId } → { title, line } | { captions }
  *   GET  /v1/jobs/:id    → { status: working|done|failed, url? }
  *   POST /v1/report      { id, reason } → raportare conținut (cerință Google Play pentru AI)
  */
-import { admit, budgetKey, CF_IMG2IMG_MODELS, cfRequest, modelUnavailable, COST_USD, DEFAULT_MODELS, falRequest, kindsFor, mapStatus, quotaKey, resultUrl, validateCreate, type Kind } from './logic';
+import { admit, backgroundPrompt, budgetKey, CF_IMG2IMG_MODELS, CF_TEXT2IMG_MODELS, CF_TEXT_MODELS, CF_VISION_MODELS, cfRequest, day, EXTRA_DAILY_LIMIT, EXTRA_KINDS, modelUnavailable, parseJsonReply, validateBackground, validateDescribe, VISION_PROMPT, writerPrompt, type ExtraKind, COST_USD, DEFAULT_MODELS, falRequest, kindsFor, mapStatus, quotaKey, resultUrl, validateCreate, type Kind } from './logic';
 
 export interface Env {
   FAL_KEY?: string;
@@ -55,6 +57,63 @@ async function readNumber(kv: KVNamespace, key: string): Promise<number> {
   return v ? Number(v) || 0 : 0;
 }
 
+/** Rulează primul model disponibil pentru cont; modelele scoase din ofertă sunt sărite. */
+async function runFirst(env: Env, models: string[], input: (model: string) => Record<string, unknown>): Promise<{ out: unknown; model: string }> {
+  let last = 'no_model';
+  for (const model of models) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        return { out: await env.AI.run(model as any, input(model) as any), model };
+      } catch (e) {
+        last = String((e as Error)?.message ?? e).slice(0, 300);
+        console.log('workers-ai', model, last);
+        // Llama Vision cere o singură dată acceptarea licenței, cu promptul „agree”.
+        if (attempt === 0 && /agree/i.test(last)) {
+          try { await env.AI.run(model as any, { prompt: 'agree' } as any); } catch { /* răspunsul nu contează */ }
+          continue;
+        }
+        break;
+      }
+    }
+    if (!modelUnavailable(last)) throw new Error(last);
+  }
+  throw new Error(last);
+}
+
+function aiError(e: unknown): Response {
+  const detail = String((e as Error)?.message ?? e).slice(0, 300);
+  const quota = /quota|limit|neuron|429|capacity/i.test(detail);
+  return json({ error: quota ? 'budget' : 'provider', detail }, quota ? 429 : 502);
+}
+
+async function bytesOf(out: unknown): Promise<Uint8Array> {
+  if (out instanceof ReadableStream) return new Uint8Array(await new Response(out).arrayBuffer());
+  if (out instanceof ArrayBuffer) return new Uint8Array(out);
+  const b64 = (out as { image?: string })?.image;
+  if (typeof b64 === 'string') return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+  throw new Error('no_image');
+}
+
+function base64(bytes: Uint8Array): string {
+  let s = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+
+function textOf(out: unknown): string {
+  const o = out as { response?: unknown; description?: unknown };
+  return String(o?.response ?? o?.description ?? '').trim();
+}
+
+/** Contorul zilnic al unei instalări pentru funcțiile ieftine; null = limita atinsă. */
+async function takeExtra(env: Env, kind: ExtraKind, installId: string, now: number): Promise<boolean> {
+  const key = `x:${day(now)}:${kind}:${installId}`;
+  const used = await readNumber(env.LIMITS, key);
+  if (used >= EXTRA_DAILY_LIMIT[kind]) return false;
+  await env.LIMITS.put(key, String(used + 1), { expirationTtl: 2 * DAY_S });
+  return true;
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -63,7 +122,62 @@ export default {
     const hasFal = !!env.FAL_KEY;
 
     if (request.method === 'GET' && url.pathname === '/v1/capabilities') {
-      return json({ kinds: kindsFor(hasFal) });
+      return json({ kinds: [...kindsFor(hasFal), ...EXTRA_KINDS] });
+    }
+
+    if (request.method === 'POST' && url.pathname === '/v1/background') {
+      let body: unknown;
+      try { body = await request.json(); } catch { return json({ error: 'bad_json' }, 400); }
+      const v = validateBackground(body);
+      if (!v.ok) return json({ error: v.error }, 400);
+      if (!(await takeExtra(env, 'background', v.installId, now))) return json({ error: 'daily_limit' }, 429);
+      try {
+        // Omul scrie în limba lui; modelele de imagine înțeleg cel mai bine engleza.
+        const tr = await runFirst(env, CF_TEXT_MODELS, () => ({
+          messages: [
+            { role: 'system', content: 'Translate the user text to a short English scene description. Output only the translation.' },
+            { role: 'user', content: v.prompt }
+          ],
+          max_tokens: 80
+        }));
+        const scene = textOf(tr.out).replace(/^["']|["']$/g, '') || v.prompt;
+        const img = await runFirst(env, CF_TEXT2IMG_MODELS, (model) => model.includes('flux')
+          ? { prompt: backgroundPrompt(scene), steps: 6 }
+          : { prompt: backgroundPrompt(scene), width: v.width, height: v.height, num_steps: 8 });
+        const bytes = await bytesOf(img.out);
+        const png = bytes[0] === 0x89;
+        return json({ image: base64(bytes), mime: png ? 'image/png' : 'image/jpeg', scene, model: img.model });
+      } catch (e) {
+        return aiError(e);
+      }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/v1/describe') {
+      let body: unknown;
+      try { body = await request.json(); } catch { return json({ error: 'bad_json' }, 400); }
+      const v = validateDescribe(body);
+      if (!v.ok) return json({ error: v.error }, 400);
+      const req = v.req;
+      if (!(await takeExtra(env, req.kind, req.installId, now))) return json({ error: 'daily_limit' }, 429);
+      try {
+        const descriptions: string[] = [];
+        for (const image of req.images) {
+          const bytes = Array.from(Uint8Array.from(atob(image), (c) => c.charCodeAt(0)));
+          const r = await runFirst(env, CF_VISION_MODELS, (model) => model.includes('llava')
+            ? { image: bytes, prompt: VISION_PROMPT, max_tokens: 80 }
+            : { messages: [{ role: 'user', content: VISION_PROMPT }], image: bytes, max_tokens: 80 });
+          descriptions.push(textOf(r.out));
+        }
+        const w = await runFirst(env, CF_TEXT_MODELS, () => ({
+          messages: [{ role: 'user', content: writerPrompt(req, descriptions) }],
+          max_tokens: 300
+        }));
+        const parsed = parseJsonReply(textOf(w.out));
+        if (!parsed) return json({ error: 'provider', detail: 'bad_reply' }, 502);
+        return json(parsed);
+      } catch (e) {
+        return aiError(e);
+      }
     }
 
     const resultMatch = url.pathname.match(/^\/v1\/results\/([0-9a-f-]{36})$/);

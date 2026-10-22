@@ -101,4 +101,27 @@ jobs:
           print("BEGIN smoke", len(e))
           for k in range(0, len(e), 900): print(e[k:k + 900])
           print("END smoke")
+
+          def post(path, payload):
+              rq = urllib.request.Request(base + path, data=json.dumps(payload).encode(), headers={"content-type": "application/json", "user-agent": UA})
+              try:
+                  return json.load(urllib.request.urlopen(rq, timeout=180))
+              except urllib.error.HTTPError as e:
+                  print(path, "error", e.code, e.read().decode()); return None
+
+          t = time.time()
+          bg = post("/v1/background", {"prompt": "o plajă la apus", "width": 768, "height": 1024, "installId": "ci-smoke-test-000000"})
+          if bg:
+              print("background", bg.get("model"), bg.get("scene"), round(time.time() - t, 1), "s")
+              im = Image.open(io.BytesIO(base64.b64decode(bg["image"]))).convert("RGB"); im.thumbnail((300, 300))
+              b = io.BytesIO(); im.save(b, "JPEG", quality=65); e = base64.b64encode(b.getvalue()).decode()
+              print("BEGIN background", len(e))
+              for k in range(0, len(e), 900): print(e[k:k + 900])
+              print("END background")
+          small = Image.open("p.jpg").convert("RGB"); small.thumbnail((384, 384))
+          b = io.BytesIO(); small.save(b, "JPEG", quality=80); one = base64.b64encode(b.getvalue()).decode()
+          for kind in ["describe", "caption"]:
+              t = time.time()
+              r = post("/v1/describe", {"kind": kind, "images": [one], "lang": "ro", "context": "octombrie 2026", "installId": "ci-smoke-test-000000"})
+              print(kind, round(time.time() - t, 1), "s", json.dumps(r, ensure_ascii=False))
           PY

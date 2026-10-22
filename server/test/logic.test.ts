@@ -96,3 +96,24 @@ describe('model fallback', () => {
     expect(modelUnavailable('3036: you have used up your daily free allocation of 10,000 neurons')).toBe(false);
   });
 });
+
+import { backgroundPrompt, parseJsonReply, validateBackground, validateDescribe, writerPrompt } from '../src/logic';
+describe('background, describe and captions', () => {
+  it('builds an empty-scene background prompt and validates sizes', () => {
+    expect(backgroundPrompt('a beach at sunset.')).toMatch(/^a beach at sunset\. Empty scene/);
+    const v = validateBackground({ prompt: 'plajă la apus', installId: install, width: 900, height: 1200 });
+    expect(v.ok && v.width).toBe(576);
+    expect(validateBackground({ prompt: 'x', installId: install }).ok).toBe(false);
+  });
+  it('accepts up to four small JPEGs and asks for JSON in the right language', () => {
+    const v = validateDescribe({ kind: 'describe', images: [jpeg, jpeg], installId: install, lang: 'ro', context: 'iulie 2023' });
+    expect(v.ok).toBe(true);
+    if (v.ok) expect(writerPrompt(v.req, ['a beach', 'kids eating ice cream'])).toContain('Romanian');
+    expect(validateDescribe({ kind: 'describe', images: [], installId: install }).ok).toBe(false);
+    expect(validateDescribe({ kind: 'caption', images: [jpeg, jpeg, jpeg, jpeg, jpeg], installId: install }).ok).toBe(false);
+  });
+  it('pulls the JSON object out of a chatty reply', () => {
+    expect(parseJsonReply('Sure! {"title": "O zi la mare", "line": "Nisip."} Hope it helps')).toEqual({ title: 'O zi la mare', line: 'Nisip.' });
+    expect(parseJsonReply('no json')).toBeNull();
+  });
+});

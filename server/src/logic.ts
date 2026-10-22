@@ -204,3 +204,79 @@ export function cfRequest(req: CreateRequest, bytes: Uint8Array): Record<string,
     ...cfSize(size.width, size.height)
   };
 }
+
+// ---- Fundal nou, descrieri și texte (Workers AI, gratuit) ----
+
+/** Ce face serverul pe lângă lucrările cu poze întregi; merg gratuit pe Workers AI. */
+export const EXTRA_KINDS = ['background', 'describe', 'caption'] as const;
+export type ExtraKind = typeof EXTRA_KINDS[number];
+
+export const EXTRA_DAILY_LIMIT: Record<ExtraKind, number> = { background: 15, describe: 60, caption: 30 };
+
+export const CF_TEXT2IMG_MODELS = ['@cf/black-forest-labs/flux-1-schnell', '@cf/bytedance/stable-diffusion-xl-lightning'];
+export const CF_VISION_MODELS = ['@cf/meta/llama-3.2-11b-vision-instruct', '@cf/llava-hf/llava-1.5-7b-hf'];
+export const CF_TEXT_MODELS = ['@cf/meta/llama-3.3-70b-instruct-fp8-fast', '@cf/google/gemma-3-12b-it', '@cf/meta/llama-3.1-8b-instruct'];
+
+/**
+ * Promptul de fundal: ce a scris omul (orice limbă, modelul de text îl
+ * traduce înainte), plus cerința să fie doar decorul, fără oameni, ca
+ * persoana decupată să stea în el.
+ */
+export function backgroundPrompt(sceneEn: string): string {
+  return `${sceneEn.trim().replace(/[.\s]+$/, '')}. Empty scene, background only, no people, no text, photorealistic, natural light, wide angle, high detail.`;
+}
+
+export function validateBackground(body: unknown): { ok: true; prompt: string; installId: string; width: number; height: number } | { ok: false; error: string } {
+  const b = (body ?? {}) as Record<string, unknown>;
+  if (typeof b.prompt !== 'string' || b.prompt.trim().length < 3 || b.prompt.length > 200) return { ok: false, error: 'bad_prompt' };
+  if (typeof b.installId !== 'string' || !/^[A-Za-z0-9-]{16,64}$/.test(b.installId)) return { ok: false, error: 'bad_install' };
+  const w = Number(b.width) || 768, h = Number(b.height) || 1024;
+  const size = cfSize(w, h);
+  return { ok: true, prompt: b.prompt.trim(), installId: b.installId, ...size };
+}
+
+export interface DescribeRequest {
+  kind: 'describe' | 'caption';
+  /** JPEG-uri mici (base64), cel mult 4. */
+  images: string[];
+  installId: string;
+  lang: string;
+  /** Ce știm deja: data, câte poze, nume (dacă le-a dat omul). */
+  context: string;
+}
+
+export function validateDescribe(body: unknown): { ok: true; req: DescribeRequest } | { ok: false; error: string } {
+  const b = (body ?? {}) as Record<string, unknown>;
+  if (b.kind !== 'describe' && b.kind !== 'caption') return { ok: false, error: 'bad_kind' };
+  if (!Array.isArray(b.images) || b.images.length < 1 || b.images.length > 4) return { ok: false, error: 'bad_images' };
+  for (const im of b.images) {
+    if (typeof im !== 'string' || !/^\/9j\//.test(im) || (im.length * 3) / 4 > 300_000) return { ok: false, error: 'bad_image' };
+  }
+  if (typeof b.installId !== 'string' || !/^[A-Za-z0-9-]{16,64}$/.test(b.installId)) return { ok: false, error: 'bad_install' };
+  const lang = typeof b.lang === 'string' && /^[a-z]{2}$/.test(b.lang) ? b.lang : 'en';
+  const context = typeof b.context === 'string' ? b.context.slice(0, 300) : '';
+  return { ok: true, req: { kind: b.kind, images: b.images as string[], installId: b.installId, lang, context } };
+}
+
+export const LANGUAGE_NAMES: Record<string, string> = { ro: 'Romanian', en: 'English', it: 'Italian', es: 'Spanish', fr: 'French', de: 'German' };
+
+export const VISION_PROMPT = 'Describe this photo in one short sentence: where it is, what people are doing, the mood. No names, no guesses about identity.';
+
+/** Cererea pentru modelul de text, din descrierile pozelor. Răspunsul trebuie să fie JSON. */
+export function writerPrompt(req: DescribeRequest, descriptions: string[]): string {
+  const language = LANGUAGE_NAMES[req.lang] ?? 'English';
+  const facts = descriptions.map((d, i) => `Photo ${i + 1}: ${d}`).join('\n');
+  const ctx = req.context ? `\nKnown context: ${req.context}` : '';
+  if (req.kind === 'describe') {
+    return `You write titles for a family photo memories app.${ctx}\n${facts}\n\nWrite in ${language}, warm and natural, never cheesy. Return only JSON: {"title": "max 6 words, no date", "line": "one sentence, max 18 words, like a caption in a photo album"}.`;
+  }
+  return `You write social media captions for someone sharing their own photos.${ctx}\n${facts}\n\nWrite in ${language}. Return only JSON: {"captions": ["...", "...", "..."]} with three different captions: one heartfelt, one funny, one short with 2-3 fitting emoji. Max 25 words each. No hashtags spam (at most 2).`;
+}
+
+/** Scoate obiectul JSON din răspunsul modelului (care uneori pune text în jur). */
+export function parseJsonReply(text: string): Record<string, unknown> | null {
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  if (start < 0 || end <= start) return null;
+  try { return JSON.parse(text.slice(start, end + 1)); } catch { return null; }
+}
