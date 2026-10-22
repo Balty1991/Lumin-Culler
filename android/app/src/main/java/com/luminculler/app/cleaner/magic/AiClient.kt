@@ -72,6 +72,7 @@ class AiClient(private val base: String = BuildConfig.LUMIN_AI_URL.trimEnd('/'))
         val c = URL(url).openConnection() as HttpURLConnection
         c.connectTimeout = 20_000
         c.readTimeout = 60_000
+        c.setRequestProperty("user-agent", USER_AGENT)
         try {
             if (c.responseCode !in 200..299) throw AiException("download")
             c.inputStream.use { input -> target.outputStream().use { input.copyTo(it) } }
@@ -103,6 +104,8 @@ class AiClient(private val base: String = BuildConfig.LUMIN_AI_URL.trimEnd('/'))
         c.connectTimeout = 20_000
         c.readTimeout = 60_000
         c.setRequestProperty("content-type", "application/json")
+        // Cloudflare respinge clienții fără un user-agent recunoscut (eroarea 1010).
+        c.setRequestProperty("user-agent", USER_AGENT)
         try {
             if (body != null) {
                 c.doOutput = true
@@ -121,5 +124,6 @@ class AiClient(private val base: String = BuildConfig.LUMIN_AI_URL.trimEnd('/'))
 
     companion object {
         const val MAX_SIDE = 1280
+        val USER_AGENT = "Lumin-Android/${BuildConfig.VERSION_NAME}"
     }
 }

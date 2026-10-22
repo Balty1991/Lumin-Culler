@@ -69,17 +69,20 @@ jobs:
           python3 - "$base" <<'PY'
           import base64, json, sys, time, urllib.request, io
           base = sys.argv[1]
+          # Fără un user-agent cunoscut, Cloudflare respinge cererea (eroarea 1010).
+          UA = "Lumin-CI/1.0"
+          get = lambda u: urllib.request.urlopen(urllib.request.Request(u, headers={"user-agent": UA}))
           img = base64.b64encode(open("p.jpg", "rb").read()).decode()
-          req = urllib.request.Request(base + "/v1/jobs", data=json.dumps({"kind": "style", "style": "watercolor", "image": img, "installId": "ci-smoke-test-000000"}).encode(), headers={"content-type": "application/json"})
+          req = urllib.request.Request(base + "/v1/jobs", data=json.dumps({"kind": "style", "style": "watercolor", "image": img, "installId": "ci-smoke-test-000000"}).encode(), headers={"content-type": "application/json", "user-agent": UA})
           t = time.time()
           try:
               r = json.load(urllib.request.urlopen(req, timeout=120))
           except urllib.error.HTTPError as e:
               print("job error", e.code, e.read().decode()); sys.exit(1)
           print("job", r, round(time.time() - t, 1), "s")
-          st = json.load(urllib.request.urlopen(base + "/v1/jobs/" + r["id"]))
+          st = json.load(get(base + "/v1/jobs/" + r["id"]))
           print("status", st)
-          png = urllib.request.urlopen(st["url"]).read()
+          png = get(st["url"]).read()
           print("result bytes", len(png))
           # Rezultatul, micșorat, în jurnal, ca să poată fi văzut.
           from PIL import Image
