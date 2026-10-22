@@ -110,6 +110,9 @@ fun MomentsScreen(model: LuminModel) {
 
             val moments = model.moments
             val hero = moments.firstOrNull()
+            // „Anul tău în poze” sus, cât e proaspăt: decembrie–ianuarie, sau oricând din bandă.
+            Box(Modifier.padding(horizontal = 20.dp)) { RecapEntry { model.openRecap() } }
+            Spacer(Modifier.height(16.dp))
             if (hero != null) {
                 HeroMoment(hero, model.personName(hero.person)) { model.openStory(hero) }
                 Spacer(Modifier.height(24.dp))
@@ -263,5 +266,26 @@ private fun LookalikeEntry(onClick: () -> Unit) {
             Text(stringResource(R.string.lumin_look_entry), style = MaterialTheme.typography.bodyMedium, color = Color(0xCC2A1400))
         }
         Icon(LIcons.Chevron, null, tint = Color(0xFF2A1400))
+    }
+}
+
+@Composable
+private fun RecapEntry(onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(Brush.linearGradient(listOf(Color(0xFF6D28D9), Color(0xFFBE185D), Color(0xFFF59E0B))))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 18.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("✨", style = MaterialTheme.typography.headlineSmall)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.lumin_recap_title), style = MaterialTheme.typography.titleMedium, color = Color.White, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.lumin_recap_entry), style = MaterialTheme.typography.bodySmall, color = Color(0xE6FFFFFF))
+        }
+        Icon(LIcons.Chevron, null, tint = Color.White)
     }
 }
