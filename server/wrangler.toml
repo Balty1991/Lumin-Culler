@@ -10,7 +10,12 @@ DAILY_BUDGET_USD = "5"
 ALIVE_MODEL = "fal-ai/kling-video/v2.1/standard/image-to-video"
 STYLE_MODEL = "fal-ai/flux-pro/kontext"
 
-# Creat cu: npx wrangler kv namespace create LIMITS  (apoi pui id-ul aici)
+# Workers AI: stilurile gratuite, când nu e pusă o cheie fal.ai.
+[ai]
+binding = "AI"
+
+# Creat cu: npx wrangler kv namespace create LIMITS  (apoi pui id-ul aici;
+# workflow-ul deploy-ai-server.yml îl creează și îl completează singur)
 [[kv_namespaces]]
 binding = "LIMITS"
 id = "PUNE_AICI_ID_UL_KV"

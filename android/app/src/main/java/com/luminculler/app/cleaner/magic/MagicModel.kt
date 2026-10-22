@@ -67,6 +67,9 @@ class MagicModel(
     var video by mutableStateOf<File?>(null)
     var aiJobId by mutableStateOf<String?>(null)
     var message by mutableStateOf<String?>(null)
+    /** Efectele pe care serverul le poate face acum; cele lipsă nu apar deloc pe ecran. */
+    var serverKinds by mutableStateOf<Set<AiJob>>(emptySet())
+    private var askedServer = false
 
     /** Radiera: tușele trase cu degetul, în coordonate 0..1 ale pozei. */
     class Stroke(val points: List<androidx.compose.ui.geometry.Offset>, val radius: Float)
@@ -74,6 +77,10 @@ class MagicModel(
     val strokes = androidx.compose.runtime.mutableStateListOf<Stroke>()
 
     fun open(m: Media) {
+        if (!askedServer && ai.enabled) {
+            askedServer = true
+            scope.launch { serverKinds = ai.capabilities().also { if (it.isEmpty()) askedServer = false } }
+        }
         if (media?.id == m.id && base != null) return
         media = m
         reset()

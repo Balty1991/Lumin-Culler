@@ -221,6 +221,22 @@ jobs:
           curl -fL -o android/app/src/main/assets/mobilenet_v3_small.tflite https://storage.googleapis.com/mediapipe-models/image_embedder/mobilenet_v3_small/float32/1/mobilenet_v3_small.tflite
           size=$(stat -c%s android/app/src/main/assets/mobilenet_v3_small.tflite)
           if [ "$size" -lt 100000 ]; then echo "::error::mobilenet_v3_small.tflite are doar $size octeti — descarcare esuata/trunchiata" && exit 1; fi
+      # Adresa serverului de efecte AI (server/), dacă e pornit pe Cloudflare:
+      # aplicația arată efectele de pe server doar când adresa răspunde.
+      - name: AI server address
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          url=""
+          if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            sub=$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain" | jq -r '.result.subdomain // empty')
+            if [ -n "$sub" ] && curl -sSf -m 20 "https://lumin-ai.$sub.workers.dev/v1/capabilities" > /dev/null; then
+              url="https://lumin-ai.$sub.workers.dev"
+            fi
+          fi
+          echo "Server AI: ${url:-(oprit)}"
+          echo "LUMIN_AI_URL=$url" >> "$GITHUB_ENV"
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
@@ -228,7 +244,7 @@ jobs:
           java-version: '21'
       - name: Build debug APK (nesemnat)
         working-directory: android
-        run: ./gradlew assembleDebug testDebugUnitTest -PminifyDebug=${{ inputs.minify == true }}
+        run: ./gradlew assembleDebug testDebugUnitTest -PminifyDebug=${{ inputs.minify == true }} -PluminAiUrl="$LUMIN_AI_URL"
       # Cand R8 pica pe clase lipsa, scrie EXACT regulile care i-ar trebui in
       # missing_rules.txt. Fara pasul asta ele raman pe runner si dispar odata
       # cu el, iar reparatia devine ghicit din log — s-a intamplat exact asa

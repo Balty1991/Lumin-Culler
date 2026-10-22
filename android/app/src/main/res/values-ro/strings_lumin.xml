@@ -342,6 +342,7 @@
         <item quantity="few">Am adus %d poze. Caut fețele și amintirile din ele.</item>
         <item quantity="other">Am adus %d de poze. Caut fețele și amintirile din ele.</item>
     </plurals>
+    <string name="lumin_ai_credits_photos">mai ai %1$d poze AI luna asta</string>
     <string name="lumin_magic_soon">În curând</string>
     <string name="lumin_magic_server">Efectele AI super nu sunt încă pornite în această versiune. Efectele gratuite merg direct pe telefon.</string>
     <string name="lumin_magic_save">Salvează ca poză nouă</string>

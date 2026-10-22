@@ -69,3 +69,22 @@ describe('limits', () => {
     expect(quotaKey(install, 'alive', Date.UTC(2026, 9, 22))).toBe(`q:2026-10-22:alive:${install}`);
   });
 });
+
+import { cfRequest, cfSize, jpegSize, kindsFor } from '../src/logic';
+
+describe('Workers AI', () => {
+  it('offers only styles without a fal key', () => {
+    expect(kindsFor(false)).toEqual(['style']);
+    expect(kindsFor(true)).toContain('alive');
+  });
+  it('reads the JPEG size from the SOF header and keeps the shape', () => {
+    // FFD8, APP0 de 16 octeți, apoi SOF0 cu înălțimea 600 și lățimea 800
+    const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, ...new Array(14).fill(0), 0xff, 0xc0, 0x00, 0x11, 0x08, 0x02, 0x58, 0x03, 0x20, 0x03]);
+    expect(jpegSize(bytes)).toEqual({ width: 800, height: 600 });
+    expect(cfSize(800, 600)).toEqual({ width: 768, height: 576 });
+    expect(cfSize(1000, 4000)).toEqual({ width: 256, height: 768 });
+    const r = cfRequest({ kind: 'style', style: 'oil', image: '', installId: install }, bytes);
+    expect(r.width).toBe(768);
+    expect(String(r.prompt)).toContain('oil');
+  });
+});

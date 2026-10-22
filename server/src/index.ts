@@ -10,15 +10,22 @@
  *  - trimite poza la fal.ai și păstrează doar adresele lucrării, 24 de ore;
  *  - NU salvează pozele: ele trec direct, ca data-URI, spre fal.ai.
  *
+ * Fără FAL_KEY, serverul merge gratuit pe Workers AI (cota zilnică a contului
+ * Cloudflare), dar doar pentru stiluri; aplicația află ce e disponibil din
+ * /v1/capabilities și arată doar acele butoane.
+ *
  * Rute:
+ *   GET  /v1/capabilities → { kinds: [...] }
  *   POST /v1/jobs        { kind, style?, image, installId } → { id }
+ *   GET  /v1/results/:id → poza făcută de Workers AI (păstrată o oră)
  *   GET  /v1/jobs/:id    → { status: working|done|failed, url? }
  *   POST /v1/report      { id, reason } → raportare conținut (cerință Google Play pentru AI)
  */
-import { admit, budgetKey, COST_USD, DEFAULT_MODELS, falRequest, mapStatus, quotaKey, resultUrl, validateCreate, type Kind } from './logic';
+import { admit, budgetKey, CF_IMG2IMG, cfRequest, COST_USD, DEFAULT_MODELS, falRequest, kindsFor, mapStatus, quotaKey, resultUrl, validateCreate, type Kind } from './logic';
 
 export interface Env {
-  FAL_KEY: string;
+  FAL_KEY?: string;
+  AI: Ai;
   LIMITS: KVNamespace;
   DAILY_BUDGET_USD?: string;
   ALIVE_MODEL?: string;
@@ -27,8 +34,11 @@ export interface Env {
 
 interface JobRecord {
   kind: Kind;
-  statusUrl: string;
-  responseUrl: string;
+  /** fal.ai: unde întrebăm de stare și de unde luăm rezultatul. */
+  statusUrl?: string;
+  responseUrl?: string;
+  /** Workers AI: rezultatul e deja gata, la /v1/results/:id. */
+  local?: boolean;
 }
 
 const DAY_S = 24 * 3600;
@@ -50,6 +60,19 @@ export default {
     const url = new URL(request.url);
     const now = Date.now();
 
+    const hasFal = !!env.FAL_KEY;
+
+    if (request.method === 'GET' && url.pathname === '/v1/capabilities') {
+      return json({ kinds: kindsFor(hasFal) });
+    }
+
+    const resultMatch = url.pathname.match(/^\/v1\/results\/([0-9a-f-]{36})$/);
+    if (request.method === 'GET' && resultMatch) {
+      const img = await env.LIMITS.get(`o:${resultMatch[1]}`, 'arrayBuffer');
+      if (!img) return json({ error: 'not_found' }, 404);
+      return new Response(img, { headers: { 'content-type': 'image/png', 'cache-control': 'no-store' } });
+    }
+
     if (request.method === 'POST' && url.pathname === '/v1/jobs') {
       let body: unknown;
       try { body = await request.json(); } catch { return json({ error: 'bad_json' }, 400); }
@@ -64,6 +87,28 @@ export default {
       const [used, spent] = await Promise.all([readNumber(env.LIMITS, qKey), readNumber(env.LIMITS, bKey)]);
       const gate = admit(req.kind, used, spent, Number(env.DAILY_BUDGET_USD ?? '5'));
       if (!gate.ok) return json({ error: gate.error }, 429);
+
+      if (!kindsFor(hasFal).includes(req.kind)) return json({ error: 'unsupported' }, 400);
+
+      if (!hasFal) {
+        // Workers AI: răspunsul vine pe loc; îl ținem o oră, cât să-l descarce aplicația.
+        const bytes = Uint8Array.from(atob(req.image), (c) => c.charCodeAt(0));
+        let png: ArrayBuffer;
+        try {
+          const out = await env.AI.run(CF_IMG2IMG as any, cfRequest(req, bytes) as any) as unknown;
+          png = out instanceof ReadableStream ? await new Response(out).arrayBuffer() : (out as ArrayBuffer);
+        } catch {
+          // De obicei: s-a terminat cota gratuită a zilei.
+          return json({ error: 'budget' }, 429);
+        }
+        const id = crypto.randomUUID();
+        await Promise.all([
+          env.LIMITS.put(`o:${id}`, png, { expirationTtl: 3600 }),
+          env.LIMITS.put(`j:${id}`, JSON.stringify({ kind: req.kind, local: true } satisfies JobRecord), { expirationTtl: 3600 }),
+          env.LIMITS.put(qKey, String(used + 1), { expirationTtl: 2 * DAY_S })
+        ]);
+        return json({ id });
+      }
 
       const models = { alive: env.ALIVE_MODEL || DEFAULT_MODELS.alive, style: env.STYLE_MODEL || DEFAULT_MODELS.style };
       const { model, input } = falRequest(req, models);
@@ -91,6 +136,8 @@ export default {
       const raw = await env.LIMITS.get(`j:${jobMatch[1]}`);
       if (!raw) return json({ error: 'not_found' }, 404);
       const job = JSON.parse(raw) as JobRecord;
+      if (job.local) return json({ status: 'done', url: `${url.origin}/v1/results/${jobMatch[1]}` });
+      if (!job.statusUrl || !job.responseUrl) return json({ status: 'failed' });
       const auth = { authorization: `Key ${env.FAL_KEY}` };
       const st = await fetch(job.statusUrl, { headers: auth });
       if (!st.ok) return json({ status: 'working' });

@@ -327,6 +327,7 @@
         <item quantity="one">Added %d photo. Looking for faces and memories in it.</item>
         <item quantity="other">Added %d photos. Looking for faces and memories in them.</item>
     </plurals>
+    <string name="lumin_ai_credits_photos">%1$d AI photos left this month</string>
     <string name="lumin_magic_soon">Soon</string>
     <string name="lumin_magic_server">Super AI effects are not switched on yet in this version. The free effects run on your phone.</string>
     <string name="lumin_magic_save">Save as a new photo</string>

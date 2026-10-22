@@ -70,6 +70,7 @@ import com.luminculler.app.cleaner.LuminModel
 import com.luminculler.app.cleaner.core.AiCredits
 import com.luminculler.app.cleaner.core.Media
 import com.luminculler.app.cleaner.core.Style
+import com.luminculler.app.cleaner.magic.AiJob
 import com.luminculler.app.cleaner.magic.AiStyle
 
 private enum class Panel { None, Filters, AiStyles }
@@ -188,11 +189,13 @@ fun MagicScreen(model: LuminModel, media: Media) {
                     Effect(LIcons.Layers, stringResource(R.string.lumin_magic_3d), false) { magic.make3d() }
                 }
 
-                val live = magic.ai.enabled
+                val kinds = magic.serverKinds
+                val live = kinds.isNotEmpty()
                 val erases = magic.remaining(AiCredits.Kind.Erase)
                 SectionLabel(
                     stringResource(R.string.lumin_magic_super) + "  ·  " +
-                        if (live) stringResource(R.string.lumin_ai_credits, magic.remaining(AiCredits.Kind.Style), magic.remaining(AiCredits.Kind.Alive))
+                        if (AiJob.Alive in kinds) stringResource(R.string.lumin_ai_credits, magic.remaining(AiCredits.Kind.Style), magic.remaining(AiCredits.Kind.Alive))
+                        else if (live) stringResource(R.string.lumin_ai_credits_photos, magic.remaining(AiCredits.Kind.Style))
                         else if (erases == AiCredits.UNLIMITED) stringResource(R.string.lumin_erase_unlimited)
                         else stringResource(R.string.lumin_erase_left, erases),
                     gold = true
@@ -200,14 +203,12 @@ fun MagicScreen(model: LuminModel, media: Media) {
                 Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Effect(LIcons.Wand, stringResource(R.string.lumin_magic_erase), false, premium = true) { panel = Panel.None; magic.startErase() }
                     // Efectele de pe server apar doar când serverul e pornit: un buton care nu face nimic e mai rău decât niciunul.
-                    if (live) {
-                        Effect(LIcons.Sparkle, stringResource(R.string.lumin_magic_styles), panel == Panel.AiStyles, premium = true) {
-                            panel = if (panel == Panel.AiStyles) Panel.None else Panel.AiStyles
-                        }
-                        Effect(LIcons.Star, stringResource(R.string.lumin_magic_restore), false, premium = true) { magic.restore() }
-                        Effect(LIcons.Edit, stringResource(R.string.lumin_magic_edit), false, premium = true) { editing = true }
-                        Effect(LIcons.Play, stringResource(R.string.lumin_magic_alive), false, premium = true) { magic.alive() }
+                    if (AiJob.Style in kinds) Effect(LIcons.Sparkle, stringResource(R.string.lumin_magic_styles), panel == Panel.AiStyles, premium = true) {
+                        panel = if (panel == Panel.AiStyles) Panel.None else Panel.AiStyles
                     }
+                    if (AiJob.Restore in kinds) Effect(LIcons.Star, stringResource(R.string.lumin_magic_restore), false, premium = true) { magic.restore() }
+                    if (AiJob.Edit in kinds) Effect(LIcons.Edit, stringResource(R.string.lumin_magic_edit), false, premium = true) { editing = true }
+                    if (AiJob.Alive in kinds) Effect(LIcons.Play, stringResource(R.string.lumin_magic_alive), false, premium = true) { magic.alive() }
                 }
                 Spacer(Modifier.height(12.dp))
                 Box(Modifier.padding(horizontal = 16.dp)) {

@@ -54,6 +54,20 @@ class AiClient(private val base: String = BuildConfig.LUMIN_AI_URL.trimEnd('/'))
             throw AiException("timeout")
         }
 
+    /**
+     * Ce efecte poate face serverul acum (fără cheie fal.ai, doar stilurile,
+     * gratuit pe Workers AI). Gol dacă serverul nu răspunde.
+     */
+    suspend fun capabilities(): Set<AiJob> = withContext(Dispatchers.IO) {
+        if (!enabled) return@withContext emptySet()
+        try {
+            val arr = request("GET", "$base/v1/capabilities", null).optJSONArray("kinds") ?: return@withContext emptySet()
+            (0 until arr.length()).mapNotNull { i -> AiJob.entries.firstOrNull { it.wire == arr.optString(i) } }.toSet()
+        } catch (_: Throwable) {
+            emptySet()
+        }
+    }
+
     suspend fun download(url: String, target: File): File = withContext(Dispatchers.IO) {
         val c = URL(url).openConnection() as HttpURLConnection
         c.connectTimeout = 20_000

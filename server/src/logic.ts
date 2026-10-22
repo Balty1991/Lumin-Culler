@@ -127,3 +127,66 @@ export function mapStatus(status: string | undefined): 'working' | 'done' | 'fai
   if (status === 'IN_QUEUE' || status === 'IN_PROGRESS') return 'working';
   return 'failed';
 }
+
+// ---- Workers AI (gratuit, din contul Cloudflare) ----
+
+/**
+ * Fără cheie fal.ai, serverul folosește Workers AI, care are o cotă gratuită
+ * zilnică. Acolo nu există video și nici editare precisă în cuvinte, deci
+ * oferim doar stilurile (redesenarea pozei într-un stil).
+ */
+export function kindsFor(hasFal: boolean): Kind[] {
+  return hasFal ? ['style', 'restore', 'edit', 'alive'] : ['style'];
+}
+
+export const CF_IMG2IMG = '@cf/runwayml/stable-diffusion-v1-5-img2img';
+
+/** Cât de mult redesenează modelul: destul cât să se vadă stilul, puțin cât fața să rămână a omului. */
+export const CF_STRENGTH = 0.5;
+
+const CF_STYLE_PROMPTS: Record<string, string> = {
+  watercolor: 'soft watercolor painting, delicate brush washes, paper texture',
+  oil: 'classic oil painting, visible brush strokes, rich colors, museum quality',
+  sketch: 'detailed pencil sketch on white paper, graphite shading',
+  anime: 'hand-drawn anime illustration, clean line art, soft cel shading',
+  vintage: '1970s film photograph, warm faded colors, soft film grain',
+  cartoon3d: '3D animated movie still, soft lighting, pixar style render'
+};
+
+export const CF_NEGATIVE = 'deformed face, extra fingers, extra limbs, blurry, text, watermark, nsfw';
+
+/** Mărimea JPEG-ului, citită din antetul SOF, fără să decodăm poza. */
+export function jpegSize(bytes: Uint8Array): { width: number; height: number } | null {
+  let i = 2;
+  while (i + 9 < bytes.length) {
+    if (bytes[i] !== 0xff) { i++; continue; }
+    const marker = bytes[i + 1];
+    const len = (bytes[i + 2] << 8) | bytes[i + 3];
+    // SOF0..SOF15, fără DHT (C4), JPG (C8) și DAC (CC)
+    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+      return { height: (bytes[i + 5] << 8) | bytes[i + 6], width: (bytes[i + 7] << 8) | bytes[i + 8] };
+    }
+    i += 2 + len;
+  }
+  return null;
+}
+
+/** Dimensiunea de lucru: latura lungă 768, multiplu de 64, cu forma pozei. */
+export function cfSize(width: number, height: number): { width: number; height: number } {
+  const scale = 768 / Math.max(width, height);
+  const r = (v: number) => Math.max(256, Math.round((v * scale) / 64) * 64);
+  return { width: r(width), height: r(height) };
+}
+
+export function cfRequest(req: CreateRequest, bytes: Uint8Array): Record<string, unknown> {
+  const size = jpegSize(bytes) ?? { width: 768, height: 768 };
+  return {
+    prompt: CF_STYLE_PROMPTS[req.style as string] ?? CF_STYLE_PROMPTS.watercolor,
+    negative_prompt: CF_NEGATIVE,
+    image: Array.from(bytes),
+    strength: CF_STRENGTH,
+    num_steps: 20,
+    guidance: 7.5,
+    ...cfSize(size.width, size.height)
+  };
+}
