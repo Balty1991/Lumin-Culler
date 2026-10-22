@@ -173,4 +173,31 @@
         <item quantity="few">Gratuit %1$d zile, apoi %2$s %3$s. Se reînnoiește automat. Anulezi oricând din Google Play → Abonamente.</item>
         <item quantity="other">Gratuit %1$d de zile, apoi %2$s %3$s. Se reînnoiește automat. Anulezi oricând din Google Play → Abonamente.</item>
     </plurals>
+
+    <string name="lumin_new">NOU</string>
+    <string name="lumin_grow_title">Cum a crescut</string>
+    <string name="lumin_grow_entry">Un video cu cineva drag, din toate pozele lui. Fețele aliniate, anii curg.</string>
+    <string name="lumin_grow_pick">Atinge fața persoanei. Lumin îi găsește celelalte poze, de-a lungul anilor.</string>
+    <string name="lumin_grow_scanning">Caut fețele… %1$d / %2$d</string>
+    <string name="lumin_grow_no_faces">Încă n-am găsit fețe clare.</string>
+    <string name="lumin_grow_review">Par a fi aceeași persoană. Atinge o poză ca s-o scoți.</string>
+    <string name="lumin_grow_still_scanning">Încă scanez galeria: revino la fețe mai târziu ca să găsești mai multe poze.</string>
+    <string name="lumin_grow_maybe">Poate și acestea</string>
+    <string name="lumin_grow_name">Nume (apare la început)</string>
+    <string name="lumin_grow_watermark">Videoul gratuit are un mic semn Lumin. Premium îl scoate.</string>
+    <string name="lumin_grow_rendering">Aliniez fețele și montez… %1$d%%</string>
+    <string name="lumin_grow_cancel">Anulează</string>
+    <string name="lumin_grow_save">Salvează în galerie</string>
+    <string name="lumin_grow_again">Altă persoană</string>
+    <string name="lumin_grow_saved">Salvat în Movies/Lumin.</string>
+    <string name="lumin_grow_save_failed">Nu am putut salva videoul.</string>
+    <string name="lumin_grow_failed">Ceva n-a mers la montaj. Încearcă cu mai puține poze.</string>
+    <string name="lumin_grow_need_more">Alege cel puțin 3 poze.</string>
+    <string name="lumin_grow_upsell">Scoate semnul Lumin cu Premium →</string>
+    <string name="lumin_grow_outro">făcut pe telefonul meu</string>
+    <plurals name="lumin_grow_make">
+        <item quantity="one">Fă videoul · %d poză</item>
+        <item quantity="few">Fă videoul · %d poze</item>
+        <item quantity="other">Fă videoul · %d de poze</item>
+    </plurals>
 </resources>

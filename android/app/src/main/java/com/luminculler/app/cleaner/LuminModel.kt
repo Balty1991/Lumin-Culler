@@ -32,6 +32,7 @@ sealed interface Route {
     data class Done(val bytes: Long, val count: Int) : Route
     data class Paywall(val reason: PaywallReason) : Route
     data object Settings : Route
+    data object Grow : Route
 }
 
 enum class PaywallReason { ExtraStack, BulkClean, Browse }
@@ -50,6 +51,7 @@ class LuminModel(private val context: Context, private val scope: CoroutineScope
     private val library = Library(context)
     val trash = Trash(context)
     val billing = PlayBilling(context) { bought -> onPurchaseResult(bought) }
+    val grow = com.luminculler.app.cleaner.grow.GrowModel(context, scope)
     private val zone: ZoneId = ZoneId.systemDefault()
 
     var route by mutableStateOf<Route>(if (store.onboarded && galleryAccess(context) != Access.None) Route.Today else Route.Onboarding)
@@ -371,7 +373,13 @@ class LuminModel(private val context: Context, private val scope: CoroutineScope
         DailyReminderWorker.schedule(context, on)
     }
 
+    fun openGrow() {
+        grow.open(photos)
+        route = Route.Grow
+    }
+
     fun back(): Boolean {
+        if (route == Route.Grow && grow.back()) return true
         route = when (val r = route) {
             Route.Today, Route.Onboarding -> return false
             is Route.Review -> if (r.fromBasket != null) Route.BasketView(r.fromBasket) else Route.Today
@@ -381,6 +389,7 @@ class LuminModel(private val context: Context, private val scope: CoroutineScope
     }
 
     fun close() {
+        grow.close()
         scanJob?.cancel()
         billing.close()
     }

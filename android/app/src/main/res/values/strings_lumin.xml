@@ -162,4 +162,30 @@
         <item quantity="one">Free for %1$d day, then %2$s %3$s. Renews automatically. Cancel anytime in Google Play → Subscriptions.</item>
         <item quantity="other">Free for %1$d days, then %2$s %3$s. Renews automatically. Cancel anytime in Google Play → Subscriptions.</item>
     </plurals>
+
+    <string name="lumin_new">NEW</string>
+    <string name="lumin_grow_title">Watch them grow</string>
+    <string name="lumin_grow_entry">A video of someone you love, made from all their photos. Faces aligned, years flowing.</string>
+    <string name="lumin_grow_pick">Tap the face of the person. Lumin finds their other photos, across the years.</string>
+    <string name="lumin_grow_scanning">Looking for faces… %1$d / %2$d</string>
+    <string name="lumin_grow_no_faces">No clear faces found yet.</string>
+    <string name="lumin_grow_review">These look like the same person. Tap a photo to leave it out.</string>
+    <string name="lumin_grow_still_scanning">Still scanning the gallery: go back to the faces later to find more photos.</string>
+    <string name="lumin_grow_maybe">Maybe them too</string>
+    <string name="lumin_grow_name">Name (shown at the start)</string>
+    <string name="lumin_grow_watermark">The free video has a small Lumin mark. Premium removes it.</string>
+    <string name="lumin_grow_rendering">Aligning faces and editing… %1$d%%</string>
+    <string name="lumin_grow_cancel">Cancel</string>
+    <string name="lumin_grow_save">Save to gallery</string>
+    <string name="lumin_grow_again">Another person</string>
+    <string name="lumin_grow_saved">Saved in Movies/Lumin.</string>
+    <string name="lumin_grow_save_failed">Could not save the video.</string>
+    <string name="lumin_grow_failed">Something went wrong while making the video. Try fewer photos.</string>
+    <string name="lumin_grow_need_more">Pick at least 3 photos.</string>
+    <string name="lumin_grow_upsell">Remove the Lumin mark with Premium →</string>
+    <string name="lumin_grow_outro">made on my phone</string>
+    <plurals name="lumin_grow_make">
+        <item quantity="one">Make the video · %d photo</item>
+        <item quantity="other">Make the video · %d photos</item>
+    </plurals>
 </resources>

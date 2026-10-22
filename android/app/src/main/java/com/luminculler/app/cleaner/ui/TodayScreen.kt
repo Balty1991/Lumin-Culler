@@ -65,6 +65,8 @@ fun TodayScreen(model: LuminModel) {
 
             StackHero(model)
             Spacer(Modifier.height(16.dp))
+            GrowEntry { model.openGrow() }
+            Spacer(Modifier.height(16.dp))
 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Stat(bytes(model.freedBytes), stringResource(R.string.lumin_stat_freed), Lumin.Keep)

@@ -41,6 +41,14 @@ fun LuminApp(model: LuminModel, onAllowPhotos: () -> Unit) {
                     is Route.Done -> DoneScreen(model, route.bytes, route.count)
                     is Route.Paywall -> PaywallScreen(model, route.reason)
                     Route.Settings -> SettingsScreen(model)
+                    Route.Grow -> GrowScreen(model)
+                }
+            }
+            val growMessage = model.grow.message
+            LaunchedEffect(growMessage) {
+                if (growMessage != null) {
+                    model.message = growMessage
+                    model.grow.message = null
                 }
             }
             val message = model.message
