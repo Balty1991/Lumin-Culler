@@ -97,9 +97,11 @@ export default {
         try {
           const out = await env.AI.run(CF_IMG2IMG as any, cfRequest(req, bytes) as any) as unknown;
           png = out instanceof ReadableStream ? await new Response(out).arrayBuffer() : (out as ArrayBuffer);
-        } catch {
-          // De obicei: s-a terminat cota gratuită a zilei.
-          return json({ error: 'budget' }, 429);
+        } catch (e) {
+          // De obicei: s-a terminat cota gratuită a zilei. Motivul exact, scurtat, ajută la depanare.
+          const detail = String((e as Error)?.message ?? e).slice(0, 300);
+          console.log('workers-ai', detail);
+          return json({ error: /quota|limit|neuron|429|capacity/i.test(detail) ? 'budget' : 'provider', detail }, /quota|limit|neuron|429|capacity/i.test(detail) ? 429 : 502);
         }
         const id = crypto.randomUUID();
         await Promise.all([
