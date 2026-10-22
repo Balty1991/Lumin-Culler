@@ -1,83 +1,102 @@
-# Texte fisa Play Store — Lumin (v4, teancul zilnic)
+# Texte fisa Play Store — Lumin (v5: amintiri, filme, Magie AI)
 
-Numele din launcher e **Lumin**. Pachetul ramane `com.luminculler.app`.
-Aplicatia nativa e tradusa in **romana si engleza**; publica fisa doar in
-aceste doua limbi pana exista traducerile aplicatiei (o fisa in germana
-care deschide o aplicatie in engleza aduce note de o stea).
+Pachetul ramane `com.luminculler.app`. Aplicatia nativa e in **romana si
+engleza**; publica fisa doar in aceste doua limbi.
 
 | Limba | Titlu (≤30) | Descriere scurta (≤80) |
 |---|---|---|
-| ro-RO | `Lumin: Curăță Poze și Spațiu` | `Telefon plin? În 2 minute pe zi, AI găsește duplicate, poze neclare și capturi.` |
-| en-US | `Lumin: Photo Cleaner & Swipe` | `2 minutes a day: AI finds duplicates, blurry shots & big videos. Swipe to clean.` |
+| ro-RO | `Lumin: Amintiri și Magie AI` | `Amintiri și filme din pozele tale, magie AI și o galerie curată, pe telefon.` |
+| en-US | `Lumin: Memories & AI Photos` | `Memories and movies from your photos, AI photo magic and a clean gallery.` |
 
-**Ce e gratuit si ce e Premium — identic in fisa, in aplicatie si in
-`cleaner/core/Plan.kt`:**
+**Gratuit si Premium — identic in fisa, in aplicatie, `core/Plan.kt` si
+`core/AiCredits.kt`:**
 
-- gratuit: teancul zilnic (30 de poze), oricate stergeri din el; toate
-  cosurile vizibile, cu cati GB ocupa; PRIMA curatare completa a unui cos;
-- Premium: teancuri in plus in aceeasi zi; curatarea cosurilor oricand;
-- planuri: lunar (`lumin_premium_monthly`), anual cu 7 zile de proba
-  (`lumin_premium_yearly`), pe viata (`lumin_premium_lifetime`); fara plan
-  saptamanal; anularea e in Google Play.
+- gratuit: momente si povesti, filme (cu semn Lumin), „Cum a crescut”,
+  oameni recunoscuti, efectele de pe telefon (imbunatatire, portret, filtre,
+  Foto 3D), teancul zilnic de curatenie si prima curatare a unei categorii;
+  3 poze AI super pe luna si un clip „prinde viata” de proba;
+- Premium: filme fara semn, 100 de poze AI super si 20 de clipuri pe luna,
+  curatarea categoriilor oricand, teancuri nelimitate;
+- planuri: lunar, anual cu 7 zile gratuite, pe viata; fara plan saptamanal.
+
+**Atentie inainte de lansare:** efectele AI super cer serverul pornit
+(`server/README.md`) si adresa lui in build. Fara ele, aplicatia spune
+cinstit ca nu sunt inca pornite — dar atunci nu le promite in fisa.
+Google Play cere, pentru aplicatiile cu AI generativ, declaratia din
+App content si raportarea in aplicatie (butonul „Raporteaza” exista).
 
 ## Descriere lunga — romana
 
 ```
-Telefonul plin de poze pe care nu le mai vezi niciodată? Lumin te ajută să faci ordine în 2 minute pe zi.
+Galeria ta e plină de momente frumoase pe care nu le mai vezi. Lumin le găsește și le aduce la viață.
 
-În fiecare zi primești un teanc mic de poze: o amintire din ziua de azi, de acum câțiva ani, pozele pe care AI-ul le-a găsit ca duplicate, rafale sau neclare, și cele mai noi poze. Glisezi la dreapta ca să păstrezi, la stânga ca să ștergi. La final confirmi o singură dată, iar pozele merg în coșul de gunoi al telefonului, de unde le poți recupera 30 de zile.
+MOMENTE, CA ÎN FILME
+• „Acum 3 ani, azi” – în fiecare zi, o amintire din aceeași zi, din anii trecuți.
+• Excursii și zile speciale, găsite singure din galerie.
+• Oamenii tăi: Lumin recunoaște persoanele, iar tu le dai nume. „Cu Ami”, „Cu bunica”.
+• Povești pe tot ecranul, care trec singure, cu mișcare lentă.
 
-CE GĂSEȘTE
-• Duplicate – copii ale aceleiași poze, chiar dacă sunt în foldere diferite. Originalul rămâne.
-• Poze asemănătoare – rafale și cadre aproape identice. Cea mai clară rămâne, marcată cu verde.
-• Poze neclare – mișcate sau nefocalizate.
-• Capturi de ecran și imagini din WhatsApp, Telegram și alte aplicații de chat.
-• Videoclipuri mari, cele mai mari primele.
+FILME DINTR-O ATINGERE
+• Stiluri Cinematic, Flash și Mozaic, cu titlu și data pe poze.
+• Format pentru Reels/TikTok, pătrat sau lat pentru YouTube.
+• „Cum a crescut”: toate pozele unei persoane, cu fața aliniată, de-a lungul anilor.
 
-DE CE LUMIN
-• Amintiri: „Acum 3 ani” – fiecare teanc începe cu o poză din aceeași zi, din anii trecuți.
-• Vezi mereu ce rămâne: la duplicate și rafale, poza păstrată stă lângă cele propuse.
-• Ții minte ce ai ales: o poză păstrată nu îți mai e propusă.
-• Serie de zile și memento de seară, doar dacă vrei.
-• Confidențialitate: totul se analizează pe telefon. Fără cont, fără reclame, nimic nu se încarcă nicăieri.
+MAGIE AI PE POZE
+• Gratuit, direct pe telefon: îmbunătățire automată, portret cu fundal neclar, Foto 3D și filtre (creion, acuarelă, film vechi, noir).
+• AI Super: poza ta în stil 3D, anime sau pictură; poze vechi restaurate și colorate; editare în cuvinte („scoate oamenii din spate”); poze care prind viață.
+
+GALERIE CURATĂ
+• Duplicate, rafale, poze neclare, capturi de ecran, imagini din chat și videoclipuri mari.
+• Glisezi ca să păstrezi sau să ștergi; poza care rămâne e mereu la vedere.
+• Ștergerea trece prin coșul telefonului: poți recupera 30 de zile.
+
+CONFIDENȚIALITATE
+Momentele, oamenii, filmele, curățenia și efectele gratuite rulează doar pe telefon. Fără cont, fără reclame. Doar efectele AI Super, când le ceri tu, trimit poza la server pentru prelucrare; ea nu se păstrează.
 
 GRATUIT ȘI PREMIUM
-Teancul zilnic e gratuit, oricâte poze ștergi din el. Vezi gratuit toate categoriile și câți GB poți elibera, iar prima curățare completă a unei categorii e gratuită.
-Lumin Premium curăță categorii întregi dintr-o atingere și îți dă teancuri nelimitate în fiecare zi. Planuri: lunar, anual (cu 7 zile gratuite) sau o singură plată pe viață. Prețul se vede în aplicație, în moneda contului tău. Abonamentul se reînnoiește automat până îl anulezi din Google Play → Abonamente.
+Aproape totul e gratuit. Lumin Premium scoate semnul de pe filme și îți dă 100 de poze AI Super și 20 de clipuri pe lună. Planuri: lunar, anual (cu 7 zile gratuite) sau o singură plată pe viață. Prețul se vede în aplicație. Abonamentul se reînnoiește automat până îl anulezi din Google Play → Abonamente.
 ```
 
 ## Full description — English
 
 ```
-Is your phone full of photos you never look at? Lumin helps you clean up in 2 minutes a day.
+Your gallery is full of beautiful moments you never look at. Lumin finds them and brings them to life.
 
-Every day you get a small stack of photos: a memory from this day years ago, the duplicates, bursts and blurry shots the AI found, and your newest pictures. Swipe right to keep, left to delete. At the end you confirm once, and the photos go to your phone's trash, where you can restore them for 30 days.
+MOMENTS, LIKE IN THE MOVIES
+• "3 years ago today" – every day, a memory from this day in past years.
+• Trips and special days, found automatically in your gallery.
+• Your people: Lumin recognizes faces and you give them names. "With Ami", "With Grandma".
+• Full-screen stories that play on their own, with slow cinematic motion.
 
-WHAT IT FINDS
-• Duplicates – copies of the same photo, even in different folders. The original stays.
-• Similar shots – bursts and near-identical frames. The sharpest one stays, marked in green.
-• Blurry photos – shaken or out of focus.
-• Screenshots and images saved from WhatsApp, Telegram and other chat apps.
-• Large videos, biggest first.
+MOVIES IN ONE TAP
+• Cinematic, Flash and Mosaic styles, with a title and dates.
+• Vertical for Reels/TikTok, square, or wide for YouTube.
+• "Watch them grow": all the photos of one person, faces aligned, across the years.
 
-WHY LUMIN
-• Memories: "3 years ago" – every stack starts with a photo from this day in past years.
-• You always see what stays: for duplicates and bursts, the kept photo sits next to the suggestions.
-• It remembers your choices: a photo you kept is never suggested again.
-• Daily streak and an optional evening reminder.
-• Privacy: everything is analyzed on your phone. No account, no ads, nothing is uploaded.
+AI MAGIC FOR YOUR PHOTOS
+• Free, right on your phone: auto enhance, portrait blur, 3D photos and filters (pencil, watercolor, old film, noir).
+• Super AI: your photo as 3D animation, anime or painting; old photos restored and colorized; edits with words ("remove the people in the background"); photos that come to life.
+
+A CLEAN GALLERY
+• Duplicates, bursts, blurry shots, screenshots, chat images and large videos.
+• Swipe to keep or delete; the photo that stays is always shown.
+• Deleting goes through your phone's trash: restore within 30 days.
+
+PRIVACY
+Moments, people, movies, cleaning and the free effects run only on your phone. No account, no ads. Only Super AI effects, when you ask for them, send the photo to our server for processing; it is not kept.
 
 FREE AND PREMIUM
-The daily stack is free, delete as many photos from it as you like. You can see every category and how many GB you can free for free, and your first full clean of a category is free.
-Lumin Premium cleans whole categories with one tap and gives you unlimited stacks every day. Plans: monthly, yearly (with a 7-day free trial) or a one-time lifetime purchase. The price is shown in the app in your account's currency. Subscriptions renew automatically until you cancel in Google Play → Subscriptions.
+Almost everything is free. Lumin Premium removes the mark from movies and gives you 100 Super AI photos and 20 clips a month. Plans: monthly, yearly (with a 7-day free trial) or one-time lifetime. The price is shown in the app. Subscriptions renew automatically until you cancel in Google Play → Subscriptions.
 ```
 
-## Capturi de ecran
+## Capturi de ecran (de facut din aplicatia noua)
 
-Capturile din `store-assets/v3/` arata interfata web veche (taburi
-Curata/Biblioteca/Setari) si NU mai corespund aplicatiei. Fa capturi noi din
-aplicatia nativa: ecranul Azi (teancul + GB), swipe-ul cu o amintire, un cos
-de duplicate cu poza „Ramane”, ecranul de final cu GB eliberati, Premium.
+1. Momente: amintirea zilei mare („Acum 3 ani”), cu titlul „Amintirile tale, aduse la viata”.
+2. O poveste pe tot ecranul.
+3. „Fa un film”: stilurile si formatele.
+4. „Cum a crescut”: oamenii, apoi un cadru din video.
+5. Magie AI: inainte/dupa (imbunatatire sau stil AI).
+6. Curata: GB eliberati si categoriile.
 
 ---
 
