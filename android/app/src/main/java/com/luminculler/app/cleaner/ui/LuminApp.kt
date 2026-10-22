@@ -60,6 +60,7 @@ fun LuminApp(model: LuminModel, onAllowPhotos: () -> Unit) {
                     is Route.Paywall -> PaywallScreen(model, route.reason)
                     Route.Settings -> SettingsScreen(model)
                     Route.Grow -> GrowScreen(model)
+                    Route.Lookalike -> LookalikeScreen(model)
                 }
             }
             val r = model.route

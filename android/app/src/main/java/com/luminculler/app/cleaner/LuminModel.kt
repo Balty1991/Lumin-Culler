@@ -40,6 +40,8 @@ sealed interface Route {
     data class Paywall(val reason: PaywallReason) : Route
     data object Settings : Route
     data object Grow : Route
+    /** „Pe cine seamănă?”: copilul comparat cu rudele lui. */
+    data object Lookalike : Route
     /** „Magie AI” pe o poză; înapoi se întoarce de unde a venit. */
     data class Magic(val media: Media, val from: Route) : Route
 }
@@ -444,6 +446,11 @@ class LuminModel(val context: Context, private val scope: CoroutineScope, privat
         route = Route.Magic(media, route)
     }
 
+    fun openLookalike() {
+        grow.ensureScan(photos)
+        route = Route.Lookalike
+    }
+
     fun openGrow() {
         grow.open(photos)
         route = Route.Grow
@@ -455,7 +462,7 @@ class LuminModel(val context: Context, private val scope: CoroutineScope, privat
         if (r is Route.Movie && movie.back()) return true
         route = when (r) {
             Route.Moments, Route.Onboarding -> return false
-            Route.Today, Route.Settings, Route.Grow, is Route.Story -> Route.Moments
+            Route.Today, Route.Settings, Route.Grow, Route.Lookalike, is Route.Story -> Route.Moments
             is Route.Movie -> Route.Story(r.moment)
             is Route.Magic -> r.from
             is Route.Review -> if (r.fromBasket != null) Route.BasketView(r.fromBasket) else Route.Today

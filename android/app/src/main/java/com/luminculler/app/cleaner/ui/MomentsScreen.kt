@@ -171,6 +171,8 @@ fun MomentsScreen(model: LuminModel) {
             }
             Spacer(Modifier.height(28.dp))
 
+            Box(Modifier.padding(horizontal = 20.dp)) { LookalikeEntry { model.openLookalike() } }
+            Spacer(Modifier.height(12.dp))
             Box(Modifier.padding(horizontal = 20.dp)) { GrowEntry { model.openGrow() } }
         }
     }
@@ -240,5 +242,26 @@ private fun EmptyMoments(working: Boolean) {
             Spacer(Modifier.height(6.dp))
             Text(stringResource(R.string.lumin_moments_empty_hint), style = MaterialTheme.typography.bodyMedium, color = Lumin.Muted)
         }
+    }
+}
+
+@Composable
+private fun LookalikeEntry(onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(Lumin.PremiumGradient)
+            .clickable(onClick = onClick)
+            .padding(18.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
+            Pill(stringResource(R.string.lumin_new), Color(0x33000000), Color(0xFF2A1400))
+            Spacer(Modifier.height(8.dp))
+            Text(stringResource(R.string.lumin_look_title), style = MaterialTheme.typography.titleLarge, color = Color(0xFF2A1400))
+            Text(stringResource(R.string.lumin_look_entry), style = MaterialTheme.typography.bodyMedium, color = Color(0xCC2A1400))
+        }
+        Icon(LIcons.Chevron, null, tint = Color(0xFF2A1400))
     }
 }
