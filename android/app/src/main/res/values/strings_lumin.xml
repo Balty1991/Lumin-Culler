@@ -315,6 +315,18 @@
     <string name="lumin_then_making">Making the clip…</string>
     <string name="lumin_then_save_photo">Save as a side-by-side photo</string>
     <string name="lumin_create_title">Create and play</string>
+    <string name="lumin_import_title">Add from Google Photos</string>
+    <string name="lumin_import_hint">Old photos that live only in the cloud: other phones, scans. You choose them.</string>
+    <string name="lumin_import_progress">Bringing photos in… %1$d of %2$d</string>
+    <string name="lumin_import_clear">Delete the copies from Google Photos</string>
+    <plurals name="lumin_import_count">
+        <item quantity="one">%d photo from Google Photos · add more</item>
+        <item quantity="other">%d photos from Google Photos · add more</item>
+    </plurals>
+    <plurals name="lumin_import_done">
+        <item quantity="one">Added %d photo. Looking for faces and memories in it.</item>
+        <item quantity="other">Added %d photos. Looking for faces and memories in them.</item>
+    </plurals>
     <string name="lumin_magic_soon">Soon</string>
     <string name="lumin_magic_server">Super AI effects are not switched on yet in this version. The free effects run on your phone.</string>
     <string name="lumin_magic_save">Save as a new photo</string>

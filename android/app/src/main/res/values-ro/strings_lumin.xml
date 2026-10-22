@@ -328,6 +328,20 @@
     <string name="lumin_then_making">Fac clipul…</string>
     <string name="lumin_then_save_photo">Salvează ca poză (alături)</string>
     <string name="lumin_create_title">Creează și joacă</string>
+    <string name="lumin_import_title">Adaugă din Google Foto</string>
+    <string name="lumin_import_hint">Poze vechi doar din cloud: de pe alte telefoane, scanate. Le alegi tu.</string>
+    <string name="lumin_import_progress">Aduc pozele… %1$d din %2$d</string>
+    <string name="lumin_import_clear">Șterge copiile aduse din Google Foto</string>
+    <plurals name="lumin_import_count">
+        <item quantity="one">%d poză adusă din Google Foto · adaugă mai multe</item>
+        <item quantity="few">%d poze aduse din Google Foto · adaugă mai multe</item>
+        <item quantity="other">%d de poze aduse din Google Foto · adaugă mai multe</item>
+    </plurals>
+    <plurals name="lumin_import_done">
+        <item quantity="one">Am adus %d poză. Caut fețele și amintirile din ea.</item>
+        <item quantity="few">Am adus %d poze. Caut fețele și amintirile din ele.</item>
+        <item quantity="other">Am adus %d de poze. Caut fețele și amintirile din ele.</item>
+    </plurals>
     <string name="lumin_magic_soon">În curând</string>
     <string name="lumin_magic_server">Efectele AI super nu sunt încă pornite în această versiune. Efectele gratuite merg direct pe telefon.</string>
     <string name="lumin_magic_save">Salvează ca poză nouă</string>

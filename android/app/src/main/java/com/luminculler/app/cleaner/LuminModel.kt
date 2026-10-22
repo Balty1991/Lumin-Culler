@@ -95,6 +95,15 @@ class LuminModel(val context: Context, private val scope: CoroutineScope, privat
     var plans by mutableStateOf<List<PlanOffer>>(emptyList())
     var plansLoaded by mutableStateOf(false)
     var message by mutableStateOf<String?>(null)
+
+    /** Copiile aduse din Google Foto; intră în amintiri și jocuri, nu în curățenie. */
+    val imported = Imported(context)
+    var importedPhotos by mutableStateOf<List<Media>>(emptyList())
+    /** null = nu aducem nimic acum; altfel câte s-au copiat din câte. */
+    var importing by mutableStateOf<Pair<Int, Int>?>(null)
+
+    /** Toate pozele pentru amintiri, oameni și jocuri: galeria plus ce s-a adus din Google Foto. */
+    val memoryPhotos: List<Media> get() = if (importedPhotos.isEmpty()) photos else photos + importedPhotos
     var dailyReminder by mutableStateOf(store.dailyReminder)
     var moments by mutableStateOf<List<com.luminculler.app.cleaner.core.Moment>>(emptyList())
     var names by mutableStateOf(store.names)
@@ -143,12 +152,13 @@ class LuminModel(val context: Context, private val scope: CoroutineScope, privat
             val snap = withContext(Dispatchers.IO) { library.snapshot() }
             photos = snap.photos
             videos = snap.videos
+            importedPhotos = withContext(Dispatchers.IO) { imported.list() }
             signals = withContext(Dispatchers.IO) { library.cachedSignals(snap.photos) }
             regroup()
             ensureStack()
             loading = false
             refreshMoments()
-            grow.ensureScan(photos)
+            grow.ensureScan(memoryPhotos)
             var lastGroup = System.currentTimeMillis()
             library.computeMissing(snap.photos) { done, total, partial ->
                 scope.launch {
@@ -409,7 +419,7 @@ class LuminModel(val context: Context, private val scope: CoroutineScope, privat
     /** Recalculează momentele din poze, semnale și oamenii găsiți până acum. */
     fun refreshMoments() {
         momentsJob?.cancel()
-        val p = photos
+        val p = memoryPhotos
         val s = signals
         val b = baskets
         val people = grow.people
@@ -452,21 +462,48 @@ class LuminModel(val context: Context, private val scope: CoroutineScope, privat
         route = Route.Magic(media, route)
     }
 
-    fun recapYears(): List<Int> = com.luminculler.app.cleaner.core.Recaps.years(photos, zone)
+    fun recapYears(): List<Int> = com.luminculler.app.cleaner.core.Recaps.years(memoryPhotos, zone)
 
     fun buildRecap(year: Int): com.luminculler.app.cleaner.core.Recap? =
-        com.luminculler.app.cleaner.core.Recaps.build(year, zone, photos, videos, signals, grow.people)
+        com.luminculler.app.cleaner.core.Recaps.build(year, zone, memoryPhotos, videos, signals, grow.people)
 
     /** Pozele bune de joc: fără capturi, conversații sau poze ratate. */
-    fun gamePhotos(): List<Media> = com.luminculler.app.cleaner.core.Moments.usable(photos, signals, baskets)
+    fun gamePhotos(): List<Media> = com.luminculler.app.cleaner.core.Moments.usable(memoryPhotos, signals, baskets)
+
+    /** Copiază pozele alese în selector, apoi le caută fețele și refac amintirile. */
+    fun importPhotos(uris: List<android.net.Uri>) {
+        if (uris.isEmpty() || importing != null) return
+        scope.launch {
+            importing = 0 to uris.size
+            val added = try {
+                imported.add(uris) { done, total -> scope.launch { importing = done to total } }
+            } catch (e: Throwable) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                0
+            }
+            importedPhotos = withContext(Dispatchers.IO) { imported.list() }
+            importing = null
+            message = context.resources.getQuantityString(com.luminculler.app.R.plurals.lumin_import_done, added, added)
+            grow.rescan(memoryPhotos)
+            refreshMoments()
+        }
+    }
+
+    fun clearImported() {
+        scope.launch {
+            withContext(Dispatchers.IO) { imported.clear() }
+            importedPhotos = emptyList()
+            refreshMoments()
+        }
+    }
 
     fun openRecap() {
-        grow.ensureScan(photos)
+        grow.ensureScan(memoryPhotos)
         route = Route.Recap
     }
 
     fun openLookalike() {
-        grow.ensureScan(photos)
+        grow.ensureScan(memoryPhotos)
         route = Route.Lookalike
     }
 

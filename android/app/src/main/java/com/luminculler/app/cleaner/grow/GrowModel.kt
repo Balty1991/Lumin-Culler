@@ -76,6 +76,16 @@ class GrowModel(private val context: Context, private val scope: CoroutineScope)
         ensureScan(photos)
     }
 
+    /**
+     * Au apărut poze noi (de ex. aduse din Google Foto): repornim căutarea.
+     * Pozele deja scanate sunt sărite, deci costă doar cât cele noi.
+     */
+    fun rescan(photos: List<Media>) {
+        scanJob?.cancel()
+        scanJob = null
+        ensureScan(photos)
+    }
+
     /** Pornește (o dată) căutarea fețelor în fundal; o folosesc și momentele cu oameni. */
     fun ensureScan(photos: List<Media>) {
         media = photos.associateBy { it.id }

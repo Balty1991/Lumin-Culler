@@ -369,6 +369,13 @@ fun SettingsScreen(model: LuminModel) {
                 }
                 Spacer(Modifier.height(12.dp))
             }
+            if (model.importedPhotos.isNotEmpty()) {
+                SettingRow(
+                    stringResource(R.string.lumin_import_clear),
+                    pluralStringResource(R.plurals.lumin_import_count, model.importedPhotos.size, model.importedPhotos.size) + " · " + bytes(model.imported.bytes)
+                ) { model.clearImported() }
+                Spacer(Modifier.height(12.dp))
+            }
             SettingRow(stringResource(R.string.lumin_pro_tools), stringResource(R.string.lumin_pro_tools_hint)) {
                 context.startActivity(Intent(context, MainActivity::class.java))
             }

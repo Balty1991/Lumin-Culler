@@ -121,6 +121,8 @@ private fun PickOld(model: LuminModel, onPick: (Media) -> Unit) {
             }
             Text(stringResource(R.string.lumin_then_pick), style = MaterialTheme.typography.bodyMedium, color = Lumin.Muted, modifier = Modifier.padding(horizontal = 20.dp))
             Spacer(Modifier.height(12.dp))
+            ImportEntry(model, Modifier.padding(horizontal = 16.dp))
+            Spacer(Modifier.height(12.dp))
             if (photos.isEmpty()) {
                 Text(stringResource(R.string.lumin_then_none), color = Lumin.Muted, modifier = Modifier.padding(24.dp))
             }

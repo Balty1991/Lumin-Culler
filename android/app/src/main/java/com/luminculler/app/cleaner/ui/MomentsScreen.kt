@@ -172,6 +172,9 @@ fun MomentsScreen(model: LuminModel) {
                     }
                 }
             }
+            Spacer(Modifier.height(16.dp))
+            // Pozele vechi care sunt doar în cloud (alte telefoane, scanări) intră de aici.
+            ImportEntry(model, Modifier.padding(horizontal = 20.dp))
             Spacer(Modifier.height(28.dp))
 
             SectionTitle(stringResource(R.string.lumin_create_title))
