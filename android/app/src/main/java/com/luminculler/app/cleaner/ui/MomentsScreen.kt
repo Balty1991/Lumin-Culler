@@ -174,6 +174,9 @@ fun MomentsScreen(model: LuminModel) {
             }
             Spacer(Modifier.height(28.dp))
 
+            SectionTitle(stringResource(R.string.lumin_create_title))
+            Box(Modifier.padding(horizontal = 20.dp)) { ThenNowEntry { model.route = Route.ThenNow } }
+            Spacer(Modifier.height(12.dp))
             Box(Modifier.padding(horizontal = 20.dp)) { LookalikeEntry { model.openLookalike() } }
             Spacer(Modifier.height(12.dp))
             Box(Modifier.padding(horizontal = 20.dp)) { GuessEntry { model.route = Route.Guess } }
@@ -311,5 +314,26 @@ private fun GuessEntry(onClick: () -> Unit) {
             Text(stringResource(R.string.lumin_guess_entry), style = MaterialTheme.typography.bodyMedium, color = Lumin.Muted)
         }
         Icon(LIcons.Chevron, null, tint = Lumin.Muted)
+    }
+}
+
+@Composable
+private fun ThenNowEntry(onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(Brush.linearGradient(listOf(Color(0xFF0F766E), Color(0xFF1D4ED8))))
+            .clickable(onClick = onClick)
+            .padding(18.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
+            Pill(stringResource(R.string.lumin_new), Color(0x33FFFFFF), Color.White)
+            Spacer(Modifier.height(8.dp))
+            Text(stringResource(R.string.lumin_then_title), style = MaterialTheme.typography.titleLarge, color = Color.White)
+            Text(stringResource(R.string.lumin_then_entry), style = MaterialTheme.typography.bodyMedium, color = Color(0xE6FFFFFF))
+        }
+        Icon(LIcons.Chevron, null, tint = Color.White)
     }
 }

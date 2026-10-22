@@ -46,6 +46,8 @@ sealed interface Route {
     data object Recap : Route
     /** Jocul „Ghicește anul”. */
     data object Guess : Route
+    /** „Atunci și acum”: refaci o poză veche, cu ea transparentă peste cameră. */
+    data object ThenNow : Route
     /** „Magie AI” pe o poză; înapoi se întoarce de unde a venit. */
     data class Magic(val media: Media, val from: Route) : Route
 }
@@ -479,7 +481,7 @@ class LuminModel(val context: Context, private val scope: CoroutineScope, privat
         if (r is Route.Movie && movie.back()) return true
         route = when (r) {
             Route.Moments, Route.Onboarding -> return false
-            Route.Today, Route.Settings, Route.Grow, Route.Lookalike, Route.Recap, Route.Guess, is Route.Story -> Route.Moments
+            Route.Today, Route.Settings, Route.Grow, Route.Lookalike, Route.Recap, Route.Guess, Route.ThenNow, is Route.Story -> Route.Moments
             is Route.Movie -> Route.Story(r.moment)
             is Route.Magic -> r.from
             is Route.Review -> if (r.fromBasket != null) Route.BasketView(r.fromBasket) else Route.Today

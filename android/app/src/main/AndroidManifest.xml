@@ -101,6 +101,10 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Bătaia scurtă de la pragul unui swipe. Permisiune normală, acordată la instalare. -->
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- „Atunci și acum”: camera cu poza veche suprapusă. Cerută doar când omul
+         deschide funcția; aplicația merge și fără cameră. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
     <!-- Analiza care merge mai departe cu ecranul stins (vezi
          plugins/BackgroundAnalysisService.kt). FOREGROUND_SERVICE_DATA_SYNC e
          ceruta de la Android 14 incoace pentru tipul declarat in <service>;

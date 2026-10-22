@@ -63,6 +63,7 @@ fun LuminApp(model: LuminModel, onAllowPhotos: () -> Unit) {
                     Route.Lookalike -> LookalikeScreen(model)
                     Route.Recap -> RecapScreen(model)
                     Route.Guess -> GuessScreen(model)
+                    Route.ThenNow -> ThenNowScreen(model)
                 }
             }
             val r = model.route
