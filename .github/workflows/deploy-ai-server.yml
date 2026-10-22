@@ -59,6 +59,16 @@ jobs:
       - name: Deploy
         working-directory: server
         run: npx wrangler deploy
+      - name: Image models available on this account
+        run: |
+          curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/ai/models/search?task=Text-to-Image&per_page=50" \
+            | jq -r '.result[]? | "\(.name) | \(.properties // [] | map("\(.property_id)=\(.value)") | join(", "))"'
+          for m in $(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/ai/models/search?task=Text-to-Image&per_page=50" | jq -r '.result[]?.name'); do
+            echo "== $m"
+            curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/ai/models/schema?model=$m" \
+              | jq -c '.result.input.properties // .result.input | keys? // .' | head -c 600; echo
+          done
       - name: Smoke test (stil pe o poză de test)
         run: |
           base=https://lumin-ai.${{ steps.sub.outputs.subdomain }}.workers.dev
