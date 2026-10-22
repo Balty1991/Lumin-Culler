@@ -236,7 +236,7 @@ jobs:
         with:
           name: lumin-culler-release-aab
           path: android/app/build/outputs/bundle/release/app-release.aab
-          retention-days: 90
+          retention-days: 14
       # Cat a optimizat R8 — DE AICI, nu din build-ul de debug.
       #
       # Pragul Play din februarie 2027 cere 25% optimizare DEX, si singurul
@@ -259,4 +259,4 @@ jobs:
             android/app/build/outputs/mapping/**/configuration.txt
             android/app/build/outputs/mapping/**/usage.txt
           if-no-files-found: warn
-          retention-days: 30
+          retention-days: 7
