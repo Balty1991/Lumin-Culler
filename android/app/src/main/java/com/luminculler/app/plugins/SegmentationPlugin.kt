@@ -123,7 +123,7 @@ class SegmentationPlugin : Plugin() {
             return out
         }
 
-        val buffer = ByteBufferExtractor.extract(maskImage).asFloatBuffer()
+        val buffer = ByteBufferExtractor.extract(maskImage).order(java.nio.ByteOrder.nativeOrder()).asFloatBuffer()
         var personPixels = 0
         var total = 0
         while (buffer.hasRemaining()) {
@@ -172,7 +172,7 @@ class SegmentationPlugin : Plugin() {
                 return
             }
 
-            val buffer = ByteBufferExtractor.extract(maskImage).asFloatBuffer()
+            val buffer = ByteBufferExtractor.extract(maskImage).order(java.nio.ByteOrder.nativeOrder()).asFloatBuffer()
             val w = maskImage.width
             val h = maskImage.height
             val pixels = IntArray(w * h)

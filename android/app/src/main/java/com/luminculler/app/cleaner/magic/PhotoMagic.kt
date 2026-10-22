@@ -123,7 +123,7 @@ class PhotoMagic(private val context: Context) {
             val maskImage = masks.get()[0]
             mw = maskImage.width
             mh = maskImage.height
-            val buf = ByteBufferExtractor.extract(maskImage).asFloatBuffer()
+            val buf = maskFloats(ByteBufferExtractor.extract(maskImage), mw * mh)
             maskPx = IntArray(mw * mh)
             for (k in maskPx.indices) {
                 val v = buf.get(k).coerceIn(0f, 1f)
@@ -137,6 +137,29 @@ class PhotoMagic(private val context: Context) {
         val mask = Bitmap.createScaledBitmap(maskSmall, src.width, src.height, true)
         maskSmall.recycle()
         return mask
+    }
+
+    /**
+     * Valorile măștii (probabilități 0..1). Ordinea octeților buffer-ului nu e
+     * garantată: citite invers ies numere aberante și masca pare goală
+     * („nicio persoană”). Alegem ordinea în care valorile chiar sunt în 0..1.
+     */
+    private fun maskFloats(bytes: java.nio.ByteBuffer, n: Int): java.nio.FloatBuffer {
+        fun sane(order: java.nio.ByteOrder): Boolean {
+            val f = bytes.duplicate().order(order).asFloatBuffer()
+            val step = maxOf(1, n / 500)
+            var i = 0
+            while (i < n && i < f.limit()) {
+                val v = f.get(i)
+                if (v.isNaN() || v < -0.01f || v > 1.01f) return false
+                i += step
+            }
+            return true
+        }
+        val native = java.nio.ByteOrder.nativeOrder()
+        val other = if (native == java.nio.ByteOrder.LITTLE_ENDIAN) java.nio.ByteOrder.BIG_ENDIAN else java.nio.ByteOrder.LITTLE_ENDIAN
+        val order = if (sane(native) || !sane(other)) native else other
+        return bytes.duplicate().order(order).asFloatBuffer()
     }
 
     /** Doar persoana, pe transparent. */

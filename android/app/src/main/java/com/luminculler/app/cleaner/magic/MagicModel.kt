@@ -125,9 +125,17 @@ class MagicModel(
         working = true
         progress = 0f
         job = scope.launch {
-            val file = try { photo3d.render(src) { p -> scope.launch { progress = p } } } catch (_: Throwable) { null }
+            // Null = nicio persoană; o excepție = altă problemă (codor video etc.), cu mesaj separat.
+            val file = try {
+                photo3d.render(src) { p -> scope.launch { progress = p } } ?: run {
+                    message = context.getString(R.string.lumin_magic_no_person); null
+                }
+            } catch (t: Throwable) {
+                if (t is kotlinx.coroutines.CancellationException) throw t
+                message = context.getString(R.string.lumin_magic_failed); null
+            }
             working = false
-            if (file == null) message = context.getString(R.string.lumin_magic_no_person) else video = file
+            if (file != null) video = file
         }
     }
 
