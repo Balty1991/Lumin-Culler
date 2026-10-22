@@ -61,7 +61,8 @@ fun StoryScreen(model: LuminModel, moment: Moment) {
     val progress = remember(moment.id, index) { Animatable(0f) }
     val context = LocalContext.current
     val reduce = remember { reduceMotion(context) }
-    val title = momentTitle(moment)
+    val title = momentTitle(moment, model.personName(moment.person))
+    var naming by remember { mutableStateOf(false) }
 
     LaunchedEffect(moment.id, index, paused) {
         if (paused) return@LaunchedEffect
@@ -133,6 +134,10 @@ fun StoryScreen(model: LuminModel, moment: Moment) {
                     Text(title, style = MaterialTheme.typography.titleLarge, color = Color.White)
                     photos.getOrNull(index)?.let { if (it.taken > 0) Text(formatDate(it.taken), style = MaterialTheme.typography.bodyMedium, color = Color(0xCCFFFFFF)) }
                 }
+                if (moment.person != null) {
+                    RoundIcon(LIcons.Edit, stringResource(R.string.lumin_name_person), { paused = true; naming = true }, background = Color(0x33FFFFFF), tint = Color.White)
+                    Spacer(Modifier.width(8.dp))
+                }
                 RoundIcon(LIcons.Close, stringResource(R.string.lumin_close), { model.back() }, background = Color(0x33FFFFFF), tint = Color.White)
             }
         }
@@ -155,6 +160,14 @@ fun StoryScreen(model: LuminModel, moment: Moment) {
                 }
             }
         }
+        val person = moment.person
+        if (naming && person != null) {
+            NameDialog(model.personName(person) ?: "", onDismiss = { naming = false; paused = false }) { name ->
+                model.setPersonName(person, name)
+                naming = false
+                paused = false
+            }
+        }
     }
 }
 
@@ -172,3 +185,27 @@ private fun StoryAction(icon: androidx.compose.ui.graphics.vector.ImageVector, t
 }
 
 private const val SLIDE_MS = 4000
+
+@Composable
+fun NameDialog(initial: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+    var text by remember { mutableStateOf(initial) }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Lumin.Surface,
+        title = { Text(stringResource(R.string.lumin_name_person), color = Lumin.Text) },
+        text = {
+            androidx.compose.material3.OutlinedTextField(
+                value = text,
+                onValueChange = { text = it.take(24) },
+                singleLine = true,
+                placeholder = { Text(stringResource(R.string.lumin_name_hint)) }
+            )
+        },
+        confirmButton = {
+            androidx.compose.material3.TextButton(onClick = { onSave(text) }) { Text(stringResource(R.string.lumin_name_save), color = Lumin.Accent) }
+        },
+        dismissButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) { Text(stringResource(R.string.lumin_grow_cancel), color = Lumin.Muted) }
+        }
+    )
+}

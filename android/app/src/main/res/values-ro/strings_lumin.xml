@@ -248,4 +248,8 @@
     <string name="lumin_magic_save">Salvează ca poză nouă</string>
     <string name="lumin_magic_saved">Salvată în Pictures/Lumin. Originalul rămâne neatins.</string>
     <string name="lumin_magic_no_person">N-am găsit nicio persoană în poză, deci n-am ce păstra clar.</string>
+    <string name="lumin_moment_with">Cu %s</string>
+    <string name="lumin_name_person">Numește persoana</string>
+    <string name="lumin_name_hint">ex. Ami</string>
+    <string name="lumin_name_save">Salvează</string>
 </resources>

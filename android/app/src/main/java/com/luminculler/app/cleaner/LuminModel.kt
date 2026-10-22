@@ -85,6 +85,7 @@ class LuminModel(val context: Context, private val scope: CoroutineScope, privat
     var message by mutableStateOf<String?>(null)
     var dailyReminder by mutableStateOf(store.dailyReminder)
     var moments by mutableStateOf<List<com.luminculler.app.cleaner.core.Moment>>(emptyList())
+    var names by mutableStateOf(store.names)
     private var momentsJob: Job? = null
 
     private var signals: Map<Long, Signals> = emptyMap()
@@ -403,6 +404,23 @@ class LuminModel(val context: Context, private val scope: CoroutineScope, privat
                 com.luminculler.app.cleaner.core.Moments.build(t, zone, usable, s, people)
             }
         }
+    }
+
+    /** Numele unei persoane, dacă i l-a dat omul: căutat după oricare poză a ei. */
+    fun personName(person: com.luminculler.app.cleaner.core.Person?): String? {
+        if (person == null) return null
+        val n = names
+        if (n.isEmpty()) return null
+        return person.faces.firstNotNullOfOrNull { n[it.mediaId] }
+    }
+
+    fun setPersonName(person: com.luminculler.app.cleaner.core.Person, name: String) {
+        val ids = person.faces.map { it.mediaId }.toSet()
+        // Un singur nume pe persoană: scoatem orice nume vechi legat de pozele ei.
+        val next = names.filterKeys { it !in ids }.toMutableMap()
+        if (name.isNotBlank()) next[person.cover.mediaId] = name.trim().take(24)
+        names = next
+        store.names = next
     }
 
     fun openStory(moment: com.luminculler.app.cleaner.core.Moment) {

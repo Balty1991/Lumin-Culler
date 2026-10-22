@@ -66,6 +66,24 @@ class Store(context: Context) {
         get() = prefs.getBoolean("reviewAsked", false)
         set(v) = prefs.edit().putBoolean("reviewAsked", v).apply()
 
+    /**
+     * Numele date oamenilor, legate de o poză în care apare persoana (id
+     * MediaStore). Grupurile se recalculează la fiecare scanare, dar pozele
+     * rămân: un nume se regăsește în grupul care conține poza lui.
+     */
+    var names: Map<Long, String>
+        get() = try {
+            val o = org.json.JSONObject(prefs.getString("names", "{}") ?: "{}")
+            o.keys().asSequence().mapNotNull { k -> k.toLongOrNull()?.let { it to o.getString(k) } }.toMap()
+        } catch (_: Throwable) {
+            emptyMap()
+        }
+        set(v) {
+            val o = org.json.JSONObject()
+            v.forEach { (k, name) -> o.put(k.toString(), name) }
+            prefs.edit().putString("names", o.toString()).apply()
+        }
+
     fun keep(ids: Collection<Long>) {
         if (kept.addAll(ids)) saveKept()
     }

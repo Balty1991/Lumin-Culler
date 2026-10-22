@@ -51,10 +51,10 @@ import java.util.Locale
 
 /** Titlul unui moment, în limba telefonului. */
 @Composable
-fun momentTitle(m: Moment): String = when (m.kind) {
+fun momentTitle(m: Moment, name: String? = null): String = when (m.kind) {
     MomentKind.YearsAgo -> pluralStringResource(R.plurals.lumin_years_ago, m.yearsAgo, m.yearsAgo)
     MomentKind.Trip -> dateRange(m.start, m.end)
-    MomentKind.Person -> stringResource(R.string.lumin_moment_together)
+    MomentKind.Person -> if (name.isNullOrBlank()) stringResource(R.string.lumin_moment_together) else stringResource(R.string.lumin_moment_with, name)
 }
 
 @Composable
@@ -111,7 +111,7 @@ fun MomentsScreen(model: LuminModel) {
             val moments = model.moments
             val hero = moments.firstOrNull()
             if (hero != null) {
-                HeroMoment(hero) { model.openStory(hero) }
+                HeroMoment(hero, model.personName(hero.person)) { model.openStory(hero) }
                 Spacer(Modifier.height(24.dp))
             } else {
                 EmptyMoments(model.loading || model.scan.running)
@@ -124,7 +124,7 @@ fun MomentsScreen(model: LuminModel) {
                     contentPadding = PaddingValues(horizontal = 20.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(moments.drop(1)) { m -> MomentCard(m) { model.openStory(m) } }
+                    items(moments.drop(1)) { m -> MomentCard(m, model.personName(m.person)) { model.openStory(m) } }
                 }
                 Spacer(Modifier.height(28.dp))
             }
@@ -159,7 +159,12 @@ fun MomentsScreen(model: LuminModel) {
                                 modifier = Modifier.size(72.dp).clip(CircleShape).border(2.dp, Lumin.Accent, CircleShape).background(Lumin.SurfaceHigh)
                             )
                             Spacer(Modifier.height(6.dp))
-                            Text("${person.photos}", style = MaterialTheme.typography.labelMedium, color = Lumin.Muted)
+                            Text(
+                                model.personName(person) ?: "${person.photos}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (model.personName(person) != null) Lumin.Text else Lumin.Muted,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis
+                            )
                         }
                     }
                 }
@@ -177,7 +182,7 @@ private fun SectionTitle(text: String) {
 }
 
 @Composable
-private fun HeroMoment(m: Moment, onClick: () -> Unit) {
+private fun HeroMoment(m: Moment, name: String?, onClick: () -> Unit) {
     Box(
         Modifier
             .padding(horizontal = 20.dp)
@@ -191,7 +196,7 @@ private fun HeroMoment(m: Moment, onClick: () -> Unit) {
         Column(Modifier.align(Alignment.BottomStart).padding(22.dp)) {
             Pill(stringResource(if (m.kind == MomentKind.YearsAgo) R.string.lumin_moment_today else R.string.lumin_moment_label), Color(0x33FFFFFF), Color.White)
             Spacer(Modifier.height(10.dp))
-            Text(momentTitle(m), style = MaterialTheme.typography.displaySmall, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(momentTitle(m, name), style = MaterialTheme.typography.displaySmall, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(momentSubtitle(m), style = MaterialTheme.typography.bodyLarge, color = Color(0xD9FFFFFF))
             Spacer(Modifier.height(14.dp))
             Row(
@@ -207,7 +212,7 @@ private fun HeroMoment(m: Moment, onClick: () -> Unit) {
 }
 
 @Composable
-private fun MomentCard(m: Moment, onClick: () -> Unit) {
+private fun MomentCard(m: Moment, name: String?, onClick: () -> Unit) {
     Box(
         Modifier
             .width(168.dp)
@@ -218,7 +223,7 @@ private fun MomentCard(m: Moment, onClick: () -> Unit) {
         Thumb(m.cover, Modifier.fillMaxSize(), size = 600)
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.4f to Color.Transparent, 1f to Color(0xD0000000))))
         Column(Modifier.align(Alignment.BottomStart).padding(14.dp)) {
-            Text(momentTitle(m), style = MaterialTheme.typography.titleMedium, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(momentTitle(m, name), style = MaterialTheme.typography.titleMedium, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(momentSubtitle(m), style = MaterialTheme.typography.labelMedium, color = Color(0xCCFFFFFF), maxLines = 1)
         }
     }

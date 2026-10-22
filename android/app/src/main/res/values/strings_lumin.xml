@@ -235,4 +235,8 @@
     <string name="lumin_magic_save">Save as a new photo</string>
     <string name="lumin_magic_saved">Saved in Pictures/Lumin. The original stays untouched.</string>
     <string name="lumin_magic_no_person">No person found in this photo, so there is nothing to keep sharp.</string>
+    <string name="lumin_moment_with">With %s</string>
+    <string name="lumin_name_person">Name this person</string>
+    <string name="lumin_name_hint">e.g. Ami</string>
+    <string name="lumin_name_save">Save</string>
 </resources>
