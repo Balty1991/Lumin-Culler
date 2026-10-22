@@ -47,8 +47,9 @@ fun TodayScreen(model: LuminModel) {
         Column(
             Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                // Bara de sus în afara zonei care derulează: altfel conținutul trece pe sub oră și baterie.
                 .statusBarsPadding()
+                .verticalScroll(rememberScrollState())
                 .navigationBarsPadding()
                 .padding(horizontal = 20.dp)
         ) {

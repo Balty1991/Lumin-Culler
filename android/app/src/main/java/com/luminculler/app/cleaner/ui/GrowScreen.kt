@@ -117,8 +117,8 @@ private fun ScanBar(grow: GrowModel) {
 private fun PickStep(grow: GrowModel) {
     Text(stringResource(R.string.lumin_grow_pick), style = MaterialTheme.typography.bodyLarge, color = Lumin.Muted, modifier = Modifier.padding(horizontal = 20.dp))
     ScanBar(grow)
-    val faces = grow.pickable
-    if (faces.isEmpty()) {
+    val people = grow.people
+    if (people.isEmpty()) {
         Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
             if (grow.scanning) CircularProgressIndicator(color = Lumin.Accent)
             else Text(stringResource(R.string.lumin_grow_no_faces), color = Lumin.Muted)
@@ -126,12 +126,30 @@ private fun PickStep(grow: GrowModel) {
         return
     }
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(96.dp),
+        columns = GridCells.Adaptive(104.dp),
         contentPadding = PaddingValues(16.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        items(faces) { f -> FaceTile(grow, f, null) { grow.choose(f) } }
+        items(people) { person ->
+            Column(
+                Modifier.clip(RoundedCornerShape(20.dp)).clickable { grow.choose(person) }.padding(4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                AsyncImage(
+                    model = grow.crop(person.cover),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxWidth().aspectRatio(1f).clip(CircleShape).background(Lumin.SurfaceHigh)
+                        .border(2.dp, Lumin.Line, CircleShape)
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    pluralStringResource(R.plurals.lumin_grow_person_photos, person.photos, person.photos),
+                    style = MaterialTheme.typography.labelLarge, color = Lumin.Text
+                )
+            }
+        }
     }
 }
 

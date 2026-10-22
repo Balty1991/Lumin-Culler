@@ -7,10 +7,6 @@ import android.graphics.Matrix
 import android.graphics.Paint
 import android.net.Uri
 import com.google.android.gms.tasks.Tasks
-import com.google.mediapipe.framework.image.BitmapImageBuilder
-import com.google.mediapipe.tasks.core.BaseOptions
-import com.google.mediapipe.tasks.vision.core.RunningMode
-import com.google.mediapipe.tasks.vision.imageembedder.ImageEmbedder
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.face.FaceDetection
 import com.google.mlkit.vision.face.FaceDetector
@@ -38,13 +34,11 @@ import kotlin.math.abs
  *
  * Pentru fiecare poză: detecție ML Kit (cu ochii), doar fețe destul de mari și
  * aproape frontale; fiecare față e aliniată după ochi într-un pătrat de 224 px
- * și trecută prin MobileNet (ImageEmbedder), care dă vectorul de comparat.
+ * și trecută prin FaceRes, un model făcut pentru recunoașterea fețelor.
  * Rezultatul stă pe disc, deci a doua oară scanarea e instantanee, iar
  * decupajul feței se salvează mic, pentru grila de alegere.
- *
- * Limita, spusă pe față: MobileNet nu e un model de recunoaștere facială, ci
- * unul general. Pe fețe aliniate deosebește destul de bine oamenii, dar nu
- * perfect, de aceea omul confirmă pozele înainte de video.
+ * Omul confirmă totuși pozele înainte de video: copiii mici seamănă între
+ * ei, iar un model de pe telefon nu e infailibil.
  */
 class FaceScanner(private val context: Context) {
     private val cacheFile = File(context.filesDir, "lumin-faces.bin")
@@ -64,15 +58,7 @@ class FaceScanner(private val context: Context) {
         )
     }
 
-    private val embedder: ImageEmbedder by lazy {
-        ImageEmbedder.createFromOptions(
-            context,
-            ImageEmbedder.ImageEmbedderOptions.builder()
-                .setBaseOptions(BaseOptions.builder().setModelAssetPath("mobilenet_v3_small.tflite").build())
-                .setRunningMode(RunningMode.IMAGE)
-                .build()
-        )
-    }
+    private val faceRes: FaceRes by lazy { FaceRes(context) }
 
     fun snapshot(): List<FaceHit> = synchronized(faces) { ArrayList(faces) }
 
@@ -124,7 +110,7 @@ class FaceScanner(private val context: Context) {
                 val crop = alignedCrop(bitmap, a.x, a.y, b.x, b.y, 224)
                 val vector = embedLock.withLock {
                     try {
-                        embedder.embed(BitmapImageBuilder(crop).build()).embeddingResult().embeddings().first().floatEmbedding()
+                        faceRes.embed(crop)
                     } catch (_: Throwable) {
                         null
                     }
@@ -213,10 +199,11 @@ class FaceScanner(private val context: Context) {
 
     fun close() {
         try { detector.close() } catch (_: Throwable) { }
-        try { embedder.close() } catch (_: Throwable) { }
+        try { faceRes.close() } catch (_: Throwable) { }
     }
 
     companion object {
-        private const val VERSION = 1
+        /** 2: descriptorul FaceRes în locul lui MobileNet; fețele vechi se recalculează. */
+        private const val VERSION = 2
     }
 }

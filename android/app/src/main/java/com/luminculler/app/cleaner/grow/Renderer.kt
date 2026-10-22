@@ -65,12 +65,26 @@ class Renderer(private val context: Context) {
         val drain = Drain(codec, muxer)
 
         val per = Grow.secondsPerPhoto(frames.size)
-        val holdFrames = (per * FPS).roundToInt().coerceAtLeast(3)
-        val fadeFrames = (holdFrames * 0.45f).roundToInt().coerceAtLeast(1)
-        val introFrames = (FPS * 1.6f).roundToInt()
-        val outroFrames = (FPS * 1.4f).roundToInt()
+        val holdFrames = (per * FPS).roundToInt().coerceAtLeast(12)
+        // Trecerea lină ține jumătate din timpul fiecărei poze: e ce face diferența
+        // între „slideshow” și „timpul curge”.
+        val fadeFrames = (holdFrames * 0.5f).roundToInt().coerceAtLeast(6)
+        val introFrames = (FPS * 2.2f).roundToInt()
+        val outroFrames = (FPS * 2.0f).roundToInt()
         val total = introFrames + frames.size * holdFrames + outroFrames
         var drawn = 0
+        val smooth = { x: Float -> val t = x.coerceIn(0f, 1f); t * t * (3 - 2 * t) }
+        val filter = Paint(Paint.FILTER_BITMAP_FLAG)
+
+        /** Mișcarea lentă (Ken Burns): zoom ușor în jurul ochilor, pe toată durata pozei și a trecerii. */
+        fun drawZoomed(c: Canvas, bmp: Bitmap, t: Float, alpha: Int) {
+            val z = 1f + ZOOM * t
+            c.save()
+            c.scale(z, z, W / 2f, EYE_Y)
+            filter.alpha = alpha
+            c.drawBitmap(bmp, 0f, 0f, filter)
+            c.restore()
+        }
 
         fun post(draw: (Canvas) -> Unit) {
             drain.pump(false)
@@ -90,37 +104,51 @@ class Renderer(private val context: Context) {
             val span = if (years.isEmpty()) "" else if (years.first() == years.last()) "${years.first()}" else "${years.first()} → ${years.last()}"
 
             var prev: Bitmap? = null
+            var prevLabel = ""
+            // Durata „vieții” unei poze pe ecran, în cadre: ținerea ei + trecerea spre următoarea.
+            val life = (holdFrames + fadeFrames).toFloat()
+            val first = frames.firstNotNullOfOrNull { f -> media[f.mediaId]?.let { aligned(it, f) } }
             for (i in 0 until introFrames) {
                 ensureActive()
-                post { c -> drawTitle(c, options.title, span, (i.toFloat() / introFrames).coerceIn(0f, 1f)) }
+                val t = i.toFloat() / introFrames
+                post { c ->
+                    if (first != null) drawZoomed(c, first, t * 0.3f, (70 * smooth(t * 2f)).roundToInt())
+                    drawTitle(c, options.title, span, smooth(t * 2.5f), smooth((t - 0.8f) * 5f))
+                }
             }
-            for ((index, face) in frames.withIndex()) {
+            first?.recycle()
+            for (face in frames) {
                 ensureActive()
                 val m = media[face.mediaId] ?: continue
                 val current = aligned(m, face) ?: continue
                 val label = if (face.taken > 0) yearOf(face.taken).toString() else ""
                 for (k in 0 until holdFrames) {
                     val p = prev
+                    val pl = prevLabel
                     post { c ->
                         if (p != null && k < fadeFrames) {
-                            c.drawBitmap(p, 0f, 0f, null)
-                            c.drawBitmap(current, 0f, 0f, Paint().apply { alpha = (255 * (k + 1) / (fadeFrames + 1)) })
+                            val f = smooth((k + 1f) / (fadeFrames + 1f))
+                            drawZoomed(c, p, (holdFrames + k) / life, 255)
+                            drawZoomed(c, current, k / life, (255 * f).roundToInt())
+                            drawOverlay(c, if (f < 0.5f) pl else label, options.watermark, if (pl != label) kotlin.math.abs(f - 0.5f) * 2f else 1f)
                         } else {
-                            c.drawBitmap(current, 0f, 0f, null)
+                            drawZoomed(c, current, k / life, 255)
+                            drawOverlay(c, label, options.watermark, 1f)
                         }
-                        drawOverlay(c, label, options.watermark)
                     }
                 }
                 prev?.recycle()
                 prev = current
+                prevLabel = label
                 onProgress(drawn.toFloat() / total)
             }
             for (i in 0 until outroFrames) {
                 ensureActive()
                 val p = prev
+                val t = i.toFloat() / outroFrames
                 post { c ->
-                    if (p != null) c.drawBitmap(p, 0f, 0f, Paint().apply { alpha = (255 * (1f - i.toFloat() / outroFrames)).roundToInt() })
-                    drawOutro(c, (i.toFloat() / (outroFrames * 0.5f)).coerceIn(0f, 1f))
+                    if (p != null) drawZoomed(c, p, (holdFrames + i * 0.5f) / life, (255 * (1f - smooth(t * 1.6f))).roundToInt())
+                    drawOutro(c, smooth((t - 0.35f) * 2.5f))
                 }
             }
             prev?.recycle()
@@ -159,14 +187,18 @@ class Renderer(private val context: Context) {
 
     private val bold = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
 
-    private fun drawOverlay(c: Canvas, year: String, watermark: Boolean) {
+    private fun drawOverlay(c: Canvas, year: String, watermark: Boolean, yearAlpha: Float) {
         val shade = Paint().apply {
             shader = LinearGradient(0f, H - 360f, 0f, H.toFloat(), Color.TRANSPARENT, 0xB0000000.toInt(), Shader.TileMode.CLAMP)
         }
         c.drawRect(0f, H - 360f, W.toFloat(), H.toFloat(), shade)
         if (year.isNotEmpty()) {
-            val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE; textSize = 112f; typeface = bold; textAlign = Paint.Align.CENTER }
-            c.drawText(year, W / 2f, H - 150f, p)
+            val p = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.WHITE; textSize = 112f; typeface = bold; textAlign = Paint.Align.CENTER
+                alpha = (255 * yearAlpha.coerceIn(0f, 1f)).roundToInt()
+                setShadowLayer(18f, 0f, 4f, 0x80000000.toInt())
+            }
+            c.drawText(year, W / 2f, H - 150f + (1f - yearAlpha.coerceIn(0f, 1f)) * 24f, p)
         }
         if (watermark) {
             val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xCCFFFFFF.toInt(); textSize = 34f; typeface = bold; textAlign = Paint.Align.RIGHT }
@@ -174,17 +206,21 @@ class Renderer(private val context: Context) {
         }
     }
 
-    private fun drawTitle(c: Canvas, title: String, span: String, t: Float) {
-        val alpha = (255 * minOf(1f, t * 3f)).roundToInt()
-        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE; textAlign = Paint.Align.CENTER; typeface = bold; this.alpha = alpha }
-        if (title.isNotBlank()) {
-            p.textSize = 96f
-            c.drawText(title, W / 2f, H / 2f - 20f, p)
+    private fun drawTitle(c: Canvas, title: String, span: String, t: Float, out: Float) {
+        val alpha = (255 * t * (1f - out)).roundToInt()
+        val rise = (1f - t) * 40f
+        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE; textAlign = Paint.Align.CENTER; typeface = bold; this.alpha = alpha
+            setShadowLayer(24f, 0f, 6f, 0xA0000000.toInt())
         }
-        p.textSize = 54f
-        p.color = 0xFFA78BFA.toInt()
+        if (title.isNotBlank()) {
+            p.textSize = 104f
+            c.drawText(title, W / 2f, H / 2f - 10f + rise, p)
+        }
+        p.textSize = 52f
+        p.color = 0xFFC4B5FD.toInt()
         p.alpha = alpha
-        c.drawText(span, W / 2f, H / 2f + if (title.isNotBlank()) 70f else 20f, p)
+        c.drawText(span, W / 2f, H / 2f + (if (title.isNotBlank()) 74f else 20f) + rise, p)
     }
 
     private fun drawOutro(c: Canvas, t: Float) {
@@ -242,6 +278,8 @@ class Renderer(private val context: Context) {
         const val FPS = 30
         const val EYE_GAP = 150f
         const val EYE_Y = 560f
+        /** Cât se apropie camera pe durata unei poze (6%). */
+        const val ZOOM = 0.06f
 
         /** Copiază videoul în Galerie (Movies/Lumin). Întoarce Uri-ul sau null. */
         fun saveToGallery(context: Context, file: File): Uri? = try {

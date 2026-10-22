@@ -177,7 +177,7 @@
     <string name="lumin_new">NOU</string>
     <string name="lumin_grow_title">Cum a crescut</string>
     <string name="lumin_grow_entry">Un video cu cineva drag, din toate pozele lui. Fețele aliniate, anii curg.</string>
-    <string name="lumin_grow_pick">Atinge fața persoanei. Lumin îi găsește celelalte poze, de-a lungul anilor.</string>
+    <string name="lumin_grow_pick">Alege o persoană. Lumin îi găsește toate pozele, de-a lungul anilor.</string>
     <string name="lumin_grow_scanning">Caut fețele… %1$d / %2$d</string>
     <string name="lumin_grow_no_faces">Încă n-am găsit fețe clare.</string>
     <string name="lumin_grow_review">Par a fi aceeași persoană. Atinge o poză ca s-o scoți.</string>
@@ -199,5 +199,10 @@
         <item quantity="one">Fă videoul · %d poză</item>
         <item quantity="few">Fă videoul · %d poze</item>
         <item quantity="other">Fă videoul · %d de poze</item>
+    </plurals>
+    <plurals name="lumin_grow_person_photos">
+        <item quantity="one">%d poză</item>
+        <item quantity="few">%d poze</item>
+        <item quantity="other">%d de poze</item>
     </plurals>
 </resources>

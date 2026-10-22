@@ -29,10 +29,15 @@ class FaceHit(
 }
 
 object Grow {
-    /** Peste atât, două fețe sunt considerate aceeași persoană (pe vectori de față aliniată). */
-    const val MATCH = 0.80f
+    /**
+     * Praguri pe descriptorul FaceRes (similaritate cosinus), aliniate cu
+     * aplicația web: acolo 0.55 = recunoscut, 0.65 = grupare automată.
+     */
+    const val MATCH = 0.60f
     /** Între asta și MATCH: propuse, dar nebifate. Omul decide. */
-    const val MAYBE = 0.70f
+    const val MAYBE = 0.50f
+    /** Pentru gruparea pe persoane fără om în buclă, mai strict. */
+    const val CLUSTER = 0.65f
     /** O persoană se schimbă în timp: comparăm doar cu fețe acceptate din jurul aceleiași perioade. */
     const val WINDOW_MS = 2L * 365 * 24 * 3600 * 1000
     const val MAX_ACCEPTED = 400
@@ -102,18 +107,78 @@ object Grow {
     }
 
     /**
-     * Ce intră în video: în ordinea timpului, cel mult [perDay] pe zi (cele mai
-     * frontale), apoi rărite uniform până la [maxFrames].
+     * Ce intră în video: cel mult una pe zi (cea mai frontală), apoi alese
+     * uniform pe toată perioada, ca anii să curgă egal, nu să stea o lună
+     * întreagă pe aceeași vacanță.
      */
-    fun frames(selected: List<FaceHit>, perDay: Int = 2, maxFrames: Int = 240): List<FaceHit> {
-        val byDay = selected.sortedBy { it.taken }.groupBy { if (it.taken > 0) it.taken / 86_400_000L else it.mediaId }
-        val thinned = byDay.values.flatMap { day -> day.sortedBy { kotlin.math.abs(it.yaw) }.take(perDay).sortedBy { it.taken } }
-        if (thinned.size <= maxFrames) return thinned
-        return List(maxFrames) { i -> thinned[(i.toLong() * thinned.size / maxFrames).toInt()] }
+    fun frames(selected: List<FaceHit>, maxFrames: Int = MAX_FRAMES): List<FaceHit> {
+        val perDay = selected.sortedBy { it.taken }
+            .groupBy { if (it.taken > 0) it.taken / 86_400_000L else -it.mediaId }
+            .values.map { day -> day.minBy { kotlin.math.abs(it.yaw) } }
+            .sortedBy { it.taken }
+        if (perDay.size <= maxFrames) return perDay
+        val dated = perDay.filter { it.taken > 0 }
+        if (dated.size < 2) return List(maxFrames) { i -> perDay[(i.toLong() * perDay.size / maxFrames).toInt()] }
+        // Ținte egal distanțate în timp; pentru fiecare, cea mai apropiată poză încă nefolosită.
+        val start = dated.first().taken
+        val end = dated.last().taken
+        val used = HashSet<FaceHit>()
+        val out = ArrayList<FaceHit>()
+        for (i in 0 until maxFrames) {
+            val target = start + (end - start) * i / (maxFrames - 1)
+            val pick = dated.filter { it !in used }.minByOrNull { kotlin.math.abs(it.taken - target) } ?: break
+            used.add(pick)
+            out.add(pick)
+        }
+        return out.sortedBy { it.taken }
     }
 
-    /** Cât stă fiecare poză pe ecran, ca videoul să aibă 12–30 s indiferent de câte poze sunt. */
-    fun secondsPerPhoto(count: Int): Float = (24f / count.coerceAtLeast(1)).coerceIn(0.12f, 0.7f)
+    const val MAX_FRAMES = 40
+
+    /** Cât stă fiecare poză pe ecran: destul cât să o vezi, iar videoul să rămână sub ~45 s. */
+    fun secondsPerPhoto(count: Int): Float = (36f / count.coerceAtLeast(1)).coerceIn(0.9f, 2.0f)
+}
+
+/** O persoană găsită în galerie: fețele ei și una reprezentativă, de arătat. */
+class Person(val faces: List<FaceHit>) {
+    val cover: FaceHit get() = faces.maxBy { it.width - kotlin.math.abs(it.yaw) / 200f }
+    val photos: Int get() = faces.distinctBy { it.mediaId }.size
+}
+
+object People {
+    /**
+     * Grupare lacomă: fețele, de la cea mai mare la cea mai mică, intră în
+     * persoana cu care seamănă cel mai mult (comparată cu până la [REPS] fețe
+     * reprezentative ale ei), sau încep una nouă. Rezultă fiecare om o dată,
+     * cu câte poze are — ca „Oameni” din Google Foto.
+     */
+    fun cluster(faces: List<FaceHit>, threshold: Float = Grow.CLUSTER, minPhotos: Int = 3): List<Person> {
+        val groups = ArrayList<MutableList<FaceHit>>()
+        val reps = ArrayList<MutableList<FaceHit>>()
+        for (f in faces.sortedByDescending { it.width }) {
+            var best = -1
+            var score = threshold
+            for (g in reps.indices) {
+                for (r in reps[g]) {
+                    val s = Grow.dot(f.embedding, r.embedding)
+                    if (s > score) {
+                        score = s
+                        best = g
+                    }
+                }
+            }
+            if (best < 0) {
+                groups.add(arrayListOf(f))
+                reps.add(arrayListOf(f))
+            } else {
+                groups[best].add(f)
+                if (reps[best].size < REPS) reps[best].add(f)
+            }
+        }
+        return groups.map { Person(it) }.filter { it.photos >= minPhotos }.sortedByDescending { it.photos }
+    }
+
+    const val REPS = 3
 }
 
 /**

@@ -205,7 +205,7 @@ fun PaywallScreen(model: LuminModel, reason: PaywallReason) {
     val context = LocalContext.current
     Backdrop {
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding().navigationBarsPadding().padding(20.dp)
+            Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).navigationBarsPadding().padding(20.dp)
         ) {
             Row { Spacer(Modifier.weight(1f)); RoundIcon(LIcons.Close, stringResource(R.string.lumin_close), { model.back() }) }
             Spacer(Modifier.height(8.dp))
@@ -326,7 +326,7 @@ private fun PlanCard(plan: PlanOffer, selected: Boolean, monthly: PlanOffer?, on
 fun SettingsScreen(model: LuminModel) {
     val context = LocalContext.current
     Backdrop {
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding().navigationBarsPadding().padding(16.dp)) {
+        Column(Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).navigationBarsPadding().padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 RoundIcon(LIcons.Back, stringResource(R.string.lumin_back), { model.back() })
                 Spacer(Modifier.width(12.dp))

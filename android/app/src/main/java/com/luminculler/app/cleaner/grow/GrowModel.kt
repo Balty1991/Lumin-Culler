@@ -10,6 +10,8 @@ import com.luminculler.app.cleaner.core.FaceHit
 import com.luminculler.app.cleaner.core.Grouping
 import com.luminculler.app.cleaner.core.Grow
 import com.luminculler.app.cleaner.core.Media
+import com.luminculler.app.cleaner.core.People
+import com.luminculler.app.cleaner.core.Person
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -47,9 +49,17 @@ class GrowModel(private val context: Context, private val scope: CoroutineScope)
     private var scanJob: Job? = null
     private var renderJob: Job? = null
 
-    /** Fețele recente, câte una pe poză, pentru grila de alegere. */
-    val pickable: List<FaceHit>
-        get() = faces.sortedByDescending { it.taken }.distinctBy { it.mediaId }.filter { it.width >= 0.12f }.take(150)
+    /** Oamenii din galerie, fiecare o singură dată, cei cu cele mai multe poze primii. */
+    var people by mutableStateOf<List<Person>>(emptyList())
+    private var clusterJob: Job? = null
+
+    private fun recluster() {
+        if (clusterJob?.isActive == true) return
+        val all = faces
+        clusterJob = scope.launch {
+            people = withContext(Dispatchers.Default) { People.cluster(all).take(60) }
+        }
+    }
 
     fun crop(face: FaceHit): File = scanner.cropFile(face, scanner.indexInPhoto(face))
 
@@ -61,20 +71,28 @@ class GrowModel(private val context: Context, private val scope: CoroutineScope)
         scanJob = scope.launch {
             scanning = true
             faces = withContext(Dispatchers.IO) { scanner.snapshot() }
+            recluster()
             scanner.scan(candidates) { done, total ->
                 scope.launch {
                     scanDone = done
                     scanTotal = total
-                    if (done % 48 == 0 || done == total) faces = scanner.snapshot()
+                    if (done % 600 == 0 || done == total) {
+                        faces = scanner.snapshot()
+                        recluster()
+                    }
                 }
             }
             faces = scanner.snapshot()
+            clusterJob?.join()
+            recluster()
             scanning = false
             // Scanarea s-a terminat cât omul se uita la propuneri: le refacem pe toată galeria.
             val s = seed
             if (s != null && step == GrowStep.Review) refresh(s)
         }
     }
+
+    fun choose(person: Person) = choose(person.cover)
 
     fun choose(face: FaceHit) {
         seed = face

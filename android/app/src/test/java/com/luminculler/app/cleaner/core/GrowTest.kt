@@ -49,12 +49,35 @@ class GrowTest {
     }
 
     @Test
-    fun framesKeepTwoPerDayAndCapTheTotal() {
+    fun framesKeepOnePerDayAndSpreadOverTime() {
         val day = 86_400_000L
-        val many = (0 until 10).map { face(it.toLong(), 3 * day + it, 1f) } + (0 until 500).map { face(100L + it, (10 + it) * day, 1f) }
-        assertEquals(2, Grow.frames(many.take(10)).size)
-        assertEquals(240, Grow.frames(many).size)
-        assertEquals(0.7f, Grow.secondsPerPhoto(5), 0.001f)
-        assertEquals(0.12f, Grow.secondsPerPhoto(1000), 0.001f)
+        val sameDay = (0 until 10).map { face(it.toLong(), 3 * day + it, 1f) }
+        assertEquals(1, Grow.frames(sameDay).size)
+        // 400 de zile la rând în primul an, apoi câte o poză pe lună încă 3 ani.
+        val dense = (0 until 400).map { face(100L + it, (10 + it) * day, 1f) }
+        val sparse = (0 until 36).map { face(1000L + it, (500 + it * 30) * day, 1f) }
+        val picked = Grow.frames(dense + sparse)
+        assertEquals(Grow.MAX_FRAMES, picked.size)
+        // Distribuite în timp: anii rari primesc și ei loc, nu doar anul plin de poze.
+        assertTrue(picked.count { it.mediaId >= 1000L } >= 15)
+        assertEquals(2.0f, Grow.secondsPerPhoto(5), 0.001f)
+        assertEquals(0.9f, Grow.secondsPerPhoto(1000), 0.001f)
+    }
+}
+
+class PeopleTest {
+    private fun face(id: Long, width: Float, vararg v: Float) =
+        FaceHit(id, id * 1000, 0.4f, 0.4f, 0.6f, 0.4f, width, 0f, Grow.normalize(v))
+
+    @Test
+    fun eachPersonOnceSortedByPhotos() {
+        val a = (1L..5L).map { face(it, 0.2f + it * 0.01f, 1f, 0.05f * it, 0f) }
+        val b = (10L..12L).map { face(it, 0.3f, 0f, 1f, 0.05f * it) }
+        val lone = face(99, 0.5f, 0f, 0f, 1f)
+        val people = People.cluster(a + b + lone)
+        assertEquals(2, people.size)
+        assertEquals(5, people[0].photos)
+        assertEquals(3, people[1].photos)
+        assertEquals(5L, people[0].cover.mediaId)
     }
 }

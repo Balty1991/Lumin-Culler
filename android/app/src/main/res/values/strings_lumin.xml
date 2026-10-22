@@ -166,7 +166,7 @@
     <string name="lumin_new">NEW</string>
     <string name="lumin_grow_title">Watch them grow</string>
     <string name="lumin_grow_entry">A video of someone you love, made from all their photos. Faces aligned, years flowing.</string>
-    <string name="lumin_grow_pick">Tap the face of the person. Lumin finds their other photos, across the years.</string>
+    <string name="lumin_grow_pick">Pick a person. Lumin finds all their photos, across the years.</string>
     <string name="lumin_grow_scanning">Looking for faces… %1$d / %2$d</string>
     <string name="lumin_grow_no_faces">No clear faces found yet.</string>
     <string name="lumin_grow_review">These look like the same person. Tap a photo to leave it out.</string>
@@ -187,5 +187,9 @@
     <plurals name="lumin_grow_make">
         <item quantity="one">Make the video · %d photo</item>
         <item quantity="other">Make the video · %d photos</item>
+    </plurals>
+    <plurals name="lumin_grow_person_photos">
+        <item quantity="one">%d photo</item>
+        <item quantity="other">%d photos</item>
     </plurals>
 </resources>
