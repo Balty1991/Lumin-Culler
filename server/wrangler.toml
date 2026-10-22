@@ -1,0 +1,16 @@
+# Serverul intermediar pentru efectele AI Lumin. Vezi server/README.md.
+name = "lumin-ai"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+
+[vars]
+# Plafonul total pe zi, în dolari, pentru toți utilizatorii la un loc.
+DAILY_BUDGET_USD = "5"
+# Modelele fal.ai; se pot schimba fără cod nou în aplicație.
+ALIVE_MODEL = "fal-ai/kling-video/v2.1/standard/image-to-video"
+STYLE_MODEL = "fal-ai/flux-pro/kontext"
+
+# Creat cu: npx wrangler kv namespace create LIMITS  (apoi pui id-ul aici)
+[[kv_namespaces]]
+binding = "LIMITS"
+id = "PUNE_AICI_ID_UL_KV"

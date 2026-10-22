@@ -1,0 +1,53 @@
+import { describe, expect, it } from 'vitest';
+import { admit, DAILY_LIMIT, falRequest, DEFAULT_MODELS, mapStatus, quotaKey, resultUrl, validateCreate, STYLES } from '../src/logic';
+
+const jpeg = '/9j/' + 'A'.repeat(400);
+const install = '0f8e2c1a-1234-4abc-9def-001122334455';
+
+describe('validateCreate', () => {
+  it('accepts a style job and an alive job', () => {
+    expect(validateCreate({ kind: 'style', style: 'watercolor', image: jpeg, installId: install }).ok).toBe(true);
+    expect(validateCreate({ kind: 'alive', image: jpeg, installId: install }).ok).toBe(true);
+  });
+  it('rejects unknown kinds, styles, non-JPEG, huge images and bad install ids', () => {
+    expect(validateCreate({ kind: 'nude', image: jpeg, installId: install })).toEqual({ ok: false, error: 'bad_kind' });
+    expect(validateCreate({ kind: 'style', style: 'x', image: jpeg, installId: install })).toEqual({ ok: false, error: 'bad_style' });
+    expect(validateCreate({ kind: 'alive', image: 'iVBOR' + 'A'.repeat(400), installId: install })).toEqual({ ok: false, error: 'not_jpeg' });
+    expect(validateCreate({ kind: 'alive', image: '/9j/' + 'A'.repeat(2_100_000), installId: install })).toEqual({ ok: false, error: 'image_too_big' });
+    expect(validateCreate({ kind: 'alive', image: jpeg, installId: 'x' })).toEqual({ ok: false, error: 'bad_install' });
+    expect(validateCreate(null)).toEqual({ ok: false, error: 'bad_json' });
+  });
+});
+
+describe('fal requests and results', () => {
+  it('sends the image as a data URI with the right prompt and model', () => {
+    const r = falRequest({ kind: 'style', style: 'sketch', image: jpeg, installId: install }, DEFAULT_MODELS);
+    expect(r.model).toBe(DEFAULT_MODELS.style);
+    expect(r.input.image_url).toBe(`data:image/jpeg;base64,${jpeg}`);
+    expect(r.input.prompt).toBe(STYLES.sketch);
+    const a = falRequest({ kind: 'alive', image: jpeg, installId: install }, DEFAULT_MODELS);
+    expect(a.model).toBe(DEFAULT_MODELS.alive);
+    expect(a.input.duration).toBe('5');
+  });
+  it('reads video and image urls', () => {
+    expect(resultUrl('alive', { video: { url: 'https://v' } })).toBe('https://v');
+    expect(resultUrl('style', { images: [{ url: 'https://i' }] })).toBe('https://i');
+    expect(resultUrl('style', { image: { url: 'https://j' } })).toBe('https://j');
+    expect(resultUrl('alive', {})).toBeNull();
+  });
+  it('maps provider states', () => {
+    expect(mapStatus('IN_QUEUE')).toBe('working');
+    expect(mapStatus('IN_PROGRESS')).toBe('working');
+    expect(mapStatus('COMPLETED')).toBe('done');
+    expect(mapStatus('ERROR')).toBe('failed');
+  });
+});
+
+describe('limits', () => {
+  it('stops at the per-install daily limit and at the global budget', () => {
+    expect(admit('alive', DAILY_LIMIT.alive, 0, 100)).toEqual({ ok: false, error: 'daily_limit' });
+    expect(admit('alive', 0, 4.8, 5)).toEqual({ ok: false, error: 'budget' });
+    expect(admit('style', 0, 4.8, 5)).toEqual({ ok: true });
+    expect(quotaKey(install, 'alive', Date.UTC(2026, 9, 22))).toBe(`q:2026-10-22:alive:${install}`);
+  });
+});

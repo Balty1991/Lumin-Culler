@@ -42,6 +42,9 @@ android {
         // numarul de mai jos NU pregateste si nu deblocheaza nimic acolo.
         versionCode 4
         versionName "3.0.0"
+        // Adresa serverului de efecte AI (server/README.md). Goală = efectele
+        // pe server apar ca „În curând” și aplicația nu trimite nimic.
+        buildConfigField "String", "LUMIN_AI_URL", "\"${project.findProperty('luminAiUrl') ?: ''}\""
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -133,6 +136,7 @@ android {
     }
     buildFeatures {
         compose true
+        buildConfig true
     }
 }
 
