@@ -28,11 +28,20 @@ class DailyReminderWorker(context: Context, params: WorkerParameters) : Worker(c
     override fun doWork(): Result {
         val store = Store(applicationContext)
         if (!store.dailyReminder) return Result.success()
-        if (LocalDate.now().toString() in store.completedDays) return Result.success()
         if (!CleanReminderWorker.canNotify(applicationContext)) return Result.success()
+        // Amintirea zilei are întâietate: e motivul pentru care omul deschide aplicația.
+        val memory = try { findMemory(applicationContext) } catch (_: Throwable) { null }
+        if (memory != null) {
+            showMemory(applicationContext, memory)
+            return Result.success()
+        }
+        if (LocalDate.now().toString() in store.completedDays) return Result.success()
         show(applicationContext)
         return Result.success()
     }
+
+    /** O poză făcută în ziua de azi, într-un an trecut. */
+    class Memory(val uri: android.net.Uri, val years: Int)
 
     companion object {
         private const val WORK = "lumin-daily-stack"
@@ -74,5 +83,58 @@ class DailyReminderWorker(context: Context, params: WorkerParameters) : Worker(c
                 .build()
             NotificationManagerCompat.from(context).notify(7043, notification)
         }
+    
+        /** Cea mai apropiată amintire: acum 1 an, apoi 2..15, cu poza cea mai mare (de obicei cea mai bună) din ziua aceea. */
+        fun findMemory(context: Context): Memory? {
+            val today = LocalDate.now()
+            val zone = java.time.ZoneId.systemDefault()
+            for (years in 1..15) {
+                val day = today.minusYears(years.toLong())
+                val from = day.atStartOfDay(zone).toInstant().toEpochMilli()
+                val to = day.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+                context.contentResolver.query(
+                    android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                    arrayOf(android.provider.MediaStore.Images.Media._ID),
+                    "${android.provider.MediaStore.Images.Media.DATE_TAKEN} >= ? AND ${android.provider.MediaStore.Images.Media.DATE_TAKEN} < ? AND ${android.provider.MediaStore.Images.Media.SIZE} > ?",
+                    arrayOf(from.toString(), to.toString(), (300 * 1024).toString()),
+                    "${android.provider.MediaStore.Images.Media.SIZE} DESC"
+                )?.use { c ->
+                    if (c.moveToFirst()) {
+                        val id = c.getLong(0)
+                        return Memory(android.content.ContentUris.withAppendedId(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id), years)
+                    }
+                }
+            }
+            return null
+        }
+
+        private fun showMemory(context: Context, memory: Memory) {
+            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            if (Build.VERSION.SDK_INT >= 26) {
+                manager.createNotificationChannel(
+                    NotificationChannel(MEMORY_CHANNEL, context.getString(R.string.lumin_memory_channel), NotificationManager.IMPORTANCE_DEFAULT)
+                )
+            }
+            val open = PendingIntent.getActivity(
+                context, 1,
+                Intent(context, CleanerActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val picture = com.luminculler.app.cleaner.grow.decodeOriented(context, memory.uri, 720)
+            val title = context.resources.getQuantityString(R.plurals.lumin_years_ago, memory.years, memory.years)
+            val builder = NotificationCompat.Builder(context, MEMORY_CHANNEL)
+                .setSmallIcon(context.applicationInfo.icon)
+                .setContentTitle(context.getString(R.string.lumin_memory_title, title))
+                .setContentText(context.getString(R.string.lumin_memory_body))
+                .setContentIntent(open)
+                .setAutoCancel(true)
+            if (picture != null) {
+                builder.setLargeIcon(picture)
+                builder.setStyle(NotificationCompat.BigPictureStyle().bigPicture(picture).bigLargeIcon(null as android.graphics.Bitmap?))
+            }
+            NotificationManagerCompat.from(context).notify(7044, builder.build())
+        }
+
+        private const val MEMORY_CHANNEL = "lumin-memories"
     }
 }

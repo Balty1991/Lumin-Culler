@@ -110,9 +110,13 @@ class LuminModel(val context: Context, private val scope: CoroutineScope, privat
     fun onPermissionsResult() {
         access = galleryAccess(context)
         if (access != Access.None) {
+            val first = !store.onboarded
             store.onboarded = true
             route = Route.Moments
             load()
+            // La prima pornire, amintirea zilei e pornită (se poate opri din Setări);
+            // pe Android 13+ asta cere și permisiunea de notificări.
+            if (first && !store.dailyReminder) setReminder(true)
         }
     }
 

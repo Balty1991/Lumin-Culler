@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="lumin_onb_title">Galerie curată în 2 minute pe zi</string>
-    <string name="lumin_onb_sub">În fiecare zi, Lumin îți pregătește un teanc mic de poze: o amintire de acum câțiva ani, duplicatele și pozele neclare găsite, și cele mai noi poze. Glisezi ca să păstrezi sau să ștergi.</string>
-    <string name="lumin_onb_b1">Amintiri din ziua de azi, din anii trecuți</string>
-    <string name="lumin_onb_b2">Găsește duplicate, rafale, poze neclare și videoclipuri mari</string>
-    <string name="lumin_onb_b3">Nimic nu pleacă de pe telefon. Fără cont, fără reclame.</string>
+    <string name="lumin_onb_title">Amintirile tale, aduse la viață</string>
+    <string name="lumin_onb_sub">Lumin găsește momentele frumoase din galerie, face filme din ele, pune magie AI pe poze și curăță ce nu mai trebuie.</string>
+    <string name="lumin_onb_b1">Amintiri și filme făcute pentru tine, în fiecare zi</string>
+    <string name="lumin_onb_b2">Magie AI: îmbunătățire, portret, Foto 3D, stiluri</string>
+    <string name="lumin_onb_b3">Privat: funcțiile gratuite nu ies niciodată de pe telefon</string>
     <string name="lumin_onb_privacy">Pozele se analizează doar pe acest telefon. Nu se încarcă nicăieri.</string>
     <string name="lumin_allow_photos">Permite accesul la poze</string>
 
@@ -104,8 +104,8 @@
     <string name="lumin_restore_none">Nu am găsit nicio achiziție pe acest cont Google.</string>
     <string name="lumin_privacy">Politica de confidențialitate</string>
 
-    <string name="lumin_reminder">Memento de seară</string>
-    <string name="lumin_reminder_hint">La 19:00, doar dacă teancul de azi nu e gata.</string>
+    <string name="lumin_reminder">Amintirea zilei</string>
+    <string name="lumin_reminder_hint">Seara: o poză din ziua de azi, de acum câțiva ani, sau teancul zilei.</string>
     <string name="lumin_reminder_channel">Teancul zilnic</string>
     <string name="lumin_reminder_title">Teancul tău e gata</string>
     <string name="lumin_reminder_body">2 minute: o amintire, câteva poze de sortat și puțin spațiu înapoi.</string>
@@ -281,4 +281,7 @@
     <string name="lumin_pay_b_ai">100 de poze AI super pe lună: 3D, anime, pictură, poze vechi restaurate, editare în cuvinte</string>
     <string name="lumin_pay_b_alive">20 de poze pe lună care prind viață ca video</string>
     <string name="lumin_pay_b_films">Filme și timelapse fără semnul Lumin</string>
+    <string name="lumin_memory_channel">Amintirea zilei</string>
+    <string name="lumin_memory_title">%s, azi</string>
+    <string name="lumin_memory_body">Atinge ca să vezi amintirea și să faci un film din ea.</string>
 </resources>

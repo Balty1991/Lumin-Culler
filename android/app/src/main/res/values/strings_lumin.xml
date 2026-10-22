@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Textele ecranului nativ (cleaner/). Engleza e implicita; româna e în values-ro. -->
 <resources>
-    <string name="lumin_onb_title">A clean gallery in 2 minutes a day</string>
-    <string name="lumin_onb_sub">Every day, Lumin hands you a small stack of photos: a memory from years ago, the duplicates and blurry shots it found, and your newest pictures. Swipe to keep or delete.</string>
-    <string name="lumin_onb_b1">Memories from this day, years ago</string>
-    <string name="lumin_onb_b2">Finds duplicates, bursts, blurry shots and big videos</string>
-    <string name="lumin_onb_b3">Nothing leaves your phone. No account, no ads.</string>
+    <string name="lumin_onb_title">Your memories, brought to life</string>
+    <string name="lumin_onb_sub">Lumin finds the beautiful moments in your gallery, turns them into movies, adds AI magic to your photos and clears what you no longer need.</string>
+    <string name="lumin_onb_b1">Memories and movies made for you, every day</string>
+    <string name="lumin_onb_b2">AI magic: enhance, portrait, 3D photos, styles</string>
+    <string name="lumin_onb_b3">Private by design: the free features never leave your phone</string>
     <string name="lumin_onb_privacy">Your photos are analyzed only on this phone. Nothing is uploaded.</string>
     <string name="lumin_allow_photos">Allow access to photos</string>
 
@@ -105,8 +105,8 @@
     <string name="lumin_restore_none">No purchase found on this Google account.</string>
     <string name="lumin_privacy">Privacy policy</string>
 
-    <string name="lumin_reminder">Evening reminder</string>
-    <string name="lumin_reminder_hint">At 7 PM, only if today\'s stack is not done.</string>
+    <string name="lumin_reminder">Memory of the day</string>
+    <string name="lumin_reminder_hint">In the evening: a photo from this day years ago, or your daily stack.</string>
     <string name="lumin_reminder_channel">Daily stack</string>
     <string name="lumin_reminder_title">Your stack is ready</string>
     <string name="lumin_reminder_body">2 minutes: a memory, a few photos to sort, and some space back.</string>
@@ -268,4 +268,7 @@
     <string name="lumin_pay_b_ai">100 super AI photos a month: 3D, anime, painting, restored old photos, edits with words</string>
     <string name="lumin_pay_b_alive">20 photos a month that come to life as video</string>
     <string name="lumin_pay_b_films">Movies and timelapses without the Lumin mark</string>
+    <string name="lumin_memory_channel">Memory of the day</string>
+    <string name="lumin_memory_title">%s, today</string>
+    <string name="lumin_memory_body">Tap to see the memory and make a movie from it.</string>
 </resources>

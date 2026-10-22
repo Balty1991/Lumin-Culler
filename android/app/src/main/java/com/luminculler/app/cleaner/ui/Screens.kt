@@ -72,14 +72,14 @@ fun OnboardingScreen(onAllow: () -> Unit) {
             Box(
                 Modifier.size(72.dp).clip(RoundedCornerShape(22.dp)).background(Lumin.AccentGradient),
                 contentAlignment = Alignment.Center
-            ) { Icon(LIcons.Layers, null, tint = Color.White, modifier = Modifier.size(36.dp)) }
+            ) { Icon(LIcons.Sparkle, null, tint = Color.White, modifier = Modifier.size(36.dp)) }
             Spacer(Modifier.height(28.dp))
             Text(stringResource(R.string.lumin_onb_title), style = MaterialTheme.typography.displaySmall, color = Lumin.Text)
             Spacer(Modifier.height(12.dp))
             Text(stringResource(R.string.lumin_onb_sub), style = MaterialTheme.typography.bodyLarge, color = Lumin.Muted)
             Spacer(Modifier.height(28.dp))
-            Bullet(LIcons.Star, stringResource(R.string.lumin_onb_b1))
-            Bullet(LIcons.Layers, stringResource(R.string.lumin_onb_b2))
+            Bullet(LIcons.Movie, stringResource(R.string.lumin_onb_b1))
+            Bullet(LIcons.Sparkle, stringResource(R.string.lumin_onb_b2))
             Bullet(LIcons.Lock, stringResource(R.string.lumin_onb_b3))
             Spacer(Modifier.height(36.dp))
             BigButton(stringResource(R.string.lumin_allow_photos), onAllow)
