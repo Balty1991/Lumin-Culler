@@ -139,7 +139,21 @@ export function kindsFor(hasFal: boolean): Kind[] {
   return hasFal ? ['style', 'restore', 'edit', 'alive'] : ['style'];
 }
 
-export const CF_IMG2IMG = '@cf/runwayml/stable-diffusion-v1-5-img2img';
+/**
+ * Modelele Workers AI care pot redesena o poză (primesc `image` + `strength`),
+ * încercate în ordine: Cloudflare scoate din când în când modele din oferta
+ * conturilor noi (SD 1.5 img2img nu mai e permis), deci nu ne bazăm pe unul singur.
+ */
+export const CF_IMG2IMG_MODELS = [
+  '@cf/lykon/dreamshaper-8-lcm',
+  '@cf/stabilityai/stable-diffusion-xl-base-1.0',
+  '@cf/runwayml/stable-diffusion-v1-5-img2img'
+];
+
+/** Eroarea spune că modelul nu e disponibil pentru cont (nu că s-a terminat cota). */
+export function modelUnavailable(detail: string): boolean {
+  return /5018|not allowed|not found|no such model|deprecated|unknown model/i.test(detail);
+}
 
 /** Cât de mult redesenează modelul: destul cât să se vadă stilul, puțin cât fața să rămână a omului. */
 export const CF_STRENGTH = 0.5;

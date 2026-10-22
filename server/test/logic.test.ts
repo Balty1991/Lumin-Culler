@@ -88,3 +88,11 @@ describe('Workers AI', () => {
     expect(String(r.prompt)).toContain('oil');
   });
 });
+
+import { modelUnavailable } from '../src/logic';
+describe('model fallback', () => {
+  it('tells an unavailable model apart from a used-up quota', () => {
+    expect(modelUnavailable('5018: This account is not allowed to access @cf/x')).toBe(true);
+    expect(modelUnavailable('3036: you have used up your daily free allocation of 10,000 neurons')).toBe(false);
+  });
+});

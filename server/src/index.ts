@@ -21,7 +21,7 @@
  *   GET  /v1/jobs/:id    → { status: working|done|failed, url? }
  *   POST /v1/report      { id, reason } → raportare conținut (cerință Google Play pentru AI)
  */
-import { admit, budgetKey, CF_IMG2IMG, cfRequest, COST_USD, DEFAULT_MODELS, falRequest, kindsFor, mapStatus, quotaKey, resultUrl, validateCreate, type Kind } from './logic';
+import { admit, budgetKey, CF_IMG2IMG_MODELS, cfRequest, modelUnavailable, COST_USD, DEFAULT_MODELS, falRequest, kindsFor, mapStatus, quotaKey, resultUrl, validateCreate, type Kind } from './logic';
 
 export interface Env {
   FAL_KEY?: string;
@@ -93,15 +93,26 @@ export default {
       if (!hasFal) {
         // Workers AI: răspunsul vine pe loc; îl ținem o oră, cât să-l descarce aplicația.
         const bytes = Uint8Array.from(atob(req.image), (c) => c.charCodeAt(0));
-        let png: ArrayBuffer;
-        try {
-          const out = await env.AI.run(CF_IMG2IMG as any, cfRequest(req, bytes) as any) as unknown;
-          png = out instanceof ReadableStream ? await new Response(out).arrayBuffer() : (out as ArrayBuffer);
-        } catch (e) {
-          // De obicei: s-a terminat cota gratuită a zilei. Motivul exact, scurtat, ajută la depanare.
-          const detail = String((e as Error)?.message ?? e).slice(0, 300);
-          console.log('workers-ai', detail);
-          return json({ error: /quota|limit|neuron|429|capacity/i.test(detail) ? 'budget' : 'provider', detail }, /quota|limit|neuron|429|capacity/i.test(detail) ? 429 : 502);
+        let png: ArrayBuffer | null = null;
+        let detail = '';
+        let used_model = '';
+        const input = cfRequest(req, bytes);
+        for (const model of CF_IMG2IMG_MODELS) {
+          try {
+            const out = await env.AI.run(model as any, input as any) as unknown;
+            png = out instanceof ReadableStream ? await new Response(out).arrayBuffer() : (out as ArrayBuffer);
+            used_model = model;
+            break;
+          } catch (e) {
+            detail = String((e as Error)?.message ?? e).slice(0, 300);
+            console.log('workers-ai', model, detail);
+            // Modelul nu e pentru contul ăsta: încercăm următorul. Altă eroare (cota): ne oprim.
+            if (!modelUnavailable(detail)) break;
+          }
+        }
+        if (!png) {
+          const quota = /quota|limit|neuron|429|capacity/i.test(detail);
+          return json({ error: quota ? 'budget' : 'provider', detail }, quota ? 429 : 502);
         }
         const id = crypto.randomUUID();
         await Promise.all([
@@ -109,7 +120,7 @@ export default {
           env.LIMITS.put(`j:${id}`, JSON.stringify({ kind: req.kind, local: true } satisfies JobRecord), { expirationTtl: 3600 }),
           env.LIMITS.put(qKey, String(used + 1), { expirationTtl: 2 * DAY_S })
         ]);
-        return json({ id });
+        return json({ id, model: used_model });
       }
 
       const models = { alive: env.ALIVE_MODEL || DEFAULT_MODELS.alive, style: env.STYLE_MODEL || DEFAULT_MODELS.style };
