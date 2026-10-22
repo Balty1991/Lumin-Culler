@@ -168,11 +168,11 @@ fun MagicScreen(model: LuminModel, media: Media) {
                     }
                 }
                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    AndroidView(
+                    // Cheia pe fișier: un clip nou (3D sau AI) recreează playerul, altfel rulează neîntrerupt.
+                    androidx.compose.runtime.key(video.absolutePath + video.lastModified()) { AndroidView(
                         factory = { ctx -> VideoView(ctx).apply { setVideoPath(video.absolutePath); setOnPreparedListener { it.isLooping = true; start() } } },
-                        update = { it.setVideoPath(video.absolutePath); it.start() },
                         modifier = Modifier.fillMaxWidth().aspectRatio(9f / 16f).clip(RoundedCornerShape(20.dp))
-                    )
+                    ) }
                 }
                 Spacer(Modifier.height(12.dp))
                 BigButton(stringResource(R.string.lumin_share), {
