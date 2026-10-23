@@ -1,0 +1,36 @@
+# Verificare temporară a modelului de căutare (CLIP, MIT) înainte să intre
+# în aplicație: fișierele, amprentele și conceptele găsite pe poze publice.
+name: CLIP probe
+
+on:
+  push:
+    branches:
+      - 'ccr-**'
+    paths:
+      - '.github/workflows/clip-probe.yml'
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -q onnxruntime tokenizers pillow numpy
+      - name: Download
+        run: |
+          mkdir m && cd m
+          base=https://huggingface.co/Xenova/clip-vit-base-patch32/resolve/main
+          for f in onnx/vision_model_quantized.onnx onnx/text_model_quantized.onnx tokenizer.json; do
+            curl -sSfL -o "$(basename $f)" "$base/$f" && ls -la "$(basename $f)" && sha256sum "$(basename $f)" || echo "missing $f"
+          done
+          for p in portrait cat burger; do curl -sSfL -o $p.jpg https://storage.googleapis.com/mediapipe-assets/$p.jpg; done
+      - name: Inputs and outputs
+        shell: python
+        run: |
+          import onnxruntime as ort
+          for f in ["m/vision_model_quantized.onnx", "m/text_model_quantized.onnx"]:
+              s = ort.InferenceSession(f)
+              print(f, [(i.name, i.shape, i.type) for i in s.get_inputs()], [(o.name, o.shape) for o in s.get_outputs()])
+      - run: python tools/build_clip_vocab.py m/text_model_quantized.onnx m/tokenizer.json vocab.json m/vision_model_quantized.onnx m/portrait.jpg m/cat.jpg m/burger.jpg
