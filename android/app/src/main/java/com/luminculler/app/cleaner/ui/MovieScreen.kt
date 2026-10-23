@@ -71,6 +71,7 @@ fun MovieScreen(model: LuminModel, moment: Moment) {
                     Spacer(Modifier.height(20.dp))
                     Text(stringResource(R.string.lumin_movie_rendering, (movie.progress * 100).toInt()), style = MaterialTheme.typography.titleMedium, color = Lumin.Text)
                     Spacer(Modifier.height(24.dp))
+                    if (movie.writing) Text(stringResource(R.string.lumin_ai_writing), color = Lumin.Muted, style = MaterialTheme.typography.bodyMedium)
                     GhostButton(stringResource(R.string.lumin_grow_cancel), { movie.cancel() })
                 }
                 MovieStep.Done -> MovieDone(model, moment)
@@ -155,8 +156,22 @@ private fun MovieOptions(model: LuminModel, moment: Moment) {
             Text(stringResource(R.string.lumin_grow_watermark), style = MaterialTheme.typography.bodyMedium, color = Lumin.Muted)
             Spacer(Modifier.height(10.dp))
         }
+        if (com.luminculler.app.cleaner.magic.AiJob.Story in model.aiKinds) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.lumin_story_ai), style = MaterialTheme.typography.bodyLarge, color = Lumin.Text)
+                    Text(stringResource(R.string.lumin_story_ai_hint), style = MaterialTheme.typography.bodySmall, color = Lumin.Muted)
+                }
+                Switch(checked = movie.story, onCheckedChange = { movie.story = it }, colors = SwitchDefaults.colors(checkedTrackColor = Lumin.Keep))
+            }
+            Spacer(Modifier.height(16.dp))
+        }
         BigButton(stringResource(R.string.lumin_movie_make), {
-            movie.render(moment, model.grow.facesByMedia(), watermark = !model.premium)
+            // Povestea vede patru poze răspândite prin amintire, în ordine.
+            val spread = moment.photos.let { p -> listOf(0, p.size / 3, 2 * p.size / 3, p.size - 1).distinct().mapNotNull { p.getOrNull(it) } }
+            movie.render(moment, model.grow.facesByMedia(), watermark = !model.premium) {
+                model.aiTexts(com.luminculler.app.cleaner.magic.AiJob.Story, spread)
+            }
         }, icon = LIcons.Movie)
     }
 }

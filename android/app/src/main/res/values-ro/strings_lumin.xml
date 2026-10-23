@@ -389,6 +389,8 @@
     <string name="lumin_widget_today">Atinge ca să retrăiești ziua</string>
     <string name="lumin_widget_week">Săptămâna asta, cândva</string>
     <string name="lumin_widget_empty">Deschide Lumin ca să apară amintirile</string>
+    <string name="lumin_story_ai">Povestea amintirii</string>
+    <string name="lumin_story_ai_hint">AI-ul scrie povestea zilei, ca subtitrare în film.</string>
     <string name="lumin_magic_soon">În curând</string>
     <string name="lumin_magic_server">Efectele AI super nu sunt încă pornite în această versiune. Efectele gratuite merg direct pe telefon.</string>
     <string name="lumin_magic_save">Salvează ca poză nouă</string>

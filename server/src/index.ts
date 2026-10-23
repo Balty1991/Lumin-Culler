@@ -23,7 +23,7 @@
  *   GET  /v1/jobs/:id    → { status: working|done|failed, url? }
  *   POST /v1/report      { id, reason } → raportare conținut (cerință Google Play pentru AI)
  */
-import { admit, backgroundPrompt, budgetKey, CF_IMG2IMG_MODELS, CF_TEXT2IMG_MODELS, CF_TEXT_MODELS, CF_VISION_MODELS, cfRequest, day, EXTRA_DAILY_LIMIT, EXTRA_KINDS, modelUnavailable, parseJsonReply, validateBackground, validateDescribe, VISION_PROMPT, writerPrompt, type ExtraKind, COST_USD, DEFAULT_MODELS, falRequest, kindsFor, mapStatus, quotaKey, resultUrl, validateCreate, type Kind } from './logic';
+import { admit, backgroundPrompt, budgetKey, CF_IMG2IMG_MODELS, CF_TEXT2IMG_MODELS, CF_TEXT_MODELS, CF_VISION_MODELS, cfRequest, day, EXTRA_DAILY_LIMIT, EXTRA_KINDS, modelUnavailable, parseJsonReply, validateBackground, validateConcepts, conceptsPrompt, validateDescribe, VISION_PROMPT, writerPrompt, type ExtraKind, COST_USD, DEFAULT_MODELS, falRequest, kindsFor, mapStatus, quotaKey, resultUrl, validateCreate, type Kind } from './logic';
 
 export interface Env {
   FAL_KEY?: string;
@@ -189,6 +189,24 @@ export default {
         const parsed = resp && typeof resp === 'object' ? resp as Record<string, unknown> : parseJsonReply(textOf(w.out));
         if (!parsed) return json({ error: 'provider', detail: 'bad_reply: ' + JSON.stringify(w.out).slice(0, 200) }, 502);
         return json(parsed);
+      } catch (e) {
+        return aiError(e);
+      }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/v1/concepts') {
+      let body: unknown;
+      try { body = await request.json(); } catch { return json({ error: 'bad_json' }, 400); }
+      const v = validateConcepts(body);
+      if (!v.ok) return json({ error: v.error }, 400);
+      if (!(await takeExtra(env, 'concepts', v.installId, now))) return json({ error: 'daily_limit' }, 429);
+      try {
+        const r = await runFirst(env, CF_TEXT_MODELS, () => ({ messages: [{ role: 'user', content: conceptsPrompt(v.query, v.vocab) }], max_tokens: 80 }));
+        const resp = (r.out as { response?: unknown })?.response;
+        const parsed = resp && typeof resp === 'object' ? resp as Record<string, unknown> : parseJsonReply(textOf(r.out));
+        const known = new Set(v.vocab);
+        const concepts = Array.isArray(parsed?.concepts) ? (parsed!.concepts as unknown[]).filter((c): c is string => typeof c === 'string' && known.has(c)).slice(0, 3) : [];
+        return json({ concepts });
       } catch (e) {
         return aiError(e);
       }

@@ -27,6 +27,10 @@ class MovieModel(private val context: Context, private val scope: CoroutineScope
     var title by mutableStateOf("")
     var dates by mutableStateOf(true)
     /** Muzica filmului; null = fără muzică. Se alege singură după amintire, omul o poate schimba. */
+    /** „Povestea amintirii”: fraze scrise de AI, ca subtitrare. */
+    var story by mutableStateOf(false)
+    /** Cât timp AI-ul scrie povestea, înainte de montaj. */
+    var writing by mutableStateOf(false)
     var mood by mutableStateOf<com.luminculler.app.cleaner.core.Mood?>(com.luminculler.app.cleaner.core.Mood.Calm)
     var progress by mutableFloatStateOf(0f)
     var video by mutableStateOf<File?>(null)
@@ -44,7 +48,7 @@ class MovieModel(private val context: Context, private val scope: CoroutineScope
         }
     }
 
-    fun render(moment: Moment, faces: Map<Long, FaceHit>, watermark: Boolean) {
+    fun render(moment: Moment, faces: Map<Long, FaceHit>, watermark: Boolean, storyText: (suspend () -> List<String>)? = null) {
         job?.cancel()
         step = MovieStep.Rendering
         progress = 0f
@@ -52,7 +56,12 @@ class MovieModel(private val context: Context, private val scope: CoroutineScope
             try {
                 val shots = moment.photos.map { Shot(it, faces[it.id]) }
                 // La mozaic, mai multe poze arată mai bine (4 pe pagină).
-                val opts = Renderer.Options(template, format, title.trim(), "", dates, watermark)
+                // Povestea se cere înainte de montaj; dacă AI-ul nu răspunde, filmul se face fără ea.
+                val lines = if (story && storyText != null) {
+                    writing = true
+                    try { storyText() } catch (e: Throwable) { if (e is kotlinx.coroutines.CancellationException) throw e; emptyList() } finally { writing = false }
+                } else emptyList()
+                val opts = Renderer.Options(template, format, title.trim(), "", dates, watermark, lines)
                 val silent = renderer.render(shots, opts) { p -> scope.launch { progress = p * 0.92f } }
                 val m = mood
                 video = if (m == null) silent else Soundtrack.addMusic(silent, m, seed = moment.id.hashCode().toLong() + template.ordinal)

@@ -208,10 +208,10 @@ export function cfRequest(req: CreateRequest, bytes: Uint8Array): Record<string,
 // ---- Fundal nou, descrieri și texte (Workers AI, gratuit) ----
 
 /** Ce face serverul pe lângă lucrările cu poze întregi; merg gratuit pe Workers AI. */
-export const EXTRA_KINDS = ['background', 'describe', 'caption', 'greeting'] as const;
+export const EXTRA_KINDS = ['background', 'describe', 'caption', 'greeting', 'story', 'concepts'] as const;
 export type ExtraKind = typeof EXTRA_KINDS[number];
 
-export const EXTRA_DAILY_LIMIT: Record<ExtraKind, number> = { background: 15, describe: 60, caption: 30, greeting: 30 };
+export const EXTRA_DAILY_LIMIT: Record<ExtraKind, number> = { background: 15, describe: 60, caption: 30, greeting: 30, story: 30, concepts: 80 };
 
 export const CF_TEXT2IMG_MODELS = ['@cf/black-forest-labs/flux-1-schnell', '@cf/bytedance/stable-diffusion-xl-lightning'];
 export const CF_VISION_MODELS = ['@cf/meta/llama-3.2-11b-vision-instruct', '@cf/llava-hf/llava-1.5-7b-hf'];
@@ -236,7 +236,7 @@ export function validateBackground(body: unknown): { ok: true; prompt: string; i
 }
 
 export interface DescribeRequest {
-  kind: 'describe' | 'caption' | 'greeting';
+  kind: 'describe' | 'caption' | 'greeting' | 'story';
   /** JPEG-uri mici (base64), cel mult 4 (la felicitare, poate lipsi). */
   images: string[];
   installId: string;
@@ -247,7 +247,7 @@ export interface DescribeRequest {
 
 export function validateDescribe(body: unknown): { ok: true; req: DescribeRequest } | { ok: false; error: string } {
   const b = (body ?? {}) as Record<string, unknown>;
-  if (b.kind !== 'describe' && b.kind !== 'caption' && b.kind !== 'greeting') return { ok: false, error: 'bad_kind' };
+  if (b.kind !== 'describe' && b.kind !== 'caption' && b.kind !== 'greeting' && b.kind !== 'story') return { ok: false, error: 'bad_kind' };
   const minImages = b.kind === 'greeting' ? 0 : 1;
   if (!Array.isArray(b.images) || b.images.length < minImages || b.images.length > 4) return { ok: false, error: 'bad_images' };
   for (const im of b.images) {
@@ -270,6 +270,9 @@ export function writerPrompt(req: DescribeRequest, descriptions: string[]): stri
   const rules = ` Write only in ${language}, with no words from other languages. Never name or identify people from the photos; use a name only if it appears in the known context.`;
   const facts = descriptions.map((d, i) => `Photo ${i + 1}: ${d}`).join('\n');
   const ctx = req.context ? `\nKnown context: ${req.context}` : '';
+  if (req.kind === 'story') {
+    return `You write the short story of a day for a family photo memories app. It will appear as subtitles in a slideshow, one sentence at a time, in the order of the photos.${ctx}\n${facts}\n\nWrite in ${language}, warm, simple and concrete, like a parent remembering the day; present the moments in order.${rules} Return only JSON: {"sentences": ["...", "...", "..."]} with 3 or 4 sentences, each max 14 words.`;
+  }
   if (req.kind === 'greeting') {
     return `You write greeting card messages for a family photo app.${ctx}\n${facts}\n\nWrite in ${language}, warm, personal and natural, like a close family member would write, never generic or cheesy. Use the occasion and the name from the context if given. ${rules} Return only JSON: {"texts": ["...", "...", "..."]} with three different messages: one heartfelt (max 45 words), one cheerful and playful (max 35 words), one short (max 15 words).`;
   }
@@ -285,4 +288,20 @@ export function parseJsonReply(text: string): Record<string, unknown> | null {
   const end = text.lastIndexOf('}');
   if (start < 0 || end <= start) return null;
   try { return JSON.parse(text.slice(start, end + 1)); } catch { return null; }
+}
+
+/**
+ * Căutarea cu cuvinte: omul scrie în limba lui („tort”, „la mare”), iar
+ * modelul alege din lista de concepte pe care telefonul le știe căuta.
+ */
+export function conceptsPrompt(query: string, vocab: string[]): string {
+  return `A user searches their photo gallery for: "${query}". From this list of searchable concepts, pick the 1 to 3 that best match what they mean (translate if needed). Concepts: ${vocab.join(', ')}.\nReturn only JSON: {"concepts": ["..."]} using concepts exactly as written in the list. If nothing matches, return {"concepts": []}.`;
+}
+
+export function validateConcepts(body: unknown): { ok: true; query: string; vocab: string[]; installId: string } | { ok: false; error: string } {
+  const b = (body ?? {}) as Record<string, unknown>;
+  if (typeof b.query !== 'string' || b.query.trim().length < 2 || b.query.length > 80) return { ok: false, error: 'bad_query' };
+  if (!Array.isArray(b.vocab) || b.vocab.length < 1 || b.vocab.length > 600 || !b.vocab.every((v) => typeof v === 'string' && v.length <= 40)) return { ok: false, error: 'bad_vocab' };
+  if (typeof b.installId !== 'string' || !/^[A-Za-z0-9-]{16,64}$/.test(b.installId)) return { ok: false, error: 'bad_install' };
+  return { ok: true, query: b.query.trim(), vocab: b.vocab as string[], installId: b.installId };
 }

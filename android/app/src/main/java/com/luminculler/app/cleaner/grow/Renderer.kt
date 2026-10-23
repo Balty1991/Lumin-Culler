@@ -58,7 +58,9 @@ class Renderer(private val context: Context) {
         val subtitle: String = "",
         /** Data pe fiecare poză (Cinematic) sau anul (Timelapse). */
         val dates: Boolean = true,
-        val watermark: Boolean = true
+        val watermark: Boolean = true,
+        /** „Povestea amintirii”: fraze scrise de AI, arătate pe rând ca subtitrare. */
+        val story: List<String> = emptyList()
     )
 
     private val bold = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
@@ -181,6 +183,10 @@ class Renderer(private val context: Context) {
                                 } else 1f
                                 val shown = if (!flash && p != null && k < fade / 2 && prevLabel != label) prevLabel else label
                                 drawCaption(c, w, h, u, shown, timelapse, labelAlpha)
+                                if (options.story.isNotEmpty()) {
+                                    val line = options.story[(index * options.story.size / shots.size.coerceAtLeast(1)).coerceAtMost(options.story.lastIndex)]
+                                    drawStory(c, w, h, u, line, smooth(k / (FPS * 0.5f)))
+                                }
                                 if (options.watermark) drawMark(c, w, u)
                             }
                             drawn++
@@ -338,6 +344,22 @@ class Renderer(private val context: Context) {
             p.textAlign = Paint.Align.LEFT
             c.drawText(text, 44f * u, h - 70f * u, p)
         }
+    }
+
+    /** O frază din poveste, pe două-trei rânduri, în treimea de jos, cu umbră ca să se citească pe orice poză. */
+    private fun drawStory(c: Canvas, w: Int, h: Int, u: Float, text: String, alpha: Float) {
+        val p = android.text.TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE; textSize = 38f * u; typeface = Typeface.create(Typeface.SERIF, Typeface.ITALIC)
+            this.alpha = (255 * alpha.coerceIn(0f, 1f)).roundToInt()
+            setShadowLayer(14f * u, 0f, 3f * u, 0xC0000000.toInt())
+        }
+        val width = (w * 0.84f).toInt()
+        val layout = android.text.StaticLayout.Builder.obtain(text, 0, text.length, p, width)
+            .setAlignment(android.text.Layout.Alignment.ALIGN_CENTER).setMaxLines(4).setLineSpacing(4f * u, 1f).build()
+        c.save()
+        c.translate((w - width) / 2f, h * 0.70f - layout.height / 2f)
+        layout.draw(c)
+        c.restore()
     }
 
     private fun drawMark(c: Canvas, w: Int, u: Float) {

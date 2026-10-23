@@ -374,6 +374,8 @@
     <string name="lumin_widget_today">Tap to relive the day</string>
     <string name="lumin_widget_week">This week, some years ago</string>
     <string name="lumin_widget_empty">Open Lumin to see your memories</string>
+    <string name="lumin_story_ai">The story of the day</string>
+    <string name="lumin_story_ai_hint">AI writes the story of the day as subtitles in the film.</string>
     <string name="lumin_magic_soon">Soon</string>
     <string name="lumin_magic_server">Super AI effects are not switched on yet in this version. The free effects run on your phone.</string>
     <string name="lumin_magic_save">Save as a new photo</string>

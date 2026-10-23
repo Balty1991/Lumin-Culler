@@ -13,7 +13,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /** Efectele „super”, pe serverul Lumin (server/). */
-enum class AiJob(val wire: String) { Alive("alive"), Style("style"), Restore("restore"), Edit("edit"), Background("background"), Describe("describe"), Caption("caption"), Greeting("greeting") }
+enum class AiJob(val wire: String) { Alive("alive"), Style("style"), Restore("restore"), Edit("edit"), Background("background"), Describe("describe"), Caption("caption"), Greeting("greeting"), Story("story"), Concepts("concepts") }
 
 /** Stilurile AI de pe server; id-urile sunt cele din server/src/logic.ts. */
 enum class AiStyle(val wire: String) { Cartoon3d("cartoon3d"), Anime("anime"), Oil("oil"), Watercolor("watercolor"), Sketch("sketch"), Vintage("vintage") }

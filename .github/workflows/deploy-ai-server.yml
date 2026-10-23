@@ -126,4 +126,8 @@ jobs:
               print(kind, round(time.time() - t, 1), "s", json.dumps(r, ensure_ascii=False))
           r = post("/v1/describe", {"kind": "greeting", "images": [one], "lang": "ro", "context": "Ocazia: zi de naștere. Pentru: Ana, 6 ani. De la: mama.", "installId": "ci-smoke-test-000000"})
           print("greeting", json.dumps(r, ensure_ascii=False))
+          r = post("/v1/describe", {"kind": "story", "images": [one, one], "lang": "ro", "context": "iulie 2024", "installId": "ci-smoke-test-000000"})
+          print("story", json.dumps(r, ensure_ascii=False))
+          r = post("/v1/concepts", {"query": "tort de ziua mea", "vocab": ["birthday cake", "beach", "snow", "dog", "christmas tree"], "installId": "ci-smoke-test-000000"})
+          print("concepts", json.dumps(r, ensure_ascii=False))
           PY

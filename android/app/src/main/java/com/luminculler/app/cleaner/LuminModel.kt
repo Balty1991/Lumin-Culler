@@ -506,7 +506,7 @@ class LuminModel(val context: Context, private val scope: CoroutineScope, privat
      */
     suspend fun aiTexts(kind: com.luminculler.app.cleaner.magic.AiJob, photos: List<Media>, extra: String = ""): List<String> {
         val images = withContext(Dispatchers.IO) {
-            photos.take(3).mapNotNull { com.luminculler.app.cleaner.grow.decodeOriented(context, android.net.Uri.parse(it.uri), 384) }
+            photos.take(4).mapNotNull { com.luminculler.app.cleaner.grow.decodeOriented(context, android.net.Uri.parse(it.uri), 384) }
         }
         val ctx = buildString {
             photos.firstOrNull()?.taken?.takeIf { it > 0 }?.let {
@@ -516,7 +516,12 @@ class LuminModel(val context: Context, private val scope: CoroutineScope, privat
         }
         try {
             val r = magic.ai.describe(kind, images, java.util.Locale.getDefault().language, ctx, store.installId)
-            val arr = r.optJSONArray(if (kind == com.luminculler.app.cleaner.magic.AiJob.Greeting) "texts" else "captions") ?: return emptyList()
+            val key = when (kind) {
+                com.luminculler.app.cleaner.magic.AiJob.Greeting -> "texts"
+                com.luminculler.app.cleaner.magic.AiJob.Story -> "sentences"
+                else -> "captions"
+            }
+            val arr = r.optJSONArray(key) ?: return emptyList()
             return (0 until arr.length()).map { arr.optString(it).trim() }.filter { it.isNotEmpty() }
         } finally {
             images.forEach { it.recycle() }
