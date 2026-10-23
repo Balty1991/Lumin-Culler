@@ -1,5 +1,7 @@
 package com.luminculler.app.cleaner.ui
 
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.horizontalScroll
 import android.content.Intent
 import android.widget.VideoView
 import androidx.compose.foundation.background
@@ -97,6 +99,26 @@ private fun MovieOptions(model: LuminModel, moment: Moment) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             for ((t, label) in templates) {
                 OptionTile(stringResource(label), templateHint(t), movie.template == t, Modifier.weight(1f)) { movie.template = t }
+            }
+        }
+        Spacer(Modifier.height(22.dp))
+
+        Label(stringResource(R.string.lumin_movie_music))
+        val moods = listOf(
+            com.luminculler.app.cleaner.core.Mood.Happy to R.string.lumin_music_happy,
+            com.luminculler.app.cleaner.core.Mood.Calm to R.string.lumin_music_calm,
+            com.luminculler.app.cleaner.core.Mood.Tender to R.string.lumin_music_tender,
+            null to R.string.lumin_music_none
+        )
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            for ((m, label) in moods) {
+                val on = movie.mood == m
+                Text(
+                    stringResource(label), style = MaterialTheme.typography.labelLarge,
+                    color = if (on) Color(0xFF06211E) else Lumin.Text,
+                    modifier = Modifier.clip(CircleShape).background(if (on) Lumin.Keep else Lumin.SurfaceHigh)
+                        .clickable { movie.mood = m }.padding(horizontal = 16.dp, vertical = 10.dp)
+                )
             }
         }
         Spacer(Modifier.height(22.dp))

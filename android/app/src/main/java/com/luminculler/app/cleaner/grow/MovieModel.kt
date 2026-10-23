@@ -26,6 +26,8 @@ class MovieModel(private val context: Context, private val scope: CoroutineScope
     var format by mutableStateOf(Format.Story)
     var title by mutableStateOf("")
     var dates by mutableStateOf(true)
+    /** Muzica filmului; null = fără muzică. Se alege singură după amintire, omul o poate schimba. */
+    var mood by mutableStateOf<com.luminculler.app.cleaner.core.Mood?>(com.luminculler.app.cleaner.core.Mood.Calm)
     var progress by mutableFloatStateOf(0f)
     var video by mutableStateOf<File?>(null)
     var message by mutableStateOf<String?>(null)
@@ -36,6 +38,7 @@ class MovieModel(private val context: Context, private val scope: CoroutineScope
         if (momentId != moment.id) {
             momentId = moment.id
             title = suggestedTitle
+            mood = com.luminculler.app.cleaner.core.Music.moodFor(moment.kind)
             video = null
             step = MovieStep.Options
         }
@@ -50,7 +53,10 @@ class MovieModel(private val context: Context, private val scope: CoroutineScope
                 val shots = moment.photos.map { Shot(it, faces[it.id]) }
                 // La mozaic, mai multe poze arată mai bine (4 pe pagină).
                 val opts = Renderer.Options(template, format, title.trim(), "", dates, watermark)
-                video = renderer.render(shots, opts) { p -> scope.launch { progress = p } }
+                val silent = renderer.render(shots, opts) { p -> scope.launch { progress = p * 0.92f } }
+                val m = mood
+                video = if (m == null) silent else Soundtrack.addMusic(silent, m, seed = moment.id.hashCode().toLong() + template.ordinal)
+                progress = 1f
                 step = MovieStep.Done
             } catch (e: Throwable) {
                 if (e is kotlinx.coroutines.CancellationException) throw e

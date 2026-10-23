@@ -66,6 +66,17 @@ fun StoryScreen(model: LuminModel, moment: Moment) {
     val ai = model.aiTitles[moment.id]
     val title = ai?.first ?: momentTitle(moment, model.personName(moment.person))
     LaunchedEffect(moment.id) { model.ensureAiTitle(moment) }
+    // Muzica poveștii: compusă după felul amintirii, cât ține povestea; se oprește la ieșire.
+    androidx.compose.runtime.DisposableEffect(moment.id, model.storyMusicOn) {
+        if (model.storyMusicOn) {
+            model.storyMusic.play(
+                com.luminculler.app.cleaner.core.Music.moodFor(moment.kind),
+                seconds = photos.size * SLIDE_MS / 1000f + 2f,
+                seed = moment.id.hashCode().toLong()
+            )
+        }
+        onDispose { model.storyMusic.stop() }
+    }
     var naming by remember { mutableStateOf(false) }
 
     LaunchedEffect(moment.id, index, paused) {
@@ -141,6 +152,12 @@ fun StoryScreen(model: LuminModel, moment: Moment) {
                     }
                     photos.getOrNull(index)?.let { if (it.taken > 0) Text(formatDate(it.taken), style = MaterialTheme.typography.bodyMedium, color = Color(0xCCFFFFFF)) }
                 }
+                RoundIcon(
+                    if (model.storyMusicOn) LIcons.Volume else LIcons.VolumeOff,
+                    stringResource(if (model.storyMusicOn) R.string.lumin_music_mute else R.string.lumin_music_unmute),
+                    { model.toggleStoryMusic() }, background = Color(0x33FFFFFF), tint = Color.White
+                )
+                Spacer(Modifier.width(8.dp))
                 if (moment.person != null) {
                     RoundIcon(LIcons.Edit, stringResource(R.string.lumin_name_person), { paused = true; naming = true }, background = Color(0x33FFFFFF), tint = Color.White)
                     Spacer(Modifier.width(8.dp))

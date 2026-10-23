@@ -315,7 +315,8 @@ private fun ThenNowResult(model: LuminModel, old: Media, now: Bitmap, onRetake: 
                     progress = 0f
                     scope.launch {
                         val file = try {
-                            ThenNowVideo.render(context, tb, now, thenLabel, nowLabel, if (model.premium) null else "Lumin") { x -> scope.launch { progress = x } }
+                            ThenNowVideo.render(context, tb, now, thenLabel, nowLabel, if (model.premium) null else "Lumin") { x -> scope.launch { progress = x * 0.95f } }
+                                .let { com.luminculler.app.cleaner.grow.Soundtrack.addMusic(it, com.luminculler.app.cleaner.core.Mood.Tender, seed = old.id) }
                         } catch (e: Throwable) {
                             if (e is kotlinx.coroutines.CancellationException) throw e
                             null

@@ -153,7 +153,8 @@ class MagicModel(
         job = scope.launch {
             // Null = modelul de adâncime n-a putut rula; o excepție = altă problemă (codor video etc.).
             val file = try {
-                photo3d.render(src) { p -> scope.launch { progress = p } } ?: run {
+                photo3d.render(src) { p -> scope.launch { progress = p * 0.95f } }
+                    ?.let { com.luminculler.app.cleaner.grow.Soundtrack.addMusic(it, com.luminculler.app.cleaner.core.Mood.Calm, seed = System.currentTimeMillis() / 1000) } ?: run {
                     message = context.getString(R.string.lumin_magic_failed); null
                 }
             } catch (t: Throwable) {

@@ -63,6 +63,16 @@ class Store(context: Context) {
         get() = prefs.getInt("guessBest", 0)
         set(v) = prefs.edit().putInt("guessBest", v).apply()
 
+    /** Prima amintire a fost deja arătată singură, cu muzică (efectul de bun venit). */
+    var welcomed: Boolean
+        get() = prefs.getBoolean("welcomed", false)
+        set(v) = prefs.edit().putBoolean("welcomed", v).apply()
+
+    /** Muzica de sub povești (se poate opri din poveste). */
+    var storyMusic: Boolean
+        get() = prefs.getBoolean("storyMusic", true)
+        set(v) = prefs.edit().putBoolean("storyMusic", v).apply()
+
     var dailyReminder: Boolean
         get() = prefs.getBoolean("dailyReminder", false)
         set(v) = prefs.edit().putBoolean("dailyReminder", v).apply()

@@ -124,6 +124,14 @@ class LuminModel(val context: Context, private val scope: CoroutineScope, privat
     /** Ce poate face serverul AI acum (vezi server/); gol = nimic pe server. */
     var aiKinds by mutableStateOf<Set<com.luminculler.app.cleaner.magic.AiJob>>(emptySet())
     var aiTitles by mutableStateOf(store.aiTitles)
+    val storyMusic = StoryMusic(scope)
+    var storyMusicOn by mutableStateOf(store.storyMusic)
+
+    fun toggleStoryMusic() {
+        storyMusicOn = !storyMusicOn
+        store.storyMusic = storyMusicOn
+        if (!storyMusicOn) storyMusic.stop()
+    }
     private val titling = HashSet<String>()
 
     fun start() {
@@ -443,6 +451,12 @@ class LuminModel(val context: Context, private val scope: CoroutineScope, privat
             }
             // Titlurile AI pentru primele amintiri de pe ecran (cele deja scrise vin din memorie).
             moments.take(3).forEach { ensureAiTitle(it) }
+            // Bun venit: prima dată, cea mai frumoasă amintire pornește singură, cu muzică.
+            val hero = moments.firstOrNull()
+            if (hero != null && !store.welcomed && route == Route.Moments) {
+                store.welcomed = true
+                openStory(hero)
+            }
         }
     }
 
@@ -607,6 +621,7 @@ class LuminModel(val context: Context, private val scope: CoroutineScope, privat
     fun close() {
         magic.close()
         grow.close()
+        storyMusic.stop()
         scanJob?.cancel()
         billing.close()
     }

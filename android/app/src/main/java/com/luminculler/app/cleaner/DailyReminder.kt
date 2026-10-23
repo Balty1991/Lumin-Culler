@@ -26,6 +26,8 @@ import java.util.concurrent.TimeUnit
  */
 class DailyReminderWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
     override fun doWork(): Result {
+        // Widgetul primește amintirea zilei noi, chiar dacă mementoul e oprit.
+        try { MemoryWidget.updateAll(applicationContext) } catch (_: Throwable) { }
         val store = Store(applicationContext)
         if (!store.dailyReminder) return Result.success()
         if (!CleanReminderWorker.canNotify(applicationContext)) return Result.success()
