@@ -115,6 +115,7 @@ const VaultPanel = lazyPanel(() => import('./ui/VaultPanel').then(m => ({ defaul
 const RescueQueuePanel = lazyPanel(() => import('./ui/RescueQueuePanel').then(m => ({ default: m.RescueQueuePanel })));
 const SmartInboxPanel = lazyPanel(() => import('./ui/SmartInboxPanel').then(m => ({ default: m.SmartInboxPanel })));
 const MomentsPanel = lazyPanel(() => import('./ui/MomentsPanel').then(m => ({ default: m.MomentsPanel })));
+const AlbumsPanel = lazyPanel(() => import('./ui/AlbumsPanel').then(m => ({ default: m.AlbumsPanel })));
 const ExactDupesPanel = lazyPanel(() => import('./ui/ExactDupesPanel').then(m => ({ default: m.ExactDupesPanel })));
 const DuplicatesPanel = lazyPanel(() => import('./ui/DuplicatesPanel').then(m => ({ default: m.DuplicatesPanel })));
 const GallerySupervisorPanel = lazyPanel(() => import('./ui/GallerySupervisorPanel').then(m => ({ default: m.GallerySupervisorPanel })));
@@ -885,6 +886,7 @@ export default function App() {
         <RescueQueuePanel />
         <SmartInboxPanel />
         <MomentsPanel />
+        <AlbumsPanel />
         <ExactDupesPanel />
         <GallerySupervisorPanel />
         <ConfirmDialog />
@@ -1580,6 +1582,7 @@ export default function App() {
       <RescueQueuePanel />
       <SmartInboxPanel />
       <MomentsPanel />
+      <AlbumsPanel />
       <ExactDupesPanel />
       <GallerySupervisorPanel />
       <MenuDrawer />

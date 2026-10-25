@@ -11,6 +11,7 @@ import com.getcapacitor.WebViewListener;
 import com.luminculler.app.plugins.StageOnePlugin;
 import com.luminculler.app.plugins.ImageAnalysisPlugin;
 import com.luminculler.app.plugins.ImageLabelingPlugin;
+import com.luminculler.app.plugins.ObjectDetectionPlugin;
 import com.luminculler.app.plugins.FaceMeshPlugin;
 import com.luminculler.app.plugins.TextRecognitionPlugin;
 import com.luminculler.app.plugins.PoseDetectionPlugin;
@@ -110,6 +111,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(StageOnePlugin.class);
         registerPlugin(ImageAnalysisPlugin.class);
         registerPlugin(ImageLabelingPlugin.class);
+        registerPlugin(ObjectDetectionPlugin.class);
         registerPlugin(FaceMeshPlugin.class);
         registerPlugin(TextRecognitionPlugin.class);
         registerPlugin(PoseDetectionPlugin.class);

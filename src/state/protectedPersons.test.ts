@@ -38,6 +38,12 @@ describe('protectedPersons', () => {
     expect(isProtected(ph([]), set)).toBe(false);
   });
 
+  it('un animal numit e protejat la fel ca o persoană', () => {
+    expect(isProtected(ph([], { petNames: ['Rex'] }), new Set(['Rex']))).toBe(true);
+    expect(isProtected(ph([], { petNames: ['Rex'] }), new Set(['Ana']))).toBe(false);
+    expect(excludeProtected([ph([], { petNames: ['Rex'] }), ph(['Ana'])], new Set(['Rex']))).toHaveLength(1);
+  });
+
   it('numele se compara exact — "Ana" nu protejeaza "Anastasia"', () => {
     expect(isProtected(ph(['Anastasia']), new Set(['Ana']))).toBe(false);
   });

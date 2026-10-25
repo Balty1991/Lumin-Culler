@@ -5135,3 +5135,58 @@ html:has(> body .welcome-screen) {
 
 /* Sectiunea veche "cum functioneaza" nu apare in build-ul de referinta. */
 .concept-empty-legacy { display: none; }
+
+/* Albume virtuale — aceleași suprafețe ca restul 2.1.2, nu un ecran separat. */
+.album-sheet { display: flex; flex-direction: column; gap: 12px; }
+.album-search { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); color: var(--text-dim); }
+.album-search input { flex: 1; border: 0; background: transparent; color: var(--text); font: inherit; outline: none; }
+.album-prompt { display: flex; gap: 12px; padding: 14px; border: 1px solid var(--line-strong); border-radius: 16px; background: var(--surface-2); }
+.album-prompt p { margin: 4px 0 10px; color: var(--text-dim); font-size: .85rem; }
+.album-prompt-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.album-block header, .album-block-head { display: flex; justify-content: space-between; align-items: baseline; font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--text-faint); }
+.album-people { display: flex; gap: 14px; overflow-x: auto; padding: 8px 0 4px; }
+.album-person { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 76px; background: none; border: 0; color: var(--text); font: inherit; cursor: pointer; }
+.album-person span { color: var(--text-dim); font-size: .75rem; }
+.album-avatar { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; color: white; font-weight: 700; position: relative; }
+.album-avatar.small { width: 40px; height: 40px; }
+.album-avatar.large { width: 72px; height: 72px; font-size: 1.4rem; }
+.album-avatar.dashed { background: transparent; border: 1.5px dashed var(--accent-2); color: var(--accent-2); }
+.album-avatar-badge { position: absolute; right: -2px; bottom: -2px; width: 16px; height: 16px; }
+.album-row { display: flex; gap: 12px; align-items: center; width: 100%; text-align: left; background: var(--surface-2); border: 1px solid var(--line); border-radius: 14px; color: var(--text); padding: 10px 12px; cursor: pointer; }
+.album-row b { display: block; }
+.album-events, .album-other { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.album-event, .album-other-card { text-align: left; background: var(--surface-2); border: 1px solid var(--line); border-radius: 16px; color: var(--text); padding: 0; overflow: hidden; cursor: pointer; }
+.album-event-art { display: block; height: 84px; }
+.album-event b, .album-event span, .album-other-card b, .album-other-card span { display: block; padding: 0 10px; }
+.album-event b { padding-top: 8px; }
+.album-event span, .album-other-card span { color: var(--text-dim); font-size: .78rem; padding-bottom: 10px; }
+.album-other-card { padding: 12px; }
+.album-other-card b, .album-other-card span { padding: 0; }
+.album-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.album-grid-cell { aspect-ratio: 1; border-radius: 12px; overflow: hidden; background: var(--surface-3); }
+.album-grid-cell img, .album-thumb-empty { width: 100%; height: 100%; object-fit: cover; display: block; }
+.album-person-head { display: flex; gap: 14px; align-items: center; }
+.album-person-head h2 { margin: 0; }
+.album-protect { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--text-dim); padding: 4px 10px; cursor: pointer; }
+.album-protect.on { color: var(--pick); border-color: rgb(var(--pick-rgb) / .45); }
+.album-protect-note { margin: 0; padding: 10px 12px; border-radius: 12px; background: rgb(var(--pick-rgb) / .08); color: var(--text-dim); font-size: .85rem; }
+.album-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.album-stats div { background: var(--surface-2); border-radius: 14px; padding: 12px; text-align: center; }
+.album-stats b { display: block; font-size: 1.25rem; }
+.album-stats span { color: var(--text-dim); font-size: .75rem; }
+.album-export { width: 100%; display: inline-flex; justify-content: center; align-items: center; gap: 8px; }
+.album-export-note { text-align: center; }
+.album-correct-entry { align-self: flex-start; }
+.album-wipe { position: relative; aspect-ratio: 4 / 3; border-radius: 16px; overflow: hidden; background: var(--surface-3); }
+.album-wipe img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.album-wipe-before { position: absolute; inset: 0 auto 0 0; overflow: hidden; border-right: 2px solid white; }
+.album-wipe-before img { height: 100%; max-width: none; object-fit: cover; }
+.album-wipe-before span, .album-wipe-after { position: absolute; top: 8px; font-size: .68rem; letter-spacing: .06em; text-transform: uppercase; background: rgb(0 0 0 / .45); color: white; border-radius: 999px; padding: 3px 8px; }
+.album-wipe-before span { left: 8px; }
+.album-wipe-after { right: 8px; }
+.album-wipe-range input { width: 100%; }
+.album-fixes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.album-fixes li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.album-fixes-title { margin: 4px 0; font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--text-faint); }
+.album-correct-actions { display: flex; gap: 8px; }
+.album-correct-actions > * { flex: 1; }

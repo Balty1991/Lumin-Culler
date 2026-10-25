@@ -529,6 +529,16 @@ export interface AnalysisRecord {
    */
   imageEmbedding?: number[];
   /**
+   * Animalul ca individ, nu doar specia din sceneTags.
+   *
+   * `petLabel` e eticheta ML Kit („dog”). `petEmbedding` e MobileNetV3-small
+   * pe decupaj — embedding de scenă, Apache 2.0, nu o biometrică. `petName`
+   * e numele dat de om („Rex”). Absente pe pozele vechi și pe cadrele fără animal.
+   */
+  petLabel?: string;
+  petEmbedding?: number[];
+  petName?: string;
+  /**
    * true daca cel putin o persoana detectata (MediaPipe Pose Landmarker,
    * core/nativePoseDetection.ts) pare sa aiba o extremitate (mana/incheietura
    * sau picior/glezna) taiata de marginea cadrului — landmark aproape de

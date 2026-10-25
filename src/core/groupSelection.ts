@@ -39,6 +39,12 @@ export interface GroupCandidate {
   highlightClipping?: number;
   /** Scorul dat de motorul invatat (0..100). Absent = se foloseste doar ierarhia fixa de mai jos. */
   aiScore?: number;
+  /**
+   * În cadru e o persoană pe care omul a numit-o și a protejat-o.
+   * Avantaj mic: la două cadre apropiate, câștigă cel cu persoana. Un cadru
+   * mult mai clar tot trece în față.
+   */
+  protectedPerson?: boolean;
 }
 
 /** Cat ramane din claritatea globala cand subiectul insusi e confirmat neclar — vezi fixedScore. */
@@ -119,7 +125,8 @@ function groupScore(c: GroupCandidate, learnedWeight: number): number {
   // (devine cadrul propus, restul sunt demovate la 'review') indiferent cat de
   // bune erau celelalte — iar rezultatul depindea de ordinea din vector, nu de
   // calitate. Un candidat nemasurabil trebuie sa fie ULTIMUL, nu primul.
-  return Number.isFinite(blended) ? blended : 0;
+  if (!Number.isFinite(blended)) return 0;
+  return blended + (c.protectedPerson ? 0.06 : 0);
 }
 
 /** Returneaza id-ul celui mai bun candidat dintr-un grup (dupa groupScore). Arunca daca grupul e gol. */

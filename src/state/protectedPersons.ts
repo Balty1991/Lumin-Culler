@@ -43,12 +43,15 @@ export function writeProtectedPersons(names: Set<string>): void {
 /** Minimul din PhotoView de care are nevoie verificarea. */
 export interface ProtectablePhoto {
   personNames: string[];
+  /** Animal numit („Rex”). Aceeași listă de protecție ca persoanele. */
+  petNames?: readonly string[];
 }
 
-/** Poza contine cel putin o persoana protejata. */
-export function isProtected(photo: ProtectablePhoto, protectedNames: Set<string>): boolean {
+/** Poza contine cel putin o persoana sau un animal protejat. */
+export function isProtected(photo: ProtectablePhoto, protectedNames: ReadonlySet<string>): boolean {
   if (!protectedNames.size) return false;
-  return photo.personNames.some(n => protectedNames.has(n));
+  if (photo.personNames.some(n => protectedNames.has(n))) return true;
+  return photo.petNames?.some(n => protectedNames.has(n)) ?? false;
 }
 
 /**
@@ -58,13 +61,13 @@ export function isProtected(photo: ProtectablePhoto, protectedNames: Set<string>
  * ramane un singur filtru, in acelasi loc, in loc sa fie strecurata in fiecare
  * selector in parte — unde ar fi fost uitata la urmatorul adaugat.
  */
-export function excludeProtected<T extends ProtectablePhoto>(targets: T[], protectedNames: Set<string>): T[] {
+export function excludeProtected<T extends ProtectablePhoto>(targets: T[], protectedNames: ReadonlySet<string>): T[] {
   if (!protectedNames.size) return targets;
   return targets.filter(p => !isProtected(p, protectedNames));
 }
 
 /** Cate poze ar fi scoase dintr-o operatie. Pentru mesajul dinaintea apasarii. */
-export function countProtected(targets: ProtectablePhoto[], protectedNames: Set<string>): number {
+export function countProtected(targets: ProtectablePhoto[], protectedNames: ReadonlySet<string>): number {
   if (!protectedNames.size) return 0;
   return targets.reduce((n, p) => n + (isProtected(p, protectedNames) ? 1 : 0), 0);
 }

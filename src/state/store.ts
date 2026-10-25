@@ -12,7 +12,7 @@ import {
   removePhotosFromCollection as removePhotosFromCollectionRecord
 } from '../core/collections';
 import { readSavedFilters, writeSavedFilters, type SavedFilterPreset } from './savedFilters';
-import { applyAdjustmentsToBlob, isNeutral, type EditAdjustments } from '../core/imageAdjust';
+import { applyAdjustmentsToBlob, isNeutral, persistableAdjustments, type EditAdjustments } from '../core/imageAdjust';
 import { readApplyEditsInGallery, writeApplyEditsInGallery } from './applyEditsPreference';
 import { readProMode, writeProMode } from './proMode';
 import { readActiveFilter, writeActiveFilter } from './activeFilter';
@@ -45,6 +45,7 @@ import { dateSearchWords } from './searchDateWords';
 import { findNearestPlace, formatPlace, getLoadedPlaceIndex, loadPlaceIndex } from '../core/placeNames';
 import { hasRealGps } from '../core/gpsCoordinates';
 import { pickBestInGroup } from '../core/groupSelection';
+import { correctedFileName } from '../core/autoCorrect';
 import {
   pushHistory, popHistory, MAX_HISTORY, type HistoryEvent,
   pushBatchHistory, popBatchHistory, type BatchHistoryEvent, type FieldBatchHistoryEvent
@@ -65,7 +66,7 @@ import { readStoredTheme, applyTheme, type Theme } from './theme';
 import { readStoredAccent, applyAccent, type AccentTheme } from './accentTheme';
 import { readWelcomeSeen, writeWelcomeSeen } from './welcomeOnboarding';
 import { readExcludedFolderIds, writeExcludedFolderIds } from './galleryFolders';
-import { readProtectedPersons, writeProtectedPersons, excludeProtected } from './protectedPersons';
+import { readProtectedPersons, writeProtectedPersons, excludeProtected, isProtected } from './protectedPersons';
 import { readStageStats } from '../core/stageTiming';
 import {
   formatScanLine, readLastScan, scanSummaryOnFinish, writeLastScan, type LastScan
@@ -216,6 +217,8 @@ export interface PhotoView {
   /** Cat din aiScore vine din gustul tau, nu din manual — vezi AnalysisRecord.aiPersonalDelta. */
   aiPersonalDelta?: number;
   personNames: string[];
+  /** Animal numit („Rex”). Aceeași protecție ca o persoană. Absent = niciun nume. */
+  petNames?: string[];
   /** Persoanele cunoscute recunoscute in ACEASTA poza, cu similaritatea (0..1) cea mai buna dintre fetele care le corespund — "confidence score" (plan 3.2.3). */
   personMatches: { name: string; similarity: number }[];
   groupId?: string;
@@ -488,6 +491,9 @@ interface AppState {
   /** Momentele (sesiuni de fotografiat separate de pauze), cu 1-3 cadre propuse din fiecare — vezi core/momentStacks.ts. */
   momentsOpen: boolean;
   setMomentsOpen: (open: boolean) => void;
+  /** Albume virtuale (persoane, animale, evenimente). Nu mută fișiere. */
+  albumsOpen: boolean;
+  setAlbumsOpen: (open: boolean) => void;
   /**
    * "Mod profesional": arata in meniu si functiile de dupa triaj (XMP, contact
    * sheet, galerie client, watermark, proiecte, gen fotografic, locatii).
@@ -774,6 +780,11 @@ interface AppState {
   setColorLabel: (id: string, label: ColorLabel) => Promise<void>;
   /** Salveaza ajustarile de baza (EditPanel) — non-destructiv, vezi PhotoRecord.edits. */
   setEditAdjustments: (id: string, adjustments: EditAdjustments) => Promise<void>;
+  /**
+   * Copii corectate. Originalul din galerie și rândul lui rămân neatinse.
+   * Copia nu are mediaUri, deci nu poate fi ștearsă din telefon ca și cum ar fi sursa.
+   */
+  addCorrectedCopies: (plans: { sourceId: string; adjustments: EditAdjustments }[]) => Promise<number>;
   /** Aplica editarile unei poze tuturor celorlalte cadre NEEDITATE din lista data. */
   applyEditsToMoment: (sourceId: string, ids: string[]) => Promise<{ applied: number }>;
   undo: () => Promise<void>;
@@ -914,6 +925,8 @@ interface AppState {
    * sa nu mai apara drept "strain" in restul bibliotecii curente.
    */
   enrollFaceCluster: (name: string, members: { photoId: string; faceIndex: number; embedding: number[] }[]) => Promise<void>;
+  /** Pune numele pe un grup de același animal. Nu trece prin plafonul de persoane. */
+  enrollPetCluster: (name: string, members: { photoId: string }[]) => Promise<void>;
   setPersonsOpen: (open: boolean) => void;
   setMenuOpen: (open: boolean) => void;
   setInsightsOpen: (open: boolean) => void;
@@ -1053,6 +1066,7 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     personNames: analysis
       ? Array.from(new Set(analysis.faces.map(f => f.personName).filter((n): n is string => !!n)))
       : [],
+    petNames: analysis?.petName ? [analysis.petName] : [],
     personMatches: analysis ? bestMatchPerName(analysis.faces) : [],
     groupId: photo.groupId,
     capturedAt: photo.capturedAt,
@@ -1484,6 +1498,7 @@ function matchesToken(p: PhotoView, normalizedQuery: string, locale: Locale): bo
   //    Cautarea era corecta; vocabularul masinii nu e vocabularul omului.
   if (normalizeForSearch(p.fileName).includes(normalizedQuery)) return true;
   if (p.personNames.some(n => normalizeForSearch(n).includes(normalizedQuery))) return true;
+  if (p.petNames?.some(n => normalizeForSearch(n).includes(normalizedQuery))) return true;
   if (p.iptcCaption && normalizeForSearch(p.iptcCaption).includes(normalizedQuery)) return true;
   // Descrierea scrisa de model, cand exista. Ultima dintre campurile de text
   // dinadins: e singura care n-a fost scrisa de un om, deci o potrivire in ea
@@ -1863,6 +1878,8 @@ export const useStore = create<AppState>((set, get) => ({
   setSmartInboxOpen: open => set({ smartInboxOpen: open }),
   momentsOpen: false,
   setMomentsOpen: open => set({ momentsOpen: open }),
+  albumsOpen: false,
+  setAlbumsOpen: open => set({ albumsOpen: open }),
   proMode: readProMode(),
   setProMode: on => {
     writeProMode(on);
@@ -3325,6 +3342,44 @@ export const useStore = create<AppState>((set, get) => ({
     }));
   },
 
+  addCorrectedCopies: async (plans) => {
+    const made: PhotoView[] = [];
+    for (const plan of plans) {
+      const rec = await db.photos.get(plan.sourceId);
+      if (!rec) continue;
+      const analysis = await db.analyses.get(plan.sourceId);
+      const id = crypto.randomUUID();
+      const copy: PhotoRecord = {
+        ...rec,
+        id,
+        fileName: correctedFileName(rec.fileName),
+        importedAt: Date.now(),
+        status: 'selected',
+        aiDecided: false,
+        groupId: `corrected-${id}`,
+        edits: persistableAdjustments(plan.adjustments),
+        decisionNote: 'Copie corectată. Fișierul din galerie nu a fost modificat.',
+        mediaUri: undefined
+      };
+      const [thumb, preview] = await Promise.all([db.thumbnails.get(rec.id), db.previews.get(rec.id)]);
+      const copiedAnalysis = analysis ? { ...analysis, photoId: id } : undefined;
+      await db.transaction('rw', [db.photos, db.thumbnails, db.previews, db.analyses], async () => {
+        await db.photos.put(copy);
+        if (thumb) await db.thumbnails.put({ photoId: id, blob: thumb.blob });
+        if (preview) await db.previews.put({ photoId: id, blob: preview.blob });
+        if (copiedAnalysis) await db.analyses.put(copiedAnalysis);
+      });
+      made.push(toView(copy, copiedAnalysis));
+    }
+    if (!made.length) return 0;
+    const locale = get().locale;
+    set(state => ({
+      photos: [...state.photos, ...made].sort((a, b) => (a.capturedAt ?? 0) - (b.capturedAt ?? 0)),
+      notice: t(locale, 'albums.correct.saved', { count: made.length })
+    }));
+    return made.length;
+  },
+
   /**
    * Aplica ACELEASI ajustari tuturor celorlalte cadre din acelasi moment.
    *
@@ -3518,7 +3573,8 @@ export const useStore = create<AppState>((set, get) => ({
         groupAwkwardRatio: m.groupAwkwardRatio ?? a?.groupAwkwardRatio,
         subjectInFocus: a?.subjectInFocus,
         highlightClipping: a?.highlightClipping,
-        avgEyeContact: a?.avgEyeContact
+        avgEyeContact: a?.avgEyeContact,
+        protectedPerson: isProtected(m, get().protectedPersons)
       };
     }), learnedWeight);
   },
@@ -3582,8 +3638,8 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   resolveAllSeries: async () => {
-    const resolutions = resolveGroups(outsideVault(get().photos, get().collections));
     const protectedForSeries = get().protectedPersons;
+    const resolutions = resolveGroups(outsideVault(get().photos, get().collections), protectedForSeries);
     // Bug real gasit de auditul QA (bug/low): un Array.find() pe intreaga lista
     // in interiorul buclei (si al buclei imbricate de rejectIds) era O(n) per
     // cautare — O(M*n) in total pentru M membri de serie, real O(n^2) cand
@@ -3606,14 +3662,14 @@ export const useStore = create<AppState>((set, get) => ({
         // Persoana protejata: nu o respingem automat nici cand pierde in serie.
         // Un cadru putin miscat in care copilul rade e exact ce nu vrei sa
         // dispara pentru ca a luat un scor mai mic. Vezi state/protectedPersons.ts.
-        if (rec && protectedForSeries.size && rec.personNames.some(n => protectedForSeries.has(n))) continue;
+        if (rec && isProtected(rec, protectedForSeries)) continue;
         changes.push({ photoId: rejectId, previousStatus: rec?.status ?? 'pending' });
         statusChanges.push({ id: rejectId, status: 'rejected' });
       }
     }
     const { quotaError } = await applyBulkStatusChanges(statusChanges, status => status === 'selected');
     const keepIds = new Set(resolutions.map(g => g.keepId));
-    const rejectIds = new Set(resolutions.flatMap(g => g.rejectIds));
+    const rejectIds = new Set(statusChanges.filter(c => c.status === 'rejected').map(c => c.id));
     const locale = get().locale;
     set(state => ({
       photos: state.photos.map(p => {
@@ -3635,7 +3691,7 @@ export const useStore = create<AppState>((set, get) => ({
     const protectedNames = get().protectedPersons;
     const photoIndex = new Map(get().photos.map(p => [p.id, p]));
     const rejectIds = protectedNames.size
-      ? rawRejectIds.filter(id => { const ph = photoIndex.get(id); return !ph || !ph.personNames.some(n => protectedNames.has(n)); })
+      ? rawRejectIds.filter(id => { const ph = photoIndex.get(id); return !ph || !isProtected(ph, protectedNames); })
       : rawRejectIds;
     const byId = new Map(get().photos.map(p => [p.id, p.status]));
     const changes = [...selectIds, ...rejectIds].map(id => ({ photoId: id, previousStatus: byId.get(id) ?? 'pending' as PhotoRecord['status'] }));
@@ -4426,6 +4482,25 @@ export const useStore = create<AppState>((set, get) => ({
     });
   },
 
+  enrollPetCluster: async (name, members) => {
+    const trimmedName = name.trim();
+    if (!trimmedName || !members.length) return;
+    const photoIds = Array.from(new Set(members.map(m => m.photoId)));
+    await db.transaction('rw', db.analyses, async () => {
+      const analyses = await db.analyses.bulkGet(photoIds);
+      for (const analysis of analyses) {
+        if (!analysis || analysis.petName) continue;
+        analysis.petName = trimmedName;
+        await db.analyses.put(analysis);
+      }
+    });
+    const views = await reloadPhotoViews();
+    set({
+      photos: views,
+      notice: t(get().locale, 'store.petCluster.enrolled', { name: trimmedName, photos: photoIds.length })
+    });
+  },
+
   setPersonsOpen: open => set({ personsOpen: open }),
   setMenuOpen: open => set({ menuOpen: open }),
   setInsightsOpen: open => set({ insightsOpen: open }),
@@ -5034,7 +5109,7 @@ export function isAnyOverlayOpen(): boolean {
     s.paletteOpen || s.shortcutsOpen || s.clipLabOpen || s.menuOpen || s.personsOpen || s.insightsOpen ||
     s.batchOpsOpen || s.statsOpen || s.projectsOpen || s.contactSheetOpen || s.presentationOpen ||
     s.appearanceOpen || s.collectionsOpen || s.documentShieldOpen || s.duplicatesPanelOpen ||
-    s.rescueQueueOpen || s.smartInboxOpen || s.momentsOpen || s.exactDupesOpen ||
+    s.rescueQueueOpen || s.smartInboxOpen || s.momentsOpen || s.albumsOpen || s.exactDupesOpen ||
     s.exportDestinationsOpen || s.premiumOpen || s.searchPanelOpen || s.supervisorPanelOpen ||
     s.tiktokSortOpen || s.locationsOpen || s.vaultOpen || s.zenPanelOpen || s.guideOpen ||
     s.compareGroupId || s.editingPhotoId || s.dialogRequest

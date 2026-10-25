@@ -13,6 +13,19 @@ describe('pickBestInGroup', () => {
     expect(() => pickBestInGroup([])).toThrow();
   });
 
+  it('dă un avantaj mic persoanei protejate, nu și unui cadru mult mai moale', () => {
+    const close = pickBestInGroup([
+      candidate({ id: 'strain', sharpness: 80 }),
+      candidate({ id: 'copil', sharpness: 76, protectedPerson: true })
+    ]);
+    expect(close).toBe('copil');
+    const far = pickBestInGroup([
+      candidate({ id: 'clar', sharpness: 95 }),
+      candidate({ id: 'moale', sharpness: 40, protectedPerson: true })
+    ]);
+    expect(far).toBe('clar');
+  });
+
   it('returns the only candidate for a single-member group', () => {
     expect(pickBestInGroup([candidate({ id: 'a' })])).toBe('a');
   });
