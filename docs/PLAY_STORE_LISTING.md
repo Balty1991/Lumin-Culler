@@ -1,3 +1,7 @@
+> Superseded for the cleaner that ships from CleanerActivity. Copy the Play
+> Console text from [PLAY_LISTING.md](PLAY_LISTING.md). This file keeps the
+> older culler wording so nothing is lost; do not paste it into the store.
+
 # Texte fisa Play Store — Lumin: AI Photo Cleaner
 
 Numele din launcher e **Lumin**. Titlurile de cautare de mai jos sunt cele de

@@ -16,12 +16,13 @@ import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 /**
- * Notificarea lunară. Nu șterge, nu urcă, nu deschide pozele: adună o mărime
- * din MediaStore (sau ultima estimare lăsată de ecran) și o arată.
+ * Notificarea locală de curățare. Nu șterge, nu urcă, nu deschide pozele:
+ * arată ultima estimare lăsată de ecran, sau o estimare din MediaStore.
  *
- * WorkManager o poate amâna cât telefonul doarme. Pentru o curățare lunară
- * o zi în plus nu schimbă nimic. Intervalul minim al platformei e 15 minute;
- * noi cerem zile.
+ * Cleaner-ul o programează la 7 zile și scrie KEY_DAYS = 7. Numele unic
+ * rămâne `lumin-monthly-clean`, ca să nu rămână două lucrări. WorkManager
+ * o poate amâna cât telefonul doarme. Intervalul minim al platformei e
+ * 15 minute; noi cerem zile.
  */
 class CleanReminderWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
 
@@ -89,11 +90,11 @@ class CleanReminderWorker(context: Context, params: WorkerParameters) : Worker(c
         fun message(locale: String, bytes: Long): String {
             if (bytes <= 0L) {
                 return when (locale) {
-                    "ro" -> "E timpul pentru curățenia lunară."
-                    "pt-BR", "pt" -> "Hora da limpeza mensal."
-                    "es" -> "Es hora de la limpieza mensual."
-                    "de" -> "Zeit für die monatliche Reinigung."
-                    else -> "Time for your monthly clean."
+                    "ro" -> "E timpul pentru o curățare."
+                    "pt-BR", "pt" -> "Hora de uma limpeza."
+                    "es" -> "Es hora de una limpieza."
+                    "de" -> "Zeit fürs Aufräumen."
+                    else -> "Time for a clean."
                 }
             }
             val size = formatBytes(bytes)

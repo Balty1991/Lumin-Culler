@@ -119,7 +119,7 @@ fun accentOf(context: Context, uri: String): Int? {
     return color
 }
 
-fun shareFreedCard(activity: Activity, bytes: Long) {
+fun shareFreedCard(activity: Activity, bytes: Long, freed: Boolean = true) {
     val width = 1080
     val height = 1350
     val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
@@ -133,10 +133,10 @@ fun shareFreedCard(activity: Activity, bytes: Long) {
     canvas.drawText("LUMIN", 120f, 220f, paint)
     paint.color = 0xFFC5CAD6.toInt()
     paint.textSize = 48f
-    canvas.drawText("I freed", 120f, 620f, paint)
+    canvas.drawText(if (freed) "I freed" else "I set aside", 120f, 620f, paint)
     paint.color = 0xFFF4F6FB.toInt()
     paint.textSize = 120f
-    canvas.drawText(formatFreed(bytes), 120f, 780f, paint)
+    canvas.drawText(formatBytes(bytes), 120f, 780f, paint)
     paint.textSize = 48f
     canvas.drawText("with Lumin", 120f, 880f, paint)
     val file = File(activity.cacheDir, "lumin-freed.png")
@@ -146,22 +146,10 @@ fun shareFreedCard(activity: Activity, bytes: Long) {
     val send = Intent(Intent.ACTION_SEND).apply {
         type = "image/png"
         putExtra(Intent.EXTRA_STREAM, uri)
-        putExtra(Intent.EXTRA_TEXT, "I freed ${formatFreed(bytes)} with Lumin")
+        putExtra(Intent.EXTRA_TEXT, "${if (freed) "I freed" else "I set aside"} ${formatBytes(bytes)} with Lumin")
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
     activity.startActivity(Intent.createChooser(send, "Share"))
-}
-
-private fun formatFreed(bytes: Long): String {
-    if (bytes < 1024) return "$bytes B"
-    val units = arrayOf("KB", "MB", "GB")
-    var value = bytes.toDouble()
-    var unit = -1
-    while (value >= 1024 && unit < units.lastIndex) {
-        value /= 1024
-        unit++
-    }
-    return "%.1f %s".format(value, units[unit])
 }
 
 @Composable
