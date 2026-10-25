@@ -230,6 +230,15 @@ jobs:
       - name: Clean up keystore
         if: always()
         run: rm -f android/release.jks android/app/keystore.properties
+      - name: Mărimi arm64 în AAB
+        if: always()
+        run: |
+          aab=android/app/build/outputs/bundle/release/app-release.aab
+          if [ ! -f "$aab" ]; then echo "AAB lipsă"; exit 0; fi
+          echo "### Module arm64 în AAB" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          unzip -l "$aab" | awk 'BEGIN{s=0} /arm64-v8a/ {s+=$1; print} END{printf "arm64-v8a total %d bytes\n", s}' | sort -k1 -n -r | head -20 >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
           name: lumin-culler-release-aab

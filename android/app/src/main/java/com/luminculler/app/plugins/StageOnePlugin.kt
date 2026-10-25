@@ -7,13 +7,16 @@ import android.graphics.Matrix
 import android.media.ExifInterface
 import android.net.Uri
 import android.util.Base64
+import com.getcapacitor.JSArray
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
 import java.io.ByteArrayOutputStream
+import java.util.concurrent.Executors
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
@@ -30,8 +33,12 @@ import kotlin.math.sqrt
 @CapacitorPlugin(name = "StageOne")
 class StageOnePlugin : Plugin() {
     private val executor = pluginExecutor("StageOne")
+    private val pool = Executors.newFixedThreadPool(4) { runnable ->
+        Thread(runnable, "Lumin-StageOne-batch").apply { isDaemon = true }
+    }
 
     override fun handleOnDestroy() {
+        pool.shutdown()
         executor.shutdown()
         super.handleOnDestroy()
     }
@@ -45,6 +52,26 @@ class StageOnePlugin : Plugin() {
         }
         executor.ruleaza(call, "Stage one failed") {
             call.resolve(fingerprintUri(Uri.parse(raw)))
+        }
+    }
+
+    @PluginMethod
+    fun fingerprintBatch(call: PluginCall) {
+        val arr = call.getArray("imageUris")
+        if (arr == null) {
+            call.reject("imageUris lipsește")
+            return
+        }
+        val uris = ArrayList<String>(arr.length())
+        for (i in 0 until arr.length()) {
+            val value = arr.optString(i)
+            if (value.isNotBlank()) uris.add(value)
+        }
+        executor.ruleaza(call, "Stage one batch failed") {
+            val tasks = uris.map { raw -> pool.submit<JSObject> { fingerprintUri(Uri.parse(raw)) } }
+            val items = JSArray()
+            for (task in tasks) items.put(task.get())
+            call.resolve(JSObject().apply { put("items", items) })
         }
     }
 
@@ -65,8 +92,10 @@ class StageOnePlugin : Plugin() {
 
         val hash = dHash(oriented)
         val metrics = thumbMetrics(oriented)
-        val preview = jpegBase64(oriented, PREVIEW_MAX, 80)
-        val thumb = jpegBase64(oriented, THUMB_MAX, 75)
+        val paper = paperScore(oriented)
+        val preview = jpegBase64(oriented, PREVIEW_MAX, 75)
+        val thumb = jpegBase64(oriented, THUMB_MAX, 70)
+        val lqip = jpegBase64(oriented, LQIP_MAX, 50)
         oriented.recycle()
 
         var fullW = srcW
@@ -81,8 +110,10 @@ class StageOnePlugin : Plugin() {
             put("height", fullH)
             put("sharpness", metrics.sharpness)
             put("exposure", metrics.exposure)
+            put("paperScore", paper)
             put("previewBase64", preview)
             put("thumbBase64", thumb)
+            put("lqipBase64", lqip)
         }
     }
 
@@ -160,6 +191,47 @@ class StageOnePlugin : Plugin() {
         return Metrics(exposure, sharpness)
     }
 
+    /** Aceeași formulă ca paperScoreFromRgba: lumină, paloare, muchii, pe 48×48. */
+    private fun paperScore(src: Bitmap): Double {
+        val side = PAPER_SIDE
+        val small = Bitmap.createScaledBitmap(src, side, side, true)
+        val gray = DoubleArray(side * side)
+        var lumaSum = 0.0
+        var satSum = 0.0
+        for (y in 0 until side) {
+            for (x in 0 until side) {
+                val color = small.getPixel(x, y)
+                val r = Color.red(color).toDouble()
+                val g = Color.green(color).toDouble()
+                val b = Color.blue(color).toDouble()
+                val yv = luma(color)
+                gray[y * side + x] = yv
+                lumaSum += yv
+                val maxC = max(r, max(g, b))
+                val minC = min(r, min(g, b))
+                satSum += if (maxC == 0.0) 0.0 else (maxC - minC) / maxC
+            }
+        }
+        small.recycle()
+        var acc = 0.0
+        var n = 0
+        for (y in 1 until side - 1) {
+            for (x in 1 until side - 1) {
+                val c = gray[y * side + x]
+                val lap = gray[y * side + x - 1] + gray[y * side + x + 1] + gray[(y - 1) * side + x] + gray[(y + 1) * side + x] - 4 * c
+                acc += lap * lap
+                n++
+            }
+        }
+        val count = side * side
+        val lumaMean = lumaSum / count / 255.0
+        val sat = satSum / count
+        val edge = min(1.0, sqrt(if (n > 0) acc / n else 0.0) / 28.0)
+        val bright = min(1.0, max(0.0, (lumaMean - 0.55) / 0.3))
+        val pale = min(1.0, max(0.0, (0.22 - sat) / 0.22))
+        return bright * 0.45 + pale * 0.3 + edge * 0.25
+    }
+
     private fun luma(color: Int): Double {
         return 0.299 * Color.red(color) + 0.587 * Color.green(color) + 0.114 * Color.blue(color)
     }
@@ -177,7 +249,9 @@ class StageOnePlugin : Plugin() {
     }
 
     companion object {
-        private const val PREVIEW_MAX = 1280
-        private const val THUMB_MAX = 512
+        private const val PREVIEW_MAX = 480
+        private const val THUMB_MAX = 256
+        private const val LQIP_MAX = 24
+        private const val PAPER_SIDE = 48
     }
 }

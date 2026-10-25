@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useStore, type PhotoView } from '../state/store';
+import { isReviewQueue } from '../core/singletonVerdict';
 import { returnVisitPrompt, readLastVisit, writeLastVisit } from '../state/returnVisit';
 import { pickResumeTarget } from '../state/resumeProject';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
@@ -57,7 +58,11 @@ function ReviewDeskPreview({ photo }: { photo: PhotoView }) {
 
   return (
     <div className="review-desk-media" aria-hidden="true">
-      {src ? <AdjustedImage src={src} edits={photo.edits} alt="" /> : <span className="review-desk-media-fallback" />}
+      {src
+        ? <AdjustedImage src={src} edits={photo.edits} alt="" />
+        : photo.lqip
+          ? <img src={photo.lqip} alt="" />
+          : <span className="review-desk-media-fallback" />}
     </div>
   );
 }
@@ -148,7 +153,7 @@ export function HomeDashboard({ onAddPhotos }: { onAddPhotos: () => void }) {
   // "de curatat" = tot ce nu e inca decis (pending + review), nu doar 'review'
   // (subsetul ambiguu semnalat de AI) — altfel numarul arata mult mai mic
   // decat coada reala de sortat pe care utilizatorul chiar o are.
-  const unsortedCount = photos.filter(p => p.status === 'pending' || p.status === 'review').length;
+  const unsortedCount = photos.filter(p => isReviewQueue(p)).length;
 
   /**
    * A DOUA DESCHIDERE, si de ce are nevoie de un rand al ei.
@@ -167,7 +172,7 @@ export function HomeDashboard({ onAddPhotos }: { onAddPhotos: () => void }) {
     lastVisitAt,
     importedSinceLastVisit: lastVisitAt === null
       ? 0
-      : photos.filter(p => p.importedAt > lastVisitAt && (p.status === 'pending' || p.status === 'review')).length,
+      : photos.filter(p => p.importedAt > lastVisitAt && isReviewQueue(p)).length,
     undecided: unsortedCount,
     // Cifra din galerie cere o citire din MediaStore; supervizorul o face deja
     // cand e cazul, si nu se dubleaza aici doar pentru un rand.
@@ -193,7 +198,7 @@ export function HomeDashboard({ onAddPhotos }: { onAddPhotos: () => void }) {
   // Review Desk este punctul central al noii experiente, nu doar un mesaj pentru
   // fotografiile ambigue. Daca AI a decis tot lotul, pastram cardul vizibil cu
   // prima fotografie din sesiune ca intrare spre revedere si biblioteca completa.
-  const reviewDeskPhoto = photos.find(p => p.status === 'pending' || p.status === 'review') ?? photos[0] ?? null;
+  const reviewDeskPhoto = photos.find(p => isReviewQueue(p)) ?? photos[0] ?? null;
   /**
    * Textul de sub titlu cat timp motorul lucreaza. Raspunde la singurele doua
    * intrebari pe care le are omul cand se uita la o bara: cate au fost facute
@@ -202,7 +207,7 @@ export function HomeDashboard({ onAddPhotos }: { onAddPhotos: () => void }) {
    */
   const analysedTotal = progress ? (progress.total || photos.length) : photos.length;
   const analysedPercent = progress
-    ? Math.max(3, Math.min(100, Math.round((progress.done / Math.max(1, analysedTotal)) * 100)))
+    ? Math.min(100, Math.round((progress.done / Math.max(1, analysedTotal)) * 100))
     : 0;
   const analysingLead = !progress
     ? ''
@@ -215,6 +220,7 @@ export function HomeDashboard({ onAddPhotos }: { onAddPhotos: () => void }) {
 
   const selectedCount = photos.filter(p => p.status === 'selected').length;
   const rejectedCount = photos.filter(p => p.status === 'rejected').length;
+  const reviewCount = unsortedCount;
 
   /** Aceeasi plasa de siguranta ca in App.tsx: golirea sesiunii e ireversibila. */
   const confirmClearSession = async () => {
@@ -240,7 +246,7 @@ export function HomeDashboard({ onAddPhotos }: { onAddPhotos: () => void }) {
     // "Deschide" si atunci a trece prin toata biblioteca e chiar ce trebuie —
     // e o revedere, nu o coada.
     const queue = hasReviewQueue
-      ? photos.filter(p => p.status === 'pending' || p.status === 'review')
+      ? photos.filter(p => isReviewQueue(p))
       : photos;
     const ids = queue
       .slice()
@@ -352,6 +358,9 @@ export function HomeDashboard({ onAddPhotos }: { onAddPhotos: () => void }) {
             <div className="review-desk-session-rail" aria-label={tr('reviewDesk.sessionSummary')}>
               <span className="review-desk-session-stat is-selected">
                 <b>{selectedCount}</b> {tr('reviewDesk.kept')}
+              </span>
+              <span className="review-desk-session-stat">
+                <b>{reviewCount}</b> {tr('reviewDesk.toReview')}
               </span>
               {deletableRejected.length > 0 ? (
                 <button className="review-desk-rejected-action" onClick={() => void doDelete()} disabled={deleting}>

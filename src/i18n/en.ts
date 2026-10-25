@@ -106,6 +106,7 @@ export const en: Record<TranslationKey, string> = {
   'reviewDesk.libraryLabel': 'Library',
   'reviewDesk.sessionSummary': 'Session summary',
   'reviewDesk.kept': 'kept',
+  'reviewDesk.toReview': 'to review',
   'reviewDesk.rejected': 'rejected',
   'reviewDesk.deleteRejected': 'Delete {count} rejected',
   'reviewDesk.nextPeriod': 'Add the next period',

@@ -70,6 +70,7 @@ import { readStageStats } from '../core/stageTiming';
 import {
   formatScanLine, readLastScan, scanSummaryOnFinish, writeLastScan, type LastScan
 } from '../core/scanSummary';
+import { isReviewQueue } from '../core/singletonVerdict';
 import { summariseFeedback } from '../core/aiFeedback';
 import { recordImportOutcome, summariseOutcomes } from '../core/importOutcome';
 import { keepScreenAwake } from '../core/wakeLock';
@@ -258,6 +259,7 @@ export interface PhotoView {
   clientFeedback?: 'like' | 'dislike';
   /** URI content:// nativ Android al fisierului original — vezi PhotoRecord.mediaUri. Absent = stergerea din stocare (deleteRejectedPhotos) nu e posibila pentru aceasta poza. */
   mediaUri?: string;
+  aside?: PhotoRecord['aside'];
 }
 
 /** Pentru ce functie s-a lovit omul de poarta Premium — vezi gatePremium. */
@@ -991,6 +993,7 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     rating: photo.rating ?? 0,
     colorLabel: photo.colorLabel,
     lqip: photo.lqip,
+    aside: photo.aside,
     edits: photo.edits,
     clientFeedback: photo.clientFeedback,
     mediaUri: photo.mediaUri,
@@ -2883,7 +2886,7 @@ export const useStore = create<AppState>((set, get) => ({
     let notificatFaza: string | null = 'incarcare';
     /** Avertismentul lotului, ca CHEIE — se traduce la final, vezi ImportWarning. */
     let warning: ImportWarning | undefined;
-    let scanPhases: { stage1Ms: number; stage2Ms: number } | undefined;
+    let scanPhases: { stage1Ms: number; stage2Ms: number; prepMs?: number; dbMs?: number } | undefined;
     /** Bilantul in cifre al lotului, raportat de pipeline pe ultimul apel — vezi core/importOutcome.ts. */
     let outcomeReport: ImportOutcomeReport | undefined;
     let done = 0;
@@ -2932,7 +2935,18 @@ export const useStore = create<AppState>((set, get) => ({
       if (!pendingPhotos.length) return;
       const batch = pendingPhotos;
       pendingPhotos = [];
-      set(state => ({ photos: [...state.photos, ...batch] }));
+      set(state => {
+        const incoming = new Map(batch.map(p => [p.id, p]));
+        const seen = new Set<string>();
+        const merged = state.photos.map(p => {
+          const next = incoming.get(p.id);
+          if (!next) return p;
+          seen.add(p.id);
+          return next;
+        });
+        for (const photo of batch) if (!seen.has(photo.id)) merged.push(photo);
+        return { photos: merged };
+      });
     };
     // Raportate o singura data de importFiles, doar cand plasa de siguranta chiar
     // a mutat un prag — vezi core/scoreThresholds.ts.
@@ -2966,7 +2980,7 @@ export const useStore = create<AppState>((set, get) => ({
           if (progress.thresholds) adaptedThresholds = progress.thresholds;
           if (progress.scanPhases) scanPhases = progress.scanPhases;
           let etaSeconds: number | undefined;
-          if (progress.phase === 'analiza') {
+          if ((progress.phase === 'analiza' || progress.phase === 'pregatire') && progress.done > 0) {
             // Pornit la prima poza terminata, nu la inceputul importului:
             // incarcarea modelelor si pregatirea nu sunt "analiza care sta".
             const ascunsa = document.visibilityState !== 'visible';
@@ -3019,7 +3033,7 @@ export const useStore = create<AppState>((set, get) => ({
           }
         },
         item => {
-          importedIds.push(item.photo.id);
+          if (!importedIds.includes(item.photo.id)) importedIds.push(item.photo.id);
           pendingPhotos.push(toView(item.photo, item.analysis));
           if (pendingPhotos.length >= PHOTO_FLUSH_BATCH) { flushPendingPhotos(); return; }
           if (!flushTimer) flushTimer = setTimeout(flushPendingPhotos, PHOTO_FLUSH_INTERVAL_MS);
@@ -3155,7 +3169,15 @@ export const useStore = create<AppState>((set, get) => ({
       : undefined;
     const locale = get().locale === 'en' ? 'en' : 'ro';
     const finishedScan: LastScan | null = done > 0 && scanPhases
-      ? { count: done, durationMs: Date.now() - startedAt, stage1Ms: scanPhases.stage1Ms, stage2Ms: scanPhases.stage2Ms, at: Date.now() }
+      ? {
+          count: done,
+          durationMs: Date.now() - startedAt,
+          stage1Ms: scanPhases.stage1Ms,
+          stage2Ms: scanPhases.stage2Ms,
+          prepMs: scanPhases.prepMs,
+          dbMs: scanPhases.dbMs,
+          at: Date.now()
+        }
       : null;
     if (finishedScan) writeLastScan(finishedScan);
     const speedNotice = finishedScan && scanSummaryOnFinish() ? formatScanLine(finishedScan, locale) : undefined;
@@ -4827,7 +4849,7 @@ export const useStore = create<AppState>((set, get) => ({
       // extrem, dar cu trasaturi cum n-a mai vazut modelul, e o extrapolare,
       // nu o judecata, si merita privita cu aceeasi rezerva ca una de la mijloc.
       case 'review':
-        base = photosVisible.filter(p => p.status === 'review')
+        base = photosVisible.filter(p => p.status === 'review' && isReviewQueue(p))
           .sort((a, b) => reviewDifficulty(a) - reviewDifficulty(b));
         break;
       case 'rejected': base = photosVisible.filter(p => p.status === 'rejected'); break;

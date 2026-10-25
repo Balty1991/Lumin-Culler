@@ -203,7 +203,7 @@ jobs:
           java-version: '21'
       - name: Build debug APK (nesemnat)
         working-directory: android
-        run: ./gradlew assembleDebug -PminifyDebug=${{ inputs.minify == true }}
+        run: ./gradlew assembleDebug -Parm64Only=true -PminifyDebug=${{ inputs.minify == true }}
       # Cand R8 pica pe clase lipsa, scrie EXACT regulile care i-ar trebui in
       # missing_rules.txt. Fara pasul asta ele raman pe runner si dispar odata
       # cu el, iar reparatia devine ghicit din log — s-a intamplat exact asa
@@ -249,7 +249,9 @@ jobs:
         run: |
           apk=android/app/build/outputs/apk/debug/app-debug.apk
           bytes=$(stat -c%s "$apk")
-          echo "### APK de test: $(numfmt --to=iec --format='%.1f' "$bytes")" >> "$GITHUB_STEP_SUMMARY"
+          limit=$((100 * 1024 * 1024))
+          echo "### APK arm64 de test: $(numfmt --to=iec --format='%.1f' "$bytes") ($bytes octeți)" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$bytes" -ge "$limit" ]; then echo "::error::APK-ul arm64 are $bytes octeți, peste 100 MB" && exit 1; fi
           echo '' >> "$GITHUB_STEP_SUMMARY"
           echo 'Cele mai mari componente:' >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
@@ -257,6 +259,6 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
-          name: lumin-culler-debug-apk
+          name: lumin-culler-debug-arm64
           path: android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 1

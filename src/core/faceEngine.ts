@@ -39,6 +39,8 @@
  * schimbarea comutatorului cere o re-analiza a bibliotecii (Meniu).
  */
 
+import { Capacitor } from '@capacitor/core';
+
 export type FaceEngine = 'mlkit' | 'landmarker';
 
 const STORAGE_KEY = 'lumin-face-engine';
@@ -62,6 +64,8 @@ export const MESH_BLINK_THRESHOLD = (0.18 - 0.08) / 0.25;
 export const ANDROID_IDENTITY_EMBEDDINGS = false;
 
 export function readFaceEngine(): FaceEngine {
+  // Pe telefon plugin-ul ML Kit Face nu mai e în pachet. Landmarker e singura cale.
+  if (Capacitor.isNativePlatform()) return 'landmarker';
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored === 'mlkit' || stored === 'landmarker') return stored;

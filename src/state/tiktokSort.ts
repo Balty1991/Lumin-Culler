@@ -1,4 +1,5 @@
 import type { PhotoView } from './store';
+import { isReviewQueue } from '../core/singletonVerdict';
 
 /**
  * "Sortare stil TikTok" (plan modernizare) — coada de poze nedecise pentru
@@ -26,7 +27,7 @@ import type { PhotoView } from './store';
  */
 export function selectSortQueue(photos: PhotoView[]): PhotoView[] {
   const byTime = (a: PhotoView, b: PhotoView) => (a.capturedAt ?? 0) - (b.capturedAt ?? 0);
-  const undecided = photos.filter(p => p.status === 'pending' || p.status === 'review');
+  const undecided = photos.filter(p => isReviewQueue(p));
 
   // Cati membri NEDECISI are fiecare serie. Membrii deja hotarati nu conteaza:
   // o serie din care a mai ramas un singur cadru nedecis nu mai e o comparatie,

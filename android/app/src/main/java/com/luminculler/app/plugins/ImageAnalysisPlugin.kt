@@ -1,16 +1,12 @@
 package com.luminculler.app.plugins
 
 import android.graphics.Bitmap
-import com.getcapacitor.JSArray
 import com.getcapacitor.JSObject
-import com.luminculler.app.ReleasableModel
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
-import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.face.FaceDetection
-import com.google.mlkit.vision.face.FaceDetectorOptions
+import org.json.JSONArray
 import kotlin.math.max
 import kotlin.math.min
 
@@ -23,16 +19,9 @@ private const val HORIZON_MAX_SIDE = 360
  * src/core/nativeAnalysis.ts (orchestratorul pipeline-ului de analiza pe
  * Android), el insusi apelat din src/core/workerPool.ts (AnalysisPool).
  *
- * Foloseste propriul detector de fete (mod FAST, fara clasificare) doar ca
- * sa obtina cutiile pentru scorul de compozitie/focus-bokeh — nu si
- * probabilitatile de zambet/ochi, care raman treaba FaceDetectionPlugin.
- * ATENTIE: fiind un detector INDEPENDENT (FAST vs ACCURATE in
- * FaceDetectionPlugin), poate rata o fata pe care celalalt o gaseste —
- * `subjectInFocus`/compositionScore ar putea atunci sa nu reflecte un
- * faceCount>0 raportat in AnalysisRecord. Cunoscut, neconsiderat critic
- * momentan (vezi audit-ul din istoricul git) — de rezolvat intr-o faza
- * viitoare trecand cutiile deja gasite de FaceDetectionPlugin catre acest
- * plugin, in loc sa se re-detecteze.
+ * Nu mai are detector propriu. Cutiile vin de la Face Landmarker
+ * (parametrul `faceBoxes`, normalizate 0..1). Fără ele, compoziția se
+ * calculează ca pe un cadru fără subiect uman — nu se mai încarcă ML Kit Face.
  */
 @CapacitorPlugin(name = "ImageAnalysis")
 class ImageAnalysisPlugin : Plugin() {
@@ -49,17 +38,6 @@ class ImageAnalysisPlugin : Plugin() {
     }
 
 
-    /** Vezi ModelRegistry. Detectoarele ML Kit sunt ASINCRONE, deci
-     *  eliberarea se leaga de terminarea inferentei (addOnCompleteListener),
-     *  nu de intoarcerea functiei: inchiderea unui detector in timp ce
-     *  ruleaza pe alt fir e un crash, nu o exceptie prinsa. */
-    private val detectorHolder = ReleasableModel({
-        val options = FaceDetectorOptions.Builder()
-            .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
-            .build()
-        FaceDetection.getClient(options)
-    }, { it.close() })
-
     @PluginMethod
     fun analyze(call: PluginCall) {
         // Vezi PluginWork.kt: decodarea imaginii si trimiterea catre model pleaca
@@ -74,39 +52,28 @@ class ImageAnalysisPlugin : Plugin() {
         // Preferam `imageUri` (fara nicio imagine peste punte); `imageBase64`
         // ramane pentru pozele care nu vin din galerie. Vezi BitmapUtils.kt.
         val bitmap: Bitmap = resolveInputBitmap(context, call) ?: return
+        try {
+            call.resolve(runAnalysis(bitmap, faceBoxesFrom(call)))
+        } catch (e: Exception) {
+            call.reject("Image analysis failed: ${e.message}", e)
+        } finally {
+            recycleIfOwned(bitmap)
+        }
+    }
 
-        val image = InputImage.fromBitmap(bitmap, 0)
-        CrashLog.pas(">ImageAnalysis-fete")
-        detectorHolder.beginUse().process(image)
-            .addOnCompleteListener(executor) { detectorHolder.endUse(); CrashLog.pas("<ImageAnalysis-fete") }
-            .addOnSuccessListener(executor) { mlFaces ->
-                try {
-                    val faceBoxes = mlFaces.map { f ->
-                        val box = f.boundingBox
-                        ImageMath.FaceBox(
-                            x = box.left.toDouble() / bitmap.width,
-                            y = box.top.toDouble() / bitmap.height,
-                            w = box.width().toDouble() / bitmap.width,
-                            h = box.height().toDouble() / bitmap.height
-                        )
-                    }
-                    call.resolve(runAnalysis(bitmap, faceBoxes))
-                } catch (e: Exception) {
-                    call.reject("Image analysis failed: ${e.message}", e)
-                } finally {
-                    // Poza de intrare se elibereaza pe AMBELE cai, si aici si in
-                    // esec. Un import de 500 de cadre inseamna 500 de bitmap-uri
-                    // la dimensiune intreaga lasate in seama colectorului; Google
-                    // masoara de acum exact asta (pragul de memorie bitmap din
-                    // cerintele Play), iar pe telefoanele cu putina memorie nu e
-                    // doar o cifra — e diferenta dintre a merge si a fi inchis.
-                    recycleIfOwned(bitmap)
+    private fun faceBoxesFrom(call: PluginCall): List<ImageMath.FaceBox> {
+        val raw = call.getString("faceBoxes") ?: return emptyList()
+        return try {
+            val arr = JSONArray(raw)
+            buildList {
+                for (i in 0 until arr.length()) {
+                    val box = arr.getJSONObject(i)
+                    add(ImageMath.FaceBox(box.getDouble("x"), box.getDouble("y"), box.getDouble("w"), box.getDouble("h")))
                 }
             }
-            .addOnFailureListener(executor) { e ->
-                recycleIfOwned(bitmap)
-                call.reject("Face detection failed: ${e.message}", e)
-            }
+        } catch (_: Exception) {
+            emptyList()
+        }
     }
 
     /**

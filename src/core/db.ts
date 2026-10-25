@@ -194,6 +194,12 @@ export interface PhotoRecord {
    * neindexat, exact ca `colorLabel`/`lqip` de mai sus).
    */
   mediaUri?: string;
+  /**
+   * Pus deoparte din coada de triaj: bon, factură, captură de ecran.
+   * Statusul rămâne `review` (nu e o decizie de păstrat/respins), dar
+   * `isReviewQueue` nu le numără la „De verificat”.
+   */
+  aside?: 'document' | 'screenshot';
 }
 
 export type ColorLabel = 'none' | 'red' | 'yellow' | 'green' | 'blue' | 'purple';
@@ -984,6 +990,7 @@ export interface StageOneCacheRecord {
   height: number;
   sharpness: number;
   exposure: number;
+  paperScore?: number;
   size: number;
   mtime: number;
   lqip: string;

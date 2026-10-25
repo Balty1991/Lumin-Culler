@@ -11,12 +11,15 @@ export interface StageOneNativeResult {
   height: number;
   sharpness: number;
   exposure: number;
+  paperScore?: number;
   previewBase64: string;
   thumbBase64: string;
+  lqipBase64?: string;
 }
 
 interface StageOnePluginApi {
   fingerprint(options: { imageUri: string }): Promise<StageOneNativeResult>;
+  fingerprintBatch(options: { imageUris: string[] }): Promise<{ items: StageOneNativeResult[] }>;
 }
 
 const StageOneNative = registerPlugin<StageOnePluginApi>('StageOne');
@@ -30,6 +33,15 @@ export async function fingerprintUri(imageUri: string): Promise<StageOneNativeRe
     throw new Error('Etapa 1 nativă există doar în aplicația Android.');
   }
   return StageOneNative.fingerprint({ imageUri });
+}
+
+/** Mai multe poze, decodate în paralel pe telefon. Nu trece prin 1280 px. */
+export async function fingerprintBatch(imageUris: string[]): Promise<StageOneNativeResult[]> {
+  if (!isStageOneAvailable()) {
+    throw new Error('Etapa 1 nativă există doar în aplicația Android.');
+  }
+  const result = await StageOneNative.fingerprintBatch({ imageUris });
+  return result.items ?? [];
 }
 
 export function base64ToBlob(b64: string, type = 'image/jpeg'): Blob {

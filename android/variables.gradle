@@ -29,7 +29,7 @@ ext {
     // din acest proiect, model ML Kit bundle-uit direct in APK (offline imediat, fara
     // descarcare separata prin Play Services) — coerent cu "AI local" din tagline-ul aplicatiei.
     kotlinVersion = '2.4.10'
-    mlkitFaceDetectionVersion = '16.1.7'
+    // ML Kit Face a ieșit din APK. Fețele vin din MediaPipe Face Landmarker.
     // Analiza AI nativa (Faza 3, rescrisa — vezi plugins/ImageLabelingPlugin.kt):
     // inlocuieste vechiul model TFLite coco_ssd_mobilenet_v1 (2018, vocabular
     // FIX de 80 clase, fara nicio clasa de rezerva — cauza confirmata a 3

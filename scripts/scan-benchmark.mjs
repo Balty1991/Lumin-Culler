@@ -30,8 +30,21 @@ const full = time(8, () => {
 });
 const thumb = time(2000, () => dHash(9, 8, (x, y) => ((x * 31 + y * 17) & 255)).length);
 
+const sub = time(40, () => {
+  let s = 0;
+  const step = Math.floor(2048 / 480);
+  for (let y = 0; y < 480; y++) {
+    for (let x = 0; x < 480; x++) s += gray[(y * step) * 2048 + x * step];
+  }
+  return s;
+});
+
+const line = `benchmark: dHash 9×8 ${thumb.ms.toFixed(4)} ms · eșantion 480 px ${sub.ms.toFixed(2)} ms · cadru 2048 px ${full.ms.toFixed(2)} ms`;
+console.log(line);
 console.log(JSON.stringify({
+  line,
   fullFrame2048Ms: Number(full.ms.toFixed(2)),
+  subsample480Ms: Number(sub.ms.toFixed(2)),
   dHash9x8Ms: Number(thumb.ms.toFixed(4)),
   note: 'Proxy de CPU, nu inferență. Pe 2.1.2 analiza era ~9.9s/poză pe telefonul măsurat în audit.'
 }, null, 2));

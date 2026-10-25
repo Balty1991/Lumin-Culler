@@ -26,12 +26,15 @@ import { readCullingStrictness } from '../state/cullingStrictness';
 import { quickDuplicateScan, type QuickScanResult } from './quickDuplicateScan';
 import { buildLibraryIndex, partitionAlreadyImported } from './alreadyImported';
 import { writeGroupingMotive } from './groupingDiagnostics';
-import { dHashFromRgba, thumbMetrics } from './dhash';
+import { dHashFromRgba, hamming64, thumbMetrics } from './dhash';
 import { lightAnalysis } from './lightAnalysis';
 import { derivativesOffMain } from './previewOffThread';
 import { loadStageOne, saveStageOne } from './stageOneCache';
-import { base64ToBlob, fingerprintUri, isStageOneAvailable } from './stageOneNative';
-import { candidateIds, stageOneKey } from './twoStagePlan';
+import { base64ToBlob, fingerprintBatch, fingerprintUri, isStageOneAvailable, type StageOneNativeResult } from './stageOneNative';
+import { SERIES_CANDIDATE_HAMMING, stageOneKey } from './twoStagePlan';
+import { decideIsolate, paperScoreFromRgba } from './singletonVerdict';
+import { analyzeFaceMeshNative, isNativeFaceMeshAvailable } from './nativeFaceMesh';
+import { MESH_BLINK_THRESHOLD } from './faceEngine';
 import type { RawExifMeta } from './rawDecoder';
 
 /**
@@ -84,7 +87,7 @@ export interface ImportProgress {
    * Ceasurile de perete ale celor două trepte, pe ultimul apel. Nu sunt sume
    * per poză: pozele rulează în paralel.
    */
-  scanPhases?: { stage1Ms: number; stage2Ms: number };
+  scanPhases?: { stage1Ms: number; stage2Ms: number; prepMs?: number; dbMs?: number };
 }
 
 /** Numai cifre si motivul deja agregat — fara nume de fisier, fara cai. */
@@ -628,9 +631,26 @@ interface StageOneReady {
   thumbBlob: Blob;
   sharpness: number;
   exposure: number;
+  paperScore?: number;
   bitmap?: ImageBitmap;
   rawMeta?: RawExifMeta;
 }
+
+function paperScoreFromBitmap(bitmap: ImageBitmap): number {
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = 48;
+    canvas.height = 48;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return 0;
+    ctx.drawImage(bitmap, 0, 0, 48, 48);
+    return paperScoreFromRgba(ctx.getImageData(0, 0, 48, 48).data, 48);
+  } catch {
+    return 0;
+  }
+}
+
+const STREAM_BATCH = 8;
 
 const PERSIST_BATCH = 8;
 
@@ -705,7 +725,7 @@ async function lqipFromThumb(blob: Blob): Promise<string> {
 }
 
 /** Etapa 1: amprentă și previzualizare. Nu pornește modelele. */
-async function stageOnePrepare(file: File, mediaUri?: string): Promise<StageOneReady> {
+async function stageOnePrepare(file: File, mediaUri?: string, precomputed?: StageOneNativeResult): Promise<StageOneReady> {
   const id = crypto.randomUUID();
   const key = stageOneKey({ uri: mediaUri, name: file.name, size: file.size, mtime: file.lastModified });
   const cached = await loadStageOne(key);
@@ -719,12 +739,13 @@ async function stageOnePrepare(file: File, mediaUri?: string): Promise<StageOneR
       previewBlob: cached.preview,
       thumbBlob: cached.thumb,
       sharpness: cached.sharpness,
-      exposure: cached.exposure
+      exposure: cached.exposure,
+      paperScore: cached.paperScore
     };
   }
 
-  if (mediaUri && isStageOneAvailable() && !isRawFile(file)) {
-    const fp = await fingerprintUri(mediaUri);
+  if (precomputed || (mediaUri && isStageOneAvailable() && !isRawFile(file))) {
+    const fp = precomputed ?? await fingerprintUri(mediaUri!);
     const previewBlob = base64ToBlob(fp.previewBase64);
     const thumbBlob = base64ToBlob(fp.thumbBase64);
     const ready: StageOneReady = {
@@ -732,15 +753,17 @@ async function stageOnePrepare(file: File, mediaUri?: string): Promise<StageOneR
       dHash: fp.dHash,
       w: fp.width,
       h: fp.height,
-      lqip: await lqipFromThumb(thumbBlob),
+      lqip: fp.lqipBase64 ? `data:image/jpeg;base64,${fp.lqipBase64}` : await lqipFromThumb(thumbBlob),
       previewBlob,
       thumbBlob,
       sharpness: fp.sharpness,
-      exposure: fp.exposure
+      exposure: fp.exposure,
+      paperScore: fp.paperScore
     };
     await saveStageOne({
       key, dHash: ready.dHash, width: ready.w, height: ready.h,
       sharpness: ready.sharpness, exposure: ready.exposure,
+      paperScore: ready.paperScore,
       size: file.size, mtime: file.lastModified, lqip: ready.lqip,
       preview: previewBlob, thumb: thumbBlob, updatedAt: Date.now()
     });
@@ -785,9 +808,10 @@ async function stageOnePrepare(file: File, mediaUri?: string): Promise<StageOneR
     ({ lqip, dHash, w, h, sharpness, exposure } = sync);
   }
 
-  const ready: StageOneReady = { id, dHash, w, h, lqip, previewBlob, thumbBlob, sharpness, exposure, bitmap: kept, rawMeta };
+  const paperScore = paperScoreFromBitmap(kept ?? bitmap);
+  const ready: StageOneReady = { id, dHash, w, h, lqip, previewBlob, thumbBlob, sharpness, exposure, paperScore, bitmap: kept, rawMeta };
   await saveStageOne({
-    key, dHash, width: w, height: h, sharpness, exposure,
+    key, dHash, width: w, height: h, sharpness, exposure, paperScore,
     size: file.size, mtime: file.lastModified, lqip,
     preview: previewBlob, thumb: thumbBlob, updatedAt: Date.now()
   });
@@ -973,7 +997,15 @@ async function processOne(file: File, genre?: string, project?: string, handle?:
   analysis.aiUncertainty = prediction.uncertainty;
   analysis.aiPersonalDelta = prediction.personalDelta;
 
-  const status = decidePhotoStatus(prediction.score, analysis, thresholds);
+  const isolate = heavy ? undefined : decideIsolate({
+    fileName: file.name,
+    sharpness,
+    exposure,
+    paperScore: prepared.paperScore,
+    width: w,
+    height: h
+  });
+  const status = isolate ? isolate.status : decidePhotoStatus(prediction.score, analysis, thresholds);
 
   const photo: PhotoRecord = {
     id,
@@ -1004,7 +1036,8 @@ async function processOne(file: File, genre?: string, project?: string, handle?:
     groupId: '',
     ...(genre?.trim() ? { genre: genre.trim() } : {}),
     ...(project?.trim() ? { project: project.trim() } : {}),
-    ...(mediaUri ? { mediaUri } : {})
+    ...(mediaUri ? { mediaUri } : {}),
+    ...(isolate?.aside ? { aside: isolate.aside } : {})
   };
 
   // Scrierile unui lot stau într-o singură tranzacție (enqueuePersist), nu
@@ -1164,11 +1197,8 @@ export async function importFiles(
   };
 
   if (cancelledEarly()) return finishCancelled();
-  await analysisPool.init();
-  if (cancelledEarly()) return finishCancelled();
+  const prepStarted = performance.now();
   await contextEngine.init();
-  const persons = await db.persons.toArray();
-  await analysisPool.setKnownPersons(persons);
   if (cancelledEarly()) return finishCancelled();
   // Pragurile se calculeaza O SINGURA DATA, inainte de lot, si raman fixe pe
   // toata durata lui: altfel primele poze ar fi clasificate dupa alte reguli
@@ -1177,22 +1207,29 @@ export async function importFiles(
   // ...si peste ele, severitatea aleasa de utilizator (implicit 'balanced', care
   // nu schimba nimic) — vezi applyStrictness si state/cullingStrictness.ts.
   const thresholds = applyStrictness(deriveThresholds(await readLibraryScores()), readCullingStrictness());
+  const prepMs = performance.now() - prepStarted;
   if (thresholds.adapted) onProgress({ done: 0, total: files.length, fileName: '', phase: 'incarcare', thresholds });
-
-  // Cerinta directa a utilizatorului: la un import mare, pozele cu oameni sa
-  // fie gata de triat primele — vezi comentariul de la prioritizeFacesFirst
-  // (doar Android, no-op si instant pe web/PWA).
-  images = await prioritizeFacesFirst(images, (done, total) =>
-    onProgress({ done, total, fileName: '', phase: 'pregatire' })
-  );
   if (cancelledEarly()) return finishCancelled();
 
-  const concurrency = analysisPool.size + 1;
+  // Modelele grele pornesc abia la prima rafală. Pozele singure se hotărăsc
+  // din miniatură și apar înainte de încărcarea lor.
+  let modelsPromise: Promise<void> | null = null;
+  const ensureModels = () => {
+    if (!modelsPromise) {
+      modelsPromise = (async () => {
+        await analysisPool.init();
+        const persons = await db.persons.toArray();
+        await analysisPool.setKnownPersons(persons);
+      })();
+    }
+    return modelsPromise;
+  };
+
   let done = 0;
-  let index = 0;
   let failed = 0;
   let stage1Ms = 0;
   let stage2Ms = 0;
+  let dbMs = 0;
 
   /**
    * De ce s-a oprit lotul, ca ETICHETA, nu ca mesaj gata compus.
@@ -1213,7 +1250,6 @@ export async function importFiles(
   // de la distanta fara acces la consola browserului utilizatorului.
   const failureReasons = new Map<string, number>();
   const staged: Array<StageOneReady | undefined> = new Array(images.length);
-  const stageOneErrors = new Map<number, unknown>();
   /** Rezolvate după ce rândul e pe disc. Așteptate după flush, nu în firul de analiză. */
   const persistedWrites: Promise<void>[] = [];
 
@@ -1227,88 +1263,162 @@ export async function importFiles(
     failureReasons.set(reason, (failureReasons.get(reason) ?? 0) + 1);
   };
 
-  // Treapta 1: amprente pe tot lotul, fără modele.
-  const stage1Started = performance.now();
-  let stage1Index = 0;
-  await Promise.all(
-    Array.from({ length: concurrency }, async () => {
-      while (true) {
-        if (stopKind) break;
-        if (cancelToken?.cancelled) { stopKind = 'cancelled'; break; }
-        const myIndex = stage1Index++;
-        if (myIndex >= images.length) break;
-        const { file, mediaUri } = images[myIndex];
-        try {
-          staged[myIndex] = await stageOnePrepare(file, mediaUri);
-        } catch (err) {
-          stageOneErrors.set(myIndex, err);
-          if (isQuotaError(err)) { stopKind = 'storageFull'; break; }
-        }
-        onProgress({ done: myIndex + 1, total: images.length, fileName: file.name, phase: 'pregatire' });
-      }
-    })
-  );
-  stage1Ms = performance.now() - stage1Started;
-  if (images.length) record('stage1', stage1Ms);
-
   let libraryHashes: string[] = [];
   try {
     libraryHashes = ((await db.photos.orderBy('dHash').keys()) as string[]).filter(h => typeof h === 'string' && h.length > 0);
   } catch {
     libraryHashes = [];
   }
-  const heavyIds = candidateIds(
-    staged.filter((s): s is StageOneReady => !!s).map(s => ({ id: s.id, hash: s.dHash })),
-    libraryHashes
-  );
 
-  // Treapta 2: analiza completă doar pentru serii. Restul rămân cu măsurătorile ieftine.
-  const stage2Started = performance.now();
-  await Promise.all(
-    Array.from({ length: concurrency }, async () => {
-      while (true) {
-        if (stopKind) break;
-        if (cancelToken?.cancelled) { stopKind = 'cancelled'; break; }
-        const myIndex = index++;
-        if (myIndex >= images.length) break;
-        const { file, handle, mediaUri } = images[myIndex];
-        const early = stageOneErrors.get(myIndex);
-        if (early) {
-          await noteFailure(file, early);
-          done++;
-          onProgress({ done, total: images.length, fileName: file.name, phase: 'analiza' });
-          continue;
+  const seen: Array<{ id: string; hash: string; index: number; heavy: boolean }> = [];
+  const eyesJobs: Promise<void>[] = [];
+  let eyesActive = 0;
+  const eyesSlots: Array<() => void> = [];
+
+  const remember = (item: ImportedPhoto) => {
+    const hash = toHashInput(item.photo.id, item.photo.dHash, item.analysis, item.photo.capturedAt, item.photo.capturedAtExact);
+    const at = hashes.findIndex(h => h.id === item.photo.id);
+    if (at >= 0) hashes[at] = hash;
+    else hashes.push(hash);
+    onPhoto(item);
+  };
+
+  const runHeavy = async (myIndex: number) => {
+    const ready = staged[myIndex];
+    const image = images[myIndex];
+    if (!ready || !image) return;
+    await ensureModels();
+    if (cancelToken?.cancelled) { stopKind = 'cancelled'; return; }
+    const { item, persisted } = await processOne(
+      image.file, genre, project, image.handle, image.mediaUri, thresholds,
+      image.mediaUri ? mediaLocations?.get(image.mediaUri) : undefined,
+      ready,
+      true
+    );
+    const seenRow = seen.find(s => s.index === myIndex);
+    if (seenRow) seenRow.heavy = true;
+    persistedWrites.push(persisted.then(() => remember(item), err => noteFailure(image.file, err)));
+  };
+
+  const scheduleEyes = (item: ImportedPhoto, mediaUri: string) => {
+    if (!isNativeFaceMeshAvailable() || item.photo.aside) return;
+    const job = (async () => {
+      while (eyesActive >= 2) await new Promise<void>(resolve => eyesSlots.push(resolve));
+      eyesActive++;
+      try {
+        const mesh = await analyzeFaceMeshNative({ uri: mediaUri, maxSide: 480 });
+        if (!mesh.faces.length || item.photo.aside) return;
+        const blinking = mesh.faces.some(f =>
+          f.eyesOpen.left < MESH_BLINK_THRESHOLD || f.eyesOpen.right < MESH_BLINK_THRESHOLD
+        );
+        if (!blinking) return;
+        const next = decideIsolate({
+          fileName: item.photo.fileName,
+          sharpness: item.analysis.sharpness,
+          exposure: item.analysis.exposure,
+          paperScore: staged.find(s => s?.id === item.photo.id)?.paperScore,
+          width: item.photo.width,
+          height: item.photo.height,
+          faceCount: mesh.faces.length,
+          eyesOpenRatio: 0
+        });
+        if (next.status === item.photo.status && next.aside === item.photo.aside) return;
+        item.photo.status = next.status;
+        if (next.aside) item.photo.aside = next.aside;
+        item.analysis.faceCount = mesh.faces.length;
+        item.analysis.allEyesOpen = false;
+        await db.photos.update(item.photo.id, { status: next.status, ...(next.aside ? { aside: next.aside } : {}) });
+        remember(item);
+      } catch {
+        // ochii nemăsurați nu schimbă verdictul
+      } finally {
+        eyesActive--;
+        eyesSlots.shift()?.();
+      }
+    })();
+    eyesJobs.push(job);
+  };
+
+  for (let start = 0; start < images.length && !stopKind; start += STREAM_BATCH) {
+    if (cancelToken?.cancelled) { stopKind = 'cancelled'; break; }
+    const end = Math.min(images.length, start + STREAM_BATCH);
+    const fingerStarted = performance.now();
+    const precomputed = new Map<number, StageOneNativeResult>();
+    if (isStageOneAvailable()) {
+      const indexes: number[] = [];
+      const uris: string[] = [];
+      for (let i = start; i < end; i++) {
+        const uri = images[i].mediaUri;
+        if (uri && !isRawFile(images[i].file)) {
+          indexes.push(i);
+          uris.push(uri);
         }
-        const ready = staged[myIndex];
-        if (!ready) {
-          done++;
-          onProgress({ done, total: images.length, fileName: file.name, phase: 'analiza' });
-          continue;
-        }
+      }
+      if (uris.length) {
         try {
+          const items = await fingerprintBatch(uris);
+          items.forEach((item, n) => { if (item?.dHash) precomputed.set(indexes[n], item); });
+        } catch {
+          // amprenta pe poză, mai jos
+        }
+      }
+    }
+    stage1Ms += performance.now() - fingerStarted;
+
+    const decideStarted = performance.now();
+    for (let myIndex = start; myIndex < end; myIndex++) {
+      if (stopKind) break;
+      if (cancelToken?.cancelled) { stopKind = 'cancelled'; break; }
+      const { file, handle, mediaUri } = images[myIndex];
+      try {
+        const ready = await stageOnePrepare(file, mediaUri, precomputed.get(myIndex));
+        staged[myIndex] = ready;
+        const mates = ready.dHash
+          ? seen.filter(s => s.hash && hamming64(ready.dHash, s.hash) <= SERIES_CANDIDATE_HAMMING)
+          : [];
+        const inLibrary = !!ready.dHash && libraryHashes.some(prev => prev && hamming64(ready.dHash, prev) <= SERIES_CANDIDATE_HAMMING);
+        const heavy = !ready.dHash || mates.length > 0 || inLibrary;
+        if (heavy) {
+          for (const mate of mates) {
+            if (!mate.heavy) await runHeavy(mate.index);
+          }
+          await runHeavy(myIndex);
+          if (!seen.some(s => s.index === myIndex)) {
+            seen.push({ id: ready.id, hash: ready.dHash, index: myIndex, heavy: true });
+          }
+        } else {
           const { item, persisted } = await processOne(
             file, genre, project, handle, mediaUri, thresholds,
             mediaUri ? mediaLocations?.get(mediaUri) : undefined,
             ready,
-            heavyIds.has(ready.id)
+            false
           );
+          seen.push({ id: ready.id, hash: ready.dHash, index: myIndex, heavy: false });
           persistedWrites.push(persisted.then(() => {
-            hashes.push(toHashInput(item.photo.id, item.photo.dHash, item.analysis, item.photo.capturedAt, item.photo.capturedAtExact));
-            onPhoto(item);
+            remember(item);
+            if (mediaUri) scheduleEyes(item, mediaUri);
           }, err => noteFailure(file, err)));
-        } catch (err) {
-          await noteFailure(file, err);
-          if (stopKind) break;
         }
-        done++;
-        onProgress({ done, total: images.length, fileName: file.name, phase: 'analiza' });
+      } catch (err) {
+        await noteFailure(file, err);
+        if (stopKind) break;
       }
-    })
-  );
+      done++;
+      onProgress({ done, total: images.length, fileName: file.name, phase: 'analiza' });
+    }
+    stage2Ms += performance.now() - decideStarted;
+  }
+  if (images.length) {
+    record('stage1', stage1Ms);
+    record('stage2', stage2Ms);
+  }
+  const eyesStarted = performance.now();
+  await Promise.all(eyesJobs);
+  stage2Ms += performance.now() - eyesStarted;
+  const dbStarted = performance.now();
   await flushPersist();
   await Promise.all(persistedWrites);
-  stage2Ms = performance.now() - stage2Started;
-  if (images.length) record('stage2', stage2Ms);
+  dbMs += performance.now() - dbStarted;
 
   const stopReason: ImportWarning | undefined = stopKind
     ? {
@@ -1404,7 +1514,9 @@ export async function importFiles(
       updates.push(next);
     }
   }
+  const dbWrite = performance.now();
   if (updates.length) await db.photos.bulkPut(updates);
+  dbMs += performance.now() - dbWrite;
   record('grouping', performance.now() - groupingStart);
   if (demotedIds.length) {
     await Promise.all(demotedIds.map(id => Promise.all([db.originals.delete(id), db.fileHandles.delete(id)])));
@@ -1450,7 +1562,7 @@ export async function importFiles(
       skipped: skippedCount + alreadyInLibrary,
       reasons: topReasons || undefined
     },
-    scanPhases: { stage1Ms, stage2Ms }
+    scanPhases: { stage1Ms, stage2Ms, prepMs, dbMs }
   });
   return groups;
 }

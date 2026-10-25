@@ -571,10 +571,12 @@ export async function analyzeNative(
     : timed('mFaceDetect', () => detectFacesNative(source)).then(r => fromMlKit(r, imageWidth, imageHeight));
 
   record('nativePrep', performance.now() - bodyStart);
-  const [detected, imageAnalysis, labelResult] = await timed('nativeModels', () => Promise.all([
-    faceProbe,
-    timed('mImageAnalysis', () => analyzeImageNative(source)),
-    timed('mLabels', () => labelImageNative(source))
+  const labelsPromise = timed('mLabels', () => labelImageNative(source));
+  const detected = await faceProbe;
+  const boxes = detected.faces.map(f => ({ x: f.box[0], y: f.box[1], w: f.box[2], h: f.box[3] }));
+  const [imageAnalysis, labelResult] = await timed('nativeModels', () => Promise.all([
+    timed('mImageAnalysis', () => analyzeImageNative(source, boxes)),
+    labelsPromise
   ]));
 
   const faces = detected.faces;

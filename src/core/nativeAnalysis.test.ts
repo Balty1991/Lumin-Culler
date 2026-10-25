@@ -572,7 +572,7 @@ describe('analyzeNative — apelurile independente chiar pornesc in paralel', ()
     for (const m of [detectFacesNative, analyzeImageNative, labelImageNative, analyzeFaceMeshNative, detectTextNative, embedImageNative, detectPoseNative]) m.mockReset();
   });
 
-  it('detectia de fete, analiza de imagine si etichetarea pornesc toate trei inainte ca vreuna sa termine', async () => {
+  it('etichetele pornesc odată cu fețele; analiza de imagine așteaptă cutiile', async () => {
     const faces = gated({ faces: [], imageWidth: 100, imageHeight: 100 });
     const image = gated(IMAGE_ANALYSIS_FIXTURE);
     const labels = gated({ labels: [{ label: 'dog', confidence: 0.9 }] });
@@ -584,13 +584,18 @@ describe('analyzeNative — apelurile independente chiar pornesc in paralel', ()
 
     const { analyzeNative } = await import('./nativeAnalysis');
     const running = analyzeNative('p1', fakeBitmap(100, 100));
-    await Promise.resolve(); // lasa microtask-urile sa porneasca apelurile
+    await Promise.resolve();
 
     expect(faces.started).toBe(true);
-    expect(image.started).toBe(true);
     expect(labels.started).toBe(true);
+    expect(image.started).toBe(false);
 
-    faces.release(); image.release(); labels.release();
+    faces.release();
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    expect(image.started).toBe(true);
+
+    image.release();
+    labels.release();
     await running;
   });
 

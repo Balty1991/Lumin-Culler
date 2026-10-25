@@ -131,7 +131,8 @@ describe('importFiles — contabilitate si curatenie', () => {
     const photos: string[] = [];
     await importFiles([jpeg('a.jpg'), jpeg('b.jpg')], p => progress.push(p), item => photos.push(item.photo.fileName));
 
-    expect(photos.sort()).toEqual(['a.jpg', 'b.jpg']);
+    // O a doua emisie a primei poze e upgrade-ul, când a doua cadru o face rafală.
+    expect([...new Set(photos)].sort()).toEqual(['a.jpg', 'b.jpg']);
     expect(progress[progress.length - 1].phase).toBe('finalizat');
     expect(progress[progress.length - 1].warning).toBeUndefined();
     expect(originalFiles.size).toBe(2);

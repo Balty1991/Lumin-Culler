@@ -217,7 +217,7 @@ function Toast() {
           fontul monospatiat chiar ajuta la aliniere). Cu el, un mesaj normal se
           rupe in randuri scurte si arata ca o iesire de terminal — vezi captura
           din feedback-ul utilizatorului. */}
-      <span className="toast-text">{notice}</span>
+      <span className={`toast-text${notice.includes('\n') ? ' is-multiline' : ''}`}>{notice}</span>
       <button className="toast-close" onClick={() => clearNotice()} aria-label={t(locale, 'app.toast.close')}>
         <XIcon />
       </button>
@@ -417,7 +417,7 @@ export default function App() {
     // singur cat munca async e inca in desfasurare. Succes/avertismente raman
     // pe auto-dismiss, ca inainte.
     const tone = noticeTone(notice);
-    if (tone === 'error' || tone === 'progress') return;
+    if (tone === 'error' || tone === 'progress' || notice.includes('\n')) return;
     const t = setTimeout(() => clearNotice(), NOTICE_AUTODISMISS_MS);
     return () => clearTimeout(t);
   }, [notice, clearNotice]);

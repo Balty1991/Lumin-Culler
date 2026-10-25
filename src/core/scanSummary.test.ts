@@ -12,7 +12,7 @@ const scan: LastScan = {
 describe('rezumatul scanării', () => {
   it('spune durata pe poză și cele două trepte', () => {
     expect(formatScanLine(scan)).toBe(
-      'Analizat 1.240 de poze în 48 s (0,04 s/poză) · treapta 1: 12 s, treapta 2: 36 s'
+      'Analizat 1.240 de poze în 48 s (0,04 s/poză)\npregătire 0,0 s · treapta 1 12 s · treapta 2 36 s · disc 0,0 s'
     );
   });
 

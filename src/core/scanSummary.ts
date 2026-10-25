@@ -21,6 +21,8 @@ export interface LastScan {
   durationMs: number;
   stage1Ms: number;
   stage2Ms: number;
+  prepMs?: number;
+  dbMs?: number;
   at: number;
 }
 
@@ -69,17 +71,26 @@ function photoPhrase(count: number, groupedDigits: boolean): string {
   return necesitaDe(count) ? `${n} de poze` : `${n} poze`;
 }
 
-/** Propoziția nouă. Exemplu: „Analizat 1.240 de poze în 48 s (0,04 s/poză) · treapta 1: 12 s, treapta 2: 36 s”. */
+function phaseLine(scan: LastScan, locale: 'ro' | 'en'): string {
+  const prep = formatScanSeconds(scan.prepMs ?? 0);
+  const s1 = formatScanSeconds(scan.stage1Ms);
+  const s2 = formatScanSeconds(scan.stage2Ms);
+  const db = formatScanSeconds(scan.dbMs ?? 0);
+  if (locale === 'en') return `prep ${prep} · stage 1 ${s1} · stage 2 ${s2} · disk ${db}`;
+  return `pregătire ${prep} · treapta 1 ${s1} · treapta 2 ${s2} · disc ${db}`;
+}
+
+/** Două rânduri: durata totală, apoi pregătirea, treptele și discul. */
 export function formatScanLine(scan: LastScan, locale: 'ro' | 'en' = 'ro'): string {
   if (locale === 'en') {
     const photos = scan.count === 1 ? '1 photo' : `${scan.count.toLocaleString('en-US')} photos`;
     const per = scan.count > 0 && scan.durationMs > 0
       ? (scan.durationMs / 1000 / scan.count).toFixed(2)
       : '0';
-    return `Analyzed ${photos} in ${formatScanSeconds(scan.durationMs)} (${per} s/photo) · stage 1: ${formatScanSeconds(scan.stage1Ms)}, stage 2: ${formatScanSeconds(scan.stage2Ms)}`;
+    return `Analyzed ${photos} in ${formatScanSeconds(scan.durationMs)} (${per} s/photo)\n${phaseLine(scan, 'en')}`;
   }
   const photos = photoPhrase(scan.count, true);
-  return `Analizat ${photos} în ${formatScanSeconds(scan.durationMs)} (${formatPerPhoto(scan.durationMs, scan.count)} s/poză) · treapta 1: ${formatScanSeconds(scan.stage1Ms)}, treapta 2: ${formatScanSeconds(scan.stage2Ms)}`;
+  return `Analizat ${photos} în ${formatScanSeconds(scan.durationMs)} (${formatPerPhoto(scan.durationMs, scan.count)} s/poză)\n${phaseLine(scan, 'ro')}`;
 }
 
 /**
@@ -114,6 +125,8 @@ export function readLastScan(): LastScan | null {
       durationMs: parsed.durationMs,
       stage1Ms: typeof parsed.stage1Ms === 'number' ? parsed.stage1Ms : 0,
       stage2Ms: typeof parsed.stage2Ms === 'number' ? parsed.stage2Ms : 0,
+      prepMs: typeof parsed.prepMs === 'number' ? parsed.prepMs : 0,
+      dbMs: typeof parsed.dbMs === 'number' ? parsed.dbMs : 0,
       at: typeof parsed.at === 'number' ? parsed.at : 0
     };
   } catch {

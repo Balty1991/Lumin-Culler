@@ -110,6 +110,7 @@ export const ro = {
   'reviewDesk.libraryLabel': 'Bibliotecă',
   'reviewDesk.sessionSummary': 'Rezumatul sesiunii',
   'reviewDesk.kept': 'păstrate',
+  'reviewDesk.toReview': 'de verificat',
   'reviewDesk.rejected': 'respinse',
   'reviewDesk.deleteRejected': 'Șterge {countDe} respinse',
   'reviewDesk.nextPeriod': 'Adaugă următoarea perioadă',

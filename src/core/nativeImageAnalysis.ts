@@ -33,7 +33,7 @@ export interface NativeImageAnalysisResult {
 }
 
 interface ImageAnalysisPluginApi {
-  analyze(options: NativeImageParams): Promise<NativeImageAnalysisResult>;
+  analyze(options: NativeImageParams & { faceBoxes?: string }): Promise<NativeImageAnalysisResult>;
 }
 
 const ImageAnalysisNative = registerPlugin<ImageAnalysisPluginApi>('ImageAnalysis');
@@ -43,9 +43,15 @@ export function isNativeImageAnalysisAvailable(): boolean {
   return Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('ImageAnalysis');
 }
 
-export async function analyzeImageNative(source: NativeImageSource): Promise<NativeImageAnalysisResult> {
+export async function analyzeImageNative(
+  source: NativeImageSource,
+  faceBoxes?: Array<{ x: number; y: number; w: number; h: number }>
+): Promise<NativeImageAnalysisResult> {
   if (!isNativeImageAnalysisAvailable()) {
     throw new Error('Analiza nativa de imagine e disponibila doar in aplicatia Android (Capacitor), nu in browser.');
   }
-  return ImageAnalysisNative.analyze(await nativeImageParams(source));
+  const params = await nativeImageParams(source);
+  return ImageAnalysisNative.analyze(faceBoxes?.length
+    ? { ...params, faceBoxes: JSON.stringify(faceBoxes) }
+    : params);
 }

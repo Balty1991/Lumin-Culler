@@ -42,6 +42,9 @@ android {
         versionCode 3
         versionName "2.1.2"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        if (project.hasProperty('arm64Only') && project.property('arm64Only') == 'true') {
+            ndk { abiFilters 'arm64-v8a' }
+        }
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
@@ -147,7 +150,6 @@ dependencies {
     // e "bundled" (impachetat direct in APK la build) — functioneaza offline imediat
     // dupa instalare, fara descarcare separata prin Play Services.
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
-    implementation "com.google.mlkit:face-detection:$mlkitFaceDetectionVersion"
     // Analiza AI nativa (Faza 3, rescrisa) — vezi plugins/ImageLabelingPlugin.kt.
     // Modelul e bundle-uit direct in aceasta dependinta (ca ML Kit face-detection
     // de mai sus), nu mai vine dintr-un asset descarcat separat de CI.

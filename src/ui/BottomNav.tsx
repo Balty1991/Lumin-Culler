@@ -1,5 +1,6 @@
 import { useRef, type CSSProperties } from 'react';
 import { useStore } from '../state/store';
+import { isReviewQueue } from '../core/singletonVerdict';
 import { HomeIcon, GridIcon, PersonIcon, UploadIcon, GearIcon } from './icons';
 import { t } from '../i18n';
 
@@ -42,7 +43,7 @@ export function BottomNav() {
 
   if (photos.length === 0) return null;
 
-  const toReview = photos.filter(p => p.status === 'review' || p.status === 'pending').length;
+  const toReview = photos.filter(p => isReviewQueue(p)).length;
 
   const closePanels = () => { setCollectionsOpen(false); setPersonsOpen(false); setMenuOpen(false); setExportDestinationsOpen(false); };
   // `!tiktokSortOpen`: revizuirea se deschide PESTE grila — fara conditia asta,

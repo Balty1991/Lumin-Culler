@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useStore } from '../state/store';
+import { isReviewQueue } from '../core/singletonVerdict';
 import {
   shouldShowSmartNotification, readSmartNotificationLastShown, writeSmartNotificationLastShown
 } from '../state/smartNotification';
@@ -30,7 +31,7 @@ export function SmartNotification() {
   useEffect(() => {
     if (!enabled) return;
     let alive = true;
-    const unsortedCount = photos.filter(p => p.status === 'pending' || p.status === 'review').length;
+    const unsortedCount = photos.filter(p => isReviewQueue(p)).length;
     const hasNextPeriod = nextPeriod !== null;
     const now = Date.now();
     if (!shouldShowSmartNotification({ now, enabled, unsortedCount, hasNextPeriod, lastShown: readSmartNotificationLastShown() })) return;

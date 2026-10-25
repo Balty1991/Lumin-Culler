@@ -1,15 +1,9 @@
 /**
  * core/nativeFaceDetection.ts
- * Punte catre plugin-ul Capacitor local FaceDetection (vezi
- * android/app/src/main/java/com/luminculler/app/plugins/FaceDetectionPlugin.kt),
- * care ruleaza Google ML Kit direct pe device (fara WebView/TFJS).
- *
- * LEGAT de fluxul real de analiza — apelat din core/nativeAnalysis.ts
- * (orchestratorul pipeline-ului nativ), el insusi apelat din
- * core/workerPool.ts (AnalysisPool) pe Android/Capacitor.
+ * ML Kit Face nu mai este în aplicație. Fețele vin din MediaPipe Face Landmarker
+ * (nativeFaceMesh.ts). Tipurile rămân pentru testele care mock-uiesc calea veche.
  */
-import { registerPlugin, Capacitor } from '@capacitor/core';
-import { nativeImageParams, type NativeImageParams, type NativeImageSource } from './nativeImageSource';
+import type { NativeImageSource } from './nativeImageSource';
 
 export interface NativeFaceBoundingBox {
   left: number;
@@ -40,24 +34,14 @@ export interface NativeFaceDetectionResult {
  * Rezultatele lui NU au voie sa ajunga in AnalysisRecord: `smilingProbability`
  * si cele doua probabilitati de ochi vin mereu absente.
  */
-interface FaceDetectionPluginApi {
-  detectFaces(options: NativeImageParams & { fast?: boolean }): Promise<NativeFaceDetectionResult>;
-}
-
-const FaceDetectionNative = registerPlugin<FaceDetectionPluginApi>('FaceDetection');
-
-/** Sigur de apelat si pe web — registerPlugin() nu esueaza la incarcare, doar la apelul efectiv al unei metode. */
+/** Mereu fals: plugin-ul ML Kit Face a fost scos din pachet. */
 export function isNativeFaceDetectionAvailable(): boolean {
-  return Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('FaceDetection');
+  return false;
 }
 
 export async function detectFacesNative(
-  source: NativeImageSource,
-  options?: { fast?: boolean }
+  _source: NativeImageSource,
+  _options?: { fast?: boolean }
 ): Promise<NativeFaceDetectionResult> {
-  if (!isNativeFaceDetectionAvailable()) {
-    throw new Error('Detectia nativa de fete e disponibila doar in aplicatia Android (Capacitor), nu in browser.');
-  }
-  const params = await nativeImageParams(source);
-  return FaceDetectionNative.detectFaces(options?.fast ? { ...params, fast: true } : params);
+  throw new Error('ML Kit Face nu mai este în aplicație. Fețele vin din Face Landmarker.');
 }
