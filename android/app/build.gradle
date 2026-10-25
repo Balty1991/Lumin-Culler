@@ -43,6 +43,13 @@ android {
         versionCode 5
         versionName "3.1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        // Telefoanele reale sunt arm64, cu arm32 pentru aparatele mai vechi.
+        // x86/x86_64 sunt doar emulatoare: patru copii ale aceluiasi .so
+        // faceau APK-ul de debug universal de ~225 MB. Play primeste un AAB
+        // si livreaza o singura ABI (bundle.abi.enableSplit mai jos).
+        ndk {
+            abiFilters 'arm64-v8a', 'armeabi-v7a'
+        }
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
@@ -78,26 +85,16 @@ android {
     }
     buildTypes {
         release {
-            // R8 e OPRIT pentru release. Deliberat, si nu din comoditate.
+            // R8 + shrinkResources pentru pachetul care ajunge in Play.
             //
-            // L-am pornit pentru unul dintre pragurile de calitate anuntate de
-            // Play pentru februarie 2027 ("limited DEX optimization"). De
-            // atunci, fiecare pachet trimis in magazin a murit la analiza. Ce
-            // spune istoricul, nu presupunerea mea:
-            //
-            //   6c195dd, 54176de  minifyEnabled false  — au mers in magazin
-            //   e80ccf5 si dupa    minifyEnabled true   — se inchid la analiza
-            //
-            // Nu am urma de stiva care sa arate CE anume rupe R8, si fara ea
-            // orice regula in plus e ghicit. Pragul intra in vigoare in
-            // februarie 2027; nu impiedica nicio incarcare azi. Deci se intoarce
-            // la configuratia care chiar a mers, si R8 se reia cand exista o
-            // urma de stiva din Play Console si timp de testat.
-            //
-            // Build-ul de test cu `-PminifyDebug=true` ramane mai jos: cu el se
-            // poate incerca R8 pe telefon fara sa treaca prin magazin.
-            minifyEnabled false
-            shrinkResources false
+            // A fost oprit dupa ce build-urile minificate se inchideau in
+            // timpul analizei de fotograf (MediaPipe / ML Kit pe WebView).
+            // Acele plugin-uri nu mai sunt pe classpath-ul cleaner-ului
+            // (src/photographer, necompilat). Regulile din proguard-rules.pro
+            // raman: Capacitor, facturarea si ML Kit pentru ochi (best-shot)
+            // se leaga prin reflexie si JNI.
+            minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             if (hasSigningConfig) {
                 signingConfig signingConfigs.release
@@ -134,6 +131,13 @@ android {
     buildFeatures {
         compose true
     }
+    // AAB-ul pe care il incarca release-android.yml. Play desface ABI-urile,
+    // deci un telefon arm64 nu descarca si libs-urile arm32.
+    bundle {
+        abi {
+            enableSplit = true
+        }
+    }
 }
 
 repositories {
@@ -151,28 +155,14 @@ dependencies {
     // e "bundled" (impachetat direct in APK la build) — functioneaza offline imediat
     // dupa instalare, fara descarcare separata prin Play Services.
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
+    // Ochi pentru linia de best-shot din cleaner (GalleryRepository). Modelul
+    // e in AAR, offline. Mesh, OCR, etichete, MediaPipe, GenAI si compresia
+    // video stau in src/photographer si nu intra in acest pachet.
     implementation "com.google.mlkit:face-detection:$mlkitFaceDetectionVersion"
-    // Analiza AI nativa (Faza 3, rescrisa) — vezi plugins/ImageLabelingPlugin.kt.
-    // Modelul e bundle-uit direct in aceasta dependinta (ca ML Kit face-detection
-    // de mai sus), nu mai vine dintr-un asset descarcat separat de CI.
-    implementation "com.google.mlkit:image-labeling:$mlkitImageLabelingVersion"
-    // Analiza AI nativa (Faza 4) — vezi plugins/FaceMeshPlugin.kt / ImageClassifierPlugin.kt.
-    // Modelele (.task / .tflite) sunt descarcate de CI in assets/, nu vin din
-    // aceasta dependinta — biblioteca de aici e doar API-ul MediaPipe Tasks.
-    implementation "com.google.mediapipe:tasks-vision:$mediapipeTasksVisionVersion"
-    // Analiza AI nativa (Faza 5) — vezi plugins/TextRecognitionPlugin.kt. Modelul
-    // e bundle-uit direct in aceasta dependinta (ca ML Kit face-detection mai sus),
-    // nu vine din assets/ descarcate de CI.
-    implementation "com.google.mlkit:text-recognition:$mlkitTextRecognitionVersion"
-    implementation "com.google.mlkit:genai-image-description:$mlkitGenAiImageDescriptionVersion"
     // Abonament Premium — vezi plugins/BillingPlugin.kt. Singura dependinta din
     // proiect care chiar are nevoie de retea: verificarea abonamentului se face
     // prin Google Play, restul aplicatiei ramane complet offline.
     implementation "com.android.billingclient:billing-ktx:$billingVersion"
-    // Comprimare video, Premium, locală — vezi plugins/VideoCompressPlugin.kt.
-    implementation "androidx.media3:media3-transformer:$media3Version"
-    implementation "androidx.media3:media3-effect:$media3Version"
-    implementation "androidx.media3:media3-common:$media3Version"
     // Fereastra oficiala de recenzie Google Play — vezi plugins/InAppReviewPlugin.kt.
     // Nu trimite nimic de-al aplicatiei: doar deschide ecranul de nota al Play.
     implementation "com.google.android.play:review:$playReviewVersion"

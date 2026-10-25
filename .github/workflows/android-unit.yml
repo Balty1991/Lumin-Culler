@@ -1,7 +1,7 @@
 # Compiles the native cleaner and runs its JVM unit tests.
-# Does not build the web bundle or the ML model assets: those are needed for
-# an APK, not for :app:testDebugUnitTest. assembleDebug stays on
-# android-debug-build.yml (manual / claude/**), which also downloads models.
+# Does not build the web bundle. assembleDebug stays on
+# android-debug-build.yml (manual / claude/**). The cleaner APK does not
+# download photographer models.
 name: Android unit tests
 
 on:
