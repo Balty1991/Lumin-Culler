@@ -10,6 +10,7 @@ import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.tasks.core.BaseOptions
+import com.google.mediapipe.tasks.core.Delegate
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarker
 
@@ -43,8 +44,11 @@ class FaceMeshPlugin : Plugin() {
     /** Vezi ModelRegistry: `by lazy` nu se poate reseta, iar modelul asta
      *  tinea greutatile in memorie nativa si cat timp aplicatia statea in
      *  fundal — exact ce masoara Play ca Anonymous RSS. */
-    private val faceLandmarkerHolder = ReleasableModel<FaceLandmarker>({
-        val baseOptions = BaseOptions.builder().setModelAssetPath(MODEL_FILE).build()
+    private fun createLandmarker(delegate: Delegate): FaceLandmarker {
+        val baseOptions = BaseOptions.builder()
+            .setModelAssetPath(MODEL_FILE)
+            .setDelegate(delegate)
+            .build()
         val options = FaceLandmarker.FaceLandmarkerOptions.builder()
             .setBaseOptions(baseOptions)
             .setNumFaces(MAX_FACES)
@@ -52,7 +56,19 @@ class FaceMeshPlugin : Plugin() {
             .setOutputFacialTransformationMatrixes(true)
             .setRunningMode(RunningMode.IMAGE)
             .build()
-        FaceLandmarker.createFromOptions(context, options)
+        return FaceLandmarker.createFromOptions(context, options)
+    }
+
+    /**
+     * GPU întâi. Pe telefoanele fără delegat GPU, crearea aruncă — atunci
+     * rămâne CPU, aceleași semnale, doar mai lent. Nu se inventează o a treia cale.
+     */
+    private val faceLandmarkerHolder = ReleasableModel<FaceLandmarker>({
+        try {
+            createLandmarker(Delegate.GPU)
+        } catch (_: Exception) {
+            createLandmarker(Delegate.CPU)
+        }
     }, { it.close() })
 
     @PluginMethod

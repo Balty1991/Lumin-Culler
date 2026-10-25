@@ -1,5 +1,7 @@
 import { execSync } from 'node:child_process';
 import { createRequire } from 'node:module';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -38,7 +40,11 @@ function buildId(): string {
 /** Sursa de adevar pentru versiune, aceeasi pe care o citeste si release-android.yml. */
 const pkg = createRequire(import.meta.url)('./package.json') as { version: string };
 
+const androidApk = process.env.VITE_ANDROID_APK === '1';
+const humanStub = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'src/shims/humanStub.ts');
+
 export default defineConfig({
+  resolve: androidApk ? { alias: { '@vladmandic/human': humanStub } } : undefined,
   plugins: [
     react(),
     // Aplicatia se declara "AI local, functioneaza offline" — fara asta, afirmatia

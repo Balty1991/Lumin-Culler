@@ -49,8 +49,9 @@ jobs:
       # deci acolo cei ~40 MB i-ar plati la instalare inclusiv cine nu foloseste
       # niciodata functia. Se muta si acolo cand masuratorile de pe telefon
       # justifica marimea.
+      # MobileCLIP și runtime-ul ONNX nu mai sunt în aplicație.
       - name: Bundle CLIP model (optional)
-        run: node scripts/fetch-clip-model.mjs
+        run: echo "CLIP nu mai este inclus"
       # Verificare EXPLICITA, nu dedusa. Pasii de mai sus reusesc si cand nu
       # descarca nimic (asa sunt proiectati: o functie optionala n-are voie sa
       # opreasca livrarea). Consecinta e ca "pas verde" NU inseamna "model

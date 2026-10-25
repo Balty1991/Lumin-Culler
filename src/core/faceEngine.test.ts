@@ -10,8 +10,8 @@ import { readFaceEngine, writeFaceEngine, hasMixedFaceEngines, MESH_BLINK_THRESH
 beforeEach(() => { localStorage.clear(); });
 
 describe('care motor de fete', () => {
-  it('implicit e calea de pana acum — nimic nu se schimba fara o alegere', () => {
-    expect(readFaceEngine()).toBe('mlkit');
+  it('implicit e Face Landmarker — ML Kit rămâne doar dacă e ales', () => {
+    expect(readFaceEngine()).toBe('landmarker');
   });
 
   it('alegerea se tine minte', () => {
@@ -21,9 +21,9 @@ describe('care motor de fete', () => {
     expect(readFaceEngine()).toBe('mlkit');
   });
 
-  it('o valoare stricata in stocare cade tot pe calea veche, nu pe cea noua', () => {
+  it('o valoare stricata in stocare cade pe calea implicită', () => {
     localStorage.setItem('lumin-face-engine', 'ceva-aiurea');
-    expect(readFaceEngine()).toBe('mlkit');
+    expect(readFaceEngine()).toBe('landmarker');
   });
 
   /**

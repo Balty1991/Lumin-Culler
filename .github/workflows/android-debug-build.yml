@@ -34,6 +34,13 @@ on:
           aplicatiei, un import cu analiza, bokeh-ul, si exportul.
         type: boolean
         default: false
+  pull_request:
+    paths:
+      - 'android/**'
+      - 'src/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/android-debug-build.yml'
   push:
     branches:
       - 'claude/**'
@@ -78,10 +85,10 @@ jobs:
           # face analiza completa, si fara ele ar ramane fara mesh, fara emotie si
           # fara etichete de obiect. Cele doua liste trebuie sa ramana diferite —
           # vezi src/androidModels.test.ts, care apara exact asta.
-          for m in blazeface faceres; do
-            cp node_modules/@vladmandic/human/models/$m.json public/models/
-            cp node_modules/@vladmandic/human/models/$m.bin public/models/
-          done
+          # Human.js nu mai intra in APK. Analiza feței e MediaPipe Face Landmarker.
+          # Embeddingul de identitate (faceres) nu are licență confirmată pentru
+          # aplicație comercială — TODO(identitate). PWA-ul le păstrează.
+          echo "Human.js nu mai intra in APK"
       # "Locatii" — numele localitatilor, ca ecranul sa scrie "Rosiori de Vede,
       # Romania" in loc de "44.114, 24.987", FARA sa intrebe vreun serviciu
       # (cerinta directa a utilizatorului: "sa nu plece nimic deloc"). Lista
@@ -120,9 +127,9 @@ jobs:
           npx tsc
           if [ "${{ github.event.inputs.dev_mode }}" = "true" ]; then
             echo "Build productie + buton de test nativ pastrat"
-            VITE_NATIVE_TEST_BUTTON=true npx vite build
+            VITE_ANDROID_APK=1 VITE_SCAN_SUMMARY=1 VITE_NATIVE_TEST_BUTTON=true npx vite build
           else
-            npx vite build
+            VITE_ANDROID_APK=1 VITE_SCAN_SUMMARY=1 npx vite build
           fi
       - run: npx cap sync android
       # Analiza AI nativa (Faza 3, rescrisa — vezi plugins/ImageLabelingPlugin.kt):

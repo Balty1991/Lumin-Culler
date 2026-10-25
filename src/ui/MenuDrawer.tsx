@@ -19,6 +19,7 @@ import { selectDeletableRejected } from '../state/batchOps';
 import { selectPendingShieldReview, readShieldDismissedIds } from '../core/documentShield';
 import { selectUnresolvedGroups } from '../state/duplicateGroups';
 import { openStoreListing } from '../core/storeListing';
+import { formatLegacyLine, formatScanLine } from '../core/scanSummary';
 
 /** Tinut in pas cu package.json — e numarul pe care il vede utilizatorul. */
 /**
@@ -150,6 +151,7 @@ export function MenuDrawer() {
   const setAppearanceOpen = useStore(s => s.setAppearanceOpen);
   const setPremiumOpen = useStore(s => s.setPremiumOpen);
   const locale = useStore(s => s.locale);
+  const lastScan = useStore(s => s.lastScan);
   const setLocale = useStore(s => s.setLocale);
   const economicMode = useStore(s => s.economicMode);
   const faceEngine = useStore(s => s.faceEngine);
@@ -1228,7 +1230,15 @@ export function MenuDrawer() {
 
         <div className="drawer-about">
           <InfoIcon />
-          <p>{tr('menu.about')}</p>
+          <div className="drawer-about-copy">
+            <p>{tr('menu.about')}</p>
+            {lastScan && lastScan.count > 0 && (
+              <>
+                <p>{formatScanLine(lastScan, locale === 'en' ? 'en' : 'ro')}</p>
+                <p>{formatLegacyLine(lastScan, locale === 'en' ? 'en' : 'ro')}</p>
+              </>
+            )}
+          </div>
         </div>
       </m.nav>
     </m.div>

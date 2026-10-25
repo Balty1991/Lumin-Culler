@@ -56,36 +56,9 @@ export interface ClipInitResult {
  * server strain la prima analiza. Nu.
  */
 async function loadRealRuntime(): Promise<OrtRuntime> {
-  const ort = await import('onnxruntime-web/webgpu');
-  /*
-   * NU se atinge `ort.env.wasm.wasmPaths`, si e o lectie platita.
-   *
-   * Prima varianta il seta catre un director unde copiasem manual fisierul
-   * .wasm. Motivul parea bun: implicit, ONNX Runtime si-l poate cere de pe un
-   * CDN strain, ceea ce intr-o aplicatie care se lauda ca nu trimite nimic in
-   * afara ar fi de neacceptat. Motivul era bun, solutia era gresita — si a rupt
-   * exact functia pe care o pregatea.
-   *
-   * Doua lucruri pe care nu le stiam:
-   *  - build-ul `onnxruntime-web/webgpu` cere `ort-wasm-simd-threaded.ASYNCIFY.wasm`,
-   *    nu varianta `jsep` pe care o copiasem eu. Cererea se ducea intr-un 404,
-   *    iar sesiunea nu pornea — pe telefon se vedea doar "modelul nu a pornit";
-   *  - Vite REZOLVA deja singur fisierul: il emite in assets/ cu hash si
-   *    rescrie referinta din pachetul ONNX catre el. Deci se serveste din
-   *    aplicatie, local, fara niciun CDN — adica exact ce voiam — iar
-   *    `wasmPaths` nu facea decat sa strice acea rezolvare corecta.
-   *
-   * Concluzia, pe scurt: aici lipsa unei linii e mai buna decat linia.
-   */
-  return {
-    async createSession(modelUrl, backend) {
-      return await ort.InferenceSession.create(modelUrl, {
-        executionProviders: [backend],
-        graphOptimizationLevel: 'all'
-      }) as unknown as OrtSession;
-    },
-    tensor: (data, dims) => new ort.Tensor('float32', data, dims as number[])
-  };
+  // MobileCLIP-S0 și runtime-ul ONNX au fost scoase. Licență de cercetare,
+  // fără greutăți confirmate pentru producție.
+  throw new Error('CLIP nu mai este inclus.');
 }
 
 export class ClipEmbedService {

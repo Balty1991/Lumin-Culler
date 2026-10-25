@@ -17,6 +17,7 @@ import type { FaceAnalysisAPI, LeanFaceMode } from '../workers/faceAnalysis.work
 import type { AnalysisRecord, KnownPerson } from './db';
 import { readEconomicMode } from './performanceSettings';
 import { record } from './stageTiming';
+import { ANDROID_IDENTITY_EMBEDDINGS } from './faceEngine';
 import { selectActivePersons } from './activePersons';
 import { writeLastModelLoadMs } from './modelLoadTiming';
 import { analyzeNative } from './nativeAnalysis';
@@ -586,7 +587,9 @@ export class AnalysisPool {
             // celor care n-au inrolat pe nimeni ramaneau fara niciun semnal de
             // identitate: masurat pe 200 de poze, ZERO din 143 de perechi
             // candidate au fost judecate dupa fete. Vezi nativeAnalysis.ts.
-            crop => this.computeFaceRecognitionEmbedding(crop),
+            // Human.js (faceres) nu mai e pe drumul de scanare: nu avem greutăți
+            // de identitate cu licență confirmată. TODO(identitate).
+            ANDROID_IDENTITY_EMBEDDINGS ? (crop => this.computeFaceRecognitionEmbedding(crop)) : undefined,
             this.knownPersons,
             // content:// din galerie, cand exista — vezi analyzeNative: cu el,
             // imaginea nu mai trece deloc peste puntea Capacitor.
@@ -646,6 +649,10 @@ export class AnalysisPool {
 
   /** Înrolare persoană cunoscută: returnează embedding-ul feței principale + numărul de fețe detectate (vezi worker pentru bug-ul de avertizare). */
   async computeEnrollmentEmbedding(bitmap: ImageBitmap): Promise<{ embedding: number[]; faceCount: number } | null> {
+    if (this.nativeMode && !ANDROID_IDENTITY_EMBEDDINGS) {
+      try { bitmap.close(); } catch { /* bitmap deja închis */ }
+      return null;
+    }
     if (this.nativeMode) {
       const slot = await this.ensureEnrollmentSlot();
       try {

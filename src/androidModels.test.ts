@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 
 /**
  * src/androidModels.test.ts
- * Ce modele Human.js intra in APK, si de ce sunt mai putine decat in PWA.
+ * Ce modele Human.js intra in APK: niciunul. PWA-ul le pastreaza pe toate sase.
  *
  * A doua jumatate a lui e5 din auditul motoarelor: pe Android, analiza normala
  * nu atinge deloc Human.js (ruleaza pe plugin-urile native), iar singurele doua
@@ -32,10 +32,11 @@ describe('modelele Human.js din pachetul Android', () => {
   it.each([
     '.github/workflows/android-debug-build.yml',
     '.github/workflows/release-android.yml'
-  ])('%s copiaza doar detectorul si embeddingul', cale => {
+  ])('%s nu mai copiază niciun model Human.js', cale => {
     const workflow = citeste(cale);
-    expect(workflow).toContain('for m in blazeface faceres; do');
-    for (const model of MODELE_GRELE) {
+    expect(workflow).toContain('Human.js nu mai intra in APK');
+    expect(workflow).not.toContain('for m in blazeface faceres');
+    for (const model of ['blazeface', 'faceres', ...MODELE_GRELE]) {
       expect(workflow, `${model} nu mai are ce cauta in APK`).not.toMatch(new RegExp(`for m in .*${model}`));
     }
   });

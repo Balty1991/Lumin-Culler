@@ -3857,6 +3857,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .drawer-section-label:first-child { padding-top: 2px; }
 .drawer-sep { height: 1px; background: var(--line); margin: 10px 0; }
 .drawer-about { display: flex; gap: 10px; color: var(--text-faint); font-size: 0.74rem; line-height: 1.5; padding: 0 10px; }
+.drawer-about-copy { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.drawer-about-copy p { margin: 0; }
 .drawer-about svg { flex-shrink: 0; margin-top: 2px; }
 
 /* ── Paleta de comenzi (Ctrl/Cmd+K) ── */

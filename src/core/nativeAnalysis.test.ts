@@ -67,6 +67,8 @@ function fakeBitmap(width = 1000, height = 500): ImageBitmap {
 
 describe('analyzeNative', () => {
   beforeEach(() => {
+    // Calea descrisa aici e ML Kit. Implicitul produsului e FaceLandmarker.
+    localStorage.setItem('lumin-face-engine', 'mlkit');
     detectFacesNative.mockReset();
     analyzeImageNative.mockReset();
     labelImageNative.mockReset();
@@ -566,6 +568,7 @@ describe('analyzeNative — apelurile independente chiar pornesc in paralel', ()
   }
 
   beforeEach(() => {
+    localStorage.setItem('lumin-face-engine', 'mlkit');
     for (const m of [detectFacesNative, analyzeImageNative, labelImageNative, analyzeFaceMeshNative, detectTextNative, embedImageNative, detectPoseNative]) m.mockReset();
   });
 
@@ -651,6 +654,7 @@ describe('analyzeNative — apelurile independente chiar pornesc in paralel', ()
  */
 describe('analyzeNative — canvas-ul la rezolutie plina, doar cand e cerut', () => {
   beforeEach(() => {
+    localStorage.setItem('lumin-face-engine', 'mlkit');
     detectFacesNative.mockReset();
     analyzeImageNative.mockReset();
     labelImageNative.mockReset();
@@ -815,15 +819,21 @@ describe('analyzeNative — motorul de fete FaceLandmarker', () => {
     expect(result.faceCount).toBe(1);
   });
 
-  it('implicit, nimic nu se schimba: ML Kit ramane detectorul', async () => {
-    detectFacesNative.mockResolvedValue({ faces: [], imageWidth: 1000, imageHeight: 500 });
-    analyzeFaceMeshNative.mockResolvedValue({ faces: [] });
+  it('implicit, detectorul e FaceLandmarker; ML Kit doar daca e ales explicit', async () => {
+    analyzeFaceMeshNative.mockResolvedValue({ faces: [], imageWidth: 1000, imageHeight: 500 });
 
     const { analyzeNative } = await import('./nativeAnalysis');
-    const result = await analyzeNative('p1', fakeBitmap(1000, 500));
+    const implicit = await analyzeNative('p1', fakeBitmap(1000, 500));
 
+    expect(detectFacesNative).not.toHaveBeenCalled();
+    expect(analyzeFaceMeshNative).toHaveBeenCalledTimes(1);
+    expect(implicit.faceEngine).toBe('landmarker');
+
+    localStorage.setItem('lumin-face-engine', 'mlkit');
+    detectFacesNative.mockResolvedValue({ faces: [], imageWidth: 1000, imageHeight: 500 });
+    const ales = await analyzeNative('p2', fakeBitmap(1000, 500));
     expect(detectFacesNative).toHaveBeenCalledTimes(1);
-    expect(result.faceEngine).toBe('mlkit');
+    expect(ales.faceEngine).toBe('mlkit');
   });
 });
 
@@ -844,6 +854,7 @@ describe('analyzeNative — cate fete trec prin recunoastere', () => {
   });
 
   beforeEach(() => {
+    localStorage.setItem('lumin-face-engine', 'mlkit');
     for (const m of [detectFacesNative, analyzeImageNative, labelImageNative, analyzeFaceMeshNative, detectTextNative, embedImageNative, detectPoseNative]) m.mockReset();
     analyzeImageNative.mockResolvedValue(IMAGE_ANALYSIS_FIXTURE);
     labelImageNative.mockResolvedValue({ labels: [] });
@@ -892,7 +903,7 @@ describe('analyzeNative — cate fete trec prin recunoastere', () => {
  */
 describe('analyzeNative — cronometru pe fiecare model', () => {
   beforeEach(async () => {
-    localStorage.clear();
+    localStorage.setItem('lumin-face-engine', 'mlkit');
     for (const m of [detectFacesNative, analyzeImageNative, labelImageNative, analyzeFaceMeshNative, detectTextNative, embedImageNative, detectPoseNative]) m.mockReset();
     analyzeImageNative.mockResolvedValue(IMAGE_ANALYSIS_FIXTURE);
     analyzeFaceMeshNative.mockResolvedValue({ faces: [] });
@@ -984,6 +995,7 @@ describe('analyzeNative — cronometru pe fiecare model', () => {
  */
 describe('analyzeNative — OCR ruleaza odata cu valul 2', () => {
   beforeEach(() => {
+    localStorage.setItem('lumin-face-engine', 'mlkit');
     for (const m of [detectFacesNative, analyzeImageNative, labelImageNative, analyzeFaceMeshNative, detectTextNative, embedImageNative, detectPoseNative]) m.mockReset();
     analyzeImageNative.mockResolvedValue(IMAGE_ANALYSIS_FIXTURE);
     analyzeFaceMeshNative.mockResolvedValue({ faces: [] });
@@ -1037,6 +1049,7 @@ describe('analyzeNative — OCR ruleaza odata cu valul 2', () => {
  */
 describe('analyzeNative — OCR lent nu mai doboara poza', () => {
   beforeEach(() => {
+    localStorage.setItem('lumin-face-engine', 'mlkit');
     vi.useFakeTimers();
     detectFacesNative.mockResolvedValue({ faces: [], imageWidth: 200, imageHeight: 200 });
     labelImageNative.mockResolvedValue({ labels: [] });

@@ -67,6 +67,9 @@ import { readWelcomeSeen, writeWelcomeSeen } from './welcomeOnboarding';
 import { readExcludedFolderIds, writeExcludedFolderIds } from './galleryFolders';
 import { readProtectedPersons, writeProtectedPersons, excludeProtected } from './protectedPersons';
 import { readStageStats } from '../core/stageTiming';
+import {
+  formatScanLine, readLastScan, scanSummaryOnFinish, writeLastScan, type LastScan
+} from '../core/scanSummary';
 import { summariseFeedback } from '../core/aiFeedback';
 import { recordImportOutcome, summariseOutcomes } from '../core/importOutcome';
 import { keepScreenAwake } from '../core/wakeLock';
@@ -347,6 +350,8 @@ interface AppState {
     count: number; durationMs: number; throttledMs: number; throttledCap: number | null; normalCap: number;
     stalls: StallTally;
   } | null;
+  /** Ultima scanare, cu treptele. Rămâne în Despre și după repornire. */
+  lastScan: LastScan | null;
   /** Contor informativ de poze procesate in luna curenta — vezi state/usage.ts (NU e o limita reala/blocanta). */
   monthlyUsage: number;
   statsOpen: boolean;
@@ -2617,6 +2622,7 @@ export const useStore = create<AppState>((set, get) => ({
   renameTemplate: readStoredRenameTemplate(),
   setRenameTemplate: template => { writeStoredRenameTemplate(template); set({ renameTemplate: template }); },
   lastImportStats: null,
+  lastScan: readLastScan(),
   monthlyUsage: readMonthlyUsage(),
   statsOpen: false,
   setStatsOpen: open => set({ statsOpen: open }),
@@ -2877,6 +2883,7 @@ export const useStore = create<AppState>((set, get) => ({
     let notificatFaza: string | null = 'incarcare';
     /** Avertismentul lotului, ca CHEIE — se traduce la final, vezi ImportWarning. */
     let warning: ImportWarning | undefined;
+    let scanPhases: { stage1Ms: number; stage2Ms: number } | undefined;
     /** Bilantul in cifre al lotului, raportat de pipeline pe ultimul apel — vezi core/importOutcome.ts. */
     let outcomeReport: ImportOutcomeReport | undefined;
     let done = 0;
@@ -2957,6 +2964,7 @@ export const useStore = create<AppState>((set, get) => ({
           // concreta pe care o primeste utilizatorul cat timp analiza ruleaza.
           if (progress.quickScan) set({ quickScan: progress.quickScan });
           if (progress.thresholds) adaptedThresholds = progress.thresholds;
+          if (progress.scanPhases) scanPhases = progress.scanPhases;
           let etaSeconds: number | undefined;
           if (progress.phase === 'analiza') {
             // Pornit la prima poza terminata, nu la inceputul importului:
@@ -3145,9 +3153,16 @@ export const useStore = create<AppState>((set, get) => ({
             ? ' ' + t(get().locale, 'store.import.thresholdsAdapted', { select: adaptedThresholds.select, reject: adaptedThresholds.reject })
             : '')
       : undefined;
+    const locale = get().locale === 'en' ? 'en' : 'ro';
+    const finishedScan: LastScan | null = done > 0 && scanPhases
+      ? { count: done, durationMs: Date.now() - startedAt, stage1Ms: scanPhases.stage1Ms, stage2Ms: scanPhases.stage2Ms, at: Date.now() }
+      : null;
+    if (finishedScan) writeLastScan(finishedScan);
+    const speedNotice = finishedScan && scanSummaryOnFinish() ? formatScanLine(finishedScan, locale) : undefined;
     set(state => ({
       progress: null,
-      notice: (warning && t(get().locale, warning.key, warning.params)) ?? doneNotice ?? state.notice,
+      notice: (warning && t(get().locale, warning.key, warning.params)) ?? speedNotice ?? doneNotice ?? state.notice,
+      lastScan: finishedScan ?? state.lastScan,
       aiDegraded,
       aiBackend: analysisPool.detectedBackend,
       lastImportStats: done > 0

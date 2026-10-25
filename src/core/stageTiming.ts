@@ -85,7 +85,7 @@
  * lor depaseste timpul de perete al valului. Fiecare e timpul propriu, de
  * comparat intre ele — cel mai scump model e cel de atacat.
  */
-export const STAGES = ['decode', 'derivatives', 'analysis', 'queue', 'nativeBody', 'nativePrep', 'nativeAssemble', 'canvas', 'nativeModels', 'recognition', 'exif', 'persist', 'grouping', 'mFaceDetect', 'mFaceMesh', 'mImageAnalysis', 'mLabels', 'mEmbed', 'mPose', 'mOcr'] as const;
+export const STAGES = ['decode', 'derivatives', 'analysis', 'queue', 'nativeBody', 'nativePrep', 'nativeAssemble', 'canvas', 'nativeModels', 'recognition', 'exif', 'persist', 'grouping', 'stage1', 'stage2', 'mFaceDetect', 'mFaceMesh', 'mImageAnalysis', 'mLabels', 'mEmbed', 'mPose', 'mOcr'] as const;
 export type Stage = (typeof STAGES)[number];
 
 /** Cate durate pastram per etapa. 200 e destul pentru un p90 stabil si ramane sub ~2 KB in localStorage. */

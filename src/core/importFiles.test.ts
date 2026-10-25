@@ -91,7 +91,8 @@ vi.mock('./learning/ContextEngine', () => ({
     init: vi.fn(async () => {}),
     predict: vi.fn(async () => ({ score: 80, probability: 0.8, contextKey: 'k', confidence: 'cold', topFactors: [] })),
     learnedWeight: vi.fn(async () => 0)
-  }
+  },
+  landscapeSharpness: (n: number) => Math.pow(Math.max(0, n) / 100, 0.6)
 }));
 
 vi.mock('./hashComparePool', () => ({

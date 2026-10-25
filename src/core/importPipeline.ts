@@ -26,6 +26,13 @@ import { readCullingStrictness } from '../state/cullingStrictness';
 import { quickDuplicateScan, type QuickScanResult } from './quickDuplicateScan';
 import { buildLibraryIndex, partitionAlreadyImported } from './alreadyImported';
 import { writeGroupingMotive } from './groupingDiagnostics';
+import { dHashFromRgba, thumbMetrics } from './dhash';
+import { lightAnalysis } from './lightAnalysis';
+import { derivativesOffMain } from './previewOffThread';
+import { loadStageOne, saveStageOne } from './stageOneCache';
+import { base64ToBlob, fingerprintUri, isStageOneAvailable } from './stageOneNative';
+import { candidateIds, stageOneKey } from './twoStagePlan';
+import type { RawExifMeta } from './rawDecoder';
 
 /**
  * Un avertisment de import, ca CHEIE + parametri, nu ca propozitie gata scrisa.
@@ -73,6 +80,11 @@ export interface ImportProgress {
    * ca utilizatorul sa aiba o cifra concreta cat timp analiza abia porneste.
    */
   quickScan?: QuickScanResult;
+  /**
+   * Ceasurile de perete ale celor două trepte, pe ultimul apel. Nu sunt sume
+   * per poză: pozele rulează în paralel.
+   */
+  scanPhases?: { stage1Ms: number; stage2Ms: number };
 }
 
 /** Numai cifre si motivul deja agregat — fara nume de fisier, fara cai. */
@@ -569,6 +581,7 @@ export async function prioritizeFacesFirst<T extends { file: File; mediaUri?: st
 
 function makeDerivatives(bitmap: ImageBitmap): {
   preview: Promise<Blob>; thumb: Promise<Blob>; lqip: string; dHash: string; w: number; h: number;
+  sharpness: number; exposure: number;
 } {
   // Preview la rezolutia decodata (max 2048) — pe acesta se evalueaza claritatea
   const pc = document.createElement('canvas');
@@ -593,24 +606,192 @@ function makeDerivatives(bitmap: ImageBitmap): {
   lc.getContext('2d')!.drawImage(bitmap, 0, 0, lc.width, lc.height);
   const lqip = lc.toDataURL('image/jpeg', 0.5);
 
-  // dHash 9x8 pentru serii/duplicate
+  // dHash 9x8 pentru serii/duplicate — aceeași formulă ca pe telefon (StageOnePlugin).
   const hc = document.createElement('canvas');
   hc.width = 9; hc.height = 8;
   const hctx = hc.getContext('2d', { willReadFrequently: true })!;
   hctx.drawImage(bitmap, 0, 0, 9, 8);
   const d = hctx.getImageData(0, 0, 9, 8).data;
-  let hash = '';
-  for (let y = 0; y < 8; y++) {
-    for (let x = 0; x < 8; x++) {
-      const i = (y * 9 + x) * 4;
-      const j = (y * 9 + x + 1) * 4;
-      const a = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-      const b = 0.299 * d[j] + 0.587 * d[j + 1] + 0.114 * d[j + 2];
-      hash += a > b ? '1' : '0';
+  const hash = dHashFromRgba(d, 9);
+  const { sharpness, exposure } = thumbMetrics(d, 9);
+
+  return { preview, thumb, lqip, dHash: hash, w: bitmap.width, h: bitmap.height, sharpness, exposure };
+}
+
+interface StageOneReady {
+  id: string;
+  dHash: string;
+  w: number;
+  h: number;
+  lqip: string;
+  previewBlob: Blob;
+  thumbBlob: Blob;
+  sharpness: number;
+  exposure: number;
+  bitmap?: ImageBitmap;
+  rawMeta?: RawExifMeta;
+}
+
+const PERSIST_BATCH = 8;
+
+interface PersistJob {
+  photo: PhotoRecord;
+  thumb: Blob;
+  preview: Blob;
+  analysis: AnalysisRecord;
+  handle?: FileSystemFileHandleLike;
+  file: File;
+  resolve: () => void;
+  reject: (err: unknown) => void;
+}
+
+let persistJobs: PersistJob[] = [];
+let persistChain: Promise<void> = Promise.resolve();
+
+async function writePersistJobs(jobs: PersistJob[]): Promise<void> {
+  if (!jobs.length) return;
+  try {
+    await timed('persist', () => db.transaction('rw', [db.photos, db.thumbnails, db.previews, db.analyses, db.fileHandles, db.originals], async () => {
+      await Promise.all(jobs.flatMap(job => [
+        db.photos.put(job.photo),
+        db.thumbnails.put({ photoId: job.photo.id, blob: job.thumb }),
+        db.previews.put({ photoId: job.photo.id, blob: job.preview }),
+        db.analyses.put(job.analysis),
+        ...(job.photo.status === 'selected'
+          ? [job.handle
+              ? db.fileHandles.put({ photoId: job.photo.id, handle: job.handle })
+              : db.originals.put({ photoId: job.photo.id, blob: job.file, fileName: job.file.name, type: job.file.type })]
+          : [])
+      ]));
+    }));
+    for (const job of jobs) {
+      originalFiles.set(job.photo.id, job.file);
+      if (job.handle) originalHandles.set(job.photo.id, job.handle);
+      job.resolve();
     }
+  } catch (err) {
+    for (const job of jobs) job.reject(err);
+  }
+}
+
+function flushPersist(): Promise<void> {
+  const jobs = persistJobs;
+  persistJobs = [];
+  if (!jobs.length) return persistChain;
+  persistChain = persistChain.then(() => writePersistJobs(jobs));
+  return persistChain;
+}
+
+function enqueuePersist(job: Omit<PersistJob, 'resolve' | 'reject'>): Promise<void> {
+  return new Promise((resolve, reject) => {
+    persistJobs.push({ ...job, resolve, reject });
+    if (persistJobs.length >= PERSIST_BATCH) void flushPersist();
+  });
+}
+
+async function lqipFromThumb(blob: Blob): Promise<string> {
+  try {
+    const bitmap = await createImageBitmap(blob);
+    const scale = Math.min(1, LQIP_SIZE / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+    return canvas.toDataURL('image/jpeg', 0.5);
+  } catch {
+    return '';
+  }
+}
+
+/** Etapa 1: amprentă și previzualizare. Nu pornește modelele. */
+async function stageOnePrepare(file: File, mediaUri?: string): Promise<StageOneReady> {
+  const id = crypto.randomUUID();
+  const key = stageOneKey({ uri: mediaUri, name: file.name, size: file.size, mtime: file.lastModified });
+  const cached = await loadStageOne(key);
+  if (cached && cached.size === file.size && cached.mtime === file.lastModified && cached.preview && cached.thumb) {
+    return {
+      id,
+      dHash: cached.dHash,
+      w: cached.width,
+      h: cached.height,
+      lqip: cached.lqip,
+      previewBlob: cached.preview,
+      thumbBlob: cached.thumb,
+      sharpness: cached.sharpness,
+      exposure: cached.exposure
+    };
   }
 
-  return { preview, thumb, lqip, dHash: hash, w: bitmap.width, h: bitmap.height };
+  if (mediaUri && isStageOneAvailable() && !isRawFile(file)) {
+    const fp = await fingerprintUri(mediaUri);
+    const previewBlob = base64ToBlob(fp.previewBase64);
+    const thumbBlob = base64ToBlob(fp.thumbBase64);
+    const ready: StageOneReady = {
+      id,
+      dHash: fp.dHash,
+      w: fp.width,
+      h: fp.height,
+      lqip: await lqipFromThumb(thumbBlob),
+      previewBlob,
+      thumbBlob,
+      sharpness: fp.sharpness,
+      exposure: fp.exposure
+    };
+    await saveStageOne({
+      key, dHash: ready.dHash, width: ready.w, height: ready.h,
+      sharpness: ready.sharpness, exposure: ready.exposure,
+      size: file.size, mtime: file.lastModified, lqip: ready.lqip,
+      preview: previewBlob, thumb: thumbBlob, updatedAt: Date.now()
+    });
+    return ready;
+  }
+
+  const isRaw = isRawFile(file);
+  const { bitmap, rawMeta } = await timed('decode', async () => isRaw
+    ? decodeRawFile(file).then(r => ({ bitmap: r.bitmap, rawMeta: r.meta }))
+    : { bitmap: await decode(file, mediaUri), rawMeta: undefined as RawExifMeta | undefined });
+
+  let previewBlob: Blob;
+  let thumbBlob: Blob;
+  let lqip: string;
+  let dHash: string;
+  let w: number;
+  let h: number;
+  let sharpness: number;
+  let exposure: number;
+  let kept: ImageBitmap | undefined = bitmap;
+  const offThread = typeof Worker !== 'undefined' && import.meta.env.MODE !== 'test';
+  if (offThread) {
+    try {
+      const off = await derivativesOffMain(bitmap);
+      previewBlob = off.preview;
+      thumbBlob = off.thumb;
+      lqip = off.lqip;
+      dHash = off.dHash;
+      w = off.w;
+      h = off.h;
+      sharpness = off.sharpness;
+      exposure = off.exposure;
+      kept = off.bitmap;
+    } catch {
+      const sync = timedSync('derivatives', () => makeDerivatives(bitmap));
+      [previewBlob, thumbBlob] = await Promise.all([sync.preview, sync.thumb]);
+      ({ lqip, dHash, w, h, sharpness, exposure } = sync);
+    }
+  } else {
+    const sync = timedSync('derivatives', () => makeDerivatives(bitmap));
+    [previewBlob, thumbBlob] = await Promise.all([sync.preview, sync.thumb]);
+    ({ lqip, dHash, w, h, sharpness, exposure } = sync);
+  }
+
+  const ready: StageOneReady = { id, dHash, w, h, lqip, previewBlob, thumbBlob, sharpness, exposure, bitmap: kept, rawMeta };
+  await saveStageOne({
+    key, dHash, width: w, height: h, sharpness, exposure,
+    size: file.size, mtime: file.lastModified, lqip,
+    preview: previewBlob, thumb: thumbBlob, updatedAt: Date.now()
+  });
+  return ready;
 }
 
 /**
@@ -680,32 +861,25 @@ export function toHashInput(id: string, dHash: string, a: AnalysisRecord, captur
   };
 }
 
-async function processOne(file: File, genre?: string, project?: string, handle?: FileSystemFileHandleLike, mediaUri?: string, thresholds: Thresholds = FIXED_THRESHOLDS, mediaLocation?: MediaLocation): Promise<ImportedPhoto> {
-  const id = crypto.randomUUID();
+async function processOne(file: File, genre?: string, project?: string, handle?: FileSystemFileHandleLike, mediaUri?: string, thresholds: Thresholds = FIXED_THRESHOLDS, mediaLocation?: MediaLocation, ready?: StageOneReady, heavy = true): Promise<{ item: ImportedPhoto; persisted: Promise<void> }> {
+  const prepared = ready ?? await stageOnePrepare(file, mediaUri);
+  const id = prepared.id;
   const isRaw = isRawFile(file);
-  // RAW (CR2/NEF/ARW/DNG/...) nu se decodeaza cu createImageBitmap — folosim
-  // LibRaw (WASM); metadatele EXIF vin direct din LibRaw (mai fiabil decat
-  // sniff-ul de octeti gandit pentru JPEG, care nu intelege containerul RAW).
-  // Etapele de mai jos sunt cronometrate separat (core/stageTiming.ts): un
-  // import lent poate fi decodare, analiza AI, EXIF sau scriere in baza de
-  // date, iar din afara toate arata identic — "e lent".
-  const { bitmap, rawMeta } = await timed('decode', async () => isRaw
-    ? decodeRawFile(file).then(r => ({ bitmap: r.bitmap, rawMeta: r.meta }))
-    : { bitmap: await decode(file, mediaUri), rawMeta: undefined });
-  const { preview, thumb, lqip, dHash, w, h } = timedSync('derivatives', () => makeDerivatives(bitmap));
+  const { previewBlob, thumbBlob, lqip, dHash, w, h, sharpness, exposure, rawMeta } = prepared;
 
-  // Bitmap-ul pleaca in worker (transfer, zero-copy) — de aici nu-l mai atingem
-  // mediaUri doar pentru non-RAW: BitmapFactory (Android) nu stie CR2/NEF —
-  // acelea raman pe calea cu blob, decodate deja in JS de LibRaw.
+  // Treapta 2 păstrează analiza COMPLETĂ: claritate, expunere, clipping,
+  // orizont, regula treimilor, fețe. Coada de salvare (rescueQueue) citește
+  // exact aceste câmpuri. O poză fără vecini nu le primește — nu se inventează.
   const analysisStart = performance.now();
-  const analysisPromise = analysisPool.analyze(id, bitmap, isRaw ? undefined : mediaUri);
-  const [previewBlob, thumbBlob] = await Promise.all([preview, thumb]);
-
-  const analysis = await analysisPromise;
-  // Masurat de la pornirea analizei pana la rezultat, nu doar `await`-ul de
-  // mai sus: encodarea preview/thumb ruleaza in paralel cu ea, deci un simplu
-  // timp petrecut in ultimul await ar raporta aproape zero pe pozele unde
-  // analiza s-a terminat prima.
+  let analysis: AnalysisRecord;
+  if (heavy) {
+    let bitmap = prepared.bitmap;
+    if (!bitmap) bitmap = await decode(file, mediaUri);
+    analysis = await analysisPool.analyze(id, bitmap, isRaw ? undefined : mediaUri);
+  } else {
+    try { prepared.bitmap?.close(); } catch { /* deja închis */ }
+    analysis = lightAnalysis(id, { sharpness, exposure });
+  }
   record('analysis', performance.now() - analysisStart);
 
   // EXIF (ISO/diafragma/timp expunere/focala/data capturii) — optional, poze fara EXIF
@@ -833,48 +1007,14 @@ async function processOne(file: File, genre?: string, project?: string, handle?:
     ...(mediaUri ? { mediaUri } : {})
   };
 
-  // Bug real gasit de auditul QA: cele 4-5 scrieri de mai jos (o singura poza,
-  // mai multe tabele) rulau printr-un simplu Promise.all, in afara oricarei
-  // tranzactii Dexie — daca tab-ul/procesul era omorat la mijloc (crash,
-  // inchidere fortata, OOM), o poza putea ramane cu un rand in `photos` dar
-  // fara `thumbnails`/`analyses` corespunzator: un record orfan/partial, cu
-  // un UUID proaspat pe care un reimport nu-l suprascrie si nu-l repara
-  // singur. db.transaction face toate scrierile atomice: ori toate reusesc,
-  // ori (la orice eroare) niciuna nu se aplica.
-  await timed('persist', () => db.transaction('rw', [db.photos, db.thumbnails, db.previews, db.analyses, db.fileHandles, db.originals], async () => {
-    await Promise.all([
-      db.photos.put(photo),
-      db.thumbnails.put({ photoId: id, blob: thumbBlob }),
-      db.previews.put({ photoId: id, blob: previewBlob }),
-      db.analyses.put(analysis),
-      // pastram originalul si pentru auto-selectiile AI (nu doar corectiile
-      // manuale) — altfel exportul s-ar rupe la un reload inainte ca utilizatorul
-      // sa apuce sa atinga poza (vezi syncOriginal in state/store.ts). Preferam
-      // handle-ul (cateva zeci de octeti) fata de o copie completa a blob-ului
-      // cand File System Access API e disponibil (plan 2.3.4).
-      ...(status === 'selected'
-        ? [handle
-            ? db.fileHandles.put({ photoId: id, handle })
-            : db.originals.put({ photoId: id, blob: file, fileName: file.name, type: file.type })]
-        : [])
-    ]);
-  }));
+  // Scrierile unui lot stau într-o singură tranzacție (enqueuePersist), nu
+  // câte una pe poză. originalFiles se umple abia după ce rândul chiar există.
+  // NU așteptăm aici: bucla de treaptă 2 e cea care trebuie să ajungă la
+  // flushPersist. Dacă fiecare fir așteaptă scrierea, iar scrierea restului
+  // (< 8 poze) așteaptă să se termine firele, importul nu se mai întoarce.
+  const persisted = enqueuePersist({ photo, thumb: thumbBlob, preview: previewBlob, analysis, handle, file });
 
-  // Bug real gasit de auditul QA (scurgere de memorie): cele doua Map-uri
-  // modulare erau populate la INCEPUTUL functiei, inainte de tot ce poate
-  // esua (decodare RAW/LibRaw, analiza AI cu timeout, scrierile in Dexie).
-  // La orice esec per-poza, importFiles prinde eroarea si trece mai departe —
-  // dar intrarea ramanea acolo pentru tot restul sesiunii, cu un UUID pe care
-  // NICIO inregistrare din DB nu-l referentiaza, deci pe care nimic nu-l mai
-  // sterge vreodata (nici clearSession, care itereaza pozele reale). Un
-  // director cu 200 de fisiere corupte/HEIC-mascate reimportat de cateva ori
-  // acumula tot atatea File-uri "fantoma", fiecare tinand viu un handle catre
-  // fisierul de pe disc. Inregistram abia dupa ce poza CHIAR exista in DB —
-  // singurul moment din care exportOriginalFiles are ce cauta dupa acest id.
-  originalFiles.set(id, file);
-  if (handle) originalHandles.set(id, handle);
-
-  return { photo, analysis, prediction };
+  return { item: { photo, analysis, prediction }, persisted };
 }
 
 /**
@@ -1051,6 +1191,8 @@ export async function importFiles(
   let done = 0;
   let index = 0;
   let failed = 0;
+  let stage1Ms = 0;
+  let stage2Ms = 0;
 
   /**
    * De ce s-a oprit lotul, ca ETICHETA, nu ca mesaj gata compus.
@@ -1070,7 +1212,58 @@ export async function importFiles(
   // anume a esuat (memorie, decodare, worker etc.), imposibil de diagnosticat
   // de la distanta fara acces la consola browserului utilizatorului.
   const failureReasons = new Map<string, number>();
+  const staged: Array<StageOneReady | undefined> = new Array(images.length);
+  const stageOneErrors = new Map<number, unknown>();
+  /** Rezolvate după ce rândul e pe disc. Așteptate după flush, nu în firul de analiză. */
+  const persistedWrites: Promise<void>[] = [];
 
+  const noteFailure = async (file: File, err: unknown) => {
+    if (isQuotaError(err)) { stopKind = 'storageFull'; return; }
+    console.error('Analiza a esuat pentru ' + file.name + ':', err);
+    failed++;
+    let reason = err instanceof Error ? (err.name + ': ' + err.message) : String(err);
+    const realFormat = await sniffRealFormat(file);
+    if (realFormat) reason += ` [fisier real: ${realFormat}, etichetat "${file.type || file.name}"]`;
+    failureReasons.set(reason, (failureReasons.get(reason) ?? 0) + 1);
+  };
+
+  // Treapta 1: amprente pe tot lotul, fără modele.
+  const stage1Started = performance.now();
+  let stage1Index = 0;
+  await Promise.all(
+    Array.from({ length: concurrency }, async () => {
+      while (true) {
+        if (stopKind) break;
+        if (cancelToken?.cancelled) { stopKind = 'cancelled'; break; }
+        const myIndex = stage1Index++;
+        if (myIndex >= images.length) break;
+        const { file, mediaUri } = images[myIndex];
+        try {
+          staged[myIndex] = await stageOnePrepare(file, mediaUri);
+        } catch (err) {
+          stageOneErrors.set(myIndex, err);
+          if (isQuotaError(err)) { stopKind = 'storageFull'; break; }
+        }
+        onProgress({ done: myIndex + 1, total: images.length, fileName: file.name, phase: 'pregatire' });
+      }
+    })
+  );
+  stage1Ms = performance.now() - stage1Started;
+  if (images.length) record('stage1', stage1Ms);
+
+  let libraryHashes: string[] = [];
+  try {
+    libraryHashes = ((await db.photos.orderBy('dHash').keys()) as string[]).filter(h => typeof h === 'string' && h.length > 0);
+  } catch {
+    libraryHashes = [];
+  }
+  const heavyIds = candidateIds(
+    staged.filter((s): s is StageOneReady => !!s).map(s => ({ id: s.id, hash: s.dHash })),
+    libraryHashes
+  );
+
+  // Treapta 2: analiza completă doar pentru serii. Restul rămân cu măsurătorile ieftine.
+  const stage2Started = performance.now();
   await Promise.all(
     Array.from({ length: concurrency }, async () => {
       while (true) {
@@ -1079,25 +1272,43 @@ export async function importFiles(
         const myIndex = index++;
         if (myIndex >= images.length) break;
         const { file, handle, mediaUri } = images[myIndex];
-
+        const early = stageOneErrors.get(myIndex);
+        if (early) {
+          await noteFailure(file, early);
+          done++;
+          onProgress({ done, total: images.length, fileName: file.name, phase: 'analiza' });
+          continue;
+        }
+        const ready = staged[myIndex];
+        if (!ready) {
+          done++;
+          onProgress({ done, total: images.length, fileName: file.name, phase: 'analiza' });
+          continue;
+        }
         try {
-          const item = await processOne(file, genre, project, handle, mediaUri, thresholds, mediaUri ? mediaLocations?.get(mediaUri) : undefined);
-          hashes.push(toHashInput(item.photo.id, item.photo.dHash, item.analysis, item.photo.capturedAt, item.photo.capturedAtExact));
-          onPhoto(item);
+          const { item, persisted } = await processOne(
+            file, genre, project, handle, mediaUri, thresholds,
+            mediaUri ? mediaLocations?.get(mediaUri) : undefined,
+            ready,
+            heavyIds.has(ready.id)
+          );
+          persistedWrites.push(persisted.then(() => {
+            hashes.push(toHashInput(item.photo.id, item.photo.dHash, item.analysis, item.photo.capturedAt, item.photo.capturedAtExact));
+            onPhoto(item);
+          }, err => noteFailure(file, err)));
         } catch (err) {
-          if (isQuotaError(err)) { stopKind = 'storageFull'; break; }
-          console.error('Analiza a esuat pentru ' + file.name + ':', err);
-          failed++;
-          let reason = err instanceof Error ? (err.name + ': ' + err.message) : String(err);
-          const realFormat = await sniffRealFormat(file);
-          if (realFormat) reason += ` [fisier real: ${realFormat}, etichetat "${file.type || file.name}"]`;
-          failureReasons.set(reason, (failureReasons.get(reason) ?? 0) + 1);
+          await noteFailure(file, err);
+          if (stopKind) break;
         }
         done++;
         onProgress({ done, total: images.length, fileName: file.name, phase: 'analiza' });
       }
     })
   );
+  await flushPersist();
+  await Promise.all(persistedWrites);
+  stage2Ms = performance.now() - stage2Started;
+  if (images.length) record('stage2', stage2Ms);
 
   const stopReason: ImportWarning | undefined = stopKind
     ? {
@@ -1238,7 +1449,8 @@ export async function importFiles(
       failed,
       skipped: skippedCount + alreadyInLibrary,
       reasons: topReasons || undefined
-    }
+    },
+    scanPhases: { stage1Ms, stage2Ms }
   });
   return groups;
 }

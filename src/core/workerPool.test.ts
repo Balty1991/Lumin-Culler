@@ -102,7 +102,7 @@ describe('AnalysisPool native mode (Capacitor Android)', () => {
     // poze, nu cu o referinta inrolata. Vezi analyze()/workerPool.ts.
     // Al 5-lea (mediaUri) e undefined aici: fara URI de galerie, analiza cade pe
     // calea cu blob, ca inainte.
-    expect(analyzeNativeMock).toHaveBeenCalledWith('p1', bitmap, expect.any(Function), [], undefined);
+    expect(analyzeNativeMock).toHaveBeenCalledWith('p1', bitmap, undefined, [], undefined);
   });
 
   // Bug real gasit de auditul QA: analyze() pe native nu trimitea niciodata un
@@ -121,7 +121,7 @@ describe('AnalysisPool native mode (Capacitor Android)', () => {
     await pool.analyze('p1', bitmap);
 
     const [, , recognize, knownPersons] = analyzeNativeMock.mock.calls[0];
-    expect(typeof recognize).toBe('function');
+    expect(recognize).toBeUndefined();
     expect(knownPersons).toEqual([{ id: 'ami-id', name: 'Ami', embeddings: [[1, 0]], updatedAt: 0 }]);
   });
 

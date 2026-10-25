@@ -714,6 +714,8 @@ export class LuminDB extends Dexie {
   corrections!: Table<CorrectionRecord, number>;
   history!: Table<HistoryRecord, number>;
   collections!: Table<CollectionRecord, string>;
+  /** Amprentele etapei 1, ca o rescanare să nu mai decodeze aceeași poză. */
+  stageOneCache!: Table<StageOneCacheRecord, string>;
 
   constructor() {
     super('lumin-culler-v2');
@@ -966,7 +968,28 @@ export class LuminDB extends Dexie {
         p.capturedAtExact = cuExif.has(p.id);
       });
     });
+
+    // v13: cache-ul etapei 1. Tabelă nouă, nimic existent nu se atinge.
+    this.version(13).stores({
+      stageOneCache: 'key, updatedAt'
+    });
   }
+}
+
+/** Rezultatul ieftin al unei poze, refolosit la rescanare. JPEG-urile sunt cele reduse, nu originalul. */
+export interface StageOneCacheRecord {
+  key: string;
+  dHash: string;
+  width: number;
+  height: number;
+  sharpness: number;
+  exposure: number;
+  size: number;
+  mtime: number;
+  lqip: string;
+  preview: Blob;
+  thumb: Blob;
+  updatedAt: number;
 }
 
 export const db = new LuminDB();

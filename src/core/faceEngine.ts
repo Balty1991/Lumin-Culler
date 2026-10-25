@@ -4,13 +4,13 @@
  *
  * DOUA CAI, si de ce exista amandoua.
  *
- * 'mlkit' (implicit, calea de pana acum): ML Kit FaceDetection da casetele,
+ * 'mlkit' (doar daca e ales explicit): ML Kit FaceDetection da casetele,
  * zambetul si ochii, iar MediaPipe FaceLandmarker ruleaza SEPARAT, pe pozele
  * unde ML Kit a gasit ceva, doar pentru semnalele fine (zambet autentic,
  * contact vizual) — agregate pe grup, fiindca cele doua liste de fete nu se pot
  * potrivi 1:1.
  *
- * 'landmarker' (ce cere e7 din auditul motoarelor): un singur model face tot.
+ * 'landmarker' (implicit): un singur model face tot.
  * FaceLandmarker da si casetele (min/max peste cele 478 de puncte), si
  * zambetul (blendshape-uri), si ochii (EAR din mesh). Dispare cel mai scump
  * apel de pe telefon — ML Kit in PERFORMANCE_MODE_ACCURATE, masurat la 33% din
@@ -25,14 +25,18 @@
  * la web, nu introduce o a treia scara. De-aia pragurile de mai jos sunt copiate
  * din worker, nu alese aici.
  *
- * CE RAMANE O NECUNOSCUTA, si de ce comutatorul porneste STINS. O biblioteca
- * deja triata contine poze scorate pe cealalta cale. Intr-o serie amestecata,
- * "cel mai bun cadru" ar compara doua scari — si asta nu da nicio eroare, da
- * un raspuns plauzibil si gresit. De-aia fiecare analiza isi poarta motorul in
- * AnalysisRecord.faceEngine, si de-aia schimbarea comutatorului cere o
- * re-analiza a bibliotecii (exista deja, in Meniu). Cu 12 testeri care se uita
- * acum la scoruri, treaba asta se aprinde dupa o verificare pe telefon, nu
- * intr-un commit.
+ * Calea implicită e 'landmarker': un singur model, pe GPU când telefonul poate,
+ * altfel pe CPU. 'mlkit' rămâne doar dacă e ales explicit.
+ *
+ * Embeddingurile de identitate (Human.js / faceres) NU sunt în pachetul Android.
+ * Nu există greutăți cu licență confirmată pentru o aplicație comercială.
+ * TODO(identitate): un model de „cine e” cu licență clară. Până atunci,
+ * recunoașterea pe telefon nu pornește worker-ul Human.js.
+ *
+ * O biblioteca deja triata poate contine poze scorate pe cealalta cale.
+ * Intr-o serie amestecata, "cel mai bun cadru" ar compara doua scari. De-aia
+ * fiecare analiza isi poarta motorul in AnalysisRecord.faceEngine, si de-aia
+ * schimbarea comutatorului cere o re-analiza a bibliotecii (Meniu).
  */
 
 export type FaceEngine = 'mlkit' | 'landmarker';
@@ -51,11 +55,19 @@ const STORAGE_KEY = 'lumin-face-engine';
  */
 export const MESH_BLINK_THRESHOLD = (0.18 - 0.08) / 0.25;
 
+/**
+ * Fals pe Android: pachetul nu mai conține modelele Human.js. Recunoașterea
+ * „cine e” așteaptă greutăți cu licență confirmată. Vezi workerPool.analyze.
+ */
+export const ANDROID_IDENTITY_EMBEDDINGS = false;
+
 export function readFaceEngine(): FaceEngine {
   try {
-    return localStorage.getItem(STORAGE_KEY) === 'landmarker' ? 'landmarker' : 'mlkit';
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored === 'mlkit' || stored === 'landmarker') return stored;
+    return 'landmarker';
   } catch {
-    return 'mlkit';
+    return 'landmarker';
   }
 }
 
