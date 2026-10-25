@@ -20,7 +20,7 @@ import { CullStrengthBar } from './CullStrengthBar';
 import { ReviewClusterSummary } from './ReviewClusterSummary';
 import { AiProfileCard } from './AiProfileCard';
 import { SessionOutcome } from './SessionOutcome';
-import { SparkleIcon, PinIcon, ChevronUpIcon, ShieldIcon, CopyIcon, TrashIcon } from './icons';
+import { SparkleIcon, PinIcon, ChevronUpIcon, ShieldIcon, CopyIcon, TrashIcon, FolderIcon } from './icons';
 import { t, plural } from '../i18n';
 import { formatEta } from '../core/formatTime';
 
@@ -98,6 +98,7 @@ export function HomeDashboard({ onAddPhotos }: { onAddPhotos: () => void }) {
    */
   const thermalThrottle = useStore(s => s.thermalThrottle);
   const setDocumentShieldOpen = useStore(s => s.setDocumentShieldOpen);
+  const setAlbumsOpen = useStore(s => s.setAlbumsOpen);
   const setDuplicatesPanelOpen = useStore(s => s.setDuplicatesPanelOpen);
   const collections = useStore(s => s.collections);
   const deleteRejectedPhotos = useStore(s => s.deleteRejectedPhotos);
@@ -498,6 +499,16 @@ export function HomeDashboard({ onAddPhotos }: { onAddPhotos: () => void }) {
           <b>{ringLabel}</b>
         </div>
       </div>
+
+      {photos.length > 0 && !analysing && (
+        <button className="home-shield-cta" onClick={() => setAlbumsOpen(true)}>
+          <span className="home-shield-icon" aria-hidden="true"><FolderIcon /></span>
+          <span className="home-shield-text">
+            <b>{tr('home.albums.title')}</b>
+            <span>{tr('home.albums.sub')}</span>
+          </span>
+        </button>
+      )}
 
       {unsortedCount > 0 && (
         <button className="home-sort-cta" onClick={() => setTiktokSortOpen(true)}>

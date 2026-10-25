@@ -84,7 +84,8 @@ export function BatchOpsPanel() {
   const removePreset = (id: string) => setPresets(deleteCullingPreset(id));
 
   const targets = useMemo(() => selectBulkRejectTargets(photos, threshold), [photos, threshold]);
-  const groups = useMemo(() => resolveGroups(photos), [photos]);
+  const protectedPersons = useStore(s => s.protectedPersons);
+  const groups = useMemo(() => resolveGroups(photos, protectedPersons), [photos, protectedPersons]);
   const cull = useMemo(() => selectTopPercent(photos, cullPercent), [photos, cullPercent]);
   const deletableRejected = useMemo(() => selectDeletableRejected(photos), [photos]);
   // Ce urmeaza sa dispara, cele mai indoielnice primele — vezi orderByDeletionRisk.

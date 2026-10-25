@@ -50,7 +50,15 @@ export interface GroupResolution {
  * afara acestei actiuni (ex. utilizatorul a preferat manual un cadru cu un
  * scor AI mai mic, dar o expresie mai buna).
  */
-export function resolveGroups(photos: PhotoView[]): GroupResolution[] {
+/** Câte puncte de scor primește un cadru în care apare o persoană protejată. Nu bate un cadru mult mai bun. */
+const PROTECTED_SCORE_BOOST = 8;
+
+function keepScore(photo: PhotoView, protectedNames: ReadonlySet<string>): number {
+  const boost = protectedNames.size > 0 && photo.personNames.some(name => protectedNames.has(name)) ? PROTECTED_SCORE_BOOST : 0;
+  return photo.aiScore + boost;
+}
+
+export function resolveGroups(photos: PhotoView[], protectedNames: ReadonlySet<string> = new Set()): GroupResolution[] {
   const groups = new Map<string, PhotoView[]>();
   for (const p of photos) {
     if (!p.groupId) continue;
@@ -59,8 +67,8 @@ export function resolveGroups(photos: PhotoView[]): GroupResolution[] {
   }
   return Array.from(groups.entries()).map(([groupId, members]) => {
     const manuallySelected = members.filter(m => m.status === 'selected');
-    const keep = (manuallySelected.length ? manuallySelected : members)
-      .reduce((a, b) => (a.aiScore >= b.aiScore ? a : b));
+    const pool = manuallySelected.length ? manuallySelected : members;
+    const keep = pool.reduce((a, b) => (keepScore(a, protectedNames) >= keepScore(b, protectedNames) ? a : b));
     const rejectIds = members
       .filter(m => m.id !== keep.id && !isUserDecided(m.status))
       .map(m => m.id);

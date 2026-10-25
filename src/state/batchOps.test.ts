@@ -130,6 +130,16 @@ describe('resolveGroups', () => {
     expect(result[0].rejectIds).toEqual([]);
   });
 
+  it('la scoruri apropiate păstrează cadrul cu persoana protejată', () => {
+    const photos = [
+      photo({ id: 'a', groupId: 'g1', aiScore: 70, personNames: [] }),
+      photo({ id: 'b', groupId: 'g1', aiScore: 66, personNames: ['Ana'] })
+    ];
+    const result = resolveGroups(photos, new Set(['Ana']));
+    expect(result[0].keepId).toBe('b');
+    expect(result[0].rejectIds).toEqual(['a']);
+  });
+
   it('when multiple members are manually selected, keeps the best of those and does not reject the others', () => {
     const photos = [
       photo({ id: 'a', groupId: 'g1', aiScore: 40, status: 'selected' }),

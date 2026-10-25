@@ -12,7 +12,7 @@ import {
   removePhotosFromCollection as removePhotosFromCollectionRecord
 } from '../core/collections';
 import { readSavedFilters, writeSavedFilters, type SavedFilterPreset } from './savedFilters';
-import { applyAdjustmentsToBlob, isNeutral, type EditAdjustments } from '../core/imageAdjust';
+import { applyAdjustmentsToBlob, isNeutral, persistableAdjustments, type EditAdjustments } from '../core/imageAdjust';
 import { readApplyEditsInGallery, writeApplyEditsInGallery } from './applyEditsPreference';
 import { readProMode, writeProMode } from './proMode';
 import { readActiveFilter, writeActiveFilter } from './activeFilter';
@@ -45,6 +45,7 @@ import { dateSearchWords } from './searchDateWords';
 import { findNearestPlace, formatPlace, getLoadedPlaceIndex, loadPlaceIndex } from '../core/placeNames';
 import { hasRealGps } from '../core/gpsCoordinates';
 import { pickBestInGroup } from '../core/groupSelection';
+import { correctedFileName } from '../core/autoCorrect';
 import {
   pushHistory, popHistory, MAX_HISTORY, type HistoryEvent,
   pushBatchHistory, popBatchHistory, type BatchHistoryEvent, type FieldBatchHistoryEvent
@@ -488,6 +489,9 @@ interface AppState {
   /** Momentele (sesiuni de fotografiat separate de pauze), cu 1-3 cadre propuse din fiecare — vezi core/momentStacks.ts. */
   momentsOpen: boolean;
   setMomentsOpen: (open: boolean) => void;
+  /** Albume virtuale (persoane, animale, evenimente). Nu mută fișiere. */
+  albumsOpen: boolean;
+  setAlbumsOpen: (open: boolean) => void;
   /**
    * "Mod profesional": arata in meniu si functiile de dupa triaj (XMP, contact
    * sheet, galerie client, watermark, proiecte, gen fotografic, locatii).
@@ -774,6 +778,11 @@ interface AppState {
   setColorLabel: (id: string, label: ColorLabel) => Promise<void>;
   /** Salveaza ajustarile de baza (EditPanel) — non-destructiv, vezi PhotoRecord.edits. */
   setEditAdjustments: (id: string, adjustments: EditAdjustments) => Promise<void>;
+  /**
+   * Copii corectate. Originalul din galerie și rândul lui rămân neatinse.
+   * Copia nu are mediaUri, deci nu poate fi ștearsă din telefon ca și cum ar fi sursa.
+   */
+  addCorrectedCopies: (plans: { sourceId: string; adjustments: EditAdjustments }[]) => Promise<number>;
   /** Aplica editarile unei poze tuturor celorlalte cadre NEEDITATE din lista data. */
   applyEditsToMoment: (sourceId: string, ids: string[]) => Promise<{ applied: number }>;
   undo: () => Promise<void>;
@@ -1863,6 +1872,8 @@ export const useStore = create<AppState>((set, get) => ({
   setSmartInboxOpen: open => set({ smartInboxOpen: open }),
   momentsOpen: false,
   setMomentsOpen: open => set({ momentsOpen: open }),
+  albumsOpen: false,
+  setAlbumsOpen: open => set({ albumsOpen: open }),
   proMode: readProMode(),
   setProMode: on => {
     writeProMode(on);
@@ -3325,6 +3336,44 @@ export const useStore = create<AppState>((set, get) => ({
     }));
   },
 
+  addCorrectedCopies: async (plans) => {
+    const made: PhotoView[] = [];
+    for (const plan of plans) {
+      const rec = await db.photos.get(plan.sourceId);
+      if (!rec) continue;
+      const analysis = await db.analyses.get(plan.sourceId);
+      const id = crypto.randomUUID();
+      const copy: PhotoRecord = {
+        ...rec,
+        id,
+        fileName: correctedFileName(rec.fileName),
+        importedAt: Date.now(),
+        status: 'selected',
+        aiDecided: false,
+        groupId: `corrected-${id}`,
+        edits: persistableAdjustments(plan.adjustments),
+        decisionNote: 'Copie corectată. Fișierul din galerie nu a fost modificat.',
+        mediaUri: undefined
+      };
+      const [thumb, preview] = await Promise.all([db.thumbnails.get(rec.id), db.previews.get(rec.id)]);
+      const copiedAnalysis = analysis ? { ...analysis, photoId: id } : undefined;
+      await db.transaction('rw', [db.photos, db.thumbnails, db.previews, db.analyses], async () => {
+        await db.photos.put(copy);
+        if (thumb) await db.thumbnails.put({ photoId: id, blob: thumb.blob });
+        if (preview) await db.previews.put({ photoId: id, blob: preview.blob });
+        if (copiedAnalysis) await db.analyses.put(copiedAnalysis);
+      });
+      made.push(toView(copy, copiedAnalysis));
+    }
+    if (!made.length) return 0;
+    const locale = get().locale;
+    set(state => ({
+      photos: [...state.photos, ...made].sort((a, b) => (a.capturedAt ?? 0) - (b.capturedAt ?? 0)),
+      notice: t(locale, 'albums.correct.saved', { count: made.length })
+    }));
+    return made.length;
+  },
+
   /**
    * Aplica ACELEASI ajustari tuturor celorlalte cadre din acelasi moment.
    *
@@ -3518,7 +3567,8 @@ export const useStore = create<AppState>((set, get) => ({
         groupAwkwardRatio: m.groupAwkwardRatio ?? a?.groupAwkwardRatio,
         subjectInFocus: a?.subjectInFocus,
         highlightClipping: a?.highlightClipping,
-        avgEyeContact: a?.avgEyeContact
+        avgEyeContact: a?.avgEyeContact,
+        protectedPerson: get().protectedPersons.size > 0 && m.personNames.some(name => get().protectedPersons.has(name))
       };
     }), learnedWeight);
   },
@@ -3582,8 +3632,8 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   resolveAllSeries: async () => {
-    const resolutions = resolveGroups(outsideVault(get().photos, get().collections));
     const protectedForSeries = get().protectedPersons;
+    const resolutions = resolveGroups(outsideVault(get().photos, get().collections), protectedForSeries);
     // Bug real gasit de auditul QA (bug/low): un Array.find() pe intreaga lista
     // in interiorul buclei (si al buclei imbricate de rejectIds) era O(n) per
     // cautare — O(M*n) in total pentru M membri de serie, real O(n^2) cand
@@ -5034,7 +5084,7 @@ export function isAnyOverlayOpen(): boolean {
     s.paletteOpen || s.shortcutsOpen || s.clipLabOpen || s.menuOpen || s.personsOpen || s.insightsOpen ||
     s.batchOpsOpen || s.statsOpen || s.projectsOpen || s.contactSheetOpen || s.presentationOpen ||
     s.appearanceOpen || s.collectionsOpen || s.documentShieldOpen || s.duplicatesPanelOpen ||
-    s.rescueQueueOpen || s.smartInboxOpen || s.momentsOpen || s.exactDupesOpen ||
+    s.rescueQueueOpen || s.smartInboxOpen || s.momentsOpen || s.albumsOpen || s.exactDupesOpen ||
     s.exportDestinationsOpen || s.premiumOpen || s.searchPanelOpen || s.supervisorPanelOpen ||
     s.tiktokSortOpen || s.locationsOpen || s.vaultOpen || s.zenPanelOpen || s.guideOpen ||
     s.compareGroupId || s.editingPhotoId || s.dialogRequest

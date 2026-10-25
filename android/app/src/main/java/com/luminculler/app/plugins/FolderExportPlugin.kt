@@ -1,11 +1,17 @@
 package com.luminculler.app.plugins
 
 import android.app.Activity
+import android.content.ContentValues
 import android.content.Intent
+import android.media.MediaScannerConnection
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
 import android.provider.DocumentsContract
+import android.provider.MediaStore
 import android.util.Base64
 import androidx.activity.result.ActivityResult
+import java.io.File
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
@@ -152,6 +158,99 @@ class FolderExportPlugin : Plugin() {
             call.resolve(JSObject().put("uri", fileUri.toString()))
         } catch (e: Exception) {
             call.reject("Could not write '$name': ${e.message}", e)
+        }
+    }
+
+    /**
+     * Copiază poze în Pictures/Lumin/<album>. Sursa (content:// din galerie)
+     * nu se șterge și nu se redenumește. Un eșec la o poză nu oprește restul.
+     */
+    @PluginMethod
+    fun copyIntoLuminAlbum(call: PluginCall) {
+        val album = sanitizeAlbum(call.getString("album"))
+        val uris = call.getArray("uris")?.toList<String>() ?: emptyList()
+        val names = call.getArray("names")?.toList<String>() ?: emptyList()
+        if (uris.isEmpty()) {
+            call.resolve(JSObject().put("copied", 0).put("skipped", 0))
+            return
+        }
+        Thread {
+            var copied = 0
+            var skipped = 0
+            val used = HashSet<String>()
+            for (i in uris.indices) {
+                val raw = uris[i]
+                val name = uniqueName(sanitizeFileName(names.getOrNull(i) ?: "poza.jpg"), used)
+                val source = try {
+                    Uri.parse(raw)
+                } catch (_: Exception) {
+                    null
+                }
+                if (source == null || !copyOne(source, album, name)) skipped++ else copied++
+            }
+            call.resolve(JSObject().put("copied", copied).put("skipped", skipped))
+        }.start()
+    }
+
+    private fun copyOne(source: Uri, album: String, displayName: String): Boolean {
+        val resolver = context.contentResolver
+        val mime = resolver.getType(source) ?: "image/jpeg"
+        if (Build.VERSION.SDK_INT >= 29) {
+            val values = ContentValues().apply {
+                put(MediaStore.Images.Media.DISPLAY_NAME, displayName)
+                put(MediaStore.Images.Media.MIME_TYPE, mime)
+                put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/Lumin/$album")
+                put(MediaStore.Images.Media.IS_PENDING, 1)
+            }
+            val dest = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: return false
+            return try {
+                val input = resolver.openInputStream(source) ?: throw IllegalStateException("sursa")
+                val output = resolver.openOutputStream(dest) ?: throw IllegalStateException("copia")
+                input.use { inn -> output.use { out -> inn.copyTo(out) } }
+                values.clear()
+                values.put(MediaStore.Images.Media.IS_PENDING, 0)
+                resolver.update(dest, values, null, null)
+                true
+            } catch (_: Exception) {
+                resolver.delete(dest, null, null)
+                false
+            }
+        }
+        return try {
+            val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "Lumin/$album")
+            if (!dir.exists() && !dir.mkdirs()) return false
+            val out = File(dir, displayName)
+            resolver.openInputStream(source)?.use { input ->
+                out.outputStream().use { output -> input.copyTo(output) }
+            } ?: return false
+            MediaScannerConnection.scanFile(context, arrayOf(out.absolutePath), arrayOf(mime), null)
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun sanitizeAlbum(raw: String?): String {
+        val cleaned = (raw ?: "").replace(Regex("""[\\/:*?"<>|]"""), " ").replace(Regex("\\s+"), " ").trim()
+        return if (cleaned.isEmpty()) "Album" else cleaned.take(40)
+    }
+
+    private fun sanitizeFileName(raw: String): String {
+        val cleaned = raw.substringAfterLast('/').substringAfterLast('\\')
+            .replace(Regex("""[\\/:*?"<>|]"""), "_").trim()
+        return if (cleaned.isEmpty()) "poza.jpg" else cleaned.take(80)
+    }
+
+    private fun uniqueName(name: String, used: MutableSet<String>): String {
+        if (used.add(name)) return name
+        val dot = name.lastIndexOf('.')
+        val stem = if (dot > 0) name.substring(0, dot) else name
+        val ext = if (dot > 0) name.substring(dot) else ""
+        var n = 2
+        while (true) {
+            val next = "$stem ($n)$ext"
+            if (used.add(next)) return next
+            n++
         }
     }
 

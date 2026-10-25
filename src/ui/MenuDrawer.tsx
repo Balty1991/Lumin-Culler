@@ -137,6 +137,7 @@ export function MenuDrawer() {
   const open = useStore(s => s.menuOpen);
   const setOpen = useStore(s => s.setMenuOpen);
   const setPersonsOpen = useStore(s => s.setPersonsOpen);
+  const setAlbumsOpen = useStore(s => s.setAlbumsOpen);
   const setInsightsOpen = useStore(s => s.setInsightsOpen);
   const setBatchOpsOpen = useStore(s => s.setBatchOpsOpen);
   const photos = useStore(s => s.photos);
@@ -544,6 +545,10 @@ export function MenuDrawer() {
             <span className="drawer-item-icon"><UserCheckIcon /></span>
             <span>{tr('menu.knownPersons')}</span>
             {persons.length > 0 && <b className="drawer-count mono">{persons.length}</b>}
+          </button>
+          <button className="drawer-item" onClick={() => go(() => setAlbumsOpen(true))}>
+            <span className="drawer-item-icon"><FolderIcon /></span>
+            <span>{tr('menu.albums')}</span>
           </button>
 
           {isNativeMediaLibraryAvailable() && (
