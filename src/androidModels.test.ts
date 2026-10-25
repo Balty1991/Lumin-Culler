@@ -29,15 +29,22 @@ const citeste = (cale: string) => readFileSync(resolve(rad, cale), 'utf8');
 const MODELE_GRELE = ['facemesh', 'iris', 'emotion', 'centernet'];
 
 describe('modelele Human.js din pachetul Android', () => {
-  it.each([
-    '.github/workflows/android-debug-build.yml',
-    '.github/workflows/release-android.yml'
-  ])('%s nu mai copiază niciun model Human.js', cale => {
-    const workflow = citeste(cale);
+  it('APK-ul de test copiază doar blazeface și faceres', () => {
+    const workflow = citeste('.github/workflows/android-debug-build.yml');
+    expect(workflow).toContain('for m in blazeface faceres; do');
+    expect(workflow).toContain('VITE_TEST_IDENTITY=1');
+    for (const model of MODELE_GRELE) {
+      expect(workflow, `${model} nu intra în APK-ul de test`).not.toMatch(new RegExp(`for m in .*${model}`));
+    }
+  });
+
+  it('release-ul nu copiază niciun model Human.js', () => {
+    const workflow = citeste('.github/workflows/release-android.yml');
     expect(workflow).toContain('Human.js nu mai intra in APK');
     expect(workflow).not.toContain('for m in blazeface faceres');
+    expect(workflow).not.toContain('VITE_TEST_IDENTITY');
     for (const model of ['blazeface', 'faceres', ...MODELE_GRELE]) {
-      expect(workflow, `${model} nu mai are ce cauta in APK`).not.toMatch(new RegExp(`for m in .*${model}`));
+      expect(workflow, `${model} nu mai are ce cauta in release`).not.toMatch(new RegExp(`for m in .*${model}`));
     }
   });
 

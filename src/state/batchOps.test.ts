@@ -130,6 +130,15 @@ describe('resolveGroups', () => {
     expect(result[0].rejectIds).toEqual([]);
   });
 
+  it('la scoruri apropiate păstrează cadrul cu animalul protejat', () => {
+    const photos = [
+      photo({ id: 'a', groupId: 'g1', aiScore: 70, petNames: [] }),
+      photo({ id: 'b', groupId: 'g1', aiScore: 66, petNames: ['Rex'] })
+    ];
+    const result = resolveGroups(photos, new Set(['Rex']));
+    expect(result[0].keepId).toBe('b');
+  });
+
   it('la scoruri apropiate păstrează cadrul cu persoana protejată', () => {
     const photos = [
       photo({ id: 'a', groupId: 'g1', aiScore: 70, personNames: [] }),

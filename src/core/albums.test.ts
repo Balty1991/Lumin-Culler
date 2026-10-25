@@ -27,6 +27,22 @@ describe('buildAlbums', () => {
     expect(albums.unnamedPhotoIds).toEqual(['c']);
   });
 
+  it('ține același câine împreună și lasă unul doar asemănător de numit separat', () => {
+    const same = [0.97, Math.sqrt(1 - 0.97 * 0.97)];
+    const similar = [0.9, Math.sqrt(1 - 0.81)];
+    const albums = buildAlbums([
+      photo({ id: 'a', sceneTags: ['Dog'], petLabel: 'dog', petEmbedding: [1, 0] }),
+      photo({ id: 'b', sceneTags: ['dog'], petLabel: 'dog', petEmbedding: same }),
+      photo({ id: 'c', sceneTags: ['dog'], petLabel: 'dog', petEmbedding: similar }),
+      photo({ id: 'named', sceneTags: ['dog'], petLabel: 'dog', petName: 'Rex', petEmbedding: [1, 0] })
+    ]);
+    expect(albums.animals[0].label).toBe('dog');
+    expect(albums.animals[0].photoIds).toEqual(['a', 'b', 'c', 'named']);
+    expect(albums.namedPets.map(p => p.name)).toEqual(['Rex']);
+    expect(albums.unnamedPets[0].photoIds).toEqual(['a', 'b']);
+    expect(albums.unnamedPets[1].photoIds).toEqual(['c']);
+  });
+
   it('pune câinele la animale, din eticheta ML Kit, nu dintr-un folder', () => {
     const albums = buildAlbums([
       photo({ id: 'rex', sceneTags: ['Dog', 'Grass'], capturedAt: 10 }),

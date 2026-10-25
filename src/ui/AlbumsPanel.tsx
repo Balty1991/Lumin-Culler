@@ -5,6 +5,7 @@ import { buildAlbums, type AlbumPhoto, type BuiltAlbums } from '../core/albums';
 import { planKeptCorrections, freeSample, type CorrectionPlan, type CorrectablePhoto } from '../core/autoCorrect';
 import { copyAlbumToPictures, canCopyAlbumOnDevice } from '../core/albumExport';
 import { findUnrecognizedFaceClusters } from '../core/faceClustering';
+import { findUnnamedPetClusters } from '../core/petIdentity';
 import { isPremium } from '../core/entitlement';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { AdjustedImage } from './AdjustedImage';
@@ -16,8 +17,9 @@ import { t, plural } from '../i18n';
 import type { EditAdjustments } from '../core/imageAdjust';
 
 const LATER_KEY = 'lumin-album-name-later';
+const PET_LATER_KEY = 'lumin-album-pet-later';
 
-function toAlbumPhoto(photo: PhotoView): AlbumPhoto {
+function toAlbumPhoto(photo: PhotoView, pet?: { petLabel?: string; petName?: string; petEmbedding?: number[] }): AlbumPhoto {
   return {
     id: photo.id,
     fileName: photo.fileName,
@@ -27,6 +29,9 @@ function toAlbumPhoto(photo: PhotoView): AlbumPhoto {
     aiScore: photo.aiScore,
     faceCount: photo.faceCount,
     personNames: photo.personNames,
+    petLabel: pet?.petLabel,
+    petName: pet?.petName ?? photo.petNames?.[0],
+    petEmbedding: pet?.petEmbedding,
     sceneTags: photo.sceneTags,
     textCoverage: photo.textCoverage,
     gpsLatitude: photo.gpsLatitude,
@@ -88,6 +93,7 @@ function fixLine(plan: CorrectionPlan, tr: (key: string, params?: Record<string,
 type Screen =
   | { kind: 'list' }
   | { kind: 'person'; name: string }
+  | { kind: 'pet'; name: string }
   | { kind: 'pile'; title: string; ids: string[] }
   | { kind: 'correct' };
 
@@ -101,6 +107,7 @@ export function AlbumsPanel() {
   const askPrompt = useStore(s => s.askPrompt);
   const askConfirm = useStore(s => s.askConfirm);
   const enrollFaceCluster = useStore(s => s.enrollFaceCluster);
+  const enrollPetCluster = useStore(s => s.enrollPetCluster);
   const setNotice = useStore(s => s.setNotice);
   const rejectExactDuplicates = useStore(s => s.rejectExactDuplicates);
   const addCorrectedCopies = useStore(s => s.addCorrectedCopies);
@@ -110,6 +117,8 @@ export function AlbumsPanel() {
   const [screen, setScreen] = useState<Screen>({ kind: 'list' });
   const [query, setQuery] = useState('');
   const [later, setLater] = useState(() => sessionStorage.getItem(LATER_KEY) === '1');
+  const [petLater, setPetLater] = useState(() => sessionStorage.getItem(PET_LATER_KEY) === '1');
+  const [petRows, setPetRows] = useState<Map<string, { petLabel?: string; petName?: string; petEmbedding?: number[] }>>(new Map());
   const [naming, setNaming] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [plans, setPlans] = useState<CorrectionPlan[]>([]);
@@ -119,9 +128,24 @@ export function AlbumsPanel() {
   const containerRef = useRef<HTMLDivElement>(null);
   useModalFocusTrap(containerRef, open);
 
+  useEffect(() => {
+    if (!open) return;
+    let alive = true;
+    void db.analyses.toArray().then(rows => {
+      if (!alive) return;
+      const map = new Map<string, { petLabel?: string; petName?: string; petEmbedding?: number[] }>();
+      for (const row of rows) {
+        if (!row.petEmbedding && !row.petName && !row.petLabel) continue;
+        map.set(row.photoId, { petLabel: row.petLabel, petName: row.petName, petEmbedding: row.petEmbedding });
+      }
+      setPetRows(map);
+    });
+    return () => { alive = false; };
+  }, [open, photos]);
+
   const albums: BuiltAlbums = useMemo(
-    () => buildAlbums(photos.map(toAlbumPhoto), locale === 'en' ? 'en' : 'ro'),
-    [photos, locale]
+    () => buildAlbums(photos.map(p => toAlbumPhoto(p, petRows.get(p.id))), locale === 'en' ? 'en' : 'ro'),
+    [photos, locale, petRows]
   );
 
   useEffect(() => {
@@ -156,6 +180,7 @@ export function AlbumsPanel() {
 
   const q = query.trim().toLowerCase();
   const people = albums.people.filter(p => !q || p.name.toLowerCase().includes(q));
+  const namedPets = albums.namedPets.filter(p => !q || p.name.toLowerCase().includes(q) || p.label.includes(q));
   const animals = albums.animals.filter(a => !q || a.label.includes(q));
   const events = albums.events.filter(e => !q || e.title.toLowerCase().includes(q));
 
@@ -250,6 +275,32 @@ export function AlbumsPanel() {
     }
   };
 
+  const namePet = async () => {
+    const name = await askPrompt(tr('albums.pet.prompt'), '', { confirmLabel: tr('albums.name.confirm') });
+    const trimmed = name?.trim();
+    if (!trimmed) return;
+    setNaming(true);
+    try {
+      const analyses = await db.analyses.toArray();
+      const clusters = findUnnamedPetClusters(analyses.map(a => ({
+        id: a.photoId,
+        petName: a.petName,
+        petLabel: a.petLabel,
+        petEmbedding: a.petEmbedding
+      })));
+      const top = clusters[0];
+      if (!top) {
+        setNotice(tr('albums.pet.none'));
+        return;
+      }
+      await enrollPetCluster(trimmed, top.members.map(m => ({ photoId: m.photoId })));
+      if (!useStore.getState().protectedPersons.has(trimmed)) toggleProtectedPerson(trimmed);
+      setPetLater(true);
+    } finally {
+      setNaming(false);
+    }
+  };
+
   const cleanDuplicates = async (ids: string[]) => {
     const mine = new Set(ids);
     const subset = photos.filter(p => mine.has(p.id));
@@ -276,7 +327,11 @@ export function AlbumsPanel() {
     setNotice(tr('albums.dupes.done', { count: extras.length }));
   };
 
-  const person = screen.kind === 'person' ? albums.people.find(p => p.name === screen.name) : undefined;
+  const person = screen.kind === 'person'
+    ? albums.people.find(p => p.name === screen.name)
+    : screen.kind === 'pet'
+      ? albums.namedPets.find(p => p.name === screen.name)
+      : undefined;
 
   return (
     <div className="detail">
@@ -338,17 +393,53 @@ export function AlbumsPanel() {
             <section className="album-block">
               <header>
                 <span>{tr('albums.animals')}</span>
-                <span className="hint">{tr('albums.count', { count: animals.length })}</span>
+                <span className="hint">{tr('albums.count', { count: namedPets.length + animals.length })}</span>
               </header>
-              {animals.length === 0 ? <p className="hint">{tr('albums.animals.empty')}</p> : animals.map(a => (
-                <button key={a.label} className="album-row" onClick={() => setScreen({ kind: 'pile', title: cap(a.label), ids: a.photoIds })}>
-                  <span className="album-avatar small" style={{ background: `hsl(${hue(a.label)} 75% 55%)` }}>{a.label.slice(0, 1).toUpperCase()}</span>
-                  <span>
-                    <b>{cap(a.label)}</b>
-                    <span className="hint">{tr(plural(a.photoIds.length, 'albums.photos.one', 'albums.photos.other'), { count: a.photoIds.length })}</span>
-                  </span>
-                </button>
-              ))}
+              {albums.unnamedPets.length > 0 && !petLater && (
+                <section className="album-prompt">
+                  <div className="album-avatar dashed" aria-hidden="true">?</div>
+                  <div>
+                    <b>{tr('albums.pet.title')}</b>
+                    <p>{tr('albums.pet.sub')}</p>
+                    <div className="album-prompt-actions">
+                      <button className="primary small-btn" disabled={naming} onClick={() => void namePet()}>{tr('albums.name.cta')}</button>
+                      <button className="ghost small-btn" onClick={() => { sessionStorage.setItem(PET_LATER_KEY, '1'); setPetLater(true); }}>{tr('albums.name.later')}</button>
+                    </div>
+                  </div>
+                </section>
+              )}
+              {(namedPets.length > 0 || albums.unnamedPets.length > 0) && (
+                <div className="album-people">
+                  {namedPets.map(p => (
+                    <button key={p.name} className="album-person" onClick={() => setScreen({ kind: 'pet', name: p.name })}>
+                      <span className="album-avatar" style={{ background: `hsl(${hue(p.name)} 75% 55%)` }}>
+                        {p.name.slice(0, 1).toUpperCase()}
+                        {protectedPersons.has(p.name) && <ShieldIcon className="album-avatar-badge" />}
+                      </span>
+                      <b>{p.name}</b>
+                      <span>{tr(plural(p.photoIds.length, 'albums.photos.one', 'albums.photos.other'), { count: p.photoIds.length })}</span>
+                    </button>
+                  ))}
+                  {albums.unnamedPets.length > 0 && (
+                    <button className="album-person" onClick={() => void namePet()}>
+                      <span className="album-avatar dashed">?</span>
+                      <b>{tr('albums.name.short')}</b>
+                      <span>{tr(plural(albums.unnamedPets[0].photoIds.length, 'albums.photos.one', 'albums.photos.other'), { count: albums.unnamedPets[0].photoIds.length })}</span>
+                    </button>
+                  )}
+                </div>
+              )}
+              {animals.length === 0 && namedPets.length === 0 && albums.unnamedPets.length === 0
+                ? <p className="hint">{tr('albums.animals.empty')}</p>
+                : animals.map(a => (
+                  <button key={a.label} className="album-row" onClick={() => setScreen({ kind: 'pile', title: cap(a.label), ids: a.photoIds })}>
+                    <span className="album-avatar small" style={{ background: `hsl(${hue(a.label)} 75% 55%)` }}>{a.label.slice(0, 1).toUpperCase()}</span>
+                    <span>
+                      <b>{cap(a.label)}</b>
+                      <span className="hint">{tr(plural(a.photoIds.length, 'albums.photos.one', 'albums.photos.other'), { count: a.photoIds.length })}</span>
+                    </span>
+                  </button>
+                ))}
             </section>
 
             <section className="album-block">
@@ -389,7 +480,7 @@ export function AlbumsPanel() {
           </>
         )}
 
-        {screen.kind === 'person' && person && (
+        {(screen.kind === 'person' || screen.kind === 'pet') && person && (
           <>
             <header className="detail-head">
               <button className="ghost icon-btn" onClick={() => setScreen({ kind: 'list' })} aria-label={tr('albums.back')}><ChevronLeft /></button>

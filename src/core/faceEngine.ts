@@ -28,10 +28,10 @@
  * Calea implicită e 'landmarker': un singur model, pe GPU când telefonul poate,
  * altfel pe CPU. 'mlkit' rămâne doar dacă e ales explicit.
  *
- * Embeddingurile de identitate (Human.js / faceres) NU sunt în pachetul Android.
- * Nu există greutăți cu licență confirmată pentru o aplicație comercială.
- * TODO(identitate): un model de „cine e” cu licență clară. Până atunci,
- * recunoașterea pe telefon nu pornește worker-ul Human.js.
+ * Embeddingurile de identitate (Human.js / faceres) NU intră în analiza
+ * normală. `faceres` e antrenat pe VGGFace2 (non-comercial). APK-ul de test
+ * îl rulează doar în fundal, după primele rezultate (VITE_TEST_IDENTITY=1).
+ * Release-ul de Play nu îl copiază. TODO(identitate) rămâne deschis.
  *
  * O biblioteca deja triata poate contine poze scorate pe cealalta cale.
  * Intr-o serie amestecata, "cel mai bun cadru" ar compara doua scari. De-aia
@@ -58,10 +58,14 @@ const STORAGE_KEY = 'lumin-face-engine';
 export const MESH_BLINK_THRESHOLD = (0.18 - 0.08) / 0.25;
 
 /**
- * Fals pe Android: pachetul nu mai conține modelele Human.js. Recunoașterea
- * „cine e” așteaptă greutăți cu licență confirmată. Vezi workerPool.analyze.
+ * Fals mereu: `analyze()` nu așteaptă Human.js. Identitatea de test trece prin
+ * backgroundIdentity.ts, după ce poza e deja pe ecran.
  */
 export const ANDROID_IDENTITY_EMBEDDINGS = false;
+
+/** Doar build-ul de test (workflow-ul debug). Release-ul nu setează variabila. */
+export const TEST_IDENTITY_EMBEDDINGS =
+  (import.meta.env as { VITE_TEST_IDENTITY?: string }).VITE_TEST_IDENTITY === '1';
 
 export function readFaceEngine(): FaceEngine {
   // Pe telefon plugin-ul ML Kit Face nu mai e în pachet. Landmarker e singura cale.

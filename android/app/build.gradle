@@ -154,6 +154,9 @@ dependencies {
     // Modelul e bundle-uit direct in aceasta dependinta (ca ML Kit face-detection
     // de mai sus), nu mai vine dintr-un asset descarcat separat de CI.
     implementation "com.google.mlkit:image-labeling:$mlkitImageLabelingVersion"
+    // Cutii pentru decupajul unui animal. Image Labeling nu localizează.
+    // Modelul e în dependență, offline, ca etichetarea.
+    implementation "com.google.mlkit:object-detection:$mlkitObjectDetectionVersion"
     // Analiza AI nativa (Faza 4) — vezi plugins/FaceMeshPlugin.kt / ImageClassifierPlugin.kt.
     // Modelele (.task / .tflite) sunt descarcate de CI in assets/, nu vin din
     // aceasta dependinta — biblioteca de aici e doar API-ul MediaPipe Tasks.

@@ -66,7 +66,7 @@ import { readStoredTheme, applyTheme, type Theme } from './theme';
 import { readStoredAccent, applyAccent, type AccentTheme } from './accentTheme';
 import { readWelcomeSeen, writeWelcomeSeen } from './welcomeOnboarding';
 import { readExcludedFolderIds, writeExcludedFolderIds } from './galleryFolders';
-import { readProtectedPersons, writeProtectedPersons, excludeProtected } from './protectedPersons';
+import { readProtectedPersons, writeProtectedPersons, excludeProtected, isProtected } from './protectedPersons';
 import { readStageStats } from '../core/stageTiming';
 import {
   formatScanLine, readLastScan, scanSummaryOnFinish, writeLastScan, type LastScan
@@ -217,6 +217,8 @@ export interface PhotoView {
   /** Cat din aiScore vine din gustul tau, nu din manual — vezi AnalysisRecord.aiPersonalDelta. */
   aiPersonalDelta?: number;
   personNames: string[];
+  /** Animal numit („Rex”). Aceeași protecție ca o persoană. Absent = niciun nume. */
+  petNames?: string[];
   /** Persoanele cunoscute recunoscute in ACEASTA poza, cu similaritatea (0..1) cea mai buna dintre fetele care le corespund — "confidence score" (plan 3.2.3). */
   personMatches: { name: string; similarity: number }[];
   groupId?: string;
@@ -923,6 +925,8 @@ interface AppState {
    * sa nu mai apara drept "strain" in restul bibliotecii curente.
    */
   enrollFaceCluster: (name: string, members: { photoId: string; faceIndex: number; embedding: number[] }[]) => Promise<void>;
+  /** Pune numele pe un grup de același animal. Nu trece prin plafonul de persoane. */
+  enrollPetCluster: (name: string, members: { photoId: string }[]) => Promise<void>;
   setPersonsOpen: (open: boolean) => void;
   setMenuOpen: (open: boolean) => void;
   setInsightsOpen: (open: boolean) => void;
@@ -1062,6 +1066,7 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     personNames: analysis
       ? Array.from(new Set(analysis.faces.map(f => f.personName).filter((n): n is string => !!n)))
       : [],
+    petNames: analysis?.petName ? [analysis.petName] : [],
     personMatches: analysis ? bestMatchPerName(analysis.faces) : [],
     groupId: photo.groupId,
     capturedAt: photo.capturedAt,
@@ -1493,6 +1498,7 @@ function matchesToken(p: PhotoView, normalizedQuery: string, locale: Locale): bo
   //    Cautarea era corecta; vocabularul masinii nu e vocabularul omului.
   if (normalizeForSearch(p.fileName).includes(normalizedQuery)) return true;
   if (p.personNames.some(n => normalizeForSearch(n).includes(normalizedQuery))) return true;
+  if (p.petNames?.some(n => normalizeForSearch(n).includes(normalizedQuery))) return true;
   if (p.iptcCaption && normalizeForSearch(p.iptcCaption).includes(normalizedQuery)) return true;
   // Descrierea scrisa de model, cand exista. Ultima dintre campurile de text
   // dinadins: e singura care n-a fost scrisa de un om, deci o potrivire in ea
@@ -3568,7 +3574,7 @@ export const useStore = create<AppState>((set, get) => ({
         subjectInFocus: a?.subjectInFocus,
         highlightClipping: a?.highlightClipping,
         avgEyeContact: a?.avgEyeContact,
-        protectedPerson: get().protectedPersons.size > 0 && m.personNames.some(name => get().protectedPersons.has(name))
+        protectedPerson: isProtected(m, get().protectedPersons)
       };
     }), learnedWeight);
   },
@@ -3656,14 +3662,14 @@ export const useStore = create<AppState>((set, get) => ({
         // Persoana protejata: nu o respingem automat nici cand pierde in serie.
         // Un cadru putin miscat in care copilul rade e exact ce nu vrei sa
         // dispara pentru ca a luat un scor mai mic. Vezi state/protectedPersons.ts.
-        if (rec && protectedForSeries.size && rec.personNames.some(n => protectedForSeries.has(n))) continue;
+        if (rec && isProtected(rec, protectedForSeries)) continue;
         changes.push({ photoId: rejectId, previousStatus: rec?.status ?? 'pending' });
         statusChanges.push({ id: rejectId, status: 'rejected' });
       }
     }
     const { quotaError } = await applyBulkStatusChanges(statusChanges, status => status === 'selected');
     const keepIds = new Set(resolutions.map(g => g.keepId));
-    const rejectIds = new Set(resolutions.flatMap(g => g.rejectIds));
+    const rejectIds = new Set(statusChanges.filter(c => c.status === 'rejected').map(c => c.id));
     const locale = get().locale;
     set(state => ({
       photos: state.photos.map(p => {
@@ -3685,7 +3691,7 @@ export const useStore = create<AppState>((set, get) => ({
     const protectedNames = get().protectedPersons;
     const photoIndex = new Map(get().photos.map(p => [p.id, p]));
     const rejectIds = protectedNames.size
-      ? rawRejectIds.filter(id => { const ph = photoIndex.get(id); return !ph || !ph.personNames.some(n => protectedNames.has(n)); })
+      ? rawRejectIds.filter(id => { const ph = photoIndex.get(id); return !ph || !isProtected(ph, protectedNames); })
       : rawRejectIds;
     const byId = new Map(get().photos.map(p => [p.id, p.status]));
     const changes = [...selectIds, ...rejectIds].map(id => ({ photoId: id, previousStatus: byId.get(id) ?? 'pending' as PhotoRecord['status'] }));
@@ -4473,6 +4479,25 @@ export const useStore = create<AppState>((set, get) => ({
     set({
       persons, photos: views,
       notice: t(get().locale, 'store.faceCluster.enrolled', { name: trimmedName, detections: members.length, photos: photoIds.length })
+    });
+  },
+
+  enrollPetCluster: async (name, members) => {
+    const trimmedName = name.trim();
+    if (!trimmedName || !members.length) return;
+    const photoIds = Array.from(new Set(members.map(m => m.photoId)));
+    await db.transaction('rw', db.analyses, async () => {
+      const analyses = await db.analyses.bulkGet(photoIds);
+      for (const analysis of analyses) {
+        if (!analysis || analysis.petName) continue;
+        analysis.petName = trimmedName;
+        await db.analyses.put(analysis);
+      }
+    });
+    const views = await reloadPhotoViews();
+    set({
+      photos: views,
+      notice: t(get().locale, 'store.petCluster.enrolled', { name: trimmedName, photos: photoIds.length })
     });
   },
 

@@ -6,6 +6,7 @@
  * primul rezultat e deja pe ecran, nu în treapta 1.
  */
 import { classifyPhoto, type InboxCandidate } from './smartInbox';
+import { findUnnamedPetClusters, isAnimalTag } from './petIdentity';
 
 export interface AlbumPhoto {
   id: string;
@@ -22,19 +23,13 @@ export interface AlbumPhoto {
   height?: number;
   gpsLatitude?: number;
   gpsLongitude?: number;
+  /** Specia, când background-ul a decupat animalul. */
+  petLabel?: string;
+  /** Numele dat de om. Absent cât timp grupul e încă „Numește”. */
+  petName?: string;
+  /** Embeddingul decupajului. Nu e pe pozele care au doar eticheta de specie. */
+  petEmbedding?: number[];
 }
-
-/** Etichete de animal ale modelului de bază ML Kit Image Labeling (engleză, offline, în SDK). */
-const ANIMAL_LABELS = new Set([
-  'dog', 'cat', 'bird', 'horse', 'animal', 'pet', 'puppy', 'kitten',
-  'fish', 'rabbit', 'cow', 'sheep', 'elephant', 'bear', 'zebra', 'giraffe',
-  'lion', 'tiger', 'monkey', 'deer', 'fox', 'wolf', 'hamster', 'turtle',
-  'duck', 'chicken', 'goat', 'pig', 'wildlife', 'mammal', 'reptile',
-  'insect', 'butterfly', 'bee', 'spider', 'snake', 'frog', 'lizard',
-  'parrot', 'eagle', 'owl', 'penguin', 'dolphin', 'whale', 'shark',
-  'cattle', 'livestock', 'feline', 'canine', 'squirrel', 'mouse', 'rat',
-  'hedgehog', 'camel', 'kangaroo'
-]);
 
 /** Peste 6 ore, e altă ieșire. */
 const EVENT_GAP_MS = 6 * 60 * 60 * 1000;
@@ -67,11 +62,24 @@ export interface EventAlbum {
   end: number;
 }
 
+export interface NamedPetAlbum extends PersonAlbum {
+  label: string;
+}
+
+export interface UnnamedPetCluster {
+  label: string;
+  photoIds: string[];
+}
+
 export interface BuiltAlbums {
   people: PersonAlbum[];
   /** Poze cu fețe cărora nu li s-a dat încă un nume. */
   unnamedPhotoIds: string[];
   animals: AnimalAlbum[];
+  /** Același animal, deja numit. */
+  namedPets: NamedPetAlbum[];
+  /** Grupuri de același animal, încă fără nume. */
+  unnamedPets: UnnamedPetCluster[];
   events: EventAlbum[];
   screenshots: string[];
   documents: string[];
@@ -81,7 +89,7 @@ function animalLabels(tags: string[] | undefined): string[] {
   const out: string[] = [];
   for (const tag of tags ?? []) {
     const key = tag.trim().toLowerCase();
-    if (ANIMAL_LABELS.has(key) && !out.includes(key)) out.push(key);
+    if (isAnimalTag(key) && !out.includes(key)) out.push(key);
   }
   return out;
 }
@@ -169,6 +177,8 @@ export function buildAlbums(photos: readonly AlbumPhoto[], locale: 'ro' | 'en' =
   const people = new Map<string, AlbumPhoto[]>();
   const unnamedPhotoIds: string[] = [];
   const animals = new Map<string, AlbumPhoto[]>();
+  const namedPets = new Map<string, AlbumPhoto[]>();
+  const petSpecies = new Map<string, string>();
   const screenshots: string[] = [];
   const documents: string[] = [];
   const memory: AlbumPhoto[] = [];
@@ -190,10 +200,16 @@ export function buildAlbums(photos: readonly AlbumPhoto[], locale: 'ro' | 'en' =
       list.push(photo);
       people.set(name, list);
     }
-    for (const label of animalLabels(photo.sceneTags)) {
+    for (const label of animalLabels([...(photo.sceneTags ?? []), ...(photo.petLabel ? [photo.petLabel] : [])])) {
       const list = animals.get(label) ?? [];
       list.push(photo);
       animals.set(label, list);
+    }
+    if (photo.petName) {
+      const list = namedPets.get(photo.petName) ?? [];
+      list.push(photo);
+      namedPets.set(photo.petName, list);
+      if (photo.petLabel && !petSpecies.has(photo.petName)) petSpecies.set(photo.petName, photo.petLabel);
     }
   }
 
@@ -213,6 +229,18 @@ export function buildAlbums(photos: readonly AlbumPhoto[], locale: 'ro' | 'en' =
       .map(([name, list]) => ({ name, photoIds: list.map(p => p.id), ...personStats(list) }))
       .sort((a, b) => b.photoIds.length - a.photoIds.length || a.name.localeCompare(b.name)),
     unnamedPhotoIds,
+    namedPets: [...namedPets.entries()]
+      .map(([name, list]) => ({
+        name,
+        label: petSpecies.get(name) ?? 'animal',
+        photoIds: list.map(p => p.id),
+        ...personStats(list)
+      }))
+      .sort((a, b) => b.photoIds.length - a.photoIds.length || a.name.localeCompare(b.name)),
+    unnamedPets: findUnnamedPetClusters(memory).map(cluster => ({
+      label: cluster.label,
+      photoIds: cluster.members.map(m => m.photoId)
+    })),
     animals: [...animals.entries()]
       .map(([label, list]) => ({
         label,

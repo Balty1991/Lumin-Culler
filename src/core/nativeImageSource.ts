@@ -19,19 +19,39 @@ import { blobToBase64 } from './base64';
  * Absent = valoarea implicita din BitmapUtils.kt. OCR-ul cere mai mult: e
  * singurul model care chiar depinde de pixeli, ca sa citeasca text mic.
  */
+/** Decupaj normalizat 0..1. Îl consumă Image Embedder ca să înglobeze animalul, nu tot cadrul. */
+export interface NormCrop {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 export type NativeImageSource =
-  | { blob: Blob; uri?: undefined; maxSide?: undefined }
-  | { uri: string; maxSide?: number; blob?: undefined };
+  | { blob: Blob; uri?: undefined; maxSide?: undefined; crop?: NormCrop }
+  | { uri: string; maxSide?: number; blob?: undefined; crop?: NormCrop };
+
+type CropParams = { cropX?: number; cropY?: number; cropW?: number; cropH?: number };
 
 /** Forma exacta pe care o asteapta partea nativa (resolveInputBitmap in BitmapUtils.kt). */
-export type NativeImageParams = { imageBase64: string } | { imageUri: string; maxSide?: number };
+export type NativeImageParams =
+  | ({ imageBase64: string } & CropParams)
+  | ({ imageUri: string; maxSide?: number } & CropParams);
+
+function cropParams(crop: NormCrop | undefined): CropParams {
+  if (!crop) return {};
+  return { cropX: crop.x, cropY: crop.y, cropW: crop.w, cropH: crop.h };
+}
 
 /** Parametrii de trimis plugin-ului. Pe calea cu URI nu se codeaza nimic — de asta e ieftina. */
 export async function nativeImageParams(
   source: NativeImageSource
 ): Promise<NativeImageParams> {
+  const crop = cropParams(source.crop);
   if (source.uri !== undefined) {
-    return source.maxSide !== undefined ? { imageUri: source.uri, maxSide: source.maxSide } : { imageUri: source.uri };
+    return source.maxSide !== undefined
+      ? { imageUri: source.uri, maxSide: source.maxSide, ...crop }
+      : { imageUri: source.uri, ...crop };
   }
-  return { imageBase64: await blobToBase64(source.blob) };
+  return { imageBase64: await blobToBase64(source.blob), ...crop };
 }

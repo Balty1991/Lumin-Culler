@@ -7,6 +7,7 @@
 import type { PhotoView } from './store';
 import { compareBySignificance } from '../core/subjectSignificance';
 import { uncertainty } from '../core/uncertainty';
+import { isProtected } from './protectedPersons';
 
 /**
  * Poze care ar fi respinse in bloc sub un prag de scor — exclude explicit
@@ -54,7 +55,7 @@ export interface GroupResolution {
 const PROTECTED_SCORE_BOOST = 8;
 
 function keepScore(photo: PhotoView, protectedNames: ReadonlySet<string>): number {
-  const boost = protectedNames.size > 0 && photo.personNames.some(name => protectedNames.has(name)) ? PROTECTED_SCORE_BOOST : 0;
+  const boost = isProtected(photo, protectedNames) ? PROTECTED_SCORE_BOOST : 0;
   return photo.aiScore + boost;
 }
 

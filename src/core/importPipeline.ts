@@ -34,7 +34,11 @@ import { base64ToBlob, fingerprintBatch, fingerprintUri, isStageOneAvailable, ty
 import { SERIES_CANDIDATE_HAMMING, stageOneKey } from './twoStagePlan';
 import { decideIsolate, paperScoreFromRgba } from './singletonVerdict';
 import { analyzeFaceMeshNative, isNativeFaceMeshAvailable } from './nativeFaceMesh';
-import { MESH_BLINK_THRESHOLD } from './faceEngine';
+import { MESH_BLINK_THRESHOLD, TEST_IDENTITY_EMBEDDINGS } from './faceEngine';
+import { enrichAfterFirstResult, cropFaceBitmap } from './backgroundIdentity';
+import { labelImageNative, isNativeImageLabelingAvailable } from './nativeImageLabeling';
+import { detectObjectsNative, isNativeObjectDetectionAvailable } from './nativeObjectDetection';
+import { embedImageNative, isNativeImageEmbedderAvailable } from './nativeImageEmbedder';
 import type { RawExifMeta } from './rawDecoder';
 
 /**
@@ -413,6 +417,20 @@ async function decode(file: File, mediaUri?: string): Promise<ImageBitmap> {
  * 2048px pe latura cea mai lunga" asumat in tot restul aplicatiei (buget de stocare,
  * scorarea claritatii).
  */
+/** 480 px, doar pentru embeddingul de identitate din fundal. Nu e treapta 1. */
+async function decodeIdentityBitmap(file: File): Promise<ImageBitmap> {
+  const bitmap = await createImageBitmap(file, { resizeWidth: 480, resizeQuality: 'low' } as ImageBitmapOptions);
+  const longest = Math.max(bitmap.width, bitmap.height);
+  if (longest <= 480) return bitmap;
+  const scale = 480 / longest;
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+  canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  return createImageBitmap(canvas);
+}
+
 async function capToPreviewSize(bitmap: ImageBitmap): Promise<ImageBitmap> {
   const longest = Math.max(bitmap.width, bitmap.height);
   if (longest <= PREVIEW_MAX_SIDE) return bitmap;
@@ -1271,9 +1289,23 @@ export async function importFiles(
   }
 
   const seen: Array<{ id: string; hash: string; index: number; heavy: boolean }> = [];
-  const eyesJobs: Promise<void>[] = [];
-  let eyesActive = 0;
-  const eyesSlots: Array<() => void> = [];
+  const postJobs: Promise<void>[] = [];
+  let postActive = 0;
+  const postSlots: Array<() => void> = [];
+  const wantPeople = TEST_IDENTITY_EMBEDDINGS;
+  const wantPets = isNativeImageEmbedderAvailable();
+  let knownPersons: { id: string; name: string; embeddings: number[][] }[] = [];
+  let namedPets: { name: string; embedding: number[] }[] = [];
+  if (wantPeople) {
+    try { knownPersons = (await db.persons.toArray()).map(p => ({ id: p.id, name: p.name, embeddings: p.embeddings })); } catch { knownPersons = []; }
+  }
+  if (wantPets) {
+    try {
+      namedPets = (await db.analyses.toArray())
+        .filter(a => !!a.petName && !!a.petEmbedding?.length)
+        .map(a => ({ name: a.petName as string, embedding: a.petEmbedding as number[] }));
+    } catch { namedPets = []; }
+  }
 
   const remember = (item: ImportedPhoto) => {
     const hash = toHashInput(item.photo.id, item.photo.dHash, item.analysis, item.photo.capturedAt, item.photo.capturedAtExact);
@@ -1297,46 +1329,76 @@ export async function importFiles(
     );
     const seenRow = seen.find(s => s.index === myIndex);
     if (seenRow) seenRow.heavy = true;
-    persistedWrites.push(persisted.then(() => remember(item), err => noteFailure(image.file, err)));
+    persistedWrites.push(persisted.then(() => {
+      remember(item);
+      schedulePost(item, image.file, image.mediaUri);
+    }, err => noteFailure(image.file, err)));
   };
 
-  const scheduleEyes = (item: ImportedPhoto, mediaUri: string) => {
-    if (!isNativeFaceMeshAvailable() || item.photo.aside) return;
+  const schedulePost = (item: ImportedPhoto, file: File, mediaUri?: string) => {
+    const eyes = !!mediaUri && isNativeFaceMeshAvailable() && !item.photo.aside && item.analysis.faces.length === 0;
+    const people = wantPeople && !item.photo.aside;
+    const pets = wantPets && !!mediaUri && !item.photo.aside && !item.analysis.petEmbedding?.length;
+    if (!eyes && !people && !pets) return;
     const job = (async () => {
-      while (eyesActive >= 2) await new Promise<void>(resolve => eyesSlots.push(resolve));
-      eyesActive++;
+      while (postActive >= 1) await new Promise<void>(resolve => postSlots.push(resolve));
+      postActive++;
       try {
-        const mesh = await analyzeFaceMeshNative({ uri: mediaUri, maxSide: 480 });
-        if (!mesh.faces.length || item.photo.aside) return;
-        const blinking = mesh.faces.some(f =>
-          f.eyesOpen.left < MESH_BLINK_THRESHOLD || f.eyesOpen.right < MESH_BLINK_THRESHOLD
+        const before = item.photo.status;
+        const result = await enrichAfterFirstResult(
+          { analysis: item.analysis, file, mediaUri, aside: item.photo.aside },
+          {
+            testIdentity: people,
+            blinkThreshold: MESH_BLINK_THRESHOLD,
+            mesh: eyes ? (uri) => analyzeFaceMeshNative({ uri, maxSide: 480 }) : undefined,
+            decodeSmall: people ? decodeIdentityBitmap : undefined,
+            cropFace: people ? cropFaceBitmap : undefined,
+            embedFace: people ? (crop) => analysisPool.computeFaceRecognitionEmbedding(crop) : undefined,
+            knownPersons,
+            label: pets && isNativeImageLabelingAvailable()
+              ? async (uri) => (await labelImageNative({ uri, maxSide: 480 })).labels.map(l => l.label)
+              : undefined,
+            detectObjects: pets && isNativeObjectDetectionAvailable()
+              ? async (uri) => (await detectObjectsNative({ uri, maxSide: 480 })).objects
+              : undefined,
+            embedCrop: pets
+              ? async (uri, crop) => (await embedImageNative({ uri, maxSide: 480, crop })).embedding
+              : undefined,
+            namedPets
+          }
         );
-        if (!blinking) return;
-        const next = decideIsolate({
-          fileName: item.photo.fileName,
-          sharpness: item.analysis.sharpness,
-          exposure: item.analysis.exposure,
-          paperScore: staged.find(s => s?.id === item.photo.id)?.paperScore,
-          width: item.photo.width,
-          height: item.photo.height,
-          faceCount: mesh.faces.length,
-          eyesOpenRatio: 0
-        });
-        if (next.status === item.photo.status && next.aside === item.photo.aside) return;
-        item.photo.status = next.status;
-        if (next.aside) item.photo.aside = next.aside;
-        item.analysis.faceCount = mesh.faces.length;
-        item.analysis.allEyesOpen = false;
-        await db.photos.update(item.photo.id, { status: next.status, ...(next.aside ? { aside: next.aside } : {}) });
-        remember(item);
+        if (result.eyesClosed && !item.photo.aside) {
+          const next = decideIsolate({
+            fileName: item.photo.fileName,
+            sharpness: item.analysis.sharpness,
+            exposure: item.analysis.exposure,
+            paperScore: staged.find(s => s?.id === item.photo.id)?.paperScore,
+            width: item.photo.width,
+            height: item.photo.height,
+            faceCount: result.measuredFaces,
+            eyesOpenRatio: 0
+          });
+          if (next.status !== item.photo.status || next.aside !== item.photo.aside) {
+            item.photo.status = next.status;
+            if (next.aside) item.photo.aside = next.aside;
+            item.analysis.allEyesOpen = false;
+            if (!item.analysis.faceCount && result.measuredFaces) item.analysis.faceCount = result.measuredFaces;
+            await db.photos.update(item.photo.id, { status: next.status, ...(next.aside ? { aside: next.aside } : {}) });
+          }
+        }
+        if (result.namedPet) namedPets.push(result.namedPet);
+        if (result.changed || item.photo.status !== before) {
+          await db.analyses.put(item.analysis);
+          remember(item);
+        }
       } catch {
-        // ochii nemăsurați nu schimbă verdictul
+        // identitatea e după primul rezultat: un eșec lasă verdictul deja emis
       } finally {
-        eyesActive--;
-        eyesSlots.shift()?.();
+        postActive--;
+        postSlots.shift()?.();
       }
     })();
-    eyesJobs.push(job);
+    postJobs.push(job);
   };
 
   for (let start = 0; start < images.length && !stopKind; start += STREAM_BATCH) {
@@ -1396,7 +1458,7 @@ export async function importFiles(
           seen.push({ id: ready.id, hash: ready.dHash, index: myIndex, heavy: false });
           persistedWrites.push(persisted.then(() => {
             remember(item);
-            if (mediaUri) scheduleEyes(item, mediaUri);
+            schedulePost(item, file, mediaUri);
           }, err => noteFailure(file, err)));
         }
       } catch (err) {
@@ -1412,9 +1474,9 @@ export async function importFiles(
     record('stage1', stage1Ms);
     record('stage2', stage2Ms);
   }
-  const eyesStarted = performance.now();
-  await Promise.all(eyesJobs);
-  stage2Ms += performance.now() - eyesStarted;
+  const postStarted = performance.now();
+  await Promise.all(postJobs);
+  stage2Ms += performance.now() - postStarted;
   const dbStarted = performance.now();
   await flushPersist();
   await Promise.all(persistedWrites);

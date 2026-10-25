@@ -61,8 +61,30 @@ class ImageEmbedderPlugin : Plugin() {
         // Vezi PluginWork.kt — decodarea si inferenta, pe firul plugin-ului.
         executor.ruleaza(call, "Image embedding failed") {
             val bitmap: Bitmap = resolveInputBitmap(context, call) ?: return@ruleaza
-            call.resolve(embed(bitmap))
+            // Decupajul nu se reciclează aici: MediaPipe poate ține bitmapul
+            // după embed(), iar recycle() pe un bitmap încă folosit omoară procesul.
+            call.resolve(embed(cropNormalized(bitmap, call)))
         }
+    }
+
+    /**
+     * Decupaj normalizat 0..1 (cropX/Y/W/H). Fără el, embeddingul e pe tot
+     * cadrul — similaritatea de scenă de până acum. Cu el, doar animalul.
+     * Bitmapul din cache nu se reciclează.
+     */
+    private fun cropNormalized(bitmap: Bitmap, call: PluginCall): Bitmap {
+        val x = call.getDouble("cropX") ?: return bitmap
+        val y = call.getDouble("cropY") ?: return bitmap
+        val w = call.getDouble("cropW") ?: return bitmap
+        val h = call.getDouble("cropH") ?: return bitmap
+        if (!x.isFinite() || !y.isFinite() || !w.isFinite() || !h.isFinite()) return bitmap
+        if (w <= 0.0 || h <= 0.0) return bitmap
+        val left = (x * bitmap.width).toInt().coerceIn(0, (bitmap.width - 1).coerceAtLeast(0))
+        val top = (y * bitmap.height).toInt().coerceIn(0, (bitmap.height - 1).coerceAtLeast(0))
+        val width = (w * bitmap.width).toInt().coerceAtLeast(1).coerceAtMost(bitmap.width - left)
+        val height = (h * bitmap.height).toInt().coerceAtLeast(1).coerceAtMost(bitmap.height - top)
+        if (left == 0 && top == 0 && width == bitmap.width && height == bitmap.height) return bitmap
+        return Bitmap.createBitmap(bitmap, left, top, width, height)
     }
 
     private fun embed(bitmap: Bitmap): JSObject {
