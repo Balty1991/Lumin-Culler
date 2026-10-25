@@ -104,15 +104,4 @@ describe('maybeAskForReview', () => {
     maybeAskForReview(500);
     expect(readReviewAsked()).toBe(false);
   });
-
-  it('dupa 500 MB eliberati intreaba o singura data, pe aceeasi cheie ca exportul', async () => {
-    const { maybeAskForReviewAfterFreed, readReviewAsked, MIN_FREED_BYTES_FOR_REVIEW } = await modul();
-    maybeAskForReviewAfterFreed(MIN_FREED_BYTES_FOR_REVIEW - 1);
-    expect(readReviewAsked()).toBe(false);
-    maybeAskForReviewAfterFreed(MIN_FREED_BYTES_FOR_REVIEW);
-    expect(readReviewAsked()).toBe(true);
-    maybeAskForReviewAfterFreed(MIN_FREED_BYTES_FOR_REVIEW * 2);
-    await vi.advanceTimersByTimeAsync(5000);
-    expect(cerut).toHaveBeenCalledTimes(1);
-  });
 });

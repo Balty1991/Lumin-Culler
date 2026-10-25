@@ -17,10 +17,6 @@ const notif = {
   check: vi.fn(async () => 'granted' as string),
   request: vi.fn(async () => 'granted' as string)
 };
-const video = {
-  access: vi.fn(async () => 'unavailable' as string),
-  request: vi.fn(async () => 'unavailable' as string)
-};
 
 vi.mock('./nativeMediaLibrary', () => ({
   getPhotosAccess: () => media.getPhotosAccess(),
@@ -31,10 +27,6 @@ vi.mock('./nativeNotifications', () => ({
   checkNotificationAccess: () => notif.check(),
   requestNotificationAccess: () => notif.request()
 }));
-vi.mock('./nativeCleanScan', () => ({
-  readVideoAccess: () => video.access(),
-  requestVideoAccess: () => video.request()
-}));
 
 beforeEach(() => {
   media.getPhotosAccess.mockReset().mockResolvedValue('full');
@@ -42,8 +34,6 @@ beforeEach(() => {
   media.openAppSettings.mockReset().mockResolvedValue(undefined);
   notif.check.mockReset().mockResolvedValue('granted');
   notif.request.mockReset().mockResolvedValue('granted');
-  video.access.mockReset().mockResolvedValue('unavailable');
-  video.request.mockReset().mockResolvedValue('unavailable');
 });
 afterEach(() => { vi.resetModules(); });
 
@@ -54,26 +44,25 @@ async function modul() {
 describe('numaraPermisiuni', () => {
   it('pe Android, cu tot dat: doua din doua', async () => {
     const { numaraPermisiuni } = await modul();
-    expect(numaraPermisiuni({ galerie: 'full', notificari: 'granted', video: 'unavailable' })).toEqual({ date: 2, total: 2 });
+    expect(numaraPermisiuni({ galerie: 'full', notificari: 'granted' })).toEqual({ date: 2, total: 2 });
   });
 
   it('accesul limitat la galerie se numara ca lipsa', async () => {
     // Android 14+ evidentiaza vizual "Permite cu acces limitat", si cu el
     // Supervizorul galeriei si "Adu pe perioade" n-au ce citi.
     const { numaraPermisiuni } = await modul();
-    expect(numaraPermisiuni({ galerie: 'limited', notificari: 'granted', video: 'unavailable' })).toEqual({ date: 1, total: 2 });
+    expect(numaraPermisiuni({ galerie: 'limited', notificari: 'granted' })).toEqual({ date: 1, total: 2 });
   });
 
   it('notificarile lipsa se vad — cazul raportat cu X pe ecranul de intampinare', async () => {
     const { numaraPermisiuni } = await modul();
-    expect(numaraPermisiuni({ galerie: 'full', notificari: 'denied', video: 'unavailable' })).toEqual({ date: 1, total: 2 });
-    expect(numaraPermisiuni({ galerie: 'full', notificari: 'blocked', video: 'unavailable' })).toEqual({ date: 1, total: 2 });
-    expect(numaraPermisiuni({ galerie: 'full', notificari: 'granted', video: 'denied' })).toEqual({ date: 2, total: 3 });
+    expect(numaraPermisiuni({ galerie: 'full', notificari: 'denied' })).toEqual({ date: 1, total: 2 });
+    expect(numaraPermisiuni({ galerie: 'full', notificari: 'blocked' })).toEqual({ date: 1, total: 2 });
   });
 
   it('ce nu exista pe platforma nu se numara deloc', async () => {
     const { numaraPermisiuni, permisiuniRelevante, toatePermisiunileDate } = await modul();
-    const web = { galerie: 'unavailable', notificari: 'unsupported', video: 'unavailable' } as const;
+    const web = { galerie: 'unavailable', notificari: 'unsupported' } as const;
     expect(numaraPermisiuni(web)).toEqual({ date: 0, total: 0 });
     // Pe web rubrica nu se arata; daca s-ar arata, ar spune "0 din 0", adica o
     // problema inventata.
@@ -127,7 +116,7 @@ describe('requestMissingPermissions', () => {
     const { requestMissingPermissions } = await modul();
 
     await expect(requestMissingPermissions()).resolves.toEqual(
-      { stare: { galerie: 'unavailable', notificari: 'unsupported', video: 'unavailable' }, complet: true }
+      { stare: { galerie: 'unavailable', notificari: 'unsupported' }, complet: true }
     );
   });
 

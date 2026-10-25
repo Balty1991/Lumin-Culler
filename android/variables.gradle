@@ -66,13 +66,6 @@ ext {
     // v9 cere androidx.core 1.9+ pentru codul de eroare al Play Store-ului
     // blocat; proiectul e deja pe 1.17.0 (androidxCoreVersion, mai sus).
     billingVersion = '9.0.0'
-    // Comprimare video locală (plugins/VideoCompressPlugin.kt). Media3 Transformer
-    // rămâne pe telefon: nu există upload. 1.5.1 e ultima 1.5 stabilă care
-    // vorbește cu minSdk 26.
-    media3Version = '1.5.1'
     // Fereastra de recenzie din aplicatie — vezi plugins/InAppReviewPlugin.kt.
     playReviewVersion = '2.0.2'
-    // Mementoul lunar (plugins/CleanReminderWorker.kt). PeriodicWorkRequest
-    // acceptă zile; sub 15 minute platforma refuză, noi nu cerem minute.
-    androidxWorkVersion = '2.10.1'
 }

@@ -20,11 +20,11 @@ import * as billing from '../core/billing';
  */
 const LUNAR: billing.PremiumPlan = {
   id: 'lumin_premium_monthly', price: '19,99 lei', priceMicros: 19_990_000,
-  currency: 'RON', periodDays: 30, kind: 'monthly'
+  currency: 'RON', periodDays: 30
 };
 const ANUAL: billing.PremiumPlan = {
   id: 'lumin_premium_yearly', price: '199,99 lei', priceMicros: 199_990_000,
-  currency: 'RON', periodDays: 365, kind: 'yearly'
+  currency: 'RON', periodDays: 365
 };
 
 function mockPlay(plans: billing.PremiumPlan[], price: string | null = '19,99 lei') {

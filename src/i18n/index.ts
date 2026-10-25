@@ -13,15 +13,7 @@
  */
 import { ro } from './ro';
 
-export type Locale = 'ro' | 'en' | 'pt-BR' | 'es' | 'de';
-
-export const LOCALE_OPTIONS: { id: Locale; label: string }[] = [
-  { id: 'en', label: 'English' },
-  { id: 'ro', label: 'Română' },
-  { id: 'pt-BR', label: 'Português' },
-  { id: 'es', label: 'Español' },
-  { id: 'de', label: 'Deutsch' }
-];
+export type Locale = 'ro' | 'en';
 
 /**
  * Doar romana e legata static. Dictionarul englez (~119 KB de cod brut, cat
@@ -37,24 +29,13 @@ export const LOCALE_OPTIONS: { id: Locale; label: string }[] = [
  * `en` porneste ca obiect gol, nu absent: `t()` il indexeaza direct, iar un
  * `undefined` acolo ar arunca in loc sa cada pe romana.
  */
-const DICTS: Record<Locale, Record<string, string>> = {
-  ro,
-  en: {},
-  'pt-BR': {},
-  es: {},
-  de: {}
-};
+const DICTS: Record<Locale, Record<string, string>> = { ro, en: {} };
 const STORAGE_KEY = 'lumin-locale';
 
-const loaded = new Set<Locale>(['ro']);
-const loading = new Map<Locale, Promise<void>>();
-
-const LOADERS: Record<Exclude<Locale, 'ro'>, () => Promise<Record<string, string>>> = {
-  en: () => import('./en').then(mod => mod.en),
-  'pt-BR': () => import('./pt-BR').then(mod => mod.ptBR),
-  es: () => import('./es').then(mod => mod.es),
-  de: () => import('./de').then(mod => mod.de)
-};
+/** A intrat deja dictionarul englez in DICTS.en? (Romana e mereu prezenta.) */
+let enLoaded = false;
+/** Descarcarea in curs, ca doua apeluri simultane sa nu ceara modulul de doua ori. */
+let enLoading: Promise<void> | null = null;
 
 /**
  * Limba `locale` are dictionarul incarcat si `t()` poate raspunde in ea ACUM.
@@ -64,7 +45,7 @@ const LOADERS: Record<Exclude<Locale, 'ro'>, () => Promise<Record<string, string
  * altfel fiecare revenire la romana ar fi intarziat cu un tick degeaba.
  */
 export function isLocaleLoaded(locale: Locale): boolean {
-  return loaded.has(locale);
+  return locale === 'ro' || enLoaded;
 }
 
 /**
@@ -79,25 +60,16 @@ export function isLocaleLoaded(locale: Locale): boolean {
  * NU arunca: aplicatia porneste in romana, care e oricum plasa de rezerva a lui
  * `t()`. Mai bine interfata in limba gresita decat un ecran alb.
  */
-function loadOne(locale: Exclude<Locale, 'ro'>): Promise<void> {
-  if (loaded.has(locale)) return Promise.resolve();
-  const existing = loading.get(locale);
-  if (existing) return existing;
-  const task = LOADERS[locale]()
-    .then(dict => { Object.assign(DICTS[locale], dict); loaded.add(locale); })
-    .catch(err => {
-      console.error(`Dictionarul ${locale} nu s-a putut incarca:`, err);
-      loading.delete(locale);
-    });
-  loading.set(locale, task);
-  return task;
-}
-
 export function ensureLocaleLoaded(locale: Locale): Promise<void> {
-  if (locale === 'ro') return Promise.resolve();
-  // Engleza e plasa de rezerva pentru pt-BR, es și de, deci se încarcă odată cu ele.
-  const chain = locale === 'en' ? loadOne('en') : Promise.all([loadOne('en'), loadOne(locale)]).then(() => undefined);
-  return chain;
+  if (locale !== 'en' || enLoaded) return Promise.resolve();
+  enLoading ??= import('./en')
+    .then(mod => { Object.assign(DICTS.en, mod.en); enLoaded = true; })
+    .catch(err => {
+      console.error('Dictionarul englez nu s-a putut incarca; ramane romana:', err);
+      // Se reincearca la urmatorul apel (ex. urmatoarea comutare din meniu).
+      enLoading = null;
+    });
+  return enLoading;
 }
 
 /**
@@ -117,31 +89,17 @@ export function ensureLocaleLoaded(locale: Locale): Promise<void> {
  * ordonata de preferinte a utilizatorului, si e cea corecta cand cineva are
  * romana pe locul doi.
  */
-function matchLocale(tag: string): Locale | null {
-  const value = tag.toLowerCase();
-  if (value.startsWith('ro')) return 'ro';
-  if (value.startsWith('pt')) return 'pt-BR';
-  if (value.startsWith('es')) return 'es';
-  if (value.startsWith('de')) return 'de';
-  if (value.startsWith('en')) return 'en';
-  return null;
-}
-
 function deviceLocale(): Locale {
   try {
     const nav = typeof navigator === 'undefined' ? null : navigator;
-    if (!nav) return 'en';
+    if (!nav) return 'ro';
     const preferences = nav.languages?.length ? nav.languages : [nav.language];
-    const tags = preferences.filter((tag): tag is string => typeof tag === 'string');
-    // Româna rămâne prioritară dacă e oriunde în listă: cine o are pe locul doi tot o înțelege.
-    if (tags.some(tag => tag.toLowerCase().startsWith('ro'))) return 'ro';
-    for (const tag of tags) {
-      const match = matchLocale(tag);
-      if (match) return match;
+    for (const tag of preferences) {
+      if (typeof tag === 'string' && tag.toLowerCase().startsWith('ro')) return 'ro';
     }
     return 'en';
   } catch {
-    return 'en';
+    return 'ro';
   }
 }
 
@@ -157,7 +115,7 @@ function deviceLocale(): Locale {
 export function readStoredLocale(): Locale {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === 'ro' || stored === 'en' || stored === 'pt-BR' || stored === 'es' || stored === 'de') return stored;
+    if (stored === 'ro' || stored === 'en') return stored;
   } catch {
     // stocare indisponibila — decide limba telefonului, ca la prima pornire
   }
@@ -211,7 +169,7 @@ export function necesitaDe(n: number): boolean {
  * sute de siruri duplicate ca sa exprime un singur cuvant.
  */
 export function t(locale: Locale, key: string, params?: Record<string, string | number>): string {
-  let str = DICTS[locale][key] || (locale !== 'en' ? DICTS.en[key] : '') || DICTS.ro[key] || key;
+  let str = DICTS[locale][key] ?? DICTS.ro[key] ?? key;
   if (params) {
     const count = params.count;
     if (typeof count === 'number') {

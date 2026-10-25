@@ -13,28 +13,20 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
-        <!-- Curățarea pornește nativ. WebView-ul Capacitor (MainActivity) nu
-             mai e launcher și nu e deschis din cleaner. Rămâne în pachet pentru
-             uneltele vechi, exportat false, ca alte aplicații să nu-l poată porni. -->
-        <activity
-            android:name=".cleaner.CleanerActivity"
-            android:exported="true"
-            android:label="@string/title_activity_main"
-            android:theme="@style/AppTheme.Cleaner"
-            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
             android:name=".MainActivity"
             android:label="@string/title_activity_main"
             android:theme="@style/AppTheme.NoActionBarLaunch"
             android:launchMode="singleTask"
-            android:exported="false" />
+            android:exported="true">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+        </activity>
 
         <!-- Analiza cu ecranul stins. Vezi plugins/BackgroundAnalysisService.kt:
              din Android 12 incoace un proces ajuns in cache e INGHETAT, deci
@@ -67,19 +59,11 @@
          standard Android: READ_MEDIA_IMAGES pe API 33+ (Android 13), READ_EXTERNAL_STORAGE
          cu maxSdkVersion pe API-uri mai vechi (ignorata automat de sistem pe 33+). -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <!-- Android 13+: pozele și videoclipurile sunt permisiuni separate. Fără
-         READ_MEDIA_VIDEO, lista de videoclipuri mari e goală chiar dacă omul a
-         dat acces la poze. Pe API <= 32, READ_EXTERNAL_STORAGE de mai jos
-         acoperă ambele. -->
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <!-- Android 14+: se acorda cand utilizatorul alege "Permite cu acces limitat".
          Declarata ca s-o putem INTERBOGA si sa deosebim accesul partial de un
          refuz total — vezi photosAccess() in MediaLibraryPlugin.kt. -->
     <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
-    <!-- Doar ca să publicăm videoclipul comprimat în Movies/Lumin pe Android 8–9.
-         De la Android 10, MediaStore nu mai cere permisiunea asta. -->
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
     <!-- Coordonatele GPS din EXIF-ul pozelor. Incepand cu Android 10, sistemul le
          STERGE din fisierul servit oricarei aplicatii, oricat acces la galerie ar
          avea; fara permisiunea asta (plus MediaStore.setRequireOriginal la citire)
@@ -95,8 +79,6 @@
          nu apare, fara nicio eroare — exact felul de setare care "nu face nimic".
          Pe API-uri mai vechi permisiunea nu exista si e ignorata automat. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- Bătaia scurtă de la pragul unui swipe. Permisiune normală, acordată la instalare. -->
-    <uses-permission android:name="android.permission.VIBRATE" />
     <!-- Analiza care merge mai departe cu ecranul stins (vezi
          plugins/BackgroundAnalysisService.kt). FOREGROUND_SERVICE_DATA_SYNC e
          ceruta de la Android 14 incoace pentru tipul declarat in <service>;

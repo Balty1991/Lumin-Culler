@@ -6,14 +6,12 @@ import {
 import type { PremiumPlan } from './billing';
 
 function plan(over: Partial<PremiumPlan> = {}): PremiumPlan {
-  const periodDays = over.periodDays ?? 30;
   return {
     id: MONTHLY_PLAN_ID,
     price: '19,99 lei',
     priceMicros: 19_990_000,
     currency: 'RON',
-    periodDays,
-    kind: periodDays === 0 ? 'lifetime' : periodDays > 31 ? 'yearly' : 'monthly',
+    periodDays: 30,
     ...over
   };
 }
@@ -93,11 +91,6 @@ describe('defaultPlanId', () => {
 
   it('fara niciun plan (produse neconfigurate in Play Console) nu inventeaza unul', () => {
     expect(defaultPlanId([])).toBeNull();
-  });
-
-  it('lifetime nu ia locul anualului: e ancora, nu planul implicit', () => {
-    const lifetime = plan({ id: 'lumin_premium_lifetime', price: '179,99 lei', priceMicros: 179_990_000, periodDays: 0, kind: 'lifetime' });
-    expect(defaultPlanId([LUNAR, ANUAL, lifetime])).toBe(YEARLY_PLAN_ID);
   });
 });
 
