@@ -223,7 +223,7 @@ jobs:
             android/app/build/outputs/mapping/**/configuration.txt
             android/app/build/outputs/mapping/**/usage.txt
           if-no-files-found: warn
-          retention-days: 7
+          retention-days: 1
       - name: Regulile pe care le cere R8 (doar la esec)
         if: failure()
         uses: actions/upload-artifact@v4
@@ -233,7 +233,7 @@ jobs:
             android/app/build/outputs/mapping/**/missing_rules.txt
             android/app/build/outputs/mapping/**/configuration.txt
           if-no-files-found: ignore
-          retention-days: 7
+          retention-days: 1
       # Marimea se raporteaza IN rezumatul rularii, nu doar in fisier: altfel
       # singurul mod de a afla cat s-a mai umflat APK-ul era sa-l descarci —
       # exact lucrul care doare pe o legatura mobila. Cu asta se vede din
@@ -252,4 +252,4 @@ jobs:
         with:
           name: lumin-culler-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 3
+          retention-days: 1

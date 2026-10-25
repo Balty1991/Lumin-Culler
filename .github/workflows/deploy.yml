@@ -98,6 +98,7 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
+          retention-days: 1
   deploy:
     needs: build
     runs-on: ubuntu-latest
