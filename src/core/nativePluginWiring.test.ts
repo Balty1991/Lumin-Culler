@@ -17,13 +17,20 @@
  * compara listele. Ruleaza in Node, deci pot citi android/ si .github/.
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const ROOT = join(__dirname, '..', '..');
 const PLUGINS_DIR = join(ROOT, 'android/app/src/main/java/com/luminculler/app/plugins');
+const PHOTOGRAPHER_DIR = join(ROOT, 'android/app/src/photographer/java/com/luminculler/app/plugins');
 const MAIN_ACTIVITY = join(ROOT, 'android/app/src/main/java/com/luminculler/app/MainActivity.java');
 const BUILD_WORKFLOWS = ['.github/workflows/android-debug-build.yml', '.github/workflows/release-android.yml'];
+
+function pluginHome(name: string): 'main' | 'photographer' | null {
+  if (existsSync(join(PLUGINS_DIR, `${name}Plugin.kt`))) return 'main';
+  if (existsSync(join(PHOTOGRAPHER_DIR, `${name}Plugin.kt`))) return 'photographer';
+  return null;
+}
 
 /** Fisierele .ts din src/, recursiv — fara teste. */
 function sourceFiles(dir: string): string[] {
@@ -48,12 +55,17 @@ function pluginsCalledFromJs(): string[] {
 }
 
 describe('cablajul plugin-urilor native', () => {
-  it('inregistreaza in MainActivity fiecare plugin pe care JS-ul il cheama', () => {
+  it('inregistreaza plugin-urile din pachet si le lasa pe cele de fotograf afara', () => {
     const activity = readFileSync(MAIN_ACTIVITY, 'utf8');
-    const neinregistrate = pluginsCalledFromJs().filter(
-      name => !activity.includes(`registerPlugin(${name}Plugin.class);`)
-    );
-    expect(neinregistrate).toEqual([]);
+    const probleme: string[] = [];
+    for (const name of pluginsCalledFromJs()) {
+      const home = pluginHome(name);
+      const inregistrat = activity.includes(`registerPlugin(${name}Plugin.class);`);
+      if (home === 'main' && !inregistrat) probleme.push(`${name} e in APK dar nu e inregistrat`);
+      else if (home === 'photographer' && inregistrat) probleme.push(`${name} e scos din APK dar MainActivity inca il inregistreaza`);
+      else if (home === null) probleme.push(`${name} nu are fisier Kotlin`);
+    }
+    expect(probleme).toEqual([]);
   });
 
   it('importa in MainActivity fiecare plugin pe care il inregistreaza', () => {
@@ -85,5 +97,23 @@ describe('cablajul plugin-urilor native', () => {
       });
     }
     expect(lipsa).toEqual([]);
+  });
+
+  it('nu impacheteaza modelele plugin-urilor de fotograf', () => {
+    const workflows = BUILD_WORKFLOWS.map(w => readFileSync(join(ROOT, w), 'utf8'));
+    const modele = readdirSync(PHOTOGRAPHER_DIR)
+      .filter(f => f.endsWith('.kt'))
+      .map(f => readFileSync(join(PHOTOGRAPHER_DIR, f), 'utf8').match(/MODEL_FILE\s*=\s*"([^"]+)"/)?.[1])
+      .filter((m): m is string => !!m);
+    expect(modele.length).toBeGreaterThan(0);
+    const gasite: string[] = [];
+    for (const model of modele) {
+      workflows.forEach((text, i) => {
+        if (text.includes(`-o android/app/src/main/assets/${model}`)) {
+          gasite.push(`${BUILD_WORKFLOWS[i]} inca descarca ${model}`);
+        }
+      });
+    }
+    expect(gasite).toEqual([]);
   });
 });
