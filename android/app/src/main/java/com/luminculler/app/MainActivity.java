@@ -8,23 +8,13 @@ import android.webkit.RenderProcessGoneDetail;
 import android.webkit.WebView;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.WebViewListener;
-import com.luminculler.app.plugins.FaceDetectionPlugin;
-import com.luminculler.app.plugins.ImageAnalysisPlugin;
-import com.luminculler.app.plugins.ImageLabelingPlugin;
-import com.luminculler.app.plugins.FaceMeshPlugin;
-import com.luminculler.app.plugins.TextRecognitionPlugin;
-import com.luminculler.app.plugins.PoseDetectionPlugin;
-import com.luminculler.app.plugins.SegmentationPlugin;
 import com.luminculler.app.plugins.DiagnosticsPlugin;
 import com.luminculler.app.plugins.HeicDecoderPlugin;
-import com.luminculler.app.plugins.ImageDescriptionPlugin;
-import com.luminculler.app.plugins.ImageEmbedderPlugin;
 import com.luminculler.app.plugins.FolderExportPlugin;
 import com.luminculler.app.plugins.MediaLibraryPlugin;
 import com.luminculler.app.plugins.CleanScanPlugin;
 import com.luminculler.app.plugins.CleanReminderPlugin;
 import com.luminculler.app.plugins.LuminHapticsPlugin;
-import com.luminculler.app.plugins.VideoCompressPlugin;
 import com.luminculler.app.plugins.NotificationsPlugin;
 import com.luminculler.app.plugins.BillingPlugin;
 import com.luminculler.app.plugins.ThermalPlugin;
@@ -92,47 +82,21 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        // Plugin-urile native LOCALE (nu pachete npm separate, ca @capacitor/filesystem)
-        // nu sunt descoperite automat de Capacitor — trebuie inregistrate explicit aici,
-        // inainte de super.onCreate(). Vezi plugins/FaceDetectionPlugin.kt / ImageAnalysisPlugin.kt /
-        // ImageLabelingPlugin.kt / FaceMeshPlugin.kt / TextRecognitionPlugin.kt /
-        // PoseDetectionPlugin.kt / ImageEmbedderPlugin.kt / FolderExportPlugin.kt /
-        // MediaLibraryPlugin.kt / NotificationsPlugin.kt / BillingPlugin.kt.
-        //
-        // ImageClassifier (EfficientNet-Lite0, 17,7 MB) ramane scos: era un port
-        // de proba nelegat niciodata de analiza reala (vezi nativeAnalysis.ts),
-        // iar modelul lui intra in FIECARE instalare degeaba.
-        //
-        // Segmentation a fost scos atunci din acelasi motiv si s-a intors acum
-        // cu un motiv: bokeh-ul din editor. Bug real, raportat de utilizator de
-        // trei ori ("Bokeh, nu detecteaza persoana, sa o separe de fundal") —
-        // linia de mai jos lipsea, deci Capacitor.isPluginAvailable('Segmentation')
-        // intorcea false pe telefon, orice ar fi facut partea de JS, si bokeh-ul
-        // cadea mereu pe rezerva cu caseta fetei. Modelul care vine cu el nu mai
-        // e selfie_multiclass (16,4 MB), ci selfie_segmenter (249 KB) — vezi
-        // pasul "Bundle native segmentation model" din workflow-urile de build.
-        registerPlugin(FaceDetectionPlugin.class);
-        registerPlugin(ImageAnalysisPlugin.class);
-        registerPlugin(ImageLabelingPlugin.class);
-        registerPlugin(FaceMeshPlugin.class);
-        registerPlugin(TextRecognitionPlugin.class);
-        registerPlugin(PoseDetectionPlugin.class);
-        registerPlugin(SegmentationPlugin.class);
-        // Jurnalul de pasi. Se porneste PRIMUL, inainte de orice plugin, ca sa
-        // prinda si o cadere survenita in timpul pornirii. Vezi
-        // plugins/CrashLog.kt: singurul lucru care supravietuieste unei
-        // inchideri fortate e ce a apucat sa ajunga pe disc.
+        // Plugin-urile locale nu sunt descoperite automat de Capacitor.
+        // Cele de fotograf (mesh, OCR, etichete, segmentare, embedder, GenAI,
+        // compresie video) stau in src/photographer si nu se inregistreaza:
+        // launcher-ul e CleanerActivity, iar acele .so + modele faceau APK-ul
+        // de debug de ~225 MB. Ochiul pentru best-shot e ML Kit chemat direct
+        // din GalleryRepository, nu prin FaceDetectionPlugin.
+        // Jurnalul de pasi. Se porneste inainte de plugin-uri. Vezi CrashLog.kt.
         com.luminculler.app.plugins.CrashLog.INSTANCE.porneste(getApplicationContext());
         registerPlugin(DiagnosticsPlugin.class);
         registerPlugin(HeicDecoderPlugin.class);
-        registerPlugin(ImageDescriptionPlugin.class);
-        registerPlugin(ImageEmbedderPlugin.class);
         registerPlugin(FolderExportPlugin.class);
         registerPlugin(MediaLibraryPlugin.class);
         registerPlugin(CleanScanPlugin.class);
         registerPlugin(CleanReminderPlugin.class);
         registerPlugin(LuminHapticsPlugin.class);
-        registerPlugin(VideoCompressPlugin.class);
         registerPlugin(NotificationsPlugin.class);
         registerPlugin(BillingPlugin.class);
         // Treapta termica a telefonului (PowerManager). Vezi ThermalPlugin.kt:

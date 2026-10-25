@@ -12,7 +12,7 @@ The store text is in [PLAY_LISTING.md](PLAY_LISTING.md). Do not paste [PLAY_STOR
 - Weekly local reminder is scheduled when the cleaner starts if the switch is on. It writes the suggested reclaimable bytes. It does not delete.
 - In-app review is requested once, after three successful Trash operations. Play may still not show the dialog.
 - `versionName` is `3.1.0` in `package.json` and `android/app/build.gradle`. `versionCode` 5 in Gradle is for local builds only.
-- Release signing reads `android/app/keystore.properties` when that file exists. The example file has placeholders. Neither the keystore nor real passwords are in git. `minifyEnabled` stays false.
+- Release signing reads `android/app/keystore.properties` when that file exists. The example file has placeholders. Neither the keystore nor real passwords are in git. Release builds run R8 and `shrinkResources`.
 - JVM unit tests for rescue, allowance, access, and baskets: `./gradlew :app:testDebugUnitTest` (21 tests, after `bash android/scripts/ensure-cordova-stub.sh` if you have not run `cap sync`).
 - Web tests: `npm test` (typecheck and lint are the PR workflow).
 
@@ -20,7 +20,7 @@ The store text is in [PLAY_LISTING.md](PLAY_LISTING.md). Do not paste [PLAY_STOR
 
 - Do not merge or build on `ccr-11a987f1-5bryqk`. That branch sends photos to a cloud model and contradicts the on-device promise and the Data safety form.
 - Do not upload an AAB whose `versionCode` is less than or equal to the one already in Play Console. The local `versionCode` 5 is documentation. Play already has codes in the high 30s from `.github/workflows/release-android.yml`, which replaces `versionCode` with `GITHUB_RUN_NUMBER` and `versionName` with the tag (or `package.json` on a manual run). Upload the AAB from that Action.
-- Do not turn R8 on for this release. Store builds with `minifyEnabled true` closed during analysis; the file comments record that.
+- Do not put the photographer plugins (`android/app/src/photographer`) back on the cleaner classpath without a size check. They pull MediaPipe, OCR and model files. The eye model used by best-shot stays: it is the bundled ML Kit face detector called from `GalleryRepository`.
 - Do not put a weekly product in Play. Do not type the dollar amounts into the app.
 - Do not request all-files access or audio access to “finish” voice notes.
 
