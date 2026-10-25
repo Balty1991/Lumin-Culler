@@ -6,15 +6,14 @@ import { resolve } from 'node:path';
 
 /**
  * src/bootSplash.test.ts
- * Ecranul desenat inainte de JavaScript (vezi marcajul din index.html) sta pe
+ * Ecranul desenat inainte de JavaScript (marcajul din index.html) sta pe
  * DOUA presupuneri care nu produc nicio eroare cand se strica — doar un ecran
- * urat sau, mai rau, unul care nu mai pleaca:
+ * gol sau, mai rau, unul care nu mai pleaca:
  *
- *  1. clasele pe care le imprumuta de la ecranul de start CHIAR exista in foaia
- *     de stil. Redenumite, splash-ul devine text negru pe negru, si nimeni nu
- *     afla pana nu deschide aplicatia pe un telefon incet;
+ *  1. clasa .boot-splash exista in public/boot.css, foaia mica incarcata
+ *     inainte de bundle. Daca dispare, primul cadru e text nesetilat;
  *  2. `createRoot(...).render()` goleste containerul la primul commit. Daca
- *     n-ar face-o, medalionul ar ramane peste aplicatie pentru totdeauna.
+ *     n-ar face-o, splash-ul ar ramane peste aplicatie pentru totdeauna.
  *
  * A doua verifica un comportament al lui React, nu al nostru — dinadins: e
  * exact genul de presupunere pe care o actualizare de biblioteca o poate
@@ -22,24 +21,17 @@ import { resolve } from 'node:path';
  */
 const root = resolve(__dirname, '..');
 const html = readFileSync(resolve(root, 'index.html'), 'utf8');
-const css = readFileSync(resolve(root, 'src/styles.css'), 'utf8')
-  + readFileSync(resolve(root, 'src/styles.concept.css'), 'utf8');
+const bootCss = readFileSync(resolve(root, 'public/boot.css'), 'utf8');
 
 describe('ecranul de dinainte de JavaScript', () => {
   it('sta in #root, ca sa poata fi sters de prima randare', () => {
-    expect(html).toMatch(/<div id="root">\s*<div class="boot-splash">/);
+    expect(html).toMatch(/<div id="root">\s*<div class="boot-splash">Lumin<\/div>/);
   });
 
-  it.each(['boot-splash', 'empty-badge', 'empty-badge-mark'])(
-    'clasa .%s, folosita in index.html, exista in foaia de stil',
-    cls => {
-      expect(html).toContain(`class="${cls}"`);
-      expect(css).toContain(`.${cls}`);
-    }
-  );
-
-  it('medalionul e marcat decorativ — un cititor de ecran n-are ce citi din doua litere', () => {
-    expect(html).toMatch(/<div class="empty-badge" aria-hidden="true">/);
+  it('clasa .boot-splash e stilata in foaia de dinainte de bundle, nu in CSS-ul vechi', () => {
+    expect(html).toContain('href="%BASE_URL%boot.css"');
+    expect(bootCss).toContain('.boot-splash');
+    expect(html).not.toContain('empty-badge');
   });
 
   it('prima randare React goleste containerul, deci splash-ul dispare singur', () => {
@@ -67,15 +59,16 @@ describe('limba paginii nu se afirma inainte sa fie stiuta', () => {
    * cititor de ecran care pronunta engleza cu reguli romanesti, si un browser
    * care ofera "tradu pagina" pentru o pagina deja in limba utilizatorului.
    *
-   * Limba reala o pune `applyLocale` imediat ce ruleaza modulul de stare, din
-   * `navigator.languages` sau din alegerea salvata. Pana atunci, gol e onest.
+   * Limba reala o pune shell-ul de curatare la prima randare, din limba salvata
+   * sau din navigator.languages. Pana atunci, gol e onest.
    */
   it('index.html nu declara o limba fixa', () => {
     expect(html).not.toMatch(/<html[^>]*\blang=/);
   });
 
-  it('limba se pune din cod, la pornire', () => {
-    const store = readFileSync(resolve(root, 'src/state/store.ts'), 'utf8');
-    expect(store).toContain('applyLocale(readStoredLocale())');
+  it('limba se pune din shell-ul montat, la pornire', () => {
+    const app = readFileSync(resolve(root, 'src/ui/rescue/RescueApp.tsx'), 'utf8');
+    expect(app).toContain('document.documentElement.lang = locale');
+    expect(app).toContain('readRescueLocale');
   });
 });

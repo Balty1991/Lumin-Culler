@@ -1,0 +1,24 @@
+html, body, #root {
+  margin: 0;
+  min-height: 100%;
+  background: #141614;
+  color: #f4f1ea;
+  font-family: system-ui, sans-serif;
+}
+
+html[data-theme="light"],
+html[data-theme="light"] body,
+html[data-theme="light"] #root {
+  background: #f6f3ec;
+  color: #1c1914;
+}
+
+.boot-splash {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
