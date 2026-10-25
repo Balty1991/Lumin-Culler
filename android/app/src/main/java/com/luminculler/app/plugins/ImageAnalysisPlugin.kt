@@ -156,7 +156,7 @@ class ImageAnalysisPlugin : Plugin() {
         focusBokeh.subjectInFocus?.let { result.put("subjectInFocus", it) }
         result.put("bokehQuality", focusBokeh.bokehQuality)
         result.put("colorHarmonyScore", color.colorHarmonyScore)
-        val dominantColors = JSArray()
+        val dominantColors = JSONArray()
         for (hex in color.dominantColors) dominantColors.put(hex)
         result.put("dominantColors", dominantColors)
         return result
