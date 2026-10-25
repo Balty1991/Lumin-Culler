@@ -17,6 +17,7 @@ import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
+import com.luminculler.app.billing.PremiumIds
 
 /**
  * Abonamentul Premium, prin Google Play Billing (biblioteca v9 — vezi
@@ -71,10 +72,10 @@ import com.getcapacitor.annotation.CapacitorPlugin
 class BillingPlugin : Plugin() {
 
     /** Trebuie sa fie IDENTIC cu ID-urile din Google Play Console si din suggestedPrices.ts. */
-    private val monthlyId = "lumin_premium_monthly"
-    private val yearlyId = "lumin_premium_yearly"
+    private val monthlyId = PremiumIds.MONTHLY
+    private val yearlyId = PremiumIds.YEARLY
     /** Achiziție unică. Nu se reînnoiește și nu are perioadă de probă. */
-    private val lifetimeId = "lumin_premium_lifetime"
+    private val lifetimeId = PremiumIds.LIFETIME
 
     /**
      * Ordinea conteaza: e ordinea in care ajung planurile in interfata, si

@@ -18,7 +18,7 @@ describe('produsele Premium', () => {
   });
 
   it('anualul sugerat e la jumătate sau sub doisprezece luni', () => {
-    // 29,99 față de 12×4,99 (59,88) e 50%, rotunjirea de un cent rămâne jumătate.
+    // 19,99 față de 12×4,99 (59,88) e sub patru luni.
     expect(SUGGESTED_PRICES.yearly.usd).toBeLessThanOrEqual(SUGGESTED_PRICES.monthly.usd * 6 + 0.05);
     expect(SUGGESTED_PRICES.yearly.ron).toBeLessThanOrEqual(SUGGESTED_PRICES.monthly.ron * 6 + 0.05);
   });

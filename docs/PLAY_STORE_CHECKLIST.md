@@ -1,3 +1,8 @@
+> The release steps for the cleaner are in [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md).
+> This file is the older culler checklist. Use it only for keystore and Play
+> App Signing background; the product, prices, and Data safety answers to ship
+> are in the new checklist and in [PLAY_LISTING.md](PLAY_LISTING.md).
+
 # Checklist publicare pe Google Play
 
 Ghid concret pentru a duce Lumin Culler Pro de la "cod care merge" la "aplicatie live

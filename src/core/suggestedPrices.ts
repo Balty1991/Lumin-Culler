@@ -28,9 +28,12 @@ export const YEARLY_TRIAL_DAYS = 7;
  * (înainte era ~10×, adică o reducere de ~17%, prea mică ca să conteze).
  */
 export const SUGGESTED_PRICES = {
-  yearly: { productId: YEARLY_PRODUCT_ID, usd: 29.99, ron: 99.99, trialDays: YEARLY_TRIAL_DAYS },
+  // Anualul e planul de pus în față: sub o lună din abonamentele săptămânale
+  // ale categoriei. Lifetime e cam 1,7× anualul, ca să fie o ieșire din
+  // abonament, nu un al doilea abonament. Lunarul rămâne reperul.
+  yearly: { productId: YEARLY_PRODUCT_ID, usd: 19.99, ron: 79.99, trialDays: YEARLY_TRIAL_DAYS },
   monthly: { productId: MONTHLY_PRODUCT_ID, usd: 4.99, ron: 19.99 },
-  lifetime: { productId: LIFETIME_PRODUCT_ID, usd: 49.99, ron: 179.99 }
+  lifetime: { productId: LIFETIME_PRODUCT_ID, usd: 34.99, ron: 139.99 }
 } as const;
 
 /** Adevărat cât timp lista de produse nu conține un plan săptămânal. */

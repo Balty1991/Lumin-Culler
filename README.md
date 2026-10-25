@@ -120,8 +120,8 @@ Trei produse in Play Console, fara plan saptamanal:
 | Produs | ID | Tip | Pret sugerat (nu e pretul afisat) |
 |---|---|---|---|
 | Lunar | `lumin_premium_monthly` | abonament | 4,99 USD / 19,99 RON |
-| Anual, cu oferta de 7 zile gratuite pe planul de baza | `lumin_premium_yearly` | abonament | 29,99 USD / 99,99 RON |
-| Pe viata | `lumin_premium_lifetime` | achizitie unica (INAPP) | 49,99 USD / 179,99 RON |
+| Anual, cu oferta de 7 zile gratuite pe planul de baza | `lumin_premium_yearly` | abonament | 19,99 USD / 79,99 RON |
+| Pe viata | `lumin_premium_lifetime` | achizitie unica (INAPP) | 34,99 USD / 139,99 RON |
 
 Ecranul arata doar pretul pe care il intoarce Play. Cifrele din tabel sunt
 reperul din `src/core/suggestedPrices.ts`, de pus in consola, nu de desenat

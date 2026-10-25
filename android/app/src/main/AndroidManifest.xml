@@ -13,8 +13,9 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
-        <!-- Curățarea pornește nativ. WebView-ul Capacitor rămâne pentru
-             uneltele Pro, deschis din butonul Pro al ecranului nativ. -->
+        <!-- Curățarea pornește nativ. WebView-ul Capacitor (MainActivity) nu
+             mai e launcher și nu e deschis din cleaner. Rămâne în pachet pentru
+             uneltele vechi, exportat false, ca alte aplicații să nu-l poată porni. -->
         <activity
             android:name=".cleaner.CleanerActivity"
             android:exported="true"
@@ -33,7 +34,7 @@
             android:label="@string/title_activity_main"
             android:theme="@style/AppTheme.NoActionBarLaunch"
             android:launchMode="singleTask"
-            android:exported="true" />
+            android:exported="false" />
 
         <!-- Analiza cu ecranul stins. Vezi plugins/BackgroundAnalysisService.kt:
              din Android 12 incoace un proces ajuns in cache e INGHETAT, deci
