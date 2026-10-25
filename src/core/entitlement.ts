@@ -1,13 +1,12 @@
 /**
  * core/entitlement.ts
- * Fundatia LOCALA a modelului freemium.
- *
- * Swipe-ul manual și ștergerea din telefon sunt gratuite și nu se numără.
- * FREE_PHOTOS_PER_MONTH (150) e doar exportul, pe 30 de zile. „Curăță tot”
- * cu AI are propriul plafon în core/aiCleanAllowance.ts: primul coș complet
- * e gratuit, apoi 50 de poze pe zi, apoi Premium. Comprimarea video și
- * mementourile sunt tot Premium (ui/CleanHome.tsx), prin același
- * isPremiumFeatureLocked. Persoanele și uneltele de după triaj rămân aici.
+ * Fundatia LOCALA a modelului freemium: TRIAJUL e gratuit la nesfarsit —
+ * import, scor AI, sortare, grupare, oricate poze. Se plateste pentru ce faci
+ * cu rezultatul: pentru pozele SCOASE din aplicatie peste un plafon lunar
+ * generos (EXPORTATE — stergerea de pe telefon nu se numara, vezi
+ * FREE_PHOTOS_PER_MONTH si deleteRejected in state/store.ts),
+ * pentru a doua persoana recunoscuta, si pentru functiile de dupa triaj (vezi
+ * isPremiumFeatureLocked).
  *
  * Sursa de adevar e Google Play, nu acest fisier: refreshEntitlement() intreaba
  * plugin-ul de billing si scrie raspunsul in PREMIUM_FLAG_KEY. isPremium()

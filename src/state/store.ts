@@ -40,7 +40,6 @@ import { vibrate } from '../ui/haptics';
 import { exportOriginalFiles, computeGroupPersonUnion } from '../core/exportPhotos';
 import { exportXMPSidecars, deriveXmpKeywords, deriveAiScoreKeyword, deriveSeriesKeyword } from '../core/export/xmpGenerator';
 import { analysisPool } from '../core/workerPool';
-import { subscribeDeepAnalysis } from '../core/deepAnalysis';
 import { contextEngine, deriveContextKey, explainFactors, type WeightShift } from '../core/learning/ContextEngine';
 import { dateSearchWords } from './searchDateWords';
 import { findNearestPlace, formatPlace, getLoadedPlaceIndex, loadPlaceIndex } from '../core/placeNames';
@@ -129,8 +128,6 @@ export type DialogRequest =
 export interface PhotoView {
   id: string;
   fileName: string;
-  /** Amprentă perceptivă, când importul a măsurat-o. O folosește coșul de duplicate. */
-  dHash?: string;
   /** Momentul importului in aplicatie (nu data capturii — vezi capturedAt), folosit pentru raportul de sesiune. */
   importedAt: number;
   status: PhotoRecord['status'];
@@ -261,9 +258,7 @@ export interface PhotoView {
 }
 
 /** Pentru ce functie s-a lovit omul de poarta Premium — vezi gatePremium. */
-export type PremiumReason =
-  | 'locations' | 'vault' | 'contactSheet' | 'presentation' | 'xmp' | 'persons' | 'cap'
-  | 'aiClean' | 'videoCompress' | 'autoClean';
+export type PremiumReason = 'locations' | 'vault' | 'contactSheet' | 'presentation' | 'xmp' | 'persons' | 'cap';
 
 export type FilterKey = 'all' | 'selected' | 'candidate' | 'review' | 'rejected' | 'series' | 'blinks' | 'blurry' | 'goldenHour' | 'highlights';
 
@@ -985,7 +980,6 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
   return {
     id: photo.id,
     fileName: photo.fileName,
-    dHash: photo.dHash,
     importedAt: photo.importedAt,
     status: photo.status,
     aiDecided: photo.aiDecided,
@@ -2964,7 +2958,7 @@ export const useStore = create<AppState>((set, get) => ({
           if (progress.quickScan) set({ quickScan: progress.quickScan });
           if (progress.thresholds) adaptedThresholds = progress.thresholds;
           let etaSeconds: number | undefined;
-          if (progress.phase === 'analiza' || progress.phase === 'citire') {
+          if (progress.phase === 'analiza') {
             // Pornit la prima poza terminata, nu la inceputul importului:
             // incarcarea modelelor si pregatirea nu sunt "analiza care sta".
             const ascunsa = document.visibilityState !== 'visible';
@@ -4963,26 +4957,6 @@ export const useStore = create<AppState>((set, get) => ({
  * fiecare import si ar pierde ultima treapta cunoscuta intre doua importuri.
  */
 analysisPool.onThermalChange = info => useStore.setState({ thermalThrottle: info });
-
-subscribeDeepAnalysis((photoId, analysis) => {
-  useStore.setState(state => ({
-    photos: state.photos.map(photo => photo.id !== photoId ? photo : {
-      ...photo,
-      faceCount: analysis.faceCount,
-      knownFaceCount: analysis.knownFaceCount,
-      strangerCount: analysis.strangerCount,
-      bestSmile: analysis.bestSmile,
-      allEyesOpen: analysis.allEyesOpen,
-      sharpness: analysis.sharpness,
-      exposure: analysis.exposure,
-      aiScore: analysis.aiScore,
-      sceneType: analysis.sceneType,
-      sceneTags: analysis.sceneTags,
-      groupEyesOpenRatio: analysis.groupEyesOpenRatio,
-      personNames: Array.from(new Set(analysis.faces.map(face => face.personName).filter((name): name is string => !!name)))
-    })
-  }));
-});
 
 
 /**

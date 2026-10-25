@@ -59,10 +59,7 @@ describe('locale storage', () => {
   it('fara alegere stocata, urmeaza limba telefonului', () => {
     withDeviceLanguages(['en-US'], () => expect(readStoredLocale()).toBe('en'));
     withDeviceLanguages(['ro-RO'], () => expect(readStoredLocale()).toBe('ro'));
-    withDeviceLanguages(['de-DE', 'fr-FR'], () => expect(readStoredLocale()).toBe('de'));
-    withDeviceLanguages(['pt-BR'], () => expect(readStoredLocale()).toBe('pt-BR'));
-    withDeviceLanguages(['es-MX'], () => expect(readStoredLocale()).toBe('es'));
-    withDeviceLanguages(['fr-FR'], () => expect(readStoredLocale()).toBe('en'));
+    withDeviceLanguages(['de-DE', 'fr-FR'], () => expect(readStoredLocale()).toBe('en'));
   });
 
   it('romana de pe locul doi in preferinte tot conteaza', () => {

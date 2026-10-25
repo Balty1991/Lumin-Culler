@@ -65,7 +65,7 @@ export interface ExportOptions {
   /** Sablon de redenumire (vezi core/renameTemplate.ts) — gol/absent pastreaza numele original, neschimbat. */
   renameTemplate?: string;
   /** Limba pentru numele de folder derivate din etichete de scena (vezi folderLabel) — implicit romana. */
-  locale?: string;
+  locale?: 'ro' | 'en';
   /** Numele de baza al arhivei .zip (fara data/extensie) — implicit 'lumin-culler-export'. Folosit de exportCollection (state/store.ts) ca arhiva sa reflecte numele folderului exportat, nu doar un nume generic. */
   zipBaseName?: string;
   /**
@@ -155,7 +155,7 @@ export function computeGroupPersonUnion(allPhotos: { groupId?: string; personNam
  */
 export function folderLabel(
   p: { personNames: string[]; faceCount: number; strangerCount: number; sceneType: string; sceneTags?: string[] },
-  locale: string = 'ro'
+  locale: 'ro' | 'en' = 'ro'
 ): string {
   if (p.personNames.length > 0) {
     const names = [...p.personNames].sort((a, b) => a.localeCompare(b, 'ro'));

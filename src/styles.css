@@ -4,7 +4,6 @@
    inlocuieste fontul de sistem generic DOAR la titluri/brand (vezi --font-display
    mai jos), textul normal ramane pe --sans pentru performanta si familiaritate. */
 @import '@fontsource-variable/space-grotesk';
-@import '@fontsource-variable/syne';
 
 /* ── Lumin Culler Pro v3 — "Obsidian Studio" ─────────────────────────────────
    Directie: consola de culling premium, cu identitate proprie — obsidian
@@ -2622,12 +2621,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .welcome-onboarding {
   position: relative; text-align: center; display: grid; gap: 12px; justify-items: center;
   width: 100%; max-width: 380px;
-  padding: 28px 22px 22px;
-  border-radius: 28px;
-  background: rgb(16 18 24 / 0.82);
-  border: 1px solid rgb(103 232 249 / 0.45);
-  box-shadow: 0 30px 80px rgb(0 0 0 / 0.45), inset 0 1px 0 rgb(255 255 255 / 0.08);
-  backdrop-filter: blur(18px);
   /* Fara animatie cu `transform` aici: un transform (chiar si la valoarea
      finala, cu fill-mode `both`) face din acest element blocul de referinta
      pentru descendentii `position: fixed`, deci comutatorul RO/EN si butonul

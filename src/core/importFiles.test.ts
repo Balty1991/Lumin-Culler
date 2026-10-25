@@ -206,7 +206,7 @@ describe('importFiles — contabilitate si curatenie', () => {
 
     await importFiles(files, p => {
       progress.push(p);
-      if ((p.phase === 'citire' || p.phase === 'analiza') && p.done >= 2) token.cancelled = true;
+      if (p.phase === 'analiza' && p.done >= 2) token.cancelled = true;
     }, () => {}, token);
 
     const final = progress[progress.length - 1];
@@ -215,7 +215,7 @@ describe('importFiles — contabilitate si curatenie', () => {
     // Bug raportat: notificarea spunea 6 cand pe ecran erau 9. Cifra din mesaj
     // trebuie sa fie exact ultimul `done` raportat prin progres, nu cel de la
     // momentul in care primul fir a observat anularea.
-    const analysisTicks = progress.filter(p => p.phase === 'citire' || p.phase === 'analiza');
+    const analysisTicks = progress.filter(p => p.phase === 'analiza');
     const lastAnalysisDone = analysisTicks[analysisTicks.length - 1]?.done;
     expect(final.warning?.params?.done).toBe(lastAnalysisDone);
     expect(final.outcome?.total).toBe(lastAnalysisDone);

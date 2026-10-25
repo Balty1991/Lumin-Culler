@@ -70,8 +70,128 @@ jobs:
         run: npm run lint
       - name: Teste
         run: npm test
+      # acelasi pas ca in deploy.yml — modelele AI trebuie incluse in pachetul nativ, nu doar in PWA
+      - name: Bundle ML models
+        run: |
+          mkdir -p public/models
+          # DOAR DOUA din cele sase, si asta e o economie de 8,9 MB in fiecare
+          # instalare — a doua jumatate a lui e5 din auditul motoarelor.
+          #
+          # Pe Android, analiza normala nu atinge deloc Human.js: ruleaza pe
+          # plugin-urile native (vezi core/nativeAnalysis.ts, si gardul
+          # `Capacitor.isNativePlatform()` din workerPool.init(), care se intoarce
+          # inainte sa porneasca vreun worker complet). Singurele doua locuri in
+          # care Human.js chiar ruleaza pe telefon sunt inrolarea si recunoasterea
+          # per fata, si amandoua pornesc de la runda trecuta pe configuratii
+          # SLABE (LeanFaceMode 'enrollment'/'recognition' — mesh, iris, emotie si
+          # CenterNet dezactivate), deci nici nu cer, nici nu descarca modelele
+          # alea. Din tot pachetul le raman blazeface (detectorul) si faceres
+          # (embeddingul de identitate).
+          #
+          # facemesh 1,5 MB + iris 2,6 MB + emotie 0,8 MB + centernet 4,1 MB
+          # intrau pana acum in APK ca sa nu fie citite niciodata.
+          #
+          # PWA-ul (deploy.yml) le pastreaza pe toate sase: acolo Human.js CHIAR
+          # face analiza completa, si fara ele ar ramane fara mesh, fara emotie si
+          # fara etichete de obiect. Cele doua liste trebuie sa ramana diferite —
+          # vezi src/androidModels.test.ts, care apara exact asta.
+          for m in blazeface faceres; do
+            cp node_modules/@vladmandic/human/models/$m.json public/models/
+            cp node_modules/@vladmandic/human/models/$m.bin public/models/
+          done
+      # "Locatii" — numele localitatilor, ca ecranul sa scrie "Rosiori de Vede,
+      # Romania" in loc de "44.114, 24.987", FARA sa intrebe vreun serviciu
+      # (cerinta directa a utilizatorului: "sa nu plece nimic deloc"). Lista
+      # vine de la GeoNames (CC BY 4.0, atribuire in politica de
+      # confidentialitate) si e adusa aici, la build, exact ca modelele AI —
+      # nu se comite in git, si nu se descarca niciodata de pe telefon.
+      # Lista e MONDIALA (toate tarile), nu doar Romania. cities500 = tot ce
+      # trece de ~500 de locuitori, plus resedintele — de trei ori mai multe
+      # localitati mici decat cities1000, cerinta utilizatorului.
+      # Pastram doar 5 coloane din formatul GeoNames: nume, latitudine,
+      # longitudine, cod de tara, populatie. Populatia da raza sub care o poza
+      # e considerata IN localitate (un catun nu se intinde cat un oras).
+      # Vezi core/placeNames.ts pentru citire; fara fisierul asta, aplicatia
+      # merge mai departe fara nume de localitati.
+      - name: Bundle place names
+        run: |
+          mkdir -p public/places
+          curl -fL -o /tmp/cities500.zip https://download.geonames.org/export/dump/cities500.zip
+          unzip -p /tmp/cities500.zip cities500.txt \
+            | awk -F'\t' 'NF>=15 && $2 != "" && $5 != "" && $6 != "" { printf "%s\t%.4f\t%.4f\t%s\t%s\n", $2, $5, $6, $9, $15 }' \
+            > public/places/cities.tsv
+          lines=$(wc -l < public/places/cities.tsv)
+          echo "cities.tsv: $lines localitati, $(stat -c%s public/places/cities.tsv) octeti"
+          # `curl -f` prinde un 404, dar nu si o arhiva valida cu alt continut;
+          # pragul de mai jos prinde o lista trunchiata inainte sa ajunga intr-un
+          # pachet "verde" in care numele de localitati lipsesc in tacere.
+          if [ "$lines" -lt 150000 ]; then echo "::error::lista de localitati pare trunchiata ($lines randuri)" && exit 1; fi
       - run: npm run build
       - run: npx cap sync android
+      # Analiza AI nativa (Faza 3, rescrisa — vezi plugins/ImageLabelingPlugin.kt):
+      # modelul TFLite COCO SSD MobileNet descarcat separat aici a fost inlocuit
+      # cu ML Kit Image Labeling, bundle-uit direct in dependinta Gradle — niciun
+      # pas de descarcare CI separat nu mai e necesar pentru acest modul.
+      # Analiza AI nativa (Faza 4 — vezi plugins/FaceMeshPlugin.kt / ImageClassifierPlugin.kt):
+      # doua modele MediaPipe oficiale (Google AI Edge, CC-BY-4.0/Apache 2.0),
+      # NU committed in git — descarcate direct (nu arhive, spre deosebire de
+      # modelul COCO de mai sus).
+      # Bug real gasit de auditul QA: `curl -sL` fara `-f` intoarce exit code 0
+      # chiar si pe un raspuns HTTP de eroare (404/5xx) — corpul acelui raspuns
+      # (de obicei o pagina HTML de eroare) se scria totusi in fisierul .task/
+      # .tflite, iar buildul Gradle care urmeaza nu are niciun motiv sa esueze
+      # (nu valideaza continutul modelelor). Rezultatul: un AAB semnat, "verde"
+      # in CI, care contine un model corupt — orice poza cu fata detectata pica
+      # silentios la analiza (vezi FaceMeshPlugin.kt, apelat necondtionat
+      # pentru fiecare fata din nativeAnalysis.ts). `-f` face curl sa esueze
+      # zgomotos pe orice status HTTP de eroare; verificarea marimii minime
+      # prinde in plus un fisier trunchiat/gol care ar fi trecut de `-f`.
+      - name: Bundle native face-mesh model
+        run: |
+          curl -fL -o android/app/src/main/assets/face_landmarker.task https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task
+          for f in face_landmarker.task; do
+            size=$(stat -c%s "android/app/src/main/assets/$f")
+            if [ "$size" -lt 100000 ]; then echo "::error::$f are doar $size octeti — descarcare esuata/trunchiata" && exit 1; fi
+          done
+      # Analiza AI nativa (Faza 5 — vezi plugins/PoseDetectionPlugin.kt): modelul
+      # MediaPipe pose lite, NU committed in git. TextRecognitionPlugin.kt nu are
+      # nevoie de pas separat — modelul lui e bundle-uit direct in dependinta ML Kit.
+      #
+      # Modelul de segmentare a REVENIT, dar nu cel scos.
+      #
+      # Scos atunci a fost selfie_multiclass (16,4 MB masurat, nu 15,6): imparte
+      # omul in par/piele/haine, si nimic din aplicatie nu avea nevoie de acea
+      # distinctie. Ce are nevoie bokeh-ul din editor e o singura granita —
+      # persoana vs. fundal — iar pentru asta exista selfie_segmenter, acelasi
+      # model de la Google, 249 KB (verificat prin descarcare, nu estimat).
+      # 66 de ori mai mic, exact aceeasi treaba pentru cazul nostru.
+      #
+      # Cerinta care l-a readus, spusa de utilizator de trei ori: "Bokeh, nu
+      # detecteaza persoana, sa o separe de fundal". Fara model, bokeh-ul avea
+      # doar caseta fetei si un gradient rotund — adica exact ce reclama el.
+      - name: Bundle native pose model
+        run: |
+          curl -fL -o android/app/src/main/assets/pose_landmarker_lite.task https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task
+          for f in pose_landmarker_lite.task; do
+            size=$(stat -c%s "android/app/src/main/assets/$f")
+            if [ "$size" -lt 100000 ]; then echo "::error::$f are doar $size octeti — descarcare esuata/trunchiata" && exit 1; fi
+          done
+      # Analiza AI nativa (Faza 6 — vezi plugins/ImageEmbedderPlugin.kt): embedding
+      # general de similaritate vizuala (MediaPipe, MobileNetV3-small), NU committed in git.
+      # Segmentarea persoanei pentru bokeh (vezi plugins/SegmentationPlugin.kt):
+      # SelfieSegmenter general, 249 KB. Pragul de marime e mai mic decat la
+      # celelalte modele tocmai fiindca asta E mic — 100000 l-ar respinge pe cel
+      # bun; 150000 tot prinde o pagina HTML de eroare sau un fisier trunchiat.
+      - name: Bundle native segmentation model
+        run: |
+          curl -fL -o android/app/src/main/assets/selfie_segmenter.tflite https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/1/selfie_segmenter.tflite
+          size=$(stat -c%s android/app/src/main/assets/selfie_segmenter.tflite)
+          if [ "$size" -lt 150000 ]; then echo "::error::selfie_segmenter.tflite are doar $size octeti — descarcare esuata/trunchiata" && exit 1; fi
+      - name: Bundle native image-embedder model
+        run: |
+          curl -fL -o android/app/src/main/assets/mobilenet_v3_small.tflite https://storage.googleapis.com/mediapipe-models/image_embedder/mobilenet_v3_small/float32/1/mobilenet_v3_small.tflite
+          size=$(stat -c%s android/app/src/main/assets/mobilenet_v3_small.tflite)
+          if [ "$size" -lt 100000 ]; then echo "::error::mobilenet_v3_small.tflite are doar $size octeti — descarcare esuata/trunchiata" && exit 1; fi
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:

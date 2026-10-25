@@ -189,18 +189,6 @@ export function PinIcon(p: SVGProps<SVGSVGElement>) {
 export function HomeIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><path d="M4 11.5L12 4l8 7.5" /><path d="M6 9.5V20h12V9.5" /></svg>;
 }
-/** Tab Curăță — inel de stocare, nu o casă. */
-export function OrbitCleanIcon(p: SVGProps<SVGSVGElement>) {
-  return <svg {...base} {...p}><circle cx="12" cy="12" r="8" /><path d="M12 4a8 8 0 0 1 8 8" strokeWidth="2.6" /></svg>;
-}
-/** Tab Bibliotecă — două cadre, nu o grilă de patru. */
-export function OrbitLibraryIcon(p: SVGProps<SVGSVGElement>) {
-  return <svg {...base} {...p}><rect x="3" y="5" width="12" height="14" rx="2" /><path d="M9 5.5V4h12v14h-2" /></svg>;
-}
-/** Tab Setări — trei cursoare, nu o roată. */
-export function OrbitSettingsIcon(p: SVGProps<SVGSVGElement>) {
-  return <svg {...base} {...p}><path d="M4 7h16" /><path d="M4 12h16" /><path d="M4 17h16" /><circle cx="8" cy="7" r="2" fill="currentColor" stroke="none" /><circle cx="15" cy="12" r="2" fill="currentColor" stroke="none" /><circle cx="10" cy="17" r="2" fill="currentColor" stroke="none" /></svg>;
-}
 /** Tab "Persoane" din bara de navigare (redesign PRO) — siluetă simplă de persoană. */
 export function PersonIcon(p: SVGProps<SVGSVGElement>) {
   return <svg {...base} {...p}><circle cx="12" cy="8" r="3.4" /><path d="M5 20c0-3.9 3.1-6.5 7-6.5s7 2.6 7 6.5" /></svg>;

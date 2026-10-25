@@ -4,34 +4,50 @@ import { resolve } from 'node:path';
 
 /**
  * src/androidModels.test.ts
- * Pachetul cleaner nu mai copiaza modelele Human.js, CLIP sau lista de orase.
- * Vite pune tot `public/` in dist, iar Capacitor pune dist in APK. Un `for m in`
- * reintrodus aici umfla iar instalarea, fara niciun ecran care sa citeasca
- * fisierele.
+ * Ce modele Human.js intra in APK, si de ce sunt mai putine decat in PWA.
  *
- * Modulul de fotograf (worker-ul Human.js) ramane in repo. Testele de mai jos
- * pazesc configuratia slaba, ca o reactivare sa nu ceara mesh/iris/emotie
- * fara sa le aduca inapoi explicit.
+ * A doua jumatate a lui e5 din auditul motoarelor: pe Android, analiza normala
+ * nu atinge deloc Human.js (ruleaza pe plugin-urile native), iar singurele doua
+ * locuri in care el chiar ruleaza pe telefon — inrolarea si recunoasterea per
+ * fata — pornesc pe configuratii SLABE, cu mesh/iris/emotie/CenterNet
+ * dezactivate. Cele patru modele intrau in fiecare instalare, 8,9 MB, ca sa nu
+ * fie citite niciodata.
+ *
+ * Testul asta nu masoara marimea APK-ului; apara LANTUL de motive care face
+ * excluderea sigura. Rupe-l intr-un capat, si celalalt devine un 404 pe telefon,
+ * fara nicio eroare la compilare:
+ *
+ *  - daca cineva porneste un worker Human.js COMPLET pe Android, are nevoie de
+ *    modelele care nu mai sunt acolo;
+ *  - daca cineva scoate `leanMode` de la inrolare sau recunoastere, la fel;
+ *  - daca cineva "repara" workflow-urile Android copiind iar toate sase,
+ *    economia dispare in tacere.
  */
 const rad = resolve(__dirname, '..');
 const citeste = (cale: string) => readFileSync(resolve(rad, cale), 'utf8');
 
-const MODELE = ['blazeface', 'facemesh', 'iris', 'emotion', 'faceres', 'centernet'];
+const MODELE_GRELE = ['facemesh', 'iris', 'emotion', 'centernet'];
 
-describe('modelele Human.js nu intra in pachetul cleaner', () => {
+describe('modelele Human.js din pachetul Android', () => {
   it.each([
     '.github/workflows/android-debug-build.yml',
-    '.github/workflows/release-android.yml',
-    '.github/workflows/deploy.yml'
-  ])('%s nu copiaza modele Human.js si nu descarca orasele', cale => {
+    '.github/workflows/release-android.yml'
+  ])('%s copiaza doar detectorul si embeddingul', cale => {
     const workflow = citeste(cale);
-    expect(workflow).not.toMatch(/for m in [^\n]*blazeface/);
-    expect(workflow).not.toContain('cities500.zip');
-    expect(workflow).not.toContain('face_landmarker.task');
-    expect(workflow).not.toContain('fetch-clip-model');
-    for (const model of MODELE) {
-      expect(workflow, `${model} nu are ce cauta in pachet`).not.toContain(`human/models/${model}`);
+    expect(workflow).toContain('for m in blazeface faceres; do');
+    for (const model of MODELE_GRELE) {
+      expect(workflow, `${model} nu mai are ce cauta in APK`).not.toMatch(new RegExp(`for m in .*${model}`));
     }
+  });
+
+  /**
+   * PWA-ul le pastreaza pe toate sase: acolo Human.js chiar face analiza
+   * completa. Cele doua liste TREBUIE sa ramana diferite — daca cineva le
+   * uniformizeaza "ca sa fie la fel", una dintre ele se strica.
+   */
+  it('PWA-ul le pastreaza pe toate sase — acolo Human.js face analiza intreaga', () => {
+    const deploy = citeste('.github/workflows/deploy.yml');
+    expect(deploy).toContain('for m in blazeface facemesh iris emotion faceres centernet; do');
   });
 });
 

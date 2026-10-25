@@ -32,13 +32,6 @@ const ASKED_KEY = 'lumin-review-asked-at';
 export const MIN_EXPORTED_FOR_REVIEW = 10;
 
 /**
- * După prima curățare care eliberează cel puțin atât. Aceeași regulă „o
- * singură dată” ca la export: ambele drumuri scriu aceeași cheie, deci o
- * notă cerută după export nu se mai cere după curățare, și invers.
- */
-export const MIN_FREED_BYTES_FOR_REVIEW = 500 * 1024 * 1024;
-
-/**
  * Cat asteptam dupa export inainte sa cerem fereastra. Omul trebuie sa apuce
  * sa vada confirmarea exportului; o fereastra Play aparuta peste ea arata ca o
  * reclama, nu ca o intrebare.
@@ -90,17 +83,6 @@ function laUrmatoareaVedere(fn: () => void): void {
 /** De chemat dupa fiecare export reusit. Decide singur daca intreaba. */
 export function maybeAskForReview(exported: number, now: number = Date.now()): void {
   if (!shouldAskForReview({ available: isInAppReviewAvailable(), asked: readReviewAsked(), exported })) return;
-  markReviewAsked(now);
-  laUrmatoareaVedere(() => { void requestInAppReview(); });
-}
-
-export function shouldAskForReviewAfterFreed(opts: { available: boolean; asked: boolean; freedBytes: number }): boolean {
-  return opts.available && !opts.asked && opts.freedBytes >= MIN_FREED_BYTES_FOR_REVIEW;
-}
-
-/** De chemat după o ștergere confirmată care trece pragul de spațiu eliberat. */
-export function maybeAskForReviewAfterFreed(freedBytes: number, now: number = Date.now()): void {
-  if (!shouldAskForReviewAfterFreed({ available: isInAppReviewAvailable(), asked: readReviewAsked(), freedBytes })) return;
   markReviewAsked(now);
   laUrmatoareaVedere(() => { void requestInAppReview(); });
 }
