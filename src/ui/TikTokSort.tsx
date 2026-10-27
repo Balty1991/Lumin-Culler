@@ -696,6 +696,19 @@ export function TikTokSort() {
                     containerului plin ecran), deci ramane lipit de imagine la
                     orice raport de aspect. */}
                 {formatLabel && <span className="tiktok-format-badge mono" aria-hidden="true">{formatLabel}</span>}
+                {/* Redesign v3: AI-ul „se vede lucrând” — colțuri de scanare pe
+                    marginea pozei și ce a măsurat, în clar. Ancorate la cutia
+                    pozei, nu la ecran, deci stau pe imagine la orice format. */}
+                {current && zoomScale === 1 && (
+                  <>
+                    <span className="v3-hud" aria-hidden="true"><i /><i /><i /><i /></span>
+                    <span className="v3-hud-chips mono" aria-hidden="true">
+                      <b>{tr('v3.hud.sharp')} {Math.round(current.sharpness)}</b>
+                      <b>{tr('v3.hud.exposure')} {Math.abs(current.exposure - 50) <= 15 ? 'OK' : current.exposure < 50 ? '−' : '+'}</b>
+                      {current.faceCount > 0 && <b>{tr(current.allEyesOpen ? 'v3.hud.eyesOk' : 'v3.hud.eyesClosed')}</b>}
+                    </span>
+                  </>
+                )}
               </span>
             )}
           </div>
@@ -709,6 +722,12 @@ export function TikTokSort() {
               iar motivele si data intra pe un singur rand care se taie cu "..."
               in loc sa curga pe mai multe. */}
           <div className="tiktok-caption" ref={captionRef}>
+            {current && (
+              <div className="v3-confidence" aria-label={tr('v3.hud.score', { score: current.aiScore })}>
+                <span className="mono">{tr('v3.hud.score', { score: current.aiScore })}</span>
+                <div className="v3-bar"><i style={{ width: `${Math.max(2, Math.min(100, current.aiScore))}%` }} /></div>
+              </div>
+            )}
             <div className="tiktok-chip-row">
               {/* Pe o poza DECISA, pastila devine buton: deschide "De ce ai decis
                   asa?". Cerinta directa a utilizatorului — vrea sa spuna

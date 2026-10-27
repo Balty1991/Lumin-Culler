@@ -210,3 +210,71 @@ h1, h2, h3, .brand-name { font-family: var(--font-display); letter-spacing: -0.0
     linear-gradient(90deg, rgb(106 90 240 / 0.05) 1px, transparent 1px);
 }
 :root[data-theme="light"] .v3-ring { background: conic-gradient(var(--accent) 0%, var(--accent-2) calc(var(--p) * 1%), rgb(16 22 34 / 0.08) calc(var(--p) * 1%)); }
+
+/* ── Acasă v3: „Ziua de azi” (ui/TodayCard.tsx) ───────────────────── */
+.v3-today { display: flex; flex-direction: column; gap: 14px; margin: 6px 0 20px; }
+.v3-today-title {
+  margin: 0; font-family: var(--font-display); font-size: 30px; font-weight: 600;
+  line-height: 1.12; letter-spacing: -0.01em;
+}
+.v3-today-title em { font-style: normal; color: var(--accent); }
+.v3-today-panel { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.v3-today-thumbs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.v3-today-thumb {
+  position: relative; aspect-ratio: 3 / 4; border-radius: 10px; overflow: hidden;
+  border: 1px solid rgb(var(--accent-rgb) / 0.5); background: var(--surface-3);
+}
+.v3-today-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.v3-today-thumb b {
+  position: absolute; left: 5px; bottom: 5px; font-size: 10px; font-weight: 500;
+  color: var(--accent); background: rgb(6 7 10 / 0.72); padding: 1px 5px; border-radius: 4px;
+}
+.v3-cta {
+  height: 52px; border-radius: 14px; border: none; background: var(--accent); color: var(--on-accent);
+  font-family: var(--sans); font-size: 15px; font-weight: 600;
+  display: flex; align-items: center; justify-content: space-between; padding: 0 18px;
+}
+.v3-cta .v3-mono { font-size: 12px; }
+.v3-cta.ghosted { background: transparent; color: var(--pick); border: 1px solid rgb(var(--pick-rgb) / 0.35); }
+.v3-history { display: flex; flex-direction: column; gap: 8px; }
+.v3-history-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line);
+  background: var(--glass-bg); color: var(--text); font-size: 14px; text-transform: capitalize;
+}
+.v3-history-row .v3-mono { font-size: 12px; text-transform: none; }
+.v3-history-row:disabled { opacity: 1; cursor: default; }
+
+/* Cardul de acord de pe Acasă: violet, ca tot ce ține de modelul tău. */
+.home-ai-card {
+  border: 1px solid rgb(var(--accent-2-rgb) / 0.28) !important;
+  background: rgb(var(--accent-2-rgb) / 0.06) !important;
+  border-radius: 18px !important;
+}
+
+/* ── Sortare v3: HUD-ul AI peste poză (ui/TikTokSort.tsx) ─────────── */
+.v3-hud { position: absolute; inset: 10px; pointer-events: none; }
+.v3-hud i { position: absolute; width: 22px; height: 22px; border: 0 solid var(--accent); opacity: .9; }
+.v3-hud i:nth-child(1) { left: 0; top: 0; border-left-width: 2px; border-top-width: 2px; border-top-left-radius: 6px; }
+.v3-hud i:nth-child(2) { right: 0; top: 0; border-right-width: 2px; border-top-width: 2px; border-top-right-radius: 6px; }
+.v3-hud i:nth-child(3) { left: 0; bottom: 0; border-left-width: 2px; border-bottom-width: 2px; border-bottom-left-radius: 6px; }
+.v3-hud i:nth-child(4) { right: 0; bottom: 0; border-right-width: 2px; border-bottom-width: 2px; border-bottom-right-radius: 6px; }
+.v3-hud-chips {
+  position: absolute; left: 18px; top: 18px; display: flex; flex-wrap: wrap; gap: 6px;
+  pointer-events: none; max-width: calc(100% - 36px);
+}
+.v3-hud-chips b {
+  font-size: 10px; font-weight: 500; letter-spacing: .06em; color: #a8f2ff;
+  padding: 4px 7px; border-radius: 6px; background: rgb(6 7 10 / .7);
+  border: 1px solid rgb(94 230 255 / .3);
+}
+.v3-confidence { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.v3-confidence .mono { font-size: 11px; color: var(--accent); letter-spacing: .08em; }
+.v3-confidence .v3-bar > i { background: var(--accent-gradient); }
+
+/* „Învață-mă” în limbajul v3 */
+.taste-quiz-step { font-family: var(--mono); letter-spacing: .1em; text-transform: uppercase; font-size: 11px; color: var(--text-faint); }
+.taste-quiz-bar span { background: var(--accent-gradient); }
+.taste-quiz-photo { border: 1px solid var(--line); background: var(--surface-3); }
+.taste-quiz-photo:active, .taste-quiz-photo:focus-visible { border: 1.5px solid var(--accent); }
+.taste-quiz h2 { font-family: var(--font-display); font-weight: 600; }

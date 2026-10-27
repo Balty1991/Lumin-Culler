@@ -43,7 +43,7 @@ const TREND_NOISE_POINTS = 2;
 export function AiProfileCard() {
   const locale = useStore(s => s.locale);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
-  const setInsightsOpen = useStore(s => s.setInsightsOpen);
+  const setInsightsOpen = useStore(s => s.setAiProfileOpen);
   const [accuracy, setAccuracy] = useState<AccuracySummary | null>(null);
   /**
    * Cate decizii ale tale exista, indiferent daca ajung sau nu la un procent.

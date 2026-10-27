@@ -32,7 +32,7 @@ async function writeCorrections(agreed: number, wrong: number): Promise<void> {
 beforeEach(async () => {
   seq = 0;
   await db.corrections.clear();
-  useStore.setState({ insightsOpen: false });
+  useStore.setState({ insightsOpen: false, aiProfileOpen: false });
 });
 
 describe('cand cifra n-ar insemna nimic, nu se arata nicio cifra', () => {
@@ -116,6 +116,6 @@ describe('cardul duce undeva', () => {
     await writeCorrections(20, 4);
     render(<AiProfileCard />);
     fireEvent.click(await screen.findByRole('button'));
-    expect(useStore.getState().insightsOpen).toBe(true);
+    expect(useStore.getState().aiProfileOpen).toBe(true);
   });
 });
