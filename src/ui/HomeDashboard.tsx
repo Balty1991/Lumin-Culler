@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useStore, type PhotoView } from '../state/store';
 import { isReviewQueue } from '../core/singletonVerdict';
 import { openTasteQuiz, readTasteQuizDone } from '../state/tasteQuiz';
+import { TodayCard } from './TodayCard';
 import { TASTE_QUIZ_MIN_PHOTOS } from '../core/tastePairs';
 import { returnVisitPrompt, readLastVisit, writeLastVisit } from '../state/returnVisit';
 import { pickResumeTarget } from '../state/resumeProject';
@@ -268,6 +269,7 @@ export function HomeDashboard({ onAddPhotos }: { onAddPhotos: () => void }) {
 
   return (
     <div className="home-dash concept-home">
+      <TodayCard />
       <div className="home-greet">
         <span className="home-greet-hello">{tr(greetingKey(now.getHours()))}</span>
         {/* Sub-randul dispare cat timp cardul de rezumat e pe ecran: amandoua

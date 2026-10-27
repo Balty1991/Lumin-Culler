@@ -103,6 +103,53 @@ class NotificationsPlugin : Plugin() {
      * il vede in Setari > Aplicatii > Notificari, unde poate opri exact acest
      * tip de notificare fara sa le opreasca pe toate.
      */
+    /** Notificarea de seară „Ziua de azi” — vezi DailyDigestReceiver. Textele au {n} pentru numărul de poze. */
+    @PluginMethod
+    fun scheduleDailyDigest(call: PluginCall) {
+        runCatching {
+            DailyDigestReceiver.schedule(
+                context,
+                call.getInt("hour") ?: 20,
+                call.getInt("minute") ?: 30,
+                call.getString("title") ?: "{n}",
+                call.getString("body") ?: "",
+                call.getString("channelName") ?: "Today"
+            )
+        }
+        call.resolve()
+    }
+
+    @PluginMethod
+    fun cancelDailyDigest(call: PluginCall) {
+        runCatching { DailyDigestReceiver.cancel(context) }
+        call.resolve()
+    }
+
+    /**
+     * Cu ce a fost deschisă aplicația (ex. „today” din notificarea de seară).
+     * Se citește o singură dată: după răspuns, extra-ul e șters.
+     */
+    @PluginMethod
+    fun consumeLaunchAction(call: PluginCall) {
+        val result = JSObject()
+        val intent = activity?.intent
+        val action = intent?.getStringExtra(DailyDigestReceiver.EXTRA_ACTION)
+        if (action != null) {
+            intent.removeExtra(DailyDigestReceiver.EXTRA_ACTION)
+            result.put("action", action)
+        }
+        call.resolve(result)
+    }
+
+    override fun handleOnNewIntent(intent: android.content.Intent) {
+        super.handleOnNewIntent(intent)
+        val action = intent.getStringExtra(DailyDigestReceiver.EXTRA_ACTION) ?: return
+        activity?.intent = intent
+        val data = JSObject()
+        data.put("action", action)
+        notifyListeners("launchAction", data)
+    }
+
     @PluginMethod
     fun show(call: PluginCall) {
         val title = call.getString("title")

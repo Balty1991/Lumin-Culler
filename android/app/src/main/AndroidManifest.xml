@@ -38,6 +38,11 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <!-- „Ziua de azi”: alarma de seară, vezi plugins/DailyDigestReceiver.kt. -->
+        <receiver
+            android:name=".plugins.DailyDigestReceiver"
+            android:exported="false" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

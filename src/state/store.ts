@@ -73,6 +73,7 @@ import {
 } from '../core/scanSummary';
 import { isReviewQueue } from '../core/singletonVerdict';
 import type { TasteAnswer } from '../core/tastePairs';
+import { startOfDay } from '../core/todayDigest';
 import { summariseFeedback } from '../core/aiFeedback';
 import { recordImportOutcome, summariseOutcomes } from '../core/importOutcome';
 import { keepScreenAwake } from '../core/wakeLock';
@@ -675,6 +676,8 @@ interface AppState {
    * n-a avut de unde (fara plugin nativ, fara semn de carte, acces limitat).
    */
   importNewSinceLastCull: () => Promise<number | null>;
+  /** „Ziua de azi”: aduce și sortează pozele făcute azi (cele deja aduse sunt sărite). Întoarce câte s-au adus. */
+  importToday: () => Promise<number | null>;
   /** Sare peste o perioada FARA sa o aduca — avanseaza cursorul ca si cum ar fi fost acoperita, ca supervizorul sa nu o mai recomande. */
   skipGalleryPeriod: (period: GalleryPeriod) => void;
   /** Panoul complet (lungime perioada, selector calendaristic, foldere) — vezi GallerySupervisorPanel.tsx. Redeschis oricand din Meniu, chiar daca bannerul de pe Acasa a fost inchis pentru ziua curenta. */
@@ -2402,6 +2405,38 @@ export const useStore = create<AppState>((set, get) => ({
    * Semnul de carte nu se avanseaza aici: o face runImport la finalul oricarui
    * import reusit, si tot de acolo, dintr-un singur loc.
    */
+  importToday: async () => {
+    if (get().supervisorImporting) return null;
+    if (!isNativeMediaLibraryAvailable()) return null;
+    if ((await getPhotosAccess()) === 'limited') {
+      set({ notice: t(get().locale, 'gallerySupervisor.noAccess') });
+      return null;
+    }
+    set({ supervisorImporting: true });
+    const locale = get().locale;
+    const beforeIds = new Set(get().photos.map(p => p.id));
+    const releaseWakeLock = keepScreenAwake();
+    try {
+      const read = await pickPhotosInRange(startOfDay(), Date.now() + 1, (done, total) =>
+        set({ progress: { done, total, fileName: '', phase: 'citire' } })
+      );
+      set({ progress: null });
+      if (!read.granted) {
+        set({ notice: t(locale, 'gallerySupervisor.noAccess') });
+        return null;
+      }
+      if (!read.photos.length) return 0;
+      await get().runImport(read.photos.map(p => p.file), undefined, read.photos.map(p => p.uri));
+      return get().photos.filter(p => !beforeIds.has(p.id)).length;
+    } catch (err) {
+      set({ notice: t(locale, 'gallerySupervisor.failed', { error: String(err) }) });
+      return null;
+    } finally {
+      releaseWakeLock();
+      set({ supervisorImporting: false });
+    }
+  },
+
   importNewSinceLastCull: async () => {
     if (get().supervisorImporting) return null;
     if (!isNativeMediaLibraryAvailable()) return null;

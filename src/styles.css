@@ -5206,3 +5206,14 @@ html:has(> body .welcome-screen) {
 .taste-quiz-bar { height: 4px; border-radius: 2px; background: rgba(255, 255, 255, .1); margin-top: 18px; width: 100%; overflow: hidden; }
 .taste-quiz-bar span { display: block; height: 100%; background: linear-gradient(90deg, #8b7bff, #5fd4e8); transition: width .25s ease; }
 .taste-quiz-notes { text-align: left; margin: 8px 0 18px; padding-left: 20px; line-height: 1.5; }
+
+/* „Ziua de azi” (ui/TodayCard.tsx): primul lucru de pe Acasă. */
+.today-card {
+  display: flex; flex-direction: column; gap: 6px; margin: 4px 0 16px; padding: 18px;
+  border-radius: 20px; background: linear-gradient(135deg, rgba(139, 123, 255, .18), rgba(95, 212, 232, .12));
+  border: 1px solid rgba(139, 123, 255, .3);
+}
+.today-card-kicker { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; opacity: .75; }
+.today-card-title { font-size: 20px; line-height: 1.25; }
+.today-card-sub { opacity: .8; line-height: 1.4; }
+.today-card-cta { align-self: flex-start; margin-top: 8px; }

@@ -1,5 +1,6 @@
 import { isReviewQueue } from './core/singletonVerdict';
 import { TasteQuiz } from './ui/TasteQuiz';
+import { dayStats, onTodayLaunch, scheduleDailyDigest } from './core/todayDigest';
 import { Fragment, useEffect, useMemo, useRef, useState, lazy, Suspense, type ComponentType, type CSSProperties, type ReactNode } from 'react';
 import { useStore, isAnyOverlayOpen, reviewDifficulty, type FilterKey } from './state/store';
 import { PhotoCard } from './ui/PhotoCard';
@@ -396,6 +397,27 @@ export default function App() {
   }, []);
 
   useEffect(() => { void boot(); }, [boot]);
+
+  // „Ziua de azi”: notificarea de seară se (re)programează la fiecare pornire,
+  // în limba curentă; deschiderea din ea aduce și sortează pozele zilei.
+  const locale0 = useStore(s => s.locale);
+  useEffect(() => {
+    void scheduleDailyDigest({
+      title: t(locale0, 'today.notify.title'),
+      body: t(locale0, 'today.notify.body'),
+      channelName: t(locale0, 'today.notify.channel')
+    });
+  }, [locale0]);
+  useEffect(() => {
+    let stop: (() => void) | undefined;
+    void onTodayLaunch(() => {
+      void useStore.getState().importToday().then(() => {
+        const ids = dayStats(useStore.getState().photos).reviewIds;
+        if (ids.length) useStore.getState().openTiktokSortForIds(ids);
+      });
+    }).then(fn => { stop = fn; });
+    return () => stop?.();
+  }, []);
 
   // Butonul/gestul hardware Android de "inapoi" — no-op automat in afara pachetului nativ
   // Capacitor (vezi core/androidBackButton.ts). Un singur listener global, cat aplicatia
