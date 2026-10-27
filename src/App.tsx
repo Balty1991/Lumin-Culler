@@ -1,5 +1,6 @@
 import { isReviewQueue } from './core/singletonVerdict';
 import { TasteQuiz } from './ui/TasteQuiz';
+import { AiProfileScreen } from './ui/AiProfileScreen';
 import { dayStats, onTodayLaunch, scheduleDailyDigest } from './core/todayDigest';
 import { Fragment, useEffect, useMemo, useRef, useState, lazy, Suspense, type ComponentType, type CSSProperties, type ReactNode } from 'react';
 import { useStore, isAnyOverlayOpen, reviewDifficulty, type FilterKey } from './state/store';
@@ -912,6 +913,8 @@ export default function App() {
         <SmartInboxPanel />
         <MomentsPanel />
         <AlbumsPanel />
+      <AiProfileScreen />
+        <AiProfileScreen />
         <ExactDupesPanel />
         <GallerySupervisorPanel />
         <ConfirmDialog />

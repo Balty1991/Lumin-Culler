@@ -1,7 +1,7 @@
 import { useRef, type CSSProperties } from 'react';
 import { useStore } from '../state/store';
 import { isReviewQueue } from '../core/singletonVerdict';
-import { HomeIcon, GridIcon, PersonIcon, UploadIcon, GearIcon } from './icons';
+import { HomeIcon, GridIcon, LayersIcon, SparkleIcon } from './icons';
 import { t } from '../i18n';
 
 /**
@@ -32,6 +32,8 @@ export function BottomNav() {
   const setPersonsOpen = useStore(s => s.setPersonsOpen);
   const albumsOpen = useStore(s => s.albumsOpen);
   const setAlbumsOpen = useStore(s => s.setAlbumsOpen);
+  const aiProfileOpen = useStore(s => s.aiProfileOpen);
+  const setAiProfileOpen = useStore(s => s.setAiProfileOpen);
   const menuOpen = useStore(s => s.menuOpen);
   const setMenuOpen = useStore(s => s.setMenuOpen);
   const exportDestinationsOpen = useStore(s => s.exportDestinationsOpen);
@@ -47,18 +49,18 @@ export function BottomNav() {
 
   const toReview = photos.filter(p => isReviewQueue(p)).length;
 
-  const closePanels = () => { setCollectionsOpen(false); setPersonsOpen(false); setAlbumsOpen(false); setMenuOpen(false); setExportDestinationsOpen(false); };
+  const closePanels = () => { setCollectionsOpen(false); setPersonsOpen(false); setAlbumsOpen(false); setAiProfileOpen(false); setMenuOpen(false); setExportDestinationsOpen(false); };
   // `!tiktokSortOpen`: revizuirea se deschide PESTE grila — fara conditia asta,
   // Grila ramanea marcata activa si sub sortarea rapida, si bara nu mai spunea
   // unde esti, ci unde ai fost.
-  const isGridActive = homeGridOpen && !tiktokSortOpen && !collectionsOpen && !personsOpen && !albumsOpen && !menuOpen && !exportDestinationsOpen;
+  const isGridActive = homeGridOpen && !tiktokSortOpen && !collectionsOpen && !personsOpen && !albumsOpen && !aiProfileOpen && !menuOpen && !exportDestinationsOpen;
   /**
    * "Acasa" e activ cand nu esti nici in grila, nici intr-un panou — adica pe
    * tabloul de bord. Aceeasi conditie ca la Grila, doar cu `homeGridOpen`
    * negat, ca cele doua sa nu poata fi niciodata amandoua active sau amandoua
    * stinse.
    */
-  const isHomeActive = !homeGridOpen && !tiktokSortOpen && !collectionsOpen && !personsOpen && !albumsOpen && !menuOpen && !exportDestinationsOpen;
+  const isHomeActive = !homeGridOpen && !tiktokSortOpen && !collectionsOpen && !personsOpen && !albumsOpen && !aiProfileOpen && !menuOpen && !exportDestinationsOpen;
 
   /**
    * Grila se deschide pe "De verificat", nu pe "Toate" — cerinta utilizatorului
@@ -95,8 +97,9 @@ export function BottomNav() {
   // meniu; utilizatorul nu le-a găsit. Tabul „Persoane” devine „Albume”:
   // persoanele sunt primul rând din ele.
   const goAlbums = () => { closePanels(); setAlbumsOpen(true); };
-  const goExport = () => { closePanels(); setExportDestinationsOpen(true); };
-  const goSettings = () => { closePanels(); setMenuOpen(true); };
+  // Redesign v3: Export și Setări au ieșit din bară (rămân în capul ecranului);
+  // al patrulea tab e modelul tău de AI.
+  const goProfile = () => { closePanels(); setAiProfileOpen(true); };
 
   /**
    * Pastila care marcheaza tabul activ GLISEAZA intre taburi, in loc sa apara
@@ -125,7 +128,7 @@ export function BottomNav() {
    * plasa de siguranta din styles.css scurteaza tranzitia la ~0 (nu o anuleaza),
    * ca inainte.
    */
-  const activeIndex = isHomeActive ? 0 : isGridActive ? 1 : albumsOpen ? 2 : exportDestinationsOpen ? 3 : menuOpen ? 4 : -1;
+  const activeIndex = isHomeActive ? 0 : isGridActive ? 1 : albumsOpen ? 2 : aiProfileOpen ? 3 : -1;
   const pastila = (
     <span className="bottom-nav-pill-track" aria-hidden="true">
       <span
@@ -141,24 +144,20 @@ export function BottomNav() {
       {pastila}
       <button className={isHomeActive ? 'bottom-nav-tab active' : 'bottom-nav-tab'} onClick={goHome} aria-current={isHomeActive}>
         <HomeIcon />
-        <span>{tr('nav.home')}</span>
+        <span>{tr('nav.today')}</span>
       </button>
       <button className={isGridActive ? 'bottom-nav-tab active' : 'bottom-nav-tab'} onClick={goGrid} aria-current={isGridActive}>
         <GridIcon />
-        <span>{tr('nav.grid')}</span>
+        <span>{tr('nav.sort')}</span>
         {toReview > 0 && !isGridActive && <b className="bottom-nav-badge mono">{toReview > 99 ? '99+' : toReview}</b>}
       </button>
       <button className={albumsOpen ? 'bottom-nav-tab active' : 'bottom-nav-tab'} onClick={goAlbums} aria-current={albumsOpen}>
-        <PersonIcon />
+        <LayersIcon />
         <span>{tr('nav.albums')}</span>
       </button>
-      <button className={exportDestinationsOpen ? 'bottom-nav-tab active' : 'bottom-nav-tab'} onClick={goExport} aria-current={exportDestinationsOpen}>
-        <UploadIcon />
-        <span>{tr('nav.export')}</span>
-      </button>
-      <button className={menuOpen ? 'bottom-nav-tab active' : 'bottom-nav-tab'} onClick={goSettings} aria-current={menuOpen}>
-        <GearIcon />
-        <span>{tr('nav.settings')}</span>
+      <button className={aiProfileOpen ? 'bottom-nav-tab active' : 'bottom-nav-tab'} onClick={goProfile} aria-current={aiProfileOpen}>
+        <SparkleIcon />
+        <span>{tr('nav.ai')}</span>
       </button>
     </nav>
   );

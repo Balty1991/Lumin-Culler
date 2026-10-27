@@ -496,6 +496,9 @@ interface AppState {
   /** Albume virtuale (persoane, animale, evenimente). Nu mută fișiere. */
   albumsOpen: boolean;
   setAlbumsOpen: (open: boolean) => void;
+  /** Ecranul „AI-ul tău” (ui/AiProfileScreen.tsx), al patrulea tab. */
+  aiProfileOpen: boolean;
+  setAiProfileOpen: (open: boolean) => void;
   /**
    * "Mod profesional": arata in meniu si functiile de dupa triaj (XMP, contact
    * sheet, galerie client, watermark, proiecte, gen fotografic, locatii).
@@ -1886,6 +1889,8 @@ export const useStore = create<AppState>((set, get) => ({
   setMomentsOpen: open => set({ momentsOpen: open }),
   albumsOpen: false,
   setAlbumsOpen: open => set({ albumsOpen: open }),
+  aiProfileOpen: false,
+  setAiProfileOpen: open => set({ aiProfileOpen: open }),
   proMode: readProMode(),
   setProMode: on => {
     writeProMode(on);
@@ -5157,7 +5162,7 @@ export function isAnyOverlayOpen(): boolean {
     s.paletteOpen || s.shortcutsOpen || s.clipLabOpen || s.menuOpen || s.personsOpen || s.insightsOpen ||
     s.batchOpsOpen || s.statsOpen || s.projectsOpen || s.contactSheetOpen || s.presentationOpen ||
     s.appearanceOpen || s.collectionsOpen || s.documentShieldOpen || s.duplicatesPanelOpen ||
-    s.rescueQueueOpen || s.smartInboxOpen || s.momentsOpen || s.albumsOpen || s.exactDupesOpen ||
+    s.rescueQueueOpen || s.smartInboxOpen || s.momentsOpen || s.albumsOpen || s.aiProfileOpen || s.exactDupesOpen ||
     s.exportDestinationsOpen || s.premiumOpen || s.searchPanelOpen || s.supervisorPanelOpen ||
     s.tiktokSortOpen || s.locationsOpen || s.vaultOpen || s.zenPanelOpen || s.guideOpen ||
     s.compareGroupId || s.editingPhotoId || s.dialogRequest

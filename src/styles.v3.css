@@ -1,0 +1,212 @@
+/*
+ * styles.v3.css — „AI-ul tău de sortare” (redesign aprobat, oct. 2026).
+ *
+ * Se încarcă ULTIMUL (main.tsx), deci redefinește tokenii din styles.css și
+ * styles.concept.css fără să-i atingă: negru adânc cu grilă fină, sticlă cu
+ * margini subțiri, un accent cyan electric și violet pentru tot ce ține de
+ * modelul învățat. Datele (scoruri, contoare, stări) în monospace, ca la un
+ * instrument; titlurile în Sora. Fonturile sunt auto-găzduite (SIL OFL,
+ * @fontsource-variable), CSP-ul aplicației nu permite fonturi din rețea.
+ *
+ * Tema luminoasă și accentele alese de om (:root[data-theme], [data-accent])
+ * au specificitate mai mare decât :root și rămân cum erau.
+ */
+@import '@fontsource-variable/sora';
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/jetbrains-mono';
+
+:root {
+  --bg: #06070a;
+  --surface: #0d1016;
+  --surface-2: #10131a;
+  --surface-3: #161a23;
+  --line: rgb(238 241 246 / 0.08);
+  --line-strong: rgb(238 241 246 / 0.16);
+  --text: #eef1f6;
+  --text-dim: #9aa3b2;
+  --text-faint: #8a93a3;
+
+  --accent: #5ee6ff;
+  --accent-2: #9b8cff;
+  --accent-rgb: 94 230 255;
+  --accent-2-rgb: 155 140 255;
+  --accent-gradient: linear-gradient(90deg, #5ee6ff 0%, #9b8cff 100%);
+  --accent-text: #5ee6ff;
+  --accent-2-text: #b9aeff;
+  --on-accent: #031016;
+
+  --pick: #7cffb2;
+  --pick-rgb: 124 255 178;
+  --reject: #ff8a8a;
+  --reject-rgb: 255 138 138;
+  --review: #ffc46b;
+  --review-rgb: 255 196 107;
+
+  --sans: "Inter Variable", -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "JetBrains Mono Variable", "SF Mono", Consolas, monospace;
+  --font-display: "Sora Variable", var(--sans);
+
+  --glass-bg: rgb(16 19 26 / 0.82);
+  --glass-border: rgb(255 255 255 / 0.08);
+
+  /* tokenii din styles.concept.css (atelier-*) urmează aceeași paletă */
+  --atelier-canvas: #06070a;
+  --atelier-panel: #0d1016;
+  --atelier-panel-raised: #10131a;
+  --atelier-line: rgb(238 241 246 / 0.08);
+  --atelier-line-strong: rgb(238 241 246 / 0.16);
+  --atelier-ink: #eef1f6;
+  --atelier-muted: #9aa3b2;
+  --atelier-teal: #5ee6ff;
+  --atelier-violet: #9b8cff;
+}
+
+/* Grila fină de fundal: semnul vizual al „instrumentului”. Doar pe tema întunecată. */
+:root:not([data-theme="light"]) body {
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(rgb(94 230 255 / 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(94 230 255 / 0.03) 1px, transparent 1px);
+  background-size: 26px 26px;
+}
+:root:not([data-theme="light"]) body::before { background: none; }
+
+h1, h2, h3, .brand-name { font-family: var(--font-display); letter-spacing: -0.01em; }
+
+/* Butonul principal: cyan plin, text închis. */
+.btn-accent, .primary {
+  background: var(--accent);
+  color: var(--on-accent);
+  border: none;
+  box-shadow: none;
+}
+
+/* Bara de jos: plutitoare, 4 taburi (Azi · Sortare · Albume · AI-ul tău). */
+.bottom-nav {
+  background: rgb(14 16 22 / 0.92);
+  border: 1px solid rgb(255 255 255 / 0.08);
+  border-radius: 22px;
+}
+.bottom-nav-pill-track { grid-template-columns: repeat(4, 1fr); }
+.bottom-nav-pill {
+  background: rgb(94 230 255 / 0.1);
+  box-shadow: inset 0 0 0 1px rgb(94 230 255 / 0.35);
+}
+.bottom-nav-tab { color: #7a8394; font-family: var(--sans); }
+.bottom-nav-tab.active { color: var(--accent); background: transparent; }
+
+/* ── Elemente comune v3 ─────────────────────────────────────────────── */
+.v3-kicker {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.v3-panel {
+  border-radius: 22px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  backdrop-filter: blur(18px);
+}
+.v3-mono { font-family: var(--mono); }
+.v3-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.v3-stats > div { background: var(--surface-2); padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.v3-stats b { font-family: var(--mono); font-size: 18px; font-weight: 500; color: var(--text); }
+.v3-stats span { font-size: 11px; color: var(--text-dim); }
+.v3-bar { height: 4px; border-radius: 2px; background: rgb(255 255 255 / 0.07); overflow: hidden; }
+.v3-bar > i { display: block; height: 100%; border-radius: 2px; background: var(--accent); }
+.v3-bar.violet > i { background: var(--accent-2); }
+
+/* Ecran întreg v3 (AI-ul tău): deasupra conținutului, sub bara de jos. */
+.v3-screen {
+  position: fixed; inset: 0; z-index: 60; overflow-y: auto;
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(rgb(155 140 255 / 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(155 140 255 / 0.035) 1px, transparent 1px);
+  background-size: 26px 26px;
+}
+.v3-screen-inner {
+  max-width: 560px; margin: 0 auto; box-sizing: border-box;
+  padding: calc(18px + var(--safe-top, 0px)) 18px calc(110px + var(--safe-bottom, 0px));
+  display: flex; flex-direction: column; gap: 16px;
+}
+.v3-screen-head { display: flex; align-items: center; justify-content: space-between; }
+.v3-profile-hero { display: flex; align-items: center; gap: 18px; }
+.v3-profile-hero-text { display: flex; flex-direction: column; gap: 6px; }
+.v3-profile-hero-text h2 { margin: 0; font-size: 22px; }
+.v3-profile-hero-text p { margin: 0; color: var(--text-dim); font-size: 13px; line-height: 1.45; }
+.v3-profile-hero-text .v3-mono { font-size: 11px; }
+.v3-ring {
+  flex: 0 0 auto; width: 104px; height: 104px; border-radius: 50%;
+  background: conic-gradient(var(--accent) 0%, var(--accent-2) calc(var(--p) * 1%), rgb(255 255 255 / 0.07) calc(var(--p) * 1%));
+  display: flex; align-items: center; justify-content: center; position: relative;
+}
+.v3-ring::before { content: ""; position: absolute; inset: 7px; border-radius: 50%; background: var(--bg); }
+.v3-ring span { position: relative; font-family: var(--font-display); font-size: 28px; font-weight: 600; }
+.v3-ring small { font-size: 14px; color: var(--text-faint); }
+.v3-weights { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.v3-weight { display: flex; flex-direction: column; gap: 6px; }
+.v3-weight > div:first-child { display: flex; justify-content: space-between; font-size: 13px; }
+.v3-weight .v3-mono { color: var(--accent); font-size: 12px; }
+.v3-outline-btn {
+  height: 50px; border-radius: 14px; border: 1px solid rgb(var(--accent-rgb) / 0.4);
+  background: transparent; color: var(--accent); font-weight: 600; font-size: 14px;
+}
+.v3-wide-btn { height: 50px; border-radius: 14px; font-weight: 600; }
+.v3-center { text-align: center; }
+
+/* ── Tema luminoasă v3: aceeași structură, „laborator” în loc de „noapte” ── */
+:root[data-theme="light"] {
+  --bg: #f3f5f9;
+  --surface: #ffffff;
+  --surface-2: #ffffff;
+  --surface-3: #eef1f6;
+  --line: rgb(16 22 34 / 0.09);
+  --line-strong: rgb(16 22 34 / 0.18);
+  --text: #0e1320;
+  --text-dim: #4a5366;
+  --text-faint: #5d6678;
+  --accent: #0a8fb0;
+  --accent-2: #6a5af0;
+  --accent-rgb: 10 143 176;
+  --accent-2-rgb: 106 90 240;
+  --accent-text: #087894;
+  --accent-2-text: #5646d6;
+  --on-accent: #ffffff;
+  --pick: #13a35b;
+  --reject: #d64545;
+  --review: #b9770e;
+  --glass-bg: rgb(255 255 255 / 0.86);
+  --glass-border: rgb(16 22 34 / 0.08);
+  --atelier-canvas: #f3f5f9;
+  --atelier-panel: #ffffff;
+  --atelier-panel-raised: #ffffff;
+  --atelier-ink: #0e1320;
+  --atelier-muted: #4a5366;
+  --atelier-teal: #0a8fb0;
+  --atelier-violet: #6a5af0;
+}
+:root[data-theme="light"] body {
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(rgb(10 143 176 / 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(10 143 176 / 0.05) 1px, transparent 1px);
+  background-size: 26px 26px;
+}
+:root[data-theme="light"] .bottom-nav { background: rgb(255 255 255 / 0.92); border-color: rgb(16 22 34 / 0.08); }
+:root[data-theme="light"] .bottom-nav-tab { color: #5d6678; }
+:root[data-theme="light"] .v3-screen {
+  background-image:
+    linear-gradient(rgb(106 90 240 / 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(106 90 240 / 0.05) 1px, transparent 1px);
+}
+:root[data-theme="light"] .v3-ring { background: conic-gradient(var(--accent) 0%, var(--accent-2) calc(var(--p) * 1%), rgb(16 22 34 / 0.08) calc(var(--p) * 1%)); }

@@ -29,7 +29,7 @@ function unaPoza(): PhotoView {
 }
 
 const INCHIS = {
-  collectionsOpen: false, personsOpen: false, albumsOpen: false, menuOpen: false,
+  collectionsOpen: false, personsOpen: false, albumsOpen: false, aiProfileOpen: false, menuOpen: false,
   exportDestinationsOpen: false, homeGridOpen: false, tiktokSortOpen: false
 };
 
@@ -54,8 +54,7 @@ describe('BottomNav — pastila tabului activ', () => {
     ['Acasa', {}, '0'],
     ['Grila', { homeGridOpen: true }, '1'],
     ['Albume', { albumsOpen: true }, '2'],
-    ['Export', { exportDestinationsOpen: true }, '3'],
-    ['Setari', { menuOpen: true }, '4']
+    ['AI-ul tau', { aiProfileOpen: true }, '3']
   ])('pe %s pastila sta pe coloana corespunzatoare', (_nume, stare, index) => {
     useStore.setState({ ...INCHIS, ...stare });
     const { container } = render(<BottomNav />);
@@ -70,7 +69,7 @@ describe('BottomNav — pastila tabului activ', () => {
     // tab activ" — e tabul zero, marcat ca atare.
     const { container } = render(<BottomNav />);
     expect(pastila(container).dataset.hidden).toBeUndefined();
-    expect(container.querySelectorAll('.bottom-nav-tab')).toHaveLength(5);
+    expect(container.querySelectorAll('.bottom-nav-tab')).toHaveLength(4);
   });
 
   it('Acasa si Grila nu pot fi active amandoua, si nici stinse amandoua', () => {
