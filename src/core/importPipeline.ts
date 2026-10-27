@@ -155,6 +155,25 @@ export const TEXT_DOMINANT_THRESHOLD = 0.15;
 /** Câte îmbogățiri de după primul rezultat (ochi, persoane, animale) rulează deodată. */
 const POST_CONCURRENCY = 2;
 
+/** Câte poze dintr-un lot se pregătesc și se analizează deodată. */
+const IMPORT_LANES = 3;
+
+/** Limitator simplu: cel mult `n` funcții rulează deodată, celelalte așteaptă la rând. */
+function createLanes(n: number) {
+  let active = 0;
+  const queue: Array<() => void> = [];
+  return async <T>(fn: () => Promise<T>): Promise<T> => {
+    while (active >= n) await new Promise<void>(resolve => queue.push(resolve));
+    active++;
+    try {
+      return await fn();
+    } finally {
+      active--;
+      queue.shift()?.();
+    }
+  };
+}
+
 /**
  * Exportat pentru core/reviewClusters.ts: rezumatul cozii de verificat trebuie
  * sa numere EXACT pozele pe care aceasta functie le-a oprit, nu poze care
@@ -1461,51 +1480,80 @@ export async function importFiles(
     stage1Ms += performance.now() - fingerStarted;
 
     const decideStarted = performance.now();
+    // Lotul se pregătește și se analizează pe mai multe benzi deodată, nu poză
+    // cu poză: analiza nativă primește 2–4 poze în paralel (workerPool.ts), iar
+    // bucla le dădea câte una. Raportat: 138 de poze în ~3 min 30 s.
+    // Doar alegerea „serie sau poză singură” rămâne în ordine, fiindcă se uită
+    // la pozele de dinainte; e o comparație de amprente, nu costă nimic.
+    const lane = createLanes(IMPORT_LANES);
+    const prepared = await Promise.all(
+      Array.from({ length: end - start }, (_, k) => lane(async () => {
+        const i = start + k;
+        if (stopKind || cancelToken?.cancelled) return null;
+        try {
+          return await stageOnePrepare(images[i].file, images[i].mediaUri, precomputed.get(i));
+        } catch (err) {
+          await noteFailure(images[i].file, err);
+          return null;
+        }
+      }))
+    );
+    const tasks = new Map<number, Promise<void>>();
+    const finishOne = (fileName: string) => {
+      done++;
+      onProgress({ done, total: images.length, fileName, phase: 'analiza' });
+    };
     for (let myIndex = start; myIndex < end; myIndex++) {
       if (stopKind) break;
       if (cancelToken?.cancelled) { stopKind = 'cancelled'; break; }
       const { file, handle, mediaUri } = images[myIndex];
-      try {
-        const ready = await stageOnePrepare(file, mediaUri, precomputed.get(myIndex));
-        staged[myIndex] = ready;
-        // Aceleași legături ca gruparea de la final (hashCompare.worker.ts):
-        // aproape identice oricând, sau ceva mai diferite dacă sunt la câteva
-        // zeci de secunde una de alta. Cu pragul vechi (12), rafalele făcute
-        // din mână treceau drept poze singure și erau păstrate toate.
-        const at = file.lastModified;
-        const mates = ready.dHash
-          ? seen.filter(s => s.hash && isSeriesCandidate(hamming64(ready.dHash, s.hash), Math.abs(at - s.at)))
-          : [];
-        const inLibrary = !!ready.dHash && libraryHashes.some(prev => prev && hamming64(ready.dHash, prev) <= SERIES_CANDIDATE_HAMMING);
-        const heavy = !ready.dHash || mates.length > 0 || inLibrary;
-        if (heavy) {
-          for (const mate of mates) {
-            if (!mate.heavy) await runHeavy(mate.index);
-          }
-          await runHeavy(myIndex);
-          if (!seen.some(s => s.index === myIndex)) {
-            seen.push({ id: ready.id, hash: ready.dHash, index: myIndex, heavy: true, at });
-          }
-        } else {
-          const { item, persisted } = await processOne(
-            file, genre, project, handle, mediaUri, thresholds,
-            mediaUri ? mediaLocations?.get(mediaUri) : undefined,
-            ready,
-            false
-          );
-          seen.push({ id: ready.id, hash: ready.dHash, index: myIndex, heavy: false, at });
-          persistedWrites.push(persisted.then(() => {
-            remember(item);
-            schedulePost(item, file, mediaUri);
-          }, err => noteFailure(file, err)));
-        }
-      } catch (err) {
-        await noteFailure(file, err);
-        if (stopKind) break;
+      const ready = prepared[myIndex - start];
+      if (!ready) { finishOne(file.name); continue; }
+      staged[myIndex] = ready;
+      const at = file.lastModified;
+      // Aceleași legături ca gruparea de la final (hashCompare.worker.ts):
+      // aproape identice oricând, sau ceva mai diferite dacă sunt la câteva
+      // zeci de secunde una de alta.
+      const mates = ready.dHash
+        ? seen.filter(s => s.hash && isSeriesCandidate(hamming64(ready.dHash, s.hash), Math.abs(at - s.at)))
+        : [];
+      const inLibrary = !!ready.dHash && libraryHashes.some(prev => prev && hamming64(ready.dHash, prev) <= SERIES_CANDIDATE_HAMMING);
+      const heavy = !ready.dHash || mates.length > 0 || inLibrary;
+      for (const mate of mates) {
+        if (mate.heavy) continue;
+        // Marcat înainte de rulare: altă poză din lot nu-l mai programează a doua oară.
+        mate.heavy = true;
+        const before = tasks.get(mate.index) ?? Promise.resolve();
+        tasks.set(mate.index, before.then(() => lane(async () => {
+          try { await runHeavy(mate.index); } catch (err) { await noteFailure(images[mate.index].file, err); }
+        })));
       }
-      done++;
-      onProgress({ done, total: images.length, fileName: file.name, phase: 'analiza' });
+      seen.push({ id: ready.id, hash: ready.dHash, index: myIndex, heavy, at });
+      tasks.set(myIndex, lane(async () => {
+        try {
+          if (stopKind || cancelToken?.cancelled) return;
+          if (heavy) {
+            await runHeavy(myIndex);
+          } else {
+            const { item, persisted } = await processOne(
+              file, genre, project, handle, mediaUri, thresholds,
+              mediaUri ? mediaLocations?.get(mediaUri) : undefined,
+              ready,
+              false
+            );
+            persistedWrites.push(persisted.then(() => {
+              remember(item);
+              schedulePost(item, file, mediaUri);
+            }, err => noteFailure(file, err)));
+          }
+        } catch (err) {
+          await noteFailure(file, err);
+        } finally {
+          finishOne(file.name);
+        }
+      }));
     }
+    await Promise.all(tasks.values());
     stage2Ms += performance.now() - decideStarted;
   }
   if (images.length) {

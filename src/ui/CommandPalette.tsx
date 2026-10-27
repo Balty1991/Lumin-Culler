@@ -1,3 +1,4 @@
+import { isReviewQueue } from '../core/singletonVerdict';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { AnimatePresence, m, useReducedMotion } from 'framer-motion';
 import { useStore, type FilterKey } from '../state/store';
@@ -108,7 +109,7 @@ export function CommandPalette() {
   const counts = useMemo(() => ({
     selected: photos.filter(p => p.status === 'selected').length,
     candidate: photos.filter(p => p.status === 'candidate').length,
-    review: photos.filter(p => p.status === 'review').length,
+    review: photos.filter(p => p.status === 'review' && isReviewQueue(p)).length,
     rejected: photos.filter(p => p.status === 'rejected').length,
     series: photos.filter(p => p.groupId).length,
     blinks: selectBlinks(photos).length,

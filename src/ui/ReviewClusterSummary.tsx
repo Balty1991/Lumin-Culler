@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useStore } from '../state/store';
+import { isReviewQueue } from '../core/singletonVerdict';
 import { clusterReviewQueue, worthSummarising, type ReviewCause } from '../core/reviewClusters';
 import { t, plural } from '../i18n';
 
@@ -44,7 +45,7 @@ export function ReviewClusterSummary() {
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
 
   const clusters = useMemo(
-    () => clusterReviewQueue(photos.filter(p => p.status === 'review')),
+    () => clusterReviewQueue(photos.filter(p => p.status === 'review' && isReviewQueue(p))),
     [photos]
   );
 
