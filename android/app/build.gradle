@@ -68,6 +68,19 @@ android {
             noCompress 'task', 'tflite', 'bin'
         }
     }
+    // Cheie FIXĂ pentru APK-urile de test. Fără ea, fiecare rulare CI semna
+    // cu o cheie de debug nouă, iar Android refuza să instaleze un APK nou
+    // peste cel vechi („Aplicația nu a fost instalată”), deci pe telefon rămânea
+    // versiunea veche (raportat: „e la fel” după redesign). E o cheie de
+    // debug standard (parola „android”), nu cea de release din keystore.properties.
+    signingConfigs {
+        luminDebug {
+            storeFile file('lumin-debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
     if (hasSigningConfig) {
         signingConfigs {
             release {
@@ -115,6 +128,7 @@ android {
         // minificat se construieste vizibil mai incet si are urme de stiva mai
         // greu de citit.
         debug {
+            signingConfig signingConfigs.luminDebug
             def minificaDebug = project.hasProperty('minifyDebug') && project.property('minifyDebug') == 'true'
             minifyEnabled minificaDebug
             // shrinkResources ODATA cu minifyEnabled, ca testul sa acopere EXACT

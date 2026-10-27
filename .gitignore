@@ -14,6 +14,7 @@ release/
 android/app/keystore.properties
 *.jks
 *.keystore
+!android/app/lumin-debug.keystore
 
 # libraw-wasm rebuild vendorizat (vendor/libraw-wasm-patched/README.md) — dist/ de aici
 # e payload-ul compilat al dependentei, nu un artefact de build al PROIECTULUI nostru
