@@ -1,5 +1,6 @@
 import { isReviewQueue } from './core/singletonVerdict';
 import { TasteQuiz } from './ui/TasteQuiz';
+import { SetupFlow } from './ui/SetupFlow';
 import { AiProfileScreen } from './ui/AiProfileScreen';
 import { dayStats, onTodayLaunch, scheduleDailyDigest } from './core/todayDigest';
 import { Fragment, useEffect, useMemo, useRef, useState, lazy, Suspense, type ComponentType, type CSSProperties, type ReactNode } from 'react';
@@ -1026,6 +1027,7 @@ export default function App() {
 
       <Toast />
       <WelcomeOnboarding />
+      <SetupFlow onPickManually={() => void onAddPhotosClick()} />
       <TasteQuiz />
       <HomeDashboard onAddPhotos={() => void onAddPhotosClick()} />
       {/* Nimic nu se desenează peste ecranul de bun venit: .banner-stack are

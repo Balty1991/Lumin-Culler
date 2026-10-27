@@ -288,3 +288,17 @@ h1, h2, h3, .brand-name { font-family: var(--font-display); letter-spacing: -0.0
 .concept-home .home-albums-cta { display: none; }
 .album-event-art { position: relative; overflow: hidden; }
 .album-event-cover { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Configurarea de la prima deschidere (ui/SetupFlow.tsx) */
+.v3-setup { z-index: 70; }
+.v3-setup .v3-screen-inner { padding-top: calc(48px + var(--safe-top, 0px)); gap: 18px; }
+.v3-setup-lead { margin: 0; color: var(--text-dim); font-size: 15px; line-height: 1.5; }
+.v3-setup-steps { list-style: none; margin: 4px 0 8px; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.v3-setup-steps li {
+  display: flex; gap: 14px; align-items: flex-start; padding: 14px 16px;
+  border-radius: 16px; border: 1px solid var(--glass-border); background: var(--glass-bg);
+}
+.v3-setup-steps b { color: var(--accent); font-size: 13px; font-weight: 500; padding-top: 2px; }
+.v3-setup-steps div { display: flex; flex-direction: column; gap: 4px; }
+.v3-setup-steps strong { font-size: 15px; }
+.v3-setup-steps span { font-size: 13px; color: var(--text-dim); line-height: 1.45; }
