@@ -154,7 +154,7 @@ export function HomeDashboard({ onAddPhotos }: { onAddPhotos: () => void }) {
   // "de curatat" = tot ce nu e inca decis (pending + review), nu doar 'review'
   // (subsetul ambiguu semnalat de AI) — altfel numarul arata mult mai mic
   // decat coada reala de sortat pe care utilizatorul chiar o are.
-  const unsortedCount = photos.filter(p => isReviewQueue(p)).length;
+  const unsortedCount = photos.filter(p => (p.status === 'review' && isReviewQueue(p))).length;
 
   /**
    * A DOUA DESCHIDERE, si de ce are nevoie de un rand al ei.
@@ -173,7 +173,7 @@ export function HomeDashboard({ onAddPhotos }: { onAddPhotos: () => void }) {
     lastVisitAt,
     importedSinceLastVisit: lastVisitAt === null
       ? 0
-      : photos.filter(p => p.importedAt > lastVisitAt && isReviewQueue(p)).length,
+      : photos.filter(p => p.importedAt > lastVisitAt && (p.status === 'review' && isReviewQueue(p))).length,
     undecided: unsortedCount,
     // Cifra din galerie cere o citire din MediaStore; supervizorul o face deja
     // cand e cazul, si nu se dubleaza aici doar pentru un rand.
@@ -199,7 +199,7 @@ export function HomeDashboard({ onAddPhotos }: { onAddPhotos: () => void }) {
   // Review Desk este punctul central al noii experiente, nu doar un mesaj pentru
   // fotografiile ambigue. Daca AI a decis tot lotul, pastram cardul vizibil cu
   // prima fotografie din sesiune ca intrare spre revedere si biblioteca completa.
-  const reviewDeskPhoto = photos.find(p => isReviewQueue(p)) ?? photos[0] ?? null;
+  const reviewDeskPhoto = photos.find(p => (p.status === 'review' && isReviewQueue(p))) ?? photos[0] ?? null;
   /**
    * Textul de sub titlu cat timp motorul lucreaza. Raspunde la singurele doua
    * intrebari pe care le are omul cand se uita la o bara: cate au fost facute
@@ -247,7 +247,7 @@ export function HomeDashboard({ onAddPhotos }: { onAddPhotos: () => void }) {
     // "Deschide" si atunci a trece prin toata biblioteca e chiar ce trebuie —
     // e o revedere, nu o coada.
     const queue = hasReviewQueue
-      ? photos.filter(p => isReviewQueue(p))
+      ? photos.filter(p => (p.status === 'review' && isReviewQueue(p)))
       : photos;
     const ids = queue
       .slice()

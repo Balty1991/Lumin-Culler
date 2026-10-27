@@ -34,6 +34,7 @@ function toAlbumPhoto(photo: PhotoView, pet?: { petLabel?: string; petName?: str
     petEmbedding: pet?.petEmbedding,
     sceneTags: photo.sceneTags,
     textCoverage: photo.textCoverage,
+    aside: photo.aside,
     gpsLatitude: photo.gpsLatitude,
     gpsLongitude: photo.gpsLongitude
   };

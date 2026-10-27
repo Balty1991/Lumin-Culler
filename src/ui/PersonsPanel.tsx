@@ -85,6 +85,23 @@ export function PersonsPanel() {
     return () => { alive = false; };
   }, [open]);
 
+  // Fețele care se repetă se grupează singure la deschidere; omul doar le
+  // numește. Raportat: „la Persoane nu grupează nimic singur”.
+  useEffect(() => {
+    if (!open) return;
+    let alive = true;
+    setScanningClusters(true);
+    void Promise.all([db.photos.toArray(), db.analyses.toArray()]).then(([photos, analyses]) => {
+      if (!alive) return;
+      const byId = new Map(analyses.map(a => [a.photoId, a]));
+      const clusterable = photos
+        .map(p => ({ id: p.id, fileName: p.fileName, faces: byId.get(p.id)?.faces ?? [] }))
+        .filter(p => p.faces.length > 0);
+      setClusters(findUnrecognizedFaceClusters(clusterable).slice(0, 8));
+    }).finally(() => { if (alive) setScanningClusters(false); });
+    return () => { alive = false; };
+  }, [open]);
+
   if (!open) return null;
 
   const scanForClusters = async () => {

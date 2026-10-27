@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decideIsolate, isReviewQueue, paperScoreFromRgba, PAPER_DOCUMENT_MIN } from './singletonVerdict';
+import { asideOf, decideIsolate, isReviewQueue, paperScoreFromRgba, PAPER_DOCUMENT_MIN, statusFromScore } from './singletonVerdict';
 
 function paper(fill: (i: number, px: Uint8ClampedArray) => void, width = 48): number {
   const data = new Uint8ClampedArray(width * width * 4);
@@ -75,5 +75,29 @@ describe('paperScoreFromRgba', () => {
 
   it('o grilă prea mică nu se declară document', () => {
     expect(paperScoreFromRgba(new Uint8ClampedArray(8), 48)).toBe(0);
+  });
+});
+
+describe('decizia urmează scorul afișat', () => {
+  const T = { select: 65, reject: 35 };
+  it('poze bune cu 81–93 nu mai sunt respinse', () => {
+    expect(statusFromScore(81, T)).toBe('selected');
+    expect(statusFromScore(93, T)).toBe('selected');
+  });
+  it('un ecran fotografiat cu 62 nu e păstrat singur', () => {
+    expect(statusFromScore(62, T)).toBe('review');
+  });
+  it('sub pragul de respingere e respinsă', () => {
+    expect(statusFromScore(30, T)).toBe('rejected');
+  });
+});
+
+describe('asideOf', () => {
+  it('bonul merge la Documente pe orice treaptă', () => {
+    expect(asideOf({ fileName: 'IMG_1.jpg', paperScore: 0.8, faceCount: 0 })).toBe('document');
+    expect(asideOf({ fileName: 'IMG_2.jpg', textCoverage: 0.3, faceCount: 0 })).toBe('document');
+  });
+  it('o poză cu oameni nu e document', () => {
+    expect(asideOf({ fileName: 'IMG_3.jpg', paperScore: 0.8, faceCount: 1 })).toBeUndefined();
   });
 });

@@ -8,7 +8,6 @@ import { decodeHeicToJpegBlob, isHeicDecodingSupported } from './nativeHeicDecod
 import { db, type AnalysisRecord, type PhotoRecord } from './db';
 import { analysisPool, withTimeout } from './workerPool';
 import { contextEngine, landscapeSharpness, type Prediction } from './learning/ContextEngine';
-import { rescueBestOfMoment } from './momentRescue';
 import { groupPhotosByHash } from './hashComparePool';
 import type { HashInput } from '../workers/hashCompare.worker';
 import { parseExif } from './exifParser';
@@ -31,8 +30,9 @@ import { lightAnalysis } from './lightAnalysis';
 import { derivativesOffMain } from './previewOffThread';
 import { loadStageOne, saveStageOne } from './stageOneCache';
 import { base64ToBlob, fingerprintBatch, fingerprintUri, isStageOneAvailable, type StageOneNativeResult } from './stageOneNative';
-import { SERIES_CANDIDATE_HAMMING, stageOneKey } from './twoStagePlan';
-import { decideIsolate, paperScoreFromRgba } from './singletonVerdict';
+import { SERIES_CANDIDATE_HAMMING, isSeriesCandidate, stageOneKey } from './twoStagePlan';
+import { asideOf, decideIsolate, paperScoreFromRgba, statusFromScore } from './singletonVerdict';
+import { seriesVerdict } from './seriesVerdict';
 import { analyzeFaceMeshNative, isNativeFaceMeshAvailable } from './nativeFaceMesh';
 import { MESH_BLINK_THRESHOLD, TEST_IDENTITY_EMBEDDINGS } from './faceEngine';
 import { enrichAfterFirstResult, cropFaceBitmap } from './backgroundIdentity';
@@ -151,6 +151,9 @@ export { SELECT_THRESHOLD, REJECT_THRESHOLD } from './scoreThresholds';
  * putea diverge silentios.
  */
 export const TEXT_DOMINANT_THRESHOLD = 0.15;
+
+/** Câte îmbogățiri de după primul rezultat (ochi, persoane, animale) rulează deodată. */
+const POST_CONCURRENCY = 2;
 
 /**
  * Exportat pentru core/reviewClusters.ts: rezumatul cozii de verificat trebuie
@@ -1015,15 +1018,35 @@ async function processOne(file: File, genre?: string, project?: string, handle?:
   analysis.aiUncertainty = prediction.uncertainty;
   analysis.aiPersonalDelta = prediction.personalDelta;
 
-  const isolate = heavy ? undefined : decideIsolate({
-    fileName: file.name,
-    sharpness,
-    exposure,
-    paperScore: prepared.paperScore,
-    width: w,
-    height: h
-  });
-  const status = isolate ? isolate.status : decidePhotoStatus(prediction.score, analysis, thresholds);
+  // Documentele și capturile se pun deoparte pe ambele trepte; restul urmează
+  // scorul afișat (poza singură) sau regula completă (seria), niciodată invers.
+  const isolate = heavy
+    ? (() => {
+        const aside = asideOf({
+          fileName: file.name,
+          width: w,
+          height: h,
+          faceCount: analysis.faceCount,
+          paperScore: prepared.paperScore,
+          textCoverage: analysis.textCoverage
+        });
+        return aside ? { status: 'review' as const, aside } : undefined;
+      })()
+    : decideIsolate({
+        fileName: file.name,
+        sharpness,
+        exposure,
+        paperScore: prepared.paperScore,
+        width: w,
+        height: h
+      });
+  const status = isolate?.aside
+    ? isolate.status
+    : heavy
+      ? decidePhotoStatus(prediction.score, analysis, thresholds)
+      : Number.isFinite(sharpness) && Number.isFinite(exposure)
+        ? statusFromScore(prediction.score, thresholds)
+        : 'review';
 
   const photo: PhotoRecord = {
     id,
@@ -1288,7 +1311,7 @@ export async function importFiles(
     libraryHashes = [];
   }
 
-  const seen: Array<{ id: string; hash: string; index: number; heavy: boolean }> = [];
+  const seen: Array<{ id: string; hash: string; index: number; heavy: boolean; at: number }> = [];
   const postJobs: Promise<void>[] = [];
   let postActive = 0;
   const postSlots: Array<() => void> = [];
@@ -1308,8 +1331,14 @@ export async function importFiles(
   }
 
   const remember = (item: ImportedPhoto) => {
-    const hash = toHashInput(item.photo.id, item.photo.dHash, item.analysis, item.photo.capturedAt, item.photo.capturedAtExact);
     const at = hashes.findIndex(h => h.id === item.photo.id);
+    // Documentele și capturile nu intră în serii: un bon nu e „cel mai bun cadru”.
+    if (item.photo.aside) {
+      if (at >= 0) hashes.splice(at, 1);
+      onPhoto(item);
+      return;
+    }
+    const hash = toHashInput(item.photo.id, item.photo.dHash, item.analysis, item.photo.capturedAt, item.photo.capturedAtExact);
     if (at >= 0) hashes[at] = hash;
     else hashes.push(hash);
     onPhoto(item);
@@ -1336,12 +1365,14 @@ export async function importFiles(
   };
 
   const schedulePost = (item: ImportedPhoto, file: File, mediaUri?: string) => {
-    const eyes = !!mediaUri && isNativeFaceMeshAvailable() && !item.photo.aside && item.analysis.faces.length === 0;
+    const eyes = !!mediaUri && isNativeFaceMeshAvailable() && !item.photo.aside && item.photo.status !== 'rejected' && item.analysis.faces.length === 0;
     const people = wantPeople && !item.photo.aside;
     const pets = wantPets && !!mediaUri && !item.photo.aside && !item.analysis.petEmbedding?.length;
     if (!eyes && !people && !pets) return;
     const job = (async () => {
-      while (postActive >= 1) await new Promise<void>(resolve => postSlots.push(resolve));
+      // Două în paralel: treapta 2 era ~1 min 30 s din 1 min 48 s, aproape toată
+      // pe coada asta, una câte una.
+      while (postActive >= POST_CONCURRENCY) await new Promise<void>(resolve => postSlots.push(resolve));
       postActive++;
       try {
         const before = item.photo.status;
@@ -1382,6 +1413,8 @@ export async function importFiles(
             item.photo.status = next.status;
             if (next.aside) item.photo.aside = next.aside;
             item.analysis.allEyesOpen = false;
+            // Scorul afișat spune același lucru ca decizia: ochi închiși = sub prag.
+            if (next.status === 'rejected') item.analysis.aiScore = Math.min(item.analysis.aiScore, thresholds.reject);
             if (!item.analysis.faceCount && result.measuredFaces) item.analysis.faceCount = result.measuredFaces;
             await db.photos.update(item.photo.id, { status: next.status, ...(next.aside ? { aside: next.aside } : {}) });
           }
@@ -1435,8 +1468,13 @@ export async function importFiles(
       try {
         const ready = await stageOnePrepare(file, mediaUri, precomputed.get(myIndex));
         staged[myIndex] = ready;
+        // Aceleași legături ca gruparea de la final (hashCompare.worker.ts):
+        // aproape identice oricând, sau ceva mai diferite dacă sunt la câteva
+        // zeci de secunde una de alta. Cu pragul vechi (12), rafalele făcute
+        // din mână treceau drept poze singure și erau păstrate toate.
+        const at = file.lastModified;
         const mates = ready.dHash
-          ? seen.filter(s => s.hash && hamming64(ready.dHash, s.hash) <= SERIES_CANDIDATE_HAMMING)
+          ? seen.filter(s => s.hash && isSeriesCandidate(hamming64(ready.dHash, s.hash), Math.abs(at - s.at)))
           : [];
         const inLibrary = !!ready.dHash && libraryHashes.some(prev => prev && hamming64(ready.dHash, prev) <= SERIES_CANDIDATE_HAMMING);
         const heavy = !ready.dHash || mates.length > 0 || inLibrary;
@@ -1446,7 +1484,7 @@ export async function importFiles(
           }
           await runHeavy(myIndex);
           if (!seen.some(s => s.index === myIndex)) {
-            seen.push({ id: ready.id, hash: ready.dHash, index: myIndex, heavy: true });
+            seen.push({ id: ready.id, hash: ready.dHash, index: myIndex, heavy: true, at });
           }
         } else {
           const { item, persisted } = await processOne(
@@ -1455,7 +1493,7 @@ export async function importFiles(
             ready,
             false
           );
-          seen.push({ id: ready.id, hash: ready.dHash, index: myIndex, heavy: false });
+          seen.push({ id: ready.id, hash: ready.dHash, index: myIndex, heavy: false, at });
           persistedWrites.push(persisted.then(() => {
             remember(item);
             schedulePost(item, file, mediaUri);
@@ -1512,7 +1550,7 @@ export async function importFiles(
   // niciodata absent, deci where().equals('') foloseste indexul in loc sa
   // scaneze toata tabela — cost independent de marimea bibliotecii.
   const existingUngrouped = (await db.photos.where('groupId').equals('').toArray())
-    .filter(p => !currentBatchIds.has(p.id));
+    .filter(p => !currentBatchIds.has(p.id) && !p.aside);
   let existingHashes: HashInput[] = [];
   if (existingUngrouped.length) {
     const analyses = await db.analyses.bulkGet(existingUngrouped.map(p => p.id));
@@ -1553,14 +1591,16 @@ export async function importFiles(
   // exact cazul burst/eveniment tintit de aplicatie, unde efectul se
   // multiplica cu marimea burst-ului.
   const demotedIds: string[] = [];
+  const scoreById = new Map<string, number>();
+  for (const h of [...hashes, ...existingHashes]) scoreById.set(h.id, h.score ?? 0);
   for (const g of groupResults) {
-    // Cine trebuie salvat de la disparitia intregii clipe — calculat INAINTE de
-    // bucla, pe starile de dinaintea oricarei schimbari. Vezi core/momentRescue.ts.
-    const rescuedId = rescueBestOfMoment(
-      g.memberIds.map(id => {
+    // Din fiecare serie rămâne doar poza cu scorul cel mai mare. Vezi core/seriesVerdict.ts.
+    const outcome = seriesVerdict(
+      g.memberIds.flatMap(id => {
         const rec = recordById.get(id);
-        return { id, status: rec ? rec.status : 'pending' };
+        return rec ? [{ id, score: scoreById.get(id) ?? 0, status: rec.status, aiDecided: rec.aiDecided }] : [];
       }),
+      thresholds,
       g.bestId
     );
     for (const memberId of g.memberIds) {
@@ -1568,11 +1608,11 @@ export async function importFiles(
       const rec = recordById.get(memberId);
       if (!rec) continue;
       const next: PhotoRecord = { ...rec, groupId: g.groupId };
-      if (memberId !== g.bestId && rec.status === 'selected') {
-        next.status = 'review';
-        demotedIds.push(memberId);
+      const status = outcome?.changes.get(memberId);
+      if (status) {
+        if (rec.status === 'selected' && status !== 'selected') demotedIds.push(memberId);
+        next.status = status;
       }
-      if (memberId === rescuedId) next.status = 'review';
       updates.push(next);
     }
   }

@@ -105,7 +105,23 @@ function judgedSharpness(raw: number, faceCount: number): number {
   return landscapeSharpness(raw) * 100;
 }
 
-export function decideIsolate(s: IsolateSignals): IsolateDecision {
+/** Peste atât din cadru acoperit de text (OCR), fără oameni, e document. Același prag ca TEXT_DOMINANT_THRESHOLD. */
+const TEXT_DOCUMENT_MIN = 0.15;
+
+/**
+ * Bon, factură, pagină sau captură de ecran: merg la Documente / Capturi, nu
+ * în triaj și nu în serii. Folosit pe ambele trepte, ca un bon dintr-o
+ * „rafală” de bonuri să nu fie judecat ca poză (raportat: un bon Pepco păstrat
+ * cu 99, alte bonuri aproape identice respinse).
+ */
+export function asideOf(s: {
+  fileName: string;
+  width?: number;
+  height?: number;
+  faceCount?: number;
+  paperScore?: number;
+  textCoverage?: number;
+}): PhotoAside | undefined {
   const faces = s.faceCount ?? 0;
   const category = classifyPhoto({
     id: '',
@@ -114,10 +130,29 @@ export function decideIsolate(s: IsolateSignals): IsolateDecision {
     width: s.width,
     height: s.height
   });
-  if (category === 'screenshot') return { status: 'review', aside: 'screenshot' };
-  if ((s.paperScore ?? 0) >= PAPER_DOCUMENT_MIN && faces === 0) {
-    return { status: 'review', aside: 'document' };
-  }
+  if (category === 'screenshot') return 'screenshot';
+  if (faces > 0) return undefined;
+  if ((s.paperScore ?? 0) >= PAPER_DOCUMENT_MIN) return 'document';
+  if ((s.textCoverage ?? 0) >= TEXT_DOCUMENT_MIN) return 'document';
+  return undefined;
+}
+
+/**
+ * Decizia urmează scorul afișat: peste pragul de păstrare e păstrată, sub
+ * pragul de respingere e respinsă, între ele e de verificat. Raportat: poze
+ * bune cu 81–93 respinse și un ecran de calculator cu 62 păstrat, pentru că
+ * verdictul pozei singure se lua din altă măsură decât scorul.
+ */
+export function statusFromScore(score: number, thresholds: { select: number; reject: number }): IsolateDecision['status'] {
+  if (score >= thresholds.select) return 'selected';
+  if (score <= thresholds.reject) return 'rejected';
+  return 'review';
+}
+
+export function decideIsolate(s: IsolateSignals): IsolateDecision {
+  const faces = s.faceCount ?? 0;
+  const aside = asideOf(s);
+  if (aside) return { status: 'review', aside };
 
   const measuredSharp = Number.isFinite(s.sharpness);
   const measuredExposure = Number.isFinite(s.exposure);

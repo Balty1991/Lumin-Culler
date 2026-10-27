@@ -14,10 +14,21 @@ import { hamming64 } from './dhash';
  *
  * Pragul de moment din hashCompare.worker.ts (26) e mai larg: el leagă și
  * cadre mișcate, după ce analiza a rulat. Aici alegem doar cine PLĂTEȘTE
- * analiza. 12 biți din 64 prinde duplicatele și rafalele strânse, nu două
- * poze care doar seamănă vag.
+ * analiza. 14 biți din 64 e același prag ca nivelul vizual al grupării:
+ * altfel o poză putea ajunge în serie la final fără să fi fost analizată ca
+ * membru de serie.
  */
-export const SERIES_CANDIDATE_HAMMING = 12;
+export const SERIES_CANDIDATE_HAMMING = 14;
+
+/** Rafală făcută din mână: cadrul se mută mai mult, dar pozele sunt la secunde distanță. */
+export const BURST_CANDIDATE_HAMMING = 24;
+export const BURST_CANDIDATE_WINDOW_MS = 45_000;
+
+/** Aceleași două praguri ca primele două niveluri din hashCompare.worker.ts. */
+export function isSeriesCandidate(hamming: number, msApart: number): boolean {
+  if (hamming <= SERIES_CANDIDATE_HAMMING) return true;
+  return hamming <= BURST_CANDIDATE_HAMMING && msApart <= BURST_CANDIDATE_WINDOW_MS;
+}
 
 export interface HashRef {
   id: string;

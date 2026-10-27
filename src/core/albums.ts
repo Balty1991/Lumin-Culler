@@ -23,6 +23,8 @@ export interface AlbumPhoto {
   height?: number;
   gpsLatitude?: number;
   gpsLongitude?: number;
+  /** Pus deoparte la import (bon, factură, captură). */
+  aside?: string;
   /** Specia, când background-ul a decupat animalul. */
   petLabel?: string;
   /** Numele dat de om. Absent cât timp grupul e încă „Numește”. */
@@ -184,7 +186,9 @@ export function buildAlbums(photos: readonly AlbumPhoto[], locale: 'ro' | 'en' =
   const memory: AlbumPhoto[] = [];
 
   for (const photo of photos) {
-    const kind = classifyPhoto(inboxOf(photo));
+    const kind = photo.aside === 'document' ? 'document'
+      : photo.aside === 'screenshot' ? 'screenshot'
+        : classifyPhoto(inboxOf(photo));
     if (kind === 'screenshot') {
       screenshots.push(photo.id);
       continue;

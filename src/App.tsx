@@ -1,3 +1,4 @@
+import { isReviewQueue } from './core/singletonVerdict';
 import { Fragment, useEffect, useMemo, useRef, useState, lazy, Suspense, type ComponentType, type CSSProperties, type ReactNode } from 'react';
 import { useStore, isAnyOverlayOpen, reviewDifficulty, type FilterKey } from './state/store';
 import { PhotoCard } from './ui/PhotoCard';
@@ -505,7 +506,8 @@ export default function App() {
     all: secondaryFiltered.length,
     selected: secondaryFiltered.filter(p => p.status === 'selected').length,
     candidate: secondaryFiltered.filter(p => p.status === 'candidate').length,
-    review: secondaryFiltered.filter(p => p.status === 'review').length,
+    // Aceeași coadă ca pe Acasă: documentele și capturile puse deoparte nu se numără.
+    review: secondaryFiltered.filter(p => p.status === 'review' && isReviewQueue(p)).length,
     rejected: secondaryFiltered.filter(p => p.status === 'rejected').length,
     series: secondaryFiltered.filter(p => p.groupId).length,
     blinks: selectBlinks(secondaryFiltered).length,
