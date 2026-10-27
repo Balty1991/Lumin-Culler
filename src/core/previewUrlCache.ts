@@ -11,6 +11,7 @@
  * decodarea deja facuta pentru acel URL specific, in loc sa trateze un URL
  * nou ca pe o resursa complet diferita.
  */
+import { Capacitor } from '@capacitor/core';
 import { db } from './db';
 
 const MAX_CACHED = 40;
@@ -68,4 +69,28 @@ export function forgetPreviewUrl(photoId: string): void {
 export function clearPreviewUrlCache(): void {
   for (const url of cache.values()) URL.revokeObjectURL(url);
   cache.clear();
+}
+
+/**
+ * Ce se arată pe tot ecranul: poza ORIGINALĂ din galerie, când se poate.
+ *
+ * Raportat: în vizualizare pozele păreau mai mici și neclare la zoom. Treapta
+ * 1 (StageOnePlugin.kt) păstrează un preview de doar 480 px, destul pentru
+ * analiză și grilă, nu pentru ecranul plin. Pe telefon originalul e deja pe
+ * disc, iar WebView-ul îl poate citi direct prin URI (fără copie și fără MB în
+ * baza de date). Formatele pe care WebView-ul nu le decodează (HEIC, RAW) și
+ * pozele fără URI (web, import din fișier) rămân pe preview-ul salvat.
+ */
+export async function getDisplayUrl(photoId: string): Promise<string | null> {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const photo = await db.photos.get(photoId);
+      if (photo?.mediaUri && /\.(jpe?g|png|webp)$/i.test(photo.fileName)) {
+        return Capacitor.convertFileSrc(photo.mediaUri);
+      }
+    } catch {
+      // baza indisponibilă: preview-ul de mai jos
+    }
+  }
+  return getCachedPreviewUrl(photoId);
 }

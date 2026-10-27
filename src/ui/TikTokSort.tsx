@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore, type PhotoView } from '../state/store';
 import { selectSortQueue, selectScopedQueue, selectAllPhotosQueue, countSeriesSiblings } from '../state/tiktokSort';
-import { getCachedPreviewUrl } from '../core/previewUrlCache';
+import { getDisplayUrl } from '../core/previewUrlCache';
 import { getCachedThumbUrl, peekThumbUrl } from '../core/thumbUrlCache';
 import { RAW_EXTENSIONS } from '../core/rawDecoder';
 import { SELECT_THRESHOLD, REJECT_THRESHOLD } from '../core/importPipeline';
@@ -328,7 +328,7 @@ export function TikTokSort() {
     if (!current) { setSrc(null); return; }
     let alive = true;
     setSrc(null);
-    void getCachedPreviewUrl(current.id).then(url => { if (alive) setSrc(url); });
+    void getDisplayUrl(current.id).then(url => { if (alive) setSrc(url); });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- doar id-ul conteaza, ca in DetailView (photo.id)
   }, [current?.id]);

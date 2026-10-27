@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { buildTastePairs, TASTE_QUIZ_MIN_PHOTOS, type TasteAnswer, type TastePair } from '../core/tastePairs';
-import { getCachedPreviewUrl } from '../core/previewUrlCache';
+import { getDisplayUrl } from '../core/previewUrlCache';
 import { contextEngine } from '../core/learning/ContextEngine';
 import { readTasteQuizDone, writeTasteQuizDone, TASTE_QUIZ_OPEN_EVENT } from '../state/tasteQuiz';
 import { useModalFocusTrap } from './useModalFocusTrap';
@@ -74,7 +74,7 @@ export function TasteQuiz() {
     const ids = [pair?.aId, pair?.bId, pairs[index + 1]?.aId, pairs[index + 1]?.bId].filter((x): x is string => !!x);
     for (const id of ids) {
       if (urls[id]) continue;
-      void getCachedPreviewUrl(id).then(url => {
+      void getDisplayUrl(id).then(url => {
         if (alive && url) setUrls(prev => ({ ...prev, [id]: url }));
       });
     }

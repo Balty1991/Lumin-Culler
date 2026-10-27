@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { AnimatePresence, m, useReducedMotion } from 'framer-motion';
-import { getCachedPreviewUrl } from '../core/previewUrlCache';
+import { getDisplayUrl } from '../core/previewUrlCache';
 import { useStore, isAnyOverlayOpen, type PhotoView } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { StarRating } from './StarRating';
@@ -139,7 +139,7 @@ function DetailContent({ photo, reduceMotion }: { photo: PhotoView; reduceMotion
     // reflecta poza NOUA dar imaginea afisata e inca cea VECHE — bug real gasit de auditul
     // QA, aceeasi clasa deja evitata corect in GroupCompare.tsx (usePreviewUrl).
     setSrc(null);
-    void getCachedPreviewUrl(photo.id).then(url => { if (alive) setSrc(url); });
+    void getDisplayUrl(photo.id).then(url => { if (alive) setSrc(url); });
     return () => { alive = false; };
     // `imagesRevision` in dependinte: fara el, o poza careia i s-au COPT
     // editarile (buton "Aplica") ramanea pe ecran asa cum arata inainte —
