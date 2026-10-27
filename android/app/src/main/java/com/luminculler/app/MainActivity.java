@@ -87,8 +87,45 @@ public class MainActivity extends BridgeActivity {
         }
     }
 
+    /**
+     * Un APK nou trebuie să arate interfața nouă din prima.
+     *
+     * Raportat după redesign, de două ori: „aplicația arată la fel”. Build-ul
+     * web de odinioară înregistra un service worker care punea index-ul și
+     * scripturile în cache; în WebView-ul Capacitor el nu-și poate descărca
+     * propria versiune nouă (cererile lui nu trec prin serverul local), deci
+     * servea la nesfârșit interfața veche, peste orice APK instalat după.
+     *
+     * La prima pornire după o instalare sau actualizare, înainte ca WebView-ul
+     * să pornească, se șterge doar folderul lui de service worker (cu Cache
+     * Storage-ul din el). Baza de date cu pozele și deciziile (IndexedDB) și
+     * localStorage stau în alte foldere și rămân neatinse.
+     */
+    private void clearStaleServiceWorker() {
+        try {
+            long installed = getPackageManager().getPackageInfo(getPackageName(), 0).lastUpdateTime;
+            android.content.SharedPreferences prefs = getSharedPreferences("lumin-webview", MODE_PRIVATE);
+            if (prefs.getLong("cleanedFor", 0L) == installed) return;
+            java.io.File base = new java.io.File(getApplicationInfo().dataDir, "app_webview");
+            deleteRecursively(new java.io.File(base, "Default/Service Worker"));
+            deleteRecursively(new java.io.File(base, "Service Worker"));
+            prefs.edit().putLong("cleanedFor", installed).apply();
+        } catch (Exception e) {
+            Log.w("LuminCuller", "Nu s-a putut curăța service worker-ul vechi", e);
+        }
+    }
+
+    private static void deleteRecursively(java.io.File f) {
+        if (!f.exists()) return;
+        java.io.File[] children = f.listFiles();
+        if (children != null) for (java.io.File c : children) deleteRecursively(c);
+        //noinspection ResultOfMethodCallIgnored
+        f.delete();
+    }
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        clearStaleServiceWorker();
         // Plugin-urile native LOCALE (nu pachete npm separate, ca @capacitor/filesystem)
         // nu sunt descoperite automat de Capacitor — trebuie inregistrate explicit aici,
         // inainte de super.onCreate(). Vezi plugins/FaceDetectionPlugin.kt / ImageAnalysisPlugin.kt /
