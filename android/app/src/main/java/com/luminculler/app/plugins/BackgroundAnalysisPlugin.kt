@@ -3,8 +3,11 @@ package com.luminculler.app.plugins
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
+import android.view.View
 import android.webkit.WebView
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
@@ -60,6 +63,50 @@ class BackgroundAnalysisPlugin : Plugin() {
         }
     }
 
+    /** Cât timp rulează un import. Citit și scris doar pe firul principal. */
+    private var analizaActiva = false
+    private val firPrincipal = Handler(Looper.getMainLooper())
+
+    /**
+     * WebView-ul nu află că aplicația a ieșit de pe ecran.
+     *
+     * Raportat pe un Xiaomi: „cum ies, merge puțin, apoi se blochează; intru
+     * iar, merge”. Serviciul din prim-plan ține procesul aplicației viu, dar
+     * pagina din WebView primește „ascunsă” când fereastra dispare, iar
+     * Chromium o încetinește apoi (temporizatoare rărite, la câteva minute
+     * aproape oprite). Importul așteaptă la fiecare pas răspunsuri care sosesc
+     * prin firul paginii, deci se oprește și el.
+     *
+     * Pe durata importului, după ieșire, WebView-ului i se spune că e tot
+     * vizibil și i se repornesc temporizatoarele. De două ori, fiindcă
+     * sistemul poate trimite „ascuns” puțin după onStop. La final, dacă
+     * aplicația e tot în fundal, i se spune adevărul.
+     */
+    private fun tinePaginaTreaza() {
+        val webView = bridge?.webView ?: return
+        val treaza = Runnable {
+            if (!analizaActiva) return@Runnable
+            runCatching {
+                webView.onResume()
+                webView.resumeTimers()
+                webView.dispatchWindowVisibilityChanged(View.VISIBLE)
+            }
+        }
+        firPrincipal.post(treaza)
+        firPrincipal.postDelayed(treaza, 400)
+        firPrincipal.postDelayed(treaza, 1500)
+    }
+
+    override fun handleOnPause() {
+        super.handleOnPause()
+        if (analizaActiva) tinePaginaTreaza()
+    }
+
+    override fun handleOnStop() {
+        super.handleOnStop()
+        if (analizaActiva) tinePaginaTreaza()
+    }
+
     private fun trimite(actiune: String, done: Int, total: Int, text: String?, determinat: Boolean) {
         val intent = Intent(context, BackgroundAnalysisService::class.java).apply {
             action = actiune
@@ -86,6 +133,7 @@ class BackgroundAnalysisPlugin : Plugin() {
                 call.getBoolean("determinate", true) ?: true
             )
             tinePrioritateaRandarii(true)
+            firPrincipal.post { analizaActiva = true }
             rezultat.put("started", true)
         } catch (e: Exception) {
             // Un serviciu de prim-plan poate fi refuzat de sistem (restrictii de
@@ -178,6 +226,12 @@ class BackgroundAnalysisPlugin : Plugin() {
     @PluginMethod
     fun stop(call: PluginCall) {
         tinePrioritateaRandarii(false)
+        firPrincipal.post {
+            analizaActiva = false
+            firPrincipal.removeCallbacksAndMessages(null)
+            val ascunsa = activity?.lifecycle?.currentState?.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) == false
+            if (ascunsa) runCatching { bridge?.webView?.dispatchWindowVisibilityChanged(View.GONE) }
+        }
         runCatching {
             context.startService(
                 Intent(context, BackgroundAnalysisService::class.java)
