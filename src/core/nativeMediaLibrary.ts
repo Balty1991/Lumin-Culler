@@ -210,7 +210,7 @@ async function toFiles(
         try {
           const response = await fetch(Capacitor.convertFileSrc(p.uri));
           const blob = await response.blob();
-          photos.push({ uri: p.uri, name: p.name, capturedAt: p.capturedAt, file: new File([blob], p.name, { type: blob.type }) });
+          photos.push({ uri: p.uri, name: p.name, capturedAt: p.capturedAt, file: new File([blob], p.name, { type: blob.type, ...(p.capturedAt > 0 ? { lastModified: p.capturedAt } : {}) }) });
         } catch (err) {
           console.warn('Poza ilizibila, ignorata:', err);
         }

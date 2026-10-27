@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { candidateIds, incrementalStageOne, isSeriesCandidate, SERIES_CANDIDATE_HAMMING, stageOneKey } from './twoStagePlan';
+import { candidateIds, incrementalStageOne, isSeriesCandidate, SERIES_CANDIDATE_HAMMING, stageOneKey, stageOneTime } from './twoStagePlan';
 
 const far = '0'.repeat(64);
 const near = `${'1'.repeat(8)}${'0'.repeat(56)}`;
@@ -30,6 +30,18 @@ describe('candidații etapei 2', () => {
     expect(isSeriesCandidate(20, 10 * 60_000)).toBe(false);
     expect(isSeriesCandidate(14, 10 * 60_000)).toBe(true);
     expect(isSeriesCandidate(25, 1_000)).toBe(false);
+    expect(isSeriesCandidate(20, undefined)).toBe(false);
+  });
+
+  it('ora unei poze din galerie nu e momentul importului', () => {
+    const start = new Date(2026, 9, 27, 20, 0, 0).getTime();
+    expect(stageOneTime({ name: 'a.jpg', lastModified: start + 5 }, start)).toBeUndefined();
+    expect(stageOneTime({ name: 'IMG_20261024_081609.jpg', lastModified: start + 5 }, start))
+      .toBe(new Date(2026, 9, 24, 8, 16, 9).getTime());
+    expect(stageOneTime({ name: 'Screenshot_2026-10-24-08-16-09.png', lastModified: start }, start))
+      .toBe(new Date(2026, 9, 24, 8, 16, 9).getTime());
+    const old = start - 86_400_000;
+    expect(stageOneTime({ name: 'x.jpg', lastModified: old }, start)).toBe(old);
   });
 
   it('fără amprentă, calea grea rămâne deschisă', () => {

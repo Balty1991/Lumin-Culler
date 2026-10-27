@@ -95,7 +95,10 @@ const NATIVE_ANALYZE_JPEG_QUALITY = 0.92;
  */
 const NATIVE_ANALYZE_MAX_SIDE = 1280;
 /** Doar pentru OCR, si doar pe calea cu URI (unde marirea nu costa nimic in plus peste punte). */
-const NATIVE_OCR_MAX_SIDE = 2560;
+// 1600, nu 2560: citirea textului era cel mai scump model (1,8 s de obicei,
+// 64 de poze din 138, măsurat pe telefon); textul unui bon sau al unei pagini
+// se citește la fel, iar decizia folosește doar cât din cadru e text.
+const NATIVE_OCR_MAX_SIDE = 1600;
 
 /**
  * Plafonul OCR-ului, si de ce a trebuit sa existe.

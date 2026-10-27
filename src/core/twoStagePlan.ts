@@ -25,9 +25,30 @@ export const BURST_CANDIDATE_HAMMING = 24;
 export const BURST_CANDIDATE_WINDOW_MS = 45_000;
 
 /** Aceleași două praguri ca primele două niveluri din hashCompare.worker.ts. */
-export function isSeriesCandidate(hamming: number, msApart: number): boolean {
+export function isSeriesCandidate(hamming: number, msApart: number | undefined): boolean {
   if (hamming <= SERIES_CANDIDATE_HAMMING) return true;
-  return hamming <= BURST_CANDIDATE_HAMMING && msApart <= BURST_CANDIDATE_WINDOW_MS;
+  return msApart !== undefined && hamming <= BURST_CANDIDATE_HAMMING && msApart <= BURST_CANDIDATE_WINDOW_MS;
+}
+
+/** IMG_20261024_081609, PXL_20261024_081609123, Screenshot_2026-10-24-08-16-09 ... */
+const NAME_TIME = /(20\d{2})-?(\d{2})-?(\d{2})[_ -]?(\d{2})[-.]?(\d{2})[-.]?(\d{2})/;
+
+/**
+ * Când a fost făcută poza, cât se poate afla înainte de EXIF.
+ *
+ * Pozele alese din galerie ajung ca File creat chiar atunci, deci
+ * `lastModified` e momentul importului, același pentru toate. Luat drept oră
+ * a pozei, făcea din tot lotul o „rafală” și trimitea aproape fiecare poză la
+ * analiza grea (raportat: 136 din 138). O dată de după începutul importului
+ * nu e a pozei; atunci se citește din nume, iar fără nume datat nu se știe.
+ */
+export function stageOneTime(file: { name: string; lastModified: number }, importStartedAt: number): number | undefined {
+  if (file.lastModified > 0 && file.lastModified < importStartedAt - 120_000) return file.lastModified;
+  const m = NAME_TIME.exec(file.name);
+  if (!m) return undefined;
+  const [y, mo, d, h, mi, se] = m.slice(1).map(Number);
+  if (mo < 1 || mo > 12 || d < 1 || d > 31 || h > 23 || mi > 59 || se > 59) return undefined;
+  return new Date(y, mo - 1, d, h, mi, se).getTime();
 }
 
 export interface HashRef {

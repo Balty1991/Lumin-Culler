@@ -30,7 +30,7 @@ import { lightAnalysis } from './lightAnalysis';
 import { derivativesOffMain } from './previewOffThread';
 import { loadStageOne, saveStageOne } from './stageOneCache';
 import { base64ToBlob, fingerprintBatch, fingerprintUri, isStageOneAvailable, type StageOneNativeResult } from './stageOneNative';
-import { SERIES_CANDIDATE_HAMMING, isSeriesCandidate, stageOneKey } from './twoStagePlan';
+import { SERIES_CANDIDATE_HAMMING, isSeriesCandidate, stageOneKey, stageOneTime } from './twoStagePlan';
 import { asideOf, decideIsolate, paperScoreFromRgba, statusFromScore } from './singletonVerdict';
 import { seriesVerdict } from './seriesVerdict';
 import { analyzeFaceMeshNative, isNativeFaceMeshAvailable } from './nativeFaceMesh';
@@ -1330,7 +1330,8 @@ export async function importFiles(
     libraryHashes = [];
   }
 
-  const seen: Array<{ id: string; hash: string; index: number; heavy: boolean; at: number }> = [];
+  const seen: Array<{ id: string; hash: string; index: number; heavy: boolean; at?: number }> = [];
+  const importStartedAt = Date.now();
   const postJobs: Promise<void>[] = [];
   let postActive = 0;
   const postSlots: Array<() => void> = [];
@@ -1510,12 +1511,12 @@ export async function importFiles(
       const ready = prepared[myIndex - start];
       if (!ready) { finishOne(file.name); continue; }
       staged[myIndex] = ready;
-      const at = file.lastModified;
+      const at = stageOneTime(file, importStartedAt);
       // Aceleași legături ca gruparea de la final (hashCompare.worker.ts):
       // aproape identice oricând, sau ceva mai diferite dacă sunt la câteva
       // zeci de secunde una de alta.
       const mates = ready.dHash
-        ? seen.filter(s => s.hash && isSeriesCandidate(hamming64(ready.dHash, s.hash), Math.abs(at - s.at)))
+        ? seen.filter(s => s.hash && isSeriesCandidate(hamming64(ready.dHash, s.hash), at !== undefined && s.at !== undefined ? Math.abs(at - s.at) : undefined))
         : [];
       const inLibrary = !!ready.dHash && libraryHashes.some(prev => prev && hamming64(ready.dHash, prev) <= SERIES_CANDIDATE_HAMMING);
       const heavy = !ready.dHash || mates.length > 0 || inLibrary;
