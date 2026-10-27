@@ -1,4 +1,5 @@
 import { isReviewQueue } from './core/singletonVerdict';
+import { TasteQuiz } from './ui/TasteQuiz';
 import { Fragment, useEffect, useMemo, useRef, useState, lazy, Suspense, type ComponentType, type CSSProperties, type ReactNode } from 'react';
 import { useStore, isAnyOverlayOpen, reviewDifficulty, type FilterKey } from './state/store';
 import { PhotoCard } from './ui/PhotoCard';
@@ -998,6 +999,7 @@ export default function App() {
 
       <Toast />
       <WelcomeOnboarding />
+      <TasteQuiz />
       <HomeDashboard onAddPhotos={() => void onAddPhotosClick()} />
       {/* Nimic nu se desenează peste ecranul de bun venit: .banner-stack are
           z-index de toast, deci bannerele acopereau comutatorul de limbă și

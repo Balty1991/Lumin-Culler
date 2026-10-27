@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useStore, type PhotoView } from '../state/store';
 import { isReviewQueue } from '../core/singletonVerdict';
+import { openTasteQuiz, readTasteQuizDone } from '../state/tasteQuiz';
+import { TASTE_QUIZ_MIN_PHOTOS } from '../core/tastePairs';
 import { returnVisitPrompt, readLastVisit, writeLastVisit } from '../state/returnVisit';
 import { pickResumeTarget } from '../state/resumeProject';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
@@ -575,6 +577,16 @@ export function HomeDashboard({ onAddPhotos }: { onAddPhotos: () => void }) {
           <span className="home-recap-text">
             <b>{tr('home.recap.title')}</b>
             <span>{tr(plural(recapPhotos.length, 'home.recap.sub.one', 'home.recap.sub.other'), { count: recapPhotos.length })}</span>
+          </span>
+        </button>
+      )}
+
+      {!analysing && !readTasteQuizDone() && photos.length >= TASTE_QUIZ_MIN_PHOTOS && (
+        <button className="home-recap-card taste-card" onClick={openTasteQuiz}>
+          <span className="home-recap-icon" aria-hidden="true">✨</span>
+          <span className="home-recap-text">
+            <b>{tr('taste.card.title')}</b>
+            <span>{tr('taste.card.sub')}</span>
           </span>
         </button>
       )}

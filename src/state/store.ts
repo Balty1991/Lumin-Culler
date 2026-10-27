@@ -72,6 +72,7 @@ import {
   formatScanLine, readLastScan, scanSummaryOnFinish, writeLastScan, type LastScan
 } from '../core/scanSummary';
 import { isReviewQueue } from '../core/singletonVerdict';
+import type { TasteAnswer } from '../core/tastePairs';
 import { summariseFeedback } from '../core/aiFeedback';
 import { recordImportOutcome, summariseOutcomes } from '../core/importOutcome';
 import { keepScreenAwake } from '../core/wakeLock';
@@ -834,6 +835,8 @@ interface AppState {
   /** Schimba severitatea SI reeticheteaza pozele pe care nu le-ai decis tu. */
   setCullingStrictness: (value: CullingStrictness) => Promise<void>;
   rescorePhotos: () => Promise<{ total: number; changed: number }>;
+  /** Un răspuns din „Învață-mă” (ui/TasteQuiz.tsx): doar învățare, nu schimbă statusul pozelor. */
+  learnTastePair: (aId: string, bId: string, answer: TasteAnswer) => Promise<void>;
   /**
    * Sterge REAL, de pe telefon, pozele deja RESPINSE care au un URI nativ
    * retinut la import (PhotoRecord.mediaUri) — vezi core/nativeMediaLibrary.ts
@@ -3783,6 +3786,16 @@ export const useStore = create<AppState>((set, get) => ({
     set({
       notice: t(locale, updates.size === 1 ? 'strictness.applied.one' : 'strictness.applied.other', { count: updates.size })
     });
+  },
+
+  learnTastePair: async (aId, bId, answer) => {
+    if (answer === 'a') await trainPreference(aId, [bId]);
+    else if (answer === 'b') await trainPreference(bId, [aId]);
+    else {
+      // nu Promise.all: pașii de învățare trebuie să se vadă unul pe altul
+      await train(aId, answer === 'both');
+      await train(bId, answer === 'both');
+    }
   },
 
   rescorePhotos: async () => {
