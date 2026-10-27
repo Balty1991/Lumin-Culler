@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
+import { Capacitor } from '@capacitor/core';
 import { LazyMotion, domAnimation } from 'framer-motion';
 import App from './App';
 import { ErrorBoundary } from './ui/ErrorBoundary';
@@ -21,7 +22,26 @@ import { ensureLocaleLoaded, readStoredLocale } from './i18n';
 // `serviceWorker.register()`, fara nicio verificare periodica de update — pe un
 // PWA instalat (ramane rezident, rareori inchis complet), asta putea insemna sa
 // ramai blocat pe un build vechi la nesfarsit dupa un deploy nou.
-registerSW({ immediate: true });
+// În aplicația Android (Capacitor) fișierele vin deja de pe telefon, iar un
+// service worker doar le ținea pe cele VECHI în cache: după instalarea unui APK
+// nou, prima pornire arăta tot interfața veche (raportat: „aplicația arată la
+// fel” după redesign). Acolo nu se mai înregistrează, iar unul rămas de la o
+// versiune anterioară se scoate, cu tot cu cache, și pagina se reîncarcă o dată.
+if (Capacitor.isNativePlatform()) {
+  void navigator.serviceWorker?.getRegistrations().then(async regs => {
+    if (!regs.length) return;
+    await Promise.all(regs.map(r => r.unregister()));
+    try {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    } catch {
+      // fără Cache API: reîncărcarea de mai jos tot ia fișierele noi
+    }
+    location.reload();
+  }).catch(() => {});
+} else {
+  registerSW({ immediate: true });
+}
 
 // Cand aplicatia iese de pe ecran, imaginile decodate din cache nu mai au cui
 // folosi — dar sistemul continua sa le numere. Vezi core/backgroundMemory.ts
