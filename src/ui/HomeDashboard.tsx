@@ -344,7 +344,11 @@ export function HomeDashboard({ onAddPhotos }: { onAddPhotos: () => void }) {
           era alt aranjament: un singur card, fara randul de sesiune cu actiune
           pe respinse, fara subsolul cu numele fisierului si fara lista de
           biblioteca de dedesubt. CSS-ul corespunzator e in styles.concept.css. */}
-      {reviewDeskPhoto && (
+      {/* Redesign v3: în afara analizei, Acasă e „Ziua de azi” (TodayCard) +
+          AI-ul tău. Masa de revizuire veche (sesiune, cauze, exigență) dubla
+          aceleași cifre sub designul nou — raportat: „e haotic”. Rămâne doar cât
+          rulează un import, pentru progres și anulare; sortarea e în tabul ei. */}
+      {reviewDeskPhoto && analysing && (
         <div className="review-desk">
           <header className="review-desk-head">
             <div className="review-desk-head-line">
@@ -505,7 +509,7 @@ export function HomeDashboard({ onAddPhotos }: { onAddPhotos: () => void }) {
       </div>
 
       {photos.length > 0 && !analysing && (
-        <button className="home-shield-cta" onClick={() => setAlbumsOpen(true)}>
+        <button className="home-shield-cta home-albums-cta" onClick={() => setAlbumsOpen(true)}>
           <span className="home-shield-icon" aria-hidden="true"><FolderIcon /></span>
           <span className="home-shield-text">
             <b>{tr('home.albums.title')}</b>

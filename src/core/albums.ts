@@ -33,6 +33,13 @@ export interface AlbumPhoto {
   petEmbedding?: number[];
 }
 
+/** Etichete care spun doar „e un animal”, nu care. */
+const GENERIC_ANIMAL_LABELS = new Set(['pet', 'animal', 'mammal', 'vertebrate']);
+/** Sub atâtea poze, un album de animal e o etichetă greșită, nu un animal. */
+export const MIN_ANIMAL_PHOTOS = 3;
+/** Sub atâtea poze, nu e un eveniment. */
+export const MIN_EVENT_PHOTOS = 3;
+
 /** Peste 6 ore, e altă ieșire. */
 const EVENT_GAP_MS = 6 * 60 * 60 * 1000;
 /** Peste 30 km și măcar 45 de minute, e alt loc, chiar dacă pauza e mai scurtă de 6 ore. */
@@ -184,6 +191,7 @@ export function buildAlbums(photos: readonly AlbumPhoto[], locale: 'ro' | 'en' =
   const screenshots: string[] = [];
   const documents: string[] = [];
   const memory: AlbumPhoto[] = [];
+  const animalPhotos: { photo: AlbumPhoto; labels: string[] }[] = [];
 
   for (const photo of photos) {
     const kind = photo.aside === 'document' ? 'document'
@@ -204,11 +212,8 @@ export function buildAlbums(photos: readonly AlbumPhoto[], locale: 'ro' | 'en' =
       list.push(photo);
       people.set(name, list);
     }
-    for (const label of animalLabels([...(photo.sceneTags ?? []), ...(photo.petLabel ? [photo.petLabel] : [])])) {
-      const list = animals.get(label) ?? [];
-      list.push(photo);
-      animals.set(label, list);
-    }
+    const labels = animalLabels([...(photo.sceneTags ?? []), ...(photo.petLabel ? [photo.petLabel] : [])]);
+    if (labels.length) animalPhotos.push({ photo, labels });
     if (photo.petName) {
       const list = namedPets.get(photo.petName) ?? [];
       list.push(photo);
@@ -216,6 +221,26 @@ export function buildAlbums(photos: readonly AlbumPhoto[], locale: 'ro' | 'en' =
       if (photo.petLabel && !petSpecies.has(photo.petName)) petSpecies.set(photo.petName, photo.petLabel);
     }
   }
+
+  // Un singur album pe poză: specia cea mai frecventă din galerie dintre
+  // etichetele ei. Raportat: aceeași pisică apărea în „Cat”, „Pet” și „Dog”,
+  // iar o fetiță cu pisica în brațe ajungea „Horse”. Etichetele generice
+  // („pet”, „animal”) se alătură speciei dominante, iar un album cu mai puțin
+  // de MIN_ANIMAL_PHOTOS poze e zgomot de etichetare, nu un animal al tău.
+  const speciesCount = new Map<string, number>();
+  for (const { labels } of animalPhotos) {
+    for (const label of labels) if (!GENERIC_ANIMAL_LABELS.has(label)) speciesCount.set(label, (speciesCount.get(label) ?? 0) + 1);
+  }
+  const dominant = [...speciesCount.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+  for (const { photo, labels } of animalPhotos) {
+    const specific = labels.filter(l => !GENERIC_ANIMAL_LABELS.has(l))
+      .sort((a, b) => (speciesCount.get(b) ?? 0) - (speciesCount.get(a) ?? 0));
+    const label = specific[0] ?? dominant ?? labels[0];
+    const list = animals.get(label) ?? [];
+    list.push(photo);
+    animals.set(label, list);
+  }
+  for (const [label, list] of animals) if (list.length < MIN_ANIMAL_PHOTOS) animals.delete(label);
 
   const dated = memory
     .filter(p => p.capturedAt !== undefined)
@@ -255,7 +280,8 @@ export function buildAlbums(photos: readonly AlbumPhoto[], locale: 'ro' | 'en' =
         }, undefined)
       }))
       .sort((a, b) => b.photoIds.length - a.photoIds.length || a.label.localeCompare(b.label)),
-    events: eventBuckets.map(list => {
+    // O zi cu o poză nu e un eveniment (raportat: 28 de „evenimente”, aproape toate cu 1 poză).
+    events: eventBuckets.filter(list => list.length >= MIN_EVENT_PHOTOS).map(list => {
       const start = list[0].capturedAt ?? 0;
       const end = list[list.length - 1].capturedAt ?? start;
       return {

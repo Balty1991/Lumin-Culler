@@ -10,6 +10,7 @@ import { isPremium } from '../core/entitlement';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { AdjustedImage } from './AdjustedImage';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
+import { getCachedThumbUrl, peekThumbUrl } from '../core/thumbUrlCache';
 import {
   ChevronLeft, SearchIcon, ShieldIcon, StarIcon, XIcon, UploadIcon, CopyIcon, SparkleIcon
 } from './icons';
@@ -38,6 +39,17 @@ function toAlbumPhoto(photo: PhotoView, pet?: { petLabel?: string; petName?: str
     gpsLatitude: photo.gpsLatitude,
     gpsLongitude: photo.gpsLongitude
   };
+}
+
+/** Coperta unui album: poza ei, nu un gradient (raportat: evenimentele erau doar pete de culoare). */
+function CoverThumb({ id }: { id?: string }) {
+  const [src, setSrc] = useState<string | null>(() => (id ? peekThumbUrl(id) : null));
+  useEffect(() => {
+    let alive = true;
+    if (id && !src) void getCachedThumbUrl(id).then(url => { if (alive && url) setSrc(url); });
+    return () => { alive = false; };
+  }, [id, src]);
+  return src ? <img className="album-event-cover" src={src} alt="" /> : null;
 }
 
 function cap(label: string): string {
@@ -184,6 +196,12 @@ export function AlbumsPanel() {
   const namedPets = albums.namedPets.filter(p => !q || p.name.toLowerCase().includes(q) || p.label.includes(q));
   const animals = albums.animals.filter(a => !q || a.label.includes(q));
   const events = albums.events.filter(e => !q || e.title.toLowerCase().includes(q));
+  // Coperta: cea mai bună poză păstrată din eveniment, altfel cea mai bună în general.
+  const coverOf = (ids: string[]): string | undefined => {
+    const list = ids.map(id => photos.find(p => p.id === id)).filter((p): p is PhotoView => !!p);
+    const kept = list.filter(p => p.status === 'selected');
+    return (kept.length ? kept : list).sort((a, b) => b.aiScore - a.aiScore)[0]?.id;
+  };
 
   const openCorrect = async (onlyIds?: Set<string>) => {
     const selected = photos.filter(p => p.status === 'selected' && (!onlyIds || onlyIds.has(p.id)));
@@ -452,7 +470,9 @@ export function AlbumsPanel() {
                 <div className="album-events">
                   {events.map(event => (
                     <button key={event.id} className="album-event" onClick={() => setScreen({ kind: 'pile', title: event.title, ids: event.photoIds })}>
-                      <span className="album-event-art" style={{ background: `linear-gradient(160deg, hsl(${hue(event.id)} 70% 58%), hsl(${(hue(event.id) + 50) % 360} 55% 32%))` }} />
+                      <span className="album-event-art" style={{ background: `linear-gradient(160deg, hsl(${hue(event.id)} 70% 58%), hsl(${(hue(event.id) + 50) % 360} 55% 32%))` }}>
+                        <CoverThumb id={coverOf(event.photoIds)} />
+                      </span>
                       <b><StarIcon /> {event.title}</b>
                       <span>{tr('albums.event.meta', { count: event.photoIds.length, kept: event.selectedCount })}</span>
                     </button>

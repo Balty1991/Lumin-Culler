@@ -4,7 +4,7 @@ import { dayStats, startOfDay } from '../core/todayDigest';
 import { countGalleryPhotosSince, isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { getCachedThumbUrl, peekThumbUrl } from '../core/thumbUrlCache';
 import { isReviewQueue } from '../core/singletonVerdict';
-import { t } from '../i18n';
+import { t, plural } from '../i18n';
 
 const DAY_MS = 86_400_000;
 
@@ -94,11 +94,11 @@ export function TodayCard() {
       <span className="v3-kicker">{dateLabel} · {tr('today.label')}</span>
       {waiting > 0 ? (
         <h2 className="v3-today-title">
-          {tr('today.v3.waiting', { count: waiting })}<br /><em>{tr('today.v3.waitingSub')}</em>
+          {tr(plural(waiting, 'today.v3.waiting.one', 'today.v3.waiting'), { count: waiting })}<br /><em>{tr('today.v3.waitingSub')}</em>
         </h2>
       ) : today.all > 0 ? (
         <h2 className="v3-today-title">
-          {tr('today.v3.total', { count: stats.total })}<br /><em>{tr('today.v3.kept', { count: stats.kept })}</em>
+          {tr(plural(stats.total, 'today.v3.total.one', 'today.v3.total'), { count: stats.total })}<br /><em>{tr(stats.kept === 0 ? 'today.v3.kept.none' : plural(stats.kept, 'today.v3.kept.one', 'today.v3.kept'), { count: stats.kept })}</em>
         </h2>
       ) : (
         <h2 className="v3-today-title">{tr('today.v3.none')}</h2>
@@ -124,7 +124,7 @@ export function TodayCard() {
             </button>
           ) : stats.reviewIds.length > 0 ? (
             <button className="v3-cta" onClick={() => openTiktokSortForIds(stats.reviewIds)}>
-              <span>{tr('today.v3.check', { count: stats.reviewIds.length })}</span>
+              <span>{tr(plural(stats.reviewIds.length, 'today.v3.check.one', 'today.v3.check'), { count: stats.reviewIds.length })}</span>
               <span className="v3-mono">~{Math.max(10, stats.reviewIds.length * 6)} s →</span>
             </button>
           ) : (

@@ -1012,7 +1012,9 @@ export default function App() {
               Bara de jos apare doar cand exista poze (vezi BottomNav), deci
               butonul de aici ramane pentru biblioteca goala, unde e singura
               cale spre meniu. */}
-          {photos.length === 0 && (
+          {/* Redesign v3: Setările au ieșit din bara de jos, deci meniul stă
+              mereu aici, în antet (raportat: „meniul nici nu mai apare”). */}
+          {(
             <Tooltip label={tr('app.tooltip.menu')} side="left">
               <button className="ghost icon-btn" onClick={() => setMenuOpen(true)} aria-label={tr('app.menu.ariaLabel')}>
                 <MenuIcon />

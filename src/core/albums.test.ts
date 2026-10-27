@@ -46,11 +46,24 @@ describe('buildAlbums', () => {
   it('pune câinele la animale, din eticheta ML Kit, nu dintr-un folder', () => {
     const albums = buildAlbums([
       photo({ id: 'rex', sceneTags: ['Dog', 'Grass'], capturedAt: 10 }),
+      photo({ id: 'rex2', sceneTags: ['Dog', 'Pet'], capturedAt: 11 }),
+      photo({ id: 'rex3', sceneTags: ['Pet'], capturedAt: 12 }),
       photo({ id: 'hot', sceneTags: ['Hot dog'] })
     ]);
     expect(albums.animals).toHaveLength(1);
     expect(albums.animals[0].label).toBe('dog');
-    expect(albums.animals[0].photoIds).toEqual(['rex']);
+    expect(albums.animals[0].photoIds).toEqual(['rex', 'rex2', 'rex3']);
+  });
+
+  it('o poză intră într-un singur album de animal, iar o etichetă rătăcită nu face album', () => {
+    const albums = buildAlbums([
+      photo({ id: 'c1', sceneTags: ['Cat', 'Pet', 'Dog'] }),
+      photo({ id: 'c2', sceneTags: ['Cat', 'Pet'] }),
+      photo({ id: 'c3', sceneTags: ['Cat'] }),
+      photo({ id: 'girl', sceneTags: ['Horse'] })
+    ]);
+    expect(albums.animals.map(a => a.label)).toEqual(['cat']);
+    expect(albums.animals[0].photoIds).toEqual(['c1', 'c2', 'c3']);
   });
 
   it('desparte evenimentele la o pauză lungă și la un salt de loc', () => {
@@ -58,23 +71,29 @@ describe('buildAlbums', () => {
       photo({ id: 'a', capturedAt: 0, gpsLatitude: 44.4, gpsLongitude: 26.1 }),
       photo({ id: 'b', capturedAt: 30 * 60 * 1000, gpsLatitude: 44.4, gpsLongitude: 26.1, status: 'selected' }),
       photo({ id: 'c', capturedAt: 2 * 60 * 60 * 1000, gpsLatitude: 46.7, gpsLongitude: 23.6 }),
+      photo({ id: 'a2', capturedAt: 60 * 60 * 1000, gpsLatitude: 44.4, gpsLongitude: 26.1 }),
+      photo({ id: 'c2', capturedAt: 2.2 * 60 * 60 * 1000, gpsLatitude: 46.7, gpsLongitude: 23.6 }),
+      photo({ id: 'c3', capturedAt: 2.4 * 60 * 60 * 1000, gpsLatitude: 46.7, gpsLongitude: 23.6 }),
       photo({ id: 'd', capturedAt: 10 * day })
     ]);
-    expect(albums.events).toHaveLength(3);
-    expect(albums.events[0].photoIds).toEqual(['d']);
-    expect(albums.events[2].photoIds).toEqual(['a', 'b']);
-    expect(albums.events[2].selectedCount).toBe(1);
+    // „d” e singură în ziua ei: nu e eveniment.
+    expect(albums.events).toHaveLength(2);
+    expect(albums.events[0].photoIds).toEqual(['c', 'c2', 'c3']);
+    expect(albums.events[1].photoIds).toEqual(['a', 'b', 'a2']);
+    expect(albums.events[1].selectedCount).toBe(1);
   });
 
   it('ține capturile și documentele în Altele, nu în evenimente', () => {
     const albums = buildAlbums([
       photo({ id: 's', fileName: 'Screenshot_2026.png', capturedAt: 5, faceCount: 0 }),
       photo({ id: 'd', fileName: 'factura.jpg', capturedAt: 6, textCoverage: 0.4, faceCount: 0 }),
-      photo({ id: 'p', fileName: 'copil.jpg', capturedAt: 7, faceCount: 1, personNames: ['Ana'] })
+      photo({ id: 'p', fileName: 'copil.jpg', capturedAt: 7, faceCount: 1, personNames: ['Ana'] }),
+      photo({ id: 'p2', fileName: 'copil2.jpg', capturedAt: 8, faceCount: 1, personNames: ['Ana'] }),
+      photo({ id: 'p3', fileName: 'copil3.jpg', capturedAt: 9, faceCount: 1, personNames: ['Ana'] })
     ]);
     expect(albums.screenshots).toEqual(['s']);
     expect(albums.documents).toEqual(['d']);
-    expect(albums.events.flatMap(e => e.photoIds)).toEqual(['p']);
+    expect(albums.events.flatMap(e => e.photoIds)).toEqual(['p', 'p2', 'p3']);
   });
 
   it('numără dublurile dintr-o serie, fără să le scoată din galerie', () => {

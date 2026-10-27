@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../state/store';
+import { classifyPhoto, looksManufactured } from '../core/smartInbox';
 import { buildTastePairs, TASTE_QUIZ_MIN_PHOTOS, type TasteAnswer, type TastePair } from '../core/tastePairs';
 import { getDisplayUrl } from '../core/previewUrlCache';
 import { contextEngine } from '../core/learning/ContextEngine';
@@ -38,10 +39,27 @@ export function TasteQuiz() {
   useModalFocusTrap(containerRef, open);
 
   const analysing = !!progress && progress.phase !== 'finalizat';
-  const candidates = useMemo(() => photos.map(p => ({
-    id: p.id, aiScore: p.aiScore, sharpness: p.sharpness, exposure: p.exposure,
-    faceCount: p.faceCount, groupId: p.groupId, aside: p.aside
-  })), [photos]);
+  // Doar amintiri: fără bonuri, documente, capturi (raportat: testul întreba
+  // „care bon păstrezi?”). Întâi pozele în care AI-ul a recunoscut ceva (oameni
+  // sau un subiect care nu e un obiect fabricat); dacă sunt prea puține pentru
+  // un test întreg, și restul pozelor care nu par documente.
+  const candidates = useMemo(() => {
+    const all = photos.map(p => {
+      const kind = classifyPhoto({
+        id: p.id, fileName: p.fileName, faceCount: p.faceCount,
+        textCoverage: p.textCoverage, sceneTags: p.sceneTags
+      });
+      const notMemory = kind === 'document' || kind === 'screenshot' || kind === 'object';
+      return {
+        id: p.id, aiScore: p.aiScore, sharpness: p.sharpness, exposure: p.exposure,
+        faceCount: p.faceCount, groupId: p.groupId,
+        aside: p.aside ?? (notMemory ? 'document' : undefined),
+        recognized: p.faceCount > 0 || (!!p.sceneTags?.length && !looksManufactured(p.sceneTags))
+      };
+    });
+    const strict = all.filter(c => c.recognized);
+    return buildTastePairs(strict).length >= 6 ? strict : all;
+  }, [photos]);
 
   const start = () => {
     const next = buildTastePairs(candidates);
@@ -131,7 +149,7 @@ export function TasteQuiz() {
           <>
             <p className="taste-quiz-step mono">{tr('taste.step', { n: index + 1, total: pairs.length })}</p>
             <h2>{tr('taste.question.' + pair.kind)}</h2>
-            <div className="taste-quiz-pair">
+            <div className="taste-quiz-pair" key={index}>
               {(['a', 'b'] as const).map(side => {
                 const id = side === 'a' ? pair.aId : pair.bId;
                 const p = photoById(id);

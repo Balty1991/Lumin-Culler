@@ -278,3 +278,13 @@ h1, h2, h3, .brand-name { font-family: var(--font-display); letter-spacing: -0.0
 .taste-quiz-photo { border: 1px solid var(--line); background: var(--surface-3); }
 .taste-quiz-photo:active, .taste-quiz-photo:focus-visible { border: 1.5px solid var(--accent); }
 .taste-quiz h2 { font-family: var(--font-display); font-weight: 600; }
+
+/* Acasă v3: doar ziua de azi, AI-ul tău și drumul spre bibliotecă. Salutul,
+   inelul de progres, scurtătura spre albume și „Sortează acum” se dublau cu
+   designul nou și cu tabul Sortare (raportat: „e haotic”). */
+.concept-home .home-greet,
+.concept-home .home-hero-card,
+.concept-home .home-sort-cta,
+.concept-home .home-albums-cta { display: none; }
+.album-event-art { position: relative; overflow: hidden; }
+.album-event-cover { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
