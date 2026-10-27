@@ -29,7 +29,7 @@ function unaPoza(): PhotoView {
 }
 
 const INCHIS = {
-  collectionsOpen: false, personsOpen: false, menuOpen: false,
+  collectionsOpen: false, personsOpen: false, albumsOpen: false, menuOpen: false,
   exportDestinationsOpen: false, homeGridOpen: false, tiktokSortOpen: false
 };
 
@@ -53,7 +53,7 @@ describe('BottomNav — pastila tabului activ', () => {
   it.each([
     ['Acasa', {}, '0'],
     ['Grila', { homeGridOpen: true }, '1'],
-    ['Persoane', { personsOpen: true }, '2'],
+    ['Albume', { albumsOpen: true }, '2'],
     ['Export', { exportDestinationsOpen: true }, '3'],
     ['Setari', { menuOpen: true }, '4']
   ])('pe %s pastila sta pe coloana corespunzatoare', (_nume, stare, index) => {
