@@ -6,8 +6,11 @@ import { t } from '../i18n';
 
 const STORAGE_KEY = 'lumin-setup-done';
 const DAY_MS = 86_400_000;
-/** Cât din galerie citește configurarea: destul pentru un gust, puțin cât să dureze ~1 minut. */
-const SETUP_DAYS = 30;
+/**
+ * Varianta automată citește doar ultima săptămână. Raportat: cu 30 de zile
+ * s-au adus singure 926 de poze (~10 minute), iar omul voia să aleagă el.
+ */
+const SETUP_DAYS = 7;
 
 function readDone(): boolean {
   try { return localStorage.getItem(STORAGE_KEY) === '1'; } catch { return false; }
@@ -62,17 +65,12 @@ export function SetupFlow({ onPickManually }: { onPickManually: () => void }) {
           <li><b className="v3-mono">03</b><div><strong>{tr('setup.step3.title')}</strong><span>{tr('setup.step3.body')}</span></div></li>
         </ol>
 
-        {native ? (
-          <button className="v3-cta" onClick={() => void start()} disabled={starting}>
-            <span>{tr('setup.cta')}</span><span className="v3-mono">~1 min →</span>
-          </button>
-        ) : (
-          <button className="v3-cta" onClick={() => { finish(); onPickManually(); }}>
-            <span>{tr('setup.pick')}</span><span className="v3-mono">→</span>
-          </button>
-        )}
+        {/* Întâi alegi tu pozele (cerința utilizatorului); varianta automată e a doua. */}
+        <button className="v3-cta" onClick={() => { finish(); onPickManually(); }} disabled={starting}>
+          <span>{tr('setup.pick')}</span><span className="v3-mono">→</span>
+        </button>
         {native && (
-          <button className="v3-outline-btn" onClick={() => { finish(); onPickManually(); }}>{tr('setup.pick')}</button>
+          <button className="v3-outline-btn" onClick={() => void start()} disabled={starting}>{tr('setup.auto', { days: SETUP_DAYS })}</button>
         )}
         <p className="v3-kicker v3-center">{tr('aiProfile.private')}</p>
       </div>

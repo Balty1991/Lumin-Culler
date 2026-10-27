@@ -302,3 +302,14 @@ h1, h2, h3, .brand-name { font-family: var(--font-display); letter-spacing: -0.0
 .v3-setup-steps div { display: flex; flex-direction: column; gap: 4px; }
 .v3-setup-steps strong { font-size: 15px; }
 .v3-setup-steps span { font-size: 13px; color: var(--text-dim); line-height: 1.45; }
+
+/* Antetul pe telefon: logo + căutare + export + meniu pe un singur rând
+   (raportat: butoanele cădeau sub logo). */
+.topbar { flex-wrap: nowrap; }
+.topbar .brand { min-width: 0; flex: 1 1 auto; }
+.topbar .top-actions { flex: 0 0 auto; flex-wrap: nowrap; gap: 6px; }
+@media (max-width: 480px) {
+  .topbar .brand-text h1 { font-size: 20px; }
+  .topbar .brand-text p, .topbar .brand-pro-badge { display: none; }
+  .topbar .top-actions .icon-btn, .topbar .top-actions .export-cta { min-width: 44px; height: 44px; padding: 0 10px; }
+}
