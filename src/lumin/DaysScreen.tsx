@@ -8,9 +8,11 @@ import { useLx, type GalleryView } from './lxStore';
 import { useLxActions, useTr } from './context';
 import { Thumb } from './Thumb';
 import { PeopleGrid } from './People';
+import { CleanupCard } from './Cleanup';
+import { GalleryWall } from './GalleryWall';
 import type { PhotoView } from '../state/store';
 
-const VIEWS: GalleryView[] = ['days', 'months', 'people', 'aside'];
+const VIEWS: GalleryView[] = ['wall', 'days', 'months', 'people', 'aside'];
 
 /**
  * lumin/DaysScreen.tsx
@@ -60,13 +62,15 @@ export function DaysScreen() {
         <button className="lx-btn ghost small" onClick={pick}>{tr('lx.addPhotos')}</button>
       </header>
 
-      <div className="lx-seg" role="tablist">
+      <div className="lx-seg scroll" role="tablist">
         {VIEWS.map(v => (
           <button key={v} role="tab" aria-selected={view === v} className={view === v ? 'on' : ''} onClick={() => setView(v)}>
             {tr(`lx.days.view.${v}`)}
           </button>
         ))}
       </div>
+
+      {view === 'wall' && <GalleryWall />}
 
       {view === 'days' && (days.length === 0 ? (
         <p className="lx-empty">{tr('lx.days.empty')}</p>
@@ -274,6 +278,7 @@ function DayView({ day, onBack }: { day: Day<PhotoView>; onBack: () => void }) {
         <section className="lx-section">
           <div className="lx-section-head"><h2>{tr('lx.day.notToday')}</h2></div>
           <PhotoGrid list={day.rejected} title={tr('lx.day.notToday')} />
+          <CleanupCard photos={day.rejected} />
         </section>
       )}
 

@@ -865,7 +865,8 @@ interface AppState {
    * trebuie sa arate distinct cate poze au fost efectiv sterse fata de cate
    * au ramas doar respinse.
    */
-  deleteRejectedPhotos: () => Promise<{ deleted: number; skipped: number; cancelled: boolean }>;
+  /** `ids` = doar aceste poze respinse (ex. „Nu azi” dintr-o zi); altfel toate. */
+  deleteRejectedPhotos: (ids?: string[]) => Promise<{ deleted: number; skipped: number; cancelled: boolean }>;
   /** Comuta o singura poza in/din selectia in masa — Ctrl/Cmd+Click sau, cat timp selectia nu e goala, orice click simplu pe card. */
   toggleMultiSelect: (id: string) => void;
   /** Selecteaza tot intervalul dintre ultimul anchor si `id`, in ordinea data (lista filtrata curenta) — Shift+Click. */
@@ -3923,9 +3924,10 @@ export const useStore = create<AppState>((set, get) => ({
     return { total: photos.length, changed: changes.length };
   },
 
-  deleteRejectedPhotos: async () => {
+  deleteRejectedPhotos: async onlyIds => {
     const locale = get().locale;
-    const { deletable, skippedCount } = selectDeletableRejected(outsideVault(get().photos, get().collections));
+    const only = onlyIds ? new Set(onlyIds) : null;
+    const { deletable, skippedCount } = selectDeletableRejected(outsideVault(get().photos, get().collections).filter(p => !only || only.has(p.id)));
     if (!deletable.length) return { deleted: 0, skipped: skippedCount, cancelled: false };
     if (!isNativeMediaLibraryAvailable()) return { deleted: 0, skipped: skippedCount + deletable.length, cancelled: false };
 

@@ -6,7 +6,7 @@ import { create } from 'zustand';
  * (state/store.ts), care rămâne același: analiză, învățare, decizii.
  */
 export type LxTab = 'today' | 'days' | 'brain' | 'settings';
-export type GalleryView = 'days' | 'months' | 'people' | 'aside';
+export type GalleryView = 'wall' | 'days' | 'months' | 'people' | 'aside';
 
 interface LxState {
   tab: LxTab;
@@ -32,6 +32,6 @@ export const useLx = create<LxState>(set => ({
   closeSort: () => set({ sortIds: null, sortTitle: null }),
   openDay: null,
   setOpenDay: day => set({ openDay: day }),
-  galleryView: 'days',
+  galleryView: 'wall',
   setGalleryView: view => set({ galleryView: view })
 }));

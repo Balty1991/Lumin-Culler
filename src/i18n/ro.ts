@@ -2453,6 +2453,18 @@ export const ro = {
   "lx.months.best": "Cele mai bune din lună",
   "lx.months.days": "Zilele lunii",
   "lx.months.noneSeen": "AI-ul n-a văzut încă nicio poză din luna asta. Apasă „Sortează”.",
+  "lx.cleanup.title.one": "O poză „Nu azi” e încă în galeria telefonului",
+  "lx.cleanup.title": "{count} poze „Nu azi” sunt încă în galeria telefonului",
+  "lx.cleanup.explain": "„Nu azi” doar le scoate din alegeri, nu șterge nimic. Când vrei să faci loc, apasă aici: Android îți cere confirmarea și le mută în coșul galeriei, de unde le poți recupera.",
+  "lx.days.view.wall": "Poze",
+  "lx.wall.all": "Toate",
+  "lx.wall.kept": "Păstrate",
+  "lx.wall.notToday": "Nu azi",
+  "lx.wall.empty": "Nicio poză aici încă.",
+  "lx.wall.state.kept": "Păstrată",
+  "lx.wall.state.notToday": "Nu azi",
+  "lx.wall.state.waiting": "Așteaptă decizia ta",
+  "lx.wall.share": "Trimite",
 };
 
 export type TranslationKey = keyof typeof ro;

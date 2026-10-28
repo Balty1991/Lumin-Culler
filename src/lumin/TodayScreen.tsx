@@ -13,6 +13,7 @@ import { Thumb } from './Thumb';
 import { plural } from '../i18n';
 import { dayLabel, daySummary } from './format';
 import { buildCoverage, useGalleryMonths } from './coverage';
+import { CleanupCard } from './Cleanup';
 
 /**
  * lumin/TodayScreen.tsx
@@ -146,6 +147,7 @@ export function TodayScreen() {
       )}
 
       <GalleryStatus />
+      <CleanupCard photos={photos} compact />
 
       <button className="lx-card lx-ai-mini" onClick={() => setTab('brain')}>
         <Orb mood="learn" size={44} />
