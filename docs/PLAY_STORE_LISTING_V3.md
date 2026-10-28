@@ -42,8 +42,9 @@ CUM FUNCȚIONEAZĂ
 • Mișcate, întunecate, cu ochii închiși: găsite singure, cu motivul spus pe
   față („mișcată”, „ochi închiși”), nu doar un scor.
 
-• Te învață pe tine. La prima deschidere îți arată 12 perechi din pozele tale
-  și alegi. De acolo alege ca tine, și se corectează cu fiecare decizie.
+• Te învață pe tine. La prima deschidere îți arată 16 perechi din pozele tale.
+  Înainte să alegi tu, AI-ul ghicește, și vezi pe loc „a ghicit 12 din 16”.
+  De acolo alege ca tine și se corectează cu fiecare decizie.
 
 • Bonuri, capturi, documente: puse deoparte, în albume separate, ca să nu-ți
   ceară o decizie de fotografie.
@@ -56,10 +57,11 @@ PE TELEFONUL TĂU, NU ÎN CLOUD
 Toată analiza rulează pe telefon. Nicio poză nu pleacă de pe dispozitiv:
 fără cont, fără upload, fără reclame. Nimic nu se șterge fără confirmarea ta.
 
-GRATUIT
+GRATUIT, FĂRĂ LIMITE ASCUNSE
 
-Sortarea, scorul AI, rafalele și Ziua de azi sunt gratuite și nelimitate.
-Premium adaugă exportul nelimitat și funcțiile avansate.
+Analiza, AI-ul care te învață, rafalele, Ziua de azi și exportul sunt
+gratuite, oricâte poze. Pro adaugă „Acceptă tot” (ziua sortată dintr-o
+atingere) și uneltele de după sortare.
 ```
 
 ---
@@ -96,8 +98,9 @@ HOW IT WORKS
 • Blurry, dark, eyes closed: found automatically, with the reason spelled out
   ("blurry", "eyes closed"), not just a score.
 
-• It learns you. On first launch it shows 12 pairs from your own photos and
-  you pick. From then on it chooses like you, and keeps learning.
+• It learns you. On first launch it shows 16 pairs from your own photos.
+  Before you choose, the AI guesses, and you see "guessed 12 of 16" live.
+  From then on it chooses like you, and keeps learning.
 
 • Receipts, screenshots, documents: set aside in their own albums, so they
   never ask for a photo decision.
@@ -110,23 +113,47 @@ ON YOUR PHONE, NOT IN THE CLOUD
 All analysis runs on your phone. No photo leaves your device: no account, no
 upload, no ads. Nothing is deleted without your confirmation.
 
-FREE
+FREE, NO HIDDEN LIMITS
 
-Sorting, the AI score, bursts and Today are free and unlimited. Premium adds
-unlimited export and advanced tools.
+Analysis, the AI that learns you, bursts, Today and export are free, for any
+number of photos. Pro adds "Accept all" (your day sorted in one tap) and the
+after-sorting tools.
 ```
 
 ---
 
 ## Capturi de ecran (ordinea contează: primele 3 se văd în căutare)
 
-1. „Ziua de azi”: cardul „Azi: 27 poze, AI-ul a păstrat 4”. Text: „AI-ul îți
-   alege pozele zilei”.
-2. O rafală cu bifa pe cea mai bună. Text: „Din 10 cadre, rămâne cel bun”.
-3. „Învață-mă”: două poze una lângă alta. Text: „Te învață pe tine”.
+1. „25 de poze aproape la fel → 3 păstrate”: cardul Azi cu cele 3–4 alese.
+   Text: „AI-ul îți alege pozele zilei”.
+2. Sortarea: o poză cu „Păstrez / Nu azi” și motivul AI-ului. Text: „Un minut
+   pe seară”.
+3. Antrenamentul: două poze, insigna „AI ✓ a ghicit” și contorul. Text: „Te
+   învață pe tine, și îți arată cât de bine”.
 4. Mișcate / ochi închiși cu motivul afișat. Text: „Știe de ce e ratată”.
 5. Albumele (Oameni, Documente). Text: „Bonurile, separat. Amintirile, curate”.
 6. „Nimic nu pleacă de pe telefon”.
+
+## Prețuri (setate manual în Play Console, fără conversia automată)
+
+| Piață | Lunar | Anual (trial 14 zile) | Pe viață |
+|---|---|---|---|
+| România | 14,99 RON | 99,99 RON | 199 RON |
+| UE (EUR) | 3,99 € | 24,99 € | 49,99 € |
+
+Fără abonament săptămânal. Trialul doar pe anual. Abonamentul se oferă o
+singură dată după primul antrenament (se poate închide), apoi doar la
+„Acceptă tot” și la uneltele Pro. Detalii și calcule: raportul de direcție
+(Lumin-Culler, reports/Direcție Lumin AI de sortare.md).
+
+## Data safety
+
+Analiza rulează pe telefon (ML Kit, MediaPipe, modele locale), aplicația nu
+are server și nu folosește SDK-uri de analytics, reclame sau crash reporting.
+De verificat înainte de declarația „nu colectăm date”: ce trimit singure
+bibliotecile Google (ML Kit, Play Billing) — conform documentației lor, se
+declară separat. Permisiunea READ_MEDIA_IMAGES trebuie justificată în Play
+Console: aplicația citește galeria ca să pregătească alegerea fiecărei zile.
 
 ## Înainte de publicare (deschis)
 
