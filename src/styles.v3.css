@@ -391,3 +391,5 @@ h1, h2, h3, .brand-name { font-family: var(--font-display); letter-spacing: -0.0
 .rd-stats b { font-size: 22px; }
 .today-streak { color: var(--review); }
 .ap-training { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.today-accept-all { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.today-pro { font-size: 10px; padding: 2px 6px; border-radius: 6px; background: var(--accent-gradient); color: var(--on-accent); letter-spacing: 0.08em; }

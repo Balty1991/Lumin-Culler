@@ -40,6 +40,8 @@ export function TodayCard() {
   const locale = useStore(s => s.locale);
   const importToday = useStore(s => s.importToday);
   const openTiktokSortForIds = useStore(s => s.openTiktokSortForIds);
+  const acceptDayPicks = useStore(s => s.acceptDayPicks);
+  const premiumLocked = useStore(s => s.premiumLocked);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const dateLocale = locale === 'en' ? 'en-GB' : 'ro-RO';
 
@@ -128,10 +130,15 @@ export function TodayCard() {
               <span>{tr('today.waiting.cta')}</span><span className="v3-mono">{waiting} →</span>
             </button>
           ) : stats.reviewIds.length > 0 ? (
-            <button className="v3-cta" onClick={() => openTiktokSortForIds(stats.reviewIds)}>
-              <span>{tr(plural(stats.reviewIds.length, 'today.v3.check.one', 'today.v3.check'), { count: stats.reviewIds.length })}</span>
-              <span className="v3-mono">~{Math.max(10, stats.reviewIds.length * 6)} s →</span>
-            </button>
+            <>
+              <button className="v3-cta" onClick={() => openTiktokSortForIds(stats.reviewIds)}>
+                <span>{tr(plural(stats.reviewIds.length, 'today.v3.check.one', 'today.v3.check'), { count: stats.reviewIds.length })}</span>
+                <span className="v3-mono">~{Math.max(10, stats.reviewIds.length * 6)} s →</span>
+              </button>
+              <button className="v3-outline-btn today-accept-all" onClick={() => void acceptDayPicks(stats.reviewIds)}>
+                {tr('today.acceptAll')}{premiumLocked && <b className="v3-mono today-pro">{tr('today.pro')}</b>}
+              </button>
+            </>
           ) : (
             <button className="v3-cta ghosted" onClick={() => openTiktokSortForIds(stats.keptIds)} disabled={!stats.keptIds.length}>
               <span>{tr('today.clear.cta')}</span><span className="v3-mono">✓</span>

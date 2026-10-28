@@ -201,6 +201,17 @@ function billingAnswerPending(): boolean {
 }
 
 /** Plafonul chiar opreste actiunea: nu esti abonat, ai depasit, SI ai de unde cumpara. */
+/**
+ * Plafonul de export (FREE_PHOTOS_PER_MONTH) nu se mai aplică. O limită pe 30
+ * de zile se simte ca o probă expirată și ascunde exact valoarea pe care omul
+ * ar trebui s-o vadă (reports/Direcție Lumin AI de sortare.md). Pro se vinde
+ * acum pe „Acceptă tot” — alegerea zilei dintr-o atingere — și pe uneltele de
+ * după triaj, nu pe câte poze ai voie să scoți.
+ */
+export function isExportCapEnforced(): boolean {
+  return false;
+}
+
 export function isCapEnforced(): boolean {
   return !isPremium() && (isPurchasable() || billingAnswerPending());
 }

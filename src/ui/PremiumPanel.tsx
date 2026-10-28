@@ -49,6 +49,7 @@ export function PremiumPanel() {
    */
   const highlightedPerk: string | null = premiumReason === null ? null : {
     cap: 'export',
+    acceptAll: 'export',
     persons: 'persons',
     xmp: 'pro',
     contactSheet: 'pro',
@@ -185,9 +186,8 @@ export function PremiumPanel() {
             <b>
               {tr('premium.perk.export.title')}
             </b>
-            <span>{tr('premium.perk.export.sub', { limit: FREE_PHOTOS_PER_MONTH })}</span>
+            <span>{tr('premium.perk.export.sub')}</span>
           </span>
-          <PremiumProof kind="export" />
         </div>
         <div className={highlightedPerk === 'persons' ? 'premium-perk premium-perk-demo is-wanted' : 'premium-perk premium-perk-demo'}>
           <span>

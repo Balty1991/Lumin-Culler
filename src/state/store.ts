@@ -5,7 +5,7 @@
  */
 import { create } from 'zustand';
 import { db, type AnalysisRecord, type PhotoRecord, type KnownPerson, type ColorLabel, type CollectionRecord } from '../core/db';
-import { recordPhotosUsed, remainingFreePhotos, isPremium, canEnrollAnotherPersonFree, FREE_PHOTOS_PER_MONTH, isCapEnforced, isPremiumFeatureLocked, FREE_ENROLLED_PERSONS, isPurchasable, photosUsedInRollingMonth, subscribeEntitlement, refreshEntitlementAtStartup } from '../core/entitlement';
+import { recordPhotosUsed, remainingFreePhotos, isPremium, canEnrollAnotherPersonFree, FREE_PHOTOS_PER_MONTH, isCapEnforced, isExportCapEnforced, isPremiumFeatureLocked, FREE_ENROLLED_PERSONS, isPurchasable, photosUsedInRollingMonth, subscribeEntitlement, refreshEntitlementAtStartup } from '../core/entitlement';
 import {
   loadCollections, createCollection as createCollectionRecord, renameCollection as renameCollectionRecord,
   deleteCollection as deleteCollectionRecord, addPhotosToCollection as addPhotosToCollectionRecord,
@@ -269,7 +269,7 @@ export interface PhotoView {
 }
 
 /** Pentru ce functie s-a lovit omul de poarta Premium — vezi gatePremium. */
-export type PremiumReason = 'locations' | 'vault' | 'contactSheet' | 'presentation' | 'xmp' | 'persons' | 'cap';
+export type PremiumReason = 'locations' | 'vault' | 'contactSheet' | 'presentation' | 'xmp' | 'persons' | 'cap' | 'acceptAll';
 
 export type FilterKey = 'all' | 'selected' | 'candidate' | 'review' | 'rejected' | 'series' | 'blinks' | 'blurry' | 'goldenHour' | 'highlights';
 
@@ -886,6 +886,12 @@ interface AppState {
   describePhoto: (photoId: string) => Promise<void>;
   /** Aplica un status TUTUROR pozelor din selectia curenta (antreneaza AI-ul per poza, ca setStatus). */
   bulkSetStatusForSelection: (status: PhotoRecord['status']) => Promise<void>;
+  /**
+   * „Acceptă tot” (Pro): alegerile AI-ului pentru zi rămân, restul pozelor care
+   * așteptau un da/nu devin „nu azi”. Întoarce câte s-au schimbat; 0 și
+   * deschide abonamentul când e blocat.
+   */
+  acceptDayPicks: (reviewIds: string[]) => Promise<number>;
   /** Aplica un rating TUTUROR pozelor din selectia curenta. */
   bulkSetRatingForSelection: (rating: number) => Promise<void>;
   bulkSetColorLabelForSelection: (label: ColorLabel) => Promise<void>;
@@ -4144,6 +4150,25 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   /** Ca si celelalte operatii in masa — reversibila dintr-o data cu Ctrl+Z (batchHistory). */
+  acceptDayPicks: async reviewIds => {
+    if (!reviewIds.length) return 0;
+    if (get().gatePremium('acceptAll')) return 0;
+    const byId = new Map(get().photos.map(p => [p.id, p.status]));
+    const ids = reviewIds.filter(id => byId.get(id) === 'review');
+    if (!ids.length) return 0;
+    const changes = ids.map(id => ({ photoId: id, previousStatus: byId.get(id) ?? 'pending' as PhotoRecord['status'] }));
+    // Fără antrenare: omul n-a privit pozele, doar a avut încredere în AI.
+    const { quotaError } = await applyBulkStatusChanges(ids.map(id => ({ id, status: 'rejected' as const })), () => null);
+    const idSet = new Set(ids);
+    const locale = get().locale;
+    set(state => ({
+      photos: state.photos.map(p => (idSet.has(p.id) ? { ...p, status: 'rejected' as const } : p)),
+      batchHistory: pushBatchHistory(state.batchHistory, makeBatchEvent(t(locale, 'today.acceptAll.event'), changes)),
+      notice: quotaError ? quotaNotice(locale) : t(locale, 'today.acceptAll.done', { count: ids.length })
+    }));
+    return ids.length;
+  },
+
   bulkSetStatusForSelection: async status => {
     const ids = Array.from(get().multiSelectIds);
     if (!ids.length) return;
@@ -4683,7 +4708,7 @@ export const useStore = create<AppState>((set, get) => ({
     // isCapEnforced). Refuzam tot lotul in loc sa exportam partial: "150 din
     // cele 300 de poze" lasa utilizatorul sa ghiceasca singur care au plecat si
     // care nu, iar dupa un triaj lung asta e mai rau decat un refuz clar.
-    if (isCapEnforced() && selected.length > remainingFreePhotos()) {
+    if (isExportCapEnforced() && selected.length > remainingFreePhotos()) {
       set({
         notice: t(get().locale, 'store.exportSelection.capBlocked', {
           count: selected.length, remaining: remainingFreePhotos(), limit: FREE_PHOTOS_PER_MONTH
@@ -4784,7 +4809,7 @@ export const useStore = create<AppState>((set, get) => ({
     // folder si le scotea pe toate, oricate, ocolind un plafon pe care exportul
     // selectiei chiar il aplica. Nu era o portita teoretica: e exact drumul
     // recomandat in UI pentru "exporta tot".
-    if (isCapEnforced() && members.length > remainingFreePhotos()) {
+    if (isExportCapEnforced() && members.length > remainingFreePhotos()) {
       set({
         notice: t(locale, 'store.exportSelection.capBlocked', {
           count: members.length, remaining: remainingFreePhotos(), limit: FREE_PHOTOS_PER_MONTH

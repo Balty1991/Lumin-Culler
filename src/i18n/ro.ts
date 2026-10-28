@@ -466,8 +466,8 @@ export const ro = {
   'premium.reason.cap': 'Ai atins plafonul lunar de poze scoase din aplicație.',
   'premium.chip': 'Premium',
   'premium.lead': 'Triajul rămâne gratuit, oricâte poze ai. Premium e pentru ce faci cu rezultatul.',
-  'premium.perk.export.title': 'Export și ștergere nelimitate',
-  'premium.perk.export.sub': 'gratuit: {limit} de poze exportate la fiecare 30 de zile. Ștergerea de pe telefon nu intră în plafon — golește oricât',
+  'premium.perk.export.title': '„Acceptă tot”: ziua sortată dintr-o atingere',
+  'premium.perk.export.sub': 'gratuit confirmi poză cu poză. Cu Pro, ai încredere în AI-ul tău și închizi ziua într-o secundă',
   'premium.perk.persons.title': 'Oricâte persoane recunoscute',
   'premium.perk.persons.sub': 'gratuit: {limit} persoană înrolată',
   'premium.perk.pro.title': 'Fluxul profesional',
@@ -479,7 +479,7 @@ export const ro = {
   'premium.perk.composite.title': 'Combinarea a două cadre',
   'premium.perk.composite.sub': 'când niciun cadru nu e bun pentru toți, îți spune care două să le combini',
   'premium.perk.engine.title': '„{name}" învață gratuit',
-  'premium.perk.engine.sub': 'motorul care se adaptează la gustul tău nu e plătit niciodată. Se plătesc al doilea profil de persoană, exportul peste plafon și predarea către Lightroom',
+  'premium.perk.engine.sub': 'motorul care se adaptează la gustul tău nu e plătit niciodată. Se plătesc „Acceptă tot”, al doilea profil de persoană și predarea către Lightroom',
   'premium.perk.local.title': 'Triajul rămâne gratuit',
   'premium.perk.local.sub': 'import, scor AI, sortare, grupare, comparare serii — oricâte poze, fără plafon',
   'premium.usage.title': 'Ai scos {count} din {limit} de poze în ultimele 30 de zile',
@@ -2288,6 +2288,10 @@ export const ro = {
   "ritual.trashed": "{count} poze sunt în coșul galeriei. Le poți recupera de acolo.",
   "today.streak": "{count} zile la rând",
   "aiProfile.training": "La antrenament, înainte să-i spui răspunsul",
+  "today.acceptAll": "Acceptă tot ce a ales AI-ul",
+  "today.acceptAll.event": "Acceptă tot (alegerea zilei)",
+  "today.acceptAll.done": "Gata: {count} poze au devenit „nu azi”.",
+  "today.pro": "PRO",
 };
 
 export type TranslationKey = keyof typeof ro;

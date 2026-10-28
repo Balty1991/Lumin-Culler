@@ -44,7 +44,6 @@ import { MoreFiltersMenu } from './ui/MoreFiltersMenu';
 import { SavedFiltersMenu } from './ui/SavedFiltersMenu';
 import { InstallPrompt } from './ui/InstallPrompt';
 import { BackupReminder } from './ui/BackupReminder';
-import { FreeAllowanceNotice } from './ui/FreeAllowanceNotice';
 import { ImportReminder } from './ui/ImportReminder';
 import { EnrollPeopleNudge } from './ui/EnrollPeopleNudge';
 import { MemoryBanner } from './ui/MemoryBanner';
@@ -874,7 +873,6 @@ export default function App() {
             <BackupReminder />
             <ImportReminder onAddPhotos={() => void onAddPhotosClick()} />
             <EnrollPeopleNudge />
-            <FreeAllowanceNotice />
             <GallerySupervisorBanner />
           </div>
         )}
@@ -1037,7 +1035,6 @@ export default function App() {
           <InstallPrompt />
           <BackupReminder />
           <ImportReminder onAddPhotos={() => void onAddPhotosClick()} />
-          <FreeAllowanceNotice />
           <GallerySupervisorBanner />
         </div>
       )}

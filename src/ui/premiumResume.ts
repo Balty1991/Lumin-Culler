@@ -52,7 +52,13 @@ export interface ResumeStore {
   exportXMP: () => Promise<void>;
 }
 
-const ACTIONS: Record<PremiumReason, ResumeAction> = {
+/**
+ * „Acceptă tot” nu are reluare: după abonare, butonul e la locul lui pe cardul
+ * Azi, iar a aplica singuri o decizie în masă fără o nouă atingere ar fi prea mult.
+ */
+type ResumableReason = Exclude<PremiumReason, 'acceptAll'>;
+
+const ACTIONS: Record<ResumableReason, ResumeAction> = {
   contactSheet: { labelKey: 'premium.resume.contactSheet', run: s => s.setContactSheetOpen(true) },
   presentation: { labelKey: 'premium.resume.presentation', run: s => s.setPresentationOpen(true) },
   locations: { labelKey: 'premium.resume.locations', run: s => s.setLocationsOpen(true) },
@@ -71,5 +77,5 @@ const ACTIONS: Record<PremiumReason, ResumeAction> = {
 
 /** Ce se poate relua pentru motivul dat. `null` cand ecranul a fost deschis din meniu (fara motiv). */
 export function resumeFor(reason: PremiumReason | null): ResumeAction | null {
-  return reason === null ? null : ACTIONS[reason] ?? null;
+  return reason === null || reason === 'acceptAll' ? null : ACTIONS[reason] ?? null;
 }

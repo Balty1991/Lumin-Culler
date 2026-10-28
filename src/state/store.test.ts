@@ -1292,7 +1292,9 @@ describe('plafonul gratuit se aplica pe toate caile de iesire', () => {
   const photosOf = (n: number, status: PhotoView['status']) =>
     Array.from({ length: n }, (_, i) => ({ ...makePhoto(i), id: `p${i}`, status }) as PhotoView);
 
-  it('exportCollection refuza un folder mai mare decat plafonul ramas', async () => {
+  // Plafonul de export a fost scos (vezi isExportCapEnforced): Pro se vinde pe
+  // „Acceptă tot”, nu pe câte poze ai voie să scoți.
+  it('exportCollection nu mai opreste un folder mare: exportul nu are plafon', async () => {
     exportOriginalFilesMock.mockResolvedValue({ exported: 0, missing: [], method: 'folder', cancelled: false, grouped: true });
     const members = photosOf(200, 'review');
     useStore.setState({
@@ -1302,9 +1304,8 @@ describe('plafonul gratuit se aplica pe toate caile de iesire', () => {
 
     await useStore.getState().exportCollection('col-1');
 
-    expect(exportOriginalFilesMock).not.toHaveBeenCalled();
-    expect(useStore.getState().premiumOpen).toBe(true);
-    expect(useStore.getState().notice).toContain('200');
+    expect(exportOriginalFilesMock).toHaveBeenCalled();
+    expect(useStore.getState().premiumOpen).toBe(false);
   });
 
   it('exportCollection lasa sa treaca un folder care incape in plafon', async () => {
@@ -1530,5 +1531,37 @@ describe('setCullingStrictness', () => {
     ]);
     await useStore.getState().setCullingStrictness('lax');
     expect(useStore.getState().notice).toBe(t('ro', 'strictness.applied.other', { count: 2 }));
+  });
+});
+
+describe('acceptDayPicks („Acceptă tot”)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    useStore.setState({ notice: null, locale: 'ro', premiumOpen: false });
+    useStore.getState().syncEntitlement();
+  });
+
+  it('turns the day\'s review photos into "not today" and leaves the AI picks alone', async () => {
+    const photos = [
+      { ...makePhoto(1), id: 'keep', status: 'selected' },
+      { ...makePhoto(2), id: 'r1', status: 'review' },
+      { ...makePhoto(3), id: 'r2', status: 'review' }
+    ] as PhotoView[];
+    useStore.setState({ photos });
+    const changed = await useStore.getState().acceptDayPicks(['r1', 'r2']);
+    expect(changed).toBe(2);
+    const byId = new Map(useStore.getState().photos.map(p => [p.id, p.status]));
+    expect(byId.get('keep')).toBe('selected');
+    expect(byId.get('r1')).toBe('rejected');
+    expect(byId.get('r2')).toBe('rejected');
+  });
+
+  it('opens the paywall instead when Pro is locked', async () => {
+    localStorage.setItem('lumin-billing-ready', '1');
+    useStore.getState().syncEntitlement();
+    useStore.setState({ photos: [{ ...makePhoto(1), id: 'r1', status: 'review' }] as PhotoView[] });
+    expect(await useStore.getState().acceptDayPicks(['r1'])).toBe(0);
+    expect(useStore.getState().premiumOpen).toBe(true);
+    expect(useStore.getState().photos[0].status).toBe('review');
   });
 });

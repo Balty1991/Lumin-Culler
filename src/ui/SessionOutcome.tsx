@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useStore } from '../state/store';
-import { FREE_PHOTOS_PER_MONTH } from '../core/entitlement';
+import { FREE_PHOTOS_PER_MONTH, isExportCapEnforced } from '../core/entitlement';
 import { db } from '../core/db';
 import { medianDecisionSeconds, estimateSecondsSaved } from '../core/decisionPace';
 import { selectDeletableRejected } from '../state/batchOps';
@@ -123,7 +123,7 @@ export function SessionOutcome() {
   if (!outcome) return null;
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
 
-  const remaining = premium ? Infinity : Math.max(0, FREE_PHOTOS_PER_MONTH - photosUsed);
+  const remaining = premium || !isExportCapEnforced() ? Infinity : Math.max(0, FREE_PHOTOS_PER_MONTH - photosUsed);
   // Doar cand limita chiar sta in calea a ceea ce tocmai ai triat.
   const exportPressure = !premium && selectedCount > remaining;
   const savedSeconds = estimateSecondsSaved(outcome.autoDecided, paceSeconds);

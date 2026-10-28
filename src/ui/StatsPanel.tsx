@@ -7,7 +7,7 @@ import { summariseOutcomes, resetImportOutcomes } from '../core/importOutcome';
 import { summariseFeedback, resetFeedback } from '../core/aiFeedback';
 import { db } from '../core/db';
 import { computeLibraryStats, computeAgreementStats, computeAgreementTrend, type AgreementStats, type AgreementTrendPoint, type LibraryStats } from '../core/stats';
-import { FREE_PHOTOS_PER_MONTH } from '../core/entitlement';
+import { FREE_PHOTOS_PER_MONTH, isExportCapEnforced } from '../core/entitlement';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { XIcon, SparkleIcon } from './icons';
 import { t } from '../i18n';
@@ -560,7 +560,7 @@ export function StatsPanel() {
           <h3>{tr('stats.usage.title')}</h3>
           <p>{tr('stats.usage.analyzed', { count: monthlyUsage })}</p>
           <p>
-            {premium
+            {premium || !isExportCapEnforced()
               ? tr('stats.usage.takenOutPremium', { count: photosUsedThisWindow })
               : tr('stats.usage.takenOut', { count: photosUsedThisWindow, limit: FREE_PHOTOS_PER_MONTH })}
           </p>

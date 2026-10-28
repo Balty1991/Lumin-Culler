@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useStore, type PhotoView } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { XIcon, FolderIcon, UploadIcon, TagIcon, CheckIcon, LockIcon, PrinterIcon } from './icons';
-import { FREE_PHOTOS_PER_MONTH } from '../core/entitlement';
+import { FREE_PHOTOS_PER_MONTH, isExportCapEnforced } from '../core/entitlement';
 import { exportAllowanceWarning } from '../state/freeAllowance';
 import { sumKnownSizeBytes, formatSize } from '../state/storageStats';
 import { getCachedThumbUrl, peekThumbUrl } from '../core/thumbUrlCache';
@@ -109,7 +109,7 @@ export function ExportDestinations() {
      pastrat niciuna are ce exporta chiar cu selectia goala. */
   const undecided = photos.filter(p => p.status === 'pending' || p.status === 'review');
   const decidedCount = photos.length - undecided.length;
-  const allowance = exportAllowanceWarning(selectedCount, photosUsed, FREE_PHOTOS_PER_MONTH, premiumLocked);
+  const allowance = exportAllowanceWarning(selectedCount, photosUsed, FREE_PHOTOS_PER_MONTH, premiumLocked && isExportCapEnforced());
   /** Sortarea rapida peste pozele nedecise — aceeasi coada ca butonul de pe ecranul principal. */
   const goSort = () => {
     setOpen(false);
