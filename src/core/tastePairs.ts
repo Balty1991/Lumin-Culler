@@ -47,9 +47,9 @@ export const TASTE_QUIZ_MIN_ANSWERS = 8;
 /** Sub atâtea poze utilizabile, testul n-are din ce alege. */
 export const TASTE_QUIZ_MIN_PHOTOS = 8;
 
-const MAX_SERIES = 7;
-const MAX_QUALITY = 5;
-const MAX_SUBJECT = 4;
+const MAX_SERIES = 4;
+const MAX_QUALITY = 6;
+const MAX_SUBJECT = 5;
 /** Diferență de claritate/expunere care se vede cu ochiul liber. */
 const VISIBLE_DEFECT = 18;
 /** Două poze cu scoruri la atât una de alta sunt „de calitate apropiată”. */
@@ -130,8 +130,13 @@ export function buildTastePairs(photos: readonly TasteCandidate[], size = TASTE_
   const rest = free().sort((x, y) => hash(x.id) - hash(y.id));
   for (let i = 0; i + 1 < rest.length && pairs.length < size; i += 2) take('quality', rest[i], rest[i + 1], pairs);
 
-  // Întrebările se amestecă, ca să nu vină cinci serii la rând.
-  return pairs.slice(0, size).sort((x, y) => hash(x.aId) - hash(y.aId));
+  // Întâi întrebările ușor de deosebit (calitate, subiect), amestecate; seriile —
+  // cadre aproape identice — la final. Raportat: un antrenament început cu
+  // perechi aproape la fel n-a învățat nimic (4/7, la fel ca AI-ul generic).
+  const chosen = pairs.slice(0, size);
+  const easy = chosen.filter(p => p.kind !== 'series').sort((x, y) => hash(x.aId) - hash(y.aId));
+  const hard = chosen.filter(p => p.kind === 'series');
+  return [...easy, ...hard];
 }
 
 export type TasteAnswer = 'a' | 'b' | 'both' | 'none';

@@ -69,7 +69,13 @@ export function LuminApp() {
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   useAutoThemeWatch();
 
-  useEffect(() => { void boot().finally(() => setBooted(true)); }, [boot]);
+  useEffect(() => {
+    void boot().finally(() => {
+      setBooted(true);
+      // Bibliotecile de dinainte de „momente” (raportat: 8 păstrate din 9 aproape la fel).
+      void useStore.getState().applyMoments().catch(() => {});
+    });
+  }, [boot]);
 
   useEffect(() => {
     void scheduleDailyDigest({

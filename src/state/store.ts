@@ -29,6 +29,11 @@ import {
   readLibraryScores, type ImportProgress, type ImportCancelToken, type ImportOutcomeReport, type ImportWarning
 } from '../core/importPipeline';
 import type { PairGuess } from '../core/tasteScore';
+import { momentChanges } from '../core/moments';
+import { classifyPhoto } from '../core/smartInbox';
+
+/** Etichete de scenă care, fără nicio față în cadru, înseamnă hârtie, nu amintire. */
+const PAPER_TAGS = new Set(['receipt', 'paper', 'document', 'text', 'ticket', 'menu', 'handwriting', 'invoice', 'letter', 'screenshot', 'newspaper']);
 import { deriveThresholds, applyStrictness, type Thresholds, type CullingStrictness } from '../core/scoreThresholds';
 import { readCullingStrictness, writeCullingStrictness } from './cullingStrictness';
 import { pickMostUncertain } from '../core/uncertainty';
@@ -892,6 +897,12 @@ interface AppState {
    * deschide abonamentul când e blocat.
    */
   acceptDayPicks: (reviewIds: string[]) => Promise<number>;
+  /**
+   * Din fiecare moment (poze la câteva minute una de alta) rămân cele mai bune
+   * 1–3, după strictețe; restul deciziilor AI-ului devin „nu azi”. Și din
+   * fiecare serie, un singur cadru. Vezi core/moments.ts. Întoarce câte s-au schimbat.
+   */
+  applyMoments: () => Promise<number>;
   /** Aplica un rating TUTUROR pozelor din selectia curenta. */
   bulkSetRatingForSelection: (rating: number) => Promise<void>;
   bulkSetColorLabelForSelection: (label: ColorLabel) => Promise<void>;
@@ -3136,6 +3147,8 @@ export const useStore = create<AppState>((set, get) => ({
       // urma dupa un import esuat ar goli bateria fara nicio explicatie.
       void stopBackgroundAnalysis();
     }
+    // Din fiecare moment, doar cele mai bune 1–3 (vezi core/moments.ts).
+    try { await get().applyMoments(); } catch (err) { console.error('Momentele n-au putut fi aplicate:', err); }
     // reincarca statusurile si groupId-urile persistate dupa gruparea seriilor
     const fresh = await db.photos.toArray();
     const byId = new Map(fresh.map(p => [p.id, p]));
@@ -3836,6 +3849,7 @@ export const useStore = create<AppState>((set, get) => ({
     set({
       notice: t(locale, updates.size === 1 ? 'strictness.applied.one' : 'strictness.applied.other', { count: updates.size })
     });
+    await get().applyMoments();
   },
 
   guessTastePair: async (aId, bId) => {
@@ -3882,7 +3896,8 @@ export const useStore = create<AppState>((set, get) => ({
       const [analysis, photoRecord] = await Promise.all([db.analyses.get(p.id), db.photos.get(p.id)]);
       if (!analysis || !photoRecord) return;
       const prediction = await contextEngine.predict(analysis, photoRecord.genre);
-      const newStatus = decidePhotoStatus(prediction.score, analysis, thresholds);
+      // Ce a decis omul rămâne decizia lui: reclasificarea schimbă doar propunerile AI-ului.
+      const newStatus = lockedFromAutoDecision(photoRecord) ? photoRecord.status : decidePhotoStatus(prediction.score, analysis, thresholds);
       await db.analyses.update(p.id, { aiScore: prediction.score, aiFactors: prediction.topFactors, aiUncertainty: prediction.uncertainty, aiPersonalDelta: prediction.personalDelta });
       if (newStatus !== photoRecord.status) {
         changes.push({ photoId: p.id, previousStatus: photoRecord.status });
@@ -3904,6 +3919,7 @@ export const useStore = create<AppState>((set, get) => ({
         : state.batchHistory,
       notice: quotaError ? quotaNotice(locale) : t(locale, 'store.rescore.notice', { total: photos.length, changed: changes.length })
     }));
+    await get().applyMoments();
     return { total: photos.length, changed: changes.length };
   },
 
@@ -4151,6 +4167,57 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   /** Ca si celelalte operatii in masa — reversibila dintr-o data cu Ctrl+Z (batchHistory). */
+  applyMoments: async () => {
+    const records = await db.photos.toArray();
+    const byId = new Map(get().photos.map(p => [p.id, p]));
+    const input = records.map(r => {
+      const view = byId.get(r.id);
+      return {
+        id: r.id, capturedAt: view?.capturedAt, status: r.status, aiScore: view?.aiScore ?? 0,
+        aside: view?.aside, groupId: view?.groupId, locked: lockedFromAutoDecision(r)
+      };
+    });
+    const changes = momentChanges(input, get().cullingStrictness);
+    // Seriile: un singur cadru păstrat de AI, cel mai bun (dacă omul n-a ales deja unul).
+    const groups = new Map<string, typeof input>();
+    for (const p of input) {
+      if (!p.groupId || p.aside) continue;
+      const g = groups.get(p.groupId);
+      if (g) g.push(p); else groups.set(p.groupId, [p]);
+    }
+    for (const g of groups.values()) {
+      if (g.length < 2 || g.some(p => p.locked && p.status === 'selected')) continue;
+      const kept = g.filter(p => !p.locked && p.status === 'selected' && !changes.has(p.id)).sort((a, b) => b.aiScore - a.aiScore);
+      for (const p of kept.slice(1)) changes.set(p.id, 'rejected');
+    }
+    // Bonuri, foi, capturi nerecunoscute la import (calea rapidă nu citește
+    // text): după etichetele de scenă și numele fișierului. Raportat: bonul de
+    // sâmbătă și foaia de duminică cereau încă o decizie de „poză”.
+    const asides = new Map<string, 'document' | 'screenshot'>();
+    for (const r of records) {
+      const v = byId.get(r.id);
+      if (!v || v.aside || lockedFromAutoDecision(r)) continue;
+      const kind = classifyPhoto({ id: v.id, fileName: v.fileName, faceCount: v.faceCount, textCoverage: v.textCoverage, sceneTags: v.sceneTags });
+      const paper = v.faceCount === 0 && (v.sceneTags ?? []).some(tag => PAPER_TAGS.has(tag.toLowerCase()));
+      if (kind === 'screenshot') asides.set(r.id, 'screenshot');
+      else if (kind === 'document' || paper) asides.set(r.id, 'document');
+    }
+    for (const id of asides.keys()) changes.delete(id);
+    if (asides.size) {
+      await Promise.all([...asides].map(([id, aside]) => db.photos.update(id, { aside, status: 'review', aiDecided: true })));
+      set(state => ({ photos: state.photos.map(p => (asides.has(p.id) ? { ...p, aside: asides.get(p.id), status: 'review' as const, aiDecided: true } : p)) }));
+    }
+    if (!changes.size) return asides.size;
+    await Promise.all([...changes.keys()].map(async id => {
+      await db.photos.update(id, { status: 'rejected', aiDecided: true });
+      await syncOriginal(id, 'rejected');
+    }));
+    set(state => ({
+      photos: state.photos.map(p => (changes.has(p.id) ? { ...p, status: 'rejected' as const, aiDecided: true } : p))
+    }));
+    return changes.size + asides.size;
+  },
+
   acceptDayPicks: async reviewIds => {
     if (!reviewIds.length) return 0;
     if (get().gatePremium('acceptAll')) return 0;

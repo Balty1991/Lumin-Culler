@@ -36,7 +36,7 @@
 .lx-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; }
 .lx-eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-faint); }
 .lx-title { margin: 0; font-family: var(--font-display); font-size: 30px; font-weight: 600; letter-spacing: -0.02em; }
-.lx-title.small { font-size: 20px; text-transform: capitalize; flex: 1; text-align: center; }
+.lx-title.small { font-size: 20px; flex: 1; text-align: center; }
 .lx-h1 { margin: 0; font-family: var(--font-display); font-size: 32px; font-weight: 600; line-height: 1.1; letter-spacing: -0.02em; }
 .lx-h1 em { font-style: normal; background: var(--lx-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .lx-sub { margin: 0; color: var(--text-dim); font-size: 15px; line-height: 1.5; }
@@ -112,8 +112,9 @@
 .lx-hero { display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 8px 0 4px; text-align: center; }
 .lx-hero-text { display: flex; flex-direction: column; gap: 10px; align-items: center; width: 100%; }
 .lx-hero-text .lx-btn { margin-top: 6px; min-width: 240px; }
-.lx-progress { width: 100%; max-width: 320px; height: 5px; border-radius: 3px; background: rgb(255 255 255 / 0.08); overflow: hidden; }
-.lx-progress i { display: block; height: 100%; background: var(--lx-grad); transition: width 0.4s var(--lx-ease); }
+.lx-progress { width: 100%; max-width: 320px; height: 5px; border-radius: 3px; background: var(--line-strong); overflow: hidden; }
+.lx-progress.small { max-width: none; height: 4px; margin-top: 6px; }
+.lx-progress i { display: block; height: 100%; min-width: 4px; background: var(--lx-grad); transition: width 0.4s var(--lx-ease); }
 .lx-picks { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; margin: 0 -18px; padding: 4px 18px 8px; scrollbar-width: none; }
 .lx-picks::-webkit-scrollbar { display: none; }
 .lx-pick {
@@ -124,9 +125,9 @@
 .lx-pick-img, .lx-pick .lx-thumb-empty { width: 100%; height: 100%; object-fit: cover; display: block; }
 .lx-pick-score { position: absolute; top: 10px; left: 10px; font-family: var(--mono); font-size: 12px; padding: 3px 8px; border-radius: 8px; background: rgb(6 7 10 / 0.6); color: var(--pick); backdrop-filter: blur(6px); }
 .lx-pick-why { position: absolute; left: 10px; right: 10px; bottom: 10px; font-size: 12.5px; padding: 8px 10px; border-radius: 12px; background: rgb(6 7 10 / 0.55); color: #fff; backdrop-filter: blur(8px); text-align: left; }
-.lx-decide { flex-wrap: wrap; }
-.lx-decide > div { flex: 1 1 100%; }
-.lx-decide .lx-btn { flex: 1 1 0; }
+.lx-decide { flex-direction: column; align-items: stretch; }
+.lx-decide-actions { display: flex; flex-direction: row !important; gap: 10px; }
+.lx-decide-actions .lx-btn { flex: 1 1 0; min-width: 0; padding: 0 12px; font-size: 14px; }
 .lx-ai-mini { width: 100%; }
 .lx-daylist, .lx-days { display: flex; flex-direction: column; gap: 10px; }
 .lx-dayrow, .lx-daycard {
@@ -138,7 +139,7 @@
 .lx-dayrow-thumbs img, .lx-dayrow-thumbs .lx-thumb-empty { width: 44px; height: 44px; border-radius: 12px; object-fit: cover; border: 2px solid var(--bg); margin-left: -14px; display: block; background: var(--surface-3); }
 .lx-dayrow-thumbs > :first-child { margin-left: 0; }
 .lx-dayrow-text, .lx-daycard-text { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
-.lx-dayrow-text b, .lx-daycard-text b { font-size: 15px; text-transform: capitalize; }
+.lx-dayrow-text b, .lx-daycard-text b { font-size: 15px; }
 .lx-dayrow-text span, .lx-daycard-text span { font-size: 12.5px; color: var(--text-dim); }
 .lx-mosaic { display: grid; gap: 2px; width: 72px; height: 72px; border-radius: 16px; overflow: hidden; flex: 0 0 auto; background: var(--surface-3); }
 .lx-mosaic.n2 { grid-template-columns: 1fr 1fr; }
@@ -242,7 +243,7 @@
 }
 .lx-sort-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .lx-sort-title { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
-.lx-sort-title b { font-size: 15px; text-transform: capitalize; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60vw; }
+.lx-sort-title b { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60vw; }
 .lx-sort-title span { font-family: var(--mono); font-size: 11.5px; color: var(--text-faint); }
 .lx-sort-bar { height: 3px; border-radius: 2px; background: rgb(255 255 255 / 0.07); margin: 10px 4px 0; overflow: hidden; }
 .lx-sort-bar i { display: block; height: 100%; background: var(--lx-grad); transition: width 0.3s var(--lx-ease); }
@@ -307,3 +308,42 @@
 .lx-grid-cell.selected { outline: 2px solid rgb(var(--pick-rgb) / 0.7); outline-offset: -2px; }
 .lx-grid-cell.rejected img { opacity: 0.45; }
 .lx-brain-score b.none { background: none; color: var(--text-faint); }
+
+.lx-gallery-status, .lx-coverage { width: 100%; }
+.lx-months { display: flex; flex-direction: column; gap: 10px; }
+.lx-month { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 18px; border: 1px solid var(--lx-line); background: var(--lx-glass); }
+.lx-month-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.lx-month-text b { font-size: 15px; }
+.lx-month-text span { font-size: 12.5px; color: var(--text-dim); }
+.lx-month.none { border-style: dashed; }
+.lx-seg button { padding: 0 6px; }
+.lx-subjects { display: flex; flex-direction: column; gap: 8px; }
+.lx-subjects > span { font-size: 13px; color: var(--text-dim); }
+
+/* Ecranele preluate (abonament, confirmări) în limbajul Lumin AI */
+.lx .detail {
+  position: fixed; inset: 0; z-index: 95; display: flex; align-items: flex-end; justify-content: center;
+  background: rgb(3 4 8 / 0.62); backdrop-filter: blur(10px); animation: lx-in 0.25s var(--lx-ease) both;
+}
+.lx .detail-inner {
+  width: min(560px, 100%); max-height: 92dvh; overflow-y: auto; box-sizing: border-box;
+  border-radius: 28px 28px 0 0; border: 1px solid var(--lx-line); border-bottom: none;
+  background:
+    radial-gradient(600px 300px at 80% -20%, rgb(var(--accent-2-rgb) / 0.22), transparent 60%),
+    var(--surface);
+  padding: 22px 20px calc(24px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -30px 60px -30px rgb(0 0 0 / 0.8);
+}
+.lx .confirm-dialog { border-radius: 24px; margin: 0 16px calc(16px + env(safe-area-inset-bottom, 0px)); border-bottom: 1px solid var(--lx-line); }
+.lx .detail-head h2, .lx .premium-lead { font-family: var(--font-display); letter-spacing: -0.01em; }
+.lx .premium-lead { font-size: 24px; line-height: 1.2; margin: 10px 0 6px; }
+.lx .premium-chip { display: inline-flex; gap: 6px; align-items: center; font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.1em; text-transform: uppercase; padding: 6px 12px; border-radius: 999px; background: var(--lx-grad); color: #06070a; }
+.lx .premium-perk { border-radius: 18px; border: 1px solid var(--lx-line); background: var(--lx-glass); padding: 14px 16px; margin: 8px 0; }
+.lx .premium-perk.is-wanted { border-color: rgb(var(--accent-rgb) / 0.7); box-shadow: 0 0 0 3px rgb(var(--accent-rgb) / 0.12); }
+.lx .premium-group-head { font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-faint); font-weight: 500; margin: 18px 0 6px; }
+.lx .premium-plans { display: grid; gap: 10px; }
+.lx .premium-plans button, .lx .premium-plans label { border-radius: 18px; }
+.lx .btn-accent { background: var(--lx-grad); color: #06070a; border: none; border-radius: 16px; font-weight: 700; min-height: 52px; box-shadow: 0 12px 30px -12px rgb(var(--accent-rgb) / 0.7); }
+.lx .confirm-dialog-actions { display: flex; gap: 10px; justify-content: flex-end; }
+.lx .confirm-dialog-actions button { min-height: 46px; padding: 0 18px; border-radius: 14px; }
+.lx .confirm-dialog-input { width: 100%; box-sizing: border-box; height: 48px; border-radius: 14px; border: 1px solid var(--line-strong); background: var(--surface-2); color: var(--text); padding: 0 14px; font-size: 16px; margin: 10px 0 14px; }

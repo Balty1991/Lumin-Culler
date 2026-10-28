@@ -1148,6 +1148,23 @@ export class ContextEngine {
     globalModel.sampleCount++;
 
     await db.contextModels.bulkPut([model, globalModel]);
+
+    // Și CE păstrezi, nu doar CUM arată: câștigătorul și învinșii hrănesc
+    // memoria de conținut și de subiecte, ca o decizie obișnuită. Fără asta,
+    // antrenamentul pe perechi învăța doar claritate/ochi/zâmbet, iar „ce tip
+    // de poze păstrezi” (copilul, pisica, mâncarea) rămânea neatins.
+    try {
+      const sides = [{ analysis: input.winner.analysis, kept: true }, ...input.losers.map(l => ({ analysis: l.analysis, kept: false }))];
+      for (const side of sides) {
+        if (side.analysis.imageEmbedding?.length) await recordEmbeddingDecision(side.analysis.imageEmbedding, side.kept);
+        const tags = subjectTags(side.analysis);
+        if (tags.length) await recordTagDecision(tags, side.kept);
+      }
+      this.embeddingMemory = await readEmbeddingMemory();
+      this.tagMemory = await readTagMemory();
+    } catch (err) {
+      console.error('Memoria de conținut n-a putut învăța din preferință:', err);
+    }
   }
 
   // ── Explainability (feeds the "Preferinte AI" panel in UI) ─────────────────
@@ -1181,6 +1198,22 @@ export class ContextEngine {
    * "a apucat omul sa-si arate preferintele in general?", nu "in scena asta".
    * Aceeasi scara ca `confidence` din predict(): plin la TRAINED_SAMPLES.
    */
+  /**
+   * Subiectele pe care le păstrezi cel mai des, din memoria de etichete —
+   * pentru „AI-ul tău”: „Păstrezi des: copil, pisică, apus”. Doar etichetele
+   * văzute de destule ori și înclinate clar spre „păstrat”.
+   */
+  async keptSubjects(limit = 6): Promise<{ tag: string; ratio: number; seen: number }[]> {
+    await this.init();
+    const memory = this.tagMemory ?? await readTagMemory();
+    if (!memory) return [];
+    return Object.entries(memory.tags)
+      .map(([tag, c]) => ({ tag, seen: c.kept + c.rejected, ratio: (c.kept + 1) / (c.kept + c.rejected + 2) }))
+      .filter(x => x.seen >= 3 && x.ratio >= 0.6)
+      .sort((a, b) => b.ratio * Math.log(1 + b.seen) - a.ratio * Math.log(1 + a.seen))
+      .slice(0, limit);
+  }
+
   async learnedWeight(): Promise<number> {
     await this.init();
     const global = this.getOrCreateModel(GLOBAL_CONTEXT_KEY);

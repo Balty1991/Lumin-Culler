@@ -50,3 +50,29 @@ export function readTasteScore(): TasteScore {
 export function writeTasteScore(score: TasteScore): void {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(score)); } catch { /* fără stocare */ }
 }
+
+/**
+ * Același scor, dar din sortarea de zi cu zi: înainte de fiecare swipe se
+ * notează ce credea AI-ul (personal și generic), după swipe dacă a nimerit.
+ * E dovada pe termen lung că AI-ul te cunoaște tot mai bine.
+ */
+const DAILY_KEY = 'lumin-daily-score';
+
+export function readDailyScore(): TasteScore {
+  try {
+    const raw = JSON.parse(localStorage.getItem(DAILY_KEY) ?? 'null');
+    if (raw && Number.isFinite(raw.hits) && Number.isFinite(raw.genericHits) && Number.isFinite(raw.total)) return raw;
+  } catch { /* stocare stricată sau indisponibilă */ }
+  return EMPTY_SCORE;
+}
+
+export function recordDailyGuess(guess: { personal: boolean; generic: boolean }, kept: boolean): TasteScore {
+  const before = readDailyScore();
+  const next = {
+    hits: before.hits + (guess.personal === kept ? 1 : 0),
+    genericHits: before.genericHits + (guess.generic === kept ? 1 : 0),
+    total: before.total + 1
+  };
+  try { localStorage.setItem(DAILY_KEY, JSON.stringify(next)); } catch { /* fără stocare */ }
+  return next;
+}

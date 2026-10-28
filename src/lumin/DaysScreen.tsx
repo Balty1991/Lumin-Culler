@@ -3,37 +3,40 @@ import { useStore } from '../state/store';
 import { FaceCropThumb } from '../ui/FaceCropThumb';
 import { groupDays, type Day } from './days';
 import { usePeopleFaces } from './faces';
-import { useLx } from './lxStore';
+import { buildCoverage, useGalleryMonths } from './coverage';
+import { dayLabel, daySummary, monthLabel } from './format';
+import { useLx, type GalleryView } from './lxStore';
 import { useLxActions, useTr } from './context';
 import { Thumb } from './Thumb';
+import type { FaceCluster } from '../core/faceClustering';
 import type { PhotoView } from '../state/store';
 
-type View = 'days' | 'people' | 'aside';
-
-function dayLabel(start: number, locale: string): string {
-  return new Date(start).toLocaleDateString(locale === 'en' ? 'en-GB' : 'ro-RO', { weekday: 'long', day: 'numeric', month: 'long' });
-}
+const VIEWS: GalleryView[] = ['days', 'months', 'people', 'aside'];
 
 /**
  * lumin/DaysScreen.tsx
- * „Galerie”: pozele tale văzute în trei feluri — pe zile (cu ce a ales AI-ul
- * în fiecare), pe oameni (cu fața lor) și ce a pus AI-ul deoparte (bonuri,
- * capturi, documente). Ziua deschisă arată alegerile, seriile cu cadrul
- * câștigător și se poate trimite mai departe dintr-o atingere.
+ * „Galerie”: pozele tale văzute în patru feluri — pe zile (ce a ales AI-ul în
+ * fiecare), pe luni (cât din galeria telefonului e sortat și ce nu — raportat:
+ * „nu știi ce ai sortat și ce nu”), pe oameni (cu fața lor, și cei fără nume)
+ * și ce a pus AI-ul deoparte (bonuri, capturi, documente).
  */
 export function DaysScreen() {
   const photos = useStore(s => s.photos);
   const persons = useStore(s => s.persons);
   const locale = useStore(s => s.locale);
+  const askPrompt = useStore(s => s.askPrompt);
+  const enrollFaceCluster = useStore(s => s.enrollFaceCluster);
   const openDay = useLx(s => s.openDay);
   const setOpenDay = useLx(s => s.setOpenDay);
   const openSort = useLx(s => s.openSort);
+  const view = useLx(s => s.galleryView);
+  const setView = useLx(s => s.setGalleryView);
   const tr = useTr();
   const { pick } = useLxActions();
-  const [view, setView] = useState<View>('days');
   const [person, setPerson] = useState<string | null>(null);
+  const [refresh, setRefresh] = useState(0);
   const days = useMemo(() => groupDays(photos), [photos]);
-  const { people } = usePeopleFaces(persons, 0);
+  const { people, unknown } = usePeopleFaces(persons, refresh);
   const aside = useMemo(() => photos.filter(p => !!p.aside), [photos]);
   const day = openDay !== null ? days.find(d => d.start === openDay) : undefined;
 
@@ -55,6 +58,13 @@ export function DaysScreen() {
     );
   }
 
+  const name = async (cluster: FaceCluster) => {
+    const value = (await askPrompt(tr('lx.brain.namePrompt'), '', { confirmLabel: tr('lx.save') }))?.trim();
+    if (!value) return;
+    await enrollFaceCluster(value, cluster.members.map(m => ({ photoId: m.photoId, faceIndex: m.faceIndex, embedding: m.embedding })));
+    setRefresh(n => n + 1);
+  };
+
   return (
     <div className="lx-screen">
       <header className="lx-head">
@@ -63,7 +73,7 @@ export function DaysScreen() {
       </header>
 
       <div className="lx-seg" role="tablist">
-        {(['days', 'people', 'aside'] as View[]).map(v => (
+        {VIEWS.map(v => (
           <button key={v} role="tab" aria-selected={view === v} className={view === v ? 'on' : ''} onClick={() => setView(v)}>
             {tr(`lx.days.view.${v}`)}
           </button>
@@ -81,7 +91,7 @@ export function DaysScreen() {
               </div>
               <div className="lx-daycard-text">
                 <b>{dayLabel(d.start, locale)}</b>
-                <span>{tr('lx.day.summary', { total: d.photos.length, kept: d.kept.length })}{d.series.length > 0 ? ` · ${tr('lx.day.series', { count: d.series.length })}` : ''}</span>
+                <span>{daySummary(d, tr)}</span>
               </div>
               {d.waiting.length > 0 ? <span className="lx-pill warm">{d.waiting.length}</span> : <span className="lx-pill ok">✓</span>}
             </button>
@@ -89,18 +99,30 @@ export function DaysScreen() {
         </div>
       ))}
 
-      {view === 'people' && (people.length === 0 ? (
+      {view === 'months' && <MonthsView />}
+
+      {view === 'people' && (people.length === 0 && unknown.length === 0 ? (
         <p className="lx-empty">{tr('lx.days.peopleEmpty')}</p>
       ) : (
-        <div className="lx-faces">
-          {people.map(p => (
-            <button key={p.name} className="lx-face" onClick={() => setPerson(p.name)}>
-              <FaceCropThumb photoId={p.photoId} box={p.box} size={72} className="lx-face-img" />
-              <b>{p.name}</b>
-              <span>{tr('lx.brain.photos', { count: p.photoIds.length })}</span>
-            </button>
-          ))}
-        </div>
+        <>
+          <div className="lx-faces">
+            {people.map(p => (
+              <button key={p.name} className="lx-face" onClick={() => setPerson(p.name)}>
+                <FaceCropThumb photoId={p.photoId} box={p.box} size={72} className="lx-face-img" />
+                <b>{p.name}</b>
+                <span>{tr('lx.brain.photos', { count: p.photoIds.length })}</span>
+              </button>
+            ))}
+            {unknown.map((c, i) => (
+              <button key={`${c.members[0].photoId}-${i}`} className="lx-face unknown" onClick={() => void name(c)}>
+                <FaceCropThumb photoId={c.members[0].photoId} box={c.members[0].box} size={72} className="lx-face-img" />
+                <b>{tr('lx.brain.whoIs')}</b>
+                <span>{tr('lx.brain.photos', { count: c.members.length })}</span>
+              </button>
+            ))}
+          </div>
+          {unknown.length > 0 && <p className="lx-hint">{tr('lx.brain.peopleHint')}</p>}
+        </>
       ))}
 
       {view === 'aside' && (aside.length === 0 ? (
@@ -113,6 +135,64 @@ export function DaysScreen() {
         </>
       ))}
     </div>
+  );
+}
+
+/** Luni: cât din galeria telefonului a văzut și a sortat AI-ul, cu „Sortează luna” unde lipsește. */
+function MonthsView() {
+  const photos = useStore(s => s.photos);
+  const locale = useStore(s => s.locale);
+  const progress = useStore(s => s.progress);
+  const importGalleryPeriod = useStore(s => s.importGalleryPeriod);
+  const openSort = useLx(s => s.openSort);
+  const tr = useTr();
+  const busy = !!progress && progress.phase !== 'finalizat';
+  const counts = useGalleryMonths(busy ? -1 : photos.length);
+  const rows = useMemo(() => buildCoverage(counts ?? new Map(), photos), [counts, photos]);
+  const totals = rows.reduce((a, r) => ({ gallery: a.gallery + r.inGallery, seen: a.seen + r.seen, waiting: a.waiting + r.waiting }), { gallery: 0, seen: 0, waiting: 0 });
+  const percent = totals.gallery ? Math.round(((totals.seen - totals.waiting) / totals.gallery) * 100) : 0;
+
+  if (counts === null) return <p className="lx-empty">{tr('lx.months.loading')}</p>;
+
+  return (
+    <>
+      <section className="lx-card lx-coverage">
+        <div>
+          <b>{tr('lx.months.summary', { percent })}</b>
+          <span>{tr('lx.months.summarySub', { sorted: totals.seen - totals.waiting, total: totals.gallery, unsorted: Math.max(0, totals.gallery - totals.seen + totals.waiting) })}</span>
+          <div className="lx-progress"><i style={{ width: `${percent}%` }} /></div>
+        </div>
+      </section>
+      <div className="lx-months">
+        {rows.map(r => {
+          const missing = Math.max(0, r.inGallery - r.seen);
+          const state = missing === 0 && r.waiting === 0 ? 'done' : r.seen === 0 ? 'none' : 'partial';
+          const ratio = r.inGallery ? Math.round(((r.seen - r.waiting) / r.inGallery) * 100) : 100;
+          return (
+            <div key={r.start} className={`lx-month ${state}`}>
+              <div className="lx-month-text">
+                <b>{monthLabel(r.start, locale)}</b>
+                <span>{tr(`lx.months.state.${state}`, { seen: r.seen, total: r.inGallery, missing, waiting: r.waiting })}</span>
+                <div className="lx-progress small"><i style={{ width: `${ratio}%` }} /></div>
+              </div>
+              {missing > 0 ? (
+                <button className="lx-btn small primary" disabled={busy} onClick={() => void importGalleryPeriod({ start: r.start, end: r.end })}>
+                  {tr('lx.months.sort')}
+                </button>
+              ) : r.waiting > 0 ? (
+                <button className="lx-btn small ghost" onClick={() => {
+                  const ids = photos.filter(p => !p.aside && (p.status === 'review' || p.status === 'pending' || p.status === 'candidate')
+                    && (p.capturedAt ?? p.importedAt) >= r.start && (p.capturedAt ?? p.importedAt) < r.end).map(p => p.id);
+                  openSort(ids, monthLabel(r.start, locale));
+                }}>{tr('lx.today.check')}</button>
+              ) : (
+                <span className="lx-pill ok">✓</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </>
   );
 }
 
@@ -146,7 +226,7 @@ function DayView({ day, onBack }: { day: Day<PhotoView>; onBack: () => void }) {
       </header>
 
       <section className="lx-stats">
-        <div><b>{day.photos.length}</b><span>{tr('lx.stat.total')}</span></div>
+        <div><b>{day.photos.length - day.aside.length}</b><span>{tr('lx.stat.total')}</span></div>
         <div><b className="ok">{day.kept.length}</b><span>{tr('lx.stat.kept')}</span></div>
         <div><b>{day.series.length}</b><span>{tr('lx.stat.series')}</span></div>
       </section>
@@ -157,7 +237,9 @@ function DayView({ day, onBack }: { day: Day<PhotoView>; onBack: () => void }) {
             <b>{tr('lx.day.waiting', { count: day.waiting.length })}</b>
             <span>{tr('lx.day.waitingSub')}</span>
           </div>
-          <button className="lx-btn primary" onClick={() => openSort(day.waiting.map(p => p.id), label)}>{tr('lx.today.check')}</button>
+          <div className="lx-decide-actions">
+            <button className="lx-btn primary" onClick={() => openSort(day.waiting.map(p => p.id), label)}>{tr('lx.today.check')}</button>
+          </div>
         </section>
       )}
 

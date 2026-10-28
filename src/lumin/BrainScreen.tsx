@@ -5,7 +5,8 @@ import { contextEngine } from '../core/learning/ContextEngine';
 import { summarizeAccuracy, MIN_DECISIONS_FOR_ACCURACY, type AccuracySummary } from '../core/learning/accuracy';
 import type { FaceCluster } from '../core/faceClustering';
 import { usePeopleFaces } from './faces';
-import { readTasteScore } from '../core/tasteScore';
+import { readTasteScore, readDailyScore } from '../core/tasteScore';
+import { translateSceneTag } from '../core/sceneTagLabels';
 import { openTasteQuiz } from '../state/tasteQuiz';
 import { FaceCropThumb } from '../ui/FaceCropThumb';
 import { useTr } from './context';
@@ -31,10 +32,12 @@ export function BrainScreen() {
   const [accuracy, setAccuracy] = useState<AccuracySummary | null>(null);
   const [lessons, setLessons] = useState(0);
   const [notes, setNotes] = useState<string[]>([]);
+  const [subjects, setSubjects] = useState<string[]>([]);
   const [level, setLevel] = useState(0);
   const [refresh, setRefresh] = useState(0);
   const { people, unknown } = usePeopleFaces(persons, refresh);
   const training = readTasteScore();
+  const daily = readDailyScore();
 
   useEffect(() => {
     let alive = true;
@@ -45,6 +48,9 @@ export function BrainScreen() {
     }).catch(() => {});
     void contextEngine.summarize(locale === 'en' ? 'en' : 'ro').then(models => {
       if (alive) setNotes([...new Set(models.flatMap(m => m.notes))].slice(0, 5));
+    }).catch(() => {});
+    void contextEngine.keptSubjects().then(list => {
+      if (alive) setSubjects(list.map(x => translateSceneTag(x.tag, locale === 'en' ? 'en' : 'ro')));
     }).catch(() => {});
     void contextEngine.learnedWeight().then(w => { if (alive) setLevel(w); }).catch(() => {});
     return () => { alive = false; };
@@ -107,6 +113,18 @@ export function BrainScreen() {
 
       <section className="lx-section">
         <div className="lx-section-head"><h2>{tr('lx.brain.learned')}</h2></div>
+        {daily.total > 0 && (
+          <div className="tq-compare">
+            <div><b className="v3-mono">{daily.hits}/{daily.total}</b><span>{tr('lx.brain.dailyYours')}</span></div>
+            <div><b className="v3-mono">{daily.genericHits}/{daily.total}</b><span>{tr('taste.done.generic')}</span></div>
+          </div>
+        )}
+        {subjects.length > 0 && (
+          <div className="lx-subjects">
+            <span>{tr('lx.brain.subjects')}</span>
+            <div className="lx-chips">{subjects.map(x => <span key={x} className="lx-chip good">{x}</span>)}</div>
+          </div>
+        )}
         {notes.length > 0 ? (
           <ul className="lx-notes">{notes.map(n => <li key={n}>{n}</li>)}</ul>
         ) : (

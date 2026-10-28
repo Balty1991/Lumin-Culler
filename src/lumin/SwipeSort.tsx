@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { useStore } from '../state/store';
 import { RitualDone } from '../ui/RitualDone';
+import { recordDailyGuess } from '../core/tasteScore';
+import { SELECT_THRESHOLD, REJECT_THRESHOLD } from '../core/importPipeline';
 import { reasonsFor } from './reasons';
 import { useLx } from './lxStore';
 import { useTr } from './context';
@@ -10,6 +12,8 @@ type Verdict = 'keep' | 'drop' | 'unsure';
 /** Cât trebuie tras cardul ca să conteze ca decizie. */
 const COMMIT_PX = 96;
 const FLY_MS = 220;
+/** Unde ar trage linia un AI generic între „păstrez” și „nu”. */
+const MIDPOINT = (SELECT_THRESHOLD + REJECT_THRESHOLD) / 2;
 
 /**
  * lumin/SwipeSort.tsx
@@ -69,6 +73,12 @@ export function SwipeSort() {
     void setStatus(current.id, keep ? 'selected' : 'rejected');
     setDecisions(n => n + 1);
     if ((ai === 'keep' && !keep) || (ai === 'drop' && keep)) setLesson(tr(keep ? 'lx.sort.lessonKeep' : 'lx.sort.lessonDrop'));
+    // Scorul cinstit din sortarea zilnică: ce credea AI-ul tău și ce ar fi crezut
+    // unul generic (fără ce a învățat de la tine), înainte de decizia ta.
+    if (ai !== 'unsure') {
+      const generic = current.aiScore - (current.aiPersonalDelta ?? 0);
+      recordDailyGuess({ personal: ai === 'keep', generic: generic >= MIDPOINT }, keep);
+    }
     window.setTimeout(() => { setFlying(null); setDx(0); setIndex(i => i + 1); }, FLY_MS);
   };
   const back = () => {

@@ -151,6 +151,8 @@ export function TasteQuiz() {
     });
     try {
       await rescorePhotos();
+      // Mesajul „Re-analizate N poze” acoperea butonul de la final (raportat).
+      useStore.getState().clearNotice();
       const models = await contextEngine.summarize(locale === 'en' ? 'en' : 'ro');
       setSummary([...new Set(models.flatMap(m => m.notes))].slice(0, 3));
     } catch {
@@ -200,7 +202,7 @@ export function TasteQuiz() {
         {summary === null ? (
           <>
             <div className="v3-screen-head">
-              <span className="v3-kicker">{tr('taste.kicker', { n: index + 1, total: pairs.length })}</span>
+              <span className="v3-kicker">{tr(firstRun ? 'taste.kicker' : 'taste.kickerAgain', { n: index + 1, total: pairs.length })}</span>
               <button className="ghost icon-btn" onClick={close} aria-label={tr('taste.skip')}><XIcon /></button>
             </div>
             <div className="tq-progress" aria-hidden="true">

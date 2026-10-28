@@ -11,6 +11,8 @@ import { useLxActions, useTr } from './context';
 import { Orb } from './Orb';
 import { Thumb } from './Thumb';
 import { plural } from '../i18n';
+import { dayLabel, daySummary } from './format';
+import { buildCoverage, useGalleryMonths } from './coverage';
 
 /**
  * lumin/TodayScreen.tsx
@@ -49,7 +51,7 @@ export function TodayScreen() {
   const waitingInGallery = Math.max(0, (inGallery ?? 0) - (today?.photos.length ?? 0));
   const streak = streakOf(readRitualDays());
   const score = readTasteScore();
-  const dateLabel = new Date().toLocaleDateString(locale === 'en' ? 'en-GB' : 'ro-RO', { weekday: 'long', day: 'numeric', month: 'long' });
+  const dateLabel = dayLabel(todayStart, locale);
 
   const sortToday = async () => {
     await importToday();
@@ -126,10 +128,12 @@ export function TodayScreen() {
             <b>{tr(plural(today.waiting.length, 'lx.today.unsure.one', 'lx.today.unsure'), { count: today.waiting.length })}</b>
             <span>{tr('lx.today.unsureSub', { seconds: Math.max(10, today.waiting.length * 4) })}</span>
           </div>
-          <button className="lx-btn primary" onClick={() => openSort(today.waiting.map(p => p.id), tr('lx.sort.today'))}>{tr('lx.today.check')}</button>
-          <button className="lx-btn ghost" onClick={() => void acceptDayPicks(today.waiting.filter(p => p.status === 'review').map(p => p.id))}>
-            {tr('lx.today.acceptAll')}{premiumLocked && <b className="lx-pro">PRO</b>}
-          </button>
+          <div className="lx-decide-actions">
+            <button className="lx-btn primary" onClick={() => openSort(today.waiting.map(p => p.id), tr('lx.sort.today'))}>{tr('lx.today.check')}</button>
+            <button className="lx-btn ghost" onClick={() => void acceptDayPicks(today.waiting.filter(p => p.status === 'review').map(p => p.id))}>
+              {tr('lx.today.acceptAll')}{premiumLocked && <b className="lx-pro">PRO</b>}
+            </button>
+          </div>
         </section>
       )}
 
@@ -140,6 +144,8 @@ export function TodayScreen() {
           <div><b>{today.aside.length}</b><span>{tr('lx.stat.aside')}</span></div>
         </section>
       )}
+
+      <GalleryStatus />
 
       <button className="lx-card lx-ai-mini" onClick={() => setTab('brain')}>
         <Orb mood="learn" size={44} />
@@ -163,8 +169,8 @@ export function TodayScreen() {
                   {(d.kept.length ? d.kept : d.photos).slice(0, 3).map(p => <Thumb key={p.id} id={p.id} lqip={p.lqip} />)}
                 </div>
                 <div className="lx-dayrow-text">
-                  <b>{new Date(d.start).toLocaleDateString(locale === 'en' ? 'en-GB' : 'ro-RO', { weekday: 'long', day: 'numeric', month: 'short' })}</b>
-                  <span>{tr('lx.day.summary', { total: d.photos.length, kept: d.kept.length })}</span>
+                  <b>{dayLabel(d.start, locale, 'short')}</b>
+                  <span>{daySummary(d, tr)}</span>
                 </div>
                 {d.waiting.length > 0
                   ? <span className="lx-pill warm">{d.waiting.length}</span>
@@ -175,5 +181,32 @@ export function TodayScreen() {
         </section>
       )}
     </div>
+  );
+}
+
+/** „Galeria ta: 34% sortată” — un rând pe Azi, cu drum spre Galerie → Luni. */
+function GalleryStatus() {
+  const tr = useTr();
+  const photos = useStore(s => s.photos);
+  const progress = useStore(s => s.progress);
+  const setTab = useLx(s => s.setTab);
+  const setView = useLx(s => s.setGalleryView);
+  const busy = !!progress && progress.phase !== 'finalizat';
+  const counts = useGalleryMonths(busy ? -1 : photos.length);
+  if (!counts || counts.size === 0) return null;
+  const rows = buildCoverage(counts, photos);
+  const gallery = rows.reduce((a, r) => a + r.inGallery, 0);
+  const sorted = rows.reduce((a, r) => a + r.seen - r.waiting, 0);
+  const unsorted = Math.max(0, gallery - sorted);
+  const percent = gallery ? Math.round((sorted / gallery) * 100) : 0;
+  return (
+    <button className="lx-card lx-gallery-status" onClick={() => { setTab('days'); setView('months'); }}>
+      <div>
+        <b>{unsorted === 0 ? tr('lx.coverage.done') : tr('lx.coverage.title', { percent })}</b>
+        <span>{unsorted === 0 ? tr('lx.coverage.doneSub', { total: gallery }) : tr('lx.coverage.sub', { unsorted, total: gallery })}</span>
+        <div className="lx-progress small"><i style={{ width: `${percent}%` }} /></div>
+      </div>
+      <span className="lx-chev" aria-hidden="true">›</span>
+    </button>
   );
 }

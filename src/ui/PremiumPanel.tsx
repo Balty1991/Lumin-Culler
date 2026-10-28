@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { XIcon, StarIcon, CheckIcon } from './icons';
-import { FREE_PHOTOS_PER_MONTH, FREE_ENROLLED_PERSONS, refreshEntitlement } from '../core/entitlement';
+import { FREE_PHOTOS_PER_MONTH, FREE_ENROLLED_PERSONS, refreshEntitlement, isExportCapEnforced } from '../core/entitlement';
 import { isBillingAvailable, queryPremiumPrice, queryPlansAnswer, startSubscription, type PremiumPlan } from '../core/billing';
 import { annualSavingsPercent, perMonthPrice, defaultPlanId, resolvePlan } from '../core/premiumPlans';
 import { t, plural } from '../i18n';
@@ -262,7 +262,8 @@ export function PremiumPanel() {
           </div>
         </section>
 
-        <div className="premium-usage">
+        {/* Contorul de export a dispărut odată cu plafonul (isExportCapEnforced). */}
+        {isExportCapEnforced() && <div className="premium-usage">
           {premium ? (
             <b>{tr('premium.usage.titlePremium', { count: photosUsed })}</b>
           ) : (
@@ -286,7 +287,7 @@ export function PremiumPanel() {
                 : tr('premium.usage.persons', { count: persons.length, limit: FREE_ENROLLED_PERSONS })}</span>
             </>
           )}
-        </div>
+        </div>}
 
         {premium ? (
           /* Starea care lipsea complet: confirmare, si de unde se gestioneaza
