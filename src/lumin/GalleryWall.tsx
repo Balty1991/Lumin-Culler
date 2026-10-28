@@ -651,31 +651,25 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
           {reasonsFor(p).map(r => <span key={r.key} className={`lx-chip ${r.tone}`}>{tr(r.key)}</span>)}
         </div>
         {/* O singură bară, butoane mici cu etichetă: poza rămâne mare. */}
-        <div className="lx-viewer-bar">
-          <button className={p.status === 'rejected' ? 'lx-vbtn drop on' : 'lx-vbtn drop'} onClick={() => void setStatus(p.id, 'rejected')}>
-            <span>✕</span><small>{tr('lx.notToday')}</small>
-          </button>
-          <button className="lx-vbtn magic" onClick={() => setEnhancing(true)}>
-            <span>✨</span><small>{tr('lx.viewer.enhanceShort')}</small>
-          </button>
-          {onSimilar && (
-            <button className="lx-vbtn" onClick={() => onSimilar(p.id)}>
-              <span>◎</span><small>{tr('lx.viewer.similarShort')}</small>
-            </button>
-          )}
-          <button className="lx-vbtn" onClick={() => void exportSelection('apps', [p.id]).then(() => learnFromShare([p]))}>
-            <span>↗</span><small>{tr('lx.wall.share')}</small>
-          </button>
+        {/* Două rânduri (raportat: textul din butoane nu încăpea): sus uneltele, cu
+            pictogramă și text alăturate; jos deciziile, mari. */}
+        <div className="lx-viewer-tools2">
+          <button className="lx-tbtn magic" onClick={() => setEnhancing(true)}><span>✨</span>{tr('lx.viewer.enhanceShort')}</button>
+          {onSimilar && <button className="lx-tbtn" onClick={() => onSimilar(p.id)}><span>◎</span>{tr('lx.viewer.similarShort')}</button>}
+          <button className="lx-tbtn" onClick={() => void exportSelection('apps', [p.id]).then(() => learnFromShare([p]))}><span>↗</span>{tr('lx.wall.share')}</button>
           {p.status === 'rejected' && p.mediaUri && (
-            <button className="lx-vbtn danger" onClick={() => void deleteRejectedPhotos([p.id]).then(r => {
+            <button className="lx-tbtn danger" onClick={() => void deleteRejectedPhotos([p.id]).then(r => {
               if (!r.deleted) return;
               if (list.length <= 1) onClose(); else onIndex(Math.min(index, list.length - 2));
-            })}>
-              <span>🗑</span><small>{tr('lx.viewer.deleteShort')}</small>
-            </button>
+            })}><span>🗑</span>{tr('lx.viewer.deleteShort')}</button>
           )}
-          <button className={p.status === 'selected' ? 'lx-vbtn keep on' : 'lx-vbtn keep'} onClick={() => void setStatus(p.id, 'selected')}>
-            <span>✓</span><small>{tr('lx.keep')}</small>
+        </div>
+        <div className="lx-viewer-decide">
+          <button className={p.status === 'rejected' ? 'lx-dbtn drop on' : 'lx-dbtn drop'} onClick={() => void setStatus(p.id, 'rejected')}>
+            <span>✕</span>{tr('lx.notToday')}
+          </button>
+          <button className={p.status === 'selected' ? 'lx-dbtn keep on' : 'lx-dbtn keep'} onClick={() => void setStatus(p.id, 'selected')}>
+            <span>✓</span>{tr('lx.keep')}
           </button>
         </div>
       </div>
