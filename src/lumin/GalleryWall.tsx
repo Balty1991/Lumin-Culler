@@ -8,6 +8,7 @@ import { monthStart } from './coverage';
 import { reasonsFor } from './reasons';
 import { personalWhy, useWhyContext } from './why';
 import { learnFromOpen, learnFromShare } from './signals';
+import { findVisuallySimilar } from './visualSimilar';
 import { useTr } from './context';
 import { Thumb } from './Thumb';
 import { searchPhotos } from './textSearch';
@@ -196,8 +197,12 @@ export function GalleryWall() {
 
   const showSimilar = async (id: string) => {
     const rows = await db.analyses.toArray();
-    let ids = findSimilarPhotos(rows.map(a => ({ photoId: a.photoId, imageEmbedding: a.imageEmbedding })), id);
-    if (!ids.length) ids = similarByContent(photos, id);
+    // Trei căi, una peste alta: amprenta vizuală de la import, ce se vede în ea
+    // (etichete, oameni) și comparația directă a miniaturilor — merge pe orice poză.
+    const merged = new Set(findSimilarPhotos(rows.map(a => ({ photoId: a.photoId, imageEmbedding: a.imageEmbedding })), id));
+    for (const x of similarByContent(photos, id)) merged.add(x);
+    if (merged.size < 6) for (const x of await findVisuallySimilar(photos.filter(p => !p.aside || p.id === id).map(p => p.id), id)) merged.add(x);
+    const ids = [...merged].slice(0, 40);
     if (!ids.length) { setNotice(tr('lx.similar.none')); return; }
     setViewer(null);
     setQuery('');
@@ -379,10 +384,10 @@ function TimeRail({ months, locale, onPick }: { months: number[]; locale: string
  * „fixă” se calcula față de toată lista, iar poza ajungea sub bara de jos sau
  * în afara ecranului (raportat: „se vede ciudat”, „respinsa se vede negru”).
  */
-export function Viewer({ list, index, onIndex, onClose, onSimilar, origin = null }: {
+export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
   list: PhotoView[];
   index: number;
-  /** De unde vine poza (dala din grilă): poza „zboară” de acolo pe tot ecranul. */
+  /** De unde vine poza (dala din grilă). Păstrat pentru apelanți; apariția nu mai scalează. */
   origin?: DOMRect | null;
   onIndex: (i: number) => void;
   onClose: () => void;
@@ -429,22 +434,11 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar, origin = null
     root.querySelector('.lx-viewer-info')?.animate(
       [{ transform: 'translateY(60px)', opacity: 0 }, { transform: 'none', opacity: 1 }],
       { duration: 480, delay: 120, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'backwards' });
-    if (!origin || !el) return;
-    const run = () => {
-      const to = el.getBoundingClientRect();
-      if (!to.width || !to.height) return;
-      const sx = origin.width / to.width, sy = origin.height / to.height;
-      const dx = origin.left + origin.width / 2 - (to.left + to.width / 2);
-      const dy = origin.top + origin.height / 2 - (to.top + to.height / 2);
-      el.animate([
-        { transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`, borderRadius: '18px' },
-        { transform: 'none', borderRadius: '20px' }
-      ], { duration: 460, easing: 'cubic-bezier(.2,.9,.25,1)' });
-    };
-    const img = el.querySelector('img');
-    if (img && !img.complete) img.addEventListener('load', run, { once: true });
-    else run();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Poza apare (opacitate + o mică ridicare), FĂRĂ scalare: o animație de
+    // mărire îl lăsa pe telefon desenat la mărimea mică de la început — poza
+    // ieșea neclară sau pe bucăți (raportat).
+    if (!el) return;
+    el.animate([{ opacity: 0, transform: 'translateY(18px)' }, { opacity: 1, transform: 'none' }], { duration: 320, easing: 'cubic-bezier(.2,.9,.25,1)' });
   }, []);
   useEffect(() => { setZoom({ s: 1, x: 0, y: 0 }); learnFromOpen(p); }, [p.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // Cât e deschisă poza mare, galeria din spate nu se mai desenează: memoria
@@ -554,7 +548,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar, origin = null
       </header>
       <div className="lx-viewer-stage" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
         <div key={p.id} ref={photoRef} className={`lx-viewer-photo ${dir ?? ''}${zoom.s > 1 ? ' zoomed' : ''}`}
-          style={zoom.s > 1 ? { transform: `translate(${zoom.x}px, ${zoom.y}px) scale(${zoom.s})` } : undefined}>
+          style={zoom.s > 1 ? { zoom: zoom.s, transform: `translate(${zoom.x / zoom.s}px, ${zoom.y / zoom.s}px)` } as CSSProperties : undefined}>
           <Thumb id={p.id} lqip={p.lqip} edits={p.edits} full />
         </div>
         {/* Săgețile: se vede că poți trece la poza următoare (sau glisezi). */}

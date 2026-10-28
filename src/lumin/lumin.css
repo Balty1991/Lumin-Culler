@@ -647,7 +647,9 @@
 /* Poza mare v3 */
 .lx-viewer-bg { position: absolute; inset: 0; z-index: 0; background: radial-gradient(120% 80% at 50% 30%, #161a2a 0%, #04050a 70%); }
 .lx.lx-viewer { background: #04050a; }
-.lx-viewer-photo.zoomed { transition: transform .05s linear; }
+.lx-viewer-photo.zoomed { transition: none; }
+/* Mărită: poza e reașezată la mărimea reală (zoom), nu scalată pe GPU — fără dungi. */
+.lx-viewer-photo.zoomed img { max-width: none; max-height: none; width: auto; height: 64dvh; }
 .lx-viewer-photo:not(.zoomed) { transition: transform .32s cubic-bezier(.2,.9,.25,1); }
 .lx-viewer-photo img { border-radius: inherit; }
 
