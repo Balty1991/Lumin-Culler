@@ -2,10 +2,11 @@ import { countGalleryPhotosSince, getPhotosAccess, isNativeMediaLibraryAvailable
 import { startOfDay } from '../core/todayDigest';
 import { useStore } from '../state/store';
 import { groupDays, photoTime } from './days';
+import { readAutonomy } from './twin';
 
 /**
  * lumin/autoSort.ts
- * Sortarea care se face singură: când deschizi aplicația (sau revii în ea),
+ * Sortarea care se face singură (copia ta): când deschizi aplicația (sau revii în ea),
  * pozele noi de azi sunt aduse și alese fără niciun buton. Pe Azi apare apoi
  * „Am ales 4 din 27” — omul doar se uită, nu mai muncește.
  *
@@ -13,19 +14,27 @@ import { groupDays, photoTime } from './days';
  * altui import. Cel mult o dată la câteva minute, ca să nu pornească la fiecare
  * ieșire scurtă din aplicație.
  */
-const KEY = 'lumin-auto-sort';
 const MIN_GAP_MS = 5 * 60_000;
 let lastRun = 0;
 let running = false;
 
 export interface AutoSortResult { day: number; added: number; kept: number; waiting: number }
 
+/** Copia sortează singură doar dacă îi dai voie (lumin/twin.ts: autonomia). */
 export function autoSortEnabled(): boolean {
-  try { return localStorage.getItem(KEY) !== 'off'; } catch { return true; }
+  return readAutonomy() !== 'suggest';
 }
 
-export function setAutoSortEnabled(on: boolean): void {
-  try { localStorage.setItem(KEY, on ? 'on' : 'off'); } catch { /* fără stocare: rămâne pornită */ }
+/**
+ * Cu autonomia „decide tot” (Pro), și pozele nesigure primesc o decizie: cele
+ * alese rămân, restul trec la „Nu azi” (nimic nu se șterge fără tine).
+ */
+export async function decideRestIfAllowed(): Promise<number> {
+  const store = useStore.getState();
+  if (readAutonomy() !== 'all' || store.premiumLocked) return 0;
+  const day = groupDays(store.photos).find(d => d.start === startOfDay());
+  const unsure = day?.waiting.filter(p => p.status === 'review').map(p => p.id) ?? [];
+  return unsure.length ? store.acceptDayPicks(unsure) : 0;
 }
 
 /** Rezultatul pentru ziua de azi, după ce s-au adus `added` poze noi. */
@@ -51,7 +60,9 @@ export async function autoSortToday(force = false): Promise<AutoSortResult | nul
     const known = useStore.getState().photos.filter(p => photoTime(p) >= day).length;
     if (!r.granted || r.count <= known) return null;
     const added = await useStore.getState().importToday();
-    return added ? summarizeToday(added) : null;
+    if (!added) return null;
+    await decideRestIfAllowed();
+    return summarizeToday(added);
   } catch {
     return null;
   } finally {

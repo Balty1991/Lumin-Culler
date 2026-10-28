@@ -2,18 +2,18 @@ import { useEffect, useMemo, useState } from 'react';
 import { useStore } from '../state/store';
 import { db } from '../core/db';
 import { contextEngine } from '../core/learning/ContextEngine';
-import { summarizeAccuracy, MIN_DECISIONS_FOR_ACCURACY, type AccuracySummary } from '../core/learning/accuracy';
 import { PeopleGrid } from './People';
 import { readTasteScore, readDailyScore } from '../core/tasteScore';
 import { translateSceneTag } from '../core/sceneTagLabels';
 import { favoritePeople } from '../core/personTaste';
 import { openTasteQuiz } from '../state/tasteQuiz';
 import { useTr } from './context';
-import { Orb } from './Orb';
+import { AutonomyPicker, FreedCard, TwinHero } from './TwinParts';
 
 /**
  * lumin/BrainScreen.tsx
- * „AI-ul tău”: ce știe AI-ul despre tine. Cât de des alege ca tine (măsurat,
+ * „Copia ta”: AI-ul care alege ca tine — cât de bine te imită, cât îi dai
+ * voie să facă singur, ce spațiu a eliberat. Dedesubt, ce știe AI-ul despre tine. Cât de des alege ca tine (măsurat,
  * nu promis), ce a învățat în cuvinte, câte a văzut, și oamenii tăi — cu fața
  * lor, ca să știi pe cine numești (raportat: „Cine e această persoană?” fără
  * miniatura feței nu spunea la cine se referă).
@@ -26,7 +26,6 @@ export function BrainScreen() {
   const askConfirm = useStore(s => s.askConfirm);
   const rescorePhotos = useStore(s => s.rescorePhotos);
 
-  const [accuracy, setAccuracy] = useState<AccuracySummary | null>(null);
   const [lessons, setLessons] = useState(0);
   const [notes, setNotes] = useState<string[]>([]);
   const [subjects, setSubjects] = useState<string[]>([]);
@@ -41,7 +40,6 @@ export function BrainScreen() {
     void db.corrections.toArray().then(rows => {
       if (!alive) return;
       setLessons(rows.length);
-      setAccuracy(summarizeAccuracy(rows));
     }).catch(() => {});
     void contextEngine.summarize(locale === 'en' ? 'en' : 'ro').then(models => {
       if (alive) setNotes([...new Set(models.flatMap(m => m.notes))].slice(0, 5));
@@ -62,9 +60,6 @@ export function BrainScreen() {
     };
   }, [photos]);
 
-  const percent = accuracy && accuracy.total >= MIN_DECISIONS_FOR_ACCURACY
-    ? Math.round(accuracy.agreement * 100)
-    : training.total > 0 ? Math.round((training.hits / training.total) * 100) : null;
   const levelKey = level >= 1 ? 'lx.brain.level.trained' : level >= 0.3 ? 'lx.brain.level.learning' : 'lx.brain.level.new';
 
   const forget = async () => {
@@ -81,19 +76,14 @@ export function BrainScreen() {
         <span className="lx-pill violet">{tr(levelKey)}</span>
       </header>
 
-      <section className="lx-brain-hero">
-        <Orb mood="learn" size={150} />
-        <div className="lx-brain-score">
-          <b className={percent === null ? 'none' : undefined}>{percent !== null ? `${percent}%` : '—'}</b>
-          <span>
-            {accuracy && accuracy.total >= MIN_DECISIONS_FOR_ACCURACY
-              ? tr('lx.brain.agree', { count: accuracy.total })
-              : training.total > 0
-                ? tr('lx.brain.agreeTraining', { hits: training.hits, total: training.total, generic: training.genericHits })
-                : tr('lx.brain.agreeNone', { left: Math.max(0, MIN_DECISIONS_FOR_ACCURACY - lessons) })}
-          </span>
-        </div>
+      <TwinHero />
+
+      <section className="lx-group">
+        <h2>{tr('lx.twin.autonomy')}</h2>
+        <AutonomyPicker />
       </section>
+
+      <FreedCard />
 
       <section className="lx-stats four">
         <div><b>{memory.seen}</b><span>{tr('lx.brain.seen')}</span></div>

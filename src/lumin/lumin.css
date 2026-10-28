@@ -568,3 +568,22 @@
 .lx-story-busy { position: fixed; inset: 0; z-index: 95; background: rgba(5,5,10,.86); backdrop-filter: blur(14px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; color: #fff; text-align: center; padding: 24px; }
 .lx-story-ring { --p: 0; width: 120px; height: 120px; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(var(--accent) calc(var(--p) * 1%), rgba(255,255,255,.12) 0); }
 .lx-story-ring b { width: 100px; height: 100px; border-radius: 50%; background: #0b0b10; display: grid; place-items: center; font-size: 24px; }
+/* Copia ta */
+.lx-twin { display: flex; align-items: center; gap: 18px; padding: 8px 0 18px; }
+.lx-twin-ring { --p: 0; flex: none; width: 128px; height: 128px; border-radius: 50%; display: grid; place-items: center;
+  background: conic-gradient(var(--accent) calc(var(--p) * 1%), rgba(var(--accent-rgb), .14) 0); position: relative; }
+.lx-twin-ring::after { content: ''; position: absolute; inset: 7px; border-radius: 50%; background: var(--bg); }
+.lx-twin-ring > * { position: relative; z-index: 1; }
+.lx-twin.compact .lx-twin-ring { width: 84px; height: 84px; }
+.lx-twin-text { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.lx-twin-text b { font-family: var(--font-display); font-size: 22px; line-height: 1.2; }
+.lx-twin-text > span:not(.lx-eyebrow) { font-size: 13.5px; color: var(--text-dim); line-height: 1.45; }
+.lx-twin-text .lx-twin-trend { color: var(--pick); font-weight: 600; }
+.lx-autonomy { display: flex; flex-direction: column; gap: 8px; }
+.lx-auto-opt { display: flex; flex-direction: column; gap: 3px; text-align: left; padding: 12px 14px; border-radius: 16px; border: 1px solid var(--lx-line); background: var(--lx-glass); }
+.lx-auto-opt b { font-size: 15px; display: flex; align-items: center; gap: 8px; }
+.lx-auto-opt small { font-size: 12.5px; color: var(--text-dim); line-height: 1.4; }
+.lx-auto-opt.on { border-color: rgba(var(--accent-rgb), .6); background: linear-gradient(135deg, rgba(var(--accent-rgb), .16), rgba(var(--accent-2-rgb), .08)), var(--lx-glass); }
+.lx-auto-opt.on b::before { content: '●'; color: var(--accent); font-size: 11px; }
+.lx-freed { margin: 0 0 14px; }
+.lx-freed-icon { flex: none; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-size: 22px; color: var(--pick); background: rgba(var(--pick-rgb), .14); }

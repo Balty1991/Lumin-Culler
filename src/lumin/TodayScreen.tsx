@@ -10,6 +10,8 @@ import { useLx } from './lxStore';
 import { useLxActions, useTr } from './context';
 import { Orb } from './Orb';
 import { Thumb } from './Thumb';
+import { FreedCard } from './TwinParts';
+import { readTwin } from './twin';
 import { plural } from '../i18n';
 import { dayLabel, daySummary } from './format';
 import { buildCoverage, useGalleryMonths } from './coverage';
@@ -56,6 +58,7 @@ export function TodayScreen() {
   const waitingInGallery = Math.max(0, (inGallery ?? 0) - (today?.photos.length ?? 0));
   const streak = streakOf(readRitualDays());
   const score = readTasteScore();
+  const twin = readTwin();
   const dateLabel = dayLabel(todayStart, locale);
 
   const sortToday = async () => {
@@ -171,11 +174,13 @@ export function TodayScreen() {
       <GalleryStatus />
       <CleanupCard photos={photos} compact />
 
+      <FreedCard />
+
       <button className="lx-card lx-ai-mini" onClick={() => setTab('brain')}>
         <Orb mood="learn" size={44} />
         <div>
           <b>{tr('lx.brain.title')}</b>
-          <span>{score.total > 0 ? tr('lx.brain.miniScore', { hits: score.hits, total: score.total }) : tr('lx.brain.miniTrain')}</span>
+          <span>{twin.percent !== null ? tr('lx.twin.percent', { percent: twin.percent }) : score.total > 0 ? tr('lx.brain.miniScore', { hits: score.hits, total: score.total }) : tr('lx.brain.miniTrain')}</span>
         </div>
         <span className="lx-chev" aria-hidden="true">›</span>
       </button>

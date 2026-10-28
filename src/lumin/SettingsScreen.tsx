@@ -1,5 +1,4 @@
-import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
-import { autoSortEnabled, setAutoSortEnabled } from './autoSort';
+import { AutonomyPicker } from './TwinParts';
 import { useStore } from '../state/store';
 import type { CullingStrictness } from '../core/scoreThresholds';
 import type { Theme } from '../state/theme';
@@ -20,7 +19,6 @@ const MODE_ICON: Record<SortMode, string> = { everyday: '☀', parent: '♡', se
  * limba, tema, seara, abonamentul, copia memoriei AI și golirea sesiunii.
  */
 export function SettingsScreen() {
-  const [autoSort, setAutoSort] = useState(autoSortEnabled);
   const tr = useTr();
   const strictness = useStore(s => s.cullingStrictness);
   const setStrictness = useStore(s => s.setCullingStrictness);
@@ -108,16 +106,10 @@ export function SettingsScreen() {
         </div>
       </section>
 
-      {isNativeMediaLibraryAvailable() && (
-        <section className="lx-group">
-          <h2>{tr('lx.auto.settings')}</h2>
-          <button className="lx-row button" role="switch" aria-checked={autoSort}
-            onClick={() => { setAutoSortEnabled(!autoSort); setAutoSort(!autoSort); }}>
-            <span><b>{tr('lx.auto.settingsRow')}</b><small>{tr('lx.auto.settingsSub')}</small></span>
-            <span className={autoSort ? 'lx-switch on' : 'lx-switch'} aria-hidden="true"><i /></span>
-          </button>
-        </section>
-      )}
+      <section className="lx-group">
+        <h2>{tr('lx.twin.autonomy')}</h2>
+        <AutonomyPicker />
+      </section>
 
       {isNativeNotificationsAvailable() && (
         <section className="lx-group">

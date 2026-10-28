@@ -15,7 +15,7 @@ import { t } from '../i18n';
 import { useLx, type LxTab } from './lxStore';
 import { LxActionsContext } from './context';
 import { groupDays } from './days';
-import { autoSortToday, summarizeToday } from './autoSort';
+import { autoSortToday, decideRestIfAllowed, summarizeToday } from './autoSort';
 import { autoNameFaces, canEmbedFaces, embedMissingFaces } from './faceIdentity';
 import { TodayScreen } from './TodayScreen';
 import { DaysScreen } from './DaysScreen';
@@ -81,8 +81,8 @@ export function LuminApp() {
 
   useEffect(() => {
     void scheduleDailyDigest({
-      title: t(locale, 'today.notify.title'),
-      body: t(locale, 'today.notify.body'),
+      title: t(locale, 'lx.twin.notify.title'),
+      body: t(locale, 'lx.twin.notify.body'),
       channelName: t(locale, 'today.notify.channel')
     });
   }, [locale]);
@@ -92,7 +92,8 @@ export function LuminApp() {
     let stop: (() => void) | undefined;
     void onTodayLaunch(() => {
       useLx.getState().setTab('today');
-      void useStore.getState().importToday().then(added => {
+      void useStore.getState().importToday().then(async added => {
+        if (added) await decideRestIfAllowed();
         const result = summarizeToday(added ?? 0);
         if (result) useLx.getState().setAutoResult(result);
         const day = groupDays(useStore.getState().photos).find(d => d.start === startOfDay());

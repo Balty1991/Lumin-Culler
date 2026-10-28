@@ -3,6 +3,7 @@ import { useStore } from '../state/store';
 import { RitualDone } from '../ui/RitualDone';
 import { recordDailyGuess } from '../core/tasteScore';
 import { recordPersonDecision } from '../core/personTaste';
+import { recordTwinDecision } from './twin';
 import { SELECT_THRESHOLD, REJECT_THRESHOLD } from '../core/importPipeline';
 import { reasonsFor } from './reasons';
 import { useLx } from './lxStore';
@@ -80,6 +81,7 @@ export function SwipeSort() {
     if (ai !== 'unsure') {
       const generic = current.aiScore - (current.aiPersonalDelta ?? 0);
       recordDailyGuess({ personal: ai === 'keep', generic: generic >= MIDPOINT }, keep);
+      recordTwinDecision(ai === 'keep', keep);
     }
     window.setTimeout(() => { setFlying(null); setDx(0); setIndex(i => i + 1); }, FLY_MS);
   };

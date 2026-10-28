@@ -4,6 +4,7 @@
  * a seriilor: alegi cea mai buna poza dintr-un grup de cadre similare.
  */
 import { create } from 'zustand';
+import { recordFreed } from '../core/freedSpace';
 import { db, type AnalysisRecord, type PhotoRecord, type KnownPerson, type ColorLabel, type CollectionRecord } from '../core/db';
 import { recordPhotosUsed, remainingFreePhotos, isPremium, canEnrollAnotherPersonFree, FREE_PHOTOS_PER_MONTH, isCapEnforced, isExportCapEnforced, isPremiumFeatureLocked, FREE_ENROLLED_PERSONS, isPurchasable, photosUsedInRollingMonth, subscribeEntitlement, refreshEntitlementAtStartup } from '../core/entitlement';
 import {
@@ -3972,6 +3973,7 @@ export const useStore = create<AppState>((set, get) => ({
 
     const ids = actuallyDeleted.map(p => p.id);
     const idSet = new Set(ids);
+    recordFreed(actuallyDeleted.reduce((sum, p) => sum + (p.sizeBytes ?? 0), 0));
     // Aceleasi 6 tabele golite la "Goleste sesiunea" (clearAll), dar doar pentru
     // ACESTE id-uri — vezi comentariul de acolo pentru ce contine fiecare.
     await Promise.all([
