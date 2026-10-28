@@ -316,7 +316,7 @@ export const ro = {
   'tiktok.close': 'Închide',
   'tiktok.hint': 'glisează sus/jos',
   'tiktok.rail.keep': 'Păstrez',
-  'tiktok.rail.reject': 'Resping',
+  'tiktok.rail.reject': 'Nu azi',
   'tiktok.rail.candidate': 'Candidat',
   'tiktok.rail.album': 'Album',
   'tiktok.rail.undo': 'Anulează ultima decizie',
@@ -2275,6 +2275,19 @@ export const ro = {
   "taste.done.yours": "AI-ul tău a ghicit",
   "taste.done.generic": "un AI generic",
   "taste.done.notify": "Pregătește-mi alegerea în fiecare seară",
+  "ritual.kicker": "Alegerea de azi",
+  "ritual.title": "Gata. Ziua e pusă în ordine.",
+  "ritual.kept": "păstrate",
+  "ritual.notToday": "„nu azi”",
+  "ritual.streak.one": "zi la rând",
+  "ritual.streak": "zile la rând",
+  "ritual.streakNote": "O zi sărită nu rupe seria. Două, da.",
+  "ritual.trash.one": "Mută {count} poză în coșul galeriei",
+  "ritual.trash": "Mută {count} poze în coșul galeriei",
+  "ritual.trashHint": "Le găsești în coșul galeriei dacă te răzgândești. Până atunci nu se atinge nimic.",
+  "ritual.trashed": "{count} poze sunt în coșul galeriei. Le poți recupera de acolo.",
+  "today.streak": "{count} zile la rând",
+  "aiProfile.training": "La antrenament, înainte să-i spui răspunsul",
 };
 
 export type TranslationKey = keyof typeof ro;

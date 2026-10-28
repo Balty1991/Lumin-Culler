@@ -9,6 +9,7 @@ import { SELECT_THRESHOLD, REJECT_THRESHOLD } from '../core/importPipeline';
 import { explainFactors } from '../core/learning/ContextEngine';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { CollectionPicker } from './CollectionPicker';
+import { RitualDone } from './RitualDone';
 import { AdjustedImage } from './AdjustedImage';
 import { computeMenuPosition, isInsideAnyMenu, useReanchorOnViewportChange, type MenuPosition } from './dropdownPosition';
 import {
@@ -231,6 +232,7 @@ export function TikTokSort() {
     setQueueIds(queue.map(p => p.id));
     setIndex(0);
     setReviewingAll(false);
+    setDecisions(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- coada se "ingheata" DOAR la momentul deschiderii, nu trebuie sa se refaca la fiecare schimbare din `photos`
   }, [open]);
 
@@ -241,6 +243,8 @@ export function TikTokSort() {
    * decis motorul singur.
    */
   const [reviewingAll, setReviewingAll] = useState(false);
+  /** Câte decizii s-au luat în sesiunea asta — finalul (RitualDone) contează ziua doar dacă ai ales ceva. */
+  const [decisions, setDecisions] = useState(0);
   const reviewAll = () => {
     setQueueIds(selectAllPhotosQueue(photos).map(p => p.id));
     setIndex(0);
@@ -423,6 +427,7 @@ export function TikTokSort() {
   const decide = (status: 'selected' | 'rejected' | 'candidate') => {
     if (!current) return;
     const decided = current.id;
+    setDecisions(n => n + 1);
     void setStatus(decided, status);
     if (status !== 'candidate') setJustDecided(decided);
     goNext();
@@ -635,9 +640,7 @@ export function TikTokSort() {
           mijlocul ecranului in loc de coltul din stanga sus). */}
       {!current && (
         <div className="tiktok-empty">
-          <SparkleIcon />
-          <h3>{tr('tiktok.empty.title')}</h3>
-          <p>{tr('tiktok.empty.sub')}</p>
+          <RitualDone ids={queueIds} decided={decisions} />
           {!reviewingAll && photos.length > 0 && (
             <button type="button" className="tiktok-review-all" onClick={reviewAll}>
               {tr('tiktok.reviewAll', { count: photos.length })}

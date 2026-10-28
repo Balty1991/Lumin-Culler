@@ -4,6 +4,7 @@ import { dayStats, startOfDay } from '../core/todayDigest';
 import { countGalleryPhotosSince, isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { getCachedThumbUrl, peekThumbUrl } from '../core/thumbUrlCache';
 import { isReviewQueue } from '../core/singletonVerdict';
+import { readRitualDays, streakOf } from '../core/ritualStreak';
 import { t, plural } from '../i18n';
 
 const DAY_MS = 86_400_000;
@@ -88,10 +89,14 @@ export function TodayCard() {
     if (fresh.reviewIds.length) openTiktokSortForIds(fresh.reviewIds);
   };
   const dateLabel = new Date().toLocaleDateString(dateLocale, { weekday: 'long', day: '2-digit', month: '2-digit' });
+  const streak = streakOf(readRitualDays());
 
   return (
     <div className="v3-today">
-      <span className="v3-kicker">{dateLabel} · {tr('today.label')}</span>
+      <span className="v3-kicker">
+        {dateLabel} · {tr('today.label')}
+        {streak > 1 && <span className="today-streak"> · {tr('today.streak', { count: streak })}</span>}
+      </span>
       {waiting > 0 ? (
         <h2 className="v3-today-title">
           {tr(plural(waiting, 'today.v3.waiting.one', 'today.v3.waiting'), { count: waiting })}<br /><em>{tr('today.v3.waitingSub')}</em>

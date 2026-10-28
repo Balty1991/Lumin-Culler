@@ -5,6 +5,7 @@ import { db } from '../core/db';
 import { contextEngine } from '../core/learning/ContextEngine';
 import { summarizeAccuracy, MIN_DECISIONS_FOR_ACCURACY, type AccuracySummary } from '../core/learning/accuracy';
 import { openTasteQuiz } from '../state/tasteQuiz';
+import { readTasteScore } from '../core/tasteScore';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { XIcon } from './icons';
 import { t } from '../i18n';
@@ -60,6 +61,7 @@ export function AiProfileScreen() {
   }, [photos]);
 
   if (!open) return null;
+  const training = readTasteScore();
   const percent = accuracy ? Math.round(accuracy.agreement * 100) : null;
   const trend = accuracy?.trend ? Math.round((accuracy.trend.recent - accuracy.trend.earlier) * 100) : null;
 
@@ -99,6 +101,16 @@ export function AiProfileScreen() {
             )}
           </div>
         </section>
+
+        {training.total > 0 && (
+          <section className="v3-panel ap-training">
+            <span className="v3-kicker">{tr('aiProfile.training')}</span>
+            <div className="tq-compare">
+              <div><b className="v3-mono">{training.hits}/{training.total}</b><span>{tr('taste.done.yours')}</span></div>
+              <div><b className="v3-mono">{training.genericHits}/{training.total}</b><span>{tr('taste.done.generic')}</span></div>
+            </div>
+          </section>
+        )}
 
         {weights.length > 0 && (
           <section className="v3-panel v3-weights">

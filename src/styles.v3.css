@@ -383,3 +383,11 @@ h1, h2, h3, .brand-name { font-family: var(--font-display); letter-spacing: -0.0
   .topbar .brand-text p, .topbar .brand-pro-badge { display: none; }
   .topbar .top-actions .icon-btn, .topbar .top-actions .export-cta { min-width: 44px; height: 44px; padding: 0 10px; }
 }
+
+/* ── Finalul alegerii (ui/RitualDone.tsx) ─────────────────────────────── */
+.tiktok-empty .rd { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 14px; text-align: left; animation: fr-in 0.45s both; }
+.rd-title { margin: 0; font-family: var(--font-display); font-size: 26px; font-weight: 600; line-height: 1.15; }
+.rd-note { margin: 0; font-size: 12px; color: var(--text-faint); line-height: 1.45; }
+.rd-stats b { font-size: 22px; }
+.today-streak { color: var(--review); }
+.ap-training { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
