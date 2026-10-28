@@ -9,6 +9,7 @@ import { reasonsFor } from './reasons';
 import { useLx } from './lxStore';
 import { useLxActions, useTr } from './context';
 import { Orb } from './Orb';
+import { LumiFeed } from './LumiFeed';
 import { Thumb } from './Thumb';
 import { FreedCard } from './TwinParts';
 import { DayStory } from './DayStory';
@@ -125,6 +126,8 @@ export function TodayScreen() {
           </div>
         )}
       </section>
+
+      <LumiFeed />
 
       {reader && (
         <section className="lx-card lx-reader" role="status">

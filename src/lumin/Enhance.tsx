@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { db } from '../core/db';
-import { computeAutoAdjustments, drawAdjusted, NEUTRAL_ADJUSTMENTS, subjectFromFaces, type EditAdjustments } from '../core/imageAdjust';
+import { computeAutoAdjustments, computeAutoStraighten, drawAdjusted, NEUTRAL_ADJUSTMENTS, subjectFromFaces, type EditAdjustments } from '../core/imageAdjust';
 import { getCachedPreviewUrl, getDisplayUrl } from '../core/previewUrlCache';
 import { canSharpen, sharpUrl } from './sharp';
 import { useStore, type PhotoView } from '../state/store';
@@ -68,7 +68,7 @@ export function styledEdits(base: EditAdjustments, style: EnhanceStyle, amount: 
  * Corecția automată a unei poze (lumină, alb, culoare — fără decupaj sau rotire),
  * plus URL-ul imaginii din care a fost măsurată.
  */
-export async function autoEnhance(photoId: string): Promise<{ url: string; edits: EditAdjustments }> {
+export async function autoEnhance(photoId: string): Promise<{ url: string; edits: EditAdjustments; tilt: number }> {
   // Pe telefon: poza clară făcută de Android (originalul direct ieșea negru pe unele telefoane).
   const source = canSharpen()
     ? sharpUrl(photoId, 1600).then(u => u ?? getCachedPreviewUrl(photoId))
@@ -92,7 +92,9 @@ export async function autoEnhance(photoId: string): Promise<{ url: string; edits
   });
   // Unde e omul (din fețele găsite la import): stilul Portret estompează în jurul lui.
   const subject = subjectFromFaces(a?.faces);
-  return { url, edits: { ...auto, crop: undefined, rotationDeg: 0, ...(subject ? { bokehSubject: subject } : {}) } };
+  // Orizontul strâmb (măsurat la import, doar pe pozele fără oameni): îndreptarea e o opțiune, nu implicită.
+  const tilt = computeAutoStraighten({ faceCount: a?.faceCount, horizonTiltDeg: a?.horizonTiltDeg });
+  return { url, tilt, edits: { ...auto, crop: undefined, rotationDeg: 0, ...(subject ? { bokehSubject: subject } : {}) } };
 }
 
 /** „Fă-le pe toate mai frumoase”: stilul Natural pe fiecare, salvate ca și copii. */
@@ -115,7 +117,9 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   const [base, setBase] = useState<EditAdjustments | null>(null);
   const [style, setStyle] = useState<EnhanceStyle>('natural');
   const [amount, setAmount] = useState(1);
-  const edits = useMemo(() => (base ? styledEdits(base, style, amount) : null), [base, style, amount]);
+  const [tilt, setTilt] = useState(0);
+  const [straight, setStraight] = useState(false);
+  const edits = useMemo(() => (base ? { ...styledEdits(base, style, amount), rotationDeg: straight ? tilt : 0 } : null), [base, style, amount, straight, tilt]);
   const styles = ENHANCE_STYLES.filter(st => !NEEDS_FACE.has(st) || !!base?.bokehSubject);
   const [failed, setFailed] = useState(false);
   const [split, setSplit] = useState(50);
@@ -126,8 +130,9 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   useEffect(() => {
     let alive = true;
     void (async () => {
-      const { url, edits: lightOnly } = await autoEnhance(photo.id);
+      const { url, edits: lightOnly, tilt: t } = await autoEnhance(photo.id);
       if (!alive) return;
+      setTilt(t);
       setSrc(url);
       setBase(lightOnly);
     })().catch(() => { if (alive) setFailed(true); });
@@ -186,6 +191,11 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
                   {tr(`lx.enhance.style.${st}`)}
                 </button>
               ))}
+              {tilt !== 0 && (
+                <button role="switch" aria-checked={straight} className={straight ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => setStraight(v => !v)}>
+                  📐 {tr('lx.enhance.straighten')}
+                </button>
+              )}
             </div>
             <label className="lx-enhance-amount">
               <span>{tr('lx.enhance.amount')}</span>

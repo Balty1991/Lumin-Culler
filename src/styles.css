@@ -5217,3 +5217,4 @@ html:has(> body .welcome-screen) {
 .today-card-title { font-size: 20px; line-height: 1.25; }
 .today-card-sub { opacity: .8; line-height: 1.4; }
 .today-card-cta { align-self: flex-start; margin-top: 8px; }
+.premium-personal { margin: 6px 0 0; padding: 10px 12px; border-radius: 12px; background: rgb(var(--accent-rgb, 125 211 252) / .12); font-size: .9rem; line-height: 1.4; }

@@ -793,3 +793,28 @@ body.lx-viewer-open .lx-hero-media img { animation-play-state: paused; }
 .lx-reader { display: flex; flex-direction: column; gap: 6px; margin: 0 0 16px; }
 .lx-reader > b { font-size: 15px; }
 .lx-reader > span:not(.lx-eyebrow) { font-size: 12.5px; color: var(--text-dim); }
+/* Evenimente (Crăciun, zile de naștere, vacanțe) */
+.lx-events { display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; padding-bottom: 4px; margin-bottom: 8px; }
+.lx-events::-webkit-scrollbar { display: none; }
+.lx-event { position: relative; flex: none; width: 168px; height: 210px; border-radius: 20px; overflow: hidden; padding: 0; border: none; background: var(--surface-3); text-align: left; }
+.lx-event img, .lx-event .lx-thumb-empty { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lx-event-text { position: absolute; left: 10px; right: 10px; bottom: 10px; display: flex; flex-direction: column; gap: 2px; color: #fff; }
+.lx-event-text i { font-style: normal; font-size: 20px; }
+.lx-event-text b { font-size: 14px; line-height: 1.25; }
+.lx-event-text span { font-size: 11.5px; opacity: .8; }
+/* Lumi îți propune */
+.lx-feed { display: flex; flex-direction: column; gap: 10px; margin: 0 0 18px; }
+.lx-feed-head { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-dim); letter-spacing: .02em; }
+.lx-feed-head b { font-weight: 600; }
+.lx-feed-item { display: flex; gap: 12px; padding: 14px; border-radius: 20px 20px 20px 6px; border: 1px solid rgb(var(--accent-rgb) / .28);
+  background: linear-gradient(135deg, rgb(var(--accent-rgb) / .12), rgb(var(--accent-2-rgb) / .07)), var(--lx-glass); animation: lx-in .4s var(--lx-ease) both; }
+.lx-feed-photo { flex: none; width: 64px; height: 64px; border-radius: 14px; overflow: hidden; background: var(--surface-3); }
+.lx-feed-photo img, .lx-feed-photo .lx-thumb-empty { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lx-feed-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.lx-feed-body > p { margin: 0; font-size: 14.5px; line-height: 1.4; font-weight: 500; }
+.lx-feed-body > span { font-size: 12.5px; color: var(--text-dim); line-height: 1.35; }
+.lx-feed-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 6px; }
+.lx-feed-actions .lx-link { margin-left: auto; font-size: 12.5px; }
+.lx-search-ideas { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: -2px 0 10px; }
+.lx-search-ideas::-webkit-scrollbar { display: none; }
+.lx-search-ideas .lx-chip-btn { flex: none; white-space: nowrap; }

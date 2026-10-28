@@ -249,15 +249,38 @@ export function GalleryWall() {
   const openRef = useRef(open);
   openRef.current = open;
   const plain = !query.trim() && !similar;
+  const [focused, setFocused] = useState(false);
+  // Sugestii de căutare din oamenii tăi: cei mai des văzuți și perechea cea mai des împreună („Ami și mama”).
+  const peopleIdeas = useMemo(() => {
+    const one = new Map<string, number>();
+    const two = new Map<string, number>();
+    for (const p of photos) {
+      const names = [...new Set(p.personNames)].sort();
+      for (const n of names) one.set(n, (one.get(n) ?? 0) + 1);
+      for (let i = 0; i < names.length; i++) for (let j = i + 1; j < names.length; j++) {
+        const k = `${names[i]}\u0000${names[j]}`;
+        two.set(k, (two.get(k) ?? 0) + 1);
+      }
+    }
+    const top = [...one.entries()].filter(e => e[1] >= 2).sort((a, b) => b[1] - a[1]).slice(0, 4).map(e => e[0]);
+    const pairs = [...two.entries()].filter(e => e[1] >= 2).sort((a, b) => b[1] - a[1]).slice(0, 2)
+      .map(e => e[0].split('\u0000').join(locale === 'en' ? ' and ' : ' și '));
+    return [...pairs, ...top];
+  }, [photos, locale]);
 
   return (
     <div className="lx-wall-wrap" ref={wrap} onTouchStart={e => onTouchStart(e.nativeEvent)} onTouchMove={e => onTouchMove(e.nativeEvent)} onTouchEnd={onTouchEnd}
       style={{ ['--cols' as string]: density, ['--cell' as string]: `${cell}px`, ['--gap' as string]: `${GAP}px` }}>
       <label className="lx-search">
         <span aria-hidden="true">⌕</span>
-        <input type="search" value={query} onChange={e => { setSimilar(null); setQuery(e.target.value); }} placeholder={tr('lx.search.placeholder')} aria-label={tr('lx.search.placeholder')} />
+        <input type="search" value={query} onFocus={() => setFocused(true)} onBlur={() => window.setTimeout(() => setFocused(false), 150)} onChange={e => { setSimilar(null); setQuery(e.target.value); }} placeholder={tr('lx.search.placeholder')} aria-label={tr('lx.search.placeholder')} />
         {query && <button onClick={() => setQuery('')} aria-label={tr('lx.close')}>✕</button>}
       </label>
+      {focused && !query.trim() && peopleIdeas.length > 0 && (
+        <div className="lx-chips lx-search-ideas">
+          {peopleIdeas.map(n => <button key={n} className="lx-chip-btn" onMouseDown={e => e.preventDefault()} onClick={() => { setSimilar(null); setQuery(n); }}>{n}</button>)}
+        </div>
+      )}
       {query.trim() && <p className="lx-hint">{tr('lx.search.results', { count: list.length })}</p>}
       {similar && (
         <div className="lx-similar-head">

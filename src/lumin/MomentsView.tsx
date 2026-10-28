@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useStore } from '../state/store';
-import { buildMomentAlbums, type MomentAlbum } from './momentAlbums';
+import { buildEvents, buildMomentAlbums, type MomentAlbum } from './momentAlbums';
 import { capitalizeFirst } from './format';
 import { useLx } from './lxStore';
 import { useTr } from './context';
@@ -21,12 +21,28 @@ export function MomentsView() {
   const tr = useTr();
   const [open, setOpen] = useState<string | null>(null);
   const albums = useMemo(() => buildMomentAlbums(photos, locale === 'en' ? 'en' : 'ro'), [photos, locale]);
-  const album = open ? albums.find(a => a.id === open) : undefined;
+  const events = useMemo(() => buildEvents(photos, locale === 'en' ? 'en' : 'ro'), [photos, locale]);
+  const album = open ? (events.find(a => a.id === open) ?? albums.find(a => a.id === open)) : undefined;
 
   if (album) return <AlbumView album={album} onBack={() => setOpen(null)} />;
   if (!albums.length) return <p className="lx-empty">{tr('lx.moments.empty')}</p>;
 
   return (
+    <>
+    {events.length > 0 && (
+      <section className="lx-section">
+        <div className="lx-section-head"><h2>{tr('lx.events.title')}</h2></div>
+        <div className="lx-events">
+          {events.map(e => (
+            <button key={e.id} className="lx-event" onClick={() => setOpen(e.id)}>
+              <Thumb id={e.cover.id} lqip={e.cover.lqip} edits={e.cover.edits} />
+              <span className="lx-album-shade" />
+              <span className="lx-event-text"><i>{EVENT_ICON[e.kind ?? 'party']}</i><b>{e.title}</b><span>{tr('lx.moments.meta', { count: e.photos.length, kept: e.photos.filter(p => p.status === 'selected').length })}</span></span>
+            </button>
+          ))}
+        </div>
+      </section>
+    )}
     <div className="lx-albums">
       {albums.map((a, i) => (
         <button key={a.id} className="lx-album" style={{ animationDelay: `${Math.min(i, 10) * 50}ms` }} onClick={() => setOpen(a.id)}>
@@ -39,10 +55,14 @@ export function MomentsView() {
         </button>
       ))}
     </div>
+    </>
   );
 }
 
+const EVENT_ICON = { christmas: '🎄', newyear: '🎆', easter: '🐣', birthday: '🎂', party: '🎉', trip: '🧳' } as const;
+
 export function albumTitle(a: MomentAlbum, locale: string, tr: (k: string, p?: Record<string, string | number>) => string): string {
+  if (a.title) return a.title;
   const day = capitalizeFirst(new Date(a.start).toLocaleDateString(locale === 'en' ? 'en-GB' : 'ro-RO', { weekday: 'long', day: 'numeric', month: 'short' }));
   const part = tr(`lx.moments.part.${a.part}`);
   return a.subject ? `${a.subject} · ${day}, ${part}` : `${day}, ${part}`;
