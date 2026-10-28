@@ -444,6 +444,12 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar, origin = null
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => { setZoom({ s: 1, x: 0, y: 0 }); }, [p.id]);
+  // Cât e deschisă poza mare, galeria din spate nu se mai desenează: memoria
+  // grafică rămâne pentru poza mare (altfel apărea neclară sau pe bucăți).
+  useEffect(() => {
+    document.body.classList.add('lx-viewer-open');
+    return () => document.body.classList.remove('lx-viewer-open');
+  }, []);
   // Pregătește din timp poza clară de dinainte și de după: glisarea nu mai așteaptă.
   useEffect(() => {
     for (const k of [index + 1, index - 1, index + 2]) if (list[k]) void sharpUrl(list[k].id, SCREEN_SIZE);

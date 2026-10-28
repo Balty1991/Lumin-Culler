@@ -11,7 +11,7 @@ interface SharpImageApi { render(o: { uri: string; size: number; inline?: boolea
 const SharpImage = registerPlugin<SharpImageApi>('SharpImage');
 
 export const TILE_SIZE = 768;
-export const SCREEN_SIZE = 1600;
+export const SCREEN_SIZE = 1440;
 
 /** Mărimea de cerut pentru o dală de `cssPx` pe ecranul ăsta: trepte fixe, ca să se refolosească din cache. */
 export function sizeFor(cssPx: number): number {
@@ -25,10 +25,14 @@ export function canSharpen(): boolean {
   return Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('SharpImage');
 }
 
+/** Încarcă și DECODEAZĂ poza înainte s-o arătăm — altfel apărea desenată pe bucăți. */
 function preload(url: string): Promise<string | null> {
   return new Promise(resolve => {
     const img = new Image();
-    img.onload = () => resolve(url);
+    img.onload = () => {
+      if (typeof img.decode === 'function') img.decode().then(() => resolve(url), () => resolve(url));
+      else resolve(url);
+    };
     img.onerror = () => resolve(null);
     img.src = url;
   });

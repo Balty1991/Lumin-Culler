@@ -647,7 +647,6 @@
 /* Poza mare v3 */
 .lx-viewer-bg { position: absolute; inset: 0; z-index: 0; background: radial-gradient(120% 80% at 50% 30%, #161a2a 0%, #04050a 70%); }
 .lx.lx-viewer { background: #04050a; }
-.lx-viewer-photo { will-change: transform; }
 .lx-viewer-photo.zoomed { transition: transform .05s linear; }
 .lx-viewer-photo:not(.zoomed) { transition: transform .32s cubic-bezier(.2,.9,.25,1); }
 .lx-viewer-photo img { border-radius: inherit; }
@@ -675,7 +674,6 @@
 @keyframes lx-arrow-hint { 0%, 100% { translate: 0 0; } 50% { translate: 5px 0; } }
 .lx-viewer-arrow.prev { animation-name: lx-arrow-hint-l; }
 @keyframes lx-arrow-hint-l { 0%, 100% { translate: 0 0; } 50% { translate: -5px 0; } }
-.lx-viewer-photo { contain: layout paint; }
 /* Corectarea unei persoane */
 .lx-grid-cell.picking { position: relative; }
 .lx-grid-cell.picking img { transition: transform .2s var(--lx-spring), opacity .2s; }
@@ -684,3 +682,11 @@
 .lx-grid-cell .lx-face-check { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
   border: 2px solid #fff; background: rgb(6 7 10 / .45); color: #fff; font-weight: 700; }
 .lx-grid-cell.picked .lx-face-check { background: var(--reject); border-color: var(--reject); }
+
+/* Poza mare deschisă: ce e dedesubt nu se mai desenează (memorie grafică liberă). */
+body.lx-viewer-open .lx-main, body.lx-viewer-open .lx-dock, body.lx-viewer-open .lx-rail { visibility: hidden; }
+body.lx-viewer-open .lx-hero-media img { animation-play-state: paused; }
+.lx-enhance-styles { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 10px; }
+.lx-enhance-amount { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-dim); margin-bottom: 8px; }
+.lx-enhance-amount input { flex: 1; accent-color: var(--accent); }
+.lx-enhance-amount b { font-family: var(--mono); font-size: 12px; min-width: 40px; text-align: right; color: #fff; }

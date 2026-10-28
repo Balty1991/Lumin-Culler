@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '../state/store';
-import { FaceCropThumb } from '../ui/FaceCropThumb';
+import { FaceThumb as FaceCropThumb } from './FaceThumb';
 import type { FaceCluster } from '../core/faceClustering';
 import { usePeopleFaces, rememberPersonFace, type LooseFace } from './faces';
 import { useTr } from './context';
