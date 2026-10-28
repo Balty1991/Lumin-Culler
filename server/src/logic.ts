@@ -313,6 +313,8 @@ export interface SuperviseRequest {
   images: string[];
   /** Scorul dat de Lumi pe telefon (0..100), în aceeași ordine. */
   scores: number[];
+  /** Ce a măsurat telefonul pe fiecare poză (claritate, lumină, ochi), în engleză. */
+  notes: string[];
   installId: string;
   lang: string;
 }
@@ -338,15 +340,16 @@ export function validateSupervise(body: unknown): { ok: true; req: SuperviseRequ
   if (typeof b.installId !== 'string' || !/^[A-Za-z0-9-]{16,64}$/.test(b.installId)) return { ok: false, error: 'bad_install' };
   const scores = Array.isArray(b.scores) ? (b.scores as unknown[]).map(x => Math.max(0, Math.min(100, Number(x) || 0))) : [];
   const lang = typeof b.lang === 'string' && /^[a-z]{2}$/.test(b.lang) ? b.lang : 'en';
-  return { ok: true, req: { images: b.images as string[], scores: (b.images as string[]).map((_, i) => scores[i] ?? 50), installId: b.installId, lang } };
+  const notes = Array.isArray(b.notes) ? (b.notes as unknown[]).map(x => (typeof x === 'string' ? x.slice(0, 160) : '')) : [];
+  return { ok: true, req: { images: b.images as string[], scores: (b.images as string[]).map((_, i) => scores[i] ?? 50), notes: (b.images as string[]).map((_, i) => notes[i] ?? ''), installId: b.installId, lang } };
 }
 
 export const SUPERVISE_VISION_PROMPT = 'You help someone decide whether to keep a personal photo. In two short sentences describe: who or what is in it and what is happening, their expressions (smiling? eyes closed?), and the technical quality (sharp or blurry, well lit or too dark or too bright, good or accidental framing). Never name or identify anyone.';
 
 export function supervisePrompt(req: SuperviseRequest, descriptions: string[]): string {
   const language = LANGUAGE_NAMES[req.lang] ?? 'English';
-  const facts = descriptions.map((d, i) => `Photo ${i + 1} (phone AI score ${req.scores[i]}/100): ${d}`).join('\n');
-  return `You are a careful photo curator helping one person keep only their best personal photos (family, kids, friends, pets, places, moments).\n${facts}\n\nFor each photo decide if this person would keep it. Keep sharp photos with open eyes, real smiles, good light and a clear moment. Do not keep blurry, too dark, accidental, closed-eye or near-empty frames. Be honest about uncertainty.\nWrite reason and caption only in ${language}, with no words from other languages; the reason speaks to the user ("you"), max 12 words; the caption says what is in the photo, max 8 words. Never name or identify people. Tags are 2-5 lowercase English words for search.\nReturn only JSON: {"items": [{"keep": true, "confidence": 0.8, "reason": "...", "caption": "...", "tags": ["..."]}]} with exactly ${descriptions.length} items, in the same order.`;
+  const facts = descriptions.map((d, i) => `Photo ${i + 1} (phone AI score ${req.scores[i]}/100${req.notes[i] ? `; measured on the phone: ${req.notes[i]}` : ''}): ${d}`).join('\n');
+  return `You are a careful photo curator helping one person keep only their best personal photos (family, kids, friends, pets, places, moments).\n${facts}\n\nFor each photo decide if this person would keep it. Trust the phone measurements for technical quality (blur, darkness, closed eyes): they come from the full photo. Keep sharp photos with open eyes, real smiles, good light and a clear moment. Do not keep blurry, too dark, accidental, closed-eye or near-empty frames. Be honest about uncertainty.\nWrite reason and caption only in ${language}, with no words from other languages; the reason speaks to the user ("you"), max 12 words; the caption says what is in the photo, max 8 words. Never name or identify people. Tags are 2-5 lowercase English words for search.\nReturn only JSON: {"items": [{"keep": true, "confidence": 0.8, "reason": "...", "caption": "...", "tags": ["..."]}]} with exactly ${descriptions.length} items, in the same order.`;
 }
 
 /** Răspunsul modelului, adus la exact `n` verdicte sigure de folosit. */

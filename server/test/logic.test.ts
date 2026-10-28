@@ -154,8 +154,9 @@ describe('Lumi Cloud supervise', () => {
     expect(v[1]).toMatchObject({ keep: false, confidence: 0 });
   });
   it('asks for the user language and exact count', () => {
-    const p = supervisePrompt({ images: [img, img], scores: [10, 90], installId: 'x', lang: 'ro' }, ['a', 'b']);
+    const p = supervisePrompt({ images: [img, img], scores: [10, 90], notes: ['very dark', ''], installId: 'x', lang: 'ro' }, ['a', 'b']);
     expect(p).toContain('Romanian');
+    expect(p).toContain('measured on the phone: very dark');
     expect(p).toContain('exactly 2 items');
   });
 });

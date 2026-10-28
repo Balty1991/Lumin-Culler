@@ -135,7 +135,7 @@ jobs:
           dark = small.point(lambda v: v * 0.25)
           b = io.BytesIO(); dark.save(b, "JPEG", quality=80); two = base64.b64encode(b.getvalue()).decode()
           t = time.time()
-          r = post("/v1/supervise", {"images": [one, two], "scores": [60, 40], "lang": "ro", "installId": "ci-smoke-test-000000"})
+          r = post("/v1/supervise", {"images": [one, two], "scores": [60, 40], "notes": ["sharp, well lit", "very dark (exposure 12/100)"], "lang": "ro", "installId": "ci-smoke-test-000000"})
           print("supervise", round(time.time() - t, 1), "s", json.dumps(r, ensure_ascii=False))
           if not r or len(r.get("items", [])) != 2:
               print("::error::supervise nu a răspuns corect"); sys.exit(1)

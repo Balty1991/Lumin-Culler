@@ -81,6 +81,18 @@ async function smallJpeg(id: string): Promise<string | null> {
   return data.startsWith('/9j/') ? data : null;
 }
 
+/** Ce a măsurat telefonul, pe scurt, în engleză — supervizorul vede doar o poză mică. */
+function measured(p: PhotoView): string {
+  const out: string[] = [];
+  out.push(p.sharpness < 40 ? `blurry (sharpness ${Math.round(p.sharpness)}/100)` : `sharp (sharpness ${Math.round(p.sharpness)}/100)`);
+  if (p.exposure < 28) out.push(`too dark (exposure ${Math.round(p.exposure)}/100)`);
+  else if (p.exposure > 78) out.push(`too bright (exposure ${Math.round(p.exposure)}/100)`);
+  else out.push('well exposed');
+  if (p.faceCount > 0) out.push(p.allEyesOpen ? `${p.faceCount} face(s), eyes open` : `${p.faceCount} face(s), someone has eyes closed`);
+  if (p.groupId) out.push('part of a burst of similar shots');
+  return out.join(', ');
+}
+
 let running = false;
 
 /**
@@ -110,7 +122,7 @@ export async function superviseUnsure(limit = 12): Promise<{ checked: number; de
       const res = await CapacitorHttp.post({
         url: `${URL_BASE}/v1/supervise`,
         headers: { 'content-type': 'application/json', 'user-agent': 'LuminAI/3 (Android)' },
-        data: { images, scores: batch.map(p => p.aiScore), lang: store.locale === 'en' ? 'en' : 'ro', installId: installId() },
+        data: { images, scores: batch.map(p => p.aiScore), notes: batch.map(measured), lang: store.locale === 'en' ? 'en' : 'ro', installId: installId() },
         connectTimeout: 20_000,
         readTimeout: 120_000
       });
@@ -121,7 +133,9 @@ export async function superviseUnsure(limit = 12): Promise<{ checked: number; de
         if (!p) return;
         verdicts[p.id] = { ...v, t: Date.now() };
         checked++;
-        if (v.confidence >= SURE) decisions.push({ id: p.id, status: v.keep ? 'selected' : 'rejected' });
+        // Decide singur doar când nu contrazice ce a măsurat telefonul (sau e foarte sigur).
+        const agrees = v.keep ? p.aiScore >= 35 : p.aiScore < 65;
+        if (v.confidence >= SURE && (agrees || v.confidence >= 0.9)) decisions.push({ id: p.id, status: v.keep ? 'selected' : 'rejected' });
       });
       writeVerdicts(verdicts);
     }
