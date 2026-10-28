@@ -2634,6 +2634,13 @@ export const ro = {
   "lx.cloud.auto": "Lumi Cloud a mai rezolvat {decided} poze nesigure.",
   "lx.cloud.keep": "Lumi Cloud: aș păstra-o",
   "lx.cloud.drop": "Lumi Cloud: n-aș păstra-o",
+  "lx.viewer.enhanceShort": "Mai frumoasă",
+  "lx.viewer.similarShort": "Similare",
+  "lx.viewer.deleteShort": "Șterge",
+  "lx.enhance.style.portrait": "Portret",
+  "lx.enhance.style.clear": "Clară",
+  "lx.enhance.style.film": "Film",
+  "lx.enhance.style.bw": "Alb-negru",
 };
 
 export type TranslationKey = keyof typeof ro;

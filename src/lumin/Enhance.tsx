@@ -1,11 +1,10 @@
-import { useDeferredValue, useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { db } from '../core/db';
-import { computeAutoAdjustments, NEUTRAL_ADJUSTMENTS, type EditAdjustments } from '../core/imageAdjust';
+import { computeAutoAdjustments, drawAdjusted, NEUTRAL_ADJUSTMENTS, subjectFromFaces, type EditAdjustments } from '../core/imageAdjust';
 import { getCachedPreviewUrl, getDisplayUrl } from '../core/previewUrlCache';
 import { canSharpen, sharpUrl } from './sharp';
 import { useStore, type PhotoView } from '../state/store';
-import { AdjustedImage } from '../ui/AdjustedImage';
 import { useTr } from './context';
 
 /**
@@ -23,13 +22,22 @@ import { useTr } from './context';
  * fiecare adaugă un aspect vizibil. Raportat: „varianta editată nu are prea
  * multe îmbunătățiri” — corecția singură e doar „de siguranță”.
  */
-export type EnhanceStyle = 'natural' | 'vivid' | 'warm' | 'drama';
-export const ENHANCE_STYLES: EnhanceStyle[] = ['natural', 'vivid', 'warm', 'drama'];
+export type EnhanceStyle = 'natural' | 'portrait' | 'vivid' | 'warm' | 'clear' | 'film' | 'bw' | 'drama';
+export const ENHANCE_STYLES: EnhanceStyle[] = ['natural', 'portrait', 'vivid', 'warm', 'clear', 'film', 'bw', 'drama'];
+/** Stilurile care au nevoie de un om în poză (fundalul estompat în jurul lui). */
+const NEEDS_FACE: ReadonlySet<EnhanceStyle> = new Set(['portrait']);
 const STYLE_ADD: Record<EnhanceStyle, Partial<Record<keyof EditAdjustments, number>>> = {
   natural: { contrast: 8, saturation: 3, clarity: 14, sharpen: 18, dehaze: 4, shadows: 10, highlights: -8 },
   vivid: { contrast: 14, saturation: 10, clarity: 20, sharpen: 20, dehaze: 8, shadows: 14, highlights: -12 },
   warm: { contrast: 8, saturation: 6, temperature: 14, tint: 3, clarity: 12, sharpen: 16, shadows: 12 },
-  drama: { contrast: 26, saturation: -10, clarity: 34, sharpen: 22, dehaze: 16, vignette: 24, highlights: -28, shadows: 20 }
+  drama: { contrast: 26, saturation: -10, clarity: 34, sharpen: 22, dehaze: 16, vignette: 24, highlights: -28, shadows: 20 },
+  // Portret: fundalul estompat în jurul fețelor, pielea moale (claritate scăzută), lumină caldă.
+  portrait: { bokeh: 60, contrast: 6, saturation: 2, temperature: 6, clarity: -8, sharpen: 8, shadows: 12, highlights: -10, vignette: 16 },
+  // Clar: umbrele deschise și luminile coborâte, detaliu scos în evidență (un HDR blând).
+  clear: { contrast: 4, saturation: 4, clarity: 28, sharpen: 22, dehaze: 12, shadows: 30, highlights: -30 },
+  // Film: culori de cinema (umbre reci, lumini calde), granulație fină.
+  film: { contrast: 4, saturation: -6, grade: 45, grain: 16, clarity: 8, sharpen: 10, shadows: 10, highlights: -14, vignette: 12 },
+  bw: { bw: 100, contrast: 18, saturation: 0, clarity: 22, sharpen: 18, grain: 10, vignette: 14, shadows: 8, highlights: -12 }
 };
 /**
  * Plafonul culorii, oricât de sus e intensitatea: peste el pielea se înroșește
@@ -42,6 +50,7 @@ const clamp = (v: number) => Math.max(-100, Math.min(100, Math.round(v)));
 /** Corecția automată + stilul, la intensitatea aleasă (0..1,5). */
 export function styledEdits(base: EditAdjustments, style: EnhanceStyle, amount: number): EditAdjustments {
   const out: EditAdjustments = { ...base };
+  if (!NEEDS_FACE.has(style)) delete out.bokehSubject;
   const keys = new Set([...Object.keys(NEUTRAL_ADJUSTMENTS), ...Object.keys(STYLE_ADD[style])]) as Set<keyof EditAdjustments>;
   for (const k of keys) {
     const b = base[k];
@@ -50,6 +59,8 @@ export function styledEdits(base: EditAdjustments, style: EnhanceStyle, amount: 
     (out as unknown as Record<string, number>)[k] = clamp(v * amount);
   }
   out.saturation = Math.min(MAX_SATURATION, out.saturation);
+  if (style === 'bw') out.bw = Math.max(0, Math.min(100, Math.round(100 * Math.min(1, amount * 1.5))));
+  if (NEEDS_FACE.has(style) && !out.bokehSubject) out.bokeh = 0;
   return out;
 }
 
@@ -79,7 +90,9 @@ export async function autoEnhance(photoId: string): Promise<{ url: string; edits
     colorHarmonyScore: a?.colorHarmonyScore,
     goldenHourDetected: a?.goldenHourDetected
   });
-  return { url, edits: { ...auto, crop: undefined, rotationDeg: 0 } };
+  // Unde e omul (din fețele găsite la import): stilul Portret estompează în jurul lui.
+  const subject = subjectFromFaces(a?.faces);
+  return { url, edits: { ...auto, crop: undefined, rotationDeg: 0, ...(subject ? { bokehSubject: subject } : {}) } };
 }
 
 /** „Fă-le pe toate mai frumoase”: stilul Natural pe fiecare, salvate ca și copii. */
@@ -102,8 +115,8 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   const [base, setBase] = useState<EditAdjustments | null>(null);
   const [style, setStyle] = useState<EnhanceStyle>('natural');
   const [amount, setAmount] = useState(1);
-  const deferredAmount = useDeferredValue(amount);
-  const edits = useMemo(() => (base ? styledEdits(base, style, deferredAmount) : null), [base, style, deferredAmount]);
+  const edits = useMemo(() => (base ? styledEdits(base, style, amount) : null), [base, style, amount]);
+  const styles = ENHANCE_STYLES.filter(st => !NEEDS_FACE.has(st) || !!base?.bokehSubject);
   const [failed, setFailed] = useState(false);
   const [split, setSplit] = useState(50);
   const [saving, setSaving] = useState(false);
@@ -152,7 +165,7 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
           <div className="lx-enhance-frame">
             <img src={src} alt="" draggable={false} />
             <div className="lx-enhance-after" style={{ clipPath: `inset(0 0 0 ${split}%)` }}>
-              <AdjustedImage src={src} edits={edits} alt="" />
+              <LivePreview src={src} edits={edits} />
             </div>
             {!nothing && (
               <>
@@ -168,7 +181,7 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
         {base && (
           <>
             <div className="lx-enhance-styles" role="radiogroup" aria-label={tr('lx.enhance.style')}>
-              {ENHANCE_STYLES.map(st => (
+              {styles.map(st => (
                 <button key={st} role="radio" aria-checked={style === st} className={style === st ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => setStyle(st)}>
                   {tr(`lx.enhance.style.${st}`)}
                 </button>
@@ -190,4 +203,48 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
     </div>,
     document.body
   );
+}
+
+/**
+ * „După”, desenat direct pe ecran. Raportat: „când schimbi intensitatea, durează
+ * câteva secunde bune”. Înainte fiecare pas al liniei refăcea poza de 1600 px
+ * și o comprima în JPEG. Acum: întâi o variantă mică (640 px, câteva zeci de
+ * ms), cât tragi de linie; când te oprești, aceeași poză la claritate deplină.
+ */
+const QUICK = 640;
+function LivePreview({ src, edits }: { src: string; edits: EditAdjustments }) {
+  const canvas = useRef<HTMLCanvasElement>(null);
+  const [img, setImg] = useState<HTMLImageElement | null>(null);
+  const small = useMemo(() => {
+    if (!img) return null;
+    const k = Math.min(1, QUICK / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(img.naturalWidth * k));
+    c.height = Math.max(1, Math.round(img.naturalHeight * k));
+    c.getContext('2d')?.drawImage(img, 0, 0, c.width, c.height);
+    return c;
+  }, [img]);
+
+  useEffect(() => {
+    let alive = true;
+    const el = new Image();
+    el.onload = () => { if (alive) setImg(el); };
+    el.src = src;
+    return () => { alive = false; };
+  }, [src]);
+
+  useEffect(() => {
+    const out = canvas.current;
+    if (!out || !img || !small) return;
+    const draw = (source: CanvasImageSource, w: number, h: number) => {
+      if (out.width !== w || out.height !== h) { out.width = w; out.height = h; }
+      const ctx = out.getContext('2d');
+      if (ctx) try { drawAdjusted(ctx, source, w, h, w, h, edits); } catch { /* fără memorie: rămâne ultima */ }
+    };
+    const frame = requestAnimationFrame(() => draw(small, small.width, small.height));
+    const full = window.setTimeout(() => draw(img, img.naturalWidth, img.naturalHeight), 380);
+    return () => { cancelAnimationFrame(frame); window.clearTimeout(full); };
+  }, [img, small, edits]);
+
+  return <canvas ref={canvas} className="lx-enhance-canvas" />;
 }

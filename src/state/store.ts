@@ -3449,7 +3449,8 @@ export const useStore = create<AppState>((set, get) => ({
         groupId: `corrected-${id}`,
         edits: persistableAdjustments(plan.adjustments),
         decisionNote: 'Copie corectată. Fișierul din galerie nu a fost modificat.',
-        mediaUri: undefined
+        mediaUri: undefined,
+        copyOf: rec.copyOf ?? rec.id
       };
       const [thumb, preview] = await Promise.all([db.thumbnails.get(rec.id), db.previews.get(rec.id)]);
       const copiedAnalysis = analysis ? { ...analysis, photoId: id } : undefined;

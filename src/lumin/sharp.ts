@@ -38,6 +38,21 @@ function preload(url: string): Promise<string | null> {
   });
 }
 
+/**
+ * Fișierul din galerie al unei poze. O copie „mai frumoasă” nu are fișier al ei:
+ * se ia al pozei din care provine (`copyOf`; la copiile mai vechi, după amprentă,
+ * identică cu a originalului). Fără asta, efectele se aplicau pe preview-ul mic.
+ */
+async function originalUri(photoId: string): Promise<string | null> {
+  const rec = await db.photos.get(photoId);
+  if (!rec) return null;
+  if (rec.mediaUri) return rec.mediaUri;
+  if (rec.copyOf) return (await db.photos.get(rec.copyOf))?.mediaUri ?? null;
+  if (!rec.edits || !rec.dHash) return null;
+  const twin = await db.photos.where('dHash').equals(rec.dHash).filter(p => !!p.mediaUri && p.capturedAt === rec.capturedAt).first();
+  return twin?.mediaUri ?? null;
+}
+
 /** URL-ul pozei clare, gata decodat (null când nu se poate — rămâne miniatura). */
 export function sharpUrl(photoId: string, size: number): Promise<string | null> {
   if (!canSharpen()) return Promise.resolve(null);
@@ -45,8 +60,9 @@ export function sharpUrl(photoId: string, size: number): Promise<string | null> 
   let p = urls.get(k);
   if (!p) {
     p = (async () => {
-      const rec = await db.photos.get(photoId);
-      if (!rec?.mediaUri) return null;
+      const uri = await originalUri(photoId);
+      if (!uri) return null;
+      const rec = { mediaUri: uri };
       const { path } = await SharpImage.render({ uri: rec.mediaUri, size });
       const direct = await preload(Capacitor.convertFileSrc(path));
       if (direct) return direct;

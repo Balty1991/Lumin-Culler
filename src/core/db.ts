@@ -79,6 +79,8 @@ export interface PhotoRecord {
   width: number;
   height: number;
   dHash: string;
+  /** La o copie „mai frumoasă”: poza din care s-a făcut (pentru imaginea clară din original). */
+  copyOf?: string;
   groupId?: string;         // seria/duplicatele din care face parte
   status: PhotoStatus;
   /**

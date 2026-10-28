@@ -2548,4 +2548,11 @@ export const en: Record<TranslationKey, string> = {
   "lx.cloud.auto": "Lumi Cloud decided {decided} more unsure photos.",
   "lx.cloud.keep": "Lumi Cloud: I'd keep it",
   "lx.cloud.drop": "Lumi Cloud: I wouldn't keep it",
+  "lx.viewer.enhanceShort": "Enhance",
+  "lx.viewer.similarShort": "Similar",
+  "lx.viewer.deleteShort": "Delete",
+  "lx.enhance.style.portrait": "Portrait",
+  "lx.enhance.style.clear": "Clear",
+  "lx.enhance.style.film": "Film",
+  "lx.enhance.style.bw": "B&W",
 };

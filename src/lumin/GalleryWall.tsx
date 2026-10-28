@@ -429,7 +429,29 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
 
   const photoRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
-  const [zoom, setZoom] = useState<{ s: number; x: number; y: number }>({ s: 1, x: 0, y: 0 });
+  const [zoom, setZoomRaw] = useState<{ s: number; x: number; y: number }>({ s: 1, x: 0, y: 0 });
+  const stageRef = useRef<HTMLDivElement>(null);
+  /** Mărimea pozei pe ecran, nemărită — de la ea se calculează mărirea. */
+  const baseRef = useRef({ w: 0, h: 0 });
+  /**
+   * Mărirea: poza primește lățimea și înălțimea reale (de s ori), deci se
+   * desenează clar, iar mutarea e ținută în margini — nu fuge din ecran și
+   * ajungi în orice colț. (Cu `zoom` din CSS rămânea prinsă în colțul din stânga sus.)
+   */
+  const setZoom = (next: { s: number; x: number; y: number } | ((z: { s: number; x: number; y: number }) => { s: number; x: number; y: number })) => {
+    setZoomRaw(prev => {
+      const z = typeof next === 'function' ? next(prev) : next;
+      if (z.s <= 1) return { s: 1, x: 0, y: 0 };
+      if (prev.s <= 1) {
+        const r = photoRef.current?.getBoundingClientRect();
+        if (r) baseRef.current = { w: r.width, h: r.height };
+      }
+      const st = stageRef.current?.getBoundingClientRect();
+      const mx = Math.max(0, (baseRef.current.w * z.s - (st?.width ?? 0)) / 2);
+      const my = Math.max(0, (baseRef.current.h * z.s - (st?.height ?? 0)) / 2);
+      return { s: z.s, x: Math.max(-mx, Math.min(mx, z.x)), y: Math.max(-my, Math.min(my, z.y)) };
+    });
+  };
   const lastTap = useRef(0);
 
   // Zborul din grilă: poza pleacă din dala atinsă și crește până la locul ei.
@@ -490,7 +512,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
     if (pointers.current.size === 2) {
       pinch.current = { d: spread(), s: zoom.s };
       start.current = null;
-      place(0, 0);
+      if (zoom.s <= 1) place(0, 0);
       return;
     }
     // Dublă atingere: mărește de 2,5× acolo unde ai atins (sau revine).
@@ -500,6 +522,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
       const r = photoRef.current?.getBoundingClientRect();
       if (zoom.s > 1 || !r) setZoom({ s: 1, x: 0, y: 0 });
       else setZoom({ s: 2.5, x: (r.left + r.width / 2 - e.clientX) * 1.5, y: (r.top + r.height / 2 - e.clientY) * 1.5 });
+      start.current = null;
       return;
     }
     lastTap.current = now;
@@ -510,8 +533,8 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
     if (pointers.current.has(e.pointerId)) pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pinch.current && pointers.current.size === 2) {
       const ratio = spread() / (pinch.current.d || 1);
-      const next = Math.max(1, Math.min(4, pinch.current.s * ratio));
-      setZoom(z => ({ s: next, x: next === 1 ? 0 : z.x, y: next === 1 ? 0 : z.y }));
+      const next = Math.max(1, Math.min(5, pinch.current.s * ratio));
+      setZoom(z => ({ s: next, x: z.s > 1 ? (z.x * next) / z.s : 0, y: z.s > 1 ? (z.y * next) / z.s : 0 }));
       return;
     }
     if (!start.current) return;
@@ -556,9 +579,13 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
         <span className="lx-viewer-date">{date}</span>
         <span className="lx-viewer-count">{index + 1}/{list.length}</span>
       </header>
-      <div className="lx-viewer-stage" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
+      <div className="lx-viewer-stage" ref={stageRef} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
         <div key={p.id} ref={photoRef} className={`lx-viewer-photo ${dir ?? ''}${zoom.s > 1 ? ' zoomed' : ''}`}
-          style={zoom.s > 1 ? { zoom: zoom.s, transform: `translate(${zoom.x / zoom.s}px, ${zoom.y / zoom.s}px)` } as CSSProperties : undefined}>
+          style={zoom.s > 1 ? {
+            position: 'absolute', left: '50%', top: '50%', maxWidth: 'none', maxHeight: 'none',
+            width: baseRef.current.w * zoom.s, height: baseRef.current.h * zoom.s,
+            transform: `translate(calc(-50% + ${zoom.x}px), calc(-50% + ${zoom.y}px))`
+          } as CSSProperties : undefined}>
           <Thumb id={p.id} lqip={p.lqip} edits={p.edits} full />
         </div>
         {/* Săgețile: se vede că poți trece la poza următoare (sau glisezi). */}
@@ -579,24 +606,31 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
           <span className="lx-chip info">AI {p.aiScore}</span>
           {reasonsFor(p).map(r => <span key={r.key} className={`lx-chip ${r.tone}`}>{tr(r.key)}</span>)}
         </div>
-        <div className="lx-viewer-tools">
-          <button className="lx-chip-btn magic" onClick={() => setEnhancing(true)}>✨ {tr('lx.enhance.button')}</button>
-          {onSimilar && <button className="lx-chip-btn" onClick={() => onSimilar(p.id)}>◎ {tr('lx.similar.button')}</button>}
-          {p.status === 'rejected' && p.mediaUri && (
-            <button className="lx-chip-btn danger" onClick={() => void deleteRejectedPhotos([p.id]).then(r => {
-              if (!r.deleted) return;
-              if (list.length <= 1) onClose(); else onIndex(Math.min(index, list.length - 2));
-            })}>🗑 {tr('lx.wall.deleteOne')}</button>
-          )}
-        </div>
-        <div className="lx-viewer-actions">
-          <button className={p.status === 'rejected' ? 'lx-round drop on' : 'lx-round drop'} onClick={() => void setStatus(p.id, 'rejected')} aria-label={tr('lx.notToday')}>
+        {/* O singură bară, butoane mici cu etichetă: poza rămâne mare. */}
+        <div className="lx-viewer-bar">
+          <button className={p.status === 'rejected' ? 'lx-vbtn drop on' : 'lx-vbtn drop'} onClick={() => void setStatus(p.id, 'rejected')}>
             <span>✕</span><small>{tr('lx.notToday')}</small>
           </button>
-          <button className="lx-round" onClick={() => void exportSelection('apps', [p.id]).then(() => learnFromShare([p]))} aria-label={tr('lx.wall.share')}>
+          <button className="lx-vbtn magic" onClick={() => setEnhancing(true)}>
+            <span>✨</span><small>{tr('lx.viewer.enhanceShort')}</small>
+          </button>
+          {onSimilar && (
+            <button className="lx-vbtn" onClick={() => onSimilar(p.id)}>
+              <span>◎</span><small>{tr('lx.viewer.similarShort')}</small>
+            </button>
+          )}
+          <button className="lx-vbtn" onClick={() => void exportSelection('apps', [p.id]).then(() => learnFromShare([p]))}>
             <span>↗</span><small>{tr('lx.wall.share')}</small>
           </button>
-          <button className={p.status === 'selected' ? 'lx-round keep on' : 'lx-round keep'} onClick={() => void setStatus(p.id, 'selected')} aria-label={tr('lx.keep')}>
+          {p.status === 'rejected' && p.mediaUri && (
+            <button className="lx-vbtn danger" onClick={() => void deleteRejectedPhotos([p.id]).then(r => {
+              if (!r.deleted) return;
+              if (list.length <= 1) onClose(); else onIndex(Math.min(index, list.length - 2));
+            })}>
+              <span>🗑</span><small>{tr('lx.viewer.deleteShort')}</small>
+            </button>
+          )}
+          <button className={p.status === 'selected' ? 'lx-vbtn keep on' : 'lx-vbtn keep'} onClick={() => void setStatus(p.id, 'selected')}>
             <span>✓</span><small>{tr('lx.keep')}</small>
           </button>
         </div>
