@@ -4,6 +4,8 @@ import { FaceCropThumb } from '../ui/FaceCropThumb';
 import type { FaceCluster } from '../core/faceClustering';
 import { usePeopleFaces, rememberPersonFace, type LooseFace } from './faces';
 import { useTr } from './context';
+import { useLx } from './lxStore';
+import { autoNameFaces } from './faceIdentity';
 
 const key = (f: LooseFace) => `${f.photoId}#${f.faceIndex}`;
 
@@ -11,7 +13,8 @@ const key = (f: LooseFace) => `${f.photoId}#${f.faceIndex}`;
  * lumin/People.tsx
  * Oamenii tăi, cu fața lor. Pe telefon recunoașterea automată a fețelor e
  * oprită (modelul de identitate nu are o licență bună pentru Play), deci nu
- * putem grupa singuri fețele aceluiași om. În schimb: atingi toate fețele
+ * putem grupa singuri fețele aceluiași om. (Cu SFace, lumin/faceIdentity.ts,
+ * fețele care seamănă vin deja grupate.) Pentru restul: atingi toate fețele
  * cuiva (raportat: „multe fețe sunt aceeași persoană”), apoi „Numește” — toate
  * primesc același nume dintr-o dată, iar pozele lor intră la acel om. Cu fețe
  * selectate, o atingere pe cineva deja numit le adaugă la el.
@@ -25,7 +28,9 @@ export function PeopleGrid({ onOpen }: { onOpen?: (name: string) => void }) {
   const [refresh, setRefresh] = useState(0);
   const [busy, setBusy] = useState(false);
   const [picked, setPicked] = useState<Map<string, LooseFace>>(new Map());
-  const { people, unknown, loose } = usePeopleFaces(persons, refresh);
+  const faceVersion = useLx(s => s.faceVersion);
+  const faceProgress = useLx(s => s.faceProgress);
+  const { people, unknown, loose } = usePeopleFaces(persons, refresh + faceVersion);
 
   const ask = async () => (await askPrompt(tr('lx.brain.namePrompt'), '', { confirmLabel: tr('lx.save') }))?.trim() || null;
   const nameCluster = async (cluster: FaceCluster) => {
@@ -34,6 +39,8 @@ export function PeopleGrid({ onOpen }: { onOpen?: (name: string) => void }) {
     setBusy(true);
     try {
       await enrollFaceCluster(value, cluster.members.map(m => ({ photoId: m.photoId, faceIndex: m.faceIndex, embedding: m.embedding })));
+      const more = await autoNameFaces().catch(() => 0);
+      setNotice(tr('lx.people.tagged', { name: value, count: cluster.members.length + more }));
     } finally { setBusy(false); setRefresh(n => n + 1); }
   };
   const toggle = (f: LooseFace) => setPicked(prev => {
@@ -50,15 +57,23 @@ export function PeopleGrid({ onOpen }: { onOpen?: (name: string) => void }) {
     try {
       await enrollFaceCluster(value, faces.map(f => ({ photoId: f.photoId, faceIndex: f.faceIndex, embedding: [] })));
       if (!existing) rememberPersonFace(value, faces[0]);
-      setNotice(tr('lx.people.tagged', { name: value, count: faces.length }));
+      const more = await autoNameFaces().catch(() => 0);
+      setNotice(tr('lx.people.tagged', { name: value, count: faces.length + more }));
       setPicked(new Map());
     } finally { setBusy(false); setRefresh(n => n + 1); }
   };
 
-  if (!people.length && !unknown.length && !loose.length) return <p className="lx-empty small">{tr('lx.brain.peopleNone')}</p>;
+  const learning = faceProgress && faceProgress.total > 0 && (
+    <div className="lx-face-learning" role="status">
+      <span>{tr('lx.people.learning', { done: faceProgress.done, total: faceProgress.total })}</span>
+      <div className="lx-progress small"><i style={{ width: `${Math.round((faceProgress.done / faceProgress.total) * 100)}%` }} /></div>
+    </div>
+  );
+  if (!people.length && !unknown.length && !loose.length) return <>{learning}<p className="lx-empty small">{tr('lx.brain.peopleNone')}</p></>;
 
   return (
     <>
+      {learning}
       {people.length > 0 && (
         <div className="lx-faces">
           {people.map(p => (

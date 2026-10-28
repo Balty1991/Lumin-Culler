@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { db, type KnownPerson } from '../core/db';
-import { findUnrecognizedFaceClusters, type FaceCluster } from '../core/faceClustering';
+import type { FaceCluster } from '../core/faceClustering';
+import { clusterFaces, MODEL as SFACE, type FaceRef } from './faceIdentity';
 
 export interface PersonFace {
   name: string;
@@ -60,9 +61,8 @@ export function usePeopleFaces(persons: readonly KnownPerson[], refresh: number)
   const [state, setState] = useState<{ people: PersonFace[]; unknown: FaceCluster[]; loose: LooseFace[] }>({ people: [], unknown: [], loose: [] });
   useEffect(() => {
     let alive = true;
-    void Promise.all([db.photos.toArray(), db.analyses.toArray()]).then(([rows, analyses]) => {
+    void db.analyses.toArray().then(analyses => {
       if (!alive) return;
-      const byId = new Map(analyses.map(a => [a.photoId, a]));
       const people: PersonFace[] = [];
       for (const person of persons) {
         const photoIds: string[] = [];
@@ -76,12 +76,27 @@ export function usePeopleFaces(persons: readonly KnownPerson[], refresh: number)
         const rep = first ?? readPersonFaces()[person.name];
         if (rep) people.push({ name: person.name, photoId: rep.photoId, box: rep.box, photoIds });
       }
-      const unknown = findUnrecognizedFaceClusters(rows.map(p => ({
-        id: p.id,
-        fileName: p.fileName,
-        faces: (byId.get(p.id)?.faces ?? []).map(f => ({ personId: f.personId, embedding: f.embedding, box: f.box }))
-      }))).slice(0, 8);
-      setState({ people: people.sort((a, b) => b.photoIds.length - a.photoIds.length), unknown, loose: unknown.length ? [] : looseFaces(analyses) });
+      // Fețele cu amprentă SFace se grupează după asemănare (lumin/faceIdentity.ts):
+      // grupurile de 2+ sunt „Cine e? (N poze)”, restul rămân de ales cu mâna.
+      type F = { personId: string | null; box: [number, number, number, number]; embedding?: number[]; embeddingModel?: string };
+      const isSface = (f: F) => !f.personId && f.embeddingModel === SFACE && !!f.embedding?.length;
+      const sface: FaceRef[] = [];
+      const plain = analyses.map(a => {
+        const faces = (a.faces ?? []) as F[];
+        faces.forEach((f, faceIndex) => { if (isSface(f)) sface.push({ photoId: a.photoId, faceIndex, box: f.box, embedding: f.embedding! }); });
+        // cele grupate nu mai apar și ca fețe de ales cu mâna
+        return { photoId: a.photoId, faces: faces.map(f => (isSface(f) ? { ...f, personId: '__grouped' } : f)) };
+      });
+      const groups = clusterFaces(sface);
+      const unknown: FaceCluster[] = groups.filter(g => g.length >= 2).slice(0, 12).map(g => ({
+        members: g.map(f => ({ photoId: f.photoId, fileName: '', faceIndex: f.faceIndex, box: f.box, embedding: f.embedding }))
+      }));
+      const singles: LooseFace[] = groups.filter(g => g.length === 1).map(g => ({ photoId: g[0].photoId, faceIndex: g[0].faceIndex, box: g[0].box }));
+      setState({
+        people: people.sort((a, b) => b.photoIds.length - a.photoIds.length),
+        unknown,
+        loose: [...singles, ...looseFaces(plain)].slice(0, 60)
+      });
     }).catch(() => {});
     return () => { alive = false; };
   }, [persons, refresh]);

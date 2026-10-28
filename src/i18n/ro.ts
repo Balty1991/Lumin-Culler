@@ -2511,6 +2511,8 @@ export const ro = {
   "lx.people.addHere": "Adaugă aici",
   "lx.people.tagged": "Gata: {count} fețe sunt acum {name}.",
   "lx.wall.best": "Cea mai bună din lună",
+  "lx.people.learning": "Învăț fețele din poze… {done}/{total}",
+  "lx.people.autoNamed": "Am recunoscut {count} fețe noi ale oamenilor tăi.",
 };
 
 export type TranslationKey = keyof typeof ro;

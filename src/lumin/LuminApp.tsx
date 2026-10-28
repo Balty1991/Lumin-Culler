@@ -15,6 +15,7 @@ import { t } from '../i18n';
 import { useLx, type LxTab } from './lxStore';
 import { LxActionsContext } from './context';
 import { groupDays } from './days';
+import { autoNameFaces, canEmbedFaces, embedMissingFaces } from './faceIdentity';
 import { TodayScreen } from './TodayScreen';
 import { DaysScreen } from './DaysScreen';
 import { BrainScreen } from './BrainScreen';
@@ -114,6 +115,21 @@ export function LuminApp() {
     }, 1500);
     return () => window.clearTimeout(timer);
   }, [photos, booted, locale]);
+
+  // Fețele: după pornire și după fiecare import, amprentele lipsă și numele recunoscute.
+  const importDone = !progress || progress.phase === 'finalizat';
+  useEffect(() => {
+    if (!booted || !importDone || !canEmbedFaces()) return;
+    let alive = true;
+    void (async () => {
+      const made = await embedMissingFaces((done, total) => { if (alive) useLx.getState().setFaceProgress({ done, total }); });
+      useLx.getState().setFaceProgress(null);
+      const named = await autoNameFaces().catch(() => 0);
+      if (made || named) useLx.getState().bumpFaces();
+      if (named) useStore.getState().setNotice(t(useStore.getState().locale, 'lx.people.autoNamed', { count: named }));
+    })().catch(() => useLx.getState().setFaceProgress(null));
+    return () => { alive = false; };
+  }, [booted, importDone]);
 
   // Butonul „înapoi” al telefonului: închide ce e deschis, apoi revine la Azi.
   useEffect(() => {

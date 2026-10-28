@@ -2425,4 +2425,6 @@ export const en: Record<TranslationKey, string> = {
   "lx.people.addHere": "Add here",
   "lx.people.tagged": "Done: {count} faces are now {name}.",
   "lx.wall.best": "Best of the month",
+  "lx.people.learning": "Learning the faces in your photos… {done}/{total}",
+  "lx.people.autoNamed": "I recognised {count} new faces of your people.",
 };
