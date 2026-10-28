@@ -411,3 +411,31 @@
 .lx-round.on.keep { background: rgb(var(--pick-rgb) / 0.18); }
 .lx-round.on.drop { background: rgb(var(--reject-rgb) / 0.16); }
 @media (prefers-reduced-motion: reduce) { .lx-tile, .lx-viewer-photo { animation: none; } }
+
+/* Căutare și momente */
+.lx-search { display: flex; align-items: center; gap: 10px; height: 50px; padding: 0 16px; border-radius: 16px; border: 1px solid var(--lx-line); background: var(--lx-glass); }
+.lx-search > span { color: var(--accent); font-size: 20px; }
+.lx-search input { flex: 1; min-width: 0; border: none; background: transparent; color: var(--text); font: inherit; font-size: 15px; outline: none; }
+.lx-search button { border: none; background: none; color: var(--text-faint); font-size: 14px; }
+.lx-albums { display: grid; grid-template-columns: 1fr; gap: 14px; }
+@media (min-width: 560px) { .lx-albums { grid-template-columns: 1fr 1fr; } }
+.lx-album {
+  position: relative; height: 210px; padding: 0; border: none; border-radius: 26px; overflow: hidden; text-align: left;
+  background: var(--surface-3); animation: lx-rise 0.6s var(--lx-ease) both; box-shadow: 0 30px 50px -30px rgb(0 0 0 / 0.9);
+}
+.lx-album-cover, .lx-album .lx-thumb-empty { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 6s ease; }
+.lx-album:hover .lx-album-cover { transform: scale(1.06); }
+.lx-album-shade { position: absolute; inset: 0; background: linear-gradient(180deg, transparent 35%, rgb(4 5 9 / 0.85)); }
+.lx-album-text { position: absolute; left: 16px; right: 16px; bottom: 14px; display: flex; flex-direction: column; gap: 3px; color: #fff; }
+.lx-album-text b { font-family: var(--font-display); font-size: 18px; line-height: 1.2; }
+.lx-album-text span { font-size: 12.5px; color: #c9d2e0; }
+.lx-album-view { display: flex; flex-direction: column; gap: 14px; }
+.lx-album-hero { position: relative; height: 300px; border-radius: 28px; overflow: hidden; animation: lx-pop 0.45s var(--lx-spring) both; }
+.lx-album-hero-img, .lx-album-hero .lx-thumb-empty { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.lx-album-back { position: absolute; top: 12px; left: 12px; background: rgb(6 7 10 / 0.5); color: #fff; border-color: rgb(255 255 255 / 0.15); }
+.lx-album-hero-text { position: absolute; left: 18px; right: 18px; bottom: 16px; color: #fff; display: flex; flex-direction: column; gap: 4px; }
+.lx-album-hero-text h2 { margin: 0; font-family: var(--font-display); font-size: 24px; line-height: 1.15; }
+.lx-album-hero-text span { color: #c9d2e0; font-size: 13px; }
+.lx-memory { display: flex; gap: 10px; overflow-x: auto; margin: 0 -18px; padding: 0 18px 4px; scrollbar-width: none; }
+.lx-memory button { flex: 0 0 38%; aspect-ratio: 3 / 4; border: none; padding: 0; border-radius: 20px; overflow: hidden; animation: lx-rise 0.6s var(--lx-ease) both; }
+.lx-memory img, .lx-memory .lx-thumb-empty { width: 100%; height: 100%; object-fit: cover; display: block; }

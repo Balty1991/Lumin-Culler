@@ -6,6 +6,7 @@ import { monthStart } from './coverage';
 import { reasonsFor } from './reasons';
 import { useTr } from './context';
 import { Thumb } from './Thumb';
+import { searchPhotos } from './textSearch';
 
 type Filter = 'all' | 'kept' | 'notToday';
 const PAGE = 60;
@@ -23,14 +24,19 @@ export function GalleryWall() {
   const [filter, setFilter] = useState<Filter>('all');
   const [shown, setShown] = useState(PAGE);
   const [viewer, setViewer] = useState<number | null>(null);
+  const [query, setQuery] = useState('');
   const sentinel = useRef<HTMLDivElement>(null);
 
-  const list = useMemo(() => photos
-    .filter(p => !p.aside)
-    .filter(p => filter === 'all' || (filter === 'kept' ? p.status === 'selected' : p.status === 'rejected'))
-    .sort((a, b) => photoTime(b) - photoTime(a)), [photos, filter]);
+  const list = useMemo(() => {
+    // Cu o căutare: și documentele (bonul de benzină se caută), în ordinea potrivirii.
+    if (query.trim()) return searchPhotos(photos, query);
+    return photos
+      .filter(p => !p.aside)
+      .filter(p => filter === 'all' || (filter === 'kept' ? p.status === 'selected' : p.status === 'rejected'))
+      .sort((a, b) => photoTime(b) - photoTime(a));
+  }, [photos, filter, query]);
 
-  useEffect(() => { setShown(PAGE); }, [filter]);
+  useEffect(() => { setShown(PAGE); }, [filter, query]);
   useEffect(() => {
     const el = sentinel.current;
     if (!el) return;
@@ -52,13 +58,19 @@ export function GalleryWall() {
 
   return (
     <div className="lx-wall-wrap">
-      <div className="lx-chips lx-wall-filters">
+      <label className="lx-search">
+        <span aria-hidden="true">⌕</span>
+        <input type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder={tr('lx.search.placeholder')} aria-label={tr('lx.search.placeholder')} />
+        {query && <button onClick={() => setQuery('')} aria-label={tr('lx.close')}>✕</button>}
+      </label>
+      {query.trim() && <p className="lx-hint">{tr('lx.search.results', { count: list.length })}</p>}
+      {!query.trim() && <div className="lx-chips lx-wall-filters">
         {(['all', 'kept', 'notToday'] as Filter[]).map(f => (
           <button key={f} className={filter === f ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => setFilter(f)}>
             {tr(`lx.wall.${f}`)} <b>{f === 'all' ? photos.filter(p => !p.aside).length : photos.filter(p => !p.aside && p.status === (f === 'kept' ? 'selected' : 'rejected')).length}</b>
           </button>
         ))}
-      </div>
+      </div>}
       {list.length === 0 && <p className="lx-empty">{tr('lx.wall.empty')}</p>}
       {months.map(m => (
         <section key={m.start} className="lx-wall-month">

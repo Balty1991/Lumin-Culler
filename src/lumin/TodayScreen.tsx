@@ -14,6 +14,7 @@ import { plural } from '../i18n';
 import { dayLabel, daySummary } from './format';
 import { buildCoverage, useGalleryMonths } from './coverage';
 import { CleanupCard } from './Cleanup';
+import { onThisDay } from './momentAlbums';
 
 /**
  * lumin/TodayScreen.tsx
@@ -146,6 +147,8 @@ export function TodayScreen() {
         </section>
       )}
 
+      <OnThisDay />
+
       <GalleryStatus />
       <CleanupCard photos={photos} compact />
 
@@ -210,5 +213,33 @@ function GalleryStatus() {
       </div>
       <span className="lx-chev" aria-hidden="true">›</span>
     </button>
+  );
+}
+
+/** „Acum un an”: cele mai bune poze din aceeași zi, din anii trecuți. */
+function OnThisDay() {
+  const tr = useTr();
+  const photos = useStore(s => s.photos);
+  const openSort = useLx(s => s.openSort);
+  const memories = useMemo(() => onThisDay(photos), [photos]);
+  if (!memories.length) return null;
+  return (
+    <>
+      {memories.map(m => {
+        const title = tr(m.years === 1 ? 'lx.onThisDay' : 'lx.onThisDay.other', { years: m.years });
+        return (
+          <section key={m.years} className="lx-section">
+            <div className="lx-section-head"><h2>{title}</h2></div>
+            <div className="lx-memory">
+              {m.photos.map(p => (
+                <button key={p.id} onClick={() => openSort(m.photos.map(x => x.id), title)}>
+                  <Thumb id={p.id} lqip={p.lqip} />
+                </button>
+              ))}
+            </div>
+          </section>
+        );
+      })}
+    </>
   );
 }

@@ -2465,6 +2465,17 @@ export const ro = {
   "lx.wall.state.notToday": "Nu azi",
   "lx.wall.state.waiting": "Așteaptă decizia ta",
   "lx.wall.share": "Trimite",
+  "lx.search.placeholder": "Caută: pisică, Ana, bon, mare, octombrie…",
+  "lx.search.results": "{count} poze găsite",
+  "lx.days.view.moments": "Momente",
+  "lx.moments.empty": "Momentele apar când ai cel puțin 3 poze făcute în aceeași perioadă.",
+  "lx.moments.meta": "{count} poze · {kept} păstrate",
+  "lx.moments.part.morning": "dimineața",
+  "lx.moments.part.afternoon": "după-amiaza",
+  "lx.moments.part.evening": "seara",
+  "lx.moments.part.night": "noaptea",
+  "lx.onThisDay": "Acum {years} an",
+  "lx.onThisDay.other": "Acum {years} ani",
 };
 
 export type TranslationKey = keyof typeof ro;

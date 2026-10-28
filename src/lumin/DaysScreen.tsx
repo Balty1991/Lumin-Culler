@@ -10,9 +10,10 @@ import { Thumb } from './Thumb';
 import { PeopleGrid } from './People';
 import { CleanupCard } from './Cleanup';
 import { GalleryWall } from './GalleryWall';
+import { MomentsView } from './MomentsView';
 import type { PhotoView } from '../state/store';
 
-const VIEWS: GalleryView[] = ['wall', 'days', 'months', 'people', 'aside'];
+const VIEWS: GalleryView[] = ['wall', 'moments', 'days', 'months', 'people', 'aside'];
 
 /**
  * lumin/DaysScreen.tsx
@@ -71,6 +72,7 @@ export function DaysScreen() {
       </div>
 
       {view === 'wall' && <GalleryWall />}
+      {view === 'moments' && <MomentsView />}
 
       {view === 'days' && (days.length === 0 ? (
         <p className="lx-empty">{tr('lx.days.empty')}</p>
