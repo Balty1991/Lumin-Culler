@@ -8,7 +8,10 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.ContentUris
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.util.Size
 import android.os.Build
 import android.provider.MediaStore
 import androidx.core.app.NotificationCompat
@@ -88,6 +91,31 @@ class DailyDigestReceiver : BroadcastReceiver() {
                 )?.use { it.count } ?: 0
             }.getOrDefault(0)
         }
+
+        /**
+         * Miniatura ultimei poze de azi, pentru notificarea mare. Doar Android 10+
+         * (loadThumbnail); fără ea notificarea rămâne text, ca înainte.
+         */
+        private fun latestThumbToday(context: Context): Bitmap? {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+            val start = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }.timeInMillis
+            return runCatching {
+                val id = context.contentResolver.query(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                    arrayOf(MediaStore.Images.Media._ID),
+                    "${MediaStore.Images.Media.DATE_TAKEN} >= ?",
+                    arrayOf(start.toString()),
+                    "${MediaStore.Images.Media.DATE_TAKEN} DESC"
+                )?.use { c -> if (c.moveToFirst()) c.getLong(0) else null } ?: return null
+                val uri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
+                context.contentResolver.loadThumbnail(uri, Size(720, 720), null)
+            }.getOrNull()
+        }
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -113,13 +141,18 @@ class DailyDigestReceiver : BroadcastReceiver() {
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_menu_gallery)
             .setContentTitle(title)
             .setContentText(body)
             .setAutoCancel(true)
             .setContentIntent(open)
-            .build()
+        // Cu poza zilei în notificare: îți amintește de ce merită deschisă.
+        latestThumbToday(context)?.let { thumb ->
+            builder.setLargeIcon(thumb)
+                .setStyle(NotificationCompat.BigPictureStyle().bigPicture(thumb).bigLargeIcon(null as Bitmap?).setSummaryText(body))
+        }
+        val notification = builder.build()
         runCatching { manager.notify(NOTIFICATION_ID, notification) }
     }
 }
