@@ -7,10 +7,8 @@ import { useModalFocusTrap } from './useModalFocusTrap';
 import { LocaleToggle } from './LocaleToggle';
 import { CheckIcon } from './icons';
 import { t } from '../i18n';
+import { readWholeGallery } from '../lumin/galleryReader';
 
-const DAY_MS = 86_400_000;
-/** Varianta automată citește doar ultima săptămână (raportat: 30 de zile = 926 de poze, ~10 minute). */
-const AUTO_DAYS = 7;
 
 const STRICTNESS: CullingStrictness[] = ['lax', 'balanced', 'strict'];
 
@@ -40,7 +38,6 @@ export function FirstRun({ onPickManually }: { onPickManually: () => void }) {
   const locale = useStore(s => s.locale);
   const strictness = useStore(s => s.cullingStrictness);
   const setStrictness = useStore(s => s.setCullingStrictness);
-  const importGalleryPeriod = useStore(s => s.importGalleryPeriod);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const [step, setStep] = useState(welcomeSeen ? 2 : 0);
   const [later, setLater] = useState(false);
@@ -65,8 +62,11 @@ export function FirstRun({ onPickManually }: { onPickManually: () => void }) {
   const auto = async () => {
     dismissWelcome();
     askNotifications();
-    const end = Date.now() + 1;
-    await importGalleryPeriod({ start: end - AUTO_DAYS * DAY_MS, end });
+    // Nu mai așteaptă o săptămână întreagă (raportat: 297 de poze, „simt
+    // așteptarea”): Lumi citește galeria de la cele mai noi poze, câte puțin,
+    // iar primele apar pe Azi după câteva secunde. Restul vine în fundal.
+    setLater(true);
+    void readWholeGallery();
   };
   const skip = () => { dismissWelcome(); setLater(true); };
 
@@ -138,11 +138,18 @@ export function FirstRun({ onPickManually }: { onPickManually: () => void }) {
               </div>
             )}
             {native && <p className="fr-hint">{tr('fr.photos.permission')}</p>}
-            <button className="v3-cta" onClick={pick}>
-              <span>{tr('setup.pick')}</span><span className="v3-mono">→</span>
-            </button>
-            {native && (
-              <button className="v3-outline-btn" onClick={() => void auto()}>{tr('setup.auto', { days: AUTO_DAYS })}</button>
+            {/* Pe telefon, principalul e citirea galeriei (de la cele noi, în fundal); alegerea manuală rămâne a doua. */}
+            {native ? (
+              <>
+                <button className="v3-cta" onClick={() => void auto()}>
+                  <span>{tr('fr.photos.readAll')}</span><span className="v3-mono">→</span>
+                </button>
+                <button className="v3-outline-btn" onClick={pick}>{tr('setup.pick')}</button>
+              </>
+            ) : (
+              <button className="v3-cta" onClick={pick}>
+                <span>{tr('setup.pick')}</span><span className="v3-mono">→</span>
+              </button>
             )}
             <p className="v3-kicker v3-center">{tr('aiProfile.private')}</p>
           </section>

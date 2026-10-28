@@ -63,7 +63,7 @@ export function TodayScreen() {
   const today = days.find(d => d.start === todayStart);
   const past = days.filter(d => d.start < todayStart).slice(0, 4);
   // Cititorul galeriei lucrează în fundal: Azi rămâne Azi, cu o bară mică dedesubt.
-  const busy = !reader && (importing || (!!progress && progress.phase !== 'finalizat'));
+  const busy = (!reader || reader.paused === 'import') && (importing || (!!progress && progress.phase !== 'finalizat'));
 
   const [inGallery, setInGallery] = useState<number | null>(null);
   useEffect(() => {
@@ -129,7 +129,7 @@ export function TodayScreen() {
 
       <LumiFeed />
 
-      {reader && (
+      {reader && reader.paused !== 'import' && (
         <section className="lx-card lx-reader" role="status">
           <span className="lx-eyebrow">{tr('lx.reader.eyebrow')}</span>
           <b>{tr(reader.paused === 'battery' ? 'lx.reader.paused' : 'lx.reader.title', { done: reader.done, total: reader.total })}</b>

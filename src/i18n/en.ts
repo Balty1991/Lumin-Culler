@@ -2604,4 +2604,5 @@ export const en: Record<TranslationKey, string> = {
   "lx.enhance.straighten": "Straighten",
   "premium.personal": "On your gallery: {count} photos are waiting now. With Pro, Lumi decides them all for you, like you would.",
   "lx.search.people": "Search",
+  "fr.photos.readAll": "Read my gallery (newest first)",
 };

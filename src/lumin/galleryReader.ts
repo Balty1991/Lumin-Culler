@@ -14,6 +14,8 @@ import { useLx } from './lxStore';
  * e în spate; data viitoare continuă de unde a rămas — ce e citit nu se recitește.
  */
 const CHUNK = 24;
+/** Primul pachet e mic: primele poze apar pe Azi în câteva secunde, nu după un minut. */
+const FIRST_CHUNK = 8;
 const ANNOUNCED_KEY = 'lumin-gallery-read-announced';
 let running = false;
 
@@ -42,7 +44,8 @@ export async function readWholeGallery(): Promise<void> {
   running = true;
   const lx = useLx.getState();
   try {
-    if ((await getPhotosAccess()) !== 'full') return;
+    // Cu acces parțial nu avem ce citi singuri; fără acces încă, citirea listei cere permisiunea.
+    if ((await getPhotosAccess()) === 'limited') return;
     const list = await listPhotosInRange(0, Date.now() + 1);
     if (!list.granted) return;
     const known = new Set(useStore.getState().photos.map(p => p.mediaUri).filter(Boolean));
@@ -52,21 +55,32 @@ export async function readWholeGallery(): Promise<void> {
     const beforeIds = new Set(useStore.getState().photos.map(p => p.id));
     let done = 0;
     lx.setReader({ done, total: missing.length });
-    for (let i = 0; i < missing.length; i += CHUNK) {
+    for (let i = 0; i < missing.length; i += i === 0 ? FIRST_CHUNK : CHUNK) {
+      const size = i === 0 ? FIRST_CHUNK : CHUNK;
       // Așteaptă: alt import, aplicația în spate, bateria slabă.
       while (importBusy() || document.hidden || await lowBattery()) {
-        useLx.getState().setReader({ done, total: missing.length, ...(await lowBattery() ? { paused: 'battery' as const } : {}) });
+        // Alt import (ales de om) are întâietate; cititorul spune că așteaptă, nu pare blocat.
+        const paused = importBusy() ? 'import' as const : await lowBattery() ? 'battery' as const : undefined;
+        useLx.getState().setReader({ done, total: missing.length, ...(paused ? { paused } : {}) });
         await sleep(4000);
       }
       useLx.getState().setReader({ done, total: missing.length });
-      const files = await readPhotoFiles(missing.slice(i, i + CHUNK));
+      const files = await readPhotoFiles(missing.slice(i, i + size));
       if (files.length) {
         const notice = useStore.getState().notice;
-        await useStore.getState().runImport(files.map(f => f.file), undefined, files.map(f => f.uri));
+        // Bara urcă poză cu poză, nu din 24 în 24: altfel pare blocată.
+        const base = i;
+        const unsub = useStore.subscribe(s => {
+          const p = s.progress;
+          if (p && p.total > 0 && p.phase !== 'finalizat') useLx.getState().setReader({ done: Math.min(missing.length, base + Math.round((p.done / p.total) * files.length)), total: missing.length });
+        });
+        try {
+          await useStore.getState().runImport(files.map(f => f.file), undefined, files.map(f => f.uri));
+        } finally { unsub(); }
         // Fără mesajul „am importat 24 de poze” după fiecare pachet: rezumatul vine la final.
         useStore.setState({ notice });
       }
-      done = Math.min(missing.length, i + CHUNK);
+      done = Math.min(missing.length, i + size);
       useLx.getState().setReader({ done, total: missing.length });
       await sleep(1200); // telefonul respiră între pachete: aplicația rămâne fluidă
     }

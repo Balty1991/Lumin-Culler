@@ -33,8 +33,8 @@ interface LxState {
   autoResult: AutoSortResult | null;
   setAutoResult: (r: AutoSortResult | null) => void;
   /** Cititorul galeriei în fundal (lumin/galleryReader.ts); null = nu rulează. */
-  reader: { done: number; total: number; paused?: 'battery' } | null;
-  setReader: (r: { done: number; total: number; paused?: 'battery' } | null) => void;
+  reader: { done: number; total: number; paused?: 'battery' | 'import' } | null;
+  setReader: (r: { done: number; total: number; paused?: 'battery' | 'import' } | null) => void;
   /** „Am citit toată galeria”, arătat o dată pe Azi. */
   readerResult: { total: number; kept: number; waiting: number } | null;
   setReaderResult: (r: { total: number; kept: number; waiting: number } | null) => void;

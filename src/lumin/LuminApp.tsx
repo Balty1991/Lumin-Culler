@@ -220,7 +220,7 @@ export function LuminApp() {
           </main>
         )}
 
-        {reader ? (tab !== 'today' && (
+        {reader && reader.paused !== 'import' ? (tab !== 'today' && (
           <button className="lx-busy-pill" onClick={() => setTab('today')}>
             <Orb mood="think" size={20} />
             {tr('lx.reader.pill', { done: reader.done, total: reader.total })}
