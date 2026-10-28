@@ -958,6 +958,12 @@ interface AppState {
    * sa nu mai apara drept "strain" in restul bibliotecii curente.
    */
   enrollFaceCluster: (name: string, members: { photoId: string; faceIndex: number; embedding: number[] }[]) => Promise<void>;
+  /**
+   * Corectează un nume pus greșit: scoate persoana `name` de pe fețele ei din
+   * `photoIds` (și ține minte „nu e ea”, ca recunoașterea să n-o mai pună).
+   * Cu `newName`, aceleași fețe primesc numele corect.
+   */
+  correctPersonFaces: (name: string, photoIds: string[], newName?: string) => Promise<number>;
   /** Pune numele pe un grup de același animal. Nu trece prin plafonul de persoane. */
   enrollPetCluster: (name: string, members: { photoId: string }[]) => Promise<void>;
   setPersonsOpen: (open: boolean) => void;
@@ -3351,8 +3357,10 @@ export const useStore = create<AppState>((set, get) => ({
     // `aiDecided: false` — de aici incolo eticheta e A OMULUI, si nicio
     // operatie automata (severitate, re-scorare) n-o mai atinge. Vezi
     // core/aiDecision.ts.
-    await db.photos.update(id, { status, aiDecided: false });
+    // Ecranul întâi, baza de date imediat după: butonul răspunde pe loc
+    // (raportat: „dacă dau Păstrez, răspunde greu”).
     set(state => ({ photos: state.photos.map(p => (p.id === id ? { ...p, status, aiDecided: false } : p)) }));
+    await db.photos.update(id, { status, aiDecided: false });
     const { quotaError } = await syncOriginal(id, status);
     if (quotaError) set({ notice: quotaNotice(get().locale) });
     if (status === 'selected' || status === 'rejected') {
@@ -4661,6 +4669,41 @@ export const useStore = create<AppState>((set, get) => ({
       persons, photos: views,
       notice: t(get().locale, 'store.faceCluster.enrolled', { name: trimmedName, detections: members.length, photos: photoIds.length })
     });
+  },
+
+  correctPersonFaces: async (name, photoIds, newName) => {
+    const person = get().persons.find(p => p.name.trim().toLowerCase() === name.trim().toLowerCase());
+    const moved: { photoId: string; faceIndex: number; embedding: number[] }[] = [];
+    await db.transaction('rw', db.analyses, async () => {
+      const analyses = await db.analyses.bulkGet(photoIds);
+      for (const analysis of analyses) {
+        if (!analysis) continue;
+        let changed = false;
+        analysis.faces.forEach((face, faceIndex) => {
+          const match = person ? face.personId === person.id : face.personName === name;
+          if (!match) return;
+          if (person) face.notPersonIds = [...new Set([...(face.notPersonIds ?? []), person.id])];
+          face.personId = null;
+          face.personName = null;
+          moved.push({ photoId: analysis.photoId, faceIndex, embedding: face.embedding ?? [] });
+          changed = true;
+        });
+        if (changed) {
+          analysis.knownFaceCount = analysis.faces.filter(f => f.personId).length;
+          analysis.strangerCount = analysis.faces.filter(f => !f.personId).length;
+          await db.analyses.put(analysis);
+        }
+      }
+    });
+    if (!moved.length) return 0;
+    if (newName?.trim()) {
+      await get().enrollFaceCluster(newName, moved);
+    } else {
+      const views = await reloadPhotoViews();
+      set({ photos: views });
+    }
+    set({ notice: t(get().locale, newName?.trim() ? 'lx.people.renamed' : 'lx.people.untagged', { name, count: moved.length, newName: newName?.trim() ?? '' }) });
+    return moved.length;
   },
 
   enrollPetCluster: async (name, members) => {

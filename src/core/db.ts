@@ -246,6 +246,8 @@ export interface FaceInsight {
   personName: string | null;
   similarity: number;
   embedding?: number[];
+  /** Persoanele despre care omul a spus „nu e el/ea” pe fața asta — recunoașterea automată nu le mai pune. */
+  notPersonIds?: string[];
   /**
    * Vectorul complet de emotie (7 clase, model FER standard) — smile ramane
    * pastrat separat pentru compatibilitate, dar engagement e derivat din

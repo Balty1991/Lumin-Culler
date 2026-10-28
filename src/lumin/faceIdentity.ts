@@ -27,7 +27,7 @@ const AUTO_MARGIN = 0.06;
 /** Fețe prea mici dau amprente nesigure. */
 const MIN_FACE_AREA = 0.004;
 
-type Face = { box: [number, number, number, number]; personId: string | null; personName?: string; embedding?: number[]; embeddingModel?: string };
+type Face = { box: [number, number, number, number]; personId: string | null; personName?: string | null; embedding?: number[]; embeddingModel?: string; notPersonIds?: string[] };
 
 export function canEmbedFaces(): boolean {
   return Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('FaceEmbed');
@@ -40,7 +40,7 @@ export function cosine(a: readonly number[], b: readonly number[]): number {
   return na && nb ? dot / Math.sqrt(na * nb) : 0;
 }
 
-export interface FaceRef { photoId: string; faceIndex: number; box: [number, number, number, number]; embedding: number[] }
+export interface FaceRef { photoId: string; faceIndex: number; box: [number, number, number, number]; embedding: number[]; notPersonIds?: string[] }
 
 /** Grupare simplă: fiecare față intră în grupul cu media cea mai apropiată, peste prag. */
 export function clusterFaces(faces: readonly FaceRef[], threshold = SAME_PERSON): FaceRef[][] {
@@ -74,7 +74,7 @@ export async function readSfaceFaces(): Promise<{ named: Map<string, number[][]>
         list.push(f.embedding);
         named.set(f.personId, list);
       } else {
-        unnamed.push({ photoId: a.photoId, faceIndex, box: f.box, embedding: f.embedding });
+        unnamed.push({ photoId: a.photoId, faceIndex, box: f.box, embedding: f.embedding, notPersonIds: f.notPersonIds });
       }
     });
   }
@@ -133,7 +133,8 @@ export async function autoNameFaces(): Promise<number> {
   }).filter((c): c is { id: string; name: string; sum: number[] } => !!c.name);
   const byName = new Map<string, FaceRef[]>();
   for (const f of unnamed) {
-    const scored = centroids.map(c => ({ c, s: cosine(f.embedding, c.sum) })).sort((x, y) => y.s - x.s);
+    // „Nu e ea”, spus de om, rămâne spus: persoana aceea nu mai e candidată pentru fața asta.
+    const scored = centroids.filter(c => !f.notPersonIds?.includes(c.id)).map(c => ({ c, s: cosine(f.embedding, c.sum) })).sort((x, y) => y.s - x.s);
     const [best, second] = scored;
     if (!best || best.s < AUTO_NAME || (second && best.s - second.s < AUTO_MARGIN)) continue;
     const list = byName.get(best.c.name) ?? [];

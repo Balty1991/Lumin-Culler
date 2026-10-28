@@ -36,7 +36,8 @@ export function DaysScreen() {
   const { pick } = useLxActions();
   const [person, setPerson] = useState<string | null>(null);
   const days = useMemo(() => groupDays(photos), [photos]);
-  const { people } = usePeopleFaces(persons, 0);
+  const faceVersion = useLx(s => s.faceVersion);
+  const { people } = usePeopleFaces(persons, faceVersion);
   const aside = useMemo(() => photos.filter(p => !!p.aside), [photos]);
   const day = openDay !== null ? days.find(d => d.start === openDay) : undefined;
 
@@ -46,16 +47,7 @@ export function DaysScreen() {
     const face = people.find(p => p.name === person);
     const ids = new Set(face?.photoIds ?? []);
     const list = photos.filter(p => ids.has(p.id) || p.personNames.includes(person));
-    return (
-      <div className="lx-screen">
-        <header className="lx-head">
-          <button className="lx-icon-btn" onClick={() => setPerson(null)} aria-label={tr('lx.back')}>‹</button>
-          <h1 className="lx-title small">{person}</h1>
-          <span />
-        </header>
-        <PhotoGrid list={list} title={person} />
-      </div>
-    );
+    return <PersonView name={person} list={list} onBack={() => setPerson(null)} onRenamed={setPerson} />;
   }
 
   return (
@@ -199,6 +191,62 @@ function MonthsView({ days }: { days: Day<PhotoView>[] }) {
         })}
       </div>
     </>
+  );
+}
+
+/**
+ * Pozele unui om. „Corectează”: atingi pozele în care AI-ul a greșit omul,
+ * apoi „Nu e …” (numele pleacă de pe fața aceea și nu mai revine singur) sau
+ * „E altcineva…” (fața primește numele corect).
+ */
+function PersonView({ name, list, onBack, onRenamed }: { name: string; list: PhotoView[]; onBack: () => void; onRenamed: (n: string | null) => void }) {
+  const tr = useTr();
+  const correctPersonFaces = useStore(s => s.correctPersonFaces);
+  const askPrompt = useStore(s => s.askPrompt);
+  const openSort = useLx(s => s.openSort);
+  const [editing, setEditing] = useState(false);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+  const toggle = (id: string) => setPicked(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const apply = async (other?: boolean) => {
+    const newName = other ? (await askPrompt(tr('lx.people.whoInstead'), '', { confirmLabel: tr('lx.save') }))?.trim() : undefined;
+    if (other && !newName) return;
+    setBusy(true);
+    try {
+      await correctPersonFaces(name, [...picked], newName);
+      useLx.getState().bumpFaces();
+      setPicked(new Set());
+      setEditing(false);
+      if (picked.size >= list.length) onRenamed(null);
+    } finally { setBusy(false); }
+  };
+  return (
+    <div className="lx-screen">
+      <header className="lx-head">
+        <button className="lx-icon-btn" onClick={onBack} aria-label={tr('lx.back')}>‹</button>
+        <h1 className="lx-title small">{name}</h1>
+        <button className={editing ? 'lx-btn small primary' : 'lx-btn small ghost'} onClick={() => { setEditing(!editing); setPicked(new Set()); }}>
+          {tr(editing ? 'lx.people.done' : 'lx.people.correct')}
+        </button>
+      </header>
+      {editing && <p className="lx-hint">{tr('lx.people.correctHint', { name })}</p>}
+      <div className="lx-grid">
+        {list.map(p => (
+          <button key={p.id} className={`lx-grid-cell ${p.status}${editing ? ' picking' : ''}${picked.has(p.id) ? ' picked' : ''}`}
+            onClick={() => (editing ? toggle(p.id) : openSort(list.map(x => x.id), name))}>
+            <Thumb id={p.id} lqip={p.lqip} edits={p.edits} />
+            {editing ? <span className="lx-face-check">{picked.has(p.id) ? '✓' : ''}</span> : <span className="lx-grid-score">{p.aiScore}</span>}
+          </button>
+        ))}
+      </div>
+      {editing && picked.size > 0 && (
+        <div className="lx-pickbar" role="region" aria-live="polite">
+          <span>{tr('lx.people.picked', { count: picked.size })}</span>
+          <button className="lx-btn ghost small" disabled={busy} onClick={() => void apply(true)}>{tr('lx.people.someoneElse')}</button>
+          <button className="lx-btn primary small" disabled={busy} onClick={() => void apply()}>{tr('lx.people.notHim', { name })}</button>
+        </div>
+      )}
+    </div>
   );
 }
 

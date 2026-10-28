@@ -5,7 +5,7 @@ import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
-import android.util.Size
+import android.util.Base64
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
@@ -47,10 +47,9 @@ class SharpImagePlugin : Plugin() {
 
     private fun decode(uri: Uri, size: Int): Bitmap? {
         val resolver = context.contentResolver
-        // Miniaturile mici le are deja sistemul în cache (aceleași ca în Galerie).
-        if (size <= 640 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            runCatching { resolver.loadThumbnail(uri, Size(size, size), null) }.getOrNull()?.let { return it }
-        }
+        // Nu miniatura sistemului (loadThumbnail): pe multe telefoane are ~512 px
+        // oricât ceri, adică tot neclar pe o dală mare. Decodăm originalul direct
+        // la mărimea cerută — JPEG-ul se citește sub-eșantionat, deci e rapid.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             return runCatching {
                 ImageDecoder.decodeBitmap(ImageDecoder.createSource(resolver, uri)) { decoder, info, _ ->
@@ -71,7 +70,7 @@ class SharpImagePlugin : Plugin() {
         }.getOrNull()
     }
 
-    /** { uri, size } → { path } — calea unui JPEG cu latura cea mare ≤ size. */
+    /** { uri, size, inline? } → { path, data? } — un JPEG cu latura cea mare ≤ size (data = base64, la cerere). */
     @PluginMethod
     fun render(call: PluginCall) {
         executor.ruleaza(call, "Poza clară n-a putut fi făcută") {
@@ -89,7 +88,13 @@ class SharpImagePlugin : Plugin() {
                     bitmap.recycle()
                 }
             }
-            call.resolve(JSObject().put("path", file.absolutePath))
+            val result = JSObject().put("path", file.absolutePath)
+            // Plasă de siguranță: dacă WebView-ul nu poate citi fișierul din cache,
+            // JS-ul cere aceeași poză direct, ca date.
+            if (call.getBoolean("inline", false) == true) {
+                result.put("data", Base64.encodeToString(file.readBytes(), Base64.NO_WRAP))
+            }
+            call.resolve(result)
         }
     }
 }

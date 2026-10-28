@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
 import { flushSync } from 'react-dom';
 import { createPortal } from 'react-dom';
 import { useStore, type PhotoView } from '../state/store';
@@ -12,6 +12,7 @@ import { searchPhotos } from './textSearch';
 import { db } from '../core/db';
 import { findSimilarPhotos } from '../core/similarPhotos';
 import { EnhanceSheet } from './Enhance';
+import { SCREEN_SIZE, sharpUrl, sizeFor } from './sharp';
 import { CleanupCard } from './Cleanup';
 
 type Filter = 'all' | 'kept' | 'notToday';
@@ -24,15 +25,16 @@ const PAGE = 60;
 function useReveal(): (el: HTMLElement | null) => void {
   const io = useRef<IntersectionObserver | null>(null);
   useEffect(() => () => io.current?.disconnect(), []);
-  // Creat la prima folosire: ref-urile se leagă înaintea efectelor.
-  return el => {
+  // Aceeași funcție la fiecare randare: altfel React o re-leagă pe fiecare dală
+  // la orice schimbare. Observatorul, creat la prima folosire (ref-urile se leagă înaintea efectelor).
+  return useCallback((el: HTMLElement | null) => {
     if (!el || el.classList.contains('in')) return;
     if (typeof IntersectionObserver === 'undefined') { el.classList.add('in'); return; }
     io.current ??= new IntersectionObserver(entries => {
       for (const e of entries) if (e.isIntersecting) { e.target.classList.add('in'); io.current?.unobserve(e.target); }
     }, { rootMargin: '0px 0px -6% 0px', threshold: 0.05 });
     io.current.observe(el);
-  };
+  }, []);
 }
 
 /**
@@ -77,6 +79,30 @@ function onAnyScroll(fn: (el: Element) => void): () => void {
 
 function scrollToTop() {
   for (const el of [document.scrollingElement, document.body]) el?.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/**
+ * Rezerva pentru „Asemănătoare” când poza n-are încă amprentă vizuală: ce se
+ * vede în ea (etichetele de scenă) și cine e în ea, potrivite cu restul.
+ */
+export function similarByContent(photos: readonly PhotoView[], id: string, limit = 40): string[] {
+  const src = photos.find(p => p.id === id);
+  if (!src) return [];
+  const bag = (p: PhotoView) => new Set([...(p.sceneTags ?? []).map(t => t.toLowerCase()), ...p.personNames.map(n => `@${n}`)]);
+  const a = bag(src);
+  if (!a.size) return [];
+  return photos
+    .filter(p => p.id !== id && !p.aside)
+    .map(p => {
+      const b = bag(p);
+      let common = 0;
+      for (const x of b) if (a.has(x)) common++;
+      return { id: p.id, score: common / (a.size + b.size - common || 1) };
+    })
+    .filter(x => x.score >= 0.34)
+    .sort((x, y) => y.score - x.score)
+    .slice(0, limit)
+    .map(x => x.id);
 }
 
 /** Schimbă ceva cu tranziție animată între stări, unde telefonul o are (View Transitions). */
@@ -168,7 +194,8 @@ export function GalleryWall() {
 
   const showSimilar = async (id: string) => {
     const rows = await db.analyses.toArray();
-    const ids = findSimilarPhotos(rows.map(a => ({ photoId: a.photoId, imageEmbedding: a.imageEmbedding })), id);
+    let ids = findSimilarPhotos(rows.map(a => ({ photoId: a.photoId, imageEmbedding: a.imageEmbedding })), id);
+    if (!ids.length) ids = similarByContent(photos, id);
     if (!ids.length) { setNotice(tr('lx.similar.none')); return; }
     setViewer(null);
     setQuery('');
@@ -202,6 +229,9 @@ export function GalleryWall() {
 
   const count = (f: Filter) => photos.filter(p => !p.aside && (f === 'all' || p.status === (f === 'kept' ? 'selected' : 'rejected'))).length;
   const open = (i: number, el: HTMLElement) => setViewer({ index: i, origin: el.getBoundingClientRect() });
+  // Aceeași referință pentru toate dalele: o dală se redesenează doar când se schimbă poza ei.
+  const openRef = useRef(open);
+  openRef.current = open;
   const plain = !query.trim() && !similar;
 
   return (
@@ -262,13 +292,8 @@ export function GalleryWall() {
             )}
             <div className={`lx-bento d${density}`}>
               {rest.map(({ p, i }, k) => (
-                <button key={p.id} ref={reveal} className={`lx-tile ${p.status} ${spanOf(p, k, density)}`}
-                  style={{ ['--d' as string]: `${(k % 8) * 45}ms`, viewTransitionName: `t${p.id.replace(/[^a-zA-Z0-9_-]/g, '')}` } as CSSProperties}
-                  onClick={e => open(i, e.currentTarget)}>
-                  <Thumb id={p.id} lqip={p.lqip} edits={p.edits} sharp={density <= 3 || spanOf(p, k, density) !== ''} />
-                  {p.status === 'selected' && <span className="lx-tile-star">★</span>}
-                  {p.status === 'rejected' && <span className="lx-tile-dot" title={tr('lx.wall.state.notToday')} />}
-                </button>
+                <Tile key={p.id} p={p} index={i} span={spanOf(p, k, density)} delay={(k % 8) * 45}
+                  sharp={sizeFor(cell * (spanOf(p, k, density) === 'big' ? 2 : 1))} reveal={reveal} onOpen={openRef} />
               ))}
             </div>
           </section>
@@ -288,6 +313,24 @@ export function GalleryWall() {
     </div>
   );
 }
+
+/** O dală din mozaic. Memo: la „Păstrez” se redesenează doar dala schimbată, nu toată galeria. */
+const Tile = memo(function Tile({ p, index, span, delay, sharp, reveal, onOpen }: {
+  p: PhotoView; index: number; span: string; delay: number; sharp: number;
+  reveal: (el: HTMLElement | null) => void;
+  onOpen: { current: (i: number, el: HTMLElement) => void };
+}) {
+  const tr = useTr();
+  return (
+    <button ref={reveal} className={`lx-tile ${p.status} ${span}`}
+      style={{ ['--d' as string]: `${delay}ms`, viewTransitionName: `t${p.id.replace(/[^a-zA-Z0-9_-]/g, '')}` } as CSSProperties}
+      onClick={e => onOpen.current(index, e.currentTarget)}>
+      <Thumb id={p.id} lqip={p.lqip} edits={p.edits} sharp={sharp} />
+      {p.status === 'selected' && <span className="lx-tile-star">★</span>}
+      {p.status === 'rejected' && <span className="lx-tile-dot" title={tr('lx.wall.state.notToday')} />}
+    </button>
+  );
+});
 
 /**
  * Bara de timp, în dreapta (ca la galeriile mari): apare când derulezi; o
@@ -350,10 +393,10 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar, origin = null
   const setStatus = useStore(s => s.setStatus);
   const exportSelection = useStore(s => s.exportSelection);
   const deleteRejectedPhotos = useStore(s => s.deleteRejectedPhotos);
-  const live = useStore(s => s.photos);
-  const p = live.find(x => x.id === list[index].id) ?? list[index];
-  const [drag, setDrag] = useState({ x: 0, y: 0 });
-  const start = useRef<{ x: number; y: number } | null>(null);
+  // Doar poza asta din magazin: viewerul nu se redesenează la orice altă schimbare.
+  const id = list[index].id;
+  const p = useStore(s => s.photos.find(x => x.id === id)) ?? list[index];
+  const start = useRef<{ x: number; y: number; dx: number; dy: number } | null>(null);
   const [dir, setDir] = useState<'next' | 'prev' | null>(null);
 
   useEffect(() => {
@@ -401,6 +444,20 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar, origin = null
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => { setZoom({ s: 1, x: 0, y: 0 }); }, [p.id]);
+  // Pregătește din timp poza clară de dinainte și de după: glisarea nu mai așteaptă.
+  useEffect(() => {
+    for (const k of [index + 1, index - 1, index + 2]) if (list[k]) void sharpUrl(list[k].id, SCREEN_SIZE);
+  }, [index, list]);
+
+  /** Mută poza direct (fără redesenare React la fiecare mișcare a degetului). */
+  const place = (dx: number, dy: number, animate = false) => {
+    const el = photoRef.current;
+    if (!el) return;
+    el.style.transition = animate ? 'transform .28s cubic-bezier(.2,.9,.25,1)' : 'none';
+    const down = Math.max(0, dy);
+    el.style.transform = dx || dy ? `translate3d(${dx}px, ${down}px, 0) scale(${1 - down / 1600})` : '';
+    rootRef.current?.style.setProperty('--fade', `${Math.max(0.35, 1 - down / 400)}`);
+  };
 
   const go = (step: number) => {
     const next = index + step;
@@ -419,7 +476,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar, origin = null
       return;
     }
     lastTap.current = now;
-    start.current = { x: e.clientX, y: e.clientY };
+    start.current = { x: e.clientX, y: e.clientY, dx: 0, dy: 0 };
     e.currentTarget.setPointerCapture(e.pointerId);
   };
   const onMove = (e: PointerEvent<HTMLDivElement>) => {
@@ -427,30 +484,30 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar, origin = null
     if (zoom.s > 1) {
       // Mărită: tragi de poză, nu treci la alta.
       const dx = e.clientX - start.current.x, dy = e.clientY - start.current.y;
-      start.current = { x: e.clientX, y: e.clientY };
+      start.current = { x: e.clientX, y: e.clientY, dx: 0, dy: 0 };
       setZoom(z => ({ ...z, x: z.x + dx, y: z.y + dy }));
       return;
     }
-    setDrag({ x: e.clientX - start.current.x, y: e.clientY - start.current.y });
+    const g = start.current;
+    g.dx = e.clientX - g.x;
+    g.dy = e.clientY - g.y;
+    place(g.dx, g.dy);
   };
   const onUp = () => {
-    if (!start.current) return;
+    const g = start.current;
+    if (!g) return;
     start.current = null;
     if (zoom.s > 1) return;
-    if (drag.y > 120 && Math.abs(drag.y) > Math.abs(drag.x)) onClose();
-    else if (drag.x < -70) go(1);
-    else if (drag.x > 70) go(-1);
-    setDrag({ x: 0, y: 0 });
+    if (g.dy > 120 && Math.abs(g.dy) > Math.abs(g.dx)) { onClose(); return; }
+    const step = g.dx < -60 ? 1 : g.dx > 60 ? -1 : 0;
+    if (step && list[index + step]) { place(0, 0); go(step); return; }
+    place(0, 0, true);
   };
   const date = new Date(photoTime(p)).toLocaleString(locale === 'en' ? 'en-GB' : 'ro-RO', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
-  const fade = Math.max(0.35, 1 - Math.max(0, drag.y) / 400);
 
   return createPortal(
-    <div className="lx lx-viewer" ref={rootRef} role="dialog" aria-modal="true" style={{ ['--fade' as string]: `${fade}` }}>
+    <div className="lx lx-viewer" ref={rootRef} role="dialog" aria-modal="true">
       <div className="lx-viewer-bg" aria-hidden="true" />
-      <div className="lx-viewer-backdrop" aria-hidden="true">
-        <Thumb key={`bg-${p.id}`} id={p.id} lqip={p.lqip} />
-      </div>
       <header className="lx-viewer-top">
         <button className="lx-icon-btn" onClick={onClose} aria-label={tr('lx.close')}>✕</button>
         <span className="lx-viewer-date">{date}</span>
@@ -458,11 +515,16 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar, origin = null
       </header>
       <div className="lx-viewer-stage" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
         <div key={p.id} ref={photoRef} className={`lx-viewer-photo ${dir ?? ''}${zoom.s > 1 ? ' zoomed' : ''}`}
-          style={{ transform: zoom.s > 1
-            ? `translate(${zoom.x}px, ${zoom.y}px) scale(${zoom.s})`
-            : `translate(${drag.x}px, ${Math.max(0, drag.y)}px) scale(${1 - Math.max(0, drag.y) / 1600})` }}>
+          style={zoom.s > 1 ? { transform: `translate(${zoom.x}px, ${zoom.y}px) scale(${zoom.s})` } : undefined}>
           <Thumb id={p.id} lqip={p.lqip} edits={p.edits} full />
         </div>
+        {/* Săgețile: se vede că poți trece la poza următoare (sau glisezi). */}
+        {index > 0 && zoom.s === 1 && (
+          <button className="lx-viewer-arrow prev" onPointerDown={e => e.stopPropagation()} onClick={() => go(-1)} aria-label={tr('lx.viewer.prev')}>‹</button>
+        )}
+        {index < list.length - 1 && zoom.s === 1 && (
+          <button className="lx-viewer-arrow next" onPointerDown={e => e.stopPropagation()} onClick={() => go(1)} aria-label={tr('lx.viewer.next')}>›</button>
+        )}
       </div>
       <div className="lx-viewer-info">
         <div className="lx-chips">

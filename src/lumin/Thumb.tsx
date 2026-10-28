@@ -16,8 +16,8 @@ export function Thumb({ id, lqip, full = false, sharp = false, className, alt = 
   edits?: EditAdjustments;
   lqip?: string;
   full?: boolean;
-  /** Pe telefon: după miniatură, o variantă clară de 640 px (dale mari din galerie). */
-  sharp?: boolean;
+  /** Pe telefon: după miniatură, o variantă clară (true = 768 px, sau latura cerută în px). */
+  sharp?: boolean | number;
   className?: string;
   alt?: string;
 }) {
@@ -36,7 +36,7 @@ export function Thumb({ id, lqip, full = false, sharp = false, className, alt = 
     } else {
       void getCachedThumbUrl(id).then(url => {
         show(url);
-        if (sharp) void sharpUrl(id, TILE_SIZE).then(show);
+        if (sharp) void sharpUrl(id, typeof sharp === 'number' ? sharp : TILE_SIZE).then(show);
       }).catch(() => {});
     }
     return () => { alive = false; };

@@ -2,7 +2,8 @@ import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { db } from '../core/db';
 import { computeAutoAdjustments, isNeutral, type EditAdjustments } from '../core/imageAdjust';
-import { getDisplayUrl } from '../core/previewUrlCache';
+import { getCachedPreviewUrl, getDisplayUrl } from '../core/previewUrlCache';
+import { canSharpen, sharpUrl } from './sharp';
 import { useStore, type PhotoView } from '../state/store';
 import { AdjustedImage } from '../ui/AdjustedImage';
 import { useTr } from './context';
@@ -31,7 +32,11 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   useEffect(() => {
     let alive = true;
     void (async () => {
-      const [url, a] = await Promise.all([getDisplayUrl(photo.id), db.analyses.get(photo.id)]);
+      // Pe telefon: poza clară făcută de Android (originalul direct ieșea negru pe unele telefoane).
+      const source = canSharpen()
+        ? sharpUrl(photo.id, 1600).then(u => u ?? getCachedPreviewUrl(photo.id))
+        : getDisplayUrl(photo.id);
+      const [url, a] = await Promise.all([source, db.analyses.get(photo.id)]);
       if (!url) throw new Error('fără imagine');
       const img = await new Promise<HTMLImageElement>((resolve, reject) => {
         const el = new Image();

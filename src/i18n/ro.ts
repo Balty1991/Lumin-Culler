@@ -2569,6 +2569,16 @@ export const ro = {
   "lx.wall.smaller": "Poze mai mici",
   "lx.wall.bigger": "Poze mai mari",
   "lx.wall.monthMeta": "{count} poze · {kept} păstrate",
+  "lx.viewer.prev": "Poza de dinainte",
+  "lx.viewer.next": "Poza următoare",
+  "lx.people.correct": "Corectează",
+  "lx.people.done": "Gata",
+  "lx.people.correctHint": "Atinge pozele în care nu e {name}. Le scot numele și țin minte, ca să nu-l mai pun pe fața aceea.",
+  "lx.people.notHim": "Nu e {name}",
+  "lx.people.someoneElse": "E altcineva…",
+  "lx.people.whoInstead": "Cine e, de fapt?",
+  "lx.people.untagged": "Am scos numele {name} de pe {count} fețe. Nu-l mai pun acolo.",
+  "lx.people.renamed": "Am mutat {count} fețe de la {name} la {newName}.",
 };
 
 export type TranslationKey = keyof typeof ro;
