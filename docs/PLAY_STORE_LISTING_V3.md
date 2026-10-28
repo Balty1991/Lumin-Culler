@@ -1,4 +1,45 @@
-# Fișa Play Store, varianta 3: „AI-ul care îți alege pozele”
+# Fișa Play Store, varianta 3: „Lumin AI — AI-ul care îți alege pozele”
+
+## Înlocuirea aplicației existente (versiunea 3.0.0)
+
+Lumin AI e o ACTUALIZARE a aplicației deja publicate, nu o aplicație nouă:
+
+- același identificator de pachet: `com.luminculler.app` (nu se poate și nu
+  trebuie schimbat — altfel Play o tratează ca altă aplicație);
+- `versionCode` mai mare decât cel din magazin (CI-ul de release îl pune
+  singur din numărul rulării), `versionName` 3.0.0;
+- semnată cu aceeași cheie de upload ca până acum;
+- numele, sigla și textele se schimbă din Play Console → Prezența în magazin.
+  Redenumirea e permisă; nu folosi nume de alte branduri (Google, Apple,
+  Samsung) în titlu sau sigla;
+- sigla pentru magazin (512×512, fără transparență): `docs/play/icon-512.png`;
+- aceleași produse de abonament în Play Billing (prețurile mai jos);
+- Data safety și declarația pentru permisiunea de poze rămân cum sunt (vezi
+  secțiunile de mai jos); nicio funcție nouă nu trimite date de pe telefon;
+- politica de confidențialitate: `public/privacy-policy.html` (numele e
+  actualizat la Lumin AI).
+
+Ce verifică Play la aprobare și cum stă aplicația:
+- READ_MEDIA_IMAGES: funcția de bază e sortarea galeriei (alegerea zilei),
+  deci declarația „acces larg la poze” e justificată; textul pentru formular
+  e mai jos;
+- POST_NOTIFICATIONS: cerută cu motivul spus pe ecran (progresul analizei și
+  alegerea de seară);
+- FOREGROUND_SERVICE_DATA_SYNC: analiza în fundal a pozelor alese de om, cu
+  notificare vizibilă cât rulează — se declară în Play Console la
+  „Foreground service permissions” cu un clip scurt al notificării;
+- abonamentul: prețul și reînnoirea afișate înainte de cumpărare, butonul de
+  închidere vizibil (PremiumPanel), anularea prin Play.
+
+### Text pentru declarația de acces la poze
+```
+Lumin AI sorts the user's own photo gallery: every day it groups new photos
+into bursts, detects blurry/duplicate shots and suggests the best ones to
+keep. This core feature needs to read all photos taken each day, which the
+photo picker cannot provide. All processing happens on the device; no photo
+is uploaded.
+```
+
 
 De ce o variantă nouă: fișa veche vindea „curăță galeria / eliberează
 spațiu”, o categorie plină de aplicații mari (AI Photo Cleaner, Similar Photo
@@ -13,9 +54,9 @@ Limitele sunt numărate exact (Play: titlu 30, descriere scurtă 80, lungă 4000
 
 ## Română
 
-### Titlu (28/30)
+### Titlu (27/30)
 ```
-Lumin: AI-ul care alege poze
+Lumin AI: îți alege pozele
 ```
 
 ### Descriere scurtă (77/80)
@@ -68,9 +109,9 @@ atingere) și uneltele de după sortare.
 
 ## English
 
-### Title (27/30)
+### Title (28/30)
 ```
-Lumin: AI picks your photos
+Lumin AI: Best Photo Picker
 ```
 
 ### Short description (70/80)
