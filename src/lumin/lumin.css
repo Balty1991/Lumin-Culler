@@ -777,3 +777,7 @@ body.lx-viewer-open .lx-hero-media img { animation-play-state: paused; }
 .lx-sheet-list .lx-row { display: flex; justify-content: space-between; align-items: center; }
 .lx-head-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .lx-coverage { display: flex; flex-direction: column; gap: 12px; }
+/* „După” stă exact peste „Înainte”: pânza nu mai dă ea mărimea cadrului
+   (la 1600 px lărgea grila, iar poza ieșea mai mare decât „Înainte”). */
+.lx-enhance-frame > .lx-enhance-after { position: absolute; inset: 0; }
+.lx-enhance-after .lx-enhance-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
