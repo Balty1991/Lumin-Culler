@@ -2571,4 +2571,12 @@ export const en: Record<TranslationKey, string> = {
   "lx.sortAll.short": "Sort all",
   "lx.sortAll.count": "Add and sort the whole gallery ({count})",
   "lx.sortAll.busy": "Lumi is sorting…",
+  "lx.reader.eyebrow": "Lumi is reading your gallery",
+  "lx.reader.title": "{done} of {total} photos read",
+  "lx.reader.paused": "Paused: battery below 20% ({done} of {total})",
+  "lx.reader.sub": "Newest first. You can keep using the app meanwhile.",
+  "lx.reader.pill": "Lumi is reading {done}/{total}",
+  "lx.reader.doneTitle": "I read your whole gallery: {total} photos",
+  "lx.reader.doneSub": "I picked {kept}, and {waiting} wait for your yes or no.",
+  "lx.reader.see": "See gallery",
 };

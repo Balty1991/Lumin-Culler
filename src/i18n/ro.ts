@@ -2657,6 +2657,14 @@ export const ro = {
   "lx.sortAll.short": "Sortează tot",
   "lx.sortAll.count": "Adaugă și sortează toată galeria ({count})",
   "lx.sortAll.busy": "Lumi sortează…",
+  "lx.reader.eyebrow": "Lumi citește galeria",
+  "lx.reader.title": "{done} din {total} poze citite",
+  "lx.reader.paused": "Pauză: bateria e sub 20% ({done} din {total})",
+  "lx.reader.sub": "De la cele mai noi spre cele vechi. Poți folosi aplicația între timp.",
+  "lx.reader.pill": "Lumi citește galeria {done}/{total}",
+  "lx.reader.doneTitle": "Am citit toată galeria: {total} poze",
+  "lx.reader.doneSub": "Am ales {kept}, iar {waiting} așteaptă un da sau nu de la tine.",
+  "lx.reader.see": "Vezi galeria",
 };
 
 export type TranslationKey = keyof typeof ro;

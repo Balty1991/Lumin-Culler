@@ -790,3 +790,6 @@ body.lx-viewer-open .lx-hero-media img { animation-play-state: paused; }
 .lx-vbtn span { font-size: 22px; }
 .lx-vbtn small { font-size: 12px; }
 .lx-viewer-photo img, .lx-viewer-photo:not(.zoomed) img { max-height: calc(100dvh - 290px - var(--safe-top, 0px) - var(--safe-bottom, 0px)); }
+.lx-reader { display: flex; flex-direction: column; gap: 6px; margin: 0 0 16px; }
+.lx-reader > b { font-size: 15px; }
+.lx-reader > span:not(.lx-eyebrow) { font-size: 12.5px; color: var(--text-dim); }

@@ -32,6 +32,12 @@ interface LxState {
   /** „Am ales 4 din 27”: ce a făcut sortarea automată (lumin/autoSort.ts). */
   autoResult: AutoSortResult | null;
   setAutoResult: (r: AutoSortResult | null) => void;
+  /** Cititorul galeriei în fundal (lumin/galleryReader.ts); null = nu rulează. */
+  reader: { done: number; total: number; paused?: 'battery' } | null;
+  setReader: (r: { done: number; total: number; paused?: 'battery' } | null) => void;
+  /** „Am citit toată galeria”, arătat o dată pe Azi. */
+  readerResult: { total: number; kept: number; waiting: number } | null;
+  setReaderResult: (r: { total: number; kept: number; waiting: number } | null) => void;
   faceVersion: number;
   bumpFaces: () => void;
   setGalleryView: (view: GalleryView) => void;
@@ -54,6 +60,10 @@ export const useLx = create<LxState>(set => ({
   setFaceProgress: p => set({ faceProgress: p }),
   autoResult: null,
   setAutoResult: r => set({ autoResult: r }),
+  reader: null,
+  setReader: r => set({ reader: r }),
+  readerResult: null,
+  setReaderResult: r => set({ readerResult: r }),
   faceVersion: 0,
   bumpFaces: () => set(s => ({ faceVersion: s.faceVersion + 1 })),
   setGalleryView: view => set({ galleryView: view })

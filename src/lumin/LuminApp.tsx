@@ -18,6 +18,7 @@ import { groupDays } from './days';
 import { Viewer } from './GalleryWall';
 import { superviseUnsure } from './cloud';
 import { autoSortToday, decideRestIfAllowed, summarizeToday } from './autoSort';
+import { readWholeGallery } from './galleryReader';
 import { autoNameFaces, canEmbedFaces, embedMissingFaces } from './faceIdentity';
 import { TodayScreen } from './TodayScreen';
 import { DaysScreen } from './DaysScreen';
@@ -127,6 +128,8 @@ export function LuminApp() {
     if (!booted) return;
     const run = () => void autoSortToday().then(async r => {
       if (r) useLx.getState().setAutoResult(r);
+      // Apoi restul galeriei, în fundal, de la cele mai noi spre cele vechi.
+      void readWholeGallery();
       // Lumi Cloud (doar dacă omul l-a pornit): a doua părere pe pozele rămase nesigure.
       const c = await superviseUnsure();
       if (c.decided) useStore.getState().setNotice(t(useStore.getState().locale, 'lx.cloud.auto', { decided: c.decided }));
@@ -200,6 +203,7 @@ export function LuminApp() {
     }
   }), [runImport]);
 
+  const reader = useLx(s => s.reader);
   const busy = !!progress && progress.phase !== 'finalizat';
 
   return (
@@ -216,7 +220,12 @@ export function LuminApp() {
           </main>
         )}
 
-        {busy && tab !== 'today' && progress && (
+        {reader ? (tab !== 'today' && (
+          <button className="lx-busy-pill" onClick={() => setTab('today')}>
+            <Orb mood="think" size={20} />
+            {tr('lx.reader.pill', { done: reader.done, total: reader.total })}
+          </button>
+        )) : busy && tab !== 'today' && progress && (
           <button className="lx-busy-pill" onClick={() => setTab('today')}>
             <Orb mood="think" size={20} />
             {tr('lx.today.progress', { done: progress.done, total: progress.total })}

@@ -40,6 +40,9 @@ export function TodayScreen() {
   const setTab = useLx(s => s.setTab);
   const setOpenDay = useLx(s => s.setOpenDay);
   const autoResult = useLx(s => s.autoResult);
+  const reader = useLx(s => s.reader);
+  const readerResult = useLx(s => s.readerResult);
+  const setReaderResult = useLx(s => s.setReaderResult);
   const gatePremium = useStore(s => s.gatePremium);
   // Proba Pro, o singură dată: chiar după primul „am sortat singură” — atunci
   // omul a văzut ce face Lumi și înțelege ce cumpără („Lumi decide tot”).
@@ -58,7 +61,8 @@ export function TodayScreen() {
   const todayStart = startOfDay();
   const today = days.find(d => d.start === todayStart);
   const past = days.filter(d => d.start < todayStart).slice(0, 4);
-  const busy = importing || (!!progress && progress.phase !== 'finalizat');
+  // Cititorul galeriei lucrează în fundal: Azi rămâne Azi, cu o bară mică dedesubt.
+  const busy = !reader && (importing || (!!progress && progress.phase !== 'finalizat'));
 
   const [inGallery, setInGallery] = useState<number | null>(null);
   useEffect(() => {
@@ -121,6 +125,26 @@ export function TodayScreen() {
           </div>
         )}
       </section>
+
+      {reader && (
+        <section className="lx-card lx-reader" role="status">
+          <span className="lx-eyebrow">{tr('lx.reader.eyebrow')}</span>
+          <b>{tr(reader.paused === 'battery' ? 'lx.reader.paused' : 'lx.reader.title', { done: reader.done, total: reader.total })}</b>
+          <div className="lx-progress small"><i style={{ width: `${reader.total ? Math.round((reader.done / reader.total) * 100) : 0}%` }} /></div>
+          <span>{tr('lx.reader.sub')}</span>
+        </section>
+      )}
+      {readerResult && !reader && (
+        <section className="lx-card lx-auto-result" role="status">
+          <button className="lx-auto-close" onClick={() => setReaderResult(null)} aria-label={tr('lx.close')}>✕</button>
+          <span className="lx-eyebrow">{tr('lx.reader.eyebrow')}</span>
+          <b>{tr('lx.reader.doneTitle', { total: readerResult.total })}</b>
+          <span>{tr('lx.reader.doneSub', { kept: readerResult.kept, waiting: readerResult.waiting })}</span>
+          <div className="lx-decide-actions">
+            <button className="lx-btn primary" onClick={() => { setReaderResult(null); setTab('days'); }}>{tr('lx.reader.see')}</button>
+          </div>
+        </section>
+      )}
 
       {autoResult && autoResult.day === todayStart && !busy && (
         <section className="lx-card lx-auto-result" role="status">

@@ -18,6 +18,7 @@ import { canMakePhoneAlbums, copyToPhoneAlbum } from './phoneAlbums';
 import { MomentsView } from './MomentsView';
 import { AsideView } from './AsideView';
 import { decideRestIfAllowed } from './autoSort';
+import { readWholeGallery } from './galleryReader';
 import type { PhotoView } from '../state/store';
 
 const VIEWS: GalleryView[] = ['wall', 'moments', 'days', 'months', 'people', 'aside'];
@@ -397,11 +398,12 @@ function DayCards({ days }: { days: Day<PhotoView>[] }) {
  */
 function SortAllButton({ count, small }: { count?: number; small?: boolean }) {
   const tr = useTr();
-  const importGalleryPeriod = useStore(s => s.importGalleryPeriod);
   const progress = useStore(s => s.progress);
   const importing = useStore(s => s.supervisorImporting);
-  const busy = importing || (!!progress && progress.phase !== 'finalizat');
-  const run = () => void importGalleryPeriod({ start: 0, end: Date.now() + 86_400_000 }).then(() => decideRestIfAllowed());
+  const reader = useLx(s => s.reader);
+  const busy = !!reader || importing || (!!progress && progress.phase !== 'finalizat');
+  // Același cititor ca la pornire: pe bucăți, fără toată galeria în memorie.
+  const run = () => void readWholeGallery().then(() => decideRestIfAllowed());
   return (
     <button className={small ? 'lx-btn primary small' : 'lx-btn primary wide'} disabled={busy} onClick={run}>
       {busy ? tr('lx.sortAll.busy') : count ? tr('lx.sortAll.count', { count }) : tr('lx.sortAll.short')}

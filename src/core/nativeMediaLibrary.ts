@@ -237,6 +237,20 @@ export async function pickPhotosInRange(
 }
 
 /**
+ * Doar LISTA pozelor din interval (adresă, nume, dată), fără să le citească.
+ * Pentru cititorul galeriei (lumin/galleryReader.ts): întâi alege ce lipsește,
+ * apoi citește doar acelea, câte puțin — nu 1.300 de fișiere în memorie deodată.
+ */
+export async function listPhotosInRange(startMs: number, endMs: number): Promise<{ granted: boolean; photos: { uri: string; name: string; capturedAt: number }[] }> {
+  return MediaLibraryNative.photosInRange({ startMs: String(startMs), endMs: String(endMs) });
+}
+
+/** Citește fișierele unei liste (vezi listPhotosInRange). */
+export async function readPhotoFiles(raw: { uri: string; name: string; capturedAt: number }[]): Promise<RangePickedPhoto[]> {
+  return toFiles(raw);
+}
+
+/**
  * Foldere din galerie (bucket-uri MediaStore, ex. "Camera", "WhatsApp Images")
  * — cerinta directa a utilizatorului: alternativa la segmentarea cronologica.
  * Vezi MediaLibraryPlugin.kt:galleryFolders (NEVALIDAT inca pe device real).
