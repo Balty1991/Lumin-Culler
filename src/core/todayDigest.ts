@@ -48,6 +48,7 @@ interface DigestPluginApi {
   scheduleDailyDigest(options: { hour: number; minute: number; title: string; body: string; channelName: string }): Promise<void>;
   cancelDailyDigest(): Promise<void>;
   consumeLaunchAction(): Promise<{ action?: string }>;
+  updateWidget(options: { title: string; subtitle: string; uri?: string }): Promise<void>;
   addListener(event: 'launchAction', cb: (data: { action: string }) => void): Promise<PluginListenerHandle>;
 }
 
@@ -82,4 +83,14 @@ export async function onTodayLaunch(cb: () => void): Promise<() => void> {
     // plugin vechi: doar fără deschiderea directă
   }
   return () => { void handle?.remove(); };
+}
+
+/** Widgetul de pe ecranul telefonului: textul și poza zilei (LuminWidgetProvider.kt). */
+export async function updateHomeWidget(options: { title: string; subtitle: string; uri?: string }): Promise<void> {
+  if (!available()) return;
+  try {
+    await Native.updateWidget(options);
+  } catch {
+    // o versiune nativă mai veche, fără widget: nimic de făcut
+  }
 }

@@ -71,6 +71,18 @@ class NotificationsPlugin : Plugin() {
         return result
     }
 
+    /** Widgetul de pe ecranul telefonului (LuminWidgetProvider): text și poza zilei. */
+    @PluginMethod
+    fun updateWidget(call: PluginCall) {
+        LuminWidgetProvider.save(
+            context,
+            call.getString("title") ?: "Lumin AI",
+            call.getString("subtitle") ?: "",
+            call.getString("uri")
+        )
+        call.resolve()
+    }
+
     @PluginMethod
     fun checkAccess(call: PluginCall) {
         call.resolve(statusResult())

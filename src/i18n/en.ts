@@ -2404,4 +2404,8 @@ export const en: Record<TranslationKey, string> = {
   "lx.recap.year.cta": "One per month, your very best.",
   "lx.recap.share": "Share",
   "lx.recap.failed": "Could not make the collage. Try again.",
+  "lx.widget.title": "Lumin AI · today",
+  "lx.widget.empty": "No photos today yet",
+  "lx.widget.waiting": "{count} photos waiting",
+  "lx.widget.kept": "{count} picked today ✓",
 };

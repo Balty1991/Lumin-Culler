@@ -2490,6 +2490,10 @@ export const ro = {
   "lx.recap.year.cta": "Câte una pe lună, cele mai bune ale tale.",
   "lx.recap.share": "Trimite",
   "lx.recap.failed": "N-am putut face colajul. Încearcă din nou.",
+  "lx.widget.title": "Lumin AI · azi",
+  "lx.widget.empty": "Nicio poză azi încă",
+  "lx.widget.waiting": "{count} poze te așteaptă",
+  "lx.widget.kept": "{count} alese azi ✓",
 };
 
 export type TranslationKey = keyof typeof ro;

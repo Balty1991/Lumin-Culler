@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { App as CapacitorApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { useStore } from '../state/store';
-import { onTodayLaunch, scheduleDailyDigest, startOfDay } from '../core/todayDigest';
+import { onTodayLaunch, scheduleDailyDigest, startOfDay, updateHomeWidget } from '../core/todayDigest';
 import { pickImportFiles } from '../core/filePicker';
 import { isNativeMediaLibraryAvailable, pickNativePhotos } from '../core/nativeMediaLibrary';
 import { analysisPool } from '../core/workerPool';
@@ -97,6 +97,23 @@ export function LuminApp() {
     }).then(fn => { stop = fn; });
     return () => stop?.();
   }, []);
+
+  // Widgetul de pe ecranul telefonului urmează ziua: poza cea mai bună și ce mai așteaptă.
+  const photos = useStore(s => s.photos);
+  useEffect(() => {
+    if (!booted) return;
+    const timer = window.setTimeout(() => {
+      const day = groupDays(useStore.getState().photos).find(d => d.start === startOfDay());
+      const best = day?.kept[0];
+      const subtitle = !day || day.photos.length === 0
+        ? t(locale, 'lx.widget.empty')
+        : day.waiting.length > 0
+          ? t(locale, 'lx.widget.waiting', { count: day.waiting.length })
+          : t(locale, 'lx.widget.kept', { count: day.kept.length });
+      void updateHomeWidget({ title: t(locale, 'lx.widget.title'), subtitle, uri: best?.mediaUri });
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [photos, booted, locale]);
 
   // Butonul „înapoi” al telefonului: închide ce e deschis, apoi revine la Azi.
   useEffect(() => {

@@ -43,6 +43,18 @@
             android:name=".plugins.DailyDigestReceiver"
             android:exported="false" />
 
+        <!-- Widgetul de pe ecranul telefonului, vezi plugins/LuminWidgetProvider.kt. -->
+        <receiver
+            android:name=".plugins.LuminWidgetProvider"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lumin_widget_info" />
+        </receiver>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
