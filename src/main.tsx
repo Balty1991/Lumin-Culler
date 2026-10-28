@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
 import { Capacitor } from '@capacitor/core';
 import { LazyMotion, domAnimation } from 'framer-motion';
-import App from './App';
+import { LuminApp } from './lumin/LuminApp';
 import { ErrorBoundary } from './ui/ErrorBoundary';
 import './styles.css';
 // Stratul vizual de concept, dupa foaia de baza — aceeasi ordine ca in
@@ -92,7 +92,7 @@ void ensureLocaleLoaded(readStoredLocale()).then(() => {
     <React.StrictMode>
       <ErrorBoundary>
         <LazyMotion features={domAnimation} strict>
-          <App />
+          <LuminApp />
         </LazyMotion>
       </ErrorBoundary>
     </React.StrictMode>

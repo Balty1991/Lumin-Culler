@@ -974,7 +974,8 @@ interface AppState {
    */
   exportProgress: { done: number; total: number } | null;
   /** `destination` vine din foaia de destinatii (ui/ExportDestinations.tsx); absent = comportamentul de dinainte. */
-  exportSelection: (destination?: 'auto' | 'folder' | 'apps') => Promise<void>;
+  /** `ids` = doar aceste poze (ex. alegerile unei zile), altfel toate pozele păstrate. */
+  exportSelection: (destination?: 'auto' | 'folder' | 'apps', ids?: string[]) => Promise<void>;
   exportManifest: () => Promise<void>;
   /** Sumar text (nr. poze, scor mediu, durata sesiunii) pentru documentare/facturare fata de client. */
   exportSessionReport: () => Promise<void>;
@@ -4700,9 +4701,10 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   /** Exporta pozele selectate ca fisiere reale, in formatul original (JPEG/PNG/etc), grupate pe subfoldere. */
-  exportSelection: async (destination = 'auto') => {
+  exportSelection: async (destination = 'auto', ids) => {
     const allPhotos = outsideVault(get().photos, get().collections);
-    const selected = allPhotos.filter(p => p.status === 'selected');
+    const only = ids ? new Set(ids) : null;
+    const selected = allPhotos.filter(p => (only ? only.has(p.id) : p.status === 'selected'));
     if (!selected.length) return;
     // Plafonul opreste exportul DOAR cand exista o cale reala de plata (vezi
     // isCapEnforced). Refuzam tot lotul in loc sa exportam partial: "150 din

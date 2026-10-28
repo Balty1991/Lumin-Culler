@@ -1,0 +1,179 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useStore } from '../state/store';
+import { countGalleryPhotosSince, isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
+import { startOfDay } from '../core/todayDigest';
+import { readRitualDays, streakOf } from '../core/ritualStreak';
+import { readTasteScore } from '../core/tasteScore';
+import { groupDays } from './days';
+import { reasonsFor } from './reasons';
+import { useLx } from './lxStore';
+import { useLxActions, useTr } from './context';
+import { Orb } from './Orb';
+import { Thumb } from './Thumb';
+import { plural } from '../i18n';
+
+/**
+ * lumin/TodayScreen.tsx
+ * „Azi”: ecranul principal. Sus, AI-ul și ce face acum (citește, analizează,
+ * așteaptă). Dedesubt, rezultatul zilei: pozele alese, mari, cu motivul; un
+ * singur buton pentru ce mai cere o decizie. Apoi zilele trecute, pe scurt.
+ */
+export function TodayScreen() {
+  const tr = useTr();
+  const { pick } = useLxActions();
+  const photos = useStore(s => s.photos);
+  const progress = useStore(s => s.progress);
+  const importing = useStore(s => s.supervisorImporting);
+  const locale = useStore(s => s.locale);
+  const importToday = useStore(s => s.importToday);
+  const acceptDayPicks = useStore(s => s.acceptDayPicks);
+  const premiumLocked = useStore(s => s.premiumLocked);
+  const openSort = useLx(s => s.openSort);
+  const setTab = useLx(s => s.setTab);
+  const setOpenDay = useLx(s => s.setOpenDay);
+
+  const days = useMemo(() => groupDays(photos), [photos]);
+  const todayStart = startOfDay();
+  const today = days.find(d => d.start === todayStart);
+  const past = days.filter(d => d.start < todayStart).slice(0, 4);
+  const busy = importing || (!!progress && progress.phase !== 'finalizat');
+
+  const [inGallery, setInGallery] = useState<number | null>(null);
+  useEffect(() => {
+    if (!isNativeMediaLibraryAvailable() || busy) return;
+    let alive = true;
+    void countGalleryPhotosSince(todayStart).then(r => { if (alive && r.granted) setInGallery(r.count); }).catch(() => {});
+    return () => { alive = false; };
+  }, [busy, photos.length, todayStart]);
+
+  const waitingInGallery = Math.max(0, (inGallery ?? 0) - (today?.photos.length ?? 0));
+  const streak = streakOf(readRitualDays());
+  const score = readTasteScore();
+  const dateLabel = new Date().toLocaleDateString(locale === 'en' ? 'en-GB' : 'ro-RO', { weekday: 'long', day: 'numeric', month: 'long' });
+
+  const sortToday = async () => {
+    await importToday();
+    const fresh = groupDays(useStore.getState().photos).find(d => d.start === todayStart);
+    if (fresh?.waiting.length) openSort(fresh.waiting.map(p => p.id), tr('lx.sort.today'));
+  };
+
+  const percent = progress && progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
+
+  return (
+    <div className="lx-screen lx-today">
+      <header className="lx-head">
+        <span className="lx-eyebrow">{dateLabel}</span>
+        {streak > 1 && <span className="lx-pill warm">{tr('lx.streak', { count: streak })}</span>}
+      </header>
+
+      <section className="lx-hero">
+        <Orb mood={busy ? 'think' : 'idle'} size={busy ? 132 : 112} />
+        {busy && progress ? (
+          <div className="lx-hero-text">
+            <h1 className="lx-h1">{tr(progress.phase === 'citire' ? 'lx.today.reading' : 'lx.today.analysing')}</h1>
+            <p className="lx-sub">{tr('lx.today.progress', { done: progress.done, total: progress.total })}</p>
+            <div className="lx-progress"><i style={{ width: `${percent}%` }} /></div>
+          </div>
+        ) : waitingInGallery > 0 ? (
+          <div className="lx-hero-text">
+            <h1 className="lx-h1">{tr(plural(waitingInGallery, 'lx.today.new.one', 'lx.today.new'), { count: waitingInGallery })}</h1>
+            <p className="lx-sub">{tr('lx.today.newSub')}</p>
+            <button className="lx-btn primary" onClick={() => void sortToday()}>{tr('lx.today.letAi')}</button>
+          </div>
+        ) : today && today.photos.length > 0 ? (
+          <div className="lx-hero-text">
+            <h1 className="lx-h1">
+              {tr(plural(today.photos.length, 'lx.today.from.one', 'lx.today.from'), { count: today.photos.length })}{' '}
+              <em>{tr(plural(today.kept.length, 'lx.today.kept.one', 'lx.today.kept'), { count: today.kept.length })}</em>
+            </h1>
+            {today.waiting.length === 0 && <p className="lx-sub">{tr('lx.today.allDone')}</p>}
+          </div>
+        ) : (
+          <div className="lx-hero-text">
+            <h1 className="lx-h1">{tr('lx.today.empty')}</h1>
+            <p className="lx-sub">{tr('lx.today.emptySub')}</p>
+            <button className="lx-btn primary" onClick={() => void (isNativeMediaLibraryAvailable() ? sortToday() : pick())}>
+              {tr(isNativeMediaLibraryAvailable() ? 'lx.today.checkGallery' : 'lx.addPhotos')}
+            </button>
+          </div>
+        )}
+      </section>
+
+      {today && today.kept.length > 0 && (
+        <section className="lx-section">
+          <div className="lx-section-head">
+            <h2>{tr('lx.today.picks')}</h2>
+            <button className="lx-link" onClick={() => setOpenDay(todayStart)}>{tr('lx.seeDay')}</button>
+          </div>
+          <div className="lx-picks" role="list">
+            {today.kept.map((p, i) => (
+              <button key={p.id} role="listitem" className="lx-pick" style={{ animationDelay: `${i * 60}ms` }}
+                onClick={() => openSort(today.kept.map(k => k.id), tr('lx.today.picks'))}>
+                <Thumb id={p.id} lqip={p.lqip} className="lx-pick-img" />
+                <span className="lx-pick-score">{p.aiScore}</span>
+                <span className="lx-pick-why">
+                  {reasonsFor(p).filter(r => r.tone === 'good').slice(0, 1).map(r => tr(r.key))[0] ?? tr('lx.reason.best')}
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {today && today.waiting.length > 0 && !busy && (
+        <section className="lx-card lx-decide">
+          <div>
+            <b>{tr(plural(today.waiting.length, 'lx.today.unsure.one', 'lx.today.unsure'), { count: today.waiting.length })}</b>
+            <span>{tr('lx.today.unsureSub', { seconds: Math.max(10, today.waiting.length * 4) })}</span>
+          </div>
+          <button className="lx-btn primary" onClick={() => openSort(today.waiting.map(p => p.id), tr('lx.sort.today'))}>{tr('lx.today.check')}</button>
+          <button className="lx-btn ghost" onClick={() => void acceptDayPicks(today.waiting.filter(p => p.status === 'review').map(p => p.id))}>
+            {tr('lx.today.acceptAll')}{premiumLocked && <b className="lx-pro">PRO</b>}
+          </button>
+        </section>
+      )}
+
+      {today && (today.series.length > 0 || today.aside.length > 0 || today.rejected.length > 0) && (
+        <section className="lx-stats">
+          <div><b>{today.series.length}</b><span>{tr('lx.stat.series')}</span></div>
+          <div><b>{today.rejected.length}</b><span>{tr('lx.stat.notToday')}</span></div>
+          <div><b>{today.aside.length}</b><span>{tr('lx.stat.aside')}</span></div>
+        </section>
+      )}
+
+      <button className="lx-card lx-ai-mini" onClick={() => setTab('brain')}>
+        <Orb mood="learn" size={44} />
+        <div>
+          <b>{tr('lx.brain.title')}</b>
+          <span>{score.total > 0 ? tr('lx.brain.miniScore', { hits: score.hits, total: score.total }) : tr('lx.brain.miniTrain')}</span>
+        </div>
+        <span className="lx-chev" aria-hidden="true">›</span>
+      </button>
+
+      {past.length > 0 && (
+        <section className="lx-section">
+          <div className="lx-section-head">
+            <h2>{tr('lx.today.past')}</h2>
+            <button className="lx-link" onClick={() => setTab('days')}>{tr('lx.all')}</button>
+          </div>
+          <div className="lx-daylist">
+            {past.map(d => (
+              <button key={d.start} className="lx-dayrow" onClick={() => { setTab('days'); setOpenDay(d.start); }}>
+                <div className="lx-dayrow-thumbs" aria-hidden="true">
+                  {(d.kept.length ? d.kept : d.photos).slice(0, 3).map(p => <Thumb key={p.id} id={p.id} lqip={p.lqip} />)}
+                </div>
+                <div className="lx-dayrow-text">
+                  <b>{new Date(d.start).toLocaleDateString(locale === 'en' ? 'en-GB' : 'ro-RO', { weekday: 'long', day: 'numeric', month: 'short' })}</b>
+                  <span>{tr('lx.day.summary', { total: d.photos.length, kept: d.kept.length })}</span>
+                </div>
+                {d.waiting.length > 0
+                  ? <span className="lx-pill warm">{d.waiting.length}</span>
+                  : <span className="lx-pill ok">✓</span>}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
