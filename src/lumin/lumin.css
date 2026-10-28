@@ -551,7 +551,7 @@
 .lx-enhance { position: fixed; inset: 0; z-index: 1100; background: #07070b; display: flex; flex-direction: column; color: #fff; }
 .lx-enhance-stage { flex: 1; min-height: 0; display: grid; place-items: center; padding: 8px; touch-action: none; }
 .lx-enhance-frame { position: relative; max-width: 100%; max-height: 100%; display: grid; }
-.lx-enhance-frame > img, .lx-enhance-after img { display: block; max-width: 100%; max-height: calc(100dvh - 230px); object-fit: contain; user-select: none; }
+.lx-enhance-frame > img, .lx-enhance-after img { display: block; max-width: 100%; max-height: calc(100dvh - 380px - var(--safe-top, 0px) - var(--safe-bottom, 0px)); object-fit: contain; user-select: none; }
 .lx-enhance-frame > * { grid-area: 1 / 1; }
 .lx-enhance-after { pointer-events: none; }
 .lx-enhance-line { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #fff; box-shadow: 0 0 12px rgba(0,0,0,.5); pointer-events: none; }
@@ -703,3 +703,15 @@ body.lx-viewer-open .lx-hero-media img { animation-play-state: paused; }
 .lx-clean-row { margin-bottom: 10px; }
 .lx-clean-row .lx-btn { flex: none; }
 .lx-trial-link { align-self: center; margin-top: 4px; font-size: 13px; }
+
+/* Mai frumoasă: poza stă în spațiul ei, sub ea stilurile și glisorul, mereu vizibile. */
+.lx-enhance-stage { overflow: hidden; }
+.lx-enhance .lx-viewer-info { position: relative; z-index: 2; background: rgb(14 16 24 / .96); }
+/* Poza mărită rămâne în zona ei (nu acoperă panoul), iar degetul o plimbă. */
+.lx-viewer-stage { overflow: hidden; }
+
+/* Sub bara de stare a telefonului: fundal solid, ca nimic să nu „plutească” pe sub ceas. */
+.lx-main::before { content: ""; position: fixed; top: 0; left: 0; right: 0; height: var(--safe-top, 0px); background: var(--bg); z-index: 25; pointer-events: none; }
+/* Bara lunii: solidă, lipită chiar sub bara de stare (raportat: „plutitoare”). */
+.lx-wall-head { top: var(--safe-top, 0px); margin: 6px -18px 0; padding: 12px 18px 10px;
+  background: var(--bg); border-bottom: 1px solid var(--lx-line); box-shadow: 0 10px 20px -16px rgb(0 0 0 / .8); }

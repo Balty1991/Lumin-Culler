@@ -2456,7 +2456,7 @@ export const en: Record<TranslationKey, string> = {
   "lx.story.daySub": "{count} photos picked by Lumin AI",
   "lx.story.weekTitle": "My week",
   "lx.story.yearTitle": "My {year}",
-  "lx.reason.eyesAll": "Everyone has eyes open",
+  "lx.reason.eyesAll": "everyone's eyes open",
   "lx.twin.eyebrow": "Lumi · your AI",
   "lx.twin.learning": "I'm still learning you",
   "lx.twin.percent": "I pick like you {percent}% of the time",
@@ -2534,4 +2534,6 @@ export const en: Record<TranslationKey, string> = {
   "lx.phone.organizePeople": "Albums by person",
   "lx.phone.organizePeopleSub": "One album for each named person, with the kept photos they appear in. They show up in Google Photos too.",
   "lx.trial.cta": "✦ Let Lumi decide everything — try Pro free",
+  "lx.enhance.all": "Make them better ({count})",
+  "lx.enhance.allProgress": "Improving… {progress}",
 };

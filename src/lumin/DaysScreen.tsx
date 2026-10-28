@@ -8,6 +8,7 @@ import { useLx, type GalleryView } from './lxStore';
 import { useLxActions, useTr } from './context';
 import { Thumb } from './Thumb';
 import { StoryButton } from './Story';
+import { enhanceAll } from './Enhance';
 import { learnFromShare } from './signals';
 import { PeopleGrid } from './People';
 import { CleanupCard } from './Cleanup';
@@ -267,6 +268,19 @@ function PhotoGrid({ list }: { list: PhotoView[]; title: string }) {
   );
 }
 
+/** „✨ Mai frumoase”: toate pozele păstrate ale zilei, cu stilul Natural, ca și copii. */
+function EnhanceAllButton({ ids }: { ids: string[] }) {
+  const tr = useTr();
+  const [progress, setProgress] = useState<string | null>(null);
+  if (ids.length < 2) return null;
+  return (
+    <button className="lx-link" disabled={progress !== null} onClick={() => {
+      setProgress('0');
+      void enhanceAll(ids, (d, t) => setProgress(`${d}/${t}`)).finally(() => setProgress(null));
+    }}>✨ {progress ? tr('lx.enhance.allProgress', { progress }) : tr('lx.enhance.all', { count: ids.length })}</button>
+  );
+}
+
 function DayView({ day, onBack }: { day: Day<PhotoView>; onBack: () => void }) {
   const locale = useStore(s => s.locale);
   const exportSelection = useStore(s => s.exportSelection);
@@ -307,6 +321,7 @@ function DayView({ day, onBack }: { day: Day<PhotoView>; onBack: () => void }) {
             <span className="lx-links">
               {canMakePhoneAlbums() && <button className="lx-link" onClick={() => void copyToPhoneAlbum(label, day.kept)}>{tr('lx.phone.toAlbum')}</button>}
               <button className="lx-link" onClick={() => void exportSelection('apps', day.kept.map(p => p.id)).then(() => learnFromShare(day.kept))}>{tr('lx.day.share', { count: day.kept.length })}</button>
+              <EnhanceAllButton ids={day.kept.filter(p => !p.edits).map(p => p.id)} />
               <StoryButton ids={day.kept.map(p => p.id)} title={capitalizeFirst(label)} subtitle={tr('lx.story.daySub', { count: day.kept.length })} />
             </span>
           </div>

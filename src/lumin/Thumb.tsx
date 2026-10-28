@@ -24,20 +24,26 @@ export function Thumb({ id, lqip, full = false, sharp = true, className, alt = '
   className?: string;
   alt?: string;
 }) {
-  const [src, setSrc] = useState<string | null>(() => peekThumbUrl(id));
+  const [src, setSrcRaw] = useState<string | null>(() => peekThumbUrl(id));
+  // Ce calitate se vede acum (0 miniatură, 1 preview, 2 clară). O variantă mai
+  // slabă, sosită mai târziu, nu o mai înlocuiește pe una mai bună — raportat:
+  // pozele pregătite din timp (clare) erau acoperite apoi de preview-ul neclar.
+  const level = useRef(0);
+  const setSrc = (url: string, lvl = 2) => { if (lvl >= level.current) { level.current = lvl; setSrcRaw(url); } };
   useEffect(() => {
     let alive = true;
-    const show = (url: string | null) => { if (alive && url) setSrc(url); };
-    setSrc(peekThumbUrl(id));
+    level.current = 0;
+    const show = (lvl: number) => (url: string | null) => { if (alive && url) setSrc(url, lvl); };
+    setSrcRaw(peekThumbUrl(id));
     if (full && canSharpen()) {
       // Întâi ce avem deja (preview), apoi poza clară făcută de Android — doar
       // dacă s-a încărcat. Originalul direct prin URI ieșea negru pe unele telefoane.
-      void getCachedPreviewUrl(id).then(show).catch(() => {});
-      void sharpUrl(id, SCREEN_SIZE).then(show);
+      void getCachedPreviewUrl(id).then(show(1)).catch(() => {});
+      void sharpUrl(id, SCREEN_SIZE).then(show(2));
     } else if (full) {
-      void getDisplayUrl(id).then(show).catch(() => {});
+      void getDisplayUrl(id).then(show(2)).catch(() => {});
     } else {
-      void getCachedThumbUrl(id).then(show).catch(() => {});
+      void getCachedThumbUrl(id).then(show(0)).catch(() => {});
     }
     return () => { alive = false; };
   }, [id, full]);
@@ -57,7 +63,7 @@ export function Thumb({ id, lqip, full = false, sharp = true, className, alt = '
         if (long > 0 && long < 90) return; // mică: miniatura ajunge
         if (long > 0) size = sizeFor(long * 1.15);
       }
-      void sharpUrl(id, size).then(url => { if (alive && url) setSrc(url); });
+      void sharpUrl(id, size).then(url => { if (alive && url) setSrc(url, 2); });
     };
     if (!el || typeof IntersectionObserver === 'undefined') { load(); return () => { alive = false; }; }
     const io = new IntersectionObserver(entries => {

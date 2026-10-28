@@ -61,10 +61,13 @@ function readDensity(): Density {
 }
 
 /** Cât ocupă o poză în mozaic: păstratele mari, câte una înaltă pentru ritm. */
-function spanOf(p: PhotoView, i: number, density: Density): 'big' | 'tall' | '' {
-  if (density === 2) return p.status === 'selected' && i % 3 === 0 ? 'tall' : '';
-  if (p.status === 'selected' && p.aiScore >= 60) return 'big';
-  return i % 7 === 3 ? 'tall' : '';
+function spanOf(p: PhotoView, i: number, density: Density, total = Infinity): 'big' | 'tall' | '' {
+  // Spre sfârșitul lunii nu mai sunt destule poze mici care să umple golurile
+  // lăsate de una mare sau înaltă (raportat: goluri în mozaic) — acolo, toate mici.
+  const left = total - i;
+  if (density === 2) return p.status === 'selected' && i % 3 === 0 && left > 3 ? 'tall' : '';
+  if (p.status === 'selected' && p.aiScore >= 60 && left > density * 2) return 'big';
+  return i % 7 === 3 && left > density + 1 ? 'tall' : '';
 }
 
 /**
@@ -299,8 +302,8 @@ export function GalleryWall() {
             )}
             <div className={`lx-bento d${density}`}>
               {rest.map(({ p, i }, k) => (
-                <Tile key={p.id} p={p} index={i} span={spanOf(p, k, density)} delay={(k % 8) * 45}
-                  sharp={sizeFor(cell * (spanOf(p, k, density) === 'big' ? 2 : 1))} reveal={reveal} onOpen={openRef} />
+                <Tile key={p.id} p={p} index={i} span={spanOf(p, k, density, rest.length)} delay={(k % 8) * 45}
+                  sharp={sizeFor(cell * (spanOf(p, k, density, rest.length) === 'big' ? 2 : 1))} reveal={reveal} onOpen={openRef} />
               ))}
             </div>
           </section>
@@ -510,6 +513,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
       // Mărită: tragi de poză, nu treci la alta.
       const dx = e.clientX - start.current.x, dy = e.clientY - start.current.y;
       start.current = { x: e.clientX, y: e.clientY, dx: 0, dy: 0 };
+      if (photoRef.current) photoRef.current.style.transition = 'none'; // poza urmează degetul, fără întârziere
       setZoom(z => ({ ...z, x: z.x + dx, y: z.y + dy }));
       return;
     }

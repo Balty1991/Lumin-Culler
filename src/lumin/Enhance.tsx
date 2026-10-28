@@ -26,11 +26,16 @@ import { useTr } from './context';
 export type EnhanceStyle = 'natural' | 'vivid' | 'warm' | 'drama';
 export const ENHANCE_STYLES: EnhanceStyle[] = ['natural', 'vivid', 'warm', 'drama'];
 const STYLE_ADD: Record<EnhanceStyle, Partial<Record<keyof EditAdjustments, number>>> = {
-  natural: { contrast: 8, saturation: 10, clarity: 18, sharpen: 20, dehaze: 6, shadows: 10 },
-  vivid: { contrast: 16, saturation: 26, clarity: 28, sharpen: 24, dehaze: 14, shadows: 18, highlights: -12 },
-  warm: { contrast: 10, saturation: 16, temperature: 20, tint: 4, clarity: 16, sharpen: 18, shadows: 14 },
-  drama: { contrast: 30, saturation: -6, clarity: 42, sharpen: 26, dehaze: 22, vignette: 28, highlights: -30, shadows: 22 }
+  natural: { contrast: 8, saturation: 3, clarity: 14, sharpen: 18, dehaze: 4, shadows: 10, highlights: -8 },
+  vivid: { contrast: 14, saturation: 10, clarity: 20, sharpen: 20, dehaze: 8, shadows: 14, highlights: -12 },
+  warm: { contrast: 8, saturation: 6, temperature: 14, tint: 3, clarity: 12, sharpen: 16, shadows: 12 },
+  drama: { contrast: 26, saturation: -10, clarity: 34, sharpen: 22, dehaze: 16, vignette: 24, highlights: -28, shadows: 20 }
 };
+/**
+ * Plafonul culorii, oricât de sus e intensitatea: peste el pielea se înroșește
+ * și cerul devine fosforescent (raportat: „parcă saturează cam mult”).
+ */
+const MAX_SATURATION = 16;
 
 const clamp = (v: number) => Math.max(-100, Math.min(100, Math.round(v)));
 
@@ -44,7 +49,50 @@ export function styledEdits(base: EditAdjustments, style: EnhanceStyle, amount: 
     const v = ((b as number | undefined) ?? 0) + (STYLE_ADD[style][k] ?? 0);
     (out as unknown as Record<string, number>)[k] = clamp(v * amount);
   }
+  out.saturation = Math.min(MAX_SATURATION, out.saturation);
   return out;
+}
+
+/**
+ * Corecția automată a unei poze (lumină, alb, culoare — fără decupaj sau rotire),
+ * plus URL-ul imaginii din care a fost măsurată.
+ */
+export async function autoEnhance(photoId: string): Promise<{ url: string; edits: EditAdjustments }> {
+  // Pe telefon: poza clară făcută de Android (originalul direct ieșea negru pe unele telefoane).
+  const source = canSharpen()
+    ? sharpUrl(photoId, 1600).then(u => u ?? getCachedPreviewUrl(photoId))
+    : getDisplayUrl(photoId);
+  const [url, a] = await Promise.all([source, db.analyses.get(photoId)]);
+  if (!url) throw new Error('fără imagine');
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const el = new Image();
+    el.onload = () => resolve(el);
+    el.onerror = () => reject(new Error('imaginea nu s-a încărcat'));
+    el.src = url;
+  });
+  const auto = computeAutoAdjustments(img, img.naturalWidth, img.naturalHeight, {
+    exposureScore: a?.exposure,
+    highlightClipping: a?.highlightClipping,
+    shadowClipping: a?.shadowClipping,
+    faceCount: a?.faceCount,
+    faces: a?.faces,
+    colorHarmonyScore: a?.colorHarmonyScore,
+    goldenHourDetected: a?.goldenHourDetected
+  });
+  return { url, edits: { ...auto, crop: undefined, rotationDeg: 0 } };
+}
+
+/** „Fă-le pe toate mai frumoase”: stilul Natural pe fiecare, salvate ca și copii. */
+export async function enhanceAll(photoIds: readonly string[], onProgress?: (done: number, total: number) => void): Promise<number> {
+  const plans: { sourceId: string; adjustments: EditAdjustments }[] = [];
+  for (let i = 0; i < photoIds.length; i++) {
+    try {
+      const { edits } = await autoEnhance(photoIds[i]);
+      plans.push({ sourceId: photoIds[i], adjustments: styledEdits(edits, 'natural', 1) });
+    } catch { /* o poză care nu se citește nu oprește restul */ }
+    onProgress?.(i + 1, photoIds.length);
+  }
+  return plans.length ? useStore.getState().addCorrectedCopies(plans) : 0;
 }
 
 export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: () => void }) {
@@ -52,8 +100,8 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   const addCorrectedCopies = useStore(s => s.addCorrectedCopies);
   const [src, setSrc] = useState<string | null>(null);
   const [base, setBase] = useState<EditAdjustments | null>(null);
-  const [style, setStyle] = useState<EnhanceStyle>('vivid');
-  const [amount, setAmount] = useState(1.2);
+  const [style, setStyle] = useState<EnhanceStyle>('natural');
+  const [amount, setAmount] = useState(1);
   const deferredAmount = useDeferredValue(amount);
   const edits = useMemo(() => (base ? styledEdits(base, style, deferredAmount) : null), [base, style, deferredAmount]);
   const [failed, setFailed] = useState(false);
@@ -65,28 +113,7 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   useEffect(() => {
     let alive = true;
     void (async () => {
-      // Pe telefon: poza clară făcută de Android (originalul direct ieșea negru pe unele telefoane).
-      const source = canSharpen()
-        ? sharpUrl(photo.id, 1600).then(u => u ?? getCachedPreviewUrl(photo.id))
-        : getDisplayUrl(photo.id);
-      const [url, a] = await Promise.all([source, db.analyses.get(photo.id)]);
-      if (!url) throw new Error('fără imagine');
-      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-        const el = new Image();
-        el.onload = () => resolve(el);
-        el.onerror = () => reject(new Error('imaginea nu s-a încărcat'));
-        el.src = url;
-      });
-      const auto = computeAutoAdjustments(img, img.naturalWidth, img.naturalHeight, {
-        exposureScore: a?.exposure,
-        highlightClipping: a?.highlightClipping,
-        shadowClipping: a?.shadowClipping,
-        faceCount: a?.faceCount,
-        faces: a?.faces,
-        colorHarmonyScore: a?.colorHarmonyScore,
-        goldenHourDetected: a?.goldenHourDetected
-      });
-      const lightOnly: EditAdjustments = { ...auto, crop: undefined, rotationDeg: 0 };
+      const { url, edits: lightOnly } = await autoEnhance(photo.id);
       if (!alive) return;
       setSrc(url);
       setBase(lightOnly);

@@ -2542,7 +2542,7 @@ export const ro = {
   "lx.story.daySub": "{count} poze alese de Lumin AI",
   "lx.story.weekTitle": "Săptămâna mea",
   "lx.story.yearTitle": "Anul meu {year}",
-  "lx.reason.eyesAll": "Toți cu ochii deschiși",
+  "lx.reason.eyesAll": "toți cu ochii deschiși",
   "lx.twin.eyebrow": "Lumi · AI-ul tău",
   "lx.twin.learning": "Încă te învăț",
   "lx.twin.percent": "Aleg ca tine în {percent}% din cazuri",
@@ -2620,6 +2620,8 @@ export const ro = {
   "lx.phone.organizePeople": "Albume pe oameni",
   "lx.phone.organizePeopleSub": "Câte un album pentru fiecare om numit, cu pozele păstrate în care apare. Se văd și în Google Photos.",
   "lx.trial.cta": "✦ Lasă-o pe Lumi să decidă tot — încearcă Pro gratuit",
+  "lx.enhance.all": "Mai frumoase ({count})",
+  "lx.enhance.allProgress": "Le fac mai frumoase… {progress}",
 };
 
 export type TranslationKey = keyof typeof ro;

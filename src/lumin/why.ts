@@ -25,6 +25,7 @@ export interface WhyContext {
 type Tr = (key: string, vars?: Record<string, string | number>) => string;
 
 let cachedSubjects: string[] | null = null;
+const GENERIC = new Set(['person', 'people', 'face', 'smile', 'fun', 'selfie', 'skin', 'hair', 'eyelash', 'clothing', 'sleeve', 'jacket', 'happy', 'child', 'baby']);
 
 /** Ce știe Lumi despre gustul omului (subiectele se citesc o dată, apoi din memorie). */
 export function useWhyContext(): WhyContext {
@@ -49,8 +50,10 @@ export function personalWhy(p: WhyPhoto, ctx: WhyContext, tr: Tr): string {
   if (loved) parts.push(tr('lx.why.person', { name: loved.name, ofTen: Math.round(loved.rate * 10) }));
   else if (p.personNames.length) parts.push(tr('lx.why.isPerson', { name: p.personNames.slice(0, 2).join(tr('lx.why.and')) }));
 
-  const subject = (p.sceneTags ?? []).find(t => ctx.subjects.includes(t.toLowerCase()));
-  if (subject && !loved) parts.push(tr('lx.why.subject'));
+  // „Genul de poză pe care o păstrezi” doar când chiar ar păstra-o, și doar pe
+  // subiecte care spun ceva (nu „persoană”, „zâmbet”, prezente pe orice poză).
+  const subject = keep && !loved && (p.sceneTags ?? []).find(t => !GENERIC.has(t.toLowerCase()) && ctx.subjects.includes(t.toLowerCase()));
+  if (subject) parts.push(tr('lx.why.subject'));
 
   const reasons = reasonsFor(p).filter(r => r.tone === (keep ? 'good' : 'bad') && r.key !== 'lx.reason.series');
   for (const r of reasons.slice(0, keep ? 2 : 2)) parts.push(tr(`${r.key}.why`));
