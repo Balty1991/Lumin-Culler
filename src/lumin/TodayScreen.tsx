@@ -147,7 +147,7 @@ export function TodayScreen() {
           <div className="lx-picks" role="list">
             {today.kept.map((p, i) => (
               <button key={p.id} role="listitem" className="lx-pick" style={{ animationDelay: `${i * 60}ms` }}
-                onClick={() => openSort(today.kept.map(k => k.id), tr('lx.today.picks'))}>
+                onClick={() => useLx.getState().openViewer(today.kept.map(k => k.id), i)}>
                 <Thumb id={p.id} lqip={p.lqip} edits={p.edits} className="lx-pick-img" />
                 <span className="lx-pick-score">{p.aiScore}</span>
                 <span className="lx-pick-why">
@@ -259,7 +259,6 @@ function GalleryStatus() {
 function OnThisDay() {
   const tr = useTr();
   const photos = useStore(s => s.photos);
-  const openSort = useLx(s => s.openSort);
   const memories = useMemo(() => onThisDay(photos), [photos]);
   if (!memories.length) return null;
   return (
@@ -271,7 +270,7 @@ function OnThisDay() {
             <div className="lx-section-head"><h2>{title}</h2></div>
             <div className="lx-memory">
               {m.photos.map(p => (
-                <button key={p.id} onClick={() => openSort(m.photos.map(x => x.id), title)}>
+                <button key={p.id} onClick={() => useLx.getState().openViewer(m.photos.map(x => x.id), m.photos.indexOf(p))}>
                   <Thumb id={p.id} lqip={p.lqip} edits={p.edits} />
                 </button>
               ))}

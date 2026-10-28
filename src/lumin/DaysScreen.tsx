@@ -204,7 +204,6 @@ function PersonView({ name, list, onBack, onRenamed }: { name: string; list: Pho
   const tr = useTr();
   const correctPersonFaces = useStore(s => s.correctPersonFaces);
   const askPrompt = useStore(s => s.askPrompt);
-  const openSort = useLx(s => s.openSort);
   const [editing, setEditing] = useState(false);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
@@ -237,7 +236,7 @@ function PersonView({ name, list, onBack, onRenamed }: { name: string; list: Pho
       <div className="lx-grid">
         {list.map(p => (
           <button key={p.id} className={`lx-grid-cell ${p.status}${editing ? ' picking' : ''}${picked.has(p.id) ? ' picked' : ''}`}
-            onClick={() => (editing ? toggle(p.id) : openSort(list.map(x => x.id), name))}>
+            onClick={() => (editing ? toggle(p.id) : useLx.getState().openViewer(list.map(x => x.id), list.indexOf(p)))}>
             <Thumb id={p.id} lqip={p.lqip} edits={p.edits} />
             {editing ? <span className="lx-face-check">{picked.has(p.id) ? '✓' : ''}</span> : <span className="lx-grid-score">{p.aiScore}</span>}
           </button>
@@ -254,12 +253,12 @@ function PersonView({ name, list, onBack, onRenamed }: { name: string; list: Pho
   );
 }
 
-function PhotoGrid({ list, title }: { list: PhotoView[]; title: string }) {
-  const openSort = useLx(s => s.openSort);
+function PhotoGrid({ list }: { list: PhotoView[]; title: string }) {
+  const openViewer = useLx(s => s.openViewer);
   return (
     <div className="lx-grid">
       {list.map(p => (
-        <button key={p.id} className={`lx-grid-cell ${p.status}`} onClick={() => openSort(list.map(x => x.id), title)}>
+        <button key={p.id} className={`lx-grid-cell ${p.status}`} onClick={() => openViewer(list.map(x => x.id), list.indexOf(p))}>
           <Thumb id={p.id} lqip={p.lqip} edits={p.edits} />
           <span className="lx-grid-score">{p.aiScore}</span>
         </button>
@@ -320,7 +319,7 @@ function DayView({ day, onBack }: { day: Day<PhotoView>; onBack: () => void }) {
           <div className="lx-section-head"><h2>{tr('lx.day.seriesTitle')}</h2></div>
           <div className="lx-series-list">
             {day.series.map(s => (
-              <button key={s.id} className="lx-series" onClick={() => openSort(s.photos.map(p => p.id), tr('lx.day.seriesOne', { count: s.photos.length }))}>
+              <button key={s.id} className="lx-series" onClick={() => useLx.getState().openViewer(s.photos.map(p => p.id), s.photos.findIndex(p => p.id === s.best.id))}>
                 {s.photos.slice(0, 6).map(p => (
                   <span key={p.id} className={p.id === s.best.id ? 'lx-series-frame best' : `lx-series-frame${p.status === 'rejected' ? ' out' : ''}`}>
                     <Thumb id={p.id} lqip={p.lqip} edits={p.edits} />

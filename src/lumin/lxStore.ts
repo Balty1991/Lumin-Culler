@@ -16,6 +16,10 @@ interface LxState {
   sortIds: string[] | null;
   sortTitle: string | null;
   openSort: (ids: string[], title?: string) => void;
+  /** Poza mare, doar de privit (glisezi liber), pornind de la `index`. */
+  viewer: { ids: string[]; index: number } | null;
+  openViewer: (ids: string[], index?: number) => void;
+  closeViewer: () => void;
   closeSort: () => void;
   /** Ziua deschisă în „Zile” (început de zi, ms); null = lista. */
   openDay: number | null;
@@ -39,6 +43,9 @@ export const useLx = create<LxState>(set => ({
   sortIds: null,
   sortTitle: null,
   openSort: (ids, title) => set({ sortIds: ids, sortTitle: title ?? null }),
+  viewer: null,
+  openViewer: (ids, index = 0) => set({ viewer: ids.length ? { ids, index: Math.max(0, Math.min(ids.length - 1, index)) } : null }),
+  closeViewer: () => set({ viewer: null }),
   closeSort: () => set({ sortIds: null, sortTitle: null }),
   openDay: null,
   setOpenDay: day => set({ openDay: day }),

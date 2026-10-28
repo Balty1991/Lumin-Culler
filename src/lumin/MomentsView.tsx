@@ -75,7 +75,7 @@ function AlbumView({ album, onBack }: { album: MomentAlbum<PhotoView>; onBack: (
       </div>
       <div className="lx-wall">
         {album.photos.map((p, i) => (
-          <button key={p.id} className={`lx-tile ${p.status}`} style={{ animationDelay: `${i * 30}ms` }} onClick={() => openSort(album.photos.map(x => x.id), title)}>
+          <button key={p.id} className={`lx-tile ${p.status}`} style={{ animationDelay: `${i * 30}ms` }} onClick={() => useLx.getState().openViewer(album.photos.map(x => x.id), i)}>
             <Thumb id={p.id} lqip={p.lqip} edits={p.edits} />
             {p.status === 'selected' && <span className="lx-tile-star">★</span>}
           </button>

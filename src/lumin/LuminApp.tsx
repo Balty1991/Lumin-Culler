@@ -15,6 +15,7 @@ import { t } from '../i18n';
 import { useLx, type LxTab } from './lxStore';
 import { LxActionsContext } from './context';
 import { groupDays } from './days';
+import { Viewer } from './GalleryWall';
 import { autoSortToday, decideRestIfAllowed, summarizeToday } from './autoSort';
 import { autoNameFaces, canEmbedFaces, embedMissingFaces } from './faceIdentity';
 import { TodayScreen } from './TodayScreen';
@@ -153,6 +154,7 @@ export function LuminApp() {
       const lx = useLx.getState();
       if (s.dialogRequest) { s.resolveDialog(s.dialogRequest.kind === 'confirm' ? false : null); return; }
       if (s.premiumOpen) { s.setPremiumOpen(false); return; }
+      if (lx.viewer) { lx.closeViewer(); return; }
       if (lx.sortIds) { lx.closeSort(); return; }
       if (lx.openDay !== null) { lx.setOpenDay(null); return; }
       if (lx.tab !== 'today') { lx.setTab('today'); return; }
@@ -232,6 +234,7 @@ export function LuminApp() {
         </nav>
 
         {sortOpen && <SwipeSort />}
+        <GlobalViewer />
 
         {notice && (
           <div className={`lx-toast ${noticeTone(notice)}`} role="status" onClick={clearNotice}>{notice}</div>
@@ -252,4 +255,19 @@ export function LuminApp() {
       </div>
     </LxActionsContext.Provider>
   );
+}
+
+/** Poza mare deschisă de oriunde (zi, serie, oameni, momente, Azi): doar privit, glisat liber. */
+function GlobalViewer() {
+  const viewer = useLx(s => s.viewer);
+  const photos = useStore(s => s.photos);
+  const list = useMemo(() => {
+    if (!viewer) return [];
+    const byId = new Map(photos.map(p => [p.id, p]));
+    return viewer.ids.map(id => byId.get(id)).filter((p): p is NonNullable<typeof p> => !!p);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewer]);
+  if (!viewer || !list.length) return null;
+  return <Viewer list={list} index={Math.min(viewer.index, list.length - 1)}
+    onIndex={i => useLx.setState({ viewer: { ids: viewer.ids, index: i } })} onClose={() => useLx.getState().closeViewer()} />;
 }

@@ -53,7 +53,7 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   const [src, setSrc] = useState<string | null>(null);
   const [base, setBase] = useState<EditAdjustments | null>(null);
   const [style, setStyle] = useState<EnhanceStyle>('vivid');
-  const [amount, setAmount] = useState(1);
+  const [amount, setAmount] = useState(1.2);
   const deferredAmount = useDeferredValue(amount);
   const edits = useMemo(() => (base ? styledEdits(base, style, deferredAmount) : null), [base, style, deferredAmount]);
   const [failed, setFailed] = useState(false);
