@@ -13,7 +13,12 @@ import { useLx } from './lxStore';
  * 24 de poze odată. Pauză cu bateria sub 20% (fără încărcător) și cât aplicația
  * e în spate; data viitoare continuă de unde a rămas — ce e citit nu se recitește.
  */
-const CHUNK = 24;
+/**
+ * Pozele dintr-un pachet. Fiecare import are și o parte fixă (seriile, momentele,
+ * reclasificarea pe toată biblioteca), deci pachetele mai mari merg mai repede pe
+ * total; dar fișierele pachetului stau în memorie, deci doar pe telefoanele cu 6 GB+.
+ */
+const CHUNK = ((navigator as unknown as { deviceMemory?: number }).deviceMemory ?? 4) >= 6 ? 48 : 24;
 /** Primul pachet e mic: primele poze apar pe Azi în câteva secunde, nu după un minut. */
 const FIRST_CHUNK = 8;
 const ANNOUNCED_KEY = 'lumin-gallery-read-announced';
