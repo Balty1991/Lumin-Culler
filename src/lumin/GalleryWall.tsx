@@ -63,13 +63,33 @@ function readDensity(): Density {
 }
 
 /** Cât ocupă o poză în mozaic: păstratele mari, câte una înaltă pentru ritm. */
-function spanOf(p: PhotoView, i: number, density: Density, total = Infinity): 'big' | 'tall' | '' {
-  // Spre sfârșitul lunii nu mai sunt destule poze mici care să umple golurile
-  // lăsate de una mare sau înaltă (raportat: goluri în mozaic) — acolo, toate mici.
-  const left = total - i;
-  if (density === 2) return p.status === 'selected' && i % 3 === 0 && left > 3 ? 'tall' : '';
-  if (p.status === 'selected' && p.aiScore >= 60 && left > density * 2) return 'big';
-  return i % 7 === 3 && left > density + 1 ? 'tall' : '';
+/**
+ * Mărimea fiecărei dale, pe toată luna deodată, ca mozaicul să nu lase goluri.
+ * Raportat: la început mozaic, apoi poze mari una sub alta cu coloana din dreapta
+ * goală — când multe poze la rând erau „mari”, nu mai rămâneau poze mici care să
+ * umple locul de lângă ele. Acum, după o poză mare sau înaltă urmează mereu
+ * destule poze mici cât să umple exact golul lăsat lângă ea.
+ */
+export function computeSpans(list: readonly PhotoView[], density: Density): ('big' | 'tall' | '')[] {
+  const out: ('big' | 'tall' | '')[] = [];
+  let need = 0; // câte dale mici mai trebuie până la următoarea mare/înaltă
+  for (let i = 0; i < list.length; i++) {
+    const p = list[i];
+    const left = list.length - i - 1;
+    let span: 'big' | 'tall' | '' = '';
+    if (need === 0) {
+      if (density === 2) {
+        // Pe două coloane, o poză înaltă lasă o coloană × 2 rânduri: 2 mici.
+        if (p.status === 'selected' && i % 3 === 0 && left >= 2) { span = 'tall'; need = 2; }
+      } else if (p.status === 'selected' && p.aiScore >= 60 && left >= 2 * density - 4) {
+        span = 'big'; need = 2 * density - 4;
+      } else if (i % 7 === 3 && left >= 2 * density - 2) {
+        span = 'tall'; need = 2 * density - 2;
+      }
+    } else need--;
+    out.push(span);
+  }
+  return out;
 }
 
 /**
@@ -311,6 +331,7 @@ export function GalleryWall() {
         const hero = [...m.items].sort((a, b) =>
           Number(b.p.status === 'selected') - Number(a.p.status === 'selected') || b.p.aiScore - a.p.aiScore)[0];
         const rest = plain && density <= 3 ? m.items.filter(x => x !== hero) : m.items;
+        const spans = computeSpans(rest.map(x => x.p), density);
         const kept = m.items.filter(x => x.p.status === 'selected').length;
         return (
           <section key={m.start} className="lx-wall-month" data-month={m.start}>
@@ -331,8 +352,8 @@ export function GalleryWall() {
             )}
             <div className={`lx-bento d${density}`}>
               {rest.map(({ p, i }, k) => (
-                <Tile key={p.id} p={p} index={i} span={spanOf(p, k, density, rest.length)} delay={(k % 8) * 45}
-                  sharp={sizeFor(cell * (spanOf(p, k, density, rest.length) === 'big' ? 2 : 1))} reveal={reveal} onOpen={openRef} />
+                <Tile key={p.id} p={p} index={i} span={spans[k]} delay={(k % 8) * 45}
+                  sharp={sizeFor(cell * (spans[k] === 'big' ? 2 : 1))} reveal={reveal} onOpen={openRef} />
               ))}
             </div>
           </section>
