@@ -189,7 +189,7 @@ export function PremiumPanel() {
             <span>{tr('premium.perk.export.sub')}</span>
           </span>
         </div>
-        <div className={highlightedPerk === 'persons' ? 'premium-perk premium-perk-demo is-wanted' : 'premium-perk premium-perk-demo'}>
+        {FREE_ENROLLED_PERSONS < 100 && <div className={highlightedPerk === 'persons' ? 'premium-perk premium-perk-demo is-wanted' : 'premium-perk premium-perk-demo'}>
           <span>
             <b>
               {tr('premium.perk.persons.title')}
@@ -197,7 +197,7 @@ export function PremiumPanel() {
             <span>{tr('premium.perk.persons.sub', { limit: FREE_ENROLLED_PERSONS })}</span>
           </span>
           <PremiumProof kind="persons" />
-        </div>
+        </div>}
         <div className={highlightedPerk === 'pro' ? 'premium-perk premium-perk-demo is-wanted' : 'premium-perk premium-perk-demo'}>
           <span>
             <b>

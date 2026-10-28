@@ -2563,6 +2563,12 @@ export const ro = {
   "lx.twin.notify.body": "Atinge și le sortez în câteva secunde. Te întreb doar de cele nesigure.",
   "lx.freed.month": "Am eliberat {size} luna asta",
   "lx.freed.total": "{size} în total, din pozele pe care le-ai lăsat să plece.",
+  "lx.cleanup.frees": "Eliberezi {size} pe telefon.",
+  "lx.wall.deleteOne": "Șterge din telefon",
+  "lx.wall.density": "Mărimea pozelor",
+  "lx.wall.smaller": "Poze mai mici",
+  "lx.wall.bigger": "Poze mai mari",
+  "lx.wall.monthMeta": "{count} poze · {kept} păstrate",
 };
 
 export type TranslationKey = keyof typeof ro;

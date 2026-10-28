@@ -78,8 +78,14 @@ function notifyEntitlementChanged(): void {
  * multumit costa mai putin decat cine se simte santajat si spune si altora.
  */
 export const FREE_PHOTOS_PER_MONTH = 150;
-/** Cate persoane poate inrola gratuit un utilizator neabonat (a doua+ cere abonament). */
-export const FREE_ENROLLED_PERSONS = 1;
+/**
+ * Cate persoane poate numi gratuit un utilizator neabonat. Practic fara plafon:
+ * in Lumin AI („copia ta”) oamenii tai sunt chiar ce invata AI-ul despre tine,
+ * iar plafonul de 1 arata ca o eroare (raportat: „nu se pot salva numele la
+ * fete” — a doua persoana deschidea Pro si nu salva nimic). Abonamentul se
+ * plateste pentru ce face copia singura, nu pentru cine e in poze.
+ */
+export const FREE_ENROLLED_PERSONS = 1000;
 
 const ROLLING_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 

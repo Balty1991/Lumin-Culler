@@ -2477,4 +2477,10 @@ export const en: Record<TranslationKey, string> = {
   "lx.twin.notify.body": "Tap and I'll sort them in seconds. I'll only ask about the unsure ones.",
   "lx.freed.month": "I freed {size} this month",
   "lx.freed.total": "{size} in total, from photos you let go.",
+  "lx.cleanup.frees": "Frees {size} on your phone.",
+  "lx.wall.deleteOne": "Delete from phone",
+  "lx.wall.density": "Photo size",
+  "lx.wall.smaller": "Smaller photos",
+  "lx.wall.bigger": "Bigger photos",
+  "lx.wall.monthMeta": "{count} photos · {kept} kept",
 };

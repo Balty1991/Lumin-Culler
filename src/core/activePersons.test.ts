@@ -25,7 +25,7 @@ describe('selectActivePersons', () => {
 
   it('fara abonament, doar cate permite planul gratuit', () => {
     const toti = [om('a', 1), om('b', 2), om('c', 3)];
-    expect(selectActivePersons(toti)).toHaveLength(FREE_ENROLLED_PERSONS);
+    expect(selectActivePersons(toti)).toHaveLength(Math.min(3, FREE_ENROLLED_PERSONS));
   });
 
   it('nu sterge nimic — restul raman, doar adormite', () => {
@@ -37,19 +37,19 @@ describe('selectActivePersons', () => {
 
   it('fara nicio alegere, ramane cel inrolat primul — raspuns stabil', () => {
     const toti = [om('c', 30), om('a', 10), om('b', 20)];
-    expect(selectActivePersons(toti).map(p => p.id)).toEqual(['a']);
+    expect(selectActivePersons(toti).map(p => p.id)).toEqual(['a', 'b', 'c'].slice(0, FREE_ENROLLED_PERSONS));
   });
 
   // Partea care schimba tonul: aplicatia nu decide in locul omului cine conteaza.
   it('respecta alegerea utilizatorului, nu ordinea de inrolare', () => {
     writePreferredActive(['c']);
     const toti = [om('a', 10), om('b', 20), om('c', 30)];
-    expect(selectActivePersons(toti).map(p => p.id)).toEqual(['c']);
+    expect(selectActivePersons(toti).map(p => p.id)).toEqual(['c', 'a', 'b'].slice(0, FREE_ENROLLED_PERSONS));
   });
 
   it('reabonarea readuce totul, fara sa fi pierdut ceva', () => {
     const toti = [om('a', 1), om('b', 2), om('c', 3)];
-    expect(selectActivePersons(toti)).toHaveLength(FREE_ENROLLED_PERSONS);
+    expect(selectActivePersons(toti)).toHaveLength(Math.min(3, FREE_ENROLLED_PERSONS));
     localStorage.setItem('lumin-premium', '1');
     expect(selectActivePersons(toti)).toHaveLength(3);
   });
@@ -57,7 +57,7 @@ describe('selectActivePersons', () => {
   it('inregistrarile vechi, fara enrolledAt, cad pe updatedAt', () => {
     const vechi: KnownPerson = { id: 'vechi', name: 'v', embeddings: [[1]], updatedAt: 5 };
     const nou = om('nou', 99);
-    expect(selectActivePersons([nou, vechi]).map(p => p.id)).toEqual(['vechi']);
+    expect(selectActivePersons([nou, vechi]).map(p => p.id)).toEqual(['vechi', 'nou'].slice(0, FREE_ENROLLED_PERSONS));
   });
 
   it('o alegere stricata in stocare nu darama pornirea', () => {

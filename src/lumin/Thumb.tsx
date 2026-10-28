@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getCachedThumbUrl, peekThumbUrl } from '../core/thumbUrlCache';
-import { getDisplayUrl } from '../core/previewUrlCache';
+import { getCachedPreviewUrl, getDisplayUrl } from '../core/previewUrlCache';
+import { canSharpen, SCREEN_SIZE, sharpUrl, TILE_SIZE } from './sharp';
 import { isNeutral, type EditAdjustments } from '../core/imageAdjust';
 import { AdjustedImage } from '../ui/AdjustedImage';
 
@@ -10,22 +11,36 @@ import { AdjustedImage } from '../ui/AdjustedImage';
  * citește fișierul original (pentru ecranele mari: sortare, ziua deschisă).
  * Cu `edits` (copia „mai frumoasă”), ajustările se văd și aici.
  */
-export function Thumb({ id, lqip, full = false, className, alt = '', edits }: {
+export function Thumb({ id, lqip, full = false, sharp = false, className, alt = '', edits }: {
   id: string;
   edits?: EditAdjustments;
   lqip?: string;
   full?: boolean;
+  /** Pe telefon: după miniatură, o variantă clară de 640 px (dale mari din galerie). */
+  sharp?: boolean;
   className?: string;
   alt?: string;
 }) {
-  const [src, setSrc] = useState<string | null>(() => (full ? null : peekThumbUrl(id)));
+  const [src, setSrc] = useState<string | null>(() => peekThumbUrl(id));
   useEffect(() => {
     let alive = true;
-    setSrc(full ? null : peekThumbUrl(id));
-    const load = full ? getDisplayUrl(id) : getCachedThumbUrl(id);
-    void load.then(url => { if (alive && url) setSrc(url); }).catch(() => {});
+    const show = (url: string | null) => { if (alive && url) setSrc(url); };
+    setSrc(peekThumbUrl(id));
+    if (full && canSharpen()) {
+      // Întâi ce avem deja (preview), apoi poza clară făcută de Android — doar
+      // dacă s-a încărcat. Originalul direct prin URI ieșea negru pe unele telefoane.
+      void getCachedPreviewUrl(id).then(show).catch(() => {});
+      void sharpUrl(id, SCREEN_SIZE).then(show);
+    } else if (full) {
+      void getDisplayUrl(id).then(show).catch(() => {});
+    } else {
+      void getCachedThumbUrl(id).then(url => {
+        show(url);
+        if (sharp) void sharpUrl(id, TILE_SIZE).then(show);
+      }).catch(() => {});
+    }
     return () => { alive = false; };
-  }, [id, full]);
+  }, [id, full, sharp]);
   const shown = src ?? lqip;
   if (src && edits && !isNeutral(edits)) return <AdjustedImage className={className} src={src} edits={edits} alt={alt} />;
   return shown

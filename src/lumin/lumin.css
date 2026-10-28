@@ -392,11 +392,11 @@
 
 .lx-viewer {
   position: fixed; inset: 0; z-index: 85; display: flex; flex-direction: column;
-  background: rgb(3 4 8 / calc(var(--fade, 1) * 0.96)); backdrop-filter: blur(24px);
+  background: rgb(3 4 8 / calc(var(--fade, 1) * 0.96));
   padding: calc(10px + env(safe-area-inset-top, 0px)) 12px calc(16px + env(safe-area-inset-bottom, 0px));
-  animation: lx-viewer-in 0.35s var(--lx-ease) both;
 }
-@keyframes lx-viewer-in { from { opacity: 0; backdrop-filter: blur(0); } to { opacity: 1; } }
+/* Fără opacitate animată pe tot stratul: pe unele telefoane (WebView) rămânea
+   pe jumătate transparent, iar poza se vedea „neagră”, cu galeria prin ea. */
 .lx-viewer-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #fff; }
 .lx-viewer-date { font-size: 13.5px; color: #c9d2e0; }
 .lx-viewer-count { font-family: var(--mono); font-size: 12px; color: #8a93a3; min-width: 44px; text-align: right; }
@@ -502,15 +502,15 @@
 /* Poza mare, peste tot ecranul (portal în body) */
 .lx.lx-viewer {
   position: fixed; inset: 0; z-index: 120; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
-  background: #04050a; padding: calc(10px + env(safe-area-inset-top, 0px)) 14px calc(18px + env(safe-area-inset-bottom, 0px));
-  animation: lx-viewer-in 0.35s var(--lx-ease) both;
+  z-index: 1000; isolation: isolate;
+  background: radial-gradient(120% 80% at 50% 30%, #161a2a 0%, #04050a 70%);
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 14px calc(18px + env(safe-area-inset-bottom, 0px));
 }
-.lx-viewer-backdrop { position: absolute; inset: -40px; z-index: 0; opacity: calc(var(--fade, 1) * 0.55); }
-.lx-viewer-backdrop img, .lx-viewer-backdrop .lx-thumb-empty { width: 100%; height: 100%; object-fit: cover; filter: blur(40px) saturate(1.4); transform: scale(1.1); }
+.lx-viewer-backdrop { display: none; } /* fundalul estompat, scos: blur mare peste tot ecranul = straturi negre pe GPU slab */
 .lx-viewer > *:not(.lx-viewer-backdrop) { position: relative; z-index: 1; }
 .lx-viewer-photo img { max-height: 64dvh; }
 .lx-viewer .lx-icon-btn { background: rgb(6 7 10 / 0.45); color: #fff; border-color: rgb(255 255 255 / 0.14); }
-.lx-viewer-info { background: rgb(6 7 10 / 0.45); border: 1px solid rgb(255 255 255 / 0.08); border-radius: 24px; padding: 14px; backdrop-filter: blur(18px); }
+.lx-viewer-info { background: rgb(14 16 24 / 0.92); border: 1px solid rgb(255 255 255 / 0.08); border-radius: 24px; padding: 14px; }
 @media (prefers-reduced-motion: reduce) {
   .lx-hero-tile, .lx-tile { opacity: 1; transform: none; filter: none; transition: none; }
   .lx-hero-tile img, .lx-hero-tile::after, .lx-tile.selected::before { animation: none; }
@@ -587,3 +587,76 @@
 .lx-auto-opt.on b::before { content: '●'; color: var(--accent); font-size: 11px; }
 .lx-freed { margin: 0 0 14px; }
 .lx-freed-icon { flex: none; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-size: 22px; color: var(--pick); background: rgba(var(--pick-rgb), .14); }
+.lx-chip-btn.danger { color: #ff9a9a; border-color: rgba(var(--reject-rgb), .45); background: rgba(var(--reject-rgb), .12); }
+.lx-cleanup-size { color: var(--pick) !important; font-weight: 600; }
+.lx-wall-wrap > .lx-cleanup { margin-bottom: 16px; }
+
+/* ── Galeria v3: mozaic, densitate, adâncime, bara de timp ─────────────── */
+.lx-wall-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.lx-wall-bar .lx-wall-filters { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+.lx-density { flex: none; display: flex; align-items: center; gap: 2px; height: 36px; padding: 0 4px; border-radius: 999px; border: 1px solid var(--lx-line); background: var(--lx-glass); }
+.lx-density button { width: 30px; height: 28px; border-radius: 999px; font-size: 17px; color: var(--text); }
+.lx-density button:disabled { opacity: .3; }
+.lx-density span { font-family: var(--mono); font-size: 12px; color: var(--text-faint); min-width: 12px; text-align: center; }
+
+.lx-wall-head { position: sticky; top: 0; z-index: 4; margin: 6px -4px 0; padding: 12px 4px 10px;
+  background: linear-gradient(var(--bg) 62%, color-mix(in srgb, var(--bg) 0%, transparent)); }
+.lx-wall-head span { font-size: 24px; letter-spacing: -0.01em; }
+.lx-wall-month { gap: 8px; }
+
+.lx-bento { width: 100%; align-self: stretch; display: grid; grid-template-columns: repeat(var(--cols, 3), 1fr); grid-auto-rows: var(--cell, 120px); grid-auto-flow: dense; gap: var(--gap, 6px); }
+.lx-bento .lx-tile.big { grid-column: span 2; grid-row: span 2; }
+.lx-bento .lx-tile.tall { grid-row: span 2; }
+.lx-bento.d2 .lx-tile { border-radius: 20px; }
+.lx-bento.d4 .lx-tile, .lx-bento.d5 .lx-tile { border-radius: 10px; }
+.lx-bento.d5 .lx-tile-star { display: none; }
+
+.lx-bento .lx-tile {
+  margin: 0; width: 100%; height: 100%; border-radius: 16px; box-shadow: none; background: var(--surface-3);
+  opacity: 0; filter: none; animation: none;
+  transform: perspective(900px) translateY(46px) rotateX(18deg) scale(0.92);
+  transform-origin: 50% 100%;
+  transition: opacity .6s var(--lx-ease) var(--d, 0ms), transform .75s cubic-bezier(.18,.9,.22,1.12) var(--d, 0ms);
+}
+.lx-bento .lx-tile.in { opacity: 1; transform: none; animation: none; }
+.lx-bento .lx-tile.in:active { transform: scale(0.95); transition-duration: .12s; transition-delay: 0ms; }
+.lx-bento .lx-tile img, .lx-bento .lx-tile .lx-thumb-empty { width: 100%; height: 100%; min-height: 0; object-fit: cover; transition: transform .6s var(--lx-ease); }
+.lx-bento .lx-tile::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(180deg, rgb(255 255 255 / .07), transparent 30%, transparent 70%, rgb(0 0 0 / .25)); }
+.lx-bento .lx-tile.rejected img { opacity: .55; }
+.lx-bento .lx-tile.big .lx-tile-star { width: 30px; height: 30px; font-size: 14px; top: 10px; right: 10px; }
+
+/* Coperta lunii: poza se mișcă mai încet decât pagina (adâncime). */
+.lx-hero-tile { height: min(62vh, 460px); border-radius: 28px; }
+.lx-hero-media { position: absolute; inset: -70px 0; transform: translate3d(0, var(--py, 0px), 0); will-change: transform; }
+.lx-hero-media img, .lx-hero-media .lx-thumb-empty { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; animation: lx-kenburns 22s ease-in-out infinite alternate; }
+.lx-hero-tile > img { display: none; }
+.lx-hero-badge { align-self: flex-start; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 5px 10px; border-radius: 999px;
+  color: #06070a; background: var(--lx-grad); margin-bottom: 4px; }
+.lx-hero-caption b { font-size: 30px; letter-spacing: -0.02em; text-transform: capitalize; }
+
+/* Bara de timp */
+.lx-rail { position: fixed; right: 0; top: 150px; bottom: 110px; width: 34px; z-index: 30; touch-action: none; opacity: 0; transition: opacity .35s; }
+.lx-rail.on { opacity: 1; }
+.lx-rail i { position: absolute; right: 9px; width: 6px; height: 2px; border-radius: 2px; background: rgb(var(--accent-rgb) / .45); }
+.lx-rail-thumb { position: absolute; right: 4px; top: 0; width: 22px; height: 34px; margin-top: -17px; border-radius: 11px; background: var(--lx-grad);
+  box-shadow: 0 6px 18px -6px rgb(var(--accent-rgb) / .8); transition: top .08s linear; }
+.lx-rail-bubble { position: absolute; right: 40px; margin-top: -20px; height: 40px; padding: 0 16px; display: grid; place-items: center; white-space: nowrap;
+  border-radius: 20px; font-weight: 700; font-size: 14px; color: #06070a; background: var(--lx-grad); box-shadow: 0 12px 30px -10px rgb(0 0 0 / .8); text-transform: capitalize; }
+
+/* Poza mare v3 */
+.lx-viewer-bg { position: absolute; inset: 0; z-index: 0; background: radial-gradient(120% 80% at 50% 30%, #161a2a 0%, #04050a 70%); }
+.lx.lx-viewer { background: #04050a; }
+.lx-viewer-photo { will-change: transform; }
+.lx-viewer-photo.zoomed { transition: transform .05s linear; }
+.lx-viewer-photo:not(.zoomed) { transition: transform .32s cubic-bezier(.2,.9,.25,1); }
+.lx-viewer-photo img { border-radius: inherit; }
+
+::view-transition-group(*) { animation-duration: .45s; animation-timing-function: cubic-bezier(.2,.9,.25,1); }
+
+@media (prefers-reduced-motion: reduce) {
+  .lx-bento .lx-tile { opacity: 1; transform: none; transition: none; }
+  .lx-hero-media { transform: none; }
+}
+.lx-wall-bar .lx-chip-btn { white-space: nowrap; flex: 0 0 auto; padding: 0 12px; }
+.lx-wall-bar .lx-wall-filters { min-width: 0; flex: 1 1 auto; }

@@ -3,6 +3,7 @@ import { useStore, type PhotoView } from '../state/store';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { plural } from '../i18n';
 import { useTr } from './context';
+import { formatBytes } from '../core/freedSpace';
 
 /**
  * lumin/Cleanup.tsx
@@ -16,7 +17,9 @@ export function CleanupCard({ photos, compact = false }: { photos: readonly Phot
   const deleteRejectedPhotos = useStore(s => s.deleteRejectedPhotos);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<number | null>(null);
+  const locale = useStore(s => s.locale);
   const rejected = photos.filter(p => p.status === 'rejected' && p.mediaUri);
+  const bytes = rejected.reduce((sum, p) => sum + (p.sizeBytes ?? 0), 0);
   if (!isNativeMediaLibraryAvailable() || (rejected.length === 0 && done === null)) return null;
 
   const run = async () => {
@@ -33,6 +36,7 @@ export function CleanupCard({ photos, compact = false }: { photos: readonly Phot
     <section className={compact ? 'lx-card lx-cleanup compact' : 'lx-card lx-cleanup'}>
       <div>
         <b>{tr(plural(rejected.length, 'lx.cleanup.title.one', 'lx.cleanup.title'), { count: rejected.length })}</b>
+        {bytes > 0 && <span className="lx-cleanup-size">{tr('lx.cleanup.frees', { size: formatBytes(bytes, locale) })}</span>}
         {!compact && <span>{tr('lx.cleanup.explain')}</span>}
       </div>
       <button className="lx-btn ghost danger-soft" disabled={busy} onClick={() => void run()}>
