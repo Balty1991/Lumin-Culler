@@ -7,7 +7,7 @@ Lumin AI devine **Cherrypic**. Pe Play e o **actualizare** a aceleiași aplicaț
 
 ## Imagini
 - Pictograma aplicației (512×512): `docs/play/icon-512.png`
-- Grafica prezentată (1024×500): `docs/play/feature-graphic-1024x500.png`
+- Grafica prezentată (1024×500): `docs/play/feature-graphic-1024x500-ro.png` (română) și `docs/play/feature-graphic-1024x500.png` (engleză)
 - Capturile de ecran trebuie refăcute: noul ecran Azi cu „Lumi îți propune”, Galerie, poza mare, Mai frumoasă, Evenimente. Pe Azi trebuie să se vadă cardurile lui Lumi.
 
 ## Română (ro-RO), limba implicită
