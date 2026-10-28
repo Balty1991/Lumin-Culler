@@ -185,6 +185,13 @@ jobs:
           curl -fL -o android/app/src/main/assets/selfie_segmenter.tflite https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/1/selfie_segmenter.tflite
           size=$(stat -c%s android/app/src/main/assets/selfie_segmenter.tflite)
           if [ "$size" -lt 150000 ]; then echo "::error::selfie_segmenter.tflite are doar $size octeti — descarcare esuata/trunchiata" && exit 1; fi
+      # Recunoașterea fețelor (plugins/FaceEmbedPlugin.kt): SFace din OpenCV Zoo,
+      # licență Apache-2.0 (folosire comercială permisă), int8, ~9,9 MB.
+      - name: Bundle native face-recognition model (SFace, Apache-2.0)
+        run: |
+          curl -fL -o android/app/src/main/assets/face_sface_int8.onnx https://media.githubusercontent.com/media/opencv/opencv_zoo/main/models/face_recognition_sface/face_recognition_sface_2021dec_int8.onnx
+          size=$(stat -c%s android/app/src/main/assets/face_sface_int8.onnx)
+          if [ "$size" -lt 5000000 ]; then echo "::error::face_sface_int8.onnx are doar $size octeti — descarcare esuata/trunchiata" && exit 1; fi
       - name: Bundle native image-embedder model
         run: |
           curl -fL -o android/app/src/main/assets/mobilenet_v3_small.tflite https://storage.googleapis.com/mediapipe-models/image_embedder/mobilenet_v3_small/float32/1/mobilenet_v3_small.tflite

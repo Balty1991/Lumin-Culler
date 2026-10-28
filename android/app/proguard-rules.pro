@@ -132,3 +132,6 @@
 -dontwarn com.google.errorprone.annotations.**
 -dontwarn javax.annotation.**
 -dontwarn org.checkerframework.**
+
+# ONNX Runtime (plugins/FaceEmbedPlugin.kt): clasele JNI se caută după nume.
+-keep class ai.onnxruntime.** { *; }

@@ -117,3 +117,4 @@ app/src/main/assets/selfie_multiclass.tflite
 # Model MediaPipe nativ (Faza 6, ImageEmbedderPlugin.kt) —
 # descarcat de CI la build (~4.1MB), niciodata committed
 app/src/main/assets/mobilenet_v3_small.tflite
+app/src/main/assets/face_sface_int8.onnx

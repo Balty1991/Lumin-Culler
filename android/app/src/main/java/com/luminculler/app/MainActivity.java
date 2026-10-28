@@ -10,6 +10,7 @@ import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.WebViewListener;
 import com.luminculler.app.plugins.StageOnePlugin;
 import com.luminculler.app.plugins.ImageAnalysisPlugin;
+import com.luminculler.app.plugins.FaceEmbedPlugin;
 import com.luminculler.app.plugins.ImageLabelingPlugin;
 import com.luminculler.app.plugins.ObjectDetectionPlugin;
 import com.luminculler.app.plugins.FaceMeshPlugin;
@@ -162,6 +163,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(HeicDecoderPlugin.class);
         registerPlugin(ImageDescriptionPlugin.class);
         registerPlugin(ImageEmbedderPlugin.class);
+        registerPlugin(FaceEmbedPlugin.class);
         registerPlugin(FolderExportPlugin.class);
         registerPlugin(MediaLibraryPlugin.class);
         registerPlugin(NotificationsPlugin.class);

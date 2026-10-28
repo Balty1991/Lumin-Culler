@@ -65,7 +65,7 @@ android {
             // De spus pe fata: e o ipoteza, nu o cauza dovedita. Nu strica
             // nimic in niciun caz (pachetul creste cu cativa MB), si daca nu era
             // asta, jurnalul de pasi din CrashLog.kt ne spune ce era.
-            noCompress 'task', 'tflite', 'bin'
+            noCompress 'task', 'tflite', 'bin', 'onnx'
         }
     }
     // Cheie FIXĂ pentru APK-urile de test. Fără ea, fiecare rulare CI semna
@@ -187,6 +187,8 @@ dependencies {
     // Fereastra oficiala de recenzie Google Play — vezi plugins/InAppReviewPlugin.kt.
     // Nu trimite nimic de-al aplicatiei: doar deschide ecranul de nota al Play.
     implementation "com.google.android.play:review:$playReviewVersion"
+    // Recunoașterea fețelor pe telefon (plugins/FaceEmbedPlugin.kt): ONNX Runtime, licență MIT.
+    implementation "com.microsoft.onnxruntime:onnxruntime-android:1.19.2"
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
