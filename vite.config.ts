@@ -55,8 +55,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon-32.png', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Lumin AI',
-        short_name: 'Lumin AI',
+        name: 'Cherrypic',
+        short_name: 'Cherrypic',
         description: 'AI-ul care iti alege pozele zilei si iti invata gustul. Totul pe telefon.',
         lang: 'ro',
         start_url: '.',

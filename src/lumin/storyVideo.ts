@@ -164,7 +164,7 @@ export async function renderStory(
         const a = Math.min(1, (t - (total - OUTRO_MS)) / 500);
         ctx.fillStyle = `rgba(0,0,0,${0.55 * a})`;
         ctx.fillRect(0, 0, STORY_W, STORY_H);
-        drawText(ctx, 'Lumin AI', input.subtitle, a, STORY_H * 0.5);
+        drawText(ctx, 'Cherrypic', input.subtitle, a, STORY_H * 0.5);
       }
       onProgress?.(Math.min(1, t / total));
       requestAnimationFrame(tick);

@@ -29,7 +29,7 @@
             android:id="@+id/widget_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Lumin AI"
+            android:text="Cherrypic"
             android:textColor="#FFEEF1F6"
             android:textSize="16sp"
             android:textStyle="bold" />

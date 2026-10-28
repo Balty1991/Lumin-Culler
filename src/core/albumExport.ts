@@ -1,7 +1,7 @@
 /**
  * „Exportă ca album” copiază. Nu mută și nu redenumește fișierul din galerie.
  *
- * Destinația, pe telefon: Pictures/Lumin/<album>, prin MediaStore. Sursa
+ * Destinația, pe telefon: Pictures/Cherrypic/<album>, prin MediaStore. Sursa
  * rămâne content://-ul de unde s-a citit.
  */
 import { registerPlugin, Capacitor } from '@capacitor/core';
@@ -24,7 +24,7 @@ export async function copyAlbumToPictures(
   const withUri = items.filter(item => item.uri);
   if (!withUri.length) return { copied: 0, skipped: items.length };
   if (!canCopyAlbumOnDevice()) {
-    throw new Error('Exportul în Pictures/Lumin rulează pe telefon.');
+    throw new Error('Exportul în Pictures/Cherrypic rulează pe telefon.');
   }
   const result = await FolderExport.copyIntoLuminAlbum({
     album: albumFolderName(album),

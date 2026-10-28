@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Lumin AI</string>
-    <string name="title_activity_main">Lumin AI</string>
+    <string name="app_name">Cherrypic</string>
+    <string name="title_activity_main">Cherrypic</string>
     <string name="package_name">com.luminculler.app</string>
     <string name="custom_url_scheme">com.luminculler.app</string>
 

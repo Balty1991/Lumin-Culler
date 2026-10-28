@@ -162,7 +162,7 @@ class FolderExportPlugin : Plugin() {
     }
 
     /**
-     * Copiază poze în Pictures/Lumin/<album>. Sursa (content:// din galerie)
+     * Copiază poze în Pictures/Cherrypic/<album>. Sursa (content:// din galerie)
      * nu se șterge și nu se redenumește. Un eșec la o poză nu oprește restul.
      */
     @PluginMethod
@@ -199,7 +199,7 @@ class FolderExportPlugin : Plugin() {
             val values = ContentValues().apply {
                 put(MediaStore.Images.Media.DISPLAY_NAME, displayName)
                 put(MediaStore.Images.Media.MIME_TYPE, mime)
-                put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/Lumin/$album")
+                put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/Cherrypic/$album")
                 put(MediaStore.Images.Media.IS_PENDING, 1)
             }
             val dest = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: return false
@@ -217,7 +217,7 @@ class FolderExportPlugin : Plugin() {
             }
         }
         return try {
-            val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "Lumin/$album")
+            val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "Cherrypic/$album")
             if (!dir.exists() && !dir.mkdirs()) return false
             val out = File(dir, displayName)
             resolver.openInputStream(source)?.use { input ->

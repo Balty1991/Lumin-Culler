@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Politica de confidentialitate — Lumin AI</title>
+<title>Politica de confidentialitate — Cherrypic</title>
 <style>
   :root { color-scheme: light dark; }
   body {
@@ -42,18 +42,19 @@
 <p class="lang-switch"><a href="#ro">Romana</a> · <a href="#en">English</a></p>
 
 <section id="ro" lang="ro">
-<h1>Politica de confidentialitate — Lumin AI</h1>
-<p class="updated">Ultima actualizare: 14 august 2026</p>
+<h1>Politica de confidentialitate — Cherrypic</h1>
+<p class="updated">Ultima actualizare: 28 octombrie 2026</p>
 
 <div class="box">
-<strong>Pe scurt:</strong> Lumin AI proceseaza pozele tale <strong>integral pe dispozitivul tau</strong>.
-Nicio poza, fata sau metadata nu este trimisa vreodata catre un server extern. Aplicatia nu are
+<strong>Pe scurt:</strong> Cherrypic proceseaza pozele tale <strong>integral pe dispozitivul tau</strong>.
+Singura exceptie este <strong>Lumi Cloud</strong>, o functie optionala, <strong>oprita implicit</strong>,
+pe care o pornesti tu (vezi mai jos). Aplicatia nu are
 reclame, nu foloseste servicii de analiza/tracking ale unor terti si nu vinde date.
 </div>
 
 <h2>Ce date proceseaza aplicatia</h2>
 <ul>
-  <li><strong>Fotografiile pe care le alegi explicit</strong> sa le imporți (prin selectorul de fisiere/foldere al sistemului de operare) — aplicatia nu are acces general la galerie fara actiunea ta directa.</li>
+  <li><strong>Fotografiile din galeria telefonului</strong>, citite cu permisiunea ta de acces la poze (aplicatia citeste galeria, pe bucati, ca sa o sorteze), sau cele pe care le alegi explicit prin selectorul sistemului.</li>
   <li><strong>Metadate EXIF/IPTC</strong> citite din acele fotografii (data capturii, model aparat, diafragma etc.), folosite doar pentru sortare/afisare.</li>
   <li><strong>Analiza faciala</strong> (zambete, ochi deschisi/inchisi, calitatea cadrului) — calculata local, cu modele AI (TensorFlow.js) incluse in aplicatie, care ruleaza pe procesorul/GPU-ul dispozitivului tau.</li>
   <li><strong>"Persoane cunoscute"</strong> (optional): daca alegi sa inrolezi o persoana (ex. un membru al familiei), aplicatia retine un nume ales de tine si o reprezentare numerica a fetei ("embedding facial"), folosita doar pentru a deosebi acea persoana de straini in pozele tale. Aceasta informatie nu paraseste niciodata dispozitivul.</li>
@@ -82,6 +83,18 @@ afisa un link catre harta OpenStreetMap pentru acele coordonate — linkul e afi
 si se deschide DOAR daca apesi explicit pe el; nicio coordonata nu e trimisa nicaieri automat.
 </p>
 
+<h2>Lumi Cloud (optional, oprit implicit)</h2>
+<p>
+Pentru pozele la care aplicatia nu e sigura daca le-ai pastra, poti porni din Setari o „a doua parere” in cloud.
+Pornita, se intampla doar urmatoarele:
+</p>
+<ul>
+  <li>Pleaca <strong>doar pozele nesigure</strong> (cel mult cateva zeci pe zi), <strong>micsorate la 512 pixeli</strong>, impreuna cu ce a masurat telefonul (claritate, lumina, cate fete si daca au ochii deschisi), limba aplicatiei si un identificator aleator al instalarii (folosit doar pentru limita zilnica; nu e legat de nume, cont sau email).</li>
+  <li>Le primeste serverul aplicatiei, gazduit pe Cloudflare Workers, care le trece prin modele AI ale Cloudflare (Workers AI) si intoarce un verdict scurt: o pastrezi sau nu, de ce, ce se vede in poza.</li>
+  <li>Pozele <strong>nu sunt pastrate</strong> pe server dupa raspuns si nu sunt folosite la antrenarea modelelor. Verdictul e pastrat doar pe telefonul tau.</li>
+  <li>O opresti oricand din Setari; oprita, nu mai pleaca nimic.</li>
+</ul>
+
 <h2>Permisiuni folosite (Android)</h2>
 <ul>
   <li><strong>Acces la internet</strong>: folosit pentru incarcarea initiala a resurselor aplicatiei si a modelelor AI incluse in pachet, si pentru verificarea abonamentului la Google Play (vezi sectiunea de mai jos) — nu pentru a transmite pozele sau datele tale personale.</li>
@@ -101,7 +114,7 @@ reteaua in mod repetat, asa ca merita spus exact ce se intampla acolo.
   <li>Plata e gestionata <strong>integral de Google Play</strong>. Aplicatia nu vede si nu stocheaza niciodata datele cardului tau, adresa de facturare sau adresa de email.</li>
   <li>Aplicatia intreaba Google Play un singur lucru: <em>contul de Google de pe acest dispozitiv are abonamentul activ?</em>, plus pretul in moneda contului. Intrebarea o pune Play, nu noi, si nu contine nimic despre tine sau despre pozele tale.</li>
   <li>Raspunsul (activ / inactiv) e pastrat local pe dispozitiv, ca aplicatia sa functioneze si offline. Nu pleaca nicaieri.</li>
-  <li><strong>Nu exista niciun server al nostru.</strong> Nu avem conturi, nu avem baza de date de utilizatori si nu primim niciun semnal despre cum folosesti aplicatia — nici macar cate poze exporti. Contorul de folosire pe care il vezi in aplicatie e calculat si tinut exclusiv pe dispozitivul tau.</li>
+  <li><strong>In afara de Lumi Cloud (optional, descris mai sus), nu exista niciun server al nostru.</strong> Nu avem conturi, nu avem baza de date de utilizatori si nu primim niciun semnal despre cum folosesti aplicatia — nici macar cate poze exporti. Contorul de folosire pe care il vezi in aplicatie e calculat si tinut exclusiv pe dispozitivul tau.</li>
   <li>Abonamentul se gestioneaza si se anuleaza din Google Play &gt; Meniu &gt; Abonamente. Politica de rambursare a Google Play se aplica.</li>
 </ul>
 
@@ -132,18 +145,19 @@ functie sa devina disponibila, iar data de mai sus va reflecta cea mai recenta m
 <hr>
 
 <section id="en" lang="en">
-<h1>Privacy Policy — Lumin AI</h1>
-<p class="updated">Last updated: August 14, 2026</p>
+<h1>Privacy Policy — Cherrypic</h1>
+<p class="updated">Last updated: October 28, 2026</p>
 
 <div class="box">
-<strong>In short:</strong> Lumin AI processes your photos <strong>entirely on your own device</strong>.
-No photo, face, or metadata is ever sent to an external server. The app has no ads, uses no
+<strong>In short:</strong> Cherrypic processes your photos <strong>entirely on your own device</strong>.
+The only exception is <strong>Lumi Cloud</strong>, an optional feature that is <strong>off by default</strong>
+and that you switch on yourself (see below). The app has no ads, uses no
 third-party analytics/tracking services, and does not sell data.
 </div>
 
 <h2>What data the app processes</h2>
 <ul>
-  <li><strong>Photos you explicitly choose to import</strong> (via the operating system's file/folder picker) — the app does not have blanket access to your photo library without your direct action.</li>
+  <li><strong>Photos in your phone's gallery</strong>, read with your photo-access permission (the app reads the gallery in small batches in order to sort it), or those you explicitly pick through the system picker.</li>
   <li><strong>EXIF/IPTC metadata</strong> read from those photos (capture date, camera model, aperture, etc.), used only for sorting/display.</li>
   <li><strong>Facial analysis</strong> (smiles, open/closed eyes, frame quality) — computed locally, using AI models (TensorFlow.js) bundled with the app, running on your device's CPU/GPU.</li>
   <li><strong>"Known people"</strong> (optional): if you choose to enroll a person (e.g. a family member), the app stores a name you choose and a numeric facial representation ("face embedding"), used only to tell that person apart from strangers in your photos. This information never leaves your device.</li>
@@ -171,6 +185,17 @@ OpenStreetMap for those coordinates — the link is clearly labeled as such and 
 explicitly tap it; no coordinates are sent anywhere automatically.
 </p>
 
+<h2>Lumi Cloud (optional, off by default)</h2>
+<p>
+For photos the app is unsure whether you would keep, you can turn on a cloud "second opinion" in Settings. When on, only this happens:
+</p>
+<ul>
+  <li>Only the <strong>uncertain photos</strong> are sent (at most a few dozen per day), <strong>downscaled to 512 pixels</strong>, together with what the phone measured (sharpness, light, number of faces and whether eyes are open), the app language and a random install identifier (used only for the daily limit; not linked to any name, account or email).</li>
+  <li>They are received by the app's server, hosted on Cloudflare Workers, which runs them through Cloudflare's AI models (Workers AI) and returns a short verdict: keep it or not, why, and what is in the photo.</li>
+  <li>Photos are <strong>not kept</strong> on the server after the reply and are not used to train models. The verdict is kept only on your phone.</li>
+  <li>You can switch it off at any time in Settings; when off, nothing is sent.</li>
+</ul>
+
 <h2>Permissions used (Android)</h2>
 <ul>
   <li><strong>Internet access</strong>: used for initial loading of app resources and the bundled AI models, and to check your subscription with Google Play (see the section below) — not to transmit your photos or personal data.</li>
@@ -190,7 +215,7 @@ the network repeatedly, so it is worth stating exactly what happens there.
   <li>Payment is handled <strong>entirely by Google Play</strong>. The app never sees or stores your card details, billing address, or email address.</li>
   <li>The app asks Google Play one thing: <em>does the Google account on this device have an active subscription?</em>, plus the price in your account's currency. That question is asked by Play, not by us, and contains nothing about you or your photos.</li>
   <li>The answer (active / inactive) is cached locally on the device so the app keeps working offline. It never leaves the device.</li>
-  <li><strong>There is no server of ours.</strong> We have no accounts, no user database, and we receive no signal about how you use the app — not even how many photos you export. The usage counter you see in the app is computed and kept solely on your device.</li>
+  <li><strong>Apart from Lumi Cloud (optional, described above), there is no server of ours.</strong> We have no accounts, no user database, and we receive no signal about how you use the app — not even how many photos you export. The usage counter you see in the app is computed and kept solely on your device.</li>
   <li>Manage or cancel the subscription in Google Play &gt; Menu &gt; Subscriptions. Google Play's refund policy applies.</li>
 </ul>
 

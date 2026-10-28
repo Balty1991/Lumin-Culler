@@ -87,7 +87,7 @@ export async function makeCollage(ids: string[], title: string, subtitle: string
   brand.addColorStop(1, '#9b8cff');
   ctx.fillStyle = brand;
   ctx.font = '600 30px "Sora Variable", sans-serif';
-  ctx.fillText('Lumin AI', pad, H - 50);
+  ctx.fillText('Cherrypic', pad, H - 50);
   ctx.fillStyle = '#8a93a3';
   ctx.font = '400 26px "Inter Variable", sans-serif';
   const tag = 'ales de AI-ul meu';
