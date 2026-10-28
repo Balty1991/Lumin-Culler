@@ -8,7 +8,7 @@ Lumin AI devine **Cherrypic**. Pe Play e o **actualizare** a aceleiași aplicaț
 ## Imagini
 - Pictograma aplicației (512×512): `docs/play/icon-512.png`
 - Grafica prezentată (1024×500): `docs/play/feature-graphic-1024x500-ro.png` (română) și `docs/play/feature-graphic-1024x500.png` (engleză)
-- Capturile de ecran trebuie refăcute: noul ecran Azi cu „Lumi îți propune”, Galerie, poza mare, Mai frumoasă, Evenimente. Pe Azi trebuie să se vadă cardurile lui Lumi.
+- Capturile de ecran trebuie refăcute: noul ecran Azi cu „Cherrypic îți propune”, Galerie, poza mare, Mai frumoasă, Evenimente. Pe Azi trebuie să se vadă propunerile AI-ului.
 
 ## Română (ro-RO), limba implicită
 
@@ -26,7 +26,7 @@ Curăță galeria: AI-ul păstrează cele mai bune poze, șterge duplicate și n
 ```
 Faci 30 de poze pe zi și păstrezi 4? Cherrypic le alege pentru tine — ca tine.
 
-Cherrypic e AI-ul care îți învață gustul. Lumi, asistentul din aplicație, citește galeria, alege cele mai bune poze din fiecare moment și vine singur cu propuneri: „Am găsit 12 serii de poze aproape la fel — păstrez cea mai bună din fiecare?”
+Cherrypic e AI-ul care îți învață gustul. AI-ul aplicației citește galeria, alege cele mai bune poze din fiecare moment și vine singur cu propuneri: „Am găsit 12 serii de poze aproape la fel — păstrez cea mai bună din fiecare?”
 
 ★ ALEGE CA TINE
 • Învață din fiecare „Păstrez” și „Nu azi” și îți arată cât de des alege ca tine
@@ -52,10 +52,10 @@ Cherrypic e AI-ul care îți învață gustul. Lumi, asistentul din aplicație, 
 
 ★ PRIVATĂ
 • Analiza se face pe telefon. Nicio poză nu pleacă fără acordul tău
-• Lumi Cloud (opțional, oprit implicit): a doua părere pentru pozele nesigure
+• Cherrypic Cloud (opțional, oprit implicit): a doua părere pentru pozele nesigure
 
 Gratuit: sortare, curățenie, galerie, căutare, oameni, editare.
-Cherrypic Pro: Lumi decide singur toate pozele (tu doar te uiți), arhiva și exportul. 7 zile de probă.
+Cherrypic Pro: AI-ul decide singur toate pozele (tu doar te uiți), arhiva și exportul. 7 zile de probă.
 ```
 
 ## English (en-US)
@@ -74,7 +74,7 @@ AI picks your best photos, cleans duplicates & blurry shots. Learns your taste.
 ```
 Take 30 photos a day and keep 4? Cherrypic picks them for you — the way you would.
 
-Cherrypic is the AI that learns your taste. Lumi, the in-app assistant, reads your gallery, picks the best shot of every moment and comes to you with suggestions: "I found 12 sets of near-identical photos — keep the best of each?"
+Cherrypic is the AI that learns your taste. The in-app AI reads your gallery, picks the best shot of every moment and comes to you with suggestions: "I found 12 sets of near-identical photos — keep the best of each?"
 
 ★ PICKS LIKE YOU
 • Learns from every Keep and Not today, and shows how often it agrees with you
@@ -100,17 +100,17 @@ Cherrypic is the AI that learns your taste. Lumi, the in-app assistant, reads yo
 
 ★ PRIVATE
 • Analysis runs on your phone. No photo leaves it without your consent
-• Lumi Cloud (optional, off by default): a second opinion on unsure photos
+• Cherrypic Cloud (optional, off by default): a second opinion on unsure photos
 
 Free: sorting, cleanup, gallery, search, people, editing.
-Cherrypic Pro: Lumi decides every photo for you, plus archive and export. 7-day free trial.
+Cherrypic Pro: the AI decides every photo for you, plus archive and export. 7-day free trial.
 ```
 
 ## Cuvinte-cheie de urmărit (titlu, descrieri, răspunsuri la recenzii)
 photo cleaner, best photo picker, duplicate photos, similar photos, blurry photos, gallery cleaner, photo organizer, AI photo, cull photos, free up space · curățare galerie, poze duplicate, poze neclare, cele mai bune poze, organizator poze
 
 ## Data safety: ce s-a schimbat față de fișa veche
-Lumi Cloud e opțional și oprit implicit, dar când e pornit trimite poze. În formularul Data safety:
+Cherrypic Cloud e opțional și oprit implicit, dar când e pornit trimite poze. În formularul Data safety:
 - **Photos and videos → Photos: Collected**, cu bifele:
   - Optional (utilizatorul alege);
   - Processed ephemerally (nu se păstrează);
@@ -118,4 +118,4 @@ Lumi Cloud e opțional și oprit implicit, dar când e pornit trimite poze. În 
   - Criptat în tranzit (HTTPS).
 - **Device or other IDs**: identificatorul aleator al instalării, folosit pentru limita zilnică. Bife: Collected, Optional, App functionality, ephemeral.
 - **Shared with third parties: Nu.** Cloudflare procesează pozele în numele aplicației. Pentru Play, un furnizor care procesează datele în numele tău nu înseamnă „partajare”.
-- Politica de confidențialitate (`public/privacy-policy.html`) e actualizată cu secțiunea Lumi Cloud și cu noul nume.
+- Politica de confidențialitate (`public/privacy-policy.html`) e actualizată cu secțiunea Cherrypic Cloud și cu noul nume.

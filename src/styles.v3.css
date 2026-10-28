@@ -393,3 +393,36 @@ h1, h2, h3, .brand-name { font-family: var(--font-display); letter-spacing: -0.0
 .ap-training { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
 .today-accept-all { display: flex; align-items: center; justify-content: center; gap: 8px; }
 .today-pro { font-size: 10px; padding: 2px 6px; border-radius: 6px; background: var(--accent-gradient); color: var(--on-accent); letter-spacing: 0.08em; }
+
+/* Prima pornire, ecranul 1: scena cu poze și sigla */
+.fr-hero { align-items: center; text-align: center; gap: 14px; }
+.fr-stage { position: relative; width: 280px; height: 230px; margin: 4px auto 6px; }
+.fr-stage::before { content: ''; position: absolute; inset: 10% 5%; border-radius: 50%; background: radial-gradient(circle, rgb(255 59 107 / .28), rgb(124 92 255 / .18) 45%, transparent 70%); filter: blur(18px); }
+.fr-card { position: absolute; top: 46px; left: 50%; width: 118px; height: 150px; margin-left: -59px; border-radius: 18px; overflow: hidden;
+  background: linear-gradient(180deg, #7dd3fc 0%, #a5b4fc 55%, #f0abfc 100%); box-shadow: 0 18px 40px -14px rgb(0 0 0 / .7), 0 0 0 1px rgb(255 255 255 / .12) inset; }
+.fr-card .sun { position: absolute; top: 22px; right: 22px; width: 26px; height: 26px; border-radius: 50%; background: #fff6c9; box-shadow: 0 0 18px #fff3a8; }
+.fr-card .hill { position: absolute; left: -20%; right: -20%; bottom: -30%; height: 70%; border-radius: 50% 50% 0 0; background: linear-gradient(180deg, #34d399, #0f766e); }
+.fr-card b { position: absolute; right: 8px; bottom: 8px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; color: #fff; background: rgb(15 15 25 / .55); }
+.fr-card b.ok { background: linear-gradient(135deg, #34d399, #10b981); box-shadow: 0 0 16px rgb(52 211 153 / .7); animation: fr-pop 2.8s ease-in-out infinite; }
+.fr-card.left { transform: translateX(-88px) rotate(-12deg) scale(.86); filter: saturate(.6) brightness(.7); animation: fr-left 4s ease-in-out infinite; }
+.fr-card.right { transform: translateX(88px) rotate(12deg) scale(.86); filter: saturate(.6) brightness(.7); animation: fr-right 4s ease-in-out infinite; }
+.fr-card.mid { z-index: 2; animation: fr-float 4s ease-in-out infinite; }
+.fr-logo { position: absolute; z-index: 3; left: 50%; top: 0; width: 72px; height: 72px; margin-left: -36px; border-radius: 20px; box-shadow: 0 12px 30px -8px rgb(0 0 0 / .8), 0 0 0 1px rgb(255 255 255 / .14); }
+.fr-spark { position: absolute; z-index: 3; color: #fff; text-shadow: 0 0 12px #c084fc; animation: fr-twinkle 2.4s ease-in-out infinite; }
+.fr-spark.s1 { left: 18px; top: 34px; font-size: 22px; }
+.fr-spark.s2 { right: 26px; top: 8px; font-size: 14px; animation-delay: 1.2s; }
+@keyframes fr-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@keyframes fr-left { 0%, 100% { transform: translateX(-88px) rotate(-12deg) scale(.86); } 50% { transform: translateX(-94px) rotate(-14deg) scale(.86); } }
+@keyframes fr-right { 0%, 100% { transform: translateX(88px) rotate(12deg) scale(.86); } 50% { transform: translateX(94px) rotate(14deg) scale(.86); } }
+@keyframes fr-pop { 0%, 60%, 100% { transform: scale(1); } 70% { transform: scale(1.25); } }
+@keyframes fr-twinkle { 0%, 100% { opacity: .35; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.15); } }
+.fr-brand { font-family: var(--font-display); font-weight: 700; font-size: 15px; letter-spacing: .14em; text-transform: uppercase;
+  background: linear-gradient(90deg, #ff6b8b, #c084fc, #7dd3fc); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.fr-hero .fr-title { font-size: 40px; }
+.fr-sub { margin: 0; max-width: 330px; font-size: 15.5px; line-height: 1.45; color: var(--text-dim, #a6adbb); }
+.fr-feats { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 4px 0 6px; }
+.fr-feats span { display: inline-flex; align-items: center; gap: 7px; padding: 9px 13px; border-radius: 999px; font-size: 13px; font-weight: 600;
+  border: 1px solid rgb(255 255 255 / .1); background: rgb(255 255 255 / .05); backdrop-filter: blur(8px); }
+.fr-feats i { font-style: normal; }
+.fr-cta { width: 100%; background: linear-gradient(90deg, #7dd3fc, #a78bfa 55%, #f0abfc); box-shadow: 0 14px 34px -12px rgb(167 139 250 / .8); }
+@media (prefers-reduced-motion: reduce) { .fr-card, .fr-card b.ok, .fr-spark { animation: none; } }

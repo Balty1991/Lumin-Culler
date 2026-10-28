@@ -82,16 +82,25 @@ export function FirstRun({ onPickManually }: { onPickManually: () => void }) {
         <span className="sr-only" role="status" aria-live="polite">{tr('welcome.progress', { current: step + 1, total: 3 })}</span>
 
         {step === 0 && (
-          <section className="fr-step" key="intro">
-            <div className="fr-orb" aria-hidden="true"><span /><span /><span /></div>
-            <span className="v3-kicker">{tr('fr.kicker')}</span>
-            <h1 className="fr-title">{tr('fr.title')}<br /><em>{tr('fr.titleAccent')}</em></h1>
-            <ul className="fr-promises">
-              <li><b className="v3-mono">01</b><span>{tr('fr.promise1')}</span></li>
-              <li><b className="v3-mono">02</b><span>{tr('fr.promise2')}</span></li>
-              <li><b className="v3-mono">03</b><span>{tr('fr.promise3')}</span></li>
-            </ul>
-            <button className="v3-cta" onClick={() => setStep(1)}>
+          <section className="fr-step fr-hero" key="intro">
+            {/* Scena: trei „poze”, cea din mijloc e aleasă (bifa), celelalte se retrag;
+                deasupra, sigla. Arată ce face aplicația înainte de orice cuvânt. */}
+            <div className="fr-stage" aria-hidden="true">
+              <div className="fr-card left"><i className="sun" /><i className="hill" /><b>✕</b></div>
+              <div className="fr-card right"><i className="sun" /><i className="hill" /><b>✕</b></div>
+              <div className="fr-card mid"><i className="sun" /><i className="hill" /><b className="ok">✓</b></div>
+              <img className="fr-logo" src="icon-192.png" alt="" />
+              <span className="fr-spark s1">✦</span><span className="fr-spark s2">✦</span>
+            </div>
+            <span className="fr-brand">Cherrypic</span>
+            <h1 className="fr-title">{tr('fr.hero.title')} <em>{tr('fr.hero.accent')}</em></h1>
+            <p className="fr-sub">{tr('fr.hero.sub')}</p>
+            <div className="fr-feats">
+              <span><i>✦</i>{tr('fr.hero.f1')}</span>
+              <span><i>⚡</i>{tr('fr.hero.f2')}</span>
+              <span><i>🔒</i>{tr('fr.hero.f3')}</span>
+            </div>
+            <button className="v3-cta fr-cta" onClick={() => setStep(1)}>
               <span>{tr('fr.start')}</span><span className="v3-mono">→</span>
             </button>
           </section>
