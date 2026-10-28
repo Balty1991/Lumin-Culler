@@ -1,3 +1,4 @@
+import { Capacitor } from '@capacitor/core';
 import { useMemo, useState } from 'react';
 import { useStore } from '../state/store';
 import { groupDays, type Day } from './days';
@@ -15,6 +16,8 @@ import { CleanupCard } from './Cleanup';
 import { GalleryWall } from './GalleryWall';
 import { canMakePhoneAlbums, copyToPhoneAlbum } from './phoneAlbums';
 import { MomentsView } from './MomentsView';
+import { AsideView } from './AsideView';
+import { decideRestIfAllowed } from './autoSort';
 import type { PhotoView } from '../state/store';
 
 const VIEWS: GalleryView[] = ['wall', 'moments', 'days', 'months', 'people', 'aside'];
@@ -31,7 +34,6 @@ export function DaysScreen() {
   const persons = useStore(s => s.persons);
   const openDay = useLx(s => s.openDay);
   const setOpenDay = useLx(s => s.setOpenDay);
-  const openSort = useLx(s => s.openSort);
   const view = useLx(s => s.galleryView);
   const setView = useLx(s => s.setGalleryView);
   const tr = useTr();
@@ -56,7 +58,10 @@ export function DaysScreen() {
     <div className="lx-screen">
       <header className="lx-head">
         <h1 className="lx-title">{tr('lx.days.title')}</h1>
-        <button className="lx-btn ghost small" onClick={pick}>{tr('lx.addPhotos')}</button>
+        <div className="lx-head-actions">
+          <button className="lx-btn ghost small" onClick={pick}>{tr('lx.addPhotos')}</button>
+          {Capacitor.isNativePlatform() && <SortAllButton small />}
+        </div>
       </header>
 
       <div className="lx-seg scroll" role="tablist">
@@ -85,11 +90,7 @@ export function DaysScreen() {
       {view === 'aside' && (aside.length === 0 ? (
         <p className="lx-empty">{tr('lx.days.asideEmpty')}</p>
       ) : (
-        <>
-          <p className="lx-hint">{tr('lx.days.asideHint')}</p>
-          <PhotoGrid list={aside} title={tr('lx.day.aside')} />
-          <button className="lx-btn ghost wide" onClick={() => openSort(aside.map(p => p.id), tr('lx.day.aside'))}>{tr('lx.days.asideReview')}</button>
-        </>
+        <AsideView aside={aside} />
       ))}
     </div>
   );
@@ -130,7 +131,7 @@ function MonthsView({ days }: { days: Day<PhotoView>[] }) {
           <div><b>{missing}</b><span>{tr('lx.months.untouched')}</span></div>
         </section>
         {missing > 0 && (
-          <button className="lx-btn primary wide" disabled={busy} onClick={() => void importGalleryPeriod({ start: openRow.start, end: openRow.end })}>
+          <button className="lx-btn primary wide" disabled={busy} onClick={() => void importGalleryPeriod({ start: openRow.start, end: openRow.end }).then(() => decideRestIfAllowed())}>
             {tr('lx.months.sortMissing', { count: missing })}
           </button>
         )}
@@ -160,6 +161,7 @@ function MonthsView({ days }: { days: Day<PhotoView>[] }) {
           <span>{tr('lx.months.summarySub', { sorted: totals.seen - totals.waiting, total: totals.gallery, unsorted: Math.max(0, totals.gallery - totals.seen + totals.waiting) })}</span>
           <div className="lx-progress"><i style={{ width: `${percent}%` }} /></div>
         </div>
+        {totals.gallery > totals.seen && <SortAllButton count={totals.gallery - totals.seen} />}
       </section>
       <div className="lx-months">
         {rows.map(r => {
@@ -175,7 +177,7 @@ function MonthsView({ days }: { days: Day<PhotoView>[] }) {
                 <div className="lx-progress small"><i style={{ width: `${ratio}%` }} /></div>
               </div>
               {missing > 0 ? (
-                <button className="lx-btn small primary" disabled={busy} onClick={e => { e.stopPropagation(); void importGalleryPeriod({ start: r.start, end: r.end }); }}>
+                <button className="lx-btn small primary" disabled={busy} onClick={e => { e.stopPropagation(); void importGalleryPeriod({ start: r.start, end: r.end }).then(() => decideRestIfAllowed()); }}>
                   {tr('lx.months.sort')}
                 </button>
               ) : r.waiting > 0 ? (
@@ -385,5 +387,24 @@ function DayCards({ days }: { days: Day<PhotoView>[] }) {
         </button>
       ))}
     </div>
+  );
+}
+
+/**
+ * „Sortează toată galeria”: aduce toate pozele din telefon pe care Lumi nu le-a
+ * văzut încă și le sortează (după autonomia aleasă). Cerut: „buton de adăugare
+ * și sortare întreagă galerie”.
+ */
+function SortAllButton({ count, small }: { count?: number; small?: boolean }) {
+  const tr = useTr();
+  const importGalleryPeriod = useStore(s => s.importGalleryPeriod);
+  const progress = useStore(s => s.progress);
+  const importing = useStore(s => s.supervisorImporting);
+  const busy = importing || (!!progress && progress.phase !== 'finalizat');
+  const run = () => void importGalleryPeriod({ start: 0, end: Date.now() + 86_400_000 }).then(() => decideRestIfAllowed());
+  return (
+    <button className={small ? 'lx-btn primary small' : 'lx-btn primary wide'} disabled={busy} onClick={run}>
+      {busy ? tr('lx.sortAll.busy') : count ? tr('lx.sortAll.count', { count }) : tr('lx.sortAll.short')}
+    </button>
   );
 }

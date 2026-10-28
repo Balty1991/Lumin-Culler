@@ -2641,6 +2641,22 @@ export const ro = {
   "lx.enhance.style.clear": "Clară",
   "lx.enhance.style.film": "Film",
   "lx.enhance.style.bw": "Alb-negru",
+  "lx.aside.all": "Toate",
+  "lx.aside.loose": "Fără dosar",
+  "lx.aside.select": "Selectează",
+  "lx.aside.selectAll": "Toate",
+  "lx.aside.none": "Niciuna",
+  "lx.aside.selectHint": "Atinge pozele pe care le vrei. Ții apăsat pe o poză ca să începi selecția.",
+  "lx.aside.picked": "{count} alese",
+  "lx.aside.delete": "Șterge",
+  "lx.aside.outOfFolder": "Scoate din dosar",
+  "lx.aside.deleteFolder": "Desfă dosarul „{name}” (pozele rămân)",
+  "lx.aside.folderTitle": "Pune {count} poze într-un dosar",
+  "lx.aside.folderName": "Nume dosar nou (ex. Bonuri)",
+  "lx.aside.create": "Creează",
+  "lx.sortAll.short": "Sortează tot",
+  "lx.sortAll.count": "Adaugă și sortează toată galeria ({count})",
+  "lx.sortAll.busy": "Lumi sortează…",
 };
 
 export type TranslationKey = keyof typeof ro;
