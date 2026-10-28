@@ -5,6 +5,7 @@ import { capitalizeFirst } from './format';
 import { useLx } from './lxStore';
 import { useTr } from './context';
 import { Thumb } from './Thumb';
+import { canMakePhoneAlbums, copyToPhoneAlbum } from './phoneAlbums';
 import type { PhotoView } from '../state/store';
 
 /**
@@ -68,6 +69,7 @@ function AlbumView({ album, onBack }: { album: MomentAlbum<PhotoView>; onBack: (
       <div className="lx-decide-actions">
         {waiting.length > 0 && <button className="lx-btn primary" onClick={() => openSort(waiting.map(p => p.id), title)}>{tr('lx.today.check')} · {waiting.length}</button>}
         {kept.length > 0 && <button className="lx-btn ghost" onClick={() => void exportSelection('apps', kept.map(p => p.id))}>{tr('lx.day.share', { count: kept.length })}</button>}
+        {kept.length > 0 && canMakePhoneAlbums() && <button className="lx-btn ghost" onClick={() => void copyToPhoneAlbum(title, kept)}>{tr('lx.phone.toAlbum')}</button>}
       </div>
       <div className="lx-wall">
         {album.photos.map((p, i) => (

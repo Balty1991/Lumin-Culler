@@ -15,6 +15,7 @@ import { dayLabel, daySummary } from './format';
 import { buildCoverage, useGalleryMonths } from './coverage';
 import { CleanupCard } from './Cleanup';
 import { onThisDay } from './momentAlbums';
+import { Recaps } from './Recaps';
 
 /**
  * lumin/TodayScreen.tsx
@@ -147,6 +148,7 @@ export function TodayScreen() {
         </section>
       )}
 
+      <Recaps />
       <OnThisDay />
 
       <GalleryStatus />

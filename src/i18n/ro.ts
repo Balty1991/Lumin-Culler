@@ -2476,6 +2476,20 @@ export const ro = {
   "lx.moments.part.night": "noaptea",
   "lx.onThisDay": "Acum {years} an",
   "lx.onThisDay.other": "Acum {years} ani",
+  "lx.phone.toAlbum": "În galeria telefonului",
+  "lx.phone.nothing": "Albumul „{album}” e deja în galeria telefonului.",
+  "lx.phone.copying": "Copiez {count} poze în albumul „{album}”…",
+  "lx.phone.copied": "Gata: {count} poze în Pictures/Lumin/{album}. Le vezi în galeria telefonului.",
+  "lx.phone.organize": "Ordonează galeria telefonului",
+  "lx.phone.organizeSub": "Copiază pozele păstrate în albume pe luni (Pictures/Lumin). Originalele rămân unde sunt.",
+  "lx.phone.organized": "Gata: {count} poze noi în {albums} albume Lumin din galeria telefonului.",
+  "lx.recap.week.title": "Săptămâna ta în {count} poze",
+  "lx.recap.week.sub": "Câte una pe zi, cea mai bună. Gata de trimis.",
+  "lx.recap.year.title": "Anul tău {year} în poze",
+  "lx.recap.year.sub": "{count} poze păstrate anul ăsta",
+  "lx.recap.year.cta": "Câte una pe lună, cele mai bune ale tale.",
+  "lx.recap.share": "Trimite",
+  "lx.recap.failed": "N-am putut face colajul. Încearcă din nou.",
 };
 
 export type TranslationKey = keyof typeof ro;

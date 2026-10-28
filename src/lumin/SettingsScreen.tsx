@@ -4,6 +4,7 @@ import type { Theme } from '../state/theme';
 import { requestNotificationAccess, isNativeNotificationsAvailable } from '../core/nativeNotifications';
 import { useLx } from './lxStore';
 import { useTr } from './context';
+import { canMakePhoneAlbums, organizeKeptByMonth } from './phoneAlbums';
 
 const STRICTNESS: CullingStrictness[] = ['lax', 'balanced', 'strict'];
 const THEMES: Theme[] = ['dark', 'light', 'auto'];
@@ -92,6 +93,12 @@ export function SettingsScreen() {
 
       <section className="lx-group">
         <h2>{tr('lx.settings.data')}</h2>
+        {canMakePhoneAlbums() && (
+          <button className="lx-row button" onClick={() => void organizeKeptByMonth()}>
+            <span><b>{tr('lx.phone.organize')}</b><small>{tr('lx.phone.organizeSub')}</small></span>
+            <span className="lx-chev" aria-hidden="true">›</span>
+          </button>
+        )}
         <button className="lx-row button" onClick={() => void exportBackup()}>
           <span><b>{tr('lx.settings.backup')}</b><small>{tr('lx.settings.backupSub')}</small></span>
           <span className="lx-chev" aria-hidden="true">›</span>

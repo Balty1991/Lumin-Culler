@@ -10,6 +10,7 @@ import { Thumb } from './Thumb';
 import { PeopleGrid } from './People';
 import { CleanupCard } from './Cleanup';
 import { GalleryWall } from './GalleryWall';
+import { canMakePhoneAlbums, copyToPhoneAlbum } from './phoneAlbums';
 import { MomentsView } from './MomentsView';
 import type { PhotoView } from '../state/store';
 
@@ -251,7 +252,10 @@ function DayView({ day, onBack }: { day: Day<PhotoView>; onBack: () => void }) {
         <section className="lx-section">
           <div className="lx-section-head">
             <h2>{tr('lx.day.kept')}</h2>
-            <button className="lx-link" onClick={() => void exportSelection('apps', day.kept.map(p => p.id))}>{tr('lx.day.share', { count: day.kept.length })}</button>
+            <span className="lx-links">
+              {canMakePhoneAlbums() && <button className="lx-link" onClick={() => void copyToPhoneAlbum(label, day.kept)}>{tr('lx.phone.toAlbum')}</button>}
+              <button className="lx-link" onClick={() => void exportSelection('apps', day.kept.map(p => p.id))}>{tr('lx.day.share', { count: day.kept.length })}</button>
+            </span>
           </div>
           <PhotoGrid list={day.kept} title={tr('lx.day.kept')} />
         </section>
