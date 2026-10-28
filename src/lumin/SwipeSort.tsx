@@ -5,7 +5,7 @@ import { recordDailyGuess } from '../core/tasteScore';
 import { recordPersonDecision } from '../core/personTaste';
 import { recordTwinDecision } from './twin';
 import { SELECT_THRESHOLD, REJECT_THRESHOLD } from '../core/importPipeline';
-import { reasonsFor } from './reasons';
+import { personalWhy, useWhyContext } from './why';
 import { useLx } from './lxStore';
 import { useTr } from './context';
 import { Thumb } from './Thumb';
@@ -32,6 +32,7 @@ export function SwipeSort() {
   const setStatus = useStore(s => s.setStatus);
   const undo = useStore(s => s.undo);
   const tr = useTr();
+  const why = useWhyContext();
 
   const [index, setIndex] = useState(0);
   const [dx, setDx] = useState(0);
@@ -149,9 +150,7 @@ export function SwipeSort() {
                   <i className="lx-dot" />{tr(`lx.ai.${ai}`)}
                   <b>{current.aiScore}</b>
                 </span>
-                <div className="lx-chips">
-                  {reasonsFor(current).map(r => <span key={r.key} className={`lx-chip ${r.tone}`}>{tr(r.key)}</span>)}
-                </div>
+                <p className="lx-why">{personalWhy(current, why, tr)}</p>
                 {seriesBest && (
                   <span className="lx-series-note">
                     {seriesBest.id === current.id

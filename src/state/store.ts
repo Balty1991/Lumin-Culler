@@ -964,6 +964,12 @@ interface AppState {
    * Cu `newName`, aceleași fețe primesc numele corect.
    */
   correctPersonFaces: (name: string, photoIds: string[], newName?: string) => Promise<number>;
+  /**
+   * Curățenie: pune pozele la „Nu azi” FĂRĂ să fie lecții de gust (o captură de
+   * ecran veche nu spune nimic despre ce poze îți plac), apoi cere ștergerea lor
+   * din telefon (confirmarea Android, coșul galeriei).
+   */
+  trashPhotos: (ids: string[]) => Promise<{ deleted: number; cancelled: boolean }>;
   /** Pune numele pe un grup de același animal. Nu trece prin plafonul de persoane. */
   enrollPetCluster: (name: string, members: { photoId: string }[]) => Promise<void>;
   setPersonsOpen: (open: boolean) => void;
@@ -4669,6 +4675,17 @@ export const useStore = create<AppState>((set, get) => ({
       persons, photos: views,
       notice: t(get().locale, 'store.faceCluster.enrolled', { name: trimmedName, detections: members.length, photos: photoIds.length })
     });
+  },
+
+  trashPhotos: async ids => {
+    const byId = new Map(get().photos.map(p => [p.id, p]));
+    const targets = ids.filter(id => byId.get(id)?.mediaUri && byId.get(id)?.status !== 'selected');
+    if (!targets.length) return { deleted: 0, cancelled: false };
+    await applyBulkStatusChanges(targets.map(id => ({ id, status: 'rejected' as const })), () => null);
+    const set_ = new Set(targets);
+    set(state => ({ photos: state.photos.map(p => (set_.has(p.id) ? { ...p, status: 'rejected' as const } : p)) }));
+    const r = await get().deleteRejectedPhotos(targets);
+    return { deleted: r.deleted, cancelled: r.cancelled };
   },
 
   correctPersonFaces: async (name, photoIds, newName) => {

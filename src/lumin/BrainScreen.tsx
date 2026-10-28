@@ -9,6 +9,7 @@ import { favoritePeople } from '../core/personTaste';
 import { openTasteQuiz } from '../state/tasteQuiz';
 import { useTr } from './context';
 import { AutonomyPicker, FreedCard, TwinHero } from './TwinParts';
+import { Housekeeping } from './Housekeeping';
 
 /**
  * lumin/BrainScreen.tsx
@@ -84,6 +85,7 @@ export function BrainScreen() {
       </section>
 
       <FreedCard />
+      <Housekeeping />
 
       <section className="lx-stats four">
         <div><b>{memory.seen}</b><span>{tr('lx.brain.seen')}</span></div>

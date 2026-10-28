@@ -55,3 +55,21 @@ export async function organizeKeptByMonth(): Promise<number> {
   useStore.getState().setNotice(t(locale, 'lx.phone.organized', { count: total, albums: byMonth.size }));
   return total;
 }
+
+/** Câte un album pe om, cu pozele păstrate în care apare: „Angi”, „Alin”. */
+export async function organizeKeptByPeople(): Promise<number> {
+  const { photos, locale } = useStore.getState();
+  const byPerson = new Map<string, PhotoView[]>();
+  for (const p of photos) {
+    if (p.status !== 'selected' || p.aside) continue;
+    for (const n of p.personNames) {
+      const list = byPerson.get(n) ?? [];
+      list.push(p);
+      byPerson.set(n, list);
+    }
+  }
+  let total = 0;
+  for (const [name, list] of byPerson) total += await copyToPhoneAlbum(name, list);
+  useStore.getState().setNotice(t(locale, 'lx.phone.organized', { count: total, albums: byPerson.size }));
+  return total;
+}

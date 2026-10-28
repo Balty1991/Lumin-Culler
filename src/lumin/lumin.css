@@ -690,3 +690,14 @@ body.lx-viewer-open .lx-hero-media img { animation-play-state: paused; }
 .lx-enhance-amount { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-dim); margin-bottom: 8px; }
 .lx-enhance-amount input { flex: 1; accent-color: var(--accent); }
 .lx-enhance-amount b { font-family: var(--mono); font-size: 12px; min-width: 40px; text-align: right; color: #fff; }
+/* De ce, spus de Lumi */
+.lx-why { margin: 0; font-size: 14px; line-height: 1.45; color: #e8ecf5; }
+.lx-why::first-letter { text-transform: uppercase; }
+.lx-card-ai .lx-why { font-size: 13.5px; color: #f1f4fa; text-shadow: 0 1px 8px rgb(0 0 0 / .6); }
+.lx-daystory { margin-bottom: 14px; align-items: stretch; }
+.lx-daystory-img { flex: none; width: 84px; height: 84px; border-radius: 16px; object-fit: cover; }
+.lx-daystory p { margin: 4px 0 0; font-size: 14px; line-height: 1.5; color: var(--text); }
+.lx-housekeeping { margin-bottom: 8px; }
+.lx-clean-row { margin-bottom: 10px; }
+.lx-clean-row .lx-btn { flex: none; }
+.lx-trial-link { align-self: center; margin-top: 4px; font-size: 13px; }

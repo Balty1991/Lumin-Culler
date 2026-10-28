@@ -7,7 +7,7 @@ import { useLx } from './lxStore';
 import { useTr } from './context';
 import { useState } from 'react';
 import { SORT_MODES, readSortMode, writeSortMode, type SortMode } from '../core/sortMode';
-import { canMakePhoneAlbums, organizeKeptByMonth } from './phoneAlbums';
+import { canMakePhoneAlbums, organizeKeptByMonth, organizeKeptByPeople } from './phoneAlbums';
 
 const STRICTNESS: CullingStrictness[] = ['lax', 'balanced', 'strict'];
 const THEMES: Theme[] = ['dark', 'light', 'auto'];
@@ -126,6 +126,12 @@ export function SettingsScreen() {
         {canMakePhoneAlbums() && (
           <button className="lx-row button" onClick={() => void organizeKeptByMonth()}>
             <span><b>{tr('lx.phone.organize')}</b><small>{tr('lx.phone.organizeSub')}</small></span>
+            <span className="lx-chev" aria-hidden="true">›</span>
+          </button>
+        )}
+        {canMakePhoneAlbums() && (
+          <button className="lx-row button" onClick={() => void organizeKeptByPeople()}>
+            <span><b>{tr('lx.phone.organizePeople')}</b><small>{tr('lx.phone.organizePeopleSub')}</small></span>
             <span className="lx-chev" aria-hidden="true">›</span>
           </button>
         )}

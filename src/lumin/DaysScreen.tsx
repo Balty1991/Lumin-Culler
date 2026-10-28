@@ -8,6 +8,7 @@ import { useLx, type GalleryView } from './lxStore';
 import { useLxActions, useTr } from './context';
 import { Thumb } from './Thumb';
 import { StoryButton } from './Story';
+import { learnFromShare } from './signals';
 import { PeopleGrid } from './People';
 import { CleanupCard } from './Cleanup';
 import { GalleryWall } from './GalleryWall';
@@ -230,6 +231,9 @@ function PersonView({ name, list, onBack, onRenamed }: { name: string; list: Pho
         </button>
       </header>
       {editing && <p className="lx-hint">{tr('lx.people.correctHint', { name })}</p>}
+      {!editing && canMakePhoneAlbums() && list.some(p => p.status === 'selected') && (
+        <button className="lx-btn ghost wide" onClick={() => void copyToPhoneAlbum(name, list.filter(p => p.status === 'selected'))}>{tr('lx.phone.personAlbum', { name })}</button>
+      )}
       <div className="lx-grid">
         {list.map(p => (
           <button key={p.id} className={`lx-grid-cell ${p.status}${editing ? ' picking' : ''}${picked.has(p.id) ? ' picked' : ''}`}
@@ -303,7 +307,7 @@ function DayView({ day, onBack }: { day: Day<PhotoView>; onBack: () => void }) {
             <h2>{tr('lx.day.kept')}</h2>
             <span className="lx-links">
               {canMakePhoneAlbums() && <button className="lx-link" onClick={() => void copyToPhoneAlbum(label, day.kept)}>{tr('lx.phone.toAlbum')}</button>}
-              <button className="lx-link" onClick={() => void exportSelection('apps', day.kept.map(p => p.id))}>{tr('lx.day.share', { count: day.kept.length })}</button>
+              <button className="lx-link" onClick={() => void exportSelection('apps', day.kept.map(p => p.id)).then(() => learnFromShare(day.kept))}>{tr('lx.day.share', { count: day.kept.length })}</button>
               <StoryButton ids={day.kept.map(p => p.id)} title={capitalizeFirst(label)} subtitle={tr('lx.story.daySub', { count: day.kept.length })} />
             </span>
           </div>

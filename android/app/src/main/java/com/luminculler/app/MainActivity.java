@@ -12,6 +12,7 @@ import com.luminculler.app.plugins.StageOnePlugin;
 import com.luminculler.app.plugins.ImageAnalysisPlugin;
 import com.luminculler.app.plugins.FaceEmbedPlugin;
 import com.luminculler.app.plugins.SharpImagePlugin;
+import com.luminculler.app.plugins.VideoConvertPlugin;
 import com.luminculler.app.plugins.ImageLabelingPlugin;
 import com.luminculler.app.plugins.ObjectDetectionPlugin;
 import com.luminculler.app.plugins.FaceMeshPlugin;
@@ -166,6 +167,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(ImageEmbedderPlugin.class);
         registerPlugin(FaceEmbedPlugin.class);
         registerPlugin(SharpImagePlugin.class);
+        registerPlugin(VideoConvertPlugin.class);
         registerPlugin(FolderExportPlugin.class);
         registerPlugin(MediaLibraryPlugin.class);
         registerPlugin(NotificationsPlugin.class);

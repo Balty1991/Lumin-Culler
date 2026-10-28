@@ -189,6 +189,9 @@ dependencies {
     implementation "com.google.android.play:review:$playReviewVersion"
     // Recunoașterea fețelor pe telefon (plugins/FaceEmbedPlugin.kt): ONNX Runtime, licență MIT.
     implementation "com.microsoft.onnxruntime:onnxruntime-android:1.19.2"
+    // Film mp4 (H.264) din WebM-ul înregistrat în WebView — plugins/VideoConvertPlugin.kt. Apache-2.0.
+    implementation "androidx.media3:media3-transformer:1.4.1"
+    implementation "androidx.media3:media3-common:1.4.1"
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"

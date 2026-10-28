@@ -6,6 +6,8 @@ import { photoTime } from './days';
 import { monthLabel } from './format';
 import { monthStart } from './coverage';
 import { reasonsFor } from './reasons';
+import { personalWhy, useWhyContext } from './why';
+import { learnFromOpen, learnFromShare } from './signals';
 import { useTr } from './context';
 import { Thumb } from './Thumb';
 import { searchPhotos } from './textSearch';
@@ -389,6 +391,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar, origin = null
 }) {
   const [enhancing, setEnhancing] = useState(false);
   const tr = useTr();
+  const why = useWhyContext();
   const locale = useStore(s => s.locale);
   const setStatus = useStore(s => s.setStatus);
   const exportSelection = useStore(s => s.exportSelection);
@@ -443,7 +446,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar, origin = null
     else run();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  useEffect(() => { setZoom({ s: 1, x: 0, y: 0 }); }, [p.id]);
+  useEffect(() => { setZoom({ s: 1, x: 0, y: 0 }); learnFromOpen(p); }, [p.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // Cât e deschisă poza mare, galeria din spate nu se mai desenează: memoria
   // grafică rămâne pentru poza mare (altfel apărea neclară sau pe bucăți).
   useEffect(() => {
@@ -471,7 +474,22 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar, origin = null
     setDir(step > 0 ? 'next' : 'prev');
     onIndex(next);
   };
+  // Două degete: mărire liberă (1–4×).
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef<{ d: number; s: number } | null>(null);
+  const spread = () => {
+    const [a, b] = [...pointers.current.values()];
+    return Math.hypot(a.x - b.x, a.y - b.y);
+  };
   const onDown = (e: PointerEvent<HTMLDivElement>) => {
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    e.currentTarget.setPointerCapture(e.pointerId);
+    if (pointers.current.size === 2) {
+      pinch.current = { d: spread(), s: zoom.s };
+      start.current = null;
+      place(0, 0);
+      return;
+    }
     // Dublă atingere: mărește de 2,5× acolo unde ai atins (sau revine).
     const now = Date.now();
     if (now - lastTap.current < 280) {
@@ -486,6 +504,13 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar, origin = null
     e.currentTarget.setPointerCapture(e.pointerId);
   };
   const onMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (pointers.current.has(e.pointerId)) pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch.current && pointers.current.size === 2) {
+      const ratio = spread() / (pinch.current.d || 1);
+      const next = Math.max(1, Math.min(4, pinch.current.s * ratio));
+      setZoom(z => ({ s: next, x: next === 1 ? 0 : z.x, y: next === 1 ? 0 : z.y }));
+      return;
+    }
     if (!start.current) return;
     if (zoom.s > 1) {
       // Mărită: tragi de poză, nu treci la alta.
@@ -499,7 +524,15 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar, origin = null
     g.dy = e.clientY - g.y;
     place(g.dx, g.dy);
   };
-  const onUp = () => {
+  const onUp = (e?: PointerEvent<HTMLDivElement>) => {
+    if (e) pointers.current.delete(e.pointerId);
+    if (pinch.current) {
+      if (pointers.current.size < 2) {
+        pinch.current = null;
+        setZoom(z => (z.s < 1.08 ? { s: 1, x: 0, y: 0 } : z));
+      }
+      return;
+    }
     const g = start.current;
     if (!g) return;
     start.current = null;
@@ -533,6 +566,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar, origin = null
         )}
       </div>
       <div className="lx-viewer-info">
+        <p className="lx-why">{personalWhy(p, why, tr)}</p>
         <div className="lx-chips">
           <span className={`lx-chip ${p.status === 'selected' ? 'good' : p.status === 'rejected' ? 'bad' : 'info'}`}>
             {tr(p.status === 'selected' ? 'lx.wall.state.kept' : p.status === 'rejected' ? 'lx.wall.state.notToday' : 'lx.wall.state.waiting')}
@@ -554,7 +588,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar, origin = null
           <button className={p.status === 'rejected' ? 'lx-round drop on' : 'lx-round drop'} onClick={() => void setStatus(p.id, 'rejected')} aria-label={tr('lx.notToday')}>
             <span>✕</span><small>{tr('lx.notToday')}</small>
           </button>
-          <button className="lx-round" onClick={() => void exportSelection('apps', [p.id])} aria-label={tr('lx.wall.share')}>
+          <button className="lx-round" onClick={() => void exportSelection('apps', [p.id]).then(() => learnFromShare([p]))} aria-label={tr('lx.wall.share')}>
             <span>↗</span><small>{tr('lx.wall.share')}</small>
           </button>
           <button className={p.status === 'selected' ? 'lx-round keep on' : 'lx-round keep'} onClick={() => void setStatus(p.id, 'selected')} aria-label={tr('lx.keep')}>

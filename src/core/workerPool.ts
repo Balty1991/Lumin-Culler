@@ -189,6 +189,11 @@ function deviceMemoryGB(): number | undefined {
  */
 function nativeAnalysisConcurrency(): number {
   const cores = navigator.hardwareConcurrency || 4;
+  // Telefoanele cu memorie multă (6 GB+) duc 3/4 din nuclee, până la 6 poze în
+  // zbor: primul import, cel care durează, se scurtează. Plafonul termic
+  // (thermalConcurrencyCap) îl coboară singur dacă telefonul se încălzește.
+  const mem = deviceMemoryGB();
+  if (mem !== undefined && mem >= 6) return Math.max(2, Math.min(6, Math.floor(cores * 0.75)));
   return Math.max(2, Math.min(4, Math.floor(cores / 2)));
 }
 

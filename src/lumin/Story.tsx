@@ -2,7 +2,34 @@ import { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { isRecapVideoSupported } from '../core/recapVideoRender';
 import { useStore } from '../state/store';
-import { shareCollage } from './collage';
+import { Capacitor, registerPlugin } from '@capacitor/core';
+import { Directory, Filesystem } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
+import { blobToBase64, shareCollage } from './collage';
+
+const VideoConvert = registerPlugin<{ toMp4(o: { path: string }): Promise<{ path: string }> }>('VideoConvert');
+
+/**
+ * Filmul ca mp4: dacă WebView-ul a putut înregistra doar WebM, Android îl
+ * convertește (plugins/VideoConvertPlugin.kt). Dacă nu se poate, trimitem WebM-ul.
+ */
+async function shareFilm(blob: Blob, ext: string, base: string, title: string): Promise<void> {
+  if (ext === 'webm' && Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('VideoConvert')) {
+    try {
+      const written = await Filesystem.writeFile({ path: `${base}.webm`, data: await blobToBase64(blob), directory: Directory.Cache });
+      const { path } = await VideoConvert.toMp4({ path: written.uri });
+      try {
+        await Share.share({ files: [`file://${path}`], title, text: title });
+      } catch (err) {
+        if (!(err instanceof Error && /cancel/i.test(err.message))) throw err;
+      }
+      return;
+    } catch {
+      // conversia n-a mers: trimitem filmul așa cum e
+    }
+  }
+  await shareCollage(blob, `${base}.${ext}`, title);
+}
 import { useTr } from './context';
 import { MIN_STORY_PHOTOS, renderStory } from './storyVideo';
 
@@ -25,9 +52,9 @@ export function StoryButton({ ids, title, subtitle, className = 'lx-link' }: { i
     try {
       const r = await renderStory({ ids, title, subtitle }, setProgress, () => cancelled.current);
       if (!r) return;
-      const name = `lumin-${title.toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'poveste'}.${r.ext}`;
-      setProgress(null);
-      await shareCollage(r.blob, name, title);
+      const base = `lumin-${title.toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'poveste'}`;
+      setProgress(r.ext === 'webm' ? 1 : null);
+      await shareFilm(r.blob, r.ext, base, title);
     } catch {
       setNotice(tr('lx.story.failed'));
     } finally {

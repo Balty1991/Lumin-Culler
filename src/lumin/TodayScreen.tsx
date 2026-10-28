@@ -11,6 +11,7 @@ import { useLxActions, useTr } from './context';
 import { Orb } from './Orb';
 import { Thumb } from './Thumb';
 import { FreedCard } from './TwinParts';
+import { DayStory } from './DayStory';
 import { readTwin } from './twin';
 import { plural } from '../i18n';
 import { dayLabel, daySummary } from './format';
@@ -39,6 +40,18 @@ export function TodayScreen() {
   const setTab = useLx(s => s.setTab);
   const setOpenDay = useLx(s => s.setOpenDay);
   const autoResult = useLx(s => s.autoResult);
+  const gatePremium = useStore(s => s.gatePremium);
+  // Proba Pro, o singură dată: chiar după primul „am sortat singură” — atunci
+  // omul a văzut ce face Lumi și înțelege ce cumpără („Lumi decide tot”).
+  useEffect(() => {
+    if (!autoResult || !premiumLocked) return;
+    try { if (localStorage.getItem('lumin-trial-offered')) return; } catch { return; }
+    const t = window.setTimeout(() => {
+      try { localStorage.setItem('lumin-trial-offered', '1'); } catch { /* fără stocare */ }
+      gatePremium('acceptAll');
+    }, 2500);
+    return () => window.clearTimeout(t);
+  }, [autoResult, premiumLocked, gatePremium]);
   const setAutoResult = useLx(s => s.setAutoResult);
 
   const days = useMemo(() => groupDays(photos), [photos]);
@@ -121,6 +134,7 @@ export function TodayScreen() {
               <button className="lx-btn ghost" onClick={() => { setAutoResult(null); openSort(today.waiting.map(p => p.id), tr('lx.sort.today')); }}>{tr('lx.today.check')}</button>
             )}
           </div>
+          {premiumLocked && <button className="lx-link lx-trial-link" onClick={() => gatePremium('acceptAll')}>{tr('lx.trial.cta')}</button>}
         </section>
       )}
 
@@ -168,6 +182,7 @@ export function TodayScreen() {
         </section>
       )}
 
+      {today && <DayStory photos={today.photos} />}
       <Recaps />
       <OnThisDay />
 
