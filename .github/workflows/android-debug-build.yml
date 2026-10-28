@@ -103,6 +103,22 @@ jobs:
           # pragul de mai jos prinde o lista trunchiata inainte sa ajunga intr-un
           # pachet "verde" in care numele de localitati lipsesc in tacere.
           if [ "$lines" -lt 150000 ]; then echo "::error::lista de localitati pare trunchiata ($lines randuri)" && exit 1; fi
+      - name: Lumi Cloud address
+        # Adresa serverului (server/, Cloudflare Workers AI). Fără secrete sau
+        # dacă nu răspunde, aplicația ascunde Lumi Cloud.
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          url=""
+          if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            sub=$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain" | jq -r '.result.subdomain // empty')
+            if [ -n "$sub" ] && curl -sSf -m 20 -A "Lumin-CI/1.0" "https://lumin-ai.$sub.workers.dev/v1/capabilities" > /dev/null; then
+              url="https://lumin-ai.$sub.workers.dev"
+            fi
+          fi
+          echo "Lumi Cloud: ${url:-(oprit)}"
+          echo "VITE_LUMI_CLOUD_URL=$url" >> "$GITHUB_ENV"
       - name: Build web
         # dev_mode (doar la declansare manuala) seteaza VITE_NATIVE_TEST_BUTTON=true,
         # NU modul de build — ramane un build NORMAL de productie (`vite build`,

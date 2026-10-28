@@ -1,0 +1,142 @@
+# Pune serverul de efecte AI (server/) pe Cloudflare Workers, cu secretele
+# CLOUDFLARE_API_TOKEN și CLOUDFLARE_ACCOUNT_ID din Settings → Secrets.
+# Fără FAL_KEY, serverul merge gratuit pe Workers AI (doar stiluri). La final
+# încearcă un stil pe o poză de test, ca să știm că lanțul merge cap-coadă.
+name: Deploy AI server
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'ccr-**'
+      - 'claude/**'
+      - main
+    paths:
+      - 'server/**'
+      - '.github/workflows/deploy-ai-server.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check secrets
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::error::Lipsesc CLOUDFLARE_API_TOKEN sau CLOUDFLARE_ACCOUNT_ID în Settings → Secrets → Actions"; exit 1
+          fi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install
+        working-directory: server
+        run: npm ci
+      - name: workers.dev subdomain
+        id: sub
+        run: |
+          api=https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain
+          sub=$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$api" | jq -r '.result.subdomain // empty')
+          if [ -z "$sub" ]; then
+            # Contul nou nu are încă subdomeniu: îl creăm o dată, unic după id-ul contului.
+            sub="lumin-${CLOUDFLARE_ACCOUNT_ID:0:8}"
+            curl -sS -X PUT -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "content-type: application/json" \
+              --data "{\"subdomain\":\"$sub\"}" "$api" | jq -c '{success, errors}'
+          fi
+          echo "subdomain=$sub" >> "$GITHUB_OUTPUT"
+          echo "Adresa serverului: https://lumin-ai.$sub.workers.dev"
+      - name: KV namespace
+        working-directory: server
+        run: |
+          id=$(npx wrangler kv namespace list | jq -r '.[] | select(.title | test("LIMITS$")) | .id' | head -1)
+          if [ -z "$id" ]; then
+            npx wrangler kv namespace create LIMITS | tee kv.txt
+            id=$(grep -oE '[0-9a-f]{32}' kv.txt | head -1)
+          fi
+          [ -n "$id" ] || { echo "::error::Nu am putut crea spațiul KV"; exit 1; }
+          sed -i "s/PUNE_AICI_ID_UL_KV/$id/" wrangler.toml
+      - name: Deploy
+        working-directory: server
+        run: npx wrangler deploy
+      - name: Image models available on this account
+        run: |
+          curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/ai/models/search?task=Text-to-Image&per_page=50" \
+            | jq -r '.result[]? | "\(.name) | \(.properties // [] | map("\(.property_id)=\(.value)") | join(", "))"'
+          for m in $(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/ai/models/search?task=Text-to-Image&per_page=50" | jq -r '.result[]?.name'); do
+            echo "== $m"
+            curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/ai/models/schema?model=$m" \
+              | jq -c '.result.input.properties // .result.input | keys? // .' | head -c 600; echo
+          done
+      - name: Smoke test (stil pe o poză de test)
+        run: |
+          base=https://lumin-ai.${{ steps.sub.outputs.subdomain }}.workers.dev
+          sleep 10
+          curl -sS "$base/v1/capabilities"; echo
+          curl -sSfL -o p.jpg https://storage.googleapis.com/mediapipe-assets/portrait.jpg
+          pip install -q pillow
+          python3 - "$base" <<'PY'
+          import base64, json, sys, time, urllib.request, io
+          base = sys.argv[1]
+          # Fără un user-agent cunoscut, Cloudflare respinge cererea (eroarea 1010).
+          UA = "Lumin-CI/1.0"
+          get = lambda u: urllib.request.urlopen(urllib.request.Request(u, headers={"user-agent": UA}))
+          img = base64.b64encode(open("p.jpg", "rb").read()).decode()
+          req = urllib.request.Request(base + "/v1/jobs", data=json.dumps({"kind": "style", "style": "watercolor", "image": img, "installId": "ci-smoke-test-000000"}).encode(), headers={"content-type": "application/json", "user-agent": UA})
+          t = time.time()
+          try:
+              r = json.load(urllib.request.urlopen(req, timeout=120))
+          except urllib.error.HTTPError as e:
+              print("job error", e.code, e.read().decode()); sys.exit(1)
+          print("job", r, round(time.time() - t, 1), "s")
+          st = json.load(get(base + "/v1/jobs/" + r["id"]))
+          print("status", st)
+          png = get(st["url"]).read()
+          print("result bytes", len(png))
+          # Rezultatul, micșorat, în jurnal, ca să poată fi văzut.
+          from PIL import Image
+          im = Image.open(io.BytesIO(png)).convert("RGB"); im.thumbnail((360, 360))
+          b = io.BytesIO(); im.save(b, "JPEG", quality=70); e = base64.b64encode(b.getvalue()).decode()
+          print("BEGIN smoke", len(e))
+          for k in range(0, len(e), 900): print(e[k:k + 900])
+          print("END smoke")
+
+          def post(path, payload):
+              rq = urllib.request.Request(base + path, data=json.dumps(payload).encode(), headers={"content-type": "application/json", "user-agent": UA})
+              try:
+                  return json.load(urllib.request.urlopen(rq, timeout=180))
+              except urllib.error.HTTPError as e:
+                  print(path, "error", e.code, e.read().decode()); return None
+
+          t = time.time()
+          bg = post("/v1/background", {"prompt": "o plajă la apus", "width": 768, "height": 1024, "installId": "ci-smoke-test-000000"})
+          if bg:
+              print("background", bg.get("model"), bg.get("scene"), round(time.time() - t, 1), "s")
+              im = Image.open(io.BytesIO(base64.b64decode(bg["image"]))).convert("RGB"); im.thumbnail((300, 300))
+              b = io.BytesIO(); im.save(b, "JPEG", quality=65); e = base64.b64encode(b.getvalue()).decode()
+              print("BEGIN background", len(e))
+              for k in range(0, len(e), 900): print(e[k:k + 900])
+              print("END background")
+          small = Image.open("p.jpg").convert("RGB"); small.thumbnail((384, 384))
+          b = io.BytesIO(); small.save(b, "JPEG", quality=80); one = base64.b64encode(b.getvalue()).decode()
+          for kind in ["describe", "caption"]:
+              t = time.time()
+              r = post("/v1/describe", {"kind": kind, "images": [one], "lang": "ro", "context": "octombrie 2026", "installId": "ci-smoke-test-000000"})
+              print(kind, round(time.time() - t, 1), "s", json.dumps(r, ensure_ascii=False))
+          r = post("/v1/describe", {"kind": "greeting", "images": [one], "lang": "ro", "context": "Ocazia: zi de naștere. Pentru: Ana, 6 ani. De la: mama.", "installId": "ci-smoke-test-000000"})
+          print("greeting", json.dumps(r, ensure_ascii=False))
+          r = post("/v1/describe", {"kind": "story", "images": [one, one], "lang": "ro", "context": "iulie 2024", "installId": "ci-smoke-test-000000"})
+          print("story", json.dumps(r, ensure_ascii=False))
+          r = post("/v1/concepts", {"query": "tort de ziua mea", "vocab": ["birthday cake", "beach", "snow", "dog", "christmas tree"], "installId": "ci-smoke-test-000000"})
+          print("concepts", json.dumps(r, ensure_ascii=False))
+          # Lumi Cloud: a doua părere pe două poze (aceeași, una întunecată) — verdict, motiv, descriere.
+          dark = small.point(lambda v: v * 0.25)
+          b = io.BytesIO(); dark.save(b, "JPEG", quality=80); two = base64.b64encode(b.getvalue()).decode()
+          t = time.time()
+          r = post("/v1/supervise", {"images": [one, two], "scores": [60, 40], "lang": "ro", "installId": "ci-smoke-test-000000"})
+          print("supervise", round(time.time() - t, 1), "s", json.dumps(r, ensure_ascii=False))
+          if not r or len(r.get("items", [])) != 2:
+              print("::error::supervise nu a răspuns corect"); sys.exit(1)
+          PY

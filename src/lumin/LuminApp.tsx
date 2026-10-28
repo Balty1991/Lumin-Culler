@@ -16,6 +16,7 @@ import { useLx, type LxTab } from './lxStore';
 import { LxActionsContext } from './context';
 import { groupDays } from './days';
 import { Viewer } from './GalleryWall';
+import { superviseUnsure } from './cloud';
 import { autoSortToday, decideRestIfAllowed, summarizeToday } from './autoSort';
 import { autoNameFaces, canEmbedFaces, embedMissingFaces } from './faceIdentity';
 import { TodayScreen } from './TodayScreen';
@@ -124,7 +125,12 @@ export function LuminApp() {
   // Sortarea care se face singură: la pornire și de fiecare dată când revii în aplicație.
   useEffect(() => {
     if (!booted) return;
-    const run = () => void autoSortToday().then(r => { if (r) useLx.getState().setAutoResult(r); });
+    const run = () => void autoSortToday().then(async r => {
+      if (r) useLx.getState().setAutoResult(r);
+      // Lumi Cloud (doar dacă omul l-a pornit): a doua părere pe pozele rămase nesigure.
+      const c = await superviseUnsure();
+      if (c.decided) useStore.getState().setNotice(t(useStore.getState().locale, 'lx.cloud.auto', { decided: c.decided }));
+    });
     run();
     if (!Capacitor.isNativePlatform()) return;
     const sub = CapacitorApp.addListener('resume', run);

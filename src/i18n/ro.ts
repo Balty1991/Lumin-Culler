@@ -2622,6 +2622,18 @@ export const ro = {
   "lx.trial.cta": "✦ Lasă-o pe Lumi să decidă tot — încearcă Pro gratuit",
   "lx.enhance.all": "Mai frumoase ({count})",
   "lx.enhance.allProgress": "Le fac mai frumoase… {progress}",
+  "lx.cloud.title": "Lumi Cloud",
+  "lx.cloud.row": "A doua părere pentru pozele nesigure",
+  "lx.cloud.sub": "Un AI mare, în cloud, se uită la pozele la care Lumi ezită: spune dacă le-ai păstra și ce se vede în ele (intră și în căutare). Oprit până îl pornești tu.",
+  "lx.cloud.consent": "Lumi Cloud trimite doar pozele la care Lumi nu e sigură, micșorate (512 px), la serverul Lumi pe Cloudflare. Acolo sunt analizate și uitate imediat: nu se păstrează și nu se folosesc la antrenarea vreunui AI. Restul pozelor nu pleacă niciodată de pe telefon. Pornești?",
+  "lx.cloud.enable": "Pornesc Lumi Cloud",
+  "lx.cloud.now": "Verifică acum pozele nesigure ({checked} verificate până acum)",
+  "lx.cloud.working": "Lumi Cloud se uită la poze…",
+  "lx.cloud.done": "Lumi Cloud a verificat {checked} poze; {decided} s-au rezolvat singure.",
+  "lx.cloud.nothing": "Nu sunt poze nesigure de verificat (sau limita de azi s-a atins).",
+  "lx.cloud.auto": "Lumi Cloud a mai rezolvat {decided} poze nesigure.",
+  "lx.cloud.keep": "Lumi Cloud: aș păstra-o",
+  "lx.cloud.drop": "Lumi Cloud: n-aș păstra-o",
 };
 
 export type TranslationKey = keyof typeof ro;

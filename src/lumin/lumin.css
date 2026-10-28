@@ -715,3 +715,8 @@ body.lx-viewer-open .lx-hero-media img { animation-play-state: paused; }
 /* Bara lunii: solidă, lipită chiar sub bara de stare (raportat: „plutitoare”). */
 .lx-wall-head { top: var(--safe-top, 0px); margin: 6px -18px 0; padding: 12px 18px 10px;
   background: var(--bg); border-bottom: 1px solid var(--lx-line); box-shadow: 0 10px 20px -16px rgb(0 0 0 / .8); }
+/* Lumi Cloud */
+.lx-cloud-line { margin: 0; font-size: 13px; line-height: 1.45; color: var(--text-dim); }
+.lx-cloud-line b { color: #9fd4ff; font-weight: 600; }
+.lx-cloud-line.drop b { color: #ffb4a8; }
+.lx-card-ai .lx-cloud-line { color: #e6ebf5; text-shadow: 0 1px 8px rgb(0 0 0 / .6); }

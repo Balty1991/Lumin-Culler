@@ -1,3 +1,4 @@
+import { CloudSection } from './CloudParts';
 import { AutonomyPicker } from './TwinParts';
 import { useStore } from '../state/store';
 import type { CullingStrictness } from '../core/scoreThresholds';
@@ -110,6 +111,8 @@ export function SettingsScreen() {
         <h2>{tr('lx.twin.autonomy')}</h2>
         <AutonomyPicker />
       </section>
+
+      <CloudSection />
 
       {isNativeNotificationsAvailable() && (
         <section className="lx-group">

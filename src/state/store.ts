@@ -970,6 +970,12 @@ interface AppState {
    * din telefon (confirmarea Android, coșul galeriei).
    */
   trashPhotos: (ids: string[]) => Promise<{ deleted: number; cancelled: boolean }>;
+  /**
+   * Verdictele Lumi Cloud pentru pozele nesigure: doar pe cele încă la „review”,
+   * marcate ca decizii ale AI-ului (aiDecided) și FĂRĂ să fie lecții de gust —
+   * gustul îl învață Lumi doar de la om.
+   */
+  applyCloudVerdicts: (verdicts: { id: string; status: 'selected' | 'rejected' }[]) => Promise<number>;
   /** Pune numele pe un grup de același animal. Nu trece prin plafonul de persoane. */
   enrollPetCluster: (name: string, members: { photoId: string }[]) => Promise<void>;
   setPersonsOpen: (open: boolean) => void;
@@ -4675,6 +4681,16 @@ export const useStore = create<AppState>((set, get) => ({
       persons, photos: views,
       notice: t(get().locale, 'store.faceCluster.enrolled', { name: trimmedName, detections: members.length, photos: photoIds.length })
     });
+  },
+
+  applyCloudVerdicts: async verdicts => {
+    const byId = new Map(get().photos.map(p => [p.id, p.status]));
+    const changes = verdicts.filter(v => byId.get(v.id) === 'review');
+    if (!changes.length) return 0;
+    await Promise.all(changes.map(c => db.photos.update(c.id, { status: c.status, aiDecided: true })));
+    const map = new Map(changes.map(c => [c.id, c.status]));
+    set(state => ({ photos: state.photos.map(p => (map.has(p.id) ? { ...p, status: map.get(p.id)!, aiDecided: true } : p)) }));
+    return changes.length;
   },
 
   trashPhotos: async ids => {

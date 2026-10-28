@@ -8,6 +8,7 @@ import { translateSceneTag } from '../core/sceneTagLabels';
 import { favoritePeople } from '../core/personTaste';
 import { openTasteQuiz } from '../state/tasteQuiz';
 import { useTr } from './context';
+import { CloudSection } from './CloudParts';
 import { AutonomyPicker, FreedCard, TwinHero } from './TwinParts';
 import { Housekeeping } from './Housekeeping';
 
@@ -85,6 +86,7 @@ export function BrainScreen() {
       </section>
 
       <FreedCard />
+      <CloudSection />
       <Housekeeping />
 
       <section className="lx-stats four">

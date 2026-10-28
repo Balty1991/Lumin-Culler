@@ -6,6 +6,7 @@ import { recordPersonDecision } from '../core/personTaste';
 import { recordTwinDecision } from './twin';
 import { SELECT_THRESHOLD, REJECT_THRESHOLD } from '../core/importPipeline';
 import { personalWhy, useWhyContext } from './why';
+import { CloudLine } from './CloudParts';
 import { useLx } from './lxStore';
 import { useTr } from './context';
 import { Thumb } from './Thumb';
@@ -151,6 +152,7 @@ export function SwipeSort() {
                   <b>{current.aiScore}</b>
                 </span>
                 <p className="lx-why">{personalWhy(current, why, tr)}</p>
+                <CloudLine id={current.id} />
                 {seriesBest && (
                   <span className="lx-series-note">
                     {seriesBest.id === current.id

@@ -9,6 +9,8 @@ import { reasonsFor } from './reasons';
 import { personalWhy, useWhyContext } from './why';
 import { learnFromOpen, learnFromShare } from './signals';
 import { findVisuallySimilar } from './visualSimilar';
+import { CloudLine } from './CloudParts';
+import { cloudSearchText, readVerdicts } from './cloud';
 import { useTr } from './context';
 import { Thumb } from './Thumb';
 import { searchPhotos } from './textSearch';
@@ -140,7 +142,11 @@ export function GalleryWall() {
       return [similar.source, ...similar.ids].map(id => byId.get(id)).filter((p): p is PhotoView => !!p);
     }
     // Cu o căutare: și documentele (bonul de benzină se caută), în ordinea potrivirii.
-    if (query.trim()) return searchPhotos(photos, query);
+    if (query.trim()) {
+      // Și ce a văzut Lumi Cloud în poză (descriere + etichete), unde există.
+      const verdicts = readVerdicts();
+      return searchPhotos(photos.map(p => (verdicts[p.id] ? { ...p, aiDescription: `${p.aiDescription ?? ''} ${cloudSearchText(p.id, verdicts)}` } : p)), query);
+    }
     return photos
       .filter(p => !p.aside)
       .filter(p => filter === 'all' || (filter === 'kept' ? p.status === 'selected' : p.status === 'rejected'))
@@ -565,6 +571,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
       </div>
       <div className="lx-viewer-info">
         <p className="lx-why">{personalWhy(p, why, tr)}</p>
+        <CloudLine id={p.id} />
         <div className="lx-chips">
           <span className={`lx-chip ${p.status === 'selected' ? 'good' : p.status === 'rejected' ? 'bad' : 'info'}`}>
             {tr(p.status === 'selected' ? 'lx.wall.state.kept' : p.status === 'rejected' ? 'lx.wall.state.notToday' : 'lx.wall.state.waiting')}
