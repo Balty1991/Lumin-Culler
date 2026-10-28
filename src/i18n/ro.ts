@@ -2691,6 +2691,7 @@ export const ro = {
   "premium.personal": "Pe galeria ta: {count} poze te așteaptă acum. Cu Pro, Lumi le decide singură pe toate, ca tine.",
   "lx.search.people": "Caută",
   "fr.photos.readAll": "Citește-mi galeria (de la cele noi)",
+  "lx.reader.continue": "Continuă oricum",
 };
 
 export type TranslationKey = keyof typeof ro;

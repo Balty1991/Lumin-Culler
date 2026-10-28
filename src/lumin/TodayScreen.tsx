@@ -10,6 +10,7 @@ import { useLx } from './lxStore';
 import { useLxActions, useTr } from './context';
 import { Orb } from './Orb';
 import { LumiFeed } from './LumiFeed';
+import { continueOnLowBattery } from './galleryReader';
 import { Thumb } from './Thumb';
 import { FreedCard } from './TwinParts';
 import { DayStory } from './DayStory';
@@ -135,6 +136,7 @@ export function TodayScreen() {
           <b>{tr(reader.paused === 'battery' ? 'lx.reader.paused' : 'lx.reader.title', { done: reader.done, total: reader.total })}</b>
           <div className="lx-progress small"><i style={{ width: `${reader.total ? Math.round((reader.done / reader.total) * 100) : 0}%` }} /></div>
           <span>{tr('lx.reader.sub')}</span>
+          {reader.paused === 'battery' && <button className="lx-btn ghost small" onClick={continueOnLowBattery}>{tr('lx.reader.continue')}</button>}
         </section>
       )}
       {readerResult && !reader && (

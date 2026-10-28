@@ -23,11 +23,15 @@ const CHUNK = ((navigator as unknown as { deviceMemory?: number }).deviceMemory 
 const FIRST_CHUNK = 8;
 const ANNOUNCED_KEY = 'lumin-gallery-read-announced';
 let running = false;
+/** „Continuă acum”: omul a ales să nu aștepte încărcătorul (până la următoarea pornire). */
+let ignoreBattery = false;
+export function continueOnLowBattery(): void { ignoreBattery = true; }
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 interface BatteryLike { level: number; charging: boolean }
 async function lowBattery(): Promise<boolean> {
+  if (ignoreBattery) return false;
   try {
     const b = await (navigator as unknown as { getBattery?: () => Promise<BatteryLike> }).getBattery?.();
     return !!b && !b.charging && b.level < 0.2;
