@@ -3,12 +3,10 @@ import { useStore } from '../state/store';
 import { db } from '../core/db';
 import { contextEngine } from '../core/learning/ContextEngine';
 import { summarizeAccuracy, MIN_DECISIONS_FOR_ACCURACY, type AccuracySummary } from '../core/learning/accuracy';
-import type { FaceCluster } from '../core/faceClustering';
-import { usePeopleFaces } from './faces';
+import { PeopleGrid } from './People';
 import { readTasteScore, readDailyScore } from '../core/tasteScore';
 import { translateSceneTag } from '../core/sceneTagLabels';
 import { openTasteQuiz } from '../state/tasteQuiz';
-import { FaceCropThumb } from '../ui/FaceCropThumb';
 import { useTr } from './context';
 import { Orb } from './Orb';
 
@@ -24,9 +22,7 @@ export function BrainScreen() {
   const photos = useStore(s => s.photos);
   const persons = useStore(s => s.persons);
   const locale = useStore(s => s.locale);
-  const askPrompt = useStore(s => s.askPrompt);
   const askConfirm = useStore(s => s.askConfirm);
-  const enrollFaceCluster = useStore(s => s.enrollFaceCluster);
   const rescorePhotos = useStore(s => s.rescorePhotos);
 
   const [accuracy, setAccuracy] = useState<AccuracySummary | null>(null);
@@ -35,7 +31,6 @@ export function BrainScreen() {
   const [subjects, setSubjects] = useState<string[]>([]);
   const [level, setLevel] = useState(0);
   const [refresh, setRefresh] = useState(0);
-  const { people, unknown } = usePeopleFaces(persons, refresh);
   const training = readTasteScore();
   const daily = readDailyScore();
 
@@ -70,12 +65,6 @@ export function BrainScreen() {
     : training.total > 0 ? Math.round((training.hits / training.total) * 100) : null;
   const levelKey = level >= 1 ? 'lx.brain.level.trained' : level >= 0.3 ? 'lx.brain.level.learning' : 'lx.brain.level.new';
 
-  const name = async (cluster: FaceCluster) => {
-    const value = (await askPrompt(tr('lx.brain.namePrompt'), '', { confirmLabel: tr('lx.save') }))?.trim();
-    if (!value) return;
-    await enrollFaceCluster(value, cluster.members.map(m => ({ photoId: m.photoId, faceIndex: m.faceIndex, embedding: m.embedding })));
-    setRefresh(n => n + 1);
-  };
   const forget = async () => {
     if (!await askConfirm(tr('lx.brain.forgetConfirm'), { confirmLabel: tr('lx.brain.forget'), danger: true })) return;
     await contextEngine.reset();
@@ -135,24 +124,7 @@ export function BrainScreen() {
 
       <section className="lx-section">
         <div className="lx-section-head"><h2>{tr('lx.brain.yourPeople')}</h2></div>
-        {people.length === 0 && unknown.length === 0 && <p className="lx-empty small">{tr('lx.brain.peopleNone')}</p>}
-        <div className="lx-faces">
-          {people.map(p => (
-            <div key={p.name} className="lx-face">
-              <FaceCropThumb photoId={p.photoId} box={p.box} size={72} className="lx-face-img" />
-              <b>{p.name}</b>
-              <span>{tr('lx.brain.photos', { count: p.photoIds.length })}</span>
-            </div>
-          ))}
-          {unknown.map((c, i) => (
-            <button key={`${c.members[0].photoId}-${i}`} className="lx-face unknown" onClick={() => void name(c)}>
-              <FaceCropThumb photoId={c.members[0].photoId} box={c.members[0].box} size={72} className="lx-face-img" />
-              <b>{tr('lx.brain.whoIs')}</b>
-              <span>{tr('lx.brain.photos', { count: c.members.length })}</span>
-            </button>
-          ))}
-        </div>
-        {unknown.length > 0 && <p className="lx-hint">{tr('lx.brain.peopleHint')}</p>}
+        <PeopleGrid />
       </section>
 
       <section className="lx-card lx-privacy">

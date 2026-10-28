@@ -2358,4 +2358,13 @@ export const en: Record<TranslationKey, string> = {
   "taste.kickerAgain": "Training {n}/{total}",
   "lx.brain.dailyYours": "in daily sorting",
   "lx.brain.subjects": "You often keep:",
+  "lx.people.failed": "Could not read the photo. Try another face.",
+  "lx.people.named": "Done: {name}. New photos with {name} get priority.",
+  "lx.people.looseHint": "Tap a face and name it. From then on I recognise them in new photos.",
+  "lx.months.inGallery": "in gallery",
+  "lx.months.untouched": "untouched",
+  "lx.months.sortMissing": "Sort the {count} untouched",
+  "lx.months.best": "Best of the month",
+  "lx.months.days": "Days of the month",
+  "lx.months.noneSeen": "The AI has not seen any photo from this month yet. Tap \"Sort\".",
 };

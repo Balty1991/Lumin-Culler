@@ -105,7 +105,7 @@ export function TodayScreen() {
         <section className="lx-section">
           <div className="lx-section-head">
             <h2>{tr('lx.today.picks')}</h2>
-            <button className="lx-link" onClick={() => setOpenDay(todayStart)}>{tr('lx.seeDay')}</button>
+            <button className="lx-link" onClick={() => { setTab('days'); setOpenDay(todayStart); }}>{tr('lx.seeDay')}</button>
           </div>
           <div className="lx-picks" role="list">
             {today.kept.map((p, i) => (

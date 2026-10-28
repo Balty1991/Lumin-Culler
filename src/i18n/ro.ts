@@ -2444,6 +2444,15 @@ export const ro = {
   "taste.kickerAgain": "Antrenament {n}/{total}",
   "lx.brain.dailyYours": "la sortarea zilnică",
   "lx.brain.subjects": "Păstrezi des:",
+  "lx.people.failed": "N-am putut citi poza. Încearcă altă față.",
+  "lx.people.named": "Gata: {name}. Pozele noi cu {name} vor avea prioritate.",
+  "lx.people.looseHint": "Atinge o față și dă-i un nume. Din acel moment o recunosc în pozele noi.",
+  "lx.months.inGallery": "în galerie",
+  "lx.months.untouched": "neatinse",
+  "lx.months.sortMissing": "Sortează cele {count} neatinse",
+  "lx.months.best": "Cele mai bune din lună",
+  "lx.months.days": "Zilele lunii",
+  "lx.months.noneSeen": "AI-ul n-a văzut încă nicio poză din luna asta. Apasă „Sortează”.",
 };
 
 export type TranslationKey = keyof typeof ro;

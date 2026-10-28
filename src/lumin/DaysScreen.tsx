@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { useStore } from '../state/store';
-import { FaceCropThumb } from '../ui/FaceCropThumb';
 import { groupDays, type Day } from './days';
 import { usePeopleFaces } from './faces';
 import { buildCoverage, useGalleryMonths } from './coverage';
@@ -8,7 +7,7 @@ import { dayLabel, daySummary, monthLabel } from './format';
 import { useLx, type GalleryView } from './lxStore';
 import { useLxActions, useTr } from './context';
 import { Thumb } from './Thumb';
-import type { FaceCluster } from '../core/faceClustering';
+import { PeopleGrid } from './People';
 import type { PhotoView } from '../state/store';
 
 const VIEWS: GalleryView[] = ['days', 'months', 'people', 'aside'];
@@ -23,9 +22,6 @@ const VIEWS: GalleryView[] = ['days', 'months', 'people', 'aside'];
 export function DaysScreen() {
   const photos = useStore(s => s.photos);
   const persons = useStore(s => s.persons);
-  const locale = useStore(s => s.locale);
-  const askPrompt = useStore(s => s.askPrompt);
-  const enrollFaceCluster = useStore(s => s.enrollFaceCluster);
   const openDay = useLx(s => s.openDay);
   const setOpenDay = useLx(s => s.setOpenDay);
   const openSort = useLx(s => s.openSort);
@@ -34,9 +30,8 @@ export function DaysScreen() {
   const tr = useTr();
   const { pick } = useLxActions();
   const [person, setPerson] = useState<string | null>(null);
-  const [refresh, setRefresh] = useState(0);
   const days = useMemo(() => groupDays(photos), [photos]);
-  const { people, unknown } = usePeopleFaces(persons, refresh);
+  const { people } = usePeopleFaces(persons, 0);
   const aside = useMemo(() => photos.filter(p => !!p.aside), [photos]);
   const day = openDay !== null ? days.find(d => d.start === openDay) : undefined;
 
@@ -58,13 +53,6 @@ export function DaysScreen() {
     );
   }
 
-  const name = async (cluster: FaceCluster) => {
-    const value = (await askPrompt(tr('lx.brain.namePrompt'), '', { confirmLabel: tr('lx.save') }))?.trim();
-    if (!value) return;
-    await enrollFaceCluster(value, cluster.members.map(m => ({ photoId: m.photoId, faceIndex: m.faceIndex, embedding: m.embedding })));
-    setRefresh(n => n + 1);
-  };
-
   return (
     <div className="lx-screen">
       <header className="lx-head">
@@ -84,46 +72,13 @@ export function DaysScreen() {
         <p className="lx-empty">{tr('lx.days.empty')}</p>
       ) : (
         <div className="lx-days">
-          {days.map((d, i) => (
-            <button key={d.start} className="lx-daycard" style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }} onClick={() => setOpenDay(d.start)}>
-              <div className={`lx-mosaic n${Math.min(3, Math.max(1, (d.kept.length || d.photos.length)))}`} aria-hidden="true">
-                {(d.kept.length ? d.kept : d.photos).slice(0, 3).map(p => <Thumb key={p.id} id={p.id} lqip={p.lqip} />)}
-              </div>
-              <div className="lx-daycard-text">
-                <b>{dayLabel(d.start, locale)}</b>
-                <span>{daySummary(d, tr)}</span>
-              </div>
-              {d.waiting.length > 0 ? <span className="lx-pill warm">{d.waiting.length}</span> : <span className="lx-pill ok">✓</span>}
-            </button>
-          ))}
+          <DayCards days={days} />
         </div>
       ))}
 
-      {view === 'months' && <MonthsView />}
+      {view === 'months' && <MonthsView days={days} />}
 
-      {view === 'people' && (people.length === 0 && unknown.length === 0 ? (
-        <p className="lx-empty">{tr('lx.days.peopleEmpty')}</p>
-      ) : (
-        <>
-          <div className="lx-faces">
-            {people.map(p => (
-              <button key={p.name} className="lx-face" onClick={() => setPerson(p.name)}>
-                <FaceCropThumb photoId={p.photoId} box={p.box} size={72} className="lx-face-img" />
-                <b>{p.name}</b>
-                <span>{tr('lx.brain.photos', { count: p.photoIds.length })}</span>
-              </button>
-            ))}
-            {unknown.map((c, i) => (
-              <button key={`${c.members[0].photoId}-${i}`} className="lx-face unknown" onClick={() => void name(c)}>
-                <FaceCropThumb photoId={c.members[0].photoId} box={c.members[0].box} size={72} className="lx-face-img" />
-                <b>{tr('lx.brain.whoIs')}</b>
-                <span>{tr('lx.brain.photos', { count: c.members.length })}</span>
-              </button>
-            ))}
-          </div>
-          {unknown.length > 0 && <p className="lx-hint">{tr('lx.brain.peopleHint')}</p>}
-        </>
-      ))}
+      {view === 'people' && <PeopleGrid onOpen={setPerson} />}
 
       {view === 'aside' && (aside.length === 0 ? (
         <p className="lx-empty">{tr('lx.days.asideEmpty')}</p>
@@ -139,7 +94,8 @@ export function DaysScreen() {
 }
 
 /** Luni: cât din galeria telefonului a văzut și a sortat AI-ul, cu „Sortează luna” unde lipsește. */
-function MonthsView() {
+function MonthsView({ days }: { days: Day<PhotoView>[] }) {
+  const [open, setOpen] = useState<number | null>(null);
   const photos = useStore(s => s.photos);
   const locale = useStore(s => s.locale);
   const progress = useStore(s => s.progress);
@@ -153,6 +109,46 @@ function MonthsView() {
   const percent = totals.gallery ? Math.round(((totals.seen - totals.waiting) / totals.gallery) * 100) : 0;
 
   if (counts === null) return <p className="lx-empty">{tr('lx.months.loading')}</p>;
+
+  const openRow = open !== null ? rows.find(r => r.start === open) : undefined;
+  if (openRow) {
+    const monthDays = days.filter(d => d.start >= openRow.start && d.start < openRow.end);
+    const kept = monthDays.flatMap(d => d.kept);
+    const missing = Math.max(0, openRow.inGallery - openRow.seen);
+    return (
+      <>
+        <div className="lx-head">
+          <button className="lx-icon-btn" onClick={() => setOpen(null)} aria-label={tr('lx.back')}>‹</button>
+          <h2 className="lx-title small">{monthLabel(openRow.start, locale)}</h2>
+          <span />
+        </div>
+        <section className="lx-stats">
+          <div><b>{openRow.inGallery}</b><span>{tr('lx.months.inGallery')}</span></div>
+          <div><b className="ok">{kept.length}</b><span>{tr('lx.stat.kept')}</span></div>
+          <div><b>{missing}</b><span>{tr('lx.months.untouched')}</span></div>
+        </section>
+        {missing > 0 && (
+          <button className="lx-btn primary wide" disabled={busy} onClick={() => void importGalleryPeriod({ start: openRow.start, end: openRow.end })}>
+            {tr('lx.months.sortMissing', { count: missing })}
+          </button>
+        )}
+        {kept.length > 0 && (
+          <section className="lx-section">
+            <div className="lx-section-head"><h2>{tr('lx.months.best')}</h2></div>
+            <PhotoGrid list={kept} title={monthLabel(openRow.start, locale)} />
+          </section>
+        )}
+        {monthDays.length > 0 ? (
+          <section className="lx-section">
+            <div className="lx-section-head"><h2>{tr('lx.months.days')}</h2></div>
+            <DayCards days={monthDays} />
+          </section>
+        ) : (
+          <p className="lx-empty small">{tr('lx.months.noneSeen')}</p>
+        )}
+      </>
+    );
+  }
 
   return (
     <>
@@ -169,18 +165,20 @@ function MonthsView() {
           const state = missing === 0 && r.waiting === 0 ? 'done' : r.seen === 0 ? 'none' : 'partial';
           const ratio = r.inGallery ? Math.round(((r.seen - r.waiting) / r.inGallery) * 100) : 100;
           return (
-            <div key={r.start} className={`lx-month ${state}`}>
+            <div key={r.start} className={`lx-month ${state}`} role="button" tabIndex={0}
+              onClick={() => setOpen(r.start)} onKeyDown={e => { if (e.key === 'Enter') setOpen(r.start); }}>
               <div className="lx-month-text">
                 <b>{monthLabel(r.start, locale)}</b>
                 <span>{tr(`lx.months.state.${state}`, { seen: r.seen, total: r.inGallery, missing, waiting: r.waiting })}</span>
                 <div className="lx-progress small"><i style={{ width: `${ratio}%` }} /></div>
               </div>
               {missing > 0 ? (
-                <button className="lx-btn small primary" disabled={busy} onClick={() => void importGalleryPeriod({ start: r.start, end: r.end })}>
+                <button className="lx-btn small primary" disabled={busy} onClick={e => { e.stopPropagation(); void importGalleryPeriod({ start: r.start, end: r.end }); }}>
                   {tr('lx.months.sort')}
                 </button>
               ) : r.waiting > 0 ? (
-                <button className="lx-btn small ghost" onClick={() => {
+                <button className="lx-btn small ghost" onClick={e => {
+                  e.stopPropagation();
                   const ids = photos.filter(p => !p.aside && (p.status === 'review' || p.status === 'pending' || p.status === 'candidate')
                     && (p.capturedAt ?? p.importedAt) >= r.start && (p.capturedAt ?? p.importedAt) < r.end).map(p => p.id);
                   openSort(ids, monthLabel(r.start, locale));
@@ -285,6 +283,28 @@ function DayView({ day, onBack }: { day: Day<PhotoView>; onBack: () => void }) {
           <PhotoGrid list={day.aside} title={tr('lx.day.aside')} />
         </section>
       )}
+    </div>
+  );
+}
+
+function DayCards({ days }: { days: Day<PhotoView>[] }) {
+  const locale = useStore(s => s.locale);
+  const setOpenDay = useLx(s => s.setOpenDay);
+  const tr = useTr();
+  return (
+    <div className="lx-days">
+      {days.map((d, i) => (
+        <button key={d.start} className="lx-daycard" style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }} onClick={() => setOpenDay(d.start)}>
+          <div className={`lx-mosaic n${Math.min(3, Math.max(1, (d.kept.length || d.photos.length)))}`} aria-hidden="true">
+            {(d.kept.length ? d.kept : d.photos).slice(0, 3).map(p => <Thumb key={p.id} id={p.id} lqip={p.lqip} />)}
+          </div>
+          <div className="lx-daycard-text">
+            <b>{dayLabel(d.start, locale)}</b>
+            <span>{daySummary(d, tr)}</span>
+          </div>
+          {d.waiting.length > 0 ? <span className="lx-pill warm">{d.waiting.length}</span> : <span className="lx-pill ok">✓</span>}
+        </button>
+      ))}
     </div>
   );
 }
