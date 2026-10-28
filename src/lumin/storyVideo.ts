@@ -1,6 +1,17 @@
 import { frameOpacity, frameScale, planRecapVideo, type RecapPlan } from '../core/recapVideo';
 import { extensionFor, pickMimeType } from '../core/recapVideoRender';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
+import { canSharpen, sharpUrl } from './sharp';
+
+/** Poza din film: clară (Android, 1600 px), altfel preview-ul salvat. */
+const FILM_SIZE = 1600;
+async function frameUrl(id: string): Promise<string | null> {
+  if (canSharpen()) {
+    const sharp = await sharpUrl(id, FILM_SIZE);
+    if (sharp) return sharp;
+  }
+  return getCachedPreviewUrl(id);
+}
 
 /**
  * lumin/storyVideo.ts
@@ -38,14 +49,31 @@ function load(url: string): Promise<Img> {
   });
 }
 
+const backdrops = new WeakMap<Img, HTMLCanvasElement>();
+function backdropOf(img: Img): HTMLCanvasElement {
+  let c = backdrops.get(img);
+  if (c) return c;
+  c = document.createElement('canvas');
+  const scale = 40 / Math.max(img.naturalWidth, img.naturalHeight);
+  c.width = Math.max(1, Math.round(img.naturalWidth * scale));
+  c.height = Math.max(1, Math.round(img.naturalHeight * scale));
+  const x = c.getContext('2d');
+  if (x) {
+    x.filter = 'brightness(0.55)';
+    x.drawImage(img, 0, 0, c.width, c.height);
+  }
+  backdrops.set(img, c);
+  return c;
+}
+
 function drawPhoto(ctx: CanvasRenderingContext2D, img: Img, scale: number, alpha: number) {
   const w = img.naturalWidth, h = img.naturalHeight;
   // Fundal: aceeași poză, mărită până acoperă, estompată și întunecată.
   ctx.globalAlpha = alpha;
   const cover = Math.max(STORY_W / w, STORY_H / h) * 1.1;
-  ctx.filter = 'blur(40px) brightness(0.55)';
-  ctx.drawImage(img, (STORY_W - w * cover) / 2, (STORY_H - h * cover) / 2, w * cover, h * cover);
-  ctx.filter = 'none';
+  // Estomparea: din aceeași poză micșorată foarte mult (o dată, apoi din memorie)
+  // și mărită înapoi — arată ca un blur, fără un filtru greu la fiecare cadru.
+  ctx.drawImage(backdropOf(img), (STORY_W - w * cover) / 2, (STORY_H - h * cover) / 2, w * cover, h * cover);
   // Poza întreagă, cât încape, cu mișcarea lentă (Ken Burns).
   const fit = Math.min(STORY_W / w, (STORY_H * 0.78) / h) * scale;
   ctx.drawImage(img, (STORY_W - w * fit) / 2, (STORY_H - h * fit) / 2, w * fit, h * fit);
@@ -76,14 +104,25 @@ export async function renderStory(
   const plan = planStory(input.ids);
   const mimeType = pickMimeType();
   if (!plan || !mimeType) return null;
-  const urls = await Promise.all(plan.frames.map(f => getCachedPreviewUrl(f.id)));
-  const images = await Promise.all(urls.map(u => (u ? load(u).catch(() => null) : Promise.resolve(null))));
+  // Pozele clare se pregătesc toate (fișiere în cache), dar se ȚIN decodate doar
+  // cele din scena curentă și următoarea: 16 poze mari deodată ar umple memoria.
+  const urls = await Promise.all(plan.frames.map(f => frameUrl(f.id)));
+  const images: (Img | null)[] = plan.frames.map(() => null);
+  const loading = new Set<number>();
+  const ensure = (i: number) => {
+    if (i < 0 || i >= urls.length || images[i] || loading.has(i) || !urls[i]) return Promise.resolve();
+    loading.add(i);
+    return load(urls[i]!).then(img => { images[i] = img; }, () => {}).finally(() => loading.delete(i));
+  };
+  await Promise.all([ensure(0), ensure(1)]);
 
   const canvas = document.createElement('canvas');
   canvas.width = STORY_W;
   canvas.height = STORY_H;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
   const stream = canvas.captureStream(plan.fps);
   const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8_000_000 });
   const chunks: Blob[] = [];
@@ -103,6 +142,11 @@ export async function renderStory(
       ctx.fillStyle = '#0b0b10';
       ctx.fillRect(0, 0, STORY_W, STORY_H);
       const pt = Math.min(plan.totalMs - 1, Math.max(0, t - TITLE_MS));
+      let cur = 0;
+      for (let i = 0; i < plan.frames.length; i++) if (plan.frames[i].startMs <= pt) cur = i;
+      void ensure(cur + 1);
+      void ensure(cur + 2);
+      for (let i = 0; i < cur - 1; i++) images[i] = null; // trecute: memoria se eliberează
       for (let i = plan.frames.length - 1; i >= 0; i--) {
         const img = images[i];
         if (!img) continue;
