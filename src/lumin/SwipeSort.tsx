@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { useStore } from '../state/store';
 import { RitualDone } from '../ui/RitualDone';
 import { recordDailyGuess } from '../core/tasteScore';
+import { recordPersonDecision } from '../core/personTaste';
 import { SELECT_THRESHOLD, REJECT_THRESHOLD } from '../core/importPipeline';
 import { reasonsFor } from './reasons';
 import { useLx } from './lxStore';
@@ -71,6 +72,7 @@ export function SwipeSort() {
     const ai = aiView.get(current.id) ?? 'unsure';
     setFlying(keep ? 'right' : 'left');
     void setStatus(current.id, keep ? 'selected' : 'rejected');
+    recordPersonDecision(current.personNames, keep);
     setDecisions(n => n + 1);
     if ((ai === 'keep' && !keep) || (ai === 'drop' && keep)) setLesson(tr(keep ? 'lx.sort.lessonKeep' : 'lx.sort.lessonDrop'));
     // Scorul cinstit din sortarea zilnică: ce credea AI-ul tău și ce ar fi crezut

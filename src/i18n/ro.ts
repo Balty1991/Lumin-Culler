@@ -2494,6 +2494,16 @@ export const ro = {
   "lx.widget.empty": "Nicio poză azi încă",
   "lx.widget.waiting": "{count} poze te așteaptă",
   "lx.widget.kept": "{count} alese azi ✓",
+  "lx.mode.title": "Pentru ce îți folosești pozele",
+  "lx.mode.everyday": "Zilnic",
+  "lx.mode.everyday.sub": "Amintiri: cele mai bune din fiecare moment",
+  "lx.mode.parent": "Părinte",
+  "lx.mode.parent.sub": "Oamenii întâi; o poză în plus cu ei",
+  "lx.mode.seller": "Vânzător",
+  "lx.mode.seller.sub": "Vinted/OLX: una pe produs, cea mai clară",
+  "lx.mode.creator": "Creator",
+  "lx.mode.creator.sub": "Instagram: doar cadrul cel mai bun",
+  "lx.brain.loved": "Ții la:",
 };
 
 export type TranslationKey = keyof typeof ro;

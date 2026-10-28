@@ -22,6 +22,19 @@ export interface MomentPhoto {
   aside?: string;
   /** true = decizia e a omului (vezi core/aiDecision.ts:lockedFromAutoDecision). */
   locked: boolean;
+  /** Are în ea pe cineva la care ții (core/personTaste.ts) sau, în modul părinte, o față. */
+  priority?: boolean;
+  /** Claritatea, 0..100 — pentru modul vânzător, unde contează mai mult decât restul. */
+  sharpness?: number;
+}
+
+export interface MomentOptions {
+  /** Câte poze în plus păstrează un moment cu priorități (gust pe persoană, mod părinte). */
+  priorityBonus?: number;
+  /** Plafon pe moment, indiferent de strictețe (vânzător/creator: 1). */
+  maxPerMoment?: number;
+  /** Ordinea în moment: după scor (implicit) sau după claritate (vânzător). */
+  rankBy?: 'score' | 'sharpness';
 }
 
 /** Două poze la mai puțin de atât una de alta sunt același moment. */
@@ -47,16 +60,22 @@ export function splitMoments<P extends MomentPhoto>(photos: readonly P[]): P[][]
 }
 
 /** Pozele cărora trebuie să li se schimbe statusul (doar decizii ale AI-ului). */
-export function momentChanges(photos: readonly MomentPhoto[], strictness: CullingStrictness): Map<string, 'rejected'> {
+export function momentChanges(photos: readonly MomentPhoto[], strictness: CullingStrictness, options: MomentOptions = {}): Map<string, 'rejected'> {
   const out = new Map<string, 'rejected'>();
   for (const moment of splitMoments(photos)) {
     if (moment.length < MIN_MOMENT) continue;
-    const quota = keepPerMoment(moment.length, strictness);
+    const hasPriority = moment.some(p => p.priority);
+    let quota = keepPerMoment(moment.length, strictness);
+    if (options.maxPerMoment !== undefined) quota = Math.min(quota, options.maxPerMoment);
+    if (hasPriority) quota += options.priorityBonus ?? 0;
     // Ce a păstrat omul cu mâna lui ocupă din locuri primele.
     const userKept = moment.filter(p => p.locked && p.status === 'selected').length;
     let free = Math.max(0, quota - userKept);
     const ranked = moment.filter(p => !p.locked && (p.status === 'selected' || p.status === 'review' || p.status === 'pending'))
-      .sort((a, b) => b.aiScore - a.aiScore);
+      .sort((a, b) =>
+        Number(!!b.priority) - Number(!!a.priority) ||
+        (options.rankBy === 'sharpness' ? (b.sharpness ?? 0) - (a.sharpness ?? 0) : 0) ||
+        b.aiScore - a.aiScore);
     for (const p of ranked) {
       if (p.status === 'selected' && free > 0) { free--; continue; }
       // Locurile momentului sunt ocupate: restul nu mai merită păstrat sau întrebat.

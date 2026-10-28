@@ -4,10 +4,13 @@ import type { Theme } from '../state/theme';
 import { requestNotificationAccess, isNativeNotificationsAvailable } from '../core/nativeNotifications';
 import { useLx } from './lxStore';
 import { useTr } from './context';
+import { useState } from 'react';
+import { SORT_MODES, readSortMode, writeSortMode, type SortMode } from '../core/sortMode';
 import { canMakePhoneAlbums, organizeKeptByMonth } from './phoneAlbums';
 
 const STRICTNESS: CullingStrictness[] = ['lax', 'balanced', 'strict'];
 const THEMES: Theme[] = ['dark', 'light', 'auto'];
+const MODE_ICON: Record<SortMode, string> = { everyday: '☀', parent: '♡', seller: '◫', creator: '✦' };
 
 /**
  * lumin/SettingsScreen.tsx
@@ -29,6 +32,14 @@ export function SettingsScreen() {
   const photos = useStore(s => s.photos);
   const exportBackup = useStore(s => s.exportBackup);
   const setTab = useLx(s => s.setTab);
+
+  const [mode, setMode] = useState<SortMode>(readSortMode);
+  // Schimbarea modului reia deciziile AI-ului de la zero (ale tale rămân), apoi momentele.
+  const chooseMode = async (m: SortMode) => {
+    setMode(m);
+    writeSortMode(m);
+    await setStrictness(strictness);
+  };
 
   const clear = async () => {
     if (!await askConfirm(tr('lx.settings.clearConfirm', { count: photos.length }), { confirmLabel: tr('lx.settings.clear'), danger: true })) return;
@@ -59,6 +70,19 @@ export function SettingsScreen() {
           ))}
         </div>
         <p className="lx-hint">{tr(`fr.strict.${strictness}.sub`)}</p>
+      </section>
+
+      <section className="lx-group">
+        <h2>{tr('lx.mode.title')}</h2>
+        <div className="lx-modes">
+          {SORT_MODES.map(m => (
+            <button key={m} className={mode === m ? 'lx-mode on' : 'lx-mode'} onClick={() => void chooseMode(m)}>
+              <span className="lx-mode-icon" aria-hidden="true">{MODE_ICON[m]}</span>
+              <b>{tr(`lx.mode.${m}`)}</b>
+              <small>{tr(`lx.mode.${m}.sub`)}</small>
+            </button>
+          ))}
+        </div>
       </section>
 
       <section className="lx-group">

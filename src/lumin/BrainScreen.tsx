@@ -6,6 +6,7 @@ import { summarizeAccuracy, MIN_DECISIONS_FOR_ACCURACY, type AccuracySummary } f
 import { PeopleGrid } from './People';
 import { readTasteScore, readDailyScore } from '../core/tasteScore';
 import { translateSceneTag } from '../core/sceneTagLabels';
+import { favoritePeople } from '../core/personTaste';
 import { openTasteQuiz } from '../state/tasteQuiz';
 import { useTr } from './context';
 import { Orb } from './Orb';
@@ -33,6 +34,7 @@ export function BrainScreen() {
   const [refresh, setRefresh] = useState(0);
   const training = readTasteScore();
   const daily = readDailyScore();
+  const loved = favoritePeople();
 
   useEffect(() => {
     let alive = true;
@@ -106,6 +108,12 @@ export function BrainScreen() {
           <div className="tq-compare">
             <div><b className="v3-mono">{daily.hits}/{daily.total}</b><span>{tr('lx.brain.dailyYours')}</span></div>
             <div><b className="v3-mono">{daily.genericHits}/{daily.total}</b><span>{tr('taste.done.generic')}</span></div>
+          </div>
+        )}
+        {loved.length > 0 && (
+          <div className="lx-subjects">
+            <span>{tr('lx.brain.loved')}</span>
+            <div className="lx-chips">{loved.map(f => <span key={f.name} className="lx-chip good">{f.name} · {Math.round(f.rate * 100)}%</span>)}</div>
           </div>
         )}
         {subjects.length > 0 && (

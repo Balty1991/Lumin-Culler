@@ -30,6 +30,8 @@ import {
 } from '../core/importPipeline';
 import type { PairGuess } from '../core/tasteScore';
 import { momentChanges } from '../core/moments';
+import { readSortMode } from '../core/sortMode';
+import { favoritePeople } from '../core/personTaste';
 import { classifyPhoto } from '../core/smartInbox';
 
 /** Etichete de scenă care, fără nicio față în cadru, înseamnă hârtie, nu amintire. */
@@ -4172,14 +4174,24 @@ export const useStore = create<AppState>((set, get) => ({
   applyMoments: async () => {
     const records = await db.photos.toArray();
     const byId = new Map(get().photos.map(p => [p.id, p]));
+    // Pentru ce folosești pozele (core/sortMode.ts) și la cine ții (core/personTaste.ts).
+    const mode = readSortMode();
+    const favorites = new Set(favoritePeople().map(f => f.name));
     const input = records.map(r => {
       const view = byId.get(r.id);
+      const loved = (view?.personNames ?? []).some(n => favorites.has(n));
       return {
         id: r.id, capturedAt: view?.capturedAt, status: r.status, aiScore: view?.aiScore ?? 0,
-        aside: view?.aside, groupId: view?.groupId, locked: lockedFromAutoDecision(r)
+        aside: view?.aside, groupId: view?.groupId, locked: lockedFromAutoDecision(r),
+        sharpness: view?.sharpness,
+        priority: loved || (mode === 'parent' && (view?.faceCount ?? 0) > 0)
       };
     });
-    const changes = momentChanges(input, get().cullingStrictness);
+    const changes = momentChanges(input, get().cullingStrictness, {
+      priorityBonus: 1,
+      ...(mode === 'seller' || mode === 'creator' ? { maxPerMoment: 1 } : {}),
+      ...(mode === 'seller' ? { rankBy: 'sharpness' as const } : {})
+    });
     // Seriile: un singur cadru păstrat de AI, cel mai bun (dacă omul n-a ales deja unul).
     const groups = new Map<string, typeof input>();
     for (const p of input) {

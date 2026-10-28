@@ -32,4 +32,21 @@ describe('moments', () => {
     expect(keepPerMoment(9, 'balanced')).toBe(2);
     expect(keepPerMoment(9, 'lax')).toBe(3);
   });
+
+  it('keeps one more frame and puts favourite people first', () => {
+    const nine = Array.from({ length: 9 }, (_, i) => ({ ...photo(`p${i}`, i * 0.2, 90 - i), priority: i === 8 }));
+    const changes = momentChanges(nine, 'balanced', { priorityBonus: 1 });
+    expect(changes.size).toBe(6);
+    expect(changes.has('p8')).toBe(false);
+  });
+
+  it('seller mode keeps only the sharpest frame', () => {
+    const list = [
+      { ...photo('a', 0, 95), sharpness: 40 },
+      { ...photo('b', 0.5, 80), sharpness: 90 },
+      { ...photo('c', 1, 70), sharpness: 60 }
+    ];
+    const changes = momentChanges(list, 'lax', { maxPerMoment: 1, rankBy: 'sharpness' });
+    expect([...changes.keys()].sort()).toEqual(['a', 'c']);
+  });
 });
