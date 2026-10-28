@@ -2504,6 +2504,13 @@ export const ro = {
   "lx.mode.creator": "Creator",
   "lx.mode.creator.sub": "Instagram: doar cadrul cel mai bun",
   "lx.brain.loved": "Ții la:",
+  "lx.people.pickHint": "Atinge toate fețele aceleiași persoane, apoi „Numește”. Sau atinge pe cineva deja numit ca să le adaugi la el.",
+  "lx.people.picked": "{count} fețe alese",
+  "lx.people.clear": "Renunță",
+  "lx.people.name": "Numește",
+  "lx.people.addHere": "Adaugă aici",
+  "lx.people.tagged": "Gata: {count} fețe sunt acum {name}.",
+  "lx.wall.best": "Cea mai bună din lună",
 };
 
 export type TranslationKey = keyof typeof ro;

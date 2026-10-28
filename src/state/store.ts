@@ -4597,7 +4597,8 @@ export const useStore = create<AppState>((set, get) => ({
   enrollFaceCluster: async (name, members) => {
     const trimmedName = name.trim();
     if (!trimmedName || !members.length) return;
-    const newEmbeddings = members.map(m => m.embedding);
+    // Fețele numite cu mâna (fără amprentă, vezi lumin/People.tsx) nu aduc embedding: se etichetează doar.
+    const newEmbeddings = members.map(m => m.embedding).filter(e => e.length > 0);
     const existing = get().persons.find(p => p.name.trim().toLowerCase() === trimmedName.toLowerCase());
     // Aceeasi poarta ca in addPerson. Bug gasit la audit: inrolarea dintr-un
     // cluster sugerat de AI n-o avea deloc, deci plafonul se ocolea pe aici.

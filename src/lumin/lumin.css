@@ -25,7 +25,10 @@
 :where(.lx) button { font: inherit; color: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 :where(.lx) button:disabled { cursor: default; opacity: 0.45; }
 
-.lx-main { animation: lx-in 0.45s var(--lx-ease) both; }
+.lx-main { animation: lx-fade 0.4s var(--lx-ease) both; }
+/* Doar opacitate: o animație de transform ar face din .lx-main un container
+   pentru tot ce e „fixed” înăuntru (poza mare ajungea în afara ecranului). */
+@keyframes lx-fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes lx-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
 .lx-screen {
@@ -383,7 +386,6 @@
 .lx-tile img, .lx-tile .lx-thumb-empty { display: block; width: 100%; height: auto; min-height: 90px; object-fit: cover; }
 .lx-tile:active { transform: scale(0.96); }
 .lx-tile.selected { box-shadow: 0 0 0 2px rgb(var(--pick-rgb) / 0.7), 0 18px 30px -18px rgb(var(--pick-rgb) / 0.45); }
-.lx-tile.rejected img { opacity: 0.5; filter: saturate(0.5); }
 .lx-tile-star { position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; background: rgb(6 7 10 / 0.55); color: var(--pick); backdrop-filter: blur(6px); }
 @keyframes lx-rise { from { opacity: 0; transform: translateY(26px) scale(0.96); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
 @keyframes lx-float { 0%, 100% { translate: 0 0; } 50% { translate: 0 -4px; } }
@@ -457,3 +459,71 @@
 .lx-mode-icon { font-size: 20px; color: var(--accent); }
 .lx-mode b { font-size: 14.5px; }
 .lx-mode small { font-size: 12px; color: var(--text-dim); line-height: 1.35; }
+
+/* ── Galeria, varianta spectaculoasă ─────────────────────────────────── */
+.lx-wall-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 14px 0 8px; }
+.lx-wall-head span { font-size: 22px; background: linear-gradient(90deg, var(--text), var(--accent-2-text)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.lx-wall-head small { font-family: var(--mono); font-size: 12px; color: var(--text-faint); font-weight: 400; }
+.lx-hero-tile {
+  position: relative; display: block; width: 100%; height: 420px; padding: 0; border: none; border-radius: 30px; overflow: hidden;
+  background: var(--surface-3); box-shadow: 0 40px 70px -40px rgb(0 0 0 / 0.95), 0 0 0 1px rgb(var(--accent-rgb) / 0.25);
+  opacity: 0; transform: translateY(40px) scale(0.94); transition: opacity 0.9s var(--lx-ease), transform 0.9s var(--lx-ease);
+}
+.lx-hero-tile.in { opacity: 1; transform: none; }
+.lx-hero-tile img, .lx-hero-tile .lx-thumb-empty { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; animation: lx-kenburns 18s ease-in-out infinite alternate; }
+@keyframes lx-kenburns { from { transform: scale(1.02) translate(0, 0); } to { transform: scale(1.14) translate(-2%, -3%); } }
+.lx-hero-shade { position: absolute; inset: 0; background: linear-gradient(180deg, transparent 45%, rgb(4 5 9 / 0.88)); }
+.lx-hero-caption { position: absolute; left: 20px; right: 20px; bottom: 18px; display: flex; flex-direction: column; gap: 4px; text-align: left; color: #fff; }
+.lx-hero-caption b { font-family: var(--font-display); font-size: 22px; }
+.lx-hero-caption span { font-size: 13px; color: #c9d2e0; }
+.lx-hero-tile::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(115deg, transparent 35%, rgb(255 255 255 / 0.16) 50%, transparent 65%); background-size: 250% 100%;
+  animation: lx-sheen 5s ease-in-out 1.2s infinite;
+}
+@keyframes lx-sheen { 0% { background-position: 150% 0; } 40%, 100% { background-position: -100% 0; } }
+.lx-wall { margin-top: 10px; }
+.lx-tile { animation: none; opacity: 0; transform: translateY(34px) scale(0.92) rotate(-1.2deg); filter: blur(8px);
+  transition: opacity 0.7s var(--lx-ease) var(--d, 0ms), transform 0.8s var(--lx-spring) var(--d, 0ms), filter 0.7s var(--lx-ease) var(--d, 0ms); }
+.lx-tile.in { opacity: 1; transform: none; filter: none; animation: lx-float 7s ease-in-out var(--float, 0s) infinite; }
+.lx-tile.in:active { transform: scale(0.95); }
+.lx-tile.selected::before {
+  content: ""; position: absolute; inset: -2px; border-radius: inherit; padding: 2px; z-index: 1; pointer-events: none;
+  background: conic-gradient(from var(--spin, 0deg), #5ee6ff, #9b8cff, #d48cff, #5ee6ff);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
+  animation: lx-ring 6s linear infinite;
+}
+@property --spin { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+@keyframes lx-ring { to { --spin: 360deg; } }
+.lx-tile.selected { box-shadow: 0 20px 40px -22px rgb(var(--accent-2-rgb) / 0.7); }
+.lx-tile-star { z-index: 2; }
+.lx-tile-dot { position: absolute; top: 9px; right: 9px; width: 9px; height: 9px; border-radius: 50%; background: var(--reject); box-shadow: 0 0 0 3px rgb(6 7 10 / 0.5); }
+
+/* Poza mare, peste tot ecranul (portal în body) */
+.lx.lx-viewer {
+  position: fixed; inset: 0; z-index: 120; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
+  background: #04050a; padding: calc(10px + env(safe-area-inset-top, 0px)) 14px calc(18px + env(safe-area-inset-bottom, 0px));
+  animation: lx-viewer-in 0.35s var(--lx-ease) both;
+}
+.lx-viewer-backdrop { position: absolute; inset: -40px; z-index: 0; opacity: calc(var(--fade, 1) * 0.55); }
+.lx-viewer-backdrop img, .lx-viewer-backdrop .lx-thumb-empty { width: 100%; height: 100%; object-fit: cover; filter: blur(40px) saturate(1.4); transform: scale(1.1); }
+.lx-viewer > *:not(.lx-viewer-backdrop) { position: relative; z-index: 1; }
+.lx-viewer-photo img { max-height: 64dvh; }
+.lx-viewer .lx-icon-btn { background: rgb(6 7 10 / 0.45); color: #fff; border-color: rgb(255 255 255 / 0.14); }
+.lx-viewer-info { background: rgb(6 7 10 / 0.45); border: 1px solid rgb(255 255 255 / 0.08); border-radius: 24px; padding: 14px; backdrop-filter: blur(18px); }
+@media (prefers-reduced-motion: reduce) {
+  .lx-hero-tile, .lx-tile { opacity: 1; transform: none; filter: none; transition: none; }
+  .lx-hero-tile img, .lx-hero-tile::after, .lx-tile.selected::before { animation: none; }
+}
+.lx-faces.small { grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 10px; }
+.lx-face.pick { position: relative; padding: 8px 4px; border-style: solid; transition: transform 0.2s var(--lx-spring), border-color 0.2s, background 0.2s; }
+.lx-face.pick .lx-face-img { width: 64px; height: 64px; }
+.lx-face.pick.on { border-color: var(--accent); background: rgb(var(--accent-rgb) / 0.12); transform: scale(0.95); }
+.lx-face-check { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; background: var(--lx-grad); color: #06070a; }
+.lx-face.target { border-color: rgb(var(--accent-rgb) / 0.7); animation: lx-breathe 1.6s ease-in-out infinite; }
+.lx-pickbar {
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(92px + env(safe-area-inset-bottom, 0px)); z-index: 50;
+  width: min(520px, calc(100% - 24px)); box-sizing: border-box; display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  border-radius: 20px; border: 1px solid rgb(var(--accent-rgb) / 0.4); background: color-mix(in srgb, var(--surface) 94%, transparent); backdrop-filter: blur(16px);
+}
+.lx-pickbar > span { flex: 1; font-size: 13.5px; font-weight: 600; }

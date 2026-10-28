@@ -18,6 +18,8 @@ export interface PersonFace {
 /** O față găsită într-o poză, încă fără nume și fără amprentă (vezi mai jos). */
 export interface LooseFace {
   photoId: string;
+  /** Poziția feței în analiza pozei — ca s-o putem eticheta exact pe ea. */
+  faceIndex: number;
   box: [number, number, number, number];
 }
 
@@ -42,14 +44,14 @@ function readPersonFaces(): Record<string, LooseFace> {
  * „Oameni” gol, deși pozele au fețe. Până atunci se arată fețele așa cum sunt,
  * câte una pe poză (cea mai mare), de pe zile diferite.
  */
-function looseFaces(analyses: { photoId: string; faces?: { personId: string | null; box: [number, number, number, number] }[] }[], limit = 12): LooseFace[] {
+function looseFaces(analyses: { photoId: string; faces?: { personId: string | null; box: [number, number, number, number] }[] }[], limit = 60): LooseFace[] {
   const out: LooseFace[] = [];
   for (const a of analyses) {
-    const faces = (a.faces ?? []).filter(f => !f.personId);
-    if (!faces.length) continue;
-    const big = [...faces].sort((x, y) => y.box[2] * y.box[3] - x.box[2] * x.box[3])[0];
-    if (big.box[2] * big.box[3] < 0.004) continue; // fețe prea mici ca să le recunoască omul
-    out.push({ photoId: a.photoId, box: big.box });
+    (a.faces ?? []).forEach((f, faceIndex) => {
+      if (f.personId) return;
+      if (f.box[2] * f.box[3] < 0.004) return; // fețe prea mici ca să le recunoască omul
+      out.push({ photoId: a.photoId, faceIndex, box: f.box });
+    });
   }
   return out.sort((x, y) => y.box[2] * y.box[3] - x.box[2] * x.box[3]).slice(0, limit);
 }

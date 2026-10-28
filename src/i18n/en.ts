@@ -2418,4 +2418,11 @@ export const en: Record<TranslationKey, string> = {
   "lx.mode.creator": "Creator",
   "lx.mode.creator.sub": "Instagram: only the very best frame",
   "lx.brain.loved": "You love:",
+  "lx.people.pickHint": "Tap every face of the same person, then \"Name\". Or tap someone already named to add them there.",
+  "lx.people.picked": "{count} faces picked",
+  "lx.people.clear": "Cancel",
+  "lx.people.name": "Name",
+  "lx.people.addHere": "Add here",
+  "lx.people.tagged": "Done: {count} faces are now {name}.",
+  "lx.wall.best": "Best of the month",
 };
