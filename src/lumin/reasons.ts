@@ -28,7 +28,8 @@ export function reasonsFor(p: ReasonInput): Reason[] {
   if (p.exposure < 28) out.push({ key: 'lx.reason.dark', tone: 'bad' });
   else if (p.exposure > 78) out.push({ key: 'lx.reason.bright', tone: 'bad' });
   if (p.faceCount > 0 && p.bestSmile >= 0.6) out.push({ key: 'lx.reason.smile', tone: 'good' });
-  if (p.faceCount > 0 && p.allEyesOpen) out.push({ key: 'lx.reason.eyesOpen', tone: 'good' });
+  if (p.faceCount > 1 && p.allEyesOpen) out.push({ key: 'lx.reason.eyesAll', tone: 'good' });
+  else if (p.faceCount > 0 && p.allEyesOpen) out.push({ key: 'lx.reason.eyesOpen', tone: 'good' });
   if (p.sharpness >= 70) out.push({ key: 'lx.reason.sharp', tone: 'good' });
   if (p.goldenHourDetected) out.push({ key: 'lx.reason.goldenHour', tone: 'good' });
   if (p.groupId) out.push({ key: 'lx.reason.series', tone: 'info' });

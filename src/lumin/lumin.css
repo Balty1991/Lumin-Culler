@@ -528,3 +528,43 @@
 }
 .lx-pickbar > span { flex: 1; font-size: 13.5px; font-weight: 600; }
 .lx-face-learning { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--accent-2-text); padding: 10px 0; }
+/* Sortat singur — „Am ales 4 din 27” */
+.lx-auto-result {
+  position: relative; flex-direction: column; align-items: stretch; gap: 6px; margin: 0 0 18px;
+  border-color: rgba(var(--accent-rgb), .35);
+  background: linear-gradient(135deg, rgba(var(--accent-rgb), .16), rgba(var(--accent-2-rgb), .10)), var(--lx-glass);
+  animation: lx-rise .5s var(--lx-spring) both;
+}
+.lx-auto-result > b { font-family: var(--font-display); font-size: 20px; line-height: 1.2; padding-right: 28px; }
+.lx-auto-result > span:not(.lx-eyebrow) { font-size: 13px; color: var(--text-dim); line-height: 1.4; margin-bottom: 6px; }
+.lx-auto-close { position: absolute; top: 10px; right: 10px; width: 30px; height: 30px; border-radius: 50%; color: var(--text-dim); }
+.lx-switch { flex: none; width: 44px; height: 26px; border-radius: 13px; background: var(--surface-3); position: relative; transition: background .2s; }
+.lx-switch i { position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: transform .25s var(--lx-spring); }
+.lx-switch.on { background: var(--accent); }
+.lx-switch.on i { transform: translateX(18px); }
+/* Asemănătoare */
+.lx-similar-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 4px 0 12px; font-size: 14px; color: var(--text-dim); }
+/* Poza mare: unelte AI */
+.lx-viewer-tools { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.lx-chip-btn.magic { background: var(--lx-grad); color: #fff; border-color: transparent; }
+/* Fă-o mai frumoasă */
+.lx-enhance { position: fixed; inset: 0; z-index: 90; background: #07070b; display: flex; flex-direction: column; color: #fff; }
+.lx-enhance-stage { flex: 1; min-height: 0; display: grid; place-items: center; padding: 8px; touch-action: none; }
+.lx-enhance-frame { position: relative; max-width: 100%; max-height: 100%; display: grid; }
+.lx-enhance-frame > img, .lx-enhance-after img { display: block; max-width: 100%; max-height: calc(100dvh - 230px); object-fit: contain; user-select: none; }
+.lx-enhance-frame > * { grid-area: 1 / 1; }
+.lx-enhance-after { pointer-events: none; }
+.lx-enhance-line { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #fff; box-shadow: 0 0 12px rgba(0,0,0,.5); pointer-events: none; }
+.lx-enhance-line i { position: absolute; top: 50%; left: 50%; width: 34px; height: 34px; margin: -17px; border-radius: 50%; background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,.4); }
+.lx-enhance-line i::before { content: '‹ ›'; position: absolute; inset: 0; display: grid; place-items: center; color: #111; font-size: 15px; font-weight: 700; }
+.lx-enhance-tag { position: absolute; top: 10px; padding: 4px 10px; border-radius: 999px; background: rgba(0,0,0,.55); font-size: 12px; pointer-events: none; }
+.lx-enhance-tag.left { left: 10px; } .lx-enhance-tag.right { right: 10px; }
+.lx-enhance-wait { display: flex; flex-direction: column; align-items: center; gap: 14px; color: rgba(255,255,255,.75); font-size: 14px; }
+.lx-enhance-wait .lx-spinner { width: 34px; height: 34px; border-radius: 50%; border: 3px solid rgba(255,255,255,.2); border-top-color: #fff; animation: lx-spin 0.9s linear infinite; }
+@keyframes lx-spin { to { transform: rotate(360deg); } }
+.lx-hint.center { text-align: center; margin-bottom: 10px; }
+/* Film */
+.lx-recap-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.lx-story-busy { position: fixed; inset: 0; z-index: 95; background: rgba(5,5,10,.86); backdrop-filter: blur(14px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; color: #fff; text-align: center; padding: 24px; }
+.lx-story-ring { --p: 0; width: 120px; height: 120px; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(var(--accent) calc(var(--p) * 1%), rgba(255,255,255,.12) 0); }
+.lx-story-ring b { width: 100px; height: 100px; border-radius: 50%; background: #0b0b10; display: grid; place-items: center; font-size: 24px; }

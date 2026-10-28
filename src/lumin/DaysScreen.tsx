@@ -3,10 +3,11 @@ import { useStore } from '../state/store';
 import { groupDays, type Day } from './days';
 import { usePeopleFaces } from './faces';
 import { buildCoverage, useGalleryMonths } from './coverage';
-import { dayLabel, daySummary, monthLabel } from './format';
+import { capitalizeFirst, dayLabel, daySummary, monthLabel } from './format';
 import { useLx, type GalleryView } from './lxStore';
 import { useLxActions, useTr } from './context';
 import { Thumb } from './Thumb';
+import { StoryButton } from './Story';
 import { PeopleGrid } from './People';
 import { CleanupCard } from './Cleanup';
 import { GalleryWall } from './GalleryWall';
@@ -207,7 +208,7 @@ function PhotoGrid({ list, title }: { list: PhotoView[]; title: string }) {
     <div className="lx-grid">
       {list.map(p => (
         <button key={p.id} className={`lx-grid-cell ${p.status}`} onClick={() => openSort(list.map(x => x.id), title)}>
-          <Thumb id={p.id} lqip={p.lqip} />
+          <Thumb id={p.id} lqip={p.lqip} edits={p.edits} />
           <span className="lx-grid-score">{p.aiScore}</span>
         </button>
       ))}
@@ -255,6 +256,7 @@ function DayView({ day, onBack }: { day: Day<PhotoView>; onBack: () => void }) {
             <span className="lx-links">
               {canMakePhoneAlbums() && <button className="lx-link" onClick={() => void copyToPhoneAlbum(label, day.kept)}>{tr('lx.phone.toAlbum')}</button>}
               <button className="lx-link" onClick={() => void exportSelection('apps', day.kept.map(p => p.id))}>{tr('lx.day.share', { count: day.kept.length })}</button>
+              <StoryButton ids={day.kept.map(p => p.id)} title={capitalizeFirst(label)} subtitle={tr('lx.story.daySub', { count: day.kept.length })} />
             </span>
           </div>
           <PhotoGrid list={day.kept} title={tr('lx.day.kept')} />
@@ -269,7 +271,7 @@ function DayView({ day, onBack }: { day: Day<PhotoView>; onBack: () => void }) {
               <button key={s.id} className="lx-series" onClick={() => openSort(s.photos.map(p => p.id), tr('lx.day.seriesOne', { count: s.photos.length }))}>
                 {s.photos.slice(0, 6).map(p => (
                   <span key={p.id} className={p.id === s.best.id ? 'lx-series-frame best' : `lx-series-frame${p.status === 'rejected' ? ' out' : ''}`}>
-                    <Thumb id={p.id} lqip={p.lqip} />
+                    <Thumb id={p.id} lqip={p.lqip} edits={p.edits} />
                     {p.id === s.best.id && <b>★</b>}
                   </span>
                 ))}
@@ -307,7 +309,7 @@ function DayCards({ days }: { days: Day<PhotoView>[] }) {
       {days.map((d, i) => (
         <button key={d.start} className="lx-daycard" style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }} onClick={() => setOpenDay(d.start)}>
           <div className={`lx-mosaic n${Math.min(3, Math.max(1, (d.kept.length || d.photos.length)))}`} aria-hidden="true">
-            {(d.kept.length ? d.kept : d.photos).slice(0, 3).map(p => <Thumb key={p.id} id={p.id} lqip={p.lqip} />)}
+            {(d.kept.length ? d.kept : d.photos).slice(0, 3).map(p => <Thumb key={p.id} id={p.id} lqip={p.lqip} edits={p.edits} />)}
           </div>
           <div className="lx-daycard-text">
             <b>{dayLabel(d.start, locale)}</b>

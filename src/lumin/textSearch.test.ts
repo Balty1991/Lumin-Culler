@@ -22,4 +22,15 @@ describe('searchPhotos', () => {
     expect(searchPhotos(photos, 'bon').map(p => p.id)).toEqual(['bon']);
     expect(searchPhotos(photos, 'octombrie').map(p => p.id)).toEqual(['ana']);
   });
+
+  it('understands a whole phrase and seasons', () => {
+    const photos = [
+      { ...base, id: 'beach', sceneTags: ['Beach', 'Sunset', 'Child'], faceCount: 1, capturedAt: new Date(2026, 6, 20).getTime() },
+      { ...base, id: 'park', sceneTags: ['Child', 'Grass'], faceCount: 1, capturedAt: new Date(2026, 0, 5).getTime() }
+    ];
+    expect(searchPhotos(photos, 'copil pe plajă la apus').map(p => p.id)).toEqual(['beach']);
+    expect(searchPhotos(photos, 'vara').map(p => p.id)).toEqual(['beach']);
+    expect(searchPhotos(photos, 'iarna').map(p => p.id)).toEqual(['park']);
+    expect(searchPhotos(photos, 'mai')).toEqual([]);
+  });
 });

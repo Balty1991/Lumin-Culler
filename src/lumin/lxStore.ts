@@ -1,3 +1,4 @@
+import type { AutoSortResult } from './autoSort';
 import { create } from 'zustand';
 
 /**
@@ -24,6 +25,9 @@ interface LxState {
   faceProgress: { done: number; total: number } | null;
   setFaceProgress: (p: { done: number; total: number } | null) => void;
   /** Crește când s-au schimbat fețele/numele, ca ecranele să recitească. */
+  /** „Am ales 4 din 27”: ce a făcut sortarea automată (lumin/autoSort.ts). */
+  autoResult: AutoSortResult | null;
+  setAutoResult: (r: AutoSortResult | null) => void;
   faceVersion: number;
   bumpFaces: () => void;
   setGalleryView: (view: GalleryView) => void;
@@ -41,6 +45,8 @@ export const useLx = create<LxState>(set => ({
   galleryView: 'wall',
   faceProgress: null,
   setFaceProgress: p => set({ faceProgress: p }),
+  autoResult: null,
+  setAutoResult: r => set({ autoResult: r }),
   faceVersion: 0,
   bumpFaces: () => set(s => ({ faceVersion: s.faceVersion + 1 })),
   setGalleryView: view => set({ galleryView: view })

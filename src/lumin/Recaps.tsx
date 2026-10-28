@@ -5,6 +5,7 @@ import { photoTime } from './days';
 import { makeCollage, shareCollage } from './collage';
 import { useTr } from './context';
 import { Thumb } from './Thumb';
+import { StoryButton } from './Story';
 
 const DAY_MS = 86_400_000;
 
@@ -64,15 +65,20 @@ export function Recaps() {
       {cards.map(c => (
         <section key={c.kind} className={`lx-recap ${c.kind}${sunday && c.kind === 'week' ? ' hot' : ''}`}>
           <div className="lx-recap-strip" aria-hidden="true">
-            {c.list.slice(0, 5).map((p, i) => <span key={p.id} style={{ ['--i' as string]: i }}><Thumb id={p.id} lqip={p.lqip} /></span>)}
+            {c.list.slice(0, 5).map((p, i) => <span key={p.id} style={{ ['--i' as string]: i }}><Thumb id={p.id} lqip={p.lqip} edits={p.edits} /></span>)}
           </div>
           <div className="lx-recap-text">
             <b>{tr(c.kind === 'week' ? 'lx.recap.week.title' : 'lx.recap.year.title', { count: c.list.length, year })}</b>
             <span>{tr(c.kind === 'week' ? 'lx.recap.week.sub' : 'lx.recap.year.cta')}</span>
           </div>
-          <button className="lx-btn primary small" disabled={busy !== null} onClick={() => void share(c.kind, c.list)}>
-            {busy === c.kind ? '…' : tr('lx.recap.share')}
-          </button>
+          <div className="lx-recap-actions">
+            <button className="lx-btn primary small" disabled={busy !== null} onClick={() => void share(c.kind, c.list)}>
+              {busy === c.kind ? '…' : tr('lx.recap.share')}
+            </button>
+            <StoryButton className="lx-btn ghost small" ids={c.list.slice(0, 12).map(p => p.id)}
+              title={tr(c.kind === 'week' ? 'lx.story.weekTitle' : 'lx.story.yearTitle', { year })}
+              subtitle={tr('lx.story.daySub', { count: Math.min(12, c.list.length) })} />
+          </div>
         </section>
       ))}
     </>

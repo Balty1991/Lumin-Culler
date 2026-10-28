@@ -26,7 +26,13 @@ export interface MomentPhoto {
   priority?: boolean;
   /** Claritatea, 0..100 — pentru modul vânzător, unde contează mai mult decât restul. */
   sharpness?: number;
+  /** Fețe în poză și dacă toți au ochii deschiși — într-o serie de grup câștigă cadrul cu toți treji. */
+  faceCount?: number;
+  allEyesOpen?: boolean;
 }
+
+/** 0 = cineva are ochii închiși; 1 = fără fețe sau toți cu ochii deschiși. */
+const eyesOk = (p: MomentPhoto) => Number(!((p.faceCount ?? 0) > 0 && p.allEyesOpen === false));
 
 export interface MomentOptions {
   /** Câte poze în plus păstrează un moment cu priorități (gust pe persoană, mod părinte). */
@@ -74,6 +80,7 @@ export function momentChanges(photos: readonly MomentPhoto[], strictness: Cullin
     const ranked = moment.filter(p => !p.locked && (p.status === 'selected' || p.status === 'review' || p.status === 'pending'))
       .sort((a, b) =>
         Number(!!b.priority) - Number(!!a.priority) ||
+        eyesOk(b) - eyesOk(a) ||
         (options.rankBy === 'sharpness' ? (b.sharpness ?? 0) - (a.sharpness ?? 0) : 0) ||
         b.aiScore - a.aiScore);
     for (const p of ranked) {

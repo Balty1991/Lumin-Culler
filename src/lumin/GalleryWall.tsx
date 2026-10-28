@@ -8,6 +8,9 @@ import { reasonsFor } from './reasons';
 import { useTr } from './context';
 import { Thumb } from './Thumb';
 import { searchPhotos } from './textSearch';
+import { db } from '../core/db';
+import { findSimilarPhotos } from '../core/similarPhotos';
+import { EnhanceSheet } from './Enhance';
 
 type Filter = 'all' | 'kept' | 'notToday';
 const PAGE = 60;
@@ -44,19 +47,36 @@ export function GalleryWall() {
   const [shown, setShown] = useState(PAGE);
   const [viewer, setViewer] = useState<number | null>(null);
   const [query, setQuery] = useState('');
+  /** „Asemănătoare”: poza de plecare și cele care seamănă cu ea (după ce se vede, nu după dată). */
+  const [similar, setSimilar] = useState<{ source: string; ids: string[] } | null>(null);
+  const setNotice = useStore(s => s.setNotice);
   const sentinel = useRef<HTMLDivElement>(null);
 
   const list = useMemo(() => {
+    if (similar) {
+      const byId = new Map(photos.map(p => [p.id, p]));
+      return [similar.source, ...similar.ids].map(id => byId.get(id)).filter((p): p is PhotoView => !!p);
+    }
     // Cu o căutare: și documentele (bonul de benzină se caută), în ordinea potrivirii.
     if (query.trim()) return searchPhotos(photos, query);
     return photos
       .filter(p => !p.aside)
       .filter(p => filter === 'all' || (filter === 'kept' ? p.status === 'selected' : p.status === 'rejected'))
       .sort((a, b) => photoTime(b) - photoTime(a));
-  }, [photos, filter, query]);
+  }, [photos, filter, query, similar]);
   const reveal = useReveal();
 
-  useEffect(() => { setShown(PAGE); }, [filter, query]);
+  useEffect(() => { setShown(PAGE); }, [filter, query, similar]);
+
+  const showSimilar = async (id: string) => {
+    const rows = await db.analyses.toArray();
+    const ids = findSimilarPhotos(rows.map(a => ({ photoId: a.photoId, imageEmbedding: a.imageEmbedding })), id);
+    if (!ids.length) { setNotice(tr('lx.similar.none')); return; }
+    setViewer(null);
+    setQuery('');
+    setSimilar({ source: id, ids });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
   useEffect(() => {
     const el = sentinel.current;
     if (!el) return;
@@ -82,11 +102,17 @@ export function GalleryWall() {
     <div className="lx-wall-wrap">
       <label className="lx-search">
         <span aria-hidden="true">⌕</span>
-        <input type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder={tr('lx.search.placeholder')} aria-label={tr('lx.search.placeholder')} />
+        <input type="search" value={query} onChange={e => { setSimilar(null); setQuery(e.target.value); }} placeholder={tr('lx.search.placeholder')} aria-label={tr('lx.search.placeholder')} />
         {query && <button onClick={() => setQuery('')} aria-label={tr('lx.close')}>✕</button>}
       </label>
       {query.trim() && <p className="lx-hint">{tr('lx.search.results', { count: list.length })}</p>}
-      {!query.trim() && (
+      {similar && (
+        <div className="lx-similar-head">
+          <span>{tr('lx.similar.title', { count: list.length - 1 })}</span>
+          <button className="lx-chip-btn on" onClick={() => setSimilar(null)}>✕ {tr('lx.similar.clear')}</button>
+        </div>
+      )}
+      {!query.trim() && !similar && (
         <div className="lx-chips lx-wall-filters">
           {(['all', 'kept', 'notToday'] as Filter[]).map(f => (
             <button key={f} className={filter === f ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => setFilter(f)}>
@@ -104,9 +130,9 @@ export function GalleryWall() {
         return (
           <section key={m.start} className="lx-wall-month">
             <h3 className="lx-wall-head"><span>{monthLabel(m.start, locale)}</span><small>{tr('lx.brain.photos', { count: m.items.length })}</small></h3>
-            {!query.trim() && hero && (
+            {!query.trim() && !similar && hero && (
               <button className="lx-hero-tile" ref={reveal} onClick={() => setViewer(hero.i)}>
-                <Thumb id={hero.p.id} lqip={hero.p.lqip} full />
+                <Thumb id={hero.p.id} lqip={hero.p.lqip} edits={hero.p.edits} full />
                 <span className="lx-hero-shade" />
                 <span className="lx-hero-caption">
                   <b>{tr('lx.wall.best')}</b>
@@ -115,10 +141,10 @@ export function GalleryWall() {
               </button>
             )}
             <div className="lx-wall">
-              {(query.trim() ? m.items : rest).map(({ p, i }) => (
+              {(query.trim() || similar ? m.items : rest).map(({ p, i }) => (
                 <button key={p.id} ref={reveal} className={`lx-tile ${p.status}`} style={{ ['--d' as string]: `${(i % 6) * 60}ms`, ['--float' as string]: `${(i % 7) * 0.7}s` }}
                   onClick={() => setViewer(i)}>
-                  <Thumb id={p.id} lqip={p.lqip} />
+                  <Thumb id={p.id} lqip={p.lqip} edits={p.edits} />
                   {p.status === 'selected' && <span className="lx-tile-star">★</span>}
                   {p.status === 'rejected' && <span className="lx-tile-dot" title={tr('lx.wall.state.notToday')} />}
                 </button>
@@ -129,7 +155,7 @@ export function GalleryWall() {
       })}
       <div ref={sentinel} aria-hidden="true" style={{ height: 1 }} />
       {viewer !== null && list[viewer] && (
-        <Viewer list={list} index={viewer} onIndex={setViewer} onClose={() => setViewer(null)} />
+        <Viewer list={list} index={viewer} onIndex={setViewer} onClose={() => setViewer(null)} onSimilar={id => void showSimilar(id)} />
       )}
     </div>
   );
@@ -141,12 +167,15 @@ export function GalleryWall() {
  * „fixă” se calcula față de toată lista, iar poza ajungea sub bara de jos sau
  * în afara ecranului (raportat: „se vede ciudat”, „respinsa se vede negru”).
  */
-export function Viewer({ list, index, onIndex, onClose }: {
+export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
   list: PhotoView[];
   index: number;
   onIndex: (i: number) => void;
   onClose: () => void;
+  /** „Asemănătoare” — doar unde există o listă în care să le arătăm. */
+  onSimilar?: (id: string) => void;
 }) {
+  const [enhancing, setEnhancing] = useState(false);
   const tr = useTr();
   const locale = useStore(s => s.locale);
   const setStatus = useStore(s => s.setStatus);
@@ -159,6 +188,7 @@ export function Viewer({ list, index, onIndex, onClose }: {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (enhancing) return;
       if (e.key === 'Escape') onClose();
       else if (e.key === 'ArrowRight') go(1);
       else if (e.key === 'ArrowLeft') go(-1);
@@ -199,7 +229,7 @@ export function Viewer({ list, index, onIndex, onClose }: {
       <div className="lx-viewer-stage" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
         <div key={p.id} className={`lx-viewer-photo ${dir ?? ''}`}
           style={{ transform: `translate(${drag.x}px, ${Math.max(0, drag.y)}px) scale(${1 - Math.max(0, drag.y) / 1600})` }}>
-          <Thumb id={p.id} lqip={p.lqip} full />
+          <Thumb id={p.id} lqip={p.lqip} edits={p.edits} full />
         </div>
       </div>
       <div className="lx-viewer-info">
@@ -209,6 +239,10 @@ export function Viewer({ list, index, onIndex, onClose }: {
           </span>
           <span className="lx-chip info">AI {p.aiScore}</span>
           {reasonsFor(p).map(r => <span key={r.key} className={`lx-chip ${r.tone}`}>{tr(r.key)}</span>)}
+        </div>
+        <div className="lx-viewer-tools">
+          <button className="lx-chip-btn magic" onClick={() => setEnhancing(true)}>✨ {tr('lx.enhance.button')}</button>
+          {onSimilar && <button className="lx-chip-btn" onClick={() => onSimilar(p.id)}>◎ {tr('lx.similar.button')}</button>}
         </div>
         <div className="lx-viewer-actions">
           <button className={p.status === 'rejected' ? 'lx-round drop on' : 'lx-round drop'} onClick={() => void setStatus(p.id, 'rejected')} aria-label={tr('lx.notToday')}>
@@ -222,6 +256,7 @@ export function Viewer({ list, index, onIndex, onClose }: {
           </button>
         </div>
       </div>
+      {enhancing && <EnhanceSheet photo={p} onClose={() => setEnhancing(false)} />}
     </div>,
     document.body
   );

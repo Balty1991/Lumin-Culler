@@ -49,4 +49,14 @@ describe('moments', () => {
     const changes = momentChanges(list, 'lax', { maxPerMoment: 1, rankBy: 'sharpness' });
     expect([...changes.keys()].sort()).toEqual(['a', 'c']);
   });
+
+  it('in a group series keeps the frame where everyone has eyes open', () => {
+    const list = [
+      { ...photo('a', 0, 95), faceCount: 4, allEyesOpen: false },
+      { ...photo('b', 0.3, 82), faceCount: 4, allEyesOpen: true },
+      { ...photo('c', 0.6, 90), faceCount: 4, allEyesOpen: false }
+    ];
+    const changes = momentChanges(list, 'strict');
+    expect([...changes.keys()].sort()).toEqual(['a', 'c']);
+  });
 });

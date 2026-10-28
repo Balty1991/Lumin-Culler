@@ -15,6 +15,7 @@ import { t } from '../i18n';
 import { useLx, type LxTab } from './lxStore';
 import { LxActionsContext } from './context';
 import { groupDays } from './days';
+import { autoSortToday, summarizeToday } from './autoSort';
 import { autoNameFaces, canEmbedFaces, embedMissingFaces } from './faceIdentity';
 import { TodayScreen } from './TodayScreen';
 import { DaysScreen } from './DaysScreen';
@@ -91,7 +92,9 @@ export function LuminApp() {
     let stop: (() => void) | undefined;
     void onTodayLaunch(() => {
       useLx.getState().setTab('today');
-      void useStore.getState().importToday().then(() => {
+      void useStore.getState().importToday().then(added => {
+        const result = summarizeToday(added ?? 0);
+        if (result) useLx.getState().setAutoResult(result);
         const day = groupDays(useStore.getState().photos).find(d => d.start === startOfDay());
         if (day?.waiting.length) useLx.getState().openSort(day.waiting.map(p => p.id), t(useStore.getState().locale, 'lx.sort.today'));
       });
@@ -115,6 +118,16 @@ export function LuminApp() {
     }, 1500);
     return () => window.clearTimeout(timer);
   }, [photos, booted, locale]);
+
+  // Sortarea care se face singură: la pornire și de fiecare dată când revii în aplicație.
+  useEffect(() => {
+    if (!booted) return;
+    const run = () => void autoSortToday().then(r => { if (r) useLx.getState().setAutoResult(r); });
+    run();
+    if (!Capacitor.isNativePlatform()) return;
+    const sub = CapacitorApp.addListener('resume', run);
+    return () => { void sub.then(h => h.remove()); };
+  }, [booted]);
 
   // Fețele: după pornire și după fiecare import, amprentele lipsă și numele recunoscute.
   const importDone = !progress || progress.phase === 'finalizat';

@@ -131,7 +131,7 @@ export function SwipeSort() {
           <div className="lx-deck">
             {next && (
               <div className="lx-card-photo under" aria-hidden="true">
-                <Thumb id={next.id} lqip={next.lqip} className="lx-card-img" />
+                <Thumb id={next.id} lqip={next.lqip} edits={next.edits} className="lx-card-img" />
               </div>
             )}
             <div
@@ -139,7 +139,7 @@ export function SwipeSort() {
               style={{ transform: `translateX(${offset}px) rotate(${offset / 22}deg)` }}
               onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
             >
-              <Thumb key={current.id} id={current.id} lqip={current.lqip} full className="lx-card-img" />
+              <Thumb key={current.id} id={current.id} lqip={current.lqip} edits={current.edits} full className="lx-card-img" />
               <span className={`lx-stamp keep${intent === 'keep' ? ' on' : ''}`}>{tr('lx.keep')}</span>
               <span className={`lx-stamp drop${intent === 'drop' ? ' on' : ''}`}>{tr('lx.notToday')}</span>
               <div className="lx-card-ai">

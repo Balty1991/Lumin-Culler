@@ -4184,6 +4184,8 @@ export const useStore = create<AppState>((set, get) => ({
         id: r.id, capturedAt: view?.capturedAt, status: r.status, aiScore: view?.aiScore ?? 0,
         aside: view?.aside, groupId: view?.groupId, locked: lockedFromAutoDecision(r),
         sharpness: view?.sharpness,
+        faceCount: view?.faceCount,
+        allEyesOpen: view?.allEyesOpen,
         priority: loved || (mode === 'parent' && (view?.faceCount ?? 0) > 0)
       };
     });

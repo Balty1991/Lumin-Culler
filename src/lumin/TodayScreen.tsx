@@ -36,6 +36,8 @@ export function TodayScreen() {
   const openSort = useLx(s => s.openSort);
   const setTab = useLx(s => s.setTab);
   const setOpenDay = useLx(s => s.setOpenDay);
+  const autoResult = useLx(s => s.autoResult);
+  const setAutoResult = useLx(s => s.setAutoResult);
 
   const days = useMemo(() => groupDays(photos), [photos]);
   const todayStart = startOfDay();
@@ -104,6 +106,21 @@ export function TodayScreen() {
         )}
       </section>
 
+      {autoResult && autoResult.day === todayStart && !busy && (
+        <section className="lx-card lx-auto-result" role="status">
+          <button className="lx-auto-close" onClick={() => setAutoResult(null)} aria-label={tr('lx.close')}>✕</button>
+          <span className="lx-eyebrow">{tr('lx.auto.eyebrow')}</span>
+          <b>{tr('lx.auto.title', { kept: autoResult.kept, added: autoResult.added })}</b>
+          <span>{tr(autoResult.waiting ? 'lx.auto.waiting' : 'lx.auto.done', { count: autoResult.waiting })}</span>
+          <div className="lx-decide-actions">
+            <button className="lx-btn primary" onClick={() => { setAutoResult(null); setTab('days'); setOpenDay(todayStart); }}>{tr('lx.auto.see')}</button>
+            {today && today.waiting.length > 0 && (
+              <button className="lx-btn ghost" onClick={() => { setAutoResult(null); openSort(today.waiting.map(p => p.id), tr('lx.sort.today')); }}>{tr('lx.today.check')}</button>
+            )}
+          </div>
+        </section>
+      )}
+
       {today && today.kept.length > 0 && (
         <section className="lx-section">
           <div className="lx-section-head">
@@ -114,7 +131,7 @@ export function TodayScreen() {
             {today.kept.map((p, i) => (
               <button key={p.id} role="listitem" className="lx-pick" style={{ animationDelay: `${i * 60}ms` }}
                 onClick={() => openSort(today.kept.map(k => k.id), tr('lx.today.picks'))}>
-                <Thumb id={p.id} lqip={p.lqip} className="lx-pick-img" />
+                <Thumb id={p.id} lqip={p.lqip} edits={p.edits} className="lx-pick-img" />
                 <span className="lx-pick-score">{p.aiScore}</span>
                 <span className="lx-pick-why">
                   {reasonsFor(p).filter(r => r.tone === 'good').slice(0, 1).map(r => tr(r.key))[0] ?? tr('lx.reason.best')}
@@ -173,7 +190,7 @@ export function TodayScreen() {
             {past.map(d => (
               <button key={d.start} className="lx-dayrow" onClick={() => { setTab('days'); setOpenDay(d.start); }}>
                 <div className="lx-dayrow-thumbs" aria-hidden="true">
-                  {(d.kept.length ? d.kept : d.photos).slice(0, 3).map(p => <Thumb key={p.id} id={p.id} lqip={p.lqip} />)}
+                  {(d.kept.length ? d.kept : d.photos).slice(0, 3).map(p => <Thumb key={p.id} id={p.id} lqip={p.lqip} edits={p.edits} />)}
                 </div>
                 <div className="lx-dayrow-text">
                   <b>{dayLabel(d.start, locale, 'short')}</b>
@@ -235,7 +252,7 @@ function OnThisDay() {
             <div className="lx-memory">
               {m.photos.map(p => (
                 <button key={p.id} onClick={() => openSort(m.photos.map(x => x.id), title)}>
-                  <Thumb id={p.id} lqip={p.lqip} />
+                  <Thumb id={p.id} lqip={p.lqip} edits={p.edits} />
                 </button>
               ))}
             </div>
