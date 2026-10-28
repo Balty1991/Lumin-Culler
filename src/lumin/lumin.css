@@ -781,3 +781,12 @@ body.lx-viewer-open .lx-hero-media img { animation-play-state: paused; }
    (la 1600 px lărgea grila, iar poza ieșea mai mare decât „Înainte”). */
 .lx-enhance-frame > .lx-enhance-after { position: absolute; inset: 0; }
 .lx-enhance-after .lx-enhance-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* Panoul de jos puțin mai mare (cerut): text și butoane mai ușor de citit și de atins */
+.lx-viewer-info { gap: 10px; padding: 12px 10px 10px; }
+.lx-viewer-info .lx-why { font-size: 14.5px; line-height: 1.4; }
+.lx-viewer-info .lx-chip { font-size: 12.5px; padding: 3px 10px; }
+.lx-viewer-bar { gap: 6px; }
+.lx-vbtn { height: 64px; border-radius: 16px; gap: 4px; }
+.lx-vbtn span { font-size: 22px; }
+.lx-vbtn small { font-size: 12px; }
+.lx-viewer-photo img, .lx-viewer-photo:not(.zoomed) img { max-height: calc(100dvh - 290px - var(--safe-top, 0px) - var(--safe-bottom, 0px)); }
