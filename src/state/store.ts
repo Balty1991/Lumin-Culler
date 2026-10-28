@@ -28,6 +28,7 @@ import {
   importFiles, originalFiles, originalHandles, createCancelToken, SELECT_THRESHOLD, REJECT_THRESHOLD, decidePhotoStatus,
   readLibraryScores, type ImportProgress, type ImportCancelToken, type ImportOutcomeReport, type ImportWarning
 } from '../core/importPipeline';
+import type { PairGuess } from '../core/tasteScore';
 import { deriveThresholds, applyStrictness, type Thresholds, type CullingStrictness } from '../core/scoreThresholds';
 import { readCullingStrictness, writeCullingStrictness } from './cullingStrictness';
 import { pickMostUncertain } from '../core/uncertainty';
@@ -631,7 +632,7 @@ interface AppState {
   setExportDestinationsOpen: (open: boolean) => void;
   /**
    * Ecranul de bun venit e inca deschis? Traieste in store, nu doar in
-   * WelcomeOnboarding, pentru ca si ALTE lucruri trebuie sa stie: bannerele
+   * ui/FirstRun.tsx, pentru ca si ALTE lucruri trebuie sa stie: bannerele
    * (memorii, instalare, backup, supervizorul galeriei) stau intr-un
    * .banner-stack cu z-index de toast, deci se desenau PESTE ecranul de bun
    * venit, exact peste comutatorul de limba si butonul de inchidere (bug
@@ -843,6 +844,8 @@ interface AppState {
   rescorePhotos: () => Promise<{ total: number; changed: number }>;
   /** Un răspuns din „Învață-mă” (ui/TasteQuiz.tsx): doar învățare, nu schimbă statusul pozelor. */
   learnTastePair: (aId: string, bId: string, answer: TasteAnswer) => Promise<void>;
+  /** Pe care ar păstra-o AI-ul (personal și generic) — întrebat ÎNAINTE de răspuns. Vezi core/tasteScore.ts. */
+  guessTastePair: (aId: string, bId: string) => Promise<PairGuess | null>;
   /**
    * Sterge REAL, de pe telefon, pozele deja RESPINSE care au un URI nativ
    * retinut la import (PhotoRecord.mediaUri) — vezi core/nativeMediaLibrary.ts
@@ -3826,6 +3829,19 @@ export const useStore = create<AppState>((set, get) => ({
     set({
       notice: t(locale, updates.size === 1 ? 'strictness.applied.one' : 'strictness.applied.other', { count: updates.size })
     });
+  },
+
+  guessTastePair: async (aId, bId) => {
+    const [a, b, pa, pb] = await Promise.all([db.analyses.get(aId), db.analyses.get(bId), db.photos.get(aId), db.photos.get(bId)]);
+    if (!a || !b) return null;
+    const [ga, gb] = await Promise.all([contextEngine.predict(a, pa?.genre), contextEngine.predict(b, pb?.genre)]);
+    // Scorul generic = scorul personal minus ce a adăugat învățarea (personalDelta).
+    const genericA = ga.score - ga.personalDelta;
+    const genericB = gb.score - gb.personalDelta;
+    return {
+      personal: ga.score >= gb.score ? 'a' : 'b',
+      generic: genericA >= genericB ? 'a' : 'b'
+    };
   },
 
   learnTastePair: async (aId, bId, answer) => {

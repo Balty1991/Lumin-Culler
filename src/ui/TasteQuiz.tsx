@@ -1,32 +1,51 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { classifyPhoto, looksManufactured } from '../core/smartInbox';
-import { buildTastePairs, TASTE_QUIZ_MIN_PHOTOS, type TasteAnswer, type TastePair } from '../core/tastePairs';
+import { buildTastePairs, TASTE_QUIZ_MIN_PHOTOS, TASTE_QUIZ_MIN_ANSWERS, type TasteAnswer, type TastePair } from '../core/tastePairs';
+import { EMPTY_SCORE, readTasteScore, scoreAnswer, writeTasteScore, type PairGuess, type TasteScore } from '../core/tasteScore';
 import { getDisplayUrl } from '../core/previewUrlCache';
 import { contextEngine } from '../core/learning/ContextEngine';
 import { readTasteQuizDone, writeTasteQuizDone, TASTE_QUIZ_OPEN_EVENT } from '../state/tasteQuiz';
+import { requestNotificationAccess, isNativeNotificationsAvailable } from '../core/nativeNotifications';
 import { useModalFocusTrap } from './useModalFocusTrap';
-import { SparkleIcon, XIcon } from './icons';
+import { XIcon } from './icons';
 import { t } from '../i18n';
+
+/** Cât stă pe ecran dezvăluirea „AI-ul a ghicit / ar fi ales-o pe asta”. */
+const REVEAL_MS = 650;
+const PAYWALL_SHOWN_KEY = 'lumin-onboarding-paywall';
+
+function paywallShown(): boolean {
+  try { return localStorage.getItem(PAYWALL_SHOWN_KEY) === '1'; } catch { return true; }
+}
+function markPaywallShown(): void {
+  try { localStorage.setItem(PAYWALL_SHOWN_KEY, '1'); } catch { /* fără stocare */ }
+}
 
 /**
  * ui/TasteQuiz.tsx
- * „Învață-mă”: AI-ul îți arată două poze din galeria ta și tu alegi pe care o
- * păstrezi. ~12 întrebări, ~2 minute. Fiecare răspuns e o lecție pentru motor
- * (ContextEngine.recordPreference / recordCorrection); la final biblioteca se
- * reclasifică după gustul tău.
+ * Antrenamentul AI-ului: două poze din galeria ta, alegi pe care o păstrezi.
+ * Înainte de fiecare răspuns AI-ul își face alegerea (în secret), iar după
+ * răspuns se vede dacă a ghicit: „AI-ul tău: 7 din 10 · generic: 5 din 10”.
+ * E o măsurătoare cinstită — modelul n-a văzut răspunsul — și e momentul în
+ * care omul vede că aplicația chiar învață de la el.
  *
- * Se deschide singur o dată, după primul import terminat, și oricând din
- * cardul de pe Acasă (evenimentul TASTE_QUIZ_OPEN_EVENT). Nu schimbă
- * statusul niciunei poze direct: doar învață, apoi rescorePhotos hotărăște.
+ * Fiecare răspuns e o lecție (ContextEngine.recordPreference /
+ * recordCorrection); la final biblioteca se reclasifică. Se deschide singur o
+ * dată, după primul import, și oricând din „AI-ul tău” (TASTE_QUIZ_OPEN_EVENT).
+ * După primul antrenament: oferta de notificare de seară și, o singură dată,
+ * abonamentul (se poate închide).
  */
 export function TasteQuiz() {
   const photos = useStore(s => s.photos);
   const progress = useStore(s => s.progress);
   const welcomeSeen = useStore(s => s.welcomeSeen);
   const locale = useStore(s => s.locale);
+  const premiumLocked = useStore(s => s.premiumLocked);
   const learnTastePair = useStore(s => s.learnTastePair);
+  const guessTastePair = useStore(s => s.guessTastePair);
   const rescorePhotos = useStore(s => s.rescorePhotos);
+  const setPremiumOpen = useStore(s => s.setPremiumOpen);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
 
   const [open, setOpen] = useState(false);
@@ -35,14 +54,17 @@ export function TasteQuiz() {
   const [busy, setBusy] = useState(false);
   const [summary, setSummary] = useState<string[] | null>(null);
   const [urls, setUrls] = useState<Record<string, string>>({});
+  const [guess, setGuess] = useState<PairGuess | null>(null);
+  const [reveal, setReveal] = useState<{ choice: TasteAnswer; guess: PairGuess | null } | null>(null);
+  const [score, setScore] = useState<TasteScore>(EMPTY_SCORE);
+  const [firstRun, setFirstRun] = useState(false);
+  const [notifyAsked, setNotifyAsked] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   useModalFocusTrap(containerRef, open);
 
   const analysing = !!progress && progress.phase !== 'finalizat';
   // Doar amintiri: fără bonuri, documente, capturi (raportat: testul întreba
-  // „care bon păstrezi?”). Întâi pozele în care AI-ul a recunoscut ceva (oameni
-  // sau un subiect care nu e un obiect fabricat); dacă sunt prea puține pentru
-  // un test întreg, și restul pozelor care nu par documente.
+  // „care bon păstrezi?”). Întâi pozele în care AI-ul a recunoscut ceva.
   const candidates = useMemo(() => {
     const all = photos.map(p => {
       const kind = classifyPhoto({
@@ -64,9 +86,12 @@ export function TasteQuiz() {
   const start = () => {
     const next = buildTastePairs(candidates);
     if (!next.length) return;
+    setFirstRun(!readTasteQuizDone());
     setPairs(next);
     setIndex(0);
     setSummary(null);
+    setReveal(null);
+    setScore(EMPTY_SCORE);
     setOpen(true);
   };
 
@@ -85,6 +110,16 @@ export function TasteQuiz() {
   });
 
   const pair = pairs[index];
+
+  // Alegerea AI-ului pentru perechea curentă, făcută ÎNAINTE de răspuns.
+  useEffect(() => {
+    if (!open || !pair) return;
+    let alive = true;
+    setGuess(null);
+    void guessTastePair(pair.aId, pair.bId).then(g => { if (alive) setGuess(g); }).catch(() => {});
+    return () => { alive = false; };
+  }, [open, pair, guessTastePair]);
+
   // Pozele perechii curente și ale următoarei, ca trecerea să fie instantanee.
   useEffect(() => {
     if (!open) return;
@@ -104,14 +139,20 @@ export function TasteQuiz() {
     setOpen(false);
   };
 
-  const finish = async () => {
+  const finish = async (final: TasteScore) => {
     setBusy(true);
     writeTasteQuizDone();
+    // Scorul de antrenament se adună peste cele de dinainte (recalibrările).
+    const before = readTasteScore();
+    writeTasteScore({
+      hits: before.hits + final.hits,
+      genericHits: before.genericHits + final.genericHits,
+      total: before.total + final.total
+    });
     try {
       await rescorePhotos();
       const models = await contextEngine.summarize(locale === 'en' ? 'en' : 'ro');
-      const notes = [...new Set(models.flatMap(m => m.notes))].slice(0, 3);
-      setSummary(notes);
+      setSummary([...new Set(models.flatMap(m => m.notes))].slice(0, 3));
     } catch {
       setSummary([]);
     } finally {
@@ -120,71 +161,112 @@ export function TasteQuiz() {
   };
 
   const answer = async (choice: TasteAnswer) => {
-    if (!pair || busy) return;
+    if (!pair || busy || reveal) return;
+    const next = scoreAnswer(score, guess, choice);
+    setScore(next);
+    setReveal({ choice, guess });
     setBusy(true);
     try {
       await learnTastePair(pair.aId, pair.bId, choice);
     } catch {
-      // o lecție pierdută nu oprește testul
+      // o lecție pierdută nu oprește antrenamentul
     }
     setBusy(false);
-    if (index + 1 < pairs.length) setIndex(index + 1);
-    else await finish();
+    window.setTimeout(() => {
+      setReveal(null);
+      if (index + 1 < pairs.length) setIndex(index + 1);
+      else void finish(next);
+    }, REVEAL_MS);
   };
 
-  if (!open) return null;
+  const leave = () => {
+    setOpen(false);
+    // O singură dată, după primul antrenament: abonamentul, cu buton de închidere.
+    if (firstRun && premiumLocked && !paywallShown()) {
+      markPaywallShown();
+      setPremiumOpen(true);
+    }
+  };
+
+  if (!open || (!pair && summary === null)) return null;
   const photoById = (id: string) => photos.find(p => p.id === id);
+  const canStop = index >= TASTE_QUIZ_MIN_ANSWERS && !reveal && !busy;
+  const decided = reveal && (reveal.choice === 'a' || reveal.choice === 'b');
 
   return (
-    <div className="welcome-screen taste-quiz-screen">
-      <div className="welcome-onboarding taste-quiz" ref={containerRef} role="dialog" aria-modal="true"
-        aria-label={tr('taste.title')} tabIndex={-1}
-        onKeyDown={e => { if (e.key === 'Escape') { e.preventDefault(); close(); } }}
-      >
-        <button className="ghost icon-btn welcome-onboarding-skip" onClick={close} aria-label={tr('taste.skip')}>
-          <XIcon />
-        </button>
-
+    <div className="v3-screen tq" role="dialog" aria-modal="true" aria-label={tr('taste.title')} ref={containerRef} tabIndex={-1}
+      onKeyDown={e => { if (e.key === 'Escape') { e.preventDefault(); close(); } }}>
+      <div className="v3-screen-inner tq-inner">
         {summary === null ? (
           <>
-            <p className="taste-quiz-step mono">{tr('taste.step', { n: index + 1, total: pairs.length })}</p>
-            <h2>{tr('taste.question.' + pair.kind)}</h2>
-            <div className="taste-quiz-pair" key={index}>
+            <div className="v3-screen-head">
+              <span className="v3-kicker">{tr('taste.kicker', { n: index + 1, total: pairs.length })}</span>
+              <button className="ghost icon-btn" onClick={close} aria-label={tr('taste.skip')}><XIcon /></button>
+            </div>
+            <div className="tq-progress" aria-hidden="true">
+              <i style={{ width: `${Math.round(((index + (reveal ? 1 : 0)) / pairs.length) * 100)}%` }} />
+            </div>
+            <div className="tq-score" aria-live="polite">
+              <span className="tq-score-dot" />
+              <span>{score.total === 0 ? tr('taste.guessing') : tr('taste.live', { hits: score.hits, total: score.total })}</span>
+            </div>
+            <h2 className="tq-question">{tr('taste.question.' + pair.kind)}</h2>
+            <div className="tq-pair" key={index}>
               {(['a', 'b'] as const).map(side => {
                 const id = side === 'a' ? pair.aId : pair.bId;
                 const p = photoById(id);
                 const src = urls[id] ?? p?.lqip;
+                const chosen = !!reveal && (reveal.choice === side || reveal.choice === 'both');
+                const aiPick = reveal?.guess?.personal === side;
+                const cls = ['tq-photo', chosen ? 'chosen' : '', reveal && !chosen ? 'dim' : ''].filter(Boolean).join(' ');
                 return (
-                  <button key={id} className="taste-quiz-photo" disabled={busy} onClick={() => void answer(side)}
+                  <button key={id} className={cls} disabled={busy || !!reveal} onClick={() => void answer(side)}
                     aria-label={tr(side === 'a' ? 'taste.keepLeft' : 'taste.keepRight')}>
                     {src && <img src={src} alt="" />}
+                    {decided && aiPick && (
+                      <span className={reveal.choice === side ? 'tq-badge hit' : 'tq-badge miss'}>
+                        {reveal.choice === side ? tr('taste.badge.hit') : tr('taste.badge.miss')}
+                      </span>
+                    )}
                   </button>
                 );
               })}
             </div>
-            <div className="taste-quiz-more">
-              <button className="ghost small" disabled={busy} onClick={() => void answer('both')}>{tr('taste.both')}</button>
-              <button className="ghost small" disabled={busy} onClick={() => void answer('none')}>{tr('taste.none')}</button>
+            <div className="tq-more">
+              <button className="tq-chip" disabled={busy || !!reveal} onClick={() => void answer('both')}>{tr('taste.both')}</button>
+              <button className="tq-chip" disabled={busy || !!reveal} onClick={() => void answer('none')}>{tr('taste.none')}</button>
+              {canStop && <button className="tq-chip accent" onClick={() => void finish(score)}>{tr('taste.stop')}</button>}
             </div>
-            <div className="taste-quiz-bar" aria-hidden="true">
-              <span style={{ width: `${Math.round((index / pairs.length) * 100)}%` }} />
-            </div>
+            {busy && !reveal && <p className="v3-kicker v3-center">{tr('taste.learning')}</p>}
           </>
         ) : (
-          <>
-            <div className="welcome-onboarding-icon" aria-hidden="true"><SparkleIcon /></div>
-            <h2>{tr('taste.done.title')}</h2>
-            <p className="welcome-onboarding-body">{tr('taste.done.body')}</p>
+          <section className="tq-done">
+            <span className="v3-kicker">{tr('taste.done.kicker')}</span>
+            <div className="v3-ring" style={{ ['--p' as string]: `${score.total ? Math.round((score.hits / score.total) * 100) : 0}` }}>
+              <span>{score.hits}<small>/{score.total}</small></span>
+            </div>
+            <h2 className="fr-title small v3-center">{tr('taste.done.title')}</h2>
+            {score.total > 0 && (
+              <div className="tq-compare">
+                <div><b className="v3-mono">{score.hits}/{score.total}</b><span>{tr('taste.done.yours')}</span></div>
+                <div><b className="v3-mono">{score.genericHits}/{score.total}</b><span>{tr('taste.done.generic')}</span></div>
+              </div>
+            )}
+            <p className="fr-lead v3-center">{tr('taste.done.body')}</p>
             {summary.length > 0 && (
-              <ul className="taste-quiz-notes">
+              <ul className="tq-notes">
                 {summary.map(note => <li key={note}>{note}</li>)}
               </ul>
             )}
-            <button className="btn-accent" onClick={() => setOpen(false)}>{tr('taste.done.cta')}</button>
-          </>
-        )}
-        {busy && summary === null && index + 1 >= pairs.length && (
-          <p className="hint">{tr('taste.learning')}</p>
+            {firstRun && isNativeNotificationsAvailable() && !notifyAsked && (
+              <button className="v3-outline-btn" onClick={() => { setNotifyAsked(true); void requestNotificationAccess().catch(() => {}); }}>
+                {tr('taste.done.notify')}
+              </button>
+            )}
+            <button className="v3-cta" onClick={leave}>
+              <span>{tr('taste.done.cta')}</span><span className="v3-mono">→</span>
+            </button>
+          </section>
         )}
       </div>
     </div>

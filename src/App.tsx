@@ -1,6 +1,6 @@
 import { isReviewQueue } from './core/singletonVerdict';
 import { TasteQuiz } from './ui/TasteQuiz';
-import { SetupFlow } from './ui/SetupFlow';
+import { FirstRun } from './ui/FirstRun';
 import { AiProfileScreen } from './ui/AiProfileScreen';
 import { dayStats, onTodayLaunch, scheduleDailyDigest } from './core/todayDigest';
 import { Fragment, useEffect, useMemo, useRef, useState, lazy, Suspense, type ComponentType, type CSSProperties, type ReactNode } from 'react';
@@ -56,7 +56,6 @@ import { useBannerStackVar } from './ui/useBannerStackVar';
 import { noticeTone } from './ui/noticeTone';
 import { HomeDashboard } from './ui/HomeDashboard';
 import { BottomNav } from './ui/BottomNav';
-import { WelcomeOnboarding } from './ui/WelcomeOnboarding';
 import { SmartNotification } from './ui/SmartNotification';
 import { QuickScanFind } from './ui/QuickScanFind';
 import { t } from './i18n';
@@ -1026,8 +1025,7 @@ export default function App() {
       </header>
 
       <Toast />
-      <WelcomeOnboarding />
-      <SetupFlow onPickManually={() => void onAddPhotosClick()} />
+      <FirstRun onPickManually={() => void onAddPhotosClick()} />
       <TasteQuiz />
       <HomeDashboard onAddPhotos={() => void onAddPhotosClick()} />
       {/* Nimic nu se desenează peste ecranul de bun venit: .banner-stack are

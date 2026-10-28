@@ -41,7 +41,7 @@ function greetingKey(hour: number): string {
  * utilizatorului: reorganizare reala vizuala, dupa mockup-ul HTML trimis —
  * card hero de progres + spatiu, card recap, card sterge respinse, rand de
  * mini-statistici). Randata DOAR cand exista poze (nimic de salutat/rezumat
- * pe o biblioteca goala — vezi WelcomeOnboarding pentru acel caz).
+ * pe o biblioteca goala — vezi ui/FirstRun.tsx pentru acel caz).
  *
  * Toate cifrele sunt reale, nu inventate ca sa semene cu mockup-ul:
  * - "%" organizat = (selectate+respinse)/total, acelasi calcul ca CullGauge.

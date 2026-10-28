@@ -36,14 +36,20 @@ export interface TastePair {
   bId: string;
 }
 
-/** Câte întrebări: destul cât să conteze, puțin cât să nu plictisească (~2 minute). */
-export const TASTE_QUIZ_SIZE = 12;
+/**
+ * Câte întrebări: 15–20 ajung ca să regleze trăsăturile simple ale modelului
+ * (claritate, ochi, zâmbet, expunere), ~2 minute. Omul poate apăsa „Gata”
+ * după TASTE_QUIZ_MIN_ANSWERS.
+ */
+export const TASTE_QUIZ_SIZE = 16;
+/** De aici încolo testul se poate încheia oricând („Gata”). */
+export const TASTE_QUIZ_MIN_ANSWERS = 8;
 /** Sub atâtea poze utilizabile, testul n-are din ce alege. */
 export const TASTE_QUIZ_MIN_PHOTOS = 8;
 
-const MAX_SERIES = 5;
-const MAX_QUALITY = 4;
-const MAX_SUBJECT = 3;
+const MAX_SERIES = 7;
+const MAX_QUALITY = 5;
+const MAX_SUBJECT = 4;
 /** Diferență de claritate/expunere care se vede cu ochiul liber. */
 const VISIBLE_DEFECT = 18;
 /** Două poze cu scoruri la atât una de alta sunt „de calitate apropiată”. */

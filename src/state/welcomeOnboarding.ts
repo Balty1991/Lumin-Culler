@@ -1,6 +1,6 @@
 /**
  * state/welcomeOnboarding.ts
- * Persistarea "utilizatorul a vazut deja ecranul de bun venit" (ui/WelcomeOnboarding.tsx)
+ * Persistarea "utilizatorul a vazut deja ecranul de bun venit" (ui/FirstRun.tsx)
  * — o data vazut (fie parcurs pana la capat, fie inchis din X/Escape), nu mai
  * revine la vizitele urmatoare. Acelasi tipar ca installPrompt.ts/projectName.ts.
  */
