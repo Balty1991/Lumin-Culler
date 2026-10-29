@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { App as CapacitorApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { useStore } from '../state/store';
@@ -111,6 +111,20 @@ export function LuminApp() {
   const sortOpen = useLx(s => s.sortIds !== null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [booted, setBooted] = useState(false);
+  // Taburile deja deschise și locul din pagină al fiecăruia (fiecare tab își păstrează derularea).
+  const [visited, setVisited] = useState<ReadonlySet<LxTab>>(() => new Set([tab]));
+  const scrolls = useRef<Partial<Record<LxTab, number>>>({});
+  const shownTab = useRef(tab);
+  useLayoutEffect(() => {
+    if (shownTab.current === tab) return;
+    // În aplicație derulează `body`, nu fereastra (vezi GalleryWall.onAnyScroll).
+    const scroller = document.body.scrollTop ? document.body : (document.scrollingElement ?? document.documentElement);
+    scrolls.current[shownTab.current] = scroller.scrollTop;
+    shownTab.current = tab;
+    setVisited(v => (v.has(tab) ? v : new Set(v).add(tab)));
+    const top = scrolls.current[tab] ?? 0;
+    requestAnimationFrame(() => { for (const el of [document.scrollingElement, document.body]) el?.scrollTo({ top }); });
+  }, [tab]);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   useAutoThemeWatch();
 
@@ -259,11 +273,13 @@ export function LuminApp() {
         {!booted ? (
           <div className="lx-loading"><Orb mood="think" size={96} /></div>
         ) : (
-          <main className="lx-main" key={tab}>
-            {tab === 'today' && <TodayScreen />}
-            {tab === 'days' && <DaysScreen />}
-            {tab === 'brain' && <BrainScreen />}
-            {tab === 'settings' && <SettingsScreen />}
+          <main className="lx-main">
+            {/* Ecranele vizitate rămân montate, ascunse: schimbarea din meniu nu le mai
+                reconstruiește (raportat: „la schimbarea prin meniu merge sacadat”). */}
+            {visited.has('today') && <div className="lx-screen" hidden={tab !== 'today'}><TodayScreen /></div>}
+            {visited.has('days') && <div className="lx-screen" hidden={tab !== 'days'}><DaysScreen /></div>}
+            {visited.has('brain') && <div className="lx-screen" hidden={tab !== 'brain'}><BrainScreen /></div>}
+            {visited.has('settings') && <div className="lx-screen" hidden={tab !== 'settings'}><SettingsScreen /></div>}
           </main>
         )}
 

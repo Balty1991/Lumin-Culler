@@ -25,7 +25,7 @@
 :where(.lx) button { font: inherit; color: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 :where(.lx) button:disabled { cursor: default; opacity: 0.45; }
 
-.lx-main { animation: lx-fade 0.4s var(--lx-ease) both; }
+.lx-screen:not([hidden]) { animation: lx-fade 0.22s var(--lx-ease) both; }
 /* Doar opacitate: o animație de transform ar face din .lx-main un container
    pentru tot ce e „fixed” înăuntru (poza mare ajungea în afara ecranului). */
 @keyframes lx-fade { from { opacity: 0; } to { opacity: 1; } }
@@ -380,14 +380,14 @@
   display: block; width: 100%; margin: 0 0 10px; padding: 0; border: none; border-radius: 18px; overflow: hidden;
   break-inside: avoid; position: relative; background: var(--surface-3);
   box-shadow: 0 18px 30px -22px rgb(0 0 0 / 0.9);
-  animation: lx-rise 0.6s var(--lx-ease) both, lx-float 6s ease-in-out var(--float, 0s) infinite;
+  animation: lx-rise 0.45s var(--lx-ease) both;
   transition: transform 0.25s var(--lx-spring), box-shadow 0.25s;
 }
 .lx-tile img, .lx-tile .lx-thumb-empty { display: block; width: 100%; height: auto; min-height: 90px; object-fit: cover; }
 .lx-tile:active { transform: scale(0.96); }
 .lx-tile.selected { box-shadow: 0 0 0 2px rgb(var(--pick-rgb) / 0.7), 0 18px 30px -18px rgb(var(--pick-rgb) / 0.45); }
 .lx-tile-star { position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; background: rgb(6 7 10 / 0.55); color: var(--pick); backdrop-filter: blur(6px); }
-@keyframes lx-rise { from { opacity: 0; transform: translateY(26px) scale(0.96); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes lx-rise { from { opacity: 0; transform: translateY(14px) scale(0.98); } to { opacity: 1; transform: none; } }
 @keyframes lx-float { 0%, 100% { translate: 0 0; } 50% { translate: 0 -4px; } }
 
 .lx-viewer {
@@ -479,19 +479,20 @@
 .lx-hero-tile::after {
   content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
   background: linear-gradient(115deg, transparent 35%, rgb(255 255 255 / 0.16) 50%, transparent 65%); background-size: 250% 100%;
-  animation: lx-sheen 5s ease-in-out 1.2s infinite;
+  animation: lx-sheen 5s ease-in-out 1.2s 2;
 }
 @keyframes lx-sheen { 0% { background-position: 150% 0; } 40%, 100% { background-position: -100% 0; } }
 .lx-wall { margin-top: 10px; }
-.lx-tile { animation: none; opacity: 0; transform: translateY(34px) scale(0.92) rotate(-1.2deg); filter: blur(8px);
-  transition: opacity 0.7s var(--lx-ease) var(--d, 0ms), transform 0.8s var(--lx-spring) var(--d, 0ms), filter 0.7s var(--lx-ease) var(--d, 0ms); }
-.lx-tile.in { opacity: 1; transform: none; filter: none; animation: lx-float 7s ease-in-out var(--float, 0s) infinite; }
+/* Intrarea plăcilor: doar opacitate și o mișcare scurtă (fără blur și fără plutire
+   continuă: sute de plăci animate la nesfârșit făceau tot ecranul sacadat). */
+.lx-tile { animation: none; opacity: 0; transform: translateY(16px) scale(0.97);
+  transition: opacity 0.4s var(--lx-ease) var(--d, 0ms), transform 0.45s var(--lx-spring) var(--d, 0ms); }
+.lx-tile.in { opacity: 1; transform: none; }
 .lx-tile.in:active { transform: scale(0.95); }
 .lx-tile.selected::before {
   content: ""; position: absolute; inset: -2px; border-radius: inherit; padding: 2px; z-index: 1; pointer-events: none;
-  background: conic-gradient(from var(--spin, 0deg), #5ee6ff, #9b8cff, #d48cff, #5ee6ff);
+  background: conic-gradient(from 200deg, #5ee6ff, #9b8cff, #d48cff, #5ee6ff);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
-  animation: lx-ring 6s linear infinite;
 }
 @property --spin { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
 @keyframes lx-ring { to { --spin: 360deg; } }
