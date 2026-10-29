@@ -68,6 +68,14 @@ android {
             noCompress 'task', 'tflite', 'bin', 'onnx'
         }
     }
+    // APK-ul de test (doar arm64, din CI) trecuse de 105 MB — peste limita
+    // verificată în android-debug-build.yml. Bibliotecile native (.so: ONNX,
+    // MediaPipe, ML Kit) stau implicit necomprimate în APK; în APK-ul de test
+    // le comprimăm (Android le despachetează la instalare). AAB-ul pentru Play
+    // nu e atins: acolo Play alege singur, pe fiecare telefon.
+    if (project.hasProperty('arm64Only') && project.property('arm64Only') == 'true') {
+        packaging { jniLibs { useLegacyPackaging = true } }
+    }
     // Cheie FIXĂ pentru APK-urile de test. Fără ea, fiecare rulare CI semna
     // cu o cheie de debug nouă, iar Android refuza să instaleze un APK nou
     // peste cel vechi („Aplicația nu a fost instalată”), deci pe telefon rămânea
