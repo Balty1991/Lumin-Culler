@@ -139,4 +139,17 @@ jobs:
           print("supervise", round(time.time() - t, 1), "s", json.dumps(r, ensure_ascii=False))
           if not r or len(r.get("items", [])) != 2:
               print("::error::supervise nu a răspuns corect"); sys.exit(1)
+          # Auto AI din editor și „Cer nou” (Magie): netestate până acum, raportate că nu merg.
+          g = small.copy(); g.thumbnail((512, 512)); b = io.BytesIO(); g.save(b, "JPEG", quality=85)
+          t = time.time()
+          r = post("/v1/grade", {"image": base64.b64encode(b.getvalue()).decode(), "lang": "ro", "installId": "ci-smoke-test-000000"})
+          print("grade", round(time.time() - t, 1), "s", json.dumps(r, ensure_ascii=False))
+          from PIL import ImageDraw
+          sq = small.convert("RGB").resize((512, 512)); b = io.BytesIO(); sq.save(b, "PNG"); img64 = base64.b64encode(b.getvalue()).decode()
+          m = Image.new("L", (512, 512), 0); ImageDraw.Draw(m).rectangle([0, 0, 511, 160], fill=255)
+          b = io.BytesIO(); m.save(b, "PNG"); mask64 = base64.b64encode(b.getvalue()).decode()
+          for mode in ["sky-blue", "erase"]:
+              t = time.time()
+              r = post("/v1/inpaint", {"mode": mode, "image": img64, "mask": mask64, "width": 512, "height": 512, "installId": "ci-smoke-test-000000"})
+              print("inpaint", mode, round(time.time() - t, 1), "s", "ok" if r and r.get("image") else json.dumps(r)[:400])
           PY

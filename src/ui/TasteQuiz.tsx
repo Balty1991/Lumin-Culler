@@ -100,12 +100,10 @@ export function TasteQuiz() {
   // galeria se citește în fundal, așteaptă un lot mai mare (40): după primul
   // pachet de 8 n-ar avea din ce face perechi bune.
   const reading = useLx(s => s.reader);
-  useEffect(() => {
-    if (open || analysing || !welcomeSeen || readTasteQuizDone()) return;
-    if (photos.length < (reading ? 40 : TASTE_QUIZ_MIN_PHOTOS)) return;
-    start();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [analysing, welcomeSeen, photos.length, reading]);
+  // Nu se mai deschide singur peste Azi (auditul: „testul se deschide singur, cu
+  // PASUL 3 DIN 3”): pe Azi e propus de cardul „Antrenează-mă”, iar testul se
+  // deschide doar la cerere (TASTE_QUIZ_OPEN_EVENT).
+  void reading; void readTasteQuizDone; void TASTE_QUIZ_MIN_PHOTOS;
 
   useEffect(() => {
     const onOpen = () => start();
@@ -206,7 +204,7 @@ export function TasteQuiz() {
         {summary === null ? (
           <>
             <div className="v3-screen-head">
-              <span className="v3-kicker">{tr(firstRun ? 'taste.kicker' : 'taste.kickerAgain', { n: index + 1, total: pairs.length })}</span>
+              <span className="v3-kicker">{tr('taste.kickerAgain', { n: index + 1, total: pairs.length })}</span>
               <button className="ghost icon-btn" onClick={close} aria-label={tr('taste.skip')}><XIcon /></button>
             </div>
             <div className="tq-progress" aria-hidden="true">

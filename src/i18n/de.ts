@@ -942,5 +942,6 @@ export const dict: Record<string, string> = {
   "welcome.permission.deny": "Nicht zulassen",
   "setup.pick": "Ich wähle die Fotos selbst",
   "welcome.next": "Weiter",
-  "welcome.progress": "Schritt {current} von {total}"
+  "welcome.progress": "Schritt {current} von {total}",
+  "lx.why.though": "obwohl"
 };

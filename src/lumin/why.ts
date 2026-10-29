@@ -74,5 +74,7 @@ export function personalWhy(p: WhyPhoto, ctx: WhyContext, tr: Tr): string {
 
   if (!parts.length) parts.push(tr(keep ? 'lx.why.fallbackKeep' : 'lx.why.fallbackDrop'));
   const list = parts.length > 1 ? `${parts.slice(0, -1).join(', ')}${tr('lx.why.and')}${parts[parts.length - 1]}` : parts[0];
-  return `${lead}: ${list}.`;
+  // Spus cinstit și cusurul (auditul: „arată bine” lângă eticheta „mișcată”).
+  const flaw = keep ? reasonsFor(p).find(r => r.tone === 'bad' && r.key !== 'lx.reason.series') : undefined;
+  return flaw ? `${lead}: ${list}, ${tr('lx.why.though')} ${tr(`${flaw.key}.why`)}.` : `${lead}: ${list}.`;
 }

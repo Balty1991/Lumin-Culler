@@ -1109,3 +1109,14 @@ html, body { overflow-x: hidden; }
 .lx-twin-pair figure img { flex: 1; min-height: 0; width: 100%; object-fit: contain; border-radius: 12px; }
 .lx-twin-pair figcaption { font-size: 13px; color: rgb(255 255 255 / .75); text-align: center; }
 .lx-twin-actions { display: flex; flex-direction: column; gap: 8px; padding: 6px 14px 0; }
+
+/* Ținte de atingere de cel puțin 44 px (auditul: butoane mici de 30–38 px). */
+.lx .lx-btn.small { min-height: 44px; }
+.lx .lx-chip-btn { min-height: 40px; }
+.lx .lx-link { min-height: 44px; display: inline-flex; align-items: center; }
+.lx .lx-density button { min-width: 36px; min-height: 36px; }
+/* Rândurile care derulează în lateral arată că mai e ceva în dreapta. */
+.lx-viewer-tools2, .lx .lx-seg.scroll, .lx-viewer-info .lx-chips {
+  -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent);
+          mask-image: linear-gradient(90deg, #000 88%, transparent);
+}

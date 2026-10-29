@@ -182,7 +182,7 @@ export function LumiFeed() {
       const minutes = Math.max(1, Math.round(list.length * 2.5 / 60));
       out.push({
         id: `month-${m}-${list.length}`,
-        text: tr('lx.feed.month', { month: monthLabel(m, locale), count: list.length, minutes }),
+        text: tr('lx.feed.month', { month: baseLocale(locale) === 'ro' ? monthLabel(m, locale).toLowerCase() : monthLabel(m, locale), count: list.length, minutes }),
         sub: months.length > 1 ? tr('lx.feed.monthsLeft', { count: months.length }) : undefined,
         action: tr('lx.feed.monthGo'),
         run: () => openSort(list.map(p => p.id), monthLabel(m, locale))
