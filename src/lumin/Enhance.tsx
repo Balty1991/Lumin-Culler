@@ -7,6 +7,7 @@ import { canSharpen, sharpUrl } from './sharp';
 import { isNativeSegmentationAvailable, segmentPersonMask } from '../core/nativeSegmentation';
 import { useStore, type PhotoView } from '../state/store';
 import { frameCrop } from './instaCrop';
+import { saveEditedBlob } from './saveEdited';
 import { useTr } from './context';
 
 /**
@@ -237,6 +238,25 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
     if (ADVANCED.has(style) && useStore.getState().gatePremium('styles')) return;
     setSaving(true);
     try {
+      // Portretul cu omul decupat: masca nu se păstrează în copie (se reface din poză),
+      // deci rezultatul se salvează gata făcut, ca poză nouă, la rezoluție mare.
+      if (style === 'portrait' && edits.bokehMask) {
+        const url = (canSharpen() ? await sharpUrl(photo.id, 3000).catch(() => null) : null) ?? src;
+        const img = url ? await createImageBitmap(await (await fetch(url)).blob()) : null;
+        if (img) {
+          const o = outputSize(img.width, img.height, edits);
+          const c = document.createElement('canvas');
+          c.width = o.width; c.height = o.height;
+          const ctx = c.getContext('2d');
+          if (ctx) {
+            drawAdjusted(ctx, img, img.width, img.height, o.width, o.height, edits);
+            const blob = await new Promise<Blob | null>(r => c.toBlob(r, 'image/jpeg', 0.94));
+            const ok = blob ? await saveEditedBlob(blob, 'portret') : false;
+            useStore.getState().setNotice(tr(ok ? 'lx.magic.saved' : 'lx.magic.failed'));
+            if (ok) { onClose(); return; }
+          }
+        }
+      }
       await addCorrectedCopies([{ sourceId: photo.id, adjustments: edits }]);
       onClose();
     } finally { setSaving(false); }
