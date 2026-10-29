@@ -1015,3 +1015,5 @@ html, body { overflow-x: hidden; }
 .lx-recap-anyway .lx-link { font-size: 12.5px; text-align: left; }
 .lx-card.lx-train { flex-direction: column; align-items: stretch; gap: 8px; border-color: rgb(var(--accent-rgb) / 0.4); }
 .lx-card.lx-train > span:not(.lx-eyebrow) { font-size: 13px; color: var(--text-dim); }
+.lx-enhance-sliders input.track-sky { background: linear-gradient(90deg, #ffb070, #e8e4dc 50%, #4f8ff0); border-radius: 99px; height: 4px; }
+.lx-scenes { margin: 0; font-size: 12.5px; }

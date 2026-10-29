@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { db } from '../core/db';
-import { computeAutoAdjustments, computeAutoStraighten, drawAdjusted, NEUTRAL_ADJUSTMENTS, outputSize, subjectFromFaces, type EditAdjustments } from '../core/imageAdjust';
+import { overcastSkyShare, computeAutoAdjustments, computeAutoStraighten, drawAdjusted, NEUTRAL_ADJUSTMENTS, outputSize, subjectFromFaces, type EditAdjustments } from '../core/imageAdjust';
 import { getCachedPreviewUrl, getDisplayUrl } from '../core/previewUrlCache';
 import { canSharpen, sharpUrl } from './sharp';
 import { isNativeSegmentationAvailable, segmentPersonMask } from '../core/nativeSegmentation';
@@ -101,7 +101,7 @@ export function styledEdits(base: EditAdjustments, style: EnhanceStyle, amount: 
  * Corecția automată a unei poze (lumină, alb, culoare — fără decupaj sau rotire),
  * plus URL-ul imaginii din care a fost măsurată.
  */
-export async function autoEnhance(photoId: string): Promise<{ url: string; edits: EditAdjustments; tilt: number; width: number; height: number; faces: { box: [number, number, number, number] }[] }> {
+export async function autoEnhance(photoId: string): Promise<{ url: string; edits: EditAdjustments; tilt: number; width: number; height: number; faces: { box: [number, number, number, number] }[]; scenes: Scene[] }> {
   // Pe telefon: poza clară făcută de Android (originalul direct ieșea negru pe unele telefoane).
   const source = canSharpen()
     ? sharpUrl(photoId, 1600).then(u => u ?? getCachedPreviewUrl(photoId))
@@ -130,6 +130,9 @@ export async function autoEnhance(photoId: string): Promise<{ url: string; edits
   // Fără răcire: pe cer înnorat corecția de alb mergea spre albastru (−16) și poza ieșea
   // vânătă; o încălzire ușoară rămâne, o răcire de peste −4 nu.
   auto.temperature = Math.max(-4, auto.temperature);
+  // Ce fel de poză e (cer înnorat, mâncare, peisaj, noapte, portret): fiecare
+  // primește corectura potrivită, peste cea de bază — vezi sceneTune.
+  const scene = sceneTune(img, auto, a);
   // Unde e omul (din fețele găsite la import): stilul Portret estompează în jurul lui.
   // Cu tot corpul: fără decupajul modelului, zona clară pornește de la față și coboară
   // cât un om întreg (umeri mai lați decât fața), nu doar un umăr sub ea.
@@ -143,10 +146,57 @@ export async function autoEnhance(photoId: string): Promise<{ url: string; edits
   // Orizontul strâmb (măsurat la import, doar pe pozele fără oameni): îndreptarea e o opțiune, nu implicită.
   const tilt = computeAutoStraighten({ faceCount: a?.faceCount, horizonTiltDeg: a?.horizonTiltDeg });
   return {
-    url, tilt, width: img.naturalWidth, height: img.naturalHeight,
+    url, tilt, width: img.naturalWidth, height: img.naturalHeight, scenes: scene,
     faces: (a?.faces ?? []).map(f => ({ box: f.box as [number, number, number, number] })),
     edits: { ...auto, crop: undefined, rotationDeg: 0, ...(subject ? { bokehSubject: subject } : {}) }
   };
+}
+
+export type Scene = 'overcast' | 'food' | 'landscape' | 'night' | 'portrait' | 'backlit' | 'indoor';
+const FOOD = /pizza|cake|donut|sandwich|food|dish|meal|dessert|fruit|banana|apple|orange|broccoli|hot dog|cuisine|bread|coffee|wine|cup/i;
+const NATURE = /mountain|sea|ocean|beach|lake|river|forest|tree|sky|cloud|field|grass|flower|landscape|sunset|snow|waterfall|plant/i;
+const INDOOR = /couch|bed|dining table|tv|chair|room|kitchen|lamp|ceiling|wall|furniture|toilet|sink|oven|refrigerator/i;
+
+/**
+ * Editorul „inteligent”: recunoaște tipul pozei din ce s-a văzut la import
+ * (etichetele scenei, fețele) și din pixeli (cer gri, noapte), și ajustează
+ * corectura automată pentru el. Întoarce scenele găsite, ca omul să vadă ce
+ * a înțeles editorul („cer înnorat · portret”).
+ */
+export function sceneTune(img: HTMLImageElement, e: EditAdjustments, a?: { sceneTags?: string[]; sceneSemantic?: string; faceCount?: number; faces?: { box: number[] }[] }): Scene[] {
+  const scenes: Scene[] = [];
+  const add = (k: keyof EditAdjustments, v: number) => { (e as unknown as Record<string, number>)[k] = Math.max(-100, Math.min(100, ((e as unknown as Record<string, number>)[k] ?? 0) + v)); };
+  let luma = 0.5, overcast = 0, topLum = 0, centerLum = 0;
+  try {
+    const n = 64;
+    const c = document.createElement('canvas');
+    c.width = n; c.height = n;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    if (ctx) {
+      ctx.drawImage(img, 0, 0, n, n);
+      const data = ctx.getImageData(0, 0, n, n);
+      overcast = overcastSkyShare(data);
+      let sum = 0, top = 0, tn = 0, mid = 0, mn = 0;
+      for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+        const i = (y * n + x) * 4;
+        const l = (0.299 * data.data[i] + 0.587 * data.data[i + 1] + 0.114 * data.data[i + 2]) / 255;
+        sum += l;
+        if (y < n * 0.3) { top += l; tn++; }
+        if (y > n * 0.3 && y < n * 0.75 && x > n * 0.25 && x < n * 0.75) { mid += l; mn++; }
+      }
+      luma = sum / (n * n); topLum = tn ? top / tn : 0; centerLum = mn ? mid / mn : 0;
+    }
+  } catch { /* fără pixeli: doar etichetele */ }
+  const tags = [...(a?.sceneTags ?? []), a?.sceneSemantic ?? ''].join(' ');
+  const bigFace = (a?.faces ?? []).some(f => (f.box[2] ?? 0) * (f.box[3] ?? 0) > 0.02);
+  if (overcast > 0.12) { scenes.push('overcast'); add('sky', 24); add('temperature', 4); add('saturation', 3); }
+  if (luma < 0.24) { scenes.push('night'); add('noiseReduction', 25); add('shadows', 12); add('clarity', -4); add('sharpen', -6); }
+  if (FOOD.test(tags)) { scenes.push('food'); add('temperature', 6); add('saturation', 6); add('clarity', 6); add('vignette', 6); }
+  if (!bigFace && NATURE.test(tags)) { scenes.push('landscape'); add('dehaze', 8); add('saturation', 4); add('clarity', 6); }
+  if (bigFace) { scenes.push('portrait'); add('clarity', -6); add('shadows', 4); add('temperature', 2); }
+  if (topLum - centerLum > 0.28 && (a?.faceCount ?? 0) > 0) { scenes.push('backlit'); add('shadows', 10); add('highlights', -8); }
+  if (!scenes.includes('night') && INDOOR.test(tags) && luma < 0.42) { scenes.push('indoor'); add('temperature', -3); add('exposure', 6); add('noiseReduction', 10); }
+  return scenes;
 }
 
 /** Cât să se deschidă lumina (0..24): fețele spre ~62% luminozitate, poza întreagă spre ~52%. */
@@ -226,14 +276,14 @@ const PANELS: Panel[] = ['styles', 'light', 'color', 'frame'];
 /** Proporțiile din „Cadru” (lățime / înălțime); cadrul se așază pe fețe (frameCrop). */
 type Aspect = 'orig' | '4:5' | '1:1' | '9:16' | '16:9' | '3:2';
 const ASPECTS: Record<Aspect, number> = { orig: 0, '4:5': 4 / 5, '1:1': 1, '9:16': 9 / 16, '16:9': 16 / 9, '3:2': 3 / 2 };
-type ManualKey = 'exposure' | 'contrast' | 'highlights' | 'shadows' | 'whites' | 'blacks' | 'clarity' | 'vignette' | 'temperature' | 'tint' | 'saturation' | 'dehaze' | 'sharpen' | 'noiseReduction' | 'grain';
+type ManualKey = 'exposure' | 'contrast' | 'highlights' | 'shadows' | 'whites' | 'blacks' | 'clarity' | 'vignette' | 'temperature' | 'tint' | 'saturation' | 'dehaze' | 'sharpen' | 'noiseReduction' | 'grain' | 'sky';
 const MANUAL: Record<ManualPanel, { key: ManualKey; min?: number; track?: string }[]> = {
   light: [
     { key: 'exposure' }, { key: 'contrast' }, { key: 'highlights' }, { key: 'shadows' },
     { key: 'whites' }, { key: 'blacks' }, { key: 'clarity' }, { key: 'dehaze' }, { key: 'vignette' }
   ],
   color: [
-    { key: 'temperature', track: 'temp' }, { key: 'tint', track: 'tint' }, { key: 'saturation', track: 'sat' },
+    { key: 'sky', track: 'sky' }, { key: 'temperature', track: 'temp' }, { key: 'tint', track: 'tint' }, { key: 'saturation', track: 'sat' },
     { key: 'sharpen', min: 0 }, { key: 'noiseReduction', min: 0 }, { key: 'grain', min: 0 }
   ]
 };
@@ -324,12 +374,14 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   const [saving, setSaving] = useState(false);
   const stage = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
+  const [scenes, setScenes] = useState<Scene[]>([]);
 
   useEffect(() => {
     let alive = true;
     void (async () => {
-      const { url, edits: lightOnly, tilt: t, width, height, faces } = await autoEnhance(photo.id);
+      const { url, edits: lightOnly, tilt: t, width, height, faces, scenes: found } = await autoEnhance(photo.id);
       if (!alive) return;
+      setScenes(found);
       setGeo({ width, height, faces });
       setTilt(t);
       setSrc(url);
@@ -461,6 +513,9 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
               ))}
             </div>
             {learned && Object.keys(manual).length > 0 && <p className="lx-hint">{tr('lx.enhance.learned')}</p>}
+            {panel === 'styles' && scenes.length > 0 && (
+              <p className="lx-hint lx-scenes">🔍 {tr('lx.enhance.saw', { what: scenes.map(sc => tr(`lx.enhance.scene.${sc}`)).join(' · ') })}</p>
+            )}
             {panel === 'styles' && cloudAvailable() && (
               <div className="lx-ai-auto">
                 <button className="lx-btn ghost small" disabled={aiBusy} onClick={() => void aiAuto()}>{aiBusy ? `… ${tr('lx.enhance.aiWorking')}` : `✨ ${tr('lx.enhance.aiAuto')}`}</button>

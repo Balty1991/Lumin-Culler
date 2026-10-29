@@ -2898,4 +2898,13 @@ export const en: Record<TranslationKey, string> = {
   "lx.train.go": "Train me (~2 minutes)",
   "lx.train.sortTitle": "Training: what do you keep?",
   "lx.train.done": "Done, I've learned enough. I re-sorted your whole gallery with your taste.",
+  "lx.enhance.adj.sky": "Sky",
+  "lx.enhance.saw": "I recognized: {what} — corrected for it",
+  "lx.enhance.scene.overcast": "overcast sky",
+  "lx.enhance.scene.food": "food",
+  "lx.enhance.scene.landscape": "landscape",
+  "lx.enhance.scene.night": "low light",
+  "lx.enhance.scene.portrait": "portrait",
+  "lx.enhance.scene.backlit": "backlit",
+  "lx.enhance.scene.indoor": "indoors",
 };

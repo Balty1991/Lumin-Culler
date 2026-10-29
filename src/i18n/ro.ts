@@ -2984,6 +2984,15 @@ export const ro = {
   "lx.train.go": "Antrenează-mă (~2 minute)",
   "lx.train.sortTitle": "Antrenament: ce păstrezi?",
   "lx.train.done": "Gata, am învățat destul. Am reluat sortarea pe toată galeria, după gustul tău.",
+  "lx.enhance.adj.sky": "Cer",
+  "lx.enhance.saw": "Am recunoscut: {what} — am corectat pentru asta",
+  "lx.enhance.scene.overcast": "cer înnorat",
+  "lx.enhance.scene.food": "mâncare",
+  "lx.enhance.scene.landscape": "peisaj",
+  "lx.enhance.scene.night": "lumină slabă",
+  "lx.enhance.scene.portrait": "portret",
+  "lx.enhance.scene.backlit": "contre-jour",
+  "lx.enhance.scene.indoor": "interior",
 };
 
 export type TranslationKey = keyof typeof ro;

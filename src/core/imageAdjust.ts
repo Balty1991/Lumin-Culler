@@ -53,6 +53,12 @@ export interface EditAdjustments {
   /** Intunecarea/luminarea colturilor — -100..100. Negativ = colturi mai deschise. */
   vignette?: number;
   /**
+   * Cerul: pozitiv îl face albastru și adânc (cerul alb-gri al unei zile
+   * înnorate), negativ îi dă culoarea serii. Doar pe cer — vezi applySky.
+   * -100..100. Absent = 0.
+   */
+  sky?: number;
+  /**
    * Bokeh adaugat: cat de tare se estompeaza fundalul, 0..100. Absent/0 = nimic.
    *
    * Cerinta utilizatorului: "sa poti adauga bokeh la fotografiile care nu au,
@@ -133,7 +139,7 @@ export interface EditAdjustments {
 
 export const NEUTRAL_ADJUSTMENTS: EditAdjustments = {
   exposure: 0, contrast: 0, saturation: 0, temperature: 0, tint: 0, highlights: 0, shadows: 0, rotationDeg: 0,
-  whites: 0, blacks: 0, sharpen: 0, clarity: 0, noiseReduction: 0, vignette: 0, dehaze: 0, bw: 0, grade: 0, grain: 0, bokeh: 0
+  whites: 0, blacks: 0, sharpen: 0, clarity: 0, noiseReduction: 0, vignette: 0, dehaze: 0, bw: 0, grade: 0, grain: 0, bokeh: 0, sky: 0
 };
 
 /**
@@ -566,12 +572,13 @@ export function drawAdjusted(
   const grain = a.grain ?? 0;
   const bokeh = a.bokeh ?? 0;
   const hasHsl = !isNeutralBands(a.hsl);
+  const sky = a.sky ?? 0;
   // Bokeh-ul se face INAINTE de pasul pe pixeli: e o operatie pe canvas
   // (redesenare estompata plus masca), nu una per pixel, iar tot ce vine dupa —
   // curbe, vinieta, culoare — trebuie sa cada peste rezultatul lui, nu sub el.
   if (bokeh > 0) applyBokeh(ctx, healed ?? source, sourceWidth, sourceHeight, width, height, a, bokeh);
 
-  if (!hasColorShift && !hasDetailPass && !luts && activePoints.length === 0 && vignette === 0 && grade === 0 && grain === 0 && dehaze === 0 && bw === 0 && !hasHsl) return;
+  if (!hasColorShift && !hasDetailPass && !luts && activePoints.length === 0 && vignette === 0 && grade === 0 && grain === 0 && dehaze === 0 && bw === 0 && !hasHsl && sky === 0) return;
 
   const imgData = ctx.getImageData(0, 0, width, height);
   const d = imgData.data;
@@ -664,6 +671,7 @@ export function drawAdjusted(
   // pe care apoi se aseaza gradarea. Invers, gradarea ar fi fost si ea
   // "dezaburita", adica slabita exact dupa ce a fost pusa.
   if (dehaze !== 0) applyDehaze(d, width, height, dehaze);
+  if (sky !== 0) applySky(d, width, height, sky);
   // Alb-negru inaintea gradarii: altfel gradarea ar colora o poza care tocmai
   // a fost facuta alb-negru, si ar iesi un vireuj, nu un alb-negru.
   if (bw !== 0) applyBlackAndWhite(d, bw, a.bwMix);
@@ -985,6 +993,68 @@ export function applyBlackAndWhite(
  * un cadru fara ceata, aproape nu face nimic, si asa si trebuie.
  */
 const DEHAZE_GRID = 24;
+
+/**
+ * Cât de „cer” e un pixel (0..1): în partea de sus a cadrului, luminos, și fie
+ * albăstrui, fie gri-alb (cer înnorat). Pielea și obiectele calde nu intră.
+ */
+export function skyWeight(r: number, g: number, b: number, yFrac: number): number {
+  const row = yFrac < 0.3 ? 1 : yFrac > 0.62 ? 0 : 1 - (yFrac - 0.3) / 0.32;
+  if (row <= 0) return 0;
+  const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  const sat = max ? (max - min) / max : 0;
+  const bluish = b >= r - 6 && b >= g - 14;
+  const grayBright = sat < 0.16 && lum > 168;
+  if (!(bluish && lum > 120) && !grayBright) return 0;
+  const bright = Math.min(1, Math.max(0, (lum - 120) / 70));
+  return row * bright;
+}
+
+/** Cerul albastru (pozitiv) sau de seară (negativ), cu norii păstrați: se schimbă culoarea, nu lumina. */
+export function applySky(d: Uint8ClampedArray, width: number, height: number, amount: number): void {
+  const k = Math.min(1, Math.abs(amount) / 100) * 0.85;
+  const blue = amount > 0;
+  for (let y = 0; y < height; y++) {
+    const yf = y / height;
+    if (yf > 0.62) break;
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4;
+      const r = d[i], g = d[i + 1], b = d[i + 2];
+      const w = skyWeight(r, g, b, yf) * k;
+      if (w <= 0) continue;
+      const L = 0.299 * r + 0.587 * g + 0.114 * b;
+      // Norii foarte albi rămân aproape albi: ținta se apropie de alb odată cu lumina.
+      const white = Math.max(0, (L - 225) / 30);
+      const tr = blue ? L * 0.6 : Math.min(255, L * 1.1);
+      const tg = blue ? L * 0.8 : L * 0.84;
+      const tb = blue ? Math.min(255, L * 1.12) : L * 0.66;
+      const dark = blue ? 0.9 : 0.96; // cerul albastru e puțin mai adânc decât cel alb
+      const m = w * (1 - white * 0.7);
+      d[i] = clamp255((r + (tr - r) * m) * (1 - (1 - dark) * m));
+      d[i + 1] = clamp255((g + (tg - g) * m) * (1 - (1 - dark) * m));
+      d[i + 2] = clamp255((b + (tb - b) * m) * (1 - (1 - dark) * m));
+    }
+  }
+}
+
+/** Ce parte din treimea de sus a cadrului e cer înnorat (gri-alb, fără albastru). */
+export function overcastSkyShare(img: ImageData): number {
+  const { data: d, width, height } = img;
+  const rows = Math.floor(height * 0.35);
+  let sky = 0, gray = 0, n = 0;
+  for (let y = 0; y < rows; y += 2) for (let x = 0; x < width; x += 2) {
+    const i = (y * width + x) * 4;
+    const w = skyWeight(d[i], d[i + 1], d[i + 2], y / height);
+    n++;
+    if (w > 0.5) {
+      sky++;
+      const max = Math.max(d[i], d[i + 1], d[i + 2]), min = Math.min(d[i], d[i + 1], d[i + 2]);
+      if (max - min < 22) gray++;
+    }
+  }
+  return n && sky ? (gray / n) : 0;
+}
 
 export function applyDehaze(d: Uint8ClampedArray, width: number, height: number, amount: number): void {
   const t = amount / 100;
