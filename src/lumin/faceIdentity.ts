@@ -90,10 +90,12 @@ let running: Promise<number> | null = null;
 export function embedMissingFaces(onProgress?: (done: number, total: number) => void): Promise<number> {
   if (!canEmbedFaces()) return Promise.resolve(0);
   running ??= (async () => {
-    const [photos, analyses] = await Promise.all([db.photos.toArray(), db.analyses.toArray()]);
+    const photos = await db.photos.toArray();
     const uri = new Map(photos.map(p => [p.id, p.mediaUri]));
-    const todo = analyses.filter(a => uri.get(a.photoId) && (a.faces as Face[] | undefined ?? [])
-      .some(f => f.embeddingModel !== MODEL && f.box[2] * f.box[3] >= MIN_FACE_AREA));
+    // Doar analizele cu fețe încă fără amprentă: nu toată baza în memorie (cu mii de
+    // poze ținea zeci de MB și se repeta la fiecare ~200 de poze citite).
+    const todo = await db.analyses.filter(a => !!uri.get(a.photoId) && (a.faces as Face[] | undefined ?? [])
+      .some(f => f.embeddingModel !== MODEL && f.box[2] * f.box[3] >= MIN_FACE_AREA)).toArray();
     let made = 0;
     for (let i = 0; i < todo.length; i++) {
       const a = todo[i];

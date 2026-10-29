@@ -1,6 +1,7 @@
 import { getPhotosAccess, isNativeMediaLibraryAvailable, listPhotosInRange, readPhotoFiles } from '../core/nativeMediaLibrary';
 import { useStore } from '../state/store';
 import { useLx } from './lxStore';
+import { autoNameFaces, canEmbedFaces, embedMissingFaces } from './faceIdentity';
 
 /**
  * lumin/galleryReader.ts
@@ -46,6 +47,17 @@ export function stopGalleryReader(): void {
 export function resumeGalleryReader(): Promise<void> {
   try { localStorage.removeItem(STOPPED_KEY); } catch { /* fără stocare */ }
   return readWholeGallery(true);
+}
+
+async function placeFaces(): Promise<void> {
+  try {
+    const made = await embedMissingFaces((d, total) => useLx.getState().setFaceProgress({ done: d, total }));
+    useLx.getState().setFaceProgress(null);
+    const named = await autoNameFaces().catch(() => 0);
+    if (made || named) useLx.getState().bumpFaces();
+  } catch {
+    useLx.getState().setFaceProgress(null);
+  }
 }
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
@@ -111,14 +123,18 @@ export async function readWholeGallery(byUser = false): Promise<void> {
           const p = s.progress;
           if (p && p.total > 0 && p.phase !== 'finalizat') useLx.getState().setReader({ done: Math.min(missing.length, base + Math.round((p.done / p.total) * files.length)), total: missing.length });
         });
+        // Momentele (cele mai bune 1–3 din fiecare) trec prin toată biblioteca:
+        // nu după fiecare pachet, ci la ~200 de poze și la final.
+        const momentsNow = Math.floor((i + size) / 200) > Math.floor(i / 200) || i + size >= missing.length;
         try {
-          // Momentele (cele mai bune 1–3 din fiecare) trec prin toată biblioteca:
-          // nu după fiecare pachet, ci la ~200 de poze și la final.
-          const momentsNow = Math.floor((i + size) / 200) > Math.floor(i / 200) || i + size >= missing.length;
           await useStore.getState().runImport(files.map(f => f.file), undefined, files.map(f => f.uri), { deferMoments: !momentsNow });
         } finally { unsub(); }
         // Fără mesajul „am importat 24 de poze” după fiecare pachet: rezumatul vine la final.
         useStore.setState({ notice });
+        // Oamenii se umplu pe parcurs, nu abia la final (raportat: „nu a citit toată
+        // galeria să o repartizeze la persoane”): fețele din pachetele citite primesc
+        // amprenta și numele la fiecare ~200 de poze — după import, nu în paralel cu el.
+        if (momentsNow && canEmbedFaces() && !stopRequested) await placeFaces();
       }
       done = Math.min(missing.length, i + size);
       useLx.getState().setReader({ done, total: missing.length });
