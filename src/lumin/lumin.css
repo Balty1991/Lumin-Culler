@@ -899,3 +899,6 @@ body.lx-viewer-open .lx-hero-media img { animation-play-state: paused; }
 .lx-folders { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
 .lx-folders::-webkit-scrollbar { display: none; }
 .lx-folders .lx-chip-btn { flex: none; }
+
+/* „Text pe poză”: câmpul de text. */
+.lx-text-input { width: 100%; box-sizing: border-box; resize: none; border-radius: 14px; border: 1px solid rgb(255 255 255 / .12); background: rgb(255 255 255 / .05); color: #fff; padding: 10px 12px; font: inherit; font-size: 15px; margin-bottom: 8px; }

@@ -13,6 +13,7 @@ import { findVisuallySimilar } from './visualSimilar';
 import { InstaSheet } from './InstaSheet';
 import { folderCounts, inFolder, SMART_FOLDERS, type SmartFolder } from './smartFolders';
 import { MagicSheet } from './MagicSheet';
+import { TextSheet } from './TextSheet';
 import { hidePhotos } from './PrivatePhotos';
 import { CaptionSheet, CloudLine } from './CloudParts';
 import { cloudAvailable, cloudConcepts, cloudEnabled, cloudSearchText, readVerdicts } from './cloud';
@@ -492,6 +493,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
   const [writing, setWriting] = useState(false);
   const [insta, setInsta] = useState(false);
   const [magic, setMagic] = useState(false);
+  const [texting, setTexting] = useState(false);
   const tr = useTr();
   const why = useWhyContext();
   const locale = useStore(s => s.locale);
@@ -703,6 +705,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
           <button className="lx-tbtn" onClick={() => void exportSelection('apps', [p.id]).then(() => learnFromShare([p]))}><span>↗</span>{tr('lx.wall.share')}</button>
           {cloudAvailable() && <button className="lx-tbtn magic" onClick={() => setMagic(true)}><span>🪄</span>{tr('lx.magic.button')}</button>}
           <button className="lx-tbtn" onClick={() => setInsta(true)}><span>▣</span>{tr('lx.insta.button')}</button>
+          <button className="lx-tbtn" onClick={() => setTexting(true)}><span>Aa</span>{tr('lx.text.button')}</button>
           {p.ocrText && p.ocrText.trim().length > 8 && (
             <button className="lx-tbtn" onClick={() => { void navigator.clipboard?.writeText(p.ocrText!.trim()).then(() => useStore.getState().setNotice(tr('lx.viewer.textCopied')), () => {}); }}>
               <span>📋</span>{tr('lx.viewer.copyText')}
@@ -730,6 +733,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
       {writing && <CaptionSheet photo={p} onClose={() => setWriting(false)} />}
       {insta && <InstaSheet photo={p} onClose={() => setInsta(false)} />}
       {magic && <MagicSheet photo={p} onClose={() => setMagic(false)} />}
+      {texting && <TextSheet photo={p} onClose={() => setTexting(false)} />}
     </div>,
     document.body
   );

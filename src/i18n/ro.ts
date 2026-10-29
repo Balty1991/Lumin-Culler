@@ -2700,7 +2700,7 @@ export const ro = {
   "fr.hero.f3": "Procesare privată, pe dispozitiv",
   "fr.hero.trust": "Fără cont · Fără reclame · Datele rămân pe telefonul tău",
   "lx.cloud.consentAll": "Cherrypic Cloud folosește un AI online pentru: a doua părere pe pozele nesigure, povestea zilei, texte pentru postări, titluri de album și căutarea cu cuvinte. Trimite doar pozele de care e nevoie (cel mult 4 odată), micșorate la 512 px, la serverul Cherrypic pe Cloudflare. Sunt analizate și uitate imediat: nu se păstrează și nu se folosesc la antrenarea vreunui AI. Pornești?",
-  "lx.caption.button": "Text",
+  "lx.caption.button": "Descriere AI",
   "lx.caption.title": "Text pentru postare",
   "lx.caption.working": "Cherrypic scrie…",
   "lx.caption.failed": "Nu am putut scrie acum (fără internet sau limita zilei). Încearcă mai târziu.",
@@ -2900,7 +2900,15 @@ export const ro = {
   "lx.private.empty": "Nicio poză privată încă.",
   "lx.private.lock": "Blochează",
   "lx.private.unhide": "Fă-le vizibile ({count})",
-  "lx.private.hide": "Privată"
+  "lx.private.hide": "Privată",
+  "lx.text.button": "Scrie pe ea",
+  "lx.text.title": "Text pe poză",
+  "lx.text.placeholder": "Ex.: Prima zi de școală",
+  "lx.text.look.classic": "Clasic",
+  "lx.text.look.bold": "Îndrăzneț",
+  "lx.text.look.hand": "De mână",
+  "lx.text.top": "Sus",
+  "lx.text.bottom": "Jos"
 };
 
 export type TranslationKey = keyof typeof ro;

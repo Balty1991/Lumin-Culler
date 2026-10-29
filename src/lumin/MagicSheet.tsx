@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { Directory, Filesystem } from '@capacitor/filesystem';
-import { copyAlbumToPictures } from '../core/albumExport';
 import { getDisplayUrl } from '../core/previewUrlCache';
 import { useStore, type PhotoView } from '../state/store';
 import { cloudInpaint, ensureCloud, type InpaintMode } from './cloud';
-import { blobToBase64, shareCollage } from './collage';
+import { shareCollage } from './collage';
+import { saveEditedBlob } from './saveEdited';
 import { useTr } from './context';
 import { aiSize, maskBounds, maskCoverage, skyMask, type Rect } from './magic';
 import { canSharpen, sharpUrl } from './sharp';
@@ -188,11 +187,9 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
     try {
       const blob = await toBlob(result, 'image/jpeg', 0.94);
       if (!blob) return;
-      const name = `cherrypic-${tool === 'sky' ? 'cer' : 'guma'}-${Date.now()}.jpg`;
-      const written = await Filesystem.writeFile({ path: name, data: await blobToBase64(blob), directory: Directory.Cache });
-      const r = await copyAlbumToPictures('Editate', [{ uri: written.uri, name }]);
-      setNotice(tr(r.copied ? 'lx.magic.saved' : 'lx.magic.failed'));
-      if (r.copied) onClose();
+      const ok = await saveEditedBlob(blob, tool === 'sky' ? 'cer' : 'guma');
+      setNotice(tr(ok ? 'lx.magic.saved' : 'lx.magic.failed'));
+      if (ok) onClose();
     } catch {
       setNotice(tr('lx.magic.failed'));
     } finally { setBusy(false); }

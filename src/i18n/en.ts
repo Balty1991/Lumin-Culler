@@ -2814,5 +2814,13 @@ export const en: Record<TranslationKey, string> = {
   "lx.private.empty": "No private photos yet.",
   "lx.private.lock": "Lock",
   "lx.private.unhide": "Make visible ({count})",
-  "lx.private.hide": "Private"
+  "lx.private.hide": "Private",
+  "lx.text.button": "Add text",
+  "lx.text.title": "Text on photo",
+  "lx.text.placeholder": "E.g. First day of school",
+  "lx.text.look.classic": "Classic",
+  "lx.text.look.bold": "Bold",
+  "lx.text.look.hand": "Handwritten",
+  "lx.text.top": "Top",
+  "lx.text.bottom": "Bottom"
 };
