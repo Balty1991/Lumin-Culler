@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { cachedWrite, cloudEnabled, cloudWrite } from './cloud';
 import { useStore } from '../state/store';
 import { buildEvents, buildMomentAlbums, type MomentAlbum } from './momentAlbums';
+import { useTripPlaces } from './tripPlaces';
 import { capitalizeFirst } from './format';
 import { useLx } from './lxStore';
 import { useTr } from './context';
@@ -22,7 +23,9 @@ export function MomentsView() {
   const tr = useTr();
   const [open, setOpen] = useState<string | null>(null);
   const albums = useMemo(() => buildMomentAlbums(photos, locale === 'en' ? 'en' : 'ro'), [photos, locale]);
-  const events = useMemo(() => buildEvents(photos, locale === 'en' ? 'en' : 'ro'), [photos, locale]);
+  const rawEvents = useMemo(() => buildEvents(photos, locale === 'en' ? 'en' : 'ro'), [photos, locale]);
+  // Vacanțele cu numele locului din poze („Vacanță · Grecia · 12–18 aug.”).
+  const events = useTripPlaces(rawEvents, photos, locale);
   const album = open ? (events.find(a => a.id === open) ?? albums.find(a => a.id === open)) : undefined;
 
   if (album) return <AlbumView album={album} onBack={() => setOpen(null)} />;

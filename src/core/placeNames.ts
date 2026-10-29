@@ -193,7 +193,7 @@ export function findNearestPlace(index: PlaceIndex, latitude: number, longitude:
  * `fallback: 'code'` ca un cod pe care motorul nu-l cunoaste sa ramana cod
  * ("XK"), nu sa dispara.
  */
-function countryName(code: string, locale: string): string {
+export function countryName(code: string, locale: string): string {
   if (!code) return '';
   try {
     return new Intl.DisplayNames([locale], { type: 'region', fallback: 'code' }).of(code) ?? code;
