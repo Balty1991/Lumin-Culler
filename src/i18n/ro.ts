@@ -2873,7 +2873,13 @@ export const ro = {
   "lx.pair.yearAgo": "Acum un an",
   "lx.pair.now": "Azi",
   "lx.pair.sub": "Atunci și azi",
-  "lx.pair.button": "Atunci și azi"
+  "lx.pair.button": "Atunci și azi",
+  "lx.print.album": "De printat · {month}",
+  "lx.print.button": "De printat ({count})",
+  "lx.best.button": "Alege cele mai bune {count} din {total}",
+  "lx.best.title": "Cele mai bune {count}",
+  "lx.best.keep": "Le păstrez pe toate",
+  "lx.best.kept": "Am păstrat {count} poze."
 };
 
 export type TranslationKey = keyof typeof ro;

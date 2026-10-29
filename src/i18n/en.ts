@@ -2787,5 +2787,11 @@ export const en: Record<TranslationKey, string> = {
   "lx.pair.yearAgo": "A year ago",
   "lx.pair.now": "Today",
   "lx.pair.sub": "Then and now",
-  "lx.pair.button": "Then and now"
+  "lx.pair.button": "Then and now",
+  "lx.print.album": "To print · {month}",
+  "lx.print.button": "To print ({count})",
+  "lx.best.button": "Pick the best {count} of {total}",
+  "lx.best.title": "The best {count}",
+  "lx.best.keep": "Keep them all",
+  "lx.best.kept": "Kept {count} photos."
 };

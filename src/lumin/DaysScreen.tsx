@@ -11,6 +11,7 @@ import { useLxActions, useTr } from './context';
 import { Thumb } from './Thumb';
 import { StoryButton } from './Story';
 import { CollageButton } from './CollageSheet';
+import { bestSpread } from './momentAlbums';
 import { makeLayoutCollage, shareCollage } from './collage';
 import { enhanceAll } from './Enhance';
 import { learnFromShare } from './signals';
@@ -141,7 +142,14 @@ function MonthsView({ days }: { days: Day<PhotoView>[] }) {
         )}
         {kept.length > 0 && (
           <section className="lx-section">
-            <div className="lx-section-head"><h2>{tr('lx.months.best')}</h2></div>
+            <div className="lx-section-head"><h2>{tr('lx.months.best')}</h2>
+              <span className="lx-links">
+                {canMakePhoneAlbums() && kept.length >= 4 && (
+                  <button className="lx-link" onClick={() => void copyToPhoneAlbum(tr('lx.print.album', { month: monthLabel(openRow.start, locale) }), bestSpread(kept, 20))}>🖨 {tr('lx.print.button', { count: Math.min(20, kept.length) })}</button>
+                )}
+                <CollageButton photos={kept} title={monthLabel(openRow.start, locale)} subtitle={tr('lx.story.daySub', { count: kept.length })} />
+              </span>
+            </div>
             <PhotoGrid list={kept} title={monthLabel(openRow.start, locale)} />
           </section>
         )}

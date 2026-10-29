@@ -33,3 +33,15 @@ describe('buildEvents', () => {
     expect(ev[0].photos).toHaveLength(30);
   });
 });
+
+import { bestSpread } from './momentAlbums';
+describe('bestSpread', () => {
+  it('alege din tot intervalul, cea mai bună din fiecare bucată', () => {
+    const photos = Array.from({ length: 300 }, (_, i) => ({ id: `p${i}`, capturedAt: i * 60_000, status: 'review', aiScore: i % 7 === 0 ? 90 : 40, personNames: [] as string[] }));
+    const r = bestSpread(photos, 30);
+    expect(r).toHaveLength(30);
+    expect(r[0].capturedAt).toBeLessThan(10 * 60_000);
+    expect(r[29].capturedAt).toBeGreaterThan(290 * 60_000);
+    expect(r.filter(p => p.aiScore === 90).length).toBeGreaterThan(25);
+  });
+});

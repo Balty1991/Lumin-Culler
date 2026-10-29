@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { cachedWrite, cloudEnabled, cloudWrite } from './cloud';
 import { useStore } from '../state/store';
-import { buildEvents, buildMomentAlbums, type MomentAlbum } from './momentAlbums';
+import { bestSpread, buildEvents, buildMomentAlbums, type MomentAlbum } from './momentAlbums';
 import { useTripPlaces } from './tripPlaces';
 import { capitalizeFirst } from './format';
 import { useLx } from './lxStore';
@@ -73,6 +73,43 @@ export function albumTitle(a: MomentAlbum, locale: string, tr: (k: string, p?: R
   return a.subject ? `${a.subject} · ${day}, ${part}` : `${day}, ${part}`;
 }
 
+/**
+ * „Cele mai bune 30” dintr-un eveniment mare (o vacanță de 300 de poze): din
+ * tot intervalul, ca să fie și începutul, și sfârșitul, și fiecare loc. Le
+ * vezi, le păstrezi pe toate dintr-o atingere sau le trimiți.
+ */
+function BestOf({ album, title }: { album: MomentAlbum<PhotoView>; title: string }) {
+  const tr = useTr();
+  const setStatus = useStore(s => s.setStatus);
+  const exportSelection = useStore(s => s.exportSelection);
+  const setNotice = useStore(s => s.setNotice);
+  const [picks, setPicks] = useState<PhotoView[] | null>(null);
+  const n = Math.min(30, Math.max(10, Math.round(album.photos.length / 10)));
+  if (!picks) return <button className="lx-btn primary wide" onClick={() => setPicks(bestSpread(album.photos, n))}>✨ {tr('lx.best.button', { count: n, total: album.photos.length })}</button>;
+  const keepAll = async () => {
+    for (const p of picks) if (p.status !== 'selected') await setStatus(p.id, 'selected');
+    setNotice(tr('lx.best.kept', { count: picks.length }));
+    setPicks(null);
+  };
+  return (
+    <section className="lx-section">
+      <div className="lx-section-head"><h2>{tr('lx.best.title', { count: picks.length })}</h2></div>
+      <div className="lx-grid">
+        {picks.map((p, i) => (
+          <button key={p.id} className={`lx-grid-cell ${p.status}`} onClick={() => useLx.getState().openViewer(picks.map(x => x.id), i)}>
+            <Thumb id={p.id} lqip={p.lqip} edits={p.edits} />
+          </button>
+        ))}
+      </div>
+      <div className="lx-decide-actions">
+        <button className="lx-btn ghost" onClick={() => void exportSelection('apps', picks.map(p => p.id))}>↗ {tr('lx.wall.share')}</button>
+        <CollageButton className="lx-btn ghost" photos={picks} title={title} subtitle={tr('lx.best.title', { count: picks.length })} />
+        <button className="lx-btn primary" onClick={() => void keepAll()}>{tr('lx.best.keep')}</button>
+      </div>
+    </section>
+  );
+}
+
 function AlbumView({ album, onBack }: { album: MomentAlbum<PhotoView>; onBack: () => void }) {
   const locale = useStore(s => s.locale);
   const exportSelection = useStore(s => s.exportSelection);
@@ -111,6 +148,7 @@ function AlbumView({ album, onBack }: { album: MomentAlbum<PhotoView>; onBack: (
         <StoryButton className="lx-btn ghost" ids={(kept.length >= 3 ? kept : album.photos).map(p => p.id)} title={title} subtitle={tr('lx.moments.meta', { count: album.photos.length, kept: kept.length })} />
         <CollageButton className="lx-btn ghost" photos={kept.length >= 3 ? kept : album.photos} title={title} subtitle={tr('lx.moments.meta', { count: album.photos.length, kept: kept.length })} />
       </div>
+      {album.photos.length >= 40 && <BestOf album={album} title={title} />}
       <div className="lx-wall">
         {album.photos.map((p, i) => (
           <button key={p.id} className={`lx-tile in ${p.status}`} style={{ animationDelay: `${i * 30}ms` }} onClick={() => useLx.getState().openViewer(album.photos.map(x => x.id), i)}>

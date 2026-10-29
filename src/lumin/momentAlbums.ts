@@ -201,3 +201,30 @@ export function buildEvents<P extends AlbumPhoto>(photos: readonly P[], locale: 
   }
   return out.sort((a, b) => b.start - a.start);
 }
+
+/**
+ * „Cele mai bune 30” dintr-o vacanță de 300: timpul împărțit în `n` bucăți
+ * egale (ca să fie și începutul, și sfârșitul, și fiecare loc), iar din fiecare
+ * bucată cea mai bună poză (păstrată întâi, apoi cu oameni, apoi scor). Dacă
+ * unele bucăți sunt goale, golurile se umplu cu următoarele cele mai bune.
+ */
+export function bestSpread<P extends AlbumPhoto>(photos: readonly P[], n: number): P[] {
+  const list = photos.filter(p => p.capturedAt !== undefined);
+  if (list.length <= n) return [...list];
+  const score = (p: P) => (p.status === 'selected' ? 1000 : 0) + (p.personNames.length ? 15 : 0) + p.aiScore;
+  const start = Math.min(...list.map(p => p.capturedAt!));
+  const end = Math.max(...list.map(p => p.capturedAt!));
+  const span = Math.max(1, end - start + 1);
+  const buckets = new Map<number, P>();
+  for (const p of list) {
+    const b = Math.min(n - 1, Math.floor(((p.capturedAt! - start) / span) * n));
+    const cur = buckets.get(b);
+    if (!cur || score(p) > score(cur)) buckets.set(b, p);
+  }
+  const chosen = new Set(buckets.values());
+  for (const p of [...list].sort((a, b) => score(b) - score(a))) {
+    if (chosen.size >= n) break;
+    chosen.add(p);
+  }
+  return [...chosen].sort((a, b) => a.capturedAt! - b.capturedAt!);
+}
