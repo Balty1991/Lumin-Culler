@@ -5,6 +5,7 @@ import { groupDays, type Day } from './days';
 import { usePeopleFaces } from './faces';
 import { buildCoverage, useGalleryMonths } from './coverage';
 import { capitalizeFirst, dayLabel, daySummary, monthLabel } from './format';
+import { formatBirthday, parseBirthday, readBirthdays, writeBirthday, type Birthday } from './birthdays';
 import { useLx, type GalleryView } from './lxStore';
 import { useLxActions, useTr } from './context';
 import { Thumb } from './Thumb';
@@ -204,6 +205,31 @@ function MonthsView({ days }: { days: Day<PhotoView>[] }) {
  * apoi „Nu e …” (numele pleacă de pe fața aceea și nu mai revine singur) sau
  * „E altcineva…” (fața primește numele corect).
  */
+/** „🎂 Ziua lui”: ținută minte, ca Cherrypic să propună colajul cu câteva zile înainte. */
+function BirthdayRow({ name }: { name: string }) {
+  const tr = useTr();
+  const locale = useStore(s => s.locale);
+  const askPrompt = useStore(s => s.askPrompt);
+  const setNotice = useStore(s => s.setNotice);
+  const [b, setB] = useState<Birthday | undefined>(() => readBirthdays()[name]);
+  const edit = async () => {
+    const raw = await askPrompt(tr('lx.birthday.ask', { name }), b ? `${b.day}.${b.month}${b.year ? `.${b.year}` : ''}` : '', { confirmLabel: tr('lx.save') });
+    if (raw === null) return;
+    if (!raw.trim()) { writeBirthday(name, null); setB(undefined); return; }
+    const parsed = parseBirthday(raw);
+    if (!parsed) { setNotice(tr('lx.birthday.invalid')); return; }
+    writeBirthday(name, parsed);
+    setB(parsed);
+  };
+  return (
+    <button className="lx-row button" onClick={() => void edit()}>
+      <span><b>🎂 {b ? tr('lx.birthday.is', { name, date: formatBirthday(b, locale) }) : tr('lx.birthday.add', { name })}</b>
+        <small>{tr('lx.birthday.sub')}</small></span>
+      <span className="lx-chev" aria-hidden="true">›</span>
+    </button>
+  );
+}
+
 function PersonView({ name, list, onBack, onRenamed }: { name: string; list: PhotoView[]; onBack: () => void; onRenamed: (n: string | null) => void }) {
   const tr = useTr();
   const correctPersonFaces = useStore(s => s.correctPersonFaces);
@@ -234,6 +260,7 @@ function PersonView({ name, list, onBack, onRenamed }: { name: string; list: Pho
         </button>
       </header>
       {editing && <p className="lx-hint">{tr('lx.people.correctHint', { name })}</p>}
+      {!editing && <BirthdayRow name={name} />}
       {!editing && canMakePhoneAlbums() && list.some(p => p.status === 'selected') && (
         <button className="lx-btn ghost wide" onClick={() => void copyToPhoneAlbum(name, list.filter(p => p.status === 'selected'))}>{tr('lx.phone.personAlbum', { name })}</button>
       )}

@@ -2801,7 +2801,20 @@ export const ro = {
   "lx.feed.film": "Filmul lui {month} e gata: cele mai frumoase momente, în 30 de secunde.",
   "lx.feed.filmSub": "{count} poze alese de mine, gata de trimis.",
   "lx.feed.filmSubtitle": "{count} poze păstrate",
-  "premium.personalClean": "Și aș muta în coș {count} poze de care nu mai ai nevoie (serii aproape la fel, capturi vechi, ce ai lăsat la „Nu azi”): {size} eliberați dintr-o atingere."
+  "premium.personalClean": "Și aș muta în coș {count} poze de care nu mai ai nevoie (serii aproape la fel, capturi vechi, ce ai lăsat la „Nu azi”): {size} eliberați dintr-o atingere.",
+  "lx.birthday.ask": "Când e ziua lui {name}? (zi.lună, cu anul dacă vrei: 12.03.2020)",
+  "lx.birthday.invalid": "Nu am înțeles data. Scrie-o ca 12.03 sau 12.03.2020.",
+  "lx.birthday.is": "Ziua lui {name}: {date}",
+  "lx.birthday.add": "Adaugă ziua lui {name}",
+  "lx.birthday.sub": "Cu câteva zile înainte îți fac un colaj cu poze din ultimul an.",
+  "lx.birthday.tomorrow": "mâine",
+  "lx.birthday.inDays": "peste {days} zile",
+  "lx.feed.birthday": "{when} e ziua lui {name}! Îți fac un colaj cu cele mai frumoase poze din ultimul an?",
+  "lx.feed.birthdayTurns": "{when} {name} împlinește {turns} ani! Îți fac un colaj cu cele mai frumoase poze din ultimul an?",
+  "lx.feed.birthdaySub": "{count} poze alese de mine, gata de trimis cu „La mulți ani”.",
+  "lx.feed.birthdayGo": "Fă colajul",
+  "lx.birthday.collageTitle": "La mulți ani, {name}!",
+  "lx.birthday.collageSub": "Anul tău în poze"
 };
 
 export type TranslationKey = keyof typeof ro;

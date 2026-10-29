@@ -14,6 +14,8 @@ import { buildEvents } from './momentAlbums';
 import { Orb } from './Orb';
 import { learnFromShare } from './signals';
 import { StoryButton } from './Story';
+import { nextBirthday, readBirthdays } from './birthdays';
+import { makeCollage, shareCollage } from './collage';
 import { Thumb } from './Thumb';
 import { personalWhy, useWhyContext } from './why';
 
@@ -31,6 +33,8 @@ const DAY = 86_400_000;
 const SNOOZE_KEY = 'lumin-feed-snooze';
 const isWaiting = (p: PhotoView) => !p.aside && (p.status === 'review' || p.status === 'pending' || p.status === 'candidate');
 const bytes = (list: readonly PhotoView[]) => list.reduce((s, p) => s + (p.sizeBytes ?? 0), 0);
+
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 function readSnooze(): Record<string, number> {
   try { return JSON.parse(localStorage.getItem(SNOOZE_KEY) ?? '{}'); } catch { return {}; }
@@ -128,6 +132,28 @@ export function LumiFeed() {
         sub: months.length > 1 ? tr('lx.feed.monthsLeft', { count: months.length }) : undefined,
         action: tr('lx.feed.monthGo'),
         run: () => openSort(list.map(p => p.id), monthLabel(m, locale))
+      });
+    }
+
+    // 2a. O zi de naștere în următoarele 3 zile: colajul cu persoana din ultimul an.
+    const birthdays = readBirthdays();
+    for (const [name, b] of Object.entries(birthdays)) {
+      const next = nextBirthday(b);
+      if (next.days > 3) continue;
+      const theirs = photos.filter(p => p.personNames.includes(name) && !p.aside && photoTime(p) >= Date.now() - 366 * DAY);
+      if (theirs.length < 3) continue;
+      const pick = [...theirs].sort((a, b2) => (b2.status === 'selected' ? 1 : 0) - (a.status === 'selected' ? 1 : 0) || b2.aiScore - a.aiScore).slice(0, 7);
+      const when = next.days === 0 ? tr('lx.feed.today') : next.days === 1 ? tr('lx.birthday.tomorrow') : tr('lx.birthday.inDays', { days: next.days });
+      out.unshift({
+        id: `bday-${name}-${new Date().getFullYear()}`, photoId: pick[0].id,
+        text: capitalize(tr(next.turns ? 'lx.feed.birthdayTurns' : 'lx.feed.birthday', { name, when, turns: next.turns ?? 0 })),
+        sub: tr('lx.feed.birthdaySub', { count: pick.length }),
+        action: tr('lx.feed.birthdayGo'),
+        run: async () => {
+          const title = tr('lx.birthday.collageTitle', { name });
+          const blob = await makeCollage(pick.map(p => p.id), title, tr('lx.birthday.collageSub'));
+          if (blob) await shareCollage(blob, `cherrypic-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.jpg`, title);
+        }
       });
     }
 

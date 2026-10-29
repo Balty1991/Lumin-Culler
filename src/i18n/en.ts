@@ -2715,5 +2715,18 @@ export const en: Record<TranslationKey, string> = {
   "lx.feed.film": "Your {month} film is ready: the best moments in 30 seconds.",
   "lx.feed.filmSub": "{count} photos I picked, ready to send.",
   "lx.feed.filmSubtitle": "{count} photos kept",
-  "premium.personalClean": "And I’d move {count} photos you don’t need to the bin (near-identical series, old screenshots, what you left at “Not today”): {size} freed in one tap."
+  "premium.personalClean": "And I’d move {count} photos you don’t need to the bin (near-identical series, old screenshots, what you left at “Not today”): {size} freed in one tap.",
+  "lx.birthday.ask": "When is {name}’s birthday? (day.month, with the year if you like: 12.03.2020)",
+  "lx.birthday.invalid": "I didn’t get that date. Write it like 12.03 or 12.03.2020.",
+  "lx.birthday.is": "{name}’s birthday: {date}",
+  "lx.birthday.add": "Add {name}’s birthday",
+  "lx.birthday.sub": "A few days before, I’ll make a collage of the past year’s photos.",
+  "lx.birthday.tomorrow": "tomorrow",
+  "lx.birthday.inDays": "in {days} days",
+  "lx.feed.birthday": "{name}’s birthday is {when}! Shall I make a collage of the best photos from the past year?",
+  "lx.feed.birthdayTurns": "{name} turns {turns} {when}! Shall I make a collage of the best photos from the past year?",
+  "lx.feed.birthdaySub": "{count} photos I picked, ready to send with “Happy birthday”.",
+  "lx.feed.birthdayGo": "Make the collage",
+  "lx.birthday.collageTitle": "Happy birthday, {name}!",
+  "lx.birthday.collageSub": "Your year in photos"
 };
