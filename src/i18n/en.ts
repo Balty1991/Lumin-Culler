@@ -2775,5 +2775,17 @@ export const en: Record<TranslationKey, string> = {
   "lx.feed.lessonTitle": "Two minutes",
   "lx.feed.missed": "You haven’t taken photos with {name} since {month}.",
   "lx.feed.missedSub": "Here are the best so far — maybe it’s time for a new one.",
-  "lx.feed.missedGo": "See the photos"
+  "lx.feed.missedGo": "See the photos",
+  "lx.collage.title": "Collage",
+  "lx.collage.grid4": "4 photos",
+  "lx.collage.grid6": "6 photos",
+  "lx.collage.grid3": "3 photos",
+  "lx.collage.polaroid": "Polaroid",
+  "lx.collage.hint": "The best photos, picked by me. Tap a layout to send it.",
+  "lx.collage.button": "Collage",
+  "lx.person.film": "{name} over time",
+  "lx.pair.yearAgo": "A year ago",
+  "lx.pair.now": "Today",
+  "lx.pair.sub": "Then and now",
+  "lx.pair.button": "Then and now"
 };

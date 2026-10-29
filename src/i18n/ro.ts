@@ -2861,7 +2861,19 @@ export const ro = {
   "lx.feed.lessonTitle": "Două minute",
   "lx.feed.missed": "N-ai mai făcut poze cu {name} din {month}.",
   "lx.feed.missedSub": "Uite cele mai frumoase de până acum — poate e momentul pentru una nouă.",
-  "lx.feed.missedGo": "Vezi pozele"
+  "lx.feed.missedGo": "Vezi pozele",
+  "lx.collage.title": "Colaj",
+  "lx.collage.grid4": "4 poze",
+  "lx.collage.grid6": "6 poze",
+  "lx.collage.grid3": "3 poze",
+  "lx.collage.polaroid": "Polaroid",
+  "lx.collage.hint": "Cele mai bune poze, alese de mine. Atinge modelul și îl trimiți.",
+  "lx.collage.button": "Colaj",
+  "lx.person.film": "{name}, de-a lungul timpului",
+  "lx.pair.yearAgo": "Acum un an",
+  "lx.pair.now": "Azi",
+  "lx.pair.sub": "Atunci și azi",
+  "lx.pair.button": "Atunci și azi"
 };
 
 export type TranslationKey = keyof typeof ro;

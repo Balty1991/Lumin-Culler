@@ -8,6 +8,7 @@ import { useLx } from './lxStore';
 import { useTr } from './context';
 import { Thumb } from './Thumb';
 import { StoryButton } from './Story';
+import { CollageButton } from './CollageSheet';
 import { canMakePhoneAlbums, copyToPhoneAlbum } from './phoneAlbums';
 import type { PhotoView } from '../state/store';
 
@@ -108,6 +109,7 @@ function AlbumView({ album, onBack }: { album: MomentAlbum<PhotoView>; onBack: (
         {kept.length > 0 && <button className="lx-btn ghost" onClick={() => void exportSelection('apps', kept.map(p => p.id))}>{tr('lx.day.share', { count: kept.length })}</button>}
         {kept.length > 0 && canMakePhoneAlbums() && <button className="lx-btn ghost" onClick={() => void copyToPhoneAlbum(title, kept)}>{tr('lx.phone.toAlbum')}</button>}
         <StoryButton className="lx-btn ghost" ids={(kept.length >= 3 ? kept : album.photos).map(p => p.id)} title={title} subtitle={tr('lx.moments.meta', { count: album.photos.length, kept: kept.length })} />
+        <CollageButton className="lx-btn ghost" photos={kept.length >= 3 ? kept : album.photos} title={title} subtitle={tr('lx.moments.meta', { count: album.photos.length, kept: kept.length })} />
       </div>
       <div className="lx-wall">
         {album.photos.map((p, i) => (

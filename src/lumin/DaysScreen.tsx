@@ -10,6 +10,8 @@ import { useLx, type GalleryView } from './lxStore';
 import { useLxActions, useTr } from './context';
 import { Thumb } from './Thumb';
 import { StoryButton } from './Story';
+import { CollageButton } from './CollageSheet';
+import { makeLayoutCollage, shareCollage } from './collage';
 import { enhanceAll } from './Enhance';
 import { learnFromShare } from './signals';
 import { PeopleGrid } from './People';
@@ -205,6 +207,48 @@ function MonthsView({ days }: { days: Day<PhotoView>[] }) {
  * apoi „Nu e …” (numele pleacă de pe fața aceea și nu mai revine singur) sau
  * „E altcineva…” (fața primește numele corect).
  */
+/**
+ * Pe pagina unui om: „Filmul creșterii” (câte o poză pe lună, de la cea mai
+ * veche la azi — copiii crescând) și „Atunci și azi” (o poză de acum un an,
+ * sau cea mai veche, lângă una de azi), gata de trimis.
+ */
+function PersonTimeButtons({ name, list }: { name: string; list: PhotoView[] }) {
+  const tr = useTr();
+  const locale = useStore(s => s.locale);
+  const [busy, setBusy] = useState(false);
+  const usable = list.filter(p => p.capturedAt !== undefined && !p.aside);
+  if (usable.length < 4) return null;
+  const byMonth = new Map<number, PhotoView>();
+  for (const p of usable) {
+    const d = new Date(p.capturedAt!);
+    const key = d.getFullYear() * 12 + d.getMonth();
+    const cur = byMonth.get(key);
+    const score = (x: PhotoView) => (x.status === 'selected' ? 100 : 0) + x.aiScore;
+    if (!cur || score(p) > score(cur)) byMonth.set(key, p);
+  }
+  const months = [...byMonth.entries()].sort((a, b) => a[0] - b[0]).map(([, p]) => p);
+  const film = months.length > 40 ? months.filter((_, i) => i % Math.ceil(months.length / 40) === 0) : months;
+  const sorted = [...usable].sort((a, b) => a.capturedAt! - b.capturedAt!);
+  const now = sorted[sorted.length - 1];
+  const yearAgo = sorted.filter(p => p.capturedAt! <= now.capturedAt! - 300 * 86_400_000 && p.capturedAt! >= now.capturedAt! - 460 * 86_400_000);
+  const then = (yearAgo.length ? yearAgo : sorted.slice(0, Math.max(1, Math.floor(sorted.length / 10)))).sort((a, b) => b.aiScore - a.aiScore)[0];
+  const span = now.capturedAt! - then.capturedAt!;
+  const pair = async () => {
+    setBusy(true);
+    try {
+      const thenLabel = yearAgo.length ? tr('lx.pair.yearAgo') : String(new Date(then.capturedAt!).getFullYear());
+      const blob = await makeLayoutCollage([then.id, now.id], 'pair', name, tr('lx.pair.sub'), [thenLabel, tr('lx.pair.now')]);
+      if (blob) await shareCollage(blob, `cherrypic-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-atunci-azi.jpg`, name);
+    } finally { setBusy(false); }
+  };
+  return (
+    <div className="lx-chips">
+      {film.length >= 4 && <StoryButton className="lx-btn ghost small" ids={film.map(p => p.id)} title={tr('lx.person.film', { name })} subtitle={`${new Date(film[0].capturedAt!).toLocaleDateString(locale === 'en' ? 'en-GB' : 'ro-RO', { month: 'long', year: 'numeric' })} – ${tr('lx.pair.now').toLowerCase()}`} />}
+      {span > 180 * 86_400_000 && <button className="lx-btn ghost small" disabled={busy} onClick={() => void pair()}>↔ {tr('lx.pair.button')}</button>}
+    </div>
+  );
+}
+
 /** „🎂 Ziua lui”: ținută minte, ca Cherrypic să propună colajul cu câteva zile înainte. */
 function BirthdayRow({ name }: { name: string }) {
   const tr = useTr();
@@ -261,6 +305,7 @@ function PersonView({ name, list, onBack, onRenamed }: { name: string; list: Pho
       </header>
       {editing && <p className="lx-hint">{tr('lx.people.correctHint', { name })}</p>}
       {!editing && <BirthdayRow name={name} />}
+      {!editing && <PersonTimeButtons name={name} list={list} />}
       {!editing && canMakePhoneAlbums() && list.some(p => p.status === 'selected') && (
         <button className="lx-btn ghost wide" onClick={() => void copyToPhoneAlbum(name, list.filter(p => p.status === 'selected'))}>{tr('lx.phone.personAlbum', { name })}</button>
       )}
@@ -353,6 +398,7 @@ function DayView({ day, onBack }: { day: Day<PhotoView>; onBack: () => void }) {
               <button className="lx-link" onClick={() => void exportSelection('apps', day.kept.map(p => p.id)).then(() => learnFromShare(day.kept))}>{tr('lx.day.share', { count: day.kept.length })}</button>
               <EnhanceAllButton ids={day.kept.filter(p => !p.edits).map(p => p.id)} />
               <StoryButton ids={day.kept.map(p => p.id)} title={capitalizeFirst(label)} subtitle={tr('lx.story.daySub', { count: day.kept.length })} />
+              <CollageButton photos={day.kept} title={capitalizeFirst(label)} subtitle={tr('lx.story.daySub', { count: day.kept.length })} />
             </span>
           </div>
           <PhotoGrid list={day.kept} title={tr('lx.day.kept')} />
