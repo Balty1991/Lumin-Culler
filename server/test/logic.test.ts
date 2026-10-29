@@ -184,3 +184,17 @@ describe('normalizeGrade', () => {
     expect(normalizeGrade(null)).toBeNull();
   });
 });
+
+import { parseGradeReply as parseGradeLoose } from '../src/logic';
+describe('Auto AI: răspunsul modelului citit cu îngăduință', () => {
+  it('citește „+10” și text în jur', () => {
+    const r = parseGradeLoose('Sure! {"exposure": +12, "contrast": 5, "shadows": +8, "reason": "brighter face"}');
+    expect(r).toMatchObject({ exposure: 12, contrast: 5, shadows: 8, reason: 'brighter face' });
+  });
+  it('citește un răspuns tăiat înainte de acoladă', () => {
+    expect(parseGradeLoose('{"exposure": 10, "temperature": 6, "reas')).toMatchObject({ exposure: 10, temperature: 6 });
+  });
+  it('nimic recunoscut: null', () => {
+    expect(parseGradeLoose('I cannot help with that.')).toBeNull();
+  });
+});

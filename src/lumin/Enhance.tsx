@@ -58,6 +58,8 @@ const STYLE_ADD: Record<EnhanceStyle, Partial<Record<keyof EditAdjustments, numb
  * și cerul devine fosforescent (raportat: „parcă saturează cam mult”).
  */
 const MAX_SATURATION = 20;
+/** Stilurile fără lumină proprie, care altfel ies mai închise decât originalul. */
+const BRIGHTEN: ReadonlySet<EnhanceStyle> = new Set(['vivid', 'warm', 'clear']);
 
 const clamp = (v: number) => Math.max(-100, Math.min(100, Math.round(v)));
 
@@ -73,6 +75,22 @@ export function styledEdits(base: EditAdjustments, style: EnhanceStyle, amount: 
     (out as unknown as Record<string, number>)[k] = clamp(v * amount);
   }
   out.saturation = Math.min(MAX_SATURATION, out.saturation);
+  // Pozele largi, cu cer înnorat (raportat cu capturi: „la pozele mai în larg încă
+  // are tendință să întunece”): pe o poză fără negru adevărat, corecția automată
+  // întinde negrul tare (−35), stilul mai adaugă, iar dehaze/contrastul coboară
+  // tonurile medii — pământul și hainele se înnegreau. Negrul și recuperarea
+  // luminilor au un prag, iar ce întunecă dehaze-ul se dă înapoi ca lumină.
+  // Pe portretele de aproape (lăudate) pragurile aproape că nu se ating.
+  if (style !== 'drama' && style !== 'bw') {
+    const k = Math.min(1, amount);
+    const floor = -18 * Math.max(1, amount);
+    const blacks = out.blacks ?? 0;
+    const crush = Math.max(0, floor - blacks);
+    out.blacks = Math.max(floor, blacks);
+    out.highlights = Math.max(-30 * Math.max(1, amount), out.highlights ?? 0);
+    const lift = (out.dehaze ?? 0) * 0.35 + crush * 0.15 + (BRIGHTEN.has(style) ? 5 * k : 0);
+    out.exposure = clamp((out.exposure ?? 0) + lift);
+  }
   if (style === 'bw') out.bw = Math.max(0, Math.min(100, Math.round(100 * Math.min(1, amount * 1.5))));
   if (NEEDS_FACE.has(style) && !out.bokehSubject) out.bokeh = 0;
   if (style === 'retouch') delete out.bokehSubject;
@@ -158,6 +176,30 @@ function brightnessLift(img: HTMLImageElement, faces?: readonly { box: [number, 
     if (!count) return 0;
     return liftFor(sum / count, big.length > 0 && count >= 4);
   } catch { return 0; }
+}
+
+/**
+ * Rezerva lui „Auto AI”, pe telefon: tonurile medii spre ~52%, umbrele deschise
+ * când e închisă, o nuanță rece încălzită puțin. Doar corecturi mici (±20).
+ */
+export function localGrade(ctx: CanvasRenderingContext2D, w: number, h: number): { values: Record<string, number>; reason: string } {
+  const d = ctx.getImageData(0, 0, w, h).data;
+  let sum = 0, r = 0, b = 0, dark = 0;
+  const n = d.length / 4;
+  for (let i = 0; i < d.length; i += 4) {
+    const y = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255;
+    sum += y; r += d[i]; b += d[i + 2];
+    if (y < 0.2) dark++;
+  }
+  const luma = sum / n;
+  const values: Record<string, number> = {};
+  const exposure = Math.round(Math.max(-10, Math.min(20, (0.52 - luma) * 70)));
+  if (exposure) values.exposure = exposure;
+  if (dark / n > 0.12) values.shadows = Math.min(20, Math.round((dark / n) * 60));
+  const cast = (b - r) / n / 255;
+  if (cast > 0.02) values.temperature = Math.min(12, Math.round(cast * 150));
+  values.saturation = 4;
+  return { values, reason: '' };
 }
 
 /** „Fă-le pe toate mai frumoase”: stilul Natural pe fiecare, salvate ca și copii. */
@@ -317,8 +359,13 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
       const ctx = c.getContext('2d');
       if (!ctx) return;
       drawAdjusted(ctx, img, img.width, img.height, c.width, c.height, { ...edits, crop: undefined, bokehMask: undefined, bokeh: 0 });
-      const r = await cloudGrade(c.toDataURL('image/jpeg', 0.85).split(',')[1]);
-      if (!r) { useStore.getState().setNotice(tr('lx.magic.failed')); return; }
+      let r = await cloudGrade(c.toDataURL('image/jpeg', 0.85).split(',')[1]);
+      // AI-ul online n-a răspuns (rețea, limită, model ocupat): nu lăsăm butonul
+      // fără efect — o corectură măsurată pe telefon, pe varianta de acum.
+      if (!r) {
+        r = localGrade(ctx, c.width, c.height);
+        useStore.getState().setNotice(tr('lx.enhance.aiLocal'));
+      }
       setManual(v => {
         const n = { ...v };
         for (const [key, val] of Object.entries(r.values)) {

@@ -467,7 +467,8 @@ function DayView({ day, onBack }: { day: Day<PhotoView>; onBack: () => void }) {
       {day.aside.length > 0 && (
         <section className="lx-section">
           <div className="lx-section-head"><h2>{tr('lx.day.aside')}</h2></div>
-          <PhotoGrid list={day.aside} title={tr('lx.day.aside')} />
+          {/* Aceleași unelte ca în Galerie → Deoparte: dosare, selecție multiplă, ștergere. */}
+          <AsideView aside={day.aside} />
         </section>
       )}
     </div>

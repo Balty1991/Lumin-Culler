@@ -24,8 +24,20 @@ export const SAME_PERSON = 0.42;
 /** Recunoașterea automată cere mai mult: un nume greșit e mai rău decât niciunul. */
 export const AUTO_NAME = 0.5;
 const AUTO_MARGIN = 0.06;
-/** Fețe prea mici dau amprente nesigure. */
-const MIN_FACE_AREA = 0.004;
+/**
+ * Fețe prea mici dau amprente nesigure. Coborât de la 0,004: în pozele „în larg”
+ * (un copil întreg, de la câțiva metri) fața are ~0,1–0,3% din cadru și era
+ * sărită — raportat: „a văzut decât 2 poze cu persoana, deși erau mai multe”.
+ * Fețele mici se decupează acum din poza la rezoluție mare (FaceEmbedPlugin).
+ */
+const MIN_FACE_AREA = 0.0008;
+/**
+ * Aceeași zi, același om: o față care seamănă destul (peste SAME_PERSON) cu
+ * cineva recunoscut sigur în aceeași zi primește numele — fotografiile unei
+ * ieșiri au de obicei aceiași oameni, iar fețele mici nu ating pragul strict.
+ */
+const SAME_DAY_NAME = SAME_PERSON;
+const DAY_MS = 86_400_000;
 
 type Face = { box: [number, number, number, number]; personId: string | null; personName?: string | null; embedding?: number[]; embeddingModel?: string; notPersonIds?: string[] };
 
@@ -62,9 +74,20 @@ export function clusterFaces(faces: readonly FaceRef[], threshold = SAME_PERSON)
 }
 
 /** Toate fețele cu amprentă SFace, cu sau fără nume. */
-export async function readSfaceFaces(): Promise<{ named: Map<string, number[][]>; unnamed: FaceRef[] }> {
+/** Ziua fiecărei poze (ora capturii sau, lipsă, a importului). */
+async function photoDays(): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  await db.photos.each(p => {
+    const t = p.capturedAt ?? p.importedAt;
+    if (t) out.set(p.id, Math.floor((t - new Date(t).getTimezoneOffset() * 60_000) / DAY_MS));
+  });
+  return out;
+}
+
+export async function readSfaceFaces(): Promise<{ named: Map<string, number[][]>; unnamed: FaceRef[]; namedDays: Set<string> }> {
   const named = new Map<string, number[][]>();
   const unnamed: FaceRef[] = [];
+  const namedPhotos: { personId: string; photoId: string }[] = [];
   // Una câte una, nu toată baza în memorie dintr-odată (cu mii de poze, zeci de MB).
   await db.analyses.each(a => {
     (a.faces as Face[] | undefined ?? []).forEach((f, faceIndex) => {
@@ -73,12 +96,18 @@ export async function readSfaceFaces(): Promise<{ named: Map<string, number[][]>
         const list = named.get(f.personId) ?? [];
         list.push(f.embedding);
         named.set(f.personId, list);
+        namedPhotos.push({ personId: f.personId, photoId: a.photoId });
       } else {
         unnamed.push({ photoId: a.photoId, faceIndex, box: f.box, embedding: f.embedding, notPersonIds: f.notPersonIds });
       }
     });
   });
-  return { named, unnamed };
+  let namedDays = new Set<string>();
+  if (namedPhotos.length) {
+    const dayOf = await photoDays();
+    namedDays = new Set(namedPhotos.flatMap(n => { const d = dayOf.get(n.photoId); return d === undefined ? [] : [`${n.personId}:${d}`]; }));
+  }
+  return { named, unnamed, namedDays };
 }
 
 let running: Promise<number> | null = null;
@@ -170,14 +199,18 @@ export async function suggestFaces(skip: ReadonlySet<string>, limit = 6): Promis
  * Întoarce câte fețe au fost recunoscute.
  */
 export async function autoNameFaces(): Promise<number> {
-  const { named, unnamed } = await readSfaceFaces();
+  const { named, unnamed, namedDays } = await readSfaceFaces();
   if (!named.size || !unnamed.length) return 0;
   const persons = useStore.getState().persons;
   const centroids = personModels(named, persons);
+  const dayOf = await photoDays();
   const byName = new Map<string, FaceRef[]>();
   for (const f of unnamed) {
     const [best, second] = scoreFace(f, centroids);
-    if (!best || best.s < AUTO_NAME || (second && best.s - second.s < AUTO_MARGIN)) continue;
+    if (!best || (second && best.s - second.s < AUTO_MARGIN)) continue;
+    const day = dayOf.get(f.photoId);
+    const sameDay = day !== undefined && namedDays.has(`${best.c.id}:${day}`);
+    if (best.s < (sameDay ? SAME_DAY_NAME : AUTO_NAME)) continue;
     const list = byName.get(best.c.name) ?? [];
     list.push(f);
     byName.set(best.c.name, list);

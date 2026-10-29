@@ -107,13 +107,12 @@
   --brand-grad: linear-gradient(120deg, #e8245a 0%, #ff6f98 45%, #8a6cff 100%);
 }
 
-/* Sclipirile din iconiță, discret, în colțul ecranelor Cherrypic. */
-:root[data-palette="cherry"] .lx::after {
-  content: ""; position: fixed; top: calc(14px + var(--safe-top, 0px)); right: 18px; width: 120px; height: 90px;
-  pointer-events: none; opacity: 0.5; z-index: 0;
-  background:
-    radial-gradient(circle at 70% 30%, rgb(255 255 255 / 0.9) 0 1.5px, transparent 2.5px),
-    radial-gradient(circle at 20% 70%, rgb(255 255 255 / 0.6) 0 1px, transparent 2px),
-    radial-gradient(circle at 92% 82%, rgb(255 255 255 / 0.5) 0 1px, transparent 2px);
+/* Tema luminoasă: fundal curat, fără pete de culoare, carduri albe opace
+   (raportat: „pe luminos se vede ciudat” — totul ieșea roz, cardurile pătate). */
+:root[data-theme="light"] .lx {
+  --lx-glass: var(--surface);
+  background: var(--bg);
 }
-:root[data-theme="light"][data-palette="cherry"] .lx::after { display: none; }
+:root[data-theme="light"] .lx-card,
+:root[data-theme="light"] .lx-dock { background: var(--surface); }
+:root[data-theme="light"] .lx-dock { box-shadow: 0 10px 30px -14px rgb(40 16 34 / 0.25); }

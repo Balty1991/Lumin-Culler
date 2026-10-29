@@ -24,6 +24,8 @@ private const val MODEL_FILE = "face_sface_int8.onnx"
 private const val SIZE = 112
 /** Cât de mare decodăm poza ca să tăiem fețele din ea: destul pentru 112 px pe față. */
 private const val DECODE_MAX_SIDE = 1600
+/** Plafonul pentru fețele mici: destul cât o față de 3,5% din lățime să aibă 112 px. */
+private const val DECODE_SMALL_FACE_MAX_SIDE = 3200
 
 /**
  * Amprenta unei fețe (128 de numere), ca să știm că două fețe sunt același om.
@@ -57,16 +59,18 @@ class FaceEmbedPlugin : Plugin() {
         return e.createSession(bytes, opts).also { session = it }
     }
 
-    private fun decode(uri: Uri): Bitmap? {
+    private fun decode(uri: Uri, maxSide: Int = DECODE_MAX_SIDE): Bitmap? {
         val resolver = context.contentResolver
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             runCatching {
                 ImageDecoder.decodeBitmap(ImageDecoder.createSource(resolver, uri)) { decoder, info, _ ->
                     val w = info.size.width
                     val h = info.size.height
-                    val scale = min(1f, DECODE_MAX_SIDE.toFloat() / max(w, h))
+                    val scale = min(1f, maxSide.toFloat() / max(w, h))
                     decoder.setTargetSize(max(1, (w * scale).roundToInt()), max(1, (h * scale).roundToInt()))
                     decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+                    // Peste mărimea obișnuită (fețe mici): jumătate din memorie, 565 în loc de 8888.
+                    if (maxSide > DECODE_MAX_SIDE) decoder.memorySizePolicy = ImageDecoder.MEMORY_POLICY_LOW_RAM
                 }
             }.getOrNull()
         } else {
@@ -74,7 +78,7 @@ class FaceEmbedPlugin : Plugin() {
                 val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                 resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
                 var sample = 1
-                while (max(bounds.outWidth, bounds.outHeight) / (sample * 2) >= DECODE_MAX_SIDE) sample *= 2
+                while (max(bounds.outWidth, bounds.outHeight) / (sample * 2) >= maxSide) sample *= 2
                 val opts = BitmapFactory.Options().apply { inSampleSize = sample }
                 resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, opts) }
             }.getOrNull()
@@ -127,7 +131,16 @@ class FaceEmbedPlugin : Plugin() {
         executor.ruleaza(call, "Amprenta fețelor a eșuat") {
             val uri = call.getString("uri") ?: run { call.reject("Lipsește uri"); return@ruleaza }
             val boxes = call.getArray("boxes") ?: JSArray()
-            val photo = decode(Uri.parse(uri)) ?: run { call.reject("Poza nu s-a putut citi"); return@ruleaza }
+            // Fețele mici (pozele „în larg”) se citesc din poza mai mare, ca fața să aibă
+            // destui pixeli pentru 112×112; altfel amprenta e prea slabă ca s-o recunoască.
+            var smallest = 1.0
+            for (i in 0 until boxes.length()) {
+                val b = boxes.getJSONArray(i)
+                smallest = min(smallest, max(b.getDouble(2), b.getDouble(3)))
+            }
+            val need = if (smallest > 0) (SIZE / smallest).roundToInt() else DECODE_MAX_SIDE
+            val maxSide = need.coerceIn(DECODE_MAX_SIDE, DECODE_SMALL_FACE_MAX_SIDE)
+            val photo = decode(Uri.parse(uri), maxSide) ?: run { call.reject("Poza nu s-a putut citi"); return@ruleaza }
             val result = JSArray()
             try {
                 for (i in 0 until boxes.length()) {

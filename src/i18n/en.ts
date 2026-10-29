@@ -2887,4 +2887,5 @@ export const en: Record<TranslationKey, string> = {
   "lx.archive.done": "Moved {count} photos to the Archive (Gallery → Set aside).",
   "lx.archive.auto": "Automatic archive",
   "lx.archive.autoSub": "Once a week, old and weak photos move to the Archive. Nothing is deleted.",
+  "lx.enhance.aiLocal": "The online AI didn't answer; I corrected the photo on the phone.",
 };

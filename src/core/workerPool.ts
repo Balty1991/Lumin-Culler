@@ -197,6 +197,9 @@ function nativeAnalysisConcurrency(): number {
   return Math.max(2, Math.min(4, Math.floor(cores / 2)));
 }
 
+/** Cât timp după ultima atingere analiza merge cu o singură poză. */
+const INTERACTION_QUIET_MS = 900;
+
 export class AnalysisPool {
   private slots: Slot[] = [];
   private waiters: ((slot: Slot) => void)[] = [];
@@ -477,11 +480,41 @@ export class AnalysisPool {
     // Cât omul folosește aplicația, analiza lasă loc ecranului: cel mult jumătate din
     // plafon (minim 2). În fundal (ecranul stins, altă aplicație) merge cu tot plafonul.
     // Raportat: „în timp ce importă poze nu poți face mai nimic, merge greu”.
-    if (this.gentle && typeof document !== 'undefined' && document.visibilityState === 'visible') {
-      return Math.min(thermal, Math.max(2, Math.ceil(this.nativeConcurrencyLimit / 2)));
+    if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+      // Cât omul atinge sau derulează ecranul, o singură poză în lucru: degetul
+      // are prioritate (raportat: „încă rulează sacadat când se încarcă poze”).
+      if (Date.now() - this.lastTouch < INTERACTION_QUIET_MS) return 1;
+      if (this.gentle) return Math.min(thermal, Math.max(2, Math.ceil(this.nativeConcurrencyLimit / 2)));
     }
     return thermal;
   }
+
+  /** Ultima atingere / derulare / tastă — vezi effectiveNativeLimit. */
+  private lastTouch = 0;
+  private touchTimer: ReturnType<typeof setTimeout> | null = null;
+  private touchWatch = typeof window !== 'undefined'
+    ? (() => {
+        const mark = () => {
+          this.lastTouch = Date.now();
+          // După liniște, locurile se redau celor care așteaptă (altfel ar aștepta
+          // până se termină o analiză în zbor).
+          if (this.touchTimer) clearTimeout(this.touchTimer);
+          this.touchTimer = setTimeout(() => {
+            this.touchTimer = null;
+            while (this.nativeInFlight < this.effectiveNativeLimit() && this.nativeWaiters.length > 0) {
+              const next = this.nativeWaiters.shift();
+              if (!next) break;
+              this.nativeInFlight++;
+              next();
+            }
+          }, INTERACTION_QUIET_MS + 20);
+        };
+        for (const ev of ['pointerdown', 'pointermove', 'wheel', 'touchmove', 'keydown', 'scroll']) {
+          window.addEventListener(ev, mark, { passive: true, capture: true });
+        }
+        return true;
+      })()
+    : false;
 
   /** Pornit de citirea galeriei în fundal (galleryReader): importurile cerute de om merg cu tot plafonul. */
   private gentle = false;

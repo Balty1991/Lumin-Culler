@@ -2973,6 +2973,7 @@ export const ro = {
   "lx.archive.done": "Am mutat {count} poze în Arhivă (Galerie → Deoparte).",
   "lx.archive.auto": "Arhivă automată",
   "lx.archive.autoSub": "O dată pe săptămână, pozele vechi și slabe pleacă în Arhivă. Nimic nu se șterge.",
+  "lx.enhance.aiLocal": "AI-ul online n-a răspuns acum; am corectat poza pe telefon.",
 };
 
 export type TranslationKey = keyof typeof ro;

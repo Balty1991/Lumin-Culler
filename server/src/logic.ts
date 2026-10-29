@@ -421,6 +421,26 @@ export function validateGrade(body: unknown): { ok: true; image: string; install
   return { ok: true, image: b.image, installId: b.installId, lang };
 }
 
+/**
+ * Răspunsul modelului, citit cu îngăduință: în practică vine și cu „+10”
+ * (JSON invalid), cu text în jur sau tăiat înainte de acolada de final —
+ * atunci „Auto AI” cădea cu totul („N-a mers acum”, raportat). Se ia fiecare
+ * cheie cunoscută acolo unde apare.
+ */
+export function parseGradeReply(text: string): Record<string, unknown> | null {
+  const strict = parseJsonReply(text);
+  if (strict) return strict;
+  const out: Record<string, unknown> = {};
+  let found = 0;
+  for (const k of GRADE_KEYS) {
+    const m = new RegExp(`"?${k}"?\\s*[:=]\\s*\\+?(-?\\d+(?:\\.\\d+)?)`, 'i').exec(text);
+    if (m) { out[k] = Number(m[1]); found++; }
+  }
+  const reason = /"?reason"?\s*[:=]\s*"([^"]{0,200})/i.exec(text);
+  if (reason) out.reason = reason[1];
+  return found ? out : null;
+}
+
 /** Doar cheile cunoscute, numere întregi în ±30. */
 export function normalizeGrade(raw: Record<string, unknown> | null): { values: Record<string, number>; reason: string } | null {
   if (!raw) return null;
