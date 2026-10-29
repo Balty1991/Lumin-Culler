@@ -471,10 +471,33 @@ export class AnalysisPool {
    * la sine cand SoC-ul coboara sub "moderata", fara sa atinga setarea.
    */
   private effectiveNativeLimit(): number {
-    return this.thermalCap === null
+    const thermal = this.thermalCap === null
       ? this.nativeConcurrencyLimit
       : Math.min(this.nativeConcurrencyLimit, this.thermalCap);
+    // Cât omul folosește aplicația, analiza lasă loc ecranului: cel mult jumătate din
+    // plafon (minim 2). În fundal (ecranul stins, altă aplicație) merge cu tot plafonul.
+    // Raportat: „în timp ce importă poze nu poți face mai nimic, merge greu”.
+    if (this.gentle && typeof document !== 'undefined' && document.visibilityState === 'visible') {
+      return Math.min(thermal, Math.max(2, Math.ceil(this.nativeConcurrencyLimit / 2)));
+    }
+    return thermal;
   }
+
+  /** Pornit de citirea galeriei în fundal (galleryReader): importurile cerute de om merg cu tot plafonul. */
+  private gentle = false;
+  setGentle(on: boolean): void { this.gentle = on; }
+
+  /** La ieșirea în fundal, analizele care așteaptă pornesc cu plafonul întreg. */
+  private visibilityWatch = typeof document !== 'undefined'
+    ? document.addEventListener('visibilitychange', () => {
+        while (this.nativeInFlight < this.effectiveNativeLimit() && this.nativeWaiters.length > 0) {
+          const next = this.nativeWaiters.shift();
+          if (!next) break;
+          this.nativeInFlight++;
+          next();
+        }
+      })
+    : undefined;
 
   /**
    * Asculta treapta termica si coboara plafonul cat timp telefonul e cald.

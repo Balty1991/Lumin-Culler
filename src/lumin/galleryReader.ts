@@ -1,6 +1,7 @@
 import { getPhotosAccess, isNativeMediaLibraryAvailable, listPhotosInRange, readPhotoFiles } from '../core/nativeMediaLibrary';
 import { useStore } from '../state/store';
 import { useLx } from './lxStore';
+import { analysisPool } from '../core/workerPool';
 import { autoNameFaces, canEmbedFaces, embedMissingFaces } from './faceIdentity';
 
 /**
@@ -96,6 +97,8 @@ export async function readWholeGallery(byUser = false): Promise<void> {
   else if (readerStopped()) return;
   running = true;
   stopRequested = false;
+  // Cât citește în fundal, analiza lasă loc ecranului (vezi AnalysisPool.setGentle).
+  analysisPool.setGentle(true);
   const lx = useLx.getState();
   try {
     // Cu acces parțial nu avem ce citi singuri; fără acces încă, citirea listei cere permisiunea.
@@ -171,6 +174,7 @@ export async function readWholeGallery(byUser = false): Promise<void> {
   } catch {
     // o citire eșuată nu oprește aplicația; data viitoare reia de unde a rămas
   } finally {
+    analysisPool.setGentle(false);
     running = false;
     useLx.getState().setReader(null);
   }

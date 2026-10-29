@@ -3054,8 +3054,14 @@ export const useStore = create<AppState>((set, get) => ({
     // Raportate o singura data de importFiles, doar cand plasa de siguranta chiar
     // a mutat un prag — vezi core/scoreThresholds.ts.
     let adaptedThresholds: Thresholds | undefined;
-    const PHOTO_FLUSH_BATCH = 15;
-    const PHOTO_FLUSH_INTERVAL_MS = 200;
+    // Citirea galeriei în fundal: loturi mai mari și mai rare. Fiecare lot adăugat
+    // recalculează toate ecranele (zile, galerie, propuneri); la 15 poze / 200 ms
+    // aplicația abia mai răspundea cât importa (raportat: „nu poți face mai nimic”).
+    const PHOTO_FLUSH_BATCH = opts?.deferMoments !== undefined ? 48 : 15;
+    const PHOTO_FLUSH_INTERVAL_MS = opts?.deferMoments !== undefined ? 2500 : 200;
+    // Progresul pe ecran: de cel mult ~3 ori pe secundă (schimbarea de fază și finalul, imediat).
+    let progressShownAt = 0;
+    let progressShownPhase = '';
     // Coordonatele GPS, citite NATIV inainte de analiza — un singur apel pentru
     // tot lotul. Nu pot fi luate din bytes-ii pozei: Android 10+ le sterge din
     // EXIF-ul servit aplicatiei (vezi core/nativeMediaLibrary.ts
@@ -3105,7 +3111,12 @@ export const useStore = create<AppState>((set, get) => ({
               etaSeconds = shownEtaSeconds;
             }
           }
-          set({ progress: { ...progress, etaSeconds } });
+          const nowMs = Date.now();
+          if (progress.phase !== progressShownPhase || progress.done === progress.total || nowMs - progressShownAt >= 350) {
+            progressShownAt = nowMs;
+            progressShownPhase = progress.phase;
+            set({ progress: { ...progress, etaSeconds } });
+          }
           // Bara din notificarea de fundal. TOATE fazele care raporteaza ceva,
           // nu doar 'analiza': pregatirea (cautarea pozelor cu oameni) si
           // gruparea seriilor tin si ele minute intregi la un lot mare, iar cat
