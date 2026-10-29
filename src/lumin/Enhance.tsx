@@ -24,6 +24,8 @@ import { useTr } from './context';
  */
 export type EnhanceStyle = 'natural' | 'portrait' | 'vivid' | 'warm' | 'clear' | 'film' | 'bw' | 'drama';
 export const ENHANCE_STYLES: EnhanceStyle[] = ['natural', 'portrait', 'vivid', 'warm', 'clear', 'film', 'bw', 'drama'];
+/** Stilurile din Pro: le poți încerca, salvarea cere abonamentul. */
+const ADVANCED: ReadonlySet<EnhanceStyle> = new Set(['portrait', 'clear', 'film', 'bw', 'drama']);
 /** Stilurile care au nevoie de un om în poză (fundalul estompat în jurul lui). */
 const NEEDS_FACE: ReadonlySet<EnhanceStyle> = new Set(['portrait']);
 const STYLE_ADD: Record<EnhanceStyle, Partial<Record<keyof EditAdjustments, number>>> = {
@@ -113,6 +115,7 @@ export async function enhanceAll(photoIds: readonly string[], onProgress?: (done
 export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: () => void }) {
   const tr = useTr();
   const addCorrectedCopies = useStore(s => s.addCorrectedCopies);
+  const premiumLocked = useStore(s => s.premiumLocked);
   const [src, setSrc] = useState<string | null>(null);
   const [base, setBase] = useState<EditAdjustments | null>(null);
   const [style, setStyle] = useState<EnhanceStyle>('natural');
@@ -146,6 +149,7 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   };
   const save = async () => {
     if (!edits) return;
+    if (ADVANCED.has(style) && useStore.getState().gatePremium('styles')) return;
     setSaving(true);
     try {
       await addCorrectedCopies([{ sourceId: photo.id, adjustments: edits }]);
@@ -188,7 +192,7 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
             <div className="lx-enhance-styles" role="radiogroup" aria-label={tr('lx.enhance.style')}>
               {styles.map(st => (
                 <button key={st} role="radio" aria-checked={style === st} className={style === st ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => setStyle(st)}>
-                  {tr(`lx.enhance.style.${st}`)}
+                  {tr(`lx.enhance.style.${st}`)}{ADVANCED.has(st) && premiumLocked && <b className="lx-pro">PRO</b>}
                 </button>
               ))}
               {tilt !== 0 && (

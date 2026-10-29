@@ -10,6 +10,7 @@ import { useLx } from './lxStore';
 import { useLxActions, useTr } from './context';
 import { Orb } from './Orb';
 import { LumiFeed } from './LumiFeed';
+import { openBatterySettings, readBatteryRestriction } from '../core/backgroundAnalysis';
 import { continueOnLowBattery, readerStopped, resumeGalleryReader, stopGalleryReader } from './galleryReader';
 import { Thumb } from './Thumb';
 import { FreedCard } from './TwinParts';
@@ -140,6 +141,7 @@ export function TodayScreen() {
             {reader.paused === 'battery' && <button className="lx-btn ghost small" onClick={continueOnLowBattery}>{tr('lx.reader.continue')}</button>}
             <button className="lx-btn ghost small" onClick={stopGalleryReader}>■ {tr('lx.reader.stop')}</button>
           </div>
+          <BatteryHint />
         </section>
       )}
       {!reader && readerStopped() && <ReaderStopped />}
@@ -328,4 +330,17 @@ function ReaderStopped() {
       </div>
     </section>
   );
+}
+
+/** Economia de baterie oprește analiza când ieși din aplicație: un rând care duce la setare. */
+function BatteryHint() {
+  const tr = useTr();
+  const [restricted, setRestricted] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    void readBatteryRestriction().then(b => { if (alive) setRestricted(b === 'restricted'); });
+    return () => { alive = false; };
+  }, []);
+  if (!restricted) return null;
+  return <button className="lx-link" onClick={() => void openBatterySettings()}>⚡ {tr('lx.reader.battery')}</button>;
 }

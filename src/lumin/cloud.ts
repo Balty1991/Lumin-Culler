@@ -155,6 +155,24 @@ export async function superviseUnsure(limit = 12): Promise<{ checked: number; de
  * nu pleacă nimic. Rezultatele se țin minte, ca aceeași cerere să nu plece de două ori.
  */
 const WRITES_KEY = 'lumin-cloud-writes';
+const ALLOWANCE_KEY = 'lumin-cloud-free';
+/** Cât folosește gratuit AI-ul online pe zi (texte: povești, texte de postare, titluri; căutări). */
+export const FREE_DAILY = { write: 3, search: 5 } as const;
+
+/** Mai are omul voie azi? Cu Pro (sau fără plată disponibilă), mereu da. Numără folosirea. */
+function takeFreeAllowance(kind: keyof typeof FREE_DAILY): boolean {
+  if (!useStore.getState().premiumLocked) return true;
+  const day = new Date().toDateString();
+  let used: { day: string; write: number; search: number } = { day, write: 0, search: 0 };
+  try {
+    const raw = JSON.parse(localStorage.getItem(ALLOWANCE_KEY) ?? 'null');
+    if (raw?.day === day) used = raw;
+  } catch { /* nimic salvat */ }
+  if (used[kind] >= FREE_DAILY[kind]) return false;
+  used[kind]++;
+  try { localStorage.setItem(ALLOWANCE_KEY, JSON.stringify(used)); } catch { /* fără stocare */ }
+  return true;
+}
 export type WriteKind = 'story' | 'caption' | 'describe';
 
 function readWrites(): Record<string, { t: number; data: Record<string, unknown> }> {
@@ -166,11 +184,17 @@ export function cachedWrite(kind: WriteKind, ids: readonly string[]): Record<str
 }
 
 /** Cere AI-ului online un text pentru pozele date (cel mult 4). null = n-a mers (fără acord, limită, rețea). */
-export async function cloudWrite(kind: WriteKind, ids: readonly string[], context: string): Promise<Record<string, unknown> | null> {
+export async function cloudWrite(kind: WriteKind, ids: readonly string[], context: string, byUser = false): Promise<Record<string, unknown> | null> {
   if (!cloudEnabled() || !ids.length) return null;
   const key = `${kind}:${ids.join(',')}`;
   const hit = readWrites()[key];
   if (hit) return hit.data;
+  // Gratuit: câteva texte pe zi; cu Pro, cât permite serverul. Cele cerute de om
+  // deschid abonamentul la limită; cele automate (titluri, poveste) doar se opresc.
+  if (!takeFreeAllowance('write')) {
+    if (byUser) useStore.getState().gatePremium('cloud');
+    return null;
+  }
   const images = (await Promise.all(ids.slice(0, 4).map(id => smallJpeg(id).catch(() => null)))).filter((x): x is string => !!x);
   if (!images.length) return null;
   try {
@@ -193,6 +217,7 @@ export async function cloudWrite(kind: WriteKind, ids: readonly string[], contex
 /** Căutarea cu cuvinte: ce înseamnă „tort” sau „la mare” din etichetele pe care telefonul le știe. */
 export async function cloudConcepts(query: string, vocab: readonly string[]): Promise<string[]> {
   if (!cloudEnabled() || query.trim().length < 2 || !vocab.length) return [];
+  if (!takeFreeAllowance('search')) return [];
   try {
     const res = await CapacitorHttp.post({
       url: `${URL_BASE}/v1/concepts`,

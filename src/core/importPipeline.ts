@@ -359,6 +359,25 @@ export function decidePhotoStatus(
  * indexul Dexie pe `aiScore`, deci fara sa incarce inregistrarile de analiza in
  * memorie si fara sa sorteze nimic in JS.
  */
+/**
+ * Animalele cu nume, ținute minte între importuri. Înainte se citea TOATĂ baza
+ * de analize (cu amprentele, zeci de MB) la fiecare import — la citirea
+ * galeriei pe pachete, asta se repeta la fiecare 24–48 de poze și încetinea
+ * tot mai tare pe măsură ce biblioteca creștea (raportat: ~9 poze pe minut).
+ * Se recitește doar după ce omul numește un animal (invalidateNamedPets).
+ */
+let namedPetsCache: { name: string; embedding: number[] }[] | null = null;
+export function invalidateNamedPets(): void { namedPetsCache = null; }
+async function readNamedPets(): Promise<{ name: string; embedding: number[] }[]> {
+  if (namedPetsCache) return namedPetsCache;
+  try {
+    const list: { name: string; embedding: number[] }[] = [];
+    await db.analyses.each(a => { if (a.petName && a.petEmbedding?.length) list.push({ name: a.petName, embedding: a.petEmbedding }); });
+    namedPetsCache = list;
+  } catch { return []; }
+  return namedPetsCache;
+}
+
 export async function readLibraryScores(): Promise<number[]> {
   return (await db.analyses.orderBy('aiScore').keys()) as number[];
 }
@@ -1342,13 +1361,7 @@ export async function importFiles(
   if (wantPeople) {
     try { knownPersons = (await db.persons.toArray()).map(p => ({ id: p.id, name: p.name, embeddings: p.embeddings })); } catch { knownPersons = []; }
   }
-  if (wantPets) {
-    try {
-      namedPets = (await db.analyses.toArray())
-        .filter(a => !!a.petName && !!a.petEmbedding?.length)
-        .map(a => ({ name: a.petName as string, embedding: a.petEmbedding as number[] }));
-    } catch { namedPets = []; }
-  }
+  if (wantPets) namedPets = await readNamedPets();
 
   const remember = (item: ImportedPhoto) => {
     const at = hashes.findIndex(h => h.id === item.photo.id);

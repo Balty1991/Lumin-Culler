@@ -79,7 +79,7 @@ export function CaptionSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
     void (async () => {
       if (!await ensureCloud(askConfirm, tr)) { onClose(); return; }
       const names = photo.personNames.length ? `People (named by the user): ${photo.personNames.join(', ')}.` : '';
-      const r = await cloudWrite('caption', [photo.id], names);
+      const r = await cloudWrite('caption', [photo.id], names, true);
       const list = Array.isArray(r?.captions) ? (r!.captions as unknown[]).filter((x): x is string => typeof x === 'string') : [];
       if (!alive) return;
       if (list.length) setCaptions(list); else setFailed(true);
@@ -117,10 +117,10 @@ export function useAiStory(ids: readonly string[], context: string): { sentences
   const [sentences, setSentences] = useState<string[] | null>(null);
   const [loading, setLoading] = useState(false);
   const key = ids.join(',');
-  const load = async () => {
+  const load = async (byUser = false) => {
     setLoading(true);
     try {
-      const r = await cloudWrite('story', ids, context);
+      const r = await cloudWrite('story', ids, context, byUser);
       const list = Array.isArray(r?.sentences) ? (r!.sentences as unknown[]).filter((x): x is string => typeof x === 'string') : [];
       if (list.length) setSentences(list);
     } finally { setLoading(false); }
@@ -130,7 +130,7 @@ export function useAiStory(ids: readonly string[], context: string): { sentences
     if (ids.length && cloudEnabled()) void load();
   }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
   const ask = !sentences && !loading && cloudAvailable() && !cloudEnabled() && ids.length
-    ? () => { void ensureCloud(askConfirm, tr).then(ok => { if (ok) void load(); }); }
+    ? () => { void ensureCloud(askConfirm, tr).then(ok => { if (ok) void load(true); }); }
     : null;
   return { sentences, ask, loading };
 }

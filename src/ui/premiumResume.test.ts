@@ -13,7 +13,7 @@ import { en } from '../i18n/en';
  * cineva care tocmai a scos banii. De-aia fiecare motiv e verificat individual,
  * nu "o data, generic".
  */
-const REASONS: Exclude<PremiumReason, 'acceptAll'>[] = ['locations', 'vault', 'contactSheet', 'presentation', 'xmp', 'persons', 'cap'];
+const REASONS: Exclude<PremiumReason, 'acceptAll' | 'cloud' | 'film' | 'styles' | 'cleanup'>[] = ['locations', 'vault', 'contactSheet', 'presentation', 'xmp', 'persons', 'cap'];
 
 function spyStore(): ResumeStore & { calls: string[] } {
   const calls: string[] = [];
@@ -48,7 +48,7 @@ describe('resumeFor', () => {
   });
 
   it('fiecare motiv cheama exact actiunea lui, nu alta', () => {
-    const expected: Record<Exclude<PremiumReason, 'acceptAll'>, string> = {
+    const expected: Record<Exclude<PremiumReason, 'acceptAll' | 'cloud' | 'film' | 'styles' | 'cleanup'>, string> = {
       contactSheet: 'contactSheet', presentation: 'presentation', locations: 'locations',
       vault: 'vault', persons: 'persons', xmp: 'xmp',
       // Plafonul e singurul care nu poate relua chiar actiunea: foaia de export

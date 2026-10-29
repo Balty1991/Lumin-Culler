@@ -32,7 +32,7 @@ const MAX_MS = 24_000;
 /** Sub atâtea poze nu e o poveste. */
 export const MIN_STORY_PHOTOS = 3;
 
-export interface StoryInput { ids: string[]; title: string; subtitle: string }
+export interface StoryInput { ids: string[]; title: string; subtitle: string; /** Gratuit: finalul cu „Cherrypic”; Pro: fără. */ branded?: boolean }
 
 export function planStory(ids: string[]): RecapPlan | null {
   return planRecapVideo(ids, MAX_MS - TITLE_MS - OUTRO_MS);
@@ -164,7 +164,7 @@ export async function renderStory(
         const a = Math.min(1, (t - (total - OUTRO_MS)) / 500);
         ctx.fillStyle = `rgba(0,0,0,${0.55 * a})`;
         ctx.fillRect(0, 0, STORY_W, STORY_H);
-        drawText(ctx, 'Cherrypic', input.subtitle, a, STORY_H * 0.5);
+        drawText(ctx, input.branded === false ? input.title : 'Cherrypic', input.subtitle, a, STORY_H * 0.5);
       }
       onProgress?.(Math.min(1, t / total));
       requestAnimationFrame(tick);

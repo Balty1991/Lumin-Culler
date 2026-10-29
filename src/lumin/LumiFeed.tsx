@@ -135,7 +135,7 @@ export function LumiFeed() {
         text: tr('lx.feed.series', { sets: series.sets, count: series.extras.length }),
         sub: bytes(series.extras) ? tr('lx.feed.frees', { size: formatBytes(bytes(series.extras), locale) }) : undefined,
         action: tr('lx.feed.seriesGo'),
-        run: () => trashPhotos(series.extras.map(p => p.id)),
+        run: () => (gatePremium('cleanup') ? undefined : trashPhotos(series.extras.map(p => p.id))),
         second: { label: tr('lx.feed.see'), run: () => openViewer(series.extras.map(p => p.id)) }
       });
     }
@@ -159,7 +159,7 @@ export function LumiFeed() {
         text: tr('lx.feed.shots', { count: shots.length }),
         sub: bytes(shots) ? tr('lx.feed.frees', { size: formatBytes(bytes(shots), locale) }) : undefined,
         action: tr('lx.feed.shotsGo'),
-        run: () => trashPhotos(shots.map(p => p.id)),
+        run: () => (gatePremium('cleanup') ? undefined : trashPhotos(shots.map(p => p.id))),
         second: { label: tr('lx.feed.see'), run: () => openViewer(shots.map(p => p.id)) }
       });
     }

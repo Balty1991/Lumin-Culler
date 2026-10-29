@@ -6,7 +6,8 @@ import type { Theme } from '../state/theme';
 import { requestNotificationAccess, isNativeNotificationsAvailable } from '../core/nativeNotifications';
 import { useLx } from './lxStore';
 import { useTr } from './context';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { openBatterySettings, readBatteryRestriction, type BatteryRestriction } from '../core/backgroundAnalysis';
 import { SORT_MODES, readSortMode, writeSortMode, type SortMode } from '../core/sortMode';
 import { canMakePhoneAlbums, organizeKeptByMonth, organizeKeptByPeople } from './phoneAlbums';
 
@@ -113,6 +114,7 @@ export function SettingsScreen() {
       </section>
 
       <CloudSection />
+      <BackgroundWork />
 
       {isNativeNotificationsAvailable() && (
         <section className="lx-group">
@@ -149,5 +151,36 @@ export function SettingsScreen() {
 
       <p className="lx-foot">{tr('lx.settings.privacy')}<br />Lumin AI · {__APP_VERSION__}</p>
     </div>
+  );
+}
+
+/**
+ * „Lucru în fundal”: pe multe telefoane (Xiaomi, Huawei, Samsung) economia de
+ * baterie oprește analiza când ieși din aplicație — raportat: „uneori rămâne
+ * blocat în fundal”, 7 din 46 în notificare. Aici se vede starea și drumul
+ * direct spre setarea care o deblochează.
+ */
+function BackgroundWork() {
+  const tr = useTr();
+  const [state, setState] = useState<BatteryRestriction>('unknown');
+  useEffect(() => {
+    let alive = true;
+    const read = () => { void readBatteryRestriction().then(b => { if (alive) setState(b); }); };
+    read();
+    document.addEventListener('visibilitychange', read);
+    return () => { alive = false; document.removeEventListener('visibilitychange', read); };
+  }, []);
+  if (state === 'unknown') return null;
+  return (
+    <section className="lx-group">
+      <h2>{tr('lx.settings.background')}</h2>
+      <button className="lx-row button" onClick={() => void openBatterySettings()}>
+        <span>
+          <b>{tr(state === 'unrestricted' ? 'lx.settings.background.ok' : 'lx.settings.background.restricted')}</b>
+          <small>{tr(state === 'unrestricted' ? 'lx.settings.background.okSub' : 'lx.settings.background.restrictedSub')}</small>
+        </span>
+        <span className={state === 'unrestricted' ? 'lx-pill ok' : 'lx-pill warm'}>{state === 'unrestricted' ? '✓' : '!'}</span>
+      </button>
+    </section>
   );
 }

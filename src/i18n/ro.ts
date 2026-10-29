@@ -1940,9 +1940,9 @@ export const ro = {
   // Avertismentele de import — vin din core/importPipeline.ts ca CHEIE + parametri
   // (vezi ImportWarning): pana la runda asta erau propozitii romanesti codificate
   // direct in pipeline, pe care un tester cu telefonul in engleza le primea ca atare.
-  'import.warn.alreadyInLibrary.one': 'O poză era deja în bibliotecă și a fost sărită. Restul de {imported} au intrat.',
-  'import.warn.alreadyInLibrary.other': '{countDe} poze erau deja în bibliotecă și au fost sărite. Restul de {imported} au intrat.',
-  'import.warn.allAlreadyInLibrary': 'Toate cele {countDe} poze erau deja în bibliotecă — nu s-a importat nimic a doua oară.',
+  'import.warn.alreadyInLibrary.one': "O poză era deja în Cherrypic și a fost sărită. Restul de {imported} au intrat.",
+  'import.warn.alreadyInLibrary.other': "{countDe} poze erau deja în Cherrypic și au fost sărite. Restul de {imported} au intrat.",
+  'import.warn.allAlreadyInLibrary': "Toate cele {countDe} poze erau deja în Cherrypic — nu s-a adus nimic a doua oară.",
   'import.warn.cancelled': 'Import anulat — {done}/{total} poze procesate până la anulare.',
   'import.warn.allFailed': 'Niciuna dintre cele {countDe} poze nu a putut fi procesată.',
   'import.warn.allFailed.reason': 'Niciuna dintre cele {countDe} poze nu a putut fi procesată. Motiv: {reasons}',
@@ -2719,6 +2719,20 @@ export const ro = {
   "lx.reader.stop": "Oprește",
   "lx.reader.stopped": "Ai oprit citirea galeriei. Pozele analizate deja rămân; restul așteaptă până o pornești din nou.",
   "lx.reader.resume": "Continuă citirea",
+  "premium.cp.cloud.title": "AI-ul online, fără grija limitei",
+  "premium.cp.cloud.sub": "Povestea zilei, texte pentru postări, titluri de album și căutarea cu cuvinte, de câte ori ai nevoie. Gratuit: {n} texte pe zi.",
+  "premium.cp.cleanup.title": "Curățenie dintr-o atingere",
+  "premium.cp.cleanup.sub": "Seriile aproape identice, capturile vechi și duplicatele din toată galeria, eliminate deodată (în coșul galeriei, recuperabile).",
+  "premium.cp.styles.title": "Stiluri avansate în editor",
+  "premium.cp.styles.sub": "Portret (fundal estompat), Clară, Film, Alb-negru și Dramatică. Natural, Vie și Caldă rămân gratuite.",
+  "premium.cp.film.title": "Filme pentru story fără sigla Cherrypic",
+  "premium.cp.film.sub": "Finalul filmului poartă titlul tău, nu numele aplicației.",
+  "lx.settings.background": "Lucru în fundal",
+  "lx.settings.background.ok": "Cherrypic poate lucra cu aplicația închisă",
+  "lx.settings.background.okSub": "Analiza galeriei continuă și când ieși din aplicație.",
+  "lx.settings.background.restricted": "Economia de baterie oprește analiza în fundal",
+  "lx.settings.background.restrictedSub": "Atinge și alege „Fără restricții” la Baterie, ca analiza să nu se blocheze când ieși din aplicație.",
+  "lx.reader.battery": "Ca să continue și cu aplicația închisă: Baterie → Fără restricții",
 };
 
 export type TranslationKey = keyof typeof ro;

@@ -142,8 +142,11 @@ export function LuminApp() {
 
   // Fețele: după pornire și după fiecare import, amprentele lipsă și numele recunoscute.
   const importDone = !progress || progress.phase === 'finalizat';
+  // Cât se citește galeria, fețele așteaptă: rulau după fiecare pachet, în paralel
+  // cu analiza următorului, și încetineau amândouă.
+  const readingGallery = useLx(s => !!s.reader && s.reader.paused !== 'battery');
   useEffect(() => {
-    if (!booted || !importDone || !canEmbedFaces()) return;
+    if (!booted || !importDone || readingGallery || !canEmbedFaces()) return;
     let alive = true;
     void (async () => {
       const made = await embedMissingFaces((done, total) => { if (alive) useLx.getState().setFaceProgress({ done, total }); });
@@ -153,7 +156,7 @@ export function LuminApp() {
       if (named) useStore.getState().setNotice(t(useStore.getState().locale, 'lx.people.autoNamed', { count: named }));
     })().catch(() => useLx.getState().setFaceProgress(null));
     return () => { alive = false; };
-  }, [booted, importDone]);
+  }, [booted, importDone, readingGallery]);
 
   // Butonul „înapoi” al telefonului: închide ce e deschis, apoi revine la Azi.
   useEffect(() => {

@@ -8,6 +8,9 @@ import { annualSavingsPercent, perMonthPrice, defaultPlanId, resolvePlan } from 
 import { t, plural } from '../i18n';
 import { LifetimeProof } from './LifetimeProof';
 import { resumeFor } from './premiumResume';
+import { FREE_DAILY } from '../lumin/cloud';
+
+const FREE_CLOUD_WRITES = FREE_DAILY.write;
 
 /**
  * ui/PremiumPanel.tsx
@@ -47,16 +50,9 @@ export function PremiumPanel() {
    * vizual, nu o propozitie. Deschis din meniu, `premiumReason` e null si nu
    * se marcheaza nimic — nu exista un "implicit", fiindca n-a cerut nimic.
    */
-  const highlightedPerk: string | null = premiumReason === null ? null : {
-    cap: 'export',
-    acceptAll: 'export',
-    persons: 'persons',
-    xmp: 'pro',
-    contactSheet: 'pro',
-    vault: 'pro',
-    presentation: 'show',
-    locations: 'locations'
-  }[premiumReason];
+  const highlightedPerk: string | null = premiumReason === null ? null : ({
+    acceptAll: 'auto', cloud: 'cloud', film: 'film', styles: 'styles', cleanup: 'cleanup'
+  } as Partial<Record<string, string>>)[premiumReason] ?? null;
   const photosUsed = useStore(s => s.photosUsedThisWindow);
   const containerRef = useRef<HTMLDivElement>(null);
   useModalFocusTrap(containerRef, open);
@@ -185,11 +181,27 @@ export function PremiumPanel() {
         {/* Doar ce deblochează Pro CU ADEVĂRAT în Cherrypic (vezi gatePremium('acceptAll')
             și autonomia „tot”). Lista veche (export, locații, XMP, prezentare...) era a
             aplicației vechi și nu mai corespundea cu nimic de pe ecran. */}
-        <div className={highlightedPerk === 'export' ? 'premium-perk is-wanted' : 'premium-perk'}>
+        <div className={highlightedPerk === 'auto' ? 'premium-perk is-wanted' : 'premium-perk'}>
           <i aria-hidden="true">✦</i>
           <span><b>{tr('premium.cp.auto.title')}</b><span>{tr('premium.cp.auto.sub')}</span></span>
         </div>
-        <div className="premium-perk">
+        <div className={highlightedPerk === 'cloud' ? 'premium-perk is-wanted' : 'premium-perk'}>
+          <i aria-hidden="true">☁</i>
+          <span><b>{tr('premium.cp.cloud.title', { n: FREE_CLOUD_WRITES })}</b><span>{tr('premium.cp.cloud.sub', { n: FREE_CLOUD_WRITES })}</span></span>
+        </div>
+        <div className={highlightedPerk === 'cleanup' ? 'premium-perk is-wanted' : 'premium-perk'}>
+          <i aria-hidden="true">🧹</i>
+          <span><b>{tr('premium.cp.cleanup.title')}</b><span>{tr('premium.cp.cleanup.sub')}</span></span>
+        </div>
+        <div className={highlightedPerk === 'styles' ? 'premium-perk is-wanted' : 'premium-perk'}>
+          <i aria-hidden="true">🎨</i>
+          <span><b>{tr('premium.cp.styles.title')}</b><span>{tr('premium.cp.styles.sub')}</span></span>
+        </div>
+        <div className={highlightedPerk === 'film' ? 'premium-perk is-wanted' : 'premium-perk'}>
+          <i aria-hidden="true">🎬</i>
+          <span><b>{tr('premium.cp.film.title')}</b><span>{tr('premium.cp.film.sub')}</span></span>
+        </div>
+        <div className={highlightedPerk === 'accept' ? 'premium-perk is-wanted' : 'premium-perk'}>
           <i aria-hidden="true">✓</i>
           <span><b>{tr('premium.cp.accept.title')}</b><span>{tr('premium.cp.accept.sub')}</span></span>
         </div>

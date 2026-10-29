@@ -27,7 +27,7 @@ import { clearThumbUrlCache } from '../core/thumbUrlCache';
 import { readGroupByPeople, writeGroupByPeople } from './groupByPeople';
 import {
   importFiles, originalFiles, originalHandles, createCancelToken, SELECT_THRESHOLD, REJECT_THRESHOLD, decidePhotoStatus,
-  readLibraryScores, type ImportProgress, type ImportCancelToken, type ImportOutcomeReport, type ImportWarning
+  readLibraryScores, invalidateNamedPets, type ImportProgress, type ImportCancelToken, type ImportOutcomeReport, type ImportWarning
 } from '../core/importPipeline';
 import type { PairGuess } from '../core/tasteScore';
 import { momentChanges } from '../core/moments';
@@ -277,7 +277,7 @@ export interface PhotoView {
 }
 
 /** Pentru ce functie s-a lovit omul de poarta Premium — vezi gatePremium. */
-export type PremiumReason = 'locations' | 'vault' | 'contactSheet' | 'presentation' | 'xmp' | 'persons' | 'cap' | 'acceptAll';
+export type PremiumReason = 'locations' | 'vault' | 'contactSheet' | 'presentation' | 'xmp' | 'persons' | 'cap' | 'acceptAll' | 'cloud' | 'film' | 'styles' | 'cleanup';
 
 export type FilterKey = 'all' | 'selected' | 'candidate' | 'review' | 'rejected' | 'series' | 'blinks' | 'blurry' | 'goldenHour' | 'highlights';
 
@@ -775,7 +775,7 @@ interface AppState {
   selectMode: boolean;
 
   boot: () => Promise<void>;
-  runImport: (files: File[], handles?: (FileSystemFileHandleLike | undefined)[], mediaUris?: (string | undefined)[]) => Promise<void>;
+  runImport: (files: File[], handles?: (FileSystemFileHandleLike | undefined)[], mediaUris?: (string | undefined)[], opts?: { deferMoments?: boolean }) => Promise<void>;
   setStatus: (id: string, status: PhotoRecord['status']) => Promise<void>;
   /**
    * DE CE ai decis asa: motive apasate (care antreneaza) plus, optional, o nota
@@ -2961,7 +2961,7 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
-  runImport: async (files: File[], handles?: (FileSystemFileHandleLike | undefined)[], mediaUris?: (string | undefined)[]) => {
+  runImport: async (files: File[], handles?: (FileSystemFileHandleLike | undefined)[], mediaUris?: (string | undefined)[], opts?: { deferMoments?: boolean }) => {
     // Bug real gasit de auditul QA: fara aceasta garda, un al doilea import
     // pornit inainte ca primul sa se termine suprascria activeCancelToken —
     // "Anuleaza" nu mai putea opri decat importul cel mai recent, primul
@@ -3169,8 +3169,11 @@ export const useStore = create<AppState>((set, get) => ({
       // urma dupa un import esuat ar goli bateria fara nicio explicatie.
       void stopBackgroundAnalysis();
     }
-    // Din fiecare moment, doar cele mai bune 1–3 (vezi core/moments.ts).
-    try { await get().applyMoments(); } catch (err) { console.error('Momentele n-au putut fi aplicate:', err); }
+    // Din fiecare moment, doar cele mai bune 1–3 (vezi core/moments.ts). La citirea
+    // galeriei pe pachete, o singură dată la câteva pachete (trece prin toată biblioteca).
+    if (!opts?.deferMoments) {
+      try { await get().applyMoments(); } catch (err) { console.error('Momentele n-au putut fi aplicate:', err); }
+    }
     // reincarca statusurile si groupId-urile persistate dupa gruparea seriilor
     const fresh = await db.photos.toArray();
     const byId = new Map(fresh.map(p => [p.id, p]));
@@ -4741,6 +4744,7 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   enrollPetCluster: async (name, members) => {
+    invalidateNamedPets();
     const trimmedName = name.trim();
     if (!trimmedName || !members.length) return;
     const photoIds = Array.from(new Set(members.map(m => m.photoId)));

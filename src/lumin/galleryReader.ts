@@ -92,7 +92,9 @@ export async function readWholeGallery(byUser = false): Promise<void> {
       const size = i === 0 ? FIRST_CHUNK : CHUNK;
       // Așteaptă: alt import, aplicația în spate, bateria slabă.
       if (stopRequested) break;
-      while (!stopRequested && (importBusy() || document.hidden || await lowBattery())) {
+      // Nu mai așteaptă cât aplicația e în spate: serviciul din fundal (cu notificarea
+      // lui) ține analiza pornită, cât îi permite telefonul — vezi Setări → Lucru în fundal.
+      while (!stopRequested && (importBusy() || await lowBattery())) {
         // Alt import (ales de om) are întâietate; cititorul spune că așteaptă, nu pare blocat.
         const paused = importBusy() ? 'import' as const : await lowBattery() ? 'battery' as const : undefined;
         useLx.getState().setReader({ done, total: missing.length, ...(paused ? { paused } : {}) });
@@ -110,7 +112,10 @@ export async function readWholeGallery(byUser = false): Promise<void> {
           if (p && p.total > 0 && p.phase !== 'finalizat') useLx.getState().setReader({ done: Math.min(missing.length, base + Math.round((p.done / p.total) * files.length)), total: missing.length });
         });
         try {
-          await useStore.getState().runImport(files.map(f => f.file), undefined, files.map(f => f.uri));
+          // Momentele (cele mai bune 1–3 din fiecare) trec prin toată biblioteca:
+          // nu după fiecare pachet, ci la ~200 de poze și la final.
+          const momentsNow = Math.floor((i + size) / 200) > Math.floor(i / 200) || i + size >= missing.length;
+          await useStore.getState().runImport(files.map(f => f.file), undefined, files.map(f => f.uri), { deferMoments: !momentsNow });
         } finally { unsub(); }
         // Fără mesajul „am importat 24 de poze” după fiecare pachet: rezumatul vine la final.
         useStore.setState({ notice });
@@ -120,7 +125,7 @@ export async function readWholeGallery(byUser = false): Promise<void> {
       await sleep(1200); // telefonul respiră între pachete: aplicația rămâne fluidă
     }
 
-    if (stopRequested) return; // oprit de om: fără rezumatul „am citit toată galeria”
+    if (stopRequested) { void useStore.getState().applyMoments().catch(() => {}); return; } // oprit de om: fără rezumat
     const fresh = useStore.getState().photos.filter(p => !beforeIds.has(p.id));
     let announced = false;
     try { announced = localStorage.getItem(ANNOUNCED_KEY) === '1'; localStorage.setItem(ANNOUNCED_KEY, '1'); } catch { /* fără stocare */ }

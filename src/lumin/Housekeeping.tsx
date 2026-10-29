@@ -87,7 +87,7 @@ export function Housekeeping() {
             <b>{tr('lx.clean.junk', { count: junk.length })}</b>
             <span>{[oldShots.length ? tr('lx.clean.shots', { count: oldShots.length }) : '', dupes.length ? tr('lx.clean.dupes', { count: dupes.length }) : ''].filter(Boolean).join(' · ')} · {formatBytes(bytes(junkPhotos), locale)}</span>
           </div>
-          <button className="lx-btn ghost small" disabled={busy} onClick={() => void run(() => trashPhotos(junk))}>{tr('lx.clean.go')}</button>
+          <button className="lx-btn ghost small" disabled={busy} onClick={() => { if (!useStore.getState().gatePremium('cleanup')) void run(() => trashPhotos(junk)); }}>{tr('lx.clean.go')}</button>
         </div>
       )}
       <p className="lx-hint">{tr('lx.clean.safe')}</p>

@@ -27,7 +27,7 @@ export function StoryButton({ ids, title, subtitle, className = 'lx-link' }: { i
     cancelled.current = false;
     setProgress(0);
     try {
-      const r = await renderStory({ ids, title, subtitle }, setProgress, () => cancelled.current);
+      const r = await renderStory({ ids, title, subtitle, branded: useStore.getState().premiumLocked }, setProgress, () => cancelled.current);
       if (!r) return;
       const base = `lumin-${title.toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'poveste'}`;
       setProgress(null);
