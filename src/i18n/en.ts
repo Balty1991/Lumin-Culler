@@ -2742,5 +2742,7 @@ export const en: Record<TranslationKey, string> = {
   "lx.isit.title": "Is this {name}?",
   "lx.isit.sub": "I’m not sure. Your answer helps me recognize them next time. ({left} to check)",
   "lx.isit.yes": "Yes",
-  "lx.isit.no": "No"
+  "lx.isit.no": "No",
+  "lx.phone.peopleAuto": "Keep people albums up to date",
+  "lx.phone.peopleAutoSub": "New kept photos of Ami, Angi… go straight into their album in your phone gallery (Cherrypic/<name>)."
 };

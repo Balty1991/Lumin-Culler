@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react';
 import { openBatterySettings, readBatteryRestriction, type BatteryRestriction } from '../core/backgroundAnalysis';
 import { SORT_MODES, readSortMode, writeSortMode, type SortMode } from '../core/sortMode';
 import { autoBackupAvailable, autoBackupOn, lastAutoBackupAt, setAutoBackup } from './autoBackup';
-import { canMakePhoneAlbums, organizeKeptByMonth, organizeKeptByPeople } from './phoneAlbums';
+import { canMakePhoneAlbums, organizeKeptByMonth, organizeKeptByPeople, peopleAlbumsAuto, setPeopleAlbumsAuto, syncPeopleAlbums } from './phoneAlbums';
 
 const STRICTNESS: CullingStrictness[] = ['lax', 'balanced', 'strict'];
 const THEMES: Theme[] = ['dark', 'light', 'auto'];
@@ -141,6 +141,7 @@ export function SettingsScreen() {
             <span className="lx-chev" aria-hidden="true">›</span>
           </button>
         )}
+        {canMakePhoneAlbums() && <PeopleAlbumsAutoRow />}
         <AutoBackupRow />
         <button className="lx-row button" onClick={() => void exportBackup()}>
           <span><b>{tr('lx.settings.backup')}</b><small>{tr('lx.settings.backupSub')}</small></span>
@@ -160,6 +161,19 @@ export function SettingsScreen() {
  * „Copie automată”: o dată pe săptămână, ce a învățat Cherrypic ajunge în copia
  * de rezervă Google a telefonului (vezi autoBackup.ts). Pornită cu acord.
  */
+/** „Ține albumele pe oameni la zi”: comutator; pornit, copiază acum ce lipsește. */
+function PeopleAlbumsAutoRow() {
+  const tr = useTr();
+  const [on, setOn] = useState(peopleAlbumsAuto);
+  const toggle = () => { setPeopleAlbumsAuto(!on); setOn(!on); if (!on) void syncPeopleAlbums(); };
+  return (
+    <button className="lx-row button" role="switch" aria-checked={on} onClick={toggle}>
+      <span><b>{tr('lx.phone.peopleAuto')}</b><small>{tr('lx.phone.peopleAutoSub')}</small></span>
+      <span className={on ? 'lx-pill ok' : 'lx-pill'}>{on ? '✓' : tr('lx.autoBackup.off')}</span>
+    </button>
+  );
+}
+
 function AutoBackupRow() {
   const tr = useTr();
   const askConfirm = useStore(s => s.askConfirm);

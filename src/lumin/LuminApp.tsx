@@ -22,6 +22,7 @@ import { Viewer } from './GalleryWall';
 import { superviseUnsure } from './cloud';
 import { autoSortToday, decideRestIfAllowed, summarizeToday } from './autoSort';
 import { readWholeGallery } from './galleryReader';
+import { syncPeopleAlbums } from './phoneAlbums';
 import { autoNameFaces, canEmbedFaces, embedMissingFaces } from './faceIdentity';
 import { TodayScreen } from './TodayScreen';
 import { DaysScreen } from './DaysScreen';
@@ -216,6 +217,8 @@ export function LuminApp() {
     if (!booted) return;
     const run = () => void autoSortToday().then(async r => {
       if (r) useLx.getState().setAutoResult(r);
+      // Albumele pe oameni din galeria telefonului, la zi (dacă omul le-a pornit).
+      void syncPeopleAlbums().catch(() => 0);
       // Apoi restul galeriei, în fundal, de la cele mai noi spre cele vechi.
       void readWholeGallery();
       // Lumi Cloud (doar dacă omul l-a pornit): a doua părere pe pozele rămase nesigure.

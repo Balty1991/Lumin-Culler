@@ -2828,7 +2828,9 @@ export const ro = {
   "lx.isit.title": "E tot {name}?",
   "lx.isit.sub": "Nu sunt sigur. Cu răspunsul tău o recunosc mai bine data viitoare. ({left} de verificat)",
   "lx.isit.yes": "Da",
-  "lx.isit.no": "Nu"
+  "lx.isit.no": "Nu",
+  "lx.phone.peopleAuto": "Albumele pe oameni, ținute la zi",
+  "lx.phone.peopleAutoSub": "Pozele noi păstrate cu Ami, Angi… intră singure în albumul lor din galeria telefonului (Cherrypic/<nume>)."
 };
 
 export type TranslationKey = keyof typeof ro;
