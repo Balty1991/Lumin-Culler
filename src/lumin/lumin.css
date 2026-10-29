@@ -920,7 +920,10 @@ html, body { overflow-x: hidden; }
 .lx-section-head { flex-wrap: wrap; gap: 6px 12px; }
 .lx-links { flex-wrap: wrap; gap: 8px 14px; }
 .lx-card { flex-wrap: wrap; }
-.lx-card > div:first-child { flex: 1 1 220px; min-width: 0; }
+/* Textul cardului crește, nu desenele (orbul, miniaturile): altfel „AI-ul tău” se strângea
+   într-o coloană de un cuvânt (raportat cu captură). */
+.lx-card > div:not(.lx-orb):not(.lx-feed-photo) { flex: 1 1 200px; min-width: 0; }
+.lx-card > .lx-orb { flex: none; }
 .lx-card > .lx-btn, .lx-card > button.lx-btn { flex: 1 1 auto; }
 
 /* Bulina „Cherrypic citește galeria”: jos, deasupra meniului, pe un singur rând — sus

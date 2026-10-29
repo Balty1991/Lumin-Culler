@@ -4,23 +4,25 @@
  * „Natură”, „Documente” — făcute singure din ce se vede în poze (etichetele de
  * scenă de la import), fără ca omul să mute ceva.
  */
-export interface SmartFolder { id: string; emoji: string; tags: readonly string[]; aside?: boolean }
+/** `objects`: dosarul e despre lucruri, deci pozele cu oameni nu intră (o mașină parcată în spatele copilului nu face poza „Mașina”). */
+export interface SmartFolder { id: string; emoji: string; tags: readonly string[]; aside?: boolean; objects?: boolean }
 
 export const SMART_FOLDERS: readonly SmartFolder[] = [
-  { id: 'car', emoji: '🚗', tags: ['car', 'vehicle', 'wheel', 'tire', 'motorcycle', 'bicycle', 'truck'] },
-  { id: 'home', emoji: '🏠', tags: ['room', 'furniture', 'couch', 'sofa', 'bed', 'kitchen', 'interior design', 'house', 'home', 'curtain', 'shelf'] },
-  { id: 'food', emoji: '🍝', tags: ['food', 'dish', 'cuisine', 'cake', 'dessert', 'meal', 'pizza', 'bread', 'fruit', 'vegetable', 'cookie', 'drink'] },
-  { id: 'clothes', emoji: '👗', tags: ['clothing', 'dress', 'shoe', 'jeans', 'handbag', 'jacket', 'sneakers', 'boot', 'shirt', 'hat'] },
+  { id: 'car', objects: true, emoji: '🚗', tags: ['car', 'vehicle', 'wheel', 'tire', 'motorcycle', 'bicycle', 'truck'] },
+  { id: 'home', objects: true, emoji: '🏠', tags: ['room', 'furniture', 'couch', 'sofa', 'bed', 'kitchen', 'interior design', 'house', 'home', 'curtain', 'shelf'] },
+  { id: 'food', objects: true, emoji: '🍝', tags: ['food', 'dish', 'cuisine', 'cake', 'dessert', 'meal', 'pizza', 'bread', 'fruit', 'vegetable', 'cookie', 'drink'] },
+  { id: 'clothes', objects: true, emoji: '👗', tags: ['clothing', 'dress', 'shoe', 'jeans', 'handbag', 'jacket', 'sneakers', 'boot', 'shirt', 'hat'] },
   { id: 'pets', emoji: '🐾', tags: ['cat', 'dog', 'pet', 'animal', 'bird', 'horse', 'kitten', 'puppy'] },
   { id: 'nature', emoji: '🌿', tags: ['plant', 'flower', 'tree', 'forest', 'mountain', 'beach', 'sea', 'lake', 'sky', 'garden', 'grass'] },
   { id: 'docs', emoji: '📄', tags: [], aside: true }
 ];
 
-interface FolderPhoto { sceneTags?: string[]; aside?: string | null | false }
+interface FolderPhoto { sceneTags?: string[]; aside?: string | null | false; faceCount?: number; personNames?: string[] }
 
 export function inFolder(p: FolderPhoto, f: SmartFolder): boolean {
   if (f.aside) return p.aside === 'document';
   if (p.aside) return false;
+  if (f.objects && ((p.faceCount ?? 0) > 0 || (p.personNames?.length ?? 0) > 0)) return false;
   const tags = (p.sceneTags ?? []).map(t => t.toLowerCase());
   return tags.some(t => f.tags.includes(t));
 }
