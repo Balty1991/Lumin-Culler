@@ -2918,7 +2918,15 @@ export const ro = {
   "fr.estimate.go": "Pornește acum",
   "fr.estimate.later": "Mai târziu",
   "lx.enhance.aiAuto": "Auto AI",
-  "lx.enhance.aiWorking": "AI-ul se uită"
+  "lx.enhance.aiWorking": "AI-ul se uită",
+  "lx.undo.trashed": "Am mutat {count} poze în coș",
+  "lx.undo.button": "Anulează",
+  "lx.undo.done": "Am pus înapoi {count} poze; Cherrypic le recitește.",
+  "lx.undo.failed": "N-am putut scoate pozele din coș. Le găsești în Coșul galeriei.",
+  "lx.trashCheck.title": "Mut {count} poze în coș?",
+  "lx.trashCheck.sub": "Uite câteva dintre ele, cele mai reușite întâi: dacă vreuna nu trebuia, spune „Nu”. Eliberezi {size}; în coșul galeriei rămân 30 de zile.",
+  "lx.trashCheck.no": "Nu, stai",
+  "lx.trashCheck.yes": "Da, mută {count}"
 };
 
 export type TranslationKey = keyof typeof ro;

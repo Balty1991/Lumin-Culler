@@ -18,6 +18,7 @@ import { registerPlugin, Capacitor } from '@capacitor/core';
 interface MediaLibraryPluginApi {
   pickPhotos(): Promise<{ cancelled: boolean; photos: { uri: string; name: string }[] }>;
   deletePhotos(options: { uris: string[] }): Promise<{ cancelled: boolean; skippedUris: string[] }>;
+  untrashPhotos(options: { uris: string[] }): Promise<{ cancelled: boolean }>;
   galleryOverview(): Promise<{ granted: boolean; totalCount: number }>;
   galleryDateRange(): Promise<{ granted: boolean; earliestMs?: number; latestMs?: number }>;
   countPhotosSince(options: { sinceMs: string }): Promise<{ granted: boolean; count: number }>;
@@ -102,6 +103,12 @@ export async function pickNativePhotos(): Promise<NativePickedPhoto[]> {
  * biblioteca aplicatiei — tot mai exista pe telefon, doar n-au putut fi mutate
  * in Cosul de gunoi de data asta.
  */
+/** Scoate pozele din coșul galeriei (după „Anulează”); dialogul sistemului cere confirmarea. */
+export async function untrashNativePhotos(uris: string[]): Promise<{ cancelled: boolean }> {
+  if (!uris.length) return { cancelled: true };
+  return MediaLibraryNative.untrashPhotos({ uris });
+}
+
 export async function deleteNativePhotos(uris: string[]): Promise<{ cancelled: boolean; skippedUris: string[] }> {
   if (!uris.length) return { cancelled: true, skippedUris: [] };
   return MediaLibraryNative.deletePhotos({ uris });

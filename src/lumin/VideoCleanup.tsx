@@ -4,6 +4,7 @@ import { formatBytes, recordFreed } from '../core/freedSpace';
 import { deleteNativePhotos, isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { findVideoCleanup, listGalleryVideos, saveBestVideoFrame, videoBytes, videoThumbUrl, type GalleryVideo } from '../core/nativeVideos';
 import { useStore } from '../state/store';
+import { setLastTrash } from '../state/lastTrash';
 import { useTr } from './context';
 
 /**
@@ -153,6 +154,7 @@ function VideoSheet({ title, list, preselect, onClose, onRemoved }: {
       const gone = chosen.filter(v => !r.skippedUris.includes(v.uri));
       onRemoved(gone.map(v => v.uri));
       recordFreed(videoBytes(gone));
+      setLastTrash(gone.map(v => v.uri));
       setNotice(tr('lx.videos.done', { count: gone.length, size: formatBytes(videoBytes(gone), locale) }));
       onClose();
     } catch {

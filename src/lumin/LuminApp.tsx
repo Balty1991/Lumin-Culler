@@ -29,6 +29,8 @@ import { syncPeopleAlbums } from './phoneAlbums';
 import { autoNameFaces, canEmbedFaces, embedMissingFaces } from './faceIdentity';
 import { TodayScreen } from './TodayScreen';
 import { Orb } from './Orb';
+import { UndoBar } from './UndoBar';
+import { TrashPreviewHost } from './TrashPreview';
 import './lumin.css';
 
 // Doar Azi se încarcă la pornire; restul ecranelor, la prima deschidere (pornire mai rapidă).
@@ -386,6 +388,8 @@ export function LuminApp() {
         <FirstRun onPickManually={actions.pick} />
         <TasteQuiz />
         {premiumOpen && <Suspense fallback={null}><PremiumPanel /></Suspense>}
+        <UndoBar />
+        <TrashPreviewHost />
         <ConfirmDialog />
       </div>
     </LxActionsContext.Provider>

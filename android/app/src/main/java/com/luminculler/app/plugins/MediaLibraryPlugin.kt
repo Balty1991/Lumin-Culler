@@ -1020,4 +1020,24 @@ class MediaLibraryPlugin : Plugin() {
         val mean = sum / n
         return sq / n - mean * mean
     }
+
+    /**
+     * „Anulează” după o mutare în coș: scoate pozele din coșul galeriei Android
+     * (MediaStore.createTrashRequest cu `false`), prin dialogul sistemului.
+     */
+    @PluginMethod
+    fun untrashPhotos(call: PluginCall) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return call.reject("Necesită Android 11+")
+        val uris = (call.getArray("uris")?.toList<String>() ?: emptyList()).map { resolveToMediaUri(it) }
+        if (uris.isEmpty()) return call.resolve(JSObject().put("cancelled", true).put("skippedUris", JSArray()))
+        try {
+            val pending = MediaStore.createTrashRequest(context.contentResolver, uris, false)
+            pendingDeleteCall = call
+            pendingDeleteSkippedUris = emptyList()
+            deleteLauncher.launch(IntentSenderRequest.Builder(pending.intentSender).build())
+        } catch (e: Exception) {
+            pendingDeleteCall = null
+            call.reject("Nu am putut scoate pozele din coș: ${e.message}", e)
+        }
+    }
 }

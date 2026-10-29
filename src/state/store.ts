@@ -88,6 +88,7 @@ import { recordImportOutcome, summariseOutcomes } from '../core/importOutcome';
 import { keepScreenAwake } from '../core/wakeLock';
 import { createStallTracker, type StallTracker, type StallTally } from '../core/stallTally';
 import { maybeAskForReview } from './reviewPrompt';
+import { passTrashGuard, setLastTrash } from './lastTrash';
 import {
   startBackgroundAnalysis, updateBackgroundAnalysis, stopBackgroundAnalysis,
   backgroundPhaseNotice, BACKGROUND_NOTIFY_INTERVAL_MS
@@ -3985,6 +3986,8 @@ export const useStore = create<AppState>((set, get) => ({
     // limpede si nimeni nu se simte santajat. Golirea telefonului ramane
     // gratuita, oricat de mult ai de golit.
 
+    // Întâi omul vede ce pleacă (pentru loturile mari) — vezi state/lastTrash.ts.
+    if (!(await passTrashGuard(deletable.map(p => p.id)))) return { deleted: 0, skipped: skippedCount + deletable.length, cancelled: true };
     let result: { cancelled: boolean; skippedUris: string[] };
     try {
       result = await deleteNativePhotos(deletable.map(p => p.mediaUri!));
@@ -4009,6 +4012,8 @@ export const useStore = create<AppState>((set, get) => ({
     const ids = actuallyDeleted.map(p => p.id);
     const idSet = new Set(ids);
     recordFreed(actuallyDeleted.reduce((sum, p) => sum + (p.sizeBytes ?? 0), 0));
+    // „Anulează”, câteva secunde: pozele sunt în coșul galeriei și se pot pune înapoi.
+    setLastTrash(actuallyDeleted.map(p => p.mediaUri!).filter(Boolean));
     // Aceleasi 6 tabele golite la "Goleste sesiunea" (clearAll), dar doar pentru
     // ACESTE id-uri — vezi comentariul de acolo pentru ce contine fiecare.
     await Promise.all([
