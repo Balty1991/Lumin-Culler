@@ -115,6 +115,7 @@ export function TextSheet({ photo, onClose }: { photo: PhotoView; onClose: () =>
   const locale = useStore(s => s.locale);
   const setNotice = useStore(s => s.setNotice);
   const [img, setImg] = useState<ImageBitmap | null>(null);
+  const [failed, setFailed] = useState(false);
   const when = photo.capturedAt ? new Date(photo.capturedAt).toLocaleDateString(intlTag(locale), { day: 'numeric', month: 'long', year: 'numeric' }) : '';
   const [text, setText] = useState(when);
   const [look, setLook] = useState<Look>('classic');
@@ -127,7 +128,7 @@ export function TextSheet({ photo, onClose }: { photo: PhotoView; onClose: () =>
 
   useEffect(() => {
     let alive = true;
-    void loadPhoto(photo.id).then(b => { if (alive) setImg(b); });
+    void loadPhoto(photo.id).then(b => { if (alive) { setImg(b); setFailed(!b); } });
     return () => { alive = false; };
   }, [photo.id]);
 
@@ -169,7 +170,7 @@ export function TextSheet({ photo, onClose }: { photo: PhotoView; onClose: () =>
         <span />
       </header>
       <div className="lx-enhance-stage">
-        {img ? <canvas ref={canvas} className="lx-magic-canvas" /> : <div className="lx-enhance-wait"><span className="lx-spinner" />{tr('lx.enhance.working')}</div>}
+        {img ? <canvas ref={canvas} className="lx-magic-canvas" /> : failed ? <p className="lx-empty">{tr('lx.enhance.failed')}</p> : <div className="lx-enhance-wait"><span className="lx-spinner" />{tr('lx.text.loading')}</div>}
       </div>
       <div className="lx-viewer-info">
         <textarea className="lx-text-input" rows={2} maxLength={80} value={text} onChange={e => setText(e.target.value)} placeholder={tr('lx.text.placeholder')} />

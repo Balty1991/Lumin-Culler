@@ -1,5 +1,5 @@
 import { useStore } from '../state/store';
-import { t } from '../i18n';
+import { LOCALES, t } from '../i18n';
 import type { Locale } from '../i18n';
 
 /**
@@ -28,8 +28,8 @@ export function LocaleToggle() {
 
   return (
     <div className="locale-toggle" role="group" aria-label={tr('menu.language.title')} title={tr('menu.language.title')}>
-      {option('ro', 'RO')}
-      {option('en', 'EN')}
+      {/* Toate limbile aplicației (auditul: în germană, pornirea arăta doar RO/EN). */}
+      {LOCALES.map(l => option(l, l.toUpperCase()))}
     </div>
   );
 }

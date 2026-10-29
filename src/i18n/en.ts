@@ -2966,5 +2966,6 @@ export const en: Record<TranslationKey, string> = {
   "lx.twin.this": "This one",
   "lx.twin.keepBetter": "Keep only the better one",
   "lx.twin.keepBoth": "Keep both",
-  "lx.twin.keepThis": "I prefer this one"
+  "lx.twin.keepThis": "I prefer this one",
+  "lx.text.loading": "Opening the photo…"
 };

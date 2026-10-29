@@ -38,7 +38,7 @@ const STYLE_ADD: Record<EnhanceStyle, Partial<Record<keyof EditAdjustments, numb
   // (raportat cu capturi, Natural și Clară aproape identice cu originalul).
   // Măsurat pe poza raportată: mai multă lumină, zonele luminoase nu mai coborâte (cerul
   // înnorat ieșea gri), negrul doar puțin — cum a reglat omul de mână și i-a plăcut.
-  natural: { exposure: 10, contrast: 14, saturation: 6, clarity: 14, sharpen: 16, shadows: 18, highlights: 4, whites: 10, blacks: -3 },
+  natural: { exposure: 10, contrast: 12, saturation: 4, clarity: 8, sharpen: 10, shadows: 18, highlights: 4, whites: 10, blacks: -3 },
   vivid: { contrast: 18, saturation: 14, clarity: 22, sharpen: 20, dehaze: 12, shadows: 14, highlights: -14, whites: 10, blacks: -9 },
   warm: { contrast: 12, saturation: 8, temperature: 16, tint: 3, clarity: 14, sharpen: 16, shadows: 12, whites: 6, blacks: -6 },
   drama: { contrast: 26, saturation: -10, clarity: 34, sharpen: 22, dehaze: 16, vignette: 24, highlights: -28, shadows: 20 },
@@ -201,7 +201,7 @@ export function sceneTune(img: HTMLImageElement, e: EditAdjustments, a?: { scene
   if (tone >= 8) { add('toneMap', tone); add('shadows', -Math.round(tone * 0.15)); }
   // Puțină claritate și accentuare la fiecare poză: diferența dintre „corectată” și „mai frumoasă”.
   if (luma >= 0.24) add('sharpen', 14);
-  if (overcast > 0.12) { scenes.push('overcast'); add('sky', 24); add('temperature', 4); add('saturation', 3); }
+  if (overcast > 0.12) { scenes.push('overcast'); add('sky', 14); add('temperature', 4); add('saturation', 3); }
   if (luma < 0.24) { scenes.push('night'); add('noiseReduction', 25); add('shadows', 12); add('clarity', -4); add('sharpen', -6); }
   if (FOOD.test(tags)) { scenes.push('food'); add('temperature', 6); add('saturation', 6); add('clarity', 6); add('vignette', 6); }
   if (!bigFace && NATURE.test(tags)) { scenes.push('landscape'); add('dehaze', 8); add('saturation', 4); add('clarity', 6); }

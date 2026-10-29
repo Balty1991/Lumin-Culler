@@ -200,8 +200,34 @@ export function necesitaDe(n: number): boolean {
  * diferenta e particula. O a treia forma pentru fiecare cheie ar fi insemnat
  * sute de siruri duplicate ca sa exprime un singur cuvant.
  */
+/**
+ * Substantivele numărate din texte, cu forma de singular (cu „o”/„un”). Folosite de
+ * `roNumbers`: auditul a găsit „1 păstrate”, „1 serii”, „Scot cele 36 poze” pe
+ * zeci de chei, fiindcă textele noi scriau `{count} poze` direct.
+ */
+const RO_SINGULAR: Record<string, string> = {
+  poze: 'o poză', serii: 'o serie', zile: 'o zi', fețe: 'o față', clipuri: 'un clip', copii: 'o copie',
+  luni: 'o lună', dubluri: 'o dublură', corecturi: 'o corectură', capturi: 'o captură', alegeri: 'o alegere',
+  persoane: 'o persoană', momente: 'un moment', lecții: 'o lecție', erori: 'o eroare', documente: 'un document',
+  decizii: 'o decizie', apariții: 'o apariție', rulări: 'o rulare', subiecți: 'un subiect', bonuri: 'un bon',
+  minute: 'un minut', ore: 'o oră', secunde: 'o secundă', sesiuni: 'o sesiune', videoclipuri: 'un videoclip',
+  păstrate: '1 păstrată', alese: '1 aleasă', văzute: '1 văzută', citite: '1 citită', luate: '1 luată'
+};
+const RO_NOUNS = new RegExp(`\\{(\\w+)\\} (?:de )?(${Object.keys(RO_SINGULAR).join('|')})(?![\\wăâîșț])`, 'g');
+
+/** Româna: „1 poze” → „o poză”, „20 poze” → „20 de poze”, pentru orice parametru numeric. */
+function roNumbers(str: string, params: Record<string, string | number>): string {
+  return str.replace(RO_NOUNS, (whole, name: string, noun: string) => {
+    const v = params[name === 'countDe' ? 'count' : name];
+    if (typeof v !== 'number') return whole;
+    if (v === 1) return RO_SINGULAR[noun];
+    return `${v}${necesitaDe(v) ? ' de' : ''} ${noun}`;
+  });
+}
+
 export function t(locale: Locale, key: string, params?: Record<string, string | number>): string {
   let str = DICTS[locale]?.[key] ?? (locale !== 'ro' ? DICTS.en[key] : undefined) ?? DICTS.ro[key] ?? key;
+  if (params && locale === 'ro') str = roNumbers(str, params);
   if (params) {
     const count = params.count;
     if (typeof count === 'number') {

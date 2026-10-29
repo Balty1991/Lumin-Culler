@@ -14,7 +14,7 @@ import { Orb } from './Orb';
 import { LumiFeed } from './LumiFeed';
 import { IsItThem, WhoIsThis } from './WhoIsThis';
 import { openBatterySettings, readBatteryRestriction } from '../core/backgroundAnalysis';
-import { continueOnLowBattery, readerStopped, resumeGalleryReader, stopGalleryReader } from './galleryReader';
+import { continueOnLowBattery, readerStarted, readerStopped, resumeGalleryReader, stopGalleryReader } from './galleryReader';
 import { Thumb } from './Thumb';
 import { FreedCard } from './TwinParts';
 import { DayStory } from './DayStory';
@@ -153,7 +153,7 @@ export function TodayScreen() {
           <BatteryHint />
         </section>
       )}
-      {!reader && readerStopped() && <ReaderStopped />}
+      {!reader && readerStopped() && readerStarted() && <ReaderStopped />}
       {readerResult && !reader && (
         <section className="lx-card lx-auto-result" role="status">
           <button className="lx-auto-close" onClick={() => setReaderResult(null)} aria-label={tr('lx.close')}>✕</button>

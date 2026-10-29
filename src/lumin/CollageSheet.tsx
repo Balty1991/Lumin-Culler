@@ -22,7 +22,8 @@ export function CollageSheet({ photos, title, subtitle, onClose }: { photos: Pho
   const best = [...photos].sort((a, b) => (b.status === 'selected' ? 1 : 0) - (a.status === 'selected' ? 1 : 0) || b.aiScore - a.aiScore);
   const [previews, setPreviews] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
-  const models = MODELS.filter(m => best.length >= Math.min(m.count, 3));
+  // Doar modelele care se umplu (auditul: „6 poze” cu 5 păstrate lăsa o celulă goală).
+  const models = MODELS.filter(m => best.length >= m.count);
 
   useEffect(() => {
     let alive = true;

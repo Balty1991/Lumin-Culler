@@ -78,7 +78,9 @@ export function DaysScreen() {
 
       <div className="lx-seg scroll" role="tablist">
         {VIEWS.map(v => (
-          <button key={v} role="tab" aria-selected={view === v} className={view === v ? 'on' : ''} onClick={() => setView(v)}>
+          <button key={v} role="tab" aria-selected={view === v} className={view === v ? 'on' : ''}
+            ref={el => { if (el && view === v) el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }}
+            onClick={() => setView(v)}>
             {tr(`lx.days.view.${v}`)}
           </button>
         ))}

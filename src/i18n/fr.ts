@@ -931,5 +931,16 @@ export const dict: Record<string, string> = {
   "lx.twin.this": "Celle-ci",
   "lx.twin.keepBetter": "Garder seulement la plus réussie",
   "lx.twin.keepBoth": "Garder les deux",
-  "lx.twin.keepThis": "Je préfère celle-ci"
+  "lx.twin.keepThis": "Je préfère celle-ci",
+  "lx.text.loading": "J’ouvre la photo…",
+  "aiProfile.private": "100 % sur le téléphone · aucune photo ne sort",
+  "menu.language.title": "Changer la langue de l'appli",
+  "welcome.permission.title": "Choisis « Tout autoriser »",
+  "welcome.permission.body": "Android va demander ce que l'appli peut voir. Avec un accès limité, « Importer par période » et la surveillance de la galerie n'ont rien à lire. Tes photos restent sur le téléphone dans tous les cas.",
+  "welcome.permission.limited": "Sélectionner des photos",
+  "welcome.permission.all": "Tout autoriser",
+  "welcome.permission.deny": "Ne pas autoriser",
+  "setup.pick": "Je choisis les photos",
+  "welcome.next": "Suivant",
+  "welcome.progress": "Étape {current} sur {total}"
 };
