@@ -2825,5 +2825,10 @@ export const en: Record<TranslationKey, string> = {
   "lx.text.bottom": "Bottom",
   "lx.book.button": "Year book (PDF)",
   "lx.book.title": "Our year in photos",
-  "lx.book.subtitle": "{count} photos kept, picked with Cherrypic"
+  "lx.book.subtitle": "{count} photos kept, picked with Cherrypic",
+  "fr.estimate.ask": "You have {count} photos in your gallery. The first read takes {time}: Cherrypic analyses them on your phone, newest first, in the background while you use the app (fastest while charging). The first results show up on Today within seconds. Start now?",
+  "fr.estimate.minutes": "about {minutes} minutes",
+  "fr.estimate.hours": "about {hours} hours",
+  "fr.estimate.go": "Start now",
+  "fr.estimate.later": "Later"
 };

@@ -6504,6 +6504,12 @@ button:disabled,
    ecranul asta chiar tine cateva sute de milisecunde, firul principal e ocupat
    tocmai cu parsarea bundle-ului, si o animatie care i-ar cere ceva ar sacada
    exact atunci. */
+/* Sigla Cherrypic (nu medalionul vechi „LC”, raportat la pornire). */
+.boot-splash .boot-logo {
+  width: 132px; height: 132px; border-radius: 30px;
+  box-shadow: 0 24px 60px -20px rgb(155 140 255 / 0.55);
+  animation: bootBreathe 1.8s var(--ease) infinite;
+}
 .boot-splash .empty-badge {
   margin-bottom: 0;
   animation: bootBreathe 1.8s var(--ease) infinite;
@@ -6513,7 +6519,7 @@ button:disabled,
   50%      { opacity: 1;   transform: scale(1); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .boot-splash .empty-badge { animation: none; opacity: 1; transform: none; }
+  .boot-splash .empty-badge, .boot-splash .boot-logo { animation: none; opacity: 1; transform: none; }
 }
 
 /* Conditiile abonamentului, sub butonul de cumparare. Deliberat mai discret

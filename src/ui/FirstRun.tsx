@@ -7,7 +7,7 @@ import { useModalFocusTrap } from './useModalFocusTrap';
 import { LocaleToggle } from './LocaleToggle';
 import { CheckIcon } from './icons';
 import { t } from '../i18n';
-import { readWholeGallery } from '../lumin/galleryReader';
+import { galleryReadEstimate, readWholeGallery, stopGalleryReader } from '../lumin/galleryReader';
 
 
 const STRICTNESS: CullingStrictness[] = ['lax', 'balanced', 'strict'];
@@ -55,17 +55,29 @@ export function FirstRun({ onPickManually }: { onPickManually: () => void }) {
     if (isNativeNotificationsAvailable()) void requestNotificationAccess().catch(() => {});
   };
   const pick = () => {
+    // A ales să aleagă singur: galeria întreagă nu se mai citește de la sine (o pornește
+    // oricând cu „Continuă citirea” pe Azi).
+    stopGalleryReader();
     dismissWelcome();
     askNotifications();
     onPickManually();
   };
   const auto = async () => {
+    // Nimic nu pornește singur cât omul încă răspunde la întrebarea de mai jos.
+    stopGalleryReader();
     dismissWelcome();
     askNotifications();
     // Nu mai așteaptă o săptămână întreagă (raportat: 297 de poze, „simt
     // așteptarea”): Lumi citește galeria de la cele mai noi poze, câte puțin,
     // iar primele apar pe Azi după câteva secunde. Restul vine în fundal.
     setLater(true);
+    // Întâi spune cât e de citit și cât durează; pornește doar cu „da”.
+    const est = await galleryReadEstimate();
+    if (est && est.count > 40) {
+      const time = est.minutes < 60 ? tr('fr.estimate.minutes', { minutes: est.minutes }) : tr('fr.estimate.hours', { hours: Math.round(est.minutes / 6) / 10 });
+      const ok = await useStore.getState().askConfirm(tr('fr.estimate.ask', { count: est.count, time }), { confirmLabel: tr('fr.estimate.go'), cancelLabel: tr('fr.estimate.later') });
+      if (!ok) { stopGalleryReader(); return; }
+    }
     void readWholeGallery(true);
   };
   const skip = () => { dismissWelcome(); setLater(true); };

@@ -175,3 +175,25 @@ export async function readWholeGallery(byUser = false): Promise<void> {
     useLx.getState().setReader(null);
   }
 }
+
+
+/**
+ * Câte poze sunt de citit și cât ar dura, ca omul să știe la ce să se aștepte
+ * înainte să pornească (cerut: „să-l întrebe dacă vrea s-o pornească și să-l
+ * anunțe de timpul estimat”). Viteza: din ultimul import măsurat, altfel o
+ * medie prudentă pentru un telefon obișnuit.
+ */
+export const PHOTOS_PER_MINUTE = 40;
+export async function galleryReadEstimate(): Promise<{ count: number; minutes: number } | null> {
+  if (!isNativeMediaLibraryAvailable()) return null;
+  try {
+    const list = await listPhotosInRange(0, Date.now() + 1);
+    if (!list.granted) return null;
+    const known = new Set(useStore.getState().photos.map(p => p.mediaUri).filter(Boolean));
+    const count = list.photos.filter(p => !known.has(p.uri)).length;
+    const st = useStore.getState().lastImportStats;
+    const measured = st && st.count >= 8 && st.durationMs > 0 ? (st.count / st.durationMs) * 60_000 : 0;
+    const rate = measured > 5 ? Math.min(120, measured) : PHOTOS_PER_MINUTE;
+    return { count, minutes: Math.max(1, Math.round(count / rate)) };
+  } catch { return null; }
+}

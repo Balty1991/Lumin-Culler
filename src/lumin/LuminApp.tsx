@@ -224,8 +224,11 @@ export function LuminApp() {
   }, [photos, booted, locale]);
 
   // Sortarea care se face singură: la pornire și de fiecare dată când revii în aplicație.
+  // Abia după primii pași (raportat: analiza pornea cât omul încă alegea pe ecranul de
+  // început și înainte de testul de gust); până atunci nu se citește nimic singur.
+  const welcomeSeen = useStore(s => s.welcomeSeen);
   useEffect(() => {
-    if (!booted) return;
+    if (!booted || !welcomeSeen) return;
     const run = () => void autoSortToday().then(async r => {
       if (r) useLx.getState().setAutoResult(r);
       // Albumele pe oameni din galeria telefonului, la zi (dacă omul le-a pornit).
@@ -240,7 +243,7 @@ export function LuminApp() {
     if (!Capacitor.isNativePlatform()) return;
     const sub = CapacitorApp.addListener('resume', run);
     return () => { void sub.then(h => h.remove()); };
-  }, [booted]);
+  }, [booted, welcomeSeen]);
 
   // Fețele: după pornire și după fiecare import, amprentele lipsă și numele recunoscute.
   const importDone = !progress || progress.phase === 'finalizat';
