@@ -4,7 +4,7 @@ import type { PhotoView } from '../state/store';
 import { learnFromShare } from './signals';
 import { useStore } from '../state/store';
 import { useTr } from './context';
-import { cloudAvailable, cloudEnabled, cloudWrite, ensureCloud, readVerdicts, setCloudEnabled, superviseUnsure } from './cloud';
+import { cloudAvailable, cloudEnabled, cloudWrite, ensureCloud, readVerdicts, setCloudEnabled, superviseUnsure, cloudBudgetOut } from './cloud';
 
 /**
  * lumin/CloudParts.tsx
@@ -29,7 +29,7 @@ export function CloudSection() {
   const runNow = async () => {
     setBusy(true);
     try {
-      const r = await superviseUnsure(12);
+      const r = await superviseUnsure(12, true);
       setNotice(tr(r.checked ? 'lx.cloud.done' : 'lx.cloud.nothing', { checked: r.checked, decided: r.decided }));
     } finally { setBusy(false); }
   };
@@ -98,7 +98,7 @@ export function CaptionSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
       <div className="lx-sheet" onClick={e => e.stopPropagation()}>
         <h2>✍ {tr('lx.caption.title')}</h2>
         {!captions && !failed && <div className="lx-enhance-wait"><span className="lx-spinner" />{tr('lx.caption.working')}</div>}
-        {failed && <p className="lx-hint">{tr('lx.caption.failed')}</p>}
+        {failed && <p className="lx-hint">{tr(cloudBudgetOut() ? 'lx.cloud.budget' : 'lx.caption.failed')}</p>}
         {captions?.map(c => (
           <button key={c} className="lx-caption" onClick={() => void pick(c)}>{c}</button>
         ))}

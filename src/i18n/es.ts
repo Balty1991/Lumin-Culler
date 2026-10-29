@@ -943,5 +943,6 @@ export const dict: Record<string, string> = {
   "setup.pick": "Elijo yo las fotos",
   "welcome.next": "Siguiente",
   "welcome.progress": "Paso {current} de {total}",
-  "lx.why.though": "aunque"
+  "lx.why.though": "aunque",
+  "lx.cloud.budget": "La IA en línea ha agotado su cuota de hoy; vuelve después de medianoche UTC. Hasta entonces corrijo en el móvil."
 };

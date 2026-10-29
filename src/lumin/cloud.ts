@@ -97,11 +97,36 @@ function measured(p: PhotoView): string {
 let running = false;
 
 /**
+ * Porția zilnică a serverului AI (contul Cloudflare gratuit: 10.000 de unități pe
+ * zi, se reface la 00:00 UTC) s-a terminat azi? Atunci nimic automat nu mai cere
+ * nimic, iar ce cere omul spune pe față de ce nu merge.
+ */
+const BUDGET_KEY = 'lumin-cloud-budget-out';
+const utcDay = () => new Date().toISOString().slice(0, 10);
+export function cloudBudgetOut(): boolean {
+  try { return localStorage.getItem(BUDGET_KEY) === utcDay(); } catch { return false; }
+}
+function noteBudget(res: { status: number; data?: unknown }): void {
+  if (res.status === 429 && (res.data as { error?: string } | undefined)?.error === 'budget') {
+    try { localStorage.setItem(BUDGET_KEY, utcDay()); } catch { /* fără stocare */ }
+  }
+}
+/** A doua părere automată: cel mult o dată la 12 ore (vede pozele, cel mai scump apel). */
+const AUTO_SUPERVISE_KEY = 'lumin-cloud-auto-supervise';
+
+/**
  * Trimite pozele nesigure (cel mult `limit`) la Lumi Cloud și aplică verdictele.
  * Întoarce câte poze au primit verdict și câte s-au rezolvat singure.
  */
-export async function superviseUnsure(limit = 12): Promise<{ checked: number; decided: number }> {
-  if (running || !cloudEnabled()) return { checked: 0, decided: 0 };
+export async function superviseUnsure(limit = 12, byUser = false): Promise<{ checked: number; decided: number }> {
+  if (running || !cloudEnabled() || cloudBudgetOut()) return { checked: 0, decided: 0 };
+  if (!byUser) {
+    try {
+      if (Date.now() - Number(localStorage.getItem(AUTO_SUPERVISE_KEY) ?? 0) < 12 * 3600_000) return { checked: 0, decided: 0 };
+      localStorage.setItem(AUTO_SUPERVISE_KEY, String(Date.now()));
+    } catch { /* fără stocare */ }
+    limit = Math.min(limit, 6);
+  }
   running = true;
   try {
     const store = useStore.getState();
@@ -127,6 +152,7 @@ export async function superviseUnsure(limit = 12): Promise<{ checked: number; de
         connectTimeout: 20_000,
         readTimeout: 120_000
       });
+      noteBudget(res);
       if (res.status === 429) break; // limita zilnică: mâine continuă
       if (res.status !== 200 || !Array.isArray(res.data?.items)) break;
       (res.data.items as Omit<CloudVerdict, 't'>[]).forEach((v, k) => {
@@ -206,6 +232,7 @@ export async function cloudWrite(kind: WriteKind, ids: readonly string[], contex
       connectTimeout: 20_000,
       readTimeout: 90_000
     });
+    noteBudget(res);
     if (res.status !== 200 || !res.data || typeof res.data !== 'object') return null;
     const all = readWrites();
     all[key] = { t: Date.now(), data: res.data as Record<string, unknown> };
@@ -242,7 +269,7 @@ export async function ensureCloud(askConfirm: (msg: string, o?: { confirmLabel?:
 }
 
 export type InpaintMode = 'erase' | 'sky-blue' | 'sky-sunset';
-export type InpaintResult = { ok: true; image: Blob } | { ok: false; reason: 'consent' | 'limit' | 'failed' };
+export type InpaintResult = { ok: true; image: Blob } | { ok: false; reason: 'consent' | 'limit' | 'budget' | 'failed' };
 
 /**
  * Guma AI / cerul nou: trimite bucata de poză (micșorată) și masca, primește
@@ -265,7 +292,8 @@ export async function cloudInpaint(mode: InpaintMode, image: Blob, mask: Blob, w
       connectTimeout: 20_000,
       readTimeout: 120_000
     });
-    if (res.status === 429) return { ok: false, reason: 'limit' };
+    noteBudget(res);
+    if (res.status === 429) return { ok: false, reason: (res.data as { error?: string } | undefined)?.error === 'budget' ? 'budget' : 'limit' };
     const data = res.data as { image?: string; mime?: string } | undefined;
     if (res.status !== 200 || !data?.image) return { ok: false, reason: 'failed' };
     const bytes = Uint8Array.from(atob(data.image), c => c.charCodeAt(0));
@@ -283,7 +311,7 @@ export async function cloudInpaint(mode: InpaintMode, image: Blob, mask: Blob, w
  * raportat „a răspuns o dată sau de 2 ori, apoi nu a mai mers”), iar la limită nu
  * deschide Premium peste editor — editorul spune omului și corectează pe telefon.
  */
-export async function cloudGrade(jpegBase64: string): Promise<{ values: Record<string, number>; reason: string } | 'limit' | null> {
+export async function cloudGrade(jpegBase64: string): Promise<{ values: Record<string, number>; reason: string } | 'limit' | 'budget' | null> {
   if (!cloudEnabled()) return null;
   if (!takeFreeAllowance('grade')) return 'limit';
   try {
@@ -297,6 +325,9 @@ export async function cloudGrade(jpegBase64: string): Promise<{ values: Record<s
     const d = res.data as { values?: Record<string, number>; reason?: string; error?: string } | undefined;
     if (res.status !== 200 || !d?.values) {
       logError('cloud', `grade ${res.status} ${d?.error ?? ''}`.trim());
+      // Porția zilnică a serverului AI (Cloudflare) s-a terminat: se spune pe față.
+      noteBudget(res);
+      if (d?.error === 'budget') return 'budget';
       return null;
     }
     return { values: d.values, reason: typeof d.reason === 'string' ? d.reason : '' };

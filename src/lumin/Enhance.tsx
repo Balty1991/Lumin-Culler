@@ -436,10 +436,10 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
       const got = await cloudGrade(c.toDataURL('image/jpeg', 0.85).split(',')[1]);
       // AI-ul online n-a răspuns (rețea, limită, model ocupat): nu lăsăm butonul
       // fără efect — o corectură măsurată pe telefon, pe varianta de acum.
-      let r = got && got !== 'limit' ? got : null;
+      let r = got && got !== 'limit' && got !== 'budget' ? got : null;
       if (!r) {
         r = localGrade(ctx, c.width, c.height);
-        useStore.getState().setNotice(got === 'limit' ? tr('lx.enhance.aiLimit', { count: FREE_DAILY.grade }) : tr('lx.enhance.aiLocal'));
+        useStore.getState().setNotice(got === 'limit' ? tr('lx.enhance.aiLimit', { count: FREE_DAILY.grade }) : got === 'budget' ? tr('lx.cloud.budget') : tr('lx.enhance.aiLocal'));
       }
       setManual(v => {
         const n = { ...v };

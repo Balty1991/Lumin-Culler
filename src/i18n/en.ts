@@ -2968,5 +2968,6 @@ export const en: Record<TranslationKey, string> = {
   "lx.twin.keepBoth": "Keep both",
   "lx.twin.keepThis": "I prefer this one",
   "lx.text.loading": "Opening the photo…",
-  "lx.why.though": "though"
+  "lx.why.though": "though",
+  "lx.cloud.budget": "The online AI has used up today's allowance; it's back after midnight UTC. Until then I correct on the phone."
 };

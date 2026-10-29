@@ -3054,7 +3054,8 @@ export const ro = {
   "lx.twin.keepBoth": "Le păstrez pe amândouă",
   "lx.twin.keepThis": "O prefer pe asta",
   "lx.text.loading": "Deschid poza…",
-  "lx.why.though": "deși"
+  "lx.why.though": "deși",
+  "lx.cloud.budget": "AI-ul online și-a terminat porția pe azi; revine după ora 3 dimineața. Până atunci corectez pe telefon."
 };
 
 export type TranslationKey = keyof typeof ro;

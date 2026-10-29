@@ -70,7 +70,10 @@ jobs:
             curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/ai/models/schema?model=$m" \
               | jq -c '.result.input.properties // .result.input | keys? // .' | head -c 600; echo
           done
+      # Doar pe main: fiecare test consumă din porția zilnică gratuită a AI-ului (Cloudflare,
+      # 10.000 de unități/zi), iar fiecare push rula de două ori (ramura de lucru + main).
       - name: Smoke test (stil pe o poză de test)
+        if: github.ref == 'refs/heads/main'
         run: |
           base=https://lumin-ai.${{ steps.sub.outputs.subdomain }}.workers.dev
           sleep 10

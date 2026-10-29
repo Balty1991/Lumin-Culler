@@ -163,7 +163,7 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
       if (!imageBlob || !maskBlob) return;
       const out = await cloudInpaint(mode, imageBlob, maskBlob, size.width, size.height);
       if (!out.ok) {
-        if (out.reason !== 'limit') setNotice(tr(out.reason === 'consent' ? 'lx.magic.consent' : 'lx.magic.failed'));
+        if (out.reason !== 'limit') setNotice(tr(out.reason === 'consent' ? 'lx.magic.consent' : out.reason === 'budget' ? 'lx.cloud.budget' : 'lx.magic.failed'));
         return;
       }
       const ai = await createImageBitmap(out.image);
