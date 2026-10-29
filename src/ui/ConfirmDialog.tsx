@@ -32,7 +32,7 @@ export function ConfirmDialog() {
   const confirm = () => resolveDialog(dialogRequest.kind === 'confirm' ? true : value);
 
   return (
-    <div className="detail" onClick={e => { if (e.target === e.currentTarget) cancel(); }}>
+    <div className="detail confirm-layer" onClick={e => { if (e.target === e.currentTarget) cancel(); }}>
       <div
         className="detail-inner narrow confirm-dialog" ref={containerRef} role="alertdialog" aria-modal="true"
         aria-label={dialogRequest.message} tabIndex={-1}

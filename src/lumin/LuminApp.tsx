@@ -28,13 +28,14 @@ import { readWholeGallery } from './galleryReader';
 import { syncPeopleAlbums } from './phoneAlbums';
 import { autoNameFaces, canEmbedFaces, embedMissingFaces } from './faceIdentity';
 import { TodayScreen } from './TodayScreen';
-import { DaysScreen } from './DaysScreen';
-import { BrainScreen } from './BrainScreen';
-import { SettingsScreen } from './SettingsScreen';
-import { SwipeSort } from './SwipeSort';
 import { Orb } from './Orb';
 import './lumin.css';
 
+// Doar Azi se încarcă la pornire; restul ecranelor, la prima deschidere (pornire mai rapidă).
+const DaysScreen = lazy(() => import('./DaysScreen').then(m => ({ default: m.DaysScreen })));
+const BrainScreen = lazy(() => import('./BrainScreen').then(m => ({ default: m.BrainScreen })));
+const SettingsScreen = lazy(() => import('./SettingsScreen').then(m => ({ default: m.SettingsScreen })));
+const SwipeSort = lazy(() => import('./SwipeSort').then(m => ({ default: m.SwipeSort })));
 const PremiumPanel = lazy(() => import('../ui/PremiumPanel').then(m => ({ default: m.PremiumPanel })));
 
 const NOTICE_MS = 4500;
@@ -106,6 +107,10 @@ async function openDayAction(action: 'share_pod' | 'see_day'): Promise<void> {
   if (!best) return;
   await useStore.getState().exportSelection('apps', [best.id]);
   void learnFromShare([best]);
+}
+
+function ScreenWait() {
+  return <div className="lx-loading small"><Orb mood="think" size={48} /></div>;
 }
 
 function TabIcon({ name }: { name: string }) {
@@ -255,6 +260,15 @@ export function LuminApp() {
     return () => { alive = false; };
   }, [booted, importDone, readingGallery]);
 
+  // După ce Azi e pe ecran, celelalte ecrane se pregătesc în liniște: prima atingere pe meniu nu mai așteaptă.
+  useEffect(() => {
+    if (!booted) return;
+    const timer = window.setTimeout(() => {
+      void import('./DaysScreen'); void import('./BrainScreen'); void import('./SettingsScreen'); void import('./SwipeSort');
+    }, 2500);
+    return () => window.clearTimeout(timer);
+  }, [booted]);
+
   // Butonul „înapoi” al telefonului: închide ce e deschis, apoi revine la Azi.
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
@@ -315,10 +329,10 @@ export function LuminApp() {
           <main className="lx-main">
             {/* Ecranele vizitate rămân montate, ascunse: schimbarea din meniu nu le mai
                 reconstruiește (raportat: „la schimbarea prin meniu merge sacadat”). */}
-            {visited.has('today') && <div className="lx-screen" hidden={tab !== 'today'}><TodayScreen /></div>}
-            {visited.has('days') && <div className="lx-screen" hidden={tab !== 'days'}><DaysScreen /></div>}
-            {visited.has('brain') && <div className="lx-screen" hidden={tab !== 'brain'}><BrainScreen /></div>}
-            {visited.has('settings') && <div className="lx-screen" hidden={tab !== 'settings'}><SettingsScreen /></div>}
+            {visited.has('today') && <div className="lx-tabpane" hidden={tab !== 'today'}><TodayScreen /></div>}
+            {visited.has('days') && <div className="lx-tabpane" hidden={tab !== 'days'}><Suspense fallback={<ScreenWait />}><DaysScreen /></Suspense></div>}
+            {visited.has('brain') && <div className="lx-tabpane" hidden={tab !== 'brain'}><Suspense fallback={<ScreenWait />}><BrainScreen /></Suspense></div>}
+            {visited.has('settings') && <div className="lx-tabpane" hidden={tab !== 'settings'}><Suspense fallback={<ScreenWait />}><SettingsScreen /></Suspense></div>}
           </main>
         )}
 
@@ -351,7 +365,7 @@ export function LuminApp() {
           ))}
         </nav>
 
-        {sortOpen && <SwipeSort />}
+        {sortOpen && <Suspense fallback={null}><SwipeSort /></Suspense>}
         <GlobalViewer />
 
         {notice && (

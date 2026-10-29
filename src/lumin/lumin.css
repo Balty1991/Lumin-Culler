@@ -25,7 +25,10 @@
 :where(.lx) button { font: inherit; color: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 :where(.lx) button:disabled { cursor: default; opacity: 0.45; }
 
-.lx-screen:not([hidden]) { animation: lx-fade 0.22s var(--lx-ease) both; }
+.lx-tabpane:not([hidden]) { animation: lx-fade 0.22s var(--lx-ease) both; }
+/* Taburile păstrate ascunse: [hidden] trebuie să câștige peste orice display al ecranelor
+   (raportat: Azi apărea și sub Galerie, în toate meniurile). */
+.lx-tabpane[hidden] { display: none !important; }
 /* Doar opacitate: o animație de transform ar face din .lx-main un container
    pentru tot ce e „fixed” înăuntru (poza mare ajungea în afara ecranului). */
 @keyframes lx-fade { from { opacity: 0; } to { opacity: 1; } }
@@ -902,3 +905,20 @@ body.lx-viewer-open .lx-hero-media img { animation-play-state: paused; }
 
 /* „Text pe poză”: câmpul de text. */
 .lx-text-input { width: 100%; box-sizing: border-box; resize: none; border-radius: 14px; border: 1px solid rgb(255 255 255 / .12); background: rgb(255 255 255 / .05); color: #fff; padding: 10px 12px; font: inherit; font-size: 15px; margin-bottom: 8px; }
+
+.lx-loading.small { min-height: 40vh; display: grid; place-items: center; }
+
+/* Cardurile „Săptămâna ta” / „Anul tău”: butoanele pe rândul lor, ca textul să nu se strângă. */
+.lx-recap { flex-wrap: wrap; }
+.lx-recap-actions { flex-basis: 100%; }
+
+/* Fără ieșiri spre dreapta (raportat: galeria și ziua tăiate în dreapta, textele în
+   coloane înguste). Rândurile cu multe butoane se rup pe două rânduri, copiii ecranului
+   nu pot fi mai lați decât el, iar în carduri textul are întâietate față de buton. */
+html, body { overflow-x: hidden; }
+.lx-screen > *, .lx-tabpane, .lx-wall-wrap { min-width: 0; max-width: 100%; }
+.lx-section-head { flex-wrap: wrap; gap: 6px 12px; }
+.lx-links { flex-wrap: wrap; gap: 8px 14px; }
+.lx-card { flex-wrap: wrap; }
+.lx-card > div:first-child { flex: 1 1 220px; min-width: 0; }
+.lx-card > .lx-btn, .lx-card > button.lx-btn { flex: 1 1 auto; }

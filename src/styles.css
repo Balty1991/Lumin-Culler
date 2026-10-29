@@ -5218,3 +5218,7 @@ html:has(> body .welcome-screen) {
 .today-card-sub { opacity: .8; line-height: 1.4; }
 .today-card-cta { align-self: flex-start; margin-top: 8px; }
 .premium-personal { margin: 6px 0 0; padding: 10px 12px; border-radius: 12px; background: rgb(var(--accent-rgb, 125 211 252) / .12); font-size: .9rem; line-height: 1.4; }
+
+/* Întrebările (acord, PIN, nume) stau peste orice foaie deschisă: altfel acordul pentru
+   AI-ul online apărea în spatele foii „Text pentru postare”, care aștepta la nesfârșit. */
+.detail.confirm-layer { z-index: 3000; }
