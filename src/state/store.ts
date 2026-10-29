@@ -3064,10 +3064,19 @@ export const useStore = create<AppState>((set, get) => ({
     let pendingPhotos: PhotoView[] = [];
     /** Id-urile pozelor din ACEST lot — rezultatul de la final se raporteaza doar despre ele, nu despre toata biblioteca. */
     const importedIds: string[] = [];
+    const importedSet = new Set<string>();
+    let deferWhileTouching = true;
     let flushTimer: ReturnType<typeof setTimeout> | null = null;
     const flushPendingPhotos = () => {
       if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
       if (!pendingPhotos.length) return;
+      // Cât omul derulează sau atinge ecranul, lotul așteaptă (până la ~400 de poze):
+      // fiecare lot recalculează toate ecranele dintr-o bucată și se simțea ca o
+      // sacadare în mijlocul derulării (raportat: „fluiditatea aplicației” la import).
+      if (deferWhileTouching && pendingPhotos.length < 400 && analysisPool.msSinceTouch() < 1200) {
+        flushTimer = setTimeout(flushPendingPhotos, 700);
+        return;
+      }
       const batch = pendingPhotos;
       pendingPhotos = [];
       set(state => {
@@ -3179,9 +3188,9 @@ export const useStore = create<AppState>((set, get) => ({
           }
         },
         item => {
-          if (!importedIds.includes(item.photo.id)) importedIds.push(item.photo.id);
+          if (!importedSet.has(item.photo.id)) { importedSet.add(item.photo.id); importedIds.push(item.photo.id); }
           pendingPhotos.push(toView(item.photo, item.analysis));
-          if (pendingPhotos.length >= PHOTO_FLUSH_BATCH) { flushPendingPhotos(); return; }
+          if (pendingPhotos.length >= PHOTO_FLUSH_BATCH && analysisPool.msSinceTouch() >= 1200) { flushPendingPhotos(); return; }
           if (!flushTimer) flushTimer = setTimeout(flushPendingPhotos, PHOTO_FLUSH_INTERVAL_MS);
         },
         cancelToken,
@@ -3203,6 +3212,7 @@ export const useStore = create<AppState>((set, get) => ({
       // flush necesar pe ORICE cale de iesire (succes, eroare, anulare) — altfel
       // ultimele poze bufferizate (deja scrise in IndexedDB de processOne) ar
       // ramane invizibile in UI pana la un reload, desi nu s-au pierdut din DB.
+      deferWhileTouching = false;
       flushPendingPhotos();
       document.removeEventListener('visibilitychange', onAnalysisVisibility);
       if (activeCancelToken === cancelToken) activeCancelToken = null;
