@@ -2626,4 +2626,8 @@ export const en: Record<TranslationKey, string> = {
   "lx.feed.cloud": "I can do more with the online AI: write the story of your day, captions for posts, album titles, and find photos from what you describe.",
   "lx.feed.cloudSub": "Off until you turn it on. Only the photos needed are sent, shrunk, and nothing is stored.",
   "lx.feed.cloudGo": "Turn on online AI",
+  "premium.cp.auto.title": "Cherrypic decides your whole gallery",
+  "premium.cp.auto.sub": "New and old photos are picked and set aside without asking you; you just look, and can change any decision.",
+  "premium.cp.accept.title": "Accept all in one tap",
+  "premium.cp.accept.sub": "When you agree with the day's picks, confirm them all at once instead of one by one.",
 };

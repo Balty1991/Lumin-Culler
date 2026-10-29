@@ -2712,6 +2712,10 @@ export const ro = {
   "lx.feed.cloud": "Pot face mai mult cu AI-ul online: îți scriu povestea zilei, texte pentru postări, titluri de album și găsesc poze după ce descrii în cuvinte.",
   "lx.feed.cloudSub": "Oprit până îl pornești. Pleacă doar pozele de care e nevoie, micșorate, și nu se păstrează.",
   "lx.feed.cloudGo": "Pornesc AI-ul online",
+  "premium.cp.auto.title": "Cherrypic decide singur toată galeria",
+  "premium.cp.auto.sub": "Pozele noi și cele vechi se aleg și se pun deoparte fără să te mai întrebe; tu doar te uiți și poți schimba orice decizie.",
+  "premium.cp.accept.title": "Acceptă tot, dintr-o atingere",
+  "premium.cp.accept.sub": "Când ești de acord cu alegerile zilei, le confirmi pe toate deodată, în loc de una câte una.",
 };
 
 export type TranslationKey = keyof typeof ro;

@@ -6,6 +6,7 @@ import { EMPTY_SCORE, readTasteScore, scoreAnswer, writeTasteScore, type PairGue
 import { getDisplayUrl } from '../core/previewUrlCache';
 import { contextEngine } from '../core/learning/ContextEngine';
 import { readTasteQuizDone, writeTasteQuizDone, TASTE_QUIZ_OPEN_EVENT } from '../state/tasteQuiz';
+import { useLx } from '../lumin/lxStore';
 import { requestNotificationAccess, isNativeNotificationsAvailable } from '../core/nativeNotifications';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { XIcon } from './icons';
@@ -95,13 +96,16 @@ export function TasteQuiz() {
     setOpen(true);
   };
 
-  // O singură dată, singur: după primul import terminat, cu destule poze.
+  // O singură dată, singur: după primul import terminat, cu destule poze. Cât
+  // galeria se citește în fundal, așteaptă un lot mai mare (40): după primul
+  // pachet de 8 n-ar avea din ce face perechi bune.
+  const reading = useLx(s => s.reader);
   useEffect(() => {
     if (open || analysing || !welcomeSeen || readTasteQuizDone()) return;
-    if (photos.length < TASTE_QUIZ_MIN_PHOTOS) return;
+    if (photos.length < (reading ? 40 : TASTE_QUIZ_MIN_PHOTOS)) return;
     start();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [analysing, welcomeSeen, photos.length]);
+  }, [analysing, welcomeSeen, photos.length, reading]);
 
   useEffect(() => {
     const onOpen = () => start();

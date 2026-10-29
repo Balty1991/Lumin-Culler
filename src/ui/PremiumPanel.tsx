@@ -6,7 +6,6 @@ import { FREE_PHOTOS_PER_MONTH, FREE_ENROLLED_PERSONS, refreshEntitlement, isExp
 import { isBillingAvailable, queryPremiumPrice, queryPlansAnswer, startSubscription, type PremiumPlan } from '../core/billing';
 import { annualSavingsPercent, perMonthPrice, defaultPlanId, resolvePlan } from '../core/premiumPlans';
 import { t, plural } from '../i18n';
-import { PremiumProof } from './PremiumProof';
 import { LifetimeProof } from './LifetimeProof';
 import { resumeFor } from './premiumResume';
 
@@ -183,62 +182,16 @@ export function PremiumPanel() {
         <LifetimeProof locale={locale} premium={premium} />
 
         <h4 className="premium-group-head">{tr('premium.section.unlock')}</h4>
-
-        <div className={highlightedPerk === 'export' ? 'premium-perk premium-perk-demo is-wanted' : 'premium-perk premium-perk-demo'}>
-          <span>
-            <b>
-              {tr('premium.perk.export.title')}
-            </b>
-            <span>{tr('premium.perk.export.sub')}</span>
-          </span>
+        {/* Doar ce deblochează Pro CU ADEVĂRAT în Cherrypic (vezi gatePremium('acceptAll')
+            și autonomia „tot”). Lista veche (export, locații, XMP, prezentare...) era a
+            aplicației vechi și nu mai corespundea cu nimic de pe ecran. */}
+        <div className={highlightedPerk === 'export' ? 'premium-perk is-wanted' : 'premium-perk'}>
+          <i aria-hidden="true">✦</i>
+          <span><b>{tr('premium.cp.auto.title')}</b><span>{tr('premium.cp.auto.sub')}</span></span>
         </div>
-        {FREE_ENROLLED_PERSONS < 100 && <div className={highlightedPerk === 'persons' ? 'premium-perk premium-perk-demo is-wanted' : 'premium-perk premium-perk-demo'}>
-          <span>
-            <b>
-              {tr('premium.perk.persons.title')}
-            </b>
-            <span>{tr('premium.perk.persons.sub', { limit: FREE_ENROLLED_PERSONS })}</span>
-          </span>
-          <PremiumProof kind="persons" />
-        </div>}
-        <div className={highlightedPerk === 'pro' ? 'premium-perk premium-perk-demo is-wanted' : 'premium-perk premium-perk-demo'}>
-          <span>
-            <b>
-              {tr('premium.perk.pro.title')}
-            </b>
-            <span>{tr('premium.perk.pro.sub')}</span>
-          </span>
-          <PremiumProof kind="pro" />
-        </div>
-        <div className={highlightedPerk === 'show' ? 'premium-perk premium-perk-demo is-wanted' : 'premium-perk premium-perk-demo'}>
-          <span>
-            <b>
-              {tr('premium.perk.show.title')}
-            </b>
-            <span>{tr('premium.perk.show.sub')}</span>
-          </span>
-          <PremiumProof kind="show" />
-        </div>
-        {/* Rand propriu, nu o vorba in subtitlul de mai sus: era pomenit acolo
-            printre altele si utilizatorul, care CHIAR are ecranul blocat, n-a
-            observat ca plateste pentru el. */}
-        <div className={highlightedPerk === 'locations' ? 'premium-perk premium-perk-demo is-wanted' : 'premium-perk premium-perk-demo'}>
-          <span>
-            <b>
-              {tr('premium.perk.locations.title')}
-            </b>
-            <span>{tr('premium.perk.locations.sub')}</span>
-          </span>
-          <PremiumProof kind="locations" />
-        </div>
-        {/* Ultimul, deliberat: e singurul lucru din lista pe care nu-l are
-            nimeni altcineva, si se retine mai bine la final decat la mijloc. */}
-        <div className={highlightedPerk === 'composite' ? 'premium-perk premium-perk-demo is-wanted' : 'premium-perk premium-perk-demo'}>
-          <span>
-            <b>{tr('premium.perk.composite.title')}</b>
-            <span>{tr('premium.perk.composite.sub')}</span>
-          </span>
-          <PremiumProof kind="composite" />
+        <div className="premium-perk">
+          <i aria-hidden="true">✓</i>
+          <span><b>{tr('premium.cp.accept.title')}</b><span>{tr('premium.cp.accept.sub')}</span></span>
         </div>
 
         {/* Un abonat nu are de ce sa vada cat i-a mai ramas dintr-un plafon pe
