@@ -10,6 +10,7 @@ import { useLx } from './lxStore';
 import { useLxActions, useTr } from './context';
 import { Orb } from './Orb';
 import { LumiFeed } from './LumiFeed';
+import { WhoIsThis } from './WhoIsThis';
 import { openBatterySettings, readBatteryRestriction } from '../core/backgroundAnalysis';
 import { continueOnLowBattery, readerStopped, resumeGalleryReader, stopGalleryReader } from './galleryReader';
 import { Thumb } from './Thumb';
@@ -130,6 +131,7 @@ export function TodayScreen() {
       </section>
 
       <LumiFeed />
+      <WhoIsThis />
 
       {reader && reader.paused !== 'import' && (
         <section className="lx-card lx-reader" role="status">

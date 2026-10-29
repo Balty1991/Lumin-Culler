@@ -2647,4 +2647,7 @@ export const en: Record<TranslationKey, string> = {
   "lx.settings.background.restricted": "Battery saver stops background analysis",
   "lx.settings.background.restrictedSub": "Tap and choose “Unrestricted” under Battery, so analysis doesn’t stall when you leave the app.",
   "lx.reader.battery": "To keep going while closed: Battery → Unrestricted",
+  "lx.who.title": "I see this person in {count} photos. What is their name?",
+  "lx.who.sub": "With a name, I recognise them in new photos, you can search for them, and they appear in your stories and albums.",
+  "lx.who.name": "Add a name",
 };

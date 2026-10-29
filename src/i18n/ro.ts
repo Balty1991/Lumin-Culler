@@ -2733,6 +2733,9 @@ export const ro = {
   "lx.settings.background.restricted": "Economia de baterie oprește analiza în fundal",
   "lx.settings.background.restrictedSub": "Atinge și alege „Fără restricții” la Baterie, ca analiza să nu se blocheze când ieși din aplicație.",
   "lx.reader.battery": "Ca să continue și cu aplicația închisă: Baterie → Fără restricții",
+  "lx.who.title": "Văd persoana asta în {count} poze. Cum o cheamă?",
+  "lx.who.sub": "Cu un nume, o recunosc singur în pozele noi, o găsești la căutare și apare în poveștile și albumele tale.",
+  "lx.who.name": "Îi dau un nume",
 };
 
 export type TranslationKey = keyof typeof ro;
