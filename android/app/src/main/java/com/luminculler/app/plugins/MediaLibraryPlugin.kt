@@ -70,6 +70,8 @@ import com.getcapacitor.annotation.PermissionCallback
         // READ_EXTERNAL_STORAGE nu putea fi acordat niciodata. Vezi photosPermissionAlias mai
         // jos pentru alegerea aliasului corect dupa Build.VERSION.SDK_INT.
         Permission(strings = [Manifest.permission.READ_MEDIA_IMAGES], alias = "photos33"),
+        // Clipurile video, pentru curățenie (listVideos). Cerută separat, doar când omul deschide „Clipuri”.
+        Permission(strings = [Manifest.permission.READ_MEDIA_VIDEO], alias = "videos33"),
         Permission(strings = [Manifest.permission.READ_EXTERNAL_STORAGE], alias = "photosLegacy"),
         // Android 14+: cand utilizatorul alege "Permite cu acces limitat", ASTA
         // se acorda, iar READ_MEDIA_IMAGES ramane refuzat. Fara aliasul de aici
@@ -850,5 +852,98 @@ class MediaLibraryPlugin : Plugin() {
         } catch (e: Exception) {
             call.reject("Nu am putut citi pozele din acest folder: ${e.message}", e)
         }
+    }
+
+    // ---- Clipuri video -------------------------------------------------------
+
+    private val videosPermissionAlias: String
+        get() = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) "videos33" else "photosLegacy"
+
+    /**
+     * Toate clipurile din galerie, fără să citească vreunul: adresa, mărimea,
+     * durata, data, rezoluția și dosarul. Din ele aplicația găsește clipurile
+     * duble, pe cele de o clipă (pornite din greșeală) și pe cele mai mari.
+     */
+    @PluginMethod
+    fun listVideos(call: PluginCall) {
+        if (getPermissionState(videosPermissionAlias) != PermissionState.GRANTED) {
+            requestPermissionForAlias(videosPermissionAlias, call, "listVideosPermissionCallback")
+            return
+        }
+        resolveVideos(call)
+    }
+
+    @PermissionCallback
+    private fun listVideosPermissionCallback(call: PluginCall) {
+        if (getPermissionState(videosPermissionAlias) == PermissionState.GRANTED) resolveVideos(call)
+        else call.resolve(JSObject().put("granted", false).put("videos", JSArray()))
+    }
+
+    private fun resolveVideos(call: PluginCall) {
+        Thread {
+            try {
+                val out = JSArray()
+                val projection = arrayOf(
+                    MediaStore.Video.Media._ID,
+                    MediaStore.Video.Media.DISPLAY_NAME,
+                    MediaStore.Video.Media.SIZE,
+                    MediaStore.Video.Media.DURATION,
+                    MediaStore.Video.Media.DATE_TAKEN,
+                    MediaStore.Video.Media.DATE_ADDED,
+                    MediaStore.Video.Media.WIDTH,
+                    MediaStore.Video.Media.HEIGHT,
+                    MediaStore.Video.Media.BUCKET_DISPLAY_NAME
+                )
+                context.contentResolver.query(
+                    MediaStore.Video.Media.EXTERNAL_CONTENT_URI, projection, null, null,
+                    "${MediaStore.Video.Media.DATE_ADDED} DESC"
+                )?.use { c ->
+                    val iId = c.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
+                    val iName = c.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
+                    val iSize = c.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
+                    val iDur = c.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
+                    val iTaken = c.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_TAKEN)
+                    val iAdded = c.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_ADDED)
+                    val iW = c.getColumnIndexOrThrow(MediaStore.Video.Media.WIDTH)
+                    val iH = c.getColumnIndexOrThrow(MediaStore.Video.Media.HEIGHT)
+                    val iBucket = c.getColumnIndexOrThrow(MediaStore.Video.Media.BUCKET_DISPLAY_NAME)
+                    while (c.moveToNext()) {
+                        val id = c.getLong(iId)
+                        val taken = c.getLong(iTaken).takeIf { it > 0 } ?: (c.getLong(iAdded) * 1000)
+                        out.put(JSObject()
+                            .put("uri", android.content.ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id).toString())
+                            .put("name", c.getString(iName) ?: "")
+                            .put("sizeBytes", c.getLong(iSize))
+                            .put("durationMs", c.getLong(iDur))
+                            .put("capturedAt", taken)
+                            .put("width", c.getInt(iW))
+                            .put("height", c.getInt(iH))
+                            .put("folder", c.getString(iBucket) ?: ""))
+                    }
+                }
+                call.resolve(JSObject().put("granted", true).put("videos", out))
+            } catch (e: Exception) {
+                call.reject("Nu am putut citi clipurile: ${e.message}", e)
+            }
+        }.start()
+    }
+
+    /** Miniatura unui clip (cadrul ales de Android), JPEG în base64. Android 10+. */
+    @PluginMethod
+    fun videoThumbnail(call: PluginCall) {
+        val raw = call.getString("uri") ?: return call.reject("uri lipsește")
+        val size = call.getInt("size") ?: 320
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return call.resolve(JSObject())
+        Thread {
+            try {
+                val bmp = context.contentResolver.loadThumbnail(Uri.parse(raw), android.util.Size(size, size), null)
+                val bytes = java.io.ByteArrayOutputStream()
+                bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 78, bytes)
+                bmp.recycle()
+                call.resolve(JSObject().put("data", android.util.Base64.encodeToString(bytes.toByteArray(), android.util.Base64.NO_WRAP)))
+            } catch (_: Exception) {
+                call.resolve(JSObject())
+            }
+        }.start()
     }
 }

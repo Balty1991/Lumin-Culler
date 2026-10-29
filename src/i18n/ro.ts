@@ -2771,7 +2771,24 @@ export const ro = {
   "lx.enhance.adj.tint": "Nuanță",
   "lx.enhance.adj.saturation": "Saturație",
   "lx.enhance.adj.sharpen": "Detaliu",
-  "lx.enhance.adj.grain": "Granulație"
+  "lx.enhance.adj.grain": "Granulație",
+  "lx.videos.title": "Clipuri video",
+  "lx.videos.intro": "Clipurile ocupă de obicei cel mai mult loc.",
+  "lx.videos.introSub": "Cherrypic găsește clipurile duble, pe cele pornite din greșeală și pe cele mai mari. Nu le deschide, doar le numără.",
+  "lx.videos.denied": "N-am primit acces la clipuri. Încearcă din nou și alege „Permite”.",
+  "lx.videos.scan": "Caută",
+  "lx.videos.total": "{count} clipuri în galerie · {size}",
+  "lx.videos.duplicates": "{count} clipuri duble",
+  "lx.videos.duplicatesSub": "aceeași filmare de două ori; rămâne una",
+  "lx.videos.accidental": "{count} clipuri de o clipă",
+  "lx.videos.accidentalSub": "sub 2 secunde, pornite din greșeală",
+  "lx.videos.big": "{count} clipuri mari",
+  "lx.videos.bigSub": "alege tu ce nu mai trebuie",
+  "lx.videos.see": "Vezi",
+  "lx.videos.clean": "Nimic de curățat la clipuri. 👍",
+  "lx.videos.delete": "Mută în coș {count} · {size}",
+  "lx.videos.done": "{count} clipuri în coș · ai eliberat {size}",
+  "lx.videos.failed": "N-am putut muta clipurile în coș."
 };
 
 export type TranslationKey = keyof typeof ro;

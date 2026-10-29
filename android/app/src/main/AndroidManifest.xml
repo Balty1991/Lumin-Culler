@@ -78,6 +78,9 @@
          standard Android: READ_MEDIA_IMAGES pe API 33+ (Android 13), READ_EXTERNAL_STORAGE
          cu maxSdkVersion pe API-uri mai vechi (ignorata automat de sistem pe 33+). -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <!-- Clipurile video (Android 13+): doar listate (mărime, durată) și mutate în coș la
+         cererea omului, pentru curățenie — vezi MediaLibraryPlugin.listVideos. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <!-- Android 14+: se acorda cand utilizatorul alege "Permite cu acces limitat".
          Declarata ca s-o putem INTERBOGA si sa deosebim accesul partial de un
          refuz total — vezi photosAccess() in MediaLibraryPlugin.kt. -->

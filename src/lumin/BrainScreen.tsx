@@ -11,6 +11,7 @@ import { useTr } from './context';
 import { CloudSection } from './CloudParts';
 import { AutonomyPicker, FreedCard, TwinHero } from './TwinParts';
 import { Housekeeping } from './Housekeeping';
+import { VideoCleanup } from './VideoCleanup';
 
 /**
  * lumin/BrainScreen.tsx
@@ -88,6 +89,7 @@ export function BrainScreen() {
       <FreedCard />
       <CloudSection />
       <Housekeeping />
+      <VideoCleanup />
 
       <section className="lx-stats four">
         <div><b>{memory.seen}</b><span>{tr('lx.brain.seen')}</span></div>

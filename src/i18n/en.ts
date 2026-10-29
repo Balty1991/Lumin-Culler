@@ -2685,5 +2685,22 @@ export const en: Record<TranslationKey, string> = {
   "lx.enhance.adj.tint": "Tint",
   "lx.enhance.adj.saturation": "Saturation",
   "lx.enhance.adj.sharpen": "Detail",
-  "lx.enhance.adj.grain": "Grain"
+  "lx.enhance.adj.grain": "Grain",
+  "lx.videos.title": "Videos",
+  "lx.videos.intro": "Videos usually take the most space.",
+  "lx.videos.introSub": "Cherrypic finds duplicate videos, accidental ones and the biggest. It only counts them, never opens them.",
+  "lx.videos.denied": "No access to videos yet. Try again and choose “Allow”.",
+  "lx.videos.scan": "Scan",
+  "lx.videos.total": "{count} videos in your gallery · {size}",
+  "lx.videos.duplicates": "{count} duplicate videos",
+  "lx.videos.duplicatesSub": "the same clip twice; one stays",
+  "lx.videos.accidental": "{count} split-second videos",
+  "lx.videos.accidentalSub": "under 2 seconds, started by mistake",
+  "lx.videos.big": "{count} big videos",
+  "lx.videos.bigSub": "you pick what can go",
+  "lx.videos.see": "See",
+  "lx.videos.clean": "Nothing to clean in videos. 👍",
+  "lx.videos.delete": "Move {count} to bin · {size}",
+  "lx.videos.done": "{count} videos in the bin · {size} freed",
+  "lx.videos.failed": "Couldn’t move the videos to the bin."
 };
