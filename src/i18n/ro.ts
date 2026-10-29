@@ -2926,7 +2926,10 @@ export const ro = {
   "lx.trashCheck.title": "Mut {count} poze în coș?",
   "lx.trashCheck.sub": "Uite câteva dintre ele, cele mai reușite întâi: dacă vreuna nu trebuia, spune „Nu”. Eliberezi {size}; în coșul galeriei rămân 30 de zile.",
   "lx.trashCheck.no": "Nu, stai",
-  "lx.trashCheck.yes": "Da, mută {count}"
+  "lx.trashCheck.yes": "Da, mută {count}",
+  "lx.enhance.learned": "Am pornit cu reglajele pe care le pui de obicei (le vezi în Lumină și Culoare).",
+  "lx.enhance.applyDay": "Aplic aceleași reglaje și la celelalte {count} poze păstrate din ziua asta? (tot ca copii; originalele rămân)",
+  "lx.enhance.applyDayGo": "Da, toată ziua"
 };
 
 export type TranslationKey = keyof typeof ro;

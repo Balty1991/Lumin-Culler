@@ -2840,5 +2840,8 @@ export const en: Record<TranslationKey, string> = {
   "lx.trashCheck.title": "Move {count} photos to the bin?",
   "lx.trashCheck.sub": "Here are some of them, the best-looking first: if any shouldn’t go, say “No”. Frees {size}; they stay in the gallery bin for 30 days.",
   "lx.trashCheck.no": "No, wait",
-  "lx.trashCheck.yes": "Yes, move {count}"
+  "lx.trashCheck.yes": "Yes, move {count}",
+  "lx.enhance.learned": "Started with the adjustments you usually make (see Light and Color).",
+  "lx.enhance.applyDay": "Apply the same adjustments to the other {count} kept photos from this day? (as copies; originals stay)",
+  "lx.enhance.applyDayGo": "Yes, the whole day"
 };

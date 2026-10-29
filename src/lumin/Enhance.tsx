@@ -195,6 +195,33 @@ const MANUAL: Record<ManualPanel, { key: ManualKey; min?: number; track?: string
     { key: 'sharpen', min: 0 }, { key: 'noiseReduction', min: 0 }, { key: 'grain', min: 0 }
   ]
 };
+/**
+ * Gustul omului în editor: media (lentă) a reglajelor pe care le salvează. Dacă
+ * pune mereu +10 la lumină, editorul pornește data viitoare cu +10 — vizibil în
+ * Lumină și Culoare, și se poate da înapoi. Doar valorile clare (|v| ≥ 3).
+ */
+const TASTE_KEY = 'lumin-editor-taste';
+function readEditorTaste(): Partial<Record<ManualKey, number>> {
+  try {
+    const raw = JSON.parse(localStorage.getItem(TASTE_KEY) ?? '{}') as { n?: number; v?: Record<string, number> };
+    if (!raw.n || raw.n < 2 || !raw.v) return {};
+    const out: Partial<Record<ManualKey, number>> = {};
+    for (const [k, v] of Object.entries(raw.v)) if (Math.abs(v) >= 3) out[k as ManualKey] = Math.round(v);
+    return out;
+  } catch { return {}; }
+}
+function learnEditorTaste(manual: Partial<Record<ManualKey, number>>): void {
+  try {
+    const raw = JSON.parse(localStorage.getItem(TASTE_KEY) ?? '{}') as { n?: number; v?: Record<string, number> };
+    const n = raw.n ?? 0;
+    const v = { ...(raw.v ?? {}) };
+    const keys = new Set([...Object.keys(v), ...Object.keys(manual)]);
+    const a = n === 0 ? 1 : 0.3; // media mobilă: ultimele poze contează mai mult
+    for (const k of keys) v[k] = (1 - a) * (v[k] ?? 0) + a * (manual[k as ManualKey] ?? 0);
+    localStorage.setItem(TASTE_KEY, JSON.stringify({ n: n + 1, v }));
+  } catch { /* fără stocare */ }
+}
+
 /** Stilul + reglajele omului, în limitele fiecărui reglaj. */
 export function withManual(e: EditAdjustments, manual: Partial<Record<ManualKey, number>>): EditAdjustments {
   const out = { ...e } as unknown as Record<string, number>;
@@ -218,7 +245,9 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   const [straight, setStraight] = useState(false);
   // „Lumină” și „Culoare”: reglajele omului, adăugate peste stil (0 = cum a ales AI-ul).
   const [panel, setPanel] = useState<Panel>('styles');
-  const [manual, setManual] = useState<Partial<Record<ManualKey, number>>>({});
+  // Pornește cu reglajele pe care omul le pune de obicei (învățate la „Păstrez”).
+  const [manual, setManual] = useState<Partial<Record<ManualKey, number>>>(() => readEditorTaste());
+  const learned = useMemo(() => Object.keys(readEditorTaste()).length > 0, []);
   // „Cadru”: proporția (cadrul așezat pe fețe) și înclinarea aleasă de om.
   const [aspect, setAspect] = useState<Aspect>('orig');
   const [userTilt, setUserTilt] = useState<number | null>(null);
@@ -304,6 +333,7 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
 
   const save = async () => {
     if (!edits) return;
+    learnEditorTaste(manual);
     if (ADVANCED.has(style) && useStore.getState().gatePremium('styles')) return;
     setSaving(true);
     try {
@@ -327,6 +357,14 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
         }
       }
       await addCorrectedCopies([{ sourceId: photo.id, adjustments: edits }]);
+      // Aceeași lumină pentru toată ziua: celelalte poze păstrate din aceeași zi au de
+      // obicei aceeași lumină, deci primesc aceleași reglaje (fără decupaj și fără estompare).
+      const day = photo.capturedAt ? new Date(photo.capturedAt).toDateString() : null;
+      const siblings = day ? useStore.getState().photos.filter(p => p.id !== photo.id && p.status === 'selected' && !p.aside && p.mediaUri && p.capturedAt && new Date(p.capturedAt).toDateString() === day) : [];
+      if (siblings.length && await useStore.getState().askConfirm(tr('lx.enhance.applyDay', { count: siblings.length }), { confirmLabel: tr('lx.enhance.applyDayGo') })) {
+        const shared = { ...edits, crop: undefined, bokeh: 0, bokehMask: undefined, bokehSubject: undefined, rotationDeg: 0 };
+        await addCorrectedCopies(siblings.map(p => ({ sourceId: p.id, adjustments: shared })));
+      }
       onClose();
     } finally { setSaving(false); }
   };
@@ -375,6 +413,7 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
                 </button>
               ))}
             </div>
+            {learned && Object.keys(manual).length > 0 && <p className="lx-hint">{tr('lx.enhance.learned')}</p>}
             {panel !== 'frame' && cloudAvailable() && (
               <div className="lx-ai-auto">
                 <button className="lx-btn ghost small" disabled={aiBusy} onClick={() => void aiAuto()}>{aiBusy ? `… ${tr('lx.enhance.aiWorking')}` : `✨ ${tr('lx.enhance.aiAuto')}`}</button>
