@@ -2908,7 +2908,10 @@ export const ro = {
   "lx.text.look.bold": "Îndrăzneț",
   "lx.text.look.hand": "De mână",
   "lx.text.top": "Sus",
-  "lx.text.bottom": "Jos"
+  "lx.text.bottom": "Jos",
+  "lx.book.button": "Cartea anului (PDF)",
+  "lx.book.title": "Anul nostru în poze",
+  "lx.book.subtitle": "{count} poze păstrate, alese cu Cherrypic"
 };
 
 export type TranslationKey = keyof typeof ro;

@@ -7,6 +7,7 @@ import { makeCollage, shareCollage } from './collage';
 import { useTr } from './context';
 import { Thumb } from './Thumb';
 import { StoryButton } from './Story';
+import { makeYearBook, shareYearBook } from './yearBook';
 
 const DAY_MS = 86_400_000;
 
@@ -54,6 +55,22 @@ export function Recaps() {
     }
   };
 
+  const [bookProgress, setBookProgress] = useState('');
+  const book = async () => {
+    setBusy('book');
+    try {
+      const fmt = (m: number) => new Date(year, m, 1).toLocaleDateString(locale === 'en' ? 'en-GB' : 'ro-RO', { month: 'long' });
+      const blob = await makeYearBook(year, kept, {
+        title: tr('lx.book.title'), subtitle: tr('lx.book.subtitle', { count: kept.filter(p => new Date(photoTime(p)).getFullYear() === year).length }),
+        month: m => fmt(m).charAt(0).toUpperCase() + fmt(m).slice(1)
+      }, (d, t) => setBookProgress(`${d}/${t}`));
+      if (blob) await shareYearBook(blob, `cherrypic-${year}.pdf`);
+      else useStore.getState().setNotice(tr('lx.recap.failed'));
+    } catch {
+      useStore.getState().setNotice(tr('lx.recap.failed'));
+    } finally { setBusy(null); setBookProgress(''); }
+  };
+
   const cards: { kind: 'week' | 'year'; list: PhotoView[] }[] = [];
   if (week.length >= 3) cards.push({ kind: 'week', list: week });
   if (yearPicks.length >= 4) cards.push({ kind: 'year', list: yearPicks });
@@ -79,6 +96,11 @@ export function Recaps() {
             <StoryButton className="lx-btn ghost small" ids={c.list.slice(0, 12).map(p => p.id)}
               title={tr(c.kind === 'week' ? 'lx.story.weekTitle' : 'lx.story.yearTitle', { year })}
               subtitle={tr('lx.story.daySub', { count: Math.min(12, c.list.length) })} />
+            {c.kind === 'year' && (
+              <button className="lx-btn ghost small" disabled={busy !== null} onClick={() => void book()}>
+                {busy === 'book' ? `… ${bookProgress}` : `📖 ${tr('lx.book.button')}`}
+              </button>
+            )}
           </div>
         </section>
       ))}

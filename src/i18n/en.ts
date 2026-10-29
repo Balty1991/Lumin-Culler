@@ -2822,5 +2822,8 @@ export const en: Record<TranslationKey, string> = {
   "lx.text.look.bold": "Bold",
   "lx.text.look.hand": "Handwritten",
   "lx.text.top": "Top",
-  "lx.text.bottom": "Bottom"
+  "lx.text.bottom": "Bottom",
+  "lx.book.button": "Year book (PDF)",
+  "lx.book.title": "Our year in photos",
+  "lx.book.subtitle": "{count} photos kept, picked with Cherrypic"
 };

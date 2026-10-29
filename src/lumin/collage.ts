@@ -13,7 +13,7 @@ import { getCachedThumbUrl } from '../core/thumbUrlCache';
 const W = 1080;
 const H = 1350;
 
-async function loadImage(id: string): Promise<HTMLImageElement | null> {
+export async function loadImage(id: string): Promise<HTMLImageElement | null> {
   const url = (await getDisplayUrl(id).catch(() => null)) ?? (await getCachedThumbUrl(id).catch(() => null));
   if (!url) return null;
   const img = new Image();
@@ -22,7 +22,7 @@ async function loadImage(id: string): Promise<HTMLImageElement | null> {
   try { await img.decode(); return img; } catch { return null; }
 }
 
-function cover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, x: number, y: number, w: number, h: number, r: number): void {
+export function cover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, x: number, y: number, w: number, h: number, r: number): void {
   const s = Math.max(w / img.naturalWidth, h / img.naturalHeight);
   const sw = w / s;
   const sh = h / s;
