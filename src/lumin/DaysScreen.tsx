@@ -12,6 +12,7 @@ import { useLxActions, useTr } from './context';
 import { Thumb } from './Thumb';
 import { StoryButton } from './Story';
 import { CollageButton } from './CollageSheet';
+import { PERSON_GROUPS, readPersonGroups, setPersonGroup, type PersonGroup } from './personGroups';
 import { bestSpread } from './momentAlbums';
 import { makeLayoutCollage, shareCollage } from './collage';
 import { enhanceAll } from './Enhance';
@@ -258,6 +259,21 @@ function PersonTimeButtons({ name, list }: { name: string; list: PhotoView[] }) 
   );
 }
 
+/** Grupul omului: Familie, Prieteni, Colegi (o atingere din nou îl scoate). */
+function GroupRow({ name }: { name: string }) {
+  const tr = useTr();
+  const [g, setG] = useState<PersonGroup | null>(() => readPersonGroups()[name] ?? null);
+  return (
+    <div className="lx-chips">
+      {PERSON_GROUPS.map(x => (
+        <button key={x} className={g === x ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => { const next = g === x ? null : x; setPersonGroup(name, next); setG(next); }}>
+          {tr(`lx.group.${x}`)}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /** „🎂 Ziua lui”: ținută minte, ca Cherrypic să propună colajul cu câteva zile înainte. */
 function BirthdayRow({ name }: { name: string }) {
   const tr = useTr();
@@ -314,6 +330,7 @@ function PersonView({ name, list, onBack, onRenamed }: { name: string; list: Pho
       </header>
       {editing && <p className="lx-hint">{tr('lx.people.correctHint', { name })}</p>}
       {!editing && <BirthdayRow name={name} />}
+      {!editing && <GroupRow name={name} />}
       {!editing && <PersonTimeButtons name={name} list={list} />}
       {!editing && canMakePhoneAlbums() && list.some(p => p.status === 'selected') && (
         <button className="lx-btn ghost wide" onClick={() => void copyToPhoneAlbum(name, list.filter(p => p.status === 'selected'))}>{tr('lx.phone.personAlbum', { name })}</button>

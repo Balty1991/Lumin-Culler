@@ -2933,7 +2933,12 @@ export const ro = {
   "lx.feed.week": "Săptămâna ta în {count} momente, ca film scurt cu muzică. O trimiți familiei?",
   "lx.feed.weekSub": "Cele mai frumoase poze păstrate în ultimele 7 zile.",
   "lx.calendar.button": "Calendar {year} (PDF)",
-  "lx.calendar.title": "Calendarul nostru, cu pozele anului"
+  "lx.calendar.title": "Calendarul nostru, cu pozele anului",
+  "lx.group.all": "Toți",
+  "lx.group.family": "Familie",
+  "lx.group.friends": "Prieteni",
+  "lx.group.work": "Colegi",
+  "lx.group.album": "Pozele grupului"
 };
 
 export type TranslationKey = keyof typeof ro;

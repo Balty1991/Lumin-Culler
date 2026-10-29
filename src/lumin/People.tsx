@@ -5,6 +5,7 @@ import type { FaceCluster } from '../core/faceClustering';
 import { usePeopleFaces, rememberPersonFace, type LooseFace } from './faces';
 import { useTr } from './context';
 import { useLx } from './lxStore';
+import { PERSON_GROUPS, readPersonGroups, type PersonGroup } from './personGroups';
 import { autoNameFaces } from './faceIdentity';
 
 const key = (f: LooseFace) => `${f.photoId}#${f.faceIndex}`;
@@ -31,6 +32,8 @@ export function PeopleGrid({ onOpen }: { onOpen?: (name: string) => void }) {
   const faceVersion = useLx(s => s.faceVersion);
   const faceProgress = useLx(s => s.faceProgress);
   const { people, unknown, loose } = usePeopleFaces(persons, refresh + faceVersion);
+  const groups = readPersonGroups();
+  const [group, setGroup] = useState<PersonGroup | null>(null);
 
   const ask = async () => (await askPrompt(tr('lx.brain.namePrompt'), '', { confirmLabel: tr('lx.save') }))?.trim() || null;
   const nameCluster = async (cluster: FaceCluster) => {
@@ -74,9 +77,24 @@ export function PeopleGrid({ onOpen }: { onOpen?: (name: string) => void }) {
   return (
     <>
       {learning}
+      {people.length > 0 && Object.keys(groups).length > 0 && (
+        <div className="lx-chips">
+          <button className={group === null ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => setGroup(null)}>{tr('lx.group.all')}</button>
+          {PERSON_GROUPS.filter(g => people.some(p => groups[p.name] === g)).map(g => (
+            <button key={g} className={group === g ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => setGroup(g)}>{tr(`lx.group.${g}`)}</button>
+          ))}
+          {group && (
+            <button className="lx-chip-btn" onClick={() => {
+              const names = new Set(people.filter(p => groups[p.name] === group).map(p => p.name));
+              const ids = useStore.getState().photos.filter(ph => ph.status === 'selected' && ph.personNames.some(n => names.has(n))).sort((a, b) => (b.capturedAt ?? 0) - (a.capturedAt ?? 0)).map(ph => ph.id);
+              if (ids.length) useLx.getState().openViewer(ids);
+            }}>🖼 {tr('lx.group.album')}</button>
+          )}
+        </div>
+      )}
       {people.length > 0 && (
         <div className="lx-faces">
-          {people.map(p => (
+          {people.filter(p => !group || groups[p.name] === group).map(p => (
             <button key={p.name} className={picked.size ? 'lx-face target' : 'lx-face'} disabled={busy}
               onClick={() => (picked.size ? void namePicked(p.name) : onOpen?.(p.name))}>
               <FaceCropThumb photoId={p.photoId} box={p.box} size={72} className="lx-face-img" />

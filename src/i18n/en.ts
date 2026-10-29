@@ -2847,5 +2847,10 @@ export const en: Record<TranslationKey, string> = {
   "lx.feed.week": "Your week in {count} moments, as a short film with music. Send it to family?",
   "lx.feed.weekSub": "The best photos you kept in the last 7 days.",
   "lx.calendar.button": "{year} calendar (PDF)",
-  "lx.calendar.title": "Our calendar, with the year’s photos"
+  "lx.calendar.title": "Our calendar, with the year’s photos",
+  "lx.group.all": "Everyone",
+  "lx.group.family": "Family",
+  "lx.group.friends": "Friends",
+  "lx.group.work": "Colleagues",
+  "lx.group.album": "Group photos"
 };
