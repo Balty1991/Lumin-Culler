@@ -112,6 +112,35 @@ export async function enhanceAll(photoIds: readonly string[], onProgress?: (done
   return plans.length ? useStore.getState().addCorrectedCopies(plans) : 0;
 }
 
+/**
+ * Reglajele manuale: cerute („mai poți upgrada editorul… și la lumina și tonul
+ * de culoare”). Se adaugă peste stil, deci „Natural” + „Lumină +20” e poza
+ * aleasă de AI, doar mai luminoasă.
+ */
+type Panel = 'styles' | 'light' | 'color';
+const PANELS: Panel[] = ['styles', 'light', 'color'];
+type ManualKey = 'exposure' | 'contrast' | 'highlights' | 'shadows' | 'whites' | 'blacks' | 'clarity' | 'vignette' | 'temperature' | 'tint' | 'saturation' | 'dehaze' | 'sharpen' | 'grain';
+const MANUAL: Record<Exclude<Panel, 'styles'>, { key: ManualKey; min?: number; track?: string }[]> = {
+  light: [
+    { key: 'exposure' }, { key: 'contrast' }, { key: 'highlights' }, { key: 'shadows' },
+    { key: 'whites' }, { key: 'blacks' }, { key: 'clarity' }, { key: 'dehaze' }, { key: 'vignette' }
+  ],
+  color: [
+    { key: 'temperature', track: 'temp' }, { key: 'tint', track: 'tint' }, { key: 'saturation', track: 'sat' },
+    { key: 'sharpen', min: 0 }, { key: 'grain', min: 0 }
+  ]
+};
+/** Stilul + reglajele omului, în limitele fiecărui reglaj. */
+export function withManual(e: EditAdjustments, manual: Partial<Record<ManualKey, number>>): EditAdjustments {
+  const out = { ...e } as unknown as Record<string, number>;
+  for (const [k, v] of Object.entries(manual)) {
+    if (!v) continue;
+    const lo = k === 'sharpen' || k === 'grain' ? 0 : -100;
+    out[k] = Math.max(lo, Math.min(100, Math.round((out[k] ?? 0) + v)));
+  }
+  return out as unknown as EditAdjustments;
+}
+
 export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: () => void }) {
   const tr = useTr();
   const addCorrectedCopies = useStore(s => s.addCorrectedCopies);
@@ -122,7 +151,10 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   const [amount, setAmount] = useState(1);
   const [tilt, setTilt] = useState(0);
   const [straight, setStraight] = useState(false);
-  const edits = useMemo(() => (base ? { ...styledEdits(base, style, amount), rotationDeg: straight ? tilt : 0 } : null), [base, style, amount, straight, tilt]);
+  // „Lumină” și „Culoare”: reglajele omului, adăugate peste stil (0 = cum a ales AI-ul).
+  const [panel, setPanel] = useState<Panel>('styles');
+  const [manual, setManual] = useState<Partial<Record<ManualKey, number>>>({});
+  const edits = useMemo(() => (base ? withManual({ ...styledEdits(base, style, amount), rotationDeg: straight ? tilt : 0 }, manual) : null), [base, style, amount, straight, tilt, manual]);
   const styles = ENHANCE_STYLES.filter(st => !NEEDS_FACE.has(st) || !!base?.bokehSubject);
   const [failed, setFailed] = useState(false);
   const [split, setSplit] = useState(50);
@@ -189,6 +221,31 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
       <div className="lx-viewer-info">
         {base && (
           <>
+            <div className="lx-enhance-tabs" role="tablist">
+              {PANELS.map(pn => (
+                <button key={pn} role="tab" aria-selected={panel === pn} className={panel === pn ? 'on' : ''} onClick={() => setPanel(pn)}>
+                  {tr(`lx.enhance.panel.${pn}`)}
+                  {pn !== 'styles' && MANUAL[pn].some(m => manual[m.key]) && <i aria-hidden="true" />}
+                </button>
+              ))}
+            </div>
+            {panel !== 'styles' ? (
+              <div className="lx-enhance-sliders">
+                {MANUAL[panel].map(m => (
+                  <label key={m.key} className="lx-enhance-amount">
+                    <span>{tr(`lx.enhance.adj.${m.key}`)}</span>
+                    <input type="range" min={m.min ?? -100} max={100} step={1} value={manual[m.key] ?? 0}
+                      className={m.track ? `track-${m.track}` : undefined}
+                      onChange={e => setManual(v => ({ ...v, [m.key]: Number(e.target.value) }))}
+                      onDoubleClick={() => setManual(v => ({ ...v, [m.key]: 0 }))} />
+                    <b>{(manual[m.key] ?? 0) > 0 ? '+' : ''}{manual[m.key] ?? 0}</b>
+                  </label>
+                ))}
+                {MANUAL[panel].some(m => manual[m.key]) && (
+                  <button className="lx-link center" onClick={() => setManual(v => { const n = { ...v }; for (const m of MANUAL[panel as Exclude<Panel, 'styles'>]) delete n[m.key]; return n; })}>{tr('lx.enhance.reset')}</button>
+                )}
+              </div>
+            ) : (<>
             <div className="lx-enhance-styles" role="radiogroup" aria-label={tr('lx.enhance.style')}>
               {styles.map(st => (
                 <button key={st} role="radio" aria-checked={style === st} className={style === st ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => setStyle(st)}>
@@ -206,6 +263,7 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
               <input type="range" min={0} max={150} step={5} value={Math.round(amount * 100)} onChange={e => setAmount(Number(e.target.value) / 100)} />
               <b>{Math.round(amount * 100)}%</b>
             </label>
+            </>)}
           </>
         )}
         <p className="lx-hint center">{tr(nothing ? 'lx.enhance.nothing' : 'lx.enhance.hint')}</p>

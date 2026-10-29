@@ -283,7 +283,8 @@ export function LuminApp() {
           </main>
         )}
 
-        {reader && reader.paused !== 'import' ? (tab !== 'today' && (
+        {/* O completare mică (pozele noi de azi) se face în liniște, fără bulină peste titlu. */}
+        {reader && reader.paused !== 'import' ? (tab !== 'today' && reader.total > 30 && (
           <button className="lx-busy-pill" onClick={() => setTab('today')}>
             <Orb mood="think" size={20} />
             {tr('lx.reader.pill', { done: reader.done, total: reader.total })}

@@ -60,6 +60,14 @@ async function placeFaces(): Promise<void> {
   }
 }
 
+const SKIPPED_KEY = 'lumin-gallery-read-skipped';
+function readSkipped(): Set<string> {
+  try { return new Set(JSON.parse(localStorage.getItem(SKIPPED_KEY) ?? '[]') as string[]); } catch { return new Set(); }
+}
+function writeSkipped(uris: string[]): void {
+  try { localStorage.setItem(SKIPPED_KEY, JSON.stringify([...new Set(uris)].slice(-5000))); } catch { /* fără stocare */ }
+}
+
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 interface BatteryLike { level: number; charging: boolean }
@@ -83,7 +91,8 @@ export function readerRunning(): boolean {
 /** Pornește (sau continuă) citirea galeriei. Tăcută când n-are ce face. */
 export async function readWholeGallery(byUser = false): Promise<void> {
   if (running || !isNativeMediaLibraryAvailable()) return;
-  if (byUser) { try { localStorage.removeItem(STOPPED_KEY); } catch { /* fără stocare */ } }
+  // Cerut de om: se reîncearcă și pozele sărite data trecută.
+  if (byUser) { try { localStorage.removeItem(STOPPED_KEY); localStorage.removeItem(SKIPPED_KEY); } catch { /* fără stocare */ } }
   else if (readerStopped()) return;
   running = true;
   stopRequested = false;
@@ -94,7 +103,8 @@ export async function readWholeGallery(byUser = false): Promise<void> {
     const list = await listPhotosInRange(0, Date.now() + 1);
     if (!list.granted) return;
     const known = new Set(useStore.getState().photos.map(p => p.mediaUri).filter(Boolean));
-    const missing = list.photos.filter(p => !known.has(p.uri)).sort((a, b) => b.capturedAt - a.capturedAt);
+    const skipped = readSkipped();
+    const missing = list.photos.filter(p => !known.has(p.uri) && !skipped.has(p.uri)).sort((a, b) => b.capturedAt - a.capturedAt);
     if (!missing.length) return;
 
     const beforeIds = new Set(useStore.getState().photos.map(p => p.id));
@@ -142,6 +152,11 @@ export async function readWholeGallery(byUser = false): Promise<void> {
     }
 
     if (stopRequested) { void useStore.getState().applyMoments().catch(() => {}); return; } // oprit de om: fără rezumat
+    // Pozele citite care tot n-au intrat (aceeași poză deja în Cherrypic sub alt fișier,
+    // un fișier stricat): ținute minte, altfel se recitesc la fiecare revenire în aplicație
+    // (raportat: „Cherrypic citește galeria 8/20” apărea de mai multe ori).
+    const nowKnown = new Set(useStore.getState().photos.map(p => p.mediaUri).filter(Boolean));
+    writeSkipped([...skipped, ...missing.map(p => p.uri).filter(u => !nowKnown.has(u))]);
     const fresh = useStore.getState().photos.filter(p => !beforeIds.has(p.id));
     let announced = false;
     try { announced = localStorage.getItem(ANNOUNCED_KEY) === '1'; localStorage.setItem(ANNOUNCED_KEY, '1'); } catch { /* fără stocare */ }

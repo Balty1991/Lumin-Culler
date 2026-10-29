@@ -2753,7 +2753,25 @@ export const ro = {
   "lx.insta.post": "Postare",
   "lx.insta.story": "Story",
   "lx.insta.square": "Pătrat",
-  "lx.insta.hint": "Am așezat fețele în cadru. Atinge formatul și îl trimiți; poza din galerie rămâne neatinsă."
+  "lx.insta.hint": "Am așezat fețele în cadru. Atinge formatul și îl trimiți; poza din galerie rămâne neatinsă.",
+  "lx.enhance.panel.styles": "Stiluri",
+  "lx.enhance.panel.light": "Lumină",
+  "lx.enhance.panel.color": "Culoare",
+  "lx.enhance.reset": "Înapoi la cum a ales AI-ul",
+  "lx.enhance.adj.exposure": "Luminozitate",
+  "lx.enhance.adj.contrast": "Contrast",
+  "lx.enhance.adj.highlights": "Zone luminoase",
+  "lx.enhance.adj.shadows": "Umbre",
+  "lx.enhance.adj.whites": "Alb",
+  "lx.enhance.adj.blacks": "Negru",
+  "lx.enhance.adj.clarity": "Claritate",
+  "lx.enhance.adj.dehaze": "Ceață",
+  "lx.enhance.adj.vignette": "Vignetă",
+  "lx.enhance.adj.temperature": "Temperatură",
+  "lx.enhance.adj.tint": "Nuanță",
+  "lx.enhance.adj.saturation": "Saturație",
+  "lx.enhance.adj.sharpen": "Detaliu",
+  "lx.enhance.adj.grain": "Granulație"
 };
 
 export type TranslationKey = keyof typeof ro;

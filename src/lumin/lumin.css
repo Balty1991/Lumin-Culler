@@ -858,3 +858,15 @@ body.lx-viewer-open .lx-hero-media img { animation-play-state: paused; }
 .lx-insta-opt b { font-size: 14px; }
 .lx-insta-opt small { font-size: 12px; opacity: .75; }
 .lx-insta-opt:active { transform: scale(.97); }
+
+/* Editorul: Stiluri / Lumină / Culoare. */
+.lx-enhance-tabs { display: flex; gap: 4px; padding: 4px; margin-bottom: 10px; border-radius: 14px; background: rgb(255 255 255 / .05); }
+.lx-enhance-tabs button { flex: 1; position: relative; height: 34px; border: 0; border-radius: 10px; background: transparent; color: var(--text-dim); font-weight: 600; font-size: 13.5px; }
+.lx-enhance-tabs button.on { background: rgb(var(--accent-rgb) / .18); color: #fff; }
+.lx-enhance-tabs button i { position: absolute; top: 7px; right: 10px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.lx-enhance-sliders { display: flex; flex-direction: column; max-height: 30vh; overflow-y: auto; padding-right: 2px; }
+.lx-enhance-sliders .lx-enhance-amount { margin-bottom: 4px; }
+.lx-enhance-sliders .lx-enhance-amount span { min-width: 92px; }
+.lx-enhance-sliders input.track-temp { accent-color: #ffb45e; background: linear-gradient(90deg, #5ea8ff, #ffb45e); border-radius: 99px; height: 4px; }
+.lx-enhance-sliders input.track-tint { accent-color: #e05ee6; background: linear-gradient(90deg, #5ee67a, #e05ee6); border-radius: 99px; height: 4px; }
+.lx-enhance-sliders input.track-sat { background: linear-gradient(90deg, #888, #ff5e8a, #5ee6ff); border-radius: 99px; height: 4px; }
