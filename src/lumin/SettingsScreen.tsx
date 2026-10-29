@@ -9,6 +9,7 @@ import { useTr } from './context';
 import { useEffect, useState } from 'react';
 import { openBatterySettings, readBatteryRestriction, type BatteryRestriction } from '../core/backgroundAnalysis';
 import { SORT_MODES, readSortMode, writeSortMode, type SortMode } from '../core/sortMode';
+import { autoBackupAvailable, autoBackupOn, lastAutoBackupAt, setAutoBackup } from './autoBackup';
 import { canMakePhoneAlbums, organizeKeptByMonth, organizeKeptByPeople } from './phoneAlbums';
 
 const STRICTNESS: CullingStrictness[] = ['lax', 'balanced', 'strict'];
@@ -140,6 +141,7 @@ export function SettingsScreen() {
             <span className="lx-chev" aria-hidden="true">›</span>
           </button>
         )}
+        <AutoBackupRow />
         <button className="lx-row button" onClick={() => void exportBackup()}>
           <span><b>{tr('lx.settings.backup')}</b><small>{tr('lx.settings.backupSub')}</small></span>
           <span className="lx-chev" aria-hidden="true">›</span>
@@ -149,8 +151,34 @@ export function SettingsScreen() {
         </button>
       </section>
 
-      <p className="lx-foot">{tr('lx.settings.privacy')}<br />Lumin AI · {__APP_VERSION__}</p>
+      <p className="lx-foot">{tr('lx.settings.privacy')}<br />Cherrypic · {__APP_VERSION__}</p>
     </div>
+  );
+}
+
+/**
+ * „Copie automată”: o dată pe săptămână, ce a învățat Cherrypic ajunge în copia
+ * de rezervă Google a telefonului (vezi autoBackup.ts). Pornită cu acord.
+ */
+function AutoBackupRow() {
+  const tr = useTr();
+  const askConfirm = useStore(s => s.askConfirm);
+  const [on, setOn] = useState(autoBackupOn);
+  if (!autoBackupAvailable()) return null;
+  const last = lastAutoBackupAt();
+  const toggle = async () => {
+    if (!on && !(await askConfirm(tr('lx.autoBackup.askBody'), { confirmLabel: tr('lx.autoBackup.turnOn') }))) return;
+    await setAutoBackup(!on);
+    setOn(!on);
+  };
+  return (
+    <button className="lx-row button" role="switch" aria-checked={on} onClick={() => void toggle()}>
+      <span>
+        <b>{tr('lx.autoBackup.title')}</b>
+        <small>{on && last ? tr('lx.autoBackup.last', { date: new Date(last).toLocaleDateString() }) : tr('lx.autoBackup.sub')}</small>
+      </span>
+      <span className={on ? 'lx-pill ok' : 'lx-pill'}>{on ? '✓' : tr('lx.autoBackup.off')}</span>
+    </button>
   );
 }
 

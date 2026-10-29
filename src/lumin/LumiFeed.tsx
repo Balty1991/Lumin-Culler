@@ -4,6 +4,7 @@ import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { readLastBackupAt } from '../state/backupReminder';
 import { useStore, type PhotoView } from '../state/store';
 import { useTr } from './context';
+import { autoBackupAvailable, autoBackupOn, setAutoBackup } from './autoBackup';
 import { cloudAvailable, cloudEnabled, ensureCloud } from './cloud';
 import { groupDays, photoTime } from './days';
 import { monthLabel } from './format';
@@ -186,10 +187,19 @@ export function LumiFeed() {
       });
     }
 
-    // 7. Salvarea a ce a învățat Lumi (în Drive, din foaia de trimitere).
+    // 7. Salvarea a ce a învățat AI-ul: pe telefon, copia automată săptămânală
+    // (în copia Google a telefonului); altfel, o dată, din foaia de trimitere.
     const decided = photos.filter(p => p.status === 'selected' || p.status === 'rejected').length;
     const last = readLastBackupAt();
-    if (decided >= 50 && (!last || last < Date.now() - 30 * DAY)) {
+    if (autoBackupAvailable() && !autoBackupOn() && decided >= 30) {
+      out.push({
+        id: 'auto-backup',
+        text: tr('lx.feed.autoBackup', { count: decided }),
+        sub: tr('lx.autoBackup.sub'),
+        action: tr('lx.autoBackup.turnOn'),
+        run: async () => { if (await askConfirm(tr('lx.autoBackup.askBody'), { confirmLabel: tr('lx.autoBackup.turnOn') })) await setAutoBackup(true); }
+      });
+    } else if (!autoBackupAvailable() && decided >= 50 && (!last || last < Date.now() - 30 * DAY)) {
       out.push({
         id: `backup-${Math.floor(Date.now() / (30 * DAY))}`,
         text: tr('lx.feed.backup', { count: decided }),

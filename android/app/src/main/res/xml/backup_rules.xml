@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 11 și mai vechi. Doar copia a ce a învățat Cherrypic (src/lumin/autoBackup.ts),
+     scrisă numai cu acordul omului; pozele și baza de date (IndexedDB) nu pleacă. -->
+<full-backup-content>
+    <include domain="file" path="cherrypic-backup.json" />
+</full-backup-content>

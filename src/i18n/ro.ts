@@ -2738,7 +2738,16 @@ export const ro = {
   "lx.who.name": "Îi dau un nume",
   "lx.notify.share": "Trimite familiei",
   "lx.notify.day": "Vezi ziua",
-  "lx.widget.share": "Trimite"
+  "lx.widget.share": "Trimite",
+  "lx.autoBackup.title": "Copie automată",
+  "lx.autoBackup.sub": "O dată pe săptămână, ce a învățat Cherrypic (oamenii, gustul tău, alegerile) ajunge în copia de rezervă Google a telefonului. Pozele nu pleacă.",
+  "lx.autoBackup.last": "Pornită · ultima copie: {date}",
+  "lx.autoBackup.off": "Oprită",
+  "lx.autoBackup.turnOn": "Pornește copia",
+  "lx.autoBackup.askBody": "O dată pe săptămână, Cherrypic salvează ce a învățat: numele oamenilor și amprenta fețelor lor, gustul tău și alegerile făcute. Android o pune în copia de rezervă Google a telefonului, criptată. Pozele nu pleacă. Pe un telefon nou, totul revine.",
+  "lx.autoBackup.restore": "Am găsit ce a învățat Cherrypic pe telefonul tău vechi: oamenii, gustul tău și alegerile. Le aduc înapoi?",
+  "lx.autoBackup.restoreGo": "Adu-le înapoi",
+  "lx.feed.autoBackup": "Am învățat din {count} alegeri ale tale. Pornesc copia automată, ca să nu le pierzi dacă schimbi telefonul?"
 };
 
 export type TranslationKey = keyof typeof ro;

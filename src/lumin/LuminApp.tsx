@@ -16,6 +16,7 @@ import { useLx, type LxTab } from './lxStore';
 import { LxActionsContext } from './context';
 import { groupDays } from './days';
 import { learnFromShare } from './signals';
+import { autoBackupIfDue, markRestoreAsked, restorableBackup, setAutoBackup } from './autoBackup';
 import { Viewer } from './GalleryWall';
 import { superviseUnsure } from './cloud';
 import { autoSortToday, decideRestIfAllowed, summarizeToday } from './autoSort';
@@ -40,6 +41,20 @@ const TABS: { id: LxTab; icon: string; label: string }[] = [
   { id: 'brain', icon: 'brain', label: 'lx.nav.brain' },
   { id: 'settings', icon: 'settings', label: 'lx.nav.settings' }
 ];
+
+/**
+ * Copia automată: pe un telefon nou, Android a pus la loc ce a învățat Cherrypic
+ * pe cel vechi; se oferă înapoi o dată. Altfel, copia săptămânală, dacă e vremea.
+ */
+async function offerRestoreOrBackup(): Promise<void> {
+  const file = await restorableBackup();
+  if (!file) { await autoBackupIfDue(); return; }
+  markRestoreAsked();
+  const st = useStore.getState();
+  if (!(await st.askConfirm(t(st.locale, 'lx.autoBackup.restore'), { confirmLabel: t(st.locale, 'lx.autoBackup.restoreGo') }))) return;
+  await useStore.getState().importBackupFile(file);
+  await setAutoBackup(true);
+}
 
 /** Cea mai bună poză păstrată a zilei: aceeași pe widget, în notificare și la „Trimite familiei”. */
 function bestOfDay<T extends { aiScore: number }>(kept: readonly T[]): T | undefined {
@@ -102,6 +117,7 @@ export function LuminApp() {
   useEffect(() => {
     void boot().finally(() => {
       setBooted(true);
+      void offerRestoreOrBackup();
       // Bibliotecile de dinainte de „momente” (raportat: 8 păstrate din 9 aproape la fel).
       void useStore.getState().applyMoments().catch(() => {});
     });

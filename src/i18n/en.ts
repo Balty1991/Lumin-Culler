@@ -2652,5 +2652,14 @@ export const en: Record<TranslationKey, string> = {
   "lx.who.name": "Add a name",
   "lx.notify.share": "Send to family",
   "lx.notify.day": "See the day",
-  "lx.widget.share": "Send"
+  "lx.widget.share": "Send",
+  "lx.autoBackup.title": "Automatic backup",
+  "lx.autoBackup.sub": "Once a week, what Cherrypic learned (people, your taste, your choices) goes into your phone's Google backup. Photos stay put.",
+  "lx.autoBackup.last": "On · last backup: {date}",
+  "lx.autoBackup.off": "Off",
+  "lx.autoBackup.turnOn": "Turn on backup",
+  "lx.autoBackup.askBody": "Once a week, Cherrypic saves what it learned: people's names and face prints, your taste and your choices. Android puts it in your phone's encrypted Google backup. Photos stay put. On a new phone, it all comes back.",
+  "lx.autoBackup.restore": "I found what Cherrypic learned on your old phone: people, your taste and your choices. Bring them back?",
+  "lx.autoBackup.restoreGo": "Bring them back",
+  "lx.feed.autoBackup": "I learned from {count} of your choices. Turn on automatic backup so you don't lose them when you change phones?"
 };
