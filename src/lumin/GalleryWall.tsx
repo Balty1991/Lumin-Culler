@@ -682,6 +682,11 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
           {onSimilar && <button className="lx-tbtn" onClick={() => onSimilar(p.id)}><span>◎</span>{tr('lx.viewer.similarShort')}</button>}
           <button className="lx-tbtn" onClick={() => void exportSelection('apps', [p.id]).then(() => learnFromShare([p]))}><span>↗</span>{tr('lx.wall.share')}</button>
           <button className="lx-tbtn" onClick={() => setInsta(true)}><span>▣</span>{tr('lx.insta.button')}</button>
+          {p.ocrText && p.ocrText.trim().length > 8 && (
+            <button className="lx-tbtn" onClick={() => { void navigator.clipboard?.writeText(p.ocrText!.trim()).then(() => useStore.getState().setNotice(tr('lx.viewer.textCopied')), () => {}); }}>
+              <span>📋</span>{tr('lx.viewer.copyText')}
+            </button>
+          )}
           {cloudAvailable() && <button className="lx-tbtn" onClick={() => setWriting(true)}><span>✍</span>{tr('lx.caption.button')}</button>}
           {p.status === 'rejected' && p.mediaUri && (
             <button className="lx-tbtn danger" onClick={() => void deleteRejectedPhotos([p.id]).then(r => {

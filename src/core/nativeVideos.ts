@@ -21,6 +21,7 @@ export interface GalleryVideo {
 interface VideoPluginApi {
   listVideos(): Promise<{ granted: boolean; videos: GalleryVideo[] }>;
   videoThumbnail(options: { uri: string; size?: number }): Promise<{ data?: string }>;
+  bestVideoFrame(options: { uri: string }): Promise<{ uri: string; atMs: number }>;
 }
 const Native = registerPlugin<VideoPluginApi>('MediaLibrary');
 
@@ -74,3 +75,8 @@ export function findVideoCleanup(videos: readonly GalleryVideo[]): VideoCleanup 
 }
 
 export const videoBytes = (list: readonly GalleryVideo[]) => list.reduce((s, v) => s + v.sizeBytes, 0);
+
+/** Cel mai clar cadru al clipului, salvat ca poză în Pictures/Cherrypic/Cadre. */
+export function saveBestVideoFrame(uri: string): Promise<{ uri: string; atMs: number }> {
+  return Native.bestVideoFrame({ uri });
+}

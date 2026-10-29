@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { formatBytes } from '../core/freedSpace';
 import { deleteNativePhotos, isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
-import { findVideoCleanup, listGalleryVideos, videoBytes, videoThumbUrl, type GalleryVideo } from '../core/nativeVideos';
+import { findVideoCleanup, listGalleryVideos, saveBestVideoFrame, videoBytes, videoThumbUrl, type GalleryVideo } from '../core/nativeVideos';
 import { useStore } from '../state/store';
 import { useTr } from './context';
 
@@ -32,6 +32,7 @@ export function VideoCleanup() {
   const [denied, setDenied] = useState(false);
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState<Group | null>(null);
+  const [framing, setFraming] = useState(false);
 
   const scan = async () => {
     setBusy(true);
@@ -77,13 +78,59 @@ export function VideoCleanup() {
             </div>
           ))}
           {found && GROUPS.every(g => !found[g].length) && <p className="lx-hint">{tr('lx.videos.clean')}</p>}
+          {videos.length > 0 && (
+            <div className="lx-card lx-clean-row">
+              <div>
+                <b>📸 {tr('lx.videos.frame')}</b>
+                <span>{tr('lx.videos.frameSub')}</span>
+              </div>
+              <button className="lx-btn ghost small" onClick={() => setFraming(true)}>{tr('lx.videos.frameGo')}</button>
+            </div>
+          )}
         </>
       )}
       {open && found && (
         <VideoSheet title={tr(`lx.videos.${open}`, { count: found[open].length })} list={found[open]} preselect={open !== 'big'}
           onClose={() => setOpen(null)} onRemoved={removed} />
       )}
+      {framing && videos && <FrameSheet list={videos.slice(0, 60)} onClose={() => setFraming(false)} />}
     </section>
+  );
+}
+
+/** Alege un clip; Cherrypic îi caută cel mai clar cadru și îl salvează ca poză. */
+function FrameSheet({ list, onClose }: { list: GalleryVideo[]; onClose: () => void }) {
+  const tr = useTr();
+  const locale = useStore(s => s.locale);
+  const setNotice = useStore(s => s.setNotice);
+  const [busy, setBusy] = useState<string | null>(null);
+  const pick = async (v: GalleryVideo) => {
+    setBusy(v.uri);
+    try {
+      await saveBestVideoFrame(v.uri);
+      setNotice(tr('lx.videos.frameSaved'));
+      onClose();
+    } catch {
+      setNotice(tr('lx.videos.frameFailed'));
+    } finally { setBusy(null); }
+  };
+  return createPortal(
+    <div className="lx lx-sheet-wrap" role="dialog" aria-modal="true" onClick={onClose}>
+      <div className="lx-sheet lx-video-sheet" onClick={e => e.stopPropagation()}>
+        <h2>📸 {tr('lx.videos.frame')}</h2>
+        <p className="lx-hint">{tr('lx.videos.framePick')}</p>
+        <div className="lx-video-grid">
+          {list.map(v => (
+            <button key={v.uri} className="lx-video-cell" disabled={!!busy} onClick={() => void pick(v)}>
+              <VideoThumb uri={v.uri} />
+              <span className="lx-video-meta">{busy === v.uri ? '…' : `${duration(v.durationMs)} · ${formatBytes(v.sizeBytes, locale)}`}</span>
+            </button>
+          ))}
+        </div>
+        <button className="lx-btn ghost wide" onClick={onClose}>{tr('lx.enhance.cancel')}</button>
+      </div>
+    </div>,
+    document.body
   );
 }
 

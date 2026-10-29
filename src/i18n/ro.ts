@@ -2814,7 +2814,15 @@ export const ro = {
   "lx.feed.birthdaySub": "{count} poze alese de mine, gata de trimis cu „La mulți ani”.",
   "lx.feed.birthdayGo": "Fă colajul",
   "lx.birthday.collageTitle": "La mulți ani, {name}!",
-  "lx.birthday.collageSub": "Anul tău în poze"
+  "lx.birthday.collageSub": "Anul tău în poze",
+  "lx.viewer.copyText": "Copiază textul",
+  "lx.viewer.textCopied": "Am copiat textul din poză.",
+  "lx.videos.frame": "Cea mai clară poză dintr-un clip",
+  "lx.videos.frameSub": "Alegi un clip, iar Cherrypic îi caută cadrul cel mai clar și îl salvează ca poză.",
+  "lx.videos.frameGo": "Alege clipul",
+  "lx.videos.framePick": "Atinge clipul. Cadrul ajunge în galerie, în Cherrypic/Cadre.",
+  "lx.videos.frameSaved": "Am salvat cel mai clar cadru în galerie (Cherrypic/Cadre).",
+  "lx.videos.frameFailed": "N-am putut scoate un cadru din clipul ăsta."
 };
 
 export type TranslationKey = keyof typeof ro;

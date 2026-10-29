@@ -946,4 +946,78 @@ class MediaLibraryPlugin : Plugin() {
             }
         }.start()
     }
+
+    /**
+     * „Cea mai clară poză din clip”: ~16 cadre luate la intervale egale (fără
+     * prima și ultima secundă, de obicei mișcate), fiecare notat după claritate
+     * (varianța laplacianului pe o copie mică, gri), iar cel mai clar se salvează
+     * la rezoluția clipului în Pictures/Cherrypic/Cadre. Android 10+.
+     */
+    @PluginMethod
+    fun bestVideoFrame(call: PluginCall) {
+        val raw = call.getString("uri") ?: return call.reject("uri lipsește")
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return call.reject("Necesită Android 10+")
+        Thread {
+            val retriever = android.media.MediaMetadataRetriever()
+            try {
+                retriever.setDataSource(context, Uri.parse(raw))
+                val durationMs = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+                val margin = if (durationMs > 3000) 1000L else 0L
+                val span = (durationMs - 2 * margin).coerceAtLeast(1L)
+                val samples = 16
+                var bestAt = -1L
+                var bestScore = -1.0
+                for (i in 0 until samples) {
+                    val atMs = margin + span * i / (samples - 1).coerceAtLeast(1)
+                    val small = retriever.getScaledFrameAtTime(atMs * 1000, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC, 256, 256) ?: continue
+                    val score = sharpness(small)
+                    small.recycle()
+                    if (score > bestScore) { bestScore = score; bestAt = atMs }
+                }
+                if (bestAt < 0) return@Thread call.reject("Nu am putut citi cadrele clipului")
+                // Cadrul exact (nu doar cel mai apropiat cadru-cheie), la rezoluția clipului.
+                val frame = retriever.getFrameAtTime(bestAt * 1000, android.media.MediaMetadataRetriever.OPTION_CLOSEST)
+                    ?: return@Thread call.reject("Nu am putut citi cadrul")
+                val resolver = context.contentResolver
+                val values = android.content.ContentValues().apply {
+                    put(MediaStore.Images.Media.DISPLAY_NAME, "cherrypic-cadru-${System.currentTimeMillis()}.jpg")
+                    put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                    put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/Cherrypic/Cadre")
+                    put(MediaStore.Images.Media.IS_PENDING, 1)
+                }
+                val dest = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+                    ?: return@Thread call.reject("Nu am putut salva cadrul")
+                resolver.openOutputStream(dest)?.use { out -> frame.compress(android.graphics.Bitmap.CompressFormat.JPEG, 95, out) }
+                frame.recycle()
+                values.clear()
+                values.put(MediaStore.Images.Media.IS_PENDING, 0)
+                resolver.update(dest, values, null, null)
+                call.resolve(JSObject().put("uri", dest.toString()).put("atMs", bestAt))
+            } catch (e: Exception) {
+                call.reject("Nu am putut scoate cadrul: ${e.message}", e)
+            } finally {
+                runCatching { retriever.release() }
+            }
+        }.start()
+    }
+
+    /** Varianța laplacianului pe tonurile de gri: mare = muchii clare, mică = mișcat/neclar. */
+    private fun sharpness(bmp: android.graphics.Bitmap): Double {
+        val w = bmp.width
+        val h = bmp.height
+        if (w < 3 || h < 3) return 0.0
+        val px = IntArray(w * h)
+        bmp.getPixels(px, 0, w, 0, 0, w, h)
+        val g = IntArray(w * h) { i -> val c = px[i]; ((c shr 16 and 255) * 299 + (c shr 8 and 255) * 587 + (c and 255) * 114) / 1000 }
+        var sum = 0.0
+        var sq = 0.0
+        var n = 0
+        for (y in 1 until h - 1) for (x in 1 until w - 1) {
+            val i = y * w + x
+            val lap = (4 * g[i] - g[i - 1] - g[i + 1] - g[i - w] - g[i + w]).toDouble()
+            sum += lap; sq += lap * lap; n++
+        }
+        val mean = sum / n
+        return sq / n - mean * mean
+    }
 }

@@ -2728,5 +2728,13 @@ export const en: Record<TranslationKey, string> = {
   "lx.feed.birthdaySub": "{count} photos I picked, ready to send with “Happy birthday”.",
   "lx.feed.birthdayGo": "Make the collage",
   "lx.birthday.collageTitle": "Happy birthday, {name}!",
-  "lx.birthday.collageSub": "Your year in photos"
+  "lx.birthday.collageSub": "Your year in photos",
+  "lx.viewer.copyText": "Copy text",
+  "lx.viewer.textCopied": "Copied the text from the photo.",
+  "lx.videos.frame": "The sharpest photo from a video",
+  "lx.videos.frameSub": "Pick a video and Cherrypic finds its sharpest frame and saves it as a photo.",
+  "lx.videos.frameGo": "Pick a video",
+  "lx.videos.framePick": "Tap a video. The frame lands in your gallery, under Cherrypic/Cadre.",
+  "lx.videos.frameSaved": "Saved the sharpest frame to your gallery (Cherrypic/Cadre).",
+  "lx.videos.frameFailed": "Couldn’t get a frame out of this video."
 };
