@@ -924,5 +924,12 @@ export const dict: Record<string, string> = {
   "lx.enhance.aiLimit": "Ya usaste las {count} correcciones gratis con IA en línea de hoy; corregí la foto en el móvil. Con Premium, sin límite.",
   "lx.enhance.adj.toneMap": "Equilibrio",
   "lx.dev.unlimited": "Modo prueba: sin límites",
-  "lx.dev.unlimitedSub": "Solo en el APK de prueba: todo Premium desbloqueado, sin límites diarios. No está en la versión de Play."
+  "lx.dev.unlimitedSub": "Solo en el APK de prueba: todo Premium desbloqueado, sin límites diarios. No está en la versión de Play.",
+  "lx.twin.see": "Ver la mejor",
+  "lx.twin.title": "Casi iguales",
+  "lx.twin.better": "Mejor",
+  "lx.twin.this": "Esta",
+  "lx.twin.keepBetter": "Quedarme solo con la mejor",
+  "lx.twin.keepBoth": "Quedarme las dos",
+  "lx.twin.keepThis": "Prefiero esta"
 };

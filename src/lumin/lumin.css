@@ -1095,3 +1095,17 @@ html, body { overflow-x: hidden; }
 .lx-enhance .lx-viewer-info { overflow-y: auto; overscroll-behavior: contain; }
 .lx-enhance .lx-viewer-info > * { flex-shrink: 0; }
 .lx-enhance .lx-enhance-styles { padding: 2px 0; min-height: 44px; align-items: center; }
+
+/* „Vezi poza mai reușită” (TwinCompare.tsx) */
+.lx-twin-link { display: inline-flex; align-items: center; gap: 10px; align-self: flex-start; margin: 2px 0 4px; padding: 4px 12px 4px 4px;
+  border-radius: 12px; border: 1px solid var(--lx-line); background: rgb(255 255 255 / .05); color: var(--accent); font-size: 13.5px; font-weight: 600; }
+.lx-twin-mini { width: 36px; height: 36px; border-radius: 8px; overflow: hidden; flex: none; }
+.lx-twin-mini img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lx-twin-compare { position: fixed; inset: 0; z-index: 1150; background: #07070b; color: #fff; display: flex; flex-direction: column;
+  padding-bottom: calc(14px + var(--safe-bottom, 0px)); }
+.lx-twin-compare .lx-viewer-top { padding-top: calc(10px + var(--safe-top, 0px)); }
+.lx-twin-pair { flex: 1; min-height: 0; display: grid; grid-template-rows: 1fr 1fr; gap: 8px; padding: 6px 12px; }
+.lx-twin-pair figure { margin: 0; min-height: 0; display: flex; flex-direction: column; gap: 4px; }
+.lx-twin-pair figure img { flex: 1; min-height: 0; width: 100%; object-fit: contain; border-radius: 12px; }
+.lx-twin-pair figcaption { font-size: 13px; color: rgb(255 255 255 / .75); text-align: center; }
+.lx-twin-actions { display: flex; flex-direction: column; gap: 8px; padding: 6px 14px 0; }

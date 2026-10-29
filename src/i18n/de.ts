@@ -924,5 +924,12 @@ export const dict: Record<string, string> = {
   "lx.enhance.aiLimit": "Die {count} kostenlosen Online-KI-Korrekturen für heute sind aufgebraucht; ich habe das Foto auf dem Handy korrigiert. Mit Premium ohne Limit.",
   "lx.enhance.adj.toneMap": "Ausgleich",
   "lx.dev.unlimited": "Testmodus: ohne Limits",
-  "lx.dev.unlimitedSub": "Nur in der Test-APK: alles von Premium frei, keine Tageslimits. Nicht in der Play-Version."
+  "lx.dev.unlimitedSub": "Nur in der Test-APK: alles von Premium frei, keine Tageslimits. Nicht in der Play-Version.",
+  "lx.twin.see": "Das bessere ansehen",
+  "lx.twin.title": "Fast gleich",
+  "lx.twin.better": "Besser",
+  "lx.twin.this": "Dieses",
+  "lx.twin.keepBetter": "Nur das bessere behalten",
+  "lx.twin.keepBoth": "Beide behalten",
+  "lx.twin.keepThis": "Ich nehme dieses"
 };

@@ -3045,7 +3045,14 @@ export const ro = {
   "lx.enhance.aiLimit": "Ai folosit azi cele {count} corecturi AI online gratuite; am corectat poza pe telefon. Cu Premium, fără limită.",
   "lx.enhance.adj.toneMap": "Echilibru",
   "lx.dev.unlimited": "Mod test: fără limite",
-  "lx.dev.unlimitedSub": "Doar în APK-ul de test: tot ce e Premium deblocat, fără limite pe zi. Nu există în versiunea din Play."
+  "lx.dev.unlimitedSub": "Doar în APK-ul de test: tot ce e Premium deblocat, fără limite pe zi. Nu există în versiunea din Play.",
+  "lx.twin.see": "Vezi poza mai reușită",
+  "lx.twin.title": "Aproape la fel",
+  "lx.twin.better": "Mai reușită",
+  "lx.twin.this": "Asta",
+  "lx.twin.keepBetter": "Păstrez doar pe cea mai reușită",
+  "lx.twin.keepBoth": "Le păstrez pe amândouă",
+  "lx.twin.keepThis": "O prefer pe asta"
 };
 
 export type TranslationKey = keyof typeof ro;

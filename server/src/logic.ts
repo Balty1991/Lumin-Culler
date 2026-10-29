@@ -211,7 +211,9 @@ export function cfRequest(req: CreateRequest, bytes: Uint8Array): Record<string,
 export const EXTRA_KINDS = ['background', 'describe', 'caption', 'greeting', 'story', 'concepts', 'supervise', 'inpaint', 'grade'] as const;
 export type ExtraKind = typeof EXTRA_KINDS[number];
 
-export const EXTRA_DAILY_LIMIT: Record<ExtraKind, number> = { background: 15, describe: 60, caption: 30, greeting: 30, story: 30, concepts: 80, supervise: 30, inpaint: 25, grade: 40 };
+// Mărite cât se lucrează la aplicație (cerut: „poți mări și limitele alea?”); plasa
+// reală rămâne cota zilnică a contului Cloudflare (eroarea „budget”).
+export const EXTRA_DAILY_LIMIT: Record<ExtraKind, number> = { background: 40, describe: 200, caption: 100, greeting: 100, story: 100, concepts: 200, supervise: 100, inpaint: 60, grade: 150 };
 
 export const CF_TEXT2IMG_MODELS = ['@cf/black-forest-labs/flux-1-schnell', '@cf/bytedance/stable-diffusion-xl-lightning'];
 export const CF_VISION_MODELS = ['@cf/meta/llama-3.2-11b-vision-instruct', '@cf/llava-hf/llava-1.5-7b-hf'];

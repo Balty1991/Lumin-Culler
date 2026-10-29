@@ -2959,5 +2959,12 @@ export const en: Record<TranslationKey, string> = {
   "lx.enhance.aiLimit": "You've used today's {count} free online AI fixes; I corrected the photo on the phone. Premium has no limit.",
   "lx.enhance.adj.toneMap": "Balance",
   "lx.dev.unlimited": "Test mode: no limits",
-  "lx.dev.unlimitedSub": "Test APK only: everything Premium unlocked, no daily limits. Not in the Play version."
+  "lx.dev.unlimitedSub": "Test APK only: everything Premium unlocked, no daily limits. Not in the Play version.",
+  "lx.twin.see": "See the better one",
+  "lx.twin.title": "Almost the same",
+  "lx.twin.better": "Better",
+  "lx.twin.this": "This one",
+  "lx.twin.keepBetter": "Keep only the better one",
+  "lx.twin.keepBoth": "Keep both",
+  "lx.twin.keepThis": "I prefer this one"
 };

@@ -11,6 +11,7 @@ import { monthLabel } from './format';
 import { monthStart } from './coverage';
 import { reasonsFor } from './reasons';
 import { personalWhy, useWhyContext } from './why';
+import { TwinCompare, betterTwin } from './TwinCompare';
 import { learnFromOpen, learnFromShare } from './signals';
 import { findVisuallySimilar } from './visualSimilar';
 import { InstaSheet } from './InstaSheet';
@@ -525,6 +526,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
   const [insta, setInsta] = useState(false);
   const [magic, setMagic] = useState(false);
   const [texting, setTexting] = useState(false);
+  const [comparing, setComparing] = useState(false);
   const tr = useTr();
   const why = useWhyContext();
   const locale = useStore(s => s.locale);
@@ -534,6 +536,8 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
   // Doar poza asta din magazin: viewerul nu se redesenează la orice altă schimbare.
   const id = list[index].id;
   const p = useStore(s => s.photos.find(x => x.id === id)) ?? list[index];
+  // Doar pozele pe care AI-ul nu le-ar păstra: „mai e una aproape la fel” — și o poți vedea.
+  const twin = useStore(s => (p.status === 'selected' ? null : betterTwin(p, s.photos)));
   const start = useRef<{ x: number; y: number; dx: number; dy: number } | null>(null);
   const [dir, setDir] = useState<'next' | 'prev' | null>(null);
 
@@ -728,6 +732,12 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
       </div>
       <div className="lx-viewer-info">
         <p className="lx-why">{personalWhy(p, why, tr)}</p>
+        {twin && (
+          <button className="lx-twin-link" onClick={() => setComparing(true)}>
+            <span className="lx-twin-mini"><Thumb id={twin.id} lqip={twin.lqip} edits={twin.edits} /></span>
+            {tr('lx.twin.see')} ›
+          </button>
+        )}
         <CloudLine id={p.id} />
         <div className="lx-chips">
           <span className={`lx-chip ${p.status === 'selected' ? 'good' : p.status === 'rejected' ? 'bad' : 'info'}`}>
@@ -770,6 +780,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
         </div>
       </div>
       {enhancing && <EnhanceSheet photo={p} onClose={() => setEnhancing(false)} />}
+      {comparing && twin && <TwinCompare photo={p} twin={twin} onClose={() => setComparing(false)} />}
       {writing && <CaptionSheet photo={p} onClose={() => setWriting(false)} />}
       {insta && <InstaSheet photo={p} onClose={() => setInsta(false)} />}
       {magic && <MagicSheet photo={p} onClose={() => setMagic(false)} />}
