@@ -2848,7 +2848,10 @@ export const ro = {
   "lx.magic.save": "Păstrez",
   "lx.magic.saved": "Salvată în galerie, în Cherrypic/Editate. Originalul a rămas neatins.",
   "lx.magic.failed": "N-a mers acum. Încearcă din nou puțin mai târziu.",
-  "lx.magic.consent": "Pentru Magie trebuie pornit AI-ul online."
+  "lx.magic.consent": "Pentru Magie trebuie pornit AI-ul online.",
+  "lx.recommend.title": "Recomandă unui prieten",
+  "lx.recommend.sub": "Cineva care face multe poze și nu le sortează niciodată?",
+  "lx.recommend.text": "Folosesc Cherrypic: AI-ul îmi alege singur cele mai bune poze din galerie și șterge restul. Încearcă-l:"
 };
 
 export type TranslationKey = keyof typeof ro;

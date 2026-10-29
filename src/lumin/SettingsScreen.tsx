@@ -1,3 +1,5 @@
+import { Capacitor } from '@capacitor/core';
+import { Share } from '@capacitor/share';
 import { CloudSection } from './CloudParts';
 import { AutonomyPicker } from './TwinParts';
 import { useStore } from '../state/store';
@@ -152,9 +154,23 @@ export function SettingsScreen() {
         </button>
       </section>
 
+      <button className="lx-row button" onClick={() => void recommend(tr('lx.recommend.text'))}>
+        <span><b>💌 {tr('lx.recommend.title')}</b><small>{tr('lx.recommend.sub')}</small></span>
+        <span className="lx-chev" aria-hidden="true">›</span>
+      </button>
+
       <p className="lx-foot">{tr('lx.settings.privacy')}<br />Cherrypic · {__APP_VERSION__}</p>
     </div>
   );
+}
+
+/** „Recomandă unui prieten”: foaia de trimitere a telefonului, cu linkul din Play. */
+const PLAY_URL = 'https://play.google.com/store/apps/details?id=com.luminculler.app';
+async function recommend(text: string): Promise<void> {
+  try {
+    if (Capacitor.isNativePlatform()) await Share.share({ text: `${text}\n${PLAY_URL}` });
+    else await navigator.share?.({ text, url: PLAY_URL });
+  } catch { /* închisă de om */ }
 }
 
 /**
