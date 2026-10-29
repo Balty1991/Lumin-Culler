@@ -2747,7 +2747,13 @@ export const ro = {
   "lx.autoBackup.askBody": "O dată pe săptămână, Cherrypic salvează ce a învățat: numele oamenilor și amprenta fețelor lor, gustul tău și alegerile făcute. Android o pune în copia de rezervă Google a telefonului, criptată. Pozele nu pleacă. Pe un telefon nou, totul revine.",
   "lx.autoBackup.restore": "Am găsit ce a învățat Cherrypic pe telefonul tău vechi: oamenii, gustul tău și alegerile. Le aduc înapoi?",
   "lx.autoBackup.restoreGo": "Adu-le înapoi",
-  "lx.feed.autoBackup": "Am învățat din {count} alegeri ale tale. Pornesc copia automată, ca să nu le pierzi dacă schimbi telefonul?"
+  "lx.feed.autoBackup": "Am învățat din {count} alegeri ale tale. Pornesc copia automată, ca să nu le pierzi dacă schimbi telefonul?",
+  "lx.insta.button": "Instagram",
+  "lx.insta.title": "▣ Pentru Instagram",
+  "lx.insta.post": "Postare",
+  "lx.insta.story": "Story",
+  "lx.insta.square": "Pătrat",
+  "lx.insta.hint": "Am așezat fețele în cadru. Atinge formatul și îl trimiți; poza din galerie rămâne neatinsă."
 };
 
 export type TranslationKey = keyof typeof ro;

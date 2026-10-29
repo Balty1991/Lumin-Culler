@@ -2661,5 +2661,11 @@ export const en: Record<TranslationKey, string> = {
   "lx.autoBackup.askBody": "Once a week, Cherrypic saves what it learned: people's names and face prints, your taste and your choices. Android puts it in your phone's encrypted Google backup. Photos stay put. On a new phone, it all comes back.",
   "lx.autoBackup.restore": "I found what Cherrypic learned on your old phone: people, your taste and your choices. Bring them back?",
   "lx.autoBackup.restoreGo": "Bring them back",
-  "lx.feed.autoBackup": "I learned from {count} of your choices. Turn on automatic backup so you don't lose them when you change phones?"
+  "lx.feed.autoBackup": "I learned from {count} of your choices. Turn on automatic backup so you don't lose them when you change phones?",
+  "lx.insta.button": "Instagram",
+  "lx.insta.title": "▣ For Instagram",
+  "lx.insta.post": "Post",
+  "lx.insta.story": "Story",
+  "lx.insta.square": "Square",
+  "lx.insta.hint": "Faces are framed for you. Tap a format to send it; the photo in your gallery stays untouched."
 };
