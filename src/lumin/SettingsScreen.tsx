@@ -1,3 +1,4 @@
+import { DEV_UNLIMITED_KEY, devUnlimited, devUnlimitedAvailable } from '../core/entitlement';
 import { Capacitor } from '@capacitor/core';
 import { LOCALES } from '../i18n';
 import { Share } from '@capacitor/share';
@@ -121,6 +122,7 @@ export function SettingsScreen() {
         </div>
         <PaletteRow />
         <HapticsRow />
+        {devUnlimitedAvailable && <DevUnlimitedRow />}
         <button className="lx-row button" onClick={() => useLx.getState().setTourOpen(true)}>
           <span><b>{tr('lx.tour.open')}</b><small>{tr('lx.tour.openSub')}</small></span>
           <span aria-hidden="true">›</span>
@@ -255,6 +257,23 @@ function HapticsRow() {
   return (
     <button className="lx-row button" role="switch" aria-checked={on} onClick={toggle}>
       <span><b>{tr('lx.haptics.title')}</b><small>{tr('lx.haptics.sub')}</small></span>
+      <span className={on ? 'lx-pill ok' : 'lx-pill'}>{on ? '✓' : tr('lx.autoBackup.off')}</span>
+    </button>
+  );
+}
+
+/** Doar în APK-ul de test: fără limite și cu tot ce e Premium, cât se lucrează la aplicație. */
+function DevUnlimitedRow() {
+  const tr = useTr();
+  const [on, setOn] = useState(devUnlimited);
+  const toggle = () => {
+    try { if (on) localStorage.removeItem(DEV_UNLIMITED_KEY); else localStorage.setItem(DEV_UNLIMITED_KEY, '1'); } catch { /* fără stocare */ }
+    setOn(!on);
+    useStore.getState().syncEntitlement();
+  };
+  return (
+    <button className="lx-row button" role="switch" aria-checked={on} onClick={toggle}>
+      <span><b>{tr('lx.dev.unlimited')}</b><small>{tr('lx.dev.unlimitedSub')}</small></span>
       <span className={on ? 'lx-pill ok' : 'lx-pill'}>{on ? '✓' : tr('lx.autoBackup.off')}</span>
     </button>
   );

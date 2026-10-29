@@ -2957,5 +2957,7 @@ export const en: Record<TranslationKey, string> = {
   "lx.tour.open": "App tour",
   "lx.tour.openSub": "What each screen does, in 30 seconds",
   "lx.enhance.aiLimit": "You've used today's {count} free online AI fixes; I corrected the photo on the phone. Premium has no limit.",
-  "lx.enhance.adj.toneMap": "Balance"
+  "lx.enhance.adj.toneMap": "Balance",
+  "lx.dev.unlimited": "Test mode: no limits",
+  "lx.dev.unlimitedSub": "Test APK only: everything Premium unlocked, no daily limits. Not in the Play version."
 };

@@ -3043,7 +3043,9 @@ export const ro = {
   "lx.tour.open": "Turul aplicației",
   "lx.tour.openSub": "Ce face fiecare ecran, în 30 de secunde",
   "lx.enhance.aiLimit": "Ai folosit azi cele {count} corecturi AI online gratuite; am corectat poza pe telefon. Cu Premium, fără limită.",
-  "lx.enhance.adj.toneMap": "Echilibru"
+  "lx.enhance.adj.toneMap": "Echilibru",
+  "lx.dev.unlimited": "Mod test: fără limite",
+  "lx.dev.unlimitedSub": "Doar în APK-ul de test: tot ce e Premium deblocat, fără limite pe zi. Nu există în versiunea din Play."
 };
 
 export type TranslationKey = keyof typeof ro;

@@ -248,7 +248,20 @@ export function isPremiumFeatureLocked(): boolean {
   return !isPremium() && (isPurchasable() || billingAnswerPending());
 }
 
+/**
+ * „Fără limite” pentru dezvoltare: doar în APK-urile de test (VITE_TEST_IDENTITY=1,
+ * vezi android-debug-build.yml) — build-ul de Play nu are comutatorul, deci nici
+ * ocolirea. Cerut: „un buton până termin de lucrat aplicația, să nu am restricții”.
+ */
+export const DEV_UNLIMITED_KEY = 'lumin-dev-unlimited';
+export const devUnlimitedAvailable = import.meta.env.VITE_TEST_IDENTITY === '1';
+export function devUnlimited(): boolean {
+  if (!devUnlimitedAvailable) return false;
+  try { return localStorage.getItem(DEV_UNLIMITED_KEY) === '1'; } catch { return false; }
+}
+
 export function isPremium(): boolean {
+  if (devUnlimited()) return true;
   try {
     return localStorage.getItem(PREMIUM_FLAG_KEY) === '1';
   } catch {

@@ -922,5 +922,7 @@ export const dict: Record<string, string> = {
   "lx.tour.open": "Tour de la app",
   "lx.tour.openSub": "Qué hace cada pantalla, en 30 segundos",
   "lx.enhance.aiLimit": "Ya usaste las {count} correcciones gratis con IA en línea de hoy; corregí la foto en el móvil. Con Premium, sin límite.",
-  "lx.enhance.adj.toneMap": "Equilibrio"
+  "lx.enhance.adj.toneMap": "Equilibrio",
+  "lx.dev.unlimited": "Modo prueba: sin límites",
+  "lx.dev.unlimitedSub": "Solo en el APK de prueba: todo Premium desbloqueado, sin límites diarios. No está en la versión de Play."
 };

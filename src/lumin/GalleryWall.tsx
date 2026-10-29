@@ -38,6 +38,14 @@ const PAGE = 60;
  * Pozele intră în scenă când ajung pe ecran (nu toate odată, la încărcare):
  * un singur observator pentru tot zidul, care pune clasa `in`.
  */
+/**
+ * Dalele deja arătate, după poză. Clasa „in” pusă de observator se pierdea când
+ * React rescria className-ul dalei (starea pozei se schimbă la sortare/import):
+ * dala rămânea invizibilă — goluri negre în galerie (raportat cu capturi).
+ * Acum dala își cere singură „in” la randare, dacă a mai fost văzută.
+ */
+const revealed = new Set<string>();
+
 function useReveal(): (el: HTMLElement | null) => void {
   const io = useRef<IntersectionObserver | null>(null);
   useEffect(() => () => io.current?.disconnect(), []);
@@ -47,7 +55,12 @@ function useReveal(): (el: HTMLElement | null) => void {
     if (!el || el.classList.contains('in')) return;
     if (typeof IntersectionObserver === 'undefined') { el.classList.add('in'); return; }
     io.current ??= new IntersectionObserver(entries => {
-      for (const e of entries) if (e.isIntersecting) { e.target.classList.add('in'); io.current?.unobserve(e.target); }
+      for (const e of entries) if (e.isIntersecting) {
+        e.target.classList.add('in');
+        const id = (e.target as HTMLElement).dataset.revealId;
+        if (id) revealed.add(id);
+        io.current?.unobserve(e.target);
+      }
     }, { rootMargin: '0px 0px -6% 0px', threshold: 0.05 });
     io.current.observe(el);
   }, []);
@@ -400,7 +413,7 @@ export function GalleryWall() {
               <small>{tr('lx.wall.monthMeta', { count: m.items.length, kept })}</small>
             </h3>
             {plain && density <= 3 && hero && (
-              <button className="lx-hero-tile" ref={reveal} onClick={e => open(hero.i, e.currentTarget)} style={{ viewTransitionName: `h${m.start}` } as CSSProperties}>
+              <button className={`lx-hero-tile${revealed.has(`h${m.start}`) ? ' in' : ''}`} data-reveal-id={`h${m.start}`} ref={reveal} onClick={e => open(hero.i, e.currentTarget)} style={{ viewTransitionName: `h${m.start}` } as CSSProperties}>
                 <span className="lx-hero-media"><Thumb id={hero.p.id} lqip={hero.p.lqip} edits={hero.p.edits} full /></span>
                 <span className="lx-hero-shade" />
                 <span className="lx-hero-caption">
@@ -442,7 +455,7 @@ const Tile = memo(function Tile({ p, index, span, delay, sharp, reveal, onOpen }
 }) {
   const tr = useTr();
   return (
-    <button ref={reveal} className={`lx-tile ${p.status} ${span}`}
+    <button ref={reveal} data-reveal-id={p.id} className={`lx-tile ${p.status} ${span}${revealed.has(p.id) ? ' in' : ''}`}
       style={{ ['--d' as string]: `${delay}ms`, viewTransitionName: `t${p.id.replace(/[^a-zA-Z0-9_-]/g, '')}` } as CSSProperties}
       onClick={e => onOpen.current(index, e.currentTarget)}>
       <Thumb id={p.id} lqip={p.lqip} edits={p.edits} sharp={sharp} />
