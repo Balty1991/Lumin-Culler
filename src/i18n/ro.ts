@@ -2879,7 +2879,14 @@ export const ro = {
   "lx.best.button": "Alege cele mai bune {count} din {total}",
   "lx.best.title": "Cele mai bune {count}",
   "lx.best.keep": "Le păstrez pe toate",
-  "lx.best.kept": "Am păstrat {count} poze."
+  "lx.best.kept": "Am păstrat {count} poze.",
+  "lx.folder.car": "Mașina",
+  "lx.folder.home": "Casa",
+  "lx.folder.food": "Mâncare",
+  "lx.folder.clothes": "Haine",
+  "lx.folder.pets": "Animale",
+  "lx.folder.nature": "Natură",
+  "lx.folder.docs": "Documente"
 };
 
 export type TranslationKey = keyof typeof ro;

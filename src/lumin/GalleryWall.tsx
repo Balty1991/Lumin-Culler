@@ -10,6 +10,7 @@ import { personalWhy, useWhyContext } from './why';
 import { learnFromOpen, learnFromShare } from './signals';
 import { findVisuallySimilar } from './visualSimilar';
 import { InstaSheet } from './InstaSheet';
+import { folderCounts, inFolder, SMART_FOLDERS, type SmartFolder } from './smartFolders';
 import { MagicSheet } from './MagicSheet';
 import { CaptionSheet, CloudLine } from './CloudParts';
 import { cloudAvailable, cloudConcepts, cloudEnabled, cloudSearchText, readVerdicts } from './cloud';
@@ -151,6 +152,8 @@ export function GalleryWall() {
   const [shown, setShown] = useState(PAGE);
   const [viewer, setViewer] = useState<{ index: number; origin: DOMRect | null } | null>(null);
   const [query, setQuery] = useState('');
+  /** Dosarul inteligent deschis („Mașina”, „Mâncare”…), din etichetele pozelor. */
+  const [folder, setFolder] = useState<SmartFolder | null>(null);
   /** Ce a înțeles AI-ul online din căutare, când pe telefon nu s-a găsit nimic („tort” → cake). */
   const [aiTerms, setAiTerms] = useState<{ q: string; terms: string[] } | null>(null);
   /** „Asemănătoare”: poza de plecare și cele care seamănă cu ea (după ce se vede, nu după dată). */
@@ -166,6 +169,7 @@ export function GalleryWall() {
       const byId = new Map(photos.map(p => [p.id, p]));
       return [similar.source, ...similar.ids].map(id => byId.get(id)).filter((p): p is PhotoView => !!p);
     }
+    if (folder) return photos.filter(p => inFolder(p, folder)).sort((a, b) => photoTime(b) - photoTime(a));
     // Cu o căutare: și documentele (bonul de benzină se caută), în ordinea potrivirii.
     if (query.trim()) {
       // Și ce a văzut Lumi Cloud în poză (descriere + etichete), unde există.
@@ -180,7 +184,8 @@ export function GalleryWall() {
       .filter(p => !p.aside)
       .filter(p => filter === 'all' || (filter === 'kept' ? p.status === 'selected' : p.status === 'rejected'))
       .sort((a, b) => photoTime(b) - photoTime(a));
-  }, [photos, filter, query, similar, aiTerms]);
+  }, [photos, filter, query, similar, aiTerms, folder]);
+  const folders = useMemo(() => folderCounts(photos), [photos]);
   const reveal = useReveal();
   // Nimic găsit pe telefon: întreabă AI-ul online ce înseamnă căutarea, în etichetele pe care le avem.
   const nothingFound = !!query.trim() && !similar && list.length === 0;
@@ -316,6 +321,17 @@ export function GalleryWall() {
         <input type="search" value={query} onFocus={() => setFocused(true)} onBlur={() => window.setTimeout(() => setFocused(false), 150)} onChange={e => { setSimilar(null); setQuery(e.target.value); }} placeholder={tr('lx.search.placeholder')} aria-label={tr('lx.search.placeholder')} />
         {query && <button onClick={() => setQuery('')} aria-label={tr('lx.close')}>✕</button>}
       </label>
+      {!query.trim() && !similar && (folder ? (
+        <div className="lx-chips">
+          <button className="lx-chip-btn on" onClick={() => setFolder(null)}>✕ {folder.emoji} {tr(`lx.folder.${folder.id}`)} <b>{list.length}</b></button>
+        </div>
+      ) : (
+        <div className="lx-chips lx-folders">
+          {SMART_FOLDERS.filter(f => (folders.get(f.id) ?? 0) >= 3).map(f => (
+            <button key={f.id} className="lx-chip-btn" onClick={() => setFolder(f)}>{f.emoji} {tr(`lx.folder.${f.id}`)} <b>{folders.get(f.id)}</b></button>
+          ))}
+        </div>
+      ))}
       {focused && !query.trim() && peopleIdeas.length > 0 && (
         <div className="lx-chips lx-search-ideas">
           {peopleIdeas.map(n => <button key={n} className="lx-chip-btn" onMouseDown={e => e.preventDefault()} onClick={() => { setSimilar(null); setQuery(n); }}>{n}</button>)}

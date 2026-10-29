@@ -2793,5 +2793,12 @@ export const en: Record<TranslationKey, string> = {
   "lx.best.button": "Pick the best {count} of {total}",
   "lx.best.title": "The best {count}",
   "lx.best.keep": "Keep them all",
-  "lx.best.kept": "Kept {count} photos."
+  "lx.best.kept": "Kept {count} photos.",
+  "lx.folder.car": "Car",
+  "lx.folder.home": "Home",
+  "lx.folder.food": "Food",
+  "lx.folder.clothes": "Clothes",
+  "lx.folder.pets": "Pets",
+  "lx.folder.nature": "Nature",
+  "lx.folder.docs": "Documents"
 };
