@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useStore } from '../state/store';
 import { FaceThumb } from './FaceThumb';
 import { usePeopleFaces } from './faces';
-import { autoNameFaces } from './faceIdentity';
+import { autoNameFaces, suggestFaces, type FaceSuggestion } from './faceIdentity';
 import { useTr } from './context';
 import { useLx } from './lxStore';
 
@@ -71,6 +71,61 @@ export function WhoIsThis() {
         <div className="lx-feed-actions">
           <button className="lx-btn primary small" disabled={busy} onClick={() => void name()}>{tr('lx.who.name')}</button>
           <button className="lx-link" onClick={later}>{tr('lx.feed.later')}</button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * „E tot Ami?”: fețele pe care recunoașterea nu le-a putut pune singură, dar
+ * care seamănă cu cineva numit. Un „Da” le pune numele (și învață din ele),
+ * un „Nu” nu mai întreabă de fața asta.
+ */
+const ASKED_KEY = 'lumin-isit-answered';
+function answered(): Set<string> {
+  try { return new Set(JSON.parse(localStorage.getItem(ASKED_KEY) ?? '[]') as string[]); } catch { return new Set(); }
+}
+function remember(key: string): void {
+  const all = [...answered(), key].slice(-3000);
+  try { localStorage.setItem(ASKED_KEY, JSON.stringify(all)); } catch { /* fără stocare */ }
+}
+
+export function IsItThem() {
+  const tr = useTr();
+  const enrollFaceCluster = useStore(s => s.enrollFaceCluster);
+  const faceVersion = useLx(s => s.faceVersion);
+  const bumpFaces = useLx(s => s.bumpFaces);
+  const reader = useLx(s => s.reader);
+  const [list, setList] = useState<FaceSuggestion[]>([]);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (reader) return;
+    let alive = true;
+    void suggestFaces(answered()).then(r => { if (alive) setList(r); }).catch(() => {});
+    return () => { alive = false; };
+  }, [faceVersion, reader]);
+  const current = list[0];
+  if (!current || reader) return null;
+  const key = `${current.face.photoId}:${current.face.faceIndex}`;
+  const next = () => { remember(key); setList(l => l.slice(1)); };
+  const yes = async () => {
+    setBusy(true);
+    try {
+      await enrollFaceCluster(current.name, [{ photoId: current.face.photoId, faceIndex: current.face.faceIndex, embedding: current.face.embedding }]);
+      next();
+      bumpFaces();
+    } finally { setBusy(false); }
+  };
+  return (
+    <section className="lx-card lx-who" role="region" aria-label={tr('lx.isit.title', { name: current.name })}>
+      <FaceThumb photoId={current.face.photoId} box={current.face.box} size={72} className="lx-who-face" />
+      <div className="lx-who-body">
+        <b>{tr('lx.isit.title', { name: current.name })}</b>
+        <span>{tr('lx.isit.sub', { left: list.length })}</span>
+        <div className="lx-feed-actions">
+          <button className="lx-btn primary small" disabled={busy} onClick={() => void yes()}>{tr('lx.isit.yes')}</button>
+          <button className="lx-btn ghost small" disabled={busy} onClick={next}>{tr('lx.isit.no')}</button>
         </div>
       </div>
     </section>

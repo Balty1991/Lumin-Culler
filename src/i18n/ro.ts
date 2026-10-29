@@ -2824,7 +2824,11 @@ export const ro = {
   "lx.videos.frameSaved": "Am salvat cel mai clar cadru în galerie (Cherrypic/Cadre).",
   "lx.videos.frameFailed": "N-am putut scoate un cadru din clipul ăsta.",
   "lx.enhance.style.retouch": "Retuș",
-  "lx.enhance.adj.noiseReduction": "Netezire"
+  "lx.enhance.adj.noiseReduction": "Netezire",
+  "lx.isit.title": "E tot {name}?",
+  "lx.isit.sub": "Nu sunt sigur. Cu răspunsul tău o recunosc mai bine data viitoare. ({left} de verificat)",
+  "lx.isit.yes": "Da",
+  "lx.isit.no": "Nu"
 };
 
 export type TranslationKey = keyof typeof ro;

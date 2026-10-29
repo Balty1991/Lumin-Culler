@@ -63,10 +63,10 @@ export function clusterFaces(faces: readonly FaceRef[], threshold = SAME_PERSON)
 
 /** Toate fețele cu amprentă SFace, cu sau fără nume. */
 export async function readSfaceFaces(): Promise<{ named: Map<string, number[][]>; unnamed: FaceRef[] }> {
-  const analyses = await db.analyses.toArray();
   const named = new Map<string, number[][]>();
   const unnamed: FaceRef[] = [];
-  for (const a of analyses) {
+  // Una câte una, nu toată baza în memorie dintr-odată (cu mii de poze, zeci de MB).
+  await db.analyses.each(a => {
     (a.faces as Face[] | undefined ?? []).forEach((f, faceIndex) => {
       if (f.embeddingModel !== MODEL || !f.embedding?.length) return;
       if (f.personId) {
@@ -77,7 +77,7 @@ export async function readSfaceFaces(): Promise<{ named: Map<string, number[][]>
         unnamed.push({ photoId: a.photoId, faceIndex, box: f.box, embedding: f.embedding, notPersonIds: f.notPersonIds });
       }
     });
-  }
+  });
   return { named, unnamed };
 }
 
@@ -120,6 +120,51 @@ export function embedMissingFaces(onProgress?: (done: number, total: number) => 
   return running;
 }
 
+interface PersonModel { id: string; name: string; sum: number[]; exemplars: number[][] }
+
+function personModels(named: Map<string, number[][]>, persons: readonly { id: string; name: string }[]): PersonModel[] {
+  return [...named.entries()].map(([id, list]) => {
+    const sum = new Array(list[0].length).fill(0);
+    for (const e of list) for (let i = 0; i < e.length; i++) sum[i] += e[i];
+    return { id, name: persons.find(p => p.id === id)?.name ?? '', sum, exemplars: list };
+  }).filter(c => !!c.name);
+}
+
+/**
+ * Cât seamănă fața cu fiecare om numit, cel mai probabil întâi. Media fețelor
+ * lui (centroidul) prinde omul „obișnuit”; cele mai apropiate două poze ale lui
+ * prind schimbările — un copil care crește, ochelari, barbă, profil — pe care
+ * media le-ar pierde. „Nu e el/ea”, spus de om, scoate persoana din candidați.
+ */
+export function scoreFace(f: Pick<FaceRef, 'embedding' | 'notPersonIds'>, models: readonly PersonModel[]): { c: PersonModel; s: number }[] {
+  return models.filter(c => !f.notPersonIds?.includes(c.id)).map(c => {
+    const centroid = cosine(f.embedding, c.sum);
+    const near = c.exemplars.map(e => cosine(f.embedding, e)).sort((a, b) => b - a);
+    const exemplar = near.length >= 2 ? (near[0] + near[1]) / 2 - 0.03 : -1;
+    return { c, s: Math.max(centroid, exemplar) };
+  }).sort((x, y) => y.s - x.s);
+}
+
+/** Sub pragul de recunoaștere sigură, dar aproape: Cherrypic întreabă „E tot Ami?”. */
+const ASK_FROM = 0.38;
+
+export interface FaceSuggestion { name: string; face: FaceRef; score: number }
+
+/** Fețele nesigure, cele mai probabile întâi, fără cele la care omul a răspuns deja. */
+export async function suggestFaces(skip: ReadonlySet<string>, limit = 6): Promise<FaceSuggestion[]> {
+  const { named, unnamed } = await readSfaceFaces();
+  if (!named.size || !unnamed.length) return [];
+  const models = personModels(named, useStore.getState().persons);
+  const out: FaceSuggestion[] = [];
+  for (const f of unnamed) {
+    if (skip.has(`${f.photoId}:${f.faceIndex}`) || f.box[2] * f.box[3] < 0.01) continue;
+    const [best, second] = scoreFace(f, models);
+    if (!best || best.s < ASK_FROM || best.s >= AUTO_NAME || (second && best.s - second.s < AUTO_MARGIN / 2)) continue;
+    out.push({ name: best.c.name, face: f, score: best.s });
+  }
+  return out.sort((a, b) => b.score - a.score).slice(0, limit);
+}
+
 /**
  * Fețele fără nume care seamănă clar cu cineva numit primesc numele lui.
  * Întoarce câte fețe au fost recunoscute.
@@ -128,16 +173,10 @@ export async function autoNameFaces(): Promise<number> {
   const { named, unnamed } = await readSfaceFaces();
   if (!named.size || !unnamed.length) return 0;
   const persons = useStore.getState().persons;
-  const centroids = [...named.entries()].map(([id, list]) => {
-    const sum = new Array(list[0].length).fill(0);
-    for (const e of list) for (let i = 0; i < e.length; i++) sum[i] += e[i];
-    return { id, name: persons.find(p => p.id === id)?.name, sum };
-  }).filter((c): c is { id: string; name: string; sum: number[] } => !!c.name);
+  const centroids = personModels(named, persons);
   const byName = new Map<string, FaceRef[]>();
   for (const f of unnamed) {
-    // „Nu e ea”, spus de om, rămâne spus: persoana aceea nu mai e candidată pentru fața asta.
-    const scored = centroids.filter(c => !f.notPersonIds?.includes(c.id)).map(c => ({ c, s: cosine(f.embedding, c.sum) })).sort((x, y) => y.s - x.s);
-    const [best, second] = scored;
+    const [best, second] = scoreFace(f, centroids);
     if (!best || best.s < AUTO_NAME || (second && best.s - second.s < AUTO_MARGIN)) continue;
     const list = byName.get(best.c.name) ?? [];
     list.push(f);

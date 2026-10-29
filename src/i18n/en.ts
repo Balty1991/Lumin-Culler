@@ -2738,5 +2738,9 @@ export const en: Record<TranslationKey, string> = {
   "lx.videos.frameSaved": "Saved the sharpest frame to your gallery (Cherrypic/Cadre).",
   "lx.videos.frameFailed": "Couldn’t get a frame out of this video.",
   "lx.enhance.style.retouch": "Retouch",
-  "lx.enhance.adj.noiseReduction": "Smoothing"
+  "lx.enhance.adj.noiseReduction": "Smoothing",
+  "lx.isit.title": "Is this {name}?",
+  "lx.isit.sub": "I’m not sure. Your answer helps me recognize them next time. ({left} to check)",
+  "lx.isit.yes": "Yes",
+  "lx.isit.no": "No"
 };
