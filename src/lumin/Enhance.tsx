@@ -167,7 +167,7 @@ const INDOOR = /couch|bed|dining table|tv|chair|room|kitchen|lamp|ceiling|wall|f
 export function sceneTune(img: HTMLImageElement, e: EditAdjustments, a?: { sceneTags?: string[]; sceneSemantic?: string; faceCount?: number; faces?: { box: number[] }[] }): Scene[] {
   const scenes: Scene[] = [];
   const add = (k: keyof EditAdjustments, v: number) => { (e as unknown as Record<string, number>)[k] = Math.max(-100, Math.min(100, ((e as unknown as Record<string, number>)[k] ?? 0) + v)); };
-  let luma = 0.5, overcast = 0, topLum = 0, centerLum = 0;
+  let luma = 0.5, overcast = 0, topLum = 0, centerLum = 0, darkShare = 0, brightShare = 0;
   try {
     const n = 64;
     const c = document.createElement('canvas');
@@ -182,14 +182,25 @@ export function sceneTune(img: HTMLImageElement, e: EditAdjustments, a?: { scene
         const i = (y * n + x) * 4;
         const l = (0.299 * data.data[i] + 0.587 * data.data[i + 1] + 0.114 * data.data[i + 2]) / 255;
         sum += l;
+        if (l < 0.2) darkShare++;
+        else if (l > 0.88) brightShare++;
         if (y < n * 0.3) { top += l; tn++; }
         if (y > n * 0.3 && y < n * 0.75 && x > n * 0.25 && x < n * 0.75) { mid += l; mn++; }
       }
       luma = sum / (n * n); topLum = tn ? top / tn : 0; centerLum = mn ? mid / mn : 0;
+      darkShare /= n * n; brightShare /= n * n;
     }
   } catch { /* fără pixeli: doar etichetele */ }
   const tags = [...(a?.sceneTags ?? []), a?.sceneSemantic ?? ''].join(' ');
   const bigFace = (a?.faces ?? []).some(f => (f.box[2] ?? 0) * (f.box[3] ?? 0) > 0.02);
+  // Echilibrul local (raportat de multe ori: „editorul să corecteze și să îmbunătățească
+  // substanțial”): cu cât poza are mai multe zone prea întunecate și prea luminoase
+  // deodată, cu atât se echilibrează mai tare, zonă cu zonă. Umbrele globale se
+  // domolesc puțin, ca să nu se deschidă de două ori.
+  const tone = Math.round(Math.min(70, darkShare * 150 + brightShare * 80 + (luma < 0.38 ? 12 : 0)));
+  if (tone >= 8) { add('toneMap', tone); add('shadows', -Math.round(tone * 0.15)); }
+  // Puțină claritate și accentuare la fiecare poză: diferența dintre „corectată” și „mai frumoasă”.
+  if (luma >= 0.24) add('sharpen', 14);
   if (overcast > 0.12) { scenes.push('overcast'); add('sky', 24); add('temperature', 4); add('saturation', 3); }
   if (luma < 0.24) { scenes.push('night'); add('noiseReduction', 25); add('shadows', 12); add('clarity', -4); add('sharpen', -6); }
   if (FOOD.test(tags)) { scenes.push('food'); add('temperature', 6); add('saturation', 6); add('clarity', 6); add('vignette', 6); }
@@ -277,10 +288,10 @@ const PANELS: Panel[] = ['styles', 'light', 'color', 'frame'];
 /** Proporțiile din „Cadru” (lățime / înălțime); cadrul se așază pe fețe (frameCrop). */
 type Aspect = 'orig' | '4:5' | '1:1' | '9:16' | '16:9' | '3:2';
 const ASPECTS: Record<Aspect, number> = { orig: 0, '4:5': 4 / 5, '1:1': 1, '9:16': 9 / 16, '16:9': 16 / 9, '3:2': 3 / 2 };
-type ManualKey = 'exposure' | 'contrast' | 'highlights' | 'shadows' | 'whites' | 'blacks' | 'clarity' | 'vignette' | 'temperature' | 'tint' | 'saturation' | 'dehaze' | 'sharpen' | 'noiseReduction' | 'grain' | 'sky';
+type ManualKey = 'toneMap' | 'exposure' | 'contrast' | 'highlights' | 'shadows' | 'whites' | 'blacks' | 'clarity' | 'vignette' | 'temperature' | 'tint' | 'saturation' | 'dehaze' | 'sharpen' | 'noiseReduction' | 'grain' | 'sky';
 const MANUAL: Record<ManualPanel, { key: ManualKey; min?: number; track?: string }[]> = {
   light: [
-    { key: 'exposure' }, { key: 'contrast' }, { key: 'highlights' }, { key: 'shadows' },
+    { key: 'toneMap', min: 0 }, { key: 'exposure' }, { key: 'contrast' }, { key: 'highlights' }, { key: 'shadows' },
     { key: 'whites' }, { key: 'blacks' }, { key: 'clarity' }, { key: 'dehaze' }, { key: 'vignette' }
   ],
   color: [
@@ -320,7 +331,7 @@ export function withManual(e: EditAdjustments, manual: Partial<Record<ManualKey,
   const out = { ...e } as unknown as Record<string, number>;
   for (const [k, v] of Object.entries(manual)) {
     if (!v) continue;
-    const lo = k === 'sharpen' || k === 'grain' || k === 'noiseReduction' ? 0 : -100;
+    const lo = k === 'sharpen' || k === 'grain' || k === 'noiseReduction' || k === 'toneMap' ? 0 : -100;
     out[k] = Math.max(lo, Math.min(100, Math.round((out[k] ?? 0) + v)));
   }
   return out as unknown as EditAdjustments;

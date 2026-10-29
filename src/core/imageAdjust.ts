@@ -50,6 +50,13 @@ export interface EditAdjustments {
   clarity?: number;
   /** Reducere zgomot (blend cu o varianta usor difuzata) — 0..100. */
   noiseReduction?: number;
+  /**
+   * Echilibru local al luminii (0..100), ca un HDR natural: zonele întunecate
+   * se deschid și cele arse se domolesc ZONĂ CU ZONĂ (după lumina din jur),
+   * iar detaliul fin rămâne. Shadows/highlights lucrează pe toată poza deodată
+   * și aplatizau; aici pământul umbrit se deschide fără să spele cerul.
+   */
+  toneMap?: number;
   /** Intunecarea/luminarea colturilor — -100..100. Negativ = colturi mai deschise. */
   vignette?: number;
   /**
@@ -139,7 +146,7 @@ export interface EditAdjustments {
 
 export const NEUTRAL_ADJUSTMENTS: EditAdjustments = {
   exposure: 0, contrast: 0, saturation: 0, temperature: 0, tint: 0, highlights: 0, shadows: 0, rotationDeg: 0,
-  whites: 0, blacks: 0, sharpen: 0, clarity: 0, noiseReduction: 0, vignette: 0, dehaze: 0, bw: 0, grade: 0, grain: 0, bokeh: 0, sky: 0
+  whites: 0, blacks: 0, sharpen: 0, clarity: 0, noiseReduction: 0, toneMap: 0, vignette: 0, dehaze: 0, bw: 0, grade: 0, grain: 0, bokeh: 0, sky: 0
 };
 
 /**
@@ -352,6 +359,33 @@ const CLARITY_MAX_STRENGTH = 0.6;
 const SHARPEN_MAX_K = 0.5;
 
 /**
+ * Echilibrul local al luminii (vezi EditAdjustments.toneMap). Lumina din jurul
+ * fiecărui pixel (luminanța estompată larg, ~4% din latura mică, trei treceri =
+ * aproape gaussian) se trage spre mijloc; pixelul primește același câștig, deci
+ * detaliul și culoarea lui rămân. Câștigul e plafonat: fără halouri de „HDR” ieftin.
+ */
+export function applyToneMap(r: Float32Array, g: Float32Array, b: Float32Array, width: number, height: number, amt: number): void {
+  const size = width * height;
+  const [lum, base, temp] = getScratch(size);
+  for (let p = 0; p < size; p++) lum[p] = (0.299 * r[p] + 0.587 * g[p] + 0.114 * b[p]) / 255;
+  const radius = Math.max(3, Math.round(Math.min(width, height) * 0.04 / 1.7));
+  boxBlurChannel(lum, base, temp, width, height, radius);
+  boxBlurChannel(base, lum, temp, width, height, radius);
+  boxBlurChannel(lum, base, temp, width, height, radius);
+  const lift = amt * 0.62, fall = amt * 0.42;
+  for (let p = 0; p < size; p++) {
+    const B = base[p];
+    // Umbrele urcă mai mult decât coboară luminile; tonurile medii aproape neatinse.
+    // Luminile se domolesc doar unde mai au detaliu: un cer ars (aproape alb) nu se
+    // face gri — rămâne luminos, cum îl vede ochiul.
+    const keepWhite = B > 0.82 ? Math.min(1, (B - 0.82) / 0.14) : 0;
+    const target = B < 0.5 ? B + (0.5 - B) * lift * (1 - B * 0.6) : B - (B - 0.5) * fall * (1 - keepWhite);
+    const gain = Math.min(2.4, Math.max(0.82, (target + 0.03) / (B + 0.03)));
+    r[p] *= gain; g[p] *= gain; b[p] *= gain;
+  }
+}
+
+/**
  * Reducere zgomot / claritate / accentuare — SINGURELE ajustari din acest
  * fisier care au nevoie de pixeli VECINI (nu doar transformare per-pixel
  * independenta), deci opereaza pe planuri de canal separate (Float32Array),
@@ -379,11 +413,15 @@ export function applyDetailPass(d: Uint8ClampedArray, width: number, height: num
     }
   }
 
+  const toneAmt = clampRange((a.toneMap ?? 0) / 100, 0, 1);
+  if (toneAmt > 0) applyToneMap(r, g, b, width, height, toneAmt);
+
   const clarityAmt = (a.clarity ?? 0) / 100; // -1..1
   if (clarityAmt !== 0) {
     const [lum, lumBlur, temp] = getScratch(size);
     for (let p = 0; p < size; p++) lum[p] = 0.299 * r[p] + 0.587 * g[p] + 0.114 * b[p];
-    boxBlurChannel(lum, lumBlur, temp, width, height, CLARITY_BLUR_RADIUS);
+    // Raza crește cu poza: aceeași claritate arată la fel în previzualizarea mică și în copia mare.
+    boxBlurChannel(lum, lumBlur, temp, width, height, Math.max(CLARITY_BLUR_RADIUS, Math.round(Math.min(width, height) * 0.012)));
     const strength = clarityAmt * CLARITY_MAX_STRENGTH;
     for (let p = 0; p < size; p++) {
       const delta = (lum[p] - lumBlur[p]) * strength;
@@ -562,7 +600,7 @@ export function drawAdjusted(
 
   const hasColorShift = a.temperature !== 0 || a.tint !== 0 || a.highlights !== 0 || a.shadows !== 0
     || (a.whites ?? 0) !== 0 || (a.blacks ?? 0) !== 0;
-  const hasDetailPass = (a.sharpen ?? 0) !== 0 || (a.clarity ?? 0) !== 0 || (a.noiseReduction ?? 0) !== 0;
+  const hasDetailPass = (a.sharpen ?? 0) !== 0 || (a.clarity ?? 0) !== 0 || (a.noiseReduction ?? 0) !== 0 || (a.toneMap ?? 0) > 0;
   const luts = buildChannelLuts(a.curves);
   const activePoints = (a.controlPoints ?? []).filter(p => !isNeutralControlPoint(p));
   const vignette = a.vignette ?? 0;

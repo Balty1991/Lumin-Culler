@@ -3042,7 +3042,8 @@ export const ro = {
   "lx.tour.step": "Pasul {n} din {total}",
   "lx.tour.open": "Turul aplicației",
   "lx.tour.openSub": "Ce face fiecare ecran, în 30 de secunde",
-  "lx.enhance.aiLimit": "Ai folosit azi cele {count} corecturi AI online gratuite; am corectat poza pe telefon. Cu Premium, fără limită."
+  "lx.enhance.aiLimit": "Ai folosit azi cele {count} corecturi AI online gratuite; am corectat poza pe telefon. Cu Premium, fără limită.",
+  "lx.enhance.adj.toneMap": "Echilibru"
 };
 
 export type TranslationKey = keyof typeof ro;

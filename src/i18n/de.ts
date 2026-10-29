@@ -921,5 +921,6 @@ export const dict: Record<string, string> = {
   "lx.tour.step": "Schritt {n} von {total}",
   "lx.tour.open": "App-Tour",
   "lx.tour.openSub": "Was jeder Bildschirm macht, in 30 Sekunden",
-  "lx.enhance.aiLimit": "Die {count} kostenlosen Online-KI-Korrekturen für heute sind aufgebraucht; ich habe das Foto auf dem Handy korrigiert. Mit Premium ohne Limit."
+  "lx.enhance.aiLimit": "Die {count} kostenlosen Online-KI-Korrekturen für heute sind aufgebraucht; ich habe das Foto auf dem Handy korrigiert. Mit Premium ohne Limit.",
+  "lx.enhance.adj.toneMap": "Ausgleich"
 };

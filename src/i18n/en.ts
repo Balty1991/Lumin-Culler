@@ -2956,5 +2956,6 @@ export const en: Record<TranslationKey, string> = {
   "lx.tour.step": "Step {n} of {total}",
   "lx.tour.open": "App tour",
   "lx.tour.openSub": "What each screen does, in 30 seconds",
-  "lx.enhance.aiLimit": "You've used today's {count} free online AI fixes; I corrected the photo on the phone. Premium has no limit."
+  "lx.enhance.aiLimit": "You've used today's {count} free online AI fixes; I corrected the photo on the phone. Premium has no limit.",
+  "lx.enhance.adj.toneMap": "Balance"
 };
