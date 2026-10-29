@@ -131,7 +131,7 @@ export function AsideView({ aside }: { aside: PhotoView[] }) {
           {current && (
             <button className="lx-btn ghost small" disabled={!picked.size || busy} onClick={() => { void removePhotosFromCollection(current.id, [...picked]); stop(); }}>{tr('lx.aside.outOfFolder')}</button>
           )}
-          <button className="lx-btn ghost small" disabled={!picked.size || busy} onClick={() => setAsking(true)}>📁</button>
+          <button className="lx-btn ghost small" disabled={!picked.size || busy} onClick={() => setAsking(true)} aria-label={tr('lx.aside.folderTitle', { count: picked.size })}>📁</button>
           <button className="lx-btn danger small" disabled={!picked.size || busy} onClick={() => void remove()}>🗑 {tr('lx.aside.delete')}</button>
         </div>
       )}

@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { HowItWorks } from './HowItWorks';
 import { useStore } from '../state/store';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { requestNotificationAccess, isNativeNotificationsAvailable } from '../core/nativeNotifications';
@@ -41,6 +42,7 @@ export function FirstRun({ onPickManually }: { onPickManually: () => void }) {
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   const [step, setStep] = useState(welcomeSeen ? 2 : 0);
   const [later, setLater] = useState(false);
+  const [demo, setDemo] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const open = !later && (!welcomeSeen || (photos.length === 0 && !progress));
   useModalFocusTrap(ref, open);
@@ -115,7 +117,9 @@ export function FirstRun({ onPickManually }: { onPickManually: () => void }) {
             <button className="v3-cta fr-cta" onClick={() => setStep(1)}>
               <span>{tr('fr.start')}</span><span className="v3-mono">→</span>
             </button>
+            <button className="fr-demo-link" onClick={() => setDemo(true)}>▶ {tr('fr.demo.open')}</button>
             <p className="fr-trust">{tr('fr.hero.trust')}</p>
+            {demo && <HowItWorks tr={tr} onClose={() => setDemo(false)} />}
           </section>
         )}
 

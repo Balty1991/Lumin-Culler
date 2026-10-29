@@ -1019,3 +1019,12 @@ html, body { overflow-x: hidden; }
 .lx-scenes { margin: 0; font-size: 12.5px; }
 .lx-bulk-strip { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
 .lx-bulk-strip img, .lx-bulk-strip .lx-thumb-empty { flex: none; width: 64px; height: 64px; border-radius: 10px; object-fit: cover; }
+
+/* Accesibilitate: focus vizibil la tastatură / TalkBack cu navigare, contrast mărit la cerere,
+   ținte de atins de cel puțin 44 px pentru butoanele-iconiță. */
+.lx :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 10px; }
+.lx-icon-btn { min-width: 44px; min-height: 44px; }
+@media (prefers-contrast: more) {
+  :root { --text-dim: var(--text); --text-faint: var(--text); --line: var(--line-strong); }
+  .lx-card, .lx-chip-btn, .lx-btn.ghost { border-width: 2px; }
+}

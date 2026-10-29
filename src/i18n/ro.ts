@@ -3012,6 +3012,13 @@ export const ro = {
   "lx.autoFolder.ids": "Acte",
   "lx.autoFolder.chats": "Capturi de chat",
   "lx.autoFolder.otherShots": "Alte capturi",
+  "fr.demo.open": "Vezi cum merge (20 s)",
+  "fr.demo.title": "Cum alege Cherrypic",
+  "fr.demo.s0": "Azi ai făcut {total} de poze. Ca de obicei: multe aproape la fel.",
+  "fr.demo.s1": "Le văd pe toate, pe telefon: neclarele (≈) și dublurile (⧉) ies din drum.",
+  "fr.demo.s2": "Rămân cele {kept} bune — cu oamenii tăi, clare, cu zâmbet.",
+  "fr.demo.s3": "Le găsești pe Azi. Nimic nu se șterge fără tine, iar fiecare alegere de-a ta mă învață gustul tău.",
+  "fr.demo.go": "Am înțeles",
 };
 
 export type TranslationKey = keyof typeof ro;

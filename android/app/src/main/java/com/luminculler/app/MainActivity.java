@@ -214,6 +214,26 @@ public class MainActivity extends BridgeActivity {
         });
 
         publishSafeAreaInsets();
+        applyFontScale();
+    }
+
+    /**
+     * Textul urmează mărimea fontului aleasă în setările telefonului
+     * (Accesibilitate → Mărimea fontului): WebView-ul Capacitor pornește fixat
+     * la 100%. Plafonat la 130%, ca ecranele să nu se rupă.
+     */
+    private void applyFontScale() {
+        WebView webView = getBridge().getWebView();
+        if (webView == null) return;
+        float scale = getResources().getConfiguration().fontScale;
+        int zoom = Math.round(Math.max(1f, Math.min(1.3f, scale)) * 100);
+        webView.getSettings().setTextZoom(zoom);
+    }
+
+    @Override
+    public void onConfigurationChanged(android.content.res.Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        applyFontScale();
     }
 
     /**

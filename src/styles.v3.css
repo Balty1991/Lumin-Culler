@@ -429,3 +429,21 @@ h1, h2, h3, .brand-name { font-family: var(--font-display); letter-spacing: -0.0
 .fr-trust { margin: 2px 0 0; font-size: 12px; letter-spacing: .02em; color: var(--text-dim, #8a93a3); }
 .fr-hero .fr-title { font-size: 36px; line-height: 1.08; }
 .fr-hero .fr-sub { font-size: 15px; max-width: 340px; }
+
+/* „Vezi cum merge” (ui/HowItWorks.tsx) */
+.fr-demo-link { background: none; border: none; color: var(--accent-text, var(--accent)); font-weight: 600; font-size: 14px; padding: 8px; }
+.hiw { position: fixed; inset: 0; z-index: 4000; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; padding: 24px; box-sizing: border-box; }
+.hiw-close { position: absolute; top: calc(14px + var(--safe-top, 0px)); right: 14px; width: 44px; height: 44px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); }
+.hiw-dots { display: flex; gap: 6px; }
+.hiw-dots i { width: 22px; height: 4px; border-radius: 2px; background: var(--line-strong); transition: background .3s; }
+.hiw-dots i.on { background: var(--accent); }
+.hiw-grid { display: grid; grid-template-columns: repeat(5, 54px); gap: 8px; }
+.hiw-tile { position: relative; width: 54px; height: 54px; border-radius: 12px; overflow: hidden; background: linear-gradient(160deg, hsl(var(--h) 70% 72%), hsl(calc(var(--h) + 40) 55% 42%)); transition: opacity .6s, transform .6s, filter .6s; transition-delay: calc(var(--i) * 30ms); }
+.hiw-tile i { position: absolute; left: 18%; right: 18%; bottom: 0; height: 42%; border-radius: 50% 50% 0 0; background: rgb(255 255 255 / .35); }
+.hiw-tile b { position: absolute; top: 4px; right: 4px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; background: rgb(0 0 0 / .55); color: #fff; }
+.hiw-tile b.ok { background: var(--pick); color: #06200f; }
+.hiw-grid.s1 .hiw-tile.b { filter: blur(2px); }
+.hiw-grid.s2 .hiw-tile.b, .hiw-grid.s2 .hiw-tile.d, .hiw-grid.s3 .hiw-tile.b, .hiw-grid.s3 .hiw-tile.d { opacity: .14; transform: scale(.82); }
+.hiw-grid.s2 .hiw-tile.k, .hiw-grid.s3 .hiw-tile.k { transform: scale(1.08); box-shadow: 0 0 0 2px var(--pick), 0 10px 24px -8px rgb(var(--pick-rgb) / .7); }
+.hiw-text { max-width: 340px; text-align: center; font-size: 17px; line-height: 1.45; color: var(--text); min-height: 76px; margin: 0; }
+@media (prefers-reduced-motion: reduce) { .hiw-tile { transition: none; } }

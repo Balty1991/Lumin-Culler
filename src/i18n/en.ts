@@ -2926,4 +2926,11 @@ export const en: Record<TranslationKey, string> = {
   "lx.autoFolder.ids": "IDs & papers",
   "lx.autoFolder.chats": "Chat screenshots",
   "lx.autoFolder.otherShots": "Other screenshots",
+  "fr.demo.open": "See how it works (20 s)",
+  "fr.demo.title": "How Cherrypic picks",
+  "fr.demo.s0": "You took {total} photos today. As usual: many almost the same.",
+  "fr.demo.s1": "I look at all of them, on the phone: blurry ones (≈) and duplicates (⧉) step aside.",
+  "fr.demo.s2": "The {kept} good ones stay — your people, sharp, smiling.",
+  "fr.demo.s3": "You'll find them on Today. Nothing is deleted without you, and every choice you make teaches me your taste.",
+  "fr.demo.go": "Got it",
 };
