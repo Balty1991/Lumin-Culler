@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core';
+import { LOCALES } from '../i18n';
 import { Share } from '@capacitor/share';
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
 import { buildErrorReport, readErrorLog } from '../core/errorLog';
@@ -105,7 +106,7 @@ export function SettingsScreen() {
         <div className="lx-row">
           <span>{tr('lx.settings.language')}</span>
           <div className="lx-seg small">
-            {(['ro', 'en'] as const).map(l => (
+            {LOCALES.map(l => (
               <button key={l} className={locale === l ? 'on' : ''} onClick={() => setLocale(l)}>{l.toUpperCase()}</button>
             ))}
           </div>

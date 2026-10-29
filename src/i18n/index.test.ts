@@ -59,13 +59,14 @@ describe('locale storage', () => {
   it('fara alegere stocata, urmeaza limba telefonului', () => {
     withDeviceLanguages(['en-US'], () => expect(readStoredLocale()).toBe('en'));
     withDeviceLanguages(['ro-RO'], () => expect(readStoredLocale()).toBe('ro'));
-    withDeviceLanguages(['de-DE', 'fr-FR'], () => expect(readStoredLocale()).toBe('en'));
+    withDeviceLanguages(['de-DE', 'fr-FR'], () => expect(readStoredLocale()).toBe('de'));
+    withDeviceLanguages(['pt-BR'], () => expect(readStoredLocale()).toBe('en'));
   });
 
   it('romana de pe locul doi in preferinte tot conteaza', () => {
     // `navigator.languages` e o lista ORDONATA de preferinte, nu o singura
     // limba: cine are engleza prima si romana a doua intelege romana.
-    withDeviceLanguages(['en-GB', 'ro'], () => expect(readStoredLocale()).toBe('ro'));
+    withDeviceLanguages(['pt-BR', 'ro'], () => expect(readStoredLocale()).toBe('ro'));
   });
 
   it('o alegere explicita bate limba telefonului', () => {
@@ -74,7 +75,7 @@ describe('locale storage', () => {
   });
 
   it('o valoare stocata nerecunoscuta cade pe limba telefonului, nu pe romana fixa', () => {
-    localStorage.setItem('lumin-locale', 'fr');
+    localStorage.setItem('lumin-locale', 'pt');
     withDeviceLanguages(['en-US'], () => expect(readStoredLocale()).toBe('en'));
     withDeviceLanguages(['ro-RO'], () => expect(readStoredLocale()).toBe('ro'));
   });

@@ -122,7 +122,7 @@ import { readStoredRenameTemplate, writeStoredRenameTemplate } from '../core/ren
 import { recordUsage, readMonthlyUsage } from './usage';
 import { getProjectMetadata } from './projectMetadata';
 import { buildPersonProfilesExport, personProfilesFileName, parsePersonProfilesFile } from '../core/personProfileTransfer';
-import { readStoredLocale, writeStoredLocale, applyLocale, ensureLocaleLoaded, isLocaleLoaded, t, plural, type Locale } from '../i18n';
+import { readStoredLocale, writeStoredLocale, applyLocale, ensureLocaleLoaded, isLocaleLoaded, t, plural, type Locale, baseLocale } from '../i18n';
 import { translateSceneTag, normalizeForSearch } from '../core/sceneTagLabels';
 import { relatedSceneTags } from '../core/searchSynonyms';
 import { cuvinteDinText, seGasesteAproape } from '../core/searchFuzzy';
@@ -3318,7 +3318,7 @@ export const useStore = create<AppState>((set, get) => ({
             ? ' ' + t(get().locale, 'store.import.thresholdsAdapted', { select: adaptedThresholds.select, reject: adaptedThresholds.reject })
             : '')
       : undefined;
-    const locale = get().locale === 'en' ? 'en' : 'ro';
+    const locale = baseLocale(get().locale);
     const finishedScan: LastScan | null = done > 0 && scanPhases
       ? {
           count: done,
@@ -4976,7 +4976,7 @@ export const useStore = create<AppState>((set, get) => ({
           edits: p.edits
         };
       }), {
-        renameTemplate: get().renameTemplate, locale, destination,
+        renameTemplate: get().renameTemplate, locale: baseLocale(locale), destination,
         onProgress: (done, total) => set({ exportProgress: { done, total } })
       });
       // Vezi 'store.exportSelection.cancelled' (i18n): o anulare trebuie sa
@@ -5066,7 +5066,7 @@ export const useStore = create<AppState>((set, get) => ({
           edits: p.edits
         };
       }), {
-        renameTemplate: get().renameTemplate, locale,
+        renameTemplate: get().renameTemplate, locale: baseLocale(locale),
         zipBaseName: 'lumin-culler-' + (collection?.name ?? 'folder').replace(/[\\/:*?"<>|]/g, '-'),
         // vezi ExportOptions.folderName: folderul personalizat e o alegere explicita a
         // utilizatorului, deci el ajunge pe disc — nu gruparea dedusa pe persoana/scena

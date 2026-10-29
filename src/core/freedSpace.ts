@@ -1,4 +1,5 @@
-/**
+
+import { intlTag } from '../i18n';/**
  * core/freedSpace.ts
  * Cât spațiu a eliberat aplicația, pe luni — „Ai eliberat 2,4 GB luna asta”.
  * Se adună din dimensiunea reală a fișierelor șterse (PhotoRecord.sizeBytes),
@@ -33,7 +34,7 @@ export function freedSummary(at = Date.now()): { month: number; total: number } 
 }
 
 export function formatBytes(bytes: number, locale: string): string {
-  const fmt = (n: number, d: number) => n.toLocaleString(locale === 'en' ? 'en-GB' : 'ro-RO', { maximumFractionDigits: d });
+  const fmt = (n: number, d: number) => n.toLocaleString(intlTag(locale), { maximumFractionDigits: d });
   if (bytes >= 1e9) return `${fmt(bytes / 1e9, 1)} GB`;
   if (bytes >= 1e6) return `${fmt(bytes / 1e6, 0)} MB`;
   return `${fmt(Math.max(0, bytes) / 1e3, 0)} KB`;

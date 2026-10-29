@@ -5,10 +5,10 @@ import {
   readSupervisorBannerDismissedDate, writeSupervisorBannerDismissedDate, isSupervisorBannerDismissedToday
 } from '../state/gallerySupervisor';
 import { XIcon } from './icons';
-import { t, plural, type Locale } from '../i18n';
+import { t, plural, type Locale, intlTag } from '../i18n';
 
 export function formatPeriod(startMs: number, endMs: number, locale: Locale): string {
-  const intlLocale = locale === 'en' ? 'en-US' : 'ro-RO';
+  const intlLocale = intlTag(locale);
   const opts: Intl.DateTimeFormatOptions = { month: 'short', year: 'numeric' };
   const start = new Date(startMs).toLocaleDateString(intlLocale, opts);
   const end = new Date(endMs).toLocaleDateString(intlLocale, opts);

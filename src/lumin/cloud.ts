@@ -123,7 +123,7 @@ export async function superviseUnsure(limit = 12): Promise<{ checked: number; de
       const res = await CapacitorHttp.post({
         url: `${URL_BASE}/v1/supervise`,
         headers: { 'content-type': 'application/json', 'user-agent': 'LuminAI/3 (Android)' },
-        data: { images, scores: batch.map(p => p.aiScore), notes: batch.map(measured), lang: store.locale === 'en' ? 'en' : 'ro', installId: installId() },
+        data: { images, scores: batch.map(p => p.aiScore), notes: batch.map(measured), lang: store.locale, installId: installId() },
         connectTimeout: 20_000,
         readTimeout: 120_000
       });
@@ -202,7 +202,7 @@ export async function cloudWrite(kind: WriteKind, ids: readonly string[], contex
     const res = await CapacitorHttp.post({
       url: `${URL_BASE}/v1/describe`,
       headers: { 'content-type': 'application/json', 'user-agent': 'Cherrypic/3 (Android)' },
-      data: { kind, images, context: context.slice(0, 300), lang: useStore.getState().locale === 'en' ? 'en' : 'ro', installId: installId() },
+      data: { kind, images, context: context.slice(0, 300), lang: useStore.getState().locale, installId: installId() },
       connectTimeout: 20_000,
       readTimeout: 90_000
     });
@@ -285,7 +285,7 @@ export async function cloudGrade(jpegBase64: string): Promise<{ values: Record<s
     const res = await CapacitorHttp.post({
       url: `${URL_BASE}/v1/grade`,
       headers: { 'content-type': 'application/json', 'user-agent': 'Cherrypic/3 (Android)' },
-      data: { image: jpegBase64, lang: useStore.getState().locale === 'en' ? 'en' : 'ro', installId: installId() },
+      data: { image: jpegBase64, lang: useStore.getState().locale, installId: installId() },
       connectTimeout: 20_000,
       readTimeout: 60_000
     });

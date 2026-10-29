@@ -8,12 +8,12 @@ import { findNearestPlace, formatPlace, loadPlaceIndex } from '../core/placeName
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { AdjustedImage } from './AdjustedImage';
 import { XIcon, PinIcon, FolderIcon } from './icons';
-import { t, plural, type Locale } from '../i18n';
+import { t, plural, type Locale, intlTag } from '../i18n';
 
 /** Intervalul de date al unei grupe. Absent daca nicio poza din grupa n-are data capturii. */
 function formatRange(group: PhotoLocationGroup, locale: Locale): string {
   if (group.startDate === undefined || group.endDate === undefined) return '';
-  const intlLocale = locale === 'en' ? 'en-US' : 'ro-RO';
+  const intlLocale = intlTag(locale);
   const start = new Date(group.startDate);
   const end = new Date(group.endDate);
   const sameDay = start.toDateString() === end.toDateString();

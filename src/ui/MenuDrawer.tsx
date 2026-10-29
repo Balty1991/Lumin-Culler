@@ -45,7 +45,7 @@ import { analyzeFaceMeshNative, isNativeFaceMeshAvailable } from '../core/native
 import { detectTextNative, isNativeTextRecognitionAvailable } from '../core/nativeTextRecognition';
 import { detectPoseNative, isNativePoseDetectionAvailable } from '../core/nativePoseDetection';
 import { embedImageNative, isNativeImageEmbedderAvailable } from '../core/nativeImageEmbedder';
-import { t } from '../i18n';
+import { t, baseLocale } from '../i18n';
 import { countRescuable } from '../core/rescueQueue';
 import { countNonPersonal } from '../core/smartInbox';
 import { buildMomentStacks, countOpenMoments } from '../core/momentStacks';
@@ -1239,8 +1239,8 @@ export function MenuDrawer() {
             <p>{tr('menu.about')}</p>
             {lastScan && lastScan.count > 0 && (
               <>
-                <p>{formatScanLine(lastScan, locale === 'en' ? 'en' : 'ro')}</p>
-                <p>{formatLegacyLine(lastScan, locale === 'en' ? 'en' : 'ro')}</p>
+                <p>{formatScanLine(lastScan, baseLocale(locale))}</p>
+                <p>{formatLegacyLine(lastScan, baseLocale(locale))}</p>
               </>
             )}
           </div>

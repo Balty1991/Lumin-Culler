@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { countryName, findNearestPlace, getLoadedPlaceIndex, loadPlaceIndex, type PlaceIndex } from '../core/placeNames';
 import type { AlbumPhoto, MomentAlbum } from './momentAlbums';
+import { baseLocale } from '../i18n';
 
 /**
  * lumin/tripPlaces.ts
@@ -55,7 +56,7 @@ export function useTripPlaces<P extends GeoPhoto & AlbumPhoto>(events: MomentAlb
     const place = mainPlace(index, e.photos);
     if (!place) return e;
     const label = place.country !== home ? countryName(place.country, locale) || place.name : place.name;
-    const prefix = locale === 'en' ? 'Trip' : 'Vacanță';
+    const prefix = baseLocale(locale) === 'en' ? 'Trip' : 'Vacanță';
     return { ...e, title: `${prefix} · ${label} · ${(e.title ?? '').split(' · ').slice(1).join(' · ')}`.replace(/ · $/, '') };
   });
 }

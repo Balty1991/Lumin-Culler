@@ -8,7 +8,7 @@ import { openTasteQuiz } from '../state/tasteQuiz';
 import { readTasteScore } from '../core/tasteScore';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { XIcon } from './icons';
-import { t } from '../i18n';
+import { t, baseLocale } from '../i18n';
 
 /** Secunde de om economisite pe o poză sortată de AI: o privire și o decizie. */
 const SECONDS_PER_PHOTO = 3;
@@ -43,7 +43,7 @@ export function AiProfileScreen() {
       setLessons(rows.length);
       setAccuracy(summarizeAccuracy(rows));
     }).catch(() => {});
-    void contextEngine.summarize(locale === 'en' ? 'en' : 'ro').then(models => {
+    void contextEngine.summarize(baseLocale(locale)).then(models => {
       if (!alive) return;
       const main = [...models].sort((a, b) => b.sampleCount - a.sampleCount)[0];
       const top = (main?.allWeights ?? []).filter(w => w.label).sort((a, b) => Math.abs(b.weight) - Math.abs(a.weight)).slice(0, 4);

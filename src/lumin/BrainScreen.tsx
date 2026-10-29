@@ -12,6 +12,7 @@ import { CloudSection } from './CloudParts';
 import { AutonomyPicker, FreedCard, TwinHero } from './TwinParts';
 import { Housekeeping } from './Housekeeping';
 import { VideoCleanup } from './VideoCleanup';
+import { baseLocale } from '../i18n';
 
 /**
  * lumin/BrainScreen.tsx
@@ -44,11 +45,11 @@ export function BrainScreen() {
       if (!alive) return;
       setLessons(rows.length);
     }).catch(() => {});
-    void contextEngine.summarize(locale === 'en' ? 'en' : 'ro').then(models => {
+    void contextEngine.summarize(baseLocale(locale)).then(models => {
       if (alive) setNotes([...new Set(models.flatMap(m => m.notes))].slice(0, 5));
     }).catch(() => {});
     void contextEngine.keptSubjects().then(list => {
-      if (alive) setSubjects(list.map(x => translateSceneTag(x.tag, locale === 'en' ? 'en' : 'ro')));
+      if (alive) setSubjects(list.map(x => translateSceneTag(x.tag, baseLocale(locale))));
     }).catch(() => {});
     void contextEngine.learnedWeight().then(w => { if (alive) setLevel(w); }).catch(() => {});
     return () => { alive = false; };

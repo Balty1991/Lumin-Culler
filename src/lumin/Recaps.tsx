@@ -8,6 +8,7 @@ import { useTr } from './context';
 import { Thumb } from './Thumb';
 import { StoryButton } from './Story';
 import { makeCalendar, makeYearBook, missingMonths, shareYearBook } from './yearBook';
+import { intlTag } from '../i18n';
 
 const DAY_MS = 86_400_000;
 
@@ -43,7 +44,7 @@ export function Recaps() {
     try {
       const title = tr(kind === 'week' ? 'lx.recap.week.title' : 'lx.recap.year.title', { count: list.length, year });
       const range = kind === 'week'
-        ? `${new Date(photoTime(list[0])).toLocaleDateString(locale === 'en' ? 'en-GB' : 'ro-RO', { day: 'numeric', month: 'short' })} – ${new Date(photoTime(list[list.length - 1])).toLocaleDateString(locale === 'en' ? 'en-GB' : 'ro-RO', { day: 'numeric', month: 'short' })}`
+        ? `${new Date(photoTime(list[0])).toLocaleDateString(intlTag(locale), { day: 'numeric', month: 'short' })} – ${new Date(photoTime(list[list.length - 1])).toLocaleDateString(intlTag(locale), { day: 'numeric', month: 'short' })}`
         : tr('lx.recap.year.sub', { count: kept.filter(p => new Date(photoTime(p)).getFullYear() === year).length });
       const blob = await makeCollage(list.map(p => p.id), title, range);
       if (blob) await shareCollage(blob, `lumin-${kind}-${year}.jpg`, title);
@@ -59,7 +60,7 @@ export function Recaps() {
   const book = async () => {
     setBusy('book');
     try {
-      const fmt = (m: number) => new Date(year, m, 1).toLocaleDateString(locale === 'en' ? 'en-GB' : 'ro-RO', { month: 'long' });
+      const fmt = (m: number) => new Date(year, m, 1).toLocaleDateString(intlTag(locale), { month: 'long' });
       const blob = await makeYearBook(year, kept, {
         title: tr('lx.book.title'), subtitle: tr('lx.book.subtitle', { count: kept.filter(p => new Date(photoTime(p)).getFullYear() === year).length }),
         month: m => fmt(m).charAt(0).toUpperCase() + fmt(m).slice(1)
@@ -74,7 +75,7 @@ export function Recaps() {
   const calendar = async () => {
     setBusy('calendar');
     try {
-      const loc = locale === 'en' ? 'en-GB' : 'ro-RO';
+      const loc = intlTag(locale);
       const month = (m: number) => { const n = new Date(2024, m, 1).toLocaleDateString(loc, { month: 'long' }); return n.charAt(0).toUpperCase() + n.slice(1); };
       const weekdays = Array.from({ length: 7 }, (_, i) => new Date(2024, 0, 1 + i).toLocaleDateString(loc, { weekday: 'short' }).replace('.', ''));
       const blob = await makeCalendar(year + 1, kept, { title: tr('lx.calendar.title'), month, weekdays }, (d, t) => setBookProgress(`${d}/${t}`));
@@ -87,7 +88,7 @@ export function Recaps() {
 
   const bookMissing = missingMonths('book', year, kept);
   const calMissing = missingMonths('calendar', year, kept);
-  const monthNames = (ms: number[]) => ms.length > 4 ? String(ms.length) : ms.map(m => new Date(2024, m, 1).toLocaleDateString(locale === 'en' ? 'en-GB' : 'ro-RO', { month: 'short' }).replace('.', '')).join(', ');
+  const monthNames = (ms: number[]) => ms.length > 4 ? String(ms.length) : ms.map(m => new Date(2024, m, 1).toLocaleDateString(intlTag(locale), { month: 'short' }).replace('.', '')).join(', ');
 
   const cards: { kind: 'week' | 'year'; list: PhotoView[] }[] = [];
   if (week.length >= 3) cards.push({ kind: 'week', list: week });

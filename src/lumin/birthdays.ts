@@ -1,4 +1,5 @@
-/**
+
+import { intlTag } from '../i18n';/**
  * lumin/birthdays.ts
  * Zilele de naștere ale oamenilor numiți: cu câteva zile înainte, Cherrypic
  * propune un colaj cu persoana din ultimul an, gata de trimis. Ținute pe
@@ -32,7 +33,7 @@ export function parseBirthday(raw: string): Birthday | null {
 }
 
 export function formatBirthday(b: Birthday, locale: string): string {
-  return new Date(2024, b.month - 1, b.day).toLocaleDateString(locale === 'en' ? 'en-GB' : 'ro-RO', { day: 'numeric', month: 'long' });
+  return new Date(2024, b.month - 1, b.day).toLocaleDateString(intlTag(locale), { day: 'numeric', month: 'long' });
 }
 
 /** În câte zile e următoarea zi de naștere (0 = azi) și câți ani împlinește, dacă știm anul. */

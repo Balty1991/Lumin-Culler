@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useStore } from '../state/store';
-import { t } from '../i18n';
+import { LOCALES, t, type Locale } from '../i18n';
 import { checkForUpdate, clearSharedFiles, completeUpdate, onShared, setSystemAppLocale, startUpdate, systemAppLocale, takeSharedFiles } from '../core/device';
 import { useLx } from './lxStore';
 import { onBackgroundCancel, setBackgroundStopLabel, stopBackgroundAnalysis } from '../core/backgroundAnalysis';
@@ -60,7 +60,7 @@ export function useModernPhone(booted: boolean, runImport: RunImport): void {
     // Limba din setările Android câștigă la pornire, dacă omul a ales-o acolo.
     void systemAppLocale().then(lang => {
       const { locale, setLocale } = useStore.getState();
-      if ((lang === 'ro' || lang === 'en') && lang !== locale) setLocale(lang);
+      if (lang && (LOCALES as readonly string[]).includes(lang) && lang !== locale) setLocale(lang as Locale);
     });
     let lastLocale = useStore.getState().locale;
     const unsub = useStore.subscribe(s => {

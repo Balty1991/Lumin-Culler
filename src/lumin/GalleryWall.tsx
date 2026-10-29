@@ -29,6 +29,7 @@ import { findSimilarPhotos } from '../core/similarPhotos';
 import { EnhanceSheet } from './Enhance';
 import { SCREEN_SIZE, originalUri, sharpUrl, sizeFor } from './sharp';
 import { CleanupCard } from './Cleanup';
+import { intlTag, baseLocale } from '../i18n';
 
 type Filter = 'all' | 'kept' | 'notToday';
 const PAGE = 60;
@@ -307,7 +308,7 @@ export function GalleryWall() {
   // Căutare vocală: „poze cu Maria la mare”, spus în loc de scris.
   const dictate = async () => {
     haptic('tick');
-    const text = await voiceSearch(locale === 'en' ? 'en-US' : 'ro-RO', tr('lx.search.voicePrompt'));
+    const text = await voiceSearch(intlTag(locale), tr('lx.search.voicePrompt'));
     if (text) { setSimilar(null); setQuery(text); }
   };
   // Sugestii de căutare din oamenii tăi: cei mai des văzuți și perechea cea mai des împreună („Ami și mama”).
@@ -359,7 +360,7 @@ export function GalleryWall() {
       )}
       {query.trim() && <p className="lx-hint">{tr('lx.search.results', { count: list.length })}</p>}
       {query.trim() && aiTerms?.q === query.trim() && aiTerms.terms.length > 0 && list.length > 0 && (
-        <p className="lx-hint">☁ {tr('lx.search.ai', { terms: aiTerms.terms.map(t => translateSceneTag(t, locale === 'en' ? 'en' : 'ro')).join(', ') })}</p>
+        <p className="lx-hint">☁ {tr('lx.search.ai', { terms: aiTerms.terms.map(t => translateSceneTag(t, baseLocale(locale))).join(', ') })}</p>
       )}
       {similar && (
         <div className="lx-similar-head">
@@ -685,7 +686,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
     if (step && list[index + step]) { place(0, 0); go(step); return; }
     place(0, 0, true);
   };
-  const date = new Date(photoTime(p)).toLocaleString(locale === 'en' ? 'en-GB' : 'ro-RO', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+  const date = new Date(photoTime(p)).toLocaleString(intlTag(locale), { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
 
   return createPortal(
     <div className="lx lx-viewer" ref={rootRef} role="dialog" aria-modal="true">

@@ -5,7 +5,7 @@ import { countGalleryPhotosSince, isNativeMediaLibraryAvailable } from '../core/
 import { getCachedThumbUrl, peekThumbUrl } from '../core/thumbUrlCache';
 import { isReviewQueue } from '../core/singletonVerdict';
 import { readRitualDays, streakOf } from '../core/ritualStreak';
-import { t, plural } from '../i18n';
+import { t, plural, intlTag } from '../i18n';
 
 const DAY_MS = 86_400_000;
 
@@ -43,7 +43,7 @@ export function TodayCard() {
   const acceptDayPicks = useStore(s => s.acceptDayPicks);
   const premiumLocked = useStore(s => s.premiumLocked);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
-  const dateLocale = locale === 'en' ? 'en-GB' : 'ro-RO';
+  const dateLocale = intlTag(locale);
 
   const stats = useMemo(() => dayStats(photos), [photos]);
   const today = useMemo(() => {

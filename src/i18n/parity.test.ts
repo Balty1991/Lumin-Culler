@@ -54,3 +54,18 @@ describe('dictionarele de traducere', () => {
     expect(stricate).toEqual([]);
   });
 });
+
+describe('limbile noi (de, it, es, fr)', () => {
+  it('folosesc aceiași parametri ca engleza și nu au chei străine', async () => {
+    const enMap = en as Record<string, string>;
+    const probleme: string[] = [];
+    for (const code of ['de', 'it', 'es', 'fr'] as const) {
+      const { dict } = await import(`./${code}.ts`) as { dict: Record<string, string> };
+      for (const [key, text] of Object.entries(dict)) {
+        if (!(key in enMap)) { probleme.push(`${code}/${key}: cheie necunoscută`); continue; }
+        if (params(text).join(',') !== params(enMap[key]).join(',')) probleme.push(`${code}/${key}`);
+      }
+    }
+    expect(probleme).toEqual([]);
+  });
+});

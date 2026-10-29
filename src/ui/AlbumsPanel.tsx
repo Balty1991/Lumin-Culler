@@ -14,7 +14,7 @@ import { getCachedThumbUrl, peekThumbUrl } from '../core/thumbUrlCache';
 import {
   ChevronLeft, SearchIcon, ShieldIcon, StarIcon, XIcon, UploadIcon, CopyIcon, SparkleIcon
 } from './icons';
-import { t, plural } from '../i18n';
+import { t, plural, baseLocale } from '../i18n';
 import type { EditAdjustments } from '../core/imageAdjust';
 
 const LATER_KEY = 'lumin-album-name-later';
@@ -125,7 +125,7 @@ export function AlbumsPanel() {
   const rejectExactDuplicates = useStore(s => s.rejectExactDuplicates);
   const addCorrectedCopies = useStore(s => s.addCorrectedCopies);
   const setPremiumOpen = useStore(s => s.setPremiumOpen);
-  const tr = (key: string, params?: Record<string, string | number>) => t(locale === 'en' ? 'en' : 'ro', key, params);
+  const tr = (key: string, params?: Record<string, string | number>) => t(baseLocale(locale), key, params);
 
   const [screen, setScreen] = useState<Screen>({ kind: 'list' });
   const [query, setQuery] = useState('');
@@ -157,7 +157,7 @@ export function AlbumsPanel() {
   }, [open, photos]);
 
   const albums: BuiltAlbums = useMemo(
-    () => buildAlbums(photos.map(p => toAlbumPhoto(p, petRows.get(p.id))), locale === 'en' ? 'en' : 'ro'),
+    () => buildAlbums(photos.map(p => toAlbumPhoto(p, petRows.get(p.id))), baseLocale(locale)),
     [photos, locale, petRows]
   );
 
@@ -514,7 +514,7 @@ export function AlbumsPanel() {
                 <h2>{person.name}</h2>
                 <p className="hint">
                   {tr(plural(person.photoIds.length, 'albums.photos.one', 'albums.photos.other'), { count: person.photoIds.length })}
-                  {person.from !== undefined && ` · ${formatWhen(person.from, locale === 'en' ? 'en' : 'ro')}`}
+                  {person.from !== undefined && ` · ${formatWhen(person.from, baseLocale(locale))}`}
                 </p>
                 <button className={protectedPersons.has(person.name) ? 'album-protect on' : 'album-protect'} onClick={() => toggleProtectedPerson(person.name)}>
                   <ShieldIcon /> {protectedPersons.has(person.name) ? tr('albums.protected') : tr('albums.protect')}

@@ -17,7 +17,7 @@ import {
   MoreIcon, SmileIcon, EyeIcon, FocusIcon, TagIcon
 } from './icons';
 import { MetricBar, eyesTone, sharpnessTone } from './MetricBar';
-import { t, type Locale } from '../i18n';
+import { t, type Locale, intlTag } from '../i18n';
 
 const SWIPE_COMMIT = 80; // px de tras (sus SAU jos) pentru a schimba pozitia in coada, fara sa decida nimic
 
@@ -106,7 +106,7 @@ function photoFormatLabel(fileName: string): string {
 
 function formatCaptureDate(ts: number | undefined, locale: Locale): string | null {
   if (!ts) return null;
-  const intlLocale = locale === 'en' ? 'en-US' : 'ro-RO';
+  const intlLocale = intlTag(locale);
   return new Date(ts).toLocaleDateString(intlLocale, { day: '2-digit', month: 'short', year: 'numeric' });
 }
 

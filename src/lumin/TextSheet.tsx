@@ -6,6 +6,7 @@ import { shareCollage } from './collage';
 import { useTr } from './context';
 import { saveEditedBlob } from './saveEdited';
 import { canSharpen, sharpUrl } from './sharp';
+import { intlTag } from '../i18n';
 
 /**
  * lumin/TextSheet.tsx
@@ -114,7 +115,7 @@ export function TextSheet({ photo, onClose }: { photo: PhotoView; onClose: () =>
   const locale = useStore(s => s.locale);
   const setNotice = useStore(s => s.setNotice);
   const [img, setImg] = useState<ImageBitmap | null>(null);
-  const when = photo.capturedAt ? new Date(photo.capturedAt).toLocaleDateString(locale === 'en' ? 'en-GB' : 'ro-RO', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  const when = photo.capturedAt ? new Date(photo.capturedAt).toLocaleDateString(intlTag(locale), { day: 'numeric', month: 'long', year: 'numeric' }) : '';
   const [text, setText] = useState(when);
   const [look, setLook] = useState<Look>('classic');
   const [top, setTop] = useState(false);

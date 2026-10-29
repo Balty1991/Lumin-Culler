@@ -4,10 +4,10 @@ import { computeProjectStats } from '../core/stats';
 import { getProjectMetadata, setProjectMetadata, type ProjectMetadata } from '../state/projectMetadata';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { XIcon, LayersIcon, FilterDotIcon } from './icons';
-import { t, type Locale } from '../i18n';
+import { t, type Locale, intlTag } from '../i18n';
 
 function formatDate(ts: number | undefined, locale: Locale): string {
-  const intlLocale = locale === 'en' ? 'en-US' : 'ro-RO';
+  const intlLocale = intlTag(locale);
   return ts ? new Date(ts).toLocaleDateString(intlLocale, { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 }
 

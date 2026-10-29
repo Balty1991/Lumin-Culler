@@ -28,6 +28,7 @@ import { ArchiveEntry } from './ArchiveView';
 import { decideRestIfAllowed } from './autoSort';
 import { readWholeGallery } from './galleryReader';
 import type { PhotoView } from '../state/store';
+import { intlTag } from '../i18n';
 
 const VIEWS: GalleryView[] = ['wall', 'moments', 'days', 'months', 'people', 'map', 'aside'];
 // Harta (MapLibre) e mare: se încarcă doar când o deschizi.
@@ -260,7 +261,7 @@ function PersonTimeButtons({ name, list }: { name: string; list: PhotoView[] }) 
   };
   return (
     <div className="lx-chips">
-      {film.length >= 4 && <StoryButton className="lx-btn ghost small" ids={film.map(p => p.id)} title={tr('lx.person.film', { name })} subtitle={`${new Date(film[0].capturedAt!).toLocaleDateString(locale === 'en' ? 'en-GB' : 'ro-RO', { month: 'long', year: 'numeric' })} – ${tr('lx.pair.now').toLowerCase()}`} />}
+      {film.length >= 4 && <StoryButton className="lx-btn ghost small" ids={film.map(p => p.id)} title={tr('lx.person.film', { name })} subtitle={`${new Date(film[0].capturedAt!).toLocaleDateString(intlTag(locale), { month: 'long', year: 'numeric' })} – ${tr('lx.pair.now').toLowerCase()}`} />}
       {span > 180 * 86_400_000 && <button className="lx-btn ghost small" disabled={busy} onClick={() => void pair()}>↔ {tr('lx.pair.button')}</button>}
     </div>
   );

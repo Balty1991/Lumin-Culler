@@ -12,6 +12,7 @@
  * momentul capturii, deci pozele din aceeasi zi impart o singura intrare.
  */
 import type { Locale } from '../i18n';
+import { intlTag } from '../i18n';
 
 const cache = new Map<string, string>();
 /** Peste atatea intrari golim cache-ul: o biblioteca mare are multe momente
@@ -19,7 +20,7 @@ const cache = new Map<string, string>();
 const MAX_ENTRIES = 5000;
 
 function intlLocale(locale: Locale): string {
-  return locale === 'en' ? 'en-US' : 'ro-RO';
+  return intlTag(locale);
 }
 
 /**

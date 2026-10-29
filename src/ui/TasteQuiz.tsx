@@ -10,7 +10,7 @@ import { useLx } from '../lumin/lxStore';
 import { requestNotificationAccess, isNativeNotificationsAvailable } from '../core/nativeNotifications';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { XIcon } from './icons';
-import { t } from '../i18n';
+import { t, baseLocale } from '../i18n';
 
 /** Cât stă pe ecran dezvăluirea „AI-ul a ghicit / ar fi ales-o pe asta”. */
 const REVEAL_MS = 650;
@@ -157,7 +157,7 @@ export function TasteQuiz() {
       await rescorePhotos();
       // Mesajul „Re-analizate N poze” acoperea butonul de la final (raportat).
       useStore.getState().clearNotice();
-      const models = await contextEngine.summarize(locale === 'en' ? 'en' : 'ro');
+      const models = await contextEngine.summarize(baseLocale(locale));
       setSummary([...new Set(models.flatMap(m => m.notes))].slice(0, 3));
     } catch {
       setSummary([]);

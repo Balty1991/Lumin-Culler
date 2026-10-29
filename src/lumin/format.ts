@@ -1,4 +1,4 @@
-import { plural } from '../i18n';
+import { plural, intlTag } from '../i18n';
 import type { Day } from './days';
 
 type Tr = (key: string, params?: Record<string, string | number>) => string;
@@ -9,11 +9,11 @@ export function capitalizeFirst(s: string): string {
 }
 
 export function dayLabel(start: number, locale: string, month: 'long' | 'short' = 'long'): string {
-  return capitalizeFirst(new Date(start).toLocaleDateString(locale === 'en' ? 'en-GB' : 'ro-RO', { weekday: 'long', day: 'numeric', month }));
+  return capitalizeFirst(new Date(start).toLocaleDateString(intlTag(locale), { weekday: 'long', day: 'numeric', month }));
 }
 
 export function monthLabel(start: number, locale: string): string {
-  return capitalizeFirst(new Date(start).toLocaleDateString(locale === 'en' ? 'en-GB' : 'ro-RO', { month: 'long', year: 'numeric' }));
+  return capitalizeFirst(new Date(start).toLocaleDateString(intlTag(locale), { month: 'long', year: 'numeric' }));
 }
 
 /** „9 poze → 2 păstrate · 3 documente”, cu pluralul corect și documentele separat. */

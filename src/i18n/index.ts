@@ -13,7 +13,20 @@
  */
 import { ro } from './ro';
 
-export type Locale = 'ro' | 'en';
+export type Locale = 'ro' | 'en' | 'de' | 'it' | 'es' | 'fr';
+export const LOCALES: readonly Locale[] = ['ro', 'en', 'de', 'it', 'es', 'fr'];
+/**
+ * Limbile noi (de, it, es, fr) au doar textele interfeței Cherrypic; restul
+ * (modul avansat, textele generate pe telefon) cade pe engleză. Pentru
+ * funcțiile care știu doar română/engleză, `baseLocale` dă engleza.
+ */
+export function baseLocale(locale: string): 'ro' | 'en' {
+  return locale === 'ro' ? 'ro' : 'en';
+}
+/** Eticheta pentru date, numere și dictare (Intl / Android). */
+export function intlTag(locale: string): string {
+  return ({ ro: 'ro-RO', en: 'en-GB', de: 'de-DE', it: 'it-IT', es: 'es-ES', fr: 'fr-FR' } as Record<string, string>)[locale] ?? 'en-GB';
+}
 
 /**
  * Doar romana e legata static. Dictionarul englez (~119 KB de cod brut, cat
@@ -29,7 +42,7 @@ export type Locale = 'ro' | 'en';
  * `en` porneste ca obiect gol, nu absent: `t()` il indexeaza direct, iar un
  * `undefined` acolo ar arunca in loc sa cada pe romana.
  */
-const DICTS: Record<Locale, Record<string, string>> = { ro, en: {} };
+const DICTS: Record<Locale, Record<string, string>> = { ro, en: {}, de: {}, it: {}, es: {}, fr: {} };
 const STORAGE_KEY = 'lumin-locale';
 
 /** A intrat deja dictionarul englez in DICTS.en? (Romana e mereu prezenta.) */
@@ -44,8 +57,12 @@ let enLoading: Promise<void> | null = null;
  * raspunsul e da, comuta sincron, fara sa mai treaca printr-o promisiune —
  * altfel fiecare revenire la romana ar fi intarziat cu un tick degeaba.
  */
+const extraLoaded = new Set<Locale>();
+const extraLoading = new Map<Locale, Promise<void>>();
 export function isLocaleLoaded(locale: Locale): boolean {
-  return locale === 'ro' || enLoaded;
+  if (locale === 'ro') return true;
+  if (locale === 'en') return enLoaded;
+  return enLoaded && extraLoaded.has(locale);
 }
 
 /**
@@ -61,6 +78,19 @@ export function isLocaleLoaded(locale: Locale): boolean {
  * `t()`. Mai bine interfata in limba gresita decat un ecran alb.
  */
 export function ensureLocaleLoaded(locale: Locale): Promise<void> {
+  if (locale !== 'ro' && locale !== 'en') {
+    // Limbile noi: engleza dedesubt (plasa de rezervă), apoi limba însăși.
+    const extra = extraLoaded.has(locale) ? Promise.resolve() : (extraLoading.get(locale) ?? (() => {
+      const loaders: Record<string, () => Promise<{ dict: Record<string, string> }>> = {
+        de: () => import('./de'), it: () => import('./it'), es: () => import('./es'), fr: () => import('./fr')
+      };
+      const pr = loaders[locale]().then(mod => { Object.assign(DICTS[locale], mod.dict); extraLoaded.add(locale); })
+        .catch(err => { console.error('Dicționarul nu s-a putut încărca:', err); extraLoading.delete(locale); });
+      extraLoading.set(locale, pr);
+      return pr;
+    })());
+    return Promise.all([ensureLocaleLoaded('en'), extra]).then(() => {});
+  }
   if (locale !== 'en' || enLoaded) return Promise.resolve();
   enLoading ??= import('./en')
     .then(mod => { Object.assign(DICTS.en, mod.en); enLoaded = true; })
@@ -95,7 +125,9 @@ function deviceLocale(): Locale {
     if (!nav) return 'ro';
     const preferences = nav.languages?.length ? nav.languages : [nav.language];
     for (const tag of preferences) {
-      if (typeof tag === 'string' && tag.toLowerCase().startsWith('ro')) return 'ro';
+      if (typeof tag !== 'string') continue;
+      const lang = tag.toLowerCase().slice(0, 2) as Locale;
+      if ((LOCALES as readonly string[]).includes(lang)) return lang;
     }
     return 'en';
   } catch {
@@ -115,7 +147,7 @@ function deviceLocale(): Locale {
 export function readStoredLocale(): Locale {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === 'ro' || stored === 'en') return stored;
+    if (stored && (LOCALES as readonly string[]).includes(stored)) return stored as Locale;
   } catch {
     // stocare indisponibila — decide limba telefonului, ca la prima pornire
   }
@@ -169,7 +201,7 @@ export function necesitaDe(n: number): boolean {
  * sute de siruri duplicate ca sa exprime un singur cuvant.
  */
 export function t(locale: Locale, key: string, params?: Record<string, string | number>): string {
-  let str = DICTS[locale][key] ?? DICTS.ro[key] ?? key;
+  let str = DICTS[locale]?.[key] ?? (locale !== 'ro' ? DICTS.en[key] : undefined) ?? DICTS.ro[key] ?? key;
   if (params) {
     const count = params.count;
     if (typeof count === 'number') {

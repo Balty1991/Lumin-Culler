@@ -19,6 +19,7 @@ import { nextBirthday, readBirthdays } from './birthdays';
 import { makeCollage, shareCollage } from './collage';
 import { Thumb } from './Thumb';
 import { personalWhy, useWhyContext } from './why';
+import { baseLocale } from '../i18n';
 
 /**
  * lumin/LumiFeed.tsx
@@ -259,7 +260,7 @@ export function LumiFeed() {
     }
 
     // 4. Un eveniment din ultimele două luni.
-    const event = buildEvents(photos, locale === 'en' ? 'en' : 'ro').find(e => e.end >= Date.now() - 60 * DAY);
+    const event = buildEvents(photos, baseLocale(locale)).find(e => e.end >= Date.now() - 60 * DAY);
     if (event) {
       out.push({
         id: `event-${event.id}`, photoId: event.cover.id,

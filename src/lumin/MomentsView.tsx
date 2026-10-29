@@ -12,6 +12,7 @@ import { StoryButton } from './Story';
 import { CollageButton } from './CollageSheet';
 import { canMakePhoneAlbums, copyToPhoneAlbum } from './phoneAlbums';
 import type { PhotoView } from '../state/store';
+import { intlTag, baseLocale } from '../i18n';
 
 /**
  * lumin/MomentsView.tsx
@@ -24,8 +25,8 @@ export function MomentsView() {
   const locale = useStore(s => s.locale);
   const tr = useTr();
   const [open, setOpen] = useState<string | null>(null);
-  const albums = useMemo(() => buildMomentAlbums(photos, locale === 'en' ? 'en' : 'ro'), [photos, locale]);
-  const rawEvents = useMemo(() => buildEvents(photos, locale === 'en' ? 'en' : 'ro'), [photos, locale]);
+  const albums = useMemo(() => buildMomentAlbums(photos, baseLocale(locale)), [photos, locale]);
+  const rawEvents = useMemo(() => buildEvents(photos, baseLocale(locale)), [photos, locale]);
   // Vacanțele cu numele locului din poze („Vacanță · Grecia · 12–18 aug.”).
   const events = useTripPlaces(rawEvents, photos, locale);
   const album = open ? (events.find(a => a.id === open) ?? albums.find(a => a.id === open)) : undefined;
@@ -69,7 +70,7 @@ const EVENT_ICON = { christmas: '🎄', newyear: '🎆', easter: '🐣', birthda
 
 export function albumTitle(a: MomentAlbum, locale: string, tr: (k: string, p?: Record<string, string | number>) => string): string {
   if (a.title) return a.title;
-  const day = capitalizeFirst(new Date(a.start).toLocaleDateString(locale === 'en' ? 'en-GB' : 'ro-RO', { weekday: 'long', day: 'numeric', month: 'short' }));
+  const day = capitalizeFirst(new Date(a.start).toLocaleDateString(intlTag(locale), { weekday: 'long', day: 'numeric', month: 'short' }));
   const part = tr(`lx.moments.part.${a.part}`);
   return a.subject ? `${a.subject} · ${day}, ${part}` : `${day}, ${part}`;
 }
