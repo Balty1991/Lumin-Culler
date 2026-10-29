@@ -2711,5 +2711,9 @@ export const en: Record<TranslationKey, string> = {
   "lx.enhance.panel.frame": "Frame",
   "lx.enhance.aspect.orig": "Original",
   "lx.enhance.tilt": "Tilt",
-  "lx.enhance.frameHint": "The frame centers itself on faces. Double-tap the slider to reset it."
+  "lx.enhance.frameHint": "The frame centers itself on faces. Double-tap the slider to reset it.",
+  "lx.feed.film": "Your {month} film is ready: the best moments in 30 seconds.",
+  "lx.feed.filmSub": "{count} photos I picked, ready to send.",
+  "lx.feed.filmSubtitle": "{count} photos kept",
+  "premium.personalClean": "And I’d move {count} photos you don’t need to the bin (near-identical series, old screenshots, what you left at “Not today”): {size} freed in one tap."
 };

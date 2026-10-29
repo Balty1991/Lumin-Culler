@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { XIcon, StarIcon, CheckIcon } from './icons';
@@ -9,6 +9,8 @@ import { t, plural } from '../i18n';
 import { LifetimeProof } from './LifetimeProof';
 import { resumeFor } from './premiumResume';
 import { FREE_DAILY } from '../lumin/cloud';
+import { seriesExtras } from '../lumin/LumiFeed';
+import { formatBytes } from '../core/freedSpace';
 
 const FREE_CLOUD_WRITES = FREE_DAILY.write;
 
@@ -43,6 +45,19 @@ export function PremiumPanel() {
   const premium = useStore(s => s.premium);
   const premiumReason = useStore(s => s.premiumReason);
   const waitingCount = useStore(s => s.photos.filter(p => !p.aside && (p.status === 'review' || p.status === 'pending' || p.status === 'candidate')).length);
+  // Ce ar curăța Pro pe galeria omului: serii, capturi vechi, pozele lăsate la „Nu azi”.
+  const photos = useStore(s => s.photos);
+  const junk = useMemo(() => {
+    const old = Date.now() - 30 * 86_400_000;
+    const ids = new Set<string>();
+    for (const p of seriesExtras(photos).extras) ids.add(p.id);
+    for (const p of photos) {
+      if (!p.mediaUri || p.status === 'selected') continue;
+      if (p.status === 'rejected' || (p.aside === 'screenshot' && (p.capturedAt ?? p.importedAt) < old)) ids.add(p.id);
+    }
+    const list = photos.filter(p => ids.has(p.id));
+    return { count: list.length, bytes: list.reduce((n, p) => n + (p.sizeBytes ?? 0), 0) };
+  }, [photos]);
 
   /**
    * Care rand din lista se marcheaza, pentru ce a apasat omul. Portile
@@ -158,6 +173,7 @@ export function PremiumPanel() {
         <h3 className="premium-lead">{tr(premium ? 'premium.lead.active' : 'premium.lead')}</h3>
         {/* Pe galeria omului, nu o listă de funcții: câte poze ar decide Lumi singură chiar acum. */}
         {!premium && waitingCount >= 5 && <p className="premium-personal">{tr('premium.personal', { count: waitingCount })}</p>}
+        {!premium && junk.count >= 10 && <p className="premium-personal">{tr('premium.personalClean', { count: junk.count, size: formatBytes(junk.bytes, locale) })}</p>}
         {/* Randul de pret urmareste planul bifat, nu doar lunarul: altfel, cu
             anualul ales, scria in continuare "19,99 lei pe luna" deasupra unui
             buton care incaseaza 199,99 lei o data pe an. */}

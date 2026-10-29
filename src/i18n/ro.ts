@@ -2797,7 +2797,11 @@ export const ro = {
   "lx.enhance.panel.frame": "Cadru",
   "lx.enhance.aspect.orig": "Original",
   "lx.enhance.tilt": "Înclinare",
-  "lx.enhance.frameHint": "Cadrul se așază singur pe fețe. Atinge de două ori linia ca s-o readuci la zero."
+  "lx.enhance.frameHint": "Cadrul se așază singur pe fețe. Atinge de două ori linia ca s-o readuci la zero.",
+  "lx.feed.film": "Filmul lui {month} e gata: cele mai frumoase momente, în 30 de secunde.",
+  "lx.feed.filmSub": "{count} poze alese de mine, gata de trimis.",
+  "lx.feed.filmSubtitle": "{count} poze păstrate",
+  "premium.personalClean": "Și aș muta în coș {count} poze de care nu mai ai nevoie (serii aproape la fel, capturi vechi, ce ai lăsat la „Nu azi”): {size} eliberați dintr-o atingere."
 };
 
 export type TranslationKey = keyof typeof ro;

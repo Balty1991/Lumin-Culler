@@ -13,6 +13,7 @@ import { useLx } from './lxStore';
 import { buildEvents } from './momentAlbums';
 import { Orb } from './Orb';
 import { learnFromShare } from './signals';
+import { StoryButton } from './Story';
 import { Thumb } from './Thumb';
 import { personalWhy, useWhyContext } from './why';
 
@@ -49,6 +50,8 @@ interface Idea {
   action: string;
   run: () => void | Promise<unknown>;
   second?: { label: string; run: () => void };
+  /** În locul butonului principal (ex. filmul, cu progresul lui). */
+  custom?: ReactNode;
 }
 
 /** Seriile cu poze aproape la fel: cea mai bună rămâne, restul pot pleca. */
@@ -126,6 +129,25 @@ export function LumiFeed() {
         action: tr('lx.feed.monthGo'),
         run: () => openSort(list.map(p => p.id), monthLabel(m, locale))
       });
+    }
+
+    // 2b. Filmul lunii trecute (în primele 10 zile din lună): „Octombrie în 30 de secunde”.
+    const today = new Date();
+    if (today.getDate() <= 10) {
+      const prev = monthStart(new Date(today.getFullYear(), today.getMonth() - 1, 15).getTime());
+      const next = monthStart(new Date(today.getFullYear(), today.getMonth(), 15).getTime());
+      const kept = photos.filter(p => p.status === 'selected' && !p.aside && photoTime(p) >= prev && photoTime(p) < next);
+      if (kept.length >= 8) {
+        const pick = [...kept].sort((a, b) => b.aiScore - a.aiScore).slice(0, 14).sort((a, b) => photoTime(a) - photoTime(b));
+        const month = monthLabel(prev, locale);
+        out.push({
+          id: `film-${prev}`, photoId: pick[0].id,
+          text: tr('lx.feed.film', { month }),
+          sub: tr('lx.feed.filmSub', { count: pick.length }),
+          action: '', run: () => {},
+          custom: <StoryButton className="lx-btn primary small" ids={pick.map(p => p.id)} title={month} subtitle={tr('lx.feed.filmSubtitle', { count: kept.length })} />
+        });
+      }
     }
 
     // 3. Serii aproape la fel.
@@ -226,7 +248,7 @@ export function LumiFeed() {
           <p>{i.text}</p>
           {i.sub && <span>{i.sub}</span>}
           <div className="lx-feed-actions">
-            <button className="lx-btn primary small" disabled={busy} onClick={() => void act(i.run)}>{i.action}</button>
+            {i.custom ?? <button className="lx-btn primary small" disabled={busy} onClick={() => void act(i.run)}>{i.action}</button>}
             {i.second && <button className="lx-btn ghost small" onClick={i.second.run}>{i.second.label}</button>}
             <button className="lx-link" onClick={() => { snooze(i.id); bump(x => x + 1); }}>{tr('lx.feed.later')}</button>
           </div>
