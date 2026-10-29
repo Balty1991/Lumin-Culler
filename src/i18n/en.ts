@@ -2650,4 +2650,7 @@ export const en: Record<TranslationKey, string> = {
   "lx.who.title": "I see this person in {count} photos. What is their name?",
   "lx.who.sub": "With a name, I recognise them in new photos, you can search for them, and they appear in your stories and albums.",
   "lx.who.name": "Add a name",
+  "lx.notify.share": "Send to family",
+  "lx.notify.day": "See the day",
+  "lx.widget.share": "Send"
 };

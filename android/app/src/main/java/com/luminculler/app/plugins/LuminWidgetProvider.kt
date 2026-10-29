@@ -27,14 +27,38 @@ class LuminWidgetProvider : AppWidgetProvider() {
         private const val PREFS = "lumin-widget"
         private const val REQUEST_CODE = 4310
 
-        fun save(context: Context, title: String, subtitle: String, uri: String?) {
+        private const val SHARE_REQUEST_CODE = 4311
+
+        fun save(context: Context, title: String, subtitle: String, uri: String?, shareLabel: String?) {
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
                 .putString("title", title)
                 .putString("subtitle", subtitle)
                 .putString("uri", uri)
+                .putString("share", shareLabel)
+                .putLong("savedAt", System.currentTimeMillis())
                 .apply()
             refreshAll(context)
         }
+
+        /**
+         * Poza aleasă de AI azi (aceeași ca pe widget), pentru notificarea de seară.
+         * Doar dacă aplicația a trimis-o azi; altfel notificarea ia ultima poză a zilei.
+         */
+        fun bestUriToday(context: Context, startOfDay: Long): String? {
+            val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            if (prefs.getLong("savedAt", 0) < startOfDay) return null
+            return prefs.getString("uri", null)?.takeIf { it.isNotEmpty() }
+        }
+
+        fun launch(context: Context, action: String, requestCode: Int): PendingIntent =
+            PendingIntent.getActivity(
+                context, requestCode,
+                Intent(context, MainActivity::class.java).apply {
+                    putExtra(DailyDigestReceiver.EXTRA_ACTION, action)
+                    flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                },
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
 
         fun refreshAll(context: Context) {
             val manager = AppWidgetManager.getInstance(context)
@@ -51,24 +75,25 @@ class LuminWidgetProvider : AppWidgetProvider() {
         private fun render(context: Context, manager: AppWidgetManager, id: Int) {
             val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             val views = RemoteViews(context.packageName, R.layout.lumin_widget)
-            views.setTextViewText(R.id.widget_title, prefs.getString("title", null) ?: "Lumin AI")
+            views.setTextViewText(R.id.widget_title, prefs.getString("title", null) ?: "Cherrypic")
             views.setTextViewText(R.id.widget_subtitle, prefs.getString("subtitle", null) ?: "")
             val photo = thumbnail(context, prefs.getString("uri", null))
+            val share = prefs.getString("share", null)
             if (photo != null) {
                 views.setImageViewBitmap(R.id.widget_photo, photo)
                 views.setViewVisibility(R.id.widget_photo, View.VISIBLE)
             } else {
                 views.setViewVisibility(R.id.widget_photo, View.GONE)
             }
-            val open = PendingIntent.getActivity(
-                context, REQUEST_CODE,
-                Intent(context, MainActivity::class.java).apply {
-                    putExtra(DailyDigestReceiver.EXTRA_ACTION, DailyDigestReceiver.ACTION_TODAY)
-                    flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                },
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            views.setOnClickPendingIntent(R.id.widget_root, open)
+            // „Trimite”: poza zilei pleacă la familie dintr-o atingere, direct de pe ecranul telefonului.
+            if (photo != null && !share.isNullOrEmpty()) {
+                views.setTextViewText(R.id.widget_share, share)
+                views.setViewVisibility(R.id.widget_share, View.VISIBLE)
+                views.setOnClickPendingIntent(R.id.widget_share, launch(context, DailyDigestReceiver.ACTION_SHARE, SHARE_REQUEST_CODE))
+            } else {
+                views.setViewVisibility(R.id.widget_share, View.GONE)
+            }
+            views.setOnClickPendingIntent(R.id.widget_root, launch(context, DailyDigestReceiver.ACTION_TODAY, REQUEST_CODE))
             runCatching { manager.updateAppWidget(id, views) }
         }
     }

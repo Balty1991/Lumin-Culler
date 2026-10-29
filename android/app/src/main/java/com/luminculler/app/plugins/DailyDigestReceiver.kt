@@ -17,7 +17,6 @@ import android.provider.MediaStore
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
-import com.luminculler.app.MainActivity
 import java.util.Calendar
 
 /**
@@ -44,6 +43,10 @@ class DailyDigestReceiver : BroadcastReceiver() {
         private const val MIN_PHOTOS = 3
         const val EXTRA_ACTION = "lumin_action"
         const val ACTION_TODAY = "today"
+        /** „Trimite familiei”: deschide aplicația direct pe trimiterea pozei zilei. */
+        const val ACTION_SHARE = "share_pod"
+        /** „Vezi ziua”: deschide pozele zilei, fără sortare. */
+        const val ACTION_DAY = "see_day"
 
         private fun alarmIntent(context: Context): PendingIntent =
             PendingIntent.getBroadcast(
@@ -52,11 +55,16 @@ class DailyDigestReceiver : BroadcastReceiver() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 
-        fun schedule(context: Context, hour: Int, minute: Int, title: String, body: String, channelName: String) {
+        fun schedule(
+            context: Context, hour: Int, minute: Int, title: String, body: String, channelName: String,
+            shareLabel: String? = null, dayLabel: String? = null
+        ) {
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
                 .putString("title", title)
                 .putString("body", body)
                 .putString("channel", channelName)
+                .putString("share", shareLabel)
+                .putString("day", dayLabel)
                 .apply()
             val next = Calendar.getInstance().apply {
                 set(Calendar.HOUR_OF_DAY, hour)
@@ -104,6 +112,11 @@ class DailyDigestReceiver : BroadcastReceiver() {
                 set(Calendar.SECOND, 0)
                 set(Calendar.MILLISECOND, 0)
             }.timeInMillis
+            // Întâi poza aleasă de AI azi (cea de pe widget): pe ea o trimite „Trimite familiei”.
+            LuminWidgetProvider.bestUriToday(context, start)?.let { best ->
+                runCatching { context.contentResolver.loadThumbnail(android.net.Uri.parse(best), Size(720, 720), null) }
+                    .getOrNull()?.let { return it }
+            }
             return runCatching {
                 val id = context.contentResolver.query(
                     MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
@@ -133,14 +146,7 @@ class DailyDigestReceiver : BroadcastReceiver() {
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL_ID, prefs.getString("channel", null) ?: "Today", NotificationManager.IMPORTANCE_DEFAULT)
         )
-        val open = PendingIntent.getActivity(
-            context, REQUEST_CODE,
-            Intent(context, MainActivity::class.java).apply {
-                putExtra(EXTRA_ACTION, ACTION_TODAY)
-                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            },
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
+        val open = LuminWidgetProvider.launch(context, ACTION_TODAY, REQUEST_CODE)
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_menu_gallery)
             .setContentTitle(title)
@@ -151,6 +157,13 @@ class DailyDigestReceiver : BroadcastReceiver() {
         latestThumbToday(context)?.let { thumb ->
             builder.setLargeIcon(thumb)
                 .setStyle(NotificationCompat.BigPictureStyle().bigPicture(thumb).bigLargeIcon(null as Bitmap?).setSummaryText(body))
+        }
+        // Butoanele de sub poză: trimisă familiei sau văzută, fără să cauți prin aplicație.
+        prefs.getString("share", null)?.takeIf { it.isNotEmpty() }?.let {
+            builder.addAction(0, it, LuminWidgetProvider.launch(context, ACTION_SHARE, REQUEST_CODE + 1))
+        }
+        prefs.getString("day", null)?.takeIf { it.isNotEmpty() }?.let {
+            builder.addAction(0, it, LuminWidgetProvider.launch(context, ACTION_DAY, REQUEST_CODE + 2))
         }
         val notification = builder.build()
         runCatching { manager.notify(NOTIFICATION_ID, notification) }

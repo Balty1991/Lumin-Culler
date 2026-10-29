@@ -15,6 +15,7 @@ import { t } from '../i18n';
 import { useLx, type LxTab } from './lxStore';
 import { LxActionsContext } from './context';
 import { groupDays } from './days';
+import { learnFromShare } from './signals';
 import { Viewer } from './GalleryWall';
 import { superviseUnsure } from './cloud';
 import { autoSortToday, decideRestIfAllowed, summarizeToday } from './autoSort';
@@ -39,6 +40,30 @@ const TABS: { id: LxTab; icon: string; label: string }[] = [
   { id: 'brain', icon: 'brain', label: 'lx.nav.brain' },
   { id: 'settings', icon: 'settings', label: 'lx.nav.settings' }
 ];
+
+/** Cea mai bună poză păstrată a zilei: aceeași pe widget, în notificare și la „Trimite familiei”. */
+function bestOfDay<T extends { aiScore: number }>(kept: readonly T[]): T | undefined {
+  return [...kept].sort((a, b) => b.aiScore - a.aiScore)[0];
+}
+
+/**
+ * Butoanele din notificarea de seară și din widget: „Trimite familiei” (poza zilei
+ * pleacă direct în foaia de trimitere) și „Vezi ziua” (pozele zilei, fără sortare).
+ */
+async function openDayAction(action: 'share_pod' | 'see_day'): Promise<void> {
+  await useStore.getState().importToday().catch(() => 0);
+  const day = groupDays(useStore.getState().photos).find(d => d.start === startOfDay());
+  if (!day?.photos.length) return;
+  if (action === 'see_day') {
+    const list = day.kept.length ? day.kept : day.photos;
+    useLx.getState().openViewer(list.map(p => p.id), 0);
+    return;
+  }
+  const best = bestOfDay(day.kept) ?? bestOfDay(day.photos);
+  if (!best) return;
+  await useStore.getState().exportSelection('apps', [best.id]);
+  void learnFromShare([best]);
+}
 
 function TabIcon({ name }: { name: string }) {
   const common = { width: 24, height: 24, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true };
@@ -86,15 +111,18 @@ export function LuminApp() {
     void scheduleDailyDigest({
       title: t(locale, 'lx.twin.notify.title'),
       body: t(locale, 'lx.twin.notify.body'),
-      channelName: t(locale, 'today.notify.channel')
+      channelName: t(locale, 'today.notify.channel'),
+      shareLabel: t(locale, 'lx.notify.share'),
+      dayLabel: t(locale, 'lx.notify.day')
     });
   }, [locale]);
 
   // Deschisă din notificarea de seară: adu pozele zilei și pornește sortarea.
   useEffect(() => {
     let stop: (() => void) | undefined;
-    void onTodayLaunch(() => {
+    void onTodayLaunch(action => {
       useLx.getState().setTab('today');
+      if (action !== 'today') { void openDayAction(action); return; }
       void useStore.getState().importToday().then(async added => {
         if (added) await decideRestIfAllowed();
         const result = summarizeToday(added ?? 0);
@@ -112,13 +140,13 @@ export function LuminApp() {
     if (!booted) return;
     const timer = window.setTimeout(() => {
       const day = groupDays(useStore.getState().photos).find(d => d.start === startOfDay());
-      const best = day?.kept[0];
+      const best = day && bestOfDay(day.kept);
       const subtitle = !day || day.photos.length === 0
         ? t(locale, 'lx.widget.empty')
         : day.waiting.length > 0
           ? t(locale, 'lx.widget.waiting', { count: day.waiting.length })
           : t(locale, 'lx.widget.kept', { count: day.kept.length });
-      void updateHomeWidget({ title: t(locale, 'lx.widget.title'), subtitle, uri: best?.mediaUri });
+      void updateHomeWidget({ title: t(locale, 'lx.widget.title'), subtitle, uri: best?.mediaUri, shareLabel: t(locale, 'lx.widget.share') });
     }, 1500);
     return () => window.clearTimeout(timer);
   }, [photos, booted, locale]);

@@ -2736,6 +2736,9 @@ export const ro = {
   "lx.who.title": "Văd persoana asta în {count} poze. Cum o cheamă?",
   "lx.who.sub": "Cu un nume, o recunosc singur în pozele noi, o găsești la căutare și apare în poveștile și albumele tale.",
   "lx.who.name": "Îi dau un nume",
+  "lx.notify.share": "Trimite familiei",
+  "lx.notify.day": "Vezi ziua",
+  "lx.widget.share": "Trimite"
 };
 
 export type TranslationKey = keyof typeof ro;

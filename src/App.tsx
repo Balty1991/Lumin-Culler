@@ -410,7 +410,8 @@ export default function App() {
   }, [locale0]);
   useEffect(() => {
     let stop: (() => void) | undefined;
-    void onTodayLaunch(() => {
+    void onTodayLaunch(action => {
+      if (action !== 'today') return;
       void useStore.getState().importToday().then(() => {
         const ids = dayStats(useStore.getState().photos).reviewIds;
         if (ids.length) useStore.getState().openTiktokSortForIds(ids);

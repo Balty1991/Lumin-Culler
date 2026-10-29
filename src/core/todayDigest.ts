@@ -45,10 +45,10 @@ export function dayStats(photos: readonly DayPhoto[], now: number = Date.now()):
 }
 
 interface DigestPluginApi {
-  scheduleDailyDigest(options: { hour: number; minute: number; title: string; body: string; channelName: string }): Promise<void>;
+  scheduleDailyDigest(options: { hour: number; minute: number; title: string; body: string; channelName: string; shareLabel?: string; dayLabel?: string }): Promise<void>;
   cancelDailyDigest(): Promise<void>;
   consumeLaunchAction(): Promise<{ action?: string }>;
-  updateWidget(options: { title: string; subtitle: string; uri?: string }): Promise<void>;
+  updateWidget(options: { title: string; subtitle: string; uri?: string; shareLabel?: string }): Promise<void>;
   addListener(event: 'launchAction', cb: (data: { action: string }) => void): Promise<PluginListenerHandle>;
 }
 
@@ -62,7 +62,7 @@ function available(): boolean {
 export const DIGEST_HOUR = 20;
 export const DIGEST_MINUTE = 30;
 
-export async function scheduleDailyDigest(texts: { title: string; body: string; channelName: string }): Promise<void> {
+export async function scheduleDailyDigest(texts: { title: string; body: string; channelName: string; shareLabel?: string; dayLabel?: string }): Promise<void> {
   if (!available()) return;
   try {
     await Native.scheduleDailyDigest({ hour: DIGEST_HOUR, minute: DIGEST_MINUTE, ...texts });
@@ -71,14 +71,21 @@ export async function scheduleDailyDigest(texts: { title: string; body: string; 
   }
 }
 
-/** Cheamă `cb` când aplicația e deschisă din notificarea „Ziua de azi” (la pornire sau din fundal). */
-export async function onTodayLaunch(cb: () => void): Promise<() => void> {
+/**
+ * Cu ce a fost deschisă aplicația din notificarea de seară sau din widget:
+ * „today” (sortează ziua), „share_pod” (trimite poza zilei), „see_day” (vezi ziua).
+ */
+export type LaunchAction = 'today' | 'share_pod' | 'see_day';
+const LAUNCH_ACTIONS: readonly string[] = ['today', 'share_pod', 'see_day'];
+
+/** Cheamă `cb` când aplicația e deschisă din notificarea „Ziua de azi” sau din widget (la pornire sau din fundal). */
+export async function onTodayLaunch(cb: (action: LaunchAction) => void): Promise<() => void> {
   if (!available()) return () => {};
   let handle: PluginListenerHandle | null = null;
   try {
-    handle = await Native.addListener('launchAction', data => { if (data.action === 'today') cb(); });
+    handle = await Native.addListener('launchAction', data => { if (LAUNCH_ACTIONS.includes(data.action)) cb(data.action as LaunchAction); });
     const first = await Native.consumeLaunchAction();
-    if (first.action === 'today') cb();
+    if (first.action && LAUNCH_ACTIONS.includes(first.action)) cb(first.action as LaunchAction);
   } catch {
     // plugin vechi: doar fără deschiderea directă
   }
@@ -86,7 +93,7 @@ export async function onTodayLaunch(cb: () => void): Promise<() => void> {
 }
 
 /** Widgetul de pe ecranul telefonului: textul și poza zilei (LuminWidgetProvider.kt). */
-export async function updateHomeWidget(options: { title: string; subtitle: string; uri?: string }): Promise<void> {
+export async function updateHomeWidget(options: { title: string; subtitle: string; uri?: string; shareLabel?: string }): Promise<void> {
   if (!available()) return;
   try {
     await Native.updateWidget(options);

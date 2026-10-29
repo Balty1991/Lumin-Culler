@@ -78,7 +78,8 @@ class NotificationsPlugin : Plugin() {
             context,
             call.getString("title") ?: "Lumin AI",
             call.getString("subtitle") ?: "",
-            call.getString("uri")
+            call.getString("uri"),
+            call.getString("shareLabel")
         )
         call.resolve()
     }
@@ -125,7 +126,9 @@ class NotificationsPlugin : Plugin() {
                 call.getInt("minute") ?: 30,
                 call.getString("title") ?: "{n}",
                 call.getString("body") ?: "",
-                call.getString("channelName") ?: "Today"
+                call.getString("channelName") ?: "Today",
+                call.getString("shareLabel"),
+                call.getString("dayLabel")
             )
         }
         call.resolve()
