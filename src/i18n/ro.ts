@@ -2929,7 +2929,11 @@ export const ro = {
   "lx.trashCheck.yes": "Da, mută {count}",
   "lx.enhance.learned": "Am pornit cu reglajele pe care le pui de obicei (le vezi în Lumină și Culoare).",
   "lx.enhance.applyDay": "Aplic aceleași reglaje și la celelalte {count} poze păstrate din ziua asta? (tot ca copii; originalele rămân)",
-  "lx.enhance.applyDayGo": "Da, toată ziua"
+  "lx.enhance.applyDayGo": "Da, toată ziua",
+  "lx.feed.week": "Săptămâna ta în {count} momente, ca film scurt cu muzică. O trimiți familiei?",
+  "lx.feed.weekSub": "Cele mai frumoase poze păstrate în ultimele 7 zile.",
+  "lx.calendar.button": "Calendar {year} (PDF)",
+  "lx.calendar.title": "Calendarul nostru, cu pozele anului"
 };
 
 export type TranslationKey = keyof typeof ro;

@@ -7,7 +7,7 @@ import { makeCollage, shareCollage } from './collage';
 import { useTr } from './context';
 import { Thumb } from './Thumb';
 import { StoryButton } from './Story';
-import { makeYearBook, shareYearBook } from './yearBook';
+import { makeCalendar, makeYearBook, shareYearBook } from './yearBook';
 
 const DAY_MS = 86_400_000;
 
@@ -71,6 +71,20 @@ export function Recaps() {
     } finally { setBusy(null); setBookProgress(''); }
   };
 
+  const calendar = async () => {
+    setBusy('calendar');
+    try {
+      const loc = locale === 'en' ? 'en-GB' : 'ro-RO';
+      const month = (m: number) => { const n = new Date(2024, m, 1).toLocaleDateString(loc, { month: 'long' }); return n.charAt(0).toUpperCase() + n.slice(1); };
+      const weekdays = Array.from({ length: 7 }, (_, i) => new Date(2024, 0, 1 + i).toLocaleDateString(loc, { weekday: 'short' }).replace('.', ''));
+      const blob = await makeCalendar(year + 1, kept, { title: tr('lx.calendar.title'), month, weekdays }, (d, t) => setBookProgress(`${d}/${t}`));
+      if (blob) await shareYearBook(blob, `cherrypic-calendar-${year + 1}.pdf`);
+      else useStore.getState().setNotice(tr('lx.recap.failed'));
+    } catch {
+      useStore.getState().setNotice(tr('lx.recap.failed'));
+    } finally { setBusy(null); setBookProgress(''); }
+  };
+
   const cards: { kind: 'week' | 'year'; list: PhotoView[] }[] = [];
   if (week.length >= 3) cards.push({ kind: 'week', list: week });
   if (yearPicks.length >= 4) cards.push({ kind: 'year', list: yearPicks });
@@ -96,6 +110,11 @@ export function Recaps() {
             <StoryButton className="lx-btn ghost small" ids={c.list.slice(0, 12).map(p => p.id)}
               title={tr(c.kind === 'week' ? 'lx.story.weekTitle' : 'lx.story.yearTitle', { year })}
               subtitle={tr('lx.story.daySub', { count: Math.min(12, c.list.length) })} />
+            {c.kind === 'year' && (
+              <button className="lx-btn ghost small" disabled={busy !== null} onClick={() => void calendar()}>
+                {busy === 'calendar' ? `… ${bookProgress}` : `🗓 ${tr('lx.calendar.button', { year: year + 1 })}`}
+              </button>
+            )}
             {c.kind === 'year' && (
               <button className="lx-btn ghost small" disabled={busy !== null} onClick={() => void book()}>
                 {busy === 'book' ? `… ${bookProgress}` : `📖 ${tr('lx.book.button')}`}

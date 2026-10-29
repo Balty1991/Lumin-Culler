@@ -210,8 +210,24 @@ export function LumiFeed() {
       });
     }
 
-    // 2b. Filmul lunii trecute (în primele 10 zile din lună): „Octombrie în 30 de secunde”.
     const today = new Date();
+    // 2c. Duminică (și luni dimineață): povestea săptămânii, din cele mai bune păstrate.
+    const dow = today.getDay();
+    if (dow === 0 || (dow === 1 && today.getHours() < 12)) {
+      const weekKept = photos.filter(p => p.status === 'selected' && !p.aside && photoTime(p) >= Date.now() - 7 * DAY);
+      if (weekKept.length >= 5) {
+        const pick = [...weekKept].sort((a, b) => b.aiScore - a.aiScore).slice(0, 10).sort((a, b) => photoTime(a) - photoTime(b));
+        out.push({
+          id: `week-${Math.floor(Date.now() / (7 * DAY))}`, photoId: pick[0].id,
+          text: tr('lx.feed.week', { count: pick.length }),
+          sub: tr('lx.feed.weekSub'),
+          action: '', run: () => {},
+          custom: <StoryButton className="lx-btn primary small" ids={pick.map(p => p.id)} title={tr('lx.story.weekTitle')} subtitle={tr('lx.story.daySub', { count: pick.length })} />
+        });
+      }
+    }
+
+    // 2b. Filmul lunii trecute (în primele 10 zile din lună): „Octombrie în 30 de secunde”.
     if (today.getDate() <= 10) {
       const prev = monthStart(new Date(today.getFullYear(), today.getMonth() - 1, 15).getTime());
       const next = monthStart(new Date(today.getFullYear(), today.getMonth(), 15).getTime());

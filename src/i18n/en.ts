@@ -2843,5 +2843,9 @@ export const en: Record<TranslationKey, string> = {
   "lx.trashCheck.yes": "Yes, move {count}",
   "lx.enhance.learned": "Started with the adjustments you usually make (see Light and Color).",
   "lx.enhance.applyDay": "Apply the same adjustments to the other {count} kept photos from this day? (as copies; originals stay)",
-  "lx.enhance.applyDayGo": "Yes, the whole day"
+  "lx.enhance.applyDayGo": "Yes, the whole day",
+  "lx.feed.week": "Your week in {count} moments, as a short film with music. Send it to family?",
+  "lx.feed.weekSub": "The best photos you kept in the last 7 days.",
+  "lx.calendar.button": "{year} calendar (PDF)",
+  "lx.calendar.title": "Our calendar, with the year’s photos"
 };
