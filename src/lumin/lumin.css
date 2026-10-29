@@ -883,3 +883,8 @@ body.lx-viewer-open .lx-hero-media img { animation-play-state: paused; }
 .lx-enhance-frame.cropped { display: block; }
 .lx-enhance-frame.cropped .lx-enhance-canvas { display: block; position: static; width: auto; height: auto; max-width: 100%;
   max-height: calc(100dvh - 380px - var(--safe-top, 0px) - var(--safe-bottom, 0px)); border-radius: 6px; }
+
+/* „Magie”: poza pe care pictezi cu degetul ce dispare. */
+.lx-magic-canvas { max-width: 100%; max-height: calc(100dvh - 330px - var(--safe-top, 0px) - var(--safe-bottom, 0px)); touch-action: none; border-radius: 6px; }
+.lx-magic .lx-enhance-stage { position: relative; }
+.lx-magic-busy { position: absolute; inset: 0; display: grid; place-content: center; gap: 10px; justify-items: center; background: rgb(6 7 10 / .55); color: #fff; font-weight: 600; }

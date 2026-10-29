@@ -10,6 +10,7 @@ import { personalWhy, useWhyContext } from './why';
 import { learnFromOpen, learnFromShare } from './signals';
 import { findVisuallySimilar } from './visualSimilar';
 import { InstaSheet } from './InstaSheet';
+import { MagicSheet } from './MagicSheet';
 import { CaptionSheet, CloudLine } from './CloudParts';
 import { cloudAvailable, cloudConcepts, cloudEnabled, cloudSearchText, readVerdicts } from './cloud';
 import { translateSceneTag } from '../core/sceneTagLabels';
@@ -472,6 +473,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
   const [enhancing, setEnhancing] = useState(false);
   const [writing, setWriting] = useState(false);
   const [insta, setInsta] = useState(false);
+  const [magic, setMagic] = useState(false);
   const tr = useTr();
   const why = useWhyContext();
   const locale = useStore(s => s.locale);
@@ -681,6 +683,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
           <button className="lx-tbtn magic" onClick={() => setEnhancing(true)}><span>✨</span>{tr('lx.viewer.enhanceShort')}</button>
           {onSimilar && <button className="lx-tbtn" onClick={() => onSimilar(p.id)}><span>◎</span>{tr('lx.viewer.similarShort')}</button>}
           <button className="lx-tbtn" onClick={() => void exportSelection('apps', [p.id]).then(() => learnFromShare([p]))}><span>↗</span>{tr('lx.wall.share')}</button>
+          {cloudAvailable() && <button className="lx-tbtn magic" onClick={() => setMagic(true)}><span>🪄</span>{tr('lx.magic.button')}</button>}
           <button className="lx-tbtn" onClick={() => setInsta(true)}><span>▣</span>{tr('lx.insta.button')}</button>
           {p.ocrText && p.ocrText.trim().length > 8 && (
             <button className="lx-tbtn" onClick={() => { void navigator.clipboard?.writeText(p.ocrText!.trim()).then(() => useStore.getState().setNotice(tr('lx.viewer.textCopied')), () => {}); }}>
@@ -707,6 +710,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
       {enhancing && <EnhanceSheet photo={p} onClose={() => setEnhancing(false)} />}
       {writing && <CaptionSheet photo={p} onClose={() => setWriting(false)} />}
       {insta && <InstaSheet photo={p} onClose={() => setInsta(false)} />}
+      {magic && <MagicSheet photo={p} onClose={() => setMagic(false)} />}
     </div>,
     document.body
   );

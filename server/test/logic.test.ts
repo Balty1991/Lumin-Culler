@@ -160,3 +160,17 @@ describe('Lumi Cloud supervise', () => {
     expect(p).toContain('exactly 2 items');
   });
 });
+
+import { validateInpaint } from '../src/logic';
+describe('validateInpaint', () => {
+  const ok = { installId: 'abcdefabcdefabcdef12', mode: 'erase', image: 'QUJD', mask: 'QUJD', width: 512, height: 384 };
+  it('primește o cerere bună, cu mărimea rotunjită la 64', () => {
+    const r = validateInpaint({ ...ok, width: 500 });
+    expect(r.ok && r.width).toBe(512);
+  });
+  it('respinge modul necunoscut și mărimile prea mari', () => {
+    expect(validateInpaint({ ...ok, mode: 'paint' }).ok).toBe(false);
+    expect(validateInpaint({ ...ok, width: 2048 }).ok).toBe(false);
+    expect(validateInpaint({ ...ok, image: 'not base64!' }).ok).toBe(false);
+  });
+});

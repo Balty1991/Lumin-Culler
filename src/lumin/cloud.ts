@@ -157,16 +157,16 @@ export async function superviseUnsure(limit = 12): Promise<{ checked: number; de
 const WRITES_KEY = 'lumin-cloud-writes';
 const ALLOWANCE_KEY = 'lumin-cloud-free';
 /** Cât folosește gratuit AI-ul online pe zi (texte: povești, texte de postare, titluri; căutări). */
-export const FREE_DAILY = { write: 3, search: 5 } as const;
+export const FREE_DAILY = { write: 3, search: 5, magic: 2 } as const;
 
 /** Mai are omul voie azi? Cu Pro (sau fără plată disponibilă), mereu da. Numără folosirea. */
 function takeFreeAllowance(kind: keyof typeof FREE_DAILY): boolean {
   if (!useStore.getState().premiumLocked) return true;
   const day = new Date().toDateString();
-  let used: { day: string; write: number; search: number } = { day, write: 0, search: 0 };
+  let used: { day: string; write: number; search: number; magic: number } = { day, write: 0, search: 0, magic: 0 };
   try {
     const raw = JSON.parse(localStorage.getItem(ALLOWANCE_KEY) ?? 'null');
-    if (raw?.day === day) used = raw;
+    if (raw?.day === day) used = { ...used, ...raw };
   } catch { /* nimic salvat */ }
   if (used[kind] >= FREE_DAILY[kind]) return false;
   used[kind]++;
@@ -238,4 +238,36 @@ export async function ensureCloud(askConfirm: (msg: string, o?: { confirmLabel?:
   setCloudEnabled(true);
   void superviseUnsure();
   return true;
+}
+
+export type InpaintMode = 'erase' | 'sky-blue' | 'sky-sunset';
+export type InpaintResult = { ok: true; image: Blob } | { ok: false; reason: 'consent' | 'limit' | 'failed' };
+
+/**
+ * Guma AI / cerul nou: trimite bucata de poză (micșorată) și masca, primește
+ * zona redesenată. Gratuit de două ori pe zi; cu Pro, cât permite serverul.
+ */
+export async function cloudInpaint(mode: InpaintMode, image: Blob, mask: Blob, width: number, height: number): Promise<InpaintResult> {
+  if (!cloudEnabled()) return { ok: false, reason: 'consent' };
+  if (!takeFreeAllowance('magic')) { useStore.getState().gatePremium('cloud'); return { ok: false, reason: 'limit' }; }
+  const b64 = async (b: Blob) => {
+    const buf = new Uint8Array(await b.arrayBuffer());
+    let s = '';
+    for (let i = 0; i < buf.length; i += 0x8000) s += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+    return btoa(s);
+  };
+  try {
+    const res = await CapacitorHttp.post({
+      url: `${URL_BASE}/v1/inpaint`,
+      headers: { 'content-type': 'application/json', 'user-agent': 'Cherrypic/3 (Android)' },
+      data: { mode, image: await b64(image), mask: await b64(mask), width, height, installId: installId() },
+      connectTimeout: 20_000,
+      readTimeout: 120_000
+    });
+    if (res.status === 429) return { ok: false, reason: 'limit' };
+    const data = res.data as { image?: string; mime?: string } | undefined;
+    if (res.status !== 200 || !data?.image) return { ok: false, reason: 'failed' };
+    const bytes = Uint8Array.from(atob(data.image), c => c.charCodeAt(0));
+    return { ok: true, image: new Blob([bytes], { type: data.mime ?? 'image/png' }) };
+  } catch { return { ok: false, reason: 'failed' }; }
 }

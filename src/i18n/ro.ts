@@ -2830,7 +2830,25 @@ export const ro = {
   "lx.isit.yes": "Da",
   "lx.isit.no": "Nu",
   "lx.phone.peopleAuto": "Albumele pe oameni, ținute la zi",
-  "lx.phone.peopleAutoSub": "Pozele noi păstrate cu Ami, Angi… intră singure în albumul lor din galeria telefonului (Cherrypic/<nume>)."
+  "lx.phone.peopleAutoSub": "Pozele noi păstrate cu Ami, Angi… intră singure în albumul lor din galeria telefonului (Cherrypic/<nume>).",
+  "lx.magic.button": "Magie",
+  "lx.magic.title": "Magie",
+  "lx.magic.erase": "Gumă",
+  "lx.magic.sky": "Cer nou",
+  "lx.magic.eraseHint": "Trage cu degetul peste ce vrei să dispară: un om din spate, un stâlp, un gunoi.",
+  "lx.magic.skyHint": "Am găsit cerul (roșu). Alege cum să fie.",
+  "lx.magic.noSky": "Nu văd destul cer în poza asta.",
+  "lx.magic.clear": "Șterge semnele",
+  "lx.magic.eraseGo": "Fă-l să dispară",
+  "lx.magic.skyBlue": "Senin",
+  "lx.magic.skySunset": "Apus",
+  "lx.magic.working": "AI-ul redesenează…",
+  "lx.magic.resultHint": "Gata. Nu-ți place? Încearcă din nou: iese altfel de fiecare dată.",
+  "lx.magic.again": "Din nou",
+  "lx.magic.save": "Păstrez",
+  "lx.magic.saved": "Salvată în galerie, în Cherrypic/Editate. Originalul a rămas neatins.",
+  "lx.magic.failed": "N-a mers acum. Încearcă din nou puțin mai târziu.",
+  "lx.magic.consent": "Pentru Magie trebuie pornit AI-ul online."
 };
 
 export type TranslationKey = keyof typeof ro;

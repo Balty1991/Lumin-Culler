@@ -208,10 +208,10 @@ export function cfRequest(req: CreateRequest, bytes: Uint8Array): Record<string,
 // ---- Fundal nou, descrieri și texte (Workers AI, gratuit) ----
 
 /** Ce face serverul pe lângă lucrările cu poze întregi; merg gratuit pe Workers AI. */
-export const EXTRA_KINDS = ['background', 'describe', 'caption', 'greeting', 'story', 'concepts', 'supervise'] as const;
+export const EXTRA_KINDS = ['background', 'describe', 'caption', 'greeting', 'story', 'concepts', 'supervise', 'inpaint'] as const;
 export type ExtraKind = typeof EXTRA_KINDS[number];
 
-export const EXTRA_DAILY_LIMIT: Record<ExtraKind, number> = { background: 15, describe: 60, caption: 30, greeting: 30, story: 30, concepts: 80, supervise: 30 };
+export const EXTRA_DAILY_LIMIT: Record<ExtraKind, number> = { background: 15, describe: 60, caption: 30, greeting: 30, story: 30, concepts: 80, supervise: 30, inpaint: 25 };
 
 export const CF_TEXT2IMG_MODELS = ['@cf/black-forest-labs/flux-1-schnell', '@cf/bytedance/stable-diffusion-xl-lightning'];
 export const CF_VISION_MODELS = ['@cf/meta/llama-3.2-11b-vision-instruct', '@cf/llava-hf/llava-1.5-7b-hf'];
@@ -366,4 +366,41 @@ export function normalizeVerdicts(parsed: Record<string, unknown> | null, n: num
       tags: Array.isArray(it.tags) ? (it.tags as unknown[]).filter((t): t is string => typeof t === 'string').map(t => t.toLowerCase().slice(0, 30)).slice(0, 6) : []
     };
   });
+}
+
+/**
+ * Guma AI și cerul nou: zona albă din mască se redesenează. Imaginea și masca
+ * vin deja micșorate de telefon (latura lungă ≤ 512, multiplu de 64), iar
+ * telefonul pune înapoi doar zona din mască, la rezoluția pozei.
+ */
+export const CF_INPAINT_MODELS = ['@cf/runwayml/stable-diffusion-v1-5-inpainting'];
+export type InpaintMode = 'erase' | 'sky-blue' | 'sky-sunset';
+const INPAINT_PROMPTS: Record<InpaintMode, { prompt: string; negative: string }> = {
+  erase: {
+    prompt: 'empty background, seamless natural continuation of the surrounding scene, same texture and lighting, photo',
+    negative: 'person, people, face, object, text, watermark, blurry, artifacts'
+  },
+  'sky-blue': {
+    prompt: 'clear bright blue sky with a few soft white clouds, natural daylight, photo',
+    negative: 'buildings, trees, people, text, watermark, artifacts'
+  },
+  'sky-sunset': {
+    prompt: 'beautiful golden hour sunset sky with warm orange and pink clouds, photo',
+    negative: 'buildings, trees, people, sun disk, text, watermark, artifacts'
+  }
+};
+export function inpaintPrompt(mode: InpaintMode): { prompt: string; negative: string } {
+  return INPAINT_PROMPTS[mode];
+}
+
+const B64 = /^[A-Za-z0-9+/=]+$/;
+export function validateInpaint(body: unknown): { ok: true; installId: string; mode: InpaintMode; image: string; mask: string; width: number; height: number } | { ok: false; error: string } {
+  const b = (body ?? {}) as Record<string, unknown>;
+  if (typeof b.installId !== 'string' || !/^[A-Za-z0-9-]{16,64}$/.test(b.installId)) return { ok: false, error: 'bad_install' };
+  if (b.mode !== 'erase' && b.mode !== 'sky-blue' && b.mode !== 'sky-sunset') return { ok: false, error: 'bad_mode' };
+  if (typeof b.image !== 'string' || b.image.length > 1_500_000 || !B64.test(b.image)) return { ok: false, error: 'bad_image' };
+  if (typeof b.mask !== 'string' || b.mask.length > 800_000 || !B64.test(b.mask)) return { ok: false, error: 'bad_mask' };
+  const w = Math.round(Number(b.width) / 64) * 64, h = Math.round(Number(b.height) / 64) * 64;
+  if (!(w >= 256 && w <= 768 && h >= 256 && h <= 768)) return { ok: false, error: 'bad_size' };
+  return { ok: true, installId: b.installId, mode: b.mode, image: b.image, mask: b.mask, width: w, height: h };
 }

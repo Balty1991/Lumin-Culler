@@ -24,7 +24,7 @@
  *   POST /v1/supervise   { images[], scores[], lang, installId } → { items: [{ keep, confidence, reason, caption, tags }] }
  *   POST /v1/report      { id, reason } → raportare conținut (cerință Google Play pentru AI)
  */
-import { admit, backgroundPrompt, budgetKey, CF_IMG2IMG_MODELS, CF_TEXT2IMG_MODELS, CF_TEXT_MODELS, CF_VISION_MODELS, cfRequest, day, EXTRA_DAILY_LIMIT, EXTRA_KINDS, modelUnavailable, parseJsonReply, validateBackground, validateConcepts, conceptsPrompt, validateDescribe, VISION_PROMPT, writerPrompt, validateSupervise, supervisePrompt, normalizeVerdicts, SUPERVISE_VISION_PROMPT, type ExtraKind, COST_USD, DEFAULT_MODELS, falRequest, kindsFor, mapStatus, quotaKey, resultUrl, validateCreate, type Kind } from './logic';
+import { CF_INPAINT_MODELS, inpaintPrompt, validateInpaint, admit, backgroundPrompt, budgetKey, CF_IMG2IMG_MODELS, CF_TEXT2IMG_MODELS, CF_TEXT_MODELS, CF_VISION_MODELS, cfRequest, day, EXTRA_DAILY_LIMIT, EXTRA_KINDS, modelUnavailable, parseJsonReply, validateBackground, validateConcepts, conceptsPrompt, validateDescribe, VISION_PROMPT, writerPrompt, validateSupervise, supervisePrompt, normalizeVerdicts, SUPERVISE_VISION_PROMPT, type ExtraKind, COST_USD, DEFAULT_MODELS, falRequest, kindsFor, mapStatus, quotaKey, resultUrl, validateCreate, type Kind } from './logic';
 
 export interface Env {
   FAL_KEY?: string;
@@ -150,6 +150,28 @@ export default {
         const bytes = await bytesOf(img.out);
         const png = bytes[0] === 0x89;
         return json({ image: base64(bytes), mime: png ? 'image/png' : 'image/jpeg', scene, model: img.model });
+      } catch (e) {
+        return aiError(e);
+      }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/v1/inpaint') {
+      let body: unknown;
+      try { body = await request.json(); } catch { return json({ error: 'bad_json' }, 400); }
+      const v = validateInpaint(body);
+      if (!v.ok) return json({ error: v.error }, 400);
+      if (!(await takeExtra(env, 'inpaint', v.installId, now))) return json({ error: 'daily_limit' }, 429);
+      try {
+        const { prompt, negative } = inpaintPrompt(v.mode);
+        const toBytes = (b64: string) => [...Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))];
+        const img = await runFirst(env, CF_INPAINT_MODELS, () => ({
+          prompt, negative_prompt: negative,
+          image: toBytes(v.image), mask: toBytes(v.mask),
+          width: v.width, height: v.height,
+          num_steps: 20, strength: 1, guidance: 7.5
+        }));
+        const bytes = await bytesOf(img.out);
+        return json({ image: base64(bytes), mime: bytes[0] === 0x89 ? 'image/png' : 'image/jpeg', model: img.model });
       } catch (e) {
         return aiError(e);
       }
