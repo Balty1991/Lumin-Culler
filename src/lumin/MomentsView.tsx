@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLxPhotos } from './useLxPhotos';
 import { cachedWrite, cloudEnabled, cloudWrite } from './cloud';
 import { useStore } from '../state/store';
 import { bestSpread, buildEvents, buildMomentAlbums, type MomentAlbum } from './momentAlbums';
@@ -19,7 +20,7 @@ import type { PhotoView } from '../state/store';
  * deschide, de unde se sortează sau se trimit alegerile.
  */
 export function MomentsView() {
-  const photos = useStore(s => s.photos);
+  const photos = useLxPhotos();
   const locale = useStore(s => s.locale);
   const tr = useTr();
   const [open, setOpen] = useState<string | null>(null);

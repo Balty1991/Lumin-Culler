@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
+import { useLxPhotos } from './useLxPhotos';
 import { flushSync } from 'react-dom';
 import { createPortal } from 'react-dom';
 import { useStore, type PhotoView } from '../state/store';
@@ -12,6 +13,7 @@ import { findVisuallySimilar } from './visualSimilar';
 import { InstaSheet } from './InstaSheet';
 import { folderCounts, inFolder, SMART_FOLDERS, type SmartFolder } from './smartFolders';
 import { MagicSheet } from './MagicSheet';
+import { hidePhotos } from './PrivatePhotos';
 import { CaptionSheet, CloudLine } from './CloudParts';
 import { cloudAvailable, cloudConcepts, cloudEnabled, cloudSearchText, readVerdicts } from './cloud';
 import { translateSceneTag } from '../core/sceneTagLabels';
@@ -145,7 +147,7 @@ function withTransition(change: () => void) {
 }
 
 export function GalleryWall() {
-  const photos = useStore(s => s.photos);
+  const photos = useLxPhotos();
   const locale = useStore(s => s.locale);
   const tr = useTr();
   const [filter, setFilter] = useState<Filter>('all');
@@ -707,6 +709,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
             </button>
           )}
           {cloudAvailable() && <button className="lx-tbtn" onClick={() => setWriting(true)}><span>✍</span>{tr('lx.caption.button')}</button>}
+          <button className="lx-tbtn" onClick={() => void hidePhotos([p.id], tr).then(done => { if (done) { if (list.length <= 1) onClose(); else onIndex(Math.min(index, list.length - 2)); } })}><span>🔒</span>{tr('lx.private.hide')}</button>
           {p.status === 'rejected' && p.mediaUri && (
             <button className="lx-tbtn danger" onClick={() => void deleteRejectedPhotos([p.id]).then(r => {
               if (!r.deleted) return;

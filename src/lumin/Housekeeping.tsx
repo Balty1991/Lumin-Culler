@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLxPhotos } from './useLxPhotos';
 import { db } from '../core/db';
 import { findExactDuplicates } from '../core/exactDuplicates';
 import { formatBytes } from '../core/freedSpace';
@@ -22,7 +23,7 @@ const bytes = (list: readonly PhotoView[]) => list.reduce((s, p) => s + (p.sizeB
 
 export function Housekeeping() {
   const tr = useTr();
-  const photos = useStore(s => s.photos);
+  const photos = useLxPhotos();
   const locale = useStore(s => s.locale);
   const deleteRejectedPhotos = useStore(s => s.deleteRejectedPhotos);
   const trashPhotos = useStore(s => s.trashPhotos);

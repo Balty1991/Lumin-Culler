@@ -2886,7 +2886,21 @@ export const ro = {
   "lx.folder.clothes": "Haine",
   "lx.folder.pets": "Animale",
   "lx.folder.nature": "Natură",
-  "lx.folder.docs": "Documente"
+  "lx.folder.docs": "Documente",
+  "lx.private.title": "Poze private",
+  "lx.private.sub": "Ascunse cu PIN; nu apar nicăieri altundeva. Le ascunzi din poza mare, cu „🔒 Privată”.",
+  "lx.private.count": "{count} poze ascunse cu PIN",
+  "lx.private.choosePin": "Alege un PIN de 4–6 cifre pentru pozele private:",
+  "lx.private.badPin": "PIN-ul trebuie să aibă 4–6 cifre.",
+  "lx.private.hidden": "Poza e acum privată. O găsești în Setări → Poze private.",
+  "lx.private.howTo": "Deschide o poză și apasă „🔒 Privată” ca s-o ascunzi.",
+  "lx.private.enterPin": "PIN-ul pozelor private:",
+  "lx.private.open": "Deschide",
+  "lx.private.wrongPin": "PIN greșit.",
+  "lx.private.empty": "Nicio poză privată încă.",
+  "lx.private.lock": "Blochează",
+  "lx.private.unhide": "Fă-le vizibile ({count})",
+  "lx.private.hide": "Privată"
 };
 
 export type TranslationKey = keyof typeof ro;

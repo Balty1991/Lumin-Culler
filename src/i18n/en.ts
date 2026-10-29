@@ -2800,5 +2800,19 @@ export const en: Record<TranslationKey, string> = {
   "lx.folder.clothes": "Clothes",
   "lx.folder.pets": "Pets",
   "lx.folder.nature": "Nature",
-  "lx.folder.docs": "Documents"
+  "lx.folder.docs": "Documents",
+  "lx.private.title": "Private photos",
+  "lx.private.sub": "Hidden behind a PIN; they don’t show up anywhere else. Hide one from the big photo with “🔒 Private”.",
+  "lx.private.count": "{count} photos hidden behind a PIN",
+  "lx.private.choosePin": "Pick a 4–6 digit PIN for private photos:",
+  "lx.private.badPin": "The PIN needs 4–6 digits.",
+  "lx.private.hidden": "The photo is now private. Find it in Settings → Private photos.",
+  "lx.private.howTo": "Open a photo and tap “🔒 Private” to hide it.",
+  "lx.private.enterPin": "Private photos PIN:",
+  "lx.private.open": "Open",
+  "lx.private.wrongPin": "Wrong PIN.",
+  "lx.private.empty": "No private photos yet.",
+  "lx.private.lock": "Lock",
+  "lx.private.unhide": "Make visible ({count})",
+  "lx.private.hide": "Private"
 };

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useLxPhotos } from './useLxPhotos';
 import { useStore, type PhotoView } from '../state/store';
 import { startOfDay } from '../core/todayDigest';
 import { photoTime } from './days';
@@ -27,7 +28,7 @@ function bestPer(photos: PhotoView[], key: (p: PhotoView) => number, limit: numb
  */
 export function Recaps() {
   const tr = useTr();
-  const photos = useStore(s => s.photos);
+  const photos = useLxPhotos();
   const locale = useStore(s => s.locale);
   const [busy, setBusy] = useState<string | null>(null);
   const now = Date.now();

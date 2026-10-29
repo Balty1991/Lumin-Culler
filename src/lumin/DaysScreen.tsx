@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core';
+import { useLxPhotos } from './useLxPhotos';
 import { useMemo, useState } from 'react';
 import { useStore } from '../state/store';
 import { groupDays, type Day } from './days';
@@ -35,7 +36,7 @@ const VIEWS: GalleryView[] = ['wall', 'moments', 'days', 'months', 'people', 'as
  * și ce a pus AI-ul deoparte (bonuri, capturi, documente).
  */
 export function DaysScreen() {
-  const photos = useStore(s => s.photos);
+  const photos = useLxPhotos();
   const persons = useStore(s => s.persons);
   const openDay = useLx(s => s.openDay);
   const setOpenDay = useLx(s => s.setOpenDay);
@@ -104,7 +105,7 @@ export function DaysScreen() {
 /** Luni: cât din galeria telefonului a văzut și a sortat AI-ul, cu „Sortează luna” unde lipsește. */
 function MonthsView({ days }: { days: Day<PhotoView>[] }) {
   const [open, setOpen] = useState<number | null>(null);
-  const photos = useStore(s => s.photos);
+  const photos = useLxPhotos();
   const locale = useStore(s => s.locale);
   const progress = useStore(s => s.progress);
   const importGalleryPeriod = useStore(s => s.importGalleryPeriod);

@@ -3,6 +3,7 @@ import { Share } from '@capacitor/share';
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
 import { buildErrorReport, readErrorLog } from '../core/errorLog';
 import { CloudSection } from './CloudParts';
+import { PrivatePhotosRow } from './PrivatePhotos';
 import { AutonomyPicker } from './TwinParts';
 import { useStore } from '../state/store';
 import type { CullingStrictness } from '../core/scoreThresholds';
@@ -146,6 +147,7 @@ export function SettingsScreen() {
           </button>
         )}
         {canMakePhoneAlbums() && <PeopleAlbumsAutoRow />}
+        <PrivatePhotosRow />
         <AutoBackupRow />
         <button className="lx-row button" onClick={() => void exportBackup()}>
           <span><b>{tr('lx.settings.backup')}</b><small>{tr('lx.settings.backupSub')}</small></span>

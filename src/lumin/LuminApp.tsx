@@ -19,6 +19,7 @@ import { useLx, type LxTab } from './lxStore';
 import { LxActionsContext } from './context';
 import { groupDays } from './days';
 import { learnFromShare } from './signals';
+import { visiblePhotos } from './useLxPhotos';
 import { autoBackupIfDue, markRestoreAsked, restorableBackup, setAutoBackup } from './autoBackup';
 import { Viewer } from './GalleryWall';
 import { superviseUnsure } from './cloud';
@@ -62,7 +63,7 @@ async function offerRestoreOrBackup(): Promise<void> {
 
 /** „Acum un an” din notificarea de dimineață: poza trimisă direct, sau amintirile deschise. */
 async function openMemoryAction(action: 'share_memory' | 'see_memory'): Promise<void> {
-  const m = onThisDay(useStore.getState().photos)[0];
+  const m = onThisDay(visiblePhotos())[0];
   if (!m?.photos.length) return;
   if (action === 'see_memory') { useLx.getState().openViewer(m.photos.map(p => p.id), 0); return; }
   await useStore.getState().exportSelection('apps', [m.photos[0].id]);
@@ -71,7 +72,7 @@ async function openMemoryAction(action: 'share_memory' | 'see_memory'): Promise<
 
 /** Pozele de „Acum un an” pentru următoarele 14 dimineți, alese ca pe Azi (păstrate, apoi scor). */
 function memoryPicks(): Record<string, { uri: string; years: number }> {
-  const photos = useStore.getState().photos;
+  const photos = visiblePhotos();
   const out: Record<string, { uri: string; years: number }> = {};
   for (let i = 0; i < 14; i++) {
     const at = Date.now() + i * 86_400_000;
@@ -94,7 +95,7 @@ function bestOfDay<T extends { aiScore: number }>(kept: readonly T[]): T | undef
  */
 async function openDayAction(action: 'share_pod' | 'see_day'): Promise<void> {
   await useStore.getState().importToday().catch(() => 0);
-  const day = groupDays(useStore.getState().photos).find(d => d.start === startOfDay());
+  const day = groupDays(visiblePhotos()).find(d => d.start === startOfDay());
   if (!day?.photos.length) return;
   if (action === 'see_day') {
     const list = day.kept.length ? day.kept : day.photos;
@@ -185,7 +186,7 @@ export function LuminApp() {
         if (added) await decideRestIfAllowed();
         const result = summarizeToday(added ?? 0);
         if (result) useLx.getState().setAutoResult(result);
-        const day = groupDays(useStore.getState().photos).find(d => d.start === startOfDay());
+        const day = groupDays(visiblePhotos()).find(d => d.start === startOfDay());
         if (day?.waiting.length) useLx.getState().openSort(day.waiting.map(p => p.id), t(useStore.getState().locale, 'lx.sort.today'));
       });
     }).then(fn => { stop = fn; });
@@ -197,7 +198,7 @@ export function LuminApp() {
   useEffect(() => {
     if (!booted) return;
     const timer = window.setTimeout(() => {
-      const day = groupDays(useStore.getState().photos).find(d => d.start === startOfDay());
+      const day = groupDays(visiblePhotos()).find(d => d.start === startOfDay());
       const best = day && bestOfDay(day.kept);
       const subtitle = !day || day.photos.length === 0
         ? t(locale, 'lx.widget.empty')
@@ -205,7 +206,7 @@ export function LuminApp() {
           ? t(locale, 'lx.widget.waiting', { count: day.waiting.length })
           : t(locale, 'lx.widget.kept', { count: day.kept.length });
       // Cererea de recenzie, o singură dată, după un câștig vizibil (1 GB eliberat sau 100 de poze hotărâte).
-      const all = useStore.getState().photos;
+      const all = visiblePhotos();
       maybeAskForReviewAfterWin({ freedBytes: freedSummary().total, decided: all.filter(p => p.status === 'selected' || p.status === 'rejected').length });
       void updateHomeWidget({ title: t(locale, 'lx.widget.title'), subtitle, uri: best?.mediaUri, shareLabel: t(locale, 'lx.widget.share') });
       void scheduleMorningMemory({

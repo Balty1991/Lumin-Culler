@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLxPhotos } from './useLxPhotos';
 import { useStore } from '../state/store';
 import { countGalleryPhotosSince, isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { startOfDay } from '../core/todayDigest';
@@ -33,7 +34,7 @@ import { Recaps } from './Recaps';
 export function TodayScreen() {
   const tr = useTr();
   const { pick } = useLxActions();
-  const photos = useStore(s => s.photos);
+  const photos = useLxPhotos();
   const progress = useStore(s => s.progress);
   const importing = useStore(s => s.supervisorImporting);
   const locale = useStore(s => s.locale);
@@ -269,7 +270,7 @@ export function TodayScreen() {
 /** „Galeria ta: 34% sortată” — un rând pe Azi, cu drum spre Galerie → Luni. */
 function GalleryStatus() {
   const tr = useTr();
-  const photos = useStore(s => s.photos);
+  const photos = useLxPhotos();
   const progress = useStore(s => s.progress);
   const setTab = useLx(s => s.setTab);
   const setView = useLx(s => s.setGalleryView);
@@ -296,7 +297,7 @@ function GalleryStatus() {
 /** „Acum un an”: cele mai bune poze din aceeași zi, din anii trecuți. */
 function OnThisDay() {
   const tr = useTr();
-  const photos = useStore(s => s.photos);
+  const photos = useLxPhotos();
   const memories = useMemo(() => onThisDay(photos), [photos]);
   if (!memories.length) return null;
   return (

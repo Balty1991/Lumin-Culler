@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react';
+import { useLxPhotos } from './useLxPhotos';
 import { formatBytes } from '../core/freedSpace';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { readLastBackupAt } from '../state/backupReminder';
@@ -79,7 +80,7 @@ export function seriesExtras(photos: readonly PhotoView[]): { sets: number; extr
 
 export function LumiFeed() {
   const tr = useTr();
-  const photos = useStore(s => s.photos);
+  const photos = useLxPhotos();
   const locale = useStore(s => s.locale);
   const premiumLocked = useStore(s => s.premiumLocked);
   const gatePremium = useStore(s => s.gatePremium);
