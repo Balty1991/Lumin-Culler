@@ -2767,5 +2767,13 @@ export const en: Record<TranslationKey, string> = {
   "lx.recommend.sub": "Know someone who takes lots of photos and never sorts them?",
   "lx.recommend.text": "I use Cherrypic: the AI picks my best photos and clears out the rest. Give it a try:",
   "lx.report.title": "Send a problem report",
-  "lx.report.sub": "If something isn’t working: a text file with the version and the last {count} errors, no photos or names."
+  "lx.report.sub": "If something isn’t working: a text file with the version and the last {count} errors, no photos or names.",
+  "lx.why.betterTwin": "there’s a near-identical one that came out better",
+  "lx.feed.lesson": "There are {count} photos I’m not sure about. Two minutes with you and I’ll learn your taste much better.",
+  "lx.feed.lessonSub": "Picked from different days, the ones I hesitate on most.",
+  "lx.feed.lessonGo": "Let’s look",
+  "lx.feed.lessonTitle": "Two minutes",
+  "lx.feed.missed": "You haven’t taken photos with {name} since {month}.",
+  "lx.feed.missedSub": "Here are the best so far — maybe it’s time for a new one.",
+  "lx.feed.missedGo": "See the photos"
 };

@@ -2853,7 +2853,15 @@ export const ro = {
   "lx.recommend.sub": "Cineva care face multe poze și nu le sortează niciodată?",
   "lx.recommend.text": "Folosesc Cherrypic: AI-ul îmi alege singur cele mai bune poze din galerie și șterge restul. Încearcă-l:",
   "lx.report.title": "Trimite un raport de probleme",
-  "lx.report.sub": "Dacă ceva nu merge: un fișier text cu versiunea și ultimele {count} erori, fără poze sau nume."
+  "lx.report.sub": "Dacă ceva nu merge: un fișier text cu versiunea și ultimele {count} erori, fără poze sau nume.",
+  "lx.why.betterTwin": "mai e una aproape la fel, mai reușită",
+  "lx.feed.lesson": "Am {count} poze la care nu sunt sigur. Două minute cu tine și învăț mult mai bine ce îți place.",
+  "lx.feed.lessonSub": "Alese din zile diferite, cele la care ezit cel mai mult.",
+  "lx.feed.lessonGo": "Hai să le vedem",
+  "lx.feed.lessonTitle": "Două minute",
+  "lx.feed.missed": "N-ai mai făcut poze cu {name} din {month}.",
+  "lx.feed.missedSub": "Uite cele mai frumoase de până acum — poate e momentul pentru una nouă.",
+  "lx.feed.missedGo": "Vezi pozele"
 };
 
 export type TranslationKey = keyof typeof ro;

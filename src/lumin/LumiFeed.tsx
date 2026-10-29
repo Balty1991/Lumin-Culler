@@ -115,6 +115,58 @@ export function LumiFeed() {
       });
     }
 
+    // 1b. „Două minute”: cele 10 poze la care AI-ul e cel mai nesigur (scor aproape de
+    // mijloc), din zile diferite. Din ele învață cel mai mult despre gustul omului.
+    const unsure = photos.filter(p => isWaiting(p) && Math.abs(p.aiScore - 50) <= 15)
+      .sort((a, b) => Math.abs(a.aiScore - 50) - Math.abs(b.aiScore - 50));
+    const seenDays = new Set<number>();
+    const lesson: PhotoView[] = [];
+    for (const p of unsure) {
+      const d = Math.floor(photoTime(p) / DAY);
+      if (seenDays.has(d) && unsure.length > 20) continue;
+      seenDays.add(d);
+      lesson.push(p);
+      if (lesson.length === 10) break;
+    }
+    if (lesson.length >= 6) {
+      out.push({
+        id: `lesson-${new Date().toDateString()}`, photoId: lesson[0].id,
+        text: tr('lx.feed.lesson', { count: lesson.length }),
+        sub: tr('lx.feed.lessonSub'),
+        action: tr('lx.feed.lessonGo'),
+        run: () => openSort(lesson.map(p => p.id), tr('lx.feed.lessonTitle'))
+      });
+    }
+
+    // 1c. Un om drag, fără poze noi de mult: „N-ai mai făcut poze cu bunica din martie”.
+    const lastSeen = new Map<string, { at: number; count: number; best?: PhotoView }>();
+    for (const p of photos) {
+      if (p.aside) continue;
+      for (const n of p.personNames) {
+        const e = lastSeen.get(n) ?? { at: 0, count: 0 };
+        e.count++;
+        if (photoTime(p) > e.at) e.at = photoTime(p);
+        if (p.status === 'selected' && (!e.best || p.aiScore > e.best.aiScore)) e.best = p;
+        lastSeen.set(n, e);
+      }
+    }
+    const missed = [...lastSeen.entries()]
+      .filter(([, e]) => e.count >= 10 && e.at < Date.now() - 150 * DAY && e.at > Date.now() - 3 * 365 * DAY)
+      .sort((a, b) => b[1].count - a[1].count)[0];
+    if (missed) {
+      const [name, e] = missed;
+      out.push({
+        id: `missed-${name}-${monthStart(Date.now())}`, photoId: e.best?.id,
+        text: tr('lx.feed.missed', { name, month: monthLabel(monthStart(e.at), locale) }),
+        sub: tr('lx.feed.missedSub'),
+        action: tr('lx.feed.missedGo'),
+        run: () => {
+          const theirs = photos.filter(p => p.personNames.includes(name) && p.status === 'selected').sort((a, b) => photoTime(b) - photoTime(a)).slice(0, 30);
+          if (theirs.length) openViewer(theirs.map(p => p.id));
+        }
+      });
+    }
+
     // 2. O lună de terminat: cea mai recentă cu poze care așteaptă.
     const byMonth = new Map<number, PhotoView[]>();
     for (const p of photos) if (isWaiting(p)) {

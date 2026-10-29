@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useStore } from '../state/store';
 import { contextEngine } from '../core/learning/ContextEngine';
 import { favoritePeople } from '../core/personTaste';
 import { reasonsFor, type ReasonInput } from './reasons';
@@ -15,11 +16,14 @@ export interface WhyPhoto extends ReasonInput {
   aiScore: number;
   personNames: string[];
   sceneTags?: string[];
+  groupId?: string;
 }
 
 export interface WhyContext {
   loved: { name: string; rate: number }[];
   subjects: string[];
+  /** Cel mai bun scor din fiecare serie: „mai e una aproape la fel, mai bună”. */
+  groupBest?: ReadonlyMap<string, number>;
 }
 
 type Tr = (key: string, vars?: Record<string, string | number>) => string;
@@ -37,7 +41,13 @@ export function useWhyContext(): WhyContext {
       setSubjects(cachedSubjects);
     }).catch(() => {});
   }, []);
-  return { loved: favoritePeople(), subjects };
+  const photos = useStore(st => st.photos);
+  const groupBest = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of photos) if (p.groupId && !p.aside) m.set(p.groupId, Math.max(m.get(p.groupId) ?? 0, p.aiScore));
+    return m;
+  }, [photos]);
+  return { loved: favoritePeople(), subjects, groupBest };
 }
 
 export function personalWhy(p: WhyPhoto, ctx: WhyContext, tr: Tr): string {
@@ -45,6 +55,10 @@ export function personalWhy(p: WhyPhoto, ctx: WhyContext, tr: Tr): string {
   const sure = p.status === 'selected' || p.status === 'rejected';
   const lead = tr(keep ? (sure ? 'lx.why.keep' : 'lx.why.maybeKeep') : (sure ? 'lx.why.drop' : 'lx.why.maybeDrop'));
   const parts: string[] = [];
+
+  // De ce pleacă: întâi cel mai convingător motiv — e o copie mai slabă a alteia.
+  const twin = !keep && p.groupId ? ctx.groupBest?.get(p.groupId) : undefined;
+  if (twin !== undefined && twin > p.aiScore + 3) parts.push(tr('lx.why.betterTwin'));
 
   const loved = ctx.loved.find(l => p.personNames.includes(l.name));
   if (loved) parts.push(tr('lx.why.person', { name: loved.name, ofTen: Math.round(loved.rate * 10) }));
