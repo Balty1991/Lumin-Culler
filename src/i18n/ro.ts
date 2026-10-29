@@ -2793,7 +2793,11 @@ export const ro = {
   "lx.memory.notify.titleN": "Acum {years} ani, azi",
   "lx.memory.notify.body": "Uite ce făceai. O trimiți celor din poză?",
   "lx.memory.notify.channel": "Amintiri",
-  "lx.memory.notify.see": "Vezi amintirile"
+  "lx.memory.notify.see": "Vezi amintirile",
+  "lx.enhance.panel.frame": "Cadru",
+  "lx.enhance.aspect.orig": "Original",
+  "lx.enhance.tilt": "Înclinare",
+  "lx.enhance.frameHint": "Cadrul se așază singur pe fețe. Atinge de două ori linia ca s-o readuci la zero."
 };
 
 export type TranslationKey = keyof typeof ro;

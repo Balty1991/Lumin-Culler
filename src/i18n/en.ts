@@ -2707,5 +2707,9 @@ export const en: Record<TranslationKey, string> = {
   "lx.memory.notify.titleN": "{years} years ago today",
   "lx.memory.notify.body": "Look what you were up to. Send it to the people in it?",
   "lx.memory.notify.channel": "Memories",
-  "lx.memory.notify.see": "See memories"
+  "lx.memory.notify.see": "See memories",
+  "lx.enhance.panel.frame": "Frame",
+  "lx.enhance.aspect.orig": "Original",
+  "lx.enhance.tilt": "Tilt",
+  "lx.enhance.frameHint": "The frame centers itself on faces. Double-tap the slider to reset it."
 };

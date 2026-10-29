@@ -24,7 +24,11 @@ const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v
  * ca în analiza de la import.
  */
 export function instaCrop(width: number, height: number, format: InstaFormat, faces?: readonly { box: Box }[]): CropRect {
-  const ratio = RATIO[format];
+  return frameCrop(width, height, RATIO[format], faces);
+}
+
+/** Același cadru pe fețe, pentru orice proporție (lățime / înălțime) — și în editor. */
+export function frameCrop(width: number, height: number, ratio: number, faces?: readonly { box: Box }[]): CropRect {
   const w = width / height > ratio ? height * ratio : width;
   const h = w / ratio;
   let cx = width / 2;

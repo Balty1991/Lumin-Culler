@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { db } from '../core/db';
-import { computeAutoAdjustments, computeAutoStraighten, drawAdjusted, NEUTRAL_ADJUSTMENTS, subjectFromFaces, type EditAdjustments } from '../core/imageAdjust';
+import { computeAutoAdjustments, computeAutoStraighten, drawAdjusted, NEUTRAL_ADJUSTMENTS, outputSize, subjectFromFaces, type EditAdjustments } from '../core/imageAdjust';
 import { getCachedPreviewUrl, getDisplayUrl } from '../core/previewUrlCache';
 import { canSharpen, sharpUrl } from './sharp';
 import { useStore, type PhotoView } from '../state/store';
+import { frameCrop } from './instaCrop';
 import { useTr } from './context';
 
 /**
@@ -36,7 +37,9 @@ const STYLE_ADD: Record<EnhanceStyle, Partial<Record<keyof EditAdjustments, numb
   // Portret: fundalul estompat în jurul fețelor, pielea moale (claritate scăzută), lumină caldă.
   portrait: { bokeh: 60, contrast: 6, saturation: 2, temperature: 6, clarity: -8, sharpen: 8, shadows: 12, highlights: -10, vignette: 16 },
   // Clar: umbrele deschise și luminile coborâte, detaliu scos în evidență (un HDR blând).
-  clear: { contrast: 4, saturation: 4, clarity: 28, sharpen: 22, dehaze: 12, shadows: 30, highlights: -30 },
+  // Cu alb și negru ținute la capete: fără ele cerul ieșea gri și poza spălată
+  // (raportat cu captură, la 125%).
+  clear: { contrast: 12, saturation: 6, clarity: 26, sharpen: 20, dehaze: 8, shadows: 18, highlights: -18, whites: 10, blacks: -8 },
   // Film: culori de cinema (umbre reci, lumini calde), granulație fină.
   film: { contrast: 4, saturation: -6, grade: 45, grain: 16, clarity: 8, sharpen: 10, shadows: 10, highlights: -14, vignette: 12 },
   bw: { bw: 100, contrast: 18, saturation: 0, clarity: 22, sharpen: 18, grain: 10, vignette: 14, shadows: 8, highlights: -12 }
@@ -70,7 +73,7 @@ export function styledEdits(base: EditAdjustments, style: EnhanceStyle, amount: 
  * Corecția automată a unei poze (lumină, alb, culoare — fără decupaj sau rotire),
  * plus URL-ul imaginii din care a fost măsurată.
  */
-export async function autoEnhance(photoId: string): Promise<{ url: string; edits: EditAdjustments; tilt: number }> {
+export async function autoEnhance(photoId: string): Promise<{ url: string; edits: EditAdjustments; tilt: number; width: number; height: number; faces: { box: [number, number, number, number] }[] }> {
   // Pe telefon: poza clară făcută de Android (originalul direct ieșea negru pe unele telefoane).
   const source = canSharpen()
     ? sharpUrl(photoId, 1600).then(u => u ?? getCachedPreviewUrl(photoId))
@@ -96,7 +99,11 @@ export async function autoEnhance(photoId: string): Promise<{ url: string; edits
   const subject = subjectFromFaces(a?.faces);
   // Orizontul strâmb (măsurat la import, doar pe pozele fără oameni): îndreptarea e o opțiune, nu implicită.
   const tilt = computeAutoStraighten({ faceCount: a?.faceCount, horizonTiltDeg: a?.horizonTiltDeg });
-  return { url, tilt, edits: { ...auto, crop: undefined, rotationDeg: 0, ...(subject ? { bokehSubject: subject } : {}) } };
+  return {
+    url, tilt, width: img.naturalWidth, height: img.naturalHeight,
+    faces: (a?.faces ?? []).map(f => ({ box: f.box as [number, number, number, number] })),
+    edits: { ...auto, crop: undefined, rotationDeg: 0, ...(subject ? { bokehSubject: subject } : {}) }
+  };
 }
 
 /** „Fă-le pe toate mai frumoase”: stilul Natural pe fiecare, salvate ca și copii. */
@@ -117,10 +124,14 @@ export async function enhanceAll(photoIds: readonly string[], onProgress?: (done
  * de culoare”). Se adaugă peste stil, deci „Natural” + „Lumină +20” e poza
  * aleasă de AI, doar mai luminoasă.
  */
-type Panel = 'styles' | 'light' | 'color';
-const PANELS: Panel[] = ['styles', 'light', 'color'];
+type Panel = 'styles' | 'light' | 'color' | 'frame';
+type ManualPanel = 'light' | 'color';
+const PANELS: Panel[] = ['styles', 'light', 'color', 'frame'];
+/** Proporțiile din „Cadru” (lățime / înălțime); cadrul se așază pe fețe (frameCrop). */
+type Aspect = 'orig' | '4:5' | '1:1' | '9:16' | '16:9' | '3:2';
+const ASPECTS: Record<Aspect, number> = { orig: 0, '4:5': 4 / 5, '1:1': 1, '9:16': 9 / 16, '16:9': 16 / 9, '3:2': 3 / 2 };
 type ManualKey = 'exposure' | 'contrast' | 'highlights' | 'shadows' | 'whites' | 'blacks' | 'clarity' | 'vignette' | 'temperature' | 'tint' | 'saturation' | 'dehaze' | 'sharpen' | 'grain';
-const MANUAL: Record<Exclude<Panel, 'styles'>, { key: ManualKey; min?: number; track?: string }[]> = {
+const MANUAL: Record<ManualPanel, { key: ManualKey; min?: number; track?: string }[]> = {
   light: [
     { key: 'exposure' }, { key: 'contrast' }, { key: 'highlights' }, { key: 'shadows' },
     { key: 'whites' }, { key: 'blacks' }, { key: 'clarity' }, { key: 'dehaze' }, { key: 'vignette' }
@@ -154,7 +165,17 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   // „Lumină” și „Culoare”: reglajele omului, adăugate peste stil (0 = cum a ales AI-ul).
   const [panel, setPanel] = useState<Panel>('styles');
   const [manual, setManual] = useState<Partial<Record<ManualKey, number>>>({});
-  const edits = useMemo(() => (base ? withManual({ ...styledEdits(base, style, amount), rotationDeg: straight ? tilt : 0 }, manual) : null), [base, style, amount, straight, tilt, manual]);
+  // „Cadru”: proporția (cadrul așezat pe fețe) și înclinarea aleasă de om.
+  const [aspect, setAspect] = useState<Aspect>('orig');
+  const [userTilt, setUserTilt] = useState<number | null>(null);
+  const [geo, setGeo] = useState<{ width: number; height: number; faces: { box: [number, number, number, number] }[] } | null>(null);
+  const crop = useMemo(() => {
+    if (aspect === 'orig' || !geo) return undefined;
+    const r = frameCrop(geo.width, geo.height, ASPECTS[aspect], geo.faces);
+    return { x: r.x / geo.width, y: r.y / geo.height, width: r.w / geo.width, height: r.h / geo.height };
+  }, [aspect, geo]);
+  const rotation = userTilt ?? (straight ? tilt : 0);
+  const edits = useMemo(() => (base ? withManual({ ...styledEdits(base, style, amount), rotationDeg: rotation, ...(crop ? { crop } : {}) }, manual) : null), [base, style, amount, rotation, crop, manual]);
   const styles = ENHANCE_STYLES.filter(st => !NEEDS_FACE.has(st) || !!base?.bokehSubject);
   const [failed, setFailed] = useState(false);
   const [split, setSplit] = useState(50);
@@ -165,8 +186,9 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   useEffect(() => {
     let alive = true;
     void (async () => {
-      const { url, edits: lightOnly, tilt: t } = await autoEnhance(photo.id);
+      const { url, edits: lightOnly, tilt: t, width, height, faces } = await autoEnhance(photo.id);
       if (!alive) return;
+      setGeo({ width, height, faces });
       setTilt(t);
       setSrc(url);
       setBase(lightOnly);
@@ -202,7 +224,11 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
         onPointerMove={move} onPointerUp={() => { dragging.current = false; }} onPointerCancel={() => { dragging.current = false; }}>
         {!src && !failed && <div className="lx-enhance-wait"><span className="lx-spinner" />{tr('lx.enhance.working')}</div>}
         {failed && <p className="lx-empty">{tr('lx.enhance.failed')}</p>}
-        {src && edits && (
+        {src && edits && (edits.crop || panel === 'frame') ? (
+          <div className="lx-enhance-frame cropped">
+            <LivePreview src={src} edits={edits} />
+          </div>
+        ) : src && edits && (
           <div className="lx-enhance-frame">
             <img src={src} alt="" draggable={false} />
             <div className="lx-enhance-after" style={{ clipPath: `inset(0 0 0 ${split}%)` }}>
@@ -225,13 +251,29 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
               {PANELS.map(pn => (
                 <button key={pn} role="tab" aria-selected={panel === pn} className={panel === pn ? 'on' : ''} onClick={() => setPanel(pn)}>
                   {tr(`lx.enhance.panel.${pn}`)}
-                  {pn !== 'styles' && MANUAL[pn].some(m => manual[m.key]) && <i aria-hidden="true" />}
+                  {(pn === 'frame' ? aspect !== 'orig' || rotation !== 0 : pn !== 'styles' && MANUAL[pn].some(m => manual[m.key])) && <i aria-hidden="true" />}
                 </button>
               ))}
             </div>
-            {panel !== 'styles' ? (
+            {panel === 'frame' ? (
               <div className="lx-enhance-sliders">
-                {MANUAL[panel].map(m => (
+                <div className="lx-enhance-styles" role="radiogroup" aria-label={tr('lx.enhance.panel.frame')}>
+                  {(Object.keys(ASPECTS) as Aspect[]).map(a => (
+                    <button key={a} role="radio" aria-checked={aspect === a} className={aspect === a ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => setAspect(a)}>
+                      {a === 'orig' ? tr('lx.enhance.aspect.orig') : a}
+                    </button>
+                  ))}
+                </div>
+                <label className="lx-enhance-amount">
+                  <span>{tr('lx.enhance.tilt')}</span>
+                  <input type="range" min={-8} max={8} step={0.5} value={rotation} onChange={e => setUserTilt(Number(e.target.value))} onDoubleClick={() => setUserTilt(0)} />
+                  <b>{rotation > 0 ? '+' : ''}{rotation}°</b>
+                </label>
+                <p className="lx-hint">{tr('lx.enhance.frameHint')}</p>
+              </div>
+            ) : panel !== 'styles' ? (
+              <div className="lx-enhance-sliders">
+                {MANUAL[panel as ManualPanel].map(m => (
                   <label key={m.key} className="lx-enhance-amount">
                     <span>{tr(`lx.enhance.adj.${m.key}`)}</span>
                     <input type="range" min={m.min ?? -100} max={100} step={1} value={manual[m.key] ?? 0}
@@ -241,8 +283,8 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
                     <b>{(manual[m.key] ?? 0) > 0 ? '+' : ''}{manual[m.key] ?? 0}</b>
                   </label>
                 ))}
-                {MANUAL[panel].some(m => manual[m.key]) && (
-                  <button className="lx-link center" onClick={() => setManual(v => { const n = { ...v }; for (const m of MANUAL[panel as Exclude<Panel, 'styles'>]) delete n[m.key]; return n; })}>{tr('lx.enhance.reset')}</button>
+                {MANUAL[panel as ManualPanel].some(m => manual[m.key]) && (
+                  <button className="lx-link center" onClick={() => setManual(v => { const n = { ...v }; for (const m of MANUAL[panel as ManualPanel]) delete n[m.key]; return n; })}>{tr('lx.enhance.reset')}</button>
                 )}
               </div>
             ) : (<>
@@ -309,9 +351,11 @@ function LivePreview({ src, edits }: { src: string; edits: EditAdjustments }) {
     const out = canvas.current;
     if (!out || !img || !small) return;
     const draw = (source: CanvasImageSource, w: number, h: number) => {
-      if (out.width !== w || out.height !== h) { out.width = w; out.height = h; }
+      // Cu decupaj, pânza ia proporția cadrului (altfel decupajul s-ar întinde).
+      const o = outputSize(w, h, edits);
+      if (out.width !== o.width || out.height !== o.height) { out.width = o.width; out.height = o.height; }
       const ctx = out.getContext('2d');
-      if (ctx) try { drawAdjusted(ctx, source, w, h, w, h, edits); } catch { /* fără memorie: rămâne ultima */ }
+      if (ctx) try { drawAdjusted(ctx, source, w, h, o.width, o.height, edits); } catch { /* fără memorie: rămâne ultima */ }
     };
     const frame = requestAnimationFrame(() => draw(small, small.width, small.height));
     const full = window.setTimeout(() => draw(img, img.naturalWidth, img.naturalHeight), 380);
