@@ -28,6 +28,9 @@ import { readWholeGallery } from './galleryReader';
 import { syncPeopleAlbums } from './phoneAlbums';
 import { autoNameFaces, canEmbedFaces, embedMissingFaces } from './faceIdentity';
 import { TodayScreen } from './TodayScreen';
+import { applyPalette } from '../state/palette';
+import { autoArchiveIfDue } from './archive';
+import { useModernPhone } from './modernPhone';
 import { Orb } from './Orb';
 import { UndoBar } from './UndoBar';
 import { TrashPreviewHost } from './TrashPreview';
@@ -162,11 +165,15 @@ export function LuminApp() {
   }, [tab]);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   useAutoThemeWatch();
+  useModernPhone(booted, runImport);
 
   useEffect(() => {
+    applyPalette();
     void boot().finally(() => {
       setBooted(true);
       void offerRestoreOrBackup();
+      // Arhiva automată (dacă e pornită): o dată pe săptămână, pozele vechi și slabe pleacă din drum.
+      autoArchiveIfDue(visiblePhotos());
       // Bibliotecile de dinainte de „momente” (raportat: 8 păstrate din 9 aproape la fel).
       void useStore.getState().applyMoments().catch(() => {});
     });
@@ -186,6 +193,8 @@ export function LuminApp() {
   useEffect(() => {
     let stop: (() => void) | undefined;
     void onTodayLaunch(action => {
+      if (action === 'search') { useLx.getState().focusSearch(); return; }
+      if (action === 'map') { useLx.getState().setTab('days'); useLx.getState().setGalleryView('map'); return; }
       useLx.getState().setTab('today');
       if (action === 'share_memory' || action === 'see_memory') { void openMemoryAction(action); return; }
       if (action !== 'today') { void openDayAction(action); return; }

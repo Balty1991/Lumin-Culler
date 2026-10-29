@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { haptic } from '../core/device';
 import { useStore, type PhotoView } from '../state/store';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { plural } from '../i18n';
@@ -25,6 +26,7 @@ export function CleanupCard({ photos, compact = false }: { photos: readonly Phot
   const run = async () => {
     setBusy(true);
     try {
+      haptic('long');
       const r = await deleteRejectedPhotos(rejected.map(p => p.id));
       if (!r.cancelled) setDone(r.deleted);
     } finally { setBusy(false); }

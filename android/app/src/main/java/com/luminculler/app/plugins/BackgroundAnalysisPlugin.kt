@@ -30,6 +30,15 @@ import com.getcapacitor.annotation.CapacitorPlugin
 @CapacitorPlugin(name = "BackgroundAnalysis")
 class BackgroundAnalysisPlugin : Plugin() {
 
+    override fun load() {
+        BackgroundAnalysisService.onCancel = { notifyListeners("cancel", com.getcapacitor.JSObject()) }
+    }
+
+    override fun handleOnDestroy() {
+        BackgroundAnalysisService.onCancel = null
+        super.handleOnDestroy()
+    }
+
     /**
      * Piesa care lipsea, si fara de care serviciul de prim-plan nu era de ajuns.
      *
@@ -107,13 +116,14 @@ class BackgroundAnalysisPlugin : Plugin() {
         if (analizaActiva) tinePaginaTreaza()
     }
 
-    private fun trimite(actiune: String, done: Int, total: Int, text: String?, determinat: Boolean) {
+    private fun trimite(actiune: String, done: Int, total: Int, text: String?, determinat: Boolean, stopLabel: String? = null) {
         val intent = Intent(context, BackgroundAnalysisService::class.java).apply {
             action = actiune
             putExtra(BackgroundAnalysisService.EXTRA_DONE, done)
             putExtra(BackgroundAnalysisService.EXTRA_TOTAL, total)
             putExtra(BackgroundAnalysisService.EXTRA_DETERMINAT, determinat)
             if (text != null) putExtra(BackgroundAnalysisService.EXTRA_TEXT, text)
+            stopLabel?.let { putExtra(BackgroundAnalysisService.EXTRA_STOP_LABEL, it) }
         }
         // startForegroundService, nu startService: serviciul e obligat sa cheme
         // startForeground() in cateva secunde, si chiar asta face, in prima linie
@@ -130,7 +140,8 @@ class BackgroundAnalysisPlugin : Plugin() {
                 call.getInt("done") ?: 0,
                 call.getInt("total") ?: 0,
                 call.getString("text"),
-                call.getBoolean("determinate", true) ?: true
+                call.getBoolean("determinate", true) ?: true,
+                call.getString("stopLabel")
             )
             tinePrioritateaRandarii(true)
             firPrincipal.post { analizaActiva = true }
@@ -155,7 +166,8 @@ class BackgroundAnalysisPlugin : Plugin() {
                 call.getInt("done") ?: 0,
                 call.getInt("total") ?: 0,
                 call.getString("text"),
-                call.getBoolean("determinate", true) ?: true
+                call.getBoolean("determinate", true) ?: true,
+                call.getString("stopLabel")
             )
         }
         call.resolve()

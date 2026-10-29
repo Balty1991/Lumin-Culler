@@ -89,8 +89,9 @@ export async function scheduleMorningMemory(texts: Record<string, string>, picks
  * Cu ce a fost deschisă aplicația din notificarea de seară sau din widget:
  * „today” (sortează ziua), „share_pod” (trimite poza zilei), „see_day” (vezi ziua).
  */
-export type LaunchAction = 'today' | 'share_pod' | 'see_day' | 'share_memory' | 'see_memory';
-const LAUNCH_ACTIONS: readonly string[] = ['today', 'share_pod', 'see_day', 'share_memory', 'see_memory'];
+export type LaunchAction = 'today' | 'share_pod' | 'see_day' | 'share_memory' | 'see_memory' | 'search' | 'map';
+/** „search” și „map” vin din scurtăturile de pe iconiță (res/xml/shortcuts.xml). */
+const LAUNCH_ACTIONS: readonly string[] = ['today', 'share_pod', 'see_day', 'share_memory', 'see_memory', 'search', 'map'];
 
 /** Cheamă `cb` când aplicația e deschisă din notificarea „Ziua de azi” sau din widget (la pornire sau din fundal). */
 export async function onTodayLaunch(cb: (action: LaunchAction) => void): Promise<() => void> {

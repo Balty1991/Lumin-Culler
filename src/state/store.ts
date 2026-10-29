@@ -72,6 +72,7 @@ import {
 } from './gallerySupervisor';
 import { advanceGalleryWatermark, readGalleryWatermark } from './galleryWatermark';
 import { readStoredTheme, applyTheme, type Theme } from './theme';
+import { applyPalette } from './palette';
 import { readStoredAccent, applyAccent, type AccentTheme } from './accentTheme';
 import { readWelcomeSeen, writeWelcomeSeen } from './welcomeOnboarding';
 import { readExcludedFolderIds, writeExcludedFolderIds } from './galleryFolders';
@@ -2143,7 +2144,7 @@ export const useStore = create<AppState>((set, get) => ({
   shortcutsOpen: false,
   clipLabOpen: false,
   theme: readStoredTheme(),
-  setTheme: theme => { applyTheme(theme); set({ theme }); },
+  setTheme: theme => { applyTheme(theme); applyPalette(); set({ theme }); },
   accentTheme: readStoredAccent(),
   setAccentTheme: accent => { applyAccent(accent); set({ accentTheme: accent }); },
   accessibleMode: readAccessibleMode(),

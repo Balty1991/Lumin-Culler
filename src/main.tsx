@@ -10,6 +10,7 @@ import './styles.css';
 // build-ul de referinta, unde era o a doua foaie incarcata peste prima.
 import './styles.concept.css';
 import './styles.v3.css';
+import './palettes.css';
 import { watchBackgroundMemory } from './core/backgroundMemory';
 import { lastRunReport, forgetLastRun } from './core/nativeDiagnostics';
 import { installErrorLog, logError } from './core/errorLog';

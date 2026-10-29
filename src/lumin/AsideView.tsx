@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import { haptic } from '../core/device';
 import { createPortal } from 'react-dom';
 import { useStore, type PhotoView } from '../state/store';
 import { useLx } from './lxStore';
@@ -57,6 +58,7 @@ export function AsideView({ aside }: { aside: PhotoView[] }) {
     longPressed.current = false;
     press.current = window.setTimeout(() => {
       longPressed.current = true;
+      haptic('long');
       setSelecting(true);
       setPicked(prev => new Set(prev).add(id));
       navigator.vibrate?.(15);

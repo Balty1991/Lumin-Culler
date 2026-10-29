@@ -43,7 +43,7 @@ function preload(url: string): Promise<string | null> {
  * se ia al pozei din care provine (`copyOf`; la copiile mai vechi, după amprentă,
  * identică cu a originalului). Fără asta, efectele se aplicau pe preview-ul mic.
  */
-async function originalUri(photoId: string): Promise<string | null> {
+export async function originalUri(photoId: string): Promise<string | null> {
   const rec = await db.photos.get(photoId);
   if (!rec) return null;
   if (rec.mediaUri) return rec.mediaUri;

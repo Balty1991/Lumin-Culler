@@ -23,6 +23,7 @@ import { GalleryWall } from './GalleryWall';
 import { canMakePhoneAlbums, copyToPhoneAlbum } from './phoneAlbums';
 import { MomentsView } from './MomentsView';
 import { AsideView } from './AsideView';
+import { ArchiveEntry } from './ArchiveView';
 import { decideRestIfAllowed } from './autoSort';
 import { readWholeGallery } from './galleryReader';
 import type { PhotoView } from '../state/store';
@@ -98,6 +99,7 @@ export function DaysScreen() {
 
       {view === 'map' && <Suspense fallback={<p className="lx-empty">{tr('lx.map.loading')}</p>}><PhotoMap /></Suspense>}
 
+      {view === 'aside' && <ArchiveEntry />}
       {view === 'aside' && (aside.length === 0 ? (
         <p className="lx-empty">{tr('lx.days.asideEmpty')}</p>
       ) : (

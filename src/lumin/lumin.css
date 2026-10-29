@@ -10,7 +10,7 @@
   --lx-r: 22px;
   --lx-glass: color-mix(in srgb, var(--surface) 82%, transparent);
   --lx-line: var(--line);
-  --lx-grad: linear-gradient(120deg, #5ee6ff 0%, #9b8cff 60%, #d48cff 100%);
+  --lx-grad: var(--brand-grad);
   --lx-ease: cubic-bezier(.2, .8, .2, 1);
   --lx-spring: cubic-bezier(.2, .9, .25, 1.25);
   min-height: 100dvh;
@@ -100,7 +100,7 @@
 .lx-orb-ring.r3 { inset: 24%; border-color: rgb(var(--accent-rgb) / 0.25); }
 .lx-orb-core {
   position: absolute; inset: 32%; border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #e7fbff 0%, #5ee6ff 38%, #9b8cff 78%, #6a4dff 100%);
+  background: radial-gradient(circle at 35% 30%, var(--orb-hi) 0%, var(--orb-1) 38%, var(--orb-2) 78%, var(--orb-3) 100%);
   box-shadow: 0 0 40px rgb(var(--accent-rgb) / 0.55), 0 0 90px rgb(var(--accent-2-rgb) / 0.35);
   animation: lx-breathe 3.4s ease-in-out infinite;
 }
@@ -108,7 +108,7 @@
 .lx-orb-think .lx-orb-ring.r1 { border-top-color: var(--accent); animation: lx-spin 1.6s linear infinite; }
 .lx-orb-think .lx-orb-ring.r2 { animation: lx-spin 2.8s linear infinite reverse; }
 .lx-orb-think .lx-orb-core { animation-duration: 1.2s; }
-.lx-orb-learn .lx-orb-core { background: radial-gradient(circle at 35% 30%, #f1ecff 0%, #b9aeff 40%, #9b8cff 70%, #5ee6ff 100%); }
+.lx-orb-learn .lx-orb-core { background: radial-gradient(circle at 35% 30%, var(--orb-hi) 0%, var(--accent-2-text) 40%, var(--accent-2) 70%, var(--accent) 100%); }
 .lx-orb-learn .lx-orb-ring.r2 { animation: lx-spin 9s linear infinite; }
 @keyframes lx-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.07); } }
 @keyframes lx-pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.06); opacity: 0.45; } }
@@ -237,7 +237,7 @@
 .lx-thumb-empty { display: block; background: var(--surface-3); }
 .lx-back-pill {
   position: fixed; z-index: 200; right: 12px; bottom: calc(96px + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
-  padding: 10px 16px; border-radius: 999px; border: none; background: linear-gradient(120deg, #5ee6ff, #9b8cff); color: #06070a;
+  padding: 10px 16px; border-radius: 999px; border: none; background: var(--brand-grad); color: #06070a;
   font-weight: 700; font-size: 13px; box-shadow: 0 10px 30px -8px rgb(0 0 0 / 0.6);
 }
 
@@ -494,7 +494,7 @@
 .lx-tile.in:active { transform: scale(0.95); }
 .lx-tile.selected::before {
   content: ""; position: absolute; inset: -2px; border-radius: inherit; padding: 2px; z-index: 1; pointer-events: none;
-  background: conic-gradient(from 200deg, #5ee6ff, #9b8cff, #d48cff, #5ee6ff);
+  background: conic-gradient(from 200deg, var(--accent), var(--accent-2), var(--orb-2), var(--accent));
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
 }
 @property --spin { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
@@ -949,3 +949,47 @@ html, body { overflow-x: hidden; }
 .lx-map-pin img { width: 100%; height: 100%; object-fit: cover; border-radius: 11px; display: block; }
 .lx-map-pin span { position: absolute; top: -9px; right: -9px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; background: var(--lx-grad); color: #06070a; font-size: 11.5px; font-weight: 700; line-height: 22px; text-align: center; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); }
 .lx-map .maplibregl-ctrl-attrib { font-size: 10px; }
+
+/* Paleta de culori (Setări) */
+.lx-palettes { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; }
+.lx-palette { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 8px; border-radius: 16px; border: 1px solid var(--lx-line); background: var(--surface-2); }
+.lx-palette.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.lx-palette b { font-size: 13px; }
+.lx-palette-dot { width: 34px; height: 34px; border-radius: 50%; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
+.lx-palette-dot.cherry { background: radial-gradient(circle at 35% 30%, #ffd0de 0 8%, #ff5482 40%, #a3164a 100%), #ff5482; box-shadow: 0 0 0 3px #1a1230, 0 4px 12px rgba(255, 84, 130, 0.4); }
+.lx-palette-dot.aurora { background: linear-gradient(135deg, #5ee6ff, #9b8cff 60%, #d48cff); }
+.lx-palette-dot.phone { background: conic-gradient(#f28b82, #fbbc04, #34a853, #4285f4, #a142f4, #f28b82); }
+.lx-search .lx-mic { display: grid; place-items: center; width: 34px; height: 34px; margin-right: -6px; border: none; border-radius: 50%; background: rgb(var(--accent-rgb) / 0.14); color: var(--accent); }
+
+/* Poza care zboară din grilă pe tot ecranul (lumin/viewTransition.ts). */
+.lx-viewer-photo:not(.zoomed) { view-transition-name: lx-photo; }
+::view-transition-group(lx-photo) { animation-duration: 0.32s; animation-timing-function: cubic-bezier(.2, .8, .2, 1); }
+::view-transition-old(lx-photo), ::view-transition-new(lx-photo) { height: 100%; object-fit: cover; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: 0.22s; }
+
+/* Arhiva (lumin/ArchiveView.tsx) */
+.lx-archive-card { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; }
+.lx-archive-card > div { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.lx-archive-card span:not(.lx-btn):not(.lx-chev):not(.lx-archive-icon) { font-size: 12.5px; color: var(--text-dim); }
+.lx-archive-icon { font-size: 26px; }
+
+/* ── Tablete și telefoane pliabile deschise ──
+   Ecranul mare nu mai e o coloană de telefon întinsă: conținutul ocupă mai mult
+   loc, cardurile stau pe două coloane, iar editorul pune poza lângă reglaje. */
+@media (min-width: 840px) {
+  .lx-screen { max-width: 1080px; padding-left: 28px; padding-right: 28px; }
+  .lx-days, .lx-albums { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .lx-palettes { grid-template-columns: repeat(3, 160px); }
+  .lx-viewer-photo img { max-height: 76dvh; }
+  .lx-map { height: calc(100dvh - 260px); }
+}
+@media (min-width: 840px) and (orientation: landscape) {
+  .lx-enhance { display: grid; grid-template-columns: minmax(0, 1fr) minmax(340px, 400px); grid-template-rows: auto minmax(0, 1fr); }
+  .lx-enhance > .lx-viewer-top { grid-column: 1 / -1; }
+  .lx-enhance > .lx-enhance-stage { grid-column: 1; grid-row: 2; }
+  .lx-enhance > .lx-viewer-info { grid-column: 2; grid-row: 2; overflow-y: auto; border-left: 1px solid rgb(255 255 255 / 0.08); }
+  .lx-enhance-frame > img, .lx-enhance-after img { max-height: calc(100dvh - 110px - var(--safe-top, 0px) - var(--safe-bottom, 0px)); }
+}
+@media (min-width: 1200px) {
+  .lx-days, .lx-albums { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}

@@ -65,8 +65,8 @@
 :root:not([data-theme="light"]) body {
   background-color: var(--bg);
   background-image:
-    linear-gradient(rgb(94 230 255 / 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(94 230 255 / 0.03) 1px, transparent 1px);
+    linear-gradient(var(--grid-line, rgb(94 230 255 / 0.03)) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line, rgb(94 230 255 / 0.03)) 1px, transparent 1px);
   background-size: 26px 26px;
 }
 :root:not([data-theme="light"]) body::before { background: none; }
@@ -424,7 +424,7 @@ h1, h2, h3, .brand-name { font-family: var(--font-display); letter-spacing: -0.0
 .fr-feats span { display: inline-flex; align-items: center; gap: 7px; padding: 9px 13px; border-radius: 999px; font-size: 13px; font-weight: 600;
   border: 1px solid rgb(255 255 255 / .1); background: rgb(255 255 255 / .05); backdrop-filter: blur(8px); }
 .fr-feats i { font-style: normal; }
-.fr-cta { width: 100%; background: linear-gradient(90deg, #7dd3fc, #a78bfa 55%, #f0abfc); box-shadow: 0 14px 34px -12px rgb(167 139 250 / .8); }
+.fr-cta { width: 100%; background: var(--brand-grad); box-shadow: 0 14px 34px -12px rgb(var(--accent-rgb) / .7); }
 @media (prefers-reduced-motion: reduce) { .fr-card, .fr-card b.ok, .fr-spark { animation: none; } }
 .fr-trust { margin: 2px 0 0; font-size: 12px; letter-spacing: .02em; color: var(--text-dim, #8a93a3); }
 .fr-hero .fr-title { font-size: 36px; line-height: 1.08; }

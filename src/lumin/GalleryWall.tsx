@@ -1,4 +1,7 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
+import { canVoiceSearch, haptic, isUltraHdr, setHdrMode, voiceSearch } from '../core/device';
+import { useLx } from './lxStore';
+import { closeWithTransition, openWithTransition } from './viewTransition';
 import { useLxPhotos } from './useLxPhotos';
 import { flushSync } from 'react-dom';
 import { createPortal } from 'react-dom';
@@ -24,7 +27,7 @@ import { searchPhotos } from './textSearch';
 import { db } from '../core/db';
 import { findSimilarPhotos } from '../core/similarPhotos';
 import { EnhanceSheet } from './Enhance';
-import { SCREEN_SIZE, sharpUrl, sizeFor } from './sharp';
+import { SCREEN_SIZE, originalUri, sharpUrl, sizeFor } from './sharp';
 import { CleanupCard } from './Cleanup';
 
 type Filter = 'all' | 'kept' | 'notToday';
@@ -292,12 +295,21 @@ export function GalleryWall() {
   }, [list]);
 
   const count = (f: Filter) => photos.filter(p => !p.aside && (f === 'all' || p.status === (f === 'kept' ? 'selected' : 'rejected'))).length;
-  const open = (i: number, el: HTMLElement) => setViewer({ index: i, origin: el.getBoundingClientRect() });
+  const open = (i: number, el: HTMLElement) => openWithTransition(() => setViewer({ index: i, origin: el.getBoundingClientRect() }));
   // Aceeași referință pentru toate dalele: o dală se redesenează doar când se schimbă poza ei.
   const openRef = useRef(open);
   openRef.current = open;
   const plain = !query.trim() && !similar;
   const [focused, setFocused] = useState(false);
+  const searchInput = useRef<HTMLInputElement>(null);
+  const searchFocus = useLx(s => s.searchFocus);
+  useEffect(() => { if (searchFocus) searchInput.current?.focus(); }, [searchFocus]);
+  // Căutare vocală: „poze cu Maria la mare”, spus în loc de scris.
+  const dictate = async () => {
+    haptic('tick');
+    const text = await voiceSearch(locale === 'en' ? 'en-US' : 'ro-RO', tr('lx.search.voicePrompt'));
+    if (text) { setSimilar(null); setQuery(text); }
+  };
   // Sugestii de căutare din oamenii tăi: cei mai des văzuți și perechea cea mai des împreună („Ami și mama”).
   const peopleIdeas = useMemo(() => {
     const one = new Map<string, number>();
@@ -321,8 +333,13 @@ export function GalleryWall() {
       style={{ ['--cols' as string]: density, ['--cell' as string]: `${cell}px`, ['--gap' as string]: `${GAP}px` }}>
       <label className="lx-search">
         <span aria-hidden="true">⌕</span>
-        <input type="search" value={query} onFocus={() => setFocused(true)} onBlur={() => window.setTimeout(() => setFocused(false), 150)} onChange={e => { setSimilar(null); setQuery(e.target.value); }} placeholder={tr('lx.search.placeholder')} aria-label={tr('lx.search.placeholder')} />
+        <input ref={searchInput} type="search" value={query} onFocus={() => setFocused(true)} onBlur={() => window.setTimeout(() => setFocused(false), 150)} onChange={e => { setSimilar(null); setQuery(e.target.value); }} placeholder={tr('lx.search.placeholder')} aria-label={tr('lx.search.placeholder')} />
         {query && <button onClick={() => setQuery('')} aria-label={tr('lx.close')}>✕</button>}
+        {!query && canVoiceSearch() && (
+          <button className="lx-mic" onClick={e => { e.preventDefault(); void dictate(); }} aria-label={tr('lx.search.voice')}>
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 14a3 3 0 0 0 3-3V5a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+          </button>
+        )}
       </label>
       {!query.trim() && !similar && (folder ? (
         <div className="lx-chips">
@@ -410,7 +427,7 @@ export function GalleryWall() {
       }} />}
       {viewer !== null && list[viewer.index] && (
         <Viewer list={list} index={viewer.index} origin={viewer.origin}
-          onIndex={i => setViewer({ index: i, origin: null })} onClose={() => setViewer(null)} onSimilar={id => void showSimilar(id)} />
+          onIndex={i => setViewer({ index: i, origin: null })} onClose={() => closeWithTransition(() => setViewer(null), list[viewer.index]?.id)} onSimilar={id => void showSimilar(id)} />
       )}
     </div>
   );
@@ -505,6 +522,15 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
   const p = useStore(s => s.photos.find(x => x.id === id)) ?? list[index];
   const start = useRef<{ x: number; y: number; dx: number; dy: number } | null>(null);
   const [dir, setDir] = useState<'next' | 'prev' | null>(null);
+
+  // Ultra HDR: pe telefoanele care o permit, ecranul trece în modul HDR cât
+  // stă deschisă o poză făcută așa, ca luminile ei să arate cum au fost.
+  useEffect(() => {
+    let alive = true;
+    void originalUri(id).then(uri => uri ? isUltraHdr(uri) : false).then(hdr => { if (alive) setHdrMode(hdr); });
+    return () => { alive = false; };
+  }, [id]);
+  useEffect(() => () => setHdrMode(false), []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Apăsare lungă pe iconiță. Acțiunea ajunge în JS prin NotificationsPlugin.consumeLaunchAction (aceeași cheie lumin_action ca notificările). -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:shortcutId="today" android:enabled="true" android:icon="@drawable/ic_sc_sort" android:shortcutShortLabel="@string/sc_today">
+        <intent android:action="android.intent.action.VIEW" android:targetPackage="com.luminculler.app" android:targetClass="com.luminculler.app.MainActivity">
+            <extra android:name="lumin_action" android:value="today" />
+        </intent>
+    </shortcut>
+    <shortcut android:shortcutId="search" android:enabled="true" android:icon="@drawable/ic_sc_search" android:shortcutShortLabel="@string/sc_search">
+        <intent android:action="android.intent.action.VIEW" android:targetPackage="com.luminculler.app" android:targetClass="com.luminculler.app.MainActivity">
+            <extra android:name="lumin_action" android:value="search" />
+        </intent>
+    </shortcut>
+    <shortcut android:shortcutId="map" android:enabled="true" android:icon="@drawable/ic_sc_map" android:shortcutShortLabel="@string/sc_map">
+        <intent android:action="android.intent.action.VIEW" android:targetPackage="com.luminculler.app" android:targetClass="com.luminculler.app.MainActivity">
+            <extra android:name="lumin_action" android:value="map" />
+        </intent>
+    </shortcut>
+</shortcuts>

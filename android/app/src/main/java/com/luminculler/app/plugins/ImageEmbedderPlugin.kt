@@ -10,6 +10,7 @@ import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.tasks.core.BaseOptions
+import com.google.mediapipe.tasks.core.Delegate
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.imageembedder.ImageEmbedder
 
@@ -47,13 +48,23 @@ class ImageEmbedderPlugin : Plugin() {
     /** Vezi ModelRegistry: `by lazy` nu se poate reseta, iar modelul asta
      *  tinea greutatile in memorie nativa si cat timp aplicatia statea in
      *  fundal — exact ce masoara Play ca Anonymous RSS. */
-    private val imageEmbedderHolder = ReleasableModel<ImageEmbedder>({
-        val baseOptions = BaseOptions.builder().setModelAssetPath(MODEL_FILE).build()
+    private fun createEmbedder(delegate: Delegate): ImageEmbedder {
+        val baseOptions = BaseOptions.builder().setModelAssetPath(MODEL_FILE).setDelegate(delegate).build()
         val options = ImageEmbedder.ImageEmbedderOptions.builder()
             .setBaseOptions(baseOptions)
             .setRunningMode(RunningMode.IMAGE)
             .build()
-        ImageEmbedder.createFromOptions(context, options)
+        return ImageEmbedder.createFromOptions(context, options)
+    }
+
+    /**
+     * Placa video întâi: amprenta vizuală se calculează pentru fiecare poză din
+     * galerie, deci aici câștigul de viteză contează cel mai mult. Fără delegat
+     * GPU, crearea aruncă și rămâne procesorul. Diferențele de calcul între cele
+     * două sunt de ordinul miimilor — căutarea după asemănare nu le simte.
+     */
+    private val imageEmbedderHolder = ReleasableModel<ImageEmbedder>({
+        try { createEmbedder(Delegate.GPU) } catch (_: Exception) { createEmbedder(Delegate.CPU) }
     }, { it.close() })
 
     @PluginMethod

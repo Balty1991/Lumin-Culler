@@ -1,0 +1,119 @@
+/*
+ * src/palettes.css — culorile aplicației, peste tema deschisă/întunecată.
+ *
+ *  - „cherry” (implicit): culorile iconiței Cherrypic — cireașa roșie, noaptea
+ *    violet, frunza verde pentru „păstrez”, sclipirile albe.
+ *  - „aurora”: vechiul cyan→violet, pentru cine îl preferă.
+ *  - „phone”: culorile fundalului ales pe telefon (Material You, Android 12+);
+ *    valorile se pun direct pe <html> din src/state/palette.ts.
+ *
+ * Gradientul de brand (--brand-grad) și globul AI (--orb-*) stau tot aici, ca
+ * ecranele să nu mai aibă culori scrise de mână.
+ */
+:root {
+  --brand-grad: linear-gradient(120deg, #5ee6ff 0%, #9b8cff 60%, #d48cff 100%);
+  --orb-hi: #e7fbff;
+  --orb-1: #5ee6ff;
+  --orb-2: #9b8cff;
+  --orb-3: #6a4dff;
+  --grid-line: rgb(94 230 255 / 0.03);
+}
+
+/* ── Cherrypic, întunecat: noaptea din iconiță ── */
+:root[data-palette="cherry"] {
+  --bg: #0b0816;
+  --surface: #140f22;
+  --surface-2: #181228;
+  --surface-3: #211a34;
+  --line: rgb(244 236 255 / 0.08);
+  --line-strong: rgb(244 236 255 / 0.16);
+  --text: #f6f0fb;
+  --text-dim: #ab9fc0;
+  --text-faint: #978bad;
+
+  --accent: #ff5482;
+  --accent-2: #a98bff;
+  --accent-rgb: 255 84 130;
+  --accent-2-rgb: 169 139 255;
+  --accent-gradient: linear-gradient(90deg, #ff5482 0%, #a98bff 100%);
+  --accent-text: #ff86a6;
+  --accent-2-text: #c6b5ff;
+  --on-accent: #1d0611;
+
+  /* Frunza: „păstrez”. Roșul de respins se trage spre portocaliu, ca să nu se
+     confunde cu cireașa (culoarea mărcii, nu a greșelii). */
+  --pick: #6fe3a1;
+  --pick-rgb: 111 227 161;
+  --reject: #ffa36e;
+  --reject-rgb: 255 163 110;
+  --review: #ffd36b;
+  --review-rgb: 255 211 107;
+
+  --glass-bg: rgb(20 15 34 / 0.84);
+  --glass-border: rgb(255 255 255 / 0.08);
+
+  --atelier-canvas: #0b0816;
+  --atelier-panel: #140f22;
+  --atelier-panel-raised: #181228;
+  --atelier-line: rgb(244 236 255 / 0.08);
+  --atelier-line-strong: rgb(244 236 255 / 0.16);
+  --atelier-ink: #f6f0fb;
+  --atelier-muted: #ab9fc0;
+  --atelier-teal: #ff5482;
+  --atelier-violet: #a98bff;
+
+  --brand-grad: linear-gradient(120deg, #ff4f7b 0%, #ff7fa6 45%, #a98bff 100%);
+  --orb-hi: #ffe3ec;
+  --orb-1: #ff5482;
+  --orb-2: #e0457a;
+  --orb-3: #7a4dff;
+  --grid-line: rgb(255 84 130 / 0.025);
+}
+
+/* ── Cherrypic, deschis: cireașă pe hârtie ── */
+:root[data-theme="light"][data-palette="cherry"] {
+  --bg: #fbf6f8;
+  --surface: #ffffff;
+  --surface-2: #ffffff;
+  --surface-3: #f6ecf1;
+  --line: rgb(40 16 34 / 0.09);
+  --line-strong: rgb(40 16 34 / 0.18);
+  --text: #1d1022;
+  --text-dim: #5e4a63;
+  --text-faint: #6c5872;
+  --accent: #d6194d;
+  --accent-2: #6a4fe0;
+  --accent-rgb: 214 25 77;
+  --accent-2-rgb: 106 79 224;
+  --accent-gradient: linear-gradient(90deg, #d6194d 0%, #6a4fe0 100%);
+  --accent-text: #bf1442;
+  --accent-2-text: #5a3fd0;
+  --on-accent: #ffffff;
+  --pick: #13a35b;
+  --pick-rgb: 19 163 91;
+  --reject: #c2560f;
+  --reject-rgb: 194 86 15;
+  --review: #a87406;
+  --review-rgb: 168 116 6;
+  --glass-bg: rgb(255 255 255 / 0.88);
+  --glass-border: rgb(40 16 34 / 0.08);
+  --atelier-canvas: #fbf6f8;
+  --atelier-panel: #ffffff;
+  --atelier-panel-raised: #ffffff;
+  --atelier-ink: #1d1022;
+  --atelier-muted: #5e4a63;
+  --atelier-teal: #d6194d;
+  --atelier-violet: #6a4fe0;
+  --brand-grad: linear-gradient(120deg, #e8245a 0%, #ff6f98 45%, #8a6cff 100%);
+}
+
+/* Sclipirile din iconiță, discret, în colțul ecranelor Cherrypic. */
+:root[data-palette="cherry"] .lx::after {
+  content: ""; position: fixed; top: calc(14px + var(--safe-top, 0px)); right: 18px; width: 120px; height: 90px;
+  pointer-events: none; opacity: 0.5; z-index: 0;
+  background:
+    radial-gradient(circle at 70% 30%, rgb(255 255 255 / 0.9) 0 1.5px, transparent 2.5px),
+    radial-gradient(circle at 20% 70%, rgb(255 255 255 / 0.6) 0 1px, transparent 2px),
+    radial-gradient(circle at 92% 82%, rgb(255 255 255 / 0.5) 0 1px, transparent 2px);
+}
+:root[data-theme="light"][data-palette="cherry"] .lx::after { display: none; }

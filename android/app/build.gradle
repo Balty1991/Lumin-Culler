@@ -195,6 +195,9 @@ dependencies {
     // Fereastra oficiala de recenzie Google Play — vezi plugins/InAppReviewPlugin.kt.
     // Nu trimite nimic de-al aplicatiei: doar deschide ecranul de nota al Play.
     implementation "com.google.android.play:review:$playReviewVersion"
+    // Actualizare din aplicație (DevicePlugin.checkUpdate): descarcă versiunea nouă
+    // din Play în fundal și o instalează la repornire, fără să deschizi magazinul.
+    implementation "com.google.android.play:app-update:2.1.0"
     // Recunoașterea fețelor pe telefon (plugins/FaceEmbedPlugin.kt): ONNX Runtime, licență MIT.
     implementation "com.microsoft.onnxruntime:onnxruntime-android:1.19.2"
     implementation project(':capacitor-android')

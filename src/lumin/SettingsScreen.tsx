@@ -4,10 +4,13 @@ import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
 import { buildErrorReport, readErrorLog } from '../core/errorLog';
 import { CloudSection } from './CloudParts';
 import { PrivatePhotosRow } from './PrivatePhotos';
+import { AutoArchiveRow } from './ArchiveView';
 import { AutonomyPicker } from './TwinParts';
 import { useStore } from '../state/store';
 import type { CullingStrictness } from '../core/scoreThresholds';
 import type { Theme } from '../state/theme';
+import { PALETTES, applyPalette, phonePaletteAvailable, readStoredPalette, type Palette } from '../state/palette';
+import { haptic, hapticsOn, setHapticsOn } from '../core/device';
 import { requestNotificationAccess, isNativeNotificationsAvailable } from '../core/nativeNotifications';
 import { useLx } from './lxStore';
 import { useTr } from './context';
@@ -112,6 +115,8 @@ export function SettingsScreen() {
             ))}
           </div>
         </div>
+        <PaletteRow />
+        <HapticsRow />
       </section>
 
       <section className="lx-group">
@@ -149,6 +154,7 @@ export function SettingsScreen() {
         {canMakePhoneAlbums() && <PeopleAlbumsAutoRow />}
         <PrivatePhotosRow />
         <AutoBackupRow />
+        <AutoArchiveRow />
         <button className="lx-row button" onClick={() => void exportBackup()}>
           <span><b>{tr('lx.settings.backup')}</b><small>{tr('lx.settings.backupSub')}</small></span>
           <span className="lx-chev" aria-hidden="true">›</span>
@@ -209,6 +215,37 @@ async function recommend(text: string): Promise<void> {
  * „Copie automată”: o dată pe săptămână, ce a învățat Cherrypic ajunge în copia
  * de rezervă Google a telefonului (vezi autoBackup.ts). Pornită cu acord.
  */
+/** Culorile: Cherrypic (cireașa din iconiță), Aurora (vechiul cyan→violet) sau ale telefonului. */
+function PaletteRow() {
+  const tr = useTr();
+  const [palette, setPalette] = useState<Palette>(readStoredPalette);
+  const [phone, setPhone] = useState(false);
+  useEffect(() => { void phonePaletteAvailable().then(setPhone); }, []);
+  const choose = (p: Palette) => { setPalette(p); applyPalette(p); haptic('tick'); };
+  return (
+    <div className="lx-palettes" role="radiogroup" aria-label={tr('lx.palette.title')}>
+      {PALETTES.filter(p => p !== 'phone' || phone).map(p => (
+        <button key={p} role="radio" aria-checked={palette === p} className={palette === p ? 'lx-palette on' : 'lx-palette'} onClick={() => choose(p)}>
+          <span className={`lx-palette-dot ${p}`} aria-hidden="true" />
+          <b>{tr(`lx.palette.${p}`)}</b>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function HapticsRow() {
+  const tr = useTr();
+  const [on, setOn] = useState(hapticsOn);
+  const toggle = () => { setHapticsOn(!on); setOn(!on); if (!on) haptic('confirm'); };
+  return (
+    <button className="lx-row button" role="switch" aria-checked={on} onClick={toggle}>
+      <span><b>{tr('lx.haptics.title')}</b><small>{tr('lx.haptics.sub')}</small></span>
+      <span className={on ? 'lx-pill ok' : 'lx-pill'}>{on ? '✓' : tr('lx.autoBackup.off')}</span>
+    </button>
+  );
+}
+
 /** „Ține albumele pe oameni la zi”: comutator; pornit, copiază acum ce lipsește. */
 function PeopleAlbumsAutoRow() {
   const tr = useTr();

@@ -50,6 +50,11 @@ class BackgroundAnalysisService : Service() {
         const val ACTION_START = "com.luminculler.app.ANALIZA_START"
         const val ACTION_UPDATE = "com.luminculler.app.ANALIZA_UPDATE"
         const val ACTION_STOP = "com.luminculler.app.ANALIZA_STOP"
+        /** Butonul „Oprește” din notificare: anunță partea de JS, care oprește importul și apoi serviciul. */
+        const val ACTION_CANCEL = "com.luminculler.app.ANALIZA_CANCEL"
+        const val EXTRA_STOP_LABEL = "stopLabel"
+        /** Setat de BackgroundAnalysisPlugin cât trăiește bridge-ul. */
+        @Volatile var onCancel: (() -> Unit)? = null
         const val EXTRA_DONE = "done"
         const val EXTRA_TOTAL = "total"
         const val EXTRA_TEXT = "text"
@@ -65,6 +70,7 @@ class BackgroundAnalysisService : Service() {
     }
 
     private var wakeLock: PowerManager.WakeLock? = null
+    private var stopLabel: String? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -74,6 +80,12 @@ class BackgroundAnalysisService : Service() {
                 opresteTot()
                 return START_NOT_STICKY
             }
+            ACTION_CANCEL -> {
+                // Fără JS care să asculte (proces repornit), nu mai e nimic de oprit decât serviciul.
+                val cb = onCancel
+                if (cb != null) cb() else opresteTot()
+                return START_NOT_STICKY
+            }
             else -> {
                 val done = intent?.getIntExtra(EXTRA_DONE, 0) ?: 0
                 val total = intent?.getIntExtra(EXTRA_TOTAL, 0) ?: 0
@@ -81,6 +93,7 @@ class BackgroundAnalysisService : Service() {
                 // Implicit ADEVARAT: o notificare pornita fara extra (repornire,
                 // apel vechi) arata bara reala, nu dunga fara sfarsit.
                 val determinat = intent?.getBooleanExtra(EXTRA_DETERMINAT, true) ?: true
+                intent?.getStringExtra(EXTRA_STOP_LABEL)?.let { stopLabel = it }
                 porneste(done, total, text, determinat)
             }
         }
@@ -193,6 +206,14 @@ class BackgroundAnalysisService : Service() {
         // Dunga fara sfarsit spune adevarul: lucrez, nu stiu sa spun cat mai e.
         if (determinat && total > 0) builder.setProgress(total, done.coerceIn(0, total), false)
         else builder.setProgress(0, 0, true)
+        // „Oprește”, direct din notificare (și de pe ecranul de blocare).
+        val opreste = PendingIntent.getService(
+            this, 1,
+            Intent(this, BackgroundAnalysisService::class.java).apply { action = ACTION_CANCEL },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        builder.addAction(0, stopLabel ?: "Stop", opreste)
+        builder.setOnlyAlertOnce(true)
         return builder.build()
     }
 }

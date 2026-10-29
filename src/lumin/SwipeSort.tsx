@@ -10,6 +10,7 @@ import { CloudLine } from './CloudParts';
 import { useLx } from './lxStore';
 import { useTr } from './context';
 import { Thumb } from './Thumb';
+import { haptic } from '../core/device';
 
 type Verdict = 'keep' | 'drop' | 'unsure';
 /** Cât trebuie tras cardul ca să conteze ca decizie. */
@@ -72,6 +73,8 @@ export function SwipeSort() {
 
   const decide = (keep: boolean) => {
     if (!current || flying) return;
+    haptic(keep ? 'confirm' : 'reject');
+    if (index + 1 === queue.length) window.setTimeout(() => haptic('success'), 260);
     const ai = aiView.get(current.id) ?? 'unsure';
     setFlying(keep ? 'right' : 'left');
     void setStatus(current.id, keep ? 'selected' : 'rejected');
@@ -100,7 +103,10 @@ export function SwipeSort() {
   };
   const onMove = (e: PointerEvent<HTMLDivElement>) => {
     if (!drag.current || drag.current.id !== e.pointerId) return;
-    setDx(e.clientX - drag.current.x);
+    const next = e.clientX - drag.current.x;
+    // O bătaie fină când cardul trece pragul de decizie (în ambele sensuri).
+    if ((Math.abs(next) > COMMIT_PX) !== (Math.abs(dx) > COMMIT_PX)) haptic('tick');
+    setDx(next);
   };
   const onUp = () => {
     if (!drag.current) return;

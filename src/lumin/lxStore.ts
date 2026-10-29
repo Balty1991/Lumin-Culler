@@ -1,5 +1,6 @@
 import type { AutoSortResult } from './autoSort';
 import { create } from 'zustand';
+import { closeWithTransition, openWithTransition } from './viewTransition';
 
 /**
  * lumin/lxStore.ts
@@ -40,18 +41,21 @@ interface LxState {
   setReaderResult: (r: { total: number; kept: number; waiting: number } | null) => void;
   faceVersion: number;
   bumpFaces: () => void;
+  /** Crește când cineva cere căutarea (scurtătura „Caută” de pe iconiță): Galeria pune cursorul în ea. */
+  searchFocus: number;
+  focusSearch: () => void;
   setGalleryView: (view: GalleryView) => void;
 }
 
-export const useLx = create<LxState>(set => ({
+export const useLx = create<LxState>((set, get) => ({
   tab: 'today',
   setTab: tab => set({ tab, openDay: null }),
   sortIds: null,
   sortTitle: null,
   openSort: (ids, title) => set({ sortIds: ids, sortTitle: title ?? null }),
   viewer: null,
-  openViewer: (ids, index = 0) => set({ viewer: ids.length ? { ids, index: Math.max(0, Math.min(ids.length - 1, index)) } : null }),
-  closeViewer: () => set({ viewer: null }),
+  openViewer: (ids, index = 0) => openWithTransition(() => set({ viewer: ids.length ? { ids, index: Math.max(0, Math.min(ids.length - 1, index)) } : null })),
+  closeViewer: () => closeWithTransition(() => set({ viewer: null }), get().viewer ? get().viewer!.ids[get().viewer!.index] : undefined),
   closeSort: () => set({ sortIds: null, sortTitle: null }),
   openDay: null,
   setOpenDay: day => set({ openDay: day }),
@@ -66,5 +70,7 @@ export const useLx = create<LxState>(set => ({
   setReaderResult: r => set({ readerResult: r }),
   faceVersion: 0,
   bumpFaces: () => set(s => ({ faceVersion: s.faceVersion + 1 })),
+  searchFocus: 0,
+  focusSearch: () => set(s => ({ tab: 'days', openDay: null, galleryView: 'wall', searchFocus: s.searchFocus + 1 })),
   setGalleryView: view => set({ galleryView: view })
 }));

@@ -1,0 +1,12 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="analiza_titlu">Analyzing photos</string>
+    <string name="analiza_canal_nume">Analysis in progress</string>
+    <string name="analiza_canal_descriere">Progress bar while the app analyzes photos, including with the screen off.</string>
+    <string name="widget_description">Today\'s best photos, picked by AI</string>
+    <string name="share_label">Sort with Cherrypic</string>
+    <string name="tile_label">Sort today</string>
+    <string name="sc_today">Sort today</string>
+    <string name="sc_search">Search</string>
+    <string name="sc_map">Photo map</string>
+</resources>

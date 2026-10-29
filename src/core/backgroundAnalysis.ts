@@ -22,13 +22,14 @@
  * doar ca se opreste daca omul incuie telefonul, adica fix comportamentul de
  * pana la runda asta. Nimic din fisierul asta n-are voie sa arunce.
  */
-import { registerPlugin, Capacitor } from '@capacitor/core';
+import { registerPlugin, Capacitor, type PluginListenerHandle } from '@capacitor/core';
 import { checkNotificationAccess, requestNotificationAccess } from './nativeNotifications';
 
 interface BackgroundAnalysisApi {
   start(options: BackgroundAnalysisState): Promise<{ started: boolean; reason?: string }>;
   update(options: BackgroundAnalysisState): Promise<void>;
   stop(): Promise<void>;
+  addListener(event: 'cancel', cb: () => void): Promise<PluginListenerHandle>;
   batteryUnrestricted(): Promise<{ available: boolean; unrestricted: boolean }>;
   openBatterySettings(): Promise<void>;
 }
@@ -39,6 +40,8 @@ interface BackgroundAnalysisState {
   text?: string;
   /** `false` cere dunga fara sfarsit in locul barei reale — vezi backgroundPhaseNotice. */
   determinate?: boolean;
+  /** Eticheta butonului „Oprește” din notificare, în limba omului. */
+  stopLabel?: string;
 }
 
 const BackgroundAnalysis = registerPlugin<BackgroundAnalysisApi>('BackgroundAnalysis');
@@ -147,6 +150,16 @@ async function ceriVoieDeNotificare(): Promise<void> {
  * nu exista nicio cale de rezerva de incercat, si nu e nimic de spus omului
  * despre o functie care oricum nu i s-a promis in clipa aia.
  */
+/** Eticheta „Oprește” din notificare; pusă o dată de interfață, în limba omului. */
+let stopLabel: string | undefined;
+export function setBackgroundStopLabel(label: string): void { stopLabel = label; }
+
+/** Butonul „Oprește” din notificare a fost atins. */
+export async function onBackgroundCancel(cb: () => void): Promise<() => void> {
+  if (!isBackgroundAnalysisAvailable()) return () => {};
+  try { const h = await BackgroundAnalysis.addListener('cancel', cb); return () => { void h.remove(); }; } catch { return () => {}; }
+}
+
 export async function startBackgroundAnalysis(done: number, total: number, text?: string): Promise<boolean> {
   if (!isBackgroundAnalysisAvailable()) return false;
   if (total < MIN_PHOTOS_FOR_BACKGROUND) return false;
@@ -154,7 +167,7 @@ export async function startBackgroundAnalysis(done: number, total: number, text?
   try {
     // `total` e aici pragul de pornire, nu o bara: la pornire nu s-a analizat
     // inca nicio poza, iar o bara reala goala e doar o bara care pare inghetata.
-    const answer = await BackgroundAnalysis.start({ done, total, text, determinate: false });
+    const answer = await BackgroundAnalysis.start({ done, total, text, determinate: false, stopLabel });
     return answer.started === true;
   } catch {
     return false;

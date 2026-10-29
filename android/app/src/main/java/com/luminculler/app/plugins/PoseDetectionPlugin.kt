@@ -10,6 +10,7 @@ import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.tasks.core.BaseOptions
+import com.google.mediapipe.tasks.core.Delegate
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarker
 
@@ -45,14 +46,19 @@ class PoseDetectionPlugin : Plugin() {
     /** Vezi ModelRegistry: `by lazy` nu se poate reseta, iar modelul asta
      *  tinea greutatile in memorie nativa si cat timp aplicatia statea in
      *  fundal — exact ce masoara Play ca Anonymous RSS. */
-    private val poseLandmarkerHolder = ReleasableModel<PoseLandmarker>({
-        val baseOptions = BaseOptions.builder().setModelAssetPath(MODEL_FILE).build()
+    private fun createPose(delegate: Delegate): PoseLandmarker {
+        val baseOptions = BaseOptions.builder().setModelAssetPath(MODEL_FILE).setDelegate(delegate).build()
         val options = PoseLandmarker.PoseLandmarkerOptions.builder()
             .setBaseOptions(baseOptions)
             .setNumPoses(MAX_POSES)
             .setRunningMode(RunningMode.IMAGE)
             .build()
-        PoseLandmarker.createFromOptions(context, options)
+        return PoseLandmarker.createFromOptions(context, options)
+    }
+
+    /** Placa video întâi (ca la FaceMesh); fără delegat GPU, crearea aruncă și rămâne procesorul. */
+    private val poseLandmarkerHolder = ReleasableModel<PoseLandmarker>({
+        try { createPose(Delegate.GPU) } catch (_: Exception) { createPose(Delegate.CPU) }
     }, { it.close() })
 
     @PluginMethod

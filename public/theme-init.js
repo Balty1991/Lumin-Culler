@@ -35,7 +35,29 @@
     // deschisa, dar barele sistemului ramaneau negre, pana cand comutai tema
     // manual inainte si inapoi. Valorile trebuie sa ramana identice cu cele din
     // applyTheme; vezi nota de sincronizare de mai sus.
+    // Paleta (state/palette.ts): implicit „cherry”, culorile iconiței. „phone”
+    // pune ultimele culori Material You citite, ca să nu clipească.
+    var palette = localStorage.getItem('lumin-palette') || 'cherry';
+    var root = document.documentElement;
+    root.setAttribute('data-palette', palette === 'aurora' ? 'aurora' : 'cherry');
+    if (palette === 'phone') {
+      try {
+        var c = JSON.parse(localStorage.getItem('lumin-phone-colors') || 'null');
+        if (c) {
+          var hex = function (h) { var n = parseInt(h.slice(1), 16); return ((n >> 16) & 255) + ' ' + ((n >> 8) & 255) + ' ' + (n & 255); };
+          var a = isLight ? c.accent1['600'] : c.accent1['200'];
+          var b = isLight ? c.accent3['600'] : c.accent3['200'];
+          var mid = isLight ? c.accent2['500'] : c.accent2['200'];
+          root.style.setProperty('--accent', a);
+          root.style.setProperty('--accent-2', b);
+          root.style.setProperty('--accent-rgb', hex(a));
+          root.style.setProperty('--accent-2-rgb', hex(b));
+          root.style.setProperty('--brand-grad', 'linear-gradient(120deg, ' + a + ' 0%, ' + mid + ' 50%, ' + b + ' 100%)');
+        }
+      } catch (e2) {}
+    }
+    var cherry = palette !== 'aurora';
     var meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', isLight ? '#f5f5f7' : '#0a0b0d');
+    if (meta) meta.setAttribute('content', isLight ? (cherry ? '#fbf6f8' : '#f5f5f7') : (cherry ? '#0b0816' : '#0a0b0d'));
   } catch (e) {}
 })();

@@ -29,6 +29,7 @@ import com.luminculler.app.plugins.BillingPlugin;
 import com.luminculler.app.plugins.ThermalPlugin;
 import com.luminculler.app.plugins.BackgroundAnalysisPlugin;
 import com.luminculler.app.plugins.InAppReviewPlugin;
+import com.luminculler.app.plugins.DevicePlugin;
 
 public class MainActivity extends BridgeActivity {
 
@@ -182,7 +183,14 @@ public class MainActivity extends BridgeActivity {
         // Fereastra oficiala de recenzie Play, ceruta o singura data, dupa primul
         // export reusit. Vezi plugins/InAppReviewPlugin.kt si state/reviewPrompt.ts.
         registerPlugin(InAppReviewPlugin.class);
+        // Vibrații, culorile telefonului, dictare, limba aplicației, „Trimite către
+        // Cherrypic”, actualizare din aplicație, Ultra HDR — vezi plugins/DevicePlugin.kt.
+        registerPlugin(DevicePlugin.class);
         super.onCreate(savedInstanceState);
+        // Ecran întreg (după super.onCreate, când fereastra are decorul) și pe Android 8–14 (pe 15+ e oricum impus): barele de sistem
+        // devin transparente, iar --safe-top/--safe-bottom (mai jos) păstrează
+        // conținutul în afara lor.
+        androidx.activity.EdgeToEdge.enable(this);
 
         // Fara acest listener, un crash al PROCESULUI DE RANDARE al WebView-ului
         // (ex. un driver GPU care pica la crearea unui context WebGL — vezi

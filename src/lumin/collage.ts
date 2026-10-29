@@ -83,8 +83,8 @@ export async function makeCollage(ids: string[], title: string, subtitle: string
   }
 
   const brand = ctx.createLinearGradient(pad, 0, pad + 260, 0);
-  brand.addColorStop(0, '#5ee6ff');
-  brand.addColorStop(1, '#9b8cff');
+  brand.addColorStop(0, '#ff5482');
+  brand.addColorStop(1, '#a98bff');
   ctx.fillStyle = brand;
   ctx.font = '600 30px "Sora Variable", sans-serif';
   ctx.fillText('Cherrypic', pad, H - 50);
@@ -199,7 +199,7 @@ export async function makeLayoutCollage(
     });
   }
 
-  ctx.fillStyle = light ? '#b0243e' : '#9b8cff';
+  ctx.fillStyle = light ? '#b0243e' : '#ff7fa6';
   ctx.font = '600 30px "Sora Variable", sans-serif';
   ctx.fillText('Cherrypic', pad, H - 50);
   return new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92));

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLxPhotos } from './useLxPhotos';
 import { db } from '../core/db';
 import { findExactDuplicates } from '../core/exactDuplicates';
+import { findNearCopies } from '../core/nearCopies';
 import { formatBytes } from '../core/freedSpace';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { useStore, type PhotoView } from '../state/store';
@@ -28,6 +29,7 @@ export function Housekeeping() {
   const deleteRejectedPhotos = useStore(s => s.deleteRejectedPhotos);
   const trashPhotos = useStore(s => s.trashPhotos);
   const [dupes, setDupes] = useState<string[]>([]);
+  const [chatCopies, setChatCopies] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
 
   // Lunile trecute: cea mai recentă lună încheiată cu poze la „Nu azi”.
@@ -50,10 +52,13 @@ export function Housekeeping() {
     let alive = true;
     void db.photos.toArray().then(rows => {
       const hash = new Map(rows.map(r => [r.id, r.dHash]));
-      const sets = findExactDuplicates(photos.filter(p => p.mediaUri && hash.get(p.id)).map(p => ({
+      const candidates = photos.filter(p => p.mediaUri && hash.get(p.id)).map(p => ({
         id: p.id, dHash: hash.get(p.id)!, sizeBytes: p.sizeBytes, fileName: p.fileName,
         capturedAt: p.capturedAt, importedAt: p.importedAt, status: p.status
-      })));
+      }));
+      const sets = findExactDuplicates(candidates);
+      // Aceeași poză, recomprimată de WhatsApp & co. — rămâne originalul mare.
+      if (alive) setChatCopies(findNearCopies(candidates).flatMap(s => s.copyIds));
       const byId = new Map(photos.map(p => [p.id, p]));
       // Un grup care are o poză păstrată poate fi chiar albumul făcut de Lumi în
       // galerie (copii identice ale pozelor păstrate) — acela nu e gunoi.
@@ -64,7 +69,7 @@ export function Housekeeping() {
   }, [photos]);
 
   if (!isNativeMediaLibraryAvailable()) return null;
-  const junk = [...new Set([...oldShots.map(p => p.id), ...dupes])];
+  const junk = [...new Set([...oldShots.map(p => p.id), ...dupes, ...chatCopies])];
   const junkPhotos = photos.filter(p => junk.includes(p.id));
   if ((!month || month.list.length < 3) && !junk.length) return null;
 
@@ -86,7 +91,7 @@ export function Housekeeping() {
         <div className="lx-card lx-clean-row">
           <div>
             <b>{tr('lx.clean.junk', { count: junk.length })}</b>
-            <span>{[oldShots.length ? tr('lx.clean.shots', { count: oldShots.length }) : '', dupes.length ? tr('lx.clean.dupes', { count: dupes.length }) : ''].filter(Boolean).join(' · ')} · {formatBytes(bytes(junkPhotos), locale)}</span>
+            <span>{[oldShots.length ? tr('lx.clean.shots', { count: oldShots.length }) : '', dupes.length ? tr('lx.clean.dupes', { count: dupes.length }) : '', chatCopies.length ? tr('lx.clean.chatCopies', { count: chatCopies.length }) : ''].filter(Boolean).join(' · ')} · {formatBytes(bytes(junkPhotos), locale)}</span>
           </div>
           <button className="lx-btn ghost small" disabled={busy} onClick={() => { if (!useStore.getState().gatePremium('cleanup')) void run(() => trashPhotos(junk)); }}>{tr('lx.clean.go')}</button>
         </div>
