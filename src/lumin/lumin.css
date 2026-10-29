@@ -1017,3 +1017,5 @@ html, body { overflow-x: hidden; }
 .lx-card.lx-train > span:not(.lx-eyebrow) { font-size: 13px; color: var(--text-dim); }
 .lx-enhance-sliders input.track-sky { background: linear-gradient(90deg, #ffb070, #e8e4dc 50%, #4f8ff0); border-radius: 99px; height: 4px; }
 .lx-scenes { margin: 0; font-size: 12.5px; }
+.lx-bulk-strip { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.lx-bulk-strip img, .lx-bulk-strip .lx-thumb-empty { flex: none; width: 64px; height: 64px; border-radius: 10px; object-fit: cover; }

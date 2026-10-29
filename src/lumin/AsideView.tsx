@@ -5,6 +5,7 @@ import { useStore, type PhotoView } from '../state/store';
 import { useLx } from './lxStore';
 import { useTr } from './context';
 import { Thumb } from './Thumb';
+import { autoFolders } from './autoFolders';
 
 /**
  * lumin/AsideView.tsx
@@ -44,8 +45,12 @@ export function AsideView({ aside }: { aside: PhotoView[] }) {
   );
   const inFolder = useMemo(() => new Set(folders.flatMap(f => [...f.members])), [folders]);
   const current = folders.find(f => f.id === folder);
+  // Dosarele care se fac singure (bonuri pe ani, acte, capturi de chat) — vezi autoFolders.ts.
+  const auto = useMemo(() => autoFolders(aside), [aside]);
+  const currentAuto = auto.find(f => f.id === folder);
   const list = folder === ALL ? aside
     : folder === LOOSE ? aside.filter(p => !inFolder.has(p.id))
+    : currentAuto ? aside.filter(p => currentAuto.ids.includes(p.id))
     : aside.filter(p => current?.members.has(p.id));
 
   const toggle = (id: string) => setPicked(prev => {
@@ -78,6 +83,11 @@ export function AsideView({ aside }: { aside: PhotoView[] }) {
     <>
       <div className="lx-chips lx-aside-folders">
         <button className={folder === ALL ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => setFolder(ALL)}>{tr('lx.aside.all')} <b>{aside.length}</b></button>
+        {auto.map(f => (
+          <button key={f.id} className={folder === f.id ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => setFolder(f.id)}>
+            ✨ {tr(`lx.autoFolder.${f.key}`, { year: f.year ?? '' })} <b>{f.ids.length}</b>
+          </button>
+        ))}
         {folders.map(f => (
           <button key={f.id} className={folder === f.id ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => setFolder(f.id)}>📁 {f.name} <b>{f.members.size}</b></button>
         ))}

@@ -7,6 +7,7 @@ import { formatBytes } from '../core/freedSpace';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { useStore, type PhotoView } from '../state/store';
 import { useTr } from './context';
+import { BulkCleanButton } from './BulkClean';
 import { photoTime } from './days';
 import { monthLabel } from './format';
 import { monthStart } from './coverage';
@@ -71,7 +72,8 @@ export function Housekeeping() {
   if (!isNativeMediaLibraryAvailable()) return null;
   const junk = [...new Set([...oldShots.map(p => p.id), ...dupes, ...chatCopies])];
   const junkPhotos = photos.filter(p => junk.includes(p.id));
-  if ((!month || month.list.length < 3) && !junk.length) return null;
+  // Nimic de propus acum: rămâne curățenia pe criterii, la cerere.
+  if ((!month || month.list.length < 3) && !junk.length) return <section className="lx-section"><BulkCleanButton /></section>;
 
   const run = async (fn: () => Promise<unknown>) => { setBusy(true); try { await fn(); } finally { setBusy(false); } };
 
@@ -96,6 +98,7 @@ export function Housekeeping() {
           <button className="lx-btn ghost small" disabled={busy} onClick={() => { if (!useStore.getState().gatePremium('cleanup')) void run(() => trashPhotos(junk)); }}>{tr('lx.clean.go')}</button>
         </div>
       )}
+      <BulkCleanButton />
       <p className="lx-hint">{tr('lx.clean.safe')}</p>
     </section>
   );

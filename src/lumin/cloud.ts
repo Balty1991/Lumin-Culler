@@ -1,4 +1,5 @@
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
+import { logError } from '../core/errorLog';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
 import { useStore, type PhotoView } from '../state/store';
 import { canSharpen, sharpUrl } from './sharp';
@@ -288,8 +289,11 @@ export async function cloudGrade(jpegBase64: string): Promise<{ values: Record<s
       connectTimeout: 20_000,
       readTimeout: 60_000
     });
-    const d = res.data as { values?: Record<string, number>; reason?: string } | undefined;
-    if (res.status !== 200 || !d?.values) return null;
+    const d = res.data as { values?: Record<string, number>; reason?: string; error?: string } | undefined;
+    if (res.status !== 200 || !d?.values) {
+      logError('cloud', `grade ${res.status} ${d?.error ?? ''}`.trim());
+      return null;
+    }
     return { values: d.values, reason: typeof d.reason === 'string' ? d.reason : '' };
-  } catch { return null; }
+  } catch (e) { logError('cloud', `grade network ${String(e)}`.slice(0, 200)); return null; }
 }

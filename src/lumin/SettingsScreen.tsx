@@ -2,6 +2,9 @@ import { Capacitor } from '@capacitor/core';
 import { Share } from '@capacitor/share';
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
 import { buildErrorReport, readErrorLog } from '../core/errorLog';
+import { countLessons } from './trainingGate';
+import { cloudEnabled } from './cloud';
+import { readerStopped } from './galleryReader';
 import { CloudSection } from './CloudParts';
 import { PrivatePhotosRow } from './PrivatePhotos';
 import { AutoArchiveRow } from './ArchiveView';
@@ -186,7 +189,13 @@ async function sendReport(): Promise<void> {
     poze: s.photos.length,
     persoane: s.persons.length,
     limba: s.locale,
-    memorie: String((navigator as unknown as { deviceMemory?: number }).deviceMemory ?? '?')
+    memorie: String((navigator as unknown as { deviceMemory?: number }).deviceMemory ?? '?'),
+    lectii: await countLessons(),
+    nesortate: s.photos.filter(p => !p.aside && (p.status === 'review' || p.status === 'pending' || p.status === 'candidate')).length,
+    nu_azi: s.photos.filter(p => p.status === 'rejected').length,
+    fete_numite: s.photos.filter(p => p.personNames.length > 0).length,
+    cloud: cloudEnabled() ? 'pornit' : 'oprit',
+    citire_oprita: readerStopped() ? 'da' : 'nu'
   });
   const name = `cherrypic-raport-${new Date().toISOString().slice(0, 10)}.txt`;
   try {

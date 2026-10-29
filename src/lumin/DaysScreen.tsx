@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core';
+import { autoNameFaces, canEmbedFaces, embedMissingFaces, suggestFaces } from './faceIdentity';
 import { useLxPhotos } from './useLxPhotos';
 import { lazy, Suspense, useMemo, useState } from 'react';
 import { useStore } from '../state/store';
@@ -305,6 +306,32 @@ function BirthdayRow({ name }: { name: string }) {
   );
 }
 
+/**
+ * „Caută-l pe Ami în toată galeria”: amprentele fețelor încă necitite, acum,
+ * apoi recunoașterea; ce e sigur primește numele, ce e aproape se întreabă.
+ */
+function FindPersonButton({ name, count }: { name: string; count: number }) {
+  const tr = useTr();
+  const [busy, setBusy] = useState<string | null>(null);
+  if (!canEmbedFaces()) return null;
+  const run = async () => {
+    setBusy('…');
+    try {
+      await embedMissingFaces((d, t) => setBusy(`${d}/${t}`));
+      await autoNameFaces().catch(() => 0);
+      useLx.getState().bumpFaces();
+      const ask = (await suggestFaces(new Set(), 50).catch(() => [])).filter(f => f.name === name).length;
+      const now = useStore.getState().photos.filter(p => p.personNames.includes(name)).length;
+      useStore.getState().setNotice(tr('lx.people.found', { name, more: Math.max(0, now - count), ask }));
+    } finally { setBusy(null); }
+  };
+  return (
+    <button className="lx-btn ghost wide" disabled={busy !== null} onClick={() => void run()}>
+      {busy ? `${tr('lx.people.searching', { name })} ${busy}` : `🔍 ${tr('lx.people.findAll', { name })}`}
+    </button>
+  );
+}
+
 function PersonView({ name, list, onBack, onRenamed }: { name: string; list: PhotoView[]; onBack: () => void; onRenamed: (n: string | null) => void }) {
   const tr = useTr();
   const correctPersonFaces = useStore(s => s.correctPersonFaces);
@@ -338,6 +365,7 @@ function PersonView({ name, list, onBack, onRenamed }: { name: string; list: Pho
       {!editing && <BirthdayRow name={name} />}
       {!editing && <GroupRow name={name} />}
       {!editing && <PersonTimeButtons name={name} list={list} />}
+      {!editing && <FindPersonButton name={name} count={list.length} />}
       {!editing && canMakePhoneAlbums() && list.some(p => p.status === 'selected') && (
         <button className="lx-btn ghost wide" onClick={() => void copyToPhoneAlbum(name, list.filter(p => p.status === 'selected'))}>{tr('lx.phone.personAlbum', { name })}</button>
       )}
