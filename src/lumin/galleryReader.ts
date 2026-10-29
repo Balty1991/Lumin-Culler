@@ -27,6 +27,27 @@ let running = false;
 let ignoreBattery = false;
 export function continueOnLowBattery(): void { ignoreBattery = true; }
 
+/**
+ * „Oprește”: omul nu vrea acum citirea galeriei. Se oprește pachetul în curs
+ * (ce s-a analizat deja rămâne) și NU mai pornește singură la deschidere, până
+ * apasă „Continuă citirea” (sau „Sortează tot”). Ținut minte între porniri.
+ */
+const STOPPED_KEY = 'lumin-gallery-read-stopped';
+let stopRequested = false;
+export function readerStopped(): boolean {
+  try { return localStorage.getItem(STOPPED_KEY) === '1'; } catch { return false; }
+}
+export function stopGalleryReader(): void {
+  stopRequested = true;
+  try { localStorage.setItem(STOPPED_KEY, '1'); } catch { /* fără stocare */ }
+  if (running) useStore.getState().cancelImport();
+}
+/** Pornește din nou, la cererea omului. */
+export function resumeGalleryReader(): Promise<void> {
+  try { localStorage.removeItem(STOPPED_KEY); } catch { /* fără stocare */ }
+  return readWholeGallery(true);
+}
+
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 interface BatteryLike { level: number; charging: boolean }
@@ -48,9 +69,12 @@ export function readerRunning(): boolean {
 }
 
 /** Pornește (sau continuă) citirea galeriei. Tăcută când n-are ce face. */
-export async function readWholeGallery(): Promise<void> {
+export async function readWholeGallery(byUser = false): Promise<void> {
   if (running || !isNativeMediaLibraryAvailable()) return;
+  if (byUser) { try { localStorage.removeItem(STOPPED_KEY); } catch { /* fără stocare */ } }
+  else if (readerStopped()) return;
   running = true;
+  stopRequested = false;
   const lx = useLx.getState();
   try {
     // Cu acces parțial nu avem ce citi singuri; fără acces încă, citirea listei cere permisiunea.
@@ -67,12 +91,14 @@ export async function readWholeGallery(): Promise<void> {
     for (let i = 0; i < missing.length; i += i === 0 ? FIRST_CHUNK : CHUNK) {
       const size = i === 0 ? FIRST_CHUNK : CHUNK;
       // Așteaptă: alt import, aplicația în spate, bateria slabă.
-      while (importBusy() || document.hidden || await lowBattery()) {
+      if (stopRequested) break;
+      while (!stopRequested && (importBusy() || document.hidden || await lowBattery())) {
         // Alt import (ales de om) are întâietate; cititorul spune că așteaptă, nu pare blocat.
         const paused = importBusy() ? 'import' as const : await lowBattery() ? 'battery' as const : undefined;
         useLx.getState().setReader({ done, total: missing.length, ...(paused ? { paused } : {}) });
         await sleep(4000);
       }
+      if (stopRequested) break;
       useLx.getState().setReader({ done, total: missing.length });
       const files = await readPhotoFiles(missing.slice(i, i + size));
       if (files.length) {
@@ -94,6 +120,7 @@ export async function readWholeGallery(): Promise<void> {
       await sleep(1200); // telefonul respiră între pachete: aplicația rămâne fluidă
     }
 
+    if (stopRequested) return; // oprit de om: fără rezumatul „am citit toată galeria”
     const fresh = useStore.getState().photos.filter(p => !beforeIds.has(p.id));
     let announced = false;
     try { announced = localStorage.getItem(ANNOUNCED_KEY) === '1'; localStorage.setItem(ANNOUNCED_KEY, '1'); } catch { /* fără stocare */ }

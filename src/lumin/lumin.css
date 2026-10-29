@@ -841,3 +841,4 @@ body.lx-viewer-open .lx-hero-media img { animation-play-state: paused; }
 .lx-caption:active { transform: scale(.98); }
 .lx-daystory-ai { font-style: italic; }
 .lx-album-ai { margin: 2px 0 4px; font-size: 13.5px; opacity: .9; }
+.lx-reader-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }

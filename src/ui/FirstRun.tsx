@@ -66,7 +66,7 @@ export function FirstRun({ onPickManually }: { onPickManually: () => void }) {
     // așteptarea”): Lumi citește galeria de la cele mai noi poze, câte puțin,
     // iar primele apar pe Azi după câteva secunde. Restul vine în fundal.
     setLater(true);
-    void readWholeGallery();
+    void readWholeGallery(true);
   };
   const skip = () => { dismissWelcome(); setLater(true); };
 

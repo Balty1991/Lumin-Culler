@@ -2716,6 +2716,9 @@ export const ro = {
   "premium.cp.auto.sub": "Pozele noi și cele vechi se aleg și se pun deoparte fără să te mai întrebe; tu doar te uiți și poți schimba orice decizie.",
   "premium.cp.accept.title": "Acceptă tot, dintr-o atingere",
   "premium.cp.accept.sub": "Când ești de acord cu alegerile zilei, le confirmi pe toate deodată, în loc de una câte una.",
+  "lx.reader.stop": "Oprește",
+  "lx.reader.stopped": "Ai oprit citirea galeriei. Pozele analizate deja rămân; restul așteaptă până o pornești din nou.",
+  "lx.reader.resume": "Continuă citirea",
 };
 
 export type TranslationKey = keyof typeof ro;

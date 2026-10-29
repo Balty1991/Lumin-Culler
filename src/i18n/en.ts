@@ -2630,4 +2630,7 @@ export const en: Record<TranslationKey, string> = {
   "premium.cp.auto.sub": "New and old photos are picked and set aside without asking you; you just look, and can change any decision.",
   "premium.cp.accept.title": "Accept all in one tap",
   "premium.cp.accept.sub": "When you agree with the day's picks, confirm them all at once instead of one by one.",
+  "lx.reader.stop": "Stop",
+  "lx.reader.stopped": "You stopped reading the gallery. Photos already analysed stay; the rest wait until you start it again.",
+  "lx.reader.resume": "Continue reading",
 };

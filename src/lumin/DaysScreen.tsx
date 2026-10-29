@@ -403,7 +403,7 @@ function SortAllButton({ count, small }: { count?: number; small?: boolean }) {
   const reader = useLx(s => s.reader);
   const busy = !!reader || importing || (!!progress && progress.phase !== 'finalizat');
   // Același cititor ca la pornire: pe bucăți, fără toată galeria în memorie.
-  const run = () => void readWholeGallery().then(() => decideRestIfAllowed());
+  const run = () => void readWholeGallery(true).then(() => decideRestIfAllowed());
   return (
     <button className={small ? 'lx-btn primary small' : 'lx-btn primary wide'} disabled={busy} onClick={run}>
       {busy ? tr('lx.sortAll.busy') : count ? tr('lx.sortAll.count', { count }) : tr('lx.sortAll.short')}

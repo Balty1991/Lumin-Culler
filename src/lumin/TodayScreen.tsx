@@ -10,7 +10,7 @@ import { useLx } from './lxStore';
 import { useLxActions, useTr } from './context';
 import { Orb } from './Orb';
 import { LumiFeed } from './LumiFeed';
-import { continueOnLowBattery } from './galleryReader';
+import { continueOnLowBattery, readerStopped, resumeGalleryReader, stopGalleryReader } from './galleryReader';
 import { Thumb } from './Thumb';
 import { FreedCard } from './TwinParts';
 import { DayStory } from './DayStory';
@@ -136,9 +136,13 @@ export function TodayScreen() {
           <b>{tr(reader.paused === 'battery' ? 'lx.reader.paused' : 'lx.reader.title', { done: reader.done, total: reader.total })}</b>
           <div className="lx-progress small"><i style={{ width: `${reader.total ? Math.round((reader.done / reader.total) * 100) : 0}%` }} /></div>
           <span>{tr('lx.reader.sub')}</span>
-          {reader.paused === 'battery' && <button className="lx-btn ghost small" onClick={continueOnLowBattery}>{tr('lx.reader.continue')}</button>}
+          <div className="lx-reader-actions">
+            {reader.paused === 'battery' && <button className="lx-btn ghost small" onClick={continueOnLowBattery}>{tr('lx.reader.continue')}</button>}
+            <button className="lx-btn ghost small" onClick={stopGalleryReader}>■ {tr('lx.reader.stop')}</button>
+          </div>
         </section>
       )}
+      {!reader && readerStopped() && <ReaderStopped />}
       {readerResult && !reader && (
         <section className="lx-card lx-auto-result" role="status">
           <button className="lx-auto-close" onClick={() => setReaderResult(null)} aria-label={tr('lx.close')}>✕</button>
@@ -308,5 +312,20 @@ function OnThisDay() {
         );
       })}
     </>
+  );
+}
+
+/** Citirea a fost oprită de om: cât a rămas și butonul care o reia. */
+function ReaderStopped() {
+  const tr = useTr();
+  const [, bump] = useState(0);
+  return (
+    <section className="lx-card lx-reader" role="status">
+      <span className="lx-eyebrow">{tr('lx.reader.eyebrow')}</span>
+      <b>{tr('lx.reader.stopped')}</b>
+      <div className="lx-reader-actions">
+        <button className="lx-btn primary small" onClick={() => { void resumeGalleryReader(); bump(x => x + 1); }}>▶ {tr('lx.reader.resume')}</button>
+      </div>
+    </section>
   );
 }
