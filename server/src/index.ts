@@ -24,7 +24,7 @@
  *   POST /v1/supervise   { images[], scores[], lang, installId } → { items: [{ keep, confidence, reason, caption, tags }] }
  *   POST /v1/report      { id, reason } → raportare conținut (cerință Google Play pentru AI)
  */
-import { CF_INPAINT_MODELS, inpaintPrompt, validateInpaint, admit, backgroundPrompt, budgetKey, CF_IMG2IMG_MODELS, CF_TEXT2IMG_MODELS, CF_TEXT_MODELS, CF_VISION_MODELS, cfRequest, day, EXTRA_DAILY_LIMIT, EXTRA_KINDS, modelUnavailable, parseJsonReply, validateBackground, validateConcepts, conceptsPrompt, validateDescribe, VISION_PROMPT, writerPrompt, validateSupervise, supervisePrompt, normalizeVerdicts, SUPERVISE_VISION_PROMPT, type ExtraKind, COST_USD, DEFAULT_MODELS, falRequest, kindsFor, mapStatus, quotaKey, resultUrl, validateCreate, type Kind } from './logic';
+import { GRADE_PROMPT, normalizeGrade, validateGrade, CF_INPAINT_MODELS, inpaintPrompt, validateInpaint, admit, backgroundPrompt, budgetKey, CF_IMG2IMG_MODELS, CF_TEXT2IMG_MODELS, CF_TEXT_MODELS, CF_VISION_MODELS, cfRequest, day, EXTRA_DAILY_LIMIT, EXTRA_KINDS, modelUnavailable, parseJsonReply, validateBackground, validateConcepts, conceptsPrompt, validateDescribe, VISION_PROMPT, writerPrompt, validateSupervise, supervisePrompt, normalizeVerdicts, SUPERVISE_VISION_PROMPT, type ExtraKind, COST_USD, DEFAULT_MODELS, falRequest, kindsFor, mapStatus, quotaKey, resultUrl, validateCreate, type Kind } from './logic';
 
 export interface Env {
   FAL_KEY?: string;
@@ -172,6 +172,35 @@ export default {
         }));
         const bytes = await bytesOf(img.out);
         return json({ image: base64(bytes), mime: bytes[0] === 0x89 ? 'image/png' : 'image/jpeg', model: img.model });
+      } catch (e) {
+        return aiError(e);
+      }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/v1/grade') {
+      let body: unknown;
+      try { body = await request.json(); } catch { return json({ error: 'bad_json' }, 400); }
+      const v = validateGrade(body);
+      if (!v.ok) return json({ error: v.error }, 400);
+      if (!(await takeExtra(env, 'grade', v.installId, now))) return json({ error: 'daily_limit' }, 429);
+      try {
+        const bytes = Array.from(Uint8Array.from(atob(v.image), (c) => c.charCodeAt(0)));
+        const r = await runFirst(env, CF_VISION_MODELS, (model) => model.includes('llava')
+          ? { image: bytes, prompt: GRADE_PROMPT, max_tokens: 160 }
+          : { messages: [{ role: 'user', content: [{ type: 'text', text: GRADE_PROMPT }, { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${v.image}` } }] }], max_tokens: 160 });
+        const grade = normalizeGrade(parseJsonReply(textOf(r.out)));
+        if (!grade) return json({ error: 'bad_reply' }, 502);
+        let reason = grade.reason;
+        if (reason && v.lang !== 'en') {
+          const t = await runFirst(env, CF_TEXT_MODELS, () => ({
+            messages: [
+              { role: 'system', content: `Translate to ${v.lang === 'ro' ? 'Romanian' : v.lang}. Output only the translation.` },
+              { role: 'user', content: reason }
+            ], max_tokens: 60
+          })).catch(() => null);
+          if (t) reason = textOf(t.out) || reason;
+        }
+        return json({ values: grade.values, reason, model: r.model });
       } catch (e) {
         return aiError(e);
       }

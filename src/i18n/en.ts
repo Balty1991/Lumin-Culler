@@ -2830,5 +2830,7 @@ export const en: Record<TranslationKey, string> = {
   "fr.estimate.minutes": "about {minutes} minutes",
   "fr.estimate.hours": "about {hours} hours",
   "fr.estimate.go": "Start now",
-  "fr.estimate.later": "Later"
+  "fr.estimate.later": "Later",
+  "lx.enhance.aiAuto": "AI auto",
+  "lx.enhance.aiWorking": "AI is looking"
 };

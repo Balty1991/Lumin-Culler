@@ -929,3 +929,7 @@ html, body { overflow-x: hidden; }
 /* Bulina „Cherrypic citește galeria”: jos, deasupra meniului, pe un singur rând — sus
    acoperea titlurile și primul card (raportat cu capturi). */
 .lx-busy-pill { top: auto; bottom: calc(96px + var(--safe-bottom, env(safe-area-inset-bottom, 0px))); white-space: nowrap; max-width: calc(100vw - 32px); overflow: hidden; text-overflow: ellipsis; font-size: 11.5px; padding: 4px 12px 4px 6px; }
+
+/* „Auto AI” în editor, sub file. */
+.lx-ai-auto { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.lx-ai-auto span { font-size: 12.5px; color: var(--text-dim); line-height: 1.35; }

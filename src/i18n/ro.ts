@@ -2916,7 +2916,9 @@ export const ro = {
   "fr.estimate.minutes": "cam {minutes} minute",
   "fr.estimate.hours": "cam {hours} ore",
   "fr.estimate.go": "Pornește acum",
-  "fr.estimate.later": "Mai târziu"
+  "fr.estimate.later": "Mai târziu",
+  "lx.enhance.aiAuto": "Auto AI",
+  "lx.enhance.aiWorking": "AI-ul se uită"
 };
 
 export type TranslationKey = keyof typeof ro;

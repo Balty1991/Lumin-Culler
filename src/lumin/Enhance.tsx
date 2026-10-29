@@ -7,6 +7,7 @@ import { canSharpen, sharpUrl } from './sharp';
 import { isNativeSegmentationAvailable, segmentPersonMask } from '../core/nativeSegmentation';
 import { useStore, type PhotoView } from '../state/store';
 import { frameCrop } from './instaCrop';
+import { cloudAvailable, cloudGrade, ensureCloud } from './cloud';
 import { saveEditedBlob } from './saveEdited';
 import { useTr } from './context';
 
@@ -34,7 +35,9 @@ const NEEDS_FACE: ReadonlySet<EnhanceStyle> = new Set(['portrait', 'retouch']);
 const STYLE_ADD: Record<EnhanceStyle, Partial<Record<keyof EditAdjustments, number>>> = {
   // Cu alb și negru duși spre capete: pe pozele cu cer înnorat, fără ele „după” arăta ca „înainte”
   // (raportat cu capturi, Natural și Clară aproape identice cu originalul).
-  natural: { contrast: 12, saturation: 5, clarity: 18, sharpen: 18, dehaze: 8, shadows: 12, highlights: -12, whites: 8, blacks: -7 },
+  // Măsurat pe poza raportată: mai multă lumină, zonele luminoase nu mai coborâte (cerul
+  // înnorat ieșea gri), negrul doar puțin — cum a reglat omul de mână și i-a plăcut.
+  natural: { exposure: 10, contrast: 14, saturation: 6, clarity: 14, sharpen: 16, shadows: 18, highlights: 4, whites: 10, blacks: -3 },
   vivid: { contrast: 18, saturation: 14, clarity: 22, sharpen: 20, dehaze: 12, shadows: 14, highlights: -14, whites: 10, blacks: -9 },
   warm: { contrast: 12, saturation: 8, temperature: 16, tint: 3, clarity: 14, sharpen: 16, shadows: 12, whites: 6, blacks: -6 },
   drama: { contrast: 26, saturation: -10, clarity: 34, sharpen: 22, dehaze: 16, vignette: 24, highlights: -28, shadows: 20 },
@@ -106,6 +109,9 @@ export async function autoEnhance(photoId: string): Promise<{ url: string; edits
   // bine cu Luminozitate +20 pusă de mână). Măsurată pe fețe, unde sunt, altfel pe toată
   // poza; o poză deja luminoasă nu primește nimic.
   auto.exposure = Math.max(-100, Math.min(100, auto.exposure + brightnessLift(img, a?.faces)));
+  // Fără răcire: pe cer înnorat corecția de alb mergea spre albastru (−16) și poza ieșea
+  // vânătă; o încălzire ușoară rămâne, o răcire de peste −4 nu.
+  auto.temperature = Math.max(-4, auto.temperature);
   // Unde e omul (din fețele găsite la import): stilul Portret estompează în jurul lui.
   // Cu tot corpul: fără decupajul modelului, zona clară pornește de la față și coboară
   // cât un om întreg (umeri mai lați decât fața), nu doar un umăr sub ea.
@@ -266,6 +272,36 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
     if (!box || !dragging.current) return;
     setSplit(Math.max(0, Math.min(100, ((e.clientX - box.left) / box.width) * 100)));
   };
+  // „Auto AI”: varianta de acum, micșorată, merge la AI-ul online; reglajele lui se adună
+  // peste stil, în Lumină și Culoare, unde omul le vede și le poate muta mai departe.
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiReason, setAiReason] = useState('');
+  const aiAuto = async () => {
+    if (!src || !edits) return;
+    if (!(await ensureCloud(useStore.getState().askConfirm, tr))) return;
+    setAiBusy(true);
+    try {
+      const img = await createImageBitmap(await (await fetch(src)).blob());
+      const k = Math.min(1, 512 / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      const ctx = c.getContext('2d');
+      if (!ctx) return;
+      drawAdjusted(ctx, img, img.width, img.height, c.width, c.height, { ...edits, crop: undefined, bokehMask: undefined, bokeh: 0 });
+      const r = await cloudGrade(c.toDataURL('image/jpeg', 0.85).split(',')[1]);
+      if (!r) { useStore.getState().setNotice(tr('lx.magic.failed')); return; }
+      setManual(v => {
+        const n = { ...v };
+        for (const [key, val] of Object.entries(r.values)) {
+          if (!MANUAL.light.some(m => m.key === key) && !MANUAL.color.some(m => m.key === key)) continue;
+          n[key as ManualKey] = Math.max(-100, Math.min(100, (n[key as ManualKey] ?? 0) + val));
+        }
+        return n;
+      });
+      setAiReason(r.reason);
+    } finally { setAiBusy(false); }
+  };
+
   const save = async () => {
     if (!edits) return;
     if (ADVANCED.has(style) && useStore.getState().gatePremium('styles')) return;
@@ -339,6 +375,12 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
                 </button>
               ))}
             </div>
+            {panel !== 'frame' && cloudAvailable() && (
+              <div className="lx-ai-auto">
+                <button className="lx-btn ghost small" disabled={aiBusy} onClick={() => void aiAuto()}>{aiBusy ? `… ${tr('lx.enhance.aiWorking')}` : `✨ ${tr('lx.enhance.aiAuto')}`}</button>
+                {aiReason && <span>{aiReason}</span>}
+              </div>
+            )}
             {panel === 'frame' ? (
               <div className="lx-enhance-sliders">
                 <div className="lx-enhance-styles" role="radiogroup" aria-label={tr('lx.enhance.panel.frame')}>

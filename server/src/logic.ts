@@ -208,10 +208,10 @@ export function cfRequest(req: CreateRequest, bytes: Uint8Array): Record<string,
 // ---- Fundal nou, descrieri și texte (Workers AI, gratuit) ----
 
 /** Ce face serverul pe lângă lucrările cu poze întregi; merg gratuit pe Workers AI. */
-export const EXTRA_KINDS = ['background', 'describe', 'caption', 'greeting', 'story', 'concepts', 'supervise', 'inpaint'] as const;
+export const EXTRA_KINDS = ['background', 'describe', 'caption', 'greeting', 'story', 'concepts', 'supervise', 'inpaint', 'grade'] as const;
 export type ExtraKind = typeof EXTRA_KINDS[number];
 
-export const EXTRA_DAILY_LIMIT: Record<ExtraKind, number> = { background: 15, describe: 60, caption: 30, greeting: 30, story: 30, concepts: 80, supervise: 30, inpaint: 25 };
+export const EXTRA_DAILY_LIMIT: Record<ExtraKind, number> = { background: 15, describe: 60, caption: 30, greeting: 30, story: 30, concepts: 80, supervise: 30, inpaint: 25, grade: 40 };
 
 export const CF_TEXT2IMG_MODELS = ['@cf/black-forest-labs/flux-1-schnell', '@cf/bytedance/stable-diffusion-xl-lightning'];
 export const CF_VISION_MODELS = ['@cf/meta/llama-3.2-11b-vision-instruct', '@cf/llava-hf/llava-1.5-7b-hf'];
@@ -403,4 +403,31 @@ export function validateInpaint(body: unknown): { ok: true; installId: string; m
   const w = Math.round(Number(b.width) / 64) * 64, h = Math.round(Number(b.height) / 64) * 64;
   if (!(w >= 256 && w <= 768 && h >= 256 && h <= 768)) return { ok: false, error: 'bad_size' };
   return { ok: true, installId: b.installId, mode: b.mode, image: b.image, mask: b.mask, width: w, height: h };
+}
+
+/**
+ * „Auto AI” din editor: modelul care vede poza spune ce reglaje i-ar trebui, ca
+ * un retușor — pornind de la varianta deja corectată pe telefon. Numere mici
+ * (±30), ca să fie o corectură peste stil, nu o poză nouă.
+ */
+export const GRADE_KEYS = ['exposure', 'contrast', 'highlights', 'shadows', 'whites', 'blacks', 'temperature', 'tint', 'saturation', 'clarity'] as const;
+export const GRADE_PROMPT = `You are a professional photo retoucher. Look at this photo (already lightly auto-corrected) and decide small slider adjustments that would make it look natural, bright and pleasing, especially faces and skin. Typical issues: too dark faces, gray flat overcast light, cold/blue or green cast, dull colors, harsh highlights. Never make it darker unless it is clearly overexposed. Return only JSON with integer values between -30 and 30 (0 = leave as is): {"exposure":0,"contrast":0,"highlights":0,"shadows":0,"whites":0,"blacks":0,"temperature":0,"tint":0,"saturation":0,"clarity":0,"reason":"max 12 words, what you fixed"}. temperature>0 warmer, tint>0 more magenta (less green).`;
+
+export function validateGrade(body: unknown): { ok: true; image: string; installId: string; lang: string } | { ok: false; error: string } {
+  const b = (body ?? {}) as Record<string, unknown>;
+  if (typeof b.image !== 'string' || !/^\/9j\//.test(b.image) || (b.image.length * 3) / 4 > 300_000) return { ok: false, error: 'bad_image' };
+  if (typeof b.installId !== 'string' || !/^[A-Za-z0-9-]{16,64}$/.test(b.installId)) return { ok: false, error: 'bad_install' };
+  const lang = typeof b.lang === 'string' && /^[a-z]{2}$/.test(b.lang) ? b.lang : 'en';
+  return { ok: true, image: b.image, installId: b.installId, lang };
+}
+
+/** Doar cheile cunoscute, numere întregi în ±30. */
+export function normalizeGrade(raw: Record<string, unknown> | null): { values: Record<string, number>; reason: string } | null {
+  if (!raw) return null;
+  const values: Record<string, number> = {};
+  for (const k of GRADE_KEYS) {
+    const v = Number(raw[k]);
+    if (Number.isFinite(v) && v !== 0) values[k] = Math.max(-30, Math.min(30, Math.round(v)));
+  }
+  return { values, reason: typeof raw.reason === 'string' ? raw.reason.slice(0, 120) : '' };
 }

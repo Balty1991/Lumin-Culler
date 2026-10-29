@@ -271,3 +271,25 @@ export async function cloudInpaint(mode: InpaintMode, image: Blob, mask: Blob, w
     return { ok: true, image: new Blob([bytes], { type: data.mime ?? 'image/png' }) };
   } catch { return { ok: false, reason: 'failed' }; }
 }
+
+/**
+ * „Auto AI” în editor: AI-ul online se uită la varianta corectată (micșorată,
+ * 512 px) și spune ce reglaje i-ar mai trebui. Cu acordul pentru AI-ul online;
+ * gratuit în limita zilnică a textelor, cu Pro cât permite serverul.
+ */
+export async function cloudGrade(jpegBase64: string): Promise<{ values: Record<string, number>; reason: string } | null> {
+  if (!cloudEnabled()) return null;
+  if (!takeFreeAllowance('write')) { useStore.getState().gatePremium('cloud'); return null; }
+  try {
+    const res = await CapacitorHttp.post({
+      url: `${URL_BASE}/v1/grade`,
+      headers: { 'content-type': 'application/json', 'user-agent': 'Cherrypic/3 (Android)' },
+      data: { image: jpegBase64, lang: useStore.getState().locale === 'en' ? 'en' : 'ro', installId: installId() },
+      connectTimeout: 20_000,
+      readTimeout: 60_000
+    });
+    const d = res.data as { values?: Record<string, number>; reason?: string } | undefined;
+    if (res.status !== 200 || !d?.values) return null;
+    return { values: d.values, reason: typeof d.reason === 'string' ? d.reason : '' };
+  } catch { return null; }
+}

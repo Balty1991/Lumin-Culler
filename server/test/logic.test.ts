@@ -174,3 +174,13 @@ describe('validateInpaint', () => {
     expect(validateInpaint({ ...ok, image: 'not base64!' }).ok).toBe(false);
   });
 });
+
+import { normalizeGrade } from '../src/logic';
+describe('normalizeGrade', () => {
+  it('păstrează doar cheile cunoscute, în ±30', () => {
+    const g = normalizeGrade({ exposure: 55, tint: '8', foo: 3, contrast: 0, reason: 'brighter faces' })!;
+    expect(g.values).toEqual({ exposure: 30, tint: 8 });
+    expect(g.reason).toBe('brighter faces');
+    expect(normalizeGrade(null)).toBeNull();
+  });
+});
