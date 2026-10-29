@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { cachedWrite, cloudEnabled, cloudWrite } from './cloud';
 import { useStore } from '../state/store';
 import { buildEvents, buildMomentAlbums, type MomentAlbum } from './momentAlbums';
 import { capitalizeFirst } from './format';
@@ -75,6 +76,17 @@ function AlbumView({ album, onBack }: { album: MomentAlbum<PhotoView>; onBack: (
   const tr = useTr();
   const title = albumTitle(album, locale, tr);
   const kept = album.photos.filter(p => p.status === 'selected');
+  // Titlul și rândul de album scrise de AI-ul online (cu acord), din cele mai bune 4 poze.
+  const aiIds = [...(kept.length ? kept : album.photos)].sort((a, b) => b.aiScore - a.aiScore).slice(0, 4).map(p => p.id);
+  const [ai, setAi] = useState<{ title?: string; line?: string } | null>(() => cachedWrite('describe', aiIds) as { title?: string; line?: string } | null);
+  useEffect(() => {
+    if (ai || !cloudEnabled()) return;
+    let alive = true;
+    const names = [...new Set(album.photos.flatMap(p => p.personNames))].slice(0, 3);
+    const ctx = `${title}. ${album.photos.length} photos.${names.length ? ` People (named by the user): ${names.join(', ')}.` : ''}`;
+    void cloudWrite('describe', aiIds, ctx).then(r => { if (alive && r) setAi(r as { title?: string; line?: string }); });
+    return () => { alive = false; };
+  }, [album.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const waiting = album.photos.filter(p => p.status === 'review' || p.status === 'pending' || p.status === 'candidate');
   return (
     <div className="lx-album-view">
@@ -83,8 +95,9 @@ function AlbumView({ album, onBack }: { album: MomentAlbum<PhotoView>; onBack: (
         <span className="lx-album-shade" />
         <button className="lx-icon-btn lx-album-back" onClick={onBack} aria-label={tr('lx.back')}>‹</button>
         <div className="lx-album-hero-text">
-          <h2>{title}</h2>
-          <span>{tr('lx.moments.meta', { count: album.photos.length, kept: kept.length })}</span>
+          <h2>{typeof ai?.title === 'string' && ai.title ? ai.title : title}</h2>
+          {typeof ai?.line === 'string' && ai.line && <p className="lx-album-ai">☁ {ai.line}</p>}
+          <span>{ai?.title ? `${title} · ` : ''}{tr('lx.moments.meta', { count: album.photos.length, kept: kept.length })}</span>
         </div>
       </div>
       <div className="lx-decide-actions">

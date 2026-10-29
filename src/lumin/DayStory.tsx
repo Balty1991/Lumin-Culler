@@ -3,6 +3,7 @@ import type { PhotoView } from '../state/store';
 import { useStore } from '../state/store';
 import { useTr } from './context';
 import { Thumb } from './Thumb';
+import { useAiStory } from './CloudParts';
 
 /**
  * lumin/DayStory.tsx
@@ -35,8 +36,13 @@ export function DayStory({ photos }: { photos: readonly PhotoView[] }) {
   const locale = useStore(s => s.locale) === 'en' ? 'en' : 'ro';
   const evening = new Date().getHours() >= 17;
   const sorted = photos.length > 0 && photos.every(p => p.status === 'selected' || p.status === 'rejected');
-  if (photos.length < 3 || (!evening && !sorted)) return null;
   const s = storyOf(photos, locale);
+  // Povestea scrisă de AI-ul online (cu acord): din cele mai bune 4 poze ale zilei, în ordinea zilei.
+  const best = [...photos].filter(p => p.status === 'selected').sort((a, b) => b.aiScore - a.aiScore).slice(0, 4)
+    .sort((a, b) => (a.capturedAt ?? a.importedAt) - (b.capturedAt ?? b.importedAt));
+  const ctx = `${s.total} photos today, ${s.kept} kept.${s.people.length ? ` People (named by the user): ${s.people.join(', ')}.` : ''}`;
+  const ai = useAiStory(photos.length >= 3 ? best.map(p => p.id) : [], ctx);
+  if (photos.length < 3 || (!evening && !sorted)) return null;
   const and = tr('lx.why.and');
   const lines = [tr('lx.story.day.count', { total: s.total, kept: s.kept })];
   if (s.people.length) lines.push(tr('lx.story.day.people', { names: s.people.join(and) }));
@@ -46,7 +52,9 @@ export function DayStory({ photos }: { photos: readonly PhotoView[] }) {
       {s.cover && <Thumb id={s.cover.id} lqip={s.cover.lqip} edits={s.cover.edits} className="lx-daystory-img" />}
       <div>
         <span className="lx-eyebrow">{tr('lx.story.day.eyebrow')}</span>
-        <p>{lines.join(' ')}</p>
+        {ai.sentences ? <p className="lx-daystory-ai">{ai.sentences.join(' ')}</p> : <p>{lines.join(' ')}</p>}
+        {ai.loading && <span className="lx-hint">☁ {tr('lx.story.ai.working')}</span>}
+        {ai.ask && <button className="lx-link" onClick={ai.ask}>✨ {tr('lx.story.ai.ask')}</button>}
       </div>
     </section>
   );

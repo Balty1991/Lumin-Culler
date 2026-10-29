@@ -92,6 +92,7 @@ Pornita, se intampla doar urmatoarele:
   <li>Pleaca <strong>doar pozele nesigure</strong> (cel mult cateva zeci pe zi), <strong>micsorate la 512 pixeli</strong>, impreuna cu ce a masurat telefonul (claritate, lumina, cate fete si daca au ochii deschisi), limba aplicatiei si un identificator aleator al instalarii (folosit doar pentru limita zilnica; nu e legat de nume, cont sau email).</li>
   <li>Le primeste serverul aplicatiei, gazduit pe Cloudflare Workers, care le trece prin modele AI ale Cloudflare (Workers AI) si intoarce un verdict scurt: o pastrezi sau nu, de ce, ce se vede in poza.</li>
   <li>Pozele <strong>nu sunt pastrate</strong> pe server dupa raspuns si nu sunt folosite la antrenarea modelelor. Verdictul e pastrat doar pe telefonul tau.</li>
+  <li>Tot cu acordul dat la pornirea Cherrypic Cloud, AI-ul online mai poate primi, doar cand folosesti functia respectiva: cele mai bune 1–4 poze ale unei zile sau ale unui album (micsorate la 512 px), ca sa scrie povestea zilei sau titlul albumului; poza pe care o trimiti, ca sa-ti propuna un text pentru postare; si, cand cautarea pe telefon nu gaseste nimic, cuvintele cautate plus lista de etichete ale pozelor (fara nicio poza), ca sa inteleaga ce cauti. Numele de persoane trimise sunt doar cele date de tine, pentru text. Nimic din toate acestea nu se pastreaza pe server.</li>
   <li>O opresti oricand din Setari; oprita, nu mai pleaca nimic.</li>
 </ul>
 
@@ -193,6 +194,7 @@ For photos the app is unsure whether you would keep, you can turn on a cloud "se
   <li>Only the <strong>uncertain photos</strong> are sent (at most a few dozen per day), <strong>downscaled to 512 pixels</strong>, together with what the phone measured (sharpness, light, number of faces and whether eyes are open), the app language and a random install identifier (used only for the daily limit; not linked to any name, account or email).</li>
   <li>They are received by the app's server, hosted on Cloudflare Workers, which runs them through Cloudflare's AI models (Workers AI) and returns a short verdict: keep it or not, why, and what is in the photo.</li>
   <li>Photos are <strong>not kept</strong> on the server after the reply and are not used to train models. The verdict is kept only on your phone.</li>
+  <li>Under the same consent, the online AI may also receive, only when you use that feature: the best 1–4 photos of a day or an album (shrunk to 512 px) to write the story of the day or the album title; the photo you are sharing, to suggest a caption; and, when the on-phone search finds nothing, your search words plus the list of photo tags (no photo at all), to understand what you mean. Names sent are only those you gave, for the text. None of this is kept on the server.</li>
   <li>You can switch it off at any time in Settings; when off, nothing is sent.</li>
 </ul>
 

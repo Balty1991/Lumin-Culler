@@ -147,3 +147,70 @@ export async function superviseUnsure(limit = 12): Promise<{ checked: number; de
     running = false;
   }
 }
+
+/**
+ * AI-ul online, și în afară de a doua părere: povestea zilei, texte pentru
+ * postare, titluri de album, căutarea cu cuvinte. Raportat: „asistentul online
+ * nu îl văd așa implicat”. Același acord (Cherrypic Cloud) acoperă tot; fără el,
+ * nu pleacă nimic. Rezultatele se țin minte, ca aceeași cerere să nu plece de două ori.
+ */
+const WRITES_KEY = 'lumin-cloud-writes';
+export type WriteKind = 'story' | 'caption' | 'describe';
+
+function readWrites(): Record<string, { t: number; data: Record<string, unknown> }> {
+  try { return JSON.parse(localStorage.getItem(WRITES_KEY) ?? '{}'); } catch { return {}; }
+}
+
+export function cachedWrite(kind: WriteKind, ids: readonly string[]): Record<string, unknown> | null {
+  return readWrites()[`${kind}:${ids.join(',')}`]?.data ?? null;
+}
+
+/** Cere AI-ului online un text pentru pozele date (cel mult 4). null = n-a mers (fără acord, limită, rețea). */
+export async function cloudWrite(kind: WriteKind, ids: readonly string[], context: string): Promise<Record<string, unknown> | null> {
+  if (!cloudEnabled() || !ids.length) return null;
+  const key = `${kind}:${ids.join(',')}`;
+  const hit = readWrites()[key];
+  if (hit) return hit.data;
+  const images = (await Promise.all(ids.slice(0, 4).map(id => smallJpeg(id).catch(() => null)))).filter((x): x is string => !!x);
+  if (!images.length) return null;
+  try {
+    const res = await CapacitorHttp.post({
+      url: `${URL_BASE}/v1/describe`,
+      headers: { 'content-type': 'application/json', 'user-agent': 'Cherrypic/3 (Android)' },
+      data: { kind, images, context: context.slice(0, 300), lang: useStore.getState().locale === 'en' ? 'en' : 'ro', installId: installId() },
+      connectTimeout: 20_000,
+      readTimeout: 90_000
+    });
+    if (res.status !== 200 || !res.data || typeof res.data !== 'object') return null;
+    const all = readWrites();
+    all[key] = { t: Date.now(), data: res.data as Record<string, unknown> };
+    const keep = Object.entries(all).sort((a, b) => b[1].t - a[1].t).slice(0, 300);
+    try { localStorage.setItem(WRITES_KEY, JSON.stringify(Object.fromEntries(keep))); } catch { /* plin */ }
+    return res.data as Record<string, unknown>;
+  } catch { return null; }
+}
+
+/** Căutarea cu cuvinte: ce înseamnă „tort” sau „la mare” din etichetele pe care telefonul le știe. */
+export async function cloudConcepts(query: string, vocab: readonly string[]): Promise<string[]> {
+  if (!cloudEnabled() || query.trim().length < 2 || !vocab.length) return [];
+  try {
+    const res = await CapacitorHttp.post({
+      url: `${URL_BASE}/v1/concepts`,
+      headers: { 'content-type': 'application/json', 'user-agent': 'Cherrypic/3 (Android)' },
+      data: { query: query.trim().slice(0, 80), vocab: vocab.slice(0, 600), installId: installId() },
+      connectTimeout: 15_000,
+      readTimeout: 30_000
+    });
+    return res.status === 200 && Array.isArray(res.data?.concepts) ? (res.data.concepts as string[]) : [];
+  } catch { return []; }
+}
+
+/** Pornește Cherrypic Cloud cu acordul omului (același text ca în Setări). */
+export async function ensureCloud(askConfirm: (msg: string, o?: { confirmLabel?: string }) => Promise<boolean>, tr: (k: string) => string): Promise<boolean> {
+  if (cloudEnabled()) return true;
+  if (!cloudAvailable()) return false;
+  if (!await askConfirm(tr('lx.cloud.consentAll'), { confirmLabel: tr('lx.cloud.enable') })) return false;
+  setCloudEnabled(true);
+  void superviseUnsure();
+  return true;
+}

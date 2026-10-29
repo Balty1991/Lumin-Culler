@@ -836,3 +836,8 @@ body.lx-viewer-open .lx-hero-media img { animation-play-state: paused; }
 .lx-dbtn.keep { color: var(--pick); }
 .lx-dbtn.keep.on { background: rgb(var(--pick-rgb) / .18); border-color: rgb(var(--pick-rgb) / .55); }
 .lx-viewer-photo img, .lx-viewer-photo:not(.zoomed) img { max-height: calc(100dvh - 345px - var(--safe-top, 0px) - var(--safe-bottom, 0px)); }
+/* AI-ul online: texte de postare, povestea zilei, titlul albumului */
+.lx-caption { text-align: left; padding: 14px; border-radius: 16px; border: 1px solid rgb(var(--accent-rgb) / .3); background: rgb(var(--accent-rgb) / .08); color: inherit; font-size: 14.5px; line-height: 1.45; }
+.lx-caption:active { transform: scale(.98); }
+.lx-daystory-ai { font-style: italic; }
+.lx-album-ai { margin: 2px 0 4px; font-size: 13.5px; opacity: .9; }

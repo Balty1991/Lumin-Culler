@@ -2624,7 +2624,7 @@ export const ro = {
   "lx.enhance.allProgress": "Le fac mai frumoase… {progress}",
   "lx.cloud.title": "Cherrypic Cloud",
   "lx.cloud.row": "A doua părere pentru pozele nesigure",
-  "lx.cloud.sub": "Un AI mare, în cloud, se uită la pozele la care AI-ul de pe telefon ezită: spune dacă le-ai păstra și ce se vede în ele (intră și în căutare). Oprit până îl pornești tu.",
+  "lx.cloud.sub": "Un AI online te ajută acolo unde telefonul nu poate singur: a doua părere pe pozele nesigure, povestea zilei, texte pentru postări, titluri de album și căutarea cu cuvinte. Oprit până îl pornești tu.",
   "lx.cloud.consent": "Cherrypic Cloud trimite doar pozele la care AI-ul nu e sigur, micșorate (512 px), la serverul Cherrypic pe Cloudflare. Acolo sunt analizate și uitate imediat: nu se păstrează și nu se folosesc la antrenarea vreunui AI. Restul pozelor nu pleacă niciodată de pe telefon. Pornești?",
   "lx.cloud.enable": "Pornesc Cherrypic Cloud",
   "lx.cloud.now": "Verifică acum pozele nesigure ({checked} verificate până acum)",
@@ -2699,6 +2699,19 @@ export const ro = {
   "fr.hero.f2": "Curățare automată",
   "fr.hero.f3": "Procesare privată, pe dispozitiv",
   "fr.hero.trust": "Fără cont · Fără reclame · Datele rămân pe telefonul tău",
+  "lx.cloud.consentAll": "Cherrypic Cloud folosește un AI online pentru: a doua părere pe pozele nesigure, povestea zilei, texte pentru postări, titluri de album și căutarea cu cuvinte. Trimite doar pozele de care e nevoie (cel mult 4 odată), micșorate la 512 px, la serverul Cherrypic pe Cloudflare. Sunt analizate și uitate imediat: nu se păstrează și nu se folosesc la antrenarea vreunui AI. Pornești?",
+  "lx.caption.button": "Text",
+  "lx.caption.title": "Text pentru postare",
+  "lx.caption.working": "Cherrypic scrie…",
+  "lx.caption.failed": "Nu am putut scrie acum (fără internet sau limita zilei). Încearcă mai târziu.",
+  "lx.caption.hint": "Atinge un text: îl copiez și deschid trimiterea pozei; îl lipești în mesaj sau postare.",
+  "lx.caption.copied": "Text copiat. Lipește-l când trimiți poza.",
+  "lx.story.ai.working": "Cherrypic scrie povestea zilei…",
+  "lx.story.ai.ask": "Povestea zilei, scrisă de AI",
+  "lx.search.ai": "Pe telefon nu am găsit nimic; AI-ul online a căutat: {terms}",
+  "lx.feed.cloud": "Pot face mai mult cu AI-ul online: îți scriu povestea zilei, texte pentru postări, titluri de album și găsesc poze după ce descrii în cuvinte.",
+  "lx.feed.cloudSub": "Oprit până îl pornești. Pleacă doar pozele de care e nevoie, micșorate, și nu se păstrează.",
+  "lx.feed.cloudGo": "Pornesc AI-ul online",
 };
 
 export type TranslationKey = keyof typeof ro;

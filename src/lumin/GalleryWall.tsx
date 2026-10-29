@@ -9,8 +9,9 @@ import { reasonsFor } from './reasons';
 import { personalWhy, useWhyContext } from './why';
 import { learnFromOpen, learnFromShare } from './signals';
 import { findVisuallySimilar } from './visualSimilar';
-import { CloudLine } from './CloudParts';
-import { cloudSearchText, readVerdicts } from './cloud';
+import { CaptionSheet, CloudLine } from './CloudParts';
+import { cloudAvailable, cloudConcepts, cloudEnabled, cloudSearchText, readVerdicts } from './cloud';
+import { translateSceneTag } from '../core/sceneTagLabels';
 import { useTr } from './context';
 import { Thumb } from './Thumb';
 import { searchPhotos } from './textSearch';
@@ -148,6 +149,8 @@ export function GalleryWall() {
   const [shown, setShown] = useState(PAGE);
   const [viewer, setViewer] = useState<{ index: number; origin: DOMRect | null } | null>(null);
   const [query, setQuery] = useState('');
+  /** Ce a înțeles AI-ul online din căutare, când pe telefon nu s-a găsit nimic („tort” → cake). */
+  const [aiTerms, setAiTerms] = useState<{ q: string; terms: string[] } | null>(null);
   /** „Asemănătoare”: poza de plecare și cele care seamănă cu ea (după ce se vede, nu după dată). */
   const [similar, setSimilar] = useState<{ source: string; ids: string[] } | null>(null);
   const [density, setDensityState] = useState<Density>(readDensity);
@@ -165,14 +168,29 @@ export function GalleryWall() {
     if (query.trim()) {
       // Și ce a văzut Lumi Cloud în poză (descriere + etichete), unde există.
       const verdicts = readVerdicts();
-      return searchPhotos(photos.map(p => (verdicts[p.id] ? { ...p, aiDescription: `${p.aiDescription ?? ''} ${cloudSearchText(p.id, verdicts)}` } : p)), query);
+      const searchable = photos.map(p => (verdicts[p.id] ? { ...p, aiDescription: `${p.aiDescription ?? ''} ${cloudSearchText(p.id, verdicts)}` } : p));
+      const found = searchPhotos(searchable, query);
+      if (found.length || aiTerms?.q !== query.trim()) return found;
+      const seen = new Set<string>();
+      return aiTerms.terms.flatMap(t => searchPhotos(searchable, t)).filter(p => !seen.has(p.id) && !!seen.add(p.id));
     }
     return photos
       .filter(p => !p.aside)
       .filter(p => filter === 'all' || (filter === 'kept' ? p.status === 'selected' : p.status === 'rejected'))
       .sort((a, b) => photoTime(b) - photoTime(a));
-  }, [photos, filter, query, similar]);
+  }, [photos, filter, query, similar, aiTerms]);
   const reveal = useReveal();
+  // Nimic găsit pe telefon: întreabă AI-ul online ce înseamnă căutarea, în etichetele pe care le avem.
+  const nothingFound = !!query.trim() && !similar && list.length === 0;
+  useEffect(() => {
+    const q = query.trim();
+    if (!nothingFound || !cloudEnabled() || aiTerms?.q === q) return;
+    const timer = window.setTimeout(() => {
+      const vocab = [...new Set(photos.flatMap(p => p.sceneTags ?? []))].slice(0, 600);
+      void cloudConcepts(q, vocab).then(terms => setAiTerms({ q, terms }));
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, [nothingFound, query, photos, aiTerms]);
 
   const setDensity = (d: Density) => {
     if (d === density) return;
@@ -302,6 +320,9 @@ export function GalleryWall() {
         </div>
       )}
       {query.trim() && <p className="lx-hint">{tr('lx.search.results', { count: list.length })}</p>}
+      {query.trim() && aiTerms?.q === query.trim() && aiTerms.terms.length > 0 && list.length > 0 && (
+        <p className="lx-hint">☁ {tr('lx.search.ai', { terms: aiTerms.terms.map(t => translateSceneTag(t, locale === 'en' ? 'en' : 'ro')).join(', ') })}</p>
+      )}
       {similar && (
         <div className="lx-similar-head">
           <span>{tr('lx.similar.title', { count: list.length - 1 })}</span>
@@ -448,6 +469,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
   onSimilar?: (id: string) => void;
 }) {
   const [enhancing, setEnhancing] = useState(false);
+  const [writing, setWriting] = useState(false);
   const tr = useTr();
   const why = useWhyContext();
   const locale = useStore(s => s.locale);
@@ -657,6 +679,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
           <button className="lx-tbtn magic" onClick={() => setEnhancing(true)}><span>✨</span>{tr('lx.viewer.enhanceShort')}</button>
           {onSimilar && <button className="lx-tbtn" onClick={() => onSimilar(p.id)}><span>◎</span>{tr('lx.viewer.similarShort')}</button>}
           <button className="lx-tbtn" onClick={() => void exportSelection('apps', [p.id]).then(() => learnFromShare([p]))}><span>↗</span>{tr('lx.wall.share')}</button>
+          {cloudAvailable() && <button className="lx-tbtn" onClick={() => setWriting(true)}><span>✍</span>{tr('lx.caption.button')}</button>}
           {p.status === 'rejected' && p.mediaUri && (
             <button className="lx-tbtn danger" onClick={() => void deleteRejectedPhotos([p.id]).then(r => {
               if (!r.deleted) return;
@@ -674,6 +697,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
         </div>
       </div>
       {enhancing && <EnhanceSheet photo={p} onClose={() => setEnhancing(false)} />}
+      {writing && <CaptionSheet photo={p} onClose={() => setWriting(false)} />}
     </div>,
     document.body
   );

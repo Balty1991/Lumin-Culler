@@ -4,6 +4,7 @@ import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { readLastBackupAt } from '../state/backupReminder';
 import { useStore, type PhotoView } from '../state/store';
 import { useTr } from './context';
+import { cloudAvailable, cloudEnabled, ensureCloud } from './cloud';
 import { groupDays, photoTime } from './days';
 import { monthLabel } from './format';
 import { monthStart } from './coverage';
@@ -77,6 +78,7 @@ export function LumiFeed() {
   const trashPhotos = useStore(s => s.trashPhotos);
   const exportSelection = useStore(s => s.exportSelection);
   const exportBackup = useStore(s => s.exportBackup);
+  const askConfirm = useStore(s => s.askConfirm);
   const openSort = useLx(s => s.openSort);
   const openViewer = useLx(s => s.openViewer);
   const setTab = useLx(s => s.setTab);
@@ -173,6 +175,17 @@ export function LumiFeed() {
       });
     }
 
+    // AI-ul online oprit: ce ar face în plus, pe galeria omului, și pornirea lui (cu acord).
+    if (cloudAvailable() && !cloudEnabled() && photos.length >= 20) {
+      out.push({
+        id: 'cloud-offer',
+        text: tr('lx.feed.cloud'),
+        sub: tr('lx.feed.cloudSub'),
+        action: tr('lx.feed.cloudGo'),
+        run: () => ensureCloud(askConfirm, tr)
+      });
+    }
+
     // 7. Salvarea a ce a învățat Lumi (în Drive, din foaia de trimitere).
     const decided = photos.filter(p => p.status === 'selected' || p.status === 'rejected').length;
     const last = readLastBackupAt();
@@ -188,7 +201,7 @@ export function LumiFeed() {
     const now = Date.now();
     const snoozed = readSnooze();
     return out.filter(i => !(snoozed[i.id] > now));
-  }, [photos, locale, premiumLocked, why, tr, exportSelection, exportBackup, trashPhotos, gatePremium, openSort, openViewer, setTab, setView]);
+  }, [photos, locale, premiumLocked, why, tr, exportSelection, exportBackup, trashPhotos, gatePremium, askConfirm, openSort, openViewer, setTab, setView]);
 
   const shown = ideas.slice(0, 3);
   if (!shown.length || reader) return null;

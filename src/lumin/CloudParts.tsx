@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import type { PhotoView } from '../state/store';
+import { learnFromShare } from './signals';
 import { useStore } from '../state/store';
 import { useTr } from './context';
-import { cloudAvailable, cloudEnabled, readVerdicts, setCloudEnabled, superviseUnsure } from './cloud';
+import { cloudAvailable, cloudEnabled, cloudWrite, ensureCloud, readVerdicts, setCloudEnabled, superviseUnsure } from './cloud';
 
 /**
  * lumin/CloudParts.tsx
@@ -18,7 +21,7 @@ export function CloudSection() {
   const checked = Object.keys(readVerdicts()).length;
 
   const toggle = async () => {
-    if (!on && !await askConfirm(tr('lx.cloud.consent'), { confirmLabel: tr('lx.cloud.enable') })) return;
+    if (!on && !await askConfirm(tr('lx.cloud.consentAll'), { confirmLabel: tr('lx.cloud.enable') })) return;
     setCloudEnabled(!on);
     setOn(!on);
     if (!on) void runNow();
@@ -57,4 +60,77 @@ export function CloudLine({ id }: { id: string }) {
       ☁ <b>{tr(v.keep ? 'lx.cloud.keep' : 'lx.cloud.drop')}</b> — {v.reason}
     </p>
   );
+}
+
+/**
+ * „✍ Text”: trei texte pentru postare, scrise de AI-ul online după ce se vede
+ * în poză (unul cald, unul amuzant, unul scurt cu emoji). O atingere copiază
+ * textul și deschide trimiterea pozei.
+ */
+export function CaptionSheet({ photo, onClose }: { photo: PhotoView; onClose: () => void }) {
+  const tr = useTr();
+  const askConfirm = useStore(s => s.askConfirm);
+  const setNotice = useStore(s => s.setNotice);
+  const exportSelection = useStore(s => s.exportSelection);
+  const [captions, setCaptions] = useState<string[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      if (!await ensureCloud(askConfirm, tr)) { onClose(); return; }
+      const names = photo.personNames.length ? `People (named by the user): ${photo.personNames.join(', ')}.` : '';
+      const r = await cloudWrite('caption', [photo.id], names);
+      const list = Array.isArray(r?.captions) ? (r!.captions as unknown[]).filter((x): x is string => typeof x === 'string') : [];
+      if (!alive) return;
+      if (list.length) setCaptions(list); else setFailed(true);
+    })();
+    return () => { alive = false; };
+  }, [photo.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pick = async (text: string) => {
+    try { await navigator.clipboard.writeText(text); } catch { /* fără clipboard */ }
+    setNotice(tr('lx.caption.copied'));
+    onClose();
+    await exportSelection('apps', [photo.id]);
+    void learnFromShare([photo]);
+  };
+  return createPortal(
+    <div className="lx lx-sheet-wrap" role="dialog" aria-modal="true" onClick={onClose}>
+      <div className="lx-sheet" onClick={e => e.stopPropagation()}>
+        <h2>✍ {tr('lx.caption.title')}</h2>
+        {!captions && !failed && <div className="lx-enhance-wait"><span className="lx-spinner" />{tr('lx.caption.working')}</div>}
+        {failed && <p className="lx-hint">{tr('lx.caption.failed')}</p>}
+        {captions?.map(c => (
+          <button key={c} className="lx-caption" onClick={() => void pick(c)}>{c}</button>
+        ))}
+        {captions && <p className="lx-hint">{tr('lx.caption.hint')}</p>}
+        <button className="lx-btn ghost wide" onClick={onClose}>{tr('lx.enhance.cancel')}</button>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+/** „✨ Povestea zilei scrisă de AI”: propozițiile scrise online, sau butonul care le cere (cu acord). */
+export function useAiStory(ids: readonly string[], context: string): { sentences: string[] | null; ask: (() => void) | null; loading: boolean } {
+  const tr = useTr();
+  const askConfirm = useStore(s => s.askConfirm);
+  const [sentences, setSentences] = useState<string[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const key = ids.join(',');
+  const load = async () => {
+    setLoading(true);
+    try {
+      const r = await cloudWrite('story', ids, context);
+      const list = Array.isArray(r?.sentences) ? (r!.sentences as unknown[]).filter((x): x is string => typeof x === 'string') : [];
+      if (list.length) setSentences(list);
+    } finally { setLoading(false); }
+  };
+  useEffect(() => {
+    setSentences(null);
+    if (ids.length && cloudEnabled()) void load();
+  }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  const ask = !sentences && !loading && cloudAvailable() && !cloudEnabled() && ids.length
+    ? () => { void ensureCloud(askConfirm, tr).then(ok => { if (ok) void load(); }); }
+    : null;
+  return { sentences, ask, loading };
 }
