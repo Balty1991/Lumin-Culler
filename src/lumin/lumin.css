@@ -923,6 +923,8 @@ html, body { overflow-x: hidden; }
 /* Textul cardului crește, nu desenele (orbul, miniaturile): altfel „AI-ul tău” se strângea
    într-o coloană de un cuvânt (raportat cu captură). */
 .lx-card > div:not(.lx-orb):not(.lx-feed-photo) { flex: 1 1 200px; min-width: 0; }
+/* Pe cardurile în coloană, „200px” devenea înălțime: bara de progres ieșea un bloc uriaș. */
+.lx-card.lx-reader > div, .lx-card.lx-auto-result > div, .lx-card > .lx-progress { flex: none; }
 .lx-card > .lx-orb { flex: none; }
 .lx-card > .lx-btn, .lx-card > button.lx-btn { flex: 1 1 auto; }
 
@@ -1009,3 +1011,7 @@ html, body { overflow-x: hidden; }
 .lx-enhance .lx-enhance-sliders .lx-enhance-amount span { min-width: 84px; }
 .lx-enhance .lx-enhance-tabs { margin-bottom: 6px; }
 .lx-enhance .lx-viewer-info { gap: 8px; max-height: 46dvh; }
+.lx-recap-anyway { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; margin-top: 4px; }
+.lx-recap-anyway .lx-link { font-size: 12.5px; text-align: left; }
+.lx-card.lx-train { flex-direction: column; align-items: stretch; gap: 8px; border-color: rgb(var(--accent-rgb) / 0.4); }
+.lx-card.lx-train > span:not(.lx-eyebrow) { font-size: 13px; color: var(--text-dim); }

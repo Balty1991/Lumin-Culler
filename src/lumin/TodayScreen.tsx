@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { TrainingCard } from './TrainingCard';
 import { useLxPhotos } from './useLxPhotos';
 import { useStore } from '../state/store';
 import { countGalleryPhotosSince, isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
@@ -135,6 +136,7 @@ export function TodayScreen() {
       <WhoIsThis />
       <IsItThem />
 
+      <TrainingCard />
       {reader && reader.paused !== 'import' && (
         <section className="lx-card lx-reader" role="status">
           <span className="lx-eyebrow">{tr('lx.reader.eyebrow')}</span>

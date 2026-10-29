@@ -2976,6 +2976,14 @@ export const ro = {
   "lx.enhance.aiLocal": "AI-ul online n-a răspuns acum; am corectat poza pe telefon.",
   "lx.text.color": "Culoarea textului",
   "lx.text.colorAuto": "Auto: se potrivește cu poza",
+  "lx.book.anyway": "Cartea anului: lipsesc poze din {months} — generează oricum",
+  "lx.calendar.anyway": "Calendar {year}: lipsesc poze din {months} — generează oricum",
+  "lx.train.eyebrow": "Înainte să sortez singur",
+  "lx.train.title": "Ca să aleg bine din {total} de poze, am nevoie de {need} de alegeri de-ale tale",
+  "lx.train.sub": "Ai dat {done}. Încă {left} și te imit. Până atunci nu arunc nimic — doar pregătesc pozele.",
+  "lx.train.go": "Antrenează-mă (~2 minute)",
+  "lx.train.sortTitle": "Antrenament: ce păstrezi?",
+  "lx.train.done": "Gata, am învățat destul. Am reluat sortarea pe toată galeria, după gustul tău.",
 };
 
 export type TranslationKey = keyof typeof ro;

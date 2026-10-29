@@ -15,6 +15,30 @@ import { makePdf, type PdfPage } from './pdf';
  */
 const PW = 1240, PH = 1754;
 
+/** Cu oameni întâi (cerut: „de preferat cu persoane”), apoi după scor. */
+function peopleFirst(list: readonly PhotoView[]): PhotoView[] {
+  const has = (p: PhotoView) => (p.personNames.length > 0 || (p.faceCount ?? 0) > 0 ? 1 : 0);
+  return [...list].sort((a, b) => has(b) - has(a) || b.aiScore - a.aiScore);
+}
+
+/**
+ * Lunile fără nicio poză păstrată: cartea anului și calendarul se propun doar
+ * când fiecare lună are poza ei; altfel rămân ca opțiune „Generează oricum”.
+ * Cartea: lunile anului până acum. Calendarul: luna din anul ales sau, dacă
+ * acolo lipsește (ex. noiembrie încă n-a venit), aceeași lună din anul dinainte.
+ */
+export function missingMonths(kind: 'book' | 'calendar', year: number, kept: readonly PhotoView[], now = new Date()): number[] {
+  const have = new Set<string>();
+  for (const p of kept) { const d = new Date(photoTime(p)); have.add(`${d.getFullYear()}-${d.getMonth()}`); }
+  const last = kind === 'book' && year === now.getFullYear() ? now.getMonth() : 11;
+  const out: number[] = [];
+  for (let m = 0; m <= last; m++) {
+    const ok = have.has(`${year}-${m}`) || (kind === 'calendar' && have.has(`${year - 1}-${m}`));
+    if (!ok) out.push(m);
+  }
+  return out;
+}
+
 async function pageJpeg(draw: (ctx: CanvasRenderingContext2D) => Promise<void>): Promise<PdfPage | null> {
   const c = document.createElement('canvas');
   c.width = PW; c.height = PH;
@@ -56,7 +80,9 @@ export async function makeYearBook(year: number, kept: readonly PhotoView[], tex
   onProgress?.(1, total);
 
   for (const [i, m] of order.entries()) {
-    const picks = bestSpread(months.get(m)!, 4);
+    const all = months.get(m)!;
+    const withPeople = all.filter(p => p.personNames.length > 0 || (p.faceCount ?? 0) > 0);
+    const picks = peopleFirst(withPeople.length >= 4 ? bestSpread(withPeople, 4) : [...bestSpread(withPeople, 4), ...bestSpread(all.filter(p => !withPeople.includes(p)), 4 - withPeople.length)]);
     const page = await pageJpeg(async ctx => {
       ctx.fillStyle = '#2b2620';
       ctx.font = '600 72px Georgia, serif';
@@ -100,7 +126,7 @@ export async function makeCalendar(
   texts: { title: string; month: (m: number) => string; weekdays: string[] },
   onProgress?: (done: number, total: number) => void
 ): Promise<Blob | null> {
-  const source = kept.filter(p => new Date(photoTime(p)).getFullYear() === year - 1);
+  const source = kept.filter(p => { const y = new Date(photoTime(p)).getFullYear(); return y === year - 1 || y === year - 2; });
   const pool = source.length >= 6 ? source : kept;
   if (pool.length < 6) return null;
   const byScore = [...pool].sort((a, b) => b.aiScore - a.aiScore);
@@ -119,7 +145,9 @@ export async function makeCalendar(
   });
   if (coverPage) pages.push(coverPage);
   for (let m = 0; m < 12; m++) {
-    const inMonth = pool.filter(p => new Date(photoTime(p)).getMonth() === m && !used.has(p.id)).sort((a, b) => b.aiScore - a.aiScore);
+    // Luna anului ales, apoi aceeași lună din anul dinainte; cu oameni întâi.
+    const ofMonth = (y: number) => peopleFirst(pool.filter(p => { const d = new Date(photoTime(p)); return d.getMonth() === m && d.getFullYear() === y && !used.has(p.id); }));
+    const inMonth = [...ofMonth(year - 1), ...ofMonth(year - 2)];
     const photo = inMonth[0] ?? byScore.find(p => !used.has(p.id)) ?? byScore[m % byScore.length];
     used.add(photo.id);
     const page = await pageJpeg(async ctx => {

@@ -160,8 +160,33 @@ export async function onBackgroundCancel(cb: () => void): Promise<() => void> {
   try { const h = await BackgroundAnalysis.addListener('cancel', cb); return () => { void h.remove(); }; } catch { return () => {}; }
 }
 
+/**
+ * Cititorul galeriei ține serviciul pornit pe TOATĂ citirea, nu doar pe un
+ * pachet: altfel, între două pachete serviciul se oprea, Android îngheța
+ * procesul, și citirea stătea până la revenirea în aplicație (raportat cu
+ * capturi: „uneori se bloca până intram iar în aplicație”). Cât e ținut,
+ * importurile pachetelor nu-l opresc.
+ */
+let held = 0;
+export async function holdBackgroundAnalysis(total: number, text?: string): Promise<void> {
+  held++;
+  if (held === 1 && isBackgroundAnalysisAvailable()) {
+    await ceriVoieDeNotificare();
+    try { await BackgroundAnalysis.start({ done: 0, total, text, determinate: true, stopLabel }); } catch { /* fără serviciu: merge doar cu ecranul aprins */ }
+  }
+}
+export async function updateHeldBackground(done: number, total: number, text: string): Promise<void> {
+  if (!isBackgroundAnalysisAvailable() || held === 0) return;
+  try { await BackgroundAnalysis.update({ done, total, text, determinate: true }); } catch { /* bara rămâne */ }
+}
+export async function releaseBackgroundAnalysis(): Promise<void> {
+  held = Math.max(0, held - 1);
+  if (held === 0) await stopBackgroundAnalysis();
+}
+
 export async function startBackgroundAnalysis(done: number, total: number, text?: string): Promise<boolean> {
   if (!isBackgroundAnalysisAvailable()) return false;
+  if (held > 0) return true;
   if (total < MIN_PHOTOS_FOR_BACKGROUND) return false;
   await ceriVoieDeNotificare();
   try {
@@ -178,7 +203,8 @@ export async function startBackgroundAnalysis(done: number, total: number, text?
 export async function updateBackgroundAnalysis(
   done: number, total: number, text?: string, determinate = true
 ): Promise<void> {
-  if (!isBackgroundAnalysisAvailable()) return;
+  // Cât cititorul galeriei ține serviciul, bara arată toată galeria, nu pachetul.
+  if (!isBackgroundAnalysisAvailable() || held > 0) return;
   try {
     await BackgroundAnalysis.update({ done, total, text, determinate });
   } catch {
@@ -195,7 +221,7 @@ export async function updateBackgroundAnalysis(
  * nicio explicatie pentru om.
  */
 export async function stopBackgroundAnalysis(): Promise<void> {
-  if (!isBackgroundAnalysisAvailable()) return;
+  if (!isBackgroundAnalysisAvailable() || held > 0) return;
   try {
     await BackgroundAnalysis.stop();
   } catch {

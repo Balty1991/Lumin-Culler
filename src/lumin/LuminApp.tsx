@@ -30,6 +30,7 @@ import { autoNameFaces, canEmbedFaces, embedMissingFaces } from './faceIdentity'
 import { TodayScreen } from './TodayScreen';
 import { applyPalette } from '../state/palette';
 import { autoArchiveIfDue } from './archive';
+import { holdRejectsUntilTrained } from './trainingGate';
 import { useModernPhone } from './modernPhone';
 import { Orb } from './Orb';
 import { UndoBar } from './UndoBar';
@@ -174,6 +175,9 @@ export function LuminApp() {
       void offerRestoreOrBackup();
       // Arhiva automată (dacă e pornită): o dată pe săptămână, pozele vechi și slabe pleacă din drum.
       autoArchiveIfDue(visiblePhotos());
+      // Galeria sortată din prea puține lecții (raportat: 295 la „Nu azi” după 4 alegeri):
+      // refuzurile AI-ului revin la „de văzut” până la antrenament (trainingGate.ts).
+      void holdRejectsUntilTrained(useStore.getState().photos.map(p => p.id)).catch(() => 0);
       // Bibliotecile de dinainte de „momente” (raportat: 8 păstrate din 9 aproape la fel).
       void useStore.getState().applyMoments().catch(() => {});
     });

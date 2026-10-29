@@ -4,6 +4,8 @@ import { useLx } from './lxStore';
 import { t } from '../i18n';
 import { analysisPool } from '../core/workerPool';
 import { autoNameFaces, canEmbedFaces, embedMissingFaces } from './faceIdentity';
+import { holdRejectsUntilTrained } from './trainingGate';
+import { holdBackgroundAnalysis, releaseBackgroundAnalysis, updateHeldBackground } from '../core/backgroundAnalysis';
 
 /**
  * lumin/galleryReader.ts
@@ -21,7 +23,9 @@ import { autoNameFaces, canEmbedFaces, embedMissingFaces } from './faceIdentity'
  * reclasificarea pe toată biblioteca), deci pachetele mai mari merg mai repede pe
  * total; dar fișierele pachetului stau în memorie, deci doar pe telefoanele cu 6 GB+.
  */
-const CHUNK = ((navigator as unknown as { deviceMemory?: number }).deviceMemory ?? 4) >= 6 ? 48 : 24;
+const MEMORY_GB = (navigator as unknown as { deviceMemory?: number }).deviceMemory ?? 4;
+/** Pachete mai mari = mai puține treceri fixe pe toată biblioteca, deci mai repede pe total. */
+const CHUNK = MEMORY_GB >= 6 ? 64 : MEMORY_GB >= 4 ? 40 : 24;
 /** Primul pachet e mic: primele poze apar pe Azi în câteva secunde, nu după un minut. */
 const FIRST_CHUNK = 8;
 const ANNOUNCED_KEY = 'lumin-gallery-read-announced';
@@ -98,6 +102,7 @@ export async function readWholeGallery(byUser = false): Promise<void> {
   else if (readerStopped()) return;
   running = true;
   stopRequested = false;
+  let holding = false;
   // Cât citește în fundal, analiza lasă loc ecranului (vezi AnalysisPool.setGentle).
   analysisPool.setGentle(true);
   const lx = useLx.getState();
@@ -112,6 +117,10 @@ export async function readWholeGallery(byUser = false): Promise<void> {
     if (!missing.length) return;
 
     const beforeIds = new Set(useStore.getState().photos.map(p => p.id));
+    const locale = useStore.getState().locale;
+    const bgText = (d: number) => t(locale, 'lx.reader.title', { done: d, total: missing.length });
+    await holdBackgroundAnalysis(missing.length, bgText(0));
+    holding = true;
     let done = 0;
     let recentAnnounced = false;
     lx.setReader({ done, total: missing.length });
@@ -136,7 +145,11 @@ export async function readWholeGallery(byUser = false): Promise<void> {
         const base = i;
         const unsub = useStore.subscribe(s => {
           const p = s.progress;
-          if (p && p.total > 0 && p.phase !== 'finalizat') useLx.getState().setReader({ done: Math.min(missing.length, base + Math.round((p.done / p.total) * files.length)), total: missing.length });
+          if (p && p.total > 0 && p.phase !== 'finalizat') {
+            const d = Math.min(missing.length, base + Math.round((p.done / p.total) * files.length));
+            useLx.getState().setReader({ done: d, total: missing.length });
+            if (document.visibilityState !== 'visible') void updateHeldBackground(d, missing.length, bgText(d));
+          }
         });
         // Momentele (cele mai bune 1–3 din fiecare) trec prin toată biblioteca:
         // nu după fiecare pachet, ci la ~200 de poze și la final.
@@ -146,6 +159,9 @@ export async function readWholeGallery(byUser = false): Promise<void> {
         } finally { unsub(); }
         // Fără mesajul „am importat 24 de poze” după fiecare pachet: rezumatul vine la final.
         useStore.setState({ notice });
+        // Antrenat prea puțin: ce ar arunca AI-ul rămâne „de văzut” (vezi trainingGate.ts).
+        const uris = new Set(files.map(f => f.uri));
+        await holdRejectsUntilTrained(useStore.getState().photos.filter(p => p.mediaUri && uris.has(p.mediaUri)).map(p => p.id)).catch(() => 0);
         // Oamenii se umplu pe parcurs, nu abia la final (raportat: „nu a citit toată
         // galeria să o repartizeze la persoane”): fețele din pachetele citite primesc
         // amprenta și numele la fiecare ~200 de poze — după import, nu în paralel cu el.
@@ -159,7 +175,10 @@ export async function readWholeGallery(byUser = false): Promise<void> {
         useStore.getState().setNotice(t(useStore.getState().locale, 'lx.reader.recentDone', { left: missing.length - done }));
       }
       useLx.getState().setReader({ done, total: missing.length });
-      await sleep(1200); // telefonul respiră între pachete: aplicația rămâne fluidă
+      void updateHeldBackground(done, missing.length, bgText(done));
+      // Cu ecranul la vedere, telefonul respiră între pachete (aplicația rămâne fluidă);
+      // în spate nu are pentru cine.
+      await sleep(document.visibilityState === 'visible' ? 800 : 50);
     }
 
     if (stopRequested) { void useStore.getState().applyMoments().catch(() => {}); return; } // oprit de om: fără rezumat
@@ -182,6 +201,7 @@ export async function readWholeGallery(byUser = false): Promise<void> {
   } catch {
     // o citire eșuată nu oprește aplicația; data viitoare reia de unde a rămas
   } finally {
+    if (holding) void releaseBackgroundAnalysis();
     analysisPool.setGentle(false);
     running = false;
     useLx.getState().setReader(null);

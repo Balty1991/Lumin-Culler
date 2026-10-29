@@ -7,7 +7,7 @@ import { makeCollage, shareCollage } from './collage';
 import { useTr } from './context';
 import { Thumb } from './Thumb';
 import { StoryButton } from './Story';
-import { makeCalendar, makeYearBook, shareYearBook } from './yearBook';
+import { makeCalendar, makeYearBook, missingMonths, shareYearBook } from './yearBook';
 
 const DAY_MS = 86_400_000;
 
@@ -85,6 +85,10 @@ export function Recaps() {
     } finally { setBusy(null); setBookProgress(''); }
   };
 
+  const bookMissing = missingMonths('book', year, kept);
+  const calMissing = missingMonths('calendar', year, kept);
+  const monthNames = (ms: number[]) => ms.length > 4 ? String(ms.length) : ms.map(m => new Date(2024, m, 1).toLocaleDateString(locale === 'en' ? 'en-GB' : 'ro-RO', { month: 'short' }).replace('.', '')).join(', ');
+
   const cards: { kind: 'week' | 'year'; list: PhotoView[] }[] = [];
   if (week.length >= 3) cards.push({ kind: 'week', list: week });
   if (yearPicks.length >= 4) cards.push({ kind: 'year', list: yearPicks });
@@ -110,17 +114,33 @@ export function Recaps() {
             <StoryButton className="lx-btn ghost small" ids={c.list.slice(0, 12).map(p => p.id)}
               title={tr(c.kind === 'week' ? 'lx.story.weekTitle' : 'lx.story.yearTitle', { year })}
               subtitle={tr('lx.story.daySub', { count: Math.min(12, c.list.length) })} />
-            {c.kind === 'year' && (
+            {c.kind === 'year' && calMissing.length === 0 && (
               <button className="lx-btn ghost small" disabled={busy !== null} onClick={() => void calendar()}>
                 {busy === 'calendar' ? `… ${bookProgress}` : `🗓 ${tr('lx.calendar.button', { year: year + 1 })}`}
               </button>
             )}
-            {c.kind === 'year' && (
+            {c.kind === 'year' && bookMissing.length === 0 && (
               <button className="lx-btn ghost small" disabled={busy !== null} onClick={() => void book()}>
                 {busy === 'book' ? `… ${bookProgress}` : `📖 ${tr('lx.book.button')}`}
               </button>
             )}
           </div>
+          {/* Fără poze din fiecare lună, cartea și calendarul nu se propun singure —
+              rămân ca opțiune, cu lunile care lipsesc spuse pe față. */}
+          {c.kind === 'year' && (calMissing.length > 0 || bookMissing.length > 0) && (
+            <div className="lx-recap-anyway">
+              {bookMissing.length > 0 && (
+                <button className="lx-link" disabled={busy !== null} onClick={() => void book()}>
+                  {busy === 'book' ? `… ${bookProgress}` : `📖 ${tr('lx.book.anyway', { months: monthNames(bookMissing) })}`}
+                </button>
+              )}
+              {calMissing.length > 0 && (
+                <button className="lx-link" disabled={busy !== null} onClick={() => void calendar()}>
+                  {busy === 'calendar' ? `… ${bookProgress}` : `🗓 ${tr('lx.calendar.anyway', { year: year + 1, months: monthNames(calMissing) })}`}
+                </button>
+              )}
+            </div>
+          )}
         </section>
       ))}
     </>

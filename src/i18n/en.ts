@@ -2890,4 +2890,12 @@ export const en: Record<TranslationKey, string> = {
   "lx.enhance.aiLocal": "The online AI didn't answer; I corrected the photo on the phone.",
   "lx.text.color": "Text color",
   "lx.text.colorAuto": "Auto: matches the photo",
+  "lx.book.anyway": "Year book: no photos from {months} — make it anyway",
+  "lx.calendar.anyway": "Calendar {year}: no photos from {months} — make it anyway",
+  "lx.train.eyebrow": "Before I sort on my own",
+  "lx.train.title": "To pick well from {total} photos, I need {need} choices from you",
+  "lx.train.sub": "You've made {done}. {left} more and I'll copy you. Until then I throw nothing away — I just get the photos ready.",
+  "lx.train.go": "Train me (~2 minutes)",
+  "lx.train.sortTitle": "Training: what do you keep?",
+  "lx.train.done": "Done, I've learned enough. I re-sorted your whole gallery with your taste.",
 };

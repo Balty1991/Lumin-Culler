@@ -61,7 +61,7 @@ import {
 } from './history';
 import { selectBulkRejectTargets, resolveGroups, selectTopPercent, selectHighlights, selectBlinks, selectBlurry, selectDeletableRejected, isUserDecided } from './batchOps';
 import {
-  isNativeMediaLibraryAvailable, deleteNativePhotos, readGalleryOverview, readGalleryDateRange, pickPhotosInRange,
+  isNativeMediaLibraryAvailable, deleteNativePhotos, readGalleryOverview, readGalleryDateRange, pickPhotosInRange, listPhotosInRange, readPhotoFiles,
   readGalleryFolders, pickPhotosInFolder, getPhotosAccess, readNativePhotoLocations
 } from '../core/nativeMediaLibrary';
 import {
@@ -851,6 +851,11 @@ interface AppState {
   cullingStrictness: CullingStrictness;
   /** Schimba severitatea SI reeticheteaza pozele pe care nu le-ai decis tu. */
   setCullingStrictness: (value: CullingStrictness) => Promise<void>;
+  /**
+   * Antrenament prea puțin: refuzurile AI-ului (nu ale omului) devin „de văzut”.
+   * Vezi lumin/trainingGate.ts. Nu antrenează nimic și nu atinge deciziile omului.
+   */
+  softenAutoRejects: (ids: string[]) => Promise<number>;
   rescorePhotos: () => Promise<{ total: number; changed: number }>;
   /** Un răspuns din „Învață-mă” (ui/TasteQuiz.tsx): doar învățare, nu schimbă statusul pozelor. */
   learnTastePair: (aId: string, bId: string, answer: TasteAnswer) => Promise<void>;
@@ -1376,6 +1381,22 @@ function makeFieldBatchEvent(
  * completa a blob-ului (db.originals) — elimina exact riscul de
  * QuotaExceededError pe care copierea integrala il avea pe biblioteci mari.
  */
+/** Pozele de azi care n-au putut intra (dubluri sub alt fișier): ținute până mâine. */
+const TODAY_SKIPPED_KEY = 'lumin-today-skipped';
+function readTodaySkipped(): Set<string> {
+  try {
+    const raw = JSON.parse(localStorage.getItem(TODAY_SKIPPED_KEY) ?? 'null') as { day: number; uris: string[] } | null;
+    return raw && raw.day === startOfDay() ? new Set(raw.uris) : new Set();
+  } catch { return new Set(); }
+}
+function writeTodaySkipped(uris: string[]): void {
+  if (!uris.length) return;
+  try {
+    const all = new Set([...readTodaySkipped(), ...uris]);
+    localStorage.setItem(TODAY_SKIPPED_KEY, JSON.stringify({ day: startOfDay(), uris: [...all].slice(-2000) }));
+  } catch { /* fără stocare */ }
+}
+
 async function syncOriginal(id: string, status: PhotoRecord['status']): Promise<{ quotaError: boolean }> {
   if (status === 'selected') {
     const handle = originalHandles.get(id);
@@ -2467,16 +2488,25 @@ export const useStore = create<AppState>((set, get) => ({
     const beforeIds = new Set(get().photos.map(p => p.id));
     const releaseWakeLock = keepScreenAwake();
     try {
-      const read = await pickPhotosInRange(startOfDay(), Date.now() + 1, (done, total) =>
-        set({ progress: { done, total, fileName: '', phase: 'citire' } })
-      );
-      set({ progress: null });
-      if (!read.granted) {
+      // Doar pozele de azi pe care Cherrypic nu le are încă. Înainte se citeau și
+      // se treceau prin import TOATE pozele zilei, la fiecare câteva minute, iar
+      // importul le sărea abia la final (raportat: „Mă uit la fiecare poză… 0 din
+      // 119” revenea chiar după ce galeria era sortată).
+      const list = await listPhotosInRange(startOfDay(), Date.now() + 1);
+      if (!list.granted) {
         set({ notice: t(locale, 'gallerySupervisor.noAccess') });
         return null;
       }
-      if (!read.photos.length) return 0;
-      await get().runImport(read.photos.map(p => p.file), undefined, read.photos.map(p => p.uri));
+      const known = new Set(get().photos.map(p => p.mediaUri).filter(Boolean));
+      const skipped = readTodaySkipped();
+      const missing = list.photos.filter(p => !known.has(p.uri) && !skipped.has(p.uri));
+      if (!missing.length) return 0;
+      const files = await readPhotoFiles(missing);
+      if (!files.length) return 0;
+      await get().runImport(files.map(p => p.file), undefined, files.map(p => p.uri));
+      // Ce tot n-a intrat (aceeași poză sub alt fișier, fișier stricat) nu se mai reîncearcă azi.
+      const nowKnown = new Set(get().photos.map(p => p.mediaUri).filter(Boolean));
+      writeTodaySkipped(missing.map(p => p.uri).filter(u => !nowKnown.has(u)));
       return get().photos.filter(p => !beforeIds.has(p.id)).length;
     } catch (err) {
       set({ notice: t(locale, 'gallerySupervisor.failed', { error: String(err) }) });
@@ -3914,6 +3944,16 @@ export const useStore = create<AppState>((set, get) => ({
       await train(aId, answer === 'both');
       await train(bId, answer === 'both');
     }
+  },
+
+  softenAutoRejects: async ids => {
+    const recs = await db.photos.bulkGet(ids);
+    const soft = recs.filter((r): r is PhotoRecord => !!r && r.status === 'rejected' && r.aiDecided === true).map(r => r.id);
+    if (!soft.length) return 0;
+    await Promise.all(soft.map(async id => { await db.photos.update(id, { status: 'review', aiDecided: true }); await syncOriginal(id, 'review'); }));
+    const set_ = new Set(soft);
+    set(state => ({ photos: state.photos.map(p => (set_.has(p.id) ? { ...p, status: 'review' } : p)) }));
+    return soft.length;
   },
 
   rescorePhotos: async () => {
