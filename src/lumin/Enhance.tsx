@@ -4,6 +4,7 @@ import { db } from '../core/db';
 import { computeAutoAdjustments, computeAutoStraighten, drawAdjusted, NEUTRAL_ADJUSTMENTS, outputSize, subjectFromFaces, type EditAdjustments } from '../core/imageAdjust';
 import { getCachedPreviewUrl, getDisplayUrl } from '../core/previewUrlCache';
 import { canSharpen, sharpUrl } from './sharp';
+import { isNativeSegmentationAvailable, segmentPersonMask } from '../core/nativeSegmentation';
 import { useStore, type PhotoView } from '../state/store';
 import { frameCrop } from './instaCrop';
 import { useTr } from './context';
@@ -30,9 +31,11 @@ const ADVANCED: ReadonlySet<EnhanceStyle> = new Set(['portrait', 'retouch', 'cle
 /** Stilurile care au nevoie de un om în poză (fundalul estompat în jurul lui). */
 const NEEDS_FACE: ReadonlySet<EnhanceStyle> = new Set(['portrait', 'retouch']);
 const STYLE_ADD: Record<EnhanceStyle, Partial<Record<keyof EditAdjustments, number>>> = {
-  natural: { contrast: 8, saturation: 3, clarity: 14, sharpen: 18, dehaze: 4, shadows: 10, highlights: -8 },
-  vivid: { contrast: 14, saturation: 10, clarity: 20, sharpen: 20, dehaze: 8, shadows: 14, highlights: -12 },
-  warm: { contrast: 8, saturation: 6, temperature: 14, tint: 3, clarity: 12, sharpen: 16, shadows: 12 },
+  // Cu alb și negru duși spre capete: pe pozele cu cer înnorat, fără ele „după” arăta ca „înainte”
+  // (raportat cu capturi, Natural și Clară aproape identice cu originalul).
+  natural: { contrast: 12, saturation: 5, clarity: 18, sharpen: 18, dehaze: 8, shadows: 12, highlights: -12, whites: 8, blacks: -7 },
+  vivid: { contrast: 18, saturation: 14, clarity: 22, sharpen: 20, dehaze: 12, shadows: 14, highlights: -14, whites: 10, blacks: -9 },
+  warm: { contrast: 12, saturation: 8, temperature: 16, tint: 3, clarity: 14, sharpen: 16, shadows: 12, whites: 6, blacks: -6 },
   drama: { contrast: 26, saturation: -10, clarity: 34, sharpen: 22, dehaze: 16, vignette: 24, highlights: -28, shadows: 20 },
   // Portret: fundalul estompat în jurul fețelor, pielea moale (claritate scăzută), lumină caldă.
   // Retuș: ten mai neted (netezirea zgomotului, fără claritate), lumină caldă și blândă pe față.
@@ -41,7 +44,7 @@ const STYLE_ADD: Record<EnhanceStyle, Partial<Record<keyof EditAdjustments, numb
   // Clar: umbrele deschise și luminile coborâte, detaliu scos în evidență (un HDR blând).
   // Cu alb și negru ținute la capete: fără ele cerul ieșea gri și poza spălată
   // (raportat cu captură, la 125%).
-  clear: { contrast: 12, saturation: 6, clarity: 26, sharpen: 20, dehaze: 8, shadows: 18, highlights: -18, whites: 10, blacks: -8 },
+  clear: { contrast: 16, saturation: 8, clarity: 36, sharpen: 26, dehaze: 16, shadows: 22, highlights: -24, whites: 12, blacks: -11 },
   // Film: culori de cinema (umbre reci, lumini calde), granulație fină.
   film: { contrast: 4, saturation: -6, grade: 45, grain: 16, clarity: 8, sharpen: 10, shadows: 10, highlights: -14, vignette: 12 },
   bw: { bw: 100, contrast: 18, saturation: 0, clarity: 22, sharpen: 18, grain: 10, vignette: 14, shadows: 8, highlights: -12 }
@@ -50,7 +53,7 @@ const STYLE_ADD: Record<EnhanceStyle, Partial<Record<keyof EditAdjustments, numb
  * Plafonul culorii, oricât de sus e intensitatea: peste el pielea se înroșește
  * și cerul devine fosforescent (raportat: „parcă saturează cam mult”).
  */
-const MAX_SATURATION = 16;
+const MAX_SATURATION = 20;
 
 const clamp = (v: number) => Math.max(-100, Math.min(100, Math.round(v)));
 
@@ -99,7 +102,15 @@ export async function autoEnhance(photoId: string): Promise<{ url: string; edits
     goldenHourDetected: a?.goldenHourDetected
   });
   // Unde e omul (din fețele găsite la import): stilul Portret estompează în jurul lui.
-  const subject = subjectFromFaces(a?.faces);
+  // Cu tot corpul: fără decupajul modelului, zona clară pornește de la față și coboară
+  // cât un om întreg (umeri mai lați decât fața), nu doar un umăr sub ea.
+  const face = subjectFromFaces(a?.faces);
+  const subject = face ? (() => {
+    const faceH = face.height / 2;
+    const x = Math.max(0, face.x - face.width * 0.6);
+    const right = Math.min(1, face.x + face.width * 1.6);
+    return { x, y: face.y, width: right - x, height: Math.min(1, face.y + faceH * 7.5) - face.y };
+  })() : null;
   // Orizontul strâmb (măsurat la import, doar pe pozele fără oameni): îndreptarea e o opțiune, nu implicită.
   const tilt = computeAutoStraighten({ faceCount: a?.faceCount, horizonTiltDeg: a?.horizonTiltDeg });
   return {
@@ -178,7 +189,24 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
     return { x: r.x / geo.width, y: r.y / geo.height, width: r.w / geo.width, height: r.h / geo.height };
   }, [aspect, geo]);
   const rotation = userTilt ?? (straight ? tilt : 0);
-  const edits = useMemo(() => (base ? withManual({ ...styledEdits(base, style, amount), rotationDeg: rotation, ...(crop ? { crop } : {}) }, manual) : null), [base, style, amount, rotation, crop, manual]);
+  // Portret: omul decupat de modelul de segmentare de pe telefon, nu doar o zonă rotundă
+  // în jurul feței (raportat: picioarele și cizmele ieșeau estompate).
+  const [personMask, setPersonMask] = useState<{ image: CanvasImageSource; focusY: number | null } | null>(null);
+  useEffect(() => {
+    if (style !== 'portrait' || personMask || !src || !isNativeSegmentationAvailable()) return;
+    let alive = true;
+    void (async () => {
+      const blob = await (await fetch(src)).blob();
+      const m = await segmentPersonMask(blob, base?.bokehSubject ?? undefined);
+      if (alive && m.personCoverage >= 0.03) setPersonMask({ image: m.image, focusY: m.focusY });
+    })().catch(() => {});
+    return () => { alive = false; };
+  }, [style, src, personMask, base]);
+  const edits = useMemo(() => {
+    if (!base) return null;
+    const e = withManual({ ...styledEdits(base, style, amount), rotationDeg: rotation, ...(crop ? { crop } : {}) }, manual);
+    return style === 'portrait' && personMask ? { ...e, bokehMask: personMask.image, ...(personMask.focusY !== null ? { bokehFocusY: personMask.focusY } : {}) } : e;
+  }, [base, style, amount, rotation, crop, manual, personMask]);
   const styles = ENHANCE_STYLES.filter(st => !NEEDS_FACE.has(st) || !!base?.bokehSubject);
   const [failed, setFailed] = useState(false);
   const [split, setSplit] = useState(50);
