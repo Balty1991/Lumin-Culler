@@ -102,6 +102,10 @@ export async function autoEnhance(photoId: string): Promise<{ url: string; edits
     colorHarmonyScore: a?.colorHarmonyScore,
     goldenHourDetected: a?.goldenHourDetected
   });
+  // Puțină lumină în plus, cât trebuie pentru poza asta (raportat: Natural arăta mult mai
+  // bine cu Luminozitate +20 pusă de mână). Măsurată pe fețe, unde sunt, altfel pe toată
+  // poza; o poză deja luminoasă nu primește nimic.
+  auto.exposure = Math.max(-100, Math.min(100, auto.exposure + brightnessLift(img, a?.faces)));
   // Unde e omul (din fețele găsite la import): stilul Portret estompează în jurul lui.
   // Cu tot corpul: fără decupajul modelului, zona clară pornește de la față și coboară
   // cât un om întreg (umeri mai lați decât fața), nu doar un umăr sub ea.
@@ -119,6 +123,35 @@ export async function autoEnhance(photoId: string): Promise<{ url: string; edits
     faces: (a?.faces ?? []).map(f => ({ box: f.box as [number, number, number, number] })),
     edits: { ...auto, crop: undefined, rotationDeg: 0, ...(subject ? { bokehSubject: subject } : {}) }
   };
+}
+
+/** Cât să se deschidă lumina (0..24): fețele spre ~62% luminozitate, poza întreagă spre ~52%. */
+export function liftFor(luma: number, onFaces: boolean): number {
+  const target = onFaces ? 0.62 : 0.52;
+  return Math.round(Math.max(0, Math.min(24, (target - luma) * (onFaces ? 110 : 90))));
+}
+
+function brightnessLift(img: HTMLImageElement, faces?: readonly { box: [number, number, number, number] }[]): number {
+  try {
+    const n = 64;
+    const c = document.createElement('canvas');
+    c.width = n; c.height = n;
+    const ctx = c.getContext('2d');
+    if (!ctx) return 0;
+    ctx.drawImage(img, 0, 0, n, n);
+    const d = ctx.getImageData(0, 0, n, n).data;
+    const big = (faces ?? []).filter(f => f.box[2] * f.box[3] >= 0.004);
+    let sum = 0, count = 0;
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      const u = (x + 0.5) / n, v = (y + 0.5) / n;
+      if (big.length && !big.some(({ box: [bx, by, bw, bh] }) => u >= bx && u <= bx + bw && v >= by && v <= by + bh)) continue;
+      const i = (y * n + x) * 4;
+      sum += (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255;
+      count++;
+    }
+    if (!count) return 0;
+    return liftFor(sum / count, big.length > 0 && count >= 4);
+  } catch { return 0; }
 }
 
 /** „Fă-le pe toate mai frumoase”: stilul Natural pe fiecare, salvate ca și copii. */
