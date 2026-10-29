@@ -2736,5 +2736,7 @@ export const en: Record<TranslationKey, string> = {
   "lx.videos.frameGo": "Pick a video",
   "lx.videos.framePick": "Tap a video. The frame lands in your gallery, under Cherrypic/Cadre.",
   "lx.videos.frameSaved": "Saved the sharpest frame to your gallery (Cherrypic/Cadre).",
-  "lx.videos.frameFailed": "Couldn’t get a frame out of this video."
+  "lx.videos.frameFailed": "Couldn’t get a frame out of this video.",
+  "lx.enhance.style.retouch": "Retouch",
+  "lx.enhance.adj.noiseReduction": "Smoothing"
 };

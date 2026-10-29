@@ -23,18 +23,20 @@ import { useTr } from './context';
  * fiecare adaugă un aspect vizibil. Raportat: „varianta editată nu are prea
  * multe îmbunătățiri” — corecția singură e doar „de siguranță”.
  */
-export type EnhanceStyle = 'natural' | 'portrait' | 'vivid' | 'warm' | 'clear' | 'film' | 'bw' | 'drama';
-export const ENHANCE_STYLES: EnhanceStyle[] = ['natural', 'portrait', 'vivid', 'warm', 'clear', 'film', 'bw', 'drama'];
+export type EnhanceStyle = 'natural' | 'portrait' | 'retouch' | 'vivid' | 'warm' | 'clear' | 'film' | 'bw' | 'drama';
+export const ENHANCE_STYLES: EnhanceStyle[] = ['natural', 'portrait', 'retouch', 'vivid', 'warm', 'clear', 'film', 'bw', 'drama'];
 /** Stilurile din Pro: le poți încerca, salvarea cere abonamentul. */
-const ADVANCED: ReadonlySet<EnhanceStyle> = new Set(['portrait', 'clear', 'film', 'bw', 'drama']);
+const ADVANCED: ReadonlySet<EnhanceStyle> = new Set(['portrait', 'retouch', 'clear', 'film', 'bw', 'drama']);
 /** Stilurile care au nevoie de un om în poză (fundalul estompat în jurul lui). */
-const NEEDS_FACE: ReadonlySet<EnhanceStyle> = new Set(['portrait']);
+const NEEDS_FACE: ReadonlySet<EnhanceStyle> = new Set(['portrait', 'retouch']);
 const STYLE_ADD: Record<EnhanceStyle, Partial<Record<keyof EditAdjustments, number>>> = {
   natural: { contrast: 8, saturation: 3, clarity: 14, sharpen: 18, dehaze: 4, shadows: 10, highlights: -8 },
   vivid: { contrast: 14, saturation: 10, clarity: 20, sharpen: 20, dehaze: 8, shadows: 14, highlights: -12 },
   warm: { contrast: 8, saturation: 6, temperature: 14, tint: 3, clarity: 12, sharpen: 16, shadows: 12 },
   drama: { contrast: 26, saturation: -10, clarity: 34, sharpen: 22, dehaze: 16, vignette: 24, highlights: -28, shadows: 20 },
   // Portret: fundalul estompat în jurul fețelor, pielea moale (claritate scăzută), lumină caldă.
+  // Retuș: ten mai neted (netezirea zgomotului, fără claritate), lumină caldă și blândă pe față.
+  retouch: { noiseReduction: 45, clarity: -16, sharpen: 4, contrast: 2, exposure: 3, shadows: 14, highlights: -10, temperature: 5, saturation: 2, vignette: 8 },
   portrait: { bokeh: 60, contrast: 6, saturation: 2, temperature: 6, clarity: -8, sharpen: 8, shadows: 12, highlights: -10, vignette: 16 },
   // Clar: umbrele deschise și luminile coborâte, detaliu scos în evidență (un HDR blând).
   // Cu alb și negru ținute la capete: fără ele cerul ieșea gri și poza spălată
@@ -66,6 +68,7 @@ export function styledEdits(base: EditAdjustments, style: EnhanceStyle, amount: 
   out.saturation = Math.min(MAX_SATURATION, out.saturation);
   if (style === 'bw') out.bw = Math.max(0, Math.min(100, Math.round(100 * Math.min(1, amount * 1.5))));
   if (NEEDS_FACE.has(style) && !out.bokehSubject) out.bokeh = 0;
+  if (style === 'retouch') delete out.bokehSubject;
   return out;
 }
 
@@ -130,7 +133,7 @@ const PANELS: Panel[] = ['styles', 'light', 'color', 'frame'];
 /** Proporțiile din „Cadru” (lățime / înălțime); cadrul se așază pe fețe (frameCrop). */
 type Aspect = 'orig' | '4:5' | '1:1' | '9:16' | '16:9' | '3:2';
 const ASPECTS: Record<Aspect, number> = { orig: 0, '4:5': 4 / 5, '1:1': 1, '9:16': 9 / 16, '16:9': 16 / 9, '3:2': 3 / 2 };
-type ManualKey = 'exposure' | 'contrast' | 'highlights' | 'shadows' | 'whites' | 'blacks' | 'clarity' | 'vignette' | 'temperature' | 'tint' | 'saturation' | 'dehaze' | 'sharpen' | 'grain';
+type ManualKey = 'exposure' | 'contrast' | 'highlights' | 'shadows' | 'whites' | 'blacks' | 'clarity' | 'vignette' | 'temperature' | 'tint' | 'saturation' | 'dehaze' | 'sharpen' | 'noiseReduction' | 'grain';
 const MANUAL: Record<ManualPanel, { key: ManualKey; min?: number; track?: string }[]> = {
   light: [
     { key: 'exposure' }, { key: 'contrast' }, { key: 'highlights' }, { key: 'shadows' },
@@ -138,7 +141,7 @@ const MANUAL: Record<ManualPanel, { key: ManualKey; min?: number; track?: string
   ],
   color: [
     { key: 'temperature', track: 'temp' }, { key: 'tint', track: 'tint' }, { key: 'saturation', track: 'sat' },
-    { key: 'sharpen', min: 0 }, { key: 'grain', min: 0 }
+    { key: 'sharpen', min: 0 }, { key: 'noiseReduction', min: 0 }, { key: 'grain', min: 0 }
   ]
 };
 /** Stilul + reglajele omului, în limitele fiecărui reglaj. */
@@ -146,7 +149,7 @@ export function withManual(e: EditAdjustments, manual: Partial<Record<ManualKey,
   const out = { ...e } as unknown as Record<string, number>;
   for (const [k, v] of Object.entries(manual)) {
     if (!v) continue;
-    const lo = k === 'sharpen' || k === 'grain' ? 0 : -100;
+    const lo = k === 'sharpen' || k === 'grain' || k === 'noiseReduction' ? 0 : -100;
     out[k] = Math.max(lo, Math.min(100, Math.round((out[k] ?? 0) + v)));
   }
   return out as unknown as EditAdjustments;

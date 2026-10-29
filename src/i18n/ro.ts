@@ -2822,7 +2822,9 @@ export const ro = {
   "lx.videos.frameGo": "Alege clipul",
   "lx.videos.framePick": "Atinge clipul. Cadrul ajunge în galerie, în Cherrypic/Cadre.",
   "lx.videos.frameSaved": "Am salvat cel mai clar cadru în galerie (Cherrypic/Cadre).",
-  "lx.videos.frameFailed": "N-am putut scoate un cadru din clipul ăsta."
+  "lx.videos.frameFailed": "N-am putut scoate un cadru din clipul ăsta.",
+  "lx.enhance.style.retouch": "Retuș",
+  "lx.enhance.adj.noiseReduction": "Netezire"
 };
 
 export type TranslationKey = keyof typeof ro;
