@@ -2852,5 +2852,6 @@ export const en: Record<TranslationKey, string> = {
   "lx.group.family": "Family",
   "lx.group.friends": "Friends",
   "lx.group.work": "Colleagues",
-  "lx.group.album": "Group photos"
+  "lx.group.album": "Group photos",
+  "lx.reader.recentDone": "The last 3 months are ready: you’ll find them on Today and in Gallery. The rest ({left} older photos) continues in the background."
 };

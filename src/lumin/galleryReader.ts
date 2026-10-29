@@ -1,6 +1,7 @@
 import { getPhotosAccess, isNativeMediaLibraryAvailable, listPhotosInRange, readPhotoFiles } from '../core/nativeMediaLibrary';
 import { useStore } from '../state/store';
 import { useLx } from './lxStore';
+import { t } from '../i18n';
 import { analysisPool } from '../core/workerPool';
 import { autoNameFaces, canEmbedFaces, embedMissingFaces } from './faceIdentity';
 
@@ -112,6 +113,7 @@ export async function readWholeGallery(byUser = false): Promise<void> {
 
     const beforeIds = new Set(useStore.getState().photos.map(p => p.id));
     let done = 0;
+    let recentAnnounced = false;
     lx.setReader({ done, total: missing.length });
     for (let i = 0; i < missing.length; i += i === 0 ? FIRST_CHUNK : CHUNK) {
       const size = i === 0 ? FIRST_CHUNK : CHUNK;
@@ -150,6 +152,12 @@ export async function readWholeGallery(byUser = false): Promise<void> {
         if (momentsNow && canEmbedFaces() && !stopRequested) await placeFaces();
       }
       done = Math.min(missing.length, i + size);
+      // Ultimele 3 luni sunt gata (primele citite): omul află că le poate folosi deja.
+      const recentEdge = Date.now() - 90 * 86_400_000;
+      if (!recentAnnounced && i + size < missing.length && missing[i + size].capturedAt < recentEdge && missing[0].capturedAt >= recentEdge) {
+        recentAnnounced = true;
+        useStore.getState().setNotice(t(useStore.getState().locale, 'lx.reader.recentDone', { left: missing.length - done }));
+      }
       useLx.getState().setReader({ done, total: missing.length });
       await sleep(1200); // telefonul respiră între pachete: aplicația rămâne fluidă
     }

@@ -2938,7 +2938,8 @@ export const ro = {
   "lx.group.family": "Familie",
   "lx.group.friends": "Prieteni",
   "lx.group.work": "Colegi",
-  "lx.group.album": "Pozele grupului"
+  "lx.group.album": "Pozele grupului",
+  "lx.reader.recentDone": "Ultimele 3 luni sunt gata: le găsești pe Azi și în Galerie. Restul ({left} poze mai vechi) continuă în fundal."
 };
 
 export type TranslationKey = keyof typeof ro;
