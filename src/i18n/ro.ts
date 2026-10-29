@@ -2974,6 +2974,8 @@ export const ro = {
   "lx.archive.auto": "Arhivă automată",
   "lx.archive.autoSub": "O dată pe săptămână, pozele vechi și slabe pleacă în Arhivă. Nimic nu se șterge.",
   "lx.enhance.aiLocal": "AI-ul online n-a răspuns acum; am corectat poza pe telefon.",
+  "lx.text.color": "Culoarea textului",
+  "lx.text.colorAuto": "Auto: se potrivește cu poza",
 };
 
 export type TranslationKey = keyof typeof ro;

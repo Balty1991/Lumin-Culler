@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { getDisplayUrl } from '../core/previewUrlCache';
 import { useStore, type PhotoView } from '../state/store';
@@ -21,13 +21,67 @@ const FONTS: Record<Look, string> = {
   hand: 'italic 600 {px}px "Segoe Script", "Brush Script MT", cursive'
 };
 
+/** Culorile la îndemână; „auto” o alege din poză (autoTextColor). */
+export const TEXT_COLORS = ['auto', '#ffffff', '#1d1022', '#ff4f7b', '#ffd36b', '#fff1dc', '#6fe3a1', '#8fd3ff', '#a98bff'] as const;
+export type TextColor = (typeof TEXT_COLORS)[number];
+
+function lum(r: number, g: number, b: number): number {
+  const f = (v: number) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+}
+const contrast = (a: number, b: number) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+const hex = (r: number, g: number, b: number) => '#' + [r, g, b].map(v => Math.round(v).toString(16).padStart(2, '0')).join('');
+
+/**
+ * Culoarea „Auto”: nuanța cea mai vie din poză (geaca roz, cerul, iarba),
+ * apoi deschisă sau închisă până se citește clar peste fundalul de sub text
+ * (contrast cel puțin 4,5:1). O poză fără culoare vie primește alb sau
+ * aproape-negru, după fundal.
+ */
+export function autoTextColor(img: CanvasImageSource, w: number, h: number, top: boolean): string {
+  const n = 48;
+  const c = document.createElement('canvas');
+  c.width = n; c.height = n;
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return '#ffffff';
+  ctx.drawImage(img, 0, 0, w, h, 0, 0, n, n);
+  const d = ctx.getImageData(0, 0, n, n).data;
+  // Nuanța: histogramă pe 12 felii de culoare, cântărită cu saturația.
+  const bins = Array.from({ length: 12 }, () => ({ w: 0, r: 0, g: 0, b: 0 }));
+  let bandL = 0, bandN = 0;
+  const y0 = top ? 0 : Math.floor(n * 0.72), y1 = top ? Math.ceil(n * 0.28) : n;
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const i = (y * n + x) * 4, r = d[i], g = d[i + 1], b = d[i + 2];
+    if (y >= y0 && y < y1) { bandL += lum(r, g, b); bandN++; }
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    const sat = max ? (max - min) / max : 0;
+    if (sat < 0.35 || max < 60) continue;
+    let hue = 0;
+    if (max === r) hue = ((g - b) / (max - min)) % 6; else if (max === g) hue = (b - r) / (max - min) + 2; else hue = (r - g) / (max - min) + 4;
+    const bin = bins[Math.floor(((hue * 60 + 360) % 360) / 30)];
+    const wt = sat * sat;
+    bin.w += wt; bin.r += r * wt; bin.g += g * wt; bin.b += b * wt;
+  }
+  const band = bandN ? bandL / bandN : 0.3;
+  const best = bins.reduce((a, b) => (b.w > a.w ? b : a));
+  const darkBand = band < 0.4;
+  if (best.w < n * n * 0.02) return darkBand ? '#ffffff' : '#1d1022';
+  let r = best.r / best.w, g = best.g / best.w, b = best.b / best.w;
+  // Spre alb pe fundal închis, spre închis pe fundal deschis, până se citește.
+  const target = darkBand ? 255 : 20;
+  for (let step = 0; step < 12 && contrast(lum(r, g, b), band) < 4.5; step++) {
+    r += (target - r) * 0.18; g += (target - g) * 0.18; b += (target - b) * 0.18;
+  }
+  return hex(r, g, b);
+}
+
 async function loadPhoto(id: string): Promise<ImageBitmap | null> {
   const url = (canSharpen() ? await sharpUrl(id, 2048).catch(() => null) : null) ?? (await getDisplayUrl(id).catch(() => null));
   if (!url) return null;
   try { return await createImageBitmap(await (await fetch(url)).blob()); } catch { return null; }
 }
 
-export function drawTextOnPhoto(ctx: CanvasRenderingContext2D, img: CanvasImageSource, w: number, h: number, text: string, look: Look, top: boolean): void {
+export function drawTextOnPhoto(ctx: CanvasRenderingContext2D, img: CanvasImageSource, w: number, h: number, text: string, look: Look, top: boolean, color = '#ffffff'): void {
   ctx.drawImage(img, 0, 0, w, h);
   if (!text.trim()) return;
   const px = Math.round(Math.min(w, h) * (look === 'bold' ? 0.075 : 0.07));
@@ -45,9 +99,12 @@ export function drawTextOnPhoto(ctx: CanvasRenderingContext2D, img: CanvasImageS
     ctx.fillStyle = band;
     ctx.fillRect(0, top ? 0 : h - blockH - h * 0.12, w, blockH + h * 0.12);
   }
-  ctx.shadowColor = 'rgba(0,0,0,0.55)';
+  // Umbra e opusul textului: întunecată sub textul deschis, o aură deschisă sub cel închis.
+  const m = /^#(..)(..)(..)$/.exec(color);
+  const light = m ? lum(parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)) > 0.35 : true;
+  ctx.shadowColor = light ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.6)';
   ctx.shadowBlur = px * 0.35;
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = color;
   lines.forEach((l, i) => ctx.fillText(look === 'bold' ? l.toUpperCase() : l, w / 2, y0 + i * lineH, w * 0.9));
   ctx.shadowColor = 'transparent';
 }
@@ -61,8 +118,11 @@ export function TextSheet({ photo, onClose }: { photo: PhotoView; onClose: () =>
   const [text, setText] = useState(when);
   const [look, setLook] = useState<Look>('classic');
   const [top, setTop] = useState(false);
+  const [color, setColor] = useState<TextColor>('auto');
   const [busy, setBusy] = useState(false);
   const canvas = useRef<HTMLCanvasElement>(null);
+  const autoColor = useMemo(() => (img ? autoTextColor(img, img.width, img.height, top) : '#ffffff'), [img, top]);
+  const ink = color === 'auto' ? autoColor : color;
 
   useEffect(() => {
     let alive = true;
@@ -77,8 +137,8 @@ export function TextSheet({ photo, onClose }: { photo: PhotoView; onClose: () =>
     c.width = Math.round(img.width * k);
     c.height = Math.round(img.height * k);
     const ctx = c.getContext('2d');
-    if (ctx) drawTextOnPhoto(ctx, img, c.width, c.height, text, look, top);
-  }, [img, text, look, top]);
+    if (ctx) drawTextOnPhoto(ctx, img, c.width, c.height, text, look, top, ink);
+  }, [img, text, look, top, ink]);
 
   const render = async (): Promise<Blob | null> => {
     if (!img) return null;
@@ -86,7 +146,7 @@ export function TextSheet({ photo, onClose }: { photo: PhotoView; onClose: () =>
     c.width = img.width; c.height = img.height;
     const ctx = c.getContext('2d');
     if (!ctx) return null;
-    drawTextOnPhoto(ctx, img, c.width, c.height, text, look, top);
+    drawTextOnPhoto(ctx, img, c.width, c.height, text, look, top, ink);
     return new Promise(r => c.toBlob(r, 'image/jpeg', 0.94));
   };
   const share = async () => { setBusy(true); try { const b = await render(); if (b) await shareCollage(b, `cherrypic-text-${Date.now()}.jpg`, text); } finally { setBusy(false); } };
@@ -115,6 +175,15 @@ export function TextSheet({ photo, onClose }: { photo: PhotoView; onClose: () =>
         <div className="lx-enhance-styles">
           {LOOKS.map(l => <button key={l} className={look === l ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => setLook(l)}>{tr(`lx.text.look.${l}`)}</button>)}
           <button className={top ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => setTop(v => !v)}>{tr(top ? 'lx.text.top' : 'lx.text.bottom')}</button>
+        </div>
+        <div className="lx-text-colors" role="radiogroup" aria-label={tr('lx.text.color')}>
+          {TEXT_COLORS.map(c => (
+            <button key={c} role="radio" aria-checked={color === c} aria-label={c === 'auto' ? tr('lx.text.colorAuto') : c}
+              className={`lx-text-swatch${color === c ? ' on' : ''}${c === 'auto' ? ' auto' : ''}`}
+              style={{ ['--sw' as string]: c === 'auto' ? autoColor : c }} onClick={() => setColor(c)}>
+              {c === 'auto' && <span>Auto</span>}
+            </button>
+          ))}
         </div>
         <div className="lx-decide-actions">
           <button className="lx-btn ghost" disabled={!img || busy} onClick={() => void share()}>↗ {tr('lx.wall.share')}</button>

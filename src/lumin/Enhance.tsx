@@ -461,7 +461,7 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
               ))}
             </div>
             {learned && Object.keys(manual).length > 0 && <p className="lx-hint">{tr('lx.enhance.learned')}</p>}
-            {panel !== 'frame' && cloudAvailable() && (
+            {panel === 'styles' && cloudAvailable() && (
               <div className="lx-ai-auto">
                 <button className="lx-btn ghost small" disabled={aiBusy} onClick={() => void aiAuto()}>{aiBusy ? `… ${tr('lx.enhance.aiWorking')}` : `✨ ${tr('lx.enhance.aiAuto')}`}</button>
                 {aiReason && <span>{aiReason}</span>}
@@ -520,7 +520,7 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
             </>)}
           </>
         )}
-        <p className="lx-hint center">{tr(nothing ? 'lx.enhance.nothing' : 'lx.enhance.hint')}</p>
+        {panel === 'styles' && <p className="lx-hint center">{tr(nothing ? 'lx.enhance.nothing' : 'lx.enhance.hint')}</p>}
         <div className="lx-decide-actions">
           <button className="lx-btn ghost" onClick={onClose}>{tr(nothing ? 'lx.close' : 'lx.enhance.cancel')}</button>
           {!nothing && <button className="lx-btn primary" disabled={!edits || saving} onClick={() => void save()}>{tr('lx.enhance.save')}</button>}

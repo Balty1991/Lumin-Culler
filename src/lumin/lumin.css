@@ -993,3 +993,19 @@ html, body { overflow-x: hidden; }
 @media (min-width: 1200px) {
   .lx-days, .lx-albums { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+
+/* Culoarea textului (lumin/TextSheet.tsx) */
+.lx-text-colors { display: flex; gap: 10px; overflow-x: auto; padding: 4px 2px; scrollbar-width: none; }
+.lx-text-swatch { flex: none; width: 36px; height: 36px; border-radius: 50%; border: 2px solid rgb(255 255 255 / 0.25); background: var(--sw); box-shadow: 0 2px 8px rgb(0 0 0 / 0.35); }
+.lx-text-swatch.on { outline: 2px solid var(--accent); outline-offset: 3px; }
+.lx-text-swatch.auto { width: auto; padding: 0 12px; border-radius: 999px; display: flex; align-items: center; gap: 6px;
+  background: linear-gradient(var(--surface-2), var(--surface-2)) padding-box, conic-gradient(#ff4f7b, #ffd36b, #6fe3a1, #8fd3ff, #a98bff, #ff4f7b) border-box; border-color: transparent; color: #fff; font-size: 13px; font-weight: 600; }
+.lx-text-swatch.auto::before { content: ""; width: 14px; height: 14px; border-radius: 50%; background: var(--sw); box-shadow: 0 0 0 1px rgb(255 255 255 / 0.4); }
+
+/* Editorul: reglajele nu mai acoperă poza (raportat: „ocupă prea mult, abia vezi poza”).
+   Rânduri dense, panou plafonat la ~30% din ecran, cu derulare. */
+.lx-enhance .lx-enhance-sliders { max-height: 26dvh; gap: 0; }
+.lx-enhance .lx-enhance-sliders .lx-enhance-amount { min-height: 36px; margin: 0; gap: 10px; font-size: 13px; }
+.lx-enhance .lx-enhance-sliders .lx-enhance-amount span { min-width: 84px; }
+.lx-enhance .lx-enhance-tabs { margin-bottom: 6px; }
+.lx-enhance .lx-viewer-info { gap: 8px; max-height: 46dvh; }
