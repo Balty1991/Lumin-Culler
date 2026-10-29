@@ -103,6 +103,7 @@ export function FirstRun({ onPickManually }: { onPickManually: () => void }) {
             <button className="v3-cta fr-cta" onClick={() => setStep(1)}>
               <span>{tr('fr.start')}</span><span className="v3-mono">→</span>
             </button>
+            <p className="fr-trust">{tr('fr.hero.trust')}</p>
           </section>
         )}
 

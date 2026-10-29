@@ -426,3 +426,6 @@ h1, h2, h3, .brand-name { font-family: var(--font-display); letter-spacing: -0.0
 .fr-feats i { font-style: normal; }
 .fr-cta { width: 100%; background: linear-gradient(90deg, #7dd3fc, #a78bfa 55%, #f0abfc); box-shadow: 0 14px 34px -12px rgb(167 139 250 / .8); }
 @media (prefers-reduced-motion: reduce) { .fr-card, .fr-card b.ok, .fr-spark { animation: none; } }
+.fr-trust { margin: 2px 0 0; font-size: 12px; letter-spacing: .02em; color: var(--text-dim, #8a93a3); }
+.fr-hero .fr-title { font-size: 36px; line-height: 1.08; }
+.fr-hero .fr-sub { font-size: 15px; max-width: 340px; }
