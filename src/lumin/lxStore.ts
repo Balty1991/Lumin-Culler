@@ -13,6 +13,9 @@ export type GalleryView = 'wall' | 'moments' | 'days' | 'months' | 'people' | 'm
 interface LxState {
   tab: LxTab;
   setTab: (tab: LxTab) => void;
+  /** Turul aplicației deschis (prima intrare sau din Setări). */
+  tourOpen: boolean;
+  setTourOpen: (open: boolean) => void;
   /** Pozele din sortarea deschisă (pachetul de carduri); null = închisă. */
   sortIds: string[] | null;
   sortTitle: string | null;
@@ -50,6 +53,8 @@ interface LxState {
 export const useLx = create<LxState>((set, get) => ({
   tab: 'today',
   setTab: tab => set({ tab, openDay: null }),
+  tourOpen: false,
+  setTourOpen: open => set({ tourOpen: open }),
   sortIds: null,
   sortTitle: null,
   openSort: (ids, title) => set({ sortIds: ids, sortTitle: title ?? null }),

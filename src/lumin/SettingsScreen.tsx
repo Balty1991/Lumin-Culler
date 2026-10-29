@@ -121,6 +121,10 @@ export function SettingsScreen() {
         </div>
         <PaletteRow />
         <HapticsRow />
+        <button className="lx-row button" onClick={() => useLx.getState().setTourOpen(true)}>
+          <span><b>{tr('lx.tour.open')}</b><small>{tr('lx.tour.openSub')}</small></span>
+          <span aria-hidden="true">›</span>
+        </button>
       </section>
 
       <section className="lx-group">

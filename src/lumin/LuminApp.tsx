@@ -35,6 +35,7 @@ import { useModernPhone } from './modernPhone';
 import { Orb } from './Orb';
 import { UndoBar } from './UndoBar';
 import { TrashPreviewHost } from './TrashPreview';
+import { tourDone } from './tour';
 import './lumin.css';
 
 // Doar Azi se încarcă la pornire; restul ecranelor, la prima deschidere (pornire mai rapidă).
@@ -42,6 +43,7 @@ const DaysScreen = lazy(() => import('./DaysScreen').then(m => ({ default: m.Day
 const BrainScreen = lazy(() => import('./BrainScreen').then(m => ({ default: m.BrainScreen })));
 const SettingsScreen = lazy(() => import('./SettingsScreen').then(m => ({ default: m.SettingsScreen })));
 const SwipeSort = lazy(() => import('./SwipeSort').then(m => ({ default: m.SwipeSort })));
+const AppTour = lazy(() => import('./AppTour').then(m => ({ default: m.AppTour })));
 const PremiumPanel = lazy(() => import('../ui/PremiumPanel').then(m => ({ default: m.PremiumPanel })));
 
 const NOTICE_MS = 4500;
@@ -148,6 +150,7 @@ export function LuminApp() {
   const tab = useLx(s => s.tab);
   const setTab = useLx(s => s.setTab);
   const sortOpen = useLx(s => s.sortIds !== null);
+  const tourOpen = useLx(s => s.tourOpen);
   const fileRef = useRef<HTMLInputElement>(null);
   const [booted, setBooted] = useState(false);
   // Taburile deja deschise și locul din pagină al fiecăruia (fiecare tab își păstrează derularea).
@@ -335,6 +338,18 @@ export function LuminApp() {
     }
   }), [runImport]);
 
+  // Prima intrare în aplicație: turul scurt, după ce pașii de început s-au închis
+  // și galeria are poze. Așteaptă cât e deschis alt dialog (antrenament, confirmări).
+  const hasPhotos = photos.length > 0;
+  useEffect(() => {
+    if (!booted || !welcomeSeen || !hasPhotos || sortOpen || tourDone()) return;
+    const id = window.setInterval(() => {
+      if (document.querySelector('[aria-modal="true"]')) return;
+      window.clearInterval(id);
+      if (!tourDone()) useLx.getState().setTourOpen(true);
+    }, 1500);
+    return () => window.clearInterval(id);
+  }, [booted, welcomeSeen, hasPhotos, sortOpen]);
   const reader = useLx(s => s.reader);
   const busy = !!progress && progress.phase !== 'finalizat';
 
@@ -384,6 +399,9 @@ export function LuminApp() {
         </nav>
 
         {sortOpen && <Suspense fallback={null}><SwipeSort /></Suspense>}
+        {booted && tourOpen && !sortOpen && (
+          <Suspense fallback={null}><AppTour onClose={() => useLx.getState().setTourOpen(false)} /></Suspense>
+        )}
         <GlobalViewer />
 
         {notice && (
