@@ -925,7 +925,7 @@ html, body { overflow-x: hidden; }
 .lx-card > div:not(.lx-orb):not(.lx-feed-photo) { flex: 1 1 0%; min-width: min(200px, 100%); }
 /* Lățimea minimă (nu baza de 200px) face rândul să treacă dedesubt: pe cardurile în coloană
    baza devenea înălțime — bara de progres și „O poză la care nu sunt sigur” ieșeau blocuri goale. */
-.lx-card.lx-reader > div, .lx-card.lx-auto-result > div, .lx-card > div.lx-progress { flex: none; min-width: 0; }
+.lx .lx-card.lx-reader > div, .lx .lx-card.lx-auto-result > div, .lx .lx-card > div.lx-progress { flex: none; min-width: 0; }
 .lx-card > .lx-orb { flex: none; }
 .lx-card > .lx-btn, .lx-card > button.lx-btn { flex: 1 1 auto; }
 
@@ -1084,3 +1084,9 @@ html, body { overflow-x: hidden; }
 .lx-enhance .lx-enhance-amount { margin-bottom: 4px; }
 .lx-enhance .lx-viewer-info { padding-top: 10px; }
 .lx-enhance .lx-decide-actions .lx-btn { height: 48px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lx .lx-card.lx-reader.compact { gap: 6px; text-align: left; align-items: stretch; padding: 14px 16px; }
+.lx .lx-card.lx-reader.compact > .lx-reader-head { display: flex; flex-direction: row; align-items: center; gap: 10px; text-align: left; }
+.lx .lx-reader.compact .lx-reader-head > div { flex: 1; align-items: flex-start; min-width: 0; display: flex; flex-direction: column; gap: 2px; text-align: left; }
+.lx-reader.compact .lx-reader-head .lx-btn { flex: none; }
+.lx-reader.compact > span:not(.lx-eyebrow) { font-size: 12.5px; color: var(--text-dim); }
+.lx-reader.compact .lx-progress { max-width: none; margin: 2px 0 0; }

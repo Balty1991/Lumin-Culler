@@ -2327,7 +2327,7 @@ export const ro = {
   "lx.today.unsure": "{count} poze la care nu sunt sigur",
   "lx.today.unsureSub": "Spune-mi tu, ~{seconds} secunde. Învăț din fiecare.",
   "lx.today.check": "Decide tu",
-  "lx.today.acceptAll": "Am încredere, acceptă tot",
+  "lx.today.acceptAll": "Acceptă tot",
   "lx.today.past": "Zilele trecute",
   "lx.stat.series": "serii",
   "lx.stat.notToday": "„nu azi”",
@@ -3041,7 +3041,8 @@ export const ro = {
   "lx.tour.done": "Am înțeles",
   "lx.tour.step": "Pasul {n} din {total}",
   "lx.tour.open": "Turul aplicației",
-  "lx.tour.openSub": "Ce face fiecare ecran, în 30 de secunde"
+  "lx.tour.openSub": "Ce face fiecare ecran, în 30 de secunde",
+  "lx.enhance.aiLimit": "Ai folosit azi cele {count} corecturi AI online gratuite; am corectat poza pe telefon. Cu Premium, fără limită."
 };
 
 export type TranslationKey = keyof typeof ro;

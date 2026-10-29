@@ -206,7 +206,7 @@ export const dict: Record<string, string> = {
   "lx.today.unsure": "{count} foto su cui non sono sicura",
   "lx.today.unsureSub": "Me lo dici tu, ~{seconds} secondi. Imparo da ognuna.",
   "lx.today.check": "Decidi tu",
-  "lx.today.acceptAll": "Mi fido, accetta tutto",
+  "lx.today.acceptAll": "Accetta tutto",
   "lx.today.past": "Giorni passati",
   "lx.stat.series": "raffiche",
   "lx.stat.notToday": "«non oggi»",
@@ -920,5 +920,6 @@ export const dict: Record<string, string> = {
   "lx.tour.done": "Ho capito",
   "lx.tour.step": "Passo {n} di {total}",
   "lx.tour.open": "Tour dell'app",
-  "lx.tour.openSub": "Cosa fa ogni schermata, in 30 secondi"
+  "lx.tour.openSub": "Cosa fa ogni schermata, in 30 secondi",
+  "lx.enhance.aiLimit": "Hai usato le {count} correzioni IA online gratuite di oggi; ho corretto la foto sul telefono. Con Premium, senza limiti."
 };

@@ -138,15 +138,18 @@ export function TodayScreen() {
 
       <TrainingCard />
       {reader && reader.paused !== 'import' && (
-        <section className="lx-card lx-reader" role="status">
-          <span className="lx-eyebrow">{tr('lx.reader.eyebrow')}</span>
-          <b>{tr(reader.paused === 'battery' ? 'lx.reader.paused' : 'lx.reader.title', { done: reader.done, total: reader.total })}</b>
-          <div className="lx-progress small"><i style={{ width: `${reader.total ? Math.round((reader.done / reader.total) * 100) : 0}%` }} /></div>
-          <span>{tr('lx.reader.sub')}</span>
-          <div className="lx-reader-actions">
+        <section className="lx-card lx-reader compact" role="status">
+          {/* Compact (raportat: „aici se mai poate economisi spațiu”): titlul și „Oprește” pe un rând. */}
+          <div className="lx-reader-head">
+            <div>
+              <span className="lx-eyebrow">{tr('lx.reader.eyebrow')}</span>
+              <b>{tr(reader.paused === 'battery' ? 'lx.reader.paused' : 'lx.reader.title', { done: reader.done, total: reader.total })}</b>
+            </div>
             {reader.paused === 'battery' && <button className="lx-btn ghost small" onClick={continueOnLowBattery}>{tr('lx.reader.continue')}</button>}
             <button className="lx-btn ghost small" onClick={stopGalleryReader}>■ {tr('lx.reader.stop')}</button>
           </div>
+          <div className="lx-progress small"><i style={{ width: `${reader.total ? Math.round((reader.done / reader.total) * 100) : 0}%` }} /></div>
+          <span>{tr('lx.reader.sub')}</span>
           <BatteryHint />
         </section>
       )}

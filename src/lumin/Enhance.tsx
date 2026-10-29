@@ -7,7 +7,7 @@ import { canSharpen, sharpUrl } from './sharp';
 import { isNativeSegmentationAvailable, segmentPersonMask } from '../core/nativeSegmentation';
 import { useStore, type PhotoView } from '../state/store';
 import { frameCrop } from './instaCrop';
-import { cloudAvailable, cloudGrade, ensureCloud } from './cloud';
+import { FREE_DAILY, cloudAvailable, cloudGrade, ensureCloud } from './cloud';
 import { saveEditedBlob } from './saveEdited';
 import { useTr } from './context';
 import { analysisPool } from '../core/workerPool';
@@ -422,12 +422,13 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
       const ctx = c.getContext('2d');
       if (!ctx) return;
       drawAdjusted(ctx, img, img.width, img.height, c.width, c.height, { ...edits, crop: undefined, bokehMask: undefined, bokeh: 0 });
-      let r = await cloudGrade(c.toDataURL('image/jpeg', 0.85).split(',')[1]);
+      const got = await cloudGrade(c.toDataURL('image/jpeg', 0.85).split(',')[1]);
       // AI-ul online n-a răspuns (rețea, limită, model ocupat): nu lăsăm butonul
       // fără efect — o corectură măsurată pe telefon, pe varianta de acum.
+      let r = got && got !== 'limit' ? got : null;
       if (!r) {
         r = localGrade(ctx, c.width, c.height);
-        useStore.getState().setNotice(tr('lx.enhance.aiLocal'));
+        useStore.getState().setNotice(got === 'limit' ? tr('lx.enhance.aiLimit', { count: FREE_DAILY.grade }) : tr('lx.enhance.aiLocal'));
       }
       setManual(v => {
         const n = { ...v };

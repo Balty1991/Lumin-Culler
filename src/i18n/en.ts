@@ -2241,7 +2241,7 @@ export const en: Record<TranslationKey, string> = {
   "lx.today.unsure": "{count} photos I am not sure about",
   "lx.today.unsureSub": "You tell me, ~{seconds} seconds. I learn from each one.",
   "lx.today.check": "You decide",
-  "lx.today.acceptAll": "I trust you, accept all",
+  "lx.today.acceptAll": "Accept all",
   "lx.today.past": "Past days",
   "lx.stat.series": "bursts",
   "lx.stat.notToday": "\"not today\"",
@@ -2955,5 +2955,6 @@ export const en: Record<TranslationKey, string> = {
   "lx.tour.done": "Got it",
   "lx.tour.step": "Step {n} of {total}",
   "lx.tour.open": "App tour",
-  "lx.tour.openSub": "What each screen does, in 30 seconds"
+  "lx.tour.openSub": "What each screen does, in 30 seconds",
+  "lx.enhance.aiLimit": "You've used today's {count} free online AI fixes; I corrected the photo on the phone. Premium has no limit."
 };

@@ -158,13 +158,13 @@ export async function superviseUnsure(limit = 12): Promise<{ checked: number; de
 const WRITES_KEY = 'lumin-cloud-writes';
 const ALLOWANCE_KEY = 'lumin-cloud-free';
 /** Cât folosește gratuit AI-ul online pe zi (texte: povești, texte de postare, titluri; căutări). */
-export const FREE_DAILY = { write: 3, search: 5, magic: 2 } as const;
+export const FREE_DAILY = { write: 3, search: 5, magic: 2, grade: 12 } as const;
 
 /** Mai are omul voie azi? Cu Pro (sau fără plată disponibilă), mereu da. Numără folosirea. */
 function takeFreeAllowance(kind: keyof typeof FREE_DAILY): boolean {
   if (!useStore.getState().premiumLocked) return true;
   const day = new Date().toDateString();
-  let used: { day: string; write: number; search: number; magic: number } = { day, write: 0, search: 0, magic: 0 };
+  let used: Record<keyof typeof FREE_DAILY, number> & { day: string } = { day, write: 0, search: 0, magic: 0, grade: 0 };
   try {
     const raw = JSON.parse(localStorage.getItem(ALLOWANCE_KEY) ?? 'null');
     if (raw?.day === day) used = { ...used, ...raw };
@@ -278,9 +278,14 @@ export async function cloudInpaint(mode: InpaintMode, image: Blob, mask: Blob, w
  * 512 px) și spune ce reglaje i-ar mai trebui. Cu acordul pentru AI-ul online;
  * gratuit în limita zilnică a textelor, cu Pro cât permite serverul.
  */
-export async function cloudGrade(jpegBase64: string): Promise<{ values: Record<string, number>; reason: string } | null> {
+/**
+ * Auto AI din editor. Are limita lui (nu mai împarte cele 3 texte pe zi cu poveștile:
+ * raportat „a răspuns o dată sau de 2 ori, apoi nu a mai mers”), iar la limită nu
+ * deschide Premium peste editor — editorul spune omului și corectează pe telefon.
+ */
+export async function cloudGrade(jpegBase64: string): Promise<{ values: Record<string, number>; reason: string } | 'limit' | null> {
   if (!cloudEnabled()) return null;
-  if (!takeFreeAllowance('write')) { useStore.getState().gatePremium('cloud'); return null; }
+  if (!takeFreeAllowance('grade')) return 'limit';
   try {
     const res = await CapacitorHttp.post({
       url: `${URL_BASE}/v1/grade`,
