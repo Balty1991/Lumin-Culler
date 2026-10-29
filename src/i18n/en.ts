@@ -2702,5 +2702,10 @@ export const en: Record<TranslationKey, string> = {
   "lx.videos.clean": "Nothing to clean in videos. 👍",
   "lx.videos.delete": "Move {count} to bin · {size}",
   "lx.videos.done": "{count} videos in the bin · {size} freed",
-  "lx.videos.failed": "Couldn’t move the videos to the bin."
+  "lx.videos.failed": "Couldn’t move the videos to the bin.",
+  "lx.memory.notify.title1": "One year ago today",
+  "lx.memory.notify.titleN": "{years} years ago today",
+  "lx.memory.notify.body": "Look what you were up to. Send it to the people in it?",
+  "lx.memory.notify.channel": "Memories",
+  "lx.memory.notify.see": "See memories"
 };

@@ -2,7 +2,8 @@ import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState }
 import { App as CapacitorApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { useStore } from '../state/store';
-import { onTodayLaunch, scheduleDailyDigest, startOfDay, updateHomeWidget } from '../core/todayDigest';
+import { onTodayLaunch, scheduleDailyDigest, scheduleMorningMemory, startOfDay, updateHomeWidget } from '../core/todayDigest';
+import { onThisDay } from './momentAlbums';
 import { pickImportFiles } from '../core/filePicker';
 import { isNativeMediaLibraryAvailable, pickNativePhotos } from '../core/nativeMediaLibrary';
 import { analysisPool } from '../core/workerPool';
@@ -54,6 +55,29 @@ async function offerRestoreOrBackup(): Promise<void> {
   if (!(await st.askConfirm(t(st.locale, 'lx.autoBackup.restore'), { confirmLabel: t(st.locale, 'lx.autoBackup.restoreGo') }))) return;
   await useStore.getState().importBackupFile(file);
   await setAutoBackup(true);
+}
+
+/** „Acum un an” din notificarea de dimineață: poza trimisă direct, sau amintirile deschise. */
+async function openMemoryAction(action: 'share_memory' | 'see_memory'): Promise<void> {
+  const m = onThisDay(useStore.getState().photos)[0];
+  if (!m?.photos.length) return;
+  if (action === 'see_memory') { useLx.getState().openViewer(m.photos.map(p => p.id), 0); return; }
+  await useStore.getState().exportSelection('apps', [m.photos[0].id]);
+  void learnFromShare([m.photos[0]]);
+}
+
+/** Pozele de „Acum un an” pentru următoarele 14 dimineți, alese ca pe Azi (păstrate, apoi scor). */
+function memoryPicks(): Record<string, { uri: string; years: number }> {
+  const photos = useStore.getState().photos;
+  const out: Record<string, { uri: string; years: number }> = {};
+  for (let i = 0; i < 14; i++) {
+    const at = Date.now() + i * 86_400_000;
+    const d = new Date(at);
+    const best = onThisDay(photos, at).find(m => m.photos.some(p => p.mediaUri));
+    const p = best?.photos.find(x => x.mediaUri);
+    if (best && p?.mediaUri) out[`${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`] = { uri: p.mediaUri, years: best.years };
+  }
+  return out;
 }
 
 /** Cea mai bună poză păstrată a zilei: aceeași pe widget, în notificare și la „Trimite familiei”. */
@@ -152,6 +176,7 @@ export function LuminApp() {
     let stop: (() => void) | undefined;
     void onTodayLaunch(action => {
       useLx.getState().setTab('today');
+      if (action === 'share_memory' || action === 'see_memory') { void openMemoryAction(action); return; }
       if (action !== 'today') { void openDayAction(action); return; }
       void useStore.getState().importToday().then(async added => {
         if (added) await decideRestIfAllowed();
@@ -177,6 +202,11 @@ export function LuminApp() {
           ? t(locale, 'lx.widget.waiting', { count: day.waiting.length })
           : t(locale, 'lx.widget.kept', { count: day.kept.length });
       void updateHomeWidget({ title: t(locale, 'lx.widget.title'), subtitle, uri: best?.mediaUri, shareLabel: t(locale, 'lx.widget.share') });
+      void scheduleMorningMemory({
+        title1: t(locale, 'lx.memory.notify.title1'), titleN: t(locale, 'lx.memory.notify.titleN'),
+        body: t(locale, 'lx.memory.notify.body'), channel: t(locale, 'lx.memory.notify.channel'),
+        share: t(locale, 'lx.notify.share'), see: t(locale, 'lx.memory.notify.see')
+      }, memoryPicks());
     }, 1500);
     return () => window.clearTimeout(timer);
   }, [photos, booted, locale]);

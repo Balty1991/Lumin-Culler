@@ -45,6 +45,11 @@
             android:name=".plugins.DailyDigestReceiver"
             android:exported="false" />
 
+        <!-- „Acum un an”, dimineața: vezi plugins/MorningMemoryReceiver.kt. -->
+        <receiver
+            android:name=".plugins.MorningMemoryReceiver"
+            android:exported="false" />
+
         <!-- Widgetul de pe ecranul telefonului, vezi plugins/LuminWidgetProvider.kt. -->
         <receiver
             android:name=".plugins.LuminWidgetProvider"

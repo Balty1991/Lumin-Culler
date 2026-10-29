@@ -47,6 +47,7 @@ export function dayStats(photos: readonly DayPhoto[], now: number = Date.now()):
 interface DigestPluginApi {
   scheduleDailyDigest(options: { hour: number; minute: number; title: string; body: string; channelName: string; shareLabel?: string; dayLabel?: string }): Promise<void>;
   cancelDailyDigest(): Promise<void>;
+  scheduleMorningMemory(options: { hour: number; minute: number; texts: Record<string, string>; picks: Record<string, { uri: string; years: number }> }): Promise<void>;
   consumeLaunchAction(): Promise<{ action?: string }>;
   updateWidget(options: { title: string; subtitle: string; uri?: string; shareLabel?: string }): Promise<void>;
   addListener(event: 'launchAction', cb: (data: { action: string }) => void): Promise<PluginListenerHandle>;
@@ -71,12 +72,25 @@ export async function scheduleDailyDigest(texts: { title: string; body: string; 
   }
 }
 
+/** „Acum un an”, dimineața (MorningMemoryReceiver.kt): după ce te-ai trezit, înainte de muncă. */
+export const MEMORY_HOUR = 9;
+export const MEMORY_MINUTE = 15;
+
+export async function scheduleMorningMemory(texts: Record<string, string>, picks: Record<string, { uri: string; years: number }>): Promise<void> {
+  if (!available()) return;
+  try {
+    await Native.scheduleMorningMemory({ hour: MEMORY_HOUR, minute: MEMORY_MINUTE, texts, picks });
+  } catch {
+    // o versiune nativă mai veche: fără amintirea de dimineață
+  }
+}
+
 /**
  * Cu ce a fost deschisă aplicația din notificarea de seară sau din widget:
  * „today” (sortează ziua), „share_pod” (trimite poza zilei), „see_day” (vezi ziua).
  */
-export type LaunchAction = 'today' | 'share_pod' | 'see_day';
-const LAUNCH_ACTIONS: readonly string[] = ['today', 'share_pod', 'see_day'];
+export type LaunchAction = 'today' | 'share_pod' | 'see_day' | 'share_memory' | 'see_memory';
+const LAUNCH_ACTIONS: readonly string[] = ['today', 'share_pod', 'see_day', 'share_memory', 'see_memory'];
 
 /** Cheamă `cb` când aplicația e deschisă din notificarea „Ziua de azi” sau din widget (la pornire sau din fundal). */
 export async function onTodayLaunch(cb: (action: LaunchAction) => void): Promise<() => void> {

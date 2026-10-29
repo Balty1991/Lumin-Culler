@@ -2788,7 +2788,12 @@ export const ro = {
   "lx.videos.clean": "Nimic de curățat la clipuri. 👍",
   "lx.videos.delete": "Mută în coș {count} · {size}",
   "lx.videos.done": "{count} clipuri în coș · ai eliberat {size}",
-  "lx.videos.failed": "N-am putut muta clipurile în coș."
+  "lx.videos.failed": "N-am putut muta clipurile în coș.",
+  "lx.memory.notify.title1": "Acum un an, azi",
+  "lx.memory.notify.titleN": "Acum {years} ani, azi",
+  "lx.memory.notify.body": "Uite ce făceai. O trimiți celor din poză?",
+  "lx.memory.notify.channel": "Amintiri",
+  "lx.memory.notify.see": "Vezi amintirile"
 };
 
 export type TranslationKey = keyof typeof ro;

@@ -134,6 +134,24 @@ class NotificationsPlugin : Plugin() {
         call.resolve()
     }
 
+    /**
+     * „Acum un an” dimineața: textele (în limba aplicației) și poza aleasă
+     * pentru fiecare din zilele următoare ({"MM-DD": {uri, years}}).
+     */
+    @PluginMethod
+    fun scheduleMorningMemory(call: PluginCall) {
+        runCatching {
+            MorningMemoryReceiver.schedule(
+                context,
+                call.getInt("hour") ?: 9,
+                call.getInt("minute") ?: 15,
+                org.json.JSONObject(call.getObject("texts")?.toString() ?: "{}"),
+                org.json.JSONObject(call.getObject("picks")?.toString() ?: "{}")
+            )
+        }
+        call.resolve()
+    }
+
     @PluginMethod
     fun cancelDailyDigest(call: PluginCall) {
         runCatching { DailyDigestReceiver.cancel(context) }
