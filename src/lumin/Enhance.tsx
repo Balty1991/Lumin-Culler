@@ -10,6 +10,7 @@ import { frameCrop } from './instaCrop';
 import { cloudAvailable, cloudGrade, ensureCloud } from './cloud';
 import { saveEditedBlob } from './saveEdited';
 import { useTr } from './context';
+import { analysisPool } from '../core/workerPool';
 
 /**
  * lumin/Enhance.tsx
@@ -373,6 +374,16 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   const [split, setSplit] = useState(50);
   const [saving, setSaving] = useState(false);
   const stage = useRef<HTMLDivElement>(null);
+  // Cât editezi, citirea galeriei din fundal stă (altfel reglajele merg sacadat).
+  useEffect(() => analysisPool.holdForUi(), []);
+  // Poza încape întreagă în spațiul de deasupra panoului, oricât de înalt e panoul.
+  useEffect(() => {
+    const el = stage.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => el.style.setProperty('--stage-h', `${Math.max(120, el.clientHeight - 16)}px`));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const dragging = useRef(false);
   const [scenes, setScenes] = useState<Scene[]>([]);
 
@@ -513,15 +524,15 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
               ))}
             </div>
             {learned && Object.keys(manual).length > 0 && <p className="lx-hint">{tr('lx.enhance.learned')}</p>}
-            {panel === 'styles' && scenes.length > 0 && (
-              <p className="lx-hint lx-scenes">🔍 {tr('lx.enhance.saw', { what: scenes.map(sc => tr(`lx.enhance.scene.${sc}`)).join(' · ') })}</p>
-            )}
-            {panel === 'styles' && cloudAvailable() && (
-              <div className="lx-ai-auto">
-                <button className="lx-btn ghost small" disabled={aiBusy} onClick={() => void aiAuto()}>{aiBusy ? `… ${tr('lx.enhance.aiWorking')}` : `✨ ${tr('lx.enhance.aiAuto')}`}</button>
-                {aiReason && <span>{aiReason}</span>}
+            {panel === 'styles' && (scenes.length > 0 || cloudAvailable()) && (
+              <div className="lx-enhance-meta">
+                <span>{scenes.length > 0 ? `🔍 ${tr('lx.enhance.saw', { what: scenes.map(sc => tr(`lx.enhance.scene.${sc}`)).join(' · ') })}` : aiReason}</span>
+                {cloudAvailable() && (
+                  <button className="lx-chip-btn" disabled={aiBusy} onClick={() => void aiAuto()}>{aiBusy ? `… ${tr('lx.enhance.aiWorking')}` : `✨ ${tr('lx.enhance.aiAuto')}`}</button>
+                )}
               </div>
             )}
+            {panel === 'styles' && aiReason && scenes.length > 0 && <p className="lx-hint lx-enhance-why">{aiReason}</p>}
             {panel === 'frame' ? (
               <div className="lx-enhance-sliders">
                 <div className="lx-enhance-styles" role="radiogroup" aria-label={tr('lx.enhance.panel.frame')}>
@@ -575,7 +586,6 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
             </>)}
           </>
         )}
-        {panel === 'styles' && <p className="lx-hint center">{tr(nothing ? 'lx.enhance.nothing' : 'lx.enhance.hint')}</p>}
         <div className="lx-decide-actions">
           <button className="lx-btn ghost" onClick={onClose}>{tr(nothing ? 'lx.close' : 'lx.enhance.cancel')}</button>
           {!nothing && <button className="lx-btn primary" disabled={!edits || saving} onClick={() => void save()}>{tr('lx.enhance.save')}</button>}

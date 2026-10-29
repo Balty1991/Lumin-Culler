@@ -483,6 +483,9 @@ export class AnalysisPool {
     if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
       // Cât omul atinge sau derulează ecranul, o singură poză în lucru: degetul
       // are prioritate (raportat: „încă rulează sacadat când se încarcă poze”).
+      // Un ecran greu deschis (editorul): citirea din fundal stă de tot până se închide
+      // (raportat: „în timp ce încarcă poze, editarea merge foarte sacadat”).
+      if (this.gentle && this.uiHolds > 0) return 0;
       if (Date.now() - this.lastTouch < INTERACTION_QUIET_MS) return 1;
       if (this.gentle) return Math.min(thermal, Math.max(2, Math.ceil(this.nativeConcurrencyLimit / 2)));
     }
@@ -519,6 +522,25 @@ export class AnalysisPool {
   /** Pornit de citirea galeriei în fundal (galleryReader): importurile cerute de om merg cu tot plafonul. */
   private gentle = false;
   setGentle(on: boolean): void { this.gentle = on; }
+
+  /** Ecranele grele (editorul) opresc analiza din fundal cât sunt deschise; vezi effectiveNativeLimit. */
+  private uiHolds = 0;
+  uiHeld(): boolean { return this.uiHolds > 0; }
+  holdForUi(): () => void {
+    this.uiHolds++;
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      this.uiHolds = Math.max(0, this.uiHolds - 1);
+      while (this.nativeInFlight < this.effectiveNativeLimit() && this.nativeWaiters.length > 0) {
+        const next = this.nativeWaiters.shift();
+        if (!next) break;
+        this.nativeInFlight++;
+        next();
+      }
+    };
+  }
 
   /** La ieșirea în fundal, analizele care așteaptă pornesc cu plafonul întreg. */
   private visibilityWatch = typeof document !== 'undefined'

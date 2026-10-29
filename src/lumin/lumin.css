@@ -199,8 +199,8 @@
 
 /* Bara de jos */
 .lx-dock {
-  position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(12px + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
-  width: min(560px, calc(100% - 24px)); height: 68px; box-sizing: border-box; z-index: 40;
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(4px + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
+  width: min(560px, calc(100% - 24px)); height: 64px; box-sizing: border-box; z-index: 40;
   display: grid; grid-template-columns: 1fr 1fr 76px 1fr 1fr; align-items: center;
   border-radius: 24px; border: 1px solid var(--lx-line); background: color-mix(in srgb, var(--surface) 88%, transparent);
   backdrop-filter: blur(22px); box-shadow: 0 18px 50px -20px rgb(0 0 0 / 0.7);
@@ -922,9 +922,10 @@ html, body { overflow-x: hidden; }
 .lx-card { flex-wrap: wrap; }
 /* Textul cardului crește, nu desenele (orbul, miniaturile): altfel „AI-ul tău” se strângea
    într-o coloană de un cuvânt (raportat cu captură). */
-.lx-card > div:not(.lx-orb):not(.lx-feed-photo) { flex: 1 1 200px; min-width: 0; }
-/* Pe cardurile în coloană, „200px” devenea înălțime: bara de progres ieșea un bloc uriaș. */
-.lx-card.lx-reader > div, .lx-card.lx-auto-result > div, .lx-card > .lx-progress { flex: none; }
+.lx-card > div:not(.lx-orb):not(.lx-feed-photo) { flex: 1 1 0%; min-width: min(200px, 100%); }
+/* Lățimea minimă (nu baza de 200px) face rândul să treacă dedesubt: pe cardurile în coloană
+   baza devenea înălțime — bara de progres și „O poză la care nu sunt sigur” ieșeau blocuri goale. */
+.lx-card.lx-reader > div, .lx-card.lx-auto-result > div, .lx-card > div.lx-progress { flex: none; min-width: 0; }
 .lx-card > .lx-orb { flex: none; }
 .lx-card > .lx-btn, .lx-card > button.lx-btn { flex: 1 1 auto; }
 
@@ -1070,3 +1071,16 @@ html, body { overflow-x: hidden; }
 @keyframes lx-tour-in { from { opacity: 0; } }
 @keyframes lx-tour-pop { from { opacity: 0; scale: 0.96; } }
 @media (prefers-reduced-motion: reduce) { .lx-tour-photo, .lx-tour-card, .lx-tour-dim { animation: none; } }
+
+/* Editor: poza întreagă deasupra panoului; panoul ordonat (raportat: „nu se vede poza
+   întreagă, ce e jos ar merge mai ordonat”). */
+.lx-enhance .lx-enhance-frame > img, .lx-enhance .lx-enhance-after img { max-height: var(--stage-h, calc(100dvh - 420px)); }
+.lx-enhance .lx-enhance-frame.cropped .lx-enhance-canvas { max-height: var(--stage-h, calc(100dvh - 420px)); }
+.lx-enhance-meta { display: flex; align-items: center; gap: 10px; min-height: 34px; margin-bottom: 6px; }
+.lx-enhance-meta > span { flex: 1; min-width: 0; font-size: 12.5px; line-height: 1.3; color: var(--text-dim); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.lx-enhance-meta .lx-chip-btn { flex: none; white-space: nowrap; }
+.lx-enhance-why { font-size: 12px; margin: -2px 0 6px; }
+.lx-enhance .lx-enhance-styles { margin-bottom: 6px; }
+.lx-enhance .lx-enhance-amount { margin-bottom: 4px; }
+.lx-enhance .lx-viewer-info { padding-top: 10px; }
+.lx-enhance .lx-decide-actions .lx-btn { height: 48px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

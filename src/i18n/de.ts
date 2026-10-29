@@ -413,7 +413,7 @@ export const dict: Record<string, string> = {
   "lx.enhance.hint": "Ziehe die Linie zum Vergleichen. Wird als Kopie gespeichert — das Original bleibt unberührt.",
   "lx.enhance.nothing": "Dieses Foto sieht schon gut aus — nichts zu verbessern.",
   "lx.enhance.cancel": "Abbrechen",
-  "lx.enhance.save": "Die schönere behalten",
+  "lx.enhance.save": "Kopie speichern",
   "lx.story.make": "Film",
   "lx.story.making": "Der Film wird erstellt… das dauert so lange wie der Film selbst.",
   "lx.story.stop": "Stopp",

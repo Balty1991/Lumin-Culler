@@ -2448,7 +2448,7 @@ export const en: Record<TranslationKey, string> = {
   "lx.enhance.hint": "Drag the line to compare. Saved as a copy — the original stays untouched.",
   "lx.enhance.nothing": "This photo already looks good — nothing to improve.",
   "lx.enhance.cancel": "Cancel",
-  "lx.enhance.save": "Keep the better one",
+  "lx.enhance.save": "Save a copy",
   "lx.story.make": "Film",
   "lx.story.making": "Making the film… it takes as long as the film itself.",
   "lx.story.stop": "Stop",

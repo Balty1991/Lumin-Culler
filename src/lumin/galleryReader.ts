@@ -130,6 +130,8 @@ export async function readWholeGallery(byUser = false): Promise<void> {
       if (stopRequested) break;
       // Nu mai așteaptă cât aplicația e în spate: serviciul din fundal (cu notificarea
       // lui) ține analiza pornită, cât îi permite telefonul — vezi Setări → Lucru în fundal.
+      // Editorul deschis: pachetul următor așteaptă, ca tragerea de reglaje să rămână fluidă.
+      while (!stopRequested && analysisPool.uiHeld()) await sleep(700);
       while (!stopRequested && (importBusy() || await lowBattery())) {
         // Alt import (ales de om) are întâietate; cititorul spune că așteaptă, nu pare blocat.
         const paused = importBusy() ? 'import' as const : await lowBattery() ? 'battery' as const : undefined;

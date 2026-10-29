@@ -24,7 +24,7 @@ import { autoBackupIfDue, markRestoreAsked, restorableBackup, setAutoBackup } fr
 import { Viewer } from './GalleryWall';
 import { superviseUnsure } from './cloud';
 import { autoSortToday, decideRestIfAllowed, summarizeToday } from './autoSort';
-import { readWholeGallery } from './galleryReader';
+import { readWholeGallery, readerStopped } from './galleryReader';
 import { syncPeopleAlbums } from './phoneAlbums';
 import { autoNameFaces, canEmbedFaces, embedMissingFaces } from './faceIdentity';
 import { TodayScreen } from './TodayScreen';
@@ -247,7 +247,12 @@ export function LuminApp() {
   const welcomeSeen = useStore(s => s.welcomeSeen);
   useEffect(() => {
     if (!booted || !welcomeSeen) return;
-    const run = () => void autoSortToday().then(async r => {
+    const run = () => {
+      // A amânat sau a ales singur pozele la început și n-are încă nimic: nu citim de capul nostru.
+      if (readerStopped() && useStore.getState().photos.length === 0) return;
+      autoRun();
+    };
+    const autoRun = () => void autoSortToday().then(async r => {
       if (r) useLx.getState().setAutoResult(r);
       // Albumele pe oameni din galeria telefonului, la zi (dacă omul le-a pornit).
       void syncPeopleAlbums().catch(() => 0);

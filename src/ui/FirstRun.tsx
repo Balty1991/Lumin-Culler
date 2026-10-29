@@ -82,7 +82,9 @@ export function FirstRun({ onPickManually }: { onPickManually: () => void }) {
     }
     void readWholeGallery(true);
   };
-  const skip = () => { dismissWelcome(); setLater(true); };
+  // „Mai târziu” înseamnă chiar mai târziu (raportat: „am dat mai târziu și a început să
+  // adauge toată galeria”): nimic nu se citește singur până nu pornește omul citirea.
+  const skip = () => { stopGalleryReader(); dismissWelcome(); setLater(true); };
 
   return (
     <div className="v3-screen fr" role="dialog" aria-modal="true" aria-label={tr('fr.title')} ref={ref} tabIndex={-1}>

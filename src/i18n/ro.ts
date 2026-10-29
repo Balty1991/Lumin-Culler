@@ -2534,7 +2534,7 @@ export const ro = {
   "lx.enhance.hint": "Trage de linie ca să compari. Se salvează ca o copie — originalul rămâne neatins.",
   "lx.enhance.nothing": "Poza arată deja bine — n-am ce să-i mai îmbunătățesc.",
   "lx.enhance.cancel": "Renunț",
-  "lx.enhance.save": "Păstrez varianta frumoasă",
+  "lx.enhance.save": "Salvează copia",
   "lx.story.make": "Film",
   "lx.story.making": "Fac filmul… durează cât filmul însuși.",
   "lx.story.stop": "Oprește",
