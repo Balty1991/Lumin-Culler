@@ -922,3 +922,7 @@ html, body { overflow-x: hidden; }
 .lx-card { flex-wrap: wrap; }
 .lx-card > div:first-child { flex: 1 1 220px; min-width: 0; }
 .lx-card > .lx-btn, .lx-card > button.lx-btn { flex: 1 1 auto; }
+
+/* Bulina „Cherrypic citește galeria”: jos, deasupra meniului, pe un singur rând — sus
+   acoperea titlurile și primul card (raportat cu capturi). */
+.lx-busy-pill { top: auto; bottom: calc(96px + var(--safe-bottom, env(safe-area-inset-bottom, 0px))); white-space: nowrap; max-width: calc(100vw - 32px); overflow: hidden; text-overflow: ellipsis; font-size: 11.5px; padding: 4px 12px 4px 6px; }
