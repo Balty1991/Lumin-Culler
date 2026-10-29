@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { useLxPhotos } from './useLxPhotos';
-import { useMemo, useState } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import { useStore } from '../state/store';
 import { groupDays, type Day } from './days';
 import { usePeopleFaces } from './faces';
@@ -27,7 +27,9 @@ import { decideRestIfAllowed } from './autoSort';
 import { readWholeGallery } from './galleryReader';
 import type { PhotoView } from '../state/store';
 
-const VIEWS: GalleryView[] = ['wall', 'moments', 'days', 'months', 'people', 'aside'];
+const VIEWS: GalleryView[] = ['wall', 'moments', 'days', 'months', 'people', 'map', 'aside'];
+// Harta (MapLibre) e mare: se încarcă doar când o deschizi.
+const PhotoMap = lazy(() => import('./PhotoMap').then(m => ({ default: m.PhotoMap })));
 
 /**
  * lumin/DaysScreen.tsx
@@ -93,6 +95,8 @@ export function DaysScreen() {
       {view === 'months' && <MonthsView days={days} />}
 
       {view === 'people' && <PeopleGrid onOpen={setPerson} />}
+
+      {view === 'map' && <Suspense fallback={<p className="lx-empty">{tr('lx.map.loading')}</p>}><PhotoMap /></Suspense>}
 
       {view === 'aside' && (aside.length === 0 ? (
         <p className="lx-empty">{tr('lx.days.asideEmpty')}</p>

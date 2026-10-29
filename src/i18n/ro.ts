@@ -2939,7 +2939,16 @@ export const ro = {
   "lx.group.friends": "Prieteni",
   "lx.group.work": "Colegi",
   "lx.group.album": "Pozele grupului",
-  "lx.reader.recentDone": "Ultimele 3 luni sunt gata: le găsești pe Azi și în Galerie. Restul ({left} poze mai vechi) continuă în fundal."
+  "lx.reader.recentDone": "Ultimele 3 luni sunt gata: le găsești pe Azi și în Galerie. Restul ({left} poze mai vechi) continuă în fundal.",
+  "lx.days.view.map": "Hartă",
+  "lx.map.loading": "Se deschide harta…",
+  "lx.map.empty": "Nicio poză nu are încă locul unde a fost făcută. Pozele cu locația pornită în cameră apar aici, pe hartă.",
+  "lx.map.count": "{count} poze pe hartă",
+  "lx.map.without": "{count} fără loc",
+  "lx.map.photos": "{count} poze aici",
+  "lx.map.offline": "Harta are nevoie de internet. Pozele tale rămân pe telefon.",
+  "lx.map.retry": "Încearcă din nou",
+  "lx.map.privacy": "Harta se încarcă de pe internet (OpenFreeMap). Pozele și locurile lor nu pleacă din telefon.",
 };
 
 export type TranslationKey = keyof typeof ro;

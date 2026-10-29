@@ -939,3 +939,13 @@ html, body { overflow-x: hidden; }
   display: flex; align-items: center; gap: 14px; padding: 10px 16px; border-radius: 999px; max-width: calc(100vw - 32px);
   background: color-mix(in srgb, var(--surface) 95%, transparent); border: 1px solid rgb(255 255 255 / .12); box-shadow: 0 12px 30px -10px rgb(0 0 0 / .7); font-size: 14px; }
 .lx-undo .lx-link { font-weight: 700; }
+
+/* Harta pozelor (lumin/PhotoMap.tsx) */
+.lx-map-wrap { display: flex; flex-direction: column; gap: 8px; }
+.lx-map-note, .lx-map-privacy { margin: 0; font-size: 12.5px; color: var(--text-dim); }
+.lx-map { height: calc(100dvh - 300px); min-height: 320px; border-radius: 18px; overflow: hidden; border: 1px solid var(--lx-line); background: var(--surface-2); }
+.lx-map-off { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; text-align: center; color: var(--text-dim); }
+.lx-map-pin { position: relative; width: 52px; height: 52px; padding: 0; border: 3px solid #fff; border-radius: 14px; background: var(--surface-2); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35); cursor: pointer; }
+.lx-map-pin img { width: 100%; height: 100%; object-fit: cover; border-radius: 11px; display: block; }
+.lx-map-pin span { position: absolute; top: -9px; right: -9px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; background: var(--lx-grad); color: #06070a; font-size: 11.5px; font-weight: 700; line-height: 22px; text-align: center; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); }
+.lx-map .maplibregl-ctrl-attrib { font-size: 10px; }

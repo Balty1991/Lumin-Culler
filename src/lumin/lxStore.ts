@@ -7,7 +7,7 @@ import { create } from 'zustand';
  * (state/store.ts), care rămâne același: analiză, învățare, decizii.
  */
 export type LxTab = 'today' | 'days' | 'brain' | 'settings';
-export type GalleryView = 'wall' | 'moments' | 'days' | 'months' | 'people' | 'aside';
+export type GalleryView = 'wall' | 'moments' | 'days' | 'months' | 'people' | 'map' | 'aside';
 
 interface LxState {
   tab: LxTab;

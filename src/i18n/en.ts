@@ -2853,5 +2853,14 @@ export const en: Record<TranslationKey, string> = {
   "lx.group.friends": "Friends",
   "lx.group.work": "Colleagues",
   "lx.group.album": "Group photos",
-  "lx.reader.recentDone": "The last 3 months are ready: you’ll find them on Today and in Gallery. The rest ({left} older photos) continues in the background."
+  "lx.reader.recentDone": "The last 3 months are ready: you’ll find them on Today and in Gallery. The rest ({left} older photos) continues in the background.",
+  "lx.days.view.map": "Map",
+  "lx.map.loading": "Opening the map…",
+  "lx.map.empty": "No photo has a place yet. Photos taken with location on in the camera show up here, on the map.",
+  "lx.map.count": "{count} photos on the map",
+  "lx.map.without": "{count} without a place",
+  "lx.map.photos": "{count} photos here",
+  "lx.map.offline": "The map needs internet. Your photos stay on the phone.",
+  "lx.map.retry": "Try again",
+  "lx.map.privacy": "The map loads from the internet (OpenFreeMap). Your photos and their places never leave the phone.",
 };

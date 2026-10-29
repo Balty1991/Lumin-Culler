@@ -30,7 +30,7 @@ describe('ecranul de dinainte de JavaScript', () => {
     expect(html).toMatch(/<div id="root">\s*<div class="boot-splash">/);
   });
 
-  it.each(['boot-splash', 'empty-badge', 'empty-badge-mark'])(
+  it.each(['boot-splash', 'boot-logo'])(
     'clasa .%s, folosita in index.html, exista in foaia de stil',
     cls => {
       expect(html).toContain(`class="${cls}"`);
@@ -38,8 +38,8 @@ describe('ecranul de dinainte de JavaScript', () => {
     }
   );
 
-  it('medalionul e marcat decorativ — un cititor de ecran n-are ce citi din doua litere', () => {
-    expect(html).toMatch(/<div class="empty-badge" aria-hidden="true">/);
+  it('sigla e marcata decorativ — un cititor de ecran n-are ce citi din ea', () => {
+    expect(html).toMatch(/<img class="boot-logo"[^>]*alt=""[^>]*aria-hidden="true"/);
   });
 
   it('prima randare React goleste containerul, deci splash-ul dispare singur', () => {
