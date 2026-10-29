@@ -49,6 +49,23 @@ export function stopGalleryReader(): void {
   try { localStorage.setItem(STOPPED_KEY, '1'); } catch { /* fără stocare */ }
   if (running) useStore.getState().cancelImport();
 }
+/**
+ * A pornit omul măcar o dată citirea galeriei (butonul de la început, „Sortează tot”,
+ * „Continuă citirea”)? Până atunci nimic nu citește singur — raportat de două ori:
+ * „am dat mai târziu, dar tot încarcă singur niște poze”. Cine are deja poze în
+ * aplicație (de dinainte de regula asta) e socotit pornit.
+ */
+const STARTED_KEY = 'lumin-gallery-read-started';
+export function readerStarted(): boolean {
+  try { return localStorage.getItem(STARTED_KEY) === '1'; } catch { return true; }
+}
+/** La pornire: biblioteca de dinainte de regula asta (poze deja citite, citirea neoprită) contează ca pornită. */
+export function markReaderStartedIfLegacy(): void {
+  try {
+    if (localStorage.getItem(STARTED_KEY) || readerStopped()) return;
+    if (useStore.getState().photos.length > 0) localStorage.setItem(STARTED_KEY, '1');
+  } catch { /* fără stocare */ }
+}
 /** Pornește din nou, la cererea omului. */
 export function resumeGalleryReader(): Promise<void> {
   try { localStorage.removeItem(STOPPED_KEY); } catch { /* fără stocare */ }
@@ -98,8 +115,8 @@ export function readerRunning(): boolean {
 export async function readWholeGallery(byUser = false): Promise<void> {
   if (running || !isNativeMediaLibraryAvailable()) return;
   // Cerut de om: se reîncearcă și pozele sărite data trecută.
-  if (byUser) { try { localStorage.removeItem(STOPPED_KEY); localStorage.removeItem(SKIPPED_KEY); } catch { /* fără stocare */ } }
-  else if (readerStopped()) return;
+  if (byUser) { try { localStorage.removeItem(STOPPED_KEY); localStorage.removeItem(SKIPPED_KEY); localStorage.setItem(STARTED_KEY, '1'); } catch { /* fără stocare */ } }
+  else if (readerStopped() || !readerStarted()) return;
   running = true;
   stopRequested = false;
   let holding = false;

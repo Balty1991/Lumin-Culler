@@ -24,7 +24,7 @@ import { autoBackupIfDue, markRestoreAsked, restorableBackup, setAutoBackup } fr
 import { Viewer } from './GalleryWall';
 import { superviseUnsure } from './cloud';
 import { autoSortToday, decideRestIfAllowed, summarizeToday } from './autoSort';
-import { readWholeGallery, readerStopped } from './galleryReader';
+import { markReaderStartedIfLegacy, readWholeGallery, readerStarted, readerStopped } from './galleryReader';
 import { syncPeopleAlbums } from './phoneAlbums';
 import { autoNameFaces, canEmbedFaces, embedMissingFaces } from './faceIdentity';
 import { TodayScreen } from './TodayScreen';
@@ -174,6 +174,7 @@ export function LuminApp() {
   useEffect(() => {
     applyPalette();
     void boot().finally(() => {
+      markReaderStartedIfLegacy();
       setBooted(true);
       void offerRestoreOrBackup();
       // Arhiva automată (dacă e pornită): o dată pe săptămână, pozele vechi și slabe pleacă din drum.
@@ -248,8 +249,9 @@ export function LuminApp() {
   useEffect(() => {
     if (!booted || !welcomeSeen) return;
     const run = () => {
-      // A amânat sau a ales singur pozele la început și n-are încă nimic: nu citim de capul nostru.
-      if (readerStopped() && useStore.getState().photos.length === 0) return;
+      // A amânat sau a ales singur pozele la început: nu citim de capul nostru (nici pozele
+      // zilei) până nu pornește el citirea o dată.
+      if (!readerStarted() || (readerStopped() && useStore.getState().photos.length === 0)) return;
       autoRun();
     };
     const autoRun = () => void autoSortToday().then(async r => {
