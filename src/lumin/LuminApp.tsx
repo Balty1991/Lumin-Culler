@@ -4,6 +4,8 @@ import { Capacitor } from '@capacitor/core';
 import { useStore } from '../state/store';
 import { onTodayLaunch, scheduleDailyDigest, scheduleMorningMemory, startOfDay, updateHomeWidget } from '../core/todayDigest';
 import { onThisDay } from './momentAlbums';
+import { maybeAskForReviewAfterWin } from '../state/reviewPrompt';
+import { freedSummary } from '../core/freedSpace';
 import { pickImportFiles } from '../core/filePicker';
 import { isNativeMediaLibraryAvailable, pickNativePhotos } from '../core/nativeMediaLibrary';
 import { analysisPool } from '../core/workerPool';
@@ -202,6 +204,9 @@ export function LuminApp() {
         : day.waiting.length > 0
           ? t(locale, 'lx.widget.waiting', { count: day.waiting.length })
           : t(locale, 'lx.widget.kept', { count: day.kept.length });
+      // Cererea de recenzie, o singură dată, după un câștig vizibil (1 GB eliberat sau 100 de poze hotărâte).
+      const all = useStore.getState().photos;
+      maybeAskForReviewAfterWin({ freedBytes: freedSummary().total, decided: all.filter(p => p.status === 'selected' || p.status === 'rejected').length });
       void updateHomeWidget({ title: t(locale, 'lx.widget.title'), subtitle, uri: best?.mediaUri, shareLabel: t(locale, 'lx.widget.share') });
       void scheduleMorningMemory({
         title1: t(locale, 'lx.memory.notify.title1'), titleN: t(locale, 'lx.memory.notify.titleN'),

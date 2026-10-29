@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { formatBytes } from '../core/freedSpace';
+import { formatBytes, recordFreed } from '../core/freedSpace';
 import { deleteNativePhotos, isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { findVideoCleanup, listGalleryVideos, saveBestVideoFrame, videoBytes, videoThumbUrl, type GalleryVideo } from '../core/nativeVideos';
 import { useStore } from '../state/store';
@@ -152,6 +152,7 @@ function VideoSheet({ title, list, preselect, onClose, onRemoved }: {
       if (r.cancelled) return;
       const gone = chosen.filter(v => !r.skippedUris.includes(v.uri));
       onRemoved(gone.map(v => v.uri));
+      recordFreed(videoBytes(gone));
       setNotice(tr('lx.videos.done', { count: gone.length, size: formatBytes(videoBytes(gone), locale) }));
       onClose();
     } catch {

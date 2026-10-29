@@ -2765,5 +2765,7 @@ export const en: Record<TranslationKey, string> = {
   "lx.magic.consent": "Magic needs the online AI turned on.",
   "lx.recommend.title": "Recommend to a friend",
   "lx.recommend.sub": "Know someone who takes lots of photos and never sorts them?",
-  "lx.recommend.text": "I use Cherrypic: the AI picks my best photos and clears out the rest. Give it a try:"
+  "lx.recommend.text": "I use Cherrypic: the AI picks my best photos and clears out the rest. Give it a try:",
+  "lx.report.title": "Send a problem report",
+  "lx.report.sub": "If something isn’t working: a text file with the version and the last {count} errors, no photos or names."
 };

@@ -2851,7 +2851,9 @@ export const ro = {
   "lx.magic.consent": "Pentru Magie trebuie pornit AI-ul online.",
   "lx.recommend.title": "Recomandă unui prieten",
   "lx.recommend.sub": "Cineva care face multe poze și nu le sortează niciodată?",
-  "lx.recommend.text": "Folosesc Cherrypic: AI-ul îmi alege singur cele mai bune poze din galerie și șterge restul. Încearcă-l:"
+  "lx.recommend.text": "Folosesc Cherrypic: AI-ul îmi alege singur cele mai bune poze din galerie și șterge restul. Încearcă-l:",
+  "lx.report.title": "Trimite un raport de probleme",
+  "lx.report.sub": "Dacă ceva nu merge: un fișier text cu versiunea și ultimele {count} erori, fără poze sau nume."
 };
 
 export type TranslationKey = keyof typeof ro;

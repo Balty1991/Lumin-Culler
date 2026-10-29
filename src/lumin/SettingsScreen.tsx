@@ -1,5 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { Share } from '@capacitor/share';
+import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
+import { buildErrorReport, readErrorLog } from '../core/errorLog';
 import { CloudSection } from './CloudParts';
 import { AutonomyPicker } from './TwinParts';
 import { useStore } from '../state/store';
@@ -154,6 +156,10 @@ export function SettingsScreen() {
         </button>
       </section>
 
+      <button className="lx-row button" onClick={() => void sendReport()}>
+        <span><b>🛠 {tr('lx.report.title')}</b><small>{tr('lx.report.sub', { count: readErrorLog().length })}</small></span>
+        <span className="lx-chev" aria-hidden="true">›</span>
+      </button>
       <button className="lx-row button" onClick={() => void recommend(tr('lx.recommend.text'))}>
         <span><b>💌 {tr('lx.recommend.title')}</b><small>{tr('lx.recommend.sub')}</small></span>
         <span className="lx-chev" aria-hidden="true">›</span>
@@ -162,6 +168,30 @@ export function SettingsScreen() {
       <p className="lx-foot">{tr('lx.settings.privacy')}<br />Cherrypic · {__APP_VERSION__}</p>
     </div>
   );
+}
+
+/** „Trimite un raport”: fișier text cu versiunea și ultimele erori, prin foaia de trimitere. */
+async function sendReport(): Promise<void> {
+  const s = useStore.getState();
+  const text = buildErrorReport({
+    versiune: __APP_VERSION__,
+    poze: s.photos.length,
+    persoane: s.persons.length,
+    limba: s.locale,
+    memorie: String((navigator as unknown as { deviceMemory?: number }).deviceMemory ?? '?')
+  });
+  const name = `cherrypic-raport-${new Date().toISOString().slice(0, 10)}.txt`;
+  try {
+    if (Capacitor.isNativePlatform()) {
+      const written = await Filesystem.writeFile({ path: name, data: text, directory: Directory.Cache, encoding: Encoding.UTF8 });
+      await Share.share({ files: [written.uri], title: name, text: 'Cherrypic — raport de probleme' });
+    } else {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+      a.download = name;
+      a.click();
+    }
+  } catch { /* închisă de om */ }
 }
 
 /** „Recomandă unui prieten”: foaia de trimitere a telefonului, cu linkul din Play. */

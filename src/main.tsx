@@ -12,6 +12,7 @@ import './styles.concept.css';
 import './styles.v3.css';
 import { watchBackgroundMemory } from './core/backgroundMemory';
 import { lastRunReport, forgetLastRun } from './core/nativeDiagnostics';
+import { installErrorLog, logError } from './core/errorLog';
 import { useStore } from './state/store';
 import { ensureLocaleLoaded, readStoredLocale } from './i18n';
 
@@ -48,6 +49,9 @@ if (Capacitor.isNativePlatform()) {
 // pentru de ce nu se golesc imediat.
 watchBackgroundMemory();
 
+// Jurnalul de probleme (doar pe telefon; omul îl trimite din Setări dacă vrea).
+installErrorLog();
+
 // Daca rularea precedenta a fost omorata in timpul unei analize, partea nativa
 // stie in ce model s-a intamplat — vezi core/nativeDiagnostics.ts. Se spune o
 // singura data, la prima pornire de dupa, si se uita imediat: e un ajutor la
@@ -55,6 +59,7 @@ watchBackgroundMemory();
 void (async () => {
   const raport = await lastRunReport();
   if (!raport?.crashed || !raport.crashedAt) return;
+  logError('crash', `Închidere neașteptată la: ${raport.crashedAt}`);
   useStore.setState({
     notice: `Repornire dupa o inchidere neasteptata. S-a oprit la: ${raport.crashedAt}`
   });
