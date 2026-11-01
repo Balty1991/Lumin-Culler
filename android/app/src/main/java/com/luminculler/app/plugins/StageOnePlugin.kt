@@ -6,7 +6,9 @@ import android.graphics.Color
 import android.graphics.Matrix
 import android.media.ExifInterface
 import android.net.Uri
+import android.provider.MediaStore
 import android.util.Base64
+import android.util.Size
 import com.getcapacitor.JSArray
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
@@ -75,7 +77,50 @@ class StageOnePlugin : Plugin() {
         }
     }
 
+    /**
+     * Miniatura MediaStore e deja orientată și decodată de sistem (de obicei
+     * ~512 px). Evită citirea JPEG-ului de 12 MP doar pentru amprentă.
+     * Dimensiunea reală vine din coloanele WIDTH/HEIGHT, nu din miniatură.
+     */
+    private fun systemThumb(uri: Uri): Bitmap? {
+        return try {
+            context.contentResolver.loadThumbnail(uri, Size(PREVIEW_MAX, PREVIEW_MAX), null)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun storedSize(uri: Uri): Pair<Int, Int>? {
+        val projection = arrayOf(
+            MediaStore.MediaColumns.WIDTH,
+            MediaStore.MediaColumns.HEIGHT,
+            MediaStore.MediaColumns.ORIENTATION
+        )
+        return try {
+            context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                if (!cursor.moveToFirst()) return null
+                var w = cursor.getInt(0)
+                var h = cursor.getInt(1)
+                val orientation = if (cursor.columnCount > 2) cursor.getInt(2) else 0
+                if (w <= 0 || h <= 0) return null
+                if (orientation == 90 || orientation == 270) {
+                    val swap = w
+                    w = h
+                    h = swap
+                }
+                w to h
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     private fun fingerprintUri(uri: Uri): JSObject {
+        val thumb = systemThumb(uri)
+        if (thumb != null) {
+            val size = storedSize(uri)
+            return pack(thumb, size?.first ?: thumb.width, size?.second ?: thumb.height)
+        }
         val resolver = context.contentResolver
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
@@ -90,20 +135,23 @@ class StageOnePlugin : Plugin() {
         val oriented = rotate(decoded, rotation)
         if (oriented !== decoded) decoded.recycle()
 
-        val hash = dHash(oriented)
-        val metrics = thumbMetrics(oriented)
-        val paper = paperScore(oriented)
-        val preview = jpegBase64(oriented, PREVIEW_MAX, 75)
-        val thumb = jpegBase64(oriented, THUMB_MAX, 70)
-        val lqip = jpegBase64(oriented, LQIP_MAX, 50)
-        oriented.recycle()
-
         var fullW = srcW
         var fullH = srcH
         if (rotation == 90 || rotation == 270) {
             fullW = srcH
             fullH = srcW
         }
+        return pack(oriented, fullW, fullH)
+    }
+
+    private fun pack(bitmap: Bitmap, fullW: Int, fullH: Int): JSObject {
+        val hash = dHash(bitmap)
+        val metrics = thumbMetrics(bitmap)
+        val paper = paperScore(bitmap)
+        val preview = jpegBase64(bitmap, PREVIEW_MAX, 75)
+        val thumb = jpegBase64(bitmap, THUMB_MAX, 70)
+        val lqip = jpegBase64(bitmap, LQIP_MAX, 50)
+        bitmap.recycle()
         return JSObject().apply {
             put("dHash", hash.bits)
             put("width", fullW)

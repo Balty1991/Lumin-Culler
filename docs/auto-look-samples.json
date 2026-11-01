@@ -1,0 +1,162 @@
+{
+  "width": 1016,
+  "height": 356,
+  "scenes": [
+    {
+      "name": "dark",
+      "ms": 23.5,
+      "issues": [
+        "underexposed"
+      ],
+      "before": 0.08,
+      "after": 0.254,
+      "castBefore": 0,
+      "castAfter": -0.03
+    },
+    {
+      "name": "bright",
+      "ms": 20.4,
+      "issues": [
+        "overexposed",
+        "haze",
+        "soft",
+        "dullSky"
+      ],
+      "before": 0.897,
+      "after": 0.713,
+      "castBefore": -0.02,
+      "castAfter": 0.005
+    },
+    {
+      "name": "backlit",
+      "ms": 8.9,
+      "issues": [
+        "backlit",
+        "cast"
+      ],
+      "before": 0.75,
+      "after": 0.796,
+      "castBefore": -0.063,
+      "castAfter": -0.084
+    },
+    {
+      "name": "blue-cast",
+      "ms": 10,
+      "issues": [
+        "cast",
+        "flat",
+        "soft"
+      ],
+      "before": 0.47,
+      "after": 0.478,
+      "castBefore": 0.28,
+      "castAfter": 0.225
+    },
+    {
+      "name": "tungsten",
+      "ms": 6.2,
+      "issues": [
+        "cast",
+        "flat",
+        "soft"
+      ],
+      "before": 0.507,
+      "after": 0.496,
+      "castBefore": -0.392,
+      "castAfter": -0.314
+    },
+    {
+      "name": "haze",
+      "ms": 6,
+      "issues": [
+        "haze",
+        "soft",
+        "dullSky"
+      ],
+      "before": 0.697,
+      "after": 0.676,
+      "castBefore": 0.012,
+      "castAfter": 0.039
+    },
+    {
+      "name": "night-noise",
+      "ms": 10.3,
+      "issues": [
+        "underexposed",
+        "noise"
+      ],
+      "before": 0.101,
+      "after": 0.271,
+      "castBefore": 0,
+      "castAfter": -0.131
+    },
+    {
+      "name": "flat",
+      "ms": 6.8,
+      "issues": [
+        "haze",
+        "soft"
+      ],
+      "before": 0.471,
+      "after": 0.459,
+      "castBefore": 0.008,
+      "castAfter": 0.011
+    },
+    {
+      "name": "dull-sky",
+      "ms": 6.8,
+      "issues": [
+        "haze",
+        "soft",
+        "dullSky"
+      ],
+      "before": 0.489,
+      "after": 0.445,
+      "castBefore": -0.038,
+      "castAfter": -0.022
+    },
+    {
+      "name": "red-eye",
+      "ms": 4.5,
+      "issues": [
+        "underexposed",
+        "cast",
+        "haze",
+        "soft",
+        "redEye"
+      ],
+      "before": 0.359,
+      "after": 0.36,
+      "castBefore": -0.057,
+      "castAfter": 0.067
+    },
+    {
+      "name": "portrait",
+      "ms": 5.3,
+      "issues": [
+        "underexposed",
+        "soft",
+        "skin"
+      ],
+      "before": 0.233,
+      "after": 0.31,
+      "castBefore": 0.019,
+      "castAfter": 0.007
+    },
+    {
+      "name": "landscape",
+      "ms": 5.7,
+      "issues": [
+        "underexposed",
+        "cast",
+        "haze",
+        "soft",
+        "dullSky"
+      ],
+      "before": 0.416,
+      "after": 0.43,
+      "castBefore": 0.011,
+      "castAfter": -0.01
+    }
+  ]
+}

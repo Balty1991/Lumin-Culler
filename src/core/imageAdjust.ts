@@ -12,6 +12,7 @@ import { buildChannelLuts, hasNoCurves, type PhotoCurves, type CurvePoint } from
 import { applyControlPoint, hasNoControlPoints, isNeutralControlPoint, type ControlPoint } from './selectiveEdit';
 import { applyHslBands, isNeutralBands, type HslBands } from './hslBands';
 import { applyHealStrokes, type HealStroke } from './spotHeal';
+import { applySubjectFinish } from './autoLook';
 
 export interface EditAdjustments {
   exposure: number;    // -100..100
@@ -134,6 +135,15 @@ export interface EditAdjustments {
    * estompeaza tot mai mult cu departarea. Vezi applyBokeh.
    */
   bokehFocusY?: number;
+  /**
+   * Lumină de portret, 0..100: fața (faceBoxes) se deschide local, fără să
+   * tragă tot cadrul. Vezi applySubjectFinish în core/autoLook.ts.
+   */
+  relight?: number;
+  /** 0..100. Stinge pupilele roșii din casetele de față. 0 = nu se atinge nimic. */
+  redEye?: number;
+  /** Fețe normalizate 0..1, pentru relight și ochi roșii. Nu schimbă cadrul. */
+  faceBoxes?: { box: [number, number, number, number] }[];
   /** Reglaj pe game de culoare (nuanta/saturatie/luminozitate per familie) — vezi core/hslBands.ts. Absent = neatins. */
   hsl?: HslBands;
   /** Curbele tonale (master + R/G/B) — vezi core/toneCurve.ts. Absent = liniare. */
@@ -146,7 +156,8 @@ export interface EditAdjustments {
 
 export const NEUTRAL_ADJUSTMENTS: EditAdjustments = {
   exposure: 0, contrast: 0, saturation: 0, temperature: 0, tint: 0, highlights: 0, shadows: 0, rotationDeg: 0,
-  whites: 0, blacks: 0, sharpen: 0, clarity: 0, noiseReduction: 0, toneMap: 0, vignette: 0, dehaze: 0, bw: 0, grade: 0, grain: 0, bokeh: 0, sky: 0
+  whites: 0, blacks: 0, sharpen: 0, clarity: 0, noiseReduction: 0, toneMap: 0, vignette: 0, dehaze: 0, bw: 0, grade: 0, grain: 0, bokeh: 0, sky: 0,
+  relight: 0, redEye: 0
 };
 
 /**
@@ -156,7 +167,7 @@ export const NEUTRAL_ADJUSTMENTS: EditAdjustments = {
  * Tipul e exportat ca sa nu mai fie nevoie ca UI-ul sa repete lista de excluderi
  * (si sa o uite la urmatorul instrument adaugat — exact ce s-a intamplat).
  */
-export type NumericAdjustmentKey = Exclude<keyof EditAdjustments, 'crop' | 'curves' | 'controlPoints' | 'heal' | 'hsl' | 'bokehSubject' | 'bokehMask' | 'bokehFocusY' | 'bwMix'>;
+export type NumericAdjustmentKey = Exclude<keyof EditAdjustments, 'crop' | 'curves' | 'controlPoints' | 'heal' | 'hsl' | 'bokehSubject' | 'bokehMask' | 'bokehFocusY' | 'bwMix' | 'faceBoxes'>;
 const ADJUSTMENT_KEYS = Object.keys(NEUTRAL_ADJUSTMENTS) as NumericAdjustmentKey[];
 
 /**
@@ -611,12 +622,15 @@ export function drawAdjusted(
   const bokeh = a.bokeh ?? 0;
   const hasHsl = !isNeutralBands(a.hsl);
   const sky = a.sky ?? 0;
+  const relight = a.relight ?? 0;
+  const redEyeAmt = a.redEye ?? 0;
   // Bokeh-ul se face INAINTE de pasul pe pixeli: e o operatie pe canvas
   // (redesenare estompata plus masca), nu una per pixel, iar tot ce vine dupa —
   // curbe, vinieta, culoare — trebuie sa cada peste rezultatul lui, nu sub el.
   if (bokeh > 0) applyBokeh(ctx, healed ?? source, sourceWidth, sourceHeight, width, height, a, bokeh);
 
-  if (!hasColorShift && !hasDetailPass && !luts && activePoints.length === 0 && vignette === 0 && grade === 0 && grain === 0 && dehaze === 0 && bw === 0 && !hasHsl && sky === 0) return;
+  const hasSubject = (relight > 0 || redEyeAmt > 0) && !!a.faceBoxes?.length;
+  if (!hasColorShift && !hasDetailPass && !luts && activePoints.length === 0 && vignette === 0 && grade === 0 && grain === 0 && dehaze === 0 && bw === 0 && !hasHsl && sky === 0 && !hasSubject) return;
 
   const imgData = ctx.getImageData(0, 0, width, height);
   const d = imgData.data;
@@ -719,6 +733,7 @@ export function drawAdjusted(
   // Vinieta ULTIMA: e un efect de obiectiv, se aseaza peste imaginea finita,
   // nu peste una careia urmeaza sa i se mai schimbe contrastul.
   if (vignette !== 0) applyVignette(d, width, height, vignette);
+  if (hasSubject) applySubjectFinish(d, width, height, relight, redEyeAmt, a.faceBoxes);
 
   ctx.putImageData(imgData, 0, 0);
 }

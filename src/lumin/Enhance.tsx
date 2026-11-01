@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { db } from '../core/db';
 import { overcastSkyShare, computeAutoAdjustments, computeAutoStraighten, drawAdjusted, NEUTRAL_ADJUSTMENTS, outputSize, subjectFromFaces, type EditAdjustments } from '../core/imageAdjust';
+import { measureFrame, mergeRecipe, recipeFromStats, type LookIssue, type LookFace } from '../core/autoLook';
 import { getCachedPreviewUrl, getDisplayUrl } from '../core/previewUrlCache';
 import { canSharpen, sharpUrl } from './sharp';
 import { isNativeSegmentationAvailable, segmentPersonMask } from '../core/nativeSegmentation';
@@ -11,6 +12,7 @@ import { FREE_DAILY, cloudAvailable, cloudGrade, ensureCloud } from './cloud';
 import { saveEditedBlob } from './saveEdited';
 import { useTr } from './context';
 import { analysisPool } from '../core/workerPool';
+import { vibrate } from '../ui/haptics';
 
 /**
  * lumin/Enhance.tsx
@@ -38,14 +40,15 @@ const STYLE_ADD: Record<EnhanceStyle, Partial<Record<keyof EditAdjustments, numb
   // (raportat cu capturi, Natural și Clară aproape identice cu originalul).
   // Măsurat pe poza raportată: mai multă lumină, zonele luminoase nu mai coborâte (cerul
   // înnorat ieșea gri), negrul doar puțin — cum a reglat omul de mână și i-a plăcut.
-  natural: { exposure: 10, contrast: 12, saturation: 4, clarity: 8, sharpen: 10, shadows: 18, highlights: 4, whites: 10, blacks: -3 },
+  // Finisaj mic: diagnosticul (autoLook) face deja corectura mare, per poză.
+  natural: { exposure: 3, contrast: 6, saturation: 3, clarity: 4, sharpen: 4, shadows: 4, whites: 4 },
   vivid: { contrast: 18, saturation: 14, clarity: 22, sharpen: 20, dehaze: 12, shadows: 14, highlights: -14, whites: 10, blacks: -9 },
   warm: { contrast: 12, saturation: 8, temperature: 16, tint: 3, clarity: 14, sharpen: 16, shadows: 12, whites: 6, blacks: -6 },
   drama: { contrast: 26, saturation: -10, clarity: 34, sharpen: 22, dehaze: 16, vignette: 24, highlights: -28, shadows: 20 },
   // Portret: fundalul estompat în jurul fețelor, pielea moale (claritate scăzută), lumină caldă.
   // Retuș: ten mai neted (netezirea zgomotului, fără claritate), lumină caldă și blândă pe față.
   retouch: { noiseReduction: 45, clarity: -16, sharpen: 4, contrast: 2, exposure: 3, shadows: 14, highlights: -10, temperature: 5, saturation: 2, vignette: 8 },
-  portrait: { bokeh: 60, contrast: 6, saturation: 2, temperature: 6, clarity: -8, sharpen: 8, shadows: 12, highlights: -10, vignette: 16 },
+  portrait: { bokeh: 60, relight: 18, contrast: 6, saturation: 2, temperature: 6, clarity: -8, sharpen: 8, shadows: 12, highlights: -10, vignette: 16 },
   // Clar: umbrele deschise și luminile coborâte, detaliu scos în evidență (un HDR blând).
   // Cu alb și negru ținute la capete: fără ele cerul ieșea gri și poza spălată
   // (raportat cu captură, la 125%).
@@ -102,7 +105,7 @@ export function styledEdits(base: EditAdjustments, style: EnhanceStyle, amount: 
  * Corecția automată a unei poze (lumină, alb, culoare — fără decupaj sau rotire),
  * plus URL-ul imaginii din care a fost măsurată.
  */
-export async function autoEnhance(photoId: string): Promise<{ url: string; edits: EditAdjustments; tilt: number; width: number; height: number; faces: { box: [number, number, number, number] }[]; scenes: Scene[] }> {
+export async function autoEnhance(photoId: string): Promise<{ url: string; edits: EditAdjustments; tilt: number; width: number; height: number; faces: { box: [number, number, number, number] }[]; scenes: Scene[]; issues: LookIssue[] }> {
   // Pe telefon: poza clară făcută de Android (originalul direct ieșea negru pe unele telefoane).
   const source = canSharpen()
     ? sharpUrl(photoId, 1600).then(u => u ?? getCachedPreviewUrl(photoId))
@@ -128,11 +131,7 @@ export async function autoEnhance(photoId: string): Promise<{ url: string; edits
   // bine cu Luminozitate +20 pusă de mână). Măsurată pe fețe, unde sunt, altfel pe toată
   // poza; o poză deja luminoasă nu primește nimic.
   auto.exposure = Math.max(-100, Math.min(100, auto.exposure + brightnessLift(img, a?.faces)));
-  // Fără răcire: pe cer înnorat corecția de alb mergea spre albastru (−16) și poza ieșea
-  // vânătă; o încălzire ușoară rămâne, o răcire de peste −4 nu.
-  auto.temperature = Math.max(-4, auto.temperature);
-  // Ce fel de poză e (cer înnorat, mâncare, peisaj, noapte, portret): fiecare
-  // primește corectura potrivită, peste cea de bază — vezi sceneTune.
+  // Ce fel de poză e, și ce e stricat la ea (lumină, culoare, ceață, zgomot, cer, ten).
   const scene = sceneTune(img, auto, a);
   // Unde e omul (din fețele găsite la import): stilul Portret estompează în jurul lui.
   // Cu tot corpul: fără decupajul modelului, zona clară pornește de la față și coboară
@@ -147,7 +146,7 @@ export async function autoEnhance(photoId: string): Promise<{ url: string; edits
   // Orizontul strâmb (măsurat la import, doar pe pozele fără oameni): îndreptarea e o opțiune, nu implicită.
   const tilt = computeAutoStraighten({ faceCount: a?.faceCount, horizonTiltDeg: a?.horizonTiltDeg });
   return {
-    url, tilt, width: img.naturalWidth, height: img.naturalHeight, scenes: scene,
+    url, tilt, width: img.naturalWidth, height: img.naturalHeight, scenes: scene.scenes, issues: scene.issues,
     faces: (a?.faces ?? []).map(f => ({ box: f.box as [number, number, number, number] })),
     edits: { ...auto, crop: undefined, rotationDeg: 0, ...(subject ? { bokehSubject: subject } : {}) }
   };
@@ -164,7 +163,7 @@ const INDOOR = /couch|bed|dining table|tv|chair|room|kitchen|lamp|ceiling|wall|f
  * corectura automată pentru el. Întoarce scenele găsite, ca omul să vadă ce
  * a înțeles editorul („cer înnorat · portret”).
  */
-export function sceneTune(img: HTMLImageElement, e: EditAdjustments, a?: { sceneTags?: string[]; sceneSemantic?: string; faceCount?: number; faces?: { box: number[] }[] }): Scene[] {
+export function sceneTune(img: HTMLImageElement, e: EditAdjustments, a?: { sceneTags?: string[]; sceneSemantic?: string; faceCount?: number; faces?: { box: number[] }[] }): { scenes: Scene[]; issues: LookIssue[] } {
   const scenes: Scene[] = [];
   const add = (k: keyof EditAdjustments, v: number) => { (e as unknown as Record<string, number>)[k] = Math.max(-100, Math.min(100, ((e as unknown as Record<string, number>)[k] ?? 0) + v)); };
   let luma = 0.5, overcast = 0, topLum = 0, centerLum = 0, darkShare = 0, brightShare = 0;
@@ -208,7 +207,22 @@ export function sceneTune(img: HTMLImageElement, e: EditAdjustments, a?: { scene
   if (bigFace) { scenes.push('portrait'); add('clarity', -6); add('shadows', 4); add('temperature', 2); }
   if (topLum - centerLum > 0.28 && (a?.faceCount ?? 0) > 0) { scenes.push('backlit'); add('shadows', 10); add('highlights', -8); }
   if (!scenes.includes('night') && INDOOR.test(tags) && luma < 0.42) { scenes.push('indoor'); add('temperature', -3); add('exposure', 6); add('noiseReduction', 10); }
-  return scenes;
+  let issues: LookIssue[] = [];
+  try {
+    const px = document.createElement('canvas');
+    px.width = 96; px.height = 96;
+    const pctx = px.getContext('2d', { willReadFrequently: true });
+    if (pctx) {
+      pctx.drawImage(img, 0, 0, 96, 96);
+      const frame = pctx.getImageData(0, 0, 96, 96);
+      const faces: LookFace[] = (a?.faces ?? []).map(f => ({ box: [f.box[0] ?? 0, f.box[1] ?? 0, f.box[2] ?? 0, f.box[3] ?? 0] }));
+      const recipe = recipeFromStats(measureFrame(frame.data, 96, 96, faces, 1), faces);
+      issues = recipe.issues;
+      const merged = mergeRecipe(e, recipe);
+      Object.assign(e, merged);
+    }
+  } catch { /* diagnosticul e un plus; corectura de bază rămâne */ }
+  return { scenes, issues };
 }
 
 /** Cât să se deschidă lumina (0..24): fețele spre ~62% luminozitate, poza întreagă spre ~52%. */
@@ -241,27 +255,15 @@ function brightnessLift(img: HTMLImageElement, faces?: readonly { box: [number, 
 }
 
 /**
- * Rezerva lui „Auto AI”, pe telefon: tonurile medii spre ~52%, umbrele deschise
- * când e închisă, o nuanță rece încălzită puțin. Doar corecturi mici (±20).
+ * „Auto AI” pe telefon, când serverul nu răspunde: aceeași rețetă ca editorul,
+ * citită de pe varianta deja corectată. Nu depinde de cotă și nu pleacă nicăieri.
  */
-export function localGrade(ctx: CanvasRenderingContext2D, w: number, h: number): { values: Record<string, number>; reason: string } {
-  const d = ctx.getImageData(0, 0, w, h).data;
-  let sum = 0, r = 0, b = 0, dark = 0;
-  const n = d.length / 4;
-  for (let i = 0; i < d.length; i += 4) {
-    const y = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255;
-    sum += y; r += d[i]; b += d[i + 2];
-    if (y < 0.2) dark++;
-  }
-  const luma = sum / n;
-  const values: Record<string, number> = {};
-  const exposure = Math.round(Math.max(-10, Math.min(20, (0.52 - luma) * 70)));
-  if (exposure) values.exposure = exposure;
-  if (dark / n > 0.12) values.shadows = Math.min(20, Math.round((dark / n) * 60));
-  const cast = (b - r) / n / 255;
-  if (cast > 0.02) values.temperature = Math.min(12, Math.round(cast * 150));
-  values.saturation = 4;
-  return { values, reason: '' };
+export function localGrade(ctx: CanvasRenderingContext2D, w: number, h: number): { values: Record<string, number>; issues: LookIssue[] } {
+  const frame = ctx.getImageData(0, 0, w, h);
+  const recipe = recipeFromStats(measureFrame(frame.data, w, h, [], 2));
+  const values: Record<string, number> = { ...recipe.adjustments };
+  if (recipe.relight) values.relight = recipe.relight;
+  return { values, issues: recipe.issues };
 }
 
 /** „Fă-le pe toate mai frumoase”: stilul Natural pe fiecare, salvate ca și copii. */
@@ -382,7 +384,8 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   }, [base, style, amount, rotation, crop, manual, personMask]);
   const styles = ENHANCE_STYLES.filter(st => !NEEDS_FACE.has(st) || !!base?.bokehSubject);
   const [failed, setFailed] = useState(false);
-  const [split, setSplit] = useState(50);
+  const [split, setSplit] = useState(100);
+  const revealed = useRef(false);
   const [saving, setSaving] = useState(false);
   const stage = useRef<HTMLDivElement>(null);
   // Cât editezi, citirea galeriei din fundal stă (altfel reglajele merg sacadat).
@@ -397,20 +400,39 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   }, []);
   const dragging = useRef(false);
   const [scenes, setScenes] = useState<Scene[]>([]);
+  const [issues, setIssues] = useState<LookIssue[]>([]);
 
   useEffect(() => {
     let alive = true;
     void (async () => {
-      const { url, edits: lightOnly, tilt: t, width, height, faces, scenes: found } = await autoEnhance(photo.id);
+      const { url, edits: lightOnly, tilt: t, width, height, faces, scenes: found, issues: foundIssues } = await autoEnhance(photo.id);
       if (!alive) return;
       setScenes(found);
+      setIssues(foundIssues);
       setGeo({ width, height, faces });
       setTilt(t);
+      if (Math.abs(t) >= 1.5) setStraight(true);
       setSrc(url);
       setBase(lightOnly);
     })().catch(() => { if (alive) setFailed(true); });
     return () => { alive = false; };
   }, [photo.id]);
+
+  useEffect(() => {
+    if (!src || revealed.current) return;
+    revealed.current = true;
+    const t0 = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      if (dragging.current) return;
+      const t = Math.min(1, (now - t0) / 1100);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setSplit(100 - eased * 50);
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [src]);
 
   const move = (e: PointerEvent<HTMLDivElement>) => {
     const box = stage.current?.getBoundingClientRect();
@@ -423,33 +445,37 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   const [aiReason, setAiReason] = useState('');
   const aiAuto = async () => {
     if (!src || !edits) return;
-    if (!(await ensureCloud(useStore.getState().askConfirm, tr))) return;
     setAiBusy(true);
     try {
       const img = await createImageBitmap(await (await fetch(src)).blob());
-      const k = Math.min(1, 512 / Math.max(img.width, img.height));
+      const k = Math.min(1, 384 / Math.max(img.width, img.height));
       const c = document.createElement('canvas');
-      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.width = Math.max(1, Math.round(img.width * k)); c.height = Math.max(1, Math.round(img.height * k));
       const ctx = c.getContext('2d');
       if (!ctx) return;
       drawAdjusted(ctx, img, img.width, img.height, c.width, c.height, { ...edits, crop: undefined, bokehMask: undefined, bokeh: 0 });
-      const got = await cloudGrade(c.toDataURL('image/jpeg', 0.85).split(',')[1]);
+      const online = cloudAvailable() && await ensureCloud(useStore.getState().askConfirm, tr);
+      const got = online ? await cloudGrade(c.toDataURL('image/jpeg', 0.72).split(',')[1]) : null;
       // AI-ul online n-a răspuns (rețea, limită, model ocupat): nu lăsăm butonul
       // fără efect — o corectură măsurată pe telefon, pe varianta de acum.
-      let r = got && got !== 'limit' && got !== 'budget' ? got : null;
-      if (!r) {
-        r = localGrade(ctx, c.width, c.height);
+      const local = localGrade(ctx, c.width, c.height);
+      const remote = got && got !== 'limit' && got !== 'budget' ? got : null;
+      if (!remote) {
         useStore.getState().setNotice(got === 'limit' ? tr('lx.enhance.aiLimit', { count: FREE_DAILY.grade }) : got === 'budget' ? tr('lx.cloud.budget') : tr('lx.enhance.aiLocal'));
       }
+      if (local.issues.length) setIssues(prev => [...new Set([...prev, ...local.issues])]);
       setManual(v => {
         const n = { ...v };
-        for (const [key, val] of Object.entries(r.values)) {
-          if (!MANUAL.light.some(m => m.key === key) && !MANUAL.color.some(m => m.key === key)) continue;
+        const apply = (key: string, val: number) => {
+          if (!MANUAL.light.some(m => m.key === key) && !MANUAL.color.some(m => m.key === key)) return;
           n[key as ManualKey] = Math.max(-100, Math.min(100, (n[key as ManualKey] ?? 0) + val));
-        }
+        };
+        // Telefonul întâi, ca butonul să nu rămână mut. Serverul, dacă răspunde, adaugă un pas mic.
+        for (const [key, val] of Object.entries(local.values)) apply(key, Math.round(val * 0.65));
+        if (remote) for (const [key, val] of Object.entries(remote.values)) apply(key, val);
         return n;
       });
-      setAiReason(r.reason);
+      setAiReason(remote?.reason || '');
     } finally { setAiBusy(false); }
   };
 
@@ -473,11 +499,13 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
             drawAdjusted(ctx, img, img.width, img.height, o.width, o.height, edits);
             const blob = await new Promise<Blob | null>(r => c.toBlob(r, 'image/jpeg', 0.94));
             const ok = blob ? await saveEditedBlob(blob, 'portret') : false;
+            if (ok) vibrate(12);
             useStore.getState().setNotice(tr(ok ? 'lx.magic.saved' : 'lx.magic.failed'));
             if (ok) { onClose(); return; }
           }
         }
       }
+      vibrate(12);
       await addCorrectedCopies([{ sourceId: photo.id, adjustments: edits }]);
       // Aceeași lumină pentru toată ziua: celelalte poze păstrate din aceeași zi au de
       // obicei aceeași lumină, deci primesc aceleași reglaje (fără decupaj și fără estompare).
@@ -536,9 +564,11 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
               ))}
             </div>
             {learned && Object.keys(manual).length > 0 && <p className="lx-hint">{tr('lx.enhance.learned')}</p>}
-            {panel === 'styles' && (scenes.length > 0 || cloudAvailable()) && (
+            {panel === 'styles' && (scenes.length > 0 || issues.length > 0 || cloudAvailable()) && (
               <div className="lx-enhance-meta">
-                <span>{scenes.length > 0 ? `🔍 ${tr('lx.enhance.saw', { what: scenes.map(sc => tr(`lx.enhance.scene.${sc}`)).join(' · ') })}` : aiReason}</span>
+                <span>{issues.length > 0
+                  ? tr('lx.enhance.fixed', { what: issues.map(id => tr(`lx.enhance.issue.${id}`)).join(' · ') })
+                  : scenes.length > 0 ? `🔍 ${tr('lx.enhance.saw', { what: scenes.map(sc => tr(`lx.enhance.scene.${sc}`)).join(' · ') })}` : aiReason}</span>
                 {cloudAvailable() && (
                   <button className="lx-chip-btn" disabled={aiBusy} onClick={() => void aiAuto()}>{aiBusy ? `… ${tr('lx.enhance.aiWorking')}` : `✨ ${tr('lx.enhance.aiAuto')}`}</button>
                 )}

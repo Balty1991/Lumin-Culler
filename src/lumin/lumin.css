@@ -1120,3 +1120,23 @@ html, body { overflow-x: hidden; }
   -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent);
           mask-image: linear-gradient(90deg, #000 88%, transparent);
 }
+
+/* Sistem vizual 2026: dock cu pastilă, schelet la încărcare, linia înainte/după. */
+.lx-dock > button.on:not(.lx-dock-add) {
+  background: rgb(var(--accent-rgb) / 0.16);
+  border-radius: 18px;
+  margin: 8px 6px;
+  height: calc(100% - 16px);
+}
+.lx-shimmer, .lx-enhance-wait {
+  background-image: linear-gradient(100deg, transparent 20%, rgb(255 255 255 / 0.07) 42%, transparent 64%);
+  background-size: 220% 100%;
+  animation: lx-shimmer 1.3s ease-in-out infinite;
+}
+@keyframes lx-shimmer { from { background-position: 120% 0; } to { background-position: -120% 0; } }
+.lx-enhance-line {
+  transition: left 0.08s linear;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lx-shimmer, .lx-enhance-wait, .lx-orb-core, .lx-tabpane:not([hidden]) { animation: none; }
+}

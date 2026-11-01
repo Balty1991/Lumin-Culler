@@ -25,6 +25,7 @@
  *   POST /v1/report      { id, reason } → raportare conținut (cerință Google Play pentru AI)
  */
 import { GRADE_PROMPT, normalizeGrade, parseGradeReply, validateGrade, CF_INPAINT_MODELS, inpaintPrompt, validateInpaint, admit, backgroundPrompt, budgetKey, CF_IMG2IMG_MODELS, CF_TEXT2IMG_MODELS, CF_TEXT_MODELS, CF_VISION_MODELS, cfRequest, day, EXTRA_DAILY_LIMIT, EXTRA_KINDS, modelUnavailable, parseJsonReply, validateBackground, validateConcepts, conceptsPrompt, validateDescribe, VISION_PROMPT, writerPrompt, validateSupervise, supervisePrompt, normalizeVerdicts, SUPERVISE_VISION_PROMPT, type ExtraKind, COST_USD, DEFAULT_MODELS, falRequest, kindsFor, mapStatus, quotaKey, resultUrl, validateCreate, type Kind } from './logic';
+import { geminiGradeBody, gradeCacheKey, providerOrder, textFromGemini } from './providers';
 
 export interface Env {
   FAL_KEY?: string;
@@ -33,6 +34,10 @@ export interface Env {
   DAILY_BUDGET_USD?: string;
   ALIVE_MODEL?: string;
   STYLE_MODEL?: string;
+  /** "workers,gemini" — primul care răspunde câștigă. Fără cheie, gemini e sărit. */
+  AI_PROVIDERS?: string;
+  GEMINI_API_KEY?: string;
+  GEMINI_MODEL?: string;
 }
 
 interface JobRecord {
@@ -183,27 +188,54 @@ export default {
       const v = validateGrade(body);
       if (!v.ok) return json({ error: v.error }, 400);
       if (!(await takeExtra(env, 'grade', v.installId, now))) return json({ error: 'daily_limit' }, 429);
+      const cacheKey = gradeCacheKey(v.image);
       try {
-        const bytes = Array.from(Uint8Array.from(atob(v.image), (c) => c.charCodeAt(0)));
-        const r = await runFirst(env, CF_VISION_MODELS, (model) => model.includes('llava')
-          ? { image: bytes, prompt: GRADE_PROMPT, max_tokens: 320 }
-          : { messages: [{ role: 'user', content: [{ type: 'text', text: GRADE_PROMPT }, { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${v.image}` } }] }], max_tokens: 320 });
-        const grade = normalizeGrade(parseGradeReply(textOf(r.out)));
-        if (!grade) return json({ error: 'bad_reply' }, 502);
-        let reason = grade.reason;
-        if (reason && v.lang !== 'en') {
-          const t = await runFirst(env, CF_TEXT_MODELS, () => ({
-            messages: [
-              { role: 'system', content: `Translate to ${v.lang === 'ro' ? 'Romanian' : v.lang}. Output only the translation.` },
-              { role: 'user', content: reason }
-            ], max_tokens: 60
-          })).catch(() => null);
-          if (t) reason = textOf(t.out) || reason;
+        const hit = await env.LIMITS.get(cacheKey);
+        if (hit) return json(JSON.parse(hit));
+      } catch { /* cache-ul e un plus, nu o condiție */ }
+      let last = 'no_provider';
+      for (const name of providerOrder(env.AI_PROVIDERS)) {
+        try {
+          if (name === 'gemini') {
+            if (!env.GEMINI_API_KEY) continue;
+            const model = env.GEMINI_MODEL || 'gemini-2.5-flash';
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+              method: 'POST',
+              headers: { 'content-type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY },
+              body: JSON.stringify(geminiGradeBody(v.image, GRADE_PROMPT))
+            });
+            if (!res.ok) { last = await res.text(); continue; }
+            const grade = normalizeGrade(parseGradeReply(textFromGemini(await res.json())));
+            if (!grade) { last = 'bad_reply'; continue; }
+            const payload = { values: grade.values, reason: grade.reason, model: `gemini:${model}` };
+            await env.LIMITS.put(cacheKey, JSON.stringify(payload), { expirationTtl: DAY_S }).catch(() => {});
+            return json(payload);
+          }
+          const bytes = Array.from(Uint8Array.from(atob(v.image), (c) => c.charCodeAt(0)));
+          const r = await runFirst(env, CF_VISION_MODELS, (model) => model.includes('llava')
+            ? { image: bytes, prompt: GRADE_PROMPT, max_tokens: 220 }
+            : { messages: [{ role: 'user', content: [{ type: 'text', text: GRADE_PROMPT }, { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${v.image}` } }] }], max_tokens: 220 });
+          const grade = normalizeGrade(parseGradeReply(textOf(r.out)));
+          if (!grade) { last = 'bad_reply'; continue; }
+          let reason = grade.reason;
+          if (reason && v.lang !== 'en') {
+            const t = await runFirst(env, CF_TEXT_MODELS, () => ({
+              messages: [
+                { role: 'system', content: `Translate to ${v.lang === 'ro' ? 'Romanian' : v.lang}. Output only the translation.` },
+                { role: 'user', content: reason }
+              ], max_tokens: 60
+            })).catch(() => null);
+            if (t) reason = textOf(t.out) || reason;
+          }
+          const payload = { values: grade.values, reason, model: r.model };
+          await env.LIMITS.put(cacheKey, JSON.stringify(payload), { expirationTtl: DAY_S }).catch(() => {});
+          return json(payload);
+        } catch (e) {
+          last = String((e as Error)?.message ?? e);
+          continue;
         }
-        return json({ values: grade.values, reason, model: r.model });
-      } catch (e) {
-        return aiError(e);
       }
+      return aiError(new Error(last));
     }
 
     if (request.method === 'POST' && url.pathname === '/v1/describe') {

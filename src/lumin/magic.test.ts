@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { aiSize, maskBounds, maskCoverage, skyMask } from './magic';
+import { aiSize, fillMasked, maskBounds, maskCoverage, skyMask } from './magic';
 
 function image(w: number, h: number, px: (x: number, y: number) => [number, number, number]): Uint8ClampedArray {
   const d = new Uint8ClampedArray(w * h * 4);
@@ -34,6 +34,17 @@ describe('magic', () => {
     expect(r.x + r.w).toBeGreaterThan(50);
     expect(r.x).toBeGreaterThanOrEqual(0);
     expect(maskBounds(new Uint8Array(4), 2, 2)).toBeNull();
+  });
+
+  it('cerul gri devine albastru doar în mască', () => {
+    const w = 12, h = 10;
+    const d = image(w, h, () => [180, 180, 180]);
+    const mask = new Uint8Array(w * h);
+    for (let i = 0; i < w * 4; i++) mask[i] = 1;
+    fillMasked(d, mask, w, h, 'sky-blue');
+    expect(d[2]).toBeGreaterThan(d[0]);
+    const ground = (h - 1) * w * 4;
+    expect(d[ground]).toBe(180);
   });
 
   it('mărimea pentru AI păstrează proporția, în multipli de 64', () => {

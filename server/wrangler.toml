@@ -9,6 +9,10 @@ DAILY_BUDGET_USD = "5"
 # Modelele fal.ai; se pot schimba fără cod nou în aplicație.
 ALIVE_MODEL = "fal-ai/kling-video/v2.1/standard/image-to-video"
 STYLE_MODEL = "fal-ai/flux-pro/kontext"
+# Primul furnizor care răspunde. gemini e sărit dacă nu există secretul GEMINI_API_KEY.
+# Secretele NU se pun aici: `npx wrangler secret put GEMINI_API_KEY`
+AI_PROVIDERS = "workers,gemini"
+GEMINI_MODEL = "gemini-2.5-flash"
 
 # Workers AI: stilurile gratuite, când nu e pusă o cheie fal.ai.
 [ai]

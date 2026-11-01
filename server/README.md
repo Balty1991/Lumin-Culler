@@ -24,6 +24,10 @@ pentru aplicațiile cu AI generativ) se păstrează 90 de zile.
    GitHub Actions, vezi `release-android.yml`). Fără ea, efectele apar în
    aplicație ca „În curând” și nu se trimite nimic nicăieri.
 
+## Auto AI, cer și gumă
+
+Corecția de lumină și culoare stă pe telefon și nu trece pe aici. Serverul e doar rafinarea, când răspunde. Dacă Workers rămâne fără neuroni, se încearcă Gemini (`GEMINI_API_KEY`, secret, nu în git), apoi aplicația corectă local. Comparația de preț și ce cont trebuie deschis sunt în `docs/AI_PROVIDERS.md`.
+
 ## Costuri și limite
 
 - `DAILY_BUDGET_USD` (în `wrangler.toml`, implicit 5 $) oprește toate

@@ -67,6 +67,55 @@ export function maskBounds(mask: Uint8Array, w: number, h: number, pad = 0.35): 
   return { x: Math.round(x), y: Math.round(y), w: Math.round(cw), h: Math.round(ch) };
 }
 
+export type LocalFill = 'erase' | 'sky-blue' | 'sky-sunset';
+
+/**
+ * Cer nou sau gumă, fără server: cerul primește un gradient, zona ștearsă
+ * ia culoarea celui mai apropiat pixel nemarcat. Marginea se amestecă puțin
+ * cu originalul, ca să nu taie cu foarfeca.
+ */
+export function fillMasked(rgba: Uint8ClampedArray, mask: Uint8Array, w: number, h: number, mode: LocalFill): void {
+  const src = rgba.slice();
+  const nearest = (x: number, y: number): number => {
+    for (let rad = 1; rad <= 24; rad++) {
+      for (let dy = -rad; dy <= rad; dy++) {
+        const yy = y + dy;
+        if (yy < 0 || yy >= h) continue;
+        const xs = dy === -rad || dy === rad ? null : [x - rad, x + rad];
+        const row = xs ?? Array.from({ length: rad * 2 + 1 }, (_, k) => x - rad + k);
+        for (const xx of row) {
+          if (xx < 0 || xx >= w) continue;
+          const q = yy * w + xx;
+          if (!mask[q]) return q;
+        }
+      }
+    }
+    return -1;
+  };
+  for (let y = 0; y < h; y++) {
+    const t = h <= 1 ? 0 : y / (h - 1);
+    for (let x = 0; x < w; x++) {
+      const p = y * w + x;
+      if (!mask[p]) continue;
+      const i = p * 4;
+      let tr: number, tg: number, tb: number;
+      if (mode === 'erase') {
+        const q = nearest(x, y);
+        if (q < 0) continue;
+        tr = src[q * 4]; tg = src[q * 4 + 1]; tb = src[q * 4 + 2];
+      } else if (mode === 'sky-blue') {
+        tr = 78 + t * 50; tg = 150 + t * 28; tb = 230 - t * 24;
+      } else {
+        tr = 250 - t * 30; tg = 120 + t * 40; tb = 64 + t * 50;
+      }
+      const keep = 0.18;
+      rgba[i] = Math.round(tr * (1 - keep) + src[i] * keep);
+      rgba[i + 1] = Math.round(tg * (1 - keep) + src[i + 1] * keep);
+      rgba[i + 2] = Math.round(tb * (1 - keep) + src[i + 2] * keep);
+    }
+  }
+}
+
 /** Mărimea trimisă la AI: latura lungă 512, ambele multiplu de 64, proporția păstrată cât se poate. */
 export function aiSize(w: number, h: number): { width: number; height: number } {
   const k = 512 / Math.max(w, h);

@@ -153,10 +153,10 @@ export { SELECT_THRESHOLD, REJECT_THRESHOLD } from './scoreThresholds';
 export const TEXT_DOMINANT_THRESHOLD = 0.15;
 
 /** Câte îmbogățiri de după primul rezultat (ochi, persoane, animale) rulează deodată. */
-const POST_CONCURRENCY = 2;
+const POST_CONCURRENCY = 4;
 
 /** Câte poze dintr-un lot se pregătesc și se analizează deodată. */
-const IMPORT_LANES = 3;
+const IMPORT_LANES = 4;
 
 /** Limitator simplu: cel mult `n` funcții rulează deodată, celelalte așteaptă la rând. */
 function createLanes(n: number) {
@@ -1377,24 +1377,45 @@ export async function importFiles(
     onPhoto(item);
   };
 
-  const runHeavy = async (myIndex: number) => {
-    const ready = staged[myIndex];
+  const committed = new Map<number, { item: ImportedPhoto; persisted: Promise<void> }>();
+  const upgrading = new Set<number>();
+  const upgrades: Promise<void>[] = [];
+  const upgradeIndex = async (myIndex: number) => {
+    const row = committed.get(myIndex);
     const image = images[myIndex];
-    if (!ready || !image) return;
-    await ensureModels();
-    if (cancelToken?.cancelled) { stopKind = 'cancelled'; return; }
-    const { item, persisted } = await processOne(
-      image.file, genre, project, image.handle, image.mediaUri, thresholds,
-      image.mediaUri ? mediaLocations?.get(image.mediaUri) : undefined,
-      ready,
-      true
-    );
-    const seenRow = seen.find(s => s.index === myIndex);
-    if (seenRow) seenRow.heavy = true;
-    persistedWrites.push(persisted.then(() => {
-      remember(item);
-      schedulePost(item, image.file, image.mediaUri);
-    }, err => noteFailure(image.file, err)));
+    const ready = staged[myIndex];
+    if (!row || !image || !ready || cancelToken?.cancelled) return;
+    await row.persisted.catch(() => undefined);
+    if (cancelToken?.cancelled) return;
+    try {
+      await ensureModels();
+      const bitmap = await decode(image.file, image.mediaUri);
+      const fresh = await analysisPool.analyze(row.item.photo.id, bitmap, isRawFile(image.file) ? undefined : image.mediaUri);
+      const analysis = { ...row.item.analysis, ...fresh, photoId: row.item.photo.id };
+      const prediction = await contextEngine.predict(analysis, genre);
+      analysis.aiScore = prediction.score;
+      analysis.aiFactors = prediction.topFactors;
+      analysis.aiUncertainty = prediction.uncertainty;
+      analysis.aiPersonalDelta = prediction.personalDelta;
+      if (row.item.photo.aiDecided) {
+        const next = decidePhotoStatus(prediction.score, analysis, thresholds);
+        row.item.photo.status = next;
+        row.item.analysis = analysis;
+        row.item.prediction = prediction;
+        await db.photos.update(row.item.photo.id, { status: next });
+        await db.analyses.put(analysis);
+        onPhoto(row.item);
+      }
+    } catch {
+      // decizia rapidă rămâne; modelele grele nu blochează importul
+    }
+  };
+  let batchTasks = new Map<number, Promise<void>>();
+  const queueUpgrade = (index: number) => {
+    if (upgrading.has(index)) return;
+    upgrading.add(index);
+    const wait = batchTasks.get(index) ?? Promise.resolve();
+    upgrades.push(wait.then(() => upgradeIndex(index)));
   };
 
   const schedulePost = (item: ImportedPhoto, file: File, mediaUri?: string) => {
@@ -1512,7 +1533,7 @@ export async function importFiles(
         }
       }))
     );
-    const tasks = new Map<number, Promise<void>>();
+    batchTasks = new Map<number, Promise<void>>();
     const finishOne = (fileName: string) => {
       done++;
       onProgress({ done, total: images.length, fileName, phase: 'analiza' });
@@ -1537,29 +1558,25 @@ export async function importFiles(
         if (mate.heavy) continue;
         // Marcat înainte de rulare: altă poză din lot nu-l mai programează a doua oară.
         mate.heavy = true;
-        const before = tasks.get(mate.index) ?? Promise.resolve();
-        tasks.set(mate.index, before.then(() => lane(async () => {
-          try { await runHeavy(mate.index); } catch (err) { await noteFailure(images[mate.index].file, err); }
-        })));
+        queueUpgrade(mate.index);
       }
       seen.push({ id: ready.id, hash: ready.dHash, index: myIndex, heavy, at });
-      tasks.set(myIndex, lane(async () => {
+      batchTasks.set(myIndex, lane(async () => {
         try {
-          if (stopKind || cancelToken?.cancelled) return;
-          if (heavy) {
-            await runHeavy(myIndex);
-          } else {
-            const { item, persisted } = await processOne(
-              file, genre, project, handle, mediaUri, thresholds,
-              mediaUri ? mediaLocations?.get(mediaUri) : undefined,
-              ready,
-              false
-            );
-            persistedWrites.push(persisted.then(() => {
-              remember(item);
-              schedulePost(item, file, mediaUri);
-            }, err => noteFailure(file, err)));
-          }
+          if (cancelToken?.cancelled) { stopKind = 'cancelled'; return; }
+          if (stopKind) return;
+          const { item, persisted } = await processOne(
+            file, genre, project, handle, mediaUri, thresholds,
+            mediaUri ? mediaLocations?.get(mediaUri) : undefined,
+            ready,
+            false
+          );
+          committed.set(myIndex, { item, persisted });
+          if (heavy) queueUpgrade(myIndex);
+          persistedWrites.push(persisted.then(() => {
+            remember(item);
+            schedulePost(item, file, mediaUri);
+          }, err => noteFailure(file, err)));
         } catch (err) {
           await noteFailure(file, err);
         } finally {
@@ -1567,20 +1584,23 @@ export async function importFiles(
         }
       }));
     }
-    await Promise.all(tasks.values());
+    await Promise.all(batchTasks.values());
     stage2Ms += performance.now() - decideStarted;
   }
   if (images.length) {
     record('stage1', stage1Ms);
     record('stage2', stage2Ms);
   }
-  const postStarted = performance.now();
-  await Promise.all(postJobs);
-  stage2Ms += performance.now() - postStarted;
+  // Întâi scrierea: upgrade-ul așteaptă rândul din bază, deci nu îl așteptăm înainte de flush.
   const dbStarted = performance.now();
   await flushPersist();
   await Promise.all(persistedWrites);
   dbMs += performance.now() - dbStarted;
+  // Modelele grele (serii) și ochii/animalele continuă după ce decizia rapidă e pe ecran.
+  // În teste le așteptăm, ca verificările să vadă rezultatul final.
+  const background = Promise.all([...upgrades, ...postJobs]);
+  if (import.meta.env.MODE === 'test') await background;
+  else void background.catch(() => {});
 
   const stopReason: ImportWarning | undefined = stopKind
     ? {

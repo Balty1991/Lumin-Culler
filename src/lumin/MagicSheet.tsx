@@ -2,11 +2,11 @@ import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { getDisplayUrl } from '../core/previewUrlCache';
 import { useStore, type PhotoView } from '../state/store';
-import { cloudInpaint, ensureCloud, type InpaintMode } from './cloud';
+import { cloudAvailable, cloudInpaint, ensureCloud, type InpaintMode } from './cloud';
 import { shareCollage } from './collage';
 import { saveEditedBlob } from './saveEdited';
 import { useTr } from './context';
-import { aiSize, maskBounds, maskCoverage, skyMask, type Rect } from './magic';
+import { aiSize, fillMasked, maskBounds, maskCoverage, skyMask, type Rect } from './magic';
 import { canSharpen, sharpUrl } from './sharp';
 
 /**
@@ -128,11 +128,26 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
     redraw();
   };
 
+  const finishLocal = (mode: InpaintMode) => {
+    if (!img || !mask.current) return false;
+    const [final, fctx] = canvasOf(img.width, img.height);
+    fctx.drawImage(img, 0, 0);
+    const pix = fctx.getImageData(0, 0, img.width, img.height);
+    const sample = sampledMask(mask.current, 1);
+    if (!sample.data.some(v => v)) return false;
+    fillMasked(pix.data, sample.data, img.width, img.height, mode);
+    fctx.putImageData(pix, 0, 0);
+    setResult(final);
+    setNotice(tr('lx.magic.local'));
+    return true;
+  };
+
   const run = async (mode: InpaintMode) => {
     if (!img || !mask.current) return;
-    if (!(await ensureCloud(askConfirm, tr))) return;
     setBusy(true);
     try {
+      const online = cloudAvailable() && await ensureCloud(askConfirm, tr);
+      if (!online) { finishLocal(mode); return; }
       // Bucata trimisă: pentru gumă, cutia din jurul zonei (cu context); pentru cer, toată poza.
       let r: Rect = { x: 0, y: 0, w: img.width, h: img.height };
       if (mode === 'erase') {
@@ -162,10 +177,7 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
       const [imageBlob, maskBlob] = await Promise.all([toBlob(ic, 'image/jpeg', 0.92), toBlob(mc, 'image/png')]);
       if (!imageBlob || !maskBlob) return;
       const out = await cloudInpaint(mode, imageBlob, maskBlob, size.width, size.height);
-      if (!out.ok) {
-        if (out.reason !== 'limit') setNotice(tr(out.reason === 'consent' ? 'lx.magic.consent' : out.reason === 'budget' ? 'lx.cloud.budget' : 'lx.magic.failed'));
-        return;
-      }
+      if (!out.ok) { finishLocal(mode); return; }
       const ai = await createImageBitmap(out.image);
       // Înapoi în poză: rezultatul, doar unde e masca, cu marginea estompată.
       const [final, fctx] = canvasOf(img.width, img.height);

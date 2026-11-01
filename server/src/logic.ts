@@ -216,8 +216,10 @@ export type ExtraKind = typeof EXTRA_KINDS[number];
 export const EXTRA_DAILY_LIMIT: Record<ExtraKind, number> = { background: 40, describe: 200, caption: 100, greeting: 100, story: 100, concepts: 200, supervise: 100, inpaint: 60, grade: 150 };
 
 export const CF_TEXT2IMG_MODELS = ['@cf/black-forest-labs/flux-1-schnell', '@cf/bytedance/stable-diffusion-xl-lightning'];
-export const CF_VISION_MODELS = ['@cf/meta/llama-3.2-11b-vision-instruct', '@cf/llava-hf/llava-1.5-7b-hf'];
-export const CF_TEXT_MODELS = ['@cf/meta/llama-3.3-70b-instruct-fp8-fast', '@cf/google/gemma-3-12b-it', '@cf/meta/llama-3.1-8b-instruct'];
+/** Modele mici întâi: LLaVA 7B costă mult mai puțin decât Llama 11B. Llama rămâne rezervă. */
+export const CF_VISION_MODELS = ['@cf/llava-hf/llava-1.5-7b-hf', '@cf/meta/llama-3.2-11b-vision-instruct'];
+/** 8B întâi. 70B rămâne doar dacă cele mici nu sunt pe cont. */
+export const CF_TEXT_MODELS = ['@cf/meta/llama-3.1-8b-instruct', '@cf/google/gemma-3-12b-it', '@cf/meta/llama-3.3-70b-instruct-fp8-fast'];
 
 /**
  * Promptul de fundal: ce a scris omul (orice limbă, modelul de text îl
