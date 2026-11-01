@@ -22,6 +22,8 @@ Fluxul de card rămâne. Explicația AI e tot cea de pe telefon. Nu am mutat dec
 
 „Mai frumoasă” măsoară poza și spune ce a reparat (întuneric, contralumină, culoare, ceață, zgomot, cer, ten, ochi roșii). Linia înainte/după pornește de la „doar după” și alunecă la jumătate. Îndreptarea se activează singură când orizontul e înclinat cu cel puțin 1,5°. Decupajul inteligent nu se aplică singur: ar tăia comparația și, pe un corp întreg, a mai tăiat picioare. Rămâne în fila Cadru.
 
+În browser, compararea înainte/după coalescează mișcările într-un `requestAnimationFrame` și mută separatorul/decuparea direct în DOM; dragul nu mai re-randează toată foaia React la fiecare eveniment. Am păstrat testul final pe telefon ca verificare necesară.
+
 Stilurile Portret, Retuș, Clară, Film, Alb-negru și Dramatică cer Premium la salvare. Natural, Vie și Caldă rămân gratuite, la fel ca toată corecția automată.
 
 ## Asistent online

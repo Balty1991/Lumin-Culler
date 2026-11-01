@@ -385,6 +385,11 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   const styles = ENHANCE_STYLES.filter(st => !NEEDS_FACE.has(st) || !!base?.bokehSubject);
   const [failed, setFailed] = useState(false);
   const [split, setSplit] = useState(100);
+  const splitValue = useRef(100);
+  const splitFrame = useRef(0);
+  const dragBounds = useRef<DOMRect | null>(null);
+  const compareAfter = useRef<HTMLDivElement>(null);
+  const compareLine = useRef<HTMLSpanElement>(null);
   const revealed = useRef(false);
   const [saving, setSaving] = useState(false);
   const stage = useRef<HTMLDivElement>(null);
@@ -427,17 +432,42 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
       if (dragging.current) return;
       const t = Math.min(1, (now - t0) / 1100);
       const eased = 1 - Math.pow(1 - t, 3);
-      setSplit(100 - eased * 50);
+      const next = 100 - eased * 50;
+      splitValue.current = next;
+      if (compareAfter.current) compareAfter.current.style.clipPath = `inset(0 0 0 ${next}%)`;
+      if (compareLine.current) compareLine.current.style.left = `${next}%`;
       if (t < 1) raf = requestAnimationFrame(tick);
+      else setSplit(next);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [src]);
 
+  useEffect(() => () => {
+    if (splitFrame.current) cancelAnimationFrame(splitFrame.current);
+  }, []);
+
   const move = (e: PointerEvent<HTMLDivElement>) => {
-    const box = stage.current?.getBoundingClientRect();
+    const box = dragBounds.current;
     if (!box || !dragging.current) return;
-    setSplit(Math.max(0, Math.min(100, ((e.clientX - box.left) / box.width) * 100)));
+    splitValue.current = Math.max(0, Math.min(100, ((e.clientX - box.left) / box.width) * 100));
+    if (splitFrame.current) return;
+    splitFrame.current = requestAnimationFrame(() => {
+      splitFrame.current = 0;
+      const next = splitValue.current;
+      if (compareAfter.current) compareAfter.current.style.clipPath = `inset(0 0 0 ${next}%)`;
+      if (compareLine.current) compareLine.current.style.left = `${next}%`;
+    });
+  };
+  const finishDrag = () => {
+    if (!dragging.current) return;
+    dragging.current = false;
+    dragBounds.current = null;
+    if (splitFrame.current) {
+      cancelAnimationFrame(splitFrame.current);
+      splitFrame.current = 0;
+    }
+    setSplit(splitValue.current);
   };
   // „Auto AI”: varianta de acum, micșorată, merge la AI-ul online; reglajele lui se adună
   // peste stil, în Lumină și Culoare, unde omul le vede și le poate muta mai departe.
@@ -528,8 +558,8 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
         <span />
       </header>
       <div className="lx-enhance-stage" ref={stage}
-        onPointerDown={e => { dragging.current = true; e.currentTarget.setPointerCapture(e.pointerId); move(e); }}
-        onPointerMove={move} onPointerUp={() => { dragging.current = false; }} onPointerCancel={() => { dragging.current = false; }}>
+        onPointerDown={e => { dragging.current = true; dragBounds.current = stage.current?.getBoundingClientRect() ?? null; e.currentTarget.setPointerCapture(e.pointerId); move(e); }}
+        onPointerMove={move} onPointerUp={finishDrag} onPointerCancel={finishDrag}>
         {!src && !failed && <div className="lx-enhance-wait"><span className="lx-spinner" />{tr('lx.enhance.working')}</div>}
         {failed && <p className="lx-empty">{tr('lx.enhance.failed')}</p>}
         {src && edits && (edits.crop || panel === 'frame') ? (
@@ -539,12 +569,12 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
         ) : src && edits && (
           <div className="lx-enhance-frame">
             <img src={src} alt="" draggable={false} />
-            <div className="lx-enhance-after" style={{ clipPath: `inset(0 0 0 ${split}%)` }}>
+            <div ref={compareAfter} className="lx-enhance-after" style={{ clipPath: `inset(0 0 0 ${split}%)` }}>
               <LivePreview src={src} edits={edits} />
             </div>
             {!nothing && (
               <>
-                <span className="lx-enhance-line" style={{ left: `${split}%` }}><i /></span>
+                <span ref={compareLine} className="lx-enhance-line" style={{ left: `${split}%` }}><i /></span>
                 <span className="lx-enhance-tag left">{tr('lx.enhance.before')}</span>
                 <span className="lx-enhance-tag right">{tr('lx.enhance.after')}</span>
               </>
