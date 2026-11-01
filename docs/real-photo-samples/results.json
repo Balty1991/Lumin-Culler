@@ -1,0 +1,69 @@
+[
+  {
+    "sample": "underexposed-photo.jpg",
+    "output": "docs/real-photo-samples/rendered/underexposed-after.png",
+    "width": 900,
+    "height": 769,
+    "issuesDetected": [
+      "underexposed",
+      "soft"
+    ],
+    "meanLumaBefore": 0.2158,
+    "meanLumaAfter": 0.3398,
+    "adjustments": {
+      "exposure": 21,
+      "shadows": 32,
+      "toneMap": 45,
+      "sharpen": 16,
+      "clarity": 10,
+      "saturation": 8,
+      "relight": 0,
+      "redEye": 0
+    }
+  },
+  {
+    "sample": "backlit-headshot.jpg",
+    "output": "docs/real-photo-samples/rendered/backlit-headshot-after.png",
+    "width": 628,
+    "height": 900,
+    "issuesDetected": [
+      "cast",
+      "soft",
+      "skin"
+    ],
+    "meanLumaBefore": 0.5893,
+    "meanLumaAfter": 0.5824,
+    "adjustments": {
+      "temperature": -22,
+      "sharpen": 16,
+      "clarity": 10,
+      "relight": 0,
+      "redEye": 0
+    }
+  },
+  {
+    "sample": "city-backlight.jpg",
+    "output": "docs/real-photo-samples/rendered/city-backlight-after.png",
+    "width": 900,
+    "height": 601,
+    "issuesDetected": [
+      "underexposed",
+      "cast",
+      "noise"
+    ],
+    "meanLumaBefore": 0.2994,
+    "meanLumaAfter": 0.3969,
+    "adjustments": {
+      "exposure": 15,
+      "shadows": 22,
+      "toneMap": 33,
+      "temperature": 26,
+      "tint": 16,
+      "noiseReduction": 42,
+      "sharpen": 6,
+      "clarity": -4,
+      "relight": 0,
+      "redEye": 0
+    }
+  }
+]

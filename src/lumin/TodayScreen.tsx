@@ -69,6 +69,7 @@ export function TodayScreen() {
   const past = days.filter(d => d.start < todayStart).slice(0, 4);
   // Cititorul galeriei lucrează în fundal: Azi rămâne Azi, cu o bară mică dedesubt.
   const busy = (!reader || reader.paused === 'import') && (importing || (!!progress && progress.phase !== 'finalizat'));
+  const sortingActive = busy || !!(reader && reader.paused !== 'import');
 
   const [inGallery, setInGallery] = useState<number | null>(null);
   useEffect(() => {
@@ -132,11 +133,6 @@ export function TodayScreen() {
         )}
       </section>
 
-      <LumiFeed />
-      <WhoIsThis />
-      <IsItThem />
-
-      <TrainingCard />
       {reader && reader.paused !== 'import' && (
         <section className="lx-card lx-reader compact" role="status">
           {/* Compact (raportat: „aici se mai poate economisi spațiu”): titlul și „Oprește” pe un rând. */}
@@ -218,6 +214,8 @@ export function TodayScreen() {
         </section>
       )}
 
+      {!sortingActive && <TrainingCard />}
+
       {today && (today.series.length > 0 || today.aside.length > 0 || today.rejected.length > 0) && (
         <section className="lx-stats">
           <div><b>{today.series.length}</b><span>{tr('lx.stat.series')}</span></div>
@@ -227,6 +225,13 @@ export function TodayScreen() {
       )}
 
       {today && <DayStory photos={today.photos} />}
+      {!sortingActive && (
+        <>
+          <WhoIsThis />
+          <IsItThem />
+          <LumiFeed />
+        </>
+      )}
       <Recaps />
       <OnThisDay />
 

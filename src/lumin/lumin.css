@@ -1140,3 +1140,35 @@ html, body { overflow-x: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .lx-shimmer, .lx-enhance-wait, .lx-orb-core, .lx-tabpane:not([hidden]) { animation: none; }
 }
+
+/* Retuș discret: păstrează identitatea roz-violet de la captură, fără a gonfla meniul. */
+.lx-today > .lx-head { min-height: 48px; padding: 0 2px; }
+.lx-today .lx-hero-text .lx-h1 { text-wrap: balance; }
+.lx-today .lx-hero-text .lx-sub { max-width: 36ch; }
+.lx-pick { transition: transform 220ms var(--lx-spring), box-shadow 220ms ease, border-color 220ms ease; }
+.lx-pick:active { transform: scale(0.985); }
+.lx-pick-img { transition: transform 400ms cubic-bezier(.2,.75,.25,1); }
+.lx-dock > button:not(.lx-dock-add):focus-visible,
+.lx-dock-add:focus-visible,
+.lx-pick:focus-visible,
+.lx-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.lx-card:focus-within, .lx-dayrow:focus-visible, .lx-daycard:focus-visible {
+  outline: 2px solid rgb(var(--accent-rgb) / 0.72);
+  outline-offset: 2px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .lx-card:hover, .lx-dayrow:hover, .lx-daycard:hover { border-color: rgb(var(--accent-rgb) / 0.32); }
+  .lx-pick:hover { border-color: rgb(var(--pick-rgb) / 0.85); }
+  .lx-pick:hover .lx-pick-img { transform: scale(1.02); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lx *, .lx *::before, .lx *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

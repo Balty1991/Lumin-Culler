@@ -4,7 +4,7 @@ Nu am putut instala APK-ul pe un telefon și să apăs prin toate ecranele. Am p
 
 ## Pornire
 
-Prima deschidere arată turul și ecranul Azi. Restul ecranelor se încarcă la prima atingere. Limba română are diacritice în textele noi („ceață”, „contralumină”). Celelalte cinci limbi au aceleași chei pentru ce am adăugat; ce lipsește din germană, franceză, italiană sau spaniolă cade pe engleză, cum era deja.
+Prima deschidere arată turul și ecranul Azi. Restul ecranelor se încarcă la prima atingere. Textul de prezentare din toate cele șase limbi descrie acum trierea asistată: AI-ul învață din alegeri, grupează duplicatele/rafalele/pozele mișcate pentru revizuire și nu promite ștergere automată. Limba română păstrează diacriticele corecte.
 
 ## Import și Azi
 
@@ -12,7 +12,7 @@ Pozele noi de azi se citesc din galerie. Înainte, mesajul „Analizat…” aș
 
 ## Galerie
 
-Căutarea, momentele, zilele, lunile și oamenii sunt ecranele existente. Nu am rescris grila. Am schimbat dock-ul (pastilă pe tabul activ) și animația de încărcare. Derularea nu mai primește animații de transform pe tot ecranul: alea făceau `position: fixed` să se strice, și le-am lăsat doar pe opacitate.
+Căutarea, momentele, zilele, lunile și oamenii rămân ecranele existente; identitatea roz-violet și dock-ul din captura Android sunt păstrate. Pe „Azi”, starea de analiză, fotografiile alese și decizia asupra celor neclare apar înaintea propunerilor de partajare/memorii. În timpul scanării, cardurile secundare sunt ascunse ca să nu concureze cu progresul. Grila foto nu a fost redesenată structural; am adăugat doar focus vizibil, feedback subtil pe hover și suport pentru `prefers-reduced-motion`. Derularea taburilor rămâne doar pe opacitate, ca să nu strice elementele `position: fixed`.
 
 ## Recenzie (Păstrez / Nu azi)
 
@@ -41,7 +41,8 @@ Premium deblochează stilurile, textele online fără plafonul din aplicație, f
 ## Ce rămâne de făcut pe un telefon
 
 - Confirmat viteza pe aceleași 8 poze (mesajul nou ar trebui să fie mult sub 2 s/poză; seriile se termină în fundal).
-- Confirmat, cu ochiul, grila din `docs/auto-look-samples.png` pe poze reale, nu doar pe scenele desenate. Scenele sunt construite ca să aibă defectul (întuneric, contralumină, ochi roșu), nu sunt fotografii din galerie.
+- Sunt adăugate probe locale înainte/după pe fotografii reale în `docs/real-photo-samples/`; ele exercită `renderLook`, nu întregul ecran nativ „Mai frumoasă”. Trebuie confirmat pe telefon că importul, afișarea, atingerea butoanelor și salvarea merg pe fotografii dintr-o galerie reală.
+- Testul fizic pe un Android nu a fost făcut: mediul de dezvoltare nu are dispozitiv ADB sau emulator Android disponibil.
 - Cheie Gemini dacă se vrea rafinarea online după ce cota Cloudflare moare.
 - Semnarea de release: fără `keystore.properties`, `assembleRelease` iese nesemnat, cum era și înainte.
 - Play Console: data safety neschimbată dacă nu se pornește Gemini. Cu Gemini, poza mică pleacă la Google și declarația trebuie să o spună.
