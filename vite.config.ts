@@ -197,7 +197,7 @@ export default defineConfig({
   // worker.js/libraw.wasm si ramane agatat la infinit, fara eroare vizibila).
   // Excluderea lui de la pre-bundling il lasa servit direct din node_modules,
   // unde calea relativa e corecta.
-  optimizeDeps: { exclude: ['libraw-wasm'] },
+  optimizeDeps: { exclude: ['libraw-wasm', 'onnxruntime-web'] },
   // Injectat la build, citit in ui/MenuDrawer.tsx — vezi buildId() de mai sus.
   // Injectate la build, citite in ui/MenuDrawer.tsx.
   //
