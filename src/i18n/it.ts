@@ -982,4 +982,5 @@ export const dict: Record<string, string> = {
   "lx.stat.series.one": "serie",
   "ritual.kept.one": "tenuta",
   "quiz.needMore": "Per l’allenamento servono almeno 8 foto. Aggiungine qualcuna e riprova.",
+  "store.delete.protectedPeople": "Tenute {count} foto delle tue persone: non vengono mai eliminate in blocco.",
 };

@@ -3093,6 +3093,7 @@ export const ro = {
   "lx.stat.series.one": "serie",
   "ritual.kept.one": "păstrată",
   "quiz.needMore": "Pentru antrenare îmi trebuie cel puțin 8 poze. Adaugă câteva și încearcă din nou.",
+  "store.delete.protectedPeople": "Am păstrat {count} poze cu oamenii tăi: pe ele nu le șterg în bloc.",
 };
 
 export type TranslationKey = keyof typeof ro;

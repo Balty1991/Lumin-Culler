@@ -333,6 +333,22 @@ export function localGrade(ctx: CanvasRenderingContext2D, w: number, h: number):
 }
 
 /** „Fă-le pe toate mai frumoase”: stilul Natural pe fiecare, salvate ca și copii. */
+/** Pozele care au primit deja „✨ Mai frumoase” (auditul: butonul adăuga copii duplicate la fiecare apăsare). */
+const ENHANCED_KEY = 'lx.enhancedAll';
+function enhancedSet(): Set<string> {
+  try { return new Set(JSON.parse(localStorage.getItem(ENHANCED_KEY) ?? '[]') as string[]); } catch { return new Set(); }
+}
+export function notYetEnhanced(ids: readonly string[]): string[] {
+  const done = enhancedSet();
+  return ids.filter(id => !done.has(id));
+}
+function markEnhanced(ids: readonly string[]): void {
+  try {
+    const all = [...enhancedSet(), ...ids].slice(-5000);
+    localStorage.setItem(ENHANCED_KEY, JSON.stringify(all));
+  } catch { /* fără stocare: butonul doar nu se ascunde */ }
+}
+
 export async function enhanceAll(photoIds: readonly string[], onProgress?: (done: number, total: number) => void): Promise<number> {
   const plans: { sourceId: string; adjustments: EditAdjustments }[] = [];
   for (let i = 0; i < photoIds.length; i++) {
@@ -342,7 +358,10 @@ export async function enhanceAll(photoIds: readonly string[], onProgress?: (done
     } catch { /* o poză care nu se citește nu oprește restul */ }
     onProgress?.(i + 1, photoIds.length);
   }
-  return plans.length ? useStore.getState().addCorrectedCopies(plans) : 0;
+  if (!plans.length) return 0;
+  const made = await useStore.getState().addCorrectedCopies(plans);
+  markEnhanced(plans.map(p => p.sourceId));
+  return made;
 }
 
 /**
@@ -376,9 +395,15 @@ const TASTE_KEY = 'lumin-editor-taste';
 function readEditorTaste(): Partial<Record<ManualKey, number>> {
   try {
     const raw = JSON.parse(localStorage.getItem(TASTE_KEY) ?? '{}') as { n?: number; v?: Record<string, number> };
-    if (!raw.n || raw.n < 2 || !raw.v) return {};
+    if (!raw.n || raw.n < 3 || !raw.v) return {};
     const out: Partial<Record<ManualKey, number>> = {};
-    for (const [k, v] of Object.entries(raw.v)) if (Math.abs(v) >= 3) out[k as ManualKey] = Math.round(v);
+    const known = new Set([...MANUAL.light, ...MANUAL.color].map(m => m.key as string));
+    // Doar o parte din medie și cu plafon (auditul: după două salvări extreme,
+    // „Cer +60” se punea pe orice poză nouă).
+    for (const [k, v] of Object.entries(raw.v)) {
+      if (!known.has(k) || Math.abs(v) < 4) continue;
+      out[k as ManualKey] = Math.round(Math.max(-15, Math.min(15, v * 0.6)));
+    }
     return out;
   } catch { return {}; }
 }

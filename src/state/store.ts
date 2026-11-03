@@ -4026,7 +4026,15 @@ export const useStore = create<AppState>((set, get) => ({
   deleteRejectedPhotos: async onlyIds => {
     const locale = get().locale;
     const only = onlyIds ? new Set(onlyIds) : null;
-    const { deletable, skippedCount } = selectDeletableRejected(outsideVault(get().photos, get().collections).filter(p => !only || only.has(p.id)));
+    const picked = selectDeletableRejected(outsideVault(get().photos, get().collections).filter(p => !only || only.has(p.id)));
+    // „Protejează oamenii mei”: la ștergerea în bloc, pozele cu persoane numite
+    // (copiii, partenerul) nu pleacă niciodată. Ștergerea unei singure poze, din
+    // vizualizare, rămâne la alegerea omului.
+    const bulk = !onlyIds || onlyIds.length > 1;
+    const deletable = bulk ? picked.deletable.filter(p => !(p.personNames?.length)) : picked.deletable;
+    const protectedCount = picked.deletable.length - deletable.length;
+    const skippedCount = picked.skippedCount + protectedCount;
+    if (protectedCount > 0) set({ notice: t(locale, 'store.delete.protectedPeople', { count: protectedCount }) });
     if (!deletable.length) return { deleted: 0, skipped: skippedCount, cancelled: false };
     if (!isNativeMediaLibraryAvailable()) return { deleted: 0, skipped: skippedCount + deletable.length, cancelled: false };
 

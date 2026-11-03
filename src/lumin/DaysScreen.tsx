@@ -16,7 +16,7 @@ import { CollageButton } from './CollageSheet';
 import { PERSON_GROUPS, readPersonGroups, setPersonGroup, type PersonGroup } from './personGroups';
 import { bestSpread } from './momentAlbums';
 import { makeLayoutCollage, shareCollage } from './collage';
-import { enhanceAll } from './Enhance';
+import { enhanceAll, notYetEnhanced } from './Enhance';
 import { learnFromShare } from './signals';
 import { PeopleGrid } from './People';
 import { CleanupCard } from './Cleanup';
@@ -413,14 +413,17 @@ function PhotoGrid({ list }: { list: PhotoView[]; title: string }) {
 }
 
 /** „✨ Mai frumoase”: toate pozele păstrate ale zilei, cu stilul Natural, ca și copii. */
-function EnhanceAllButton({ ids }: { ids: string[] }) {
+function EnhanceAllButton({ ids: all }: { ids: string[] }) {
   const tr = useTr();
   const [progress, setProgress] = useState<string | null>(null);
-  if (ids.length < 2) return null;
+  const [, bump] = useState(0);
+  // Doar pozele încă neînfrumusețate: butonul nu mai face copii duplicate.
+  const ids = notYetEnhanced(all);
+  if (ids.length < 2 && progress === null) return null;
   return (
     <button className="lx-link" disabled={progress !== null} onClick={() => {
       setProgress('0');
-      void enhanceAll(ids, (d, t) => setProgress(`${d}/${t}`)).finally(() => setProgress(null));
+      void enhanceAll(ids, (d, t) => setProgress(`${d}/${t}`)).finally(() => { setProgress(null); bump(n => n + 1); });
     }}>✨ {progress ? tr('lx.enhance.allProgress', { progress }) : tr('lx.enhance.all', { count: ids.length })}</button>
   );
 }

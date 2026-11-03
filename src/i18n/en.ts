@@ -3007,4 +3007,5 @@ export const en: Record<TranslationKey, string> = {
   "lx.stat.series.one": "burst",
   "ritual.kept.one": "kept",
   "quiz.needMore": "Training needs at least 8 photos. Add a few and try again.",
+  "store.delete.protectedPeople": "Kept {count} photos of your people: they are never bulk-deleted.",
 };
