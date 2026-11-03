@@ -1,17 +1,15 @@
 import { Capacitor } from '@capacitor/core';
 import { eraseInBrowser } from '../core/webInpaint';
-import { segmentSky } from '../core/skySegment';
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { getDisplayUrl } from '../core/previewUrlCache';
 import { useStore, type PhotoView } from '../state/store';
 import { cloudAvailable, cloudInpaint, ensureCloud, type InpaintMode } from './cloud';
 import { eraseOnDevice, onDeviceEditAvailable } from '../core/onDeviceEdit';
-import { isNativeSegmentationAvailable, segmentPersonMask } from '../core/nativeSegmentation';
 import { shareCollage } from './collage';
 import { saveEditedBlob } from './saveEdited';
 import { useTr } from './context';
-import { aiSize, fillMasked, refineSkyAlpha, replaceSky, maskBounds, maskCoverage, skyMask, type Rect } from './magic';
+import { aiSize, fillMasked, maskBounds, type Rect } from './magic';
 import { canSharpen, sharpUrl } from './sharp';
 
 /**
@@ -22,7 +20,6 @@ import { canSharpen, sharpUrl } from './sharp';
  * zonă, cu margini moi. Se salvează ca o poză nouă, în Cherrypic/Editate;
  * originalul rămâne neatins.
  */
-type Tool = 'erase' | 'sky';
 const WORK = 2048;
 
 async function loadSource(id: string): Promise<ImageBitmap | null> {
@@ -57,18 +54,12 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
   const setNotice = useStore(s => s.setNotice);
   const [img, setImg] = useState<ImageBitmap | null>(null);
   const [failed, setFailed] = useState(false);
-  const [tool, setTool] = useState<Tool>('erase');
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<HTMLCanvasElement | null>(null);
   const [painted, setPainted] = useState(false);
-  const [noSky, setNoSky] = useState(false);
   const view = useRef<HTMLCanvasElement>(null);
   const mask = useRef<HTMLCanvasElement | null>(null);
   const drawing = useRef(false);
-  // Oamenii găsiți de model: cerul nou nu intră peste ei.
-  const protect = useRef<Uint8Array | null>(null);
-  const protectSize = useRef<[number, number]>([0, 0]);
-  const segRef = useRef<{ sky: Float32Array; person: Float32Array; size: number } | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -99,58 +90,6 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
     const m = mask.current;
     m?.getContext('2d')?.clearRect(0, 0, m.width, m.height);
     setPainted(false);
-    setNoSky(false);
-    segRef.current = null;
-    protect.current = null;
-  };
-
-  // Cerul: găsit singur, pe o copie mică, apoi întins la mărimea pozei.
-  const findSky = async () => {
-    if (!img || !mask.current) return;
-    clearMask();
-    const k = 256 / Math.max(img.width, img.height);
-    const w = Math.max(8, Math.round(img.width * k)), h = Math.max(8, Math.round(img.height * k));
-    const [scan, sctx] = canvasOf(w, h);
-    sctx.drawImage(img, 0, 0, w, h);
-    // Întâi modelul de segmentare (cerul și oamenii recunoscuți, nu ghiciți din culori);
-    // dacă nu se poate încărca, rămâne căutarea după culoare.
-    const seg = await segmentSky(img).catch(() => null);
-    const m = seg ? new Uint8Array(w * h) : skyMask(sctx.getImageData(0, 0, w, h).data, w, h);
-    if (seg) {
-      const g = seg.size;
-      const at = (arr: Float32Array, x: number, y: number) => arr[Math.min(g - 1, (y * g / h) | 0) * g + Math.min(g - 1, (x * g / w) | 0)];
-      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) m[y * w + x] = at(seg.sky, x, y) > 0.5 ? 1 : 0;
-      protect.current = new Uint8Array(w * h);
-      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) protect.current[y * w + x] = at(seg.person, x, y) > 0.3 ? 1 : 0;
-      protectSize.current = [w, h];
-    }
-    segRef.current = seg;
-    // Omul nu e cer (raportat: gluga albă și părul se coloram ca cerul, cu halou):
-    // masca persoanei de pe telefon scoate omul din cer, cu o margine de siguranță.
-    if (isNativeSegmentationAvailable()) {
-      try {
-        const blob = await toBlob(scan, 'image/jpeg', 0.9);
-        const person = blob ? await segmentPersonMask(blob) : null;
-        if (person) {
-          const [pc, pctx] = canvasOf(w, h);
-          pctx.filter = 'blur(2px)';
-          pctx.drawImage(person.image, 0, 0, w, h);
-          const pd = pctx.getImageData(0, 0, w, h).data;
-          void pc;
-          for (let i = 0; i < m.length; i++) if (pd[i * 4 + 3] > 24) m[i] = 0;
-        }
-      } catch { /* fără mască: cerul găsit doar din culoare */ }
-    }
-    if (maskCoverage(m) < 0.05) { setNoSky(true); redraw(); return; }
-    const [small, mctx] = canvasOf(w, h);
-    const id = mctx.createImageData(w, h);
-    for (let i = 0; i < m.length; i++) if (m[i]) id.data.set([255, 60, 90, 255], i * 4);
-    mctx.putImageData(id, 0, 0);
-    const ctx = mask.current.getContext('2d')!;
-    ctx.imageSmoothingEnabled = true;
-    ctx.drawImage(small, 0, 0, img.width, img.height);
-    setPainted(true);
-    redraw();
   };
 
   const paint = (e: PointerEvent<HTMLCanvasElement>) => {
@@ -172,20 +111,6 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
     const [final, fctx] = canvasOf(img.width, img.height);
     fctx.drawImage(img, 0, 0);
     const pix = fctx.getImageData(0, 0, img.width, img.height);
-    if (mode !== 'erase') {
-      // Cerul: masca grosieră se rafinează după culoare, la rezoluția pozei (fără contur alb).
-      const step = Math.max(1, Math.ceil(Math.max(img.width, img.height) / 256));
-      const coarse = sampledMask(mask.current, step);
-      if (!coarse.data.some(v => v)) return false;
-      const [pw, ph] = protectSize.current;
-      replaceSky(pix.data, img.width, img.height, coarse.data, coarse.w, coarse.h, mode,
-        protect.current ? { data: protect.current, w: pw, h: ph } : undefined,
-        segRef.current ? refineSkyAlpha(pix.data, img.width, img.height, segRef.current.sky, segRef.current.person, segRef.current.size) : undefined);
-      fctx.putImageData(pix, 0, 0);
-      setResult(final);
-      setNotice(tr('lx.magic.local'));
-      return true;
-    }
     const sample = sampledMask(mask.current, 1);
     if (!sample.data.some(v => v)) return false;
     fillMasked(pix.data, sample.data, img.width, img.height, mode);
@@ -280,7 +205,7 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
     try {
       const blob = await toBlob(result, 'image/jpeg', 0.94);
       if (!blob) return;
-      const ok = await saveEditedBlob(blob, tool === 'sky' ? 'cer' : 'guma');
+      const ok = await saveEditedBlob(blob, 'guma');
       setNotice(tr(ok ? 'lx.magic.saved' : 'lx.magic.failed'));
       if (ok) onClose();
     } catch {
@@ -306,7 +231,7 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
         {failed && <p className="lx-empty">{tr('lx.enhance.failed')}</p>}
         {img && (
           <canvas ref={view} className="lx-magic-canvas"
-            onPointerDown={e => { if (tool !== 'erase') return; drawing.current = true; e.currentTarget.setPointerCapture(e.pointerId); paint(e); }}
+            onPointerDown={e => { drawing.current = true; e.currentTarget.setPointerCapture(e.pointerId); paint(e); }}
             onPointerMove={paint} onPointerUp={() => { drawing.current = false; }} onPointerCancel={() => { drawing.current = false; }} />
         )}
         {busy && <div className="lx-magic-busy"><span className="lx-spinner" />{tr('lx.magic.working')}</div>}
@@ -314,23 +239,10 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
       <div className="lx-viewer-info">
         {!result ? (
           <>
-            <div className="lx-enhance-tabs" role="tablist">
-              <button role="tab" aria-selected={tool === 'erase'} className={tool === 'erase' ? 'on' : ''} onClick={() => { setTool('erase'); clearMask(); }}>{tr('lx.magic.erase')}</button>
-              <button role="tab" aria-selected={tool === 'sky'} className={tool === 'sky' ? 'on' : ''} onClick={() => { setTool('sky'); setTimeout(() => void findSky(), 0); }}>{tr('lx.magic.sky')}</button>
-            </div>
-            <p className="lx-hint center">{tr(tool === 'erase' ? 'lx.magic.eraseHint' : noSky ? 'lx.magic.noSky' : 'lx.magic.skyHint')}</p>
+            <p className="lx-hint center">{tr('lx.magic.eraseHint')}</p>
             <div className="lx-decide-actions">
-              {tool === 'erase' ? (
-                <>
-                  <button className="lx-btn ghost" disabled={!painted || busy} onClick={() => { clearMask(); redraw(); }}>{tr('lx.magic.clear')}</button>
-                  <button className="lx-btn primary" disabled={!painted || busy} onClick={() => void run('erase')}>{tr('lx.magic.eraseGo')}</button>
-                </>
-              ) : (
-                <>
-                  <button className="lx-btn primary" disabled={!painted || busy} onClick={() => void run('sky-blue')}>☀ {tr('lx.magic.skyBlue')}</button>
-                  <button className="lx-btn primary" disabled={!painted || busy} onClick={() => void run('sky-sunset')}>🌅 {tr('lx.magic.skySunset')}</button>
-                </>
-              )}
+              <button className="lx-btn ghost" disabled={!painted || busy} onClick={() => { clearMask(); redraw(); }}>{tr('lx.magic.clear')}</button>
+              <button className="lx-btn primary" disabled={!painted || busy} onClick={() => void run('erase')}>{tr('lx.magic.eraseGo')}</button>
             </div>
           </>
         ) : (

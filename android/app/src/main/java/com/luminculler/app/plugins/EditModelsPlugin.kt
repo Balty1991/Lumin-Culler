@@ -1,8 +1,5 @@
 package com.luminculler.app.plugins
 
-import ai.onnxruntime.OnnxTensor
-import ai.onnxruntime.OrtEnvironment
-import ai.onnxruntime.OrtSession
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Base64
@@ -24,7 +21,6 @@ private const val ZERODCE_FILE = "zerodce_512_fp16.tflite"
 private const val SIDE = 512
 private const val ESRGAN_FILE = "realesr_general_x4v3.tflite"
 private const val U2NET_FILE = "u2netp.tflite"
-private const val SEG_FILE = "segformer_ade_q.onnx"
 // Modelele mari se descarcă o dată, la prima folosire, de pe site (nu intră în APK).
 private const val MODELS_URL = "https://balty1991.github.io/Lumin-Culler/models"
 
@@ -56,11 +52,6 @@ class EditModelsPlugin : Plugin() {
     private val zeroDce = ReleasableModel<Interpreter>({ interpreter(ZERODCE_FILE) }, { it.close() })
     private val esrgan = ReleasableModel<Interpreter>({ interpreter(ESRGAN_FILE) }, { it.close() })
     private val u2net = ReleasableModel<Interpreter>({ interpreter(U2NET_FILE) }, { it.close() })
-    // Segmentarea cerului (SegFormer-b0 ADE20K, ONNX): cu onnxruntime-android, deja în aplicație.
-    private val segformer = ReleasableModel<OrtSession>({
-        val bytes = modelBytes(SEG_FILE, 3_000_000)
-        OrtEnvironment.getEnvironment().createSession(bytes, OrtSession.SessionOptions().apply { setIntraOpNumThreads(4) })
-    }, { it.close() })
 
     override fun handleOnDestroy() {
         executor.shutdown()
@@ -98,7 +89,6 @@ class EditModelsPlugin : Plugin() {
         out.put("lowLight", hasAsset(ZERODCE_FILE))
         out.put("clarity", hasAsset(ESRGAN_FILE))
         out.put("cutout", hasAsset(U2NET_FILE))
-        out.put("sky", true) // din APK, din cache sau descărcat la prima folosire
         call.resolve(out)
     }
 
@@ -367,56 +357,5 @@ class EditModelsPlugin : Plugin() {
             out[y * side + x] = s / c
         }
         return out
-    }
-
-    /**
-     * Unde e cerul și unde sunt oamenii (ADE20K: 2 = cer, 12 = persoană).
-     * Intrare 512×512 normalizată ImageNet; ieșire logits [1,150,128,128].
-     * Întoarce probabilitățile ca octeți (0..255), grilă `size`×`size`, base64.
-     */
-    @PluginMethod
-    fun segment(call: PluginCall) {
-        val img64 = call.getString("imageBase64")
-        if (img64.isNullOrEmpty()) { call.reject("imageBase64 is required"); return }
-        executor.ruleaza(call, "Segment failed") {
-            val src = decode(img64)
-            val small = Bitmap.createScaledBitmap(src, SIDE, SIDE, true)
-            val plane = SIDE * SIDE
-            val px = IntArray(plane); small.getPixels(px, 0, SIDE, 0, 0, SIDE, SIDE)
-            val input = java.nio.FloatBuffer.allocate(3 * plane)
-            val mean = floatArrayOf(0.485f, 0.456f, 0.406f)
-            val std = floatArrayOf(0.229f, 0.224f, 0.225f)
-            for (i in 0 until plane) {
-                val p = px[i]
-                input.put(i, (((p shr 16) and 0xFF) / 255f - mean[0]) / std[0])
-                input.put(plane + i, (((p shr 8) and 0xFF) / 255f - mean[1]) / std[1])
-                input.put(2 * plane + i, ((p and 0xFF) / 255f - mean[2]) / std[2])
-            }
-            val env = OrtEnvironment.getEnvironment()
-            val res = JSObject()
-            segformer.use { s ->
-                OnnxTensor.createTensor(env, input, longArrayOf(1, 3, SIDE.toLong(), SIDE.toLong())).use { t ->
-                    s.run(mapOf(s.inputNames.first() to t)).use { out ->
-                        val o = out[0] as OnnxTensor
-                        val shape = o.info.shape
-                        val classes = shape[1].toInt(); val g = shape[3].toInt(); val m = shape[2].toInt() * g
-                        val fb = o.floatBuffer
-                        val sky = ByteArray(m); val person = ByteArray(m)
-                        for (p in 0 until m) {
-                            var mx = Float.NEGATIVE_INFINITY
-                            for (k in 0 until classes) { val v = fb.get(k * m + p); if (v > mx) mx = v }
-                            var sum = 0.0
-                            for (k in 0 until classes) sum += Math.exp((fb.get(k * m + p) - mx).toDouble())
-                            sky[p] = (Math.exp((fb.get(2 * m + p) - mx).toDouble()) / sum * 255).toInt().coerceIn(0, 255).toByte()
-                            person[p] = (Math.exp((fb.get(12 * m + p) - mx).toDouble()) / sum * 255).toInt().coerceIn(0, 255).toByte()
-                        }
-                        res.put("size", g)
-                        res.put("sky", Base64.encodeToString(sky, Base64.NO_WRAP))
-                        res.put("person", Base64.encodeToString(person, Base64.NO_WRAP))
-                    }
-                }
-            }
-            call.resolve(res)
-        }
     }
 }
