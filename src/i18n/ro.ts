@@ -3088,6 +3088,8 @@ export const ro = {
   "lx.enhance.learnedShort": "cu reglajele tale",
   "lx.tool.group": "Unelte",
   "lx.viewer.more": "Mai mult",
+  "lx.search.showDocs": "+ încă {count} în documente",
+  "lx.search.hideDocs": "Ascunde documentele",
 };
 
 export type TranslationKey = keyof typeof ro;

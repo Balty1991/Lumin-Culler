@@ -1202,3 +1202,6 @@ html, body { overflow-x: hidden; }
 .lx-tool-btn { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 0 10px; border-radius: 14px; border: 1px solid var(--lx-line); background: var(--lx-glass); color: var(--text); font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lx-tool-btn span { font-size: 16px; line-height: 1; }
 .lx-tool-btn:active { transform: scale(.97); }
+
+.lx-search-count { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.lx-search-count .lx-link { padding: 4px 0; font-size: 13px; }

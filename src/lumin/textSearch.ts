@@ -157,3 +157,20 @@ export function searchPhotos<P extends SearchablePhoto>(photos: readonly P[], qu
   }
   return scored.sort((a, b) => b.score - a.score).map(x => x.p);
 }
+
+/**
+ * O potrivire „doar din text”: poza e un document/captură, sau cuvântul apare doar în
+ * textul citit din ea (OCR), nu în oameni, etichete sau descriere. Raportat: căutarea
+ * „Ami” arăta analizele medicale cu numele ei amestecate printre poze.
+ */
+export function isTextOnlyMatch(p: SearchablePhoto, query: string): boolean {
+  if (p.aside === 'document' || p.aside === 'screenshot') return true;
+  const terms = words(query);
+  if (!terms.length || !p.ocrText) return false;
+  const ocr = fold(p.ocrText.slice(0, 400));
+  const rest = fold(searchText({ ...p, ocrText: '' }));
+  return terms.some(t => {
+    const options = [t, ...(SYNONYMS[t] ?? [])].map(fold);
+    return options.some(o => ocr.includes(o)) && !options.some(o => rest.includes(o));
+  });
+}

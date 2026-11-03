@@ -24,7 +24,7 @@ import { cloudAvailable, cloudConcepts, cloudEnabled, cloudSearchText, readVerdi
 import { translateSceneTag } from '../core/sceneTagLabels';
 import { useTr } from './context';
 import { Thumb } from './Thumb';
-import { searchPhotos } from './textSearch';
+import { isTextOnlyMatch, searchPhotos } from './textSearch';
 import { db } from '../core/db';
 import { findSimilarPhotos } from '../core/similarPhotos';
 import { EnhanceSheet } from './Enhance';
@@ -173,6 +173,9 @@ export function GalleryWall() {
   const [shown, setShown] = useState(PAGE);
   const [viewer, setViewer] = useState<{ index: number; origin: DOMRect | null } | null>(null);
   const [query, setQuery] = useState('');
+  const [withDocs, setWithDocs] = useState(false);
+  const docCount = useRef(0);
+  useEffect(() => { setWithDocs(false); }, [query]);
   /** Dosarul inteligent deschis („Mașina”, „Mâncare”…), din etichetele pozelor. */
   const [folder, setFolder] = useState<SmartFolder | null>(null);
   /** Ce a înțeles AI-ul online din căutare, când pe telefon nu s-a găsit nimic („tort” → cake). */
@@ -196,7 +199,11 @@ export function GalleryWall() {
       // Și ce a văzut Lumi Cloud în poză (descriere + etichete), unde există.
       const verdicts = readVerdicts();
       const searchable = photos.map(p => (verdicts[p.id] ? { ...p, aiDescription: `${p.aiDescription ?? ''} ${cloudSearchText(p.id, verdicts)}` } : p));
-      const found = searchPhotos(searchable, query);
+      const all = searchPhotos(searchable, query);
+      // Pozele întâi; documentele și potrivirile doar din textul citit, separat, la cerere.
+      const docs = all.filter(p => isTextOnlyMatch(p, query));
+      const found = docs.length && docs.length < all.length && !withDocs ? all.filter(p => !docs.includes(p)) : all;
+      docCount.current = docs.length < all.length ? docs.length : 0;
       if (found.length || aiTerms?.q !== query.trim()) return found;
       const seen = new Set<string>();
       return aiTerms.terms.flatMap(t => searchPhotos(searchable, t)).filter(p => !seen.has(p.id) && !!seen.add(p.id));
@@ -205,7 +212,7 @@ export function GalleryWall() {
       .filter(p => !p.aside)
       .filter(p => filter === 'all' || (filter === 'kept' ? p.status === 'selected' : p.status === 'rejected'))
       .sort((a, b) => photoTime(b) - photoTime(a));
-  }, [photos, filter, query, similar, aiTerms, folder]);
+  }, [photos, filter, query, similar, aiTerms, folder, withDocs]);
   const folders = useMemo(() => folderCounts(photos), [photos]);
   const reveal = useReveal();
   // Nimic găsit pe telefon: întreabă AI-ul online ce înseamnă căutarea, în etichetele pe care le avem.
@@ -372,7 +379,16 @@ export function GalleryWall() {
           {peopleIdeas.map(n => <button key={n} className="lx-chip-btn" onMouseDown={e => e.preventDefault()} onClick={() => { setSimilar(null); setQuery(n); }}>{n}</button>)}
         </div>
       )}
-      {query.trim() && <p className="lx-hint">{tr('lx.search.results', { count: list.length })}</p>}
+      {query.trim() && (
+        <p className="lx-hint lx-search-count">
+          {tr('lx.search.results', { count: list.length })}
+          {docCount.current > 0 && (
+            <button className="lx-link" onClick={() => setWithDocs(v => !v)}>
+              {withDocs ? tr('lx.search.hideDocs') : tr('lx.search.showDocs', { count: docCount.current })}
+            </button>
+          )}
+        </p>
+      )}
       {query.trim() && aiTerms?.q === query.trim() && aiTerms.terms.length > 0 && list.length > 0 && (
         <p className="lx-hint">☁ {tr('lx.search.ai', { terms: aiTerms.terms.map(t => translateSceneTag(t, baseLocale(locale))).join(', ') })}</p>
       )}

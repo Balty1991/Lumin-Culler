@@ -3002,4 +3002,6 @@ export const en: Record<TranslationKey, string> = {
   "lx.enhance.learnedShort": "with your usual settings",
   "lx.tool.group": "Tools",
   "lx.viewer.more": "More",
+  "lx.search.showDocs": "+ {count} more in documents",
+  "lx.search.hideDocs": "Hide documents",
 };

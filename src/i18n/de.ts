@@ -977,4 +977,6 @@ export const dict: Record<string, string> = {
   "lx.enhance.learnedShort": "mit deinen Einstellungen",
   "lx.tool.group": "Werkzeuge",
   "lx.viewer.more": "Mehr",
+  "lx.search.showDocs": "+ {count} weitere in Dokumenten",
+  "lx.search.hideDocs": "Dokumente ausblenden",
 };

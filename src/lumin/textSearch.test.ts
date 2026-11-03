@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { searchPhotos } from './textSearch';
+import { isTextOnlyMatch, searchPhotos } from './textSearch';
 
 const base = { fileName: 'IMG.jpg', importedAt: 0, personNames: [], faceCount: 0 };
 
@@ -32,5 +32,18 @@ describe('searchPhotos', () => {
     expect(searchPhotos(photos, 'vara').map(p => p.id)).toEqual(['beach']);
     expect(searchPhotos(photos, 'iarna').map(p => p.id)).toEqual(['park']);
     expect(searchPhotos(photos, 'mai')).toEqual([]);
+  });
+});
+
+describe('potriviri doar din textul citit', () => {
+  const base = { id: 'x', fileName: 'a.jpg', importedAt: 0, personNames: [] as string[], faceCount: 0 };
+  it('un buletin de analize cu numele în text e „document”', () => {
+    expect(isTextOnlyMatch({ ...base, ocrText: 'Buletin analize Pacient: Ami Maria' }, 'Ami')).toBe(true);
+  });
+  it('poza cu persoana numită nu e „document”', () => {
+    expect(isTextOnlyMatch({ ...base, personNames: ['Ami'], faceCount: 1 }, 'Ami')).toBe(false);
+  });
+  it('documentele puse deoparte sunt mereu „document”', () => {
+    expect(isTextOnlyMatch({ ...base, aside: 'document' }, 'bon')).toBe(true);
   });
 });
