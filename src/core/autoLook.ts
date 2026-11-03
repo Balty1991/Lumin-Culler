@@ -109,7 +109,9 @@ export function measureFrame(
       const face = inFace(x, y);
       if (face) faceSum += lum; else restSum += lum;
       if (face) faceN++; else restN++;
-      if (face && r > 90 && r > g * 1.55 && r > b * 1.4 && g < 150) {
+      // Ochi roșii = pupilă roșu aprins de la blitz, nu ten rozaliu (detectorul vechi
+      // prindea obrajii unui copil și înnegrea zona ochilor — raportat cu captură).
+      if (face && r > 150 && g < 90 && b < 100 && r > g * 2.1 && r > b * 1.8) {
         const v = y / height;
         const box = boxes.find(f => {
           const u = x / width;
@@ -194,7 +196,7 @@ export function recipeFromStats(s: FrameStats, faces: readonly LookFace[] = []):
   } else if (s.mean < 0.42 || s.p10 < 0.08 && s.mean < 0.5) {
     issues.push('underexposed');
     const gap = 0.52 - s.mean;
-    add(adjustments, 'exposure', gap * 70, 0, 26);
+    add(adjustments, 'exposure', gap * 90, 0, 34);
     add(adjustments, 'shadows', 10 + s.dark * 40, 0, 32);
     add(adjustments, 'toneMap', 18 + s.dark * 50, 0, 58);
     if (s.faceMean !== null && s.faceMean < 0.48) relight = Math.round(clamp((0.55 - s.faceMean) * 90, 18, 56));
@@ -210,14 +212,18 @@ export function recipeFromStats(s: FrameStats, faces: readonly LookFace[] = []):
   }
 
   const cast = Math.abs(s.cast) >= Math.abs(s.globalCast) ? s.cast : s.globalCast;
-  if ((s.neutral > 0.04 && Math.abs(s.cast) > 0.025) || Math.abs(s.globalCast) > 0.12) {
+  // Albul se corectează cu măsură: lumina caldă de apus și culorile de noapte sunt
+  // atmosfera pozei, nu o greșeală (testat: −40 spăla un portret la apus, +26/+30
+  // înverzea un oraș noaptea). Răcirea e mică; noaptea nu se atinge.
+  const night = s.mean < 0.26;
+  if (!night && ((s.neutral > 0.04 && Math.abs(s.cast) > 0.025) || Math.abs(s.globalCast) > 0.12)) {
     issues.push('cast');
     // cast > 0 înseamnă albastru în exces (meanB > meanR) → încălzim (temperature > 0).
-    add(adjustments, 'temperature', cast * 180, -40, 28);
+    add(adjustments, 'temperature', cast * 120, -8, 14);
   }
-  if (s.neutral > 0.04 && Math.abs(s.tint) > 0.02) {
+  if (!night && s.neutral > 0.04 && Math.abs(s.tint) > 0.02) {
     if (!issues.includes('cast')) issues.push('cast');
-    add(adjustments, 'tint', -s.tint * 180, -16, 16);
+    add(adjustments, 'tint', -s.tint * 140, -8, 8);
   }
 
   if (!backlit && s.dark < 0.12 && Math.abs(s.globalCast) < 0.15 && s.haze > 0.15 && s.mean > 0.3) {
@@ -247,9 +253,11 @@ export function recipeFromStats(s: FrameStats, faces: readonly LookFace[] = []):
     add(adjustments, 'clarity', 6, 0, 12);
   }
 
-  if (!backlit && s.skyLum > 0.55 && s.skySat < 0.14 && s.skyLum < 0.92 && s.dark < 0.15) {
+  // Doar cerul deja albăstrui, spălăcit, se adâncește. Cerul alb/gri (înnorat) nu se
+  // vopsește automat: ieșea un halou gri-albăstrui în jurul capului (raportat).
+  if (!backlit && s.skyLum > 0.55 && s.skySat >= 0.06 && s.skySat < 0.14 && s.skyLum < 0.92 && s.dark < 0.15) {
     issues.push('dullSky');
-    add(adjustments, 'sky', 14 + (0.14 - s.skySat) * 80, 0, 28);
+    add(adjustments, 'sky', 10 + (0.14 - s.skySat) * 60, 0, 18);
     add(adjustments, 'dehaze', Math.max(adjustments.dehaze ?? 0, 8), 0, 34);
   }
 
@@ -272,7 +280,7 @@ export function recipeFromStats(s: FrameStats, faces: readonly LookFace[] = []):
     delete adjustments.contrast;
   }
 
-  if (s.redEye >= 2) {
+  if (s.redEye >= 6) {
     issues.push('redEye');
     redEye = 100;
   }
@@ -375,7 +383,7 @@ export function applySubjectFinish(
           const fyFace = (v - fy) / fh;
           const fxFace = (u - fx) / fw;
           if (fyFace > 0.14 && fyFace < 0.46 && fxFace > 0.12 && fxFace < 0.88
-            && r > 80 && r > g * 1.5 && r > b * 1.35 && g < 160 && b < 170) {
+            && r > 150 && g < 90 && b < 100 && r > g * 2.1 && r > b * 1.8) {
             const yv = lumaOf(r, g, b);
             const mix = eye * 0.85;
             r = r * (1 - mix) + yv * 0.35 * mix;

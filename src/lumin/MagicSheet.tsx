@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { getDisplayUrl } from '../core/previewUrlCache';
 import { useStore, type PhotoView } from '../state/store';
 import { cloudAvailable, cloudInpaint, ensureCloud, type InpaintMode } from './cloud';
+import { eraseOnDevice, onDeviceEditAvailable } from '../core/onDeviceEdit';
 import { shareCollage } from './collage';
 import { saveEditedBlob } from './saveEdited';
 import { useTr } from './context';
@@ -146,8 +147,10 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
     if (!img || !mask.current) return;
     setBusy(true);
     try {
-      const online = cloudAvailable() && await ensureCloud(askConfirm, tr);
-      if (!online) { finishLocal(mode); return; }
+      // Guma merge pe telefon (MI-GAN), gratuit și fără internet; serverul doar pentru cer.
+      const native = mode === 'erase' && (await onDeviceEditAvailable()).erase;
+      const online = !native && cloudAvailable() && await ensureCloud(askConfirm, tr);
+      if (!native && !online) { finishLocal(mode); return; }
       // Bucata trimisă: pentru gumă, cutia din jurul zonei (cu context); pentru cer, toată poza.
       let r: Rect = { x: 0, y: 0, w: img.width, h: img.height };
       if (mode === 'erase') {
@@ -156,6 +159,14 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
         const b = maskBounds(s.data, s.w, s.h);
         if (!b) return;
         r = { x: b.x * step, y: b.y * step, w: Math.min(img.width - b.x * step, b.w * step), h: Math.min(img.height - b.y * step, b.h * step) };
+        // Modelul de pe telefon are nevoie de context în jurul zonei: cutie cam pătrată, de ~2,2× zona.
+        if (native) {
+          const side = Math.min(Math.max(img.width, img.height), Math.max(160, Math.max(r.w, r.h) * 2.2));
+          const w = Math.min(img.width, side), h = Math.min(img.height, side);
+          const x = Math.max(0, Math.min(img.width - w, r.x + r.w / 2 - w / 2));
+          const y = Math.max(0, Math.min(img.height - h, r.y + r.h / 2 - h / 2));
+          r = { x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) };
+        }
       }
       const size = aiSize(r.w, r.h);
       const [ic, ictx] = canvasOf(size.width, size.height);
@@ -176,7 +187,9 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
       mctx.putImageData(md, 0, 0);
       const [imageBlob, maskBlob] = await Promise.all([toBlob(ic, 'image/jpeg', 0.92), toBlob(mc, 'image/png')]);
       if (!imageBlob || !maskBlob) return;
-      const out = await cloudInpaint(mode, imageBlob, maskBlob, size.width, size.height);
+      const out = native
+        ? await eraseOnDevice(imageBlob, maskBlob).then(b => (b ? { ok: true as const, image: b } : { ok: false as const }))
+        : await cloudInpaint(mode, imageBlob, maskBlob, size.width, size.height);
       if (!out.ok) { finishLocal(mode); return; }
       const ai = await createImageBitmap(out.image);
       // Înapoi în poză: rezultatul, doar unde e masca, cu marginea estompată.

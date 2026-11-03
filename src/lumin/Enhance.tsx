@@ -12,6 +12,7 @@ import { FREE_DAILY, cloudAvailable, cloudGrade, ensureCloud } from './cloud';
 import { saveEditedBlob } from './saveEdited';
 import { useTr } from './context';
 import { AiRetouch } from './AiRetouch';
+import { lowLightOnDevice } from '../core/onDeviceEdit';
 import { analysisPool } from '../core/workerPool';
 import { vibrate } from '../ui/haptics';
 
@@ -96,6 +97,22 @@ export function styledEdits(base: EditAdjustments, style: EnhanceStyle, amount: 
     const lift = (out.dehaze ?? 0) * 0.35 + crush * 0.15 + (BRIGHTEN.has(style) ? 5 * k : 0);
     out.exposure = clamp((out.exposure ?? 0) + lift);
   }
+  // „Wow”, nu doar corect (cerut: „când dai editare în modul automat, poza să fie wow”):
+  // contrast local și culoare cu viață, cu plafoane ca să nu arate prelucrată.
+  if (style === 'natural' || style === 'vivid') {
+    const k = Math.min(1, amount);
+    const night = (out.noiseReduction ?? 0) >= 25;
+    out.toneMap = Math.min(45, out.toneMap ?? 0);
+    out.temperature = Math.max(-10, Math.min(16, out.temperature ?? 0));
+    out.tint = Math.max(-8, Math.min(8, out.tint ?? 0));
+    if (!night) {
+      out.saturation = Math.min(MAX_SATURATION, Math.max(out.saturation ?? 0, Math.round(12 * k)));
+      out.clarity = Math.max(out.clarity ?? 0, Math.round(12 * k));
+      out.contrast = Math.max(out.contrast ?? 0, Math.round(10 * k));
+      out.sharpen = Math.max(out.sharpen ?? 0, Math.round(14 * k));
+    }
+    out.vignette = Math.max(out.vignette ?? 0, Math.round(10 * k));
+  }
   if (style === 'bw') out.bw = Math.max(0, Math.min(100, Math.round(100 * Math.min(1, amount * 1.5))));
   if (NEEDS_FACE.has(style) && !out.bokehSubject) out.bokeh = 0;
   if (style === 'retouch') delete out.bokehSubject;
@@ -106,19 +123,42 @@ export function styledEdits(base: EditAdjustments, style: EnhanceStyle, amount: 
  * Corecția automată a unei poze (lumină, alb, culoare — fără decupaj sau rotire),
  * plus URL-ul imaginii din care a fost măsurată.
  */
-export async function autoEnhance(photoId: string): Promise<{ url: string; edits: EditAdjustments; tilt: number; width: number; height: number; faces: { box: [number, number, number, number] }[]; scenes: Scene[]; issues: LookIssue[] }> {
+/** Luminozitatea medie (0..1), pe o miniatură de 32 px. */
+function meanLumOf(img: HTMLImageElement): number {
+  try {
+    const c = document.createElement('canvas'); c.width = 32; c.height = 32;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return 0.5;
+    ctx.drawImage(img, 0, 0, 32, 32);
+    const d = ctx.getImageData(0, 0, 32, 32).data;
+    let s = 0;
+    for (let i = 0; i < d.length; i += 4) s += 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+    return s / (d.length / 4) / 255;
+  } catch { return 0.5; }
+}
+
+export async function autoEnhance(photoId: string): Promise<{ url: string; lit?: boolean; edits: EditAdjustments; tilt: number; width: number; height: number; faces: { box: [number, number, number, number] }[]; scenes: Scene[]; issues: LookIssue[] }> {
   // Pe telefon: poza clară făcută de Android (originalul direct ieșea negru pe unele telefoane).
   const source = canSharpen()
     ? sharpUrl(photoId, 1600).then(u => u ?? getCachedPreviewUrl(photoId))
     : getDisplayUrl(photoId);
-  const [url, a] = await Promise.all([source, db.analyses.get(photoId)]);
-  if (!url) throw new Error('fără imagine');
-  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+  const [first, a] = await Promise.all([source, db.analyses.get(photoId)]);
+  if (!first) throw new Error('fără imagine');
+  const load = (u: string) => new Promise<HTMLImageElement>((resolve, reject) => {
     const el = new Image();
     el.onload = () => resolve(el);
     el.onerror = () => reject(new Error('imaginea nu s-a încărcat'));
-    el.src = url;
+    el.src = u;
   });
+  let url = first;
+  let img = await load(url);
+  // Poza întunecată: întâi lumina învățată (Zero-DCE, pe telefon), apoi restul corecturii.
+  let lit = false;
+  const dark = meanLumOf(img);
+  if (dark < 0.34) {
+    const better = await fetch(url).then(r => r.blob()).then(b => lowLightOnDevice(b, Math.max(0.45, Math.min(1, (0.42 - dark) / 0.2)))).catch(() => null);
+    if (better) { url = URL.createObjectURL(better); img = await load(url); lit = true; }
+  }
   const auto = computeAutoAdjustments(img, img.naturalWidth, img.naturalHeight, {
     exposureScore: a?.exposure,
     highlightClipping: a?.highlightClipping,
@@ -147,7 +187,7 @@ export async function autoEnhance(photoId: string): Promise<{ url: string; edits
   // Orizontul strâmb (măsurat la import, doar pe pozele fără oameni): îndreptarea e o opțiune, nu implicită.
   const tilt = computeAutoStraighten({ faceCount: a?.faceCount, horizonTiltDeg: a?.horizonTiltDeg });
   return {
-    url, tilt, width: img.naturalWidth, height: img.naturalHeight, scenes: scene.scenes, issues: scene.issues,
+    url, lit, tilt, width: img.naturalWidth, height: img.naturalHeight, scenes: scene.scenes, issues: scene.issues,
     faces: (a?.faces ?? []).map(f => ({ box: f.box as [number, number, number, number] })),
     edits: { ...auto, crop: undefined, rotationDeg: 0, ...(subject ? { bokehSubject: subject } : {}) }
   };
@@ -201,7 +241,7 @@ export function sceneTune(img: HTMLImageElement, e: EditAdjustments, a?: { scene
   if (tone >= 8) { add('toneMap', tone); add('shadows', -Math.round(tone * 0.15)); }
   // Puțină claritate și accentuare la fiecare poză: diferența dintre „corectată” și „mai frumoasă”.
   if (luma >= 0.24) add('sharpen', 14);
-  if (overcast > 0.12) { scenes.push('overcast'); add('sky', 14); add('temperature', 4); add('saturation', 3); }
+  if (overcast > 0.12) { scenes.push('overcast'); add('temperature', 4); add('saturation', 4); add('dehaze', 6); }
   if (luma < 0.24) { scenes.push('night'); add('noiseReduction', 25); add('shadows', 12); add('clarity', -4); add('sharpen', -6); }
   if (FOOD.test(tags)) { scenes.push('food'); add('temperature', 6); add('saturation', 6); add('clarity', 6); add('vignette', 6); }
   if (!bigFace && NATURE.test(tags)) { scenes.push('landscape'); add('dehaze', 8); add('saturation', 4); add('clarity', 6); }
@@ -345,6 +385,8 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   const addCorrectedCopies = useStore(s => s.addCorrectedCopies);
   const premiumLocked = useStore(s => s.premiumLocked);
   const [src, setSrc] = useState<string | null>(null);
+  /** Sursa e deja luminată pe telefon (Zero-DCE): copia se salvează gata făcută. */
+  const [lit, setLit] = useState(false);
   const [base, setBase] = useState<EditAdjustments | null>(null);
   const [style, setStyle] = useState<EnhanceStyle>('natural');
   const [amount, setAmount] = useState(1);
@@ -411,7 +453,8 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   useEffect(() => {
     let alive = true;
     void (async () => {
-      const { url, edits: lightOnly, tilt: t, width, height, faces, scenes: found, issues: foundIssues } = await autoEnhance(photo.id);
+      const { url, lit: wasLit, edits: lightOnly, tilt: t, width, height, faces, scenes: found, issues: foundIssues } = await autoEnhance(photo.id);
+      setLit(!!wasLit);
       if (!alive) return;
       setScenes(found);
       setIssues(foundIssues);
@@ -519,8 +562,8 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
     try {
       // Portretul cu omul decupat: masca nu se păstrează în copie (se reface din poză),
       // deci rezultatul se salvează gata făcut, ca poză nouă, la rezoluție mare.
-      if (style === 'portrait' && edits.bokehMask) {
-        const url = (canSharpen() ? await sharpUrl(photo.id, 3000).catch(() => null) : null) ?? src;
+      if ((style === 'portrait' && edits.bokehMask) || lit) {
+        const url = lit ? src : (canSharpen() ? await sharpUrl(photo.id, 3000).catch(() => null) : null) ?? src;
         const img = url ? await createImageBitmap(await (await fetch(url)).blob()) : null;
         if (img) {
           const o = outputSize(img.width, img.height, edits);
@@ -530,7 +573,7 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
           if (ctx) {
             drawAdjusted(ctx, img, img.width, img.height, o.width, o.height, edits);
             const blob = await new Promise<Blob | null>(r => c.toBlob(r, 'image/jpeg', 0.94));
-            const ok = blob ? await saveEditedBlob(blob, 'portret') : false;
+            const ok = blob ? await saveEditedBlob(blob, lit ? 'lumina' : 'portret') : false;
             if (ok) vibrate(12);
             useStore.getState().setNotice(tr(ok ? 'lx.magic.saved' : 'lx.magic.failed'));
             if (ok) { onClose(); return; }

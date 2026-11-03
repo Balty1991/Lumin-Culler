@@ -208,6 +208,14 @@ jobs:
           curl -fL -o android/app/src/main/assets/face_sface_int8.onnx https://media.githubusercontent.com/media/opencv/opencv_zoo/main/models/face_recognition_sface/face_recognition_sface_2021dec_int8.onnx
           size=$(stat -c%s android/app/src/main/assets/face_sface_int8.onnx)
           if [ "$size" -lt 5000000 ]; then echo "::error::face_sface_int8.onnx are doar $size octeti — descarcare esuata/trunchiata" && exit 1; fi
+      # Editorul pe telefon (plugins/EditModelsPlugin.kt): guma MI-GAN (Picsart, MIT, ~16 MB)
+      # și lumina Zero-DCE (Apache-2.0, ~0,2 MB), ambele LiteRT fp16.
+      - name: Bundle on-device editor models (MI-GAN, Zero-DCE)
+        run: |
+          curl -fL -o android/app/src/main/assets/migan_fp16.tflite https://huggingface.co/litert-community/MI-GAN-512-Places2-LiteRT/resolve/main/migan_fp16.tflite
+          curl -fL -o android/app/src/main/assets/zerodce_512_fp16.tflite https://huggingface.co/mlboydaisuke/zero-dce-litert/resolve/main/zerodce_512_fp16.tflite
+          [ "$(stat -c%s android/app/src/main/assets/migan_fp16.tflite)" -gt 10000000 ] || { echo "::error::migan_fp16.tflite trunchiat"; exit 1; }
+          [ "$(stat -c%s android/app/src/main/assets/zerodce_512_fp16.tflite)" -gt 100000 ] || { echo "::error::zerodce trunchiat"; exit 1; }
       - name: Bundle native image-embedder model
         run: |
           curl -fL -o android/app/src/main/assets/mobilenet_v3_small.tflite https://storage.googleapis.com/mediapipe-models/image_embedder/mobilenet_v3_small/float32/1/mobilenet_v3_small.tflite

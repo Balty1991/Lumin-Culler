@@ -9,6 +9,7 @@ import android.webkit.WebView;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.WebViewListener;
 import com.luminculler.app.plugins.StageOnePlugin;
+import com.luminculler.app.plugins.EditModelsPlugin;
 import com.luminculler.app.plugins.ImageAnalysisPlugin;
 import com.luminculler.app.plugins.FaceEmbedPlugin;
 import com.luminculler.app.plugins.SharpImagePlugin;
@@ -149,6 +150,7 @@ public class MainActivity extends BridgeActivity {
         // e selfie_multiclass (16,4 MB), ci selfie_segmenter (249 KB) — vezi
         // pasul "Bundle native segmentation model" din workflow-urile de build.
         registerPlugin(StageOnePlugin.class);
+        registerPlugin(EditModelsPlugin.class);
         registerPlugin(ImageAnalysisPlugin.class);
         registerPlugin(ImageLabelingPlugin.class);
         registerPlugin(ObjectDetectionPlugin.class);

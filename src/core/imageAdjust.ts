@@ -379,7 +379,7 @@ export function applyToneMap(r: Float32Array, g: Float32Array, b: Float32Array, 
   const size = width * height;
   const [lum, base, temp] = getScratch(size);
   for (let p = 0; p < size; p++) lum[p] = (0.299 * r[p] + 0.587 * g[p] + 0.114 * b[p]) / 255;
-  const radius = Math.max(3, Math.round(Math.min(width, height) * 0.04 / 1.7));
+  const radius = Math.max(3, Math.round(Math.min(width, height) * 0.025 / 1.7));
   boxBlurChannel(lum, base, temp, width, height, radius);
   boxBlurChannel(base, lum, temp, width, height, radius);
   boxBlurChannel(lum, base, temp, width, height, radius);
@@ -1348,7 +1348,7 @@ const WB_SATURATION_LIMIT = 0.28;
 const WB_MIN_LUM = 55;
 const WB_MAX_LUM = 245;
 /** Plafon pe scara sliderelor (-100..100): o corectie mai mare de atat schimba poza, n-o repara. */
-const WB_MAX_SHIFT = 30;
+const WB_MAX_SHIFT = 14;
 /** Cat din corectie se aplica pe o lumina de ora de aur — cat sa se calmeze dominanta, nu sa dispara. */
 const WB_GOLDEN_HOUR_FACTOR = 0.35;
 
@@ -1398,8 +1398,9 @@ export function computeAutoWhiteBalance(
   if (!sampled || neutral / sampled < WB_MIN_NEUTRAL_FRACTION) return { temperature: 0, tint: 0 };
   const meanR = sumR / neutral, meanG = sumG / neutral, meanB = sumB / neutral;
   const factor = goldenHour ? WB_GOLDEN_HOUR_FACTOR : 1;
-  const temperature = Math.round(clampRange(-(meanR - meanB) * 1.25 * factor, -WB_MAX_SHIFT, WB_MAX_SHIFT)) || 0;
-  const tint = Math.round(clampRange(-(meanG - (meanR + meanB) / 2) * (5 / 3) * factor, -WB_MAX_SHIFT, WB_MAX_SHIFT)) || 0;
+  // Plafonul întâi, apoi ora de aur: altfel o dominantă caldă puternică ieșea la fel tăiată în ambele cazuri.
+  const temperature = Math.round(clampRange(-(meanR - meanB) * 1.25, -WB_MAX_SHIFT, WB_MAX_SHIFT) * factor) || 0;
+  const tint = Math.round(clampRange(-(meanG - (meanR + meanB) / 2) * (5 / 3), -WB_MAX_SHIFT, WB_MAX_SHIFT) * factor) || 0;
   return { temperature, tint };
 }
 

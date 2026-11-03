@@ -200,6 +200,8 @@ dependencies {
     implementation "com.google.android.play:app-update:2.1.0"
     // Recunoașterea fețelor pe telefon (plugins/FaceEmbedPlugin.kt): ONNX Runtime, licență MIT.
     implementation "com.microsoft.onnxruntime:onnxruntime-android:1.19.2"
+    // Editorul pe telefon: guma (MI-GAN) și lumina (Zero-DCE), modele .tflite — EditModelsPlugin.kt.
+    implementation "com.google.ai.edge.litert:litert:1.0.1"
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
