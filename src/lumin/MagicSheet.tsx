@@ -10,7 +10,7 @@ import { isNativeSegmentationAvailable, segmentPersonMask } from '../core/native
 import { shareCollage } from './collage';
 import { saveEditedBlob } from './saveEdited';
 import { useTr } from './context';
-import { aiSize, fillMasked, maskBounds, maskCoverage, skyMask, type Rect } from './magic';
+import { aiSize, fillMasked, replaceSky, maskBounds, maskCoverage, skyMask, type Rect } from './magic';
 import { canSharpen, sharpUrl } from './sharp';
 
 /**
@@ -153,6 +153,17 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
     const [final, fctx] = canvasOf(img.width, img.height);
     fctx.drawImage(img, 0, 0);
     const pix = fctx.getImageData(0, 0, img.width, img.height);
+    if (mode !== 'erase') {
+      // Cerul: masca grosieră se rafinează după culoare, la rezoluția pozei (fără contur alb).
+      const step = Math.max(1, Math.ceil(Math.max(img.width, img.height) / 256));
+      const coarse = sampledMask(mask.current, step);
+      if (!coarse.data.some(v => v)) return false;
+      replaceSky(pix.data, img.width, img.height, coarse.data, coarse.w, coarse.h, mode);
+      fctx.putImageData(pix, 0, 0);
+      setResult(final);
+      setNotice(tr('lx.magic.local'));
+      return true;
+    }
     const sample = sampledMask(mask.current, 1);
     if (!sample.data.some(v => v)) return false;
     fillMasked(pix.data, sample.data, img.width, img.height, mode);

@@ -112,10 +112,27 @@ export function styledEdits(base: EditAdjustments, style: EnhanceStyle, amount: 
     out.tint = Math.max(-6, Math.min(6, out.tint ?? 0));
     out.saturation = Math.min(vivid ? MAX_SATURATION : 6, out.saturation ?? 0);
     if (!night) {
-      if (vivid) out.saturation = Math.max(out.saturation, Math.round(12 * k));
-      out.clarity = Math.max(out.clarity ?? 0, Math.round(12 * k));
-      out.contrast = Math.max(out.contrast ?? 0, Math.round(10 * k));
-      out.sharpen = Math.max(out.sharpen ?? 0, Math.round(14 * k));
+      // Ținta arătată de om (editorul telefonului): cer albastru adânc, verde viu, contrast
+      // local puternic, umbre deschise. Culoarea vine pe benzi (verde, albastru, galben),
+      // nu ca saturație globală: tenul (portocaliu) rămâne cum e, poza nu se îngălbenește.
+      out.saturation = Math.max(out.saturation ?? 0, Math.round((vivid ? 14 : 8) * k));
+      out.clarity = Math.max(out.clarity ?? 0, Math.round(20 * k));
+      out.contrast = Math.max(out.contrast ?? 0, Math.round(16 * k));
+      out.sharpen = Math.max(out.sharpen ?? 0, Math.round(16 * k));
+      out.toneMap = Math.max(out.toneMap ?? 0, Math.round(34 * k));
+      // Cerul alb (înnorat) rămâne alb, nu gri: luminile coboară doar puțin, albul urcă.
+      out.highlights = Math.max(Math.round(-16 * k), Math.min(out.highlights ?? 0, Math.round(-12 * k)));
+      out.whites = Math.max(out.whites ?? 0, Math.round(8 * k));
+      out.shadows = Math.max(out.shadows ?? 0, Math.round(16 * k));
+      const b = (s: number, l = 0) => ({ hue: 0, saturation: Math.round(s * k), luminance: Math.round(l * k) });
+      out.hsl = {
+        ...(out.hsl ?? {}),
+        green: b(vivid ? 34 : 26, -4),
+        aqua: b(10, -4),
+        blue: b(vivid ? 24 : 16, -12),
+        yellow: b(14, 0),
+        orange: b(-4, 2)
+      };
     }
     out.vignette = Math.max(out.vignette ?? 0, Math.round(10 * k));
   }

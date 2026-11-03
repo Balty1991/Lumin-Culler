@@ -57,6 +57,8 @@ export interface FrameStats {
   faceMean: number | null;
   restMean: number | null;
   redEye: number;
+  /** Câți pixeli s-au măsurat (pentru proporții). */
+  pixels: number;
   skinCast: number;
 }
 
@@ -111,7 +113,7 @@ export function measureFrame(
       if (face) faceN++; else restN++;
       // Ochi roșii = pupilă roșu aprins de la blitz, nu ten rozaliu (detectorul vechi
       // prindea obrajii unui copil și înnegrea zona ochilor — raportat cu captură).
-      if (face && r > 150 && g < 90 && b < 100 && r > g * 2.1 && r > b * 1.8) {
+      if (face && r > 150 && g < 90 && b < 100 && r > g * 2.1 && r > b * 1.8 && b < g * 1.6 + 20) {
         const v = y / height;
         const box = boxes.find(f => {
           const u = x / width;
@@ -119,7 +121,8 @@ export function measureFrame(
         });
         if (box) {
           const fy = (v - box.box[1]) / box.box[3];
-          if (fy > 0.12 && fy < 0.48) redEye++;
+          const fx = (x / width - box.box[0]) / box.box[2];
+          if (fy > 0.2 && fy < 0.55 && fx > 0.12 && fx < 0.88) redEye++;
         }
       }
       if (face && r > g && g > b && r - b > 12 && r - b < 90 && sat < 0.45 && lum > 40 && lum < 220) {
@@ -165,6 +168,7 @@ export function measureFrame(
     faceMean: faceN > 4 ? faceSum / faceN / 255 : null,
     restMean: restN > 4 ? restSum / restN / 255 : null,
     redEye,
+    pixels: n,
     skinCast: skinN > 6 ? skinG / skinN / 255 : 0
   };
 }
@@ -281,7 +285,9 @@ export function recipeFromStats(s: FrameStats, faces: readonly LookFace[] = []):
     delete adjustments.contrast;
   }
 
-  if (s.redEye >= 6) {
+  // Pupilele sunt mici: multe pixeli roșii pe față înseamnă glugă sau căciulă roșie (raportat).
+  const faceArea = faces.reduce((n, f) => n + f.box[2] * f.box[3], 0);
+  if (s.redEye >= 6 && (!faceArea || s.redEye < faceArea * s.pixels * 0.06)) {
     issues.push('redEye');
     redEye = 100;
   }
