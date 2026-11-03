@@ -122,11 +122,12 @@ export function applyHslBands(d: Uint8ClampedArray, bands: HslBands): void {
   });
   if (!active.length) return;
 
-  for (let i = 0; i < d.length; i += 4) {
-    const [h, s, l] = rgbToHsl(d[i], d[i + 1], d[i + 2]);
-    if (s < GRAY_THRESHOLD) continue;
-
-    const w = bandWeights(h);
+  // Un tabel pe grad de nuanta (360 de intrari), calculat o data: inainte se cereau
+  // ponderile si se faceau tablouri noi pentru FIECARE pixel — auditul a masurat
+  // ~80% din timpul unui cadru aici (slider-ele inghetau editorul secunde intregi).
+  const DH = new Float32Array(360), DS = new Float32Array(360), DL = new Float32Array(360), ON = new Uint8Array(360);
+  for (let deg = 0; deg < 360; deg++) {
+    const w = bandWeights(deg);
     let dh = 0, ds = 0, dl = 0, total = 0;
     for (const band of active) {
       const weight = w[band];
@@ -137,14 +138,36 @@ export function applyHslBands(d: Uint8ClampedArray, bands: HslBands): void {
       dl += weight * (v.luminance / 100);
       total += weight;
     }
-    if (total <= 0) continue;
+    if (total > 0) { DH[deg] = dh; DS[deg] = ds; DL[deg] = dl; ON[deg] = 1; }
+  }
+
+  for (let i = 0; i < d.length; i += 4) {
+    const R = d[i] / 255, G = d[i + 1] / 255, B = d[i + 2] / 255;
+    const max = R > G ? (R > B ? R : B) : (G > B ? G : B);
+    const min = R < G ? (R < B ? R : B) : (G < B ? G : B);
+    if (max === min) continue;
+    const l = (max + min) / 2;
+    const c = max - min;
+    const s = l > 0.5 ? c / (2 - max - min) : c / (max + min);
+    if (s < GRAY_THRESHOLD) continue;
+    let h = max === R ? (G - B) / c + (G < B ? 6 : 0) : max === G ? (B - R) / c + 2 : (R - G) / c + 4;
+    h *= 60;
+    const k = (h | 0) % 360;
+    if (!ON[k]) continue;
+    // Culorile aproape neutre (alb crem, gri) primesc doar o parte din efect: altfel
+    // un alb cald capata nuanta (raportat: geaca alb-crem devenea lila).
+    const soft = s < 0.25 ? s / 0.25 : 1;
 
     // Saturatia se inmulteste, nu se aduna: pe o culoare deja slaba, un plus
-    // aditiv ar fi umflat-o mai tare decat pe una vie, si tocmai zonele
-    // aproape neutre ar fi sarit primele in ochi.
-    const ns = Math.max(0, Math.min(1, s * (1 + ds)));
-    const nl = Math.max(0, Math.min(1, l + dl * 0.5));
-    const [r, g, b] = hslToRgb(h + dh, ns, nl);
-    d[i] = r; d[i + 1] = g; d[i + 2] = b;
+    // aditiv ar fi umflat-o mai tare decat pe una vie.
+    const ns = Math.max(0, Math.min(1, s * (1 + DS[k] * soft)));
+    const nl = Math.max(0, Math.min(1, l + DL[k] * 0.5 * soft));
+    const nh = ((((h + DH[k] * soft) % 360) + 360) % 360) / 360;
+    if (ns <= 0) { const v = Math.round(nl * 255); d[i] = v; d[i + 1] = v; d[i + 2] = v; continue; }
+    const q = nl < 0.5 ? nl * (1 + ns) : nl + ns - nl * ns;
+    const pp = 2 * nl - q;
+    d[i] = Math.round(hueToRgb(pp, q, nh + 1 / 3) * 255);
+    d[i + 1] = Math.round(hueToRgb(pp, q, nh) * 255);
+    d[i + 2] = Math.round(hueToRgb(pp, q, nh - 1 / 3) * 255);
   }
 }

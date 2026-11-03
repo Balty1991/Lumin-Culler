@@ -262,7 +262,7 @@ export function recipeFromStats(s: FrameStats, faces: readonly LookFace[] = []):
   // vopsește automat: ieșea un halou gri-albăstrui în jurul capului (raportat).
   if (!backlit && s.skyLum > 0.55 && s.skySat >= 0.08 && s.skySat < 0.14 && s.skyLum < 0.88 && s.dark < 0.15) {
     issues.push('dullSky');
-    add(adjustments, 'sky', 10 + (0.14 - s.skySat) * 60, 0, 18);
+    // Fără „sky”: colora și pielea/hainele albe (auditul); doar dehaze-ul ușor rămâne.
     add(adjustments, 'dehaze', Math.max(adjustments.dehaze ?? 0, 8), 0, 34);
   }
 

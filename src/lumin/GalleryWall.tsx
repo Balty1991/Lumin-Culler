@@ -204,7 +204,9 @@ export function GalleryWall() {
       const docs = all.filter(p => isTextOnlyMatch(p, query));
       const found = docs.length && docs.length < all.length && !withDocs ? all.filter(p => !docs.includes(p)) : all;
       docCount.current = docs.length < all.length ? docs.length : 0;
-      if (found.length || aiTerms?.q !== query.trim()) return found;
+      // Pe luni, cele mai noi întâi: galeria grupează pe luni, iar ordinea după scor
+      // făcea aceeași lună să apară de două ori (auditul).
+      if (found.length || aiTerms?.q !== query.trim()) return [...found].sort((a, b) => photoTime(b) - photoTime(a));
       const seen = new Set<string>();
       return aiTerms.terms.flatMap(t => searchPhotos(searchable, t)).filter(p => !seen.has(p.id) && !!seen.add(p.id));
     }
@@ -295,7 +297,8 @@ export function GalleryWall() {
     const el = sentinel.current;
     if (!el) return;
     const io = new IntersectionObserver(entries => {
-      if (entries.some(e => e.isIntersecting)) setShown(n => Math.min(list.length, n + PAGE));
+      // Fără plafon la lungimea de acum: la import lista crește, iar plafonul oprea grila (raportat).
+      if (entries.some(e => e.isIntersecting)) setShown(n => n + PAGE);
     }, { rootMargin: '800px' });
     io.observe(el);
     return () => io.disconnect();

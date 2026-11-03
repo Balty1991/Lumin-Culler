@@ -363,7 +363,7 @@ const MANUAL: Record<ManualPanel, { key: ManualKey; min?: number; track?: string
     { key: 'whites' }, { key: 'blacks' }, { key: 'clarity' }, { key: 'dehaze' }, { key: 'vignette' }
   ],
   color: [
-    { key: 'sky', track: 'sky' }, { key: 'temperature', track: 'temp' }, { key: 'tint', track: 'tint' }, { key: 'saturation', track: 'sat' },
+{ key: 'temperature', track: 'temp' }, { key: 'tint', track: 'tint' }, { key: 'saturation', track: 'sat' },
     { key: 'sharpen', min: 0 }, { key: 'noiseReduction', min: 0 }, { key: 'grain', min: 0 }
   ]
 };
@@ -731,6 +731,19 @@ function LivePreview({ src, edits }: { src: string; edits: EditAdjustments }) {
     c.getContext('2d')?.drawImage(img, 0, 0, c.width, c.height);
     return c;
   }, [img]);
+  // Varianta „clară” nu trebuie să fie mai mare decât ecranul (auditul: 2,4–4,2 s pe
+  // poza întreagă, pe firul principal, la fiecare pauză în tragerea slider-ului).
+  const screen = useMemo(() => {
+    if (!img) return null;
+    const cap = Math.round(Math.min(1400, Math.max(window.innerWidth, window.innerHeight) * Math.min(2, window.devicePixelRatio || 1)));
+    const k = Math.min(1, cap / Math.max(img.naturalWidth, img.naturalHeight));
+    if (k >= 1) return null;
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(img.naturalWidth * k));
+    c.height = Math.max(1, Math.round(img.naturalHeight * k));
+    c.getContext('2d')?.drawImage(img, 0, 0, c.width, c.height);
+    return c;
+  }, [img]);
 
   useEffect(() => {
     let alive = true;
@@ -751,9 +764,9 @@ function LivePreview({ src, edits }: { src: string; edits: EditAdjustments }) {
       if (ctx) try { drawAdjusted(ctx, source, w, h, o.width, o.height, edits); } catch { /* fără memorie: rămâne ultima */ }
     };
     const frame = requestAnimationFrame(() => draw(small, small.width, small.height));
-    const full = window.setTimeout(() => draw(img, img.naturalWidth, img.naturalHeight), 380);
+    const full = window.setTimeout(() => (screen ? draw(screen, screen.width, screen.height) : draw(img, img.naturalWidth, img.naturalHeight)), 650);
     return () => { cancelAnimationFrame(frame); window.clearTimeout(full); };
-  }, [img, small, edits]);
+  }, [img, small, screen, edits]);
 
   return <canvas ref={canvas} className="lx-enhance-canvas" />;
 }

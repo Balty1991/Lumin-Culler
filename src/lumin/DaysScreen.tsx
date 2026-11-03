@@ -1,7 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { autoNameFaces, canEmbedFaces, embedMissingFaces, suggestFaces } from './faceIdentity';
 import { useLxPhotos } from './useLxPhotos';
-import { lazy, Suspense, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useStore } from '../state/store';
 import { groupDays, type Day } from './days';
 import { usePeopleFaces } from './faces';
@@ -48,6 +48,13 @@ export function DaysScreen() {
   const setOpenDay = useLx(s => s.setOpenDay);
   const view = useLx(s => s.galleryView);
   const setView = useLx(s => s.setGalleryView);
+  // Tabul ales se aduce în vedere doar când se schimbă tabul (raportat: la fiecare
+  // actualizare din import, pagina sărea înapoi sus).
+  useEffect(() => {
+    const el = document.querySelector<HTMLElement>('.lx-days .lx-seg.scroll [aria-selected="true"], .lx-seg.scroll [aria-selected="true"]');
+    const bar = el?.parentElement;
+    if (el && bar) bar.scrollTo({ left: el.offsetLeft - (bar.clientWidth - el.clientWidth) / 2, behavior: 'smooth' });
+  }, [view]);
   const tr = useTr();
   const { pick } = useLxActions();
   const [person, setPerson] = useState<string | null>(null);
@@ -79,7 +86,6 @@ export function DaysScreen() {
       <div className="lx-seg scroll" role="tablist">
         {VIEWS.map(v => (
           <button key={v} role="tab" aria-selected={view === v} className={view === v ? 'on' : ''}
-            ref={el => { if (el && view === v) el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }}
             onClick={() => setView(v)}>
             {tr(`lx.days.view.${v}`)}
           </button>

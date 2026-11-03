@@ -142,20 +142,26 @@ export function searchText(p: SearchablePhoto): string {
 export function searchPhotos<P extends SearchablePhoto>(photos: readonly P[], query: string): P[] {
   const terms = words(query);
   if (!terms.length) return [];
-  const scored: { p: P; score: number }[] = [];
+  const scored: { p: P; score: number; t: number }[] = [];
   for (const p of photos) {
-    const text = searchText(p);
+    // Potrivire de la începutul cuvântului: „Ana” nu mai găsește „banana”, „Ioana”,
+    // „canapea” (raportat). Prefixul rămâne: „pisic” găsește „pisică”.
+    const text = ' ' + searchText(p).replace(/[^a-z0-9]+/g, ' ');
+    const names = ' ' + fold(p.personNames.join(' ')).replace(/[^a-z0-9]+/g, ' ');
     let score = 0;
     let all = true;
     for (const term of terms) {
       const options = [term, ...(SYNONYMS[term] ?? [])];
-      const hit = options.find(o => text.includes(fold(o)));
+      const hit = options.find(o => text.includes(' ' + fold(o)));
       if (!hit) { all = false; break; }
       score += hit === term ? 2 : 1;
+      // Persoana numită exact cum ai scris: prima.
+      if (names.includes(' ' + fold(term) + ' ') || names.endsWith(' ' + fold(term))) score += 6;
     }
-    if (all) scored.push({ p, score });
+    if (all) scored.push({ p, score, t: p.capturedAt ?? p.importedAt });
   }
-  return scored.sort((a, b) => b.score - a.score).map(x => x.p);
+  // La scor egal, cele mai noi întâi (nu ordinea importului).
+  return scored.sort((a, b) => b.score - a.score || b.t - a.t).map(x => x.p);
 }
 
 /**

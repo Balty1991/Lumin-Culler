@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties, type SyntheticEvent } from 'react';
-import { drawAdjusted, isNeutral, type EditAdjustments } from '../core/imageAdjust';
+import { drawAdjusted, isNeutral, outputSize, type EditAdjustments } from '../core/imageAdjust';
 
 /**
  * Inlocuitor drop-in pentru <img src=...> peste tot unde se afiseaza o poza
@@ -50,8 +50,11 @@ export function AdjustedImage({ src, edits, alt, className, style, loading, deco
       if (cancelled) return;
       try {
         const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
+        // Mărimea ieșirii ține cont de decupaj și rotire (raportat: copia 16:9 apărea
+        // întinsă în cadrul portret al originalului).
+        const o = outputSize(img.naturalWidth, img.naturalHeight, edits);
+        canvas.width = o.width;
+        canvas.height = o.height;
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
         drawAdjusted(ctx, img, img.naturalWidth, img.naturalHeight, canvas.width, canvas.height, edits);
