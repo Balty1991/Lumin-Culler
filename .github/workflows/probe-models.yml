@@ -1,0 +1,13 @@
+name: Probe editor models
+on:
+  push:
+    paths: ['.github/workflows/probe-models.yml', 'scripts/probe_models.py']
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: pip install -q ai-edge-litert requests
+      - run: python scripts/probe_models.py
