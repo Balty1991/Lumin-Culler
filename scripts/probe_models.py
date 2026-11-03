@@ -1,7 +1,7 @@
 """Listează și inspectează modelele candidate pentru editorul de pe telefon."""
 import json, os, requests
 
-REPOS = ['litert-community/MI-GAN-512-Places2-LiteRT', 'mlboydaisuke/zero-dce-litert', 'chili-raw/chiliraw-models']
+REPOS = ['andraniksargsyan/migan', 'litert-community/MI-GAN-512-Places2-LiteRT', 'mlboydaisuke/zero-dce-litert', 'chili-raw/chiliraw-models']
 os.makedirs('m', exist_ok=True)
 
 def interp(path):
@@ -22,7 +22,7 @@ for repo in REPOS:
     readme = requests.get(f'https://huggingface.co/{repo}/resolve/main/README.md', timeout=60).text
     print(readme[:3000])
     for f in files:
-        if f.endswith('.tflite') or (f.endswith('.onnx') and 'sky' in f.lower()):
+        if f.endswith('.tflite') or f.endswith('.onnx'):
             url = f'https://huggingface.co/{repo}/resolve/main/{f}'
             r = requests.get(url, timeout=300)
             p = os.path.join('m', f.replace('/', '_'))
