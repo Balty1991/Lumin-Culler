@@ -680,9 +680,7 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
                 {cloudAvailable() && (
                   <button className="lx-chip-btn" disabled={aiBusy} onClick={() => void aiAuto()}>{aiBusy ? `… ${tr('lx.enhance.aiWorking')}` : `✨ ${tr('lx.enhance.aiAuto')}`}</button>
                 )}
-                {cloudAvailable() && (
-                  <button className="lx-chip-btn on" onClick={() => setRetouch('retouch')}>🪄 {tr('lx.aiRetouch.button')}{premiumLocked && <b className="lx-pro">PRO</b>}</button>
-                )}
+                {/* „Retuș AI” cere cheia Gemini pe server; fără ea nu merge, deci nu se arată (cerut: fără costuri). */}
               </div>
             )}
             {panel === 'styles' && aiReason && scenes.length > 0 && <p className="lx-hint lx-enhance-why">{aiReason}</p>}
