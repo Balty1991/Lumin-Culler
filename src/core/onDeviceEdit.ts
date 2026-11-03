@@ -6,8 +6,8 @@
 import { registerPlugin, Capacitor } from '@capacitor/core';
 import { blobToBase64 } from './base64';
 
-export interface Avail { erase: boolean; lowLight: boolean; clarity: boolean; cutout: boolean }
-const NONE: Avail = { erase: false, lowLight: false, clarity: false, cutout: false };
+export interface Avail { erase: boolean; lowLight: boolean; clarity: boolean; cutout: boolean; sky: boolean }
+const NONE: Avail = { erase: false, lowLight: false, clarity: false, cutout: false, sky: false };
 
 interface EditModelsApi {
   available(): Promise<Avail>;
@@ -15,6 +15,7 @@ interface EditModelsApi {
   lowLight(o: { imageBase64: string; strength?: number }): Promise<{ imageBase64: string; meanGain: number }>;
   clarity(o: { imageBase64: string; inSide?: number; outSide?: number }): Promise<{ imageBase64: string }>;
   cutout(o: { imageBase64: string; background?: 'white' | 'none' }): Promise<{ imageBase64: string }>;
+  segment(o: { imageBase64: string }): Promise<{ size: number; sky: string; person: string }>;
 }
 const Native = registerPlugin<EditModelsApi>('EditModels');
 
@@ -62,5 +63,15 @@ export async function cutoutOnDevice(image: Blob, background: 'white' | 'none' =
   try {
     const r = await Native.cutout({ imageBase64: await blobToBase64(image), background });
     return toBlob(r.imageBase64, background === 'none' ? 'image/png' : 'image/jpeg');
+  } catch { return null; }
+}
+
+/** Cerul și oamenii (SegFormer), pe telefon: probabilități 0..1 pe o grilă `size`². */
+export async function segmentOnDevice(image: Blob): Promise<{ sky: Float32Array; person: Float32Array; size: number } | null> {
+  if (!(await onDeviceEditAvailable()).sky) return null;
+  try {
+    const r = await Native.segment({ imageBase64: await blobToBase64(image) });
+    const dec = (b64: string) => { const bin = atob(b64); const f = new Float32Array(bin.length); for (let i = 0; i < bin.length; i++) f[i] = bin.charCodeAt(i) / 255; return f; };
+    return { sky: dec(r.sky), person: dec(r.person), size: r.size };
   } catch { return null; }
 }

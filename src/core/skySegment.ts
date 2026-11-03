@@ -7,6 +7,7 @@
  * Verificat în CI: intrare pixel_values [1,3,512,512] (ImageNet), ieșire logits [1,150,128,128].
  */
 import type { InferenceSession } from 'onnxruntime-web';
+import { onDeviceEditAvailable, segmentOnDevice } from './onDeviceEdit';
 
 const MODEL_URL = `${import.meta.env.BASE_URL}models/segformer_ade_q.onnx`;
 const SIDE = 512;
@@ -38,6 +39,15 @@ export interface SkySegmentation {
 }
 
 export async function segmentSky(source: CanvasImageSource): Promise<SkySegmentation | null> {
+  // În aplicație: modelul rulează nativ (onnxruntime-android), fără runtime-ul web de 14 MB în APK.
+  if ((await onDeviceEditAvailable()).sky) {
+    const c = document.createElement('canvas');
+    c.width = SIDE; c.height = SIDE;
+    c.getContext('2d')?.drawImage(source, 0, 0, SIDE, SIDE);
+    const blob = await new Promise<Blob | null>(r => c.toBlob(r, 'image/jpeg', 0.92));
+    const native = blob ? await segmentOnDevice(blob) : null;
+    if (native) return native;
+  }
   const s = await load();
   if (!s) return null;
   const ort = await import('onnxruntime-web/wasm');

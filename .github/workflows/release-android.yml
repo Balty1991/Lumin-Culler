@@ -74,10 +74,6 @@ jobs:
       - name: Bundle ML models
         run: |
           mkdir -p public/models
-          # Cer nou: SegFormer-b0 ADE20K (cer + oameni), cuantizat, ~4,4 MB — core/skySegment.ts.
-          curl -fL --retry 3 -o public/models/segformer_ade_q.onnx https://huggingface.co/Xenova/segformer-b0-finetuned-ade-512-512/resolve/main/onnx/model_quantized.onnx
-          seg=$(stat -c%s public/models/segformer_ade_q.onnx); echo "segformer_ade_q.onnx: $seg octeti"
-          if [ "$seg" -lt 3000000 ]; then echo "::error::modelul de cer pare trunchiat ($seg)" && exit 1; fi
           # DOAR DOUA din cele sase, si asta e o economie de 8,9 MB in fiecare
           # instalare — a doua jumatate a lui e5 din auditul motoarelor.
           #
@@ -145,6 +141,8 @@ jobs:
           echo "Lumi Cloud: ${url:-(oprit)}"
           echo "VITE_LUMI_CLOUD_URL=$url" >> "$GITHUB_ENV"
       - run: VITE_ANDROID_APK=1 npm run build
+      # Runtime-ul ONNX pentru web (14 MB) nu intră în APK: acolo modelele rulează nativ.
+      - run: rm -f dist/assets/ort-wasm-*.wasm && du -sh dist
       - run: npx cap sync android
       # Analiza AI nativa (Faza 3, rescrisa — vezi plugins/ImageLabelingPlugin.kt):
       # modelul TFLite COCO SSD MobileNet descarcat separat aici a fost inlocuit
@@ -224,6 +222,9 @@ jobs:
           curl -fL -o android/app/src/main/assets/u2netp.tflite https://huggingface.co/abhimanyu666/u2nettflite/resolve/main/u2netp.tflite
           [ "$(stat -c%s android/app/src/main/assets/realesr_general_x4v3.tflite)" -gt 2000000 ] || { echo "::error::realesr trunchiat"; exit 1; }
           [ "$(stat -c%s android/app/src/main/assets/u2netp.tflite)" -gt 3000000 ] || { echo "::error::u2netp trunchiat"; exit 1; }
+          # Cer nou: SegFormer-b0 ADE20K (cer + oameni), rulat nativ cu onnxruntime-android.
+          curl -fL --retry 3 -o android/app/src/main/assets/segformer_ade_q.onnx https://huggingface.co/Xenova/segformer-b0-finetuned-ade-512-512/resolve/main/onnx/model_quantized.onnx
+          [ "$(stat -c%s android/app/src/main/assets/segformer_ade_q.onnx)" -gt 3000000 ] || { echo "::error::segformer trunchiat"; exit 1; }
       - name: Bundle native image-embedder model
         run: |
           curl -fL -o android/app/src/main/assets/mobilenet_v3_small.tflite https://storage.googleapis.com/mediapipe-models/image_embedder/mobilenet_v3_small/float32/1/mobilenet_v3_small.tflite
