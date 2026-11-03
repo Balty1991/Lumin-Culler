@@ -210,11 +210,11 @@ describe('runImport photo batching', () => {
     const runningImport = useStore.getState().runImport([file]);
     const [, , onPhoto] = importFilesMock.mock.calls[0] as [unknown, unknown, (item: { photo: PhotoRecord; analysis: AnalysisRecord }) => void];
 
-    for (let i = 0; i < 14; i++) onPhoto(importedPhoto(i));
-    expect(useStore.getState().photos).toHaveLength(0); // sub pragul de 15 — inca bufferizate
+    for (let i = 0; i < 23; i++) onPhoto(importedPhoto(i));
+    expect(useStore.getState().photos).toHaveLength(0); // sub pragul de 24 — inca bufferizate
 
-    onPhoto(importedPhoto(14)); // a 15-a — declanseaza flush-ul de lot
-    expect(useStore.getState().photos).toHaveLength(15);
+    onPhoto(importedPhoto(23)); // a 24-a — declanseaza flush-ul de lot
+    expect(useStore.getState().photos).toHaveLength(24);
 
     resolveImportFiles?.();
     await runningImport;

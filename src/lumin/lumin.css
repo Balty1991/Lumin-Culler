@@ -376,6 +376,8 @@ body.lx-viewer-open .lx-dock-scrim { visibility: hidden; }
 .lx-chip-btn b { font-family: var(--mono); font-weight: 500; margin-left: 4px; opacity: 0.7; }
 .lx-chip-btn.on { background: var(--lx-grad); color: #06070a; border-color: transparent; }
 .lx-wall-month { display: flex; flex-direction: column; gap: 10px; }
+/* Lunile din afara ecranului nu se desenează (galerii mari, derulare fluidă). */
+.lx-wall-month { content-visibility: auto; contain-intrinsic-size: auto 900px; }
 .lx-wall-head {
   position: sticky; top: 0; z-index: 3; margin: 0; padding: 10px 0 6px;
   font-family: var(--font-display); font-size: 17px; font-weight: 600;
@@ -836,7 +838,8 @@ body.lx-viewer-open .lx-hero-media img { animation-play-state: paused; }
 .lx-tbtn span { font-size: 16px; }
 /* Rândul de acțiuni: patru butoane egale, fără derulare laterală. */
 .lx-viewer-info .lx-viewer-tools2 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); overflow: visible; margin: 0; padding: 0; }
-.lx-viewer-info .lx-viewer-tools2 .lx-tbtn { min-width: 0; padding: 0 4px; gap: 4px; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; }
+.lx-viewer-info .lx-viewer-tools2 .lx-tbtn { min-width: 0; height: 54px; padding: 4px 2px; flex-direction: column; gap: 2px; font-size: 12px; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; }
+.lx-viewer-info .lx-viewer-tools2 .lx-tbtn span { font-size: 18px; line-height: 1; }
 .lx-tbtn.on { border-color: rgb(255 255 255 / .28); background: rgb(255 255 255 / .12); }
 .lx-more-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; animation: lx-fade-in .16s ease-out; }
 .lx-more-grid button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 58px; padding: 6px 4px; border-radius: 14px; border: 1px solid rgb(255 255 255 / .08); background: rgb(255 255 255 / .04); color: #e8ecf5; font-size: 12px; font-weight: 600; text-align: center; line-height: 1.15; }

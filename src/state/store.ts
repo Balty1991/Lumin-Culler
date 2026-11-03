@@ -3101,8 +3101,10 @@ export const useStore = create<AppState>((set, get) => ({
     // Citirea galeriei în fundal: loturi mai mari și mai rare. Fiecare lot adăugat
     // recalculează toate ecranele (zile, galerie, propuneri); la 15 poze / 200 ms
     // aplicația abia mai răspundea cât importa (raportat: „nu poți face mai nimic”).
-    const PHOTO_FLUSH_BATCH = opts?.deferMoments !== undefined ? 48 : 15;
-    const PHOTO_FLUSH_INTERVAL_MS = opts?.deferMoments !== undefined ? 2500 : 200;
+    // Importul de mână: primele poze apar imediat, apoi loturi mai rare (auditul: la
+    // 15 poze / 200 ms, fiecare lot redesena toate ecranele — 66% din timp blocat).
+    const PHOTO_FLUSH_BATCH = opts?.deferMoments !== undefined ? 48 : 24;
+    const PHOTO_FLUSH_INTERVAL_MS = opts?.deferMoments !== undefined ? 2500 : 900;
     // Progresul pe ecran: de cel mult ~3 ori pe secundă (schimbarea de fază și finalul, imediat).
     let progressShownAt = 0;
     let progressShownPhase = '';

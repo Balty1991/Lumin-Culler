@@ -476,6 +476,17 @@ async function capToPreviewSize(bitmap: ImageBitmap): Promise<ImageBitmap> {
   const longest = Math.max(bitmap.width, bitmap.height);
   if (longest <= PREVIEW_MAX_SIDE) return bitmap;
   const scale = PREVIEW_MAX_SIDE / longest;
+  // Micșorarea o face browserul, în afara firului principal (auditul: desenul pe
+  // canvas de aici bloca ecranul la import). Canvasul rămâne doar ca rezervă.
+  try {
+    const resized = await createImageBitmap(bitmap, {
+      resizeWidth: Math.max(1, Math.round(bitmap.width * scale)),
+      resizeHeight: Math.max(1, Math.round(bitmap.height * scale)),
+      resizeQuality: 'medium'
+    } as ImageBitmapOptions);
+    bitmap.close();
+    return resized;
+  } catch { /* browser fără redimensionare: canvasul de mai jos */ }
   const c = document.createElement('canvas');
   c.width = Math.max(1, Math.round(bitmap.width * scale));
   c.height = Math.max(1, Math.round(bitmap.height * scale));
