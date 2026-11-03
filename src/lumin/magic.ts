@@ -147,13 +147,29 @@ const smooth = (a: number, b: number, x: number) => { const t = Math.max(0, Math
 export function replaceSky(
   rgba: Uint8ClampedArray, w: number, h: number,
   coarse: Uint8Array, cw: number, ch: number,
-  mode: 'sky-blue' | 'sky-sunset'
+  mode: 'sky-blue' | 'sky-sunset',
+  protect?: { data: Uint8Array; w: number; h: number }
 ): void {
    
   // Masca găsită se oprește uneori înainte de margine (fâșii albe lângă stâlpi, deasupra
   // acoperișurilor). O lărgim pe celulele vecine cu aceeași culoare și lumină ca cerul,
   // strict (gluga albă de lângă cer e mai întunecată și nu intră).
   coarse = coarse.slice();
+  // Oamenii (din model) nu sunt niciodată cer, cu o margine de siguranță.
+  const guard = new Uint8Array(cw * ch);
+  const person = new Uint8Array(cw * ch);
+  if (protect) {
+    for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) {
+      const px = Math.min(protect.w - 1, ((x + 0.5) * protect.w / cw) | 0), py = Math.min(protect.h - 1, ((y + 0.5) * protect.h / ch) | 0);
+      if (!protect.data[py * protect.w + px]) continue;
+      person[y * cw + x] = 1;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const xx = x + dx, yy = y + dy;
+        if (xx >= 0 && yy >= 0 && xx < cw && yy < ch) guard[yy * cw + xx] = 1;
+      }
+    }
+    for (let c = 0; c < cw * ch; c++) if (guard[c]) coarse[c] = 0;
+  }
   {
     let r0 = 0, g0 = 0, b0 = 0, n0 = 0;
     for (let c = 0; c < cw * ch; c++) if (coarse[c]) {
@@ -174,13 +190,13 @@ export function replaceSky(
       let front: number[] = [];
       for (let c = 0; c < cw * ch; c++) if (coarse[c]) front.push(c);
       // Cerul de după un stâlp sau un fir pornește tot de sus.
-      for (let c = 0; c < cw; c++) if (!coarse[c] && like(c)) { coarse[c] = 1; front.push(c); }
+      for (let c = 0; c < cw; c++) if (!coarse[c] && !guard[c] && like(c)) { coarse[c] = 1; front.push(c); }
       for (let step = 0; step < 60 && front.length; step++) {
         const next: number[] = [];
         for (const c of front) {
           const x = c % cw, y = (c / cw) | 0;
           for (const n of [x > 0 ? c - 1 : -1, x < cw - 1 ? c + 1 : -1, y > 0 ? c - cw : -1, y < ch - 1 ? c + cw : -1]) {
-            if (n < 0 || coarse[n] || !like(n)) continue;
+            if (n < 0 || coarse[n] || guard[n] || !like(n)) continue;
             coarse[n] = 1; next.push(n);
           }
         }
@@ -285,7 +301,8 @@ export function replaceSky(
         a = Math.min(aChroma, 1 - smooth(8, 30, sl - l));
       }
     }
-    alpha[p] = a * bandAt(p % w, (p / w) | 0);
+    const px = p % w, py = (p / w) | 0;
+    alpha[p] = person[cell(px, py)] ? 0 : a * bandAt(px, py);
   }
   // Doar ce e legat de cer contează: o căciulă albă de sub glugă seamănă cu cerul,
   // dar e despărțită de el de marginea glugii.

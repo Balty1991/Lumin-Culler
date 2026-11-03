@@ -64,6 +64,10 @@ jobs:
       - name: Bundle ML models
         run: |
           mkdir -p public/models
+          # Cer nou: SegFormer-b0 ADE20K (cer + oameni), cuantizat, ~4,4 MB — core/skySegment.ts.
+          curl -fL --retry 3 -o public/models/segformer_ade_q.onnx https://huggingface.co/Xenova/segformer-b0-finetuned-ade-512-512/resolve/main/onnx/model_quantized.onnx
+          seg=$(stat -c%s public/models/segformer_ade_q.onnx); echo "segformer_ade_q.onnx: $seg octeti"
+          if [ "$seg" -lt 3000000 ]; then echo "::error::modelul de cer pare trunchiat ($seg)" && exit 1; fi
           # APK de TEST. Doar detectorul și embeddingul de identitate, ca
           # persoanele să poată fi grupate și numite. Rulează în fundal, după
           # primele rezultate (VITE_TEST_IDENTITY=1), niciodată în treapta 1.

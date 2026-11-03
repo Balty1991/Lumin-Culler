@@ -104,6 +104,10 @@ jobs:
           size=$(stat -c%s public/models/migan_pipeline_v2.onnx)
           echo "migan_pipeline_v2.onnx: $size octeti"
           if [ "$size" -lt 20000000 ]; then echo "::error::modelul gumei pare trunchiat ($size)" && exit 1; fi
+          # Cer nou: SegFormer-b0 ADE20K (cer + oameni), cuantizat, ~4,4 MB — core/skySegment.ts.
+          curl -fL --retry 3 -o public/models/segformer_ade_q.onnx https://huggingface.co/Xenova/segformer-b0-finetuned-ade-512-512/resolve/main/onnx/model_quantized.onnx
+          seg=$(stat -c%s public/models/segformer_ade_q.onnx); echo "segformer_ade_q.onnx: $seg octeti"
+          if [ "$seg" -lt 3000000 ]; then echo "::error::modelul de cer pare trunchiat ($seg)" && exit 1; fi
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:

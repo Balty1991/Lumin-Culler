@@ -108,28 +108,30 @@ export function styledEdits(base: EditAdjustments, style: EnhanceStyle, amount: 
     // (căldura împinge verdele spre galben), iar „wow”-ul vine din lumină și contrast
     // local, nu din culoare. Doar „Vie” primește culoare în plus.
     const vivid = style === 'vivid';
-    out.temperature = Math.max(-8, Math.min(vivid ? 10 : 5, out.temperature ?? 0));
-    out.tint = Math.max(-6, Math.min(6, out.tint ?? 0));
+    // Nici răcire tare: albul crem devenea lila (geaca, raportat cu captură).
+    out.temperature = Math.max(-3, Math.min(vivid ? 10 : 5, out.temperature ?? 0));
+    out.tint = Math.max(-5, Math.min(2, out.tint ?? 0));
     out.saturation = Math.min(vivid ? MAX_SATURATION : 6, out.saturation ?? 0);
     if (!night) {
       // Ținta arătată de om (editorul telefonului): cer albastru adânc, verde viu, contrast
       // local puternic, umbre deschise. Culoarea vine pe benzi (verde, albastru, galben),
       // nu ca saturație globală: tenul (portocaliu) rămâne cum e, poza nu se îngălbenește.
-      out.saturation = Math.max(out.saturation ?? 0, Math.round((vivid ? 14 : 8) * k));
-      out.clarity = Math.max(out.clarity ?? 0, Math.round(20 * k));
-      out.contrast = Math.max(out.contrast ?? 0, Math.round(16 * k));
-      out.sharpen = Math.max(out.sharpen ?? 0, Math.round(16 * k));
-      out.toneMap = Math.max(out.toneMap ?? 0, Math.round(34 * k));
-      // Cerul alb (înnorat) rămâne alb, nu gri: luminile coboară doar puțin, albul urcă.
-      out.highlights = Math.max(Math.round(-16 * k), Math.min(out.highlights ?? 0, Math.round(-12 * k)));
-      out.whites = Math.max(out.whites ?? 0, Math.round(8 * k));
-      out.shadows = Math.max(out.shadows ?? 0, Math.round(16 * k));
+      out.saturation = Math.max(out.saturation ?? 0, Math.round((vivid ? 12 : 6) * k));
+      // Raportat: prea mult contrast local dădea strălucire albă în jurul omului și pietriș
+      // „crocant”. Contrastul local și claritatea rămân moderate; culoarea face diferența.
+      out.toneMap = Math.min(out.toneMap ?? 0, 22);
+      out.clarity = Math.min(Math.max(out.clarity ?? 0, Math.round(10 * k)), 12);
+      out.sharpen = Math.min(Math.max(out.sharpen ?? 0, Math.round(10 * k)), 12);
+      out.contrast = Math.max(out.contrast ?? 0, Math.round(14 * k));
+      out.highlights = Math.max(Math.round(-14 * k), Math.min(out.highlights ?? 0, Math.round(-8 * k)));
+      out.whites = Math.min(out.whites ?? 0, 4);
+      out.blacks = Math.min(out.blacks ?? 0, Math.round(-8 * k));
       const b = (s: number, l = 0) => ({ hue: 0, saturation: Math.round(s * k), luminance: Math.round(l * k) });
       out.hsl = {
         ...(out.hsl ?? {}),
         green: b(vivid ? 34 : 26, -4),
-        aqua: b(10, -4),
-        blue: b(vivid ? 24 : 16, -12),
+        aqua: b(6, -2),
+        blue: b(vivid ? 14 : 8, -10),
         yellow: b(14, 0),
         orange: b(-4, 2)
       };
@@ -413,7 +415,7 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   const [lit, setLit] = useState(false);
   const [base, setBase] = useState<EditAdjustments | null>(null);
   const [style, setStyle] = useState<EnhanceStyle>('natural');
-  const [amount, setAmount] = useState(1);
+  const [amount, setAmount] = useState(0.5); // cerut: slider-ul pornește de la 50%, omul urcă dacă vrea mai mult
   const [tilt, setTilt] = useState(0);
   const [straight, setStraight] = useState(false);
   // „Lumină” și „Culoare”: reglajele omului, adăugate peste stil (0 = cum a ales AI-ul).

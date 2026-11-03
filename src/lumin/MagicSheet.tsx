@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { eraseInBrowser } from '../core/webInpaint';
+import { segmentSky } from '../core/skySegment';
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { getDisplayUrl } from '../core/previewUrlCache';
@@ -64,6 +65,9 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
   const view = useRef<HTMLCanvasElement>(null);
   const mask = useRef<HTMLCanvasElement | null>(null);
   const drawing = useRef(false);
+  // Oamenii găsiți de model: cerul nou nu intră peste ei.
+  const protect = useRef<Uint8Array | null>(null);
+  const protectSize = useRef<[number, number]>([0, 0]);
 
   useEffect(() => {
     let alive = true;
@@ -105,7 +109,18 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
     const w = Math.max(8, Math.round(img.width * k)), h = Math.max(8, Math.round(img.height * k));
     const [scan, sctx] = canvasOf(w, h);
     sctx.drawImage(img, 0, 0, w, h);
-    const m = skyMask(sctx.getImageData(0, 0, w, h).data, w, h);
+    // Întâi modelul de segmentare (cerul și oamenii recunoscuți, nu ghiciți din culori);
+    // dacă nu se poate încărca, rămâne căutarea după culoare.
+    const seg = await segmentSky(img).catch(() => null);
+    const m = seg ? new Uint8Array(w * h) : skyMask(sctx.getImageData(0, 0, w, h).data, w, h);
+    if (seg) {
+      const g = seg.size;
+      const at = (arr: Float32Array, x: number, y: number) => arr[Math.min(g - 1, (y * g / h) | 0) * g + Math.min(g - 1, (x * g / w) | 0)];
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) m[y * w + x] = at(seg.sky, x, y) > 0.5 ? 1 : 0;
+      protect.current = new Uint8Array(w * h);
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) protect.current[y * w + x] = at(seg.person, x, y) > 0.3 ? 1 : 0;
+      protectSize.current = [w, h];
+    }
     // Omul nu e cer (raportat: gluga albă și părul se coloram ca cerul, cu halou):
     // masca persoanei de pe telefon scoate omul din cer, cu o margine de siguranță.
     if (isNativeSegmentationAvailable()) {
@@ -158,7 +173,9 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
       const step = Math.max(1, Math.ceil(Math.max(img.width, img.height) / 256));
       const coarse = sampledMask(mask.current, step);
       if (!coarse.data.some(v => v)) return false;
-      replaceSky(pix.data, img.width, img.height, coarse.data, coarse.w, coarse.h, mode);
+      const [pw, ph] = protectSize.current;
+      replaceSky(pix.data, img.width, img.height, coarse.data, coarse.w, coarse.h, mode,
+        protect.current ? { data: protect.current, w: pw, h: ph } : undefined);
       fctx.putImageData(pix, 0, 0);
       setResult(final);
       setNotice(tr('lx.magic.local'));
