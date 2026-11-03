@@ -25,6 +25,8 @@ private const val SIDE = 512
 private const val ESRGAN_FILE = "realesr_general_x4v3.tflite"
 private const val U2NET_FILE = "u2netp.tflite"
 private const val SEG_FILE = "segformer_ade_q.onnx"
+// Nu intră în APK (limita de mărime): se descarcă o dată, la prima folosire, de pe site.
+private const val SEG_URL = "https://balty1991.github.io/Lumin-Culler/models/segformer_ade_q.onnx"
 
 /**
  * Editorul pe telefon, cu modele mici și gratuite (cerut: „editorul să fie
@@ -56,13 +58,30 @@ class EditModelsPlugin : Plugin() {
     private val u2net = ReleasableModel<Interpreter>({ interpreter(U2NET_FILE) }, { it.close() })
     // Segmentarea cerului (SegFormer-b0 ADE20K, ONNX): cu onnxruntime-android, deja în aplicație.
     private val segformer = ReleasableModel<OrtSession>({
-        val bytes = context.assets.open(SEG_FILE).use { it.readBytes() }
+        val bytes = segBytes()
         OrtEnvironment.getEnvironment().createSession(bytes, OrtSession.SessionOptions().apply { setIntraOpNumThreads(4) })
     }, { it.close() })
 
     override fun handleOnDestroy() {
         executor.shutdown()
         super.handleOnDestroy()
+    }
+
+    /** Modelul de cer: din APK dacă există, altfel din cache, altfel descărcat o dată. */
+    private fun segBytes(): ByteArray {
+        if (hasAsset(SEG_FILE)) return context.assets.open(SEG_FILE).use { it.readBytes() }
+        val f = java.io.File(context.filesDir, SEG_FILE)
+        if (f.length() > 3_000_000) return f.readBytes()
+        val conn = java.net.URL(SEG_URL).openConnection() as java.net.HttpURLConnection
+        conn.connectTimeout = 15000; conn.readTimeout = 60000
+        try {
+            if (conn.responseCode != 200) throw IllegalStateException("model ${conn.responseCode}")
+            val tmp = java.io.File(context.filesDir, "$SEG_FILE.part")
+            conn.inputStream.use { inp -> tmp.outputStream().use { inp.copyTo(it) } }
+            if (tmp.length() < 3_000_000) { tmp.delete(); throw IllegalStateException("model trunchiat") }
+            tmp.renameTo(f)
+        } finally { conn.disconnect() }
+        return f.readBytes()
     }
 
     private fun hasAsset(name: String): Boolean = try {
@@ -76,7 +95,7 @@ class EditModelsPlugin : Plugin() {
         out.put("lowLight", hasAsset(ZERODCE_FILE))
         out.put("clarity", hasAsset(ESRGAN_FILE))
         out.put("cutout", hasAsset(U2NET_FILE))
-        out.put("sky", hasAsset(SEG_FILE))
+        out.put("sky", true) // din APK, din cache sau descărcat la prima folosire
         call.resolve(out)
     }
 

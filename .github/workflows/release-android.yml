@@ -222,9 +222,6 @@ jobs:
           curl -fL -o android/app/src/main/assets/u2netp.tflite https://huggingface.co/abhimanyu666/u2nettflite/resolve/main/u2netp.tflite
           [ "$(stat -c%s android/app/src/main/assets/realesr_general_x4v3.tflite)" -gt 2000000 ] || { echo "::error::realesr trunchiat"; exit 1; }
           [ "$(stat -c%s android/app/src/main/assets/u2netp.tflite)" -gt 3000000 ] || { echo "::error::u2netp trunchiat"; exit 1; }
-          # Cer nou: SegFormer-b0 ADE20K (cer + oameni), rulat nativ cu onnxruntime-android.
-          curl -fL --retry 3 -o android/app/src/main/assets/segformer_ade_q.onnx https://huggingface.co/Xenova/segformer-b0-finetuned-ade-512-512/resolve/main/onnx/model_quantized.onnx
-          [ "$(stat -c%s android/app/src/main/assets/segformer_ade_q.onnx)" -gt 3000000 ] || { echo "::error::segformer trunchiat"; exit 1; }
       - name: Bundle native image-embedder model
         run: |
           curl -fL -o android/app/src/main/assets/mobilenet_v3_small.tflite https://storage.googleapis.com/mediapipe-models/image_embedder/mobilenet_v3_small/float32/1/mobilenet_v3_small.tflite
