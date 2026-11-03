@@ -1,3 +1,5 @@
+import { Capacitor } from '@capacitor/core';
+import { eraseInBrowser } from '../core/webInpaint';
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { getDisplayUrl } from '../core/previewUrlCache';
@@ -154,7 +156,14 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
     const sample = sampledMask(mask.current, 1);
     if (!sample.data.some(v => v)) return false;
     fillMasked(pix.data, sample.data, img.width, img.height, mode);
-    fctx.putImageData(pix, 0, 0);
+    // Marginea estompată: umplutura intră în poză doar prin masca înmuiată.
+    const [patch, pctx] = canvasOf(img.width, img.height);
+    pctx.putImageData(pix, 0, 0);
+    pctx.globalCompositeOperation = 'destination-in';
+    pctx.filter = `blur(${Math.max(2, Math.round(Math.max(img.width, img.height) * 0.004))}px)`;
+    pctx.drawImage(mask.current, 0, 0);
+    pctx.filter = 'none';
+    fctx.drawImage(patch, 0, 0);
     setResult(final);
     setNotice(tr('lx.magic.local'));
     return true;
@@ -166,8 +175,10 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
     try {
       // Guma merge pe telefon (MI-GAN), gratuit și fără internet; serverul doar pentru cer.
       const native = mode === 'erase' && (await onDeviceEditAvailable()).erase;
-      const online = !native && cloudAvailable() && await ensureCloud(askConfirm, tr);
-      if (!native && !online) { finishLocal(mode); return; }
+      // În browser: același tip de model (MI-GAN), rulat în pagină, fără server.
+      const web = mode === 'erase' && !native && !Capacitor.isNativePlatform();
+      const online = !native && !web && cloudAvailable() && await ensureCloud(askConfirm, tr);
+      if (!native && !web && !online) { finishLocal(mode); return; }
       // Bucata trimisă: pentru gumă, cutia din jurul zonei (cu context); pentru cer, toată poza.
       let r: Rect = { x: 0, y: 0, w: img.width, h: img.height };
       if (mode === 'erase') {
@@ -177,7 +188,7 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
         if (!b) return;
         r = { x: b.x * step, y: b.y * step, w: Math.min(img.width - b.x * step, b.w * step), h: Math.min(img.height - b.y * step, b.h * step) };
         // Modelul de pe telefon are nevoie de context în jurul zonei: cutie cam pătrată, de ~2,2× zona.
-        if (native) {
+        if (native || web) {
           const side = Math.min(Math.max(img.width, img.height), Math.max(160, Math.max(r.w, r.h) * 2.2));
           const w = Math.min(img.width, side), h = Math.min(img.height, side);
           const x = Math.max(0, Math.min(img.width - w, r.x + r.w / 2 - w / 2));
@@ -202,13 +213,20 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
         md.data[i + 3] = 255;
       }
       mctx.putImageData(md, 0, 0);
+      let ai: ImageBitmap | HTMLCanvasElement;
+      if (web) {
+        const filled = await eraseInBrowser(ic, mc).catch(() => null);
+        if (!filled) { finishLocal(mode); return; }
+        ai = filled;
+      } else {
       const [imageBlob, maskBlob] = await Promise.all([toBlob(ic, 'image/jpeg', 0.92), toBlob(mc, 'image/png')]);
       if (!imageBlob || !maskBlob) return;
       const out = native
         ? await eraseOnDevice(imageBlob, maskBlob).then(b => (b ? { ok: true as const, image: b } : { ok: false as const }))
         : await cloudInpaint(mode, imageBlob, maskBlob, size.width, size.height);
       if (!out.ok) { finishLocal(mode); return; }
-      const ai = await createImageBitmap(out.image);
+      ai = await createImageBitmap(out.image);
+      }
       // Înapoi în poză: rezultatul, doar unde e masca, cu marginea estompată.
       const [final, fctx] = canvasOf(img.width, img.height);
       fctx.drawImage(img, 0, 0);

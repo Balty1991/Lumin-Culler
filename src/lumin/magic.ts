@@ -22,12 +22,12 @@ export function skyMask(rgba: Uint8ClampedArray, w: number, h: number): Uint8Arr
     const max = Math.max(r, g, b), min = Math.min(r, g, b);
     const sat = max ? (max - min) / max : 0;
     const blue = b >= r && b >= g - 6;
-    const grayWhite = sat < 0.16 && lum > 150;
+    const grayWhite = sat < 0.12 && lum > 165;
     const greenish = g > r + 12 && g > b + 8;
     return lum > 110 && !greenish && (blue || grayWhite);
   };
   const close = (a: number, b: number) =>
-    Math.abs(rgba[a * 4] - rgba[b * 4]) + Math.abs(rgba[a * 4 + 1] - rgba[b * 4 + 1]) + Math.abs(rgba[a * 4 + 2] - rgba[b * 4 + 2]) < 40;
+    Math.abs(rgba[a * 4] - rgba[b * 4]) + Math.abs(rgba[a * 4 + 1] - rgba[b * 4 + 1]) + Math.abs(rgba[a * 4 + 2] - rgba[b * 4 + 2]) < 30;
   const stack: number[] = [];
   for (let x = 0; x < w; x++) if (isSkyish(x)) { mask[x] = 1; stack.push(x); }
   while (stack.length) {
@@ -92,26 +92,38 @@ export function fillMasked(rgba: Uint8ClampedArray, mask: Uint8Array, w: number,
     }
     return -1;
   };
+  // Cerul local păstrează norii: luminozitatea din poză modulează culoarea nouă,
+  // iar norii aproape albi rămân albi (înainte: o pată plată, portocalie).
+  let skyLum = 0, skyN = 0;
+  if (mode !== 'erase') {
+    for (let p = 0; p < mask.length; p++) if (mask[p]) { skyLum += 0.299 * src[p * 4] + 0.587 * src[p * 4 + 1] + 0.114 * src[p * 4 + 2]; skyN++; }
+    skyLum = skyN ? skyLum / skyN : 200;
+  }
+  let top = h, bottom = 0;
+  if (mode !== 'erase') for (let p = 0; p < mask.length; p++) if (mask[p]) { const y = (p / w) | 0; if (y < top) top = y; if (y > bottom) bottom = y; }
   for (let y = 0; y < h; y++) {
-    const t = h <= 1 ? 0 : y / (h - 1);
+    const t = bottom > top ? Math.max(0, Math.min(1, (y - top) / (bottom - top))) : 0;
     for (let x = 0; x < w; x++) {
       const p = y * w + x;
       if (!mask[p]) continue;
       const i = p * 4;
-      let tr: number, tg: number, tb: number;
       if (mode === 'erase') {
         const q = nearest(x, y);
         if (q < 0) continue;
-        tr = src[q * 4]; tg = src[q * 4 + 1]; tb = src[q * 4 + 2];
-      } else if (mode === 'sky-blue') {
-        tr = 78 + t * 50; tg = 150 + t * 28; tb = 230 - t * 24;
-      } else {
-        tr = 250 - t * 30; tg = 120 + t * 40; tb = 64 + t * 50;
+        rgba[i] = src[q * 4]; rgba[i + 1] = src[q * 4 + 1]; rgba[i + 2] = src[q * 4 + 2];
+        continue;
       }
-      const keep = 0.18;
-      rgba[i] = Math.round(tr * (1 - keep) + src[i] * keep);
-      rgba[i + 1] = Math.round(tg * (1 - keep) + src[i + 1] * keep);
-      rgba[i + 2] = Math.round(tb * (1 - keep) + src[i + 2] * keep);
+      let tr: number, tg: number, tb: number;
+      if (mode === 'sky-blue') {
+        tr = 70 + t * 95; tg = 130 + t * 75; tb = 215 + t * 25;
+      } else {
+        tr = 120 + t * 130; tg = 110 + t * 70; tb = 170 - t * 60;
+      }
+      const lum = 0.299 * src[i] + 0.587 * src[i + 1] + 0.114 * src[i + 2];
+      const d = (lum - skyLum) * 0.9;
+      const cloud = Math.max(0, Math.min(1, (lum - skyLum - 6) / 40)) * 0.75;
+      const mix = (c: number, o: number) => Math.round(Math.max(0, Math.min(255, (c + d) * (1 - cloud) + o * cloud)));
+      rgba[i] = mix(tr, src[i]); rgba[i + 1] = mix(tg, src[i + 1]); rgba[i + 2] = mix(tb, src[i + 2]);
     }
   }
 }
