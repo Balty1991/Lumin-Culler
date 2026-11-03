@@ -525,6 +525,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
   const [writing, setWriting] = useState(false);
   const [insta, setInsta] = useState(false);
   const [magic, setMagic] = useState(false);
+  const [more, setMore] = useState(false);
   const [texting, setTexting] = useState(false);
   const [comparing, setComparing] = useState(false);
   const tr = useTr();
@@ -536,6 +537,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
   // Doar poza asta din magazin: viewerul nu se redesenează la orice altă schimbare.
   const id = list[index].id;
   const p = useStore(s => s.photos.find(x => x.id === id)) ?? list[index];
+  useEffect(() => { setMore(false); }, [id]);
   // Doar pozele pe care AI-ul nu le-ar păstra: „mai e una aproape la fel” — și o poți vedea.
   const twin = useStore(s => (p.status === 'selected' ? null : betterTwin(p, s.photos)));
   const start = useRef<{ x: number; y: number; dx: number; dy: number } | null>(null);
@@ -746,30 +748,34 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
           <span className="lx-chip info">AI {p.aiScore}</span>
           {reasonsFor(p).map(r => <span key={r.key} className={`lx-chip ${r.tone}`}>{tr(r.key)}</span>)}
         </div>
-        {/* O singură bară, butoane mici cu etichetă: poza rămâne mare. */}
-        {/* Două rânduri (raportat: textul din butoane nu încăpea): sus uneltele, cu
-            pictogramă și text alăturate; jos deciziile, mari. */}
+        {/* Patru acțiuni egale, mereu încăpute (raportat: butoanele ieșeau din ecran);
+            restul uneltelor stau sub „Mai mult”, grupate într-o grilă. */}
         <div className="lx-viewer-tools2">
           <button className="lx-tbtn magic" onClick={() => setEnhancing(true)}><span>✨</span>{tr('lx.viewer.enhanceShort')}</button>
-          {onSimilar && <button className="lx-tbtn" onClick={() => onSimilar(p.id)}><span>◎</span>{tr('lx.viewer.similarShort')}</button>}
+          <button className="lx-tbtn" onClick={() => setMagic(true)}><span>🧽</span>{tr('lx.magic.erase')}</button>
           <button className="lx-tbtn" onClick={() => void exportSelection('apps', [p.id]).then(() => learnFromShare([p]))}><span>↗</span>{tr('lx.wall.share')}</button>
-          {cloudAvailable() && <button className="lx-tbtn magic" onClick={() => setMagic(true)}><span>🪄</span>{tr('lx.magic.button')}</button>}
-          <button className="lx-tbtn" onClick={() => setInsta(true)}><span>▣</span>{tr('lx.insta.button')}</button>
-          <button className="lx-tbtn" onClick={() => setTexting(true)}><span>Aa</span>{tr('lx.text.button')}</button>
-          {p.ocrText && p.ocrText.trim().length > 8 && (
-            <button className="lx-tbtn" onClick={() => { void navigator.clipboard?.writeText(p.ocrText!.trim()).then(() => useStore.getState().setNotice(tr('lx.viewer.textCopied')), () => {}); }}>
-              <span>📋</span>{tr('lx.viewer.copyText')}
-            </button>
-          )}
-          {cloudAvailable() && <button className="lx-tbtn" onClick={() => setWriting(true)}><span>✍</span>{tr('lx.caption.button')}</button>}
-          <button className="lx-tbtn" onClick={() => void hidePhotos([p.id], tr).then(done => { if (done) { if (list.length <= 1) onClose(); else onIndex(Math.min(index, list.length - 2)); } })}><span>🔒</span>{tr('lx.private.hide')}</button>
-          {p.status === 'rejected' && p.mediaUri && (
-            <button className="lx-tbtn danger" onClick={() => void deleteRejectedPhotos([p.id]).then(r => {
-              if (!r.deleted) return;
-              if (list.length <= 1) onClose(); else onIndex(Math.min(index, list.length - 2));
-            })}><span>🗑</span>{tr('lx.viewer.deleteShort')}</button>
-          )}
+          <button className={more ? 'lx-tbtn on' : 'lx-tbtn'} aria-expanded={more} onClick={() => setMore(v => !v)}><span>⋯</span>{tr('lx.viewer.more')}</button>
         </div>
+        {more && (
+          <div className="lx-more-grid">
+            {onSimilar && <button onClick={() => onSimilar(p.id)}><span>◎</span>{tr('lx.viewer.similarShort')}</button>}
+            <button onClick={() => setInsta(true)}><span>▣</span>{tr('lx.insta.button')}</button>
+            <button onClick={() => setTexting(true)}><span>Aa</span>{tr('lx.text.button')}</button>
+            {p.ocrText && p.ocrText.trim().length > 8 && (
+              <button onClick={() => { void navigator.clipboard?.writeText(p.ocrText!.trim()).then(() => useStore.getState().setNotice(tr('lx.viewer.textCopied')), () => {}); }}>
+                <span>📋</span>{tr('lx.viewer.copyText')}
+              </button>
+            )}
+            {cloudAvailable() && <button onClick={() => setWriting(true)}><span>✍</span>{tr('lx.caption.button')}</button>}
+            <button onClick={() => void hidePhotos([p.id], tr).then(done => { if (done) { if (list.length <= 1) onClose(); else onIndex(Math.min(index, list.length - 2)); } })}><span>🔒</span>{tr('lx.private.hide')}</button>
+            {p.status === 'rejected' && p.mediaUri && (
+              <button className="danger" onClick={() => void deleteRejectedPhotos([p.id]).then(r => {
+                if (!r.deleted) return;
+                if (list.length <= 1) onClose(); else onIndex(Math.min(index, list.length - 2));
+              })}><span>🗑</span>{tr('lx.viewer.deleteShort')}</button>
+            )}
+          </div>
+        )}
         <div className="lx-viewer-decide">
           <button className={p.status === 'rejected' ? 'lx-dbtn drop on' : 'lx-dbtn drop'} onClick={() => void setStatus(p.id, 'rejected')}>
             <span>✕</span>{tr('lx.notToday')}

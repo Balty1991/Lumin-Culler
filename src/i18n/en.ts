@@ -2998,5 +2998,8 @@ export const en: Record<TranslationKey, string> = {
   "lx.tool.clarity.button": "Clarity",
   "lx.tool.cutout.button": "White background",
   "lx.tool.working": "Working on the phone… (a few seconds)",
-  "lx.tool.local": "It all happens on the phone; the photo goes nowhere."
+  "lx.tool.local": "It all happens on the phone; the photo goes nowhere.",
+  "lx.enhance.learnedShort": "with your usual settings",
+  "lx.tool.group": "Tools",
+  "lx.viewer.more": "More",
 };

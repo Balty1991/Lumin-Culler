@@ -973,5 +973,8 @@ export const dict: Record<string, string> = {
   "lx.tool.clarity.button": "Nitidez",
   "lx.tool.cutout.button": "Fondo blanco",
   "lx.tool.working": "Trabajando en el móvil… (unos segundos)",
-  "lx.tool.local": "Todo ocurre en el móvil; la foto no sale de él."
+  "lx.tool.local": "Todo ocurre en el móvil; la foto no sale de él.",
+  "lx.enhance.learnedShort": "con tus ajustes",
+  "lx.tool.group": "Herramientas",
+  "lx.viewer.more": "Más",
 };

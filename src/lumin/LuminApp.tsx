@@ -389,6 +389,9 @@ export function LuminApp() {
           </button>
         )}
 
+        {/* Sub bara de jos: fundal plin până la marginea ecranului, ca pozele și titlurile
+            să nu se mai vadă prin bara sistemului (raportat: „Octombrie” apărea acolo). */}
+        <div className="lx-dock-scrim" aria-hidden="true" />
         <nav className="lx-dock" aria-label={tr('lx.nav.label')}>
           {TABS.slice(0, 2).map(x => (
             <button key={x.id} className={tab === x.id ? 'on' : ''} onClick={() => setTab(x.id)} aria-current={tab === x.id ? 'page' : undefined}>

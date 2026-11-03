@@ -3084,7 +3084,10 @@ export const ro = {
   "lx.tool.clarity.button": "Claritate",
   "lx.tool.cutout.button": "Fundal alb",
   "lx.tool.working": "Lucrez pe telefon… (câteva secunde)",
-  "lx.tool.local": "Totul se face pe telefon; poza nu pleacă nicăieri."
+  "lx.tool.local": "Totul se face pe telefon; poza nu pleacă nicăieri.",
+  "lx.enhance.learnedShort": "cu reglajele tale",
+  "lx.tool.group": "Unelte",
+  "lx.viewer.more": "Mai mult",
 };
 
 export type TranslationKey = keyof typeof ro;

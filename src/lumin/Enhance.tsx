@@ -8,7 +8,6 @@ import { canSharpen, sharpUrl } from './sharp';
 import { isNativeSegmentationAvailable, segmentPersonMask } from '../core/nativeSegmentation';
 import { useStore, type PhotoView } from '../state/store';
 import { frameCrop } from './instaCrop';
-import { FREE_DAILY, cloudAvailable, cloudGrade, ensureCloud } from './cloud';
 import { saveEditedBlob } from './saveEdited';
 import { useTr } from './context';
 import { AiRetouch, type ToolKind } from './AiRetouch';
@@ -544,48 +543,11 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
     }
     setSplit(splitValue.current);
   };
-  // „Auto AI”: varianta de acum, micșorată, merge la AI-ul online; reglajele lui se adună
-  // peste stil, în Lumină și Culoare, unde omul le vede și le poate muta mai departe.
-  const [aiBusy, setAiBusy] = useState(false);
   const [retouch, setRetouch] = useState<ToolKind | null>(null);
   const [tools, setTools] = useState<{ clarity: boolean; cutout: boolean }>({ clarity: false, cutout: false });
   useEffect(() => { void onDeviceEditAvailable().then(a => setTools({ clarity: a.clarity, cutout: a.cutout })); }, []);
-  const [aiReason, setAiReason] = useState('');
-  const aiAuto = async () => {
-    if (!src || !edits) return;
-    setAiBusy(true);
-    try {
-      const img = await createImageBitmap(await (await fetch(src)).blob());
-      const k = Math.min(1, 384 / Math.max(img.width, img.height));
-      const c = document.createElement('canvas');
-      c.width = Math.max(1, Math.round(img.width * k)); c.height = Math.max(1, Math.round(img.height * k));
-      const ctx = c.getContext('2d');
-      if (!ctx) return;
-      drawAdjusted(ctx, img, img.width, img.height, c.width, c.height, { ...edits, crop: undefined, bokehMask: undefined, bokeh: 0 });
-      const online = cloudAvailable() && await ensureCloud(useStore.getState().askConfirm, tr);
-      const got = online ? await cloudGrade(c.toDataURL('image/jpeg', 0.72).split(',')[1]) : null;
-      // AI-ul online n-a răspuns (rețea, limită, model ocupat): nu lăsăm butonul
-      // fără efect — o corectură măsurată pe telefon, pe varianta de acum.
-      const local = localGrade(ctx, c.width, c.height);
-      const remote = got && got !== 'limit' && got !== 'budget' ? got : null;
-      if (!remote) {
-        useStore.getState().setNotice(got === 'limit' ? tr('lx.enhance.aiLimit', { count: FREE_DAILY.grade }) : got === 'budget' ? tr('lx.cloud.budget') : tr('lx.enhance.aiLocal'));
-      }
-      if (local.issues.length) setIssues(prev => [...new Set([...prev, ...local.issues])]);
-      setManual(v => {
-        const n = { ...v };
-        const apply = (key: string, val: number) => {
-          if (!MANUAL.light.some(m => m.key === key) && !MANUAL.color.some(m => m.key === key)) return;
-          n[key as ManualKey] = Math.max(-100, Math.min(100, (n[key as ManualKey] ?? 0) + val));
-        };
-        // Telefonul întâi, ca butonul să nu rămână mut. Serverul, dacă răspunde, adaugă un pas mic.
-        for (const [key, val] of Object.entries(local.values)) apply(key, Math.round(val * 0.65));
-        if (remote) for (const [key, val] of Object.entries(remote.values)) apply(key, val);
-        return n;
-      });
-      setAiReason(remote?.reason || '');
-    } finally { setAiBusy(false); }
-  };
+  // „Auto AI” (serverul) a fost scos din editor: depindea de limita zilnică, iar corectura
+  // automată de pe telefon face deja același lucru, gratuit și pe loc.
 
   const save = async () => {
     if (!edits) return;
@@ -671,26 +633,6 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
                 </button>
               ))}
             </div>
-            {learned && Object.keys(manual).length > 0 && <p className="lx-hint">{tr('lx.enhance.learned')}</p>}
-            {panel === 'styles' && (scenes.length > 0 || issues.length > 0 || cloudAvailable()) && (
-              <div className="lx-enhance-meta">
-                <span>{issues.length > 0
-                  ? tr('lx.enhance.fixed', { what: issues.map(id => tr(`lx.enhance.issue.${id}`)).join(' · ') })
-                  : scenes.length > 0 ? `🔍 ${tr('lx.enhance.saw', { what: scenes.map(sc => tr(`lx.enhance.scene.${sc}`)).join(' · ') })}` : aiReason}</span>
-                {cloudAvailable() && (
-                  <button className="lx-chip-btn" disabled={aiBusy} onClick={() => void aiAuto()}>{aiBusy ? `… ${tr('lx.enhance.aiWorking')}` : `✨ ${tr('lx.enhance.aiAuto')}`}</button>
-                )}
-                {/* „Retuș AI” cere cheia Gemini pe server; fără ea nu merge, deci nu se arată (cerut: fără costuri). */}
-              </div>
-            )}
-            {panel === 'styles' && aiReason && scenes.length > 0 && <p className="lx-hint lx-enhance-why">{aiReason}</p>}
-            {panel === 'styles' && (
-              <div className="lx-enhance-tools">
-                <button className="lx-chip-btn" onClick={() => setErasing(true)}>🧽 {tr('lx.magic.erase')}</button>
-                {tools.clarity && <button className="lx-chip-btn" onClick={() => setRetouch('clarity')}>🔍 {tr('lx.tool.clarity.button')}</button>}
-                {tools.cutout && <button className="lx-chip-btn" onClick={() => setRetouch('cutout')}>✂️ {tr('lx.tool.cutout.button')}</button>}
-              </div>
-            )}
             {panel === 'frame' ? (
               <div className="lx-enhance-sliders">
                 <div className="lx-enhance-styles" role="radiogroup" aria-label={tr('lx.enhance.panel.frame')}>
@@ -724,6 +666,15 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
                 )}
               </div>
             ) : (<>
+            {/* O singură linie mică: ce a reparat editorul (și că a pornit de la reglajele omului). */}
+            {(issues.length > 0 || scenes.length > 0 || (learned && Object.keys(manual).length > 0)) && (
+              <p className="lx-enhance-fix">
+                {issues.length > 0
+                  ? `✓ ${tr('lx.enhance.fixed', { what: issues.map(id => tr(`lx.enhance.issue.${id}`)).join(' · ') })}`
+                  : scenes.length > 0 ? `🔍 ${tr('lx.enhance.saw', { what: scenes.map(sc => tr(`lx.enhance.scene.${sc}`)).join(' · ') })}` : ''}
+                {learned && Object.keys(manual).length > 0 && <span> · {tr('lx.enhance.learnedShort')}</span>}
+              </p>
+            )}
             <div className="lx-enhance-styles" role="radiogroup" aria-label={tr('lx.enhance.style')}>
               {styles.map(st => (
                 <button key={st} role="radio" aria-checked={style === st} className={style === st ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => setStyle(st)}>
@@ -741,6 +692,11 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
               <input type="range" min={0} max={150} step={5} value={Math.round(amount * 100)} onChange={e => setAmount(Number(e.target.value) / 100)} />
               <b>{Math.round(amount * 100)}%</b>
             </label>
+            <div className="lx-enhance-tools" role="group" aria-label={tr('lx.tool.group')}>
+              <button className="lx-tool-btn" onClick={() => setErasing(true)}><span aria-hidden="true">🧽</span>{tr('lx.magic.erase')}</button>
+              {tools.clarity && <button className="lx-tool-btn" onClick={() => setRetouch('clarity')}><span aria-hidden="true">🔍</span>{tr('lx.tool.clarity.button')}</button>}
+              {tools.cutout && <button className="lx-tool-btn" onClick={() => setRetouch('cutout')}><span aria-hidden="true">✂️</span>{tr('lx.tool.cutout.button')}</button>}
+            </div>
             </>)}
           </>
         )}
