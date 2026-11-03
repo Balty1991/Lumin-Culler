@@ -162,7 +162,7 @@ function meanLumOf(img: HTMLImageElement): number {
   } catch { return 0.5; }
 }
 
-export async function autoEnhance(photoId: string): Promise<{ url: string; lit?: boolean; edits: EditAdjustments; tilt: number; width: number; height: number; faces: { box: [number, number, number, number] }[]; scenes: Scene[]; issues: LookIssue[] }> {
+export async function autoEnhance(photoId: string): Promise<{ url: string; original: string; lit?: boolean; edits: EditAdjustments; tilt: number; width: number; height: number; faces: { box: [number, number, number, number] }[]; scenes: Scene[]; issues: LookIssue[] }> {
   // Pe telefon: poza clară făcută de Android (originalul direct ieșea negru pe unele telefoane).
   const source = canSharpen()
     ? sharpUrl(photoId, 1600).then(u => u ?? getCachedPreviewUrl(photoId))
@@ -176,12 +176,13 @@ export async function autoEnhance(photoId: string): Promise<{ url: string; lit?:
     el.src = u;
   });
   let url = first;
+  const original = first;
   let img = await load(url);
   // Poza întunecată: întâi lumina învățată (Zero-DCE, pe telefon), apoi restul corecturii.
   let lit = false;
   const dark = meanLumOf(img);
   if (dark < 0.34) {
-    const better = await fetch(url).then(r => r.blob()).then(b => lowLightOnDevice(b, Math.max(0.45, Math.min(1, (0.42 - dark) / 0.2)))).catch(() => null);
+    const better = await fetch(url).then(r => r.blob()).then(b => lowLightOnDevice(b, Math.max(0.35, Math.min(0.7, (0.42 - dark) / 0.25)))).catch(() => null);
     if (better) { url = URL.createObjectURL(better); img = await load(url); lit = true; }
   }
   const auto = computeAutoAdjustments(img, img.naturalWidth, img.naturalHeight, {
@@ -212,7 +213,7 @@ export async function autoEnhance(photoId: string): Promise<{ url: string; lit?:
   // Orizontul strâmb (măsurat la import, doar pe pozele fără oameni): îndreptarea e o opțiune, nu implicită.
   const tilt = computeAutoStraighten({ faceCount: a?.faceCount, horizonTiltDeg: a?.horizonTiltDeg });
   return {
-    url, lit, tilt, width: img.naturalWidth, height: img.naturalHeight, scenes: scene.scenes, issues: scene.issues,
+    url, original, lit, tilt, width: img.naturalWidth, height: img.naturalHeight, scenes: scene.scenes, issues: scene.issues,
     faces: (a?.faces ?? []).map(f => ({ box: f.box as [number, number, number, number] })),
     edits: { ...auto, crop: undefined, rotationDeg: 0, ...(subject ? { bokehSubject: subject } : {}) }
   };
@@ -411,6 +412,9 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   const addCorrectedCopies = useStore(s => s.addCorrectedCopies);
   const premiumLocked = useStore(s => s.premiumLocked);
   const [src, setSrc] = useState<string | null>(null);
+  // „Înainte” arată mereu poza originală, chiar dacă editarea pornește de la varianta luminată
+  // de model (raportat: „parcă modifică și originalul”).
+  const [orig, setOrig] = useState<string | null>(null);
   /** Sursa e deja luminată pe telefon (Zero-DCE): copia se salvează gata făcută. */
   const [lit, setLit] = useState(false);
   const [base, setBase] = useState<EditAdjustments | null>(null);
@@ -479,7 +483,7 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   useEffect(() => {
     let alive = true;
     void (async () => {
-      const { url, lit: wasLit, edits: lightOnly, tilt: t, width, height, faces, scenes: found, issues: foundIssues } = await autoEnhance(photo.id);
+      const { url, original, lit: wasLit, edits: lightOnly, tilt: t, width, height, faces, scenes: found, issues: foundIssues } = await autoEnhance(photo.id);
       setLit(!!wasLit);
       if (!alive) return;
       setScenes(found);
@@ -488,6 +492,7 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
       setTilt(t);
       if (Math.abs(t) >= 1.5) setStraight(true);
       setSrc(url);
+      setOrig(original);
       setBase(lightOnly);
     })().catch(() => { if (alive) setFailed(true); });
     return () => { alive = false; };
@@ -641,7 +646,7 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
           </div>
         ) : src && edits && (
           <div className="lx-enhance-frame">
-            <img src={src} alt="" draggable={false} />
+            <img src={orig ?? src} alt="" draggable={false} />
             <div ref={compareAfter} className="lx-enhance-after" style={{ clipPath: `inset(0 0 0 ${split}%)` }}>
               <LivePreview src={src} edits={edits} />
             </div>
