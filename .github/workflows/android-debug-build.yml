@@ -207,9 +207,7 @@ jobs:
       # și lumina Zero-DCE (Apache-2.0, ~0,2 MB), ambele LiteRT fp16.
       - name: Bundle on-device editor models (MI-GAN, Zero-DCE)
         run: |
-          curl -fL -o android/app/src/main/assets/migan_fp16.tflite https://huggingface.co/litert-community/MI-GAN-512-Places2-LiteRT/resolve/main/migan_fp16.tflite
           curl -fL -o android/app/src/main/assets/zerodce_512_fp16.tflite https://huggingface.co/mlboydaisuke/zero-dce-litert/resolve/main/zerodce_512_fp16.tflite
-          [ "$(stat -c%s android/app/src/main/assets/migan_fp16.tflite)" -gt 10000000 ] || { echo "::error::migan_fp16.tflite trunchiat"; exit 1; }
           [ "$(stat -c%s android/app/src/main/assets/zerodce_512_fp16.tflite)" -gt 100000 ] || { echo "::error::zerodce trunchiat"; exit 1; }
           curl -fL -o android/app/src/main/assets/realesr_general_x4v3.tflite https://huggingface.co/litert-community/real-esrgan-x4v3-litert/resolve/main/realesr_general_x4v3.tflite
           curl -fL -o android/app/src/main/assets/u2netp.tflite https://huggingface.co/abhimanyu666/u2nettflite/resolve/main/u2netp.tflite

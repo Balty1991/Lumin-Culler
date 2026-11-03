@@ -25,8 +25,8 @@ private const val SIDE = 512
 private const val ESRGAN_FILE = "realesr_general_x4v3.tflite"
 private const val U2NET_FILE = "u2netp.tflite"
 private const val SEG_FILE = "segformer_ade_q.onnx"
-// Nu intră în APK (limita de mărime): se descarcă o dată, la prima folosire, de pe site.
-private const val SEG_URL = "https://balty1991.github.io/Lumin-Culler/models/segformer_ade_q.onnx"
+// Modelele mari se descarcă o dată, la prima folosire, de pe site (nu intră în APK).
+private const val MODELS_URL = "https://balty1991.github.io/Lumin-Culler/models"
 
 /**
  * Editorul pe telefon, cu modele mici și gratuite (cerut: „editorul să fie
@@ -46,7 +46,7 @@ class EditModelsPlugin : Plugin() {
     private val executor = pluginExecutor("EditModels")
 
     private fun interpreter(name: String): Interpreter {
-        val bytes = context.assets.open(name).use { it.readBytes() }
+        val bytes = if (name == MIGAN_FILE) modelBytes(name, 10_000_000) else context.assets.open(name).use { it.readBytes() }
         val buf = ByteBuffer.allocateDirect(bytes.size).order(ByteOrder.nativeOrder())
         buf.put(bytes).rewind()
         return Interpreter(buf, Interpreter.Options().setNumThreads(4))
@@ -58,7 +58,7 @@ class EditModelsPlugin : Plugin() {
     private val u2net = ReleasableModel<Interpreter>({ interpreter(U2NET_FILE) }, { it.close() })
     // Segmentarea cerului (SegFormer-b0 ADE20K, ONNX): cu onnxruntime-android, deja în aplicație.
     private val segformer = ReleasableModel<OrtSession>({
-        val bytes = segBytes()
+        val bytes = modelBytes(SEG_FILE, 3_000_000)
         OrtEnvironment.getEnvironment().createSession(bytes, OrtSession.SessionOptions().apply { setIntraOpNumThreads(4) })
     }, { it.close() })
 
@@ -67,18 +67,21 @@ class EditModelsPlugin : Plugin() {
         super.handleOnDestroy()
     }
 
-    /** Modelul de cer: din APK dacă există, altfel din cache, altfel descărcat o dată. */
-    private fun segBytes(): ByteArray {
-        if (hasAsset(SEG_FILE)) return context.assets.open(SEG_FILE).use { it.readBytes() }
-        val f = java.io.File(context.filesDir, SEG_FILE)
-        if (f.length() > 3_000_000) return f.readBytes()
-        val conn = java.net.URL(SEG_URL).openConnection() as java.net.HttpURLConnection
-        conn.connectTimeout = 15000; conn.readTimeout = 60000
+    /**
+     * Modelele mari nu intră în APK (limita de mărime): se iau din APK dacă există,
+     * altfel din cache, altfel se descarcă o dată de pe site și rămân pe telefon.
+     */
+    private fun modelBytes(file: String, minSize: Long): ByteArray {
+        if (hasAsset(file)) return context.assets.open(file).use { it.readBytes() }
+        val f = java.io.File(context.filesDir, file)
+        if (f.length() > minSize) return f.readBytes()
+        val conn = java.net.URL("$MODELS_URL/$file").openConnection() as java.net.HttpURLConnection
+        conn.connectTimeout = 15000; conn.readTimeout = 90000
         try {
             if (conn.responseCode != 200) throw IllegalStateException("model ${conn.responseCode}")
-            val tmp = java.io.File(context.filesDir, "$SEG_FILE.part")
+            val tmp = java.io.File(context.filesDir, "$file.part")
             conn.inputStream.use { inp -> tmp.outputStream().use { inp.copyTo(it) } }
-            if (tmp.length() < 3_000_000) { tmp.delete(); throw IllegalStateException("model trunchiat") }
+            if (tmp.length() <= minSize) { tmp.delete(); throw IllegalStateException("model trunchiat") }
             tmp.renameTo(f)
         } finally { conn.disconnect() }
         return f.readBytes()
@@ -91,7 +94,7 @@ class EditModelsPlugin : Plugin() {
     @PluginMethod
     fun available(call: PluginCall) {
         val out = JSObject()
-        out.put("erase", hasAsset(MIGAN_FILE))
+        out.put("erase", true) // din APK, din cache sau descărcat la prima folosire
         out.put("lowLight", hasAsset(ZERODCE_FILE))
         out.put("clarity", hasAsset(ESRGAN_FILE))
         out.put("cutout", hasAsset(U2NET_FILE))

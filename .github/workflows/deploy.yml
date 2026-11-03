@@ -108,6 +108,9 @@ jobs:
           curl -fL --retry 3 -o public/models/segformer_ade_q.onnx https://huggingface.co/Xenova/segformer-b0-finetuned-ade-512-512/resolve/main/onnx/model_quantized.onnx
           seg=$(stat -c%s public/models/segformer_ade_q.onnx); echo "segformer_ade_q.onnx: $seg octeti"
           if [ "$seg" -lt 3000000 ]; then echo "::error::modelul de cer pare trunchiat ($seg)" && exit 1; fi
+          # Guma din aplicație (MI-GAN LiteRT, 16 MB): aplicația o descarcă de aici o dată (nu intră în APK).
+          curl -fL --retry 3 -o public/models/migan_fp16.tflite https://huggingface.co/litert-community/MI-GAN-512-Places2-LiteRT/resolve/main/migan_fp16.tflite
+          [ "$(stat -c%s public/models/migan_fp16.tflite)" -gt 10000000 ] || { echo "::error::migan_fp16.tflite trunchiat"; exit 1; }
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:
