@@ -10,21 +10,13 @@ jobs:
       - run: |
           pip install -q onnx onnxruntime numpy pillow
           mkdir m && cd m
-          for u in \
-            https://huggingface.co/andraniksargsyan/migan/resolve/main/migan_pipeline_v2.onnx \
-            https://huggingface.co/andraniksargsyan/migan/resolve/main/migan.onnx \
-            https://huggingface.co/Sanster/MI-GAN/resolve/main/migan_pipeline_v2.onnx ; do
-            f=$(basename $u); echo "== $u"; curl -fsSL -o "x_$f" "$u" && ls -la "x_$f" || echo FAIL
-          done
+          curl -fsSL -o x_migan_pipeline_v2.onnx https://huggingface.co/andraniksargsyan/migan/resolve/main/migan_pipeline_v2.onnx
           python - <<'PY'
-          import glob, onnxruntime as ort, numpy as np
-          for f in glob.glob('x_*'):
-              try:
-                  s = ort.InferenceSession(f)
-                  print(f, [(i.name, i.shape, i.type) for i in s.get_inputs()], [(o.name, o.shape, o.type) for o in s.get_outputs()])
-                  ins = s.get_inputs()
-                  if len(ins) == 2 and 'uint8' in ins[0].type:
-                      img = np.random.randint(0,255,(1,3,600,400),np.uint8); m = np.full((1,1,600,400),255,np.uint8); m[:,:,200:300,100:200]=0
-                      o = s.run(None, {ins[0].name: img, ins[1].name: m})[0]; print('run ok', o.shape, o.dtype)
-              except Exception as e: print(f, 'ERR', e)
+          import onnxruntime as ort, numpy as np
+          s = ort.InferenceSession('x_migan_pipeline_v2.onnx')
+          img = np.full((1,3,256,256),128,np.uint8); img[:,:,100:150,100:150]=255
+          for name,m in [('255=hole', np.zeros((1,1,256,256),np.uint8)), ('0=hole', np.full((1,1,256,256),255,np.uint8))]:
+              mm = m.copy(); mm[:,:,95:155,95:155] = 255 if name=='255=hole' else 0
+              o = s.run(None, {'image': img, 'mask': mm})[0]
+              print(name, 'center', o[0,:,125,125], 'outside', o[0,:,20,20])
           PY
