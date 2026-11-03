@@ -25,7 +25,7 @@
  *   POST /v1/report      { id, reason } → raportare conținut (cerință Google Play pentru AI)
  */
 import { GRADE_PROMPT, normalizeGrade, parseGradeReply, validateGrade, CF_INPAINT_MODELS, inpaintPrompt, validateInpaint, admit, backgroundPrompt, budgetKey, CF_IMG2IMG_MODELS, CF_TEXT2IMG_MODELS, CF_TEXT_MODELS, CF_VISION_MODELS, cfRequest, day, EXTRA_DAILY_LIMIT, EXTRA_KINDS, modelUnavailable, parseJsonReply, validateBackground, validateConcepts, conceptsPrompt, validateDescribe, VISION_PROMPT, writerPrompt, validateSupervise, supervisePrompt, normalizeVerdicts, SUPERVISE_VISION_PROMPT, type ExtraKind, COST_USD, DEFAULT_MODELS, falRequest, kindsFor, mapStatus, quotaKey, resultUrl, validateCreate, type Kind } from './logic';
-import { geminiGradeBody, gradeCacheKey, providerOrder, textFromGemini } from './providers';
+import { AIEDIT_PROMPTS, geminiGradeBody, geminiImageBody, gradeCacheKey, imageFromGemini, monthKey, providerOrder, textFromGemini, type AiEditMode } from './providers';
 
 export interface Env {
   FAL_KEY?: string;
@@ -38,6 +38,12 @@ export interface Env {
   AI_PROVIDERS?: string;
   GEMINI_API_KEY?: string;
   GEMINI_MODEL?: string;
+  /** Modelul Gemini care editează imagini (implicit gemini-2.5-flash-image). */
+  GEMINI_IMAGE_MODEL?: string;
+  /** Câte editări generative pe lună are o instalare (implicit 60). */
+  AIEDIT_MONTHLY?: string;
+  /** Plafon pe tot serverul, pe zi (implicit 400): plasa de cost. */
+  AIEDIT_DAILY_TOTAL?: string;
 }
 
 interface JobRecord {
@@ -88,6 +94,35 @@ async function runFirst(env: Env, models: string[], input: (model: string) => Re
   throw new Error(last);
 }
 
+
+/** O editare generativă cu Gemini; null dacă nu e cheie sau n-a mers. */
+async function geminiEdit(env: Env, mode: AiEditMode, images: { mime: string; data: string }[]): Promise<{ mime: string; data: string; model: string } | { error: string }> {
+  if (!env.GEMINI_API_KEY) return { error: 'no_provider' };
+  const model = env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image';
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY },
+    body: JSON.stringify(geminiImageBody(AIEDIT_PROMPTS[mode], images))
+  });
+  const j = await res.json().catch(() => null);
+  if (!res.ok) return { error: res.status === 429 ? 'budget' : `gemini_${res.status}: ${JSON.stringify(j).slice(0, 200)}` };
+  const img = imageFromGemini(j);
+  return img ? { ...img, model: `gemini:${model}` } : { error: 'no_image: ' + JSON.stringify(j).slice(0, 200) };
+}
+
+/** Plafonul lunar pe instalare + plafonul zilnic pe server, pentru editările plătite. */
+async function takeAiEdit(env: Env, installId: string, now: number): Promise<'ok' | 'monthly_limit' | 'budget'> {
+  const mk = monthKey('aiedit', installId, now);
+  const used = await readNumber(env.LIMITS, mk);
+  if (used >= (Number(env.AIEDIT_MONTHLY) || 60)) return 'monthly_limit';
+  const dk = `x:${day(now)}:aiedit-total`;
+  const total = await readNumber(env.LIMITS, dk);
+  if (total >= (Number(env.AIEDIT_DAILY_TOTAL) || 400)) return 'budget';
+  await env.LIMITS.put(mk, String(used + 1), { expirationTtl: 40 * DAY_S });
+  await env.LIMITS.put(dk, String(total + 1), { expirationTtl: 2 * DAY_S });
+  return 'ok';
+}
+
 function aiError(e: unknown): Response {
   const detail = String((e as Error)?.message ?? e).slice(0, 300);
   const quota = /quota|limit|neuron|429|capacity/i.test(detail);
@@ -130,7 +165,7 @@ export default {
     const hasFal = !!env.FAL_KEY;
 
     if (request.method === 'GET' && url.pathname === '/v1/capabilities') {
-      return json({ kinds: [...kindsFor(hasFal), ...EXTRA_KINDS] });
+      return json({ kinds: [...kindsFor(hasFal), ...EXTRA_KINDS, ...(env.GEMINI_API_KEY ? ['aiedit'] : [])] });
     }
 
     if (request.method === 'POST' && url.pathname === '/v1/background') {
@@ -160,12 +195,38 @@ export default {
       }
     }
 
+    // Retuș profesional cu AI generativ (Premium): aceeași poză, făcută ca de un fotograf.
+    if (request.method === 'POST' && url.pathname === '/v1/aiedit') {
+      let body: unknown;
+      try { body = await request.json(); } catch { return json({ error: 'bad_json' }, 400); }
+      const b = (body ?? {}) as Record<string, unknown>;
+      if (typeof b.installId !== 'string' || !/^[A-Za-z0-9-]{16,64}$/.test(b.installId)) return json({ error: 'bad_install' }, 400);
+      if (typeof b.image !== 'string' || !/^\/9j\//.test(b.image) || b.image.length > 2_800_000) return json({ error: 'bad_image' }, 400);
+      const mode = b.mode === 'sky-blue' || b.mode === 'sky-sunset' ? b.mode : 'enhance';
+      if (!env.GEMINI_API_KEY) return json({ error: 'no_provider' }, 503);
+      const gate = await takeAiEdit(env, b.installId, now);
+      if (gate !== 'ok') return json({ error: gate }, 429);
+      const out = await geminiEdit(env, mode, [{ mime: 'image/jpeg', data: b.image }]);
+      if ('data' in out) return json({ image: out.data, mime: out.mime, model: out.model });
+      return json({ error: out.error === 'budget' ? 'budget' : 'provider', detail: out.error }, out.error === 'budget' ? 429 : 502);
+    }
+
     if (request.method === 'POST' && url.pathname === '/v1/inpaint') {
       let body: unknown;
       try { body = await request.json(); } catch { return json({ error: 'bad_json' }, 400); }
       const v = validateInpaint(body);
       if (!v.ok) return json({ error: v.error }, 400);
       if (!(await takeExtra(env, 'inpaint', v.installId, now))) return json({ error: 'daily_limit' }, 429);
+      // Cu cheie Gemini: editare generativă reală (cerul și guma arătau a pictură cu SD 1.5).
+      if (env.GEMINI_API_KEY) {
+        const gate = await takeAiEdit(env, v.installId, now);
+        if (gate !== 'ok') return json({ error: gate }, 429);
+        const mime = v.image.startsWith('iVBOR') ? 'image/png' : 'image/jpeg';
+        const images = v.mode === 'erase' ? [{ mime, data: v.image }, { mime: 'image/png', data: v.mask }] : [{ mime, data: v.image }];
+        const out = await geminiEdit(env, v.mode, images);
+        if ('data' in out) return json({ image: out.data, mime: out.mime, model: out.model });
+        console.log('gemini-edit', out.error);
+      }
       try {
         const { prompt, negative } = inpaintPrompt(v.mode);
         const toBytes = (b64: string) => [...Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))];

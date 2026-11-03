@@ -1172,3 +1172,9 @@ html, body { overflow-x: hidden; }
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Retuș AI (AiRetouch.tsx) */
+.lx-ai-retouch .lx-enhance-stage { position: relative; }
+.lx-ai-retouch-img, .lx-ai-retouch-orig img { max-width: 100%; max-height: calc(100dvh - 300px); object-fit: contain; display: block; border-radius: 6px; user-select: none; }
+.lx-ai-retouch-orig { display: grid; place-items: center; opacity: 1; }
+.lx-ai-retouch-wait { position: absolute; inset: 0; justify-content: center; background: rgb(7 7 11 / .55); }

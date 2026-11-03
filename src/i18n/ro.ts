@@ -3068,7 +3068,16 @@ export const ro = {
   "lx.twin.keepThis": "O prefer pe asta",
   "lx.text.loading": "Deschid poza…",
   "lx.why.though": "deși",
-  "lx.cloud.budget": "AI-ul online și-a terminat porția pe azi; revine după ora 3 dimineața. Până atunci corectez pe telefon."
+  "lx.cloud.budget": "AI-ul online și-a terminat porția pe azi; revine după ora 3 dimineața. Până atunci corectez pe telefon.",
+  "lx.aiRetouch.button": "Retuș AI",
+  "lx.aiRetouch.title": "Retuș AI",
+  "lx.aiRetouch.working": "Retușez ca un fotograf… (10–20 s)",
+  "lx.aiRetouch.wait": "Poza pleacă la AI-ul online, micșorată, doar pentru retuș; nu se păstrează.",
+  "lx.aiRetouch.hint": "Ține apăsat pe poză ca să vezi originalul. Salvez o copie; originalul rămâne.",
+  "lx.aiRetouch.err.monthly": "Ai folosit retușurile AI ale lunii. Revin luna viitoare.",
+  "lx.aiRetouch.err.budget": "AI-ul online e ocupat acum. Încearcă puțin mai târziu.",
+  "lx.aiRetouch.err.unavailable": "Retușul AI nu e pornit încă pe server.",
+  "lx.aiRetouch.err.failed": "Retușul n-a mers acum. Încearcă din nou."
 };
 
 export type TranslationKey = keyof typeof ro;

@@ -2982,5 +2982,14 @@ export const en: Record<TranslationKey, string> = {
   "lx.twin.keepThis": "I prefer this one",
   "lx.text.loading": "Opening the photo…",
   "lx.why.though": "though",
-  "lx.cloud.budget": "The online AI has used up today's allowance; it's back after midnight UTC. Until then I correct on the phone."
+  "lx.cloud.budget": "The online AI has used up today's allowance; it's back after midnight UTC. Until then I correct on the phone.",
+  "lx.aiRetouch.button": "AI retouch",
+  "lx.aiRetouch.title": "AI retouch",
+  "lx.aiRetouch.working": "Retouching like a photographer… (10–20 s)",
+  "lx.aiRetouch.wait": "The photo goes to the online AI, downsized, only for the retouch; it isn't kept.",
+  "lx.aiRetouch.hint": "Press and hold the photo to see the original. I save a copy; the original stays.",
+  "lx.aiRetouch.err.monthly": "You've used this month's AI retouches. Back next month.",
+  "lx.aiRetouch.err.budget": "The online AI is busy right now. Try a bit later.",
+  "lx.aiRetouch.err.unavailable": "AI retouch isn't switched on on the server yet.",
+  "lx.aiRetouch.err.failed": "The retouch didn't work this time. Try again."
 };

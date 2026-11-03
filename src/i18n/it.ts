@@ -957,5 +957,14 @@ export const dict: Record<string, string> = {
   "welcome.next": "Avanti",
   "welcome.progress": "Passo {current} di {total}",
   "lx.why.though": "anche se",
-  "lx.cloud.budget": "L'IA online ha esaurito la quota di oggi; torna dopo la mezzanotte UTC. Fino ad allora correggo sul telefono."
+  "lx.cloud.budget": "L'IA online ha esaurito la quota di oggi; torna dopo la mezzanotte UTC. Fino ad allora correggo sul telefono.",
+  "lx.aiRetouch.button": "Ritocco IA",
+  "lx.aiRetouch.title": "Ritocco IA",
+  "lx.aiRetouch.working": "Ritocco come un fotografo… (10–20 s)",
+  "lx.aiRetouch.wait": "La foto va ridotta all'IA online, solo per il ritocco; non viene conservata.",
+  "lx.aiRetouch.hint": "Tieni premuta la foto per vedere l'originale. Salvo una copia.",
+  "lx.aiRetouch.err.monthly": "Hai usato i ritocchi IA di questo mese.",
+  "lx.aiRetouch.err.budget": "L'IA online è occupata. Riprova tra poco.",
+  "lx.aiRetouch.err.unavailable": "Il ritocco IA non è ancora attivo sul server.",
+  "lx.aiRetouch.err.failed": "Il ritocco non è riuscito. Riprova."
 };

@@ -333,3 +333,39 @@ export async function cloudGrade(jpegBase64: string): Promise<{ values: Record<s
     return { values: d.values, reason: typeof d.reason === 'string' ? d.reason : '' };
   } catch (e) { logError('cloud', `grade network ${String(e)}`.slice(0, 200)); return null; }
 }
+
+export type AiEditResult = { ok: true; image: Blob } | { ok: false; reason: 'consent' | 'premium' | 'monthly' | 'budget' | 'unavailable' | 'failed' };
+
+/**
+ * Retuș profesional cu AI generativ (Gemini pe server): aceeași poză, făcută ca de
+ * un fotograf. Premium (costă pe server ~0,04–0,07 USD), cu plafon lunar pe server.
+ */
+export async function cloudAiEdit(id: string, mode: 'enhance' | 'sky-blue' | 'sky-sunset' = 'enhance'): Promise<AiEditResult> {
+  if (!cloudEnabled()) return { ok: false, reason: 'consent' };
+  if (useStore.getState().premiumLocked) { useStore.getState().gatePremium('cloud'); return { ok: false, reason: 'premium' }; }
+  const url = (canSharpen() ? await sharpUrl(id, 1600).catch(() => null) : null) ?? await getCachedPreviewUrl(id);
+  if (!url) return { ok: false, reason: 'failed' };
+  const img = await new Promise<HTMLImageElement | null>(resolve => {
+    const el = new Image(); el.onload = () => resolve(el); el.onerror = () => resolve(null); el.src = url;
+  });
+  if (!img) return { ok: false, reason: 'failed' };
+  const k = Math.min(1, 1536 / Math.max(img.naturalWidth, img.naturalHeight));
+  const c = document.createElement('canvas');
+  c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+  c.getContext('2d')?.drawImage(img, 0, 0, c.width, c.height);
+  const data = c.toDataURL('image/jpeg', 0.88).split(',')[1] ?? '';
+  try {
+    const res = await CapacitorHttp.post({
+      url: `${URL_BASE}/v1/aiedit`,
+      headers: { 'content-type': 'application/json', 'user-agent': 'Cherrypic/3 (Android)' },
+      data: { mode, image: data, installId: installId() },
+      connectTimeout: 20_000,
+      readTimeout: 120_000
+    });
+    const d = res.data as { image?: string; mime?: string; error?: string } | undefined;
+    if (res.status === 503) return { ok: false, reason: 'unavailable' };
+    if (res.status === 429) return { ok: false, reason: d?.error === 'monthly_limit' ? 'monthly' : 'budget' };
+    if (res.status !== 200 || !d?.image) { logError('cloud', `aiedit ${res.status} ${d?.error ?? ''}`.trim()); return { ok: false, reason: 'failed' }; }
+    return { ok: true, image: new Blob([Uint8Array.from(atob(d.image), ch => ch.charCodeAt(0))], { type: d.mime ?? 'image/png' }) };
+  } catch (e) { logError('cloud', `aiedit network ${String(e)}`.slice(0, 200)); return { ok: false, reason: 'failed' }; }
+}

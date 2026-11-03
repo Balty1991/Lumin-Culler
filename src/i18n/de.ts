@@ -957,5 +957,14 @@ export const dict: Record<string, string> = {
   "welcome.next": "Weiter",
   "welcome.progress": "Schritt {current} von {total}",
   "lx.why.though": "obwohl",
-  "lx.cloud.budget": "Die Online-KI hat ihr Tageskontingent aufgebraucht; ab Mitternacht (UTC) geht es wieder. Bis dahin korrigiere ich auf dem Handy."
+  "lx.cloud.budget": "Die Online-KI hat ihr Tageskontingent aufgebraucht; ab Mitternacht (UTC) geht es wieder. Bis dahin korrigiere ich auf dem Handy.",
+  "lx.aiRetouch.button": "KI-Retusche",
+  "lx.aiRetouch.title": "KI-Retusche",
+  "lx.aiRetouch.working": "Retuschiere wie ein Fotograf… (10–20 s)",
+  "lx.aiRetouch.wait": "Das Foto geht verkleinert an die Online-KI, nur für die Retusche; es wird nicht gespeichert.",
+  "lx.aiRetouch.hint": "Halte das Foto gedrückt, um das Original zu sehen. Ich speichere eine Kopie.",
+  "lx.aiRetouch.err.monthly": "Die KI-Retuschen dieses Monats sind aufgebraucht.",
+  "lx.aiRetouch.err.budget": "Die Online-KI ist gerade ausgelastet. Versuch es etwas später.",
+  "lx.aiRetouch.err.unavailable": "Die KI-Retusche ist auf dem Server noch nicht aktiv.",
+  "lx.aiRetouch.err.failed": "Die Retusche hat nicht geklappt. Versuch es nochmal."
 };
