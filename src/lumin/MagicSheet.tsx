@@ -4,6 +4,7 @@ import { getDisplayUrl } from '../core/previewUrlCache';
 import { useStore, type PhotoView } from '../state/store';
 import { cloudAvailable, cloudInpaint, ensureCloud, type InpaintMode } from './cloud';
 import { eraseOnDevice, onDeviceEditAvailable } from '../core/onDeviceEdit';
+import { isNativeSegmentationAvailable, segmentPersonMask } from '../core/nativeSegmentation';
 import { shareCollage } from './collage';
 import { saveEditedBlob } from './saveEdited';
 import { useTr } from './context';
@@ -95,14 +96,30 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
   };
 
   // Cerul: găsit singur, pe o copie mică, apoi întins la mărimea pozei.
-  const findSky = () => {
+  const findSky = async () => {
     if (!img || !mask.current) return;
     clearMask();
     const k = 256 / Math.max(img.width, img.height);
     const w = Math.max(8, Math.round(img.width * k)), h = Math.max(8, Math.round(img.height * k));
-    const [, sctx] = canvasOf(w, h);
+    const [scan, sctx] = canvasOf(w, h);
     sctx.drawImage(img, 0, 0, w, h);
     const m = skyMask(sctx.getImageData(0, 0, w, h).data, w, h);
+    // Omul nu e cer (raportat: gluga albă și părul se coloram ca cerul, cu halou):
+    // masca persoanei de pe telefon scoate omul din cer, cu o margine de siguranță.
+    if (isNativeSegmentationAvailable()) {
+      try {
+        const blob = await toBlob(scan, 'image/jpeg', 0.9);
+        const person = blob ? await segmentPersonMask(blob) : null;
+        if (person) {
+          const [pc, pctx] = canvasOf(w, h);
+          pctx.filter = 'blur(2px)';
+          pctx.drawImage(person.image, 0, 0, w, h);
+          const pd = pctx.getImageData(0, 0, w, h).data;
+          void pc;
+          for (let i = 0; i < m.length; i++) if (pd[i * 4 + 3] > 24) m[i] = 0;
+        }
+      } catch { /* fără mască: cerul găsit doar din culoare */ }
+    }
     if (maskCoverage(m) < 0.05) { setNoSky(true); redraw(); return; }
     const [small, mctx] = canvasOf(w, h);
     const id = mctx.createImageData(w, h);
@@ -248,7 +265,7 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
           <>
             <div className="lx-enhance-tabs" role="tablist">
               <button role="tab" aria-selected={tool === 'erase'} className={tool === 'erase' ? 'on' : ''} onClick={() => { setTool('erase'); clearMask(); }}>{tr('lx.magic.erase')}</button>
-              <button role="tab" aria-selected={tool === 'sky'} className={tool === 'sky' ? 'on' : ''} onClick={() => { setTool('sky'); setTimeout(findSky, 0); }}>{tr('lx.magic.sky')}</button>
+              <button role="tab" aria-selected={tool === 'sky'} className={tool === 'sky' ? 'on' : ''} onClick={() => { setTool('sky'); setTimeout(() => void findSky(), 0); }}>{tr('lx.magic.sky')}</button>
             </div>
             <p className="lx-hint center">{tr(tool === 'erase' ? 'lx.magic.eraseHint' : noSky ? 'lx.magic.noSky' : 'lx.magic.skyHint')}</p>
             <div className="lx-decide-actions">

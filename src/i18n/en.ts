@@ -2991,5 +2991,12 @@ export const en: Record<TranslationKey, string> = {
   "lx.aiRetouch.err.monthly": "You've used this month's AI retouches. Back next month.",
   "lx.aiRetouch.err.budget": "The online AI is busy right now. Try a bit later.",
   "lx.aiRetouch.err.unavailable": "AI retouch isn't switched on on the server yet.",
-  "lx.aiRetouch.err.failed": "The retouch didn't work this time. Try again."
+  "lx.aiRetouch.err.failed": "The retouch didn't work this time. Try again.",
+  "lx.tool.retouch.title": "AI retouch",
+  "lx.tool.clarity.title": "Clarity",
+  "lx.tool.cutout.title": "White background",
+  "lx.tool.clarity.button": "Clarity",
+  "lx.tool.cutout.button": "White background",
+  "lx.tool.working": "Working on the phone… (a few seconds)",
+  "lx.tool.local": "It all happens on the phone; the photo goes nowhere."
 };

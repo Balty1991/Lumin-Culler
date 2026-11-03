@@ -11,8 +11,8 @@ import { frameCrop } from './instaCrop';
 import { FREE_DAILY, cloudAvailable, cloudGrade, ensureCloud } from './cloud';
 import { saveEditedBlob } from './saveEdited';
 import { useTr } from './context';
-import { AiRetouch } from './AiRetouch';
-import { lowLightOnDevice } from '../core/onDeviceEdit';
+import { AiRetouch, type ToolKind } from './AiRetouch';
+import { lowLightOnDevice, onDeviceEditAvailable } from '../core/onDeviceEdit';
 import { analysisPool } from '../core/workerPool';
 import { vibrate } from '../ui/haptics';
 
@@ -516,7 +516,9 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   // „Auto AI”: varianta de acum, micșorată, merge la AI-ul online; reglajele lui se adună
   // peste stil, în Lumină și Culoare, unde omul le vede și le poate muta mai departe.
   const [aiBusy, setAiBusy] = useState(false);
-  const [retouch, setRetouch] = useState(false);
+  const [retouch, setRetouch] = useState<ToolKind | null>(null);
+  const [tools, setTools] = useState<{ clarity: boolean; cutout: boolean }>({ clarity: false, cutout: false });
+  useEffect(() => { void onDeviceEditAvailable().then(a => setTools({ clarity: a.clarity, cutout: a.cutout })); }, []);
   const [aiReason, setAiReason] = useState('');
   const aiAuto = async () => {
     if (!src || !edits) return;
@@ -648,11 +650,17 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
                   <button className="lx-chip-btn" disabled={aiBusy} onClick={() => void aiAuto()}>{aiBusy ? `… ${tr('lx.enhance.aiWorking')}` : `✨ ${tr('lx.enhance.aiAuto')}`}</button>
                 )}
                 {cloudAvailable() && (
-                  <button className="lx-chip-btn on" onClick={() => setRetouch(true)}>🪄 {tr('lx.aiRetouch.button')}{premiumLocked && <b className="lx-pro">PRO</b>}</button>
+                  <button className="lx-chip-btn on" onClick={() => setRetouch('retouch')}>🪄 {tr('lx.aiRetouch.button')}{premiumLocked && <b className="lx-pro">PRO</b>}</button>
                 )}
               </div>
             )}
             {panel === 'styles' && aiReason && scenes.length > 0 && <p className="lx-hint lx-enhance-why">{aiReason}</p>}
+            {panel === 'styles' && (tools.clarity || tools.cutout) && (
+              <div className="lx-enhance-tools">
+                {tools.clarity && <button className="lx-chip-btn" onClick={() => setRetouch('clarity')}>🔍 {tr('lx.tool.clarity.button')}</button>}
+                {tools.cutout && <button className="lx-chip-btn" onClick={() => setRetouch('cutout')}>✂️ {tr('lx.tool.cutout.button')}</button>}
+              </div>
+            )}
             {panel === 'frame' ? (
               <div className="lx-enhance-sliders">
                 <div className="lx-enhance-styles" role="radiogroup" aria-label={tr('lx.enhance.panel.frame')}>
@@ -711,7 +719,7 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
           {!nothing && <button className="lx-btn primary" disabled={!edits || saving} onClick={() => void save()}>{tr('lx.enhance.save')}</button>}
         </div>
       </div>
-      {retouch && <AiRetouch photo={photo} onClose={() => setRetouch(false)} />}
+      {retouch && <AiRetouch photo={photo} kind={retouch} onClose={() => setRetouch(null)} />}
     </div>,
     document.body
   );

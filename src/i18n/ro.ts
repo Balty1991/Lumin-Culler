@@ -3077,7 +3077,14 @@ export const ro = {
   "lx.aiRetouch.err.monthly": "Ai folosit retușurile AI ale lunii. Revin luna viitoare.",
   "lx.aiRetouch.err.budget": "AI-ul online e ocupat acum. Încearcă puțin mai târziu.",
   "lx.aiRetouch.err.unavailable": "Retușul AI nu e pornit încă pe server.",
-  "lx.aiRetouch.err.failed": "Retușul n-a mers acum. Încearcă din nou."
+  "lx.aiRetouch.err.failed": "Retușul n-a mers acum. Încearcă din nou.",
+  "lx.tool.retouch.title": "Retuș AI",
+  "lx.tool.clarity.title": "Claritate",
+  "lx.tool.cutout.title": "Fundal alb",
+  "lx.tool.clarity.button": "Claritate",
+  "lx.tool.cutout.button": "Fundal alb",
+  "lx.tool.working": "Lucrez pe telefon… (câteva secunde)",
+  "lx.tool.local": "Totul se face pe telefon; poza nu pleacă nicăieri."
 };
 
 export type TranslationKey = keyof typeof ro;

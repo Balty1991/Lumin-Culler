@@ -19,6 +19,8 @@ import kotlin.math.min
 private const val MIGAN_FILE = "migan_fp16.tflite"
 private const val ZERODCE_FILE = "zerodce_512_fp16.tflite"
 private const val SIDE = 512
+private const val ESRGAN_FILE = "realesr_general_x4v3.tflite"
+private const val U2NET_FILE = "u2netp.tflite"
 
 /**
  * Editorul pe telefon, cu modele mici și gratuite (cerut: „editorul să fie
@@ -46,6 +48,8 @@ class EditModelsPlugin : Plugin() {
 
     private val migan = ReleasableModel<Interpreter>({ interpreter(MIGAN_FILE) }, { it.close() })
     private val zeroDce = ReleasableModel<Interpreter>({ interpreter(ZERODCE_FILE) }, { it.close() })
+    private val esrgan = ReleasableModel<Interpreter>({ interpreter(ESRGAN_FILE) }, { it.close() })
+    private val u2net = ReleasableModel<Interpreter>({ interpreter(U2NET_FILE) }, { it.close() })
 
     override fun handleOnDestroy() {
         executor.shutdown()
@@ -61,6 +65,8 @@ class EditModelsPlugin : Plugin() {
         val out = JSObject()
         out.put("erase", hasAsset(MIGAN_FILE))
         out.put("lowLight", hasAsset(ZERODCE_FILE))
+        out.put("clarity", hasAsset(ESRGAN_FILE))
+        out.put("cutout", hasAsset(U2NET_FILE))
         call.resolve(out)
     }
 
@@ -197,6 +203,121 @@ class EditModelsPlugin : Plugin() {
             val o = JSObject()
             o.put("imageBase64", encode(result))
             o.put("meanGain", smooth.average())
+            call.resolve(o)
+        }
+    }
+
+    /**
+     * Claritate (Real-ESRGAN x4v3, BSD-3): poza micșorată la ≤ `inSide`, mărită ×4 pe
+     * bucăți de 128 px (cu margine, ca să nu se vadă cusăturile), apoi adusă la
+     * `outSide`. Detaliul refăcut de model, nu doar accentuat.
+     */
+    @PluginMethod
+    fun clarity(call: PluginCall) {
+        val img64 = call.getString("imageBase64")
+        if (img64.isNullOrEmpty()) { call.reject("imageBase64 is required"); return }
+        val inSide = (call.getInt("inSide") ?: 640).coerceIn(128, 900)
+        val outSide = (call.getInt("outSide") ?: 2048).coerceIn(256, 3200)
+        executor.ruleaza(call, "Clarity failed") {
+            val full = decode(img64)
+            val k = min(1f, inSide.toFloat() / max(full.width, full.height))
+            val w = max(16, (full.width * k).toInt()); val h = max(16, (full.height * k).toInt())
+            val src = Bitmap.createScaledBitmap(full, w, h, true)
+            val sp = IntArray(w * h); src.getPixels(sp, 0, w, 0, 0, w, h)
+            val ow = w * 4; val oh = h * 4
+            val outPx = IntArray(ow * oh)
+            val T = 128; val PAD = 8; val core = T - 2 * PAD
+            val input = ByteBuffer.allocateDirect(4 * T * T * 3).order(ByteOrder.nativeOrder())
+            val output = ByteBuffer.allocateDirect(4 * 3 * 512 * 512).order(ByteOrder.nativeOrder())
+            val fi = input.asFloatBuffer()
+            esrgan.use { model ->
+                var ty = 0
+                while (ty < h) {
+                    var tx = 0
+                    while (tx < w) {
+                        val x0 = tx - PAD; val y0 = ty - PAD
+                        for (yy in 0 until T) for (xx in 0 until T) {
+                            val sx = (x0 + xx).coerceIn(0, w - 1); val sy = (y0 + yy).coerceIn(0, h - 1)
+                            val p = sp[sy * w + sx]; val o = (yy * T + xx) * 3
+                            fi.put(o, ((p shr 16) and 0xFF) / 255f); fi.put(o + 1, ((p shr 8) and 0xFF) / 255f); fi.put(o + 2, (p and 0xFF) / 255f)
+                        }
+                        output.rewind()
+                        model.run(input, output)
+                        output.rewind()
+                        val fo = output.asFloatBuffer()
+                        val plane = 512 * 512
+                        for (yy in PAD * 4 until (PAD + core) * 4) {
+                            val oy = (ty - PAD) * 4 + yy; if (oy < 0 || oy >= oh) continue
+                            for (xx in PAD * 4 until (PAD + core) * 4) {
+                                val ox = (tx - PAD) * 4 + xx; if (ox < 0 || ox >= ow) continue
+                                val i = yy * 512 + xx
+                                val r = (fo.get(i).coerceIn(0f, 1f) * 255f).toInt()
+                                val g = (fo.get(plane + i).coerceIn(0f, 1f) * 255f).toInt()
+                                val b = (fo.get(2 * plane + i).coerceIn(0f, 1f) * 255f).toInt()
+                                outPx[oy * ow + ox] = (0xFF shl 24) or (r shl 16) or (g shl 8) or b
+                            }
+                        }
+                        tx += core
+                    }
+                    ty += core
+                }
+            }
+            val big = Bitmap.createBitmap(outPx, ow, oh, Bitmap.Config.ARGB_8888)
+            val f = min(1f, outSide.toFloat() / max(ow, oh))
+            val result = if (f < 1f) Bitmap.createScaledBitmap(big, (ow * f).toInt(), (oh * f).toInt(), true) else big
+            val o = JSObject()
+            o.put("imageBase64", encode(result))
+            call.resolve(o)
+        }
+    }
+
+    /**
+     * Subiectul decupat (U²-Net p, Apache-2.0): masca la 320 px, întinsă pe poză.
+     * `background`: "white" (fundal alb, pentru vânzare) sau "none" (PNG transparent).
+     */
+    @PluginMethod
+    fun cutout(call: PluginCall) {
+        val img64 = call.getString("imageBase64")
+        if (img64.isNullOrEmpty()) { call.reject("imageBase64 is required"); return }
+        val white = call.getString("background") != "none"
+        executor.ruleaza(call, "Cutout failed") {
+            val src = decode(img64)
+            val S = 320
+            val small = Bitmap.createScaledBitmap(src, S, S, true)
+            val px = IntArray(S * S); small.getPixels(px, 0, S, 0, 0, S, S)
+            val input = ByteBuffer.allocateDirect(4 * S * S * 3).order(ByteOrder.nativeOrder())
+            val fi = input.asFloatBuffer()
+            val mean = floatArrayOf(0.485f, 0.456f, 0.406f); val std = floatArrayOf(0.229f, 0.224f, 0.225f)
+            for (i in 0 until S * S) for (c in 0 until 3) {
+                val v = ((px[i] shr (16 - 8 * c)) and 0xFF) / 255f
+                fi.put(i * 3 + c, (v - mean[c]) / std[c])
+            }
+            val outputs = HashMap<Int, Any>()
+            val bufs = Array(7) { ByteBuffer.allocateDirect(4 * S * S).order(ByteOrder.nativeOrder()) }
+            bufs.forEachIndexed { i, b -> outputs[i] = b }
+            u2net.use { it.runForMultipleInputsOutputs(arrayOf<Any>(input), outputs) }
+            val d0 = bufs[0].apply { rewind() }.asFloatBuffer()
+            var lo = Float.MAX_VALUE; var hi = -Float.MAX_VALUE
+            for (i in 0 until S * S) { val v = d0.get(i); if (v < lo) lo = v; if (v > hi) hi = v }
+            val span = max(1e-6f, hi - lo)
+            val mp = IntArray(S * S) { i -> val a = (((d0.get(i) - lo) / span) * 255f).toInt().coerceIn(0, 255); (a shl 24) or 0xFFFFFF }
+            val mask = Bitmap.createScaledBitmap(Bitmap.createBitmap(mp, S, S, Bitmap.Config.ARGB_8888), src.width, src.height, true)
+            val n = src.width * src.height
+            val sp = IntArray(n); src.getPixels(sp, 0, src.width, 0, 0, src.width, src.height)
+            val ma = IntArray(n); mask.getPixels(ma, 0, src.width, 0, 0, src.width, src.height)
+            for (i in 0 until n) {
+                val a = (ma[i] ushr 24) and 0xFF
+                if (white) {
+                    val t = a / 255f
+                    val r = (((sp[i] shr 16) and 0xFF) * t + 255 * (1 - t)).toInt()
+                    val g = (((sp[i] shr 8) and 0xFF) * t + 255 * (1 - t)).toInt()
+                    val b = ((sp[i] and 0xFF) * t + 255 * (1 - t)).toInt()
+                    sp[i] = (0xFF shl 24) or (r shl 16) or (g shl 8) or b
+                } else sp[i] = (a shl 24) or (sp[i] and 0xFFFFFF)
+            }
+            val result = Bitmap.createBitmap(sp, src.width, src.height, Bitmap.Config.ARGB_8888)
+            val o = JSObject()
+            o.put("imageBase64", encode(result, png = !white))
             call.resolve(o)
         }
     }

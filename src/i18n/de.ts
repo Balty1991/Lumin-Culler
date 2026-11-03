@@ -966,5 +966,12 @@ export const dict: Record<string, string> = {
   "lx.aiRetouch.err.monthly": "Die KI-Retuschen dieses Monats sind aufgebraucht.",
   "lx.aiRetouch.err.budget": "Die Online-KI ist gerade ausgelastet. Versuch es etwas später.",
   "lx.aiRetouch.err.unavailable": "Die KI-Retusche ist auf dem Server noch nicht aktiv.",
-  "lx.aiRetouch.err.failed": "Die Retusche hat nicht geklappt. Versuch es nochmal."
+  "lx.aiRetouch.err.failed": "Die Retusche hat nicht geklappt. Versuch es nochmal.",
+  "lx.tool.retouch.title": "KI-Retusche",
+  "lx.tool.clarity.title": "Schärfe",
+  "lx.tool.cutout.title": "Weißer Hintergrund",
+  "lx.tool.clarity.button": "Schärfe",
+  "lx.tool.cutout.button": "Weißer Hintergrund",
+  "lx.tool.working": "Arbeite auf dem Handy… (ein paar Sekunden)",
+  "lx.tool.local": "Alles passiert auf dem Handy; das Foto geht nirgendwohin."
 };

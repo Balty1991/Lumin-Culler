@@ -966,5 +966,12 @@ export const dict: Record<string, string> = {
   "lx.aiRetouch.err.monthly": "Hai usato i ritocchi IA di questo mese.",
   "lx.aiRetouch.err.budget": "L'IA online è occupata. Riprova tra poco.",
   "lx.aiRetouch.err.unavailable": "Il ritocco IA non è ancora attivo sul server.",
-  "lx.aiRetouch.err.failed": "Il ritocco non è riuscito. Riprova."
+  "lx.aiRetouch.err.failed": "Il ritocco non è riuscito. Riprova.",
+  "lx.tool.retouch.title": "Ritocco IA",
+  "lx.tool.clarity.title": "Nitidezza",
+  "lx.tool.cutout.title": "Sfondo bianco",
+  "lx.tool.clarity.button": "Nitidezza",
+  "lx.tool.cutout.button": "Sfondo bianco",
+  "lx.tool.working": "Lavoro sul telefono… (qualche secondo)",
+  "lx.tool.local": "Tutto avviene sul telefono; la foto non va da nessuna parte."
 };
