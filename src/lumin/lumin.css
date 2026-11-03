@@ -474,7 +474,7 @@ body.lx-viewer-open .lx-dock-scrim { visibility: hidden; }
 .lx-hero-tile {
   position: relative; display: block; width: 100%; height: 420px; padding: 0; border: none; border-radius: 30px; overflow: hidden;
   background: var(--surface-3); box-shadow: 0 40px 70px -40px rgb(0 0 0 / 0.95), 0 0 0 1px rgb(var(--accent-rgb) / 0.25);
-  opacity: 0; transform: translateY(40px) scale(0.94); transition: opacity 0.9s var(--lx-ease), transform 0.9s var(--lx-ease);
+  opacity: 1; transform: none;
 }
 .lx-hero-tile.in { opacity: 1; transform: none; }
 .lx-hero-tile img, .lx-hero-tile .lx-thumb-empty { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; animation: lx-kenburns 18s ease-in-out infinite alternate; }
@@ -492,8 +492,11 @@ body.lx-viewer-open .lx-dock-scrim { visibility: hidden; }
 .lx-wall { margin-top: 10px; }
 /* Intrarea plăcilor: doar opacitate și o mișcare scurtă (fără blur și fără plutire
    continuă: sute de plăci animate la nesfârșit făceau tot ecranul sacadat). */
-.lx-tile { animation: none; opacity: 0; transform: translateY(16px) scale(0.97);
-  transition: opacity 0.4s var(--lx-ease) var(--d, 0ms), transform 0.45s var(--lx-spring) var(--d, 0ms); }
+/* Plăcile sunt vizibile din prima clipă (raportat: goluri negre la import, când
+   telefonul era ocupat și observatorul întârzia să le „arate”). Doar o mișcare
+   scurtă la intrare, fără opacitate 0. */
+.lx-tile { animation: none; opacity: 1; transform: none;
+  transition: transform 0.3s var(--lx-ease); }
 .lx-tile.in { opacity: 1; transform: none; }
 .lx-tile.in:active { transform: scale(0.95); }
 .lx-tile.selected::before {
@@ -621,10 +624,8 @@ body.lx-viewer-open .lx-dock-scrim { visibility: hidden; }
 
 .lx-bento .lx-tile {
   margin: 0; width: 100%; height: 100%; border-radius: 16px; box-shadow: none; background: var(--surface-3);
-  opacity: 0; filter: none; animation: none;
-  transform: perspective(900px) translateY(46px) rotateX(18deg) scale(0.92);
-  transform-origin: 50% 100%;
-  transition: opacity .6s var(--lx-ease) var(--d, 0ms), transform .75s cubic-bezier(.18,.9,.22,1.12) var(--d, 0ms);
+  opacity: 1; filter: none; animation: none; transform: none;
+  transition: transform .2s var(--lx-ease);
 }
 .lx-bento .lx-tile.in { opacity: 1; transform: none; animation: none; }
 .lx-bento .lx-tile.in:active { transform: scale(0.95); transition-duration: .12s; transition-delay: 0ms; }
