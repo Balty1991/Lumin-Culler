@@ -219,7 +219,8 @@ export function recipeFromStats(s: FrameStats, faces: readonly LookFace[] = []):
   if (!night && ((s.neutral > 0.04 && Math.abs(s.cast) > 0.025) || Math.abs(s.globalCast) > 0.12)) {
     issues.push('cast');
     // cast > 0 înseamnă albastru în exces (meanB > meanR) → încălzim (temperature > 0).
-    add(adjustments, 'temperature', cast * 120, -8, 14);
+    // Doar o dominantă albastră clară primește căldură mai multă; una mică doar se atinge.
+    add(adjustments, 'temperature', cast * 100, -8, cast > 0.1 ? 12 : 6);
   }
   if (!night && s.neutral > 0.04 && Math.abs(s.tint) > 0.02) {
     if (!issues.includes('cast')) issues.push('cast');
@@ -255,23 +256,23 @@ export function recipeFromStats(s: FrameStats, faces: readonly LookFace[] = []):
 
   // Doar cerul deja albăstrui, spălăcit, se adâncește. Cerul alb/gri (înnorat) nu se
   // vopsește automat: ieșea un halou gri-albăstrui în jurul capului (raportat).
-  if (!backlit && s.skyLum > 0.55 && s.skySat >= 0.06 && s.skySat < 0.14 && s.skyLum < 0.92 && s.dark < 0.15) {
+  if (!backlit && s.skyLum > 0.55 && s.skySat >= 0.08 && s.skySat < 0.14 && s.skyLum < 0.88 && s.dark < 0.15) {
     issues.push('dullSky');
     add(adjustments, 'sky', 10 + (0.14 - s.skySat) * 60, 0, 18);
     add(adjustments, 'dehaze', Math.max(adjustments.dehaze ?? 0, 8), 0, 34);
   }
 
-  if (s.sat < 0.14 && s.sat > 0.04 && !issues.includes('noise')) {
-    add(adjustments, 'saturation', 8, 0, 14);
+  if (s.sat < 0.1 && s.sat > 0.04 && !issues.includes('noise')) {
+    add(adjustments, 'saturation', 6, 0, 10);
   }
 
+  // Tenul se repară doar pe axa verde–magenta: încălzirea în plus îngălbenea toată poza.
   if (s.skinCast > 0.025) {
     issues.push('skin');
-    add(adjustments, 'tint', (adjustments.tint ?? 0) - 6, -16, 16);
-    add(adjustments, 'temperature', (adjustments.temperature ?? 0) + 4, -22, 22);
+    add(adjustments, 'tint', (adjustments.tint ?? 0) - 5, -10, 10);
   } else if (s.skinCast < -0.03) {
     issues.push('skin');
-    add(adjustments, 'temperature', (adjustments.temperature ?? 0) + 6, -22, 22);
+    add(adjustments, 'tint', (adjustments.tint ?? 0) + 4, -10, 10);
   }
 
   if (backlit) {

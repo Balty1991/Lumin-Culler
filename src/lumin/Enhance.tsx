@@ -12,6 +12,7 @@ import { FREE_DAILY, cloudAvailable, cloudGrade, ensureCloud } from './cloud';
 import { saveEditedBlob } from './saveEdited';
 import { useTr } from './context';
 import { AiRetouch, type ToolKind } from './AiRetouch';
+import { MagicSheet } from './MagicSheet';
 import { lowLightOnDevice, onDeviceEditAvailable } from '../core/onDeviceEdit';
 import { analysisPool } from '../core/workerPool';
 import { vibrate } from '../ui/haptics';
@@ -103,10 +104,15 @@ export function styledEdits(base: EditAdjustments, style: EnhanceStyle, amount: 
     const k = Math.min(1, amount);
     const night = (out.noiseReduction ?? 0) >= 25;
     out.toneMap = Math.min(45, out.toneMap ?? 0);
-    out.temperature = Math.max(-10, Math.min(16, out.temperature ?? 0));
-    out.tint = Math.max(-8, Math.min(8, out.tint ?? 0));
+    // Raportat: „saturează și dă culoare galbenă pozei”. Natural rămâne aproape neutru
+    // (căldura împinge verdele spre galben), iar „wow”-ul vine din lumină și contrast
+    // local, nu din culoare. Doar „Vie” primește culoare în plus.
+    const vivid = style === 'vivid';
+    out.temperature = Math.max(-8, Math.min(vivid ? 10 : 5, out.temperature ?? 0));
+    out.tint = Math.max(-6, Math.min(6, out.tint ?? 0));
+    out.saturation = Math.min(vivid ? MAX_SATURATION : 6, out.saturation ?? 0);
     if (!night) {
-      out.saturation = Math.min(MAX_SATURATION, Math.max(out.saturation ?? 0, Math.round(12 * k)));
+      if (vivid) out.saturation = Math.max(out.saturation, Math.round(12 * k));
       out.clarity = Math.max(out.clarity ?? 0, Math.round(12 * k));
       out.contrast = Math.max(out.contrast ?? 0, Math.round(10 * k));
       out.sharpen = Math.max(out.sharpen ?? 0, Math.round(14 * k));
@@ -381,6 +387,7 @@ export function withManual(e: EditAdjustments, manual: Partial<Record<ManualKey,
 }
 
 export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: () => void }) {
+  const [erasing, setErasing] = useState(false);
   const tr = useTr();
   const addCorrectedCopies = useStore(s => s.addCorrectedCopies);
   const premiumLocked = useStore(s => s.premiumLocked);
@@ -655,8 +662,9 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
               </div>
             )}
             {panel === 'styles' && aiReason && scenes.length > 0 && <p className="lx-hint lx-enhance-why">{aiReason}</p>}
-            {panel === 'styles' && (tools.clarity || tools.cutout) && (
+            {panel === 'styles' && (
               <div className="lx-enhance-tools">
+                <button className="lx-chip-btn" onClick={() => setErasing(true)}>🧽 {tr('lx.magic.erase')}</button>
                 {tools.clarity && <button className="lx-chip-btn" onClick={() => setRetouch('clarity')}>🔍 {tr('lx.tool.clarity.button')}</button>}
                 {tools.cutout && <button className="lx-chip-btn" onClick={() => setRetouch('cutout')}>✂️ {tr('lx.tool.cutout.button')}</button>}
               </div>
@@ -719,6 +727,7 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
           {!nothing && <button className="lx-btn primary" disabled={!edits || saving} onClick={() => void save()}>{tr('lx.enhance.save')}</button>}
         </div>
       </div>
+      {erasing && <MagicSheet photo={photo} onClose={() => setErasing(false)} />}
       {retouch && <AiRetouch photo={photo} kind={retouch} onClose={() => setRetouch(null)} />}
     </div>,
     document.body
