@@ -1036,6 +1036,9 @@ interface AppState {
 /** Token-ul importului CURENT (daca vreunul ruleaza) — traieste in afara Zustand
     fiindca nu are sens sa fie parte din snapshot-ul de stare serializabil. */
 let activeCancelToken: ImportCancelToken | null = null;
+/** Câte decizii reale a luat omul în sesiune, și când a apărut ultimul mesaj „Am învățat”. */
+let realDecisions = 0;
+let lastLearnToastAt = -100;
 
 /** Lipeste mesajul principal si sufixele care chiar exista, cu un singur spatiu
     intre ele — sufixele nu-si mai poarta spatiul din fata prin dictionar, unde
@@ -3443,7 +3446,10 @@ export const useStore = create<AppState>((set, get) => ({
       // nu pot inunda utilizatorul cu un toast per poza dintr-un lot de sute.
       // Nu suprascriem un avertisment de cota (mai urgent), si nu aratam nimic
       // pentru o re-confirmare a aceluiasi status (isRealChange).
-      if (topShift && isRealChange && !quotaError) {
+      // Abia după câteva decizii reale (raportat: „Am învățat…” după o singură poză).
+      if (isRealChange) realDecisions++;
+      if (topShift && isRealChange && !quotaError && realDecisions >= 6 && realDecisions - lastLearnToastAt >= 8) {
+        lastLearnToastAt = realDecisions;
         set({ notice: t(get().locale, 'store.learned.toast', { label: topShift.label }) });
       }
     }
@@ -3927,7 +3933,8 @@ export const useStore = create<AppState>((set, get) => ({
         photos: state.photos.map(p => updates.has(p.id) ? { ...p, status: updates.get(p.id)!, aiDecided: true } : p)
       }));
     }
-    set({
+    // Fără mesaj când nu s-a schimbat nimic (raportat: „Severitate schimbată — 0 poze” la prima pornire).
+    if (updates.size > 0) set({
       notice: t(locale, updates.size === 1 ? 'strictness.applied.one' : 'strictness.applied.other', { count: updates.size })
     });
     await get().applyMoments();

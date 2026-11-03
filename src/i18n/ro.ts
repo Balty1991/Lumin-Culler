@@ -1884,7 +1884,7 @@ export const ro = {
   // (persoane/scena)" ca mesajele exportului de selectie.
   'collections.export.exportedFolder': '{countDe} poze exportate în folderul "{name}", în locația aleasă.',
   'collections.export.exportedZip': '{countDe} poze exportate într-o arhivă .zip, grupate în folderul "{name}" — o singură arhivă ajunge întreagă oriunde o trimiți, spre deosebire de zeci de fișiere separate.',
-  'collections.export.exportedDirect': '{countDe} poze exportate din folderul "{name}" (descărcare directă).',
+  'collections.export.exportedDirect': 'Exportat din folderul "{name}": {countDe} poze (descărcare directă).',
 
   'store.state.activated': 'Modul economic activat',
   'store.state.deactivated': 'Modul economic dezactivat',
@@ -1942,7 +1942,7 @@ export const ro = {
   // direct in pipeline, pe care un tester cu telefonul in engleza le primea ca atare.
   'import.warn.alreadyInLibrary.one': "O poză era deja în Cherrypic și a fost sărită. Restul de {imported} au intrat.",
   'import.warn.alreadyInLibrary.other': "{countDe} poze erau deja în Cherrypic și au fost sărite. Restul de {imported} au intrat.",
-  'import.warn.allAlreadyInLibrary': "Toate cele {countDe} poze erau deja în Cherrypic — nu s-a adus nimic a doua oară.",
+  'import.warn.allAlreadyInLibrary': "Pozele alese ({countDe} poze) erau deja în Cherrypic — nu s-a adus nimic a doua oară.",
   'import.warn.cancelled': 'Import anulat — {done}/{total} poze procesate până la anulare.',
   'import.warn.allFailed': 'Niciuna dintre cele {countDe} poze nu a putut fi procesată.',
   'import.warn.allFailed.reason': 'Niciuna dintre cele {countDe} poze nu a putut fi procesată. Motiv: {reasons}',
@@ -1962,7 +1962,7 @@ export const ro = {
   'store.quotaNotice': 'Spațiu de stocare plin — fotografia a fost marcată, dar originalul nu a putut fi salvat pentru export. Eliberează spațiu (Golește sesiunea sau exportă ce ai deja) și reîncearcă.',
   'store.undo.nothing': 'Nimic de anulat.',
   'store.undo.batch': 'Anulat: "{label}" ({countDe} poze).',
-  'store.learned.toast': 'Am învățat: {label}',
+  'store.learned.toast': 'Văd un tipar în alegerile tale: {label}',
   'store.undo.single': 'Anulat: "{fileName}" înapoi la {status}.',
   'store.statusLabel.pending': 'în așteptare',
   'store.statusLabel.selected': 'selectată',
@@ -2008,7 +2008,7 @@ export const ro = {
   'store.exportSelection.exporting': 'Se exportă...',
   'store.exportSelection.exportedFolder': '{countDe} poze exportate în subfoldere (persoane/scenă), în folderul ales.',
   'store.exportSelection.exportedZip': '{countDe} poze exportate într-o arhivă .zip (subfoldere pe persoane/scenă) — o singură arhivă ajunge întreagă oriunde o trimiți, spre deosebire de zeci de fișiere separate.',
-  'store.exportSelection.exportedDirect': '{countDe} poze exportate (descărcare directă).',
+  'store.exportSelection.exportedDirect': 'Exportat: {countDe} poze (descărcare directă).',
   'store.exportSelection.none': 'Nicio poză nu a putut fi exportată în format original.',
   'store.exportSelection.missing': '{count} nu mai erau disponibile (importate înainte de ultima actualizare) — reimportă-le pentru export.',
   'store.exportSelection.failed': 'Export eșuat: {error}',
@@ -2474,7 +2474,7 @@ export const ro = {
   "lx.moments.part.afternoon": "după-amiaza",
   "lx.moments.part.evening": "seara",
   "lx.moments.part.night": "noaptea",
-  "lx.onThisDay": "Acum {years} an",
+  "lx.onThisDay": "Acum un an",
   "lx.onThisDay.other": "Acum {years} ani",
   "lx.phone.toAlbum": "În galeria telefonului",
   "lx.phone.nothing": "Albumul „{album}” e deja în galeria telefonului.",
@@ -2854,7 +2854,7 @@ export const ro = {
   "lx.recommend.sub": "Cineva care face multe poze și nu le sortează niciodată?",
   "lx.recommend.text": "Folosesc Cherrypic: AI‑ul îmi alege singur cele mai bune poze din galerie și șterge restul. Încearcă-l:",
   "lx.report.title": "Trimite un raport de probleme",
-  "lx.report.sub": "Dacă ceva nu merge: un fișier text cu versiunea și ultimele {count} erori, fără poze sau nume.",
+  "lx.report.sub": "Dacă ceva nu merge: un fișier text cu versiunea și erorile recente, fără poze sau nume.",
   "lx.why.betterTwin": "mai e una aproape la fel, mai reușită",
   "lx.feed.lesson": "Am {count} poze la care nu sunt sigur. Două minute cu tine și învăț mult mai bine ce îți place.",
   "lx.feed.lessonSub": "Alese din zile diferite, cele la care ezit cel mai mult.",
@@ -3090,6 +3090,9 @@ export const ro = {
   "lx.viewer.more": "Mai mult",
   "lx.search.showDocs": "+ încă {count} în documente",
   "lx.search.hideDocs": "Ascunde documentele",
+  "lx.stat.series.one": "serie",
+  "ritual.kept.one": "păstrată",
+  "quiz.needMore": "Pentru antrenare îmi trebuie cel puțin 8 poze. Adaugă câteva și încearcă din nou.",
 };
 
 export type TranslationKey = keyof typeof ro;

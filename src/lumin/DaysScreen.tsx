@@ -28,7 +28,7 @@ import { ArchiveEntry } from './ArchiveView';
 import { decideRestIfAllowed } from './autoSort';
 import { readWholeGallery } from './galleryReader';
 import type { PhotoView } from '../state/store';
-import { intlTag } from '../i18n';
+import { intlTag, plural } from '../i18n';
 
 const VIEWS: GalleryView[] = ['wall', 'moments', 'days', 'months', 'people', 'map', 'aside'];
 // Harta (MapLibre) e mare: se încarcă doar când o deschizi.
@@ -437,7 +437,7 @@ function DayView({ day, onBack }: { day: Day<PhotoView>; onBack: () => void }) {
       <section className="lx-stats">
         <div><b>{day.photos.length - day.aside.length}</b><span>{tr('lx.stat.total')}</span></div>
         <div><b className="ok">{day.kept.length}</b><span>{tr('lx.stat.kept')}</span></div>
-        <div><b>{day.series.length}</b><span>{tr('lx.stat.series')}</span></div>
+        <div><b>{day.series.length}</b><span>{tr(plural(day.series.length, 'lx.stat.series.one', 'lx.stat.series'))}</span></div>
       </section>
 
       {day.waiting.length > 0 && (

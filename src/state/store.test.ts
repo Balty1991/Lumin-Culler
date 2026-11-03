@@ -667,9 +667,12 @@ describe('setStatus topShift toast (integration, Dexie real via fake-indexeddb)'
     const recordCorrectionSpy = vi.spyOn(contextEngine, 'recordCorrection')
       .mockResolvedValue({ topShift: { feature: 'bestSmile', label: 'zambete largi' } });
 
-    await useStore.getState().setStatus('p1', 'selected');
+    // Mesajul apare abia după câteva decizii reale (nu după prima poză).
+    for (let i = 0; i < 8 && !useStore.getState().notice; i++) {
+      await useStore.getState().setStatus('p1', i % 2 === 0 ? 'selected' : 'rejected');
+    }
 
-    expect(useStore.getState().notice).toBe('Am învățat: zambete largi');
+    expect(useStore.getState().notice).toBe('Văd un tipar în alegerile tale: zambete largi');
     recordCorrectionSpy.mockRestore();
   });
 

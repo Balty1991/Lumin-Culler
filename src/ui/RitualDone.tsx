@@ -50,7 +50,7 @@ export function RitualDone({ ids, decided }: { ids: readonly string[]; decided: 
       <h3 className="rd-title">{tr('ritual.title')}</h3>
       {decided > 0 && (
         <div className="v3-stats rd-stats">
-          <div><b style={{ color: 'var(--pick)' }}>{session.kept}</b><span>{tr('ritual.kept')}</span></div>
+          <div><b style={{ color: 'var(--pick)' }}>{session.kept}</b><span>{tr(plural(session.kept, 'ritual.kept.one', 'ritual.kept'))}</span></div>
           <div><b>{session.notToday}</b><span>{tr('ritual.notToday')}</span></div>
           <div><b style={{ color: 'var(--review)' }}>{streak}</b><span>{tr(plural(streak, 'ritual.streak.one', 'ritual.streak'))}</span></div>
         </div>

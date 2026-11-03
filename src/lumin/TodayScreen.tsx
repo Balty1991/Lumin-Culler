@@ -218,7 +218,7 @@ export function TodayScreen() {
 
       {today && (today.series.length > 0 || today.aside.length > 0 || today.rejected.length > 0) && (
         <section className="lx-stats">
-          <div><b>{today.series.length}</b><span>{tr('lx.stat.series')}</span></div>
+          <div><b>{today.series.length}</b><span>{tr(plural(today.series.length, 'lx.stat.series.one', 'lx.stat.series'))}</span></div>
           <div><b>{today.rejected.length}</b><span>{tr('lx.stat.notToday')}</span></div>
           <div><b>{today.aside.length}</b><span>{tr('lx.stat.aside')}</span></div>
         </section>

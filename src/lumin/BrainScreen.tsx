@@ -12,7 +12,7 @@ import { CloudSection } from './CloudParts';
 import { AutonomyPicker, FreedCard, TwinHero } from './TwinParts';
 import { Housekeeping } from './Housekeeping';
 import { VideoCleanup } from './VideoCleanup';
-import { baseLocale } from '../i18n';
+import { baseLocale, plural } from '../i18n';
 
 /**
  * lumin/BrainScreen.tsx
@@ -95,7 +95,7 @@ export function BrainScreen() {
       <section className="lx-stats four">
         <div><b>{memory.seen}</b><span>{tr('lx.brain.seen')}</span></div>
         <div><b>{lessons}</b><span>{tr('lx.brain.lessons')}</span></div>
-        <div><b>{memory.series}</b><span>{tr('lx.stat.series')}</span></div>
+        <div><b>{memory.series}</b><span>{tr(plural(memory.series, 'lx.stat.series.one', 'lx.stat.series'))}</span></div>
         <div><b>{persons.length}</b><span>{tr('lx.brain.people')}</span></div>
       </section>
 

@@ -86,7 +86,8 @@ export function TasteQuiz() {
 
   const start = () => {
     const next = buildTastePairs(candidates);
-    if (!next.length) return;
+    // Prea puține poze pentru perechi: spunem ce lipsește, nu rămâne butonul mut (raportat).
+    if (!next.length) { useStore.getState().setNotice(t(locale, 'quiz.needMore')); return; }
     setFirstRun(!readTasteQuizDone());
     setPairs(next);
     setIndex(0);
