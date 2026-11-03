@@ -148,7 +148,8 @@ export function replaceSky(
   rgba: Uint8ClampedArray, w: number, h: number,
   coarse: Uint8Array, cw: number, ch: number,
   mode: 'sky-blue' | 'sky-sunset',
-  protect?: { data: Uint8Array; w: number; h: number }
+  protect?: { data: Uint8Array; w: number; h: number },
+  segAlpha?: Float32Array
 ): void {
    
   // Masca găsită se oprește uneori înainte de margine (fâșii albe lângă stâlpi, deasupra
@@ -302,7 +303,8 @@ export function replaceSky(
       }
     }
     const px = p % w, py = (p / w) | 0;
-    alpha[p] = person[cell(px, py)] ? 0 : a * bandAt(px, py);
+    // Cu modelul: conturul vine din segmentarea rafinată; culoarea mai scoate firele și crengile.
+    alpha[p] = segAlpha ? Math.min(a, segAlpha[p]) : person[cell(px, py)] ? 0 : a * bandAt(px, py);
   }
   // Doar ce e legat de cer contează: o căciulă albă de sub glugă seamănă cu cerul,
   // dar e despărțită de el de marginea glugii.
@@ -374,4 +376,76 @@ export function replaceSky(
       rgba[i + 2] = Math.max(0, Math.min(255, fb));
     }
   }
+}
+
+/**
+ * Cerul din modelul de segmentare (grilă grosieră, ~128²), adus la conturul real al pozei
+ * cu un filtru ghidat (He et al.): marginea glugii, a părului și a frunzelor urmează
+ * pixelii, nu pătratele grilei (raportat: „scară” albă deasupra capului).
+ * Întoarce, pentru fiecare pixel, cât e cer (0..1).
+ */
+export function refineSkyAlpha(
+  rgba: Uint8ClampedArray, w: number, h: number,
+  sky: Float32Array, person: Float32Array, g: number
+): Float32Array {
+  const s = Math.min(1, 640 / Math.max(w, h));
+  const W = Math.max(8, Math.round(w * s)), H = Math.max(8, Math.round(h * s));
+  const N = W * H;
+  const I = new Float32Array(N), P = new Float32Array(N);
+  const bil = (arr: Float32Array, u: number, v: number) => {
+    const fx = Math.max(0, Math.min(g - 1.001, u * g - 0.5)), fy = Math.max(0, Math.min(g - 1.001, v * g - 0.5));
+    const x0 = fx | 0, y0 = fy | 0, a = fx - x0, b = fy - y0;
+    return arr[y0 * g + x0] * (1 - a) * (1 - b) + arr[y0 * g + x0 + 1] * a * (1 - b)
+      + arr[(y0 + 1) * g + x0] * (1 - a) * b + arr[(y0 + 1) * g + x0 + 1] * a * b;
+  };
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const sx = Math.min(w - 1, ((x + 0.5) / s) | 0), sy = Math.min(h - 1, ((y + 0.5) / s) | 0);
+    const i = (sy * w + sx) * 4;
+    I[y * W + x] = (0.299 * rgba[i] + 0.587 * rgba[i + 1] + 0.114 * rgba[i + 2]) / 255;
+    const u = (x + 0.5) / W, v = (y + 0.5) / H;
+    P[y * W + x] = Math.max(0, Math.min(1, bil(sky, u, v) * (1 - Math.min(1, bil(person, u, v) * 1.6))));
+  }
+  const r = Math.max(3, Math.round(Math.max(W, H) / 90));
+  const box = (src: Float32Array): Float32Array => {
+    // Medie pe fereastră (2r+1)², cu imagine integrală.
+    const S = new Float64Array((W + 1) * (H + 1));
+    for (let y = 0; y < H; y++) {
+      let row = 0;
+      for (let x = 0; x < W; x++) { row += src[y * W + x]; S[(y + 1) * (W + 1) + x + 1] = S[y * (W + 1) + x + 1] + row; }
+    }
+    const out = new Float32Array(N);
+    for (let y = 0; y < H; y++) {
+      const y0 = Math.max(0, y - r), y1 = Math.min(H, y + r + 1);
+      for (let x = 0; x < W; x++) {
+        const x0 = Math.max(0, x - r), x1 = Math.min(W, x + r + 1);
+        out[y * W + x] = (S[y1 * (W + 1) + x1] - S[y0 * (W + 1) + x1] - S[y1 * (W + 1) + x0] + S[y0 * (W + 1) + x0]) / ((x1 - x0) * (y1 - y0));
+      }
+    }
+    return out;
+  };
+  const II = new Float32Array(N), IP = new Float32Array(N);
+  for (let p = 0; p < N; p++) { II[p] = I[p] * I[p]; IP[p] = I[p] * P[p]; }
+  const mI = box(I), mP = box(P), mII = box(II), mIP = box(IP);
+  const A = new Float32Array(N), B = new Float32Array(N);
+  const eps = 0.0015;
+  for (let p = 0; p < N; p++) {
+    const varI = mII[p] - mI[p] * mI[p], cov = mIP[p] - mI[p] * mP[p];
+    A[p] = cov / (varI + eps); B[p] = mP[p] - A[p] * mI[p];
+  }
+  const mA = box(A), mB = box(B);
+  // Înapoi la mărimea pozei, cu ghidul la rezoluție plină (A, B netede, I exact).
+  const out = new Float32Array(w * h);
+  for (let y = 0; y < h; y++) {
+    const fy = Math.max(0, Math.min(H - 1.001, (y + 0.5) * s - 0.5)), y0 = fy | 0, b = fy - y0;
+    for (let x = 0; x < w; x++) {
+      const fx = Math.max(0, Math.min(W - 1.001, (x + 0.5) * s - 0.5)), x0 = fx | 0, a = fx - x0;
+      const q = y0 * W + x0;
+      const av = mA[q] * (1 - a) * (1 - b) + mA[q + 1] * a * (1 - b) + mA[q + W] * (1 - a) * b + mA[q + W + 1] * a * b;
+      const bv = mB[q] * (1 - a) * (1 - b) + mB[q + 1] * a * (1 - b) + mB[q + W] * (1 - a) * b + mB[q + W + 1] * a * b;
+      const i = (y * w + x) * 4;
+      const lum = (0.299 * rgba[i] + 0.587 * rgba[i + 1] + 0.114 * rgba[i + 2]) / 255;
+      out[y * w + x] = smooth(0.25, 0.75, av * lum + bv);
+    }
+  }
+  return out;
 }

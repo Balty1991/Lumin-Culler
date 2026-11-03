@@ -11,7 +11,7 @@ import { isNativeSegmentationAvailable, segmentPersonMask } from '../core/native
 import { shareCollage } from './collage';
 import { saveEditedBlob } from './saveEdited';
 import { useTr } from './context';
-import { aiSize, fillMasked, replaceSky, maskBounds, maskCoverage, skyMask, type Rect } from './magic';
+import { aiSize, fillMasked, refineSkyAlpha, replaceSky, maskBounds, maskCoverage, skyMask, type Rect } from './magic';
 import { canSharpen, sharpUrl } from './sharp';
 
 /**
@@ -68,6 +68,7 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
   // Oamenii găsiți de model: cerul nou nu intră peste ei.
   const protect = useRef<Uint8Array | null>(null);
   const protectSize = useRef<[number, number]>([0, 0]);
+  const segRef = useRef<{ sky: Float32Array; person: Float32Array; size: number } | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -99,6 +100,8 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
     m?.getContext('2d')?.clearRect(0, 0, m.width, m.height);
     setPainted(false);
     setNoSky(false);
+    segRef.current = null;
+    protect.current = null;
   };
 
   // Cerul: găsit singur, pe o copie mică, apoi întins la mărimea pozei.
@@ -121,6 +124,7 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
       for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) protect.current[y * w + x] = at(seg.person, x, y) > 0.3 ? 1 : 0;
       protectSize.current = [w, h];
     }
+    segRef.current = seg;
     // Omul nu e cer (raportat: gluga albă și părul se coloram ca cerul, cu halou):
     // masca persoanei de pe telefon scoate omul din cer, cu o margine de siguranță.
     if (isNativeSegmentationAvailable()) {
@@ -175,7 +179,8 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
       if (!coarse.data.some(v => v)) return false;
       const [pw, ph] = protectSize.current;
       replaceSky(pix.data, img.width, img.height, coarse.data, coarse.w, coarse.h, mode,
-        protect.current ? { data: protect.current, w: pw, h: ph } : undefined);
+        protect.current ? { data: protect.current, w: pw, h: ph } : undefined,
+        segRef.current ? refineSkyAlpha(pix.data, img.width, img.height, segRef.current.sky, segRef.current.person, segRef.current.size) : undefined);
       fctx.putImageData(pix, 0, 0);
       setResult(final);
       setNotice(tr('lx.magic.local'));
