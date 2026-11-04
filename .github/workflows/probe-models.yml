@@ -1,0 +1,22 @@
+name: Probe web models
+on:
+  push:
+    branches: [claude/fix-serii]
+    paths: ['.github/workflows/probe-models.yml']
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          pip install -q onnxruntime numpy pillow 2>&1 | tail -1
+          for q in fbcnn scunet nafnet denoise lama restormer swinir; do echo "== search $q"; curl -fsSL "https://huggingface.co/api/models?search=$q&filter=onnx&limit=15" | python3 -c "import sys,json; [print(' ',m['id']) for m in json.load(sys.stdin)]"; done
+          curl -fsSL -o lama.onnx https://huggingface.co/Carve/LaMa-ONNX/resolve/main/lama_fp32.onnx; ls -la lama.onnx
+          curl -fsSL -o bear.jpg http://images.cocodataset.org/val2017/000000000285.jpg
+          python - <<'PY'
+          import onnxruntime as ort, numpy as np, time
+          from PIL import Image
+          s=ort.InferenceSession('lama.onnx'); print([(i.name,i.shape,i.type) for i in s.get_inputs()],[(o.name,o.shape) for o in s.get_outputs()])
+          im=np.asarray(Image.open('bear.jpg').convert('RGB').resize((512,512)),np.float32)/255
+          m=np.zeros((512,512),np.float32); m[150:350,150:350]=1
+          t=time.time(); o=s.run(None,{'image':im.transpose(2,0,1)[None],'mask':m[None,None]}); print('ms',(time.time()-t)*1000,o[0].shape,o[0].dtype,o[0].min(),o[0].max())
+          PY
