@@ -78,7 +78,7 @@ export async function startClipBackfill(anyNetwork = dataMode() !== 'wifi'): Pro
     if (todo.length >= 50 && getModelsState().textReady) {
       useStore.getState().setNotice(t(useStore.getState().locale, 'lx.models.doneNotice', { count: todo.length }));
     }
-    await deepPass(bgText);
+    await deepPass();
     // La final, motoarele care încă lipsesc (selecție, gumă, portret, film…).
     // Ce s-a descărcat acum (ex. traducerea) se folosește imediat: încă o trecere.
     void import('./engines').then(m => m.autoFetchEngines()).then(got => { if (got) window.setTimeout(() => { void startClipBackfill(); }, 3000); });
@@ -111,7 +111,7 @@ export function watchImportsForClip(): void {
  * descrierea în cuvinte (Florence-2) la pozele păstrate. Ambele doar pe telefon,
  * în fundal; descrierea intră la căutare, bucuria în scorul AI.
  */
-async function deepPass(bgText: (d: number) => string): Promise<void> {
+async function deepPass(): Promise<void> {
   // Traducerea descrierii: doar dacă motorul limbii aplicației e pe telefon.
   const trLang = translateLangFor(useStore.getState().locale);
   await refreshEngines().catch(() => undefined);
@@ -122,7 +122,10 @@ async function deepPass(bgText: (d: number) => string): Promise<void> {
   if (!rows.length) return;
   // Vizibil în Setări și ținut viu în fundal, ca trecerea CLIP.
   setModelsState({ phase: 'scanning', scanned: 0, toScan: rows.length });
+  // Totalul acestei treceri, nu al celei dinainte (raportat: „1060 din 348”).
+  const bgText = (d: number) => t(useStore.getState().locale, 'lx.models.scanning', { done: Math.min(d, rows.length), total: rows.length });
   if (!holding) { await holdBackgroundAnalysis(rows.length, bgText(0)); holding = true; }
+  else void updateHeldBackground(0, rows.length, bgText(0));
   const kept = new Set(useStore.getState().photos.filter(p => p.status === 'selected').map(p => p.id));
   // Descrierile (Florence-2, ~275 MB în lucru) doar pe telefoanele cu memorie destulă.
   const weak = await weakDevice();
