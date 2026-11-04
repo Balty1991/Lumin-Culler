@@ -8,48 +8,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          pip install -q onnxruntime numpy 2>&1 | tail -1
-          for L in ro de; do
-          B=https://huggingface.co/Xenova/opus-mt-en-$L/resolve/main
-          mkdir -p $L
-          for f in onnx/encoder_model_quantized.onnx onnx/decoder_model_quantized.onnx tokenizer.json config.json; do curl -fsSL -o $L/$(basename $f) $B/$f; done
-          done
-          curl -fsSL https://huggingface.co/Helsinki-NLP/opus-mt-en-ro/raw/main/README.md | grep -i licen | head -3
-          python - <<'PY'
-          import json, onnxruntime as ort, numpy as np, unicodedata, time
-          def load(L):
-            tj=json.load(open(f'{L}/tokenizer.json')); voc=tj['model']['vocab']
-            piece={p:i for i,(p,_) in enumerate(voc)}; score=[s for _,s in voc]
-            maxlen=max(len(p) for p,_ in voc)
-            return voc,piece,score,maxlen,json.load(open(f'{L}/config.json'))
-          def encode(text,piece,score,maxlen,unk=1):
-            text=unicodedata.normalize('NFKC',text)
-            ids=[]
-            for w in text.split():
-              s='▁'+w; n=len(s)
-              best=[-1e18]*(n+1); back=[None]*(n+1); best[0]=0
-              for i in range(n):
-                if best[i]<=-1e17: continue
-                for j in range(i+1,min(n,i+maxlen)+1):
-                  t=piece.get(s[i:j])
-                  if t is not None and best[i]+score[t]>best[j]: best[j]=best[i]+score[t]; back[j]=(i,t)
-                if j==i+1 and best[i+1]<=-1e17 and i+1<=n: best[i+1]=best[i]-10; back[i+1]=(i,unk)
-              out=[]; j=n
-              while j>0: i,t=back[j]; out.append(t); j=i
-              ids+=out[::-1]
-            return ids+[0]
-          for L in ['ro','de']:
-            voc,piece,score,maxlen,cfg=load(L)
-            e=ort.InferenceSession(f'{L}/encoder_model_quantized.onnx'); d=ort.InferenceSession(f'{L}/decoder_model_quantized.onnx')
-            for text in ['a little girl in a pink jacket standing in a puddle','A group of children sitting at a table with a birthday cake.','a blue balloon in the shape of the number three']:
-              t0=time.time()
-              ids=encode(text,piece,score,maxlen); ii=np.array([ids],np.int64); am=np.ones_like(ii)
-              h=e.run(None,{'input_ids':ii,'attention_mask':am})[0]
-              out=[cfg['decoder_start_token_id']]
-              for _ in range(40):
-                lg=d.run(['logits'],{'input_ids':np.array([out],np.int64),'encoder_hidden_states':h,'encoder_attention_mask':am})[0][0,-1]
-                lg[cfg['pad_token_id']]=-1e9; n=int(lg.argmax()); out.append(n)
-                if n==0: break
-              txt=''.join(voc[t][0] for t in out[1:] if t not in (0,cfg['pad_token_id'])).replace('▁',' ').strip()
-              print(L, round((time.time()-t0)*1000), ids[:12], '->', txt)
-          PY
+          for q in rife RIFE rife-onnx practical-rife frame-interpolation; do
+          curl -fsSL "https://huggingface.co/api/models?search=$q&full=true&limit=100" | python3 -c "
+          import sys,json
+          for m in json.load(sys.stdin):
+            fs=[s['rfilename'] for s in m.get('siblings',[]) if s['rfilename'].endswith('.onnx')]
+            lic=[t for t in m.get('tags',[]) if t.startswith('license')]
+            if fs: print(m['id'], lic, len(fs), fs[:3])
+          "
+          done | sort -u
+          echo "== Practical-RIFE README links"
+          curl -fsSL https://raw.githubusercontent.com/hzwer/Practical-RIFE/main/README.md | grep -io "https://drive.google.com[^) ]*\|4\.[0-9]*[^|]*drive[^|]*" | head -20
