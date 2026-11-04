@@ -76,7 +76,9 @@ function sharpen(mid: HTMLImageElement, k: HTMLCanvasElement, w: number, h: numb
   return up;
 }
 
-export async function makeBurstFilm(ids: string[], onProgress?: (f: number) => void): Promise<{ blob: Blob; ext: string } | null> {
+export interface BurstFilm { blob: Blob; ext: string; frames: CanvasImageSource[]; fps: number; width: number; height: number }
+
+export async function makeBurstFilm(ids: string[], onProgress?: (f: number) => void): Promise<BurstFilm | null> {
   const mime = pickMimeType();
   if (!mime || ids.length < 2) return null;
   // Motorul prin descărcarea comună (cu reluare), înainte de primul cadru.
@@ -89,11 +91,13 @@ export async function makeBurstFilm(ids: string[], onProgress?: (f: number) => v
   const hi = imgs.map(i => blend(i, i, 0, w, h));
   const keys = imgs.map(i => jpeg64(i, RIFE_SIDE));
   onProgress?.(0.05);
-  const frames: CanvasImageSource[] = [hi[0]];
+  // Patru cadre între poze și o mică oprire pe fiecare poză: raportat „puțin cam rapidă”.
+  const HOLD = 2;
+  const frames: CanvasImageSource[] = Array(HOLD + 1).fill(hi[0]);
   // RIFE face cadrele intermediare; dacă motorul nu merge pe telefonul ăsta,
   // filmul se face oricum, cu trecere lină între poze.
   let rife = true;
-  const steps = 3;
+  const steps = 4;
   for (let i = 0; i < keys.length - 1; i++) {
     let mids: HTMLImageElement[] | null = null;
     if (rife) {
@@ -110,7 +114,7 @@ export async function makeBurstFilm(ids: string[], onProgress?: (f: number) => v
       frames.push(mids?.[j - 1] ? sharpen(mids[j - 1], k, w, h) : k);
       await new Promise(r => setTimeout(r, 0));
     }
-    frames.push(hi[i + 1]);
+    for (let k = 0; k <= HOLD; k++) frames.push(hi[i + 1]);
     onProgress?.(0.05 + (i + 1) / (keys.length - 1) * 0.65);
   }
   // Înainte și înapoi, de două ori: mișcarea curge, fără săritură la capăt (și se face mai repede).
@@ -120,7 +124,7 @@ export async function makeBurstFilm(ids: string[], onProgress?: (f: number) => v
   canvas.width = w; canvas.height = h;
   const ctx = canvas.getContext('2d')!;
   ctx.drawImage(seq[0], 0, 0, w, h);
-  const fps = 12;
+  const fps = 10;
   const rec = new MediaRecorder(canvas.captureStream(fps), { mimeType: mime, videoBitsPerSecond: 10_000_000 });
   const chunks: Blob[] = [];
   rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
@@ -133,5 +137,5 @@ export async function makeBurstFilm(ids: string[], onProgress?: (f: number) => v
   }
   rec.stop();
   await done;
-  return { blob: new Blob(chunks, { type: mime.split(';')[0] }), ext: extensionFor(mime) };
+  return { blob: new Blob(chunks, { type: mime.split(';')[0] }), ext: extensionFor(mime), frames: loop, fps, width: w, height: h };
 }

@@ -228,15 +228,7 @@ class PortraitPlugin : Plugin() {
                 cacheKey = key; cacheMatte = matte; cacheNear = near; cacheDepth = lastDepth
             }
             val personShare = matte.count { it > 0.5f }.toFloat() / matte.size
-            fun at(map: FloatArray, side: Int, x: Float, y: Float) =
-                map[(y * (side - 1)).roundToInt().coerceIn(0, side - 1) * side + (x * (side - 1)).roundToInt().coerceIn(0, side - 1)]
-            // Atingerea pe om → omul; atingerea în altă parte → planul de acolo (după adâncime).
             val tapped = tapX != null && tapY != null
-            val usePerson = if (tapped) at(matte, MODNET_SIDE, tapX!!, tapY!!) > 0.5f else personShare > 0.04f
-            val tapNear: FloatArray? = if (tapped && !usePerson) lastDepth?.let { d ->
-                val target = at(d, DEPTH_SIDE, tapX!!, tapY!!)
-                FloatArray(d.size) { i -> (1f - kotlin.math.abs(d[i] - target) / 0.12f).coerceIn(0f, 1f) }
-            } else null
 
             // 2. Lucrăm la ~1280 px: estomparea e moale oricum, iar marginea rămâne la rezoluția plină.
             val k = min(1f, 1280f / max(w, h))
@@ -245,14 +237,52 @@ class PortraitPlugin : Plugin() {
             val px = IntArray(ws * hs); small.getPixels(px, 0, ws, 0, 0, ws, hs)
             if (small !== src) small.recycle()
             val ch = Array(3) { c -> FloatArray(ws * hs) { i -> ((px[i] shr (16 - 8 * c)) and 0xFF).toFloat() } }
-            var focus = if (usePerson) resizeMap(matte, MODNET_SIDE, ws, hs) else resizeMap(tapNear ?: near, DEPTH_SIDE, ws, hs)
-            // Marginea strânsă: masca de 512 px mărită e „lată” și lăsa o fâșie clară
-            // de asfalt lângă picioare (raportat cu captură). O curbă abruptă o îngustează.
-            for (i in focus.indices) {
-                val t = ((focus[i] - 0.3f) / 0.4f).coerceIn(0f, 1f)
-                focus[i] = t * t * (3f - 2f * t)
-            }
             val depth01 = lastDepth?.let { resizeMap(it, DEPTH_SIDE, ws, hs) }
+            val matteS = resizeMap(matte, MODNET_SIDE, ws, hs)
+
+            // Ce e clar: ca la camerele telefoanelor, PLANUL de focus (după adâncime), nu
+            // „omul găsit de MODNet” — acela e făcut pentru un singur om și, în poze cu mai
+            // mulți copii, alegea greșit (raportat: fetița din mijloc estompată, balonul clar).
+            var focus: FloatArray
+            if (depth01 != null) {
+                // Adâncimea planului: mediana din jurul punctului de focus (fața principală sau
+                // atingerea); fără punct, cel mai apropiat lucru din centrul cadrului.
+                val fd: Float = if (tapped) {
+                    val cx = (tapX!! * (ws - 1)).roundToInt(); val cy = (tapY!! * (hs - 1)).roundToInt()
+                    val r = max(3, (max(ws, hs) * 0.02f).roundToInt())
+                    val vals = ArrayList<Float>()
+                    for (y in max(0, cy - r)..min(hs - 1, cy + r)) for (x in max(0, cx - r)..min(ws - 1, cx + r)) vals.add(depth01[y * ws + x])
+                    vals.sort(); vals[vals.size / 2]
+                } else {
+                    val vals = ArrayList<Float>()
+                    for (y in hs / 4 until hs * 3 / 4 step 2) for (x in ws / 4 until ws * 3 / 4 step 2) {
+                        val i = y * ws + x
+                        if (personShare <= 0.04f || matteS[i] > 0.5f) vals.add(depth01[i])
+                    }
+                    if (vals.isEmpty()) 1f else { vals.sort(); vals[(vals.size * 0.85f).toInt().coerceAtMost(vals.size - 1)] }
+                }
+                val tol = 0.07f
+                focus = FloatArray(ws * hs) { i ->
+                    val d = kotlin.math.abs(depth01[i] - fd)
+                    val t = ((d - tol) / (tol * 1.5f)).coerceIn(0f, 1f)
+                    var f = 1f - t * t * (3f - 2f * t)
+                    // Oamenii din planul de focus: silueta ține tot corpul clar (mâini, păr).
+                    if (matteS[i] > 0.5f && d < 0.16f) f = max(f, matteS[i])
+                    f
+                }
+                // Marginea după imagine (filtru ghidat): conturul urmează părul și hainele,
+                // nu pătrățelele hărții de adâncime mărite.
+                val gray = FloatArray(ws * hs) { i -> (0.3f * ch[0][i] + 0.59f * ch[1][i] + 0.11f * ch[2][i]) / 255f }
+                focus = guidedFilter(gray, focus, ws, hs, max(2, max(ws, hs) / 200), 1e-3f)
+                for (i in focus.indices) focus[i] = focus[i].coerceIn(0f, 1f)
+            } else {
+                focus = matteS
+                for (i in focus.indices) {
+                    val t = ((focus[i] - 0.3f) / 0.4f).coerceIn(0f, 1f)
+                    focus[i] = t * t * (3f - 2f * t)
+                }
+            }
+            val usePerson = personShare > 0.04f
 
             // 3. Două niveluri de estompare, din fundal fără subiect.
             val bgW = FloatArray(ws * hs) { i -> (1f - focus[i]).let { v -> if (v > 0.5f) 1f else v * v * 2f } }
@@ -321,6 +351,38 @@ class PortraitPlugin : Plugin() {
             o.put("subject", if (usePerson) "person" else "depth")
             call.resolve(o)
         }
+    }
+
+    /** Media pe o fereastră (2r+1)², prin imagine integrală: O(N), oricât de mare e r. */
+    private fun boxMean(a: FloatArray, w: Int, h: Int, r: Int): FloatArray {
+        val sw = w + 1
+        val integ = DoubleArray(sw * (h + 1))
+        for (y in 0 until h) {
+            var row = 0.0
+            for (x in 0 until w) { row += a[y * w + x]; integ[(y + 1) * sw + x + 1] = integ[y * sw + x + 1] + row }
+        }
+        val out = FloatArray(w * h)
+        for (y in 0 until h) {
+            val y0 = max(0, y - r); val y1 = min(h - 1, y + r)
+            for (x in 0 until w) {
+                val x0 = max(0, x - r); val x1 = min(w - 1, x + r)
+                val sum = integ[(y1 + 1) * sw + x1 + 1] - integ[y0 * sw + x1 + 1] - integ[(y1 + 1) * sw + x0] + integ[y0 * sw + x0]
+                out[y * w + x] = (sum / ((y1 - y0 + 1) * (x1 - x0 + 1))).toFloat()
+            }
+        }
+        return out
+    }
+
+    /** Filtrul ghidat (He et al.): netezește `p` păstrând marginile din `guide`. */
+    private fun guidedFilter(guide: FloatArray, p: FloatArray, w: Int, h: Int, r: Int, eps: Float): FloatArray {
+        val n = w * h
+        val mI = boxMean(guide, w, h, r); val mp = boxMean(p, w, h, r)
+        val mIp = boxMean(FloatArray(n) { guide[it] * p[it] }, w, h, r)
+        val mII = boxMean(FloatArray(n) { guide[it] * guide[it] }, w, h, r)
+        val a = FloatArray(n) { i -> (mIp[i] - mI[i] * mp[i]) / (mII[i] - mI[i] * mI[i] + eps) }
+        val b = FloatArray(n) { i -> mp[i] - a[i] * mI[i] }
+        val ma = boxMean(a, w, h, r); val mb = boxMean(b, w, h, r)
+        return FloatArray(n) { i -> ma[i] * guide[i] + mb[i] }
     }
 
     /** Ca resizeMap, dar dintr-o hartă dreptunghiulară sw×sh. */

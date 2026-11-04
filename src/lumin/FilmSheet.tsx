@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { BurstFilm } from './burstFilm';
 import { createPortal } from 'react-dom';
 import { useStore } from '../state/store';
 import { useTr } from './context';
@@ -9,12 +10,22 @@ import { saveEditedBlob } from './saveEdited';
  * Mini-filmul din serie, văzut întâi în aplicație (în buclă), apoi salvat în
  * galerie sau trimis. Înainte se deschidea direct fereastra de partajare.
  */
-export function FilmSheet({ film, onClose }: { film: { blob: Blob; ext: string }; onClose: () => void }) {
+export function FilmSheet({ film, onClose }: { film: BurstFilm; onClose: () => void }) {
   const tr = useTr();
   const setNotice = useStore(s => s.setNotice);
-  const [url] = useState(() => URL.createObjectURL(film.blob));
   const [busy, setBusy] = useState(false);
-  useEffect(() => () => URL.revokeObjectURL(url), [url]);
+  // Redat din cadre, pe canvas: WebView-ul nu putea reda fișierul video (raportat:
+  // „nu poți da play în aplicație”). Fișierul rămâne pentru salvare și trimitere.
+  const canvas = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const c = canvas.current;
+    if (!c || !film.frames.length) return;
+    c.width = film.width; c.height = film.height;
+    const ctx = c.getContext('2d')!;
+    let i = 0;
+    const id = window.setInterval(() => { ctx.drawImage(film.frames[i % film.frames.length], 0, 0, c.width, c.height); i++; }, 1000 / film.fps);
+    return () => window.clearInterval(id);
+  }, [film]);
   const name = `cherrypic-miscare-${Date.now()}.${film.ext}`;
   const save = async () => {
     setBusy(true);
@@ -32,7 +43,7 @@ export function FilmSheet({ film, onClose }: { film: { blob: Blob; ext: string }
         <span />
       </header>
       <div className="lx-enhance-stage">
-        <video className="lx-film-video" src={url} autoPlay loop muted playsInline />
+        <canvas ref={canvas} className="lx-film-video" />
       </div>
       <div className="lx-viewer-info">
         <div className="lx-decide-actions">

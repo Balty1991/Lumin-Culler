@@ -32,7 +32,7 @@ import { db } from '../core/db';
 import { findSimilarPhotos } from '../core/similarPhotos';
 import { Icon } from './icons';
 import { planBestTake, renderBestTake, type BestTakeFix } from './bestTake';
-import { burstFilmAvailable, makeBurstFilm } from './burstFilm';
+import { burstFilmAvailable, makeBurstFilm, type BurstFilm } from './burstFilm';
 import { FilmSheet } from './FilmSheet';
 import { BurstTidy } from './BurstTidy';
 import { logError } from '../core/errorLog';
@@ -631,7 +631,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
   const toggleDetails = (v: boolean) => { viewerDetailsOpen = v; setDetails(v); };
   const [filmBusy, setFilmBusy] = useState(false);
   const [filmPct, setFilmPct] = useState(0);
-  const [film, setFilm] = useState<{ blob: Blob; ext: string } | null>(null);
+  const [film, setFilm] = useState<BurstFilm | null>(null);
   const makeFilm = async () => {
     setFilmBusy(true);
     try {

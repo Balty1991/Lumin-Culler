@@ -14,6 +14,7 @@ import { downloadModels, getModelsState, setModelsState } from './aiModels';
 import { useStore } from '../state/store';
 import { holdBackgroundAnalysis, releaseBackgroundAnalysis, updateHeldBackground } from '../core/backgroundAnalysis';
 import { t } from '../i18n';
+import { waitForUserIdle } from '../core/userIdle';
 import { captionPhoto, closeFlorence, joyOf, prepareFlorence } from '../core/extraEngines';
 
 const BATCH = 12;
@@ -39,6 +40,7 @@ export async function startClipBackfill(anyNetwork = true): Promise<void> {
       const changed = new Map<string, { sceneTags?: string[]; aiScore: number; aesthetic: number }>();
       for (const id of todo.slice(i, i + BATCH)) {
         while (useStore.getState().progress) await sleep(3000);
+        await waitForUserIdle();
         const [photo, analysis] = await Promise.all([db.photos.get(id as string), db.analyses.get(id as string)]);
         if (!photo?.mediaUri || !analysis || analysis.clipEmbedding !== undefined) continue;
         const clip = await clipAnalyze({ uri: photo.mediaUri, maxSide: 480 });
@@ -111,8 +113,15 @@ async function deepPass(bgText: (d: number) => string): Promise<void> {
   const kept = new Set(useStore.getState().photos.filter(p => p.status === 'selected').map(p => p.id));
   const florence = rows.some(a => !a.aiDescription && kept.has(a.photoId)) ? await prepareFlorence() : false;
   let done = 0;
+  const pending = new Map<string, { aiScore: number; sceneTags?: string[]; aiDescription?: string }>();
+  const flush = () => {
+    if (!pending.size) return;
+    const ch = new Map(pending); pending.clear();
+    useStore.setState(st => ({ photos: st.photos.map(p => { const c = ch.get(p.id); return c ? { ...p, ...c } : p; }) }));
+  };
   for (const a of rows) {
     while (useStore.getState().progress) await sleep(3000);
+    await waitForUserIdle();
     const photo = await db.photos.get(a.photoId);
     if (!photo?.mediaUri) continue;
     const next = { ...a };
@@ -132,12 +141,15 @@ async function deepPass(bgText: (d: number) => string): Promise<void> {
       next.aiScore = prediction.score;
       next.aiFactors = prediction.topFactors;
       await db.analyses.put(next);
-      useStore.setState(st => ({ photos: st.photos.map(p => (p.id === a.photoId ? { ...p, aiScore: next.aiScore, sceneTags: next.sceneTags, aiDescription: next.aiDescription } : p)) }));
+      pending.set(a.photoId, { aiScore: next.aiScore, sceneTags: next.sceneTags, aiDescription: next.aiDescription });
     }
     done++;
+    // Galeria se redesenează o dată la 10 poze, nu după fiecare (sacadări la derulare).
+    if (pending.size >= 10 || done === rows.length) flush();
     if (done % 10 === 0) { void updateHeldBackground(done, rows.length, bgText(done)); setModelsState({ scanned: done }); }
     await sleep(PAUSE_MS);
   }
+  flush();
   if (florence) await closeFlorence();
   setModelsState({ phase: getModelsState().textReady ? 'ready' : 'idle', scanned: rows.length });
 }

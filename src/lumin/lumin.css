@@ -1411,3 +1411,11 @@ html, body { overflow-x: hidden; }
 .lx-hero-stack-item img { width: 100%; height: 100%; object-fit: cover; animation: none !important; position: static !important; }
 .lx-hero-stack-more { margin-left: 6px; padding: 4px 8px; border-radius: 999px; background: rgb(0 0 0 / .45); color: #fff; font-size: 12px; font-weight: 700; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
 .lx-hero-caption { right: 150px; }
+
+/* Viteză la derulare (raportat: „merge sacadat uneori”): estomparea din spate
+   (backdrop-filter) se recalculează la fiecare cadru pentru tot ce trece pe sub
+   element. Pe dale (sute pe ecran), pe filele lipite sus și pe bara de jos o
+   înlocuim cu fundaluri opace, aproape identice ca aspect. */
+.lx-tile-star { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: rgb(6 7 10 / .62) !important; }
+.lx-screen > .lx-seg.scroll { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: color-mix(in srgb, var(--bg) 97%, transparent) !important; }
+.lx-dock { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: color-mix(in srgb, var(--surface) 97%, transparent) !important; }

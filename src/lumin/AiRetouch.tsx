@@ -8,6 +8,7 @@ import { saveEditedBlob } from './saveEdited';
 import { canSharpen, originalUri, sharpUrl } from './sharp';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
 import { clarityOnDevice, cutoutOnDevice } from '../core/onDeviceEdit';
+import { db } from '../core/db';
 import { portraitOnDevice } from '../core/portraitEdit';
 
 /**
@@ -15,6 +16,20 @@ import { portraitOnDevice } from '../core/portraitEdit';
  * „Retuș AI”: editarea complexă (lumină, culoare, cer, ten) făcută de un model
  * generativ pe server. Ții apăsat pe poză ca să vezi originalul; salvezi o copie.
  */
+/** Fața principală (cea mai mare, ușor favorizată spre centru): acolo cade focusul, ca la cameră. */
+async function mainFaceCenter(id: string): Promise<{ x: number; y: number } | null> {
+  const a = await db.analyses.get(id).catch(() => undefined);
+  const faces = a?.faces ?? [];
+  let best: { x: number; y: number; s: number } | null = null;
+  for (const f of faces) {
+    const [x, y, w, h] = f.box as number[];
+    const cx = x + w / 2, cy = y + h / 2;
+    const score = w * h * (1.2 - Math.hypot(cx - 0.5, cy - 0.5));
+    if (!best || score > best.s) best = { x: cx, y: cy, s: score };
+  }
+  return best ? { x: Math.min(1, Math.max(0, best.x)), y: Math.min(1, Math.max(0, best.y)) } : null;
+}
+
 export type ToolKind = 'retouch' | 'clarity' | 'cutout' | 'portrait';
 
 export function AiRetouch({ photo, onClose, kind = 'retouch' }: { photo: PhotoView; onClose: () => void; kind?: ToolKind }) {
@@ -42,7 +57,7 @@ export function AiRetouch({ photo, onClose, kind = 'retouch' }: { photo: PhotoVi
         }
         const src = srcBlob.current;
         setState('work');
-        const out = src ? await (kind === 'clarity' ? clarityOnDevice(src) : kind === 'portrait' ? portraitOnDevice(src, strength, focus ?? undefined, await originalUri(photo.id).catch(() => null)) : cutoutOnDevice(src, 'white')) : null;
+        const out = src ? await (kind === 'clarity' ? clarityOnDevice(src) : kind === 'portrait' ? portraitOnDevice(src, strength, focus ?? (await mainFaceCenter(photo.id)) ?? undefined, await originalUri(photo.id).catch(() => null)) : cutoutOnDevice(src, 'white')) : null;
         if (!alive) return;
         if (out) { setBlob(out); setUrl(URL.createObjectURL(out)); setState('done'); return; }
         setWhy(tr('lx.aiRetouch.err.failed')); setState('error'); return;
