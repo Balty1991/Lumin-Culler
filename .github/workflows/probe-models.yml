@@ -8,34 +8,53 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          pip install -q onnxruntime numpy pillow torch --index-url https://download.pytorch.org/whl/cpu 2>&1 | tail -1
-          pip install -q transformers 2>&1 | tail -1
+          pip install -q torch --index-url https://download.pytorch.org/whl/cpu 2>&1 | tail -1
+          pip install -q onnxruntime numpy pillow transformers 2>&1 | tail -1
           B=https://huggingface.co/Xenova/clip-vit-base-patch32/resolve/main
-          for f in onnx/vision_model_quantized.onnx onnx/vision_model.onnx onnx/text_model_quantized.onnx preprocessor_config.json; do curl -fsSL -o "$(basename $f)" "$B/$f" && ls -la "$(basename $f)" || echo "FAIL $f"; done
-          curl -fsSL -o aest.pth https://github.com/LAION-AI/aesthetic-predictor/raw/main/sa_0_4_vit_b_32_linear.pth && ls -la aest.pth || echo FAIL aest
-          curl -fsSL -o t.jpg https://huggingface.co/datasets/hf-internal-testing/fixtures_ade20k/resolve/main/ADE_val_00000001.jpg || true
-          cat preprocessor_config.json
+          curl -fsSL -o vision.onnx "$B/onnx/vision_model_quantized.onnx"; ls -la vision.onnx
+          curl -fsSL -o aest.pth https://github.com/LAION-AI/aesthetic-predictor/raw/main/sa_0_4_vit_b_32_linear.pth
+          for i in 000000039769 000000000139 000000000285 000000000632 000000000785 000000000872 000000001000 000000001296 000000001532; do curl -fsSL -o "$i.jpg" "http://images.cocodataset.org/val2017/$i.jpg" || true; done
           python - <<'PY'
-          import onnxruntime as ort, numpy as np, torch
+          import onnxruntime as ort, numpy as np, torch, json, base64, glob, time
           from PIL import Image
-          for f in ['vision_model_quantized.onnx','vision_model.onnx']:
-              try:
-                  s = ort.InferenceSession(f); print(f, [(i.name,i.shape) for i in s.get_inputs()], [(o.name,o.shape) for o in s.get_outputs()])
-              except Exception as e: print(f,'ERR',e)
-          sd = torch.load('aest.pth', map_location='cpu'); print({k: tuple(v.shape) for k,v in sd.items()})
-          im = Image.open('t.jpg').convert('RGB').resize((224,224))
-          mean=np.array([0.48145466,0.4578275,0.40821073]); std=np.array([0.26862954,0.26130258,0.27577711])
-          x=((np.asarray(im,np.float32)/255-mean)/std).transpose(2,0,1)[None].astype(np.float32)
-          s=ort.InferenceSession('vision_model_quantized.onnx')
-          outs=s.run(None,{s.get_inputs()[0].name:x}); 
-          for o,meta in zip(outs,s.get_outputs()): print(meta.name, o.shape)
-          emb=outs[0][0]; emb=emb/np.linalg.norm(emb)
-          w=sd['weight'].numpy()[0]; b=float(sd['bias'].numpy()[0]); print('aesthetic', float(emb@w+b))
           from transformers import CLIPModel, CLIPProcessor
-          m=CLIPModel.from_pretrained('openai/clip-vit-base-patch32'); p=CLIPProcessor.from_pretrained('openai/clip-vit-base-patch32')
-          labels=['a photo of a dog','a photo of a cat','a photo of a house','a photo of the sky','a photo of a child','a photo of a teddy bear']
-          t=p(text=labels,return_tensors='pt',padding=True)
-          with torch.no_grad(): te=m.get_text_features(**t).numpy()
-          te=te/np.linalg.norm(te,axis=1,keepdims=True)
-          print('zero-shot', sorted(zip((te@emb*100).round(1),labels),reverse=True))
+          LABELS = {
+            'dog':['a dog'], 'cat':['a cat'], 'bird':['a bird'], 'horse':['a horse'],
+            'teddy bear':['a teddy bear','a plush toy'], 'toy':['toys'],
+            'baby':['a baby'], 'child':['a young child','kids playing'],
+            'selfie':['a selfie'], 'group photo':['a group of people posing for a photo'],
+            '-person':['a person','people'],
+            'sunset':['a sunset','a colorful sunset sky'], 'beach':['a beach'], 'sea':['the sea'],
+            'mountain':['mountains'], 'snow':['snow','a snowy landscape'], 'forest':['a forest'],
+            'flower':['flowers'], 'garden':['a garden'], 'city':['a city street','buildings in a city'],
+            'night':['a night scene'], 'food':['a plate of food','a meal'], 'cake':['a cake'],
+            'drink':['a drink'], 'car':['a car'], 'document':['a document','a sheet of paper with text'],
+            'receipt':['a receipt'], 'screenshot':['a screenshot of a phone screen'], 'meme':['a meme'],
+            'room':['the interior of a room'], 'party':['a party'], 'wedding':['a wedding'],
+            'concert':['a concert'], 'sports':['people playing sports'], 'pool':['a swimming pool'],
+            'christmas tree':['a christmas tree'], 'sky':['the sky'], 'landscape':['a landscape'],
+            '-object':['an object','a thing'],
+          }
+          m=CLIPModel.from_pretrained('openai/clip-vit-base-patch32').eval(); p=CLIPProcessor.from_pretrained('openai/clip-vit-base-patch32')
+          keys=list(LABELS); T=[]
+          for k in keys:
+              t=p(text=[f'a photo of {d}.' for d in LABELS[k]],return_tensors='pt',padding=True)
+              with torch.no_grad(): e=m.get_text_features(**t).numpy()
+              e=e/np.linalg.norm(e,axis=1,keepdims=True); e=e.mean(0); T.append(e/np.linalg.norm(e))
+          T=np.stack(T).astype(np.float32)
+          sd=torch.load('aest.pth',map_location='cpu'); w=sd['weight'].numpy()[0].astype(np.float32); b=float(sd['bias'].numpy()[0])
+          s=ort.InferenceSession('vision.onnx'); print([(i.name,i.shape) for i in s.get_inputs()],[(o.name,o.shape) for o in s.get_outputs()])
+          mean=np.array([0.48145466,0.4578275,0.40821073]); std=np.array([0.26862954,0.26130258,0.27577711])
+          def prep(im):
+              im=im.convert('RGB'); W,H=im.size; sc=224/min(W,H); im=im.resize((max(224,round(W*sc)),max(224,round(H*sc))),Image.BICUBIC)
+              W,H=im.size; l=(W-224)//2; t=(H-224)//2; im=im.crop((l,t,l+224,t+224))
+              return ((np.asarray(im,np.float32)/255-mean)/std).transpose(2,0,1)[None].astype(np.float32)
+          for f in sorted(glob.glob('*.jpg')):
+              x=prep(Image.open(f)); t0=time.time(); o=s.run(None,{s.get_inputs()[0].name:x}); dt=time.time()-t0
+              names=[q.name for q in s.get_outputs()]; e=o[names.index('image_embeds')][0] if 'image_embeds' in names else o[0][0]
+              e=e/np.linalg.norm(e); lg=T@e*100; pr=np.exp(lg-lg.max()); pr/=pr.sum(); top=np.argsort(-pr)[:4]
+              print(f, 'aest %.2f'%(float(e@w+b)), '%.0fms'%(dt*1000), [(keys[i], round(float(pr[i]),2)) for i in top])
+          blob={'keys':keys,'text':base64.b64encode(T.astype(np.float16).tobytes()).decode(),'aw':base64.b64encode(w.astype(np.float32).tobytes()).decode(),'ab':b}
+          js=json.dumps(blob); print('LEN',len(js))
+          for i in range(0,len(js),3000): print('CHUNK%03d %s'%(i//3000, js[i:i+3000]))
           PY
