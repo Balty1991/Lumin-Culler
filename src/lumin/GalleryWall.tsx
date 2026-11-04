@@ -477,7 +477,8 @@ export function GalleryWall() {
                 <span className="lx-hero-shade" />
                 <span className="lx-hero-caption">
                   <span className="lx-hero-badge">✦ {tr('lx.wall.best')}</span>
-                  <b>{monthLabel(m.start, locale)}</b>
+                  {/* Luna e deja în titlul secțiunii; aici ziua pozei (nu același titlu de două ori). */}
+                  <b>{new Date(photoTime(hero.p)).toLocaleDateString(intlTag(locale), { weekday: 'long', day: 'numeric', month: 'long' })}</b>
                   <span>{reasonsFor(hero.p).filter(r => r.tone === 'good').map(r => tr(r.key)).join(' · ') || `AI ${hero.p.aiScore}`}</span>
                 </span>
               </button>
