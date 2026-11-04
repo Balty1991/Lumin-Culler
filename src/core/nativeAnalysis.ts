@@ -576,8 +576,9 @@ export async function analyzeNative(
 
   record('nativePrep', performance.now() - bodyStart);
   const labelsPromise = timed('mLabels', () => labelImageNative(source));
-  // CLIP (dacă modelul e deja pe telefon): pe firul lui, în paralel cu restul.
-  const clipPromise = timed('mClip', () => clipAnalyze(source.uri !== undefined ? { uri: source.uri, maxSide: 480 } : source));
+  // CLIP NU mai rulează aici: concura cu modelele importului pe procesor și
+  // încetinea importul. Trece imediat după import, în fundal (lumin/clipBackfill.ts).
+  const clipPromise = Promise.resolve(null as Awaited<ReturnType<typeof clipAnalyze>>);
   const detected = await faceProbe;
   const boxes = detected.faces.map(f => ({ x: f.box[0], y: f.box[1], w: f.box[2], h: f.box[3] }));
   const [imageAnalysis, labelResult] = await timed('nativeModels', () => Promise.all([

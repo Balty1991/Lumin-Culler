@@ -64,3 +64,19 @@ export async function startClipBackfill(anyNetwork = false): Promise<void> {
     running = false;
   }
 }
+
+/**
+ * După fiecare import (bara de progres dispare), pozele noi trec prin CLIP în
+ * fundal. Așa importul rămâne la fel de rapid ca înainte de CLIP.
+ */
+let watching = false;
+export function watchImportsForClip(): void {
+  if (watching || !isClipPlatform()) return;
+  watching = true;
+  let was = !!useStore.getState().progress;
+  useStore.subscribe(st => {
+    const now = !!st.progress;
+    if (was && !now) window.setTimeout(() => { void startClipBackfill(); }, 1500);
+    was = now;
+  });
+}

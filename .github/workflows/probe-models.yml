@@ -1,0 +1,12 @@
+name: Probe web models
+on:
+  push:
+    branches: [claude/fix-serii]
+    paths: ['.github/workflows/probe-models.yml']
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          pip install -q onnxruntime numpy pillow 2>&1 | tail -1
+          for r in Heliosoph/scunet-onnx opencv/deblurring_nafnet; do echo "=== $r"; curl -fsSL "https://huggingface.co/api/models/$r/tree/main?recursive=1" | python3 -c "import sys,json; [print(' ',x['path'],x.get('size')) for x in json.load(sys.stdin) if x['type']=='file']"; curl -fsSL "https://huggingface.co/api/models/$r" | python3 -c "import sys,json; d=json.load(sys.stdin); print('  tags', [t for t in d.get('tags',[]) if 'license' in t])"; curl -fsSL "https://huggingface.co/$r/resolve/main/README.md" | head -30; done

@@ -399,7 +399,7 @@ export default function App() {
   useEffect(() => { void boot(); }, [boot]);
   // CLIP (frumusețe + etichete): descărcat o dată pe Wi-Fi, apoi trece prin pozele vechi.
   useEffect(() => {
-    const id = window.setTimeout(() => { void import('./lumin/clipBackfill').then(m => m.startClipBackfill()); }, 6000);
+    const id = window.setTimeout(() => { void import('./lumin/clipBackfill').then(m => { m.watchImportsForClip(); void m.startClipBackfill(); }); }, 6000);
     return () => window.clearTimeout(id);
   }, []);
 
