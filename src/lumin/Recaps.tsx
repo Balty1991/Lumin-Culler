@@ -37,13 +37,25 @@ export function Recaps() {
   const kept = useMemo(() => photos.filter(p => p.status === 'selected' && !p.aside), [photos]);
   const week = useMemo(() => bestPer(kept.filter(p => photoTime(p) >= startOfDay(now) - 6 * DAY_MS), p => startOfDay(photoTime(p)), 7), [kept, now]);
   const year = new Date(now).getFullYear();
+  // „Cele mai frumoase”: ultimele 30 de zile, după frumusețea văzută de AI (CLIP + LAION),
+  // cel mult una pe oră (o rafală nu umple colajul cu aceeași scenă).
+  const beauty = useMemo(() => {
+    const best = new Map<number, PhotoView>();
+    for (const p of kept) {
+      if (p.aesthetic === undefined || photoTime(p) < startOfDay(now) - 30 * DAY_MS) continue;
+      const k = Math.floor(photoTime(p) / 3_600_000);
+      const cur = best.get(k);
+      if (!cur || (p.aesthetic ?? 0) > (cur.aesthetic ?? 0)) best.set(k, p);
+    }
+    return [...best.values()].sort((a, b) => (b.aesthetic ?? 0) - (a.aesthetic ?? 0)).slice(0, 10).sort((a, b) => photoTime(a) - photoTime(b));
+  }, [kept, now]);
   const yearPicks = useMemo(() => bestPer(kept.filter(p => new Date(photoTime(p)).getFullYear() === year), p => new Date(photoTime(p)).getMonth(), 7), [kept, year]);
 
-  const share = async (kind: 'week' | 'year', list: PhotoView[]) => {
+  const share = async (kind: 'week' | 'year' | 'beauty', list: PhotoView[]) => {
     setBusy(kind);
     try {
-      const title = tr(kind === 'week' ? 'lx.recap.week.title' : 'lx.recap.year.title', { count: list.length, year });
-      const range = kind === 'week'
+      const title = tr(kind === 'week' ? 'lx.recap.week.title' : kind === 'beauty' ? 'lx.recap.beauty.title' : 'lx.recap.year.title', { count: list.length, year });
+      const range = kind !== 'year'
         ? `${new Date(photoTime(list[0])).toLocaleDateString(intlTag(locale), { day: 'numeric', month: 'short' })} – ${new Date(photoTime(list[list.length - 1])).toLocaleDateString(intlTag(locale), { day: 'numeric', month: 'short' })}`
         : tr('lx.recap.year.sub', { count: kept.filter(p => new Date(photoTime(p)).getFullYear() === year).length });
       const blob = await makeCollage(list.map(p => p.id), title, range);
@@ -90,8 +102,9 @@ export function Recaps() {
   const calMissing = missingMonths('calendar', year, kept);
   const monthNames = (ms: number[]) => ms.length > 4 ? String(ms.length) : ms.map(m => new Date(2024, m, 1).toLocaleDateString(intlTag(locale), { month: 'short' }).replace('.', '')).join(', ');
 
-  const cards: { kind: 'week' | 'year'; list: PhotoView[] }[] = [];
+  const cards: { kind: 'week' | 'year' | 'beauty'; list: PhotoView[] }[] = [];
   if (week.length >= 3) cards.push({ kind: 'week', list: week });
+  if (beauty.length >= 6) cards.push({ kind: 'beauty', list: beauty });
   if (yearPicks.length >= 4) cards.push({ kind: 'year', list: yearPicks });
   if (!cards.length) return null;
   // Duminica, săptămâna vine prima și se vede mai tare.
@@ -105,15 +118,15 @@ export function Recaps() {
             {c.list.slice(0, 5).map((p, i) => <span key={p.id} style={{ ['--i' as string]: i }}><Thumb id={p.id} lqip={p.lqip} edits={p.edits} /></span>)}
           </div>
           <div className="lx-recap-text">
-            <b>{tr(c.kind === 'week' ? 'lx.recap.week.title' : 'lx.recap.year.title', { count: c.list.length, year })}</b>
-            <span>{tr(c.kind === 'week' ? 'lx.recap.week.sub' : 'lx.recap.year.cta')}</span>
+            <b>{tr(c.kind === 'week' ? 'lx.recap.week.title' : c.kind === 'beauty' ? 'lx.recap.beauty.title' : 'lx.recap.year.title', { count: c.list.length, year })}</b>
+            <span>{tr(c.kind === 'week' ? 'lx.recap.week.sub' : c.kind === 'beauty' ? 'lx.recap.beauty.sub' : 'lx.recap.year.cta')}</span>
           </div>
           <div className="lx-recap-actions">
             <button className="lx-btn primary small" disabled={busy !== null} onClick={() => void share(c.kind, c.list)}>
               {busy === c.kind ? '…' : tr('lx.recap.share')}
             </button>
             <StoryButton className="lx-btn ghost small" ids={c.list.slice(0, 12).map(p => p.id)}
-              title={tr(c.kind === 'week' ? 'lx.story.weekTitle' : 'lx.story.yearTitle', { year })}
+              title={tr(c.kind === 'week' ? 'lx.story.weekTitle' : c.kind === 'beauty' ? 'lx.recap.beauty.title' : 'lx.story.yearTitle', { year, count: c.list.length })}
               subtitle={tr('lx.story.daySub', { count: Math.min(12, c.list.length) })} />
             {c.kind === 'year' && calMissing.length === 0 && (
               <button className="lx-btn ghost small" disabled={busy !== null} onClick={() => void calendar()}>

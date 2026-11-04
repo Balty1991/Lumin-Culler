@@ -3047,4 +3047,6 @@ export const en: Record<TranslationKey, string> = {
   'lx.enhance.pure': "No automatic fixes",
   'lx.enhance.pureOn': "Starting from the original photo. Adjust in Light and Color.",
   'lx.enhance.pureUndo': "Auto-fix again",
+  'lx.recap.beauty.title': "Your {count} most beautiful of the month",
+  'lx.recap.beauty.sub': "Picked by AI for how good they look, at most one per hour.",
 };

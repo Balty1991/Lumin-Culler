@@ -3133,6 +3133,8 @@ export const ro = {
   'lx.enhance.pure': "Fără reparații automate",
   'lx.enhance.pureOn': "Pornești de la poza originală. Reglează din Lumină și Culoare.",
   'lx.enhance.pureUndo': "Repară automat",
+  'lx.recap.beauty.title': "Cele mai frumoase {count} din ultima lună",
+  'lx.recap.beauty.sub': "Alese de AI după cât de frumoase sunt, cel mult una pe oră.",
 };
 
 export type TranslationKey = keyof typeof ro;

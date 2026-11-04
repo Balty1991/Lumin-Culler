@@ -1014,4 +1014,6 @@ export const dict: Record<string, string> = {
   'lx.enhance.pure': "Ohne automatische Korrekturen",
   'lx.enhance.pureOn': "Du startest vom Originalfoto. Passe unter Licht und Farbe an.",
   'lx.enhance.pureUndo': "Wieder automatisch",
+  'lx.recap.beauty.title': "Deine {count} schönsten des Monats",
+  'lx.recap.beauty.sub': "Von der KI nach Schönheit gewählt, höchstens eins pro Stunde.",
 };

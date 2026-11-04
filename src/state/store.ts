@@ -158,6 +158,8 @@ export interface PhotoView {
    */
   aiDecided?: boolean;
   aiScore: number;
+  /** Frumusețea pozei după CLIP + LAION (1–10), când a trecut prin CLIP. */
+  aesthetic?: number;
   sceneType: AnalysisRecord['sceneType'];
   contextKey: string;
   faceCount: number;
@@ -1073,6 +1075,7 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     clientFeedback: photo.clientFeedback,
     mediaUri: photo.mediaUri,
     aiScore: analysis?.aiScore ?? 0,
+    aesthetic: analysis?.aesthetic,
     sceneType: analysis?.sceneType ?? 'detail',
     contextKey: analysis ? deriveContextKey(analysis, photo.genre) : 'detail',
     faceCount: analysis?.faceCount ?? 0,

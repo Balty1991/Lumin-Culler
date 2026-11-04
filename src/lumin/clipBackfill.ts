@@ -29,7 +29,7 @@ export async function startClipBackfill(anyNetwork = false): Promise<void> {
     const todo = await db.analyses.filter(a => a.clipEmbedding === undefined).primaryKeys();
     setModelsState({ phase: 'scanning', scanned: 0, toScan: todo.length });
     for (let i = 0; i < todo.length; i += BATCH) {
-      const changed = new Map<string, { sceneTags?: string[]; aiScore: number }>();
+      const changed = new Map<string, { sceneTags?: string[]; aiScore: number; aesthetic: number }>();
       for (const id of todo.slice(i, i + BATCH)) {
         while (useStore.getState().progress) await sleep(3000);
         const [photo, analysis] = await Promise.all([db.photos.get(id as string), db.analyses.get(id as string)]);
@@ -44,7 +44,7 @@ export async function startClipBackfill(anyNetwork = false): Promise<void> {
         next.aiUncertainty = prediction.uncertainty;
         next.aiPersonalDelta = prediction.personalDelta;
         await db.analyses.put(next);
-        changed.set(photo.id, { sceneTags: next.sceneTags, aiScore: next.aiScore });
+        changed.set(photo.id, { sceneTags: next.sceneTags, aiScore: next.aiScore, aesthetic: clip.aesthetic });
         await sleep(PAUSE_MS);
       }
       setModelsState({ scanned: Math.min(todo.length, i + BATCH) });
@@ -52,7 +52,7 @@ export async function startClipBackfill(anyNetwork = false): Promise<void> {
         useStore.setState(s => ({
           photos: s.photos.map(p => {
             const c = changed.get(p.id);
-            return c ? { ...p, sceneTags: c.sceneTags, aiScore: c.aiScore } : p;
+            return c ? { ...p, sceneTags: c.sceneTags, aiScore: c.aiScore, aesthetic: c.aesthetic } : p;
           })
         }));
       }

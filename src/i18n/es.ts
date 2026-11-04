@@ -1014,4 +1014,6 @@ export const dict: Record<string, string> = {
   'lx.enhance.pure': "Sin arreglos automáticos",
   'lx.enhance.pureOn': "Empiezas desde la foto original. Ajusta en Luz y Color.",
   'lx.enhance.pureUndo': "Arreglar de nuevo",
+  'lx.recap.beauty.title': "Tus {count} más bonitas del mes",
+  'lx.recap.beauty.sub': "Elegidas por la IA por lo bonitas que son, como mucho una por hora.",
 };
