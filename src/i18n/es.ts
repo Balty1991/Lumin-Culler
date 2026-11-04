@@ -989,4 +989,9 @@ export const dict: Record<string, string> = {
   "ritual.match": "🎯 Tu IA eligió como tú {hits} de {total} veces ({pct} %).",
   "lx.feed.blurry": "Tienes {count} fotos borrosas o movidas que no guardaste. ¿Las tiro? Las fotos de tu gente se quedan.",
   "lx.feed.blurryGo": "Tíralas",
+  "lx.person.all": "Todas",
+  "lx.person.byMonth": "Por meses",
+  "lx.person.ageYm": "{name} con {years} años y {months} meses",
+  "lx.person.ageM": "{name} con {months} meses",
+  "lx.person.ageY": "{name} con {years} años",
 };

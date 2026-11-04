@@ -46,3 +46,13 @@ export function nextBirthday(b: Birthday, now: number = Date.now()): { days: num
   const days = Math.round((next.getTime() - today.getTime()) / DAY);
   return { days, ...(b.year ? { turns: year - b.year } : {}) };
 }
+
+/** Vârsta la o dată: „3 ani și 2 luni” (fără an de naștere: nimic). */
+export function ageAt(b: Birthday, at: number): { years: number; months: number } | null {
+  if (!b.year) return null;
+  const d = new Date(at);
+  let months = (d.getFullYear() - b.year) * 12 + (d.getMonth() + 1 - b.month);
+  if (d.getDate() < b.day) months -= 1;
+  if (months < 0) return null;
+  return { years: Math.floor(months / 12), months: months % 12 };
+}

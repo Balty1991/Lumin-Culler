@@ -3100,6 +3100,11 @@ export const ro = {
   "ritual.match": "🎯 AI-ul tău a ales ca tine de {hits} ori din {total} ({pct}%).",
   "lx.feed.blurry": "Ai {count} poze neclare sau mișcate pe care nu le-ai păstrat. Le arunc? Pozele cu oamenii tăi rămân.",
   "lx.feed.blurryGo": "Aruncă-le",
+  "lx.person.all": "Toate",
+  "lx.person.byMonth": "Pe luni",
+  "lx.person.ageYm": "{name} la {years} ani și {months} luni",
+  "lx.person.ageM": "{name} la {months} luni",
+  "lx.person.ageY": "{name} la {years} ani",
 };
 
 export type TranslationKey = keyof typeof ro;

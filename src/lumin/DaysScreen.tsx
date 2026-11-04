@@ -7,7 +7,7 @@ import { groupDays, type Day } from './days';
 import { usePeopleFaces } from './faces';
 import { buildCoverage, useGalleryMonths } from './coverage';
 import { capitalizeFirst, dayLabel, daySummary, monthLabel } from './format';
-import { formatBirthday, parseBirthday, readBirthdays, writeBirthday, type Birthday } from './birthdays';
+import { ageAt, formatBirthday, parseBirthday, readBirthdays, writeBirthday, type Birthday } from './birthdays';
 import { useLx, type GalleryView } from './lxStore';
 import { useLxActions, useTr } from './context';
 import { Thumb } from './Thumb';
@@ -348,6 +348,9 @@ function PersonView({ name, list, onBack, onRenamed }: { name: string; list: Pho
   const [editing, setEditing] = useState(false);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
+  // „Pe luni”: cele mai bune 5 poze din fiecare lună, cu vârsta de atunci (albumul copilului).
+  const [byMonth, setByMonth] = useState(false);
+  const locale = useStore(s => s.locale);
   const toggle = (id: string) => setPicked(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const apply = async (other?: boolean) => {
     const newName = other ? (await askPrompt(tr('lx.people.whoInstead'), '', { confirmLabel: tr('lx.save') }))?.trim() : undefined;
@@ -378,6 +381,41 @@ function PersonView({ name, list, onBack, onRenamed }: { name: string; list: Pho
       {!editing && canMakePhoneAlbums() && list.some(p => p.status === 'selected') && (
         <button className="lx-btn ghost wide" onClick={() => void copyToPhoneAlbum(name, list.filter(p => p.status === 'selected'))}>{tr('lx.phone.personAlbum', { name })}</button>
       )}
+      {!editing && list.length >= 8 && (
+        <div className="lx-seg small" role="tablist">
+          <button role="tab" aria-selected={!byMonth} className={!byMonth ? 'on' : ''} onClick={() => setByMonth(false)}>{tr('lx.person.all')}</button>
+          <button role="tab" aria-selected={byMonth} className={byMonth ? 'on' : ''} onClick={() => setByMonth(true)}>{tr('lx.person.byMonth')}</button>
+        </div>
+      )}
+      {!editing && byMonth ? (() => {
+        const groups = new Map<number, PhotoView[]>();
+        for (const p of list) {
+          const d = new Date(p.capturedAt ?? p.importedAt);
+          const k = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+          if (!groups.has(k)) groups.set(k, []);
+          groups.get(k)!.push(p);
+        }
+        const bday = readBirthdays()[name];
+        return [...groups.entries()].sort((a, b) => b[0] - a[0]).map(([start, ps]) => {
+          const best = [...ps].sort((a, b) => Number(b.status === 'selected') - Number(a.status === 'selected') || b.aiScore - a.aiScore).slice(0, 5);
+          const age = bday ? ageAt(bday, start + 15 * 86400000) : null;
+          return (
+            <section key={start} className="lx-person-month">
+              <h3 className="lx-wall-head">
+                <span>{monthLabel(start, locale)}</span>
+                {age && <small>{tr(age.years > 0 ? (age.months > 0 ? 'lx.person.ageYm' : 'lx.person.ageY') : 'lx.person.ageM', { years: age.years, months: age.months, name })}</small>}
+              </h3>
+              <div className="lx-grid">
+                {best.map(p => (
+                  <button key={p.id} className={`lx-grid-cell ${p.status}`} onClick={() => useLx.getState().openViewer(best.map(x => x.id), best.indexOf(p))}>
+                    <Thumb id={p.id} lqip={p.lqip} edits={p.edits} />
+                  </button>
+                ))}
+              </div>
+            </section>
+          );
+        });
+      })() : (
       <div className="lx-grid">
         {list.map(p => (
           <button key={p.id} className={`lx-grid-cell ${p.status}${editing ? ' picking' : ''}${picked.has(p.id) ? ' picked' : ''}`}
@@ -387,6 +425,7 @@ function PersonView({ name, list, onBack, onRenamed }: { name: string; list: Pho
           </button>
         ))}
       </div>
+      )}
       {editing && picked.size > 0 && (
         <div className="lx-pickbar" role="region" aria-live="polite">
           <span>{tr('lx.people.picked', { count: picked.size })}</span>

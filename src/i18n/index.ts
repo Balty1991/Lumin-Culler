@@ -210,7 +210,7 @@ const RO_SINGULAR: Record<string, string> = {
   luni: 'o lună', dubluri: 'o dublură', corecturi: 'o corectură', capturi: 'o captură', alegeri: 'o alegere',
   persoane: 'o persoană', momente: 'un moment', lecții: 'o lecție', erori: 'o eroare', documente: 'un document',
   decizii: 'o decizie', apariții: 'o apariție', rulări: 'o rulare', subiecți: 'un subiect', bonuri: 'un bon',
-  minute: 'un minut', ore: 'o oră', secunde: 'o secundă', sesiuni: 'o sesiune', videoclipuri: 'un videoclip',
+  minute: 'un minut', ani: 'un an', ore: 'o oră', secunde: 'o secundă', sesiuni: 'o sesiune', videoclipuri: 'un videoclip',
   păstrate: '1 păstrată', alese: '1 aleasă', văzute: '1 văzută', citite: '1 citită', luate: '1 luată'
 };
 const RO_NOUNS = new RegExp(`\\{(\\w+)\\} (?:de )?(${Object.keys(RO_SINGULAR).join('|')})(?![\\wăâîșț])`, 'g');

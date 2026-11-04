@@ -3014,4 +3014,9 @@ export const en: Record<TranslationKey, string> = {
   "ritual.match": "🎯 Your AI chose like you {hits} times out of {total} ({pct}%).",
   "lx.feed.blurry": "You have {count} blurry or shaky photos you didn't keep. Bin them? Photos of your people stay.",
   "lx.feed.blurryGo": "Bin them",
+  "lx.person.all": "All",
+  "lx.person.byMonth": "By month",
+  "lx.person.ageYm": "{name} at {years} y {months} m",
+  "lx.person.ageM": "{name} at {months} months",
+  "lx.person.ageY": "{name} at {years} years",
 };

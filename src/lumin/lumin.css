@@ -1241,3 +1241,4 @@ html, body { overflow-x: hidden; }
 /* Titlul lunii pe un rând, cifrele alături, întregi (raportat: „Octombrie / 2026” rupt, „0 păstrat” tăiat). */
 .lx-wall-head > span { white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; font-size: clamp(20px, 6vw, 26px); }
 .lx-wall-head > small { white-space: nowrap; flex: none; }
+.lx-person-month { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
