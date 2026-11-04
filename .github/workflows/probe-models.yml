@@ -39,7 +39,7 @@ jobs:
           keys=list(LABELS); T=[]
           for k in keys:
               t=p(text=[f'a photo of {d}.' for d in LABELS[k]],return_tensors='pt',padding=True)
-              with torch.no_grad(): e=m.get_text_features(**t).numpy()
+              with torch.no_grad(): e=m.text_projection(m.text_model(**t).pooler_output).numpy()
               e=e/np.linalg.norm(e,axis=1,keepdims=True); e=e.mean(0); T.append(e/np.linalg.norm(e))
           T=np.stack(T).astype(np.float32)
           sd=torch.load('aest.pth',map_location='cpu'); w=sd['weight'].numpy()[0].astype(np.float32); b=float(sd['bias'].numpy()[0])
