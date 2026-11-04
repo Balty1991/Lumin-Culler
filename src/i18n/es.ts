@@ -1017,4 +1017,9 @@ export const dict: Record<string, string> = {
   'lx.recap.beauty.title': "Tus {count} más bonitas del mes",
   'lx.recap.beauty.sub': "Elegidas por la IA por lo bonitas que son, como mucho una por hora.",
   'lx.people.emptyTitle': "Tu gente aparece aquí",
+  "lx.portrait.strength": "Cuánto",
+  "lx.portrait.low": "Poco",
+  "lx.portrait.mid": "Medio",
+  "lx.portrait.high": "Mucho",
+  "lx.portrait.hint": "Toca lo que debe quedar nítido · mantén pulsado para el original",
 };

@@ -80,7 +80,8 @@ export async function clipSearch(query: string, limit = 120): Promise<string[]> 
   const q = query.trim();
   if (q.length < 3 || !(await clipSearchReady())) return [];
   try {
-    const [{ pooled }, d, idx] = await Promise.all([ClipText.embedText({ text: q }), loadDense(), loadIndex()]);
+    // „o fotografie cu …”: CLIP a învățat din descrieri de poze, nu din cuvinte izolate.
+    const [{ pooled }, d, idx] = await Promise.all([ClipText.embedText({ text: `o fotografie cu ${q}` }), loadDense(), loadIndex()]);
     if (!idx.ids.length) return [];
     const t = project(pooled, d);
     const scored = idx.vecs.map((v, i) => {
@@ -97,5 +98,5 @@ export async function clipSearch(query: string, limit = 120): Promise<string[]> 
 }
 
 /** Calibrate în CI pe poze COCO: potrivirea corectă ~0,28–0,32, celelalte ≤0,23. */
-export const FLOOR = 0.24;
-export const BAND = 0.04;
+export const FLOOR = 0.265;
+export const BAND = 0.03;

@@ -3050,4 +3050,9 @@ export const en: Record<TranslationKey, string> = {
   'lx.recap.beauty.title': "Your {count} most beautiful of the month",
   'lx.recap.beauty.sub': "Picked by AI for how good they look, at most one per hour.",
   'lx.people.emptyTitle': "Your people show up here",
+  "lx.portrait.strength": "How strong",
+  "lx.portrait.low": "Light",
+  "lx.portrait.mid": "Medium",
+  "lx.portrait.high": "Strong",
+  "lx.portrait.hint": "Tap what should stay sharp · hold for the original",
 };

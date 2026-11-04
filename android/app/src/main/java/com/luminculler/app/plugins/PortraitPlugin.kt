@@ -195,6 +195,9 @@ class PortraitPlugin : Plugin() {
         val b64 = call.getString("imageBase64")
         if (b64.isNullOrEmpty()) { call.reject("imageBase64 is required"); return }
         val strength = (call.getDouble("strength") ?: 0.7).toFloat().coerceIn(0.1f, 1f)
+        // Unde a atins omul (0..1): acolo e subiectul. Lipsă = alege aplicația.
+        val tapX = call.getDouble("focusX")?.toFloat()
+        val tapY = call.getDouble("focusY")?.toFloat()
         executor.ruleaza(call, "Portretul nu s-a putut face") {
             val bytes = Base64.decode(b64, Base64.DEFAULT)
             val src = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: run { call.reject("imagine invalidă"); return@ruleaza }
@@ -203,8 +206,16 @@ class PortraitPlugin : Plugin() {
             // 1. Cine e subiectul: omul (MODNet) sau ce e aproape (Depth Anything).
             val matte = personMatte(src)
             val personShare = matte.count { it > 0.5f }.toFloat() / matte.size
-            val usePerson = personShare > 0.04f
             val near = nearMap(src) // și umple lastDepth: adâncimea, pentru estomparea treptată
+            fun at(map: FloatArray, side: Int, x: Float, y: Float) =
+                map[(y * (side - 1)).roundToInt().coerceIn(0, side - 1) * side + (x * (side - 1)).roundToInt().coerceIn(0, side - 1)]
+            // Atingerea pe om → omul; atingerea în altă parte → planul de acolo (după adâncime).
+            val tapped = tapX != null && tapY != null
+            val usePerson = if (tapped) at(matte, MODNET_SIDE, tapX!!, tapY!!) > 0.5f else personShare > 0.04f
+            val tapNear: FloatArray? = if (tapped && !usePerson) lastDepth?.let { d ->
+                val target = at(d, DEPTH_SIDE, tapX!!, tapY!!)
+                FloatArray(d.size) { i -> (1f - kotlin.math.abs(d[i] - target) / 0.12f).coerceIn(0f, 1f) }
+            } else null
 
             // 2. Lucrăm la ~1280 px: estomparea e moale oricum, iar marginea rămâne la rezoluția plină.
             val k = min(1f, 1280f / max(w, h))
@@ -213,7 +224,7 @@ class PortraitPlugin : Plugin() {
             val px = IntArray(ws * hs); small.getPixels(px, 0, ws, 0, 0, ws, hs)
             if (small !== src) small.recycle()
             val ch = Array(3) { c -> FloatArray(ws * hs) { i -> ((px[i] shr (16 - 8 * c)) and 0xFF).toFloat() } }
-            var focus = if (usePerson) resizeMap(matte, MODNET_SIDE, ws, hs) else resizeMap(near, DEPTH_SIDE, ws, hs)
+            var focus = if (usePerson) resizeMap(matte, MODNET_SIDE, ws, hs) else resizeMap(tapNear ?: near, DEPTH_SIDE, ws, hs)
             // Marginea strânsă: masca de 512 px mărită e „lată” și lăsa o fâșie clară
             // de asfalt lângă picioare (raportat cu captură). O curbă abruptă o îngustează.
             for (i in focus.indices) {
@@ -226,7 +237,14 @@ class PortraitPlugin : Plugin() {
             val bgW = FloatArray(ws * hs) { i -> (1f - focus[i]).let { v -> if (v > 0.5f) 1f else v * v * 2f } }
             val rBig = max(4, (max(ws, hs) * 0.028f * strength).roundToInt())
             val rMid = max(2, rBig / 3)
-            val big = blurBackground(ch, bgW, ws, hs, rBig)
+            // Luminițe ca la obiectiv: punctele foarte luminoase din fundal câștigă greutate
+            // înainte de estompare, deci devin pete rotunde luminoase, nu se pierd în gri.
+            val lit = Array(3) { c -> FloatArray(ws * hs) { i ->
+                val lum = 0.3f * ch[0][i] + 0.59f * ch[1][i] + 0.11f * ch[2][i]
+                val hl = ((lum - 200f) / 55f).coerceIn(0f, 1f)
+                ch[c][i] * (1f + 1.6f * hl * (1f - focus[i]))
+            } }
+            val big = blurBackground(lit, bgW, ws, hs, rBig)
             val mid = blurBackground(ch, bgW, ws, hs, rMid)
 
             // 4. Cât se estompează fiecare punct: după distanța față de subiect (ca la lentilă):

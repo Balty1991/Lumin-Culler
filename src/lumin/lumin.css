@@ -1262,3 +1262,5 @@ html, body { overflow-x: hidden; }
 .lx-empty-card b { font-size: 16px; }
 .lx-empty-card p { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--text-dim); max-width: 300px; }
 .lx-empty-icon { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; font-size: 26px; background: radial-gradient(circle at 30% 30%, rgb(var(--accent-2-rgb) / 0.35), rgb(var(--accent-2-rgb) / 0.08)); }
+
+.lx-portrait-strength { margin: 0 auto 8px; max-width: 320px; }

@@ -228,7 +228,8 @@ export function GalleryWall() {
         const byId = new Map(searchable.map(p => [p.id, p]));
         const seen = visual.ids.map(id => byId.get(id)).filter((p): p is PhotoView => !!p && !have.has(p.id) && (withDocs || !p.aside));
         visualCount.current = seen.length;
-        return [...byText, ...seen];
+        // Toate după dată: altfel galeria (grupată pe luni) arăta aceeași lună de mai multe ori (raportat).
+        return [...byText, ...seen].sort((a, b) => photoTime(b) - photoTime(a));
       }
       visualCount.current = 0;
       if (found.length || aiTerms?.q !== query.trim()) return byText;

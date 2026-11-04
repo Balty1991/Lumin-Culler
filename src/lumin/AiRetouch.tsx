@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore, type PhotoView } from '../state/store';
 import { useTr } from './context';
@@ -25,15 +25,24 @@ export function AiRetouch({ photo, onClose, kind = 'retouch' }: { photo: PhotoVi
   const [why, setWhy] = useState('');
   const [peek, setPeek] = useState(false);
   const [saving, setSaving] = useState(false);
+  /** Portret: cât de tare se estompează și pe ce rămâne clar (atingere pe poză). */
+  const [strength, setStrength] = useState(0.7);
+  const [focus, setFocus] = useState<{ x: number; y: number } | null>(null);
+  const srcBlob = useRef<Blob | null>(null);
+  const pressAt = useRef(0);
 
   useEffect(() => {
     let alive = true;
     void (async () => {
       if (kind !== 'retouch') {
         // Pe telefon, gratuit: claritate (Real-ESRGAN) sau decupaj pe fundal alb (U²-Net).
-        const url = (canSharpen() ? await sharpUrl(photo.id, kind === 'clarity' ? 1024 : 1600).catch(() => null) : null) ?? await getCachedPreviewUrl(photo.id);
-        const src = url ? await fetch(url).then(x => x.blob()).catch(() => null) : null;
-        const out = src ? await (kind === 'clarity' ? clarityOnDevice(src) : kind === 'portrait' ? portraitOnDevice(src) : cutoutOnDevice(src, 'white')) : null;
+        if (!srcBlob.current) {
+          const url = (canSharpen() ? await sharpUrl(photo.id, kind === 'clarity' ? 1024 : 1600).catch(() => null) : null) ?? await getCachedPreviewUrl(photo.id);
+          srcBlob.current = url ? await fetch(url).then(x => x.blob()).catch(() => null) : null;
+        }
+        const src = srcBlob.current;
+        setState('work');
+        const out = src ? await (kind === 'clarity' ? clarityOnDevice(src) : kind === 'portrait' ? portraitOnDevice(src, strength, focus ?? undefined) : cutoutOnDevice(src, 'white')) : null;
         if (!alive) return;
         if (out) { setBlob(out); setUrl(URL.createObjectURL(out)); setState('done'); return; }
         setWhy(tr('lx.aiRetouch.err.failed')); setState('error'); return;
@@ -47,7 +56,7 @@ export function AiRetouch({ photo, onClose, kind = 'retouch' }: { photo: PhotoVi
     })();
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [photo.id]);
+  }, [photo.id, strength, focus]);
   useEffect(() => () => { if (url) URL.revokeObjectURL(url); }, [url]);
 
   const save = async () => {
@@ -66,7 +75,21 @@ export function AiRetouch({ photo, onClose, kind = 'retouch' }: { photo: PhotoVi
         <span className="lx-viewer-date">✨ {tr(`lx.tool.${kind}.title`)}</span>
         <span />
       </header>
-      <div className="lx-enhance-stage" onPointerDown={() => setPeek(true)} onPointerUp={() => setPeek(false)} onPointerCancel={() => setPeek(false)} onPointerLeave={() => setPeek(false)}>
+      <div className="lx-enhance-stage"
+        onPointerDown={() => { pressAt.current = performance.now(); if (kind !== 'portrait') setPeek(true); else window.setTimeout(() => { if (pressAt.current) setPeek(true); }, 260); }}
+        onPointerUp={(e: PointerEvent<HTMLDivElement>) => {
+          const quick = pressAt.current && performance.now() - pressAt.current < 250;
+          pressAt.current = 0; setPeek(false);
+          // Portret: o atingere scurtă alege ce rămâne clar.
+          if (kind === 'portrait' && quick && state === 'done') {
+            const img = e.currentTarget.querySelector('img');
+            const r = img?.getBoundingClientRect();
+            if (r && e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) {
+              setFocus({ x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height });
+            }
+          }
+        }}
+        onPointerCancel={() => { pressAt.current = 0; setPeek(false); }} onPointerLeave={() => { pressAt.current = 0; setPeek(false); }}>
         {state === 'done' && url && !peek
           ? <img className="lx-ai-retouch-img" src={url} alt="" draggable={false} />
           : <span className="lx-ai-retouch-orig"><Thumb id={photo.id} lqip={photo.lqip} edits={photo.edits} full /></span>}
@@ -74,7 +97,16 @@ export function AiRetouch({ photo, onClose, kind = 'retouch' }: { photo: PhotoVi
         {state === 'done' && <span className="lx-enhance-tag right">{tr(peek ? 'lx.enhance.before' : 'lx.enhance.after')}</span>}
       </div>
       <div className="lx-viewer-info">
-        <p className="lx-hint center">{state === 'error' ? why : state === 'done' ? tr('lx.aiRetouch.hint') : tr(kind === 'retouch' ? 'lx.aiRetouch.wait' : 'lx.tool.local')}</p>
+        {kind === 'portrait' && (
+          <div className="lx-seg small lx-portrait-strength" role="radiogroup" aria-label={tr('lx.portrait.strength')}>
+            {[0.4, 0.7, 1].map(v => (
+              <button key={v} role="radio" aria-checked={strength === v} className={strength === v ? 'on' : ''} disabled={state === 'work'} onClick={() => setStrength(v)}>
+                {tr(v === 0.4 ? 'lx.portrait.low' : v === 0.7 ? 'lx.portrait.mid' : 'lx.portrait.high')}
+              </button>
+            ))}
+          </div>
+        )}
+        <p className="lx-hint center">{state === 'error' ? why : state === 'done' ? tr(kind === 'portrait' ? 'lx.portrait.hint' : 'lx.aiRetouch.hint') : tr(kind === 'retouch' ? 'lx.aiRetouch.wait' : 'lx.tool.local')}</p>
         <div className="lx-decide-actions">
           <button className="lx-btn ghost" onClick={onClose}>{tr('lx.enhance.cancel')}</button>
           <button className="lx-btn primary" disabled={state !== 'done' || saving} onClick={() => void save()}>{tr('lx.enhance.save')}</button>

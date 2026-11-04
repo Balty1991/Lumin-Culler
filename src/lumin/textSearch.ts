@@ -48,6 +48,13 @@ const SYNONYMS: Record<string, string[]> = {
   noapte: ['night', 'dark'],
   craciun: ['christmas', 'christmas tree', 'santa'],
   petrecere: ['party', 'cake', 'balloon', 'celebration'],
+  // „Aniversare” nu e o etichetă: e tort, lumânări, baloane, petrecere (raportat: nu găsea nimic potrivit).
+  aniversare: ['birthday', 'cake', 'candle', 'balloon', 'party', 'tort', 'petrecere', 'celebration'],
+  aniversari: ['birthday', 'cake', 'candle', 'balloon', 'party'],
+  ziua: ['birthday', 'cake', 'candle', 'balloon', 'party'],
+  nastere: ['birthday', 'cake', 'candle', 'balloon', 'party'],
+  scoala: ['school', 'classroom', 'book'],
+  gradinita: ['child', 'classroom', 'toy', 'playground'],
   soare: ['sun', 'sunny', 'sky', 'sunset'],
   cer: ['sky', 'cloud'],
   nori: ['cloud', 'sky'],

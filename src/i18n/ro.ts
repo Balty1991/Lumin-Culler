@@ -3136,6 +3136,11 @@ export const ro = {
   'lx.recap.beauty.title': "Cele mai frumoase {count} din ultima lună",
   'lx.recap.beauty.sub': "Alese de AI după cât de frumoase sunt, cel mult una pe oră.",
   'lx.people.emptyTitle': "Oamenii tăi apar aici",
+  "lx.portrait.strength": "Cât de tare",
+  "lx.portrait.low": "Puțin",
+  "lx.portrait.mid": "Mediu",
+  "lx.portrait.high": "Mult",
+  "lx.portrait.hint": "Atinge ce vrei să rămână clar · ține apăsat pentru original",
 };
 
 export type TranslationKey = keyof typeof ro;
