@@ -214,7 +214,12 @@ class PortraitPlugin : Plugin() {
             if (small !== src) small.recycle()
             val ch = Array(3) { c -> FloatArray(ws * hs) { i -> ((px[i] shr (16 - 8 * c)) and 0xFF).toFloat() } }
             var focus = if (usePerson) resizeMap(matte, MODNET_SIDE, ws, hs) else resizeMap(near, DEPTH_SIDE, ws, hs)
-            focus = boxBlur(focus, ws, hs, 1) // margine fină, fără treaptă
+            // Marginea strânsă: masca de 512 px mărită e „lată” și lăsa o fâșie clară
+            // de asfalt lângă picioare (raportat cu captură). O curbă abruptă o îngustează.
+            for (i in focus.indices) {
+                val t = ((focus[i] - 0.3f) / 0.4f).coerceIn(0f, 1f)
+                focus[i] = t * t * (3f - 2f * t)
+            }
             val depth01 = lastDepth?.let { resizeMap(it, DEPTH_SIDE, ws, hs) }
 
             // 3. Două niveluri de estompare, din fundal fără subiect.
@@ -232,10 +237,18 @@ class PortraitPlugin : Plugin() {
             val layer = IntArray(ws * hs)
             val sharpness = FloatArray(ws * hs)
             for (i in 0 until ws * hs) {
-                val dist = if (depth01 != null) ((subjDepth - depth01[i]) / max(0.15f, subjDepth)).coerceIn(0f, 1f) else 1f
-                val amount = (0.35f + 0.65f * dist) * (1f - focus[i])
-                val t2 = ((amount - 0.35f) / 0.65f).coerceIn(0f, 1f)
-                val t1 = (amount / 0.35f).coerceIn(0f, 1f)
+                // Ca la lentilă: în planul subiectului (asfaltul de la picioare) aproape clar,
+                // apoi tot mai estompat cu distanța — de jos în sus, fără prag.
+                val y = i / ws
+                val dist = if (depth01 != null) {
+                    val d = kotlin.math.abs(subjDepth - depth01[i]) / max(0.12f, subjDepth)
+                    // Pe aceeași adâncime, sus e de obicei mai departe decât jos.
+                    (d * 1.4f + 0.15f * (1f - y.toFloat() / hs)).coerceIn(0f, 1f)
+                } else (1f - y.toFloat() / hs) * 0.6f + 0.4f
+                val eased = dist * dist * (3f - 2f * dist)
+                val amount = eased * (1f - focus[i])
+                val t1 = (amount / 0.4f).coerceIn(0f, 1f)
+                val t2 = ((amount - 0.4f) / 0.6f).coerceIn(0f, 1f)
                 fun pick(c: Int): Int {
                     val base = ch[c][i] * (1 - t1) + mid[c][i] * t1
                     return (base * (1 - t2) + big[c][i] * t2).roundToInt().coerceIn(0, 255)
