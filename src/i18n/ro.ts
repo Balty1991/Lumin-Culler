@@ -3152,6 +3152,18 @@ export const ro = {
   "lx.bulk.kind.dark": "Întunecate",
   'lx.journal.title': "Jurnalul lui {name}",
   'lx.journal.button': "Jurnalul lui {name} (PDF)",
+  "lx.family.title": "Alegeți împreună",
+  "lx.family.sub": "Dă telefonul cuiva drag: alege 10 poze, vedeți cât vă seamănă gustul",
+  "lx.family.intro": "Cine ține telefonul alege, din {count} poze recente, ce ar păstra. Alegerile lui nu schimbă ce a învățat AI-ul de la tine.",
+  "lx.family.who": "Cine alege acum? (ex. Mama)",
+  "lx.family.start": "Începe",
+  "lx.family.progress": "{name} alege · {done} din {total}",
+  "lx.family.yes": "Aș păstra-o",
+  "lx.family.no": "Nu",
+  "lx.family.favTitle": "Preferatele lui {name}",
+  "lx.family.match": "Vă seamănă gustul în proporție de {percent}%",
+  "lx.family.both": "{count} poze v-au plăcut amândurora",
+  "lx.family.share": "Trimite colajul",
 };
 
 export type TranslationKey = keyof typeof ro;

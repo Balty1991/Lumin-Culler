@@ -25,6 +25,7 @@ import { buildCoverage, useGalleryMonths } from './coverage';
 import { CleanupCard } from './Cleanup';
 import { onThisDay } from './momentAlbums';
 import { Recaps } from './Recaps';
+import { FamilyPickCard } from './FamilyPick';
 import { StoryButton } from './Story';
 import { photoTime } from './days';
 
@@ -238,6 +239,7 @@ export function TodayScreen() {
         </>
       )}
       <Recaps />
+      <FamilyPickCard />
       <OnThisDay />
 
       <GalleryStatus />
