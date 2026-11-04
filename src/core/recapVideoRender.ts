@@ -108,7 +108,7 @@ export interface RecapRenderInput {
  * De asta exista progres si anulare — altfel ar parea blocat.
  */
 export async function renderRecapVideo({ plan, images, onProgress, isCancelled }: RecapRenderInput): Promise<Blob> {
-  const mimeType = pickMimeType();
+  const mimeType = pickFilmMimeType();
   if (!mimeType) throw new Error('MediaRecorder indisponibil');
 
   const canvas = document.createElement('canvas');
@@ -118,7 +118,7 @@ export async function renderRecapVideo({ plan, images, onProgress, isCancelled }
   if (!ctx) throw new Error('canvas 2d indisponibil');
 
   const stream = canvas.captureStream(plan.fps);
-  const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 6_000_000 });
+  const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 12_000_000 });
   const chunks: Blob[] = [];
   recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
 

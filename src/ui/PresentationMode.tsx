@@ -5,7 +5,7 @@ import { useStore, type PhotoView } from '../state/store';
 import { useModalFocusTrap } from './useModalFocusTrap';
 import { XIcon, ChevronLeft, ChevronRight, PlayIcon, PauseIcon, MaximizeIcon, DownloadIcon } from './icons';
 import { planRecapVideo } from '../core/recapVideo';
-import { renderRecapVideo, isRecapVideoSupported, pickMimeType, extensionFor } from '../core/recapVideoRender';
+import { renderRecapVideo, isRecapVideoSupported, pickFilmMimeType, extensionFor } from '../core/recapVideoRender';
 import { downloadBlob } from '../core/export/directoryPicker';
 import { EASE } from './motion';
 import { t } from '../i18n';
@@ -110,7 +110,7 @@ export function PresentationMode() {
         isCancelled: () => cancelVideoRef.current
       });
       if (cancelVideoRef.current) return;
-      const ext = extensionFor(pickMimeType() ?? 'video/webm');
+      const ext = extensionFor(pickFilmMimeType() ?? 'video/webm');
       await downloadBlob(`recap-lumin-${new Date().toISOString().slice(0, 10)}.${ext}`, blob);
       setNotice(tr('recapVideo.done', { count: plan.frames.length }));
     } catch {

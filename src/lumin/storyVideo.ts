@@ -1,14 +1,15 @@
 import { frameOpacity, frameScale, planRecapVideo, type RecapPlan } from '../core/recapVideo';
-import { extensionFor, pickMimeType } from '../core/recapVideoRender';
+import { extensionFor, pickFilmMimeType as pickMimeType } from '../core/recapVideoRender';
 import { startStoryMusic } from './storyMusic';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
-import { canSharpen, sharpUrl } from './sharp';
+import { canSharpen, peekSharpUrl, SCREEN_SIZE, sharpUrl } from './sharp';
 
 /** Poza din film: clară (Android, 1600 px), altfel preview-ul salvat. */
 const FILM_SIZE = 1600;
 async function frameUrl(id: string): Promise<string | null> {
+  // Copia clară, cerută de două ori, apoi cea de ecran; preview-ul (adesea mic) doar la urmă.
   if (canSharpen()) {
-    const sharp = await sharpUrl(id, FILM_SIZE);
+    const sharp = (await sharpUrl(id, FILM_SIZE)) ?? (await sharpUrl(id, FILM_SIZE)) ?? peekSharpUrl(id, SCREEN_SIZE);
     if (sharp) return sharp;
   }
   return getCachedPreviewUrl(id);
@@ -141,7 +142,7 @@ export async function renderStory(
   const withAudio = record ? audioMimeFor(mimeType) : null;
   const music = withAudio ? startStoryMusic(total) : null;
   const stream = record ? (music ? new MediaStream([...canvas.captureStream(plan.fps).getVideoTracks(), music.track]) : canvas.captureStream(plan.fps)) : null;
-  const recorder = stream ? new MediaRecorder(stream, { mimeType: music ? withAudio! : mimeType, videoBitsPerSecond: 8_000_000 }) : null;
+  const recorder = stream ? new MediaRecorder(stream, { mimeType: music ? withAudio! : mimeType, videoBitsPerSecond: 16_000_000 }) : null;
   const chunks: Blob[] = [];
   const done = new Promise<Blob>((resolve, reject) => {
     if (!recorder) { resolve(new Blob()); return; }
