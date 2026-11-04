@@ -63,6 +63,22 @@ export function Recaps() {
     return { beauty: recent, beautyMonth: null as number | null };
   }, [kept, now]);
   const beautyMonthName = beautyMonth !== null ? new Date(beautyMonth).toLocaleDateString(intlTag(locale), { month: 'long', year: 'numeric' }) : '';
+  // Retrospectiva anului: câte două pe lună, cele mai frumoase (CLIP + LAION), în ordine.
+  const yearFilm = useMemo(() => {
+    const byMonth = new Map<number, PhotoView[]>();
+    for (const p of kept) {
+      const d = new Date(photoTime(p));
+      if (d.getFullYear() !== year) continue;
+      byMonth.set(d.getMonth(), [...(byMonth.get(d.getMonth()) ?? []), p]);
+    }
+    const sc = (p: PhotoView) => p.aesthetic ?? p.aiScore / 12;
+    return [...byMonth.keys()].sort((a, b) => a - b).flatMap(m => {
+      const list = byMonth.get(m)!.sort((a, b) => sc(b) - sc(a));
+      const out: PhotoView[] = [];
+      for (const p of list) { if (out.length >= 2) break; if (out.every(o => Math.abs(photoTime(o) - photoTime(p)) > 3 * 3_600_000)) out.push(p); }
+      return out;
+    }).sort((a, b) => photoTime(a) - photoTime(b));
+  }, [kept, year]);
   const yearPicks = useMemo(() => bestPer(kept.filter(p => new Date(photoTime(p)).getFullYear() === year), p => new Date(photoTime(p)).getMonth(), 7), [kept, year]);
 
   const share = async (kind: 'week' | 'year' | 'beauty', list: PhotoView[]) => {
@@ -139,7 +155,7 @@ export function Recaps() {
             <button className="lx-btn primary small" disabled={busy !== null} onClick={() => void share(c.kind, c.list)}>
               {busy === c.kind ? '…' : tr('lx.recap.share')}
             </button>
-            <StoryButton className="lx-btn ghost small" ids={c.list.slice(0, 12).map(p => p.id)}
+            <StoryButton className="lx-btn ghost small" ids={(c.kind === 'year' && yearFilm.length >= c.list.length ? yearFilm : c.list).slice(0, 24).map(p => p.id)}
               title={tr(c.kind === 'week' ? 'lx.story.weekTitle' : c.kind === 'beauty' ? 'lx.recap.beauty.title' : 'lx.story.yearTitle', { year, count: c.list.length })}
               subtitle={tr('lx.story.daySub', { count: Math.min(12, c.list.length) })} />
             {c.kind === 'year' && calMissing.length === 0 && (

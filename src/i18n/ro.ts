@@ -3165,6 +3165,9 @@ export const ro = {
   "lx.family.both": "{count} poze v-au plăcut amândurora",
   "lx.family.share": "Trimite colajul",
   'factor.joy': "Râde din toată inima",
+  'lx.bestTake.button': "Poza perfectă",
+  'lx.bestTake.hint': "Pot face poza perfectă: {count} fețe cu ochii deschiși din alt cadru ›",
+  'lx.bestTake.saved': "Am salvat poza perfectă ca o copie; originalul rămâne.",
 };
 
 export type TranslationKey = keyof typeof ro;

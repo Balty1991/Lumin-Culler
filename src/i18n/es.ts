@@ -1046,4 +1046,7 @@ export const dict: Record<string, string> = {
   "lx.family.both": "{count} fotos os gustaron a ambos",
   "lx.family.share": "Compartir el collage",
   'factor.joy': "Risa de verdad",
+  'lx.bestTake.button': "Foto perfecta",
+  'lx.bestTake.hint': "Puedo hacer la foto perfecta: {count} caras con ojos abiertos de otra toma ›",
+  'lx.bestTake.saved': "Foto perfecta guardada como copia; el original se queda.",
 };

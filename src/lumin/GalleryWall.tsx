@@ -31,6 +31,8 @@ import { clipSearch } from '../core/clip/clipSearch';
 import { db } from '../core/db';
 import { findSimilarPhotos } from '../core/similarPhotos';
 import { Icon } from './icons';
+import { planBestTake, renderBestTake, type BestTakeFix } from './bestTake';
+import { saveEditedBlob } from './saveEdited';
 import { EnhanceSheet } from './Enhance';
 import { SCREEN_SIZE, originalUri, sharpUrl, sizeFor } from './sharp';
 import { CleanupCard } from './Cleanup';
@@ -603,6 +605,25 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
   const id = list[index].id;
   const p = useStore(s => s.photos.find(x => x.id === id)) ?? list[index];
   useEffect(() => { setMore(false); }, [id]);
+  // „Poza perfectă din serie”: fețe cu ochii închiși înlocuite din alt cadru al seriei.
+  const [bestFix, setBestFix] = useState<BestTakeFix[]>([]);
+  const [bestBusy, setBestBusy] = useState(false);
+  const groupIds = useStore(s => (p.groupId && p.faceCount > 0 ? s.photos.filter(x => x.groupId === p.groupId).map(x => x.id).join(',') : ''));
+  useEffect(() => {
+    setBestFix([]);
+    if (!groupIds) return;
+    let alive = true;
+    void planBestTake(id, groupIds.split(',')).then(f => { if (alive) setBestFix(f); }).catch(() => {});
+    return () => { alive = false; };
+  }, [id, groupIds]);
+  const makeBestTake = async () => {
+    setBestBusy(true);
+    try {
+      const blob = await renderBestTake(id, bestFix);
+      const ok = blob ? await saveEditedBlob(blob, 'perfecta') : false;
+      useStore.getState().setNotice(tr(ok ? 'lx.bestTake.saved' : 'lx.magic.failed'));
+    } finally { setBestBusy(false); }
+  };
   // Doar pozele pe care AI-ul nu le-ar păstra: „mai e una aproape la fel” — și o poți vedea.
   const twin = useStore(s => (p.status === 'selected' ? null : betterTwin(p, s.photos)));
   const start = useRef<{ x: number; y: number; dx: number; dy: number } | null>(null);
@@ -799,6 +820,11 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
       </div>
       <div className="lx-viewer-info">
         <p className="lx-why">{personalWhy(p, why, tr, !!twin)}</p>
+        {bestFix.length > 0 && (
+          <button className="lx-twin-link" disabled={bestBusy} onClick={() => void makeBestTake()}>
+            <Icon name="sparkle" size={16} /> {tr('lx.bestTake.hint', { count: bestFix.length })}
+          </button>
+        )}
         {twin && (
           <button className="lx-twin-link" onClick={() => setComparing(true)}>
             <span className="lx-twin-mini"><Thumb id={twin.id} lqip={twin.lqip} edits={twin.edits} /></span>
@@ -823,6 +849,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
         </div>
         {more && (
           <div className="lx-more-grid">
+            {bestFix.length > 0 && <button disabled={bestBusy} onClick={() => void makeBestTake()}><span><Icon name="sparkle" /></span>{tr('lx.bestTake.button')}</button>}
             {onSimilar && <button onClick={() => onSimilar(p.id)}><span><Icon name="similar" /></span>{tr('lx.viewer.similarShort')}</button>}
             <button onClick={() => setInsta(true)}><span><Icon name="square" /></span>{tr('lx.insta.button')}</button>
             {canSell && <button onClick={() => setSelling(true)}><span><Icon name="tag" /></span>{tr('lx.sell.button')}</button>}

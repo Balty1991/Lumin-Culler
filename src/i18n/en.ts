@@ -3079,4 +3079,7 @@ export const en: Record<TranslationKey, string> = {
   "lx.family.both": "{count} photos you both liked",
   "lx.family.share": "Share the collage",
   'factor.joy': "Real laughter",
+  'lx.bestTake.button': "Perfect shot",
+  'lx.bestTake.hint': "I can make the perfect shot: {count} faces with open eyes from another frame ›",
+  'lx.bestTake.saved': "Saved the perfect shot as a copy; the original stays.",
 };
