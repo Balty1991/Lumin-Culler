@@ -397,6 +397,7 @@ function EnginesList() {
   const askConfirm = useStore(x => x.askConfirm);
   useEffect(() => { void refreshEngines(); }, []);
   const locale = useStore(x => x.locale);
+  const [open, setOpen] = useState(false);
   const list = enginesFor(locale);
   const missing = list.filter(e => !engineReady(e, st.have));
   const mb = missing.reduce((a, e) => a + e.mb, 0);
@@ -404,9 +405,15 @@ function EnginesList() {
     if (!(await askConfirm(tr('lx.engines.confirm', { mb }), { confirmLabel: tr('lx.models.download') }))) return;
     void downloadAllEngines();
   };
+  const ready = list.length - missing.length;
   return (
     <div className="lx-engines">
-      {list.map(e => {
+      {/* Pliat: un rând cu starea (raportat: „ocupă mult spațiu”); se deschide la atingere. */}
+      <button className="lx-engines-head" onClick={() => setOpen(o => !o)} aria-expanded={open}>
+        <span><b>{tr('lx.engines.heading')}</b><small>{st.busy ? `${tr(`lx.engines.${st.busy}`)} · ${Math.round(st.progress * 100)}%` : tr('lx.engines.summary', { ready, total: list.length })}</small></span>
+        <i aria-hidden="true">{open ? '▴' : '▾'}</i>
+      </button>
+      {open && list.map(e => {
         const ok = engineReady(e, st.have);
         const now = st.busy === e.id;
         return (

@@ -454,7 +454,7 @@ export function GalleryWall() {
           <div className="lx-wall-seg" role="tablist">
             {(['all', 'kept', 'notToday'] as Filter[]).map(f => (
               <button key={f} role="tab" aria-selected={filter === f} className={filter === f ? 'on' : ''} onClick={() => withTransition(() => setFilter(f))}>
-                <span>{tr(`lx.wall.${f}`)}</span> <b>{count(f)}</b>
+                <span>{tr(`lx.wall.${f}`)}</span><b>{count(f)}</b>
               </button>
             ))}
           </div>

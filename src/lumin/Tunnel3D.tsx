@@ -20,7 +20,7 @@ import { weakDevice } from '../core/deviceClass';
  */
 type Entry = { kind: 'photo'; photo: PhotoView; index: number } | { kind: 'month'; label: string };
 
-const DEPTH = 230; // distanța dintre două elemente, în px
+const DEPTH = 300; // distanța dintre două elemente, în px
 
 export function Tunnel3D({ list, onOpen, onClose }: { list: PhotoView[]; onOpen: (index: number) => void; onClose: () => void }) {
   const tr = useTr();
@@ -123,27 +123,32 @@ export function Tunnel3D({ list, onOpen, onClose }: { list: PhotoView[]; onOpen:
       if (nb !== baseRef.current) { baseRef.current = nb; setBase(nb); }
 
       const vw = window.innerWidth, vh = window.innerHeight;
-      const rad = Math.min(vw, vh) * 0.36;
+      const rad = Math.min(vw, vh) * 0.4;
       slotEls.current.forEach((el, s) => {
         if (!el) return;
         const k = baseRef.current + s;
         const e = entries[k];
         if (!e) { el.style.opacity = '0'; return; }
         const rel = k - p; // câte elemente în față
-        const z = -rel * DEPTH + 160;
+        // Lângă tine (rel mic), poza nu mai vine spre ecran: zboară spre margine și
+        // dispare repede, ca atunci când treci pe lângă ceva. Înainte rămânea uriașă
+        // și pe jumătate transparentă peste celelalte (raportat: „tranziție ciudată”).
+        const pass = rel < 0.9 ? (0.9 - rel) / 0.9 : 0; // 0 departe → 1 lângă tine
+        const z = Math.min(-rel * DEPTH + 120, 220);
         let o = 1;
         if (rel > slots - 8) o = Math.max(0, (slots - 2 - rel) / 6);
-        if (rel < 0.2) o = Math.max(0, (rel + 0.8));
+        if (pass > 0) o = Math.min(o, Math.max(0, 1 - pass * pass * 1.6));
         if (e.kind === 'month') {
-          el.style.transform = `translate3d(-50%, -50%, ${z}px)`;
+          el.style.transform = `translate3d(-50%, calc(-50% - ${pass * pass * vh * 0.5}px), ${z}px)`;
         } else {
           const a = k * 2.39996;
-          const r = rad * (0.85 + (k % 3) * 0.12);
-          el.style.transform = `translate3d(calc(-50% + ${Math.cos(a) * r}px), calc(-50% + ${Math.sin(a) * r * 0.7}px), ${z}px)`;
+          const r = rad * (0.85 + (k % 3) * 0.14) * (1 + pass * pass * 2.2);
+          el.style.transform = `translate3d(calc(-50% + ${Math.cos(a) * r}px), calc(-50% + ${Math.sin(a) * r * 0.72}px), ${z}px)`;
         }
         el.style.opacity = String(o);
         el.style.zIndex = String(1000 - Math.round(rel * 10));
-        el.style.pointerEvents = o > 0.4 && rel > -0.2 ? 'auto' : 'none';
+        el.style.pointerEvents = o > 0.6 ? 'auto' : 'none';
+        el.style.visibility = o < 0.01 ? 'hidden' : 'visible';
       });
       // Luna în care ești acum, sus.
       if (label.current) {

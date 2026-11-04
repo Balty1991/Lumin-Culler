@@ -1445,3 +1445,22 @@ html, body { overflow-x: hidden; }
 .lx-tunnel-count { font-family: var(--mono); font-size: 12px; color: #c9b4bf; min-width: 44px; text-align: right; }
 .lx-tunnel-hint { position: absolute; left: 16px; right: 16px; bottom: calc(18px + var(--safe-bottom, env(safe-area-inset-bottom, 0px))); margin: 0; text-align: center; font-size: 13px; color: #c9b4bf; pointer-events: none; }
 .lx-3d-btn b { font-family: var(--font-display); font-weight: 700; font-size: 13px; letter-spacing: .02em; background: var(--lx-grad); -webkit-background-clip: text; background-clip: text; color: transparent !important; }
+
+/* Filtrele: numărul sub text, ca „Toate / Păstrate / Nu azi” să încapă întregi lângă 3D și grilă. */
+.lx-wall-seg { height: 46px; }
+.lx-wall-seg button { flex-direction: column; gap: 0; line-height: 1.1; padding: 0 4px; }
+.lx-wall-seg button span { font-size: 13px; }
+.lx-wall-seg button b { font-size: 10.5px; }
+.lx-density-btn { height: 46px; }
+@media (max-width: 370px) { .lx-wall-seg button span { font-size: 12px; } .lx-density-btn { min-width: 44px; padding: 0 8px; } }
+/* Fila activă de sus rămâne albă (tema black rose o făcea vișinie pe negru). */
+:root[data-palette] .lx-screen > .lx-seg.scroll button.on { color: var(--text) !important; background: transparent !important; box-shadow: none !important; text-shadow: none !important; }
+/* „Cea mai bună din lună”: pe un rând, mai mic. */
+.lx-hero-badge { white-space: nowrap; max-width: calc(100% - 8px); overflow: hidden; text-overflow: ellipsis; font-size: 10.5px; letter-spacing: .06em; }
+/* Motoarele AI: pliate într-un rând. */
+.lx-engines-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 12px 2px; border: 0; border-top: 1px solid var(--lx-line); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.lx-engines-head span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.lx-engines-head b { font-size: 15px; }
+.lx-engines-head small { color: var(--text-dim); font-size: 13px; }
+.lx-engines-head i { font-style: normal; color: var(--text-faint); font-size: 14px; }
+.lx-engine-row .lx-pill { min-width: 72px; min-height: 30px; }

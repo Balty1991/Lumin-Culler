@@ -1117,4 +1117,6 @@ export const dict: Record<string, string> = {
   'lx.tunnel.title': "3D-Galerie",
   'lx.tunnel.hint': "Nach oben wischen, um in der Zeit zurückzureisen · Foto antippen",
   'lx.tunnel.open': "3D-Galerie öffnen",
+  'lx.engines.heading': "KI-Engines",
+  'lx.engines.summary': "{ready} von {total} auf dem Handy · für Details tippen",
 };

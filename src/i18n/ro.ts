@@ -3236,6 +3236,8 @@ export const ro = {
   'lx.tunnel.title': "Galerie 3D",
   'lx.tunnel.hint': "Trage în sus ca să mergi înapoi în timp · atinge o poză",
   'lx.tunnel.open': "Deschide galeria 3D",
+  'lx.engines.heading': "Motoarele AI",
+  'lx.engines.summary': "{ready} din {total} pe telefon · atinge pentru detalii",
 };
 
 export type TranslationKey = keyof typeof ro;

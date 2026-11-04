@@ -3150,4 +3150,6 @@ export const en: Record<TranslationKey, string> = {
   'lx.tunnel.title': "3D gallery",
   'lx.tunnel.hint': "Swipe up to travel back in time · tap a photo",
   'lx.tunnel.open': "Open the 3D gallery",
+  'lx.engines.heading': "AI engines",
+  'lx.engines.summary': "{ready} of {total} on the phone · tap for details",
 };
