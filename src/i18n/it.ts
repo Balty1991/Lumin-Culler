@@ -1128,4 +1128,5 @@ export const dict: Record<string, string> = {
   'lx.intro.perk.search': "Cerca a parole: «bambini al mare», «torta»",
   'lx.intro.perk.edit': "Gomma, Ritratto, nitidezza e scontorno sul telefono",
   'lx.intro.perk.film': "Mini-film e descrizioni in italiano",
+  'lx.tunnel.next': "Vai al mese successivo",
 };

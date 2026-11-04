@@ -3161,4 +3161,5 @@ export const en: Record<TranslationKey, string> = {
   'lx.intro.perk.search': "Search in words: “kids at the beach”, “cake”",
   'lx.intro.perk.edit': "Eraser, Portrait, clarity and cutouts on the phone",
   'lx.intro.perk.film': "Mini-films and descriptions in your language",
+  'lx.tunnel.next': "Jump to the next month",
 };

@@ -18,7 +18,7 @@ import { weakDevice } from '../core/deviceClass';
  * curente; transformările se scriu direct pe elemente în requestAnimationFrame,
  * fără randări React la fiecare cadru.
  */
-type Entry = { kind: 'photo'; photo: PhotoView; index: number } | { kind: 'month'; label: string };
+type Entry = { kind: 'photo'; photo: PhotoView; index: number } | { kind: 'month'; label: string } | { kind: 'year'; label: string };
 
 const DEPTH = 300; // distanța dintre două elemente, în px
 
@@ -33,10 +33,14 @@ export function Tunnel3D({ list, onOpen, onClose }: { list: PhotoView[]; onOpen:
     const fmt = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' });
     const sorted = list.map((photo, index) => ({ photo, index })).sort((a, b) => photoTime(b.photo) - photoTime(a.photo));
     const out: Entry[] = [];
-    let last = '';
+    let last = '', lastYear = '';
     for (const it of sorted) {
       const t = photoTime(it.photo);
       const key = t ? fmt.format(new Date(t)) : '';
+      const year = t ? String(new Date(t).getFullYear()) : '';
+      // Un an nou (mergând înapoi): un număr uriaș trece primul prin tunel.
+      if (year && lastYear && year !== lastYear) out.push({ kind: 'year', label: year });
+      if (year) lastYear = year;
       if (key && key !== last) { out.push({ kind: 'month', label: key }); last = key; }
       out.push({ kind: 'photo', ...it });
     }
@@ -47,10 +51,13 @@ export function Tunnel3D({ list, onOpen, onClose }: { list: PhotoView[]; onOpen:
   const slotEls = useRef<Array<HTMLDivElement | null>>([]);
   const canvas = useRef<HTMLCanvasElement>(null);
   const pos = useRef(-1.6);
+  const passed = useRef(-1);
   const vel = useRef(0);
   const [base, setBase] = useState(0); // primul element din fereastra randată
   const baseRef = useRef(0);
   const label = useRef<HTMLSpanElement>(null);
+  const worldEl = useRef<HTMLDivElement>(null);
+  const sway = useRef({ x: 0, y: 0 });
 
   // Mișcarea: tras cu degetul (în sus = înainte), rotița, săgețile; cu inerție.
   useEffect(() => {
@@ -64,6 +71,9 @@ export function Tunnel3D({ list, onOpen, onClose }: { list: PhotoView[]; onOpen:
       ly = e.clientY; lx = e.clientX; moved += Math.abs(dy) + Math.abs(dx);
       const d = -dy * 0.012;
       pos.current += d; vel.current = d;
+      // Camera se înclină după deget, ca într-un zbor.
+      sway.current.x = Math.max(-14, Math.min(14, sway.current.x + dx * 0.08));
+      sway.current.y = Math.max(-8, Math.min(8, sway.current.y - dy * 0.03));
     };
     const up = (e: PointerEvent) => {
       if (!drag) return;
@@ -138,8 +148,10 @@ export function Tunnel3D({ list, onOpen, onClose }: { list: PhotoView[]; onOpen:
         let o = 1;
         if (rel > slots - 8) o = Math.max(0, (slots - 2 - rel) / 6);
         if (pass > 0) o = Math.min(o, Math.max(0, 1 - pass * pass * 1.6));
-        if (e.kind === 'month') {
+        if (e.kind === 'month' || e.kind === 'year') {
           el.style.transform = `translate3d(-50%, calc(-50% - ${pass * pass * vh * 0.5}px), ${z}px)`;
+          // Trecut prin plăcuță: o vibrație scurtă (unde telefonul o permite).
+          if (rel < 0.15 && rel > -0.2 && passed.current !== k) { passed.current = k; try { navigator.vibrate?.(e.kind === 'year' ? 18 : 8); } catch { /* fără */ } }
         } else {
           const a = k * 2.39996;
           const r = rad * (0.85 + (k % 3) * 0.14) * (1 + pass * pass * 2.2);
@@ -158,6 +170,9 @@ export function Tunnel3D({ list, onOpen, onClose }: { list: PhotoView[]; onOpen:
       }
       // Stelele: zboară spre margini cât înaintezi.
       const dp = p - lastPos; lastPos = p;
+      sway.current.x *= 0.95; sway.current.y *= 0.95;
+      if (worldEl.current) worldEl.current.style.transform = `rotateY(${sway.current.x}deg) rotateX(${sway.current.y}deg)`;
+      const warp = Math.min(1, Math.abs(dp) * 9); // 0 liniștit → 1 viteza luminii
       cx.fillStyle = '#050305'; cx.fillRect(0, 0, W, H);
       const g = cx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.6);
       g.addColorStop(0, 'rgba(255,79,127,0.10)'); g.addColorStop(1, 'rgba(255,79,127,0)');
@@ -169,8 +184,16 @@ export function Tunnel3D({ list, onOpen, onClose }: { list: PhotoView[]; onOpen:
           st.x = (Math.random() - 0.5) * W * (dp >= 0 ? 0.3 : 1); st.y = (Math.random() - 0.5) * H * (dp >= 0 ? 0.3 : 1);
         }
         const sz = (0.6 + st.z * 1.6) * dpr;
-        cx.fillStyle = st.z > 0.9 ? `rgba(255,179,200,${0.4 + st.z * 0.6})` : `rgba(255,246,249,${0.25 + st.z * 0.6})`;
-        cx.fillRect(W / 2 + st.x, H / 2 + st.y, sz, sz);
+        const col = st.z > 0.9 ? `rgba(255,179,200,${0.4 + st.z * 0.6})` : `rgba(255,246,249,${0.25 + st.z * 0.6})`;
+        if (warp > 0.15) {
+          // Viteză mare: dâre de lumină spre centru (efectul de „warp”).
+          const len = warp * (0.25 + st.z) * 0.35;
+          cx.strokeStyle = col; cx.lineWidth = sz * 0.8;
+          cx.beginPath(); cx.moveTo(W / 2 + st.x, H / 2 + st.y); cx.lineTo(W / 2 + st.x * (1 - len), H / 2 + st.y * (1 - len)); cx.stroke();
+        } else {
+          cx.fillStyle = col;
+          cx.fillRect(W / 2 + st.x, H / 2 + st.y, sz, sz);
+        }
       }
       raf = requestAnimationFrame(frame);
     };
@@ -183,14 +206,14 @@ export function Tunnel3D({ list, onOpen, onClose }: { list: PhotoView[]; onOpen:
     <div className="lx lx-tunnel" role="dialog" aria-modal="true" aria-label={tr('lx.tunnel.title')}>
       <canvas ref={canvas} className="lx-tunnel-sky" aria-hidden="true" />
       <div ref={stage} className="lx-tunnel-stage">
-        <div className="lx-tunnel-world">
+        <div ref={worldEl} className="lx-tunnel-world">
           {Array.from({ length: slots }, (_, s) => {
             const e = entries[base + s];
             return (
-              <div key={base + s} ref={el => { slotEls.current[s] = el; }} className={e?.kind === 'month' ? 'lx-tunnel-month' : 'lx-tunnel-card'}
+              <div key={base + s} ref={el => { slotEls.current[s] = el; }} className={e?.kind === 'month' ? 'lx-tunnel-month' : e?.kind === 'year' ? 'lx-tunnel-month lx-tunnel-year' : 'lx-tunnel-card'}
                 data-photo-index={e?.kind === 'photo' ? e.index : undefined} style={{ opacity: 0 }}>
                 {e?.kind === 'photo' && <Thumb id={e.photo.id} lqip={e.photo.lqip} edits={e.photo.edits} />}
-                {e?.kind === 'month' && <span>{e.label}</span>}
+                {(e?.kind === 'month' || e?.kind === 'year') && <span>{e.label}</span>}
               </div>
             );
           })}
@@ -198,7 +221,12 @@ export function Tunnel3D({ list, onOpen, onClose }: { list: PhotoView[]; onOpen:
       </div>
       <header className="lx-tunnel-top">
         <button className="lx-icon-btn" onClick={onClose} aria-label={tr('lx.close')}>✕</button>
-        <span className="lx-tunnel-now"><small>{tr('lx.tunnel.title')}</small><span ref={label} /></span>
+        <button className="lx-tunnel-now" onClick={() => {
+          // Salt la luna următoare (mai în trecut): un impuls lin până la plăcuța ei.
+          const from = Math.max(0, Math.ceil(pos.current + 0.5));
+          const next = entries.findIndex((e, k) => k > from && e.kind === 'month');
+          if (next > 0) vel.current = Math.min(1.2, (next - pos.current) * 0.07);
+        }} aria-label={tr('lx.tunnel.next')}><small>{tr('lx.tunnel.title')} · ⇣</small><span ref={label} /></button>
         <span className="lx-tunnel-count">{count}</span>
       </header>
       <p className="lx-tunnel-hint">{tr('lx.tunnel.hint')}</p>

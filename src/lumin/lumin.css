@@ -1485,3 +1485,9 @@ html, body { overflow-x: hidden; }
 .lx-perm-actions .lx-btn { width: 100%; min-height: 48px; }
 .lx-perm-actions .lx-link { justify-self: center; color: var(--text-dim); }
 @media (prefers-reduced-motion: reduce) { .lx-perm, .lx-perm-sheet { animation: none; } }
+
+/* Tunelul, upgrade: anii trec ca numere uriașe; luna de sus e un buton (salt). */
+.lx-tunnel-year span { font-size: 92px; padding: 6px 34px; letter-spacing: -0.04em; background: transparent; border: 0; box-shadow: none;
+  background-image: var(--lx-grad); -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: none; filter: drop-shadow(0 0 28px rgb(255 79 127 / .75)); }
+button.lx-tunnel-now { border: 0; background: transparent; color: inherit; font: inherit; font-weight: 650; font-size: 16px; padding: 4px 10px; border-radius: 12px; cursor: pointer; }
+button.lx-tunnel-now:active { background: rgb(255 255 255 / .06); }

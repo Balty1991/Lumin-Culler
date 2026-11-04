@@ -3247,6 +3247,7 @@ export const ro = {
   'lx.intro.perk.search': "Caută în cuvinte: „copii la mare”, „tort”",
   'lx.intro.perk.edit': "Gumă, Portret, claritate și decupaj, pe telefon",
   'lx.intro.perk.film': "Mini-filme și descrieri în română",
+  'lx.tunnel.next': "Sari la luna următoare",
 };
 
 export type TranslationKey = keyof typeof ro;
