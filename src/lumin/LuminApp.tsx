@@ -281,10 +281,11 @@ export function LuminApp() {
       const c = await superviseUnsure();
       if (c.decided) useStore.getState().setNotice(t(useStore.getState().locale, 'lx.cloud.auto', { decided: c.decided }));
     });
-    run();
-    if (!Capacitor.isNativePlatform()) return;
+    // Pornirea întâi desenează Azi și răspunde la atingeri; sortarea zilei vine după ~1,2 s.
+    const first = window.setTimeout(run, 1200);
+    if (!Capacitor.isNativePlatform()) return () => window.clearTimeout(first);
     const sub = CapacitorApp.addListener('resume', run);
-    return () => { void sub.then(h => h.remove()); };
+    return () => { window.clearTimeout(first); void sub.then(h => h.remove()); };
   }, [booted, welcomeSeen]);
 
   // Fețele: după pornire și după fiecare import, amprentele lipsă și numele recunoscute.
@@ -296,6 +297,9 @@ export function LuminApp() {
     if (!booted || !importDone || readingGallery || !canEmbedFaces()) return;
     let alive = true;
     void (async () => {
+      // După pornire, fețele așteaptă puțin: primul ecran rămâne fluid.
+      await new Promise(r => setTimeout(r, 4000));
+      if (!alive) return;
       const made = await embedMissingFaces((done, total) => { if (alive) useLx.getState().setFaceProgress({ done, total }); });
       useLx.getState().setFaceProgress(null);
       const named = await autoNameFaces().catch(() => 0);

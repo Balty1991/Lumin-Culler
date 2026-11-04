@@ -8,14 +8,34 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          for q in rife RIFE rife-onnx practical-rife frame-interpolation; do
-          curl -fsSL "https://huggingface.co/api/models?search=$q&full=true&limit=100" | python3 -c "
-          import sys,json
-          for m in json.load(sys.stdin):
-            fs=[s['rfilename'] for s in m.get('siblings',[]) if s['rfilename'].endswith('.onnx')]
-            lic=[t for t in m.get('tags',[]) if t.startswith('license')]
-            if fs: print(m['id'], lic, len(fs), fs[:3])
-          "
-          done | sort -u
-          echo "== Practical-RIFE README links"
-          curl -fsSL https://raw.githubusercontent.com/hzwer/Practical-RIFE/main/README.md | grep -io "https://drive.google.com[^) ]*\|4\.[0-9]*[^|]*drive[^|]*" | head -20
+          pip install -q onnxruntime numpy pillow 2>&1 | tail -1
+          curl -fsSL -o a.jpg http://images.cocodataset.org/val2017/000000000785.jpg
+          for spec in "t9749/rife-4.25-lite-onnx rife_v425lite.onnx" "edgetools/rife rife49.onnx" "latentdivergence/fixflix-rife-lite rife_v4.25_lite.onnx"; do
+            set -- $spec
+            echo "=== $1"
+            curl -fsSL "https://huggingface.co/$1/raw/main/README.md" | head -25 || true
+            curl -fsSL -o m.onnx "https://huggingface.co/$1/resolve/main/$2" && ls -la m.onnx
+            python - <<'PY' || true
+          import onnxruntime as ort, numpy as np, time
+          from PIL import Image
+          s=ort.InferenceSession('m.onnx'); print('IN',[(i.name,i.shape,i.type) for i in s.get_inputs()],'OUT',[(o.name,o.shape) for o in s.get_outputs()])
+          im=Image.open('a.jpg').convert('RGB').resize((640,480))
+          a=(np.asarray(im,np.float32)/255).transpose(2,0,1)[None]; b=np.roll(a,8,axis=3)
+          ins=s.get_inputs(); feeds={}
+          if len(ins)==1:
+            shp=ins[0].shape; print('single input', shp)
+            c=shp[1] if isinstance(shp[1],int) else 7
+            x=np.concatenate([a,b]+([np.full((1,1,480,640),0.5,np.float32)] if c==7 else []),1); feeds[ins[0].name]=x
+          else:
+            for i in ins:
+              n=i.name.lower()
+              if '0' in n: feeds[i.name]=a
+              elif '1' in n: feeds[i.name]=b
+              else:
+                shp=[d if isinstance(d,int) else 1 for d in i.shape]
+                feeds[i.name]=np.full(shp if shp else [], 0.5, np.float32)
+          print({k:v.shape for k,v in feeds.items()})
+          t=time.time(); o=s.run(None,feeds); print('ms',round((time.time()-t)*1000),[x.shape for x in o],float(o[0].min()),float(o[0].max()))
+          mid=(a+b)/2; print('diff vs blend', float(np.abs(o[0][:, :3]-mid).mean()))
+          PY
+          done
