@@ -17,6 +17,7 @@ import com.luminculler.app.plugins.SamPlugin;
 import com.luminculler.app.plugins.PortraitPlugin;
 import com.luminculler.app.plugins.FlorencePlugin;
 import com.luminculler.app.plugins.EmotionPlugin;
+import com.luminculler.app.plugins.RifePlugin;
 import com.luminculler.app.plugins.SharpImagePlugin;
 import com.luminculler.app.plugins.ImageLabelingPlugin;
 import com.luminculler.app.plugins.ObjectDetectionPlugin;
@@ -178,6 +179,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(PortraitPlugin.class);
         registerPlugin(FlorencePlugin.class);
         registerPlugin(EmotionPlugin.class);
+        registerPlugin(RifePlugin.class);
         registerPlugin(SharpImagePlugin.class);
         registerPlugin(FolderExportPlugin.class);
         registerPlugin(MediaLibraryPlugin.class);

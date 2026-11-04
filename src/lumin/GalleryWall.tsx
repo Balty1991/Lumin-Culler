@@ -32,6 +32,8 @@ import { db } from '../core/db';
 import { findSimilarPhotos } from '../core/similarPhotos';
 import { Icon } from './icons';
 import { planBestTake, renderBestTake, type BestTakeFix } from './bestTake';
+import { burstFilmAvailable, makeBurstFilm } from './burstFilm';
+import { shareCollage } from './collage';
 import { saveEditedBlob } from './saveEdited';
 import { EnhanceSheet } from './Enhance';
 import { SCREEN_SIZE, originalUri, sharpUrl, sizeFor } from './sharp';
@@ -616,6 +618,16 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
     void planBestTake(id, groupIds.split(',')).then(f => { if (alive) setBestFix(f); }).catch(() => {});
     return () => { alive = false; };
   }, [id, groupIds]);
+  const burstIds = useStore(s => (p.groupId ? s.photos.filter(x => x.groupId === p.groupId).sort((a, b) => (a.capturedAt ?? 0) - (b.capturedAt ?? 0)).map(x => x.id).slice(0, 6).join(',') : ''));
+  const [filmBusy, setFilmBusy] = useState(false);
+  const makeFilm = async () => {
+    setFilmBusy(true);
+    try {
+      const r = await makeBurstFilm(burstIds.split(','));
+      if (r) await shareCollage(r.blob, `cherrypic-miscare-${Date.now()}.${r.ext}`, '');
+      else useStore.getState().setNotice(tr('lx.story.failed'));
+    } catch { useStore.getState().setNotice(tr('lx.story.failed')); } finally { setFilmBusy(false); }
+  };
   const makeBestTake = async () => {
     setBestBusy(true);
     try {
@@ -850,6 +862,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
         {more && (
           <div className="lx-more-grid">
             {bestFix.length > 0 && <button disabled={bestBusy} onClick={() => void makeBestTake()}><span><Icon name="sparkle" /></span>{tr('lx.bestTake.button')}</button>}
+            {burstFilmAvailable() && burstIds.split(',').length >= 2 && <button disabled={filmBusy} onClick={() => void makeFilm()}><span><Icon name="similar" /></span>{filmBusy ? '…' : tr('lx.burstFilm.button')}</button>}
             {onSimilar && <button onClick={() => onSimilar(p.id)}><span><Icon name="similar" /></span>{tr('lx.viewer.similarShort')}</button>}
             <button onClick={() => setInsta(true)}><span><Icon name="square" /></span>{tr('lx.insta.button')}</button>
             {canSell && <button onClick={() => setSelling(true)}><span><Icon name="tag" /></span>{tr('lx.sell.button')}</button>}

@@ -3082,4 +3082,5 @@ export const en: Record<TranslationKey, string> = {
   'lx.bestTake.button': "Perfect shot",
   'lx.bestTake.hint': "I can make the perfect shot: {count} faces with open eyes from another frame ›",
   'lx.bestTake.saved': "Saved the perfect shot as a copy; the original stays.",
+  'lx.burstFilm.button': "Burst mini-film",
 };

@@ -1049,4 +1049,5 @@ export const dict: Record<string, string> = {
   'lx.bestTake.button': "Foto perfecta",
   'lx.bestTake.hint': "Puedo hacer la foto perfecta: {count} caras con ojos abiertos de otra toma ›",
   'lx.bestTake.saved': "Foto perfecta guardada como copia; el original se queda.",
+  'lx.burstFilm.button': "Mini-película de la ráfaga",
 };

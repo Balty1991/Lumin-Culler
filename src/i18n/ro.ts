@@ -3168,6 +3168,7 @@ export const ro = {
   'lx.bestTake.button': "Poza perfectă",
   'lx.bestTake.hint': "Pot face poza perfectă: {count} fețe cu ochii deschiși din alt cadru ›",
   'lx.bestTake.saved': "Am salvat poza perfectă ca o copie; originalul rămâne.",
+  'lx.burstFilm.button': "Mini-film din serie",
 };
 
 export type TranslationKey = keyof typeof ro;
