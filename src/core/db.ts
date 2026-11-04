@@ -533,6 +533,12 @@ export interface AnalysisRecord {
    */
   imageEmbedding?: number[];
   /**
+   * Cât de frumoasă e poza, după predictorul estetic LAION peste CLIP
+   * (core/clip/clipEngine.ts), scara 1–10. Doar Android, după ce modelul CLIP
+   * s-a descărcat; absent = necunoscut (neutru în ContextEngine).
+   */
+  aesthetic?: number;
+  /**
    * Animalul ca individ, nu doar specia din sceneTags.
    *
    * `petLabel` e eticheta ML Kit („dog”). `petEmbedding` e MobileNetV3-small

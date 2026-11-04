@@ -78,6 +78,8 @@ const SCENE_TAG_LABELS_RO: Record<string, string> = {
   // natura, peisaj, vreme
   water: 'apă', sky: 'cer', cloud: 'nor', sea: 'mare', ocean: 'ocean', lake: 'lac', river: 'râu',
   beach: 'plajă', sand: 'nisip', wave: 'val', sunset: 'apus', sunrise: 'răsărit',
+  // Etichete CLIP (core/clip/clipEngine.ts)
+  'group photo': 'poză de grup', night: 'noapte', document: 'document', receipt: 'bon', screenshot: 'captură de ecran', meme: 'meme', sports: 'sport', 'christmas tree': 'brad de Crăciun',
   sunlight: 'lumina soarelui', horizon: 'orizont', nature: 'natură', landscape: 'peisaj',
   'natural landscape': 'peisaj natural', mountain: 'munte', hill: 'deal', forest: 'pădure',
   tree: 'copac', plant: 'plantă', flower: 'floare', 'flowering plant': 'plantă cu flori',

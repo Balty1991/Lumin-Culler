@@ -3020,4 +3020,8 @@ export const en: Record<TranslationKey, string> = {
   "lx.person.ageM": "{name} at {months} months",
   "lx.person.ageY": "{name} at {years} years",
   "lx.sell.button": "For selling",
+  'stats.stage.mClip': 'CLIP (beauty and labels)',
+  'factor.aesthetic': 'Photo beauty',
+  'insightsPref.aesthetic.pos': 'prefers beautiful, well-lit, well-composed photos',
+  'insightsPref.aesthetic.neg': 'keeps the memory, not necessarily the prettiest shot',
 };

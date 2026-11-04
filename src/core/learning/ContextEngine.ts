@@ -299,7 +299,12 @@ export const PRIOR_WEIGHTS: FeatureVector = {
   goldenHour: 0.2,
   subjectInFocus: 0.6,
   bokehQuality: 0.2,
-  colorHarmony: 0.25
+  colorHarmony: 0.25,
+  // Predictorul estetic LAION peste CLIP (core/clip/clipEngine.ts): antrenat pe
+  // sute de mii de note date de oameni, deci cel mai „uman” semnal de frumusețe
+  // pe care îl avem. Pondere bună, dar sub claritate și ochi deschiși: o poză
+  // frumoasă dar mișcată tot nu e de păstrat.
+  aesthetic: 0.6
 };
 
 /**
@@ -386,6 +391,8 @@ const PRIOR_FEATURE_STATS: Record<string, { mean: number; std: number }> = {
   lightSoft: { mean: 0.25, std: 0.43 },
   goldenHour: { mean: 0.12, std: 0.33 },
   colorHarmony: { mean: 0.6, std: 0.2 },
+  // (LAION − 4) / 3: pozele de telefon stau în jur de 5,5 → 0,5.
+  aesthetic: { mean: 0.5, std: 0.2 },
   bestSmile: { mean: 0.4, std: 0.3 },
   allEyesOpen: { mean: 0.75, std: 0.43 },
   faceCount: { mean: 0.2, std: 0.15 },
@@ -462,7 +469,7 @@ const FACTOR_FEATURES = new Set([
   'shutterSpeedRaw', 'focalLengthRaw', 'flashFired', 'deliberateSettings',
   'compositionScore', 'leadingLines', 'symmetry',
   'negativeSpace', 'lightHard', 'lightSoft', 'goldenHour', 'subjectInFocus',
-  'bokehQuality', 'colorHarmony', 'bodyCroppedAtEdge', 'subjectProminence', 'noCameraMetadata'
+  'bokehQuality', 'colorHarmony', 'bodyCroppedAtEdge', 'subjectProminence', 'noCameraMetadata', 'aesthetic'
 ]);
 
 /**
@@ -717,6 +724,8 @@ export function extractFeatures(
   // feature, motorul poate invata si contrariul, pentru cine chiar isi tine
   // capturile de ecran.
   if (a.textCoverage !== undefined) features.textCoverage = a.textCoverage;
+  // Scorul estetic CLIP/LAION — absent (nu 0.5) cât timp modelul n-a rulat pe poză.
+  if (a.aesthetic !== undefined) features.aesthetic = Math.min(1, Math.max(0, (a.aesthetic - 4) / 3));
   // Nicio urma de aparat foto in fisier (capturi de ecran, meme-uri, imagini
   // primite) — vezi lacksCameraMetadata.
   features.noCameraMetadata = lacksCameraMetadata(a) ? 1 : 0;
@@ -1184,7 +1193,7 @@ export class ContextEngine {
     'apertureRaw', 'shutterSpeedRaw', 'focalLengthRaw', 'flashFired', 'deliberateSettings',
     'compositionScore', 'leadingLines',
     'symmetry', 'negativeSpace', 'lightHard', 'lightSoft', 'goldenHour', 'subjectInFocus',
-    'bokehQuality', 'colorHarmony', 'subjectProminence', 'noCameraMetadata'
+    'bokehQuality', 'colorHarmony', 'subjectProminence', 'noCameraMetadata', 'aesthetic'
   ]);
 
   /** Rezumat lizibil al tuturor contextelor invatate — pentru panoul "Preferinte AI" din UI. */

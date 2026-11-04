@@ -3106,6 +3106,10 @@ export const ro = {
   "lx.person.ageM": "{name} la {months} luni",
   "lx.person.ageY": "{name} la {years} ani",
   "lx.sell.button": "Pentru vânzare",
+  'stats.stage.mClip': 'CLIP (frumusețe și etichete)',
+  'factor.aesthetic': 'Frumusețea pozei',
+  'insightsPref.aesthetic.pos': 'preferă pozele frumoase, bine luminate și compuse',
+  'insightsPref.aesthetic.neg': 'păstrează amintirea, nu neapărat poza frumoasă',
 };
 
 export type TranslationKey = keyof typeof ro;

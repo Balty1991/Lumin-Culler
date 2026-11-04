@@ -38,6 +38,7 @@ import { classifyScene } from './sceneClassifier';
 import { detectFacesNative, type NativeFaceBoundingBox, type NativeFaceDetectionResult, type NativeFaceResult } from './nativeFaceDetection';
 import { analyzeImageNative } from './nativeImageAnalysis';
 import { labelImageNative } from './nativeImageLabeling';
+import { clipAnalyze, refineTags } from './clip/clipEngine';
 import { analyzeFaceMeshNative, type NativeFaceMeshInsight } from './nativeFaceMesh';
 import { detectTextNative } from './nativeTextRecognition';
 import { embedImageNative } from './nativeImageEmbedder';
@@ -575,6 +576,8 @@ export async function analyzeNative(
 
   record('nativePrep', performance.now() - bodyStart);
   const labelsPromise = timed('mLabels', () => labelImageNative(source));
+  // CLIP (dacă modelul e deja pe telefon): pe firul lui, în paralel cu restul.
+  const clipPromise = timed('mClip', () => clipAnalyze(source.uri !== undefined ? { uri: source.uri, maxSide: 480 } : source));
   const detected = await faceProbe;
   const boxes = detected.faces.map(f => ({ x: f.box[0], y: f.box[1], w: f.box[2], h: f.box[3] }));
   const [imageAnalysis, labelResult] = await timed('nativeModels', () => Promise.all([
@@ -584,7 +587,9 @@ export async function analyzeNative(
 
   const faces = detected.faces;
   // Acelasi tipar de deduplicare ca faceAnalysis.worker.ts: [...new Set(...)].
-  const sceneTags = [...new Set(labelResult.labels.map(l => l.label))];
+  const mlkitTags = [...new Set(labelResult.labels.map(l => l.label))];
+  const clip = await clipPromise;
+  const sceneTags = clip ? refineTags(mlkitTags, clip.embedding) : mlkitTags;
 
   // ── Etapa 2: tot ce depinde doar de cate fete s-au gasit, iarasi deodata ──
   // Recunoasterea persoanelor merge in acelasi val: ruleaza pe worker-ul
@@ -775,6 +780,7 @@ export async function analyzeNative(
     ...imageAnalysis,
     ...meshStats,
     ...(sceneTags.length ? { sceneTags } : {}),
+    ...(clip ? { aesthetic: clip.aesthetic } : {}),
     ...(textCoverage !== undefined ? { textCoverage } : {}),
     ...(ocrText !== undefined ? { ocrText } : {}),
     ...(imageEmbedding ? { imageEmbedding } : {}),

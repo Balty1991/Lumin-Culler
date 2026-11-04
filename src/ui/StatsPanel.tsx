@@ -26,7 +26,7 @@ const SUB_ETAPE = ['queue', 'nativeBody', 'nativePrep', 'nativeAssemble', 'canva
    sunt o defalcare a analizei, ci a lui 'nativeModels' — si nici acolo nu se
    aduna, fiindca pleaca in valuri paralele. Puse in vreuna dintre sumele de
    sus, ar numara al treilea rand acelasi timp. */
-const ETAPE_MODEL = ['mFaceDetect', 'mFaceMesh', 'mImageAnalysis', 'mLabels', 'mEmbed', 'mPose', 'mOcr'] as const;
+const ETAPE_MODEL = ['mFaceDetect', 'mFaceMesh', 'mImageAnalysis', 'mLabels', 'mEmbed', 'mPose', 'mOcr', 'mClip'] as const;
 type EtapaModel = (typeof ETAPE_MODEL)[number];
 type SubEtapa = (typeof SUB_ETAPE)[number];
 

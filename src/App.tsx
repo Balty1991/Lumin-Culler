@@ -397,6 +397,11 @@ export default function App() {
   }, []);
 
   useEffect(() => { void boot(); }, [boot]);
+  // CLIP (frumusețe + etichete): descărcat o dată pe Wi-Fi, apoi trece prin pozele vechi.
+  useEffect(() => {
+    const id = window.setTimeout(() => { void import('./lumin/clipBackfill').then(m => m.startClipBackfill()); }, 20000);
+    return () => window.clearTimeout(id);
+  }, []);
 
   // „Ziua de azi”: notificarea de seară se (re)programează la fiecare pornire,
   // în limba curentă; deschiderea din ea aduce și sortează pozele zilei.
