@@ -10,7 +10,7 @@ import { intlTag } from '../i18n';
 import { loadEditable } from './sharp';
 import { shareCollage } from './collage';
 import { saveEditedBlob } from './saveEdited';
-import { duelPairs, missingInsights, photoProfile, profilePeriod, type PhotoProfile } from './insights';
+import { duelPairs, forgottenPicks, missingInsights, photoProfile, profilePeriod, type PhotoProfile } from './insights';
 
 /* ───────────── „Lipsesc din poze” ───────────── */
 
@@ -115,19 +115,63 @@ async function renderProfile(p: PhotoProfile, t: { title: string; month: string;
   return new Promise(res => c.toBlob(b => res(b), 'image/jpeg', 0.92));
 }
 
+/**
+ * „Coperta lunii”: ca o revistă, cu cea mai bună poză pe toată pagina, titlul
+ * revistei și câteva rânduri despre lună. Se adună lună de lună.
+ */
+async function renderCover(p: PhotoProfile, t: { mast: string; issue: string; lines: string[]; big: string }): Promise<Blob | null> {
+  const CW = 1080, CH = 1350;
+  const c = document.createElement('canvas');
+  c.width = CW; c.height = CH;
+  const ctx = c.getContext('2d');
+  if (!ctx) return null;
+  ctx.fillStyle = '#120a0e'; ctx.fillRect(0, 0, CW, CH);
+  if (p.bestId) {
+    const r = await loadEditable(p.bestId, 1600).catch(() => null);
+    if (r?.img) {
+      const k = Math.max(CW / r.img.naturalWidth, CH / r.img.naturalHeight);
+      ctx.drawImage(r.img, (CW - r.img.naturalWidth * k) / 2, (CH - r.img.naturalHeight * k) / 2, r.img.naturalWidth * k, r.img.naturalHeight * k);
+    }
+  }
+  const top = ctx.createLinearGradient(0, 0, 0, 380);
+  top.addColorStop(0, 'rgba(8,4,6,0.75)'); top.addColorStop(1, 'rgba(8,4,6,0)');
+  ctx.fillStyle = top; ctx.fillRect(0, 0, CW, 380);
+  const bot = ctx.createLinearGradient(0, CH * 0.55, 0, CH);
+  bot.addColorStop(0, 'rgba(8,4,6,0)'); bot.addColorStop(1, 'rgba(8,4,6,0.85)');
+  ctx.fillStyle = bot; ctx.fillRect(0, CH * 0.55, CW, CH * 0.45);
+  const serif = 'Georgia, "Times New Roman", serif', sans = 'system-ui, -apple-system, sans-serif';
+  // Titlul revistei, cât toată lățimea.
+  ctx.fillStyle = '#fff6f9'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  let size = 210;
+  ctx.font = `900 ${size}px ${serif}`;
+  while (ctx.measureText(t.mast).width > CW - 80 && size > 60) { size -= 6; ctx.font = `900 ${size}px ${serif}`; }
+  ctx.shadowColor = 'rgba(0,0,0,0.35)'; ctx.shadowBlur = 20;
+  ctx.fillText(t.mast, CW / 2, 40 + size * 0.82);
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#ff8fae'; ctx.font = `700 30px ${sans}`;
+  ctx.fillText(t.issue.toUpperCase(), CW / 2, 70 + size);
+  // Rândurile de pe copertă, jos în stânga.
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#ff4f7f'; ctx.font = `800 64px ${sans}`;
+  ctx.fillText(t.big, 60, CH - 60 - t.lines.length * 56 - 30);
+  ctx.fillStyle = '#fff6f9'; ctx.font = `600 38px ${sans}`;
+  t.lines.forEach((l, i) => ctx.fillText(l, 60, CH - 60 - (t.lines.length - 1 - i) * 56));
+  return new Promise(res => c.toBlob(b => res(b), 'image/jpeg', 0.92));
+}
+
 /** Pe Azi: „Profilul tău foto din octombrie”, cu cardul gata de distribuit. */
 export function ProfileCard() {
   const tr = useTr();
   const photos = useLxPhotos();
   const locale = useStore(s => s.locale);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState<false | 'profile' | 'cover'>(false);
   const period = useMemo(() => profilePeriod(), []);
   const profile = useMemo(() => photoProfile(photos, period.from, period.to), [photos, period]);
   if (profile.total < 15) return null;
   const month = new Date(period.from).toLocaleDateString(intlTag(locale), { month: 'long' });
   return (
     <>
-      <button className="lx-card lx-profile-card" onClick={() => setOpen(true)}>
+      <button className="lx-card lx-profile-card" onClick={() => setOpen('profile')}>
         <span className="lx-profile-badge"><Icon name="sparkle" size={22} /></span>
         <span>
           <b>{tr('lx.profile.cardTitle', { month })}</b>
@@ -135,22 +179,43 @@ export function ProfileCard() {
         </span>
         <span aria-hidden="true">›</span>
       </button>
-      {open && <ProfileSheet profile={profile} onClose={() => setOpen(false)} />}
+      <button className="lx-card lx-profile-card" onClick={() => setOpen('cover')}>
+        <span className="lx-profile-badge cover" aria-hidden="true">C</span>
+        <span><b>{tr('lx.cover.cardTitle', { month })}</b><small>{tr('lx.cover.cardSub')}</small></span>
+        <span aria-hidden="true">›</span>
+      </button>
+      {open && <ProfileSheet profile={profile} initialMode={open} onClose={() => setOpen(false)} />}
     </>
   );
 }
 
-function ProfileSheet({ profile, onClose }: { profile: PhotoProfile; onClose: () => void }) {
+function ProfileSheet({ profile, initialMode = 'profile', onClose }: { profile: PhotoProfile; initialMode?: 'profile' | 'cover'; onClose: () => void }) {
   const tr = useTr();
   const locale = useStore(s => s.locale);
   const [blob, setBlob] = useState<Blob | null>(null);
   const [url, setUrl] = useState<string | null>(null);
+  const [mode, setMode] = useState<'profile' | 'cover'>(initialMode);
   useEffect(() => {
     let alive = true;
+    setBlob(null); setUrl(null);
     const tag = intlTag(locale);
     const month = new Date(profile.from).toLocaleDateString(tag, { month: 'long', year: 'numeric' });
     const weekday = profile.weekday !== null ? new Date(2024, 0, 7 + profile.weekday).toLocaleDateString(tag, { weekday: 'long' }) : '–';
     const hour = profile.hour !== null ? `${String(profile.hour).padStart(2, '0')}:00` : '–';
+    const done = (b: Blob | null) => { if (!alive || !b) return; setBlob(b); setUrl(URL.createObjectURL(b)); };
+    if (mode === 'cover') {
+      void renderCover(profile, {
+        mast: 'CHERRYPIC',
+        issue: month,
+        big: tr(`lx.profile.arch.${profile.archetype}`),
+        lines: [
+          tr('lx.cover.kept', { count: profile.kept || profile.total }),
+          ...(profile.people[0] ? [tr('lx.cover.with', { name: profile.people[0].name })] : []),
+          ...(profile.weekday !== null ? [tr('lx.cover.day', { day: weekday })] : [])
+        ]
+      }).then(done);
+      return () => { alive = false; };
+    }
     void renderProfile(profile, {
       title: tr('lx.profile.title'),
       month: month.charAt(0).toUpperCase() + month.slice(1),
@@ -164,12 +229,9 @@ function ProfileSheet({ profile, onClose }: { profile: PhotoProfile; onClose: ()
       ],
       people: profile.people.length ? tr('lx.profile.with', { names: profile.people.map(p => p.name).join(' · ') }) : '',
       footer: 'Cherrypic'
-    }).then(b => {
-      if (!alive || !b) return;
-      setBlob(b); setUrl(URL.createObjectURL(b));
-    });
+    }).then(done);
     return () => { alive = false; };
-  }, [profile, locale, tr]);
+  }, [profile, locale, tr, mode]);
   useEffect(() => () => { if (url) URL.revokeObjectURL(url); }, [url]);
   return createPortal(
     <div className="lx lx-enhance lx-film" role="dialog" aria-modal="true" aria-label={tr('lx.profile.title')}>
@@ -178,12 +240,16 @@ function ProfileSheet({ profile, onClose }: { profile: PhotoProfile; onClose: ()
         <span className="lx-viewer-date">{tr('lx.profile.title')}</span>
         <span />
       </header>
+      <div className="lx-enhance-styles lx-profile-modes" role="radiogroup">
+        <button role="radio" aria-checked={mode === 'profile'} className={mode === 'profile' ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => setMode('profile')}>{tr('lx.profile.title')}</button>
+        <button role="radio" aria-checked={mode === 'cover'} className={mode === 'cover' ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => setMode('cover')}>{tr('lx.cover.title')}</button>
+      </div>
       <div className="lx-enhance-stage">
         {url ? <img className="lx-film-video" src={url} alt="" /> : <div className="lx-enhance-wait"><span className="lx-spinner" /></div>}
       </div>
       <div className="lx-viewer-info">
         <div className="lx-decide-actions">
-          <button className="lx-btn ghost" disabled={!blob} onClick={() => blob && void saveEditedBlob(blob, 'profil').then(ok => useStore.getState().setNotice(tr(ok ? 'lx.profile.saved' : 'lx.magic.failed')))}>{tr('lx.burstFilm.save')}</button>
+          <button className="lx-btn ghost" disabled={!blob} onClick={() => blob && void saveEditedBlob(blob, mode === 'cover' ? 'coperta' : 'profil').then(ok => useStore.getState().setNotice(tr(ok ? 'lx.profile.saved' : 'lx.magic.failed')))}>{tr('lx.burstFilm.save')}</button>
           <button className="lx-btn primary" disabled={!blob} onClick={() => blob && void shareCollage(blob, `cherrypic-profil-${Date.now()}.jpg`, tr('lx.profile.shareText'))}>↗ {tr('lx.wall.share')}</button>
         </div>
       </div>
@@ -263,5 +329,49 @@ function Duel({ pairs, onClose }: { pairs: [PhotoView, PhotoView][]; onClose: ()
       )}
     </div>,
     document.body
+  );
+}
+
+/* ───────────── „Ce ai uitat” ───────────── */
+
+const SEEN_KEY = 'lx.forgotten.v1';
+/** Ținute minte: săptămâna curentă (aceleași 3 toată săptămâna) și ce s-a arătat deja. */
+function readForgotten(): { week: number; ids: string[]; seen: string[] } {
+  try { return { week: -1, ids: [], seen: [], ...(JSON.parse(localStorage.getItem(SEEN_KEY) ?? '{}') as object) }; } catch { return { week: -1, ids: [], seen: [] }; }
+}
+
+export function ForgottenCard() {
+  const tr = useTr();
+  const photos = useLxPhotos();
+  const locale = useStore(s => s.locale);
+  const picks = useMemo(() => {
+    const week = Math.floor(Date.now() / (7 * 86_400_000));
+    const st = readForgotten();
+    if (st.week === week) {
+      const kept = st.ids.map(id => photos.find(p => p.id === id)).filter((p): p is PhotoView => !!p);
+      if (kept.length) return kept;
+    }
+    const chosen = forgottenPicks(photos, new Set(st.seen));
+    if (chosen.length) {
+      const ids = chosen.map(p => p.id);
+      try { localStorage.setItem(SEEN_KEY, JSON.stringify({ week, ids, seen: [...st.seen, ...ids].slice(-600) })); } catch { /* fără */ }
+    }
+    return chosen;
+  }, [photos]);
+  if (!picks.length) return null;
+  const ids = picks.map(p => p.id);
+  return (
+    <section className="lx-section">
+      <div className="lx-section-head"><h2>{tr('lx.forgotten.title')}</h2></div>
+      <p className="lx-hint lx-forgotten-sub">{tr('lx.forgotten.sub')}</p>
+      <div className="lx-forgotten">
+        {picks.map((p, i) => (
+          <button key={p.id} onClick={() => useLx.getState().openViewer(ids, i)}>
+            <Thumb id={p.id} lqip={p.lqip} edits={p.edits} />
+            <span>{new Date(p.capturedAt!).toLocaleDateString(intlTag(locale), { month: 'short', year: 'numeric' })}</span>
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }

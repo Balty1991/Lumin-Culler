@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { duelPairs, missingInsights, photoProfile, profilePeriod, type InsightPhoto } from './insights';
+import { duelPairs, forgottenPicks, missingInsights, personLinks, photoProfile, profilePeriod, type InsightPhoto } from './insights';
 
 const DAY = 86_400_000;
 const NOW = new Date(2026, 10, 4, 12).getTime();
@@ -60,5 +60,21 @@ describe('duelPairs', () => {
     const pairs = duelPairs(photos);
     expect(pairs).toHaveLength(1);
     expect(pairs[0].map(p => p.aiScore).sort()).toEqual([80, 90]);
+  });
+});
+
+describe('forgottenPicks și personLinks', () => {
+  it('alege poze vechi, frumoase, din luni diferite, fără cele văzute', () => {
+    const photos = [ph(400, [], { aiScore: 90 }), ph(401, [], { aiScore: 91 }), ph(800, [], { aiScore: 80 }), ph(10, [], { aiScore: 99 }), ph(1200, [], { aiScore: 40 })];
+    const out = forgottenPicks(photos, new Set([photos[2].id]), NOW);
+    expect(out.map(p => p.id)).not.toContain(photos[2].id);
+    expect(out.map(p => p.id)).not.toContain(photos[3].id);
+    expect(out.map(p => p.id)).not.toContain(photos[4].id);
+    expect(out).toHaveLength(1);
+  });
+
+  it('numără pozele împreună', () => {
+    const links = personLinks([{ name: 'A', photoIds: ['1', '2', '3'] }, { name: 'B', photoIds: ['2', '3'] }, { name: 'C', photoIds: ['9'] }]);
+    expect(links).toEqual([{ a: 'A', b: 'B', ids: ['2', '3'] }]);
   });
 });

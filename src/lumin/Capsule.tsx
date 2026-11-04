@@ -170,7 +170,7 @@ export function CapsuleOpen({ capsule, onClose }: { capsule: Capsule; onClose: (
             {ids.map((id, i) => {
               const p = photos.find(x => x.id === id)!;
               return (
-                <button key={id} style={{ animationDelay: `${i * 90}ms` }} onClick={e => { e.stopPropagation(); useLx.getState().openViewer(ids, i); }}>
+                <button key={id} style={{ animationDelay: `${i * 90}ms` }} onClick={e => { e.stopPropagation(); onClose(); useLx.getState().openViewer(ids, i); }}>
                   <Thumb id={id} lqip={p.lqip} edits={p.edits} />
                 </button>
               );

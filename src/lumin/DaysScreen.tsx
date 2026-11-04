@@ -1,3 +1,4 @@
+import { ConnectionsButton } from './Connections';
 import { GrowthButton } from './GrowthButton';
 import { Capacitor } from '@capacitor/core';
 import { autoNameFaces, canEmbedFaces, embedMissingFaces, suggestFaces } from './faceIdentity';
@@ -107,6 +108,7 @@ export function DaysScreen() {
 
       {view === 'months' && <MonthsView days={days} />}
 
+      {view === 'people' && <ConnectionsButton />}
       {view === 'people' && <PeopleGrid onOpen={setPerson} />}
 
       {view === 'map' && <Suspense fallback={<p className="lx-empty">{tr('lx.map.loading')}</p>}><PhotoMap /></Suspense>}

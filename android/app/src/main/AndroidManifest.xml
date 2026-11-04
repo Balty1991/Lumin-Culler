@@ -120,6 +120,9 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- „Fereastra în trecut”: camera, doar cât e deschisă (imaginea nu pleacă de pe telefon). -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <!-- Doar pentru "cate poze ai in galerie" (Acasa, plan modernizare) — o interogare
          MediaStore de NUMARAT, nu de citit bytes. Selectorul de import (pickPhotos,

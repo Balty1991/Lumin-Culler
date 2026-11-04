@@ -38,7 +38,8 @@ import { photoTime } from './days';
 import { EnginesIntro } from './EnginesIntro';
 import { FilmCreator } from './FilmCreator';
 import { CapsuleCard } from './Capsule';
-import { DuelCard, MissingCard, ProfileCard } from './Insights';
+import { DuelCard, ForgottenCard, MissingCard, ProfileCard } from './Insights';
+import { EmotionYearCard } from './EmotionYear';
 import { Icon } from './icons';
 import { burstFilmAvailable } from './burstFilm';
 
@@ -248,9 +249,11 @@ export function TodayScreen() {
         </>
       )}
       <CapsuleCard />
+      <ForgottenCard />
       <MissingCard />
       <Recaps />
       <ProfileCard />
+      <EmotionYearCard />
       <FamilyPickCard />
       <OnThisDay />
 

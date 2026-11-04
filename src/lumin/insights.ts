@@ -141,3 +141,45 @@ export function duelPairs<P extends InsightPhoto & { groupId?: string }>(photos:
   }
   return pairs;
 }
+
+/**
+ * „Ce ai uitat”: 3 poze frumoase, mai vechi de un an, care n-au mai fost arătate
+ * aici. Aceleași toată săptămâna (alese după numărul săptămânii), altele săptămâna
+ * viitoare; cele arătate deja nu mai revin (`seen`).
+ */
+export function forgottenPicks<P extends InsightPhoto & { aside?: string }>(photos: readonly P[], seen: ReadonlySet<string>, now = Date.now(), n = 3): P[] {
+  const week = Math.floor(now / (7 * DAY));
+  const pool = photos.filter(p => p.capturedAt !== undefined && now - p.capturedAt > 365 * DAY && !p.aside && !seen.has(p.id)
+    && (p.status === 'selected' || p.aiScore >= 72));
+  // Câte una din ani/luni diferite, ca să nu fie trei poze din aceeași zi.
+  const rank = (p: P) => ((hash(p.id) ^ week) >>> 0) % 1000 / 1000 + p.aiScore / 100;
+  const out: P[] = [];
+  const months = new Set<number>();
+  for (const p of [...pool].sort((a, b) => rank(b) - rank(a))) {
+    const d = new Date(p.capturedAt!);
+    const m = d.getFullYear() * 12 + d.getMonth();
+    if (months.has(m)) continue;
+    months.add(m); out.push(p);
+    if (out.length >= n) break;
+  }
+  return out;
+}
+
+function hash(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+
+/** Legăturile: pentru fiecare pereche de oameni, câte poze au împreună. */
+export function personLinks(people: readonly { name: string; photoIds: readonly string[] }[]): { a: string; b: string; ids: string[] }[] {
+  const out: { a: string; b: string; ids: string[] }[] = [];
+  for (let i = 0; i < people.length; i++) {
+    const set = new Set(people[i].photoIds);
+    for (let j = i + 1; j < people.length; j++) {
+      const ids = people[j].photoIds.filter(id => set.has(id));
+      if (ids.length) out.push({ a: people[i].name, b: people[j].name, ids });
+    }
+  }
+  return out.sort((x, y) => y.ids.length - x.ids.length);
+}

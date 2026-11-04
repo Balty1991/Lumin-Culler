@@ -194,6 +194,36 @@ class PortraitPlugin : Plugin() {
         }
     }
 
+    /**
+     * „Poza vie”: doar harta de adâncime (Depth Anything V2), ca imagine gri
+     * 518×518 (alb = aproape), netezită. Mișcarea 3D se face apoi în WebView.
+     * { imageUri } → { depthBase64 (PNG), side }
+     */
+    @PluginMethod
+    fun depth(call: PluginCall) {
+        if (call.getString("imageUri").isNullOrEmpty()) { call.reject("imageUri is required"); return }
+        executor.ruleaza(call, "Adâncimea nu s-a putut calcula") {
+            if (call.getInt("maxSide") == null) call.data.put("maxSide", 1024)
+            val src = resolveInputBitmap(context, call) ?: return@ruleaza
+            nearMap(src)
+            val d = lastDepth ?: run { call.reject("fără adâncime"); return@ruleaza }
+            val smooth = gauss(d, DEPTH_SIDE, DEPTH_SIDE, 6)
+            val px = IntArray(smooth.size) { i ->
+                val v = (smooth[i].coerceIn(0f, 1f) * 255).roundToInt()
+                (0xFF shl 24) or (v shl 16) or (v shl 8) or v
+            }
+            val bmp = Bitmap.createBitmap(px, DEPTH_SIDE, DEPTH_SIDE, Bitmap.Config.ARGB_8888)
+            val out = java.io.ByteArrayOutputStream()
+            bmp.compress(Bitmap.CompressFormat.PNG, 100, out)
+            bmp.recycle()
+            if (src.width > 0) src.recycle()
+            val res = JSObject()
+            res.put("depthBase64", Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP))
+            res.put("side", DEPTH_SIDE)
+            call.resolve(res)
+        }
+    }
+
     /** { imageBase64, strength 0..1 } → { imageBase64 (JPEG), subject: "person" | "depth" } */
     @PluginMethod
     fun portrait(call: PluginCall) {

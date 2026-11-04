@@ -35,6 +35,10 @@ import { planBestTake, renderBestTake, type BestTakeFix } from './bestTake';
 import { burstFilmAvailable } from './burstFilm';
 import { FilmCreator } from './FilmCreator';
 import { CapsuleCreator } from './Capsule';
+import { LivePhotoSheet } from './LivePhoto';
+import { livePhotoAvailable } from './livePhoto';
+import { RephotoSheet, canRephoto } from './Rephoto';
+import { FamilyVote } from './FamilyVote';
 import { BurstTidy } from './BurstTidy';
 import { Tunnel3D } from './Tunnel3D';
 import { logError } from '../core/errorLog';
@@ -640,6 +644,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
   // Mini-film: se deschide creatorul, cu seria pozei deja pusă (omul adaugă, ordonează, alege stilul).
   const [filmOpen, setFilmOpen] = useState(false);
   const [capsuleOpen, setCapsuleOpen] = useState(false);
+  const [tool, setTool] = useState<null | 'live' | 'rephoto' | 'vote'>(null);
   const makeBestTake = async () => {
     setBestBusy(true);
     try {
@@ -904,6 +909,9 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
         {more && (
           <div className="lx-more-grid">
             {bestFix.length > 0 && <button disabled={bestBusy} onClick={() => void makeBestTake()}><span><Icon name="sparkle" /></span>{tr('lx.bestTake.button')}</button>}
+            {livePhotoAvailable() && !!p.mediaUri && <button onClick={() => setTool('live')}><span><Icon name="sparkle" /></span>{tr('lx.live.title')}</button>}
+            {canRephoto() && p.capturedAt !== undefined && Date.now() - p.capturedAt > 90 * 86_400_000 && <button onClick={() => setTool('rephoto')}><span><Icon name="target" /></span>{tr('lx.rephoto.title')}</button>}
+            {burstIds.split(',').length >= 2 && <button onClick={() => setTool('vote')}><span><Icon name="check" /></span>{tr('lx.vote.title')}</button>}
             <button onClick={() => setCapsuleOpen(true)}><span><Icon name="lock" /></span>{tr('lx.capsule.button')}</button>
             {burstFilmAvailable() && <button onClick={() => setFilmOpen(true)}><span><Icon name="film" /></span>{tr('lx.burstFilm.button')}</button>}
             {onSimilar && <button onClick={() => onSimilar(p.id)}><span><Icon name="similar" /></span>{tr('lx.viewer.similarShort')}</button>}
@@ -938,6 +946,9 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
       {comparing && twin && <TwinCompare photo={p} twin={twin} onClose={() => setComparing(false)} />}
       {writing && <CaptionSheet photo={p} onClose={() => setWriting(false)} />}
       {insta && <InstaSheet photo={p} onClose={() => setInsta(false)} />}
+      {tool === 'live' && <LivePhotoSheet photoId={id} onClose={() => setTool(null)} />}
+      {tool === 'rephoto' && <RephotoSheet photoId={id} takenAt={p.capturedAt} onClose={() => setTool(null)} />}
+      {tool === 'vote' && <FamilyVote ids={burstIds.split(',')} onClose={() => setTool(null)} />}
       {capsuleOpen && <CapsuleCreator initialIds={[id]} onClose={() => setCapsuleOpen(false)} />}
       {filmOpen && <FilmCreator startId={id} initialIds={burstIds ? burstIds.split(',') : [id]} onClose={() => setFilmOpen(false)} />}
       {magic && <MagicSheet photo={p} onClose={() => setMagic(false)} />}

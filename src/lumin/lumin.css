@@ -1616,3 +1616,84 @@ button.lx-tunnel-now:active { background: rgb(255 255 255 / .06); }
 .lx-duel-end b { font-size: 22px; }
 .lx-duel-end p { margin: 0; color: var(--text-dim); max-width: 420px; line-height: 1.5; }
 .lx-fm-x { position: absolute; top: 5px; right: 5px; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: rgb(0 0 0 / .6); color: #fff; }
+
+/* Poza vie. */
+.lx-live .lx-enhance-stage canvas { max-width: 100%; max-height: calc(100dvh - 420px - var(--safe-top, 0px) - var(--safe-bottom, 0px)); border-radius: 14px; }
+.lx-live-opts { display: flex; flex-direction: column; gap: 8px; }
+
+/* Fereastra în trecut. */
+.lx-rephoto { display: flex; flex-direction: column; background: #000; }
+.lx-rephoto-view { position: relative; flex: 1; min-height: 0; margin: 0 12px; border-radius: 18px; overflow: hidden; background: #000; touch-action: none; }
+.lx-rephoto-view video, .lx-rephoto-view img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.lx-rephoto-view img { pointer-events: none; }
+.lx-rephoto-tag { position: absolute; left: 12px; top: 12px; padding: 6px 12px; border-radius: 999px; background: rgb(5 3 5 / .6); color: #fff6f9; font-size: 13px; font-weight: 600; text-transform: capitalize; }
+.lx-rephoto-tag.right { left: auto; right: 12px; }
+.lx-rephoto-line { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #fff; box-shadow: 0 0 12px rgb(0 0 0 / .5); }
+.lx-rephoto-ctrl { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.lx-rephoto-slider { display: flex; align-items: center; gap: 10px; width: 100%; font-size: 13px; color: var(--text-dim); }
+.lx-rephoto-slider input { flex: 1; accent-color: #ff4f7f; }
+.lx-rephoto-shutter { width: 72px; height: 72px; padding: 0; border-radius: 50%; border: 4px solid #fff; background: transparent; display: grid; place-items: center; }
+.lx-rephoto-shutter span { width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #ff4f7f, #ff8fae); }
+.lx-rephoto-shutter:active span { transform: scale(.9); }
+
+/* Anul în zâmbete. */
+.lx-joy-badge { flex: none; display: grid; grid-template-columns: repeat(3, 10px); gap: 3px; padding: 6px; border-radius: 12px; background: rgb(var(--accent-rgb) / .1); }
+.lx-joy-badge i { width: 10px; height: 10px; border-radius: 3px; background: #ff4f7f; }
+.lx-joy-sum { margin: 4px 0 0; color: var(--text-dim); font-size: 14px; }
+.lx-joy-grid { display: flex; flex-direction: column; gap: 4px; }
+.lx-joy-row { display: grid; grid-template-columns: 34px 1fr; align-items: center; gap: 6px; }
+.lx-joy-row > span { font-size: 11px; color: var(--text-dim); text-transform: capitalize; }
+.lx-joy-row > div { display: grid; grid-template-columns: repeat(31, 1fr); gap: 2px; }
+.lx-joy-row i, .lx-joy-legend i { display: block; aspect-ratio: 1; border-radius: 2px; }
+.lx-joy-row i.none { visibility: hidden; }
+.lx-joy-row i.empty { background: rgb(255 255 255 / .04); }
+.lx-joy-row i.plain, .lx-joy-legend i.plain { background: rgb(255 255 255 / .14); cursor: pointer; }
+.lx-joy-row i.joy, .lx-joy-legend i.joy { background: rgb(255 79 127 / var(--j, .5)); box-shadow: 0 0 calc(var(--j, .5) * 8px) rgb(255 79 127 / calc(var(--j, .5) * .8)); cursor: pointer; }
+.lx-joy-row i.on { outline: 2px solid #fff; outline-offset: 1px; }
+.lx-joy-legend { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-dim); }
+.lx-joy-legend i { width: 12px; height: 12px; }
+.lx-joy-legend i.joy { margin-left: 10px; }
+.lx-joy-pick { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; }
+.lx-joy-pick > span:nth-child(2) { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.lx-joy-pick b { text-transform: capitalize; }
+.lx-joy-pick small { color: var(--text-dim); }
+.lx-joy-thumb { flex: none; width: 64px; height: 64px; border-radius: 12px; overflow: hidden; }
+.lx-joy-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Ce ai uitat. */
+.lx-forgotten-sub { margin: -4px 0 8px; font-size: 13px; }
+.lx-forgotten { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.lx-forgotten button { position: relative; padding: 0; border: 0; border-radius: 14px; overflow: hidden; aspect-ratio: 3 / 4; background: #1a1016; }
+.lx-forgotten img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lx-forgotten span { position: absolute; left: 6px; bottom: 6px; padding: 3px 8px; border-radius: 999px; background: rgb(5 3 5 / .65); color: #fff6f9; font-size: 11px; font-weight: 600; text-transform: capitalize; }
+
+/* Legăturile familiei. */
+.lx-links-btn { margin: 0 0 10px; }
+.lx-links-map { position: relative; width: 100%; max-width: 460px; aspect-ratio: 1; margin: 0 auto; }
+.lx-links-map svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.lx-links-map line { stroke: #ff4f7f; stroke-linecap: round; transition: opacity .2s; }
+.lx-links-map line.on { stroke: #fff; opacity: 1 !important; }
+.lx-links-node { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0; border: 0; background: transparent; color: inherit; }
+.lx-links-node canvas, .lx-links-node .lx-face-img { width: 56px; height: 56px; border-radius: 50%; box-shadow: 0 0 0 2px rgb(255 79 127 / .5); }
+.lx-links-node.on canvas, .lx-links-node.on .lx-face-img { box-shadow: 0 0 0 3px #fff, 0 0 24px rgb(255 79 127 / .9); }
+.lx-links-node b { font-size: 12px; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lx-links-pair { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.lx-links-row { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 10px 2px; border: 0; border-top: 1px solid var(--lx-line); background: transparent; color: inherit; font: inherit; }
+.lx-links-row small { color: var(--text-dim); }
+
+/* Votul familiei. */
+.lx-vote { display: flex; flex-direction: column; }
+.lx-vote-center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; text-align: center; }
+.lx-vote-center b { font-size: 22px; }
+.lx-vote-center p { margin: 0; color: var(--text-dim); max-width: 420px; line-height: 1.5; }
+.lx-vote-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(2, 1fr); grid-auto-rows: minmax(0, 1fr); gap: 8px; padding: 0 16px 16px; }
+.lx-vote-result { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding-bottom: calc(12px + var(--safe-bottom, 0px)); }
+.lx-vote-result .lx-decide-actions { padding: 0 16px; }
+.lx-vote-crown { text-align: center; font-size: 22px; background: linear-gradient(90deg, #ff4f7f, #ffb3c8); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.lx-vote-res { opacity: 0; animation: lx-cap-in .5s cubic-bezier(.2,.8,.2,1) forwards; }
+.lx-vote-res.lose { animation-name: lx-vote-lose; }
+@keyframes lx-vote-lose { from { opacity: 0; } to { opacity: .35; transform: scale(.96); } }
+
+/* Profil / copertă. */
+.lx-profile-modes { justify-content: center !important; margin: 0 0 6px; padding: 0 16px; -webkit-mask-image: none !important; mask-image: none !important; }
+.lx-profile-badge.cover { font-family: Georgia, serif; font-weight: 900; font-size: 22px; }
