@@ -3119,6 +3119,20 @@ export const ro = {
   'lx.magic.tapPreparing': 'pregătesc selecția…',
   'lx.tool.portrait.title': 'Portret',
   'lx.tool.portrait.button': 'Portret',
+  "lx.models.title": "Motoare AI pe telefon",
+  "lx.models.ready": "Gata: frumusețe, etichete și căutare după ce se vede",
+  "lx.models.missing": "Încă nedescărcate",
+  "lx.models.sub": "Rulează doar pe telefon. Se descarcă o singură dată (≈224 MB), de obicei pe Wi-Fi.",
+  "lx.models.metered": "Rețeaua e marcată „contorizată”, așa că n-am descărcat singur. Apasă butonul ca să pornești.",
+  "lx.models.error": "Descărcarea n-a mers. Verifică internetul și încearcă din nou.",
+  "lx.models.download": "Descarcă acum",
+  "lx.models.confirm": "Descarc motoarele AI (≈224 MB). Pe date mobile poate costa. Continui?",
+  "lx.models.dlVision": "Descarc motorul de imagine… {pct}%",
+  "lx.models.dlText": "Descarc motorul de căutare… {pct}%",
+  "lx.models.scanning": "Analizez pozele: {done} din {total}",
+  'lx.enhance.pure': "Fără reparații automate",
+  'lx.enhance.pureOn': "Pornești de la poza originală. Reglează din Lumină și Culoare.",
+  'lx.enhance.pureUndo': "Repară automat",
 };
 
 export type TranslationKey = keyof typeof ro;

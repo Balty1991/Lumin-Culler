@@ -450,6 +450,8 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   const [lit, setLit] = useState(false);
   const [base, setBase] = useState<EditAdjustments | null>(null);
   const [style, setStyle] = useState<EnhanceStyle>('natural');
+  /** „De la zero”: fără nicio reparație automată, doar reglajele puse de mână. */
+  const [pure, setPure] = useState(false);
   const [amount, setAmount] = useState(0.5); // cerut: slider-ul pornește de la 50%, omul urcă dacă vrea mai mult
   const [tilt, setTilt] = useState(0);
   const [straight, setStraight] = useState(false);
@@ -483,9 +485,12 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   }, [style, src, personMask, base]);
   const edits = useMemo(() => {
     if (!base) return null;
+    if (pure) return withManual({ ...NEUTRAL_ADJUSTMENTS, rotationDeg: rotation, ...(crop ? { crop } : {}) }, manual);
     const e = withManual({ ...styledEdits(base, style, amount), rotationDeg: rotation, ...(crop ? { crop } : {}) }, manual);
     return style === 'portrait' && personMask ? { ...e, bokehMask: personMask.image, ...(personMask.focusY !== null ? { bokehFocusY: personMask.focusY } : {}) } : e;
-  }, [base, style, amount, rotation, crop, manual, personMask]);
+  }, [base, style, amount, rotation, crop, manual, personMask, pure]);
+  // Fără reparații, previzualizarea pleacă de la poza originală (nu de la cea deja luminată).
+  const view = pure ? (orig ?? src) : src;
   const styles = ENHANCE_STYLES.filter(st => !NEEDS_FACE.has(st) || !!base?.bokehSubject);
   const [failed, setFailed] = useState(false);
   const [split, setSplit] = useState(100);
@@ -494,6 +499,17 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   const dragBounds = useRef<DOMRect | null>(null);
   const compareAfter = useRef<HTMLDivElement>(null);
   const compareLine = useRef<HTMLSpanElement>(null);
+  const compareInner = useRef<HTMLDivElement>(null);
+  /**
+   * Bara Înainte/După: doar `transform` (compus pe placa video), nu `clip-path`
+   * și nu `left`, care redesenau poza la fiecare cadru — raportat cu filmare:
+   * linia rămânea sacadat în urma degetului.
+   */
+  const placeSplit = (next: number) => {
+    if (compareAfter.current) compareAfter.current.style.transform = `translate3d(${next}%,0,0)`;
+    if (compareInner.current) compareInner.current.style.transform = `translate3d(${-next}%,0,0)`;
+    if (compareLine.current) compareLine.current.style.transform = `translate3d(${next}%,0,0)`;
+  };
   const revealed = useRef(false);
   const [saving, setSaving] = useState(false);
   const stage = useRef<HTMLDivElement>(null);
@@ -540,8 +556,7 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
       const eased = 1 - Math.pow(1 - t, 3);
       const next = 100 - eased * 50;
       splitValue.current = next;
-      if (compareAfter.current) compareAfter.current.style.clipPath = `inset(0 0 0 ${next}%)`;
-      if (compareLine.current) compareLine.current.style.left = `${next}%`;
+      placeSplit(next);
       if (t < 1) raf = requestAnimationFrame(tick);
       else setSplit(next);
     };
@@ -561,8 +576,7 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
     splitFrame.current = requestAnimationFrame(() => {
       splitFrame.current = 0;
       const next = splitValue.current;
-      if (compareAfter.current) compareAfter.current.style.clipPath = `inset(0 0 0 ${next}%)`;
-      if (compareLine.current) compareLine.current.style.left = `${next}%`;
+      placeSplit(next);
     });
   };
   const finishDrag = () => {
@@ -589,8 +603,9 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
     try {
       // Portretul cu omul decupat: masca nu se păstrează în copie (se reface din poză),
       // deci rezultatul se salvează gata făcut, ca poză nouă, la rezoluție mare.
-      if ((style === 'portrait' && edits.bokehMask) || lit) {
-        const url = lit ? src : (canSharpen() ? await sharpUrl(photo.id, 3000).catch(() => null) : null) ?? src;
+      const useLit = lit && !pure;
+      if ((style === 'portrait' && edits.bokehMask && !pure) || useLit) {
+        const url = useLit ? src : (canSharpen() ? await sharpUrl(photo.id, 3000).catch(() => null) : null) ?? src;
         const img = url ? await createImageBitmap(await (await fetch(url)).blob()) : null;
         if (img) {
           const o = outputSize(img.width, img.height, edits);
@@ -600,7 +615,7 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
           if (ctx) {
             drawAdjusted(ctx, img, img.width, img.height, o.width, o.height, edits);
             const blob = await new Promise<Blob | null>(r => c.toBlob(r, 'image/jpeg', 0.94));
-            const ok = blob ? await saveEditedBlob(blob, lit ? 'lumina' : 'portret') : false;
+            const ok = blob ? await saveEditedBlob(blob, useLit ? 'lumina' : 'portret') : false;
             if (ok) vibrate(12);
             useStore.getState().setNotice(tr(ok ? 'lx.magic.saved' : 'lx.magic.failed'));
             if (ok) { onClose(); return; }
@@ -636,17 +651,19 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
         {failed && <p className="lx-empty">{tr('lx.enhance.failed')}</p>}
         {src && edits && (edits.crop || panel === 'frame') ? (
           <div className="lx-enhance-frame cropped">
-            <LivePreview src={src} edits={edits} />
+            <LivePreview src={view!} edits={edits} />
           </div>
         ) : src && edits && (
           <div className="lx-enhance-frame">
             <img src={orig ?? src} alt="" draggable={false} />
-            <div ref={compareAfter} className="lx-enhance-after" style={{ clipPath: `inset(0 0 0 ${split}%)` }}>
-              <LivePreview src={src} edits={edits} />
+            <div ref={compareAfter} className="lx-enhance-after" style={{ transform: `translate3d(${split}%,0,0)` }}>
+              <div ref={compareInner} className="lx-enhance-after-inner" style={{ transform: `translate3d(${-split}%,0,0)` }}>
+                <LivePreview src={view!} edits={edits} />
+              </div>
             </div>
             {!nothing && (
               <>
-                <span ref={compareLine} className="lx-enhance-line" style={{ left: `${split}%` }}><i /></span>
+                <span ref={compareLine} className="lx-enhance-linewrap" style={{ transform: `translate3d(${split}%,0,0)` }}><span className="lx-enhance-line"><i /></span></span>
                 <span className="lx-enhance-tag left">{tr('lx.enhance.before')}</span>
                 <span className="lx-enhance-tag right">{tr('lx.enhance.after')}</span>
               </>
@@ -699,7 +716,12 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
               </div>
             ) : (<>
             {/* O singură linie mică: ce a reparat editorul (și că a pornit de la reglajele omului). */}
-            {(issues.length > 0 || scenes.length > 0 || (learned && Object.keys(manual).length > 0)) && (
+            {pure ? (
+              <p className="lx-enhance-fix">
+                {tr('lx.enhance.pureOn')}
+                <button className="lx-link" onClick={() => setPure(false)}>{tr('lx.enhance.pureUndo')}</button>
+              </p>
+            ) : (issues.length > 0 || scenes.length > 0 || (learned && Object.keys(manual).length > 0)) && (
               <p className="lx-enhance-fix">
                 {issues.length > 0
                   ? `✓ ${tr('lx.enhance.fixed', { what: issues.map(id => tr(`lx.enhance.issue.${id}`)).join(' · ') })}`
@@ -707,9 +729,14 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
                 {learned && Object.keys(manual).length > 0 && <span> · {tr('lx.enhance.learnedShort')}</span>}
               </p>
             )}
+            {!pure && (
+              <button className="lx-pure-btn" onClick={() => { setPure(true); setManual({}); }}>
+                ↺ {tr('lx.enhance.pure')}
+              </button>
+            )}
             <div className="lx-enhance-styles" role="radiogroup" aria-label={tr('lx.enhance.style')}>
               {styles.map(st => (
-                <button key={st} role="radio" aria-checked={style === st} className={style === st ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => setStyle(st)}>
+                <button key={st} role="radio" aria-checked={!pure && style === st} className={!pure && style === st ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => { setPure(false); setStyle(st); }}>
                   {tr(`lx.enhance.style.${st}`)}{ADVANCED.has(st) && premiumLocked && <b className="lx-pro">PRO</b>}
                 </button>
               ))}
@@ -719,11 +746,11 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
                 </button>
               )}
             </div>
-            <label className="lx-enhance-amount">
+            {!pure && <label className="lx-enhance-amount">
               <span>{tr('lx.enhance.amount')}</span>
               <input type="range" min={0} max={150} step={5} value={Math.round(amount * 100)} onChange={e => setAmount(Number(e.target.value) / 100)} />
               <b>{Math.round(amount * 100)}%</b>
-            </label>
+            </label>}
             <div className="lx-enhance-tools" role="group" aria-label={tr('lx.tool.group')}>
               <button className="lx-tool-btn" onClick={() => setErasing(true)}><span aria-hidden="true">🧽</span>{tr('lx.magic.erase')}</button>
               {tools.clarity && <button className="lx-tool-btn" onClick={() => setRetouch('clarity')}><span aria-hidden="true">🔍</span>{tr('lx.tool.clarity.button')}</button>}

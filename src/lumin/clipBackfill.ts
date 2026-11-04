@@ -10,7 +10,7 @@
 import { db } from '../core/db';
 import { contextEngine } from '../core/learning/ContextEngine';
 import { clipAnalyze, prepareClip, refineTags, isClipPlatform } from '../core/clip/clipEngine';
-import { prepareClipSearch } from '../core/clip/clipSearch';
+import { downloadModels, getModelsState, setModelsState } from './aiModels';
 import { useStore } from '../state/store';
 
 const BATCH = 12;
@@ -19,12 +19,15 @@ let running = false;
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-export async function startClipBackfill(): Promise<void> {
+export async function startClipBackfill(anyNetwork = false): Promise<void> {
   if (running || !isClipPlatform()) return;
   running = true;
   try {
-    if (!(await prepareClip())) return;
+    // Ambele modele întâi (cu progres în Setări), apoi trecerea prin poze.
+    await downloadModels(anyNetwork);
+    if (!getModelsState().visionReady && !(await prepareClip(anyNetwork))) return;
     const todo = await db.analyses.filter(a => a.clipEmbedding === undefined).primaryKeys();
+    setModelsState({ phase: 'scanning', scanned: 0, toScan: todo.length });
     for (let i = 0; i < todo.length; i += BATCH) {
       const changed = new Map<string, { sceneTags?: string[]; aiScore: number }>();
       for (const id of todo.slice(i, i + BATCH)) {
@@ -44,6 +47,7 @@ export async function startClipBackfill(): Promise<void> {
         changed.set(photo.id, { sceneTags: next.sceneTags, aiScore: next.aiScore });
         await sleep(PAUSE_MS);
       }
+      setModelsState({ scanned: Math.min(todo.length, i + BATCH) });
       if (changed.size) {
         useStore.setState(s => ({
           photos: s.photos.map(p => {
@@ -53,8 +57,7 @@ export async function startClipBackfill(): Promise<void> {
         }));
       }
     }
-    // La final (același fir nativ): modelul de căutare în cuvinte, tot doar pe Wi-Fi.
-    await prepareClipSearch();
+    setModelsState({ phase: getModelsState().textReady ? 'ready' : getModelsState().phase === 'scanning' ? 'idle' : getModelsState().phase });
   } catch {
     // CLIP e un bonus: dacă ceva nu merge, aplicația rămâne exact ca înainte.
   } finally {

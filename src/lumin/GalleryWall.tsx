@@ -254,10 +254,20 @@ export function GalleryWall() {
     return () => window.clearTimeout(timer);
   }, [nothingFound, query, photos, aiTerms]);
 
-  const setDensity = (d: Density) => {
+  /**
+   * Raportat: la +/− galeria sărea uneori la mijloc. Cauza: browserul își „ancorează”
+   * derularea pe o poză de mai jos, iar poza își schimbă locul când se schimbă
+   * mărimea. Acum ancora e chiar butonul apăsat: rămâne exact unde era.
+   */
+  const setDensity = (d: Density, anchor?: Element | null) => {
     if (d === density) return;
     try { localStorage.setItem(DENSITY_KEY, String(d)); } catch { /* fără stocare */ }
-    withTransition(() => setDensityState(d));
+    const before = anchor?.getBoundingClientRect().top;
+    const root = document.documentElement;
+    root.style.overflowAnchor = 'none';
+    flushSync(() => setDensityState(d));
+    if (anchor && before !== undefined) window.scrollBy(0, anchor.getBoundingClientRect().top - before);
+    requestAnimationFrame(() => { root.style.overflowAnchor = ''; });
   };
 
   // Latura unei celule, din lățimea reală: rândurile mozaicului sunt pătrate.
@@ -439,9 +449,9 @@ export function GalleryWall() {
             ))}
           </div>
           <div className="lx-density" role="group" aria-label={tr('lx.wall.density')}>
-            <button onClick={() => setDensity(Math.min(5, density + 1) as Density)} disabled={density >= 5} aria-label={tr('lx.wall.smaller')}>−</button>
+            <button onClick={e => setDensity(Math.min(5, density + 1) as Density, e.currentTarget)} disabled={density >= 5} aria-label={tr('lx.wall.smaller')}>−</button>
             <span aria-hidden="true">{density}</span>
-            <button onClick={() => setDensity(Math.max(2, density - 1) as Density)} disabled={density <= 2} aria-label={tr('lx.wall.bigger')}>+</button>
+            <button onClick={e => setDensity(Math.max(2, density - 1) as Density, e.currentTarget)} disabled={density <= 2} aria-label={tr('lx.wall.bigger')}>+</button>
           </div>
         </div>
       )}

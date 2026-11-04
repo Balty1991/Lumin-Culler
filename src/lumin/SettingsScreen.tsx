@@ -18,6 +18,7 @@ import { PALETTES, applyPalette, phonePaletteAvailable, readStoredPalette, type 
 import { haptic, hapticsOn, setHapticsOn } from '../core/device';
 import { requestNotificationAccess, isNativeNotificationsAvailable } from '../core/nativeNotifications';
 import { useLx } from './lxStore';
+import { refreshModels, useModelsState } from './aiModels';
 import { useTr } from './context';
 import { useEffect, useState } from 'react';
 import { openBatterySettings, readBatteryRestriction, type BatteryRestriction } from '../core/backgroundAnalysis';
@@ -88,6 +89,8 @@ export function SettingsScreen() {
         </div>
         <p className="lx-hint">{tr(`fr.strict.${strictness}.sub`)}</p>
       </section>
+
+      <AiModelsSection />
 
       <section className="lx-group">
         <h2>{tr('lx.mode.title')}</h2>
@@ -341,6 +344,48 @@ function BackgroundWork() {
         </span>
         <span className={state === 'unrestricted' ? 'lx-pill ok' : 'lx-pill warm'}>{state === 'unrestricted' ? '✓' : '!'}</span>
       </button>
+    </section>
+  );
+}
+
+/** Motoarele AI de pe telefon: ce e descărcat, progresul, și butonul de pornire manuală. */
+function AiModelsSection() {
+  const tr = useTr();
+  const m = useModelsState();
+  const askConfirm = useStore(st => st.askConfirm);
+  useEffect(() => { void refreshModels(); }, []);
+  if (m.phase === 'unsupported') return null;
+  const all = m.visionReady && m.textReady;
+  const start = async () => {
+    // Pe date mobile întrebăm o dată: 224 MB nu se iau fără acordul omului.
+    const ok = await askConfirm(tr('lx.models.confirm'), { confirmLabel: tr('lx.models.download') });
+    if (!ok) return;
+    const mod = await import('./clipBackfill');
+    void mod.startClipBackfill(true);
+  };
+  const pct = Math.round(m.progress * 100);
+  return (
+    <section className="lx-group">
+      <h2>{tr('lx.models.title')}</h2>
+      <div className="lx-row">
+        <span>
+          <b>{m.phase === 'downloading'
+            ? tr(m.what === 'text' ? 'lx.models.dlText' : 'lx.models.dlVision', { pct })
+            : m.phase === 'scanning' ? tr('lx.models.scanning', { done: m.scanned, total: m.toScan })
+            : all ? tr('lx.models.ready') : tr('lx.models.missing')}</b>
+          <small>{m.phase === 'metered' ? tr('lx.models.metered') : m.phase === 'error' ? tr('lx.models.error') : tr('lx.models.sub')}</small>
+        </span>
+        {all ? <span className="lx-pill ok">✓</span> : null}
+      </div>
+      {(m.phase === 'downloading' || m.phase === 'scanning') && (
+        <div className="lx-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100}
+          aria-valuenow={m.phase === 'scanning' ? Math.round((m.scanned / Math.max(1, m.toScan)) * 100) : pct}>
+          <i style={{ width: `${m.phase === 'scanning' ? (m.scanned / Math.max(1, m.toScan)) * 100 : pct}%` }} />
+        </div>
+      )}
+      {!all && m.phase !== 'downloading' && (
+        <button className="lx-btn primary" onClick={() => void start()}>{tr('lx.models.download')}</button>
+      )}
     </section>
   );
 }
