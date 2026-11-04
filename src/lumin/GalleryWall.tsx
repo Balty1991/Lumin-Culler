@@ -518,7 +518,7 @@ export function GalleryWall() {
       {tunnel && <Tunnel3D list={list} onOpen={i => setViewer({ index: i, origin: null })} onClose={() => setTunnel(false)} />}
       {viewer !== null && list[viewer.index] && (
         <Viewer list={list} index={viewer.index} origin={viewer.origin}
-          onIndex={i => setViewer({ index: i, origin: null })} onClose={() => closeWithTransition(() => setViewer(null), list[viewer.index]?.id)} onSimilar={id => void showSimilar(id)} />
+          onIndex={i => setViewer({ index: i, origin: null })} onClose={() => (tunnel ? setViewer(null) : closeWithTransition(() => setViewer(null), list[viewer.index]?.id))} onSimilar={id => void showSimilar(id)} />
       )}
     </div>
   );

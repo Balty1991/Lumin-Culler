@@ -20,6 +20,11 @@ export function sizeFor(cssPx: number): number {
 }
 
 const urls = new Map<string, Promise<string | null>>();
+/** Ce s-a terminat deja, citibil pe loc (fără așteptare): poza clară apare din primul cadru. */
+const ready = new Map<string, string>();
+export function peekSharpUrl(photoId: string, size: number): string | null {
+  return ready.get(`${photoId}@${size}`) ?? null;
+}
 
 export function canSharpen(): boolean {
   return Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('SharpImage');
@@ -72,7 +77,7 @@ export function sharpUrl(photoId: string, size: number): Promise<string | null> 
       const bytes = Uint8Array.from(atob(data), c => c.charCodeAt(0));
       return preload(URL.createObjectURL(new Blob([bytes], { type: 'image/jpeg' })));
     })().catch(() => null);
-    p.then(u => { if (!u) urls.delete(k); });
+    p.then(u => { if (!u) urls.delete(k); else ready.set(k, u); });
     urls.set(k, p);
   }
   return p;

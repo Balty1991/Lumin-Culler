@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { getCachedThumbUrl, peekThumbUrl } from '../core/thumbUrlCache';
 import { getCachedPreviewUrl, getDisplayUrl } from '../core/previewUrlCache';
-import { canSharpen, SCREEN_SIZE, sharpUrl, sizeFor, TILE_SIZE } from './sharp';
+import { canSharpen, peekSharpUrl, SCREEN_SIZE, sharpUrl, sizeFor, TILE_SIZE } from './sharp';
 import { isNeutral, type EditAdjustments } from '../core/imageAdjust';
 import { AdjustedImage } from '../ui/AdjustedImage';
 
@@ -24,7 +24,9 @@ export function Thumb({ id, lqip, full = false, sharp = true, className, alt = '
   className?: string;
   alt?: string;
 }) {
-  const [src, setSrcRaw] = useState<string | null>(() => peekThumbUrl(id));
+  // Poza deschisă: dacă varianta clară e deja gata, o arătăm direct (fără să treacă
+  // prin miniatură și preview — fiecare schimbare clipea pe Android, raportat).
+  const [src, setSrcRaw] = useState<string | null>(() => (full ? peekSharpUrl(id, SCREEN_SIZE) : null) ?? peekThumbUrl(id));
   // Ce calitate se vede acum (0 miniatură, 1 preview, 2 clară). O variantă mai
   // slabă, sosită mai târziu, nu o mai înlocuiește pe una mai bună — raportat:
   // pozele pregătite din timp (clare) erau acoperite apoi de preview-ul neclar.
@@ -34,6 +36,8 @@ export function Thumb({ id, lqip, full = false, sharp = true, className, alt = '
     let alive = true;
     level.current = 0;
     const show = (lvl: number) => (url: string | null) => { if (alive && url) setSrc(url, lvl); };
+    const ready = full ? peekSharpUrl(id, SCREEN_SIZE) : null;
+    if (ready) { level.current = 2; setSrcRaw(ready); return () => { alive = false; }; }
     setSrcRaw(peekThumbUrl(id));
     if (full && canSharpen()) {
       // Întâi ce avem deja (preview), apoi poza clară făcută de Android — doar
