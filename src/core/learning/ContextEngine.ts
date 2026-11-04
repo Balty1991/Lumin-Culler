@@ -308,7 +308,9 @@ export const PRIOR_WEIGHTS: FeatureVector = {
   // Ca subjectAffinity: pornit mic, își câștigă ponderea dacă chiar prezice.
   clipAffinity: 0.25,
   // CLIP-IQA: descrieri „poză clară / mișcată”, „bine expusă / întunecată” etc.
-  clipQuality: 0.4
+  clipQuality: 0.4,
+  // FER+: bucuria pe fețe — oamenii păstrează pozele în care râd cei dragi.
+  joy: 0.35
 };
 
 /**
@@ -399,6 +401,7 @@ const PRIOR_FEATURE_STATS: Record<string, { mean: number; std: number }> = {
   aesthetic: { mean: 0.5, std: 0.2 },
   clipAffinity: { mean: 0.5, std: 0.15 },
   clipQuality: { mean: 0.6, std: 0.2 },
+  joy: { mean: 0.45, std: 0.35 },
   bestSmile: { mean: 0.4, std: 0.3 },
   allEyesOpen: { mean: 0.75, std: 0.43 },
   faceCount: { mean: 0.2, std: 0.15 },
@@ -475,7 +478,7 @@ const FACTOR_FEATURES = new Set([
   'shutterSpeedRaw', 'focalLengthRaw', 'flashFired', 'deliberateSettings',
   'compositionScore', 'leadingLines', 'symmetry',
   'negativeSpace', 'lightHard', 'lightSoft', 'goldenHour', 'subjectInFocus',
-  'bokehQuality', 'colorHarmony', 'bodyCroppedAtEdge', 'subjectProminence', 'noCameraMetadata', 'aesthetic', 'clipAffinity', 'clipQuality'
+  'bokehQuality', 'colorHarmony', 'bodyCroppedAtEdge', 'subjectProminence', 'noCameraMetadata', 'aesthetic', 'clipAffinity', 'clipQuality', 'joy'
 ]);
 
 /**
@@ -738,6 +741,7 @@ export function extractFeatures(
   // Scorul estetic CLIP/LAION — absent (nu 0.5) cât timp modelul n-a rulat pe poză.
   if (a.aesthetic !== undefined) features.aesthetic = Math.min(1, Math.max(0, (a.aesthetic - 4) / 3));
   if (a.clipQuality !== undefined) features.clipQuality = a.clipQuality;
+  if (a.joy !== undefined && a.faces.length > 0) features.joy = a.joy;
   // Nicio urma de aparat foto in fisier (capturi de ecran, meme-uri, imagini
   // primite) — vezi lacksCameraMetadata.
   features.noCameraMetadata = lacksCameraMetadata(a) ? 1 : 0;

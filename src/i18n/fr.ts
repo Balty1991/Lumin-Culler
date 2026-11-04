@@ -1045,4 +1045,5 @@ export const dict: Record<string, string> = {
   "lx.family.match": "Vos goûts se ressemblent à {percent} %",
   "lx.family.both": "{count} photos vous ont plu à tous les deux",
   "lx.family.share": "Partager le collage",
+  'factor.joy': "Vrai rire",
 };

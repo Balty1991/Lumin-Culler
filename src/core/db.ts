@@ -542,6 +542,8 @@ export interface AnalysisRecord {
   clipEmbedding?: number[];
   /** CLIP-IQA 0..1: media descrierilor „clară / bine expusă / bună” față de opusul lor. */
   clipQuality?: number;
+  /** Bucuria celei mai vesele fețe (FER+, 0..1): râs adevărat, nu zâmbet de poză. Doar Android. */
+  joy?: number;
   /**
    * Animalul ca individ, nu doar specia din sceneTags.
    *

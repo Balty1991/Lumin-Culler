@@ -14,6 +14,7 @@ import { downloadModels, getModelsState, setModelsState } from './aiModels';
 import { useStore } from '../state/store';
 import { holdBackgroundAnalysis, releaseBackgroundAnalysis, updateHeldBackground } from '../core/backgroundAnalysis';
 import { t } from '../i18n';
+import { captionPhoto, closeFlorence, joyOf, prepareFlorence } from '../core/extraEngines';
 
 const BATCH = 12;
 const PAUSE_MS = 40;
@@ -69,6 +70,7 @@ export async function startClipBackfill(anyNetwork = true): Promise<void> {
     if (todo.length >= 50 && getModelsState().textReady) {
       useStore.getState().setNotice(t(useStore.getState().locale, 'lx.models.doneNotice', { count: todo.length }));
     }
+    await deepPass(bgText);
   } catch {
     // CLIP e un bonus: dacă ceva nu merge, aplicația rămâne exact ca înainte.
   } finally {
@@ -91,4 +93,45 @@ export function watchImportsForClip(): void {
     if (was && !now) window.setTimeout(() => { void startClipBackfill(); }, 1500);
     was = now;
   });
+}
+
+/**
+ * A doua trecere, mai adâncă: expresia fețelor (FER+) la pozele cu oameni și
+ * descrierea în cuvinte (Florence-2) la pozele păstrate. Ambele doar pe telefon,
+ * în fundal; descrierea intră la căutare, bucuria în scorul AI.
+ */
+async function deepPass(bgText: (d: number) => string): Promise<void> {
+  const rows = await db.analyses.filter(a => (a.joy === undefined && a.faces.length > 0) || (!a.aiDescription && a.clipEmbedding !== undefined)).toArray();
+  if (!rows.length) return;
+  const kept = new Set(useStore.getState().photos.filter(p => p.status === 'selected').map(p => p.id));
+  const florence = rows.some(a => !a.aiDescription && kept.has(a.photoId)) ? await prepareFlorence() : false;
+  let done = 0;
+  for (const a of rows) {
+    while (useStore.getState().progress) await sleep(3000);
+    const photo = await db.photos.get(a.photoId);
+    if (!photo?.mediaUri) continue;
+    const next = { ...a };
+    let changed = false;
+    if (a.joy === undefined && a.faces.length > 0) {
+      const joy = await joyOf(photo.mediaUri, a.faces.map(f => f.box as number[]));
+      next.joy = joy ?? 0;
+      if (joy !== null && joy > 0.85 && !(next.sceneTags ?? []).includes('laughing')) next.sceneTags = [...(next.sceneTags ?? []), 'laughing'];
+      changed = true;
+    }
+    if (florence && !a.aiDescription && kept.has(a.photoId)) {
+      const cap = await captionPhoto(photo.mediaUri);
+      if (cap) { next.aiDescription = cap; changed = true; }
+    }
+    if (changed) {
+      const prediction = await contextEngine.predict(next, photo.genre);
+      next.aiScore = prediction.score;
+      next.aiFactors = prediction.topFactors;
+      await db.analyses.put(next);
+      useStore.setState(st => ({ photos: st.photos.map(p => (p.id === a.photoId ? { ...p, aiScore: next.aiScore, sceneTags: next.sceneTags, aiDescription: next.aiDescription } : p)) }));
+    }
+    done++;
+    if (done % 10 === 0) void updateHeldBackground(done, rows.length, bgText(done));
+    await sleep(PAUSE_MS);
+  }
+  if (florence) await closeFlorence();
 }

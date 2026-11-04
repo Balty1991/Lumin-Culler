@@ -3078,4 +3078,5 @@ export const en: Record<TranslationKey, string> = {
   "lx.family.match": "Your taste is {percent}% alike",
   "lx.family.both": "{count} photos you both liked",
   "lx.family.share": "Share the collage",
+  'factor.joy': "Real laughter",
 };

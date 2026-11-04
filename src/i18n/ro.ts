@@ -3164,6 +3164,7 @@ export const ro = {
   "lx.family.match": "Vă seamănă gustul în proporție de {percent}%",
   "lx.family.both": "{count} poze v-au plăcut amândurora",
   "lx.family.share": "Trimite colajul",
+  'factor.joy': "Râde din toată inima",
 };
 
 export type TranslationKey = keyof typeof ro;
