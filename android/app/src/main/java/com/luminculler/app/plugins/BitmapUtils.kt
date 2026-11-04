@@ -317,3 +317,14 @@ fun resolveInputBitmap(context: Context, call: PluginCall): Bitmap? {
         null
     }
 }
+
+/**
+ * Memoria totală a telefonului, în MB. Pe telefoanele slabe (sub ~4,5 GB) modelele
+ * grele lucrează mai mic sau deloc, ca sistemul să nu închidă aplicația.
+ */
+fun totalRamMb(context: Context): Long {
+    val am = context.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+    val mi = android.app.ActivityManager.MemoryInfo()
+    am.getMemoryInfo(mi)
+    return mi.totalMem / 1_000_000
+}

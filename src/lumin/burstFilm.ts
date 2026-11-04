@@ -9,6 +9,7 @@ import { extensionFor, pickMimeType } from '../core/recapVideoRender';
 import { loadEditable } from './sharp';
 import { fetchEngine } from './engines';
 import { logError } from '../core/errorLog';
+import { weakDevice } from '../core/deviceClass';
 
 interface RifeApi { between(o: { a: string; b: string; steps: number }): Promise<{ frames: string[]; width: number; height: number }> }
 const Rife = registerPlugin<RifeApi>('Rife');
@@ -85,7 +86,8 @@ export async function makeBurstFilm(ids: string[], onProgress?: (f: number) => v
   await fetchEngine('film').catch(() => false);
   const imgs = (await Promise.all(ids.slice(0, 6).map(id => loadEditable(id, 1600).then(r => r?.img ?? null)))).filter((x): x is HTMLImageElement => !!x);
   if (imgs.length < 2) return null;
-  const k0 = Math.min(1, OUT / Math.max(imgs[0].naturalWidth, imgs[0].naturalHeight));
+  const out = (await weakDevice()) ? 720 : OUT;
+  const k0 = Math.min(1, out / Math.max(imgs[0].naturalWidth, imgs[0].naturalHeight));
   const w = Math.round(imgs[0].naturalWidth * k0 / 2) * 2, h = Math.round(imgs[0].naturalHeight * k0 / 2) * 2;
   // Cadrele-cheie la calitatea pozelor; pentru RIFE, copii mici.
   const hi = imgs.map(i => blend(i, i, 0, w, h));

@@ -114,8 +114,14 @@ Ele se <strong>descarca o singura data</strong> pe telefon si apoi ruleaza <stro
 </p>
 <ul>
   <li>CLIP (OpenAI, MIT) si predictorul estetic LAION (MIT): cat de frumoasa e poza si ce se vede in ea; plus modelul de text clip-ViT-B-32-multilingual-v1 (Apache-2.0), pentru cautarea in cuvinte. Se descarca la prima pornire, pe Wi-Fi sau pe date mobile (≈224 MB).</li>
-  <li>SlimSAM (Apache-2.0) pentru „atinge obiectul” la guma, LaMa (Apache-2.0) pentru guma pe obiecte mari, MODNet si Depth Anything V2 Small (Apache-2.0) pentru „Portret”.</li>
+  <li>SlimSAM (Apache-2.0) pentru „atinge obiectul” la guma; MI-GAN (MIT) si LaMa (Apache-2.0) pentru guma; MODNet si Depth Anything V2 Small (Apache-2.0) pentru „Portret”; Real-ESRGAN (BSD-3) pentru claritate si U²-Net (Apache-2.0) pentru decupaj.</li>
+  <li>Florence-2 base (Microsoft, MIT) pentru descrierea in cuvinte a pozelor pastrate; FER+ (Microsoft, MIT) pentru expresia fetelor (zambet, ras); RIFE (MIT) pentru „Mini-film din serie”.</li>
+  <li>Modelele de traducere OPUS-MT (Helsinki-NLP, CC-BY 4.0), ca descrierea facuta de AI sa apara in limba aplicatiei.</li>
 </ul>
+<p>
+Pe telefoanele cu memorie putina (sub ~4,5 GB), descrierea pozelor si guma pentru obiecte mari nu se descarca si nu ruleaza automat.
+Niciun model nu trimite pozele, descrierile sau expresiile fetelor nicaieri: tot ce rezulta se pastreaza in baza de date locala a aplicatiei.
+</p>
 <p>
 Fisierele modelelor vin de la <strong>Hugging Face</strong> (huggingface.co si reteaua lor de distributie). Ca la
 orice descarcare, acel server vede adresa IP a telefonului si ce fisier de model se cere — <strong>nu</strong> vede
@@ -244,8 +250,14 @@ Some features use free, openly licensed AI models that do not fit in the app pac
 </p>
 <ul>
   <li>CLIP (OpenAI, MIT) and the LAION aesthetic predictor (MIT): how good the photo looks and what is in it; plus the clip-ViT-B-32-multilingual-v1 text model (Apache-2.0) for searching in your own words. Downloaded on first launch, on Wi-Fi or mobile data (≈224 MB).</li>
-  <li>SlimSAM (Apache-2.0) for “tap the object” in the eraser, LaMa (Apache-2.0) for erasing large objects, MODNet and Depth Anything V2 Small (Apache-2.0) for “Portrait”.</li>
+  <li>SlimSAM (Apache-2.0) for “tap the object” in the eraser; MI-GAN (MIT) and LaMa (Apache-2.0) for the eraser; MODNet and Depth Anything V2 Small (Apache-2.0) for “Portrait”; Real-ESRGAN (BSD-3) for clarity and U²-Net (Apache-2.0) for cutouts.</li>
+  <li>Florence-2 base (Microsoft, MIT) to describe kept photos in words; FER+ (Microsoft, MIT) for facial expressions (smiles, laughter); RIFE (MIT) for “Burst mini-film”.</li>
+  <li>OPUS-MT translation models (Helsinki-NLP, CC-BY 4.0), so the AI description appears in the app's language.</li>
 </ul>
+<p>
+On phones with little memory (under ~4.5 GB), photo descriptions and the large-object eraser are not downloaded or run automatically.
+No model sends photos, descriptions or facial expressions anywhere: all results stay in the app's local database.
+</p>
 <p>
 The model files come from <strong>Hugging Face</strong> (huggingface.co and its delivery network). As with any
 download, that server sees your phone's IP address and which model file is requested — it does <strong>not</strong> see

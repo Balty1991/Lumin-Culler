@@ -208,7 +208,7 @@ class PortraitPlugin : Plugin() {
             // Originalul, direct din galerie (până la 2560 px): raportat „a estompat și fața” —
             // de fapt primea o copie mică, deci tot portretul ieșea neclar.
             val src: Bitmap = if (!uri.isNullOrEmpty()) {
-                if (call.getInt("maxSide") == null) call.data.put("maxSide", 2560)
+                if (call.getInt("maxSide") == null) call.data.put("maxSide", if (totalRamMb(context) < 4500) 1600 else 2560)
                 resolveInputBitmap(context, call) ?: return@ruleaza
             } else {
                 val bytes = Base64.decode(b64, Base64.DEFAULT)

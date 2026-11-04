@@ -22,6 +22,11 @@ private const val ZERODCE_FILE = "zerodce_512_fp16.tflite"
 private const val SIDE = 512
 private const val ESRGAN_FILE = "realesr_general_x4v3.tflite"
 private const val U2NET_FILE = "u2netp.tflite"
+/** Claritate și decupaj: nu mai intră în APK (−10 MB); se descarcă la prima folosire. */
+private val DOWNLOADS = mapOf(
+    ESRGAN_FILE to ("https://huggingface.co/litert-community/real-esrgan-x4v3-litert/resolve/main/realesr_general_x4v3.tflite" to 2_000_000L),
+    U2NET_FILE to ("https://huggingface.co/abhimanyu666/u2nettflite/resolve/main/u2netp.tflite" to 3_000_000L)
+)
 /** LaMa (Samsung/Carve, Apache-2.0, ~208 MB): guma pentru obiecte mari; descărcată doar pe Wi-Fi. */
 private const val LAMA_FILE = "lama_fp32.onnx"
 private const val LAMA_URL = "https://huggingface.co/Carve/LaMa-ONNX/resolve/main/lama_fp32.onnx"
@@ -67,7 +72,7 @@ class EditModelsPlugin : Plugin() {
         val out = JSObject()
         out.put("ready", lamaReady())
         call.resolve(out)
-        if (lamaReady()) return
+        if (lamaReady() || totalRamMb(context) < 5000) return
         downloader.execute {
             runCatching {
                 val tmp = java.io.File(context.filesDir, "$LAMA_FILE.part")
@@ -119,7 +124,11 @@ class EditModelsPlugin : Plugin() {
     }
 
     private fun interpreter(name: String): Interpreter {
-        val bytes = if (name == MIGAN_FILE) modelBytes(name, 10_000_000) else context.assets.open(name).use { it.readBytes() }
+        val bytes = when {
+            name == MIGAN_FILE -> modelBytes(name, 10_000_000)
+            DOWNLOADS.containsKey(name) -> modelBytes(name, DOWNLOADS.getValue(name).second)
+            else -> context.assets.open(name).use { it.readBytes() }
+        }
         val buf = ByteBuffer.allocateDirect(bytes.size).order(ByteOrder.nativeOrder())
         buf.put(bytes).rewind()
         return Interpreter(buf, Interpreter.Options().setNumThreads(4))
@@ -146,7 +155,7 @@ class EditModelsPlugin : Plugin() {
         val f = java.io.File(context.filesDir, file)
         if (f.length() > minSize) return f.readBytes()
         // MI-GAN direct de pe Hugging Face (ca restul motoarelor); celelalte, de pe site.
-        val url = if (file == MIGAN_FILE) MIGAN_URL else "$MODELS_URL/$file"
+        val url = if (file == MIGAN_FILE) MIGAN_URL else DOWNLOADS[file]?.first ?: "$MODELS_URL/$file"
         val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
         conn.connectTimeout = 15000; conn.readTimeout = 90000; conn.instanceFollowRedirects = true
         try {
@@ -168,8 +177,8 @@ class EditModelsPlugin : Plugin() {
         val out = JSObject()
         out.put("erase", true) // din APK, din cache sau descărcat la prima folosire
         out.put("lowLight", hasAsset(ZERODCE_FILE))
-        out.put("clarity", hasAsset(ESRGAN_FILE))
-        out.put("cutout", hasAsset(U2NET_FILE))
+        out.put("clarity", true) // din APK, din cache sau descărcat la prima folosire
+        out.put("cutout", true)
         call.resolve(out)
     }
 
@@ -207,7 +216,8 @@ class EditModelsPlugin : Plugin() {
             val grown = dilate(erase, SIDE, 5)
             val plane = SIDE * SIDE
             val share = grown.count { it }.toFloat() / plane
-            val viaLama = if (share >= LAMA_FROM && lamaReady()) runLama(px, grown) else null
+            // Pe telefoanele cu puțină memorie LaMa (~1 GB în lucru) ar închide aplicația: rămâne MI-GAN.
+            val viaLama = if (share >= LAMA_FROM && totalRamMb(context) >= 5000 && lamaReady()) runLama(px, grown) else null
             if (viaLama != null) {
                 val back = Bitmap.createScaledBitmap(Bitmap.createBitmap(viaLama, SIDE, SIDE, Bitmap.Config.ARGB_8888), w, h, true)
                 val o = JSObject()

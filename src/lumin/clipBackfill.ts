@@ -15,6 +15,7 @@ import { useStore } from '../state/store';
 import { holdBackgroundAnalysis, releaseBackgroundAnalysis, updateHeldBackground } from '../core/backgroundAnalysis';
 import { t } from '../i18n';
 import { waitForUserIdle } from '../core/userIdle';
+import { weakDevice } from '../core/deviceClass';
 import { captionPhoto, closeFlorence, joyOf, prepareFlorence } from '../core/extraEngines';
 
 const BATCH = 12;
@@ -111,7 +112,9 @@ async function deepPass(bgText: (d: number) => string): Promise<void> {
   setModelsState({ phase: 'scanning', scanned: 0, toScan: rows.length });
   if (!holding) { await holdBackgroundAnalysis(rows.length, bgText(0)); holding = true; }
   const kept = new Set(useStore.getState().photos.filter(p => p.status === 'selected').map(p => p.id));
-  const florence = rows.some(a => !a.aiDescription && kept.has(a.photoId)) ? await prepareFlorence() : false;
+  // Descrierile (Florence-2, ~275 MB în lucru) doar pe telefoanele cu memorie destulă.
+  const weak = await weakDevice();
+  const florence = !weak && rows.some(a => !a.aiDescription && kept.has(a.photoId)) ? await prepareFlorence() : false;
   let done = 0;
   const pending = new Map<string, { aiScore: number; sceneTags?: string[]; aiDescription?: string }>();
   const flush = () => {

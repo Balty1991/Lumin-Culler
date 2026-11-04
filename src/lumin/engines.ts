@@ -8,6 +8,7 @@
 import { useSyncExternalStore } from 'react';
 import { ClipNative, isClipPlatform } from '../core/clip/clipEngine';
 import { logError } from '../core/errorLog';
+import { weakDevice } from '../core/deviceClass';
 
 const HF = 'https://huggingface.co';
 const FL = `${HF}/onnx-community/Florence-2-base-ft/resolve/main`;
@@ -32,6 +33,8 @@ export const ENGINES: Engine[] = [
     { file: 'depth_anything_v2_small_q.onnx', url: `${HF}/onnx-community/depth-anything-v2-small/resolve/main/onnx/model_quantized.onnx`, min: 20e6 }] },
   { id: 'eraser', mb: 14, files: [{ file: 'migan_fp16.tflite', url: `${HF}/litert-community/MI-GAN-512-Places2-LiteRT/resolve/main/migan_fp16.tflite`, min: 10e6 }] },
   { id: 'eraserHd', mb: 208, files: [{ file: 'lama_fp32.onnx', url: `${HF}/Carve/LaMa-ONNX/resolve/main/lama_fp32.onnx`, min: 200e6 }] },
+  { id: 'clarity', mb: 5, files: [{ file: 'realesr_general_x4v3.tflite', url: `${HF}/litert-community/real-esrgan-x4v3-litert/resolve/main/realesr_general_x4v3.tflite`, min: 2e6 }] },
+  { id: 'cutout', mb: 5, files: [{ file: 'u2netp.tflite', url: `${HF}/abhimanyu666/u2nettflite/resolve/main/u2netp.tflite`, min: 3e6 }] },
   { id: 'film', mb: 21, files: [{ file: 'rife49.onnx', url: `${HF}/yuvraj108c/rife-onnx/resolve/main/rife49_ensemble_True_scale_1_sim.onnx`, min: 18e6 }] }
 ];
 
@@ -104,8 +107,10 @@ export async function autoFetchEngines(): Promise<void> {
   if (autoDone || !isClipPlatform()) return;
   autoDone = true;
   await refreshEngines();
+  // Pe telefoanele slabe, descrierea și Guma HD nu rulează oricum: nu le descărcăm singure.
+  const weak = await weakDevice();
   for (const e of ENGINES) {
-    if (engineReady(e)) continue;
+    if (engineReady(e) || (weak && (e.id === 'describe' || e.id === 'eraserHd'))) continue;
     if (!(await downloadEngine(e.id))) await downloadEngine(e.id); // o reîncercare
   }
 }

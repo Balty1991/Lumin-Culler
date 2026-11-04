@@ -124,8 +124,11 @@ photo cleaner, best photo picker, duplicate photos, similar photos, blurry photo
 ## Data safety (noiembrie 2026)
 Serverul (Cherrypic Cloud) e oprit în aplicație: toate analizele și editările rulează pe telefon, iar aplicația nu trimite poze sau identificatori nicăieri. În formularul Data safety:
 - **Does your app collect or share any of the required user data types? → No.** (Datele procesate doar pe dispozitiv nu se declară ca „colectate”.)
-- Singurele descărcări sunt modelele AI (CLIP, căutare, gumă, Portret), de la Hugging Face și de pe site-ul aplicației; nu trimit date despre utilizator.
-- Politica de confidențialitate e actualizată (4 noiembrie 2026): fără Cloud, cu secțiunea „Modelele AI descărcate”.
+- Singurele descărcări sunt modelele AI (CLIP, căutare, descriere Florence-2, expresii FER+, selecție SlimSAM, gumă MI-GAN/LaMa, Portret, claritate, decupaj, mini-film RIFE, traducere OPUS-MT), toate de la Hugging Face; nu trimit date despre utilizator.
+- Rezultatele (descrieri, expresii, scoruri) rămân în baza de date locală: nu se declară nimic la „Data collected” sau „Data shared”.
+- „Is all of the user data collected by your app encrypted in transit?” → nu se aplică (nu se colectează). „Do you provide a way for users to request that their data is deleted?” → da: datele sunt doar pe telefon; dezinstalarea sau Setări → Șterge datele le elimină.
+- Politica de confidențialitate e actualizată (4 noiembrie 2026): fără Cloud, cu lista completă de modele și licențele lor (inclusiv atribuirea CC-BY pentru OPUS-MT).
+- Înainte de publicare: RIFE re-exportat din greutățile originale MIT (vezi PLAY_STORE_CHECKLIST).
 
 ## Permisiunea pentru poze (READ_MEDIA_IMAGES)
 Din 2025, Play cere o declarație în Play Console că accesul permanent la poze e funcția de bază: aplicația e un manager de galerie și selector de poze (sortare zilnică, curățare, organizare). Atașează un video scurt: importul, ritualul de sortare, ștergerea în coș.

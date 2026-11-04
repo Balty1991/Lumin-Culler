@@ -216,10 +216,6 @@ jobs:
         run: |
           curl -fL -o android/app/src/main/assets/zerodce_512_fp16.tflite https://huggingface.co/mlboydaisuke/zero-dce-litert/resolve/main/zerodce_512_fp16.tflite
           [ "$(stat -c%s android/app/src/main/assets/zerodce_512_fp16.tflite)" -gt 100000 ] || { echo "::error::zerodce trunchiat"; exit 1; }
-          curl -fL -o android/app/src/main/assets/realesr_general_x4v3.tflite https://huggingface.co/litert-community/real-esrgan-x4v3-litert/resolve/main/realesr_general_x4v3.tflite
-          curl -fL -o android/app/src/main/assets/u2netp.tflite https://huggingface.co/abhimanyu666/u2nettflite/resolve/main/u2netp.tflite
-          [ "$(stat -c%s android/app/src/main/assets/realesr_general_x4v3.tflite)" -gt 2000000 ] || { echo "::error::realesr trunchiat"; exit 1; }
-          [ "$(stat -c%s android/app/src/main/assets/u2netp.tflite)" -gt 3000000 ] || { echo "::error::u2netp trunchiat"; exit 1; }
       - name: Bundle native image-embedder model
         run: |
           curl -fL -o android/app/src/main/assets/mobilenet_v3_small.tflite https://storage.googleapis.com/mediapipe-models/image_embedder/mobilenet_v3_small/float32/1/mobilenet_v3_small.tflite

@@ -148,6 +148,12 @@ class ClipPlugin : Plugin() {
         }
     }
 
+    /** Cât de puternic e telefonul: { ramMb } — pentru a alege cât de grele sunt trecerile din fundal. */
+    @PluginMethod
+    fun device(call: PluginCall) {
+        call.resolve(JSObject().put("ramMb", totalRamMb(context)))
+    }
+
     /** Ce modele sunt deja pe telefon: { files: { nume: octeți } } (toate .onnx și .json din spațiul aplicației). */
     @PluginMethod
     fun files(call: PluginCall) {
