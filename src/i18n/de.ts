@@ -1100,4 +1100,7 @@ export const dict: Record<string, string> = {
   'lx.intro.body': "Damit Cherrypic wie du auswählt, in Worten sucht und bearbeitet, lädt es die KI-Engines einmalig (≈{mb} MB). Sie laufen nur auf dem Handy: deine Fotos verlassen es nie.",
   'lx.intro.wifi': "Nur im WLAN",
   'lx.intro.any': "Jetzt laden",
+  'lx.widget.memory1': "Vor einem Jahr · Cherrypic",
+  'lx.widget.memoryN': "Vor {years} Jahren · Cherrypic",
+  'lx.widget.recent': "Aus diesem Monat · Cherrypic",
 };

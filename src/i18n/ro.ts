@@ -3219,6 +3219,9 @@ export const ro = {
   'lx.intro.body': "Ca să aleagă ca tine, să caute în cuvinte și să editeze, Cherrypic descarcă o singură dată motoarele AI (≈{mb} MB). Rulează doar pe telefon: pozele nu pleacă nicăieri.",
   'lx.intro.wifi': "Doar pe Wi‑Fi",
   'lx.intro.any': "Descarcă acum",
+  'lx.widget.memory1': "Acum un an · Cherrypic",
+  'lx.widget.memoryN': "Acum {years} ani · Cherrypic",
+  'lx.widget.recent': "Din luna asta · Cherrypic",
 };
 
 export type TranslationKey = keyof typeof ro;

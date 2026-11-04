@@ -3133,4 +3133,7 @@ export const en: Record<TranslationKey, string> = {
   'lx.intro.body': "To pick like you, search in words and edit, Cherrypic downloads its AI engines once (≈{mb} MB). They run only on the phone: your photos never leave it.",
   'lx.intro.wifi': "Wi‑Fi only",
   'lx.intro.any': "Download now",
+  'lx.widget.memory1': "A year ago · Cherrypic",
+  'lx.widget.memoryN': "{years} years ago · Cherrypic",
+  'lx.widget.recent': "From this month · Cherrypic",
 };

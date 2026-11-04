@@ -232,7 +232,24 @@ export function LuminApp() {
       // Cererea de recenzie, o singură dată, după un câștig vizibil (1 GB eliberat sau 100 de poze hotărâte).
       const all = visiblePhotos();
       maybeAskForReviewAfterWin({ freedBytes: freedSummary().total, decided: all.filter(p => p.status === 'selected' || p.status === 'rejected').length });
-      void updateHomeWidget({ title: t(locale, 'lx.widget.title'), subtitle, uri: best?.mediaUri, shareLabel: t(locale, 'lx.widget.share') });
+      // Fără poză bună azi: widgetul nu rămâne gol, ci arată o amintire din aceeași zi
+      // a anilor trecuți, altfel una dintre cele mai bune poze din ultima lună (alta în fiecare zi).
+      if (best?.mediaUri) {
+        void updateHomeWidget({ title: t(locale, 'lx.widget.title'), subtitle, uri: best.mediaUri, shareLabel: t(locale, 'lx.widget.share') });
+      } else {
+        const now = new Date();
+        const kept = all.filter(p => p.status === 'selected' && p.mediaUri && !p.aside);
+        const sameDay = kept.filter(p => { const d = new Date(p.capturedAt ?? 0); return d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() < now.getFullYear(); })
+          .sort((a, b) => b.aiScore - a.aiScore)[0];
+        if (sameDay) {
+          const years = now.getFullYear() - new Date(sameDay.capturedAt ?? 0).getFullYear();
+          void updateHomeWidget({ title: t(locale, years === 1 ? 'lx.widget.memory1' : 'lx.widget.memoryN', { years }), subtitle, uri: sameDay.mediaUri, shareLabel: t(locale, 'lx.widget.share') });
+        } else {
+          const month = kept.filter(p => (p.capturedAt ?? 0) > Date.now() - 30 * 86_400_000).sort((a, b) => b.aiScore - a.aiScore).slice(0, 10);
+          const pick = month.length ? month[Math.floor(Date.now() / 86_400_000) % month.length] : undefined;
+          void updateHomeWidget({ title: t(locale, pick ? 'lx.widget.recent' : 'lx.widget.title'), subtitle, uri: pick?.mediaUri, shareLabel: t(locale, 'lx.widget.share') });
+        }
+      }
       void scheduleMorningMemory({
         title1: t(locale, 'lx.memory.notify.title1'), titleN: t(locale, 'lx.memory.notify.titleN'),
         body: t(locale, 'lx.memory.notify.body'), channel: t(locale, 'lx.memory.notify.channel'),
