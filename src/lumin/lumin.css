@@ -1491,3 +1491,9 @@ html, body { overflow-x: hidden; }
   background-image: var(--lx-grad); -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: none; filter: drop-shadow(0 0 28px rgb(255 79 127 / .75)); }
 button.lx-tunnel-now { border: 0; background: transparent; color: inherit; font: inherit; font-weight: 650; font-size: 16px; padding: 4px 10px; border-radius: 12px; cursor: pointer; }
 button.lx-tunnel-now:active { background: rgb(255 255 255 / .06); }
+/* Tunelul e mereu întunecat: butonul ✕ nu ia culorile temei luminoase (raportat: nu se vedea). */
+.lx-tunnel .lx-icon-btn, :root[data-theme="light"] .lx-tunnel .lx-icon-btn { background: rgb(255 255 255 / .1) !important; color: #fff6f9 !important; border: 1px solid rgb(255 255 255 / .2) !important; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.lx-tunnel .lx-icon-btn svg, .lx-tunnel .lx-icon-btn * { color: #fff6f9 !important; stroke: currentColor; }
+/* Momentul din centru: luminat, cu contur trandafir. */
+.lx-tunnel-card { transition: box-shadow .25s ease; }
+.lx-tunnel-card.focus { box-shadow: 0 0 0 2px rgb(255 120 160 / .9), 0 0 60px -6px rgb(255 79 127 / .75), 0 30px 60px -20px rgb(0 0 0 / .9); }

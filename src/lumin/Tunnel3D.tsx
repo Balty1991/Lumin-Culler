@@ -21,6 +21,8 @@ import { weakDevice } from '../core/deviceClass';
 type Entry = { kind: 'photo'; photo: PhotoView; index: number } | { kind: 'month'; label: string } | { kind: 'year'; label: string };
 
 const DEPTH = 300; // distanța dintre două elemente, în px
+/** Unde stă „momentul” (poza mare din centru): la un pas în fața ta. */
+const FOCUS = 1;
 
 export function Tunnel3D({ list, onOpen, onClose }: { list: PhotoView[]; onOpen: (index: number) => void; onClose: () => void }) {
   const tr = useTr();
@@ -58,32 +60,35 @@ export function Tunnel3D({ list, onOpen, onClose }: { list: PhotoView[]; onOpen:
   const label = useRef<HTMLSpanElement>(null);
   const worldEl = useRef<HTMLDivElement>(null);
   const sway = useRef({ x: 0, y: 0 });
+  const dragging = useRef(false);
 
   // Mișcarea: tras cu degetul (în sus = înainte), rotița, săgețile; cu inerție.
   useEffect(() => {
     const el = stage.current;
     if (!el) return;
     let drag = false, ly = 0, lx = 0, moved = 0;
-    const down = (e: PointerEvent) => { drag = true; moved = 0; ly = e.clientY; lx = e.clientX; vel.current = 0; el.setPointerCapture(e.pointerId); };
+    const down = (e: PointerEvent) => { drag = true; dragging.current = true; moved = 0; ly = e.clientY; lx = e.clientX; vel.current = 0; el.setPointerCapture(e.pointerId); };
     const move = (e: PointerEvent) => {
       if (!drag) return;
       const dy = e.clientY - ly, dx = e.clientX - lx;
       ly = e.clientY; lx = e.clientX; moved += Math.abs(dy) + Math.abs(dx);
-      const d = -dy * 0.012;
-      pos.current += d; vel.current = d;
+      // Mai lin (raportat: „merge prea repede”): ~1 poză la o tragere scurtă.
+      const d = -dy * 0.0045;
+      pos.current += d; vel.current = vel.current * 0.5 + d * 0.5;
       // Camera se înclină după deget, ca într-un zbor.
       sway.current.x = Math.max(-14, Math.min(14, sway.current.x + dx * 0.08));
       sway.current.y = Math.max(-8, Math.min(8, sway.current.y - dy * 0.03));
     };
     const up = (e: PointerEvent) => {
       if (!drag) return;
-      drag = false;
+      drag = false; dragging.current = false;
+      vel.current = Math.max(-0.16, Math.min(0.16, vel.current));
       if (moved < 8) {
         const card = (document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null)?.closest<HTMLElement>('[data-photo-index]');
         if (card) onOpen(Number(card.dataset.photoIndex));
       }
     };
-    const wheel = (e: WheelEvent) => { e.preventDefault(); vel.current += e.deltaY * 0.0012; };
+    const wheel = (e: WheelEvent) => { e.preventDefault(); vel.current += e.deltaY * 0.0006; };
     const key = (e: KeyboardEvent) => {
       if (e.key === 'ArrowUp' || e.key === 'ArrowRight') vel.current += 0.08;
       if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') vel.current -= 0.08;
@@ -92,7 +97,7 @@ export function Tunnel3D({ list, onOpen, onClose }: { list: PhotoView[]; onOpen:
     el.addEventListener('pointerdown', down);
     el.addEventListener('pointermove', move);
     el.addEventListener('pointerup', up);
-    el.addEventListener('pointercancel', () => { drag = false; });
+    el.addEventListener('pointercancel', () => { drag = false; dragging.current = false; });
     el.addEventListener('wheel', wheel, { passive: false });
     window.addEventListener('keydown', key);
     return () => {
@@ -116,15 +121,28 @@ export function Tunnel3D({ list, onOpen, onClose }: { list: PhotoView[]; onOpen:
     };
     resize();
     window.addEventListener('resize', resize);
+    const dayFmt = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric' });
     let raf = 0, lastPos = pos.current;
     const max = Math.max(0, entries.length - 1);
     const frame = () => {
       // Poza deschisă deasupra: tunelul stă (nu consumă baterie în spate).
       if (document.body.classList.contains('lx-viewer-open')) { raf = requestAnimationFrame(frame); return; }
-      // Inerție; la capete, se oprește lin.
-      vel.current *= 0.93;
-      if (!reduce && Math.abs(vel.current) < 0.0015 && pos.current < max - 1) pos.current += 0.0035;
-      pos.current += vel.current;
+      // Inerție moderată; când încetinește, se oprește „magnetic” cu o poză în centru.
+      if (!dragging.current) {
+        vel.current *= 0.9;
+        if (Math.abs(vel.current) < 0.035) {
+          const k0 = Math.round(pos.current + FOCUS);
+          let target = k0;
+          for (let d = 0; d < 6; d++) {
+            if (entries[k0 + d]?.kind === 'photo') { target = k0 + d; break; }
+            if (entries[k0 - d]?.kind === 'photo') { target = k0 - d; break; }
+          }
+          vel.current += (target - FOCUS - pos.current) * 0.06;
+          vel.current *= 0.8;
+        }
+        pos.current += vel.current;
+      }
+      void reduce;
       if (pos.current < -2) { pos.current = -2; vel.current = 0; }
       if (pos.current > max) { pos.current = max; vel.current = 0; }
       const p = pos.current;
@@ -140,22 +158,31 @@ export function Tunnel3D({ list, onOpen, onClose }: { list: PhotoView[]; onOpen:
         const e = entries[k];
         if (!e) { el.style.opacity = '0'; return; }
         const rel = k - p; // câte elemente în față
-        // Lângă tine (rel mic), poza nu mai vine spre ecran: zboară spre margine și
-        // dispare repede, ca atunci când treci pe lângă ceva. Înainte rămânea uriașă
-        // și pe jumătate transparentă peste celelalte (raportat: „tranziție ciudată”).
-        const pass = rel < 0.9 ? (0.9 - rel) / 0.9 : 0; // 0 departe → 1 lângă tine
-        const z = Math.min(-rel * DEPTH + 120, 220);
         let o = 1;
         if (rel > slots - 8) o = Math.max(0, (slots - 2 - rel) / 6);
-        if (pass > 0) o = Math.min(o, Math.max(0, 1 - pass * pass * 1.6));
+        // Trecut de moment: zboară pe lângă tine, spre margine, și se stinge repede.
+        const q = Math.max(0, Math.min(1, (FOCUS - 0.15 - rel) / 0.85));
         if (e.kind === 'month' || e.kind === 'year') {
-          el.style.transform = `translate3d(-50%, calc(-50% - ${pass * pass * vh * 0.5}px), ${z}px)`;
-          // Trecut prin plăcuță: o vibrație scurtă (unde telefonul o permite).
-          if (rel < 0.15 && rel > -0.2 && passed.current !== k) { passed.current = k; try { navigator.vibrate?.(e.kind === 'year' ? 18 : 8); } catch { /* fără */ } }
+          const z = Math.min(-(rel - FOCUS) * DEPTH - 120, 160);
+          if (q > 0) o = Math.min(o, 1 - q * 1.3);
+          el.style.transform = `translate3d(-50%, calc(-50% - ${(q * q * 0.6 + Math.max(0, 0.4 - Math.abs(rel - FOCUS)) * 0.4) * vh}px), ${z}px)`;
+          if (rel < FOCUS + 0.1 && rel > FOCUS - 0.4 && passed.current !== k) { passed.current = k; try { navigator.vibrate?.(e.kind === 'year' ? 18 : 8); } catch { /* fără */ } }
+          el.classList.remove('focus');
         } else {
-          const a = k * 2.39996;
-          const r = rad * (0.85 + (k % 3) * 0.14) * (1 + pass * pass * 2.2);
-          el.style.transform = `translate3d(calc(-50% + ${Math.cos(a) * r}px), calc(-50% + ${Math.sin(a) * r * 0.72}px), ${z}px)`;
+          // Pe perete: o spirală care se rotește încet cât înaintezi.
+          const ang = k * 0.85 + p * 0.45;
+          const R = rad * (1 + (k % 2) * 0.14);
+          const wx = Math.cos(ang) * R, wy = Math.sin(ang) * R * 0.85, wz = -(rel - FOCUS) * DEPTH - 140;
+          // Momentul: poza care ajunge în centru, mare și luminată.
+          const df = Math.abs(rel - FOCUS);
+          const f0 = Math.max(0, 1 - df / 1.1);
+          const f = f0 * f0 * (3 - 2 * f0);
+          let x = wx + (0 - wx) * f, y = wy + (-vh * 0.03 - wy) * f, z = wz + (60 - wz) * f;
+          if (q > 0) { x += Math.cos(ang) * vw * 0.9 * q * q; y += Math.sin(ang) * vh * 0.7 * q * q; z += q * 160; o = Math.min(o, 1 - q * 1.25); }
+          const sc = 1 + f * 0.95;
+          o = Math.min(o, 0.5 + 0.5 * Math.max(f, Math.min(1, (rel - FOCUS) / 3)));
+          el.style.transform = `translate3d(calc(-50% + ${x}px), calc(-50% + ${y}px), ${z}px) scale(${sc})`;
+          el.classList.toggle('focus', f > 0.85);
         }
         el.style.opacity = String(o);
         el.style.zIndex = String(1000 - Math.round(rel * 10));
@@ -165,33 +192,37 @@ export function Tunnel3D({ list, onOpen, onClose }: { list: PhotoView[]; onOpen:
       // Luna în care ești acum, sus.
       if (label.current) {
         let lab = '';
-        for (let k = Math.max(0, Math.round(p)); k >= 0; k--) { const e = entries[k]; if (e?.kind === 'month') { lab = e.label; break; } }
+        const fk = Math.round(p + FOCUS);
+        for (let d = 0; d < 4 && !lab; d++) for (const kk of [fk + d, fk - d]) { const e = entries[kk]; if (e?.kind === 'photo' && !lab) { const t = photoTime(e.photo); lab = t ? dayFmt.format(new Date(t)) : ''; } }
         if (label.current.textContent !== lab) label.current.textContent = lab;
       }
       // Stelele: zboară spre margini cât înaintezi.
       const dp = p - lastPos; lastPos = p;
       sway.current.x *= 0.95; sway.current.y *= 0.95;
       if (worldEl.current) worldEl.current.style.transform = `rotateY(${sway.current.x}deg) rotateX(${sway.current.y}deg)`;
-      const warp = Math.min(1, Math.abs(dp) * 9); // 0 liniștit → 1 viteza luminii
+      // Warp discret: doar la viteză mare, dâre scurte și fine (raportat: prea multe, prea dure).
+      const warp = Math.max(0, Math.min(1, (Math.abs(dp) - 0.03) * 10));
       cx.fillStyle = '#050305'; cx.fillRect(0, 0, W, H);
       const g = cx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.6);
-      g.addColorStop(0, 'rgba(255,79,127,0.10)'); g.addColorStop(1, 'rgba(255,79,127,0)');
+      g.addColorStop(0, `rgba(255,79,127,${0.10 + warp * 0.06})`); g.addColorStop(1, 'rgba(255,79,127,0)');
       cx.fillStyle = g; cx.fillRect(0, 0, W, H);
+      cx.lineCap = 'round';
       for (const st of stars) {
-        const f = 1 + dp * 0.25 * (0.4 + st.z);
+        const f = 1 + dp * 0.18 * (0.4 + st.z);
         st.x *= f; st.y *= f;
         if (Math.abs(st.x) > W / 2 || Math.abs(st.y) > H / 2 || (Math.abs(st.x) < 2 && Math.abs(st.y) < 2)) {
           st.x = (Math.random() - 0.5) * W * (dp >= 0 ? 0.3 : 1); st.y = (Math.random() - 0.5) * H * (dp >= 0 ? 0.3 : 1);
         }
-        const sz = (0.6 + st.z * 1.6) * dpr;
-        const col = st.z > 0.9 ? `rgba(255,179,200,${0.4 + st.z * 0.6})` : `rgba(255,246,249,${0.25 + st.z * 0.6})`;
-        if (warp > 0.15) {
-          // Viteză mare: dâre de lumină spre centru (efectul de „warp”).
-          const len = warp * (0.25 + st.z) * 0.35;
-          cx.strokeStyle = col; cx.lineWidth = sz * 0.8;
-          cx.beginPath(); cx.moveTo(W / 2 + st.x, H / 2 + st.y); cx.lineTo(W / 2 + st.x * (1 - len), H / 2 + st.y * (1 - len)); cx.stroke();
+        const sz = (0.6 + st.z * 1.4) * dpr;
+        if (warp > 0 && st.z > 0.45) {
+          const len = warp * 0.1 * (0.5 + st.z);
+          const x0 = W / 2 + st.x, y0 = H / 2 + st.y;
+          const gr = cx.createLinearGradient(x0, y0, W / 2 + st.x * (1 - len), H / 2 + st.y * (1 - len));
+          gr.addColorStop(0, `rgba(255,214,226,${0.25 + 0.4 * st.z * warp})`); gr.addColorStop(1, 'rgba(255,214,226,0)');
+          cx.strokeStyle = gr; cx.lineWidth = dpr * (0.6 + st.z * 0.6);
+          cx.beginPath(); cx.moveTo(x0, y0); cx.lineTo(W / 2 + st.x * (1 - len), H / 2 + st.y * (1 - len)); cx.stroke();
         } else {
-          cx.fillStyle = col;
+          cx.fillStyle = st.z > 0.9 ? `rgba(255,179,200,${0.35 + st.z * 0.5})` : `rgba(255,246,249,${0.2 + st.z * 0.5})`;
           cx.fillRect(W / 2 + st.x, H / 2 + st.y, sz, sz);
         }
       }
@@ -199,7 +230,7 @@ export function Tunnel3D({ list, onOpen, onClose }: { list: PhotoView[]; onOpen:
     };
     raf = requestAnimationFrame(frame);
     return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', resize); };
-  }, [entries, slots]);
+  }, [entries, slots, locale]);
 
   const count = list.length;
   return createPortal(
