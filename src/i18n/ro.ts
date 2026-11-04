@@ -3238,6 +3238,15 @@ export const ro = {
   'lx.tunnel.open': "Deschide galeria 3D",
   'lx.engines.heading': "Motoarele AI",
   'lx.engines.summary': "{ready} din {total} pe telefon · atinge pentru detalii",
+  'lx.story.makingLive': "Filmul se face acum, îl vezi în timp ce se face…",
+  'lx.story.replaying': "Îl vezi din nou…",
+  'lx.story.readyHint': "Gata. Îl salvezi în galerie, îl trimiți sau îl mai vezi o dată.",
+  'lx.story.again': "Din nou",
+  'lx.intro.later': "Mai târziu",
+  'lx.intro.perk.taste': "Alege pozele ca tine și învață ce-ți place",
+  'lx.intro.perk.search': "Caută în cuvinte: „copii la mare”, „tort”",
+  'lx.intro.perk.edit': "Gumă, Portret, claritate și decupaj, pe telefon",
+  'lx.intro.perk.film': "Mini-filme și descrieri în română",
 };
 
 export type TranslationKey = keyof typeof ro;

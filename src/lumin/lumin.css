@@ -1464,3 +1464,24 @@ html, body { overflow-x: hidden; }
 .lx-engines-head small { color: var(--text-dim); font-size: 13px; }
 .lx-engines-head i { font-style: normal; color: var(--text-faint); font-size: 14px; }
 .lx-engine-row .lx-pill { min-width: 72px; min-height: 30px; }
+
+/* Filmele de pe Azi: văzute pe ecran cât se fac, apoi salvate sau trimise. */
+.lx-story-preview .lx-enhance-stage { position: relative; display: grid; place-items: center; }
+.lx-story-canvas { height: min(100%, calc(100dvh - 250px - var(--safe-top, 0px) - var(--safe-bottom, 0px))); max-width: 100%; aspect-ratio: 9 / 16; border-radius: 16px; background: #000; box-shadow: 0 20px 60px rgb(0 0 0 / .55); }
+.lx-story-bar { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); width: min(60%, 260px); height: 4px; border-radius: 4px; background: rgb(255 255 255 / .15); overflow: hidden; }
+.lx-story-bar i { display: block; height: 100%; background: var(--lx-grad); transition: width .2s linear; }
+
+/* Fereastra motoarelor AI după instalare, ca o permisiune de sistem. */
+.lx-perm { position: fixed; inset: 0; z-index: 200; display: flex; align-items: flex-end; justify-content: center; background: rgb(0 0 0 / .62); padding: 12px 12px calc(12px + var(--safe-bottom, env(safe-area-inset-bottom, 0px))); animation: lx-fade-in .2s ease-out; }
+.lx-perm-sheet { width: min(100%, 460px); display: flex; flex-direction: column; gap: 10px; padding: 22px 20px 16px; border-radius: 28px; background: var(--surface); border: 1px solid var(--lx-line); box-shadow: 0 30px 80px -20px rgb(0 0 0 / .8); animation: lx-perm-up .32s cubic-bezier(.2,.9,.25,1.1); }
+@keyframes lx-perm-up { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+.lx-perm-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; background: rgb(var(--accent-rgb) / .16); color: var(--accent); font-size: 22px; align-self: center; }
+.lx-perm-sheet > b { font-size: 19px; text-align: center; text-wrap: balance; }
+.lx-perm-sheet > p { margin: 0; color: var(--text-dim); font-size: 14px; line-height: 1.45; text-align: center; }
+.lx-perm-sheet ul { margin: 2px 0 4px; padding: 0; list-style: none; display: grid; gap: 7px; }
+.lx-perm-sheet li { position: relative; padding-left: 22px; font-size: 14px; line-height: 1.35; }
+.lx-perm-sheet li::before { content: "✓"; position: absolute; left: 0; color: var(--pick); font-weight: 700; }
+.lx-perm-actions { display: grid; gap: 8px; }
+.lx-perm-actions .lx-btn { width: 100%; min-height: 48px; }
+.lx-perm-actions .lx-link { justify-self: center; color: var(--text-dim); }
+@media (prefers-reduced-motion: reduce) { .lx-perm, .lx-perm-sheet { animation: none; } }

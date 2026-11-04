@@ -109,8 +109,11 @@ function audioMimeFor(video: string): string | null {
 export async function renderStory(
   input: StoryInput,
   onProgress?: (fraction: number) => void,
-  isCancelled?: () => boolean
+  isCancelled?: () => boolean,
+  /** `canvas`: desenează pe acesta (îl vezi pe ecran cât se face); `record: false`: doar redare, fără fișier. */
+  opts: { canvas?: HTMLCanvasElement; record?: boolean } = {}
 ): Promise<{ blob: Blob; ext: string } | null> {
+  const record = opts.record !== false;
   const plan = planStory(input.ids);
   const mimeType = pickMimeType();
   if (!plan || !mimeType) return null;
@@ -126,7 +129,7 @@ export async function renderStory(
   };
   await Promise.all([ensure(0), ensure(1)]);
 
-  const canvas = document.createElement('canvas');
+  const canvas = opts.canvas ?? document.createElement('canvas');
   canvas.width = STORY_W;
   canvas.height = STORY_H;
   const ctx = canvas.getContext('2d');
@@ -135,18 +138,19 @@ export async function renderStory(
   ctx.imageSmoothingQuality = 'high';
   const total = TITLE_MS + plan.totalMs + OUTRO_MS;
   // Cu muzică, când telefonul poate înregistra și sunet în același fișier.
-  const withAudio = audioMimeFor(mimeType);
+  const withAudio = record ? audioMimeFor(mimeType) : null;
   const music = withAudio ? startStoryMusic(total) : null;
-  const stream = music ? new MediaStream([...canvas.captureStream(plan.fps).getVideoTracks(), music.track]) : canvas.captureStream(plan.fps);
-  const recorder = new MediaRecorder(stream, { mimeType: music ? withAudio! : mimeType, videoBitsPerSecond: 8_000_000 });
+  const stream = record ? (music ? new MediaStream([...canvas.captureStream(plan.fps).getVideoTracks(), music.track]) : canvas.captureStream(plan.fps)) : null;
+  const recorder = stream ? new MediaRecorder(stream, { mimeType: music ? withAudio! : mimeType, videoBitsPerSecond: 8_000_000 }) : null;
   const chunks: Blob[] = [];
-  recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
   const done = new Promise<Blob>((resolve, reject) => {
+    if (!recorder) { resolve(new Blob()); return; }
+    recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
     recorder.onstop = () => resolve(new Blob(chunks, { type: mimeType }));
     recorder.onerror = () => reject(new Error('înregistrarea a eșuat'));
   });
 
-  recorder.start();
+  recorder?.start();
   const started = performance.now();
   await new Promise<void>(resolve => {
     const tick = () => {
@@ -184,9 +188,9 @@ export async function renderStory(
     };
     requestAnimationFrame(tick);
   });
-  recorder.stop();
-  stream.getTracks().forEach(tr => tr.stop());
+  recorder?.stop();
+  stream?.getTracks().forEach(tr => tr.stop());
   music?.stop();
-  if (isCancelled?.()) return null;
+  if (isCancelled?.() || !record) { if (!record && !isCancelled?.()) return { blob: new Blob(), ext: '' }; return null; }
   return { blob: await done, ext: extensionFor(mimeType) };
 }

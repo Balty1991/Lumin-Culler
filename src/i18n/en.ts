@@ -3152,4 +3152,13 @@ export const en: Record<TranslationKey, string> = {
   'lx.tunnel.open': "Open the 3D gallery",
   'lx.engines.heading': "AI engines",
   'lx.engines.summary': "{ready} of {total} on the phone · tap for details",
+  'lx.story.makingLive': "Making the film; you're watching it as it's made…",
+  'lx.story.replaying': "Playing it again…",
+  'lx.story.readyHint': "Done. Save it to your gallery, share it or watch it again.",
+  'lx.story.again': "Again",
+  'lx.intro.later': "Later",
+  'lx.intro.perk.taste': "Picks photos like you and learns your taste",
+  'lx.intro.perk.search': "Search in words: “kids at the beach”, “cake”",
+  'lx.intro.perk.edit': "Eraser, Portrait, clarity and cutouts on the phone",
+  'lx.intro.perk.film': "Mini-films and descriptions in your language",
 };

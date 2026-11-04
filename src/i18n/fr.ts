@@ -1119,4 +1119,13 @@ export const dict: Record<string, string> = {
   'lx.tunnel.open': "Ouvrir la galerie 3D",
   'lx.engines.heading': "Moteurs d'IA",
   'lx.engines.summary': "{ready} sur {total} sur le téléphone · touchez pour les détails",
+  'lx.story.makingLive': "Le film se fait, vous le voyez en direct…",
+  'lx.story.replaying': "Encore une fois…",
+  'lx.story.readyHint': "Terminé. Enregistrez-le dans la galerie, partagez-le ou revoyez-le.",
+  'lx.story.again': "Revoir",
+  'lx.intro.later': "Plus tard",
+  'lx.intro.perk.taste': "Choisit les photos comme vous et apprend vos goûts",
+  'lx.intro.perk.search': "Cherchez avec des mots : « enfants à la mer », « gâteau »",
+  'lx.intro.perk.edit': "Gomme, Portrait, netteté et détourage sur le téléphone",
+  'lx.intro.perk.film': "Mini-films et descriptions en français",
 };
