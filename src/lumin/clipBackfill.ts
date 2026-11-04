@@ -65,6 +65,10 @@ export async function startClipBackfill(anyNetwork = true): Promise<void> {
       }
     }
     setModelsState({ phase: getModelsState().textReady ? 'ready' : getModelsState().phase === 'scanning' ? 'idle' : getModelsState().phase });
+    // O dată, după o trecere mare: omul află că poate căuta în cuvinte.
+    if (todo.length >= 50 && getModelsState().textReady) {
+      useStore.getState().setNotice(t(useStore.getState().locale, 'lx.models.doneNotice', { count: todo.length }));
+    }
   } catch {
     // CLIP e un bonus: dacă ceva nu merge, aplicația rămâne exact ca înainte.
   } finally {

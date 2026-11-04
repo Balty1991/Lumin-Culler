@@ -39,22 +39,36 @@ export function Recaps() {
   const year = new Date(now).getFullYear();
   // „Cele mai frumoase”: ultimele 30 de zile, după frumusețea văzută de AI (CLIP + LAION),
   // cel mult una pe oră (o rafală nu umple colajul cu aceeași scenă).
-  const beauty = useMemo(() => {
-    const best = new Map<number, PhotoView>();
-    for (const p of kept) {
-      if (p.aesthetic === undefined || photoTime(p) < startOfDay(now) - 30 * DAY_MS) continue;
-      const k = Math.floor(photoTime(p) / 3_600_000);
-      const cur = best.get(k);
-      if (!cur || (p.aesthetic ?? 0) > (cur.aesthetic ?? 0)) best.set(k, p);
+  const { beauty, beautyMonth } = useMemo(() => {
+    const pick = (from: number, to: number) => {
+      const best = new Map<number, PhotoView>();
+      for (const p of kept) {
+        const t = photoTime(p);
+        if (p.aesthetic === undefined || t < from || t >= to) continue;
+        const k = Math.floor(t / 3_600_000);
+        const cur = best.get(k);
+        if (!cur || (p.aesthetic ?? 0) > (cur.aesthetic ?? 0)) best.set(k, p);
+      }
+      return [...best.values()].sort((a, b) => (b.aesthetic ?? 0) - (a.aesthetic ?? 0)).slice(0, 10).sort((a, b) => photoTime(a) - photoTime(b));
+    };
+    const recent = pick(startOfDay(now) - 30 * DAY_MS, Infinity);
+    if (recent.length >= 6) return { beauty: recent, beautyMonth: null as number | null };
+    // Luna asta e săracă: cea mai recentă lună din trecut cu destule poze frumoase.
+    const months = [...new Set(kept.filter(p => p.aesthetic !== undefined).map(p => { const d = new Date(photoTime(p)); return new Date(d.getFullYear(), d.getMonth(), 1).getTime(); }))].sort((a, b) => b - a);
+    for (const m of months) {
+      const d = new Date(m);
+      const list = pick(m, new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime());
+      if (list.length >= 6) return { beauty: list, beautyMonth: m };
     }
-    return [...best.values()].sort((a, b) => (b.aesthetic ?? 0) - (a.aesthetic ?? 0)).slice(0, 10).sort((a, b) => photoTime(a) - photoTime(b));
+    return { beauty: recent, beautyMonth: null as number | null };
   }, [kept, now]);
+  const beautyMonthName = beautyMonth !== null ? new Date(beautyMonth).toLocaleDateString(intlTag(locale), { month: 'long', year: 'numeric' }) : '';
   const yearPicks = useMemo(() => bestPer(kept.filter(p => new Date(photoTime(p)).getFullYear() === year), p => new Date(photoTime(p)).getMonth(), 7), [kept, year]);
 
   const share = async (kind: 'week' | 'year' | 'beauty', list: PhotoView[]) => {
     setBusy(kind);
     try {
-      const title = tr(kind === 'week' ? 'lx.recap.week.title' : kind === 'beauty' ? 'lx.recap.beauty.title' : 'lx.recap.year.title', { count: list.length, year });
+      const title = tr(kind === 'week' ? 'lx.recap.week.title' : kind === 'beauty' ? (beautyMonthName ? 'lx.recap.beautyMonth.title' : 'lx.recap.beauty.title') : 'lx.recap.year.title', { count: list.length, year, month: beautyMonthName });
       const range = kind !== 'year'
         ? `${new Date(photoTime(list[0])).toLocaleDateString(intlTag(locale), { day: 'numeric', month: 'short' })} – ${new Date(photoTime(list[list.length - 1])).toLocaleDateString(intlTag(locale), { day: 'numeric', month: 'short' })}`
         : tr('lx.recap.year.sub', { count: kept.filter(p => new Date(photoTime(p)).getFullYear() === year).length });
@@ -118,7 +132,7 @@ export function Recaps() {
             {c.list.slice(0, 5).map((p, i) => <span key={p.id} style={{ ['--i' as string]: i }}><Thumb id={p.id} lqip={p.lqip} edits={p.edits} /></span>)}
           </div>
           <div className="lx-recap-text">
-            <b>{tr(c.kind === 'week' ? 'lx.recap.week.title' : c.kind === 'beauty' ? 'lx.recap.beauty.title' : 'lx.recap.year.title', { count: c.list.length, year })}</b>
+            <b>{tr(c.kind === 'week' ? 'lx.recap.week.title' : c.kind === 'beauty' ? (beautyMonthName ? 'lx.recap.beautyMonth.title' : 'lx.recap.beauty.title') : 'lx.recap.year.title', { count: c.list.length, year, month: beautyMonthName })}</b>
             <span>{tr(c.kind === 'week' ? 'lx.recap.week.sub' : c.kind === 'beauty' ? 'lx.recap.beauty.sub' : 'lx.recap.year.cta')}</span>
           </div>
           <div className="lx-recap-actions">

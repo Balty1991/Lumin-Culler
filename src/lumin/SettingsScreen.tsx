@@ -7,7 +7,6 @@ import { buildErrorReport, readErrorLog } from '../core/errorLog';
 import { countLessons } from './trainingGate';
 import { cloudEnabled } from './cloud';
 import { readerStopped } from './galleryReader';
-import { CloudSection } from './CloudParts';
 import { PrivatePhotosRow } from './PrivatePhotos';
 import { AutoArchiveRow } from './ArchiveView';
 import { AutonomyPicker } from './TwinParts';
@@ -137,7 +136,6 @@ export function SettingsScreen() {
         <AutonomyPicker />
       </section>
 
-      <CloudSection />
       <BackgroundWork />
 
       {isNativeNotificationsAvailable() && (
