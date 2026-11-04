@@ -3031,4 +3031,6 @@ export const en: Record<TranslationKey, string> = {
   'lx.search.visual': '+ {count} by what is in the photos',
   'lx.magic.tapHint': 'Tap an object to select it, or paint over it',
   'lx.magic.tapPreparing': 'preparing selection…',
+  'lx.tool.portrait.title': 'Portrait',
+  'lx.tool.portrait.button': 'Portrait',
 };

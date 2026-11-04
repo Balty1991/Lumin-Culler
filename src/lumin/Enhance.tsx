@@ -11,6 +11,7 @@ import { frameCrop } from './instaCrop';
 import { saveEditedBlob } from './saveEdited';
 import { useTr } from './context';
 import { AiRetouch, type ToolKind } from './AiRetouch';
+import { portraitAvailable } from '../core/portraitEdit';
 import { MagicSheet } from './MagicSheet';
 import { lowLightOnDevice, onDeviceEditAvailable } from '../core/onDeviceEdit';
 import { analysisPool } from '../core/workerPool';
@@ -727,6 +728,7 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
               <button className="lx-tool-btn" onClick={() => setErasing(true)}><span aria-hidden="true">🧽</span>{tr('lx.magic.erase')}</button>
               {tools.clarity && <button className="lx-tool-btn" onClick={() => setRetouch('clarity')}><span aria-hidden="true">🔍</span>{tr('lx.tool.clarity.button')}</button>}
               {tools.cutout && <button className="lx-tool-btn" onClick={() => setRetouch('cutout')}><span aria-hidden="true">✂️</span>{tr('lx.tool.cutout.button')}</button>}
+              {portraitAvailable() && <button className="lx-tool-btn" onClick={() => setRetouch('portrait')}><span aria-hidden="true">🎯</span>{tr('lx.tool.portrait.button')}</button>}
             </div>
             </>)}
           </>

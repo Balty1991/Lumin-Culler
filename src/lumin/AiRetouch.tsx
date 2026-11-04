@@ -8,13 +8,14 @@ import { saveEditedBlob } from './saveEdited';
 import { canSharpen, sharpUrl } from './sharp';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
 import { clarityOnDevice, cutoutOnDevice } from '../core/onDeviceEdit';
+import { portraitOnDevice } from '../core/portraitEdit';
 
 /**
  * lumin/AiRetouch.tsx
  * „Retuș AI”: editarea complexă (lumină, culoare, cer, ten) făcută de un model
  * generativ pe server. Ții apăsat pe poză ca să vezi originalul; salvezi o copie.
  */
-export type ToolKind = 'retouch' | 'clarity' | 'cutout';
+export type ToolKind = 'retouch' | 'clarity' | 'cutout' | 'portrait';
 
 export function AiRetouch({ photo, onClose, kind = 'retouch' }: { photo: PhotoView; onClose: () => void; kind?: ToolKind }) {
   const tr = useTr();
@@ -32,7 +33,7 @@ export function AiRetouch({ photo, onClose, kind = 'retouch' }: { photo: PhotoVi
         // Pe telefon, gratuit: claritate (Real-ESRGAN) sau decupaj pe fundal alb (U²-Net).
         const url = (canSharpen() ? await sharpUrl(photo.id, kind === 'clarity' ? 1024 : 1600).catch(() => null) : null) ?? await getCachedPreviewUrl(photo.id);
         const src = url ? await fetch(url).then(x => x.blob()).catch(() => null) : null;
-        const out = src ? await (kind === 'clarity' ? clarityOnDevice(src) : cutoutOnDevice(src, 'white')) : null;
+        const out = src ? await (kind === 'clarity' ? clarityOnDevice(src) : kind === 'portrait' ? portraitOnDevice(src) : cutoutOnDevice(src, 'white')) : null;
         if (!alive) return;
         if (out) { setBlob(out); setUrl(URL.createObjectURL(out)); setState('done'); return; }
         setWhy(tr('lx.aiRetouch.err.failed')); setState('error'); return;

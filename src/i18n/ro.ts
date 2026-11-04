@@ -3117,6 +3117,8 @@ export const ro = {
   'lx.search.visual': '+ {count} după ce se vede în poze',
   'lx.magic.tapHint': 'Atinge obiectul ca să-l selectezi, sau colorează cu degetul',
   'lx.magic.tapPreparing': 'pregătesc selecția…',
+  'lx.tool.portrait.title': 'Portret',
+  'lx.tool.portrait.button': 'Portret',
 };
 
 export type TranslationKey = keyof typeof ro;

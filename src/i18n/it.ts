@@ -998,4 +998,6 @@ export const dict: Record<string, string> = {
   'lx.search.visual': '+ {count} in base a ciò che si vede nelle foto',
   'lx.magic.tapHint': 'Tocca un oggetto per selezionarlo, o coloralo col dito',
   'lx.magic.tapPreparing': 'preparo la selezione…',
+  'lx.tool.portrait.title': 'Ritratto',
+  'lx.tool.portrait.button': 'Ritratto',
 };
