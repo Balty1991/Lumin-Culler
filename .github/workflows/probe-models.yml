@@ -8,7 +8,44 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          for r in sentence-transformers/clip-ViT-B-32-multilingual-v1 Xenova/clip-ViT-B-32-multilingual-v1 M-CLIP/XLM-Roberta-Large-Vit-B-32 Xenova/clip-vit-base-patch32 onnx-community/clip-ViT-B-32-multilingual-v1 Xenova/LaMa-ONNX Carve/LaMa-ONNX Xenova/slimsam-77-uniform onnx-community/depth-anything-v2-small Xenova/modnet onnx-community/BiRefNet_lite briaai/RMBG-2.0 Xenova/mobilesam onnx-community/Florence-2-base-ft HuggingFaceTB/SmolVLM-256M-Instruct onnx-community/sam2.1-hiera-tiny-ONNX; do
-            echo "=== $r"; curl -fsSL "https://huggingface.co/api/models/$r/tree/main?recursive=1" | python3 -c "import sys,json; d=json.load(sys.stdin); [print(' ',x['path'],x.get('size')) for x in d if x['type']=='file' and (x['path'].endswith(('.onnx','.onnx_data','.json','.txt')) ) and (x.get('size') or 0)<2e9]" 2>&1 | head -40 || echo "  N/A"
-            curl -fsSL "https://huggingface.co/api/models/$r" | python3 -c "import sys,json; d=json.load(sys.stdin); print('  license', [t for t in d.get('tags',[]) if t.startswith('license')])" 2>/dev/null || true
-          done
+          pip install -q torch --index-url https://download.pytorch.org/whl/cpu 2>&1 | tail -1
+          pip install -q onnxruntime numpy pillow sentence-transformers 2>&1 | tail -1
+          R=https://huggingface.co/sentence-transformers/clip-ViT-B-32-multilingual-v1/resolve/main
+          curl -fsSL -o mtext.onnx "$R/onnx/model_qint8_arm64.onnx"; curl -fsSL -o vocab.txt "$R/vocab.txt"
+          curl -fsSL "$R/tokenizer_config.json"; echo; curl -fsSL "$R/2_Dense/config.json"; echo; curl -fsSL "$R/1_Pooling/config.json"; echo; curl -fsSL "$R/modules.json"; echo
+          curl -fsSL -o vision.onnx https://huggingface.co/Xenova/clip-vit-base-patch32/resolve/main/onnx/vision_model_quantized.onnx
+          for i in 000000039769 000000000285 000000000872 000000000139; do curl -fsSL -o "$i.jpg" "http://images.cocodataset.org/val2017/$i.jpg"; done
+          python - <<'PY'
+          import onnxruntime as ort, numpy as np, json, base64
+          from sentence_transformers import SentenceTransformer
+          from PIL import Image
+          st=SentenceTransformer('sentence-transformers/clip-ViT-B-32-multilingual-v1')
+          print(st)
+          s=ort.InferenceSession('mtext.onnx'); print([(i.name,i.shape,i.type) for i in s.get_inputs()],[(o.name,o.shape) for o in s.get_outputs()])
+          tok=st.tokenizer
+          Q=['două pisici pe canapea','un urs în natură','copii jucând baseball','sufragerie cu televizor','câine pe plajă la apus']
+          ref=st.encode(Q,normalize_embeddings=False)
+          dense=st[2]; W=dense.linear.weight.detach().numpy(); B=None if dense.linear.bias is None else dense.linear.bias.detach().numpy(); print('dense',W.shape, 'bias', None if B is None else B.shape, dense.activation_function)
+          for q in Q[:2]: print(q, tok.tokenize(q), tok(q)['input_ids'])
+          T=[]
+          for q,r in zip(Q,ref):
+              enc=tok(q,return_tensors='np')
+              feeds={i.name:enc[i.name].astype(np.int64) for i in s.get_inputs() if i.name in enc}
+              out=s.run(None,feeds)
+              names=[o.name for o in s.get_outputs()]
+              h=out[0][0]; m=enc['attention_mask'][0][:,None]; pooled=(h*m).sum(0)/m.sum()
+              e=W@pooled + (0 if B is None else B)
+              print(q, names, 'cos vs ST', float(e@r/np.linalg.norm(e)/np.linalg.norm(r)))
+              T.append(e/np.linalg.norm(e))
+          T=np.stack(T)
+          v=ort.InferenceSession('vision.onnx')
+          mean=np.array([0.48145466,0.4578275,0.40821073]); std=np.array([0.26862954,0.26130258,0.27577711])
+          for f in ['000000039769.jpg','000000000285.jpg','000000000872.jpg','000000000139.jpg']:
+              im=Image.open(f).convert('RGB'); W0,H0=im.size; sc=224/min(W0,H0); im=im.resize((max(224,round(W0*sc)),max(224,round(H0*sc))),Image.BICUBIC); W0,H0=im.size; l=(W0-224)//2; t=(H0-224)//2; im=im.crop((l,t,l+224,t+224))
+              x=((np.asarray(im,np.float32)/255-mean)/std).transpose(2,0,1)[None].astype(np.float32)
+              e=v.run(None,{'pixel_values':x})[0][0]; e=e/np.linalg.norm(e)
+              print(f, [ (q, round(float(c),3)) for q,c in zip(Q,T@e)])
+          blob={'w':base64.b64encode(W.astype(np.float16).tobytes()).decode(),'shape':list(W.shape)}
+          js=json.dumps(blob); print('LEN',len(js))
+          for i in range(0,len(js),3000): print('CHUNK%04d %s'%(i//3000, js[i:i+3000]))
+          PY
