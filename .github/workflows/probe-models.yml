@@ -19,11 +19,11 @@ jobs:
           from PIL import Image
           from transformers import CLIPModel, CLIPProcessor
           LABELS = {
-            'dog':['a dog'], 'cat':['a cat'], 'bird':['a bird'], 'horse':['a horse'],
+            'dog':['a dog'], 'cat':['a cat'], 'bird':['a bird'], 'horse':['a horse'], 'bear':['a bear in the wild'], 'cow':['a cow'], 'sheep':['sheep'], 'duck':['a duck'], 'fish':['a fish'], 'elephant':['an elephant'],
             'teddy bear':['a teddy bear','a plush toy'], 'toy':['toys'],
             'baby':['a baby'], 'child':['a young child','kids playing'],
             'selfie':['a selfie'], 'group photo':['a group of people posing for a photo'],
-            '-person':['a person','people'],
+            '-person':['a person','people','a man','a woman','a person holding a phone'],
             'sunset':['a sunset','a colorful sunset sky'], 'beach':['a beach'], 'sea':['the sea'],
             'mountain':['mountains'], 'snow':['snow','a snowy landscape'], 'forest':['a forest'],
             'flower':['flowers'], 'garden':['a garden'], 'city':['a city street','buildings in a city'],
