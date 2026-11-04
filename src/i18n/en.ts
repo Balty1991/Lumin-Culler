@@ -2508,7 +2508,7 @@ export const en: Record<TranslationKey, string> = {
   "lx.why.subject": "it's the kind of photo you often keep",
   "lx.why.and": " and ",
   "lx.why.fallbackKeep": "it looks good",
-  "lx.why.fallbackDrop": "you have a better one from the same moment",
+  "lx.why.fallbackDrop": "it doesn't stand out among the photos you keep",
   "lx.reason.blurry.why": "it's blurry",
   "lx.reason.bright.why": "it's too bright",
   "lx.reason.dark.why": "it's too dark",

@@ -661,7 +661,16 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
     } finally { setBestBusy(false); }
   };
   // Doar pozele pe care AI-ul nu le-ar păstra: „mai e una aproape la fel” — și o poți vedea.
-  const twin = useStore(s => (p.status === 'selected' ? null : betterTwin(p, s.photos)));
+  // „Vezi poza mai reușită”: cea mai bună din aceeași serie, și când diferența e mică
+  // (raportat: textul spunea că există una mai bună, dar n-o arăta).
+  const twin = useStore(s => {
+    if (p.status === 'selected') return null;
+    const clear = betterTwin(p, s.photos);
+    if (clear || !p.groupId) return clear;
+    let best: PhotoView | null = null;
+    for (const q of s.photos) if (q.id !== p.id && q.groupId === p.groupId && !q.aside && (!best || q.aiScore > best.aiScore)) best = q;
+    return best && best.aiScore >= p.aiScore ? best : null;
+  });
   const start = useRef<{ x: number; y: number; dx: number; dy: number } | null>(null);
   const [dir, setDir] = useState<'next' | 'prev' | null>(null);
 

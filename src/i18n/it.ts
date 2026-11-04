@@ -473,7 +473,7 @@ export const dict: Record<string, string> = {
   "lx.why.subject": "è il tipo di foto che tieni spesso",
   "lx.why.and": " e ",
   "lx.why.fallbackKeep": "è bella",
-  "lx.why.fallbackDrop": "ne hai una migliore dello stesso momento",
+  "lx.why.fallbackDrop": "non spicca tra le foto che tieni",
   "lx.reason.blurry.why": "è mossa",
   "lx.reason.bright.why": "è troppo chiara",
   "lx.reason.dark.why": "è troppo scura",

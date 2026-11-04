@@ -2594,7 +2594,7 @@ export const ro = {
   "lx.why.subject": "e genul de poză pe care o păstrezi des",
   "lx.why.and": " și ",
   "lx.why.fallbackKeep": "arată bine",
-  "lx.why.fallbackDrop": "ai una mai bună din același moment",
+  "lx.why.fallbackDrop": "nu iese în evidență printre pozele pe care le păstrezi",
   "lx.reason.blurry.why": "e mișcată",
   "lx.reason.bright.why": "e prea luminoasă",
   "lx.reason.dark.why": "e prea întunecată",

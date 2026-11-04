@@ -10,6 +10,7 @@ import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.WebViewListener;
 import com.luminculler.app.plugins.StageOnePlugin;
 import com.luminculler.app.plugins.EditModelsPlugin;
+import com.luminculler.app.plugins.TranslatePlugin;
 import com.luminculler.app.plugins.ImageAnalysisPlugin;
 import com.luminculler.app.plugins.FaceEmbedPlugin;
 import com.luminculler.app.plugins.ClipPlugin;
@@ -180,7 +181,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(FlorencePlugin.class);
         registerPlugin(EmotionPlugin.class);
         registerPlugin(RifePlugin.class);
-        registerPlugin(com.luminculler.app.plugins.TranslatePlugin.class);
+        registerPlugin(TranslatePlugin.class);
         registerPlugin(SharpImagePlugin.class);
         registerPlugin(FolderExportPlugin.class);
         registerPlugin(MediaLibraryPlugin.class);
