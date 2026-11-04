@@ -4,7 +4,7 @@ import { db } from '../core/db';
 import { overcastSkyShare, computeAutoAdjustments, computeAutoStraighten, drawAdjusted, NEUTRAL_ADJUSTMENTS, outputSize, subjectFromFaces, type EditAdjustments } from '../core/imageAdjust';
 import { measureFrame, mergeRecipe, recipeFromStats, type LookIssue, type LookFace } from '../core/autoLook';
 import { getCachedPreviewUrl, getDisplayUrl } from '../core/previewUrlCache';
-import { canSharpen, sharpUrl } from './sharp';
+import { canSharpen, peekSharpUrl, SCREEN_SIZE, sharpUrl } from './sharp';
 import { isNativeSegmentationAvailable, segmentPersonMask } from '../core/nativeSegmentation';
 import { useStore, type PhotoView } from '../state/store';
 import { frameCrop } from './instaCrop';
@@ -163,22 +163,53 @@ function meanLumOf(img: HTMLImageElement): number {
   } catch { return 0.5; }
 }
 
+/**
+ * Poza din care pornește editorul, la claritate de ecran. Raportat: „după ce intru în
+ * editor pozele își pierd claritatea”: când copia clară de 1600 px nu ieșea din prima,
+ * editorul cădea direct pe preview, care pe telefon e adesea miniatura de 256 px.
+ * Acum încearcă pe rând: copia de 1600 (de două ori), cea de ecran deja făcută pentru
+ * vizualizator, fișierul din galerie; miniatura rămâne doar ultima rezervă.
+ */
+async function editorSource(photoId: string, load: (u: string) => Promise<HTMLImageElement>): Promise<{ url: string; img: HTMLImageElement } | null> {
+  const big = (img: HTMLImageElement) => Math.max(img.naturalWidth, img.naturalHeight) >= 900;
+  const tries: Array<() => Promise<string | null>> = canSharpen()
+    ? [
+        () => sharpUrl(photoId, 1600),
+        () => sharpUrl(photoId, 1600),
+        () => Promise.resolve(peekSharpUrl(photoId, SCREEN_SIZE)),
+        () => sharpUrl(photoId, SCREEN_SIZE),
+        () => getDisplayUrl(photoId)
+      ]
+    : [() => getDisplayUrl(photoId)];
+  let fallback: { url: string; img: HTMLImageElement } | null = null;
+  for (const get of tries) {
+    const url = await get().catch(() => null);
+    if (!url) continue;
+    const img = await load(url).catch(() => null);
+    if (!img || img.naturalWidth === 0) continue;
+    if (big(img)) return { url, img };
+    fallback ??= { url, img };
+  }
+  if (fallback) return fallback;
+  const last = await getCachedPreviewUrl(photoId);
+  if (!last) return null;
+  const img = await load(last).catch(() => null);
+  return img ? { url: last, img } : null;
+}
+
 export async function autoEnhance(photoId: string): Promise<{ url: string; original: string; lit?: boolean; edits: EditAdjustments; tilt: number; width: number; height: number; faces: { box: [number, number, number, number] }[]; scenes: Scene[]; issues: LookIssue[] }> {
   // Pe telefon: poza clară făcută de Android (originalul direct ieșea negru pe unele telefoane).
-  const source = canSharpen()
-    ? sharpUrl(photoId, 1600).then(u => u ?? getCachedPreviewUrl(photoId))
-    : getDisplayUrl(photoId);
-  const [first, a] = await Promise.all([source, db.analyses.get(photoId)]);
-  if (!first) throw new Error('fără imagine');
   const load = (u: string) => new Promise<HTMLImageElement>((resolve, reject) => {
     const el = new Image();
     el.onload = () => resolve(el);
     el.onerror = () => reject(new Error('imaginea nu s-a încărcat'));
     el.src = u;
   });
-  let url = first;
-  const original = first;
-  let img = await load(url);
+  const [picked, a] = await Promise.all([editorSource(photoId, load), db.analyses.get(photoId)]);
+  if (!picked) throw new Error('fără imagine');
+  let url = picked.url;
+  const original = picked.url;
+  let img = picked.img;
   // Poza întunecată: întâi lumina învățată (Zero-DCE, pe telefon), apoi restul corecturii.
   let lit = false;
   const dark = meanLumOf(img);
