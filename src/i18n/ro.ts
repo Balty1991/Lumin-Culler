@@ -3115,6 +3115,8 @@ export const ro = {
   'insightsPref.clipQuality.pos': 'nu iartă pozele mișcate sau întunecate',
   'insightsPref.clipQuality.neg': 'păstrează și poze imperfecte, dacă momentul contează',
   'lx.search.visual': '+ {count} după ce se vede în poze',
+  'lx.magic.tapHint': 'Atinge obiectul ca să-l selectezi, sau colorează cu degetul',
+  'lx.magic.tapPreparing': 'pregătesc selecția…',
 };
 
 export type TranslationKey = keyof typeof ro;

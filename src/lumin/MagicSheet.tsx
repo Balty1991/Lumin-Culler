@@ -6,6 +6,7 @@ import { getDisplayUrl } from '../core/previewUrlCache';
 import { useStore, type PhotoView } from '../state/store';
 import { cloudAvailable, cloudInpaint, ensureCloud, type InpaintMode } from './cloud';
 import { eraseOnDevice, onDeviceEditAvailable } from '../core/onDeviceEdit';
+import { samAvailable, samPrepare, samSelect } from '../core/samSelect';
 import { shareCollage } from './collage';
 import { saveEditedBlob } from './saveEdited';
 import { useTr } from './context';
@@ -60,6 +61,36 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
   const view = useRef<HTMLCanvasElement>(null);
   const mask = useRef<HTMLCanvasElement | null>(null);
   const drawing = useRef(false);
+  /** „Atinge obiectul” (SlimSAM): pregătit o dată per poză, apoi fiecare atingere selectează. */
+  const [sam, setSam] = useState<'off' | 'busy' | 'ready'>(samAvailable() ? 'busy' : 'off');
+  const down = useRef<{ x: number; y: number; t: number } | null>(null);
+  useEffect(() => {
+    if (!img || !samAvailable()) return;
+    let alive = true;
+    setSam('busy');
+    void samPrepare(img).then(ok => { if (alive) setSam(ok ? 'ready' : 'off'); });
+    return () => { alive = false; };
+  }, [img]);
+
+  /** Atingere scurtă, fără tras: selectează tot obiectul de sub deget și îl adaugă la mască. */
+  const tapSelect = async (e: PointerEvent<HTMLCanvasElement>) => {
+    if (!img || !mask.current || result) return;
+    const box = e.currentTarget.getBoundingClientRect();
+    const sel = await samSelect((e.clientX - box.left) / box.width, (e.clientY - box.top) / box.height);
+    if (!sel || !mask.current) return;
+    const [tint, tctx] = canvasOf(img.width, img.height);
+    // Puțin mai largă decât obiectul: guma are nevoie de margine ca să nu lase contur.
+    const r = Math.max(2, Math.round(Math.max(img.width, img.height) * 0.008));
+    for (const [dx, dy] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r], [r, r], [-r, -r], [r, -r], [-r, r]]) {
+      tctx.drawImage(sel, dx, dy, img.width, img.height);
+    }
+    tctx.globalCompositeOperation = 'source-in';
+    tctx.fillStyle = 'rgb(255,60,90)';
+    tctx.fillRect(0, 0, img.width, img.height);
+    mask.current.getContext('2d')!.drawImage(tint, 0, 0);
+    setPainted(true);
+    redraw();
+  };
 
   useEffect(() => {
     let alive = true;
@@ -231,15 +262,21 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
         {failed && <p className="lx-empty">{tr('lx.enhance.failed')}</p>}
         {img && (
           <canvas ref={view} className="lx-magic-canvas"
-            onPointerDown={e => { drawing.current = true; e.currentTarget.setPointerCapture(e.pointerId); paint(e); }}
-            onPointerMove={paint} onPointerUp={() => { drawing.current = false; }} onPointerCancel={() => { drawing.current = false; }} />
+            onPointerDown={e => { drawing.current = true; down.current = { x: e.clientX, y: e.clientY, t: performance.now() }; e.currentTarget.setPointerCapture(e.pointerId); paint(e); }}
+            onPointerMove={paint}
+            onPointerUp={e => {
+              drawing.current = false;
+              const d = down.current; down.current = null;
+              if (sam === 'ready' && d && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 10 && performance.now() - d.t < 350) void tapSelect(e);
+            }}
+            onPointerCancel={() => { drawing.current = false; down.current = null; }} />
         )}
         {busy && <div className="lx-magic-busy"><span className="lx-spinner" />{tr('lx.magic.working')}</div>}
       </div>
       <div className="lx-viewer-info">
         {!result ? (
           <>
-            <p className="lx-hint center">{tr('lx.magic.eraseHint')}</p>
+            <p className="lx-hint center">{tr(sam === 'ready' ? 'lx.magic.tapHint' : 'lx.magic.eraseHint')}{sam === 'busy' && <> · {tr('lx.magic.tapPreparing')}</>}</p>
             <div className="lx-decide-actions">
               <button className="lx-btn ghost" disabled={!painted || busy} onClick={() => { clearMask(); redraw(); }}>{tr('lx.magic.clear')}</button>
               <button className="lx-btn primary" disabled={!painted || busy} onClick={() => void run('erase')}>{tr('lx.magic.eraseGo')}</button>

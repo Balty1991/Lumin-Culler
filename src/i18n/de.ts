@@ -996,4 +996,6 @@ export const dict: Record<string, string> = {
   "lx.person.ageY": "{name} mit {years} Jahren",
   "lx.sell.button": "Zum Verkaufen",
   'lx.search.visual': '+ {count} nach dem, was auf den Fotos ist',
+  'lx.magic.tapHint': 'Tippe auf ein Objekt, um es auszuwählen, oder male darüber',
+  'lx.magic.tapPreparing': 'Auswahl wird vorbereitet…',
 };

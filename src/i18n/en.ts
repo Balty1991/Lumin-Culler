@@ -3029,4 +3029,6 @@ export const en: Record<TranslationKey, string> = {
   'insightsPref.clipQuality.pos': 'no mercy for blurry or dark shots',
   'insightsPref.clipQuality.neg': 'keeps imperfect shots when the moment matters',
   'lx.search.visual': '+ {count} by what is in the photos',
+  'lx.magic.tapHint': 'Tap an object to select it, or paint over it',
+  'lx.magic.tapPreparing': 'preparing selection…',
 };
