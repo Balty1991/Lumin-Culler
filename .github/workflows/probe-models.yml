@@ -1,0 +1,50 @@
+name: Probe web models
+on:
+  push:
+    branches: [claude/fix-serii]
+    paths: ['.github/workflows/probe-models.yml']
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          pip install -q onnxruntime numpy tokenizers 2>&1 | tail -1
+          for m in en-ro en-de en-it en-es en-fr; do
+            echo "== $m"
+            curl -fsSL "https://huggingface.co/api/models/Xenova/opus-mt-$m" | python -c "import sys,json;d=json.load(sys.stdin);print(d.get('cardData',{}).get('license'), [s['rfilename'] for s in d['siblings']])"
+          done
+          B=https://huggingface.co/Xenova/opus-mt-en-ro/resolve/main
+          for f in onnx/encoder_model_quantized.onnx onnx/decoder_model_quantized.onnx tokenizer.json config.json generation_config.json; do curl -fsSL -o $(basename $f) $B/$f; done
+          ls -la
+          python - <<'PY'
+          import json, onnxruntime as ort, numpy as np
+          from tokenizers import Tokenizer
+          cfg=json.load(open('config.json')); print({k:cfg.get(k) for k in ['decoder_start_token_id','eos_token_id','pad_token_id','vocab_size','bad_words_ids','max_length']})
+          tj=json.load(open('tokenizer.json')); print('model', tj['model']['type'], 'norm', json.dumps(tj.get('normalizer'))[:300], 'pre', json.dumps(tj.get('pre_tokenizer'))[:300], 'post', json.dumps(tj.get('post_processor'))[:300], 'dec', json.dumps(tj.get('decoder'))[:300])
+          print('unk', tj['model'].get('unk_id'), 'vocab0', tj['model']['vocab'][:5], len(tj['model']['vocab']))
+          print('added', tj.get('added_tokens')[:5])
+          e=ort.InferenceSession('encoder_model_quantized.onnx'); d=ort.InferenceSession('decoder_model_quantized.onnx')
+          print('enc', [(i.name,i.shape) for i in e.get_inputs()], [(o.name,o.shape) for o in e.get_outputs()])
+          print('dec', [(i.name,i.shape) for i in d.get_inputs()], [(o.name,o.shape) for o in d.get_outputs()][:2])
+          tok=Tokenizer.from_file('tokenizer.json')
+          for text in ['a little girl in a pink jacket standing in a puddle', 'A group of children sitting at a table with a birthday cake.']:
+            ids=tok.encode(text).ids; print(text, ids)
+            ii=np.array([ids],np.int64); am=np.ones_like(ii)
+            h=e.run(None,{'input_ids':ii,'attention_mask':am})[0]
+            out=[cfg['decoder_start_token_id']]
+            for _ in range(40):
+              feeds={'input_ids':np.array([out],np.int64),'encoder_hidden_states':h}
+              if 'encoder_attention_mask' in [i.name for i in d.get_inputs()]: feeds['encoder_attention_mask']=am
+              lg=d.run(None,feeds)[0][0,-1]
+              lg[cfg['pad_token_id']]=-1e9
+              n=int(lg.argmax()); out.append(n)
+              if n==cfg['eos_token_id']: break
+            print(out, tok.decode(out, skip_special_tokens=True))
+          PY
+          echo "== RIFE onnx on HF"
+          curl -fsSL "https://huggingface.co/api/models?search=rife&full=true&limit=60" | python -c "
+          import sys,json
+          for m in json.load(sys.stdin):
+            fs=[s['rfilename'] for s in m.get('siblings',[]) if s['rfilename'].endswith('.onnx')]
+            if fs: print(m['id'], (m.get('cardData') or {}).get('license'), [t for t in m.get('tags',[]) if t.startswith('license')], fs[:4])
+          "
