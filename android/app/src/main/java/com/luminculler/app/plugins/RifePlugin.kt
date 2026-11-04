@@ -22,7 +22,7 @@ import kotlin.math.roundToInt
 // găzduită n-are licență scrisă; de refăcut din greutățile originale MIT.
 private const val RIFE_URL = "https://huggingface.co/yuvraj108c/rife-onnx/resolve/main/rife49_ensemble_True_scale_1_sim.onnx"
 private const val RIFE_FILE = "rife49.onnx"
-private const val RIFE_MAX = 768
+private const val RIFE_MAX = 576
 
 /**
  * „Mini-film din serie”: cadre intermediare între două poze din aceeași rafală,

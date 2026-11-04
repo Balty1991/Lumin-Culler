@@ -621,18 +621,19 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
   }, [id, groupIds]);
   const burstIds = useStore(s => (p.groupId ? s.photos.filter(x => x.groupId === p.groupId).sort((a, b) => (a.capturedAt ?? 0) - (b.capturedAt ?? 0)).map(x => x.id).slice(0, 6).join(',') : ''));
   const [filmBusy, setFilmBusy] = useState(false);
+  const [filmPct, setFilmPct] = useState(0);
   const makeFilm = async () => {
     setFilmBusy(true);
     try {
       useStore.getState().setNotice(tr('lx.burstFilm.working'));
-      const r = await makeBurstFilm(burstIds.split(','));
+      const r = await makeBurstFilm(burstIds.split(','), f => setFilmPct(f));
       if (r) await shareCollage(r.blob, `cherrypic-miscare-${Date.now()}.${r.ext}`, '');
       else useStore.getState().setNotice(tr('lx.burstFilm.noPhotos'));
     } catch (e) {
       // Motorul (RIFE) nu s-a descărcat sau n-a rulat: spunem asta, nu „telefonul nu poate”.
       console.warn('burst film', e);
       useStore.getState().setNotice(tr('lx.burstFilm.engineFailed'));
-    } finally { setFilmBusy(false); }
+    } finally { setFilmBusy(false); setFilmPct(0); }
   };
   const makeBestTake = async () => {
     setBestBusy(true);
@@ -868,7 +869,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
         {more && (
           <div className="lx-more-grid">
             {bestFix.length > 0 && <button disabled={bestBusy} onClick={() => void makeBestTake()}><span><Icon name="sparkle" /></span>{tr('lx.bestTake.button')}</button>}
-            {burstFilmAvailable() && burstIds.split(',').length >= 2 && <button disabled={filmBusy} onClick={() => void makeFilm()}><span><Icon name="film" /></span>{filmBusy ? '…' : tr('lx.burstFilm.button')}</button>}
+            {burstFilmAvailable() && burstIds.split(',').length >= 2 && <button disabled={filmBusy} className={filmBusy ? 'lx-busy-btn' : undefined} style={filmBusy ? { ['--pct' as string]: `${Math.round(filmPct * 100)}%` } : undefined} onClick={() => void makeFilm()}><span><Icon name="film" /></span>{filmBusy ? `${tr('lx.burstFilm.button')} · ${Math.round(filmPct * 100)}%` : tr('lx.burstFilm.button')}</button>}
             {onSimilar && <button onClick={() => onSimilar(p.id)}><span><Icon name="similar" /></span>{tr('lx.viewer.similarShort')}</button>}
             <button onClick={() => setInsta(true)}><span><Icon name="square" /></span>{tr('lx.insta.button')}</button>
             {canSell && <button onClick={() => setSelling(true)}><span><Icon name="tag" /></span>{tr('lx.sell.button')}</button>}

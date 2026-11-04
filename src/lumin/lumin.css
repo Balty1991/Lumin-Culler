@@ -1360,3 +1360,7 @@ html, body { overflow-x: hidden; }
 
 /* Motoare: fiecare se poate descărca separat, dintr-o atingere. */
 .lx-pill-btn { cursor: pointer; font: inherit; font-weight: 600; color: var(--accent-text, var(--accent)); border-color: rgb(var(--accent-rgb) / .45); background: rgb(var(--accent-rgb) / .1); min-height: 36px; padding: 0 14px; }
+/* Buton care lucrează: se umple de la stânga la dreapta, ca o bară de progres. */
+.lx-busy-btn { position: relative; overflow: hidden; opacity: 1 !important; }
+.lx-busy-btn::before { content: ''; position: absolute; inset: 0; width: var(--pct, 0%); background: rgb(var(--accent-rgb) / .22); transition: width .3s; pointer-events: none; }
+.lx-busy-btn > * { position: relative; }
