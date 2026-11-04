@@ -58,7 +58,7 @@
   transition: transform 0.18s var(--lx-spring), background 0.2s, box-shadow 0.2s;
 }
 .lx-btn:active:not(:disabled) { transform: scale(0.97); }
-.lx-btn.primary { background: var(--lx-grad); color: #06070a; box-shadow: 0 10px 30px -10px rgb(var(--accent-rgb) / 0.6); }
+.lx-btn.primary { background: var(--lx-grad); color: #1a0d14; box-shadow: 0 8px 22px -12px rgb(var(--accent-rgb) / 0.35); }
 .lx-btn.ghost { background: transparent; border-color: var(--line-strong); }
 .lx-btn.small { height: 38px; padding: 0 14px; font-size: 13px; border-radius: 12px; }
 .lx-btn.wide { width: 100%; }
@@ -219,7 +219,7 @@ body.lx-viewer-open .lx-dock-scrim { visibility: hidden; }
 .lx-dock-add {
   justify-self: center; width: 56px; height: 56px; border-radius: 18px; border: none; margin-top: -26px;
   background: var(--lx-grad); color: #06070a; font-size: 30px; font-weight: 300; line-height: 1;
-  box-shadow: 0 14px 30px -10px rgb(var(--accent-rgb) / 0.7); transition: transform 0.2s var(--lx-spring);
+  box-shadow: 0 10px 24px -12px rgb(var(--accent-rgb) / 0.4); transition: transform 0.2s var(--lx-spring);
 }
 .lx-dock-add:active { transform: scale(0.92) rotate(90deg); }
 
@@ -1214,3 +1214,27 @@ html, body { overflow-x: hidden; }
 
 /* Un singur buton de ștergere în căutare (cel nativ al browserului se dubla cu al nostru). */
 .lx input[type=search]::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; display: none; }
+
+/* ───────── Tema luminoasă: editorul, vizualizarea pozei și compararea urmează tema
+   (raportat: „pe luminos, fundal negru la editare”, iar data de sus abia se vedea). */
+:root[data-theme="light"] .lx-enhance,
+:root[data-theme="light"] .lx-twin-compare,
+:root[data-theme="light"] .lx.lx-viewer { background: var(--bg); color: var(--text); }
+:root[data-theme="light"] .lx-viewer-top { color: var(--text); }
+:root[data-theme="light"] .lx-viewer-top * { color: inherit; }
+:root[data-theme="light"] .lx-viewer .lx-icon-btn,
+:root[data-theme="light"] .lx-enhance .lx-icon-btn { background: var(--surface); color: var(--text); border-color: var(--line); }
+:root[data-theme="light"] .lx-viewer-info,
+:root[data-theme="light"] .lx-enhance .lx-viewer-info { background: var(--surface); border-color: var(--line); color: var(--text); box-shadow: var(--shadow-sm); }
+:root[data-theme="light"] .lx-why { color: var(--text); }
+:root[data-theme="light"] .lx-tbtn,
+:root[data-theme="light"] .lx-more-grid button,
+:root[data-theme="light"] .lx-dbtn { color: var(--text); background: var(--surface-2); border-color: var(--line); }
+:root[data-theme="light"] .lx-tbtn.on { background: var(--surface-3); border-color: var(--line-strong); }
+:root[data-theme="light"] .lx-enhance-amount b,
+:root[data-theme="light"] .lx-enhance-tabs button.on { color: var(--text); }
+:root[data-theme="light"] .lx-enhance-wait .lx-spinner { border-color: rgb(0 0 0 / .12); border-top-color: var(--text); }
+:root[data-theme="light"] .lx-text-input { background: var(--surface-2); color: var(--text); border-color: var(--line); }
+:root[data-theme="light"] .lx-viewer-arrow { background: color-mix(in srgb, var(--surface) 80%, transparent); color: var(--text); border-color: var(--line); }
+:root[data-theme="light"] .lx-viewer-info .lx-chip.info { color: var(--text-dim); border-color: var(--line-strong); }
+:root[data-theme="light"] .lx-enhance-tag { background: rgb(10 10 16 / .55); color: #fff; }

@@ -17,7 +17,10 @@ import { readAutonomy } from './twin';
  * Verdictele sigure rezolvă singure pozele nesigure (după autonomia aleasă,
  * fără să fie lecții de gust), iar descrierile intră în căutare.
  */
-const URL_BASE = (import.meta.env.VITE_LUMI_CLOUD_URL as string | undefined)?.replace(/\/$/, '') ?? '';
+// Serverul (Lumi Cloud) e oprit în aplicație: totul rulează pe telefon, fără costuri
+// oricâți utilizatori ar fi și fără date trimise în afara telefonului (cerut).
+// Codul rămâne, dar fără adresă nu se face niciun apel.
+const URL_BASE = '';
 const ENABLED_KEY = 'lumin-cloud';
 const VERDICTS_KEY = 'lumin-cloud-verdicts';
 const INSTALL_KEY = 'lumin-install-id';

@@ -139,7 +139,7 @@ jobs:
             fi
           fi
           echo "Lumi Cloud: ${url:-(oprit)}"
-          echo "VITE_LUMI_CLOUD_URL=$url" >> "$GITHUB_ENV"
+          # Serverul e oprit în aplicație (totul pe telefon); adresa nu se mai transmite.
       - run: VITE_ANDROID_APK=1 npm run build
       # Runtime-ul ONNX pentru web (14 MB) nu intră în APK: acolo modelele rulează nativ.
       - run: rm -f dist/assets/ort-wasm-*.wasm && du -sh dist

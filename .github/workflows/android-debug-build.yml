@@ -118,7 +118,7 @@ jobs:
             fi
           fi
           echo "Lumi Cloud: ${url:-(oprit)}"
-          echo "VITE_LUMI_CLOUD_URL=$url" >> "$GITHUB_ENV"
+          # Serverul e oprit în aplicație (totul pe telefon); adresa nu se mai transmite.
       - name: Build web
         # dev_mode (doar la declansare manuala) seteaza VITE_NATIVE_TEST_BUTTON=true,
         # NU modul de build — ramane un build NORMAL de productie (`vite build`,

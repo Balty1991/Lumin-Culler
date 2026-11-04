@@ -62,7 +62,8 @@
   --atelier-teal: #ff5482;
   --atelier-violet: #a98bff;
 
-  --brand-grad: linear-gradient(120deg, #ff4f7b 0%, #ff7fa6 45%, #a98bff 100%);
+  /* Mai estompat (cerut: „sare prea mult în ochi”): aceleași nuanțe, mai puțin saturate. */
+  --brand-grad: linear-gradient(120deg, #e57a94 0%, #eea0b6 50%, #b3a3ec 100%);
   --orb-hi: #ffe3ec;
   --orb-1: #ff5482;
   --orb-2: #e0457a;
@@ -104,7 +105,7 @@
   --atelier-muted: #5e4a63;
   --atelier-teal: #d6194d;
   --atelier-violet: #6a4fe0;
-  --brand-grad: linear-gradient(120deg, #e8245a 0%, #ff6f98 45%, #8a6cff 100%);
+  --brand-grad: linear-gradient(120deg, #d9637f 0%, #eb9ab1 50%, #a796e6 100%);
 }
 
 /* Tema luminoasă: fundal curat, fără pete de culoare, carduri albe opace
