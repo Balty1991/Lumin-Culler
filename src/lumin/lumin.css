@@ -1301,3 +1301,6 @@ html, body { overflow-x: hidden; }
 .lx-more-grid button span, .lx-viewer-decide .lx-dbtn span { display: inline-grid; place-items: center; }
 :root[data-theme="light"] .lx-viewer-info .lx-viewer-tools2 { background: rgb(255 255 255 / .8); border-color: rgb(40 20 50 / .1); }
 :root[data-theme="light"] .lx-screen > .lx-seg.scroll button.on { background: #1d1424; color: #fff; }
+
+.lx-say { display: flex; gap: 8px; margin: 4px 0 6px; }
+.lx-say input { flex: 1; min-width: 0; height: 44px; padding: 0 14px; border-radius: 14px; border: 1px solid var(--lx-line); background: var(--surface-2); color: var(--text); font: inherit; }

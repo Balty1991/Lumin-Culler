@@ -3060,4 +3060,8 @@ export const en: Record<TranslationKey, string> = {
   'lx.hero.weekBest': "Best of the week",
   'lx.hero.count': "{count} photos",
   'lx.hero.open': "See photos",
+  "lx.bulk.sayPlaceholder": "Say what to clean: “screenshots older than a month”",
+  "lx.bulk.sayGo": "Show",
+  "lx.bulk.sayNo": "I didn’t get which photos. Try: screenshots, blurry, dark, documents.",
+  "lx.bulk.kind.dark": "Dark",
 };

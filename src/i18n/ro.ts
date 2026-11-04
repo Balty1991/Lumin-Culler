@@ -3146,6 +3146,10 @@ export const ro = {
   'lx.hero.weekBest': "Cele mai frumoase ale săptămânii",
   'lx.hero.count': "{count} poze",
   'lx.hero.open': "Vezi pozele",
+  "lx.bulk.sayPlaceholder": "Spune ce să curăț: „capturile mai vechi de o lună”",
+  "lx.bulk.sayGo": "Arată",
+  "lx.bulk.sayNo": "N-am înțeles ce fel de poze. Încearcă: capturi, mișcate, întunecate, documente.",
+  "lx.bulk.kind.dark": "Întunecate",
 };
 
 export type TranslationKey = keyof typeof ro;

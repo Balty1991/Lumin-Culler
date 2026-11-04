@@ -1027,4 +1027,8 @@ export const dict: Record<string, string> = {
   'lx.hero.weekBest': "Das Schönste der Woche",
   'lx.hero.count': "{count} Fotos",
   'lx.hero.open': "Fotos ansehen",
+  "lx.bulk.sayPlaceholder": "Sag, was weg soll: „Screenshots älter als ein Monat“",
+  "lx.bulk.sayGo": "Zeigen",
+  "lx.bulk.sayNo": "Nicht verstanden. Versuch: Screenshots, unscharf, dunkel, Dokumente.",
+  "lx.bulk.kind.dark": "Dunkel",
 };
