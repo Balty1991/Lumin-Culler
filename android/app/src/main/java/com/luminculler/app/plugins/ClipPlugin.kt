@@ -148,6 +148,33 @@ class ClipPlugin : Plugin() {
         }
     }
 
+    /** Ce modele sunt deja pe telefon: { files: { nume: octeți } } (toate .onnx și .json din spațiul aplicației). */
+    @PluginMethod
+    fun files(call: PluginCall) {
+        val out = JSObject()
+        val map = JSObject()
+        context.filesDir.listFiles()?.forEach { f -> if (f.isFile && (f.name.endsWith(".onnx") || f.name.endsWith(".json") || f.name.endsWith(".txt"))) map.put(f.name, f.length()) }
+        out.put("files", map)
+        call.resolve(out)
+    }
+
+    /**
+     * Descarcă un model oarecare (motoarele din Setări → „Descarcă tot”), cu progres.
+     * Doar de la Hugging Face și doar nume simple de fișier, ca să nu poată scrie altundeva.
+     */
+    @PluginMethod
+    fun fetchModel(call: PluginCall) {
+        val url = call.getString("url") ?: ""
+        val name = call.getString("file") ?: ""
+        val min = (call.getDouble("min") ?: 1_000_000.0).toLong()
+        if (!url.startsWith("https://huggingface.co/") || !Regex("^[a-z0-9_.-]+$").matches(name)) { call.reject("model nepermis"); return }
+        executor.ruleaza(call, "Descărcarea a eșuat") {
+            val dest = File(context.filesDir, name)
+            if (dest.length() <= min) download(url, dest, min, name)
+            val o = JSObject(); o.put("ok", dest.length() > min); call.resolve(o)
+        }
+    }
+
     /** Descarcă modelul de text (căutarea în cuvinte, în orice limbă). Implicit doar pe Wi-Fi. */
     @PluginMethod
     fun prepareText(call: PluginCall) {

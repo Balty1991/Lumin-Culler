@@ -18,6 +18,7 @@ import { haptic, hapticsOn, setHapticsOn } from '../core/device';
 import { requestNotificationAccess, isNativeNotificationsAvailable } from '../core/nativeNotifications';
 import { useLx } from './lxStore';
 import { refreshModels, useModelsState } from './aiModels';
+import { ENGINES, downloadAllEngines, engineReady, refreshEngines, useEngines } from './engines';
 import { useTr } from './context';
 import { useEffect, useState } from 'react';
 import { openBatterySettings, readBatteryRestriction, type BatteryRestriction } from '../core/backgroundAnalysis';
@@ -384,6 +385,44 @@ function AiModelsSection() {
       {!all && m.phase !== 'downloading' && m.phase !== 'scanning' && (
         <button className="lx-btn primary" onClick={() => void start()}>{tr('lx.models.download')}</button>
       )}
+      <EnginesList />
     </section>
+  );
+}
+
+/** Toate motoarele, fiecare cu starea lui, și „Descarcă tot”. */
+function EnginesList() {
+  const tr = useTr();
+  const st = useEngines();
+  const askConfirm = useStore(x => x.askConfirm);
+  useEffect(() => { void refreshEngines(); }, []);
+  const missing = ENGINES.filter(e => !engineReady(e, st.have));
+  const mb = missing.reduce((a, e) => a + e.mb, 0);
+  const go = async () => {
+    if (!(await askConfirm(tr('lx.engines.confirm', { mb }), { confirmLabel: tr('lx.models.download') }))) return;
+    void downloadAllEngines();
+  };
+  return (
+    <div className="lx-engines">
+      {ENGINES.map(e => {
+        const ok = engineReady(e, st.have);
+        const now = st.busy === e.id;
+        return (
+          <div key={e.id} className="lx-engine-row">
+            <span className="lx-engine-name">
+              <b>{tr(`lx.engines.${e.id}`)}</b>
+              <small>{tr(`lx.engines.${e.id}.sub`)} · {e.mb} MB</small>
+            </span>
+            <span className={ok ? 'lx-pill ok' : now ? 'lx-pill warm' : 'lx-pill'}>
+              {ok ? '✓' : now ? `${Math.round(st.progress * 100)}%` : tr('lx.engines.later')}
+            </span>
+          </div>
+        );
+      })}
+      {missing.length > 0 && !st.busy && (
+        <button className="lx-btn ghost" onClick={() => void go()}>{tr('lx.engines.all', { mb })}</button>
+      )}
+      {st.error && <p className="lx-hint">{tr('lx.models.error')}</p>}
+    </div>
   );
 }

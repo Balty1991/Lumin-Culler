@@ -1,0 +1,86 @@
+/**
+ * lumin/engines.ts
+ * Lista tuturor motoarelor AI descărcabile, cu fișierele lor (aceleași nume pe
+ * care le caută pluginurile native), ca Setări să arate ce e pe telefon și să
+ * le poată descărca pe toate dintr-o atingere. Raportat: „nu mi-a apărut să
+ * descarc nimic” — motoarele noi veneau în tăcere, la prima folosire.
+ */
+import { useSyncExternalStore } from 'react';
+import { ClipNative, isClipPlatform } from '../core/clip/clipEngine';
+
+const HF = 'https://huggingface.co';
+const FL = `${HF}/onnx-community/Florence-2-base-ft/resolve/main`;
+
+export interface EngineFile { file: string; url: string; min: number }
+export interface Engine { id: string; mb: number; files: EngineFile[] }
+
+export const ENGINES: Engine[] = [
+  { id: 'clip', mb: 89, files: [{ file: 'clip_vit_b32_vision_q.onnx', url: `${HF}/Xenova/clip-vit-base-patch32/resolve/main/onnx/vision_model_quantized.onnx`, min: 80e6 }] },
+  { id: 'search', mb: 136, files: [
+    { file: 'clip_multilingual_vocab.txt', url: `${HF}/sentence-transformers/clip-ViT-B-32-multilingual-v1/resolve/main/vocab.txt`, min: 5e5 },
+    { file: 'clip_multilingual_text_q.onnx', url: `${HF}/sentence-transformers/clip-ViT-B-32-multilingual-v1/resolve/main/onnx/model_qint8_arm64.onnx`, min: 120e6 }] },
+  { id: 'describe', mb: 275, files: [
+    { file: 'florence_tokenizer.json', url: `${FL}/tokenizer.json`, min: 1e6 },
+    ...['vision_encoder_int8', 'embed_tokens_int8', 'encoder_model_int8', 'decoder_model_int8'].map((n, i) => ({ file: `florence_${n}.onnx`, url: `${FL}/onnx/${n}.onnx`, min: [80e6, 30e6, 35e6, 80e6][i] }))] },
+  { id: 'joy', mb: 35, files: [{ file: 'emotion_ferplus8.onnx', url: `${HF}/onnxmodelzoo/emotion-ferplus-8/resolve/main/emotion-ferplus-8.onnx`, min: 30e6 }] },
+  { id: 'select', mb: 14, files: [
+    { file: 'slimsam_encoder_q.onnx', url: `${HF}/Xenova/slimsam-77-uniform/resolve/main/onnx/vision_encoder_quantized.onnx`, min: 8e6 },
+    { file: 'slimsam_decoder_q.onnx', url: `${HF}/Xenova/slimsam-77-uniform/resolve/main/onnx/prompt_encoder_mask_decoder_quantized.onnx`, min: 4e6 }] },
+  { id: 'portrait', mb: 34, files: [
+    { file: 'modnet_q.onnx', url: `${HF}/Xenova/modnet/resolve/main/onnx/model_quantized.onnx`, min: 5e6 },
+    { file: 'depth_anything_v2_small_q.onnx', url: `${HF}/onnx-community/depth-anything-v2-small/resolve/main/onnx/model_quantized.onnx`, min: 20e6 }] },
+  { id: 'eraserHd', mb: 208, files: [{ file: 'lama_fp32.onnx', url: `${HF}/Carve/LaMa-ONNX/resolve/main/lama_fp32.onnx`, min: 200e6 }] },
+  { id: 'film', mb: 21, files: [{ file: 'rife49.onnx', url: `${HF}/yuvraj108c/rife-onnx/resolve/main/rife49_ensemble_True_scale_1_sim.onnx`, min: 18e6 }] }
+];
+
+interface Api {
+  files(): Promise<{ files: Record<string, number> }>;
+  fetchModel(o: { url: string; file: string; min: number }): Promise<{ ok: boolean }>;
+  addListener(e: 'progress', f: (ev: { what: string; loaded: number; total: number }) => void): Promise<unknown>;
+}
+const Native = ClipNative as unknown as Api;
+
+export interface EnginesState { have: Record<string, number>; busy: string | null; progress: number; error: string | null }
+let state: EnginesState = { have: {}, busy: null, progress: 0, error: null };
+const subs = new Set<() => void>();
+const set = (p: Partial<EnginesState>) => { state = { ...state, ...p }; subs.forEach(f => f()); };
+export const useEngines = () => useSyncExternalStore(cb => { subs.add(cb); return () => subs.delete(cb); }, () => state);
+
+export function engineReady(e: Engine, have = state.have): boolean {
+  return e.files.every(f => (have[f.file] ?? 0) > f.min);
+}
+
+let listening = false;
+export async function refreshEngines(): Promise<void> {
+  if (!isClipPlatform()) return;
+  if (!listening) {
+    listening = true;
+    void Native.addListener('progress', ev => {
+      if (!state.busy) return;
+      const eng = ENGINES.find(e => e.id === state.busy);
+      const f = eng?.files.find(x => x.file === ev.what);
+      if (f) set({ progress: Math.min(1, ev.loaded / (ev.total > 0 ? ev.total : f.min)) });
+    }).catch(() => undefined);
+  }
+  try { set({ have: (await Native.files()).files }); } catch { /* rămâne */ }
+}
+
+/** Descarcă pe rând tot ce lipsește. */
+export async function downloadAllEngines(): Promise<void> {
+  if (!isClipPlatform() || state.busy) return;
+  set({ error: null });
+  for (const e of ENGINES) {
+    if (engineReady(e)) continue;
+    set({ busy: e.id, progress: 0 });
+    try {
+      for (const f of e.files) {
+        if ((state.have[f.file] ?? 0) > f.min) continue;
+        await Native.fetchModel(f);
+      }
+    } catch (err) {
+      set({ error: e.id });
+    }
+    await refreshEngines();
+  }
+  set({ busy: null, progress: 0 });
+}

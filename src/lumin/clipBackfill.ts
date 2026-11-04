@@ -103,6 +103,9 @@ export function watchImportsForClip(): void {
 async function deepPass(bgText: (d: number) => string): Promise<void> {
   const rows = await db.analyses.filter(a => (a.joy === undefined && a.faces.length > 0) || (!a.aiDescription && a.clipEmbedding !== undefined)).toArray();
   if (!rows.length) return;
+  // Vizibil în Setări și ținut viu în fundal, ca trecerea CLIP.
+  setModelsState({ phase: 'scanning', scanned: 0, toScan: rows.length });
+  if (!holding) { await holdBackgroundAnalysis(rows.length, bgText(0)); holding = true; }
   const kept = new Set(useStore.getState().photos.filter(p => p.status === 'selected').map(p => p.id));
   const florence = rows.some(a => !a.aiDescription && kept.has(a.photoId)) ? await prepareFlorence() : false;
   let done = 0;
@@ -130,8 +133,9 @@ async function deepPass(bgText: (d: number) => string): Promise<void> {
       useStore.setState(st => ({ photos: st.photos.map(p => (p.id === a.photoId ? { ...p, aiScore: next.aiScore, sceneTags: next.sceneTags, aiDescription: next.aiDescription } : p)) }));
     }
     done++;
-    if (done % 10 === 0) void updateHeldBackground(done, rows.length, bgText(done));
+    if (done % 10 === 0) { void updateHeldBackground(done, rows.length, bgText(done)); setModelsState({ scanned: done }); }
     await sleep(PAUSE_MS);
   }
   if (florence) await closeFlorence();
+  setModelsState({ phase: getModelsState().textReady ? 'ready' : 'idle', scanned: rows.length });
 }
