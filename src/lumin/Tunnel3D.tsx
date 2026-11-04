@@ -26,7 +26,7 @@ export function Tunnel3D({ list, onOpen, onClose }: { list: PhotoView[]; onOpen:
   const tr = useTr();
   const locale = useStore(s => s.locale);
   const [slots, setSlots] = useState(36);
-  useEffect(() => { void weakDevice().then(w => setSlots(w ? 22 : 36)); }, []);
+  useEffect(() => { void weakDevice().then(w => setSlots(w ? 20 : 30)); }, []);
 
   // Pozele, de la cea mai nouă spre trecut, cu o plăcuță la fiecare lună nouă.
   const entries = useMemo<Entry[]>(() => {
@@ -161,7 +161,8 @@ export function Tunnel3D({ list, onOpen, onClose }: { list: PhotoView[]; onOpen:
           el.style.transform = `translate3d(calc(-50% + ${Math.cos(a) * r}px), calc(-50% + ${Math.sin(a) * r * 0.72}px), ${z}px)`;
         }
         el.style.opacity = String(o);
-        el.style.zIndex = String(1000 - Math.round(rel * 10));
+        // Fără z-index pe cadru: în 3D ordinea o dă adâncimea; schimbat la fiecare
+        // cadru, se bătea cu ea și pozele pâlpâiau (raportat).
         el.style.pointerEvents = o > 0.6 ? 'auto' : 'none';
         el.style.visibility = o < 0.01 ? 'hidden' : 'visible';
       });
@@ -218,7 +219,7 @@ export function Tunnel3D({ list, onOpen, onClose }: { list: PhotoView[]; onOpen:
             return (
               <div key={base + s} ref={el => { slotEls.current[s] = el; }} className={e?.kind === 'month' ? 'lx-tunnel-month' : e?.kind === 'year' ? 'lx-tunnel-month lx-tunnel-year' : 'lx-tunnel-card'}
                 data-photo-index={e?.kind === 'photo' ? e.index : undefined} style={{ opacity: 0 }}>
-                {e?.kind === 'photo' && <Thumb id={e.photo.id} lqip={e.photo.lqip} edits={e.photo.edits} />}
+                {e?.kind === 'photo' && <Thumb id={e.photo.id} lqip={e.photo.lqip} edits={e.photo.edits} sharp={384} />}
                 {(e?.kind === 'month' || e?.kind === 'year') && <span>{e.label}</span>}
               </div>
             );

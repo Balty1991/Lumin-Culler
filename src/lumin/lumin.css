@@ -1512,3 +1512,8 @@ button.lx-tunnel-now:active { background: rgb(255 255 255 / .06); }
 .lx-tidy-photo:active { transform: scale(.97); }
 .lx-tidy-badge { position: absolute; top: 6px; right: 6px; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--lx-grad); color: var(--on-grad, #1a0510); }
 .lx-tidy-skip { align-self: flex-start; font-size: 13px; color: var(--text-dim); min-height: 32px !important; }
+
+/* Tunelul fără pâlpâire: fără straturi grafice forțate pe fiecare poză (WebView-ul le
+   arunca și le redesena când erau prea multe), fără ascunderea spatelui. */
+.lx-tunnel-card, .lx-tunnel-month { will-change: auto !important; backface-visibility: visible !important; -webkit-backface-visibility: visible !important; }
+.lx-tunnel-card img { transition: none !important; animation: none !important; }
