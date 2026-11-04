@@ -12,10 +12,14 @@ import { contextEngine } from '../core/learning/ContextEngine';
 import { clipAnalyze, prepareClip, refineTags, isClipPlatform } from '../core/clip/clipEngine';
 import { downloadModels, getModelsState, setModelsState } from './aiModels';
 import { useStore } from '../state/store';
+import { holdBackgroundAnalysis, releaseBackgroundAnalysis, updateHeldBackground } from '../core/backgroundAnalysis';
+import { t } from '../i18n';
 
 const BATCH = 12;
 const PAUSE_MS = 40;
 let running = false;
+/** Raportat: „în fundal nu face analiza”. Notificarea ține aplicația activă și când ieși din ea. */
+let holding = false;
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
@@ -28,6 +32,8 @@ export async function startClipBackfill(anyNetwork = false): Promise<void> {
     if (!getModelsState().visionReady && !(await prepareClip(anyNetwork))) return;
     const todo = await db.analyses.filter(a => a.clipEmbedding === undefined).primaryKeys();
     setModelsState({ phase: 'scanning', scanned: 0, toScan: todo.length });
+    const bgText = (d: number) => t(useStore.getState().locale, 'lx.models.scanning', { done: d, total: todo.length });
+    if (todo.length > 0) { await holdBackgroundAnalysis(todo.length, bgText(0)); holding = true; }
     for (let i = 0; i < todo.length; i += BATCH) {
       const changed = new Map<string, { sceneTags?: string[]; aiScore: number; aesthetic: number }>();
       for (const id of todo.slice(i, i + BATCH)) {
@@ -48,6 +54,7 @@ export async function startClipBackfill(anyNetwork = false): Promise<void> {
         await sleep(PAUSE_MS);
       }
       setModelsState({ scanned: Math.min(todo.length, i + BATCH) });
+      void updateHeldBackground(Math.min(todo.length, i + BATCH), todo.length, bgText(Math.min(todo.length, i + BATCH)));
       if (changed.size) {
         useStore.setState(s => ({
           photos: s.photos.map(p => {
@@ -61,6 +68,7 @@ export async function startClipBackfill(anyNetwork = false): Promise<void> {
   } catch {
     // CLIP e un bonus: dacă ceva nu merge, aplicația rămâne exact ca înainte.
   } finally {
+    if (holding) { holding = false; void releaseBackgroundAnalysis(); }
     running = false;
   }
 }

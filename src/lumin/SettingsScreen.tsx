@@ -383,7 +383,7 @@ function AiModelsSection() {
           <i style={{ width: `${m.phase === 'scanning' ? (m.scanned / Math.max(1, m.toScan)) * 100 : pct}%` }} />
         </div>
       )}
-      {!all && m.phase !== 'downloading' && (
+      {!all && m.phase !== 'downloading' && m.phase !== 'scanning' && (
         <button className="lx-btn primary" onClick={() => void start()}>{tr('lx.models.download')}</button>
       )}
     </section>
