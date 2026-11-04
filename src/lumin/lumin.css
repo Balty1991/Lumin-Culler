@@ -1517,3 +1517,10 @@ button.lx-tunnel-now:active { background: rgb(255 255 255 / .06); }
    arunca și le redesena când erau prea multe), fără ascunderea spatelui. */
 .lx-tunnel-card, .lx-tunnel-month { will-change: auto !important; backface-visibility: visible !important; -webkit-backface-visibility: visible !important; }
 .lx-tunnel-card img { transition: none !important; animation: none !important; }
+
+/* Pornirea: logo-ul rămâne pe loc (aceeași poziție ca în index.html), fără animația de intrare. */
+.boot-splash.still { z-index: 50; }
+.boot-splash .boot-logo { box-shadow: 0 24px 60px -20px rgb(255 79 127 / 0.45) !important; }
+.lx-dock[hidden] { display: none !important; }
+/* Poza zilei: din miniatura neclară în cea clară, lin, nu dintr-odată. */
+.lx-hero-media img { transition: filter .35s ease; }

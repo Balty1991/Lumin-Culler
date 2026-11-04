@@ -385,7 +385,9 @@ export function LuminApp() {
     <LxActionsContext.Provider value={actions}>
       <div className="lx" data-tab={tab}>
         {!booted ? (
-          <div className="lx-loading"><Orb mood="think" size={96} /></div>
+          // Același logo ca înainte de JavaScript (index.html), pe loc: pornirea nu mai
+          // trece prin negru și prin cercul de încărcare (raportat: pâlpâiri la deschidere).
+          <div className="boot-splash still"><img className="boot-logo" src="./icon-512.png" alt="" aria-hidden="true" width="132" height="132" /></div>
         ) : (
           <main className="lx-main">
             {/* Ecranele vizitate rămân montate, ascunse: schimbarea din meniu nu le mai
@@ -413,7 +415,7 @@ export function LuminApp() {
         {/* Sub bara de jos: fundal plin până la marginea ecranului, ca pozele și titlurile
             să nu se mai vadă prin bara sistemului (raportat: „Octombrie” apărea acolo). */}
         <div className="lx-dock-scrim" aria-hidden="true" />
-        <nav className="lx-dock" aria-label={tr('lx.nav.label')}>
+        <nav className="lx-dock" aria-label={tr('lx.nav.label')} hidden={!booted}>
           {TABS.slice(0, 2).map(x => (
             <button key={x.id} className={tab === x.id ? 'on' : ''} onClick={() => setTab(x.id)} aria-current={tab === x.id ? 'page' : undefined}>
               <TabIcon name={x.icon} /><span>{tr(x.label)}</span>
@@ -447,7 +449,8 @@ export function LuminApp() {
             e.target.value = '';
           }} />
 
-        <FirstRun onPickManually={actions.pick} />
+        {/* Doar după ce s-au citit setările și pozele: altfel ecranul de început apărea o clipă. */}
+        {booted && <FirstRun onPickManually={actions.pick} />}
         <TasteQuiz />
         {premiumOpen && <Suspense fallback={null}><PremiumPanel /></Suspense>}
         <UndoBar />
