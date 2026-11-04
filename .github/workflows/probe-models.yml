@@ -8,44 +8,37 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          pip install -q torch --index-url https://download.pytorch.org/whl/cpu 2>&1 | tail -1
-          pip install -q onnxruntime numpy pillow sentence-transformers 2>&1 | tail -1
-          R=https://huggingface.co/sentence-transformers/clip-ViT-B-32-multilingual-v1/resolve/main
-          curl -fsSL -o mtext.onnx "$R/onnx/model_qint8_arm64.onnx"; curl -fsSL -o vocab.txt "$R/vocab.txt"
-          curl -fsSL "$R/tokenizer_config.json"; echo; curl -fsSL "$R/2_Dense/config.json"; echo; curl -fsSL "$R/1_Pooling/config.json"; echo; curl -fsSL "$R/modules.json"; echo
-          curl -fsSL -o vision.onnx https://huggingface.co/Xenova/clip-vit-base-patch32/resolve/main/onnx/vision_model_quantized.onnx
-          for i in 000000039769 000000000285 000000000872 000000000139; do curl -fsSL -o "$i.jpg" "http://images.cocodataset.org/val2017/$i.jpg"; done
+          pip install -q onnxruntime numpy pillow 2>&1 | tail -1
+          R=https://huggingface.co/Xenova/slimsam-77-uniform/resolve/main
+          curl -fsSL -o enc.onnx "$R/onnx/vision_encoder_quantized.onnx"; curl -fsSL -o dec.onnx "$R/onnx/prompt_encoder_mask_decoder_quantized.onnx"; curl -fsSL "$R/preprocessor_config.json"; echo
+          D=https://huggingface.co/onnx-community/depth-anything-v2-small/resolve/main
+          curl -fsSL -o depth.onnx "$D/onnx/model_quantized.onnx"; curl -fsSL "$D/preprocessor_config.json"; echo
+          M=https://huggingface.co/Xenova/modnet/resolve/main
+          curl -fsSL -o modnet.onnx "$M/onnx/model_quantized.onnx"; curl -fsSL "$M/preprocessor_config.json"; echo
+          curl -fsSL -o bear.jpg http://images.cocodataset.org/val2017/000000000285.jpg
+          curl -fsSL -o ppl.jpg http://images.cocodataset.org/val2017/000000000785.jpg
           python - <<'PY'
-          import onnxruntime as ort, numpy as np, json, base64
-          from sentence_transformers import SentenceTransformer
+          import onnxruntime as ort, numpy as np, time
           from PIL import Image
-          st=SentenceTransformer('sentence-transformers/clip-ViT-B-32-multilingual-v1')
-          print(st)
-          s=ort.InferenceSession('mtext.onnx'); print([(i.name,i.shape,i.type) for i in s.get_inputs()],[(o.name,o.shape) for o in s.get_outputs()])
-          tok=st.tokenizer
-          Q=['două pisici pe canapea','un urs în natură','copii jucând baseball','sufragerie cu televizor','câine pe plajă la apus']
-          ref=st.encode(Q,normalize_embeddings=False)
-          dense=st[2]; W=dense.linear.weight.detach().numpy(); B=None if dense.linear.bias is None else dense.linear.bias.detach().numpy(); print('dense',W.shape, 'bias', None if B is None else B.shape, dense.activation_function)
-          for q in Q[:2]: print(q, tok.tokenize(q), tok(q)['input_ids'])
-          T=[]
-          for q,r in zip(Q,ref):
-              enc=tok(q,return_tensors='np')
-              feeds={i.name:enc[i.name].astype(np.int64) for i in s.get_inputs() if i.name in enc}
-              out=s.run(None,feeds)
-              names=[o.name for o in s.get_outputs()]
-              h=out[0][0]; m=enc['attention_mask'][0][:,None]; pooled=(h*m).sum(0)/m.sum()
-              e=W@pooled + (0 if B is None else B)
-              print(q, names, 'cos vs ST', float(e@r/np.linalg.norm(e)/np.linalg.norm(r)))
-              T.append(e/np.linalg.norm(e))
-          T=np.stack(T)
-          v=ort.InferenceSession('vision.onnx')
-          mean=np.array([0.48145466,0.4578275,0.40821073]); std=np.array([0.26862954,0.26130258,0.27577711])
-          for f in ['000000039769.jpg','000000000285.jpg','000000000872.jpg','000000000139.jpg']:
-              im=Image.open(f).convert('RGB'); W0,H0=im.size; sc=224/min(W0,H0); im=im.resize((max(224,round(W0*sc)),max(224,round(H0*sc))),Image.BICUBIC); W0,H0=im.size; l=(W0-224)//2; t=(H0-224)//2; im=im.crop((l,t,l+224,t+224))
-              x=((np.asarray(im,np.float32)/255-mean)/std).transpose(2,0,1)[None].astype(np.float32)
-              e=v.run(None,{'pixel_values':x})[0][0]; e=e/np.linalg.norm(e)
-              print(f, [ (q, round(float(c),3)) for q,c in zip(Q,T@e)])
-          blob={'w':base64.b64encode(W.astype(np.float16).tobytes()).decode(),'shape':list(W.shape)}
-          js=json.dumps(blob); print('LEN',len(js))
-          for i in range(0,len(js),3000): print('CHUNK%04d %s'%(i//3000, js[i:i+3000]))
+          def io(s): return [(i.name,i.shape,i.type) for i in s.get_inputs()],[(o.name,o.shape) for o in s.get_outputs()]
+          e=ort.InferenceSession('enc.onnx'); d=ort.InferenceSession('dec.onnx'); print('ENC',io(e)); print('DEC',io(d))
+          im=Image.open('bear.jpg').convert('RGB'); W,H=im.size; sc=1024/max(W,H); nw,nh=round(W*sc),round(H*sc)
+          a=np.asarray(im.resize((nw,nh),Image.BILINEAR),np.float32)/255
+          a=(a-np.array([0.485,0.456,0.406]))/np.array([0.229,0.224,0.225]); pad=np.zeros((1024,1024,3),np.float32); pad[:nh,:nw]=a
+          x=pad.transpose(2,0,1)[None].astype(np.float32); t=time.time(); eo=e.run(None,{e.get_inputs()[0].name:x}); print('enc ms',(time.time()-t)*1000,[o.shape for o in eo])
+          feeds={}
+          names=[o.name for o in e.get_outputs()]
+          for i in d.get_inputs():
+              if i.name in names: feeds[i.name]=eo[names.index(i.name)]
+          feeds['input_points']=np.array([[[[W*0.5*sc,H*0.5*sc]]]],np.float32)
+          feeds['input_labels']=np.array([[[1]]],np.int64)
+          t=time.time(); do=d.run(None,feeds); print('dec ms',(time.time()-t)*1000,[(o.name,v.shape) for o,v in zip(d.get_outputs(),do)])
+          iou=do[0]; m=do[1]; print('iou',iou); print('mask>0 frac per', [(m[0,0,k]>0).mean() for k in range(m.shape[2])])
+          # depth
+          s=ort.InferenceSession('depth.onnx'); print('DEPTH',io(s))
+          im2=Image.open('ppl.jpg').convert('RGB').resize((518,518),Image.BICUBIC); b=(np.asarray(im2,np.float32)/255-np.array([0.485,0.456,0.406]))/np.array([0.229,0.224,0.225])
+          t=time.time(); o=s.run(None,{s.get_inputs()[0].name:b.transpose(2,0,1)[None].astype(np.float32)}); print('depth ms',(time.time()-t)*1000,o[0].shape,o[0].min(),o[0].max())
+          s=ort.InferenceSession('modnet.onnx'); print('MODNET',io(s))
+          im3=Image.open('ppl.jpg').convert('RGB').resize((512,512)); c=(np.asarray(im3,np.float32)/255-0.5)/0.5
+          t=time.time(); o=s.run(None,{s.get_inputs()[0].name:c.transpose(2,0,1)[None].astype(np.float32)}); print('modnet ms',(time.time()-t)*1000,o[0].shape,o[0].min(),o[0].max(),(o[0]>0.5).mean())
           PY
