@@ -31,18 +31,48 @@ async function decode(b64: string): Promise<HTMLImageElement> {
   return img;
 }
 
-/** Cadre de trecere simplă între două poze (când RIFE nu e disponibil). */
-async function crossfade(a: HTMLImageElement, b: HTMLImageElement, steps: number): Promise<HTMLImageElement[]> {
-  const out: HTMLImageElement[] = [];
+/** Filmul iese la ~1080 px; RIFE lucrează mai mic (viteză), detaliul se ia din poze. */
+const OUT = 1080;
+const RIFE_SIDE = 640;
+
+function canvas2d(w: number, h: number): [HTMLCanvasElement, CanvasRenderingContext2D] {
   const c = document.createElement('canvas');
-  c.width = a.naturalWidth; c.height = a.naturalHeight;
-  const ctx = c.getContext('2d')!;
-  for (let i = 1; i <= steps; i++) {
-    ctx.globalAlpha = 1; ctx.drawImage(a, 0, 0, c.width, c.height);
-    ctx.globalAlpha = i / (steps + 1); ctx.drawImage(b, 0, 0, c.width, c.height);
-    out.push(await decode(c.toDataURL('image/jpeg', 0.9).split(',')[1]));
+  c.width = w; c.height = h;
+  return [c, c.getContext('2d', { willReadFrequently: true })!];
+}
+
+/** Amestecul a două cadre clare la momentul t (exact ce e fără mișcare). */
+function blend(a: CanvasImageSource, b: CanvasImageSource, t: number, w: number, h: number): HTMLCanvasElement {
+  const [c, ctx] = canvas2d(w, h);
+  ctx.drawImage(a, 0, 0, w, h);
+  ctx.globalAlpha = t; ctx.drawImage(b, 0, 0, w, h);
+  return c;
+}
+
+/**
+ * Cadrul RIFE (mic) mărit la mărimea filmului, plus detaliul fin al pozelor
+ * originale (ce lipsește din amestecul lor micșorat). Raportat: „nu folosește
+ * pozele la calitatea originală” — acum cadrele-cheie sunt originale, iar cele
+ * dintre ele primesc înapoi claritatea.
+ */
+function sharpen(mid: HTMLImageElement, k: HTMLCanvasElement, w: number, h: number): HTMLCanvasElement {
+  const [up, uctx] = canvas2d(w, h);
+  uctx.imageSmoothingQuality = 'high';
+  uctx.drawImage(mid, 0, 0, w, h);
+  const [small, sctx] = canvas2d(mid.naturalWidth, mid.naturalHeight);
+  sctx.drawImage(k, 0, 0, small.width, small.height);
+  const [kl, klctx] = canvas2d(w, h);
+  klctx.imageSmoothingQuality = 'high';
+  klctx.drawImage(small, 0, 0, w, h);
+  const U = uctx.getImageData(0, 0, w, h), K = k.getContext('2d')!.getImageData(0, 0, w, h).data, L = klctx.getImageData(0, 0, w, h).data;
+  const d = U.data;
+  for (let i = 0; i < d.length; i += 4) {
+    d[i] = d[i] + K[i] - L[i];
+    d[i + 1] = d[i + 1] + K[i + 1] - L[i + 1];
+    d[i + 2] = d[i + 2] + K[i + 2] - L[i + 2];
   }
-  return out;
+  uctx.putImageData(U, 0, 0);
+  return up;
 }
 
 export async function makeBurstFilm(ids: string[], onProgress?: (f: number) => void): Promise<{ blob: Blob; ext: string } | null> {
@@ -50,40 +80,47 @@ export async function makeBurstFilm(ids: string[], onProgress?: (f: number) => v
   if (!mime || ids.length < 2) return null;
   // Motorul prin descărcarea comună (cu reluare), înainte de primul cadru.
   await fetchEngine('film').catch(() => false);
-  const imgs = (await Promise.all(ids.slice(0, 6).map(id => loadEditable(id, 1024).then(r => r?.img ?? null)))).filter((x): x is HTMLImageElement => !!x);
+  const imgs = (await Promise.all(ids.slice(0, 6).map(id => loadEditable(id, 1600).then(r => r?.img ?? null)))).filter((x): x is HTMLImageElement => !!x);
   if (imgs.length < 2) return null;
-  const keys = imgs.map(i => jpeg64(i));
+  const k0 = Math.min(1, OUT / Math.max(imgs[0].naturalWidth, imgs[0].naturalHeight));
+  const w = Math.round(imgs[0].naturalWidth * k0 / 2) * 2, h = Math.round(imgs[0].naturalHeight * k0 / 2) * 2;
+  // Cadrele-cheie la calitatea pozelor; pentru RIFE, copii mici.
+  const hi = imgs.map(i => blend(i, i, 0, w, h));
+  const keys = imgs.map(i => jpeg64(i, RIFE_SIDE));
   onProgress?.(0.05);
-  const frames: HTMLImageElement[] = [await decode(keys[0])];
+  const frames: CanvasImageSource[] = [hi[0]];
   // RIFE face cadrele intermediare; dacă motorul nu merge pe telefonul ăsta,
-  // filmul se face oricum, cu trecere lină între poze (raportat: „încă nu face”).
+  // filmul se face oricum, cu trecere lină între poze.
   let rife = true;
+  const steps = 3;
   for (let i = 0; i < keys.length - 1; i++) {
-    const next = await decode(keys[i + 1]);
     let mids: HTMLImageElement[] | null = null;
     if (rife) {
       try {
-        const r = await Rife.between({ a: keys[i], b: keys[i + 1], steps: 3 });
+        const r = await Rife.between({ a: keys[i], b: keys[i + 1], steps });
         mids = await Promise.all(r.frames.map(decode));
       } catch (e) {
         console.warn('RIFE', e);
         rife = false;
       }
     }
-    if (!mids) mids = await crossfade(frames[frames.length - 1], next, 3);
-    frames.push(...mids, next);
-    onProgress?.((i + 1) / (keys.length - 1) * 0.7);
+    for (let j = 1; j <= steps; j++) {
+      const k = blend(hi[i], hi[i + 1], j / (steps + 1), w, h);
+      frames.push(mids?.[j - 1] ? sharpen(mids[j - 1], k, w, h) : k);
+      await new Promise(r => setTimeout(r, 0));
+    }
+    frames.push(hi[i + 1]);
+    onProgress?.(0.05 + (i + 1) / (keys.length - 1) * 0.65);
   }
   // Înainte și înapoi, de două ori: mișcarea curge, fără săritură la capăt (și se face mai repede).
   const loop = [...frames, ...frames.slice(1, -1).reverse()];
   const seq = [...loop, ...loop];
-  const w = frames[0].naturalWidth, h = frames[0].naturalHeight;
   const canvas = document.createElement('canvas');
   canvas.width = w; canvas.height = h;
   const ctx = canvas.getContext('2d')!;
   ctx.drawImage(seq[0], 0, 0, w, h);
   const fps = 12;
-  const rec = new MediaRecorder(canvas.captureStream(fps), { mimeType: mime, videoBitsPerSecond: 6_000_000 });
+  const rec = new MediaRecorder(canvas.captureStream(fps), { mimeType: mime, videoBitsPerSecond: 10_000_000 });
   const chunks: Blob[] = [];
   rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
   const done = new Promise<void>(res => { rec.onstop = () => res(); });
