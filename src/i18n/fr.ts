@@ -1090,4 +1090,6 @@ export const dict: Record<string, string> = {
   'lx.burstTidy.confirm': "Dans {groups} rafales, seule la meilleure photo (ou votre choix) reste ; les {count} autres passent en « Pas aujourd'hui ». Rien n'est supprimé. Continuer ?",
   'lx.burstTidy.go': "Ranger",
   'lx.burstTidy.done': "Fait : {count} photos de rafales sont en « Pas aujourd'hui ».",
+  'lx.viewer.moreInfo': "Plus de détails",
+  'lx.viewer.lessInfo': "Moins de détails",
 };

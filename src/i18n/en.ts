@@ -3123,4 +3123,6 @@ export const en: Record<TranslationKey, string> = {
   'lx.burstTidy.confirm': "In {groups} bursts only the best photo (or the one you chose) stays; the other {count} move to “Not today”. Nothing is deleted. Continue?",
   'lx.burstTidy.go': "Tidy up",
   'lx.burstTidy.done': "Done: {count} burst photos moved to “Not today”.",
+  'lx.viewer.moreInfo': "More details",
+  'lx.viewer.lessInfo': "Fewer details",
 };

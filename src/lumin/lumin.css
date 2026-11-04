@@ -1398,3 +1398,16 @@ html, body { overflow-x: hidden; }
 .lx-btn { transition: transform .12s ease, filter .15s, background .15s; }
 .lx-btn:active:not(:disabled) { transform: scale(.98); filter: brightness(1.06); }
 .lx-btn:disabled { opacity: .45; }
+/* Poza deschisă: panoul pliabil, cu mâner. */
+.lx-sheet-handle { display: grid; place-items: center; width: 100%; height: 14px; margin: -6px 0 -4px; padding: 0; border: 0; background: transparent; cursor: grab; }
+.lx-sheet-handle i { display: block; width: 38px; height: 4px; border-radius: 4px; background: rgb(255 255 255 / .22); transition: width .2s, background .2s; }
+.lx-viewer-info.open .lx-sheet-handle i { width: 26px; background: rgb(255 255 255 / .4); }
+.lx-viewer-info.open > :not(.lx-sheet-handle) { animation: lx-fade-in .18s ease-out; }
+:root[data-theme="light"] .lx-sheet-handle i { background: rgb(40 20 50 / .2); }
+/* Azi: colecția zilei se vede din colț (trei poze suprapuse + câte mai sunt). */
+.lx-hero-stack { position: absolute; right: 16px; bottom: 18px; display: flex; align-items: center; }
+.lx-hero-stack-item { position: relative; width: 40px; height: 40px; margin-left: -12px; border-radius: 12px; overflow: hidden; border: 2px solid rgb(255 255 255 / .85); box-shadow: 0 6px 16px rgb(0 0 0 / .35); }
+.lx-hero-stack-item:first-child { margin-left: 0; }
+.lx-hero-stack-item img { width: 100%; height: 100%; object-fit: cover; animation: none !important; position: static !important; }
+.lx-hero-stack-more { margin-left: 6px; padding: 4px 8px; border-radius: 999px; background: rgb(0 0 0 / .45); color: #fff; font-size: 12px; font-weight: 700; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.lx-hero-caption { right: 150px; }

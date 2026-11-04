@@ -3209,6 +3209,8 @@ export const ro = {
   'lx.burstTidy.confirm': "În {groups} serii rămâne doar poza cea mai bună (sau cea aleasă de tine); celelalte {count} trec la „Nu azi”. Nu se șterge nimic. Continui?",
   'lx.burstTidy.go': "Fă ordine",
   'lx.burstTidy.done': "Gata: {count} poze din serii au trecut la „Nu azi”.",
+  'lx.viewer.moreInfo': "Mai multe detalii",
+  'lx.viewer.lessInfo': "Mai puține detalii",
 };
 
 export type TranslationKey = keyof typeof ro;

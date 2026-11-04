@@ -1090,4 +1090,6 @@ export const dict: Record<string, string> = {
   'lx.burstTidy.confirm': "En {groups} ráfagas solo queda la mejor foto (o la que elegiste); las otras {count} pasan a “Hoy no”. No se borra nada. ¿Continuar?",
   'lx.burstTidy.go': "Ordenar",
   'lx.burstTidy.done': "Listo: {count} fotos de ráfagas pasaron a “Hoy no”.",
+  'lx.viewer.moreInfo': "Más detalles",
+  'lx.viewer.lessInfo': "Menos detalles",
 };

@@ -402,6 +402,13 @@ function DayPhotoHero() {
           <b>{pick.title}</b>
           <span>{tr('lx.hero.count', { count: pick.photos.length })}</span>
         </span>
+        {/* Încă trei poze ale zilei, suprapuse în colț: se vede că e o colecție, nu o poză. */}
+        {pick.photos.length > 1 && (
+          <span className="lx-hero-stack" aria-hidden="true">
+            {pick.photos.slice(1, 4).map(ph => <span key={ph.id} className="lx-hero-stack-item"><Thumb id={ph.id} lqip={ph.lqip} edits={ph.edits} /></span>)}
+            {pick.photos.length > 4 && <span className="lx-hero-stack-more">+{pick.photos.length - 4}</span>}
+          </span>
+        )}
       </button>
       <div className="lx-day-hero-actions">
         <button className="lx-btn primary" onClick={() => useLx.getState().openViewer(ids, 0)}>{tr('lx.hero.open')}</button>

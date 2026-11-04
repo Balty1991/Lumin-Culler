@@ -580,6 +580,9 @@ function TimeRail({ months, locale, onPick }: { months: number[]; locale: string
  * „fixă” se calcula față de toată lista, iar poza ajungea sub bara de jos sau
  * în afara ecranului (raportat: „se vede ciudat”, „respinsa se vede negru”).
  */
+/** Panoul de sub poză: rămâne cum l-a lăsat omul, de la o poză la alta. */
+let viewerDetailsOpen = false;
+
 export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
   list: PhotoView[];
   index: number;
@@ -623,6 +626,9 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
     return () => { alive = false; };
   }, [id, groupIds]);
   const burstIds = useStore(s => (p.groupId ? s.photos.filter(x => x.groupId === p.groupId).sort((a, b) => (a.capturedAt ?? 0) - (b.capturedAt ?? 0)).map(x => x.id).slice(0, 6).join(',') : ''));
+  const [details, setDetails] = useState(viewerDetailsOpen);
+  const sheetY = useRef<number | null>(null);
+  const toggleDetails = (v: boolean) => { viewerDetailsOpen = v; setDetails(v); };
   const [filmBusy, setFilmBusy] = useState(false);
   const [filmPct, setFilmPct] = useState(0);
   const [film, setFilm] = useState<{ blob: Blob; ext: string } | null>(null);
@@ -841,7 +847,18 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
           <button className="lx-viewer-arrow next" onPointerDown={e => e.stopPropagation()} onClick={() => go(1)} aria-label={tr('lx.viewer.next')}>›</button>
         )}
       </div>
-      <div className="lx-viewer-info">
+      <div className={details ? 'lx-viewer-info open' : 'lx-viewer-info'}
+        onPointerDown={e => { sheetY.current = e.clientY; }}
+        onPointerUp={e => {
+          const dy = sheetY.current === null ? 0 : e.clientY - sheetY.current;
+          sheetY.current = null;
+          if (dy < -36) toggleDetails(true); else if (dy > 36) toggleDetails(false);
+        }}>
+        {/* Panoul pliabil: strâns arată doar verdictul și acțiunile (poza rămâne mare);
+            tras în sus sau atins mânerul, arată și detaliile. */}
+        <button className="lx-sheet-handle" onClick={() => toggleDetails(!details)} aria-expanded={details} aria-label={tr(details ? 'lx.viewer.lessInfo' : 'lx.viewer.moreInfo')}>
+          <i aria-hidden="true" />
+        </button>
         <p className="lx-why">{personalWhy(p, why, tr, !!twin)}</p>
         {bestFix.length > 0 && (
           <button className="lx-twin-link" disabled={bestBusy} onClick={() => void makeBestTake()}>
@@ -854,6 +871,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
             {tr('lx.twin.see')} ›
           </button>
         )}
+        {details && <>
         <CloudLine id={p.id} />
         {/* Ce vede AI-ul în poză (Florence-2, pe telefon). Modelul scrie în engleză. */}
         {p.aiDescription && p.aiDescription.trim().length > 8 && (
@@ -866,6 +884,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
           <span className="lx-chip info">AI {p.aiScore}</span>
           {reasonsFor(p).map(r => <span key={r.key} className={`lx-chip ${r.tone}`}>{tr(r.key)}</span>)}
         </div>
+        </>}
         {/* Patru acțiuni egale, mereu încăpute (raportat: butoanele ieșeau din ecran);
             restul uneltelor stau sub „Mai mult”, grupate într-o grilă. */}
         <div className="lx-viewer-tools2">
