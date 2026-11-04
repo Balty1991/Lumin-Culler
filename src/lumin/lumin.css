@@ -1525,3 +1525,4 @@ button.lx-tunnel-now:active { background: rgb(255 255 255 / .06); }
 /* Poza zilei: din miniatura neclară în cea clară, lin, nu dintr-odată. */
 .lx-hero-media img { transition: filter .35s ease; }
 .lx-tunnel { background: #020102; }
+.lx-tunnel-card { background: transparent !important; }

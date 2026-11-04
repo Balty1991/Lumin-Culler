@@ -167,6 +167,16 @@ export function Tunnel3D({ list, onOpen, onClose }: { list: PhotoView[]; onOpen:
           const r = rad * (0.85 + (k % 3) * 0.14) * (1 + pass * pass * 2.2);
           el.style.transform = `translate3d(calc(-50% + ${Math.cos(a) * r}px), calc(-50% + ${Math.sin(a) * r * 0.72}px), ${z}px)`;
         }
+        // Apare doar după ce imaginea e gata, și treptat (~0,2 s): fără dreptunghiuri
+        // goale care „sar” în poze (raportat: pâlpâiri la tranziții).
+        if (e.kind === 'photo') {
+          const img = el.querySelector('img');
+          const ready = !!img && img.complete && img.naturalWidth > 0;
+          const prev = Number(el.dataset.fade ?? '0');
+          const next = ready ? Math.min(1, prev + 0.09) : 0;
+          if (next !== prev) el.dataset.fade = String(next);
+          o *= next;
+        }
         el.style.opacity = String(o);
         // Fără z-index pe cadru: în 3D ordinea o dă adâncimea; schimbat la fiecare
         // cadru, se bătea cu ea și pozele pâlpâiau (raportat).
@@ -234,7 +244,7 @@ export function Tunnel3D({ list, onOpen, onClose }: { list: PhotoView[]; onOpen:
             return (
               <div key={base + s} ref={el => { slotEls.current[s] = el; }} className={e?.kind === 'month' ? 'lx-tunnel-month' : e?.kind === 'year' ? 'lx-tunnel-month lx-tunnel-year' : 'lx-tunnel-card'}
                 data-photo-index={e?.kind === 'photo' ? e.index : undefined} style={{ opacity: 0 }}>
-                {e?.kind === 'photo' && <Thumb id={e.photo.id} lqip={e.photo.lqip} edits={e.photo.edits} sharp={384} />}
+                {e?.kind === 'photo' && <Thumb id={e.photo.id} edits={e.photo.edits} sharp={false} />}
                 {(e?.kind === 'month' || e?.kind === 'year') && <span>{e.label}</span>}
               </div>
             );
