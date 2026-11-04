@@ -43,12 +43,12 @@
 
 <section id="ro" lang="ro">
 <h1>Politica de confidentialitate — Cherrypic</h1>
-<p class="updated">Ultima actualizare: 28 octombrie 2026</p>
+<p class="updated">Ultima actualizare: 4 noiembrie 2026</p>
 
 <div class="box">
 <strong>Pe scurt:</strong> Cherrypic proceseaza pozele tale <strong>integral pe dispozitivul tau</strong>.
-Singura exceptie este <strong>Cherrypic Cloud</strong>, o functie optionala, <strong>oprita implicit</strong>,
-pe care o pornesti tu (vezi mai jos). Aplicatia nu are
+Nu exista niciun server al nostru: nicio poza, nicio cautare si nicio decizie a ta nu pleaca
+de pe telefon. Aplicatia nu are
 reclame, nu foloseste servicii de analiza/tracking ale unor terti si nu vinde date.
 </div>
 
@@ -107,24 +107,25 @@ vede adresa IP si zona de harta pe care o privesti. Pozele, miniaturile si coord
 trimise: punctele se deseneaza pe telefon, peste harta.
 </p>
 
-<h2>Cherrypic Cloud (optional, oprit implicit)</h2>
+<h2>Modelele AI descarcate (fara poze trimise)</h2>
 <p>
-Pentru pozele la care aplicatia nu e sigura daca le-ai pastra, poti porni din Setari o „a doua parere” in cloud.
-Pornita, se intampla doar urmatoarele:
+Unele functii folosesc modele AI gratuite, cu licenta deschisa, care nu incap in pachetul aplicatiei.
+Ele se <strong>descarca o singura data</strong> pe telefon si apoi ruleaza <strong>numai pe telefon</strong>:
 </p>
 <ul>
-  <li>Pleaca <strong>doar pozele nesigure</strong> (cel mult cateva zeci pe zi), <strong>micsorate la 512 pixeli</strong>, impreuna cu ce a masurat telefonul (claritate, lumina, cate fete si daca au ochii deschisi), limba aplicatiei si un identificator aleator al instalarii (folosit doar pentru limita zilnica; nu e legat de nume, cont sau email).</li>
-  <li>Le primeste serverul aplicatiei, gazduit pe Cloudflare Workers, care le trece prin modele AI ale Cloudflare (Workers AI) si intoarce un verdict scurt: o pastrezi sau nu, de ce, ce se vede in poza.</li>
-  <li>Pozele <strong>nu sunt pastrate</strong> pe server dupa raspuns si nu sunt folosite la antrenarea modelelor. Verdictul e pastrat doar pe telefonul tau.</li>
-  <li>Tot cu acordul dat la pornirea Cherrypic Cloud, AI-ul online mai poate primi, doar cand folosesti functia respectiva: cele mai bune 1–4 poze ale unei zile sau ale unui album (micsorate la 512 px), ca sa scrie povestea zilei sau titlul albumului; poza pe care o trimiti, ca sa-ti propuna un text pentru postare; si, cand cautarea pe telefon nu gaseste nimic, cuvintele cautate plus lista de etichete ale pozelor (fara nicio poza), ca sa inteleaga ce cauti. Numele de persoane trimise sunt doar cele date de tine, pentru text. Nimic din toate acestea nu se pastreaza pe server.</li>
-  <li><strong>Auto AI</strong> din editor, doar cand il apesi: varianta corectata a pozei, micsorata la 512 px, ca AI-ul sa spuna ce reglaje de lumina si culoare i-ar mai trebui. Nu se pastreaza pe server.</li>
-  <li><strong>Magie</strong> (guma AI si cerul nou), doar cand o folosesti: bucata de poza din jurul zonei marcate de tine (sau poza intreaga, pentru cer), micsorata la cel mult 512 px, impreuna cu masca zonei. Serverul o redeseneaza cu un model AI Cloudflare (Workers AI) si o trimite inapoi; nu o pastreaza.</li>
-  <li>O opresti oricand din Setari; oprita, nu mai pleaca nimic.</li>
+  <li>CLIP (OpenAI, MIT) si predictorul estetic LAION (MIT): cat de frumoasa e poza si ce se vede in ea; plus modelul de text clip-ViT-B-32-multilingual-v1 (Apache-2.0), pentru cautarea in cuvinte. Se descarca de obicei doar pe Wi-Fi.</li>
+  <li>SlimSAM (Apache-2.0) pentru „atinge obiectul” la guma, LaMa (Apache-2.0) pentru guma pe obiecte mari, MODNet si Depth Anything V2 Small (Apache-2.0) pentru „Portret”.</li>
 </ul>
+<p>
+Fisierele modelelor vin de la <strong>Hugging Face</strong> (huggingface.co si reteaua lor de distributie). Ca la
+orice descarcare, acel server vede adresa IP a telefonului si ce fisier de model se cere — <strong>nu</strong> vede
+nicio poza, nicio cautare si nimic despre tine. Pozele, cuvintele cautate si rezultatele raman pe telefon.
+Poti vedea si porni descarcarea din Setari &rarr; Motoare AI pe telefon.
+</p>
 
 <h2>Permisiuni folosite (Android)</h2>
 <ul>
-  <li><strong>Acces la internet</strong>: folosit pentru incarcarea initiala a resurselor aplicatiei si a modelelor AI incluse in pachet, si pentru verificarea abonamentului la Google Play (vezi sectiunea de mai jos) — nu pentru a transmite pozele sau datele tale personale.</li>
+  <li><strong>Acces la internet</strong>: folosit pentru descarcarea modelelor AI (vezi mai sus), pentru harta si pentru verificarea abonamentului la Google Play (vezi sectiunea de mai jos) — nu pentru a transmite pozele sau datele tale personale.</li>
   <li><strong>Facturare in aplicatie</strong> (<code>com.android.vending.BILLING</code>): necesara pentru abonamentul Premium optional, gestionat integral de Google Play.</li>
   <li><strong>Fisiere/foldere</strong>: pentru importul obisnuit, aplicatia acceseaza doar fisierele pe care le alegi explicit, prin selectorul de sistem.</li>
   <li><strong>Locatia din pozele tale</strong> (<code>ACCESS_MEDIA_LOCATION</code>): ceruta pentru functia <em>Locatii</em>, care grupeaza pozele importate dupa locul unde au fost facute. Incepand cu Android 10, sistemul sterge coordonatele din pozele pe care le primeste o aplicatie; fara aceasta permisiune, functia nu poate exista deloc. Se citesc DOAR coordonatele deja scrise in poza de aparatul tau. Daca refuzi, restul aplicatiei functioneaza normal — pozele apar toate la <em>Fara locatie disponibila</em>.</li>
@@ -142,7 +143,7 @@ reteaua in mod repetat, asa ca merita spus exact ce se intampla acolo.
   <li>Plata e gestionata <strong>integral de Google Play</strong>. Aplicatia nu vede si nu stocheaza niciodata datele cardului tau, adresa de facturare sau adresa de email.</li>
   <li>Aplicatia intreaba Google Play un singur lucru: <em>contul de Google de pe acest dispozitiv are abonamentul activ?</em>, plus pretul in moneda contului. Intrebarea o pune Play, nu noi, si nu contine nimic despre tine sau despre pozele tale.</li>
   <li>Raspunsul (activ / inactiv) e pastrat local pe dispozitiv, ca aplicatia sa functioneze si offline. Nu pleaca nicaieri.</li>
-  <li><strong>In afara de Cherrypic Cloud (optional, descris mai sus), nu exista niciun server al nostru.</strong> Nu avem conturi, nu avem baza de date de utilizatori si nu primim niciun semnal despre cum folosesti aplicatia — nici macar cate poze exporti. Contorul de folosire pe care il vezi in aplicatie e calculat si tinut exclusiv pe dispozitivul tau.</li>
+  <li><strong>Nu exista niciun server al nostru.</strong> Nu avem conturi, nu avem baza de date de utilizatori si nu primim niciun semnal despre cum folosesti aplicatia — nici macar cate poze exporti. Contorul de folosire pe care il vezi in aplicatie e calculat si tinut exclusiv pe dispozitivul tau.</li>
   <li>Abonamentul se gestioneaza si se anuleaza din Google Play &gt; Meniu &gt; Abonamente. Politica de rambursare a Google Play se aplica.</li>
 </ul>
 
@@ -174,12 +175,12 @@ functie sa devina disponibila, iar data de mai sus va reflecta cea mai recenta m
 
 <section id="en" lang="en">
 <h1>Privacy Policy — Cherrypic</h1>
-<p class="updated">Last updated: October 28, 2026</p>
+<p class="updated">Last updated: November 4, 2026</p>
 
 <div class="box">
 <strong>In short:</strong> Cherrypic processes your photos <strong>entirely on your own device</strong>.
-The only exception is <strong>Cherrypic Cloud</strong>, an optional feature that is <strong>off by default</strong>
-and that you switch on yourself (see below). The app has no ads, uses no
+We have no server: no photo, no search and none of your decisions ever leave your phone.
+The app has no ads, uses no
 third-party analytics/tracking services, and does not sell data.
 </div>
 
@@ -236,23 +237,25 @@ address and the map area you are looking at. Your photos, thumbnails and their c
 sent: the points are drawn on the phone, on top of the map.
 </p>
 
-<h2>Cherrypic Cloud (optional, off by default)</h2>
+<h2>Downloaded AI models (no photos sent)</h2>
 <p>
-For photos the app is unsure whether you would keep, you can turn on a cloud "second opinion" in Settings. When on, only this happens:
+Some features use free, openly licensed AI models that do not fit in the app package. They are
+<strong>downloaded once</strong> to the phone and then run <strong>only on the phone</strong>:
 </p>
 <ul>
-  <li>Only the <strong>uncertain photos</strong> are sent (at most a few dozen per day), <strong>downscaled to 512 pixels</strong>, together with what the phone measured (sharpness, light, number of faces and whether eyes are open), the app language and a random install identifier (used only for the daily limit; not linked to any name, account or email).</li>
-  <li>They are received by the app's server, hosted on Cloudflare Workers, which runs them through Cloudflare's AI models (Workers AI) and returns a short verdict: keep it or not, why, and what is in the photo.</li>
-  <li>Photos are <strong>not kept</strong> on the server after the reply and are not used to train models. The verdict is kept only on your phone.</li>
-  <li>Under the same consent, the online AI may also receive, only when you use that feature: the best 1–4 photos of a day or an album (shrunk to 512 px) to write the story of the day or the album title; the photo you are sharing, to suggest a caption; and, when the on-phone search finds nothing, your search words plus the list of photo tags (no photo at all), to understand what you mean. Names sent are only those you gave, for the text. None of this is kept on the server.</li>
-  <li><strong>AI auto</strong> in the editor, only when you tap it: the corrected version of the photo, scaled down to 512 px, so the AI can suggest light and colour adjustments. Not kept on the server.</li>
-  <li><strong>Magic</strong> (AI eraser and new sky), only when you use it: the part of the photo around the area you marked (or the whole photo, for the sky), scaled down to at most 512 px, together with the area's mask. The server redraws it with a Cloudflare AI model (Workers AI) and sends it back; it does not keep it.</li>
-  <li>You can switch it off at any time in Settings; when off, nothing is sent.</li>
+  <li>CLIP (OpenAI, MIT) and the LAION aesthetic predictor (MIT): how good the photo looks and what is in it; plus the clip-ViT-B-32-multilingual-v1 text model (Apache-2.0) for searching in your own words. Usually downloaded on Wi-Fi only.</li>
+  <li>SlimSAM (Apache-2.0) for “tap the object” in the eraser, LaMa (Apache-2.0) for erasing large objects, MODNet and Depth Anything V2 Small (Apache-2.0) for “Portrait”.</li>
 </ul>
+<p>
+The model files come from <strong>Hugging Face</strong> (huggingface.co and its delivery network). As with any
+download, that server sees your phone's IP address and which model file is requested — it does <strong>not</strong> see
+any photo, any search, or anything about you. Photos, search words and results stay on the phone.
+You can see and start the download in Settings &rarr; On-device AI engines.
+</p>
 
 <h2>Permissions used (Android)</h2>
 <ul>
-  <li><strong>Internet access</strong>: used for initial loading of app resources and the bundled AI models, and to check your subscription with Google Play (see the section below) — not to transmit your photos or personal data.</li>
+  <li><strong>Internet access</strong>: used to download the AI models (see above), for the map, and to check your subscription with Google Play (see the section below) — not to transmit your photos or personal data.</li>
   <li><strong>In-app billing</strong> (<code>com.android.vending.BILLING</code>): required for the optional Premium subscription, handled entirely by Google Play.</li>
   <li><strong>Files/folders</strong>: for ordinary importing, the app only accesses files you explicitly choose via the system picker.</li>
   <li><strong>Location stored in your photos</strong> (<code>ACCESS_MEDIA_LOCATION</code>): requested for the <em>Locations</em> feature, which groups your imported photos by where they were taken. Since Android 10 the system strips those coordinates from the photos an app receives; without this permission the feature cannot exist at all. Only the coordinates your camera already wrote into the photo are read. If you decline, the rest of the app works normally — your photos all land under <em>No location available</em>.</li>
@@ -270,7 +273,7 @@ the network repeatedly, so it is worth stating exactly what happens there.
   <li>Payment is handled <strong>entirely by Google Play</strong>. The app never sees or stores your card details, billing address, or email address.</li>
   <li>The app asks Google Play one thing: <em>does the Google account on this device have an active subscription?</em>, plus the price in your account's currency. That question is asked by Play, not by us, and contains nothing about you or your photos.</li>
   <li>The answer (active / inactive) is cached locally on the device so the app keeps working offline. It never leaves the device.</li>
-  <li><strong>Apart from Cherrypic Cloud (optional, described above), there is no server of ours.</strong> We have no accounts, no user database, and we receive no signal about how you use the app — not even how many photos you export. The usage counter you see in the app is computed and kept solely on your device.</li>
+  <li><strong>There is no server of ours.</strong> We have no accounts, no user database, and we receive no signal about how you use the app — not even how many photos you export. The usage counter you see in the app is computed and kept solely on your device.</li>
   <li>Manage or cancel the subscription in Google Play &gt; Menu &gt; Subscriptions. Google Play's refund policy applies.</li>
 </ul>
 

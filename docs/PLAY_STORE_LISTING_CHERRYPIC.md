@@ -32,6 +32,7 @@ Cherrypic e AI-ul care îți învață gustul. AI-ul aplicației citește galeri
 • Învață din fiecare „Păstrez” și „Nu azi” și îți arată cât de des alege ca tine
 • Din fiecare serie de poze aproape identice păstrează una: cea clară, cu toți cu ochii deschiși
 • Îți explică de ce: „Ai păstra-o: e Ami, și are lumina caldă de apus”
+• Știe ce e o poză frumoasă: un model AI antrenat pe note date de oameni, ajustat apoi după gustul tău
 
 ★ CURĂȚĂ GALERIA
 • Poze duplicate și aproape la fel, poze neclare, întunecate, capturi de ecran vechi
@@ -44,17 +45,19 @@ Cherrypic e AI-ul care îți învață gustul. AI-ul aplicației citește galeri
 • Momente și evenimente făcute singure: Crăciun, Paște, zile de naștere, vacanțe
 • Oameni recunoscuți după față, cu albumul lor
 • Căutare în cuvinte: „Ami și mama”, „mare”, „pisică”, „octombrie”
+• Caută după ce se vede, în română: „copii la mare la apus”, „tort cu lumânări”
 • Bonuri, documente și capturi puse deoparte, în dosare
 
 ★ FĂ-O MAI FRUMOASĂ
 • O atingere: lumină, culoare, claritate, cu înainte/după
-• Gumă: șterge obiecte și oameni din fundal, gratuit, fără filigran
+• Gumă: atingi obiectul și se selectează singur; îl ștergi gratuit, fără filigran (și pe obiecte mari)
 • Fundal alb pentru Vinted/OLX și Claritate pentru pozele mici sau mișcate
-• Stiluri: Natural, Portret (fundal estompat), Vie, Caldă, Clară, Film, Alb-negru
+• Portret: fundal estompat pe orice poză, cu oameni, animale sau obiecte
+• Stiluri: Natural, Vie, Caldă, Clară, Film, Alb-negru — sau pornești de la original și reglezi tu
 • Film scurt pentru story din pozele zilei
 
 ★ PRIVATĂ
-• Totul se face pe telefon: nicio poză nu pleacă, merge și fără internet
+• Totul se face pe telefon: nicio poză și nicio căutare nu pleacă; motoarele AI se descarcă o singură dată
 • Fără cont, fără reclame
 
 Gratuit: sortare, curățenie, galerie, căutare, oameni, editare.
@@ -83,6 +86,7 @@ Cherrypic is the AI that learns your taste. The in-app AI reads your gallery, pi
 • Learns from every Keep and Not today, and shows how often it agrees with you
 • From every burst keeps the sharp one with everybody's eyes open
 • Tells you why: "You'd keep it: it's Ami, in warm sunset light"
+• Knows what a beautiful photo is: an AI model trained on human ratings, then tuned to your taste
 
 ★ CLEANS YOUR GALLERY
 • Duplicates and near-duplicates, blurry and dark shots, old screenshots
@@ -95,17 +99,19 @@ Cherrypic is the AI that learns your taste. The in-app AI reads your gallery, pi
 • Moments and events made automatically: Christmas, Easter, birthdays, trips
 • People recognized by face, each with an album
 • Search in words: "Ami and mom", "beach", "cat", "October"
+• Search by what's in the photo, in your language: "kids at the beach at sunset"
 • Receipts, documents and screenshots set aside, in folders
 
 ★ MAKE IT BEAUTIFUL
 • One tap: light, colour, clarity, with before/after
-• Eraser: remove objects and people in the background, free, no watermark
+• Eraser: tap an object and it selects itself; remove it free, no watermark (large objects too)
 • White background for marketplaces, and Clarity for small or soft photos
-• Styles: Natural, Portrait (background blur), Vivid, Warm, Clear, Film, B&W
+• Portrait: background blur on any photo — people, pets or objects
+• Styles: Natural, Vivid, Warm, Clear, Film, B&W — or start from the original and adjust yourself
 • Short story video from the day's photos
 
 ★ PRIVATE
-• Everything runs on your phone: no photo ever leaves it, works offline
+• Everything runs on your phone: no photo or search ever leaves it; AI engines download once
 • No account, no ads
 
 Free: sorting, cleanup, gallery, search, people, editing.
@@ -118,8 +124,8 @@ photo cleaner, best photo picker, duplicate photos, similar photos, blurry photo
 ## Data safety (noiembrie 2026)
 Serverul (Cherrypic Cloud) e oprit în aplicație: toate analizele și editările rulează pe telefon, iar aplicația nu trimite poze sau identificatori nicăieri. În formularul Data safety:
 - **Does your app collect or share any of the required user data types? → No.** (Datele procesate doar pe dispozitiv nu se declară ca „colectate”.)
-- Singurele descărcări sunt modelele AI (guma, la prima folosire) de pe site-ul aplicației; nu trimit date despre utilizator.
-- De actualizat și politica de confidențialitate (`public/privacy-policy.html`): secțiunea Cherrypic Cloud se poate scoate sau marca „oprit”.
+- Singurele descărcări sunt modelele AI (CLIP, căutare, gumă, Portret), de la Hugging Face și de pe site-ul aplicației; nu trimit date despre utilizator.
+- Politica de confidențialitate e actualizată (4 noiembrie 2026): fără Cloud, cu secțiunea „Modelele AI descărcate”.
 
 ## Permisiunea pentru poze (READ_MEDIA_IMAGES)
 Din 2025, Play cere o declarație în Play Console că accesul permanent la poze e funcția de bază: aplicația e un manager de galerie și selector de poze (sortare zilnică, curățare, organizare). Atașează un video scurt: importul, ritualul de sortare, ștergerea în coș.
@@ -129,7 +135,7 @@ Din 2025, Play cere o declarație în Play Console că accesul permanent la poze
 2. Ritualul de seară: swipe Păstrez / Nu azi, cu „de ce” sub poză
 3. Curățenie: „Am găsit 28 de serii… Eliberezi 289 MB”, totul în coș, recuperabil
 4. Oamenii tăi: albume pe persoane, „nu se șterg niciodată în bloc”
-5. Căutare în cuvinte: „Ami”, „mare”, „bon”
-6. Editor: Mai frumoasă înainte/după
-7. Gumă și Fundal alb (gratuit, fără filigran)
+5. Căutare după ce se vede: „copii la mare la apus” (+ N după ce se vede în poze)
+6. Editor: Mai frumoasă înainte/după, cu Portret
+7. Gumă: atingi obiectul → dispare (gratuit, fără filigran)
 8. „100% pe telefon · fără cont · fără reclame”
