@@ -9,6 +9,7 @@ const PATHS = {
   share: 'M12 3v12M7 8l5-5 5 5M5 14v5h14v-5',
   more: 'M5 12h.01M12 12h.01M19 12h.01',
   similar: 'M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3M9 12a3 3 0 106 0 3 3 0 00-6 0',
+  film: 'M4 5h16v14H4zM8 5v14M16 5v14M4 9h4M4 15h4M16 9h4M16 15h4',
   square: 'M4 4h16v16H4zM4 15l4-4 4 4 3-3 5 5',
   tag: 'M3 12V4h8l9 9-8 8zM7.5 7.5h.01',
   text: 'M5 6V4h14v2M12 4v16M9 20h6',

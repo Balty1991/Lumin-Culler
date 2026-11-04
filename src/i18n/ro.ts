@@ -2632,8 +2632,8 @@ export const ro = {
   "lx.cloud.done": "Cherrypic Cloud a verificat {checked} poze; {decided} s-au rezolvat singure.",
   "lx.cloud.nothing": "Nu sunt poze nesigure de verificat (sau limita de azi s-a atins).",
   "lx.cloud.auto": "Cherrypic Cloud a mai rezolvat {decided} poze nesigure.",
-  "lx.cloud.keep": "Cherrypic Cloud: aș păstra-o",
-  "lx.cloud.drop": "Cherrypic Cloud: n-aș păstra-o",
+  "lx.cloud.keep": "Cherrypic: aș păstra-o",
+  "lx.cloud.drop": "Cherrypic: n-aș păstra-o",
   "lx.viewer.enhanceShort": "Editează",
   "lx.viewer.similarShort": "Similare",
   "lx.viewer.deleteShort": "Șterge",
@@ -3193,6 +3193,12 @@ export const ro = {
   'lx.magic.zoomHint': 'Mărește cu două degete',
   'lx.magic.tapFailed': 'Selecția nu s-a descărcat: colorează cu degetul',
   'lx.magic.zoomReset': 'Înapoi',
+  'lx.burstFilm.working': "Fac filmul… prima dată descarc motorul (~21 MB).",
+  'lx.burstFilm.noPhotos': "Pozele seriei nu s-au putut citi.",
+  'lx.burstFilm.engineFailed': "Motorul pentru film nu s-a descărcat sau n-a mers. Încearcă din nou pe Wi‑Fi.",
+  'lx.edit.lowRes': "Am deschis o copie mică a pozei: originalul nu s-a putut citi.",
+  'lx.engines.get': "Descarcă",
+  'lx.engines.retry': "Reîncearcă",
 };
 
 export type TranslationKey = keyof typeof ro;

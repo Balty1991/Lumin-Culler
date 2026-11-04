@@ -57,7 +57,7 @@ export function CloudLine({ id }: { id: string }) {
   if (!v || !v.reason) return null;
   return (
     <p className={v.keep ? 'lx-cloud-line keep' : 'lx-cloud-line drop'}>
-      ☁ <b>{tr(v.keep ? 'lx.cloud.keep' : 'lx.cloud.drop')}</b> — {v.reason}
+      ✦ <b>{tr(v.keep ? 'lx.cloud.keep' : 'lx.cloud.drop')}</b> — {v.reason}
     </p>
   );
 }

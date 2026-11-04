@@ -66,24 +66,46 @@ export async function refreshEngines(): Promise<void> {
   try { set({ have: (await Native.files()).files }); } catch { /* rămâne */ }
 }
 
+/** Un motor, cu progres în Setări. `true` dacă e gata la final. */
+export async function downloadEngine(id: string): Promise<boolean> {
+  const e = ENGINES.find(x => x.id === id);
+  if (!e || !isClipPlatform()) return false;
+  while (state.busy) await new Promise(r => setTimeout(r, 500));
+  await refreshEngines();
+  if (engineReady(e)) return true;
+  set({ busy: e.id, progress: 0, error: null });
+  try {
+    for (const f of e.files) {
+      if ((state.have[f.file] ?? 0) > f.min) continue;
+      await Native.fetchModel(f);
+    }
+  } catch {
+    set({ error: e.id });
+  }
+  await refreshEngines();
+  set({ busy: null, progress: 0 });
+  return engineReady(e);
+}
+
 /** Descarcă pe rând tot ce lipsește. */
 export async function downloadAllEngines(): Promise<void> {
   if (!isClipPlatform() || state.busy) return;
-  set({ error: null });
+  for (const e of ENGINES) if (!engineReady(e)) await downloadEngine(e.id);
+}
+
+/**
+ * Raportat: „nu se descărcase, să nu se mai întâmple”. După analiza de fundal,
+ * motoarele lipsă se descarcă singure, pe rând, ca să fie gata când e nevoie de ele.
+ */
+let autoDone = false;
+export async function autoFetchEngines(): Promise<void> {
+  if (autoDone || !isClipPlatform()) return;
+  autoDone = true;
+  await refreshEngines();
   for (const e of ENGINES) {
     if (engineReady(e)) continue;
-    set({ busy: e.id, progress: 0 });
-    try {
-      for (const f of e.files) {
-        if ((state.have[f.file] ?? 0) > f.min) continue;
-        await Native.fetchModel(f);
-      }
-    } catch (err) {
-      set({ error: e.id });
-    }
-    await refreshEngines();
+    if (!(await downloadEngine(e.id))) await downloadEngine(e.id); // o reîncercare
   }
-  set({ busy: null, progress: 0 });
 }
 
 /** Un singur motor, chiar acum (de ex. selecția la deschiderea gumei). `true` dacă e gata. */

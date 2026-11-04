@@ -77,3 +77,53 @@ export function sharpUrl(photoId: string, size: number): Promise<string | null> 
   }
   return p;
 }
+
+/** O poză încărcată printr-un <img> (merge și unde `fetch` pe fișierul din galerie e refuzat). */
+function imageFrom(url: string): Promise<HTMLImageElement | null> {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => { (img.decode?.() ?? Promise.resolve()).then(() => resolve(img), () => resolve(img)); };
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
+/**
+ * Poza pentru editoare (gumă, text, film), cu rezerve: copia clară făcută de
+ * Android, apoi fișierul din galerie, apoi preview-ul și, la urmă, miniatura.
+ * Raportat: „Poza nu s-a putut deschide” când prima cale nu mergea. `low` =
+ * s-a ajuns la o copie mică (editorul merge, dar la rezoluție redusă).
+ */
+export async function loadEditable(photoId: string, size: number): Promise<{ img: HTMLImageElement; low: boolean } | null> {
+  const { getDisplayUrl, getCachedPreviewUrl } = await import('../core/previewUrlCache');
+  const { getCachedThumbUrl } = await import('../core/thumbUrlCache');
+  const tries: Array<[() => Promise<string | null>, boolean]> = [
+    [() => sharpUrl(photoId, size), false],
+    [() => getDisplayUrl(photoId), false],
+    [() => getCachedPreviewUrl(photoId), true],
+    [() => getCachedThumbUrl(photoId), true]
+  ];
+  for (const [get, low] of tries) {
+    const url = await get().catch(() => null);
+    if (!url) continue;
+    const img = await imageFrom(url);
+    if (img && img.naturalWidth > 0) return { img, low: low || Math.max(img.naturalWidth, img.naturalHeight) < 900 };
+  }
+  return null;
+}
+
+/** La fel, ca ImageBitmap micșorat la `size` (pentru canvas). */
+export async function loadEditableBitmap(photoId: string, size: number): Promise<{ bitmap: ImageBitmap; low: boolean } | null> {
+  const r = await loadEditable(photoId, size);
+  if (!r) return null;
+  const k = Math.min(1, size / Math.max(r.img.naturalWidth, r.img.naturalHeight));
+  try {
+    const bitmap = await createImageBitmap(r.img, { resizeWidth: Math.round(r.img.naturalWidth * k), resizeHeight: Math.round(r.img.naturalHeight * k), resizeQuality: 'high' });
+    return { bitmap, low: r.low };
+  } catch {
+    const c = document.createElement('canvas');
+    c.width = Math.round(r.img.naturalWidth * k); c.height = Math.round(r.img.naturalHeight * k);
+    c.getContext('2d')!.drawImage(r.img, 0, 0, c.width, c.height);
+    return { bitmap: await createImageBitmap(c), low: r.low };
+  }
+}

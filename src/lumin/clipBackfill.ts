@@ -71,6 +71,8 @@ export async function startClipBackfill(anyNetwork = true): Promise<void> {
       useStore.getState().setNotice(t(useStore.getState().locale, 'lx.models.doneNotice', { count: todo.length }));
     }
     await deepPass(bgText);
+    // La final, motoarele care încă lipsesc (selecție, gumă, portret, film…).
+    void import('./engines').then(m => m.autoFetchEngines());
   } catch {
     // CLIP e un bonus: dacă ceva nu merge, aplicația rămâne exact ca înainte.
   } finally {

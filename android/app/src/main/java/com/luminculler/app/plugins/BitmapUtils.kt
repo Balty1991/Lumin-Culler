@@ -130,7 +130,7 @@ private fun rotate(bitmap: Bitmap, degrees: Int): Bitmap {
     return rotated
 }
 
-private fun decodeUri(context: Context, uri: Uri, maxSide: Int): Bitmap {
+internal fun decodeUri(context: Context, uri: Uri, maxSide: Int): Bitmap {
     // Pas 1: doar dimensiunile, fara sa alocam pixelii.
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     context.contentResolver.openInputStream(uri).use { BitmapFactory.decodeStream(it, null, bounds) }

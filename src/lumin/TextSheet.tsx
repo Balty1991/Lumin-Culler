@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { getDisplayUrl } from '../core/previewUrlCache';
 import { useStore, type PhotoView } from '../state/store';
 import { shareCollage } from './collage';
 import { useTr } from './context';
 import { saveEditedBlob } from './saveEdited';
-import { canSharpen, sharpUrl } from './sharp';
+import { loadEditableBitmap } from './sharp';
 import { intlTag } from '../i18n';
 
 /**
@@ -77,9 +76,7 @@ export function autoTextColor(img: CanvasImageSource, w: number, h: number, top:
 }
 
 async function loadPhoto(id: string): Promise<ImageBitmap | null> {
-  const url = (canSharpen() ? await sharpUrl(id, 2048).catch(() => null) : null) ?? (await getDisplayUrl(id).catch(() => null));
-  if (!url) return null;
-  try { return await createImageBitmap(await (await fetch(url)).blob()); } catch { return null; }
+  return (await loadEditableBitmap(id, 2048))?.bitmap ?? null;
 }
 
 export function drawTextOnPhoto(ctx: CanvasRenderingContext2D, img: CanvasImageSource, w: number, h: number, text: string, look: Look, top: boolean, color = '#ffffff'): void {

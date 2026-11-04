@@ -5,7 +5,7 @@ import { useTr } from './context';
 import { Thumb } from './Thumb';
 import { cloudAiEdit, ensureCloud, type AiEditResult } from './cloud';
 import { saveEditedBlob } from './saveEdited';
-import { canSharpen, sharpUrl } from './sharp';
+import { canSharpen, originalUri, sharpUrl } from './sharp';
 import { getCachedPreviewUrl } from '../core/previewUrlCache';
 import { clarityOnDevice, cutoutOnDevice } from '../core/onDeviceEdit';
 import { portraitOnDevice } from '../core/portraitEdit';
@@ -42,7 +42,7 @@ export function AiRetouch({ photo, onClose, kind = 'retouch' }: { photo: PhotoVi
         }
         const src = srcBlob.current;
         setState('work');
-        const out = src ? await (kind === 'clarity' ? clarityOnDevice(src) : kind === 'portrait' ? portraitOnDevice(src, strength, focus ?? undefined) : cutoutOnDevice(src, 'white')) : null;
+        const out = src ? await (kind === 'clarity' ? clarityOnDevice(src) : kind === 'portrait' ? portraitOnDevice(src, strength, focus ?? undefined, await originalUri(photo.id).catch(() => null)) : cutoutOnDevice(src, 'white')) : null;
         if (!alive) return;
         if (out) { setBlob(out); setUrl(URL.createObjectURL(out)); setState('done'); return; }
         setWhy(tr('lx.aiRetouch.err.failed')); setState('error'); return;

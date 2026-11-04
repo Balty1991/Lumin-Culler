@@ -1357,3 +1357,6 @@ html, body { overflow-x: hidden; }
 .lx-density-btn { flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 40px; min-width: 52px; padding: 0 10px; border-radius: 12px; border: 1px solid var(--lx-line); background: var(--surface-2); color: var(--text); }
 .lx-density-btn b { font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--text-dim); }
 @media (max-width: 370px) { .lx-wall-seg button { font-size: 12px; padding: 0 4px; } .lx-wall-seg button b { font-size: 10px; } }
+
+/* Motoare: fiecare se poate descărca separat, dintr-o atingere. */
+.lx-pill-btn { cursor: pointer; font: inherit; font-weight: 600; color: var(--accent-text, var(--accent)); border-color: rgb(var(--accent-rgb) / .45); background: rgb(var(--accent-rgb) / .1); min-height: 36px; padding: 0 14px; }

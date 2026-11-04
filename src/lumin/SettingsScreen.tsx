@@ -18,7 +18,7 @@ import { haptic, hapticsOn, setHapticsOn } from '../core/device';
 import { requestNotificationAccess, isNativeNotificationsAvailable } from '../core/nativeNotifications';
 import { useLx } from './lxStore';
 import { refreshModels, useModelsState } from './aiModels';
-import { ENGINES, downloadAllEngines, engineReady, refreshEngines, useEngines } from './engines';
+import { ENGINES, downloadAllEngines, downloadEngine, engineReady, refreshEngines, useEngines } from './engines';
 import { useTr } from './context';
 import { useEffect, useState } from 'react';
 import { openBatterySettings, readBatteryRestriction, type BatteryRestriction } from '../core/backgroundAnalysis';
@@ -413,9 +413,13 @@ function EnginesList() {
               <b>{tr(`lx.engines.${e.id}`)}</b>
               <small>{tr(`lx.engines.${e.id}.sub`)} · {e.mb} MB</small>
             </span>
-            <span className={ok ? 'lx-pill ok' : now ? 'lx-pill warm' : 'lx-pill'}>
-              {ok ? '✓' : now ? `${Math.round(st.progress * 100)}%` : tr('lx.engines.later')}
-            </span>
+            {ok || now ? (
+              <span className={ok ? 'lx-pill ok' : 'lx-pill warm'}>{ok ? '✓' : `${Math.round(st.progress * 100)}%`}</span>
+            ) : (
+              <button className="lx-pill lx-pill-btn" onClick={() => void downloadEngine(e.id)}>
+                {st.error === e.id ? tr('lx.engines.retry') : tr('lx.engines.get')}
+              </button>
+            )}
           </div>
         );
       })}

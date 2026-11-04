@@ -6,7 +6,8 @@
  */
 import { registerPlugin, Capacitor } from '@capacitor/core';
 import { extensionFor, pickMimeType } from '../core/recapVideoRender';
-import { loadImage } from './collage';
+import { loadEditable } from './sharp';
+import { fetchEngine } from './engines';
 
 interface RifeApi { between(o: { a: string; b: string; steps: number }): Promise<{ frames: string[]; width: number; height: number }> }
 const Rife = registerPlugin<RifeApi>('Rife');
@@ -33,7 +34,9 @@ async function decode(b64: string): Promise<HTMLImageElement> {
 export async function makeBurstFilm(ids: string[], onProgress?: (f: number) => void): Promise<{ blob: Blob; ext: string } | null> {
   const mime = pickMimeType();
   if (!mime || ids.length < 2) return null;
-  const imgs = (await Promise.all(ids.slice(0, 6).map(loadImage))).filter((x): x is HTMLImageElement => !!x);
+  // Motorul prin descărcarea comună (cu reluare), înainte de primul cadru.
+  await fetchEngine('film').catch(() => false);
+  const imgs = (await Promise.all(ids.slice(0, 6).map(id => loadEditable(id, 1024).then(r => r?.img ?? null)))).filter((x): x is HTMLImageElement => !!x);
   if (imgs.length < 2) return null;
   const keys = imgs.map(i => jpeg64(i));
   const frames: HTMLImageElement[] = [await decode(keys[0])];

@@ -193,14 +193,22 @@ class PortraitPlugin : Plugin() {
     @PluginMethod
     fun portrait(call: PluginCall) {
         val b64 = call.getString("imageBase64")
-        if (b64.isNullOrEmpty()) { call.reject("imageBase64 is required"); return }
+        val uri = call.getString("imageUri")
+        if (b64.isNullOrEmpty() && uri.isNullOrEmpty()) { call.reject("imageBase64 or imageUri is required"); return }
         val strength = (call.getDouble("strength") ?: 0.7).toFloat().coerceIn(0.1f, 1f)
         // Unde a atins omul (0..1): acolo e subiectul. Lipsă = alege aplicația.
         val tapX = call.getDouble("focusX")?.toFloat()
         val tapY = call.getDouble("focusY")?.toFloat()
         executor.ruleaza(call, "Portretul nu s-a putut face") {
-            val bytes = Base64.decode(b64, Base64.DEFAULT)
-            val src = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: run { call.reject("imagine invalidă"); return@ruleaza }
+            // Originalul, direct din galerie (până la 2560 px): raportat „a estompat și fața” —
+            // de fapt primea o copie mică, deci tot portretul ieșea neclar.
+            val src: Bitmap = if (!uri.isNullOrEmpty()) {
+                if (call.getInt("maxSide") == null) call.data.put("maxSide", 2560)
+                resolveInputBitmap(context, call) ?: return@ruleaza
+            } else {
+                val bytes = Base64.decode(b64, Base64.DEFAULT)
+                BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: run { call.reject("imagine invalidă"); return@ruleaza }
+            }
             val w = src.width; val h = src.height
 
             // 1. Cine e subiectul: omul (MODNet) sau ce e aproape (Depth Anything).
@@ -244,8 +252,10 @@ class PortraitPlugin : Plugin() {
                 val hl = ((lum - 200f) / 55f).coerceIn(0f, 1f)
                 ch[c][i] * (1f + 1.6f * hl * (1f - focus[i]))
             } }
-            val big = blurBackground(lit, bgW, ws, hs, rBig)
-            val mid = blurBackground(ch, bgW, ws, hs, rMid)
+            // Patru trepte de estompare (ca un obiectiv: crește lin cu distanța, fără salturi
+            // între „clar” și „estompat”, care dădeau aspectul de decupaj lipit).
+            val radii = intArrayOf(max(1, rBig / 8), max(2, rBig / 4), max(3, rBig / 2), rBig)
+            val levels = Array(4) { L -> blurBackground(if (L >= 2) lit else ch, bgW, ws, hs, radii[L]) }
 
             // 4. Cât se estompează fiecare punct: după distanța față de subiect (ca la lentilă):
             //    pământul de lângă picioare puțin, copacii din spate mult.
@@ -265,11 +275,14 @@ class PortraitPlugin : Plugin() {
                 } else (1f - y.toFloat() / hs) * 0.6f + 0.4f
                 val eased = dist * dist * (3f - 2f * dist)
                 val amount = eased * (1f - focus[i])
-                val t1 = (amount / 0.4f).coerceIn(0f, 1f)
-                val t2 = ((amount - 0.4f) / 0.6f).coerceIn(0f, 1f)
+                // amount 0..1 → poziție între original (0) și cele 4 trepte (1..4), interpolat.
+                val pos = amount * 4f
+                val lo = pos.toInt().coerceIn(0, 3)
+                val f = (pos - lo).coerceIn(0f, 1f)
                 fun pick(c: Int): Int {
-                    val base = ch[c][i] * (1 - t1) + mid[c][i] * t1
-                    return (base * (1 - t2) + big[c][i] * t2).roundToInt().coerceIn(0, 255)
+                    val a0 = if (lo == 0) ch[c][i] else levels[lo - 1][c][i]
+                    val a1 = levels[lo][c][i]
+                    return (a0 * (1 - f) + a1 * f).roundToInt().coerceIn(0, 255)
                 }
                 layer[i] = (0xFF shl 24) or (pick(0) shl 16) or (pick(1) shl 8) or pick(2)
                 sharpness[i] = focus[i]

@@ -2,7 +2,6 @@ import { Capacitor } from '@capacitor/core';
 import { eraseInBrowser } from '../core/webInpaint';
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { getDisplayUrl } from '../core/previewUrlCache';
 import { useStore, type PhotoView } from '../state/store';
 import { cloudAvailable, cloudInpaint, ensureCloud, type InpaintMode } from './cloud';
 import { eraseOnDevice, onDeviceEditAvailable, prepareLargeEraser } from '../core/onDeviceEdit';
@@ -12,7 +11,8 @@ import { saveEditedBlob } from './saveEdited';
 import { useTr } from './context';
 import { aiSize, fillMasked, maskBounds, maskComponents, type Rect } from './magic';
 import { fetchEngine } from './engines';
-import { canSharpen, sharpUrl } from './sharp';
+import { loadEditableBitmap } from './sharp';
+import { t } from '../i18n';
 
 /**
  * lumin/MagicSheet.tsx
@@ -25,9 +25,26 @@ import { canSharpen, sharpUrl } from './sharp';
 const WORK = 2048;
 
 async function loadSource(id: string): Promise<ImageBitmap | null> {
-  const url = (canSharpen() ? await sharpUrl(id, WORK).catch(() => null) : null) ?? (await getDisplayUrl(id).catch(() => null));
-  if (!url) return null;
-  try { return await createImageBitmap(await (await fetch(url)).blob()); } catch { return null; }
+  const r = await loadEditableBitmap(id, WORK);
+  if (r?.low) useStore.getState().setNotice(t(useStore.getState().locale, 'lx.edit.lowRes'));
+  return r?.bitmap ?? null;
+}
+
+/** Claritate (mască de contrast 3×3) și granulație fină, cu tăria `k` (0..1). */
+function restoreTexture(ctx: CanvasRenderingContext2D, w: number, h: number, k: number) {
+  const im = ctx.getImageData(0, 0, w, h);
+  const d = im.data, src = new Uint8ClampedArray(d);
+  const amt = 0.5 + 0.7 * k, grain = 2 + 4 * k;
+  for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+    const i = (y * w + x) * 4;
+    const n = (Math.random() + Math.random() - 1) * grain;
+    for (let c = 0; c < 3; c++) {
+      const j = i + c;
+      const avg = (src[j - 4] + src[j + 4] + src[j - w * 4] + src[j + w * 4]) / 4;
+      d[j] = src[j] + (src[j] - avg) * amt + n;
+    }
+  }
+  ctx.putImageData(im, 0, 0);
 }
 
 const toBlob = (c: HTMLCanvasElement, type: string, q?: number) => new Promise<Blob | null>(r => c.toBlob(r, type, q));
@@ -262,6 +279,10 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
     if (!mask.current) return;
     const [patch, pctx] = canvasOf(r.w, r.h);
     pctx.drawImage(ai, 0, 0, r.w, r.h);
+    // Mărită de la mărimea AI, bucata e mai moale decât poza: îi redăm puțină
+    // claritate și granulația pozei, ca să nu se vadă o pată netedă.
+    const up = r.w / ((ai as { width: number }).width || r.w);
+    if (up > 1.3) restoreTexture(pctx, r.w, r.h, Math.min(1, (up - 1) / 2));
     pctx.globalCompositeOperation = 'destination-in';
     pctx.filter = `blur(${Math.max(2, Math.round(Math.max(r.w, r.h) * 0.01))}px)`;
     pctx.drawImage(mask.current, r.x, r.y, r.w, r.h, 0, 0, r.w, r.h);
@@ -291,7 +312,10 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
         let done = 0;
         for (const z of zones) {
           const bw = z.w * step, bh = z.h * step;
-          const side = Math.min(Math.max(img.width, img.height), Math.max(192, Math.max(bw, bh) * 2.2));
+          // Context în jur: dublu la obiectele mici, mai strâns la cele mari (altfel bucata
+          // trece prin AI la 512 px și, mărită înapoi, iese ștearsă — raportat la un balon).
+          const big = Math.max(bw, bh);
+          const side = Math.min(Math.max(img.width, img.height), Math.max(192, big + 2 * Math.max(48, Math.min(big * 0.6, 280))));
           const w = Math.min(img.width, side), h = Math.min(img.height, side);
           const x = Math.max(0, Math.min(img.width - w, z.x * step + bw / 2 - w / 2));
           const y = Math.max(0, Math.min(img.height - h, z.y * step + bh / 2 - h / 2));

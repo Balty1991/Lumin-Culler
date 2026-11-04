@@ -60,6 +60,9 @@ class SharpImagePlugin : Plugin() {
                     decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
                 }
             }.getOrNull()
+                // Unele poze (raportat: „Poza nu s-a putut deschide” în gumă/text) nu trec
+                // prin ImageDecoder; calea veche, cu BitmapFactory + EXIF, le citește.
+                ?: runCatching { decodeUri(context, uri, size) }.getOrNull()
         }
         return runCatching {
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
