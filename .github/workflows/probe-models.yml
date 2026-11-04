@@ -1,0 +1,41 @@
+name: Probe web models
+on:
+  push:
+    branches: [claude/fix-serii]
+    paths: ['.github/workflows/probe-models.yml']
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          pip install -q onnxruntime numpy pillow torch --index-url https://download.pytorch.org/whl/cpu 2>&1 | tail -1
+          pip install -q transformers 2>&1 | tail -1
+          B=https://huggingface.co/Xenova/clip-vit-base-patch32/resolve/main
+          for f in onnx/vision_model_quantized.onnx onnx/vision_model.onnx onnx/text_model_quantized.onnx preprocessor_config.json; do curl -fsSL -o "$(basename $f)" "$B/$f" && ls -la "$(basename $f)" || echo "FAIL $f"; done
+          curl -fsSL -o aest.pth https://github.com/LAION-AI/aesthetic-predictor/raw/main/sa_0_4_vit_b_32_linear.pth && ls -la aest.pth || echo FAIL aest
+          curl -fsSL -o t.jpg https://huggingface.co/datasets/hf-internal-testing/fixtures_ade20k/resolve/main/ADE_val_00000001.jpg || true
+          cat preprocessor_config.json
+          python - <<'PY'
+          import onnxruntime as ort, numpy as np, torch
+          from PIL import Image
+          for f in ['vision_model_quantized.onnx','vision_model.onnx']:
+              try:
+                  s = ort.InferenceSession(f); print(f, [(i.name,i.shape) for i in s.get_inputs()], [(o.name,o.shape) for o in s.get_outputs()])
+              except Exception as e: print(f,'ERR',e)
+          sd = torch.load('aest.pth', map_location='cpu'); print({k: tuple(v.shape) for k,v in sd.items()})
+          im = Image.open('t.jpg').convert('RGB').resize((224,224))
+          mean=np.array([0.48145466,0.4578275,0.40821073]); std=np.array([0.26862954,0.26130258,0.27577711])
+          x=((np.asarray(im,np.float32)/255-mean)/std).transpose(2,0,1)[None].astype(np.float32)
+          s=ort.InferenceSession('vision_model_quantized.onnx')
+          outs=s.run(None,{s.get_inputs()[0].name:x}); 
+          for o,meta in zip(outs,s.get_outputs()): print(meta.name, o.shape)
+          emb=outs[0][0]; emb=emb/np.linalg.norm(emb)
+          w=sd['weight'].numpy()[0]; b=float(sd['bias'].numpy()[0]); print('aesthetic', float(emb@w+b))
+          from transformers import CLIPModel, CLIPProcessor
+          m=CLIPModel.from_pretrained('openai/clip-vit-base-patch32'); p=CLIPProcessor.from_pretrained('openai/clip-vit-base-patch32')
+          labels=['a photo of a dog','a photo of a cat','a photo of a house','a photo of the sky','a photo of a child','a photo of a teddy bear']
+          t=p(text=labels,return_tensors='pt',padding=True)
+          with torch.no_grad(): te=m.get_text_features(**t).numpy()
+          te=te/np.linalg.norm(te,axis=1,keepdims=True)
+          print('zero-shot', sorted(zip((te@emb*100).round(1),labels),reverse=True))
+          PY
