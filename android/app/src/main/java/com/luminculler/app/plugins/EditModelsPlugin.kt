@@ -66,7 +66,7 @@ class EditModelsPlugin : Plugin() {
         val out = JSObject()
         out.put("ready", lamaReady())
         call.resolve(out)
-        if (lamaReady() || !unmetered()) return
+        if (lamaReady()) return
         downloader.execute {
             runCatching {
                 val tmp = java.io.File(context.filesDir, "$LAMA_FILE.part")

@@ -1003,7 +1003,7 @@ export const dict: Record<string, string> = {
   "lx.models.title": "Moteurs IA sur le téléphone",
   "lx.models.ready": "Prêts : beauté, étiquettes et recherche par contenu",
   "lx.models.missing": "Pas encore téléchargés",
-  "lx.models.sub": "Ils tournent uniquement sur ton téléphone. Téléchargés une fois (≈224 Mo), en général en Wi-Fi.",
+  "lx.models.sub": "Ils tournent uniquement sur ton téléphone. Téléchargés une fois (≈224 Mo), en Wi-Fi ou en données mobiles.",
   "lx.models.metered": "Ce réseau est marqué comme limité, donc rien n’a été téléchargé automatiquement. Touche le bouton pour commencer.",
   "lx.models.error": "Le téléchargement a échoué. Vérifie la connexion et réessaie.",
   "lx.models.download": "Télécharger maintenant",

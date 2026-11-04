@@ -1003,7 +1003,7 @@ export const dict: Record<string, string> = {
   "lx.models.title": "Motores de IA en el teléfono",
   "lx.models.ready": "Listos: belleza, etiquetas y búsqueda por contenido",
   "lx.models.missing": "Aún no descargados",
-  "lx.models.sub": "Funcionan solo en tu teléfono. Se descargan una vez (≈224 MB), normalmente por Wi-Fi.",
+  "lx.models.sub": "Funcionan solo en tu teléfono. Se descargan una vez (≈224 MB), por Wi-Fi o datos móviles.",
   "lx.models.metered": "La red está marcada como de uso medido, así que no se descargó solo. Toca el botón para empezar.",
   "lx.models.error": "La descarga falló. Revisa la conexión e inténtalo de nuevo.",
   "lx.models.download": "Descargar ahora",

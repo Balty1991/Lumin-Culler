@@ -3122,7 +3122,7 @@ export const ro = {
   "lx.models.title": "Motoare AI pe telefon",
   "lx.models.ready": "Gata: frumusețe, etichete și căutare după ce se vede",
   "lx.models.missing": "Încă nedescărcate",
-  "lx.models.sub": "Rulează doar pe telefon. Se descarcă o singură dată (≈224 MB), de obicei pe Wi-Fi.",
+  "lx.models.sub": "Rulează doar pe telefon. Se descarcă o singură dată (≈224 MB), pe Wi-Fi sau pe date mobile.",
   "lx.models.metered": "Rețeaua e marcată „contorizată”, așa că n-am descărcat singur. Apasă butonul ca să pornești.",
   "lx.models.error": "Descărcarea n-a mers. Verifică internetul și încearcă din nou.",
   "lx.models.download": "Descarcă acum",

@@ -3036,7 +3036,7 @@ export const en: Record<TranslationKey, string> = {
   "lx.models.title": "On-device AI engines",
   "lx.models.ready": "Ready: beauty, labels and search by what is in the photo",
   "lx.models.missing": "Not downloaded yet",
-  "lx.models.sub": "They run only on your phone. Downloaded once (≈224 MB), usually on Wi-Fi.",
+  "lx.models.sub": "They run only on your phone. Downloaded once (≈224 MB), on Wi-Fi or mobile data.",
   "lx.models.metered": "This network is marked as metered, so nothing was downloaded automatically. Tap the button to start.",
   "lx.models.error": "The download failed. Check your connection and try again.",
   "lx.models.download": "Download now",

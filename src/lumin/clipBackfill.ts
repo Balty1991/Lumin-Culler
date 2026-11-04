@@ -23,7 +23,7 @@ let holding = false;
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-export async function startClipBackfill(anyNetwork = false): Promise<void> {
+export async function startClipBackfill(anyNetwork = true): Promise<void> {
   if (running || !isClipPlatform()) return;
   running = true;
   try {
