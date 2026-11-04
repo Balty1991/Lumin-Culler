@@ -30,6 +30,7 @@ import { isTextOnlyMatch, searchPhotos } from './textSearch';
 import { clipSearch } from '../core/clip/clipSearch';
 import { db } from '../core/db';
 import { findSimilarPhotos } from '../core/similarPhotos';
+import { Icon } from './icons';
 import { EnhanceSheet } from './Enhance';
 import { SCREEN_SIZE, originalUri, sharpUrl, sizeFor } from './sharp';
 import { CleanupCard } from './Cleanup';
@@ -815,38 +816,38 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
         {/* Patru acțiuni egale, mereu încăpute (raportat: butoanele ieșeau din ecran);
             restul uneltelor stau sub „Mai mult”, grupate într-o grilă. */}
         <div className="lx-viewer-tools2">
-          <button className="lx-tbtn magic" onClick={() => setEnhancing(true)}><span>✨</span>{tr('lx.viewer.enhanceShort')}</button>
-          <button className="lx-tbtn" onClick={() => setMagic(true)}><span>🧽</span>{tr('lx.magic.erase')}</button>
-          <button className="lx-tbtn" onClick={() => void exportSelection('apps', [p.id]).then(() => learnFromShare([p]))}><span>↗</span>{tr('lx.wall.share')}</button>
-          <button className={more ? 'lx-tbtn on' : 'lx-tbtn'} aria-expanded={more} onClick={() => setMore(v => !v)}><span>⋯</span>{tr('lx.viewer.more')}</button>
+          <button className="lx-tbtn magic" onClick={() => setEnhancing(true)}><span><Icon name="sparkle" /></span>{tr('lx.viewer.enhanceShort')}</button>
+          <button className="lx-tbtn" onClick={() => setMagic(true)}><span><Icon name="eraser" /></span>{tr('lx.magic.erase')}</button>
+          <button className="lx-tbtn" onClick={() => void exportSelection('apps', [p.id]).then(() => learnFromShare([p]))}><span><Icon name="share" /></span>{tr('lx.wall.share')}</button>
+          <button className={more ? 'lx-tbtn on' : 'lx-tbtn'} aria-expanded={more} onClick={() => setMore(v => !v)}><span><Icon name="more" /></span>{tr('lx.viewer.more')}</button>
         </div>
         {more && (
           <div className="lx-more-grid">
-            {onSimilar && <button onClick={() => onSimilar(p.id)}><span>◎</span>{tr('lx.viewer.similarShort')}</button>}
-            <button onClick={() => setInsta(true)}><span>▣</span>{tr('lx.insta.button')}</button>
-            {canSell && <button onClick={() => setSelling(true)}><span>🏷️</span>{tr('lx.sell.button')}</button>}
-            <button onClick={() => setTexting(true)}><span>Aa</span>{tr('lx.text.button')}</button>
+            {onSimilar && <button onClick={() => onSimilar(p.id)}><span><Icon name="similar" /></span>{tr('lx.viewer.similarShort')}</button>}
+            <button onClick={() => setInsta(true)}><span><Icon name="square" /></span>{tr('lx.insta.button')}</button>
+            {canSell && <button onClick={() => setSelling(true)}><span><Icon name="tag" /></span>{tr('lx.sell.button')}</button>}
+            <button onClick={() => setTexting(true)}><span><Icon name="text" /></span>{tr('lx.text.button')}</button>
             {p.ocrText && p.ocrText.trim().length > 8 && (
               <button onClick={() => { void navigator.clipboard?.writeText(p.ocrText!.trim()).then(() => useStore.getState().setNotice(tr('lx.viewer.textCopied')), () => {}); }}>
-                <span>📋</span>{tr('lx.viewer.copyText')}
+                <span><Icon name="copy" /></span>{tr('lx.viewer.copyText')}
               </button>
             )}
-            {cloudAvailable() && <button onClick={() => setWriting(true)}><span>✍</span>{tr('lx.caption.button')}</button>}
-            <button onClick={() => void hidePhotos([p.id], tr).then(done => { if (done) { if (list.length <= 1) onClose(); else onIndex(Math.min(index, list.length - 2)); } })}><span>🔒</span>{tr('lx.private.hide')}</button>
+            {cloudAvailable() && <button onClick={() => setWriting(true)}><span><Icon name="pen" /></span>{tr('lx.caption.button')}</button>}
+            <button onClick={() => void hidePhotos([p.id], tr).then(done => { if (done) { if (list.length <= 1) onClose(); else onIndex(Math.min(index, list.length - 2)); } })}><span><Icon name="lock" /></span>{tr('lx.private.hide')}</button>
             {p.status === 'rejected' && p.mediaUri && (
               <button className="danger" onClick={() => void deleteRejectedPhotos([p.id]).then(r => {
                 if (!r.deleted) return;
                 if (list.length <= 1) onClose(); else onIndex(Math.min(index, list.length - 2));
-              })}><span>🗑</span>{tr('lx.viewer.deleteShort')}</button>
+              })}><span><Icon name="trash" /></span>{tr('lx.viewer.deleteShort')}</button>
             )}
           </div>
         )}
         <div className="lx-viewer-decide">
           <button className={p.status === 'rejected' ? 'lx-dbtn drop on' : 'lx-dbtn drop'} onClick={() => void setStatus(p.id, 'rejected')}>
-            <span>✕</span>{tr('lx.notToday')}
+            <span><Icon name="x" /></span>{tr('lx.notToday')}
           </button>
           <button className={p.status === 'selected' ? 'lx-dbtn keep on' : 'lx-dbtn keep'} onClick={() => void setStatus(p.id, 'selected')}>
-            <span>✓</span>{tr('lx.keep')}
+            <span><Icon name="check" /></span>{tr('lx.keep')}
           </button>
         </div>
       </div>

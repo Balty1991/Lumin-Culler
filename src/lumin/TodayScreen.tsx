@@ -25,6 +25,8 @@ import { buildCoverage, useGalleryMonths } from './coverage';
 import { CleanupCard } from './Cleanup';
 import { onThisDay } from './momentAlbums';
 import { Recaps } from './Recaps';
+import { StoryButton } from './Story';
+import { photoTime } from './days';
 
 /**
  * lumin/TodayScreen.tsx
@@ -93,6 +95,7 @@ export function TodayScreen() {
 
   const percent = progress && progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
 
+  const heroShown = useHeroPick() !== null;
   return (
     <div className="lx-screen lx-today">
       <header className="lx-head">
@@ -100,8 +103,10 @@ export function TodayScreen() {
         {streak > 1 && <span className="lx-pill warm">{tr('lx.streak', { count: streak })}</span>}
       </header>
 
-      <section className="lx-hero">
-        <Orb mood={busy ? 'think' : 'idle'} size={busy ? 132 : 112} />
+      {!busy && <DayPhotoHero />}
+
+      <section className={busy || !heroShown ? 'lx-hero' : 'lx-hero compact'}>
+        <Orb mood={busy ? 'think' : 'idle'} size={busy ? 132 : heroShown ? 48 : 112} />
         {busy && progress ? (
           <div className="lx-hero-text">
             <h1 className="lx-h1">{tr(progress.phase === 'citire' ? 'lx.today.reading' : 'lx.today.analysing')}</h1>
@@ -357,4 +362,49 @@ function BatteryHint() {
   }, []);
   if (!restricted) return null;
   return <button className="lx-link" onClick={() => void openBatterySettings()}>⚡ {tr('lx.reader.battery')}</button>;
+}
+
+/**
+ * Poza zilei (redesign, varianta „Amintirea zilei”): o amintire de acum N ani,
+ * altfel cea mai frumoasă poză păstrată din ultima săptămână — pe tot cardul,
+ * cu „Vezi” și „Film”. Ecranul începe cu o poză, nu cu un cerc.
+ */
+function useHeroPick(): { photos: ReturnType<typeof useLxPhotos>; title: string; badgeKey: string; years?: number } | null {
+  const photos = useLxPhotos();
+  const locale = useStore(st => st.locale);
+  return useMemo(() => {
+    const mem = onThisDay(photos)[0];
+    if (mem && mem.photos.length) return { photos: mem.photos, title: dayLabel(photoTime(mem.photos[0]), locale), badgeKey: mem.years === 1 ? 'lx.onThisDay' : 'lx.onThisDay.other', years: mem.years };
+    const weekAgo = Date.now() - 7 * 86_400_000;
+    const kept = photos.filter(p => p.status === 'selected' && !p.aside && photoTime(p) >= weekAgo);
+    if (kept.length < 2) return null;
+    const score = (p: (typeof kept)[number]) => (p.aesthetic ?? p.aiScore / 12) + (p.personNames?.length ? 0.6 : 0);
+    const best = [...kept].sort((a, b) => score(b) - score(a));
+    return { photos: best.slice(0, 12), title: dayLabel(photoTime(best[0]), locale), badgeKey: 'lx.hero.weekBest' };
+  }, [photos, locale]);
+}
+
+function DayPhotoHero() {
+  const tr = useTr();
+  const pick = useHeroPick();
+  if (!pick) return null;
+  const hero = pick.photos[0];
+  const ids = pick.photos.map(p => p.id);
+  return (
+    <section className="lx-day-hero">
+      <button className="lx-hero-tile in" onClick={() => useLx.getState().openViewer(ids, 0)} aria-label={pick.title}>
+        <span className="lx-hero-media"><Thumb id={hero.id} lqip={hero.lqip} edits={hero.edits} full /></span>
+        <span className="lx-hero-shade" />
+        <span className="lx-hero-caption">
+          <span className="lx-hero-badge">{tr(pick.badgeKey, { years: pick.years ?? 1 })}</span>
+          <b>{pick.title}</b>
+          <span>{tr('lx.hero.count', { count: pick.photos.length })}</span>
+        </span>
+      </button>
+      <div className="lx-day-hero-actions">
+        <button className="lx-btn primary" onClick={() => useLx.getState().openViewer(ids, 0)}>{tr('lx.hero.open')}</button>
+        <StoryButton className="lx-btn ghost" ids={ids.slice(0, 12)} title={pick.title} subtitle={tr('lx.hero.count', { count: pick.photos.length })} />
+      </div>
+    </section>
+  );
 }

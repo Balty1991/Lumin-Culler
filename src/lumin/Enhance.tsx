@@ -12,6 +12,7 @@ import { saveEditedBlob } from './saveEdited';
 import { useTr } from './context';
 import { AiRetouch, type ToolKind } from './AiRetouch';
 import { portraitAvailable } from '../core/portraitEdit';
+import { Icon } from './icons';
 import { MagicSheet } from './MagicSheet';
 import { lowLightOnDevice, onDeviceEditAvailable } from '../core/onDeviceEdit';
 import { analysisPool } from '../core/workerPool';
@@ -731,7 +732,7 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
             )}
             {!pure && (
               <button className="lx-pure-btn" onClick={() => { setPure(true); setManual({}); }}>
-                ↺ {tr('lx.enhance.pure')}
+                <Icon name="reset" size={16} /> {tr('lx.enhance.pure')}
               </button>
             )}
             <div className="lx-enhance-styles" role="radiogroup" aria-label={tr('lx.enhance.style')}>
@@ -752,10 +753,10 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
               <b>{Math.round(amount * 100)}%</b>
             </label>}
             <div className="lx-enhance-tools" role="group" aria-label={tr('lx.tool.group')}>
-              <button className="lx-tool-btn" onClick={() => setErasing(true)}><span aria-hidden="true">🧽</span>{tr('lx.magic.erase')}</button>
-              {tools.clarity && <button className="lx-tool-btn" onClick={() => setRetouch('clarity')}><span aria-hidden="true">🔍</span>{tr('lx.tool.clarity.button')}</button>}
-              {tools.cutout && <button className="lx-tool-btn" onClick={() => setRetouch('cutout')}><span aria-hidden="true">✂️</span>{tr('lx.tool.cutout.button')}</button>}
-              {portraitAvailable() && <button className="lx-tool-btn" onClick={() => setRetouch('portrait')}><span aria-hidden="true">🎯</span>{tr('lx.tool.portrait.button')}</button>}
+              <button className="lx-tool-btn" onClick={() => setErasing(true)}><Icon name="eraser" />{tr('lx.magic.erase')}</button>
+              {tools.clarity && <button className="lx-tool-btn" onClick={() => setRetouch('clarity')}><Icon name="zoom" />{tr('lx.tool.clarity.button')}</button>}
+              {tools.cutout && <button className="lx-tool-btn" onClick={() => setRetouch('cutout')}><Icon name="scissors" />{tr('lx.tool.cutout.button')}</button>}
+              {portraitAvailable() && <button className="lx-tool-btn" onClick={() => setRetouch('portrait')}><Icon name="target" />{tr('lx.tool.portrait.button')}</button>}
             </div>
             </>)}
           </>

@@ -3057,4 +3057,7 @@ export const en: Record<TranslationKey, string> = {
   "lx.portrait.hint": "Tap what should stay sharp · hold for the original",
   'lx.recap.beautyMonth.title': "Your {count} most beautiful of {month}",
   'lx.models.doneNotice': "Done: {count} photos analyzed by the AI. Try searching in words, e.g. “kids at the beach”.",
+  'lx.hero.weekBest': "Best of the week",
+  'lx.hero.count': "{count} photos",
+  'lx.hero.open': "See photos",
 };

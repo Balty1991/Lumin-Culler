@@ -1024,4 +1024,7 @@ export const dict: Record<string, string> = {
   "lx.portrait.hint": "Tippe, was scharf bleiben soll · halten für das Original",
   'lx.recap.beautyMonth.title': "Deine {count} schönsten aus {month}",
   'lx.models.doneNotice': "Fertig: {count} Fotos von der KI analysiert. Suche jetzt in Worten, z. B. „Kinder am Meer“.",
+  'lx.hero.weekBest': "Das Schönste der Woche",
+  'lx.hero.count': "{count} Fotos",
+  'lx.hero.open': "Fotos ansehen",
 };

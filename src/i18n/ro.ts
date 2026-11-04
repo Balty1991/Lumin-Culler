@@ -3143,6 +3143,9 @@ export const ro = {
   "lx.portrait.hint": "Atinge ce vrei să rămână clar · ține apăsat pentru original",
   'lx.recap.beautyMonth.title': "Cele mai frumoase {count} din {month}",
   'lx.models.doneNotice': "Gata: am analizat {count} poze cu AI-ul. Încearcă să cauți în cuvinte, de ex. „copii la mare”.",
+  'lx.hero.weekBest': "Cele mai frumoase ale săptămânii",
+  'lx.hero.count': "{count} poze",
+  'lx.hero.open': "Vezi pozele",
 };
 
 export type TranslationKey = keyof typeof ro;
