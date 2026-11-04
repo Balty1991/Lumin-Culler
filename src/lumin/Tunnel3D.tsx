@@ -5,6 +5,7 @@ import { useStore } from '../state/store';
 import { useTr } from './context';
 import { photoTime } from './days';
 import { Thumb } from './Thumb';
+import { SCREEN_SIZE, sharpUrl } from './sharp';
 import { weakDevice } from '../core/deviceClass';
 
 /**
@@ -83,7 +84,13 @@ export function Tunnel3D({ list, onOpen, onClose }: { list: PhotoView[]; onOpen:
       vel.current = Math.max(-0.12, Math.min(0.12, vel.current));
       if (moved < 8) {
         const card = (document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null)?.closest<HTMLElement>('[data-photo-index]');
-        if (card) onOpen(Number(card.dataset.photoIndex));
+        if (card) {
+          // Poza se pregătește întâi (cel mult ~350 ms), ca vizualizatorul să n-o arate goală.
+          const i = Number(card.dataset.photoIndex);
+          const id = list[i]?.id;
+          const ready = id ? Promise.race([sharpUrl(id, SCREEN_SIZE).catch(() => null), new Promise(r => setTimeout(r, 350))]) : Promise.resolve();
+          void ready.then(() => onOpen(i));
+        }
       }
     };
     const wheel = (e: WheelEvent) => { e.preventDefault(); vel.current += e.deltaY * 0.0007; };
@@ -103,7 +110,7 @@ export function Tunnel3D({ list, onOpen, onClose }: { list: PhotoView[]; onOpen:
       el.removeEventListener('pointerup', up); el.removeEventListener('wheel', wheel);
       window.removeEventListener('keydown', key);
     };
-  }, [onOpen, onClose]);
+  }, [onOpen, onClose, list]);
 
   // Cadrul: pozițiile 3D ale locurilor și cerul cu stele.
   useEffect(() => {
