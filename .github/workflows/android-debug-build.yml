@@ -280,8 +280,11 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           unzip -l "$apk" | sort -k1 -n -r | head -12 >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
+      # Numele arhivei și al APK-ului dinăuntru: Cherrypic (nu vechiul „lumin-culler”).
+      - name: Denumește APK-ul Cherrypic
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk "cherrypic-$(date -u +%Y%m%d-%H%M)-${GITHUB_SHA::7}.apk"
       - uses: actions/upload-artifact@v4
         with:
-          name: lumin-culler-debug-arm64
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: cherrypic-test-${{ github.run_number }}
+          path: cherrypic-*.apk
           retention-days: 1
