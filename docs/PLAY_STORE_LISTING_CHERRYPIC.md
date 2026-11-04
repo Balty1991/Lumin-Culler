@@ -128,7 +128,7 @@ Serverul (Cherrypic Cloud) e oprit în aplicație: toate analizele și edităril
 - Rezultatele (descrieri, expresii, scoruri) rămân în baza de date locală: nu se declară nimic la „Data collected” sau „Data shared”.
 - „Is all of the user data collected by your app encrypted in transit?” → nu se aplică (nu se colectează). „Do you provide a way for users to request that their data is deleted?” → da: datele sunt doar pe telefon; dezinstalarea sau Setări → Șterge datele le elimină.
 - Politica de confidențialitate e actualizată (4 noiembrie 2026): fără Cloud, cu lista completă de modele și licențele lor.
-- Înainte de publicare: RIFE re-exportat din greutățile originale MIT (vezi PLAY_STORE_CHECKLIST).
+- RIFE: conversia ONNX `edgetools/rife` (MIT, greutățile Practical-RIFE MIT) — licența e în regulă.
 
 ## Permisiunea pentru poze (READ_MEDIA_IMAGES)
 Din 2025, Play cere o declarație în Play Console că accesul permanent la poze e funcția de bază: aplicația e un manager de galerie și selector de poze (sortare zilnică, curățare, organizare). Atașează un video scurt: importul, ritualul de sortare, ștergerea în coș.

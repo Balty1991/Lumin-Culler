@@ -18,10 +18,11 @@ import java.nio.FloatBuffer
 import kotlin.math.max
 import kotlin.math.roundToInt
 
-// RIFE 4.9 (hzwer, MIT), exportat ONNX. DE VERIFICAT înainte de Play: conversia
-// găzduită n-are licență scrisă; de refăcut din greutățile originale MIT.
-private const val RIFE_URL = "https://huggingface.co/yuvraj108c/rife-onnx/resolve/main/rife49_ensemble_True_scale_1_sim.onnx"
-private const val RIFE_FILE = "rife49.onnx"
+// RIFE 4.9 (hzwer, Practical-RIFE, MIT), exportat ONNX de edgetools (licență MIT scrisă).
+// Înlocuiește conversia veche fără licență; fișierul vechi (rife49.onnx) se șterge.
+private const val RIFE_URL = "https://huggingface.co/edgetools/rife/resolve/main/rife49.onnx"
+private const val RIFE_FILE = "rife49_mit.onnx"
+private const val OLD_FILE = "rife49.onnx"
 private const val RIFE_MAX = 640
 
 /**
@@ -43,6 +44,7 @@ class RifePlugin : Plugin() {
 
     private fun session(): OrtSession {
         session?.let { return it }
+        runCatching { File(context.filesDir, OLD_FILE).delete() }
         val f = File(context.filesDir, RIFE_FILE)
         if (f.length() < 18_000_000) {
             val tmp = File(context.filesDir, "$RIFE_FILE.part")

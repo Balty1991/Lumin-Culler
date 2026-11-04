@@ -36,7 +36,7 @@ export const ENGINES: Engine[] = [
   { id: 'eraserHd', mb: 208, files: [{ file: 'lama_fp32.onnx', url: `${HF}/Carve/LaMa-ONNX/resolve/main/lama_fp32.onnx`, min: 200e6 }] },
   { id: 'clarity', mb: 5, files: [{ file: 'realesr_general_x4v3.tflite', url: `${HF}/litert-community/real-esrgan-x4v3-litert/resolve/main/realesr_general_x4v3.tflite`, min: 2e6 }] },
   { id: 'cutout', mb: 5, files: [{ file: 'u2netp.tflite', url: `${HF}/abhimanyu666/u2nettflite/resolve/main/u2netp.tflite`, min: 3e6 }] },
-  { id: 'film', mb: 21, files: [{ file: 'rife49.onnx', url: `${HF}/yuvraj108c/rife-onnx/resolve/main/rife49_ensemble_True_scale_1_sim.onnx`, min: 18e6 }] },
+  { id: 'film', mb: 21, files: [{ file: 'rife49_mit.onnx', url: `${HF}/edgetools/rife/resolve/main/rife49.onnx`, min: 18e6 }] },
   // Descrierea AI în limba aplicației (OPUS-MT, Apache-2.0): câte un motor pe limbă.
   ...(['ro', 'de', 'it', 'es', 'fr'] as const).map(l => ({ id: `translate_${l}`, mb: 107, lang: l, files: [
     { file: `opusmt_en_${l}_enc.onnx`, url: `${HF}/Xenova/opus-mt-en-${l}/resolve/main/onnx/encoder_model_quantized.onnx`, min: 30e6 },
