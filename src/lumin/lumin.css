@@ -1527,3 +1527,27 @@ button.lx-tunnel-now:active { background: rgb(255 255 255 / .06); }
 .lx-hero-media img { transition: filter .35s ease; }
 .lx-tunnel { background: #020102; }
 .lx-tunnel-card { background: transparent !important; }
+
+/* Creatorul de mini-film: ordinea, pozele de adăugat, personalizarea. */
+.lx-fm { display: flex; flex-direction: column; }
+.lx-fm-count { justify-self: end; font-variant-numeric: tabular-nums; color: var(--text-dim); font-size: 14px; padding-right: 6px; }
+.lx-fm-body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 4px 16px 16px; }
+.lx-fm-section { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 18px; background: rgb(255 255 255 / .04); border: 1px solid var(--lx-line); }
+.lx-fm-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 36px; }
+.lx-fm-head b { font-size: 15px; }
+.lx-fm-days { margin: 0 !important; padding-right: 0 !important; -webkit-mask-image: none !important; mask-image: none !important; }
+.lx-fm-strip .lx-tidy-photo { width: 76px; }
+.lx-fm-strip .lx-tidy-photo.lx-fm-sel { transform: translateY(-3px); box-shadow: 0 0 0 3px #fff, 0 0 26px -4px rgb(var(--accent-rgb)); }
+.lx-fm-num { position: absolute; top: 5px; left: 5px; min-width: 22px; height: 22px; padding: 0 6px; display: grid; place-items: center; border-radius: 999px; font-size: 12px; font-weight: 700; background: var(--lx-grad); color: var(--on-grad, #1a0510); }
+.lx-fm-tools { display: flex; gap: 8px; flex-wrap: wrap; }
+.lx-fm-tools .lx-chip-btn { display: inline-flex; align-items: center; gap: 4px; }
+.lx-fm-hint { margin: 0; font-size: 13px; }
+.lx-fm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 6px; max-height: 42dvh; overflow-y: auto; }
+.lx-fm-pick { position: relative; padding: 0; border: 0; border-radius: 10px; overflow: hidden; aspect-ratio: 1; background: #1a1016; }
+.lx-fm-pick img, .lx-fm-pick .lx-thumb-empty { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lx-fm-pick.on { box-shadow: inset 0 0 0 3px rgb(var(--accent-rgb)); }
+.lx-fm-pick.on img { opacity: .75; }
+.lx-fm-opt { display: flex; flex-direction: column; gap: 4px; }
+.lx-fm-opt > span { font-size: 13px; color: var(--text-dim); }
+.lx-fm-opt .lx-enhance-styles { margin: 0; }
+.lx-fm .lx-decide-actions .lx-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }

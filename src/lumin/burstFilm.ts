@@ -1,8 +1,9 @@
 /**
  * lumin/burstFilm.ts
- * „Mini-film din serie”: din 2–6 poze ale aceleiași rafale, cadre intermediare
- * cu RIFE (RifePlugin.kt), apoi un film scurt care merge înainte și înapoi
- * (ca un „live photo”). Pe telefon, fără server.
+ * „Mini-film”: din 2–6 poze ale aceleiași rafale, cadre intermediare cu RIFE
+ * (RifePlugin.kt), apoi un film scurt care merge înainte și înapoi (ca un
+ * „live photo”). Din creatorul manual: până la 12 poze alese de om, cu viteză,
+ * trecere, format și culori. Pe telefon, fără server.
  */
 import { registerPlugin, Capacitor } from '@capacitor/core';
 import { extensionFor, pickMimeType } from '../core/recapVideoRender';
@@ -16,14 +17,6 @@ const Rife = registerPlugin<RifeApi>('Rife');
 
 export function burstFilmAvailable(): boolean {
   return Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('Rife') && !!pickMimeType();
-}
-
-function jpeg64(img: HTMLImageElement, max = 576): string {
-  const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
-  const c = document.createElement('canvas');
-  c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
-  c.getContext('2d')!.drawImage(img, 0, 0, c.width, c.height);
-  return c.toDataURL('image/jpeg', 0.9).split(',')[1];
 }
 
 async function decode(b64: string): Promise<HTMLImageElement> {
@@ -77,29 +70,94 @@ function sharpen(mid: HTMLImageElement, k: HTMLCanvasElement, w: number, h: numb
   return up;
 }
 
-export interface BurstFilm { blob: Blob; ext: string; frames: CanvasImageSource[]; fps: number; width: number; height: number }
+/** Cum se face filmul (creatorul manual). Fără opțiuni: ca înainte, pentru o serie. */
+export interface FilmOptions {
+  speed?: 'slow' | 'normal' | 'fast';
+  /** „ai” = cadre făcute de RIFE (pentru serii); „fade” = trecere lină (pentru poze diferite). */
+  transition?: 'ai' | 'fade';
+  loop?: 'bounce' | 'forward';
+  format?: 'orig' | 'square' | 'story';
+  look?: 'natural' | 'warm' | 'vivid' | 'bw';
+}
 
-export async function makeBurstFilm(ids: string[], onProgress?: (f: number) => void): Promise<BurstFilm | null> {
+export const FILM_MAX_PHOTOS = 12;
+const AI_MAX_PHOTOS = 8;
+
+const LOOKS: Record<NonNullable<FilmOptions['look']>, string> = {
+  natural: 'none',
+  warm: 'sepia(0.18) saturate(1.15) brightness(1.03)',
+  vivid: 'saturate(1.3) contrast(1.08)',
+  bw: 'grayscale(1) contrast(1.1)'
+};
+
+/** Poza decupată (centrat) la mărimea filmului, cu aspectul ales. */
+function cover(img: HTMLImageElement, w: number, h: number, look: string): HTMLCanvasElement {
+  const [c, ctx] = canvas2d(w, h);
+  ctx.imageSmoothingQuality = 'high';
+  if (look !== 'none') ctx.filter = look;
+  const k = Math.max(w / img.naturalWidth, h / img.naturalHeight);
+  const dw = img.naturalWidth * k, dh = img.naturalHeight * k;
+  ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
+  return c;
+}
+
+/**
+ * Un cadru: o poză, un cadru RIFE gata clarificat, sau o trecere calculată abia
+ * la desen (așa un film lung, lent, nu ține sute de cadre mari în memorie).
+ */
+type Frame = HTMLCanvasElement | { a: HTMLCanvasElement; b: HTMLCanvasElement; t: number };
+function drawFrame(ctx: CanvasRenderingContext2D, f: Frame, w: number, h: number) {
+  if (f instanceof HTMLCanvasElement) { ctx.globalAlpha = 1; ctx.drawImage(f, 0, 0, w, h); return; }
+  // Ușor încetinit la capete: trecerea pare mai naturală decât una liniară.
+  const t = f.t * f.t * (3 - 2 * f.t);
+  ctx.globalAlpha = 1; ctx.drawImage(f.a, 0, 0, w, h);
+  ctx.globalAlpha = t; ctx.drawImage(f.b, 0, 0, w, h);
+  ctx.globalAlpha = 1;
+}
+
+export interface BurstFilm { blob: Blob; ext: string; fps: number; width: number; height: number; count: number; draw: (ctx: CanvasRenderingContext2D, i: number) => void }
+
+export async function makeBurstFilm(ids: string[], onProgress?: (f: number) => void, opts: FilmOptions = {}): Promise<BurstFilm | null> {
   const mime = pickMimeType();
   if (!mime || ids.length < 2) return null;
-  // Motorul prin descărcarea comună (cu reluare), înainte de primul cadru.
-  await fetchEngine('film').catch(() => false);
-  const imgs = (await Promise.all(ids.slice(0, 6).map(id => loadEditable(id, 1600).then(r => r?.img ?? null)))).filter((x): x is HTMLImageElement => !!x);
+  const speed = opts.speed ?? 'normal';
+  const wantAi = (opts.transition ?? 'ai') === 'ai';
+  const weak = await weakDevice();
+  const imgs: HTMLImageElement[] = [];
+  for (const id of ids.slice(0, FILM_MAX_PHOTOS)) {
+    const r = await loadEditable(id, 1600).catch(() => null);
+    if (r?.img) imgs.push(r.img);
+    onProgress?.(0.04 * imgs.length / ids.length);
+  }
   if (imgs.length < 2) return null;
-  const out = (await weakDevice()) ? 720 : OUT;
-  const k0 = Math.min(1, out / Math.max(imgs[0].naturalWidth, imgs[0].naturalHeight));
-  const w = Math.round(imgs[0].naturalWidth * k0 / 2) * 2, h = Math.round(imgs[0].naturalHeight * k0 / 2) * 2;
-  // Cadrele-cheie la calitatea pozelor; pentru RIFE, copii mici.
-  const hi = imgs.map(i => blend(i, i, 0, w, h));
-  const keys = imgs.map(i => jpeg64(i, RIFE_SIDE));
+  // RIFE doar unde merită și unde încape în timp/memorie; altfel trecere lină.
+  let rife = wantAi && imgs.length <= (weak ? 6 : AI_MAX_PHOTOS);
+  // Motorul prin descărcarea comună (cu reluare), înainte de primul cadru.
+  if (rife) await fetchEngine('film').catch(() => false);
+  const out = weak ? 720 : OUT;
+  const format = opts.format ?? 'orig';
+  let w: number, h: number;
+  if (format === 'square') { w = h = out; }
+  else if (format === 'story') { h = out; w = Math.round(out * 9 / 16 / 2) * 2; }
+  else {
+    const k0 = Math.min(1, out / Math.max(imgs[0].naturalWidth, imgs[0].naturalHeight));
+    w = Math.round(imgs[0].naturalWidth * k0 / 2) * 2; h = Math.round(imgs[0].naturalHeight * k0 / 2) * 2;
+  }
+  // Cadrele-cheie la calitatea pozelor (toate la aceeași mărime); pentru RIFE, copii mici.
+  const look = LOOKS[opts.look ?? 'natural'];
+  const hi = imgs.map(i => cover(i, w, h, look));
+  const kr = Math.min(1, RIFE_SIDE / Math.max(w, h));
+  const keys = hi.map(c => {
+    const [s, sctx] = canvas2d(Math.round(w * kr), Math.round(h * kr));
+    sctx.drawImage(c, 0, 0, s.width, s.height);
+    return s.toDataURL('image/jpeg', 0.9).split(',')[1];
+  });
   onProgress?.(0.05);
-  // Patru cadre între poze și o mică oprire pe fiecare poză: raportat „puțin cam rapidă”.
-  const HOLD = 2;
-  const frames: CanvasImageSource[] = Array(HOLD + 1).fill(hi[0]);
-  // RIFE face cadrele intermediare; dacă motorul nu merge pe telefonul ăsta,
-  // filmul se face oricum, cu trecere lină între poze.
-  let rife = true;
-  const steps = 4;
+  // Oprirea pe fiecare poză și numărul de cadre dintre ele, după viteză.
+  // O serie (RIFE) curge repede; poze diferite au nevoie de timp să fie văzute.
+  const HOLD = rife ? { slow: 5, normal: 2, fast: 0 }[speed] : { slow: 14, normal: 8, fast: 4 }[speed];
+  const steps = rife ? { slow: 6, normal: 4, fast: 3 }[speed] : { slow: 10, normal: 6, fast: 4 }[speed];
+  const frames: Frame[] = Array(HOLD + 1).fill(hi[0]);
   for (let i = 0; i < keys.length - 1; i++) {
     let mids: HTMLImageElement[] | null = null;
     if (rife) {
@@ -112,20 +170,28 @@ export async function makeBurstFilm(ids: string[], onProgress?: (f: number) => v
       }
     }
     for (let j = 1; j <= steps; j++) {
-      const k = blend(hi[i], hi[i + 1], j / (steps + 1), w, h);
-      frames.push(mids?.[j - 1] ? sharpen(mids[j - 1], k, w, h) : k);
-      await new Promise(r => setTimeout(r, 0));
+      const t = j / (steps + 1);
+      frames.push(mids?.[j - 1] ? sharpen(mids[j - 1], blend(hi[i], hi[i + 1], t, w, h), w, h) : { a: hi[i], b: hi[i + 1], t });
+      if (mids) await new Promise(r => setTimeout(r, 0));
     }
     for (let k = 0; k <= HOLD; k++) frames.push(hi[i + 1]);
-    onProgress?.(0.05 + (i + 1) / (keys.length - 1) * 0.65);
+    onProgress?.(0.05 + (i + 1) / (keys.length - 1) * 0.6);
   }
-  // Înainte și înapoi, de două ori: mișcarea curge, fără săritură la capăt (și se face mai repede).
-  const loop = [...frames, ...frames.slice(1, -1).reverse()];
-  const seq = [...loop, ...loop];
+  // Dus-întors: mișcarea curge, fără săritură la capăt. „Doar înainte”: la final
+  // trece lin înapoi la prima poză, ca bucla să nu sară.
+  let loop: Frame[];
+  if ((opts.loop ?? 'bounce') === 'bounce') loop = [...frames, ...frames.slice(1, -1).reverse()];
+  else {
+    loop = [...frames];
+    const last = hi[hi.length - 1];
+    for (let j = 1; j <= steps; j++) loop.push({ a: last, b: hi[0], t: j / (steps + 1) });
+  }
+  // Filmele scurte (serii) se repetă o dată în fișier; cele lungi nu.
+  const seq = loop.length < 60 ? [...loop, ...loop] : loop;
   const canvas = document.createElement('canvas');
   canvas.width = w; canvas.height = h;
   const ctx = canvas.getContext('2d')!;
-  ctx.drawImage(seq[0], 0, 0, w, h);
+  drawFrame(ctx, seq[0], w, h);
   const fps = 10;
   const rec = new MediaRecorder(canvas.captureStream(fps), { mimeType: mime, videoBitsPerSecond: 10_000_000 });
   const chunks: Blob[] = [];
@@ -133,11 +199,14 @@ export async function makeBurstFilm(ids: string[], onProgress?: (f: number) => v
   const done = new Promise<void>(res => { rec.onstop = () => res(); });
   rec.start();
   for (let i = 0; i < seq.length; i++) {
-    ctx.drawImage(seq[i], 0, 0, w, h);
-    onProgress?.(0.7 + 0.3 * (i / seq.length));
+    drawFrame(ctx, seq[i], w, h);
+    onProgress?.(0.65 + 0.35 * (i / seq.length));
     await new Promise(r => setTimeout(r, 1000 / fps));
   }
   rec.stop();
   await done;
-  return { blob: new Blob(chunks, { type: mime.split(';')[0] }), ext: extensionFor(mime), frames: loop, fps, width: w, height: h };
+  return {
+    blob: new Blob(chunks, { type: mime.split(';')[0] }), ext: extensionFor(mime), fps, width: w, height: h,
+    count: loop.length, draw: (c, i) => drawFrame(c, loop[i % loop.length], c.canvas.width, c.canvas.height)
+  };
 }

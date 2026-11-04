@@ -19,11 +19,11 @@ export function FilmSheet({ film, onClose }: { film: BurstFilm; onClose: () => v
   const canvas = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const c = canvas.current;
-    if (!c || !film.frames.length) return;
+    if (!c || !film.count) return;
     c.width = film.width; c.height = film.height;
     const ctx = c.getContext('2d')!;
     let i = 0;
-    const id = window.setInterval(() => { ctx.drawImage(film.frames[i % film.frames.length], 0, 0, c.width, c.height); i++; }, 1000 / film.fps);
+    const id = window.setInterval(() => { film.draw(ctx, i); i++; }, 1000 / film.fps);
     return () => window.clearInterval(id);
   }, [film]);
   const name = `cherrypic-miscare-${Date.now()}.${film.ext}`;

@@ -32,8 +32,8 @@ import { db } from '../core/db';
 import { findSimilarPhotos } from '../core/similarPhotos';
 import { Icon } from './icons';
 import { planBestTake, renderBestTake, type BestTakeFix } from './bestTake';
-import { burstFilmAvailable, makeBurstFilm, type BurstFilm } from './burstFilm';
-import { FilmSheet } from './FilmSheet';
+import { burstFilmAvailable } from './burstFilm';
+import { FilmCreator } from './FilmCreator';
 import { BurstTidy } from './BurstTidy';
 import { Tunnel3D } from './Tunnel3D';
 import { logError } from '../core/errorLog';
@@ -636,22 +636,8 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
   const [details, setDetails] = useState(viewerDetailsOpen);
   const sheetY = useRef<number | null>(null);
   const toggleDetails = (v: boolean) => { viewerDetailsOpen = v; setDetails(v); };
-  const [filmBusy, setFilmBusy] = useState(false);
-  const [filmPct, setFilmPct] = useState(0);
-  const [film, setFilm] = useState<BurstFilm | null>(null);
-  const makeFilm = async () => {
-    setFilmBusy(true);
-    try {
-      useStore.getState().setNotice(tr('lx.burstFilm.working'));
-      const r = await makeBurstFilm(burstIds.split(','), f => setFilmPct(f));
-      if (r) setFilm(r);
-      else useStore.getState().setNotice(tr('lx.burstFilm.noPhotos'));
-    } catch (e) {
-      // Motorul (RIFE) nu s-a descărcat sau n-a rulat: spunem asta, nu „telefonul nu poate”.
-      logError('film', e instanceof Error ? e.message : String(e), 'GalleryWall');
-      useStore.getState().setNotice(tr('lx.burstFilm.engineFailed'));
-    } finally { setFilmBusy(false); setFilmPct(0); }
-  };
+  // Mini-film: se deschide creatorul, cu seria pozei deja pusă (omul adaugă, ordonează, alege stilul).
+  const [filmOpen, setFilmOpen] = useState(false);
   const makeBestTake = async () => {
     setBestBusy(true);
     try {
@@ -916,7 +902,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
         {more && (
           <div className="lx-more-grid">
             {bestFix.length > 0 && <button disabled={bestBusy} onClick={() => void makeBestTake()}><span><Icon name="sparkle" /></span>{tr('lx.bestTake.button')}</button>}
-            {burstFilmAvailable() && burstIds.split(',').length >= 2 && <button disabled={filmBusy} className={filmBusy ? 'lx-busy-btn' : undefined} style={filmBusy ? { ['--pct' as string]: `${Math.round(filmPct * 100)}%` } : undefined} onClick={() => void makeFilm()}><span><Icon name="film" /></span>{filmBusy ? `${tr('lx.burstFilm.button')} · ${Math.round(filmPct * 100)}%` : tr('lx.burstFilm.button')}</button>}
+            {burstFilmAvailable() && <button onClick={() => setFilmOpen(true)}><span><Icon name="film" /></span>{tr('lx.burstFilm.button')}</button>}
             {onSimilar && <button onClick={() => onSimilar(p.id)}><span><Icon name="similar" /></span>{tr('lx.viewer.similarShort')}</button>}
             <button onClick={() => setInsta(true)}><span><Icon name="square" /></span>{tr('lx.insta.button')}</button>
             {canSell && <button onClick={() => setSelling(true)}><span><Icon name="tag" /></span>{tr('lx.sell.button')}</button>}
@@ -949,7 +935,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
       {comparing && twin && <TwinCompare photo={p} twin={twin} onClose={() => setComparing(false)} />}
       {writing && <CaptionSheet photo={p} onClose={() => setWriting(false)} />}
       {insta && <InstaSheet photo={p} onClose={() => setInsta(false)} />}
-      {film && <FilmSheet film={film} onClose={() => setFilm(null)} />}
+      {filmOpen && <FilmCreator startId={id} initialIds={burstIds ? burstIds.split(',') : [id]} onClose={() => setFilmOpen(false)} />}
       {magic && <MagicSheet photo={p} onClose={() => setMagic(false)} />}
       {selling && <AiRetouch photo={p} kind="cutout" onClose={() => setSelling(false)} />}
       {texting && <TextSheet photo={p} onClose={() => setTexting(false)} />}
