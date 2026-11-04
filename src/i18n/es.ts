@@ -1129,4 +1129,9 @@ export const dict: Record<string, string> = {
   'lx.intro.perk.edit': "Borrador, Retrato, nitidez y recorte en el teléfono",
   'lx.intro.perk.film': "Minipelículas y descripciones en español",
   'lx.tunnel.next': "Saltar al mes siguiente",
+  'lx.burstTidy.reviewTitle': "{groups} ráfagas",
+  'lx.burstTidy.reviewHint': "Se queda la foto marcada; las demás pasan a “Hoy no”. Toca otra foto para quedarte con esa.",
+  'lx.burstTidy.leave': "Dejar esta ráfaga",
+  'lx.burstTidy.include': "Incluir la ráfaga",
+  'lx.burstTidy.goCount': "Ordenar ({count})",
 };

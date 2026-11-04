@@ -3248,6 +3248,11 @@ export const ro = {
   'lx.intro.perk.edit': "Gumă, Portret, claritate și decupaj, pe telefon",
   'lx.intro.perk.film': "Mini-filme și descrieri în română",
   'lx.tunnel.next': "Sari la luna următoare",
+  'lx.burstTidy.reviewTitle': "{groups} serii",
+  'lx.burstTidy.reviewHint': "Poza cu bifă rămâne; celelalte trec la „Nu azi”. Atinge altă poză ca s-o păstrezi pe aceea.",
+  'lx.burstTidy.leave': "Las seria așa",
+  'lx.burstTidy.include': "Include seria",
+  'lx.burstTidy.goCount': "Fă ordine ({count})",
 };
 
 export type TranslationKey = keyof typeof ro;

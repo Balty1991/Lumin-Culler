@@ -3162,4 +3162,9 @@ export const en: Record<TranslationKey, string> = {
   'lx.intro.perk.edit': "Eraser, Portrait, clarity and cutouts on the phone",
   'lx.intro.perk.film': "Mini-films and descriptions in your language",
   'lx.tunnel.next': "Jump to the next month",
+  'lx.burstTidy.reviewTitle': "{groups} bursts",
+  'lx.burstTidy.reviewHint': "The ticked photo stays; the others move to “Not today”. Tap another photo to keep that one instead.",
+  'lx.burstTidy.leave': "Leave this burst",
+  'lx.burstTidy.include': "Include this burst",
+  'lx.burstTidy.goCount': "Tidy up ({count})",
 };
