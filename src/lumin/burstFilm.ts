@@ -6,7 +6,7 @@
  * trecere, format și culori. Pe telefon, fără server.
  */
 import { registerPlugin, Capacitor } from '@capacitor/core';
-import { extensionFor, pickMimeType } from '../core/recapVideoRender';
+import { extensionFor, pickFilmMimeType as pickMimeType } from '../core/recapVideoRender';
 import { loadEditable } from './sharp';
 import { fetchEngine } from './engines';
 import { logError } from '../core/errorLog';
@@ -213,7 +213,7 @@ export async function filmFromKeyframes(hi: HTMLCanvasElement[], opts: FilmOptio
   const music = withAudio && mood !== 'none' ? startStoryMusic(seq.length * 1000 / fps + 400, { mood }) : null;
   const stream = music ? new MediaStream([...canvas.captureStream(fps).getVideoTracks(), music.track]) : canvas.captureStream(fps);
   const usedMime = music ? withAudio! : mime;
-  const rec = new MediaRecorder(stream, { mimeType: usedMime, videoBitsPerSecond: 10_000_000 });
+  const rec = new MediaRecorder(stream, { mimeType: usedMime, videoBitsPerSecond: 16_000_000 });
   const chunks: Blob[] = [];
   rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
   const done = new Promise<void>(res => { rec.onstop = () => res(); });

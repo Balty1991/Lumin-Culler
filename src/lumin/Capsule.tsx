@@ -58,7 +58,7 @@ export function CapsuleCreator({ initialIds, onClose }: { initialIds: string[]; 
   const candidates = useMemo(() => {
     const since = Date.now() - 7 * 86_400_000;
     return photos
-      .filter(p => ids.includes(p.id) || (photoTime(p) >= since && p.status !== 'rejected'))
+      .filter(p => ids.includes(p.id) || (photoTime(p) >= since && p.status !== 'rejected' && !p.aside))
       .sort((a, b) => photoTime(b) - photoTime(a))
       .slice(0, 300);
   }, [photos, ids]);

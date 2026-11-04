@@ -32,6 +32,23 @@ const PREFERRED_TYPES = [
   'video/webm'
 ];
 
+/**
+ * Pentru filmele la 1080 px (mini-film, poza vie, „Cum a crescut”): H.264 High/Main
+ * nivel 4.0, apoi VP9. Raportat: „în clip nu era așa clar”. Primul tip de mai sus,
+ * avc1.42E01E, e Baseline nivel 3.0 (gândit pentru cel mult 720×576): la 1080 px
+ * telefonul îl micșora sau îl comprima prea tare.
+ */
+const FILM_TYPES = [
+  'video/mp4;codecs=avc1.640028',
+  'video/mp4;codecs=avc1.4d0028',
+  'video/webm;codecs=vp9',
+  'video/mp4;codecs=avc1'
+];
+export function pickFilmMimeType(): string | null {
+  if (typeof MediaRecorder === 'undefined') return null;
+  return FILM_TYPES.find(t => MediaRecorder.isTypeSupported(t)) ?? pickMimeType();
+}
+
 export function pickMimeType(): string | null {
   if (typeof MediaRecorder === 'undefined') return null;
   for (const t of PREFERRED_TYPES) {

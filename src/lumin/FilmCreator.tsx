@@ -46,11 +46,12 @@ export function FilmCreator({ startId, initialIds, initialTransition, onClose }:
     const start = byId.get(startId);
     const t0 = start ? photoTime(start) : Date.now();
     const day = new Date(t0).toDateString();
-    const live = photos.filter(p => p.status !== 'rejected' || ids.includes(p.id));
+    // Fără capturi de ecran și documente (raportat: grila era plină de capturi).
+    const live = photos.filter(p => ids.includes(p.id) || (p.status !== 'rejected' && !p.aside));
     const list: PhotoView[] = allDays
       ? [...live].sort((a, b) => Math.abs(photoTime(a) - t0) - Math.abs(photoTime(b) - t0)).slice(0, 600)
       : live.filter(p => new Date(photoTime(p)).toDateString() === day);
-    return list.sort((a, b) => photoTime(a) - photoTime(b));
+    return list.sort((a, b) => photoTime(b) - photoTime(a));
   }, [photos, byId, startId, allDays, ids]);
 
   const toggle = (id: string) => setIds(cur => {

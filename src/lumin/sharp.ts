@@ -102,8 +102,12 @@ function imageFrom(url: string): Promise<HTMLImageElement | null> {
 export async function loadEditable(photoId: string, size: number): Promise<{ img: HTMLImageElement; low: boolean } | null> {
   const { getDisplayUrl, getCachedPreviewUrl } = await import('../core/previewUrlCache');
   const { getCachedThumbUrl } = await import('../core/thumbUrlCache');
+  // Copia clară se mai cere o dată și se încearcă și cea de ecran, înainte de rezerve
+  // (raportat: filmul și editorul ieșeau neclare când prima încercare nu mergea).
   const tries: Array<[() => Promise<string | null>, boolean]> = [
     [() => sharpUrl(photoId, size), false],
+    [() => sharpUrl(photoId, size), false],
+    [() => Promise.resolve(peekSharpUrl(photoId, SCREEN_SIZE)), false],
     [() => getDisplayUrl(photoId), false],
     [() => getCachedPreviewUrl(photoId), true],
     [() => getCachedThumbUrl(photoId), true]

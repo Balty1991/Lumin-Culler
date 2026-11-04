@@ -1697,3 +1697,16 @@ button.lx-tunnel-now:active { background: rgb(255 255 255 / .06); }
 /* Profil / copertă. */
 .lx-profile-modes { justify-content: center !important; margin: 0 0 6px; padding: 0 16px; -webkit-mask-image: none !important; mask-image: none !important; }
 .lx-profile-badge.cover { font-family: Georgia, serif; font-weight: 900; font-size: 22px; }
+
+/* Grilele de ales poze (mini-film, capsulă, „Cum a crescut”): raportat cu captură că
+   pozele se suprapuneau — în WebView, celulele cu aspect-ratio dintr-o grilă cu
+   înălțime limitată ieșeau aproape fără înălțime. Pătratul se face acum din
+   padding (merge peste tot), iar poza umple celula absolut. Fără al doilea
+   derulaj în interiorul ecranului. */
+.lx-fm-grid { max-height: none; overflow: visible; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: start; }
+.lx-fm-pick { display: block; width: 100%; height: 0 !important; padding: 0 0 100% !important; aspect-ratio: auto; }
+.lx-fm-pick > img, .lx-fm-pick > canvas, .lx-fm-pick > .lx-thumb-empty, .lx-fm-pick > div:not(.lx-fm-num) { position: absolute; inset: 0; width: 100% !important; height: 100% !important; object-fit: cover; }
+.lx-capsule-photos button, .lx-forgotten button { height: 0; padding: 0 0 100% !important; aspect-ratio: auto; }
+.lx-forgotten button { padding-bottom: 133% !important; }
+.lx-capsule-photos button > img, .lx-capsule-photos button > canvas, .lx-forgotten button > img, .lx-forgotten button > canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.lx-capsule-photos button { position: relative; }

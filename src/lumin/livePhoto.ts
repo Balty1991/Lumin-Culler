@@ -1,7 +1,7 @@
 import { registerPlugin } from '@capacitor/core';
 import { weakDevice } from '../core/deviceClass';
 import { portraitAvailable } from '../core/portraitEdit';
-import { extensionFor, pickMimeType } from '../core/recapVideoRender';
+import { extensionFor, pickFilmMimeType as pickMimeType } from '../core/recapVideoRender';
 import { loadEditable, originalUri } from './sharp';
 import { startStoryMusic, type MusicMood } from './storyMusic';
 import { audioMimeFor } from './storyVideo';
@@ -122,7 +122,7 @@ export async function recordLivePhoto(r: LiveRenderer, music: 'none' | MusicMood
   const video = r.canvas.captureStream(FPS);
   const stream = m ? new MediaStream([...video.getVideoTracks(), m.track]) : video;
   const used = m ? withAudio! : mime;
-  const rec = new MediaRecorder(stream, { mimeType: used, videoBitsPerSecond: 12_000_000 });
+  const rec = new MediaRecorder(stream, { mimeType: used, videoBitsPerSecond: 16_000_000 });
   const chunks: Blob[] = [];
   rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
   const done = new Promise<void>(res => { rec.onstop = () => res(); });
