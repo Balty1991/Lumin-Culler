@@ -17,6 +17,8 @@ import { t } from '../i18n';
 import { waitForUserIdle } from '../core/userIdle';
 import { weakDevice } from '../core/deviceClass';
 import { dataMode } from './dataMode';
+import { releaseTranslator, translateLangFor, translateTexts } from '../core/translate';
+import { ENGINES, engineReady, refreshEngines } from './engines';
 import { captionPhoto, closeFlorence, joyOf, prepareFlorence } from '../core/extraEngines';
 
 const BATCH = 12;
@@ -78,7 +80,8 @@ export async function startClipBackfill(anyNetwork = dataMode() !== 'wifi'): Pro
     }
     await deepPass(bgText);
     // La final, motoarele care încă lipsesc (selecție, gumă, portret, film…).
-    void import('./engines').then(m => m.autoFetchEngines());
+    // Ce s-a descărcat acum (ex. traducerea) se folosește imediat: încă o trecere.
+    void import('./engines').then(m => m.autoFetchEngines()).then(got => { if (got) window.setTimeout(() => { void startClipBackfill(); }, 3000); });
   } catch {
     // CLIP e un bonus: dacă ceva nu merge, aplicația rămâne exact ca înainte.
   } finally {
@@ -109,7 +112,13 @@ export function watchImportsForClip(): void {
  * în fundal; descrierea intră la căutare, bucuria în scorul AI.
  */
 async function deepPass(bgText: (d: number) => string): Promise<void> {
-  const rows = await db.analyses.filter(a => (a.joy === undefined && a.faces.length > 0) || (!a.aiDescription && a.clipEmbedding !== undefined)).toArray();
+  // Traducerea descrierii: doar dacă motorul limbii aplicației e pe telefon.
+  const trLang = translateLangFor(useStore.getState().locale);
+  await refreshEngines().catch(() => undefined);
+  const trEngine = trLang ? ENGINES.find(e => e.id === `translate_${trLang}`) : undefined;
+  const canTranslate = !!trEngine && engineReady(trEngine);
+  const needsTr = (a: { aiDescription?: string; aiDescriptionLang?: string }) => canTranslate && !!a.aiDescription && a.aiDescriptionLang !== trLang;
+  const rows = await db.analyses.filter(a => (a.joy === undefined && a.faces.length > 0) || (!a.aiDescription && a.clipEmbedding !== undefined) || needsTr(a)).toArray();
   if (!rows.length) return;
   // Vizibil în Setări și ținut viu în fundal, ca trecerea CLIP.
   setModelsState({ phase: 'scanning', scanned: 0, toScan: rows.length });
@@ -119,7 +128,7 @@ async function deepPass(bgText: (d: number) => string): Promise<void> {
   const weak = await weakDevice();
   const florence = !weak && rows.some(a => !a.aiDescription && kept.has(a.photoId)) ? await prepareFlorence() : false;
   let done = 0;
-  const pending = new Map<string, { aiScore: number; sceneTags?: string[]; aiDescription?: string }>();
+  const pending = new Map<string, { aiScore: number; sceneTags?: string[]; aiDescription?: string; aiDescriptionTr?: string; aiDescriptionLang?: string }>();
   const flush = () => {
     if (!pending.size) return;
     const ch = new Map(pending); pending.clear();
@@ -142,12 +151,16 @@ async function deepPass(bgText: (d: number) => string): Promise<void> {
       const cap = await captionPhoto(photo.mediaUri);
       if (cap) { next.aiDescription = cap; changed = true; }
     }
+    if (canTranslate && trLang && next.aiDescription && next.aiDescriptionLang !== trLang) {
+      const [t] = (await translateTexts(trLang, [next.aiDescription])) ?? [];
+      if (t) { next.aiDescriptionTr = t; next.aiDescriptionLang = trLang; changed = true; }
+    }
     if (changed) {
       const prediction = await contextEngine.predict(next, photo.genre);
       next.aiScore = prediction.score;
       next.aiFactors = prediction.topFactors;
       await db.analyses.put(next);
-      pending.set(a.photoId, { aiScore: next.aiScore, sceneTags: next.sceneTags, aiDescription: next.aiDescription });
+      pending.set(a.photoId, { aiScore: next.aiScore, sceneTags: next.sceneTags, aiDescription: next.aiDescription, aiDescriptionTr: next.aiDescriptionTr, aiDescriptionLang: next.aiDescriptionLang });
     }
     done++;
     // Galeria se redesenează o dată la 10 poze, nu după fiecare (sacadări la derulare).
@@ -157,5 +170,6 @@ async function deepPass(bgText: (d: number) => string): Promise<void> {
   }
   flush();
   if (florence) await closeFlorence();
+  if (canTranslate) await releaseTranslator();
   setModelsState({ phase: getModelsState().textReady ? 'ready' : 'idle', scanned: rows.length });
 }

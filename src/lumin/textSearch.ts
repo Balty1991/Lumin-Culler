@@ -14,6 +14,7 @@ export interface SearchablePhoto {
   importedAt: number;
   sceneTags?: string[];
   aiDescription?: string;
+  aiDescriptionTr?: string;
   ocrText?: string;
   personNames: string[];
   petNames?: string[];
@@ -135,6 +136,7 @@ export function searchText(p: SearchablePhoto): string {
   const parts = [
     ...tags,
     p.aiDescription ?? '',
+    p.aiDescriptionTr ?? '',
     (p.ocrText ?? '').slice(0, 400),
     ...p.personNames,
     ...(p.petNames ?? []),

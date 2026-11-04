@@ -15,7 +15,7 @@ const HF = 'https://huggingface.co';
 const FL = `${HF}/onnx-community/Florence-2-base-ft/resolve/main`;
 
 export interface EngineFile { file: string; url: string; min: number }
-export interface Engine { id: string; mb: number; files: EngineFile[] }
+export interface Engine { id: string; mb: number; files: EngineFile[]; /** Doar pentru limba aceasta a aplicației (traducerea). */ lang?: string }
 
 export const ENGINES: Engine[] = [
   { id: 'clip', mb: 89, files: [{ file: 'clip_vit_b32_vision_q.onnx', url: `${HF}/Xenova/clip-vit-base-patch32/resolve/main/onnx/vision_model_quantized.onnx`, min: 80e6 }] },
@@ -36,7 +36,12 @@ export const ENGINES: Engine[] = [
   { id: 'eraserHd', mb: 208, files: [{ file: 'lama_fp32.onnx', url: `${HF}/Carve/LaMa-ONNX/resolve/main/lama_fp32.onnx`, min: 200e6 }] },
   { id: 'clarity', mb: 5, files: [{ file: 'realesr_general_x4v3.tflite', url: `${HF}/litert-community/real-esrgan-x4v3-litert/resolve/main/realesr_general_x4v3.tflite`, min: 2e6 }] },
   { id: 'cutout', mb: 5, files: [{ file: 'u2netp.tflite', url: `${HF}/abhimanyu666/u2nettflite/resolve/main/u2netp.tflite`, min: 3e6 }] },
-  { id: 'film', mb: 21, files: [{ file: 'rife49.onnx', url: `${HF}/yuvraj108c/rife-onnx/resolve/main/rife49_ensemble_True_scale_1_sim.onnx`, min: 18e6 }] }
+  { id: 'film', mb: 21, files: [{ file: 'rife49.onnx', url: `${HF}/yuvraj108c/rife-onnx/resolve/main/rife49_ensemble_True_scale_1_sim.onnx`, min: 18e6 }] },
+  // Descrierea AI în limba aplicației (OPUS-MT, Apache-2.0): câte un motor pe limbă.
+  ...(['ro', 'de', 'it', 'es', 'fr'] as const).map(l => ({ id: `translate_${l}`, mb: 107, lang: l, files: [
+    { file: `opusmt_en_${l}_enc.onnx`, url: `${HF}/Xenova/opus-mt-en-${l}/resolve/main/onnx/encoder_model_quantized.onnx`, min: 30e6 },
+    { file: `opusmt_en_${l}_dec.onnx`, url: `${HF}/Xenova/opus-mt-en-${l}/resolve/main/onnx/decoder_model_quantized.onnx`, min: 30e6 },
+    { file: `opusmt_en_${l}_tok.json`, url: `${HF}/Xenova/opus-mt-en-${l}/resolve/main/tokenizer.json`, min: 1e6 }] }))
 ];
 
 interface Api {
@@ -96,7 +101,8 @@ export async function downloadEngine(id: string): Promise<boolean> {
 /** Descarcă pe rând tot ce lipsește. */
 export async function downloadAllEngines(): Promise<void> {
   if (!isClipPlatform() || state.busy) return;
-  for (const e of ENGINES) if (!engineReady(e)) await downloadEngine(e.id);
+  const locale = (await import('../state/store')).useStore.getState().locale;
+  for (const e of enginesFor(locale)) if (!engineReady(e)) await downloadEngine(e.id);
 }
 
 /**
@@ -104,18 +110,21 @@ export async function downloadAllEngines(): Promise<void> {
  * motoarele lipsă se descarcă singure, pe rând, ca să fie gata când e nevoie de ele.
  */
 let autoDone = false;
-export async function autoFetchEngines(): Promise<void> {
-  if (autoDone || !isClipPlatform()) return;
+export async function autoFetchEngines(): Promise<boolean> {
+  if (autoDone || !isClipPlatform()) return false;
+  let got = false;
   autoDone = true;
   await refreshEngines();
   // Pe telefoanele slabe, descrierea și Guma HD nu rulează oricum: nu le descărcăm singure.
   const weak = await weakDevice();
-  for (const e of ENGINES) {
+  const locale = (await import('../state/store')).useStore.getState().locale;
+  for (const e of enginesFor(locale)) {
     if (engineReady(e) || (weak && (e.id === 'describe' || e.id === 'eraserHd'))) continue;
     // „Doar pe Wi-Fi”: pe date mobile, descărcarea automată așteaptă (butoanele din Setări merg oricum).
-    if (!mayDownloadNow()) { autoDone = false; return; }
-    if (!(await downloadEngine(e.id))) await downloadEngine(e.id); // o reîncercare
+    if (!mayDownloadNow()) { autoDone = false; return got; }
+    if ((await downloadEngine(e.id)) || (await downloadEngine(e.id))) got = true; // o reîncercare
   }
+  return got;
 }
 
 /** Un singur motor, chiar acum (de ex. selecția la deschiderea gumei). `true` dacă e gata. */
@@ -132,4 +141,10 @@ export async function fetchEngine(id: string): Promise<boolean> {
   } catch { /* se vede mai jos */ }
   await refreshEngines();
   return engineReady(e);
+}
+
+/** Motoarele care contează pentru limba aplicației (traducerea doar pentru limba ei). */
+export function enginesFor(locale: string): Engine[] {
+  const base = locale.slice(0, 2);
+  return ENGINES.filter(e => !e.lang || e.lang === base);
 }

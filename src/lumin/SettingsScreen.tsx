@@ -18,7 +18,7 @@ import { haptic, hapticsOn, setHapticsOn } from '../core/device';
 import { requestNotificationAccess, isNativeNotificationsAvailable } from '../core/nativeNotifications';
 import { useLx } from './lxStore';
 import { refreshModels, useModelsState } from './aiModels';
-import { ENGINES, downloadAllEngines, downloadEngine, engineReady, refreshEngines, useEngines } from './engines';
+import { downloadAllEngines, enginesFor, downloadEngine, engineReady, refreshEngines, useEngines } from './engines';
 import { useTr } from './context';
 import { useEffect, useState } from 'react';
 import { openBatterySettings, readBatteryRestriction, type BatteryRestriction } from '../core/backgroundAnalysis';
@@ -396,7 +396,9 @@ function EnginesList() {
   const st = useEngines();
   const askConfirm = useStore(x => x.askConfirm);
   useEffect(() => { void refreshEngines(); }, []);
-  const missing = ENGINES.filter(e => !engineReady(e, st.have));
+  const locale = useStore(x => x.locale);
+  const list = enginesFor(locale);
+  const missing = list.filter(e => !engineReady(e, st.have));
   const mb = missing.reduce((a, e) => a + e.mb, 0);
   const go = async () => {
     if (!(await askConfirm(tr('lx.engines.confirm', { mb }), { confirmLabel: tr('lx.models.download') }))) return;
@@ -404,7 +406,7 @@ function EnginesList() {
   };
   return (
     <div className="lx-engines">
-      {ENGINES.map(e => {
+      {list.map(e => {
         const ok = engineReady(e, st.have);
         const now = st.busy === e.id;
         return (

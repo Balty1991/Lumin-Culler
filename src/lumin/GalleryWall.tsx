@@ -874,9 +874,13 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
         {details && <>
         <CloudLine id={p.id} />
         {/* Ce vede AI-ul în poză (Florence-2, pe telefon). Modelul scrie în engleză. */}
-        {p.aiDescription && p.aiDescription.trim().length > 8 && (
-          <p className="lx-ai-caption"><Icon name="sparkle" size={14} /> <span><small>{tr('lx.viewer.aiSees')}</small> {p.aiDescription.trim()}</span></p>
-        )}
+        {p.aiDescription && p.aiDescription.trim().length > 8 && (() => {
+          // Tradusă în limba aplicației, când motorul de traducere a apucat s-o facă.
+          const local = p.aiDescriptionTr && p.aiDescriptionLang === locale.slice(0, 2) ? p.aiDescriptionTr.trim() : '';
+          return (
+            <p className="lx-ai-caption"><Icon name="sparkle" size={14} /> <span><small>{tr(local ? 'lx.viewer.aiSeesLocal' : 'lx.viewer.aiSees')}</small> {local || p.aiDescription.trim()}</span></p>
+          );
+        })()}
         <div className="lx-chips">
           <span className={`lx-chip ${p.status === 'selected' ? 'good' : p.status === 'rejected' ? 'bad' : 'info'}`}>
             {tr(p.status === 'selected' ? 'lx.wall.state.kept' : p.status === 'rejected' ? 'lx.wall.state.notToday' : 'lx.wall.state.waiting')}

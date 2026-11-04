@@ -218,6 +218,8 @@ export interface PhotoView {
   decisionReasons?: string[];
   decisionNote?: string;
   aiDescription?: string;
+  aiDescriptionTr?: string;
+  aiDescriptionLang?: string;
   iptcCaption?: string;
   iptcHeadline?: string;
   iptcCredit?: string;
@@ -1117,6 +1119,8 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     decisionReasons: photo.decisionReasons,
     decisionNote: photo.decisionNote,
     aiDescription: analysis?.aiDescription,
+    aiDescriptionTr: analysis?.aiDescriptionTr,
+    aiDescriptionLang: analysis?.aiDescriptionLang,
     iptcCaption: photo.captionOverride ?? analysis?.iptcCaption,
     iptcHeadline: analysis?.iptcHeadline,
     iptcCredit: analysis?.iptcCredit,
@@ -1585,6 +1589,7 @@ function matchesToken(p: PhotoView, normalizedQuery: string, locale: Locale): bo
   // dinadins: e singura care n-a fost scrisa de un om, deci o potrivire in ea
   // valoreaza mai putin decat una in numele fisierului sau in legenda IPTC.
   if (p.aiDescription && normalizeForSearch(p.aiDescription).includes(normalizedQuery)) return true;
+  if (p.aiDescriptionTr && normalizeForSearch(p.aiDescriptionTr).includes(normalizedQuery)) return true;
   // Nota scrisa de om cand a explicat o decizie. Motorul n-o poate citi, dar
   // omul si-o poate cauta — si de multe ori tocmai ea e singurul loc unde scrie
   // de ce o poza anume nu i-a placut.
@@ -1641,6 +1646,7 @@ function cuvinteleCautabile(p: PhotoView, locale: Locale): Set<string> {
     ...p.personNames,
     p.iptcCaption ?? '',
     p.aiDescription ?? '',
+    p.aiDescriptionTr ?? '',
     p.decisionNote ?? '',
     p.ocrText ?? '',
     ...(p.iptcKeywords ?? []),

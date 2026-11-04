@@ -3189,6 +3189,16 @@ export const ro = {
   "lx.engines.clarity.sub": "mărire 4×, Real-ESRGAN",
   "lx.engines.cutout": "Decupaj",
   "lx.engines.cutout.sub": "fundal alb, U²-Net",
+  "lx.engines.translate_ro": "Descrierea în română",
+  "lx.engines.translate_ro.sub": "traducere OPUS-MT",
+  "lx.engines.translate_de": "Descrierea în română",
+  "lx.engines.translate_de.sub": "traducere OPUS-MT",
+  "lx.engines.translate_it": "Descrierea în română",
+  "lx.engines.translate_it.sub": "traducere OPUS-MT",
+  "lx.engines.translate_es": "Descrierea în română",
+  "lx.engines.translate_es.sub": "traducere OPUS-MT",
+  "lx.engines.translate_fr": "Descrierea în română",
+  "lx.engines.translate_fr.sub": "traducere OPUS-MT",
   "lx.engines.film": "Mini-film din serie",
   "lx.engines.film.sub": "RIFE",
   "lx.engines.later": "la prima folosire",
@@ -3222,6 +3232,7 @@ export const ro = {
   'lx.widget.memory1': "Acum un an · Cherrypic",
   'lx.widget.memoryN': "Acum {years} ani · Cherrypic",
   'lx.widget.recent': "Din luna asta · Cherrypic",
+  'lx.viewer.aiSeesLocal': "AI-ul vede:",
 };
 
 export type TranslationKey = keyof typeof ro;

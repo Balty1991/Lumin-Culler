@@ -180,6 +180,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(FlorencePlugin.class);
         registerPlugin(EmotionPlugin.class);
         registerPlugin(RifePlugin.class);
+        registerPlugin(com.luminculler.app.plugins.TranslatePlugin.class);
         registerPlugin(SharpImagePlugin.class);
         registerPlugin(FolderExportPlugin.class);
         registerPlugin(MediaLibraryPlugin.class);

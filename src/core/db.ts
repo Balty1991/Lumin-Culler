@@ -445,6 +445,9 @@ export interface AnalysisRecord {
    * E in ENGLEZA — atat suporta API-ul deocamdata. Vezi nota din bridge.
    */
   aiDescription?: string;
+  /** Descrierea tradusă în limba aplicației (OPUS-MT, pe telefon) și limba ei. */
+  aiDescriptionTr?: string;
+  aiDescriptionLang?: string;
 
   iptcByline?: string;
   iptcCaption?: string;
