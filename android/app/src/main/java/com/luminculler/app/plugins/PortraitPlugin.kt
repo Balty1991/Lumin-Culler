@@ -40,6 +40,7 @@ class PortraitPlugin : Plugin() {
     private var env: OrtEnvironment? = null
     private var modnet: OrtSession? = null
     private var depth: OrtSession? = null
+    private var lastDepth: FloatArray? = null
 
     override fun handleOnDestroy() {
         executor.shutdown()
@@ -117,19 +118,75 @@ class PortraitPlugin : Plugin() {
                 val lo = sorted[(sorted.size * 0.55).toInt()]
                 val hi = sorted[(sorted.size * 0.80).toInt()]
                 val span = max(1e-6f, hi - lo)
+                // Adâncimea brută 0..1 (1 = cel mai aproape), pentru estomparea treptată.
+                val dMin = sorted[(sorted.size * 0.02).toInt()]; val dMax = sorted[(sorted.size * 0.98).toInt()]
+                val dSpan = max(1e-6f, dMax - dMin)
+                lastDepth = FloatArray(flat.size) { i -> ((flat[i] - dMin) / dSpan).coerceIn(0f, 1f) }
                 return FloatArray(flat.size) { i -> ((flat[i] - lo) / span).coerceIn(0f, 1f) }
             }
         }
     }
 
-    /** Mapa de focalizare (0..1) la mărimea pozei, ca alfa într-un Bitmap. */
-    private fun focusBitmap(map: FloatArray, side: Int, w: Int, h: Int): IntArray {
-        val px = IntArray(side * side) { i -> ((map[i] * 255f).roundToInt().coerceIn(0, 255) shl 24) or 0xFFFFFF }
-        val b = Bitmap.createBitmap(px, side, side, Bitmap.Config.ARGB_8888)
-        // Puțin înmuiată: marginea subiectului nu trebuie să se vadă tăiată.
-        val soft = Bitmap.createScaledBitmap(Bitmap.createScaledBitmap(b, side / 4, side / 4, true), w, h, true)
-        val out = IntArray(w * h); soft.getPixels(out, 0, w, 0, 0, w, h)
+    /** O hartă pătrată (side×side, 0..1) adusă la w×h, biliniar (fără trepte). */
+    private fun resizeMap(map: FloatArray, side: Int, w: Int, h: Int): FloatArray {
+        val out = FloatArray(w * h)
+        val sx = (side - 1).toFloat() / max(1, w - 1); val sy = (side - 1).toFloat() / max(1, h - 1)
+        for (y in 0 until h) {
+            val fy = y * sy; val y0 = fy.toInt(); val y1 = min(side - 1, y0 + 1); val ty = fy - y0
+            for (x in 0 until w) {
+                val fx = x * sx; val x0 = fx.toInt(); val x1 = min(side - 1, x0 + 1); val tx = fx - x0
+                val a = map[y0 * side + x0] * (1 - tx) + map[y0 * side + x1] * tx
+                val b = map[y1 * side + x0] * (1 - tx) + map[y1 * side + x1] * tx
+                out[y * w + x] = a * (1 - ty) + b * ty
+            }
+        }
         return out
+    }
+
+    /** Estompare în cutie, separabilă, cu sume glisante: O(n) oricât de mare e raza. */
+    private fun boxBlur(src: FloatArray, w: Int, h: Int, r: Int): FloatArray {
+        if (r < 1) return src.copyOf()
+        val tmp = FloatArray(src.size); val out = FloatArray(src.size)
+        val win = (2 * r + 1).toFloat()
+        for (y in 0 until h) {
+            val row = y * w
+            var acc = 0f
+            for (k in -r..r) acc += src[row + k.coerceIn(0, w - 1)]
+            for (x in 0 until w) {
+                tmp[row + x] = acc / win
+                acc += src[row + min(w - 1, x + r + 1)] - src[row + max(0, x - r)]
+            }
+        }
+        for (x in 0 until w) {
+            var acc = 0f
+            for (k in -r..r) acc += tmp[k.coerceIn(0, h - 1) * w + x]
+            for (y in 0 until h) {
+                out[y * w + x] = acc / win
+                acc += tmp[min(h - 1, y + r + 1) * w + x] - tmp[max(0, y - r) * w + x]
+            }
+        }
+        return out
+    }
+
+    /** Trei treceri în cutie ≈ estompare gaussiană (ca o lentilă, nu pătrățele). */
+    private fun gauss(src: FloatArray, w: Int, h: Int, r: Int): FloatArray {
+        val r3 = max(1, r / 2)
+        return boxBlur(boxBlur(boxBlur(src, w, h, r3), w, h, r3), w, h, r3)
+    }
+
+    /**
+     * Fundalul estompat FĂRĂ subiect: convoluție normalizată — doar pixelii de
+     * fundal intră în medie. Altfel geaca închisă „curge” în fundal și rămâne un
+     * contur întunecat în jurul omului (raportat cu captură).
+     */
+    private fun blurBackground(ch: Array<FloatArray>, bgW: FloatArray, w: Int, h: Int, r: Int): Array<FloatArray> {
+        val wb = gauss(bgW, w, h, r)
+        return Array(3) { c ->
+            val num = FloatArray(w * h) { i -> ch[c][i] * bgW[i] }
+            val nb = gauss(num, w, h, r)
+            val plain = if (wb.any { it < 0.02f }) gauss(ch[c], w, h, r) else null
+            FloatArray(w * h) { i -> if (wb[i] > 0.02f) nb[i] / wb[i] else plain!![i] }
+        }
     }
 
     /** { imageBase64, strength 0..1 } → { imageBase64 (JPEG), subject: "person" | "depth" } */
@@ -142,24 +199,61 @@ class PortraitPlugin : Plugin() {
             val bytes = Base64.decode(b64, Base64.DEFAULT)
             val src = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: run { call.reject("imagine invalidă"); return@ruleaza }
             val w = src.width; val h = src.height
+
+            // 1. Cine e subiectul: omul (MODNet) sau ce e aproape (Depth Anything).
             val matte = personMatte(src)
             val personShare = matte.count { it > 0.5f }.toFloat() / matte.size
             val usePerson = personShare > 0.04f
-            val focus = if (usePerson) focusBitmap(matte, MODNET_SIDE, w, h) else focusBitmap(nearMap(src), DEPTH_SIDE, w, h)
+            val near = nearMap(src) // și umple lastDepth: adâncimea, pentru estomparea treptată
 
-            // Estomparea: în jos și înapoi în sus, în doi pași (o lentilă, nu pixeli mari).
-            val k = max(2, (max(w, h) / (40f + 60f * (1 - strength))).roundToInt())
-            val tiny = Bitmap.createScaledBitmap(src, max(1, w / k), max(1, h / k), true)
-            val mid = Bitmap.createScaledBitmap(tiny, max(1, w / 4), max(1, h / 4), true)
-            val blur = Bitmap.createScaledBitmap(mid, w, h, true)
+            // 2. Lucrăm la ~1280 px: estomparea e moale oricum, iar marginea rămâne la rezoluția plină.
+            val k = min(1f, 1280f / max(w, h))
+            val ws = max(1, (w * k).roundToInt()); val hs = max(1, (h * k).roundToInt())
+            val small = Bitmap.createScaledBitmap(src, ws, hs, true)
+            val px = IntArray(ws * hs); small.getPixels(px, 0, ws, 0, 0, ws, hs)
+            if (small !== src) small.recycle()
+            val ch = Array(3) { c -> FloatArray(ws * hs) { i -> ((px[i] shr (16 - 8 * c)) and 0xFF).toFloat() } }
+            var focus = if (usePerson) resizeMap(matte, MODNET_SIDE, ws, hs) else resizeMap(near, DEPTH_SIDE, ws, hs)
+            focus = boxBlur(focus, ws, hs, 1) // margine fină, fără treaptă
+            val depth01 = lastDepth?.let { resizeMap(it, DEPTH_SIDE, ws, hs) }
+
+            // 3. Două niveluri de estompare, din fundal fără subiect.
+            val bgW = FloatArray(ws * hs) { i -> (1f - focus[i]).let { v -> if (v > 0.5f) 1f else v * v * 2f } }
+            val rBig = max(4, (max(ws, hs) * 0.028f * strength).roundToInt())
+            val rMid = max(2, rBig / 3)
+            val big = blurBackground(ch, bgW, ws, hs, rBig)
+            val mid = blurBackground(ch, bgW, ws, hs, rMid)
+
+            // 4. Cât se estompează fiecare punct: după distanța față de subiect (ca la lentilă):
+            //    pământul de lângă picioare puțin, copacii din spate mult.
+            var subjDepth = 0f; var n = 0
+            if (depth01 != null) for (i in focus.indices) if (focus[i] > 0.6f) { subjDepth += depth01[i]; n++ }
+            subjDepth = if (n > 0) subjDepth / n else 1f
+            val layer = IntArray(ws * hs)
+            val sharpness = FloatArray(ws * hs)
+            for (i in 0 until ws * hs) {
+                val dist = if (depth01 != null) ((subjDepth - depth01[i]) / max(0.15f, subjDepth)).coerceIn(0f, 1f) else 1f
+                val amount = (0.35f + 0.65f * dist) * (1f - focus[i])
+                val t2 = ((amount - 0.35f) / 0.65f).coerceIn(0f, 1f)
+                val t1 = (amount / 0.35f).coerceIn(0f, 1f)
+                fun pick(c: Int): Int {
+                    val base = ch[c][i] * (1 - t1) + mid[c][i] * t1
+                    return (base * (1 - t2) + big[c][i] * t2).roundToInt().coerceIn(0, 255)
+                }
+                layer[i] = (0xFF shl 24) or (pick(0) shl 16) or (pick(1) shl 8) or pick(2)
+                sharpness[i] = focus[i]
+            }
+
+            // 5. Compunerea la rezoluția plină: subiectul din original, fundalul din stratul estompat.
+            val blurFull = Bitmap.createScaledBitmap(Bitmap.createBitmap(layer, ws, hs, Bitmap.Config.ARGB_8888), w, h, true)
+            val bp = IntArray(w * h); blurFull.getPixels(bp, 0, w, 0, 0, w, h); blurFull.recycle()
             val sp = IntArray(w * h); src.getPixels(sp, 0, w, 0, 0, w, h)
-            val bp = IntArray(w * h); blur.getPixels(bp, 0, w, 0, 0, w, h)
+            val alpha = resizeMapRect(sharpness, ws, hs, w, h)
             for (i in 0 until w * h) {
-                val a = ((focus[i] ushr 24) and 0xFF) / 255f
-                val t = min(1f, a * 1.15f)
-                val r = (((sp[i] shr 16) and 0xFF) * t + ((bp[i] shr 16) and 0xFF) * (1 - t)).toInt()
-                val g = (((sp[i] shr 8) and 0xFF) * t + ((bp[i] shr 8) and 0xFF) * (1 - t)).toInt()
-                val bl = ((sp[i] and 0xFF) * t + (bp[i] and 0xFF) * (1 - t)).toInt()
+                val a = alpha[i].coerceIn(0f, 1f)
+                val r = (((sp[i] shr 16) and 0xFF) * a + ((bp[i] shr 16) and 0xFF) * (1 - a)).toInt()
+                val g = (((sp[i] shr 8) and 0xFF) * a + ((bp[i] shr 8) and 0xFF) * (1 - a)).toInt()
+                val bl = ((sp[i] and 0xFF) * a + (bp[i] and 0xFF) * (1 - a)).toInt()
                 sp[i] = (0xFF shl 24) or (r shl 16) or (g shl 8) or bl
             }
             val out = Bitmap.createBitmap(sp, w, h, Bitmap.Config.ARGB_8888)
@@ -170,5 +264,21 @@ class PortraitPlugin : Plugin() {
             o.put("subject", if (usePerson) "person" else "depth")
             call.resolve(o)
         }
+    }
+
+    /** Ca resizeMap, dar dintr-o hartă dreptunghiulară sw×sh. */
+    private fun resizeMapRect(map: FloatArray, sw: Int, sh: Int, w: Int, h: Int): FloatArray {
+        val out = FloatArray(w * h)
+        val sx = (sw - 1).toFloat() / max(1, w - 1); val sy = (sh - 1).toFloat() / max(1, h - 1)
+        for (y in 0 until h) {
+            val fy = y * sy; val y0 = fy.toInt(); val y1 = min(sh - 1, y0 + 1); val ty = fy - y0
+            for (x in 0 until w) {
+                val fx = x * sx; val x0 = fx.toInt(); val x1 = min(sw - 1, x0 + 1); val tx = fx - x0
+                val a = map[y0 * sw + x0] * (1 - tx) + map[y0 * sw + x1] * tx
+                val b = map[y1 * sw + x0] * (1 - tx) + map[y1 * sw + x1] * tx
+                out[y * w + x] = a * (1 - ty) + b * ty
+            }
+        }
+        return out
     }
 }
