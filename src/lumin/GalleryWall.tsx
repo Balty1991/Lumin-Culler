@@ -752,7 +752,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
         )}
       </div>
       <div className="lx-viewer-info">
-        <p className="lx-why">{personalWhy(p, why, tr)}</p>
+        <p className="lx-why">{personalWhy(p, why, tr, !!twin)}</p>
         {twin && (
           <button className="lx-twin-link" onClick={() => setComparing(true)}>
             <span className="lx-twin-mini"><Thumb id={twin.id} lqip={twin.lqip} edits={twin.edits} /></span>

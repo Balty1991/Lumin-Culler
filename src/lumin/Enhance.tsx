@@ -432,6 +432,12 @@ export function withManual(e: EditAdjustments, manual: Partial<Record<ManualKey,
 
 export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: () => void }) {
   const [erasing, setErasing] = useState(false);
+  // Escape închide editorul (auditul: tastatura nu avea ieșire).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.querySelector('.lx-magic, .lx-retouch')) onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
   const tr = useTr();
   const addCorrectedCopies = useStore(s => s.addCorrectedCopies);
   const premiumLocked = useStore(s => s.premiumLocked);

@@ -50,15 +50,17 @@ export function useWhyContext(): WhyContext {
   return { loved: favoritePeople(), subjects, groupBest };
 }
 
-export function personalWhy(p: WhyPhoto, ctx: WhyContext, tr: Tr): string {
-  const keep = p.status === 'selected' || (p.status !== 'rejected' && p.aiScore >= 50);
+export function personalWhy(p: WhyPhoto, ctx: WhyContext, tr: Tr, betterTwinShown = false): string {
+  // Când ecranul arată „Vezi poza mai reușită”, verdictul nu poate spune „ai păstra-o”
+  // (auditul: cele două se contraziceau una lângă alta).
+  const keep = p.status === 'selected' || (!betterTwinShown && p.status !== 'rejected' && p.aiScore >= 50);
   const sure = p.status === 'selected' || p.status === 'rejected';
   const lead = tr(keep ? (sure ? 'lx.why.keep' : 'lx.why.maybeKeep') : (sure ? 'lx.why.drop' : 'lx.why.maybeDrop'));
   const parts: string[] = [];
 
   // De ce pleacă: întâi cel mai convingător motiv — e o copie mai slabă a alteia.
   const twin = !keep && p.groupId ? ctx.groupBest?.get(p.groupId) : undefined;
-  if (twin !== undefined && twin > p.aiScore + 3) parts.push(tr('lx.why.betterTwin'));
+  if ((twin !== undefined && twin > p.aiScore + 3) || (betterTwinShown && !keep)) parts.push(tr('lx.why.betterTwin'));
 
   const loved = ctx.loved.find(l => p.personNames.includes(l.name));
   if (loved) parts.push(tr('lx.why.person', { name: loved.name, ofTen: Math.round(loved.rate * 10) }));

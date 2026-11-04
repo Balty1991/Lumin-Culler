@@ -1211,3 +1211,6 @@ html, body { overflow-x: hidden; }
 
 .lx-search-count { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .lx-search-count .lx-link { padding: 4px 0; font-size: 13px; }
+
+/* Un singur buton de ștergere în căutare (cel nativ al browserului se dubla cu al nostru). */
+.lx input[type=search]::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; display: none; }
