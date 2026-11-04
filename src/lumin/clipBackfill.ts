@@ -10,6 +10,7 @@
 import { db } from '../core/db';
 import { contextEngine } from '../core/learning/ContextEngine';
 import { clipAnalyze, prepareClip, refineTags, isClipPlatform } from '../core/clip/clipEngine';
+import { prepareClipSearch } from '../core/clip/clipSearch';
 import { useStore } from '../state/store';
 
 const BATCH = 12;
@@ -52,6 +53,8 @@ export async function startClipBackfill(): Promise<void> {
         }));
       }
     }
+    // La final (același fir nativ): modelul de căutare în cuvinte, tot doar pe Wi-Fi.
+    await prepareClipSearch();
   } catch {
     // CLIP e un bonus: dacă ceva nu merge, aplicația rămâne exact ca înainte.
   } finally {

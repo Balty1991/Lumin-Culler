@@ -17,12 +17,14 @@ import { nativeImageParams, type NativeImageParams, type NativeImageSource } fro
 import data from './clipLabels.json';
 
 interface ClipPluginApi {
-  available(): Promise<{ ready: boolean; wifi: boolean }>;
+  available(): Promise<{ ready: boolean; wifi: boolean; textReady?: boolean }>;
   prepare(o?: { anyNetwork?: boolean }): Promise<{ ready: boolean; reason?: string }>;
   embed(o: NativeImageParams): Promise<{ embedding: number[] }>;
+  prepareText(o?: { anyNetwork?: boolean }): Promise<{ ready: boolean; reason?: string }>;
+  embedText(o: { text: string }): Promise<{ pooled: number[] }>;
 }
 
-const ClipNative = registerPlugin<ClipPluginApi>('Clip');
+export const ClipNative = registerPlugin<ClipPluginApi>('Clip');
 
 function b64(s: string): Uint8Array {
   const bin = atob(s);

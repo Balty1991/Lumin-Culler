@@ -24,6 +24,12 @@ private const val CLIP_FILE = "clip_vit_b32_vision_q.onnx"
 private const val CLIP_URL = "https://huggingface.co/Xenova/clip-vit-base-patch32/resolve/main/onnx/vision_model_quantized.onnx"
 private const val CLIP_MIN_BYTES = 80_000_000L
 private const val SIDE = 224
+/** Textul: sentence-transformers clip-ViT-B-32-multilingual-v1 (Apache-2.0), aliniat cu CLIP ViT-B/32; ~135 MB int8. */
+private const val TEXT_FILE = "clip_multilingual_text_q.onnx"
+private const val VOCAB_FILE = "clip_multilingual_vocab.txt"
+private const val TEXT_BASE = "https://huggingface.co/sentence-transformers/clip-ViT-B-32-multilingual-v1/resolve/main"
+private const val TEXT_MIN_BYTES = 120_000_000L
+private const val MAX_TOKENS = 64
 private val MEAN = floatArrayOf(0.48145466f, 0.4578275f, 0.40821073f)
 private val STD = floatArrayOf(0.26862954f, 0.26130258f, 0.27577711f)
 
@@ -41,11 +47,15 @@ class ClipPlugin : Plugin() {
     private val executor = pluginExecutor("Clip")
     private var env: OrtEnvironment? = null
     private var session: OrtSession? = null
+    private var textSession: OrtSession? = null
+    private var vocab: Map<String, Int>? = null
 
     override fun handleOnDestroy() {
         executor.shutdown()
         runCatching { session?.close() }
+        runCatching { textSession?.close() }
         session = null
+        textSession = null
         super.handleOnDestroy()
     }
 
@@ -66,10 +76,27 @@ class ClipPlugin : Plugin() {
         return e.createSession(modelFile().absolutePath, opts).also { session = it }
     }
 
+    private fun textReady(): Boolean =
+        File(context.filesDir, TEXT_FILE).length() > TEXT_MIN_BYTES && File(context.filesDir, VOCAB_FILE).length() > 500_000
+
+    private fun download(url: String, dest: File, minBytes: Long) {
+        val tmp = File(dest.parentFile, dest.name + ".part")
+        val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+        conn.connectTimeout = 15000; conn.readTimeout = 120000
+        conn.instanceFollowRedirects = true
+        try {
+            if (conn.responseCode != 200) throw IllegalStateException("model ${conn.responseCode}")
+            conn.inputStream.use { inp -> tmp.outputStream().use { inp.copyTo(it, 1 shl 16) } }
+        } finally { conn.disconnect() }
+        if (tmp.length() <= minBytes) { tmp.delete(); throw IllegalStateException("fișier trunchiat") }
+        tmp.renameTo(dest)
+    }
+
     @PluginMethod
     fun available(call: PluginCall) {
         val out = JSObject()
         out.put("ready", ready())
+        out.put("textReady", textReady())
         out.put("wifi", unmetered(context))
         call.resolve(out)
     }
@@ -97,6 +124,127 @@ class ClipPlugin : Plugin() {
             out.put("ready", ready())
             call.resolve(out)
         }
+    }
+
+    /** Descarcă modelul de text (căutarea în cuvinte, în orice limbă). Implicit doar pe Wi-Fi. */
+    @PluginMethod
+    fun prepareText(call: PluginCall) {
+        executor.ruleaza(call, "Modelul de căutare nu s-a putut descărca") {
+            val out = JSObject()
+            if (!textReady()) {
+                if (call.getBoolean("anyNetwork") != true && !unmetered(context)) {
+                    out.put("ready", false); out.put("reason", "metered"); call.resolve(out); return@ruleaza
+                }
+                val v = File(context.filesDir, VOCAB_FILE)
+                if (v.length() <= 500_000) download("$TEXT_BASE/vocab.txt", v, 500_000)
+                val m = File(context.filesDir, TEXT_FILE)
+                if (m.length() <= TEXT_MIN_BYTES) download("$TEXT_BASE/onnx/model_qint8_arm64.onnx", m, TEXT_MIN_BYTES)
+            }
+            out.put("ready", textReady())
+            call.resolve(out)
+        }
+    }
+
+    /** { text } → { pooled: number[768] } — media stării finale; stratul Dense se aplică în JS. */
+    @PluginMethod
+    fun embedText(call: PluginCall) {
+        executor.ruleaza(call, "Căutarea a eșuat") {
+            if (!textReady()) { call.reject("Modelul de căutare nu e descărcat"); return@ruleaza }
+            val text = call.getString("text") ?: ""
+            val ids = tokenize(text)
+            val e = env ?: OrtEnvironment.getEnvironment().also { env = it }
+            val s = textSession ?: e.createSession(File(context.filesDir, TEXT_FILE).absolutePath,
+                OrtSession.SessionOptions().apply { setIntraOpNumThreads(2) }).also { textSession = it }
+            val n = ids.size.toLong()
+            val idT = OnnxTensor.createTensor(e, java.nio.LongBuffer.wrap(ids.map { it.toLong() }.toLongArray()), longArrayOf(1, n))
+            val mT = OnnxTensor.createTensor(e, java.nio.LongBuffer.wrap(LongArray(ids.size) { 1L }), longArrayOf(1, n))
+            idT.use { mT.use {
+                val feeds = HashMap<String, OnnxTensor>()
+                for (name in s.inputNames) when (name) {
+                    "input_ids" -> feeds[name] = idT
+                    "attention_mask" -> feeds[name] = mT
+                }
+                s.run(feeds).use { res ->
+                    @Suppress("UNCHECKED_CAST")
+                    val h = (res[0].value as Array<Array<FloatArray>>)[0]
+                    val dim = h[0].size
+                    val pooled = DoubleArray(dim)
+                    for (row in h) for (j in 0 until dim) pooled[j] += row[j].toDouble()
+                    val arr = JSArray()
+                    for (j in 0 until dim) arr.put(pooled[j] / h.size)
+                    val out = JSObject()
+                    out.put("pooled", arr)
+                    call.resolve(out)
+                }
+            } }
+        }
+    }
+
+    private fun loadVocab(): Map<String, Int> {
+        vocab?.let { return it }
+        val map = HashMap<String, Int>(130_000)
+        File(context.filesDir, VOCAB_FILE).bufferedReader().useLines { lines ->
+            lines.forEachIndexed { i, line -> map[line] = i }
+        }
+        return map.also { vocab = it }
+    }
+
+    /** BERT WordPiece, varianta „cased” (fără litere mici, cu diacritice), ca tokenizer-ul modelului. */
+    private fun tokenize(text: String): List<Int> {
+        val v = loadVocab()
+        val unk = v["[UNK]"] ?: 100
+        val out = ArrayList<Int>()
+        out.add(v["[CLS]"] ?: 101)
+        val words = ArrayList<String>()
+        val sb = StringBuilder()
+        fun flush() { if (sb.isNotEmpty()) { words.add(sb.toString()); sb.setLength(0) } }
+        for (ch in text) {
+            when {
+                ch.isWhitespace() -> flush()
+                ch.code == 0 || ch.code == 0xFFFD || Character.isISOControl(ch) -> {}
+                isPunct(ch) || isCjk(ch) -> { flush(); words.add(ch.toString()) }
+                else -> sb.append(ch)
+            }
+        }
+        flush()
+        for (w in words) {
+            if (out.size >= MAX_TOKENS - 1) break
+            if (w.length > 100) { out.add(unk); continue }
+            var start = 0
+            val pieces = ArrayList<Int>()
+            var bad = false
+            while (start < w.length) {
+                var end = w.length
+                var cur: Int? = null
+                while (start < end) {
+                    val sub = (if (start > 0) "##" else "") + w.substring(start, end)
+                    val id = v[sub]
+                    if (id != null) { cur = id; break }
+                    end--
+                }
+                if (cur == null) { bad = true; break }
+                pieces.add(cur); start = end
+            }
+            if (bad) out.add(unk) else out.addAll(pieces)
+        }
+        while (out.size > MAX_TOKENS - 1) out.removeAt(out.size - 1)
+        out.add(v["[SEP]"] ?: 102)
+        return out
+    }
+
+    private fun isPunct(c: Char): Boolean {
+        val cp = c.code
+        if ((cp in 33..47) || (cp in 58..64) || (cp in 91..96) || (cp in 123..126)) return true
+        val t = Character.getType(c)
+        return t == Character.CONNECTOR_PUNCTUATION.toInt() || t == Character.DASH_PUNCTUATION.toInt() ||
+            t == Character.START_PUNCTUATION.toInt() || t == Character.END_PUNCTUATION.toInt() ||
+            t == Character.INITIAL_QUOTE_PUNCTUATION.toInt() || t == Character.FINAL_QUOTE_PUNCTUATION.toInt() ||
+            t == Character.OTHER_PUNCTUATION.toInt()
+    }
+
+    private fun isCjk(c: Char): Boolean {
+        val cp = c.code
+        return (cp in 0x4E00..0x9FFF) || (cp in 0x3400..0x4DBF) || (cp in 0xF900..0xFAFF)
     }
 
     /** { imageUri | imageBase64 } → { embedding: number[512] } normalizat (lungime 1). */

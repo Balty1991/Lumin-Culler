@@ -3114,6 +3114,7 @@ export const ro = {
   'factor.clipQuality': 'Calitatea văzută de AI',
   'insightsPref.clipQuality.pos': 'nu iartă pozele mișcate sau întunecate',
   'insightsPref.clipQuality.neg': 'păstrează și poze imperfecte, dacă momentul contează',
+  'lx.search.visual': '+ {count} după ce se vede în poze',
 };
 
 export type TranslationKey = keyof typeof ro;

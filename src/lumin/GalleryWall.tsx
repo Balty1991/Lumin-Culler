@@ -27,6 +27,7 @@ import { translateSceneTag } from '../core/sceneTagLabels';
 import { useTr } from './context';
 import { Thumb } from './Thumb';
 import { isTextOnlyMatch, searchPhotos } from './textSearch';
+import { clipSearch } from '../core/clip/clipSearch';
 import { db } from '../core/db';
 import { findSimilarPhotos } from '../core/similarPhotos';
 import { EnhanceSheet } from './Enhance';
@@ -177,6 +178,7 @@ export function GalleryWall() {
   const [query, setQuery] = useState('');
   const [withDocs, setWithDocs] = useState(false);
   const docCount = useRef(0);
+  const visualCount = useRef(0);
   useEffect(() => { setWithDocs(false); }, [query]);
   /** Dosarul inteligent deschis („Mașina”, „Mâncare”…), din etichetele pozelor. */
   const [folder, setFolder] = useState<SmartFolder | null>(null);
@@ -184,6 +186,17 @@ export function GalleryWall() {
   const [aiTerms, setAiTerms] = useState<{ q: string; terms: string[] } | null>(null);
   /** „Asemănătoare”: poza de plecare și cele care seamănă cu ea (după ce se vede, nu după dată). */
   const [similar, setSimilar] = useState<{ source: string; ids: string[] } | null>(null);
+  /** Ce se VEDE în poze (CLIP, pe telefon), pentru cuvintele căutării: „copii la mare la apus”. */
+  const [visual, setVisual] = useState<{ q: string; ids: string[] } | null>(null);
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 3) { setVisual(null); return; }
+    let alive = true;
+    const timer = window.setTimeout(() => {
+      void clipSearch(q).then(ids => { if (alive) setVisual({ q, ids }); });
+    }, 450);
+    return () => { alive = false; window.clearTimeout(timer); };
+  }, [query]);
   const [density, setDensityState] = useState<Density>(readDensity);
   const setNotice = useStore(s => s.setNotice);
   const sentinel = useRef<HTMLDivElement>(null);
@@ -208,7 +221,17 @@ export function GalleryWall() {
       docCount.current = docs.length < all.length ? docs.length : 0;
       // Pe luni, cele mai noi întâi: galeria grupează pe luni, iar ordinea după scor
       // făcea aceeași lună să apară de două ori (auditul).
-      if (found.length || aiTerms?.q !== query.trim()) return [...found].sort((a, b) => photoTime(b) - photoTime(a));
+      const byText = [...found].sort((a, b) => photoTime(b) - photoTime(a));
+      // Apoi ce se vede în poze, în ordinea potrivirii, fără documente și fără dubluri.
+      if (visual?.q === query.trim() && visual.ids.length) {
+        const have = new Set(byText.map(p => p.id));
+        const byId = new Map(searchable.map(p => [p.id, p]));
+        const seen = visual.ids.map(id => byId.get(id)).filter((p): p is PhotoView => !!p && !have.has(p.id) && (withDocs || !p.aside));
+        visualCount.current = seen.length;
+        return [...byText, ...seen];
+      }
+      visualCount.current = 0;
+      if (found.length || aiTerms?.q !== query.trim()) return byText;
       const seen = new Set<string>();
       return aiTerms.terms.flatMap(t => searchPhotos(searchable, t)).filter(p => !seen.has(p.id) && !!seen.add(p.id));
     }
@@ -216,7 +239,7 @@ export function GalleryWall() {
       .filter(p => !p.aside)
       .filter(p => filter === 'all' || (filter === 'kept' ? p.status === 'selected' : p.status === 'rejected'))
       .sort((a, b) => photoTime(b) - photoTime(a));
-  }, [photos, filter, query, similar, aiTerms, folder, withDocs]);
+  }, [photos, filter, query, similar, aiTerms, folder, withDocs, visual]);
   const folders = useMemo(() => folderCounts(photos), [photos]);
   const reveal = useReveal();
   // Nimic găsit pe telefon: întreabă AI-ul online ce înseamnă căutarea, în etichetele pe care le avem.
@@ -393,6 +416,9 @@ export function GalleryWall() {
             </button>
           )}
         </p>
+      )}
+      {query.trim() && visualCount.current > 0 && (
+        <p className="lx-hint">👁 {tr('lx.search.visual', { count: visualCount.current })}</p>
       )}
       {query.trim() && aiTerms?.q === query.trim() && aiTerms.terms.length > 0 && list.length > 0 && (
         <p className="lx-hint">☁ {tr('lx.search.ai', { terms: aiTerms.terms.map(t => translateSceneTag(t, baseLocale(locale))).join(', ') })}</p>

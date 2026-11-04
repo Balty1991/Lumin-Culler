@@ -3028,4 +3028,5 @@ export const en: Record<TranslationKey, string> = {
   'factor.clipQuality': 'Quality seen by AI',
   'insightsPref.clipQuality.pos': 'no mercy for blurry or dark shots',
   'insightsPref.clipQuality.neg': 'keeps imperfect shots when the moment matters',
+  'lx.search.visual': '+ {count} by what is in the photos',
 };
