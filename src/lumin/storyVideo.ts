@@ -97,7 +97,7 @@ function drawText(ctx: CanvasRenderingContext2D, title: string, subtitle: string
 }
 
 /** Același format, cu sunet (AAC în mp4, Opus în webm), dacă telefonul îl poate înregistra. */
-function audioMimeFor(video: string): string | null {
+export function audioMimeFor(video: string): string | null {
   if (typeof MediaRecorder === 'undefined') return null;
   const candidates = video.startsWith('video/mp4')
     ? [`${video},mp4a.40.2`, 'video/mp4;codecs=avc1,mp4a.40.2']

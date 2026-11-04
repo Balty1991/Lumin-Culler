@@ -11,6 +11,8 @@ import { loadEditable } from './sharp';
 import { fetchEngine } from './engines';
 import { logError } from '../core/errorLog';
 import { weakDevice } from '../core/deviceClass';
+import { startStoryMusic, type MusicMood } from './storyMusic';
+import { audioMimeFor } from './storyVideo';
 
 interface RifeApi { between(o: { a: string; b: string; steps: number }): Promise<{ frames: string[]; width: number; height: number }> }
 const Rife = registerPlugin<RifeApi>('Rife');
@@ -78,6 +80,8 @@ export interface FilmOptions {
   loop?: 'bounce' | 'forward';
   format?: 'orig' | 'square' | 'story';
   look?: 'natural' | 'warm' | 'vivid' | 'bw';
+  /** Muzică compusă pe telefon (fără drepturi de autor), înregistrată în film. */
+  music?: 'none' | MusicMood;
 }
 
 export const FILM_MAX_PHOTOS = 12;
@@ -115,7 +119,7 @@ function drawFrame(ctx: CanvasRenderingContext2D, f: Frame, w: number, h: number
   ctx.globalAlpha = 1;
 }
 
-export interface BurstFilm { blob: Blob; ext: string; fps: number; width: number; height: number; count: number; draw: (ctx: CanvasRenderingContext2D, i: number) => void }
+export interface BurstFilm { blob: Blob; ext: string; music: 'none' | MusicMood; fps: number; width: number; height: number; count: number; draw: (ctx: CanvasRenderingContext2D, i: number) => void }
 
 export async function makeBurstFilm(ids: string[], onProgress?: (f: number) => void, opts: FilmOptions = {}): Promise<BurstFilm | null> {
   const mime = pickMimeType();
@@ -193,7 +197,13 @@ export async function makeBurstFilm(ids: string[], onProgress?: (f: number) => v
   const ctx = canvas.getContext('2d')!;
   drawFrame(ctx, seq[0], w, h);
   const fps = 10;
-  const rec = new MediaRecorder(canvas.captureStream(fps), { mimeType: mime, videoBitsPerSecond: 10_000_000 });
+  // Cu muzică doar dacă telefonul poate pune și sunet în același fișier.
+  const mood = opts.music ?? 'none';
+  const withAudio = mood !== 'none' ? audioMimeFor(mime) : null;
+  const music = withAudio && mood !== 'none' ? startStoryMusic(seq.length * 1000 / fps + 400, { mood }) : null;
+  const stream = music ? new MediaStream([...canvas.captureStream(fps).getVideoTracks(), music.track]) : canvas.captureStream(fps);
+  const usedMime = music ? withAudio! : mime;
+  const rec = new MediaRecorder(stream, { mimeType: usedMime, videoBitsPerSecond: 10_000_000 });
   const chunks: Blob[] = [];
   rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
   const done = new Promise<void>(res => { rec.onstop = () => res(); });
@@ -205,8 +215,9 @@ export async function makeBurstFilm(ids: string[], onProgress?: (f: number) => v
   }
   rec.stop();
   await done;
+  music?.stop();
   return {
-    blob: new Blob(chunks, { type: mime.split(';')[0] }), ext: extensionFor(mime), fps, width: w, height: h,
+    blob: new Blob(chunks, { type: usedMime.split(';')[0] }), ext: extensionFor(usedMime), music: music ? mood : 'none', fps, width: w, height: h,
     count: loop.length, draw: (c, i) => drawFrame(c, loop[i % loop.length], c.canvas.width, c.canvas.height)
   };
 }

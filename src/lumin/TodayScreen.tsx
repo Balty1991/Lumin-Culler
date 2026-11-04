@@ -36,6 +36,9 @@ import { photoTime } from './days';
  * singur buton pentru ce mai cere o decizie. Apoi zilele trecute, pe scurt.
  */
 import { EnginesIntro } from './EnginesIntro';
+import { FilmCreator } from './FilmCreator';
+import { Icon } from './icons';
+import { burstFilmAvailable } from './burstFilm';
 
 export function TodayScreen() {
   const tr = useTr();
@@ -319,14 +322,19 @@ function OnThisDay() {
   const tr = useTr();
   const photos = useLxPhotos();
   const memories = useMemo(() => onThisDay(photos), [photos]);
+  // „Acum un an”, ca mini-film: creatorul se deschide cu pozele amintirii (trecere lină, muzică).
+  const [filmFor, setFilmFor] = useState<string[] | null>(null);
   if (!memories.length) return null;
   return (
     <>
+      {filmFor && <FilmCreator startId={filmFor[0]} initialIds={filmFor} initialTransition="fade" onClose={() => setFilmFor(null)} />}
       {memories.map(m => {
         const title = tr(m.years === 1 ? 'lx.onThisDay' : 'lx.onThisDay.other', { years: m.years });
         return (
           <section key={m.years} className="lx-section">
-            <div className="lx-section-head"><h2>{title}</h2></div>
+            <div className="lx-section-head"><h2>{title}</h2>
+              {burstFilmAvailable() && m.photos.length >= 2 && <button className="lx-link lx-memory-film" onClick={() => setFilmFor(m.photos.map(p => p.id))}><Icon name="film" size={16} /> {tr('lx.onThisDay.film')}</button>}
+            </div>
             <div className="lx-memory">
               {m.photos.map(p => (
                 <button key={p.id} onClick={() => useLx.getState().openViewer(m.photos.map(x => x.id), m.photos.indexOf(p))}>

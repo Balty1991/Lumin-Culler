@@ -1551,3 +1551,13 @@ button.lx-tunnel-now:active { background: rgb(255 255 255 / .06); }
 .lx-fm-opt > span { font-size: 13px; color: var(--text-dim); }
 .lx-fm-opt .lx-enhance-styles { margin: 0; }
 .lx-fm .lx-decide-actions .lx-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.lx-section-head .lx-memory-film { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
+
+/* Tunelul: „Doar o persoană” — oamenii recunoscuți, jos, ca să vezi doar pozele cuiva. */
+.lx-tunnel-people { position: absolute; left: 0; right: 0; bottom: calc(14px + var(--safe-bottom, env(safe-area-inset-bottom, 0px))); display: flex; gap: 8px; overflow-x: auto; padding: 0 16px; scrollbar-width: none; z-index: 2; }
+.lx-tunnel-people::-webkit-scrollbar { display: none; }
+.lx-tunnel-people button { flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 14px; border-radius: 999px; border: 1px solid rgb(255 79 127 / .35); background: rgb(20 8 14 / .72); color: #fff6f9; font: inherit; font-size: 14px; font-weight: 600; }
+.lx-tunnel-people button small { font-family: var(--mono); font-size: 11px; font-weight: 400; color: #c9b4bf; }
+.lx-tunnel-people button.on { background: linear-gradient(135deg, #ff4f7f, #ff8fae); border-color: transparent; color: #1a0510; box-shadow: 0 0 24px -6px rgb(255 79 127 / .8); }
+.lx-tunnel-people button.on small { color: #4a1022; }
+.lx-tunnel-hint.with-people { bottom: calc(64px + var(--safe-bottom, env(safe-area-inset-bottom, 0px))); }

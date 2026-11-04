@@ -5,6 +5,7 @@ import { useStore } from '../state/store';
 import { useTr } from './context';
 import { shareCollage } from './collage';
 import { saveEditedBlob } from './saveEdited';
+import { startStoryMusic } from './storyMusic';
 
 /**
  * Mini-filmul din serie, văzut întâi în aplicație (în buclă), apoi salvat în
@@ -24,7 +25,9 @@ export function FilmSheet({ film, onClose }: { film: BurstFilm; onClose: () => v
     const ctx = c.getContext('2d')!;
     let i = 0;
     const id = window.setInterval(() => { film.draw(ctx, i); i++; }, 1000 / film.fps);
-    return () => window.clearInterval(id);
+    // Muzica se aude și aici, cât rulează filmul (până la 10 minute).
+    const music = film.music !== 'none' ? startStoryMusic(600_000, { mood: film.music, speakers: true }) : null;
+    return () => { window.clearInterval(id); music?.stop(); };
   }, [film]);
   const name = `cherrypic-miscare-${Date.now()}.${film.ext}`;
   const save = async () => {

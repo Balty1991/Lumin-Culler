@@ -15,7 +15,14 @@ const CHORD_S = 2.4;
 
 export interface StoryMusic { track: MediaStreamTrack; stop: () => void }
 
-export function startStoryMusic(durationMs: number): StoryMusic | null {
+export type MusicMood = 'calm' | 'happy';
+
+/**
+ * `mood`: „calm” = cea de până acum; „happy” = aceleași acorduri, mai repede, cu
+ * arpegiu vioi. `speakers`: se și aude (previzualizarea din aplicație), nu doar
+ * se înregistrează.
+ */
+export function startStoryMusic(durationMs: number, opts: { mood?: MusicMood; speakers?: boolean } = {}): StoryMusic | null {
   const Ctx = (window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext);
   if (!Ctx) return null;
   try {
@@ -28,6 +35,10 @@ export function startStoryMusic(durationMs: number): StoryMusic | null {
     filter.type = 'lowpass';
     filter.frequency.value = 2200;
     master.connect(filter).connect(dest);
+    if (opts.speakers) filter.connect(ac.destination);
+    const happy = opts.mood === 'happy';
+    const chordS = happy ? 1.6 : CHORD_S;
+    if (happy) filter.frequency.value = 3200;
     const t0 = ac.currentTime + 0.05;
     const total = durationMs / 1000;
     master.gain.setValueAtTime(0, t0);
@@ -48,11 +59,12 @@ export function startStoryMusic(durationMs: number): StoryMusic | null {
       o.start(at);
       o.stop(at + len + 0.05);
     };
-    for (let c = 0, at = t0; at < t0 + total; c++, at += CHORD_S) {
+    for (let c = 0, at = t0; at < t0 + total; c++, at += chordS) {
       const chord = CHORDS[c % CHORDS.length];
-      for (const f of chord) note(f / 2, at, CHORD_S + 0.3, 'triangle', 0.12);        // pad
-      note(chord[0] / 4, at, CHORD_S, 'sine', 0.18);                                    // bas
-      for (let k = 0; k < 4; k++) note(chord[(k * 2) % 3] * (k === 3 ? 2 : 1), at + k * (CHORD_S / 4), CHORD_S / 4, 'sine', 0.07); // arpegiu
+      for (const f of chord) note(f / 2, at, chordS + 0.3, 'triangle', happy ? 0.08 : 0.12);  // pad
+      note(chord[0] / 4, at, chordS, 'sine', 0.18);                                          // bas
+      const n = happy ? 8 : 4;
+      for (let k = 0; k < n; k++) note(chord[(k * 2) % 3] * (k % 4 === 3 ? 2 : 1), at + k * (chordS / n), chordS / n, happy ? 'triangle' : 'sine', happy ? 0.06 : 0.07); // arpegiu
     }
     const [track] = dest.stream.getAudioTracks();
     return { track, stop: () => { void ac.close().catch(() => {}); } };

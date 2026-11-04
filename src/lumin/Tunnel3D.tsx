@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { PhotoView } from '../state/store';
 import { useStore } from '../state/store';
@@ -30,10 +30,18 @@ export function Tunnel3D({ list, onOpen, onClose }: { list: PhotoView[]; onOpen:
   const tr = useTr();
   const locale = useStore(s => s.locale);
 
+  // „Doar o persoană”: oamenii recunoscuți în pozele din tunel, cei mai des întâi.
+  const [who, setWho] = useState<string | null>(null);
+  const people = useMemo(() => {
+    const n = new Map<string, number>();
+    for (const p of list) for (const name of p.personNames ?? []) n.set(name, (n.get(name) ?? 0) + 1);
+    return [...n.entries()].filter(([, c]) => c >= 3).sort((a, b) => b[1] - a[1]).slice(0, 16);
+  }, [list]);
+
   // Pozele, de la cea mai nouă spre trecut, cu o plăcuță la fiecare lună nouă și anii.
   const entries = useMemo<Entry[]>(() => {
     const fmt = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' });
-    const sorted = list.map((photo, index) => ({ photo, index })).sort((a, b) => photoTime(b.photo) - photoTime(a.photo));
+    const sorted = list.map((photo, index) => ({ photo, index })).filter(it => !who || (it.photo.personNames ?? []).includes(who)).sort((a, b) => photoTime(b.photo) - photoTime(a.photo));
     const out: Entry[] = [];
     let last = '', lastYear = '';
     for (const it of sorted) {
@@ -46,12 +54,15 @@ export function Tunnel3D({ list, onOpen, onClose }: { list: PhotoView[]; onOpen:
       out.push({ kind: 'photo', ...it });
     }
     return out;
-  }, [list, locale]);
+  }, [list, locale, who]);
+  const shown = useMemo(() => entries.filter(e => e.kind === 'photo').length, [entries]);
 
   const canvas = useRef<HTMLCanvasElement>(null);
   const label = useRef<HTMLSpanElement>(null);
   const pos = useRef(-1.6);
   const vel = useRef(0);
+  // Altă persoană: călătoria o ia de la capăt (de azi).
+  useEffect(() => { pos.current = -1.6; vel.current = 0; }, [who]);
   const sway = useRef({ x: 0, y: 0 });
   const passed = useRef(-1);
   const sprites = useRef(new Map<string, Sprite | 'loading'>());
@@ -314,9 +325,19 @@ export function Tunnel3D({ list, onOpen, onClose }: { list: PhotoView[]; onOpen:
           const next = entries.findIndex((e, k) => k > from && e.kind === 'month');
           if (next > 0) vel.current = Math.min(1.2, (next - pos.current) * 0.07);
         }} aria-label={tr('lx.tunnel.next')}><small>{tr('lx.tunnel.title')} · ⇣</small><span ref={label} /></button>
-        <span className="lx-tunnel-count">{list.length}</span>
+        <span className="lx-tunnel-count">{shown}</span>
       </header>
-      <p className="lx-tunnel-hint">{tr('lx.tunnel.hint')}</p>
+      {people.length > 0 && (
+        <div className="lx-tunnel-people" role="radiogroup" aria-label={tr('lx.tunnel.people')}>
+          <button role="radio" aria-checked={!who} className={!who ? 'on' : undefined} onClick={() => setWho(null)}>{tr('lx.tunnel.everyone')}</button>
+          {people.map(([name, c]) => (
+            <button key={name} role="radio" aria-checked={who === name} className={who === name ? 'on' : undefined} onClick={() => setWho(w => (w === name ? null : name))}>
+              {name} <small>{c}</small>
+            </button>
+          ))}
+        </div>
+      )}
+      <p className={people.length > 0 ? 'lx-tunnel-hint with-people' : 'lx-tunnel-hint'}>{tr('lx.tunnel.hint')}</p>
     </div>,
     document.body
   );

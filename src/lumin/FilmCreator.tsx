@@ -17,7 +17,7 @@ import { logError } from '../core/errorLog';
  */
 type Choice<T extends string> = { value: T; label: string };
 
-export function FilmCreator({ startId, initialIds, onClose }: { startId: string; initialIds: string[]; onClose: () => void }) {
+export function FilmCreator({ startId, initialIds, initialTransition, onClose }: { startId: string; initialIds: string[]; initialTransition?: 'ai' | 'fade'; onClose: () => void }) {
   const tr = useTr();
   const photos = useStore(s => s.photos);
   const byId = useMemo(() => new Map(photos.map(p => [p.id, p])), [photos]);
@@ -25,10 +25,11 @@ export function FilmCreator({ startId, initialIds, onClose }: { startId: string;
   const [active, setActive] = useState<string | null>(null);
   const [allDays, setAllDays] = useState(false);
   const [speed, setSpeed] = useState<NonNullable<FilmOptions['speed']>>('normal');
-  const [transition, setTransition] = useState<NonNullable<FilmOptions['transition']> | null>(null);
+  const [transition, setTransition] = useState<NonNullable<FilmOptions['transition']> | null>(initialTransition ?? null);
   const [loop, setLoop] = useState<NonNullable<FilmOptions['loop']>>('bounce');
   const [format, setFormat] = useState<NonNullable<FilmOptions['format']>>('orig');
   const [look, setLook] = useState<NonNullable<FilmOptions['look']>>('natural');
+  const [music, setMusic] = useState<NonNullable<FilmOptions['music']>>('calm');
   const [busy, setBusy] = useState(false);
   const [pct, setPct] = useState(0);
   const [film, setFilm] = useState<BurstFilm | null>(null);
@@ -70,7 +71,7 @@ export function FilmCreator({ startId, initialIds, onClose }: { startId: string;
   const make = async () => {
     setBusy(true); setPct(0);
     try {
-      const r = await makeBurstFilm(ids, setPct, { speed, transition: trans, loop, format, look });
+      const r = await makeBurstFilm(ids, setPct, { speed, transition: trans, loop, format, look, music });
       if (r) setFilm(r);
       else useStore.getState().setNotice(tr('lx.burstFilm.noPhotos'));
     } catch (e) {
@@ -172,6 +173,11 @@ export function FilmCreator({ startId, initialIds, onClose }: { startId: string;
             { value: 'warm', label: tr('lx.filmMaker.look.warm') },
             { value: 'vivid', label: tr('lx.filmMaker.look.vivid') },
             { value: 'bw', label: tr('lx.filmMaker.look.bw') }
+          ])}
+          {chips(tr('lx.filmMaker.music'), music, setMusic, [
+            { value: 'calm', label: tr('lx.filmMaker.music.calm') },
+            { value: 'happy', label: tr('lx.filmMaker.music.happy') },
+            { value: 'none', label: tr('lx.filmMaker.music.none') }
           ])}
           {trans === 'ai' && !sameBurst && <p className="lx-hint lx-fm-hint">{tr('lx.filmMaker.aiHint')}</p>}
         </section>
