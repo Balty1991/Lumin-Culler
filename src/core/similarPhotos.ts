@@ -38,7 +38,12 @@ export const SIMILAR_THRESHOLD = 0.55;
 export interface EmbeddedPhoto {
   photoId: string;
   imageEmbedding?: number[];
+  /** CLIP (512) — când sursa îl are, căutarea merge pe el, și pentru pozele cu oameni. */
+  clipEmbedding?: number[];
 }
+
+/** CLIP înțelege scena: peste ~0,8 e „același fel de poză” (aceeași plajă, același tort). */
+export const CLIP_SIMILAR_THRESHOLD = 0.8;
 
 function dot(a: number[], b: number[]): number {
   let sum = 0;
@@ -63,21 +68,24 @@ function norm(a: number[]): number {
  */
 export function findSimilarPhotos(rows: EmbeddedPhoto[], sourceId: string): string[] {
   const source = rows.find(r => r.photoId === sourceId);
-  if (!source?.imageEmbedding?.length) return [];
+  const useClip = !!source?.clipEmbedding?.length;
+  const pick = (r: EmbeddedPhoto) => (useClip ? r.clipEmbedding : r.imageEmbedding);
+  const threshold = useClip ? CLIP_SIMILAR_THRESHOLD : SIMILAR_THRESHOLD;
+  if (!source || !pick(source)?.length) return [];
 
-  const sourceEmbedding = source.imageEmbedding;
+  const sourceEmbedding = pick(source)!;
   const sourceNorm = norm(sourceEmbedding);
   if (sourceNorm === 0) return [];
 
   const scored: { id: string; score: number }[] = [];
   for (const row of rows) {
     if (row.photoId === sourceId) continue;
-    const other = row.imageEmbedding;
+    const other = pick(row);
     if (!other?.length) continue;
     const otherNorm = norm(other);
     if (otherNorm === 0) continue;
     const score = dot(sourceEmbedding, other) / (sourceNorm * otherNorm);
-    if (score >= SIMILAR_THRESHOLD) scored.push({ id: row.photoId, score });
+    if (score >= threshold) scored.push({ id: row.photoId, score });
   }
 
   scored.sort((a, b) => b.score - a.score);

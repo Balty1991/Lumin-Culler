@@ -285,7 +285,7 @@ export function GalleryWall() {
     const rows = await db.analyses.toArray();
     // Trei căi, una peste alta: amprenta vizuală de la import, ce se vede în ea
     // (etichete, oameni) și comparația directă a miniaturilor — merge pe orice poză.
-    const merged = new Set(findSimilarPhotos(rows.map(a => ({ photoId: a.photoId, imageEmbedding: a.imageEmbedding })), id));
+    const merged = new Set(findSimilarPhotos(rows.map(a => ({ photoId: a.photoId, imageEmbedding: a.imageEmbedding, clipEmbedding: a.clipEmbedding })), id));
     for (const x of similarByContent(photos, id)) merged.add(x);
     if (merged.size < 6) for (const x of await findVisuallySimilar(photos.filter(p => !p.aside || p.id === id).map(p => p.id), id)) merged.add(x);
     const ids = [...merged].slice(0, 40);

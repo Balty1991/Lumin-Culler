@@ -3110,6 +3110,10 @@ export const ro = {
   'factor.aesthetic': 'Frumusețea pozei',
   'insightsPref.aesthetic.pos': 'preferă pozele frumoase, bine luminate și compuse',
   'insightsPref.aesthetic.neg': 'păstrează amintirea, nu neapărat poza frumoasă',
+  'factor.clipAffinity': 'Seamănă cu ce păstrezi',
+  'factor.clipQuality': 'Calitatea văzută de AI',
+  'insightsPref.clipQuality.pos': 'nu iartă pozele mișcate sau întunecate',
+  'insightsPref.clipQuality.neg': 'păstrează și poze imperfecte, dacă momentul contează',
 };
 
 export type TranslationKey = keyof typeof ro;

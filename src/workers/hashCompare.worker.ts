@@ -39,6 +39,8 @@ export interface HashInput extends Partial<Omit<GroupCandidate, 'id'>> {
    * care altfel cad pe semnalul mai slab compozitie+armonie-culori de mai jos.
    */
   imageEmbedding?: number[];
+  /** CLIP ViT-B/32 (512), la TOATE pozele, cu sau fără oameni — vezi AnalysisRecord.clipEmbedding. */
+  clipEmbedding?: number[];
   /** 0..1, vezi AnalysisRecord.colorHarmonyScore — folosit doar ca semnal secundar cand nu exista fete de comparat. */
   colorHarmonyScore?: number;
   /**
@@ -257,6 +259,13 @@ const FACE_MATCH_THRESHOLD = 0.5;
  * testare pe device desparte gresit rafale reale fara oameni.
  */
 const IMAGE_EMBEDDING_MATCH_THRESHOLD = 0.75;
+/**
+ * CLIP: cadre din aceeași rafală stau de obicei peste 0,9; scene diferite din
+ * aceeași seară, în jur de 0,7–0,85. Pragul e la mijloc, de recalibrat pe telefon.
+ * Are prioritate față de MobileNet fiindcă există și când doar una are oameni —
+ * exact gaura prin care o foaie scrisă ajungea în serie cu un copil și o pisică.
+ */
+const CLIP_MATCH_THRESHOLD = 0.86;
 /** Delta compozitie/armonie culori peste care doua poze par scene diferite — folosit DOAR cand nu exista fete SI nu exista embedding general de comparat. */
 const COMPOSITION_DELTA_THRESHOLD = 0.4;
 const COLOR_HARMONY_DELTA_THRESHOLD = 0.35;
@@ -341,6 +350,10 @@ function looksLikeSameSubject(a: HashInput, b: HashInput): boolean {
   const faceSim = bestFaceSimilarity(a.faceEmbeddings ?? [], b.faceEmbeddings ?? []);
   if (faceSim !== null) return faceSim >= FACE_MATCH_THRESHOLD;
 
+  if (a.clipEmbedding?.length && b.clipEmbedding?.length) {
+    return cosineSimilarity(a.clipEmbedding, b.clipEmbedding) >= CLIP_MATCH_THRESHOLD;
+  }
+
   if (a.imageEmbedding && b.imageEmbedding) {
     return cosineSimilarity(a.imageEmbedding, b.imageEmbedding) >= IMAGE_EMBEDDING_MATCH_THRESHOLD;
   }
@@ -393,6 +406,10 @@ function subjectEvidence(a: HashInput, b: HashInput): DovadaSubiect {
   const faceSim = bestFaceSimilarity(a.faceEmbeddings ?? [], b.faceEmbeddings ?? []);
   if (faceSim !== null) {
     return { sursa: 'fete', scor: faceSim, prag: FACE_MATCH_THRESHOLD, confirmat: faceSim >= FACE_MATCH_THRESHOLD };
+  }
+  if (a.clipEmbedding?.length && b.clipEmbedding?.length) {
+    const scor = cosineSimilarity(a.clipEmbedding, b.clipEmbedding);
+    return { sursa: 'imagine', scor, prag: CLIP_MATCH_THRESHOLD, confirmat: scor >= CLIP_MATCH_THRESHOLD };
   }
   if (a.imageEmbedding && b.imageEmbedding) {
     const scor = cosineSimilarity(a.imageEmbedding, b.imageEmbedding);

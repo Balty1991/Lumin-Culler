@@ -67,10 +67,11 @@ export function affinity(embedding: number[], memory: EmbeddingMemoryRecord | un
 export function accumulate(
   memory: EmbeddingMemoryRecord | undefined,
   embedding: number[],
-  kept: boolean
+  kept: boolean,
+  rowId: EmbeddingMemoryRecord['id'] = ROW_ID
 ): EmbeddingMemoryRecord {
   const base: EmbeddingMemoryRecord = memory ?? {
-    id: ROW_ID, keptSum: [], keptCount: 0, rejectedSum: [], rejectedCount: 0, updatedAt: 0
+    id: rowId, keptSum: [], keptCount: 0, rejectedSum: [], rejectedCount: 0, updatedAt: 0
   };
   const sum = kept ? base.keptSum : base.rejectedSum;
   const next = sum.length === embedding.length
@@ -85,14 +86,14 @@ export function accumulate(
   };
 }
 
-export async function readEmbeddingMemory(): Promise<EmbeddingMemoryRecord | undefined> {
-  return db.embeddingMemory.get(ROW_ID);
+export async function readEmbeddingMemory(rowId: EmbeddingMemoryRecord['id'] = ROW_ID): Promise<EmbeddingMemoryRecord | undefined> {
+  return db.embeddingMemory.get(rowId);
 }
 
-export async function recordEmbeddingDecision(embedding: number[] | undefined, kept: boolean): Promise<void> {
+export async function recordEmbeddingDecision(embedding: number[] | undefined, kept: boolean, rowId: EmbeddingMemoryRecord['id'] = ROW_ID): Promise<void> {
   if (!embedding?.length) return;
-  const current = await readEmbeddingMemory();
-  await db.embeddingMemory.put(accumulate(current, embedding, kept));
+  const current = await readEmbeddingMemory(rowId);
+  await db.embeddingMemory.put(accumulate(current, embedding, kept, rowId));
 }
 
 export async function resetEmbeddingMemory(): Promise<void> {

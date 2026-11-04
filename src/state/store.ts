@@ -4271,7 +4271,7 @@ export const useStore = create<AppState>((set, get) => ({
       // sa stie care: ori poza n-a fost analizata cu embedding (web, sau
       // importata inainte de plugin), ori chiar nu seamana cu nimic.
       const source = rows.find(r => r.photoId === photoId);
-      set({ notice: t(locale, source?.imageEmbedding?.length ? 'store.similar.none' : 'store.similar.unavailable') });
+      set({ notice: t(locale, (source?.imageEmbedding?.length || source?.clipEmbedding?.length) ? 'store.similar.none' : 'store.similar.unavailable') });
       return;
     }
 

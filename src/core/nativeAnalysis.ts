@@ -780,7 +780,7 @@ export async function analyzeNative(
     ...imageAnalysis,
     ...meshStats,
     ...(sceneTags.length ? { sceneTags } : {}),
-    ...(clip ? { aesthetic: clip.aesthetic } : {}),
+    ...(clip ? { aesthetic: clip.aesthetic, clipEmbedding: clip.embedding, clipQuality: clip.quality } : {}),
     ...(textCoverage !== undefined ? { textCoverage } : {}),
     ...(ocrText !== undefined ? { ocrText } : {}),
     ...(imageEmbedding ? { imageEmbedding } : {}),

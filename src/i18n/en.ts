@@ -3024,4 +3024,8 @@ export const en: Record<TranslationKey, string> = {
   'factor.aesthetic': 'Photo beauty',
   'insightsPref.aesthetic.pos': 'prefers beautiful, well-lit, well-composed photos',
   'insightsPref.aesthetic.neg': 'keeps the memory, not necessarily the prettiest shot',
+  'factor.clipAffinity': 'Like what you keep',
+  'factor.clipQuality': 'Quality seen by AI',
+  'insightsPref.clipQuality.pos': 'no mercy for blurry or dark shots',
+  'insightsPref.clipQuality.neg': 'keeps imperfect shots when the moment matters',
 };

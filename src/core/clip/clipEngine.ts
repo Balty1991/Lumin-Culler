@@ -39,15 +39,18 @@ function half(h: number): number {
 }
 
 const DIM = 512;
-let tables: { keys: string[]; text: Float32Array; aw: Float32Array; ab: number } | null = null;
+let tables: { keys: string[]; text: Float32Array; aw: Float32Array; ab: number; qkeys: string[]; q: Float32Array } | null = null;
+function halves(s: string): Float32Array {
+  const raw = b64(s);
+  const u16 = new Uint16Array(raw.buffer, raw.byteOffset, raw.byteLength / 2);
+  const out = new Float32Array(u16.length);
+  for (let i = 0; i < u16.length; i++) out[i] = half(u16[i]);
+  return out;
+}
 function load() {
   if (tables) return tables;
-  const raw = b64(data.text);
-  const u16 = new Uint16Array(raw.buffer, raw.byteOffset, raw.byteLength / 2);
-  const text = new Float32Array(u16.length);
-  for (let i = 0; i < u16.length; i++) text[i] = half(u16[i]);
   const awb = b64(data.aw);
-  tables = { keys: data.keys, text, aw: new Float32Array(awb.buffer, awb.byteOffset, DIM), ab: data.ab };
+  tables = { keys: data.keys, text: halves(data.text), aw: new Float32Array(awb.buffer, awb.byteOffset, DIM), ab: data.ab, qkeys: data.qkeys, q: halves(data.q) };
   return tables;
 }
 
@@ -57,6 +60,26 @@ export function aestheticOf(e: ArrayLike<number>): number {
   let z = t.ab;
   for (let i = 0; i < DIM; i++) z += e[i] * t.aw[i];
   return Math.round(z * 100) / 100;
+}
+
+/**
+ * CLIP-IQA: pentru fiecare pereche („poză clară” / „poză mișcată”, „bine
+ * expusă” / „întunecată”, „poză bună” / „poză proastă”) cât de mult înclină
+ * poza spre partea bună, 0..1. Testat în CI: aceeași cameră estompată coboară
+ * de la 0,55 la 0,09, întunecată la 0,27. E relativ, nu absolut — de aceea
+ * intră în motor normalizat, ca orice alt semnal.
+ */
+export function qualityOf(e: ArrayLike<number>): { score: number; parts: Record<string, number> } {
+  const t = load();
+  const parts: Record<string, number> = {};
+  t.qkeys.forEach((key, k) => {
+    let good = 0, bad = 0;
+    for (let i = 0; i < DIM; i++) { good += e[i] * t.q[(2 * k) * DIM + i]; bad += e[i] * t.q[(2 * k + 1) * DIM + i]; }
+    parts[key] = 1 / (1 + Math.exp(-(good - bad) * 100));
+  });
+  const used = ['sharp', 'exposure', 'quality'].filter(k => parts[k] !== undefined);
+  const score = used.reduce((a, k) => a + parts[k], 0) / Math.max(1, used.length);
+  return { score: Math.round(score * 1000) / 1000, parts };
 }
 
 /** Probabilitatea fiecărei etichete (softmax cu scala CLIP 100). */
@@ -123,13 +146,13 @@ export async function prepareClip(anyNetwork = false): Promise<boolean> {
   } catch { return false; }
 }
 
-export interface ClipResult { aesthetic: number; embedding: number[] }
+export interface ClipResult { aesthetic: number; quality: number; embedding: number[] }
 
 export async function clipAnalyze(source: NativeImageSource): Promise<ClipResult | null> {
   if (!(await clipReady())) return null;
   try {
     const { embedding } = await ClipNative.embed(await nativeImageParams(source));
     if (embedding?.length !== DIM) return null;
-    return { aesthetic: aestheticOf(embedding), embedding };
+    return { aesthetic: aestheticOf(embedding), quality: qualityOf(embedding).score, embedding };
   } catch { return null; }
 }

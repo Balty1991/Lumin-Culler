@@ -304,7 +304,11 @@ export const PRIOR_WEIGHTS: FeatureVector = {
   // sute de mii de note date de oameni, deci cel mai „uman” semnal de frumusețe
   // pe care îl avem. Pondere bună, dar sub claritate și ochi deschiși: o poză
   // frumoasă dar mișcată tot nu e de păstrat.
-  aesthetic: 0.6
+  aesthetic: 0.6,
+  // Ca subjectAffinity: pornit mic, își câștigă ponderea dacă chiar prezice.
+  clipAffinity: 0.25,
+  // CLIP-IQA: descrieri „poză clară / mișcată”, „bine expusă / întunecată” etc.
+  clipQuality: 0.4
 };
 
 /**
@@ -393,6 +397,8 @@ const PRIOR_FEATURE_STATS: Record<string, { mean: number; std: number }> = {
   colorHarmony: { mean: 0.6, std: 0.2 },
   // (LAION − 4) / 3: pozele de telefon stau în jur de 5,5 → 0,5.
   aesthetic: { mean: 0.5, std: 0.2 },
+  clipAffinity: { mean: 0.5, std: 0.15 },
+  clipQuality: { mean: 0.6, std: 0.2 },
   bestSmile: { mean: 0.4, std: 0.3 },
   allEyesOpen: { mean: 0.75, std: 0.43 },
   faceCount: { mean: 0.2, std: 0.15 },
@@ -469,7 +475,7 @@ const FACTOR_FEATURES = new Set([
   'shutterSpeedRaw', 'focalLengthRaw', 'flashFired', 'deliberateSettings',
   'compositionScore', 'leadingLines', 'symmetry',
   'negativeSpace', 'lightHard', 'lightSoft', 'goldenHour', 'subjectInFocus',
-  'bokehQuality', 'colorHarmony', 'bodyCroppedAtEdge', 'subjectProminence', 'noCameraMetadata', 'aesthetic'
+  'bokehQuality', 'colorHarmony', 'bodyCroppedAtEdge', 'subjectProminence', 'noCameraMetadata', 'aesthetic', 'clipAffinity', 'clipQuality'
 ]);
 
 /**
@@ -636,7 +642,7 @@ function hasDeliberateSettings(a: Pick<AnalysisRecord, 'exposureBias' | 'whiteBa
 
 export function extractFeatures(
   a: AnalysisRecord,
-  memorySignals?: { contentAffinity?: number | null; subjectAffinity?: number | null },
+  memorySignals?: { contentAffinity?: number | null; subjectAffinity?: number | null; clipAffinity?: number | null },
   /**
    * A declarat utilizatorul PE CINEVA drept persoana lui? Implicit `true`, ca
    * apelantii care nu stiu de acest parametru sa se comporte ca inainte.
@@ -719,6 +725,11 @@ export function extractFeatures(
   if (memorySignals?.subjectAffinity !== undefined && memorySignals.subjectAffinity !== null) {
     features.subjectAffinity = memorySignals.subjectAffinity;
   }
+  // Același lucru pe CLIP, care există și la pozele CU oameni: „seamănă cu ce
+  // păstrezi tu” spus de un model care înțelege scena, nu doar textura.
+  if (memorySignals?.clipAffinity !== undefined && memorySignals.clipAffinity !== null) {
+    features.clipAffinity = memorySignals.clipAffinity;
+  }
   // Cat din cadru e text (documente, capturi de ecran). Se calcula deja, dar era
   // folosit DOAR ca poarta binara la auto-selectare (decidePhotoStatus) — ca
   // feature, motorul poate invata si contrariul, pentru cine chiar isi tine
@@ -726,6 +737,7 @@ export function extractFeatures(
   if (a.textCoverage !== undefined) features.textCoverage = a.textCoverage;
   // Scorul estetic CLIP/LAION — absent (nu 0.5) cât timp modelul n-a rulat pe poză.
   if (a.aesthetic !== undefined) features.aesthetic = Math.min(1, Math.max(0, (a.aesthetic - 4) / 3));
+  if (a.clipQuality !== undefined) features.clipQuality = a.clipQuality;
   // Nicio urma de aparat foto in fisier (capturi de ecran, meme-uri, imagini
   // primite) — vezi lacksCameraMetadata.
   features.noCameraMetadata = lacksCameraMetadata(a) ? 1 : 0;
@@ -840,6 +852,8 @@ export class ContextEngine {
   private models = new Map<string, ContextModelRecord>();
   /** Memoria de continut (vezi learning/embeddingMemory.ts) — tinuta aici ca predict() sa nu citeasca din DB pentru fiecare poza dintr-un import de sute. */
   private embeddingMemory: EmbeddingMemoryRecord | undefined;
+  /** Aceeași memorie, pe embedding-ul CLIP (rândul 'clip'). */
+  private clipMemory: EmbeddingMemoryRecord | undefined;
   private tagMemory: TagMemoryRecord | undefined;
   private loaded = false;
   private loadingPromise: Promise<void> | null = null;
@@ -875,6 +889,7 @@ export class ContextEngine {
         ]);
         for (const row of rows) this.models.set(row.contextKey, row);
         this.embeddingMemory = memory;
+        this.clipMemory = await readEmbeddingMemory('clip');
         this.tagMemory = tags;
         this.enrolledPersonCount = persons;
         this.loaded = true;
@@ -884,8 +899,9 @@ export class ContextEngine {
   }
 
   /** Cele doua semnale de memorie ale acestei poze — fiecare null cand nu se aplica (lipsa datelor sau prea putine decizii). */
-  private memorySignals(analysis: AnalysisRecord): { contentAffinity: number | null; subjectAffinity: number | null } {
+  private memorySignals(analysis: AnalysisRecord): { contentAffinity: number | null; subjectAffinity: number | null; clipAffinity: number | null } {
     return {
+      clipAffinity: analysis.clipEmbedding ? affinity(analysis.clipEmbedding, this.clipMemory) : null,
       contentAffinity: analysis.imageEmbedding ? affinity(analysis.imageEmbedding, this.embeddingMemory) : null,
       subjectAffinity: tagAffinity(subjectTags(analysis), this.tagMemory)
     };
@@ -1013,6 +1029,10 @@ export class ContextEngine {
       if (input.analysis.imageEmbedding?.length) {
         await recordEmbeddingDecision(input.analysis.imageEmbedding, input.userDecision);
         this.embeddingMemory = await readEmbeddingMemory();
+      }
+      if (input.analysis.clipEmbedding?.length) {
+        await recordEmbeddingDecision(input.analysis.clipEmbedding, input.userDecision, 'clip');
+        this.clipMemory = await readEmbeddingMemory('clip');
       }
       // Etichetele modelului PLUS cuvintele din descriere — vezi
       // core/descriptionTags.ts. Aceeasi lista si aici, si la predictie: doua
@@ -1166,10 +1186,12 @@ export class ContextEngine {
       const sides = [{ analysis: input.winner.analysis, kept: true }, ...input.losers.map(l => ({ analysis: l.analysis, kept: false }))];
       for (const side of sides) {
         if (side.analysis.imageEmbedding?.length) await recordEmbeddingDecision(side.analysis.imageEmbedding, side.kept);
+        if (side.analysis.clipEmbedding?.length) await recordEmbeddingDecision(side.analysis.clipEmbedding, side.kept, 'clip');
         const tags = subjectTags(side.analysis);
         if (tags.length) await recordTagDecision(tags, side.kept);
       }
       this.embeddingMemory = await readEmbeddingMemory();
+      this.clipMemory = await readEmbeddingMemory('clip');
       this.tagMemory = await readTagMemory();
     } catch (err) {
       console.error('Memoria de conținut n-a putut învăța din preferință:', err);
@@ -1193,7 +1215,7 @@ export class ContextEngine {
     'apertureRaw', 'shutterSpeedRaw', 'focalLengthRaw', 'flashFired', 'deliberateSettings',
     'compositionScore', 'leadingLines',
     'symmetry', 'negativeSpace', 'lightHard', 'lightSoft', 'goldenHour', 'subjectInFocus',
-    'bokehQuality', 'colorHarmony', 'subjectProminence', 'noCameraMetadata', 'aesthetic'
+    'bokehQuality', 'colorHarmony', 'subjectProminence', 'noCameraMetadata', 'aesthetic', 'clipQuality'
   ]);
 
   /** Rezumat lizibil al tuturor contextelor invatate — pentru panoul "Preferinte AI" din UI. */
@@ -1280,6 +1302,7 @@ export class ContextEngine {
   async reload(): Promise<void> {
     this.models.clear();
     this.embeddingMemory = undefined;
+    this.clipMemory = undefined;
     this.tagMemory = undefined;
     this.loaded = false;
     await this.init();
@@ -1296,6 +1319,7 @@ export class ContextEngine {
       // include, la fel ca ponderile. Un reset PE CONTEXT nu: memoria e una
       // singura, comuna tuturor contextelor.
       this.embeddingMemory = undefined;
+      this.clipMemory = undefined;
       this.tagMemory = undefined;
       await Promise.all([resetEmbeddingMemory(), resetTagMemory()]);
     }

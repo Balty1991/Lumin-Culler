@@ -23,17 +23,17 @@ export async function startClipBackfill(): Promise<void> {
   running = true;
   try {
     if (!(await prepareClip())) return;
-    const todo = await db.analyses.filter(a => a.aesthetic === undefined).primaryKeys();
+    const todo = await db.analyses.filter(a => a.clipEmbedding === undefined).primaryKeys();
     for (let i = 0; i < todo.length; i += BATCH) {
       const changed = new Map<string, { sceneTags?: string[]; aiScore: number }>();
       for (const id of todo.slice(i, i + BATCH)) {
         while (useStore.getState().progress) await sleep(3000);
         const [photo, analysis] = await Promise.all([db.photos.get(id as string), db.analyses.get(id as string)]);
-        if (!photo?.mediaUri || !analysis || analysis.aesthetic !== undefined) continue;
+        if (!photo?.mediaUri || !analysis || analysis.clipEmbedding !== undefined) continue;
         const clip = await clipAnalyze({ uri: photo.mediaUri, maxSide: 480 });
         if (!clip) { await sleep(PAUSE_MS); continue; }
         const tags = refineTags(analysis.sceneTags, clip.embedding);
-        const next = { ...analysis, aesthetic: clip.aesthetic, sceneTags: tags.length ? tags : undefined };
+        const next = { ...analysis, aesthetic: clip.aesthetic, clipEmbedding: clip.embedding, clipQuality: clip.quality, sceneTags: tags.length ? tags : undefined };
         const prediction = await contextEngine.predict(next, photo.genre);
         next.aiScore = prediction.score;
         next.aiFactors = prediction.topFactors;

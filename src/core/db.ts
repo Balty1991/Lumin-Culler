@@ -538,6 +538,10 @@ export interface AnalysisRecord {
    * s-a descărcat; absent = necunoscut (neutru în ContextEngine).
    */
   aesthetic?: number;
+  /** Embedding-ul CLIP (512, normalizat), la toate pozele — gust, serii, calitate. Doar Android. */
+  clipEmbedding?: number[];
+  /** CLIP-IQA 0..1: media descrierilor „clară / bine expusă / bună” față de opusul lor. */
+  clipQuality?: number;
   /**
    * Animalul ca individ, nu doar specia din sceneTags.
    *
@@ -625,7 +629,8 @@ export interface ContextModelRecord {
  * decizie si nu tine minte nicio poza individuala — doar directia generala.
  */
 export interface EmbeddingMemoryRecord {
-  id: 'current';
+  /** 'current' = embedding-ul MobileNet (1024); 'clip' = CLIP ViT-B/32 (512), la toate pozele. */
+  id: 'current' | 'clip';
   /** Suma embedding-urilor pastrate (impartita la keptCount da centroida). */
   keptSum: number[];
   keptCount: number;

@@ -962,6 +962,7 @@ export function toHashInput(id: string, dHash: string, a: AnalysisRecord, captur
     avgEyeContact: a.avgEyeContact,
     faceEmbeddings: a.faces.map(f => f.embedding).filter((e): e is number[] => !!e && e.length > 0),
     imageEmbedding: a.imageEmbedding,
+    clipEmbedding: a.clipEmbedding,
     colorHarmonyScore: a.colorHarmonyScore,
     dominantColors: a.dominantColors
   };
