@@ -185,10 +185,18 @@ export function Tunnel3D({ list, onOpen, onClose }: { list: PhotoView[]; onOpen:
       if (worldEl.current) worldEl.current.style.transform = `rotateY(${sway.current.x}deg) rotateX(${sway.current.y}deg)`;
       // Warp discret: doar la viteză mare, dâre scurte și fine care se sting (raportat: prea multe, prea dure).
       const warp = Math.max(0, Math.min(1, (Math.abs(dp) - 0.03) * 10));
-      cx.fillStyle = '#050305'; cx.fillRect(0, 0, W, H);
-      const g = cx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.6);
-      g.addColorStop(0, `rgba(255,79,127,${0.10 + warp * 0.05})`); g.addColorStop(1, 'rgba(255,79,127,0)');
+      // Black rose cu contrast: negru adânc pe margini, trandafir concentrat în centru
+      // (de unde vin pozele), vignetă (raportat: fundalul părea o ceață maronie).
+      cx.fillStyle = '#020102'; cx.fillRect(0, 0, W, H);
+      const R = Math.max(W, H);
+      const g = cx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, R * 0.42);
+      g.addColorStop(0, `rgba(255,46,110,${0.2 + warp * 0.08})`);
+      g.addColorStop(0.35, `rgba(196,24,82,${0.09 + warp * 0.04})`);
+      g.addColorStop(1, 'rgba(120,10,50,0)');
       cx.fillStyle = g; cx.fillRect(0, 0, W, H);
+      const v = cx.createRadialGradient(W / 2, H / 2, R * 0.3, W / 2, H / 2, R * 0.75);
+      v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,0.7)');
+      cx.fillStyle = v; cx.fillRect(0, 0, W, H);
       cx.lineCap = 'round';
       for (const st of stars) {
         const f = 1 + dp * 0.22 * (0.4 + st.z);
