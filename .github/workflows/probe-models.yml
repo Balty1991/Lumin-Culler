@@ -8,16 +8,36 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          pip install -q onnxruntime numpy pillow 2>&1 | tail -1
-          for q in ferplus "emotion ferplus" rife "frame interpolation" ; do echo "== search $q"; curl -fsSL "https://huggingface.co/api/models?search=$(echo $q | sed 's/ /%20/g')&limit=12" | python3 -c "import sys,json; [print(' ',m['id']) for m in json.load(sys.stdin)]"; done
-          for r in onnxmodelzoo/emotion-ferplus-8 webml/models onnx-community/Florence-2-base-ft; do echo "=== $r"; curl -fsSL "https://huggingface.co/api/models/$r/tree/main?recursive=1" | python3 -c "import sys,json; [print(' ',x['path'],x.get('size')) for x in json.load(sys.stdin) if x['type']=='file' and ('ferplus' in x['path'] or 'emotion' in x['path'] or x['path'].endswith(('int8.onnx','quantized.onnx','.json')))]" 2>&1 | head -40; curl -fsSL "https://huggingface.co/api/models/$r" | python3 -c "import sys,json; d=json.load(sys.stdin); print('  lic', [t for t in d.get('tags',[]) if 'license' in t])" 2>/dev/null; done
+          pip install -q onnxruntime numpy pillow tokenizers 2>&1 | tail -1
           R=https://huggingface.co/onnx-community/Florence-2-base-ft/resolve/main
-          for f in vision_encoder_int8 embed_tokens_int8 encoder_model_int8 decoder_model_int8; do curl -fsSL -o $f.onnx "$R/onnx/$f.onnx" && ls -la $f.onnx; done
-          curl -fsSL -o fl_cfg.json "$R/preprocessor_config.json"; cat fl_cfg.json; echo
+          for f in vision_encoder_int8 embed_tokens_int8 encoder_model_int8 decoder_model_int8; do curl -fsSL -o $f.onnx "$R/onnx/$f.onnx"; done
+          curl -fsSL -o tokenizer.json "$R/tokenizer.json"; curl -fsSL "$R/generation_config.json"; echo
+          curl -fsSL -o fer.onnx https://huggingface.co/onnxmodelzoo/emotion-ferplus-8/resolve/main/emotion-ferplus-8.onnx; ls -la fer.onnx
+          curl -fsSL "https://huggingface.co/api/models/yuvraj108c/rife-onnx/tree/main?recursive=1" | python3 -c "import sys,json; [print(' ',x['path'],x.get('size')) for x in json.load(sys.stdin) if x['type']=='file']"
+          curl -fsSL "https://huggingface.co/api/models/yuvraj108c/rife-onnx" | python3 -c "import sys,json; d=json.load(sys.stdin); print('rife lic', [t for t in d.get('tags',[]) if 'license' in t])"
+          curl -fsSL https://huggingface.co/yuvraj108c/rife-onnx/resolve/main/README.md | head -40
+          for i in 000000039769 000000000785 000000001000; do curl -fsSL -o "$i.jpg" "http://images.cocodataset.org/val2017/$i.jpg"; done
           python - <<'PY'
-          import onnxruntime as ort
-          for f in ['vision_encoder_int8','embed_tokens_int8','encoder_model_int8','decoder_model_int8']:
-              try:
-                  s=ort.InferenceSession(f+'.onnx'); print(f, [(i.name,i.shape,i.type) for i in s.get_inputs()], [(o.name,o.shape) for o in s.get_outputs()][:3])
-              except Exception as e: print(f,'ERR',e)
+          import onnxruntime as ort, numpy as np, time, json
+          from PIL import Image
+          from tokenizers import Tokenizer
+          tok=Tokenizer.from_file('tokenizer.json')
+          S={f:ort.InferenceSession(f+'.onnx') for f in ['vision_encoder_int8','embed_tokens_int8','encoder_model_int8','decoder_model_int8']}
+          ids=tok.encode('What does the image describe?').ids; print('PROMPT_IDS', ids)
+          mean=np.array([0.485,0.456,0.406]); std=np.array([0.229,0.224,0.225])
+          def emb(x): return S['embed_tokens_int8'].run(None,{'input_ids':np.array([x],np.int64)})[0]
+          for f in ['000000039769.jpg','000000000785.jpg','000000001000.jpg']:
+              t0=time.time()
+              im=Image.open(f).convert('RGB').resize((768,768),Image.BICUBIC)
+              x=((np.asarray(im,np.float32)/255-mean)/std).transpose(2,0,1)[None].astype(np.float32)
+              feat=S['vision_encoder_int8'].run(None,{'pixel_values':x})[0]
+              inp=np.concatenate([feat,emb(ids)],axis=1); mask=np.ones(inp.shape[:2],np.int64)
+              enc=S['encoder_model_int8'].run(None,{'inputs_embeds':inp,'attention_mask':mask})[0]
+              t1=time.time(); out=[2]
+              for _ in range(30):
+                  lg=S['decoder_model_int8'].run(['logits'],{'inputs_embeds':emb(out),'encoder_hidden_states':enc,'encoder_attention_mask':mask})[0]
+                  n=int(lg[0,-1].argmax()); out.append(n)
+                  if n==2: break
+              print(f, 'enc %.0fms dec %.0fms'%((t1-t0)*1000,(time.time()-t1)*1000), out, repr(tok.decode(out, skip_special_tokens=True)))
+          s=ort.InferenceSession('fer.onnx'); print('FER',[(i.name,i.shape) for i in s.get_inputs()],[(o.name,o.shape) for o in s.get_outputs()])
           PY
