@@ -3233,6 +3233,9 @@ export const ro = {
   'lx.widget.memoryN': "Acum {years} ani · Cherrypic",
   'lx.widget.recent': "Din luna asta · Cherrypic",
   'lx.viewer.aiSeesLocal': "AI-ul vede:",
+  'lx.tunnel.title': "Galerie 3D",
+  'lx.tunnel.hint': "Trage în sus ca să mergi înapoi în timp · atinge o poză",
+  'lx.tunnel.open': "Deschide galeria 3D",
 };
 
 export type TranslationKey = keyof typeof ro;

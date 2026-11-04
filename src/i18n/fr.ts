@@ -1114,4 +1114,7 @@ export const dict: Record<string, string> = {
   'lx.widget.memoryN': "Il y a {years} ans · Cherrypic",
   'lx.widget.recent': "Ce mois-ci · Cherrypic",
   'lx.viewer.aiSeesLocal': "L'IA voit :",
+  'lx.tunnel.title': "Galerie 3D",
+  'lx.tunnel.hint': "Glissez vers le haut pour remonter le temps · touchez une photo",
+  'lx.tunnel.open': "Ouvrir la galerie 3D",
 };

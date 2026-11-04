@@ -35,6 +35,7 @@ import { planBestTake, renderBestTake, type BestTakeFix } from './bestTake';
 import { burstFilmAvailable, makeBurstFilm, type BurstFilm } from './burstFilm';
 import { FilmSheet } from './FilmSheet';
 import { BurstTidy } from './BurstTidy';
+import { Tunnel3D } from './Tunnel3D';
 import { logError } from '../core/errorLog';
 import { saveEditedBlob } from './saveEdited';
 import { EnhanceSheet } from './Enhance';
@@ -182,6 +183,7 @@ export function GalleryWall() {
   const [filter, setFilter] = useState<Filter>('all');
   const [shown, setShown] = useState(PAGE);
   const [viewer, setViewer] = useState<{ index: number; origin: DOMRect | null } | null>(null);
+  const [tunnel, setTunnel] = useState(false);
   const [query, setQuery] = useState('');
   const [withDocs, setWithDocs] = useState(false);
   const docCount = useRef(0);
@@ -456,6 +458,10 @@ export function GalleryWall() {
               </button>
             ))}
           </div>
+          {/* Galerie 3D: călătoria în timp printre pozele din filtrul ales. */}
+          <button className="lx-density-btn lx-3d-btn" onClick={() => setTunnel(true)} aria-label={tr('lx.tunnel.open')} disabled={list.length === 0}>
+            <b>3D</b>
+          </button>
           {/* Mărimea grilei: un singur buton care trece prin 2→5 coloane (și ciupitul merge). */}
           <button className="lx-density-btn" aria-label={`${tr('lx.wall.density')}: ${density}`}
             onClick={e => setDensity((density >= 5 ? 2 : density + 1) as Density, e.currentTarget)}>
@@ -509,6 +515,7 @@ export function GalleryWall() {
         if (need >= shown) setShown(Math.min(list.length, need + PAGE));
         requestAnimationFrame(() => document.querySelector(`[data-month="${start}"]`)?.scrollIntoView({ block: 'start' }));
       }} />}
+      {tunnel && <Tunnel3D list={list} onOpen={i => setViewer({ index: i, origin: null })} onClose={() => setTunnel(false)} />}
       {viewer !== null && list[viewer.index] && (
         <Viewer list={list} index={viewer.index} origin={viewer.origin}
           onIndex={i => setViewer({ index: i, origin: null })} onClose={() => closeWithTransition(() => setViewer(null), list[viewer.index]?.id)} onSimilar={id => void showSimilar(id)} />

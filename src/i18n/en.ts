@@ -3147,4 +3147,7 @@ export const en: Record<TranslationKey, string> = {
   'lx.widget.memoryN': "{years} years ago · Cherrypic",
   'lx.widget.recent': "From this month · Cherrypic",
   'lx.viewer.aiSeesLocal': "AI sees:",
+  'lx.tunnel.title': "3D gallery",
+  'lx.tunnel.hint': "Swipe up to travel back in time · tap a photo",
+  'lx.tunnel.open': "Open the 3D gallery",
 };
