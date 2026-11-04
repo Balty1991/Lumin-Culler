@@ -1096,4 +1096,8 @@ export const dict: Record<string, string> = {
   'lx.burstTidy.done': "Fertig: {count} Serienfotos sind bei „Nicht heute“.",
   'lx.viewer.moreInfo': "Mehr Details",
   'lx.viewer.lessInfo': "Weniger Details",
+  'lx.intro.title': "KI auf deinem Handy einrichten",
+  'lx.intro.body': "Damit Cherrypic wie du auswählt, in Worten sucht und bearbeitet, lädt es die KI-Engines einmalig (≈{mb} MB). Sie laufen nur auf dem Handy: deine Fotos verlassen es nie.",
+  'lx.intro.wifi': "Nur im WLAN",
+  'lx.intro.any': "Jetzt laden",
 };

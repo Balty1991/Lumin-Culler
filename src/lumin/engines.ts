@@ -9,6 +9,7 @@ import { useSyncExternalStore } from 'react';
 import { ClipNative, isClipPlatform } from '../core/clip/clipEngine';
 import { logError } from '../core/errorLog';
 import { weakDevice } from '../core/deviceClass';
+import { mayDownloadNow } from './dataMode';
 
 const HF = 'https://huggingface.co';
 const FL = `${HF}/onnx-community/Florence-2-base-ft/resolve/main`;
@@ -111,6 +112,8 @@ export async function autoFetchEngines(): Promise<void> {
   const weak = await weakDevice();
   for (const e of ENGINES) {
     if (engineReady(e) || (weak && (e.id === 'describe' || e.id === 'eraserHd'))) continue;
+    // „Doar pe Wi-Fi”: pe date mobile, descărcarea automată așteaptă (butoanele din Setări merg oricum).
+    if (!mayDownloadNow()) { autoDone = false; return; }
     if (!(await downloadEngine(e.id))) await downloadEngine(e.id); // o reîncercare
   }
 }

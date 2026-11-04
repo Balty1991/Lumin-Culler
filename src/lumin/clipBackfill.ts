@@ -10,12 +10,13 @@
 import { db } from '../core/db';
 import { contextEngine } from '../core/learning/ContextEngine';
 import { clipAnalyze, prepareClip, refineTags, isClipPlatform } from '../core/clip/clipEngine';
-import { downloadModels, getModelsState, setModelsState } from './aiModels';
+import { downloadModels, getModelsState, refreshModels, setModelsState } from './aiModels';
 import { useStore } from '../state/store';
 import { holdBackgroundAnalysis, releaseBackgroundAnalysis, updateHeldBackground } from '../core/backgroundAnalysis';
 import { t } from '../i18n';
 import { waitForUserIdle } from '../core/userIdle';
 import { weakDevice } from '../core/deviceClass';
+import { dataMode } from './dataMode';
 import { captionPhoto, closeFlorence, joyOf, prepareFlorence } from '../core/extraEngines';
 
 const BATCH = 12;
@@ -26,8 +27,10 @@ let holding = false;
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-export async function startClipBackfill(anyNetwork = true): Promise<void> {
+export async function startClipBackfill(anyNetwork = dataMode() !== 'wifi'): Promise<void> {
   if (running || !isClipPlatform()) return;
+  // Prima pornire: întâi omul alege rețeaua (cardul de pe Azi), apoi descărcăm.
+  if (dataMode() === null) { await refreshModels().catch(() => undefined); if (!getModelsState().visionReady) return; }
   running = true;
   try {
     // Ambele modele întâi (cu progres în Setări), apoi trecerea prin poze.

@@ -35,6 +35,8 @@ import { photoTime } from './days';
  * așteaptă). Dedesubt, rezultatul zilei: pozele alese, mari, cu motivul; un
  * singur buton pentru ce mai cere o decizie. Apoi zilele trecute, pe scurt.
  */
+import { EnginesIntro } from './EnginesIntro';
+
 export function TodayScreen() {
   const tr = useTr();
   const { pick } = useLxActions();
@@ -104,6 +106,7 @@ export function TodayScreen() {
         {streak > 1 && <span className="lx-pill warm">{tr('lx.streak', { count: streak })}</span>}
       </header>
 
+      <EnginesIntro />
       {!busy && <DayPhotoHero />}
 
       <section className={busy || !heroShown ? 'lx-hero' : 'lx-hero compact'}>

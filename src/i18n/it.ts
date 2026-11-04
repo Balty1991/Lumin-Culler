@@ -1096,4 +1096,8 @@ export const dict: Record<string, string> = {
   'lx.burstTidy.done': "Fatto: {count} foto delle raffiche sono in “Non oggi”.",
   'lx.viewer.moreInfo': "Più dettagli",
   'lx.viewer.lessInfo': "Meno dettagli",
+  'lx.intro.title': "Preparo l'IA sul tuo telefono",
+  'lx.intro.body': "Per scegliere come te, cercare a parole e modificare, Cherrypic scarica una volta i motori IA (≈{mb} MB). Funzionano solo sul telefono: le foto non escono mai.",
+  'lx.intro.wifi': "Solo Wi‑Fi",
+  'lx.intro.any': "Scarica ora",
 };

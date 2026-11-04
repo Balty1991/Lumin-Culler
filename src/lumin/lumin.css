@@ -1419,3 +1419,8 @@ html, body { overflow-x: hidden; }
 .lx-tile-star { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: rgb(6 7 10 / .62) !important; }
 .lx-screen > .lx-seg.scroll { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: color-mix(in srgb, var(--bg) 97%, transparent) !important; }
 .lx-dock { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: color-mix(in srgb, var(--surface) 97%, transparent) !important; }
+
+/* Prima pornire: motoarele AI, cât și pe ce rețea. */
+.lx-engines-intro { display: flex; flex-direction: column; gap: 10px; border-color: rgb(var(--accent-rgb) / .3); background: linear-gradient(135deg, rgb(var(--accent-rgb) / .12), rgb(var(--accent-rgb) / .03)); }
+.lx-engines-intro b { font-size: 16px; }
+.lx-engines-intro p { margin: 0; color: var(--text-dim); font-size: 14px; line-height: 1.45; }

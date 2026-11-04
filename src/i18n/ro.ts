@@ -3215,6 +3215,10 @@ export const ro = {
   'lx.burstTidy.done': "Gata: {count} poze din serii au trecut la „Nu azi”.",
   'lx.viewer.moreInfo': "Mai multe detalii",
   'lx.viewer.lessInfo': "Mai puține detalii",
+  'lx.intro.title': "Pregătesc AI-ul pe telefonul tău",
+  'lx.intro.body': "Ca să aleagă ca tine, să caute în cuvinte și să editeze, Cherrypic descarcă o singură dată motoarele AI (≈{mb} MB). Rulează doar pe telefon: pozele nu pleacă nicăieri.",
+  'lx.intro.wifi': "Doar pe Wi‑Fi",
+  'lx.intro.any': "Descarcă acum",
 };
 
 export type TranslationKey = keyof typeof ro;
